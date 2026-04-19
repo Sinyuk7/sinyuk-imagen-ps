@@ -26,8 +26,21 @@ The project needs a clear execution contract before implementation begins becaus
 
 None.
 
+## Capability Dependencies
+
+- `job-execution-engine` depends on stable workflow, provider, and asset boundary contracts but remains independent of host APIs.
+- `workflow-runtime`, `provider-registry`, and `asset-io-adapters` are the prerequisite shared capabilities for every end-to-end flow in this change.
+- `web-job-console` and `photoshop-uxp-integration` are downstream host integrations over the same shared runtime contracts.
+- These six capabilities are sufficient for the v1 foundation because they cover the full shared execution path plus the two required reference hosts, while leaving persistence, cancellation UX, and advanced workflow editing out of scope.
+
+## Foundation Exit Criteria
+
+- Canonical shared contracts exist for jobs, workflows, provider results, asset descriptors, and structured failures.
+- One mock provider and one real provider can execute end to end through both hosts without host-specific imports leaking into shared packages.
+- Host-visible failures are structured and inspectable, and terminal outputs remain portable across the shared runtime boundary.
+
 ## Impact
 
 - Creates new specs for the core engine, workflow runtime, provider layer, asset boundary, and both host applications.
 - Guides initial implementation in `packages/core-engine`, `packages/providers`, `packages/workflows`, `apps/web`, and `apps/ps-uxp`.
-- Introduces runtime dependencies and patterns centered on TypeScript, Zod, mitt, Zustand vanilla, React, and host-specific adapter implementations.
+- Establishes the contract baseline needed before adding real providers, host adapters, and contract tests in the monorepo.

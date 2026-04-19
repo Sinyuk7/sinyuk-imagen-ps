@@ -1,7 +1,7 @@
 ## ADDED Requirements
 
-### Requirement: Providers are registered by stable identifiers
-The system SHALL register providers under unique identifiers that hosts and workflows can reference at job submission time.
+### Requirement: Providers are registered by stable identifiers with declared capabilities
+The system SHALL register providers under unique identifiers that hosts and workflows can reference at job submission time. Each provider definition SHALL declare its supported capability set and expose a stable lookup contract.
 
 #### Scenario: Job references a registered provider
 - **WHEN** a job specifies a provider identifier that exists in the registry
@@ -30,13 +30,30 @@ The engine SHALL treat provider input as opaque data beyond schema validation an
 - **WHEN** two providers define incompatible input schemas for similar generation tasks
 - **THEN** each provider receives its own validated input shape without engine-level normalization
 
-### Requirement: Providers may transform inputs or outputs at integration boundaries
-The provider contract SHALL support optional `transformInput` and `transformOutput` hooks to adapt host or workflow payloads without changing engine behavior.
+### Requirement: Provider outputs normalize into a stable shared result envelope
+The provider contract SHALL return a stable `ProviderResult` envelope containing declared output payload, output asset descriptors when produced, and diagnostics. Provider-specific remote response shapes SHALL NOT leak past the provider boundary without conversion into that envelope.
 
-#### Scenario: Provider needs host payload adaptation
-- **WHEN** a provider receives a payload that requires reshaping before remote invocation
-- **THEN** `transformInput` can convert the validated engine payload into the provider call payload
+#### Scenario: Provider receives a remote response with provider-specific structure
+- **WHEN** the remote API returns provider-specific fields or transport wrappers
+- **THEN** the provider converts that response into the shared `ProviderResult` envelope before returning to the workflow runtime
 
-#### Scenario: Provider returns host-facing result metadata
+### Requirement: Provider boundary transforms are optional and tightly scoped
+The provider contract SHALL support optional `transformInput` and `transformOutput` hooks to adapt payloads at the provider boundary only. These transforms SHALL NOT mutate engine state, rewrite workflow definitions, or normalize cross-provider semantics on behalf of the engine.
+
+#### Scenario: Provider needs payload adaptation before remote invocation
+- **WHEN** a provider receives a validated workflow payload that requires reshaping before remote invocation
+- **THEN** `transformInput` converts the validated provider input into the provider call payload
+- **THEN** the original validated provider input remains unchanged for diagnostics
+
+#### Scenario: Provider needs payload adaptation after remote invocation
 - **WHEN** a provider returns raw remote response data
-- **THEN** `transformOutput` can normalize it into the workflow output expected by downstream steps
+- **THEN** `transformOutput` converts that response into the shared `ProviderResult` envelope expected by downstream workflow steps
+- **THEN** the engine does not reinterpret provider-specific semantics after the transform
+
+### Requirement: Provider failures remain distinct from engine failures
+Timeout, retry, and remote failure behavior SHALL be owned by the provider implementation or its configuration. The engine SHALL surface resulting failures as structured provider failures rather than reclassifying them as workflow or host failures.
+
+#### Scenario: Provider remote call times out
+- **WHEN** a provider invocation exceeds its configured timeout or exhausts retry policy
+- **THEN** the provider returns or throws a structured provider failure
+- **THEN** the engine records that failure with a provider-specific category rather than a generic unknown error
