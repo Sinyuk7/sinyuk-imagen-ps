@@ -77,6 +77,8 @@ Applies to `core-engine`:
 * No network calls
 * No provider-specific logic
 * No parameter interpretation
+* tsconfig: `lib: ["ES2022"]` only — NO `DOM`, NO `DOM.Iterable`
+* No host-only globals (`document`, `window`, `structuredClone`, UXP APIs)
 
 Engine only:
 
@@ -134,6 +136,16 @@ Applies to `providers`:
 * No vague helpers unless clear
 * Failure must be explicit
 * Input/output must be explicit
+
+---
+
+## Invariant Guards
+
+* Guards MUST reject all invalid input explicitly — no silent pass-through
+* `JSON.stringify` is NOT a valid serialization check (silently drops functions, Map, Set, class instances)
+* Recursive utilities accepting `unknown` MUST handle cyclic references
+* Prefer structural validation (walk + type check) over round-trip tricks
+* Guard failures MUST throw with descriptive messages including the violating path
 
 ---
 
