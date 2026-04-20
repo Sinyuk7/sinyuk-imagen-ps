@@ -1,9 +1,9 @@
 ## 1. Shared Contracts And Scaffolding
 
-- [ ] 1.1 Initialize the pnpm workspace and Turborepo structure for `apps/web`, `apps/ps-uxp`, `packages/core-engine`, `packages/providers`, and `packages/workflows`
-- [ ] 1.2 Add shared TypeScript configuration, package manifests, and build scripts for pure package compilation
-- [ ] 1.3 Define shared runtime types for `JobRequest`, `JobRecord`, `JobTerminalResult`, `JobError`, `WorkflowSpec`, `StepSpec`, `ProviderResult`, and `AssetDescriptor`
-- [ ] 1.4 Encode the shared failure taxonomy and cross-capability invariants in runtime types, docs, or boundary checks so host-specific imports cannot leak into shared packages
+- [x] 1.1 Initialize the pnpm workspace and Turborepo structure for `apps/web`, `apps/ps-uxp`, `packages/core-engine`, `packages/providers`, and `packages/workflows`
+- [x] 1.2 Add shared TypeScript configuration, package manifests, and build scripts for pure package compilation
+- [x] 1.3 Define shared runtime types for `JobRequest`, `JobRecord`, `JobTerminalResult`, `JobError`, `WorkflowSpec`, `StepSpec`, `ProviderResult`, and `AssetDescriptor`
+- [x] 1.4 Encode the shared failure taxonomy and cross-capability invariants in runtime types, docs, or boundary checks so host-specific imports cannot leak into shared packages
 
 ## 2. Core Contract Implementation
 

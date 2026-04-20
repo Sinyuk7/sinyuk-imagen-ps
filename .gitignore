@@ -1,0 +1,22 @@
+# AI assistant directories
+.codex
+.codemaker
+.claude
+.agents
+
+# Dependencies
+node_modules/
+
+# Build outputs
+dist/
+*.tsbuildinfo
+
+# Turbo
+.turbo/
+
+# OS
+.DS_Store
+
+# IDE
+.vscode/
+.idea/
