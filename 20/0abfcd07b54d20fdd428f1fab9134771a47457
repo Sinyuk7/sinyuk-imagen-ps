@@ -1,0 +1,41 @@
+CLAUDE.md
+  7a85d787a333723e 1,3,5
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.3.2",
+  "base_commit_sha": "200abfcd07b54d20fdd428f1fab9134771a47457",
+  "prompts": {
+    "7822319619c5aec4": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "019da918-e3fc-7b23-bf51-d4d19a453385",
+        "model": "gpt-5.4-mini"
+      },
+      "human_author": "sinyuk",
+      "messages": [],
+      "total_additions": 60,
+      "total_deletions": 0,
+      "accepted_lines": 60,
+      "overriden_lines": 0
+    },
+    "7a85d787a333723e": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "31844937-6de9-452f-84a0-235e38c735d1",
+        "model": "claude-haiku-4-5-20251001"
+      },
+      "human_author": "sinyuk",
+      "messages": [],
+      "total_additions": 3,
+      "total_deletions": 21,
+      "accepted_lines": 3,
+      "overriden_lines": 0
+    }
+  },
+  "humans": {
+    "h_06a7404f25f628": {
+      "author": "sinyuk"
+    }
+  }
+}
