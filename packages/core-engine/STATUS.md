@@ -52,14 +52,14 @@
 
 ## 3. Planned Changes (Ordered)
 
-### Change 1: bootstrap-core-engine-scaffold
+### Change 1: bootstrap-core-engine-scaffold ✓
 - **goal**: 建立模块最小可编译骨架与入口文件。
 - **scope**: `src/index.ts`（最小桩导出，使模块可被 import 和编译）、`package.json` 脚本修正（clean 跨平台兼容）。
 - **out_of_scope**: 任何运行时逻辑、类型定义、测试、文档修正（STATUS.md 偏差已在此版本中预先修正）。
 - **why_now**: 当前模块无法编译且无入口，必须先让模块可被 import 和构建，才能叠加后续变更。
 - **depends_on**: 无。
 - **touches**: `src/index.ts`, `package.json`。
-- **openspec**: now
+- **openspec**: completed
 
 ### Change 2: define-core-shared-types
 - **goal**: 定义 Job、Workflow、Step、ProviderRef、Asset、Runtime 核心共享类型。
@@ -133,16 +133,17 @@
 
 ## 5. Next OpenSpec Change
 
-- **name**: `bootstrap-core-engine-scaffold`
-- **reason**: 当前模块 `src/` 目录几乎为空，`STATUS.md` 却错误声称大量文件已存在；必须先建立最小可编译骨架和正确的文档记录，才能在此基础上叠加任何类型或逻辑。
-- **expected outcome**: 模块可通过 `tsc` 编译；存在最小 `src/index.ts` 桩导出；`package.json` clean 脚本在 win32 可执行；`STATUS.md` 的偏差记录被修正为与实际文件系统一致。
+- **name**: `define-core-shared-types`
+- **reason**: 骨架已就位，下一步必须固化所有后续部件（store、events、runner、dispatch）依赖的类型契约；否则无法在稳定地基上构建 runner。
+- **expected outcome**: `src/types/` 下出现 Job、Workflow、Step、ProviderRef、Asset、Runtime 的类型定义与聚合导出；`src/index.ts` 更新为导出这些类型（仍可能包含暂定占位）。
+- **depends_on**: `bootstrap-core-engine-scaffold` ✓
 
 ---
 
 ## 6. Notes
 
 - **文档偏差已修正**：旧 STATUS.md 错误声称 `src/index.ts` 及多个 `src/*.ts` 文件已存在，现已按实际文件系统状态更新。根级 STATUS.md 声称 "已有 runtime 相关实现" 同样不准确，已在本文件中修正。
-- **当前实际文件状态**：`src/` 下仅存在空目录 `types/`；`src/index.ts` 及 PRD 中列出的 `errors.ts`、`store.ts`、`events.ts`、`registry.ts`、`dispatch.ts`、`runner.ts`、`runtime.ts`、`invariants.ts` 均尚未创建。
+- **当前实际文件状态**：`src/index.ts` 已创建（bootstrap 占位导出，暂定）；`src/types/` 为空目录。PRD 中列出的 `errors.ts`、`store.ts`、`events.ts`、`registry.ts`、`dispatch.ts`、`runner.ts`、`runtime.ts`、`invariants.ts` 均尚未创建。
 - **暂定项标记**：默认 workflow 的长期形态、runtime 与 facade / CLI 的最终装配位置、更细的测试矩阵，均按 SPEC.md 标记为 tentative；不应在实现中写成既定事实。
 - **zustand 保留为候选**：`package.json` 已依赖 zustand，但 PRD / SPEC 未明确要求 store 必须使用 zustand；它作为 store 实现的一个候选方案保留，最终是否采用应在 `implement-state-infrastructure` change 时根据接口收敛情况决定，并同步更新本 STATUS.md。
 - **测试文档**：当前不单独创建 `TESTING.md`；测试实践待 runner 与 runtime 稳定后再评估，与 README.md / SPEC.md 的口径一致。
