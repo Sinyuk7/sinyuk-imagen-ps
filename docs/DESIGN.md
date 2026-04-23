@@ -1,18 +1,27 @@
 # 设计系统 — Sinyuk Imagen PS
 
+## 当前适用范围
+
+本文件继续有效，但它服务的是后续 UI 阶段，不是当前 change 的交付 gate。
+
+当前 change 先完成业务核心、thin facade 和 CLI。
+当实施计划与本文件出现优先级冲突时，以 [IMPLEMENTATION_PLAN.md](./IMPLEMENTATION_PLAN.md) 为准。
+
 ## 产品语境
-- **这是什么：** 一个运行在 Photoshop UXP 里的图像生成插件，带一个可选的 web harness 用于开发和调试。核心闭环是：导入图片、输入 prompt、选择 provider / model、发送任务、拿到 result，再决定是否继续编辑。
-- **给谁用：** 面向设计师、图像工作流操作者，以及需要浏览器端镜像环境做测试和回退的开发者。
+- **这是什么：** 一个以 Photoshop 为第一目标宿主的图像生成系统。当前先建设共享业务核心、thin facade 和 CLI，后续再落 UXP UI。
+- **给谁用：** 面向设计师、图像工作流操作者，以及需要稳定业务链路与自动化入口的开发者。
 - **所处领域：** Creative tooling、AI image workbench、workflow-focused editor UI。
-- **项目类型：** Desktop plugin + optional developer web harness。
+- **项目类型：** Shared runtime + provider system + future Photoshop plugin UI。
 
 ## 术语约定
 - `chat` 在这里不是通用聊天，而是承载图像任务流的 task stream。
 - `job` 指一次完整任务，从提交到完成或失败。
 - `provider`、`model`、`prompt`、`adapter`、`host`、`UXP`、`web` 这些词保留英文，不做硬翻译。
+- `facade` 指共享的薄命令入口层，给 CLI、UI、MCP、skill 等 surface 复用。
 - UI 文案以中文为主，但技术名词、配置键、模型名、错误码保持英文，以免在实现和排障时失真。
 - 设置页采用两层结构：先是 provider 列表页，再进入某个 provider 的 detail page。
-- 主页面是 chat-like，但不是 chat clone；它是 task stream + composer + result viewer 的重构版。
+- 主页面是 chat-like，但不是 chat clone。
+- 主页面的具体结构、消息 anatomy、composer 呈现和 UI-facing data boundary 见 [UI_MAIN_PAGE.md](./UI_MAIN_PAGE.md)。
 
 ## 视觉方向
 - **方向名：** Precision Studio
@@ -21,6 +30,7 @@
 - **参考：** 没有外部站点参考。这个方向来自已批准的产品计划，以及 Photoshop / UXP 的宿主约束。
 
 ### 为什么是这个方向
+- 当前不做 UI，不等于当前不需要把 UI 方向钉住。
 - Photoshop 里的 UI 不需要先证明“有多热闹”，而需要先证明“好用、稳、快”。
 - 这个产品的核心价值不是花哨，而是把 image task 流程组织得更顺。
 - 如果视觉太轻太软，它会像网页插件；如果太硬太重，又会压住图片本身。
@@ -29,17 +39,20 @@
 - 参考 Gemini 的价值在于“主页面是一个有吸引力的任务入口”，不在于它的手机端比例和模块分布。
 
 ### 设计原则
+- 当前阶段不实现 UI，但后续 UI 仍然必须围绕同一条业务链路展开。
 - 任务优先，不是聊天优先。
 - 图片优先，不是装饰优先。
 - 设置页不是后台，是工作流的一部分。
 - `provider` 切换必须轻，不应该像换一个软件。
 - 任何视觉决定都不能让 generated image 变得不重要。
+- 主界面默认就是历史任务流，不做欢迎页优先。
 
 ### 不做什么
 - 不做通用 SaaS 那种大面积留白和轻飘飘的营销感。
 - 不做 `purple AI` 套路，不用那种到处都像“智能助手”的视觉语言。
 - 不做重工业式 `brutalist`，因为这会和 Photoshop 的创作语境打架。
 - 不做花哨动画来证明现代感，动画只负责确认状态。
+- 不把主页面做成 launcher / quick starts 优先的欢迎页。
 
 ## Adobe UXP 硬约束
 - **UI 基础组件优先级：** 优先使用 `Spectrum UXP widgets` 或 `Spectrum Web Components (SWC)`，不要把基础表单控件自绘成网页风。
@@ -134,6 +147,7 @@
 - **Approach：** Hybrid
 - **Grid：** UXP 用单列堆叠 + sticky header + sticky composer。Web 端在桌面使用 12 列，平板压缩到 8 列，小屏回落到单列。
 - **Max content width：** web 端 1280px。UXP 面板按可用宽度铺满，但内容块要控制视觉宽度，避免文字横向过散。
+- **Main Window Ratio：** 主设计稿以 `1:1` 到 `1:1.618` 的窗口比例为目标，更接近插件工作窗而不是手机长屏。
 - **Border radius：** `sm 8px`, `md 12px`, `lg 16px`, `xl 20px`, `full 9999px`.
 
 ### Layout Rules
@@ -141,6 +155,7 @@
 - composer 必须始终可见，用户不应该为了发送任务往下找入口。
 - result card 要在 task stream 里就地展示，不要跑到另一个隐藏视图。
 - web 可以做右侧 settings rail；UXP 更适合堆叠或抽屉式 settings。
+- 主页面默认直接显示聊天记录，不需要大块欢迎文案占据首屏。
 
 ### 信息层级
 1. 当前任务状态
@@ -183,10 +198,9 @@
 - 不要做大 banner，也不要做过度品牌化的顶部区域。
 
 ### Task Stream / Chat History
-- 每一条记录都应该更像 task record，而不是通用 chat bubble。
-- 当前请求要是最强视觉层级，但不能压过结果。
+- 视觉上要像聊天记录，但不能落成通用 chat UI。
+- 记录之间要有清晰节奏，方便用户快速扫视“我发了什么”和“provider 回了什么”。
 - status label 必须可读，不能只靠颜色表达。
-- 每条记录建议包含：缩略图、prompt 摘要、provider / model、状态、时间、必要的 actions。
 
 ### Composer
 - prompt field、image attachment、provider / model 选择、primary action 应该并排组成一个明确的输入区。
@@ -232,31 +246,28 @@
 
 ### Main Page Structure
 - 顶部：轻量 header，只放 workspace / provider / model / settings 这类全局信息。
-- 中部：主视觉区，默认是 task launcher / quick starts；有任务时则变成 task stream + result feed。
+- 中部：默认就是 task stream；空状态也应该是“准备开始第一轮对话”，而不是另一张 landing page。
 - 底部：sticky composer，永远是最主要的操作入口，像 Gemini 那样锚定在底部。
-- 侧向：可折叠的 quick controls 或 secondary info，而不是大块固定 sidebar。
-- 在 Photoshop 面板里，主页面要尽量把“开始一个新任务”与“查看上一个结果”维持在同一屏的可达范围内。
-- 这张参考图最适合借鉴的是：大留白 + 底部 composer + 上方卡片入口的节奏感，而不是具体视觉比例。
+- 侧向：不引入固定 sidebar，把空间优先留给聊天流中的图片预览。
+- 在 Photoshop 面板里，主页面要尽量把“最新一轮请求”和“对应回复”维持在同一屏的可达范围内。
+- 如果需要空状态引导，只能是非常轻的提示，不应压过聊天记录本身。
 
 ### Main Page / Chat-Like Shell
 - 这个页面应该“像聊天”，是因为它有连续任务记录和反复编辑的语义。
 - 但它不应该长得像通用 LLM chat app，更不应该像文本对话工具。
-- 我们需要的是 task stream：每条记录包含图片、prompt、provider、model、状态、结果和下一步动作。
 - prompt composer 要更像图像创作台：输入文字、放图片、选 provider、选 model、发起任务。
-- 任务执行期间，send button 置灰或切换为 loading，主页面上方显示 running task。
-- 如果一次只允许一个任务，就让当前任务占住唯一的执行槽位，避免并发把界面和状态搞乱。
 - 如果某个模块只是在模仿聊天产品的外观，但没有帮助图像任务完成，就应该删掉。
 
 ### Main Page Reference Fit
 - 这张 Gemini 参考图**适合**我们的不是 hero 文案，而是下面三件事：
   1. 底部固定 composer。
-  2. 上方留出大块主内容区承载任务与结果。
-  3. 通过卡片 / chip 提供快速入口，而不是先把所有功能摊平成表单。
+  2. 上方留出干净主内容区承载聊天回合。
+  3. 极少量 chrome，让用户视觉焦点停在当前 round。
 - 这张图**不适合直接照搬**的部分：
   1. 过于强的手机端 hero 比例。
   2. 过多偏通用助手的快捷按钮语义。
   3. 纯“欢迎页”式结构长期存在于主工作流中。
-- 因为我们的目标是 image task flow，所以 quick starts 应该更像图像任务入口，而不是泛 AI 问答入口。
+- 因为我们的目标是 image task flow，所以默认视图应该是聊天记录本身，而不是 quick starts。
 
 ### Error and Empty States
 - 空状态只说一件事，并给一个主动作。
@@ -268,20 +279,10 @@
 - 这些模式的目标不是重用率最高，而是让 task flow 一眼能懂。
 - 组件越接近产品语言，后续扩展到更多 provider 时越不容易失控。
 
-## Interaction States
-- **Loading：** Skeleton rows + disabled submit。
-- **Idle：** 页面可用，但没有任务提交；composer 是主焦点。
-- **Submitting：** composer 锁定，立刻出现 status row，elapsed time 开始计时。
-- **Running：** 显示进度、running badge，以及清晰的当前任务占用状态。
-- **Success：** result 就地展示，后续 actions 在 hover / focus 时可见。
-- **Failure：** job record 保留在流里，并提供直接恢复路径。
-- **Partial：** 如果任务有结果但 host writeback 失败，要把 job result 和 host failure 分开显示。
-- `Abandoned` 不属于当前 `v1` lifecycle；若后续引入取消能力，再补独立状态和交互。
-
-### 状态分析
+## Interaction Notes
 - 这个产品的难点不只是“能不能跑”，而是“在等结果时用户知道自己在等什么”。
-- 长任务如果没有明确的 running 反馈和 elapsed time，用户会以为卡死。
-- partial 状态很重要，因为 Photoshop host writeback 可能和 provider result 并不同步。
+- 长任务必须有清晰的视觉反馈，不然用户会以为卡死。
+- 具体状态呈现和页面行为定义见 [UI_MAIN_PAGE.md](./UI_MAIN_PAGE.md)。
 
 ## Accessibility
 - Keyboard navigation 必须覆盖 task flow 和 settings page 的所有动作。
@@ -326,3 +327,4 @@
 |------|----------|-----------|
 | 2026-04-23 | 初版设计系统落盘 | 为 Photoshop UXP 插件 + 可选 web harness 建立 dark-first 的 Precision Studio 语言，统一字体、颜色、间距、布局和 motion 规则。 |
 | 2026-04-23 | 生命周期措辞校正 | 对齐当前实现计划：`v1` 不承诺 cancel / abandon，只保留 running / success / failure 等已锁定交互语义。 |
+| 2026-04-23 | 主页面交互模型收敛 | 主页面不再在 `DESIGN.md` 内展开定义，具体结构与表现迁移到 `UI_MAIN_PAGE.md`。 |

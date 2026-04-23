@@ -5,33 +5,38 @@
 - Status: Canonical
 - Last Updated: 2026-04-23
 - Scope: `bootstrap-ai-image-system-foundation`
-- Design Inputs: [DESIGN.md](./DESIGN.md), [TOKEN.md](./TOKEN.md)
+- Related Docs: [BOUNDARIES.md](./BOUNDARIES.md), [DESIGN.md](./DESIGN.md), [TOKEN.md](./TOKEN.md), [UI_MAIN_PAGE.md](./UI_MAIN_PAGE.md)
 
-本文件是项目内的正式实施计划，用来取代散落在外部工具目录里的 restore / review 文档。后续范围、阶段、验收标准、延期项，都以这份文档为准。
+本文件是当前 change 的唯一实施计划。范围、阶段、验收标准、非目标，都以本文件为准。
 
-## 文档审计
+## 当前计划结论
 
-| 来源 | 角色 | 当前判断 | 处理方式 |
-|---|---|---|---|
-| `main-autoplan-restore-20260422-195131.md` | 主恢复计划 | 有效，但把仓库现状写成“尚未开始” | 作为主要输入，重写为当前版 |
-| `claude-competent-faraday-188539-autoplan-restore-20260422-200045.md` | 产品方向 / wedge 分析 | 有效，尤其是 Photoshop-first + settings-first 判断 | 吸收进本计划的产品方向 |
-| `claude-dreamy-cerf-cbdb25-autoplan-restore-20260423-103338.md` | 早期 PRD 草稿 | 部分过时，仍可参考架构语义 | 只保留宿主无关、Provider owned semantics 等结论 |
-| `shenyeke01-claude-competent-faraday-188539-eng-review-test-plan-20260422-201747.md` | 测试草案 | 明显超前，假设了 cancel、队列、历史裁剪和已存在的 web 路由 | 不作为当前正式测试计划 |
-| `prototype-brief.md` | 探索性原型文档 | 已不再需要，且会与正式计划竞争 | 已删除，不再作为项目入口 |
-| [DESIGN.md](./DESIGN.md) | 视觉与交互基准 | 仍然有效，但需和 V1 lifecycle 决策对齐 | 已做最小校正 |
-| [TOKEN.md](./TOKEN.md) | 实现级 token | 有效 | 继续保留为实现来源 |
+当前 change 的重点不是 UI，也不是 Photoshop host 动作。
+
+当前优先验证的是下面这条业务链路：
+
+`surface -> thin facade -> runtime -> provider -> adapter`
+
+这里的 `surface` 在当前阶段优先指 `CLI`，不是 `UXP UI`。
+
+这意味着：
+
+- 当前先写业务核心，再接 CLI，再接 UI。
+- 当前先建立可复用的命令入口，再接具体 surface。
+- Photoshop 仍然是第一目标 host，但不要求在本 change 内先完成 UI。
+- UI 未来可以同进程直接调用 shared facade，不需要通过外部 CLI 进程绕行。
 
 ## 当前仓库真实状态
 
 ### 已完成
 
-- monorepo、`pnpm workspace`、`turbo` 基础结构已经建立。
-- 包边界已经落下：`packages/core-engine`、`packages/providers`、`packages/workflows`、`apps/ps-uxp`、`apps/web`。
+- monorepo、`pnpm workspace`、`turbo` 基础结构已建立。
+- 包边界已存在：`packages/core-engine`、`packages/providers`、`packages/workflows`、`apps/ps-uxp`、`apps/web`。
 - `core-engine` 已实现第一批共享契约：
   - `Job` / `Workflow` / `Provider` / `Asset` / `Error` 类型
   - `createJobError()` 及 failure taxonomy
   - `assertSerializable()` 与 `deepFreeze()` 等边界守卫
-- `apps/web` 与 `apps/ps-uxp` 当前仍是占位壳，不是可用产品界面。
+- `apps/web` 与 `apps/ps-uxp` 当前仍是占位壳，不属于当前交付物。
 
 ### 未完成
 
@@ -43,103 +48,137 @@
 - mock provider
 - first real provider
 - provider settings persistence
-- UXP 主面板与 settings 页面
-- 共享 runtime 的集成测试与 host smoke tests
+- thin application facade
+- CLI surface
+- runtime / facade / provider 集成测试
 
 ### 已验证
 
 - 2026-04-23 本地执行 `pnpm build` 通过。
-- 2026-04-23 本地执行 `pnpm test` 失败；失败原因不是逻辑回归，而是当前各 package 尚无测试文件，`vitest run` 直接以 `No test files found` 退出。
+- 2026-04-23 本地执行 `pnpm test` 失败；原因是当前各 package 尚无测试文件，`vitest run` 以 `No test files found` 退出。
 
-## 产品方向
+## 当前产品判断
 
-### V1 目标
+### 当前最值得验证的对象
 
-做一个 Photoshop-first 的图像生成工作台，而不是一个先做 web 产品、再迁回 Photoshop 的系统。
+当前最值得验证的不是 Photoshop 深度动作，也不是 UI 完整闭环。
 
-用户在 `v1` 需要稳定完成这条闭环：
+当前最值得验证的是：
 
-`配置 provider -> 选择 provider/model -> 上传图片 -> 输入 prompt -> 提交任务 -> 看到状态 -> 拿到结果`
+1. runtime 边界是否稳定
+2. provider 语义是否能完整封装在 provider 层
+3. settings / config / submit / retry 这类用例是否能通过 shared facade 统一暴露
+4. CLI 能否作为第一个 surface 验证整条业务链路
 
-### V1 必须成立的事
+### 为什么不是先做 UI
 
-- Photoshop UXP 是唯一必需的用户-facing host。
-- settings page 是主流程的一部分，不是后补项。
-- runtime 必须保持 host-agnostic。
-- provider 参数语义必须完全由 provider 自己拥有。
-- 执行模型保持 deterministic + sequential。
+- UI 会快速把注意力拉进布局、状态呈现、宿主细节和交互 polish。
+- Photoshop host action 会把项目过早拖进更重的适配细节。
+- 当前最核心的不确定性不在视觉层，而在共享业务链路是否成立。
 
-### 明确不做
+### Photoshop-first 的当前含义
 
-- 不做 cross-provider 参数统一。
-- 不做 DAG / visual workflow editor。
-- 不做 job cancel / abandon。
-- 不做 durable job history。
-- 不做多任务队列、历史裁剪策略、后台恢复。
-- 不把 `apps/web` 当作 v1 的正式产品面。
+Photoshop-first 指的是：
+
+- 将来第一个正式用户界面优先面向 Photoshop
+- host adapter 优先考虑 Photoshop 约束
+- UI 文档优先围绕 Photoshop 场景设计
+
+它不意味着：
+
+- runtime 围着 Photoshop 实现
+- provider 语义向 Photoshop 回流
+- 当前 change 必须先把 UXP UI 做完
 
 ## 架构基线
 
 | 层 | 负责什么 | 不负责什么 |
 |---|---|---|
-| `packages/core-engine` | job lifecycle、workflow orchestration、provider dispatch、event emission、runtime facade | UI、Photoshop API、文件系统、provider 参数语义 |
-| `packages/providers` | provider schema、默认参数、capabilities、invoke、输入输出转换 | UI、engine state、宿主能力 |
-| `packages/workflows` | declarative workflow spec、step ordering、binding 数据 | 可执行逻辑、host side effects |
-| `adapters` | asset IO、settings storage、host capability bridge | 业务决策、provider 语义、UI 结构 |
-| `apps/ps-uxp` | Photoshop panel、task stream、composer、settings page、UXP host integration | engine orchestration、provider semantics |
-| `apps/web` | developer harness / debug surface | v1 正式产品承诺、独立业务方向 |
+| `packages/core-engine` | job lifecycle、workflow orchestration、provider dispatch、event emission、runtime facade | UI、CLI 命令、Photoshop API、文件系统、provider 参数语义 |
+| `packages/providers` | provider schema、默认参数、capabilities、invoke、输入输出转换 | UI、engine state、surface-specific 返回格式 |
+| `packages/workflows` | declarative workflow spec、step ordering、binding 数据 | 可执行逻辑、surface 编排、host side effects |
+| `adapters` | settings storage、secret storage、asset IO、host capability bridge | 业务决策、provider 语义、surface 结构 |
+| `thin facade` | 面向 surface 的稳定命令入口、依赖组装、统一返回结构 | runtime 状态机、provider 参数语义、直接 IO |
+| `CLI` | 命令解析、参数输入输出、面向开发和自动化的入口 | 业务核心、provider 内部语义、runtime 内部状态 |
+| `apps/ps-uxp` | 未来 Photoshop UI 与 host integration | 当前 change 的成功标准、runtime orchestration、provider semantics |
+| `apps/web` | 可选开发 harness | 当前 change 的成功标准、正式产品方向 |
 
-### 边界规则
+## 薄 Facade 约束
 
-- Engine 不接触 DOM、Browser API、UXP API、FS、network。
-- Workflow 只存 declarative spec，不包含 embedded business logic。
-- 所有 IO 都通过 adapter。
-- Provider 可以解释参数，但 engine 不能。
-- Host 只能消费 runtime facade，不能绕过它自己拼装 orchestration。
+当前计划明确引入 shared thin facade，但这层必须保持极薄。
 
-## V1 锁定决策
+### 必须承担的职责
 
-### Host 策略
+- 暴露稳定用例入口
+- 组装 runtime、provider registry、settings adapter
+- 输出统一成功 / 失败结构
+- 收敛不同 surface 都会重复写的命令级编排
 
-- `apps/ps-uxp` 是唯一 required host。
-- `apps/web` 保留，但只作为开发 harness 和调试镜像，不进入当前成功标准。
+### 禁止承担的职责
 
-### 生命周期策略
+- 不拥有自己的状态机
+- 不复制 runtime lifecycle
+- 不解释 provider 参数语义
+- 不直接做网络或文件 IO
+- 不长出 UI 专属 view model
+- 不把 CLI 交互格式反向污染 runtime
 
-- 合法状态只有 `created -> running -> completed | failed`。
-- `cancellation_error` 只保留 taxonomy 位置，不进入 V1 行为。
-- job history 只保存在内存里，reload 后丢失是预期行为。
+### 当前预期命令面
 
-### 输入与结果策略
+- `listProviders`
+- `describeProvider`
+- `getProviderConfig`
+- `saveProviderConfig`
+- `submitJob`
+- `getJob`
+- `retryJob`
 
-- 第一阶段只要求单个主图输入。
-- 结果的 V1 最小要求是在 task stream 中可见并可重试。
-- Photoshop writeback、layer insertion、mask、selection-aware edits 都延后到后续阶段。
+## Surface 策略
 
-### Settings 策略
+### 当前阶段
 
-- settings 必须在 UXP 本地持久化。
-- 第一步只做 host-local persistence，不做云同步。
-- provider 配置结构共享，存储实现由 host adapter 决定。
+- 首个 surface 选 `CLI`
+- CLI 用来验证 facade 是否足够稳定
+- 不要求 UI 在本阶段接入
+
+### 后续阶段
+
+- UXP UI 直接同进程调用 shared facade
+- MCP / skill 未来也复用这层 facade
+- 不把“UI 调外部 CLI 进程”作为正式架构
+
+### 这条决策的含义
+
+- 统一的是命令契约，不是统一到“所有入口都必须走外部进程”
+- 共享的是用例入口，不是把 UI 强行改造成 shell wrapper
+
+## 当前明确不做
+
+- 不做 Photoshop writeback、layer insertion、mask、selection-aware edits
+- 不做 cross-provider 参数统一
+- 不做 DAG / visual workflow editor
+- 不做 job cancel / abandon
+- 不做 durable job history
+- 不做多任务队列、历史裁剪策略、后台恢复
+- 不做 `apps/web` 正式产品化
+- 不把 UXP 主界面纳入当前 change gate
 
 ## 分阶段计划
 
-### Phase 0 — Shared Contract Foundation
+### Phase 0 — Foundation Audit
 
-当前状态：已完成
+目标：确认现有基础层可以承载新的交付方向
 
 交付内容：
 
-- workspace / package scaffolding
-- shared types
-- failure taxonomy
-- invariant guards
-- placeholder host apps
+- 校对共享契约与当前计划一致
+- 清理文档里的 UI-first / web-first 语义污染
+- 明确 facade / CLI / UI 的职责边界
 
 退出标准：
 
-- 所有 package 可 build
-- 共享契约可被下游 package import
+- 文档范围与当前真实目标一致
+- 当前 change 的 gate 不再依赖 UI 交付
 
 ### Phase 1 — Runtime Core
 
@@ -152,17 +191,17 @@
 - `packages/core-engine/src/registry.ts`
 - `packages/core-engine/src/runner.ts`
 - `packages/core-engine/src/runtime.ts`
-- `submitJob` / `getJob` / `subscribe` / registry access 等最小 facade
+- `submitJob` / `getJob` / `subscribe` 等最小 runtime facade
 
 退出标准：
 
 - 可以提交一个最小 `JobRequest`
 - engine 能完成 `created -> running -> completed|failed`
-- host 只通过 facade 消费状态和事件
+- provider dispatch 不向 engine 泄漏 provider 语义
 
-### Phase 2 — Provider And Workflow Baseline
+### Phase 2 — Provider Baseline
 
-目标：证明 runtime contract 对真实 provider 是可用的
+目标：证明 runtime contract 对真实 provider 可用
 
 交付内容：
 
@@ -175,28 +214,46 @@
 退出标准：
 
 - mock provider 跑通 end-to-end
-- provider 切换不会污染 engine 层
 - 一个真实 provider 能跑完整 happy path
+- provider 差异不污染 engine
 
-### Phase 3 — UXP Host And Settings Flow
+### Phase 3 — Thin Facade
 
-目标：做出 Photoshop-first 的最小可用产品壳
+目标：给多个 surface 提供统一命令入口
 
 交付内容：
 
-- UXP task stream shell
-- composer：image attach、prompt、provider/model select、submit
-- settings home + provider detail page
-- provider config local persistence adapter
-- asset adapter：本地文件输入优先，active layer/readback 留到后续
+- shared facade 模块
+- provider config 相关命令
+- job submit / query / retry 命令
+- 统一错误结构与结果结构
 
 退出标准：
 
-- 用户能在 UXP 里配置至少一个 provider
-- 配置变化能立刻影响聊天页提交
-- 用户能看到运行状态、成功结果、失败结果
+- facade 可以独立驱动 runtime 和 provider
+- facade 不复制 runtime 状态机
+- facade API 足够供 CLI 使用
 
-### Phase 4 — Verification And Hardening
+### Phase 4 — CLI Surface
+
+目标：用 CLI 验证整条业务链路
+
+交付内容：
+
+- `provider list`
+- `provider describe`
+- `provider config get`
+- `provider config save`
+- `job submit`
+- `job get`
+- `job retry`
+
+退出标准：
+
+- 可以通过 CLI 完成 provider 配置、任务提交、状态查询、失败重试
+- 不需要 UI 也能证明主业务链路成立
+
+### Phase 5 — Verification And Hardening
 
 目标：把“可跑”变成“可维护”
 
@@ -205,48 +262,76 @@
 - core-engine unit tests
 - provider contract tests
 - runtime integration tests
-- UXP 手动 smoke checklist
+- facade contract tests
+- CLI smoke tests
 - build / test / lint 的 CI 基线
 
 退出标准：
 
 - 关键共享边界有自动化测试
-- UXP 最小闭环有稳定手动验证脚本
+- facade 命令面稳定
 - 文档与代码状态重新对齐
+
+### Deferred — UXP UI
+
+这不是当前 change 的 gate，但保留为下一阶段方向。
+
+后续交付内容预计包括：
+
+- UXP 主页面
+- settings page
+- provider config local persistence adapter 的 UI 接入
+- asset adapter 的 UI 接入
+
+后续约束：
+
+- UI 直接复用 shared facade
+- UI 不直接调用 provider 内部逻辑
+- UI 不通过外部 CLI 进程通信
 
 ## 当前正式验收标准
 
 以下全部满足，才算当前 change 完成：
 
-1. 用户能在 Photoshop UXP 插件里打开主面板。
-2. 用户能在 settings 中配置至少一个 provider，并在下次打开插件后仍然可用。
-3. 用户能上传单张主图并输入 prompt。
-4. 用户能在当前任务里切换 provider / model。
-5. 用户能提交任务，并看到结构化的状态变化。
-6. 用户能在 task stream 中看到结果或结构化错误。
-7. 所有共享层边界都没有 host API 泄漏。
+1. engine 能执行最小 job lifecycle。
+2. mock provider 与一个真实 provider 都能通过 shared runtime 跑通。
+3. provider 配置可以通过 adapter 持久化，并通过 facade 暴露。
+4. facade 能统一暴露 provider 与 job 相关命令。
+5. CLI 能完成 provider 配置、任务提交、状态查询和失败重试。
+6. 共享层边界没有 host API 泄漏，也没有 UI 语义倒灌到 runtime。
 
-## 修正后的测试方向
+## 当前测试方向
 
-当前测试应围绕以下内容，而不是围绕超前功能：
+### `core-engine`
 
-- `core-engine`:
-  - failure taxonomy
-  - `assertSerializable`
-  - `deepFreeze`
-  - lifecycle state transitions
-  - workflow binding resolution
-- `providers`:
-  - schema validation
-  - mock provider invoke contract
-  - real provider boundary transform
-- `apps/ps-uxp`:
-  - settings persistence smoke
-  - job submit happy path
-  - invalid config / provider error display
+- failure taxonomy
+- `assertSerializable`
+- `deepFreeze`
+- lifecycle state transitions
+- workflow binding resolution
 
-以下内容暂时不进入正式测试门槛：
+### `providers`
 
+- schema validation
+- mock provider invoke contract
+- real provider boundary transform
+
+### `thin facade`
+
+- provider config command contract
+- submit / get / retry command contract
+- unified error shape
+
+### `CLI`
+
+- provider config flow smoke
+- submit happy path
+- invalid config / provider error display
+
+### 暂不进入正式测试门槛
+
+- UXP 页面交互
+- Photoshop writeback
 - cancel / abandon
 - queued jobs / eviction
 - durable history recovery
@@ -254,19 +339,19 @@
 
 ## 待决但不阻塞当前实现的问题
 
-- 第一家真实 provider 选哪一个作为集成目标
-- UXP 本地 secret 存储采用哪种具体实现
-- 结果图的 Photoshop 写回是否在本 change 末尾作为 stretch goal 尝试
+- 第一个真实 provider 选哪一个
+- settings / secret storage 的具体 adapter 方案
+- facade 放在哪个 package 或目录最合适
+- CLI 目录采用 `apps/cli` 还是 `packages/cli` 的形式
 
 默认处理原则：
 
-- 能不阻塞 runtime 主链路的，先不要放进当前 change gate。
-- 能由 host adapter 吞掉差异的，不要反向拉回 engine。
+- 能不阻塞 runtime 主链路的，先不要放进当前 gate
+- 能由 facade 收敛的 surface 差异，不要拉回 runtime
+- 能由 adapter 吞掉的 IO 差异，不要拉回 facade
 
 ## 文档维护规则
 
-- 外部 restore / review 文档继续保留，但不再作为 repo 内 source of truth。
-- 当 `DESIGN.md`、`TOKEN.md` 与实现计划冲突时：
-  - 产品范围与阶段以本文件为准
-  - 视觉语言与 token 以 `DESIGN.md` / `TOKEN.md` 为准
-- 每次完成一个 phase，都要同步更新本文件中的 “当前仓库真实状态” 和 “退出标准”。
+- 当前 change 的范围、阶段、验收标准，只看本文件
+- `DESIGN.md`、`TOKEN.md`、`UI_MAIN_PAGE.md` 仍然有效，但属于后续 UI 阶段参考，不属于当前 gate
+- 每完成一个 phase，都要同步更新本文件中的“当前仓库真实状态”和“退出标准”

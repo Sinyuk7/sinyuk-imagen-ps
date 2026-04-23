@@ -1,5 +1,11 @@
 # Token System — Sinyuk Imagen PS
 
+## 当前适用范围
+
+本文件继续有效，但它服务的是后续 UI 实现阶段，不属于当前 change 的交付 gate。
+
+当前 change 若与本文件发生优先级冲突，以 [IMPLEMENTATION_PLAN.md](./IMPLEMENTATION_PLAN.md) 为准。
+
 ## 作用
 这个文件定义项目的实现级 tokens。`DESIGN.md` 负责设计方向、信息结构和体验原则；`TOKEN.md` 负责可直接落地到 CSS / component theme / Spectrum mapping 的具体数值。
 
@@ -150,6 +156,8 @@ Spacing 使用 8px 为基础单位，UXP 端偏紧，web 端偏舒展，但 toke
 |---|---:|---|
 | `layout.maxWidth.web` | 1280px | web 主内容宽度上限 |
 | `layout.panel.minWidth` | 240px | Photoshop 面板最小安全宽度 |
+| `layout.window.aspect.compact` | `1 / 1` | 极简插件窗口参考比例 |
+| `layout.window.aspect.default` | `1 / 1.618` | 主页面设计稿默认窗口比例 |
 | `layout.panel.padding` | 16px | 面板默认内边距 |
 | `layout.panel.gap` | 12px | 面板内组件间距 |
 | `layout.composer.minHeight` | 88px | composer 最小高度 |
@@ -183,6 +191,18 @@ Spacing 使用 8px 为基础单位，UXP 端偏紧，web 端偏舒展，但 toke
 | `component.taskRow.gap` | 10px | 缩略图 / 文本 / 状态间距 |
 | `component.taskRow.borderRadius` | 12px | 任务条目圆角 |
 | `component.taskRow.minHeight` | 72px | 任务条目最小高度 |
+| `component.taskRow.avatarSize` | 24px | `我` / `provider` 角色标识尺寸 |
+| `component.taskRow.metaGap` | 6px | 角色、时间、状态的水平间距 |
+
+### Conversation
+| Token | Value | Usage |
+|---|---:|---|
+| `component.message.promptMaxLines` | 4 | 用户消息中 prompt 默认最大显示行数 |
+| `component.message.copyButtonSize` | 28px | prompt 右上角复制按钮 |
+| `component.message.thumbnailSize` | 52px | 输入图缩略图尺寸 |
+| `component.message.thumbnailGap` | 8px | 输入图组缩略图间距 |
+| `component.message.replyPreviewRadius` | 16px | provider 单图回复预览圆角 |
+| `component.message.replyPreviewMaxHeight` | 220px | provider 单图回复预览最大高度 |
 
 ### Composer
 | Token | Value | Usage |
@@ -191,6 +211,7 @@ Spacing 使用 8px 为基础单位，UXP 端偏紧，web 端偏舒展，但 toke
 | `component.composer.gap` | 12px | 输入块间距 |
 | `component.composer.radius` | 20px | composer 容器圆角 |
 | `component.composer.primaryButtonHeight` | 40px | 发送按钮高度 |
+| `component.composer.disabledOpacity` | 0.56 | running 期间整体禁用态 |
 
 ### Settings
 | Token | Value | Usage |
@@ -246,4 +267,3 @@ Spacing 使用 8px 为基础单位，UXP 端偏紧，web 端偏舒展，但 toke
   --motion-duration-short: 160ms;
 }
 ```
-
