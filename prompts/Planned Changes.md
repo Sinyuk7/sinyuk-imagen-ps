@@ -86,7 +86,7 @@
 ### Change 2: <kebab-case-name>
 - ...
 
-（至少 3 个，最多 7 个）
+（至少 1 个，最多 5 个）
 
 ## 4. Execution Order
 1. <change-name> → ...

@@ -61,48 +61,51 @@
 - **touches**: `src/index.ts`, `package.json`。
 - **openspec**: completed
 
-### Change 2: define-core-shared-types
+### Change 2: define-core-shared-types ✓
 - **goal**: 定义 Job、Workflow、Step、ProviderRef、Asset、Runtime 核心共享类型。
 - **scope**: `src/types/` 下的类型定义与聚合导出。
 - **out_of_scope**: 错误模型、边界守卫实现、执行逻辑。
 - **why_now**: 所有后续部件（store、events、runner、dispatch）都依赖这些类型契约；必须在任何实现之前固化。
-- **depends_on**: `bootstrap-core-engine-scaffold`
+- **depends_on**: `bootstrap-core-engine-scaffold` ✓
 - **touches**: `src/types/job.ts`, `src/types/workflow.ts`, `src/types/provider.ts`, `src/types/asset.ts`, `src/types/index.ts`, `src/index.ts`（更新类型导出）。
-- **openspec**: now
+- **actual_outcome**: 已按领域拆分为 `job.ts`（`JobStatus`、`Job`、`JobInput`、`JobOutput`、`JobStore`）、`workflow.ts`（`StepKind`、`Step`、`Workflow`）、`provider.ts`（`ProviderRef`、`ProviderDispatcher`）、`asset.ts`（`AssetType`、`Asset`）；`types/index.ts` 聚合并统一导出；`src/index.ts` 已更新为 re-export 所有公共类型；模块编译通过。
+- **openspec**: completed
 
-### Change 3: define-error-taxonomy
+### Change 3: define-error-taxonomy ✓
 - **goal**: 定义 `JobError` 统一错误结构与分类。
 - **scope**: `src/errors.ts`，包括错误类型定义与创建辅助函数。
 - **out_of_scope**: invariant guards、store 实现、runner 实现。
 - **why_now**: 失败显式是核心原则；store 的状态转换、runner 的执行路径、dispatch 的边界失败都需要统一的错误契约。
-- **depends_on**: `define-core-shared-types`
+- **depends_on**: `define-core-shared-types` ✓
 - **touches**: `src/errors.ts`, `src/index.ts`（更新导出）。
-- **openspec**: now
+- **actual_outcome**: 已创建 `src/errors.ts`，定义 `ErrorCategory` string literal union（`'validation' | 'provider' | 'runtime' | 'workflow' | 'unknown'`）与 `JobError` interface（`category`、`message`、`details?`）；实现 5 个工厂函数（`createValidationError`、`createProviderError`、`createRuntimeError`、`createWorkflowError`、`createUnknownError`），返回 `Object.freeze` 后的 plain object；`src/index.ts` 已追加 `./errors.js` re-export；模块编译通过。
+- **openspec**: completed
 
-### Change 4: define-invariant-guards
+### Change 4: define-invariant-guards ✓
 - **goal**: 实现 serializable / immutable 边界守卫。
 - **scope**: `src/invariants.ts`，提供跨包边界校验与不可变保护辅助函数。
 - **out_of_scope**: 运行时状态管理、事件发射、工作流执行。
 - **why_now**: PRD 要求所有跨包结果 serializable、step handoff immutable；这是基础设施契约，runner 的 binding / handoff 需要它。
-- **depends_on**: `define-core-shared-types`
+- **depends_on**: `define-core-shared-types` ✓, `define-error-taxonomy` ✓
 - **touches**: `src/invariants.ts`, `src/index.ts`（更新导出）。
-- **openspec**: now
+- **actual_outcome**: 已创建 `src/invariants.ts`，实现 `assertSerializable`（递归拒绝 function / symbol / undefined / 循环引用，抛出 `JobError`）、`assertImmutable<T>`（对对象/数组执行 `Object.freeze` 并返回 `Readonly<T>`，primitive 透传）、`safeStringify`（循环引用降级为 `"[Circular]"`，`BigInt` 转字符串）；`src/index.ts` 已追加 `./invariants.js` re-export；模块编译通过。
+- **openspec**: completed
 
 ### Change 5: implement-state-infrastructure
 - **goal**: 实现 in-memory job store 与 lifecycle event bus。
 - **scope**: `src/store.ts`（submitJob / getJob / retryJob + 最小状态机 created/running/completed/failed）、`src/events.ts`（createJobEventBus + lifecycle 事件）。
 - **out_of_scope**: workflow runner、provider dispatch、持久化、cancel / queue。
 - **why_now**: store 是状态真相，event bus 是 facade 观察状态的主要方式；两者是 runner 与 runtime 的必要基础设施。
-- **depends_on**: `define-core-shared-types`, `define-error-taxonomy`
+- **depends_on**: `define-core-shared-types` ✓, `define-error-taxonomy` ✓, `define-invariant-guards` ✓
 - **touches**: `src/store.ts`, `src/events.ts`, `src/index.ts`（更新导出）。
-- **openspec**: later
+- **openspec**: now
 
 ### Change 6: implement-workflow-registry-and-dispatch
 - **goal**: 实现 workflow registry 与 provider dispatch 抽象边界。
 - **scope**: `src/registry.ts`（workflow 注册与按名查找）、`src/dispatch.ts`（ProviderDispatcher 类型与最小适配接口）。
 - **out_of_scope**: runner 执行逻辑、provider 参数语义解释、transform / io step。
 - **why_now**: registry 提供 runner 的输入（workflow spec），dispatch 提供 runner 的输出边界（provider 调用抽象）；两者是 runner 的依赖侧，可独立验证。
-- **depends_on**: `define-core-shared-types`, `define-error-taxonomy`
+- **depends_on**: `define-core-shared-types` ✓, `define-error-taxonomy` ✓
 - **touches**: `src/registry.ts`, `src/dispatch.ts`, `src/index.ts`（更新导出）。
 - **openspec**: later
 
@@ -111,7 +114,7 @@
 - **scope**: `src/runner.ts`（顺序执行 step、input binding、output handoff）、`src/runtime.ts`（`createRuntime` 组装 store + events + registry + dispatch + runner）。
 - **out_of_scope**: `transform` / `io` step 执行、provider 参数语义解释、host writeback。
 - **why_now**: 这是 engine 的核心执行链路，必须在所有基础部件（types、errors、store、events、registry、dispatch）就位后才能整合。
-- **depends_on**: `implement-state-infrastructure`, `implement-workflow-registry-and-dispatch`, `define-invariant-guards`
+- **depends_on**: `implement-state-infrastructure`, `implement-workflow-registry-and-dispatch`, `define-invariant-guards` ✓
 - **touches**: `src/runner.ts`, `src/runtime.ts`, `src/index.ts`（更新导出）。
 - **openspec**: later
 
@@ -133,19 +136,17 @@
 
 ## 5. Next OpenSpec Change
 
-- **name**: `define-core-shared-types`
-- **reason**: 骨架已就位，下一步必须固化所有后续部件（store、events、runner、dispatch）依赖的类型契约；否则无法在稳定地基上构建 runner。
-- **expected outcome**: `src/types/` 下出现 Job、Workflow、Step、ProviderRef、Asset、Runtime 的类型定义与聚合导出；`src/index.ts` 更新为导出这些类型（仍可能包含暂定占位）。
-- **depends_on**: `bootstrap-core-engine-scaffold` ✓
+- **name**: `implement-state-infrastructure`
+- **reason**: 类型契约、错误模型、边界守卫均已就位，下一步需要建立状态真相（store）与观察机制（event bus），为 runner 与 runtime 提供必要基础设施。
+- **expected outcome**: `src/store.ts` 实现最小状态机（created/running/completed/failed）与 `JobStore` 接口；`src/events.ts` 实现 lifecycle event bus；`src/index.ts` 更新导出。
+- **depends_on**: `define-core-shared-types` ✓, `define-error-taxonomy` ✓, `define-invariant-guards` ✓
 
 ---
 
 ## 6. Notes
 
-- **文档偏差已修正**：旧 STATUS.md 错误声称 `src/index.ts` 及多个 `src/*.ts` 文件已存在，现已按实际文件系统状态更新。根级 STATUS.md 声称 "已有 runtime 相关实现" 同样不准确，已在本文件中修正。
-- **当前实际文件状态**：`src/index.ts` 已创建（bootstrap 占位导出，暂定）；`src/types/` 为空目录。PRD 中列出的 `errors.ts`、`store.ts`、`events.ts`、`registry.ts`、`dispatch.ts`、`runner.ts`、`runtime.ts`、`invariants.ts` 均尚未创建。
+- **当前实际文件状态**：`src/index.ts` 已创建（从 `./types/index.js`、`./errors.js`、`./invariants.js` re-export 公共类型、错误模型与边界守卫，保留 bootstrap 占位符）；`src/types/` 下已创建 `job.ts`、`workflow.ts`、`provider.ts`、`asset.ts`、`index.ts`；`src/errors.ts` 已创建；`src/invariants.ts` 已创建。PRD 中列出的 `store.ts`、`events.ts`、`registry.ts`、`dispatch.ts`、`runner.ts`、`runtime.ts` 均尚未创建。
 - **暂定项标记**：默认 workflow 的长期形态、runtime 与 facade / CLI 的最终装配位置、更细的测试矩阵，均按 SPEC.md 标记为 tentative；不应在实现中写成既定事实。
 - **zustand 保留为候选**：`package.json` 已依赖 zustand，但 PRD / SPEC 未明确要求 store 必须使用 zustand；它作为 store 实现的一个候选方案保留，最终是否采用应在 `implement-state-infrastructure` change 时根据接口收敛情况决定，并同步更新本 STATUS.md。
 - **测试文档**：当前不单独创建 `TESTING.md`；测试实践待 runner 与 runtime 稳定后再评估，与 README.md / SPEC.md 的口径一致。
 - **StepKind 保留值**：`transform`、`io` 当前只应视为保留值，不能视为已支持能力；runner 实现时不得引入这两种 step 的执行逻辑。
-- **package.json clean 脚本**：已从 `rm -rf dist` 修正为跨平台兼容命令（见 `package.json`）。
