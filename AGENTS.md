@@ -248,3 +248,12 @@ When modifying code:
 * Side effects explicit
 * Failure defined
 * No boundary violations
+
+---
+
+## Design System
+Always read `DESIGN.md` before making any visual or UI decisions.
+Also read `TOKEN.md` for implementation-ready color, spacing, typography, radius, motion, and component tokens.
+All font choices, colors, spacing, layout rules, and motion defaults are defined there.
+Do not deviate without explicit user approval.
+In QA mode, flag any code that does not match `DESIGN.md`.
