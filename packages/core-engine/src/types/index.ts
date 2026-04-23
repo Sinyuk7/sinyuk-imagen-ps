@@ -22,6 +22,16 @@ export type {
 } from "./provider.js";
 
 export type {
+  ProviderDispatchRequest,
+  ProviderDispatcher,
+  WorkflowRegistry,
+  WorkflowExecutionResult,
+  RuntimeOptions,
+  Runtime,
+  JobEventListener,
+} from "./runtime.js";
+
+export type {
   StepKind,
   CleanupPolicy,
   StepSpec,

@@ -19,6 +19,13 @@ export type {
   ProviderDiagnostics,
   ProviderResult,
   ProviderDefinition,
+  ProviderDispatchRequest,
+  ProviderDispatcher,
+  WorkflowRegistry,
+  WorkflowExecutionResult,
+  RuntimeOptions,
+  Runtime,
+  JobEventListener,
   // Workflow
   StepKind,
   CleanupPolicy,
@@ -49,3 +56,28 @@ export {
   assertSerializable,
   deepFreeze,
 } from "./invariants.js";
+
+// Runtime orchestration
+export {
+  createJobEventBus,
+} from "./events.js";
+
+export {
+  createJobStore,
+} from "./store.js";
+
+export {
+  createWorkflowRegistry,
+} from "./registry.js";
+
+export {
+  dispatchProvider,
+} from "./dispatch.js";
+
+export {
+  runWorkflow,
+} from "./runner.js";
+
+export {
+  createRuntime,
+} from "./runtime.js";
