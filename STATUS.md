@@ -6,7 +6,7 @@
 ## 当前活跃模块
 
 - `app`：唯一应用，负责 Photoshop / UXP、UI 和应用侧桥接
-- `packages/core-engine`：已有 runtime 相关实现
+- `packages/core-engine`：文档与规范已就位，src/ 骨架待建（当前仅含空 `types/` 目录）
 - `packages/providers`：文档意图清楚，代码仍接近占位
 - `packages/workflows`：文档意图清楚，代码仍接近占位
 

@@ -3,7 +3,6 @@
 .codemaker
 .claude
 .agents
-.opencode
 
 # Dependencies
 node_modules/

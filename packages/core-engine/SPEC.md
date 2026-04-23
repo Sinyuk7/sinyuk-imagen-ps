@@ -32,12 +32,12 @@
 
 ## 当前公开面
 
-文档与代码共同确认的公开入口集中在 `src/index.ts`：
+目标公开面计划集中在 `src/index.ts`（代码尚未实现）：
 
 - 类型导出：runtime、workflow、provider、job、asset、error 相关类型
 - 函数导出：`createJobEventBus`、`createJobStore`、`createWorkflowRegistry`、`dispatchProvider`、`runWorkflow`、`createRuntime`
 
-这些名字已经存在，但仍属于早期接口；后续若调整，应先更新 `STATUS.md`。
+这些名字是当前阶段的目标接口，代码实现待 `bootstrap-core-engine-scaffold` change 完成；后续若调整，应先更新 `STATUS.md`。
 
 ## 暂定信息
 
