@@ -1,0 +1,9 @@
+dist
+build
+coverage
+.turbo
+.cache
+.parcel-cache
+.next
+node_modules
+pnpm-lock.yaml

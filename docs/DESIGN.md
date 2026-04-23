@@ -4,11 +4,11 @@
 
 本文件继续有效，但它服务的是后续 UI 阶段，不是当前 change 的交付 gate。
 
-当前 change 先完成业务核心、thin facade 和 CLI。
+当前 change 先完成业务核心、shared commands 和 CLI。
 当实施计划与本文件出现优先级冲突时，以 [IMPLEMENTATION_PLAN.md](./IMPLEMENTATION_PLAN.md) 为准。
 
 ## 产品语境
-- **这是什么：** 一个以 Photoshop 为第一目标宿主的图像生成系统。当前先建设共享业务核心、thin facade 和 CLI，后续再落 UXP UI。
+- **这是什么：** 一个以 Photoshop 为第一目标宿主的图像生成系统。当前先建设共享业务核心、shared commands 和 CLI，后续再落 UXP UI。
 - **给谁用：** 面向设计师、图像工作流操作者，以及需要稳定业务链路与自动化入口的开发者。
 - **所处领域：** Creative tooling、AI image workbench、workflow-focused editor UI。
 - **项目类型：** Shared runtime + provider system + future Photoshop plugin UI。
@@ -315,7 +315,7 @@
 3. **Mint primary accent** - 冷一点的 mint 比常见的紫色 AI 风格更克制，也更不容易和 Photoshop 自身的视觉系统打架。代价是少一点“AI 味”，但回报是更耐看、更稳定。
 
 ## Implementation Notes
-- 这个设计系统同时适用于 `apps/web` 和 `apps/ps-uxp`。
+- 这个设计系统面向当前单应用 `app/`，并保留未来复用到其他 surface 的可能。
 - UXP 端可以更紧凑，但不能长出另一套语言。
 - 尽量用 border、tone 和 spacing 组织层级，而不是依赖重 shadow。
 - icon 风格要线性、克制、工具化。

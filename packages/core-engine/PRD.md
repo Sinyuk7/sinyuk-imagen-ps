@@ -15,7 +15,7 @@
 
 当前优先验证链路是：
 
-`surface -> thin facade -> runtime -> provider -> adapter`
+`surface -> shared commands -> runtime -> provider -> adapter`
 
 因此，`core-engine` 当前最重要的任务不是“做更多功能”，而是证明：
 

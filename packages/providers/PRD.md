@@ -14,7 +14,7 @@
 
 当前 change 的优先验证链路是：
 
-`surface -> thin facade -> runtime -> provider -> adapter` 
+`surface -> shared commands -> runtime -> provider -> adapter`
 
 当前阶段的重点不是 UI，也不是 Photoshop host action，而是先验证：
 

@@ -3,9 +3,9 @@
 ## Project State
 
 Monorepo bootstrapped with pnpm workspace + Turborepo.
-All 5 packages build cleanly: `pnpm run build` → 5/5 success.
+Current structure is `app/ + packages/*`.
 
-Active change: `bootstrap-ai-image-system-foundation` (spec-driven, 4/26 tasks done).
+Active change: `bootstrap-ai-image-system-foundation`.
 
 ---
 
@@ -19,38 +19,35 @@ Resolution: use recursive structural validation instead of `structuredClone` or 
 
 ### assertSerializable uses structural walk, not JSON round-trip
 
-`JSON.stringify` silently handles non-serializable values (functions → dropped, Map/Set → `{}`, class instances → partial).
-This defeats the invariant purpose. Fixed to explicit recursive type checking that rejects functions, symbols, bigint, class instances, and cyclic references with descriptive error paths.
+`JSON.stringify` silently handles non-serializable values.
+Resolution: explicit recursive type checking with descriptive error paths.
 
 ### deepFreeze must be cycle-safe
 
-Public utility accepting `unknown` must handle cyclic input. Uses `WeakSet` to track visited objects.
+Public utility accepting `unknown` must handle cyclic input.
+Resolution: use `WeakSet` to track visited objects.
 
-### Vite requires index.html
+### Single-app structure is intentional
 
-`apps/web` uses Vite. `vite build` resolves entry from `index.html` in project root, not from `src/main.tsx` directly. Scaffold must include `index.html` referencing the TSX entry.
-
-### Zod is a core-engine dependency
-
-`ProviderDefinition.inputSchema` is typed as `ZodType`. Zod is a runtime dependency of `@imagen-ps/core-engine` (not just devDependency) because provider schema validation happens at runtime.
+The repository keeps a single application directory: `app/`.
+This version does not include a `web` application.
 
 ---
 
 ## Package Map
 
-| Package | Layer | DOM? | Purpose |
-|---------|-------|------|---------|
-| `@imagen-ps/core-engine` | engine | NO | Job lifecycle, types, error factories, invariant guards |
-| `@imagen-ps/providers` | provider | NO | Provider registry + concrete providers |
-| `@imagen-ps/workflows` | workflow | NO | Declarative workflow specs |
-| `@imagen-ps/web` | host/app | YES | Browser job console (React + Vite) |
-| `@imagen-ps/ps-uxp` | host/app | NO (UXP) | Photoshop plugin (React panel) |
+| Module | Layer | Purpose |
+|--------|-------|---------|
+| `app` | host/app | Photoshop plugin application |
+| `@imagen-ps/core-engine` | engine | Job lifecycle, types, invariant guards, runtime |
+| `@imagen-ps/providers` | provider | Provider registry + concrete provider boundary |
+| `@imagen-ps/workflows` | workflow | Declarative workflow specs |
 
 ---
 
 ## Remaining Work
 
-Section 1 (Shared Contracts And Scaffolding) — DONE.
-Section 2 (Core Contract Implementation) — next: engine store, event bus, workflow runner, provider registry, asset adapter interface.
-Section 3 (Host Contract Implementation) — blocked on Section 2.
-Section 4 (Contract Verification And Hardening) — blocked on Section 2+3.
+Section 1 (Shared Contracts And Scaffolding) - partly done.
+Section 2 (Core Contract Implementation) - continue runtime / provider / workflow convergence.
+Section 3 (Host Contract Implementation) - blocked on shared command surface becoming clearer.
+Section 4 (Contract Verification And Hardening) - blocked on Section 2+3.

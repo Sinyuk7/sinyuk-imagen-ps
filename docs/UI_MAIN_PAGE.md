@@ -4,8 +4,8 @@
 
 本文件继续有效，但属于后续 UXP UI 阶段参考，不属于当前 change 的交付 gate。
 
-当前 change 先验证业务核心、thin facade 和 CLI。
-UI 真正接入时，应直接复用 shared facade，而不是通过外部 CLI 进程通信。
+当前 change 先验证业务核心、shared commands 和 CLI。
+UI 真正接入时，应直接复用 shared commands，而不是通过外部 CLI 进程通信。
 
 ## 文档目的
 
