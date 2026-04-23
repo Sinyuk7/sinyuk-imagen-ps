@@ -1,36 +1,45 @@
 schema: spec-driven
 
-# Project context (optional)
-# This is shown to AI when creating artifacts.
-# Add your tech stack, conventions, style guides, domain knowledge, etc.
 context: |
   Tech stack: TypeScript, React 19, Node.js, pnpm, Turbo, Vitest
-  Platform: Photoshop UXP plugin (single app monorepo)
-  Packages: app/, packages/core-engine, packages/providers, packages/workflows
-  Architecture rules:
-    - core-engine: host-agnostic runtime only (no UI/FS/network/provider semantics)
-    - providers: provider semantics, validation, and API mapping only (no runtime lifecycle)
-    - workflows: declarative workflow specs only (no executable logic)
-    - app: host/app layer only; all IO stays in app/host or adapter boundaries, never flows back into engine
-  Documentation priority: AGENTS.md > PRD/design docs > README/module docs > directory structure > code
-  When docs and code conflict, preserve stated intent first, then record deviation in the module's STATUS.md
-  Do not treat early code shapes as stable architecture; use "tentative" when facts are uncertain
-  Root docs are index/scope only; module details live in module-level README.md / SPEC.md / STATUS.md / AGENTS.md
+  Platform: Photoshop UXP plugin monorepo
 
-# Per-artifact rules (optional)
-# Add custom rules for specific artifacts.
+  Packages:
+    - app/: host/app layer only
+    - packages/core-engine: host-agnostic runtime only
+    - packages/providers: provider semantics, validation, and API mapping only
+    - packages/workflows: declarative workflow specs only
+
+  Architecture constraints:
+    - Do not move UI, FS, network, or provider lifecycle logic into core-engine
+    - Keep dependency direction clear between app, engine, providers, and workflows
+    - Treat early code structure as tentative when it conflicts with documented intent
+
+  Documentation priority:
+    - AGENTS.md
+    - PRD and design docs
+    - README and module docs
+    - code
+
+  Writing style:
+    - Write in Chinese by default
+    - Keep technical terms, code, and file paths in English
+
 rules:
   proposal:
-    - Keep proposals under 800 words
-    - Always include a "Non-goals" section
-    - Do not expand beyond the current single-app scope (no web app)
-  tasks:
-    - Break tasks into chunks of max 2 hours
-    - Prefer module-local changes; cross-module changes must respect dependency direction
+    - Keep it concise and within current single-app scope
+    - Always include Non-goals
+    - Do not expand into future web app or multi-host scope
+
   design:
-    - UI design docs are future input, not current delivery gates
-    - Do not write future directory sketches as present facts
-  style:
-    - Language: Chinese
-    - Write in Chinese, but keep technical terms like "API", "REST", "GraphQL" in English
-    - Code examples and file paths remain in English
+    - Record decisions, boundaries, and trade-offs
+    - Do not present future ideas or directory sketches as existing facts
+
+  tasks:
+    - Break work into small chunks, ideally within 2 hours each
+    - Prefer module-local changes first
+    - Cross-module changes must respect dependency direction
+
+  specs:
+    - Prefer explicit boundaries and observable behavior
+    - Reference existing patterns before introducing new ones
