@@ -1,0 +1,47 @@
+docs/DESIGN.md
+  939bed8f8885f519 3-9,11-12,14,20,33,42
+  cbe09a8b69f27075 23-24,48,55,150,158,201-202,249,251-253,264-265,270,282,284-285,330
+docs/TOKEN.md
+  cbe09a8b69f27075 159-160,194-205,214
+  939bed8f8885f519 3-8
+docs/IMPLEMENTATION_PLAN.md
+  939bed8f8885f519 8,10,12,14-27,33-34,39,51-53,58,60,62,64,66,68-71,73,75-77,79,81-91,97-108,110,112-115,117,119-124,126,128-134,136,138,140-142,144,146-164,168,170,174-176,180-181,194,200,202,204,218-229,231-237,239,243-249,253-254,256,265-266,272,275-291,296-331,333-334,342-345,349-351,355-357
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.3.2",
+  "base_commit_sha": "87b86be2e67c7f8392d29c8f286969bc2578abb9",
+  "prompts": {
+    "939bed8f8885f519": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "019db905-8bbf-7272-a849-cedc1969fef6",
+        "model": "gpt-5.4"
+      },
+      "human_author": "sinyuk",
+      "messages": [],
+      "total_additions": 232,
+      "total_deletions": 130,
+      "accepted_lines": 231,
+      "overriden_lines": 0
+    },
+    "cbe09a8b69f27075": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "019db8cf-6936-79f0-b809-f2c478acb9d4",
+        "model": "gpt-5.4"
+      },
+      "human_author": "sinyuk",
+      "messages": [],
+      "total_additions": 91,
+      "total_deletions": 85,
+      "accepted_lines": 34,
+      "overriden_lines": 0
+    }
+  },
+  "humans": {
+    "h_06a7404f25f628": {
+      "author": "sinyuk"
+    }
+  }
+}
