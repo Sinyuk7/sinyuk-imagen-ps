@@ -4,6 +4,8 @@
  * 本文件所有类型均为 serializable 且 host-agnostic。
  */
 
+import type { JobError } from '../errors.js';
+
 /** Job 生命周期状态。 */
 export type JobStatus = 'created' | 'running' | 'completed' | 'failed';
 
@@ -28,13 +30,19 @@ export interface Job {
   readonly output: JobOutput | undefined;
 
   /** 当 status 为 `'failed'` 时的错误信息；否则为 undefined。 */
-  readonly error: unknown | undefined;
+  readonly error: JobError | undefined;
 
   /** 创建时间戳（ISO 8601）。 */
   readonly createdAt: string;
 
   /** 最后更新时间戳（ISO 8601）。 */
   readonly updatedAt: string;
+
+  /** 若本 job 为 retry 产物，指向原 failed job 的 id。 */
+  readonly originJobId?: string;
+
+  /** 当前 job 的重试次数；首次提交为 undefined，第一次 retry 为 1。 */
+  readonly retryAttempt?: number;
 }
 
 /** 内存 JobStore 的最小契约。
@@ -47,11 +55,11 @@ export interface JobStore {
    *
    * INTENT: 将用户输入包装为新的 Job 并分配唯一 id。
    * INPUT: `input` — 本次 job 的业务输入数据。
-   * OUTPUT: 新创建 Job 的稳定 id。
+   * OUTPUT: 新创建 Job 的 immutable snapshot。
    * SIDE EFFECT: 在 store 中插入一条 status 为 `'created'` 的记录。
-   * FAILURE: 若 input 不符合序列化要求，行为暂定（待 invariant-guards 收敛后补全）。
+   * FAILURE: 若 input 不符合序列化要求，抛出 `JobError`（`category: 'validation'`）。
    */
-  submitJob(input: JobInput): string;
+  submitJob(input: JobInput): Job;
 
   /**
    * Retrieve a job by id.
@@ -69,9 +77,37 @@ export interface JobStore {
    *
    * INTENT: 对 status 为 `'failed'` 的 job 发起重试，生成新的执行单元。
    * INPUT: `id` — 失败 job 的标识。
-   * OUTPUT: 重试后的 job id（可能是新 id 或原 id，暂定）。
-   * SIDE EFFECT: 在 store 中创建新的 job 记录或更新原记录状态。
-   * FAILURE: 若指定 job 不存在或尚未失败，行为暂定（待实现时收敛）。
+   * OUTPUT: 新创建 Job 的 immutable snapshot（id 不同于原 job）。
+   * SIDE EFFECT: 在 store 中创建新的 job 记录，新 job 的 `originJobId` 指向原 job，`retryAttempt` 递增。
+   * FAILURE: 若指定 job 不存在或尚未失败，抛出 `JobError`（`category: 'validation'`）。
    */
-  retryJob(id: string): string;
+  retryJob(id: string): Job;
+}
+
+/**
+ * JobStore 的内部写能力，仅由 runner / runtime 内部装配使用。
+ *
+ * `controller` 不对外暴露给 host 层，防止 host 直接篡改状态真相。
+ */
+export interface JobStoreController {
+  /**
+   * 将 job 从 `'created'` 推进到 `'running'`。
+   *
+   * FAILURE: 若 job 不存在或当前状态不允许迁移，抛出 `JobError`。
+   */
+  markRunning(id: string): Job;
+
+  /**
+   * 将 job 从 `'running'` 推进到 `'completed'`，并设置 `output`。
+   *
+   * FAILURE: 若 job 不存在或当前状态不允许迁移，抛出 `JobError`。
+   */
+  markCompleted(id: string, output: JobOutput): Job;
+
+  /**
+   * 将 job 从 `'running'` 推进到 `'failed'`，并设置 `error`。
+   *
+   * FAILURE: 若 job 不存在或当前状态不允许迁移，抛出 `JobError`。
+   */
+  markFailed(id: string, error: JobError): Job;
 }

@@ -41,9 +41,9 @@
 ## 2. Open Questions / Risks
 
 - [ ] provider dispatch 抽象边界的 exact input / output / error 形状未定，需实现时收敛。
-- [ ] event bus 的具体事件类型列表与 payload 形状未定。
-- [ ] job store 的 exact API（尤其是 `retryJob` 语义与错误处理路径）待实现时收敛。
-- [ ] zustand 在 store 中的使用方式未定（`package.json` 已依赖，但 PRD / SPEC 未明确约束是否必须使用）。
+- [x] ~~event bus 的具体事件类型列表与 payload 形状未定。~~ → 已收敛：`JobEventType` = `'created' | 'running' | 'completed' | 'failed'`；`JobEvent` 为 discriminated union（`type` + `job`）；`on` 返回 `Unsubscribe`；`emit` 同步且异常隔离。
+- [x] ~~job store 的 exact API（尤其是 `retryJob` 语义与错误处理路径）待实现时收敛。~~ → 已收敛：`JobStore`（`submitJob` / `getJob` / `retryJob`）与 `JobStoreController`（`markRunning` / `markCompleted` / `markFailed`）读写分离；`retryJob` 复制 `input` 并记录 `originJobId` + `retryAttempt`；状态转换非法时抛 `JobError`（`category: 'runtime'`）。
+- [x] ~~zustand 在 store 中的使用方式未定。~~ → 已决定不引入 zustand；当前实现为纯 `Map<string, InternalJobRecord>` + 浅 clone + `assertImmutable`，event bus 提供观察通道。
 - [ ] 默认 workflow 的长期形态未定 (tentative)。
 - [ ] runtime 与 future facade / CLI 的最终装配位置未定 (tentative)。
 - [ ] 与 `providers`、`workflows` 的真实集成程度尚未验证。
@@ -91,14 +91,19 @@
 - **actual_outcome**: 已创建 `src/invariants.ts`，实现 `assertSerializable`（递归拒绝 function / symbol / undefined / 循环引用，抛出 `JobError`）、`assertImmutable<T>`（对对象/数组执行 `Object.freeze` 并返回 `Readonly<T>`，primitive 透传）、`safeStringify`（循环引用降级为 `"[Circular]"`，`BigInt` 转字符串）；`src/index.ts` 已追加 `./invariants.js` re-export；模块编译通过。
 - **openspec**: completed
 
-### Change 5: implement-state-infrastructure
+### Change 5: implement-state-infrastructure ✓
 - **goal**: 实现 in-memory job store 与 lifecycle event bus。
-- **scope**: `src/store.ts`（submitJob / getJob / retryJob + 最小状态机 created/running/completed/failed）、`src/events.ts`（createJobEventBus + lifecycle 事件）。
+- **scope**: `src/store.ts`（submitJob / getJob / retryJob + 最小状态机 created/running/completed/failed）、`src/events.ts`（createJobEventBus + lifecycle 事件）、`src/types/events.ts`（JobEvent / JobEventType / JobEventBus / Unsubscribe）。
 - **out_of_scope**: workflow runner、provider dispatch、持久化、cancel / queue。
 - **why_now**: store 是状态真相，event bus 是 facade 观察状态的主要方式；两者是 runner 与 runtime 的必要基础设施。
 - **depends_on**: `define-core-shared-types` ✓, `define-error-taxonomy` ✓, `define-invariant-guards` ✓
-- **touches**: `src/store.ts`, `src/events.ts`, `src/index.ts`（更新导出）。
-- **openspec**: now
+- **touches**: `src/store.ts`, `src/events.ts`, `src/types/events.ts`, `src/index.ts`（更新导出）。
+- **actual_outcome**: 
+  - `src/store.ts`：`createJobStore()` 返回 `{ store: JobStore, controller: JobStoreController }`；内部使用 `Map<string, InternalJobRecord>`；`submitJob` 校验 `assertSerializable`、id 生成优先 `crypto.randomUUID()` fallback 到 timestamp+counter+random；`getJob` 经 `toSnapshot` 返回 immutable snapshot；`retryJob` 仅接受 `failed`、复制 `input`、记录 `originJobId` 与递增 `retryAttempt`；`controller` 提供 `markRunning` / `markCompleted` / `markFailed`，经显式 transition table 校验（`created→running`、`running→completed/failed`、terminal state 不可迁移），非法迁移抛 `JobError`（`category: 'runtime'`）；所有对外返回值经浅 clone + `assertImmutable` 与内部 mutable record 隔离。
+  - `src/events.ts`：`createJobEventBus()` 返回 `JobEventBus`；`on(type, handler, filter?)` 支持按 `jobId` 过滤并返回 `unsubscribe`；`onAny(handler)` 订阅全部事件并返回 `unsubscribe`；`off(type, handler)` 保留为低阶 API；内部 `emit(event)` 同步按注册顺序调用匹配处理器，逐 listener `try/catch` 异常隔离，不污染 engine 主流程。
+  - `src/types/events.ts`：新增 `JobEventType`、`JobEvent` discriminated union、`Unsubscribe`、`JobEventBus` 接口。
+  - `src/index.ts` 已追加 `./store.js` 与 `./events.js` re-export；移除了早期 bootstrap placeholder；编译通过。
+- **openspec**: completed
 
 ### Change 6: implement-workflow-registry-and-dispatch
 - **goal**: 实现 workflow registry 与 provider dispatch 抽象边界。
@@ -136,17 +141,17 @@
 
 ## 5. Next OpenSpec Change
 
-- **name**: `implement-state-infrastructure`
-- **reason**: 类型契约、错误模型、边界守卫均已就位，下一步需要建立状态真相（store）与观察机制（event bus），为 runner 与 runtime 提供必要基础设施。
-- **expected outcome**: `src/store.ts` 实现最小状态机（created/running/completed/failed）与 `JobStore` 接口；`src/events.ts` 实现 lifecycle event bus；`src/index.ts` 更新导出。
-- **depends_on**: `define-core-shared-types` ✓, `define-error-taxonomy` ✓, `define-invariant-guards` ✓
+- **name**: `implement-workflow-registry-and-dispatch`
+- **reason**: 状态基础设施（store + event bus）已完成，下一步需要建立 workflow 查找能力与 provider 调用抽象边界，为 runner 提供输入（workflow spec）与输出侧（provider dispatch）依赖。
+- **expected outcome**: `src/registry.ts` 实现 workflow 注册与按名查找；`src/dispatch.ts` 实现 `ProviderDispatcher` 类型与最小适配接口；`src/index.ts` 更新导出。
+- **depends_on**: `define-core-shared-types` ✓, `define-error-taxonomy` ✓, `define-invariant-guards` ✓, `implement-state-infrastructure` ✓
 
 ---
 
 ## 6. Notes
 
-- **当前实际文件状态**：`src/index.ts` 已创建（从 `./types/index.js`、`./errors.js`、`./invariants.js` re-export 公共类型、错误模型与边界守卫，保留 bootstrap 占位符）；`src/types/` 下已创建 `job.ts`、`workflow.ts`、`provider.ts`、`asset.ts`、`index.ts`；`src/errors.ts` 已创建；`src/invariants.ts` 已创建。PRD 中列出的 `store.ts`、`events.ts`、`registry.ts`、`dispatch.ts`、`runner.ts`、`runtime.ts` 均尚未创建。
+- **当前实际文件状态**：`src/index.ts` 已创建（re-export `./types/index.js`、`./errors.js`、`./invariants.js`、`./store.js`、`./events.js`）；`src/types/` 下已创建 `job.ts`、`workflow.ts`、`provider.ts`、`asset.ts`、`events.ts`、`index.ts`；`src/errors.ts` 已创建；`src/invariants.ts` 已创建；`src/store.ts`（JobStore + JobStoreController）已创建；`src/events.ts`（JobEventBus）已创建。PRD 中列出的 `registry.ts`、`dispatch.ts`、`runner.ts`、`runtime.ts` 均尚未创建。
 - **暂定项标记**：默认 workflow 的长期形态、runtime 与 facade / CLI 的最终装配位置、更细的测试矩阵，均按 SPEC.md 标记为 tentative；不应在实现中写成既定事实。
-- **zustand 保留为候选**：`package.json` 已依赖 zustand，但 PRD / SPEC 未明确要求 store 必须使用 zustand；它作为 store 实现的一个候选方案保留，最终是否采用应在 `implement-state-infrastructure` change 时根据接口收敛情况决定，并同步更新本 STATUS.md。
+- **zustand 已决定不采用**：`package.json` 虽仍依赖 zustand，但 `implement-state-infrastructure` 中已明确 store 实现为纯 `Map` + 浅 clone + `assertImmutable`，event bus 提供观察通道；zustand 的 reactivity 对 engine 内部并非必需。如需移除 `package.json` 中的 zustand 依赖，应另起 change 处理。
 - **测试文档**：当前不单独创建 `TESTING.md`；测试实践待 runner 与 runtime 稳定后再评估，与 README.md / SPEC.md 的口径一致。
 - **StepKind 保留值**：`transform`、`io` 当前只应视为保留值，不能视为已支持能力；runner 实现时不得引入这两种 step 的执行逻辑。
