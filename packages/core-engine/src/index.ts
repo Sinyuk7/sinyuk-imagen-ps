@@ -2,11 +2,12 @@
  * @imagen-ps/core-engine
  *
  * Host-agnostic runtime for workflow orchestration and job lifecycle.
- *
- * NOTE: This is a temporary bootstrap placeholder.
- * All exports below will be replaced by real modules in subsequent changes.
  */
 
+// Re-export all shared types.
+export * from './types/index.js';
+
+// TODO: remove in a future change once real modules are exported.
 /** Temporary bootstrap version marker. */
 export const __PLACEHOLDER__CORE_ENGINE_VERSION = '0.0.0';
 
