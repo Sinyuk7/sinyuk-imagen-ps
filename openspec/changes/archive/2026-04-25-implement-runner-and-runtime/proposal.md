@@ -4,10 +4,10 @@
 
 ## What Changes
 
-- 新增 `src/runner.ts`：实现 `provider` step 的顺序执行，包括 input binding 与 output handoff
-- 新增 `src/runtime.ts`：实现 `createRuntime()`，组装 store、events、registry、dispatch、runner
-- 更新 `src/index.ts`：追加 `runner.ts` 与 `runtime.ts` 的公开导出
-- `transform` / `io` step 仍视为保留值，不引入执行逻辑
+- 新增 `packages/core-engine/src/runner.ts`：实现 `provider` step 的顺序执行，包括 input binding 与 output handoff；遇到非法 step kind 时抛出 `JobError`
+- 新增 `packages/core-engine/src/runtime.ts`：实现 `createRuntime()`，组装 store、events、registry、dispatch、runner；支持通过 `initialWorkflows` 与 `adapters` 初始化 registry 与 dispatcher
+- 更新 `packages/core-engine/src/index.ts`：追加 `runner.ts` 与 `runtime.ts` 的公开导出
+- `transform` / `io` step 视为保留值，执行时抛出 `JobError`（`category: 'workflow'`）以明确拒绝
 
 ## Capabilities
 

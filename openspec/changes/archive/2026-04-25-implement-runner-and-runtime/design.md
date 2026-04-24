@@ -40,6 +40,19 @@
 ### Decision 4: runner 内部直接使用 `JobStoreController`，不通过 store 公共接口推进状态
 **Rationale**: `JobStoreController` 的设计目的就是供 runner / runtime 内部使用。runner 作为 engine 内部组件，有权直接操作状态机。
 
+### Decision 5: `createRuntime` 通过 `initialWorkflows` 与 `adapters` 完成初始化
+**Rationale**: 让 runtime 在创建时即可注入宿主提供的 workflow 与 provider adapter，避免在 app 层手动操作 registry / dispatcher。`initialWorkflows` 在创建后立即注册到 `WorkflowRegistry`，`adapters` 在创建后立即注册到 `ProviderDispatcher`。
+**Hot-update policy**: `initialWorkflows` 仅在 `createRuntime` 时一次性注入，runtime 本身不提供运行时热更新（动态增删 workflow）的封装。若 host 层需要在运行时修改 workflow 集合，应直接操作 `WorkflowRegistry` 的公共接口（如 `registry.register` / `registry.unregister`）。runtime 保持职责单一，不介入 workflow 的生命周期管理。
+**Alternative**: 要求 app 层在 `createRuntime` 后手动调用 `registry.register` 与 `dispatcher.registerAdapter` — 被拒绝，因为这会把组装细节泄漏到 host 层，违背 runtime 作为统一入口的目标。
+
+### Decision 6: 非法 step kind（`transform` / `io`）在执行时抛出 `JobError`
+**Rationale**: 这些 kind 目前为保留值，尚无执行语义。若静默跳过，会导致用户误以为 step 已执行；若仅报错日志，则难以被调用方捕获。抛出 `JobError`（`category: 'workflow'`）与 workflow 未找到使用同一 category，表明问题属于 workflow 定义层。
+**Alternative**: 静默跳过并记录 warn 日志 — 被拒绝，因为会掩盖配置错误。
+
+### Decision 7: workflow 未找到时 `throw`，step 失败时 `resolve` with failed job
+**Rationale**: workflow name 属于调用契约，未找到是前置校验失败，应在调用点立即暴露（`throw`）。step 失败属于业务执行结果，应收敛到 job 状态机，保证调用方始终能拿到一致的 `Job` 结构（包含 `status`、`error` 字段），便于统一处理。
+**Alternative**: 统一全部 `throw` — 被拒绝，因为 step 失败也 throw 会迫使调用方同时处理异常和返回值两种路径，增加集成复杂度。
+
 ## Risks / Trade-offs
 
 - **[Risk]** Input binding 的字符串替换可能误伤非模板字符串中碰巧包含 `${...}` 的文本。
@@ -52,7 +65,7 @@
 ## Migration Plan
 
 - 本 change 为纯新增文件，无迁移步骤
-- 回滚：删除 `src/runner.ts`、`src/runtime.ts` 并恢复 `src/index.ts` 到上一版本即可
+- 回滚：删除 `packages/core-engine/src/runner.ts`、`packages/core-engine/src/runtime.ts` 并恢复 `packages/core-engine/src/index.ts` 到上一版本即可
 
 ## Open Questions
 
