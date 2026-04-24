@@ -24,3 +24,9 @@ export * from './registry.js';
 
 // Re-export provider dispatch boundary.
 export * from './dispatch.js';
+
+// Re-export workflow runner.
+export * from './runner.js';
+
+// Re-export runtime assembly.
+export * from './runtime.js';

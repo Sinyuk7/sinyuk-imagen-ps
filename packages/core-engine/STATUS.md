@@ -122,14 +122,20 @@
   - `src/dispatch.test.ts`（11 tests）：覆盖 happy path、adapter 缺失、JobError 透传、普通 Error 映射为 `JobError`、空 provider、非 serializable params / result、adapter 重复注册、adapter provider 为空、deep freeze 嵌套结构验证、`dispatchProvider` 基础委托。
 - **openspec**: completed
 
-### Change 7: implement-runner-and-runtime
+### Change 7: implement-runner-and-runtime ✓
 - **goal**: 实现 workflow runner 与 runtime 组装入口，当前仅支持 `provider` step。
 - **scope**: `src/runner.ts`（顺序执行 step、input binding、output handoff）、`src/runtime.ts`（`createRuntime` 组装 store + events + registry + dispatch + runner）。
 - **out_of_scope**: `transform` / `io` step 执行、provider 参数语义解释、host writeback。
 - **why_now**: 这是 engine 的核心执行链路，必须在所有基础部件（types、errors、store、events、registry、dispatch）就位后才能整合。
-- **depends_on**: `implement-state-infrastructure`, `implement-workflow-registry-and-dispatch`, `define-invariant-guards` ✓
+- **depends_on**: `implement-state-infrastructure` ✓, `implement-workflow-registry-and-dispatch` ✓, `define-invariant-guards` ✓
 - **touches**: `src/runner.ts`, `src/runtime.ts`, `src/index.ts`（更新导出）。
-- **openspec**: later
+- **actual_outcome**:
+  - `src/runner.ts`：新增 `RunnerDeps` 接口与 `executeWorkflow()` 函数；执行流程为 markRunning → 顺序遍历 step → markCompleted / markFailed；`provider` step 通过 `ProviderDispatcher.dispatch()` 调用；input binding 支持 `${outputKey}` 占位符递归替换（字符串精确匹配时替换为原始值，对象/数组递归遍历）；output handoff 按 `outputKey`（默认 `name`）发布到上下文；非法 `kind` 抛出 `JobError`（`category: 'workflow'`）；所有输出经 `assertImmutable` 保护。
+  - `src/runtime.ts`：新增 `Runtime` / `RuntimeOptions` 接口；`createRuntime()` 组装默认 store、event bus、registry、dispatcher，支持 `initialWorkflows` 与 `adapters` 预填充；返回的 `runtime.runWorkflow()` 管理完整 lifecycle（submitJob → emit created → executeWorkflow → emit completed/failed）；同时导出独立 `runWorkflow()` 函数供手动装配场景使用。
+  - `src/index.ts`：追加 `./runner.js` 与 `./runtime.js` re-export；公开面新增 `executeWorkflow`、`runWorkflow`、`createRuntime`、`RunnerDeps`、`Runtime`、`RuntimeOptions`。
+  - `src/runner.test.ts`（8 tests）：覆盖顺序执行、input binding、unbound key 透传、outputKey、非法 kind、workflow 未找到、provider 失败、output immutability。
+  - `src/runtime.test.ts`（7 tests）：覆盖 createRuntime 组装、initialWorkflows/adapters 初始化、runWorkflow 成功路径、workflow 未注册、事件发射（completed / failed）、独立 `runWorkflow` 手动装配。
+- **openspec**: completed
 
 ---
 
@@ -149,16 +155,14 @@
 
 ## 5. Next OpenSpec Change
 
-- **name**: `implement-runner-and-runtime`
-- **reason**: registry 与 dispatch 已就位，runner 现在具备输入侧（workflow spec lookup）和输出侧（provider dispatch）依赖；下一步应把 store、events、registry、dispatch 组装成最小可执行 runtime，并落地 `provider` step 的顺序执行路径。
-- **expected outcome**: `src/runner.ts` 实现 `provider` step 的顺序执行、input binding 与 output handoff；`src/runtime.ts` 实现 `createRuntime()` 组装入口；`src/index.ts` 更新导出。
-- **depends_on**: `implement-state-infrastructure` ✓, `implement-workflow-registry-and-dispatch` ✓, `define-invariant-guards` ✓
+（当前所有 planned changes 已完成。下一步待定：验证与 `providers`、`workflows` 的真实集成，或根据 host 层需求调整 facade 装配方式。）
 
 ---
 
 ## 6. Notes
 
-- **当前实际文件状态**：`src/index.ts` 已创建并 re-export `./types/index.js`、`./errors.js`、`./invariants.js`、`./store.js`、`./events.js`、`./registry.js`、`./dispatch.js`；`src/types/` 下已创建 `job.ts`、`workflow.ts`、`provider.ts`、`asset.ts`、`events.ts`、`index.ts`；`src/errors.ts`、`src/invariants.ts`、`src/store.ts`、`src/events.ts`、`src/registry.ts`、`src/dispatch.ts` 已创建；PRD 中列出的 `runner.ts`、`runtime.ts` 仍尚未创建。
+- **当前实际文件状态**：`src/index.ts` 已创建并 re-export `./types/index.js`、`./errors.js`、`./invariants.js`、`./store.js`、`./events.js`、`./registry.js`、`./dispatch.js`、`./runner.js`、`./runtime.js`；`src/types/` 下已创建 `job.ts`、`workflow.ts`、`provider.ts`、`asset.ts`、`events.ts`、`index.ts`；`src/errors.ts`、`src/invariants.ts`、`src/store.ts`、`src/events.ts`、`src/registry.ts`、`src/dispatch.ts`、`src/runner.ts`、`src/runtime.ts` 已创建；`src/runner.test.ts`（8 tests）、`src/runtime.test.ts`（7 tests）已创建并通过。
+- **SPEC.md 公开面与实际导出的差异**：SPEC.md 目标公开面列出 `runWorkflow`、`createRuntime`。实际导出除这两者外，还暴露了底层的 `executeWorkflow` 与 `RunnerDeps`、`Runtime`、`RuntimeOptions` 类型。这些额外导出为手动装配场景提供灵活性，不破坏现有接口约定；如后续需要收敛公开面，应另起 change 处理。
 - **暂定项标记**：默认 workflow 的长期形态、runtime 与 facade / CLI 的最终装配位置、更细的测试矩阵，均按 SPEC.md 标记为 tentative；不应在实现中写成既定事实。
 - **zustand 已决定不采用**：`package.json` 虽仍依赖 zustand，但 `implement-state-infrastructure` 中已明确 store 实现为纯 `Map` + 浅 clone + `assertImmutable`，event bus 提供观察通道；zustand 的 reactivity 对 engine 内部并非必需。如需移除 `package.json` 中的 zustand 依赖，应另起 change 处理。
 - **测试文档**：当前不单独创建 `TESTING.md`；测试实践待 runner 与 runtime 稳定后再评估，与 README.md / SPEC.md 的口径一致。
