@@ -1,0 +1,51 @@
+openspec/specs/workflow-registry/spec.md
+  857992e5b4922e00 4,12
+  f3c463852c848ec4 1-3,5-11,13-38
+packages/core-engine/STATUS.md
+  857992e5b4922e00 43,91,115
+  f3c463852c848ec4 108,113,116,145-148,154
+packages/core-engine/src/registry.ts
+  f3c463852c848ec4 1-7,9-41,47-49,107-124,126-139
+  857992e5b4922e00 8,42-46,50-106,125
+packages/core-engine/src/dispatch.ts
+  857992e5b4922e00 13-14,22,36
+  f3c463852c848ec4 1-12,15-21,23-35,37-39
+packages/core-engine/src/index.ts
+  f3c463852c848ec4 21-26
+openspec/specs/provider-dispatch/spec.md
+  f3c463852c848ec4 1-3,5-30,36-41,44-51
+  857992e5b4922e00 4,31-35,42-43
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.3.4",
+  "base_commit_sha": "71969e04e3fa8192fe102787e76093edba587e3e",
+  "prompts": {
+    "857992e5b4922e00": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "019dbf5e-6e99-7430-afa9-a48ea4294d69",
+        "model": "gpt-5.4"
+      },
+      "human_author": "sinyuk",
+      "messages": [],
+      "total_additions": 81,
+      "total_deletions": 11,
+      "accepted_lines": 81,
+      "overriden_lines": 0
+    },
+    "f3c463852c848ec4": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_240a69b4dffek3cwkmpl3i0sbA",
+        "model": "moonshotai-cn/kimi-k2.6"
+      },
+      "human_author": "sinyuk",
+      "messages": [],
+      "total_additions": 427,
+      "total_deletions": 28,
+      "accepted_lines": 203,
+      "overriden_lines": 0
+    }
+  }
+}
