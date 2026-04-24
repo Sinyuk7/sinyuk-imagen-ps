@@ -44,3 +44,27 @@ export interface Workflow {
   /** 可选版本标记，用于兼容性判断。 */
   readonly version?: string;
 }
+
+/** Workflow 注册表的最小契约。 */
+export interface WorkflowRegistry {
+  /**
+   * 注册一个 workflow spec。
+   *
+   * FAILURE: 若 name 冲突或 workflow shape 不满足最小约束，抛出 `JobError`。
+   */
+  register(workflow: Workflow): Workflow;
+
+  /**
+   * 按名称读取 workflow。
+   *
+   * OUTPUT: 返回 immutable workflow snapshot；未命中时返回 `undefined`。
+   */
+  get(name: string): Workflow | undefined;
+
+  /**
+   * 列出当前已注册的全部 workflow。
+   *
+   * OUTPUT: 返回按注册顺序排列的 immutable workflow snapshots。
+   */
+  list(): readonly Workflow[];
+}

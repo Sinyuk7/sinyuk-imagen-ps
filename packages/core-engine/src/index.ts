@@ -18,3 +18,9 @@ export * from './store.js';
 
 // Re-export lifecycle event bus.
 export * from './events.js';
+
+// Re-export workflow registry.
+export * from './registry.js';
+
+// Re-export provider dispatch boundary.
+export * from './dispatch.js';

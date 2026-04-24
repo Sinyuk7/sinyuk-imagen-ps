@@ -40,7 +40,7 @@
 
 ## 2. Open Questions / Risks
 
-- [ ] provider dispatch 抽象边界的 exact input / output / error 形状未定，需实现时收敛。
+- [x] ~~provider dispatch 抽象边界的 exact input / output / error 形状未定，需实现时收敛。~~ → 已收敛：`ProviderDispatchAdapter` 以 `provider` + `dispatch(params)` 暴露最小适配接口；`ProviderDispatcher` 收敛为 `dispatch(ref: ProviderRef)`；`createProviderDispatcher()` 负责 adapter 查找、serializable / immutable 边界校验与 `JobError` 映射；`dispatchProvider()` 作为 runner 未来可复用的统一调用入口。
 - [x] ~~event bus 的具体事件类型列表与 payload 形状未定。~~ → 已收敛：`JobEventType` = `'created' | 'running' | 'completed' | 'failed'`；`JobEvent` 为 discriminated union（`type` + `job`）；`on` 返回 `Unsubscribe`；`emit` 同步且异常隔离。
 - [x] ~~job store 的 exact API（尤其是 `retryJob` 语义与错误处理路径）待实现时收敛。~~ → 已收敛：`JobStore`（`submitJob` / `getJob` / `retryJob`）与 `JobStoreController`（`markRunning` / `markCompleted` / `markFailed`）读写分离；`retryJob` 复制 `input` 并记录 `originJobId` + `retryAttempt`；状态转换非法时抛 `JobError`（`category: 'runtime'`）。
 - [x] ~~zustand 在 store 中的使用方式未定。~~ → 已决定不引入 zustand；当前实现为纯 `Map<string, InternalJobRecord>` + 浅 clone + `assertImmutable`，event bus 提供观察通道。
@@ -105,14 +105,22 @@
   - `src/index.ts` 已追加 `./store.js` 与 `./events.js` re-export；移除了早期 bootstrap placeholder；编译通过。
 - **openspec**: completed
 
-### Change 6: implement-workflow-registry-and-dispatch
+### Change 6: implement-workflow-registry-and-dispatch ✓
 - **goal**: 实现 workflow registry 与 provider dispatch 抽象边界。
 - **scope**: `src/registry.ts`（workflow 注册与按名查找）、`src/dispatch.ts`（ProviderDispatcher 类型与最小适配接口）。
 - **out_of_scope**: runner 执行逻辑、provider 参数语义解释、transform / io step。
 - **why_now**: registry 提供 runner 的输入（workflow spec），dispatch 提供 runner 的输出边界（provider 调用抽象）；两者是 runner 的依赖侧，可独立验证。
 - **depends_on**: `define-core-shared-types` ✓, `define-error-taxonomy` ✓
 - **touches**: `src/registry.ts`, `src/dispatch.ts`, `src/index.ts`（更新导出）。
-- **openspec**: later
+- **actual_outcome**:
+  - `src/types/workflow.ts`：新增 `WorkflowRegistry` 接口，最小公开面为 `register` / `get` / `list`。
+  - `src/registry.ts`：新增 `createWorkflowRegistry()`；注册时校验 workflow name（含 `typeof` 防护）、step name（含 `typeof` 防护）、`kind` 合法性（`VALID_STEP_KINDS` 白名单）、`outputKey` 的最小 shape，并对 `input` 做 `assertSerializable`；内部以 `Map<string, Workflow>` 保存 immutable snapshot；`steps` 数组与 `step.input` 均显式 `assertImmutable` 以确保浅拷贝后的 freeze 生效，避免 `Object.freeze` 对嵌套结构的遗漏；提供按名读取与按注册顺序列出。
+  - `src/types/provider.ts`：将早期函数别名收敛为 `ProviderDispatcher` 接口，并新增 `ProviderDispatchAdapter` 最小适配接口（`provider` + `dispatch(params)`）。
+  - `src/dispatch.ts`：新增 `createProviderDispatcher()` 与 `dispatchProvider()`；`normalizeProviderRef` 对 `provider` 做 `typeof === 'string'` + `trim().length` 双重校验，防止运行时传入 `undefined` 抛出原生 `TypeError`；adapter 查找与执行路径对 `ProviderRef` 和返回结果执行 `assertSerializable`；对 object/array 结果先浅拷贝切断引用，再经局部 `deepFreeze` 递归冻结所有层级（`assertImmutable` 仅做浅 freeze，不足以保护嵌套对象），最后把未知异常映射为 `JobError`（优先保留已是 `JobError` 的错误）。
+  - `src/index.ts`：已追加 `./registry.js` 与 `./dispatch.js` re-export。
+  - `src/registry.test.ts`（9 tests）：覆盖 happy path、initialWorkflows、空 name、空 step name、非法 kind、空 outputKey、非 serializable input、immutability 全链路验证。
+  - `src/dispatch.test.ts`（11 tests）：覆盖 happy path、adapter 缺失、JobError 透传、普通 Error 映射为 `JobError`、空 provider、非 serializable params / result、adapter 重复注册、adapter provider 为空、deep freeze 嵌套结构验证、`dispatchProvider` 基础委托。
+- **openspec**: completed
 
 ### Change 7: implement-runner-and-runtime
 - **goal**: 实现 workflow runner 与 runtime 组装入口，当前仅支持 `provider` step。
@@ -141,16 +149,16 @@
 
 ## 5. Next OpenSpec Change
 
-- **name**: `implement-workflow-registry-and-dispatch`
-- **reason**: 状态基础设施（store + event bus）已完成，下一步需要建立 workflow 查找能力与 provider 调用抽象边界，为 runner 提供输入（workflow spec）与输出侧（provider dispatch）依赖。
-- **expected outcome**: `src/registry.ts` 实现 workflow 注册与按名查找；`src/dispatch.ts` 实现 `ProviderDispatcher` 类型与最小适配接口；`src/index.ts` 更新导出。
-- **depends_on**: `define-core-shared-types` ✓, `define-error-taxonomy` ✓, `define-invariant-guards` ✓, `implement-state-infrastructure` ✓
+- **name**: `implement-runner-and-runtime`
+- **reason**: registry 与 dispatch 已就位，runner 现在具备输入侧（workflow spec lookup）和输出侧（provider dispatch）依赖；下一步应把 store、events、registry、dispatch 组装成最小可执行 runtime，并落地 `provider` step 的顺序执行路径。
+- **expected outcome**: `src/runner.ts` 实现 `provider` step 的顺序执行、input binding 与 output handoff；`src/runtime.ts` 实现 `createRuntime()` 组装入口；`src/index.ts` 更新导出。
+- **depends_on**: `implement-state-infrastructure` ✓, `implement-workflow-registry-and-dispatch` ✓, `define-invariant-guards` ✓
 
 ---
 
 ## 6. Notes
 
-- **当前实际文件状态**：`src/index.ts` 已创建（re-export `./types/index.js`、`./errors.js`、`./invariants.js`、`./store.js`、`./events.js`）；`src/types/` 下已创建 `job.ts`、`workflow.ts`、`provider.ts`、`asset.ts`、`events.ts`、`index.ts`；`src/errors.ts` 已创建；`src/invariants.ts` 已创建；`src/store.ts`（JobStore + JobStoreController）已创建；`src/events.ts`（JobEventBus）已创建。PRD 中列出的 `registry.ts`、`dispatch.ts`、`runner.ts`、`runtime.ts` 均尚未创建。
+- **当前实际文件状态**：`src/index.ts` 已创建并 re-export `./types/index.js`、`./errors.js`、`./invariants.js`、`./store.js`、`./events.js`、`./registry.js`、`./dispatch.js`；`src/types/` 下已创建 `job.ts`、`workflow.ts`、`provider.ts`、`asset.ts`、`events.ts`、`index.ts`；`src/errors.ts`、`src/invariants.ts`、`src/store.ts`、`src/events.ts`、`src/registry.ts`、`src/dispatch.ts` 已创建；PRD 中列出的 `runner.ts`、`runtime.ts` 仍尚未创建。
 - **暂定项标记**：默认 workflow 的长期形态、runtime 与 facade / CLI 的最终装配位置、更细的测试矩阵，均按 SPEC.md 标记为 tentative；不应在实现中写成既定事实。
 - **zustand 已决定不采用**：`package.json` 虽仍依赖 zustand，但 `implement-state-infrastructure` 中已明确 store 实现为纯 `Map` + 浅 clone + `assertImmutable`，event bus 提供观察通道；zustand 的 reactivity 对 engine 内部并非必需。如需移除 `package.json` 中的 zustand 依赖，应另起 change 处理。
 - **测试文档**：当前不单独创建 `TESTING.md`；测试实践待 runner 与 runtime 稳定后再评估，与 README.md / SPEC.md 的口径一致。

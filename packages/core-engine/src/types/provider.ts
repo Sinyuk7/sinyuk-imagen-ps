@@ -13,11 +13,25 @@ export interface ProviderRef {
   readonly params: Record<string, unknown>;
 }
 
-/** Provider 调用的抽象边界。
- *
- *  具体实现位于 `packages/providers` 或 host adapter 中；
- *  engine 仅依赖此函数签名。
- */
-export type ProviderDispatcher = (
-  ref: ProviderRef,
-) => Promise<unknown>;
+/** 单个 provider adapter 的最小契约。 */
+export interface ProviderDispatchAdapter {
+  /** 当前 adapter 所属的 provider 标识符。 */
+  readonly provider: string;
+
+  /**
+   * 执行一次 provider 调用。
+   *
+   * `params` 的具体语义由 provider 层拥有，engine 仅做透传。
+   */
+  dispatch(params: Record<string, unknown>): Promise<unknown>;
+}
+
+/** Provider 调用的抽象边界。 */
+export interface ProviderDispatcher {
+  /**
+   * 根据 `ProviderRef` 路由到对应 adapter 并执行。
+   *
+   * engine 仅依赖这个 runtime contract，不感知 provider registry 或 transport 细节。
+   */
+  dispatch(ref: ProviderRef): Promise<unknown>;
+}
