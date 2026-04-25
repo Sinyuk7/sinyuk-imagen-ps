@@ -1,6 +1,6 @@
 # AGENTS.md
 
-- 先读 `README.md`、`SPEC.md`、`STATUS.md`，`PRD.md` 只作设计输入。
+- 先读 `README.md`、`SPEC.md`、`STATUS.md`。
 - 本模块层级是 `workflows`，只放 declarative workflow specs。
 - 允许内容：step ordering、input binding、output key、workflow metadata、builtin specs。
 - 禁止内容：可执行逻辑、provider transport、host IO、runtime state mutation、UI shape。
