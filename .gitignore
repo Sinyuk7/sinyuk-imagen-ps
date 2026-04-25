@@ -3,6 +3,9 @@
 .codemaker
 .claude
 .agents
+.opencode
+
+ravenspec
 
 # Dependencies
 node_modules/
