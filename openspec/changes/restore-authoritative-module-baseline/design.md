@@ -1,82 +1,97 @@
 ## Context
 
-`packages/workflows` 当前拥有以下本地活跃文档：
+`packages/workflows` 当前有 4 份本地活跃文档：
+- `README.md`：模块入口与索引
+- `SPEC.md`：当前阶段规范
+- `STATUS.md`：实现状态、偏差与开放问题
+- `AGENTS.md`：模块级约束
 
-- `README.md`：模块摘要，索引 `SPEC.md`、`STATUS.md`、`AGENTS.md`
-- `SPEC.md`：当前阶段规范，描述模块目的、稳定边界、当前公开面与 tentative 信息
-- `STATUS.md`：实现状态、变更序列与开放问题，其中明确记录 `PRD.md` 缺失
-- `AGENTS.md`：模块级短规则，约束 agent 行为
+但 `PRD.md` 缺失，导致 agent 在理解模块职责时只能回退到 `/.archive/modules/workflows/PRD.md`。这份 archive 文档只能作为 `(tentative)` 外部参考，不能作为当前权威基线。
 
-但缺少 `PRD.md`。`STATUS.md` §2 指出：更细的 builtin 命名与目录建议只能参考 `/.archive/modules/workflows/PRD.md`，该来源仅能作为 `(tentative)` external reference。归档文档与当前代码现实可能存在偏差，agent 若依赖它做判断，容易产生误判。
-
-同时，现有文档之间存在一些可以收敛的点：
-- `README.md` 未明确提及 `PRD.md` 缺失问题
-- `SPEC.md` 中的 tentative 信息（如最终 builtin workflow 数量）缺乏统一记录位置
-- `STATUS.md` 的 `Open Questions` 中 `PRD.md` 缺失项尚待解决
+这个 change 的目标不是重构规范，而是恢复 `packages/workflows` 的本地权威基线，让阅读顺序、职责边界和已知偏差都能仅靠当前目录内的文档成立。
 
 ## Goals / Non-Goals
 
-**Goals:**
-- 新建 `PRD.md`，成为 `packages/workflows` 本地权威的产品需求文档基线
-- 更新 `README.md`、`SPEC.md`、`STATUS.md`，使四份文档互为补充、无矛盾
-- 确保仅通过 `packages/workflows/` 内的活跃文档，就能确定 builtin workflow 的职责、命名与边界
-- 将文档与代码的已知偏差显式记录到 `STATUS.md`，不把未收敛的假设写入 `PRD.md`
+### Goals
+- 新建 `PRD.md`，作为 `packages/workflows` 的产品需求基线
+- 更新 `README.md`、`SPEC.md`、`STATUS.md`，使四份文档互相补足且不冲突
+- 明确 current baseline、tentative 项和 archive 参考的边界
 
-**Non-Goals:**
-- 不修改 `src/` 或 `tests/` 下的任何源码
-- 不回退到 archive 文档作为权威来源
-- 不将 tentative 字段（`maskAsset`、`output`、`providerOptions`）提升为稳定 contract
-- 不创建超出当前最小范围的新文档（如 `TESTING.md`、`RUNBOOK.md`）
-- 不重构根级文档或跨模块 roadmap
+### Non-Goals
+- 不修改 `src/` 或 `tests/`
+- 不重构根级文档
+- 不把 tentative 字段提升为稳定 contract
+- 不新增 `TESTING.md`、`RUNBOOK.md`、`examples/` 等超出当前最小范围的文档
 
 ## Decisions
 
-### Decision 1: `PRD.md` 只记录当前已收敛的权威信息，不猜测未来结构
-**Rationale**: PRD 的目标是“本地权威基线”，而不是“理想蓝图”。若把未验证的假设写进 PRD，未来变更时又要修订，反而降低权威性。
-**Content scope**:
+### Decision 1: `PRD.md` 只记录当前已收敛的权威信息
+**Rationale**: `PRD.md` 的职责是做模块级产品需求基线，而不是保存未验证的愿景。把 archive 里的假设直接写进 `PRD.md` 会让它持续变成“理想蓝图”，削弱它作为权威参考的价值。
+
+**Content scope**
 - 模块定位与目标用户
-- builtin workflow 的职责、命名约定与边界定义（仅限当前已实现的 `provider-generate`、`provider-edit`）
+- builtin workflow 的职责、命名约定与边界
 - 稳定 contract 与 tentative 字段的明确区分
-- 与 `core-engine`、`providers` 的交互边界（dependency direction、不承载的语义）
-**Alternative**: 把 archive PRD 的内容全盘复制并稍作修改。被拒绝，因为无法确认 archive 内容是否仍与代码现实一致。
+- 与 `core-engine`、`providers` 的交互边界
 
-### Decision 2: `README.md` 升级为模块文档集的入口与索引
-**Rationale**: `README.md` 是 agent 和开发者最先读取的文件，应清晰告知“本模块有什么文档、每份文档的职责、缺失项是否已解决”。
-**Changes**:
-- 在“当前文档集”段落中新增 `PRD.md` 条目
-- 明确声明“本模块不再依赖 archive PRD 作为权威来源”
-- 保持简洁，不重复 `SPEC.md` 或 `PRD.md` 的详细内容
+**Alternative**: 直接复制 archive PRD，再在其上做最小修订。  
+**Rejected because**: archive 内容无法证明与当前实现一致，且会把历史决策假设重新引入当前基线。
 
-### Decision 3: `SPEC.md` 收敛当前阶段规范，将已解决的歧义移除或归档
-**Rationale**: `SPEC.md` 是“当前阶段规范”，应反映已落地的结构。若某些 tentative 信息已长期未变，且后续也无计划立即变更，应在 `SPEC.md` 中明确记录其状态，而不是让它持续悬而未决。
-**Changes**:
-- 保留当前稳定 contract 的精确描述
-- 对仍 tentative 的字段，保持标注并指明其记录位置（`STATUS.md` 或 `PRD.md`）
-- 若 `SPEC.md` 与 `PRD.md` 存在内容重叠，以 `PRD.md` 为“产品需求与职责”权威来源，`SPEC.md` 为“技术规范与 shape”权威来源
+### Decision 2: `README.md` 作为模块入口和索引
+**Rationale**: `README.md` 是 agent 和开发者第一眼会读到的文档，应该快速回答“这里有哪些文档、每份文档负责什么、当前有没有缺口”。
 
-### Decision 4: `STATUS.md` 同步文档基线状态，将 `PRD.md` 缺失风险标记为已解决
-**Rationale**: `STATUS.md` 是“现状与偏差”的权威记录。完成本 change 后，`PRD.md` 缺失的开放问题应被关闭，同时更新 `Change Sequence` 和 `Execution Order` 以反映当前进度。
-**Changes**:
-- 关闭 §2 Open Questions 中 `PRD.md` 缺失项
+**Changes**
+- 在“当前文档集”中新增 `PRD.md`
+- 明确 `README.md` 负责索引与导航，不重复展开 `PRD.md`、`SPEC.md` 的细节
+- 说明本模块当前不再依赖 archive PRD 作为权威来源
+
+**Alternative**: 让 `PRD.md` 成为唯一入口，`README.md` 只做极简目录。  
+**Rejected because**: 这会把“入口文档”和“权威语义来源”混在一起，降低首读效率，也不符合当前仓库“README 作为模块索引”的习惯。
+
+### Decision 3: `SPEC.md` 只保留当前阶段的技术规范
+**Rationale**: `SPEC.md` 应该描述当前阶段已经收敛的 shape 和约束，而不是同时承担产品定义、历史背景和未来规划。
+
+**Changes**
+- 保留当前已验证的 workflow shape、step 约束和输出 key 约定
+- 对仍然 tentative 的字段做显式标注，并把其状态记录在 `STATUS.md` 或 `PRD.md`
+- 避免 `SPEC.md` 与 `PRD.md` 的职责重叠
+
+**Alternative**: 把产品需求、阶段规范和当前实现说明全部并入 `PRD.md`。  
+**Rejected because**: 这会让产品意图和技术 shape 混写，后续任一侧变化都需要反复改同一份文档，增加漂移和冲突概率。
+
+### Decision 4: `STATUS.md` 作为 drift ledger 和执行序列记录
+**Rationale**: `STATUS.md` 适合承载“当前状态、已知偏差、开放问题、变更序列”，而不适合承担产品需求本身。
+
+**Changes**
+- 关闭 `PRD.md` 缺失这一项开放问题
 - 将 `restore-authoritative-module-baseline` 标记为 completed
-- 如有新的开放问题（如文档与代码的残余偏差），显式记录
+- 如仍存在文档与实现偏差，集中记录在 `STATUS.md`
+
+**Alternative**: 把所有状态、偏差和结论都写回 `PRD.md`。  
+**Rejected because**: 这会让 `PRD.md` 同时承担需求基线和变更日志，失去稳定参考点，也不利于后续审阅漂移。
 
 ## Risks / Trade-offs
 
-- **[Risk]** 新建 `PRD.md` 时，若对 archive PRD 的内容了解不足，可能遗漏某些历史决策依据。
-  → **Mitigation**: 以当前活跃代码（`src/builtins/*.ts`）和已有文档（`SPEC.md`、`STATUS.md`）为主要依据，archive 仅作背景参考。若发现关键历史信息缺失，记录到 `STATUS.md` 而非猜测写入 `PRD.md`。
-- **[Risk]** `PRD.md` 与 `SPEC.md` 的职责边界不清，导致内容重复或矛盾。
-  → **Mitigation**: `PRD.md` 聚焦“产品需求、职责、边界、目标用户”；`SPEC.md` 聚焦“技术规范、shape、接口、当前阶段约束”。重叠内容以各自视角简述，交叉引用而非复制。
-- **[Risk]** 文档更新后，后续代码变更未同步更新文档，导致基线再次失效。
-  → **Mitigation**: 在 `AGENTS.md` 中强化“文档与代码冲突 → 记录到 `STATUS.md`”的规则，并在 `PRD.md` 末尾注明“本文档以当前 change 完成时的代码现实为准，后续变更需同步更新”。
+- 新建 `PRD.md` 时若过度依赖 archive，仍可能把历史假设写回当前基线
+  - Mitigation: 以当前 `src/`、`SPEC.md`、`STATUS.md` 为主，archive 只作背景参考
+- `PRD.md` 与 `SPEC.md` 的边界若写得不清楚，可能再次出现重复
+  - Mitigation: `PRD.md` 讲产品需求与职责，`SPEC.md` 讲技术 shape 与当前约束
+- 文档更新后若实现继续演进，基线可能再次失效
+  - Mitigation: 将偏差明确记录到 `STATUS.md`，避免把未收敛假设写成既成事实
 
 ## Migration Plan
 
-- 本 change 不涉及代码、配置或数据迁移。
-- 实施顺序：`PRD.md` 新建 → `README.md` 更新 → `SPEC.md` 收敛 → `STATUS.md` 同步。
-- 回滚方式：删除 `PRD.md`，恢复 `README.md`、`SPEC.md`、`STATUS.md` 的先前版本即可。
+- 本 change 不涉及代码、配置或数据迁移
+- 实施顺序：
+  1. 新建 `PRD.md`
+  2. 更新 `README.md`
+  3. 收敛 `SPEC.md`
+  4. 同步 `STATUS.md`
+- 回滚方式：
+  - 删除 `PRD.md`
+  - 恢复 `README.md`、`SPEC.md`、`STATUS.md` 的前一版本
 
 ## Open Questions
 
-- `PRD.md` 中是否需要包含“版本历史”或“变更日志”段落，还是由 `STATUS.md` 的 `Change Sequence` 统一承担？
-- 若未来 `workflows` 扩展新的 builtin workflow，`PRD.md` 是否应作为“所有 builtin workflow 的注册表”，还是仅描述通用职责与边界？
+- `PRD.md` 是否需要包含版本历史，还是统一交给 `STATUS.md` 的变更序列
+- 未来若 `workflows` 扩展新的 builtin workflow，`PRD.md` 是否要列出全部 workflow，还是只描述通用职责和边界

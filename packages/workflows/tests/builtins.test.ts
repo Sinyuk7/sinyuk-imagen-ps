@@ -7,7 +7,7 @@ import {
 import {
   createDispatchAdapter,
   createMockProvider,
-} from '../../providers/src/index.ts';
+} from '@imagen-ps/providers';
 
 import {
   builtinWorkflows,
