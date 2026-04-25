@@ -36,17 +36,19 @@
 - why_now: `shared commands` 与 CLI 要消费 workflow 时，需要清楚知道 job input 应该长什么样，不能继续依赖推断。
 - depends_on: none
 - touches: `src/builtins/`, `tests/`, `STATUS.md`
-- acceptance_criteria: `provider-generate` / `provider-edit` 的输入字段、必要字段与输出 key 在本模块文档和测试中一致且可验证。
+- acceptance_criteria:
+  - `provider-generate` / `provider-edit` 的输入字段、必要字段与输出 key 在本模块文档和测试中一致且可验证
+  - 包含一条使用 mock provider 的最小 bridge 兼容 happy path，验证 workflow binding 可被真实 adapter 消费
 - openspec_timing: now
 
 ### Change 2: add-provider-bridge-compatibility-tests
-- goal: 验证 builtin workflows 在真实 provider bridge adapter 下可跑通，而不只是在 stub dispatcher 下通过。
+- goal: 在 Change 1 的最小验证之上，补充更完整的跨包集成验证（覆盖更多边界、错误路径和真实 provider 场景）。
 - scope: `tests/` 内增加跨包兼容性验证入口，必要时补充本包测试夹具
 - out_of_scope: 修改 `packages/providers` 的实现细节或扩展 provider 功能
 - why_now: 根级 `OPEN_ITEMS.md` 与 `packages/core-engine/OPEN_ITEMS.md` 都已把 `providers` / `workflows` 真实集成标记为验证缺口。
-- depends_on: `packages/providers` 当前 baseline 保持可用
+- depends_on: `stabilize-builtin-request-contract`
 - touches: `tests/` `(tentative)`
-- acceptance_criteria: 至少一个真实 provider bridge adapter 能通过 `provider-generate` 或 `provider-edit` happy path，或测试明确收敛出仍待解决的边界问题。
+- acceptance_criteria: 至少一个真实 provider bridge adapter 能通过 `provider-generate` 或 `provider-edit` 的更多边界场景，或测试明确收敛出仍待解决的边界问题。
 - openspec_timing: now
 
 ### Change 3: restore-authoritative-module-baseline

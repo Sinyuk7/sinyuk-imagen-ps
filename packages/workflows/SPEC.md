@@ -29,15 +29,18 @@
 
 ## 当前公开面
 
-包根入口已经存在，但当前源码导出仍为空。对本模块应保持两个认识：
+`src/index.ts` 已从 `src/builtins/` 导出最小 builtin workflow 集合：
 
-- 文档确认的目标：导出最小 builtin workflow specs
-- 当前代码现实：`src/index.ts` 仍是占位，尚未提供 builtin exports
+- `providerGenerateWorkflow`（`provider-generate`）
+- `providerEditWorkflow`（`provider-edit`）
+- `builtinWorkflows`（只读集合，包含上述两项）
+
+这些导出满足 `core-engine` 的 `Workflow` 类型约束，并已被 `createRuntime()` 与 `createWorkflowRegistry()` 直接消费。
 
 ## 暂定信息
 
-- 最终 builtin workflow 的数量与命名
-- `provider-generate`、`provider-edit` 等文件名是否会保留
+- 最终 builtin workflow 的数量与命名（当前仅两个）
+- `maskAsset`、`output`、`providerOptions` 等字段是否提升为稳定 contract（当前为 tentative）
 - step shape 的最终字段细节
 
 ## 当前刻意省略

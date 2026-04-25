@@ -17,7 +17,13 @@ const editStep = Object.freeze({
 /**
  * 最小 image edit workflow。
  *
- * 当前将 `inputAssets` 视为 edit happy path 的必要输入，其余 provider 细节留在 provider 层处理。
+ * 当前稳定 contract：
+ * - 输入：`provider`（必需）、`prompt`（必需）、`inputAssets`（必需）
+ * - 输出 key：`image`
+ *
+ * Tentative（未纳入当前稳定范围）：`maskAsset`、`output`、`providerOptions`
+ *
+ * 只负责把 job input 绑定到单个 provider step，不承载 provider 语义或执行逻辑。
  */
 export const providerEditWorkflow = Object.freeze({
   name: 'provider-edit',
