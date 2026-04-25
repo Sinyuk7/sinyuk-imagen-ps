@@ -1,0 +1,80 @@
+## ADDED Requirements
+
+### Requirement: Mock provider SHALL implement the full Provider contract
+Mock provider MUST 实现 `Provider` 接口的全部方法：`describe()`、`validateConfig()`、`validateRequest()`、`invoke()`，并暴露稳定的 `id` 与 `family`。
+
+#### Scenario: Mock provider describes itself
+- **WHEN** 调用方调用 `mockProvider.describe()`
+- **THEN** 它 MUST 返回 `ProviderDescriptor`，其中 `id` 为 `"mock"`、`family` 为 `"openai-compatible"`
+- **AND** `capabilities.syncInvoke` MUST 为 `true`
+- **AND** `operations` MUST 包含 `"generate"` 与 `"edit"`
+
+### Requirement: Mock provider SHALL validate config using a Zod schema
+Mock provider 的 `validateConfig()` MUST 使用 Zod schema 对输入进行校验，失败时抛出结构化错误，与真实 provider 保持同一校验模式。
+
+#### Scenario: Valid mock config passes validation
+- **WHEN** 调用方传入包含 `providerId`、`baseURL`、`apiKey` 的 mock config
+- **THEN** `validateConfig()` MUST 返回收敛后的 config 对象
+- **AND** 返回对象 MUST 包含 mock 特有的可选字段（如 `delayMs`、`failMode`）的默认值
+
+#### Scenario: Invalid mock config fails validation
+- **WHEN** 调用方传入缺少 `baseURL` 或 `apiKey` 的 config
+- **THEN** `validateConfig()` MUST 抛出包含 `message` 与 `details` 的结构化错误
+- **AND** 该错误 MUST 可被映射为 `JobError { category: 'validation' }`
+
+### Requirement: Mock provider SHALL validate request using a Zod schema
+Mock provider 的 `validateRequest()` MUST 使用 Zod schema 校验 canonical image request，确保 caller 按契约传入参数。
+
+#### Scenario: Valid request passes validation
+- **WHEN** 调用方传入包含 `operation` 与 `prompt` 的 canonical request
+- **THEN** `validateRequest()` MUST 返回收敛后的 request 对象
+
+#### Scenario: Invalid request fails validation
+- **WHEN** 调用方传入缺少 `operation` 或 `prompt` 的请求
+- **THEN** `validateRequest()` MUST 抛出包含 `message` 与 `details` 的结构化错误
+- **AND** 该错误 MUST 可被映射为 `JobError { category: 'validation' }`
+
+### Requirement: Mock provider SHALL support configurable delay simulation
+Mock provider MUST 允许通过 config 控制 `invoke()` 的模拟延迟，以验证 runtime 对异步调用的处理。
+
+#### Scenario: Invoke with default delay
+- **WHEN** 调用方未在 config 中指定 `delayMs`
+- **THEN** `invoke()` MUST 在默认短暂延迟后返回结果
+
+#### Scenario: Invoke with custom delay
+- **WHEN** 调用方在 config 中指定 `delayMs: 500`
+- **THEN** `invoke()` MUST 在约 500ms 后返回结果
+- **AND** 若 `signal` 在延迟期间被 abort，则 MUST 抛出 abort 错误
+
+### Requirement: Mock provider SHALL support configurable failure modes
+Mock provider MUST 支持通过 config 配置失败模式，包括固定失败与概率失败，以验证 runtime 的错误处理路径。
+
+#### Scenario: Invoke with forced failure
+- **WHEN** 调用方在 config 中指定 `failMode: { type: 'always' }`
+- **THEN** `invoke()` MUST 抛出包含 `message` 的结构化错误
+- **AND** 该错误 MUST 可被映射为 `JobError { category: 'provider' }`
+
+#### Scenario: Invoke with probability failure
+- **WHEN** 调用方在 config 中指定 `failMode: { type: 'probability', rate: 0.5 }`
+- **THEN** `invoke()` 有 50% 概率抛出错误，50% 概率返回正常结果
+- **AND** 错误 MUST 包含 `message` 与表明其为模拟失败的 `details`
+
+### Requirement: Mock provider invoke SHALL return normalized synthetic assets
+Mock provider 的 `invoke()` 在成功时 MUST 返回符合 `ProviderInvokeResult` 的归一化结果，其中 `assets` 为合成 `Asset[]`，不依赖外部文件系统或网络。
+
+#### Scenario: Successful invoke returns synthetic assets
+- **WHEN** `invoke()` 在无失败模式的配置下被调用
+- **THEN** 它 MUST 返回 `ProviderInvokeResult`
+- **AND** `assets` MUST 为非空数组，每个元素符合 `Asset` 形状
+- **AND** `assets` 中每个 `Asset` 的 `type` MUST 为 `"image"`
+- **AND** `assets` 中每个 `Asset` 的 `name` 或 `mimeType` SHOULD 包含可识别的 mock 标记
+- **AND** `diagnostics` MAY 包含延迟、模式等结构化诊断信息
+- **AND** `raw` MAY 包含调试用途的快照
+
+### Requirement: Mock provider SHALL respect AbortSignal
+Mock provider 的 `invoke()` MUST 在延迟期间响应 `AbortSignal`，支持取消语义。
+
+#### Scenario: Invoke is aborted during delay
+- **WHEN** `invoke()` 被调用且 `signal` 在结果返回前触发 abort
+- **THEN** `invoke()` MUST 抛出 abort 错误
+- **AND** 该错误 MUST 可被桥接层识别并映射为 `JobError { category: 'provider' }`

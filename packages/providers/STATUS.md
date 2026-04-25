@@ -42,7 +42,7 @@
 - [x] `clean` 脚本已切换为 `rimraf dist`
 - [x] `Provider` 的 `validateConfig` / `validateRequest` / `invoke` 失败行为已在 `spec.md` 与 `provider.ts` JSDoc 中约束：必须抛出可被映射为 `JobError` 的结构化错误
 - [ ] `ProviderDescriptor.configSummary` 当前仅收敛为可选摘要对象；后续是否需要 schema summary 仍待在 refine 或实现阶段确认
-- [ ] `ProviderDispatchBridge` 最终是否保持独立工厂接口，还是下沉为 provider 实例方法，仍待后续实现验证
+- [x] `ProviderDispatchBridge` 已按独立工厂函数 `createDispatchAdapter()` 实现并验证可行；当前保持独立工厂模式
 - [ ] `ProviderInvokeResult.raw` 当前保留为调试期开口；是否长期保留为稳定公开字段仍待后续 change 决定
 - [ ] 真实 OpenAI-compatible provider 的接入环境（relay URL、apiKey、model name）尚未确定 → 移至 `implement-openai-compatible-provider` change 调研
 
@@ -79,20 +79,32 @@
 - out_of_scope: openai-compatible provider、真实 HTTP transport、端到端集成测试
 - why_now: mock provider 是 Phase 2 验收核心，也是验证 registry、contract shape 和 `ProviderDispatchAdapter` 桥接的最快方式
 - depends_on: stabilize-package-contract
+- status: **已实现**
 - touches:
   - `src/registry/provider-registry.ts`
   - `src/registry/builtins.ts`
+  - `src/registry/index.ts`
   - `src/providers/mock/descriptor.ts`
+  - `src/providers/mock/config-schema.ts`
+  - `src/providers/mock/request-schema.ts`
   - `src/providers/mock/provider.ts`
+  - `src/providers/mock/index.ts`
+  - `src/bridge/create-dispatch-adapter.ts`
+  - `src/bridge/index.ts`
   - `src/shared/id.ts` (tentative)
   - `src/shared/asset-normalizer.ts` (tentative)
-  - `src/index.ts`（追加 registry / mock 导出）
+  - `src/index.ts`（追加 registry / mock / bridge 导出）
 - acceptance_criteria:
-  - registry 支持 register / get / list
-  - mock provider 可被注册、describe、validateConfig、validateRequest、invoke
-  - mock provider 可配置延迟与失败模式
-  - mock provider 可通过适配逻辑生成符合 `core-engine` `ProviderDispatchAdapter` 契约的对象
+  - [x] registry 支持 register / get / list
+  - [x] mock provider 可被注册、describe、validateConfig、validateRequest、invoke
+  - [x] mock provider 可配置延迟与失败模式
+  - [x] mock provider 可通过适配逻辑生成符合 `core-engine` `ProviderDispatchAdapter` 契约的对象
 - openspec_timing: now
+- deviations:
+  - `z.record()` 在 Zod 4 中需显式传入 keyType 与 valueType（`z.record(z.string(), z.string())`），与 Zod 3 的单参数用法不同
+  - mock config schema 中 `displayName` 与 `family` 保持为 required，以确保 `MockProviderConfig` 可赋值给 `OpenAICompatibleProviderConfig`
+  - 新增 `src/bridge/` 目录存放 `createDispatchAdapter`，比原计划（放在 `src/shared/` 或内联）更清晰
+  - `src/shared/id.ts` 当前未被 `asset-normalizer.ts` 使用，但保留为后续 provider 复用准备
 
 ### Change 3: implement-openai-compatible-provider
 - goal: 实现 openai-compatible provider 的完整链路，包括 config/request 校验、HTTP 调用、响应解析、错误映射与 retry，并能以 `ProviderDispatchAdapter` 形式被 `core-engine` 消费
@@ -140,7 +152,7 @@
 ## 4. Execution Order
 1. stabilize-package-contract → 修正工具链并定义类型契约（含 AssetRef 与 Provider→Adapter 桥接、错误行为映射），记录通用接入约束，解除“模块无公开面”的阻塞
 2. **OpenSpec refine 阶段** → 基于 stabilize-package-contract 已建立的 contract 层和通用约束，更新 PRD / SPEC / STATUS，收敛错误 shape、config shape、error mapping、retry policy、model policy 等设计细节
-3. implement-registry-and-mock → 建立可注册、可调用、可被 engine 消费的最小运行面
+3. **implement-registry-and-mock → ✅ 已完成** 建立可注册、可调用、可被 engine 消费的最小运行面
 4. implement-openai-compatible-provider → 补充真实 provider 链路，完成 Phase 1 核心交付
 5. add-provider-verification-harness → 锁定行为，为后续 runtime 集成提供信任基础
 
