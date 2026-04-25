@@ -1,9 +1,16 @@
 # AGENTS.md
 
-- 先读 `README.md`、`OPEN_ITEMS.md`。
-- 本模块层级是 `providers`，负责 provider 语义、校验、外部 API 映射与错误归一化。
-- 允许内容：provider descriptor、config / request 校验、registry、mock provider、transport helper、response normalization。
-- 禁止内容：runtime lifecycle、job store、facade orchestration、host IO、UI model、settings persistence。
-- engine 不应理解 provider 参数语义；这些语义必须留在本模块。
-- 当前只写当前阶段确定的 family 与 contract，不扩写未来 provider 矩阵。
-- 文档与代码冲突时，先写入 `OPEN_ITEMS.md`，不要把空实现包装成已落地能力。
+## Project Overview
+
+`@imagen-ps/providers` — Provider 语义层。负责把外部 provider API 与内部 runtime contract 隔离，承担配置校验、请求校验、调用、响应归一化和错误映射。不负责 runtime lifecycle、job store、facade orchestration、host IO、settings persistence。
+
+## Docs Map
+
+| 主题 | 路径 |
+|------|------|
+| 环境与构建 | [docs/SETUP.md](docs/SETUP.md) |
+| 组件接入 | [docs/USAGE.md](docs/USAGE.md) |
+| 代码规范 | [docs/CODE_CONVENTIONS.md](docs/CODE_CONVENTIONS.md) |
+| 稳定性规范 | [docs/STABILITY.md](docs/STABILITY.md) |
+| 架构说明 | [ARCHITECTURE.md](ARCHITECTURE.md) |
+| 待解决项 | [OPEN_ITEMS.md](OPEN_ITEMS.md) |

@@ -1,3 +1,5 @@
+<!-- This file mirrors AGENTS.md. Keep them in sync. -->
+
 # AGENTS.md
 
 ## Project Overview

@@ -1,4 +1,6 @@
-# AGENTS.md
+# CLAUDE.md
+
+> **Note**: This file mirrors `AGENTS.md`. In Unix environments, this would be a symlink (`ln -sf AGENTS.md CLAUDE.md`).
 
 ## Project Overview
 
