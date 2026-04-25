@@ -20,3 +20,6 @@ dist/
 # IDE
 .vscode/
 .idea/
+
+
+.archive/

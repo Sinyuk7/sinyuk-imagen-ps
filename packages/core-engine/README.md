@@ -5,9 +5,7 @@
 ## 先读哪里
 
 - `SPEC.md`：当前阶段的本地规范
-- `STATUS.md`：现状、偏差与不确定项
 - `AGENTS.md`：模块级短规则
-- `PRD.md`：设计输入，范围比现状更大
 
 ## 本模块负责什么
 
@@ -28,8 +26,7 @@
 
 - `README.md`：模块摘要
 - `SPEC.md`：稳定意图与边界
-- `STATUS.md`：实现状态与文档/代码偏差
 - `AGENTS.md`：本地实现规则
+- `OPEN_ITEMS.md`：当前未解决项与待验证缺口
 
 当前不单独创建 `CONTRACTS.md` 或 `TESTING.md`。原因是跨模块 contract 仍由 `SPEC.md` 承载，测试实践也还未稳定到值得独立维护。
-

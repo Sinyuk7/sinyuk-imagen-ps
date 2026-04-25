@@ -1,7 +1,7 @@
 # core-engine 规范
 
 - 状态：当前阶段规范
-- 依据：根级 `AGENTS.md`、`docs/IMPLEMENTATION_PLAN.md`、本模块 `PRD.md`
+- 依据：根级 `AGENTS.md`、`docs/IMPLEMENTATION_PLAN.md`
 
 ## 模块目的
 
@@ -32,12 +32,12 @@
 
 ## 当前公开面
 
-目标公开面计划集中在 `src/index.ts`（代码尚未实现）：
+实际公开面集中在 `src/index.ts`，所有目标接口已实现并通过测试。
 
-- 类型导出：runtime、workflow、provider、job、asset、error 相关类型
-- 函数导出：`createJobEventBus`、`createJobStore`、`createWorkflowRegistry`、`dispatchProvider`、`runWorkflow`、`createRuntime`
+- 类型导出：`Job`、`JobStatus`、`JobInput`、`JobOutput`、`JobStore`、`Workflow`、`Step`、`StepKind`、`ProviderRef`、`ProviderDispatchAdapter`、`ProviderDispatcher`、`Asset`、`AssetType`、`JobEvent`、`JobEventType`、`JobEventBus`、`Unsubscribe`、`ErrorCategory`、`JobError`、`Runtime`、`RuntimeOptions`、`RunnerDeps`
+- 函数导出：`createJobEventBus`、`createJobStore`、`createWorkflowRegistry`、`createProviderDispatcher`、`dispatchProvider`、`executeWorkflow`、`runWorkflow`、`createRuntime`
 
-这些名字是当前阶段的目标接口，代码实现待 `bootstrap-core-engine-scaffold` change 完成；后续若调整，应先更新 `STATUS.md`。
+当前实际导出除目标接口外，还额外暴露了 `executeWorkflow` 与 `RunnerDeps`、`Runtime`、`RuntimeOptions` 类型，为手动装配场景提供灵活性。如后续需要收敛公开面，应另起 change 处理。
 
 ## 暂定信息
 
@@ -46,6 +46,7 @@
 - runtime 与 future facade / CLI 的最终装配位置
 - 更细的测试矩阵和自动化策略
 - `StepKind` 中的 `transform`、`io` 目前只应视为保留值，不能视为已支持能力
+- 与 `providers`、`workflows` 的真实集成程度尚未验证
 
 ## 当前刻意省略
 
