@@ -1,7 +1,7 @@
 # workflows 规范
 
 - 状态：当前阶段规范
-- 依据：根级 `AGENTS.md`、`docs/IMPLEMENTATION_PLAN.md`、本模块 `AGENTS.md`、`PRD.md`
+- 依据：根级 `AGENTS.md`、`docs/IMPLEMENTATION_PLAN.md`、本模块 `AGENTS.md`、`README.md`、`STATUS.md`
 
 ## 模块目的
 
@@ -37,10 +37,16 @@
 
 这些导出满足 `core-engine` 的 `Workflow` 类型约束，并已被 `createRuntime()` 与 `createWorkflowRegistry()` 直接消费。
 
+当前稳定 contract：
+
+- `providerGenerateWorkflow` 绑定 `provider` 与 `prompt`，并固定 `request.operation = generate`
+- `providerEditWorkflow` 绑定 `provider`、`prompt` 与 `inputAssets`，并固定 `request.operation = edit`
+- 两个 builtin workflow 的稳定 `outputKey` 都是 `image`
+
 ## 暂定信息
 
 - 最终 builtin workflow 的数量与命名（当前仅两个）
-- `maskAsset`、`output`、`providerOptions` 等字段是否提升为稳定 contract（当前为 tentative）
+- `maskAsset`、`output`、`providerOptions` 等字段是否提升为稳定 contract（当前为 tentative，未承诺 binding 或输出语义）
 - step shape 的最终字段细节
 
 ## 当前刻意省略
@@ -53,4 +59,3 @@
 - `TESTING.md`
 
 这些内容要么超出当前范围，要么属于别层。
-

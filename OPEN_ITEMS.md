@@ -16,9 +16,9 @@
 ### `core-engine` 与 `providers`、`workflows` 的真实集成尚未验证
 
 - **type**: verification gap
-- **evidence**: 当前 `core-engine` 测试均为独立单元测试，无跨包集成测试；`core-engine/OPEN_ITEMS.md` 已记录
-- **impact**: 真实集成中可能出现序列化边界、类型不匹配或 event 传播问题
-- **next_action**: 待 `workflows` builtin specs 补齐后，创建端到端集成验证
+- **evidence**: `workflows` 已补齐 builtin specs、稳定最小 request contract，并验证了 `mock provider` dispatch adapter happy path；但仍缺少覆盖更多边界、错误路径和真实 provider 场景的跨包集成测试
+- **impact**: 真实集成中仍可能出现序列化边界、类型不匹配、deep-freeze 兼容性或 event 传播问题
+- **next_action**: 基于 `add-provider-bridge-compatibility-tests` 补更完整的跨包验证，再决定是否需要进一步的 end-to-end harness
 
 ## 模块债务
 
@@ -29,12 +29,12 @@
 - **impact**: 缺乏回归保护，重构时易引入破坏
 - **next_action**: 补充 contract、registry、mock 的单元测试
 
-### `workflows` builtin specs 尚未落地
+### `workflows` 更完整跨包兼容验证仍不足
 
 - **type**: confirmed debt
-- **evidence**: `packages/workflows/STATUS.md` 已记录；`src/index.ts` 当前无导出
-- **impact**: `core-engine` 无法消费真实 workflow spec，集成验证受阻
-- **next_action**: 补齐最小 builtin workflow specs 并导出
+- **evidence**: `packages/workflows` 已落地最小 builtin workflow contract，但当前只覆盖 runtime happy path 与最小 `mock provider` bridge happy path
+- **impact**: 更复杂的 provider bridge 边界、错误路径和真实 provider 场景仍可能在后续 surface 接入时暴露问题
+- **next_action**: 补充 `add-provider-bridge-compatibility-tests`，扩大跨包验证范围
 
 ### `shared commands` 与 `CLI` 尚未启动
 

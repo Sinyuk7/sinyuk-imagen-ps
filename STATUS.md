@@ -8,7 +8,7 @@
 - `app`：唯一应用，负责 Photoshop / UXP、UI 和应用侧桥接
 - `packages/core-engine`：已实现完整 runtime / engine 基础能力
 - `packages/providers`：contract、registry、mock provider、bridge、`openai-compatible` provider 已落地，并补充了关键测试
-- `packages/workflows`：已导出 `provider-generate`、`provider-edit` 最小 builtin workflow spec，并补充了包内测试
+- `packages/workflows`：已导出 `provider-generate`、`provider-edit` 最小 builtin workflow spec，稳定了最小 request contract，并补充了包内测试与最小 bridge adapter 验证
 
 ## 当前范围
 
@@ -19,7 +19,7 @@
 - `MEMORY.md` 已归档到 `.archive/`，不再作为活跃上下文
 - 根级 `STATUS.md` 之前对 `core-engine` 的状态描述较旧，已在本次更新中修正
 - `packages/providers` 现在不再是“仅有占位入口”的状态，`openai-compatible` 已有完整实现和测试
-- `core-engine` 与 `providers`、`workflows` 的真实跨包集成验证仍未完成，当前 `workflows` 仅验证了与 runtime 的最小装配 happy path
+- `core-engine` 与 `providers`、`workflows` 的更完整跨包集成验证仍未完成；当前 `workflows` 已验证 runtime 最小装配 happy path，以及基于 `mock provider` dispatch adapter 的最小 bridge happy path
 
 ## 当前文档策略
 
