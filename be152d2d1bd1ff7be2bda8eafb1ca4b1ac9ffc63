@@ -1,0 +1,101 @@
+.gitignore
+  h_06a7404f25f628 1-22
+apps/ps-uxp/src/index.tsx
+  h_06a7404f25f628 1-7
+packages/core-engine/tsconfig.build.json
+  h_06a7404f25f628 1-8
+MEMORY.md
+  h_06a7404f25f628 1-56
+packages/core-engine/src/types/workflow.ts
+  h_06a7404f25f628 1-54
+apps/web/package.json
+  h_06a7404f25f628 1-27
+packages/core-engine/src/types/assets.ts
+  h_06a7404f25f628 1-58
+packages/core-engine/src/invariants.ts
+  h_06a7404f25f628 1-102
+package.json
+  h_06a7404f25f628 1-17
+apps/ps-uxp/tsconfig.json
+  h_06a7404f25f628 1-12
+turbo.json
+  h_06a7404f25f628 1-21
+packages/providers/src/index.ts
+  h_06a7404f25f628 1-7
+packages/providers/tsconfig.json
+  h_06a7404f25f628 1-8
+packages/core-engine/src/index.ts
+  h_06a7404f25f628 1-51
+packages/workflows/src/index.ts
+  h_06a7404f25f628 1-7
+packages/workflows/tsconfig.build.json
+  h_06a7404f25f628 1-8
+packages/core-engine/src/errors.ts
+  h_06a7404f25f628 1-59
+apps/web/index.html
+  h_06a7404f25f628 1-12
+packages/core-engine/src/types/job.ts
+  h_06a7404f25f628 1-110
+openspec/changes/bootstrap-ai-image-system-foundation/tasks.md
+  h_06a7404f25f628 3-6
+apps/web/vite.config.ts
+  h_06a7404f25f628 1-6
+apps/ps-uxp/package.json
+  h_06a7404f25f628 1-24
+packages/providers/tsconfig.build.json
+  h_06a7404f25f628 1-8
+apps/ps-uxp/tsconfig.build.json
+  h_06a7404f25f628 1-9
+packages/core-engine/tsconfig.json
+  h_06a7404f25f628 1-8
+packages/core-engine/package.json
+  h_06a7404f25f628 1-21,25-26
+  04043429a022bbbd 22-24
+packages/workflows/package.json
+  h_06a7404f25f628 1-26
+packages/core-engine/src/types/index.ts
+  h_06a7404f25f628 1-38
+packages/workflows/tsconfig.json
+  h_06a7404f25f628 1-8
+pnpm-workspace.yaml
+  h_06a7404f25f628 1-3
+packages/core-engine/src/types/provider.ts
+  h_06a7404f25f628 1-69
+packages/providers/package.json
+  h_06a7404f25f628 1-26
+tsconfig.base.json
+  h_06a7404f25f628 1-21
+apps/web/src/main.tsx
+  h_06a7404f25f628 1-7
+apps/web/tsconfig.json
+  h_06a7404f25f628 1-12
+AGENTS.md
+  h_06a7404f25f628 80-81,142-151
+packages/core-engine/src/types/errors.ts
+  h_06a7404f25f628 1-38
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.3.0",
+  "base_commit_sha": "be152d2d1bd1ff7be2bda8eafb1ca4b1ac9ffc63",
+  "prompts": {
+    "04043429a022bbbd": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "019da8cc-4ec6-7e40-b4a7-7c3f02dc60ad",
+        "model": "unknown"
+      },
+      "human_author": "sinyuk",
+      "messages": [],
+      "total_additions": 3,
+      "total_deletions": 0,
+      "accepted_lines": 3,
+      "overriden_lines": 0
+    }
+  },
+  "humans": {
+    "h_06a7404f25f628": {
+      "author": "sinyuk"
+    }
+  }
+}

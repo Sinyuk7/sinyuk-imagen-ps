@@ -1,0 +1,23 @@
+CLAUDE.md
+  0bb4755864a9f351 6-46
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.3.2",
+  "base_commit_sha": "1cb9c2c01a66ceb5f5378e37e204a38a803b40b6",
+  "prompts": {
+    "0bb4755864a9f351": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "b47fd319-8805-4b3c-84ae-c0603944d562",
+        "model": "claude-sonnet-4-6"
+      },
+      "human_author": "sinyuk",
+      "messages": [],
+      "total_additions": 41,
+      "total_deletions": 0,
+      "accepted_lines": 41,
+      "overriden_lines": 0
+    }
+  }
+}
