@@ -15,6 +15,12 @@ interface ProviderValidationError extends Error {
   details?: Record<string, unknown>;
 }
 
+/** mock provider 的可测试性选项。 */
+export interface MockProviderOptions {
+  /** 可注入的随机源，用于概率失败模式测试。 */
+  random?: () => number;
+}
+
 function createValidationError(
   message: string,
   details?: Record<string, unknown>,
@@ -36,7 +42,11 @@ function createProviderInvokeError(
 }
 
 /** 创建 mock provider 实例。 */
-export function createMockProvider(): Provider<MockProviderConfig, MockProviderRequest> {
+export function createMockProvider(
+  options: MockProviderOptions = {},
+): Provider<MockProviderConfig, MockProviderRequest> {
+  const random = options.random ?? Math.random;
+
   return {
     id: mockDescriptor.id,
     family: mockDescriptor.family,
@@ -104,7 +114,7 @@ export function createMockProvider(): Provider<MockProviderConfig, MockProviderR
             }
 
             if (config.failMode.type === 'probability') {
-              if (Math.random() < config.failMode.rate) {
+              if (random() < config.failMode.rate) {
                 reject(
                   createProviderInvokeError(
                     `Mock provider random failure triggered (rate=${config.failMode.rate}).`,

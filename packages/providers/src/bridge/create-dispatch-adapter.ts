@@ -35,7 +35,18 @@ function toJobError(
   defaultCategory: 'validation' | 'provider',
 ): JobError {
   if (isJobErrorLike(error)) {
-    return error as JobError;
+    const candidate = error as JobError;
+    if (candidate.category === defaultCategory) {
+      return candidate;
+    }
+
+    const ctor =
+      defaultCategory === 'validation' ? createValidationError : createProviderError;
+    return ctor(candidate.message, {
+      provider: providerId,
+      originalCategory: candidate.category,
+      ...(candidate.details ? { details: candidate.details } : {}),
+    });
   }
 
   if (error instanceof Error) {

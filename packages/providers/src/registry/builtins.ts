@@ -1,5 +1,6 @@
 import type { ProviderRegistry } from './provider-registry.js';
 import { createMockProvider } from '../providers/mock/provider.js';
+import { createOpenAICompatibleProvider } from '../providers/openai-compatible/provider.js';
 
 /**
  * 将内置 provider 注册到给定的 registry。
@@ -8,4 +9,5 @@ import { createMockProvider } from '../providers/mock/provider.js';
  */
 export function registerBuiltins(registry: ProviderRegistry): void {
   registry.register(createMockProvider());
+  registry.register(createOpenAICompatibleProvider());
 }

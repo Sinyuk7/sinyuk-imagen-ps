@@ -32,8 +32,15 @@ export type { ProviderRegistry, RegistryError } from './registry/index.js';
 export { createProviderRegistry, registerBuiltins } from './registry/index.js';
 
 // Mock provider
-export type { MockProviderConfig, MockProviderRequest } from './providers/mock/index.js';
+export type { MockProviderConfig, MockProviderOptions, MockProviderRequest } from './providers/mock/index.js';
 export { mockConfigSchema, mockRequestSchema, createMockProvider, mockDescriptor } from './providers/mock/index.js';
+
+// OpenAI-compatible provider
+export {
+  openaiCompatibleConfigSchema,
+  createOpenAICompatibleProvider,
+  openaiCompatibleDescriptor,
+} from './providers/openai-compatible/index.js';
 
 // Bridge adapter
 export { createDispatchAdapter } from './bridge/index.js';
