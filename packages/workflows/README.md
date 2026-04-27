@@ -25,10 +25,13 @@
 
 ## 当前文档集
 
-- `README.md`：模块摘要
-- `SPEC.md`：当前阶段规范
-- `STATUS.md`：现状与偏差
+- `README.md`：模块摘要（本文件）
+- `PRD.md`：产品需求与权威基线（模块定位、builtin 清单、稳定 contract、tentative 字段）
+- `SPEC.md`：当前阶段技术规范（workflow shape 约束、公开面）
+- `STATUS.md`：现状、已知偏差与开放问题
 - `AGENTS.md`：模块级短规则
 
-当前不单独创建 `TESTING.md`、`RUNBOOK.md`、`examples/`。原因是模块仍处于最小 shape 定义阶段。
+**本模块不再依赖 `/.archive/modules/workflows/PRD.md` 作为权威来源。**  
+archive 文档仅作历史背景参考，权威路径为上述本地文档集。
 
+当前不单独创建 `TESTING.md`、`RUNBOOK.md`、`examples/`。原因是模块仍处于最小 shape 定义阶段。

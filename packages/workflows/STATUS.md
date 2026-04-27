@@ -23,7 +23,8 @@
 - `src/index.ts` 现已导出最小 builtin workflows；包内测试已覆盖导出正确性、registry 注册、runtime happy path，以及最小 provider bridge adapter happy path。
 
 ## 2. Open Questions / Risks
-- [ ] `packages/workflows/PRD.md` 当前缺失；更细的 builtin 命名与目录建议只能参考 `/.archive/modules/workflows/PRD.md`，该来源仅能作为 `(tentative)` external reference。
+- [x] `packages/workflows/PRD.md` 当前缺失；更细的 builtin 命名与目录建议只能参考 `/.archive/modules/workflows/PRD.md`，该来源仅能作为 `(tentative)` external reference。
+  - **已解决**：`PRD.md` 已在 `restore-authoritative-module-baseline` 中新建，内容基于当前 `src/builtins/` 与 `tests/` 现实。archive 文档不再作为权威来源。
 - [ ] 现有 builtin request shape 只稳定覆盖最小 happy path：`provider-generate` 依赖 `provider + prompt`，`provider-edit` 依赖 `provider + prompt + inputAssets`；更丰富的 output / providerOptions / maskAsset 绑定仍未收敛。
 - [x] 本包当前已补充跨包兼容性测试（`tests/cross-package-compat.test.ts`），覆盖边界输入、deep-freeze、mock provider 错误路径与 `openai-compatible` 最小 happy path。测试过程中暴露了若干边界问题，已记录至 §7。
 
@@ -50,15 +51,21 @@
 - openspec_timing: now
 
 ### Change 3: restore-authoritative-module-baseline
-- status: planned
+- status: completed
 - goal: 恢复 `packages/workflows` 的本地权威 baseline，避免后续规划继续依赖归档 PRD。
 - scope: 本模块文档基线的收敛方式
 - out_of_scope: 根级文档重构、跨模块 roadmap、实现代码扩展
 - why_now: 模块 `PRD.md` 缺失会让 agent 在读取本地真相时只能回退到 archive 文档，增加误判风险。
 - depends_on: none
-- touches: `README.md`, `SPEC.md`, `STATUS.md`, `PRD.md` `(tentative)`
+- touches: `README.md`, `SPEC.md`, `STATUS.md`, `PRD.md`
 - acceptance_criteria: 仅通过 `packages/workflows` 目录内的活跃文档，就能确定 builtin workflow 的职责、命名与边界，不再需要 archive 兜底。
 - openspec_timing: later
+- outcome:
+  - 新建 `PRD.md`，包含模块定位、builtin workflow 命名约定、稳定 contract 定义、tentative 字段清单与交互边界
+  - 更新 `README.md`，新增 `PRD.md` 条目，明确声明不再依赖 archive 作为权威来源
+  - 更新 `SPEC.md`，头部添加与 `PRD.md` 的交叉引用，更新依据来源
+  - 关闭 §2 中 `PRD.md` 缺失的 Open Question
+  - 已归档到 `openspec/changes/archive/2026-04-27-restore-authoritative-module-baseline/`（待执行）
 
 ## 4. Execution Order
 1. `stabilize-builtin-request-contract` → 已完成；先把 builtin 输入输出契约稳定下来，避免后续 surface 和测试基于不同假设接入。
@@ -66,10 +73,17 @@
 3. `restore-authoritative-module-baseline` → 等验证范围进一步收敛后，再把缺失的本地 baseline 文档补回权威状态，减少维护噪音。
 
 ## 5. Suggested Next OpenSpec Change
-- name: add-provider-bridge-compatibility-tests
-- reason: 这是当前序列中的 `Change 2`。`Change 1` 已完成后，最直接的后续工作就是扩大跨包验证覆盖，而不是先回补文档基线。
-- expected_outcome: `workflows` 与 `providers` 的集成测试覆盖从“最小可用”提升到“能暴露真实边界问题”的层级。
 
+当前三个 change 序列已全部完成：
+
+1. `stabilize-builtin-request-contract` ✓
+2. `add-provider-bridge-compatibility-tests` ✓
+3. `restore-authoritative-module-baseline` ✓
+
+**§7 中记录的四个跨包兼容性边界问题**（`diagnostics: undefined`、`Uint8Array` freeze、workflow binding validation、错误分类）是当前已知的最高优先级后续工作，建议作为独立 change 处理。若需推进，可从以下方向之一入手：
+- 在 `core-engine` 的 dispatch 边界修复 `diagnostics: undefined` 与 `Uint8Array` freeze（影响面最广）
+- 在 `providers` bridge adapter 中细化错误分类逻辑（仅影响 provider 层）
+- 在 `SPEC.md` 或 `PRD.md` 中显式声明 workflow binding 不承担 validation 语义（文档修复，无代码改动）
 ## 7. Cross-Package Compatibility Boundaries (Exposed by Change 2)
 
 以下问题在 `add-provider-bridge-compatibility-tests` 的测试实施过程中暴露，当前通过测试夹具中的 workaround 绕过，不作为本 change 的修复目标：
