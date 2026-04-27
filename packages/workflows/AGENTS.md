@@ -14,4 +14,4 @@
 | 稳定性规范 | [docs/STABILITY.md](docs/STABILITY.md) |
 | 架构说明 | [ARCHITECTURE.md](ARCHITECTURE.md) |
 | 模块规范 | [SPEC.md](SPEC.md) |
-| 模块状态 | [STATUS.md](STATUS.md) |
+| 未解决事项 | [OPEN_ITEMS.md](OPEN_ITEMS.md) |

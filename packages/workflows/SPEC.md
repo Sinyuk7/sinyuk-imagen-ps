@@ -1,10 +1,7 @@
 # workflows 规范
 
-- 状态：当前阶段规范
-- 依据：`src/builtins/`、`tests/`、本模块 `AGENTS.md`、`README.md`、`STATUS.md`、`PRD.md`
-
-> 模块定位、builtin workflow 命名约定与职责边界的完整定义见 `PRD.md`。  
-> 本文件聚焦于技术 shape 约束与当前阶段的公开面描述。
+- 状态：当前规范
+- 依据：`src/builtins/`、`tests/`、`AGENTS.md`
 
 ## 模块目的
 
