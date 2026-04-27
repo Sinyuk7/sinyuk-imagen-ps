@@ -1,0 +1,29 @@
+openspec/specs/workflow-compatibility-verification/spec.md
+  9a592cfd35e2610c 1-55
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.2.8-ntes.6",
+  "base_commit_sha": "42dbb1196670cb4b617df42ddefc2f4e6da5f4df",
+  "prompts": {
+    "9a592cfd35e2610c": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_23a2e0032ffeDXbtmh6juTJvnP",
+        "model": "unknown"
+      },
+      "human_author": "Sinyuk",
+      "messages": [],
+      "total_additions": 55,
+      "total_deletions": 0,
+      "accepted_lines": 55,
+      "overriden_lines": 0,
+      "per_file_stats": {
+        "openspec/specs/workflow-compatibility-verification/spec.md": {
+          "additions": 55,
+          "accepted_lines": 55
+        }
+      }
+    }
+  }
+}
