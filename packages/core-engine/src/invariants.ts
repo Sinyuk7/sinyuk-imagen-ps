@@ -17,41 +17,44 @@ import { createValidationError } from './errors.js';
  * 拒绝以下类型或结构：
  * - `function`
  * - `symbol`
- * - 对象属性值为 `undefined`
+ * - 顶层或数组元素为 `undefined`
  * - 循环引用
+ *
+ * 对于对象属性值为 `undefined` 的情况，按 `JSON.stringify` 语义忽略
+ * （与 `JSON.stringify({x: undefined}) === '{}'` 行为一致），不视为错误。
+ * 这避免对 provider 返回的可选字段（如 `diagnostics`）做侵入式归一化。
+ *
+ * 对于 typed array（`ArrayBuffer.isView`），视为不可分解的二进制载荷直通，
+ * 不再深入其数值索引——序列化层（如 host bridge）需自行处理 typed array 编码。
  *
  * @param value 待校验的值
  * @throws `JobError`（`category: 'validation'`）当校验失败时
  */
 export function assertSerializable(value: unknown): void {
   const seen = new WeakSet<object>();
-  visit(value, seen, 'root');
+  visit(value, seen, 'root', /* isObjectProperty */ false);
 }
 
-function visit(value: unknown, seen: WeakSet<object>, path: string): void {
+function visit(value: unknown, seen: WeakSet<object>, path: string, isObjectProperty: boolean): void {
   if (value === null) return;
 
   const t = typeof value;
 
   if (t === 'function') {
-    throw createValidationError(
-      `Value at "${path}" is a function and not serializable.`,
-      { path },
-    );
+    throw createValidationError(`Value at "${path}" is a function and not serializable.`, { path });
   }
 
   if (t === 'symbol') {
-    throw createValidationError(
-      `Value at "${path}" is a symbol and not serializable.`,
-      { path },
-    );
+    throw createValidationError(`Value at "${path}" is a symbol and not serializable.`, { path });
   }
 
   if (t === 'undefined') {
-    throw createValidationError(
-      `Value at "${path}" is undefined and not serializable.`,
-      { path },
-    );
+    // 对象的可选属性值为 undefined 时，按 JSON.stringify 语义忽略；
+    // 顶层值或数组元素为 undefined 时仍视为非法。
+    if (isObjectProperty) {
+      return;
+    }
+    throw createValidationError(`Value at "${path}" is undefined and not serializable.`, { path });
   }
 
   if (t !== 'object') {
@@ -59,22 +62,24 @@ function visit(value: unknown, seen: WeakSet<object>, path: string): void {
     return;
   }
 
+  // typed array / DataView 视为二进制载荷直通，不递归其数值索引
+  if (ArrayBuffer.isView(value)) {
+    return;
+  }
+
   if (seen.has(value as object)) {
-    throw createValidationError(
-      `Circular reference detected at "${path}".`,
-      { path },
-    );
+    throw createValidationError(`Circular reference detected at "${path}".`, { path });
   }
 
   seen.add(value as object);
 
   if (Array.isArray(value)) {
     for (let i = 0; i < value.length; i++) {
-      visit(value[i], seen, `${path}[${i}]`);
+      visit(value[i], seen, `${path}[${i}]`, /* isObjectProperty */ false);
     }
   } else {
     for (const key of Object.keys(value as Record<string, unknown>)) {
-      visit((value as Record<string, unknown>)[key], seen, `${path}.${key}`);
+      visit((value as Record<string, unknown>)[key], seen, `${path}.${key}`, /* isObjectProperty */ true);
     }
   }
 }

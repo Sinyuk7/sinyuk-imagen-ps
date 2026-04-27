@@ -1,8 +1,4 @@
-import type {
-  Provider,
-  ProviderDescriptor,
-  ProviderInvokeArgs,
-} from '../../contract/provider.js';
+import type { Provider, ProviderDescriptor, ProviderInvokeArgs } from '../../contract/provider.js';
 import type { ProviderInvokeResult } from '../../contract/result.js';
 import { mockDescriptor } from './descriptor.js';
 import { mockConfigSchema, type MockProviderConfig } from './config-schema.js';
@@ -21,20 +17,14 @@ export interface MockProviderOptions {
   random?: () => number;
 }
 
-function createValidationError(
-  message: string,
-  details?: Record<string, unknown>,
-): ProviderValidationError {
+function createValidationError(message: string, details?: Record<string, unknown>): ProviderValidationError {
   const err = new Error(message) as ProviderValidationError;
   err.details = details;
   err.name = 'ProviderValidationError';
   return err;
 }
 
-function createProviderInvokeError(
-  message: string,
-  details?: Record<string, unknown>,
-): ProviderValidationError {
+function createProviderInvokeError(message: string, details?: Record<string, unknown>): ProviderValidationError {
   const err = new Error(message) as ProviderValidationError;
   err.details = details;
   err.name = 'ProviderInvokeError';
@@ -85,9 +75,7 @@ export function createMockProvider(
       return result.data;
     },
 
-    async invoke(
-      args: ProviderInvokeArgs<MockProviderConfig, MockProviderRequest>,
-    ): Promise<ProviderInvokeResult> {
+    async invoke(args: ProviderInvokeArgs<MockProviderConfig, MockProviderRequest>): Promise<ProviderInvokeResult> {
       const { config, request, signal } = args;
       const delayMs = config.delayMs ?? 0;
 
@@ -116,13 +104,10 @@ export function createMockProvider(
             if (config.failMode.type === 'probability') {
               if (random() < config.failMode.rate) {
                 reject(
-                  createProviderInvokeError(
-                    `Mock provider random failure triggered (rate=${config.failMode.rate}).`,
-                    {
-                      failMode: config.failMode.type,
-                      rate: config.failMode.rate,
-                    },
-                  ),
+                  createProviderInvokeError(`Mock provider random failure triggered (rate=${config.failMode.rate}).`, {
+                    failMode: config.failMode.type,
+                    rate: config.failMode.rate,
+                  }),
                 );
                 return;
               }
@@ -142,16 +127,22 @@ export function createMockProvider(
             });
           }
 
-          resolve({
+          // 契约：无诊断时**省略** `diagnostics` 字段（不写 `undefined`），
+          // 与 ProviderInvokeResult 的 optional 语义对齐，避免序列化边界
+          // 出现 `{ diagnostics: undefined }` 形状（参见 contract/result.ts）。
+          const result: { assets: typeof assets; raw: unknown; diagnostics?: ProviderDiagnostic[] } = {
             assets,
-            diagnostics: diagnostics.length > 0 ? diagnostics : undefined,
             raw: {
               mock: true,
               operation: request.operation,
               prompt: request.prompt,
               assetCount: outputCount,
             },
-          });
+          };
+          if (diagnostics.length > 0) {
+            result.diagnostics = diagnostics;
+          }
+          resolve(result);
         }, delayMs);
 
         if (signal) {

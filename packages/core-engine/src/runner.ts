@@ -29,12 +29,12 @@ export interface RunnerDeps {
 
 function isJobError(error: unknown): error is JobError {
   return (
-    typeof error === 'object'
-    && error !== null
-    && 'category' in error
-    && typeof (error as JobError).category === 'string'
-    && 'message' in error
-    && typeof (error as JobError).message === 'string'
+    typeof error === 'object' &&
+    error !== null &&
+    'category' in error &&
+    typeof (error as JobError).category === 'string' &&
+    'message' in error &&
+    typeof (error as JobError).message === 'string'
   );
 }
 
@@ -45,11 +45,17 @@ function isJobError(error: unknown): error is JobError {
 /**
  * 递归解析值中的 binding 占位符。
  *
- * 字符串值若完全匹配 `${outputKey}` 格式，且该 key 存在于上下文中，
- * 则替换为上下文中的原始值（保留类型）。
+ * 字符串值若完全匹配 `${key}` 格式：
+ * - 若 `key` 存在于上下文中，替换为上下文中的原始值（保留类型）；
+ * - 若 `key` 不存在，抛出 `JobError`（`category: 'workflow'`），
+ *   即"workflow binding 缺失"在 workflow 层即时失败，而非延后到 provider 校验。
+ *
+ * 字符串中"部分包含" `${...}` 子串（非整体匹配）的情况一律视为字面量保留，
+ * 不做解析也不报错——这是为了允许 provider 自身的模板语法穿透。
+ *
  * 对象与数组递归处理。
  */
-function resolveValue(value: unknown, context: Record<string, unknown>): unknown {
+function resolveValue(value: unknown, context: Record<string, unknown>, path: string): unknown {
   if (typeof value === 'string') {
     const match = value.match(/^\$\{([^}]+)\}$/);
     if (match) {
@@ -57,17 +63,21 @@ function resolveValue(value: unknown, context: Record<string, unknown>): unknown
       if (key in context) {
         return context[key];
       }
+      throw createWorkflowError(`Workflow binding "${key}" at "${path}" is not available in the current context.`, {
+        bindingKey: key,
+        path,
+      });
     }
   }
 
   if (Array.isArray(value)) {
-    return value.map((v) => resolveValue(v, context));
+    return value.map((v, i) => resolveValue(v, context, `${path}[${i}]`));
   }
 
   if (value !== null && typeof value === 'object') {
     const result: Record<string, unknown> = {};
     for (const [k, v] of Object.entries(value)) {
-      result[k] = resolveValue(v, context);
+      result[k] = resolveValue(v, context, `${path}.${k}`);
     }
     return result;
   }
@@ -79,8 +89,9 @@ function resolveValue(value: unknown, context: Record<string, unknown>): unknown
 function resolveStepInput(
   input: Record<string, unknown> | undefined,
   context: Record<string, unknown>,
+  stepName: string,
 ): Record<string, unknown> {
-  return resolveValue(input ?? {}, context) as Record<string, unknown>;
+  return resolveValue(input ?? {}, context, `step("${stepName}").input`) as Record<string, unknown>;
 }
 
 // ------------------------------------------------------------------
@@ -97,7 +108,7 @@ async function executeProviderStep(
   context: Record<string, unknown>,
   dispatcher: ProviderDispatcher,
 ): Promise<void> {
-  const resolvedInput = resolveStepInput(step.input, context);
+  const resolvedInput = resolveStepInput(step.input, context, step.name);
   const provider = (resolvedInput.provider as string) ?? step.name;
 
   const ref: ProviderRef = {
@@ -129,11 +140,7 @@ async function executeProviderStep(
  * @param deps - runner 依赖
  * @returns 执行完成后（completed 或 failed）的 job snapshot
  */
-export async function executeWorkflow(
-  job: Job,
-  workflowName: string,
-  deps: RunnerDeps,
-): Promise<Job> {
+export async function executeWorkflow(job: Job, workflowName: string, deps: RunnerDeps): Promise<Job> {
   const { registry, controller, dispatcher } = deps;
 
   controller.markRunning(job.id);

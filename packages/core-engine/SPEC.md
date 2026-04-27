@@ -14,6 +14,24 @@
 - workflow 是 declarative 输入，engine 负责执行顺序与状态流转
 - job store 是状态真相，event bus 只做通知
 - 失败必须以显式错误模型暴露，不允许 silent fallback
+- workflow input binding（`${key}` 完全匹配字符串）由 runner 在解析时即时校验：
+  - key 命中 context 时按原始类型替换；
+  - key 未命中时立即抛出 `JobError`（`category: 'workflow'`），不延后到 provider 校验阶段；
+  - 字符串中"部分包含" `${...}` 子串属于字面量保留，不参与解析也不报错（允许 provider 自身模板穿透）。
+- dispatch 边界对 provider result 的 immutability / serializability 承诺不覆盖 `ArrayBuffer.isView`（typed array、DataView）的 buffer 内容；调用方如需保护原始 buffer，应在 provider 内部完成拷贝。
+- `assertSerializable` 对对象属性中的 `undefined` 按 `JSON.stringify` 语义忽略，对顶层值与数组元素中的 `undefined` 仍视为非法。
+- **Runtime 装配位置**（关闭原"暂定信息"决策）：`createRuntime(options?) => Runtime`
+  签名为稳定面；core-engine 不引入额外的 facade 抽象。任何 surface（app、CLI、
+  host bridge）都应由各自的 shared/ 层持有**唯一** `Runtime` 实例（参见
+  `app/docs/CODE_CONVENTIONS.md`：UI 不得直接 `createRuntime`），并通过 commands /
+  share_command 暴露给上层；如出现多 surface，再在 core-engine 之上独立抽 facade，
+  不修改本签名。
+- **默认 workflow 的稳定形态**（关闭原"暂定信息"决策）：`@imagen-ps/workflows` 的
+  `providerGenerateWorkflow` / `providerEditWorkflow` 的 v1 input contract 与
+  output key 已视为稳定面。扩展字段（`output.count` / `maskAsset` /
+  `providerOptions` 等）必须通过新版本 workflow 引入，不破坏 v1 字段。runner 与
+  registry 的初始化方式无需为此调整；engine 仍只承担"按声明执行"，workflow
+  shape 决策权归 `@imagen-ps/workflows`。
 
 ## 当前阶段应包含的能力
 
@@ -41,12 +59,10 @@
 
 ## 暂定信息
 
-- exact facade command shape
-- 默认 workflow 的长期形态
-- runtime 与 future facade / CLI 的最终装配位置
-- 更细的测试矩阵和自动化策略
+- exact facade command shape（计划由 share_command PRD/SPEC/TASK 收敛）
+- 更细的测试矩阵和自动化策略（已显式延后到 share_command 落地后的加固阶段）
 - `StepKind` 中的 `transform`、`io` 目前只应视为保留值，不能视为已支持能力
-- 与 `providers`、`workflows` 的真实集成程度尚未验证
+- 与 `providers`、`workflows` 的真实集成程度尚未验证（同上，归入加固阶段）
 
 ## 当前刻意省略
 

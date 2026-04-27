@@ -5,16 +5,9 @@
  * 不理解 provider 参数语义，也不触碰 transport 细节。
  */
 
-import {
-  createProviderError,
-  createValidationError,
-} from './errors.js';
+import { createProviderError, createValidationError } from './errors.js';
 import { assertImmutable, assertSerializable } from './invariants.js';
-import type {
-  ProviderDispatchAdapter,
-  ProviderDispatcher,
-  ProviderRef,
-} from './types/provider.js';
+import type { ProviderDispatchAdapter, ProviderDispatcher, ProviderRef } from './types/provider.js';
 import type { JobError } from './errors.js';
 
 // ------------------------------------------------------------------
@@ -27,10 +20,7 @@ function isJobError(error: unknown): error is JobError {
   }
 
   const candidate = error as Partial<JobError>;
-  return (
-    typeof candidate.category === 'string'
-    && typeof candidate.message === 'string'
-  );
+  return typeof candidate.category === 'string' && typeof candidate.message === 'string';
 }
 
 // ------------------------------------------------------------------
@@ -69,6 +59,13 @@ function toDispatchError(error: unknown, provider: string): JobError {
  */
 function deepFreeze<T>(value: T): T {
   if (value === null || typeof value !== 'object') {
+    return value;
+  }
+
+  // typed array / DataView 不能 freeze（V8 抛出 "Cannot freeze array buffer
+  // views with elements"）。它们在边界语义上等同于不可分解的二进制载荷，
+  // 直接透传即可——dispatch 边界的 immutability 承诺不覆盖 buffer 内容。
+  if (ArrayBuffer.isView(value)) {
     return value;
   }
 
@@ -120,23 +117,18 @@ function normalizeProviderRef(ref: ProviderRef): ProviderRef {
  *
  * @param adapters - provider id 到 adapter 的静态映射
  */
-export function createProviderDispatcher(
-  adapters: readonly ProviderDispatchAdapter[] = [],
-): ProviderDispatcher {
+export function createProviderDispatcher(adapters: readonly ProviderDispatchAdapter[] = []): ProviderDispatcher {
   const adapterMap = new Map<string, ProviderDispatchAdapter>();
 
   for (const adapter of adapters) {
     if (adapter.provider.trim().length === 0) {
-      throw createValidationError(
-        'ProviderDispatchAdapter.provider must not be empty.',
-      );
+      throw createValidationError('ProviderDispatchAdapter.provider must not be empty.');
     }
 
     if (adapterMap.has(adapter.provider)) {
-      throw createValidationError(
-        `ProviderDispatchAdapter "${adapter.provider}" is already registered.`,
-        { provider: adapter.provider },
-      );
+      throw createValidationError(`ProviderDispatchAdapter "${adapter.provider}" is already registered.`, {
+        provider: adapter.provider,
+      });
     }
 
     adapterMap.set(adapter.provider, adapter);
@@ -147,10 +139,9 @@ export function createProviderDispatcher(
       const normalizedRef = normalizeProviderRef(ref);
       const adapter = adapterMap.get(normalizedRef.provider);
       if (!adapter) {
-        throw createProviderError(
-          `No provider adapter registered for "${normalizedRef.provider}".`,
-          { provider: normalizedRef.provider },
-        );
+        throw createProviderError(`No provider adapter registered for "${normalizedRef.provider}".`, {
+          provider: normalizedRef.provider,
+        });
       }
 
       try {
@@ -158,9 +149,7 @@ export function createProviderDispatcher(
         assertSerializable(result);
         if (typeof result === 'object' && result !== null) {
           // 先做浅拷贝切断与 adapter 内部状态的引用，再递归 freeze
-          const snapshot = Array.isArray(result)
-            ? [...result]
-            : { ...(result as Record<string, unknown>) };
+          const snapshot = Array.isArray(result) ? [...result] : { ...(result as Record<string, unknown>) };
           return deepFreeze(snapshot);
         }
         return result;
@@ -174,9 +163,6 @@ export function createProviderDispatcher(
 /**
  * 通过抽象 dispatcher 执行一次 provider 调用。
  */
-export async function dispatchProvider(
-  dispatcher: ProviderDispatcher,
-  ref: ProviderRef,
-): Promise<unknown> {
+export async function dispatchProvider(dispatcher: ProviderDispatcher, ref: ProviderRef): Promise<unknown> {
   return dispatcher.dispatch(ref);
 }

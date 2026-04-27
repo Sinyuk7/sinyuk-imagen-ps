@@ -1,14 +1,7 @@
-import type {
-  Provider,
-  ProviderDescriptor,
-  ProviderInvokeArgs,
-} from '../../contract/provider.js';
+import type { Provider, ProviderDescriptor, ProviderInvokeArgs } from '../../contract/provider.js';
 import type { ProviderInvokeResult } from '../../contract/result.js';
 import { openaiCompatibleDescriptor } from './descriptor.js';
-import {
-  openaiCompatibleConfigSchema,
-  type OpenAICompatibleProviderConfig,
-} from './config-schema.js';
+import { openaiCompatibleConfigSchema, type OpenAICompatibleProviderConfig } from './config-schema.js';
 import { mockRequestSchema, type MockProviderRequest } from '../mock/request-schema.js';
 import { httpRequest } from '../../transport/openai-compatible/http.js';
 import { buildRequestBody } from '../../transport/openai-compatible/build-request.js';
@@ -19,10 +12,7 @@ interface ProviderValidationError extends Error {
   details?: Record<string, unknown>;
 }
 
-function createValidationError(
-  message: string,
-  details?: Record<string, unknown>,
-): ProviderValidationError {
+function createValidationError(message: string, details?: Record<string, unknown>): ProviderValidationError {
   const err = new Error(message) as ProviderValidationError;
   err.details = details;
   err.name = 'ProviderValidationError';
@@ -32,10 +22,7 @@ function createValidationError(
 /**
  * 创建 OpenAI-compatible provider 实例。
  */
-export function createOpenAICompatibleProvider(): Provider<
-  OpenAICompatibleProviderConfig,
-  MockProviderRequest
-> {
+export function createOpenAICompatibleProvider(): Provider<OpenAICompatibleProviderConfig, MockProviderRequest> {
   return {
     id: openaiCompatibleDescriptor.id,
     family: openaiCompatibleDescriptor.family,
@@ -106,11 +93,16 @@ export function createOpenAICompatibleProvider(): Provider<
 
       const assets = parseResponse(response.response.data);
 
-      return {
+      // 契约：无诊断时**省略** `diagnostics` 字段（不写 `undefined`），
+      // 与 ProviderInvokeResult 的 optional 语义对齐（参见 contract/result.ts）。
+      const result: ProviderInvokeResult = {
         assets,
-        diagnostics: response.diagnostics.length > 0 ? response.diagnostics : undefined,
         raw: response.response.data,
       };
+      if (response.diagnostics.length > 0) {
+        return { ...result, diagnostics: response.diagnostics };
+      }
+      return result;
     },
   };
 }
