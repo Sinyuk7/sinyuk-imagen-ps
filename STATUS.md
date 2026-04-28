@@ -1,7 +1,8 @@
 # 项目状态
 
-- 状态：早期阶段；`core-engine`、`providers`、`workflows` 已实现；`app/shared/commands` 已落地首版三命令层
+- 状态：Phase 3 完成；`core-engine`、`providers`、`workflows` 已实现；`app/shared/commands` 已落地 v1 + v2 完整命令层（8 命令）
 - 更新时间：2026-04-28
+- 下一阶段：Phase 4 — CLI Surface
 
 ## 当前活跃模块
 

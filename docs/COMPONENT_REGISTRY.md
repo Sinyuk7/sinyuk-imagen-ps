@@ -8,13 +8,23 @@
 |------|------|------|
 | app | `@imagen-ps/app` | 唯一应用，承接 Photoshop / UXP、React UI 和应用侧薄桥接 |
 
-**app/shared/commands 导出**：
+**app/shared/commands 导出（v1）**：
 
 | 命令 | 签名 | 职责 |
 |------|------|------|
 | `submitJob` | `(input: SubmitJobInput) → Promise<CommandResult<Job>>` | 提交 workflow 执行 |
 | `getJob` | `(jobId: string) → Job \| undefined` | 查询 job 快照 |
 | `subscribeJobEvents` | `(handler: JobEventHandler) → Unsubscribe` | 订阅 lifecycle 事件 |
+
+**app/shared/commands 导出（v2）**：
+
+| 命令 | 签名 | 职责 |
+|------|------|------|
+| `listProviders` | `() → ProviderDescriptor[]` | 列出所有已注册 provider |
+| `describeProvider` | `(providerId: string) → ProviderDescriptor \| undefined` | 获取单个 provider 描述 |
+| `getProviderConfig` | `(providerId: string) → Promise<CommandResult<ProviderConfig>>` | 获取 provider 配置 |
+| `saveProviderConfig` | `(providerId: string, config: unknown) → Promise<CommandResult<void>>` | 保存 provider 配置 |
+| `retryJob` | `(jobId: string) → Promise<CommandResult<Job>>` | 重试指定 job |
 
 **app/shared/commands 类型**：
 
@@ -23,6 +33,15 @@
 | `CommandResult<T>` | 命令执行结果统一包装 |
 | `SubmitJobInput` | submitJob 输入参数 |
 | `JobEventHandler` | 事件处理器类型 |
+| `ConfigStorageAdapter` | Config 持久化 adapter 接口 |
+| `ProviderDescriptor` | Provider 元数据（re-export） |
+| `ProviderConfig` | Provider 配置（re-export） |
+
+**app/shared/commands DI 接口**：
+
+| 函数 | 用途 |
+|------|------|
+| `setConfigAdapter` | 注入自定义 config storage adapter |
 
 ## 共享包
 
