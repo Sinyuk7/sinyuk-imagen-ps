@@ -20,6 +20,7 @@ CLI 首要服务脚本、AI Skill、MCP wrapper、CI 与开发自动化；同时
 - 不实现 `job watch` 或实时 streaming
 - 不实现身份认证或多用户配置
 - 不实现 job 历史跨进程持久化；`job get` / `job retry` 仅覆盖当前 CLI 进程 runtime store 中可见的 job
+- 不暴露 `subscribeJobEvents` 为 CLI 命令；当前不支持 `job watch` 或实时 streaming
 - 不做 npm 发布配置
 
 ## Capabilities

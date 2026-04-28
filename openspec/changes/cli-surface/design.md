@@ -89,9 +89,11 @@ CLI 作为独立 lightweight automation surface，需要：
 - 遵循 CLI 工具惯例（`.config`、`.cache` 等）
 - 跨项目共享配置（不随项目目录变化）
 - 便于手动查看和编辑
+- 使用 Node.js `os.homedir()` 解析 home 目录，避免直接依赖 `$HOME`、`~` shell 展开或 `%USERPROFILE%` 等平台差异
 
 **替代方案**：
-- XDG 规范（`~/.config/imagen-ps/`）：更规范，但增加复杂度
+- XDG 规范（`~/.config/imagen-ps/`）：更规范，但增加复杂度；可在后续跨平台配置策略中再评估
+- Windows 专用 AppData 路径：平台语义更贴近 Windows，但会让首版实现出现 OS 分支；当前先使用 `os.homedir()` 下的统一相对路径
 - 当前目录 `.imagen-ps.json`：不便于跨项目复用
 
 ### D6: Automation 命令输出格式固定为 JSON

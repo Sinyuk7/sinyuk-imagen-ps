@@ -1,12 +1,13 @@
 # 项目状态
 
-- 状态：Phase 3 完成；`core-engine`、`providers`、`workflows` 已实现；`app/shared/commands` 已落地 v1 + v2 完整命令层（8 命令）
+- 状态：Phase 4 完成；CLI Surface 已实现，`apps/cli` 提供 7 个 automation 命令 + 1 个极简人工 shortcut
 - 更新时间：2026-04-28
-- 下一阶段：Phase 4 — CLI Surface
+- 下一阶段：Phase 5 — TBD
 
 ## 当前活跃模块
 
-- `app`：唯一应用，负责 Photoshop / UXP、UI 和应用侧桥接
+- `apps/app`：Photoshop / UXP surface，负责 host integration、React UI、surface-local model 与 UXP adapter 注入
+- `apps/cli`：Node.js CLI surface，lightweight automation 入口，承接命令行解析、JSON 输出、FileConfigAdapter 注入
 - `packages/core-engine`：已实现完整 runtime / engine 基础能力
 - `packages/providers`：contract、registry、mock provider、bridge、`openai-compatible` provider 已落地，并补充了关键测试
 - `packages/workflows`：已导出 `provider-generate`、`provider-edit` 最小 builtin workflow spec，稳定了最小 request contract，并补充了包内测试与最小 bridge adapter 验证

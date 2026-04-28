@@ -22,6 +22,8 @@ imagen
 
 CLI 定位为 lightweight automation surface：默认面向脚本、AI Skill、MCP wrapper 与 CI，使用非交互参数和机器可读 JSON；同时允许少量人工 bootstrap shortcut。
 
+`subscribeJobEvents` 不暴露为 CLI 命令，因为当前不支持 `job watch` 或实时 streaming；CLI 首版仅覆盖一次性命令调用。
+
 #### Scenario: 执行 CLI 入口
 - **WHEN** 用户执行 `imagen --help`
 - **THEN** 输出包含 `provider` 和 `job` 两个子命令组
@@ -85,9 +87,18 @@ CLI 定位为 lightweight automation surface：默认面向脚本、AI Skill、M
 - **AND** exit code 为 0
 - **AND** 配置被持久化到 `~/.imagen-ps/config.json`
 
-#### Scenario: 保存无效配置
+#### Scenario: JSON 解析失败
+- **WHEN** 用户执行 `imagen provider config save mock '{invalid-json}'`
+- **THEN** CLI 命令层 SHALL 在调用 `saveProviderConfig` 之前检测到 JSON parse 失败
+- **AND** stderr 输出 JSON 解析错误
+- **AND** exit code 为 1
+
+#### Scenario: Provider config schema 校验失败
 - **WHEN** 用户执行 `imagen provider config save mock '{"invalid":true}'`
-- **THEN** stderr 输出验证错误
+- **THEN** CLI SHALL 成功解析 JSON
+- **AND** 调用 `saveProviderConfig('mock', parsedConfig)`
+- **AND** shared-commands / provider 层 SHALL 执行 provider config schema 校验
+- **AND** CLI SHALL 将 `CommandResult.error` 输出到 stderr
 - **AND** exit code 为 1
 
 #### Scenario: 从文件读取配置
