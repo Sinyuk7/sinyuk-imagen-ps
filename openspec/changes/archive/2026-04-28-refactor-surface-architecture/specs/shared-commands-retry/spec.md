@@ -1,8 +1,5 @@
-# shared-commands-retry Specification
+## MODIFIED Requirements
 
-## Purpose
-TBD - created by archiving change extend-shared-commands. Update Purpose after archive.
-## Requirements
 ### Requirement: retryJob 命令
 
 `retryJob(jobId: string)` SHALL 重试指定的 job。内部 SHALL 从 `@imagen-ps/shared-commands` 管理的 runtime store 获取原 job 的 `workflowName` 和 `input`，然后调用 runtime 创建新 job。返回类型 SHALL 为 `Promise<CommandResult<Job>>`。
@@ -37,4 +34,3 @@ TBD - created by archiving change extend-shared-commands. Update Purpose after a
 - **THEN** 返回 `{ ok: false, error: JobError }`
 - **AND** `error.category` SHALL 为 `'validation'`
 - **AND** `error.message` SHALL 说明缺失的字段
-

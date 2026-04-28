@@ -9,12 +9,12 @@
 
 ### Workspace 配置
 
-`pnpm-workspace.yaml` 定义了 workspace 范围：
+`pnpm-workspace.yaml` 定义 workspace 范围：
 
 ```yaml
 packages:
-  - 'app'
-  - 'packages/*'
+  - "apps/*"
+  - "packages/*"
 ```
 
 ### 包间依赖声明
@@ -24,7 +24,7 @@ packages:
 ```json
 {
   "dependencies": {
-    "@imagen-ps/core-engine": "workspace:*"
+    "@imagen-ps/shared-commands": "workspace:*"
   }
 }
 ```
@@ -35,16 +35,8 @@ packages:
 
 ## 版本策略
 
-### 当前策略
-
 - 所有包版本统一为 `0.0.0`
 - 所有包标记为 `"private": true`，不发布到 npm
-
-### 未来考虑
-
-如需发布：
-- 可采用统一版本（所有包同版本号）
-- 或独立版本（各包独立演进）
 
 ## 构建配置
 
@@ -90,8 +82,10 @@ packages:
 
 - 编译目标
 - 模块系统
-- 路径映射
 - 严格模式设置
+- skipLibCheck / esModuleInterop 等通用选项
+
+根 `tsconfig.json` 仅用于 IDE/tsserver 跨包解析，包含 `apps/*` 与 `packages/*` 的源码和测试路径。
 
 #### 包级配置
 
@@ -106,12 +100,31 @@ packages:
 
 | 包 | 产物位置 | 格式 |
 |---|---|---|
+| app | `apps/app/dist/` | ESM |
+| cli | `apps/cli/dist/` | ESM |
+| shared-commands | `packages/shared-commands/dist/` | ESM |
 | core-engine | `packages/core-engine/dist/` | ESM |
 | providers | `packages/providers/dist/` | ESM |
 | workflows | `packages/workflows/dist/` | ESM |
-| app | `app/dist/` | ESM |
 
 所有包使用 `"type": "module"` 声明 ESM 格式。
+
+## Build Graph
+
+```text
+@imagen-ps/core-engine
+├── @imagen-ps/providers
+├── @imagen-ps/workflows
+└── @imagen-ps/shared-commands
+    ├── @imagen-ps/app
+    └── @imagen-ps/cli
+```
+
+实际依赖：
+
+- `@imagen-ps/shared-commands` depends on `core-engine`、`providers`、`workflows`
+- `@imagen-ps/app` depends on `@imagen-ps/shared-commands`
+- `@imagen-ps/cli` depends on `@imagen-ps/shared-commands`
 
 ## 外部依赖
 
@@ -123,6 +136,7 @@ packages:
 | core-engine | `zod` | Schema 校验 |
 | providers | `zod` | Schema 校验 |
 | app | `react`, `react-dom` | UI 框架 |
+| cli | `commander` | CLI 命令解析 |
 
 ### 开发依赖
 
@@ -133,19 +147,25 @@ packages:
 | `turbo` | 任务编排 |
 | `rimraf` | 跨平台删除 |
 
-## CI/CD
-
-TODO: CI 基线待后续补充。
-
-当前本地验证命令：
+## 本地验证命令
 
 ```bash
 # 完整构建
 pnpm build
 
+# 构建单包
+pnpm --filter @imagen-ps/shared-commands build
+pnpm --filter @imagen-ps/app build
+pnpm --filter @imagen-ps/cli build
+
 # 运行测试
 pnpm test
+pnpm --filter @imagen-ps/shared-commands test
 
 # 清理产物
 pnpm clean
 ```
+
+## CI/CD
+
+TODO: CI 基线待后续补充。

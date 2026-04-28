@@ -47,8 +47,7 @@ function isJobError(error: unknown): error is JobError {
  *
  * 字符串值若完全匹配 `${key}` 格式：
  * - 若 `key` 存在于上下文中，替换为上下文中的原始值（保留类型）；
- * - 若 `key` 不存在，抛出 `JobError`（`category: 'workflow'`），
- *   即"workflow binding 缺失"在 workflow 层即时失败，而非延后到 provider 校验。
+ * - 若 `key` 不存在，按字面量保留原字符串，让 provider/request validation 处理缺失输入。
  *
  * 字符串中"部分包含" `${...}` 子串（非整体匹配）的情况一律视为字面量保留，
  * 不做解析也不报错——这是为了允许 provider 自身的模板语法穿透。
@@ -63,10 +62,7 @@ function resolveValue(value: unknown, context: Record<string, unknown>, path: st
       if (key in context) {
         return context[key];
       }
-      throw createWorkflowError(`Workflow binding "${key}" at "${path}" is not available in the current context.`, {
-        bindingKey: key,
-        path,
-      });
+      return value;
     }
   }
 

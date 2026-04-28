@@ -2,7 +2,18 @@
 
 ## Project Overview
 
-`sinyuk-imagen-ps` — Photoshop 图像生成插件 monorepo。包含唯一应用 `app/` 和三个共享包 `core-engine`、`providers`、`workflows`。
+`sinyuk-imagen-ps` — Photoshop 图像生成插件 monorepo。包含两个 surface 应用 `apps/app`、`apps/cli`，以及四个共享包 `shared-commands`、`core-engine`、`providers`、`workflows`。
+
+## Architecture Boundary
+
+依赖方向为 `surface apps -> packages/shared-commands -> runtime packages`：
+
+- `apps/app`：Photoshop / UXP surface，负责 host integration、React UI、surface-local model 与 UXP adapter 注入。
+- `apps/cli`：Node.js CLI surface，负责命令行解析、stdout/stderr、Node-only adapter 注入。
+- `packages/shared-commands`：公共 application/use-case 层，负责 command facade、runtime assembly、CommandResult 与 adapter injection。
+- `packages/core-engine`、`packages/providers`、`packages/workflows`：host-agnostic runtime/domain packages。
+
+`apps/cli` MUST NOT 依赖 `@imagen-ps/app`。`packages/shared-commands` MUST NOT 依赖 React、DOM、Photoshop、UXP、Node fs/path/os 或任意 surface app。
 
 ## Docs Map
 

@@ -2,21 +2,31 @@
 
 > 数据来源：各 `package.json` 和源码扫描（2026-04-28）
 
-## 应用层
+## Surface Apps
 
-| 模块 | 包名 | 职责 |
-|------|------|------|
-| app | `@imagen-ps/app` | 唯一应用，承接 Photoshop / UXP、React UI 和应用侧薄桥接 |
+| 模块 | 包名 | 路径 | 职责 |
+|------|------|------|------|
+| Photoshop App | `@imagen-ps/app` | `apps/app` | Photoshop / UXP surface，承接 host integration、React UI、surface-local model 与 UXP adapter 注入 |
+| CLI | `@imagen-ps/cli` | `apps/cli` | Node.js lightweight automation surface，承接命令行解析、stdout/stderr、exit code、极简 provider/model bootstrap prompt 与 Node-only adapter 注入；主要服务脚本、AI Skill、MCP wrapper 与 CI，也支持人工执行基础命令 |
 
-**app/shared/commands 导出（v1）**：
+## Application Layer
+
+### packages/shared-commands
+
+| 包名 | `@imagen-ps/shared-commands` |
+|------|-------------------------------|
+| 职责 | 公共 command facade、runtime assembly、CommandResult、公开命令类型与 adapter injection |
+| 状态 | 已从 app-local shared commands 抽出为公共 package |
+
+**shared-commands 导出（v1）**：
 
 | 命令 | 签名 | 职责 |
 |------|------|------|
 | `submitJob` | `(input: SubmitJobInput) → Promise<CommandResult<Job>>` | 提交 workflow 执行 |
-| `getJob` | `(jobId: string) → Job \| undefined` | 查询 job 快照 |
+| `getJob` | `(jobId: string) → Job \| undefined` | 查询当前 runtime store 中的 job 快照 |
 | `subscribeJobEvents` | `(handler: JobEventHandler) → Unsubscribe` | 订阅 lifecycle 事件 |
 
-**app/shared/commands 导出（v2）**：
+**shared-commands 导出（v2）**：
 
 | 命令 | 签名 | 职责 |
 |------|------|------|
@@ -26,9 +36,9 @@
 | `saveProviderConfig` | `(providerId: string, config: unknown) → Promise<CommandResult<void>>` | 保存 provider 配置 |
 | `retryJob` | `(jobId: string) → Promise<CommandResult<Job>>` | 重试指定 job |
 
-**app/shared/commands 类型**：
+**shared-commands 类型与 DI**：
 
-| 类型 | 用途 |
+| 导出 | 用途 |
 |------|------|
 | `CommandResult<T>` | 命令执行结果统一包装 |
 | `SubmitJobInput` | submitJob 输入参数 |
@@ -36,14 +46,9 @@
 | `ConfigStorageAdapter` | Config 持久化 adapter 接口 |
 | `ProviderDescriptor` | Provider 元数据（re-export） |
 | `ProviderConfig` | Provider 配置（re-export） |
+| `setConfigAdapter` | 注入 surface-specific config storage adapter |
 
-**app/shared/commands DI 接口**：
-
-| 函数 | 用途 |
-|------|------|
-| `setConfigAdapter` | 注入自定义 config storage adapter |
-
-## 共享包
+## Runtime / Domain Packages
 
 ### packages/core-engine
 
@@ -112,8 +117,14 @@
 
 ## 依赖关系
 
-```
-app
+```text
+apps/app
+└── @imagen-ps/shared-commands
+
+apps/cli
+└── @imagen-ps/shared-commands
+
+packages/shared-commands
 ├── @imagen-ps/core-engine
 ├── @imagen-ps/providers
 └── @imagen-ps/workflows
@@ -131,4 +142,4 @@ packages/core-engine
 
 ## 更新说明
 
-此注册表基于源码自动扫描生成。如有变动，请同步更新此文件。
+此注册表基于源码扫描维护。如有模块、路径或导出变化，请同步更新此文件。

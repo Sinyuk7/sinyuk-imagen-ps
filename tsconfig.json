@@ -7,8 +7,18 @@
     "paths": {
       "@imagen-ps/core-engine": ["packages/core-engine/src/index.ts"],
       "@imagen-ps/providers": ["packages/providers/src/index.ts"],
-      "@imagen-ps/workflows": ["packages/workflows/src/index.ts"]
+      "@imagen-ps/workflows": ["packages/workflows/src/index.ts"],
+      "@imagen-ps/shared-commands": ["packages/shared-commands/src/index.ts"],
+      "@imagen-ps/shared-commands/commands": ["packages/shared-commands/src/commands/index.ts"]
     }
   },
-  "include": ["packages/*/src/**/*.ts", "packages/*/tests/**/*.ts", "packages/*/test/**/*.ts"]
+  "include": [
+    "apps/*/src/**/*.ts",
+    "apps/*/src/**/*.tsx",
+    "apps/*/tests/**/*.ts",
+    "apps/*/test/**/*.ts",
+    "packages/*/src/**/*.ts",
+    "packages/*/tests/**/*.ts",
+    "packages/*/test/**/*.ts"
+  ]
 }

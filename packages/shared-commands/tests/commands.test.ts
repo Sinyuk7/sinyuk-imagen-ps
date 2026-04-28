@@ -17,8 +17,8 @@ import {
   setConfigAdapter,
   type ConfigStorageAdapter,
   type ProviderConfig,
-} from '../src/shared/commands/index.js';
-import { _resetForTesting } from '../src/shared/runtime.js';
+} from '../src/commands/index.js';
+import { _resetForTesting } from '../src/runtime.js';
 
 describe('commands', () => {
   beforeEach(() => {
@@ -39,21 +39,20 @@ describe('commands', () => {
       }
     });
 
-    it('returns { ok: true } with failed job when binding is missing', async () => {
-      // Note: runtime.runWorkflow does not throw for workflow errors.
+    it('returns { ok: true } with failed job when required provider request field is missing', async () => {
+      // Note: runtime.runWorkflow does not throw for provider validation errors.
       // Instead, it returns a job with status === 'failed' and error populated.
       // submitJob wraps this as { ok: true, value: Job } because runWorkflow
       // resolved successfully - the job just happens to be in 'failed' state.
       const result = await submitJob({
         workflow: 'provider-generate',
-        // Missing `prompt` binding
-        input: { provider: 'mock' },
+        input: { provider: 'mock', prompt: '' },
       });
 
       expect(result.ok).toBe(true);
       if (result.ok) {
         expect(result.value.status).toBe('failed');
-        expect(result.value.error?.category).toBe('workflow');
+        expect(result.value.error?.category).toBe('validation');
         expect(result.value.error?.message).toContain('prompt');
       }
     });

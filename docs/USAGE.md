@@ -4,10 +4,25 @@
 
 本项目为 monorepo 结构，包间依赖通过 pnpm workspace 管理。
 
-### 在 app 中使用共享包
+### 在 surface app 中使用 shared commands
 
 ```json
-// app/package.json
+// apps/app/package.json 或 apps/cli/package.json
+{
+  "dependencies": {
+    "@imagen-ps/shared-commands": "workspace:*"
+  }
+}
+```
+
+Surface app 不应直接组装 runtime，也不应相互依赖。`apps/cli` MUST NOT 依赖 `@imagen-ps/app`。
+
+`apps/cli` 定位为 lightweight automation surface：默认面向脚本、AI Skill、MCP wrapper 与 CI，使用非交互参数和机器可读 JSON；同时允许人工手动执行少量基础命令（例如 `imagen provider list`、`imagen provider config`）完成 provider/model bootstrap 配置。它不是复杂的交互式终端 UI 产品。
+
+### 在 shared-commands 中依赖 runtime packages
+
+```json
+// packages/shared-commands/package.json
 {
   "dependencies": {
     "@imagen-ps/core-engine": "workspace:*",
@@ -17,21 +32,10 @@
 }
 ```
 
-### 在 providers 中依赖 core-engine
+### 在 providers / workflows 中依赖 core-engine
 
 ```json
-// packages/providers/package.json
-{
-  "dependencies": {
-    "@imagen-ps/core-engine": "workspace:*"
-  }
-}
-```
-
-### 在 workflows 中依赖 core-engine
-
-```json
-// packages/workflows/package.json
+// packages/providers/package.json 或 packages/workflows/package.json
 {
   "dependencies": {
     "@imagen-ps/core-engine": "workspace:*"
@@ -41,28 +45,36 @@
 
 ## 导入方式
 
+### shared-commands
+
+```typescript
+import {
+  submitJob,
+  getJob,
+  subscribeJobEvents,
+  listProviders,
+  describeProvider,
+  getProviderConfig,
+  saveProviderConfig,
+  retryJob,
+  setConfigAdapter,
+  type CommandResult,
+  type SubmitJobInput,
+  type ConfigStorageAdapter,
+} from '@imagen-ps/shared-commands';
+```
+
 ### core-engine
 
 ```typescript
 import {
-  // Runtime
   createRuntime,
-  
-  // Registry
   createWorkflowRegistry,
-  
-  // Runner
   createWorkflowRunner,
-  
-  // Store
   createJobStore,
-  
-  // Events
   createEventBus,
-  
-  // Types
   type Job,
-  type JobRequest,
+  type JobInput,
   type WorkflowSpec,
   type ProviderDispatch,
 } from '@imagen-ps/core-engine';
@@ -72,14 +84,9 @@ import {
 
 ```typescript
 import {
-  // Registry
   createProviderRegistry,
-  getBuiltinProviders,
-  
-  // Bridge
+  registerBuiltins,
   createDispatchAdapter,
-  
-  // Contract
   type Provider,
   type ProviderDescriptor,
   type ProviderConfig,
@@ -92,52 +99,95 @@ import {
 
 ```typescript
 import {
-  // Builtin workflows
+  builtinWorkflows,
   providerGenerateWorkflow,
   providerEditWorkflow,
 } from '@imagen-ps/workflows';
 ```
 
-## 典型集成流程
+## 典型 surface 集成流程
 
-### 1. 创建 runtime
+### 1. 注入 surface-specific adapter
+
+```typescript
+import { setConfigAdapter, type ConfigStorageAdapter } from '@imagen-ps/shared-commands';
+
+const adapter: ConfigStorageAdapter = {
+  async get(providerId) {
+    // surface-specific persistence read
+    return undefined;
+  },
+  async save(providerId, config) {
+    // surface-specific persistence write
+  },
+};
+
+setConfigAdapter(adapter);
+```
+
+### 2. 调用命令
+
+```typescript
+import { submitJob } from '@imagen-ps/shared-commands';
+
+const result = await submitJob({
+  workflow: 'provider-generate',
+  input: { provider: 'mock', prompt: 'a cat' },
+});
+
+if (result.ok) {
+  console.log(result.value);
+} else {
+  console.error(result.error);
+}
+```
+
+### 3. 查询 provider
+
+```typescript
+import { listProviders, describeProvider } from '@imagen-ps/shared-commands';
+
+const providers = listProviders();
+const mock = describeProvider('mock');
+```
+
+## CLI automation entrypoint
+
+CLI 入口提供无需启动 Photoshop / UXP 的 Node.js 命令入口。典型用法：
+
+```bash
+imagen provider list
+imagen provider describe mock
+imagen provider config get mock
+imagen provider config save mock @config.json
+imagen job submit provider-generate @input.json
+```
+
+`provider config save` 与 `job submit` 这类 automation 命令应保持非交互、JSON 输入/输出，适合被脚本、AI Skill、MCP wrapper 或 CI 调用。
+
+也允许一个极简人工配置 shortcut：
+
+```bash
+imagen provider config
+```
+
+该 shortcut 仅用于人工初始化或快速修正 provider/model 配置，例如选择 provider、输入 API key / base URL / default model，并保存到 CLI 的文件系统 config adapter。
+
+## 直接使用底层 runtime packages
+
+`core-engine`、`providers`、`workflows` 主要供 `packages/shared-commands` 组装 runtime 使用。Surface app 默认不直接访问这些包的 runtime assembly API。
+
+如果需要在 package 内部做底层集成测试，可以直接创建 runtime：
 
 ```typescript
 import { createRuntime } from '@imagen-ps/core-engine';
 import { createProviderRegistry, createDispatchAdapter } from '@imagen-ps/providers';
-
-// 创建 provider registry
-const providerRegistry = createProviderRegistry();
-
-// 创建 dispatch adapter（桥接 providers 和 core-engine）
-const dispatch = createDispatchAdapter(providerRegistry);
-
-// 创建 runtime
-const runtime = createRuntime({ dispatch });
-```
-
-### 2. 注册 workflow
-
-```typescript
-import { providerGenerateWorkflow } from '@imagen-ps/workflows';
-
-runtime.registerWorkflow(providerGenerateWorkflow);
-```
-
-### 3. 提交任务
-
-```typescript
-const job = await runtime.submitJob({
-  workflowId: 'provider-generate',
-  params: {
-    providerId: 'mock',
-    prompt: 'a cat',
-  },
-});
+import { builtinWorkflows } from '@imagen-ps/workflows';
 ```
 
 ## 注意事项
 
-- 当前阶段 API 可能变动，以各包 `SPEC.md` 和源码为准
-- `app` 层通过 `shared/` 收口对共享包的调用，不直接在 UI 中引用底层包
-- IO 操作（网络、文件、Photoshop API）只能在 `app/host` 或 adapter 边界发生
+- 当前阶段 API 可能变动，以 OpenSpec 和源码为准
+- `apps/app` 与 `apps/cli` 通过 `@imagen-ps/shared-commands` 收口对业务能力的调用
+- IO 操作只能在 surface host/adapter 边界或 provider transport 边界发生
+- `packages/shared-commands` 必须保持 host-agnostic，不依赖 React、DOM、Photoshop、UXP 或 Node fs/path/os

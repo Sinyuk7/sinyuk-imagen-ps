@@ -1,8 +1,20 @@
 {
-  "name": "@imagen-ps/app",
+  "name": "@imagen-ps/shared-commands",
   "version": "0.0.0",
   "private": true,
   "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    },
+    "./commands": {
+      "types": "./dist/commands/index.d.ts",
+      "import": "./dist/commands/index.js"
+    }
+  },
   "scripts": {
     "build": "tsc --project tsconfig.build.json",
     "test": "vitest run",
@@ -11,13 +23,9 @@
   "dependencies": {
     "@imagen-ps/core-engine": "workspace:*",
     "@imagen-ps/providers": "workspace:*",
-    "@imagen-ps/workflows": "workspace:*",
-    "react": "^19.0.0",
-    "react-dom": "^19.0.0"
+    "@imagen-ps/workflows": "workspace:*"
   },
   "devDependencies": {
-    "@types/react": "^19.0.0",
-    "@types/react-dom": "^19.0.0",
     "typescript": "^5.7.0",
     "vitest": "^3.0.0"
   }
