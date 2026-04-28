@@ -1,7 +1,7 @@
 # 项目状态
 
-- 状态：早期阶段，文档结构已收敛为单应用模式；`core-engine`、`providers` 已实现，`workflows` 已落地最小 builtin workflow baseline
-- 更新时间：2026-04-25
+- 状态：早期阶段；`core-engine`、`providers`、`workflows` 已实现；`app/shared/commands` 已落地首版三命令层
+- 更新时间：2026-04-28
 
 ## 当前活跃模块
 

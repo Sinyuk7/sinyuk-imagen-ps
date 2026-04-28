@@ -1,12 +1,28 @@
 # 模块注册表
 
-> 数据来源：各 `package.json` 和源码扫描（2026-04-26）
+> 数据来源：各 `package.json` 和源码扫描（2026-04-28）
 
 ## 应用层
 
 | 模块 | 包名 | 职责 |
 |------|------|------|
 | app | `@imagen-ps/app` | 唯一应用，承接 Photoshop / UXP、React UI 和应用侧薄桥接 |
+
+**app/shared/commands 导出**：
+
+| 命令 | 签名 | 职责 |
+|------|------|------|
+| `submitJob` | `(input: SubmitJobInput) → Promise<CommandResult<Job>>` | 提交 workflow 执行 |
+| `getJob` | `(jobId: string) → Job \| undefined` | 查询 job 快照 |
+| `subscribeJobEvents` | `(handler: JobEventHandler) → Unsubscribe` | 订阅 lifecycle 事件 |
+
+**app/shared/commands 类型**：
+
+| 类型 | 用途 |
+|------|------|
+| `CommandResult<T>` | 命令执行结果统一包装 |
+| `SubmitJobInput` | submitJob 输入参数 |
+| `JobEventHandler` | 事件处理器类型 |
 
 ## 共享包
 
