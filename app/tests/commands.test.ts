@@ -1,25 +1,24 @@
 /**
- * Commands 层单元测试。
+ * Commands 层单元测试
  */
 
 import { describe, expect, it, beforeEach } from 'vitest';
 import type { JobEvent } from '@imagen-ps/core-engine';
-import { createMockProvider, createDispatchAdapter } from '@imagen-ps/providers';
-import { builtinWorkflows } from '@imagen-ps/workflows';
 
-import { submitJob, getJob, subscribeJobEvents } from '../src/shared/commands/index.js';
+import {
+  submitJob,
+  getJob,
+  subscribeJobEvents,
+  listProviders,
+  describeProvider,
+  getProviderConfig,
+  saveProviderConfig,
+  retryJob,
+  setConfigAdapter,
+  type ConfigStorageAdapter,
+  type ProviderConfig,
+} from '../src/shared/commands/index.js';
 import { _resetForTesting } from '../src/shared/runtime.js';
-
-/**
- * 创建带有 failMode 的 mock provider adapter。
- */
-function createFailingMockAdapter() {
-  const provider = createMockProvider();
-  const config = provider.validateConfig({
-    failMode: { type: 'always' },
-  });
-  return createDispatchAdapter({ provider, config });
-}
 
 describe('commands', () => {
   beforeEach(() => {
@@ -170,6 +169,191 @@ describe('commands', () => {
       // Handler B should still receive events despite Handler A throwing
       expect(handlerBEvents.length).toBeGreaterThan(0);
       expect(handlerBEvents.map((e) => e.type)).toContain('created');
+    });
+  });
+
+  describe('listProviders', () => {
+    it('returns registered provider descriptors', () => {
+      const providers = listProviders();
+      expect(Array.isArray(providers)).toBe(true);
+      expect(providers.length).toBeGreaterThan(0);
+
+      const mockProvider = providers.find((p) => p.id === 'mock');
+      expect(mockProvider).toBeDefined();
+      expect(mockProvider?.displayName).toBeDefined();
+    });
+  });
+
+  describe('describeProvider', () => {
+    it('returns descriptor for existing provider', () => {
+      const descriptor = describeProvider('mock');
+      expect(descriptor).toBeDefined();
+      expect(descriptor?.id).toBe('mock');
+      expect(descriptor?.family).toBeDefined();
+      expect(descriptor?.capabilities).toBeDefined();
+    });
+
+    it('returns undefined for non-existent provider', () => {
+      const descriptor = describeProvider('nonexistent');
+      expect(descriptor).toBeUndefined();
+    });
+  });
+
+  describe('getProviderConfig', () => {
+    it('returns error when no config saved', async () => {
+      const result = await getProviderConfig('mock');
+      expect(result.ok).toBe(false);
+      if (!result.ok) {
+        expect(result.error.category).toBe('validation');
+        expect(result.error.message).toContain('mock');
+      }
+    });
+
+    it('returns error for non-existent provider', async () => {
+      const result = await getProviderConfig('nonexistent');
+      expect(result.ok).toBe(false);
+      if (!result.ok) {
+        expect(result.error.category).toBe('validation');
+      }
+    });
+
+    it('returns config after save', async () => {
+      const validConfig = {
+        providerId: 'mock',
+        displayName: 'Test Mock',
+        family: 'openai-compatible',
+        baseURL: 'https://test.local',
+        apiKey: 'test-key',
+      };
+
+      await saveProviderConfig('mock', validConfig);
+      const result = await getProviderConfig('mock');
+
+      expect(result.ok).toBe(true);
+      if (result.ok) {
+        expect(result.value.providerId).toBe('mock');
+      }
+    });
+  });
+
+  describe('saveProviderConfig', () => {
+    it('saves valid config', async () => {
+      const validConfig = {
+        providerId: 'mock',
+        displayName: 'Test Mock',
+        family: 'openai-compatible',
+        baseURL: 'https://test.local',
+        apiKey: 'test-key',
+      };
+
+      const result = await saveProviderConfig('mock', validConfig);
+      expect(result.ok).toBe(true);
+    });
+
+    it('returns error for invalid config', async () => {
+      const invalidConfig = { invalid: true };
+      const result = await saveProviderConfig('mock', invalidConfig);
+
+      expect(result.ok).toBe(false);
+      if (!result.ok) {
+        expect(result.error.category).toBe('validation');
+      }
+    });
+
+    it('returns error for non-existent provider', async () => {
+      const result = await saveProviderConfig('nonexistent', {});
+      expect(result.ok).toBe(false);
+      if (!result.ok) {
+        expect(result.error.category).toBe('validation');
+      }
+    });
+  });
+
+  describe('retryJob', () => {
+    it('creates new job with same input for completed job', async () => {
+      const submitResult = await submitJob({
+        workflow: 'provider-generate',
+        input: { provider: 'mock', prompt: 'retry test' },
+      });
+
+      expect(submitResult.ok).toBe(true);
+      if (!submitResult.ok) return;
+
+      const retryResult = await retryJob(submitResult.value.id);
+      expect(retryResult.ok).toBe(true);
+      if (retryResult.ok) {
+        expect(retryResult.value.id).not.toBe(submitResult.value.id);
+        expect(retryResult.value.status).toBe('completed');
+      }
+    });
+
+    it('returns error for non-existent job', async () => {
+      const result = await retryJob('nonexistent-job');
+      expect(result.ok).toBe(false);
+      if (!result.ok) {
+        expect(result.error.category).toBe('validation');
+        expect(result.error.message).toContain('nonexistent-job');
+      }
+    });
+  });
+
+  describe('setConfigAdapter', () => {
+    it('custom adapter is used after set', async () => {
+      const customStore = new Map<string, ProviderConfig>();
+      const customAdapter: ConfigStorageAdapter = {
+        async get(id) {
+          return customStore.get(id);
+        },
+        async save(id, config) {
+          customStore.set(id, config);
+        },
+      };
+
+      setConfigAdapter(customAdapter);
+
+      const validConfig = {
+        providerId: 'mock',
+        displayName: 'Custom Test',
+        family: 'openai-compatible',
+        baseURL: 'https://custom.local',
+        apiKey: 'custom-key',
+      };
+
+      await saveProviderConfig('mock', validConfig);
+
+      // Verify custom store was used
+      expect(customStore.has('mock')).toBe(true);
+    });
+
+    it('_resetForTesting resets to default adapter', async () => {
+      const customStore = new Map<string, ProviderConfig>();
+      const customAdapter: ConfigStorageAdapter = {
+        async get(id) {
+          return customStore.get(id);
+        },
+        async save(id, config) {
+          customStore.set(id, config);
+        },
+      };
+
+      setConfigAdapter(customAdapter);
+
+      const validConfig = {
+        providerId: 'mock',
+        displayName: 'Before Reset',
+        family: 'openai-compatible',
+        baseURL: 'https://before.local',
+        apiKey: 'before-key',
+      };
+
+      await saveProviderConfig('mock', validConfig);
+      expect(customStore.has('mock')).toBe(true);
+
+      _resetForTesting();
+
+      // After reset, config should not be found (new in-memory adapter)
+      const result = await getProviderConfig('mock');
+      expect(result.ok).toBe(false);
     });
   });
 });

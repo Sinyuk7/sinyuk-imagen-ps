@@ -3,9 +3,20 @@
  *
  * 本模块定义 commands 层的公共类型契约，
  * 首版三命令 + 三类型签名在发布后视为 v1 stable。
+ * 二期类型包括 ConfigStorageAdapter、ProviderDescriptor、ProviderConfig。
  */
 
 import type { JobError, JobEvent, JobInput } from '@imagen-ps/core-engine';
+import type {
+  ProviderDescriptor as _ProviderDescriptor,
+  ProviderConfig as _ProviderConfig,
+} from '@imagen-ps/providers';
+
+// Re-export provider types for commands layer consumers
+export type { ProviderDescriptor, ProviderConfig } from '@imagen-ps/providers';
+
+// 为本模块内部使用引入类型别名
+type ProviderConfig = _ProviderConfig;
 
 /**
  * 命令执行结果的统一 Result 包装。
@@ -42,10 +53,15 @@ export interface SubmitJobInput {
   readonly input: JobInput;
 }
 
-/**
- * Job lifecycle 事件处理器类型。
- *
- * 接收所有事件类型（`created` / `running` / `completed` / `failed`），
- * 由调用方按 `event.type` 过滤。
- */
+/** Job lifecycle 事件处理器，接收所有事件类型 */
 export type JobEventHandler = (event: JobEvent) => void;
+
+/**
+ * Config 持久化 adapter 接口
+ *
+ * 由 CLI / UI 注入具体实现，默认使用 in-memory adapter。
+ */
+export interface ConfigStorageAdapter {
+  get(providerId: string): Promise<ProviderConfig | undefined>;
+  save(providerId: string, config: ProviderConfig): Promise<void>;
+}

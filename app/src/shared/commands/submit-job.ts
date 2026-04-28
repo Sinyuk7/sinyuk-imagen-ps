@@ -64,11 +64,19 @@ export function toJobError(error: unknown): JobError {
  * }
  * ```
  */
+/** 内部字段：存储 workflow 名称以支持 retryJob */
+export const WORKFLOW_NAME_KEY = '_workflowName';
+
 export async function submitJob(input: SubmitJobInput): Promise<CommandResult<Job>> {
   const runtime = getRuntime();
 
   try {
-    const job = await runtime.runWorkflow(input.workflow, input.input);
+    // 在 input 中附加 workflow 名称，供 retryJob 使用
+    const enrichedInput = {
+      ...input.input,
+      [WORKFLOW_NAME_KEY]: input.workflow,
+    };
+    const job = await runtime.runWorkflow(input.workflow, enrichedInput);
     return { ok: true, value: job };
   } catch (error) {
     return { ok: false, error: toJobError(error) };
