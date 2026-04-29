@@ -10,6 +10,7 @@ const generateStep = Object.freeze({
     request: Object.freeze({
       operation: 'generate',
       prompt: '${prompt}',
+      providerOptions: '${providerOptions}',
     }),
   }),
   outputKey: 'image',
@@ -23,7 +24,10 @@ const generateStep = Object.freeze({
  * - 输出 key：`image`（指向 provider 返回的 `ProviderInvokeResult`）
  *
  * Tentative（未纳入 v1 稳定范围，未来通过新版本 workflow 引入，不修改 v1）：
- * `output.count`、`providerOptions`、`negativePrompt` 等扩展字段。
+ * `output.count`、`negativePrompt` 等扩展字段。
+ *
+ * Stable（v1.1，本轮升级）：
+ * `providerOptions` — 通过 `request.providerOptions` 绑定，支持 model selection 及 provider-specific 选项透传。
  *
  * 只负责把 job input 绑定到单个 provider step，不承载 provider 语义或执行逻辑。
  */

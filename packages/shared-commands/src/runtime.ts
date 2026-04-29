@@ -125,6 +125,49 @@ function createDefaultProviderConfigResolver(): ProviderConfigResolver {
   };
 }
 
+/**
+ * 从 params 中定位 request 对象。
+ *
+ * 兼容两种 params 结构：
+ * (a) params 含 `request` key → `params.request` 为 request
+ * (b) params 不含 `request` key → 整个 params（排除 signal 等 meta key）即 request
+ */
+function locateRequestInParams(params: Record<string, unknown>): {
+  requestObj: Record<string, unknown>;
+  hasRequestKey: boolean;
+} {
+  if ('request' in params && typeof params.request === 'object' && params.request !== null) {
+    return { requestObj: params.request as Record<string, unknown>, hasRequestKey: true };
+  }
+  return { requestObj: params, hasRequestKey: false };
+}
+
+/**
+ * 将 defaultModel 注入到 params 中的 providerOptions.model（不 mutate 原对象）。
+ * 仅在 providerOptions.model 缺失时注入。
+ */
+function injectDefaultModel(params: Record<string, unknown>, defaultModel: string): Record<string, unknown> {
+  const { requestObj, hasRequestKey } = locateRequestInParams(params);
+
+  const existingOptions = (requestObj.providerOptions as Record<string, unknown> | undefined) ?? {};
+
+  // 如果 providerOptions.model 已存在（job input explicit），不覆盖
+  if (existingOptions.model !== undefined && existingOptions.model !== null) {
+    return params;
+  }
+
+  const mergedOptions = { ...existingOptions, model: defaultModel };
+
+  if (hasRequestKey) {
+    // 结构 (a)：params.request 是 request 对象
+    const newRequest = { ...requestObj, providerOptions: mergedOptions };
+    return { ...params, request: newRequest };
+  }
+
+  // 结构 (b)：整个 params 即 request
+  return { ...params, providerOptions: mergedOptions };
+}
+
 function createProfileAwareDispatchAdapter(): ReturnType<typeof createDispatchAdapter> {
   return {
     provider: 'profile',
@@ -141,8 +184,13 @@ function createProfileAwareDispatchAdapter(): ReturnType<typeof createDispatchAd
         throw new Error(`Provider implementation not found: ${providerConfig.providerId}`);
       }
 
+      // Inject profile defaultModel into providerOptions (three-tier priority: tier 2)
+      const defaultModel = (providerConfig as unknown as Record<string, unknown>).defaultModel;
+      const resolvedParams =
+        typeof defaultModel === 'string' && defaultModel.length > 0 ? injectDefaultModel(params, defaultModel) : params;
+
       const adapter = createDispatchAdapter({ provider, config: providerConfig });
-      return adapter.dispatch(params);
+      return adapter.dispatch(resolvedParams);
     },
   };
 }

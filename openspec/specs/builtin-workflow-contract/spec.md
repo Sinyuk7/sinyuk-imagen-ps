@@ -7,14 +7,15 @@ Define the stable minimal contract exposed by builtin provider workflows so uppe
 ## Requirements
 
 ### Requirement: Builtin generate workflow exposes a stable minimal request contract
-The system SHALL provide a builtin workflow named `provider-generate` whose single `provider` step binds a stable minimal request contract for image generation.
+The system SHALL provide a builtin workflow named `provider-generate` whose single `provider` step binds a stable minimal request contract for image generation. The step SHALL bind `providerOptions` from job input to support model selection and other provider-specific options.
 
-#### Scenario: Generate workflow binds provider and prompt
+#### Scenario: Generate workflow binds provider, prompt, and providerOptions
 - **WHEN** a consumer loads the exported `provider-generate` workflow
 - **THEN** the workflow MUST contain exactly one `provider` step
 - **THEN** that step MUST bind `${provider}` to the dispatched provider identifier
 - **THEN** that step MUST bind `${prompt}` to `request.prompt`
 - **THEN** that step MUST set `request.operation` to `generate`
+- **THEN** that step MUST bind `${providerOptions}` to `request.providerOptions`
 
 ### Requirement: Builtin edit workflow exposes a stable minimal request contract
 The system SHALL provide a builtin workflow named `provider-edit` whose single `provider` step binds a stable minimal request contract for image editing.
@@ -28,13 +29,14 @@ The system SHALL provide a builtin workflow named `provider-edit` whose single `
 - **THEN** that step MUST set `request.operation` to `edit`
 
 ### Requirement: Tentative fields are explicitly excluded from the current stable contract
-The system SHALL NOT claim the following fields as stable in the current builtin workflow contract. They MAY exist in underlying provider schemas but are not guaranteed by this contract until a subsequent change converges them.
+The system SHALL NOT claim the following fields as stable in the current builtin workflow contract. They MAY exist in underlying provider schemas but are not guaranteed by this contract until a subsequent change converges them. `providerOptions` is promoted from tentative to stable for the `provider-generate` workflow.
 
 #### Scenario: Tentative fields are documented
 - **WHEN** a consumer inspects the stable contract for `provider-generate` or `provider-edit`
-- **THEN** `maskAsset`, `output`, and `providerOptions` MUST be listed as tentative
+- **THEN** `maskAsset` and `output` MUST be listed as tentative
 - **AND** the contract MUST NOT require callers to supply them
 - **AND** the contract MUST NOT guarantee their binding behavior or output semantics at this stage
+- **AND** `providerOptions` SHALL be considered stable for `provider-generate` binding
 
 ### Requirement: Builtin provider workflows publish results under a stable output key
 The system SHALL publish the primary result of both builtin provider workflows under the same stable output key so upper layers can consume them without workflow-specific branching.

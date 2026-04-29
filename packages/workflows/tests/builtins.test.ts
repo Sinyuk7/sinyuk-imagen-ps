@@ -1,19 +1,8 @@
 import { describe, expect, it } from 'vitest';
-import {
-  createRuntime,
-  createWorkflowRegistry,
-  type ProviderDispatchAdapter,
-} from '@imagen-ps/core-engine';
-import {
-  createDispatchAdapter,
-  createMockProvider,
-} from '@imagen-ps/providers';
+import { createRuntime, createWorkflowRegistry, type ProviderDispatchAdapter } from '@imagen-ps/core-engine';
+import { createDispatchAdapter, createMockProvider } from '@imagen-ps/providers';
 
-import {
-  builtinWorkflows,
-  providerEditWorkflow,
-  providerGenerateWorkflow,
-} from '../src/index.js';
+import { builtinWorkflows, providerEditWorkflow, providerGenerateWorkflow } from '../src/index.js';
 
 function createEchoAdapter(): ProviderDispatchAdapter {
   return {
@@ -43,10 +32,7 @@ function createMockBridgeAdapter(): ProviderDispatchAdapter {
 
 describe('@imagen-ps/workflows builtins', () => {
   it('exports the minimal builtin workflow set', () => {
-    expect(builtinWorkflows).toEqual([
-      providerGenerateWorkflow,
-      providerEditWorkflow,
-    ]);
+    expect(builtinWorkflows).toEqual([providerGenerateWorkflow, providerEditWorkflow]);
   });
 
   it('keeps exported builtin specs immutable', () => {
@@ -79,10 +65,13 @@ describe('@imagen-ps/workflows builtins', () => {
     expect(job.status).toBe('completed');
     expect(job.output?.image).toEqual({
       echoed: {
+        profileId: '${profileId}',
         provider: 'mock',
+        providerProfileId: '${providerProfileId}',
         request: {
           operation: 'generate',
           prompt: 'hello workflow',
+          providerOptions: '${providerOptions}',
         },
       },
     });
@@ -127,7 +116,7 @@ describe('@imagen-ps/workflows builtins', () => {
     });
   });
 
-  it('exposes only the stable generate bindings and stable output key', () => {
+  it('exposes stable generate bindings including providerOptions and stable output key', () => {
     expect(providerGenerateWorkflow.steps[0]).toMatchObject({
       name: 'generate',
       kind: 'provider',
@@ -137,14 +126,15 @@ describe('@imagen-ps/workflows builtins', () => {
         request: {
           operation: 'generate',
           prompt: '${prompt}',
+          providerOptions: '${providerOptions}',
         },
       },
     });
 
     const request = providerGenerateWorkflow.steps[0].input?.request as Record<string, unknown>;
+    expect(request).toHaveProperty('providerOptions', '${providerOptions}');
     expect(request).not.toHaveProperty('maskAsset');
     expect(request).not.toHaveProperty('output');
-    expect(request).not.toHaveProperty('providerOptions');
   });
 
   it('exposes only the stable edit bindings and stable output key', () => {

@@ -38,7 +38,10 @@ export const mockRequestSchema = z.object({
       qualityHint: z.union([z.literal('speed'), z.literal('balanced'), z.literal('quality')]).optional(),
     })
     .optional(),
-  providerOptions: z.record(z.string(), z.unknown()).optional(),
+  providerOptions: z.preprocess(
+    (val) => (typeof val === 'object' && val !== null && !Array.isArray(val) ? val : undefined),
+    z.record(z.string(), z.unknown()).optional(),
+  ),
 });
 
 /** 从 schema 推导的 MockProviderRequest 类型。 */

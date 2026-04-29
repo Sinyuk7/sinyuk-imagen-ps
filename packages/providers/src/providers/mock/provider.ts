@@ -79,6 +79,10 @@ export function createMockProvider(
       const { config, request, signal } = args;
       const delayMs = config.delayMs ?? 0;
 
+      // Model selection: three-tier fallback chain
+      const effectiveModel =
+        (request.providerOptions?.model as string | undefined) ?? config.defaultModel ?? 'mock-image-v1';
+
       return new Promise((resolve, reject) => {
         const timer = setTimeout(() => {
           if (signal?.aborted) {
@@ -137,6 +141,7 @@ export function createMockProvider(
               operation: request.operation,
               prompt: request.prompt,
               assetCount: outputCount,
+              model: effectiveModel,
             },
           };
           if (diagnostics.length > 0) {
