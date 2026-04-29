@@ -52,10 +52,10 @@
 
 ## 7. Spec Sync and Verification
 
-- [ ] 7.1 After implementation, ensure this change's delta specs are ready to archive into main `openspec/specs/` and do not conflict with existing `runtime-assembly` static adapter requirements.
-- [ ] 7.2 Add unit tests for provider profile repository and secret storage memory implementations.
-- [ ] 7.3 Add shared-commands tests proving profile commands never return secret values.
-- [ ] 7.4 Add resolver tests for missing profile, unsupported family, missing secret, valid resolved config, and cache invalidation if caching exists.
-- [ ] 7.5 Add runtime tests for dispatch-time profile resolution and multiple profiles sharing the same provider family.
-- [ ] 7.6 Add CLI adapter tests for versioned profile persistence and atomic writes if applicable; do not add old config compatibility tests in this change.
-- [ ] 7.7 Run package tests and typecheck for affected packages.
+- [x] 7.1 After implementation, ensure this change's delta specs are ready to archive into main `openspec/specs/` and do not conflict with existing `runtime-assembly` static adapter requirements.
+- [x] 7.2 Add unit tests for provider profile repository and secret storage memory implementations.
+- [x] 7.3 Add shared-commands tests proving profile commands never return secret values.
+- [x] 7.4 Add resolver tests for missing profile, unsupported family, missing secret, valid resolved config, and cache invalidation if caching exists.
+- [x] 7.5 Add runtime tests for dispatch-time profile resolution and multiple profiles sharing the same provider family.
+- [x] 7.6 Add CLI adapter tests for versioned profile persistence and atomic writes if applicable; do not add old config compatibility tests in this change.
+- [x] 7.7 Run package tests and typecheck for affected packages.

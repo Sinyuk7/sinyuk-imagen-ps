@@ -109,7 +109,7 @@ function createDefaultProviderConfigResolver(): ProviderConfigResolver {
       }
 
       const providerConfig = provider.validateConfig({
-        providerId: profile.profileId,
+        providerId: profile.providerId,
         displayName: profile.displayName,
         family: profile.family,
         ...profile.config,

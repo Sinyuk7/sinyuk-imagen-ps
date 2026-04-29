@@ -489,7 +489,7 @@ describe('commands', () => {
 
       expect(result.ok).toBe(true);
       if (result.ok) {
-        expect(result.value.status).toBe('completed');
+        expect(result.value).toMatchObject({ status: 'completed' });
         expect(JSON.stringify(result.value)).not.toContain('secret-key');
       }
     });

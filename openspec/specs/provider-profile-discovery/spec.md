@@ -1,7 +1,10 @@
-## ADDED Requirements
+# provider-profile-discovery Specification
 
+## Purpose
+TBD - created by archiving change provider-storage-discovery-foundation. Update Purpose after archive.
+## Requirements
 ### Requirement: Provider profile persistence model
-The system SHALL define provider profile as the persisted representation of a user-configured provider instance, separate from provider implementation registration. A provider profile MUST include a stable `profileId`, `family`, `displayName`, `enabled` state, non-secret `config`, optional `secretRefs`, optional model configuration, `createdAt`, and `updatedAt`. Persisted provider profiles MUST NOT contain secret values such as API keys or access tokens. `config` MUST be a JSON object containing only non-secret, family-specific settings; secret-bearing fields from legacy provider config MUST be migrated into `secretRefs` plus secret storage values. `config` MUST be a JSON object containing only non-secret, family-specific settings; secret-bearing fields from legacy provider config MUST be migrated into `secretRefs` plus secret storage values.
+The system SHALL define provider profile as the persisted representation of a user-configured provider instance, separate from provider implementation registration. A provider profile MUST include a stable `profileId`, `providerId`, `family`, `displayName`, `enabled` state, non-secret `config`, optional `secretRefs`, optional model configuration, `createdAt`, and `updatedAt`. Persisted provider profiles MUST NOT contain secret values such as API keys or access tokens. `config` MUST be a JSON object containing only non-secret, family-specific settings; secret-bearing command inputs such as API keys MUST be written to secret storage and referenced from `secretRefs`. This change does not require read-time migration for early local CLI config files.
 
 #### Scenario: Persist profile without secret values
 - **WHEN** a provider profile is saved with API key input
@@ -13,15 +16,10 @@ The system SHALL define provider profile as the persisted representation of a us
 - **THEN** the system SHALL treat them as two distinct provider profiles
 - **AND** both profiles SHALL resolve through the same compiled provider implementation family
 
-#### Scenario: Legacy config migration separates secret
-- **WHEN** an existing provider config contains both non-secret settings and `apiKey`
-- **THEN** migration to provider profile SHALL persist non-secret settings in `ProviderProfile.config`
-- **AND** it SHALL persist the API key through secret storage referenced by `ProviderProfile.secretRefs.apiKey`
-
-#### Scenario: Legacy config migration separates secret
-- **WHEN** an existing provider config contains both non-secret settings and `apiKey`
-- **THEN** migration to provider profile SHALL persist non-secret settings in `ProviderProfile.config`
-- **AND** it SHALL persist the API key through secret storage referenced by `ProviderProfile.secretRefs.apiKey`
+#### Scenario: Save secret input as reference
+- **WHEN** a provider profile is saved with both non-secret settings and an `apiKey` secret input
+- **THEN** `ProviderProfile.config` SHALL persist only non-secret settings
+- **AND** the API key value SHALL be persisted through secret storage referenced by `ProviderProfile.secretRefs.apiKey`
 
 ### Requirement: Provider profile repository
 The system SHALL provide a provider profile repository abstraction for listing, reading, saving, and deleting provider profiles. The repository contract MUST be host-agnostic and MUST NOT expose UXP `File`, `Folder`, `Entry`, token objects, Node filesystem, DOM, or Photoshop-specific types.
@@ -45,7 +43,7 @@ The system SHALL define explicit secret deletion behavior for provider profile d
 - **AND** it SHALL delete all secrets directly referenced by that profile's `secretRefs`
 
 #### Scenario: Delete profile while retaining secrets
-- **WHEN** `deleteProviderProfile(profileId, { secretPolicy: 'retain-secrets' })` is called
+- **WHEN** `deleteProviderProfile(profileId, { retainSecrets: true })` is called
 - **THEN** the system SHALL delete the provider profile
 - **AND** it SHALL NOT delete the secret values referenced by that profile
 - **AND** the command result MUST NOT include retained secret values
@@ -105,3 +103,4 @@ The system SHALL express cross-surface provider profile sharing through reposito
 - **WHEN** Photoshop UI is configured to read provider profiles from an external shared file or folder
 - **THEN** the UXP adapter SHALL obtain access through picker or persistent token authorization
 - **AND** token resolution failure SHALL be handled by prompting the user to reselect or re-import the profile source
+

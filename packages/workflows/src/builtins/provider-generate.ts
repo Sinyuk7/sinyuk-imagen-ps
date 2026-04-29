@@ -5,6 +5,8 @@ const generateStep = Object.freeze({
   kind: 'provider',
   input: Object.freeze({
     provider: '${provider}',
+    providerProfileId: '${providerProfileId}',
+    profileId: '${profileId}',
     request: Object.freeze({
       operation: 'generate',
       prompt: '${prompt}',
