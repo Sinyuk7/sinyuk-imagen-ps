@@ -1,0 +1,513 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=360, initial-scale=1.0">
+<title>Imagen PS</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+:root {
+  --bg:#0D1117; --surface-1:#151A22; --surface-2:#1C2330; --surface-3:#242C3B;
+  --border:#2E3748; --border-s:#3A4457;
+  --text:#E9EDF4; --text-muted:#A6B0BF; --text-dim:#738093; --text-inv:#0D1117;
+  --primary:#78E7C0; --primary-h:#8AF0CC; --primary-a:#58D9AF; --primary-s:rgba(120,231,192,.14);
+  --secondary:#67B7FF; --secondary-s:rgba(103,183,255,.14);
+  --success:#63D48F; --warning:#F2B84B;
+  --error:#F26D6D; --error-s:rgba(242,109,109,.14);
+  --hover:rgba(255,255,255,.05); --active:rgba(255,255,255,.09);
+  --r-sm:8px; --r-md:12px; --r-lg:16px; --r-xl:20px; --r-full:9999px;
+  --sp1:4px; --sp2:8px; --sp3:12px; --sp4:16px; --sp5:24px;
+  --f-disp:'Space Grotesk',sans-serif;
+  --f-body:'IBM Plex Sans',sans-serif;
+  --f-mono:'IBM Plex Mono',monospace;
+  --ease-out:cubic-bezier(.2,0,0,1);
+  --t-micro:80ms; --t-short:160ms;
+}
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
+
+html,body{
+  width:360px; height:600px; overflow:hidden;
+  background:var(--bg); color:var(--text);
+  font-family:var(--f-body); font-size:14px; line-height:20px;
+  -webkit-font-smoothing:antialiased;
+}
+.panel{ width:100%; height:100%; display:flex; flex-direction:column; }
+
+/* ── Header ── */
+.hdr{
+  height:48px; background:var(--surface-1); border-bottom:1px solid var(--border);
+  display:flex; align-items:center; padding:0 var(--sp3); gap:var(--sp2); flex-shrink:0;
+}
+.hdr-btn{
+  width:32px; height:32px; border-radius:var(--r-sm); border:none;
+  background:transparent; color:var(--text-muted); cursor:pointer;
+  display:flex; align-items:center; justify-content:center;
+  transition:background var(--t-micro),color var(--t-micro); text-decoration:none;
+}
+.hdr-btn:hover{ background:var(--hover); color:var(--text); }
+.hdr-center{
+  flex:1; display:flex; flex-direction:column; align-items:center; gap:1px; min-width:0;
+}
+.hdr-provider{ font-family:var(--f-mono); font-size:10px; color:var(--text-dim); letter-spacing:.4px; }
+.hdr-model{
+  font-family:var(--f-mono); font-size:12px; font-weight:500; color:var(--primary);
+  white-space:nowrap; overflow:hidden; text-overflow:ellipsis; max-width:190px;
+}
+
+/* ── Conversation ── */
+.conv{
+  flex:1; overflow-y:auto; padding:var(--sp3);
+  display:flex; flex-direction:column; gap:var(--sp3);
+  scrollbar-width:thin; scrollbar-color:var(--border) transparent;
+}
+.conv::-webkit-scrollbar{ width:3px; }
+.conv::-webkit-scrollbar-thumb{ background:var(--border); border-radius:2px; }
+
+.round{ display:flex; flex-direction:column; gap:var(--sp2); }
+.round+.round{
+  padding-top:var(--sp3); border-top:1px solid var(--border); margin-top:var(--sp1);
+}
+
+/* ── Avatars ── */
+.role-avatar{
+  width:30px; height:30px; border-radius:50%; flex-shrink:0;
+  background:var(--surface-3); border:1px solid var(--border);
+  display:flex; align-items:center; justify-content:center; color:var(--text-dim);
+}
+.prov-avatar{
+  width:30px; height:30px; border-radius:50%; flex-shrink:0;
+  background:rgba(103,183,255,.12);
+  display:flex; align-items:center; justify-content:center;
+  font-family:var(--f-mono); font-size:13px; font-weight:600; color:var(--secondary);
+}
+
+/* ── User message ── */
+.msg-req{ display:flex; gap:var(--sp2); align-items:flex-start; }
+.req-body{ flex:1; min-width:0; display:flex; flex-direction:column; gap:5px; }
+
+.req-card{
+  background:var(--surface-2); border-radius:var(--r-md);
+  padding:var(--sp2) var(--sp3);
+  display:flex; gap:var(--sp2); align-items:flex-start;
+}
+.req-thumb{
+  width:48px; height:48px; border-radius:var(--r-sm); flex-shrink:0;
+  border:1px solid var(--border); background:var(--surface-3);
+  display:flex; align-items:center; justify-content:center; color:var(--text-dim);
+}
+.req-thumb svg{ opacity:.4; }
+.req-text{ flex:1; min-width:0; }
+
+.msg-prompt{
+  font-size:13px; line-height:18px; color:var(--text);
+  overflow:hidden; display:-webkit-box;
+  -webkit-line-clamp:3; -webkit-box-orient:vertical;
+}
+.msg-prompt.expanded{ -webkit-line-clamp:unset; display:block; }
+.expand-btn{
+  margin-top:3px; font-size:11px; color:var(--secondary);
+  background:none; border:none; padding:0; cursor:pointer; font-family:var(--f-body);
+}
+
+.req-meta{ display:flex; align-items:center; gap:var(--sp2); padding:0 2px; }
+.msg-time{ font-family:var(--f-mono); font-size:10px; color:var(--text-dim); flex:1; }
+.copy-btn{
+  width:22px; height:22px; border-radius:6px; border:none;
+  background:transparent; color:var(--text-dim); cursor:pointer;
+  display:flex; align-items:center; justify-content:center; transition:all var(--t-micro);
+}
+.copy-btn:hover{ background:var(--hover); color:var(--text-muted); }
+
+/* ── Provider reply ── */
+.msg-rep{ display:flex; gap:var(--sp2); align-items:flex-start; }
+.rep-body{
+  flex:1; min-width:0;
+  background:var(--surface-1); border:1px solid var(--border);
+  border-radius:var(--r-md); overflow:hidden; display:flex; flex-direction:column;
+}
+.rep-top{
+  display:flex; align-items:center; justify-content:space-between;
+  padding:var(--sp2) var(--sp3);
+}
+.rep-name{ font-family:var(--f-mono); font-size:11px; font-weight:500; color:var(--text-muted); }
+.rep-status{ display:flex; align-items:center; gap:5px; font-size:11px; font-weight:500; }
+.sdot{ width:6px; height:6px; border-radius:50%; }
+.sdot.ok{ background:var(--success); }
+.sdot.run{ background:var(--warning); animation:pulse 1.2s ease-in-out infinite; }
+.sdot.err{ background:var(--error); }
+@keyframes pulse{ 0%,100%{opacity:1} 50%{opacity:.35} }
+
+/* Image preview */
+.rep-img{ border-top:1px solid var(--border); background:var(--surface-3); }
+.img-ph{
+  width:100%; height:164px;
+  display:flex; flex-direction:column; align-items:center; justify-content:center; gap:var(--sp2);
+}
+.img-ph-icon{ color:var(--text-muted); opacity:.35; }
+.img-ph-meta{ font-family:var(--f-mono); font-size:10px; color:var(--text-dim); letter-spacing:.3px; }
+
+/* Loading indicator */
+.rep-loading{ display:flex; align-items:center; gap:var(--sp3); padding:var(--sp3); }
+.ldots{ display:flex; gap:4px; }
+.ldot{
+  width:6px; height:6px; border-radius:50%; background:var(--primary);
+  animation:lb 1.2s ease-in-out infinite;
+}
+.ldot:nth-child(2){animation-delay:.2s} .ldot:nth-child(3){animation-delay:.4s}
+@keyframes lb{ 0%,100%{transform:translateY(0);opacity:.6} 50%{transform:translateY(-4px);opacity:1} }
+.elapsed{ font-family:var(--f-mono); font-size:11px; color:var(--text-dim); }
+
+/* Action row — compact icon buttons */
+.rep-footer{
+  border-top:1px solid var(--border);
+  padding:2px var(--sp2); display:flex; align-items:center; gap:2px;
+}
+.act-ico{
+  width:32px; height:32px; border-radius:var(--r-sm); border:none;
+  background:transparent; color:var(--text-dim);
+  cursor:pointer; display:flex; align-items:center; justify-content:center;
+  transition:all var(--t-micro);
+}
+.act-ico:hover{ background:var(--hover); color:var(--text-muted); }
+.act-ico.prim{ color:var(--primary); }
+.act-ico.prim:hover{ background:var(--primary-s); }
+.act-sep{ flex:1; }
+
+/* ── Composer ── */
+.composer{
+  flex-shrink:0; padding:var(--sp2) var(--sp3) var(--sp3);
+  background:var(--bg); border-top:1px solid var(--border);
+  position:relative;
+}
+
+/* Model selector popup */
+.model-menu{
+  display:none; position:absolute; bottom:calc(100% + 4px); left:var(--sp3);
+  background:var(--surface-3); border:1px solid var(--border-s);
+  border-radius:var(--r-md); overflow:hidden; min-width:200px;
+  box-shadow:0 8px 24px rgba(0,0,0,.4); z-index:100;
+}
+.model-menu.open{ display:block; }
+.model-opt{
+  padding:var(--sp2) var(--sp3); font-family:var(--f-mono); font-size:12px;
+  color:var(--text-muted); cursor:pointer; transition:background var(--t-micro);
+  display:flex; align-items:center;
+}
+.model-opt:hover{ background:var(--hover); color:var(--text); }
+.model-opt.active{ color:var(--primary); }
+.model-chk{ margin-left:auto; display:none; }
+.model-opt.active .model-chk{ display:block; }
+
+.cmp-inner{
+  background:var(--surface-2); border:1px solid var(--border); border-radius:var(--r-xl);
+  padding:var(--sp2) var(--sp3); display:flex; flex-direction:column; gap:var(--sp2);
+  transition:border-color var(--t-short),opacity var(--t-short);
+}
+.cmp-inner:focus-within{ border-color:var(--border-s); }
+.cmp-inner.off{ opacity:.48; pointer-events:none; }
+.cmp-ta{
+  background:transparent; border:none; outline:none;
+  color:var(--text); font-family:var(--f-body); font-size:13px; line-height:18px;
+  resize:none; min-height:34px; max-height:76px; overflow-y:auto;
+  scrollbar-width:thin; width:100%;
+}
+.cmp-ta::placeholder{ color:var(--text-dim); }
+.cmp-bar{ display:flex; align-items:center; gap:var(--sp2); }
+.cmp-ico{
+  width:28px; height:28px; border-radius:var(--r-sm); border:none;
+  background:transparent; color:var(--text-dim); cursor:pointer;
+  display:flex; align-items:center; justify-content:center;
+  transition:all var(--t-micro); flex-shrink:0;
+}
+.cmp-ico:hover{ background:var(--hover); color:var(--text-muted); }
+.cmp-chip{
+  display:flex; align-items:center; gap:4px;
+  padding:3px 8px; border-radius:var(--r-full);
+  border:1px solid var(--border); background:var(--surface-1);
+  font-family:var(--f-mono); font-size:10px; color:var(--text-muted);
+  cursor:pointer; transition:all var(--t-micro); white-space:nowrap; user-select:none;
+}
+.cmp-chip:hover{ border-color:var(--border-s); color:var(--text); }
+.cmp-chip.open{ border-color:var(--primary); color:var(--primary); }
+.cmp-dot{ width:6px; height:6px; border-radius:50%; background:var(--primary); flex-shrink:0; }
+.cmp-space{ flex:1; }
+.cmp-send{
+  width:36px; height:36px; border-radius:var(--r-md); border:none;
+  background:var(--primary); color:var(--text-inv);
+  cursor:pointer; display:flex; align-items:center; justify-content:center;
+  transition:all var(--t-micro) var(--ease-out); flex-shrink:0;
+}
+.cmp-send:hover{ background:var(--primary-h); transform:scale(1.06); }
+.cmp-send:active{ background:var(--primary-a); transform:scale(.97); }
+.cmp-send:disabled{ opacity:.38; cursor:not-allowed; transform:none !important; }
+</style>
+</head>
+<body>
+<div class="panel">
+
+  <!-- Header -->
+  <header class="hdr">
+    <a href="task-history.html" class="hdr-btn" title="历史任务">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <path d="M12 8v4l3 3"/><path d="M3.05 11a9 9 0 1 1 .5 4"/><path d="M3 16v-5h5"/>
+      </svg>
+    </a>
+    <div class="hdr-center">
+      <span class="hdr-provider">n1n.ai</span>
+      <span class="hdr-model">Nano Banana 2</span>
+    </div>
+    <a href="settings-home.html" class="hdr-btn" title="设置">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <circle cx="12" cy="12" r="3"/>
+        <path d="M12 2v2m0 16v2m10-10h-2M4 12H2m15.07-7.07-1.41 1.41M8.34 15.66l-1.41 1.41M18.07 17.07l-1.41-1.41M8.34 8.34 6.93 6.93"/>
+      </svg>
+    </a>
+  </header>
+
+  <!-- Conversation -->
+  <main class="conv" id="conv">
+
+    <!-- Round 1: 成功 -->
+    <div class="round">
+
+      <!-- 用户消息：缩略图（左）+ 提示词（右） -->
+      <div class="msg-req">
+        <div class="role-avatar">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <circle cx="12" cy="8" r="4"/><path d="M4 20c0-4 3.6-7 8-7s8 3 8 7"/>
+          </svg>
+        </div>
+        <div class="req-body">
+          <div class="req-card">
+            <div class="req-thumb">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+                <rect x="3" y="3" width="18" height="18" rx="2"/>
+                <circle cx="8.5" cy="8.5" r="1.5"/><path d="m21 15-5-5L5 21"/>
+              </svg>
+            </div>
+            <div class="req-text">
+              <div class="msg-prompt" id="p1">一只橘猫坐在咖啡馆窗边，窗外是下午的街景和阳光，数字油画风格，暖色调，光线柔和，景深效果，8K 超高清，Artstation 精选</div>
+            </div>
+          </div>
+          <div class="req-meta">
+            <span class="msg-time">14:23</span>
+            <button class="copy-btn" title="复制">
+              <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect width="14" height="14" x="8" y="8" rx="2"/><path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"/></svg>
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <!-- provider 回复：成功 -->
+      <div class="msg-rep">
+        <div class="prov-avatar">N</div>
+        <div class="rep-body">
+          <div class="rep-top">
+            <span class="rep-name">n1n.ai</span>
+            <div class="rep-status">
+              <span class="sdot ok"></span>
+              <span style="color:var(--success)">完成 · 8.3s</span>
+            </div>
+          </div>
+          <div class="rep-img">
+            <div class="img-ph" style="background:linear-gradient(135deg,#1A2035 0%,#2A3550 45%,#1A2E30 100%)">
+              <div class="img-ph-icon">
+                <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1">
+                  <rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="m21 15-5-5L5 21"/>
+                </svg>
+              </div>
+              <span class="img-ph-meta">1024 × 1024 · PNG</span>
+            </div>
+          </div>
+          <div class="rep-footer">
+            <!-- Save to PS -->
+            <button class="act-ico prim" title="Save to PS">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/>
+                <polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/>
+              </svg>
+            </button>
+            <!-- Retry -->
+            <button class="act-ico" title="重新生成">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8"/>
+                <path d="M21 3v5h-5"/><path d="M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16"/><path d="M8 16H3v5"/>
+              </svg>
+            </button>
+            <!-- Copy prompt -->
+            <button class="act-ico" title="复制提示词">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <rect width="14" height="14" x="8" y="8" rx="2"/><path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"/>
+              </svg>
+            </button>
+            <!-- Download -->
+            <button class="act-ico" title="下载">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+                <polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/>
+              </svg>
+            </button>
+            <div class="act-sep"></div>
+            <!-- More -->
+            <button class="act-ico" title="更多">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <circle cx="12" cy="12" r="1"/><circle cx="19" cy="12" r="1"/><circle cx="5" cy="12" r="1"/>
+              </svg>
+            </button>
+          </div>
+        </div>
+      </div>
+
+    </div><!-- /round 1 -->
+
+    <!-- Round 2: 运行中 -->
+    <div class="round">
+
+      <!-- 用户消息：无附图，仅文本 -->
+      <div class="msg-req">
+        <div class="role-avatar">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <circle cx="12" cy="8" r="4"/><path d="M4 20c0-4 3.6-7 8-7s8 3 8 7"/>
+          </svg>
+        </div>
+        <div class="req-body">
+          <div class="req-card">
+            <div class="req-text">
+              <div class="msg-prompt">换成更冷的色调，偏蓝灰色，增加窗外雨景</div>
+            </div>
+          </div>
+          <div class="req-meta">
+            <span class="msg-time">14:31</span>
+            <button class="copy-btn" title="复制">
+              <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect width="14" height="14" x="8" y="8" rx="2"/><path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"/></svg>
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <!-- provider 回复：生成中 -->
+      <div class="msg-rep">
+        <div class="prov-avatar">N</div>
+        <div class="rep-body">
+          <div class="rep-top">
+            <span class="rep-name">n1n.ai</span>
+            <div class="rep-status">
+              <span class="sdot run"></span>
+              <span style="color:var(--warning)">生成中</span>
+            </div>
+          </div>
+          <div class="rep-loading">
+            <div class="ldots">
+              <div class="ldot"></div><div class="ldot"></div><div class="ldot"></div>
+            </div>
+            <span class="elapsed" id="elapsed">0s</span>
+          </div>
+        </div>
+      </div>
+
+    </div><!-- /round 2 -->
+
+  </main>
+
+  <!-- Composer — 任务运行中，禁用 -->
+  <footer class="composer">
+
+    <!-- 模型选择菜单（从底部向上弹出） -->
+    <div class="model-menu" id="modelMenu">
+      <div class="model-opt active" onclick="selectModel('Nano Banana 2', this)">
+        <span>Nano Banana 2</span>
+        <svg class="model-chk" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>
+      </div>
+      <div class="model-opt" onclick="selectModel('gpt-image-2', this)">
+        <span>gpt-image-2</span>
+        <svg class="model-chk" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>
+      </div>
+      <div class="model-opt" onclick="selectModel('flux-1-dev', this)">
+        <span>flux-1-dev</span>
+        <svg class="model-chk" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>
+      </div>
+      <div class="model-opt" onclick="selectModel('sd3-large-turbo', this)">
+        <span>sd3-large-turbo</span>
+        <svg class="model-chk" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>
+      </div>
+    </div>
+
+    <div class="cmp-inner off">
+      <textarea class="cmp-ta" placeholder="描述你想要生成的图像..." rows="2" disabled></textarea>
+      <div class="cmp-bar">
+        <button class="cmp-ico" title="添加图片" disabled>
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="m21.44 11.05-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66L9.42 16.41a2 2 0 0 1-2.83-2.83l8.49-8.48"/>
+          </svg>
+        </button>
+        <div class="cmp-chip" id="modelChip" onclick="toggleModel()">
+          <span class="cmp-dot"></span>
+          <span id="modelLabel">Nano Banana 2</span>
+          <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="6 9 12 15 18 9"/></svg>
+        </div>
+        <div class="cmp-space"></div>
+        <button class="cmp-send" disabled>
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+            <path d="M22 2 11 13M22 2 15 22l-4-9-9-4 20-7z"/>
+          </svg>
+        </button>
+      </div>
+    </div>
+  </footer>
+
+</div><!-- /panel -->
+
+<script>
+// 计时器
+let s = 0;
+setInterval(() => {
+  s++;
+  const el = document.getElementById('elapsed');
+  if (el) el.textContent = s + 's';
+}, 1000);
+
+// 加载完成后滚到底部
+window.addEventListener('load', () => {
+  document.getElementById('conv').scrollTop = 99999;
+
+  // 长文本折叠：只在内容实际被截断时显示"展开"
+  document.querySelectorAll('.msg-prompt').forEach(el => {
+    if (el.scrollHeight > el.clientHeight + 2) {
+      const btn = document.createElement('button');
+      btn.className = 'expand-btn';
+      btn.textContent = '展开';
+      btn.onclick = () => {
+        el.classList.toggle('expanded');
+        btn.textContent = el.classList.contains('expanded') ? '收起' : '展开';
+      };
+      el.after(btn);
+    }
+  });
+});
+
+// 模型选择器
+function toggleModel() {
+  document.getElementById('modelMenu').classList.toggle('open');
+  document.getElementById('modelChip').classList.toggle('open');
+}
+
+function selectModel(name, el) {
+  document.getElementById('modelLabel').textContent = name;
+  document.querySelectorAll('.model-opt').forEach(o => o.classList.remove('active'));
+  el.classList.add('active');
+  document.getElementById('modelMenu').classList.remove('open');
+  document.getElementById('modelChip').classList.remove('open');
+}
+
+// 点击外部关闭菜单
+document.addEventListener('click', e => {
+  if (!e.target.closest('#modelChip') && !e.target.closest('#modelMenu')) {
+    document.getElementById('modelMenu').classList.remove('open');
+    document.getElementById('modelChip').classList.remove('open');
+  }
+});
+</script>
+</body>
+</html>

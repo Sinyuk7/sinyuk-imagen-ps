@@ -230,6 +230,90 @@ apps/cli → @imagen-ps/shared-commands → runtime packages
 
 `apps/cli` MUST NOT depend on or import from `@imagen-ps/app` (Photoshop/UXP surface).
 
+## Smoke Testing
+
+Smoke 测试验证 CLI → profile → openai-compatible provider → 真实 API 的完整端到端链路。
+默认不执行（需要显式 opt-in），不会影响常规 `pnpm test`。
+
+### 前置条件
+
+设置以下环境变量：
+
+```bash
+export IMAGEN_SMOKE_OPENAI_API_KEY="sk-your-key-here"
+export IMAGEN_SMOKE_OPENAI_BASE_URL="https://api.openai.com"  # 可选，默认为 OpenAI 官方地址
+```
+
+### 运行 Smoke 测试
+
+```bash
+# 运行所有 smoke 测试（需要 IMAGEN_RUN_SMOKE=1）
+IMAGEN_RUN_SMOKE=1 pnpm --filter @imagen-ps/cli test:smoke
+
+# 或分步设置
+export IMAGEN_RUN_SMOKE=1
+pnpm --filter @imagen-ps/cli test:smoke
+```
+
+未设置 `IMAGEN_RUN_SMOKE` 或凭证缺失时，所有需要真实网络的测试自动跳过。
+
+### 手动 Smoke 命令序列
+
+以下命令使用真实文件 adapter（`~/.imagen-ps/`），适合手动端到端验证：
+
+```bash
+# 1. 创建 openai-compatible profile（API key 通过 secretValues 写入 secret storage）
+imagen profile save '{
+  "profileId": "openai-smoke",
+  "providerId": "openai-compatible",
+  "family": "openai-compatible",
+  "displayName": "OpenAI Smoke Test",
+  "config": {
+    "baseURL": "https://api.openai.com"
+  },
+  "secretValues": {
+    "apiKey": "sk-your-key-here"
+  }
+}'
+
+# 2. 查看候选 model 列表
+imagen profile models openai-smoke
+
+# 3. 设置默认 model
+imagen profile set-default-model openai-smoke dall-e-3
+
+# 4. 提交 generate job（使用 profile defaultModel）
+imagen job submit provider-generate '{
+  "profileId": "openai-smoke",
+  "prompt": "a simple red circle on white background",
+  "output": { "count": 1 }
+}'
+
+# 5. 提交 generate job（explicit model override）
+imagen job submit provider-generate '{
+  "profileId": "openai-smoke",
+  "prompt": "a blue square",
+  "providerOptions": {
+    "model": "dall-e-3"
+  },
+  "output": { "count": 1 }
+}'
+
+# 6. 验证 profile 配置有效性
+imagen profile test openai-smoke
+
+# 7. 清理
+imagen profile delete openai-smoke
+```
+
+### 环境变量参考
+
+| 变量 | 必需 | 默认值 | 说明 |
+|------|------|--------|------|
+| `IMAGEN_RUN_SMOKE` | 是 | - | 设置为 `1` 以启用 smoke 测试 |
+| `IMAGEN_SMOKE_OPENAI_API_KEY` | 是 | - | OpenAI API key |
+| `IMAGEN_SMOKE_OPENAI_BASE_URL` | 否 | `https://api.openai.com` | API base URL（支持 relay/proxy） |
+
 ## Development
 
 ```bash
@@ -241,4 +325,7 @@ pnpm --filter @imagen-ps/cli dev
 
 # Run tests
 pnpm --filter @imagen-ps/cli test
+
+# Run smoke tests (requires env vars)
+pnpm --filter @imagen-ps/cli test:smoke
 ```

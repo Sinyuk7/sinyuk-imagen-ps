@@ -279,8 +279,51 @@
 - 这些模式的目标不是重用率最高，而是让 task flow 一眼能懂。
 - 组件越接近产品语言，后续扩展到更多 provider 时越不容易失控。
 
+## Prototype 约定
+
+### Panel-as-Body 原则
+
+Prototype HTML 页面本身就是插件面板，不在外层套卡片或暗底板。
+
+```css
+html, body {
+  width: 360px;
+  height: 600px;
+  overflow: hidden;
+  background: var(--bg);
+}
+.panel {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+}
+```
+
+- 浏览器视口 = 插件面板，无外框、无阴影、无圆角外壳
+- 不在页面外添加任何演示控件（状态切换按钮、页面标注、proto 标签）
+- 所有 job 状态（running / success / error）以自然对话回合的形式内联呈现
+
+### 页面树与导航结构
+
+```
+main-page ←──历史图标 / 返回──→ task-history
+main-page ──设置图标──→ settings-home ──provider 行──→ settings-detail
+                         settings-home ←──返回──────────── settings-detail
+```
+
+| 页面 | 文件 | 入口 |
+|------|------|------|
+| 主页面 | `main-page.html` | 插件启动默认页 |
+| 历史任务 | `task-history.html` | 主页面 header 左侧历史图标 |
+| Provider 设置 | `settings-home.html` | 主页面 header 右侧设置图标 |
+| Provider 详情 | `settings-detail.html` | settings-home 中的 provider 行 |
+
+- 所有页面共用相同 header 高度（48px）、token 变量和字体栈
+- 导航用原生 `<a href>` 实现，无需 JS router
+
 ## Interaction Notes
-- 这个产品的难点不只是“能不能跑”，而是“在等结果时用户知道自己在等什么”。
+- 这个产品的难点不只是”能不能跑”，而是”在等结果时用户知道自己在等什么”。
 - 长任务必须有清晰的视觉反馈，不然用户会以为卡死。
 - 具体状态呈现和页面行为定义见 [UI_MAIN_PAGE.md](./UI_MAIN_PAGE.md)。
 

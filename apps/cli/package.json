@@ -12,7 +12,8 @@
     "build": "tsc",
     "dev": "tsc --watch",
     "start": "node ./dist/index.js",
-    "test": "vitest run"
+    "test": "vitest run",
+    "test:smoke": "IMAGEN_RUN_SMOKE=1 vitest run tests/smoke/"
   },
   "dependencies": {
     "@imagen-ps/shared-commands": "workspace:*",

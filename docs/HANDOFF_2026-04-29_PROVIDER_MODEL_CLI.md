@@ -273,17 +273,22 @@ CLI 与 UXP 的差异主要是 adapter：
 
 已归档。Model selection 三级优先级已稳定，mock provider 回显已实现，自动化测试已覆盖完整矩阵。
 
-### Change 2: `cli-provider-profile-ops`（推荐下一步）
+### Change 2: `cli-provider-profile-ops` ✅ 已完成
 
 目标：让 CLI 更适合人工与脚本操作 provider profile / model。
 
-可能 scope：
+已实现命令（路径已扁平化为 `imagen profile *`）：
 
-- `imagen provider profile models <profileId>`
-- `imagen provider profile set-default-model <profileId> <modelId>`
-- `imagen provider profile enable <profileId>`
-- `imagen provider profile disable <profileId>`
-- CLI README 增加完整 profile/model/job submit 脚本示例
+- `imagen profile models <profileId>` → `apps/cli/src/commands/profile/models.ts`
+- `imagen profile set-default-model <profileId> <modelId>` → `apps/cli/src/commands/profile/set-default-model.ts`
+- `imagen profile enable <profileId>` → `apps/cli/src/commands/profile/enable.ts`
+- `imagen profile disable <profileId>` → `apps/cli/src/commands/profile/disable.ts`
+- `imagen profile refresh-models <profileId>` → `apps/cli/src/commands/profile/refresh-models.ts`
+
+底层 shared-commands 实现在 `packages/shared-commands/src/commands/profile-models.ts`：
+- `listProfileModels` / `refreshProfileModels` / `setProfileDefaultModel` / `setProfileEnabled`
+
+CLI README 已包含完整 profile/model/job submit 脚本示例。
 
 ### Change 3: `openai-compatible-cli-smoke`
 

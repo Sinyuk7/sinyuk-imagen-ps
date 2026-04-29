@@ -1,0 +1,862 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=360, initial-scale=1.0">
+  <title>Imagen PS — Provider 详情</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link
+    href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap"
+    rel="stylesheet">
+  <style>
+    :root {
+      --bg: #0D1117;
+      --surface-1: #151A22;
+      --surface-2: #1C2330;
+      --surface-3: #242C3B;
+      --border: #2E3748;
+      --border-s: #3A4457;
+      --text: #E9EDF4;
+      --text-muted: #A6B0BF;
+      --text-dim: #738093;
+      --text-inv: #0D1117;
+      --primary: #78E7C0;
+      --primary-h: #8AF0CC;
+      --primary-a: #58D9AF;
+      --primary-s: rgba(120, 231, 192, .14);
+      --secondary: #67B7FF;
+      --secondary-s: rgba(103, 183, 255, .14);
+      --success: #63D48F;
+      --success-s: rgba(99, 212, 143, .14);
+      --warning: #F2B84B;
+      --warning-s: rgba(242, 184, 75, .14);
+      --error: #F26D6D;
+      --error-s: rgba(242, 109, 109, .14);
+      --hover: rgba(255, 255, 255, .05);
+      --active: rgba(255, 255, 255, .09);
+      --r-sm: 8px;
+      --r-md: 12px;
+      --r-lg: 16px;
+      --r-xl: 20px;
+      --r-full: 9999px;
+      --sp1: 4px;
+      --sp2: 8px;
+      --sp3: 12px;
+      --sp4: 16px;
+      --sp5: 24px;
+      --f-disp: 'Space Grotesk', sans-serif;
+      --f-body: 'IBM Plex Sans', sans-serif;
+      --f-mono: 'IBM Plex Mono', monospace;
+      --t-micro: 80ms;
+      --t-short: 160ms;
+      --ease-out: cubic-bezier(.2, 0, 0, 1);
+    }
+
+    *,
+    *::before,
+    *::after {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    html,
+    body {
+      width: 360px;
+      height: 600px;
+      overflow: hidden;
+      background: var(--bg);
+      color: var(--text);
+      font-family: var(--f-body);
+      font-size: 14px;
+      line-height: 20px;
+      -webkit-font-smoothing: antialiased;
+    }
+
+    .panel {
+      width: 100%;
+      height: 100%;
+      display: flex;
+      flex-direction: column;
+      background: var(--bg);
+    }
+
+    /* Header */
+    .hdr {
+      height: 48px;
+      background: var(--surface-1);
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      align-items: center;
+      padding: 0 var(--sp3);
+      gap: var(--sp2);
+      flex-shrink: 0;
+    }
+
+    .hdr-back {
+      width: 32px;
+      height: 32px;
+      border-radius: var(--r-sm);
+      border: none;
+      background: transparent;
+      color: var(--text-muted);
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: all var(--t-micro);
+      text-decoration: none;
+    }
+
+    .hdr-back:hover {
+      background: var(--hover);
+      color: var(--text);
+    }
+
+    .hdr-info {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 1px;
+    }
+
+    .hdr-provider-name {
+      font-family: var(--f-disp);
+      font-size: 14px;
+      font-weight: 600;
+      color: var(--text);
+    }
+
+    .hdr-status {
+      font-family: var(--f-mono);
+      font-size: 10px;
+      color: var(--success);
+      display: flex;
+      align-items: center;
+      gap: 4px;
+    }
+
+    .hdr-status-dot {
+      width: 5px;
+      height: 5px;
+      border-radius: 50%;
+      background: var(--success);
+    }
+
+    .hdr-menu {
+      width: 32px;
+      height: 32px;
+      border-radius: var(--r-sm);
+      border: none;
+      background: transparent;
+      color: var(--text-muted);
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: all var(--t-micro);
+    }
+
+    .hdr-menu:hover {
+      background: var(--hover);
+      color: var(--text);
+    }
+
+    /* Scrollable content */
+    .content {
+      overflow-y: auto;
+      scrollbar-width: thin;
+      scrollbar-color: var(--border) transparent;
+      flex: 1;
+    }
+
+    .content::-webkit-scrollbar {
+      width: 3px;
+    }
+
+    .content::-webkit-scrollbar-thumb {
+      background: var(--border);
+      border-radius: 2px;
+    }
+
+    /* Section */
+    .section {
+      padding: var(--sp4);
+    }
+
+    .section+.section {
+      border-top: 1px solid var(--border);
+    }
+
+    .section-title {
+      font-size: 11px;
+      font-weight: 600;
+      color: var(--text-dim);
+      text-transform: uppercase;
+      letter-spacing: .6px;
+      margin-bottom: var(--sp3);
+    }
+
+    /* Field */
+    .field {
+      margin-bottom: var(--sp3);
+    }
+
+    .field:last-child {
+      margin-bottom: 0;
+    }
+
+    .field-label {
+      font-size: 12px;
+      font-weight: 500;
+      color: var(--text-muted);
+      margin-bottom: var(--sp1);
+      display: block;
+    }
+
+    .field-input {
+      width: 100%;
+      background: var(--surface-2);
+      border: 1px solid var(--border);
+      border-radius: var(--r-md);
+      padding: 9px var(--sp3);
+      color: var(--text);
+      font-family: var(--f-body);
+      font-size: 13px;
+      outline: none;
+      transition: border-color var(--t-micro);
+    }
+
+    .field-input:focus {
+      border-color: var(--border-s);
+    }
+
+    .field-input::placeholder {
+      color: var(--text-dim);
+    }
+
+    .field-input.mono {
+      font-family: var(--f-mono);
+      font-size: 12px;
+      letter-spacing: .5px;
+    }
+
+    .field-hint {
+      font-size: 11px;
+      color: var(--text-dim);
+      margin-top: var(--sp1);
+    }
+
+    /* Password field */
+    .pw-wrap {
+      position: relative;
+    }
+
+    .pw-wrap .field-input {
+      padding-right: 40px;
+    }
+
+    .pw-toggle {
+      position: absolute;
+      right: 10px;
+      top: 50%;
+      transform: translateY(-50%);
+      background: transparent;
+      border: none;
+      color: var(--text-dim);
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: color var(--t-micro);
+    }
+
+    .pw-toggle:hover {
+      color: var(--text-muted);
+    }
+
+    /* Model chips */
+    .chips {
+      display: flex;
+      flex-wrap: wrap;
+      gap: var(--sp2);
+    }
+
+    .chip {
+      padding: 5px 12px;
+      border-radius: var(--r-full);
+      border: 1px solid var(--border);
+      background: transparent;
+      color: var(--text-muted);
+      font-family: var(--f-mono);
+      font-size: 11px;
+      cursor: pointer;
+      transition: all var(--t-micro) var(--ease-out);
+    }
+
+    .chip:hover {
+      border-color: var(--border-s);
+      color: var(--text);
+    }
+
+    .chip.active {
+      border-color: var(--primary);
+      color: var(--primary);
+      background: var(--primary-s);
+    }
+
+    /* Param row */
+    .param-row {
+      display: flex;
+      align-items: center;
+      gap: var(--sp3);
+      margin-bottom: var(--sp3);
+    }
+
+    .param-row:last-child {
+      margin-bottom: 0;
+    }
+
+    .param-label {
+      font-size: 12px;
+      font-weight: 500;
+      color: var(--text-muted);
+      flex: 1;
+    }
+
+    .param-value {
+      font-family: var(--f-mono);
+      font-size: 12px;
+      color: var(--text);
+      background: var(--surface-2);
+      border: 1px solid var(--border);
+      border-radius: var(--r-sm);
+      padding: 5px 10px;
+      min-width: 80px;
+      text-align: center;
+      cursor: pointer;
+      transition: border-color var(--t-micro);
+    }
+
+    .param-value:hover {
+      border-color: var(--border-s);
+    }
+
+    /* Aspect ratio selector */
+    .aspect-grid {
+      display: flex;
+      gap: var(--sp2);
+    }
+
+    .aspect-opt {
+      flex: 1;
+      padding: 8px 4px;
+      border-radius: var(--r-md);
+      border: 1px solid var(--border);
+      background: transparent;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 4px;
+      cursor: pointer;
+      transition: all var(--t-micro) var(--ease-out);
+    }
+
+    .aspect-opt:hover {
+      border-color: var(--border-s);
+      background: var(--hover);
+    }
+
+    .aspect-opt.active {
+      border-color: var(--primary);
+      background: var(--primary-s);
+    }
+
+    .aspect-icon {
+      background: var(--text-dim);
+      border-radius: 2px;
+      transition: background var(--t-micro);
+    }
+
+    .aspect-opt.active .aspect-icon {
+      background: var(--primary);
+    }
+
+    .aspect-label {
+      font-family: var(--f-mono);
+      font-size: 10px;
+      color: var(--text-dim);
+    }
+
+    .aspect-opt.active .aspect-label {
+      color: var(--primary);
+    }
+
+    /* Slider */
+    .slider-wrap {
+      display: flex;
+      align-items: center;
+      gap: var(--sp3);
+    }
+
+    .slider {
+      -webkit-appearance: none;
+      appearance: none;
+      flex: 1;
+      height: 3px;
+      border-radius: 2px;
+      background: var(--surface-3);
+      outline: none;
+      cursor: pointer;
+    }
+
+    .slider::-webkit-slider-thumb {
+      -webkit-appearance: none;
+      appearance: none;
+      width: 14px;
+      height: 14px;
+      border-radius: 50%;
+      background: var(--primary);
+      cursor: pointer;
+      transition: transform var(--t-micro);
+    }
+
+    .slider::-webkit-slider-thumb:hover {
+      transform: scale(1.2);
+    }
+
+    .slider-val {
+      font-family: var(--f-mono);
+      font-size: 12px;
+      color: var(--text);
+      min-width: 30px;
+      text-align: right;
+    }
+
+    /* Advanced toggle */
+    .adv-toggle {
+      display: flex;
+      align-items: center;
+      gap: var(--sp2);
+      padding: var(--sp3) var(--sp4);
+      border-top: 1px solid var(--border);
+      cursor: pointer;
+      background: transparent;
+      border-left: none;
+      border-right: none;
+      border-bottom: none;
+      width: 100%;
+      text-align: left;
+      transition: background var(--t-micro);
+      color: var(--text-muted);
+      font-family: var(--f-body);
+      font-size: 12px;
+      font-weight: 500;
+    }
+
+    .adv-toggle:hover {
+      background: var(--hover);
+    }
+
+    .adv-chevron {
+      margin-left: auto;
+      color: var(--text-dim);
+      transition: transform var(--t-short);
+    }
+
+    .adv-chevron.open {
+      transform: rotate(180deg);
+    }
+
+    .adv-content {
+      overflow: hidden;
+      max-height: 0;
+      transition: max-height var(--t-med) var(--ease-out);
+    }
+
+    .adv-content.open {
+      max-height: 400px;
+    }
+
+    /* Test connection */
+    .test-area {
+      padding: var(--sp4);
+      border-top: 1px solid var(--border);
+      display: flex;
+      flex-direction: column;
+      gap: var(--sp3);
+    }
+
+    .test-btn {
+      width: 100%;
+      padding: 9px;
+      border-radius: var(--r-md);
+      border: 1px solid var(--border-s);
+      background: transparent;
+      color: var(--text-muted);
+      font-family: var(--f-body);
+      font-size: 13px;
+      font-weight: 500;
+      cursor: pointer;
+      transition: all var(--t-micro) var(--ease-out);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: var(--sp2);
+    }
+
+    .test-btn:hover {
+      border-color: var(--secondary);
+      color: var(--secondary);
+      background: var(--secondary-s);
+    }
+
+    .test-result {
+      display: flex;
+      align-items: center;
+      gap: var(--sp2);
+      padding: var(--sp2) var(--sp3);
+      border-radius: var(--r-sm);
+      font-size: 12px;
+      font-weight: 500;
+    }
+
+    .test-result.ok {
+      background: var(--success-s);
+      color: var(--success);
+    }
+
+    .test-result.fail {
+      background: var(--error-s);
+      color: var(--error);
+    }
+
+    .test-result.idle {
+      display: none;
+    }
+
+    /* Footer actions */
+    .footer {
+      flex-shrink: 0;
+      padding: var(--sp3) var(--sp4);
+      border-top: 1px solid var(--border);
+      display: flex;
+      gap: var(--sp2);
+      background: var(--bg);
+    }
+
+    .btn-save {
+      flex: 1;
+      padding: 10px;
+      border-radius: var(--r-md);
+      border: none;
+      background: var(--primary);
+      color: var(--text-inv);
+      font-family: var(--f-body);
+      font-size: 13px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all var(--t-micro) var(--ease-out);
+    }
+
+    .btn-save:hover {
+      background: var(--primary-h);
+    }
+
+    .btn-save:active {
+      background: var(--primary-a);
+    }
+
+    .btn-delete {
+      padding: 10px 14px;
+      border-radius: var(--r-md);
+      border: 1px solid var(--error-s);
+      background: transparent;
+      color: var(--error);
+      font-family: var(--f-body);
+      font-size: 13px;
+      font-weight: 500;
+      cursor: pointer;
+      transition: all var(--t-micro);
+    }
+
+    .btn-delete:hover {
+      background: var(--error-s);
+    }
+
+    .proto-lbl {
+      margin-top: 12px;
+      font-family: var(--f-mono);
+      font-size: 10px;
+      color: #738093;
+      opacity: .7;
+    }
+  </style>
+</head>
+
+<body>
+
+  <div class="panel">
+    <!-- Header -->
+    <header class="hdr">
+      <a href="settings-home.html" class="hdr-back" title="返回">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="m15 18-6-6 6-6" />
+        </svg>
+      </a>
+      <div class="hdr-info">
+        <span class="hdr-provider-name">n1n.ai</span>
+        <div class="hdr-status">
+          <span class="hdr-status-dot"></span>已连接
+        </div>
+      </div>
+      <button class="hdr-menu" title="更多">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <circle cx="12" cy="5" r="1" fill="currentColor" />
+          <circle cx="12" cy="12" r="1" fill="currentColor" />
+          <circle cx="12" cy="19" r="1" fill="currentColor" />
+        </svg>
+      </button>
+    </header>
+
+    <!-- Scrollable content -->
+    <div class="content">
+
+      <!-- Auth section -->
+      <div class="section">
+        <div class="section-title">连接信息</div>
+        <div class="field">
+          <label class="field-label">API Key</label>
+          <div class="pw-wrap">
+            <input type="password" class="field-input mono" id="apiKey" value="sk-••••••••••••••••••••••••••••••4f2a"
+              placeholder="sk-...">
+            <button class="pw-toggle" onclick="togglePw()" title="显示/隐藏">
+              <svg id="eyeIcon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                stroke-width="2">
+                <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" />
+                <circle cx="12" cy="12" r="3" />
+              </svg>
+            </button>
+          </div>
+          <div class="field-hint">从 platform.stability.ai 获取 API Key</div>
+        </div>
+      </div>
+
+      <!-- Model section -->
+      <div class="section">
+        <div class="section-title">默认 Model</div>
+        <div class="chips" id="modelChips">
+          <button class="chip active" data-model="stable-diffusion-3-medium">sd3-medium</button>
+          <button class="chip" data-model="stable-diffusion-xl">sdxl</button>
+          <button class="chip" data-model="stable-diffusion-3-large">sd3-large</button>
+          <button class="chip" data-model="stable-image-ultra">ultra</button>
+        </div>
+      </div>
+
+      <!-- Generation params -->
+      <div class="section">
+        <div class="section-title">生成参数</div>
+
+        <!-- Aspect ratio -->
+        <div class="field">
+          <label class="field-label">宽高比</label>
+          <div class="aspect-grid" id="aspectGrid">
+            <button class="aspect-opt" data-ratio="1:1">
+              <div class="aspect-icon" style="width:20px;height:20px;"></div>
+              <span class="aspect-label">1:1</span>
+            </button>
+            <button class="aspect-opt active" data-ratio="4:3">
+              <div class="aspect-icon" style="width:24px;height:18px;"></div>
+              <span class="aspect-label">4:3</span>
+            </button>
+            <button class="aspect-opt" data-ratio="16:9">
+              <div class="aspect-icon" style="width:28px;height:16px;"></div>
+              <span class="aspect-label">16:9</span>
+            </button>
+            <button class="aspect-opt" data-ratio="9:16">
+              <div class="aspect-icon" style="width:16px;height:28px;"></div>
+              <span class="aspect-label">9:16</span>
+            </button>
+          </div>
+        </div>
+
+        <!-- Steps -->
+        <div class="field">
+          <label class="field-label">Steps</label>
+          <div class="slider-wrap">
+            <input type="range" class="slider" id="stepsSlider" min="10" max="50" value="30"
+              oninput="document.getElementById('stepsVal').textContent=this.value">
+            <span class="slider-val" id="stepsVal">30</span>
+          </div>
+        </div>
+
+        <!-- Guidance -->
+        <div class="field">
+          <label class="field-label">CFG Scale</label>
+          <div class="slider-wrap">
+            <input type="range" class="slider" id="guidanceSlider" min="1" max="20" value="7" step="0.5"
+              oninput="document.getElementById('guidanceVal').textContent=parseFloat(this.value).toFixed(1)">
+            <span class="slider-val" id="guidanceVal">7.0</span>
+          </div>
+        </div>
+
+        <!-- Output count -->
+        <div class="param-row">
+          <span class="param-label">输出数量</span>
+          <div style="display:flex;gap:4px;">
+            <button class="param-value" style="min-width:36px;" onclick="setCount(1)" id="count1">1</button>
+            <button class="param-value" style="min-width:36px;" onclick="setCount(2)" id="count2">2</button>
+            <button class="param-value" style="min-width:36px;" onclick="setCount(4)" id="count4">4</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Advanced (collapsed) -->
+      <button class="adv-toggle" onclick="toggleAdv(this)">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <circle cx="12" cy="12" r="3" />
+          <path
+            d="M12 2v2m0 16v2m10-10h-2M4 12H2m15.07-7.07-1.41 1.41M8.34 15.66l-1.41 1.41M18.07 17.07l-1.41-1.41M8.34 8.34 6.93 6.93" />
+        </svg>
+        高级参数
+        <svg class="adv-chevron" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+          stroke-width="2">
+          <path d="m6 9 6 6 6-6" />
+        </svg>
+      </button>
+      <div class="adv-content" id="advContent">
+        <div class="section" style="border-top:none;">
+          <div class="field">
+            <label class="field-label">Seed</label>
+            <input type="number" class="field-input mono" placeholder="留空 = 随机" style="font-size:12px;">
+            <div class="field-hint">固定 seed 可复现结果</div>
+          </div>
+          <div class="field">
+            <label class="field-label">输出格式</label>
+            <div class="chips">
+              <button class="chip active">PNG</button>
+              <button class="chip">JPEG</button>
+              <button class="chip">WebP</button>
+            </div>
+          </div>
+          <div class="field">
+            <label class="field-label">Safety Tolerance</label>
+            <div class="slider-wrap">
+              <input type="range" class="slider" min="1" max="6" value="3"
+                oninput="document.getElementById('safetyVal').textContent=this.value">
+              <span class="slider-val" id="safetyVal">3</span>
+            </div>
+            <div class="field-hint">1 = 严格，6 = 宽松</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Test connection -->
+      <div class="test-area">
+        <button class="test-btn" id="testBtn" onclick="runTest()">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M5 12h14M12 5l7 7-7 7" />
+          </svg>
+          测试连接
+        </button>
+        <div class="test-result idle" id="testResult"></div>
+      </div>
+
+    </div><!-- end content -->
+
+    <!-- Footer -->
+    <footer class="footer">
+      <button class="btn-save">保存设置</button>
+      <button class="btn-delete" title="删除 Provider">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <polyline points="3,6 5,6 21,6" />
+          <path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6m3 0V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2" />
+        </svg>
+      </button>
+    </footer>
+  </div>
+
+
+
+  <script>
+    // Model chip toggle
+    document.getElementById('modelChips').addEventListener('click', e => {
+      const chip = e.target.closest('.chip');
+      if (!chip) return;
+      document.querySelectorAll('#modelChips .chip').forEach(c => c.classList.remove('active'));
+      chip.classList.add('active');
+    });
+
+    // Aspect ratio toggle
+    document.getElementById('aspectGrid').addEventListener('click', e => {
+      const opt = e.target.closest('.aspect-opt');
+      if (!opt) return;
+      document.querySelectorAll('.aspect-opt').forEach(o => o.classList.remove('active'));
+      opt.classList.add('active');
+    });
+
+    // Output count
+    let activeCount = 1;
+    function setCount(n) {
+      activeCount = n;
+      ['count1', 'count2', 'count4'].forEach(id => {
+        const btn = document.getElementById(id);
+        const val = parseInt(btn.textContent);
+        btn.style.borderColor = val === n ? 'var(--primary)' : '';
+        btn.style.color = val === n ? 'var(--primary)' : '';
+        btn.style.background = val === n ? 'var(--primary-s)' : '';
+      });
+    }
+    setCount(1);
+
+    // Advanced toggle
+    document.querySelector('.adv-toggle').addEventListener('click', function () {
+      document.getElementById('advContent').classList.toggle('open');
+      this.querySelector('.adv-chevron').classList.toggle('open');
+    });
+
+    // Password toggle
+    function togglePw() {
+      const input = document.getElementById('apiKey');
+      input.type = input.type === 'password' ? 'text' : 'password';
+    }
+
+    // Test connection
+    function runTest() {
+      const btn = document.getElementById('testBtn');
+      const result = document.getElementById('testResult');
+      btn.disabled = true;
+      btn.innerHTML = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="animation:spin 1s linear infinite"><path d="M21 12a9 9 0 1 1-9-9"/></svg> 测试中...`;
+      result.className = 'test-result idle';
+
+      setTimeout(() => {
+        btn.disabled = false;
+        btn.innerHTML = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12h14M12 5l7 7-7 7"/></svg> 测试连接`;
+        // Simulate success
+        result.className = 'test-result ok';
+        result.innerHTML = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 6 9 17l-5-5"/></svg> 连接成功 · 余额 $12.40`;
+      }, 1800);
+    }
+
+    // Output format chips (in advanced section)
+    document.querySelectorAll('.adv-content .chip').forEach(chip => {
+      chip.addEventListener('click', () => {
+        chip.closest('.chips').querySelectorAll('.chip').forEach(c => c.classList.remove('active'));
+        chip.classList.add('active');
+      });
+    });
+  </script>
+
+  <style>
+    @keyframes spin {
+      to {
+        transform: rotate(360deg);
+      }
+    }
+  </style>
+</body>
+
+</html>
