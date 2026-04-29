@@ -22,6 +22,7 @@ export type {
   ProviderFamily,
   ProviderInvokeArgs,
   ProviderInvokeResult,
+  ProviderModelInfo,
   ProviderOperation,
   ProviderOutputOptions,
   ProviderRequest,

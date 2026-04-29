@@ -26,6 +26,12 @@ export {
   saveProviderProfile,
   testProviderProfile,
 } from './provider-profiles.js';
+export {
+  listProfileModels,
+  refreshProfileModels,
+  setProfileDefaultModel,
+  setProfileEnabled,
+} from './profile-models.js';
 
 // v2 Commands - Job
 export { retryJob } from './retry-job.js';
@@ -46,7 +52,7 @@ export type {
   ProviderConfigResolver,
   ProviderDescriptor,
   ProviderFamily,
-  ProviderModelConfig,
+  ProviderModelInfo,
   ProviderProfile,
   ProviderProfileConfig,
   ProviderProfileConfigValue,

@@ -1,10 +1,25 @@
 # Handoff: Provider Profile Foundation → CLI Provider/Model 闭环
 
-日期：2026-04-29
+日期：2026-04-29（更新）
+
+> **⚠️ 路径已废弃（更新于 `provider-model-discovery-foundation` change）**
+>
+> 本文档原文中所有 `imagen provider profile *` 的命令路径**已被破坏性废弃**。
+> 新路径已扁平化为 `imagen profile *`：
+>
+> - `imagen provider profile list / get / save / delete / test`
+>   → `imagen profile list / get / save / delete / test`
+> - `imagen provider profile models / refresh-models / set-default-model / enable / disable`
+>   → `imagen profile models / refresh-models / set-default-model / enable / disable`
+>
+> 详见 `apps/cli/README.md` 的 “Profile Management” 章节。本文剩余内容仅作历史
+> 上下文保留，CLI 命令拼写以 `apps/cli/README.md` 为唯一权威来源。
 
 ## 1. 当前上下文摘要
 
-本轮完成并归档了 OpenSpec change：`provider-storage-discovery-foundation`。
+本轮完成并归档了两个 OpenSpec change。
+
+### 1.1 已归档 Change: `provider-storage-discovery-foundation`
 
 归档位置：
 
@@ -18,20 +33,28 @@ openspec/changes/archive/2026-04-29-provider-storage-discovery-foundation/
 - `openspec/specs/runtime-assembly/spec.md`
 - `openspec/specs/shared-commands-provider-config/spec.md`
 
+### 1.2 已归档 Change: `provider-model-selection-foundation`
+
+归档位置：
+
+```text
+openspec/changes/archive/2026-04-29-provider-model-selection-foundation/
+```
+
+归档时已同步主线 specs：
+
+- `openspec/specs/model-selection/spec.md`（新建）
+- `openspec/specs/mock-provider/spec.md`（修改：增加 model fallback chain + raw.model 回显）
+- `openspec/specs/builtin-workflow-contract/spec.md`（修改：providerOptions 从 tentative 升级为 stable）
+
 最终验证已通过：
 
 ```bash
-pnpm --filter @imagen-ps/workflows build
-pnpm --filter @imagen-ps/shared-commands build
-pnpm --filter @imagen-ps/shared-commands test
-pnpm --filter @imagen-ps/cli build
-pnpm --filter @imagen-ps/cli test
+pnpm --filter @imagen-ps/providers build && test   # 9 passed
+pnpm --filter @imagen-ps/workflows build && test   # 23 passed
+pnpm --filter @imagen-ps/shared-commands build && test  # 31 passed
+pnpm --filter @imagen-ps/cli build && test          # 32 passed
 ```
-
-关键测试结果：
-
-- `@imagen-ps/shared-commands` tests：26 passed
-- `@imagen-ps/cli` tests：32 passed
 
 ## 2. 已建立的能力边界
 
@@ -69,9 +92,53 @@ interface ProviderProfile {
 - secret value 通过 `SecretStorageAdapter` 保存，只在 resolver / validation / dispatch 调用栈内短暂出现。
 - profile-facing commands 不返回 secret value。
 
-### 2.2 Shared Commands 能力
+### 2.2 Model Selection 三级优先级（✅ 本轮新增）
 
-`@imagen-ps/shared-commands` 已新增：
+已定义并实现 model selection 三级优先级语义：
+
+```text
+job input explicit model (providerOptions.model)
+  > provider profile defaultModel (config.defaultModel)
+  > provider implementation fallback default (mock: 'mock-image-v1')
+```
+
+实现分两层协作：
+
+1. **Profile-aware dispatch adapter**（`packages/shared-commands/src/runtime.ts`）：resolve profile 后，从 `providerConfig.defaultModel` 读取 defaultModel，注入到 `providerOptions.model`（仅在缺失时）。不 mutate 原 params，兼容两种 params 结构。
+2. **Provider invoke**（每个 provider 的 `invoke` 实现）：从 `request.providerOptions.model` 读取 model，fallback 到 `config.defaultModel`，再 fallback 到硬编码默认值。
+
+Mock provider invoke 已增强：`raw.model` 回显 effective model。
+
+```ts
+// raw 形态
+{
+  mock: true,
+  operation: 'generate',
+  prompt: '...',
+  model: 'mock-image-v1',  // ← effective model 回显
+  assetCount: 1
+}
+```
+
+### 2.3 Workflow providerOptions 绑定（✅ 本轮新增）
+
+`provider-generate` workflow step input 已绑定 `providerOptions`：
+
+```ts
+request: {
+  operation: 'generate',
+  prompt: '${prompt}',
+  providerOptions: '${providerOptions}',  // ← 新增
+}
+```
+
+`providerOptions` 已从 tentative 升级为 stable（仅 `provider-generate`）。
+
+注意：mock request schema 增加了 `z.preprocess` 处理未解析的模板字符串，避免非 object 值导致 schema validation 失败。
+
+### 2.4 Shared Commands 能力
+
+`@imagen-ps/shared-commands` 已有：
 
 - `ProviderProfileRepository`
 - `SecretStorageAdapter`
@@ -89,7 +156,7 @@ Profile lifecycle commands：
 - `deleteProviderProfile(profileId, options?)`
 - `testProviderProfile(profileId)`
 
-### 2.3 Runtime Dispatch 能力
+### 2.5 Runtime Dispatch 能力
 
 Runtime 已支持 profile-targeted dispatch：
 
@@ -111,11 +178,12 @@ dispatch path 会：
 2. 解析 `secretRefs`。
 3. 根据 `profile.providerId` 找到 provider implementation。
 4. 合成 secret-bearing runtime config。
-5. 调用 provider validation / invocation。
+5. 注入 profile `defaultModel` 到 `providerOptions.model`（如果 job input 未提供）。
+6. 调用 provider validation / invocation。
 
 注意：`profileId` 不是 provider implementation id；不能用 `profileId` 查 provider registry。
 
-### 2.4 CLI Adapter 能力
+### 2.6 CLI Adapter 能力
 
 CLI 已注入独立 adapter：
 
@@ -137,7 +205,23 @@ imagen provider profile delete <profileId> --retain-secrets
 imagen provider profile test <profileId>
 ```
 
-设计决策：当前 app 尚未发布给用户，因此不实现旧 `~/.imagen-ps/config.json` provider config shape 的 read-time migration，避免过度设计。
+### 2.7 自动化测试覆盖（✅ 本轮新增）
+
+`packages/shared-commands/tests/model-selection.test.ts` 覆盖：
+
+- profile A `defaultModel = 'mock-a'`，dispatch profile A → 使用 `mock-a`
+- profile B `defaultModel = 'mock-b'`，dispatch profile B → 使用 `mock-b`
+- job input `providerOptions.model = 'override'` + profile A → 使用 `override`
+- profile 无 `defaultModel`，job input 无 explicit model → 使用 `mock-image-v1`
+- profile 更新 `defaultModel` 后下一次 dispatch 立即生效
+
+`packages/providers/tests/mock-provider.test.ts` 覆盖：
+
+- explicit providerOptions.model 覆盖 config.defaultModel
+- fallback 到 config.defaultModel
+- fallback 到硬编码 `mock-image-v1`
+- providerOptions 存在但 model 缺失时的 fallback
+- raw 中包含 model 与其他必需字段
 
 ## 3. 关键文档入口
 
@@ -146,12 +230,17 @@ imagen provider profile test <profileId>
 - `AGENTS.md`
 - `archive/DOCUMENTATION.md`
 - `docs/STORAGE_DESIGN.md`
+- `openspec/specs/model-selection/spec.md`（✅ 新增）
+- `openspec/specs/mock-provider/spec.md`（✅ 已更新）
+- `openspec/specs/builtin-workflow-contract/spec.md`（✅ 已更新）
 - `openspec/specs/provider-profile-discovery/spec.md`
 - `openspec/specs/runtime-assembly/spec.md`
 - `openspec/specs/shared-commands-provider-config/spec.md`
 - `packages/shared-commands/src/commands/types.ts`
 - `packages/shared-commands/src/commands/provider-profiles.ts`
 - `packages/shared-commands/src/runtime.ts`
+- `packages/shared-commands/tests/model-selection.test.ts`（✅ 新增）
+- `packages/providers/tests/mock-provider.test.ts`（✅ 新增）
 - `apps/cli/src/adapters/file-provider-profile-adapter.ts`
 - `apps/cli/src/commands/provider/profile.ts`
 
@@ -159,16 +248,15 @@ imagen provider profile test <profileId>
 
 用户明确倾向：不要马上进入 UXP/UI；先用 CLI 作为完整验证端，把 Provider + Model + Profile 的核心链路稳定后，再开发界面。
 
-这个判断是合理的，因为 CLI 和 UXP 的底层业务逻辑应该共用：
+已完成的链路（CLI-first 闭环）：
 
 ```text
-surface adapter 不同
-  ↓
-shared-commands 相同
-  ↓
-runtime / profile resolver 相同
-  ↓
-providers / workflows 相同
+✅ Provider Profile 持久化 + secret 引用
+✅ Profile-targeted dispatch
+✅ Model selection 三级优先级
+✅ Mock provider model 回显
+✅ Workflow providerOptions 绑定
+✅ 自动化测试矩阵
 ```
 
 CLI 与 UXP 的差异主要是 adapter：
@@ -179,57 +267,13 @@ CLI 与 UXP 的差异主要是 adapter：
 | secret storage | CLI file adapter / later OS keychain | UXP `secureStorage` |
 | IO surface | JSON stdout/stderr | React panel + Photoshop host |
 
-因此下一阶段推荐 **CLI-first Provider/Model 闭环**。
-
 ## 5. 推荐实施顺序
 
-### Change 1: `provider-model-selection-foundation`
+### ~~Change 1: `provider-model-selection-foundation`~~ ✅ 已完成
 
-目标：稳定 model selection 语义，并用 mock provider 完成无外部依赖的自动化验证。
+已归档。Model selection 三级优先级已稳定，mock provider 回显已实现，自动化测试已覆盖完整矩阵。
 
-建议 scope：
-
-1. 明确 model selection 优先级：
-
-   ```text
-   job input explicit model
-     > provider profile defaultModel
-     > provider implementation fallback default
-   ```
-
-2. 让 `provider-generate` workflow 支持绑定 `providerOptions.model`。
-
-3. 增强 `mock` provider：
-
-   - 读取 `request.providerOptions.model`
-   - fallback 到 `config.defaultModel`
-   - 再 fallback 到 mock 默认 model，例如 `mock-image-v1`
-   - 在 result `raw` 中回显 selected model
-
-   期望 raw 形态：
-
-   ```ts
-   {
-     mock: true,
-     operation: 'generate',
-     prompt: '...',
-     model: 'mock-image-v1',
-     assetCount: 1
-   }
-   ```
-
-4. 增加自动化测试：
-
-   - profile A default model = `mock-a`
-   - profile B default model = `mock-b`
-   - dispatch profile A 使用 `mock-a`
-   - dispatch profile B 使用 `mock-b`
-   - job input override model 使用 override model
-   - 更新 profile 后下一次 dispatch 立即生效
-
-建议优先做这个 change。
-
-### Change 2: `cli-provider-profile-ops`
+### Change 2: `cli-provider-profile-ops`（推荐下一步）
 
 目标：让 CLI 更适合人工与脚本操作 provider profile / model。
 
@@ -240,8 +284,6 @@ CLI 与 UXP 的差异主要是 adapter：
 - `imagen provider profile enable <profileId>`
 - `imagen provider profile disable <profileId>`
 - CLI README 增加完整 profile/model/job submit 脚本示例
-
-建议在 Change 1 的 model semantics 稳定后再做。
 
 ### Change 3: `openai-compatible-cli-smoke`
 
@@ -261,7 +303,7 @@ CLI 与 UXP 的差异主要是 adapter：
 原因：
 
 - UXP adapter 与 UI 依赖 Photoshop host，调试和自动化成本高。
-- 当前 Provider/Profile/Model 语义还没有在单端完整打穿。
+- 当前 Provider/Profile/Model 语义已在 CLI 端完整打穿，但 `provider-edit` workflow 的 `providerOptions` 绑定尚未做。
 - 先在 CLI 上稳定一端，可以减少后续 UI 层返工。
 
 ### 6.2 暂不建议做跨 surface 自动共享
@@ -278,12 +320,16 @@ CLI 与 UXP 的差异主要是 adapter：
 
 当前 app 仍在开发中，没有真实用户存量数据。继续兼容旧 `~/.imagen-ps/config.json` provider config shape 会增加复杂度，已明确不做。
 
+### 6.4 暂不建议做 `provider-edit` workflow 的 providerOptions 绑定
+
+本轮只对 `provider-generate` 做了 `providerOptions` 绑定。`provider-edit` 的 `providerOptions` 绑定留给后续 change，避免当前 scope 膨胀。
+
 ## 7. 下个 session 的建议开场指令
 
 可以直接说：
 
 ```text
-请基于 docs/HANDOFF_2026-04-29_PROVIDER_MODEL_CLI.md，创建 OpenSpec change: provider-model-selection-foundation。目标是 CLI-first 跑通 Provider Profile + Model Selection 自动化闭环，先不要做 UXP/UI。
+请基于 docs/HANDOFF_2026-04-29_PROVIDER_MODEL_CLI.md，创建 OpenSpec change: cli-provider-profile-ops。目标是让 CLI 用户可以方便地操作 provider profile 的 model 配置，先不要做 UXP/UI。
 ```
 
 建议创建 OpenSpec proposal 后再实现，不要直接改代码。

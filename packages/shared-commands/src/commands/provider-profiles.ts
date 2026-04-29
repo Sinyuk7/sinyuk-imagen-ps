@@ -98,7 +98,9 @@ export async function saveProviderProfile(input: ProviderProfileInput): Promise<
       enabled: input.enabled ?? existing?.enabled ?? true,
       config: input.config,
       ...(Object.keys(secretRefs).length > 0 ? { secretRefs } : {}),
-      ...(input.models ? { models: input.models } : existing?.models ? { models: existing.models } : {}),
+      // `models` 字段不接受 input 提供（ProviderProfileInput 已删除该字段）；
+      // 保留 existing.models 透传，确保 discovery 缓存不被 save 路径擦除。
+      ...(existing?.models ? { models: existing.models } : {}),
       createdAt: existing?.createdAt ?? now,
       updatedAt: now,
     };

@@ -15,19 +15,15 @@ function failUnknown(err: unknown): never {
 }
 
 /**
- * 注册 provider profile CLI commands。
+ * 注册 profile lifecycle 子命令（list / get / save / delete / test）。
  *
- * INTENT: 暴露 profile lifecycle 的 list/get/save/delete/test 能力。
- * INPUT: Commander provider command group。
- * OUTPUT: 无返回值；命令执行结果以 JSON 输出。
+ * INTENT: 在扁平化的 `imagen profile` 命名空间下暴露 profile 增删改查能力。
+ * INPUT: Commander 的 `imagen profile` 顶级命令对象。
+ * OUTPUT: 无返回值；命令执行结果以 JSON 输出到 stdout，错误以 stderr 输出并退出 1。
  * SIDE EFFECT: 通过 shared-commands 调用已注入的 CLI repository / secret adapter。
  * FAILURE: command result 失败或输入 JSON 非法时写 stderr 并以 code 1 退出。
  */
-export function registerProviderProfileCommands(provider: Command): void {
-  const profile = provider
-    .command('profile')
-    .description('Manage provider profiles (CLI store is separate from Photoshop UXP by default)');
-
+export function registerProfileLifecycleCommands(profile: Command): void {
   profile
     .command('list')
     .description('List configured provider profiles')

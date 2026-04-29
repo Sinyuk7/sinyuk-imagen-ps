@@ -11,10 +11,11 @@ import type {
   ProviderDescriptor as _ProviderDescriptor,
   ProviderConfig as _ProviderConfig,
   ProviderFamily,
+  ProviderModelInfo,
 } from '@imagen-ps/providers';
 
 // Re-export provider types for commands layer consumers
-export type { ProviderDescriptor, ProviderConfig, ProviderFamily } from '@imagen-ps/providers';
+export type { ProviderDescriptor, ProviderConfig, ProviderFamily, ProviderModelInfo } from '@imagen-ps/providers';
 
 // 为本模块内部使用引入类型别名
 type ProviderConfig = _ProviderConfig;
@@ -83,15 +84,14 @@ export type ProviderProfileConfigValue =
  */
 export type ProviderProfileConfig = Readonly<Record<string, ProviderProfileConfigValue>>;
 
-/** Provider model metadata saved with a profile. Does not contain secrets. */
-export interface ProviderModelConfig {
-  readonly id: string;
-  readonly displayName?: string;
-  readonly capabilities?: readonly string[];
-  readonly metadata?: ProviderProfileConfig;
-}
-
-/** Sanitized persisted provider profile. Returned commands MUST NOT include secret values. */
+/**
+ * Sanitized persisted provider profile. Returned commands MUST NOT include secret values.
+ *
+ * `models` 字段唯一来源是 `refreshProfileModels` 写入的 discovery 缓存：
+ * `saveProviderProfile` 不会接受用户传入的 `models`、不会擦除现有缓存；
+ * dispatch 路径与 `model-selection` 三级优先级 MUST NOT 读取该字段；
+ * 它仅供 `listProfileModels` 与 surface-side model picker 渲染使用。
+ */
 export interface ProviderProfile {
   readonly profileId: string;
   readonly providerId: string;
@@ -100,7 +100,7 @@ export interface ProviderProfile {
   readonly enabled: boolean;
   readonly config: ProviderProfileConfig;
   readonly secretRefs?: Readonly<Record<string, string>>;
-  readonly models?: readonly ProviderModelConfig[];
+  readonly models?: readonly ProviderModelInfo[];
   readonly createdAt: string;
   readonly updatedAt: string;
 }
@@ -110,6 +110,9 @@ export interface ProviderProfile {
  *
  * secretValues are write-only command input. They are persisted through
  * SecretStorageAdapter and must never be returned by profile-facing commands.
+ *
+ * NOTE: 本类型 MUST NOT 声明 `models` 字段。`profile.models` 的唯一来源是
+ * `refreshProfileModels` 的 discovery 缓存，输入路径不接受用户提供 model 列表。
  */
 export interface ProviderProfileInput {
   readonly profileId: string;
@@ -120,7 +123,6 @@ export interface ProviderProfileInput {
   readonly config: ProviderProfileConfig;
   readonly secretRefs?: Readonly<Record<string, string>>;
   readonly secretValues?: Readonly<Record<string, string>>;
-  readonly models?: readonly ProviderModelConfig[];
 }
 
 /** Host-injected repository for persisted, sanitized provider profiles. */

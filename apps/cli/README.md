@@ -47,6 +47,99 @@ imagen provider config save <providerId> @config.json
 imagen provider config
 ```
 
+### Profile Management
+
+Profiles are first-class top-level entities under `imagen profile`. Each profile
+binds a `providerId` to a saved config + secret refs and is the unit a job is
+submitted against.
+
+> **NOTE**: All profile commands now live under the flat `imagen profile *`
+> namespace. The previous `imagen provider profile *` path has been removed.
+
+#### Lifecycle
+
+```bash
+# List all configured profiles (no secrets returned)
+imagen profile list
+
+# Get a single profile (no secrets returned)
+imagen profile get <profileId>
+
+# Save a profile from a JSON string or @file
+imagen profile save '{"profileId":"mock-dev","providerId":"mock","family":"openai-compatible","displayName":"Mock Dev","config":{"baseURL":"https://mock.local"},"secretValues":{"apiKey":"sk-..."}}'
+imagen profile save @profile.json
+
+# Delete a profile (also deletes referenced secrets by default)
+imagen profile delete <profileId>
+imagen profile delete <profileId> --retain-secrets
+
+# Validate a profile end-to-end (config + secrets) without leaking secret values
+imagen profile test <profileId>
+```
+
+#### Model Discovery
+
+```bash
+# List the effective candidate models for a profile.
+# Fallback chain: profile.models cache → provider implementation defaults → []
+imagen profile models <profileId>
+# → { "models": [{ "id": "mock-image-v1" }] }
+
+# Refresh the profile.models cache by invoking provider.discoverModels(config).
+# Providers without `discoverModels` MUST return a validation error and the
+# profile.models cache MUST NOT be modified on failure.
+imagen profile refresh-models <profileId>
+
+# Set the default model on profile.config.defaultModel.
+# `<modelId>` MUST be present in the candidate list returned by `profile models`.
+# There is no `--force` bypass.
+imagen profile set-default-model <profileId> <modelId>
+```
+
+#### Enable / Disable
+
+```bash
+# Toggle profile.enabled (idempotent).
+imagen profile enable <profileId>
+imagen profile disable <profileId>
+```
+
+#### End-to-End Example (Mock Provider)
+
+The mock provider ships static `defaultModels: [{ id: "mock-image-v1" }]` and
+does NOT implement `discoverModels`, so the discovery cache stays empty by
+design. The flow below exercises the fallback path:
+
+```bash
+# 1. Save a mock profile (no models in input — discovery cache stays empty).
+imagen profile save '{
+  "profileId": "mock-dev",
+  "providerId": "mock",
+  "family": "openai-compatible",
+  "displayName": "Mock Dev",
+  "config": { "baseURL": "https://mock.local" },
+  "secretValues": { "apiKey": "sk-mock" }
+}'
+
+# 2. Inspect candidate models — falls back to provider impl defaults.
+imagen profile models mock-dev
+# → { "models": [{ "id": "mock-image-v1" }] }
+
+# 3. (Optional) refresh-models against the mock provider returns a validation
+#    error because mock has no discoverModels; profile.models stays untouched.
+imagen profile refresh-models mock-dev
+# stderr: { "error": "provider mock does not implement discoverModels" }
+
+# 4. Pin the default model — must come from the candidate list.
+imagen profile set-default-model mock-dev mock-image-v1
+
+# 5. Submit a job; raw.model on the response should echo `mock-image-v1`.
+imagen job submit provider-generate '{
+  "profileId": "mock-dev",
+  "prompt": "test"
+}'
+```
+
 ### Job Management
 
 ```bash
@@ -97,13 +190,21 @@ apps/cli
 │   ├── adapters/
 │   │   └── file-config-adapter.ts        # FileConfigAdapter (Node.js fs)
 │   ├── commands/
-│   │   ├── provider/                     # Provider command group
+│   │   ├── provider/                     # Provider command group (list / describe / config)
 │   │   │   ├── index.ts
 │   │   │   ├── list.ts
 │   │   │   ├── describe.ts
 │   │   │   ├── config-get.ts
 │   │   │   ├── config-save.ts
 │   │   │   └── config-interactive.ts
+│   │   ├── profile/                      # Profile command group (lifecycle + discovery + enable/disable)
+│   │   │   ├── index.ts
+│   │   │   ├── lifecycle.ts              # list / get / save / delete / test
+│   │   │   ├── models.ts                 # list candidate models (fallback chain)
+│   │   │   ├── refresh-models.ts         # invoke discoverModels + persist cache
+│   │   │   ├── set-default-model.ts      # strict default-model selection
+│   │   │   ├── enable.ts                 # set enabled = true (idempotent)
+│   │   │   └── disable.ts                # set enabled = false (idempotent)
 │   │   └── job/                          # Job command group
 │   │       ├── index.ts
 │   │       ├── submit.ts

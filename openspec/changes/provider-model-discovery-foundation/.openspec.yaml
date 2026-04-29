@@ -1,0 +1,13 @@
+schema: spec-driven
+change-id: provider-model-discovery-foundation
+description: |
+  补齐 ProviderDescriptor / ProviderProfile 围绕 model 候选的语义，建立 surface-agnostic 的 model 候选契约，并为 CLI 新增 model discovery / default model / enable-disable 操作闭环。
+capabilities:
+  - provider-contract
+  - provider-profile-discovery
+  - shared-commands-provider-config
+  - mock-provider
+author: system
+status: implemented
+created: 2026-04-29
+updated: 2026-04-29

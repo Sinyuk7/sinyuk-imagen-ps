@@ -80,6 +80,9 @@ export function createMockProvider(
       const delayMs = config.delayMs ?? 0;
 
       // Model selection: three-tier fallback chain
+      // (`request.providerOptions.model` → `config.defaultModel` → 硬编码默认值)。
+      // 注意：descriptor.defaultModels 仅供 listProfileModels / setProfileDefaultModel
+      // 等 model-discovery 命令使用，**不**参与此处 effective model 解析。
       const effectiveModel =
         (request.providerOptions?.model as string | undefined) ?? config.defaultModel ?? 'mock-image-v1';
 

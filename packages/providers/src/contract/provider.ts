@@ -1,6 +1,7 @@
 import type { ProviderDispatchAdapter } from '@imagen-ps/core-engine';
 import type { ProviderCapabilities, ProviderFamily, ProviderOperation } from './capability.js';
 import type { ProviderConfig } from './config.js';
+import type { ProviderModelInfo } from './model.js';
 import type { CanonicalImageJobRequest } from './request.js';
 import type { ProviderInvokeResult } from './result.js';
 
@@ -36,6 +37,18 @@ export interface ProviderDescriptor {
 
   /** 当前 provider 支持的 operation。 */
   readonly operations: readonly ProviderOperation[];
+
+  /**
+   * Implementation 自带的 fallback model 候选清单（OPTIONAL）。
+   *
+   * 语义为"当 profile 没有任何 discovery 缓存时，作为该 implementation 的兜底候选"。
+   * 该字段 MUST NOT 参与 `provider.invoke()` 的 model 解析（model 解析仍由
+   * `model-selection` 三级优先级负责，不得耦合到本字段）。
+   *
+   * 是否声明 `defaultModels` 由 implementation 自由决定；空数组与未声明在
+   * `listProfileModels` 行为上等价（均视为"无 implementation 兜底"）。
+   */
+  readonly defaultModels?: readonly ProviderModelInfo[];
 }
 
 /** `invoke()` 的调用参数。 */
@@ -81,6 +94,19 @@ export interface Provider<TConfig = ProviderConfig, TRequest = CanonicalImageJob
    * 失败时必须抛出可被映射为 `JobError { category: 'provider' }` 的结构化错误。
    */
   invoke(args: ProviderInvokeArgs<TConfig, TRequest>): Promise<ProviderInvokeResult>;
+
+  /**
+   * Implementation 的运行时 model discovery 能力（OPTIONAL）。
+   *
+   * 语义为"向上游或 implementation 内部数据源询问当前可用的 model 候选清单"。
+   * 该方法 MUST 是无状态查询：不得修改 `config`、不得写入任何 host 持久化状态。
+   *
+   * 是否实现 `discoverModels` 由 implementation 自由决定；未实现时调用方
+   * （`refreshProfileModels`）MUST 视为"该 implementation 不支持 discovery"
+   * 并返回 validation error。实现可能抛错以表示 discovery 失败，调用方
+   * SHALL 按 `refreshProfileModels` 失败语义处理。
+   */
+  discoverModels?(config: TConfig): Promise<readonly ProviderModelInfo[]>;
 }
 
 /** bridge 创建 `ProviderDispatchAdapter` 所需的输入。 */
