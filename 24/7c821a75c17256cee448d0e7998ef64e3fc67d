@@ -1,0 +1,34 @@
+packages/workflows/tests/builtins.test.ts
+  h_06a7404f25f628 5,68,70,74,119,129,135
+openspec/specs/model-selection/spec.md
+  h_06a7404f25f628 1-58
+packages/shared-commands/src/runtime.ts
+  h_06a7404f25f628 128-170,187-190,193
+packages/shared-commands/tests/model-selection.test.ts
+  h_06a7404f25f628 1-145
+openspec/specs/mock-provider/spec.md
+  h_06a7404f25f628 63,65,71-72,74-88
+packages/providers/src/providers/mock/provider.ts
+  h_06a7404f25f628 82-85,144
+packages/providers/src/providers/mock/request-schema.ts
+  h_06a7404f25f628 41-43
+packages/providers/tests/mock-provider.test.ts
+  h_06a7404f25f628 1-84
+openspec/specs/builtin-workflow-contract/spec.md
+  h_06a7404f25f628 10,12,18,32,36,39
+docs/HANDOFF_2026-04-29_PROVIDER_MODEL_CLI.md
+  h_06a7404f25f628 1-289
+packages/workflows/src/builtins/provider-generate.ts
+  h_06a7404f25f628 13,27-30
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.3.4",
+  "base_commit_sha": "247c821a75c17256cee448d0e7998ef64e3fc67d",
+  "prompts": {},
+  "humans": {
+    "h_06a7404f25f628": {
+      "author": "sinyuk"
+    }
+  }
+}
