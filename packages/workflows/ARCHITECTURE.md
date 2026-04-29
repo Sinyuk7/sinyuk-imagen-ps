@@ -44,7 +44,6 @@ packages/workflows/
 ├── AGENTS.md                     # 导航地图
 ├── ARCHITECTURE.md               # 本文件
 ├── SPEC.md                       # 模块规范
-├── STATUS.md                     # 模块状态
 ├── README.md                     # 模块摘要
 ├── package.json
 ├── tsconfig.json

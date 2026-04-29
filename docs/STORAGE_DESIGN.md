@@ -5,8 +5,8 @@
 - Status: Draft
 - Scope: Project-level storage and persistence architecture
 - Primary host target: Photoshop UXP
-- Source implementation: Not started
-- Last Updated: 2026-04-28
+- Source implementation: Provider storage/discovery foundation in progress
+- Last Updated: 2026-04-29
 
 本文档用于固化 `sinyuk-imagen-ps` 的存储与持久化设计边界。它不是某个单一模块的实现说明，而是跨 `app/`、`shared commands`、`packages/*`、UXP host adapter、未来 CLI surface 的项目级架构文档。
 
@@ -339,126 +339,181 @@ interface AssetRepository {
 
 `AssetRepository` 不属于 provider，也不属于 core-engine。它应位于 app shared / storage service 层，底层通过 host adapter 完成 IO。
 
-## 8. UXP Strategy
+## 8. UXP Implementation Strategy
 
-Photoshop UXP 是首个正式 host target，但不应污染项目级 contract。
+Photoshop UXP is the first verified host implementation target. The detailed host-specific strategy has been split into a dedicated document:
 
-### 8.1 UXP Data Folder
+- [UXP Storage Strategy](storage/UXP_STORAGE_STRATEGY.md)
 
-UXP data folder 适合保存：
+Project-level decisions derived from UXP verification:
 
-```text
-data/
-  settings/
-    app-settings.v1.json
-    provider-configs.v1.json
-  cache/
-    index.v1.json
-    images/
-      2026-04/
-        job-id/
-          output-1.png
-          output-2.png
-    thumbs/
-      asset-id.webp
-  temp/
-```
+1. Storage adapter contracts must not expose UXP `File`, `Folder`, `Entry`, or token objects.
+2. `localFileSystem.getDataFolder()` is the default persistent backend for app-owned config, cache index, and plugin-private data.
+3. `localFileSystem.getTemporaryFolder()` is only for recoverable intermediate files and must not hold required business state.
+4. `localFileSystem.getPluginFolder()` is read-only and only for bundled static assets.
+5. External files require picker or token-based access; persistent tokens may fail and require fallback UX.
+6. Secrets should use UXP `secureStorage`, while still handling secret loss and re-entry flows.
+7. Binary image pipelines should normalize to `ArrayBuffer`; base64 is only a preview fallback, not a persistence format.
+8. Photoshop writeback requires a host adapter that resolves file entries, creates session tokens, and runs document mutations inside `executeAsModal`.
+9. Manifest `requiredPermissions.localFileSystem` and `requiredPermissions.network.domains` are part of storage/network architecture, not only packaging details.
 
-注意：
-
-- data folder 适合 app 私有持久化。
-- 不应被视为用户永久资产库。
-- cache 可以被清理。
-- persistent 与 cache 必须区分。
-
-### 8.2 UXP Temporary Folder
-
-适合：
-
-- 单次生成的中间文件。
-- 上传转换临时文件。
-- Photoshop writeback 前的过渡文件。
-
-策略：
-
-- 操作结束后尽量清理。
-- 应用启动时清理遗留 temp 文件。
-
-### 8.3 Secret Storage
-
-UXP 环境下 secret 应优先使用 host 提供的安全存储能力。如果安全存储能力不可用，应明确降级策略，并在 UI 中提示风险。
-
-普通 JSON 文件不得作为默认 secret storage。
-
-### 8.4 Binary Handling
-
-图片资源应尽量落二进制文件，不应长期 inline base64 到 JSON。
-
-推荐流程：
-
-```text
-provider output asset
-  ↓
-asset materializer
-  ↓
-UXP object storage adapter
-  ↓
-cache file + cache index
-  ↓
-StoredAssetRef
-```
-
-## 9. Provider Config Lifecycle
+## 9. Provider Storage and Discovery Lifecycle
 
 ### 9.1 Current Baseline
 
-当前代码已有 `ConfigStorageAdapter`，并通过 `setConfigAdapter(adapter)` 注入具体实现。默认 in-memory adapter 便于测试。
+当前代码已有 `ConfigStorageAdapter`，并通过 `setConfigAdapter(adapter)` 注入具体实现。默认 in-memory adapter 便于测试。旧模型以 `providerId -> ProviderConfig` 为中心，适合单一 provider implementation 的 bootstrap，但会混淆三类概念：
 
-### 9.2 Short-Term Direction
+1. provider implementation/family：应用编译期注册的能力实现，例如 `mock` 或 `openai-compatible`。
+2. provider profile：用户保存的 provider instance，例如同一个 `openai-compatible` family 下的不同 endpoint、账号或默认 model。
+3. runtime config：一次 dispatch 中供 `provider.validateConfig()` 与 `provider.invoke()` 使用的 secret-bearing 配置。
 
-短期可以保持：
+### 9.2 Implementation Discovery vs Profile Discovery
 
-```text
-saveProviderConfig
-  ↓
-validate provider config
-  ↓
-config adapter save
-```
+Provider discovery 分为两层：
 
-如果 provider dispatch adapter 在 runtime 初始化时持有 config，则保存配置后需要明确刷新或重建 runtime adapter。
+| 层级 | 回答的问题 | 数据来源 | 是否持久化 | 是否包含 secret |
+|------|------------|----------|------------|-----------------|
+| Provider implementation discovery | 程序支持哪些 provider family / implementation？ | `packages/providers` 编译期 registry | 否 | 否 |
+| Provider profile discovery | 用户配置了哪些可用 provider profiles？ | 注入的 `ProviderProfileRepository` | 是 | 否，只保存 secret refs |
 
-### 9.3 Medium-Term Direction
+`ProviderRegistry` 继续负责 implementation discovery。它不读取用户配置、不解析 secret、不访问 CLI / UXP storage。
 
-中期推荐引入 config resolver：
+`ProviderProfileRepository` 负责 profile discovery。UI、CLI 或 automation 需要展示“已配置 provider instance”时，应优先使用 profile lifecycle commands，而不是从 implementation descriptor 推导配置状态。
+
+### 9.3 Provider Profile Persisted Schema
+
+Provider profile 是持久化形态，必须与 provider implementation id 区分：
 
 ```ts
-interface ProviderConfigResolver {
-  resolve(providerId: string): Promise<ProviderConfig>;
+interface ProviderProfile {
+  readonly profileId: string;
+  readonly family: ProviderFamily;
+  readonly displayName: string;
+  readonly enabled: boolean;
+  readonly config: ProviderProfileConfig;
+  readonly secretRefs?: Readonly<Record<string, string>>;
+  readonly models?: readonly ProviderModelConfig[];
+  readonly createdAt: string;
+  readonly updatedAt: string;
 }
 ```
 
-推荐链路：
+`ProviderProfile.config` 是非敏感、family-specific JSON object，可以保存 `baseURL`、`defaultModel`、`timeoutMs`、`extraHeaders`、`capabilityHints` 等非 secret 字段。它 MUST NOT 保存 `apiKey`、`accessToken`、`refreshToken` 或其他 secret value。
+
+旧 `ProviderConfig.apiKey` 迁移到 profile 时必须拆成：
 
 ```text
-ProviderDispatchAdapter
-  ↓
-ProviderConfigResolver
-  ↓
-ConfigStorageAdapter + SecretStorageAdapter
-  ↓
-provider.validateConfig
-  ↓
-provider.invoke
+ProviderProfile.secretRefs.apiKey -> "secret:provider-profile:<profileId>:apiKey"
+SecretStorageAdapter.setSecret(ref, apiKey)
 ```
 
-优点：
+普通 JSON profile 文件中只允许出现 secret reference，不允许出现 secret value。profile list / get / delete / test commands 也不得返回 secret value。
 
-- 配置实时生效。
-- secret 不进入 runtime 长期状态。
-- 支持 provider profile。
-- 支持默认值合并。
-- 支持未来多账号、多 endpoint。
+### 9.4 Resolved Runtime Config Shape
+
+Resolved runtime config 是一次 validation、test 或 invocation 的临时形态：
+
+```ts
+interface ResolvedProviderConfig {
+  readonly profileId: string;
+  readonly family: ProviderFamily;
+  readonly providerConfig: ProviderConfig;
+}
+```
+
+`ProviderConfigResolver.resolve(profileId)` 负责：
+
+1. 从 repository 读取 profile。
+2. 通过 `secretRefs` 从 `SecretStorageAdapter` 解析所需 secret。
+3. 找到对应 family / implementation 的 provider。
+4. 合并非敏感 config 与 secret value，构造 provider implementation 当前需要的 `ProviderConfig`。
+5. 调用 `provider.validateConfig()`，返回已校验 config。
+
+Resolved config 可以在一次 dispatch 的内存栈中短暂存在，但不得写入 descriptor、job input、lifecycle events、command results、普通 config JSON 或长期 adapter state。
+
+### 9.5 Provider Profile Lifecycle
+
+```text
+saveProviderProfile(input)
+  ↓
+split non-secret config and secret inputs
+  ↓
+write required secrets through SecretStorageAdapter
+  ↓
+resolve runtime config for validation
+  ↓
+provider.validateConfig(resolved providerConfig)
+  ↓
+save ProviderProfile through ProviderProfileRepository
+  ↓
+return sanitized profile / summary without secret values
+```
+
+失败补偿规则：
+
+- secret 写入失败：不得保存引用缺失 secret 的 profile。
+- provider validation 失败：不得保存新 profile；本次写入的 secret 应删除或变为不可达。
+- profile repository save 失败：命令返回失败，并尝试删除本次新写入且未被有效 profile 引用的 secrets。
+- delete profile 默认删除该 profile 直接引用的 associated secrets；只有显式 `retain-secrets` 时才保留。
+
+### 9.6 Dispatch-time Config Resolution
+
+```text
+workflow input
+  provider: <implementation id or profile target>
+  providerProfileId/profileId: <profile id>
+      ↓
+core-engine dispatcher
+      ↓
+profile-aware dispatch adapter
+      ↓
+ProviderConfigResolver.resolve(profileId)
+      ↓
+provider.validateRequest(request)
+      ↓
+provider.invoke({ config: resolved.providerConfig, request, signal })
+```
+
+dispatch path 必须区分 provider implementation id 与 provider profile id。同一个 `openai-compatible` implementation 可以对应多个 profile；当 workflow 显式传入 profile id 时，运行时必须按该 profile 解析 config，而不是按 implementation id 复用某个静态 adapter config。
+
+本项目选择在 `packages/shared-commands` runtime assembly 中提供 setter-style 注入点（与 `setConfigAdapter` 一致）：`setProviderProfileRepository`、`setSecretStorageAdapter`、`setProviderConfigResolver`。这样可以保持 `packages/core-engine` host-agnostic，也不破坏既有静态 provider dispatch adapter 注入路径。静态 adapter 路径继续用于现有 `mock` / legacy 调用；profile-targeted dispatch 是 additive 能力。
+
+选择 setter-style injection 的原因：
+
+- 与既有 `setConfigAdapter` pattern 一致，CLI 与 UXP surface 可以在 bootstrap 阶段注入各自 adapter。
+- 不要求 `packages/core-engine` 理解 provider profile、secret storage 或 host storage 语义。
+- 不把 Node `fs/path/os`、UXP `secureStorage`、UXP `File/Folder/Entry` 或 Photoshop object 泄漏到 shared contracts。
+- 可保持旧静态 dispatch adapter 兼容；profile-targeted dispatch 通过 provider id `profile` 作为 additive adapter 接入。
+
+当前默认 `ProviderConfigResolver` 明确不实现 caching：每次 `resolve(profileId)` 都读取 repository 与 secret storage，并立即调用 provider implementation 的 `validateConfig()`。这样 save/delete 后无需额外 invalidation 机制，也避免 secret value 被长期缓存。未来若增加 caching，只能缓存非敏感 profile metadata，并且 `saveProviderProfile` / `deleteProviderProfile` 必须在下一次成功 `resolve(profileId)` 前失效对应 profile cache entry；secret value 不应作为长期缓存内容。
+
+### 9.7 Cross-surface Storage Strategy
+
+CLI 与 Photoshop UXP 的默认存储不是同一 backing store：
+
+| Surface | 默认普通 profile store | 默认 secret store | 自动共享 |
+|---------|------------------------|-------------------|----------|
+| CLI | `~/.imagen-ps/config.json` 或后续 versioned profile file | Node-only adapter（当前可为文件内兼容迁移，后续可接 OS secret store） | 否 |
+| Photoshop UXP | `localFileSystem.getDataFolder()` 下的 app-owned JSON | UXP `secureStorage` | 否 |
+| Shared backing store | 显式注入的 shared repository adapter | 显式注入的 secret adapter | 仅在双方配置为同一 backing store 时成立 |
+
+因此，“CLI 保存 provider 后 Photoshop UXP 自动发现”不能作为默认承诺。只有在 CLI 与 UXP 显式注入同一个 profile backing store，或实现 import/export / migration flow 后，profile 才能跨 surface 可见。
+
+如果共享来源是外部文件或目录，Photoshop UXP adapter 必须通过 picker 或 persistent token 获得授权；persistent token 可能失效，必须提供重新选择或重新导入的 fallback UX。
+
+### 9.8 UXP Adapter Scope
+
+与 `docs/storage/UXP_STORAGE_STRATEGY.md` 对齐：
+
+- provider profile JSON 属于 app-owned config，Photoshop UXP 默认应保存在 `localFileSystem.getDataFolder()` 下。
+- provider secrets 默认应保存在 UXP `secureStorage` 中；`secureStorage` 丢失或读取失败时，应进入重新输入流程，不回退到普通 JSON secret storage。
+- `localFileSystem.getTemporaryFolder()` 只用于可恢复中间文件，不保存必须持久化的 provider profile 或 secret。
+- shared contracts 不暴露 UXP `File`、`Folder`、`Entry`、session token、persistent token、Photoshop object、DOM 或 Node `fs/path/os` 类型。
+- UXP-specific repository / secret adapter 放在 `apps/app` 或 app-local storage service/adapter layer，不放入 `packages/providers`、`packages/core-engine`、`packages/workflows` 或 shared command contracts。
+
+### 9.9 OpenSpec Change Scope
+
+`openspec/changes/provider-storage-discovery-foundation/specs/` 是当前变更实施时的 delta specification 来源。实现完成后，归档流程会将这些 delta specs 合并到 `openspec/specs/` 主线规格中。在归档前，如主线规格与本变更 delta 存在差异，应以本 change 下的 specs 作为本轮实施依据，并在归档时解决冲突。
 
 ## 10. Asset Lifecycle
 
@@ -585,13 +640,14 @@ app/src/host/node/storage/
 
 ### 13.1 UXP API Capability Risk
 
-UXP storage API 的具体能力、binary handling、secure storage 能力、token 生命周期需要在实现前再次核验官方文档。
+UXP storage 主能力已通过官方文档核验，但仍存在版本差异和宿主 enablement 风险，尤其是 `ImageBlob`、manifest v5 细节、UXP `fs` 与 persistent file storage 在大文件场景下的性能差异。
 
 缓解：
 
 - contract 不暴露 UXP 类型。
 - 首个实现先做最小 adapter。
-- 为 secret storage 设计降级策略。
+- 对 `ImageBlob` / object URL preview 提供 base64 fallback。
+- 实现前用当前目标 Photoshop 版本做 smoke test。
 
 ### 13.2 Binary Memory Pressure
 
@@ -603,15 +659,18 @@ UXP storage API 的具体能力、binary handling、secure storage 能力、toke
 - UI 使用 preview ref。
 - cache index 保存 metadata，不保存二进制。
 
-### 13.3 Secret Leakage
+### 13.3 Secret Leakage and Secret Loss
 
-API key 如果进入 provider config JSON、job input、日志或错误信息，会造成泄漏风险。
+API key 如果进入 provider config JSON、job input、日志或错误信息，会造成泄漏风险。同时，UXP `secureStorage` 虽然提供加密存储，但官方语义更接近安全缓存，存在系统凭据损坏、软件重装或用户环境变化导致 secret 丢失的风险。
 
 缓解：
 
 - secret 与 config 分离。
-- provider config 保存 `apiKeyRef`。
+- provider config 保存 `apiKeyRef` / `secretRef`。
+- UXP `SecretStorageAdapter` 默认使用 `secureStorage`。
+- `getSecret()` 失败或返回空时，引导用户重新输入。
 - error sanitizer 移除敏感字段。
+- 不将 secret 作为唯一不可恢复业务数据。
 
 ### 13.4 Cache Index Corruption
 
@@ -635,8 +694,8 @@ cache index 可能因写入中断或版本迁移失败损坏。
 
 ## 14. Open Questions
 
-1. UXP secure storage 的最终 API 和能力边界是什么？
-2. UXP binary write/read 的推荐数据形态是 ArrayBuffer、Uint8Array 还是 Blob？
+1. 当前目标 Photoshop / UXP 版本对 `ImageBlob`、object URL、fs URL preview 的兼容性如何？
+2. UXP `File` API 与 UXP `fs` 模块在大图片、批量图片场景下性能差异如何？
 3. provider config 保存后，当前 runtime adapter 应重建，还是改为 dispatch-time config resolver？
 4. `Asset.url` 是否足够承载 opaque URI，还是需要扩展 `StoredAssetRef`？
 5. cache 默认 quota 应按固定大小、磁盘比例，还是用户可配置？
@@ -644,13 +703,15 @@ cache index 可能因写入中断或版本迁移失败损坏。
 7. generated asset 被写回 Photoshop 后，cache asset 是否自动 pin？
 8. 用户显式保存的 asset 应落在 UXP data folder，还是要求用户选择外部目录？
 9. provider API key 是否允许多个 profile？
-10. CLI adapter 是否会成为正式 surface，还是只用于开发验证？
+10. provider `baseURL` 可配置与 manifest `network.domains` 静态 allowlist 如何协调？
+11. CLI adapter 是否会成为正式 surface，还是只用于开发验证？
 
 ## 15. Recommended Next Steps
 
-1. 核验 Photoshop UXP storage、secure storage、binary file API 的官方文档。
-2. 根据核验结果细化 `UXP Strategy`。
-3. 决定 provider config 使用短期静态注入，还是中期 config resolver。
-4. 决定 `Asset.url` opaque URI 是否足够，或是否需要新增 `StoredAssetRef` 类型。
-5. 在设计确认后，再初始化 `app/src/shared/storage/` 与 `app/src/host/uxp/storage/`。
-6. 如文档继续扩展，再拆分为 `docs/storage/` 文档组。
+1. 用当前目标 Photoshop / UXP 版本做最小 smoke test：data folder 写 JSON、secureStorage 写 secret、binary file 写入/读取、ImageBlob preview、session token writeback。
+2. 决定 provider config 使用短期静态注入，还是中期 dispatch-time config resolver。
+3. 决定 `Asset.url` opaque URI 是否足够，或是否需要新增 `StoredAssetRef` 类型。
+4. 设计 manifest `requiredPermissions.localFileSystem` 的最小权限策略。
+5. 设计 manifest `requiredPermissions.network.domains` 与 provider `baseURL` 配置的协调方式。
+6. 在设计确认后，再初始化 `app/src/shared/storage/` 与 `app/src/host/uxp/storage/`。
+7. 如文档继续扩展，再拆分为 `docs/storage/` 文档组。

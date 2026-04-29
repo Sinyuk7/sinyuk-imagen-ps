@@ -149,4 +149,4 @@ export const builtinWorkflows: readonly Workflow[] = Object.freeze([
 | 无副作用 | 模块是否为 pure data，无 IO 或运行时副作用 |
 | 命名规范 | workflow name 是否使用 `kebab-case` |
 | 类型正确 | 是否使用 `satisfies Workflow` 进行类型检查 |
-| 文档对齐 | 新增 workflow 是否已更新 STATUS.md 和 SPEC.md |
+| 文档对齐 | 新增 workflow 是否已更新 SPEC.md |

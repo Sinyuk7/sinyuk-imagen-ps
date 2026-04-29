@@ -22,6 +22,7 @@
 | 环境与构建 | [docs/SETUP.md](docs/SETUP.md) |
 | 模块使用 | [docs/USAGE.md](docs/USAGE.md) |
 | 代码规范 | [docs/CODE_CONVENTIONS.md](docs/CODE_CONVENTIONS.md) |
+| 文档注释规范 | [docs/CODE_CONVENTIONS.md#函数注释](docs/CODE_CONVENTIONS.md#函数注释) |
 | 稳定性规范 | [docs/STABILITY.md](docs/STABILITY.md) |
 | 测试规范 | [docs/TESTING.md](docs/TESTING.md) |
 | 变更管理 | [docs/CHANGE_MANAGEMENT.md](docs/CHANGE_MANAGEMENT.md) |
@@ -29,7 +30,6 @@
 | 模块注册表 | [docs/COMPONENT_REGISTRY.md](docs/COMPONENT_REGISTRY.md) |
 | 跨模块通信 | [docs/CROSS_MODULE.md](docs/CROSS_MODULE.md) |
 | 架构说明 | [ARCHITECTURE.md](ARCHITECTURE.md) |
-| 文档边界 | [archive/BOUNDARIES.md](archive/BOUNDARIES.md) |
-| 设计系统 | [archive/DESIGN.md](archive/DESIGN.md) |
-| UI 主页面 | [archive/UI_MAIN_PAGE.md](archive/UI_MAIN_PAGE.md) |
-| 实施计划 | [archive/IMPLEMENTATION_PLAN.md](archive/IMPLEMENTATION_PLAN.md) |
+| 设计系统（UI 阶段参考） | [archive/DESIGN.md](archive/DESIGN.md) |
+| UI 主页面（UI 阶段参考） | [archive/UI_MAIN_PAGE.md](archive/UI_MAIN_PAGE.md) |
+| Token 系统（UI 阶段参考） | [archive/TOKEN.md](archive/TOKEN.md) |

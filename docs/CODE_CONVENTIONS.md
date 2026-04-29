@@ -93,15 +93,40 @@ export interface Job {
 
 ### 函数注释
 
-- 仅函数使用结构化 docstring（见 `archive/DOCUMENTATION.md`）
-- 不要求所有函数都写
+- 不要求所有函数都写注释
+- 简单 getter、setter、薄封装、显而易见的纯函数可以不写
+- 下列函数建议使用结构化 JSDoc：
+  - 公开导出的函数
+  - 核心逻辑函数
+  - 数据转换函数
+  - orchestration / pipeline 函数
+  - 有副作用、失败语义、重试语义或边界行为的函数
+
+**结构化格式（INTENT / INPUT / OUTPUT / SIDE EFFECT / FAILURE）：**
 
 ```typescript
 /**
- * 创建 runtime 实例
+ * Short English summary.
  *
- * @param options - runtime 配置
- * @returns runtime 实例
+ * INTENT: 中文说明函数做什么。
+ * INPUT: 关键输入的语义说明。
+ * OUTPUT: 返回结果的含义。
+ * SIDE EFFECT: None 或具体副作用。
+ * FAILURE: 失败时的行为（抛错 / 默认值 / 忽略）。
+ */
+```
+
+示例：
+
+```typescript
+/**
+ * Create a runtime instance from options.
+ *
+ * INTENT: 根据配置创建 runtime 实例，完成 provider 注册与 lifecycle 初始化。
+ * INPUT: options - runtime 配置，包含 provider 列表与 adapter 注入。
+ * OUTPUT: 可用的 Runtime 实例。
+ * SIDE EFFECT: 注册 provider、初始化 adapter 连接。
+ * FAILURE: 配置无效时抛错。
  */
 export function createRuntime(options: RuntimeOptions): Runtime {
   // ...

@@ -1,14 +1,17 @@
 #!/usr/bin/env node
 
 import { Command } from 'commander';
-import { setConfigAdapter } from '@imagen-ps/shared-commands';
+import { setConfigAdapter, setProviderProfileRepository, setSecretStorageAdapter } from '@imagen-ps/shared-commands';
 import { FileConfigAdapter } from './adapters/file-config-adapter.js';
+import { FileProviderProfileRepository, FileSecretStorageAdapter } from './adapters/file-provider-profile-adapter.js';
 import { registerProviderCommands } from './commands/provider/index.js';
 import { registerJobCommands } from './commands/job/index.js';
 
-// Inject file-system config adapter before any command runs
-const adapter = new FileConfigAdapter();
-setConfigAdapter(adapter);
+// Inject CLI file-system adapters before any command runs.
+const configAdapter = new FileConfigAdapter();
+setConfigAdapter(configAdapter);
+setProviderProfileRepository(new FileProviderProfileRepository());
+setSecretStorageAdapter(new FileSecretStorageAdapter());
 
 const program = new Command();
 

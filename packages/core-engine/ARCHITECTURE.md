@@ -1,5 +1,7 @@
 # Architecture
 
+> **边界契约的权威来源是 [SPEC.md](./SPEC.md)。** 本文件只说明内部结构、流程与模块职责，不重复定义稳定边界与公开面。
+
 ## 概述
 
 `@imagen-ps/core-engine` 是 imagen-ps monorepo 中的核心 runtime 层，提供 host-agnostic 的 workflow 执行能力。它位于上层应用（`app`）与底层能力包（`providers`、`workflows`）之间，负责：
@@ -121,6 +123,8 @@ created ──► running ──► completed
 | zod | ^4.3.6 | 运行时类型校验（保留，当前主要用于边界验证） |
 
 ## 设计约束
+
+稳定边界与公开面定义见 [SPEC.md](./SPEC.md)。本模块内部遵循以下实现约束：
 
 1. **Host-agnostic** — 不依赖 DOM、Browser API、UXP、Photoshop API、文件系统、网络
 2. **Serializable** — 所有跨边界数据（input、output、error）必须可序列化

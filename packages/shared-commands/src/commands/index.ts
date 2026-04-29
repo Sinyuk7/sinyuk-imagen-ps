@@ -19,15 +19,48 @@ export { listProviders } from './list-providers.js';
 export { describeProvider } from './describe-provider.js';
 export { getProviderConfig } from './get-provider-config.js';
 export { saveProviderConfig } from './save-provider-config.js';
+export {
+  deleteProviderProfile,
+  getProviderProfile,
+  listProviderProfiles,
+  saveProviderProfile,
+  testProviderProfile,
+} from './provider-profiles.js';
 
 // v2 Commands - Job
 export { retryJob } from './retry-job.js';
 
 // v1 Types
-export type { CommandResult, SubmitJobInput, JobEventHandler } from './types.js';
+export type {
+  CommandResult,
+  DeleteProviderProfileOptions,
+  SubmitJobInput,
+  JobEventHandler,
+  ProviderProfileTestResult,
+} from './types.js';
 
 // v2 Types
-export type { ConfigStorageAdapter, ProviderDescriptor, ProviderConfig } from './types.js';
+export type {
+  ConfigStorageAdapter,
+  ProviderConfig,
+  ProviderConfigResolver,
+  ProviderDescriptor,
+  ProviderFamily,
+  ProviderModelConfig,
+  ProviderProfile,
+  ProviderProfileConfig,
+  ProviderProfileConfigValue,
+  ProviderProfileInput,
+  ProviderProfileRepository,
+  ResolvedProviderConfig,
+  SecretResolver,
+  SecretStorageAdapter,
+} from './types.js';
 
-// Config adapter injection (exposed for CLI / UI)
-export { setConfigAdapter } from '../runtime.js';
+// Adapter injection (exposed for CLI / UI)
+export {
+  setConfigAdapter,
+  setProviderConfigResolver,
+  setProviderProfileRepository,
+  setSecretStorageAdapter,
+} from '../runtime.js';

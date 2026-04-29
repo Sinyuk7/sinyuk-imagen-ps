@@ -4,12 +4,14 @@ import { registerProviderDescribe } from './describe.js';
 import { registerProviderConfigGet } from './config-get.js';
 import { registerProviderConfigSave } from './config-save.js';
 import { registerProviderConfigInteractive } from './config-interactive.js';
+import { registerProviderProfileCommands } from './profile.js';
 
 export function registerProviderCommands(program: Command): void {
   const provider = program.command('provider').description('Manage image generation providers');
 
   registerProviderList(provider);
   registerProviderDescribe(provider);
+  registerProviderProfileCommands(provider);
 
   // config sub-command group
   const config = provider.command('config').description('Manage provider configuration (no args: interactive setup)');

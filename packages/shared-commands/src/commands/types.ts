@@ -10,10 +10,11 @@ import type { JobError, JobEvent, JobInput } from '@imagen-ps/core-engine';
 import type {
   ProviderDescriptor as _ProviderDescriptor,
   ProviderConfig as _ProviderConfig,
+  ProviderFamily,
 } from '@imagen-ps/providers';
 
 // Re-export provider types for commands layer consumers
-export type { ProviderDescriptor, ProviderConfig } from '@imagen-ps/providers';
+export type { ProviderDescriptor, ProviderConfig, ProviderFamily } from '@imagen-ps/providers';
 
 // 为本模块内部使用引入类型别名
 type ProviderConfig = _ProviderConfig;
@@ -40,10 +41,6 @@ export type BuiltinWorkflowName = 'provider-generate' | 'provider-edit';
  *
  * @property workflow - 要执行的 workflow 名称
  * @property input - job 输入数据，具体字段取决于 workflow 要求
- *
- * 各 workflow 必需字段：
- * - `provider-generate`: `provider` (string), `prompt` (string)
- * - `provider-edit`: `provider` (string), `prompt` (string), `source` (AssetRef)
  */
 export interface SubmitJobInput {
   /** 要执行的 workflow 名称。 */
@@ -64,4 +61,107 @@ export type JobEventHandler = (event: JobEvent) => void;
 export interface ConfigStorageAdapter {
   get(providerId: string): Promise<ProviderConfig | undefined>;
   save(providerId: string, config: ProviderConfig): Promise<void>;
+}
+
+/** JSON primitive supported by profile non-secret config. */
+export type ProviderProfileConfigValue =
+  | string
+  | number
+  | boolean
+  | null
+  | readonly ProviderProfileConfigValue[]
+  | { readonly [key: string]: ProviderProfileConfigValue };
+
+/**
+ * Non-secret family-specific provider profile config.
+ *
+ * This object MAY include values such as baseURL, defaultModel, timeoutMs,
+ * extraHeaders, and capabilityHints. It MUST NOT include secret values such as
+ * apiKey, accessToken, refreshToken, or vendor credentials. Legacy
+ * ProviderConfig.apiKey should be migrated to secretRefs.apiKey with the secret
+ * value stored via SecretStorageAdapter.
+ */
+export type ProviderProfileConfig = Readonly<Record<string, ProviderProfileConfigValue>>;
+
+/** Provider model metadata saved with a profile. Does not contain secrets. */
+export interface ProviderModelConfig {
+  readonly id: string;
+  readonly displayName?: string;
+  readonly capabilities?: readonly string[];
+  readonly metadata?: ProviderProfileConfig;
+}
+
+/** Sanitized persisted provider profile. Returned commands MUST NOT include secret values. */
+export interface ProviderProfile {
+  readonly profileId: string;
+  readonly providerId: string;
+  readonly family: ProviderFamily;
+  readonly displayName: string;
+  readonly enabled: boolean;
+  readonly config: ProviderProfileConfig;
+  readonly secretRefs?: Readonly<Record<string, string>>;
+  readonly models?: readonly ProviderModelConfig[];
+  readonly createdAt: string;
+  readonly updatedAt: string;
+}
+
+/**
+ * Input for saving a provider profile.
+ *
+ * secretValues are write-only command input. They are persisted through
+ * SecretStorageAdapter and must never be returned by profile-facing commands.
+ */
+export interface ProviderProfileInput {
+  readonly profileId: string;
+  readonly providerId?: string;
+  readonly family: ProviderFamily;
+  readonly displayName: string;
+  readonly enabled?: boolean;
+  readonly config: ProviderProfileConfig;
+  readonly secretRefs?: Readonly<Record<string, string>>;
+  readonly secretValues?: Readonly<Record<string, string>>;
+  readonly models?: readonly ProviderModelConfig[];
+}
+
+/** Host-injected repository for persisted, sanitized provider profiles. */
+export interface ProviderProfileRepository {
+  list(): Promise<readonly ProviderProfile[]>;
+  get(profileId: string): Promise<ProviderProfile | undefined>;
+  save(profile: ProviderProfile): Promise<void>;
+  delete(profileId: string): Promise<void>;
+}
+
+/** Host-injected storage for secret values. Implementations must not log values. */
+export interface SecretStorageAdapter {
+  getSecret(key: string): Promise<string | undefined>;
+  setSecret(key: string, value: string): Promise<void>;
+  deleteSecret(key: string): Promise<void>;
+}
+
+/** Minimal abstraction for resolving a single secret reference. */
+export interface SecretResolver {
+  resolveSecret(ref: string): Promise<string | undefined>;
+}
+
+/** Runtime config resolved for a single dispatch/validation scope. */
+export interface ResolvedProviderConfig {
+  readonly profileId: string;
+  readonly family: ProviderFamily;
+  readonly providerConfig: ProviderConfig;
+}
+
+/** Resolves a persisted profile plus secrets into provider-validated runtime config. */
+export interface ProviderConfigResolver {
+  resolve(profileId: string): Promise<ResolvedProviderConfig>;
+}
+
+export interface DeleteProviderProfileOptions {
+  readonly retainSecrets?: boolean;
+}
+
+export interface ProviderProfileTestResult {
+  readonly profileId: string;
+  readonly providerId: string;
+  readonly family: ProviderFamily;
+  readonly valid: true;
 }

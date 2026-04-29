@@ -14,9 +14,17 @@ import {
   getProviderConfig,
   saveProviderConfig,
   retryJob,
+  deleteProviderProfile,
+  getProviderProfile,
+  listProviderProfiles,
+  saveProviderProfile,
+  testProviderProfile,
   setConfigAdapter,
+  setProviderProfileRepository,
+  setSecretStorageAdapter,
   type ConfigStorageAdapter,
   type ProviderConfig,
+  type ProviderProfile,
 } from '../src/commands/index.js';
 import { _resetForTesting } from '../src/runtime.js';
 
@@ -353,6 +361,137 @@ describe('commands', () => {
       // After reset, config should not be found (new in-memory adapter)
       const result = await getProviderConfig('mock');
       expect(result.ok).toBe(false);
+    });
+  });
+
+  describe('provider profile lifecycle', () => {
+    const profileInput = {
+      profileId: 'mock-profile',
+      providerId: 'mock',
+      family: 'openai-compatible' as const,
+      displayName: 'Mock Profile',
+      config: {
+        baseURL: 'https://mock.local',
+      },
+      secretValues: {
+        apiKey: 'secret-key',
+      },
+    };
+
+    it('uses default in-memory repository and secret storage without leaking secret values', async () => {
+      const saveResult = await saveProviderProfile(profileInput);
+      expect(saveResult.ok).toBe(true);
+      if (!saveResult.ok) return;
+
+      expect(JSON.stringify(saveResult.value)).not.toContain('secret-key');
+      expect(saveResult.value.secretRefs?.apiKey).toBe('secret:provider-profile:mock-profile:apiKey');
+
+      const listResult = await listProviderProfiles();
+      expect(listResult.ok).toBe(true);
+      if (listResult.ok) {
+        expect(listResult.value).toHaveLength(1);
+        expect(JSON.stringify(listResult.value)).not.toContain('secret-key');
+      }
+
+      const getResult = await getProviderProfile('mock-profile');
+      expect(getResult.ok).toBe(true);
+      if (getResult.ok) {
+        expect(getResult.value.profileId).toBe('mock-profile');
+        expect(JSON.stringify(getResult.value)).not.toContain('secret-key');
+      }
+    });
+
+    it('testProviderProfile validates through resolver without returning resolved secret-bearing config', async () => {
+      await saveProviderProfile(profileInput);
+
+      const result = await testProviderProfile('mock-profile');
+      expect(result.ok).toBe(true);
+      if (result.ok) {
+        expect(result.value).toEqual({
+          profileId: 'mock-profile',
+          providerId: 'mock',
+          family: 'openai-compatible',
+          valid: true,
+        });
+        expect(JSON.stringify(result.value)).not.toContain('secret-key');
+      }
+    });
+
+    it('returns validation errors for missing profile and missing secret', async () => {
+      const missingProfile = await getProviderProfile('missing-profile');
+      expect(missingProfile.ok).toBe(false);
+      if (!missingProfile.ok) {
+        expect(missingProfile.error.category).toBe('validation');
+      }
+
+      const profile: ProviderProfile = {
+        profileId: 'broken-profile',
+        providerId: 'mock',
+        family: 'openai-compatible',
+        displayName: 'Broken Profile',
+        enabled: true,
+        config: { baseURL: 'https://mock.local' },
+        secretRefs: { apiKey: 'secret:missing' },
+        createdAt: '2026-04-29T00:00:00.000Z',
+        updatedAt: '2026-04-29T00:00:00.000Z',
+      };
+      const store = new Map<string, ProviderProfile>([[profile.profileId, profile]]);
+      setProviderProfileRepository({
+        async list() {
+          return Array.from(store.values());
+        },
+        async get(profileId) {
+          return store.get(profileId);
+        },
+        async save(nextProfile) {
+          store.set(nextProfile.profileId, nextProfile);
+        },
+        async delete(profileId) {
+          store.delete(profileId);
+        },
+      });
+      setSecretStorageAdapter({
+        async getSecret() {
+          return undefined;
+        },
+        async setSecret() {},
+        async deleteSecret() {},
+      });
+
+      const missingSecret = await testProviderProfile('broken-profile');
+      expect(missingSecret.ok).toBe(false);
+      if (!missingSecret.ok) {
+        expect(missingSecret.error.category).toBe('validation');
+        expect(missingSecret.error.message).toContain('apiKey');
+        expect(missingSecret.error.message).not.toContain('secret-key');
+      }
+    });
+
+    it('deleteProviderProfile deletes associated secrets by default', async () => {
+      await saveProviderProfile(profileInput);
+      const deleteResult = await deleteProviderProfile('mock-profile');
+      expect(deleteResult.ok).toBe(true);
+
+      const getResult = await getProviderProfile('mock-profile');
+      expect(getResult.ok).toBe(false);
+
+      const testResult = await testProviderProfile('mock-profile');
+      expect(testResult.ok).toBe(false);
+    });
+
+    it('dispatches provider-generate through provider profile resolution', async () => {
+      await saveProviderProfile(profileInput);
+
+      const result = await submitJob({
+        workflow: 'provider-generate',
+        input: { provider: 'profile', providerProfileId: 'mock-profile', prompt: 'profile prompt' },
+      });
+
+      expect(result.ok).toBe(true);
+      if (result.ok) {
+        expect(result.value.status).toBe('completed');
+        expect(JSON.stringify(result.value)).not.toContain('secret-key');
+      }
     });
   });
 });
