@@ -57,10 +57,25 @@ import {
   getProviderConfig,
   saveProviderConfig,
   retryJob,
+  // v3: profile & model discovery
+  listProviderProfiles,
+  getProviderProfile,
+  saveProviderProfile,
+  deleteProviderProfile,
+  testProviderProfile,
+  listProfileModels,
+  refreshProfileModels,
+  setProfileDefaultModel,
+  setProfileEnabled,
   setConfigAdapter,
+  setProviderProfileRepository,
+  setSecretStorageAdapter,
   type CommandResult,
   type SubmitJobInput,
   type ConfigStorageAdapter,
+  type ProviderProfile,
+  type ProviderProfileRepository,
+  type SecretStorageAdapter,
 } from '@imagen-ps/shared-commands';
 ```
 
@@ -98,11 +113,7 @@ import {
 ### workflows
 
 ```typescript
-import {
-  builtinWorkflows,
-  providerGenerateWorkflow,
-  providerEditWorkflow,
-} from '@imagen-ps/workflows';
+import { builtinWorkflows, providerGenerateWorkflow, providerEditWorkflow } from '@imagen-ps/workflows';
 ```
 
 ## 典型 surface 集成流程
@@ -127,12 +138,16 @@ setConfigAdapter(adapter);
 
 ### 2. 调用命令
 
+#### Profile-based dispatch（推荐）
+
+当 `profileId` 已关联到 provider config（含 API key、baseURL、defaultModel）时，直接通过 profile submit job：
+
 ```typescript
 import { submitJob } from '@imagen-ps/shared-commands';
 
 const result = await submitJob({
   workflow: 'provider-generate',
-  input: { provider: 'mock', prompt: 'a cat' },
+  input: { profileId: 'my-n1n-profile', prompt: 'a cat' },
 });
 
 if (result.ok) {
@@ -140,6 +155,17 @@ if (result.ok) {
 } else {
   console.error(result.error);
 }
+```
+
+#### Direct provider dispatch
+
+直接指定 provider adapter（通常用于测试或特殊场景）：
+
+```typescript
+const result = await submitJob({
+  workflow: 'provider-generate',
+  input: { provider: 'mock', prompt: 'a cat' },
+});
 ```
 
 ### 3. 查询 provider
@@ -156,10 +182,30 @@ const mock = describeProvider('mock');
 CLI 入口提供无需启动 Photoshop / UXP 的 Node.js 命令入口。典型用法：
 
 ```bash
+# Provider management
 imagen provider list
 imagen provider describe mock
 imagen provider config get mock
 imagen provider config save mock @config.json
+
+# Profile management (v3)
+imagen profile list
+imagen profile get <profileId>
+imagen profile save @profile.json
+imagen profile delete <profileId>
+imagen profile test <profileId>
+imagen profile enable <profileId>
+imagen profile disable <profileId>
+
+# Model discovery (v3)
+imagen profile models <profileId>
+imagen profile refresh-models <profileId>
+imagen profile set-default-model <profileId> <modelId>
+
+# Job submission — profile-based dispatch（推荐）
+imagen job submit provider-generate '{"profileId":"my-n1n-profile","prompt":"a red apple"}'
+
+# Job submission — direct provider dispatch（测试/特殊场景）
 imagen job submit provider-generate @input.json
 ```
 

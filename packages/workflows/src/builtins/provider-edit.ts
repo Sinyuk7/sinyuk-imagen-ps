@@ -5,6 +5,8 @@ const editStep = Object.freeze({
   kind: 'provider',
   input: Object.freeze({
     provider: '${provider}',
+    providerProfileId: '${providerProfileId}',
+    profileId: '${profileId}',
     request: Object.freeze({
       operation: 'edit',
       prompt: '${prompt}',
@@ -17,11 +19,13 @@ const editStep = Object.freeze({
 /**
  * 最小 image edit workflow。
  *
- * 当前稳定 contract：
- * - 输入：`provider`（必需）、`prompt`（必需）、`inputAssets`（必需）
+ * 当前 contract：
+ * - 输入：`provider`（必需，provider id 字符串）、`prompt`（必需，文本）、`inputAssets`（必需）
+ * - 输入：`providerProfileId`、`profileId` — 支持 profile-based dispatch，与 `provider-generate` 对齐
  * - 输出 key：`image`
  *
- * Tentative（未纳入当前稳定范围）：`maskAsset`、`output`、`providerOptions`
+ * Tentative（未纳入当前稳定范围，未来通过新版本 workflow 引入）：
+ * `maskAsset`、`output`、`providerOptions`
  *
  * 只负责把 job input 绑定到单个 provider step，不承载 provider 语义或执行逻辑。
  */

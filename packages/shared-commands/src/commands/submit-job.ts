@@ -47,33 +47,59 @@ export function toJobError(error: unknown): JobError {
 /**
  * 提交一个 workflow 执行并等待结果。
  *
+ * 当 input 包含 `profileId` 或 `providerProfileId` 但没有显式 `provider` 字段时，
+ * 自动注入 `provider: 'profile'`，将 dispatch 路由到 profile-aware adapter。
+ *
  * @param input - 包含 workflow 名称与 job 输入
  * @returns 成功时 `{ ok: true, value: Job }`，失败时 `{ ok: false, error: JobError }`
  *
  * @example
+ * 直接 provider 调用：
  * ```ts
  * const result = await submitJob({
  *   workflow: 'provider-generate',
  *   input: { provider: 'mock', prompt: 'a cat' },
  * });
+ * ```
  *
- * if (result.ok) {
- *   console.log('Job completed:', result.value);
- * } else {
- *   console.error('Job failed:', result.error);
- * }
+ * @example
+ * Profile-based dispatch（推荐）：
+ * ```ts
+ * const result = await submitJob({
+ *   workflow: 'provider-generate',
+ *   input: { profileId: 'my-profile', prompt: 'a cat' },
+ * });
  * ```
  */
 /** 内部字段：存储 workflow 名称以支持 retryJob */
 export const WORKFLOW_NAME_KEY = '_workflowName';
 
+/**
+ * 判断 params 中是否存在 profile 标识字段。
+ */
+function hasProfileId(params: Record<string, unknown>): boolean {
+  return 'profileId' in params || 'providerProfileId' in params;
+}
+
+/**
+ * 判断 params 中是否显式指定了 provider。
+ */
+function hasExplicitProvider(params: Record<string, unknown>): boolean {
+  return 'provider' in params;
+}
+
 export async function submitJob(input: SubmitJobInput): Promise<CommandResult<Job>> {
   const runtime = getRuntime();
 
   try {
+    // Profile dispatch detection：当 input 包含 profileId 但没有显式 provider 时，
+    // 自动注入 provider: 'profile'，路由到 createProfileAwareDispatchAdapter。
+    const needsProfileDispatch = hasProfileId(input.input) && !hasExplicitProvider(input.input);
+
     // 在 input 中附加 workflow 名称，供 retryJob 使用
     const enrichedInput = {
       ...input.input,
+      ...(needsProfileDispatch ? { provider: 'profile' } : {}),
       [WORKFLOW_NAME_KEY]: input.workflow,
     };
     const job = await runtime.runWorkflow(input.workflow, enrichedInput);

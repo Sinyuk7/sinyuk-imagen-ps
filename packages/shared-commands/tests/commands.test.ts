@@ -489,8 +489,178 @@ describe('commands', () => {
 
       expect(result.ok).toBe(true);
       if (result.ok) {
+        if (result.value.status !== 'completed') {
+          throw new Error('Job failed: ' + JSON.stringify(result.value.error, null, 2));
+        }
+        expect(result.value.status).toBe('completed');
+        expect(JSON.stringify(result.value)).not.toContain('secret-key');
+      }
+    });
+
+    it('dispatches provider-generate with only profileId (auto-routes to profile adapter)', async () => {
+      await saveProviderProfile(profileInput);
+
+      const result = await submitJob({
+        workflow: 'provider-generate',
+        input: { profileId: 'mock-profile', prompt: 'profile prompt' },
+      });
+
+      expect(result.ok).toBe(true);
+      if (result.ok) {
         expect(result.value).toMatchObject({ status: 'completed' });
         expect(JSON.stringify(result.value)).not.toContain('secret-key');
+      }
+    });
+
+    it('prefers explicit providerProfileId over profileId', async () => {
+      // 创建两个 profile
+      await saveProviderProfile(profileInput);
+      await saveProviderProfile({
+        ...profileInput,
+        profileId: 'other-profile',
+        displayName: 'Other Profile',
+      });
+
+      const result = await submitJob({
+        workflow: 'provider-generate',
+        input: {
+          providerProfileId: 'other-profile',
+          profileId: 'mock-profile',
+          prompt: 'test',
+        },
+      });
+
+      expect(result.ok).toBe(true);
+      if (result.ok) {
+        expect(result.value).toMatchObject({ status: 'completed' });
+      }
+    });
+
+    it('dispatches provider-edit through provider profile resolution', async () => {
+      await saveProviderProfile(profileInput);
+
+      const result = await submitJob({
+        workflow: 'provider-edit',
+        input: {
+          provider: 'profile',
+          providerProfileId: 'mock-profile',
+          prompt: 'profile edit prompt',
+          inputAssets: [
+            {
+              type: 'image' as const,
+              name: 'input.png',
+              url: 'https://example.com/input.png',
+              mimeType: 'image/png',
+            },
+          ],
+        },
+      });
+
+      expect(result.ok).toBe(true);
+      if (result.ok) {
+        if (result.value.status === 'failed') {
+          throw new Error(
+            'Job failed: ' + JSON.stringify({ error: result.value.error, output: result.value.output }, null, 2),
+          );
+        }
+        expect(result.value).toMatchObject({ status: 'completed' });
+        expect(JSON.stringify(result.value)).not.toContain('secret-key');
+      }
+    });
+
+    it('dispatches provider-edit with only profileId (auto-routes to profile adapter)', async () => {
+      await saveProviderProfile(profileInput);
+
+      const result = await submitJob({
+        workflow: 'provider-edit',
+        input: {
+          profileId: 'mock-profile',
+          prompt: 'profile edit prompt',
+          inputAssets: [
+            {
+              type: 'image' as const,
+              name: 'input.png',
+              url: 'https://example.com/input.png',
+              mimeType: 'image/png',
+            },
+          ],
+        },
+      });
+
+      expect(result.ok).toBe(true);
+      if (result.ok) {
+        expect(result.value).toMatchObject({ status: 'completed' });
+        expect(JSON.stringify(result.value)).not.toContain('secret-key');
+      }
+    });
+
+    it('prefers explicit providerProfileId over profileId for provider-edit', async () => {
+      // 创建两个 profile
+      await saveProviderProfile(profileInput);
+      await saveProviderProfile({
+        ...profileInput,
+        profileId: 'other-profile',
+        displayName: 'Other Profile',
+      });
+
+      const result = await submitJob({
+        workflow: 'provider-edit',
+        input: {
+          providerProfileId: 'other-profile',
+          profileId: 'mock-profile',
+          prompt: 'test edit',
+          inputAssets: [
+            {
+              type: 'image' as const,
+              name: 'input.png',
+              url: 'https://example.com/input.png',
+              mimeType: 'image/png',
+            },
+          ],
+        },
+      });
+
+      expect(result.ok).toBe(true);
+      if (result.ok) {
+        expect(result.value).toMatchObject({ status: 'completed' });
+      }
+    });
+
+    it('rejects when both providerProfileId and profileId are template literal placeholders', async () => {
+      const result = await submitJob({
+        workflow: 'provider-generate',
+        input: {
+          provider: 'profile',
+          providerProfileId: '${providerProfileId}',
+          profileId: '${profileId}',
+          prompt: 'test',
+        },
+      });
+
+      expect(result.ok).toBe(true);
+      if (result.ok) {
+        expect(result.value.status).toBe('failed');
+        expect(result.value.error?.message).toContain(
+          'Provider profile dispatch requires a non-empty providerProfileId or profileId',
+        );
+      }
+    });
+
+    it('does not override explicit provider with profile adapter', async () => {
+      await saveProviderProfile(profileInput);
+
+      const result = await submitJob({
+        workflow: 'provider-generate',
+        input: {
+          provider: 'mock',
+          profileId: 'mock-profile',
+          prompt: 'direct provider wins',
+        },
+      });
+
+      expect(result.ok).toBe(true);
+      if (result.ok) {
+        expect(result.value).toMatchObject({ status: 'completed' });
       }
     });
   });

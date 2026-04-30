@@ -168,13 +168,45 @@ function injectDefaultModel(params: Record<string, unknown>, defaultModel: strin
   return { ...params, providerOptions: mergedOptions };
 }
 
+/**
+ * 判断值是否为 workflow input binding 的未解析模板字面量占位符
+ *（如 `'${providerProfileId}'`）。
+ */
+function isTemplateLiteralPlaceholder(val: unknown): boolean {
+  return typeof val === 'string' && /^\$\{[^}]+\}$/.test(val);
+}
+
+/**
+ * 从 params 中解析有效的 profileId。
+ *
+ * 优先使用 `providerProfileId`，当其存在且不是模板字面量占位符时直接选用；
+ * 否则 fallback 到 `profileId`；若两者都是占位符，返回 `undefined`。
+ */
+function resolveProfileId(params: Record<string, unknown>): string | undefined {
+  if (
+    !isTemplateLiteralPlaceholder(params.providerProfileId) &&
+    typeof params.providerProfileId === 'string' &&
+    params.providerProfileId.length > 0
+  ) {
+    return params.providerProfileId;
+  }
+  if (
+    !isTemplateLiteralPlaceholder(params.profileId) &&
+    typeof params.profileId === 'string' &&
+    params.profileId.length > 0
+  ) {
+    return params.profileId;
+  }
+  return undefined;
+}
+
 function createProfileAwareDispatchAdapter(): ReturnType<typeof createDispatchAdapter> {
   return {
     provider: 'profile',
 
     async dispatch(params: Record<string, unknown>): Promise<unknown> {
-      const profileId = params.providerProfileId ?? params.profileId;
-      if (typeof profileId !== 'string' || profileId.trim().length === 0) {
+      const profileId = resolveProfileId(params);
+      if (profileId === undefined || profileId.trim().length === 0) {
         throw new Error('Provider profile dispatch requires a non-empty providerProfileId or profileId.');
       }
 

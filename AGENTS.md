@@ -1,5 +1,39 @@
 # AGENTS.md
 
+## Development Phase Invariant
+
+This project is in a zero-user, zero-history-burden development stage.
+
+This is the highest-priority project rule in this repository. It applies before architecture preferences, implementation convenience, review comments, OpenSpec conventions, and any generated artifact template.
+
+This invariant applies to every conversation, OpenSpec artifact, design document, implementation plan, review result, task list, code comment, JSDoc contract note, test description, and code change.
+
+There are no existing users, no production data, no historical API contracts, no published plugin contract, and no legacy behavior to preserve. All decisions MUST optimize for the cleanest current-state architecture and simplest correct implementation.
+
+The following concepts are forbidden unless the user explicitly overrides this invariant in the same conversation:
+
+- compatibility layers
+- migration paths
+- upgrade paths
+- version gates
+- feature gates for old behavior
+- legacy fallbacks
+- old-contract support
+- deprecated behavior preservation
+- phased rollout logic
+- backwards/forwards compatibility analysis
+- versioned API/contract/spec labels such as `Stable v1`, `Stable v1.1`, `v2 contract`, or similar version declarations
+- preserving behavior because it existed in a previous artifact, task, draft, implementation, or review comment
+- speculative future-proofing such as `for future support`, `future model selection`, `future compatibility`, or placeholder fields not required by the current design
+
+OpenSpec proposals, designs, specs, tasks, review notes, and archive notes MUST NOT introduce, preserve, or discuss these concepts. If an existing artifact or review comment contains them, treat that content as invalid and remove or rewrite it into a clean current-state design.
+
+Before editing or accepting any OpenSpec artifact, the agent MUST actively scan for and eliminate forbidden language including `Stable v`, `v1`, `v1.1`, `legacy`, `compat`, `compatibility`, `migration`, `fallback`, `deprecated`, `rollout`, `upgrade`, `old contract`, `backward`, `forward`, and `future support` when those terms describe product/API/contract behavior rather than third-party dependency versions.
+
+Do not classify invariant violations as P1/P2/P3 polish or archive-later work. Any occurrence in OpenSpec artifacts or design text is a blocking defect and MUST be fixed immediately before implementation proceeds.
+
+Breaking changes are acceptable by default during this stage when they improve correctness, clarity, or architecture.
+
 ## Project Overview
 
 `sinyuk-imagen-ps` — Photoshop 图像生成插件 monorepo。包含两个 surface 应用 `apps/app`、`apps/cli`，以及四个共享包 `shared-commands`、`core-engine`、`providers`、`workflows`。

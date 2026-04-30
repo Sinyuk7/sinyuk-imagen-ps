@@ -36,6 +36,20 @@
 | `saveProviderConfig` | `(providerId: string, config: unknown) → Promise<CommandResult<void>>` | 保存 provider 配置 |
 | `retryJob` | `(jobId: string) → Promise<CommandResult<Job>>` | 重试指定 job |
 
+**shared-commands 导出（v3 — profile & model discovery）**：
+
+| 命令 | 签名 | 职责 |
+|------|------|------|
+| `listProviderProfiles` | `() → Promise<CommandResult<ProviderProfile[]>>` | 列出所有 profile |
+| `getProviderProfile` | `(profileId: string) → Promise<CommandResult<ProviderProfile>>` | 获取单个 profile |
+| `saveProviderProfile` | `(input: unknown) → Promise<CommandResult<ProviderProfile>>` | 保存 profile（含 secret 写入） |
+| `deleteProviderProfile` | `(profileId: string, opts?: { retainSecrets?: boolean }) → Promise<CommandResult<void>>` | 删除 profile |
+| `testProviderProfile` | `(profileId: string) → Promise<CommandResult<void>>` | 端到端验证 profile |
+| `listProfileModels` | `(profileId: string) → Promise<CommandResult<ProviderModelInfo[]>>` | 列出候选模型（三级 fallback） |
+| `refreshProfileModels` | `(profileId: string) → Promise<CommandResult<ProviderModelInfo[]>>` | 调用 provider.discoverModels() 刷新缓存 |
+| `setProfileDefaultModel` | `(profileId: string, modelId: string) → Promise<CommandResult<ProviderProfile>>` | 设置 profile 默认模型 |
+| `setProfileEnabled` | `(profileId: string, enabled: boolean) → Promise<CommandResult<ProviderProfile>>` | 启用/禁用 profile |
+
 **shared-commands 类型与 DI**：
 
 | 导出 | 用途 |
@@ -77,8 +91,8 @@
 
 | 包名 | `@imagen-ps/providers` |
 |------|------------------------|
-| 职责 | provider 语义层：配置校验、请求校验、调用、响应归一化、错误映射 |
-| 状态 | contract、registry、mock provider、openai-compatible provider 已落地 |
+| 职责 | provider 语义层：配置校验、请求校验、调用、响应归一化、错误映射、model discovery |
+| 状态 | contract、registry、mock provider、openai-compatible provider（含 discoverModels）已落地 |
 
 **导出模块**：
 
@@ -87,7 +101,7 @@
 | contract | `src/contract/` | provider 契约定义（capability, config, request, result, diagnostics） |
 | registry | `src/registry/` | provider 注册表与 builtin providers |
 | bridge | `src/bridge/` | dispatch adapter（桥接 core-engine） |
-| transport | `src/transport/` | HTTP 传输层 |
+| transport | `src/transport/` | HTTP 传输层（http, build-request, parse-response, error-map, models） |
 | shared | `src/shared/` | 共享工具（asset normalizer, id generator） |
 
 **已实现 Providers**：

@@ -99,7 +99,9 @@ describe('@imagen-ps/workflows builtins', () => {
     expect(job.status).toBe('completed');
     expect(job.output?.image).toEqual({
       echoed: {
+        profileId: '${profileId}',
         provider: 'mock',
+        providerProfileId: '${providerProfileId}',
         request: {
           operation: 'edit',
           prompt: 'edit workflow',

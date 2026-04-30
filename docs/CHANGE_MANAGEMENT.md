@@ -1,5 +1,35 @@
 # 变更管理
 
+## 开发阶段不可变约束
+
+当前项目处于 0 用户、0 历史负担的开发阶段。
+
+这是本仓库最高优先级的变更管理规则。它优先于架构偏好、实现便利性、review comment、OpenSpec 惯例和任何生成的 artifact 模板。
+
+所有变更流程、OpenSpec proposal、design、spec、tasks、review notes、archive notes、实现计划、任务列表、代码注释、JSDoc 契约说明、测试描述与代码修改都必须基于以下前提：不存在现有用户、生产数据、历史 API 契约、已发布插件契约或需要保留的旧行为。
+
+因此，变更设计必须优先选择最干净的当前态架构与最简单正确实现。除非用户在同一段对话中明确覆盖该约束，否则严禁引入、保留或讨论以下概念：
+
+- 兼容层
+- 迁移路径
+- 升级路径
+- 版本号门禁
+- 为旧行为设置的 feature gate
+- 旧逻辑 fallback
+- 旧契约支持
+- 废弃行为保留
+- 分阶段 rollout 逻辑
+- 向后/向前兼容性分析
+- API、契约或 spec 的版本化标签，例如 `Stable v1`、`Stable v1.1`、`v2 contract` 或类似版本声明
+- 因为某个旧 artifact、旧任务、旧草稿、旧实现或 review comment 中曾经存在，就继续保留某种行为
+- 非当前设计必需的预留字段或未来化描述，例如 `for future support`、`future model selection`、`future compatibility`
+
+在编辑或接受任何 OpenSpec artifact 前，必须主动扫描并消除以下禁用语言：`Stable v`、`v1`、`v1.1`、`legacy`、`compat`、`compatibility`、`migration`、`fallback`、`deprecated`、`rollout`、`upgrade`、`old contract`、`backward`、`forward`、`future support`。当这些词用于产品、API 或契约行为时，必须立即移除或重写；第三方依赖版本号不属于该限制。
+
+OpenSpec 文档中如果出现依赖上述概念的设计，必须重写为干净的当前态设计。不得把这类问题降级为 P1/P2/P3 polish 或 archive 前再处理；任何出现都属于阻塞缺陷，必须在进入实现前立即修复。
+
+当前阶段允许破坏性变更，只要它能提升正确性、清晰度或架构质量。
+
 ## 变更分类
 
 | 类型 | 描述 | 风险等级 |

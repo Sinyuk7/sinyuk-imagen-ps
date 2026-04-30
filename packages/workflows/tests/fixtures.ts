@@ -1,12 +1,5 @@
-import {
-  createRuntime,
-  type ProviderDispatchAdapter,
-} from '@imagen-ps/core-engine';
-import {
-  createDispatchAdapter,
-  createMockProvider,
-  createOpenAICompatibleProvider,
-} from '@imagen-ps/providers';
+import { createRuntime, type ProviderDispatchAdapter } from '@imagen-ps/core-engine';
+import { createDispatchAdapter, createMockProvider, createOpenAICompatibleProvider } from '@imagen-ps/providers';
 import { builtinWorkflows } from '../src/index.js';
 
 /**
@@ -48,12 +41,10 @@ function sanitizeValue(value: unknown): unknown {
  * @param options - 可选覆盖配置字段
  * @returns 可直接用于 createRuntime 的 adapter
  */
-export function createMockBridgeAdapter(
-  options?: {
-    failMode?: { type: 'always' } | { type: 'probability'; rate: number };
-    delayMs?: number;
-  },
-): ProviderDispatchAdapter {
+export function createMockBridgeAdapter(options?: {
+  failMode?: { type: 'always' } | { type: 'probability'; rate: number };
+  delayMs?: number;
+}): ProviderDispatchAdapter {
   const provider = createMockProvider();
   const config = provider.validateConfig({
     providerId: 'mock',
@@ -109,9 +100,7 @@ export function createOpenAICompatibleBridgeAdapter(): ProviderDispatchAdapter {
  * @param adapters - 要注册的 provider adapters
  * @returns 可直接执行 workflow 的 runtime
  */
-export function createRuntimeWithBuiltins(
-  adapters: ProviderDispatchAdapter[] = [],
-) {
+export function createRuntimeWithBuiltins(adapters: ProviderDispatchAdapter[] = []) {
   return createRuntime({
     initialWorkflows: builtinWorkflows,
     adapters,
@@ -124,9 +113,7 @@ export function createRuntimeWithBuiltins(
  * @param overrides - 可覆盖任意字段
  * @returns 合法的 generate job input
  */
-export function generateValidGenerateInput(
-  overrides?: Record<string, unknown>,
-): Record<string, unknown> {
+export function generateValidGenerateInput(overrides?: Record<string, unknown>): Record<string, unknown> {
   return {
     provider: 'mock',
     prompt: 'a red apple',
@@ -137,12 +124,10 @@ export function generateValidGenerateInput(
 /**
  * 生成一个合法的 provider-edit job input。
  *
- * @param overrides - 可覆盖任意字段
+ * @param overrides - 可覆盖任意字段（包括 `providerOptions`，用于 future model override）
  * @returns 合法的 edit job input
  */
-export function generateValidEditInput(
-  overrides?: Record<string, unknown>,
-): Record<string, unknown> {
+export function generateValidEditInput(overrides?: Record<string, unknown>): Record<string, unknown> {
   return {
     provider: 'mock',
     prompt: 'change background to blue',
