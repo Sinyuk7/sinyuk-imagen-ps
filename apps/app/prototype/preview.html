@@ -1,0 +1,1071 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=380, initial-scale=1.0">
+<title>Imagen PS</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<script src="https://unpkg.com/react@18.3.1/umd/react.development.js" integrity="sha384-hD6/rw4ppMLGNu3tX5cjIb+uRZ7UkRJ6BPkLpg4hAu/6onKUg4lLsHAs9EBPT82L" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.development.js" integrity="sha384-u6aeetuaXnQ38mYT8rp6sbXaQe3NL9t+IBXmnYxwkUI2Hw4bsp2Wvmx4yRQF1uAm" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js" integrity="sha384-m08KidiNqLdpJqLq95G/LEi8Qvjl/xUYll3QILypMoQ65QorJ9Lvtp2RXYGBFj1y" crossorigin="anonymous"></script>
+<style>
+:root {
+  --bg:#0D1117; --s1:#151A22; --s2:#1C2330; --s3:#242C3B;
+  --bd:#2E3748; --bd2:#3A4457;
+  --tx:#E9EDF4; --txm:#A6B0BF; --txd:#738093; --txi:#0D1117;
+  --pr:#78E7C0; --prh:#8AF0CC; --pra:#58D9AF; --prs:rgba(120,231,192,.14);
+  --sc:#67B7FF; --scs:rgba(103,183,255,.14);
+  --ok:#63D48F; --oks:rgba(99,212,143,.14);
+  --wa:#F2B84B; --was:rgba(242,184,75,.14);
+  --er:#F26D6D; --ers:rgba(242,109,109,.14);
+  --hv:rgba(255,255,255,.05); --ac:rgba(255,255,255,.09);
+  --rsm:8px; --rmd:12px; --rxl:20px; --rfl:9999px;
+  --fD:'Space Grotesk',sans-serif; --fB:'IBM Plex Sans',sans-serif; --fM:'IBM Plex Mono',monospace;
+  --eo:cubic-bezier(.2,0,0,1); --tmi:80ms; --tsh:160ms;
+}
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
+html,body{
+  min-height:100vh; background:#060A0F;
+  display:flex; align-items:center; justify-content:center;
+  font-family:var(--fB); -webkit-font-smoothing:antialiased;
+}
+#root{ display:flex; align-items:center; justify-content:center; min-height:100vh; }
+
+.panel{
+  width:380px; height:640px; background:var(--bg); color:var(--tx);
+  font-size:14px; line-height:20px; overflow:hidden;
+  display:flex; flex-direction:column; position:relative;
+  border-radius:4px;
+  box-shadow:0 0 0 1px rgba(255,255,255,.06),0 24px 64px rgba(0,0,0,.7);
+}
+
+/* Pages */
+.page{ position:absolute; inset:0; display:flex; flex-direction:column; background:var(--bg); }
+.page-enter{ animation:pgIn var(--tsh) var(--eo) both; }
+@keyframes pgIn{ from{opacity:0;transform:translateX(14px)} to{opacity:1;transform:none} }
+
+/* Header */
+.hdr{
+  height:48px; background:var(--s1); border-bottom:1px solid var(--bd);
+  display:flex; align-items:center; padding:0 12px; gap:8px; flex-shrink:0; z-index:10;
+}
+.hdr-btn{
+  width:32px; height:32px; border-radius:var(--rsm); border:none;
+  background:transparent; color:var(--txm); cursor:pointer;
+  display:flex; align-items:center; justify-content:center;
+  transition:background var(--tmi),color var(--tmi);
+}
+.hdr-btn:hover{ background:var(--hv); color:var(--tx); }
+.hdr-center{ flex:1; display:flex; flex-direction:column; align-items:center; gap:1px; }
+.hdr-provider{ font-family:var(--fM); font-size:10px; color:var(--txd); letter-spacing:.4px; }
+.hdr-model{ font-family:var(--fM); font-size:12px; font-weight:500; color:var(--pr); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; max-width:200px; }
+.hdr-title{ flex:1; font-family:var(--fD); font-size:14px; font-weight:600; color:var(--tx); text-align:center; }
+
+/* Scroll */
+.scroll{ overflow-y:auto; scrollbar-width:thin; scrollbar-color:var(--bd) transparent; flex:1; }
+.scroll::-webkit-scrollbar{ width:3px; }
+.scroll::-webkit-scrollbar-thumb{ background:var(--bd); border-radius:2px; }
+
+/* Tooltip */
+.tt-wrap{ position:relative; display:inline-flex; }
+.tt{
+  position:absolute; bottom:calc(100% + 6px); left:50%; transform:translateX(-50%);
+  background:var(--s3); border:1px solid var(--bd2);
+  padding:3px 8px; border-radius:5px;
+  font-family:var(--fM); font-size:10px; color:var(--txm); letter-spacing:.3px;
+  white-space:nowrap; opacity:0; pointer-events:none;
+  transition:opacity var(--tmi); z-index:300;
+}
+.tt::after{
+  content:''; position:absolute; top:100%; left:50%; transform:translateX(-50%);
+  border:4px solid transparent; border-top-color:var(--bd2);
+}
+.tt-wrap:hover .tt{ opacity:1; }
+
+/* Day separator */
+.day-sep{ display:flex; align-items:center; gap:8px; padding:8px 0; }
+.day-sep-line{ flex:1; height:1px; background:var(--bd); }
+.day-sep-lbl{ font-family:var(--fM); font-size:10px; color:var(--txd); padding:0 4px; }
+
+/* ── USER bubble (right) ── */
+.msg-user{ display:flex; justify-content:flex-end; padding:3px 0; }
+.user-wrap{ max-width:82%; display:flex; flex-direction:column; align-items:flex-end; gap:3px; }
+.user-bubble{ background:var(--s3); border-radius:14px 14px 3px 14px; padding:9px 13px; }
+.bubble-imgs{ display:flex; gap:4px; margin-bottom:6px; }
+.bimg{
+  position:relative; width:52px; height:52px; border-radius:8px;
+  overflow:hidden; border:1px solid var(--bd); flex-shrink:0;
+}
+.bimg-bg{ width:100%; height:100%; }
+.bimg-count{
+  position:absolute; inset:0; background:rgba(0,0,0,.6);
+  display:flex; align-items:center; justify-content:center;
+  font-family:var(--fM); font-size:12px; font-weight:600; color:#fff;
+}
+.user-prompt{
+  font-size:13px; line-height:18px; color:var(--tx);
+  overflow:hidden; display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical;
+  text-wrap:pretty;
+}
+.user-meta{ display:flex; align-items:center; gap:6px; padding-right:2px; }
+.msg-time{ font-family:var(--fM); font-size:10px; color:var(--txd); }
+.copy-btn{
+  width:20px; height:20px; border-radius:5px; border:none;
+  background:transparent; color:var(--txd); cursor:pointer;
+  display:flex; align-items:center; justify-content:center; transition:all var(--tmi);
+}
+.copy-btn:hover{ background:var(--hv); color:var(--txm); }
+.copy-btn.cp{ color:var(--ok); }
+
+/* ── PROVIDER bubble (left) ── */
+.msg-prov{ display:flex; gap:8px; align-items:flex-start; padding:3px 0; }
+.av-prov{
+  width:28px; height:28px; border-radius:50%; flex-shrink:0; margin-top:1px;
+  background:rgba(103,183,255,.12);
+  display:flex; align-items:center; justify-content:center;
+  font-family:var(--fM); font-size:11px; font-weight:600; color:var(--sc);
+}
+.av-prov.err{ background:var(--ers); color:var(--er); }
+.prov-card{
+  flex:1; min-width:0;
+  background:var(--s1); border:1px solid var(--bd);
+  border-radius:3px 14px 14px 14px; overflow:hidden;
+}
+.prov-top{ display:flex; align-items:center; justify-content:space-between; padding:7px 12px 5px; }
+.prov-name-lbl{ font-family:var(--fM); font-size:10px; font-weight:500; color:var(--txd); letter-spacing:.3px; }
+.prov-status{ display:flex; align-items:center; gap:4px; font-family:var(--fM); font-size:10px; font-weight:500; }
+.sdot{ width:5px; height:5px; border-radius:50%; }
+.sdot.ok{ background:var(--ok); }
+.sdot.run{ background:var(--wa); animation:pulse 1.2s ease-in-out infinite; }
+.sdot.err{ background:var(--er); }
+@keyframes pulse{ 0%,100%{opacity:1}50%{opacity:.35} }
+
+/* Image result */
+.prov-img{ border-top:1px solid var(--bd); position:relative; overflow:hidden; }
+.img-result{ width:100%; height:160px; position:relative; cursor:pointer; }
+.img-bg{ width:100%; height:100%; display:block; }
+.img-overlay{
+  position:absolute; inset:0;
+  background:linear-gradient(to top,rgba(7,10,15,.9) 0%,transparent 55%);
+  opacity:0; transition:opacity var(--tmi);
+  display:flex; align-items:flex-end; padding:8px; gap:5px;
+}
+.img-result:hover .img-overlay{ opacity:1; }
+/* Image meta — only on hover */
+.img-meta{
+  position:absolute; top:8px; right:8px;
+  font-family:var(--fM); font-size:9px; color:rgba(255,255,255,.7);
+  background:rgba(0,0,0,.5); padding:2px 6px; border-radius:4px;
+  opacity:0; transition:opacity var(--tmi); pointer-events:none;
+}
+.img-result:hover .img-meta{ opacity:1; }
+.img-act{
+  display:flex; align-items:center; gap:5px;
+  padding:4px 10px; border-radius:var(--rfl); border:none;
+  font-family:var(--fB); font-size:11px; font-weight:600; cursor:pointer; transition:all var(--tmi);
+}
+.img-act.prim{ background:var(--pr); color:var(--txi); }
+.img-act.prim:hover{ background:var(--prh); }
+.img-act.sec{ background:rgba(255,255,255,.13); color:var(--tx); backdrop-filter:blur(4px); }
+.img-act.sec:hover{ background:rgba(255,255,255,.22); }
+
+/* Loading */
+.prov-loading{ display:flex; align-items:center; gap:10px; padding:10px 12px; }
+.ldots{ display:flex; gap:4px; }
+.ldot{ width:5px; height:5px; border-radius:50%; background:var(--pr); animation:lb 1.2s ease-in-out infinite; }
+.ldot:nth-child(2){animation-delay:.2s} .ldot:nth-child(3){animation-delay:.4s}
+@keyframes lb{ 0%,100%{transform:translateY(0);opacity:.6}50%{transform:translateY(-4px);opacity:1} }
+
+/* Action row */
+.prov-actions{ border-top:1px solid var(--bd); padding:1px 8px; display:flex; align-items:center; gap:1px; }
+.act-ico{
+  width:30px; height:30px; border-radius:var(--rsm); border:none;
+  background:transparent; color:var(--txd); cursor:pointer;
+  display:flex; align-items:center; justify-content:center; transition:all var(--tmi);
+}
+.act-ico:hover{ background:var(--hv); color:var(--txm); }
+.act-ico.prim{ color:var(--pr); }
+.act-ico.prim:hover{ background:var(--prs); }
+.act-sep{ flex:1; }
+
+/* Error */
+.err-card{
+  flex:1; min-width:0;
+  background:rgba(242,109,109,.06); border:1px solid rgba(242,109,109,.2);
+  border-radius:3px 14px 14px 14px; padding:10px 12px;
+  display:flex; flex-direction:column; gap:5px;
+}
+.err-top{ display:flex; align-items:center; gap:5px; }
+.err-msg{ font-size:12px; color:var(--txm); line-height:16px; padding-left:14px; }
+.err-retry{
+  align-self:flex-start; padding:3px 10px; border-radius:var(--rsm);
+  border:1px solid rgba(242,109,109,.35); background:transparent;
+  color:var(--er); font-size:11px; font-weight:500; cursor:pointer; font-family:var(--fB);
+  margin-left:14px; transition:all var(--tmi);
+}
+.err-retry:hover{ background:var(--ers); }
+
+/* Empty */
+.conv-empty{
+  flex:1; display:flex; flex-direction:column; align-items:center; justify-content:center;
+  gap:14px; padding:24px; text-align:center;
+}
+.empty-hints{ display:flex; flex-direction:column; gap:5px; width:100%; max-width:270px; margin-top:4px; }
+.empty-hint{
+  background:var(--s2); border:1px solid var(--bd); border-radius:var(--rmd);
+  padding:7px 12px; font-size:12px; color:var(--txm); text-align:left; cursor:pointer;
+  transition:all var(--tmi); font-family:var(--fB); line-height:16px;
+}
+.empty-hint:hover{ border-color:var(--bd2); color:var(--tx); background:var(--s3); }
+
+/* ── Composer ── */
+.composer{
+  flex-shrink:0; padding:8px 12px 12px; background:var(--bg);
+  border-top:1px solid var(--bd); position:relative;
+}
+
+/* Attachment row (above textarea, Gemini-style) */
+.attach-row{
+  display:flex; gap:6px; overflow-x:auto; padding-bottom:6px; scrollbar-width:none; flex-wrap:nowrap;
+}
+.attach-row::-webkit-scrollbar{ display:none; }
+.att-thumb{
+  position:relative; width:52px; height:52px; border-radius:8px;
+  overflow:hidden; border:1px solid var(--bd); flex-shrink:0;
+}
+.att-rm{
+  position:absolute; top:2px; right:2px; width:16px; height:16px; border-radius:50%;
+  background:rgba(0,0,0,.75); color:white; border:none; cursor:pointer;
+  display:flex; align-items:center; justify-content:center; font-size:11px; line-height:1;
+  transition:background var(--tmi);
+}
+.att-rm:hover{ background:var(--er); }
+
+/* Model menu */
+.model-menu{
+  position:absolute; bottom:calc(100% + 4px); left:50%; transform:translateX(-50%);
+  background:var(--s3); border:1px solid var(--bd2); border-radius:var(--rmd);
+  overflow:hidden; min-width:210px; box-shadow:0 8px 24px rgba(0,0,0,.45); z-index:200;
+}
+.model-opt{
+  padding:8px 12px; font-family:var(--fM); font-size:12px; color:var(--txm);
+  cursor:pointer; transition:background var(--tmi); display:flex; align-items:center; gap:8px;
+}
+.model-opt:hover{ background:var(--hv); color:var(--tx); }
+.model-opt.act{ color:var(--pr); }
+
+/* Send mode menu */
+.mode-menu{
+  position:absolute; bottom:calc(100% + 4px); right:12px;
+  background:var(--s3); border:1px solid var(--bd2); border-radius:var(--rmd);
+  overflow:hidden; width:236px; box-shadow:0 8px 24px rgba(0,0,0,.45); z-index:200;
+}
+.mode-opt{
+  display:flex; align-items:center; gap:10px; padding:9px 14px;
+  cursor:pointer; transition:background var(--tmi); border-bottom:1px solid var(--bd);
+}
+.mode-opt:last-child{ border-bottom:none; }
+.mode-opt:hover{ background:var(--hv); }
+.mode-opt.act{ background:var(--prs); }
+.mode-icon-wrap{
+  width:28px; height:28px; border-radius:var(--rsm); flex-shrink:0;
+  display:flex; align-items:center; justify-content:center;
+  background:var(--s2); color:var(--txm);
+}
+.mode-opt.act .mode-icon-wrap{ background:rgba(120,231,192,.15); color:var(--pr); }
+.mode-info-name{ font-size:12px; font-weight:600; color:var(--tx); }
+.mode-info-desc{ font-size:10px; color:var(--txd); margin-top:1px; font-family:var(--fM); }
+.mode-opt.act .mode-info-name{ color:var(--pr); }
+
+/* Attach picker */
+.attach-picker{
+  position:absolute; bottom:calc(100% + 4px); left:12px;
+  background:var(--s3); border:1px solid var(--bd2); border-radius:var(--rmd);
+  overflow:hidden; width:196px; box-shadow:0 8px 24px rgba(0,0,0,.45); z-index:200;
+}
+.attach-opt{
+  display:flex; align-items:center; gap:10px; padding:10px 14px;
+  cursor:pointer; transition:background var(--tmi); border-bottom:1px solid var(--bd);
+}
+.attach-opt:last-child{ border-bottom:none; }
+.attach-opt:hover{ background:var(--hv); }
+.attach-opt-label{ font-size:12px; font-weight:500; color:var(--tx); }
+.attach-opt-sub{ font-size:10px; color:var(--txd); font-family:var(--fM); margin-top:1px; }
+
+/* Layer list (inside attach picker sub-menu) */
+.layer-list-wrap{
+  position:absolute; bottom:calc(100% + 4px); left:12px;
+  background:var(--s3); border:1px solid var(--bd2); border-radius:var(--rmd);
+  overflow:hidden; width:230px; box-shadow:0 8px 24px rgba(0,0,0,.45); z-index:201;
+}
+.layer-list-hdr{
+  padding:7px 12px; font-size:10px; font-weight:600; color:var(--txd);
+  text-transform:uppercase; letter-spacing:.5px; border-bottom:1px solid var(--bd);
+  display:flex; align-items:center; gap:8px;
+}
+.layer-scroll{ max-height:240px; overflow-y:auto; scrollbar-width:thin; scrollbar-color:var(--bd) transparent; }
+.layer-scroll::-webkit-scrollbar{ width:3px; }
+.layer-item{
+  display:flex; align-items:center; gap:8px; padding:5px 12px;
+  cursor:pointer; transition:background var(--tmi); border-bottom:1px solid rgba(46,55,72,.5);
+}
+.layer-item:last-child{ border-bottom:none; }
+.layer-item:hover{ background:var(--hv); }
+.layer-swatch{ width:24px; height:24px; border-radius:4px; flex-shrink:0; border:1px solid var(--bd); }
+.layer-name{ font-size:12px; color:var(--tx); flex:1; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.layer-meta-lbl{ font-family:var(--fM); font-size:9px; color:var(--txd); white-space:nowrap; }
+
+/* Composer inner */
+.cmp-inner{
+  background:var(--s2); border:1px solid var(--bd); border-radius:var(--rxl);
+  padding:9px 12px; display:flex; flex-direction:column; gap:8px;
+  transition:border-color var(--tsh),opacity var(--tsh);
+}
+.cmp-inner:focus-within{ border-color:var(--bd2); }
+.cmp-inner.off{ opacity:.38; pointer-events:none; }
+.cmp-ta{
+  background:transparent; border:none; outline:none;
+  color:var(--tx); font-family:var(--fB); font-size:13px; line-height:18px;
+  resize:none; min-height:34px; max-height:72px; overflow-y:auto;
+  scrollbar-width:thin; width:100%;
+}
+.cmp-ta::placeholder{ color:var(--txd); }
+.cmp-bar{ display:flex; align-items:center; gap:6px; }
+
+/* + attach button */
+.cmp-add{
+  width:30px; height:30px; border-radius:var(--rsm); border:1px solid var(--bd);
+  background:transparent; color:var(--txm); cursor:pointer; flex-shrink:0;
+  display:flex; align-items:center; justify-content:center;
+  transition:all var(--tmi);
+}
+.cmp-add:hover{ background:var(--hv); border-color:var(--bd2); color:var(--tx); }
+.cmp-add.open{ border-color:var(--pr); color:var(--pr); background:var(--prs); }
+
+/* Model chip */
+.cmp-chip{
+  display:flex; align-items:center; gap:4px; padding:3px 8px; border-radius:var(--rfl);
+  border:1px solid var(--bd); background:var(--s1);
+  font-family:var(--fM); font-size:10px; color:var(--txm);
+  cursor:pointer; transition:all var(--tmi); white-space:nowrap; user-select:none;
+}
+.cmp-chip:hover{ border-color:var(--bd2); color:var(--tx); }
+.cmp-chip.open{ border-color:var(--pr); color:var(--pr); }
+.cmp-dot{ width:5px; height:5px; border-radius:50%; background:var(--pr); }
+.cmp-sp{ flex:1; }
+
+/* Split send button */
+.send-wrap{ display:flex; align-items:stretch; border-radius:var(--rsm); overflow:hidden; flex-shrink:0; }
+.cmp-send{
+  width:36px; height:36px; border:none;
+  background:var(--pr); color:var(--txi); cursor:pointer;
+  display:flex; align-items:center; justify-content:center;
+  transition:all var(--tmi) var(--eo);
+}
+.cmp-send:hover{ background:var(--prh); }
+.cmp-send:active{ background:var(--pra); transform:scale(.96); }
+.cmp-send:disabled{ opacity:.35; cursor:not-allowed; }
+.cmp-send-chev{
+  width:16px; height:36px; border:none; border-left:1px solid rgba(0,0,0,.15);
+  background:var(--pr); color:rgba(0,0,0,.45); cursor:pointer;
+  display:flex; align-items:center; justify-content:center;
+  transition:all var(--tmi);
+}
+.cmp-send-chev:hover{ background:var(--prh); color:rgba(0,0,0,.75); }
+.cmp-send:disabled~.cmp-send-chev{ opacity:.35; cursor:not-allowed; }
+
+/* ── Compare Lightbox ── */
+.lightbox{
+  position:fixed; inset:0; background:rgba(0,0,0,.92); z-index:1000;
+  display:flex; align-items:center; justify-content:center;
+  animation:pgIn var(--tsh) var(--eo) both;
+}
+.lb-inner{ position:relative; display:flex; flex-direction:column; align-items:center; gap:12px; }
+.lb-close{
+  position:absolute; top:-42px; right:0;
+  background:transparent; border:none; color:rgba(255,255,255,.4);
+  cursor:pointer; font-size:26px; line-height:1; transition:color var(--tmi);
+}
+.lb-close:hover{ color:#fff; }
+.compare-wrap{
+  position:relative; width:500px; height:500px; border-radius:var(--rmd);
+  overflow:hidden; user-select:none; border:1px solid var(--bd);
+}
+.cmp-layer{ position:absolute; inset:0; }
+.cmp-divider{
+  position:absolute; top:0; bottom:0; width:2px;
+  background:rgba(255,255,255,.9); transform:translateX(-50%);
+  pointer-events:none;
+}
+.cmp-handle{
+  position:absolute; top:50%; left:50%; transform:translate(-50%,-50%);
+  width:36px; height:36px; border-radius:50%; background:white;
+  display:flex; align-items:center; justify-content:center;
+  box-shadow:0 2px 10px rgba(0,0,0,.4);
+}
+.cmp-lbl{
+  position:absolute; top:10px;
+  background:rgba(0,0,0,.55); padding:2px 8px; border-radius:4px;
+  font-family:var(--fM); font-size:10px; color:white; letter-spacing:.3px;
+}
+.lb-actions{ display:flex; gap:8px; }
+.lb-btn{
+  padding:8px 20px; border-radius:var(--rsm); border:none;
+  font-family:var(--fB); font-size:12px; font-weight:600; cursor:pointer;
+  display:flex; align-items:center; gap:6px; transition:all var(--tmi);
+}
+.lb-btn.prim{ background:var(--pr); color:var(--txi); }
+.lb-btn.prim:hover{ background:var(--prh); }
+.lb-btn.sec{ background:var(--s3); color:var(--txm); }
+.lb-btn.sec:hover{ background:var(--bd2); color:var(--tx); }
+
+/* Toast */
+.toast{
+  position:absolute; bottom:72px; left:50%; transform:translateX(-50%);
+  background:var(--s3); border:1px solid var(--bd2); border-radius:var(--rsm);
+  padding:6px 14px; font-size:11px; color:var(--txm); white-space:nowrap;
+  box-shadow:0 8px 24px rgba(0,0,0,.5); z-index:2000; pointer-events:none;
+  animation:toastIn 140ms var(--eo) both;
+}
+@keyframes toastIn{ from{opacity:0;transform:translateX(-50%) translateY(6px)} to{opacity:1;transform:translateX(-50%) translateY(0)} }
+@keyframes spin{ to{transform:rotate(360deg)} }
+.spin{ animation:spin 1s linear infinite; }
+
+/* History / Settings shared */
+.filter-bar{ display:flex; gap:8px; padding:8px 12px; border-bottom:1px solid var(--bd); background:var(--s1); flex-shrink:0; overflow-x:auto; scrollbar-width:none; }
+.filter-bar::-webkit-scrollbar{ display:none; }
+.fchip{ padding:4px 12px; border-radius:var(--rfl); border:1px solid var(--bd); background:transparent; color:var(--txd); font-family:var(--fB); font-size:11px; font-weight:500; cursor:pointer; white-space:nowrap; transition:all var(--tmi) var(--eo); }
+.fchip:hover{ border-color:var(--bd2); color:var(--txm); }
+.fchip.act{ border-color:var(--pr); color:var(--pr); background:var(--prs); }
+.date-lbl{ padding:7px 16px; font-size:10px; font-weight:600; color:var(--txd); text-transform:uppercase; letter-spacing:.6px; background:var(--bg); position:sticky; top:0; z-index:1; border-bottom:1px solid var(--bd); }
+.task-row{ display:flex; align-items:flex-start; gap:12px; padding:11px 16px; border-bottom:1px solid var(--bd); cursor:pointer; transition:background var(--tmi); }
+.task-row:hover{ background:var(--hv); }
+.task-thumb{ width:44px; height:44px; border-radius:var(--rmd); background:var(--s3); border:1px solid var(--bd); display:flex; align-items:center; justify-content:center; flex-shrink:0; overflow:hidden; }
+.task-info{ flex:1; min-width:0; display:flex; flex-direction:column; gap:3px; }
+.task-prompt{ font-size:12px; line-height:16px; color:var(--tx); overflow:hidden; display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; }
+.task-meta{ display:flex; align-items:center; gap:8px; }
+.sec-lbl{ padding:12px 16px 8px; font-size:11px; font-weight:600; color:var(--txd); text-transform:uppercase; letter-spacing:.6px; }
+.prov-row{ display:flex; align-items:center; gap:12px; padding:0 16px; height:64px; border-top:1px solid var(--bd); cursor:pointer; transition:background var(--tmi); }
+.prov-row:hover{ background:var(--hv); }
+.prov-ico{ width:36px; height:36px; border-radius:var(--rmd); display:flex; align-items:center; justify-content:center; flex-shrink:0; font-family:var(--fM); font-size:12px; font-weight:500; }
+.prov-info{ flex:1; min-width:0; }
+.prov-name{ display:flex; align-items:center; gap:6px; font-size:13px; font-weight:500; color:var(--tx); flex-wrap:wrap; }
+.prov-model{ font-family:var(--fM); font-size:10px; color:var(--txd); margin-top:3px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.badge{ padding:1px 7px; border-radius:var(--rfl); font-size:10px; font-weight:500; flex-shrink:0; }
+.badge.active{ background:var(--oks); color:var(--ok); }
+.badge.connected{ background:var(--scs); color:var(--sc); }
+.badge.error{ background:var(--ers); color:var(--er); }
+.badge.none{ background:var(--hv); color:var(--txd); }
+.completeness{ display:flex; gap:2px; }
+.cdot{ width:5px; height:5px; border-radius:50%; background:var(--bd); }
+.cdot.f{ background:var(--pr); } .cdot.w{ background:var(--wa); } .cdot.e{ background:var(--er); }
+.footer-info{ padding:12px 16px; border-top:1px solid var(--bd); display:flex; align-items:center; gap:8px; }
+.section{ padding:16px; }
+.section+.section{ border-top:1px solid var(--bd); }
+.section-title{ font-size:11px; font-weight:600; color:var(--txd); text-transform:uppercase; letter-spacing:.6px; margin-bottom:12px; }
+.field{ margin-bottom:12px; }
+.field:last-child{ margin-bottom:0; }
+.field-label{ font-size:12px; font-weight:500; color:var(--txm); margin-bottom:4px; display:block; }
+.field-input{ width:100%; background:var(--s2); border:1px solid var(--bd); border-radius:var(--rmd); padding:9px 12px; color:var(--tx); font-family:var(--fB); font-size:13px; outline:none; transition:border-color var(--tmi); }
+.field-input:focus{ border-color:var(--bd2); }
+.field-input::placeholder{ color:var(--txd); }
+.field-input.mono{ font-family:var(--fM); font-size:12px; letter-spacing:.5px; }
+.field-hint{ font-size:11px; color:var(--txd); margin-top:4px; }
+.pw-wrap{ position:relative; }
+.pw-wrap .field-input{ padding-right:40px; }
+.pw-toggle{ position:absolute; right:10px; top:50%; transform:translateY(-50%); background:transparent; border:none; color:var(--txd); cursor:pointer; display:flex; align-items:center; transition:color var(--tmi); }
+.pw-toggle:hover{ color:var(--txm); }
+.chips{ display:flex; flex-wrap:wrap; gap:8px; }
+.chip{ padding:5px 12px; border-radius:var(--rfl); border:1px solid var(--bd); background:transparent; color:var(--txm); font-family:var(--fM); font-size:11px; cursor:pointer; transition:all var(--tmi) var(--eo); }
+.chip:hover{ border-color:var(--bd2); color:var(--tx); }
+.chip.act{ border-color:var(--pr); color:var(--pr); background:var(--prs); }
+.param-val{ font-family:var(--fM); font-size:12px; color:var(--tx); background:var(--s2); border:1px solid var(--bd); border-radius:var(--rsm); padding:5px 10px; min-width:36px; text-align:center; cursor:pointer; transition:all var(--tmi); }
+.param-val.act{ border-color:var(--pr); color:var(--pr); background:var(--prs); }
+.aspect-grid{ display:flex; gap:8px; }
+.aspect-opt{ flex:1; padding:8px 4px; border-radius:var(--rmd); border:1px solid var(--bd); background:transparent; display:flex; flex-direction:column; align-items:center; gap:4px; cursor:pointer; transition:all var(--tmi) var(--eo); }
+.aspect-opt:hover{ border-color:var(--bd2); background:var(--hv); }
+.aspect-opt.act{ border-color:var(--pr); background:var(--prs); }
+.aspect-ico{ background:var(--txd); border-radius:2px; transition:background var(--tmi); }
+.aspect-opt.act .aspect-ico{ background:var(--pr); }
+.aspect-lbl{ font-family:var(--fM); font-size:10px; color:var(--txd); }
+.aspect-opt.act .aspect-lbl{ color:var(--pr); }
+.slider-wrap{ display:flex; align-items:center; gap:12px; }
+.slider{ -webkit-appearance:none; flex:1; height:3px; border-radius:2px; background:var(--s3); outline:none; cursor:pointer; }
+.slider::-webkit-slider-thumb{ -webkit-appearance:none; width:14px; height:14px; border-radius:50%; background:var(--pr); cursor:pointer; transition:transform var(--tmi); }
+.slider::-webkit-slider-thumb:hover{ transform:scale(1.2); }
+.slider-val{ font-family:var(--fM); font-size:12px; color:var(--tx); min-width:30px; text-align:right; }
+.adv-toggle{ display:flex; align-items:center; gap:8px; padding:12px 16px; border-top:1px solid var(--bd); cursor:pointer; background:transparent; border-left:none; border-right:none; border-bottom:none; width:100%; text-align:left; transition:background var(--tmi); color:var(--txm); font-family:var(--fB); font-size:12px; font-weight:500; }
+.adv-toggle:hover{ background:var(--hv); }
+.adv-chev{ margin-left:auto; color:var(--txd); transition:transform var(--tsh); }
+.adv-chev.open{ transform:rotate(180deg); }
+.adv-body{ overflow:hidden; transition:max-height 200ms var(--eo); }
+.test-area{ padding:16px; border-top:1px solid var(--bd); display:flex; flex-direction:column; gap:10px; }
+.test-btn{ width:100%; padding:9px; border-radius:var(--rmd); border:1px solid var(--bd2); background:transparent; color:var(--txm); font-family:var(--fB); font-size:13px; font-weight:500; cursor:pointer; transition:all var(--tmi) var(--eo); display:flex; align-items:center; justify-content:center; gap:8px; }
+.test-btn:hover{ border-color:var(--sc); color:var(--sc); background:var(--scs); }
+.test-btn:disabled{ opacity:.5; cursor:not-allowed; }
+.test-result{ display:flex; align-items:center; gap:8px; padding:8px 12px; border-radius:var(--rsm); font-size:12px; font-weight:500; }
+.test-result.ok{ background:var(--oks); color:var(--ok); }
+.det-footer{ flex-shrink:0; padding:12px 16px; border-top:1px solid var(--bd); display:flex; gap:8px; background:var(--bg); }
+.btn-save{ flex:1; padding:10px; border-radius:var(--rmd); border:none; background:var(--pr); color:var(--txi); font-family:var(--fB); font-size:13px; font-weight:600; cursor:pointer; transition:all var(--tmi) var(--eo); }
+.btn-save:hover{ background:var(--prh); }
+.btn-del{ padding:10px 14px; border-radius:var(--rmd); border:1px solid var(--ers); background:transparent; color:var(--er); font-family:var(--fB); font-size:13px; cursor:pointer; transition:all var(--tmi); }
+.btn-del:hover{ background:var(--ers); }
+</style>
+</head>
+<body>
+<div id="root"></div>
+<script type="text/babel" src="tweaks-panel.jsx"></script>
+<script type="text/babel" src="ps-pages.jsx"></script>
+<script type="text/babel">
+const { useState, useEffect, useRef, useCallback } = React;
+
+// ── Icon helper ────────────────────────────────────────────────────────
+const SI = ({d, sz=14, w=2, style, className, ...p}) => (
+  <svg width={sz} height={sz} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={w} style={style} className={className} {...p}>
+    {Array.isArray(d) ? d.map((x,i)=><path key={i} d={x}/>) : <path d={d}/>}
+  </svg>
+);
+
+// ── Tooltip wrapper ─────────────────────────────────────────────────────
+const Tip = ({ label, children, right }) => (
+  <div className="tt-wrap" style={right ? {display:'inline-flex'} : {}}>
+    {children}
+    <div className="tt" style={right ? {left:'auto',right:0,transform:'none'} : {}}>{label}</div>
+  </div>
+);
+
+// ── Compare Slider Lightbox ────────────────────────────────────────────
+function CompareSlider({ gradA, gradB, onClose, onPlace, onDownload }) {
+  const [split, setSplit] = useState(50);
+  const ref = useRef(null);
+  const dragging = useRef(false);
+
+  const move = useCallback(clientX => {
+    if (!ref.current) return;
+    const r = ref.current.getBoundingClientRect();
+    setSplit(Math.max(2, Math.min(98, ((clientX - r.left) / r.width) * 100)));
+  }, []);
+
+  return (
+    <div className="lightbox" onClick={onClose}>
+      <div className="lb-inner" onClick={e=>e.stopPropagation()}>
+        <button className="lb-close" onClick={onClose}>×</button>
+        <div
+          ref={ref}
+          className="compare-wrap"
+          style={{cursor:'col-resize'}}
+          onMouseDown={e=>{dragging.current=true; move(e.clientX);}}
+          onMouseMove={e=>{if(dragging.current) move(e.clientX);}}
+          onMouseUp={()=>{dragging.current=false;}}
+          onMouseLeave={()=>{dragging.current=false;}}
+        >
+          {/* Behind: generated */}
+          <div className="cmp-layer" style={{background:gradB}}/>
+          {/* Top: reference, clipped to left of split */}
+          <div className="cmp-layer" style={{background:gradA, clipPath:`inset(0 ${100-split}% 0 0)`}}/>
+          {/* Divider + handle */}
+          <div className="cmp-divider" style={{left:`${split}%`}}>
+            <div className="cmp-handle">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#444" strokeWidth="2">
+                <path d="M8 9l-3 3 3 3M16 9l3 3-3 3"/>
+              </svg>
+            </div>
+          </div>
+          <div className="cmp-lbl" style={{left:10}}>参考</div>
+          <div className="cmp-lbl" style={{right:10}}>生成</div>
+        </div>
+        <div className="lb-actions">
+          <button className="lb-btn prim" onClick={onPlace}>
+            <SI d={["M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z","M17 21V13H7v8","M7 3v5h8"]}/>
+            置入 Photoshop
+          </button>
+          <button className="lb-btn sec" onClick={onDownload}>
+            <SI d={["M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4","M7 10l5 5 5-5","M12 15V3"]}/>
+            下载
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ── Data ──────────────────────────────────────────────────────────────
+const GRADS = {
+  cat:   'linear-gradient(155deg,#1a2035 0%,#2c4060 40%,#1f3830 70%,#1a2a20 100%)',
+  rain:  'linear-gradient(155deg,#0d1a2e 0%,#1a2a42 45%,#111e30 100%)',
+  mtn:   'linear-gradient(155deg,#1a2a1a 0%,#2a3a25 50%,#1a2520 100%)',
+  cyber: 'linear-gradient(155deg,#1a1a2e 0%,#2a1a3a 50%,#1a2030 100%)',
+  jazz:  'linear-gradient(155deg,#2a1a10 0%,#3a2a15 50%,#251a10 100%)',
+  nord:  'linear-gradient(155deg,#232323 0%,#303030 50%,#252525 100%)',
+};
+const GRAD_VALS = Object.values(GRADS);
+
+const PS_LAYERS = [
+  {id:'l0',name:'Layer 0',    meta:'当前 · 1920×1080',   grad:GRADS.cat},
+  {id:'l1',name:'Layer 1',    meta:'1920×1080 · PNG',    grad:GRADS.rain},
+  {id:'l2',name:'Background', meta:'1920×1080 · JPG',    grad:GRADS.nord},
+  {id:'l3',name:'Overlay',    meta:'透明图层',             grad:GRADS.cyber},
+  {id:'l4',name:'Shadows',    meta:'混合: Multiply',      grad:GRADS.mtn},
+  {id:'l5',name:'Highlights', meta:'混合: Screen',        grad:GRADS.jazz},
+  {id:'l6',name:'Color Grade',meta:'调整图层',             grad:GRADS.rain},
+  {id:'l7',name:'Vignette',   meta:'透明图层',             grad:GRADS.cat},
+  {id:'l8',name:'Skin Tones', meta:'色相/饱和度',          grad:GRADS.mtn},
+  {id:'l9',name:'Background copy',meta:'1920×1080 · JPG',grad:GRADS.nord},
+];
+
+const MODELS = ['Nano Banana 2','gpt-image-2','flux-1-dev','sd3-large-turbo'];
+
+const SEND_MODES = [
+  {id:'layer',    label:'当前图层', desc:'自动发送当前选中图层', icon:
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/></svg>
+  },
+  {id:'selection',label:'当前选区', desc:'发送 PS 当前选区内容', icon:
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="3" y="3" width="18" height="18" rx="1" strokeDasharray="4 2"/><path d="M9 9h6v6H9z" fill="currentColor" opacity=".3"/></svg>
+  },
+  {id:'upload',   label:'上传图片', desc:'通过 + 手动上传图片', icon:
+    <SI d={["M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4","M17 8l-5-5-5 5","M12 3v12"]}/>
+  },
+];
+
+const INIT_MSGS = [
+  {id:10,time:'14:11',
+   prompt:'a futuristic cityscape at dusk, neon reflections on wet streets, cinematic wide shot, 8K',
+   status:'err',provider:'Replicate',errMsg:'连接超时 (ERR_TIMEOUT)，请检查 API Key 或网络'},
+  {id:20,time:'14:23',
+   prompt:'一只橘猫坐在咖啡馆窗边，窗外是下午的街景和阳光，数字油画风格，暖色调，光线柔和，景深效果，8K 超高清',
+   status:'ok',elapsed:'8.3s',provider:'n1n.ai',grad:GRADS.cat,refGrad:GRADS.nord},
+  {id:30,time:'14:31',
+   prompt:'换成更冷的色调，偏蓝灰色，增加窗外雨景，保持同样的构图',
+   status:'running',provider:'n1n.ai'},
+];
+
+// ── Main page ──────────────────────────────────────────────────────────
+function MainPage({ onNav, model, setModel }) {
+  const [msgs, setMsgs] = useState(INIT_MSGS);
+  const [running, setRunning] = useState(true);
+  const [elapsed, setElapsed] = useState(0);
+  const [input, setInput] = useState('');
+  const [attachments, setAttachments] = useState([]);
+  const [sendMode, setSendMode] = useState('layer');
+  const [menuOpen, setMenuOpen] = useState(false);
+  const [modeOpen, setModeOpen] = useState(false);
+  const [attachOpen, setAttachOpen] = useState(false);
+  const [layerOpen, setLayerOpen] = useState(false);
+  const [lightbox, setLightbox] = useState(null);
+  const [copied, setCopied] = useState({});
+  const [toast, setToast] = useState(null);
+  const convRef = useRef(null);
+  const taRef = useRef(null);
+
+  const showToast = useCallback(m => { setToast(m); setTimeout(()=>setToast(null),2000); }, []);
+
+  useEffect(() => {
+    if (convRef.current) setTimeout(()=>{ if(convRef.current) convRef.current.scrollTop=99999; },60);
+  }, [msgs]);
+
+  useEffect(() => {
+    if (!running) return;
+    const iv = setInterval(()=>setElapsed(e=>e+1),1000);
+    const t = setTimeout(()=>{
+      const g = GRAD_VALS[Math.floor(Math.random()*GRAD_VALS.length)];
+      setMsgs(m=>m.map(msg=>msg.status==='running'
+        ?{...msg,status:'ok',elapsed:'4.1s',grad:g,refGrad:GRADS.cat}:msg));
+      setRunning(false);
+      setElapsed(0);
+      showToast('生成完成 — 悬停图片可操作');
+    },4100);
+    return ()=>{ clearInterval(iv); clearTimeout(t); };
+  }, [running]);
+
+  const canSend = input.trim().length>0 && !running;
+
+  const handleSend = () => {
+    if (!canSend) return;
+    const prompt = input.trim();
+    setInput('');
+    const atts = [...attachments];
+    setAttachments([]);
+    setRunning(true); setElapsed(0);
+    const now = new Date();
+    const time = `${now.getHours()}:${String(now.getMinutes()).padStart(2,'0')}`;
+    const id = Date.now();
+    setMsgs(m=>[...m,{id,time,prompt,status:'running',provider:'n1n.ai',attachments:atts}]);
+    setTimeout(()=>{
+      const g = GRAD_VALS[Math.floor(Math.random()*GRAD_VALS.length)];
+      setMsgs(m=>m.map(msg=>msg.id===id
+        ?{...msg,status:'ok',elapsed:`${(3+Math.random()).toFixed(1)}s`,grad:g,refGrad:atts[0]?.grad||GRADS.cat}:msg));
+      setRunning(false);
+      showToast('生成完成');
+    },4200);
+  };
+
+  const addLayer = layer => {
+    setAttachments(a=>[...a,{id:Date.now(),type:'layer',name:layer.name,grad:layer.grad}]);
+    setLayerOpen(false); setAttachOpen(false);
+  };
+
+  const addFile = () => {
+    const fakeGrad = GRAD_VALS[Math.floor(Math.random()*GRAD_VALS.length)];
+    setAttachments(a=>[...a,{id:Date.now(),type:'file',name:'photo.jpg',grad:fakeGrad}]);
+    setAttachOpen(false);
+    showToast('已添加图片');
+  };
+
+  const handleCopy = (id,text) => {
+    navigator.clipboard?.writeText(text).catch(()=>{});
+    setCopied(c=>({...c,[id]:true}));
+    setTimeout(()=>setCopied(c=>({...c,[id]:false})),1500);
+    setInput(text); taRef.current?.focus();
+    showToast('已填入输入框');
+  };
+
+  const closeAll = () => { setMenuOpen(false); setModeOpen(false); setAttachOpen(false); setLayerOpen(false); };
+  const curMode = SEND_MODES.find(m=>m.id===sendMode);
+
+  return (
+    <div className="page" data-screen-label="01 Main" onClick={closeAll}>
+      <header className="hdr">
+        <Tip label="历史记录">
+          <button className="hdr-btn" onClick={e=>{e.stopPropagation();onNav('history');}}>
+            <SI d={["M12 8v4l3 3","M3.05 11a9 9 0 1 1 .5 4","M3 16v-5h5"]}/>
+          </button>
+        </Tip>
+        <div className="hdr-center">
+          <span className="hdr-provider">n1n.ai</span>
+          <span className="hdr-model">{model}</span>
+        </div>
+        <Tip label="Providers" right>
+          <button className="hdr-btn" onClick={e=>{e.stopPropagation();onNav('settings');}}>
+            <SI d={["M12 2v2m0 16v2m10-10h-2M4 12H2","M12 9a3 3 0 1 0 0 6 3 3 0 0 0 0-6z"]}/>
+          </button>
+        </Tip>
+      </header>
+
+      {/* Conversation */}
+      <div className="scroll" ref={convRef}>
+        <div style={{padding:'12px 12px 4px',display:'flex',flexDirection:'column',gap:4}}>
+          <div className="day-sep">
+            <div className="day-sep-line"/><span className="day-sep-lbl">今天</span><div className="day-sep-line"/>
+          </div>
+
+          {msgs.map(msg => (
+            <div key={msg.id}>
+              {/* User bubble */}
+              <div className="msg-user">
+                <div className="user-wrap">
+                  <div className="user-bubble">
+                    {/* Attachment thumbnails in bubble */}
+                    {msg.attachments && msg.attachments.length > 0 && (
+                      <div className="bubble-imgs">
+                        {msg.attachments.slice(0,2).map((a,i) => (
+                          <div key={a.id} className="bimg">
+                            <div className="bimg-bg" style={{background:a.grad,width:'100%',height:'100%'}}/>
+                            {i===1 && msg.attachments.length>2 && (
+                              <div className="bimg-count">+{msg.attachments.length-1}</div>
+                            )}
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                    <div className="user-prompt">{msg.prompt}</div>
+                  </div>
+                  <div className="user-meta">
+                    <span className="msg-time">{msg.time}</span>
+                    <Tip label="复用 Prompt">
+                      <button className={`copy-btn${copied[msg.id]?' cp':''}`}
+                        onClick={e=>{e.stopPropagation();handleCopy(msg.id,msg.prompt);}}>
+                        {copied[msg.id]
+                          ? <SI d="M20 6 9 17l-5-5" w={2.5}/>
+                          : <SI d={["M8 8a2 2 0 0 0-2 2v8a2 2 0 0 0 2 2h8a2 2 0 0 0 2-2v-8a2 2 0 0 0-2-2H8z","M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"]}/>
+                        }
+                      </button>
+                    </Tip>
+                  </div>
+                </div>
+              </div>
+
+              {/* Provider response */}
+              {msg.status==='err' && (
+                <div className="msg-prov" style={{marginTop:4}}>
+                  <div className="av-prov err" style={{fontSize:13,fontWeight:700}}>!</div>
+                  <div className="err-card">
+                    <div className="err-top">
+                      <span className="sdot err"/>
+                      <span style={{fontSize:11,fontWeight:500,color:'var(--er)',fontFamily:'var(--fM)'}}>失败 · {msg.provider}</span>
+                    </div>
+                    <div className="err-msg">{msg.errMsg}</div>
+                    <button className="err-retry">重试</button>
+                  </div>
+                </div>
+              )}
+              {msg.status==='running' && (
+                <div className="msg-prov" style={{marginTop:4}}>
+                  <div className="av-prov">N</div>
+                  <div className="prov-card">
+                    <div className="prov-top">
+                      <span className="prov-name-lbl">{msg.provider||'n1n.ai'}</span>
+                      <div className="prov-status">
+                        <span className="sdot run"/>
+                        <span style={{color:'var(--wa)'}}>{elapsed}s</span>
+                      </div>
+                    </div>
+                    <div className="prov-loading">
+                      <div className="ldots"><div className="ldot"/><div className="ldot"/><div className="ldot"/></div>
+                      <span style={{fontFamily:'var(--fM)',fontSize:11,color:'var(--txd)'}}>生成中...</span>
+                    </div>
+                  </div>
+                </div>
+              )}
+              {msg.status==='ok' && (
+                <div className="msg-prov" style={{marginTop:4}}>
+                  <div className="av-prov">N</div>
+                  <div className="prov-card">
+                    <div className="prov-top">
+                      <span className="prov-name-lbl">{msg.provider}</span>
+                      <div className="prov-status">
+                        <span className="sdot ok"/>
+                        <span style={{color:'var(--ok)'}}>{msg.elapsed}</span>
+                      </div>
+                    </div>
+                    <div className="prov-img">
+                      <div className="img-result" onClick={e=>{e.stopPropagation();setLightbox(msg);}}>
+                        <div className="img-bg" style={{height:158,background:msg.grad}}/>
+                        <div className="img-meta">1024 × 1024 · PNG</div>
+                        <div className="img-overlay">
+                          <button className="img-act prim" onClick={e=>{e.stopPropagation();showToast('已置入 Photoshop 画布');}}>
+                            <SI d={["M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z","M17 21V13H7v8","M7 3v5h8"]}/>
+                            置入 PS
+                          </button>
+                          <button className="img-act sec" onClick={e=>{e.stopPropagation();showToast('下载中...');}}>
+                            <SI d={["M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4","M7 10l5 5 5-5","M12 15V3"]}/>
+                          </button>
+                          <button className="img-act sec" onClick={e=>{e.stopPropagation();setLightbox(msg);}}>
+                            <SI d={["M8 3H5a2 2 0 0 0-2 2v3","M21 8V5a2 2 0 0 0-2-2h-3","M3 16v3a2 2 0 0 0 2 2h3","M16 21h3a2 2 0 0 0 2-2v-3"]}/>
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                    <div className="prov-actions">
+                      <Tip label="置入 PS">
+                        <button className="act-ico prim" onClick={e=>{e.stopPropagation();showToast('已置入 Photoshop 画布');}}>
+                          <SI d={["M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z","M17 21V13H7v8","M7 3v5h8"]}/>
+                        </button>
+                      </Tip>
+                      <Tip label="重新生成">
+                        <button className="act-ico" onClick={e=>{e.stopPropagation();showToast('重新生成...');}}>
+                          <SI d={["M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8","M21 3v5h-5","M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16","M8 16H3v5"]}/>
+                        </button>
+                      </Tip>
+                      <Tip label="复制 Prompt">
+                        <button className="act-ico" onClick={e=>{e.stopPropagation();handleCopy(msg.id+'x',msg.prompt);}}>
+                          <SI d={["M8 8a2 2 0 0 0-2 2v8a2 2 0 0 0 2 2h8a2 2 0 0 0 2-2v-8a2 2 0 0 0-2-2H8z","M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"]}/>
+                        </button>
+                      </Tip>
+                      <Tip label="下载">
+                        <button className="act-ico" onClick={e=>{e.stopPropagation();showToast('下载中...');}}>
+                          <SI d={["M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4","M7 10l5 5 5-5","M12 15V3"]}/>
+                        </button>
+                      </Tip>
+                      <div className="act-sep"/>
+                      <button className="act-ico" onClick={e=>e.stopPropagation()}>
+                        <SI d="M5 12h.01M12 12h.01M19 12h.01" w={2.5} style={{strokeLinecap:'round'}}/>
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {/* Composer */}
+      <footer className="composer" onClick={e=>e.stopPropagation()}>
+        {/* Layer list popup */}
+        {layerOpen && (
+          <div className="layer-list-wrap" onClick={e=>e.stopPropagation()}>
+            <div className="layer-list-hdr">
+              <button style={{background:'transparent',border:'none',color:'var(--txd)',cursor:'pointer',display:'flex',alignItems:'center'}}
+                onClick={()=>setLayerOpen(false)}>
+                <SI d="m15 18-6-6 6-6" sz={12}/>
+              </button>
+              PS 图层
+            </div>
+            <div className="layer-scroll">
+              {PS_LAYERS.map(l => (
+                <div key={l.id} className="layer-item" onClick={()=>addLayer(l)}>
+                  <div className="layer-swatch" style={{background:l.grad}}/>
+                  <span className="layer-name">{l.name}</span>
+                  <span className="layer-meta-lbl">{l.meta}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+        {/* Attach picker */}
+        {attachOpen && !layerOpen && (
+          <div className="attach-picker" onClick={e=>e.stopPropagation()}>
+            <div className="attach-opt" onClick={()=>setLayerOpen(true)}>
+              <div style={{width:28,height:28,borderRadius:'var(--rsm)',background:'var(--s2)',display:'flex',alignItems:'center',justifyContent:'center',color:'var(--txm)'}}>
+                <SI d={["M1 6l11 7 11-7","M1 6v12a1 1 0 0 0 1 1h20a1 1 0 0 0 1-1V6"]} sz={13}/>
+              </div>
+              <div>
+                <div className="attach-opt-label">从 PS 图层选择</div>
+                <div className="attach-opt-sub">{PS_LAYERS.length} 个图层</div>
+              </div>
+              <SI d="m9 18 6-6-6-6" style={{color:'var(--txd)',marginLeft:'auto'}}/>
+            </div>
+            <div className="attach-opt" onClick={addFile}>
+              <div style={{width:28,height:28,borderRadius:'var(--rsm)',background:'var(--s2)',display:'flex',alignItems:'center',justifyContent:'center',color:'var(--txm)'}}>
+                <SI d={["M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4","M17 8l-5-5-5 5","M12 3v12"]} sz={13}/>
+              </div>
+              <div>
+                <div className="attach-opt-label">从电脑上传</div>
+                <div className="attach-opt-sub">PNG / JPG / WebP</div>
+              </div>
+            </div>
+          </div>
+        )}
+        {/* Send mode dropdown */}
+        {modeOpen && (
+          <div className="mode-menu" onClick={e=>e.stopPropagation()}>
+            {SEND_MODES.map(m => (
+              <div key={m.id} className={`mode-opt${sendMode===m.id?' act':''}`}
+                onClick={()=>{setSendMode(m.id);setModeOpen(false);}}>
+                <div className="mode-icon-wrap">{m.icon}</div>
+                <div style={{flex:1}}>
+                  <div className="mode-info-name">{m.label}</div>
+                  <div className="mode-info-desc">{m.desc}</div>
+                </div>
+                {sendMode===m.id && <SI d="M20 6 9 17l-5-5" w={2.5} style={{color:'var(--pr)',flexShrink:0}}/>}
+              </div>
+            ))}
+          </div>
+        )}
+        {/* Model menu */}
+        {menuOpen && (
+          <div className="model-menu" onClick={e=>e.stopPropagation()}>
+            {MODELS.map(m=>(
+              <div key={m} className={`model-opt${m===model?' act':''}`} onClick={()=>{setModel(m);setMenuOpen(false);}}>
+                {m===model && <SI d="M20 6 9 17l-5-5" w={2.5} style={{color:'var(--pr)'}}/>}
+                <span>{m}</span>
+              </div>
+            ))}
+          </div>
+        )}
+
+        <div className={`cmp-inner${running?' off':''}`}>
+          {/* Attachment row — above textarea */}
+          {attachments.length > 0 && (
+            <div className="attach-row">
+              {attachments.map(a => (
+                <div key={a.id} className="att-thumb">
+                  <div style={{width:'100%',height:'100%',background:a.grad}}/>
+                  <button className="att-rm" onClick={()=>setAttachments(prev=>prev.filter(x=>x.id!==a.id))}>×</button>
+                </div>
+              ))}
+            </div>
+          )}
+          <textarea
+            ref={taRef}
+            className="cmp-ta"
+            placeholder="描述你想要生成的图像..."
+            rows={2}
+            value={input}
+            onChange={e=>setInput(e.target.value)}
+            onKeyDown={e=>{if(e.key==='Enter'&&!e.shiftKey){e.preventDefault();handleSend();}}}
+            disabled={running}
+          />
+          <div className="cmp-bar">
+            {/* + add button */}
+            <Tip label="添加图片">
+              <button className={`cmp-add${attachOpen||layerOpen?' open':''}`}
+                onClick={e=>{e.stopPropagation();setAttachOpen(o=>!o);setLayerOpen(false);setModeOpen(false);setMenuOpen(false);}}>
+                <SI d="M12 5v14M5 12h14" w={2.5}/>
+              </button>
+            </Tip>
+            {/* Model chip */}
+            <div className={`cmp-chip${menuOpen?' open':''}`}
+              onClick={e=>{e.stopPropagation();setMenuOpen(o=>!o);setModeOpen(false);setAttachOpen(false);setLayerOpen(false);}}>
+              <span className="cmp-dot"/>
+              <span>{model}</span>
+              <SI sz={9} d="m6 9 6 6 6-6"/>
+            </div>
+            <div className="cmp-sp"/>
+            {/* Split send */}
+            <div className="send-wrap">
+              <button className="cmp-send" disabled={!canSend} onClick={handleSend}
+                title={curMode?.label}>
+                {running
+                  ? <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="spin"><path d="M21 12a9 9 0 1 1-9-9"/></svg>
+                  : curMode?.icon
+                }
+              </button>
+              <button className="cmp-send-chev" disabled={running}
+                onClick={e=>{e.stopPropagation();setModeOpen(o=>!o);setMenuOpen(false);setAttachOpen(false);setLayerOpen(false);}}>
+                <svg width="7" height="7" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3"><path d="m6 9 6 6 6-6"/></svg>
+              </button>
+            </div>
+          </div>
+        </div>
+      </footer>
+
+      {/* Compare lightbox */}
+      {lightbox && (
+        <CompareSlider
+          gradA={lightbox.refGrad || GRADS.nord}
+          gradB={lightbox.grad}
+          onClose={()=>setLightbox(null)}
+          onPlace={()=>{showToast('已置入 Photoshop 画布');setLightbox(null);}}
+          onDownload={()=>showToast('下载中...')}
+        />
+      )}
+
+      {toast && <div className="toast">{toast}</div>}
+    </div>
+  );
+}
+
+// ── App ────────────────────────────────────────────────────────────────
+const TWEAK_DEFAULS = /*EDITMODE-BEGIN*/{
+  "accentColor": "#78E7C0",
+  "panelWidth": 380,
+  "fontSize": 14
+}/*EDITMODE-END*/;
+
+function App() {
+  const [view, setView] = useState('main');
+  const [model, setModel] = useState('Nano Banana 2');
+  const [t, setTweak] = useTweaks(TWEAK_DEFAULS);
+
+  useEffect(()=>{
+    if (!t?.accentColor) return;
+    document.documentElement.style.setProperty('--pr', t.accentColor);
+    document.documentElement.style.setProperty('--prs', t.accentColor+'22');
+    document.documentElement.style.setProperty('--prh', t.accentColor+'e0');
+  }, [t?.accentColor]);
+
+  return (
+    <>
+      <div className="panel" style={{width:t?.panelWidth??380,fontSize:t?.fontSize??14}}>
+        {view==='main'             && <MainPage onNav={setView} model={model} setModel={setModel}/>}
+        {view==='history'          && <HistoryPage onNav={setView}/>}
+        {view==='settings'         && <SettingsPage onNav={setView}/>}
+        {view==='settings-add'     && <SettingsAddPage onNav={setView}/>}
+        {view==='settings-detail'  && <SettingsDetailPage onNav={setView}/>}
+      </div>
+      <TweaksPanel title="Tweaks">
+        <TweakColor  label="Accent"      value={t?.accentColor} onChange={v=>setTweak('accentColor',v)}/>
+        <TweakSlider label="Panel width" value={t?.panelWidth}  min={340} max={440} step={10} onChange={v=>setTweak('panelWidth',v)}/>
+        <TweakSlider label="Font size"   value={t?.fontSize}    min={12}  max={16}  step={1}  onChange={v=>setTweak('fontSize',v)}/>
+      </TweaksPanel>
+    </>
+  );
+}
+
+ReactDOM.createRoot(document.getElementById('root')).render(<App/>);
+</script>
+</body>
+</html>

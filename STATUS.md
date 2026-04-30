@@ -1,12 +1,12 @@
 # 项目状态
 
-- 状态：Phase 4 完成；CLI Surface 已实现，`apps/cli` 提供 7 个 automation 命令 + 1 个极简人工 shortcut
-- 更新时间：2026-04-28
-- 下一阶段：Phase 5 — TBD
+- 状态：Phase 4 完成 + UI mock 实现完成；CLI Surface 已实现；`apps/app` UI 5 个页面已落地（mock 数据，待接入真实链路）
+- 更新时间：2026-04-30
+- 下一阶段：Phase 5 — 打通真实 Provider 端到端链路 + UI 接入 shared/commands（详见 `docs/HANDOFF_2026-04-29_VERTICAL_REAL_PROVIDER.md`）
 
 ## 当前活跃模块
 
-- `apps/app`：Photoshop / UXP surface，负责 host integration、React UI、surface-local model 与 UXP adapter 注入
+- `apps/app`：Photoshop / UXP surface，UI 5 页已实现（mock）；shared/commands 8 命令已接口就绪；待接真实链路（详见 `apps/app/STATUS.md`）
 - `apps/cli`：Node.js CLI surface，lightweight automation 入口，承接命令行解析、JSON 输出、FileConfigAdapter 注入
 - `packages/core-engine`：已实现完整 runtime / engine 基础能力
 - `packages/providers`：contract、registry、mock provider、bridge、`openai-compatible` provider 已落地，并补充了关键测试
