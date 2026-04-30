@@ -9,6 +9,33 @@ vi.mock('../src/transport/openai-compatible/http.js', () => ({
 }));
 
 import { createOpenAICompatibleProvider } from '../src/providers/openai-compatible/provider.js';
+import { createProviderInvokeError } from '../src/transport/openai-compatible/error-map.js';
+
+function createProviderInvokeError(
+  kind: string,
+  message: string,
+  options?: { statusCode?: number; details?: Record<string, unknown> },
+): Error {
+  const err = new Error(message) as Error & { kind: string; statusCode?: number; details?: Record<string, unknown> };
+  err.name = 'ProviderInvokeError';
+  (err as Record<string, unknown>).kind = kind;
+  if (options?.statusCode) (err as Record<string, unknown>).statusCode = options.statusCode;
+  if (options?.details) (err as Record<string, unknown>).details = options.details;
+  return err;
+}
+
+function makeConfig() {
+  const provider = createOpenAICompatibleProvider();
+  return provider.validateConfig({
+    providerId: 'relay-a',
+    displayName: 'Relay A',
+    family: 'openai-compatible',
+    baseURL: 'https://relay.example',
+    apiKey: 'secret',
+    extraHeaders: { 'X-Custom': 'value' },
+    timeoutMs: 5000,
+  });
+}
 
 afterEach(() => {
   httpRequestMock.mockReset();
@@ -118,5 +145,144 @@ describe('openai-compatible provider', () => {
       name: 'ProviderValidationError',
     });
     expect(httpRequestMock).not.toHaveBeenCalled();
+  });
+});
+
+describe('openai-compatible provider discoverModels', () => {
+  it('returns image models on successful discovery', async () => {
+    httpRequestMock.mockResolvedValue({
+      response: {
+        status: 200,
+        headers: new Headers({ 'content-type': 'application/json' }),
+        data: {
+          object: 'list',
+          data: [
+            { id: 'dall-e-3', object: 'model', created: 1699809600, owned_by: 'openai-dev' },
+            { id: 'gpt-4', object: 'model', created: 1687882411, owned_by: 'openai' },
+          ],
+        },
+      },
+      diagnostics: [],
+    });
+
+    const provider = createOpenAICompatibleProvider();
+    const config = makeConfig();
+
+    const models = await provider.discoverModels!(config);
+
+    expect(models).toEqual([{ id: 'dall-e-3', displayName: 'Dall E 3' }]);
+    expect(httpRequestMock).toHaveBeenCalledTimes(1);
+    expect(httpRequestMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        url: 'https://relay.example/v1/models',
+        method: 'GET',
+        headers: expect.objectContaining({
+          Authorization: 'Bearer secret',
+          'X-Custom': 'value',
+        }),
+        timeoutMs: 5000,
+      }),
+      undefined,
+      undefined,
+    );
+  });
+
+  it('returns empty array when no image models match', async () => {
+    httpRequestMock.mockResolvedValue({
+      response: {
+        status: 200,
+        headers: new Headers({ 'content-type': 'application/json' }),
+        data: {
+          object: 'list',
+          data: [
+            { id: 'gpt-4', object: 'model' },
+            { id: 'text-embedding-ada-002', object: 'model' },
+          ],
+        },
+      },
+      diagnostics: [],
+    });
+
+    const provider = createOpenAICompatibleProvider();
+    const config = makeConfig();
+
+    const models = await provider.discoverModels!(config);
+
+    expect(models).toEqual([]);
+  });
+
+  it('propagates auth_failed error from httpRequest', async () => {
+    const authError = createProviderInvokeError('auth_failed', 'Invalid API key', { statusCode: 401 });
+    httpRequestMock.mockRejectedValue(authError);
+
+    const provider = createOpenAICompatibleProvider();
+    const config = makeConfig();
+
+    await expect(provider.discoverModels!(config)).rejects.toMatchObject({
+      message: 'Invalid API key',
+    });
+    await expect(provider.discoverModels!(config)).rejects.toHaveProperty('kind', 'auth_failed');
+  });
+
+  it('propagates timeout error from httpRequest', async () => {
+    const timeoutError = createProviderInvokeError('timeout', 'Request timed out.');
+    httpRequestMock.mockRejectedValue(timeoutError);
+
+    const provider = createOpenAICompatibleProvider();
+    const config = makeConfig();
+
+    await expect(provider.discoverModels!(config)).rejects.toMatchObject({
+      message: 'Request timed out.',
+    });
+    await expect(provider.discoverModels!(config)).rejects.toHaveProperty('kind', 'timeout');
+  });
+
+  it('throws invalid_response when response data is missing data field', async () => {
+    httpRequestMock.mockResolvedValue({
+      response: {
+        status: 200,
+        headers: new Headers({ 'content-type': 'application/json' }),
+        data: { object: 'list' }, // missing "data" field
+      },
+      diagnostics: [],
+    });
+
+    const provider = createOpenAICompatibleProvider();
+    const config = makeConfig();
+
+    await expect(provider.discoverModels!(config)).rejects.toMatchObject({
+      message: expect.stringContaining('"data" is not an array'),
+    });
+    await expect(provider.discoverModels!(config)).rejects.toHaveProperty('kind', 'invalid_response');
+  });
+
+  it('constructs correct HTTP request with URL, method, and headers', async () => {
+    httpRequestMock.mockResolvedValue({
+      response: {
+        status: 200,
+        headers: new Headers({ 'content-type': 'application/json' }),
+        data: { object: 'list', data: [] },
+      },
+      diagnostics: [],
+    });
+
+    const provider = createOpenAICompatibleProvider();
+    const config = makeConfig();
+
+    await provider.discoverModels!(config);
+
+    expect(httpRequestMock).toHaveBeenCalledWith(
+      {
+        url: 'https://relay.example/v1/models',
+        method: 'GET',
+        headers: {
+          Authorization: 'Bearer secret',
+          'X-Custom': 'value',
+        },
+        timeoutMs: 5000,
+      },
+      undefined,
+      undefined,
+    );
   });
 });

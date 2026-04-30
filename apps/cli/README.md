@@ -276,20 +276,23 @@ imagen profile save '{
   }
 }'
 
-# 2. 查看候选 model 列表
+# 2. 刷新 model 列表（调用 provider.discoverModels() 从上游获取可用模型）
+imagen profile refresh-models openai-smoke
+
+# 3. 查看候选 model 列表
 imagen profile models openai-smoke
 
-# 3. 设置默认 model
+# 4. 设置默认 model
 imagen profile set-default-model openai-smoke dall-e-3
 
-# 4. 提交 generate job（使用 profile defaultModel）
+# 5. 提交 generate job（使用 profile defaultModel）
 imagen job submit provider-generate '{
   "profileId": "openai-smoke",
   "prompt": "a simple red circle on white background",
   "output": { "count": 1 }
 }'
 
-# 5. 提交 generate job（explicit model override）
+# 6. 提交 generate job（explicit model override）
 imagen job submit provider-generate '{
   "profileId": "openai-smoke",
   "prompt": "a blue square",
@@ -299,10 +302,10 @@ imagen job submit provider-generate '{
   "output": { "count": 1 }
 }'
 
-# 6. 验证 profile 配置有效性
+# 7. 验证 profile 配置有效性
 imagen profile test openai-smoke
 
-# 7. 清理
+# 8. 清理
 imagen profile delete openai-smoke
 ```
 

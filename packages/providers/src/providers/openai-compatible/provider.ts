@@ -1,11 +1,13 @@
 import type { Provider, ProviderDescriptor, ProviderInvokeArgs } from '../../contract/provider.js';
 import type { ProviderInvokeResult } from '../../contract/result.js';
+import type { ProviderModelInfo } from '../../contract/model.js';
 import { openaiCompatibleDescriptor } from './descriptor.js';
 import { openaiCompatibleConfigSchema, type OpenAICompatibleProviderConfig } from './config-schema.js';
 import { mockRequestSchema, type MockProviderRequest } from '../mock/request-schema.js';
 import { httpRequest } from '../../transport/openai-compatible/http.js';
 import { buildRequestBody } from '../../transport/openai-compatible/build-request.js';
 import { parseResponse } from '../../transport/openai-compatible/parse-response.js';
+import { parseModelsResponse } from '../../transport/openai-compatible/models.js';
 
 /** Provider 层可映射的结构化验证错误。 */
 interface ProviderValidationError extends Error {
@@ -103,6 +105,26 @@ export function createOpenAICompatibleProvider(): Provider<OpenAICompatibleProvi
         return { ...result, diagnostics: response.diagnostics };
       }
       return result;
+    },
+
+    async discoverModels(config: OpenAICompatibleProviderConfig): Promise<readonly ProviderModelInfo[]> {
+      const url = new URL('/v1/models', config.baseURL).toString();
+
+      const response = await httpRequest(
+        {
+          url,
+          method: 'GET',
+          headers: {
+            Authorization: `Bearer ${config.apiKey}`,
+            ...(config.extraHeaders ?? {}),
+          },
+          timeoutMs: config.timeoutMs,
+        },
+        undefined,
+        undefined,
+      );
+
+      return parseModelsResponse(response.response.data);
     },
   };
 }
