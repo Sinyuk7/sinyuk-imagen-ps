@@ -153,7 +153,11 @@ function injectDefaultModel(params: Record<string, unknown>, defaultModel: strin
 
   const sanitizedOptions =
     defaultModel.startsWith('gpt-image') || defaultModel === 'chatgpt-image-latest'
-      ? Object.fromEntries(Object.entries(existingOptions).filter(([key]) => key !== 'response_format'))
+      ? Object.fromEntries(
+          Object.entries(existingOptions).filter(
+            ([key]) => key !== 'response_format' && key !== 'image_response_format',
+          ),
+        )
       : existingOptions;
 
   // 如果 providerOptions.model 已存在（job input explicit），不覆盖

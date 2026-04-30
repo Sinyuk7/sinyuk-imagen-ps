@@ -71,6 +71,7 @@ describe('@imagen-ps/workflows builtins', () => {
         request: {
           operation: 'generate',
           prompt: 'hello workflow',
+          output: '${output}',
           providerOptions: '${providerOptions}',
         },
       },
@@ -113,6 +114,9 @@ describe('@imagen-ps/workflows builtins', () => {
               mimeType: 'image/png',
             },
           ],
+          maskAsset: '${maskAsset}',
+          output: '${output}',
+          providerOptions: '${providerOptions}',
         },
       },
     });
@@ -128,18 +132,19 @@ describe('@imagen-ps/workflows builtins', () => {
         request: {
           operation: 'generate',
           prompt: '${prompt}',
+          output: '${output}',
           providerOptions: '${providerOptions}',
         },
       },
     });
 
     const request = providerGenerateWorkflow.steps[0].input?.request as Record<string, unknown>;
+    expect(request).toHaveProperty('output', '${output}');
     expect(request).toHaveProperty('providerOptions', '${providerOptions}');
     expect(request).not.toHaveProperty('maskAsset');
-    expect(request).not.toHaveProperty('output');
   });
 
-  it('exposes only the stable edit bindings and stable output key', () => {
+  it('exposes the stable edit bindings and stable output key', () => {
     expect(providerEditWorkflow.steps[0]).toMatchObject({
       name: 'edit',
       kind: 'provider',
@@ -150,14 +155,17 @@ describe('@imagen-ps/workflows builtins', () => {
           operation: 'edit',
           prompt: '${prompt}',
           inputAssets: '${inputAssets}',
+          maskAsset: '${maskAsset}',
+          output: '${output}',
+          providerOptions: '${providerOptions}',
         },
       },
     });
 
     const request = providerEditWorkflow.steps[0].input?.request as Record<string, unknown>;
-    expect(request).not.toHaveProperty('maskAsset');
-    expect(request).not.toHaveProperty('output');
-    expect(request).not.toHaveProperty('providerOptions');
+    expect(request).toHaveProperty('maskAsset', '${maskAsset}');
+    expect(request).toHaveProperty('output', '${output}');
+    expect(request).toHaveProperty('providerOptions', '${providerOptions}');
   });
 
   it('is compatible with a real mock provider bridge for generate', async () => {

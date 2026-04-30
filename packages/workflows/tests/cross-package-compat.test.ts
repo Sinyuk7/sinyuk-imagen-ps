@@ -129,15 +129,20 @@ describe('cross-package compatibility', () => {
       expect(job.error?.category).toBe('validation');
     });
 
-    it('returns a validation error when edit inputAssets is missing', async () => {
-      const runtime = createRuntimeWithBuiltins([createMockBridgeAdapter()]);
+    it('returns a validation error when edit inputAssets is missing (openai-compatible)', async () => {
+      // openai-compatible 的 build-request 对 Edit + 无 inputAssets 做显式校验；
+      // mock provider 当前不校验该语义（保持校验逻辑集中在真实 transport 层）。
+      const adapter = createOpenAICompatibleBridgeAdapter();
+      const runtime = createRuntimeWithBuiltins([adapter]);
       const job = await runtime.runWorkflow('provider-edit', {
-        provider: 'mock',
+        provider: 'openai-compatible',
         prompt: 'edit without assets',
       });
 
       expect(job.status).toBe('failed');
-      expect(job.error?.category).toBe('validation');
+      // createDispatchAdapter 把 invoke 阶段的错误归为 'provider'，
+      // build-request 校验错误同样走此路径。
+      expect(job.error?.category).toBe('provider');
     });
   });
 
@@ -218,7 +223,24 @@ describe('cross-package compatibility', () => {
       fetchSpy.mockRestore();
     });
 
-    it('rejects provider-edit before transport as a compatibility boundary', async () => {
+    it('supports provider-edit via the /images/edits endpoint', async () => {
+      const fetchSpy = vi.spyOn(globalThis, 'fetch').mockResolvedValue(
+        new Response(
+          JSON.stringify({
+            created: 1_700_000_000,
+            data: [
+              {
+                url: 'https://example.com/edited.png',
+              },
+            ],
+          }),
+          {
+            status: 200,
+            headers: { 'Content-Type': 'application/json' },
+          },
+        ),
+      );
+
       const adapter = createOpenAICompatibleBridgeAdapter();
       const runtime = createRuntimeWithBuiltins([adapter]);
 
@@ -235,12 +257,13 @@ describe('cross-package compatibility', () => {
         ],
       });
 
-      expect(job.status).toBe('failed');
-      // NOTE: createDispatchAdapter maps invoke-phase errors to 'provider' category,
-      // so the rejection surfaces as a provider error rather than validation.
-      // This is recorded as a current compatibility boundary.
-      expect(job.error?.category).toBe('provider');
-      expect(job.error?.message).toContain('only supports "generate"');
+      expect(job.status).toBe('completed');
+      expect(job.output?.image).toBeDefined();
+
+      const call = fetchSpy.mock.calls[0];
+      expect(String(call[0])).toContain('/images/edits');
+
+      fetchSpy.mockRestore();
     });
   });
 });

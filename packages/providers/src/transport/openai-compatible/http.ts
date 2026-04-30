@@ -44,7 +44,7 @@ async function fetchOnce(args: HttpRequest, signal?: AbortSignal): Promise<HttpR
   const mergedSignal =
     signal !== undefined && timeoutSignal !== undefined
       ? AbortSignal.any([signal, timeoutSignal])
-      : signal ?? timeoutSignal;
+      : (signal ?? timeoutSignal);
 
   try {
     const response = await fetch(url, {

@@ -10,9 +10,17 @@ import type { ProviderOperation } from './capability.js';
 /** 与 `core-engine` `Asset` 等价的 provider asset 引用。 */
 export type AssetRef = Asset;
 
-/** 输出偏好信息。 */
+/** 输出偏好信息。
+ *
+ * 字段集合与 `docs/openapi/` 中 `Create image` / `Create image edit` 两份文档的
+ * body parameters 对齐：调用方以领域语义填写，transport 层负责映射到上游字段
+ * （例如 `count → n`、`outputFormat → output_format`）。
+ *
+ * 已 surface 字段（如 `quality`、`outputFormat`）MUST NOT 通过 `providerOptions`
+ * 再次覆盖；transport 层在 applyProviderOptions 中将其列入 handled keys。
+ */
 export interface ProviderOutputOptions {
-  /** 期望输出张数。 */
+  /** 期望输出张数；transport 层映射为上游 `n`。 */
   readonly count?: number;
 
   /** 期望输出宽度。 */
@@ -27,8 +35,20 @@ export interface ProviderOutputOptions {
   /** 背景偏好。 */
   readonly background?: 'auto' | 'transparent' | 'opaque';
 
-  /** 质量提示。 */
-  readonly qualityHint?: 'speed' | 'balanced' | 'quality';
+  /** 生成质量；`standard` / `hd` 为 `dall-e-3` 专用，其余为 GPT image 模型所用。 */
+  readonly quality?: 'auto' | 'low' | 'medium' | 'high' | 'standard' | 'hd';
+
+  /** 输出格式；仅 GPT image 系列支持。 */
+  readonly outputFormat?: 'png' | 'jpeg' | 'webp';
+
+  /** `jpeg` / `webp` 输出的压缩率（0-100）。 */
+  readonly outputCompression?: number;
+
+  /** 内容审查级别；仅 GPT image 系列支持。 */
+  readonly moderation?: 'auto' | 'low';
+
+  /** 对原始输入图像的保真度；仅 edit 调用有意义。 */
+  readonly inputFidelity?: 'high' | 'low';
 }
 
 /** 当前阶段稳定公开的 canonical image request。 */

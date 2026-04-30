@@ -56,6 +56,11 @@
 ### Phase 4: 验证
 
 - [ ] 4.1 本地 smoke 测试验证（需要 n1n.ai API key）
+  - 当前验证状态：未通过。
+  - 失败位置：`provider-generate` 真实 n1n.ai 调用。
+  - n1n.ai 返回：`Unknown parameter: 'response_format'`。
+  - 判断：`gpt-image-1.5` generation 请求必须省略 `response_format`；当前运行链路仍有一处把该字段带入最终 HTTP body。
+  - 已移除临时 debug 输出，未写入 API key。
   ```bash
   IMAGEN_RUN_SMOKE=1 \
   IMAGEN_SMOKE_N1N_API_KEY=<key> \

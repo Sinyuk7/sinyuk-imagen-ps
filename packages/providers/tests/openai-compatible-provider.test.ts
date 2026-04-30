@@ -8,7 +8,10 @@ vi.mock('../src/transport/openai-compatible/http.js', () => ({
   httpRequest: httpRequestMock,
 }));
 
-import { createOpenAICompatibleProvider } from '../src/providers/openai-compatible/provider.js';
+import {
+  createOpenAICompatibleProvider,
+  openaiCompatibleDescriptor,
+} from '../src/providers/openai-compatible/index.js';
 
 function createProviderInvokeError(
   kind: string,
@@ -42,6 +45,13 @@ afterEach(() => {
 });
 
 describe('openai-compatible provider', () => {
+  it('declares generate and edit operations in its descriptor', () => {
+    expect(openaiCompatibleDescriptor.operations).toEqual(['generate', 'edit']);
+    expect(openaiCompatibleDescriptor.capabilities.imageEdit).toBe(true);
+    expect(openaiCompatibleDescriptor.capabilities.imageGenerate).toBe(true);
+    expect(openaiCompatibleDescriptor.capabilities.transparentBackground).toBe(true);
+  });
+
   it('propagates transport diagnostics and normalizes assets', async () => {
     httpRequestMock.mockResolvedValue({
       response: {
@@ -169,10 +179,8 @@ describe('openai-compatible provider', () => {
         count: 1,
         width: 1024,
         height: 1024,
-      },
-      providerOptions: {
         quality: 'high',
-        output_format: 'png',
+        outputFormat: 'png',
       },
     });
 
@@ -211,6 +219,135 @@ describe('openai-compatible provider', () => {
         mimeType: 'image/png',
       },
     ]);
+  });
+
+  it('routes edit invocations with fileId references', async () => {
+    httpRequestMock.mockResolvedValue({
+      response: {
+        status: 200,
+        headers: new Headers({ 'content-type': 'application/json' }),
+        data: { data: [{ b64_json: 'edited' }] },
+      },
+      diagnostics: [],
+    });
+
+    const provider = createOpenAICompatibleProvider();
+    const config = provider.validateConfig({
+      providerId: 'relay-a',
+      displayName: 'Relay A',
+      family: 'openai-compatible',
+      baseURL: 'https://relay.example',
+      apiKey: 'secret',
+      defaultModel: 'gpt-image-1.5',
+    });
+    const request = provider.validateRequest({
+      operation: 'edit',
+      prompt: 'x',
+      inputAssets: [{ type: 'image', fileId: 'file-abc123' }],
+      maskAsset: { type: 'image', fileId: 'file-mask-1' },
+    });
+
+    await provider.invoke({ config, request });
+
+    expect(httpRequestMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        url: 'https://relay.example/v1/images/edits',
+        body: expect.objectContaining({
+          images: [{ file_id: 'file-abc123' }],
+          mask: { file_id: 'file-mask-1' },
+        }),
+      }),
+      undefined,
+      undefined,
+    );
+  });
+
+  it('exposes created, usage, and metadata on ProviderInvokeResult', async () => {
+    httpRequestMock.mockResolvedValue({
+      response: {
+        status: 200,
+        headers: new Headers({ 'content-type': 'application/json' }),
+        data: {
+          created: 1713833628,
+          data: [{ b64_json: 'AAA' }],
+          output_format: 'webp',
+          quality: 'high',
+          size: '1024x1024',
+          background: 'transparent',
+          usage: {
+            input_tokens: 50,
+            output_tokens: 50,
+            total_tokens: 100,
+            input_tokens_details: { image_tokens: 40, text_tokens: 10 },
+          },
+        },
+      },
+      diagnostics: [],
+    });
+
+    const provider = createOpenAICompatibleProvider();
+    const config = provider.validateConfig({
+      providerId: 'relay-a',
+      displayName: 'Relay A',
+      family: 'openai-compatible',
+      baseURL: 'https://relay.example',
+      apiKey: 'secret',
+      defaultModel: 'gpt-image-1.5',
+    });
+    const request = provider.validateRequest({
+      operation: 'generate',
+      prompt: 'a cat',
+    });
+
+    const result = await provider.invoke({ config, request });
+
+    expect(result.created).toBe(1713833628);
+    expect(result.usage).toEqual({
+      inputTokens: 50,
+      outputTokens: 50,
+      totalTokens: 100,
+      inputTokensDetails: { imageTokens: 40, textTokens: 10 },
+    });
+    expect(result.metadata).toEqual({
+      background: 'transparent',
+      outputFormat: 'webp',
+      quality: 'high',
+      size: '1024x1024',
+    });
+    expect(result.assets[0]).toMatchObject({
+      mimeType: 'image/webp',
+      name: 'generated-1.webp',
+    });
+  });
+
+  it('omits optional result fields when upstream does not provide them', async () => {
+    httpRequestMock.mockResolvedValue({
+      response: {
+        status: 200,
+        headers: new Headers({ 'content-type': 'application/json' }),
+        data: {
+          data: [{ url: 'https://example.com/a.png' }],
+        },
+      },
+      diagnostics: [],
+    });
+
+    const provider = createOpenAICompatibleProvider();
+    const config = provider.validateConfig({
+      providerId: 'relay-a',
+      displayName: 'Relay A',
+      family: 'openai-compatible',
+      baseURL: 'https://relay.example',
+      apiKey: 'secret',
+    });
+    const request = provider.validateRequest({ operation: 'generate', prompt: 'x' });
+
+    const result = await provider.invoke({ config, request });
+
+    expect('created' in result).toBe(false);
+    expect('usage' in result).toBe(false);
+    expect('metadata' in result).toBe(false);
+    expect('diagnostics' in result).toBe(false);
   });
 });
 

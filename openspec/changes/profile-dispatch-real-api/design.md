@@ -123,6 +123,35 @@ OpenAI 变量:
 OpenAI 测试用例继续使用 getSmokeCredentials()。
 ```
 
+### Current Smoke Verification Status
+
+真实 n1n.ai smoke 验证尚未通过。
+
+已执行的验证路径：
+
+```
+IMAGEN_RUN_SMOKE=1 \
+IMAGEN_SMOKE_N1N_API_KEY=<provided at runtime> \
+IMAGEN_SMOKE_N1N_BASE_URL=https://api.n1n.ai \
+pnpm --filter @imagen-ps/cli exec vitest run tests/smoke/end-to-end.test.ts \
+  --testNamePattern '有效 n1n.ai 凭证 → provider-generate'
+```
+
+失败响应：
+
+```json
+{
+  "error": {
+    "message": "Unknown parameter: 'response_format'.",
+    "type": "invalid_request_error",
+    "param": "response_format",
+    "code": "unknown_parameter"
+  }
+}
+```
+
+结论：`gpt-image-1.5` generation 请求必须省略 `response_format`。当前实现已尝试在 `buildRequestBody()` 中对 GPT image models 禁用该字段，并在 smoke 用例中使用 `image_response_format: false`，但真实请求仍被 n1n.ai 判定包含 `response_format`。因此剩余工作是继续定位最终 HTTP body 的字段来源，确保 GPT image model 请求不会携带 `response_format`。
+
 ### 文件变更清单
 
 | 文件 | 变更类型 | 说明 |

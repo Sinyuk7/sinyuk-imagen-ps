@@ -7,12 +7,12 @@ export const openaiCompatibleDescriptor: ProviderDescriptor = {
   displayName: 'OpenAI-compatible Provider',
   capabilities: {
     imageGenerate: true,
-    imageEdit: false,
-    multiImageInput: false,
-    transparentBackground: false,
+    imageEdit: true,
+    multiImageInput: true,
+    transparentBackground: true,
     customSize: true,
     aspectRatio: false,
     syncInvoke: true,
   },
-  operations: ['generate'],
+  operations: ['generate', 'edit'],
 };

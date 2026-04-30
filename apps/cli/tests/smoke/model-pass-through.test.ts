@@ -82,12 +82,14 @@ describe('buildRequestBody providerOptions pass-through', () => {
     expect(body.response_format).toBe('url');
   });
 
-  it('透传其他 providerOptions 字段（排除 model 和 response_format）', () => {
+  it('透传非 surfaced providerOptions 字段（如 user）；surfaced 字段走 request.output', () => {
     const request = makeRequest({
       providerOptions: {
         model: 'gpt-4o',
         response_format: 'url',
         user: 'test-user-123',
+      },
+      output: {
         quality: 'hd',
       },
     });

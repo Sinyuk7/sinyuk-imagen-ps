@@ -101,16 +101,32 @@ export function createOpenAICompatibleProvider(): Provider<OpenAICompatibleProvi
         signal,
       );
 
-      const assets = parseResponse(response.response.data);
+      const parsed = parseResponse(response.response.data);
 
-      // 契约：无诊断时**省略** `diagnostics` 字段（不写 `undefined`），
-      // 与 ProviderInvokeResult 的 optional 语义对齐（参见 contract/result.ts）。
-      const result: ProviderInvokeResult = {
-        assets,
+      // 契约：无值的可选字段 **省略**（不写 `undefined`），
+      // 与 `ProviderInvokeResult` 的缺省字段约定对齐（见 contract/result.ts）。
+      const result: {
+        assets: readonly ProviderInvokeResult['assets'][number][];
+        raw: unknown;
+        diagnostics?: ProviderInvokeResult['diagnostics'];
+        created?: number;
+        usage?: ProviderInvokeResult['usage'];
+        metadata?: ProviderInvokeResult['metadata'];
+      } = {
+        assets: parsed.assets,
         raw: response.response.data,
       };
       if (response.diagnostics.length > 0) {
-        return { ...result, diagnostics: response.diagnostics };
+        result.diagnostics = response.diagnostics;
+      }
+      if (parsed.created !== undefined) {
+        result.created = parsed.created;
+      }
+      if (parsed.usage !== undefined) {
+        result.usage = parsed.usage;
+      }
+      if (parsed.metadata !== undefined) {
+        result.metadata = parsed.metadata;
       }
       return result;
     },
