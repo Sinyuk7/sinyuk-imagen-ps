@@ -40,6 +40,29 @@ export function getSmokeCredentials(): { apiKey: string; baseURL: string } | und
 }
 
 /**
+ * 检查是否具备 n1n.ai 真实网络测试所需的凭证。
+ */
+export function hasN1nSmokeCredentials(): boolean {
+  const apiKey = process.env.IMAGEN_SMOKE_N1N_API_KEY;
+  return typeof apiKey === 'string' && apiKey.trim().length > 0;
+}
+
+/**
+ * 获取 n1n.ai smoke 测试的 API 凭证。
+ * 返回 undefined 表示凭证不完整。
+ */
+export function getN1nSmokeCredentials(): { apiKey: string; baseURL: string } | undefined {
+  const apiKey = process.env.IMAGEN_SMOKE_N1N_API_KEY;
+  const baseURL = process.env.IMAGEN_SMOKE_N1N_BASE_URL ?? 'https://api.n1n.ai';
+
+  if (typeof apiKey !== 'string' || apiKey.trim().length === 0) {
+    return undefined;
+  }
+
+  return { apiKey: apiKey.trim(), baseURL };
+}
+
+/**
  * Vitest describe.skipIf 条件：未设置 IMAGEN_RUN_SMOKE 时跳过。
  */
 export const skipIfNotSmokeRun = !shouldRunSmoke();
@@ -48,3 +71,8 @@ export const skipIfNotSmokeRun = !shouldRunSmoke();
  * Vitest describe.skipIf 条件：缺少凭证时跳过。
  */
 export const skipIfNoCredentials = !hasSmokeCredentials();
+
+/**
+ * Vitest describe.skipIf 条件：缺少 n1n.ai 凭证时跳过。
+ */
+export const skipIfNoN1nCredentials = !hasN1nSmokeCredentials();

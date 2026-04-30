@@ -22,10 +22,17 @@ import type {
   ProviderProfile,
 } from '@imagen-ps/shared-commands/src/commands/types.js';
 import { getRuntime } from '@imagen-ps/shared-commands/src/runtime.js';
-import { skipIfNotSmokeRun, skipIfNoCredentials, getSmokeCredentials } from './setup.js';
+import {
+  getN1nSmokeCredentials,
+  getSmokeCredentials,
+  skipIfNoCredentials,
+  skipIfNoN1nCredentials,
+  skipIfNotSmokeRun,
+} from './setup.js';
 
 /** Smoke 测试专用 profile id */
 const SMOKE_PROFILE_ID = 'smoke-openai-test';
+const N1N_SMOKE_PROFILE_ID = 'smoke-n1n-test';
 
 /**
  * 创建 in-memory ProviderProfileRepository。
@@ -143,6 +150,185 @@ async function createSmokeProfile(): Promise<{ apiKey: string; baseURL: string }
 
   return creds;
 }
+
+/**
+ * 通过 env var 创建 n1n.ai openai-compatible profile + secret。
+ * 返回 credentials 或 undefined（凭证不完整时）。
+ */
+async function createN1nSmokeProfile(): Promise<{ apiKey: string; baseURL: string } | undefined> {
+  const creds = getN1nSmokeCredentials();
+  if (!creds) return undefined;
+
+  const result = await saveProviderProfile({
+    profileId: N1N_SMOKE_PROFILE_ID,
+    providerId: 'openai-compatible',
+    family: 'openai-compatible',
+    displayName: 'Smoke Test n1n.ai',
+    config: {
+      baseURL: creds.baseURL,
+      defaultModel: 'gpt-image-1.5',
+    },
+    secretValues: {
+      apiKey: creds.apiKey,
+    },
+  });
+
+  if (!result.ok) {
+    throw new Error(`Failed to create n1n.ai smoke profile: ${result.error.message}`);
+  }
+
+  return creds;
+}
+
+function expectCompleted(
+  result: Awaited<ReturnType<typeof submitJob>>,
+): asserts result is Extract<typeof result, { ok: true }> {
+  expect(result.ok).toBe(true);
+  if (!result.ok) return;
+  if (result.value.status !== 'completed') {
+    throw new Error(`Expected completed job, got ${JSON.stringify(result.value.error ?? result.value, null, 2)}`);
+  }
+}
+
+// ============================================================
+// n1n.ai 真实 API Smoke 测试（需要 IMAGEN_RUN_SMOKE=1 + n1n.ai 凭证）
+// ============================================================
+
+describe.skipIf(skipIfNotSmokeRun || skipIfNoN1nCredentials)('n1n.ai 端到端 Smoke 测试（真实网络）', () => {
+  const profileRepo = createInMemoryProfileRepo();
+  const secretStore = createInMemorySecretStore();
+
+  beforeAll(async () => {
+    _resetForTesting();
+    setProviderProfileRepository(profileRepo);
+    setSecretStorageAdapter(secretStore);
+    setProviderConfigResolver(createSmokeConfigResolver(profileRepo, secretStore));
+
+    await createN1nSmokeProfile();
+  });
+
+  afterAll(() => {
+    _resetForTesting();
+  });
+
+  it('有效 n1n.ai 凭证 → provider-generate 返回 completed，output 包含 Asset[]', async () => {
+    const result = await submitJob({
+      workflow: 'provider-generate',
+      input: {
+        profileId: N1N_SMOKE_PROFILE_ID,
+        prompt: 'a simple red circle on white background',
+        providerOptions: {
+          model: 'gpt-image-1.5',
+          output_format: 'png',
+          quality: 'low',
+          response_format: null,
+        },
+        output: { count: 1, width: 1024, height: 1024 },
+      },
+    });
+
+    expectCompleted(result);
+    const output = result.value.output as Record<string, unknown>;
+    expect(output.image).toBeDefined();
+  }, 120_000);
+
+  it('有效 n1n.ai 凭证 → provider-edit 消费 data URL 并返回 completed', async () => {
+    const generateResult = await submitJob({
+      workflow: 'provider-generate',
+      input: {
+        profileId: N1N_SMOKE_PROFILE_ID,
+        prompt: 'a red apple on a plain white background',
+        providerOptions: {
+          model: 'gpt-image-1.5',
+          output_format: 'png',
+          quality: 'low',
+          response_format: null,
+        },
+        output: { count: 1, width: 1024, height: 1024 },
+      },
+    });
+
+    expect(generateResult.ok).toBe(true);
+    if (!generateResult.ok) return;
+    if (generateResult.value.status !== 'completed') {
+      throw new Error(`Expected completed generate job, got ${JSON.stringify(generateResult.value.error, null, 2)}`);
+    }
+
+    const generateOutput = generateResult.value.output as Record<string, unknown>;
+    const generatedImage = generateOutput.image;
+    expect(Array.isArray(generatedImage)).toBe(true);
+    const firstAsset = (generatedImage as Array<Record<string, unknown>>)[0];
+    expect(firstAsset).toBeDefined();
+    const sourceData = firstAsset.data;
+    expect(typeof sourceData).toBe('string');
+
+    const editResult = await submitJob({
+      workflow: 'provider-edit',
+      input: {
+        profileId: N1N_SMOKE_PROFILE_ID,
+        prompt: 'make the apple green while keeping the same simple white background',
+        inputAssets: [
+          {
+            type: 'image',
+            data: sourceData,
+            mimeType: typeof firstAsset.mimeType === 'string' ? firstAsset.mimeType : 'image/png',
+          },
+        ],
+        providerOptions: {
+          model: 'gpt-image-1.5',
+          output_format: 'png',
+          quality: 'low',
+          response_format: null,
+        },
+        output: { count: 1, width: 1024, height: 1024 },
+      },
+    });
+
+    expect(editResult.ok).toBe(true);
+    if (editResult.ok) {
+      expect(editResult.value.status).toBe('completed');
+      const editOutput = editResult.value.output as Record<string, unknown>;
+      expect(editOutput.image).toBeDefined();
+    }
+  }, 180_000);
+
+  it('无效 n1n.ai API key → job status failed，error category provider', async () => {
+    const badProfileId = 'smoke-n1n-bad-key';
+    const saveResult = await saveProviderProfile({
+      profileId: badProfileId,
+      providerId: 'openai-compatible',
+      family: 'openai-compatible',
+      displayName: 'Bad n1n.ai Key Profile',
+      config: {
+        baseURL: getN1nSmokeCredentials()?.baseURL ?? 'https://api.n1n.ai',
+        defaultModel: 'gpt-image-1.5',
+      },
+      secretValues: {
+        apiKey: 'sk-invalid-key-for-n1n-smoke-test',
+      },
+    });
+
+    if (!saveResult.ok) {
+      return;
+    }
+
+    const result = await submitJob({
+      workflow: 'provider-generate',
+      input: {
+        profileId: badProfileId,
+        prompt: 'a test image',
+        output: { count: 1, width: 1024, height: 1024 },
+      },
+    });
+
+    expect(result.ok).toBe(true);
+    if (result.ok) {
+      expect(result.value.status).toBe('failed');
+      expect(result.value.error).toBeDefined();
+      expect(result.value.error?.category).toBe('provider');
+    }
+  }, 120_000);
+});
 
 // ============================================================
 // 端到端测试（需要 IMAGEN_RUN_SMOKE=1 + 有效凭证）
@@ -268,6 +454,11 @@ describe('Smoke 测试凭证检查', () => {
     const creds = getSmokeCredentials();
     // 在 CI 环境中通常为 undefined
     // 不做强断言，只验证函数不抛异常
+    expect(typeof creds === 'undefined' || typeof creds === 'object').toBe(true);
+  });
+
+  it('getN1nSmokeCredentials 在凭证缺失时返回 undefined', () => {
+    const creds = getN1nSmokeCredentials();
     expect(typeof creds === 'undefined' || typeof creds === 'object').toBe(true);
   });
 });

@@ -121,7 +121,22 @@ describe('openai-compatible provider', () => {
     });
   });
 
-  it('rejects edit invocations before transport call', async () => {
+  it('routes edit invocations to images/edits with JSON image references', async () => {
+    httpRequestMock.mockResolvedValue({
+      response: {
+        status: 200,
+        headers: new Headers({ 'content-type': 'application/json' }),
+        data: {
+          data: [
+            {
+              b64_json: 'edited-base64',
+            },
+          ],
+        },
+      },
+      diagnostics: [],
+    });
+
     const provider = createOpenAICompatibleProvider();
     const config = provider.validateConfig({
       providerId: 'relay-a',
@@ -129,21 +144,73 @@ describe('openai-compatible provider', () => {
       family: 'openai-compatible',
       baseURL: 'https://relay.example',
       apiKey: 'secret',
+      defaultModel: 'gpt-image-1.5',
     });
     const request = provider.validateRequest({
       operation: 'edit',
-      prompt: 'edit this',
+      prompt: 'make it green',
+      inputAssets: [
+        {
+          type: 'image',
+          url: 'https://example.com/source.png',
+        },
+        {
+          type: 'image',
+          data: 'iVBORw0KGgo=',
+          mimeType: 'image/png',
+        },
+      ],
+      maskAsset: {
+        type: 'image',
+        data: 'mask-base64',
+        mimeType: 'image/png',
+      },
+      output: {
+        count: 1,
+        width: 1024,
+        height: 1024,
+      },
+      providerOptions: {
+        quality: 'high',
+        output_format: 'png',
+      },
     });
 
-    await expect(
-      provider.invoke({
-        config,
-        request,
-      }),
-    ).rejects.toMatchObject({
-      name: 'ProviderValidationError',
+    const result = await provider.invoke({
+      config,
+      request,
     });
-    expect(httpRequestMock).not.toHaveBeenCalled();
+
+    expect(httpRequestMock).toHaveBeenCalledTimes(1);
+    expect(httpRequestMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        url: 'https://relay.example/v1/images/edits',
+        method: 'POST',
+        body: expect.objectContaining({
+          model: 'gpt-image-1.5',
+          prompt: 'make it green',
+          images: [
+            { image_url: 'https://example.com/source.png' },
+            { image_url: 'data:image/png;base64,iVBORw0KGgo=' },
+          ],
+          mask: { image_url: 'data:image/png;base64,mask-base64' },
+          n: 1,
+          size: '1024x1024',
+          quality: 'high',
+          output_format: 'png',
+        }),
+      }),
+      undefined,
+      undefined,
+    );
+    expect(result.assets).toEqual([
+      {
+        type: 'image',
+        name: 'generated-1.png',
+        data: 'edited-base64',
+        mimeType: 'image/png',
+      },
+    ]);
   });
 });
 

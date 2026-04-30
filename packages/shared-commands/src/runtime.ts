@@ -151,12 +151,23 @@ function injectDefaultModel(params: Record<string, unknown>, defaultModel: strin
 
   const existingOptions = (requestObj.providerOptions as Record<string, unknown> | undefined) ?? {};
 
+  const sanitizedOptions =
+    defaultModel.startsWith('gpt-image') || defaultModel === 'chatgpt-image-latest'
+      ? Object.fromEntries(Object.entries(existingOptions).filter(([key]) => key !== 'response_format'))
+      : existingOptions;
+
   // 如果 providerOptions.model 已存在（job input explicit），不覆盖
-  if (existingOptions.model !== undefined && existingOptions.model !== null) {
-    return params;
+  if (sanitizedOptions.model !== undefined && sanitizedOptions.model !== null) {
+    if (sanitizedOptions === existingOptions) {
+      return params;
+    }
+    if (hasRequestKey) {
+      return { ...params, request: { ...requestObj, providerOptions: sanitizedOptions } };
+    }
+    return { ...params, providerOptions: sanitizedOptions };
   }
 
-  const mergedOptions = { ...existingOptions, model: defaultModel };
+  const mergedOptions = { ...sanitizedOptions, model: defaultModel };
 
   if (hasRequestKey) {
     // 结构 (a)：params.request 是 request 对象

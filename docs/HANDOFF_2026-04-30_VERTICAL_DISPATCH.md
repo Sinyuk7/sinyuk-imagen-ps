@@ -174,15 +174,8 @@ Profile Save → Model Discovery → Set Default Model → Job Submit → Real I
 
 ```text
 请基于 docs/HANDOFF_2026-04-30_VERTICAL_DISPATCH.md，创建 OpenSpec change: profile-dispatch-real-api。
-目标是使用 n1n.ai openai-compatible 中转站，验证 profile dispatch 的真实图片生成端到端链路。
-需要配置 n1n.ai API key 并执行 CLI smoke 测试。
-```
-
-### 5.2 备选：Edit 操作完整链路
-
-```text
-请修复 provider-edit workflow 的 profile dispatch 路径，使其支持通过 profileId 提交 edit job。
-当前 provider-edit 有与 provider-generate 相同的 provider 模板变量问题。
+目标是使用 n1n.ai openai-compatible 中转站，构建 profile dispatch 的真实图片生成和编辑端到端的 自动化测试方案和完成链路。
+需要配置 n1n.ai API key 。
 ```
 
 ### 5.3 备选：横向扩展 Provider

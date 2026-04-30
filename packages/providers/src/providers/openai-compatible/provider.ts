@@ -5,7 +5,7 @@ import { openaiCompatibleDescriptor } from './descriptor.js';
 import { openaiCompatibleConfigSchema, type OpenAICompatibleProviderConfig } from './config-schema.js';
 import { mockRequestSchema, type MockProviderRequest } from '../mock/request-schema.js';
 import { httpRequest } from '../../transport/openai-compatible/http.js';
-import { buildRequestBody } from '../../transport/openai-compatible/build-request.js';
+import { buildEditRequestBody, buildRequestBody } from '../../transport/openai-compatible/build-request.js';
 import { parseResponse } from '../../transport/openai-compatible/parse-response.js';
 import { parseModelsResponse } from '../../transport/openai-compatible/models.js';
 
@@ -69,14 +69,22 @@ export function createOpenAICompatibleProvider(): Provider<OpenAICompatibleProvi
     ): Promise<ProviderInvokeResult> {
       const { config, request, signal } = args;
 
-      if (request.operation !== 'generate') {
-        throw createValidationError(
-          `OpenAI-compatible provider currently only supports "generate" operation, received "${request.operation}".`,
-        );
+      const endpoint =
+        request.operation === 'generate'
+          ? '/v1/images/generations'
+          : request.operation === 'edit'
+            ? '/v1/images/edits'
+            : undefined;
+
+      if (endpoint === undefined) {
+        throw createValidationError(`Unsupported OpenAI-compatible provider operation: "${request.operation}".`);
       }
 
-      const url = new URL('/v1/images/generations', config.baseURL).toString();
-      const body = buildRequestBody(request, config.defaultModel);
+      const url = new URL(endpoint, config.baseURL).toString();
+      const body =
+        request.operation === 'generate'
+          ? buildRequestBody(request, config.defaultModel)
+          : buildEditRequestBody(request, config.defaultModel);
 
       const response = await httpRequest(
         {
