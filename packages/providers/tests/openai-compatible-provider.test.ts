@@ -9,7 +9,6 @@ vi.mock('../src/transport/openai-compatible/http.js', () => ({
 }));
 
 import { createOpenAICompatibleProvider } from '../src/providers/openai-compatible/provider.js';
-import { createProviderInvokeError } from '../src/transport/openai-compatible/error-map.js';
 
 function createProviderInvokeError(
   kind: string,
@@ -18,9 +17,9 @@ function createProviderInvokeError(
 ): Error {
   const err = new Error(message) as Error & { kind: string; statusCode?: number; details?: Record<string, unknown> };
   err.name = 'ProviderInvokeError';
-  (err as Record<string, unknown>).kind = kind;
-  if (options?.statusCode) (err as Record<string, unknown>).statusCode = options.statusCode;
-  if (options?.details) (err as Record<string, unknown>).details = options.details;
+  (err as unknown as Record<string, unknown>).kind = kind;
+  if (options?.statusCode) (err as unknown as Record<string, unknown>).statusCode = options.statusCode;
+  if (options?.details) (err as unknown as Record<string, unknown>).details = options.details;
   return err;
 }
 

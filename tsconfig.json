@@ -1,15 +1,18 @@
 {
-  "//": "Workspace 根级 IDE 配置：仅供 tsserver/编辑器解析跨包类型，不参与 package 构建。各包的 tsconfig.build.json 仍直接 extends ./tsconfig.base.json，不会继承这里的 paths，因此 build 行为不受影响。",
+  "//": "Workspace 根级 IDE 配置：仅供 tsserver/编辑器解析跨包类型，不参与 package 构建。各包的 tsconfig.build.json 仍直接 extends ./tsconfig.base.json，不会继承这里的 paths/jsx/lib，因此 build 行为不受影响。",
   "extends": "./tsconfig.base.json",
   "compilerOptions": {
     "noEmit": true,
-    "baseUrl": ".",
+    "jsx": "react-jsx",
+    "lib": ["ES2022", "DOM"],
     "paths": {
-      "@imagen-ps/core-engine": ["packages/core-engine/src/index.ts"],
-      "@imagen-ps/providers": ["packages/providers/src/index.ts"],
-      "@imagen-ps/workflows": ["packages/workflows/src/index.ts"],
-      "@imagen-ps/shared-commands": ["packages/shared-commands/src/index.ts"],
-      "@imagen-ps/shared-commands/commands": ["packages/shared-commands/src/commands/index.ts"]
+      "@imagen-ps/core-engine": ["./packages/core-engine/src/index.ts"],
+      "@imagen-ps/providers": ["./packages/providers/src/index.ts"],
+      "@imagen-ps/providers/src/*": ["./packages/providers/src/*"],
+      "@imagen-ps/workflows": ["./packages/workflows/src/index.ts"],
+      "@imagen-ps/shared-commands": ["./packages/shared-commands/src/index.ts"],
+      "@imagen-ps/shared-commands/commands": ["./packages/shared-commands/src/commands/index.ts"],
+      "@imagen-ps/shared-commands/src/*": ["./packages/shared-commands/src/*"]
     }
   },
   "include": [

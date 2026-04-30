@@ -152,7 +152,6 @@ describe('commands', () => {
     });
 
     it('isolates handler errors - other handlers still receive events', async () => {
-      const handlerAEvents: JobEvent[] = [];
       const handlerBEvents: JobEvent[] = [];
 
       // Handler A throws an error

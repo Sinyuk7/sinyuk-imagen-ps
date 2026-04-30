@@ -36,3 +36,5 @@ apps/*/src/**/*.d.ts.map
 
 
 .archive/
+
+check-results@

@@ -1,9 +1,5 @@
 import { describe, expect, it, vi } from 'vitest';
-import {
-  createRuntime,
-  createWorkflowRegistry,
-  type ProviderDispatchAdapter,
-} from '@imagen-ps/core-engine';
+import { createRuntime, type ProviderDispatchAdapter } from '@imagen-ps/core-engine';
 import { builtinWorkflows } from '../src/index.js';
 import {
   createMockBridgeAdapter,
@@ -21,10 +17,7 @@ describe('cross-package compatibility', () => {
   describe('provider-generate boundary inputs', () => {
     it('accepts missing optional fields (providerOptions, output)', async () => {
       const runtime = createRuntimeWithBuiltins([createMockBridgeAdapter()]);
-      const job = await runtime.runWorkflow(
-        'provider-generate',
-        generateValidGenerateInput(),
-      );
+      const job = await runtime.runWorkflow('provider-generate', generateValidGenerateInput());
 
       expect(job.status).toBe('completed');
       expect(job.output?.image).toBeDefined();
@@ -65,10 +58,7 @@ describe('cross-package compatibility', () => {
 
     it('accepts missing optional fields (maskAsset, output, providerOptions)', async () => {
       const runtime = createRuntimeWithBuiltins([createMockBridgeAdapter()]);
-      const job = await runtime.runWorkflow(
-        'provider-edit',
-        generateValidEditInput(),
-      );
+      const job = await runtime.runWorkflow('provider-edit', generateValidEditInput());
 
       expect(job.status).toBe('completed');
       expect(job.output?.image).toBeDefined();
@@ -93,7 +83,7 @@ describe('cross-package compatibility', () => {
 
     it('does not mutate the original builtinWorkflows array', () => {
       const originalLength = builtinWorkflows.length;
-      const runtime = createRuntime({ initialWorkflows: builtinWorkflows });
+      createRuntime({ initialWorkflows: builtinWorkflows });
 
       // Runtime assembly should not modify the source array
       expect(builtinWorkflows.length).toBe(originalLength);
@@ -104,10 +94,7 @@ describe('cross-package compatibility', () => {
       const runtime = createRuntimeWithBuiltins([createMockBridgeAdapter()]);
       const before = runtime.registry.get('provider-generate');
 
-      await runtime.runWorkflow(
-        'provider-generate',
-        generateValidGenerateInput(),
-      );
+      void (await runtime.runWorkflow('provider-generate', generateValidGenerateInput()));
 
       const after = runtime.registry.get('provider-generate');
       expect(after).toEqual(before);
@@ -120,14 +107,9 @@ describe('cross-package compatibility', () => {
 
   describe('mock provider dispatch failure', () => {
     it('returns a structured provider error when failMode is always', async () => {
-      const runtime = createRuntimeWithBuiltins([
-        createMockBridgeAdapter({ failMode: { type: 'always' } }),
-      ]);
+      const runtime = createRuntimeWithBuiltins([createMockBridgeAdapter({ failMode: { type: 'always' } })]);
 
-      const job = await runtime.runWorkflow(
-        'provider-generate',
-        generateValidGenerateInput(),
-      );
+      const job = await runtime.runWorkflow('provider-generate', generateValidGenerateInput());
 
       expect(job.status).toBe('failed');
       expect(job.error?.category).toBe('provider');
@@ -162,10 +144,7 @@ describe('cross-package compatibility', () => {
   describe('provider not registered', () => {
     it('returns a clear provider-not-found error', async () => {
       const runtime = createRuntimeWithBuiltins([]);
-      const job = await runtime.runWorkflow(
-        'provider-generate',
-        generateValidGenerateInput(),
-      );
+      const job = await runtime.runWorkflow('provider-generate', generateValidGenerateInput());
 
       expect(job.status).toBe('failed');
       expect(job.error?.category).toBe('provider');
@@ -183,10 +162,7 @@ describe('cross-package compatibility', () => {
       };
 
       const runtime = createRuntimeWithBuiltins([malformedAdapter]);
-      const job = await runtime.runWorkflow(
-        'provider-generate',
-        generateValidGenerateInput(),
-      );
+      const job = await runtime.runWorkflow('provider-generate', generateValidGenerateInput());
 
       expect(job.status).toBe('completed');
       expect(job.output?.image).toEqual({ invalid: true });
@@ -200,24 +176,22 @@ describe('cross-package compatibility', () => {
   describe('openai-compatible provider bridge', () => {
     it('consumes provider-generate params on the happy path', async () => {
       // Use mockResolvedValue (not Once) because retry policy may call fetch multiple times.
-      const fetchSpy = vi
-        .spyOn(globalThis, 'fetch')
-        .mockResolvedValue(
-          new Response(
-            JSON.stringify({
-              data: [
-                {
-                  url: 'https://example.com/image.png',
-                  revised_prompt: 'a red apple',
-                },
-              ],
-            }),
-            {
-              status: 200,
-              headers: { 'Content-Type': 'application/json' },
-            },
-          ),
-        );
+      const fetchSpy = vi.spyOn(globalThis, 'fetch').mockResolvedValue(
+        new Response(
+          JSON.stringify({
+            data: [
+              {
+                url: 'https://example.com/image.png',
+                revised_prompt: 'a red apple',
+              },
+            ],
+          }),
+          {
+            status: 200,
+            headers: { 'Content-Type': 'application/json' },
+          },
+        ),
+      );
 
       const adapter = createOpenAICompatibleBridgeAdapter();
       const runtime = createRuntimeWithBuiltins([adapter]);

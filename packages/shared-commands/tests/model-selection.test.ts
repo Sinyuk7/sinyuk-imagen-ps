@@ -21,8 +21,6 @@ function extractModel(jobOutput: Record<string, unknown> | undefined): string | 
   return raw?.model as string | undefined;
 }
 
-const now = new Date().toISOString();
-
 function makeProfileInput(overrides: { profileId: string; defaultModel?: string }) {
   return {
     profileId: overrides.profileId,
