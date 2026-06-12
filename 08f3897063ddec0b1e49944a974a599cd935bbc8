@@ -1,0 +1,253 @@
+packages/providers/src/transport/openai-compatible/build-request.ts
+  b6c296a8892e1fa9 126-127,225-268,271-279,405-432
+docs/dev-memory/memories/decisions/.gitkeep
+  892ba604764a469b 1
+docs/dev-memory/_inbox/2026-06-12-openai-compatible-edit-smoke.md
+  b6c296a8892e1fa9 1-50
+apps/app/AGENTS.md
+  892ba604764a469b 14-16
+docs/dev-memory/PROJECT_RULES.md
+  892ba604764a469b 1,3,5,7,9,11,13-25,27,29,31,33,35-40
+apps/app/SPEC.md
+  892ba604764a469b 4
+docs/dev-memory/memories/workflow/.gitkeep
+  892ba604764a469b 1
+packages/workflows/SPEC.md
+  892ba604764a469b 40,44,46,48-50
+AGENTS.md
+  892ba604764a469b 5,7,9,26-33,42-43
+docs/dev-memory/memories/bug/.gitkeep
+  892ba604764a469b 1
+ARCHITECTURE.md
+  892ba604764a469b 125-126,137
+packages/providers/OPEN_ITEMS.md
+  892ba604764a469b 1,3,5,7,10-12
+apps/app/STATUS.md
+  892ba604764a469b 3,58,66,146
+apps/cli/tests/smoke/end-to-end.test.ts
+  b6c296a8892e1fa9 193-205,244,269,295-296,374
+OPEN_ITEMS.md
+  892ba604764a469b 16,21,32,37
+packages/core-engine/SPEC.md
+  892ba604764a469b 16,23-30,56,58,60
+STATUS.md
+  892ba604764a469b 9,21,30
+packages/providers/tests/openai-compatible-provider.test.ts
+  b6c296a8892e1fa9 134,165-166,170,176,194-211,216,262
+docs/dev-memory/memories/architecture/.gitkeep
+  892ba604764a469b 1
+packages/providers/tests/openai-compatible-http.test.ts
+  b6c296a8892e1fa9 114-137
+packages/core-engine/OPEN_ITEMS.md
+  892ba604764a469b 1,5,7,9-12
+packages/providers/src/transport/openai-compatible/http.ts
+  b6c296a8892e1fa9 22,50,54,57
+apps/app/README.md
+  892ba604764a469b 10
+packages/providers/src/providers/openai-compatible/provider.ts
+  b6c296a8892e1fa9 8-12,28-41,105-107
+docs/dev-memory/_inbox/README.md
+  892ba604764a469b 1-11
+docs/dev-memory/README.md
+  892ba604764a469b 1-41
+packages/workflows/OPEN_ITEMS.md
+  892ba604764a469b 3,5,7,9-12
+packages/AGENTS.md
+  892ba604764a469b 21-22,29-31
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.2.8-ntes.9",
+  "base_commit_sha": "08f3897063ddec0b1e49944a974a599cd935bbc8",
+  "prompts": {
+    "892ba604764a469b": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "019e9077-0481-7f52-b9e1-ddd64106c589",
+        "model": "gpt-5.5"
+      },
+      "human_author": "sinyuk",
+      "messages": [],
+      "total_additions": 215,
+      "total_deletions": 219,
+      "accepted_lines": 188,
+      "overriden_lines": 0,
+      "per_file_stats": {
+        "apps/app/SPEC.md": {
+          "additions": 1,
+          "deletions": 1,
+          "accepted_lines": 1
+        },
+        "STATUS.md": {
+          "additions": 3,
+          "deletions": 3,
+          "accepted_lines": 3
+        },
+        "docs/dev-memory/_inbox/README.md": {
+          "additions": 11,
+          "accepted_lines": 11
+        },
+        "docs/dev-memory/memories/decisions/.gitkeep": {
+          "additions": 1,
+          "accepted_lines": 1
+        },
+        "packages/providers/docs/USAGE.md": {
+          "additions": 1,
+          "deletions": 1
+        },
+        "docs/CHANGE_MANAGEMENT.md": {
+          "additions": 2,
+          "deletions": 2
+        },
+        "apps/app/AGENTS.md": {
+          "additions": 3,
+          "deletions": 3,
+          "accepted_lines": 3
+        },
+        "apps/app/README.md": {
+          "additions": 1,
+          "deletions": 1,
+          "accepted_lines": 1
+        },
+        "docs/dev-memory/memories/workflow/.gitkeep": {
+          "additions": 1,
+          "accepted_lines": 1
+        },
+        "docs/dev-memory/memories/bug/.gitkeep": {
+          "additions": 1,
+          "accepted_lines": 1
+        },
+        "packages/core-engine/OPEN_ITEMS.md": {
+          "additions": 12,
+          "deletions": 49,
+          "accepted_lines": 12
+        },
+        "packages/workflows/OPEN_ITEMS.md": {
+          "additions": 12,
+          "deletions": 37,
+          "accepted_lines": 12
+        },
+        "packages/core-engine/SPEC.md": {
+          "additions": 12,
+          "deletions": 17,
+          "accepted_lines": 12
+        },
+        "packages/providers/OPEN_ITEMS.md": {
+          "additions": 12,
+          "deletions": 32,
+          "accepted_lines": 12
+        },
+        "docs/dev-memory/README.md": {
+          "additions": 41,
+          "accepted_lines": 41
+        },
+        "apps/app/STATUS.md": {
+          "additions": 4,
+          "deletions": 4,
+          "accepted_lines": 4
+        },
+        "apps/app/ARCHITECTURE.md": {
+          "additions": 3,
+          "deletions": 3
+        },
+        "packages/workflows/SPEC.md": {
+          "additions": 6,
+          "deletions": 6,
+          "accepted_lines": 6
+        },
+        "docs/dev-memory/PROJECT_RULES.md": {
+          "additions": 40,
+          "accepted_lines": 40
+        },
+        "docs/USAGE.md": {
+          "additions": 3,
+          "deletions": 4
+        },
+        "docs/COMPONENT_REGISTRY.md": {
+          "additions": 5,
+          "deletions": 5
+        },
+        "packages/AGENTS.md": {
+          "additions": 5,
+          "deletions": 2,
+          "accepted_lines": 5
+        },
+        "AGENTS.md": {
+          "additions": 14,
+          "deletions": 29,
+          "accepted_lines": 14
+        },
+        "ARCHITECTURE.md": {
+          "additions": 3,
+          "deletions": 2,
+          "accepted_lines": 3
+        },
+        "packages/workflows/docs/STABILITY.md": {
+          "additions": 12,
+          "deletions": 13
+        },
+        "OPEN_ITEMS.md": {
+          "additions": 4,
+          "deletions": 4,
+          "accepted_lines": 4
+        },
+        "docs/dev-memory/memories/architecture/.gitkeep": {
+          "additions": 1,
+          "accepted_lines": 1
+        },
+        "docs/STABILITY.md": {
+          "additions": 1,
+          "deletions": 1
+        }
+      }
+    },
+    "b6c296a8892e1fa9": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "019eb640-83eb-72a2-ac4e-f0959b5bfcb1",
+        "model": "gpt-5.5"
+      },
+      "human_author": "sinyuk",
+      "messages": [],
+      "total_additions": 244,
+      "total_deletions": 53,
+      "accepted_lines": 229,
+      "overriden_lines": 0,
+      "per_file_stats": {
+        "packages/providers/tests/openai-compatible-provider.test.ts": {
+          "additions": 26,
+          "deletions": 18,
+          "accepted_lines": 25
+        },
+        "packages/providers/tests/openai-compatible-http.test.ts": {
+          "additions": 24,
+          "accepted_lines": 24
+        },
+        "packages/providers/src/transport/openai-compatible/build-request.ts": {
+          "additions": 98,
+          "deletions": 12,
+          "accepted_lines": 86
+        },
+        "docs/dev-memory/_inbox/2026-06-12-openai-compatible-edit-smoke.md": {
+          "additions": 50,
+          "accepted_lines": 50
+        },
+        "packages/providers/src/transport/openai-compatible/http.ts": {
+          "additions": 4,
+          "deletions": 3,
+          "accepted_lines": 4
+        },
+        "packages/providers/src/providers/openai-compatible/provider.ts": {
+          "additions": 23,
+          "deletions": 3,
+          "accepted_lines": 22
+        },
+        "apps/cli/tests/smoke/end-to-end.test.ts": {
+          "additions": 19,
+          "deletions": 17,
+          "accepted_lines": 18
+        }
+      }
+    }
+  }
+}
