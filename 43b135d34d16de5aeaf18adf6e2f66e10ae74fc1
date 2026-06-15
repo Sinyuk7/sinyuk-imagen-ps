@@ -1,0 +1,133 @@
+apps/cli/src/index.ts
+  46f25061b9d3393b 12-19,21-29
+skills-lock.json
+  a2c584708385ae6c 1-47
+packages/shared-commands/src/commands/provider-profiles.ts
+  46f25061b9d3393b 16,102
+.gitignore
+  46f25061b9d3393b 40-44
+apps/cli/src/commands/job/submit.ts
+  46f25061b9d3393b 2,5,7-39,45-46,64-90,92-95
+apps/cli/vitest.config.ts
+  46f25061b9d3393b 10-13
+packages/shared-commands/src/commands/index.ts
+  46f25061b9d3393b 36
+.test.env.example
+  46f25061b9d3393b 1-15
+docs/testing-e2e-design.md
+  46f25061b9d3393b 3-4,6,8-25,29,36-86,89-100,103,106-109,112,114,116,118,120-124,126,128,134-135,140-142,145,149,152-160,163,165,168-171,176,181-184,188,190,194-195,199,204,206-207,214,217,224-241,243-245,249-251,254,258-263
+packages/shared-commands/src/commands/secret-utils.ts
+  46f25061b9d3393b 1-32
+apps/cli/tests/setup.env.ts
+  46f25061b9d3393b 1-33
+apps/cli/src/adapters/file-storage-adapter.ts
+  46f25061b9d3393b 1-119
+apps/cli/tests/smoke/cli-e2e.test.ts
+  46f25061b9d3393b 1-312
+packages/shared-commands/src/runtime.ts
+  46f25061b9d3393b 24,90
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.2.8-ntes.9",
+  "base_commit_sha": "43b135d34d16de5aeaf18adf6e2f66e10ae74fc1",
+  "prompts": {
+    "46f25061b9d3393b": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "efd3be13-188e-4d23-9532-fc17ee19379b",
+        "model": "claude-opus-4-8"
+      },
+      "human_author": "sinyuk",
+      "messages": [],
+      "total_additions": 799,
+      "total_deletions": 100,
+      "accepted_lines": 787,
+      "overriden_lines": 0,
+      "per_file_stats": {
+        "docs/testing-e2e-design.md": {
+          "additions": 181,
+          "deletions": 84,
+          "accepted_lines": 174
+        },
+        "apps/cli/src/commands/job/submit.ts": {
+          "additions": 70,
+          "deletions": 4,
+          "accepted_lines": 70
+        },
+        "apps/cli/src/adapters/file-storage-adapter.ts": {
+          "additions": 122,
+          "deletions": 3,
+          "accepted_lines": 119
+        },
+        "packages/shared-commands/package.json": {
+          "additions": 1
+        },
+        "apps/cli/vitest.config.ts": {
+          "additions": 4,
+          "accepted_lines": 4
+        },
+        "apps/cli/src/index.ts": {
+          "additions": 18,
+          "deletions": 5,
+          "accepted_lines": 18
+        },
+        ".test.env.example": {
+          "additions": 15,
+          "accepted_lines": 15
+        },
+        "apps/cli/tests/setup.env.ts": {
+          "additions": 33,
+          "accepted_lines": 33
+        },
+        "packages/shared-commands/src/commands/provider-profiles.ts": {
+          "additions": 2,
+          "deletions": 1,
+          "accepted_lines": 2
+        },
+        "packages/shared-commands/src/commands/index.ts": {
+          "additions": 1,
+          "accepted_lines": 1
+        },
+        ".gitignore": {
+          "additions": 5,
+          "deletions": 1,
+          "accepted_lines": 5
+        },
+        "apps/cli/tests/smoke/cli-e2e.test.ts": {
+          "additions": 313,
+          "deletions": 1,
+          "accepted_lines": 312
+        },
+        "packages/shared-commands/src/runtime.ts": {
+          "additions": 2,
+          "deletions": 1,
+          "accepted_lines": 2
+        },
+        "packages/shared-commands/src/commands/secret-utils.ts": {
+          "additions": 32,
+          "accepted_lines": 32
+        }
+      }
+    },
+    "a2c584708385ae6c": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "019ebb54-96a4-7af3-af65-312a330334db",
+        "model": "gpt-5.5-2026-04-24"
+      },
+      "human_author": "sinyuk",
+      "messages": [],
+      "total_additions": 47,
+      "total_deletions": 0,
+      "accepted_lines": 47,
+      "overriden_lines": 0,
+      "per_file_stats": {
+        "skills-lock.json": {
+          "additions": 47,
+          "accepted_lines": 47
+        }
+      }
+    }
+  }
+}
