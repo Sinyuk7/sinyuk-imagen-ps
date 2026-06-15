@@ -1,0 +1,64 @@
+apps/cli/AGENTS.md
+  bc55c218ad128246 40-41,43,63-89,120-128,131-144
+docs/TESTING.md
+  bc55c218ad128246 15-21,33-56,131-149,160,165
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.2.8-ntes.9",
+  "base_commit_sha": "3a46b68217df6009640cbd73576cc4f33ff37606",
+  "prompts": {
+    "0ffa88f42e0a945a": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "019ec91e-1f50-7312-a9c0-399a0313fbbc",
+        "model": "gpt-5.5"
+      },
+      "human_author": "sinyuk",
+      "messages": [],
+      "total_additions": 0,
+      "total_deletions": 0,
+      "accepted_lines": 685,
+      "overriden_lines": 0,
+      "per_file_stats": {
+        "packages/providers/src/providers/image-endpoint/provider.ts": {
+          "accepted_lines": 174
+        },
+        "packages/providers/src/transport/image-endpoint/retry.ts": {
+          "accepted_lines": 159
+        },
+        "packages/providers/src/transport/image-endpoint/error-map.ts": {
+          "accepted_lines": 110
+        },
+        "packages/providers/src/transport/image-endpoint/parse-response.ts": {
+          "accepted_lines": 242
+        }
+      }
+    },
+    "bc55c218ad128246": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "019ecaa5-f3ea-77b3-b56a-77d5ee229eee",
+        "model": "gpt-5.5"
+      },
+      "human_author": "sinyuk",
+      "messages": [],
+      "total_additions": 107,
+      "total_deletions": 3,
+      "accepted_lines": 107,
+      "overriden_lines": 0,
+      "per_file_stats": {
+        "apps/cli/AGENTS.md": {
+          "additions": 53,
+          "deletions": 2,
+          "accepted_lines": 53
+        },
+        "docs/TESTING.md": {
+          "additions": 54,
+          "deletions": 1,
+          "accepted_lines": 54
+        }
+      }
+    }
+  }
+}
