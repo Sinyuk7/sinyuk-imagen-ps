@@ -92,7 +92,7 @@ export function HistoryPage({ onNav, rounds, records, loading, error, onReload, 
   ];
   const items = useMemo(() => {
     const durable = records.map(itemFromRecord);
-    const active = rounds.filter((round) => round.status === 'running').map(itemFromRound);
+    const active = rounds.filter((round) => round.status === 'running' || round.status === 'err').map(itemFromRound);
     return [...active, ...durable];
   }, [records, rounds]);
   const filtered = useMemo(

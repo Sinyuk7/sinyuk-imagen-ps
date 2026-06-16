@@ -11,6 +11,19 @@ export const repoRoot = path.resolve(here, '../../../..');
 const contractRoot = path.join(os.tmpdir(), `imagen-cli-contract-${process.pid}`);
 const binDir = path.join(contractRoot, 'bin');
 const imagenPath = path.join(binDir, 'imagen');
+const imagenShim = `#!/usr/bin/env node
+const { spawnSync } = require('node:child_process');
+
+const child = spawnSync(process.execPath, [${JSON.stringify(cliPath)}, ...process.argv.slice(2)], {
+  stdio: 'inherit',
+});
+
+if (child.error) {
+  throw child.error;
+}
+
+process.exit(child.status ?? 1);
+`;
 export const realHome = path.join(contractRoot, 'home');
 export const sentinel = `SENTINEL_SECRET_DO_NOT_LEAK_${process.pid}`;
 
@@ -143,7 +156,8 @@ beforeAll(() => {
   fs.rmSync(contractRoot, { recursive: true, force: true });
   mkdirp(binDir);
   mkdirp(realHome);
-  fs.symlinkSync(cliPath, imagenPath);
+  fs.writeFileSync(imagenPath, imagenShim, 'utf-8');
+  fs.chmodSync(imagenPath, 0o755);
 });
 
 afterAll(() => {

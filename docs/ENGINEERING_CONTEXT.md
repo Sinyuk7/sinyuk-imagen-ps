@@ -26,6 +26,8 @@ surface apps -> application/session -> core-engine + providers
 
 - active loop 权威入口只在根 `AGENTS.md` 声明。
 - application/session loop 已完成。
+- CLI surface contract loop 已完成。
+- app-loop-ready harness loop 已完成；当前未指定 active loop。
 - `packages/application` is the shared application/session package.
 - `apps/app`, `apps/cli`, and `packages/providers` are stable boundaries unless a loop slice explicitly allows changes.
 

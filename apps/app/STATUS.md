@@ -1,6 +1,6 @@
 # app 状态
 
-- 状态：UXP-loadable shell、React mount、AppServices seam、command-backed MainPage、profile-backed Settings 与基础 app tests 已落地
+- 状态：UXP-loadable shell、React mount、AppServices seam、command-backed MainPage、profile-backed Settings、app contract tests 与 fake UXP host harness 已落地
 - 更新时间：2026-06-16
 - 模块边界：见 [SPEC.md](SPEC.md)
 
@@ -94,6 +94,13 @@ Adapter injection：
 
 当前不要在 app 文档或实现中引用不存在的 `getProviderConfig` / `saveProviderConfig` / `ConfigStorageAdapter` / `setProfileDefaultModel` / `setProfileEnabled`。
 
+## Loop-ready harness 决策
+
+- `APP-HOST-SMOKE-P0` 采用 fake UXP module / host adapter 单元测试优先的方向。
+- 默认验证仍保持 mock-only、零费用、可重复；不访问真实 Photoshop / UXP、真实 provider、真实 credentials 或外网。
+- fake UXP tests 只能证明 adapter 对预期 UXP-like module contract 的调用路径，不能替代真实 Photoshop / UXP 联调。
+- 真实 host 验证仍需要 UXP Developer Tool + Photoshop 手工执行，并单独记录结果。
+
 ## 当前限制
 
 | 功能 | 当前状态 | 下一步 |
@@ -107,7 +114,7 @@ Adapter injection：
 | Photoshop 写回 | 已接 `placeAssetOnCanvas()` | 实测并校准 `batchPlay(placeEvent)` descriptor |
 | Mask | 有 `readLayerMaskAsAsset()` 基础接口 | mask PNG/grayscale pipeline 尚未完整验证 |
 | History | 已接 shared durable history + UXP data-folder adapter | 在真实 UXP data folder 中验证 record / asset ref 持久化 |
-| 测试 | 有 app shell、conversation、settings-add tests | 补真实 UXP host 验证与更多 component path |
+| 测试 | 有 app contract tests 与 fake UXP host adapter tests | 做真实 UXP host 验证 |
 
 ## UXP-first 开发口径
 
@@ -133,6 +140,11 @@ Adapter injection：
 - `apps/app/tests/app-shell.test.tsx`
 - `apps/app/tests/use-conversation.test.tsx`
 - `apps/app/tests/settings-add-page.test.tsx`
+- `apps/app/tests/main-page.test.tsx`
+- `apps/app/tests/history-page.test.tsx`
+- `apps/app/tests/settings-detail-page.test.tsx`
+- `apps/app/src/host/uxp-host-adapters.test.ts`
+- `apps/app/src/host/photoshop-host-bridge.test.ts`
 - `pnpm --filter @imagen-ps/app build`
 - `pnpm --filter @imagen-ps/app test`
 

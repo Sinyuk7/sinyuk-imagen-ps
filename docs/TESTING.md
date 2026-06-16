@@ -68,11 +68,26 @@ CLI contract 测试位于 `apps/cli/tests/contract/*.contract.test.ts`。
 
 `apps/app` 测试使用 happy-dom 和 fake `AppServices`，验证 UI 到 application / host seam 的接线，不依赖真实 Photoshop 或 UXP runtime。
 
+默认 app 测试必须保持 mock-only、零费用、可重复：
+
+- 不访问真实 Photoshop / UXP runtime。
+- 不访问真实 provider、真实 credentials、外网或产生费用的 API。
+- 不要求 UXP Developer Tool、Photoshop 或本机用户环境。
+- fake UXP module / host adapter tests 只验证 adapter 调用路径和数据映射，不能写成真实 host smoke 已通过。
+
 当前覆盖：
 
 - `app-shell.test.tsx`：mount `AppShell`，验证 service injection 后能渲染 profile/model
 - `use-conversation.test.tsx`：验证生成 flow 通过 app-local session binding 调用 `CommandsPort.submitJob`
 - `settings-add-page.test.tsx`：验证新增 provider profile 通过 `saveProviderProfile`，API key 只走 write-only `secretValues`
+
+已补齐的 app contract 与 fake harness 覆盖：
+
+- MainPage：无 attachment 走 `provider-generate`，有 attachment 走 `provider-edit`。
+- MainPage：layer / file attachment 只通过 `HostBridge`，生成结果写回只通过 `placeAssetOnCanvas`。
+- History：durable records 与当前 running rounds 的展示、过滤和 retry 入口。
+- SettingsDetail：保存、删除、测试连接、刷新模型，以及 API key 留空不覆盖已保存 secret。
+- Host adapters：fake UXP modules 覆盖 profile repository、secret storage、job history、asset store、Photoshop host bridge 的关键路径。
 
 这些测试不能证明真实 Photoshop host IO 成功；UXP Developer Tool + Photoshop 验证仍是单独 gate。
 
@@ -185,6 +200,7 @@ P2 / Nightly / Manual 独立清单，不进入默认 `pnpm test`：
 
 - `pnpm --filter @imagen-ps/app build` passed。
 - `pnpm --filter @imagen-ps/app test` passed。
+- `pnpm validate` passed。
 
 ## Known Limits
 

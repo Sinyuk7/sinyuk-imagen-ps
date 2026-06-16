@@ -10,7 +10,7 @@ Do not add compatibility layers, migrations, old-contract support, legacy fallba
 
 - Active loop 权威入口只在根 `AGENTS.md` 声明。
 
-- application/session loop 已完成；当前 active loop 是 [docs/loops/cli-surface-contract-loop.md](docs/loops/cli-surface-contract-loop.md)。
+- CLI surface contract loop 已完成；app-loop-ready-harness-loop 已完成；当前未指定 active loop。
 - Before non-trivial fixes or architecture changes, search local memory and current docs with `rg`:
   `rg -n "<module|symptom|error|decision>" docs/dev-memory docs/loops AGENTS.md README.md`
 - Everything else lives in [docs/ENGINEERING_CONTEXT.md](docs/ENGINEERING_CONTEXT.md).

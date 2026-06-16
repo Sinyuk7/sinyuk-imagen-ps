@@ -102,7 +102,15 @@ export function createFakeServices(): {
     readonly submitJob: ReturnType<typeof vi.fn>;
     readonly subscribeJobEvents: ReturnType<typeof vi.fn>;
     readonly listJobHistoryRecords: ReturnType<typeof vi.fn>;
+    readonly getProviderProfile: ReturnType<typeof vi.fn>;
     readonly saveProviderProfile: ReturnType<typeof vi.fn>;
+    readonly deleteProviderProfile: ReturnType<typeof vi.fn>;
+    readonly testProviderProfile: ReturnType<typeof vi.fn>;
+    readonly listProfileModels: ReturnType<typeof vi.fn>;
+    readonly refreshProfileModels: ReturnType<typeof vi.fn>;
+    readonly listLayers: ReturnType<typeof vi.fn>;
+    readonly pickImageFile: ReturnType<typeof vi.fn>;
+    readonly readLayerAsAsset: ReturnType<typeof vi.fn>;
     readonly placeAssetOnCanvas: ReturnType<typeof vi.fn>;
   };
 } {
@@ -114,11 +122,28 @@ export function createFakeServices(): {
   }));
   const subscribeJobEvents = vi.fn(() => () => undefined);
   const listJobHistoryRecords = vi.fn(async () => [fakeDurableRecord]);
+  const getProviderProfile = vi.fn(async () => ({ ok: true as const, value: profiles[0] ?? fakeProfile }));
   const saveProviderProfile = vi.fn(async (input: ProviderProfileInput) => {
     const next = savedProfile(input);
     profiles = [next];
     return { ok: true as const, value: next };
   });
+  const deleteProviderProfile = vi.fn(async () => ({ ok: true as const, value: undefined }));
+  const testProviderProfile = vi.fn(async (profileId: string) => ({
+    ok: true as const,
+    value: {
+      profileId,
+      providerId: 'mock',
+      family: 'image-endpoint',
+      valid: true,
+      connectivity: { reachable: true, modelCount: 1, models: [{ id: 'mock-image-v1' }] },
+    } satisfies ProviderProfileTestResult,
+  }));
+  const listProfileModels = vi.fn(async () => ({ ok: true as const, value: [{ id: 'mock-image-v1' }] }));
+  const refreshProfileModels = vi.fn(async () => ({ ok: true as const, value: [{ id: 'mock-image-v2' }] }));
+  const listLayers = vi.fn(async () => [{ id: 1, name: 'Layer 1', kind: 'pixel', visible: true }]);
+  const pickImageFile = vi.fn(async () => fakeAsset);
+  const readLayerAsAsset = vi.fn(async () => fakeAsset);
   const placeAssetOnCanvas = vi.fn(async () => undefined);
 
   const commands: CommandsPort = {
@@ -130,33 +155,38 @@ export function createFakeServices(): {
     listProviders: vi.fn(() => [fakeProvider]),
     describeProvider: vi.fn(() => fakeProvider),
     listProviderProfiles: vi.fn(async () => ({ ok: true as const, value: profiles })),
-    getProviderProfile: vi.fn(async () => ({ ok: true as const, value: profiles[0] ?? fakeProfile })),
+    getProviderProfile,
     saveProviderProfile,
-    deleteProviderProfile: vi.fn(async () => ({ ok: true as const, value: undefined })),
-    testProviderProfile: vi.fn(async (profileId: string) => ({
-      ok: true as const,
-      value: {
-        profileId,
-        providerId: 'mock',
-        family: 'image-endpoint',
-        valid: true,
-        connectivity: { reachable: true, modelCount: 1, models: [{ id: 'mock-image-v1' }] },
-      } satisfies ProviderProfileTestResult,
-    })),
-    listProfileModels: vi.fn(async () => ({ ok: true as const, value: [{ id: 'mock-image-v1' }] })),
-    refreshProfileModels: vi.fn(async () => ({ ok: true as const, value: [{ id: 'mock-image-v1' }] })),
+    deleteProviderProfile,
+    testProviderProfile,
+    listProfileModels,
+    refreshProfileModels,
   };
 
   const host: HostBridge = {
-    listLayers: vi.fn(async () => [{ id: 1, name: 'Layer 1', kind: 'pixel', visible: true }]),
-    pickImageFile: vi.fn(async () => fakeAsset),
-    readLayerAsAsset: vi.fn(async () => fakeAsset),
+    listLayers,
+    pickImageFile,
+    readLayerAsAsset,
     readLayerMaskAsAsset: vi.fn(async () => undefined),
     placeAssetOnCanvas,
   };
 
   return {
     services: { commands, host },
-    spies: { submitJob, subscribeJobEvents, listJobHistoryRecords, saveProviderProfile, placeAssetOnCanvas },
+    spies: {
+      submitJob,
+      subscribeJobEvents,
+      listJobHistoryRecords,
+      getProviderProfile,
+      saveProviderProfile,
+      deleteProviderProfile,
+      testProviderProfile,
+      listProfileModels,
+      refreshProfileModels,
+      listLayers,
+      pickImageFile,
+      readLayerAsAsset,
+      placeAssetOnCanvas,
+    },
   };
 }

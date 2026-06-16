@@ -7,7 +7,14 @@
 - `STATUS.md`：当前实现状态、限制与下一步验证
 - `SPEC.md`：本模块边界与当前 contract
 - `AGENTS.md`：模块级短规则
-- 根级 UI 文档（历史参考）：`../../archive/DESIGN.md`、`../../archive/TOKEN.md`、`../../archive/UI_MAIN_PAGE.md`
+- `../../docs/TESTING.md`：统一测试入口
+
+## 文档权威
+
+- `SPEC.md` 与 `STATUS.md` 是当前 app contract、实现状态和验证边界的权威来源。
+- `dcos/` 与 `prototype/` 只作设计和历史参考；当它们与 `SPEC.md`、`STATUS.md`、`AGENTS.md` 或 `../../docs/TESTING.md` 冲突时，以后者为准。
+- 不要把 `dcos/` 或 `prototype/` 中的示例、视觉稿、旧阶段表述写成当前已实现行为。
+- 当前 active loop 入口只看根 `../../AGENTS.md`，模块级文档不单独声明 active loop。
 
 ## 当前结构
 
@@ -15,6 +22,8 @@
 app/
   index.html
   public/manifest.json
+  dcos/
+  prototype/
   src/
     app-services/
     host/
@@ -26,6 +35,8 @@ app/
 
 - `index.html`：UXP panel HTML entry。
 - `public/manifest.json`：Manifest v5，build 时复制到 `dist/manifest.json`。
+- `dcos/`：设计、UXP API 调研和历史参考，不是当前实现状态权威。
+- `prototype/`：静态 UI 原型参考，不是当前 app contract。
 - `src/index.tsx`：plugin entry；创建 host shell 并挂载 React。
 - `src/app-services/`：`CommandsPort`、`HostBridge`、React Context、mappers。
 - `src/host/`：UXP / Photoshop adapters、profile repository、secret storage。

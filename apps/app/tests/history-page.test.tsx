@@ -1,8 +1,10 @@
 import { act } from 'react';
 import { createRoot, type Root } from 'react-dom/client';
 import { afterEach, describe, expect, it, vi } from 'vitest';
+import type { DurableJobRecord } from '@imagen-ps/application';
+import type { ConversationRound } from '../src/ui/hooks/use-conversation';
 import { HistoryPage } from '../src/ui/pages/history-page';
-import { fakeDurableRecord } from './fakes';
+import { fakeAsset, fakeDurableRecord } from './fakes';
 
 let root: Root | undefined;
 
@@ -16,7 +18,11 @@ afterEach(async () => {
 });
 
 describe('HistoryPage', () => {
-  it('renders durable job records from application history', async () => {
+  async function renderHistory(input: {
+    readonly rounds?: readonly ConversationRound[];
+    readonly records?: readonly DurableJobRecord[];
+    readonly onRetry?: (roundId: string) => Promise<void>;
+  } = {}): Promise<HTMLDivElement> {
     const container = document.createElement('div');
     document.body.appendChild(container);
     root = createRoot(container);
@@ -25,17 +31,115 @@ describe('HistoryPage', () => {
       root!.render(
         <HistoryPage
           onNav={vi.fn()}
-          rounds={[]}
-          records={[fakeDurableRecord]}
+          rounds={input.rounds ?? []}
+          records={input.records ?? [fakeDurableRecord]}
           loading={false}
           onReload={vi.fn(async () => undefined)}
-          onRetry={vi.fn(async () => undefined)}
+          onRetry={input.onRetry ?? vi.fn(async () => undefined)}
         />,
       );
     });
 
+    return container;
+  }
+
+  it('renders durable job records from application history', async () => {
+    const container = await renderHistory();
+
     expect(container.textContent).toContain('history prompt');
     expect(container.textContent).toContain('mock-profile');
     expect(container.textContent).toContain('完成');
+  });
+
+  it('merges durable records with running rounds from current session', async () => {
+    const runningRound: ConversationRound = {
+      id: 'round-running',
+      time: '9:30',
+      prompt: 'running prompt',
+      status: 'running',
+      providerName: 'Mock Profile',
+      elapsedSeconds: 2,
+      previews: [],
+      attachments: [],
+    };
+
+    const container = await renderHistory({ rounds: [runningRound], records: [fakeDurableRecord] });
+
+    expect(container.textContent).toContain('running prompt');
+    expect(container.textContent).toContain('history prompt');
+    expect(container.textContent).toContain('运行中');
+  });
+
+  it('filters by completed, running, and failed status', async () => {
+    const runningRound: ConversationRound = {
+      id: 'round-running',
+      time: '9:30',
+      prompt: 'running prompt',
+      status: 'running',
+      providerName: 'Mock Profile',
+      elapsedSeconds: 2,
+      previews: [],
+      attachments: [],
+    };
+    const failedRecord: DurableJobRecord = {
+      ...fakeDurableRecord,
+      jobId: 'job-history-failed',
+      status: 'failed',
+      input: { profileId: 'mock-profile', prompt: 'failed durable prompt' },
+      updatedAt: '2026-06-15T00:00:02.000Z',
+      error: { category: 'provider', message: 'failed' },
+    };
+
+    const container = await renderHistory({ rounds: [runningRound], records: [fakeDurableRecord, failedRecord] });
+
+    const filters = Array.from(container.querySelectorAll<HTMLButtonElement>('.fchip'));
+
+    await act(async () => {
+      filters.find((button) => button.textContent === '完成')!.click();
+    });
+    expect(container.textContent).toContain('history prompt');
+    expect(container.textContent).not.toContain('running prompt');
+    expect(container.textContent).not.toContain('failed durable prompt');
+
+    await act(async () => {
+      filters.find((button) => button.textContent === '运行中')!.click();
+    });
+    expect(container.textContent).toContain('running prompt');
+    expect(container.textContent).not.toContain('history prompt');
+    expect(container.textContent).not.toContain('failed durable prompt');
+
+    await act(async () => {
+      filters.find((button) => button.textContent === '失败')!.click();
+    });
+    expect(container.textContent).toContain('failed durable prompt');
+    expect(container.textContent).not.toContain('history prompt');
+    expect(container.textContent).not.toContain('running prompt');
+  });
+
+  it('calls onRetry from failed round retry action', async () => {
+    const onRetry = vi.fn(async () => undefined);
+    const failedRound: ConversationRound = {
+      id: 'round-failed',
+      time: '9:31',
+      prompt: 'failed session prompt',
+      status: 'err',
+      providerName: 'Mock Profile',
+      elapsedSeconds: 3,
+      elapsedLabel: '3s',
+      errorMessage: 'provider failed',
+      jobId: 'job-failed',
+      previews: [{ asset: fakeAsset, url: 'data:image/png;base64,ZmFrZS1pbWFnZQ==', label: 'result.png' }],
+      attachments: [],
+    };
+
+    const container = await renderHistory({ rounds: [failedRound], records: [], onRetry });
+
+    await act(async () => {
+      Array.from(container.querySelectorAll<HTMLButtonElement>('button')).find((button) =>
+        button.textContent?.includes('重试'),
+      )!.click();
+    });
+
+    expect(onRetry).toHaveBeenCalledWith('round-failed');
   });
 });

@@ -1,11 +1,11 @@
 # CLI Surface Contract Loop
 
-- Status: implemented through Phase 5; real Photoshop/UXP host smoke remains outside this loop's automated gates
+- Status: implemented through Phase 5; no longer the active loop
 - Scope owner: `apps/cli`
 - Shared context: `docs/ENGINEERING_CONTEXT.md`
 - Trigger: review of the pasted PM scoring document for `@imagen-ps/cli`
 - Constraint: this document is an execution plan. It does not authorize implementation in this turn.
-- Authority decision: application/session loop 已完成；当前 active loop 由根 `AGENTS.md` 指向本文档。
+- Authority decision: application/session loop 已完成；本 loop 已完成。当前 active loop 由根 `AGENTS.md` 声明。
 
 ## Current Verdict
 
@@ -81,7 +81,7 @@ It should stay aligned with the Photoshop / UXP app:
 Phase 0 在文档权威入口修复后开始：
 
 - 根 `AGENTS.md` 是唯一 active loop 权威入口。
-- `docs/loops/cli-surface-contract-loop.md` 是当前 active loop。
+- 本文档是已完成的 CLI loop 记录，不再是当前 active loop。
 - application/session loop 已完成。
 - 模块级 `AGENTS.md` 只保留稳定边界，不直接指向 active loop 文档。
 
