@@ -1,0 +1,542 @@
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import type { ProviderModelInfo, ProviderProfile } from '@imagen-ps/application';
+import { useAppServices } from '../../app-services/app-services-context';
+import type { LayerInfo } from '../../app-services/host-bridge';
+import { assetToPreviewUrl, modelLabel } from '../../app-services/mappers';
+import type {
+  ConversationAttachment,
+  ConversationController,
+  ConversationRound,
+} from '../hooks/use-conversation';
+import { SI } from '../components/icons';
+import { Tip } from '../components/tip';
+
+interface MainPageProps {
+  readonly onNav: (view: string) => void;
+  readonly profiles: readonly ProviderProfile[];
+  readonly profilesLoading: boolean;
+  readonly profilesError: string | null;
+  readonly selectedProfile: ProviderProfile | undefined;
+  readonly selectedProfileId: string | null;
+  readonly onSelectProfile: (profileId: string | null) => void;
+  readonly models: readonly ProviderModelInfo[];
+  readonly modelsLoading: boolean;
+  readonly modelsError: string | null;
+  readonly selectedModelId: string;
+  readonly onSelectModel: (modelId: string) => void;
+  readonly layers: readonly LayerInfo[];
+  readonly reloadLayers: () => Promise<void>;
+  readonly conversation: ConversationController;
+}
+
+interface FlatLayer {
+  readonly layer: LayerInfo;
+  readonly depth: number;
+}
+
+function flattenLayers(layers: readonly LayerInfo[], depth = 0): FlatLayer[] {
+  return layers.flatMap((layer) => [
+    { layer, depth },
+    ...flattenLayers(layer.children ?? [], depth + 1),
+  ]);
+}
+
+function roundStatusElapsed(round: ConversationRound): string {
+  if (round.status === 'running') {
+    return `${round.elapsedSeconds}s`;
+  }
+  return round.elapsedLabel ?? '';
+}
+
+function statusDot(status: ConversationRound['status']): string {
+  return status === 'ok' ? 'ok' : status === 'running' ? 'run' : 'err';
+}
+
+function statusLabel(status: ConversationRound['status']): string {
+  return status === 'ok' ? '完成' : status === 'running' ? '生成中' : '失败';
+}
+
+function attachmentId(prefix: string): string {
+  return `${prefix}-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+}
+
+export function MainPage({
+  onNav,
+  profiles,
+  profilesLoading,
+  profilesError,
+  selectedProfile,
+  selectedProfileId,
+  onSelectProfile,
+  models,
+  modelsLoading,
+  modelsError,
+  selectedModelId,
+  onSelectModel,
+  layers,
+  reloadLayers,
+  conversation,
+}: MainPageProps) {
+  const services = useAppServices();
+  const [input, setInput] = useState('');
+  const [attachments, setAttachments] = useState<readonly ConversationAttachment[]>([]);
+  const [profileMenuOpen, setProfileMenuOpen] = useState(false);
+  const [modelMenuOpen, setModelMenuOpen] = useState(false);
+  const [attachOpen, setAttachOpen] = useState(false);
+  const [layerOpen, setLayerOpen] = useState(false);
+  const [toast, setToast] = useState<string | null>(null);
+  const [copied, setCopied] = useState<Record<string, boolean>>({});
+  const convRef = useRef<HTMLDivElement>(null);
+  const taRef = useRef<HTMLTextAreaElement>(null);
+  const flatLayers = useMemo(() => flattenLayers(layers), [layers]);
+  const selectedModelLabel = selectedModelId || (modelsLoading ? '加载模型...' : '未选择模型');
+  const canSend = input.trim().length > 0 && Boolean(selectedProfile) && !conversation.running;
+
+  const showToast = useCallback((message: string) => {
+    setToast(message);
+    window.setTimeout(() => setToast(null), 2000);
+  }, []);
+
+  useEffect(() => {
+    if (convRef.current) {
+      convRef.current.scrollTop = convRef.current.scrollHeight;
+    }
+  }, [conversation.rounds]);
+
+  const closeAll = () => {
+    setProfileMenuOpen(false);
+    setModelMenuOpen(false);
+    setAttachOpen(false);
+    setLayerOpen(false);
+  };
+
+  const handleCopy = (id: string, text: string) => {
+    navigator.clipboard?.writeText(text).catch(() => undefined);
+    setCopied((current) => ({ ...current, [id]: true }));
+    window.setTimeout(() => setCopied((current) => ({ ...current, [id]: false })), 1500);
+    setInput(text);
+    taRef.current?.focus();
+    showToast('已填入输入框');
+  };
+
+  const addAttachment = (attachment: ConversationAttachment) => {
+    setAttachments((current) => [...current, attachment]);
+    setAttachOpen(false);
+    setLayerOpen(false);
+  };
+
+  const addLayer = async (layer: LayerInfo) => {
+    try {
+      const asset = await services.host.readLayerAsAsset(layer.id);
+      addAttachment({
+        id: attachmentId('layer'),
+        type: 'layer',
+        name: layer.name,
+        asset,
+        previewUrl: assetToPreviewUrl(asset),
+      });
+      showToast('已添加图层');
+    } catch (error) {
+      showToast(error instanceof Error ? error.message : '读取图层失败');
+    }
+  };
+
+  const addFile = async () => {
+    try {
+      const asset = await services.host.pickImageFile();
+      if (!asset) {
+        return;
+      }
+      addAttachment({
+        id: attachmentId('file'),
+        type: 'file',
+        name: asset.name ?? 'image',
+        asset,
+        previewUrl: assetToPreviewUrl(asset),
+      });
+      showToast('已添加图片');
+    } catch (error) {
+      showToast(error instanceof Error ? error.message : '选择图片失败');
+    }
+  };
+
+  const handleSend = async () => {
+    if (!selectedProfile) {
+      showToast('请先添加并选择 Provider profile');
+      return;
+    }
+    if (!canSend) {
+      return;
+    }
+    const prompt = input.trim();
+    setInput('');
+    setAttachments([]);
+    await conversation.submit({
+      prompt,
+      profileId: selectedProfile.profileId,
+      providerName: selectedProfile.displayName,
+      ...(selectedModelId ? { modelId: selectedModelId } : {}),
+      attachments,
+    });
+  };
+
+  const placeAsset = async (round: ConversationRound) => {
+    const asset = round.previews[0]?.asset;
+    if (!asset) {
+      showToast('没有可置入的图片');
+      return;
+    }
+    try {
+      await services.host.placeAssetOnCanvas(asset);
+      showToast('已置入 Photoshop 画布');
+    } catch (error) {
+      showToast(error instanceof Error ? error.message : '置入 Photoshop 失败');
+    }
+  };
+
+  return (
+    <div className="page" onClick={closeAll}>
+      <header className="hdr">
+        <Tip label="历史记录">
+          <button className="hdr-btn" onClick={(event) => { event.stopPropagation(); onNav('history'); }}>
+            <SI d={['M12 8v4l3 3', 'M3.05 11a9 9 0 1 1 .5 4', 'M3 16v-5h5']} />
+          </button>
+        </Tip>
+        <button
+          className="hdr-center"
+          style={{ background: 'transparent', border: 'none', cursor: 'pointer' }}
+          onClick={(event) => {
+            event.stopPropagation();
+            setProfileMenuOpen((open) => !open);
+            setModelMenuOpen(false);
+          }}
+        >
+          <span className="hdr-provider">{selectedProfile?.displayName ?? 'No provider profile'}</span>
+          <span className="hdr-model">{selectedModelLabel}</span>
+        </button>
+        <Tip label="Providers" right>
+          <button className="hdr-btn" onClick={(event) => { event.stopPropagation(); onNav('settings'); }}>
+            <SI d={['M12 2v2m0 16v2m10-10h-2M4 12H2', 'M12 9a3 3 0 1 0 0 6 3 3 0 0 0 0-6z']} />
+          </button>
+        </Tip>
+      </header>
+
+      {profileMenuOpen && (
+        <div className="model-menu" style={{ top: 52, bottom: 'auto' }} onClick={(event) => event.stopPropagation()}>
+          {profilesLoading && <div className="model-opt">加载 profiles...</div>}
+          {profilesError && <div className="model-opt">{profilesError}</div>}
+          {!profilesLoading && profiles.length === 0 && (
+            <div className="model-opt" onClick={() => onNav('settings-add')}>添加 Provider profile</div>
+          )}
+          {profiles.map((profile) => (
+            <div
+              key={profile.profileId}
+              className={`model-opt${profile.profileId === selectedProfileId ? ' act' : ''}`}
+              onClick={() => {
+                onSelectProfile(profile.profileId);
+                setProfileMenuOpen(false);
+              }}
+            >
+              {profile.profileId === selectedProfileId && <SI d="M20 6 9 17l-5-5" w={2.5} />}
+              <span>{profile.displayName}</span>
+            </div>
+          ))}
+        </div>
+      )}
+
+      <div className="scroll" ref={convRef}>
+        <div style={{ padding: '12px 12px 4px', display: 'flex', flexDirection: 'column', gap: 4 }}>
+          <div className="day-sep">
+            <div className="day-sep-line" /><span className="day-sep-lbl">当前会话</span><div className="day-sep-line" />
+          </div>
+
+          {conversation.rounds.length === 0 && (
+            <div className="conv-empty">
+              <div style={{ color: 'var(--txm)', fontSize: 13 }}>输入 prompt 后会通过 application 提交真实 job。</div>
+              <div className="empty-hints">
+                <button className="empty-hint" onClick={() => setInput('一张产品摄影风格的蓝色玻璃香水瓶，柔和棚拍光线')}>
+                  产品摄影风格的蓝色玻璃香水瓶
+                </button>
+                <button className="empty-hint" onClick={() => setInput('把参考图改成赛博朋克夜景，保留主体轮廓')}>
+                  参考图改成赛博朋克夜景
+                </button>
+              </div>
+            </div>
+          )}
+
+          {conversation.rounds.map((round) => (
+            <div key={round.id}>
+              <div className="msg-user">
+                <div className="user-wrap">
+                  <div className="user-bubble">
+                    {round.attachments.length > 0 && (
+                      <div className="bubble-imgs">
+                        {round.attachments.slice(0, 2).map((attachment, index) => (
+                          <div key={attachment.id} className="bimg">
+                            {attachment.previewUrl
+                              ? <img src={attachment.previewUrl} className="bimg-bg" alt={attachment.name} />
+                              : <div className="bimg-bg" style={{ background: 'var(--s2)' }} />
+                            }
+                            {index === 1 && round.attachments.length > 2 && (
+                              <div className="bimg-count">+{round.attachments.length - 1}</div>
+                            )}
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                    <div className="user-prompt">{round.prompt}</div>
+                  </div>
+                  <div className="user-meta">
+                    <span className="msg-time">{round.time}</span>
+                    <Tip label="复用 Prompt">
+                      <button
+                        className={`copy-btn${copied[round.id] ? ' cp' : ''}`}
+                        onClick={(event) => { event.stopPropagation(); handleCopy(round.id, round.prompt); }}
+                      >
+                        {copied[round.id]
+                          ? <SI d="M20 6 9 17l-5-5" w={2.5} />
+                          : <SI d={['M8 8a2 2 0 0 0-2 2v8a2 2 0 0 0 2 2h8a2 2 0 0 0 2-2v-8a2 2 0 0 0-2-2H8z', 'M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2']} />
+                        }
+                      </button>
+                    </Tip>
+                  </div>
+                </div>
+              </div>
+
+              {round.status === 'err' && (
+                <div className="msg-prov" style={{ marginTop: 4 }}>
+                  <div className="av-prov err">!</div>
+                  <div className="err-card">
+                    <div className="err-top">
+                      <span className="sdot err" />
+                      <span style={{ fontSize: 11, fontWeight: 500, color: 'var(--er)', fontFamily: 'var(--fM)' }}>
+                        失败 · {round.providerName}
+                      </span>
+                    </div>
+                    <div className="err-msg">{round.errorMessage}</div>
+                    <button className="err-retry" onClick={() => void conversation.retry(round.id)}>重试</button>
+                  </div>
+                </div>
+              )}
+
+              {round.status === 'running' && (
+                <div className="msg-prov" style={{ marginTop: 4 }}>
+                  <div className="av-prov">{round.providerName.slice(0, 1).toUpperCase()}</div>
+                  <div className="prov-card">
+                    <div className="prov-top">
+                      <span className="prov-name-lbl">{round.providerName}</span>
+                      <div className="prov-status">
+                        <span className="sdot run" />
+                        <span style={{ color: 'var(--wa)' }}>{roundStatusElapsed(round)}</span>
+                      </div>
+                    </div>
+                    <div className="prov-loading">
+                      <div className="ldots"><div className="ldot" /><div className="ldot" /><div className="ldot" /></div>
+                      <span style={{ fontFamily: 'var(--fM)', fontSize: 11, color: 'var(--txd)' }}>submitJob running...</span>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {round.status === 'ok' && (
+                <div className="msg-prov" style={{ marginTop: 4 }}>
+                  <div className="av-prov">{round.providerName.slice(0, 1).toUpperCase()}</div>
+                  <div className="prov-card">
+                    <div className="prov-top">
+                      <span className="prov-name-lbl">{round.providerName}</span>
+                      <div className="prov-status">
+                        <span className={`sdot ${statusDot(round.status)}`} />
+                        <span style={{ color: 'var(--ok)' }}>{statusLabel(round.status)} · {round.elapsedLabel}</span>
+                      </div>
+                    </div>
+                    <div className="prov-img">
+                      <div className="img-result">
+                        {round.previews[0]?.url
+                          ? <img src={round.previews[0].url} className="img-bg" style={{ height: 158, objectFit: 'cover' }} alt={round.previews[0].label} />
+                          : <div className="img-bg" style={{ height: 158, background: 'var(--s2)', display: 'grid', placeItems: 'center', color: 'var(--txd)', fontSize: 12 }}>No asset preview</div>
+                        }
+                        <div className="img-meta">{round.outputSize ?? 'Asset'} · {round.outputFormat ?? 'image'}</div>
+                        <div className="img-overlay">
+                          <button className="img-act prim" onClick={(event) => { event.stopPropagation(); void placeAsset(round); }}>
+                            <SI d={['M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z', 'M17 21V13H7v8', 'M7 3v5h8']} />
+                            置入 PS
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                    <div className="prov-actions">
+                      <Tip label="置入 PS">
+                        <button className="act-ico prim" onClick={(event) => { event.stopPropagation(); void placeAsset(round); }}>
+                          <SI d={['M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z', 'M17 21V13H7v8', 'M7 3v5h8']} />
+                        </button>
+                      </Tip>
+                      <Tip label="重新生成">
+                        <button className="act-ico" onClick={(event) => { event.stopPropagation(); void conversation.retry(round.id); }}>
+                          <SI d={['M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8', 'M21 3v5h-5', 'M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16', 'M8 16H3v5']} />
+                        </button>
+                      </Tip>
+                      <Tip label="复制 Prompt">
+                        <button className="act-ico" onClick={(event) => { event.stopPropagation(); handleCopy(`${round.id}-copy`, round.prompt); }}>
+                          <SI d={['M8 8a2 2 0 0 0-2 2v8a2 2 0 0 0 2 2h8a2 2 0 0 0 2-2v-8a2 2 0 0 0-2-2H8z', 'M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2']} />
+                        </button>
+                      </Tip>
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
+          ))}
+        </div>
+      </div>
+
+      <footer className="composer" onClick={(event) => event.stopPropagation()}>
+        {layerOpen && (
+          <div className="layer-list-wrap" onClick={(event) => event.stopPropagation()}>
+            <div className="layer-list-hdr">
+              <button
+                style={{ background: 'transparent', border: 'none', color: 'var(--txd)', cursor: 'pointer', display: 'flex', alignItems: 'center' }}
+                onClick={() => setLayerOpen(false)}
+              >
+                <SI d="m15 18-6-6 6-6" sz={12} />
+              </button>
+              PS 图层
+              <button
+                style={{ marginLeft: 'auto', background: 'transparent', border: 'none', color: 'var(--txd)', cursor: 'pointer' }}
+                onClick={() => void reloadLayers()}
+              >
+                <SI d={['M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8', 'M21 3v5h-5']} sz={12} />
+              </button>
+            </div>
+            <div className="layer-scroll">
+              {flatLayers.length === 0 && <div className="layer-item"><span className="layer-name">无可用图层</span></div>}
+              {flatLayers.map(({ layer, depth }) => (
+                <div key={layer.id} className="layer-item" onClick={() => void addLayer(layer)}>
+                  <div className="layer-swatch" style={{ background: layer.visible === false ? 'var(--s1)' : 'var(--s2)' }} />
+                  <span className="layer-name" style={{ paddingLeft: depth * 10 }}>{layer.name}</span>
+                  <span className="layer-meta-lbl">{layer.kind ?? 'layer'}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {attachOpen && !layerOpen && (
+          <div className="attach-picker" onClick={(event) => event.stopPropagation()}>
+            <div className="attach-opt" onClick={() => setLayerOpen(true)}>
+              <div style={{ width: 28, height: 28, borderRadius: 'var(--rsm)', background: 'var(--s2)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--txm)' }}>
+                <SI d={['M1 6l11 7 11-7', 'M1 6v12a1 1 0 0 0 1 1h20a1 1 0 0 0 1-1V6']} sz={13} />
+              </div>
+              <div>
+                <div className="attach-opt-label">从 PS 图层选择</div>
+                <div className="attach-opt-sub">{flatLayers.length} 个图层</div>
+              </div>
+              <SI d="m9 18 6-6-6-6" style={{ color: 'var(--txd)', marginLeft: 'auto' }} />
+            </div>
+            <div className="attach-opt" onClick={() => void addFile()}>
+              <div style={{ width: 28, height: 28, borderRadius: 'var(--rsm)', background: 'var(--s2)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--txm)' }}>
+                <SI d={['M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4', 'M17 8l-5-5-5 5', 'M12 3v12']} sz={13} />
+              </div>
+              <div>
+                <div className="attach-opt-label">从电脑上传</div>
+                <div className="attach-opt-sub">PNG / JPG / WebP</div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {modelMenuOpen && (
+          <div className="model-menu" onClick={(event) => event.stopPropagation()}>
+            {modelsError && <div className="model-opt">{modelsError}</div>}
+            {modelsLoading && <div className="model-opt">加载模型...</div>}
+            {!modelsLoading && models.length === 0 && <div className="model-opt">无模型候选</div>}
+            {models.map((model) => (
+              <div
+                key={model.id}
+                className={`model-opt${model.id === selectedModelId ? ' act' : ''}`}
+                onClick={() => {
+                  onSelectModel(model.id);
+                  setModelMenuOpen(false);
+                }}
+              >
+                {model.id === selectedModelId && <SI d="M20 6 9 17l-5-5" w={2.5} style={{ color: 'var(--pr)' }} />}
+                <span>{modelLabel(model)}</span>
+              </div>
+            ))}
+          </div>
+        )}
+
+        <div className={`cmp-inner${conversation.running ? ' off' : ''}`}>
+          {attachments.length > 0 && (
+            <div className="attach-row">
+              {attachments.map((attachment) => (
+                <div key={attachment.id} className="att-thumb">
+                  {attachment.previewUrl
+                    ? <img src={attachment.previewUrl} style={{ width: '100%', height: '100%', objectFit: 'cover' }} alt={attachment.name} />
+                    : <div style={{ width: '100%', height: '100%', background: 'var(--s1)' }} />
+                  }
+                  <button className="att-rm" onClick={() => setAttachments((current) => current.filter((item) => item.id !== attachment.id))}>x</button>
+                </div>
+              ))}
+            </div>
+          )}
+          <textarea
+            ref={taRef}
+            className="cmp-ta"
+            placeholder={selectedProfile ? '描述你想要生成或编辑的图像...' : '先在 Providers 中添加 profile'}
+            rows={2}
+            value={input}
+            onChange={(event) => setInput(event.target.value)}
+            onKeyDown={(event) => {
+              if (event.key === 'Enter' && !event.shiftKey) {
+                event.preventDefault();
+                void handleSend();
+              }
+            }}
+            disabled={conversation.running}
+          />
+          <div className="cmp-bar">
+            <Tip label="添加图片">
+              <button
+                className={`cmp-add${attachOpen || layerOpen ? ' open' : ''}`}
+                onClick={(event) => {
+                  event.stopPropagation();
+                  setAttachOpen((open) => !open);
+                  setLayerOpen(false);
+                  setModelMenuOpen(false);
+                  setProfileMenuOpen(false);
+                }}
+              >
+                <SI d="M12 5v14M5 12h14" w={2.5} />
+              </button>
+            </Tip>
+            <div
+              className={`cmp-chip${modelMenuOpen ? ' open' : ''}`}
+              onClick={(event) => {
+                event.stopPropagation();
+                setModelMenuOpen((open) => !open);
+                setAttachOpen(false);
+                setLayerOpen(false);
+                setProfileMenuOpen(false);
+              }}
+            >
+              <span className="cmp-dot" />
+              <span>{selectedModelLabel}</span>
+              <SI sz={9} d="m6 9 6 6 6-6" />
+            </div>
+            <div className="cmp-sp" />
+            <div className="send-wrap">
+              <button className="cmp-send" disabled={!canSend} onClick={() => void handleSend()} title="发送">
+                {conversation.running
+                  ? <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="spin"><path d="M21 12a9 9 0 1 1-9-9" /></svg>
+                  : <SI d={['M22 2 11 13', 'M22 2 15 22 11 13 2 9 22 2']} />
+                }
+              </button>
+            </div>
+          </div>
+        </div>
+      </footer>
+
+      {toast && <div className="toast">{toast}</div>}
+    </div>
+  );
+}

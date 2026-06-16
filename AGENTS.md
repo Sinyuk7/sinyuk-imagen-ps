@@ -1,238 +1,32 @@
 # AGENTS.md
 
-## Boot
+## Development Phase Invariant
 
-* Read AGENTS.md
-* Read MEMORY.md if exists
-* Inspect only relevant files
-* Prefer modify over create
-* Keep changes minimal
+This project is in a zero-user, zero-history-burden development stage. Optimize for the cleanest current-state architecture and simplest correct implementation.
 
----
+Do not add compatibility layers, migrations, old-contract support, legacy fallbacks, deprecated behavior preservation, phased rollout logic, or speculative future-proofing unless the user explicitly overrides this invariant in the same conversation.
 
-## Priority
+## Hard Rules
 
-* User > MEMORY.md > AGENTS.md > existing code
+- This repo does not use global GBrain.
+- Before non-trivial fixes or architecture changes, search local memory and current docs with `rg`:
+  `rg -n "<module|symptom|error|decision>" docs/dev-memory docs/loops AGENTS.md README.md`
+- Everything else lives in [docs/ENGINEERING_CONTEXT.md](docs/ENGINEERING_CONTEXT.md).
 
----
+### 1. 中文优先
 
-## Mission
+- 所有面向人类的文本——文档（`*.md`）、代码注释、JSDoc、commit message——必须使用中文编写。
+- 技术术语和专有名词保留原文：如 TypeScript、React、UXP、interface、generic、async/await、Promise、CLI、API、export、import、JSDoc、npm、pnpm、Node.js、Photoshop、plugin、hook 等。
+- 变量名、函数名、类名、文件名不使用中文，遵循各语言命名惯例。
 
-* Write correct, minimal, maintainable code
-* Keep code clear, compact, explicit
-* Fit existing structure
-* Respect system boundaries (Engine / Provider / Host)
+### 2. 路径跨平台兼容
 
----
+- 所有文件路径引用必须跨平台兼容：统一使用正斜杠 `/` 作为分隔符，禁止反斜杠 `\`。
+- 禁止绝对路径（如 `/Users/...`、`C:\...`）。配置文件、文档链接、脚本引用一律使用相对路径。
+- `import` 语句不在此列——保持 workspace 包名导入方式（如 `@sinyuk/application`）。
 
-## System Awareness (REQUIRED)
+### 3. 公开 API 必须有文档
 
-Before coding, identify target layer:
-
-* `core-engine` → execution runtime (pure logic)
-* `providers` → API mapping + validation
-* `workflows` → declarative execution spec
-* `apps/*` → UI + host integration
-* `adapters` → IO / environment bridge
-
-Rules:
-
-* Engine MUST remain host-agnostic
-* Provider owns parameter semantics
-* Workflow is declarative, not executable logic
-* IO only allowed via adapters
-
----
-
-## Non-negotiables
-
-* Clarity > cleverness
-* Explicit > implicit
-* Small files > large files
-* Deterministic > hidden magic
-* Simple flow > deep helpers
-* Isolation > shared mutable state
-
----
-
-## Code Rules
-
-* Use clear names
-* Keep control flow shallow
-* Avoid unnecessary abstraction
-* Avoid hidden state
-* No silent fallback
-* Separate logic from I/O
-* Match existing good patterns
-* Do NOT mix layers (Engine / Provider / Host)
-
----
-
-## Engine Rules (CRITICAL)
-
-Applies to `core-engine`:
-
-* No DOM / Browser / UXP API
-* No file system access
-* No network calls
-* No provider-specific logic
-* No parameter interpretation
-
-Engine only:
-
-* orchestrates workflow
-* dispatches provider
-* emits events
-* manages state
-
----
-
-## Provider Rules
-
-Applies to `providers`:
-
-* Own full parameter semantics
-* Validate using schema (e.g. Zod)
-* Map external API ↔ internal input
-* No UI logic
-* No engine logic
-
----
-
-## Workflow Rules
-
-* Workflow = declarative spec
-* No embedded business logic
-* No direct side effects
-* No runtime state mutation
-
----
-
-## Adapter Rules
-
-* All IO MUST go through adapters
-* No direct FS / network in core logic
-* Handle host differences (Web vs UXP)
-* Be explicit about limitations
-
----
-
-## File Rules
-
-* Large file = bad design → split
-* Split by responsibility
-* Prefer small focused modules
-* Target: file ≤ 300 LOC
-* Target: function ≤ 50 LOC
-
----
-
-## Function Rules
-
-* One function = one clear job
-* Call chain must be traceable
-* No vague helpers unless clear
-* Failure must be explicit
-* Input/output must be explicit
-
----
-
-## Docstring (REQUIRED)
-
-Format for core functions:
-
-```
-"""Execute a workflow step using provider dispatch.
-
-INTENT: 执行单个 workflow step 并返回结果
-INPUT: stepSpec, executionContext
-OUTPUT: StepResult
-SIDE EFFECT: Emits job:running event
-FAILURE: Throws explicit error or returns failure result
-"""
-```
-
----
-
-## Docstring Rules
-
-* First line = short summary
-* INTENT = purpose (why this exists)
-* INPUT / OUTPUT = exact types
-* SIDE EFFECT = explicit or None
-* FAILURE = concrete behavior
-* Must explain role in execution chain
-
----
-
-## Comments
-
-* Short and useful
-* Explain intent, not obvious code
-* Reference project modules when needed:
-
-```ts
-// see: packages/core-engine/executor.ts
-// related: providers/flux.ts
-```
-
-* Remove stale comments
-
----
-
-## Side Effects
-
-* Must be explicit
-* Keep at system boundaries (Adapters / Providers)
-* Engine must remain pure
-* No hidden IO
-
----
-
-## Types
-
-* Prefer strong types
-* Express domain meaning
-* Avoid weak containers (any / loose objects)
-
----
-
-## Errors
-
-* No silent failure
-* Handle or surface explicitly
-* Log only when meaningful
-* Default only if intentional and documented
-
----
-
-## State
-
-* No hidden globals
-* No implicit memory
-* Explicit ownership only
-* No cross-step mutation
-
----
-
-## Changes
-
-When modifying code:
-
-* Keep change minimal
-* Do not introduce new abstractions unless necessary
-* Reuse existing patterns
-* Preserve system boundaries
-* Do not “improve” unrelated code
-
----
-
-## Done Checklist
-
-* MEMORY.md read (if exists)
-* Layer respected (Engine / Provider / Host)
-* Change minimal
-* Code clearer than before
-* Side effects explicit
-* Failure defined
-* No boundary violations
+- 所有跨 package 引用的 export（class、function、interface、type、const）必须有 JSDoc 注释，用中文说明用途、参数和返回值。
+- package 内部 export 不做强制要求，但建议为复杂逻辑添加注释。
+- 格式要求：至少包含 `@description`；有参数则包含 `@param`；有返回值则包含 `@returns`。

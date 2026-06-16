@@ -1,0 +1,539 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=360, initial-scale=1.0">
+  <title>Imagen PS — 设置</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link
+    href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap"
+    rel="stylesheet">
+  <style>
+    :root {
+      --bg: #0D1117;
+      --surface-1: #151A22;
+      --surface-2: #1C2330;
+      --surface-3: #242C3B;
+      --border: #2E3748;
+      --border-s: #3A4457;
+      --text: #E9EDF4;
+      --text-muted: #A6B0BF;
+      --text-dim: #738093;
+      --text-inv: #0D1117;
+      --primary: #78E7C0;
+      --primary-h: #8AF0CC;
+      --primary-a: #58D9AF;
+      --primary-s: rgba(120, 231, 192, .14);
+      --secondary: #67B7FF;
+      --secondary-s: rgba(103, 183, 255, .14);
+      --success: #63D48F;
+      --success-s: rgba(99, 212, 143, .14);
+      --warning: #F2B84B;
+      --error: #F26D6D;
+      --error-s: rgba(242, 109, 109, .14);
+      --hover: rgba(255, 255, 255, .05);
+      --active: rgba(255, 255, 255, .09);
+      --r-sm: 8px;
+      --r-md: 12px;
+      --r-lg: 16px;
+      --r-xl: 20px;
+      --r-full: 9999px;
+      --sp1: 4px;
+      --sp2: 8px;
+      --sp3: 12px;
+      --sp4: 16px;
+      --sp5: 24px;
+      --f-disp: 'Space Grotesk', sans-serif;
+      --f-body: 'IBM Plex Sans', sans-serif;
+      --f-mono: 'IBM Plex Mono', monospace;
+      --t-micro: 80ms;
+      --t-short: 160ms;
+      --ease-out: cubic-bezier(.2, 0, 0, 1);
+    }
+
+    *,
+    *::before,
+    *::after {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    html,
+    body {
+      width: 360px;
+      height: 600px;
+      overflow: hidden;
+      background: var(--bg);
+      color: var(--text);
+      font-family: var(--f-body);
+      font-size: 14px;
+      line-height: 20px;
+      -webkit-font-smoothing: antialiased;
+    }
+
+    .panel {
+      width: 100%;
+      height: 100%;
+      display: flex;
+      flex-direction: column;
+      background: var(--bg);
+    }
+
+    /* Header */
+    .hdr {
+      height: 48px;
+      background: var(--surface-1);
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      align-items: center;
+      padding: 0 var(--sp3);
+      gap: var(--sp2);
+      flex-shrink: 0;
+    }
+
+    .hdr-back {
+      width: 32px;
+      height: 32px;
+      border-radius: var(--r-sm);
+      border: none;
+      background: transparent;
+      color: var(--text-muted);
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: all var(--t-micro);
+      text-decoration: none;
+    }
+
+    .hdr-back:hover {
+      background: var(--hover);
+      color: var(--text);
+    }
+
+    .hdr-title {
+      flex: 1;
+      font-family: var(--f-disp);
+      font-size: 14px;
+      font-weight: 600;
+      color: var(--text);
+      text-align: center;
+    }
+
+    .add-btn {
+      padding: 5px 12px;
+      border-radius: var(--r-sm);
+      border: 1px solid var(--primary);
+      background: var(--primary-s);
+      color: var(--primary);
+      font-family: var(--f-body);
+      font-size: 12px;
+      font-weight: 500;
+      cursor: pointer;
+      transition: all var(--t-micro) var(--ease-out);
+      display: flex;
+      align-items: center;
+      gap: 4px;
+      white-space: nowrap;
+    }
+
+    .add-btn:hover {
+      background: rgba(120, 231, 192, .22);
+    }
+
+    /* Content */
+    .content {
+      overflow-y: auto;
+      scrollbar-width: thin;
+      scrollbar-color: var(--border) transparent;
+    }
+
+    .content::-webkit-scrollbar {
+      width: 3px;
+    }
+
+    .content::-webkit-scrollbar-thumb {
+      background: var(--border);
+      border-radius: 2px;
+    }
+
+    /* Section label */
+    .section-lbl {
+      padding: var(--sp3) var(--sp4) var(--sp2);
+      font-size: 11px;
+      font-weight: 600;
+      color: var(--text-dim);
+      text-transform: uppercase;
+      letter-spacing: .6px;
+    }
+
+    /* Provider row */
+    .prov-row {
+      display: flex;
+      align-items: center;
+      gap: var(--sp3);
+      padding: 0 var(--sp4);
+      height: 64px;
+      border-top: 1px solid var(--border);
+      cursor: pointer;
+      transition: background var(--t-micro);
+      text-decoration: none;
+      position: relative;
+    }
+
+    .prov-row:hover {
+      background: var(--hover);
+    }
+
+    .prov-row:active {
+      background: var(--active);
+    }
+
+    .prov-row:first-of-type {
+      border-top: none;
+    }
+
+    /* Provider icon */
+    .prov-icon {
+      width: 36px;
+      height: 36px;
+      border-radius: var(--r-md);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+      font-family: var(--f-mono);
+      font-size: 12px;
+      font-weight: 500;
+    }
+
+    .prov-icon.stability {
+      background: rgba(120, 231, 192, .12);
+      color: var(--primary);
+    }
+
+    .prov-icon.openai {
+      background: rgba(103, 183, 255, .12);
+      color: var(--secondary);
+    }
+
+    .prov-icon.replicate {
+      background: rgba(242, 184, 75, .12);
+      color: var(--warning);
+    }
+
+    /* Provider info */
+    .prov-info {
+      flex: 1;
+      min-width: 0;
+    }
+
+    .prov-name {
+      display: flex;
+      align-items: center;
+      gap: var(--sp2);
+      font-size: 13px;
+      font-weight: 500;
+      color: var(--text);
+    }
+
+    .prov-name-text {
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .status-badge {
+      padding: 1px 7px;
+      border-radius: var(--r-full);
+      font-size: 10px;
+      font-weight: 500;
+      flex-shrink: 0;
+    }
+
+    .status-badge.active {
+      background: var(--success-s);
+      color: var(--success);
+    }
+
+    .status-badge.connected {
+      background: var(--secondary-s);
+      color: var(--secondary);
+    }
+
+    .status-badge.error {
+      background: var(--error-s);
+      color: var(--error);
+    }
+
+    .status-badge.none {
+      background: var(--hover);
+      color: var(--text-dim);
+    }
+
+    .prov-sub {
+      display: flex;
+      align-items: center;
+      gap: var(--sp2);
+      margin-top: 3px;
+    }
+
+    .prov-model {
+      font-family: var(--f-mono);
+      font-size: 10px;
+      color: var(--text-dim);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      max-width: 160px;
+    }
+
+    .prov-config {
+      font-size: 10px;
+      color: var(--text-dim);
+      flex-shrink: 0;
+    }
+
+    /* Completeness indicator */
+    .completeness {
+      display: flex;
+      gap: 2px;
+      align-items: center;
+      flex-shrink: 0;
+    }
+
+    .dot {
+      width: 5px;
+      height: 5px;
+      border-radius: 50%;
+      background: var(--border);
+    }
+
+    .dot.filled {
+      background: var(--primary);
+    }
+
+    .dot.warn {
+      background: var(--warning);
+    }
+
+    .dot.err {
+      background: var(--error);
+    }
+
+    /* Chevron */
+    .chevron {
+      color: var(--text-dim);
+      flex-shrink: 0;
+      transition: color var(--t-micro);
+    }
+
+    .prov-row:hover .chevron {
+      color: var(--text-muted);
+    }
+
+    /* Empty section */
+    .empty-section {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: var(--sp5) var(--sp4);
+      gap: var(--sp2);
+      text-align: center;
+      border-top: 1px solid var(--border);
+    }
+
+    .empty-section-icon {
+      color: var(--text-dim);
+      opacity: .4;
+      margin-bottom: var(--sp1);
+    }
+
+    .empty-section-txt {
+      font-size: 12px;
+      color: var(--text-muted);
+    }
+
+    /* Footer info */
+    .footer-info {
+      padding: var(--sp3) var(--sp4);
+      border-top: 1px solid var(--border);
+      display: flex;
+      align-items: center;
+      gap: var(--sp2);
+    }
+
+    .footer-ver {
+      font-family: var(--f-mono);
+      font-size: 10px;
+      color: var(--text-dim);
+    }
+
+    .footer-sep {
+      flex: 1;
+    }
+
+    .footer-link {
+      font-size: 11px;
+      color: var(--secondary);
+      background: transparent;
+      border: none;
+      cursor: pointer;
+      font-family: var(--f-body);
+      transition: color var(--t-micro);
+    }
+
+    .footer-link:hover {
+      color: var(--text);
+    }
+
+    .proto-lbl {
+      margin-top: 12px;
+      font-family: var(--f-mono);
+      font-size: 10px;
+      color: #738093;
+      opacity: .7;
+    }
+  </style>
+</head>
+
+<body>
+
+  <div class="panel">
+    <!-- Header -->
+    <header class="hdr">
+      <a href="main-page.html" class="hdr-back" title="返回">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="m15 18-6-6 6-6" />
+        </svg>
+      </a>
+      <div class="hdr-title">Provider 设置</div>
+      <button class="add-btn">
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+          <path d="M12 5v14M5 12h14" />
+        </svg>
+        添加
+      </button>
+    </header>
+
+    <!-- Provider list -->
+    <div class="content">
+      <div class="section-lbl">已配置</div>
+
+      <!-- n1n.ai — active -->
+      <a href="settings-detail.html" class="prov-row">
+        <div class="prov-icon stability">N</div>
+        <div class="prov-info">
+          <div class="prov-name">
+            <span class="prov-name-text">n1n.ai</span>
+            <span class="status-badge active">使用中</span>
+          </div>
+          <div class="prov-sub">
+            <span class="prov-model">stable-diffusion-3-medium</span>
+          </div>
+        </div>
+        <div class="completeness">
+          <div class="dot filled"></div>
+          <div class="dot filled"></div>
+          <div class="dot filled"></div>
+        </div>
+        <svg class="chevron" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+          stroke-width="2">
+          <path d="m9 18 6-6-6-6" />
+        </svg>
+      </a>
+
+      <!-- OpenAI — connected but not default -->
+      <a href="settings-detail.html" class="prov-row">
+        <div class="prov-icon openai">OA</div>
+        <div class="prov-info">
+          <div class="prov-name">
+            <span class="prov-name-text">OpenAI</span>
+            <span class="status-badge connected">已连接</span>
+          </div>
+          <div class="prov-sub">
+            <span class="prov-model">gpt-image-1</span>
+          </div>
+        </div>
+        <div class="completeness">
+          <div class="dot filled"></div>
+          <div class="dot filled"></div>
+          <div class="dot filled"></div>
+        </div>
+        <svg class="chevron" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+          stroke-width="2">
+          <path d="m9 18 6-6-6-6" />
+        </svg>
+      </a>
+
+      <!-- Replicate — config incomplete -->
+      <a href="settings-detail.html" class="prov-row">
+        <div class="prov-icon replicate">RP</div>
+        <div class="prov-info">
+          <div class="prov-name">
+            <span class="prov-name-text">Replicate</span>
+            <span class="status-badge error">配置不完整</span>
+          </div>
+          <div class="prov-sub">
+            <span class="prov-model">black-forest-labs/flux-schnell</span>
+          </div>
+        </div>
+        <div class="completeness">
+          <div class="dot filled"></div>
+          <div class="dot warn"></div>
+          <div class="dot err"></div>
+        </div>
+        <svg class="chevron" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+          stroke-width="2">
+          <path d="m9 18 6-6-6-6" />
+        </svg>
+      </a>
+
+      <div class="section-lbl" style="margin-top:4px;">可添加</div>
+
+      <!-- Empty placeholders -->
+      <div class="prov-row" style="opacity:.5;cursor:default;">
+        <div class="prov-icon" style="background:var(--surface-2);color:var(--text-dim);">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+            <path d="M12 5v14M5 12h14" />
+          </svg>
+        </div>
+        <div class="prov-info">
+          <div class="prov-name"><span class="prov-name-text" style="color:var(--text-muted)">Fal.ai</span></div>
+          <div class="prov-sub"><span class="prov-model">flux-pro, flux-dev ...</span></div>
+        </div>
+        <span class="status-badge none">未配置</span>
+      </div>
+
+      <div class="prov-row" style="opacity:.5;cursor:default;">
+        <div class="prov-icon" style="background:var(--surface-2);color:var(--text-dim);">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+            <path d="M12 5v14M5 12h14" />
+          </svg>
+        </div>
+        <div class="prov-info">
+          <div class="prov-name"><span class="prov-name-text" style="color:var(--text-muted)">Together AI</span></div>
+          <div class="prov-sub"><span class="prov-model">flux-1-schnell-free ...</span></div>
+        </div>
+        <span class="status-badge none">未配置</span>
+      </div>
+
+      <!-- Footer -->
+      <div class="footer-info">
+        <span class="footer-ver">imagen-ps v0.1.0</span>
+        <div class="footer-sep"></div>
+        <button class="footer-link">导入配置</button>
+        <button class="footer-link" style="color:var(--text-dim)">导出</button>
+      </div>
+    </div>
+  </div>
+
+
+
+</body>
+
+</html>

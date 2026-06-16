@@ -1,0 +1,300 @@
+import { createRuntimeError, createValidationError } from '@imagen-ps/core-engine';
+import {
+  getProviderConfigResolver,
+  getProviderProfileRepository,
+  getRuntime,
+  getSecretStorageAdapter,
+} from '../runtime.js';
+import type {
+  CommandResult,
+  DeleteProviderProfileOptions,
+  ProviderProfile,
+  ProviderProfileInput,
+  ProviderProfileTestResult,
+  TestProviderProfileOptions,
+} from './types.js';
+import { resolveSecretValue } from './secret-utils.js';
+
+function errorMessage(error: unknown, fallback: string): string {
+  return error instanceof Error ? error.message : fallback;
+}
+
+function createSecretRef(profileId: string, secretName: string): string {
+  return `secret:provider-profile:${profileId}:${secretName}`;
+}
+
+function sanitizeProfile(profile: ProviderProfile): ProviderProfile {
+  return { ...profile };
+}
+
+/** 列出已保存的 provider profiles，不返回 secret values。 */
+export async function listProviderProfiles(): Promise<CommandResult<readonly ProviderProfile[]>> {
+  const profiles = await getProviderProfileRepository().list();
+  return { ok: true, value: profiles.map(sanitizeProfile) };
+}
+
+/** 获取单个 provider profile，不存在时返回 validation error。 */
+export async function getProviderProfile(profileId: string): Promise<CommandResult<ProviderProfile>> {
+  const profile = await getProviderProfileRepository().get(profileId);
+  if (!profile) {
+    return {
+      ok: false,
+      error: createValidationError(`Provider profile "${profileId}" not found.`, { profileId }),
+    };
+  }
+  return { ok: true, value: sanitizeProfile(profile) };
+}
+
+/**
+ * 保存 provider profile。
+ *
+ * INTENT: 将 write-only secretValues 写入 SecretStorageAdapter，并只把 sanitized profile 保存到 repository。
+ * INPUT: ProviderProfileInput，包含非敏感 config、可选 secretRefs、可选 write-only secretValues。
+ * OUTPUT: 保存后的 ProviderProfile，不包含 secret values。
+ * SIDE EFFECT: 写入 secret storage 与 provider profile repository。
+ * FAILURE: provider 不存在、family mismatch、secret 写入、provider validation 或 repository save 失败时返回 CommandResult error，并尽力删除本次新写入的 secrets。
+ */
+export async function saveProviderProfile(input: ProviderProfileInput): Promise<CommandResult<ProviderProfile>> {
+  if (typeof input.profileId !== 'string' || input.profileId.trim().length === 0) {
+    return {
+      ok: false,
+      error: createValidationError('Provider profile requires profileId.', {}),
+    };
+  }
+
+  const runtime = getRuntime();
+  const existing = await getProviderProfileRepository().get(input.profileId);
+  const providerId = input.providerId ?? existing?.providerId;
+  if (!providerId) {
+    return {
+      ok: false,
+      error: createValidationError(`Provider profile "${input.profileId}" requires providerId.`, {
+        profileId: input.profileId,
+      }),
+    };
+  }
+
+  const provider = runtime.providerRegistry.get(providerId);
+  if (!provider) {
+    return {
+      ok: false,
+      error: createValidationError(`Provider implementation "${providerId}" not found.`, { providerId }),
+    };
+  }
+
+  if (existing && existing.providerId !== providerId) {
+    return {
+      ok: false,
+      error: createValidationError(
+        `Provider profile "${input.profileId}" already uses provider "${existing.providerId}" and cannot be saved as provider "${providerId}". Delete it first or use a different profileId.`,
+        { profileId: input.profileId, existingProviderId: existing.providerId, providerId },
+      ),
+    };
+  }
+
+  const nextDisplayName = input.displayName ?? existing?.displayName ?? provider.describe().displayName;
+  const now = new Date().toISOString();
+  const secretRefs: Record<string, string> = { ...(existing?.secretRefs ?? {}), ...(input.secretRefs ?? {}) };
+  const writtenSecrets = new Map<string, string | undefined>();
+
+  try {
+    const secretStorage = getSecretStorageAdapter();
+    for (const [name, value] of Object.entries(input.secretValues ?? {})) {
+      const ref = secretRefs[name] ?? createSecretRef(input.profileId, name);
+      if (!writtenSecrets.has(ref)) {
+        writtenSecrets.set(ref, await secretStorage.getSecret(ref));
+      }
+      await secretStorage.setSecret(ref, value);
+      secretRefs[name] = ref;
+    }
+
+    const mergedConfig = {
+      ...(existing?.config ?? {}),
+      ...(input.config ?? {}),
+    };
+    const nextEnabled = input.enabled ?? existing?.enabled ?? true;
+    const displayName = nextDisplayName;
+    const nextConfig = {
+      ...mergedConfig,
+      providerId,
+      displayName,
+      family: provider.family,
+    };
+    const profile: ProviderProfile = {
+      profileId: input.profileId,
+      providerId,
+      displayName,
+      enabled: nextEnabled,
+      config: nextConfig,
+      ...(Object.keys(secretRefs).length > 0 ? { secretRefs } : {}),
+      // `models` 字段不接受 input 提供（ProviderProfileInput 已删除该字段）；
+      // 保留 existing.models 透传，确保 discovery 缓存不被 save 路径擦除。
+      ...(existing?.models ? { models: existing.models } : {}),
+      createdAt: existing?.createdAt ?? now,
+      updatedAt: now,
+    };
+
+    const resolvedSecrets: Record<string, string> = {};
+    for (const [name, ref] of Object.entries(profile.secretRefs ?? {})) {
+      const value = await secretStorage.getSecret(ref);
+      if (value === undefined) {
+        throw new Error(`Provider profile secret is missing: ${name}`);
+      }
+      resolvedSecrets[name] = resolveSecretValue(value);
+    }
+
+    provider.validateConfig({
+      providerId: profile.providerId,
+      displayName: profile.displayName,
+      family: provider.family,
+      ...profile.config,
+      ...resolvedSecrets,
+    });
+
+    await getProviderProfileRepository().save(profile);
+    return { ok: true, value: sanitizeProfile(profile) };
+  } catch (error) {
+    await Promise.allSettled(
+      Array.from(writtenSecrets.entries()).map(([ref, previous]) =>
+        previous === undefined
+          ? getSecretStorageAdapter().deleteSecret(ref)
+          : getSecretStorageAdapter().setSecret(ref, previous),
+      ),
+    );
+    return {
+      ok: false,
+      error: createValidationError(errorMessage(error, `Invalid provider profile "${input.profileId}".`), {
+        profileId: input.profileId,
+        providerId,
+      }),
+    };
+  }
+}
+
+/** 删除 provider profile，默认同时删除 associated secrets。 */
+export async function deleteProviderProfile(
+  profileId: string,
+  options: DeleteProviderProfileOptions = {},
+): Promise<CommandResult<void>> {
+  const repository = getProviderProfileRepository();
+  const profile = await repository.get(profileId);
+  if (!profile) {
+    return {
+      ok: false,
+      error: createValidationError(`Provider profile "${profileId}" not found.`, { profileId }),
+    };
+  }
+
+  try {
+    await repository.delete(profileId);
+    if (options.retainSecrets !== true) {
+      await Promise.all(
+        Object.values(profile.secretRefs ?? {}).map((ref) => getSecretStorageAdapter().deleteSecret(ref)),
+      );
+    }
+    return { ok: true, value: undefined };
+  } catch (error) {
+    return {
+      ok: false,
+      error: createRuntimeError(errorMessage(error, `Failed to delete provider profile "${profileId}".`), {
+        profileId,
+      }),
+    };
+  }
+}
+
+/**
+ * 分层测试 provider profile，不返回 secret-bearing config。
+ *
+ * - Layer 1（默认）：config validation —— resolve config + profile lookup。
+ * - Layer 2（options.connect）：调 `provider.discoverModels` 测连通性（不花钱）。
+ *   discoverModels 抛错或未实现时 `connectivity.reachable = false`。
+ * - Layer 3（options.generate）：仅在 connect 成功时，跑最小 text_to_image 烟雾测试（花钱）。
+ */
+export async function testProviderProfile(
+  profileId: string,
+  options: TestProviderProfileOptions = {},
+): Promise<CommandResult<ProviderProfileTestResult>> {
+  try {
+    const resolved = await getProviderConfigResolver().resolve(profileId);
+    const profile = await getProviderProfileRepository().get(profileId);
+    if (!profile) {
+      return {
+        ok: false,
+        error: createValidationError(`Provider profile "${profileId}" not found.`, { profileId }),
+      };
+    }
+
+    const provider = getRuntime().providerRegistry.get(profile.providerId);
+    if (!provider) {
+      return {
+        ok: false,
+        error: createValidationError(`Provider implementation "${profile.providerId}" not found.`, {
+          profileId,
+          providerId: profile.providerId,
+        }),
+      };
+    }
+
+    const result: {
+      profileId: string;
+      providerId: string;
+      family: ProviderProfileTestResult['family'];
+      valid: true;
+      connectivity?: ProviderProfileTestResult['connectivity'];
+      smokeTest?: ProviderProfileTestResult['smokeTest'];
+    } = {
+      profileId,
+      providerId: profile.providerId,
+      family: resolved.family,
+      valid: true,
+    };
+
+    // Layer 2：connect
+    if (options.connect === true || options.generate === true) {
+      if (typeof provider.discoverModels !== 'function') {
+        result.connectivity = { reachable: false };
+      } else {
+        try {
+          const models = await provider.discoverModels(resolved.providerConfig);
+          result.connectivity = { reachable: true, modelCount: models.length, models };
+        } catch {
+          result.connectivity = { reachable: false };
+        }
+      }
+    }
+
+    // Layer 3：generate（需 connect 成功）
+    if (options.generate === true) {
+      if (result.connectivity?.reachable !== true) {
+        result.smokeTest = { passed: false };
+      } else {
+        try {
+          const request = provider.validateRequest({
+            operation: 'text_to_image',
+            prompt: 'test',
+            output: { count: 1 },
+          });
+          const invokeResult = await provider.invoke({ config: resolved.providerConfig, request });
+          const modelUsed = (resolved.providerConfig as unknown as Record<string, unknown>).defaultModel;
+          result.smokeTest = {
+            passed: invokeResult.assets.length > 0,
+            assetCount: invokeResult.assets.length,
+            ...(typeof modelUsed === 'string' ? { modelUsed } : {}),
+          };
+        } catch {
+          result.smokeTest = { passed: false };
+        }
+      }
+    }
+
+    return { ok: true, value: result };
+  } catch (error) {
+    return {
+      ok: false,
+      error: createValidationError(errorMessage(error, `Provider profile "${profileId}" validation failed.`), {
+        profileId,
+      }),
+    };
+  }
+}

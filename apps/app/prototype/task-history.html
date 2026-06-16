@@ -1,0 +1,298 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=360, initial-scale=1.0">
+<title>Imagen PS — 历史任务</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+:root {
+  --bg:#0D1117;--surface-1:#151A22;--surface-2:#1C2330;--surface-3:#242C3B;
+  --border:#2E3748;--border-s:#3A4457;
+  --text:#E9EDF4;--text-muted:#A6B0BF;--text-dim:#738093;--text-inv:#0D1117;
+  --primary:#78E7C0;--primary-s:rgba(120,231,192,.14);
+  --secondary:#67B7FF;--secondary-s:rgba(103,183,255,.14);
+  --success:#63D48F;--success-s:rgba(99,212,143,.14);
+  --warning:#F2B84B;--warning-s:rgba(242,184,75,.14);
+  --error:#F26D6D;--error-s:rgba(242,109,109,.14);
+  --hover:rgba(255,255,255,.05);--active:rgba(255,255,255,.09);
+  --r-sm:8px;--r-md:12px;--r-lg:16px;--r-xl:20px;--r-full:9999px;
+  --sp1:4px;--sp2:8px;--sp3:12px;--sp4:16px;
+  --f-disp:'Space Grotesk',sans-serif;--f-body:'IBM Plex Sans',sans-serif;--f-mono:'IBM Plex Mono',monospace;
+  --t-micro:80ms;--t-short:160ms;--ease-out:cubic-bezier(.2,0,0,1);
+}
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
+html,body{width:360px;height:600px;overflow:hidden;background:var(--bg);color:var(--text);font-family:var(--f-body);font-size:14px;line-height:20px;-webkit-font-smoothing:antialiased;}
+
+.panel{width:100%;height:100%;display:flex;flex-direction:column;}
+
+/* Header */
+.hdr{
+  height:48px;background:var(--surface-1);border-bottom:1px solid var(--border);
+  display:flex;align-items:center;padding:0 var(--sp3);gap:var(--sp2);flex-shrink:0;
+}
+.hdr-btn{
+  width:32px;height:32px;border-radius:var(--r-sm);border:none;
+  background:transparent;color:var(--text-muted);cursor:pointer;
+  display:flex;align-items:center;justify-content:center;
+  transition:background var(--t-micro),color var(--t-micro);text-decoration:none;
+}
+.hdr-btn:hover{background:var(--hover);color:var(--text);}
+.hdr-title{flex:1;font-family:var(--f-disp);font-size:14px;font-weight:600;color:var(--text);text-align:center;}
+
+/* Filter bar */
+.filter-bar{
+  display:flex;gap:var(--sp2);padding:var(--sp2) var(--sp3);
+  border-bottom:1px solid var(--border);background:var(--surface-1);flex-shrink:0;
+  overflow-x:auto;scrollbar-width:none;
+}
+.filter-bar::-webkit-scrollbar{display:none;}
+.filter-chip{
+  padding:4px 12px;border-radius:var(--r-full);
+  border:1px solid var(--border);background:transparent;
+  color:var(--text-dim);font-family:var(--f-body);font-size:11px;font-weight:500;
+  cursor:pointer;white-space:nowrap;transition:all var(--t-micro) var(--ease-out);
+}
+.filter-chip:hover{border-color:var(--border-s);color:var(--text-muted);}
+.filter-chip.active{border-color:var(--primary);color:var(--primary);background:var(--primary-s);}
+
+/* List */
+.list{overflow-y:auto;flex:1;scrollbar-width:thin;scrollbar-color:var(--border) transparent;}
+.list::-webkit-scrollbar{width:3px;}
+.list::-webkit-scrollbar-thumb{background:var(--border);border-radius:2px;}
+
+/* Date group label */
+.date-label{
+  padding:var(--sp2) var(--sp4);
+  font-size:10px;font-weight:600;color:var(--text-dim);
+  text-transform:uppercase;letter-spacing:.6px;
+  background:var(--bg);position:sticky;top:0;z-index:1;
+  border-bottom:1px solid var(--border);
+}
+
+/* Task row */
+.task-row{
+  display:flex;align-items:flex-start;gap:var(--sp3);
+  padding:var(--sp3) var(--sp4);
+  border-bottom:1px solid var(--border);
+  cursor:pointer;transition:background var(--t-micro);
+  text-decoration:none;color:inherit;
+}
+.task-row:hover{background:var(--hover);}
+.task-row:active{background:var(--active);}
+
+/* Thumbnail */
+.task-thumb{
+  width:48px;height:48px;border-radius:var(--r-md);
+  background:var(--surface-3);border:1px solid var(--border);
+  display:flex;align-items:center;justify-content:center;
+  flex-shrink:0;overflow:hidden;position:relative;
+}
+.task-thumb.ok{border-color:transparent;}
+.task-thumb svg{opacity:.3;color:var(--text-dim);}
+.task-thumb-img{
+  width:100%;height:100%;object-fit:cover;border-radius:inherit;
+}
+/* Gradient placeholder for "generated" images */
+.thumb-grad{width:100%;height:100%;border-radius:inherit;}
+
+/* Task info */
+.task-info{flex:1;min-width:0;display:flex;flex-direction:column;gap:3px;}
+.task-prompt{
+  font-size:12px;line-height:16px;color:var(--text);
+  overflow:hidden;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;
+}
+.task-meta{display:flex;align-items:center;gap:var(--sp2);}
+.task-provider{font-family:var(--f-mono);font-size:10px;color:var(--text-dim);}
+.task-time{font-family:var(--f-mono);font-size:10px;color:var(--text-dim);}
+.task-status{
+  display:flex;align-items:center;gap:3px;
+  font-size:10px;font-weight:500;margin-top:1px;
+}
+.sdot{width:5px;height:5px;border-radius:50%;}
+.sdot.ok{background:var(--success);}
+.sdot.run{background:var(--warning);animation:pulse 1.2s ease-in-out infinite;}
+.sdot.err{background:var(--error);}
+.sdot.skip{background:var(--text-dim);}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.35}}
+
+/* Empty state */
+.empty{
+  display:flex;flex-direction:column;align-items:center;justify-content:center;
+  height:100%;gap:var(--sp3);text-align:center;padding:var(--sp4);
+}
+.empty-icon{color:var(--text-dim);opacity:.3;margin-bottom:var(--sp2);}
+.empty-title{font-family:var(--f-disp);font-size:14px;font-weight:600;color:var(--text-muted);}
+.empty-desc{font-size:12px;color:var(--text-dim);max-width:200px;line-height:16px;}
+</style>
+</head>
+<body>
+<div class="panel">
+
+  <!-- Header -->
+  <header class="hdr">
+    <a href="main-page.html" class="hdr-btn" title="返回">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m15 18-6-6 6-6"/></svg>
+    </a>
+    <div class="hdr-title">历史任务</div>
+    <div style="width:32px"></div>
+  </header>
+
+  <!-- Filter -->
+  <div class="filter-bar">
+    <button class="filter-chip active" onclick="filter('all',this)">全部</button>
+    <button class="filter-chip" onclick="filter('ok',this)">已完成</button>
+    <button class="filter-chip" onclick="filter('run',this)">运行中</button>
+    <button class="filter-chip" onclick="filter('err',this)">失败</button>
+  </div>
+
+  <!-- List -->
+  <div class="list" id="list"></div>
+
+</div>
+
+<script>
+const tasks = [
+  {
+    id: 1, status: 'run',
+    prompt: '换成更冷的色调，偏蓝灰色，增加窗外雨景',
+    provider: 'n1n.ai', model: 'sd3-medium',
+    time: '14:31', date: '今天',
+    grad: null
+  },
+  {
+    id: 2, status: 'ok',
+    prompt: '一只橘猫坐在咖啡馆窗边，窗外是下午的街景和阳光，数字油画风格，暖色调',
+    provider: 'n1n.ai', model: 'sd3-medium',
+    time: '14:23', date: '今天',
+    grad: 'linear-gradient(135deg,#1A2035 0%,#2A3550 45%,#1A2E30 100%)'
+  },
+  {
+    id: 3, status: 'err',
+    prompt: 'a futuristic cityscape at dusk, neon reflections on wet streets, cinematic',
+    provider: 'Replicate', model: 'flux-schnell',
+    time: '11:05', date: '今天',
+    grad: null
+  },
+  {
+    id: 4, status: 'ok',
+    prompt: '山间清晨，薄雾缭绕，水墨画风格，留白，极简构图',
+    provider: 'OpenAI', model: 'gpt-image-1',
+    time: '09:48', date: '今天',
+    grad: 'linear-gradient(135deg,#1A2A1A 0%,#2A3A25 50%,#1A2520 100%)'
+  },
+  {
+    id: 5, status: 'ok',
+    prompt: 'portrait of a cyberpunk hacker girl, glowing implants, dark alley background, high detail',
+    provider: 'n1n.ai', model: 'stable-image-ultra',
+    time: '22:14', date: '昨天',
+    grad: 'linear-gradient(135deg,#1A1A2E 0%,#2A1A3A 50%,#1A2030 100%)'
+  },
+  {
+    id: 6, status: 'ok',
+    prompt: '复古海报风格，爵士乐演出，霓虹灯，1960年代纽约',
+    provider: 'n1n.ai', model: 'sdxl',
+    time: '19:33', date: '昨天',
+    grad: 'linear-gradient(135deg,#2A1A10 0%,#3A2A15 50%,#251A10 100%)'
+  },
+  {
+    id: 7, status: 'err',
+    prompt: 'abstract fluid art, vibrant colors, 8k resolution, trending on artstation',
+    provider: 'Replicate', model: 'flux-pro',
+    time: '15:02', date: '昨天',
+    grad: null
+  },
+  {
+    id: 8, status: 'ok',
+    prompt: '白色极简主义室内设计，落地窗，下午阳光，北欧风格',
+    provider: 'OpenAI', model: 'gpt-image-1',
+    time: '10:17', date: '昨天',
+    grad: 'linear-gradient(135deg,#252525 0%,#303030 50%,#252525 100%)'
+  },
+];
+
+const statusLabel = {
+  ok:  { text: '完成', cls: 'ok' },
+  run: { text: '生成中', cls: 'run' },
+  err: { text: '失败', cls: 'err' },
+};
+
+let currentFilter = 'all';
+
+function renderThumb(task) {
+  if (task.status === 'ok' && task.grad) {
+    return `<div class="task-thumb ok"><div class="thumb-grad" style="background:${task.grad}"></div></div>`;
+  }
+  if (task.status === 'run') {
+    return `<div class="task-thumb" style="border-color:var(--warning);background:var(--warning-s)">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--warning)" stroke-width="1.5" style="opacity:.7;animation:pulse 1.2s ease-in-out infinite"><path d="M21 12a9 9 0 1 1-9-9"/></svg>
+    </div>`;
+  }
+  if (task.status === 'err') {
+    return `<div class="task-thumb" style="border-color:var(--error);background:var(--error-s)">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--error)" stroke-width="1.5" style="opacity:.7"><circle cx="12" cy="12" r="10"/><path d="m15 9-6 6M9 9l6 6"/></svg>
+    </div>`;
+  }
+  return `<div class="task-thumb"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1"><rect x="3" y="3" width="18" height="18" rx="2"/></svg></div>`;
+}
+
+function render(filterKey) {
+  const list = document.getElementById('list');
+  const filtered = filterKey === 'all' ? tasks : tasks.filter(t => t.status === filterKey);
+
+  if (filtered.length === 0) {
+    list.innerHTML = `<div class="empty">
+      <div class="empty-icon"><svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="m21 15-5-5L5 21"/></svg></div>
+      <div class="empty-title">暂无记录</div>
+      <div class="empty-desc">这个筛选条件下没有任务记录</div>
+    </div>`;
+    return;
+  }
+
+  // Group by date
+  const groups = {};
+  filtered.forEach(t => {
+    if (!groups[t.date]) groups[t.date] = [];
+    groups[t.date].push(t);
+  });
+
+  let html = '';
+  for (const [date, items] of Object.entries(groups)) {
+    html += `<div class="date-label">${date}</div>`;
+    items.forEach(t => {
+      const st = statusLabel[t.status];
+      const statusColor = { ok: 'var(--success)', run: 'var(--warning)', err: 'var(--error)' }[t.status];
+      html += `
+        <a class="task-row" href="main-page.html" title="查看对话">
+          ${renderThumb(t)}
+          <div class="task-info">
+            <div class="task-prompt">${t.prompt}</div>
+            <div class="task-meta">
+              <span class="task-provider">${t.provider}</span>
+              <span style="color:var(--border-s)">·</span>
+              <span class="task-time">${t.time}</span>
+            </div>
+            <div class="task-status">
+              <span class="sdot ${st.cls}"></span>
+              <span style="color:${statusColor};font-size:10px;">${st.text}</span>
+            </div>
+          </div>
+        </a>`;
+    });
+  }
+  list.innerHTML = html;
+}
+
+function filter(key, btn) {
+  currentFilter = key;
+  document.querySelectorAll('.filter-chip').forEach(c => c.classList.remove('active'));
+  btn.classList.add('active');
+  render(key);
+}
+
+render('all');
+</script>
+</body>
+</html>

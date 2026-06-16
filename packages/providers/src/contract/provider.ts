@@ -1,0 +1,130 @@
+import type { ProviderDispatchAdapter } from '@imagen-ps/core-engine';
+import type { ProviderFamily, ProviderOperation } from './capability.js';
+import type { ProviderConfig } from './config.js';
+import type { ProviderModelInfo } from './model.js';
+import type { CanonicalImageJobRequest } from './request.js';
+import type { ProviderInvokeResult } from './result.js';
+
+/**
+ * Provider 主契约与 bridge 契约。
+ *
+ * `Provider` 拥有 provider semantics；
+ * `ProviderDispatchAdapter` 属于 `core-engine` 的最小调用边界；
+ * 两者之间通过显式 bridge 连接，避免 engine 反向理解 provider 内部语义。
+ */
+
+/**
+ * `describe()` 返回的 provider 元数据。
+ *
+ * 关于历史 `configSummary` 字段（OPEN_ITEMS providers#1 决策结果）：
+ * 已移除。`describe()` 是**纯静态** descriptor，不承担"针对某份运行时 config 的
+ * 动态摘要"职责。如未来需要展示已配置参数，应另起独立 API（例如
+ * `provider.summarizeConfig(config)`），把静态描述与运行时摘要分离，避免在
+ * 静态结构上挂动态语义。
+ */
+export interface ProviderDescriptor {
+  /** provider 的稳定标识符。 */
+  readonly id: string;
+
+  /** 当前 provider family。仅作分类/展示标签（如 profile UI 分组），不参与调用、校验或兜底。 */
+  readonly family: ProviderFamily;
+
+  /** 展示名称。 */
+  readonly displayName: string;
+
+  /** 当前 provider 支持的 operation。任务级 guard 的唯一依据。 */
+  readonly operations: readonly ProviderOperation[];
+
+  /** 调用模式；运行时预留，当前无消费者。 */
+  readonly invokeMode: 'sync' | 'async';
+
+  /**
+   * Implementation 自带的 fallback model 候选清单（OPTIONAL）。
+   *
+   * 语义为"当 profile 没有任何 discovery 缓存时，作为该 implementation 的兜底候选"。
+   * 该字段 MUST NOT 参与 `provider.invoke()` 的 model 解析（model 解析仍由
+   * `model-selection` 三级优先级负责，不得耦合到本字段）。
+   *
+   * 是否声明 `defaultModels` 由 implementation 自由决定；空数组与未声明在
+   * `listProfileModels` 行为上等价（均视为"无 implementation 兜底"）。
+   */
+  readonly defaultModels?: readonly ProviderModelInfo[];
+}
+
+/** `invoke()` 的调用参数。 */
+export interface ProviderInvokeArgs<TConfig, TRequest> {
+  /** 已校验的 provider config。 */
+  readonly config: TConfig;
+
+  /** 已校验的 provider request。 */
+  readonly request: TRequest;
+
+  /** 可选的取消信号。 */
+  readonly signal?: AbortSignal;
+}
+
+/** provider 实例需要遵循的最小公开契约。 */
+export interface Provider<TConfig = ProviderConfig, TRequest = CanonicalImageJobRequest> {
+  /** 当前 provider 的稳定标识符。 */
+  readonly id: string;
+
+  /** 当前 provider 所属 family。 */
+  readonly family: ProviderFamily;
+
+  /** 返回静态 descriptor。 */
+  describe(): ProviderDescriptor;
+
+  /**
+   * 校验并收敛 config 输入。
+   *
+   * 失败时必须抛出可被映射为 `JobError { category: 'validation' }` 的结构化错误。
+   */
+  validateConfig(input: unknown): TConfig;
+
+  /**
+   * 校验并收敛 request 输入。
+   *
+   * 失败时必须抛出可被映射为 `JobError { category: 'validation' }` 的结构化错误。
+   */
+  validateRequest(input: unknown): TRequest;
+
+  /**
+   * 执行一次 provider 调用并返回归一化结果。
+   *
+   * 失败时必须抛出可被映射为 `JobError { category: 'provider' }` 的结构化错误。
+   */
+  invoke(args: ProviderInvokeArgs<TConfig, TRequest>): Promise<ProviderInvokeResult>;
+
+  /**
+   * Implementation 的运行时 model discovery 能力（OPTIONAL）。
+   *
+   * 语义为"向上游或 implementation 内部数据源询问当前可用的 model 候选清单"。
+   * 该方法 MUST 是无状态查询：不得修改 `config`、不得写入任何 host 持久化状态。
+   *
+   * 是否实现 `discoverModels` 由 implementation 自由决定；未实现时调用方
+   * （`refreshProfileModels`）MUST 视为"该 implementation 不支持 discovery"
+   * 并返回 validation error。实现可能抛错以表示 discovery 失败，调用方
+   * SHALL 按 `refreshProfileModels` 失败语义处理。
+   */
+  discoverModels?(config: TConfig): Promise<readonly ProviderModelInfo[]>;
+}
+
+/** bridge 创建 `ProviderDispatchAdapter` 所需的输入。 */
+export interface ProviderDispatchBridgeArgs<TConfig = ProviderConfig, TRequest = CanonicalImageJobRequest> {
+  /** 待适配的 provider 实例。 */
+  readonly provider: Provider<TConfig, TRequest>;
+
+  /** 已校验的 provider config。 */
+  readonly config: TConfig;
+}
+
+/** 从 `Provider` 到 `ProviderDispatchAdapter` 的显式桥接契约。 */
+export interface ProviderDispatchBridge<TConfig = ProviderConfig, TRequest = CanonicalImageJobRequest> {
+  /**
+   * 创建 `core-engine` 可消费的 dispatch adapter。
+   *
+   * 该 bridge 只负责收敛 provider 语义，不负责 registry、runtime lifecycle
+   * 或 transport retry 等实现细节。
+   */
+  createDispatchAdapter(args: ProviderDispatchBridgeArgs<TConfig, TRequest>): ProviderDispatchAdapter;
+}

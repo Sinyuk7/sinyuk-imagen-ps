@@ -1,0 +1,10 @@
+import type { ProviderDescriptor } from '../../contract/provider.js';
+
+/** Chat image provider 的静态 descriptor。 */
+export const chatImageDescriptor: ProviderDescriptor = {
+  id: 'chat-image',
+  family: 'chat-image',
+  displayName: 'Chat Image',
+  operations: ['text_to_image', 'image_edit'],
+  invokeMode: 'sync',
+};
