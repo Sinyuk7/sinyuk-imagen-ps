@@ -1,6 +1,6 @@
 # CLI Surface Contract Loop
 
-- Status: design only
+- Status: implemented through Phase 5; real Photoshop/UXP host smoke remains outside this loop's automated gates
 - Scope owner: `apps/cli`
 - Shared context: `docs/ENGINEERING_CONTEXT.md`
 - Trigger: review of the pasted PM scoring document for `@imagen-ps/cli`
@@ -485,6 +485,6 @@ Human decision point:
 
 ## Recommended Immediate Next Action
 
-After review approval and the Phase 0 authority decision, execute Phase 1 only.
+The loop has advanced through Phase 5 under the approved decisions above.
 
-Do not implement task-first aliases, mock init, doctor, schema, batch, or durable jobs until the corrected README has removed the current expectation mismatch and the team has made the Phase 2 job semantics decision.
+Do not add `doctor`, `schema`, `batch`, asset management, cost guardrails, telemetry, or broader product surface from the original scoring document without a new loop or decision packet. The next useful verification is a real Photoshop/UXP host smoke for the app data-folder adapter; that is a host validation task, not a new CLI parser phase.
