@@ -4,6 +4,7 @@
   "private": true,
   "packageManager": "pnpm@9.15.4",
   "scripts": {
+    "bootstrap": "pnpm install --frozen-lockfile && pnpm validate",
     "build": "turbo run build",
     "dev": "turbo run dev",
     "test": "turbo run test",

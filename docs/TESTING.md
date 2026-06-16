@@ -2,20 +2,30 @@
 
 本文档是当前测试入口。历史设计稿和 handoff 文档不再作为权威状态来源。
 
+## 首次初始化
+
+新 checkout 或新 agent 接手仓库时，先执行：
+
+```bash
+pnpm bootstrap
+```
+
+`pnpm bootstrap` 使用 lockfile 安装依赖，然后执行 `pnpm validate`。这是默认测试环境的初始化入口，必须保证 mock-only、零费用、无真实 Photoshop / UXP 依赖。
+
 ## 常规验证
 
 ```bash
+pnpm validate
 pnpm build
 pnpm test
 pnpm check:boundaries
-pnpm validate
 pnpm --filter @imagen-ps/providers test
 pnpm --filter @imagen-ps/application test
 pnpm --filter @imagen-ps/app test
 pnpm --filter @imagen-ps/cli test
 ```
 
-`pnpm test` 会跑所有默认 CI 测试，包括：
+`pnpm test` 通过 Turbo pipeline 先构建需要的 workspace，再跑所有默认 CI 测试，包括：
 
 - `apps/app/tests/*.test.tsx`
 - `apps/cli/tests/contract/*.contract.test.ts`
@@ -25,6 +35,8 @@ pnpm --filter @imagen-ps/cli test
 `pnpm check:boundaries` 是最小架构边界 validator。它只做本地源码扫描，不访问网络、不读取 credentials、不产生费用。
 
 `pnpm validate` 串行执行 `pnpm build`、`pnpm test`、`pnpm check:boundaries`，作为后续 Agent loop 的默认收口命令。
+
+`pnpm --filter <pkg> test` 会绕过根级 Turbo pipeline，只适合在 `pnpm bootstrap`、`pnpm build` 或相关 package build 已完成后做局部复查。尤其是 CLI contract / smoke 测试会通过子进程运行 `apps/cli/dist/index.js`，不能把 filtered CLI test 当成干净 checkout 的初始化入口。
 
 ## CLI E2E Smoke
 
@@ -187,6 +199,12 @@ P2 / Nightly / Manual 独立清单，不进入默认 `pnpm test`：
 - 任何需要人工 key、代理或外网访问的场景
 
 ## Current Verified State
+
+2026-06-17 初始化入口已验证：
+
+- `pnpm validate` passed。
+- 临时移走 `apps/*/dist` 与 `packages/*/dist` 后，`pnpm bootstrap` passed。
+- `pnpm bootstrap` 会先执行 `pnpm install --frozen-lockfile`，再执行 `pnpm validate`。
 
 2026-06-15 已验证：
 

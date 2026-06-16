@@ -25,11 +25,12 @@ packages/
 ## 命令
 
 ```bash
-pnpm install          # 安装依赖
+pnpm bootstrap        # 首次初始化：安装依赖并跑完整默认验收
+pnpm validate         # 日常收口：构建、测试、边界检查
 pnpm build            # 构建所有 workspace
-pnpm test             # 运行所有测试
+pnpm test             # 运行默认测试，会按 Turbo pipeline 先构建
 pnpm --filter <pkg> build   # 构建单个包
-pnpm --filter <pkg> test    # 运行单个包测试
+pnpm --filter <pkg> test    # 运行单个包测试，要求已完成 bootstrap 或相关 build
 ```
 
 测试框架：Vitest。构建产物输出到 `dist/`。CLI smoke 测试产物会保留在 gitignored 的 `.test-output/smoke/`，用于复查真实图片和 sidecar。
