@@ -1,0 +1,400 @@
+packages/application/src/runtime.ts
+  4369c16b23fb081a 9-15,24-25,46-47,82-129,169-277,479-504,525-531
+packages/AGENTS.md
+  abbdb2ea0ae532d8 7
+docs/ENGINEERING_CONTEXT.md
+  abbdb2ea0ae532d8 27-28
+apps/app/SPEC.md
+  abbdb2ea0ae532d8 4
+  4369c16b23fb081a 16,53,61
+package.json
+  abbdb2ea0ae532d8 11-12
+README.md
+  abbdb2ea0ae532d8 21
+docs/design/durable-job-history.md
+  c73ca0e60928e284 1-119
+packages/core-engine/src/types/index.ts
+  4369c16b23fb081a 10
+apps/cli/src/commands/job/index.ts
+  4369c16b23fb081a 5,13
+packages/application/AGENTS.md
+  abbdb2ea0ae532d8 8
+docs/TESTING.md
+  abbdb2ea0ae532d8 10-11,25-27
+  4369c16b23fb081a 60-62
+apps/cli/src/commands/task/index.ts
+  4369c16b23fb081a 1-100
+packages/application/src/commands/job-history.ts
+  4369c16b23fb081a 1-29
+apps/cli/src/commands/job/list.ts
+  4369c16b23fb081a 1-48
+apps/app/tests/fakes.ts
+  4369c16b23fb081a 4,50-63,104,116,129,160
+apps/cli/src/commands/job/executor.ts
+  4369c16b23fb081a 1-113
+apps/app/README.md
+  4369c16b23fb081a 43
+scripts/check-boundaries.mjs
+  abbdb2ea0ae532d8 1-135
+apps/app/STATUS.md
+  abbdb2ea0ae532d8 5,34,56,58
+  4369c16b23fb081a 46,57,76,91-92,109
+apps/app/src/host/in-memory-host-storage.ts
+  4369c16b23fb081a 1-9,43-86
+apps/app/src/ui/hooks/use-job-history.ts
+  4369c16b23fb081a 1-41
+apps/app/src/ui/app-shell.tsx
+  4369c16b23fb081a 9,73,112-122
+apps/cli/README.md
+  4369c16b23fb081a 3,5-8,10-11,13,15,24,30,33,37,40,43,50,52-53,55-61,63,76,85,92,103,106,109,112,115,121,127,129-131,134-136,138,140,142-143,145-149,152-156,158,165,171,174,181-183,186-187,189,191,193-194,197,200,203,205-206,208-209,211-216,219-220,222,224,226-230,233-237,240-246,249-253,255-257,259,261,263-264,266
+apps/cli/src/index.ts
+  4369c16b23fb081a 4-10,15-16,39-40,46-47
+packages/application/src/commands/index.ts
+  4369c16b23fb081a 30,36,39,44-45,47,70-71
+packages/application/src/runtime.test.ts
+  4369c16b23fb081a 2-8,10-16,41-60,100-198
+apps/app/src/ui/pages/history-page.tsx
+  4369c16b23fb081a 2,12-15,19-85,87,93-97,99-100,110-112,120-127,129-131,133,139,141,143,146-148,153,162-163
+packages/application/src/commands/submit-job.ts
+  4369c16b23fb081a 9,106
+apps/app/src/app-services/commands-port.ts
+  4369c16b23fb081a 8,26
+packages/core-engine/src/durable-job.test.ts
+  4369c16b23fb081a 1-103
+apps/cli/src/adapters/file-job-history-adapter.ts
+  4369c16b23fb081a 1-159
+apps/app/src/host/create-plugin-host-shell.ts
+  4369c16b23fb081a 2-3,12,26-27,31-32
+apps/cli/src/commands/job/submit.ts
+  4369c16b23fb081a 3-4,20
+docs/loops/cli-surface-contract-loop.md
+  4369c16b23fb081a 24,55,163-164,250,266,297-298,321-326,470-474
+  c73ca0e60928e284 430,432-436,469
+  abbdb2ea0ae532d8 8,68,81,83-86,88,115,121-122,128,136,252
+apps/cli/tests/contract/basic.contract.test.ts
+  4369c16b23fb081a 22-24
+apps/cli/tests/contract/init.contract.test.ts
+  4369c16b23fb081a 1-52
+apps/cli/src/commands/job/retry.ts
+  4369c16b23fb081a 8
+apps/app/src/host/uxp-job-history-adapter.ts
+  4369c16b23fb081a 1-181
+AGENTS.md
+  abbdb2ea0ae532d8 11-13
+apps/app/tests/history-page.test.tsx
+  4369c16b23fb081a 1-41
+packages/application/src/commands/retry-job.ts
+  4369c16b23fb081a 7,11-17,20-22,24-26,28-33,35-40,42-49,55-80,82-87
+apps/cli/tests/contract/task-first.contract.test.ts
+  4369c16b23fb081a 1-67
+apps/cli/src/commands/init/index.ts
+  4369c16b23fb081a 1-40
+apps/cli/src/commands/job/get.ts
+  4369c16b23fb081a 2,9-10,12-13,15-20
+apps/cli/tests/contract/job.contract.test.ts
+  4369c16b23fb081a 88-89,91,96-165
+packages/core-engine/src/types/durable-job.ts
+  4369c16b23fb081a 1-102
+packages/application/src/commands/types.ts
+  4369c16b23fb081a 7,17,133-145
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.2.8-ntes.9",
+  "base_commit_sha": "4c233c91932bead6446cdbd0b8a152e2f7700ded",
+  "prompts": {
+    "4369c16b23fb081a": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "019ecf66-15e7-79c1-8b68-99cec10f764e",
+        "model": "gpt-5.5"
+      },
+      "human_author": "sinyuk",
+      "messages": [],
+      "total_additions": 2095,
+      "total_deletions": 401,
+      "accepted_lines": 1984,
+      "overriden_lines": 0,
+      "per_file_stats": {
+        "apps/app/STATUS.md": {
+          "additions": 6,
+          "deletions": 2,
+          "accepted_lines": 6
+        },
+        "packages/application/src/commands/retry-job.ts": {
+          "additions": 82,
+          "deletions": 33,
+          "accepted_lines": 69
+        },
+        "apps/cli/src/commands/job/submit.ts": {
+          "additions": 3,
+          "deletions": 109,
+          "accepted_lines": 3
+        },
+        "apps/cli/tests/contract/init.contract.test.ts": {
+          "additions": 52,
+          "accepted_lines": 52
+        },
+        "docs/loops/cli-surface-contract-loop.md": {
+          "additions": 20,
+          "deletions": 6,
+          "accepted_lines": 19
+        },
+        "apps/app/src/host/uxp-job-history-adapter.ts": {
+          "additions": 182,
+          "deletions": 1,
+          "accepted_lines": 181
+        },
+        "packages/core-engine/src/types/index.ts": {
+          "additions": 1,
+          "accepted_lines": 1
+        },
+        "apps/app/src/host/in-memory-host-storage.ts": {
+          "additions": 56,
+          "deletions": 1,
+          "accepted_lines": 56
+        },
+        "apps/cli/src/commands/job/executor.ts": {
+          "additions": 113,
+          "accepted_lines": 113
+        },
+        "apps/app/src/app-services/commands-port.ts": {
+          "additions": 2,
+          "accepted_lines": 2
+        },
+        "packages/core-engine/src/durable-job.test.ts": {
+          "additions": 121,
+          "deletions": 18,
+          "accepted_lines": 103
+        },
+        "apps/cli/src/commands/job/list.ts": {
+          "additions": 53,
+          "deletions": 5,
+          "accepted_lines": 48
+        },
+        "apps/app/SPEC.md": {
+          "additions": 3,
+          "deletions": 3,
+          "accepted_lines": 3
+        },
+        "apps/cli/tests/contract/basic.contract.test.ts": {
+          "additions": 3,
+          "accepted_lines": 3
+        },
+        "apps/cli/src/index.ts": {
+          "additions": 13,
+          "deletions": 1,
+          "accepted_lines": 13
+        },
+        "apps/app/src/ui/app-shell.tsx": {
+          "additions": 13,
+          "deletions": 1,
+          "accepted_lines": 13
+        },
+        "docs/TESTING.md": {
+          "additions": 3,
+          "deletions": 1,
+          "accepted_lines": 3
+        },
+        "packages/application/src/commands/submit-job.ts": {
+          "additions": 2,
+          "deletions": 1,
+          "accepted_lines": 2
+        },
+        "apps/cli/src/commands/task/index.ts": {
+          "additions": 109,
+          "deletions": 9,
+          "accepted_lines": 100
+        },
+        "apps/app/src/ui/pages/history-page.tsx": {
+          "additions": 107,
+          "deletions": 24,
+          "accepted_lines": 104
+        },
+        "apps/cli/tests/contract/job.contract.test.ts": {
+          "additions": 75,
+          "deletions": 4,
+          "accepted_lines": 74
+        },
+        "apps/cli/src/commands/job/index.ts": {
+          "additions": 2,
+          "accepted_lines": 2
+        },
+        "packages/application/src/runtime.ts": {
+          "additions": 216,
+          "deletions": 15,
+          "accepted_lines": 202
+        },
+        "apps/app/src/host/create-plugin-host-shell.ts": {
+          "additions": 7,
+          "accepted_lines": 7
+        },
+        "packages/core-engine/src/types/durable-job.ts": {
+          "additions": 114,
+          "deletions": 12,
+          "accepted_lines": 102
+        },
+        "apps/app/tests/history-page.test.tsx": {
+          "additions": 41,
+          "accepted_lines": 41
+        },
+        "apps/cli/README.md": {
+          "additions": 139,
+          "deletions": 114,
+          "accepted_lines": 134
+        },
+        "packages/application/src/commands/index.ts": {
+          "additions": 8,
+          "accepted_lines": 8
+        },
+        "packages/application/src/commands/types.ts": {
+          "additions": 18,
+          "deletions": 3,
+          "accepted_lines": 17
+        },
+        "packages/application/src/runtime.test.ts": {
+          "additions": 149,
+          "deletions": 17,
+          "accepted_lines": 134
+        },
+        "apps/cli/tests/contract/task-first.contract.test.ts": {
+          "additions": 69,
+          "deletions": 2,
+          "accepted_lines": 67
+        },
+        "packages/application/src/commands/job-history.ts": {
+          "additions": 29,
+          "accepted_lines": 29
+        },
+        "apps/app/tests/fakes.ts": {
+          "additions": 19,
+          "deletions": 1,
+          "accepted_lines": 19
+        },
+        "apps/app/README.md": {
+          "additions": 1,
+          "accepted_lines": 1
+        },
+        "apps/cli/src/commands/job/get.ts": {
+          "additions": 15,
+          "deletions": 9,
+          "accepted_lines": 11
+        },
+        "apps/cli/src/commands/init/index.ts": {
+          "additions": 43,
+          "deletions": 3,
+          "accepted_lines": 40
+        },
+        "apps/cli/src/adapters/file-job-history-adapter.ts": {
+          "additions": 159,
+          "accepted_lines": 159
+        },
+        "apps/app/src/ui/hooks/use-job-history.ts": {
+          "additions": 43,
+          "deletions": 2,
+          "accepted_lines": 41
+        },
+        "apps/cli/src/commands/job/retry.ts": {
+          "additions": 4,
+          "deletions": 4,
+          "accepted_lines": 2
+        }
+      }
+    },
+    "abbdb2ea0ae532d8": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "019ecf3f-831b-73e2-93c7-3f15fd4a3b85",
+        "model": "gpt-5.5"
+      },
+      "human_author": "sinyuk",
+      "messages": [],
+      "total_additions": 197,
+      "total_deletions": 52,
+      "accepted_lines": 170,
+      "overriden_lines": 0,
+      "per_file_stats": {
+        "AGENTS.md": {
+          "additions": 6,
+          "deletions": 4,
+          "accepted_lines": 3
+        },
+        "apps/app/README.md": {
+          "deletions": 1
+        },
+        "packages/application/AGENTS.md": {
+          "additions": 2,
+          "deletions": 2,
+          "accepted_lines": 1
+        },
+        "package.json": {
+          "additions": 2,
+          "accepted_lines": 2
+        },
+        "README.md": {
+          "additions": 1,
+          "deletions": 1,
+          "accepted_lines": 1
+        },
+        "apps/app/STATUS.md": {
+          "additions": 4,
+          "deletions": 4,
+          "accepted_lines": 4
+        },
+        "docs/TESTING.md": {
+          "additions": 6,
+          "accepted_lines": 6
+        },
+        "scripts/check-boundaries.mjs": {
+          "additions": 147,
+          "deletions": 12,
+          "accepted_lines": 135
+        },
+        "docs/ENGINEERING_CONTEXT.md": {
+          "additions": 4,
+          "deletions": 3,
+          "accepted_lines": 2
+        },
+        "apps/app/SPEC.md": {
+          "additions": 1,
+          "deletions": 1,
+          "accepted_lines": 1
+        },
+        "docs/loops/cli-surface-contract-loop.md": {
+          "additions": 22,
+          "deletions": 22,
+          "accepted_lines": 14
+        },
+        "packages/AGENTS.md": {
+          "additions": 2,
+          "deletions": 2,
+          "accepted_lines": 1
+        }
+      }
+    },
+    "c73ca0e60928e284": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "aedfba76-17c6-4b82-83dd-71ee88bfd741",
+        "model": "claude-opus-4-8"
+      },
+      "human_author": "sinyuk",
+      "messages": [],
+      "total_additions": 126,
+      "total_deletions": 7,
+      "accepted_lines": 126,
+      "overriden_lines": 0,
+      "per_file_stats": {
+        "docs/loops/cli-surface-contract-loop.md": {
+          "additions": 7,
+          "deletions": 7,
+          "accepted_lines": 7
+        },
+        "docs/design/durable-job-history.md": {
+          "additions": 119,
+          "accepted_lines": 119
+        }
+      }
+    }
+  }
+}
