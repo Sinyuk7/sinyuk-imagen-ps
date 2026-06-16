@@ -18,8 +18,9 @@ Read:
 - relevant provider contract files under `packages/providers/src/contract`
 - relevant implementation and tests under `packages/providers`
 
-Read `docs/openapi/*` only when endpoint field mapping matters. Treat those docs
-as endpoint reference, not as product roadmap.
+Read `docs/dev-memory/memories/architecture/provider-openapi-reference/` only
+when endpoint field mapping matters. Treat those docs as archived endpoint
+reference, not as product roadmap or current authority.
 Classify each doc per `docs/agent/LOOP.md` Document Authority before reading;
 do not treat completed Loops as active plans.
 

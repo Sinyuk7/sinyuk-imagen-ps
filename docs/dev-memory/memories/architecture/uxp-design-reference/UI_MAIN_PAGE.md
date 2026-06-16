@@ -1,5 +1,10 @@
 # UI Main Page — Sinyuk Imagen PS
 
+> Archived reference: this is historical UXP/UI page design context, not current
+> app implementation authority. Current app authority lives in
+> `apps/app/SPEC.md`, `apps/app/STATUS.md`, `apps/app/AGENTS.md`, and
+> `docs/TESTING.md`.
+
 ## 当前适用范围
 
 本文件继续有效，但属于后续 UXP UI 阶段参考，不属于当前 change 的交付 gate。

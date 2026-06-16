@@ -1,3 +1,9 @@
+# UXP Interface Notes
+
+> Archived reference: this is historical UXP API research, not current app
+> implementation authority. Current app authority lives in `apps/app/SPEC.md`,
+> `apps/app/STATUS.md`, `apps/app/AGENTS.md`, and `docs/TESTING.md`.
+
 下面按 **“可直接落到 HostBridge 实现”** 的粒度整理。结论先说：`getPixels` 只读 RGB/灰度像素；**读蒙版不要用 `getPixels`，用 `imaging.getLayerMask()`**；写回“生成好的图片文件”优先走 **UXP File → session token → `batchPlay placeEvent` → `executeAsModal`**，`putPixels` 更适合你已经有 raw buffer / `PhotoshopImageData` 的情况。
 
 ---

@@ -1,46 +1,28 @@
 # @imagen-ps/cli
 
-`@imagen-ps/cli` 是 `imagen-ps` 仓库内的 Node.js 自动化入口，用于：
+`@imagen-ps/cli` is the repository Node automation surface for provider profile
+setup, provider contract validation, mock/live smoke, and local artifact-producing
+generate/edit jobs.
 
-- 管理 provider profile。
-- 验证 provider contract。
-- 运行 mock / live smoke。
-- 提交生成或编辑 job，并把图片产物写入本地目录。
+It is not a general image CLI and it does not own Photoshop / UXP behavior.
+Photoshop host IO belongs to `apps/app`.
 
-它不是通用图片 CLI，也不承担 Photoshop / UXP host 行为。Photoshop / UXP
-能力由 `apps/app` 负责。
+## Install
 
-## 安装
-
-从仓库根目录执行：
+From the repository root:
 
 ```bash
 pnpm install
 pnpm --filter @imagen-ps/cli build
 cd apps/cli
 pnpm link --global
-```
-
-如果 `pnpm link --global` 报 `ERR_PNPM_NO_GLOBAL_BIN_DIR`，先执行：
-
-```bash
-pnpm setup
-```
-
-打开新终端后再运行：
-
-```bash
-cd apps/cli
-pnpm link --global
-```
-
-验证入口：
-
-```bash
 imagen --help
 ```
 
-移除本地命令：
+If pnpm has no global bin directory, run `pnpm setup`, open a new terminal, then
+repeat the link step.
+
+To remove the local command:
 
 ```bash
 cd apps/cli
@@ -49,98 +31,31 @@ pnpm unlink
 
 ## Mock-First Quick Start
 
-mock provider 不访问网络、不消耗真实 key，适合先验证 CLI contract 和 `--out`
-产物形状。最快方式是创建内置 mock profile：
+The mock provider is local, zero-cost, and does not use network or real keys.
 
 ```bash
 imagen init --mock
 imagen profile test mock-dev
+imagen generate --profile mock-dev --prompt "simple blue square icon" --out ./imagen-output
 ```
 
-`init --mock` 只会在 CLI config dir 中创建或更新 `mock-dev` profile；它不是项目
-初始化器，也不会配置真实 provider credentials。
+`init --mock` creates or updates the built-in `mock-dev` profile in the CLI
+config directory. It is not a repository initializer and it does not configure
+real provider credentials.
 
-也可以手写 mock profile JSON：
-
-```bash
-cat > profile.json <<'JSON'
-{
-  "profileId": "mock-dev",
-  "providerId": "mock",
-  "family": "image-endpoint",
-  "displayName": "Mock Dev",
-  "config": {
-    "providerId": "mock",
-    "family": "image-endpoint",
-    "displayName": "Mock Dev",
-    "baseURL": "https://mock.local"
-  },
-  "secretValues": {
-    "apiKey": "sk-mock"
-  }
-}
-JSON
-```
-
-保存并验证 profile：
-
-```bash
-imagen profile save @profile.json
-imagen profile test mock-dev
-```
-
-创建 job input：
-
-```bash
-cat > input.json <<'JSON'
-{
-  "profileId": "mock-dev",
-  "prompt": "simple blue square icon on a plain white background"
-}
-JSON
-```
-
-推荐的 task-first 入口：
-
-```bash
-imagen generate --profile mock-dev --prompt "simple blue square icon on a plain white background"
-```
-
-写出图片和 sidecar metadata：
-
-```bash
-imagen generate --profile mock-dev --prompt "simple blue square icon on a plain white background" --out ./imagen-output
-```
-
-等价的底层 job submit 入口：
-
-```bash
-imagen job submit provider-generate @input.json
-```
-
-底层 job submit 也支持同一个 `--out` 产物 contract：
-
-```bash
-imagen job submit provider-generate @input.json --out ./imagen-output
-```
-
-`--out` 会写入每个 job 独立目录：
+`--out` writes one directory per job:
 
 ```text
 <out>/<jobId>/image.*
 <out>/<jobId>/image.json
 ```
 
-sidecar metadata 至少包含 `jobId`、`providerId`、`operation`、`prompt`、
-`sha256`、`size`、`mimeType`、`savedAt`；如果 profile 或 provider 返回了
-model / usage，也会一并写入。
+The sidecar includes job, provider, model, operation, prompt, hash, size, MIME
+type, and saved timestamp when available.
 
-## JSON 输入
+## JSON Input
 
-接受结构化输入的命令支持两种形式：
-
-- inline JSON：直接传入 JSON 字符串。
-- `@file`：传入以 `@` 开头的 JSON 文件路径。
+Commands that accept structured input support inline JSON and `@file`:
 
 ```bash
 imagen profile save '{"profileId":"mock-dev","providerId":"mock","family":"image-endpoint","displayName":"Mock Dev","config":{"providerId":"mock","family":"image-endpoint","displayName":"Mock Dev","baseURL":"https://mock.local"},"secretValues":{"apiKey":"sk-mock"}}'
@@ -149,26 +64,25 @@ imagen job submit provider-generate '{"profileId":"mock-dev","prompt":"simple bl
 imagen job submit provider-generate @input.json
 ```
 
-`generate` / `edit` 是 CLI-only 的 task-first parser surface。它们只把 flags 转成
-`job submit` 使用的同一个 `workflow + input`，再进入 application/session
-`submitJob` 路径；公共层不包含 CLI flag、本地路径、`--out` 或 stdout/stderr 语义。
+`generate` and `edit` are CLI-only task-first aliases over the same shared
+application/session path used by `job submit`.
 
-## Provider 与 Profile
+## Providers And Profiles
 
-Provider 查询：
+Provider commands:
 
 ```bash
 imagen provider list
 imagen provider describe <providerId>
 ```
 
-当前内置 provider ID：
+Built-in provider IDs:
 
 - `mock`
 - `image-endpoint`
 - `chat-image`
 
-Profile 管理：
+Profile commands:
 
 ```bash
 imagen init --mock
@@ -183,30 +97,32 @@ imagen profile models <profileId>
 imagen profile refresh-models <profileId>
 ```
 
-`profile save` 是创建和更新 profile 的唯一写入口。需要修改 `enabled`、
-`config.defaultModel` 或其他 profile 字段时，提交新的 profile JSON。
+`profile save` is the only profile write entrypoint. Submit a new profile JSON
+to change `enabled`, `config.defaultModel`, or other profile fields.
 
-## Secret Storage
+## Config And Secrets
 
-CLI 默认把 profile 和 secret 写到：
+CLI profile, secret, job history, and asset state default to:
 
 ```text
 ~/.imagen-ps
 ```
 
-也可以用 `IMAGEN_CONFIG_DIR` 指向隔离目录：
+Use `IMAGEN_CONFIG_DIR` for hermetic runs:
 
 ```bash
 IMAGEN_CONFIG_DIR=./local-config imagen profile list
 ```
 
-CLI 文件存储包含：
+Logs are separate. Use `IMAGEN_LOG_DIR` when a test or automation run must
+isolate JSONL logs.
+
+CLI file storage includes:
 
 - `provider-profiles.json`
 - `provider-secrets.json`
 
-`provider-secrets.json` 是 CLI 的 file-backed secret storage。真实 key 建议使用
-`env:` 引用，避免把明文 key 写入 profile JSON：
+For real keys, prefer `env:` references:
 
 ```json
 {
@@ -216,12 +132,12 @@ CLI 文件存储包含：
 }
 ```
 
-UXP app 不复用 CLI 的 file storage。`apps/app` 通过注入的 secure storage /
-host adapter 保存 secret 和 host 状态。
+The UXP app does not reuse CLI file storage. `apps/app` uses injected secure
+storage and host adapters.
 
-## Job 命令
+## Job Commands
 
-Task-first aliases：
+Task-first aliases:
 
 ```bash
 imagen generate --profile <profileId> --prompt <prompt>
@@ -230,11 +146,7 @@ imagen edit --profile <profileId> --image ./input.png --prompt <prompt>
 imagen edit --profile <profileId> --image ./input.png --prompt <prompt> --model <model> --out ./imagen-output
 ```
 
-`generate` 等价于 `job submit provider-generate`，`edit` 等价于
-`job submit provider-edit`。它们共享同一个 CLI-local executor，因此 stdout JSON、
-stderr JSON、`--out` 目录和 sidecar metadata 与 `job submit` 保持一致。
-
-底层 job 命令：
+Lower-level job commands:
 
 ```bash
 imagen job submit provider-generate @input.json
@@ -246,21 +158,25 @@ imagen job get <jobId>
 imagen job retry <jobId>
 ```
 
-terminal job 会写入 CLI durable history。`job get` 先查当前 process 的 active
-session；未命中时读取 durable record，并返回 `source: "durable"`。durable record
-只保存 metadata、sanitized input 和 `StoredAssetRef[]`，不保存图片 bytes 或 secret
-values；图片 bytes 由 CLI `AssetStore` 管理，record 中的 `hostObject` ref 仍是
-adapter-private opaque id，不是本机路径。
-
-`job retry` 可重试 active session 或 durable history 中的 failed job。retry 会用
-persisted sanitized input 重新提交，并在 dispatch 时通过现有 profile / secret
-adapter 重新解析 secret ref；不会把 raw secret value 写入 job record。
+`job list`, `job get`, and `job retry` can read CLI durable history. Durable
+records store sanitized job metadata and asset references, not raw secret values
+or image bytes.
 
 ## stdout / stderr
 
-CLI 的自动化输出规则：
+Automation contract:
 
-- 成功：JSON 写到 stdout，exit code 为 `0`。
-- 失败：`{"error":"<message>"}` 写到 stderr，exit code 为 `1`。
+- success: JSON to stdout, exit code `0`;
+- failure: `{"error":"<message>"}` to stderr, exit code `1`.
 
-`imagen --help` 和 `imagen <command> --help` 仍输出人类可读帮助文本。
+`imagen --help` and command help still print human-readable help text.
+
+## Validation
+
+```bash
+pnpm --filter @imagen-ps/cli build
+pnpm --filter @imagen-ps/cli test
+```
+
+Live provider smoke is opt-in and documented in
+`apps/cli/tests/smoke/README.md`.

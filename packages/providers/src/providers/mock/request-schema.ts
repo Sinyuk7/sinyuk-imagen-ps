@@ -5,9 +5,11 @@ import { z } from 'zod';
  *
  * 只校验最小意图结构，不校验 provider-specific 透传字段。
  *
- * 字段集合与 `docs/openapi/` 中 `Create image` / `Create image edit` 两份文档
- * 的 body parameters 对齐；与 `packages/providers/src/contract/request.ts`
- * 中的 `ProviderOutputOptions` 保持一一对应。
+ * 字段集合与
+ * `docs/dev-memory/memories/architecture/provider-openapi-reference/`
+ * 中 create-image / create-image-edit 快照的 body parameters 对齐；与
+ * `packages/providers/src/contract/request.ts` 中的 `ProviderOutputOptions`
+ * 保持一一对应。
  */
 const assetRefSchema = z.object({
   type: z.literal('image'),

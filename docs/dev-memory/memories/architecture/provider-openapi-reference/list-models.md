@@ -1,3 +1,7 @@
+> Archived reference: this is a provider OpenAPI snapshot, not current product
+> authority. Verify behavior against current code, tests, upstream docs, or
+> approved live smoke before changing provider semantics.
+
 ## List models
 
 `client.models.list(RequestOptionsoptions?): Page<Model>`

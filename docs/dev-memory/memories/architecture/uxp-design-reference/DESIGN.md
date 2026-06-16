@@ -1,11 +1,15 @@
 # 设计系统 — Sinyuk Imagen PS
 
+> Archived reference: this is historical UXP/UI design context, not current app
+> implementation authority. Current app authority lives in `apps/app/SPEC.md`,
+> `apps/app/STATUS.md`, `apps/app/AGENTS.md`, and `docs/TESTING.md`.
+
 ## 当前适用范围
 
 本文件继续有效，但它服务的是后续 UI 阶段，不是当前 change 的交付 gate。
 
 当前 change 先完成业务核心、shared commands 和 CLI。
-当实施计划与本文件出现优先级冲突时，以 [IMPLEMENTATION_PLAN.md](./IMPLEMENTATION_PLAN.md) 为准。
+当当前权威文档与本文件出现优先级冲突时，以当前权威文档为准。
 
 ## 产品语境
 - **这是什么：** 一个以 Photoshop 为第一目标宿主的图像生成系统。当前先建设共享业务核心、shared commands 和 CLI，后续再落 UXP UI。

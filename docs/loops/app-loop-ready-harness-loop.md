@@ -16,7 +16,7 @@
 - `apps/app/SPEC.md` 是当前 app contract 与模块边界权威。
 - `apps/app/STATUS.md` 是当前实现状态、限制、下一步验证权威。
 - `docs/TESTING.md` 是测试入口权威。
-- `apps/app/dcos/` 与 `apps/app/prototype/` 只作设计和历史参考；不能覆盖 `AGENTS.md`、`SPEC.md`、`STATUS.md`、`docs/TESTING.md`。
+- `docs/dev-memory/memories/architecture/uxp-design-reference/` 只作设计和历史参考；不能覆盖 `AGENTS.md`、`SPEC.md`、`STATUS.md`、`docs/TESTING.md`。
 - `APP-HOST-SMOKE-P0` 选择 Option B：先补 fake UXP module / host adapter 单元测试和静态 validator，再进入真实 Photoshop / UXP 联调。
 
 ## 当前非目标

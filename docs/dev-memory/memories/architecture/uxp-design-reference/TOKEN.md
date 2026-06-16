@@ -1,10 +1,14 @@
 # Token System — Sinyuk Imagen PS
 
+> Archived reference: this is historical UXP/UI token context, not current app
+> implementation authority. Current app authority lives in `apps/app/SPEC.md`,
+> `apps/app/STATUS.md`, `apps/app/AGENTS.md`, and `docs/TESTING.md`.
+
 ## 当前适用范围
 
 本文件继续有效，但它服务的是后续 UI 实现阶段，不属于当前 change 的交付 gate。
 
-当前 change 若与本文件发生优先级冲突，以 [IMPLEMENTATION_PLAN.md](./IMPLEMENTATION_PLAN.md) 为准。
+当前权威文档若与本文件发生优先级冲突，以当前权威文档为准。
 
 ## 作用
 这个文件定义项目的实现级 tokens。`DESIGN.md` 负责设计方向、信息结构和体验原则；`TOKEN.md` 负责可直接落地到 CSS / component theme / Spectrum mapping 的具体数值。
