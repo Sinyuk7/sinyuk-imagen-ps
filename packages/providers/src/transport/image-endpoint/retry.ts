@@ -12,6 +12,7 @@
 import type { ProviderDiagnostic } from '../../contract/diagnostics.js';
 import { mapNetworkError } from './error-map.js';
 import type { ProviderInvokeError } from './error-map.js';
+import type { Logger } from '@imagen-ps/foundation';
 
 export interface RetryPolicy {
   /** 最大重试次数（默认 3）。 */
@@ -89,6 +90,7 @@ export async function withRetry<T>(
   policy: RetryPolicy = defaultRetryPolicy,
   signal?: AbortSignal,
   onRetry?: (diagnostic: ProviderDiagnostic) => void,
+  logger?: Logger,
 ): Promise<T> {
   let lastError: ProviderInvokeError | undefined;
 
@@ -139,7 +141,7 @@ export async function withRetry<T>(
 
       // 计算退避延迟
       const waitMs = policy.baseDelayMs * Math.pow(policy.factor, attempt);
-      onRetry?.({
+      const diagnostic: ProviderDiagnostic = {
         code: 'retry',
         message: `Retrying request after ${statusCode !== undefined ? `HTTP ${statusCode}` : (error as ProviderInvokeError).kind}.`,
         level: 'info',
@@ -149,6 +151,13 @@ export async function withRetry<T>(
           statusCode,
           kind: (error as ProviderInvokeError).kind,
         },
+      };
+      onRetry?.(diagnostic);
+      logger?.log('warn', 'retry', {
+        attempt: attempt + 1,
+        delayMs: waitMs,
+        statusCode,
+        kind: (error as ProviderInvokeError).kind,
       });
       await delay(waitMs, signal);
     }

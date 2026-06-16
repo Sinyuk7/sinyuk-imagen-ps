@@ -4,7 +4,7 @@
 
 import type { Job } from '@imagen-ps/core-engine';
 import { createValidationError } from '@imagen-ps/core-engine';
-import { flushJobHistoryForTerminalJob, getJobHistoryStore, getRuntime } from '../runtime.js';
+import { flushJobHistoryForTerminalJob, getJobHistoryStore, getRuntime, getRuntimeLogger } from '../runtime.js';
 import type { CommandResult } from './types.js';
 import { toJobError, WORKFLOW_NAME_KEY } from './submit-job.js';
 
@@ -17,6 +17,12 @@ interface RetrySource {
 
 /** 重试指定 job，用相同输入创建新任务 */
 export async function retryJob(jobId: string): Promise<CommandResult<Job>> {
+  const commandLogger = getRuntimeLogger().child({
+    package: 'application',
+    component: 'command',
+  });
+  const span = commandLogger.startSpan('command.retry', { job_id: jobId });
+
   try {
     const runtime = getRuntime();
     const originalJob = runtime.store.getJob(jobId);
@@ -26,6 +32,7 @@ export async function retryJob(jobId: string): Promise<CommandResult<Job>> {
       : await sourceFromDurableRecord(jobId);
 
     if (!source) {
+      span.fail({ message: `Job "${jobId}" not found.` });
       return {
         ok: false,
         error: createValidationError(`Job "${jobId}" not found.`),
@@ -33,6 +40,7 @@ export async function retryJob(jobId: string): Promise<CommandResult<Job>> {
     }
 
     if (!source.workflowName) {
+      span.fail({ message: `Job "${jobId}" is missing _workflowName in input, cannot retry.` });
       return {
         ok: false,
         error: createValidationError(`Job "${jobId}" is missing _workflowName in input, cannot retry.`),
@@ -47,8 +55,10 @@ export async function retryJob(jobId: string): Promise<CommandResult<Job>> {
       ...(source.originJobId !== undefined ? { originJobId: source.originJobId } : {}),
       ...(source.retryAttempt !== undefined ? { retryAttempt: source.retryAttempt } : {}),
     });
+    span.finish();
     return { ok: true, value: newJob };
   } catch (error) {
+    span.fail(error);
     return { ok: false, error: toJobError(error) };
   }
 }

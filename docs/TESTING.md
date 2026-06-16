@@ -77,6 +77,8 @@ CLI contract 测试位于 `apps/cli/tests/contract/*.contract.test.ts`。
 这些测试只使用 mock provider 和本地临时目录，不依赖网络、真实 key
 或费用。它们是默认 CI 的一部分，不要放到 live smoke 里。
 
+Hermetic CLI runs must set both `IMAGEN_CONFIG_DIR` and `IMAGEN_LOG_DIR`: the config dir owns profile, secret, job history, and asset state; the log dir owns JSONL logs and does not follow `IMAGEN_CONFIG_DIR`.
+
 ## App Tests
 
 `apps/app` 测试使用 happy-dom 和 fake `AppServices`，验证 UI 到 application / host seam 的接线，不依赖真实 Photoshop 或 UXP runtime。

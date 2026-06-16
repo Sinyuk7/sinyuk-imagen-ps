@@ -10,6 +10,8 @@ import type { ProviderDispatcher, ProviderRef } from './types/provider.js';
 import type { JobError } from './errors.js';
 import { createWorkflowError, createRuntimeError } from './errors.js';
 import { assertImmutable } from './invariants.js';
+import type { Logger } from '@imagen-ps/foundation';
+import { createNullLogger } from '@imagen-ps/foundation';
 
 /** Runner 执行所需的最小依赖集合。 */
 export interface RunnerDeps {
@@ -21,6 +23,9 @@ export interface RunnerDeps {
 
   /** Provider 调用抽象。 */
   dispatcher: ProviderDispatcher;
+
+  /** 可选 Logger；未提供时使用 null logger。 */
+  logger?: Logger;
 }
 
 // ------------------------------------------------------------------
@@ -91,33 +96,6 @@ function resolveStepInput(
 }
 
 // ------------------------------------------------------------------
-// Step 执行
-// ------------------------------------------------------------------
-
-/**
- * 执行单个 `provider` step。
- *
- * @throws `JobError` 当 dispatch 失败或 step 结构不合法时
- */
-async function executeProviderStep(
-  step: { readonly name: string; readonly input?: Record<string, unknown>; readonly outputKey?: string },
-  context: Record<string, unknown>,
-  dispatcher: ProviderDispatcher,
-): Promise<void> {
-  const resolvedInput = resolveStepInput(step.input, context, step.name);
-  const provider = (resolvedInput.provider as string) ?? step.name;
-
-  const ref: ProviderRef = {
-    provider,
-    params: resolvedInput,
-  };
-
-  const result = await dispatcher.dispatch(ref);
-
-  const outputKey = step.outputKey ?? step.name;
-  context[outputKey] = assertImmutable(result);
-}
-
 // ------------------------------------------------------------------
 // Workflow 执行
 // ------------------------------------------------------------------
@@ -138,6 +116,8 @@ async function executeProviderStep(
  */
 export async function executeWorkflow(job: Job, workflowName: string, deps: RunnerDeps): Promise<Job> {
   const { registry, controller, dispatcher } = deps;
+  const logger = deps.logger ?? createNullLogger();
+  const runnerLogger = logger.child({ package: 'core-engine', component: 'runner' });
 
   controller.markRunning(job.id);
 
@@ -160,7 +140,27 @@ export async function executeWorkflow(job: Job, workflowName: string, deps: Runn
         );
       }
 
-      await executeProviderStep(step, context, dispatcher);
+      const stepLogger = runnerLogger.child({ workflow: workflowName });
+      const span = stepLogger.startSpan('runner.step', { stepName: step.name });
+
+      try {
+        const resolvedInput = resolveStepInput(step.input, context, step.name);
+        const provider = (resolvedInput.provider as string) ?? step.name;
+
+        const ref: ProviderRef = {
+          provider,
+          params: resolvedInput,
+        };
+
+        const result = await dispatcher.dispatch(ref);
+
+        const outputKey = step.outputKey ?? step.name;
+        context[outputKey] = assertImmutable(result);
+        span.finish();
+      } catch (error) {
+        span.fail(error);
+        throw error;
+      }
     }
 
     const output = assertImmutable({ ...context }) as JobOutput;

@@ -101,7 +101,7 @@ export function createDispatchAdapter<
   TConfig extends ProviderConfig = ProviderConfig,
   TRequest extends CanonicalImageJobRequest = CanonicalImageJobRequest,
 >(args: ProviderDispatchBridgeArgs<TConfig, TRequest>): ProviderDispatchAdapter {
-  const { provider, config } = args;
+  const { provider, config, logger } = args;
 
   return {
     provider: provider.id,
@@ -123,6 +123,7 @@ export function createDispatchAdapter<
           config,
           request: validatedRequest,
           signal,
+          logger,
         });
         return result;
       } catch (error) {

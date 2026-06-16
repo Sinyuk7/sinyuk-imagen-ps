@@ -9,6 +9,8 @@ import { createProviderError, createValidationError } from './errors.js';
 import { assertImmutable, assertSerializable } from './invariants.js';
 import type { ProviderDispatchAdapter, ProviderDispatcher, ProviderRef } from './types/provider.js';
 import type { JobError } from './errors.js';
+import type { Logger } from '@imagen-ps/foundation';
+import { createNullLogger } from '@imagen-ps/foundation';
 
 // ------------------------------------------------------------------
 // 判断 unknown 是否已是 `JobError`
@@ -116,9 +118,14 @@ function normalizeProviderRef(ref: ProviderRef): ProviderRef {
  * 创建最小 ProviderDispatcher。
  *
  * @param adapters - provider id 到 adapter 的静态映射
+ * @param logger - 可选 Logger
  */
-export function createProviderDispatcher(adapters: readonly ProviderDispatchAdapter[] = []): ProviderDispatcher {
+export function createProviderDispatcher(
+  adapters: readonly ProviderDispatchAdapter[] = [],
+  logger?: Logger,
+): ProviderDispatcher {
   const adapterMap = new Map<string, ProviderDispatchAdapter>();
+  const dispatcherLogger = logger ?? createNullLogger();
 
   for (const adapter of adapters) {
     if (adapter.provider.trim().length === 0) {
@@ -144,16 +151,26 @@ export function createProviderDispatcher(adapters: readonly ProviderDispatchAdap
         });
       }
 
+      const dispatchLogger = dispatcherLogger.child({
+        package: 'core-engine',
+        component: 'dispatch',
+        provider_id: normalizedRef.provider,
+      });
+      const span = dispatchLogger.startSpan('dispatch.provider');
+
       try {
         const result = await adapter.dispatch(normalizedRef.params);
         assertSerializable(result);
         if (typeof result === 'object' && result !== null) {
           // 先做浅拷贝切断与 adapter 内部状态的引用，再递归 freeze
           const snapshot = Array.isArray(result) ? [...result] : { ...(result as Record<string, unknown>) };
+          span.finish();
           return deepFreeze(snapshot);
         }
+        span.finish();
         return result;
       } catch (error) {
+        span.fail(error);
         throw toDispatchError(error, normalizedRef.provider);
       }
     },

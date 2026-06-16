@@ -62,6 +62,26 @@ const architectureRules = [
       /\brequire\(['"]@imagen-ps\/(?:application|app|cli)(?:['"/])/,
     ],
   },
+  {
+    name: 'foundation 必须保持 host-agnostic且不能依赖 workspace 包',
+    roots: ['packages/foundation/src'],
+    patterns: [
+      /\bfrom\s+['"]react(?:\/[^'"]*)?['"]/,
+      /\bimport\s+['"]react(?:\/[^'"]*)?['"]/,
+      /\bfrom\s+['"]node:(?:fs|path|os)['"]/,
+      /\bimport\s+['"]node:(?:fs|path|os)['"]/,
+      /\brequire\(['"]node:(?:fs|path|os)['"]\)/,
+      /\bfrom\s+['"](?:fs|path|os)['"]/,
+      /\bimport\s+['"](?:fs|path|os)['"]/,
+      /\brequire\(['"](?:fs|path|os)['"]\)/,
+      /\bfrom\s+['"](?:photoshop|uxp)['"]/i,
+      /\bimport\s+['"](?:photoshop|uxp)['"]/i,
+      /\brequire\(['"](?:photoshop|uxp)['"]\)/i,
+      /\bfrom\s+['"]@imagen-ps\/(?:application|core-engine|providers|app|cli)(?:['"/])/,
+      /\bimport\s+['"]@imagen-ps\/(?:application|core-engine|providers|app|cli)(?:['"/])/,
+      /\brequire\(['"]@imagen-ps\/(?:application|core-engine|providers|app|cli)(?:['"/])/,
+    ],
+  },
 ];
 
 export function checkArchitecture(repoRoot) {

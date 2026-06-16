@@ -1,4 +1,5 @@
 import type { ProviderDispatchAdapter } from '@imagen-ps/core-engine';
+import type { Logger } from '@imagen-ps/foundation';
 import type { ProviderFamily, ProviderOperation } from './capability.js';
 import type { ProviderConfig } from './config.js';
 import type { ProviderModelInfo } from './model.js';
@@ -61,6 +62,9 @@ export interface ProviderInvokeArgs<TConfig, TRequest> {
 
   /** 可选的取消信号。 */
   readonly signal?: AbortSignal;
+
+  /** 可选 Logger；未提供时 provider 内部不发送日志。 */
+  readonly logger?: Logger;
 }
 
 /** provider 实例需要遵循的最小公开契约。 */
@@ -116,6 +120,9 @@ export interface ProviderDispatchBridgeArgs<TConfig = ProviderConfig, TRequest =
 
   /** 已校验的 provider config。 */
   readonly config: TConfig;
+
+  /** 可选 Logger；会传递给 provider.invoke()。 */
+  readonly logger?: Logger;
 }
 
 /** 从 `Provider` 到 `ProviderDispatchAdapter` 的显式桥接契约。 */

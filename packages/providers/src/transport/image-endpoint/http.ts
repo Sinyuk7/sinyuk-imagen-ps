@@ -8,6 +8,7 @@ import type { ProviderDiagnostic } from '../../contract/diagnostics.js';
 import { mapHttpError, mapNetworkError } from './error-map.js';
 import { withRetry, defaultRetryPolicy } from './retry.js';
 import type { RetryPolicy } from './retry.js';
+import type { Logger } from '@imagen-ps/foundation';
 
 export interface HttpRequest {
   /** 完整请求 URL。 */
@@ -146,19 +147,32 @@ export async function httpRequest(
   request: HttpRequest,
   policy: RetryPolicy = defaultRetryPolicy,
   signal?: AbortSignal,
+  logger?: Logger,
 ): Promise<HttpRequestResult> {
   const diagnostics: ProviderDiagnostic[] = [];
-  const response = await withRetry(
-    () => fetchOnce(request, signal),
-    policy,
-    signal,
-    (diagnostic) => {
-      diagnostics.push(diagnostic);
-    },
-  );
+  const transportLogger =
+    logger?.child({ package: 'providers', component: 'transport' }) ??
+    logger;
+  const span = transportLogger?.startSpan('transport.request');
 
-  return {
-    response,
-    diagnostics,
-  };
+  try {
+    const response = await withRetry(
+      () => fetchOnce(request, signal),
+      policy,
+      signal,
+      (diagnostic) => {
+        diagnostics.push(diagnostic);
+      },
+      logger,
+    );
+
+    span?.finish();
+    return {
+      response,
+      diagnostics,
+    };
+  } catch (error) {
+    span?.fail(error);
+    throw error;
+  }
 }

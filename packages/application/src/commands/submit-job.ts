@@ -6,7 +6,7 @@
 
 import type { Job, JobError } from '@imagen-ps/core-engine';
 import { createRuntimeError } from '@imagen-ps/core-engine';
-import { flushJobHistoryForTerminalJob, getRuntime } from '../runtime.js';
+import { flushJobHistoryForTerminalJob, getRuntime, getRuntimeLogger } from '../runtime.js';
 import type { CommandResult, SubmitJobInput } from './types.js';
 
 /**
@@ -90,6 +90,12 @@ function hasExplicitProvider(params: Record<string, unknown>): boolean {
 
 export async function submitJob(input: SubmitJobInput): Promise<CommandResult<Job>> {
   const runtime = getRuntime();
+  const commandLogger = getRuntimeLogger().child({
+    package: 'application',
+    component: 'command',
+    workflow: input.workflow,
+  });
+  const span = commandLogger.startSpan('command.submit');
 
   try {
     // Profile dispatch detection：当 input 包含 profileId 但没有显式 provider 时，
@@ -104,8 +110,10 @@ export async function submitJob(input: SubmitJobInput): Promise<CommandResult<Jo
     };
     const job = await runtime.runWorkflow(input.workflow, enrichedInput);
     await flushJobHistoryForTerminalJob(job);
+    span.finish();
     return { ok: true, value: job };
   } catch (error) {
+    span.fail(error);
     return { ok: false, error: toJobError(error) };
   }
 }

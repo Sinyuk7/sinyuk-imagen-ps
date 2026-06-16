@@ -20,6 +20,8 @@ import {
   type ProviderRegistry,
   type ProviderOperation,
 } from '@imagen-ps/providers';
+import type { LogSink, Logger } from '@imagen-ps/foundation';
+import { createLogger, createNullLogger } from '@imagen-ps/foundation';
 import type {
   AssetStore,
   JobHistoryStore,
@@ -45,6 +47,7 @@ let secretStorageAdapterInstance: SecretStorageAdapter | null = null;
 let providerConfigResolverInstance: ProviderConfigResolver | null = null;
 let jobHistoryStoreInstance: JobHistoryStore | null = null;
 let assetStoreInstance: AssetStore | null = null;
+let runtimeLogger: Logger | undefined = undefined;
 
 function createInMemoryProviderProfileRepository(): ProviderProfileRepository {
   const store = new Map<string, ProviderProfile>();
@@ -369,7 +372,7 @@ function resolveProfileId(params: Record<string, unknown>): string | undefined {
   return undefined;
 }
 
-function createProfileAwareDispatchAdapter(): ReturnType<typeof createDispatchAdapter> {
+function createProfileAwareDispatchAdapter(logger?: Logger): ReturnType<typeof createDispatchAdapter> {
   return {
     provider: 'profile',
 
@@ -405,7 +408,7 @@ function createProfileAwareDispatchAdapter(): ReturnType<typeof createDispatchAd
       const resolvedParams =
         typeof defaultModel === 'string' && defaultModel.length > 0 ? injectDefaultModel(params, defaultModel) : params;
 
-      const adapter = createDispatchAdapter({ provider, config: providerConfig });
+      const adapter = createDispatchAdapter({ provider, config: providerConfig, logger });
       return adapter.dispatch(resolvedParams);
     },
   };
@@ -422,6 +425,8 @@ export function getRuntime(): ExtendedRuntime {
     registryInstance = createProviderRegistry();
     registerBuiltins(registryInstance);
 
+    const logger = runtimeLogger ?? createNullLogger();
+
     const mockProvider = registryInstance.get('mock')!;
     const mockConfig = mockProvider.validateConfig({
       providerId: 'mock',
@@ -433,11 +438,13 @@ export function getRuntime(): ExtendedRuntime {
     const mockAdapter = createDispatchAdapter({
       provider: mockProvider,
       config: mockConfig,
+      logger,
     });
 
     const baseRuntime = createRuntime({
       initialWorkflows: builtinWorkflows,
-      adapters: [mockAdapter, createProfileAwareDispatchAdapter()],
+      adapters: [mockAdapter, createProfileAwareDispatchAdapter(logger)],
+      logger,
     });
 
     instance = Object.assign(baseRuntime, {
@@ -515,6 +522,23 @@ export function setProviderConfigResolver(resolver: ProviderConfigResolver): voi
   providerConfigResolverInstance = resolver;
 }
 
+/** 配置 application runtime 的日志 sink 与表面。 */
+export function configureRuntimeLogging(sink: LogSink, surface: 'cli' | 'uxp'): void {
+  runtimeLogger = createLogger({
+    sink,
+    context: {
+      surface,
+      package: 'application',
+      component: 'runtime',
+    },
+  });
+}
+
+/** 获取当前配置的 runtime logger，未配置时返回 null logger。 */
+export function getRuntimeLogger(): Logger {
+  return runtimeLogger ?? createNullLogger();
+}
+
 /** 重置单例（仅供测试），同时重置所有 adapter */
 export function _resetForTesting(): void {
   instance = null;
@@ -524,6 +548,7 @@ export function _resetForTesting(): void {
   providerConfigResolverInstance = null;
   jobHistoryStoreInstance = null;
   assetStoreInstance = null;
+  runtimeLogger = undefined;
 }
 
 /** 将 terminal job 写入 host-injected durable history。 */

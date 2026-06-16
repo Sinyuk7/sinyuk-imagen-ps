@@ -17,6 +17,7 @@
   },
   "dependencies": {
     "@imagen-ps/application": "workspace:*",
+    "@imagen-ps/foundation": "workspace:*",
     "commander": "^12.1.0"
   },
   "devDependencies": {

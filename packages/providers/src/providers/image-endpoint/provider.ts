@@ -1,6 +1,7 @@
 import type { Provider, ProviderDescriptor, ProviderInvokeArgs } from '../../contract/provider.js';
 import type { ProviderInvokeResult } from '../../contract/result.js';
 import type { ProviderModelInfo } from '../../contract/model.js';
+import type { Logger } from '@imagen-ps/foundation';
 import { imageEndpointDescriptor } from './descriptor.js';
 import { imageEndpointConfigSchema, type ImageEndpointProviderConfig } from './config-schema.js';
 import { mockRequestSchema, type MockProviderRequest } from '../mock/request-schema.js';
@@ -119,6 +120,7 @@ export function createImageEndpointProvider(): Provider<ImageEndpointProviderCon
         },
         undefined,
         signal,
+        args.logger,
       );
 
       const parsed = parseResponse(response.response.data);
@@ -151,7 +153,10 @@ export function createImageEndpointProvider(): Provider<ImageEndpointProviderCon
       return result;
     },
 
-    async discoverModels(config: ImageEndpointProviderConfig): Promise<readonly ProviderModelInfo[]> {
+    async discoverModels(
+      config: ImageEndpointProviderConfig,
+      logger?: Logger,
+    ): Promise<readonly ProviderModelInfo[]> {
       const url = new URL('/v1/models', config.baseURL).toString();
 
       const response = await httpRequest(
@@ -166,6 +171,7 @@ export function createImageEndpointProvider(): Provider<ImageEndpointProviderCon
         },
         undefined,
         undefined,
+        logger,
       );
 
       return parseModelsResponse(response.response.data);

@@ -24,6 +24,13 @@ packages/
 
 ## 命令
 
+本仓库声明 `packageManager: "pnpm@9.15.4"`。推荐用 repo-local mise
+工具版本固定本地 pnpm：
+
+```bash
+mise install
+```
+
 ```bash
 pnpm bootstrap        # 首次初始化：安装依赖并跑完整默认验收
 pnpm validate         # Default gate: build, tests, policy checks

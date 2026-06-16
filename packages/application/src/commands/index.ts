@@ -72,4 +72,6 @@ export {
   setProviderConfigResolver,
   setProviderProfileRepository,
   setSecretStorageAdapter,
+  configureRuntimeLogging,
+  getRuntimeLogger,
 } from '../runtime.js';

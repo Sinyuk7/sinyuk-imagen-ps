@@ -12,6 +12,7 @@ import type {
   ImagenSessionSubscriber,
   JobSessionSnapshot,
 } from './types.js';
+import { getRuntimeLogger } from '../runtime.js';
 
 function inferJobType(job: Job): 'generate' | 'edit' | string {
   const workflow = typeof job.input._workflowName === 'string' ? job.input._workflowName : undefined;
@@ -150,21 +151,29 @@ export function createImagenSession(
 
   return {
     async submitJob(input) {
+      const sessionLogger = getRuntimeLogger().child({ package: 'application', component: 'session' });
+      const span = sessionLogger.startSpan('session.command.submit', { workflow: input.workflow });
       const result = await commands.submitJob(input);
       if (result.ok) {
         syncJob(result.value);
+        span.finish();
       } else {
         publish(updateSnapshotFromError(snapshot, result.error));
+        span.fail(result.error);
       }
       return result;
     },
 
     async retryJob(jobId: string) {
+      const sessionLogger = getRuntimeLogger().child({ package: 'application', component: 'session' });
+      const span = sessionLogger.startSpan('session.command.retry', { job_id: jobId });
       const result = await commands.retryJob(jobId);
       if (result.ok) {
         syncJob(result.value);
+        span.finish();
       } else {
         publish(updateSnapshotFromError(snapshot, result.error));
+        span.fail(result.error);
       }
       return result;
     },

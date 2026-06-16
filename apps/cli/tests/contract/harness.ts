@@ -25,6 +25,7 @@ if (child.error) {
 process.exit(child.status ?? 1);
 `;
 export const realHome = path.join(contractRoot, 'home');
+export const realLogDir = path.join(contractRoot, 'logs');
 export const sentinel = `SENTINEL_SECRET_DO_NOT_LEAK_${process.pid}`;
 
 interface RunOptions {
@@ -60,6 +61,7 @@ export function runImagen(args: string[], options: RunOptions = {}): RunResult {
     XDG_CONFIG_HOME: path.join(contractRoot, 'xdg-config'),
     XDG_CACHE_HOME: path.join(contractRoot, 'xdg-cache'),
     XDG_DATA_HOME: path.join(contractRoot, 'xdg-data'),
+    IMAGEN_LOG_DIR: realLogDir,
     ...(options.configDir ? { IMAGEN_CONFIG_DIR: options.configDir } : {}),
     ...envOverrides,
   };
@@ -156,6 +158,7 @@ beforeAll(() => {
   fs.rmSync(contractRoot, { recursive: true, force: true });
   mkdirp(binDir);
   mkdirp(realHome);
+  mkdirp(realLogDir);
   fs.writeFileSync(imagenPath, imagenShim, 'utf-8');
   fs.chmodSync(imagenPath, 0o755);
 });

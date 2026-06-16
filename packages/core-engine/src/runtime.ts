@@ -11,6 +11,8 @@ import { createJobEventBus } from './events.js';
 import { createWorkflowRegistry } from './registry.js';
 import { createProviderDispatcher } from './dispatch.js';
 import { executeWorkflow } from './runner.js';
+import type { Logger } from '@imagen-ps/foundation';
+import { createNullLogger } from '@imagen-ps/foundation';
 
 /** Runtime 对外暴露的统一接口。 */
 export interface Runtime {
@@ -41,6 +43,15 @@ export interface RuntimeOptions {
 
   /** 初始 provider adapters。 */
   adapters?: readonly ProviderDispatchAdapter[];
+
+  /** 可选 Logger；未提供时使用 null logger。 */
+  logger?: Logger;
+}
+
+/** 使用已有依赖执行一次 workflow 的额外选项。 */
+export interface RunWorkflowOptions {
+  /** 可选 Logger；未提供时使用 null logger。 */
+  logger?: Logger;
 }
 
 /** 从 event bus 实例中提取内部 `emit` 方法。 */
@@ -68,16 +79,33 @@ export async function runWorkflow(
     dispatcher: ProviderDispatcher;
     events: JobEventBus;
   },
+  options?: RunWorkflowOptions,
 ): Promise<Job> {
+  const logger = options?.logger ?? createNullLogger();
   const job = deps.store.submitJob(input);
   const emit = getEmit(deps.events);
   emit({ type: 'created', job });
+
+  const jobLogger = logger.child({
+    package: 'core-engine',
+    component: 'runtime',
+    job_id: job.id,
+    workflow: workflowName,
+  });
+  const span = jobLogger.startSpan('runtime.job');
 
   const result = await executeWorkflow(job, workflowName, {
     registry: deps.registry,
     controller: deps.controller,
     dispatcher: deps.dispatcher,
+    logger: jobLogger,
   });
+
+  if (result.status === 'completed') {
+    span.finish();
+  } else {
+    span.fail(result.error ?? { message: 'workflow failed' });
+  }
 
   emit({
     type: result.status === 'completed' ? 'completed' : 'failed',
@@ -96,26 +124,13 @@ export function createRuntime(options?: RuntimeOptions): Runtime {
   const { store, controller } = createJobStore();
   const events = createJobEventBus();
   const registry = createWorkflowRegistry(options?.initialWorkflows);
-  const dispatcher = createProviderDispatcher(options?.adapters);
+  const dispatcher = createProviderDispatcher(options?.adapters, options?.logger);
 
-  const emit = getEmit(events);
+  const runtimeLogger = options?.logger ?? createNullLogger();
 
   const runtime: Runtime = {
     async runWorkflow(workflowName: string, input: JobInput): Promise<Job> {
-      const job = store.submitJob(input);
-      emit({ type: 'created', job });
-
-      const result = await executeWorkflow(job, workflowName, {
-        registry,
-        controller,
-        dispatcher,
-      });
-
-      emit({
-        type: result.status === 'completed' ? 'completed' : 'failed',
-        job: result,
-      });
-      return result;
+      return runWorkflow(workflowName, input, { store, controller, registry, dispatcher, events }, { logger: runtimeLogger });
     },
     store,
     events,
