@@ -1,0 +1,158 @@
+packages/application/tsconfig.build.json
+  dd93dc5ea71850c5 1-9
+packages/application/src/commands/secret-utils.ts
+  dd93dc5ea71850c5 1-32
+packages/application/src/commands/types.ts
+  dd93dc5ea71850c5 1-179
+packages/application/src/runtime.ts
+  dd93dc5ea71850c5 1-331
+packages/providers/src/transport/image-endpoint/parse-response.ts
+  0ffa88f42e0a945a 1-242
+packages/application/AGENTS.md
+  dd93dc5ea71850c5 1-8
+packages/application/src/commands/index.ts
+  dd93dc5ea71850c5 1-67
+packages/providers/src/providers/image-endpoint/provider.ts
+  0ffa88f42e0a945a 1-174
+packages/application/src/commands/list-providers.ts
+  dd93dc5ea71850c5 1-11
+packages/application/src/commands/provider-profiles.ts
+  dd93dc5ea71850c5 1-300
+packages/application/src/commands/describe-provider.ts
+  dd93dc5ea71850c5 1-11
+packages/application/src/requests/index.ts
+  dd93dc5ea71850c5 1-12
+packages/application/tsconfig.json
+  dd93dc5ea71850c5 1-8
+packages/application/src/requests/provider-edit.ts
+  dd93dc5ea71850c5 1-37
+packages/application/src/runtime.test.ts
+  dd93dc5ea71850c5 1-68
+packages/application/src/commands/get-job.ts
+  dd93dc5ea71850c5 1-30
+packages/application/src/commands/subscribe-job-events.ts
+  dd93dc5ea71850c5 1-40
+packages/application/src/requests/provider-generate.ts
+  dd93dc5ea71850c5 1-35
+packages/application/src/commands/submit-job.ts
+  dd93dc5ea71850c5 1-110
+packages/providers/src/transport/image-endpoint/retry.ts
+  0ffa88f42e0a945a 1-159
+packages/application/src/commands/retry-job.ts
+  dd93dc5ea71850c5 1-39
+packages/application/src/commands/profile-models.ts
+  dd93dc5ea71850c5 1-151
+packages/application/package.json
+  dd93dc5ea71850c5 1-31
+packages/providers/src/transport/image-endpoint/error-map.ts
+  0ffa88f42e0a945a 1-110
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.2.8-ntes.9",
+  "base_commit_sha": "2fe0f1cca2b41f37fb048e1be52038bde1d10f17",
+  "prompts": {
+    "0ffa88f42e0a945a": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "019ec91e-1f50-7312-a9c0-399a0313fbbc",
+        "model": "gpt-5.5"
+      },
+      "human_author": "sinyuk",
+      "messages": [],
+      "total_additions": 0,
+      "total_deletions": 0,
+      "accepted_lines": 685,
+      "overriden_lines": 0,
+      "per_file_stats": {
+        "packages/providers/src/transport/image-endpoint/error-map.ts": {
+          "accepted_lines": 110
+        },
+        "packages/providers/src/transport/image-endpoint/parse-response.ts": {
+          "accepted_lines": 242
+        },
+        "packages/providers/src/providers/image-endpoint/provider.ts": {
+          "accepted_lines": 174
+        },
+        "packages/providers/src/transport/image-endpoint/retry.ts": {
+          "accepted_lines": 159
+        }
+      }
+    },
+    "dd93dc5ea71850c5": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "019ece9a-a5ae-7201-b81e-d5744f7a779e",
+        "model": "gpt-5.5"
+      },
+      "human_author": "sinyuk",
+      "messages": [],
+      "total_additions": 0,
+      "total_deletions": 0,
+      "accepted_lines": 1509,
+      "overriden_lines": 0,
+      "per_file_stats": {
+        "packages/application/tsconfig.build.json": {
+          "accepted_lines": 9
+        },
+        "packages/application/src/commands/provider-profiles.ts": {
+          "accepted_lines": 300
+        },
+        "packages/application/src/runtime.ts": {
+          "accepted_lines": 331
+        },
+        "packages/application/src/commands/list-providers.ts": {
+          "accepted_lines": 11
+        },
+        "packages/application/src/commands/subscribe-job-events.ts": {
+          "accepted_lines": 40
+        },
+        "packages/application/package.json": {
+          "accepted_lines": 31
+        },
+        "packages/application/src/commands/profile-models.ts": {
+          "accepted_lines": 151
+        },
+        "packages/application/src/runtime.test.ts": {
+          "accepted_lines": 68
+        },
+        "packages/application/src/requests/provider-edit.ts": {
+          "accepted_lines": 37
+        },
+        "packages/application/src/commands/get-job.ts": {
+          "accepted_lines": 30
+        },
+        "packages/application/src/requests/index.ts": {
+          "accepted_lines": 12
+        },
+        "packages/application/src/commands/describe-provider.ts": {
+          "accepted_lines": 11
+        },
+        "packages/application/src/requests/provider-generate.ts": {
+          "accepted_lines": 35
+        },
+        "packages/application/src/commands/types.ts": {
+          "accepted_lines": 179
+        },
+        "packages/application/src/commands/secret-utils.ts": {
+          "accepted_lines": 32
+        },
+        "packages/application/AGENTS.md": {
+          "accepted_lines": 8
+        },
+        "packages/application/src/commands/index.ts": {
+          "accepted_lines": 67
+        },
+        "packages/application/src/commands/retry-job.ts": {
+          "accepted_lines": 39
+        },
+        "packages/application/tsconfig.json": {
+          "accepted_lines": 8
+        },
+        "packages/application/src/commands/submit-job.ts": {
+          "accepted_lines": 110
+        }
+      }
+    }
+  }
+}
