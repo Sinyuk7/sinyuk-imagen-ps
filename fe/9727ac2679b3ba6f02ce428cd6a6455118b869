@@ -1,0 +1,550 @@
+packages/application/src/commands/retry-job.ts
+  dd93dc5ea71850c5 1-39
+apps/app/src/app-services/host-bridge.ts
+  dd93dc5ea71850c5 1
+packages/application/src/runtime.ts
+  dd93dc5ea71850c5 1-331
+packages/application/src/commands/index.ts
+  dd93dc5ea71850c5 1-67
+apps/app/src/ui/hooks/use-imagen-session.ts
+  dd93dc5ea71850c5 1-40
+apps/app/src/host/in-memory-host-storage.ts
+  dd93dc5ea71850c5 1
+packages/application/package.json
+  dd93dc5ea71850c5 2,12-15,24-25
+packages/application/src/index.ts
+  dd93dc5ea71850c5 1-3
+packages/application/src/commands/secret-utils.ts
+  dd93dc5ea71850c5 1-32
+apps/cli/vitest.config.ts
+  dd93dc5ea71850c5 18
+apps/cli/src/commands/job/submit.ts
+  dd93dc5ea71850c5 2,6,82
+packages/application/src/commands/list-providers.ts
+  dd93dc5ea71850c5 2,4-11
+packages/application/src/requests/requests.test.ts
+  dd93dc5ea71850c5 3,14,19,35,47,62
+apps/app/SPEC.md
+  dd93dc5ea71850c5 8,17
+apps/app/tests/fakes.ts
+  dd93dc5ea71850c5 9
+packages/application/src/requests/index.ts
+  dd93dc5ea71850c5 2-3,6,8
+docs/dev-memory/_inbox/2026-06-16-application-session-refactor-complete.md
+  dd93dc5ea71850c5 1-10
+apps/app/src/ui/pages/settings-detail-page.tsx
+  dd93dc5ea71850c5 2
+apps/cli/src/commands/provider/describe.ts
+  dd93dc5ea71850c5 2
+apps/app/AGENTS.md
+  dd93dc5ea71850c5 6
+packages/application/src/commands/types.ts
+  dd93dc5ea71850c5 1-179
+apps/cli/src/commands/job/session.ts
+  dd93dc5ea71850c5 1-24
+apps/app/src/ui/hooks/use-provider-settings.ts
+  dd93dc5ea71850c5 9
+packages/application/src/session/session.ts
+  dd93dc5ea71850c5 1-189
+packages/application/tsconfig.build.json
+  dd93dc5ea71850c5 2,4-6
+packages/application/src/session/index.ts
+  dd93dc5ea71850c5 1-11
+apps/cli/src/commands/profile/lifecycle.ts
+  dd93dc5ea71850c5 8,23
+apps/app/package.json
+  dd93dc5ea71850c5 13
+apps/app/src/host/uxp-secret-storage-adapter.ts
+  dd93dc5ea71850c5 1
+apps/app/src/ui/pages/main-page.tsx
+  dd93dc5ea71850c5 2,255
+packages/application/AGENTS.md
+  dd93dc5ea71850c5 5-8
+apps/cli/package.json
+  dd93dc5ea71850c5 19
+apps/cli/src/index.ts
+  dd93dc5ea71850c5 4
+tsconfig.json
+  dd93dc5ea71850c5 12-14
+apps/app/src/host/create-plugin-host-shell.ts
+  dd93dc5ea71850c5 4
+docs/TESTING.md
+  dd93dc5ea71850c5 11,21,61,66,170
+packages/application/src/commands/get-job.ts
+  dd93dc5ea71850c5 1-30
+apps/app/src/app-services/mappers.ts
+  dd93dc5ea71850c5 1,76-94
+apps/app/INTEGRATION_DESIGN.md
+  dd93dc5ea71850c5 6,28,33,141,186-187,261
+packages/application/src/session/types.ts
+  dd93dc5ea71850c5 1-50
+packages/application/src/session/session.test.ts
+  dd93dc5ea71850c5 2-98,101-114,116-117,120-133,136-148,151-158,160-164,167-180,182,184-185
+apps/app/src/ui/app-shell.tsx
+  dd93dc5ea71850c5 4,8,70-71
+apps/app/STATUS.md
+  dd93dc5ea71850c5 43,67,99
+packages/application/src/commands/profile-models.ts
+  dd93dc5ea71850c5 1-151
+apps/cli/src/commands/profile/models.ts
+  dd93dc5ea71850c5 2
+apps/cli/src/adapters/file-storage-adapter.ts
+  dd93dc5ea71850c5 6
+packages/application/src/commands/describe-provider.ts
+  dd93dc5ea71850c5 2,4-11
+README.md
+  dd93dc5ea71850c5 12
+docs/ENGINEERING_CONTEXT.md
+  dd93dc5ea71850c5 15,28,38-39
+apps/app/src/host/photoshop-host-bridge.ts
+  dd93dc5ea71850c5 1
+packages/application/src/commands/subscribe-job-events.ts
+  dd93dc5ea71850c5 1-40
+packages/application/src/commands/provider-profiles.ts
+  dd93dc5ea71850c5 1-300
+apps/app/src/ui/pages/settings-page.tsx
+  dd93dc5ea71850c5 1
+apps/cli/src/commands/job/get.ts
+  dd93dc5ea71850c5 3,10
+docs/loops/application-session-refactor-loop.md
+  dd93dc5ea71850c5 10,38,196,205,220,224,244,463-464,485,633
+packages/application/src/runtime.test.ts
+  dd93dc5ea71850c5 1-68
+apps/cli/src/commands/provider/list.ts
+  dd93dc5ea71850c5 2
+apps/cli/src/commands/job/retry.ts
+  dd93dc5ea71850c5 3,11
+apps/app/src/ui/hooks/use-conversation.ts
+  dd93dc5ea71850c5 2,7-8,11,68-78,81-83,89,93-97,111-126,139,157-164,199,209-221,232,244,250-262,266
+apps/cli/src/commands/profile/refresh-models.ts
+  dd93dc5ea71850c5 2
+apps/app/README.md
+  dd93dc5ea71850c5 3,51
+docs/dev-memory/PROJECT_RULES.md
+  dd93dc5ea71850c5 42
+packages/application/src/commands/submit-job.ts
+  dd93dc5ea71850c5 2,4,6-10,13,15-20,24,26-28,30-33,35-40,42-44,48-54,56-72,74-75,78,80-81,85,87-109
+apps/app/tests/use-conversation.test.tsx
+  dd93dc5ea71850c5 6,26-27
+apps/app/src/app-services/commands-port.ts
+  dd93dc5ea71850c5 1
+apps/app/src/host/uxp-provider-profile-repository.ts
+  dd93dc5ea71850c5 1
+apps/cli/src/adapters/file-provider-profile-adapter.ts
+  dd93dc5ea71850c5 4
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.2.8-ntes.9",
+  "base_commit_sha": "fe9727ac2679b3ba6f02ce428cd6a6455118b869",
+  "prompts": {
+    "0ffa88f42e0a945a": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "019ec91e-1f50-7312-a9c0-399a0313fbbc",
+        "model": "gpt-5.5"
+      },
+      "human_author": "sinyuk",
+      "messages": [],
+      "total_additions": 0,
+      "total_deletions": 0,
+      "accepted_lines": 685,
+      "overriden_lines": 0,
+      "per_file_stats": {
+        "packages/providers/src/providers/image-endpoint/provider.ts": {
+          "accepted_lines": 174
+        },
+        "packages/providers/src/transport/image-endpoint/error-map.ts": {
+          "accepted_lines": 110
+        },
+        "packages/providers/src/transport/image-endpoint/retry.ts": {
+          "accepted_lines": 159
+        },
+        "packages/providers/src/transport/image-endpoint/parse-response.ts": {
+          "accepted_lines": 242
+        }
+      }
+    },
+    "dd93dc5ea71850c5": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "019ece9a-a5ae-7201-b81e-d5744f7a779e",
+        "model": "gpt-5.5"
+      },
+      "human_author": "sinyuk",
+      "messages": [],
+      "total_additions": 2360,
+      "total_deletions": 967,
+      "accepted_lines": 2305,
+      "overriden_lines": 0,
+      "per_file_stats": {
+        "packages/application/src/requests/provider-generate.ts": {
+          "additions": 35,
+          "accepted_lines": 35
+        },
+        "packages/workflows/src/builtins/index.ts": {
+          "additions": 1,
+          "deletions": 14
+        },
+        "docs/dev-memory/_inbox/2026-06-16-application-session-refactor-complete.md": {
+          "additions": 11,
+          "deletions": 1,
+          "accepted_lines": 10
+        },
+        "packages/application/src/commands/provider-profiles.ts": {
+          "additions": 300,
+          "accepted_lines": 300
+        },
+        "packages/application/src/commands/index.ts": {
+          "additions": 67,
+          "accepted_lines": 67
+        },
+        "packages/application/tsconfig.build.json": {
+          "additions": 9,
+          "accepted_lines": 9
+        },
+        "docs/ENGINEERING_CONTEXT.md": {
+          "additions": 9,
+          "deletions": 20,
+          "accepted_lines": 4
+        },
+        "packages/workflows/tsconfig.build.json": {
+          "deletions": 8
+        },
+        "apps/app/src/app-services/commands-port.ts": {
+          "additions": 1,
+          "deletions": 1,
+          "accepted_lines": 1
+        },
+        "packages/workflows/src/builtins/provider-generate.ts": {
+          "additions": 1,
+          "deletions": 36
+        },
+        "packages/application/src/commands/profile-models.ts": {
+          "additions": 151,
+          "accepted_lines": 151
+        },
+        "packages/application/src/session/session.ts": {
+          "additions": 210,
+          "deletions": 21,
+          "accepted_lines": 189
+        },
+        "apps/app/src/host/in-memory-host-storage.ts": {
+          "additions": 1,
+          "deletions": 1,
+          "accepted_lines": 1
+        },
+        "apps/app/src/ui/pages/main-page.tsx": {
+          "additions": 2,
+          "deletions": 2,
+          "accepted_lines": 2
+        },
+        "apps/app/src/host/create-plugin-host-shell.ts": {
+          "additions": 1,
+          "deletions": 1,
+          "accepted_lines": 1
+        },
+        "packages/application/src/commands/subscribe-job-events.ts": {
+          "additions": 40,
+          "accepted_lines": 40
+        },
+        "apps/app/src/ui/hooks/use-imagen-session.ts": {
+          "additions": 40,
+          "accepted_lines": 40
+        },
+        "apps/app/src/ui/app-shell.tsx": {
+          "additions": 4,
+          "deletions": 2,
+          "accepted_lines": 4
+        },
+        "packages/workflows/src/index.ts": {
+          "deletions": 7
+        },
+        "packages/application/src/index.ts": {
+          "additions": 3,
+          "accepted_lines": 3
+        },
+        "apps/cli/vitest.config.ts": {
+          "additions": 1,
+          "deletions": 1,
+          "accepted_lines": 1
+        },
+        "apps/app/src/host/photoshop-host-bridge.ts": {
+          "additions": 1,
+          "deletions": 1,
+          "accepted_lines": 1
+        },
+        "packages/application/src/commands/list-providers.ts": {
+          "additions": 11,
+          "accepted_lines": 11
+        },
+        "apps/app/SPEC.md": {
+          "additions": 3,
+          "deletions": 3,
+          "accepted_lines": 2
+        },
+        "packages/application/package.json": {
+          "additions": 33,
+          "deletions": 2,
+          "accepted_lines": 31
+        },
+        "packages/application/src/runtime.test.ts": {
+          "additions": 68,
+          "accepted_lines": 68
+        },
+        "apps/cli/src/commands/provider/list.ts": {
+          "additions": 1,
+          "deletions": 1,
+          "accepted_lines": 1
+        },
+        "packages/application/src/requests/requests.test.ts": {
+          "additions": 98,
+          "accepted_lines": 98
+        },
+        "packages/workflows/tests/builtins.test.ts": {
+          "deletions": 211
+        },
+        "apps/cli/src/index.ts": {
+          "additions": 1,
+          "deletions": 1,
+          "accepted_lines": 1
+        },
+        "apps/app/package.json": {
+          "additions": 1,
+          "deletions": 1,
+          "accepted_lines": 1
+        },
+        "packages/application/src/session/session.test.ts": {
+          "additions": 187,
+          "accepted_lines": 187
+        },
+        "apps/app/STATUS.md": {
+          "additions": 4,
+          "deletions": 4,
+          "accepted_lines": 3
+        },
+        "apps/cli/src/commands/profile/lifecycle.ts": {
+          "additions": 2,
+          "deletions": 2,
+          "accepted_lines": 2
+        },
+        "README.md": {
+          "additions": 2,
+          "deletions": 3,
+          "accepted_lines": 1
+        },
+        "apps/app/INTEGRATION_DESIGN.md": {
+          "additions": 9,
+          "deletions": 10,
+          "accepted_lines": 7
+        },
+        "apps/cli/src/commands/job/submit.ts": {
+          "additions": 4,
+          "deletions": 3,
+          "accepted_lines": 3
+        },
+        "apps/app/tests/use-conversation.test.tsx": {
+          "additions": 3,
+          "deletions": 1,
+          "accepted_lines": 3
+        },
+        "apps/app/src/ui/hooks/use-conversation.ts": {
+          "additions": 86,
+          "deletions": 37,
+          "accepted_lines": 85
+        },
+        "tsconfig.json": {
+          "additions": 3,
+          "deletions": 4,
+          "accepted_lines": 3
+        },
+        "apps/app/src/app-services/mappers.ts": {
+          "additions": 20,
+          "deletions": 1,
+          "accepted_lines": 20
+        },
+        "packages/application/src/commands/retry-job.ts": {
+          "additions": 39,
+          "accepted_lines": 39
+        },
+        "apps/app/src/ui/pages/settings-page.tsx": {
+          "additions": 1,
+          "deletions": 1,
+          "accepted_lines": 1
+        },
+        "docs/dev-memory/PROJECT_RULES.md": {
+          "additions": 1,
+          "deletions": 1,
+          "accepted_lines": 1
+        },
+        "packages/application/src/commands/secret-utils.ts": {
+          "additions": 32,
+          "accepted_lines": 32
+        },
+        "packages/application/src/commands/submit-job.ts": {
+          "additions": 110,
+          "accepted_lines": 110
+        },
+        "apps/cli/src/commands/profile/refresh-models.ts": {
+          "additions": 1,
+          "deletions": 1,
+          "accepted_lines": 1
+        },
+        "packages/application/src/commands/get-job.ts": {
+          "additions": 30,
+          "accepted_lines": 30
+        },
+        "apps/cli/package.json": {
+          "additions": 1,
+          "deletions": 1,
+          "accepted_lines": 1
+        },
+        "apps/cli/src/commands/job/retry.ts": {
+          "additions": 3,
+          "deletions": 3,
+          "accepted_lines": 2
+        },
+        "packages/application/src/session/types.ts": {
+          "additions": 50,
+          "accepted_lines": 50
+        },
+        "packages/workflows/AGENTS.md": {
+          "deletions": 7
+        },
+        "apps/cli/src/commands/job/get.ts": {
+          "additions": 3,
+          "deletions": 3,
+          "accepted_lines": 2
+        },
+        "packages/workflows/package.json": {
+          "additions": 1,
+          "deletions": 27
+        },
+        "packages/application/src/runtime.ts": {
+          "additions": 332,
+          "deletions": 1,
+          "accepted_lines": 331
+        },
+        "docs/loops/application-session-refactor-loop.md": {
+          "additions": 19,
+          "deletions": 19,
+          "accepted_lines": 11
+        },
+        "apps/app/src/ui/pages/settings-detail-page.tsx": {
+          "additions": 1,
+          "deletions": 1,
+          "accepted_lines": 1
+        },
+        "packages/application/tsconfig.json": {
+          "additions": 8,
+          "accepted_lines": 8
+        },
+        "apps/app/tests/fakes.ts": {
+          "additions": 1,
+          "deletions": 1,
+          "accepted_lines": 1
+        },
+        "apps/app/README.md": {
+          "additions": 3,
+          "deletions": 3,
+          "accepted_lines": 2
+        },
+        "apps/app/src/host/uxp-secret-storage-adapter.ts": {
+          "additions": 1,
+          "deletions": 1,
+          "accepted_lines": 1
+        },
+        "packages/application/src/commands/types.ts": {
+          "additions": 179,
+          "accepted_lines": 179
+        },
+        "apps/cli/src/commands/provider/describe.ts": {
+          "additions": 1,
+          "deletions": 1,
+          "accepted_lines": 1
+        },
+        "packages/application/src/requests/index.ts": {
+          "additions": 12,
+          "accepted_lines": 12
+        },
+        "packages/application/AGENTS.md": {
+          "additions": 10,
+          "deletions": 2,
+          "accepted_lines": 8
+        },
+        "apps/app/AGENTS.md": {
+          "additions": 1,
+          "deletions": 1,
+          "accepted_lines": 1
+        },
+        "packages/workflows/vitest.config.ts": {
+          "deletions": 20
+        },
+        "packages/application/src/requests/provider-edit.ts": {
+          "additions": 37,
+          "accepted_lines": 37
+        },
+        "packages/application/src/commands/describe-provider.ts": {
+          "additions": 11,
+          "accepted_lines": 11
+        },
+        "packages/workflows/src/builtins/provider-edit.ts": {
+          "additions": 1,
+          "deletions": 38
+        },
+        "packages/workflows/tsconfig.json": {
+          "deletions": 8
+        },
+        "apps/cli/src/commands/job/session.ts": {
+          "additions": 24,
+          "accepted_lines": 24
+        },
+        "apps/app/src/ui/hooks/use-provider-settings.ts": {
+          "additions": 1,
+          "deletions": 1,
+          "accepted_lines": 1
+        },
+        "apps/cli/src/adapters/file-storage-adapter.ts": {
+          "additions": 1,
+          "deletions": 2,
+          "accepted_lines": 1
+        },
+        "apps/cli/src/commands/profile/models.ts": {
+          "additions": 1,
+          "deletions": 1,
+          "accepted_lines": 1
+        },
+        "apps/app/src/host/uxp-provider-profile-repository.ts": {
+          "additions": 1,
+          "deletions": 1,
+          "accepted_lines": 1
+        },
+        "apps/cli/src/adapters/file-provider-profile-adapter.ts": {
+          "additions": 1,
+          "deletions": 1,
+          "accepted_lines": 1
+        },
+        "packages/workflows/tests/fixtures.ts": {
+          "deletions": 144
+        },
+        "docs/TESTING.md": {
+          "additions": 6,
+          "deletions": 7,
+          "accepted_lines": 5
+        },
+        "packages/application/src/session/index.ts": {
+          "additions": 11,
+          "accepted_lines": 11
+        },
+        "packages/workflows/tests/cross-package-compat.test.ts": {
+          "deletions": 269
+        },
+        "apps/app/src/app-services/host-bridge.ts": {
+          "additions": 1,
+          "deletions": 1,
+          "accepted_lines": 1
+        }
+      }
+    }
+  }
+}
