@@ -27,6 +27,10 @@ function sanitizeProfile(profile: ProviderProfile): ProviderProfile {
   return { ...profile };
 }
 
+function normalizeAlias(displayName: string): string {
+  return displayName.trim();
+}
+
 /** 列出已保存的 provider profiles，不返回 secret values。 */
 export async function listProviderProfiles(): Promise<CommandResult<readonly ProviderProfile[]>> {
   const profiles = await getProviderProfileRepository().list();
@@ -92,7 +96,31 @@ export async function saveProviderProfile(input: ProviderProfileInput): Promise<
     };
   }
 
-  const nextDisplayName = input.displayName ?? existing?.displayName ?? provider.describe().displayName;
+  const nextDisplayName = normalizeAlias(input.displayName ?? existing?.displayName ?? provider.describe().displayName);
+  if (nextDisplayName.length === 0) {
+    return {
+      ok: false,
+      error: createValidationError(`Provider profile "${input.profileId}" requires displayName.`, {
+        profileId: input.profileId,
+      }),
+    };
+  }
+
+  const profiles = await getProviderProfileRepository().list();
+  const aliasOwner = profiles.find(
+    (profile) => profile.profileId !== input.profileId && normalizeAlias(profile.displayName) === nextDisplayName,
+  );
+  if (aliasOwner) {
+    return {
+      ok: false,
+      error: createValidationError(`Provider profile displayName "${nextDisplayName}" already exists.`, {
+        profileId: input.profileId,
+        displayName: nextDisplayName,
+        existingProfileId: aliasOwner.profileId,
+      }),
+    };
+  }
+
   const now = new Date().toISOString();
   const secretRefs: Record<string, string> = { ...(existing?.secretRefs ?? {}), ...(input.secretRefs ?? {}) };
   const writtenSecrets = new Map<string, string | undefined>();

@@ -32,7 +32,7 @@ describe('SettingsAddPage', () => {
     await act(async () => {
       root!.render(
         <AppServicesProvider services={services}>
-          <SettingsAddPage onNav={() => undefined} onProfileSaved={async () => undefined} />
+          <SettingsAddPage onNav={() => undefined} profiles={[]} onProfileSaved={async () => undefined} />
         </AppServicesProvider>,
       );
     });
@@ -55,12 +55,53 @@ describe('SettingsAddPage', () => {
 
     expect(spies.saveProviderProfile).toHaveBeenCalledWith(
       expect.objectContaining({
-        profileId: 'mock-local-mock',
+        profileId: expect.stringMatching(/^profile-/),
         providerId: 'mock',
         displayName: 'Local Mock',
         secretValues: { apiKey: 'secret-key' },
       }),
     );
     expect(spies.saveProviderProfile.mock.calls[0]?.[0]).not.toHaveProperty('apiKey');
+  });
+
+  it('prefills a unique alias suggestion from existing profiles', async () => {
+    const { services } = createFakeServices();
+    const container = document.createElement('div');
+    document.body.appendChild(container);
+    root = createRoot(container);
+
+    await act(async () => {
+      root!.render(
+        <AppServicesProvider services={services}>
+          <SettingsAddPage
+            onNav={() => undefined}
+            profiles={[
+              {
+                profileId: 'profile-1',
+                providerId: 'mock',
+                displayName: 'Mock Provider',
+                enabled: true,
+                config: {
+                  providerId: 'mock',
+                  displayName: 'Mock Provider',
+                  family: 'image-endpoint',
+                  baseURL: 'https://mock.local',
+                },
+                createdAt: '2026-06-15T00:00:00.000Z',
+                updatedAt: '2026-06-15T00:00:00.000Z',
+              },
+            ]}
+            onProfileSaved={async () => undefined}
+          />
+        </AppServicesProvider>,
+      );
+    });
+
+    await act(async () => {
+      container.querySelector<HTMLElement>('.prov-row')!.click();
+    });
+
+    const nameInput = Array.from(container.querySelectorAll<HTMLInputElement>('input'))[0];
+    expect(nameInput.value).toBe('Mock Provider(1)');
   });
 });

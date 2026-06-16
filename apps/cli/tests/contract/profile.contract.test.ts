@@ -67,6 +67,22 @@ describe('CLI profile contract', () => {
     expect(testResult.valid).toBe(true);
   });
 
+  it('rejects duplicate profile aliases even when profileIds differ', () => {
+    const configDir = tempDir('config-profile-alias-unique');
+    saveProfile(configDir, 'mock-dev', { displayName: 'Relay A' });
+    const duplicatePath = writeJson(tempDir('fixtures-alias'), 'alias.json', mockProfile('mock-dev-2', {
+      displayName: 'Relay A',
+      config: {
+        baseURL: 'https://mock.local',
+        defaultModel: 'mock-image-v1',
+      },
+    }));
+
+    const failed = expectFailureJson(runImagen(['profile', 'save', `@${duplicatePath}`], { configDir }));
+    expect(failed.error).toContain('displayName "Relay A" already exists');
+    expect(expectSuccess(runImagen(['profile', 'list'], { configDir })).profiles).toHaveLength(1);
+  });
+
   it('rejects providerId conflicts for an existing profileId without changing the old profile', () => {
     const configDir = tempDir('config-profile-conflict');
     saveProfile(configDir, 'mock-dev');

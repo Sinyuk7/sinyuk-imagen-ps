@@ -136,6 +136,7 @@ function AppShellContent({ host }: AppShellProps) {
       {view === 'settings-add' && (
         <SettingsAddPage
           onNav={onNav}
+          profiles={profilesState.profiles}
           onProfileSaved={async (profileId) => {
             await profilesState.reload();
             setSelectedProfileId(profileId);

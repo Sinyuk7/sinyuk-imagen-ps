@@ -147,7 +147,7 @@ export function SettingsDetailPage({ onNav, profileId, onProfilesChanged }: Sett
             <div className="section">
               <div className="section-title">连接信息</div>
               <div className="field">
-                <label className="field-label">显示名称</label>
+                <label className="field-label">别名</label>
                 <input className="field-input" value={displayName} onChange={(event) => setDisplayName(event.target.value)} />
               </div>
               <div className="field">

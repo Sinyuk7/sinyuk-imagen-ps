@@ -1,23 +1,40 @@
 import { useMemo, useState } from 'react';
+import type { ProviderProfile } from '@imagen-ps/application';
 import { useAppServices } from '../../app-services/app-services-context';
 import { providerConfigFromForm, useProviderCatalog } from '../hooks/use-provider-settings';
 import { SI } from '../components/icons';
 
 interface SettingsAddPageProps {
   readonly onNav: (view: string) => void;
+  readonly profiles: readonly ProviderProfile[];
   readonly onProfileSaved: (profileId: string) => Promise<void>;
 }
 
-function profileIdFrom(providerId: string, displayName: string): string {
-  const safeName = displayName.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
-  return `${providerId}-${safeName || Date.now()}`;
+function createProfileId(): string {
+  if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
+    return `profile-${crypto.randomUUID()}`;
+  }
+  return `profile-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`;
 }
 
 function defaultBaseUrl(providerId: string): string {
   return providerId === 'mock' ? 'https://mock.local' : '';
 }
 
-export function SettingsAddPage({ onNav, onProfileSaved }: SettingsAddPageProps) {
+function nextAlias(baseName: string, profiles: readonly ProviderProfile[]): string {
+  const used = new Set(profiles.map((profile) => profile.displayName.trim()));
+  if (!used.has(baseName)) {
+    return baseName;
+  }
+  for (let index = 1; ; index += 1) {
+    const candidate = `${baseName}(${index})`;
+    if (!used.has(candidate)) {
+      return candidate;
+    }
+  }
+}
+
+export function SettingsAddPage({ onNav, profiles, onProfileSaved }: SettingsAddPageProps) {
   const services = useAppServices();
   const providers = useProviderCatalog(services);
   const [step, setStep] = useState(1);
@@ -35,8 +52,8 @@ export function SettingsAddPage({ onNav, onProfileSaved }: SettingsAddPageProps)
     if (!selected) {
       throw new Error('请选择 Provider 类型');
     }
-    const displayName = name.trim() || selected.displayName;
-    const profileId = profileIdFrom(selected.id, displayName);
+    const displayName = name.trim() || nextAlias(selected.displayName, profiles);
+    const profileId = createProfileId();
     const result = await services.commands.saveProviderProfile({
       profileId,
       providerId: selected.id,
@@ -107,6 +124,7 @@ export function SettingsAddPage({ onNav, onProfileSaved }: SettingsAddPageProps)
                 className="prov-row"
                 onClick={() => {
                   setProviderId(provider.id);
+                  setName(nextAlias(provider.displayName, profiles));
                   setBaseUrl(defaultBaseUrl(provider.id));
                   setStep(2);
                 }}
@@ -125,9 +143,9 @@ export function SettingsAddPage({ onNav, onProfileSaved }: SettingsAddPageProps)
         ) : (
           <div>
             <div className="section">
-              <div className="section-title">Profile</div>
+              <div className="section-title">配置</div>
               <div className="field">
-                <label className="field-label">显示名称</label>
+                <label className="field-label">别名</label>
                 <input className="field-input" placeholder={selected?.displayName} value={name} onChange={(event) => setName(event.target.value)} />
               </div>
               <div className="field">

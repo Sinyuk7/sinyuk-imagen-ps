@@ -50,6 +50,7 @@ CLI contract 测试位于 `apps/cli/tests/contract/*.contract.test.ts`。
   - new：不存在时创建
   - update：同 `profileId` + 同 `providerId` 时更新
   - conflict：同 `profileId` 改 `providerId` 时失败且旧 profile 不变
+  - alias：`displayName` 作为用户可见别名，保存时必须全局唯一；重复时失败，不自动改写为 `nameA(1)` 之类的值
 - `profile get` / `list` / `delete`
 - `profile test`
 - `profile models`
@@ -116,6 +117,7 @@ IMAGEN_SMOKE_OPENROUTER_MODEL=sourceful/riverflow-v2.5-fast
 ```
 
 Profile secret 会写成 `env:<VAR>` 引用；测试运行时才从环境变量解析，真实 key 不落盘到 profile/secret storage。
+`profile.displayName` 承担用户可见 alias 语义，`profileId` 只作为内部主键。创建页可建议唯一别名，但最终保存值由用户确认，不做静默自动去重。
 
 ## Run Live Smoke
 
