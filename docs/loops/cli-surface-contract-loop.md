@@ -112,7 +112,7 @@ pnpm --filter @imagen-ps/cli build
 pnpm --filter @imagen-ps/cli test
 pnpm --filter @imagen-ps/application test
 pnpm --filter @imagen-ps/app test
-pnpm check:boundaries
+pnpm check:policy
 ```
 
 Success criteria:
@@ -173,9 +173,23 @@ Validation commands:
 pnpm --filter @imagen-ps/cli test
 node - <<'JS'
 const fs = require('node:fs');
-const rules = fs.readFileSync('docs/dev-memory/PROJECT_RULES.md', 'utf8');
-const source = rules.split('\n').find((line) => line.includes('Before editing') && line.includes('including'));
-const terms = [...source.matchAll(/`([^`]+)`/g)].map((match) => match[1]);
+const terms = [
+  'Stable v',
+  'v1',
+  'v1.1',
+  'legacy',
+  'compat',
+  'compatibility',
+  'migration',
+  'fallback',
+  'deprecated',
+  'rollout',
+  'upgrade',
+  'old contract',
+  'backward',
+  'forward',
+  'future support',
+];
 const files = [
   'apps/cli/README.md',
   'docs/TESTING.md',

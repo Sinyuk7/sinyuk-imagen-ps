@@ -1,8 +1,8 @@
-# Memory Draft Inbox
+# Engineering Record Inbox
 
-Write one short Markdown draft per meaningful fix, investigation, or design decision.
+Write one short Markdown draft for each fix, investigation, or design decision with project-shared value.
 
-Use this filename shape:
+Filename shape:
 
 ```text
 YYYY-MM-DD-short-topic.md

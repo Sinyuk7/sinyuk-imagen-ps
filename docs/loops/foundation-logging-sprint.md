@@ -279,7 +279,7 @@ UXP 侧可以同时保留 console sink 和 data-folder JSONL sink。
 
 - `pnpm --filter @imagen-ps/foundation build`
 - `pnpm --filter @imagen-ps/foundation test`
-- `pnpm check:boundaries`
+- `pnpm check:policy`
 
 ### 阶段 2 - 日志核心
 
@@ -389,7 +389,7 @@ UXP sink：
 
 - `pnpm build`
 - `pnpm test`
-- `pnpm check:boundaries`
+- `pnpm check:policy`
 - `pnpm validate`
 
 ## Harness 设计
@@ -488,7 +488,7 @@ UXP 侧必须使用 fake module / fake storage 进行可重复验证。
 6. CLI 不污染 stdout / stderr contract。
 7. UXP 不写插件目录，不依赖私有 API，不要求任意外部文件写权限。
 8. 所有 public export 都有中文 JSDoc。
-9. `pnpm build`、`pnpm test`、`pnpm check:boundaries`、`pnpm validate` 全部通过。
+9. `pnpm build`、`pnpm test`、`pnpm check:policy`、`pnpm validate` 全部通过。
 10. 新增测试能证明 record 形状、redaction、sink 行为和链路传播。
 
 ## 停止条件

@@ -1,33 +1,33 @@
 # AGENTS.md
 
-## Development Phase Invariant
+## Operating Model
 
-This project is in a zero-user, zero-history-burden development stage. Optimize for the cleanest current-state architecture and simplest correct implementation.
+This repo uses current-state, harness-first loop engineering.
 
-Do not add compatibility layers, migrations, old-contract support, legacy fallbacks, deprecated behavior preservation, phased rollout logic, or speculative future-proofing unless the user explicitly overrides this invariant in the same conversation.
+- Current-state first: zero users, zero production data, no legacy contract to preserve.
+- Loop shape: objective, scope, ownership boundary, harness, acceptance gate, stop rule, writeback target.
+- Harness before live/manual validation: contract tests, fake adapters, smoke harnesses, fixtures, boundary checks, reproducible commands.
+- Stop and re-scope when a slice needs unauthorized cross-boundary ownership changes.
 
-## Hard Rules
+## Entrypoints
 
-- Active loop 权威入口只在根 `AGENTS.md` 声明。
-
-- CLI surface contract loop 已完成；app-loop-ready-harness-loop 已完成；当前未指定 active loop。
-- Before non-trivial fixes or architecture changes, search local memory and current docs with `rg`:
+- The authoritative active-loop entrypoint is only root `AGENTS.md`.
+- The CLI surface contract loop is complete; the app-loop-ready harness loop is complete; no active loop is currently specified.
+- Before non-trivial fixes or architecture changes, search project engineering records and current docs with `rg`:
   `rg -n "<module|symptom|error|decision>" docs/dev-memory docs/loops AGENTS.md README.md`
-- Everything else lives in [docs/ENGINEERING_CONTEXT.md](docs/ENGINEERING_CONTEXT.md).
+- Keep broad context in [docs/ENGINEERING_CONTEXT.md](docs/ENGINEERING_CONTEXT.md), not here.
+- `pnpm check:policy` owns mechanical policy checks: package boundaries, current-state wording in high-authority docs, and portable path references.
 
-### 1. 中文优先
+## Writeback
 
-- 所有面向人类的文本——文档（`*.md`）、代码注释、JSDoc、commit message——必须使用中文编写。
-- 技术术语和专有名词保留原文：如 TypeScript、React、UXP、interface、generic、async/await、Promise、CLI、API、export、import、JSDoc、npm、pnpm、Node.js、Photoshop、plugin、hook 等。
-- 变量名、函数名、类名、文件名不使用中文，遵循各语言命名惯例。
+- Before finishing non-trivial work, decide whether the turn produced reusable knowledge.
+- Ask before writing user/local/profile/cross-project habits to agent memory.
+- Write project-shared engineering facts to `docs/dev-memory/`: unorganized notes go to `_inbox/`; stable architecture, decision, bug, or workflow records go under the matching `memories/` subdirectory.
+- Never store secrets, raw logs, build output, generated artifacts, or provider keys.
 
-### 2. 路径跨平台兼容
+## Language And API
 
-- 所有文件路径引用必须跨平台兼容：统一使用正斜杠 `/` 作为分隔符，禁止反斜杠 `\`。
-- 禁止绝对路径（如 `/Users/...`、`C:\...`）。配置文件、文档链接、脚本引用一律使用相对路径。
-- `import` 语句不在此列——保持 workspace 包名导入方式（如 `@sinyuk/application`）。
-
-### 3. 公开 API 必须有文档
-
-- 所有跨 package 引用的 export（class、function、interface、type、const）必须有简洁的 JSDoc 注释，用中文说明用途、参数和返回值。
-- package 内部 export 不做强制要求，但建议为复杂逻辑添加注释。
+- Documentation and commit messages should be written in English by default.
+- Code comments and JSDoc should be written in Chinese.
+- Do not use Chinese for identifiers or file names.
+- Every cross-package export must have concise Chinese JSDoc.

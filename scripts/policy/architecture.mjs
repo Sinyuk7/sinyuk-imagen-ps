@@ -1,13 +1,6 @@
-#!/usr/bin/env node
-import fs from 'node:fs';
-import path from 'node:path';
+import { scanLineRules, sourceExtensions, walkFiles } from './shared.mjs';
 
-const repoRoot = process.cwd();
-
-const sourceExtensions = new Set(['.ts', '.tsx', '.js', '.jsx']);
-const ignoredDirs = new Set(['node_modules', 'dist', '.turbo']);
-
-const rules = [
+const architectureRules = [
   {
     name: 'CLI 只能依赖 application 层，不能依赖 UI、UXP、Photoshop 或 runtime internals',
     roots: ['apps/cli/src', 'apps/cli/tests'],
@@ -71,65 +64,14 @@ const rules = [
   },
 ];
 
-function walk(dir) {
-  const absDir = path.join(repoRoot, dir);
-  if (!fs.existsSync(absDir)) {
-    return [];
+export function checkArchitecture(repoRoot) {
+  const violations = [];
+
+  for (const rule of architectureRules) {
+    const files = rule.roots.flatMap((root) => walkFiles(repoRoot, root, sourceExtensions));
+    const lineRules = rule.patterns.map((pattern) => ({ name: rule.name, pattern }));
+    violations.push(...scanLineRules(repoRoot, files, lineRules));
   }
 
-  const entries = fs.readdirSync(absDir, { withFileTypes: true });
-  const files = [];
-
-  for (const entry of entries) {
-    if (ignoredDirs.has(entry.name)) {
-      continue;
-    }
-
-    const rel = path.join(dir, entry.name).replaceAll(path.sep, '/');
-    if (entry.isDirectory()) {
-      files.push(...walk(rel));
-      continue;
-    }
-
-    if (sourceExtensions.has(path.extname(entry.name))) {
-      files.push(rel);
-    }
-  }
-
-  return files;
+  return violations;
 }
-
-const violations = [];
-
-for (const rule of rules) {
-  for (const root of rule.roots) {
-    for (const file of walk(root)) {
-      const text = fs.readFileSync(path.join(repoRoot, file), 'utf8');
-      const lines = text.split('\n');
-
-      lines.forEach((line, index) => {
-        for (const pattern of rule.patterns) {
-          if (pattern.test(line)) {
-            violations.push({
-              rule: rule.name,
-              file,
-              line: index + 1,
-              text: line.trim(),
-            });
-          }
-        }
-      });
-    }
-  }
-}
-
-if (violations.length > 0) {
-  console.error('Boundary check failed:');
-  for (const violation of violations) {
-    console.error(`- ${violation.file}:${violation.line} ${violation.rule}`);
-    console.error(`  ${violation.text}`);
-  }
-  process.exit(1);
-}
-
-console.log('边界检查通过。');

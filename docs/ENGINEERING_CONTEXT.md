@@ -1,6 +1,6 @@
 # Engineering Context
 
-This file holds repo context that should stay out of `AGENTS.md`.
+This file stores repository engineering context that should stay out of root `AGENTS.md`.
 
 ## Project Overview
 
@@ -22,7 +22,7 @@ This file holds repo context that should stay out of `AGENTS.md`.
 surface apps -> application/session -> core-engine + providers
 ```
 
-## Active Refactor
+## Current State
 
 - active loop 权威入口只在根 `AGENTS.md` 声明。
 - application/session loop 已完成。

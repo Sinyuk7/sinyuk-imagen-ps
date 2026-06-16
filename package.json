@@ -9,8 +9,8 @@
     "dev": "turbo run dev",
     "test": "turbo run test",
     "lint": "turbo run lint",
-    "check:boundaries": "node scripts/check-boundaries.mjs",
-    "validate": "pnpm build && pnpm test && pnpm check:boundaries",
+    "check:policy": "node scripts/check-policy.mjs",
+    "validate": "pnpm build && pnpm test && pnpm check:policy",
     "clean": "turbo run clean"
   },
   "devDependencies": {

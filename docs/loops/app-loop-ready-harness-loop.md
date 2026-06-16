@@ -31,7 +31,7 @@
 
 1. App contract tests：已锁定 MainPage workflow 分流、attachment、writeback、History、SettingsDetail 的用户可见行为。
 2. Fake UXP host adapter harness：已用 fake UXP modules 覆盖 profile repository、secret storage、job history、asset store、Photoshop host bridge 的关键路径。
-3. Validator / CI：继续复用现有 `pnpm validate` 与 `pnpm check:boundaries`，未新增复杂 validator 或 app-local testing 文档。
+3. Validator / CI：继续复用现有 `pnpm validate` 与 `pnpm check:policy`，未新增复杂 validator 或 app-local testing 文档。
 4. Review scoring：总体验收已通过；真实 Photoshop / UXP host smoke 仍不属于默认 gate。
 
 ## 停止条件

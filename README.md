@@ -26,7 +26,8 @@ packages/
 
 ```bash
 pnpm bootstrap        # 首次初始化：安装依赖并跑完整默认验收
-pnpm validate         # 日常收口：构建、测试、边界检查
+pnpm validate         # Default gate: build, tests, policy checks
+pnpm check:policy     # Local architecture and policy validator
 pnpm build            # 构建所有 workspace
 pnpm test             # 运行默认测试，会按 Turbo pipeline 先构建
 pnpm --filter <pkg> build   # 构建单个包

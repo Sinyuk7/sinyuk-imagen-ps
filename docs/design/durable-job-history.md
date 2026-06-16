@@ -82,7 +82,7 @@ export interface AssetStore {
 
 - CLI adapters: `node:fs` under `IMAGEN_CONFIG_DIR` / default config dir.
 - UXP adapters: `localFileSystem` data folder + token resolution.
-- Boundary guard: `pnpm check:boundaries` / the Phase 5 `rg` check keeps `node:*`, `uxp`, `photoshop`, `react`, `@imagen-ps/app`, `@imagen-ps/cli` out of `application` and `core-engine`.
+- Boundary guard: `pnpm check:policy` / the Phase 5 `rg` check keeps `node:*`, `uxp`, `photoshop`, `react`, `@imagen-ps/app`, `@imagen-ps/cli` out of `application` and `core-engine`.
 
 ## Decision 5 — Durable retry without persisting secret values
 
@@ -116,4 +116,4 @@ Stop condition honored: if a retry path ever required a persisted raw secret, th
 3. **CLI adapter slice** — `node:fs` `JobHistoryStore` + `AssetStore`; wire durable `job get/retry/list`; contract tests; README update.
 4. **UXP adapter slice** — `localFileSystem` data-folder adapters + token resolution; app history wiring; `apps/app` tests.
 
-Each slice keeps `pnpm check:boundaries` green and names tests before implementation, per the loop's Review Checklist.
+Each slice keeps `pnpm check:policy` green and names tests before implementation, per the loop's Review Checklist.

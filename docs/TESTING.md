@@ -18,7 +18,7 @@ pnpm bootstrap
 pnpm validate
 pnpm build
 pnpm test
-pnpm check:boundaries
+pnpm check:policy
 pnpm --filter @imagen-ps/providers test
 pnpm --filter @imagen-ps/application test
 pnpm --filter @imagen-ps/app test
@@ -32,9 +32,9 @@ pnpm --filter @imagen-ps/cli test
 - `apps/cli/tests/smoke/cli-e2e.test.ts`
 - `packages/core-engine` / `packages/providers` / `packages/application`
 
-`pnpm check:boundaries` 是最小架构边界 validator。它只做本地源码扫描，不访问网络、不读取 credentials、不产生费用。
+`pnpm check:policy` is the local architecture and policy validator. It checks package import boundaries, high-authority documentation wording, and portable path references. It does not access the network, read credentials, or create paid provider traffic.
 
-`pnpm validate` 串行执行 `pnpm build`、`pnpm test`、`pnpm check:boundaries`，作为后续 Agent loop 的默认收口命令。
+`pnpm validate` 串行执行 `pnpm build`、`pnpm test`、`pnpm check:policy`，作为后续 Agent loop 的默认收口命令。
 
 `pnpm --filter <pkg> test` 会绕过根级 Turbo pipeline，只适合在 `pnpm bootstrap`、`pnpm build` 或相关 package build 已完成后做局部复查。尤其是 CLI contract / smoke 测试会通过子进程运行 `apps/cli/dist/index.js`，不能把 filtered CLI test 当成干净 checkout 的初始化入口。
 
