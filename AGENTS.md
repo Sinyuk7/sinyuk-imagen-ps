@@ -27,6 +27,5 @@ Do not add compatibility layers, migrations, old-contract support, legacy fallba
 
 ### 3. 公开 API 必须有文档
 
-- 所有跨 package 引用的 export（class、function、interface、type、const）必须有 JSDoc 注释，用中文说明用途、参数和返回值。
+- 所有跨 package 引用的 export（class、function、interface、type、const）必须有简洁的 JSDoc 注释，用中文说明用途、参数和返回值。
 - package 内部 export 不做强制要求，但建议为复杂逻辑添加注释。
-- 格式要求：至少包含 `@description`；有参数则包含 `@param`；有返回值则包含 `@returns`。
