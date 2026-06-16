@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from 'vitest';
 import type { DurableJobRecord, ProviderProfile } from '@imagen-ps/application';
 import { createUxpAssetStore, createUxpJobHistoryStore } from './uxp-job-history-adapter';
+import { createUxpLogSink } from './uxp-log-sink';
 import { createUxpProviderProfileRepository } from './uxp-provider-profile-repository';
 import { createUxpSecretStorageAdapter } from './uxp-secret-storage-adapter';
 import type { UxpModules } from './uxp-api';
@@ -10,6 +11,13 @@ interface FakeFile {
   read(options?: { readonly format?: unknown }): Promise<string | ArrayBuffer>;
   write(data: string | ArrayBuffer, options?: { readonly format?: unknown }): Promise<void>;
 }
+
+interface FakeFolder {
+  getEntry(name: string): Promise<FakeEntry>;
+  createFile(name: string, options?: { readonly overwrite?: boolean }): Promise<FakeFile>;
+}
+
+type FakeEntry = FakeFile | FakeFolder;
 
 function textEncoder(value: string): ArrayBuffer {
   return new TextEncoder().encode(value).buffer;
@@ -30,18 +38,15 @@ class MutableFakeFile implements FakeFile {
   }
 }
 
-function createFakeDataFolder(initialEntries?: Record<string, FakeFile>): {
-  readonly folder: {
-    getEntry(name: string): Promise<FakeFile>;
-    createFile(name: string, options?: { readonly overwrite?: boolean }): Promise<FakeFile>;
-  };
-  readonly files: Record<string, FakeFile>;
+function createFakeDataFolder(initialEntries?: Record<string, FakeEntry>): {
+  readonly folder: FakeFolder;
+  readonly files: Record<string, FakeEntry>;
 } {
-  const files: Record<string, FakeFile> = { ...(initialEntries ?? {}) };
+  const files: Record<string, FakeEntry> = { ...(initialEntries ?? {}) };
   return {
     files,
     folder: {
-      async getEntry(name: string): Promise<FakeFile> {
+      async getEntry(name: string): Promise<FakeEntry> {
         const file = files[name];
         if (!file) {
           throw new Error(`missing entry: ${name}`);
@@ -235,5 +240,63 @@ describe('fake UXP host adapters', () => {
     expect(ref.ref).toMatch(/^uxp-asset-/);
     expect(resolved).toEqual(bytes);
     expect(fileWrites[0]).toBeInstanceOf(ArrayBuffer);
+  });
+
+  it('UXP log sink 复用已有 JSONL 文件而不是覆盖重建', async () => {
+    const writes: string[] = [];
+    const existingLogFile: FakeFile = {
+      name: 'imagen.jsonl',
+      async read() {
+        return '';
+      },
+      async write(data: string | ArrayBuffer) {
+        writes.push(String(data));
+      },
+    };
+    const createdFiles: string[] = [];
+    const today = new Date().toISOString().slice(0, 10);
+    const dateFolder = createFakeDataFolder({ 'imagen.jsonl': existingLogFile });
+    const logsFolder = createFakeDataFolder({ [today]: dateFolder.folder });
+    const dataFolder = createFakeDataFolder({ logs: logsFolder.folder });
+    const modules: UxpModules = {
+      uxp: {
+        storage: {
+          localFileSystem: {
+            async getDataFolder() {
+              return {
+                async getEntry(name: string) {
+                  return dataFolder.folder.getEntry(name);
+                },
+                async createFolder(name: string) {
+                  throw new Error(`unexpected folder creation: ${name}`);
+                },
+                async createFile(name: string) {
+                  createdFiles.push(name);
+                  throw new Error(`unexpected file creation: ${name}`);
+                },
+              };
+            },
+          },
+        },
+      },
+    };
+
+    const sink = createUxpLogSink(modules);
+    sink.write({
+      schema_version: 1,
+      timestamp: '2026-06-16T00:00:00.000Z',
+      level: 'info',
+      event: 'test.event',
+      surface: 'test',
+      package: 'app',
+      component: 'sink',
+      trace_id: 'tr_1',
+      span_id: 'sp_1',
+    });
+    await new Promise((resolve) => setTimeout(resolve, 0));
+
+    expect(createdFiles).toEqual([]);
+    expect(writes).toHaveLength(1);
+    expect(writes[0]).toContain('"event":"test.event"');
   });
 });

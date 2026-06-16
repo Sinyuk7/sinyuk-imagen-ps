@@ -18,6 +18,8 @@ packages/
 
 - 项目入口与硬规则：`AGENTS.md`
 - 工程上下文：`docs/ENGINEERING_CONTEXT.md`
+- Loop 协作契约：`docs/agent/LOOP.md`
+- 仓库级 agent skills：`.agents/skills/`
 - 当前 active loop 入口：`AGENTS.md`
 - 测试说明：`docs/TESTING.md`
 - 模块本地硬规则：各模块下的 `AGENTS.md`

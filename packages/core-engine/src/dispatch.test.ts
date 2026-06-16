@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 
 import { createProviderDispatcher, dispatchProvider } from './dispatch.js';
 import { createProviderError } from './errors.js';
+import { createLogger, createMemorySink } from '@imagen-ps/foundation';
 
 describe('createProviderDispatcher', () => {
   it('routes calls to the matching adapter', async () => {
@@ -183,6 +184,43 @@ describe('createProviderDispatcher', () => {
     expect(Object.isFrozen(result.nested)).toBe(true);
     expect(Object.isFrozen(result.arr)).toBe(true);
     expect(Object.isFrozen((result.arr as unknown[])[2])).toBe(true);
+  });
+
+  it('does not emit dispatch ok when result immutability fails', async () => {
+    const sink = createMemorySink();
+    const logger = createLogger({ sink, context: { surface: 'test' } });
+    const dispatcher = createProviderDispatcher(
+      [
+        {
+          provider: 'mock',
+          async dispatch() {
+            const nested = new Proxy(
+              { value: 1 },
+              {
+                preventExtensions() {
+                  throw new Error('cannot freeze nested value');
+                },
+              },
+            );
+            return { nested };
+          },
+        },
+      ],
+      logger,
+    );
+
+    await expect(
+      dispatchProvider(dispatcher, {
+        provider: 'mock',
+        params: {},
+      }),
+    ).rejects.toMatchObject({
+      category: 'provider',
+    });
+
+    const events = sink.records.map((record) => record.event);
+    expect(events).toContain('dispatch.provider.fail');
+    expect(events).not.toContain('dispatch.provider.ok');
   });
 });
 

@@ -13,7 +13,7 @@
 import { SCHEMA_VERSION } from './schema.js';
 import type { LogContext, LogLevel, Logger, LogRecord, LogSink, LogSpan } from './types.js';
 import { generateSpanId, generateTraceId } from './id.js';
-import { redactAttrs, redactErrorDetails } from './redaction.js';
+import { redactAttrs, redactErrorDetails, redactValue } from './redaction.js';
 
 /** Logger 创建选项。 */
 export interface CreateLoggerOptions {
@@ -40,13 +40,15 @@ function toLogError(error: unknown): LogRecord['error'] {
   }
 
   if (typeof error === 'string') {
-    return { message: error };
+    return { message: redactErrorMessage(error) };
   }
 
   if (typeof error === 'object') {
     const record = error as Record<string, unknown>;
     const message = typeof record.message === 'string' ? record.message : String(error);
-    const errorObj: Record<string, unknown> = { message };
+    const errorObj: Record<string, unknown> = {
+      message: redactErrorMessage(message),
+    };
 
     if (typeof record.category === 'string') {
       errorObj.category = record.category;
@@ -61,10 +63,31 @@ function toLogError(error: unknown): LogRecord['error'] {
       errorObj.details = redactErrorDetails(record.details as Record<string, unknown>);
     }
 
-    return errorObj as unknown as LogRecord['error'];
+    return redactLogError(errorObj) as unknown as LogRecord['error'];
   }
 
-  return { message: String(error) };
+  return { message: redactErrorMessage(String(error)) };
+}
+
+/** 红化错误消息，避免 secret 或本机路径从 Error.message 进入日志。 */
+function redactErrorMessage(message: string): string {
+  const redacted = redactValue(message);
+  return typeof redacted === 'string' ? redacted : '[REDACTED]';
+}
+
+/** 红化日志错误对象。 */
+function redactLogError(error: Record<string, unknown>): Record<string, unknown> {
+  const next: Record<string, unknown> = { ...error };
+  if (typeof next.message === 'string') {
+    next.message = redactErrorMessage(next.message);
+  } else if (next.message !== undefined) {
+    const redacted = redactValue(next.message);
+    next.message = typeof redacted === 'string' ? redacted : '[REDACTED]';
+  }
+  if (next.details !== undefined && next.details !== null && typeof next.details === 'object') {
+    next.details = redactErrorDetails(next.details as Record<string, unknown>);
+  }
+  return next;
 }
 
 /** 合并两个上下文。 */
@@ -137,10 +160,7 @@ class LoggerImpl implements Logger {
       next.attrs = redactAttrs(next.attrs as Record<string, unknown>);
     }
     if (next.error !== undefined && next.error !== null && typeof next.error === 'object') {
-      const errorRecord = next.error as Record<string, unknown>;
-      if (errorRecord.details !== undefined) {
-        errorRecord.details = redactErrorDetails(errorRecord.details as Record<string, unknown>);
-      }
+      next.error = redactLogError(next.error as Record<string, unknown>);
     }
 
     return next as unknown as LogRecord;

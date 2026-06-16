@@ -1,12 +1,3 @@
-# AI assistant directories
-.codex
-.codemaker
-.claude
-.agents
-.opencode
-
-ravenspec
-
 # Dependencies
 node_modules/
 

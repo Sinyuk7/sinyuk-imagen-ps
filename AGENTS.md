@@ -15,6 +15,7 @@ This repo uses current-state, harness-first loop engineering.
 - The CLI surface contract loop is complete; the app-loop-ready harness loop is complete; no active loop is currently specified.
 - Before non-trivial fixes or architecture changes, search project engineering records and current docs with `rg`:
   `rg -n "<module|symptom|error|decision>" docs/dev-memory docs/loops AGENTS.md README.md`
+- Use [docs/agent/LOOP.md](docs/agent/LOOP.md) for the Loop collaboration contract and `.agents/skills/` for repository-specific agent workflows.
 - Keep broad context in [docs/ENGINEERING_CONTEXT.md](docs/ENGINEERING_CONTEXT.md), not here.
 - `pnpm check:policy` owns mechanical policy checks: package boundaries, current-state wording in high-authority docs, and portable path references.
 

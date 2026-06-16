@@ -2,6 +2,7 @@ import { policyTextExtensions, scanLineRules, unique, walkFiles } from './shared
 
 const textRoots = [
   'AGENTS.md',
+  '.agents',
   'README.md',
   'docs',
   'apps',

@@ -164,8 +164,9 @@ export function createProviderDispatcher(
         if (typeof result === 'object' && result !== null) {
           // 先做浅拷贝切断与 adapter 内部状态的引用，再递归 freeze
           const snapshot = Array.isArray(result) ? [...result] : { ...(result as Record<string, unknown>) };
+          const frozen = deepFreeze(snapshot);
           span.finish();
-          return deepFreeze(snapshot);
+          return frozen;
         }
         span.finish();
         return result;

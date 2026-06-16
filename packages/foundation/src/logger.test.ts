@@ -92,6 +92,19 @@ describe('LogSpan', () => {
     expect(finish.status).toBe('fail');
     expect(finish.error).toEqual({ message: 'boom', category: 'provider' });
   });
+
+  it('redacts secret and absolute path values in error messages', () => {
+    const sink = createMemorySink();
+    const logger = createLogger({ sink, context: { surface: 'test' } });
+
+    logger.error('plain.error', undefined, { error: { message: '/Users/sinyuk/.imagen-ps/profile.json' } });
+
+    const span = logger.startSpan('span.error');
+    span.fail(new Error('Bearer sk-1234567890abcdef'));
+
+    expect(sink.records[0].error?.message).toBe('[REDACTED_PATH]');
+    expect(sink.records[2].error?.message).toBe('[REDACTED_SECRET]');
+  });
 });
 
 describe('logger fail-open', () => {

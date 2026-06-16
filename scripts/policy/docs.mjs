@@ -5,6 +5,7 @@ const highAuthorityDocs = [
   'README.md',
   'docs/ENGINEERING_CONTEXT.md',
   'docs/TESTING.md',
+  'docs/agent/LOOP.md',
   'docs/dev-memory/README.md',
   'docs/dev-memory/_inbox/README.md',
   'apps/app/AGENTS.md',

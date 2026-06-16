@@ -163,7 +163,7 @@ export async function httpRequest(
       (diagnostic) => {
         diagnostics.push(diagnostic);
       },
-      logger,
+      transportLogger,
     );
 
     span?.finish();

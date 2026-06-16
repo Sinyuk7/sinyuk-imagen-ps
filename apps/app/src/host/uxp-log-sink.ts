@@ -36,6 +36,14 @@ async function ensureFolder(parent: UxpFolderEntry, name: string): Promise<UxpFo
   return parent.createFolder(name);
 }
 
+async function getOrCreateFile(parent: UxpFolderEntry, name: string): Promise<UxpFileEntry> {
+  const existing = await parent.getEntry(name);
+  if (existing && typeof (existing as UxpFileEntry).write === 'function') {
+    return existing as UxpFileEntry;
+  }
+  return parent.createFile(name, { overwrite: true });
+}
+
 /** 创建 UXP data-folder 日志 sink。 */
 export function createUxpLogSink(uxpModules: UxpModules): LogSink {
   const storage = (uxpModules.uxp?.storage ?? {}) as { localFileSystem?: UxpLocalFileSystem };
@@ -58,7 +66,7 @@ export function createUxpLogSink(uxpModules: UxpModules): LogSink {
       const dataFolder = await lfs.getDataFolder();
       const logsFolder = await ensureFolder(dataFolder, 'logs');
       const dateFolder = await ensureFolder(logsFolder, toISODate(new Date()));
-      return await dateFolder.createFile('imagen.jsonl', { overwrite: true });
+      return await getOrCreateFile(dateFolder, 'imagen.jsonl');
     })();
 
     return filePromise;

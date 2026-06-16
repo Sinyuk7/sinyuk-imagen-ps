@@ -38,6 +38,24 @@ pnpm --filter @imagen-ps/cli test
 
 `pnpm --filter <pkg> test` 会绕过根级 Turbo pipeline，只适合在 `pnpm bootstrap`、`pnpm build` 或相关 package build 已完成后做局部复查。尤其是 CLI contract / smoke 测试会通过子进程运行 `apps/cli/dist/index.js`，不能把 filtered CLI test 当成干净 checkout 的初始化入口。
 
+## Loop 验证引用分类
+
+Loop 文档引用验证命令时，必须把命令放入以下分类，避免把局部复查、
+默认 CI、live provider smoke 和真实 UXP host 验证混在一起。
+
+| 分类 | 用途 | 当前命令 / workflow | 注意事项 |
+|---|---|---|---|
+| quick | 规划期或小切片的快速机械检查 | `pnpm check:policy` | 只验证 package 边界、高权威文档措辞和 portable path，不证明行为正确。 |
+| per-slice | 针对当前 owner boundary 的局部复查 | `pnpm --filter @imagen-ps/providers test`、`pnpm --filter @imagen-ps/application test`、`pnpm --filter @imagen-ps/app build`、`pnpm --filter @imagen-ps/app test`、`pnpm --filter @imagen-ps/cli build`、`pnpm --filter @imagen-ps/cli test` | filtered package test 不等于 clean checkout baseline；CLI test 依赖已构建的 `apps/cli/dist/index.js`。 |
+| final | 非平凡 Loop 或切片完成后的默认收口 | `pnpm validate` | 与 CI gate 对齐：build、默认 mock-only tests、policy checks。 |
+| manual-only | 需要人工或真实 host 的验证 | UXP Developer Tool + Photoshop host smoke checklist | 不能把 fake UXP tests、Vite build 或 `pnpm validate` 写成真实 Photoshop host IO 已通过。 |
+| live-provider | 需要真实 key、网络、代理或可能产生费用的验证 | `pnpm build` 后运行 `IMAGEN_RUN_SMOKE=1 pnpm --filter @imagen-ps/cli test` | 必须显式 opt in；默认 CI 和默认 Loop gate 不运行 live provider smoke。 |
+
+`pnpm lint` 当前不是有效 Loop gate：根 `package.json` 有 `lint` 脚本，
+但各 workspace package 未声明 lint script。除非后续专门补齐 package-level
+lint scripts 并在本文档中更新验证说明，否则 Loop 文档不要把 `pnpm lint`
+列为 quick、per-slice 或 final validation。
+
 ## CLI E2E Smoke
 
 CLI smoke 测试位于 `apps/cli/tests/smoke/cli-e2e.test.ts`，通过子进程运行 `apps/cli/dist/index.js`，覆盖：
