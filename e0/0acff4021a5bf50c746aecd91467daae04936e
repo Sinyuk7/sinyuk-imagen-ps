@@ -1,0 +1,30 @@
+docs/loops/cli-surface-contract-loop.md
+  4369c16b23fb081a 3,488,490
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.2.8-ntes.9",
+  "base_commit_sha": "e00acff4021a5bf50c746aecd91467daae04936e",
+  "prompts": {
+    "4369c16b23fb081a": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "019ecf66-15e7-79c1-8b68-99cec10f764e",
+        "model": "gpt-5.5"
+      },
+      "human_author": "sinyuk",
+      "messages": [],
+      "total_additions": 3,
+      "total_deletions": 3,
+      "accepted_lines": 3,
+      "overriden_lines": 0,
+      "per_file_stats": {
+        "docs/loops/cli-surface-contract-loop.md": {
+          "additions": 3,
+          "deletions": 3,
+          "accepted_lines": 3
+        }
+      }
+    }
+  }
+}
