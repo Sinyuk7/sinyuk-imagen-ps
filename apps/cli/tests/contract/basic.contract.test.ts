@@ -19,6 +19,9 @@ describe('CLI basic contract', () => {
     expect(res.stdout).toContain('provider');
     expect(res.stdout).toContain('profile');
     expect(res.stdout).toContain('job');
+    expect(res.stdout).toContain('generate');
+    expect(res.stdout).toContain('edit');
+    expect(res.stdout).toContain('init');
   });
 
   it('returns JSON stderr for parser-level failures and removed duplicate commands', () => {

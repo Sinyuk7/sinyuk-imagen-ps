@@ -1,6 +1,7 @@
 import { vi } from 'vitest';
 import type {
   Asset,
+  DurableJobRecord,
   Job,
   ProviderDescriptor,
   ProviderProfile,
@@ -46,6 +47,20 @@ export const fakeProvider: ProviderDescriptor = {
   defaultModels: [{ id: 'mock-image-v1' }],
 };
 
+export const fakeDurableRecord: DurableJobRecord = {
+  schemaVersion: 1,
+  jobId: 'job-history-1',
+  status: 'completed',
+  workflow: 'provider-generate',
+  input: {
+    profileId: 'mock-profile',
+    prompt: 'history prompt',
+  },
+  outputs: [{ kind: 'hostObject', ref: 'history-asset-1', mimeType: 'image/png', byteSize: 16 }],
+  createdAt: '2026-06-15T00:00:00.000Z',
+  updatedAt: '2026-06-15T00:00:01.000Z',
+};
+
 function completedJob(input: Record<string, unknown>): Job {
   return {
     id: 'job-1',
@@ -86,6 +101,7 @@ export function createFakeServices(): {
   readonly spies: {
     readonly submitJob: ReturnType<typeof vi.fn>;
     readonly subscribeJobEvents: ReturnType<typeof vi.fn>;
+    readonly listJobHistoryRecords: ReturnType<typeof vi.fn>;
     readonly saveProviderProfile: ReturnType<typeof vi.fn>;
     readonly placeAssetOnCanvas: ReturnType<typeof vi.fn>;
   };
@@ -97,6 +113,7 @@ export function createFakeServices(): {
     value: completedJob(input.input),
   }));
   const subscribeJobEvents = vi.fn(() => () => undefined);
+  const listJobHistoryRecords = vi.fn(async () => [fakeDurableRecord]);
   const saveProviderProfile = vi.fn(async (input: ProviderProfileInput) => {
     const next = savedProfile(input);
     profiles = [next];
@@ -109,6 +126,7 @@ export function createFakeServices(): {
     getJob: vi.fn(() => completedJob({})),
     subscribeJobEvents,
     retryJob: vi.fn(async () => ({ ok: true as const, value: completedJob({}) })),
+    listJobHistoryRecords,
     listProviders: vi.fn(() => [fakeProvider]),
     describeProvider: vi.fn(() => fakeProvider),
     listProviderProfiles: vi.fn(async () => ({ ok: true as const, value: profiles })),
@@ -139,6 +157,6 @@ export function createFakeServices(): {
 
   return {
     services: { commands, host },
-    spies: { submitJob, subscribeJobEvents, saveProviderProfile, placeAssetOnCanvas },
+    spies: { submitJob, subscribeJobEvents, listJobHistoryRecords, saveProviderProfile, placeAssetOnCanvas },
   };
 }

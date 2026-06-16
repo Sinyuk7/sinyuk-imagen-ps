@@ -5,7 +5,14 @@
  * UI 层、host 层 MUST NOT 直接引用。
  */
 
-import { createRuntime, type Runtime } from '@imagen-ps/core-engine';
+import {
+  assertNoSecrets,
+  createRuntime,
+  type DurableJobRecord,
+  type Job,
+  type Runtime,
+  type StoredAssetRef,
+} from '@imagen-ps/core-engine';
 import {
   createDispatchAdapter,
   createProviderRegistry,
@@ -14,6 +21,8 @@ import {
   type ProviderOperation,
 } from '@imagen-ps/providers';
 import type {
+  AssetStore,
+  JobHistoryStore,
   ProviderConfigResolver,
   ProviderProfile,
   ProviderProfileRepository,
@@ -34,6 +43,8 @@ let registryInstance: ProviderRegistry | null = null;
 let providerProfileRepositoryInstance: ProviderProfileRepository | null = null;
 let secretStorageAdapterInstance: SecretStorageAdapter | null = null;
 let providerConfigResolverInstance: ProviderConfigResolver | null = null;
+let jobHistoryStoreInstance: JobHistoryStore | null = null;
+let assetStoreInstance: AssetStore | null = null;
 
 function createInMemoryProviderProfileRepository(): ProviderProfileRepository {
   const store = new Map<string, ProviderProfile>();
@@ -64,6 +75,54 @@ function createInMemorySecretStorageAdapter(): SecretStorageAdapter {
     },
     async deleteSecret(key: string): Promise<void> {
       store.delete(key);
+    },
+  };
+}
+
+function createInMemoryJobHistoryStore(): JobHistoryStore {
+  const store = new Map<string, DurableJobRecord>();
+  return {
+    async put(record: DurableJobRecord): Promise<void> {
+      store.set(record.jobId, record);
+    },
+    async get(jobId: string): Promise<DurableJobRecord | undefined> {
+      return store.get(jobId);
+    },
+    async list(query?: { readonly limit?: number; readonly status?: string }): Promise<readonly DurableJobRecord[]> {
+      const records = Array.from(store.values()).filter((record) => {
+        if (query?.status !== undefined && record.status !== query.status) {
+          return false;
+        }
+        return true;
+      });
+      return typeof query?.limit === 'number' ? records.slice(0, query.limit) : records;
+    },
+    async delete(jobId: string): Promise<void> {
+      store.delete(jobId);
+    },
+  };
+}
+
+function createInMemoryAssetStore(): AssetStore {
+  const store = new Map<string, ArrayBuffer>();
+  let counter = 0;
+  return {
+    async put(bytes: ArrayBuffer, meta: { readonly mimeType?: string; readonly name?: string }): Promise<StoredAssetRef> {
+      const ref = `memory-asset-${++counter}`;
+      store.set(ref, bytes);
+      return {
+        kind: 'hostObject',
+        ref,
+        ...(meta.mimeType !== undefined ? { mimeType: meta.mimeType } : {}),
+        ...(meta.name !== undefined ? { name: meta.name } : {}),
+        byteSize: bytes.byteLength,
+      };
+    },
+    async resolve(ref: StoredAssetRef): Promise<ArrayBuffer | undefined> {
+      return store.get(ref.ref);
+    },
+    async delete(ref: StoredAssetRef): Promise<void> {
+      store.delete(ref.ref);
     },
   };
 }
@@ -105,6 +164,115 @@ function createDefaultProviderConfigResolver(): ProviderConfigResolver {
       };
     },
   };
+}
+
+function decodeBase64(value: string): Uint8Array {
+  const alphabet = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/';
+  const clean = value.replace(/\s+/g, '').replace(/=+$/, '');
+  const out: number[] = [];
+  let buffer = 0;
+  let bits = 0;
+
+  for (const char of clean) {
+    const index = alphabet.indexOf(char);
+    if (index === -1) {
+      continue;
+    }
+    buffer = (buffer << 6) | index;
+    bits += 6;
+    if (bits >= 8) {
+      bits -= 8;
+      out.push((buffer >> bits) & 0xff);
+    }
+  }
+
+  return new Uint8Array(out);
+}
+
+function bytesFromAsset(asset: Record<string, unknown>): ArrayBuffer | undefined {
+  const data = asset.data;
+  if (data instanceof Uint8Array) {
+    const copy = new Uint8Array(data.byteLength);
+    copy.set(data);
+    return copy.buffer;
+  }
+  if (typeof data === 'string' && data.length > 0) {
+    const comma = data.startsWith('data:') ? data.indexOf(',') + 1 : 0;
+    const b64 = data.slice(comma);
+    const bytes = decodeBase64(b64);
+    const copy = new Uint8Array(bytes.byteLength);
+    copy.set(bytes);
+    return copy.buffer;
+  }
+  return undefined;
+}
+
+async function materializeOutputRefs(output: Record<string, unknown> | undefined): Promise<readonly StoredAssetRef[]> {
+  const image = output?.image as { assets?: unknown } | undefined;
+  const assets = Array.isArray(image?.assets) ? image.assets : [];
+  const refs: StoredAssetRef[] = [];
+
+  for (const asset of assets) {
+    if (typeof asset !== 'object' || asset === null) {
+      continue;
+    }
+    const record = asset as Record<string, unknown>;
+    const mimeType = typeof record.mimeType === 'string' ? record.mimeType : undefined;
+    const name = typeof record.name === 'string' ? record.name : undefined;
+    const bytes = bytesFromAsset(record);
+
+    if (bytes !== undefined) {
+      refs.push(await getAssetStore().put(bytes, { mimeType, name }));
+      continue;
+    }
+
+    if (typeof record.url === 'string' && record.url.length > 0) {
+      refs.push({ kind: 'url', ref: record.url, ...(mimeType !== undefined ? { mimeType } : {}), ...(name !== undefined ? { name } : {}) });
+      continue;
+    }
+
+    if (typeof record.fileId === 'string' && record.fileId.length > 0) {
+      refs.push({
+        kind: 'externalToken',
+        ref: record.fileId,
+        ...(mimeType !== undefined ? { mimeType } : {}),
+        ...(name !== undefined ? { name } : {}),
+      });
+    }
+  }
+
+  return refs;
+}
+
+interface DurableJobFlushOptions {
+  readonly originJobId?: string;
+  readonly retryAttempt?: number;
+}
+
+async function flushTerminalJobHistory(job: Job, options?: DurableJobFlushOptions): Promise<void> {
+  if (job.status !== 'completed' && job.status !== 'failed') {
+    return;
+  }
+
+  const workflow = typeof job.input._workflowName === 'string' ? job.input._workflowName : 'unknown';
+  const originJobId = options?.originJobId ?? job.originJobId;
+  const retryAttempt = options?.retryAttempt ?? job.retryAttempt;
+  const record: DurableJobRecord = {
+    schemaVersion: 1,
+    jobId: job.id,
+    status: job.status,
+    workflow,
+    input: job.input,
+    outputs: await materializeOutputRefs(job.output),
+    ...(job.error !== undefined ? { error: job.error } : {}),
+    createdAt: job.createdAt,
+    updatedAt: job.updatedAt,
+    ...(originJobId !== undefined ? { originJobId } : {}),
+    ...(retryAttempt !== undefined ? { retryAttempt } : {}),
+  };
+
+  assertNoSecrets(record);
+  await getJobHistoryStore().put(record);
 }
 
 /**
@@ -308,6 +476,32 @@ export function setSecretStorageAdapter(adapter: SecretStorageAdapter): void {
   secretStorageAdapterInstance = adapter;
 }
 
+/** 获取当前 job history store */
+export function getJobHistoryStore(): JobHistoryStore {
+  if (jobHistoryStoreInstance === null) {
+    jobHistoryStoreInstance = createInMemoryJobHistoryStore();
+  }
+  return jobHistoryStoreInstance;
+}
+
+/** 设置 job history store，允许 CLI / UI 注入自定义实现 */
+export function setJobHistoryStore(store: JobHistoryStore): void {
+  jobHistoryStoreInstance = store;
+}
+
+/** 获取当前 asset store */
+export function getAssetStore(): AssetStore {
+  if (assetStoreInstance === null) {
+    assetStoreInstance = createInMemoryAssetStore();
+  }
+  return assetStoreInstance;
+}
+
+/** 设置 asset store，允许 CLI / UI 注入自定义实现 */
+export function setAssetStore(store: AssetStore): void {
+  assetStoreInstance = store;
+}
+
 /** 获取当前 provider config resolver */
 export function getProviderConfigResolver(): ProviderConfigResolver {
   if (providerConfigResolverInstance === null) {
@@ -328,4 +522,11 @@ export function _resetForTesting(): void {
   providerProfileRepositoryInstance = null;
   secretStorageAdapterInstance = null;
   providerConfigResolverInstance = null;
+  jobHistoryStoreInstance = null;
+  assetStoreInstance = null;
+}
+
+/** 将 terminal job 写入 host-injected durable history。 */
+export async function flushJobHistoryForTerminalJob(job: Job, options?: DurableJobFlushOptions): Promise<void> {
+  await flushTerminalJobHistory(job, options);
 }

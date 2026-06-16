@@ -27,18 +27,24 @@ export {
 } from './profile-models.js';
 
 export { retryJob } from './retry-job.js';
+export { getJobHistoryRecord, listJobHistoryRecords } from './job-history.js';
 export { resolveSecretValue } from './secret-utils.js';
 
 export type {
   CommandResult,
   DeleteProviderProfileOptions,
+  AssetStore,
   SubmitJobInput,
   Asset,
+  DurableJobRecord,
   Job,
   JobError,
   JobEvent,
   JobEventHandler,
+  JobStatus,
+  JobHistoryStore,
   ProviderProfileTestResult,
+  StoredAssetRef,
   TestProviderProfileOptions,
   Unsubscribe,
 } from './types.js';
@@ -61,6 +67,8 @@ export type {
 
 // Adapter injection (exposed for CLI / UI)
 export {
+  setAssetStore,
+  setJobHistoryStore,
   setProviderConfigResolver,
   setProviderProfileRepository,
   setSecretStorageAdapter,

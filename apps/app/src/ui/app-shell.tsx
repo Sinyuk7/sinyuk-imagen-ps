@@ -6,6 +6,7 @@ import type { PluginHostShell } from '../host/create-plugin-host-shell';
 import { PANEL_CSS } from './panel-css';
 import { useConversation } from './hooks/use-conversation';
 import { useImagenSession } from './hooks/use-imagen-session';
+import { useJobHistory } from './hooks/use-job-history';
 import { useProfileModels, useProviderProfiles } from './hooks/use-provider-settings';
 import { MainPage } from './pages/main-page';
 import { HistoryPage } from './pages/history-page';
@@ -69,6 +70,7 @@ function AppShellContent({ host }: AppShellProps) {
   const modelsState = useProfileModels(services, selectedProfileId);
   const imagenSession = useImagenSession(services);
   const conversation = useConversation(services, imagenSession);
+  const history = useJobHistory(services);
   const { layers, reloadLayers } = useHostLayers(host);
 
   useEffect(() => {
@@ -107,7 +109,17 @@ function AppShellContent({ host }: AppShellProps) {
           conversation={conversation}
         />
       )}
-      {view === 'history' && <HistoryPage onNav={onNav} rounds={conversation.rounds} onRetry={conversation.retry} />}
+      {view === 'history' && (
+        <HistoryPage
+          onNav={onNav}
+          rounds={conversation.rounds}
+          records={history.records}
+          loading={history.loading}
+          error={history.error}
+          onReload={history.reload}
+          onRetry={conversation.retry}
+        />
+      )}
       {view === 'settings' && (
         <SettingsPage
           onNav={onNav}

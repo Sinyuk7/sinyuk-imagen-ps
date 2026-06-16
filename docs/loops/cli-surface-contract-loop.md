@@ -5,6 +5,7 @@
 - Shared context: `docs/ENGINEERING_CONTEXT.md`
 - Trigger: review of the pasted PM scoring document for `@imagen-ps/cli`
 - Constraint: this document is an execution plan. It does not authorize implementation in this turn.
+- Authority decision: application/session loop 已完成；当前 active loop 由根 `AGENTS.md` 指向本文档。
 
 ## Current Verdict
 
@@ -20,7 +21,7 @@ Correct observations:
 
 Incorrect or premature observations:
 
-- A persistent job store is not a CLI-only fix. `apps/app` history is also session-local, and durable jobs belong in `packages/application` / `packages/core-engine` after a shared design.
+- Durable job history is a confirmed shared direction, not a CLI-only fix. The shared contract belongs in `packages/application` / `packages/core-engine`; `apps/cli` and `apps/app` provide storage adapters for that contract.
 - `init --mock`, top-level `generate/edit`, `doctor`, `schema`, `batch`, asset management, cost guardrails, and telemetry are not all P0 for this repo stage.
 - The CLI must not become a parallel product runtime. It is the Node surface over shared application/session commands.
 - Product comparisons to Replicate CLI, Comfy CLI, Stripe CLI, GitHub CLI, AWS CLI, and Claude Code are useful as references, but they do not override local module boundaries.
@@ -51,7 +52,7 @@ It should stay aligned with the Photoshop / UXP app:
 - `docs/ENGINEERING_CONTEXT.md` defines dependency direction as `surface apps -> application/session -> core-engine + providers`.
 - `apps/cli/AGENTS.md` says the CLI is the Node CLI surface only and must preserve parser, stdout/stderr, and `--out` artifact contracts unless a loop slice allows changes.
 - `apps/app/SPEC.md` and `apps/app/STATUS.md` define a shared `AppServices = { commands, host }` seam over `@imagen-ps/application`.
-- `docs/TESTING.md` records CLI contract coverage for parser errors, provider/profile commands, `job submit --out`, and process-local `job get/retry`.
+- `docs/TESTING.md` records CLI contract coverage for parser errors, provider/profile commands, `job submit --out`, durable `job list/get`, and durable failed-job retry.
 - `packages/application/src/session/types.ts` exposes session-local `getSnapshot()`, `submitJob()`, and `retryJob()`.
 - `packages/core-engine/src/store.ts` currently implements an in-memory `JobStore`.
 
@@ -64,7 +65,7 @@ It should stay aligned with the Photoshop / UXP app:
 | Clarify repo-local/internal status | Accept | Current README already hints this but should be sharper. |
 | Clarify secret storage and `env:` references | Accept | Needed for safe CLI usage and UXP contrast. |
 | Clarify JSON stdout/stderr schema | Accept with narrow scope | Existing contract is `{ error: string }`; do not invent large schema until parser tests change. |
-| Add durable `~/.imagen-ps/jobs` | Reject for CLI-only loop | Durable jobs are shared application/core-engine design, not CLI adapter storage. |
+| Add durable job history | Accept as shared design | Confirmed product direction, but the contract belongs in `packages/application` / `packages/core-engine`; `apps/cli` and `apps/app` only provide storage adapters. |
 | Hide or remove `job get/retry` | Consider in a parser slice | Could reduce UX risk, but it changes parser contract and tests. |
 | Rename `job get/retry` to session commands | Reject for now | Exposes implementation limits instead of improving shared model. |
 | Add top-level `generate/edit` aliases | Consider after docs | Useful if implemented as thin aliases over `job submit`, but parser and README must change together. |
@@ -77,15 +78,14 @@ It should stay aligned with the Photoshop / UXP app:
 
 ### Before Phase 1
 
-Phase 0 must resolve the current document authority gap before any Phase 1 documentation edit starts. The current checkout may not contain `docs/loops/application-session-refactor-loop.md`, while root/package `AGENTS.md` still reference it.
+Phase 0 在文档权威入口修复后开始：
 
-The human decision must choose one of these outcomes:
+- 根 `AGENTS.md` 是唯一 active loop 权威入口。
+- `docs/loops/cli-surface-contract-loop.md` 是当前 active loop。
+- application/session loop 已完成。
+- 模块级 `AGENTS.md` 只保留稳定边界，不直接指向 active loop 文档。
 
-- Restore the missing application/session loop document.
-- Update the authority reference to a current document.
-- Treat this CLI loop as the approved follow-up after confirming the application/session refactor is complete.
-
-Do not execute Phase 1 until that decision is recorded in the task notes or a follow-up doc update.
+在 `docs/TESTING.md` 中的 validator 入口同步完成前，不执行 Phase 1。
 
 ### Phase 0 - Baseline Audit
 
@@ -112,20 +112,20 @@ pnpm --filter @imagen-ps/cli build
 pnpm --filter @imagen-ps/cli test
 pnpm --filter @imagen-ps/application test
 pnpm --filter @imagen-ps/app test
-rg -n "from '@imagen-ps/(core-engine|providers)'|photoshop|uxp|react" apps/cli/src apps/cli/tests
+pnpm check:boundaries
 ```
 
 Success criteria:
 
 - Current CLI tests pass.
-- The boundary `rg` command returns no matches.
-- The audit records whether `docs/loops/application-session-refactor-loop.md` exists in the current checkout.
+- The boundary validator passes.
+- The audit records that the application/session loop is complete and this CLI loop is the active follow-up.
 
 Stop conditions:
 
 - Build or default tests fail.
 - The CLI imports UI, UXP, Photoshop, provider transport, or runtime internals.
-- The active loop document referenced by `AGENTS.md` is missing and cannot be reconciled with current docs.
+- Root `AGENTS.md` no longer points at this loop, or module-level `AGENTS.md` files start pointing at active loop documents.
 
 Rollback:
 
@@ -133,7 +133,7 @@ Rollback:
 
 Human decision point:
 
-- If the active application/session loop file is still missing, decide whether to restore it, replace the reference, or treat this CLI loop as the active follow-up.
+- None. The active loop decision is confirmed.
 
 ### Phase 1 - Documentation Truth Pass
 
@@ -160,7 +160,8 @@ Required content:
 - Define the CLI as a repo-local Node automation and provider contract surface.
 - Put mock-first quickstart before real provider setup.
 - Document inline JSON and `@file` JSON input behavior for commands that accept structured input.
-- Document `job get/retry` as process-local session commands, not durable job lookup.
+- Historical Phase 1 target before durable history was approved: document `job get/retry` as process-local session commands, not durable job lookup.
+  Current state after Phase 5 CLI adapter slice: `job get/retry` now use active session first, then shared durable history.
 - Document `provider-secrets.json` as CLI file-backed secret storage, and recommend `env:` references for real keys.
 - State that UXP uses injected secure storage and does not reuse CLI file storage.
 - Keep current stdout/stderr contract exactly aligned with implementation: success JSON to stdout, `{ "error": "<message>" }` to stderr.
@@ -246,9 +247,9 @@ Forbidden scope:
 
 Options:
 
-- Option A: Keep `job get/retry`, but make descriptions and error text explicitly process-local.
+- Option A: Keep `job get/retry`, but make descriptions and error text explicitly process-local. Superseded after the Phase 5 durable history decision and CLI adapter slice.
 - Option B: Remove `job get/retry` from CLI parser and tests until shared durable job design exists.
-- Option C: Design shared durable jobs in `packages/application` / `packages/core-engine` first, then expose CLI and app history together in a later loop.
+- Option C: Design shared durable jobs in `packages/application` / `packages/core-engine` first, then expose CLI and app history together in a later loop. This is the confirmed durable-history direction.
 
 Validation commands:
 
@@ -262,7 +263,7 @@ rg -n "getCliSession|createImagenSession|retryJob|getJob" apps/cli/src packages/
 Success criteria:
 
 - CLI user-visible behavior matches docs and tests.
-- App session-local history remains coherent.
+- App active session hot view remains coherent.
 - No divergent CLI-only storage model exists.
 
 Stop conditions:
@@ -293,6 +294,8 @@ Allowed scope:
 
 - `apps/cli/src/index.ts`
 - New files under `apps/cli/src/commands/generate*` or `apps/cli/src/commands/task*`
+- New CLI-local helper files under `apps/cli/src/commands/job/` only for sharing
+  submit/output execution between existing `job submit` and task-first aliases.
 - `apps/cli/tests/contract/*`
 - `apps/cli/README.md`
 
@@ -315,6 +318,12 @@ Design constraint:
 - Aliases must translate to the same `submitJob({ workflow, input })` command path used by `job submit`.
 - `--out` must reuse `saveImageWithSidecar`.
 - File image loading must stay in CLI Node adapters and produce provider-shaped `Asset` input.
+- Add a CLI-local executor helper before adding alias business logic:
+  - It lives in `apps/cli` only.
+  - It owns CLI-facing concerns: invoking the existing session `submitJob`, optional `--out` artifact writing, stdout elision, and `savedImages` response shaping.
+  - `job submit`, `generate`, and `edit` must all call this helper so parser surfaces stay thin and output contracts stay identical.
+  - It must not move into `packages/application`, because `generate/edit`, local file paths, `--out`, stdout/stderr, and sidecar writing are CLI surface concerns.
+  - It must not introduce provider request builders, provider-specific branching, app/UXP/Photoshop imports, or a second job runner.
 
 Validation commands:
 
@@ -418,13 +427,13 @@ Forbidden scope:
 - No provider output persistence inside provider adapters.
 - No background daemon.
 
-Required design questions:
+Required design questions (RESOLVED — see `docs/design/durable-job-history.md`):
 
-- Is a completed job record stored separately from image artifacts?
-- Does UXP store job metadata in `localFileSystem.getDataFolder()`?
-- Are generated assets stored by host adapters as `StoredAssetRef` instead of native paths?
-- Which commands are session-local versus durable?
-- How are failed jobs retried without storing secret values in job inputs?
+- Is a completed job record stored separately from image artifacts? — YES. Record holds metadata + `StoredAssetRef[]`; binary artifacts live in a separate evictable `AssetStore`.
+- Does UXP store job metadata in `localFileSystem.getDataFolder()`? — YES. Schema-versioned JSON in the data folder; not temp / plugin / localStorage / secureStorage.
+- Are generated assets stored by host adapters as `StoredAssetRef` instead of native paths? — YES. New host-neutral opaque ref in `core-engine`, discriminated `inline | url | hostObject | externalToken`; native path banned.
+- Which commands are session-local versus durable? — Two read paths: session = hot in-memory active view; durable = `JobHistoryStore`. Terminal jobs flush to durable store. See decision table.
+- How are failed jobs retried without storing secret values in job inputs? — Record stores `profileId` + sanitized input + secret refs only; retry re-resolves secrets via `SecretStorageAdapter` at dispatch; `assertNoSecrets` guards every `put`.
 
 Validation commands:
 
@@ -457,7 +466,12 @@ Rollback:
 
 Human decision point:
 
-- Approve durable job/history as a cross-surface requirement and approve the follow-up slice breakdown before any implementation.
+- RESOLVED. Durable job/history approved as a cross-surface requirement. Design decisions and the follow-up slice breakdown are recorded in `docs/design/durable-job-history.md`. The four implementation slices (core types → application contract → CLI adapter → UXP adapter) are unblocked individually; each is gated by its own tests-named-first and boundary check, not by this gate.
+- Slice status:
+  - Core types: implemented in `packages/core-engine`.
+  - Application contract + terminal flush: implemented in `packages/application`.
+  - CLI fs adapter + durable `job list/get/retry`: implemented in `apps/cli`.
+  - UXP data-folder adapter + app history: implemented in `apps/app`; real Photoshop/UXP data-folder verification remains a host smoke gate.
 
 ## Review Checklist
 

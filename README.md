@@ -18,7 +18,7 @@ packages/
 
 - 项目入口与硬规则：`AGENTS.md`
 - 工程上下文：`docs/ENGINEERING_CONTEXT.md`
-- 当前重构 Loop：`docs/loops/application-session-refactor-loop.md`
+- 当前 active loop 入口：`AGENTS.md`
 - 测试说明：`docs/TESTING.md`
 - 模块本地硬规则：各模块下的 `AGENTS.md`
 

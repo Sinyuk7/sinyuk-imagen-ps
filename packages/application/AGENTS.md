@@ -5,4 +5,4 @@
 - Package name: `@imagen-ps/application`.
 - No React, DOM, Photoshop, UXP, Node fs/path/os, or surface app imports.
 - No provider raw transport or provider-specific HTTP client ownership.
-- Follow [../../docs/loops/application-session-refactor-loop.md](../../docs/loops/application-session-refactor-loop.md).
+- active loop 权威入口只在根 [../../AGENTS.md](../../AGENTS.md) 声明。

@@ -4,7 +4,7 @@
  * 本模块定义 commands 层的公共类型契约。
  */
 
-import type { JobError, JobEvent, JobInput } from '@imagen-ps/core-engine';
+import type { DurableJobRecord, JobError, JobEvent, JobInput, JobStatus, StoredAssetRef } from '@imagen-ps/core-engine';
 import type {
   ProviderDescriptor as _ProviderDescriptor,
   ProviderConfig as _ProviderConfig,
@@ -14,7 +14,7 @@ import type {
 
 // Re-export provider types for commands layer consumers
 export type { ProviderDescriptor, ProviderConfig, ProviderFamily, ProviderModelInfo } from '@imagen-ps/providers';
-export type { Asset, Job, JobError, JobEvent, Unsubscribe } from '@imagen-ps/core-engine';
+export type { Asset, DurableJobRecord, Job, JobError, JobEvent, JobStatus, StoredAssetRef, Unsubscribe } from '@imagen-ps/core-engine';
 
 // 为本模块内部使用引入类型别名
 type ProviderConfig = _ProviderConfig;
@@ -128,6 +128,21 @@ export interface SecretStorageAdapter {
   getSecret(key: string): Promise<string | undefined>;
   setSecret(key: string, value: string): Promise<void>;
   deleteSecret(key: string): Promise<void>;
+}
+
+/** Host-injected durable history store for sanitized terminal job records. */
+export interface JobHistoryStore {
+  put(record: DurableJobRecord): Promise<void>;
+  get(jobId: string): Promise<DurableJobRecord | undefined>;
+  list(query?: { readonly limit?: number; readonly status?: JobStatus }): Promise<readonly DurableJobRecord[]>;
+  delete(jobId: string): Promise<void>;
+}
+
+/** Host-injected binary asset store. Implementations own host-specific object resolution. */
+export interface AssetStore {
+  put(bytes: ArrayBuffer, meta: { readonly mimeType?: string; readonly name?: string }): Promise<StoredAssetRef>;
+  resolve(ref: StoredAssetRef): Promise<ArrayBuffer | undefined>;
+  delete(ref: StoredAssetRef): Promise<void>;
 }
 
 /** Minimal abstraction for resolving a single secret reference. */

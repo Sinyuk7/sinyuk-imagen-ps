@@ -1,11 +1,19 @@
 #!/usr/bin/env node
 
 import { Command } from 'commander';
-import { setProviderProfileRepository, setSecretStorageAdapter } from '@imagen-ps/application';
+import {
+  setAssetStore,
+  setJobHistoryStore,
+  setProviderProfileRepository,
+  setSecretStorageAdapter,
+} from '@imagen-ps/application';
+import { FileAssetStore, FileJobHistoryStore } from './adapters/file-job-history-adapter.js';
 import { FileProviderProfileRepository, FileSecretStorageAdapter } from './adapters/file-provider-profile-adapter.js';
 import { registerProviderCommands } from './commands/provider/index.js';
 import { registerProfileCommands } from './commands/profile/index.js';
 import { registerJobCommands } from './commands/job/index.js';
+import { registerTaskCommands } from './commands/task/index.js';
+import { registerInitCommand } from './commands/init/index.js';
 import { error } from './utils/output.js';
 
 const program = new Command();
@@ -28,11 +36,15 @@ program.hook('preAction', () => {
   const configDir = process.env.IMAGEN_CONFIG_DIR ?? undefined;
   setProviderProfileRepository(new FileProviderProfileRepository(configDir));
   setSecretStorageAdapter(new FileSecretStorageAdapter(configDir));
+  setJobHistoryStore(new FileJobHistoryStore(configDir));
+  setAssetStore(new FileAssetStore(configDir));
 });
 
 registerProviderCommands(program);
 registerProfileCommands(program);
 registerJobCommands(program);
+registerTaskCommands(program);
+registerInitCommand(program);
 
 try {
   program.parse(process.argv);

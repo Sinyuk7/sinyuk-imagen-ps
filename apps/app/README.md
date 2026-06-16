@@ -6,7 +6,6 @@
 
 - `STATUS.md`：当前实现状态、限制与下一步验证
 - `SPEC.md`：本模块边界与当前 contract
-- `INTEGRATION_DESIGN.md`：app ↔ application/session 接入设计
 - `AGENTS.md`：模块级短规则
 - 根级 UI 文档（历史参考）：`../../archive/DESIGN.md`、`../../archive/TOKEN.md`、`../../archive/UI_MAIN_PAGE.md`
 
@@ -41,6 +40,7 @@ app/
 - Host IO：layer list/read、file pick、mask read、place asset。
 - Surface-local bridge：把 UI 接到共享 application/session 层。
 - UXP profile / secret adapter 注入。
+- UXP durable job history / asset adapter 注入。
 
 ## 本模块不负责什么
 

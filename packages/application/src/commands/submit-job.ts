@@ -6,7 +6,7 @@
 
 import type { Job, JobError } from '@imagen-ps/core-engine';
 import { createRuntimeError } from '@imagen-ps/core-engine';
-import { getRuntime } from '../runtime.js';
+import { flushJobHistoryForTerminalJob, getRuntime } from '../runtime.js';
 import type { CommandResult, SubmitJobInput } from './types.js';
 
 /**
@@ -103,6 +103,7 @@ export async function submitJob(input: SubmitJobInput): Promise<CommandResult<Jo
       [WORKFLOW_NAME_KEY]: input.workflow,
     };
     const job = await runtime.runWorkflow(input.workflow, enrichedInput);
+    await flushJobHistoryForTerminalJob(job);
     return { ok: true, value: job };
   } catch (error) {
     return { ok: false, error: toJobError(error) };

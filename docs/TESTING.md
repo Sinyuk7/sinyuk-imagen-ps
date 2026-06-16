@@ -7,6 +7,8 @@
 ```bash
 pnpm build
 pnpm test
+pnpm check:boundaries
+pnpm validate
 pnpm --filter @imagen-ps/providers test
 pnpm --filter @imagen-ps/application test
 pnpm --filter @imagen-ps/app test
@@ -19,6 +21,10 @@ pnpm --filter @imagen-ps/cli test
 - `apps/cli/tests/contract/*.contract.test.ts`
 - `apps/cli/tests/smoke/cli-e2e.test.ts`
 - `packages/core-engine` / `packages/providers` / `packages/application`
+
+`pnpm check:boundaries` 是最小架构边界 validator。它只做本地源码扫描，不访问网络、不读取 credentials、不产生费用。
+
+`pnpm validate` 串行执行 `pnpm build`、`pnpm test`、`pnpm check:boundaries`，作为后续 Agent loop 的默认收口命令。
 
 ## CLI E2E Smoke
 
@@ -51,7 +57,9 @@ CLI contract 测试位于 `apps/cli/tests/contract/*.contract.test.ts`。
 - `job submit provider-generate`
 - `job submit provider-edit`
 - `job submit --out`
-- `job get` / `job retry` 的 process-local 边界
+- `job list` / `job get` 的 durable history 读取
+- `job retry` 对 durable failed job 的跨进程重试
+- durable job record 不持久化 secret value 或本机 native path
 
 这些测试只使用 mock provider 和本地临时目录，不依赖网络、真实 key
 或费用。它们是默认 CI 的一部分，不要放到 live smoke 里。

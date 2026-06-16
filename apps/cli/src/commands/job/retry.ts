@@ -5,7 +5,7 @@ import { getCliSession } from './session.js';
 export function registerJobRetry(parent: Command): void {
   parent
     .command('retry <jobId>')
-    .description('Retry a failed job (current process runtime store only)')
+    .description('Retry a failed job from the active session or durable history')
     .action(async (jobId: string) => {
       try {
         const result = await getCliSession().retryJob(jobId);

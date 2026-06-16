@@ -5,6 +5,7 @@ export interface CommandsPort {
   readonly getJob: typeof commands.getJob;
   readonly subscribeJobEvents: typeof commands.subscribeJobEvents;
   readonly retryJob: typeof commands.retryJob;
+  readonly listJobHistoryRecords: typeof commands.listJobHistoryRecords;
   readonly listProviders: typeof commands.listProviders;
   readonly describeProvider: typeof commands.describeProvider;
   readonly listProviderProfiles: typeof commands.listProviderProfiles;
@@ -22,6 +23,7 @@ export function createCommandsAdapter(): CommandsPort {
     getJob: commands.getJob,
     subscribeJobEvents: commands.subscribeJobEvents,
     retryJob: commands.retryJob,
+    listJobHistoryRecords: commands.listJobHistoryRecords,
     listProviders: commands.listProviders,
     describeProvider: commands.describeProvider,
     listProviderProfiles: commands.listProviderProfiles,

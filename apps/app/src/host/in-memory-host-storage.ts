@@ -1,4 +1,12 @@
-import type { ProviderProfile, ProviderProfileRepository, SecretStorageAdapter } from '@imagen-ps/application';
+import type {
+  AssetStore,
+  DurableJobRecord,
+  JobHistoryStore,
+  ProviderProfile,
+  ProviderProfileRepository,
+  SecretStorageAdapter,
+  StoredAssetRef,
+} from '@imagen-ps/application';
 
 export function createInMemoryProviderProfileRepository(): ProviderProfileRepository {
   const profiles = new Map<string, ProviderProfile>();
@@ -29,6 +37,53 @@ export function createInMemorySecretStorageAdapter(): SecretStorageAdapter {
     },
     async deleteSecret(key: string): Promise<void> {
       secrets.delete(key);
+    },
+  };
+}
+
+export function createInMemoryJobHistoryStore(): JobHistoryStore {
+  const records = new Map<string, DurableJobRecord>();
+  return {
+    async put(record: DurableJobRecord): Promise<void> {
+      records.set(record.jobId, record);
+    },
+    async get(jobId: string): Promise<DurableJobRecord | undefined> {
+      return records.get(jobId);
+    },
+    async list(query?: { readonly limit?: number; readonly status?: string }): Promise<readonly DurableJobRecord[]> {
+      const values = Array.from(records.values())
+        .filter((record) => query?.status === undefined || record.status === query.status)
+        .sort((a, b) => b.updatedAt.localeCompare(a.updatedAt));
+      return typeof query?.limit === 'number' ? values.slice(0, query.limit) : values;
+    },
+    async delete(jobId: string): Promise<void> {
+      records.delete(jobId);
+    },
+  };
+}
+
+export function createInMemoryAssetStore(): AssetStore {
+  const assets = new Map<string, ArrayBuffer>();
+  let counter = 0;
+  return {
+    async put(bytes: ArrayBuffer, meta: { readonly mimeType?: string; readonly name?: string }): Promise<StoredAssetRef> {
+      const ref = `memory-asset-${++counter}`;
+      const copy = new Uint8Array(bytes.byteLength);
+      copy.set(new Uint8Array(bytes));
+      assets.set(ref, copy.buffer);
+      return {
+        kind: 'hostObject',
+        ref,
+        ...(meta.mimeType !== undefined ? { mimeType: meta.mimeType } : {}),
+        ...(meta.name !== undefined ? { name: meta.name } : {}),
+        byteSize: bytes.byteLength,
+      };
+    },
+    async resolve(ref: StoredAssetRef): Promise<ArrayBuffer | undefined> {
+      return assets.get(ref.ref);
+    },
+    async delete(ref: StoredAssetRef): Promise<void> {
+      assets.delete(ref.ref);
     },
   };
 }

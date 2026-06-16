@@ -85,12 +85,83 @@ describe('CLI job contract', () => {
     expect(job.output.image.assets).toHaveLength(1);
   });
 
-  it('keeps job get and retry process-local', () => {
-    const configDir = tempDir('config-process-local');
+  it('reports missing durable jobs as JSON errors', () => {
+    const configDir = tempDir('config-missing-job');
     const getJob = expectFailureJson(runImagen(['job', 'get', 'missing-job'], { configDir }));
-    expect(getJob.error).toContain('only jobs from the current process are visible');
+    expect(getJob.error).toContain('Job not found');
 
     const retryJob = expectFailureJson(runImagen(['job', 'retry', 'missing-job'], { configDir }));
     expect(retryJob.error).toContain('not found');
+  });
+
+  it('persists terminal jobs into durable history for cross-process list and get', () => {
+    const configDir = tempDir('config-durable-history');
+    saveProfile(configDir, 'mock-dev');
+    const inputPath = writeJson(tempDir('fixtures-durable-history'), 'input.json', {
+      profileId: 'mock-dev',
+      prompt: 'simple durable blue square icon',
+    });
+
+    const job = expectSuccess(runImagen(['job', 'submit', 'provider-generate', `@${inputPath}`], { configDir }));
+    expect(job.status).toBe('completed');
+
+    const listed = expectSuccess(runImagen(['job', 'list'], { configDir }));
+    expect(listed.records).toHaveLength(1);
+    expect(listed.records[0]).toMatchObject({
+      schemaVersion: 1,
+      jobId: job.id,
+      status: 'completed',
+      workflow: 'provider-generate',
+      input: {
+        profileId: 'mock-dev',
+        prompt: 'simple durable blue square icon',
+      },
+    });
+    expect(listed.records[0].outputs).toHaveLength(1);
+    expect(listed.records[0].outputs[0].kind).toBe('hostObject');
+    expect(JSON.stringify(listed)).not.toContain('imagePath');
+    assertNoSentinel(JSON.stringify(listed));
+
+    const fetched = expectSuccess(runImagen(['job', 'get', job.id], { configDir }));
+    expect(fetched).toMatchObject({
+      source: 'durable',
+      record: {
+        jobId: job.id,
+        status: 'completed',
+      },
+    });
+    expect(fetched.record.canCancel).toBeUndefined();
+  });
+
+  it('retries failed durable jobs across processes without persisting secret values', () => {
+    const configDir = tempDir('config-durable-retry');
+    const inputPath = writeJson(tempDir('fixtures-durable-retry'), 'input.json', {
+      provider: 'missing-provider',
+      prompt: 'retry should fail again',
+      secretRefs: { apiKey: 'secret:provider-profile:mock-dev:apiKey' },
+    });
+
+    const failed = expectSuccess(runImagen(['job', 'submit', 'provider-generate', `@${inputPath}`], { configDir }));
+    expect(failed.status).toBe('failed');
+
+    const retry = expectSuccess(runImagen(['job', 'retry', failed.id], { configDir }));
+    expect(retry.status).toBe('failed');
+    expect(retry.id).not.toBe(failed.id);
+
+    const listed = expectSuccess(runImagen(['job', 'list', '--status', 'failed'], { configDir }));
+    expect(listed.records).toHaveLength(2);
+    const retryRecord = listed.records.find((record: any) => record.jobId === retry.id);
+    expect(retryRecord).toMatchObject({
+      status: 'failed',
+      workflow: 'provider-generate',
+      originJobId: failed.id,
+      retryAttempt: 1,
+      input: {
+        provider: 'missing-provider',
+        prompt: 'retry should fail again',
+        secretRefs: { apiKey: 'secret:provider-profile:mock-dev:apiKey' },
+      },
+    });
+    assertNoSentinel(JSON.stringify(listed));
   });
 });
