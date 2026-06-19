@@ -2,9 +2,9 @@ import { useMemo, useState } from 'react';
 import type { DurableJobRecord } from '@imagen-ps/application';
 import type { ConversationRound, RoundStatus } from '../hooks/use-conversation';
 import { SI } from '../components/icons';
+import { useI18n } from '../i18n/i18n-context';
 
 const STATUS_COLOR: Record<RoundStatus, string> = { ok: 'var(--ok)', running: 'var(--wa)', err: 'var(--er)' };
-const STATUS_LABEL: Record<RoundStatus, string> = { ok: '完成', running: '运行中', err: '失败' };
 
 interface HistoryPageProps {
   readonly onNav: (view: string) => void;
@@ -38,18 +38,18 @@ function statusFromRecord(record: DurableJobRecord): RoundStatus {
   return 'running';
 }
 
-function promptFromInput(input: Record<string, unknown>): string {
-  return typeof input.prompt === 'string' && input.prompt.length > 0 ? input.prompt : '(no prompt)';
+function promptFromInput(input: Record<string, unknown>, fallback: string): string {
+  return typeof input.prompt === 'string' && input.prompt.length > 0 ? input.prompt : fallback;
 }
 
-function providerFromInput(input: Record<string, unknown>): string {
+function providerFromInput(input: Record<string, unknown>, fallback: string): string {
   if (typeof input.profileId === 'string') {
     return input.profileId;
   }
   if (typeof input.providerProfileId === 'string') {
     return input.providerProfileId;
   }
-  return typeof input.provider === 'string' ? input.provider : 'unknown';
+  return typeof input.provider === 'string' ? input.provider : fallback;
 }
 
 function timeFromIso(value: string): string {
@@ -60,12 +60,12 @@ function timeFromIso(value: string): string {
   return `${date.getHours()}:${String(date.getMinutes()).padStart(2, '0')}`;
 }
 
-function itemFromRecord(record: DurableJobRecord): HistoryItem {
+function itemFromRecord(record: DurableJobRecord, noPrompt: string, unknownProvider: string): HistoryItem {
   return {
     id: record.jobId,
-    prompt: promptFromInput(record.input),
+    prompt: promptFromInput(record.input, noPrompt),
     status: statusFromRecord(record),
-    providerName: providerFromInput(record.input),
+    providerName: providerFromInput(record.input, unknownProvider),
     time: timeFromIso(record.updatedAt),
   };
 }
@@ -83,18 +83,20 @@ function itemFromRound(round: ConversationRound): HistoryItem {
 }
 
 export function HistoryPage({ onNav, rounds, records, loading, error, onReload, onRetry }: HistoryPageProps) {
+  const { messages: t } = useI18n();
   const [filter, setFilter] = useState<'all' | RoundStatus>('all');
   const filters: readonly [HistoryFilter, string][] = [
-    ['all', '全部'],
-    ['ok', '完成'],
-    ['running', '运行中'],
-    ['err', '失败'],
+    ['all', t.status.all],
+    ['ok', t.status.done],
+    ['running', t.status.running],
+    ['err', t.status.failed],
   ];
+  const statusLabel: Record<RoundStatus, string> = { ok: t.status.done, running: t.status.running, err: t.status.failed };
   const items = useMemo(() => {
-    const durable = records.map(itemFromRecord);
+    const durable = records.map((record) => itemFromRecord(record, t.history.noPrompt, t.history.unknownProvider));
     const active = rounds.filter((round) => round.status === 'running' || round.status === 'err').map(itemFromRound);
     return [...active, ...durable];
-  }, [records, rounds]);
+  }, [records, rounds, t.history.noPrompt, t.history.unknownProvider]);
   const filtered = useMemo(
     () => (filter === 'all' ? items : items.filter((item) => item.status === filter)),
     [filter, items],
@@ -106,7 +108,7 @@ export function HistoryPage({ onNav, rounds, records, loading, error, onReload, 
         <button className="hdr-btn" onClick={() => onNav('main')}>
           <SI d="m15 18-6-6 6-6" />
         </button>
-        <div className="hdr-title">历史</div>
+        <div className="hdr-title">{t.history.title}</div>
         <button className="hdr-btn" onClick={() => { void onReload(); }}>
           <SI d="M21 12a9 9 0 1 1-2.64-6.36M21 3v6h-6" />
         </button>
@@ -117,10 +119,10 @@ export function HistoryPage({ onNav, rounds, records, loading, error, onReload, 
         ))}
       </div>
       <div className="scroll">
-        {loading && <div style={{ padding: '16px', color: 'var(--txd)', fontSize: 12 }}>读取历史中...</div>}
+        {loading && <div style={{ padding: '16px', color: 'var(--txd)', fontSize: 12 }}>{t.history.loading}</div>}
         {error && <div style={{ padding: '16px', color: 'var(--er)', fontSize: 12 }}>{error}</div>}
         {!loading && filtered.length === 0
-          ? <div style={{ padding: '40px 16px', textAlign: 'center', color: 'var(--txd)', fontSize: 12 }}>暂无历史记录</div>
+          ? <div style={{ padding: '40px 16px', textAlign: 'center', color: 'var(--txd)', fontSize: 12 }}>{t.history.empty}</div>
           : filtered.map((item) => {
             const retryRoundId = item.retryRoundId;
             return (
@@ -144,7 +146,7 @@ export function HistoryPage({ onNav, rounds, records, loading, error, onReload, 
                 </div>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 1 }}>
                   <span className={`sdot ${item.status === 'running' ? 'run' : item.status}`} />
-                  <span style={{ color: STATUS_COLOR[item.status], fontSize: 10 }}>{STATUS_LABEL[item.status]}</span>
+                  <span style={{ color: STATUS_COLOR[item.status], fontSize: 10 }}>{statusLabel[item.status]}</span>
                   {retryRoundId && (
                     <button
                       style={{ marginLeft: 'auto', fontSize: 10, color: 'var(--er)', background: 'none', border: 'none', cursor: 'pointer' }}
@@ -153,7 +155,7 @@ export function HistoryPage({ onNav, rounds, records, loading, error, onReload, 
                         void onRetry(retryRoundId);
                       }}
                     >
-                      重试
+                      {t.history.retry}
                     </button>
                   )}
                 </div>

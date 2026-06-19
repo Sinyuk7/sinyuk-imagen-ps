@@ -9,6 +9,7 @@ import {
   type AssetPreview,
 } from '../../app-services/mappers';
 import type { ImagenSessionBinding } from './use-imagen-session';
+import type { AppMessages } from '../i18n/messages';
 
 export interface ConversationAttachment {
   readonly id: string;
@@ -52,6 +53,12 @@ export interface ConversationController {
   readonly clear: () => void;
 }
 
+export interface ConversationMessages {
+  readonly jobFailed: string;
+}
+
+const DEFAULT_CONVERSATION_MESSAGES: ConversationMessages = { jobFailed: 'Job failed.' };
+
 function nowTime(): string {
   const now = new Date();
   return `${now.getHours()}:${String(now.getMinutes()).padStart(2, '0')}`;
@@ -78,7 +85,11 @@ function errorMessage(error: unknown, fallback: string): string {
   return isJobError(error) ? commandErrorToMessage(error) : fallback;
 }
 
-function roundFromSessionJob(job: JobSessionSnapshot, current: ConversationRound): ConversationRound {
+function roundFromSessionJob(
+  job: JobSessionSnapshot,
+  current: ConversationRound,
+  messages: ConversationMessages,
+): ConversationRound {
   const assets = outputAssets(job.output);
   const metadata = outputMetadata(job.output);
   if (job.status === 'failed') {
@@ -86,7 +97,7 @@ function roundFromSessionJob(job: JobSessionSnapshot, current: ConversationRound
       ...current,
       status: 'err',
       jobId: job.id,
-      errorMessage: errorMessage(job.error, 'Job failed.'),
+      errorMessage: errorMessage(job.error, messages.jobFailed),
       elapsedLabel: elapsedLabel(current.elapsedSeconds),
     };
   }
@@ -136,7 +147,11 @@ function errorRound(current: ConversationRound, error: JobError | Error): Conver
   };
 }
 
-export function useConversation(_services: AppServices, sessionBinding: ImagenSessionBinding): ConversationController {
+export function useConversation(
+  _services: AppServices,
+  sessionBinding: ImagenSessionBinding,
+  messages: ConversationMessages | AppMessages['conversation'] = DEFAULT_CONVERSATION_MESSAGES,
+): ConversationController {
   const [rounds, setRounds] = useState<readonly ConversationRound[]>([]);
   const running = useMemo(() => rounds.some((round) => round.status === 'running'), [rounds]);
 
@@ -158,10 +173,10 @@ export function useConversation(_services: AppServices, sessionBinding: ImagenSe
     setRounds((current) =>
       current.map((round) => {
         const sessionJob = sessionBinding.snapshot.jobs.find((job) => job.id === round.jobId);
-        return sessionJob ? roundFromSessionJob(sessionJob, round) : round;
+        return sessionJob ? roundFromSessionJob(sessionJob, round, messages) : round;
       }),
     );
-  }, [sessionBinding.snapshot.jobs]);
+  }, [messages, sessionBinding.snapshot.jobs]);
 
   const submit = useCallback(
     async (input: SubmitConversationInput) => {
@@ -217,6 +232,7 @@ export function useConversation(_services: AppServices, sessionBinding: ImagenSe
                       result.value.error,
                     ),
                   item,
+                  messages,
                 )
               : errorRound(item, result.error);
           }),
@@ -229,7 +245,7 @@ export function useConversation(_services: AppServices, sessionBinding: ImagenSe
         );
       }
     },
-    [sessionBinding.session, sessionBinding.snapshot.jobs],
+    [messages, sessionBinding.session, sessionBinding.snapshot.jobs],
   );
 
   const retry = useCallback(
@@ -258,12 +274,13 @@ export function useConversation(_services: AppServices, sessionBinding: ImagenSe
                     result.value.error,
                   ),
                 item,
+                messages,
               )
             : errorRound(item, result.error);
         }),
       );
     },
-    [rounds, sessionBinding.session, sessionBinding.snapshot.jobs],
+    [messages, rounds, sessionBinding.session, sessionBinding.snapshot.jobs],
   );
 
   const clear = useCallback(() => setRounds([]), []);

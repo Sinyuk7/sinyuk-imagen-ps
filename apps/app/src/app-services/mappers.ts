@@ -13,7 +13,6 @@ export interface ProviderRowVM {
   readonly enabled: boolean;
   readonly family: string;
   readonly defaultModel?: string;
-  readonly statusLabel: string;
 }
 
 interface ProviderInvokeResultLike {
@@ -101,7 +100,6 @@ export function profileToProviderRow(profile: ProviderProfile): ProviderRowVM {
     enabled: profile.enabled,
     family: String(profile.config.family ?? profile.providerId),
     ...(typeof defaultModel === 'string' && defaultModel.length > 0 ? { defaultModel } : {}),
-    statusLabel: profile.enabled ? '已启用' : '已停用',
   };
 }
 

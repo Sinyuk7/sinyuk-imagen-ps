@@ -18,7 +18,11 @@
     {
       "type": "panel",
       "id": "imagen-ps-panel",
-      "label": "Imagen PS",
+      "label": {
+        "default": "Imagen",
+        "en": "Imagen",
+        "zh": "Imagen"
+      },
       "minimumSize": {
         "width": 320,
         "height": 480

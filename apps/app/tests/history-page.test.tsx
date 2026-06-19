@@ -5,6 +5,7 @@ import type { DurableJobRecord } from '@imagen-ps/application';
 import type { ConversationRound } from '../src/ui/hooks/use-conversation';
 import { HistoryPage } from '../src/ui/pages/history-page';
 import { fakeAsset, fakeDurableRecord } from './fakes';
+import { TestI18nProvider } from './render-helpers';
 
 let root: Root | undefined;
 
@@ -29,14 +30,16 @@ describe('HistoryPage', () => {
 
     await act(async () => {
       root!.render(
-        <HistoryPage
-          onNav={vi.fn()}
-          rounds={input.rounds ?? []}
-          records={input.records ?? [fakeDurableRecord]}
-          loading={false}
-          onReload={vi.fn(async () => undefined)}
-          onRetry={input.onRetry ?? vi.fn(async () => undefined)}
-        />,
+        <TestI18nProvider>
+          <HistoryPage
+            onNav={vi.fn()}
+            rounds={input.rounds ?? []}
+            records={input.records ?? [fakeDurableRecord]}
+            loading={false}
+            onReload={vi.fn(async () => undefined)}
+            onRetry={input.onRetry ?? vi.fn(async () => undefined)}
+          />
+        </TestI18nProvider>,
       );
     });
 

@@ -9,6 +9,7 @@ import { createCompositeSink, createConsoleSink } from '@imagen-ps/foundation';
 import { createCommandsAdapter } from '../app-services/commands-port';
 import type { AppServices } from '../app-services/app-services';
 import { createPluginAppModel, type PluginAppModel } from '../shared/plugin-app-model';
+import { normalizeLocale, type SupportedLocale } from '../shared/locale';
 import { createPhotoshopHostBridge } from './photoshop-host-bridge';
 import { resolveUxpModules } from './uxp-api';
 import { createUxpAssetStore, createUxpJobHistoryStore } from './uxp-job-history-adapter';
@@ -19,6 +20,7 @@ import { createUxpLogSink } from './uxp-log-sink';
 export interface PluginHostShell {
   readonly kind: 'photoshop-uxp';
   readonly app: PluginAppModel;
+  readonly locale: SupportedLocale;
   readonly services: AppServices;
 }
 
@@ -47,6 +49,7 @@ export function createPluginHostShell(): PluginHostShell {
   return {
     kind: 'photoshop-uxp',
     app: createPluginAppModel(),
+    locale: normalizeLocale(uxpModules.uxp?.host?.uiLocale),
     services: {
       commands: createCommandsAdapter(),
       host: createPhotoshopHostBridge(uxpModules),

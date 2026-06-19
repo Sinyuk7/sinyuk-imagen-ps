@@ -8,6 +8,9 @@ export interface UxpModules {
     readonly imaging?: unknown;
   };
   readonly uxp?: {
+    readonly host?: {
+      readonly uiLocale?: string;
+    };
     readonly storage?: unknown;
   };
 }

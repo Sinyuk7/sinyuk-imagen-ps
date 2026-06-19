@@ -30,6 +30,7 @@ async function renderApp(container: HTMLElement, services = createFakeServices()
         host={{
           kind: 'photoshop-uxp',
           app: { stage: 'uxp-first-shell', host: 'photoshop-uxp', services: ['commands', 'host'] },
+          locale: 'zh-CN',
           services: services.services,
         }}
       />,

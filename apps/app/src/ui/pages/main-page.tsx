@@ -10,6 +10,7 @@ import type {
 } from '../hooks/use-conversation';
 import { SI } from '../components/icons';
 import { Tip } from '../components/tip';
+import { useI18n } from '../i18n/i18n-context';
 
 interface MainPageProps {
   readonly onNav: (view: string) => void;
@@ -52,10 +53,6 @@ function statusDot(status: ConversationRound['status']): string {
   return status === 'ok' ? 'ok' : status === 'running' ? 'run' : 'err';
 }
 
-function statusLabel(status: ConversationRound['status']): string {
-  return status === 'ok' ? '完成' : status === 'running' ? '生成中' : '失败';
-}
-
 function attachmentId(prefix: string): string {
   return `${prefix}-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
 }
@@ -78,6 +75,7 @@ export function MainPage({
   conversation,
 }: MainPageProps) {
   const services = useAppServices();
+  const { messages: t } = useI18n();
   const [input, setInput] = useState('');
   const [attachments, setAttachments] = useState<readonly ConversationAttachment[]>([]);
   const [profileMenuOpen, setProfileMenuOpen] = useState(false);
@@ -89,7 +87,7 @@ export function MainPage({
   const convRef = useRef<HTMLDivElement>(null);
   const taRef = useRef<HTMLTextAreaElement>(null);
   const flatLayers = useMemo(() => flattenLayers(layers), [layers]);
-  const selectedModelLabel = selectedModelId || (modelsLoading ? '加载模型...' : '未选择模型');
+  const selectedModelLabel = selectedModelId || (modelsLoading ? t.main.modelLoading : t.main.modelUnselected);
   const canSend = input.trim().length > 0 && Boolean(selectedProfile) && !conversation.running;
 
   const showToast = useCallback((message: string) => {
@@ -116,7 +114,7 @@ export function MainPage({
     window.setTimeout(() => setCopied((current) => ({ ...current, [id]: false })), 1500);
     setInput(text);
     taRef.current?.focus();
-    showToast('已填入输入框');
+    showToast(t.toast.promptFilled);
   };
 
   const addAttachment = (attachment: ConversationAttachment) => {
@@ -135,9 +133,9 @@ export function MainPage({
         asset,
         previewUrl: assetToPreviewUrl(asset),
       });
-      showToast('已添加图层');
+      showToast(t.toast.layerAdded);
     } catch (error) {
-      showToast(error instanceof Error ? error.message : '读取图层失败');
+      showToast(error instanceof Error ? error.message : t.toast.layerReadFailed);
     }
   };
 
@@ -154,15 +152,15 @@ export function MainPage({
         asset,
         previewUrl: assetToPreviewUrl(asset),
       });
-      showToast('已添加图片');
+      showToast(t.toast.fileAdded);
     } catch (error) {
-      showToast(error instanceof Error ? error.message : '选择图片失败');
+      showToast(error instanceof Error ? error.message : t.toast.filePickFailed);
     }
   };
 
   const handleSend = async () => {
     if (!selectedProfile) {
-      showToast('请先添加并选择 Provider profile');
+      showToast(t.toast.selectProviderProfileFirst);
       return;
     }
     if (!canSend) {
@@ -183,21 +181,21 @@ export function MainPage({
   const placeAsset = async (round: ConversationRound) => {
     const asset = round.previews[0]?.asset;
     if (!asset) {
-      showToast('没有可置入的图片');
+      showToast(t.toast.noPlaceableImage);
       return;
     }
     try {
       await services.host.placeAssetOnCanvas(asset);
-      showToast('已置入 Photoshop 画布');
+      showToast(t.toast.placedOnCanvas);
     } catch (error) {
-      showToast(error instanceof Error ? error.message : '置入 Photoshop 失败');
+      showToast(error instanceof Error ? error.message : t.toast.placeFailed);
     }
   };
 
   return (
     <div className="page" onClick={closeAll}>
       <header className="hdr">
-        <Tip label="历史记录">
+        <Tip label={t.main.history}>
           <button className="hdr-btn" onClick={(event) => { event.stopPropagation(); onNav('history'); }}>
             <SI d={['M12 8v4l3 3', 'M3.05 11a9 9 0 1 1 .5 4', 'M3 16v-5h5']} />
           </button>
@@ -211,7 +209,7 @@ export function MainPage({
             setModelMenuOpen(false);
           }}
         >
-          <span className="hdr-provider">{selectedProfile?.displayName ?? 'No provider profile'}</span>
+          <span className="hdr-provider">{selectedProfile?.displayName ?? t.main.noProviderProfile}</span>
           <span className="hdr-model">{selectedModelLabel}</span>
         </button>
         <Tip label="Providers" right>
@@ -223,10 +221,10 @@ export function MainPage({
 
       {profileMenuOpen && (
         <div className="model-menu" style={{ top: 52, bottom: 'auto' }} onClick={(event) => event.stopPropagation()}>
-          {profilesLoading && <div className="model-opt">加载 profiles...</div>}
+          {profilesLoading && <div className="model-opt">{t.main.loadingProfiles}</div>}
           {profilesError && <div className="model-opt">{profilesError}</div>}
           {!profilesLoading && profiles.length === 0 && (
-            <div className="model-opt" onClick={() => onNav('settings-add')}>添加 Provider profile</div>
+            <div className="model-opt" onClick={() => onNav('settings-add')}>{t.main.addProviderProfile}</div>
           )}
           {profiles.map((profile) => (
             <div
@@ -247,18 +245,18 @@ export function MainPage({
       <div className="scroll" ref={convRef}>
         <div style={{ padding: '12px 12px 4px', display: 'flex', flexDirection: 'column', gap: 4 }}>
           <div className="day-sep">
-            <div className="day-sep-line" /><span className="day-sep-lbl">当前会话</span><div className="day-sep-line" />
+            <div className="day-sep-line" /><span className="day-sep-lbl">{t.main.currentSession}</span><div className="day-sep-line" />
           </div>
 
           {conversation.rounds.length === 0 && (
             <div className="conv-empty">
-              <div style={{ color: 'var(--txm)', fontSize: 13 }}>输入 prompt 后会通过 application 提交真实 job。</div>
+              <div style={{ color: 'var(--txm)', fontSize: 13 }}>{t.main.emptyHint}</div>
               <div className="empty-hints">
-                <button className="empty-hint" onClick={() => setInput('一张产品摄影风格的蓝色玻璃香水瓶，柔和棚拍光线')}>
-                  产品摄影风格的蓝色玻璃香水瓶
+                <button className="empty-hint" onClick={() => setInput(t.main.promptSuggestionProductValue)}>
+                  {t.main.promptSuggestionProductLabel}
                 </button>
-                <button className="empty-hint" onClick={() => setInput('把参考图改成赛博朋克夜景，保留主体轮廓')}>
-                  参考图改成赛博朋克夜景
+                <button className="empty-hint" onClick={() => setInput(t.main.promptSuggestionCyberpunkValue)}>
+                  {t.main.promptSuggestionCyberpunkLabel}
                 </button>
               </div>
             </div>
@@ -288,7 +286,7 @@ export function MainPage({
                   </div>
                   <div className="user-meta">
                     <span className="msg-time">{round.time}</span>
-                    <Tip label="复用 Prompt">
+                    <Tip label={t.main.reusePrompt}>
                       <button
                         className={`copy-btn${copied[round.id] ? ' cp' : ''}`}
                         onClick={(event) => { event.stopPropagation(); handleCopy(round.id, round.prompt); }}
@@ -310,11 +308,11 @@ export function MainPage({
                     <div className="err-top">
                       <span className="sdot err" />
                       <span style={{ fontSize: 11, fontWeight: 500, color: 'var(--er)', fontFamily: 'var(--fM)' }}>
-                        失败 · {round.providerName}
+                        {t.status.failed} · {round.providerName}
                       </span>
                     </div>
                     <div className="err-msg">{round.errorMessage}</div>
-                    <button className="err-retry" onClick={() => void conversation.retry(round.id)}>重试</button>
+                    <button className="err-retry" onClick={() => void conversation.retry(round.id)}>{t.history.retry}</button>
                   </div>
                 </div>
               )}
@@ -332,7 +330,7 @@ export function MainPage({
                     </div>
                     <div className="prov-loading">
                       <div className="ldots"><div className="ldot" /><div className="ldot" /><div className="ldot" /></div>
-                      <span style={{ fontFamily: 'var(--fM)', fontSize: 11, color: 'var(--txd)' }}>submitJob running...</span>
+                      <span style={{ fontFamily: 'var(--fM)', fontSize: 11, color: 'var(--txd)' }}>{t.main.submitJobRunning}</span>
                     </div>
                   </div>
                 </div>
@@ -346,36 +344,36 @@ export function MainPage({
                       <span className="prov-name-lbl">{round.providerName}</span>
                       <div className="prov-status">
                         <span className={`sdot ${statusDot(round.status)}`} />
-                        <span style={{ color: 'var(--ok)' }}>{statusLabel(round.status)} · {round.elapsedLabel}</span>
+                        <span style={{ color: 'var(--ok)' }}>{t.status.done} · {round.elapsedLabel}</span>
                       </div>
                     </div>
                     <div className="prov-img">
                       <div className="img-result">
                         {round.previews[0]?.url
                           ? <img src={round.previews[0].url} className="img-bg" style={{ height: 158, objectFit: 'cover' }} alt={round.previews[0].label} />
-                          : <div className="img-bg" style={{ height: 158, background: 'var(--s2)', display: 'grid', placeItems: 'center', color: 'var(--txd)', fontSize: 12 }}>No asset preview</div>
+                          : <div className="img-bg" style={{ height: 158, background: 'var(--s2)', display: 'grid', placeItems: 'center', color: 'var(--txd)', fontSize: 12 }}>{t.main.noAssetPreview}</div>
                         }
-                        <div className="img-meta">{round.outputSize ?? 'Asset'} · {round.outputFormat ?? 'image'}</div>
+                        <div className="img-meta">{round.outputSize ?? t.main.assetFallback} · {round.outputFormat ?? t.main.imageFallback}</div>
                         <div className="img-overlay">
                           <button className="img-act prim" onClick={(event) => { event.stopPropagation(); void placeAsset(round); }}>
                             <SI d={['M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z', 'M17 21V13H7v8', 'M7 3v5h8']} />
-                            置入 PS
+                            {t.main.placePs}
                           </button>
                         </div>
                       </div>
                     </div>
                     <div className="prov-actions">
-                      <Tip label="置入 PS">
+                      <Tip label={t.main.placePs}>
                         <button className="act-ico prim" onClick={(event) => { event.stopPropagation(); void placeAsset(round); }}>
                           <SI d={['M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z', 'M17 21V13H7v8', 'M7 3v5h8']} />
                         </button>
                       </Tip>
-                      <Tip label="重新生成">
+                      <Tip label={t.main.regenerate}>
                         <button className="act-ico" onClick={(event) => { event.stopPropagation(); void conversation.retry(round.id); }}>
                           <SI d={['M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8', 'M21 3v5h-5', 'M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16', 'M8 16H3v5']} />
                         </button>
                       </Tip>
-                      <Tip label="复制 Prompt">
+                      <Tip label={t.main.copyPrompt}>
                         <button className="act-ico" onClick={(event) => { event.stopPropagation(); handleCopy(`${round.id}-copy`, round.prompt); }}>
                           <SI d={['M8 8a2 2 0 0 0-2 2v8a2 2 0 0 0 2 2h8a2 2 0 0 0 2-2v-8a2 2 0 0 0-2-2H8z', 'M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2']} />
                         </button>
@@ -399,7 +397,7 @@ export function MainPage({
               >
                 <SI d="m15 18-6-6 6-6" sz={12} />
               </button>
-              PS 图层
+              {t.main.psLayers}
               <button
                 style={{ marginLeft: 'auto', background: 'transparent', border: 'none', color: 'var(--txd)', cursor: 'pointer' }}
                 onClick={() => void reloadLayers()}
@@ -408,7 +406,7 @@ export function MainPage({
               </button>
             </div>
             <div className="layer-scroll">
-              {flatLayers.length === 0 && <div className="layer-item"><span className="layer-name">无可用图层</span></div>}
+              {flatLayers.length === 0 && <div className="layer-item"><span className="layer-name">{t.main.noAvailableLayers}</span></div>}
               {flatLayers.map(({ layer, depth }) => (
                 <div key={layer.id} className="layer-item" onClick={() => void addLayer(layer)}>
                   <div className="layer-swatch" style={{ background: layer.visible === false ? 'var(--s1)' : 'var(--s2)' }} />
@@ -427,8 +425,8 @@ export function MainPage({
                 <SI d={['M1 6l11 7 11-7', 'M1 6v12a1 1 0 0 0 1 1h20a1 1 0 0 0 1-1V6']} sz={13} />
               </div>
               <div>
-                <div className="attach-opt-label">从 PS 图层选择</div>
-                <div className="attach-opt-sub">{flatLayers.length} 个图层</div>
+                <div className="attach-opt-label">{t.main.choosePsLayer}</div>
+                <div className="attach-opt-sub">{t.main.layerCount(flatLayers.length)}</div>
               </div>
               <SI d="m9 18 6-6-6-6" style={{ color: 'var(--txd)', marginLeft: 'auto' }} />
             </div>
@@ -437,7 +435,7 @@ export function MainPage({
                 <SI d={['M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4', 'M17 8l-5-5-5 5', 'M12 3v12']} sz={13} />
               </div>
               <div>
-                <div className="attach-opt-label">从电脑上传</div>
+                <div className="attach-opt-label">{t.main.uploadFromComputer}</div>
                 <div className="attach-opt-sub">PNG / JPG / WebP</div>
               </div>
             </div>
@@ -447,8 +445,8 @@ export function MainPage({
         {modelMenuOpen && (
           <div className="model-menu" onClick={(event) => event.stopPropagation()}>
             {modelsError && <div className="model-opt">{modelsError}</div>}
-            {modelsLoading && <div className="model-opt">加载模型...</div>}
-            {!modelsLoading && models.length === 0 && <div className="model-opt">无模型候选</div>}
+            {modelsLoading && <div className="model-opt">{t.main.loadingModels}</div>}
+            {!modelsLoading && models.length === 0 && <div className="model-opt">{t.main.noModelCandidates}</div>}
             {models.map((model) => (
               <div
                 key={model.id}
@@ -482,7 +480,7 @@ export function MainPage({
           <textarea
             ref={taRef}
             className="cmp-ta"
-            placeholder={selectedProfile ? '描述你想要生成或编辑的图像...' : '先在 Providers 中添加 profile'}
+            placeholder={selectedProfile ? t.main.promptPlaceholderReady : t.main.promptPlaceholderNoProfile}
             rows={2}
             value={input}
             onChange={(event) => setInput(event.target.value)}
@@ -495,7 +493,7 @@ export function MainPage({
             disabled={conversation.running}
           />
           <div className="cmp-bar">
-            <Tip label="添加图片">
+            <Tip label={t.main.addImage}>
               <button
                 className={`cmp-add${attachOpen || layerOpen ? ' open' : ''}`}
                 onClick={(event) => {
@@ -525,7 +523,7 @@ export function MainPage({
             </div>
             <div className="cmp-sp" />
             <div className="send-wrap">
-              <button className="cmp-send" disabled={!canSend} onClick={() => void handleSend()} title="发送">
+              <button className="cmp-send" disabled={!canSend} onClick={() => void handleSend()} title={t.main.send}>
                 {conversation.running
                   ? <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="spin"><path d="M21 12a9 9 0 1 1-9-9" /></svg>
                   : <SI d={['M22 2 11 13', 'M22 2 15 22 11 13 2 9 22 2']} />

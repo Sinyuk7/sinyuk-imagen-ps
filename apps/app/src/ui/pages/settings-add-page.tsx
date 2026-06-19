@@ -3,6 +3,7 @@ import type { ProviderProfile } from '@imagen-ps/application';
 import { useAppServices } from '../../app-services/app-services-context';
 import { providerConfigFromForm, useProviderCatalog } from '../hooks/use-provider-settings';
 import { SI } from '../components/icons';
+import { useI18n } from '../i18n/i18n-context';
 
 interface SettingsAddPageProps {
   readonly onNav: (view: string) => void;
@@ -36,6 +37,7 @@ function nextAlias(baseName: string, profiles: readonly ProviderProfile[]): stri
 
 export function SettingsAddPage({ onNav, profiles, onProfileSaved }: SettingsAddPageProps) {
   const services = useAppServices();
+  const { messages: t } = useI18n();
   const providers = useProviderCatalog(services);
   const [step, setStep] = useState(1);
   const [providerId, setProviderId] = useState<string | null>(providers[0]?.id ?? null);
@@ -50,7 +52,7 @@ export function SettingsAddPage({ onNav, profiles, onProfileSaved }: SettingsAdd
 
   const saveProfile = async (): Promise<string> => {
     if (!selected) {
-      throw new Error('请选择 Provider 类型');
+      throw new Error(t.settings.selectProviderType);
     }
     const displayName = name.trim() || nextAlias(selected.displayName, profiles);
     const profileId = createProfileId();
@@ -91,7 +93,7 @@ export function SettingsAddPage({ onNav, profiles, onProfileSaved }: SettingsAdd
         throw new Error(`${result.error.category}: ${result.error.message}`);
       }
       const reachable = result.value.connectivity?.reachable;
-      setStatus(reachable === false ? '配置有效；该 provider 未返回可用模型列表' : '连接成功');
+      setStatus(reachable === false ? t.settings.configValidProviderNoModels : t.settings.testSuccess);
     } catch (error) {
       setStatus(error instanceof Error ? error.message : String(error));
     } finally {
@@ -107,7 +109,7 @@ export function SettingsAddPage({ onNav, profiles, onProfileSaved }: SettingsAdd
         </button>
         <div className="hdr-center">
           <span style={{ fontFamily: 'var(--fD)', fontSize: 14, fontWeight: 600, color: 'var(--tx)' }}>
-            {step === 1 ? '添加 Provider' : selected?.displayName}
+            {step === 1 ? t.common.addProvider : selected?.displayName}
           </span>
           {step === 2 && <span style={{ fontFamily: 'var(--fM)', fontSize: 10, color: 'var(--txd)' }}>2 / 2</span>}
         </div>
@@ -117,7 +119,7 @@ export function SettingsAddPage({ onNav, profiles, onProfileSaved }: SettingsAdd
       <div className="scroll">
         {step === 1 ? (
           <div>
-            <div className="sec-lbl" style={{ paddingTop: 16 }}>选择类型</div>
+            <div className="sec-lbl" style={{ paddingTop: 16 }}>{t.settings.chooseType}</div>
             {providers.map((provider) => (
               <div
                 key={provider.id}
@@ -143,18 +145,18 @@ export function SettingsAddPage({ onNav, profiles, onProfileSaved }: SettingsAdd
         ) : (
           <div>
             <div className="section">
-              <div className="section-title">配置</div>
+              <div className="section-title">{t.settings.config}</div>
               <div className="field">
-                <label className="field-label">别名</label>
+                <label className="field-label">{t.settings.alias}</label>
                 <input className="field-input" placeholder={selected?.displayName} value={name} onChange={(event) => setName(event.target.value)} />
               </div>
               <div className="field">
                 <label className="field-label">Base URL</label>
                 <input className="field-input mono" placeholder="https://api.example.com" value={baseUrl} onChange={(event) => setBaseUrl(event.target.value)} />
-                <div className="field-hint">服务商提供的 API base URL</div>
+                <div className="field-hint">{t.settings.baseUrlHint}</div>
               </div>
               <div className="field">
-                <label className="field-label">默认模型</label>
+                <label className="field-label">{t.settings.defaultModel}</label>
                 <input className="field-input mono" placeholder="gpt-image-2" value={defaultModel} onChange={(event) => setDefaultModel(event.target.value)} />
               </div>
               <div className="field" style={{ marginBottom: 0 }}>
@@ -179,8 +181,8 @@ export function SettingsAddPage({ onNav, profiles, onProfileSaved }: SettingsAdd
             <div className="test-area">
               <button className="test-btn" disabled={busy} onClick={() => void handleTest()}>
                 {busy
-                  ? <><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="spin"><path d="M21 12a9 9 0 1 1-9-9" /></svg> 测试中...</>
-                  : '测试连接'
+                  ? <><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="spin"><path d="M21 12a9 9 0 1 1-9-9" /></svg> {t.settings.testingConnection}</>
+                  : t.settings.testConnection
                 }
               </button>
               {status && <div className={status.includes(':') ? 'test-result err' : 'test-result ok'}>{status}</div>}
@@ -191,12 +193,12 @@ export function SettingsAddPage({ onNav, profiles, onProfileSaved }: SettingsAdd
 
       {step === 2 && (
         <footer className="det-footer">
-          <button className="btn-save" disabled={busy} onClick={() => void handleSave()}>保存</button>
+          <button className="btn-save" disabled={busy} onClick={() => void handleSave()}>{t.common.save}</button>
           <button
             style={{ padding: '10px 14px', borderRadius: 'var(--rsm)', border: '1px solid var(--bd)', background: 'transparent', color: 'var(--txm)', fontFamily: 'var(--fB)', fontSize: 13, cursor: 'pointer' }}
             onClick={() => onNav('settings')}
           >
-            取消
+            {t.common.cancel}
           </button>
         </footer>
       )}

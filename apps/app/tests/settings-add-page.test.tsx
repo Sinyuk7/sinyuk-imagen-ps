@@ -1,9 +1,9 @@
 import { act } from 'react';
 import { createRoot, type Root } from 'react-dom/client';
 import { afterEach, describe, expect, it } from 'vitest';
-import { AppServicesProvider } from '../src/app-services/app-services-context';
 import { SettingsAddPage } from '../src/ui/pages/settings-add-page';
 import { createFakeServices } from './fakes';
+import { TestAppProviders } from './render-helpers';
 
 let root: Root | undefined;
 
@@ -31,9 +31,9 @@ describe('SettingsAddPage', () => {
 
     await act(async () => {
       root!.render(
-        <AppServicesProvider services={services}>
+        <TestAppProviders services={services}>
           <SettingsAddPage onNav={() => undefined} profiles={[]} onProfileSaved={async () => undefined} />
-        </AppServicesProvider>,
+        </TestAppProviders>,
       );
     });
 
@@ -72,7 +72,7 @@ describe('SettingsAddPage', () => {
 
     await act(async () => {
       root!.render(
-        <AppServicesProvider services={services}>
+        <TestAppProviders services={services}>
           <SettingsAddPage
             onNav={() => undefined}
             profiles={[
@@ -93,7 +93,7 @@ describe('SettingsAddPage', () => {
             ]}
             onProfileSaved={async () => undefined}
           />
-        </AppServicesProvider>,
+        </TestAppProviders>,
       );
     });
 

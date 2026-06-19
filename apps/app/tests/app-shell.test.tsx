@@ -34,6 +34,7 @@ describe('AppShell', () => {
           host={{
             kind: 'photoshop-uxp',
             app: { stage: 'uxp-first-shell', host: 'photoshop-uxp', services: ['commands', 'host'] },
+            locale: 'zh-CN',
             services,
           }}
         />,
@@ -44,5 +45,32 @@ describe('AppShell', () => {
 
     expect(container.textContent).toContain('Mock Profile');
     expect(container.textContent).toContain('mock-image-v1');
+    expect(document.documentElement.lang).toBe('zh-CN');
+  });
+
+  it('renders app content in English when host locale is English', async () => {
+    const { services } = createFakeServices();
+    const container = document.createElement('div');
+    document.body.appendChild(container);
+    root = createRoot(container);
+
+    await act(async () => {
+      root!.render(
+        <AppShell
+          host={{
+            kind: 'photoshop-uxp',
+            app: { stage: 'uxp-first-shell', host: 'photoshop-uxp', services: ['commands', 'host'] },
+            locale: 'en',
+            services,
+          }}
+        />,
+      );
+    });
+    await flush();
+    await flush();
+
+    expect(container.textContent).toContain('Current session');
+    expect(container.textContent).toContain('Enter a prompt to submit a real job through the application layer.');
+    expect(document.documentElement.lang).toBe('en');
   });
 });

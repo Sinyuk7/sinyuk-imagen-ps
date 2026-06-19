@@ -1,5 +1,6 @@
 import { useState, useRef, useCallback } from 'react';
 import { SI } from './icons';
+import { useI18n } from '../i18n/i18n-context';
 
 interface CompareSliderProps {
   gradA: string;
@@ -10,6 +11,7 @@ interface CompareSliderProps {
 }
 
 export function CompareSlider({ gradA, gradB, onClose, onPlace, onDownload }: CompareSliderProps) {
+  const { messages: t } = useI18n();
   const [split, setSplit] = useState(50);
   const ref = useRef<HTMLDivElement>(null);
   const dragging = useRef(false);
@@ -42,17 +44,17 @@ export function CompareSlider({ gradA, gradB, onClose, onPlace, onDownload }: Co
               </svg>
             </div>
           </div>
-          <div className="cmp-lbl" style={{ left: 10 }}>参考</div>
-          <div className="cmp-lbl" style={{ right: 10 }}>生成</div>
+          <div className="cmp-lbl" style={{ left: 10 }}>{t.main.referenceImage}</div>
+          <div className="cmp-lbl" style={{ right: 10 }}>{t.main.generatedImage}</div>
         </div>
         <div className="lb-actions">
           <button className="lb-btn prim" onClick={onPlace}>
             <SI d={["M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z", "M17 21V13H7v8", "M7 3v5h8"]} />
-            置入 Photoshop
+            {t.main.placePsLong}
           </button>
           <button className="lb-btn sec" onClick={onDownload}>
             <SI d={["M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4", "M7 10l5 5 5-5", "M12 15V3"]} />
-            下载
+            {t.main.download}
           </button>
         </div>
       </div>

@@ -13,6 +13,7 @@ import { HistoryPage } from './pages/history-page';
 import { SettingsPage } from './pages/settings-page';
 import { SettingsAddPage } from './pages/settings-add-page';
 import { SettingsDetailPage } from './pages/settings-detail-page';
+import { I18nProvider, useI18n } from './i18n/i18n-context';
 
 export interface AppShellProps {
   readonly host: PluginHostShell;
@@ -58,6 +59,7 @@ function defaultModelFor(profile: ProviderProfile | undefined): string {
 }
 
 function AppShellContent({ host }: AppShellProps) {
+  const { messages: t } = useI18n();
   const services = host.services;
   const [view, setView] = useState<View>('main');
   const [selectedProfileId, setSelectedProfileId] = useState<string | null>(null);
@@ -69,7 +71,7 @@ function AppShellContent({ host }: AppShellProps) {
   );
   const modelsState = useProfileModels(services, selectedProfileId);
   const imagenSession = useImagenSession(services);
-  const conversation = useConversation(services, imagenSession);
+  const conversation = useConversation(services, imagenSession, t.conversation);
   const history = useJobHistory(services);
   const { layers, reloadLayers } = useHostLayers(host);
 
@@ -161,8 +163,10 @@ function AppShellContent({ host }: AppShellProps) {
 export function AppShell({ host }: AppShellProps) {
   usePanelCss();
   return (
-    <AppServicesProvider services={host.services}>
-      <AppShellContent host={host} />
-    </AppServicesProvider>
+    <I18nProvider locale={host.locale}>
+      <AppServicesProvider services={host.services}>
+        <AppShellContent host={host} />
+      </AppServicesProvider>
+    </I18nProvider>
   );
 }

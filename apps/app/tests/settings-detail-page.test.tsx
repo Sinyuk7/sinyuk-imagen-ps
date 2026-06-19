@@ -1,9 +1,9 @@
 import { act } from 'react';
 import { createRoot, type Root } from 'react-dom/client';
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { AppServicesProvider } from '../src/app-services/app-services-context';
 import { SettingsDetailPage } from '../src/ui/pages/settings-detail-page';
 import { createFakeServices } from './fakes';
+import { TestAppProviders } from './render-helpers';
 
 let root: Root | undefined;
 
@@ -33,13 +33,13 @@ async function renderDetail(container: HTMLElement, onProfilesChanged = vi.fn(as
   root = createRoot(container);
   await act(async () => {
     root!.render(
-      <AppServicesProvider services={services.services}>
+      <TestAppProviders services={services.services}>
         <SettingsDetailPage
           onNav={vi.fn()}
           profileId="mock-profile"
           onProfilesChanged={onProfilesChanged}
         />
-      </AppServicesProvider>,
+      </TestAppProviders>,
     );
   });
   await flush();
@@ -97,13 +97,13 @@ describe('SettingsDetailPage contract', () => {
     root = createRoot(container);
     await act(async () => {
       root!.render(
-        <AppServicesProvider services={services.services}>
+        <TestAppProviders services={services.services}>
           <SettingsDetailPage
             onNav={onNav}
             profileId="mock-profile"
             onProfilesChanged={onProfilesChanged}
           />
-        </AppServicesProvider>,
+        </TestAppProviders>,
       );
     });
     await flush();

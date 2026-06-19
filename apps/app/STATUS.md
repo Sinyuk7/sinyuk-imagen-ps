@@ -10,7 +10,7 @@
 
 - `package.json`：`build` 先跑 `tsc --noEmit --project tsconfig.build.json`，再跑 `vite build`；`dev` 为 `vite build --watch`。
 - `index.html`：UXP panel HTML entry，包含 `#root`。
-- `public/manifest.json`：Manifest v5，`main: "index.html"`，panel entrypoint，声明 network/localFileSystem permission。
+- `public/manifest.json`：Manifest v5，`main: "index.html"`，panel entrypoint label 为 Photoshop 内部显示名 `Imagen`，声明 network/localFileSystem permission。
 - `vite.config.ts`：`base: './'`，build 输出到 `dist/`，copy manifest。
 - `src/index.tsx`：创建 `pluginHost`，在 DOM 存在时 `createRoot(root).render(<AppShell host={pluginHost} />)`。
 
@@ -31,7 +31,17 @@
 - 解析 UXP modules。
 - 注入 `ProviderProfileRepository` 与 `SecretStorageAdapter`。
 - 组装 `services.commands` 与 `services.host`。
+- 读取 UXP `host.uiLocale` 并归一化为 app 支持的 `en` / `zh-CN`。
 - 非 UXP 环境使用 in-memory storage / host stub，便于 build/test。
+
+### App-local i18n
+
+`src/ui/i18n/` 已实现轻量 app-local i18n：
+
+- 支持 `en` 和 `zh-CN`。
+- React UI 文案通过 typed message catalog 渲染。
+- Provider/profile/model id、API Key、Base URL、prompt 和 provider/runtime 原始错误保持原文。
+- `tests/i18n.test.ts` 覆盖中英文 catalog key 对齐；`tests/locale.test.ts` 覆盖 locale 归一化。
 
 ### UI
 
@@ -39,7 +49,7 @@
 
 | 文件 | 页面 | 当前状态 |
 |---|---|---|
-| `app-shell.tsx` | UI shell / 本地 view 切换 | 已接 `AppServicesProvider`、profiles、models、layers、conversation |
+| `app-shell.tsx` | UI shell / 本地 view 切换 | 已接 `I18nProvider`、`AppServicesProvider`、profiles、models、layers、conversation |
 | `hooks/use-conversation.ts` | 主生成/编辑状态 | 通过 app-local session binding 提交 command flow 并映射 session snapshot |
 | `hooks/use-provider-settings.ts` | provider/profile/model 状态 | 通过 profile/model commands 读取、保存、测试、刷新 |
 | `pages/main-page.tsx` | 主生成页 | profile/model 选择、layer/file attachment、generate/edit、preview、Photoshop writeback |

@@ -3,6 +3,7 @@ import type { ProviderProfile } from '@imagen-ps/application';
 import { useAppServices } from '../../app-services/app-services-context';
 import { providerConfigFromForm, useProfileDetail, useProfileModels } from '../hooks/use-provider-settings';
 import { SI } from '../components/icons';
+import { useI18n } from '../i18n/i18n-context';
 
 interface SettingsDetailPageProps {
   readonly onNav: (view: string) => void;
@@ -17,6 +18,7 @@ function readConfigString(profile: ProviderProfile, key: string): string {
 
 export function SettingsDetailPage({ onNav, profileId, onProfilesChanged }: SettingsDetailPageProps) {
   const services = useAppServices();
+  const { messages: t } = useI18n();
   const detail = useProfileDetail(services, profileId);
   const models = useProfileModels(services, profileId);
   const [displayName, setDisplayName] = useState('');
@@ -64,7 +66,7 @@ export function SettingsDetailPage({ onNav, profileId, onProfilesChanged }: Sett
         },
         ...(apiKey.trim() ? { secretValues: { apiKey: apiKey.trim() } } : {}),
       });
-      setStatus('已保存');
+      setStatus(t.settings.saved);
       await onProfilesChanged(profile.profileId);
     } catch (error) {
       setStatus(error instanceof Error ? error.message : String(error));
@@ -80,7 +82,7 @@ export function SettingsDetailPage({ onNav, profileId, onProfilesChanged }: Sett
       await save();
       const result = await detail.test(true);
       const reachable = result.connectivity?.reachable;
-      setStatus(reachable === false ? '配置有效；未发现模型列表' : '连接成功');
+      setStatus(reachable === false ? t.settings.configValidNoModels : t.settings.testSuccess);
     } catch (error) {
       setStatus(error instanceof Error ? error.message : String(error));
     } finally {
@@ -113,7 +115,7 @@ export function SettingsDetailPage({ onNav, profileId, onProfilesChanged }: Sett
           <div style={{ width: 32 }} />
         </header>
         <div className="scroll">
-          <div style={{ padding: 16, color: 'var(--txd)', fontSize: 12 }}>未选择 Provider profile</div>
+          <div style={{ padding: 16, color: 'var(--txd)', fontSize: 12 }}>{t.settings.noProfileSelected}</div>
         </div>
       </div>
     );
@@ -131,7 +133,7 @@ export function SettingsDetailPage({ onNav, profileId, onProfilesChanged }: Sett
           </span>
           <div style={{ display: 'flex', alignItems: 'center', gap: 4, fontFamily: 'var(--fM)', fontSize: 10, color: enabled ? 'var(--ok)' : 'var(--txd)' }}>
             <span style={{ width: 5, height: 5, borderRadius: '50%', background: enabled ? 'var(--ok)' : 'var(--txd)', display: 'inline-block' }} />
-            {enabled ? '已启用' : '已停用'}
+            {enabled ? t.common.enabled : t.common.disabled}
           </div>
         </div>
         <button className="hdr-btn" onClick={() => void detail.reload()}>
@@ -140,14 +142,14 @@ export function SettingsDetailPage({ onNav, profileId, onProfilesChanged }: Sett
       </header>
 
       <div className="scroll">
-        {detail.loading && <div style={{ padding: 16, color: 'var(--txd)', fontSize: 12 }}>加载中...</div>}
+        {detail.loading && <div style={{ padding: 16, color: 'var(--txd)', fontSize: 12 }}>{t.settings.loading}</div>}
         {detail.error && <div style={{ padding: 16, color: 'var(--er)', fontSize: 12 }}>{detail.error}</div>}
         {detail.profile && (
           <>
             <div className="section">
-              <div className="section-title">连接信息</div>
+              <div className="section-title">{t.settings.connectionInfo}</div>
               <div className="field">
-                <label className="field-label">别名</label>
+                <label className="field-label">{t.settings.alias}</label>
                 <input className="field-input" value={displayName} onChange={(event) => setDisplayName(event.target.value)} />
               </div>
               <div className="field">
@@ -160,7 +162,7 @@ export function SettingsDetailPage({ onNav, profileId, onProfilesChanged }: Sett
                   <input
                     type={showKey ? 'text' : 'password'}
                     className="field-input mono"
-                    placeholder={detail.profile.secretRefs?.apiKey ? '已保存；留空不修改' : 'sk-...'}
+                    placeholder={detail.profile.secretRefs?.apiKey ? t.settings.savedSecretPlaceholder : 'sk-...'}
                     value={apiKey}
                     onChange={(event) => setApiKey(event.target.value)}
                   />
@@ -174,12 +176,12 @@ export function SettingsDetailPage({ onNav, profileId, onProfilesChanged }: Sett
               </div>
               <label style={{ display: 'flex', alignItems: 'center', gap: 8, color: 'var(--txm)', fontSize: 12 }}>
                 <input type="checkbox" checked={enabled} onChange={(event) => setEnabled(event.target.checked)} />
-                启用 profile
+                {t.settings.enableProfile}
               </label>
             </div>
 
             <div className="section">
-              <div className="section-title">默认模型</div>
+              <div className="section-title">{t.settings.defaultModel}</div>
               <div className="chips">
                 {models.models.map((model) => (
                   <button
@@ -193,22 +195,22 @@ export function SettingsDetailPage({ onNav, profileId, onProfilesChanged }: Sett
                 <input
                   className="field-input mono"
                   style={{ marginTop: 8 }}
-                  placeholder="自定义 model id"
+                  placeholder={t.settings.customModelId}
                   value={defaultModel}
                   onChange={(event) => setDefaultModel(event.target.value)}
                 />
               </div>
               {models.error && <div className="field-hint" style={{ color: 'var(--wa)' }}>{models.error}</div>}
               <button className="test-btn" style={{ marginTop: 10 }} disabled={models.loading || busy} onClick={() => void models.refresh()}>
-                {models.loading ? '刷新中...' : '刷新模型列表'}
+                {models.loading ? t.settings.refreshingModels : t.settings.refreshModels}
               </button>
             </div>
 
             <div className="test-area">
               <button className="test-btn" disabled={busy} onClick={() => void test()}>
                 {busy
-                  ? <><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="spin"><path d="M21 12a9 9 0 1 1-9-9" /></svg> 测试中...</>
-                  : <><SI d="M5 12h14M12 5l7 7-7 7" /> 测试连接</>
+                  ? <><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="spin"><path d="M21 12a9 9 0 1 1-9-9" /></svg> {t.settings.testingConnection}</>
+                  : <><SI d="M5 12h14M12 5l7 7-7 7" /> {t.settings.testConnection}</>
                 }
               </button>
               {status && <div className={status.includes(':') ? 'test-result err' : 'test-result ok'}>{status}</div>}
@@ -218,7 +220,7 @@ export function SettingsDetailPage({ onNav, profileId, onProfilesChanged }: Sett
       </div>
 
       <footer className="det-footer">
-        <button className="btn-save" disabled={busy || !detail.profile} onClick={() => void save()}>保存</button>
+        <button className="btn-save" disabled={busy || !detail.profile} onClick={() => void save()}>{t.common.save}</button>
         <button className="btn-del" disabled={busy || !detail.profile} onClick={() => void remove()}>
           <SI d={['M3 6h18', 'M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6', 'M8 6V4a1 1 0 0 1 1-1h6a1 1 0 0 1 1 1v2']} />
         </button>

@@ -30,6 +30,7 @@ interface AppServices {
 - `CommandsPort` 只镜像 application/session 层公开命令，不加业务语义。
 - `HostBridge` 只表达 UI 需要的 host IO。
 - React 页面通过 `AppServicesProvider` 获取 services。
+- React UI 多语言是 app-local surface concern；host shell 只注入归一化后的 locale，不把文案、业务语义或 locale 状态放入 application/session 层。
 
 ### HostBridge
 
@@ -46,7 +47,8 @@ interface HostBridge {
 ## 当前可确认的行为
 
 - `src/index.tsx` 在 DOM 存在时挂载 `<AppShell host={pluginHost} />`。
-- `createPluginHostShell()` 是 composition root。
+- `createPluginHostShell()` 是 composition root，并把 UXP host UI locale 归一化为 app-supported locale。
+- Photoshop 内部 manifest panel label 使用 `Imagen`；对外 package / project name 仍可保留 `Imagen PS`。
 - MainPage 通过 `submitJob()` 提交 `provider-generate` 或 `provider-edit`。
 - 生成结果从 `job.output.image.assets` 映射为 preview。
 - 有 attachment 时走 `provider-edit`；无 attachment 时走 `provider-generate`。

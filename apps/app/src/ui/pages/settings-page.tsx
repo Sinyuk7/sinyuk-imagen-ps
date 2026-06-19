@@ -1,6 +1,7 @@
 import type { ProviderProfile } from '@imagen-ps/application';
 import { profileToProviderRow } from '../../app-services/mappers';
 import { SI } from '../components/icons';
+import { useI18n } from '../i18n/i18n-context';
 
 interface SettingsPageProps {
   readonly onNav: (view: string) => void;
@@ -21,6 +22,7 @@ function initials(name: string): string {
 }
 
 export function SettingsPage({ onNav, profiles, loading, error, onReload, onOpenProfile }: SettingsPageProps) {
+  const { messages: t } = useI18n();
   const rows = profiles.map(profileToProviderRow);
 
   return (
@@ -30,21 +32,21 @@ export function SettingsPage({ onNav, profiles, loading, error, onReload, onOpen
           <SI d="m15 18-6-6 6-6" />
         </button>
         <div className="hdr-title">Providers</div>
-        <button className="hdr-btn tt-wrap" title="刷新" onClick={() => void onReload()}>
+        <button className="hdr-btn tt-wrap" title={t.common.refresh} onClick={() => void onReload()}>
           <SI d={['M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8', 'M21 3v5h-5']} w={2.2} />
-          <div className="tt">刷新</div>
+          <div className="tt">{t.common.refresh}</div>
         </button>
-        <button className="hdr-btn tt-wrap" title="添加 Provider" onClick={() => onNav('settings-add')}>
+        <button className="hdr-btn tt-wrap" title={t.common.addProvider} onClick={() => onNav('settings-add')}>
           <SI d="M12 5v14M5 12h14" w={2.5} />
-          <div className="tt">添加 Provider</div>
+          <div className="tt">{t.common.addProvider}</div>
         </button>
       </header>
       <div className="scroll">
-        <div className="sec-lbl">已配置</div>
-        {loading && <div style={{ padding: 16, color: 'var(--txd)', fontSize: 12 }}>加载中...</div>}
+        <div className="sec-lbl">{t.settings.configured}</div>
+        {loading && <div style={{ padding: 16, color: 'var(--txd)', fontSize: 12 }}>{t.settings.loading}</div>}
         {error && <div style={{ padding: 16, color: 'var(--er)', fontSize: 12 }}>{error}</div>}
         {!loading && rows.length === 0 && (
-          <div style={{ padding: 16, color: 'var(--txd)', fontSize: 12 }}>暂无 Provider profile</div>
+          <div style={{ padding: 16, color: 'var(--txd)', fontSize: 12 }}>{t.settings.noProviderProfile}</div>
         )}
         {rows.map((row) => (
           <div key={row.profileId} className="prov-row" onClick={() => onOpenProfile(row.profileId)}>
@@ -57,7 +59,7 @@ export function SettingsPage({ onNav, profiles, loading, error, onReload, onOpen
                 <span style={{ fontFamily: 'var(--fM)', fontSize: 9, color: 'var(--txd)', background: 'var(--s2)', border: '1px solid var(--bd)', padding: '1px 5px', borderRadius: 3 }}>
                   {row.family}
                 </span>
-                <span className={`badge ${row.enabled ? 'connected' : 'error'}`}>{row.statusLabel}</span>
+                <span className={`badge ${row.enabled ? 'connected' : 'error'}`}>{row.enabled ? t.common.enabled : t.common.disabled}</span>
               </div>
               <div className="prov-model">{row.defaultModel ?? row.providerId}</div>
             </div>
