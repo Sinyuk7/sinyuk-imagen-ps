@@ -7,11 +7,12 @@
  */
 
 import { encodeLogRecord } from '@imagen-ps/foundation';
+import { createConsoleSink, createLogger, toLogError } from '@imagen-ps/foundation';
 import type { LogRecord, LogSink } from '@imagen-ps/foundation';
 import type { UxpModules } from './uxp-api.js';
 
 interface UxpFileEntry {
-  write(data: string, options?: { append?: boolean; format?: 'utf8' }): Promise<void>;
+  write(data: string, options?: { append?: boolean; format?: unknown }): Promise<void>;
 }
 
 interface UxpFolderEntry {
@@ -21,7 +22,17 @@ interface UxpFolderEntry {
 }
 
 interface UxpLocalFileSystem {
+  readonly formats?: {
+    readonly utf8?: unknown;
+  };
   getDataFolder(): Promise<UxpFolderEntry>;
+}
+
+interface UxpStorage {
+  readonly localFileSystem?: UxpLocalFileSystem;
+  readonly formats?: {
+    readonly utf8?: unknown;
+  };
 }
 
 function toISODate(d: Date): string {
@@ -29,24 +40,32 @@ function toISODate(d: Date): string {
 }
 
 async function ensureFolder(parent: UxpFolderEntry, name: string): Promise<UxpFolderEntry> {
-  const existing = await parent.getEntry(name);
-  if (existing && typeof (existing as UxpFolderEntry).createFile === 'function') {
-    return existing as UxpFolderEntry;
+  try {
+    const existing = await parent.getEntry(name);
+    if (existing && typeof (existing as UxpFolderEntry).createFile === 'function') {
+      return existing as UxpFolderEntry;
+    }
+  } catch {
+    // 真实 UXP 在 entry 缺失时 throw；fake 测试也按该语义覆盖。
   }
   return parent.createFolder(name);
 }
 
 async function getOrCreateFile(parent: UxpFolderEntry, name: string): Promise<UxpFileEntry> {
-  const existing = await parent.getEntry(name);
-  if (existing && typeof (existing as UxpFileEntry).write === 'function') {
-    return existing as UxpFileEntry;
+  try {
+    const existing = await parent.getEntry(name);
+    if (existing && typeof (existing as UxpFileEntry).write === 'function') {
+      return existing as UxpFileEntry;
+    }
+  } catch {
+    // 真实 UXP 在文件缺失时 throw。
   }
   return parent.createFile(name, { overwrite: true });
 }
 
 /** 创建 UXP data-folder 日志 sink。 */
 export function createUxpLogSink(uxpModules: UxpModules): LogSink {
-  const storage = (uxpModules.uxp?.storage ?? {}) as { localFileSystem?: UxpLocalFileSystem };
+  const storage = (uxpModules.uxp?.storage ?? {}) as UxpStorage;
   const localFileSystem = storage.localFileSystem;
 
   if (!localFileSystem) {
@@ -54,7 +73,18 @@ export function createUxpLogSink(uxpModules: UxpModules): LogSink {
     return { write: () => {} };
   }
 
+  // 专门用于记录 sink 本身写失败的 console-only logger，避免循环写入日志文件。
+  const failureLogger = createLogger({
+    sink: createConsoleSink({ log: console.log }),
+    context: {
+      surface: 'uxp',
+      package: 'app',
+      component: 'sink',
+    },
+  });
+
   const lfs = localFileSystem;
+  const textFormat = storage.formats?.utf8 ?? lfs.formats?.utf8;
   let filePromise: Promise<UxpFileEntry> | undefined;
 
   async function getLogFile(): Promise<UxpFileEntry> {
@@ -73,11 +103,13 @@ export function createUxpLogSink(uxpModules: UxpModules): LogSink {
   }
 
   return {
-    write(record: LogRecord): void {
-      getLogFile()
-        .then((file) => file.write(encodeLogRecord(record) + '\n', { append: true, format: 'utf8' }))
-        .catch(() => {
-          // fail-open：日志写失败不应影响 UXP 主流程
+    write(record: LogRecord): Promise<void> {
+      return getLogFile()
+        .then((file) => file.write(encodeLogRecord(record) + '\n', { append: true, format: textFormat }))
+        .catch((error: unknown) => {
+          // sink 写失败时通过独立通道记录，不影响主流程也不触发无穷循环。
+          failureLogger.error('log.sink.write_failed', { event: record.event }, { error: toLogError(error) });
+          throw error;
         });
     },
   };

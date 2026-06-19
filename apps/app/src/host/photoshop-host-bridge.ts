@@ -1,4 +1,6 @@
 import type { Asset } from '@imagen-ps/application';
+import { getRuntimeLogger } from '@imagen-ps/application';
+import type { Logger } from '@imagen-ps/foundation';
 import { createHostBridgeStub, type HostBridge, type LayerInfo } from '../app-services/host-bridge';
 import type { UxpModules } from './uxp-api';
 
@@ -53,6 +55,7 @@ interface UxpLocalFileSystem {
   getFileForOpening(options?: { readonly types?: readonly string[]; readonly allowMultiple?: boolean }): Promise<UxpFile | undefined>;
   getTemporaryFolder(): Promise<UxpFolder>;
   createSessionToken(entry: UxpFile): string;
+  getFileForSaving?(options?: { readonly types?: readonly string[]; readonly suggestedName?: string }): Promise<UxpFile | undefined>;
 }
 
 function photoshopAppFrom(modules: UxpModules): PhotoshopApp | undefined {
@@ -154,51 +157,85 @@ function fileExtensionFor(mimeType: string): string {
   return 'png';
 }
 
-export function createPhotoshopHostBridge(modules: UxpModules): HostBridge {
+export interface CreatePhotoshopHostBridgeOptions {
+  /** 可选 logger；未提供时使用 runtime logger。 */
+  readonly logger?: Logger;
+}
+
+export function createPhotoshopHostBridge(modules: UxpModules, options?: CreatePhotoshopHostBridgeOptions): HostBridge {
   const app = photoshopAppFrom(modules);
   const imaging = photoshopImagingFrom(modules);
   const core = photoshopCoreFrom(modules);
   const action = photoshopActionFrom(modules);
   const fs = localFileSystemFrom(modules);
+  const logger = options?.logger ?? getRuntimeLogger().child({ package: 'app', component: 'host' });
 
   if (!app || !imaging || !core || !action || !fs) {
+    logger.warn('hostbridge.unavailable', { reason: 'missing UXP modules' });
     return createHostBridgeStub();
   }
 
   return {
     async listLayers(): Promise<readonly LayerInfo[]> {
-      return (app.activeDocument?.layers ?? []).map(toLayerInfo);
+      const span = logger.startSpan('hostbridge.list_layers');
+      try {
+        const layers = (app.activeDocument?.layers ?? []).map(toLayerInfo);
+        span.finish({ count: layers.length });
+        return layers;
+      } catch (error) {
+        span.fail(error);
+        throw error;
+      }
     },
 
     async pickImageFile(): Promise<Asset | undefined> {
-      const file = await fs.getFileForOpening({
-        types: ['png', 'jpg', 'jpeg', 'webp'],
-        allowMultiple: false,
-      });
-      if (!file) {
-        return undefined;
+      const span = logger.startSpan('hostbridge.pick_image_file');
+      try {
+        const file = await fs.getFileForOpening({
+          types: ['png', 'jpg', 'jpeg', 'webp'],
+          allowMultiple: false,
+        });
+        if (!file) {
+          span.finish({ picked: false });
+          return undefined;
+        }
+        const data = await file.read({ format: fs.formats?.binary });
+        const asset: Asset = {
+          type: 'image',
+          name: file.name ?? 'selected-image',
+          data: typeof data === 'string' ? data : new Uint8Array(data),
+          mimeType: 'image/png',
+        };
+        span.finish({ picked: true, name: asset.name });
+        return asset;
+      } catch (error) {
+        span.fail(error);
+        throw error;
       }
-      const data = await file.read({ format: fs.formats?.binary });
-      return {
-        type: 'image',
-        name: file.name ?? 'selected-image',
-        data: typeof data === 'string' ? data : new Uint8Array(data),
-        mimeType: 'image/png',
-      };
     },
 
     async readLayerAsAsset(layerId: number): Promise<Asset> {
-      const result = await imaging.getPixels({
-        documentID: app.activeDocument?.id,
-        layerID: layerId,
-        componentSize: 8,
-        applyAlpha: false,
-      });
-      return imageDataToJpegAsset(imaging, result.imageData, `layer-${layerId}.jpg`);
+      const span = logger.startSpan('hostbridge.read_layer', { layerId });
+      try {
+        const result = await imaging.getPixels({
+          documentID: app.activeDocument?.id,
+          layerID: layerId,
+          componentSize: 8,
+          applyAlpha: false,
+        });
+        const asset = await imageDataToJpegAsset(imaging, result.imageData, `layer-${layerId}.jpg`);
+        span.finish({ layerId, name: asset.name, mimeType: asset.mimeType });
+        return asset;
+      } catch (error) {
+        span.fail(error, { layerId });
+        throw error;
+      }
     },
 
     async readLayerMaskAsAsset(layerId: number): Promise<Asset | undefined> {
+      const span = logger.startSpan('hostbridge.read_layer_mask', { layerId });
       if (!imaging.getLayerMask) {
+        span.finish({ hasMask: false, reason: 'unsupported' });
         return undefined;
       }
       try {
@@ -207,38 +244,51 @@ export function createPhotoshopHostBridge(modules: UxpModules): HostBridge {
           layerID: layerId,
           kind: 'user',
         });
-        return imageDataToJpegAsset(imaging, result.imageData, `layer-${layerId}-mask.jpg`);
-      } catch {
+        const asset = await imageDataToJpegAsset(imaging, result.imageData, `layer-${layerId}-mask.jpg`);
+        span.finish({ layerId, hasMask: true, name: asset.name, mimeType: asset.mimeType });
+        return asset;
+      } catch (error) {
+        span.fail(error, { layerId });
         return undefined;
       }
     },
 
     async placeAssetOnCanvas(asset: Asset): Promise<void> {
-      const { data, mimeType } = await assetToArrayBuffer(asset);
-      const folder = await fs.getTemporaryFolder();
-      const file = await folder.createFile(`imagen-ps-${Date.now()}.${fileExtensionFor(mimeType)}`, {
-        overwrite: true,
+      const span = logger.startSpan('hostbridge.place_asset', {
+        name: asset.name,
+        mimeType: asset.mimeType,
       });
-      await file.write(data, { format: fs.formats?.binary });
-      const token = fs.createSessionToken(file);
+      try {
+        const { data, mimeType } = await assetToArrayBuffer(asset);
+        const folder = await fs.getTemporaryFolder();
+        const file = await folder.createFile(`imagen-ps-${Date.now()}.${fileExtensionFor(mimeType)}`, {
+          overwrite: true,
+        });
+        await file.write(data, { format: fs.formats?.binary });
+        const token = fs.createSessionToken(file);
 
-      await core.executeAsModal(
-        async () => {
-          await action.batchPlay(
-            [
-              {
-                _obj: 'placeEvent',
-                null: {
-                  _path: token,
-                  _kind: 'local',
+        await core.executeAsModal(
+          async () => {
+            await action.batchPlay(
+              [
+                {
+                  _obj: 'placeEvent',
+                  null: {
+                    _path: token,
+                    _kind: 'local',
+                  },
                 },
-              },
-            ],
-            { synchronousExecution: false },
-          );
-        },
-        { commandName: 'Place generated image' },
-      );
+              ],
+              { synchronousExecution: false },
+            );
+          },
+          { commandName: 'Place generated image' },
+        );
+        span.finish({ name: asset.name, mimeType });
+      } catch (error) {
+        span.fail(error, { name: asset.name, mimeType: asset.mimeType });
+        throw error;
+      }
     },
   };
 }

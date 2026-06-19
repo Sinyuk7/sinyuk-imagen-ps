@@ -9,12 +9,13 @@ import type { UxpModules } from './uxp-api';
 interface FakeFile {
   readonly name?: string;
   read(options?: { readonly format?: unknown }): Promise<string | ArrayBuffer>;
-  write(data: string | ArrayBuffer, options?: { readonly format?: unknown }): Promise<void>;
+  write(data: string | ArrayBuffer, options?: { readonly append?: boolean; readonly format?: unknown }): Promise<void>;
 }
 
 interface FakeFolder {
   getEntry(name: string): Promise<FakeEntry>;
   createFile(name: string, options?: { readonly overwrite?: boolean }): Promise<FakeFile>;
+  createFolder(name: string): Promise<FakeFolder>;
 }
 
 type FakeEntry = FakeFile | FakeFolder;
@@ -24,6 +25,11 @@ function textEncoder(value: string): ArrayBuffer {
 }
 
 class MutableFakeFile implements FakeFile {
+  readonly writes: Array<{
+    readonly data: string | ArrayBuffer;
+    readonly options?: { readonly append?: boolean; readonly format?: unknown };
+  }> = [];
+
   constructor(
     readonly name: string,
     private content: string | ArrayBuffer = '',
@@ -33,7 +39,12 @@ class MutableFakeFile implements FakeFile {
     return this.content;
   }
 
-  async write(data: string | ArrayBuffer): Promise<void> {
+  async write(data: string | ArrayBuffer, options?: { readonly append?: boolean; readonly format?: unknown }): Promise<void> {
+    this.writes.push({ data, options });
+    if (options?.append === true && typeof this.content === 'string' && typeof data === 'string') {
+      this.content += data;
+      return;
+    }
     this.content = data;
   }
 }
@@ -57,6 +68,11 @@ function createFakeDataFolder(initialEntries?: Record<string, FakeEntry>): {
         const entry = new MutableFakeFile(name);
         files[name] = entry;
         return entry;
+      },
+      async createFolder(name: string): Promise<FakeFolder> {
+        const entry = createFakeDataFolder();
+        files[name] = entry.folder;
+        return entry.folder;
       },
     },
   };
@@ -298,5 +314,60 @@ describe('fake UXP host adapters', () => {
     expect(createdFiles).toEqual([]);
     expect(writes).toHaveLength(1);
     expect(writes[0]).toContain('"event":"test.event"');
+  });
+
+  it('UXP log sink 在 data folder 中创建日期 JSONL 并追加写入', async () => {
+    const dataFolder = createFakeDataFolder();
+    const modules: UxpModules = {
+      uxp: {
+        storage: {
+          formats: { utf8: 'uxp-utf8' },
+          localFileSystem: {
+            async getDataFolder() {
+              return dataFolder.folder;
+            },
+          },
+        },
+      },
+    };
+
+    const sink = createUxpLogSink(modules);
+    sink.write({
+      schema_version: 1,
+      timestamp: '2026-06-16T00:00:00.000Z',
+      level: 'info',
+      event: 'test.first',
+      surface: 'test',
+      package: 'app',
+      component: 'sink',
+      trace_id: 'tr_1',
+      span_id: 'sp_1',
+    });
+    sink.write({
+      schema_version: 1,
+      timestamp: '2026-06-16T00:00:01.000Z',
+      level: 'info',
+      event: 'test.second',
+      surface: 'test',
+      package: 'app',
+      component: 'sink',
+      trace_id: 'tr_1',
+      span_id: 'sp_2',
+    });
+    await new Promise((resolve) => setTimeout(resolve, 0));
+
+    const logsFolder = await dataFolder.folder.getEntry('logs') as FakeFolder;
+    const dateFolder = await logsFolder.getEntry(new Date().toISOString().slice(0, 10)) as FakeFolder;
+    const file = await dateFolder.getEntry('imagen.jsonl') as MutableFakeFile;
+    const raw = await file.read();
+    const lines = String(raw).split('\n').filter(Boolean);
+
+    expect(lines).toHaveLength(2);
+    expect(lines[0]).toContain('"event":"test.first"');
+    expect(lines[1]).toContain('"event":"test.second"');
+    expect(file.writes.map((write) => write.options)).toEqual([
+      { append: true, format: 'uxp-utf8' },
+      { append: true, format: 'uxp-utf8' },
+    ]);
   });
 });

@@ -1,9 +1,11 @@
 import { createRuntimeError, createValidationError } from '@imagen-ps/core-engine';
+import { generateTraceId } from '@imagen-ps/foundation';
 import {
   getProviderConfigResolver,
   getProviderProfileRepository,
   getRuntime,
   getSecretStorageAdapter,
+  getRuntimeLogger,
 } from '../runtime.js';
 import type {
   CommandResult,
@@ -33,20 +35,42 @@ function normalizeAlias(displayName: string): string {
 
 /** 列出已保存的 provider profiles，不返回 secret values。 */
 export async function listProviderProfiles(): Promise<CommandResult<readonly ProviderProfile[]>> {
-  const profiles = await getProviderProfileRepository().list();
-  return { ok: true, value: profiles.map(sanitizeProfile) };
+  const logger = getRuntimeLogger().child({ trace_id: generateTraceId(), package: 'application', component: 'command' });
+  const span = logger.startSpan('command.profile.list');
+  try {
+    const profiles = await getProviderProfileRepository().list();
+    span.finish({ count: profiles.length });
+    return { ok: true, value: profiles.map(sanitizeProfile) };
+  } catch (error) {
+    span.fail(error);
+    return { ok: false, error: createRuntimeError(errorMessage(error, 'Failed to list provider profiles.'), {}) };
+  }
 }
 
 /** 获取单个 provider profile，不存在时返回 validation error。 */
 export async function getProviderProfile(profileId: string): Promise<CommandResult<ProviderProfile>> {
-  const profile = await getProviderProfileRepository().get(profileId);
-  if (!profile) {
-    return {
-      ok: false,
-      error: createValidationError(`Provider profile "${profileId}" not found.`, { profileId }),
-    };
+  const logger = getRuntimeLogger().child({
+    trace_id: generateTraceId(),
+    package: 'application',
+    component: 'command',
+    profile_id: profileId,
+  });
+  const span = logger.startSpan('command.profile.get');
+  try {
+    const profile = await getProviderProfileRepository().get(profileId);
+    if (!profile) {
+      span.fail({ message: `Provider profile "${profileId}" not found.` });
+      return {
+        ok: false,
+        error: createValidationError(`Provider profile "${profileId}" not found.`, { profileId }),
+      };
+    }
+    span.finish();
+    return { ok: true, value: sanitizeProfile(profile) };
+  } catch (error) {
+    span.fail(error);
+    return { ok: false, error: createRuntimeError(errorMessage(error, `Failed to get provider profile "${profileId}".`), { profileId }) };
   }
-  return { ok: true, value: sanitizeProfile(profile) };
 }
 
 /**
@@ -59,7 +83,16 @@ export async function getProviderProfile(profileId: string): Promise<CommandResu
  * FAILURE: provider 不存在、family mismatch、secret 写入、provider validation 或 repository save 失败时返回 CommandResult error，并尽力删除本次新写入的 secrets。
  */
 export async function saveProviderProfile(input: ProviderProfileInput): Promise<CommandResult<ProviderProfile>> {
+  const logger = getRuntimeLogger().child({
+    trace_id: generateTraceId(),
+    package: 'application',
+    component: 'command',
+    profile_id: input.profileId,
+  });
+  const span = logger.startSpan('command.profile.save');
+
   if (typeof input.profileId !== 'string' || input.profileId.trim().length === 0) {
+    span.fail({ message: 'Provider profile requires profileId.' });
     return {
       ok: false,
       error: createValidationError('Provider profile requires profileId.', {}),
@@ -70,6 +103,7 @@ export async function saveProviderProfile(input: ProviderProfileInput): Promise<
   const existing = await getProviderProfileRepository().get(input.profileId);
   const providerId = input.providerId ?? existing?.providerId;
   if (!providerId) {
+    span.fail({ message: `Provider profile "${input.profileId}" requires providerId.` });
     return {
       ok: false,
       error: createValidationError(`Provider profile "${input.profileId}" requires providerId.`, {
@@ -80,6 +114,7 @@ export async function saveProviderProfile(input: ProviderProfileInput): Promise<
 
   const provider = runtime.providerRegistry.get(providerId);
   if (!provider) {
+    span.fail({ message: `Provider implementation "${providerId}" not found.` });
     return {
       ok: false,
       error: createValidationError(`Provider implementation "${providerId}" not found.`, { providerId }),
@@ -87,6 +122,9 @@ export async function saveProviderProfile(input: ProviderProfileInput): Promise<
   }
 
   if (existing && existing.providerId !== providerId) {
+    span.fail({
+      message: `Provider profile "${input.profileId}" already uses provider "${existing.providerId}" and cannot be saved as provider "${providerId}".`,
+    });
     return {
       ok: false,
       error: createValidationError(
@@ -98,6 +136,7 @@ export async function saveProviderProfile(input: ProviderProfileInput): Promise<
 
   const nextDisplayName = normalizeAlias(input.displayName ?? existing?.displayName ?? provider.describe().displayName);
   if (nextDisplayName.length === 0) {
+    span.fail({ message: `Provider profile "${input.profileId}" requires displayName.` });
     return {
       ok: false,
       error: createValidationError(`Provider profile "${input.profileId}" requires displayName.`, {
@@ -111,6 +150,7 @@ export async function saveProviderProfile(input: ProviderProfileInput): Promise<
     (profile) => profile.profileId !== input.profileId && normalizeAlias(profile.displayName) === nextDisplayName,
   );
   if (aliasOwner) {
+    span.fail({ message: `Provider profile displayName "${nextDisplayName}" already exists.` });
     return {
       ok: false,
       error: createValidationError(`Provider profile displayName "${nextDisplayName}" already exists.`, {
@@ -180,6 +220,7 @@ export async function saveProviderProfile(input: ProviderProfileInput): Promise<
     });
 
     await getProviderProfileRepository().save(profile);
+    span.finish({ providerId: profile.providerId, displayName: profile.displayName });
     return { ok: true, value: sanitizeProfile(profile) };
   } catch (error) {
     await Promise.allSettled(
@@ -189,6 +230,7 @@ export async function saveProviderProfile(input: ProviderProfileInput): Promise<
           : getSecretStorageAdapter().setSecret(ref, previous),
       ),
     );
+    span.fail(error);
     return {
       ok: false,
       error: createValidationError(errorMessage(error, `Invalid provider profile "${input.profileId}".`), {
@@ -204,9 +246,17 @@ export async function deleteProviderProfile(
   profileId: string,
   options: DeleteProviderProfileOptions = {},
 ): Promise<CommandResult<void>> {
+  const logger = getRuntimeLogger().child({
+    trace_id: generateTraceId(),
+    package: 'application',
+    component: 'command',
+    profile_id: profileId,
+  });
+  const span = logger.startSpan('command.profile.delete');
   const repository = getProviderProfileRepository();
   const profile = await repository.get(profileId);
   if (!profile) {
+    span.fail({ message: `Provider profile "${profileId}" not found.` });
     return {
       ok: false,
       error: createValidationError(`Provider profile "${profileId}" not found.`, { profileId }),
@@ -220,8 +270,10 @@ export async function deleteProviderProfile(
         Object.values(profile.secretRefs ?? {}).map((ref) => getSecretStorageAdapter().deleteSecret(ref)),
       );
     }
+    span.finish({ providerId: profile.providerId, retainSecrets: options.retainSecrets === true });
     return { ok: true, value: undefined };
   } catch (error) {
+    span.fail(error);
     return {
       ok: false,
       error: createRuntimeError(errorMessage(error, `Failed to delete provider profile "${profileId}".`), {
@@ -243,10 +295,19 @@ export async function testProviderProfile(
   profileId: string,
   options: TestProviderProfileOptions = {},
 ): Promise<CommandResult<ProviderProfileTestResult>> {
+  const logger = getRuntimeLogger().child({
+    trace_id: generateTraceId(),
+    package: 'application',
+    component: 'command',
+    profile_id: profileId,
+  });
+  const span = logger.startSpan('command.profile.test', { connect: options.connect === true, generate: options.generate === true });
+
   try {
     const resolved = await getProviderConfigResolver().resolve(profileId);
     const profile = await getProviderProfileRepository().get(profileId);
     if (!profile) {
+      span.fail({ message: `Provider profile "${profileId}" not found.` });
       return {
         ok: false,
         error: createValidationError(`Provider profile "${profileId}" not found.`, { profileId }),
@@ -255,6 +316,7 @@ export async function testProviderProfile(
 
     const provider = getRuntime().providerRegistry.get(profile.providerId);
     if (!provider) {
+      span.fail({ message: `Provider implementation "${profile.providerId}" not found.` });
       return {
         ok: false,
         error: createValidationError(`Provider implementation "${profile.providerId}" not found.`, {
@@ -316,8 +378,15 @@ export async function testProviderProfile(
       }
     }
 
+    span.finish({
+      providerId: result.providerId,
+      family: result.family,
+      ...(result.connectivity ? { reachable: result.connectivity.reachable } : {}),
+      ...(result.smokeTest ? { smokePassed: result.smokeTest.passed } : {}),
+    });
     return { ok: true, value: result };
   } catch (error) {
+    span.fail(error);
     return {
       ok: false,
       error: createValidationError(errorMessage(error, `Provider profile "${profileId}" validation failed.`), {

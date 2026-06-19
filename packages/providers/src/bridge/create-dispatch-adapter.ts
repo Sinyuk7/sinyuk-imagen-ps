@@ -1,5 +1,6 @@
 import type { ProviderDispatchAdapter, JobError } from '@imagen-ps/core-engine';
 import { createProviderError, createValidationError } from '@imagen-ps/core-engine';
+import type { Logger } from '@imagen-ps/foundation';
 import type { ProviderDispatchBridgeArgs } from '../contract/provider.js';
 import type { ProviderConfig } from '../contract/config.js';
 import type { CanonicalImageJobRequest } from '../contract/request.js';
@@ -106,8 +107,9 @@ export function createDispatchAdapter<
   return {
     provider: provider.id,
 
-    async dispatch(params: Record<string, unknown>): Promise<unknown> {
+    async dispatch(params: Record<string, unknown>, context?: { readonly logger?: Logger }): Promise<unknown> {
       const { request: rawRequest, signal } = extractRequestAndSignal(params);
+      const effectiveLogger = context?.logger ?? logger;
 
       // 1. 校验 request
       let validatedRequest: TRequest;
@@ -123,7 +125,7 @@ export function createDispatchAdapter<
           config,
           request: validatedRequest,
           signal,
-          logger,
+          logger: effectiveLogger,
         });
         return result;
       } catch (error) {

@@ -152,7 +152,7 @@ export async function executeWorkflow(job: Job, workflowName: string, deps: Runn
           params: resolvedInput,
         };
 
-        const result = await dispatcher.dispatch(ref);
+        const result = await dispatcher.dispatch(ref, { logger: stepLogger });
 
         const outputKey = step.outputKey ?? step.name;
         context[outputKey] = assertImmutable(result);

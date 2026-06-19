@@ -12,7 +12,8 @@
  */
 
 import { createProviderError, createValidationError } from '@imagen-ps/core-engine';
-import { getProviderConfigResolver, getProviderProfileRepository, getRuntime } from '../runtime.js';
+import { generateTraceId } from '@imagen-ps/foundation';
+import { getProviderConfigResolver, getProviderProfileRepository, getRuntime, getRuntimeLogger } from '../runtime.js';
 import type { CommandResult, ProviderProfile } from './types.js';
 import type { ProviderModelInfo } from '@imagen-ps/providers';
 
@@ -30,8 +31,17 @@ function errorMessage(error: unknown, fallback: string): string {
  * FAILURE: profile 不存在 / providerId 未注册 → validation error。
  */
 export async function listProfileModels(profileId: string): Promise<CommandResult<readonly ProviderModelInfo[]>> {
+  const logger = getRuntimeLogger().child({
+    trace_id: generateTraceId(),
+    package: 'application',
+    component: 'command',
+    profile_id: profileId,
+  });
+  const span = logger.startSpan('command.model.list');
+
   const profile = await getProviderProfileRepository().get(profileId);
   if (!profile) {
+    span.fail({ message: `Provider profile "${profileId}" not found.` });
     return {
       ok: false,
       error: createValidationError(`Provider profile "${profileId}" not found.`, { profileId }),
@@ -39,6 +49,7 @@ export async function listProfileModels(profileId: string): Promise<CommandResul
   }
   const provider = getRuntime().providerRegistry.get(profile.providerId);
   if (!provider) {
+    span.fail({ message: `Provider implementation "${profile.providerId}" not found for profile "${profileId}".` });
     return {
       ok: false,
       error: createValidationError(
@@ -50,12 +61,15 @@ export async function listProfileModels(profileId: string): Promise<CommandResul
 
   // Candidate chain: profile.models → descriptor.defaultModels → []
   if (profile.models && profile.models.length > 0) {
+    span.finish({ source: 'profile.cache', count: profile.models.length });
     return { ok: true, value: profile.models };
   }
   const defaults = provider.describe().defaultModels;
   if (defaults && defaults.length > 0) {
+    span.finish({ source: 'provider.defaults', count: defaults.length });
     return { ok: true, value: defaults };
   }
+  span.finish({ source: 'none', count: 0 });
   return { ok: true, value: [] };
 }
 
@@ -72,9 +86,18 @@ export async function listProfileModels(profileId: string): Promise<CommandResul
  *   - discoverModels 抛错 → provider error（不修改 profile）。
  */
 export async function refreshProfileModels(profileId: string): Promise<CommandResult<readonly ProviderModelInfo[]>> {
+  const logger = getRuntimeLogger().child({
+    trace_id: generateTraceId(),
+    package: 'application',
+    component: 'command',
+    profile_id: profileId,
+  });
+  const span = logger.startSpan('command.model.refresh');
+
   const repository = getProviderProfileRepository();
   const profile = await repository.get(profileId);
   if (!profile) {
+    span.fail({ message: `Provider profile "${profileId}" not found.` });
     return {
       ok: false,
       error: createValidationError(`Provider profile "${profileId}" not found.`, { profileId }),
@@ -86,6 +109,7 @@ export async function refreshProfileModels(profileId: string): Promise<CommandRe
     const resolved = await getProviderConfigResolver().resolve(profileId);
     providerConfig = resolved.providerConfig;
   } catch (error) {
+    span.fail(error);
     return {
       ok: false,
       error: createValidationError(errorMessage(error, `Provider profile "${profileId}" validation failed.`), {
@@ -96,6 +120,7 @@ export async function refreshProfileModels(profileId: string): Promise<CommandRe
 
   const provider = getRuntime().providerRegistry.get(profile.providerId);
   if (!provider) {
+    span.fail({ message: `Provider implementation "${profile.providerId}" not found for profile "${profileId}".` });
     return {
       ok: false,
       error: createValidationError(
@@ -106,6 +131,7 @@ export async function refreshProfileModels(profileId: string): Promise<CommandRe
   }
 
   if (typeof provider.discoverModels !== 'function') {
+    span.fail({ message: `Provider implementation "${profile.providerId}" does not support model discovery.` });
     return {
       ok: false,
       error: createValidationError(
@@ -121,6 +147,7 @@ export async function refreshProfileModels(profileId: string): Promise<CommandRe
   } catch (error) {
     // Sanitize secret leakage: only forward `Error.message`, never raw error or
     // resolved config; the provider implementation owns "no secret in messages".
+    span.fail(error);
     return {
       ok: false,
       error: createProviderError(errorMessage(error, `Model discovery failed for profile "${profileId}".`), {
@@ -138,6 +165,7 @@ export async function refreshProfileModels(profileId: string): Promise<CommandRe
   try {
     await repository.save(updated);
   } catch (error) {
+    span.fail(error);
     return {
       ok: false,
       error: createProviderError(
@@ -147,5 +175,6 @@ export async function refreshProfileModels(profileId: string): Promise<CommandRe
     };
   }
 
+  span.finish({ count: models.length });
   return { ok: true, value: models };
 }

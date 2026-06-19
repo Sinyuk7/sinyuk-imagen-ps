@@ -20,8 +20,9 @@ export interface Runtime {
    * 提交并执行一个 workflow。
    *
    * 执行流程：submitJob → emit created → executeWorkflow → emit completed/failed。
+   * 可选 `options.logger` 覆盖默认 runtime logger，用于 per-command trace 传播。
    */
-  runWorkflow(workflowName: string, input: JobInput): Promise<Job>;
+  runWorkflow(workflowName: string, input: JobInput, options?: RunWorkflowOptions): Promise<Job>;
 
   /** Job store（读取与创建）。 */
   store: JobStore;
@@ -129,8 +130,8 @@ export function createRuntime(options?: RuntimeOptions): Runtime {
   const runtimeLogger = options?.logger ?? createNullLogger();
 
   const runtime: Runtime = {
-    async runWorkflow(workflowName: string, input: JobInput): Promise<Job> {
-      return runWorkflow(workflowName, input, { store, controller, registry, dispatcher, events }, { logger: runtimeLogger });
+    async runWorkflow(workflowName: string, input: JobInput, options?: RunWorkflowOptions): Promise<Job> {
+      return runWorkflow(workflowName, input, { store, controller, registry, dispatcher, events }, { logger: options?.logger ?? runtimeLogger });
     },
     store,
     events,

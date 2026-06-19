@@ -6,6 +6,7 @@
 
 import type { Job, JobError } from '@imagen-ps/core-engine';
 import { createRuntimeError } from '@imagen-ps/core-engine';
+import { generateTraceId } from '@imagen-ps/foundation';
 import { flushJobHistoryForTerminalJob, getRuntime, getRuntimeLogger } from '../runtime.js';
 import type { CommandResult, SubmitJobInput } from './types.js';
 
@@ -91,6 +92,7 @@ function hasExplicitProvider(params: Record<string, unknown>): boolean {
 export async function submitJob(input: SubmitJobInput): Promise<CommandResult<Job>> {
   const runtime = getRuntime();
   const commandLogger = getRuntimeLogger().child({
+    trace_id: generateTraceId(),
     package: 'application',
     component: 'command',
     workflow: input.workflow,
@@ -108,7 +110,7 @@ export async function submitJob(input: SubmitJobInput): Promise<CommandResult<Jo
       ...(needsProfileDispatch ? { provider: 'profile' } : {}),
       [WORKFLOW_NAME_KEY]: input.workflow,
     };
-    const job = await runtime.runWorkflow(input.workflow, enrichedInput);
+    const job = await runtime.runWorkflow(input.workflow, enrichedInput, { logger: commandLogger });
     await flushJobHistoryForTerminalJob(job);
     span.finish();
     return { ok: true, value: job };

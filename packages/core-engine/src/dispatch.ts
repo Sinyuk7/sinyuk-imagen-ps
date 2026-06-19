@@ -142,7 +142,7 @@ export function createProviderDispatcher(
   }
 
   return {
-    async dispatch(ref: ProviderRef): Promise<unknown> {
+    async dispatch(ref: ProviderRef, context?: { readonly logger?: Logger }): Promise<unknown> {
       const normalizedRef = normalizeProviderRef(ref);
       const adapter = adapterMap.get(normalizedRef.provider);
       if (!adapter) {
@@ -151,7 +151,7 @@ export function createProviderDispatcher(
         });
       }
 
-      const dispatchLogger = dispatcherLogger.child({
+      const dispatchLogger = (context?.logger ?? dispatcherLogger).child({
         package: 'core-engine',
         component: 'dispatch',
         provider_id: normalizedRef.provider,
@@ -159,7 +159,7 @@ export function createProviderDispatcher(
       const span = dispatchLogger.startSpan('dispatch.provider');
 
       try {
-        const result = await adapter.dispatch(normalizedRef.params);
+        const result = await adapter.dispatch(normalizedRef.params, context);
         assertSerializable(result);
         if (typeof result === 'object' && result !== null) {
           // 先做浅拷贝切断与 adapter 内部状态的引用，再递归 freeze
@@ -181,6 +181,10 @@ export function createProviderDispatcher(
 /**
  * 通过抽象 dispatcher 执行一次 provider 调用。
  */
-export async function dispatchProvider(dispatcher: ProviderDispatcher, ref: ProviderRef): Promise<unknown> {
-  return dispatcher.dispatch(ref);
+export async function dispatchProvider(
+  dispatcher: ProviderDispatcher,
+  ref: ProviderRef,
+  context?: { readonly logger?: Logger },
+): Promise<unknown> {
+  return dispatcher.dispatch(ref, context);
 }

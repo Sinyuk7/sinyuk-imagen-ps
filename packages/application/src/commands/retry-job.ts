@@ -4,6 +4,7 @@
 
 import type { Job } from '@imagen-ps/core-engine';
 import { createValidationError } from '@imagen-ps/core-engine';
+import { generateTraceId } from '@imagen-ps/foundation';
 import { flushJobHistoryForTerminalJob, getJobHistoryStore, getRuntime, getRuntimeLogger } from '../runtime.js';
 import type { CommandResult } from './types.js';
 import { toJobError, WORKFLOW_NAME_KEY } from './submit-job.js';
@@ -18,6 +19,7 @@ interface RetrySource {
 /** 重试指定 job，用相同输入创建新任务 */
 export async function retryJob(jobId: string): Promise<CommandResult<Job>> {
   const commandLogger = getRuntimeLogger().child({
+    trace_id: generateTraceId(),
     package: 'application',
     component: 'command',
   });
@@ -50,7 +52,7 @@ export async function retryJob(jobId: string): Promise<CommandResult<Job>> {
     const newJob = await runtime.runWorkflow(source.workflowName, {
       ...source.input,
       [WORKFLOW_NAME_KEY]: source.workflowName,
-    });
+    }, { logger: commandLogger });
     await flushJobHistoryForTerminalJob(newJob, {
       ...(source.originJobId !== undefined ? { originJobId: source.originJobId } : {}),
       ...(source.retryAttempt !== undefined ? { retryAttempt: source.retryAttempt } : {}),

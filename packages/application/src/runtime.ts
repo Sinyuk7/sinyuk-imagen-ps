@@ -376,7 +376,8 @@ function createProfileAwareDispatchAdapter(logger?: Logger): ReturnType<typeof c
   return {
     provider: 'profile',
 
-    async dispatch(params: Record<string, unknown>): Promise<unknown> {
+    async dispatch(params: Record<string, unknown>, context?: { readonly logger?: Logger }): Promise<unknown> {
+      const dispatchLogger = context?.logger ?? logger;
       const profileId = resolveProfileId(params);
       if (profileId === undefined || profileId.trim().length === 0) {
         throw new Error('Provider profile dispatch requires a non-empty providerProfileId or profileId.');
@@ -408,8 +409,8 @@ function createProfileAwareDispatchAdapter(logger?: Logger): ReturnType<typeof c
       const resolvedParams =
         typeof defaultModel === 'string' && defaultModel.length > 0 ? injectDefaultModel(params, defaultModel) : params;
 
-      const adapter = createDispatchAdapter({ provider, config: providerConfig, logger });
-      return adapter.dispatch(resolvedParams);
+      const adapter = createDispatchAdapter({ provider, config: providerConfig, logger: dispatchLogger });
+      return adapter.dispatch(resolvedParams, context);
     },
   };
 }

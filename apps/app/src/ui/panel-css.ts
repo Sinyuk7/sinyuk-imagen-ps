@@ -16,6 +16,11 @@ export const PANEL_CSS = `
   --eo:cubic-bezier(.2,0,0,1); --tmi:80ms; --tsh:160ms;
 }
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
+button,input,textarea,select{
+  -webkit-appearance:none; appearance:none;
+  font:inherit; color:inherit;
+}
+button{ border:0; background:transparent; }
 html,body{
   min-height:100vh; background:#060A0F;
   display:flex; align-items:center; justify-content:center;
@@ -32,7 +37,7 @@ html,body{
 }
 
 /* Pages */
-.page{ position:absolute; inset:0; display:flex; flex-direction:column; background:var(--bg); }
+.page{ position:absolute; top:0; right:0; bottom:0; left:0; display:flex; flex-direction:column; background:var(--bg); }
 .page-enter{ animation:pgIn var(--tsh) var(--eo) both; }
 @keyframes pgIn{ from{opacity:0;transform:translateX(14px)} to{opacity:1;transform:none} }
 
@@ -48,7 +53,10 @@ html,body{
   transition:background var(--tmi),color var(--tmi);
 }
 .hdr-btn:hover{ background:var(--hv); color:var(--tx); }
-.hdr-center{ flex:1; display:flex; flex-direction:column; align-items:center; gap:1px; }
+.hdr-center{
+  flex:1; min-width:0; display:flex; flex-direction:column; align-items:center; gap:1px;
+  padding:0; border:none; background:transparent; color:inherit; cursor:pointer; outline:none;
+}
 .hdr-provider{ font-family:var(--fM); font-size:10px; color:var(--txd); letter-spacing:.4px; }
 .hdr-model{ font-family:var(--fM); font-size:12px; font-weight:500; color:var(--pr); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; max-width:200px; }
 .hdr-title{ flex:1; font-family:var(--fD); font-size:14px; font-weight:600; color:var(--tx); text-align:center; }
@@ -90,7 +98,7 @@ html,body{
 }
 .bimg-bg{ width:100%; height:100%; }
 .bimg-count{
-  position:absolute; inset:0; background:rgba(0,0,0,.6);
+  position:absolute; top:0; right:0; bottom:0; left:0; background:rgba(0,0,0,.6);
   display:flex; align-items:center; justify-content:center;
   font-family:var(--fM); font-size:12px; font-weight:600; color:#fff;
 }
@@ -137,7 +145,7 @@ html,body{
 .img-result{ width:100%; height:160px; position:relative; cursor:pointer; }
 .img-bg{ width:100%; height:100%; display:block; }
 .img-overlay{
-  position:absolute; inset:0;
+  position:absolute; top:0; right:0; bottom:0; left:0;
   background:linear-gradient(to top,rgba(7,10,15,.9) 0%,transparent 55%);
   opacity:0; transition:opacity var(--tmi);
   display:flex; align-items:flex-end; padding:8px; gap:5px;
@@ -308,16 +316,17 @@ html,body{
 
 /* Composer inner */
 .cmp-inner{
-  background:var(--s2); border:1px solid var(--bd); border-radius:var(--rxl);
+  width:100%; background:var(--s2); border:1px solid var(--bd); border-radius:var(--rxl);
   padding:9px 12px; display:flex; flex-direction:column; gap:8px;
   transition:border-color var(--tsh),opacity var(--tsh);
 }
 .cmp-inner:focus-within{ border-color:var(--bd2); }
 .cmp-inner.off{ opacity:.38; pointer-events:none; }
 .cmp-ta{
-  background:transparent; border:none; outline:none;
+  display:block; appearance:none; -webkit-appearance:none;
+  background:transparent; background-color:transparent; border:none; outline:none; box-shadow:none;
   color:var(--tx); font-family:var(--fB); font-size:13px; line-height:18px;
-  resize:none; min-height:34px; max-height:72px; overflow-y:auto;
+  resize:none; min-height:34px; max-height:72px; overflow-y:auto; padding:0;
   scrollbar-width:thin; width:100%;
 }
 .cmp-ta::placeholder{ color:var(--txd); }
@@ -367,7 +376,7 @@ html,body{
 
 /* Compare Lightbox */
 .lightbox{
-  position:fixed; inset:0; background:rgba(0,0,0,.92); z-index:1000;
+  position:fixed; top:0; right:0; bottom:0; left:0; background:rgba(0,0,0,.92); z-index:1000;
   display:flex; align-items:center; justify-content:center;
   animation:pgIn var(--tsh) var(--eo) both;
 }
@@ -382,7 +391,7 @@ html,body{
   position:relative; width:500px; height:500px; border-radius:var(--rmd);
   overflow:hidden; user-select:none; border:1px solid var(--bd);
 }
-.cmp-layer{ position:absolute; inset:0; }
+.cmp-layer{ position:absolute; top:0; right:0; bottom:0; left:0; }
 .cmp-divider{
   position:absolute; top:0; bottom:0; width:2px;
   background:rgba(255,255,255,.9); transform:translateX(-50%);

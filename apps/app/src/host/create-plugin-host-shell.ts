@@ -4,6 +4,7 @@ import {
   setProviderProfileRepository,
   setSecretStorageAdapter,
   configureRuntimeLogging,
+  getRuntimeLogger,
 } from '@imagen-ps/application';
 import { createCompositeSink, createConsoleSink } from '@imagen-ps/foundation';
 import { createCommandsAdapter } from '../app-services/commands-port';
@@ -26,10 +27,6 @@ export interface PluginHostShell {
 
 export function createPluginHostShell(): PluginHostShell {
   const uxpModules = resolveUxpModules();
-  const profileRepository = createUxpProviderProfileRepository(uxpModules);
-  const secretStorage = createUxpSecretStorageAdapter(uxpModules);
-  const jobHistoryStore = createUxpJobHistoryStore(uxpModules);
-  const assetStore = createUxpAssetStore(uxpModules);
 
   // UXP 日志：data-folder 持久化 + console 即时镜像。
   // 两者与 CLI 共享同一套 foundation 日志格式与语义，只有 sink 不同。
@@ -41,18 +38,44 @@ export function createPluginHostShell(): PluginHostShell {
     'uxp',
   );
 
-  setProviderProfileRepository(profileRepository);
-  setSecretStorageAdapter(secretStorage);
-  setJobHistoryStore(jobHistoryStore);
-  setAssetStore(assetStore);
+  const logger = getRuntimeLogger().child({ package: 'app', component: 'host' });
+  const span = logger.startSpan('panel.startup');
 
-  return {
-    kind: 'photoshop-uxp',
-    app: createPluginAppModel(),
-    locale: normalizeLocale(uxpModules.uxp?.host?.uiLocale),
-    services: {
-      commands: createCommandsAdapter(),
-      host: createPhotoshopHostBridge(uxpModules),
-    },
-  };
+  try {
+    const profileRepository = createUxpProviderProfileRepository(uxpModules);
+    const secretStorage = createUxpSecretStorageAdapter(uxpModules);
+    const jobHistoryStore = createUxpJobHistoryStore(uxpModules);
+    const assetStore = createUxpAssetStore(uxpModules);
+
+    logger.info('panel.adapters.initialized', {
+      hasProfileRepository: true,
+      hasSecretStorage: true,
+      hasJobHistoryStore: true,
+      hasAssetStore: true,
+    });
+
+    setProviderProfileRepository(profileRepository);
+    setSecretStorageAdapter(secretStorage);
+    setJobHistoryStore(jobHistoryStore);
+    setAssetStore(assetStore);
+
+    const hostBridge = createPhotoshopHostBridge(uxpModules, { logger: logger.child({ component: 'host' }) });
+
+    span.finish();
+    logger.info('panel.startup.complete');
+
+    return {
+      kind: 'photoshop-uxp',
+      app: createPluginAppModel(),
+      locale: normalizeLocale(uxpModules.uxp?.host?.uiLocale),
+      services: {
+        commands: createCommandsAdapter(),
+        host: hostBridge,
+      },
+    };
+  } catch (error) {
+    span.fail(error);
+    logger.error('panel.startup.failed');
+    throw error;
+  }
 }
