@@ -4,7 +4,7 @@ import {
   setProviderProfileRepository,
   setSecretStorageAdapter,
 } from '../runtime.js';
-import { saveProviderProfile } from './provider-profiles.js';
+import { saveProviderProfile, testProviderProfile } from './provider-profiles.js';
 import type { ProviderProfile, ProviderProfileRepository, SecretStorageAdapter } from './types.js';
 
 function createProfileRepository(): {
@@ -114,5 +114,26 @@ describe('provider profile alias contract', () => {
     }
     expect(JSON.stringify(profiles)).toBe(before);
     expect(secrets.has('secret:provider-profile:profile-b:apiKey')).toBe(false);
+  });
+
+  it('returns connectivity error details when discovery is unavailable', async () => {
+    _resetForTesting();
+    const { repository } = createProfileRepository();
+    const { adapter } = createSecretStorage();
+    setProviderProfileRepository(repository);
+    setSecretStorageAdapter(adapter);
+
+    const saved = await saveProviderProfile(mockProfileInput('profile-a', 'Mock Endpoint', 'mock-image-v1', 'key-a'));
+    expect(saved.ok).toBe(true);
+
+    const result = await testProviderProfile('profile-a', { connect: true });
+
+    expect(result.ok).toBe(true);
+    if (result.ok) {
+      expect(result.value.connectivity).toMatchObject({
+        reachable: false,
+        errorMessage: 'Provider implementation "mock" does not support model discovery.',
+      });
+    }
   });
 });

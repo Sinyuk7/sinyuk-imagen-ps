@@ -505,6 +505,24 @@ html,body{
 .test-btn:disabled{ opacity:.5; cursor:not-allowed; }
 .test-result{ display:flex; align-items:center; gap:8px; padding:8px 12px; border-radius:var(--rsm); font-size:12px; font-weight:500; }
 .test-result.ok{ background:var(--oks); color:var(--ok); }
+.status-notice{
+  display:grid; grid-template-columns:minmax(0,1fr) 28px; align-items:start; gap:8px;
+  padding:8px 10px; border-radius:var(--rsm); border:1px solid var(--bd);
+  background:var(--s2); color:var(--txm);
+}
+.status-notice.success{ border-color:var(--oks); background:var(--oks); color:var(--ok); }
+.status-notice.warning{ border-color:var(--was); background:var(--was); color:var(--wa); }
+.status-notice.error{ border-color:var(--ers); background:var(--ers); color:var(--er); }
+.status-message{
+  min-width:0; white-space:pre-wrap; word-break:break-word; overflow-wrap:anywhere;
+  font-family:var(--fM); font-size:11px; line-height:16px; user-select:text; -webkit-user-select:text;
+}
+.status-copy{
+  width:28px; height:28px; border-radius:var(--rsm); color:currentColor; cursor:pointer;
+  display:flex; align-items:center; justify-content:center; opacity:.8;
+}
+.status-copy:hover{ background:var(--hv); opacity:1; }
+.status-copy.cp{ color:var(--ok); }
 .det-footer{ flex-shrink:0; padding:12px 16px; border-top:1px solid var(--bd); display:flex; gap:8px; background:var(--bg); }
 .btn-save{ flex:1; padding:10px; border-radius:var(--rmd); border:none; background:var(--pr); color:var(--txi); font-family:var(--fB); font-size:13px; font-weight:600; cursor:pointer; transition:all var(--tmi) var(--eo); }
 .btn-save:hover{ background:var(--prh); }

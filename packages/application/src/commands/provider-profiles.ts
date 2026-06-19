@@ -343,13 +343,19 @@ export async function testProviderProfile(
     // Layer 2：connect
     if (options.connect === true || options.generate === true) {
       if (typeof provider.discoverModels !== 'function') {
-        result.connectivity = { reachable: false };
+        result.connectivity = {
+          reachable: false,
+          errorMessage: `Provider implementation "${profile.providerId}" does not support model discovery.`,
+        };
       } else {
         try {
           const models = await provider.discoverModels(resolved.providerConfig);
           result.connectivity = { reachable: true, modelCount: models.length, models };
-        } catch {
-          result.connectivity = { reachable: false };
+        } catch (error) {
+          result.connectivity = {
+            reachable: false,
+            errorMessage: errorMessage(error, `Model discovery failed for profile "${profileId}".`),
+          };
         }
       }
     }
@@ -382,6 +388,7 @@ export async function testProviderProfile(
       providerId: result.providerId,
       family: result.family,
       ...(result.connectivity ? { reachable: result.connectivity.reachable } : {}),
+      ...(result.connectivity?.errorMessage ? { connectivityError: result.connectivity.errorMessage } : {}),
       ...(result.smokeTest ? { smokePassed: result.smokeTest.passed } : {}),
     });
     return { ok: true, value: result };

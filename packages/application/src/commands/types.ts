@@ -184,6 +184,8 @@ export interface ProviderProfileTestResult {
     readonly reachable: boolean;
     readonly modelCount?: number;
     readonly models?: readonly ProviderModelInfo[];
+    /** 连通性失败时的安全错误摘要，不包含 resolved secret-bearing config。 */
+    readonly errorMessage?: string;
   };
   /** Layer 3：generate 烟雾测试结果，仅在 options.generate 且 connect 成功时存在。 */
   readonly smokeTest?: {

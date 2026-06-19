@@ -53,7 +53,7 @@ export interface ProfileModelsState {
   readonly loading: boolean;
   readonly error: string | null;
   readonly reload: () => Promise<void>;
-  readonly refresh: () => Promise<void>;
+  readonly refresh: () => Promise<readonly ProviderModelInfo[]>;
 }
 
 export function useProfileModels(services: AppServices, profileId: string | null): ProfileModelsState {
@@ -80,19 +80,24 @@ export function useProfileModels(services: AppServices, profileId: string | null
     setLoading(false);
   }, [profileId, services]);
 
-  const refresh = useCallback(async () => {
+  const refresh = useCallback(async (): Promise<readonly ProviderModelInfo[]> => {
     if (!profileId) {
-      return;
+      return [];
     }
     setLoading(true);
-    const result = await services.commands.refreshProfileModels(profileId);
-    if (result.ok) {
-      setModels(result.value);
-      setError(null);
-    } else {
-      setError(commandMessage(result.error));
+    try {
+      const result = await services.commands.refreshProfileModels(profileId);
+      if (result.ok) {
+        setModels(result.value);
+        setError(null);
+        return result.value;
+      }
+      const message = commandMessage(result.error);
+      setError(message);
+      throw new Error(message);
+    } finally {
+      setLoading(false);
     }
-    setLoading(false);
   }, [profileId, services]);
 
   useEffect(() => {

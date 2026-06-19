@@ -107,6 +107,30 @@ describe('image-endpoint provider', () => {
     ).toEqual(['gpt-image-2', 'dall-e-3']);
   });
 
+  it('omits undefined AbortSignal from fetch options for UXP compatibility', async () => {
+    const fetchSpy = vi.spyOn(globalThis, 'fetch').mockResolvedValue(
+      new Response(JSON.stringify({ object: 'list', data: [{ id: 'gpt-image-2' }] }), {
+        status: 200,
+        headers: { 'Content-Type': 'application/json' },
+      }),
+    );
+    const provider = createImageEndpointProvider();
+    const config = provider.validateConfig({
+      providerId: 'image-endpoint',
+      displayName: 'Image Endpoint',
+      family: 'image-endpoint',
+      baseURL: 'https://api.example.com',
+      apiKey: 'test-key',
+    });
+
+    await provider.discoverModels(config);
+
+    const init = fetchSpy.mock.calls[0]?.[1] as RequestInit | undefined;
+    expect(init).toBeDefined();
+    expect(Object.prototype.hasOwnProperty.call(init, 'signal')).toBe(false);
+    fetchSpy.mockRestore();
+  });
+
   it('invokes generation endpoint through fetch', async () => {
     const fetchSpy = vi.spyOn(globalThis, 'fetch').mockResolvedValue(
       new Response(JSON.stringify({ data: [{ url: 'https://example.com/out.png' }] }), {

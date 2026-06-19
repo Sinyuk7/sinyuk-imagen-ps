@@ -3,7 +3,9 @@ import type { ProviderProfile } from '@imagen-ps/application';
 import { useAppServices } from '../../app-services/app-services-context';
 import { providerConfigFromForm, useProviderCatalog } from '../hooks/use-provider-settings';
 import { SI } from '../components/icons';
+import { StatusNotice } from '../components/status-notice';
 import { useI18n } from '../i18n/i18n-context';
+import { statusFromProviderTestResult, type ProviderStatus } from '../provider-status';
 
 interface SettingsAddPageProps {
   readonly onNav: (view: string) => void;
@@ -46,7 +48,7 @@ export function SettingsAddPage({ onNav, profiles, onProfileSaved }: SettingsAdd
   const [apiKey, setApiKey] = useState('');
   const [defaultModel, setDefaultModel] = useState('');
   const [showKey, setShowKey] = useState(false);
-  const [status, setStatus] = useState<string | null>(null);
+  const [status, setStatus] = useState<ProviderStatus | null>(null);
   const [busy, setBusy] = useState(false);
   const selected = useMemo(() => providers.find((provider) => provider.id === providerId), [providerId, providers]);
 
@@ -77,7 +79,7 @@ export function SettingsAddPage({ onNav, profiles, onProfileSaved }: SettingsAdd
       const profileId = await saveProfile();
       await onProfileSaved(profileId);
     } catch (error) {
-      setStatus(error instanceof Error ? error.message : String(error));
+      setStatus({ tone: 'error', message: error instanceof Error ? error.message : String(error) });
     } finally {
       setBusy(false);
     }
@@ -92,10 +94,9 @@ export function SettingsAddPage({ onNav, profiles, onProfileSaved }: SettingsAdd
       if (!result.ok) {
         throw new Error(`${result.error.category}: ${result.error.message}`);
       }
-      const reachable = result.value.connectivity?.reachable;
-      setStatus(reachable === false ? t.settings.configValidProviderNoModels : t.settings.testSuccess);
+      setStatus(statusFromProviderTestResult(result.value, t));
     } catch (error) {
-      setStatus(error instanceof Error ? error.message : String(error));
+      setStatus({ tone: 'error', message: error instanceof Error ? error.message : String(error) });
     } finally {
       setBusy(false);
     }
@@ -185,7 +186,7 @@ export function SettingsAddPage({ onNav, profiles, onProfileSaved }: SettingsAdd
                   : t.settings.testConnection
                 }
               </button>
-              {status && <div className={status.includes(':') ? 'test-result err' : 'test-result ok'}>{status}</div>}
+              {status && <StatusNotice tone={status.tone} message={status.message} />}
             </div>
           </div>
         )}

@@ -86,6 +86,7 @@ export interface AppMessages {
     readonly testingConnection: string;
     readonly saved: string;
     readonly testSuccess: string;
+    readonly connectionFailed: string;
     readonly configValidNoModels: string;
     readonly configValidProviderNoModels: string;
     readonly selectProviderType: string;
@@ -192,6 +193,7 @@ const EN_MESSAGES: AppMessages = {
     testingConnection: 'Testing...',
     saved: 'Saved',
     testSuccess: 'Connected',
+    connectionFailed: 'Connection failed',
     configValidNoModels: 'Configuration is valid; no model list found',
     configValidProviderNoModels: 'Configuration is valid; this provider returned no available model list',
     selectProviderType: 'Choose a Provider type',
@@ -298,6 +300,7 @@ const ZH_CN_MESSAGES: AppMessages = {
     testingConnection: '测试中...',
     saved: '已保存',
     testSuccess: '连接成功',
+    connectionFailed: '连接失败',
     configValidNoModels: '配置有效；未发现模型列表',
     configValidProviderNoModels: '配置有效；该 provider 未返回可用模型列表',
     selectProviderType: '请选择 Provider 类型',

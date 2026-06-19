@@ -58,7 +58,7 @@ async function fetchOnce(args: HttpRequest, signal?: AbortSignal): Promise<HttpR
     const multipartBlob = isMultipartBlob
       ? (body as { readonly body: Blob; readonly contentType: string })
       : undefined;
-    const response = await fetch(url, {
+    const init: RequestInit = {
       method,
       headers: {
         ...(multipartBlob
@@ -76,8 +76,12 @@ async function fetchOnce(args: HttpRequest, signal?: AbortSignal): Promise<HttpR
               ? body
               : JSON.stringify(body)
           : undefined,
-      signal: mergedSignal,
-    });
+    };
+    if (mergedSignal !== undefined) {
+      init.signal = mergedSignal;
+    }
+
+    const response = await fetch(url, init);
 
     let data: unknown;
     const contentType = response.headers.get('content-type') ?? '';

@@ -3,7 +3,9 @@ import type { ProviderProfile } from '@imagen-ps/application';
 import { useAppServices } from '../../app-services/app-services-context';
 import { providerConfigFromForm, useProfileDetail, useProfileModels } from '../hooks/use-provider-settings';
 import { SI } from '../components/icons';
+import { StatusNotice } from '../components/status-notice';
 import { useI18n } from '../i18n/i18n-context';
+import { statusFromProviderTestResult, type ProviderStatus } from '../provider-status';
 
 interface SettingsDetailPageProps {
   readonly onNav: (view: string) => void;
@@ -27,7 +29,7 @@ export function SettingsDetailPage({ onNav, profileId, onProfilesChanged }: Sett
   const [enabled, setEnabled] = useState(true);
   const [apiKey, setApiKey] = useState('');
   const [showKey, setShowKey] = useState(false);
-  const [status, setStatus] = useState<string | null>(null);
+  const [status, setStatus] = useState<ProviderStatus | null>(null);
   const [busy, setBusy] = useState(false);
 
   useEffect(() => {
@@ -41,35 +43,41 @@ export function SettingsDetailPage({ onNav, profileId, onProfilesChanged }: Sett
     setApiKey('');
   }, [detail.profile]);
 
-  const save = async () => {
+  const persistProfile = async (): Promise<ProviderProfile | null> => {
     if (!detail.profile) {
-      return;
+      return null;
     }
+    const family = String(detail.profile.config.family ?? detail.profile.providerId);
+    return detail.save({
+      profileId: detail.profile.profileId,
+      providerId: detail.profile.providerId,
+      displayName: displayName.trim() || detail.profile.displayName,
+      enabled,
+      config: {
+        ...detail.profile.config,
+        ...providerConfigFromForm(
+          detail.profile.providerId,
+          displayName.trim() || detail.profile.displayName,
+          family,
+          baseUrl.trim(),
+          defaultModel,
+        ),
+      },
+      ...(apiKey.trim() ? { secretValues: { apiKey: apiKey.trim() } } : {}),
+    });
+  };
+
+  const save = async () => {
     setBusy(true);
     setStatus(null);
     try {
-      const family = String(detail.profile.config.family ?? detail.profile.providerId);
-      const profile = await detail.save({
-        profileId: detail.profile.profileId,
-        providerId: detail.profile.providerId,
-        displayName: displayName.trim() || detail.profile.displayName,
-        enabled,
-        config: {
-          ...detail.profile.config,
-          ...providerConfigFromForm(
-            detail.profile.providerId,
-            displayName.trim() || detail.profile.displayName,
-            family,
-            baseUrl.trim(),
-            defaultModel,
-          ),
-        },
-        ...(apiKey.trim() ? { secretValues: { apiKey: apiKey.trim() } } : {}),
-      });
-      setStatus(t.settings.saved);
-      await onProfilesChanged(profile.profileId);
+      const profile = await persistProfile();
+      if (profile) {
+        setStatus({ tone: 'success', message: t.settings.saved });
+        await onProfilesChanged(profile.profileId);
+      }
     } catch (error) {
-      setStatus(error instanceof Error ? error.message : String(error));
+      setStatus({ tone: 'error', message: error instanceof Error ? error.message : String(error) });
     } finally {
       setBusy(false);
     }
@@ -79,14 +87,28 @@ export function SettingsDetailPage({ onNav, profileId, onProfilesChanged }: Sett
     setBusy(true);
     setStatus(null);
     try {
-      await save();
+      const profile = await persistProfile();
+      if (profile) {
+        await onProfilesChanged(profile.profileId);
+      }
       const result = await detail.test(true);
-      const reachable = result.connectivity?.reachable;
-      setStatus(reachable === false ? t.settings.configValidNoModels : t.settings.testSuccess);
+      setStatus(statusFromProviderTestResult(result, t));
     } catch (error) {
-      setStatus(error instanceof Error ? error.message : String(error));
+      setStatus({ tone: 'error', message: error instanceof Error ? error.message : String(error) });
     } finally {
       setBusy(false);
+    }
+  };
+
+  const refreshModels = async () => {
+    setStatus(null);
+    try {
+      const refreshed = await models.refresh();
+      if (refreshed.length === 0) {
+        setStatus({ tone: 'warning', message: t.settings.configValidProviderNoModels });
+      }
+    } catch (error) {
+      setStatus({ tone: 'error', message: error instanceof Error ? error.message : String(error) });
     }
   };
 
@@ -98,7 +120,7 @@ export function SettingsDetailPage({ onNav, profileId, onProfilesChanged }: Sett
       await onProfilesChanged(null);
       onNav('settings');
     } catch (error) {
-      setStatus(error instanceof Error ? error.message : String(error));
+      setStatus({ tone: 'error', message: error instanceof Error ? error.message : String(error) });
     } finally {
       setBusy(false);
     }
@@ -200,8 +222,8 @@ export function SettingsDetailPage({ onNav, profileId, onProfilesChanged }: Sett
                   onChange={(event) => setDefaultModel(event.target.value)}
                 />
               </div>
-              {models.error && <div className="field-hint" style={{ color: 'var(--wa)' }}>{models.error}</div>}
-              <button className="test-btn" style={{ marginTop: 10 }} disabled={models.loading || busy} onClick={() => void models.refresh()}>
+              {models.error && <StatusNotice tone="error" message={models.error} />}
+              <button className="test-btn" style={{ marginTop: 10 }} disabled={models.loading || busy} onClick={() => void refreshModels()}>
                 {models.loading ? t.settings.refreshingModels : t.settings.refreshModels}
               </button>
             </div>
@@ -213,7 +235,7 @@ export function SettingsDetailPage({ onNav, profileId, onProfilesChanged }: Sett
                   : <><SI d="M5 12h14M12 5l7 7-7 7" /> {t.settings.testConnection}</>
                 }
               </button>
-              {status && <div className={status.includes(':') ? 'test-result err' : 'test-result ok'}>{status}</div>}
+              {status && <StatusNotice tone={status.tone} message={status.message} />}
             </div>
           </>
         )}
