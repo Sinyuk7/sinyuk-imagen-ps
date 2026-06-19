@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { SI } from './icons';
+import { Icon } from './icons';
 
 export type StatusTone = 'success' | 'warning' | 'error' | 'info';
 
@@ -58,7 +58,7 @@ export function StatusNotice({ tone, message }: StatusNoticeProps) {
         aria-label="Copy status message"
         onClick={() => void handleCopy()}
       >
-        <SI d={copied ? 'M20 6 9 17l-5-5' : ['M8 8h10a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2V10a2 2 0 0 1 2-2z', 'M16 8V6a2 2 0 0 0-2-2H6a2 2 0 0 0-2 2v8a2 2 0 0 0 2 2h2']} />
+        <Icon name={copied ? 'check' : 'copy'} />
       </button>
     </div>
   );

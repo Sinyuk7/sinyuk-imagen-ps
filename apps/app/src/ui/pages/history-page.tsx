@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react';
 import type { DurableJobRecord } from '@imagen-ps/application';
 import type { ConversationRound, RoundStatus } from '../hooks/use-conversation';
-import { SI } from '../components/icons';
+import { Icon } from '../components/icons';
 import { useI18n } from '../i18n/i18n-context';
 
 const STATUS_COLOR: Record<RoundStatus, string> = { ok: 'var(--ok)', running: 'var(--wa)', err: 'var(--er)' };
@@ -106,11 +106,11 @@ export function HistoryPage({ onNav, rounds, records, loading, error, onReload, 
     <div className="page page-enter">
       <header className="hdr">
         <button className="hdr-btn" onClick={() => onNav('main')}>
-          <SI d="m15 18-6-6 6-6" />
+          <Icon name="chevron-left" />
         </button>
         <div className="hdr-title">{t.history.title}</div>
         <button className="hdr-btn" onClick={() => { void onReload(); }}>
-          <SI d="M21 12a9 9 0 1 1-2.64-6.36M21 3v6h-6" />
+          <Icon name="refresh" />
         </button>
       </header>
       <div className="filter-bar">
@@ -131,9 +131,9 @@ export function HistoryPage({ onNav, rounds, records, loading, error, onReload, 
                 {item.previewUrl
                   ? <img src={item.previewUrl} style={{ width: '100%', height: '100%', objectFit: 'cover', borderRadius: 'inherit' }} alt="" />
                   : item.status === 'running'
-                    ? <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--wa)" strokeWidth="1.5" className="spin"><path d="M21 12a9 9 0 1 1-9-9" /></svg>
+                    ? <Icon name="spinner" size={14} className="spin" />
                     : item.status === 'err'
-                      ? <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--er)" strokeWidth="1.5"><circle cx="12" cy="12" r="10" /><path d="m15 9-6 6M9 9l6 6" /></svg>
+                      ? <Icon name="error" size={14} />
                       : <div style={{ width: '100%', height: '100%', background: 'var(--s2)', borderRadius: 'inherit' }} />
                 }
               </div>

@@ -1,5 +1,5 @@
 import { useState, useRef, useCallback } from 'react';
-import { SI } from './icons';
+import { Icon } from './icons';
 import { useI18n } from '../i18n/i18n-context';
 
 interface CompareSliderProps {
@@ -39,9 +39,7 @@ export function CompareSlider({ gradA, gradB, onClose, onPlace, onDownload }: Co
           <div className="cmp-layer" style={{ background: gradA, clipPath: `inset(0 ${100 - split}% 0 0)` }} />
           <div className="cmp-divider" style={{ left: `${split}%` }}>
             <div className="cmp-handle">
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#444" strokeWidth="2">
-                <path d="M8 9l-3 3 3 3M16 9l3 3-3 3" />
-              </svg>
+              <Icon name="compare-handle" size={16} />
             </div>
           </div>
           <div className="cmp-lbl" style={{ left: 10 }}>{t.main.referenceImage}</div>
@@ -49,11 +47,11 @@ export function CompareSlider({ gradA, gradB, onClose, onPlace, onDownload }: Co
         </div>
         <div className="lb-actions">
           <button className="lb-btn prim" onClick={onPlace}>
-            <SI d={["M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z", "M17 21V13H7v8", "M7 3v5h8"]} />
+            <Icon name="place-ps" />
             {t.main.placePsLong}
           </button>
           <button className="lb-btn sec" onClick={onDownload}>
-            <SI d={["M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4", "M7 10l5 5 5-5", "M12 15V3"]} />
+            <Icon name="download" />
             {t.main.download}
           </button>
         </div>

@@ -1,6 +1,6 @@
 import type { ProviderProfile } from '@imagen-ps/application';
 import { profileToProviderRow } from '../../app-services/mappers';
-import { SI } from '../components/icons';
+import { Icon } from '../components/icons';
 import { useI18n } from '../i18n/i18n-context';
 
 interface SettingsPageProps {
@@ -29,15 +29,15 @@ export function SettingsPage({ onNav, profiles, loading, error, onReload, onOpen
     <div className="page page-enter">
       <header className="hdr">
         <button className="hdr-btn" onClick={() => onNav('main')}>
-          <SI d="m15 18-6-6 6-6" />
+          <Icon name="chevron-left" />
         </button>
         <div className="hdr-title">Providers</div>
         <button className="hdr-btn tt-wrap" title={t.common.refresh} onClick={() => void onReload()}>
-          <SI d={['M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8', 'M21 3v5h-5']} w={2.2} />
+          <Icon name="refresh" />
           <div className="tt">{t.common.refresh}</div>
         </button>
         <button className="hdr-btn tt-wrap" title={t.common.addProvider} onClick={() => onNav('settings-add')}>
-          <SI d="M12 5v14M5 12h14" w={2.5} />
+          <Icon name="add" />
           <div className="tt">{t.common.addProvider}</div>
         </button>
       </header>
@@ -68,7 +68,7 @@ export function SettingsPage({ onNav, profiles, loading, error, onReload, onOpen
               <div className="cdot f" />
               <div className={row.defaultModel ? 'cdot f' : 'cdot w'} />
             </div>
-            <SI d="m9 18 6-6-6-6" style={{ color: 'var(--txd)', flexShrink: 0 }} />
+            <Icon name="chevron-right" />
           </div>
         ))}
         <div style={{ flex: 1 }} />

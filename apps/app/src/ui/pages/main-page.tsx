@@ -8,7 +8,7 @@ import type {
   ConversationController,
   ConversationRound,
 } from '../hooks/use-conversation';
-import { SI } from '../components/icons';
+import { Icon } from '../components/icons';
 import { Tip } from '../components/tip';
 import { useI18n } from '../i18n/i18n-context';
 
@@ -197,7 +197,7 @@ export function MainPage({
       <header className="hdr">
         <Tip label={t.main.history}>
           <button className="hdr-btn" onClick={(event) => { event.stopPropagation(); onNav('history'); }}>
-            <SI d={['M12 8v4l3 3', 'M3.05 11a9 9 0 1 1 .5 4', 'M3 16v-5h5']} />
+            <Icon name="history" />
           </button>
         </Tip>
         <button
@@ -214,7 +214,7 @@ export function MainPage({
         </button>
         <Tip label="Providers" right>
           <button className="hdr-btn" onClick={(event) => { event.stopPropagation(); onNav('settings'); }}>
-            <SI d={['M12 2v2m0 16v2m10-10h-2M4 12H2', 'M12 9a3 3 0 1 0 0 6 3 3 0 0 0 0-6z']} />
+            <Icon name="settings" />
           </button>
         </Tip>
       </header>
@@ -235,7 +235,7 @@ export function MainPage({
                 setProfileMenuOpen(false);
               }}
             >
-              {profile.profileId === selectedProfileId && <SI d="M20 6 9 17l-5-5" w={2.5} />}
+              {profile.profileId === selectedProfileId && <Icon name="check" />}
               <span>{profile.displayName}</span>
             </div>
           ))}
@@ -292,8 +292,8 @@ export function MainPage({
                         onClick={(event) => { event.stopPropagation(); handleCopy(round.id, round.prompt); }}
                       >
                         {copied[round.id]
-                          ? <SI d="M20 6 9 17l-5-5" w={2.5} />
-                          : <SI d={['M8 8a2 2 0 0 0-2 2v8a2 2 0 0 0 2 2h8a2 2 0 0 0 2-2v-8a2 2 0 0 0-2-2H8z', 'M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2']} />
+                          ? <Icon name="check" />
+                          : <Icon name="copy" />
                         }
                       </button>
                     </Tip>
@@ -356,7 +356,7 @@ export function MainPage({
                         <div className="img-meta">{round.outputSize ?? t.main.assetFallback} · {round.outputFormat ?? t.main.imageFallback}</div>
                         <div className="img-overlay">
                           <button className="img-act prim" onClick={(event) => { event.stopPropagation(); void placeAsset(round); }}>
-                            <SI d={['M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z', 'M17 21V13H7v8', 'M7 3v5h8']} />
+                            <Icon name="place-ps" />
                             {t.main.placePs}
                           </button>
                         </div>
@@ -365,17 +365,17 @@ export function MainPage({
                     <div className="prov-actions">
                       <Tip label={t.main.placePs}>
                         <button className="act-ico prim" onClick={(event) => { event.stopPropagation(); void placeAsset(round); }}>
-                          <SI d={['M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z', 'M17 21V13H7v8', 'M7 3v5h8']} />
+                          <Icon name="place-ps" />
                         </button>
                       </Tip>
                       <Tip label={t.main.regenerate}>
                         <button className="act-ico" onClick={(event) => { event.stopPropagation(); void conversation.retry(round.id); }}>
-                          <SI d={['M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8', 'M21 3v5h-5', 'M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16', 'M8 16H3v5']} />
+                          <Icon name="regenerate" />
                         </button>
                       </Tip>
                       <Tip label={t.main.copyPrompt}>
                         <button className="act-ico" onClick={(event) => { event.stopPropagation(); handleCopy(`${round.id}-copy`, round.prompt); }}>
-                          <SI d={['M8 8a2 2 0 0 0-2 2v8a2 2 0 0 0 2 2h8a2 2 0 0 0 2-2v-8a2 2 0 0 0-2-2H8z', 'M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2']} />
+                          <Icon name="copy" />
                         </button>
                       </Tip>
                     </div>
@@ -395,14 +395,14 @@ export function MainPage({
                 style={{ background: 'transparent', border: 'none', color: 'var(--txd)', cursor: 'pointer', display: 'flex', alignItems: 'center' }}
                 onClick={() => setLayerOpen(false)}
               >
-                <SI d="m15 18-6-6 6-6" sz={12} />
+                <Icon name="chevron-left" size={12} />
               </button>
               {t.main.psLayers}
               <button
                 style={{ marginLeft: 'auto', background: 'transparent', border: 'none', color: 'var(--txd)', cursor: 'pointer' }}
                 onClick={() => void reloadLayers()}
               >
-                <SI d={['M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8', 'M21 3v5h-5']} sz={12} />
+                <Icon name="refresh" size={12} />
               </button>
             </div>
             <div className="layer-scroll">
@@ -422,17 +422,17 @@ export function MainPage({
           <div className="attach-picker" onClick={(event) => event.stopPropagation()}>
             <div className="attach-opt" onClick={() => setLayerOpen(true)}>
               <div style={{ width: 28, height: 28, borderRadius: 'var(--rsm)', background: 'var(--s2)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--txm)' }}>
-                <SI d={['M1 6l11 7 11-7', 'M1 6v12a1 1 0 0 0 1 1h20a1 1 0 0 0 1-1V6']} sz={13} />
+                <Icon name="ps-layers" size={13} />
               </div>
               <div>
                 <div className="attach-opt-label">{t.main.choosePsLayer}</div>
                 <div className="attach-opt-sub">{t.main.layerCount(flatLayers.length)}</div>
               </div>
-              <SI d="m9 18 6-6-6-6" style={{ color: 'var(--txd)', marginLeft: 'auto' }} />
+              <Icon name="chevron-right" style={{ marginLeft: 'auto' }} />
             </div>
             <div className="attach-opt" onClick={() => void addFile()}>
               <div style={{ width: 28, height: 28, borderRadius: 'var(--rsm)', background: 'var(--s2)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--txm)' }}>
-                <SI d={['M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4', 'M17 8l-5-5-5 5', 'M12 3v12']} sz={13} />
+                <Icon name="upload" size={13} />
               </div>
               <div>
                 <div className="attach-opt-label">{t.main.uploadFromComputer}</div>
@@ -456,7 +456,7 @@ export function MainPage({
                   setModelMenuOpen(false);
                 }}
               >
-                {model.id === selectedModelId && <SI d="M20 6 9 17l-5-5" w={2.5} style={{ color: 'var(--pr)' }} />}
+                {model.id === selectedModelId && <Icon name="check" />}
                 <span>{modelLabel(model)}</span>
               </div>
             ))}
@@ -504,7 +504,7 @@ export function MainPage({
                   setProfileMenuOpen(false);
                 }}
               >
-                <SI d="M12 5v14M5 12h14" w={2.5} />
+                <Icon name="add" />
               </button>
             </Tip>
             <div
@@ -519,14 +519,14 @@ export function MainPage({
             >
               <span className="cmp-dot" />
               <span>{selectedModelLabel}</span>
-              <SI sz={9} d="m6 9 6 6 6-6" />
+              <Icon name="chevron-down" size={9} />
             </div>
             <div className="cmp-sp" />
             <div className="send-wrap">
               <button className="cmp-send" disabled={!canSend} onClick={() => void handleSend()} title={t.main.send}>
                 {conversation.running
-                  ? <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="spin"><path d="M21 12a9 9 0 1 1-9-9" /></svg>
-                  : <SI d={['M22 2 11 13', 'M22 2 15 22 11 13 2 9 22 2']} />
+                  ? <Icon name="spinner" size={13} className="spin" />
+                  : <Icon name="send" />
                 }
               </button>
             </div>

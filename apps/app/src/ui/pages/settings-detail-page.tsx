@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import type { ProviderProfile } from '@imagen-ps/application';
 import { useAppServices } from '../../app-services/app-services-context';
 import { providerConfigFromForm, useProfileDetail, useProfileModels } from '../hooks/use-provider-settings';
-import { SI } from '../components/icons';
+import { Icon } from '../components/icons';
 import { StatusNotice } from '../components/status-notice';
 import { useI18n } from '../i18n/i18n-context';
 import { statusFromProviderTestResult, type ProviderStatus } from '../provider-status';
@@ -131,7 +131,7 @@ export function SettingsDetailPage({ onNav, profileId, onProfilesChanged }: Sett
       <div className="page page-enter">
         <header className="hdr">
           <button className="hdr-btn" onClick={() => onNav('settings')}>
-            <SI d="m15 18-6-6 6-6" />
+            <Icon name="chevron-left" />
           </button>
           <div className="hdr-title">Provider</div>
           <div style={{ width: 32 }} />
@@ -147,7 +147,7 @@ export function SettingsDetailPage({ onNav, profileId, onProfilesChanged }: Sett
     <div className="page page-enter">
       <header className="hdr">
         <button className="hdr-btn" onClick={() => onNav('settings')}>
-          <SI d="m15 18-6-6 6-6" />
+          <Icon name="chevron-left" />
         </button>
         <div className="hdr-center">
           <span style={{ fontFamily: 'var(--fD)', fontSize: 14, fontWeight: 600, color: 'var(--tx)' }}>
@@ -159,7 +159,7 @@ export function SettingsDetailPage({ onNav, profileId, onProfilesChanged }: Sett
           </div>
         </div>
         <button className="hdr-btn" onClick={() => void detail.reload()}>
-          <SI d={['M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8', 'M21 3v5h-5']} />
+          <Icon name="refresh" />
         </button>
       </header>
 
@@ -189,10 +189,7 @@ export function SettingsDetailPage({ onNav, profileId, onProfilesChanged }: Sett
                     onChange={(event) => setApiKey(event.target.value)}
                   />
                   <button className="pw-toggle" onClick={() => setShowKey((shown) => !shown)}>
-                    <SI d={showKey
-                      ? 'M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24'
-                      : 'M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8zM12 9a3 3 0 1 0 0 6 3 3 0 0 0 0-6z'
-                    } />
+                    <Icon name={showKey ? 'eye-off' : 'eye'} />
                   </button>
                 </div>
               </div>
@@ -231,8 +228,8 @@ export function SettingsDetailPage({ onNav, profileId, onProfilesChanged }: Sett
             <div className="test-area">
               <button className="test-btn" disabled={busy} onClick={() => void test()}>
                 {busy
-                  ? <><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="spin"><path d="M21 12a9 9 0 1 1-9-9" /></svg> {t.settings.testingConnection}</>
-                  : <><SI d="M5 12h14M12 5l7 7-7 7" /> {t.settings.testConnection}</>
+                  ? <><Icon name="spinner" size={13} className="spin" /> {t.settings.testingConnection}</>
+                  : <><Icon name="arrow-right" /> {t.settings.testConnection}</>
                 }
               </button>
               {status && <StatusNotice tone={status.tone} message={status.message} />}
@@ -244,7 +241,7 @@ export function SettingsDetailPage({ onNav, profileId, onProfilesChanged }: Sett
       <footer className="det-footer">
         <button className="btn-save" disabled={busy || !detail.profile} onClick={() => void save()}>{t.common.save}</button>
         <button className="btn-del" disabled={busy || !detail.profile} onClick={() => void remove()}>
-          <SI d={['M3 6h18', 'M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6', 'M8 6V4a1 1 0 0 1 1-1h6a1 1 0 0 1 1 1v2']} />
+          <Icon name="trash" />
         </button>
       </footer>
     </div>

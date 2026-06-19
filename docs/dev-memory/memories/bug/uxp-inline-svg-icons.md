@@ -35,8 +35,13 @@ behavior and that SVG rendering can be incomplete or unexpected.
 Use a dedicated UXP-safe icon strategy:
 
 - Centralize replaceable icon assets under an explicit app asset directory.
+  Implemented at `apps/app/public/assets/icons/`.
+- Maintain a single icon registry in code: `apps/app/src/ui/components/icons.tsx`
+  exports `Icon` and `iconUrl`, mapping names like `history`, `settings`,
+  `send`, `add`, `chevron-down` to fixed file names.
 - Prefer packaged raster assets or tested simple filled SVG assets for custom
-  icons.
+  icons. The first version uses PNG placeholders that can be replaced later
+  without touching JSX.
 - Do not rely on `stroke="currentColor"` inline SVG in ordinary UXP HTML
   buttons unless real host evidence proves the exact pattern works.
 - Consider Spectrum UXP controls/icons where they match the required UI, but
@@ -49,7 +54,8 @@ Add a small manual host visual harness for app icons:
 
 1. Build `@imagen-ps/app`.
 2. Reload the plugin through UXP Developer Tool.
-3. In UXP DevTools, assert key icon elements have non-zero rects.
+3. In UXP DevTools, assert key icon elements have non-zero rects using
+   `apps/app/harness/icon-visual/check-icon-rects.js`.
 4. Capture a Photoshop screenshot showing visible header, composer, and action
    icons.
 
