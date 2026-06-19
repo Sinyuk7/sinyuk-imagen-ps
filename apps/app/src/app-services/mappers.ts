@@ -1,4 +1,5 @@
 import type { Asset, Job, JobError, ProviderModelInfo, ProviderProfile } from '@imagen-ps/application';
+import { ensurePlaceableImagePayload } from '../shared/image-payload-preflight';
 
 export interface AssetPreview {
   readonly asset: Asset;
@@ -27,6 +28,97 @@ function isProviderInvokeResultLike(value: unknown): value is ProviderInvokeResu
   return typeof value === 'object' && value !== null;
 }
 
+const BASE64_ALPHABET = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/';
+
+function bytesToBase64(bytes: Uint8Array): string {
+  const chunks: string[] = [];
+  let chunk = '';
+  let index = 0;
+  const append = (a: string, b: string, c: string, d: string): void => {
+    chunk += `${a}${b}${c}${d}`;
+    if (chunk.length >= 8192) {
+      chunks.push(chunk);
+      chunk = '';
+    }
+  };
+
+  for (; index + 2 < bytes.length; index += 3) {
+    const value = (bytes[index] << 16) | (bytes[index + 1] << 8) | bytes[index + 2];
+    append(
+      BASE64_ALPHABET[(value >> 18) & 63],
+      BASE64_ALPHABET[(value >> 12) & 63],
+      BASE64_ALPHABET[(value >> 6) & 63],
+      BASE64_ALPHABET[value & 63],
+    );
+  }
+
+  const remaining = bytes.length - index;
+  if (remaining === 1) {
+    const value = bytes[index] << 16;
+    append(BASE64_ALPHABET[(value >> 18) & 63], BASE64_ALPHABET[(value >> 12) & 63], '=', '=');
+  } else if (remaining === 2) {
+    const value = (bytes[index] << 16) | (bytes[index + 1] << 8);
+    append(
+      BASE64_ALPHABET[(value >> 18) & 63],
+      BASE64_ALPHABET[(value >> 12) & 63],
+      BASE64_ALPHABET[(value >> 6) & 63],
+      '=',
+    );
+  }
+
+  if (chunk.length > 0) {
+    chunks.push(chunk);
+  }
+
+  return chunks.join('');
+}
+
+function arrayBufferFromBytes(bytes: Uint8Array): ArrayBuffer {
+  const copy = new Uint8Array(bytes.byteLength);
+  copy.set(bytes);
+  return copy.buffer;
+}
+
+function base64ToBytes(value: string): Uint8Array {
+  const clean = value.replace(/\s+/g, '').replace(/=+$/, '');
+  const out: number[] = [];
+  let buffer = 0;
+  let bits = 0;
+
+  for (const char of clean) {
+    const index = BASE64_ALPHABET.indexOf(char);
+    if (index === -1) {
+      continue;
+    }
+    buffer = (buffer << 6) | index;
+    bits += 6;
+    if (bits >= 8) {
+      bits -= 8;
+      out.push((buffer >> bits) & 0xff);
+    }
+  }
+
+  return new Uint8Array(out);
+}
+
+function bytesFromDataString(data: string): Uint8Array {
+  const commaIndex = data.startsWith('data:') ? data.indexOf(',') + 1 : 0;
+  return base64ToBytes(data.slice(commaIndex));
+}
+
+function previewMimeType(asset: Asset): string {
+  return asset.mimeType ?? 'image/png';
+}
+
+function ensurePreviewableImageBytes(bytes: Uint8Array, mimeType: string): boolean {
+  try {
+    ensurePlaceableImagePayload(arrayBufferFromBytes(bytes), mimeType);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
 export function commandErrorToMessage(error: JobError): string {
   return `${error.category}: ${error.message}`;
 }
@@ -36,17 +128,23 @@ export function assetToPreviewUrl(asset: Asset): string {
     return asset.url;
   }
   if (typeof asset.data === 'string') {
+    const mimeType = previewMimeType(asset);
     if (asset.data.startsWith('data:')) {
-      return asset.data;
+      const header = /^data:([^;,]+)/.exec(asset.data);
+      const dataMimeType = header?.[1] ?? mimeType;
+      return ensurePreviewableImageBytes(bytesFromDataString(asset.data), dataMimeType) ? asset.data : '';
     }
-    const mimeType = asset.mimeType ?? 'image/png';
+    if (!ensurePreviewableImageBytes(bytesFromDataString(asset.data), mimeType)) {
+      return '';
+    }
     return `data:${mimeType};base64,${asset.data}`;
   }
-  if (asset.data instanceof Uint8Array && typeof URL !== 'undefined' && typeof Blob !== 'undefined') {
-    const bytes = new Uint8Array(asset.data.byteLength);
-    bytes.set(asset.data);
-    const blob = new Blob([bytes.buffer], { type: asset.mimeType ?? 'image/png' });
-    return URL.createObjectURL(blob);
+  if (asset.data instanceof Uint8Array) {
+    const mimeType = previewMimeType(asset);
+    if (!ensurePreviewableImageBytes(asset.data, mimeType)) {
+      return '';
+    }
+    return `data:${mimeType};base64,${bytesToBase64(asset.data)}`;
   }
   return '';
 }

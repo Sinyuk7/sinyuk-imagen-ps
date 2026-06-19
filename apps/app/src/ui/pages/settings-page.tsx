@@ -56,9 +56,7 @@ export function SettingsPage({ onNav, profiles, loading, error, onReload, onOpen
             <div className="prov-info">
               <div className="prov-name">
                 <span>{row.displayName}</span>
-                <span style={{ fontFamily: 'var(--fM)', fontSize: 9, color: 'var(--txd)', background: 'var(--s2)', border: '1px solid var(--bd)', padding: '1px 5px', borderRadius: 3 }}>
-                  {row.family}
-                </span>
+                <span className="prov-family">{row.family}</span>
                 <span className={`badge ${row.enabled ? 'connected' : 'error'}`}>{row.enabled ? t.common.enabled : t.common.disabled}</span>
               </div>
               <div className="prov-model">{row.defaultModel ?? row.providerId}</div>

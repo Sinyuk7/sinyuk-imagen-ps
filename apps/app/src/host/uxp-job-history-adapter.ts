@@ -1,4 +1,5 @@
 import type { AssetStore, DurableJobRecord, JobHistoryStore, StoredAssetRef } from '@imagen-ps/application';
+import { ensurePlaceableImagePayload } from '../shared/image-payload-preflight';
 import { createInMemoryAssetStore, createInMemoryJobHistoryStore } from './in-memory-host-storage';
 import type { UxpModules } from './uxp-api';
 
@@ -96,6 +97,21 @@ function createAssetRef(bytes: ArrayBuffer, meta: { readonly mimeType?: string; 
   };
 }
 
+function shouldPreflightAsset(meta: { readonly mimeType?: string; readonly name?: string }): boolean {
+  const mimeType = meta.mimeType?.toLowerCase();
+  if (mimeType?.startsWith('image/')) {
+    return true;
+  }
+  return /\.(png|jpe?g|webp)$/i.test(meta.name ?? '');
+}
+
+function preflightStoredAsset(bytes: ArrayBuffer, meta: { readonly mimeType?: string; readonly name?: string }): void {
+  if (!shouldPreflightAsset(meta)) {
+    return;
+  }
+  ensurePlaceableImagePayload(bytes, meta.mimeType ?? meta.name ?? 'image/png');
+}
+
 /** UXP data-folder backed durable job history store。 */
 export function createUxpJobHistoryStore(modules: UxpModules): JobHistoryStore {
   const fs = localFileSystemFrom(modules);
@@ -154,6 +170,7 @@ export function createUxpAssetStore(modules: UxpModules): AssetStore {
 
   return {
     async put(bytes: ArrayBuffer, meta: { readonly mimeType?: string; readonly name?: string }): Promise<StoredAssetRef> {
+      preflightStoredAsset(bytes, meta);
       const ref = createAssetRef(bytes, meta);
       const file = await getOrCreateFile(localFileSystem, ref.ref);
       await file.write(bytesToArrayBuffer(new Uint8Array(bytes)), { format: localFileSystem.formats?.binary });
@@ -169,7 +186,11 @@ export function createUxpAssetStore(modules: UxpModules): AssetStore {
           return undefined;
         }
         const raw = await file.read({ format: localFileSystem.formats?.binary });
-        return arrayBufferFrom(raw);
+        const bytes = arrayBufferFrom(raw);
+        if (bytes !== undefined) {
+          preflightStoredAsset(bytes, ref);
+        }
+        return bytes;
       } catch {
         return undefined;
       }

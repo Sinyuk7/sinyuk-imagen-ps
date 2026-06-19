@@ -141,10 +141,10 @@ export function HistoryPage({ onNav, rounds, records, loading, error, onReload, 
                 <div className="task-prompt">{item.prompt}</div>
                 <div className="task-meta">
                   <span style={{ fontFamily: 'var(--fM)', fontSize: 10, color: 'var(--txd)' }}>{item.providerName}</span>
-                  <span style={{ color: 'var(--bd2)' }}>·</span>
+                  <span className="task-meta-dot">·</span>
                   <span style={{ fontFamily: 'var(--fM)', fontSize: 10, color: 'var(--txd)' }}>{item.time}</span>
                 </div>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 1 }}>
+                <div className="status-inline" style={{ marginTop: 1 }}>
                   <span className={`sdot ${item.status === 'running' ? 'run' : item.status}`} />
                   <span style={{ color: STATUS_COLOR[item.status], fontSize: 10 }}>{statusLabel[item.status]}</span>
                   {retryRoundId && (

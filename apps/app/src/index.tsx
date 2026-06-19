@@ -27,7 +27,9 @@ function renderStartupError(rootEl: HTMLElement, error: unknown): void {
     'box-sizing:border-box',
     'min-height:100vh',
     'padding:16px',
-    'font:12px/18px -apple-system,BlinkMacSystemFont,Segoe UI,sans-serif',
+    'font-family:-apple-system,BlinkMacSystemFont,Segoe UI,sans-serif',
+    'font-size:12px',
+    'line-height:18px',
     'color:#e9edf4',
     'background:#0d1117',
   ].join(';');

@@ -9,6 +9,7 @@ import { mapHttpError, mapNetworkError } from './error-map.js';
 import { withRetry, defaultRetryPolicy } from './retry.js';
 import type { RetryPolicy } from './retry.js';
 import type { Logger } from '@imagen-ps/foundation';
+import { canListenToAbort } from '../../shared/abort-signal.js';
 
 export interface HttpRequest {
   /** 完整请求 URL。 */
@@ -38,14 +39,63 @@ export interface HttpResponse {
   readonly data: unknown;
 }
 
+interface TimeoutSignalHandle {
+  readonly signal: AbortSignal;
+  dispose(): void;
+}
+
+function createTimeoutSignal(timeoutMs: number | undefined): TimeoutSignalHandle | undefined {
+  if (timeoutMs === undefined) {
+    return undefined;
+  }
+
+  if (typeof AbortSignal !== 'undefined' && typeof AbortSignal.timeout === 'function') {
+    return {
+      signal: AbortSignal.timeout(timeoutMs),
+      dispose: () => undefined,
+    };
+  }
+
+  if (typeof AbortController === 'undefined') {
+    return undefined;
+  }
+
+  const controller = new AbortController();
+  const timer = setTimeout(() => {
+    const error = new Error('Request timed out.');
+    error.name = 'TimeoutError';
+    controller.abort(error);
+  }, timeoutMs);
+
+  return {
+    signal: controller.signal,
+    dispose: () => {
+      clearTimeout(timer);
+    },
+  };
+}
+
+function mergeAbortSignals(signal: AbortSignal | undefined, timeoutSignal: AbortSignal | undefined): AbortSignal | undefined {
+  if (signal !== undefined && timeoutSignal !== undefined) {
+    if (typeof AbortSignal !== 'undefined' && typeof AbortSignal.any === 'function') {
+      try {
+        return AbortSignal.any([signal, timeoutSignal]);
+      } catch {
+        return timeoutSignal;
+      }
+    }
+    return timeoutSignal;
+  }
+
+  return signal ?? timeoutSignal;
+}
+
 async function fetchOnce(args: HttpRequest, signal?: AbortSignal): Promise<HttpResponse> {
   const { url, method, headers, body, timeoutMs } = args;
 
-  const timeoutSignal = timeoutMs !== undefined ? AbortSignal.timeout(timeoutMs) : undefined;
-  const mergedSignal =
-    signal !== undefined && timeoutSignal !== undefined
-      ? AbortSignal.any([signal, timeoutSignal])
-      : (signal ?? timeoutSignal);
+  const timeoutSignal = createTimeoutSignal(timeoutMs);
+  const mergedSignal = mergeAbortSignals(signal, timeoutSignal?.signal);
+  const fetchSignal = canListenToAbort(mergedSignal) ? mergedSignal : undefined;
 
   try {
     const isMultipart = typeof FormData !== 'undefined' && body instanceof FormData;
@@ -77,8 +127,8 @@ async function fetchOnce(args: HttpRequest, signal?: AbortSignal): Promise<HttpR
               : JSON.stringify(body)
           : undefined,
     };
-    if (mergedSignal !== undefined) {
-      init.signal = mergedSignal;
+    if (fetchSignal !== undefined) {
+      init.signal = fetchSignal;
     }
 
     const response = await fetch(url, init);
@@ -129,6 +179,8 @@ async function fetchOnce(args: HttpRequest, signal?: AbortSignal): Promise<HttpR
     }
 
     throw mapNetworkError(error);
+  } finally {
+    timeoutSignal?.dispose();
   }
 }
 

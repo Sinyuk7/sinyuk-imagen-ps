@@ -3,6 +3,7 @@ import { getRuntimeLogger } from '@imagen-ps/application';
 import type { Logger } from '@imagen-ps/foundation';
 import { createHostBridgeStub, type HostBridge, type LayerInfo } from '../app-services/host-bridge';
 import type { UxpModules } from './uxp-api';
+import { ensurePlaceableImagePayload } from '../shared/image-payload-preflight';
 
 interface PhotoshopLayer {
   readonly id: number;
@@ -260,6 +261,7 @@ export function createPhotoshopHostBridge(modules: UxpModules, options?: CreateP
       });
       try {
         const { data, mimeType } = await assetToArrayBuffer(asset);
+        ensurePlaceableImagePayload(data, mimeType);
         const folder = await fs.getTemporaryFolder();
         const file = await folder.createFile(`imagen-ps-${Date.now()}.${fileExtensionFor(mimeType)}`, {
           overwrite: true,

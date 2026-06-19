@@ -13,6 +13,7 @@ import type { ProviderDiagnostic } from '../../contract/diagnostics.js';
 import { mapNetworkError } from './error-map.js';
 import type { ProviderInvokeError } from './error-map.js';
 import type { Logger } from '@imagen-ps/foundation';
+import { canListenToAbort } from '../../shared/abort-signal.js';
 
 export interface RetryPolicy {
   /** 最大重试次数（默认 3）。 */
@@ -38,12 +39,13 @@ function isRetryableStatusCode(statusCode: number): boolean {
 function delay(ms: number, signal?: AbortSignal): Promise<void> {
   return new Promise((resolve, reject) => {
     let timer: ReturnType<typeof setTimeout> | undefined;
+    const canListen = canListenToAbort(signal);
     const cleanup = () => {
       if (timer !== undefined) {
         clearTimeout(timer);
         timer = undefined;
       }
-      if (signal) {
+      if (canListen) {
         signal.removeEventListener('abort', onAbort);
       }
     };
@@ -66,7 +68,9 @@ function delay(ms: number, signal?: AbortSignal): Promise<void> {
         return;
       }
 
-      signal.addEventListener('abort', onAbort, { once: true });
+      if (canListen) {
+        signal.addEventListener('abort', onAbort, { once: true });
+      }
     }
   });
 }

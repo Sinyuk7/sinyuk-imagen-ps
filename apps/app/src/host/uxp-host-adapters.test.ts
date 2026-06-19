@@ -24,6 +24,36 @@ function textEncoder(value: string): ArrayBuffer {
   return new TextEncoder().encode(value).buffer;
 }
 
+function arrayBufferFromBytes(bytes: readonly number[]): ArrayBuffer {
+  const copy = new Uint8Array(bytes);
+  return copy.buffer;
+}
+
+const LEGACY_TRUNCATED_MOCK_PNG = [
+  0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a,
+  0x00, 0x00, 0x00, 0x0d, 0x49, 0x48, 0x44, 0x52,
+  0x00, 0x00, 0x00, 0x01, 0x00, 0x00, 0x00, 0x01,
+  0x08, 0x06, 0x00, 0x00, 0x00, 0x1f, 0x15, 0xc4,
+  0x89, 0x00, 0x00, 0x00, 0x0a, 0x49, 0x44, 0x41,
+  0x54, 0x78, 0x9c, 0x63, 0x60, 0x00, 0x00, 0x00,
+  0x02, 0x00, 0x01, 0xe2, 0x21, 0xbc, 0x33, 0x00,
+  0x00, 0x00, 0x00, 0x49, 0x45, 0x4e, 0x44, 0xae,
+  0x42, 0x60, 0x82,
+] as const;
+
+const VALID_TRANSPARENT_PNG = [
+  0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a,
+  0x00, 0x00, 0x00, 0x0d, 0x49, 0x48, 0x44, 0x52,
+  0x00, 0x00, 0x00, 0x01, 0x00, 0x00, 0x00, 0x01,
+  0x08, 0x06, 0x00, 0x00, 0x00, 0x1f, 0x15, 0xc4,
+  0x89, 0x00, 0x00, 0x00, 0x0d, 0x49, 0x44, 0x41,
+  0x54, 0x78, 0x9c, 0x63, 0x60, 0x60, 0x60, 0x60,
+  0x00, 0x00, 0x00, 0x05, 0x00, 0x01, 0xa5, 0xf6,
+  0x45, 0x40, 0x00,
+  0x00, 0x00, 0x00, 0x49, 0x45, 0x4e, 0x44, 0xae,
+  0x42, 0x60, 0x82,
+] as const;
+
 class MutableFakeFile implements FakeFile {
   readonly writes: Array<{
     readonly data: string | ArrayBuffer;
@@ -208,7 +238,7 @@ describe('fake UXP host adapters', () => {
   });
 
   it('把二进制 asset 写入 data folder 并返回 opaque hostObject ref', async () => {
-    const bytes = textEncoder('asset-bytes');
+    const bytes = arrayBufferFromBytes(VALID_TRANSPARENT_PNG);
     const fileWrites: Array<string | ArrayBuffer> = [];
     const storedFiles = new Map<string, { read(): Promise<string | ArrayBuffer>; write(data: string | ArrayBuffer): Promise<void> }>();
     const modules: UxpModules = {
@@ -256,6 +286,75 @@ describe('fake UXP host adapters', () => {
     expect(ref.ref).toMatch(/^uxp-asset-/);
     expect(resolved).toEqual(bytes);
     expect(fileWrites[0]).toBeInstanceOf(ArrayBuffer);
+  });
+
+  it('拒绝把旧 mock 坏 PNG 写入 UXP asset store', async () => {
+    const fileWrites: Array<string | ArrayBuffer> = [];
+    const dataFolder = createFakeDataFolder();
+    const modules: UxpModules = {
+      uxp: {
+        storage: {
+          localFileSystem: {
+            formats: { binary: 'binary' },
+            async getDataFolder() {
+              return {
+                async getEntry(name: string) {
+                  return dataFolder.folder.getEntry(name);
+                },
+                async createFile(name: string) {
+                  const file = new MutableFakeFile(name);
+                  const originalWrite = file.write.bind(file);
+                  file.write = async (data, options) => {
+                    fileWrites.push(data);
+                    await originalWrite(data, options);
+                  };
+                  return file;
+                },
+              };
+            },
+          },
+        },
+      },
+    };
+    const store = createUxpAssetStore(modules);
+
+    await expect(
+      store.put(arrayBufferFromBytes(LEGACY_TRUNCATED_MOCK_PNG), {
+        mimeType: 'image/png',
+        name: 'mock-image-1.png',
+      }),
+    ).rejects.toThrow('PNG asset chunk CRC is invalid.');
+
+    expect(fileWrites).toEqual([]);
+  });
+
+  it('读取到旧 mock 坏 PNG hostObject 时返回 undefined', async () => {
+    const dataFolder = createFakeDataFolder({
+      'legacy-bad.png': new MutableFakeFile('legacy-bad.png', arrayBufferFromBytes(LEGACY_TRUNCATED_MOCK_PNG)),
+    });
+    const modules: UxpModules = {
+      uxp: {
+        storage: {
+          localFileSystem: {
+            formats: { binary: 'binary' },
+            async getDataFolder() {
+              return dataFolder.folder;
+            },
+          },
+        },
+      },
+    };
+    const store = createUxpAssetStore(modules);
+
+    await expect(
+      store.resolve({
+        kind: 'hostObject',
+        ref: 'legacy-bad.png',
+        mimeType: 'image/png',
+        name: 'mock-image-1.png',
+        byteSize: LEGACY_TRUNCATED_MOCK_PNG.length,
+      }),
+    ).resolves.toBeUndefined();
   });
 
   it('UXP log sink 复用已有 JSONL 文件而不是覆盖重建', async () => {

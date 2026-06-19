@@ -37,4 +37,23 @@ describe('image endpoint HTTP logging', () => {
     });
     fetchSpy.mockRestore();
   });
+
+  it('does not pass AbortSignal-like values without listener methods to fetch', async () => {
+    const fetchSpy = vi.spyOn(globalThis, 'fetch').mockResolvedValueOnce(
+      new Response(JSON.stringify({ data: [] }), {
+        status: 200,
+        headers: { 'Content-Type': 'application/json' },
+      }),
+    );
+
+    const result = await httpRequest(
+      { url: 'https://api.example.com/v1/models', method: 'GET' },
+      { maxRetries: 0, baseDelayMs: 0, factor: 1 },
+      { aborted: false } as AbortSignal,
+    );
+
+    expect(result.response.status).toBe(200);
+    expect(fetchSpy.mock.calls[0]?.[1]).not.toHaveProperty('signal');
+    fetchSpy.mockRestore();
+  });
 });

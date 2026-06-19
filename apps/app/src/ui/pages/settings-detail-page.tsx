@@ -153,7 +153,7 @@ export function SettingsDetailPage({ onNav, profileId, onProfilesChanged }: Sett
           <span style={{ fontFamily: 'var(--fD)', fontSize: 14, fontWeight: 600, color: 'var(--tx)' }}>
             {detail.profile?.displayName ?? 'Provider'}
           </span>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 4, fontFamily: 'var(--fM)', fontSize: 10, color: enabled ? 'var(--ok)' : 'var(--txd)' }}>
+          <div className="status-inline tight" style={{ fontFamily: 'var(--fM)', fontSize: 10, color: enabled ? 'var(--ok)' : 'var(--txd)' }}>
             <span style={{ width: 5, height: 5, borderRadius: '50%', background: enabled ? 'var(--ok)' : 'var(--txd)', display: 'inline-block' }} />
             {enabled ? t.common.enabled : t.common.disabled}
           </div>
@@ -193,7 +193,7 @@ export function SettingsDetailPage({ onNav, profileId, onProfilesChanged }: Sett
                   </button>
                 </div>
               </div>
-              <label style={{ display: 'flex', alignItems: 'center', gap: 8, color: 'var(--txm)', fontSize: 12 }}>
+              <label className="status-inline loose" style={{ color: 'var(--txm)', fontSize: 12 }}>
                 <input type="checkbox" checked={enabled} onChange={(event) => setEnabled(event.target.checked)} />
                 {t.settings.enableProfile}
               </label>

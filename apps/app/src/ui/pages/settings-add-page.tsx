@@ -193,7 +193,7 @@ export function SettingsAddPage({ onNav, profiles, onProfileSaved }: SettingsAdd
         <footer className="det-footer">
           <button className="btn-save" disabled={busy} onClick={() => void handleSave()}>{t.common.save}</button>
           <button
-            style={{ padding: '10px 14px', borderRadius: 'var(--rsm)', border: '1px solid var(--bd)', background: 'transparent', color: 'var(--txm)', fontFamily: 'var(--fB)', fontSize: 13, cursor: 'pointer' }}
+            className="btn-cancel"
             onClick={() => onNav('settings')}
           >
             {t.common.cancel}

@@ -5,6 +5,7 @@ import { mockConfigSchema, type MockProviderConfig } from './config-schema.js';
 import { mockRequestSchema, type MockProviderRequest } from './request-schema.js';
 import { createSyntheticAssets } from '../../shared/asset-normalizer.js';
 import type { ProviderDiagnostic } from '../../contract/diagnostics.js';
+import { canListenToAbort } from '../../shared/abort-signal.js';
 
 /** Provider 层可映射的结构化错误。 */
 interface ProviderValidationError extends Error {
@@ -87,7 +88,22 @@ export function createMockProvider(
         (request.providerOptions?.model as string | undefined) ?? config.defaultModel ?? 'mock-image-v1';
 
       return new Promise((resolve, reject) => {
+        const canListen = canListenToAbort(signal);
+        const onAbort = () => {
+          clearTimeout(timer);
+          reject(
+            createProviderInvokeError('Mock provider invocation was aborted.', {
+              reason: signal?.reason,
+            }),
+          );
+        };
+        const cleanup = () => {
+          if (canListen) {
+            signal.removeEventListener('abort', onAbort);
+          }
+        };
         const timer = setTimeout(() => {
+          cleanup();
           if (signal?.aborted) {
             reject(
               createProviderInvokeError('Mock provider invocation was aborted.', {
@@ -154,21 +170,14 @@ export function createMockProvider(
         }, delayMs);
 
         if (signal) {
-          const onAbort = () => {
-            clearTimeout(timer);
-            reject(
-              createProviderInvokeError('Mock provider invocation was aborted.', {
-                reason: signal.reason,
-              }),
-            );
-          };
-
           if (signal.aborted) {
             onAbort();
             return;
           }
 
-          signal.addEventListener('abort', onAbort, { once: true });
+          if (canListen) {
+            signal.addEventListener('abort', onAbort, { once: true });
+          }
         }
       });
     },

@@ -243,7 +243,7 @@ export function MainPage({
       )}
 
       <div className="scroll" ref={convRef}>
-        <div style={{ padding: '12px 12px 4px', display: 'flex', flexDirection: 'column', gap: 4 }}>
+        <div className="round-list">
           <div className="day-sep">
             <div className="day-sep-line" /><span className="day-sep-lbl">{t.main.currentSession}</span><div className="day-sep-line" />
           </div>
@@ -351,7 +351,7 @@ export function MainPage({
                       <div className="img-result">
                         {round.previews[0]?.url
                           ? <img src={round.previews[0].url} className="img-bg" style={{ height: 158, objectFit: 'cover' }} alt={round.previews[0].label} />
-                          : <div className="img-bg" style={{ height: 158, background: 'var(--s2)', display: 'grid', placeItems: 'center', color: 'var(--txd)', fontSize: 12 }}>{t.main.noAssetPreview}</div>
+                          : <div className="img-bg" style={{ height: 158, background: 'var(--s2)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--txd)', fontSize: 12 }}>{t.main.noAssetPreview}</div>
                         }
                         <div className="img-meta">{round.outputSize ?? t.main.assetFallback} · {round.outputFormat ?? t.main.imageFallback}</div>
                         <div className="img-overlay">
@@ -392,14 +392,14 @@ export function MainPage({
           <div className="layer-list-wrap" onClick={(event) => event.stopPropagation()}>
             <div className="layer-list-hdr">
               <button
-                style={{ background: 'transparent', border: 'none', color: 'var(--txd)', cursor: 'pointer', display: 'flex', alignItems: 'center' }}
+                className="layer-back"
                 onClick={() => setLayerOpen(false)}
               >
                 <Icon name="chevron-left" size={12} />
               </button>
               {t.main.psLayers}
               <button
-                style={{ marginLeft: 'auto', background: 'transparent', border: 'none', color: 'var(--txd)', cursor: 'pointer' }}
+                className="layer-refresh"
                 onClick={() => void reloadLayers()}
               >
                 <Icon name="refresh" size={12} />
@@ -421,7 +421,7 @@ export function MainPage({
         {attachOpen && !layerOpen && (
           <div className="attach-picker" onClick={(event) => event.stopPropagation()}>
             <div className="attach-opt" onClick={() => setLayerOpen(true)}>
-              <div style={{ width: 28, height: 28, borderRadius: 'var(--rsm)', background: 'var(--s2)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--txm)' }}>
+              <div className="attach-opt-ico">
                 <Icon name="ps-layers" size={13} />
               </div>
               <div>
@@ -431,7 +431,7 @@ export function MainPage({
               <Icon name="chevron-right" style={{ marginLeft: 'auto' }} />
             </div>
             <div className="attach-opt" onClick={() => void addFile()}>
-              <div style={{ width: 28, height: 28, borderRadius: 'var(--rsm)', background: 'var(--s2)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--txm)' }}>
+              <div className="attach-opt-ico">
                 <Icon name="upload" size={13} />
               </div>
               <div>
