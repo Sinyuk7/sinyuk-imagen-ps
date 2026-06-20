@@ -20,10 +20,9 @@
 
 ### Profile 管理
 
-- [-] 进入 Settings 页面，列表中显示已保存的 provider profiles（如果之前有的话）。
-- [-] 添加一个 provider profile（如 `openai` / `image-endpoint` 类型），填写 displayName、baseURL、apiKey。
-- [X] 点击 "Test"，验证 test command 返回成功 / 失败状态都在 UI 上正确呈现。
-提示: 配置有效 但是该模型
+- [ ] 进入 Settings 页面，列表中显示已保存的 provider profiles（如果之前有的话）。
+- [ ] 添加一个 provider profile（如 `openai` / `image-endpoint` 类型），填写 displayName、baseURL、apiKey。
+- [ ] 点击 "Test"，验证 test command 返回成功 / 失败状态都在 UI 上正确呈现。
 - [ ] 保存后重新打开 panel，验证 profile 仍然存在（UXP data folder 持久化）。
 - [ ] 在 Settings Detail 页面刷新 model 列表，验证 `listProfileModels` / `refreshProfileModels` 正常返回。
 
