@@ -35,7 +35,7 @@ Run the full manual UXP / Photoshop smoke checklist against the host-loaded `app
 
 - Do not add real Photoshop, UXP Developer Tool, provider credentials, external network, or paid APIs to default `pnpm test` / `pnpm validate`.
 - Do not redesign the UXP UI, broaden provider capabilities, or change product behavior beyond what is necessary to make the smoke checklist pass.
-- Do not harden final manifest network policy in this Loop; `network.domains: ["all"]` remains a development smoke setting unless a separate manifest/network-policy Loop authorizes tightening.
+- Do not harden final manifest network policy in this Loop; `network.domains: "all"` remains a development smoke setting unless a separate manifest/network-policy Loop authorizes tightening.
 - Do not store raw logs, crash reports, provider payloads, local absolute paths, or secrets in `docs/dev-memory`.
 - Do not commit `.test.env` or any real API token.
 

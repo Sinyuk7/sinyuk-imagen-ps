@@ -3,9 +3,11 @@
  *
  * Photoshop / UXP panel entry.
  */
-import { createRoot } from 'react-dom/client';
+import { createRoot, type Root } from 'react-dom/client';
 import { createPluginHostShell } from './host/create-plugin-host-shell';
 import type { PluginHostShell } from './host/create-plugin-host-shell';
+import { readRecentLogRecords } from './host/uxp-diagnostics';
+import { resolveUxpModules } from './host/uxp-api';
 import { AppShell } from './ui/app-shell';
 
 export { createPluginHostShell } from './host/create-plugin-host-shell';
@@ -60,10 +62,69 @@ function createSafePluginHost(rootEl: HTMLElement | null): PluginHostShell | und
 
 export const pluginHost = createSafePluginHost(typeof document !== 'undefined' ? document.getElementById('root') : null);
 
+declare global {
+  // eslint-disable-next-line no-var
+  var __IMAGEN_PS_HOST_SMOKE__: unknown;
+  // eslint-disable-next-line no-var
+  var __IMAGEN_PS_REACT_ROOT__: Root | undefined;
+}
+
+function exposeHostSmokeHandle(host: PluginHostShell | undefined): void {
+  if (!host || typeof window === 'undefined') {
+    return;
+  }
+  if (window.localStorage?.getItem('imagenPsHostSmoke') !== '1') {
+    delete globalThis.__IMAGEN_PS_HOST_SMOKE__;
+    return;
+  }
+
+  // 仅用于真实 UXP smoke。返回值必须保持脱敏，避免 DevTools 输出 secret。
+  globalThis.__IMAGEN_PS_HOST_SMOKE__ = {
+    listProfiles: host.services.commands.listProviderProfiles,
+    getProfile: host.services.commands.getProviderProfile,
+    saveProfile: host.services.commands.saveProviderProfile,
+    deleteProfile: host.services.commands.deleteProviderProfile,
+    testProfile: host.services.commands.testProviderProfile,
+    listModels: host.services.commands.listProfileModels,
+    refreshModels: host.services.commands.refreshProfileModels,
+    submitJob: host.services.commands.submitJob,
+    listHistory: host.services.commands.listJobHistoryRecords,
+    listLayers: host.services.host.listLayers,
+    readLayerAsAsset: host.services.host.readLayerAsAsset,
+    readLayerMaskAsAsset: host.services.host.readLayerMaskAsAsset,
+    placeAssetOnCanvas: host.services.host.placeAssetOnCanvas,
+    pickImageFile: host.services.host.pickImageFile,
+    readRecentLogRecords: readRecentLogRecords.bind(undefined, resolveUxpModules()),
+  };
+}
+
+exposeHostSmokeHandle(pluginHost);
+
+function unmountPreviousRoot(): void {
+  const previousRoot = globalThis.__IMAGEN_PS_REACT_ROOT__;
+  if (!previousRoot) {
+    return;
+  }
+  try {
+    previousRoot.unmount();
+  } catch (error) {
+    console.warn('Imagen PS previous root unmount failed', error);
+  } finally {
+    globalThis.__IMAGEN_PS_REACT_ROOT__ = undefined;
+  }
+}
+
+function renderApp(rootEl: HTMLElement, host: PluginHostShell): void {
+  unmountPreviousRoot();
+  const root = createRoot(rootEl);
+  globalThis.__IMAGEN_PS_REACT_ROOT__ = root;
+  root.render(<AppShell host={host} />);
+}
+
 const rootEl = typeof document !== 'undefined' ? document.getElementById('root') : null;
 if (typeof document !== 'undefined' && rootEl && pluginHost) {
   try {
-    createRoot(rootEl).render(<AppShell host={pluginHost} />);
+    renderApp(rootEl, pluginHost);
   } catch (error) {
     console.error('Imagen PS render failed', error);
     renderStartupError(rootEl, error);

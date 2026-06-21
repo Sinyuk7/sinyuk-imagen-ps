@@ -18,4 +18,16 @@ describe('UXP dist bundle safety', () => {
     expect(bundle).not.toContain(arrayLiteralForBase64(LEGACY_BAD_MOCK_PNG_BASE64));
     expect(bundle).toContain(arrayLiteralForBase64(VALID_MOCK_PNG_BASE64));
   });
+
+  it('ships UXP network all-domain permission in manifest v5 string form', () => {
+    const sourceManifest = JSON.parse(readFileSync(resolve('public/manifest.json'), 'utf8')) as {
+      requiredPermissions?: { network?: { domains?: unknown } };
+    };
+    const distManifest = JSON.parse(readFileSync(resolve('dist/manifest.json'), 'utf8')) as {
+      requiredPermissions?: { network?: { domains?: unknown } };
+    };
+
+    expect(sourceManifest.requiredPermissions?.network?.domains).toBe('all');
+    expect(distManifest.requiredPermissions?.network?.domains).toBe('all');
+  });
 });

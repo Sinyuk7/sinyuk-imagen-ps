@@ -10,7 +10,7 @@
   },
   "requiredPermissions": {
     "network": {
-      "domains": ["all"]
+      "domains": "all"
     },
     "localFileSystem": "request"
   },

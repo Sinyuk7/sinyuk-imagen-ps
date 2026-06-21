@@ -19,6 +19,37 @@ especially for:
 Do not use repo-side tests alone as proof of real host behavior. `pnpm validate`
 is necessary, but it is not a Photoshop runtime smoke.
 
+## Repeated UXPDT / CDT Crash Loop
+
+When the issue is a native crash during repeated UXP Developer Tool
+`Plugin.load`, CDT DOM automation, or visible UI interaction, keep the
+investigation inside the real host. The goal is to separate lifecycle churn,
+CDT event injection, React/UI rendering, and Photoshop/UXP native behavior with
+small host probes.
+
+Recommended sequence:
+
+- First prove a load-only loop: repeated Load/Unload or Reload without DOM
+  interaction, recording Photoshop PID/start time and crash report names.
+- Then prove a read-only CDT loop: attach debugger, run selector/rect/style
+  probes only, and do not dispatch events.
+- Then add visible navigation one action at a time, waiting for React state and
+  UXP painting to settle before the next action.
+- Only after navigation is stable, add input mutation, Test, Save, and Refresh
+  actions separately.
+
+Treat `Plugin.load` timeout as host evidence, not as a JavaScript assertion
+failure. Before changing app code, capture the last successful app JSONL event,
+the UXP Developer Tool action attempted, and whether a new Photoshop crash
+report appeared.
+
+If synthetic CDT input/change dispatch reaches UXP internal
+`dispatchNativeEvent` errors or native host crashes, stop expanding the
+automation script. Compare the app against a known working UXP project first:
+entrypoint lifecycle, React root ownership, manifest/panel registration,
+input/form patterns, CSS compatibility strategy, and host bridge wrappers. Then
+return with one bounded app-side patch and real host proof.
+
 ## Fast Path
 
 1. Confirm the host-loaded artifact first.

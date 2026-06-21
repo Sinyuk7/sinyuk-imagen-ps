@@ -11,7 +11,19 @@ interface PhotoshopLayer {
   readonly kind?: string;
   readonly visible?: boolean;
   readonly hasUserMask?: boolean;
+  readonly bounds?: PhotoshopLayerBounds;
   readonly layers?: readonly PhotoshopLayer[];
+}
+
+interface PhotoshopLayerBounds {
+  readonly left?: number;
+  readonly top?: number;
+  readonly right?: number;
+  readonly bottom?: number;
+  readonly _left?: number;
+  readonly _top?: number;
+  readonly _right?: number;
+  readonly _bottom?: number;
 }
 
 interface PhotoshopApp {
@@ -80,15 +92,53 @@ function localFileSystemFrom(modules: UxpModules): UxpLocalFileSystem | undefine
   return storage?.localFileSystem;
 }
 
+function numericBound(value: unknown): number | undefined {
+  return typeof value === 'number' && Number.isFinite(value) ? value : undefined;
+}
+
+function toLayerBounds(bounds: PhotoshopLayerBounds | undefined): LayerInfo['bounds'] | undefined {
+  if (!bounds) {
+    return undefined;
+  }
+
+  const left = numericBound(bounds.left ?? bounds._left);
+  const top = numericBound(bounds.top ?? bounds._top);
+  const right = numericBound(bounds.right ?? bounds._right);
+  const bottom = numericBound(bounds.bottom ?? bounds._bottom);
+  if (left === undefined || top === undefined || right === undefined || bottom === undefined) {
+    return undefined;
+  }
+  return { left, top, right, bottom };
+}
+
+function boundsAreEmpty(bounds: LayerInfo['bounds']): boolean {
+  return Boolean(bounds && (bounds.right <= bounds.left || bounds.bottom <= bounds.top));
+}
+
 function toLayerInfo(layer: PhotoshopLayer): LayerInfo {
+  const bounds = toLayerBounds(layer.bounds);
   return {
     id: layer.id,
     name: layer.name ?? `Layer ${layer.id}`,
     ...(layer.kind ? { kind: String(layer.kind) } : {}),
     ...(typeof layer.visible === 'boolean' ? { visible: layer.visible } : {}),
     ...(typeof layer.hasUserMask === 'boolean' ? { hasUserMask: layer.hasUserMask } : {}),
+    ...(bounds ? { bounds } : {}),
     ...(layer.layers ? { children: layer.layers.map(toLayerInfo) } : {}),
   };
+}
+
+function findLayer(layers: readonly PhotoshopLayer[], layerId: number): PhotoshopLayer | undefined {
+  for (const layer of layers) {
+    if (layer.id === layerId) {
+      return layer;
+    }
+    const child = layer.layers ? findLayer(layer.layers, layerId) : undefined;
+    if (child) {
+      return child;
+    }
+  }
+  return undefined;
 }
 
 async function imageDataToJpegAsset(
@@ -218,13 +268,24 @@ export function createPhotoshopHostBridge(modules: UxpModules, options?: CreateP
     async readLayerAsAsset(layerId: number): Promise<Asset> {
       const span = logger.startSpan('hostbridge.read_layer', { layerId });
       try {
-        const result = await imaging.getPixels({
-          documentID: app.activeDocument?.id,
-          layerID: layerId,
-          componentSize: 8,
-          applyAlpha: false,
-        });
-        const asset = await imageDataToJpegAsset(imaging, result.imageData, `layer-${layerId}.jpg`);
+        const layer = findLayer(app.activeDocument?.layers ?? [], layerId);
+        const bounds = toLayerBounds(layer?.bounds);
+        if (boundsAreEmpty(bounds)) {
+          throw new Error(`Photoshop layer has no readable pixels: ${layer?.name ?? layerId}`);
+        }
+        const asset = await core.executeAsModal(
+          async () => {
+            const result = await imaging.getPixels({
+              documentID: app.activeDocument?.id,
+              layerID: layerId,
+              ...(bounds ? { sourceBounds: bounds } : {}),
+              componentSize: 8,
+              applyAlpha: false,
+            });
+            return imageDataToJpegAsset(imaging, result.imageData, `layer-${layerId}.jpg`);
+          },
+          { commandName: 'Read layer pixels' },
+        );
         span.finish({ layerId, name: asset.name, mimeType: asset.mimeType });
         return asset;
       } catch (error) {
@@ -239,13 +300,19 @@ export function createPhotoshopHostBridge(modules: UxpModules, options?: CreateP
         span.finish({ hasMask: false, reason: 'unsupported' });
         return undefined;
       }
+      const getLayerMask = imaging.getLayerMask.bind(imaging);
       try {
-        const result = await imaging.getLayerMask({
-          documentID: app.activeDocument?.id,
-          layerID: layerId,
-          kind: 'user',
-        });
-        const asset = await imageDataToJpegAsset(imaging, result.imageData, `layer-${layerId}-mask.jpg`);
+        const asset = await core.executeAsModal(
+          async () => {
+            const result = await getLayerMask({
+              documentID: app.activeDocument?.id,
+              layerID: layerId,
+              kind: 'user',
+            });
+            return imageDataToJpegAsset(imaging, result.imageData, `layer-${layerId}-mask.jpg`);
+          },
+          { commandName: 'Read layer mask' },
+        );
         span.finish({ layerId, hasMask: true, name: asset.name, mimeType: asset.mimeType });
         return asset;
       } catch (error) {

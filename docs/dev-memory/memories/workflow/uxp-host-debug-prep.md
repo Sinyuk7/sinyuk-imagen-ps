@@ -71,10 +71,36 @@ Current `apps/app/public/manifest.json` uses:
 - Photoshop host app `PS`
 - `host.minVersion: "25.0.0"`
 - panel entrypoint id `imagen-ps-panel`
-- `requiredPermissions.network.domains: ["all"]`
+- `requiredPermissions.network.domains: "all"`
 - `requiredPermissions.localFileSystem: "request"`
 
-`network.domains: ["all"]` is a development-friendly setting, not a final provider-domain policy. Tighten it only in a dedicated manifest/network-policy slice.
+`network.domains: "all"` is a development-friendly setting, not a final provider-domain policy. Tighten it only in a dedicated manifest/network-policy slice. In Photoshop 27.7 / UXP 9.3 host smoke, `["all"]` loaded but did not grant all-domain network access; use the manifest v5 string form for the development all-domain case.
+
+## Repeated load / CDT automation crash boundary
+
+For native crashes during repeated UXP Developer Tool `Plugin.load`, CDT DOM
+automation, or visible UI interaction, keep the proof in Photoshop / UXP. UXP
+uses web-like HTML, CSS, and JavaScript, but host lifecycle, native drawing,
+file/storage APIs, and Photoshop APIs are not browser behavior.
+
+Debug in narrow host layers:
+
+- Load/reload lifecycle without DOM interaction.
+- Read-only CDT selector, style, and rect probes.
+- Visible navigation actions without input mutation.
+- Input mutation without provider/network commands.
+- Test, Save, Refresh Models, picker, and Photoshop IO actions as separate
+  host-only smokes.
+
+For each crash or timeout, record Photoshop PID/start time, latest crash report
+name/timestamp, UXP Developer Tool action, loaded `dist/manifest.json` identity,
+and the last sanitized app JSONL event before changing code.
+
+Do not use CDT `dispatchEvent()` on inputs as a substitute for user-visible
+keyboard/mouse behavior after it has triggered UXP internal dispatch errors.
+Use CDT read-only probes for DOM state, and use real keyboard/mouse input or a
+source-level UXP design comparison before attempting another full visible
+Test/Save automation run.
 
 ## Manual host smoke checklist
 

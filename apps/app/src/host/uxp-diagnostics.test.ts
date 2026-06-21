@@ -160,7 +160,36 @@ describe('UXP diagnostics fake harness', () => {
       expect(result.records).toHaveLength(2);
       expect(result.records[0].event).toBe('test.second');
       expect(result.records[1].event).toBe('test.third');
-      expect(result.diagnostics?.nativePath).toBe('/fake/data/logs/2026-06-15/imagen.jsonl');
+      expect(JSON.stringify(result)).not.toContain('/fake/data/logs');
+      expect(JSON.stringify(result)).not.toContain('nativePath');
+    }
+  });
+
+  it('读取日志时返回红化后的记录', async () => {
+    const date = '2026-06-15';
+    const records: LogRecord[] = [
+      makeRecord({
+        event: 'test.read-redaction',
+        attrs: { apiKey: 'sk_live_read_secret', path: '/Users/sinyuk/read-secret.txt' },
+      }),
+    ];
+    const logFile = new MutableFakeFileEntry('imagen.jsonl', records.map((r) => JSON.stringify(r)).join('\n'));
+    const dateFolder = new MutableFakeFolderEntry(date);
+    dateFolder.entries.set('imagen.jsonl', logFile);
+    const logsFolder = new MutableFakeFolderEntry('logs');
+    logsFolder.entries.set(date, dateFolder);
+    const dataFolder = new MutableFakeFolderEntry('data');
+    dataFolder.entries.set('logs', logsFolder);
+
+    const result = await readRecentLogRecords(modulesWithLfs(createFakeLocalFileSystem(dataFolder)), { date });
+
+    expect(result.ok).toBe(true);
+    if (result.ok) {
+      const resultText = JSON.stringify(result);
+      expect(result.records).toHaveLength(1);
+      expect(resultText).toContain('[REDACTED]');
+      expect(resultText).not.toContain('sk_live_read_secret');
+      expect(resultText).not.toContain('/Users/sinyuk/');
     }
   });
 

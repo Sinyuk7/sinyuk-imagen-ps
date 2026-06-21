@@ -104,4 +104,43 @@ describe('SettingsAddPage', () => {
     const nameInput = Array.from(container.querySelectorAll<HTMLInputElement>('input'))[0];
     expect(nameInput.value).toBe('Mock Provider(1)');
   });
+
+  it('reuses the draft profile id when testing before save', async () => {
+    const { services, spies } = createFakeServices();
+    const container = document.createElement('div');
+    document.body.appendChild(container);
+    root = createRoot(container);
+
+    await act(async () => {
+      root!.render(
+        <TestAppProviders services={services}>
+          <SettingsAddPage onNav={() => undefined} profiles={[]} onProfileSaved={async () => undefined} />
+        </TestAppProviders>,
+      );
+    });
+
+    await act(async () => {
+      container.querySelector<HTMLElement>('.prov-row')!.click();
+    });
+
+    const inputs = Array.from(container.querySelectorAll<HTMLInputElement>('input'));
+    await act(async () => {
+      changeInput(inputs[0]!, 'Test Then Save');
+      changeInput(inputs[1]!, 'https://mock.local');
+      changeInput(inputs[2]!, 'mock-image-v1');
+      changeInput(inputs[3]!, 'secret-key');
+    });
+
+    await act(async () => {
+      container.querySelector<HTMLButtonElement>('.test-btn')!.click();
+    });
+    await act(async () => {
+      container.querySelector<HTMLButtonElement>('.btn-save')!.click();
+    });
+
+    const testedProfileId = spies.testProviderProfile.mock.calls[0]?.[0];
+    const savedProfileId = spies.saveProviderProfile.mock.calls.at(-1)?.[0].profileId;
+    expect(testedProfileId).toMatch(/^profile-/);
+    expect(savedProfileId).toBe(testedProfileId);
+  });
 });

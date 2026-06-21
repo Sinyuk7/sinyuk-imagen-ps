@@ -1,6 +1,7 @@
 import type { ProviderProfile } from '@imagen-ps/application';
 import { profileToProviderRow } from '../../app-services/mappers';
 import { Icon } from '../components/icons';
+import { Tip } from '../components/tip';
 import { useI18n } from '../i18n/i18n-context';
 
 interface SettingsPageProps {
@@ -32,14 +33,16 @@ export function SettingsPage({ onNav, profiles, loading, error, onReload, onOpen
           <Icon name="chevron-left" />
         </button>
         <div className="hdr-title">Providers</div>
-        <button className="hdr-btn tt-wrap" title={t.common.refresh} onClick={() => void onReload()}>
-          <Icon name="refresh" />
-          <div className="tt">{t.common.refresh}</div>
-        </button>
-        <button className="hdr-btn tt-wrap" title={t.common.addProvider} onClick={() => onNav('settings-add')}>
-          <Icon name="add" />
-          <div className="tt">{t.common.addProvider}</div>
-        </button>
+        <Tip label={t.common.refresh}>
+          <button className="hdr-btn" title={t.common.refresh} onClick={() => void onReload()}>
+            <Icon name="refresh" />
+          </button>
+        </Tip>
+        <Tip label={t.common.addProvider} right>
+          <button className="hdr-btn" title={t.common.addProvider} onClick={() => onNav('settings-add')}>
+            <Icon name="add" />
+          </button>
+        </Tip>
       </header>
       <div className="scroll">
         <div className="sec-lbl">{t.settings.configured}</div>

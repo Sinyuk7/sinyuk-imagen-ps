@@ -41,6 +41,7 @@ export function SettingsAddPage({ onNav, profiles, onProfileSaved }: SettingsAdd
   const services = useAppServices();
   const { messages: t } = useI18n();
   const providers = useProviderCatalog(services);
+  const [profileId] = useState(createProfileId);
   const [step, setStep] = useState(1);
   const [providerId, setProviderId] = useState<string | null>(providers[0]?.id ?? null);
   const [name, setName] = useState('');
@@ -57,7 +58,6 @@ export function SettingsAddPage({ onNav, profiles, onProfileSaved }: SettingsAdd
       throw new Error(t.settings.selectProviderType);
     }
     const displayName = name.trim() || nextAlias(selected.displayName, profiles);
-    const profileId = createProfileId();
     const result = await services.commands.saveProviderProfile({
       profileId,
       providerId: selected.id,

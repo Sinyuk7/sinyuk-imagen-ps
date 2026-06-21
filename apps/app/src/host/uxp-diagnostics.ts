@@ -54,10 +54,6 @@ export interface ReadRecentLogsSuccess {
   readonly date: string;
   readonly records: readonly LogRecord[];
   readonly lineCount: number;
-  /** 可选调试元数据：原始日志文件的 UXP native path（如果有）。 */
-  readonly diagnostics?: {
-    readonly nativePath?: string;
-  };
 }
 
 export interface DiagnosticsError {
@@ -200,14 +196,13 @@ export async function readRecentLogRecords(
     const file = await getLogFile(lfs, date);
     const text = await readFileText(file, lfs.formats?.utf8);
     const records = decodeLogRecords(text);
-    const limited = typeof options?.limit === 'number' ? records.slice(-options.limit) : records;
-    const nativePath = file.nativePath;
+    const safeRecords = records.map(sanitizeRecord);
+    const limited = typeof options?.limit === 'number' ? safeRecords.slice(-options.limit) : safeRecords;
     const result: ReadRecentLogsSuccess = {
       ok: true,
       date,
       records: limited,
       lineCount: records.length,
-      ...(nativePath !== undefined && nativePath.length > 0 ? { diagnostics: { nativePath } } : {}),
     };
     return result;
   } catch (error) {

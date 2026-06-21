@@ -83,7 +83,23 @@ function createFakeModules(): {
                 name: 'Group',
                 kind: 'group',
                 visible: true,
-                layers: [{ id: 2, name: 'Child', kind: 'pixel', visible: false, hasUserMask: true }],
+                layers: [
+                  {
+                    id: 2,
+                    name: 'Child',
+                    kind: 'pixel',
+                    visible: false,
+                    hasUserMask: true,
+                    bounds: { _left: 0, _top: 0, _right: 64, _bottom: 64 },
+                  },
+                  {
+                    id: 3,
+                    name: 'Empty',
+                    kind: 'pixel',
+                    visible: true,
+                    bounds: { _left: 0, _top: 0, _right: 0, _bottom: 0 },
+                  },
+                ],
               },
             ],
           },
@@ -132,7 +148,23 @@ describe('PhotoshopHostBridge fake harness', () => {
         name: 'Group',
         kind: 'group',
         visible: true,
-        children: [{ id: 2, name: 'Child', kind: 'pixel', visible: false, hasUserMask: true }],
+        children: [
+          {
+            id: 2,
+            name: 'Child',
+            kind: 'pixel',
+            visible: false,
+            hasUserMask: true,
+            bounds: { left: 0, top: 0, right: 64, bottom: 64 },
+          },
+          {
+            id: 3,
+            name: 'Empty',
+            kind: 'pixel',
+            visible: true,
+            bounds: { left: 0, top: 0, right: 0, bottom: 0 },
+          },
+        ],
       },
     ]);
   });
@@ -157,6 +189,7 @@ describe('PhotoshopHostBridge fake harness', () => {
     expect(spies.getPixels).toHaveBeenCalledWith({
       documentID: 42,
       layerID: 2,
+      sourceBounds: { left: 0, top: 0, right: 64, bottom: 64 },
       componentSize: 8,
       applyAlpha: false,
     });
@@ -165,8 +198,20 @@ describe('PhotoshopHostBridge fake harness', () => {
       layerID: 2,
       kind: 'user',
     });
+    expect(spies.executeAsModal).toHaveBeenCalledWith(expect.any(Function), { commandName: 'Read layer pixels' });
+    expect(spies.executeAsModal).toHaveBeenCalledWith(expect.any(Function), { commandName: 'Read layer mask' });
     expect(spies.disposeLayer).toHaveBeenCalledTimes(1);
     expect(spies.disposeMask).toHaveBeenCalledTimes(1);
+  });
+
+  it('读取空 bounds 图层前返回清晰错误', async () => {
+    const { modules, spies } = createFakeModules();
+    const bridge = createPhotoshopHostBridge(modules);
+
+    await expect(bridge.readLayerAsAsset(3)).rejects.toThrow('Photoshop layer has no readable pixels: Empty');
+
+    expect(spies.getPixels).not.toHaveBeenCalled();
+    expect(spies.executeAsModal).not.toHaveBeenCalled();
   });
 
   it('通过 UXP file picker 读取 image file', async () => {

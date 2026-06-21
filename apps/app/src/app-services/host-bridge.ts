@@ -6,6 +6,12 @@ export interface LayerInfo {
   readonly kind?: string;
   readonly visible?: boolean;
   readonly hasUserMask?: boolean;
+  readonly bounds?: {
+    readonly left: number;
+    readonly top: number;
+    readonly right: number;
+    readonly bottom: number;
+  };
   readonly children?: readonly LayerInfo[];
 }
 
