@@ -19,8 +19,7 @@ Context docs:
 - Current authority: `packages/core-engine/AGENTS.md`
 - Current authority: `packages/foundation/AGENTS.md`
 - Manual-only workflow: `docs/dev-memory/memories/workflow/uxp-photoshop-smoke-checklist.md`
-- Manual-only workflow: `docs/dev-memory/memories/workflow/uxp-host-debug-prep.md`
-- Manual-only workflow: `docs/dev-memory/memories/workflow/uxp-fast-debug-playbook.md`
+- Host debug workflow: `docs/dev-memory/memories/workflow/uxp-host-debugging.md`
 - Historical bug evidence: `docs/dev-memory/memories/bug/uxp-panel-css-compat.md`
 - Historical bug evidence: `docs/dev-memory/memories/bug/uxp-submit-preview-crash.md`
 - Historical bug evidence: `docs/dev-memory/_inbox/2026-06-19-uxp-provider-feedback-fix.md`

@@ -10,18 +10,9 @@ Superseded by: No follow-up while draft
 Context docs:
 
 - `AGENTS.md`
-- `apps/app/AGENTS.md`
-- `apps/app/SPEC.md`
-- `apps/app/STATUS.md`
 - `docs/agent/LOOP.md`
-- `docs/ENGINEERING_CONTEXT.md`
 - `docs/TESTING.md`
-- `docs/dev-memory/memories/workflow/uxp-fast-debug-playbook.md`
-- `docs/dev-memory/memories/workflow/uxp-host-debug-prep.md`
-- `docs/dev-memory/memories/workflow/uxp-photoshop-smoke-checklist.md`
-- `docs/dev-memory/memories/workflow/调试建议 1.md`
-- `docs/dev-memory/memories/workflow/调试建议 2.md`
-- `docs/dev-memory/memories/architecture/uxp-boundary-crash-containment.md`
+- `docs/dev-memory/memories/workflow/uxp-host-debugging.md`
 
 ## Goal
 
