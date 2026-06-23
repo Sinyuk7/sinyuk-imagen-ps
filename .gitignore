@@ -33,3 +33,4 @@ check-results
 # E2E test secrets & output
 .test.env
 .test-output/
+.artifacts/
