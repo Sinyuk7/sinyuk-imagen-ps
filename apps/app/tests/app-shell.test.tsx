@@ -36,6 +36,7 @@ describe('AppShell', () => {
             app: { stage: 'uxp-first-shell', host: 'photoshop-uxp', services: ['commands', 'host'] },
             locale: 'zh-CN',
             services,
+            dispose: () => undefined,
           }}
         />,
       );
@@ -62,6 +63,7 @@ describe('AppShell', () => {
             app: { stage: 'uxp-first-shell', host: 'photoshop-uxp', services: ['commands', 'host'] },
             locale: 'en',
             services,
+            dispose: () => undefined,
           }}
         />,
       );

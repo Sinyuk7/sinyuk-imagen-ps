@@ -1,9 +1,16 @@
 import { describe, expect, it, vi } from 'vitest';
-import { createPhotoshopHostBridge } from './photoshop-host-bridge';
+import { createHostModalRunner, createPhotoshopHostBridge } from './photoshop-host-bridge';
 import type { UxpModules } from './uxp-api';
+import { createNullLogger } from '@imagen-ps/foundation';
 
 function arrayBufferFromText(value: string): ArrayBuffer {
   return new TextEncoder().encode(value).buffer;
+}
+
+function arrayBufferFromBytes(bytes: Uint8Array): ArrayBuffer {
+  const copy = new Uint8Array(bytes.byteLength);
+  copy.set(bytes);
+  return copy.buffer;
 }
 
 const VALID_TRANSPARENT_PNG = new Uint8Array([
@@ -19,6 +26,8 @@ const VALID_TRANSPARENT_PNG = new Uint8Array([
   0x42, 0x60, 0x82,
 ]);
 
+const VALID_TINY_JPEG = new Uint8Array([0xff, 0xd8, 0xff, 0xd9]);
+
 const LEGACY_TRUNCATED_MOCK_PNG = new Uint8Array([
   0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a,
   0x00, 0x00, 0x00, 0x0d, 0x49, 0x48, 0x44, 0x52,
@@ -31,7 +40,10 @@ const LEGACY_TRUNCATED_MOCK_PNG = new Uint8Array([
   0x42, 0x60, 0x82,
 ]);
 
-function createFakeModules(): {
+function createFakeModules(options?: {
+  readonly pickedFileName?: string;
+  readonly pickedFileData?: ArrayBuffer;
+}): {
   readonly modules: UxpModules;
   readonly spies: {
     readonly getPixels: ReturnType<typeof vi.fn>;
@@ -43,10 +55,14 @@ function createFakeModules(): {
     readonly createFile: ReturnType<typeof vi.fn>;
     readonly writeTempFile: ReturnType<typeof vi.fn>;
     readonly createSessionToken: ReturnType<typeof vi.fn>;
+    readonly isModal: ReturnType<typeof vi.fn>;
+    readonly setExecutionMode: ReturnType<typeof vi.fn>;
     readonly executeAsModal: ReturnType<typeof vi.fn>;
     readonly batchPlay: ReturnType<typeof vi.fn>;
   };
 } {
+  const pickedFileName = options?.pickedFileName ?? 'picked.png';
+  const pickedFileData = options?.pickedFileData ?? arrayBufferFromBytes(VALID_TRANSPARENT_PNG);
   const disposeLayer = vi.fn();
   const disposeMask = vi.fn();
   const layerImageData = { dispose: disposeLayer };
@@ -57,8 +73,8 @@ function createFakeModules(): {
     imageData === maskImageData ? 'mask-jpeg-base64' : 'layer-jpeg-base64',
   );
   const getFileForOpening = vi.fn(async () => ({
-    name: 'picked.png',
-    read: vi.fn(async () => arrayBufferFromText('picked-bytes')),
+    name: pickedFileName,
+    read: vi.fn(async () => pickedFileData),
     write: vi.fn(async () => undefined),
   }));
   const writeTempFile = vi.fn(async () => undefined);
@@ -70,6 +86,8 @@ function createFakeModules(): {
   const createSessionToken = vi.fn(() => 'session-token-1');
   const batchPlay = vi.fn(async () => undefined);
   const executeAsModal = vi.fn(async (callback: () => Promise<void>) => callback());
+  const isModal = vi.fn(() => false);
+  const setExecutionMode = vi.fn();
 
   return {
     modules: {
@@ -105,7 +123,7 @@ function createFakeModules(): {
           },
         },
         imaging: { getPixels, getLayerMask, encodeImageData },
-        core: { executeAsModal },
+        core: { executeAsModal, isModal, setExecutionMode },
         action: { batchPlay },
       },
       uxp: {
@@ -131,6 +149,8 @@ function createFakeModules(): {
       createFile,
       writeTempFile,
       createSessionToken,
+      isModal,
+      setExecutionMode,
       executeAsModal,
       batchPlay,
     },
@@ -232,6 +252,33 @@ describe('PhotoshopHostBridge fake harness', () => {
     expect(asset?.data).toBeInstanceOf(Uint8Array);
   });
 
+  it('按 picker 文件名推断 JPEG MIME，避免后续 PNG 预检误判', async () => {
+    const { modules } = createFakeModules({
+      pickedFileName: 'picked.JPG',
+      pickedFileData: arrayBufferFromBytes(VALID_TINY_JPEG),
+    });
+    const bridge = createPhotoshopHostBridge(modules);
+
+    const asset = await bridge.pickImageFile();
+
+    expect(asset).toMatchObject({
+      type: 'image',
+      name: 'picked.JPG',
+      mimeType: 'image/jpeg',
+    });
+    expect(asset?.data).toBeInstanceOf(Uint8Array);
+  });
+
+  it('拒绝 structurally unsafe picker image，避免坏 bytes 进入会话 attachment', async () => {
+    const { modules } = createFakeModules({
+      pickedFileName: 'picked.png',
+      pickedFileData: arrayBufferFromBytes(LEGACY_TRUNCATED_MOCK_PNG),
+    });
+    const bridge = createPhotoshopHostBridge(modules);
+
+    await expect(bridge.pickImageFile()).rejects.toThrow('PNG asset chunk CRC is invalid.');
+  });
+
   it('placeAssetOnCanvas 生成 temporary file/session token 并在 modal 内调用 placeEvent', async () => {
     const { modules, spies } = createFakeModules();
     const bridge = createPhotoshopHostBridge(modules);
@@ -259,6 +306,62 @@ describe('PhotoshopHostBridge fake harness', () => {
       ],
       { synchronousExecution: false },
     );
+  });
+
+  it('串行执行 Photoshop modal 操作，避免并发 executeAsModal 互相踩踏', async () => {
+    const { modules, spies } = createFakeModules();
+    const order: string[] = [];
+    let releaseFirst: (() => void) | undefined;
+    spies.executeAsModal
+      .mockImplementationOnce(async (callback: () => Promise<unknown>) => {
+        order.push('first-start');
+        await new Promise<void>((resolve) => {
+          releaseFirst = resolve;
+        });
+        const result = await callback();
+        order.push('first-end');
+        return result;
+      })
+      .mockImplementationOnce(async (callback: () => Promise<unknown>) => {
+        order.push('second-start');
+        const result = await callback();
+        order.push('second-end');
+        return result;
+      });
+    const bridge = createPhotoshopHostBridge(modules);
+
+    const first = bridge.readLayerAsAsset(2);
+    const second = bridge.readLayerMaskAsAsset(2);
+    await new Promise((resolve) => setTimeout(resolve, 0));
+
+    expect(order).toEqual(['first-start']);
+    releaseFirst?.();
+    await expect(Promise.all([first, second])).resolves.toHaveLength(2);
+    expect(order).toEqual(['first-start', 'first-end', 'second-start', 'second-end']);
+    expect(spies.setExecutionMode).toHaveBeenCalledWith({ enableErrorStacktraces: true });
+  });
+
+  it('modal slot 长时间不可用时返回清晰错误而不是永久等待', async () => {
+    vi.useFakeTimers();
+    try {
+      const executeAsModal = vi.fn(async () => undefined);
+      const runHostModal = createHostModalRunner(
+        {
+          executeAsModal,
+          isModal: () => true,
+        },
+        createNullLogger(),
+      );
+
+      const pending = runHostModal(async () => undefined, { commandName: 'Blocked modal' });
+      const rejection = expect(pending).rejects.toThrow('Photoshop modal state did not become available.');
+      await vi.runAllTimersAsync();
+
+      await rejection;
+      expect(executeAsModal).not.toHaveBeenCalled();
+    } finally {
+      vi.useRealTimers();
+    }
   });
 
   it('placeAssetOnCanvas 拒绝旧 mock 坏 PNG，避免进入 Photoshop placeEvent', async () => {

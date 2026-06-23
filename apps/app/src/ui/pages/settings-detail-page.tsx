@@ -4,6 +4,7 @@ import { useAppServices } from '../../app-services/app-services-context';
 import { providerConfigFromForm, useProfileDetail, useProfileModels } from '../hooks/use-provider-settings';
 import { Icon } from '../components/icons';
 import { StatusNotice } from '../components/status-notice';
+import { UxpCheckbox, UxpTextField } from '../components/uxp-form-controls';
 import { useI18n } from '../i18n/i18n-context';
 import { statusFromProviderTestResult, type ProviderStatus } from '../provider-status';
 
@@ -172,21 +173,21 @@ export function SettingsDetailPage({ onNav, profileId, onProfilesChanged }: Sett
               <div className="section-title">{t.settings.connectionInfo}</div>
               <div className="field">
                 <label className="field-label">{t.settings.alias}</label>
-                <input className="field-input" value={displayName} onChange={(event) => setDisplayName(event.target.value)} />
+                <UxpTextField className="field-input" value={displayName} onValue={setDisplayName} />
               </div>
               <div className="field">
                 <label className="field-label">Base URL</label>
-                <input className="field-input mono" value={baseUrl} onChange={(event) => setBaseUrl(event.target.value)} />
+                <UxpTextField className="field-input mono" value={baseUrl} onValue={setBaseUrl} />
               </div>
               <div className="field">
                 <label className="field-label">API Key</label>
                 <div className="pw-wrap">
-                  <input
+                  <UxpTextField
                     type={showKey ? 'text' : 'password'}
                     className="field-input mono"
                     placeholder={detail.profile.secretRefs?.apiKey ? t.settings.savedSecretPlaceholder : 'sk-...'}
                     value={apiKey}
-                    onChange={(event) => setApiKey(event.target.value)}
+                    onValue={setApiKey}
                   />
                   <button className="pw-toggle" onClick={() => setShowKey((shown) => !shown)}>
                     <Icon name={showKey ? 'eye-off' : 'eye'} />
@@ -194,7 +195,7 @@ export function SettingsDetailPage({ onNav, profileId, onProfilesChanged }: Sett
                 </div>
               </div>
               <label className="status-inline loose" style={{ color: 'var(--txm)', fontSize: 12 }}>
-                <input type="checkbox" checked={enabled} onChange={(event) => setEnabled(event.target.checked)} />
+                <UxpCheckbox checked={enabled} onChecked={setEnabled} />
                 {t.settings.enableProfile}
               </label>
             </div>
@@ -211,12 +212,12 @@ export function SettingsDetailPage({ onNav, profileId, onProfilesChanged }: Sett
                     {model.displayName ?? model.id}
                   </button>
                 ))}
-                <input
+                <UxpTextField
                   className="field-input mono"
                   style={{ marginTop: 8 }}
                   placeholder={t.settings.customModelId}
                   value={defaultModel}
-                  onChange={(event) => setDefaultModel(event.target.value)}
+                  onValue={setDefaultModel}
                 />
               </div>
               {models.error && <StatusNotice tone="error" message={models.error} />}

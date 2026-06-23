@@ -10,6 +10,7 @@ import type {
 } from '../hooks/use-conversation';
 import { Icon } from '../components/icons';
 import { Tip } from '../components/tip';
+import { UxpTextArea } from '../components/uxp-form-controls';
 import { useI18n } from '../i18n/i18n-context';
 
 interface MainPageProps {
@@ -88,6 +89,7 @@ export function MainPage({
   const taRef = useRef<HTMLTextAreaElement>(null);
   const flatLayers = useMemo(() => flattenLayers(layers), [layers]);
   const selectedModelLabel = selectedModelId || (modelsLoading ? t.main.modelLoading : t.main.modelUnselected);
+  const currentPromptValue = () => taRef.current?.value ?? input;
   const canSend = input.trim().length > 0 && Boolean(selectedProfile) && !conversation.running;
 
   const showToast = useCallback((message: string) => {
@@ -166,7 +168,10 @@ export function MainPage({
     if (!canSend) {
       return;
     }
-    const prompt = input.trim();
+    const prompt = currentPromptValue().trim();
+    if (prompt.length === 0) {
+      return;
+    }
     setInput('');
     setAttachments([]);
     await conversation.submit({
@@ -477,13 +482,13 @@ export function MainPage({
               ))}
             </div>
           )}
-          <textarea
-            ref={taRef}
+          <UxpTextArea
+            controlRef={taRef}
             className="cmp-ta"
             placeholder={selectedProfile ? t.main.promptPlaceholderReady : t.main.promptPlaceholderNoProfile}
             rows={2}
             value={input}
-            onChange={(event) => setInput(event.target.value)}
+            onValue={setInput}
             onKeyDown={(event) => {
               if (event.key === 'Enter' && !event.shiftKey) {
                 event.preventDefault();

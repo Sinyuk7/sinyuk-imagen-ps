@@ -45,6 +45,8 @@ interface PhotoshopImaging {
 
 interface PhotoshopCore {
   executeAsModal<T>(callback: () => Promise<T>, options?: { readonly commandName?: string }): Promise<T>;
+  isModal?(): boolean;
+  setExecutionMode?(options: { readonly enableErrorStacktraces?: boolean }): void;
 }
 
 interface PhotoshopAction {
@@ -90,6 +92,58 @@ function photoshopActionFrom(modules: UxpModules): PhotoshopAction | undefined {
 function localFileSystemFrom(modules: UxpModules): UxpLocalFileSystem | undefined {
   const storage = modules.uxp?.storage as { readonly localFileSystem?: UxpLocalFileSystem } | undefined;
   return storage?.localFileSystem;
+}
+
+function waitForHostFrame(): Promise<void> {
+  return new Promise((resolve) => {
+    if (typeof requestAnimationFrame === 'function') {
+      requestAnimationFrame(() => resolve());
+      return;
+    }
+    setTimeout(resolve, 0);
+  });
+}
+
+async function waitForAvailableModalSlot(core: PhotoshopCore, maxFrames = 180): Promise<void> {
+  if (!core.isModal) {
+    return;
+  }
+
+  let frames = 0;
+  while (core.isModal()) {
+    frames += 1;
+    if (frames > maxFrames) {
+      throw new Error('Photoshop modal state did not become available.');
+    }
+    await waitForHostFrame();
+  }
+}
+
+export function createHostModalRunner(core: PhotoshopCore, logger: Logger): PhotoshopCore['executeAsModal'] {
+  try {
+    core.setExecutionMode?.({ enableErrorStacktraces: true });
+  } catch (error) {
+    logger.warn('hostbridge.modal_execution_mode.failed', {
+      message: error instanceof Error ? error.message : String(error),
+    });
+  }
+
+  let queue: Promise<unknown> = Promise.resolve();
+
+  // Photoshop 只允许一个 modal 操作；串行化避免重复点击或 reload 时互相踩踏。
+  return async function runHostModal<T>(
+    callback: () => Promise<T>,
+    options?: { readonly commandName?: string },
+  ): Promise<T> {
+    const run = queue
+      .catch(() => undefined)
+      .then(async () => {
+        await waitForAvailableModalSlot(core);
+        return core.executeAsModal(callback, options);
+      });
+    queue = run.catch(() => undefined);
+    return run;
+  };
 }
 
 function numericBound(value: unknown): number | undefined {
@@ -208,6 +262,16 @@ function fileExtensionFor(mimeType: string): string {
   return 'png';
 }
 
+function mimeTypeForFileName(name: string | undefined): string {
+  if (/\.(jpe?g)$/i.test(name ?? '')) {
+    return 'image/jpeg';
+  }
+  if (/\.webp$/i.test(name ?? '')) {
+    return 'image/webp';
+  }
+  return 'image/png';
+}
+
 export interface CreatePhotoshopHostBridgeOptions {
   /** 可选 logger；未提供时使用 runtime logger。 */
   readonly logger?: Logger;
@@ -225,6 +289,8 @@ export function createPhotoshopHostBridge(modules: UxpModules, options?: CreateP
     logger.warn('hostbridge.unavailable', { reason: 'missing UXP modules' });
     return createHostBridgeStub();
   }
+
+  const executeHostModal = createHostModalRunner(core, logger);
 
   return {
     async listLayers(): Promise<readonly LayerInfo[]> {
@@ -251,13 +317,17 @@ export function createPhotoshopHostBridge(modules: UxpModules, options?: CreateP
           return undefined;
         }
         const data = await file.read({ format: fs.formats?.binary });
+        const mimeType = mimeTypeForFileName(file.name);
+        if (data instanceof ArrayBuffer) {
+          ensurePlaceableImagePayload(data, mimeType);
+        }
         const asset: Asset = {
           type: 'image',
           name: file.name ?? 'selected-image',
           data: typeof data === 'string' ? data : new Uint8Array(data),
-          mimeType: 'image/png',
+          mimeType,
         };
-        span.finish({ picked: true, name: asset.name });
+        span.finish({ picked: true, name: asset.name, mimeType });
         return asset;
       } catch (error) {
         span.fail(error);
@@ -273,7 +343,7 @@ export function createPhotoshopHostBridge(modules: UxpModules, options?: CreateP
         if (boundsAreEmpty(bounds)) {
           throw new Error(`Photoshop layer has no readable pixels: ${layer?.name ?? layerId}`);
         }
-        const asset = await core.executeAsModal(
+        const asset = await executeHostModal(
           async () => {
             const result = await imaging.getPixels({
               documentID: app.activeDocument?.id,
@@ -302,7 +372,7 @@ export function createPhotoshopHostBridge(modules: UxpModules, options?: CreateP
       }
       const getLayerMask = imaging.getLayerMask.bind(imaging);
       try {
-        const asset = await core.executeAsModal(
+        const asset = await executeHostModal(
           async () => {
             const result = await getLayerMask({
               documentID: app.activeDocument?.id,
@@ -336,7 +406,7 @@ export function createPhotoshopHostBridge(modules: UxpModules, options?: CreateP
         await file.write(data, { format: fs.formats?.binary });
         const token = fs.createSessionToken(file);
 
-        await core.executeAsModal(
+        await executeHostModal(
           async () => {
             await action.batchPlay(
               [

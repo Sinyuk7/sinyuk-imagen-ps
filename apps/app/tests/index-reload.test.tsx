@@ -1,51 +1,148 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-const renderMock = vi.fn();
-const unmountMock = vi.fn();
-const createRootMock = vi.fn(() => ({ render: renderMock, unmount: unmountMock }));
+const mocks = vi.hoisted(() => {
+  const renderMock = vi.fn();
+  const unmountMock = vi.fn();
+  const disposeMock = vi.fn();
+  const createRootMock = vi.fn(() => ({ render: renderMock, unmount: unmountMock }));
+  const createPluginHostShellMock = vi.fn();
+  const entrypointsSetupMock = vi.fn();
+  return {
+    renderMock,
+    unmountMock,
+    disposeMock,
+    createRootMock,
+    createPluginHostShellMock,
+    entrypointsSetupMock,
+  };
+});
+
+const {
+  renderMock,
+  unmountMock,
+  disposeMock,
+  createRootMock,
+  createPluginHostShellMock,
+  entrypointsSetupMock,
+} = mocks;
 
 vi.mock('react-dom/client', () => ({
   createRoot: createRootMock,
 }));
 
 vi.mock('../src/host/create-plugin-host-shell', () => ({
-  createPluginHostShell: () => ({
-    kind: 'photoshop-uxp',
-    app: { stage: 'uxp-first-shell', host: 'photoshop-uxp', services: ['commands', 'host'] },
-    locale: 'en',
+  createPluginHostShell: createPluginHostShellMock,
+}));
+
+vi.mock('../src/host/uxp-api', () => ({
+  resolveUxpModules: () => ({
+    uxp: {
+      entrypoints: {
+        setup: entrypointsSetupMock,
+      },
+    },
+  }),
+}));
+
+function createFakeHostShell() {
+  return {
+    kind: 'photoshop-uxp' as const,
+    app: { stage: 'uxp-first-shell' as const, host: 'photoshop-uxp' as const, services: ['commands' as const, 'host' as const] },
+    locale: 'en' as const,
     services: {
       commands: {},
       host: {
         listLayers: async () => [],
       },
     },
-  }),
-}));
+    dispose: disposeMock,
+  };
+}
 
 vi.mock('../src/ui/app-shell', () => ({
   AppShell: () => null,
 }));
 
+function latestPanelController() {
+  const setupConfig = entrypointsSetupMock.mock.calls.at(-1)?.[0];
+  const panel = setupConfig?.panels?.['imagen-ps-panel'];
+  if (!panel) {
+    throw new Error('missing panel controller');
+  }
+  return panel as {
+    create: () => HTMLElement | undefined;
+    show: () => void;
+    hide: () => void;
+    destroy: () => void;
+  };
+}
+
 describe('UXP panel entry reload behavior', () => {
   beforeEach(() => {
     vi.resetModules();
+    createPluginHostShellMock.mockReset();
+    createPluginHostShellMock.mockImplementation(createFakeHostShell);
     createRootMock.mockClear();
     renderMock.mockClear();
     unmountMock.mockClear();
+    disposeMock.mockClear();
+    entrypointsSetupMock.mockClear();
     delete globalThis.__IMAGEN_PS_REACT_ROOT__;
+    delete globalThis.__IMAGEN_PS_HOST_SMOKE__;
+    delete globalThis.__IMAGEN_PS_PANEL_RUNTIME__;
+    window.localStorage.clear();
     document.body.innerHTML = '<div id="root"></div>';
   });
 
-  it('unmounts an existing React root before rendering after a repeated entry execution', async () => {
+  it('registers UXP entrypoints and mounts only when the panel is created', async () => {
     await import('../src/index');
+
+    expect(entrypointsSetupMock).toHaveBeenCalledTimes(1);
+    expect(createPluginHostShellMock).not.toHaveBeenCalled();
+    expect(createRootMock).not.toHaveBeenCalled();
+
+    latestPanelController().create();
+
+    expect(createPluginHostShellMock).toHaveBeenCalledTimes(1);
     expect(createRootMock).toHaveBeenCalledTimes(1);
     expect(renderMock).toHaveBeenCalledTimes(1);
-    expect(unmountMock).not.toHaveBeenCalled();
+  });
+
+  it('disposes the previous runtime before installing replacement entrypoints', async () => {
+    await import('../src/index');
+    latestPanelController().create();
 
     vi.resetModules();
     await import('../src/index');
+
     expect(unmountMock).toHaveBeenCalledTimes(1);
-    expect(createRootMock).toHaveBeenCalledTimes(2);
-    expect(renderMock).toHaveBeenCalledTimes(2);
+    expect(disposeMock).toHaveBeenCalledTimes(1);
+    expect(entrypointsSetupMock).toHaveBeenCalledTimes(2);
+    expect(unmountMock.mock.invocationCallOrder[0]).toBeLessThan(
+      entrypointsSetupMock.mock.invocationCallOrder[1] ?? 0,
+    );
+  });
+
+  it('clears stale host smoke handle before replacement host startup', async () => {
+    window.localStorage.setItem('imagenPsHostSmoke', '1');
+    await import('../src/index');
+    latestPanelController().create();
+    expect(globalThis.__IMAGEN_PS_HOST_SMOKE__).toBeTruthy();
+
+    vi.resetModules();
+    await import('../src/index');
+    createPluginHostShellMock.mockImplementationOnce(() => {
+      throw new Error('replacement startup failed');
+    });
+    const consoleErrorSpy = vi.spyOn(console, 'error').mockImplementation(() => undefined);
+
+    try {
+      latestPanelController().create();
+    } finally {
+      consoleErrorSpy.mockRestore();
+    }
+
+    expect(globalThis.__IMAGEN_PS_HOST_SMOKE__).toBeUndefined();
+    expect(document.querySelector('[role="alert"]')?.textContent).toContain('replacement startup failed');
   });
 });

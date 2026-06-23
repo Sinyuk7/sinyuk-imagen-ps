@@ -215,8 +215,9 @@ Do not keep expanding ad hoc UXPDT/CDT automation. The next useful step is a
 complete Photoshop / UXP stabilization sprint. The sprint goal is broader than
 fixing one native crash or producing a comparison report: learn from the local
 reference UXP project, explain why this app is fragile in the Photoshop / UXP
-host, refactor the full UXP boundary where needed, and finish with real
-validation evidence.
+host, and refactor the full UXP boundary where needed. The primary evidence for
+this sprint should come from source-code and architecture comparison, not from
+slow repeated real-host validation.
 
 Keep the comparison strictly about Photoshop / UXP engineering. Do not copy
 product features, UI style, provider behavior, branding, or application
@@ -239,8 +240,8 @@ workflow. Use the reference project as one input for host-runtime design:
   checked in Photoshop, and how host reload/debug loops are kept stable.
 
 The executing agent should not stop at analysis unless it hits a documented
-boundary blocker. It should produce an evidence-backed migration plan, implement
-bounded app-side refactors, add repo-side harness coverage for each fixed bug
-class, rebuild, reload, and verify with the existing host layers: load-only,
-read-only CDT, visible navigation, and only then real visible input/Test/Save
-through user-like keyboard/mouse input.
+boundary blocker. It should produce a code-evidenced root-cause model, implement
+bounded app-side refactors, and add repo-side harness coverage for each fixed
+bug class. Do not make slow repeated real Photoshop / UXP verification the main
+loop; reserve host validation for a later small confirmation pass after the
+source-level design issues have been addressed.

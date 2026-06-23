@@ -23,6 +23,7 @@ export interface PluginHostShell {
   readonly app: PluginAppModel;
   readonly locale: SupportedLocale;
   readonly services: AppServices;
+  dispose(): void;
 }
 
 export function createPluginHostShell(): PluginHostShell {
@@ -71,6 +72,9 @@ export function createPluginHostShell(): PluginHostShell {
       services: {
         commands: createCommandsAdapter(),
         host: hostBridge,
+      },
+      dispose() {
+        logger.info('panel.dispose');
       },
     };
   } catch (error) {

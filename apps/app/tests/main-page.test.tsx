@@ -32,6 +32,7 @@ async function renderApp(container: HTMLElement, services = createFakeServices()
           app: { stage: 'uxp-first-shell', host: 'photoshop-uxp', services: ['commands', 'host'] },
           locale: 'zh-CN',
           services: services.services,
+          dispose: () => undefined,
         }}
       />,
     );
@@ -44,7 +45,7 @@ async function renderApp(container: HTMLElement, services = createFakeServices()
 function changeTextarea(textarea: HTMLTextAreaElement, value: string): void {
   const setter = Object.getOwnPropertyDescriptor(HTMLTextAreaElement.prototype, 'value')?.set;
   setter?.call(textarea, value);
-  textarea.dispatchEvent(new Event('input', { bubbles: true }));
+  textarea.dispatchEvent(new KeyboardEvent('keyup', { bubbles: true, key: 'x' }));
 }
 
 async function sendPrompt(container: HTMLElement, prompt: string): Promise<void> {

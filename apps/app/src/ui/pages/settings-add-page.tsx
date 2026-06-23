@@ -4,6 +4,7 @@ import { useAppServices } from '../../app-services/app-services-context';
 import { providerConfigFromForm, useProviderCatalog } from '../hooks/use-provider-settings';
 import { Icon } from '../components/icons';
 import { StatusNotice } from '../components/status-notice';
+import { UxpTextField } from '../components/uxp-form-controls';
 import { useI18n } from '../i18n/i18n-context';
 import { statusFromProviderTestResult, type ProviderStatus } from '../provider-status';
 
@@ -149,26 +150,26 @@ export function SettingsAddPage({ onNav, profiles, onProfileSaved }: SettingsAdd
               <div className="section-title">{t.settings.config}</div>
               <div className="field">
                 <label className="field-label">{t.settings.alias}</label>
-                <input className="field-input" placeholder={selected?.displayName} value={name} onChange={(event) => setName(event.target.value)} />
+                <UxpTextField className="field-input" placeholder={selected?.displayName} value={name} onValue={setName} />
               </div>
               <div className="field">
                 <label className="field-label">Base URL</label>
-                <input className="field-input mono" placeholder="https://api.example.com" value={baseUrl} onChange={(event) => setBaseUrl(event.target.value)} />
+                <UxpTextField className="field-input mono" placeholder="https://api.example.com" value={baseUrl} onValue={setBaseUrl} />
                 <div className="field-hint">{t.settings.baseUrlHint}</div>
               </div>
               <div className="field">
                 <label className="field-label">{t.settings.defaultModel}</label>
-                <input className="field-input mono" placeholder="gpt-image-2" value={defaultModel} onChange={(event) => setDefaultModel(event.target.value)} />
+                <UxpTextField className="field-input mono" placeholder="gpt-image-2" value={defaultModel} onValue={setDefaultModel} />
               </div>
               <div className="field" style={{ marginBottom: 0 }}>
                 <label className="field-label">API Key</label>
                 <div className="pw-wrap">
-                  <input
+                  <UxpTextField
                     type={showKey ? 'text' : 'password'}
                     className="field-input mono"
                     placeholder="sk-..."
                     value={apiKey}
-                    onChange={(event) => setApiKey(event.target.value)}
+                    onValue={setApiKey}
                   />
                   <button className="pw-toggle" onClick={() => setShowKey((shown) => !shown)}>
                     <Icon name={showKey ? 'eye-off' : 'eye'} />

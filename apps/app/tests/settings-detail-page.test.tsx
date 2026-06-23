@@ -25,7 +25,7 @@ async function flush(): Promise<void> {
 function changeInput(input: HTMLInputElement, value: string): void {
   const setter = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value')?.set;
   setter?.call(input, value);
-  input.dispatchEvent(new Event('input', { bubbles: true }));
+  input.dispatchEvent(new KeyboardEvent('keyup', { bubbles: true, key: 'x' }));
 }
 
 async function renderDetail(container: HTMLElement, onProfilesChanged = vi.fn(async () => undefined)) {
