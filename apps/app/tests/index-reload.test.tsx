@@ -30,11 +30,11 @@ vi.mock('react-dom/client', () => ({
   createRoot: createRootMock,
 }));
 
-vi.mock('../src/host/create-plugin-host-shell', () => ({
+vi.mock('../src/shells/uxp/create-plugin-host-shell', () => ({
   createPluginHostShell: createPluginHostShellMock,
 }));
 
-vi.mock('../src/host/uxp-api', () => ({
+vi.mock('../src/adapters/uxp/uxp-api', () => ({
   resolveUxpModules: () => ({
     uxp: {
       entrypoints: {

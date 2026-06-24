@@ -5,7 +5,7 @@ import {
   installUxpPanelEntrypoints,
 } from './uxp-panel-runtime';
 import type { PluginHostShell } from './create-plugin-host-shell';
-import type { UxpModules } from './uxp-api';
+import type { UxpModules } from '../../adapters/uxp/uxp-api';
 
 const mocks = vi.hoisted(() => {
   const renderMock = vi.fn();
@@ -20,7 +20,7 @@ vi.mock('react-dom/client', () => ({
   createRoot: mocks.createRootMock,
 }));
 
-vi.mock('../shared/ui/app-shell', () => ({
+vi.mock('../../shared/ui/app-shell', () => ({
   AppShell: () => null,
 }));
 
