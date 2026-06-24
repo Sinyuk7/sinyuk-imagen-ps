@@ -25,6 +25,29 @@ const architectureRules = [
     ],
   },
   {
+    name: 'app shared 层不能依赖 adapter、shell、host、UXP、Photoshop 或 CLI',
+    roots: ['apps/app/src/shared'],
+    patterns: [
+      /\bfrom\s+['"][^'"]*(?:\.\.\/)+(?:adapters|shells|host)(?:\/|['"])/,
+      /\bimport\s+['"][^'"]*(?:\.\.\/)+(?:adapters|shells|host)(?:\/|['"])/,
+      /\bfrom\s+['"](?:photoshop|uxp)['"]/i,
+      /\bimport\s+['"](?:photoshop|uxp)['"]/i,
+      /\brequire\(['"](?:photoshop|uxp)['"]\)/i,
+      /\bfrom\s+['"]@imagen-ps\/cli(?:['"/])/,
+      /\bimport\s+['"]@imagen-ps\/cli(?:['"/])/,
+      /\brequire\(['"]@imagen-ps\/cli(?:['"/])/,
+    ],
+  },
+  {
+    name: 'shared UI 不能按 runtime 或 adapter kind 分支',
+    roots: ['apps/app/src/shared/ui'],
+    patterns: [
+      /\b(?:runtime|adapter|host)\.kind\b/,
+      /\bkind\s*===\s*['"](?:photoshop-uxp|chrome-browser)['"]/,
+      /\bkind\s*!==\s*['"](?:photoshop-uxp|chrome-browser)['"]/,
+    ],
+  },
+  {
     name: 'application 层必须保持 host-agnostic',
     roots: ['packages/application/src'],
     patterns: [

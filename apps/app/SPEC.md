@@ -1,74 +1,69 @@
-# app 规范
+# app Specification
 
-- 状态：当前阶段规范
-- 依据：根级 `AGENTS.md`、`../../docs/ENGINEERING_CONTEXT.md`、`STATUS.md`
+- Status: current app contract
+- Authority: root `AGENTS.md`, `../../docs/ENGINEERING_CONTEXT.md`, `STATUS.md`
 
-## 模块目的
+## Purpose
 
-作为 Photoshop / UXP surface，提供 UXP panel shell、React UI、Photoshop host IO，以及对 `@imagen-ps/application` 的薄接入。
+`@imagen-ps/app` provides one shared UXP-safe React UI and app-local contract surface with two runtime shells:
 
-## 稳定边界
+- Photoshop UXP shell and adapters.
+- Chrome browser shell and adapters.
 
-- `app/` 属于 host / app 层。
-- UI 不拥有 runtime lifecycle 或 provider 参数语义。
-- UI 只能通过 `AppServices.commands` 调共享 application/session 层。
-- Photoshop / UXP IO 必须留在 `src/host/` 或 injected adapter 边界。
-- Provider profile、secret、durable job history 和 asset 持久化通过 host-injected adapters 注入 application/session 层。
-- `apps/app` 不依赖 `apps/cli`，也不直接 import `@imagen-ps/core-engine` 或 `@imagen-ps/providers`。
+Both shells consume the same shared UI, ports, view-model helpers, command facade, host image wrapper, diagnostics contract, and capability state.
 
-## 当前公开结构
+## Boundaries
 
-### AppServices
+- Shared UI lives under `src/shared/ui` and may import only shared ports/domain and React-local code.
+- Interface contracts live under `src/shared/ports`.
+- App-local domain helpers and host image wrappers live under `src/shared/domain`.
+- UXP IO, secureStorage, data-folder persistence, diagnostics, and Photoshop bridge code live under `src/adapters/uxp` or `src/shells/uxp`.
+- Chrome File API, IndexedDB storage, browser diagnostics, and browser host port code live under `src/adapters/chrome`.
+- Deterministic Photoshop-like browser scenarios live under `src/simulators/photoshop`.
+- `apps/app` may call `@imagen-ps/application` commands and adapter injection hooks, but must not directly import `@imagen-ps/core-engine`, `@imagen-ps/providers`, or `@imagen-ps/cli`.
+
+## AppServices
 
 ```ts
 interface AppServices {
   readonly commands: CommandsPort;
   readonly host: HostBridge;
+  readonly diagnostics?: DiagnosticsPort;
 }
 ```
 
-- `CommandsPort` 只镜像 application/session 层公开命令，不加业务语义。
-- `HostBridge` 只表达 UI 需要的 host IO。
-- React 页面通过 `AppServicesProvider` 获取 services。
-- React UI 多语言是 app-local surface concern；host shell 只注入归一化后的 locale，不把文案、业务语义或 locale 状态放入 application/session 层。
+- `CommandsPort` mirrors the application/session command facade.
+- `HostBridge` exposes host capabilities and host IO.
+- `DiagnosticsPort` is injected by the runtime; shared UI does not import UXP log sinks.
+- UI must branch on capabilities/result state, not on runtime or adapter kind.
 
-### HostBridge
+## Host Image Contract
+
+Host image selection and simulator/layer reads return `HostImageAsset`:
 
 ```ts
-interface HostBridge {
-  listLayers(): Promise<readonly LayerInfo[]>;
-  pickImageFile(): Promise<Asset | undefined>;
-  readLayerAsAsset(layerId: number): Promise<Asset>;
-  readLayerMaskAsAsset(layerId: number): Promise<Asset | undefined>;
-  placeAssetOnCanvas(asset: Asset): Promise<void>;
+interface HostImageAsset {
+  readonly asset: Asset;
+  readonly metadata: HostImageMetadata;
+  readonly preview: HostImagePreviewHandle;
+  readonly payload: HostImagePayloadRef;
 }
 ```
 
-## 当前可确认的行为
+React state may keep preview handles and payload refs. Provider submissions must pass the downstream `Asset` to `@imagen-ps/application`; the app must not replace the core/application `Asset` contract.
 
-- `src/index.tsx` 在 DOM 存在时挂载 `<AppShell host={pluginHost} />`。
-- `createPluginHostShell()` 是 composition root，并把 UXP host UI locale 归一化为 app-supported locale。
-- Photoshop 内部 manifest panel label 使用 `Imagen`；对外 package / project name 仍可保留 `Imagen PS`。
-- MainPage 通过 `submitJob()` 提交 `provider-generate` 或 `provider-edit`。
-- 生成结果从 `job.output.image.assets` 映射为 preview。
-- 有 attachment 时走 `provider-edit`；无 attachment 时走 `provider-generate`。
-- History 通过 `listJobHistoryRecords()` 展示 durable job records，并保留当前 React session 内 running rounds 作为热视图。
-- Settings 使用 profile/model commands，不维护独立 provider config API。
-- API key 只能通过 write-only `secretValues` 输入，不作为普通 profile config 字段回显。
+## Runtime Notes
 
-## 当前不应写成既成事实的内容
+- UXP build output is `dist/`; UXP Developer Tool loads `dist/manifest.json`.
+- Chrome build output is `dist-chrome/`; Chrome uses the same shared UI/ports and a deterministic Photoshop simulator.
+- Chrome IndexedDB storage owns profiles, secrets, job history, and binary asset refs. `localStorage` is reserved for small developer preferences.
+- Chrome real-provider execution is conditional on browser-compatible transport and provider CORS policy. Default tests use mock provider state and deterministic simulator data.
 
-- 已在真实 Photoshop 中完成 UXP 加载验证。
-- `batchPlay(placeEvent)` descriptor 已跨 Photoshop 版本稳定。
-- History 已在真实 Photoshop/UXP 中验证持久化。
-- mask/inpaint 已有完整 PNG/grayscale pipeline。
-- manifest network permission 已收紧到最终域名策略。
+## Not Proven By Repo Tests
 
-## 当前刻意省略
+- Real Photoshop panel load, reload, close/reopen behavior.
+- Real Photoshop layer read, mask read, file picker, or `placeEvent` behavior.
+- Live provider browser calls with real credentials or network.
+- Provider CORS policy for user-selected endpoints.
 
-- `RUNBOOK.md`
-- app-local `TESTING.md`
-- `examples/`
-- Photoshop 操作分步手册
-
-测试入口统一见 `../../docs/TESTING.md`。
+Repository validation for those boundaries must be reported separately as manual-only or live-provider evidence.

@@ -43,6 +43,8 @@ workspace has been built:
 pnpm --filter @imagen-ps/providers test
 pnpm --filter @imagen-ps/application test
 pnpm --filter @imagen-ps/app build
+pnpm --filter @imagen-ps/app build:uxp
+pnpm --filter @imagen-ps/app build:chrome
 pnpm --filter @imagen-ps/app test
 pnpm --filter @imagen-ps/cli build
 pnpm --filter @imagen-ps/cli test
@@ -83,9 +85,9 @@ Default tests are mock-only and reproducible:
 - `apps/cli`: parser contract, subprocess stdout/stderr, config/log dir
   isolation, profile/job commands, durable history, retry, and `--out`
   artifacts.
-- `apps/app`: React-to-application seam, fake host adapters, UXP storage
-  adapters, history/settings flows, and Photoshop bridge call mapping through
-  fakes.
+- `apps/app`: shared React-to-application seam, UXP and Chrome port adapters,
+  Chrome IndexedDB-style storage boundary, deterministic Photoshop simulator,
+  history/settings flows, and Photoshop bridge call mapping through fakes.
 
 These tests must not use real provider credentials, real Photoshop, UXP
 Developer Tool, external network access, or paid APIs.
@@ -94,6 +96,10 @@ Developer Tool, external network access, or paid APIs.
 
 Manual Photoshop / UXP proof is a separate gate. Record it as manual evidence;
 do not describe it as covered by `pnpm validate`.
+
+Chrome browser smoke is repo-side evidence only when it loads the browser build
+in a real browser and reports the Chrome shell ready state. It still does not
+prove real Photoshop / UXP host behavior or live provider behavior.
 
 Live provider smoke is opt-in:
 

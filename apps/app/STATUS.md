@@ -1,173 +1,66 @@
-# app 状态
+# app Status
 
-- 状态：UXP-loadable shell、React mount、AppServices seam、command-backed MainPage、profile-backed Settings、app contract tests 与 fake UXP host harness 已落地
-- 更新时间：2026-06-16
-- 模块边界：见 [SPEC.md](SPEC.md)
+- Status: dual-runtime app surface implemented repo-side
+- Updated: 2026-06-25
+- Module boundary: see [SPEC.md](SPEC.md)
 
-## 当前已存在
+## Implemented
 
-### Package / Entry
+### Shared App Surface
 
-- `package.json`：`build` 先跑 `tsc --noEmit --project tsconfig.build.json`，再跑 `vite build`；`dev` 为 `vite build --watch`。
-- `index.html`：UXP panel HTML entry，包含 `#root`。
-- `public/manifest.json`：Manifest v5，`main: "index.html"`，panel entrypoint label 为 Photoshop 内部显示名 `Imagen`，声明 network/localFileSystem permission。
-- `vite.config.ts`：`base: './'`，build 输出到 `dist/`，copy manifest。
-- `src/index.tsx`：创建 `pluginHost`，在 DOM 存在时 `createRoot(root).render(<AppShell host={pluginHost} />)`。
+- `src/shared/ports`: `CommandsPort`, `AppServices`, `HostBridge`, runtime capabilities, host result/error types, and diagnostics port.
+- `src/shared/domain`: host image wrapper, preview/payload refs, locale, plugin app model, and view-model mappers.
+- `src/shared/ui`: one UXP-safe React UI used by both runtimes.
+- Shared UI no longer imports UXP log sinks, adapters, shells, or host modules directly.
 
-### AppServices seam
+### UXP Runtime
 
-`src/app-services/` 已实现薄 seam：
+- `src/shells/uxp`: UXP entrypoint registration, panel runtime, reload cleanup, startup error rendering, and host smoke handle exposure.
+- `src/adapters/uxp`: UXP module resolution, Photoshop host bridge, data-folder profile/history/asset persistence, secureStorage, and diagnostics/log sink.
+- `src/host`: compatibility re-exports for existing import paths.
+- `build:uxp` writes `dist/` with UXP classic script HTML transform and manifest copy.
 
-| 文件 | 作用 |
-|---|---|
-| `app-services.ts` | `AppServices = { commands, host }` |
-| `commands-port.ts` | 镜像 application/session 层公开命令 |
-| `host-bridge.ts` | UI 可依赖的 host-agnostic Photoshop / UXP IO 契约与 non-UXP stub |
-| `app-services-context.tsx` | React Context 注入 |
-| `mappers.ts` | job / asset / profile -> UI view model mapper |
+### Chrome Runtime
 
-`src/host/create-plugin-host-shell.ts` 是 composition root：
+- `src/shells/chrome`: browser harness HTML/entry.
+- `src/adapters/chrome`: File API host port and IndexedDB-style storage adapter boundary.
+- `src/simulators/photoshop`: deterministic Photoshop-like scenarios including seeded document, empty/no document, mask-capable layer, host busy, cancelled picker, and place failure paths.
+- `build:chrome` writes `dist-chrome/`.
+- Chrome provider command path uses the same `@imagen-ps/application` commands as UXP for mock provider validation.
 
-- 解析 UXP modules。
-- 注入 `ProviderProfileRepository` 与 `SecretStorageAdapter`。
-- 组装 `services.commands` 与 `services.host`。
-- 读取 UXP `host.uiLocale` 并归一化为 app 支持的 `en` / `zh-CN`。
-- 非 UXP 环境使用 in-memory storage / host stub，便于 build/test。
+### Provider Compatibility Matrix
 
-### App-local i18n
+| Family | Default validation | Browser direct status | Notes |
+|---|---|---|---|
+| `mock` | repo-side default | supported | No network; deterministic command path. |
+| `image-endpoint` | mock/fetch-intercept only | conditional | Requires endpoint CORS and browser credential acceptance. |
+| `chat-image` | mock/fetch-intercept only | conditional | Requires endpoint CORS and browser credential acceptance. |
 
-`src/ui/i18n/` 已实现轻量 app-local i18n：
+Default validation does not use network, credentials, paid APIs, Photoshop, or UXP Developer Tool.
 
-- 支持 `en` 和 `zh-CN`。
-- React UI 文案通过 typed message catalog 渲染。
-- Provider/profile/model id、API Key、Base URL、prompt 和 provider/runtime 原始错误保持原文。
-- `tests/i18n.test.ts` 覆盖中英文 catalog key 对齐；`tests/locale.test.ts` 覆盖 locale 归一化。
+## Validation State
 
-### UI
+Repo-side app validation currently includes:
 
-`src/ui/` 已有 5 个 React 页面，并已接入 services：
-
-| 文件 | 页面 | 当前状态 |
-|---|---|---|
-| `app-shell.tsx` | UI shell / 本地 view 切换 | 已接 `I18nProvider`、`AppServicesProvider`、profiles、models、layers、conversation |
-| `hooks/use-conversation.ts` | 主生成/编辑状态 | 通过 app-local session binding 提交 command flow 并映射 session snapshot |
-| `hooks/use-provider-settings.ts` | provider/profile/model 状态 | 通过 profile/model commands 读取、保存、测试、刷新 |
-| `pages/main-page.tsx` | 主生成页 | profile/model 选择、layer/file attachment、generate/edit、preview、Photoshop writeback |
-| `pages/history-page.tsx` | 历史页 | 读取 application durable history，保留 running session rounds 热视图 |
-| `pages/settings-page.tsx` | Provider 列表 | `listProviderProfiles()` |
-| `pages/settings-add-page.tsx` | 添加 Provider | `listProviders()` + `saveProviderProfile()` + write-only `secretValues` |
-| `pages/settings-detail-page.tsx` | Provider 详情 | `get/save/delete/testProviderProfile()` + `list/refreshProfileModels()` |
-
-### Host
-
-`src/host/` 已实现：
-
-- `uxp-api.ts`：封装 UXP `require('photoshop')` / `require('uxp')` 解析。
-- `uxp-provider-profile-repository.ts`：UXP data folder JSON profile repository，非 UXP 时使用 in-memory。
-- `uxp-job-history-adapter.ts`：UXP data folder JSON job history + opaque asset refs，非 UXP 时使用 in-memory。
-- `uxp-secret-storage-adapter.ts`：UXP secureStorage secret adapter，非 UXP 时使用 in-memory。
-- `photoshop-host-bridge.ts`：
-  - `listLayers()`
-  - `pickImageFile()`
-  - `readLayerAsAsset()`
-  - `readLayerMaskAsAsset()`
-  - `placeAssetOnCanvas()` via `executeAsModal` + `batchPlay(placeEvent)`
-
-## Application/session 当前可用入口
-
-UI 只能通过 `@imagen-ps/application` application/session 层访问业务逻辑。
-
-当前命令面：
-
-- `submitJob`
-- `getJob`
-- `subscribeJobEvents`
-- `retryJob`
-- `listJobHistoryRecords`
-- `listProviders`
-- `describeProvider`
-- `listProviderProfiles`
-- `getProviderProfile`
-- `saveProviderProfile`
-- `deleteProviderProfile`
-- `testProviderProfile`
-- `listProfileModels`
-- `refreshProfileModels`
-
-Adapter injection：
-
-- `setProviderProfileRepository`
-- `setSecretStorageAdapter`
-- `setJobHistoryStore`
-- `setAssetStore`
-- `setProviderConfigResolver`
-
-当前不要在 app 文档或实现中引用不存在的 `getProviderConfig` / `saveProviderConfig` / `ConfigStorageAdapter` / `setProfileDefaultModel` / `setProfileEnabled`。
-
-## Loop-ready harness 决策
-
-- `APP-HOST-SMOKE-P0` 采用 fake UXP module / host adapter 单元测试优先的方向。
-- 默认验证仍保持 mock-only、零费用、可重复；不访问真实 Photoshop / UXP、真实 provider、真实 credentials 或外网。
-- fake UXP tests 只能证明 adapter 对预期 UXP-like module contract 的调用路径，不能替代真实 Photoshop / UXP 联调。
-- 真实 host 验证仍需要 UXP Developer Tool + Photoshop 手工执行，并单独记录结果。
-
-## 当前限制
-
-| 功能 | 当前状态 | 下一步 |
-|---|---|---|
-| UXP 加载 | manifest / HTML / Vite build 已有，未记录真实 Photoshop 加载证据 | 用 UXP Developer Tool 加载 `dist/` 并记录结果 |
-| React 挂载 | `index.tsx` 已挂载 `AppShell` | 在 Photoshop panel 内确认渲染和 console |
-| 主生成流 | 已接 application session controller + `submitJob` / `retryJob` | 用真实 profile 在 UXP 内验证 |
-| Provider 设置 | 已接 profile/model commands 和 UXP adapters | 验证 data folder / secureStorage 持久化 |
-| 图层读取 | 已接 `HostBridge.listLayers()` / `readLayerAsAsset()` | 在真实文档中验证 layer tree、pixel read、dispose |
-| 文件输入 | 已接 `pickImageFile()` | 验证 UXP file permission 与 mime 推断 |
-| Photoshop 写回 | 已接 `placeAssetOnCanvas()` | 实测并校准 `batchPlay(placeEvent)` descriptor |
-| Mask | 有 `readLayerMaskAsAsset()` 基础接口 | mask PNG/grayscale pipeline 尚未完整验证 |
-| History | 已接 shared durable history + UXP data-folder adapter | 在真实 UXP data folder 中验证 record / asset ref 持久化 |
-| 测试 | 有 app contract tests 与 fake UXP host adapter tests | 做真实 UXP host 验证 |
-
-## UXP-first 开发口径
-
-`apps/app` 当前仍以 Photoshop 内 UXP 调试为主路径：
-
-1. `pnpm --filter @imagen-ps/app build` 产出 `apps/app/dist/`。
-2. 用 UXP Developer Tool Load `dist/manifest.json`。
-3. 在 Photoshop 中验证 panel、profile、job、host IO。
-4. 开发期可用 `pnpm --filter @imagen-ps/app dev` watch build，UXP Developer Tool 监听产物 reload。
-
-核心约束：
-
-- UXP 是 host-embedded pseudo-browser，不是完整浏览器。
-- Manifest v5 需要 `main: "index.html"`、`entrypoints` 和显式权限。
-- 网络和文件能力需通过 `requiredPermissions` 声明。
-- UXP WebView 不作为主 panel 路径。
-- Photoshop 文档修改必须包裹在 `executeAsModal` 中。
-
-## 验证状态
-
-已在代码侧具备的验证：
-
-- `apps/app/tests/app-shell.test.tsx`
-- `apps/app/tests/use-conversation.test.tsx`
-- `apps/app/tests/settings-add-page.test.tsx`
-- `apps/app/tests/main-page.test.tsx`
-- `apps/app/tests/history-page.test.tsx`
-- `apps/app/tests/settings-detail-page.test.tsx`
-- `apps/app/src/host/uxp-host-adapters.test.ts`
-- `apps/app/src/host/photoshop-host-bridge.test.ts`
-- `pnpm --filter @imagen-ps/app build`
 - `pnpm --filter @imagen-ps/app test`
+- `pnpm --filter @imagen-ps/app build`
+- `pnpm --filter @imagen-ps/app build:uxp`
+- `pnpm --filter @imagen-ps/app build:chrome`
+- Chrome headless smoke of `dist-chrome/src/shells/chrome/index.html`
 
-仍需补充的验证：
+## Still Manual-Only
 
-- Photoshop + UXP Developer Tool 加载 `dist/manifest.json`。
-- Panel render、profile save/test、model refresh。
-- layer list/read、file pick、submit job、place asset。
-- manifest network permission 与 provider base URL 策略。
+- Load `apps/app/dist/manifest.json` in UXP Developer Tool.
+- Photoshop panel opens, reloads, closes, and reopens.
+- Settings profile save/test/model refresh in real UXP storage and secureStorage.
+- Photoshop layer list/read, mask path, file picker, place asset, cancelled operations, host busy behavior, and diagnostics/crash delta.
+- Live provider calls from Chrome or UXP with real credentials.
 
-## 不变量
+If these are not run, status is `implementation complete, host validation pending`, not Product Completion.
 
-- UI 层只能通过 application/session 层与 runtime 交互。
-- `apps/app` 不直接 import runtime/store/dispatcher/provider registry。
-- Photoshop / UXP IO 只能在 `src/host/` 或 injected adapter 边界。
-- 不引入状态库、重 VM 层或并行产品面。
+## Invariants
+
+- Shared UI uses capabilities/result state, not runtime kind checks.
+- Shared UI cannot import adapters, shells, host modules, UXP, Photoshop, or CLI.
+- UXP and Chrome adapters implement shared ports without changing provider/application/core semantics.
+- Host image wrappers preserve downstream `Asset` for application/provider commands.

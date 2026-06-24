@@ -18,7 +18,6 @@ import { SettingsDetailPage } from './pages/settings-detail-page';
 import { I18nProvider, useI18n } from './i18n/i18n-context';
 
 export interface AppShellHost {
-  readonly kind: 'photoshop-uxp' | 'chrome-browser';
   readonly app: PluginAppModel;
   readonly locale: SupportedLocale;
   readonly services: AppServices;
