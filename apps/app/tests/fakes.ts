@@ -10,7 +10,7 @@ import type {
 } from '@imagen-ps/application';
 import type { AppServices } from '../src/app-services/app-services';
 import type { CommandsPort } from '../src/app-services/commands-port';
-import type { HostBridge } from '../src/app-services/host-bridge';
+import { PHOTOSHOP_UXP_RUNTIME_CAPABILITIES, type HostBridge } from '../src/app-services/host-bridge';
 
 export const fakeAsset: Asset = {
   type: 'image',
@@ -164,6 +164,7 @@ export function createFakeServices(): {
   };
 
   const host: HostBridge = {
+    capabilities: PHOTOSHOP_UXP_RUNTIME_CAPABILITIES,
     listLayers,
     pickImageFile,
     readLayerAsAsset,

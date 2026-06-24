@@ -1,7 +1,12 @@
 import type { Asset } from '@imagen-ps/application';
 import { getRuntimeLogger } from '@imagen-ps/application';
 import type { Logger } from '@imagen-ps/foundation';
-import { createHostBridgeStub, type HostBridge, type LayerInfo } from '../app-services/host-bridge';
+import {
+  PHOTOSHOP_UXP_RUNTIME_CAPABILITIES,
+  createHostBridgeStub,
+  type HostBridge,
+  type LayerInfo,
+} from '../app-services/host-bridge';
 import type { UxpModules } from './uxp-api';
 import { ensurePlaceableImagePayload } from '../shared/image-payload-preflight';
 
@@ -293,6 +298,8 @@ export function createPhotoshopHostBridge(modules: UxpModules, options?: CreateP
   const executeHostModal = createHostModalRunner(core, logger);
 
   return {
+    capabilities: PHOTOSHOP_UXP_RUNTIME_CAPABILITIES,
+
     async listLayers(): Promise<readonly LayerInfo[]> {
       const span = logger.startSpan('hostbridge.list_layers');
       try {
