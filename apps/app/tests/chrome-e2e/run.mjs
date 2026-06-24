@@ -97,8 +97,8 @@ async function assertNoBrokenImages(page) {
   }
 }
 
-async function smokeScenario({ page, origin }) {
-  await page.goto(`${origin}/index.html`, { waitUntil: 'networkidle' });
+async function smokeScenario({ page, url }) {
+  await page.goto(url, { waitUntil: 'networkidle' });
   await page.locator('#root[data-runtime="chrome"][data-status="ok"]').waitFor({ timeout: 10000 });
   await expectVisibleText(page, 'No provider profile');
   await expectVisibleText(page, 'No model selected');
@@ -115,13 +115,53 @@ async function smokeScenario({ page, origin }) {
   await assertNoBrokenImages(page);
 }
 
+async function harnessScenario({ page, url }) {
+  await page.goto(url, { waitUntil: 'networkidle' });
+  await page.locator('#root[data-runtime="chrome"][data-status="ok"]').waitFor({ timeout: 10000 });
+  await expectVisibleText(page, 'Mock Profile');
+  await expectVisibleText(page, 'mock-image-v1');
+  const snapshot = await page.evaluate(async () => globalThis.__IMAGEN_CHROME_TEST_HARNESS__?.snapshot());
+  if (!snapshot) {
+    throw new Error('Chrome test harness global is missing.');
+  }
+  if (snapshot.profiles[0]?.profileId !== 'mock-profile') {
+    throw new Error(`Unexpected seeded profile snapshot: ${JSON.stringify(snapshot.profiles)}`);
+  }
+  if (snapshot.history.length !== 3) {
+    throw new Error(`Unexpected seeded history count: ${snapshot.history.length}`);
+  }
+  await page.evaluate(async () => {
+    await globalThis.__IMAGEN_CHROME_TEST_HARNESS__?.setMockFailureMode('always');
+    globalThis.__IMAGEN_CHROME_TEST_HARNESS__?.setFilePickerMode('cancel');
+  });
+  const updated = await page.evaluate(async () => globalThis.__IMAGEN_CHROME_TEST_HARNESS__?.snapshot());
+  if (updated?.profiles[0]?.config.failMode === undefined) {
+    throw new Error('Mock failure mode was not applied to the seeded profile.');
+  }
+  if (updated.filePickerMode !== 'cancel') {
+    throw new Error(`Unexpected file picker mode: ${updated.filePickerMode}`);
+  }
+  await assertNoBrokenImages(page);
+}
+
 const scenarios = [
   {
     id: '00-smoke-main-empty',
     name: 'Chrome shell smoke',
     tags: ['smoke'],
+    path: '/index.html?testHarness=1&storage=memory&scenario=seeded-document',
     screenshotName: '00-smoke-main-empty.png',
+    assertions: ['root chrome ok', 'first-run copy visible', 'send disabled', 'no broken images', 'no console/page/network errors'],
     run: smokeScenario,
+  },
+  {
+    id: '01-harness-seeded-profile',
+    name: 'Chrome test harness seeded profile',
+    tags: ['harness'],
+    path: '/index.html?testHarness=1&storage=memory&seedProfile=mock&seedHistory=1&scenario=seeded-document',
+    screenshotName: '01-harness-seeded-profile.png',
+    assertions: ['root chrome ok', 'seeded profile visible', 'seeded history snapshot', 'mock failure hook mutable', 'file picker cancel hook mutable', 'no console/page/network errors'],
+    run: harnessScenario,
   },
 ];
 
@@ -180,12 +220,13 @@ async function runScenario(browser, server, scenario) {
   });
 
   const startedAt = new Date().toISOString();
+  const url = `${server.origin}${scenario.path ?? '/index.html'}`;
   const entry = {
     id: scenario.id,
     name: scenario.name,
     tags: scenario.tags,
     viewport,
-    url: `${server.origin}/index.html`,
+    url,
     startedAt,
     status: 'passed',
     assertions: [],
@@ -193,7 +234,7 @@ async function runScenario(browser, server, scenario) {
   };
 
   try {
-    await scenario.run({ page, origin: server.origin });
+    await scenario.run({ page, origin: server.origin, url });
     if (consoleErrors.length > 0) {
       throw new Error(`Console errors: ${consoleErrors.join(' | ')}`);
     }
@@ -203,7 +244,7 @@ async function runScenario(browser, server, scenario) {
     if (failedRequests.length > 0) {
       throw new Error(`Failed same-origin requests: ${failedRequests.join(' | ')}`);
     }
-    entry.assertions.push('root chrome ok', 'first-run copy visible', 'send disabled', 'no broken images', 'no console/page/network errors');
+    entry.assertions.push(...scenario.assertions);
     if (keepScreenshots) {
       const screenshotPath = resolve(artifactRoot, scenario.screenshotName);
       await page.screenshot({ path: screenshotPath, fullPage: false });

@@ -1,6 +1,7 @@
 import { createRoot, type Root } from 'react-dom/client';
 import { AppShell } from '../../shared/ui/app-shell';
 import { createChromeAppShell } from '../../composition/chrome/create-chrome-app-shell';
+import { chromeTestHarnessConfigFromUrl } from '../../composition/chrome/chrome-test-harness';
 
 let root: Root | undefined;
 
@@ -21,7 +22,8 @@ try {
   }
   container.dataset.runtime = 'chrome';
   container.dataset.status = 'ok';
-  const host = createChromeAppShell();
+  const testHarness = chromeTestHarnessConfigFromUrl(new URL(window.location.href));
+  const host = createChromeAppShell(testHarness ? { testHarness } : undefined);
   root = createRoot(container);
   root.render(<AppShell host={host} />);
   globalThis.__IMAGEN_CHROME_RUNTIME__ = { host, dispose: () => {

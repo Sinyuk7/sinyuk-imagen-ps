@@ -8,13 +8,14 @@ import type {
   StoredAssetRef,
 } from '@imagen-ps/application';
 
-type StoreName = 'profiles' | 'secrets' | 'history' | 'assets';
+export type ChromeStoreName = 'profiles' | 'secrets' | 'history' | 'assets';
 
 export interface ChromeKeyValueBackend {
-  get<T>(store: StoreName, key: string): Promise<T | undefined>;
-  put<T>(store: StoreName, key: string, value: T): Promise<void>;
-  delete(store: StoreName, key: string): Promise<void>;
-  list<T>(store: StoreName): Promise<readonly T[]>;
+  get<T>(store: ChromeStoreName, key: string): Promise<T | undefined>;
+  put<T>(store: ChromeStoreName, key: string, value: T): Promise<void>;
+  delete(store: ChromeStoreName, key: string): Promise<void>;
+  list<T>(store: ChromeStoreName): Promise<readonly T[]>;
+  clear?(store?: ChromeStoreName): Promise<void>;
 }
 
 interface ChromeStoredRecord<T> {
@@ -24,7 +25,7 @@ interface ChromeStoredRecord<T> {
 
 const CHROME_DB_NAME = 'imagen-ps-chrome-runtime';
 const CHROME_DB_VERSION = 1;
-const CHROME_STORES: readonly StoreName[] = ['profiles', 'secrets', 'history', 'assets'];
+const CHROME_STORES: readonly ChromeStoreName[] = ['profiles', 'secrets', 'history', 'assets'];
 
 function requestResult<T>(request: IDBRequest<T>): Promise<T> {
   return new Promise((resolve, reject) => {
@@ -62,52 +63,80 @@ export function createBrowserIndexedDbBackend(options?: { readonly databaseName?
   const database = openChromeDatabase(options?.databaseName ?? CHROME_DB_NAME);
 
   return {
-    async get<T>(store: StoreName, key: string): Promise<T | undefined> {
+    async get<T>(store: ChromeStoreName, key: string): Promise<T | undefined> {
       const db = await database;
       const transaction = db.transaction(store, 'readonly');
       const record = await requestResult<ChromeStoredRecord<T> | undefined>(transaction.objectStore(store).get(key));
       return record?.value;
     },
-    async put<T>(store: StoreName, key: string, value: T): Promise<void> {
+    async put<T>(store: ChromeStoreName, key: string, value: T): Promise<void> {
       const db = await database;
       const transaction = db.transaction(store, 'readwrite');
       transaction.objectStore(store).put({ key, value } satisfies ChromeStoredRecord<T>);
       await transactionDone(transaction);
     },
-    async delete(store: StoreName, key: string): Promise<void> {
+    async delete(store: ChromeStoreName, key: string): Promise<void> {
       const db = await database;
       const transaction = db.transaction(store, 'readwrite');
       transaction.objectStore(store).delete(key);
       await transactionDone(transaction);
     },
-    async list<T>(store: StoreName): Promise<readonly T[]> {
+    async list<T>(store: ChromeStoreName): Promise<readonly T[]> {
       const db = await database;
       const transaction = db.transaction(store, 'readonly');
       const records = await requestResult<ChromeStoredRecord<T>[]>(transaction.objectStore(store).getAll());
       return records.map((record) => record.value);
     },
+    async clear(store): Promise<void> {
+      const db = await database;
+      const stores = store ? [store] : [...CHROME_STORES];
+      const transaction = db.transaction(stores, 'readwrite');
+      for (const name of stores) {
+        transaction.objectStore(name).clear();
+      }
+      await transactionDone(transaction);
+    },
   };
 }
 
-export function createMemoryIndexedDbBackend(): ChromeKeyValueBackend {
-  const stores: Record<StoreName, Map<string, unknown>> = {
+export function createMemoryIndexedDbBackend(options?: {
+  readonly initial?: Partial<Record<ChromeStoreName, readonly ChromeStoredRecord<unknown>[]>>;
+}): ChromeKeyValueBackend {
+  const stores: Record<ChromeStoreName, Map<string, unknown>> = {
     profiles: new Map(),
     secrets: new Map(),
     history: new Map(),
     assets: new Map(),
   };
+  for (const [store, records] of Object.entries(options?.initial ?? {}) as Array<[
+    ChromeStoreName,
+    readonly ChromeStoredRecord<unknown>[],
+  ]>) {
+    for (const record of records) {
+      stores[store].set(record.key, record.value);
+    }
+  }
   return {
-    async get<T>(store: StoreName, key: string): Promise<T | undefined> {
+    async get<T>(store: ChromeStoreName, key: string): Promise<T | undefined> {
       return stores[store].get(key) as T | undefined;
     },
-    async put(store: StoreName, key: string, value: unknown): Promise<void> {
+    async put(store: ChromeStoreName, key: string, value: unknown): Promise<void> {
       stores[store].set(key, value);
     },
-    async delete(store: StoreName, key: string): Promise<void> {
+    async delete(store: ChromeStoreName, key: string): Promise<void> {
       stores[store].delete(key);
     },
-    async list<T>(store: StoreName): Promise<readonly T[]> {
+    async list<T>(store: ChromeStoreName): Promise<readonly T[]> {
       return Array.from(stores[store].values()) as T[];
+    },
+    async clear(store): Promise<void> {
+      if (store) {
+        stores[store].clear();
+        return;
+      }
+      for (const values of Object.values(stores)) {
+        values.clear();
+      }
     },
   };
 }

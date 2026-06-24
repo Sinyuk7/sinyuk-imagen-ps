@@ -14,11 +14,13 @@ import {
   type ChromeKeyValueBackend,
 } from '../../adapters/chrome/indexed-db-storage';
 import { createPhotoshopSimulator, type PhotoshopSimulatorScenarioId } from '../../simulators/photoshop/simulator';
+import { createChromeTestHarnessRuntime, type ChromeTestHarnessConfig } from './chrome-test-harness';
 
 export interface ChromeAppShellOptions {
   readonly backend?: ChromeKeyValueBackend;
   readonly filePicker?: ChromeFilePicker;
   readonly scenario?: PhotoshopSimulatorScenarioId;
+  readonly testHarness?: ChromeTestHarnessConfig;
 }
 
 function createBrowserFilePicker(): ChromeFilePicker {
@@ -56,17 +58,19 @@ function createChromeDiagnosticsPort(): DiagnosticsPort {
  * AppShell 提供，避免浏览器 shell 复制 UXP 页面。
  */
 export function createChromeAppShell(options?: ChromeAppShellOptions): AppShellHost {
-  const storage = createChromeIndexedDbStorage({ backend: options?.backend });
+  const testHarness = options?.testHarness ? createChromeTestHarnessRuntime(options.testHarness) : undefined;
+  const storage = createChromeIndexedDbStorage({ backend: options?.backend ?? testHarness?.backend });
   setProviderProfileRepository(storage.profiles);
   setSecretStorageAdapter(storage.secrets);
   setJobHistoryStore(storage.history);
   setAssetStore(storage.assets);
 
-  const simulator = createPhotoshopSimulator(options?.scenario ?? 'seeded-document');
+  const simulator = createPhotoshopSimulator(options?.scenario ?? testHarness?.scenario ?? 'seeded-document');
   const host = createChromeHostPort({
     simulator,
-    filePicker: options?.filePicker ?? createBrowserFilePicker(),
+    filePicker: options?.filePicker ?? testHarness?.filePicker ?? createBrowserFilePicker(),
   });
+  testHarness?.install(storage);
 
   return {
     app: createPluginAppModel('chrome-browser'),
@@ -78,6 +82,7 @@ export function createChromeAppShell(options?: ChromeAppShellOptions): AppShellH
     },
     dispose() {
       globalThis.__IMAGEN_CHROME_DIAGNOSTICS__ = undefined;
+      globalThis.__IMAGEN_CHROME_TEST_HARNESS__ = undefined;
     },
   };
 }
