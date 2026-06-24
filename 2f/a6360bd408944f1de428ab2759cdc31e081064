@@ -1,0 +1,21 @@
+apps/app/src/composition/chrome/chrome-test-harness.ts
+  s_250e9c345a3eca::t_bbddd3128c1a46 2-113,117,161,196,243
+apps/app/src/adapters/chrome/indexed-db-storage.ts
+  s_250e9c345a3eca::t_bbddd3128c1a46 92
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.13",
+  "base_commit_sha": "2fa6360bd408944f1de428ab2759cdc31e081064",
+  "prompts": {},
+  "sessions": {
+    "s_250e9c345a3eca": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "019efb00-dd94-78c3-b996-ea3eabf587af",
+        "model": "gpt-5.5"
+      },
+      "human_author": "Sinyuk <80998062@qq.com>"
+    }
+  }
+}
