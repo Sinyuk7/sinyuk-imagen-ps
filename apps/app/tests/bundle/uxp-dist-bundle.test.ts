@@ -19,6 +19,15 @@ describe('UXP dist bundle safety', () => {
     expect(bundle).toContain(arrayLiteralForBase64(VALID_MOCK_PNG_BASE64));
   });
 
+  it('builds a separate Chrome shell output without replacing the UXP manifest target', () => {
+    const chromeHtml = readFileSync(resolve('dist-chrome/src/shells/chrome/index.html'), 'utf8');
+    const uxpHtml = readFileSync(resolve('dist/index.html'), 'utf8');
+
+    expect(chromeHtml).toContain('Imagen Chrome Harness');
+    expect(chromeHtml).toContain('type="module"');
+    expect(uxpHtml).toContain('<script defer src="./assets/index.js"></script>');
+  });
+
   it('ships UXP network all-domain permission in manifest v5 string form', () => {
     const sourceManifest = JSON.parse(readFileSync(resolve('public/manifest.json'), 'utf8')) as {
       requiredPermissions?: { network?: { domains?: unknown } };

@@ -4,9 +4,10 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "build": "tsc --noEmit --project tsconfig.build.json && vite build",
-    "build:chrome": "tsc --noEmit --project tsconfig.build.json && vite build --config vite.chrome.config.ts",
-    "dev": "vite build --watch",
+    "build": "tsc --noEmit --project tsconfig.build.json && pnpm run build:uxp && pnpm run build:chrome",
+    "build:uxp": "vite build --config vite.uxp.config.ts",
+    "build:chrome": "vite build --config vite.chrome.config.ts",
+    "dev": "vite build --config vite.uxp.config.ts --watch",
     "test": "vitest run",
     "clean": "rm -rf dist dist-chrome"
   },
