@@ -2,8 +2,8 @@ import { act } from 'react';
 import { createRoot, type Root } from 'react-dom/client';
 import { afterEach, describe, expect, it } from 'vitest';
 import { AppServicesProvider } from '../src/app-services/app-services-context';
-import { useConversation, type ConversationController } from '../src/ui/hooks/use-conversation';
-import { useImagenSession } from '../src/ui/hooks/use-imagen-session';
+import { useConversation, type ConversationController } from '../src/shared/ui/hooks/use-conversation';
+import { useImagenSession } from '../src/shared/ui/hooks/use-imagen-session';
 import { createFakeServices } from './fakes';
 
 let root: Root | undefined;

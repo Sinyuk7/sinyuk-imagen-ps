@@ -1,5 +1,5 @@
 import { createRoot, type Root } from 'react-dom/client';
-import { AppShell } from '../ui/app-shell';
+import { AppShell } from '../shared/ui/app-shell';
 import type { PluginHostShell } from './create-plugin-host-shell';
 import { createPluginHostShell } from './create-plugin-host-shell';
 import { readRecentLogRecords } from './uxp-diagnostics';

@@ -4,7 +4,7 @@ import {
   type ImagenSessionController,
   type ImagenSessionSnapshot,
 } from '@imagen-ps/application';
-import type { AppServices } from '../../app-services/app-services';
+import type { AppServices } from '../../ports/app-services';
 
 const EMPTY_SNAPSHOT: ImagenSessionSnapshot = { jobs: [] };
 

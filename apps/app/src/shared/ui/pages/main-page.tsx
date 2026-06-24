@@ -1,8 +1,8 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { ProviderModelInfo, ProviderProfile } from '@imagen-ps/application';
-import { useAppServices } from '../../app-services/app-services-context';
-import type { LayerInfo } from '../../app-services/host-bridge';
-import { assetToPreviewUrl, modelLabel } from '../../app-services/mappers';
+import { useAppServices } from '../../ports/app-services-context';
+import type { LayerInfo } from '../../ports/host-port';
+import { assetToPreviewUrl, modelLabel } from '../../domain/mappers';
 import type {
   ConversationAttachment,
   ConversationController,

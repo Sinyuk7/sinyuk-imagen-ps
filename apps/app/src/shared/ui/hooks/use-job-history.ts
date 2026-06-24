@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
 import type { DurableJobRecord } from '@imagen-ps/application';
-import type { AppServices } from '../../app-services/app-services';
+import type { AppServices } from '../../ports/app-services';
 
 type JobHistoryStatus = 'completed' | 'failed';
 

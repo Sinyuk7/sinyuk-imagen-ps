@@ -20,7 +20,7 @@ vi.mock('react-dom/client', () => ({
   createRoot: mocks.createRootMock,
 }));
 
-vi.mock('../ui/app-shell', () => ({
+vi.mock('../shared/ui/app-shell', () => ({
   AppShell: () => null,
 }));
 

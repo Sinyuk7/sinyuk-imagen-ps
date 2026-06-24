@@ -1,5 +1,5 @@
 import { createContext, useContext, useEffect, type ReactNode } from 'react';
-import type { SupportedLocale } from '../../shared/locale';
+import type { SupportedLocale } from '../../domain/locale';
 import { APP_MESSAGES, type AppMessages } from './messages';
 
 export interface I18nState {

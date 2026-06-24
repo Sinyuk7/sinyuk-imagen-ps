@@ -12,7 +12,7 @@ import { resolveUxpModules } from './host/uxp-api';
 
 export { createPluginHostShell } from './host/create-plugin-host-shell';
 export { createPluginAppModel } from './shared/plugin-app-model';
-export { AppShell } from './ui/app-shell';
+export { AppShell } from './shared/ui/app-shell';
 export { createImagenPanelRuntime, installUxpPanelEntrypoints } from './host/uxp-panel-runtime';
 
 const modules = resolveUxpModules();

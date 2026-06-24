@@ -1,5 +1,5 @@
 import type { ProviderProfile } from '@imagen-ps/application';
-import { profileToProviderRow } from '../../app-services/mappers';
+import { profileToProviderRow } from '../../domain/mappers';
 import { Icon } from '../components/icons';
 import { Tip } from '../components/tip';
 import { useI18n } from '../i18n/i18n-context';

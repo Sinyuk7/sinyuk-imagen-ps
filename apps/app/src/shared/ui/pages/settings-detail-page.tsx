@@ -1,13 +1,12 @@
 import { useEffect, useState } from 'react';
 import type { ProviderProfile } from '@imagen-ps/application';
-import { useAppServices } from '../../app-services/app-services-context';
+import { useAppServices } from '../../ports/app-services-context';
 import { providerConfigFromForm, useProfileDetail, useProfileModels } from '../hooks/use-provider-settings';
 import { Icon } from '../components/icons';
 import { StatusNotice } from '../components/status-notice';
 import { UxpCheckbox, UxpTextField } from '../components/uxp-form-controls';
 import { useI18n } from '../i18n/i18n-context';
 import { statusFromProviderTestResult, type ProviderStatus } from '../provider-status';
-import { writeUxpUiCheckpoint, writeUxpUiFailure } from '../../host/uxp-log-sink';
 
 interface SettingsDetailPageProps {
   readonly onNav: (view: string) => void;
@@ -65,11 +64,11 @@ export function SettingsDetailPage({ onNav, profileId, onProfilesChanged }: Sett
 
   const persistProfile = async (): Promise<ProviderProfile | null> => {
     if (!detail.profile) {
-      await writeUxpUiCheckpoint('uxp.ui.settings_detail.persist.no_profile', { profileId });
+      await services.diagnostics?.checkpoint('uxp.ui.settings_detail.persist.no_profile', { profileId });
       return null;
     }
     const family = String(detail.profile.config.family ?? detail.profile.providerId);
-    await writeUxpUiCheckpoint(
+    await services.diagnostics?.checkpoint(
       'uxp.ui.settings_detail.persist.input_prepared',
       profileFormCheckpointAttrs(detail.profile, { enabled, apiKey, defaultModel }),
       {
@@ -97,15 +96,15 @@ export function SettingsDetailPage({ onNav, profileId, onProfilesChanged }: Sett
   };
 
   const save = async () => {
-    await writeUxpUiCheckpoint('uxp.ui.settings_detail.save.entered', { profileId });
+    await services.diagnostics?.checkpoint('uxp.ui.settings_detail.save.entered', { profileId });
     setBusy(true);
-    await writeUxpUiCheckpoint('uxp.ui.settings_detail.save.busy_set', { busy: true, profileId });
+    await services.diagnostics?.checkpoint('uxp.ui.settings_detail.save.busy_set', { busy: true, profileId });
     setStatus(null);
-    await writeUxpUiCheckpoint('uxp.ui.settings_detail.save.status_cleared', { profileId });
+    await services.diagnostics?.checkpoint('uxp.ui.settings_detail.save.status_cleared', { profileId });
     try {
-      await writeUxpUiCheckpoint('uxp.ui.settings_detail.save.before_persist', { profileId });
+      await services.diagnostics?.checkpoint('uxp.ui.settings_detail.save.before_persist', { profileId });
       const profile = await persistProfile();
-      await writeUxpUiCheckpoint('uxp.ui.settings_detail.save.after_persist', {
+      await services.diagnostics?.checkpoint('uxp.ui.settings_detail.save.after_persist', {
         profileId: profile?.profileId ?? null,
         providerId: profile?.providerId ?? null,
         hasProfile: profile !== null,
@@ -113,7 +112,7 @@ export function SettingsDetailPage({ onNav, profileId, onProfilesChanged }: Sett
         ...(profile ? { profile_id: profile.profileId, provider_id: profile.providerId } : {}),
       });
       if (profile) {
-        await writeUxpUiCheckpoint('uxp.ui.settings_detail.save.before_success_status', {
+        await services.diagnostics?.checkpoint('uxp.ui.settings_detail.save.before_success_status', {
           profileId: profile.profileId,
           providerId: profile.providerId,
         }, {
@@ -121,14 +120,14 @@ export function SettingsDetailPage({ onNav, profileId, onProfilesChanged }: Sett
           provider_id: profile.providerId,
         });
         setStatus({ tone: 'success', message: t.settings.saved });
-        await writeUxpUiCheckpoint('uxp.ui.settings_detail.save.after_success_status', {
+        await services.diagnostics?.checkpoint('uxp.ui.settings_detail.save.after_success_status', {
           profileId: profile.profileId,
           providerId: profile.providerId,
         }, {
           profile_id: profile.profileId,
           provider_id: profile.providerId,
         });
-        await writeUxpUiCheckpoint('uxp.ui.settings_detail.save.before_profiles_changed', {
+        await services.diagnostics?.checkpoint('uxp.ui.settings_detail.save.before_profiles_changed', {
           profileId: profile.profileId,
           providerId: profile.providerId,
         }, {
@@ -136,7 +135,7 @@ export function SettingsDetailPage({ onNav, profileId, onProfilesChanged }: Sett
           provider_id: profile.providerId,
         });
         await onProfilesChanged(profile.profileId);
-        await writeUxpUiCheckpoint('uxp.ui.settings_detail.save.after_profiles_changed', {
+        await services.diagnostics?.checkpoint('uxp.ui.settings_detail.save.after_profiles_changed', {
           profileId: profile.profileId,
           providerId: profile.providerId,
         }, {
@@ -145,12 +144,12 @@ export function SettingsDetailPage({ onNav, profileId, onProfilesChanged }: Sett
         });
       }
     } catch (error) {
-      await writeUxpUiFailure('uxp.ui.settings_detail.save.failed', error, { profileId });
+      await services.diagnostics?.failure('uxp.ui.settings_detail.save.failed', error, { profileId });
       setStatus({ tone: 'error', message: error instanceof Error ? error.message : String(error) });
     } finally {
-      await writeUxpUiCheckpoint('uxp.ui.settings_detail.save.before_busy_clear', { profileId });
+      await services.diagnostics?.checkpoint('uxp.ui.settings_detail.save.before_busy_clear', { profileId });
       setBusy(false);
-      await writeUxpUiCheckpoint('uxp.ui.settings_detail.save.after_busy_clear', { profileId });
+      await services.diagnostics?.checkpoint('uxp.ui.settings_detail.save.after_busy_clear', { profileId });
     }
   };
 
@@ -158,7 +157,7 @@ export function SettingsDetailPage({ onNav, profileId, onProfilesChanged }: Sett
     if (!detail.profile) {
       return;
     }
-    void writeUxpUiCheckpoint('uxp.ui.settings_detail.render.ready', {
+    void services.diagnostics?.checkpoint('uxp.ui.settings_detail.render.ready', {
       profileId: detail.profile.profileId,
       providerId: detail.profile.providerId,
       busy,

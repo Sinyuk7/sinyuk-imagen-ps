@@ -1,7 +1,7 @@
 import { act } from 'react';
 import { createRoot, type Root } from 'react-dom/client';
 import { afterEach, describe, expect, it } from 'vitest';
-import { AppShell } from '../src/ui/app-shell';
+import { AppShell } from '../src/shared/ui/app-shell';
 import { fakeAsset } from './fakes';
 import { createFakeServices } from './fakes';
 

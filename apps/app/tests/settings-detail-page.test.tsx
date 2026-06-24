@@ -1,7 +1,7 @@
 import { act } from 'react';
 import { createRoot, type Root } from 'react-dom/client';
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { SettingsDetailPage } from '../src/ui/pages/settings-detail-page';
+import { SettingsDetailPage } from '../src/shared/ui/pages/settings-detail-page';
 import { createFakeServices } from './fakes';
 import { TestAppProviders } from './render-helpers';
 import type { UxpFlightRecorder } from '../src/host/uxp-log-sink';

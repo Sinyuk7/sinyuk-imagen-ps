@@ -59,7 +59,7 @@ function createFakeHostShell() {
   };
 }
 
-vi.mock('../src/ui/app-shell', () => ({
+vi.mock('../src/shared/ui/app-shell', () => ({
   AppShell: () => null,
 }));
 

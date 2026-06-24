@@ -3,7 +3,7 @@ import { join, relative } from 'node:path';
 import { describe, expect, it } from 'vitest';
 
 const APP_ROOT = process.cwd();
-const UI_ROOT = join(APP_ROOT, 'src', 'ui');
+const UI_ROOT = join(APP_ROOT, 'src', 'shared', 'ui');
 const CSS_SOURCE = join(UI_ROOT, 'panel-css.ts');
 const STYLE_FILE_EXTENSIONS = new Set(['.ts', '.tsx']);
 

@@ -1,7 +1,7 @@
 import { act } from 'react';
 import { createRoot, type Root } from 'react-dom/client';
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { UxpCheckbox, UxpTextArea, UxpTextField } from '../src/ui/components/uxp-form-controls';
+import { UxpCheckbox, UxpTextArea, UxpTextField } from '../src/shared/ui/components/uxp-form-controls';
 
 let root: Root | undefined;
 

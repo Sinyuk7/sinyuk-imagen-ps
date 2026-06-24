@@ -1,4 +1,4 @@
-import type { SupportedLocale } from '../../shared/locale';
+import type { SupportedLocale } from '../../domain/locale';
 
 export interface AppMessages {
   readonly common: {

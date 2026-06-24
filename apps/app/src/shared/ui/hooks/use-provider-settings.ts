@@ -7,8 +7,7 @@ import type {
   ProviderProfileInput,
   ProviderProfileTestResult,
 } from '@imagen-ps/application';
-import type { AppServices } from '../../app-services/app-services';
-import { writeUxpUiCheckpoint } from '../../host/uxp-log-sink';
+import type { AppServices } from '../../ports/app-services';
 
 export interface ProviderProfilesState {
   readonly profiles: readonly ProviderProfile[];
@@ -141,7 +140,7 @@ export function useProfileDetail(services: AppServices, profileId: string | null
 
   const save = useCallback(
     async (input: ProviderProfileInput): Promise<ProviderProfile> => {
-      await writeUxpUiCheckpoint('uxp.ui.profile_detail.save.before_command', {
+      await services.diagnostics?.checkpoint('uxp.ui.profile_detail.save.before_command', {
         profileId: input.profileId,
         providerId: input.providerId ?? null,
         enabled: input.enabled ?? null,
@@ -152,7 +151,7 @@ export function useProfileDetail(services: AppServices, profileId: string | null
         ...(input.providerId ? { provider_id: input.providerId } : {}),
       });
       const result = await services.commands.saveProviderProfile(input);
-      await writeUxpUiCheckpoint('uxp.ui.profile_detail.save.after_command', {
+      await services.diagnostics?.checkpoint('uxp.ui.profile_detail.save.after_command', {
         profileId: input.profileId,
         ok: result.ok,
       }, {
@@ -162,7 +161,7 @@ export function useProfileDetail(services: AppServices, profileId: string | null
       if (!result.ok) {
         const message = commandMessage(result.error);
         setError(message);
-        await writeUxpUiCheckpoint('uxp.ui.profile_detail.save.error_state_set', {
+        await services.diagnostics?.checkpoint('uxp.ui.profile_detail.save.error_state_set', {
           profileId: input.profileId,
           category: result.error.category,
         }, {
@@ -170,7 +169,7 @@ export function useProfileDetail(services: AppServices, profileId: string | null
         });
         throw new Error(message);
       }
-      await writeUxpUiCheckpoint('uxp.ui.profile_detail.save.before_set_profile', {
+      await services.diagnostics?.checkpoint('uxp.ui.profile_detail.save.before_set_profile', {
         profileId: result.value.profileId,
         providerId: result.value.providerId,
       }, {
@@ -178,7 +177,7 @@ export function useProfileDetail(services: AppServices, profileId: string | null
         provider_id: result.value.providerId,
       });
       setProfile(result.value);
-      await writeUxpUiCheckpoint('uxp.ui.profile_detail.save.after_set_profile', {
+      await services.diagnostics?.checkpoint('uxp.ui.profile_detail.save.after_set_profile', {
         profileId: result.value.profileId,
         providerId: result.value.providerId,
       }, {
@@ -186,7 +185,7 @@ export function useProfileDetail(services: AppServices, profileId: string | null
         provider_id: result.value.providerId,
       });
       setError(null);
-      await writeUxpUiCheckpoint('uxp.ui.profile_detail.save.error_cleared', {
+      await services.diagnostics?.checkpoint('uxp.ui.profile_detail.save.error_cleared', {
         profileId: result.value.profileId,
         providerId: result.value.providerId,
       }, {

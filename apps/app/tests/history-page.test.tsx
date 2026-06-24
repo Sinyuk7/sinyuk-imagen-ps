@@ -2,8 +2,8 @@ import { act } from 'react';
 import { createRoot, type Root } from 'react-dom/client';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import type { DurableJobRecord } from '@imagen-ps/application';
-import type { ConversationRound } from '../src/ui/hooks/use-conversation';
-import { HistoryPage } from '../src/ui/pages/history-page';
+import type { ConversationRound } from '../src/shared/ui/hooks/use-conversation';
+import { HistoryPage } from '../src/shared/ui/pages/history-page';
 import { fakeAsset, fakeDurableRecord } from './fakes';
 import { TestI18nProvider } from './render-helpers';
 

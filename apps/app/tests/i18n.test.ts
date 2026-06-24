@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { APP_MESSAGES } from '../src/ui/i18n/messages';
+import { APP_MESSAGES } from '../src/shared/ui/i18n/messages';
 
 function keys(value: unknown, prefix = ''): readonly string[] {
   if (typeof value !== 'object' || value === null) {

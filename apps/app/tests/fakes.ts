@@ -11,6 +11,7 @@ import type {
 import type { AppServices } from '../src/app-services/app-services';
 import type { CommandsPort } from '../src/app-services/commands-port';
 import { PHOTOSHOP_UXP_RUNTIME_CAPABILITIES, type HostBridge } from '../src/app-services/host-bridge';
+import type { DiagnosticsPort } from '../src/shared/ports/diagnostics-port';
 
 export const fakeAsset: Asset = {
   type: 'image',
@@ -172,8 +173,23 @@ export function createFakeServices(): {
     placeAssetOnCanvas,
   };
 
+  const diagnostics: DiagnosticsPort = {
+    async checkpoint(event, attrs) {
+      if (globalThis.__IMAGEN_PS_DIAGNOSTIC_DISABLE_UI_FLIGHT_RECORDER__) {
+        return;
+      }
+      await globalThis.__IMAGEN_PS_UI_FLIGHT_RECORDER__?.checkpoint(event, attrs);
+    },
+    async failure(event, error, attrs) {
+      if (globalThis.__IMAGEN_PS_DIAGNOSTIC_DISABLE_UI_FLIGHT_RECORDER__) {
+        return;
+      }
+      await globalThis.__IMAGEN_PS_UI_FLIGHT_RECORDER__?.fail(event, error, attrs);
+    },
+  };
+
   return {
-    services: { commands, host },
+    services: { commands, host, diagnostics },
     spies: {
       submitJob,
       subscribeJobEvents,

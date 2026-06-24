@@ -1,7 +1,7 @@
 import { act } from 'react';
 import { createRoot, type Root } from 'react-dom/client';
 import { afterEach, describe, expect, it } from 'vitest';
-import { SettingsAddPage } from '../src/ui/pages/settings-add-page';
+import { SettingsAddPage } from '../src/shared/ui/pages/settings-add-page';
 import { createFakeServices } from './fakes';
 import { TestAppProviders } from './render-helpers';
 

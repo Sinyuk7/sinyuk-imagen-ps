@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react';
 import type { ProviderProfile } from '@imagen-ps/application';
-import { useAppServices } from '../../app-services/app-services-context';
+import { useAppServices } from '../../ports/app-services-context';
 import { providerConfigFromForm, useProviderCatalog } from '../hooks/use-provider-settings';
 import { Icon } from '../components/icons';
 import { StatusNotice } from '../components/status-notice';

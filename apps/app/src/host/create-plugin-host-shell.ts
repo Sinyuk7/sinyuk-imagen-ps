@@ -9,6 +9,7 @@ import {
 import { createCompositeSink, createConsoleSink } from '@imagen-ps/foundation';
 import { createCommandsAdapter } from '../app-services/commands-port';
 import type { AppServices } from '../app-services/app-services';
+import type { DiagnosticsPort } from '../shared/ports/diagnostics-port';
 import { createPluginAppModel, type PluginAppModel } from '../shared/plugin-app-model';
 import { normalizeLocale, type SupportedLocale } from '../shared/locale';
 import { createPhotoshopHostBridge } from './photoshop-host-bridge';
@@ -16,14 +17,21 @@ import { resolveUxpModules } from './uxp-api';
 import { createUxpAssetStore, createUxpJobHistoryStore } from './uxp-job-history-adapter';
 import { createUxpProviderProfileRepository } from './uxp-provider-profile-repository';
 import { createUxpSecretStorageAdapter } from './uxp-secret-storage-adapter';
-import { createUxpLogSink } from './uxp-log-sink';
+import { createUxpLogSink, writeUxpUiCheckpoint, writeUxpUiFailure } from './uxp-log-sink';
 
 export interface PluginHostShell {
-  readonly kind: 'photoshop-uxp';
+  readonly kind: 'photoshop-uxp' | 'chrome-browser';
   readonly app: PluginAppModel;
   readonly locale: SupportedLocale;
   readonly services: AppServices;
   dispose(): void;
+}
+
+function createUxpDiagnosticsPort(): DiagnosticsPort {
+  return {
+    checkpoint: writeUxpUiCheckpoint,
+    failure: writeUxpUiFailure,
+  };
 }
 
 export function createPluginHostShell(): PluginHostShell {
@@ -72,6 +80,7 @@ export function createPluginHostShell(): PluginHostShell {
       services: {
         commands: createCommandsAdapter(),
         host: hostBridge,
+        diagnostics: createUxpDiagnosticsPort(),
       },
       dispose() {
         logger.info('panel.dispose');

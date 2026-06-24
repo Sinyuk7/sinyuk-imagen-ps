@@ -1,13 +1,13 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import type { Asset, JobError, JobSessionSnapshot } from '@imagen-ps/application';
-import type { AppServices } from '../../app-services/app-services';
+import type { AppServices } from '../../ports/app-services';
 import {
   assetToPreview,
   commandErrorToMessage,
   outputAssets,
   outputMetadata,
   type AssetPreview,
-} from '../../app-services/mappers';
+} from '../../domain/mappers';
 import type { ImagenSessionBinding } from './use-imagen-session';
 import type { AppMessages } from '../i18n/messages';
 

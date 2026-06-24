@@ -4,8 +4,17 @@ export interface DiagnosticsRecord {
 }
 
 export interface DiagnosticsPort {
-  checkpoint(event: string, attrs?: Readonly<Record<string, unknown>>): Promise<void>;
-  failure(event: string, error: unknown, attrs?: Readonly<Record<string, unknown>>): Promise<void>;
+  checkpoint(
+    event: string,
+    attrs?: Readonly<Record<string, unknown>>,
+    context?: Readonly<Record<string, unknown>>,
+  ): Promise<void>;
+  failure(
+    event: string,
+    error: unknown,
+    attrs?: Readonly<Record<string, unknown>>,
+    context?: Readonly<Record<string, unknown>>,
+  ): Promise<void>;
   recent?(): readonly DiagnosticsRecord[];
 }
 
