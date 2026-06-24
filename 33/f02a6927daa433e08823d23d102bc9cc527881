@@ -1,0 +1,30 @@
+apps/app/src/simulators/photoshop/scenarios/index.ts
+  s_d8f730fedfe24c::t_c50ebe6e7e5d53 1
+apps/app/src/simulators/photoshop/simulator.ts
+  s_d8f730fedfe24c::t_c50ebe6e7e5d53 1-77
+apps/app/src/adapters/chrome/indexed-db-storage.ts
+  s_d8f730fedfe24c::t_c50ebe6e7e5d53 1-27,29-30,32-33,35-36,38-126
+apps/app/src/adapters/chrome/chrome-host-port.ts
+  s_d8f730fedfe24c::t_c50ebe6e7e5d53 1-60
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.12",
+  "base_commit_sha": "33f02a6927daa433e08823d23d102bc9cc527881",
+  "prompts": {},
+  "humans": {
+    "h_36ccd825a182d0": {
+      "author": "Sinyuk <80998062@qq.com>"
+    }
+  },
+  "sessions": {
+    "s_d8f730fedfe24c": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "019efab9-2798-7370-8851-c7e186c21445",
+        "model": "gpt-5.5"
+      },
+      "human_author": "Sinyuk <80998062@qq.com>"
+    }
+  }
+}
