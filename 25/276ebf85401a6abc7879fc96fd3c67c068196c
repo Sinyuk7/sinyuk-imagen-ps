@@ -1,0 +1,72 @@
+apps/app/tests/use-conversation.test.tsx
+  s_d8f730fedfe24c::t_6415aa1968ae6f 5-6
+apps/app/src/shared/ui/hooks/use-conversation.ts
+  s_d8f730fedfe24c::t_6415aa1968ae6f 1-295
+apps/app/src/shared/ui/app-shell.tsx
+  s_d8f730fedfe24c::t_6415aa1968ae6f 1-5,8-28,30-48,50-163,165-168,170,173,175,177-195
+apps/app/src/shared/ui/pages/history-page.tsx
+  s_d8f730fedfe24c::t_6415aa1968ae6f 1-170
+apps/app/src/shared/ui/pages/settings-add-page.tsx
+  s_d8f730fedfe24c::t_6415aa1968ae6f 1-206
+apps/app/tests/i18n.test.ts
+  s_d8f730fedfe24c::t_6415aa1968ae6f 2
+apps/app/tests/main-page.test.tsx
+  s_d8f730fedfe24c::t_6415aa1968ae6f 4
+apps/app/src/shared/ui/i18n/i18n-context.tsx
+  s_d8f730fedfe24c::t_24e58a6a0cf0b3 1-29
+apps/app/src/shared/ui/hooks/use-provider-settings.ts
+  s_d8f730fedfe24c::t_6415aa1968ae6f 1-142,144-153,155-163,165-171,173-179,181-187,189-251
+apps/app/tests/render-helpers.tsx
+  s_d8f730fedfe24c::t_6415aa1968ae6f 4
+apps/app/tests/history-page.test.tsx
+  s_d8f730fedfe24c::t_6415aa1968ae6f 5-6
+apps/app/src/host/uxp-panel-runtime.test.tsx
+  s_d8f730fedfe24c::t_6415aa1968ae6f 23
+apps/app/tests/settings-page.test.tsx
+  s_d8f730fedfe24c::t_6415aa1968ae6f 4
+apps/app/tests/uxp-form-controls.test.tsx
+  s_d8f730fedfe24c::t_6415aa1968ae6f 4
+apps/app/tests/settings-detail-page.test.tsx
+  s_d8f730fedfe24c::t_6415aa1968ae6f 4
+apps/app/tests/settings-add-page.test.tsx
+  s_d8f730fedfe24c::t_6415aa1968ae6f 4
+apps/app/src/shared/ui/pages/main-page.tsx
+  s_d8f730fedfe24c::t_6415aa1968ae6f 1-545
+apps/app/src/shared/ui/hooks/use-imagen-session.ts
+  s_d8f730fedfe24c::t_6415aa1968ae6f 1-40
+apps/app/src/host/uxp-panel-runtime.tsx
+  s_d8f730fedfe24c::t_6415aa1968ae6f 2
+apps/app/tests/app-shell.test.tsx
+  s_d8f730fedfe24c::t_6415aa1968ae6f 4
+apps/app/src/shared/ui/i18n/messages.ts
+  s_d8f730fedfe24c::t_24e58a6a0cf0b3 1-327
+apps/app/src/shared/ui/pages/settings-page.tsx
+  s_d8f730fedfe24c::t_6415aa1968ae6f 1-82
+apps/app/src/shared/ui/pages/settings-detail-page.tsx
+  s_d8f730fedfe24c::t_6415aa1968ae6f 1-66,68-70,72-98,100,102,104,106,108-114,116-122,124-129,131-137,139-146,148-149,151,153-159,161-334
+apps/app/src/shared/ui/hooks/use-job-history.ts
+  s_d8f730fedfe24c::t_6415aa1968ae6f 1-41
+apps/app/tests/fakes.ts
+  s_d8f730fedfe24c::t_24e58a6a0cf0b3 14,176-190,192
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.12",
+  "base_commit_sha": "25276ebf85401a6abc7879fc96fd3c67c068196c",
+  "prompts": {},
+  "humans": {
+    "h_36ccd825a182d0": {
+      "author": "Sinyuk <80998062@qq.com>"
+    }
+  },
+  "sessions": {
+    "s_d8f730fedfe24c": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "019efab9-2798-7370-8851-c7e186c21445",
+        "model": "gpt-5.5"
+      },
+      "human_author": "Sinyuk <80998062@qq.com>"
+    }
+  }
+}
