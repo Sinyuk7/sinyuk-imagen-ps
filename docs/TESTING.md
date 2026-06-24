@@ -46,6 +46,7 @@ pnpm --filter @imagen-ps/app build
 pnpm --filter @imagen-ps/app build:uxp
 pnpm --filter @imagen-ps/app build:chrome
 pnpm --filter @imagen-ps/app test
+pnpm --filter @imagen-ps/app test:chrome-e2e
 pnpm --filter @imagen-ps/cli build
 pnpm --filter @imagen-ps/cli test
 ```
@@ -53,6 +54,13 @@ pnpm --filter @imagen-ps/cli test
 Filtered tests are not a clean-checkout baseline. CLI contract and smoke tests
 run `apps/cli/dist/index.js` in subprocesses, so build the CLI first when in
 doubt.
+
+`pnpm --filter @imagen-ps/app test:chrome-e2e` is an opt-in Chrome browser E2E
+gate for the app Chrome build. It builds `dist/web/`, serves it locally, runs
+Playwright Chromium at one fixed `390x720` viewport, and writes ignored local
+artifacts under `apps/app/tests/chrome-e2e/screenshots/`. It is repo-side
+browser evidence only; it does not prove real Photoshop / UXP host behavior or
+live provider behavior.
 
 ## Loop Validation Categories
 
