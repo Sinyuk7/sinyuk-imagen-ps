@@ -46,7 +46,7 @@ Repo-side app validation currently includes:
 - `pnpm --filter @imagen-ps/app build`
 - `pnpm --filter @imagen-ps/app build:uxp`
 - `pnpm --filter @imagen-ps/app build:chrome`
-- Chrome headless smoke of `dist/web/src/shells/chrome/index.html`
+- Chrome headless smoke of `dist/web/index.html`
 
 ## Still Manual-Only
 

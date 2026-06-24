@@ -20,7 +20,7 @@ describe('UXP dist bundle safety', () => {
   });
 
   it('builds a separate Chrome shell output without replacing the UXP manifest target', () => {
-    const chromeOutput = resolve('dist/web/src/shells/chrome/index.html');
+    const chromeOutput = resolve('dist/web/index.html');
     if (!existsSync(chromeOutput)) {
       return;
     }
@@ -30,6 +30,7 @@ describe('UXP dist bundle safety', () => {
     expect(chromeHtml).toContain('Imagen Chrome Harness');
     expect(chromeHtml).toContain('type="module"');
     expect(chromeHtml).toContain('./assets/index.js');
+    expect(existsSync(resolve('dist/web/assets/icons/settings.png'))).toBe(true);
     expect(uxpHtml).toContain('<script defer src="./assets/index.js"></script>');
   });
 
