@@ -1,0 +1,21 @@
+apps/app/src/shared/ui/pages/settings-add-page.tsx
+  s_250e9c345a3eca::t_fe6d59fc8b4d69 109,128,154,158,163,169,176,183,197
+apps/app/src/shared/ui/pages/settings-page.tsx
+  s_250e9c345a3eca::t_fe6d59fc8b4d69 32,37,42,55
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.13",
+  "base_commit_sha": "421b4ba080923a2776bfa6ba01ba0d3e8133b13e",
+  "prompts": {},
+  "sessions": {
+    "s_250e9c345a3eca": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "019efb00-dd94-78c3-b996-ea3eabf587af",
+        "model": "gpt-5.5"
+      },
+      "human_author": "Sinyuk <80998062@qq.com>"
+    }
+  }
+}
