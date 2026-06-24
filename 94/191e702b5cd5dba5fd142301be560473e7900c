@@ -1,0 +1,244 @@
+apps/cli/src/commands/profile/index.ts
+  bc55c218ad128246 9,12
+packages/shared-commands/src/commands/provider-profiles.ts
+  bc55c218ad128246 58-64,66-76,85-95,97,111-122,126-128,147
+apps/cli/tests/contract/basic.contract.test.ts
+  bc55c218ad128246 1-76
+apps/cli/tests/smoke/cli-e2e.test.ts
+  bc55c218ad128246 90,92
+apps/cli/src/commands/profile/models.ts
+  bc55c218ad128246 13,22
+apps/app/INTEGRATION_DESIGN.md
+  c9e05eef63baa9c4 1-459
+apps/cli/src/commands/profile/lifecycle.ts
+  bc55c218ad128246 55
+packages/providers/src/contract/provider.ts
+  bc55c218ad128246 29
+docs/dev-memory/_inbox/2026-06-15-uxp-first-dev-loop.md
+  2a5c2eb412b41da5 1-52
+apps/cli/tests/contract/job.contract.test.ts
+  bc55c218ad128246 1-96
+apps/cli/src/index.ts
+  bc55c218ad128246 16,26,28
+apps/cli/tests/contract/harness.ts
+  bc55c218ad128246 1,10,14-15,31,36,40-43,50-51,53,79,87,97,104,126,132,136
+packages/providers/src/providers/mock/provider.ts
+  bc55c218ad128246 84
+apps/cli/AGENTS.md
+  bc55c218ad128246 34,41-44,78-80,82,115-118,124-125
+apps/cli/README.md
+  bc55c218ad128246 199-201,224
+docs/dev-memory/_inbox/2026-06-15-cli-profile-surface-convergence.md
+  bc55c218ad128246 1-62
+packages/shared-commands/src/commands/types.ts
+  bc55c218ad128246 4,32,98-100,109-110,112
+AGENTS.md
+  c9e05eef63baa9c4 40
+apps/app/STATUS.md
+  c9e05eef63baa9c4 5
+packages/shared-commands/src/commands/profile-models.ts
+  bc55c218ad128246 2,4-5,7,51
+apps/cli/tests/contract/profile.contract.test.ts
+  bc55c218ad128246 1-151
+docs/TESTING.md
+  bc55c218ad128246 17,35-36,41-46,141,158-159,161
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.2.8-ntes.9",
+  "base_commit_sha": "94191e702b5cd5dba5fd142301be560473e7900c",
+  "prompts": {
+    "0ffa88f42e0a945a": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "019ec91e-1f50-7312-a9c0-399a0313fbbc",
+        "model": "gpt-5.5"
+      },
+      "human_author": "sinyuk",
+      "messages": [],
+      "total_additions": 0,
+      "total_deletions": 0,
+      "accepted_lines": 685,
+      "overriden_lines": 0,
+      "per_file_stats": {
+        "packages/providers/src/transport/image-endpoint/parse-response.ts": {
+          "accepted_lines": 242
+        },
+        "packages/providers/src/transport/image-endpoint/retry.ts": {
+          "accepted_lines": 159
+        },
+        "packages/providers/src/transport/image-endpoint/error-map.ts": {
+          "accepted_lines": 110
+        },
+        "packages/providers/src/providers/image-endpoint/provider.ts": {
+          "accepted_lines": 174
+        }
+      }
+    },
+    "2a5c2eb412b41da5": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "019ecaf1-8680-7291-abc4-0ea7740feed6",
+        "model": "gpt-5.5"
+      },
+      "human_author": "sinyuk",
+      "messages": [],
+      "total_additions": 52,
+      "total_deletions": 0,
+      "accepted_lines": 52,
+      "overriden_lines": 0,
+      "per_file_stats": {
+        "docs/dev-memory/_inbox/2026-06-15-uxp-first-dev-loop.md": {
+          "additions": 52,
+          "accepted_lines": 52
+        }
+      }
+    },
+    "bc55c218ad128246": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "019ecaa5-f3ea-77b3-b56a-77d5ee229eee",
+        "model": "gpt-5.5"
+      },
+      "human_author": "sinyuk",
+      "messages": [],
+      "total_additions": 678,
+      "total_deletions": 987,
+      "accepted_lines": 640,
+      "overriden_lines": 0,
+      "per_file_stats": {
+        "apps/cli/tests/contract/job.contract.test.ts": {
+          "additions": 96,
+          "accepted_lines": 96
+        },
+        "apps/cli/tests/contract/basic.contract.test.ts": {
+          "additions": 76,
+          "accepted_lines": 76
+        },
+        "apps/cli/tests/contract/harness.ts": {
+          "additions": 151,
+          "accepted_lines": 151
+        },
+        "packages/shared-commands/src/commands/index.ts": {
+          "deletions": 8
+        },
+        "packages/providers/src/providers/mock/provider.ts": {
+          "additions": 1,
+          "deletions": 1,
+          "accepted_lines": 1
+        },
+        "apps/cli/src/commands/profile/set-default-model.ts": {
+          "deletions": 32
+        },
+        "apps/cli/src/commands/profile/index.ts": {
+          "additions": 2,
+          "deletions": 10,
+          "accepted_lines": 2
+        },
+        "packages/shared-commands/src/commands/types.ts": {
+          "additions": 8,
+          "deletions": 7,
+          "accepted_lines": 8
+        },
+        "docs/dev-memory/_inbox/2026-06-15-cli-profile-surface-convergence.md": {
+          "additions": 62,
+          "accepted_lines": 62
+        },
+        "apps/cli/src/commands/profile/disable.ts": {
+          "deletions": 32
+        },
+        "packages/providers/src/contract/provider.ts": {
+          "additions": 1,
+          "deletions": 1,
+          "accepted_lines": 1
+        },
+        "docs/TESTING.md": {
+          "additions": 14,
+          "deletions": 13,
+          "accepted_lines": 13
+        },
+        "apps/cli/tests/smoke/cli-e2e.test.ts": {
+          "additions": 2,
+          "deletions": 2,
+          "accepted_lines": 2
+        },
+        "apps/cli/src/commands/profile/create.ts": {
+          "deletions": 203
+        },
+        "apps/cli/src/index.ts": {
+          "additions": 3,
+          "deletions": 9,
+          "accepted_lines": 3
+        },
+        "apps/cli/README.md": {
+          "additions": 4,
+          "deletions": 10,
+          "accepted_lines": 4
+        },
+        "packages/shared-commands/src/commands/provider-profiles.ts": {
+          "additions": 79,
+          "deletions": 40,
+          "accepted_lines": 47
+        },
+        "apps/cli/AGENTS.md": {
+          "additions": 15,
+          "deletions": 14,
+          "accepted_lines": 15
+        },
+        "apps/cli/src/commands/profile/enable.ts": {
+          "deletions": 32
+        },
+        "apps/cli/tests/contract/cli-contract.test.ts": {
+          "deletions": 441
+        },
+        "apps/cli/src/commands/profile/lifecycle.ts": {
+          "additions": 1,
+          "deletions": 1,
+          "accepted_lines": 1
+        },
+        "apps/cli/tests/contract/profile.contract.test.ts": {
+          "additions": 156,
+          "deletions": 5,
+          "accepted_lines": 151
+        },
+        "apps/cli/src/commands/profile/models.ts": {
+          "additions": 2,
+          "deletions": 2,
+          "accepted_lines": 2
+        },
+        "packages/shared-commands/src/commands/profile-models.ts": {
+          "additions": 5,
+          "deletions": 124,
+          "accepted_lines": 5
+        }
+      }
+    },
+    "c9e05eef63baa9c4": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "b195c16e-6a0d-44e5-8abc-ef11c0f8b9ba",
+        "model": "claude-opus-4-8"
+      },
+      "human_author": "sinyuk",
+      "messages": [],
+      "total_additions": 461,
+      "total_deletions": 0,
+      "accepted_lines": 461,
+      "overriden_lines": 0,
+      "per_file_stats": {
+        "apps/app/STATUS.md": {
+          "additions": 1,
+          "accepted_lines": 1
+        },
+        "apps/app/INTEGRATION_DESIGN.md": {
+          "additions": 459,
+          "accepted_lines": 459
+        },
+        "AGENTS.md": {
+          "additions": 1,
+          "accepted_lines": 1
+        }
+      }
+    }
+  }
+}

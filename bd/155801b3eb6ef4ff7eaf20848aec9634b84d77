@@ -1,0 +1,35 @@
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.2.8-ntes.9",
+  "base_commit_sha": "bd155801b3eb6ef4ff7eaf20848aec9634b84d77",
+  "prompts": {
+    "0ffa88f42e0a945a": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "019ec91e-1f50-7312-a9c0-399a0313fbbc",
+        "model": "gpt-5.5"
+      },
+      "human_author": "sinyuk",
+      "messages": [],
+      "total_additions": 0,
+      "total_deletions": 0,
+      "accepted_lines": 685,
+      "overriden_lines": 0,
+      "per_file_stats": {
+        "packages/providers/src/transport/image-endpoint/retry.ts": {
+          "accepted_lines": 159
+        },
+        "packages/providers/src/transport/image-endpoint/parse-response.ts": {
+          "accepted_lines": 242
+        },
+        "packages/providers/src/transport/image-endpoint/error-map.ts": {
+          "accepted_lines": 110
+        },
+        "packages/providers/src/providers/image-endpoint/provider.ts": {
+          "accepted_lines": 174
+        }
+      }
+    }
+  }
+}

@@ -1,0 +1,417 @@
+packages/shared-commands/tests/set-profile-enabled.test.ts
+  56094f7d8d1d6286 18
+packages/providers/src/transport/openai-compatible/error-map.ts
+  56094f7d8d1d6286 16
+packages/shared-commands/tests/profile-models-fallback.test.ts
+  56094f7d8d1d6286 26,80,115,138
+packages/providers/src/providers/mock/descriptor.ts
+  56094f7d8d1d6286 17,20,26
+packages/providers/src/providers/openai-compatible/provider.ts
+  56094f7d8d1d6286 1-2,12,16,30-32,41,44-45,48-50,59,96-135,141-142,144-145,148-153,155-159,179,181-182,184,186-187,189
+apps/cli/tests/adapters/file-config-adapter.test.ts
+  56094f7d8d1d6286 23
+packages/providers/src/contract/result.ts
+  56094f7d8d1d6286 67-71,95-128,130-138
+apps/cli/src/commands/provider/config-interactive.ts
+  56094f7d8d1d6286 55
+apps/cli/tests/commands/profile-discovery-commands.test.ts
+  56094f7d8d1d6286 148
+packages/shared-commands/src/commands/types.ts
+  56094f7d8d1d6286 9,13,18,38-42,102,124,147-180,189,205
+packages/workflows/src/builtins/provider-generate.ts
+  56094f7d8d1d6286 11
+apps/cli/src/adapters/file-storage-adapter.ts
+  56094f7d8d1d6286 1-89
+packages/workflows/tests/fixtures.ts
+  56094f7d8d1d6286 52,80
+packages/workflows/tests/builtins.test.ts
+  56094f7d8d1d6286 5,21,35-40,56,77,112,137,148,159,169,178,186,206,215
+packages/shared-commands/tests/model-selection.test.ts
+  56094f7d8d1d6286 28
+apps/cli/tests/smoke/end-to-end.test.ts
+  56094f7d8d1d6286 94,96,112,119,137,165,304,384
+packages/workflows/src/builtins/provider-multi-reference.ts
+  56094f7d8d1d6286 1-36
+packages/shared-commands/src/runtime.ts
+  56094f7d8d1d6286 96,98,114,121,260
+packages/shared-commands/tests/save-profile-rejects-models.test.ts
+  56094f7d8d1d6286 62,76,91,108,124
+packages/providers/src/providers/mock/request-schema.ts
+  56094f7d8d1d6286 2,4-6,8-11
+packages/providers/src/contract/capability.ts
+  56094f7d8d1d6286 4,7-22,24-37,39-44
+apps/cli/tests/commands/commands.test.ts
+  56094f7d8d1d6286 6,10
+packages/providers/src/shared/capability-check.ts
+  56094f7d8d1d6286 1-45
+packages/workflows/src/builtins/provider-edit.ts
+  56094f7d8d1d6286 11,27,30
+packages/providers/src/contract/config.ts
+  56094f7d8d1d6286 1,12,20-21
+packages/providers/src/providers/mock/config-schema.ts
+  56094f7d8d1d6286 11
+packages/providers/src/providers/mock/provider.ts
+  56094f7d8d1d6286 7,43,90-92,144-145,149-150
+packages/providers/src/providers/openai-compatible/config-schema.ts
+  56094f7d8d1d6286 11
+packages/workflows/src/builtins/provider-inpaint.ts
+  56094f7d8d1d6286 1-37
+packages/providers/src/registry/index.ts
+  56094f7d8d1d6286 4-5
+packages/providers/src/providers/openai-compatible/descriptor.ts
+  56094f7d8d1d6286 6,15
+packages/providers/src/contract/request.ts
+  56094f7d8d1d6286 6-11,17,19-21,24,36-37,39-41,45-47,49-52,54-55,57-59,61-64,66-70,73-80,82-87,89-94,96-101,103-107,112-119
+packages/shared-commands/src/commands/dry-run-job.ts
+  56094f7d8d1d6286 1-61
+apps/cli/src/commands/job/index.ts
+  56094f7d8d1d6286 5,13
+packages/providers/tests/mock-provider.test.ts
+  56094f7d8d1d6286 10,20,33,35,44,46,55,57,77,79,84-86
+packages/workflows/src/builtins/index.ts
+  56094f7d8d1d6286 5-6,10-11,17-18
+packages/providers/src/transport/openai-compatible/build-request.ts
+  56094f7d8d1d6286 4,6,8-16,18-19,24-27,178-215,217,228-229,326-327,349-350,352,354-364,366-367,369-376,407,410-411,424,432,436-437,441,445,449-450,453-454,456,472-473,482,484-485
+apps/cli/src/commands/explain.ts
+  56094f7d8d1d6286 1-18
+packages/providers/src/contract/index.ts
+  56094f7d8d1d6286 1,3-15,17-25,33
+packages/providers/src/index.ts
+  56094f7d8d1d6286 12-17,26,31,37-42,46-56
+packages/providers/tests/model-discovery-contract.test.ts
+  56094f7d8d1d6286 36,45,54,63,71,75,84,95,112,121,126,137
+apps/cli/tests/smoke/model-pass-through.test.ts
+  56094f7d8d1d6286 12,15
+apps/cli/tests/adapters/file-provider-profile-adapter.test.ts
+  56094f7d8d1d6286 18
+packages/providers/tests/openai-compatible-provider.test.ts
+  56094f7d8d1d6286 34,48-54,90,95,106,138,158,164,166-171,181,189,207,229,243,249,251-252,298,304,309,346,350
+packages/providers/src/contract/provider.ts
+  56094f7d8d1d6286 2,29-30,35,38-39,66-90,96-97,124-129
+apps/cli/src/commands/job/submit.ts
+  56094f7d8d1d6286 3,6,8-34,40-41,59-72,74
+apps/cli/src/index.ts
+  56094f7d8d1d6286 10,25
+packages/shared-commands/src/commands/explain-capability.ts
+  56094f7d8d1d6286 1-84
+packages/providers/src/shared/request-schema.ts
+  56094f7d8d1d6286 1-112
+packages/shared-commands/src/commands/index.ts
+  56094f7d8d1d6286 39-44,60,70-72
+packages/shared-commands/tests/commands.test.ts
+  56094f7d8d1d6286 198,230,250,323,350,370,412,429
+packages/shared-commands/src/commands/provider-profiles.ts
+  56094f7d8d1d6286 25-28,72,76-77,99,123,190
+apps/cli/src/commands/job/dry-run.ts
+  56094f7d8d1d6286 1-30
+packages/providers/tests/openai-compatible-build-request.test.ts
+  56094f7d8d1d6286 9,17,19,39,41,51,65,77,89,103,116,129,140,142,144-145,154,156,158-159,169-170,174,181,192,195-196,207,210
+packages/shared-commands/tests/profile-models-refresh.test.ts
+  56094f7d8d1d6286 28
+packages/workflows/tests/cross-package-compat.test.ts
+  56094f7d8d1d6286 40,47-48,56-57,60,134-135,144
+packages/shared-commands/tests/set-profile-default-model.test.ts
+  56094f7d8d1d6286 20
+packages/providers/src/registry/model-capabilities.ts
+  56094f7d8d1d6286 1-100
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.2.8-ntes.9",
+  "base_commit_sha": "a9ae71ee224759d7b1c26b490ce59c1253c2cb21",
+  "prompts": {
+    "56094f7d8d1d6286": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "6326c1e1-ba6e-4518-a15b-213397b2829f",
+        "model": "claude-opus-4-8"
+      },
+      "human_author": "sinyuk",
+      "messages": [],
+      "total_additions": 1419,
+      "total_deletions": 413,
+      "accepted_lines": 1364,
+      "overriden_lines": 0,
+      "per_file_stats": {
+        "packages/shared-commands/tests/save-profile-rejects-models.test.ts": {
+          "additions": 5,
+          "deletions": 5,
+          "accepted_lines": 5
+        },
+        "apps/cli/tests/adapters/file-config-adapter.test.ts": {
+          "additions": 1,
+          "deletions": 1,
+          "accepted_lines": 1
+        },
+        "packages/providers/src/registry/model-capabilities.ts": {
+          "additions": 100,
+          "accepted_lines": 100
+        },
+        "apps/cli/tests/commands/profile-discovery-commands.test.ts": {
+          "additions": 1,
+          "deletions": 1,
+          "accepted_lines": 1
+        },
+        "packages/providers/src/providers/openai-compatible/descriptor.ts": {
+          "additions": 2,
+          "deletions": 4,
+          "accepted_lines": 2
+        },
+        "packages/providers/src/providers/mock/request-schema.ts": {
+          "additions": 8,
+          "deletions": 64,
+          "accepted_lines": 8
+        },
+        "packages/providers/src/index.ts": {
+          "additions": 25,
+          "deletions": 4,
+          "accepted_lines": 25
+        },
+        "packages/providers/src/contract/result.ts": {
+          "additions": 49,
+          "deletions": 2,
+          "accepted_lines": 49
+        },
+        "packages/providers/src/registry/index.ts": {
+          "additions": 2,
+          "accepted_lines": 2
+        },
+        "packages/shared-commands/tests/model-selection.test.ts": {
+          "additions": 1,
+          "deletions": 1,
+          "accepted_lines": 1
+        },
+        "apps/cli/src/commands/job/index.ts": {
+          "additions": 2,
+          "accepted_lines": 2
+        },
+        "packages/workflows/src/builtins/index.ts": {
+          "additions": 6,
+          "accepted_lines": 6
+        },
+        "packages/providers/tests/mock-provider.test.ts": {
+          "additions": 13,
+          "deletions": 9,
+          "accepted_lines": 13
+        },
+        "packages/workflows/tests/fixtures.ts": {
+          "additions": 2,
+          "deletions": 2,
+          "accepted_lines": 2
+        },
+        "packages/providers/src/shared/request-schema.ts": {
+          "additions": 112,
+          "accepted_lines": 112
+        },
+        "packages/shared-commands/src/commands/explain-capability.ts": {
+          "additions": 84,
+          "accepted_lines": 84
+        },
+        "packages/shared-commands/tests/profile-models-refresh.test.ts": {
+          "additions": 1,
+          "deletions": 1,
+          "accepted_lines": 1
+        },
+        "packages/shared-commands/src/commands/dry-run-job.ts": {
+          "additions": 61,
+          "accepted_lines": 61
+        },
+        "packages/workflows/src/builtins/provider-generate.ts": {
+          "additions": 1,
+          "deletions": 1,
+          "accepted_lines": 1
+        },
+        "apps/cli/src/commands/provider/config-interactive.ts": {
+          "additions": 1,
+          "deletions": 1,
+          "accepted_lines": 1
+        },
+        "packages/shared-commands/tests/profile-models-fallback.test.ts": {
+          "additions": 4,
+          "deletions": 4,
+          "accepted_lines": 4
+        },
+        "packages/providers/src/providers/mock/descriptor.ts": {
+          "additions": 3,
+          "deletions": 5,
+          "accepted_lines": 3
+        },
+        "packages/providers/src/providers/openai-compatible/provider.ts": {
+          "additions": 82,
+          "deletions": 28,
+          "accepted_lines": 78
+        },
+        "packages/shared-commands/src/commands/provider-profiles.ts": {
+          "additions": 10,
+          "deletions": 7,
+          "accepted_lines": 10
+        },
+        "packages/providers/src/contract/index.ts": {
+          "additions": 24,
+          "deletions": 3,
+          "accepted_lines": 24
+        },
+        "packages/providers/src/shared/capability-check.ts": {
+          "additions": 45,
+          "accepted_lines": 45
+        },
+        "apps/cli/src/commands/job/dry-run.ts": {
+          "additions": 30,
+          "accepted_lines": 30
+        },
+        "packages/providers/src/transport/openai-compatible/error-map.ts": {
+          "additions": 1,
+          "accepted_lines": 1
+        },
+        "packages/providers/src/contract/request.ts": {
+          "additions": 80,
+          "deletions": 34,
+          "accepted_lines": 79
+        },
+        "packages/providers/src/providers/mock/config-schema.ts": {
+          "additions": 1,
+          "deletions": 3,
+          "accepted_lines": 1
+        },
+        "packages/workflows/tests/builtins.test.ts": {
+          "additions": 19,
+          "deletions": 16,
+          "accepted_lines": 19
+        },
+        "packages/workflows/src/builtins/provider-inpaint.ts": {
+          "additions": 37,
+          "accepted_lines": 37
+        },
+        "packages/providers/src/providers/openai-compatible/config-schema.ts": {
+          "additions": 1,
+          "deletions": 3,
+          "accepted_lines": 1
+        },
+        "packages/providers/src/providers/mock/provider.ts": {
+          "additions": 9,
+          "deletions": 4,
+          "accepted_lines": 9
+        },
+        "packages/providers/src/contract/config.ts": {
+          "additions": 4,
+          "deletions": 4,
+          "accepted_lines": 4
+        },
+        "packages/workflows/src/builtins/provider-multi-reference.ts": {
+          "additions": 36,
+          "accepted_lines": 36
+        },
+        "apps/cli/src/adapters/file-storage-adapter.ts": {
+          "additions": 89,
+          "accepted_lines": 89
+        },
+        "packages/shared-commands/tests/set-profile-default-model.test.ts": {
+          "additions": 1,
+          "deletions": 1,
+          "accepted_lines": 1
+        },
+        "packages/providers/src/transport/openai-compatible/build-request.ts": {
+          "additions": 104,
+          "deletions": 48,
+          "accepted_lines": 103
+        },
+        "packages/providers/tests/openai-compatible-build-request.test.ts": {
+          "additions": 29,
+          "deletions": 32,
+          "accepted_lines": 29
+        },
+        "apps/cli/tests/smoke/end-to-end.test.ts": {
+          "additions": 8,
+          "deletions": 8,
+          "accepted_lines": 8
+        },
+        "packages/providers/src/providers/openai-compatible/provider-options-schema.ts": {
+          "additions": 49
+        },
+        "apps/cli/tests/smoke/model-pass-through.test.ts": {
+          "additions": 2,
+          "deletions": 2,
+          "accepted_lines": 2
+        },
+        "packages/providers/tests/model-discovery-contract.test.ts": {
+          "additions": 12,
+          "deletions": 20,
+          "accepted_lines": 12
+        },
+        "apps/cli/src/commands/explain.ts": {
+          "additions": 18,
+          "accepted_lines": 18
+        },
+        "packages/shared-commands/src/runtime.ts": {
+          "additions": 5,
+          "deletions": 5,
+          "accepted_lines": 5
+        },
+        "packages/shared-commands/src/commands/index.ts": {
+          "additions": 10,
+          "deletions": 1,
+          "accepted_lines": 10
+        },
+        "packages/workflows/src/builtins/provider-edit.ts": {
+          "additions": 3,
+          "deletions": 3,
+          "accepted_lines": 3
+        },
+        "apps/cli/tests/commands/commands.test.ts": {
+          "additions": 2,
+          "deletions": 2,
+          "accepted_lines": 2
+        },
+        "apps/cli/src/index.ts": {
+          "additions": 2,
+          "accepted_lines": 2
+        },
+        "packages/providers/src/contract/capability.ts": {
+          "additions": 37,
+          "deletions": 12,
+          "accepted_lines": 37
+        },
+        "packages/shared-commands/tests/set-profile-enabled.test.ts": {
+          "additions": 1,
+          "deletions": 1,
+          "accepted_lines": 1
+        },
+        "apps/cli/src/commands/job/submit.ts": {
+          "additions": 47,
+          "deletions": 2,
+          "accepted_lines": 47
+        },
+        "packages/providers/tests/openai-compatible-provider.test.ts": {
+          "additions": 33,
+          "deletions": 34,
+          "accepted_lines": 33
+        },
+        "packages/workflows/tests/cross-package-compat.test.ts": {
+          "additions": 9,
+          "deletions": 10,
+          "accepted_lines": 9
+        },
+        "apps/cli/tests/adapters/file-provider-profile-adapter.test.ts": {
+          "additions": 1,
+          "deletions": 1,
+          "accepted_lines": 1
+        },
+        "packages/shared-commands/tests/commands.test.ts": {
+          "additions": 8,
+          "deletions": 8,
+          "accepted_lines": 8
+        },
+        "packages/providers/src/contract/provider.ts": {
+          "additions": 40,
+          "deletions": 8,
+          "accepted_lines": 40
+        },
+        "packages/shared-commands/src/commands/types.ts": {
+          "additions": 46,
+          "deletions": 8,
+          "accepted_lines": 46
+        }
+      }
+    }
+  }
+}

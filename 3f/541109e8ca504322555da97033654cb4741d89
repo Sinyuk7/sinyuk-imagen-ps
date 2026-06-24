@@ -1,0 +1,49 @@
+AGENTS.md
+  h_06a7404f25f628 251-259
+CLAUDE.md
+  h_06a7404f25f628 3
+docs/IMPLEMENTATION_PLAN.md
+  cbe09a8b69f27075 1-272
+docs/TOKEN.md
+  cbe09a8b69f27075 1-249
+docs/DESIGN.md
+  cbe09a8b69f27075 1-328
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.3.2",
+  "base_commit_sha": "3f541109e8ca504322555da97033654cb4741d89",
+  "prompts": {
+    "9d8c04914bf0313a": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "019db861-6922-7ed0-921c-0f1d1885c447",
+        "model": "gpt-5.4-mini"
+      },
+      "human_author": "sinyuk",
+      "messages": [],
+      "total_additions": 443,
+      "total_deletions": 109,
+      "accepted_lines": 0,
+      "overriden_lines": 0
+    },
+    "cbe09a8b69f27075": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "019db8cf-6936-79f0-b809-f2c478acb9d4",
+        "model": "gpt-5.4"
+      },
+      "human_author": "sinyuk",
+      "messages": [],
+      "total_additions": 849,
+      "total_deletions": 447,
+      "accepted_lines": 849,
+      "overriden_lines": 0
+    }
+  },
+  "humans": {
+    "h_06a7404f25f628": {
+      "author": "sinyuk"
+    }
+  }
+}

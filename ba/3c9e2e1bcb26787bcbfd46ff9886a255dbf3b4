@@ -1,0 +1,293 @@
+packages/providers/README.md
+  0ffa88f42e0a945a 11
+packages/providers/src/providers/image-endpoint/provider.ts
+  0ffa88f42e0a945a 4-5,7,12-14,43,45,47-48,51,54-55,62,78,86,98,154
+packages/providers/src/index.ts
+  0ffa88f42e0a945a 12-13,41,43-49
+packages/providers/src/transport/chat-image/models.ts
+  0ffa88f42e0a945a 2-3,5-6,9-16,18-19,22,24,27,29,37-38,43
+packages/providers/src/transport/image-endpoint/http.ts
+  0ffa88f42e0a945a 2
+packages/workflows/tests/cross-package-compat.test.ts
+  0ffa88f42e0a945a 6,40,132-133,135,138,181,201,205,244,248,250
+packages/workflows/tests/builtins.test.ts
+  0ffa88f42e0a945a 21,66,72,107,109-110,126,137,148,150-151,159,168,176,184,196,198,205
+packages/providers/src/providers/image-endpoint/config-schema.ts
+  0ffa88f42e0a945a 1-20
+packages/providers/src/providers/image-endpoint/descriptor.ts
+  0ffa88f42e0a945a 3-7
+packages/providers/src/transport/image-endpoint/parse-response.ts
+  0ffa88f42e0a945a 2
+packages/providers/src/providers/chat-image/descriptor.ts
+  0ffa88f42e0a945a 1-10
+packages/providers/OPEN_ITEMS.md
+  0ffa88f42e0a945a 10
+packages/providers/src/transport/image-endpoint/build-request.ts
+  0ffa88f42e0a945a 2,24,64,73,83,142,221,232,264,280,358,392,399,422,433
+packages/core-engine/src/types/provider.ts
+  0ffa88f42e0a945a 9
+packages/providers/tsconfig.json
+  0ffa88f42e0a945a 8
+packages/providers/src/contract/capability.ts
+  0ffa88f42e0a945a 7-8
+packages/providers/tests/image-endpoint-provider.test.ts
+  0ffa88f42e0a945a 1-132
+packages/providers/vitest.config.ts
+  0ffa88f42e0a945a 1-7
+packages/providers/src/transport/chat-image/build-request.ts
+  0ffa88f42e0a945a 1-196
+packages/providers/src/registry/builtins.ts
+  0ffa88f42e0a945a 3-4,13-14
+packages/providers/src/transport/image-endpoint/error-map.ts
+  0ffa88f42e0a945a 2
+packages/providers/src/transport/image-endpoint/retry.ts
+  0ffa88f42e0a945a 2
+packages/providers/src/contract/index.ts
+  0ffa88f42e0a945a 2
+packages/providers/src/providers/chat-image/index.ts
+  0ffa88f42e0a945a 1-3
+docs/testing-e2e-handoff.md
+  0ffa88f42e0a945a 5,50-56,69-73
+packages/providers/src/transport/chat-image/parse-response.ts
+  0ffa88f42e0a945a 1-135
+packages/workflows/tests/fixtures.ts
+  0ffa88f42e0a945a 2,52,71,75-76,78-80
+packages/providers/tests/chat-image-provider.test.ts
+  0ffa88f42e0a945a 1-127
+packages/providers/src/providers/chat-image/config-schema.ts
+  0ffa88f42e0a945a 4,6,8,11,19-20
+packages/providers/src/providers/mock/config-schema.ts
+  0ffa88f42e0a945a 6,11
+packages/providers/src/providers/image-endpoint/index.ts
+  0ffa88f42e0a945a 1,3-4,6
+apps/app/src/ui/pages/settings-add-page.tsx
+  0ffa88f42e0a945a 13-14,73-74
+packages/providers/tests/registry-exports.test.ts
+  0ffa88f42e0a945a 1-28
+packages/providers/src/contract/config.ts
+  0ffa88f42e0a945a 12-13,23,39-50,67
+packages/providers/src/providers/chat-image/provider.ts
+  0ffa88f42e0a945a 1-128
+STATUS.md
+  0ffa88f42e0a945a 12,23
+packages/providers/src/providers/mock/descriptor.ts
+  0ffa88f42e0a945a 17
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.2.8-ntes.9",
+  "base_commit_sha": "ba3c9e2e1bcb26787bcbfd46ff9886a255dbf3b4",
+  "prompts": {
+    "0ffa88f42e0a945a": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "019ec91e-1f50-7312-a9c0-399a0313fbbc",
+        "model": "gpt-5.5"
+      },
+      "human_author": "sinyuk",
+      "messages": [],
+      "total_additions": 2262,
+      "total_deletions": 1519,
+      "accepted_lines": 2260,
+      "overriden_lines": 0,
+      "per_file_stats": {
+        "packages/providers/src/transport/openai-compatible/build-request.ts": {
+          "deletions": 448
+        },
+        "packages/providers/src/providers/openai-compatible/provider.ts": {
+          "deletions": 174
+        },
+        "packages/providers/src/transport/openai-compatible/http.ts": {
+          "deletions": 144
+        },
+        "packages/providers/src/transport/chat-image/build-request.ts": {
+          "additions": 196,
+          "accepted_lines": 196
+        },
+        "packages/workflows/tests/builtins.test.ts": {
+          "additions": 18,
+          "deletions": 25,
+          "accepted_lines": 18
+        },
+        "packages/providers/src/providers/openai-compatible/index.ts": {
+          "deletions": 6
+        },
+        "packages/providers/OPEN_ITEMS.md": {
+          "additions": 1,
+          "deletions": 1,
+          "accepted_lines": 1
+        },
+        "packages/providers/src/transport/chat-image/parse-response.ts": {
+          "additions": 135,
+          "accepted_lines": 135
+        },
+        "packages/core-engine/src/types/provider.ts": {
+          "additions": 1,
+          "deletions": 1,
+          "accepted_lines": 1
+        },
+        "packages/providers/src/transport/chat-image/models.ts": {
+          "additions": 48,
+          "accepted_lines": 48
+        },
+        "apps/app/src/ui/pages/settings-add-page.tsx": {
+          "additions": 4,
+          "deletions": 6,
+          "accepted_lines": 4
+        },
+        "packages/providers/README.md": {
+          "additions": 1,
+          "deletions": 1,
+          "accepted_lines": 1
+        },
+        "packages/providers/src/providers/openai-compatible/config-schema.ts": {
+          "deletions": 20
+        },
+        "packages/providers/src/providers/chat-image/descriptor.ts": {
+          "additions": 10,
+          "accepted_lines": 10
+        },
+        "docs/testing-e2e-handoff.md": {
+          "additions": 13,
+          "deletions": 5,
+          "accepted_lines": 13
+        },
+        "packages/workflows/tests/cross-package-compat.test.ts": {
+          "additions": 12,
+          "deletions": 12,
+          "accepted_lines": 12
+        },
+        "packages/providers/vitest.config.ts": {
+          "additions": 7,
+          "accepted_lines": 7
+        },
+        "packages/providers/src/index.ts": {
+          "additions": 10,
+          "deletions": 6,
+          "accepted_lines": 10
+        },
+        "packages/workflows/tests/fixtures.ts": {
+          "additions": 8,
+          "deletions": 8,
+          "accepted_lines": 8
+        },
+        "packages/providers/src/providers/chat-image/config-schema.ts": {
+          "additions": 20,
+          "accepted_lines": 20
+        },
+        "packages/providers/tests/image-endpoint-provider.test.ts": {
+          "additions": 132,
+          "accepted_lines": 132
+        },
+        "packages/providers/src/transport/openai-compatible/error-map.ts": {
+          "deletions": 110
+        },
+        "packages/providers/src/contract/config.ts": {
+          "additions": 31,
+          "deletions": 4,
+          "accepted_lines": 31
+        },
+        "packages/providers/src/transport/image-endpoint/error-map.ts": {
+          "additions": 110,
+          "accepted_lines": 110
+        },
+        "packages/providers/tests/chat-image-provider.test.ts": {
+          "additions": 127,
+          "accepted_lines": 127
+        },
+        "packages/providers/src/transport/openai-compatible/models.ts": {
+          "deletions": 123
+        },
+        "packages/providers/src/transport/image-endpoint/retry.ts": {
+          "additions": 159,
+          "accepted_lines": 159
+        },
+        "packages/providers/src/providers/image-endpoint/config-schema.ts": {
+          "additions": 20,
+          "accepted_lines": 20
+        },
+        "packages/providers/src/providers/image-endpoint/index.ts": {
+          "additions": 6,
+          "accepted_lines": 6
+        },
+        "packages/providers/src/transport/image-endpoint/build-request.ts": {
+          "additions": 448,
+          "accepted_lines": 448
+        },
+        "packages/providers/src/providers/image-endpoint/provider.ts": {
+          "additions": 174,
+          "accepted_lines": 174
+        },
+        "packages/providers/src/providers/mock/config-schema.ts": {
+          "additions": 2,
+          "deletions": 2,
+          "accepted_lines": 2
+        },
+        "packages/providers/src/providers/mock/descriptor.ts": {
+          "additions": 1,
+          "deletions": 1,
+          "accepted_lines": 1
+        },
+        "packages/providers/tsconfig.json": {
+          "additions": 1,
+          "deletions": 1,
+          "accepted_lines": 1
+        },
+        "packages/providers/src/transport/openai-compatible/parse-response.ts": {
+          "deletions": 242
+        },
+        "packages/providers/src/registry/builtins.ts": {
+          "additions": 4,
+          "deletions": 2,
+          "accepted_lines": 4
+        },
+        "packages/providers/src/providers/chat-image/provider.ts": {
+          "additions": 130,
+          "deletions": 2,
+          "accepted_lines": 128
+        },
+        "packages/providers/src/providers/openai-compatible/descriptor.ts": {
+          "deletions": 11
+        },
+        "packages/providers/src/transport/image-endpoint/http.ts": {
+          "additions": 144,
+          "accepted_lines": 144
+        },
+        "packages/providers/src/providers/image-endpoint/descriptor.ts": {
+          "additions": 11,
+          "accepted_lines": 11
+        },
+        "packages/providers/src/providers/chat-image/index.ts": {
+          "additions": 3,
+          "accepted_lines": 3
+        },
+        "packages/providers/src/transport/image-endpoint/parse-response.ts": {
+          "additions": 242,
+          "accepted_lines": 242
+        },
+        "packages/providers/tests/registry-exports.test.ts": {
+          "additions": 28,
+          "accepted_lines": 28
+        },
+        "packages/providers/src/transport/openai-compatible/retry.ts": {
+          "deletions": 159
+        },
+        "packages/providers/src/contract/index.ts": {
+          "additions": 1,
+          "deletions": 1,
+          "accepted_lines": 1
+        },
+        "packages/providers/src/contract/capability.ts": {
+          "additions": 2,
+          "deletions": 2,
+          "accepted_lines": 2
+        },
+        "STATUS.md": {
+          "additions": 2,
+          "deletions": 2,
+          "accepted_lines": 2
+        }
+      }
+    }
+  }
+}

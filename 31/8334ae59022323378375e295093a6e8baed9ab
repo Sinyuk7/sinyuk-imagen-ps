@@ -1,0 +1,141 @@
+apps/cli/AGENTS.md
+  7fe2cf6455060de9 18-21
+docs/dev-memory/_inbox/2026-06-15-cli-readme-direct-run.md
+  7fe2cf6455060de9 1,5-7,11,13,15-24,30-34,38
+apps/cli/src/commands/profile/create.ts
+  bc55c218ad128246 10-11,13-22,42-94
+apps/cli/src/adapters/file-storage-adapter.ts
+  bc55c218ad128246 23,94-95,101-102,108
+apps/cli/tests/contract/cli-contract.test.ts
+  bc55c218ad128246 1-441
+apps/cli/src/index.ts
+  bc55c218ad128246 9,22-28,43-59
+apps/cli/src/commands/job/submit.ts
+  bc55c218ad128246 109
+packages/shared-commands/src/commands/provider-profiles.ts
+  bc55c218ad128246 71,77-79,118-124
+docs/dev-memory/_inbox/2026-06-15-cli-contract-tests.md
+  bc55c218ad128246 1-57
+apps/cli/README.md
+  7fe2cf6455060de9 16-17,20-21,24,27,30,34,40,77,83,100,106,115-116,164-165,179-185,191-192,198,204-205,211-215,232-233,246-247
+apps/cli/src/utils/input.ts
+  bc55c218ad128246 28
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.2.8-ntes.9",
+  "base_commit_sha": "318334ae59022323378375e295093a6e8baed9ab",
+  "prompts": {
+    "0ffa88f42e0a945a": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "019ec91e-1f50-7312-a9c0-399a0313fbbc",
+        "model": "gpt-5.5"
+      },
+      "human_author": "sinyuk",
+      "messages": [],
+      "total_additions": 0,
+      "total_deletions": 0,
+      "accepted_lines": 685,
+      "overriden_lines": 0,
+      "per_file_stats": {
+        "packages/providers/src/transport/image-endpoint/parse-response.ts": {
+          "accepted_lines": 242
+        },
+        "packages/providers/src/transport/image-endpoint/error-map.ts": {
+          "accepted_lines": 110
+        },
+        "packages/providers/src/providers/image-endpoint/provider.ts": {
+          "accepted_lines": 174
+        },
+        "packages/providers/src/transport/image-endpoint/retry.ts": {
+          "accepted_lines": 159
+        }
+      }
+    },
+    "7fe2cf6455060de9": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "019eca51-8544-7c41-b30c-57602192aa4b",
+        "model": "gpt-5.5"
+      },
+      "human_author": "sinyuk",
+      "messages": [],
+      "total_additions": 67,
+      "total_deletions": 71,
+      "accepted_lines": 64,
+      "overriden_lines": 0,
+      "per_file_stats": {
+        "apps/cli/AGENTS.md": {
+          "additions": 4,
+          "deletions": 3,
+          "accepted_lines": 4
+        },
+        "apps/cli/README.md": {
+          "additions": 41,
+          "deletions": 54,
+          "accepted_lines": 38
+        },
+        "docs/dev-memory/_inbox/2026-06-15-cli-readme-direct-run.md": {
+          "additions": 22,
+          "deletions": 14,
+          "accepted_lines": 22
+        }
+      }
+    },
+    "bc55c218ad128246": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "019ecaa5-f3ea-77b3-b56a-77d5ee229eee",
+        "model": "gpt-5.5"
+      },
+      "human_author": "sinyuk",
+      "messages": [],
+      "total_additions": 619,
+      "total_deletions": 22,
+      "accepted_lines": 608,
+      "overriden_lines": 0,
+      "per_file_stats": {
+        "apps/cli/src/adapters/file-storage-adapter.ts": {
+          "additions": 6,
+          "deletions": 3,
+          "accepted_lines": 6
+        },
+        "packages/shared-commands/src/commands/provider-profiles.ts": {
+          "additions": 11,
+          "deletions": 3,
+          "accepted_lines": 11
+        },
+        "apps/cli/tests/contract/cli-contract.test.ts": {
+          "additions": 442,
+          "deletions": 1,
+          "accepted_lines": 441
+        },
+        "apps/cli/src/index.ts": {
+          "additions": 25,
+          "deletions": 1,
+          "accepted_lines": 25
+        },
+        "apps/cli/src/commands/profile/create.ts": {
+          "additions": 76,
+          "deletions": 12,
+          "accepted_lines": 66
+        },
+        "docs/dev-memory/_inbox/2026-06-15-cli-contract-tests.md": {
+          "additions": 57,
+          "accepted_lines": 57
+        },
+        "apps/cli/src/commands/job/submit.ts": {
+          "additions": 1,
+          "deletions": 1,
+          "accepted_lines": 1
+        },
+        "apps/cli/src/utils/input.ts": {
+          "additions": 1,
+          "deletions": 1,
+          "accepted_lines": 1
+        }
+      }
+    }
+  }
+}

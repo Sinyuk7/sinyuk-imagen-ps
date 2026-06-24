@@ -1,0 +1,36 @@
+STATUS.md
+  h_06a7404f25f628 3-4
+app/src/shared/commands/types.ts
+  h_06a7404f25f628 1-51
+app/vitest.config.ts
+  h_06a7404f25f628 1-22
+app/src/shared/runtime.ts
+  h_06a7404f25f628 1-53
+app/src/shared/commands/subscribe-job-events.ts
+  h_06a7404f25f628 1-40
+app/tsconfig.json
+  h_06a7404f25f628 2
+app/tests/commands.test.ts
+  h_06a7404f25f628 1-175
+app/src/shared/commands/submit-job.ts
+  h_06a7404f25f628 1-76
+app/src/shared/commands/index.ts
+  h_06a7404f25f628 1-18
+docs/COMPONENT_REGISTRY.md
+  h_06a7404f25f628 3,11-25
+app/src/shared/commands/get-job.ts
+  h_06a7404f25f628 1-30
+app/STATUS.md
+  h_06a7404f25f628 3-4,13,18-39,44,48,51,53-54
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.3.4",
+  "base_commit_sha": "3bbd4a33c346f7e19dda2e5776d7accc83a8a2fc",
+  "prompts": {},
+  "humans": {
+    "h_06a7404f25f628": {
+      "author": "sinyuk"
+    }
+  }
+}

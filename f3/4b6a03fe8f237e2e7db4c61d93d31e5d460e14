@@ -1,0 +1,94 @@
+openspec/changes/provider-model-discovery-foundation/specs/provider-profile-discovery/spec.md
+  h_06a7404f25f628 1-52
+openspec/changes/provider-model-discovery-foundation/tasks.md
+  h_06a7404f25f628 1-113
+apps/cli/src/commands/profile/set-default-model.ts
+  h_06a7404f25f628 1-32
+packages/shared-commands/src/commands/index.ts
+  h_06a7404f25f628 29-34,55
+apps/cli/src/commands/profile/disable.ts
+  h_06a7404f25f628 1-32
+openspec/changes/provider-model-discovery-foundation/design.md
+  h_06a7404f25f628 1-189
+apps/cli/src/index.ts
+  h_06a7404f25f628 8,22
+docs/HANDOFF_2026-04-29_PROVIDER_MODEL_DISCOVERY.md
+  h_06a7404f25f628 1-132
+openspec/specs/mock-provider/spec.md
+  h_06a7404f25f628 97-123
+packages/providers/src/providers/mock/descriptor.ts
+  h_06a7404f25f628 4-13,29
+openspec/changes/provider-model-discovery-foundation/specs/mock-provider/spec.md
+  h_06a7404f25f628 1-32
+packages/providers/src/index.ts
+  h_06a7404f25f628 25
+packages/shared-commands/src/commands/types.ts
+  h_06a7404f25f628 14,18,87-93,103,113-115
+packages/shared-commands/src/commands/profile-models.ts
+  h_06a7404f25f628 1-270
+apps/cli/src/commands/profile/lifecycle.ts
+  h_06a7404f25f628 18,20-22,26
+apps/cli/src/commands/profile/refresh-models.ts
+  h_06a7404f25f628 1-32
+openspec/specs/shared-commands-provider-config/spec.md
+  h_06a7404f25f628 101-102,104,107-108,124-132,219-375
+packages/shared-commands/tests/profile-models-fallback.test.ts
+  h_06a7404f25f628 1-188
+apps/cli/src/commands/profile/index.ts
+  h_06a7404f25f628 1-29
+openspec/changes/provider-model-discovery-foundation/.openspec.yaml
+  h_06a7404f25f628 1-13
+docs/HANDOFF_2026-04-29_PROVIDER_MODEL_CLI.md
+  h_06a7404f25f628 3,5-16,20,22,36,38-41,44,46-50,52-57,95-113,118,122-125,127-135,137-139,141,159,181-182,186,208,210-224,233-235,242-243,251,254-259,272,274,276,306,323-325,332
+packages/providers/tests/model-discovery-contract.test.ts
+  h_06a7404f25f628 1-154
+apps/cli/tests/commands/profile-discovery-commands.test.ts
+  h_06a7404f25f628 1-228
+packages/shared-commands/tests/set-profile-enabled.test.ts
+  h_06a7404f25f628 1-122
+packages/shared-commands/tests/save-profile-rejects-models.test.ts
+  h_06a7404f25f628 1-139
+openspec/changes/provider-model-discovery-foundation/proposal.md
+  h_06a7404f25f628 1-58
+openspec/changes/provider-model-discovery-foundation/specs/shared-commands-provider-config/spec.md
+  h_06a7404f25f628 1-220
+packages/providers/src/contract/provider.ts
+  h_06a7404f25f628 4,40-51,97-109
+packages/providers/src/providers/mock/provider.ts
+  h_06a7404f25f628 83-85
+packages/shared-commands/src/commands/provider-profiles.ts
+  h_06a7404f25f628 101-103
+packages/shared-commands/tests/profile-models-refresh.test.ts
+  h_06a7404f25f628 1-156
+openspec/specs/provider-contract/spec.md
+  h_06a7404f25f628 84-148
+apps/cli/src/commands/profile/models.ts
+  h_06a7404f25f628 1-32
+openspec/changes/provider-model-discovery-foundation/specs/provider-contract/spec.md
+  h_06a7404f25f628 1-64
+apps/cli/tests/commands/profile-command-tree.test.ts
+  h_06a7404f25f628 1-70
+packages/shared-commands/tests/set-profile-default-model.test.ts
+  h_06a7404f25f628 1-150
+packages/providers/src/contract/model.ts
+  h_06a7404f25f628 1-19
+apps/cli/src/commands/profile/enable.ts
+  h_06a7404f25f628 1-32
+openspec/specs/provider-profile-discovery/spec.md
+  h_06a7404f25f628 5-6,8-13,15,32-49
+apps/cli/README.md
+  h_06a7404f25f628 50-142,193,200-207
+packages/providers/src/contract/index.ts
+  h_06a7404f25f628 1-4,6
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.3.4",
+  "base_commit_sha": "f34b6a03fe8f237e2e7db4c61d93d31e5d460e14",
+  "prompts": {},
+  "humans": {
+    "h_06a7404f25f628": {
+      "author": "sinyuk"
+    }
+  }
+}

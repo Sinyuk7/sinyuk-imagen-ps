@@ -1,0 +1,132 @@
+docs/loops/cli-surface-contract-loop.md
+  f951dba1587069f6 1-476
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.2.8-ntes.9",
+  "base_commit_sha": "e574c0e8856244d366da3c32695811c1d7000a59",
+  "prompts": {
+    "0ffa88f42e0a945a": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "019ec91e-1f50-7312-a9c0-399a0313fbbc",
+        "model": "gpt-5.5"
+      },
+      "human_author": "sinyuk",
+      "messages": [],
+      "total_additions": 0,
+      "total_deletions": 0,
+      "accepted_lines": 685,
+      "overriden_lines": 0,
+      "per_file_stats": {
+        "packages/providers/src/transport/image-endpoint/error-map.ts": {
+          "accepted_lines": 110
+        },
+        "packages/providers/src/transport/image-endpoint/retry.ts": {
+          "accepted_lines": 159
+        },
+        "packages/providers/src/providers/image-endpoint/provider.ts": {
+          "accepted_lines": 174
+        },
+        "packages/providers/src/transport/image-endpoint/parse-response.ts": {
+          "accepted_lines": 242
+        }
+      }
+    },
+    "dd93dc5ea71850c5": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "019ece9a-a5ae-7201-b81e-d5744f7a779e",
+        "model": "gpt-5.5"
+      },
+      "human_author": "sinyuk",
+      "messages": [],
+      "total_additions": 0,
+      "total_deletions": 0,
+      "accepted_lines": 1509,
+      "overriden_lines": 0,
+      "per_file_stats": {
+        "packages/application/package.json": {
+          "accepted_lines": 31
+        },
+        "packages/application/src/commands/retry-job.ts": {
+          "accepted_lines": 39
+        },
+        "packages/application/src/commands/describe-provider.ts": {
+          "accepted_lines": 11
+        },
+        "packages/application/src/requests/provider-edit.ts": {
+          "accepted_lines": 37
+        },
+        "packages/application/tsconfig.build.json": {
+          "accepted_lines": 9
+        },
+        "packages/application/src/runtime.test.ts": {
+          "accepted_lines": 68
+        },
+        "packages/application/src/requests/provider-generate.ts": {
+          "accepted_lines": 35
+        },
+        "packages/application/src/commands/submit-job.ts": {
+          "accepted_lines": 110
+        },
+        "packages/application/src/runtime.ts": {
+          "accepted_lines": 331
+        },
+        "packages/application/tsconfig.json": {
+          "accepted_lines": 8
+        },
+        "packages/application/src/commands/index.ts": {
+          "accepted_lines": 67
+        },
+        "packages/application/src/commands/profile-models.ts": {
+          "accepted_lines": 151
+        },
+        "packages/application/src/commands/provider-profiles.ts": {
+          "accepted_lines": 300
+        },
+        "packages/application/src/commands/types.ts": {
+          "accepted_lines": 179
+        },
+        "packages/application/src/commands/subscribe-job-events.ts": {
+          "accepted_lines": 40
+        },
+        "packages/application/src/commands/get-job.ts": {
+          "accepted_lines": 30
+        },
+        "packages/application/src/commands/secret-utils.ts": {
+          "accepted_lines": 32
+        },
+        "packages/application/AGENTS.md": {
+          "accepted_lines": 8
+        },
+        "packages/application/src/requests/index.ts": {
+          "accepted_lines": 12
+        },
+        "packages/application/src/commands/list-providers.ts": {
+          "accepted_lines": 11
+        }
+      }
+    },
+    "f951dba1587069f6": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "019ecf04-5c0a-7a12-9376-e5ed10a245e5",
+        "model": "gpt-5.5"
+      },
+      "human_author": "sinyuk",
+      "messages": [],
+      "total_additions": 491,
+      "total_deletions": 15,
+      "accepted_lines": 476,
+      "overriden_lines": 0,
+      "per_file_stats": {
+        "docs/loops/cli-surface-contract-loop.md": {
+          "additions": 491,
+          "deletions": 15,
+          "accepted_lines": 476
+        }
+      }
+    }
+  }
+}

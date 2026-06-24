@@ -1,0 +1,202 @@
+app/docs/STABILITY.md
+  5da1e26a434ca3d0 1-125
+packages/core-engine/docs/CODE_CONVENTIONS.md
+  5da1e26a434ca3d0 1-168
+app/docs/CODE_CONVENTIONS.md
+  5da1e26a434ca3d0 1-183
+packages/providers/docs/USAGE.md
+  5da1e26a434ca3d0 1-139
+packages/workflows/docs/USAGE.md
+  5da1e26a434ca3d0 1-137
+app/CLAUDE.md
+  5da1e26a434ca3d0 1-22
+packages/core-engine/docs/STABILITY.md
+  5da1e26a434ca3d0 1-130
+packages/workflows/docs/CODE_CONVENTIONS.md
+  5da1e26a434ca3d0 1-152
+packages/providers/docs/SETUP.md
+  5da1e26a434ca3d0 1-77
+packages/providers/AGENTS.md
+  5da1e26a434ca3d0 3-16
+packages/core-engine/CLAUDE.md
+  5da1e26a434ca3d0 1-17
+app/docs/USAGE.md
+  5da1e26a434ca3d0 1-121
+packages/core-engine/AGENTS.md
+  5da1e26a434ca3d0 3-17
+app/AGENTS.md
+  5da1e26a434ca3d0 3,5-20
+packages/core-engine/docs/USAGE.md
+  5da1e26a434ca3d0 1-122
+app/ARCHITECTURE.md
+  5da1e26a434ca3d0 1-125
+app/docs/SETUP.md
+  5da1e26a434ca3d0 1-109
+packages/workflows/docs/SETUP.md
+  5da1e26a434ca3d0 1-101
+packages/workflows/ARCHITECTURE.md
+  5da1e26a434ca3d0 1-158
+packages/workflows/docs/STABILITY.md
+  5da1e26a434ca3d0 1-105
+packages/providers/docs/STABILITY.md
+  5da1e26a434ca3d0 1-121
+packages/core-engine/docs/SETUP.md
+  5da1e26a434ca3d0 1-72
+packages/providers/docs/CODE_CONVENTIONS.md
+  5da1e26a434ca3d0 1-157
+packages/providers/ARCHITECTURE.md
+  5da1e26a434ca3d0 1-112
+packages/workflows/AGENTS.md
+  5da1e26a434ca3d0 3,5-17
+packages/core-engine/ARCHITECTURE.md
+  5da1e26a434ca3d0 1-130
+packages/providers/CLAUDE.md
+  5da1e26a434ca3d0 1-12
+packages/workflows/CLAUDE.md
+  5da1e26a434ca3d0 1-19
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.2.8-ntes.6",
+  "base_commit_sha": "89cb399f6da312c1dc35fd769e8b9a6f09a4907b",
+  "prompts": {
+    "5da1e26a434ca3d0": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "019dc5b1-aca0-72e1-93ee-6c61c1b1ea06",
+        "model": "gpt-5.4-mini"
+      },
+      "human_author": "Sinyuk",
+      "messages": [],
+      "total_additions": 3252,
+      "total_deletions": 609,
+      "accepted_lines": 2674,
+      "overriden_lines": 0,
+      "per_file_stats": {
+        "packages/core-engine/docs/USAGE.md": {
+          "additions": 122,
+          "accepted_lines": 122
+        },
+        "packages/providers/docs/CODE_CONVENTIONS.md": {
+          "additions": 157,
+          "accepted_lines": 157
+        },
+        "packages/providers/ARCHITECTURE.md": {
+          "additions": 224,
+          "deletions": 112,
+          "accepted_lines": 112
+        },
+        "packages/workflows/ARCHITECTURE.md": {
+          "additions": 316,
+          "deletions": 158,
+          "accepted_lines": 158
+        },
+        "app/CLAUDE.md": {
+          "additions": 44,
+          "deletions": 22,
+          "accepted_lines": 22
+        },
+        "app/docs/STABILITY.md": {
+          "additions": 125,
+          "accepted_lines": 125
+        },
+        "packages/providers/CLAUDE.md": {
+          "additions": 24,
+          "deletions": 12,
+          "accepted_lines": 12
+        },
+        "packages/workflows/docs/STABILITY.md": {
+          "additions": 105,
+          "accepted_lines": 105
+        },
+        "packages/workflows/AGENTS.md": {
+          "additions": 14,
+          "deletions": 7,
+          "accepted_lines": 14
+        },
+        "packages/providers/AGENTS.md": {
+          "additions": 14,
+          "deletions": 7,
+          "accepted_lines": 14
+        },
+        "packages/core-engine/AGENTS.md": {
+          "additions": 15,
+          "deletions": 8,
+          "accepted_lines": 15
+        },
+        "packages/core-engine/CLAUDE.md": {
+          "additions": 17,
+          "accepted_lines": 17
+        },
+        "packages/providers/docs/STABILITY.md": {
+          "additions": 121,
+          "accepted_lines": 121
+        },
+        "app/ARCHITECTURE.md": {
+          "additions": 250,
+          "deletions": 125,
+          "accepted_lines": 125
+        },
+        "packages/core-engine/ARCHITECTURE.md": {
+          "additions": 260,
+          "deletions": 130,
+          "accepted_lines": 130
+        },
+        "app/docs/USAGE.md": {
+          "additions": 121,
+          "accepted_lines": 121
+        },
+        "packages/workflows/docs/CODE_CONVENTIONS.md": {
+          "additions": 152,
+          "accepted_lines": 152
+        },
+        "packages/workflows/docs/SETUP.md": {
+          "additions": 101,
+          "accepted_lines": 101
+        },
+        "app/docs/CODE_CONVENTIONS.md": {
+          "additions": 183,
+          "accepted_lines": 183
+        },
+        "packages/providers/docs/SETUP.md": {
+          "additions": 77,
+          "accepted_lines": 77
+        },
+        "packages/core-engine/docs/STABILITY.md": {
+          "additions": 130,
+          "accepted_lines": 130
+        },
+        "packages/workflows/docs/USAGE.md": {
+          "additions": 137,
+          "accepted_lines": 137
+        },
+        "packages/providers/docs/USAGE.md": {
+          "additions": 139,
+          "accepted_lines": 139
+        },
+        "packages/core-engine/docs/SETUP.md": {
+          "additions": 72,
+          "accepted_lines": 72
+        },
+        "app/AGENTS.md": {
+          "additions": 17,
+          "deletions": 9,
+          "accepted_lines": 17
+        },
+        "packages/core-engine/docs/CODE_CONVENTIONS.md": {
+          "additions": 168,
+          "accepted_lines": 168
+        },
+        "app/docs/SETUP.md": {
+          "additions": 109,
+          "accepted_lines": 109
+        },
+        "packages/workflows/CLAUDE.md": {
+          "additions": 38,
+          "deletions": 19,
+          "accepted_lines": 19
+        }
+      }
+    }
+  }
+}

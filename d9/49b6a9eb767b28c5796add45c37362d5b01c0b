@@ -1,0 +1,33 @@
+docs/testing-e2e-design.md
+  80ffdcb8f699b374 1-166
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.2.8-ntes.9",
+  "base_commit_sha": "d949b6a9eb767b28c5796add45c37362d5b01c0b",
+  "prompts": {
+    "80ffdcb8f699b374": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "99d3b88e-34bc-40a5-a43a-eed45e8fa6e3",
+        "model": "claude-opus-4-8"
+      },
+      "human_author": "sinyuk",
+      "messages": [],
+      "total_additions": 380,
+      "total_deletions": 80,
+      "accepted_lines": 166,
+      "overriden_lines": 0,
+      "per_file_stats": {
+        "docs/testing-e2e-design.md": {
+          "additions": 246,
+          "deletions": 80,
+          "accepted_lines": 166
+        },
+        "docs/refactor-sharpen-tools.md": {
+          "additions": 134
+        }
+      }
+    }
+  }
+}

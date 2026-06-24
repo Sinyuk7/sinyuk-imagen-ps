@@ -1,0 +1,108 @@
+packages/workflows/STATUS.md
+  9a592cfd35e2610c 28,42,48,73-100,103
+openspec/changes/restore-authoritative-module-baseline/design.md
+  5da1e26a434ca3d0 3-7,9,11,15-18,20-24,28-29,31,33,35-66,68-71,75-80,84-92,96-97
+packages/workflows/vitest.config.ts
+  9a592cfd35e2610c 1-20
+packages/workflows/tsconfig.json
+  9a592cfd35e2610c 7
+packages/workflows/src/builtins/provider-generate.ts
+  9a592cfd35e2610c 25
+packages/workflows/tests/builtins.test.ts
+  9a592cfd35e2610c 10
+packages/workflows/tests/fixtures.ts
+  9a592cfd35e2610c 1-159
+packages/workflows/tests/cross-package-compat.test.ts
+  9a592cfd35e2610c 1-272
+openspec/changes/add-provider-bridge-compatibility-tests/tasks.md
+  9a592cfd35e2610c 3-4,9,13-14,17,20,26,29,32,34,39-40,43,49-52
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.2.8-ntes.6",
+  "base_commit_sha": "b50dd0db1563879c9805234534efb46e5f72d9c4",
+  "prompts": {
+    "5da1e26a434ca3d0": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "019dc5b1-aca0-72e1-93ee-6c61c1b1ea06",
+        "model": "gpt-5.4-mini"
+      },
+      "human_author": "Sinyuk",
+      "messages": [],
+      "total_additions": 75,
+      "total_deletions": 60,
+      "accepted_lines": 75,
+      "overriden_lines": 0,
+      "per_file_stats": {
+        "openspec/changes/restore-authoritative-module-baseline/design.md": {
+          "additions": 75,
+          "deletions": 60,
+          "accepted_lines": 75
+        }
+      }
+    },
+    "9a592cfd35e2610c": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_23a2e0032ffeDXbtmh6juTJvnP",
+        "model": "unknown"
+      },
+      "human_author": "Sinyuk",
+      "messages": [],
+      "total_additions": 609,
+      "total_deletions": 59,
+      "accepted_lines": 511,
+      "overriden_lines": 0,
+      "per_file_stats": {
+        "packages/workflows/tests/debug2.test.ts": {
+          "additions": 31,
+          "deletions": 3
+        },
+        "packages/workflows/STATUS.md": {
+          "additions": 32,
+          "deletions": 4,
+          "accepted_lines": 32
+        },
+        "packages/workflows/src/builtins/provider-generate.ts": {
+          "additions": 1,
+          "deletions": 7,
+          "accepted_lines": 1
+        },
+        "packages/workflows/vitest.config.ts": {
+          "additions": 20,
+          "accepted_lines": 20
+        },
+        "packages/workflows/tsconfig.json": {
+          "additions": 8,
+          "deletions": 8,
+          "accepted_lines": 8
+        },
+        "packages/workflows/tests/cross-package-compat.test.ts": {
+          "additions": 275,
+          "deletions": 3,
+          "accepted_lines": 272
+        },
+        "packages/workflows/tests/fixtures.ts": {
+          "additions": 173,
+          "deletions": 14,
+          "accepted_lines": 159
+        },
+        "openspec/changes/add-provider-bridge-compatibility-tests/tasks.md": {
+          "additions": 18,
+          "deletions": 18,
+          "accepted_lines": 18
+        },
+        "packages/workflows/tests/debug.test.ts": {
+          "additions": 50,
+          "deletions": 1
+        },
+        "packages/workflows/tests/builtins.test.ts": {
+          "additions": 1,
+          "deletions": 1,
+          "accepted_lines": 1
+        }
+      }
+    }
+  }
+}

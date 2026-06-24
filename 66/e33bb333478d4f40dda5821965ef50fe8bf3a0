@@ -1,0 +1,63 @@
+apps/cli/tests/smoke/e2e.config.json
+  46f25061b9d3393b 1-69
+docs/testing-e2e-design.md
+  46f25061b9d3393b 203-205,213
+docs/testing-e2e-handoff.md
+  46f25061b9d3393b 1-71
+apps/cli/tests/smoke/cli-e2e.test.ts
+  46f25061b9d3393b 2,7-9,11-12,30-45,47-67,70-72,74-76,97-99,103-114,117-118,133,136,152-153,156-174,176,179-203,206-208,233,243,248,252-255,258-262,265-269,271,273-277
+apps/cli/src/commands/job/submit.ts
+  46f25061b9d3393b 13-37,119-121
+.test.env.example
+  46f25061b9d3393b 3-5
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.2.8-ntes.9",
+  "base_commit_sha": "66e33bb333478d4f40dda5821965ef50fe8bf3a0",
+  "prompts": {
+    "46f25061b9d3393b": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "efd3be13-188e-4d23-9532-fc17ee19379b",
+        "model": "claude-opus-4-8"
+      },
+      "human_author": "sinyuk",
+      "messages": [],
+      "total_additions": 335,
+      "total_deletions": 198,
+      "accepted_lines": 330,
+      "overriden_lines": 0,
+      "per_file_stats": {
+        "apps/cli/tests/smoke/cli-e2e.test.ts": {
+          "additions": 159,
+          "deletions": 189,
+          "accepted_lines": 154
+        },
+        "docs/testing-e2e-design.md": {
+          "additions": 5,
+          "deletions": 4,
+          "accepted_lines": 5
+        },
+        "apps/cli/tests/smoke/e2e.config.json": {
+          "additions": 69,
+          "accepted_lines": 69
+        },
+        ".test.env.example": {
+          "additions": 3,
+          "deletions": 3,
+          "accepted_lines": 3
+        },
+        "apps/cli/src/commands/job/submit.ts": {
+          "additions": 28,
+          "deletions": 2,
+          "accepted_lines": 28
+        },
+        "docs/testing-e2e-handoff.md": {
+          "additions": 71,
+          "accepted_lines": 71
+        }
+      }
+    }
+  }
+}
