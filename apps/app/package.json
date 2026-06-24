@@ -5,9 +5,10 @@
   "type": "module",
   "scripts": {
     "build": "tsc --noEmit --project tsconfig.build.json && vite build",
+    "build:chrome": "tsc --noEmit --project tsconfig.build.json && vite build --config vite.chrome.config.ts",
     "dev": "vite build --watch",
     "test": "vitest run",
-    "clean": "rm -rf dist"
+    "clean": "rm -rf dist dist-chrome"
   },
   "dependencies": {
     "@imagen-ps/application": "workspace:*",
