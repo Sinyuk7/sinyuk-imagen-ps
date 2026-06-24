@@ -17,7 +17,7 @@ const mocks = vi.hoisted(() => {
 const { renderMock, unmountMock, createRootMock } = mocks;
 
 vi.mock('react-dom/client', () => ({
-  createRoot: createRootMock,
+  createRoot: mocks.createRootMock,
 }));
 
 vi.mock('../ui/app-shell', () => ({
@@ -75,12 +75,31 @@ describe('UXP panel runtime', () => {
 
     expect(installed).toBe(true);
     expect(createHost).not.toHaveBeenCalled();
+    expect(setup.mock.calls[0]?.[0].plugin.create).toEqual(expect.any(Function));
 
     const panel = setup.mock.calls[0]?.[0].panels['imagen-ps-panel'];
     panel.create();
 
     expect(createHost).toHaveBeenCalledTimes(1);
     expect(createRootMock).toHaveBeenCalledTimes(1);
+  });
+
+  it('matches the real UXP host plugin lifecycle create contract', () => {
+    const setup = vi.fn((config: { readonly plugin?: { readonly create?: () => void } }) => {
+      if (typeof config.plugin?.create !== 'function') {
+        throw new Error('create method is not defined for plugin');
+      }
+    });
+    const runtime = createImagenPanelRuntime({ createHost: () => fakeHost() });
+    const consoleWarnSpy = vi.spyOn(console, 'warn').mockImplementation(() => undefined);
+
+    try {
+      expect(installUxpPanelEntrypoints(runtime, { uxp: { entrypoints: { setup } } } as unknown as UxpModules)).toBe(true);
+    } finally {
+      consoleWarnSpy.mockRestore();
+    }
+
+    expect(consoleWarnSpy).not.toHaveBeenCalled();
   });
 
   it('disposes the globally registered previous runtime', () => {

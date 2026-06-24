@@ -6,9 +6,16 @@
  * 同时建议与 console sink 组合，作为即时观察面。
  */
 
-import { encodeLogRecord } from '@imagen-ps/foundation';
+import {
+  SCHEMA_VERSION,
+  encodeLogRecord,
+  generateSpanId,
+  generateTraceId,
+  redactAttrs,
+} from '@imagen-ps/foundation';
 import { createConsoleSink, createLogger, toLogError } from '@imagen-ps/foundation';
-import type { LogRecord, LogSink } from '@imagen-ps/foundation';
+import type { LogLevel, LogRecord, LogSink } from '@imagen-ps/foundation';
+import { resolveUxpModules } from './uxp-api.js';
 import type { UxpModules } from './uxp-api.js';
 
 interface UxpFileEntry {
@@ -33,6 +40,18 @@ interface UxpStorage {
   readonly formats?: {
     readonly utf8?: unknown;
   };
+}
+
+export interface UxpFlightRecorder {
+  checkpoint(event: string, attrs?: Record<string, unknown>, extra?: Partial<LogRecord>): Promise<void>;
+  fail(event: string, error: unknown, attrs?: Record<string, unknown>, extra?: Partial<LogRecord>): Promise<void>;
+}
+
+declare global {
+  // eslint-disable-next-line no-var
+  var __IMAGEN_PS_UI_FLIGHT_RECORDER__: UxpFlightRecorder | undefined;
+  // eslint-disable-next-line no-var
+  var __IMAGEN_PS_DIAGNOSTIC_DISABLE_UI_FLIGHT_RECORDER__: boolean | undefined;
 }
 
 function toISODate(d: Date): string {
@@ -113,4 +132,91 @@ export function createUxpLogSink(uxpModules: UxpModules): LogSink {
         });
     },
   };
+}
+
+/** 创建可等待落盘的 UXP flight recorder checkpoint 写入器。 */
+export function createUxpFlightRecorder(uxpModules: UxpModules): UxpFlightRecorder {
+  const storage = (uxpModules.uxp?.storage ?? {}) as UxpStorage;
+  if (!storage.localFileSystem) {
+    return {
+      checkpoint: async () => undefined,
+      fail: async () => undefined,
+    };
+  }
+
+  const sink = createUxpLogSink(uxpModules);
+  const traceId = generateTraceId();
+
+  async function write(
+    level: LogLevel,
+    event: string,
+    attrs?: Record<string, unknown>,
+    extra?: Partial<LogRecord>,
+  ): Promise<void> {
+    const record: LogRecord = {
+      schema_version: SCHEMA_VERSION,
+      timestamp: new Date().toISOString(),
+      level,
+      event,
+      surface: 'uxp',
+      package: 'app',
+      component: 'host',
+      trace_id: traceId,
+      span_id: generateSpanId(),
+      ...(attrs !== undefined ? { attrs: redactAttrs(attrs) } : {}),
+      ...extra,
+    };
+
+    try {
+      await sink.write(record);
+    } catch {
+      // Flight recorder 不能改变真实 host 路径行为；sink 自身已通过 console-only logger 记录失败。
+    }
+  }
+
+  return {
+    checkpoint(event: string, attrs?: Record<string, unknown>, extra?: Partial<LogRecord>): Promise<void> {
+      return write('info', event, attrs, extra);
+    },
+    fail(event: string, error: unknown, attrs?: Record<string, unknown>, extra?: Partial<LogRecord>): Promise<void> {
+      return write('error', event, attrs, { status: 'fail', error: toLogError(error), ...extra });
+    },
+  };
+}
+
+let uiFlightRecorder: UxpFlightRecorder | undefined;
+
+function getUiFlightRecorder(): UxpFlightRecorder {
+  if (globalThis.__IMAGEN_PS_UI_FLIGHT_RECORDER__) {
+    return globalThis.__IMAGEN_PS_UI_FLIGHT_RECORDER__;
+  }
+  if (!uiFlightRecorder) {
+    uiFlightRecorder = createUxpFlightRecorder(resolveUxpModules());
+  }
+  return uiFlightRecorder;
+}
+
+/** 写入 UI/React 路径的可等待 checkpoint。 */
+export async function writeUxpUiCheckpoint(
+  event: string,
+  attrs?: Record<string, unknown>,
+  extra?: Partial<LogRecord>,
+): Promise<void> {
+  if (globalThis.__IMAGEN_PS_DIAGNOSTIC_DISABLE_UI_FLIGHT_RECORDER__ === true) {
+    return;
+  }
+  await getUiFlightRecorder().checkpoint(event, attrs, extra);
+}
+
+/** 写入 UI/React 路径失败 checkpoint。 */
+export async function writeUxpUiFailure(
+  event: string,
+  error: unknown,
+  attrs?: Record<string, unknown>,
+  extra?: Partial<LogRecord>,
+): Promise<void> {
+  if (globalThis.__IMAGEN_PS_DIAGNOSTIC_DISABLE_UI_FLIGHT_RECORDER__ === true) {
+    return;
+  }
+  await getUiFlightRecorder().fail(event, error, attrs, extra);
 }

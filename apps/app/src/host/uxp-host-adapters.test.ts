@@ -1,10 +1,16 @@
-import { describe, expect, it, vi } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import type { DurableJobRecord, ProviderProfile } from '@imagen-ps/application';
+import { decodeLogRecords } from '@imagen-ps/foundation';
 import { createUxpAssetStore, createUxpJobHistoryStore } from './uxp-job-history-adapter';
 import { createUxpLogSink } from './uxp-log-sink';
 import { createUxpProviderProfileRepository } from './uxp-provider-profile-repository';
 import { createUxpSecretStorageAdapter } from './uxp-secret-storage-adapter';
 import type { UxpModules } from './uxp-api';
+
+declare global {
+  // eslint-disable-next-line no-var
+  var __IMAGEN_PS_DIAGNOSTIC_SKIP_SECURE_STORAGE_GET__: boolean | undefined;
+}
 
 interface FakeFile {
   readonly name?: string;
@@ -109,6 +115,10 @@ function createFakeDataFolder(initialEntries?: Record<string, FakeEntry>): {
 }
 
 describe('fake UXP host adapters', () => {
+  afterEach(() => {
+    delete globalThis.__IMAGEN_PS_DIAGNOSTIC_SKIP_SECURE_STORAGE_GET__;
+  });
+
   it('在 data folder JSON 中持久化 provider profile', async () => {
     const dataFolder = createFakeDataFolder();
     const modules: UxpModules = {
@@ -140,6 +150,61 @@ describe('fake UXP host adapters', () => {
 
     await repo.delete('profile-1');
     expect(await repo.list()).toEqual([]);
+  });
+
+  it('profile repository 写入细粒度 flight recorder checkpoint 且不包含 secret/path', async () => {
+    const dataFolder = createFakeDataFolder();
+    const modules: UxpModules = {
+      uxp: {
+        storage: {
+          localFileSystem: {
+            formats: { utf8: 'utf8' },
+            async getDataFolder() {
+              return dataFolder.folder;
+            },
+          },
+        },
+      },
+    };
+    const repo = createUxpProviderProfileRepository(modules);
+    const profile: ProviderProfile = {
+      profileId: 'profile-1',
+      providerId: 'mock',
+      displayName: 'Mock Profile',
+      enabled: true,
+      config: {
+        family: 'image-endpoint',
+        baseURL: 'https://mock.local',
+        notes: '/Users/sinyuk/should-not-enter-flight-recorder',
+      },
+      secretRefs: { apiKey: 'secret:provider-profile:profile-1:apiKey' },
+      createdAt: '2026-06-15T00:00:00.000Z',
+      updatedAt: '2026-06-15T00:00:01.000Z',
+    };
+
+    await repo.save(profile);
+
+    const logsFolder = await dataFolder.folder.getEntry('logs') as FakeFolder;
+    const dateFolder = await logsFolder.getEntry(new Date().toISOString().slice(0, 10)) as FakeFolder;
+    const logFile = await dateFolder.getEntry('imagen.jsonl') as MutableFakeFile;
+    const logText = String(await logFile.read());
+    const events = decodeLogRecords(logText).map((record) => record.event);
+
+    expect(events).toEqual([
+      'uxp.profile_repository.save.start',
+      'uxp.profile_repository.read.prepare',
+      'uxp.profile_repository.read.before_file_read',
+      'uxp.profile_repository.read.after_file_read',
+      'uxp.profile_repository.read.parsed',
+      'uxp.profile_repository.write.prepare',
+      'uxp.profile_repository.write.before_file_write',
+      'uxp.profile_repository.write.after_file_write',
+      'uxp.profile_repository.save.ok',
+    ]);
+    expect(logText).toContain('"credentialRefCount":1');
+    expect(logText).not.toContain('secret:provider-profile');
+    expect(logText).not.toContain('/Users/sinyuk/');
+    expect(logText).not.toContain('should-not-enter-flight-recorder');
   });
 
   it('UXP storage 不可用时 profile repository 回退到 in-memory 实现', async () => {
@@ -182,6 +247,94 @@ describe('fake UXP host adapters', () => {
     await adapter.deleteSecret('api-key');
     expect(secureStorage.setItem).toHaveBeenCalledWith('api-key', 'value');
     expect(secureStorage.removeItem).toHaveBeenCalledWith('api-key');
+  });
+
+  it('secureStorage 写入细粒度 flight recorder checkpoint 且不包含 secret value 或完整 key', async () => {
+    const dataFolder = createFakeDataFolder();
+    const secureStorage = {
+      getItem: vi.fn(async () => 'sk_live_should_not_log'),
+      setItem: vi.fn(async () => undefined),
+      removeItem: vi.fn(async () => undefined),
+    };
+    const adapter = createUxpSecretStorageAdapter({
+      uxp: {
+        storage: {
+          secureStorage,
+          localFileSystem: {
+            formats: { utf8: 'utf8' },
+            async getDataFolder() {
+              return dataFolder.folder;
+            },
+          },
+        },
+      },
+    });
+
+    expect(await adapter.getSecret('secret:provider-profile:profile-1:apiKey')).toBe('sk_live_should_not_log');
+    await adapter.setSecret('secret:provider-profile:profile-1:apiKey', 'sk_live_write_should_not_log');
+    await adapter.deleteSecret('secret:provider-profile:profile-1:apiKey');
+
+    const logsFolder = await dataFolder.folder.getEntry('logs') as FakeFolder;
+    const dateFolder = await logsFolder.getEntry(new Date().toISOString().slice(0, 10)) as FakeFolder;
+    const logFile = await dateFolder.getEntry('imagen.jsonl') as MutableFakeFile;
+    const logText = String(await logFile.read());
+    const records = decodeLogRecords(logText);
+
+    expect(records.map((record) => record.event)).toEqual([
+      'uxp.secret_storage.get.before_get_item',
+      'uxp.secret_storage.get.after_get_item',
+      'uxp.secret_storage.set.before_set_item',
+      'uxp.secret_storage.set.after_set_item',
+      'uxp.secret_storage.delete.before_remove_item',
+      'uxp.secret_storage.delete.after_remove_item',
+    ]);
+    expect(records.every((record) => record.attrs?.keyHash === records[0].attrs?.keyHash)).toBe(true);
+    expect(logText).toContain('"keyHash":"fnv1a32:');
+    expect(logText).toContain('"valueLength":28');
+    expect(logText).not.toContain('secret:provider-profile');
+    expect(logText).not.toContain('sk_live_should_not_log');
+    expect(logText).not.toContain('sk_live_write_should_not_log');
+  });
+
+  it('diagnostic flag 可以跳过 secureStorage.getItem 且写入 sanitized checkpoint', async () => {
+    const dataFolder = createFakeDataFolder();
+    const secureStorage = {
+      getItem: vi.fn(async () => 'sk_live_should_not_be_read'),
+      setItem: vi.fn(async () => undefined),
+      removeItem: vi.fn(async () => undefined),
+    };
+    const adapter = createUxpSecretStorageAdapter({
+      uxp: {
+        storage: {
+          secureStorage,
+          localFileSystem: {
+            formats: { utf8: 'utf8' },
+            async getDataFolder() {
+              return dataFolder.folder;
+            },
+          },
+        },
+      },
+    });
+
+    globalThis.__IMAGEN_PS_DIAGNOSTIC_SKIP_SECURE_STORAGE_GET__ = true;
+
+    await expect(adapter.getSecret('secret:provider-profile:profile-1:apiKey')).resolves.toBeUndefined();
+    expect(secureStorage.getItem).not.toHaveBeenCalled();
+
+    const logsFolder = await dataFolder.folder.getEntry('logs') as FakeFolder;
+    const dateFolder = await logsFolder.getEntry(new Date().toISOString().slice(0, 10)) as FakeFolder;
+    const logFile = await dateFolder.getEntry('imagen.jsonl') as MutableFakeFile;
+    const logText = String(await logFile.read());
+    const records = decodeLogRecords(logText);
+
+    expect(records.map((record) => record.event)).toEqual([
+      'uxp.secret_storage.get.before_get_item',
+      'uxp.secret_storage.get.skipped_by_diagnostic',
+    ]);
+    expect(logText).toContain('"keyHash":"fnv1a32:');
+    expect(logText).not.toContain('secret:provider-profile');
+    expect(logText).not.toContain('sk_live_should_not_be_read');
   });
 
   it('secureStorage 不可用时 secret adapter 回退到 in-memory 实现', async () => {

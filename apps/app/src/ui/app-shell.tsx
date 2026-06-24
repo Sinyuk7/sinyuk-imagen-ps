@@ -14,6 +14,7 @@ import { SettingsPage } from './pages/settings-page';
 import { SettingsAddPage } from './pages/settings-add-page';
 import { SettingsDetailPage } from './pages/settings-detail-page';
 import { I18nProvider, useI18n } from './i18n/i18n-context';
+import { writeUxpUiCheckpoint, writeUxpUiFailure } from '../host/uxp-log-sink';
 
 export interface AppShellProps {
   readonly host: PluginHostShell;
@@ -151,8 +152,21 @@ function AppShellContent({ host }: AppShellProps) {
           onNav={onNav}
           profileId={selectedProfileId}
           onProfilesChanged={async (profileId) => {
-            await profilesState.reload();
-            setSelectedProfileId(profileId);
+            await writeUxpUiCheckpoint('uxp.ui.app_shell.profiles_changed.entered', {
+              profileId,
+              currentSelectedProfileId: selectedProfileId,
+            });
+            try {
+              await writeUxpUiCheckpoint('uxp.ui.app_shell.profiles_changed.before_reload', { profileId });
+              await profilesState.reload();
+              await writeUxpUiCheckpoint('uxp.ui.app_shell.profiles_changed.after_reload', { profileId });
+              await writeUxpUiCheckpoint('uxp.ui.app_shell.profiles_changed.before_select_profile', { profileId });
+              setSelectedProfileId(profileId);
+              await writeUxpUiCheckpoint('uxp.ui.app_shell.profiles_changed.after_select_profile', { profileId });
+            } catch (error) {
+              await writeUxpUiFailure('uxp.ui.app_shell.profiles_changed.failed', error, { profileId });
+              throw error;
+            }
           }}
         />
       )}

@@ -77,6 +77,18 @@ function latestPanelController() {
   };
 }
 
+function latestPluginController() {
+  const setupConfig = entrypointsSetupMock.mock.calls.at(-1)?.[0];
+  const plugin = setupConfig?.plugin;
+  if (!plugin) {
+    throw new Error('missing plugin controller');
+  }
+  return plugin as {
+    create: () => void;
+    destroy: () => void;
+  };
+}
+
 describe('UXP panel entry reload behavior', () => {
   beforeEach(() => {
     vi.resetModules();
@@ -98,6 +110,7 @@ describe('UXP panel entry reload behavior', () => {
     await import('../src/index');
 
     expect(entrypointsSetupMock).toHaveBeenCalledTimes(1);
+    expect(latestPluginController().create).toEqual(expect.any(Function));
     expect(createPluginHostShellMock).not.toHaveBeenCalled();
     expect(createRootMock).not.toHaveBeenCalled();
 

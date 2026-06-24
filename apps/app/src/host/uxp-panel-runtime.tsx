@@ -15,6 +15,7 @@ interface UxpPanelController {
 interface UxpEntrypoints {
   setup(config: {
     readonly plugin?: {
+      readonly create?: () => void;
       readonly destroy?: () => void;
     };
     readonly panels?: Record<string, UxpPanelController>;
@@ -246,6 +247,9 @@ export function installUxpPanelEntrypoints(
   try {
     entrypoints.setup({
       plugin: {
+        create() {
+          // Photoshop UXP host 要求 plugin lifecycle 声明 create，即使 panel 挂载仍由 panel controller 负责。
+        },
         destroy() {
           runtime.dispose();
         },

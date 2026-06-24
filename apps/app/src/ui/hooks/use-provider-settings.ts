@@ -8,6 +8,7 @@ import type {
   ProviderProfileTestResult,
 } from '@imagen-ps/application';
 import type { AppServices } from '../../app-services/app-services';
+import { writeUxpUiCheckpoint } from '../../host/uxp-log-sink';
 
 export interface ProviderProfilesState {
   readonly profiles: readonly ProviderProfile[];
@@ -140,14 +141,58 @@ export function useProfileDetail(services: AppServices, profileId: string | null
 
   const save = useCallback(
     async (input: ProviderProfileInput): Promise<ProviderProfile> => {
+      await writeUxpUiCheckpoint('uxp.ui.profile_detail.save.before_command', {
+        profileId: input.profileId,
+        providerId: input.providerId ?? null,
+        enabled: input.enabled ?? null,
+        hasSecretValues: Object.keys(input.secretValues ?? {}).length > 0,
+        configKeyCount: Object.keys(input.config ?? {}).length,
+      }, {
+        profile_id: input.profileId,
+        ...(input.providerId ? { provider_id: input.providerId } : {}),
+      });
       const result = await services.commands.saveProviderProfile(input);
+      await writeUxpUiCheckpoint('uxp.ui.profile_detail.save.after_command', {
+        profileId: input.profileId,
+        ok: result.ok,
+      }, {
+        profile_id: input.profileId,
+        ...(result.ok ? { provider_id: result.value.providerId } : {}),
+      });
       if (!result.ok) {
         const message = commandMessage(result.error);
         setError(message);
+        await writeUxpUiCheckpoint('uxp.ui.profile_detail.save.error_state_set', {
+          profileId: input.profileId,
+          category: result.error.category,
+        }, {
+          profile_id: input.profileId,
+        });
         throw new Error(message);
       }
+      await writeUxpUiCheckpoint('uxp.ui.profile_detail.save.before_set_profile', {
+        profileId: result.value.profileId,
+        providerId: result.value.providerId,
+      }, {
+        profile_id: result.value.profileId,
+        provider_id: result.value.providerId,
+      });
       setProfile(result.value);
+      await writeUxpUiCheckpoint('uxp.ui.profile_detail.save.after_set_profile', {
+        profileId: result.value.profileId,
+        providerId: result.value.providerId,
+      }, {
+        profile_id: result.value.profileId,
+        provider_id: result.value.providerId,
+      });
       setError(null);
+      await writeUxpUiCheckpoint('uxp.ui.profile_detail.save.error_cleared', {
+        profileId: result.value.profileId,
+        providerId: result.value.providerId,
+      }, {
+        profile_id: result.value.profileId,
+        provider_id: result.value.providerId,
+      });
       return result.value;
     },
     [services],

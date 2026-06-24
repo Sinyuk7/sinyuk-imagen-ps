@@ -4,6 +4,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import { SettingsDetailPage } from '../src/ui/pages/settings-detail-page';
 import { createFakeServices } from './fakes';
 import { TestAppProviders } from './render-helpers';
+import type { UxpFlightRecorder } from '../src/host/uxp-log-sink';
 
 let root: Root | undefined;
 
@@ -14,6 +15,8 @@ afterEach(async () => {
     });
   }
   root = undefined;
+  delete globalThis.__IMAGEN_PS_UI_FLIGHT_RECORDER__;
+  delete globalThis.__IMAGEN_PS_DIAGNOSTIC_DISABLE_UI_FLIGHT_RECORDER__;
 });
 
 async function flush(): Promise<void> {
@@ -45,6 +48,20 @@ async function renderDetail(container: HTMLElement, onProfilesChanged = vi.fn(as
   await flush();
   await flush();
   return { ...services, onProfilesChanged };
+}
+
+function installFlightRecorder(): Array<{ readonly event: string; readonly attrs?: Record<string, unknown> }> {
+  const records: Array<{ readonly event: string; readonly attrs?: Record<string, unknown> }> = [];
+  const recorder: UxpFlightRecorder = {
+    async checkpoint(event, attrs) {
+      records.push({ event, attrs });
+    },
+    async fail(event, _error, attrs) {
+      records.push({ event, attrs });
+    },
+  };
+  globalThis.__IMAGEN_PS_UI_FLIGHT_RECORDER__ = recorder;
+  return records;
 }
 
 function buttonByText(container: HTMLElement, text: string): HTMLButtonElement {
@@ -219,5 +236,71 @@ describe('SettingsDetailPage contract', () => {
     expect(input).toBeDefined();
     expect(input).not.toHaveProperty('secretValues');
     expect(input).not.toHaveProperty('apiKey');
+  });
+
+  it('writes sanitized UI save checkpoints without form secrets or provider values', async () => {
+    const records = installFlightRecorder();
+    const container = document.createElement('div');
+    document.body.appendChild(container);
+    const { onProfilesChanged } = await renderDetail(container);
+    const inputs = Array.from(container.querySelectorAll<HTMLInputElement>('.field-input'));
+
+    await act(async () => {
+      changeInput(inputs[0]!, 'Sensitive Alias Should Not Log');
+      changeInput(inputs[1]!, 'https://secret.example.local/path');
+      changeInput(inputs[2]!, 'sk_live_secret_should_not_log');
+      changeInput(inputs[3]!, 'mock-image-v2-secret-name');
+    });
+    await act(async () => {
+      container.querySelector<HTMLButtonElement>('.btn-save')!.click();
+    });
+    await flush();
+
+    expect(onProfilesChanged).toHaveBeenCalledWith('mock-profile');
+    const events = records.map((record) => record.event);
+    expect(events).toEqual(expect.arrayContaining([
+      'uxp.ui.settings_detail.save.entered',
+      'uxp.ui.settings_detail.save.busy_set',
+      'uxp.ui.settings_detail.persist.input_prepared',
+      'uxp.ui.profile_detail.save.before_command',
+      'uxp.ui.profile_detail.save.after_command',
+      'uxp.ui.profile_detail.save.before_set_profile',
+      'uxp.ui.profile_detail.save.after_set_profile',
+      'uxp.ui.settings_detail.save.after_persist',
+      'uxp.ui.settings_detail.save.before_success_status',
+      'uxp.ui.settings_detail.save.after_success_status',
+      'uxp.ui.settings_detail.save.before_profiles_changed',
+      'uxp.ui.settings_detail.save.after_profiles_changed',
+      'uxp.ui.settings_detail.save.before_busy_clear',
+      'uxp.ui.settings_detail.save.after_busy_clear',
+    ]));
+    expect(events.indexOf('uxp.ui.settings_detail.save.before_profiles_changed')).toBeLessThan(
+      events.indexOf('uxp.ui.settings_detail.save.after_profiles_changed'),
+    );
+
+    const text = JSON.stringify(records);
+    expect(text).toContain('"hasDirtyCredential":true');
+    expect(text).toContain('"modelIdLength":25');
+    expect(text).not.toContain('Sensitive Alias Should Not Log');
+    expect(text).not.toContain('https://secret.example.local');
+    expect(text).not.toContain('sk_live_secret_should_not_log');
+    expect(text).not.toContain('mock-image-v2-secret-name');
+    expect(text).not.toContain('secret:provider-profile');
+  });
+
+  it('can disable UI flight recorder with diagnostic flag without changing save callback', async () => {
+    const records = installFlightRecorder();
+    globalThis.__IMAGEN_PS_DIAGNOSTIC_DISABLE_UI_FLIGHT_RECORDER__ = true;
+    const container = document.createElement('div');
+    document.body.appendChild(container);
+    const { onProfilesChanged } = await renderDetail(container);
+
+    await act(async () => {
+      container.querySelector<HTMLButtonElement>('.btn-save')!.click();
+    });
+    await flush();
+
+    expect(onProfilesChanged).toHaveBeenCalledWith('mock-profile');
+    expect(records).toEqual([]);
   });
 });
