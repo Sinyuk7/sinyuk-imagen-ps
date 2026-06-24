@@ -20,7 +20,7 @@ describe('UXP dist bundle safety', () => {
   });
 
   it('builds a separate Chrome shell output without replacing the UXP manifest target', () => {
-    const chromeOutput = resolve('dist-chrome/src/shells/chrome/index.html');
+    const chromeOutput = resolve('dist/web/src/shells/chrome/index.html');
     if (!existsSync(chromeOutput)) {
       return;
     }

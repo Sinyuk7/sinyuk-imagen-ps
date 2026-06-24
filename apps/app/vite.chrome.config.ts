@@ -4,7 +4,7 @@ import { appViteBaseConfig } from './vite.base.config';
 export default defineConfig(
   mergeConfig(appViteBaseConfig, {
     build: {
-      outDir: 'dist-chrome',
+      outDir: 'dist/web',
       emptyOutDir: true,
       rollupOptions: {
         input: 'src/shells/chrome/index.html',

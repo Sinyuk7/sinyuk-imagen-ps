@@ -25,7 +25,7 @@
 - `src/shells/chrome`: browser harness HTML/entry.
 - `src/adapters/chrome`: File API host port and IndexedDB-style storage adapter boundary.
 - `src/simulators/photoshop`: deterministic Photoshop-like scenarios including seeded document, empty/no document, mask-capable layer, host busy, cancelled picker, and place failure paths.
-- `build:chrome` writes `dist-chrome/`.
+- `build:chrome` writes `dist/web/`.
 - Chrome provider command path uses the same `@imagen-ps/application` commands as UXP for mock provider validation.
 
 ### Provider Compatibility Matrix
@@ -46,7 +46,7 @@ Repo-side app validation currently includes:
 - `pnpm --filter @imagen-ps/app build`
 - `pnpm --filter @imagen-ps/app build:uxp`
 - `pnpm --filter @imagen-ps/app build:chrome`
-- Chrome headless smoke of `dist-chrome/src/shells/chrome/index.html`
+- Chrome headless smoke of `dist/web/src/shells/chrome/index.html`
 
 ## Still Manual-Only
 

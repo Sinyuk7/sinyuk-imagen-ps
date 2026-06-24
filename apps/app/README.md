@@ -31,4 +31,4 @@ pnpm --filter @imagen-ps/app build:chrome
 pnpm --filter @imagen-ps/app test
 ```
 
-`build:uxp` writes `dist/` for UXP Developer Tool. `build:chrome` writes `dist-chrome/` for browser smoke checks. Default validation remains mock-only and does not prove real Photoshop host behavior or live provider behavior.
+`build:uxp` writes `dist/` for UXP Developer Tool. `build:chrome` writes `dist/web/` for browser smoke checks. Default validation remains mock-only and does not prove real Photoshop host behavior or live provider behavior.

@@ -9,7 +9,7 @@
     "build:chrome": "vite build --config vite.chrome.config.ts",
     "dev": "vite build --config vite.uxp.config.ts --watch",
     "test": "vitest run",
-    "clean": "rm -rf dist dist-chrome"
+    "clean": "rm -rf dist"
   },
   "dependencies": {
     "@imagen-ps/application": "workspace:*",

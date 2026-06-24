@@ -55,7 +55,7 @@ React state may keep preview handles and payload refs. Provider submissions must
 ## Runtime Notes
 
 - UXP build output is `dist/`; UXP Developer Tool loads `dist/manifest.json`.
-- Chrome build output is `dist-chrome/`; Chrome uses the same shared UI/ports and a deterministic Photoshop simulator.
+- Chrome build output is `dist/web/`; Chrome uses the same shared UI/ports and a deterministic Photoshop simulator.
 - Chrome IndexedDB storage owns profiles, secrets, job history, and binary asset refs. `localStorage` is reserved for small developer preferences.
 - Chrome real-provider execution is conditional on browser-compatible transport and provider CORS policy. Default tests use mock provider state and deterministic simulator data.
 
