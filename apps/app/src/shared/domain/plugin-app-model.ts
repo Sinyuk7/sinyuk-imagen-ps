@@ -1,13 +1,13 @@
 export interface PluginAppModel {
   readonly stage: 'uxp-first-shell';
-  readonly host: 'photoshop-uxp';
+  readonly host: 'photoshop-uxp' | 'chrome-browser';
   readonly services: readonly ['commands', 'host'];
 }
 
-export function createPluginAppModel(): PluginAppModel {
+export function createPluginAppModel(host: PluginAppModel['host'] = 'photoshop-uxp'): PluginAppModel {
   return {
     stage: 'uxp-first-shell',
-    host: 'photoshop-uxp',
+    host,
     services: ['commands', 'host'],
   };
 }

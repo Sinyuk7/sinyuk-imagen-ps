@@ -17,6 +17,78 @@ export interface ChromeKeyValueBackend {
   list<T>(store: StoreName): Promise<readonly T[]>;
 }
 
+interface ChromeStoredRecord<T> {
+  readonly key: string;
+  readonly value: T;
+}
+
+const CHROME_DB_NAME = 'imagen-ps-chrome-runtime';
+const CHROME_DB_VERSION = 1;
+const CHROME_STORES: readonly StoreName[] = ['profiles', 'secrets', 'history', 'assets'];
+
+function requestResult<T>(request: IDBRequest<T>): Promise<T> {
+  return new Promise((resolve, reject) => {
+    request.onsuccess = () => resolve(request.result);
+    request.onerror = () => reject(request.error ?? new Error('IndexedDB request failed.'));
+  });
+}
+
+function transactionDone(transaction: IDBTransaction): Promise<void> {
+  return new Promise((resolve, reject) => {
+    transaction.oncomplete = () => resolve();
+    transaction.onabort = () => reject(transaction.error ?? new Error('IndexedDB transaction aborted.'));
+    transaction.onerror = () => reject(transaction.error ?? new Error('IndexedDB transaction failed.'));
+  });
+}
+
+function openChromeDatabase(name: string): Promise<IDBDatabase> {
+  return new Promise((resolve, reject) => {
+    const request = indexedDB.open(name, CHROME_DB_VERSION);
+    request.onupgradeneeded = () => {
+      const db = request.result;
+      for (const store of CHROME_STORES) {
+        if (!db.objectStoreNames.contains(store)) {
+          db.createObjectStore(store, { keyPath: 'key' });
+        }
+      }
+    };
+    request.onsuccess = () => resolve(request.result);
+    request.onerror = () => reject(request.error ?? new Error('IndexedDB open failed.'));
+  });
+}
+
+/** 真实 Chrome runtime 使用的 IndexedDB 后端；测试仍可注入内存等价实现。 */
+export function createBrowserIndexedDbBackend(options?: { readonly databaseName?: string }): ChromeKeyValueBackend {
+  const database = openChromeDatabase(options?.databaseName ?? CHROME_DB_NAME);
+
+  return {
+    async get<T>(store: StoreName, key: string): Promise<T | undefined> {
+      const db = await database;
+      const transaction = db.transaction(store, 'readonly');
+      const record = await requestResult<ChromeStoredRecord<T> | undefined>(transaction.objectStore(store).get(key));
+      return record?.value;
+    },
+    async put<T>(store: StoreName, key: string, value: T): Promise<void> {
+      const db = await database;
+      const transaction = db.transaction(store, 'readwrite');
+      transaction.objectStore(store).put({ key, value } satisfies ChromeStoredRecord<T>);
+      await transactionDone(transaction);
+    },
+    async delete(store: StoreName, key: string): Promise<void> {
+      const db = await database;
+      const transaction = db.transaction(store, 'readwrite');
+      transaction.objectStore(store).delete(key);
+      await transactionDone(transaction);
+    },
+    async list<T>(store: StoreName): Promise<readonly T[]> {
+      const db = await database;
+      const transaction = db.transaction(store, 'readonly');
+      const records = await requestResult<ChromeStoredRecord<T>[]>(transaction.objectStore(store).getAll());
+      return records.map((record) => record.value);
+    },
+  };
+}
+
 export function createMemoryIndexedDbBackend(): ChromeKeyValueBackend {
   const stores: Record<StoreName, Map<string, unknown>> = {
     profiles: new Map(),
@@ -53,7 +125,7 @@ export function createChromeIndexedDbStorage(options?: { readonly backend?: Chro
   readonly history: JobHistoryStore;
   readonly assets: AssetStore;
 } {
-  const backend = options?.backend ?? createMemoryIndexedDbBackend();
+  const backend = options?.backend ?? createBrowserIndexedDbBackend();
   let assetCounter = 0;
 
   return {

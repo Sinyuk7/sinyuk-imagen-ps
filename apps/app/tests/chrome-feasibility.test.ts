@@ -3,10 +3,11 @@ import {
   CHROME_PROVIDER_CAPABILITY_MATRIX,
   runChromeFeasibilityRuntime,
 } from '../src/composition/chrome/chrome-feasibility-runtime';
+import { createMemoryIndexedDbBackend } from '../src/adapters/chrome/indexed-db-storage';
 
 describe('Chrome feasibility runtime', () => {
   it('initializes the application command path with a mock provider profile', async () => {
-    const result = await runChromeFeasibilityRuntime();
+    const result = await runChromeFeasibilityRuntime({ backend: createMemoryIndexedDbBackend() });
 
     expect(result.runtime).toBe('chrome');
     expect(result.providerIds).toContain('mock');

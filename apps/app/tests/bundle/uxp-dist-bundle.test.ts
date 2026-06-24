@@ -29,6 +29,7 @@ describe('UXP dist bundle safety', () => {
 
     expect(chromeHtml).toContain('Imagen Chrome Harness');
     expect(chromeHtml).toContain('type="module"');
+    expect(chromeHtml).toContain('./assets/index.js');
     expect(uxpHtml).toContain('<script defer src="./assets/index.js"></script>');
   });
 
