@@ -1,0 +1,28 @@
+apps/app/src/shared/image-payload-preflight.ts
+  s_d8f730fedfe24c::t_26d85ab171e1c9 1
+apps/app/src/shared/locale.ts
+  s_d8f730fedfe24c::t_26d85ab171e1c9 1
+apps/app/src/shared/plugin-app-model.ts
+  s_d8f730fedfe24c::t_26d85ab171e1c9 1
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.12",
+  "base_commit_sha": "0cfdbcd6013767be459de782853d79aa876482fa",
+  "prompts": {},
+  "humans": {
+    "h_36ccd825a182d0": {
+      "author": "Sinyuk <80998062@qq.com>"
+    }
+  },
+  "sessions": {
+    "s_d8f730fedfe24c": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "019efab9-2798-7370-8851-c7e186c21445",
+        "model": "gpt-5.5"
+      },
+      "human_author": "Sinyuk <80998062@qq.com>"
+    }
+  }
+}
