@@ -106,7 +106,7 @@ export function SettingsAddPage({ onNav, profiles, onProfileSaved }: SettingsAdd
   return (
     <div className="page page-enter">
       <header className="hdr">
-        <button className="hdr-btn" onClick={() => (step === 1 ? onNav('settings') : setStep(1))}>
+        <button data-testid="add-provider-back-button" className="hdr-btn" onClick={() => (step === 1 ? onNav('settings') : setStep(1))}>
           <Icon name="chevron-left" />
         </button>
         <div className="hdr-center">
@@ -125,6 +125,7 @@ export function SettingsAddPage({ onNav, profiles, onProfileSaved }: SettingsAdd
             {providers.map((provider) => (
               <div
                 key={provider.id}
+                data-testid={`provider-type-${provider.id}`}
                 className="prov-row"
                 onClick={() => {
                   setProviderId(provider.id);
@@ -150,35 +151,36 @@ export function SettingsAddPage({ onNav, profiles, onProfileSaved }: SettingsAdd
               <div className="section-title">{t.settings.config}</div>
               <div className="field">
                 <label className="field-label">{t.settings.alias}</label>
-                <UxpTextField className="field-input" placeholder={selected?.displayName} value={name} onValue={setName} />
+                <UxpTextField data-testid="provider-alias-input" className="field-input" placeholder={selected?.displayName} value={name} onValue={setName} />
               </div>
               <div className="field">
                 <label className="field-label">Base URL</label>
-                <UxpTextField className="field-input mono" placeholder="https://api.example.com" value={baseUrl} onValue={setBaseUrl} />
+                <UxpTextField data-testid="provider-base-url-input" className="field-input mono" placeholder="https://api.example.com" value={baseUrl} onValue={setBaseUrl} />
                 <div className="field-hint">{t.settings.baseUrlHint}</div>
               </div>
               <div className="field">
                 <label className="field-label">{t.settings.defaultModel}</label>
-                <UxpTextField className="field-input mono" placeholder="gpt-image-2" value={defaultModel} onValue={setDefaultModel} />
+                <UxpTextField data-testid="provider-default-model-input" className="field-input mono" placeholder="gpt-image-2" value={defaultModel} onValue={setDefaultModel} />
               </div>
               <div className="field" style={{ marginBottom: 0 }}>
                 <label className="field-label">API Key</label>
                 <div className="pw-wrap">
                   <UxpTextField
+                    data-testid="provider-api-key-input"
                     type={showKey ? 'text' : 'password'}
                     className="field-input mono"
                     placeholder="sk-..."
                     value={apiKey}
                     onValue={setApiKey}
                   />
-                  <button className="pw-toggle" onClick={() => setShowKey((shown) => !shown)}>
+                  <button data-testid="provider-api-key-toggle" className="pw-toggle" onClick={() => setShowKey((shown) => !shown)}>
                     <Icon name={showKey ? 'eye-off' : 'eye'} />
                   </button>
                 </div>
               </div>
             </div>
             <div className="test-area">
-              <button className="test-btn" disabled={busy} onClick={() => void handleTest()}>
+              <button data-testid="provider-test-button" className="test-btn" disabled={busy} onClick={() => void handleTest()}>
                 {busy
                   ? <><Icon name="spinner" size={13} className="spin" /> {t.settings.testingConnection}</>
                   : t.settings.testConnection
@@ -192,7 +194,7 @@ export function SettingsAddPage({ onNav, profiles, onProfileSaved }: SettingsAdd
 
       {step === 2 && (
         <footer className="det-footer">
-          <button className="btn-save" disabled={busy} onClick={() => void handleSave()}>{t.common.save}</button>
+          <button data-testid="provider-save-button" className="btn-save" disabled={busy} onClick={() => void handleSave()}>{t.common.save}</button>
           <button
             className="btn-cancel"
             onClick={() => onNav('settings')}

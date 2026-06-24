@@ -29,17 +29,17 @@ export function SettingsPage({ onNav, profiles, loading, error, onReload, onOpen
   return (
     <div className="page page-enter">
       <header className="hdr">
-        <button className="hdr-btn" onClick={() => onNav('main')}>
+        <button data-testid="providers-back-button" className="hdr-btn" onClick={() => onNav('main')}>
           <Icon name="chevron-left" />
         </button>
         <div className="hdr-title">Providers</div>
         <Tip label={t.common.refresh}>
-          <button className="hdr-btn" title={t.common.refresh} onClick={() => void onReload()}>
+          <button data-testid="providers-refresh-button" className="hdr-btn" title={t.common.refresh} onClick={() => void onReload()}>
             <Icon name="refresh" />
           </button>
         </Tip>
         <Tip label={t.common.addProvider} right>
-          <button className="hdr-btn" title={t.common.addProvider} onClick={() => onNav('settings-add')}>
+          <button data-testid="providers-add-button" className="hdr-btn" title={t.common.addProvider} onClick={() => onNav('settings-add')}>
             <Icon name="add" />
           </button>
         </Tip>
@@ -52,7 +52,7 @@ export function SettingsPage({ onNav, profiles, loading, error, onReload, onOpen
           <div style={{ padding: 16, color: 'var(--txd)', fontSize: 12 }}>{t.settings.noProviderProfile}</div>
         )}
         {rows.map((row) => (
-          <div key={row.profileId} className="prov-row" onClick={() => onOpenProfile(row.profileId)}>
+          <div key={row.profileId} data-testid={`provider-row-${row.profileId}`} className="prov-row" onClick={() => onOpenProfile(row.profileId)}>
             <div className="prov-ico" style={{ background: 'rgba(120,231,192,.12)', color: 'var(--pr)' }}>
               {initials(row.displayName)}
             </div>

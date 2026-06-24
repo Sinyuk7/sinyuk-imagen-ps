@@ -201,11 +201,12 @@ export function MainPage({
     <div className="page" onClick={closeAll}>
       <header className="hdr">
         <Tip label={t.main.history}>
-          <button className="hdr-btn" onClick={(event) => { event.stopPropagation(); onNav('history'); }}>
+          <button data-testid="main-history-button" className="hdr-btn" onClick={(event) => { event.stopPropagation(); onNav('history'); }}>
             <Icon name="history" />
           </button>
         </Tip>
         <button
+          data-testid="main-profile-selector"
           className="hdr-center"
           style={{ background: 'transparent', border: 'none', cursor: 'pointer' }}
           onClick={(event) => {
@@ -218,7 +219,7 @@ export function MainPage({
           <span className="hdr-model">{selectedModelLabel}</span>
         </button>
         <Tip label="Providers" right>
-          <button className="hdr-btn" onClick={(event) => { event.stopPropagation(); onNav('settings'); }}>
+          <button data-testid="main-providers-button" className="hdr-btn" onClick={(event) => { event.stopPropagation(); onNav('settings'); }}>
             <Icon name="settings" />
           </button>
         </Tip>
@@ -229,11 +230,12 @@ export function MainPage({
           {profilesLoading && <div className="model-opt">{t.main.loadingProfiles}</div>}
           {profilesError && <div className="model-opt">{profilesError}</div>}
           {!profilesLoading && profiles.length === 0 && (
-            <div className="model-opt" onClick={() => onNav('settings-add')}>{t.main.addProviderProfile}</div>
+            <div data-testid="profile-menu-add-provider" className="model-opt" onClick={() => onNav('settings-add')}>{t.main.addProviderProfile}</div>
           )}
           {profiles.map((profile) => (
             <div
               key={profile.profileId}
+              data-testid={`profile-menu-option-${profile.profileId}`}
               className={`model-opt${profile.profileId === selectedProfileId ? ' act' : ''}`}
               onClick={() => {
                 onSelectProfile(profile.profileId);
@@ -455,6 +457,7 @@ export function MainPage({
             {models.map((model) => (
               <div
                 key={model.id}
+                data-testid={`model-menu-option-${model.id}`}
                 className={`model-opt${model.id === selectedModelId ? ' act' : ''}`}
                 onClick={() => {
                   onSelectModel(model.id);
@@ -513,6 +516,7 @@ export function MainPage({
               </button>
             </Tip>
             <div
+              data-testid="main-model-selector"
               className={`cmp-chip${modelMenuOpen ? ' open' : ''}`}
               onClick={(event) => {
                 event.stopPropagation();

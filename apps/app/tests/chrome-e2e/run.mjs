@@ -25,6 +25,19 @@ function parseGrep(argv) {
   return inline ? inline.slice('--grep='.length) : '';
 }
 
+function sanitizeFailureReason(error) {
+  const raw = error instanceof Error ? error.message : String(error);
+  return raw
+    .replace(/\u001b\[[0-9;]*m/g, '')
+    .split('\n')
+    .map((line) => line.trim())
+    .filter(Boolean)
+    .find((line) => !line.startsWith('Call log:'))
+    ?.replace(/\\/g, '/')
+    .replace(/"/g, "'")
+    .slice(0, 240) ?? 'Scenario failed.';
+}
+
 function relativeFromApp(path) {
   return relative(appRoot, path).split(sep).join('/');
 }
@@ -97,9 +110,57 @@ async function assertNoBrokenImages(page) {
   }
 }
 
-async function smokeScenario({ page, url }) {
+async function checkpoint(page, capture, screenshotName, assertion) {
+  await assertion?.();
+  await capture(screenshotName);
+}
+
+async function fillUxp(locator, value) {
+  await locator.click();
+  await locator.fill(value);
+  await locator.press('Tab');
+}
+
+async function expectNoVisibleSecret(page) {
+  const text = await page.locator('body').innerText();
+  if (text.includes('mock-key')) {
+    throw new Error('Raw mock-key appeared in visible UI text.');
+  }
+}
+
+async function expectSavedSecretPlaceholder(page) {
+  await page.getByTestId('provider-api-key-input').evaluate((input) => {
+    if (!(input instanceof HTMLInputElement) || input.placeholder !== 'Saved; leave blank to keep unchanged') {
+      throw new Error(`Unexpected saved secret placeholder: ${input instanceof HTMLInputElement ? input.placeholder : 'not an input'}`);
+    }
+  });
+}
+
+async function openApp(page, url) {
   await page.goto(url, { waitUntil: 'networkidle' });
   await page.locator('#root[data-runtime="chrome"][data-status="ok"]').waitFor({ timeout: 10000 });
+}
+
+async function openAddProviderStep2(page, url) {
+  await openApp(page, url);
+  await page.getByTestId('main-providers-button').click();
+  await expectVisibleText(page, 'Providers');
+  await page.getByTestId('providers-add-button').click();
+  await expectVisibleText(page, 'Add Provider');
+  await page.getByTestId('provider-type-mock').click();
+  await expectVisibleText(page, 'Mock Provider');
+  await expectVisibleText(page, '2 / 2');
+}
+
+async function fillMockProviderDraft(page, alias) {
+  await fillUxp(page.getByTestId('provider-alias-input'), alias);
+  await fillUxp(page.getByTestId('provider-base-url-input'), 'https://mock.local');
+  await fillUxp(page.getByTestId('provider-default-model-input'), 'mock-image-v1');
+  await fillUxp(page.getByTestId('provider-api-key-input'), 'mock-key');
+}
+
+async function smokeScenario({ page, url, capture }) {
+  await openApp(page, url);
   await expectVisibleText(page, 'No provider profile');
   await expectVisibleText(page, 'No model selected');
   await expectVisibleText(page, 'Current session');
@@ -113,11 +174,11 @@ async function smokeScenario({ page, url }) {
     }
   });
   await assertNoBrokenImages(page);
+  await capture('00-smoke-main-empty.png');
 }
 
-async function harnessScenario({ page, url }) {
-  await page.goto(url, { waitUntil: 'networkidle' });
-  await page.locator('#root[data-runtime="chrome"][data-status="ok"]').waitFor({ timeout: 10000 });
+async function harnessScenario({ page, url, capture }) {
+  await openApp(page, url);
   await expectVisibleText(page, 'Mock Profile');
   await expectVisibleText(page, 'mock-image-v1');
   const snapshot = await page.evaluate(async () => globalThis.__IMAGEN_CHROME_TEST_HARNESS__?.snapshot());
@@ -142,26 +203,236 @@ async function harnessScenario({ page, url }) {
     throw new Error(`Unexpected file picker mode: ${updated.filePickerMode}`);
   }
   await assertNoBrokenImages(page);
+  await capture('01-harness-seeded-profile.png');
+}
+
+async function firstRunProviderNavigationScenario({ page, url, capture }) {
+  await openApp(page, url);
+  await page.getByTestId('main-profile-selector').click();
+  await checkpoint(page, capture, '01-profile-dropdown-empty.png', async () => {
+    await expectVisibleText(page, 'Add Provider profile');
+  });
+  await page.getByTestId('profile-menu-add-provider').click();
+  await checkpoint(page, capture, '02-add-provider-step-1.png', async () => {
+    await expectVisibleText(page, 'Add Provider');
+    await expectVisibleText(page, 'Mock Provider');
+    await expectVisibleText(page, 'image-endpoint');
+  });
+  await assertNoBrokenImages(page);
+}
+
+async function addProviderSaveScenario({ page, url, capture }) {
+  await openAddProviderStep2(page, url);
+  await fillMockProviderDraft(page, 'Mock Profile E2E');
+  await page.getByTestId('provider-api-key-toggle').click();
+  await page.getByTestId('provider-api-key-input').evaluate((input) => {
+    if (!(input instanceof HTMLInputElement) || input.type !== 'text') {
+      throw new Error('API key input did not switch to text type.');
+    }
+  });
+  await page.getByTestId('provider-api-key-toggle').click();
+  await page.getByTestId('provider-api-key-input').evaluate((input) => {
+    if (!(input instanceof HTMLInputElement) || input.type !== 'password') {
+      throw new Error('API key input did not switch back to password type.');
+    }
+  });
+  await checkpoint(page, capture, '03-add-provider-step-2-filled.png', async () => {
+    await expectVisibleText(page, 'Alias');
+    await expectVisibleText(page, 'Base URL');
+    await expectVisibleText(page, 'Default model');
+    await expectVisibleText(page, 'API Key');
+    await expectNoVisibleSecret(page);
+  });
+  await page.getByTestId('provider-save-button').click();
+  await checkpoint(page, capture, '04-provider-detail-after-save.png', async () => {
+    await expectVisibleText(page, 'Mock Profile E2E');
+    await expectVisibleText(page, 'Enabled');
+    await expectSavedSecretPlaceholder(page);
+    await expectNoVisibleSecret(page);
+  });
+  await assertNoBrokenImages(page);
+}
+
+async function addProviderTestScenario({ page, url, capture }) {
+  await openAddProviderStep2(page, url);
+  await fillMockProviderDraft(page, 'Mock Profile E2E');
+  const testButton = page.getByTestId('provider-test-button');
+  await testButton.click();
+  await checkpoint(page, capture, '05-add-provider-testing.png', async () => {
+    await page.getByText('Testing...', { exact: true }).waitFor({ state: 'visible', timeout: 3000 });
+    await testButton.evaluate((button) => {
+      if (!(button instanceof HTMLButtonElement) || !button.disabled) {
+        throw new Error('Test connection button was not disabled while pending.');
+      }
+    });
+  });
+  await checkpoint(page, capture, '06-add-provider-test-connected.png', async () => {
+    await expectVisibleText(page, 'Connected');
+    await expectNoVisibleSecret(page);
+    const snapshot = await page.evaluate(async () => globalThis.__IMAGEN_CHROME_TEST_HARNESS__?.snapshot());
+    if (snapshot?.profiles.length !== 1 || snapshot.profiles[0]?.displayName !== 'Mock Profile E2E') {
+      throw new Error(`Unexpected tested draft profile snapshot: ${JSON.stringify(snapshot?.profiles)}`);
+    }
+  });
+  await assertNoBrokenImages(page);
+}
+
+async function providerListAndEditScenario({ page, url, capture }) {
+  await openApp(page, url);
+  await page.getByTestId('main-providers-button').click();
+  await checkpoint(page, capture, '07-settings-provider-list.png', async () => {
+    await expectVisibleText(page, 'Configured');
+    await expectVisibleText(page, 'Mock Profile');
+    await expectVisibleText(page, 'image-endpoint');
+    await expectVisibleText(page, 'Enabled');
+    await expectVisibleText(page, 'mock-image-v1');
+  });
+  await page.getByTestId('provider-row-mock-profile').click();
+  await fillUxp(page.getByTestId('provider-alias-input'), 'Mock Profile Renamed');
+  const enabled = page.getByText('Enable profile', { exact: true });
+  await enabled.click();
+  await expectVisibleText(page, 'Disabled');
+  await enabled.click();
+  await expectVisibleText(page, 'Enabled');
+  await fillUxp(page.getByTestId('provider-api-key-input'), '');
+  await checkpoint(page, capture, '08-provider-detail-editing.png', async () => {
+    await expectVisibleText(page, 'Connection info');
+    await expectVisibleText(page, 'Default model');
+    await expectSavedSecretPlaceholder(page);
+    await expectNoVisibleSecret(page);
+  });
+  await page.getByTestId('provider-save-button').click();
+  await checkpoint(page, capture, '09-provider-detail-saved.png', async () => {
+    await expectVisibleText(page, 'Saved');
+    await expectVisibleText(page, 'Mock Profile Renamed');
+    await expectNoVisibleSecret(page);
+  });
+  await page.getByTestId('provider-detail-back-button').click();
+  await expectVisibleText(page, 'Mock Profile Renamed');
+  await assertNoBrokenImages(page);
+}
+
+async function providerDetailActionsScenario({ page, url, capture }) {
+  await openApp(page, url);
+  await page.getByTestId('main-providers-button').click();
+  await page.getByTestId('provider-row-mock-profile').click();
+  const testButton = page.getByTestId('provider-test-button');
+  await testButton.click();
+  await page.getByText('Testing...', { exact: true }).waitFor({ state: 'visible', timeout: 3000 });
+  await checkpoint(page, capture, '10-provider-detail-test-connected.png', async () => {
+    await expectVisibleText(page, 'Connected');
+  });
+  const refreshButton = page.getByTestId('provider-refresh-models-button');
+  await refreshButton.click();
+  await checkpoint(page, capture, '11-provider-detail-refreshing-models.png', async () => {
+    await page.getByText('Refreshing...', { exact: true }).waitFor({ state: 'visible', timeout: 3000 });
+  });
+  await expectVisibleText(page, 'mock-image-v1');
+  await page.getByTestId('provider-delete-button').click();
+  await checkpoint(page, capture, '12-settings-after-delete.png', async () => {
+    await expectVisibleText(page, 'Providers');
+    await expectVisibleText(page, 'No Provider profile');
+  });
+  await assertNoBrokenImages(page);
+}
+
+async function mainProfileModelMenusScenario({ page, url, capture }) {
+  await openApp(page, url);
+  await expectVisibleText(page, 'Mock Profile');
+  await expectVisibleText(page, 'mock-image-v1');
+  await page.getByTestId('main-profile-selector').click();
+  await checkpoint(page, capture, '13-main-provider-menu.png', async () => {
+    await page.getByTestId('profile-menu-option-mock-profile').waitFor({ state: 'visible' });
+  });
+  await page.getByTestId('profile-menu-option-mock-profile').click();
+  await page.getByTestId('main-model-selector').click();
+  await checkpoint(page, capture, '14-main-model-menu.png', async () => {
+    await page.getByTestId('model-menu-option-mock-image-v1').waitFor({ state: 'visible' });
+  });
+  await page.getByTestId('model-menu-option-mock-image-v1').click();
+  await page.mouse.click(10, 120);
+  await checkpoint(page, capture, '15-main-selected-profile-model.png', async () => {
+    await expectVisibleText(page, 'Mock Profile');
+    await expectVisibleText(page, 'mock-image-v1');
+    if (await page.getByTestId('model-menu-option-mock-image-v1').count() > 0) {
+      throw new Error('Model menu did not close after outside click.');
+    }
+  });
+  await assertNoBrokenImages(page);
 }
 
 const scenarios = [
   {
     id: '00-smoke-main-empty',
     name: 'Chrome shell smoke',
-    tags: ['smoke'],
+    tags: ['smoke', 'providers'],
     path: '/index.html?testHarness=1&storage=memory&scenario=seeded-document',
     screenshotName: '00-smoke-main-empty.png',
     assertions: ['root chrome ok', 'first-run copy visible', 'send disabled', 'no broken images', 'no console/page/network errors'],
     run: smokeScenario,
   },
   {
-    id: '01-harness-seeded-profile',
+    id: 'harness-seeded-profile',
     name: 'Chrome test harness seeded profile',
     tags: ['harness'],
     path: '/index.html?testHarness=1&storage=memory&seedProfile=mock&seedHistory=1&scenario=seeded-document',
     screenshotName: '01-harness-seeded-profile.png',
     assertions: ['root chrome ok', 'seeded profile visible', 'seeded history snapshot', 'mock failure hook mutable', 'file picker cancel hook mutable', 'no console/page/network errors'],
     run: harnessScenario,
+  },
+  {
+    id: '01-first-run-provider-navigation',
+    name: 'First-run provider navigation',
+    tags: ['providers'],
+    path: '/index.html?testHarness=1&storage=memory&scenario=seeded-document',
+    screenshotName: '02-add-provider-step-1.png',
+    assertions: ['profile dropdown empty', 'add provider step one visible', 'mock provider selectable', 'no console/page/network errors'],
+    run: firstRunProviderNavigationScenario,
+  },
+  {
+    id: '02-add-provider-save-flow',
+    name: 'Add provider save flow',
+    tags: ['providers'],
+    path: '/index.html?testHarness=1&storage=memory&scenario=seeded-document',
+    screenshotName: '04-provider-detail-after-save.png',
+    assertions: ['add provider form labels visible', 'api key visibility toggles', 'provider detail after save', 'secret hidden', 'no console/page/network errors'],
+    run: addProviderSaveScenario,
+  },
+  {
+    id: '03-add-provider-test-flow',
+    name: 'Add provider test flow',
+    tags: ['providers'],
+    path: '/index.html?testHarness=1&storage=memory&scenario=seeded-document',
+    screenshotName: '06-add-provider-test-connected.png',
+    assertions: ['test connection pending disabled', 'test connection connected', 'draft profile persisted', 'secret hidden', 'no console/page/network errors'],
+    run: addProviderTestScenario,
+  },
+  {
+    id: '04-provider-list-detail-edit',
+    name: 'Provider list and detail edit',
+    tags: ['providers'],
+    path: '/index.html?testHarness=1&storage=memory&seedProfile=mock&scenario=seeded-document',
+    screenshotName: '09-provider-detail-saved.png',
+    assertions: ['provider list row visible', 'detail edit controls visible', 'enable toggle changes status', 'alias saved', 'secret hidden', 'no console/page/network errors'],
+    run: providerListAndEditScenario,
+  },
+  {
+    id: '05-provider-detail-actions',
+    name: 'Provider detail test refresh delete',
+    tags: ['providers'],
+    path: '/index.html?testHarness=1&storage=memory&seedProfile=mock&scenario=seeded-document',
+    screenshotName: '12-settings-after-delete.png',
+    assertions: ['detail test connected', 'refresh models pending visible', 'mock model visible', 'delete returns to empty providers', 'no console/page/network errors'],
+    run: providerDetailActionsScenario,
+  },
+  {
+    id: '06-main-profile-model-menus',
+    name: 'Main profile and model menus',
+    tags: ['providers'],
+    path: '/index.html?testHarness=1&storage=memory&seedProfile=mock&scenario=seeded-document',
+    screenshotName: '15-main-selected-profile-model.png',
+    assertions: ['provider menu active option visible', 'model menu active option visible', 'selected profile and model visible', 'menus close', 'no console/page/network errors'],
+    run: mainProfileModelMenusScenario,
   },
 ];
 
@@ -199,6 +470,7 @@ async function runScenario(browser, server, scenario) {
   const consoleErrors = [];
   const pageErrors = [];
   const failedRequests = [];
+  const retainedScreenshots = [];
 
   page.on('console', (message) => {
     if (message.type() === 'error') {
@@ -232,9 +504,17 @@ async function runScenario(browser, server, scenario) {
     assertions: [],
     consoleErrorCount: 0,
   };
+  const capture = async (screenshotName) => {
+    if (!keepScreenshots) {
+      return;
+    }
+    const screenshotPath = resolve(artifactRoot, screenshotName);
+    await page.screenshot({ path: screenshotPath, fullPage: false });
+    retainedScreenshots.push(relativeFromApp(screenshotPath));
+  };
 
   try {
-    await scenario.run({ page, origin: server.origin, url });
+    await scenario.run({ page, origin: server.origin, url, capture });
     if (consoleErrors.length > 0) {
       throw new Error(`Console errors: ${consoleErrors.join(' | ')}`);
     }
@@ -246,13 +526,15 @@ async function runScenario(browser, server, scenario) {
     }
     entry.assertions.push(...scenario.assertions);
     if (keepScreenshots) {
-      const screenshotPath = resolve(artifactRoot, scenario.screenshotName);
-      await page.screenshot({ path: screenshotPath, fullPage: false });
-      entry.screenshotPath = relativeFromApp(screenshotPath);
+      if (retainedScreenshots.length === 0) {
+        await capture(scenario.screenshotName);
+      }
+      entry.screenshotPath = retainedScreenshots[0];
+      entry.screenshots = retainedScreenshots;
     }
   } catch (error) {
     entry.status = 'failed';
-    entry.errorMessage = error instanceof Error ? error.message : String(error);
+    entry.errorMessage = sanitizeFailureReason(error);
     entry.consoleErrors = consoleErrors;
     entry.pageErrors = pageErrors;
     entry.failedRequests = failedRequests;

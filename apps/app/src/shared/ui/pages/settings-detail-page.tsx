@@ -231,7 +231,7 @@ export function SettingsDetailPage({ onNav, profileId, onProfilesChanged }: Sett
   return (
     <div className="page page-enter">
       <header className="hdr">
-        <button className="hdr-btn" onClick={() => onNav('settings')}>
+        <button data-testid="provider-detail-back-button" className="hdr-btn" onClick={() => onNav('settings')}>
           <Icon name="chevron-left" />
         </button>
         <div className="hdr-center">
@@ -243,7 +243,7 @@ export function SettingsDetailPage({ onNav, profileId, onProfilesChanged }: Sett
             {enabled ? t.common.enabled : t.common.disabled}
           </div>
         </div>
-        <button className="hdr-btn" onClick={() => void detail.reload()}>
+        <button data-testid="provider-detail-refresh-button" className="hdr-btn" onClick={() => void detail.reload()}>
           <Icon name="refresh" />
         </button>
       </header>
@@ -257,29 +257,30 @@ export function SettingsDetailPage({ onNav, profileId, onProfilesChanged }: Sett
               <div className="section-title">{t.settings.connectionInfo}</div>
               <div className="field">
                 <label className="field-label">{t.settings.alias}</label>
-                <UxpTextField className="field-input" value={displayName} onValue={setDisplayName} />
+                <UxpTextField data-testid="provider-alias-input" className="field-input" value={displayName} onValue={setDisplayName} />
               </div>
               <div className="field">
                 <label className="field-label">Base URL</label>
-                <UxpTextField className="field-input mono" value={baseUrl} onValue={setBaseUrl} />
+                <UxpTextField data-testid="provider-base-url-input" className="field-input mono" value={baseUrl} onValue={setBaseUrl} />
               </div>
               <div className="field">
                 <label className="field-label">API Key</label>
                 <div className="pw-wrap">
                   <UxpTextField
+                    data-testid="provider-api-key-input"
                     type={showKey ? 'text' : 'password'}
                     className="field-input mono"
                     placeholder={detail.profile.secretRefs?.apiKey ? t.settings.savedSecretPlaceholder : 'sk-...'}
                     value={apiKey}
                     onValue={setApiKey}
                   />
-                  <button className="pw-toggle" onClick={() => setShowKey((shown) => !shown)}>
+                  <button data-testid="provider-api-key-toggle" className="pw-toggle" onClick={() => setShowKey((shown) => !shown)}>
                     <Icon name={showKey ? 'eye-off' : 'eye'} />
                   </button>
                 </div>
               </div>
               <label className="status-inline loose" style={{ color: 'var(--txm)', fontSize: 12 }}>
-                <UxpCheckbox checked={enabled} onChecked={setEnabled} />
+                <UxpCheckbox data-testid="provider-enabled-checkbox" checked={enabled} onChecked={setEnabled} />
                 {t.settings.enableProfile}
               </label>
             </div>
@@ -297,6 +298,7 @@ export function SettingsDetailPage({ onNav, profileId, onProfilesChanged }: Sett
                   </button>
                 ))}
                 <UxpTextField
+                  data-testid="provider-default-model-input"
                   className="field-input mono"
                   style={{ marginTop: 8 }}
                   placeholder={t.settings.customModelId}
@@ -305,13 +307,13 @@ export function SettingsDetailPage({ onNav, profileId, onProfilesChanged }: Sett
                 />
               </div>
               {models.error && <StatusNotice tone="error" message={models.error} />}
-              <button className="test-btn" style={{ marginTop: 10 }} disabled={models.loading || busy} onClick={() => void refreshModels()}>
+              <button data-testid="provider-refresh-models-button" className="test-btn" style={{ marginTop: 10 }} disabled={models.loading || busy} onClick={() => void refreshModels()}>
                 {models.loading ? t.settings.refreshingModels : t.settings.refreshModels}
               </button>
             </div>
 
             <div className="test-area">
-              <button className="test-btn" disabled={busy} onClick={() => void test()}>
+              <button data-testid="provider-test-button" className="test-btn" disabled={busy} onClick={() => void test()}>
                 {busy
                   ? <><Icon name="spinner" size={13} className="spin" /> {t.settings.testingConnection}</>
                   : <><Icon name="arrow-right" /> {t.settings.testConnection}</>
@@ -324,8 +326,8 @@ export function SettingsDetailPage({ onNav, profileId, onProfilesChanged }: Sett
       </div>
 
       <footer className="det-footer">
-        <button className="btn-save" disabled={busy || !detail.profile} onClick={() => void save()}>{t.common.save}</button>
-        <button className="btn-del" disabled={busy || !detail.profile} onClick={() => void remove()}>
+        <button data-testid="provider-save-button" className="btn-save" disabled={busy || !detail.profile} onClick={() => void save()}>{t.common.save}</button>
+        <button data-testid="provider-delete-button" className="btn-del" disabled={busy || !detail.profile} onClick={() => void remove()}>
           <Icon name="trash" />
         </button>
       </footer>

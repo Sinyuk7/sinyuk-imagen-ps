@@ -71,12 +71,13 @@ export function createChromeAppShell(options?: ChromeAppShellOptions): AppShellH
     filePicker: options?.filePicker ?? testHarness?.filePicker ?? createBrowserFilePicker(),
   });
   testHarness?.install(storage);
+  const commands = createCommandsAdapter();
 
   return {
     app: createPluginAppModel('chrome-browser'),
     locale: 'en',
     services: {
-      commands: createCommandsAdapter(),
+      commands: testHarness?.wrapCommands(commands) ?? commands,
       host,
       diagnostics: createChromeDiagnosticsPort(),
     },

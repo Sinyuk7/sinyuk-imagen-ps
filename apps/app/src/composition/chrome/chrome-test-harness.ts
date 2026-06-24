@@ -1,5 +1,10 @@
-import type { DurableJobRecord, ProviderProfile } from '@imagen-ps/application';
-import type { ProviderProfileConfig } from '@imagen-ps/application';
+import type {
+  DurableJobRecord,
+  ProviderModelInfo,
+  ProviderProfile,
+  ProviderProfileConfig,
+  ProviderProfileTestResult,
+} from '@imagen-ps/application';
 import type { ChromeFilePicker } from '../../adapters/chrome/chrome-host-port';
 import {
   createBrowserIndexedDbBackend,
@@ -7,6 +12,7 @@ import {
   type ChromeKeyValueBackend,
   type ChromeStoreName,
 } from '../../adapters/chrome/indexed-db-storage';
+import type { CommandsPort } from '../../shared/ports/commands-port';
 import type { PhotoshopSimulatorScenarioId } from '../../simulators/photoshop/simulator';
 
 type ChromeTestStorageMode = 'memory' | 'indexed-db';
@@ -33,6 +39,7 @@ export interface ChromeTestHarnessRuntime {
   readonly backend: ChromeKeyValueBackend;
   readonly filePicker: ChromeFilePicker;
   readonly scenario: PhotoshopSimulatorScenarioId;
+  wrapCommands(commands: CommandsPort): CommandsPort;
   install(storage: ChromeRuntimeStorage): void;
 }
 
@@ -54,6 +61,7 @@ interface ChromeTestHarnessApi {
 const MOCK_PROFILE_ID = 'mock-profile';
 const MOCK_SECRET_REF = `secret:provider-profile:${MOCK_PROFILE_ID}:apiKey`;
 const FIXED_NOW = '2026-06-25T00:00:00.000Z';
+const MOCK_MODELS: readonly ProviderModelInfo[] = [{ id: 'mock-image-v1' }];
 
 function parseScenario(value: string | null): PhotoshopSimulatorScenarioId {
   const allowed: readonly PhotoshopSimulatorScenarioId[] = [
@@ -181,6 +189,24 @@ async function seedHistory(storage: ChromeRuntimeStorage): Promise<void> {
   await Promise.all(seededHistoryRecords().map((record) => storage.history.put(record)));
 }
 
+function mockProfileTestResult(profile: ProviderProfile): ProviderProfileTestResult {
+  return {
+    profileId: profile.profileId,
+    providerId: profile.providerId,
+    family: 'image-endpoint',
+    valid: true,
+    connectivity: {
+      reachable: true,
+      modelCount: MOCK_MODELS.length,
+      models: MOCK_MODELS,
+    },
+  };
+}
+
+function delay(ms: number): Promise<void> {
+  return new Promise((resolve) => window.setTimeout(resolve, ms));
+}
+
 /**
  * Chrome-only E2E harness 装配测试状态，不改变 shared UI 的 runtime 分支。
  */
@@ -199,6 +225,27 @@ export function createChromeTestHarnessRuntime(config: ChromeTestHarnessConfig):
     backend,
     filePicker,
     scenario: config.scenario,
+    wrapCommands(commands) {
+      return {
+        ...commands,
+        async testProviderProfile(profileId, options) {
+          const profile = await commands.getProviderProfile(profileId);
+          if (profile.ok && profile.value.providerId === 'mock') {
+            await delay(100);
+            return { ok: true, value: mockProfileTestResult(profile.value) };
+          }
+          return commands.testProviderProfile(profileId, options);
+        },
+        async refreshProfileModels(profileId) {
+          const profile = await commands.getProviderProfile(profileId);
+          if (profile.ok && profile.value.providerId === 'mock') {
+            await delay(100);
+            return { ok: true, value: MOCK_MODELS };
+          }
+          return commands.refreshProfileModels(profileId);
+        },
+      };
+    },
     install(storage) {
       const api: ChromeTestHarnessApi = {
         async resetStorage() {
