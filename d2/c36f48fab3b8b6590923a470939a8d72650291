@@ -1,0 +1,34 @@
+apps/app/STATUS.md
+  s_2090d37da73a03::t_7eda62ce5384d3 28,49
+apps/app/README.md
+  s_2090d37da73a03::t_7eda62ce5384d3 34
+apps/app/vite.chrome.config.ts
+  s_2090d37da73a03::t_7eda62ce5384d3 7
+apps/app/SPEC.md
+  s_2090d37da73a03::t_7eda62ce5384d3 58
+apps/app/package.json
+  s_2090d37da73a03::t_7eda62ce5384d3 12
+apps/app/tests/bundle/uxp-dist-bundle.test.ts
+  s_2090d37da73a03::t_7eda62ce5384d3 23
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.12",
+  "base_commit_sha": "d2c36f48fab3b8b6590923a470939a8d72650291",
+  "prompts": {},
+  "humans": {
+    "h_36ccd825a182d0": {
+      "author": "Sinyuk <80998062@qq.com>"
+    }
+  },
+  "sessions": {
+    "s_2090d37da73a03": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "019efadb-d28c-7fa1-8ec5-e6cce79398ca",
+        "model": "gpt-5.5"
+      },
+      "human_author": "Sinyuk <80998062@qq.com>"
+    }
+  }
+}
