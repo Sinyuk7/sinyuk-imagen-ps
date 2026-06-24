@@ -1,4 +1,5 @@
 import type { Asset } from '@imagen-ps/application';
+import type { HostImageAsset } from '../domain/host-image-asset';
 
 export interface LayerInfo {
   readonly id: number;
@@ -47,9 +48,9 @@ export interface RuntimeCapabilities {
 export interface HostPort {
   readonly capabilities: RuntimeCapabilities;
   listLayers(): Promise<readonly LayerInfo[]>;
-  pickImageFile(): Promise<Asset | undefined>;
-  readLayerAsAsset(layerId: number): Promise<Asset>;
-  readLayerMaskAsAsset(layerId: number): Promise<Asset | undefined>;
+  pickImageFile(): Promise<HostImageAsset | undefined>;
+  readLayerAsAsset(layerId: number): Promise<HostImageAsset>;
+  readLayerMaskAsAsset(layerId: number): Promise<HostImageAsset | undefined>;
   placeAssetOnCanvas(asset: Asset): Promise<void>;
 }
 
@@ -91,13 +92,13 @@ export function createHostBridgeStub(): HostBridge {
     async listLayers(): Promise<readonly LayerInfo[]> {
       return [];
     },
-    async pickImageFile(): Promise<Asset | undefined> {
+    async pickImageFile(): Promise<HostImageAsset | undefined> {
       return undefined;
     },
-    async readLayerAsAsset(layerId: number): Promise<Asset> {
+    async readLayerAsAsset(layerId: number): Promise<HostImageAsset> {
       throw new Error(`Photoshop layer read is unavailable outside UXP. layerId=${layerId}`);
     },
-    async readLayerMaskAsAsset(): Promise<Asset | undefined> {
+    async readLayerMaskAsAsset(): Promise<HostImageAsset | undefined> {
       return undefined;
     },
     async placeAssetOnCanvas(): Promise<void> {

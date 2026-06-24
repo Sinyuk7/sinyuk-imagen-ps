@@ -193,17 +193,15 @@ describe('PhotoshopHostBridge fake harness', () => {
     const { modules, spies } = createFakeModules();
     const bridge = createPhotoshopHostBridge(modules);
 
-    await expect(bridge.readLayerAsAsset(2)).resolves.toEqual({
-      type: 'image',
-      name: 'layer-2.jpg',
-      data: 'layer-jpeg-base64',
-      mimeType: 'image/jpeg',
+    await expect(bridge.readLayerAsAsset(2)).resolves.toMatchObject({
+      asset: { type: 'image', name: 'layer-2.jpg', data: 'layer-jpeg-base64', mimeType: 'image/jpeg' },
+      metadata: { source: 'layer', name: 'layer-2.jpg', mimeType: 'image/jpeg' },
+      payload: { kind: 'inline-asset' },
     });
-    await expect(bridge.readLayerMaskAsAsset(2)).resolves.toEqual({
-      type: 'image',
-      name: 'layer-2-mask.jpg',
-      data: 'mask-jpeg-base64',
-      mimeType: 'image/jpeg',
+    await expect(bridge.readLayerMaskAsAsset(2)).resolves.toMatchObject({
+      asset: { type: 'image', name: 'layer-2-mask.jpg', data: 'mask-jpeg-base64', mimeType: 'image/jpeg' },
+      metadata: { source: 'layer', name: 'layer-2-mask.jpg', mimeType: 'image/jpeg' },
+      payload: { kind: 'inline-asset' },
     });
 
     expect(spies.getPixels).toHaveBeenCalledWith({
@@ -244,12 +242,13 @@ describe('PhotoshopHostBridge fake harness', () => {
       types: ['png', 'jpg', 'jpeg', 'webp'],
       allowMultiple: false,
     });
-    expect(asset).toMatchObject({
+    expect(asset?.asset).toMatchObject({
       type: 'image',
       name: 'picked.png',
       mimeType: 'image/png',
     });
-    expect(asset?.data).toBeInstanceOf(Uint8Array);
+    expect(asset?.asset.data).toBeInstanceOf(Uint8Array);
+    expect(asset?.metadata.source).toBe('file');
   });
 
   it('按 picker 文件名推断 JPEG MIME，避免后续 PNG 预检误判', async () => {
@@ -261,12 +260,12 @@ describe('PhotoshopHostBridge fake harness', () => {
 
     const asset = await bridge.pickImageFile();
 
-    expect(asset).toMatchObject({
+    expect(asset?.asset).toMatchObject({
       type: 'image',
       name: 'picked.JPG',
       mimeType: 'image/jpeg',
     });
-    expect(asset?.data).toBeInstanceOf(Uint8Array);
+    expect(asset?.asset.data).toBeInstanceOf(Uint8Array);
   });
 
   it('拒绝 structurally unsafe picker image，避免坏 bytes 进入会话 attachment', async () => {

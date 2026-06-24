@@ -127,13 +127,13 @@ export function MainPage({
 
   const addLayer = async (layer: LayerInfo) => {
     try {
-      const asset = await services.host.readLayerAsAsset(layer.id);
+      const image = await services.host.readLayerAsAsset(layer.id);
       addAttachment({
         id: attachmentId('layer'),
         type: 'layer',
         name: layer.name,
-        asset,
-        previewUrl: assetToPreviewUrl(asset),
+        image,
+        previewUrl: image.preview.url ?? assetToPreviewUrl(image.asset),
       });
       showToast(t.toast.layerAdded);
     } catch (error) {
@@ -143,16 +143,16 @@ export function MainPage({
 
   const addFile = async () => {
     try {
-      const asset = await services.host.pickImageFile();
-      if (!asset) {
+      const image = await services.host.pickImageFile();
+      if (!image) {
         return;
       }
       addAttachment({
         id: attachmentId('file'),
         type: 'file',
-        name: asset.name ?? 'image',
-        asset,
-        previewUrl: assetToPreviewUrl(asset),
+        name: image.asset.name ?? 'image',
+        image,
+        previewUrl: image.preview.url ?? assetToPreviewUrl(image.asset),
       });
       showToast(t.toast.fileAdded);
     } catch (error) {

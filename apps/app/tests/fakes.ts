@@ -11,6 +11,7 @@ import type {
 import type { AppServices } from '../src/app-services/app-services';
 import type { CommandsPort } from '../src/app-services/commands-port';
 import { PHOTOSHOP_UXP_RUNTIME_CAPABILITIES, type HostBridge } from '../src/app-services/host-bridge';
+import { createHostImageAsset } from '../src/shared/domain/host-image-asset';
 import type { DiagnosticsPort } from '../src/shared/ports/diagnostics-port';
 
 export const fakeAsset: Asset = {
@@ -19,6 +20,11 @@ export const fakeAsset: Asset = {
   data: 'ZmFrZS1pbWFnZQ==',
   mimeType: 'image/png',
 };
+
+export const fakeHostImage = createHostImageAsset(fakeAsset, {
+  source: 'file',
+  previewUrl: 'data:image/png;base64,ZmFrZS1pbWFnZQ==',
+});
 
 export const fakeProfile: ProviderProfile = {
   profileId: 'mock-profile',
@@ -143,8 +149,8 @@ export function createFakeServices(): {
   const listProfileModels = vi.fn(async () => ({ ok: true as const, value: [{ id: 'mock-image-v1' }] }));
   const refreshProfileModels = vi.fn(async () => ({ ok: true as const, value: [{ id: 'mock-image-v2' }] }));
   const listLayers = vi.fn(async () => [{ id: 1, name: 'Layer 1', kind: 'pixel', visible: true }]);
-  const pickImageFile = vi.fn(async () => fakeAsset);
-  const readLayerAsAsset = vi.fn(async () => fakeAsset);
+  const pickImageFile = vi.fn(async () => fakeHostImage);
+  const readLayerAsAsset = vi.fn(async () => fakeHostImage);
   const placeAssetOnCanvas = vi.fn(async () => undefined);
 
   const commands: CommandsPort = {

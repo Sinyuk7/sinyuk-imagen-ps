@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import type { Asset, JobError, JobSessionSnapshot } from '@imagen-ps/application';
+import type { JobError, JobSessionSnapshot } from '@imagen-ps/application';
 import type { AppServices } from '../../ports/app-services';
 import {
   assetToPreview,
@@ -10,12 +10,13 @@ import {
 } from '../../domain/mappers';
 import type { ImagenSessionBinding } from './use-imagen-session';
 import type { AppMessages } from '../i18n/messages';
+import type { HostImageAsset } from '../../domain/host-image-asset';
 
 export interface ConversationAttachment {
   readonly id: string;
   readonly type: 'layer' | 'file';
   readonly name: string;
-  readonly asset: Asset;
+  readonly image: HostImageAsset;
   readonly previewUrl: string;
 }
 
@@ -207,7 +208,7 @@ export function useConversation(
         prompt,
         output: { count: 1 },
         ...(providerOptions ? { providerOptions } : {}),
-        ...(attachments.length > 0 ? { images: attachments.map((attachment) => attachment.asset) } : {}),
+        ...(attachments.length > 0 ? { images: attachments.map((attachment) => attachment.image.asset) } : {}),
       };
 
       try {

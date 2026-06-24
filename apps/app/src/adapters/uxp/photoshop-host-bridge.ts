@@ -9,6 +9,7 @@ import {
 } from '../../app-services/host-bridge';
 import type { UxpModules } from './uxp-api';
 import { ensurePlaceableImagePayload } from '../../shared/image-payload-preflight';
+import { createHostImageAsset, type HostImageAsset } from '../../shared/domain/host-image-asset';
 
 interface PhotoshopLayer {
   readonly id: number;
@@ -204,15 +205,15 @@ async function imageDataToJpegAsset(
   imaging: PhotoshopImaging,
   imageData: PhotoshopImageData,
   name: string,
-): Promise<Asset> {
+): Promise<HostImageAsset> {
   try {
     const data = await imaging.encodeImageData({ imageData, base64: true });
-    return {
+    return createHostImageAsset({
       type: 'image',
       name,
       data,
       mimeType: 'image/jpeg',
-    };
+    }, { source: 'layer', previewUrl: `data:image/jpeg;base64,${data}` });
   } finally {
     imageData.dispose();
   }
@@ -312,7 +313,7 @@ export function createPhotoshopHostBridge(modules: UxpModules, options?: CreateP
       }
     },
 
-    async pickImageFile(): Promise<Asset | undefined> {
+    async pickImageFile(): Promise<HostImageAsset | undefined> {
       const span = logger.startSpan('hostbridge.pick_image_file');
       try {
         const file = await fs.getFileForOpening({
@@ -335,14 +336,14 @@ export function createPhotoshopHostBridge(modules: UxpModules, options?: CreateP
           mimeType,
         };
         span.finish({ picked: true, name: asset.name, mimeType });
-        return asset;
+        return createHostImageAsset(asset, { source: 'file' });
       } catch (error) {
         span.fail(error);
         throw error;
       }
     },
 
-    async readLayerAsAsset(layerId: number): Promise<Asset> {
+    async readLayerAsAsset(layerId: number): Promise<HostImageAsset> {
       const span = logger.startSpan('hostbridge.read_layer', { layerId });
       try {
         const layer = findLayer(app.activeDocument?.layers ?? [], layerId);
@@ -363,7 +364,7 @@ export function createPhotoshopHostBridge(modules: UxpModules, options?: CreateP
           },
           { commandName: 'Read layer pixels' },
         );
-        span.finish({ layerId, name: asset.name, mimeType: asset.mimeType });
+        span.finish({ layerId, name: asset.asset.name, mimeType: asset.asset.mimeType });
         return asset;
       } catch (error) {
         span.fail(error, { layerId });
@@ -371,7 +372,7 @@ export function createPhotoshopHostBridge(modules: UxpModules, options?: CreateP
       }
     },
 
-    async readLayerMaskAsAsset(layerId: number): Promise<Asset | undefined> {
+    async readLayerMaskAsAsset(layerId: number): Promise<HostImageAsset | undefined> {
       const span = logger.startSpan('hostbridge.read_layer_mask', { layerId });
       if (!imaging.getLayerMask) {
         span.finish({ hasMask: false, reason: 'unsupported' });
@@ -390,7 +391,7 @@ export function createPhotoshopHostBridge(modules: UxpModules, options?: CreateP
           },
           { commandName: 'Read layer mask' },
         );
-        span.finish({ layerId, hasMask: true, name: asset.name, mimeType: asset.mimeType });
+        span.finish({ layerId, hasMask: true, name: asset.asset.name, mimeType: asset.asset.mimeType });
         return asset;
       } catch (error) {
         span.fail(error, { layerId });

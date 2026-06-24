@@ -8,7 +8,9 @@ import {
   submitJob,
   type ProviderDescriptor,
 } from '@imagen-ps/application';
-import { createChromeFeasibilityStorage } from '../../adapters/chrome/browser-app-storage';
+import { createChromeHostPort, type ChromeFilePicker } from '../../adapters/chrome/chrome-host-port';
+import { createChromeIndexedDbStorage, type ChromeKeyValueBackend } from '../../adapters/chrome/indexed-db-storage';
+import { createPhotoshopSimulator } from '../../simulators/photoshop/simulator';
 
 export interface ChromeProviderCapabilityRow {
   readonly family: string;
@@ -26,6 +28,7 @@ export interface ChromeFeasibilityResult {
   readonly providerCount: number;
   readonly providerIds: readonly string[];
   readonly generatedAssetCount: number;
+  readonly simulatorLayerCount: number;
   readonly capabilityMatrix: readonly ChromeProviderCapabilityRow[];
 }
 
@@ -70,8 +73,16 @@ function providerIds(providers: readonly ProviderDescriptor[]): readonly string[
  * 最小 Chrome composition：只装配 browser-safe app adapters 并执行 mock provider
  * command path，用于在大规模文件移动前冻结浏览器可行性判断。
  */
-export async function runChromeFeasibilityRuntime(): Promise<ChromeFeasibilityResult> {
-  const storage = createChromeFeasibilityStorage();
+export async function runChromeFeasibilityRuntime(options?: {
+  readonly backend?: ChromeKeyValueBackend;
+  readonly filePicker?: ChromeFilePicker;
+}): Promise<ChromeFeasibilityResult> {
+  const storage = createChromeIndexedDbStorage({ backend: options?.backend });
+  const simulator = createPhotoshopSimulator('seeded-document');
+  const host = createChromeHostPort({
+    simulator,
+    filePicker: options?.filePicker ?? { pick: async () => undefined },
+  });
   setProviderProfileRepository(storage.profiles);
   setSecretStorageAdapter(storage.secrets);
   setJobHistoryStore(storage.history);
@@ -116,6 +127,7 @@ export async function runChromeFeasibilityRuntime(): Promise<ChromeFeasibilityRe
     providerCount: providers.length,
     providerIds: providerIds(providers),
     generatedAssetCount: image?.assets?.length ?? 0,
+    simulatorLayerCount: (await host.listLayers()).length,
     capabilityMatrix: CHROME_PROVIDER_CAPABILITY_MATRIX,
   };
 }
