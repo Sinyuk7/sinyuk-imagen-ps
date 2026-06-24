@@ -1,0 +1,70 @@
+apps/app/src/shells/uxp/create-plugin-host-shell.ts
+  s_d8f730fedfe24c::t_d13197a735bf75 1-14,21-94
+apps/app/src/adapters/uxp/uxp-provider-profile-repository.ts
+  s_d8f730fedfe24c::t_d13197a735bf75 1-136
+apps/app/src/adapters/uxp/photoshop-host-bridge.test.ts
+  s_d8f730fedfe24c::t_d13197a735bf75 1-395
+apps/app/src/adapters/uxp/uxp-diagnostics.ts
+  s_d8f730fedfe24c::t_d13197a735bf75 1-268
+apps/app/src/host/uxp-job-history-adapter.ts
+  s_d8f730fedfe24c::t_d13197a735bf75 1
+apps/app/src/host/uxp-diagnostics.ts
+  s_d8f730fedfe24c::t_d13197a735bf75 1
+apps/app/src/shells/uxp/uxp-panel-runtime.test.tsx
+  s_d8f730fedfe24c::t_d13197a735bf75 1-7,9-22,24-118
+apps/app/src/shells/uxp/uxp-panel-runtime.tsx
+  s_d8f730fedfe24c::t_d13197a735bf75 1,3-4,7-281
+apps/app/src/host/uxp-api.ts
+  s_d8f730fedfe24c::t_d13197a735bf75 1
+apps/app/src/adapters/uxp/uxp-diagnostics.test.ts
+  s_d8f730fedfe24c::t_d13197a735bf75 1-300
+apps/app/src/host/uxp-log-sink.ts
+  s_d8f730fedfe24c::t_d13197a735bf75 1
+apps/app/src/host/uxp-secret-storage-adapter.ts
+  s_d8f730fedfe24c::t_d13197a735bf75 1
+apps/app/src/adapters/uxp/uxp-log-sink.ts
+  s_d8f730fedfe24c::t_d13197a735bf75 1-222
+apps/app/src/host/photoshop-host-bridge.ts
+  s_d8f730fedfe24c::t_d13197a735bf75 1
+apps/app/src/adapters/uxp/uxp-job-history-adapter.ts
+  s_d8f730fedfe24c::t_d13197a735bf75 1-202
+apps/app/src/host/uxp-panel-runtime.tsx
+  s_d8f730fedfe24c::t_d13197a735bf75 1
+apps/app/src/adapters/uxp/uxp-api.ts
+  s_d8f730fedfe24c::t_d13197a735bf75 1-42
+apps/app/src/adapters/uxp/photoshop-host-bridge.ts
+  s_d8f730fedfe24c::t_d13197a735bf75 1-440
+apps/app/src/adapters/uxp/in-memory-host-storage.ts
+  s_d8f730fedfe24c::t_d13197a735bf75 1-89
+apps/app/src/host/create-plugin-host-shell.ts
+  s_d8f730fedfe24c::t_d13197a735bf75 1
+apps/app/src/host/in-memory-host-storage.ts
+  s_d8f730fedfe24c::t_d13197a735bf75 1
+apps/app/src/adapters/uxp/uxp-secret-storage-adapter.ts
+  s_d8f730fedfe24c::t_d13197a735bf75 1-124
+apps/app/src/adapters/uxp/uxp-host-adapters.test.ts
+  s_d8f730fedfe24c::t_d13197a735bf75 1-625
+apps/app/src/host/uxp-provider-profile-repository.ts
+  s_d8f730fedfe24c::t_d13197a735bf75 1
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.12",
+  "base_commit_sha": "08dfa53105a6c260561a8e9629a396d50a5f7dfd",
+  "prompts": {},
+  "humans": {
+    "h_36ccd825a182d0": {
+      "author": "Sinyuk <80998062@qq.com>"
+    }
+  },
+  "sessions": {
+    "s_d8f730fedfe24c": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "019efab9-2798-7370-8851-c7e186c21445",
+        "model": "gpt-5.5"
+      },
+      "human_author": "Sinyuk <80998062@qq.com>"
+    }
+  }
+}
