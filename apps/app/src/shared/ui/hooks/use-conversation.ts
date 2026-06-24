@@ -32,6 +32,8 @@ export interface ConversationRound {
   readonly elapsedLabel?: string;
   readonly errorMessage?: string;
   readonly jobId?: string;
+  readonly profileId?: string;
+  readonly modelId?: string;
   readonly previews: readonly AssetPreview[];
   readonly attachments: readonly ConversationAttachment[];
   readonly outputSize?: string;
@@ -194,6 +196,8 @@ export function useConversation(
         prompt,
         status: 'running',
         providerName: input.providerName,
+        profileId: input.profileId,
+        ...(input.modelId ? { modelId: input.modelId } : {}),
         elapsedSeconds: 0,
         previews: [],
         attachments,
@@ -252,6 +256,16 @@ export function useConversation(
   const retry = useCallback(
     async (roundId: string) => {
       const round = rounds.find((item) => item.id === roundId);
+      if (round?.status === 'ok' && round.profileId) {
+        await submit({
+          prompt: round.prompt,
+          profileId: round.profileId,
+          providerName: round.providerName,
+          ...(round.modelId ? { modelId: round.modelId } : {}),
+          attachments: round.attachments,
+        });
+        return;
+      }
       if (!round?.jobId) {
         return;
       }
@@ -281,7 +295,7 @@ export function useConversation(
         }),
       );
     },
-    [messages, rounds, sessionBinding.session, sessionBinding.snapshot.jobs],
+    [messages, rounds, sessionBinding.session, sessionBinding.snapshot.jobs, submit],
   );
 
   const clear = useCallback(() => setRounds([]), []);

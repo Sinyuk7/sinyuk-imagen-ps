@@ -105,17 +105,17 @@ export function HistoryPage({ onNav, rounds, records, loading, error, onReload, 
   return (
     <div className="page page-enter">
       <header className="hdr">
-        <button className="hdr-btn" onClick={() => onNav('main')}>
+        <button data-testid="history-back-button" className="hdr-btn" onClick={() => onNav('main')}>
           <Icon name="chevron-left" />
         </button>
         <div className="hdr-title">{t.history.title}</div>
-        <button className="hdr-btn" onClick={() => { void onReload(); }}>
+        <button data-testid="history-refresh-button" className="hdr-btn" onClick={() => { void onReload(); }}>
           <Icon name="refresh" />
         </button>
       </header>
       <div className="filter-bar">
         {filters.map(([key, label]) => (
-          <button key={key} className={`fchip${filter === key ? ' act' : ''}`} onClick={() => setFilter(key)}>{label}</button>
+          <button key={key} data-testid={`history-filter-${key}`} className={`fchip${filter === key ? ' act' : ''}`} onClick={() => setFilter(key)}>{label}</button>
         ))}
       </div>
       <div className="scroll">
@@ -126,7 +126,7 @@ export function HistoryPage({ onNav, rounds, records, loading, error, onReload, 
           : filtered.map((item) => {
             const retryRoundId = item.retryRoundId;
             return (
-            <div key={item.id} className="task-row" onClick={() => onNav('main')}>
+            <div key={item.id} data-testid={`history-row-${item.id}`} className="task-row" onClick={() => onNav('main')}>
               <div className="task-thumb">
                 {item.previewUrl
                   ? <img src={item.previewUrl} style={{ width: '100%', height: '100%', objectFit: 'cover', borderRadius: 'inherit' }} alt="" />
@@ -149,6 +149,7 @@ export function HistoryPage({ onNav, rounds, records, loading, error, onReload, 
                   <span style={{ color: STATUS_COLOR[item.status], fontSize: 10 }}>{statusLabel[item.status]}</span>
                   {retryRoundId && (
                     <button
+                      data-testid={`history-retry-button-${retryRoundId}`}
                       style={{ marginLeft: 'auto', fontSize: 10, color: 'var(--er)', background: 'none', border: 'none', cursor: 'pointer' }}
                       onClick={(event) => {
                         event.stopPropagation();

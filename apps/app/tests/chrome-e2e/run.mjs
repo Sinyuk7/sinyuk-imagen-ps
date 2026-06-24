@@ -159,6 +159,36 @@ async function fillMockProviderDraft(page, alias) {
   await fillUxp(page.getByTestId('provider-api-key-input'), 'mock-key');
 }
 
+async function submitPrompt(page, prompt) {
+  await fillUxp(page.getByTestId('composer-textarea'), prompt);
+  await page.getByTestId('composer-send-button').evaluate((button) => {
+    if (!(button instanceof HTMLButtonElement) || button.disabled) {
+      throw new Error('Send button did not become enabled before submit.');
+    }
+  });
+  await page.getByTestId('composer-send-button').click();
+}
+
+async function waitForDoneResult(page) {
+  await page.getByText('Done').first().waitFor({ state: 'visible', timeout: 5000 });
+  await page.locator('.prov-img img').first().waitFor({ state: 'visible', timeout: 5000 });
+}
+
+async function addFileAttachment(page) {
+  await page.getByTestId('composer-add-image-button').click();
+  await page.getByTestId('attach-upload-option').click();
+  await expectVisibleText(page, 'Image added');
+  await page.locator('.att-thumb').first().waitFor({ state: 'visible', timeout: 5000 });
+}
+
+async function addLayerAttachment(page) {
+  await page.getByTestId('composer-add-image-button').click();
+  await page.getByTestId('attach-ps-layers-option').click();
+  await page.getByTestId('layer-row-1').click();
+  await expectVisibleText(page, 'Layer added');
+  await page.locator('.att-thumb').first().waitFor({ state: 'visible', timeout: 5000 });
+}
+
 async function smokeScenario({ page, url, capture }) {
   await openApp(page, url);
   await expectVisibleText(page, 'No provider profile');
@@ -361,6 +391,205 @@ async function mainProfileModelMenusScenario({ page, url, capture }) {
   await assertNoBrokenImages(page);
 }
 
+async function promptSuggestionGenerateScenario({ page, url, capture }) {
+  await openApp(page, url);
+  await page.getByText('Blue glass perfume product photo', { exact: true }).click();
+  await checkpoint(page, capture, '16-main-suggestion-filled.png', async () => {
+    await page.getByTestId('composer-textarea').evaluate((textarea) => {
+      if (!(textarea instanceof HTMLTextAreaElement) || !textarea.value.includes('blue glass perfume')) {
+        throw new Error('Suggestion did not fill the composer textarea.');
+      }
+    });
+    await page.getByTestId('composer-send-button').evaluate((button) => {
+      if (!(button instanceof HTMLButtonElement) || button.disabled) {
+        throw new Error('Send button is disabled after prompt suggestion.');
+      }
+    });
+  });
+  await page.getByTestId('composer-send-button').click();
+  await checkpoint(page, capture, '17-main-generate-result.png', async () => {
+    await waitForDoneResult(page);
+    await expectVisibleText(page, 'Mock Profile');
+    await expectVisibleText(page, 'Place in PS');
+    await page.getByTestId('composer-textarea').evaluate((textarea) => {
+      if (!(textarea instanceof HTMLTextAreaElement) || textarea.value !== '') {
+        throw new Error('Composer textarea did not clear after submit.');
+      }
+    });
+  });
+  await assertNoBrokenImages(page);
+}
+
+async function layerAttachmentEditScenario({ page, url, capture }) {
+  await openApp(page, url);
+  await page.getByTestId('composer-add-image-button').click();
+  await checkpoint(page, capture, '18-attach-picker.png', async () => {
+    await expectVisibleText(page, 'Choose from PS layers');
+    await expectVisibleText(page, '10 layers');
+    await expectVisibleText(page, 'Upload from computer');
+  });
+  await page.getByTestId('attach-ps-layers-option').click();
+  await checkpoint(page, capture, '19-layer-list.png', async () => {
+    await expectVisibleText(page, 'PS Layers');
+    await page.getByTestId('layer-row-1').waitFor({ state: 'visible' });
+    await expectVisibleText(page, 'sim-layer-1.svg');
+  });
+  await page.getByTestId('layer-row-1').click();
+  await checkpoint(page, capture, '20-layer-attached-toast.png', async () => {
+    await expectVisibleText(page, 'Layer added');
+    await page.locator('.att-thumb').first().waitFor({ state: 'visible', timeout: 5000 });
+  });
+  await submitPrompt(page, 'edit layer image');
+  await checkpoint(page, capture, '21-edit-result-from-layer.png', async () => {
+    await waitForDoneResult(page);
+  });
+  await assertNoBrokenImages(page);
+}
+
+async function fileUploadEditScenario({ page, url, capture }) {
+  await openApp(page, url);
+  await page.getByTestId('composer-add-image-button').click();
+  await checkpoint(page, capture, '22-file-attached-toast.png', async () => {
+    await expectVisibleText(page, 'Upload from computer');
+    await expectVisibleText(page, 'PNG / JPG / WebP');
+  });
+  await page.getByTestId('attach-upload-option').click();
+  await expectVisibleText(page, 'Image added');
+  await submitPrompt(page, 'edit uploaded image');
+  await checkpoint(page, capture, '23-edit-result-from-file.png', async () => {
+    await waitForDoneResult(page);
+  });
+  await assertNoBrokenImages(page);
+}
+
+async function attachmentRemovalCancelScenario({ page, url, capture }) {
+  await openApp(page, url);
+  await addFileAttachment(page);
+  await page.getByTestId('toast').waitFor({ state: 'hidden', timeout: 3000 }).catch(() => undefined);
+  await page.locator('[data-testid^="attachment-remove-button-"]').first().click();
+  await checkpoint(page, capture, '24-attachment-removed.png', async () => {
+    if (await page.locator('.att-thumb').count() !== 0) {
+      throw new Error('Attachment thumbnail remained after remove.');
+    }
+  });
+  await page.evaluate(() => globalThis.__IMAGEN_CHROME_TEST_HARNESS__?.setFilePickerMode('cancel'));
+  await page.getByTestId('composer-add-image-button').click();
+  await page.getByTestId('attach-upload-option').click();
+  await checkpoint(page, capture, '25-file-picker-cancelled.png', async () => {
+    if (await page.locator('.att-thumb').count() !== 0) {
+      throw new Error('Cancelled picker changed composer attachments.');
+    }
+    if (await page.getByText('Image added', { exact: true }).count() > 0) {
+      throw new Error('Cancelled picker showed image-added toast.');
+    }
+  });
+  await assertNoBrokenImages(page);
+}
+
+async function generatedResultActionsScenario({ page, url, capture }) {
+  await openApp(page, url);
+  await submitPrompt(page, 'result actions prompt');
+  await waitForDoneResult(page);
+  await page.locator('[data-testid^="result-place-button-"]').first().click();
+  await checkpoint(page, capture, '26-place-success-toast.png', async () => {
+    await expectVisibleText(page, 'Placed on Photoshop canvas');
+  });
+  await page.locator('[data-testid^="result-copy-button-"]').first().click();
+  await checkpoint(page, capture, '27-copy-prompt-toast.png', async () => {
+    await expectVisibleText(page, 'Filled into the prompt box');
+    await page.getByTestId('composer-textarea').evaluate((textarea) => {
+      if (!(textarea instanceof HTMLTextAreaElement) || !textarea.value.includes('result actions prompt')) {
+        throw new Error('Copy prompt did not fill composer textarea.');
+      }
+    });
+  });
+  await page.locator('[data-testid^="result-regenerate-button-"]').first().click();
+  await checkpoint(page, capture, '28-regenerate-result.png', async () => {
+    await waitForDoneResult(page);
+  });
+  await assertNoBrokenImages(page);
+}
+
+async function errorRetryScenario({ page, url, capture }) {
+  await openApp(page, url);
+  await page.evaluate(async () => globalThis.__IMAGEN_CHROME_TEST_HARNESS__?.setMockFailureMode('always'));
+  await submitPrompt(page, 'controlled failure prompt');
+  await checkpoint(page, capture, '29-main-error-card.png', async () => {
+    await expectVisibleText(page, 'Failed · Mock Profile');
+    await page.getByText('Mock provider forced failure').first().waitFor({ state: 'visible', timeout: 5000 });
+    await expectVisibleText(page, 'Retry');
+  });
+  await page.evaluate(async () => globalThis.__IMAGEN_CHROME_TEST_HARNESS__?.setMockFailureMode('none'));
+  await page.locator('[data-testid^="error-retry-button-"]').first().click();
+  await checkpoint(page, capture, '30-main-retry-success.png', async () => {
+    await waitForDoneResult(page);
+  });
+  await assertNoBrokenImages(page);
+}
+
+async function historyFiltersScenario({ page, url, capture }) {
+  await openApp(page, url);
+  await page.evaluate(async () => globalThis.__IMAGEN_CHROME_TEST_HARNESS__?.setMockFailureMode('always'));
+  await submitPrompt(page, 'current failed history prompt');
+  await expectVisibleText(page, 'Failed · Mock Profile');
+  await page.getByTestId('main-history-button').click();
+  await checkpoint(page, capture, '31-history-all.png', async () => {
+    await expectVisibleText(page, 'History');
+    await expectVisibleText(page, 'completed history prompt');
+    await expectVisibleText(page, 'failed history prompt');
+    await expectVisibleText(page, 'running history prompt');
+  });
+  await page.getByTestId('history-filter-ok').click();
+  await checkpoint(page, capture, '32-history-done-filter.png', async () => {
+    await expectVisibleText(page, 'completed history prompt');
+  });
+  await page.getByTestId('history-filter-running').click();
+  await checkpoint(page, capture, '33-history-running-filter.png', async () => {
+    await expectVisibleText(page, 'running history prompt');
+  });
+  await page.getByTestId('history-filter-err').click();
+  await checkpoint(page, capture, '34-history-failed-filter.png', async () => {
+    await expectVisibleText(page, 'failed history prompt');
+    await expectVisibleText(page, 'Retry');
+  });
+  await page.getByTestId('history-refresh-button').click();
+  await page.getByTestId('history-back-button').click();
+  await expectVisibleText(page, 'Current session');
+  await assertNoBrokenImages(page);
+}
+
+async function hostCapabilityFailureScenario({ page, origin, capture, resetNetworkEvidence }) {
+  resetNetworkEvidence();
+  await openApp(page, `${origin}/index.html?testHarness=1&storage=memory&seedProfile=mock&scenario=host-busy`);
+  resetNetworkEvidence();
+  await page.getByTestId('composer-add-image-button').click();
+  await page.getByTestId('attach-ps-layers-option').click();
+  await checkpoint(page, capture, '35-host-busy-toast.png', async () => {
+    await expectVisibleText(page, 'Simulator host is busy.');
+  });
+
+  resetNetworkEvidence();
+  await openApp(page, `${origin}/index.html?testHarness=1&storage=memory&seedProfile=mock&scenario=place-asset-failure`);
+  resetNetworkEvidence();
+  await submitPrompt(page, 'place failure prompt');
+  await waitForDoneResult(page);
+  await page.locator('[data-testid^="result-place-button-"]').first().click();
+  await checkpoint(page, capture, '36-place-failure-toast.png', async () => {
+    await expectVisibleText(page, 'Simulator place asset failed.');
+  });
+
+  resetNetworkEvidence();
+  await openApp(page, `${origin}/index.html?testHarness=1&storage=memory&seedProfile=mock&scenario=empty-document`);
+  resetNetworkEvidence();
+  await page.getByTestId('composer-add-image-button').click();
+  await page.getByTestId('attach-ps-layers-option').click();
+  await checkpoint(page, capture, '37-empty-layer-list.png', async () => {
+    await expectVisibleText(page, 'No available layers');
+    await page.locator('#root[data-status="ok"]').waitFor({ timeout: 1000 });
+  });
+  await assertNoBrokenImages(page);
+}
+
 const scenarios = [
   {
     id: '00-smoke-main-empty',
@@ -434,6 +663,78 @@ const scenarios = [
     assertions: ['provider menu active option visible', 'model menu active option visible', 'selected profile and model visible', 'menus close', 'no console/page/network errors'],
     run: mainProfileModelMenusScenario,
   },
+  {
+    id: '07-prompt-suggestion-generate',
+    name: 'Prompt suggestions and send generate',
+    tags: ['main-history'],
+    path: '/index.html?testHarness=1&storage=memory&seedProfile=mock&scenario=seeded-document',
+    screenshotName: '17-main-generate-result.png',
+    assertions: ['suggestion fills prompt', 'send enabled', 'generate result done', 'preview visible', 'actions visible', 'no console/page/network errors'],
+    run: promptSuggestionGenerateScenario,
+  },
+  {
+    id: '08-layer-attachment-edit',
+    name: 'Attachment picker layer flow and edit submit',
+    tags: ['main-history'],
+    path: '/index.html?testHarness=1&storage=memory&seedProfile=mock&scenario=seeded-document',
+    screenshotName: '21-edit-result-from-layer.png',
+    assertions: ['attach picker visible', 'layer list visible', 'layer attachment toast visible', 'edit result done', 'no console/page/network errors'],
+    run: layerAttachmentEditScenario,
+  },
+  {
+    id: '09-file-upload-edit',
+    name: 'File upload flow',
+    tags: ['main-history'],
+    path: '/index.html?testHarness=1&storage=memory&seedProfile=mock&scenario=seeded-document&filePicker=image',
+    screenshotName: '23-edit-result-from-file.png',
+    assertions: ['upload option visible', 'file attachment toast visible', 'file edit result done', 'no console/page/network errors'],
+    run: fileUploadEditScenario,
+  },
+  {
+    id: '10-attachment-removal-cancel',
+    name: 'Attachment removal and cancelled picker',
+    tags: ['main-history'],
+    path: '/index.html?testHarness=1&storage=memory&seedProfile=mock&scenario=seeded-document&filePicker=image',
+    screenshotName: '25-file-picker-cancelled.png',
+    assertions: ['attachment removed', 'cancelled picker unchanged', 'no cancellation toast', 'no console/page/network errors'],
+    run: attachmentRemovalCancelScenario,
+  },
+  {
+    id: '11-generated-result-actions',
+    name: 'Generated result actions',
+    tags: ['main-history'],
+    path: '/index.html?testHarness=1&storage=memory&seedProfile=mock&scenario=seeded-document',
+    screenshotName: '28-regenerate-result.png',
+    assertions: ['place success toast visible', 'copy prompt toast visible', 'regenerate result done', 'no console/page/network errors'],
+    run: generatedResultActionsScenario,
+  },
+  {
+    id: '12-error-retry-flow',
+    name: 'Error and retry flow',
+    tags: ['main-history'],
+    path: '/index.html?testHarness=1&storage=memory&seedProfile=mock&scenario=seeded-document',
+    screenshotName: '30-main-retry-success.png',
+    assertions: ['controlled error card visible', 'retry button visible', 'retry success result visible', 'no console/page/network errors'],
+    run: errorRetryScenario,
+  },
+  {
+    id: '13-history-filters',
+    name: 'History page filters and retry affordance',
+    tags: ['main-history'],
+    path: '/index.html?testHarness=1&storage=memory&seedProfile=mock&seedHistory=1&scenario=seeded-document',
+    screenshotName: '34-history-failed-filter.png',
+    assertions: ['history all filter visible', 'done filter visible', 'running filter visible', 'failed filter visible', 'back returns main', 'no console/page/network errors'],
+    run: historyFiltersScenario,
+  },
+  {
+    id: '14-host-capability-failures',
+    name: 'Host capability failure states',
+    tags: ['main-history'],
+    path: '/index.html?testHarness=1&storage=memory&seedProfile=mock&scenario=seeded-document',
+    screenshotName: '37-empty-layer-list.png',
+    assertions: ['host busy visible message', 'place failure toast visible', 'empty layer list visible', 'root remains ok', 'no console/page/network errors'],
+    run: hostCapabilityFailureScenario,
+  },
 ];
 
 function scenarioMatches(scenario, grep) {
@@ -504,6 +805,9 @@ async function runScenario(browser, server, scenario) {
     assertions: [],
     consoleErrorCount: 0,
   };
+  const resetNetworkEvidence = () => {
+    failedRequests.length = 0;
+  };
   const capture = async (screenshotName) => {
     if (!keepScreenshots) {
       return;
@@ -514,7 +818,7 @@ async function runScenario(browser, server, scenario) {
   };
 
   try {
-    await scenario.run({ page, origin: server.origin, url, capture });
+    await scenario.run({ page, origin: server.origin, url, capture, resetNetworkEvidence });
     if (consoleErrors.length > 0) {
       throw new Error(`Console errors: ${consoleErrors.join(' | ')}`);
     }

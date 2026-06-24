@@ -27,6 +27,7 @@ interface MainPageProps {
   readonly selectedModelId: string;
   readonly onSelectModel: (modelId: string) => void;
   readonly layers: readonly LayerInfo[];
+  readonly layersError: string | null;
   readonly reloadLayers: () => Promise<void>;
   readonly conversation: ConversationController;
 }
@@ -72,6 +73,7 @@ export function MainPage({
   selectedModelId,
   onSelectModel,
   layers,
+  layersError,
   reloadLayers,
   conversation,
 }: MainPageProps) {
@@ -295,6 +297,7 @@ export function MainPage({
                     <span className="msg-time">{round.time}</span>
                     <Tip label={t.main.reusePrompt}>
                       <button
+                        data-testid={`round-copy-button-${round.id}`}
                         className={`copy-btn${copied[round.id] ? ' cp' : ''}`}
                         onClick={(event) => { event.stopPropagation(); handleCopy(round.id, round.prompt); }}
                       >
@@ -319,7 +322,7 @@ export function MainPage({
                       </span>
                     </div>
                     <div className="err-msg">{round.errorMessage}</div>
-                    <button className="err-retry" onClick={() => void conversation.retry(round.id)}>{t.history.retry}</button>
+                    <button data-testid={`error-retry-button-${round.id}`} className="err-retry" onClick={() => void conversation.retry(round.id)}>{t.history.retry}</button>
                   </div>
                 </div>
               )}
@@ -371,17 +374,17 @@ export function MainPage({
                     </div>
                     <div className="prov-actions">
                       <Tip label={t.main.placePs}>
-                        <button className="act-ico prim" onClick={(event) => { event.stopPropagation(); void placeAsset(round); }}>
+                        <button data-testid={`result-place-button-${round.id}`} className="act-ico prim" onClick={(event) => { event.stopPropagation(); void placeAsset(round); }}>
                           <Icon name="place-ps" />
                         </button>
                       </Tip>
                       <Tip label={t.main.regenerate}>
-                        <button className="act-ico" onClick={(event) => { event.stopPropagation(); void conversation.retry(round.id); }}>
+                        <button data-testid={`result-regenerate-button-${round.id}`} className="act-ico" onClick={(event) => { event.stopPropagation(); void conversation.retry(round.id); }}>
                           <Icon name="regenerate" />
                         </button>
                       </Tip>
                       <Tip label={t.main.copyPrompt}>
-                        <button className="act-ico" onClick={(event) => { event.stopPropagation(); handleCopy(`${round.id}-copy`, round.prompt); }}>
+                        <button data-testid={`result-copy-button-${round.id}`} className="act-ico" onClick={(event) => { event.stopPropagation(); handleCopy(`${round.id}-copy`, round.prompt); }}>
                           <Icon name="copy" />
                         </button>
                       </Tip>
@@ -413,9 +416,10 @@ export function MainPage({
               </button>
             </div>
             <div className="layer-scroll">
-              {flatLayers.length === 0 && <div className="layer-item"><span className="layer-name">{t.main.noAvailableLayers}</span></div>}
+              {layersError && <div className="layer-item"><span className="layer-name">{layersError}</span></div>}
+              {!layersError && flatLayers.length === 0 && <div className="layer-item"><span className="layer-name">{t.main.noAvailableLayers}</span></div>}
               {flatLayers.map(({ layer, depth }) => (
-                <div key={layer.id} className="layer-item" onClick={() => void addLayer(layer)}>
+                <div key={layer.id} data-testid={`layer-row-${layer.id}`} className="layer-item" onClick={() => void addLayer(layer)}>
                   <div className="layer-swatch" style={{ background: layer.visible === false ? 'var(--s1)' : 'var(--s2)' }} />
                   <span className="layer-name" style={{ paddingLeft: depth * 10 }}>{layer.name}</span>
                   <span className="layer-meta-lbl">{layer.kind ?? 'layer'}</span>
@@ -427,7 +431,7 @@ export function MainPage({
 
         {attachOpen && !layerOpen && (
           <div className="attach-picker" onClick={(event) => event.stopPropagation()}>
-            <div className="attach-opt" onClick={() => setLayerOpen(true)}>
+            <div data-testid="attach-ps-layers-option" className="attach-opt" onClick={() => setLayerOpen(true)}>
               <div className="attach-opt-ico">
                 <Icon name="ps-layers" size={13} />
               </div>
@@ -437,7 +441,7 @@ export function MainPage({
               </div>
               <Icon name="chevron-right" style={{ marginLeft: 'auto' }} />
             </div>
-            <div className="attach-opt" onClick={() => void addFile()}>
+            <div data-testid="attach-upload-option" className="attach-opt" onClick={() => void addFile()}>
               <div className="attach-opt-ico">
                 <Icon name="upload" size={13} />
               </div>
@@ -480,12 +484,13 @@ export function MainPage({
                     ? <img src={attachment.previewUrl} style={{ width: '100%', height: '100%', objectFit: 'cover' }} alt={attachment.name} />
                     : <div style={{ width: '100%', height: '100%', background: 'var(--s1)' }} />
                   }
-                  <button className="att-rm" onClick={() => setAttachments((current) => current.filter((item) => item.id !== attachment.id))}>x</button>
+                  <button data-testid={`attachment-remove-button-${attachment.id}`} className="att-rm" onClick={() => setAttachments((current) => current.filter((item) => item.id !== attachment.id))}>x</button>
                 </div>
               ))}
             </div>
           )}
           <UxpTextArea
+            data-testid="composer-textarea"
             controlRef={taRef}
             className="cmp-ta"
             placeholder={selectedProfile ? t.main.promptPlaceholderReady : t.main.promptPlaceholderNoProfile}
@@ -503,6 +508,7 @@ export function MainPage({
           <div className="cmp-bar">
             <Tip label={t.main.addImage}>
               <button
+                data-testid="composer-add-image-button"
                 className={`cmp-add${attachOpen || layerOpen ? ' open' : ''}`}
                 onClick={(event) => {
                   event.stopPropagation();
@@ -532,7 +538,7 @@ export function MainPage({
             </div>
             <div className="cmp-sp" />
             <div className="send-wrap">
-              <button className="cmp-send" disabled={!canSend} onClick={() => void handleSend()} title={t.main.send}>
+              <button data-testid="composer-send-button" className="cmp-send" disabled={!canSend} onClick={() => void handleSend()} title={t.main.send}>
                 {conversation.running
                   ? <Icon name="spinner" size={13} className="spin" />
                   : <Icon name="send" />
@@ -543,7 +549,7 @@ export function MainPage({
         </div>
       </footer>
 
-      {toast && <div className="toast">{toast}</div>}
+      {toast && <div data-testid="toast" className="toast">{toast}</div>}
     </div>
   );
 }

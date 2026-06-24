@@ -47,19 +47,27 @@ function usePanelCss(): void {
 
 function useHostLayers(host: AppShellHost): {
   readonly layers: readonly LayerInfo[];
+  readonly layersError: string | null;
   readonly reloadLayers: () => Promise<void>;
 } {
   const [layers, setLayers] = useState<readonly LayerInfo[]>([]);
+  const [layersError, setLayersError] = useState<string | null>(null);
 
   async function reloadLayers(): Promise<void> {
-    setLayers(await host.services.host.listLayers());
+    try {
+      setLayers(await host.services.host.listLayers());
+      setLayersError(null);
+    } catch (error) {
+      setLayers([]);
+      setLayersError(error instanceof Error ? error.message : String(error));
+    }
   }
 
   useEffect(() => {
     void reloadLayers();
   }, [host]);
 
-  return { layers, reloadLayers };
+  return { layers, layersError, reloadLayers };
 }
 
 function defaultModelFor(profile: ProviderProfile | undefined): string {
@@ -82,7 +90,7 @@ function AppShellContent({ host }: AppShellProps) {
   const imagenSession = useImagenSession(services);
   const conversation = useConversation(services, imagenSession, t.conversation);
   const history = useJobHistory(services);
-  const { layers, reloadLayers } = useHostLayers(host);
+  const { layers, layersError, reloadLayers } = useHostLayers(host);
 
   useEffect(() => {
     if (selectedProfileId && profilesState.profiles.some((profile) => profile.profileId === selectedProfileId)) {
@@ -116,6 +124,7 @@ function AppShellContent({ host }: AppShellProps) {
           selectedModelId={selectedModelId}
           onSelectModel={setSelectedModelId}
           layers={layers}
+          layersError={layersError}
           reloadLayers={reloadLayers}
           conversation={conversation}
         />
