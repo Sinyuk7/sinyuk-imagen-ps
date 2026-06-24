@@ -33,6 +33,7 @@ export interface ChromeTestHarnessConfig {
   readonly scenario: PhotoshopSimulatorScenarioId;
   readonly filePickerMode: ChromeTestFilePickerMode;
   readonly mockFailureMode: ChromeTestMockFailureMode;
+  readonly resetStorage: boolean;
 }
 
 export interface ChromeTestHarnessRuntime {
@@ -100,6 +101,7 @@ export function chromeTestHarnessConfigFromUrl(url: URL): ChromeTestHarnessConfi
     scenario: parseScenario(url.searchParams.get('scenario')),
     filePickerMode: parseFilePickerMode(url.searchParams.get('filePicker')),
     mockFailureMode: parseMockFailureMode(url.searchParams.get('mockFailure')),
+    resetStorage: url.searchParams.get('resetStorage') === '1',
   };
 }
 
@@ -281,7 +283,7 @@ export function createChromeTestHarnessRuntime(config: ChromeTestHarnessConfig):
       globalThis.__IMAGEN_CHROME_TEST_HARNESS__ = api;
       if (config.storageMode === 'indexed-db') {
         void (async () => {
-          await backend.clear?.();
+          if (config.resetStorage) await backend.clear?.();
           if (config.seedProfile) await seedMockProfile(storage, { failMode: config.mockFailureMode });
           if (config.seedHistory) await seedHistory(storage);
         })();

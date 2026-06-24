@@ -47,6 +47,12 @@ Repo-side app validation currently includes:
 - `pnpm --filter @imagen-ps/app build:uxp`
 - `pnpm --filter @imagen-ps/app build:chrome`
 - Chrome headless smoke of `dist/web/index.html`
+- Opt-in Chrome mock-provider E2E screenshot coverage with
+  `pnpm --filter @imagen-ps/app test:chrome-e2e`. The harness runs Playwright
+  Chromium at `390x720`, keeps generated reports/screenshots under ignored
+  `apps/app/tests/chrome-e2e/screenshots/`, and covers scenarios 00-15
+  including provider setup, main composer, attachments, result actions,
+  history filters, host simulator failure states, and IndexedDB persistence.
 
 ## Still Manual-Only
 

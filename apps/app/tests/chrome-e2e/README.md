@@ -42,6 +42,8 @@ Supported query controls:
 - `storage=memory|indexed-db`: use isolated in-memory state for most specs, or
   a real IndexedDB backend for persistence smoke.
 - `db=<name>`: optional IndexedDB database name for isolated persistence runs.
+- `resetStorage=1`: clear the selected IndexedDB database before applying seed
+  state. Memory storage is created fresh for each page context.
 - `seedProfile=mock`: seed `profileId=mock-profile`, display name
   `Mock Profile`, default model `mock-image-v1`, and secret ref backed by the
   non-secret test value `mock-key`.

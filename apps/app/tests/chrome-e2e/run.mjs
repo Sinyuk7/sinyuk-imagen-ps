@@ -590,6 +590,26 @@ async function hostCapabilityFailureScenario({ page, origin, capture, resetNetwo
   await assertNoBrokenImages(page);
 }
 
+async function persistenceSmokeScenario({ page, origin, capture }) {
+  const dbName = `chrome-e2e-${runId}`;
+  const url = `${origin}/index.html?testHarness=1&storage=indexed-db&db=${encodeURIComponent(dbName)}&resetStorage=1&scenario=seeded-document`;
+  await openAddProviderStep2(page, url);
+  await fillMockProviderDraft(page, 'Mock Persisted E2E');
+  await page.getByTestId('provider-save-button').click();
+  await expectVisibleText(page, 'Mock Persisted E2E');
+  await page.goto(`${origin}/index.html?testHarness=1&storage=indexed-db&db=${encodeURIComponent(dbName)}&scenario=seeded-document`, { waitUntil: 'networkidle' });
+  await page.locator('#root[data-runtime="chrome"][data-status="ok"]').waitFor({ timeout: 10000 });
+  await checkpoint(page, capture, '38-persisted-provider-after-reload.png', async () => {
+    await expectVisibleText(page, 'Mock Persisted E2E');
+    await expectVisibleText(page, 'mock-image-v1');
+    await page.getByTestId('main-providers-button').click();
+    await page.locator('[data-testid^="provider-row-profile-"]').first().click();
+    await expectSavedSecretPlaceholder(page);
+    await expectNoVisibleSecret(page);
+  });
+  await assertNoBrokenImages(page);
+}
+
 const scenarios = [
   {
     id: '00-smoke-main-empty',
@@ -734,6 +754,15 @@ const scenarios = [
     screenshotName: '37-empty-layer-list.png',
     assertions: ['host busy visible message', 'place failure toast visible', 'empty layer list visible', 'root remains ok', 'no console/page/network errors'],
     run: hostCapabilityFailureScenario,
+  },
+  {
+    id: '15-persistence-smoke',
+    name: 'Persistence smoke',
+    tags: ['persistence'],
+    path: '/index.html?testHarness=1&storage=indexed-db&scenario=seeded-document',
+    screenshotName: '38-persisted-provider-after-reload.png',
+    assertions: ['profile persists after reload', 'persisted profile selectable', 'saved secret placeholder visible', 'secret hidden', 'no console/page/network errors'],
+    run: persistenceSmokeScenario,
   },
 ];
 
