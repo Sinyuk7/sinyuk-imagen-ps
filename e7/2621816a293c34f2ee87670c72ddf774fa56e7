@@ -1,0 +1,41 @@
+apps/app/package.json
+  s_3924cab4fe5855::t_c954520a127579 18-20
+apps/app/src/shared/ui/primitives/spectrum-controls.tsx
+  s_3924cab4fe5855::t_27421f0daac5bd 2-16,18,20-126,129-131,134-209
+  s_3924cab4fe5855::t_d02a84aa69c0f4 127-128,132-133
+  s_3924cab4fe5855::t_5efd8883d47346 1,17,19
+apps/app/tests/settings-detail-page.test.tsx
+  s_3924cab4fe5855::t_454975599f483d 28-34,71-72,86,250
+  s_3924cab4fe5855::t_15c3a043293655 226
+apps/app/src/shared/ui/pages/settings-add-page.tsx
+  s_3924cab4fe5855::t_965ddefa631dd3 9,155,159,184,189
+apps/app/tests/chrome-e2e/run.mjs
+  s_3924cab4fe5855::t_28f33ca1356bb7 119-120,122-126,128-129,135-141,311
+  s_3924cab4fe5855::t_36dd3656562e6e 121,127
+apps/app/src/shared/ui/pages/settings-detail-page.tsx
+  s_3924cab4fe5855::t_758507dc60fb7e 7
+  s_3924cab4fe5855::t_1e01f0c94aeb6a 9,261,265,326,331
+  s_3924cab4fe5855::t_a7883465c7abf5 283-293
+apps/app/public/manifest.json
+  s_3924cab4fe5855::t_4ad771c4269d5e 7-9
+apps/app/src/shared/ui/panel-css.ts
+  s_3924cab4fe5855::t_3e460cf29a4477 472,507
+apps/app/tests/settings-add-page.test.tsx
+  s_3924cab4fe5855::t_ee74ecd55cd3ab 19-25,48,108,130,139
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.13",
+  "base_commit_sha": "e72621816a293c34f2ee87670c72ddf774fa56e7",
+  "prompts": {},
+  "sessions": {
+    "s_3924cab4fe5855": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "019efd38-67db-77a1-994b-0f9dabebb738",
+        "model": "gpt-5.5"
+      },
+      "human_author": "Sinyuk <80998062@qq.com>"
+    }
+  }
+}
