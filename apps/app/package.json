@@ -15,6 +15,9 @@
   "dependencies": {
     "@imagen-ps/application": "workspace:*",
     "@imagen-ps/foundation": "workspace:*",
+    "@swc-uxp-wrappers/button": "^2.0.0",
+    "@swc-uxp-wrappers/checkbox": "^2.0.0",
+    "@swc-uxp-wrappers/textfield": "^2.0.0",
     "react": "^19.0.0",
     "react-dom": "^19.0.0"
   },

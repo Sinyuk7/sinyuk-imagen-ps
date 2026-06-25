@@ -469,6 +469,7 @@ html,body{
 .field:last-child{ margin-bottom:0; }
 .field-label{ font-size:12px; font-weight:500; color:var(--txm); margin-bottom:4px; display:block; }
 .field-input{ width:100%; background:var(--s2); border:1px solid var(--bd); border-radius:var(--rmd); padding:9px 12px; color:var(--tx); font-family:var(--fB); font-size:13px; outline:none; }
+.swc-field{ display:flex; width:100%; --spectrum-textfield-width:100%; --mod-textfield-width:100%; }
 .field-input:focus{ border-color:var(--bd2); }
 .field-input::placeholder{ color:var(--txd); }
 .field-input.mono{ font-family:var(--fM); font-size:12px; letter-spacing:.5px; }
@@ -503,6 +504,7 @@ html,body{
 .adv-body{ overflow:hidden; }
 .test-area{ padding:16px; border-top:1px solid var(--bd); display:flex; flex-direction:column; }
 .test-btn{ width:100%; padding:9px; border-radius:var(--rmd); border:1px solid var(--bd2); background:transparent; color:var(--txm); font-family:var(--fB); font-size:13px; font-weight:500; cursor:pointer; display:flex; align-items:center; justify-content:center; }
+.swc-button{ width:100%; display:flex; align-items:center; justify-content:center; }
 .test-btn svg{ margin-right:8px; }
 .test-btn:hover{ border-color:var(--sc); color:var(--sc); background:var(--scs); }
 .test-btn:disabled{ opacity:.5; cursor:not-allowed; }

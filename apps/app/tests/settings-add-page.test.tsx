@@ -16,9 +16,13 @@ afterEach(async () => {
   root = undefined;
 });
 
-function changeInput(input: HTMLInputElement, value: string): void {
-  const setter = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value')?.set;
-  setter?.call(input, value);
+function changeInput(input: HTMLElement & { value?: string }, value: string): void {
+  if (input instanceof HTMLInputElement) {
+    const setter = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value')?.set;
+    setter?.call(input, value);
+  } else {
+    input.value = value;
+  }
   input.dispatchEvent(new KeyboardEvent('keyup', { bubbles: true, key: 'x' }));
 }
 
@@ -41,7 +45,7 @@ describe('SettingsAddPage', () => {
       container.querySelector<HTMLElement>('.prov-row')!.click();
     });
 
-    const inputs = Array.from(container.querySelectorAll<HTMLInputElement>('input'));
+    const inputs = Array.from(container.querySelectorAll<HTMLElement & { value?: string }>('sp-textfield, input'));
     await act(async () => {
       changeInput(inputs[0]!, 'Local Mock');
       changeInput(inputs[1]!, 'https://mock.local');
@@ -101,7 +105,7 @@ describe('SettingsAddPage', () => {
       container.querySelector<HTMLElement>('.prov-row')!.click();
     });
 
-    const nameInput = Array.from(container.querySelectorAll<HTMLInputElement>('input'))[0];
+    const nameInput = Array.from(container.querySelectorAll<HTMLElement & { value?: string }>('sp-textfield, input'))[0];
     expect(nameInput.value).toBe('Mock Provider(1)');
   });
 
@@ -123,7 +127,7 @@ describe('SettingsAddPage', () => {
       container.querySelector<HTMLElement>('.prov-row')!.click();
     });
 
-    const inputs = Array.from(container.querySelectorAll<HTMLInputElement>('input'));
+    const inputs = Array.from(container.querySelectorAll<HTMLElement & { value?: string }>('sp-textfield, input'));
     await act(async () => {
       changeInput(inputs[0]!, 'Test Then Save');
       changeInput(inputs[1]!, 'https://mock.local');
@@ -132,7 +136,7 @@ describe('SettingsAddPage', () => {
     });
 
     await act(async () => {
-      container.querySelector<HTMLButtonElement>('.test-btn')!.click();
+      container.querySelector<HTMLElement>('.test-btn')!.click();
     });
     await act(async () => {
       container.querySelector<HTMLButtonElement>('.btn-save')!.click();

@@ -23,6 +23,15 @@ importers:
       '@imagen-ps/foundation':
         specifier: workspace:*
         version: link:../../packages/foundation
+      '@swc-uxp-wrappers/button':
+        specifier: ^2.0.0
+        version: 2.0.0
+      '@swc-uxp-wrappers/checkbox':
+        specifier: ^2.0.0
+        version: 2.0.0
+      '@swc-uxp-wrappers/textfield':
+        specifier: ^2.0.0
+        version: 2.0.0
       react:
         specifier: ^19.0.0
         version: 19.2.5
@@ -452,6 +461,18 @@ packages:
   '@jridgewell/sourcemap-codec@1.5.5':
     resolution: {integrity: sha512-cYQ9310grqxueWbl+WuIUIaiUaDcj7WOq5fVhEljNVgRfOUhY9fy2zTvfoqWsnebh8Sl70VScFbICvJnLKB0Og==}
 
+  '@lit-labs/observers@2.1.0':
+    resolution: {integrity: sha512-oeQ2tvi/ygq7S+VgnXIInMKHHFPFqvIV9j2zBzpCwl33cWviT2ltuxNpbd11etwtUVsM8woKQzfVnrc80PKhKA==}
+
+  '@lit-labs/ssr-dom-shim@1.6.0':
+    resolution: {integrity: sha512-VHb0ALPMTlgKjM6yIxxoQNnpKyUKLD04VzeQdsiXkMqkvYlAHxq9glGLmgbb889/1GsohSOAjvQYoiBppXFqrQ==}
+
+  '@lit/reactive-element@1.6.3':
+    resolution: {integrity: sha512-QuTgnG52Poic7uM1AN5yJ09QMe0O28e10XzSvWDz02TJiiKee4stsiownEIadWm8nYzyDAyT+gKzUoZmiWQtsQ==}
+
+  '@lit/reactive-element@2.1.2':
+    resolution: {integrity: sha512-pbCDiVMnne1lYUIaYNN5wrwQXDtHaYtg7YEFPeW+hws6U47WeFvISGUWekPGKWOP1ygrs0ef0o1VJMk1exos5A==}
+
   '@playwright/test@1.61.1':
     resolution: {integrity: sha512-8nKv6+0RJSL9FE4jYOEGXnPeM/Hg12qZpmqzZjRh3qM0Y7c3z1mrOTfFLids72RDQYVh9WpLEfR5WdpNX4fkig==}
     engines: {node: '>=18'}
@@ -585,8 +606,56 @@ packages:
   '@sinclair/typebox@0.27.10':
     resolution: {integrity: sha512-MTBk/3jGLNB2tVxv6uLlFh1iu64iYOQ2PbdOSK3NW8JZsmlaOh2q6sdtKowBhfw8QFLmYNzTW4/oK4uATIi6ZA==}
 
+  '@spectrum-web-components/base@0.37.0':
+    resolution: {integrity: sha512-3JOI36CemlFzXKAuennOBZ2k99ayd6yooG8eX24z58r0nT6I+3q6jYbytBRJuj48Y7vxwxqMIKX4V118A1dmMQ==}
+
+  '@spectrum-web-components/button@0.37.0':
+    resolution: {integrity: sha512-Cz69UtdNDqNVAMUjz2i1RjZ4LetR+bTnUvaDlj8heQHYR/ZHKdnMWaxS1DnZjlu7+osFo57XJPLyhlEEgYT1Ig==}
+
+  '@spectrum-web-components/checkbox@0.37.0':
+    resolution: {integrity: sha512-5DV4/aTZUkKyb6U3AHn/zxqbCeb+P1dWibp4Zjvr1FcRbMKdmY782pzRSOOXygLPkLJMKPCN4r6py32gBZY+eg==}
+
+  '@spectrum-web-components/clear-button@0.37.0':
+    resolution: {integrity: sha512-8NGvpHogC/pWGgKnVD1ZN0t+WWtuKrW6muNRI9fPJW0rGzVTTNzsTvL/QNrGusBES8/aiT08L35ayV3QfnAU7g==}
+
+  '@spectrum-web-components/close-button@0.37.0':
+    resolution: {integrity: sha512-sqqDyi725V3/3oy2J+IbUTlcHpZKEY7m+wXifanQ5mDOjP/8zX17DDZgSX2X7HI4IFevBSVYZxCV2MUhG5Zp1w==}
+
+  '@spectrum-web-components/help-text@0.37.0':
+    resolution: {integrity: sha512-MsBD9I/mVOKRrnTqFxzbtmcLvgIGrA6y7kPwldKSQeFBHmm1oey2dnrlu7NK4OtWUdJJ3dQDKi/REJX35USOcw==}
+
+  '@spectrum-web-components/icon@0.37.0':
+    resolution: {integrity: sha512-DZ1yOKHxNQygzIJ7u9akYComDnMmxuTzfmYxxt9sHdUXmc1NbMkCJqEaAG/LYsdb+hc4xWaDTT9SzArLKZ/btA==}
+
+  '@spectrum-web-components/icons-ui@0.37.0':
+    resolution: {integrity: sha512-DmaK+NDIgYhtYW19Y4lZoGYLfnFWPBjLNcLWGTQtc41yccEmgWrJbaf9n+nP4TADVJMT5dKNgE2vHnmDABtydg==}
+
+  '@spectrum-web-components/icons-workflow@0.37.0':
+    resolution: {integrity: sha512-D1Dg+ZjlqbaU/2uKYhmMtZXQMVUw9J9LevHSKSzMFL+Y++JMqRROQuzwAOFW7tttCw1w0+3kIuv2ohkeE+8fNQ==}
+
+  '@spectrum-web-components/iconset@0.37.0':
+    resolution: {integrity: sha512-s1TBjWeQtGdGf6n+r+aG2glv77IgR0pNs0HLusGyYt6jzWFkP276fE7Neqq/2XvG9a9zvAwngffnWS3td/Gtmg==}
+
+  '@spectrum-web-components/shared@0.37.0':
+    resolution: {integrity: sha512-i2yJ1tpQxUffP0xcx9QfusxKlRS3eOBZXjCnxhiicHIIlQtK+mPENbUTe2mRmVLT3WPwIt6mNzoO8w/p5h0Pxw==}
+
+  '@spectrum-web-components/textfield@0.37.0':
+    resolution: {integrity: sha512-pDhBXQth3w3OaxXGe9tMzEHvHFoJjmf2SQzOnrPPldRYx+JOEX6/fhBGel4EVXjl81oIpR9BRGAQEOFvtIWmLg==}
+
   '@standard-schema/spec@1.1.0':
     resolution: {integrity: sha512-l2aFy5jALhniG5HgqrD6jXLi/rUWrKvqN/qJx6yoJsgKhblVd+iqqU4RCXavm/jPityDo5TCvKMnpjKnOriy0w==}
+
+  '@swc-uxp-wrappers/button@2.0.0':
+    resolution: {integrity: sha512-gu0SktpuDntmWAyGJ3isNyNHAm2nyKiLWmkPXIZRygSHqpE36wNkeYar6Fdh+wFZcmqYYEL7lIZjqdCZuYcA0w==}
+
+  '@swc-uxp-wrappers/checkbox@2.0.0':
+    resolution: {integrity: sha512-Rgns87G9dh5LWGr3v9hx2eML8CK0WGpt5c+6KArRiMLAQ64GcbN8y7s4/pOLvrx3kivX6XcZczqpns3zFl3lDw==}
+
+  '@swc-uxp-wrappers/help-text@2.0.0':
+    resolution: {integrity: sha512-caiMb+PbhDC1999Uw5ugYr77PQ7pih/30DNaMry5/7UCeWuiphGGfJEXtwsfr5evdI8pRNILHbrqgiQLqhLuTg==}
+
+  '@swc-uxp-wrappers/textfield@2.0.0':
+    resolution: {integrity: sha512-gKs8rxl4y9ajV/mAiibPI1pXRcagiQSBZ1mrk0or3WU7EiFzcP//kSclL2EihtVxLLsxhLFgxwZYjfkavdSCRA==}
 
   '@turbo/darwin-64@2.9.6':
     resolution: {integrity: sha512-X/56SnVXIQZBLKwniGTwEQTGmtE5brSACnKMBWpY3YafuxVYefrC2acamfjgxP7BG5w3I+6jf0UrLoSzgPcSJg==}
@@ -640,6 +709,9 @@ packages:
 
   '@types/react@19.2.14':
     resolution: {integrity: sha512-ilcTH/UniCkMdtexkoCN0bI7pMcJDvmQFPvuPvmEaYA/NSfFTAgdUSLAoVjaRJm7+6PvcM+q1zYOwS4wTYMF9w==}
+
+  '@types/trusted-types@2.0.7':
+    resolution: {integrity: sha512-ScaPdn1dQczgbl0QFTeTOmVHFULt394XJgOQNoyVhZ6r2vLnMLJfBPd53SB52T/3G36VI1/g2MZaX0cwDuXsfw==}
 
   '@types/whatwg-mimetype@3.0.2':
     resolution: {integrity: sha512-c2AKvDT8ToxLIOUlN51gTiHXflsfIFisS4pO7pDPoKouJCESkhZnEy623gwP9laCy5lnLDAw1vAzu2vM2YLOrA==}
@@ -853,6 +925,9 @@ packages:
       picomatch:
         optional: true
 
+  focus-visible@5.2.1:
+    resolution: {integrity: sha512-8Bx950VD1bWTQJEH/AM6SpEk+SU55aVnp4Ujhuuxy3eMEBCRwBnTBnVXr9YAPvZL3/CNjCa8u4IWfNmEO53whA==}
+
   fsevents@2.3.2:
     resolution: {integrity: sha512-xiqMQR4xAeHTuB9uWm+fFRcIOgKBMiOBP+eXiyT7jsgVCq1bkVygt00oASowB7EdtpOHaaPgKt812P9ab+DDKA==}
     engines: {node: ^8.16.0 || ^10.6.0 || >=11.0.0}
@@ -891,6 +966,15 @@ packages:
 
   js-tokens@9.0.1:
     resolution: {integrity: sha512-mxa9E9ITFOt0ban3j6L5MpjwegGz6lBQmM1IJkWeBZGcMxto50+eWdjC/52xDbS2vy0k7vIMK0Fe2wfL9OQSpQ==}
+
+  lit-element@3.3.3:
+    resolution: {integrity: sha512-XbeRxmTHubXENkV4h8RIPyr8lXc+Ff28rkcQzw3G6up2xg5E8Zu1IgOWIwBLEQsu3cOVFqdYwiVi0hv0SlpqUA==}
+
+  lit-html@2.8.0:
+    resolution: {integrity: sha512-o9t+MQM3P4y7M7yNzqAyjp7z+mQGa4NS4CxiyLqFPyFWyc4O+nodLrkrxSaCTrla6M5YOLaT3RpbbqjszB5g3Q==}
+
+  lit@2.8.0:
+    resolution: {integrity: sha512-4Sc3OFX9QHOJaHbmTMk28SYgVxLN3ePDjg7hofEft2zWlehFL3LiAuapWc4U/kYwMYJSh2hTCPZ6/LIC7ii0MA==}
 
   local-pkg@0.5.1:
     resolution: {integrity: sha512-9rrA30MRRP3gBD3HTGnC6cDFpaE1kVDWxWgqWJUN0RvDNAo+Nz/9GxB+nHOH0ifbVFy0hSA1V6vFDvnx54lTEQ==}
@@ -1492,6 +1576,20 @@ snapshots:
 
   '@jridgewell/sourcemap-codec@1.5.5': {}
 
+  '@lit-labs/observers@2.1.0':
+    dependencies:
+      '@lit/reactive-element': 2.1.2
+
+  '@lit-labs/ssr-dom-shim@1.6.0': {}
+
+  '@lit/reactive-element@1.6.3':
+    dependencies:
+      '@lit-labs/ssr-dom-shim': 1.6.0
+
+  '@lit/reactive-element@2.1.2':
+    dependencies:
+      '@lit-labs/ssr-dom-shim': 1.6.0
+
   '@playwright/test@1.61.1':
     dependencies:
       playwright: 1.61.1
@@ -1573,7 +1671,92 @@ snapshots:
 
   '@sinclair/typebox@0.27.10': {}
 
+  '@spectrum-web-components/base@0.37.0':
+    dependencies:
+      lit: 2.8.0
+
+  '@spectrum-web-components/button@0.37.0':
+    dependencies:
+      '@spectrum-web-components/base': 0.37.0
+      '@spectrum-web-components/clear-button': 0.37.0
+      '@spectrum-web-components/close-button': 0.37.0
+      '@spectrum-web-components/icon': 0.37.0
+      '@spectrum-web-components/icons-ui': 0.37.0
+      '@spectrum-web-components/shared': 0.37.0
+
+  '@spectrum-web-components/checkbox@0.37.0':
+    dependencies:
+      '@spectrum-web-components/base': 0.37.0
+      '@spectrum-web-components/icon': 0.37.0
+      '@spectrum-web-components/icons-ui': 0.37.0
+      '@spectrum-web-components/shared': 0.37.0
+
+  '@spectrum-web-components/clear-button@0.37.0':
+    dependencies:
+      '@spectrum-web-components/base': 0.37.0
+
+  '@spectrum-web-components/close-button@0.37.0':
+    dependencies:
+      '@spectrum-web-components/base': 0.37.0
+
+  '@spectrum-web-components/help-text@0.37.0':
+    dependencies:
+      '@spectrum-web-components/base': 0.37.0
+      '@spectrum-web-components/icons-workflow': 0.37.0
+
+  '@spectrum-web-components/icon@0.37.0':
+    dependencies:
+      '@spectrum-web-components/base': 0.37.0
+      '@spectrum-web-components/iconset': 0.37.0
+
+  '@spectrum-web-components/icons-ui@0.37.0':
+    dependencies:
+      '@spectrum-web-components/base': 0.37.0
+      '@spectrum-web-components/icon': 0.37.0
+      '@spectrum-web-components/iconset': 0.37.0
+
+  '@spectrum-web-components/icons-workflow@0.37.0':
+    dependencies:
+      '@spectrum-web-components/base': 0.37.0
+      '@spectrum-web-components/icon': 0.37.0
+
+  '@spectrum-web-components/iconset@0.37.0':
+    dependencies:
+      '@spectrum-web-components/base': 0.37.0
+
+  '@spectrum-web-components/shared@0.37.0':
+    dependencies:
+      '@lit-labs/observers': 2.1.0
+      '@spectrum-web-components/base': 0.37.0
+      focus-visible: 5.2.1
+
+  '@spectrum-web-components/textfield@0.37.0':
+    dependencies:
+      '@spectrum-web-components/base': 0.37.0
+      '@spectrum-web-components/help-text': 0.37.0
+      '@spectrum-web-components/icon': 0.37.0
+      '@spectrum-web-components/icons-ui': 0.37.0
+      '@spectrum-web-components/icons-workflow': 0.37.0
+      '@spectrum-web-components/shared': 0.37.0
+
   '@standard-schema/spec@1.1.0': {}
+
+  '@swc-uxp-wrappers/button@2.0.0':
+    dependencies:
+      '@swc-uxp-internal/button': '@spectrum-web-components/button@0.37.0'
+
+  '@swc-uxp-wrappers/checkbox@2.0.0':
+    dependencies:
+      '@swc-uxp-internal/checkbox': '@spectrum-web-components/checkbox@0.37.0'
+
+  '@swc-uxp-wrappers/help-text@2.0.0':
+    dependencies:
+      '@swc-uxp-internal/help-text': '@spectrum-web-components/help-text@0.37.0'
+
+  '@swc-uxp-wrappers/textfield@2.0.0':
+    dependencies:
+      '@swc-uxp-internal/textfield': '@spectrum-web-components/textfield@0.37.0'
+      '@swc-uxp-wrappers/help-text': 2.0.0
 
   '@turbo/darwin-64@2.9.6':
     optional: true
@@ -1617,6 +1800,8 @@ snapshots:
   '@types/react@19.2.14':
     dependencies:
       csstype: 3.2.3
+
+  '@types/trusted-types@2.0.7': {}
 
   '@types/whatwg-mimetype@3.0.2': {}
 
@@ -1895,6 +2080,8 @@ snapshots:
     optionalDependencies:
       picomatch: 4.0.4
 
+  focus-visible@5.2.1: {}
+
   fsevents@2.3.2:
     optional: true
 
@@ -1931,6 +2118,22 @@ snapshots:
   isexe@2.0.0: {}
 
   js-tokens@9.0.1: {}
+
+  lit-element@3.3.3:
+    dependencies:
+      '@lit-labs/ssr-dom-shim': 1.6.0
+      '@lit/reactive-element': 1.6.3
+      lit-html: 2.8.0
+
+  lit-html@2.8.0:
+    dependencies:
+      '@types/trusted-types': 2.0.7
+
+  lit@2.8.0:
+    dependencies:
+      '@lit/reactive-element': 1.6.3
+      lit-element: 3.3.3
+      lit-html: 2.8.0
 
   local-pkg@0.5.1:
     dependencies:

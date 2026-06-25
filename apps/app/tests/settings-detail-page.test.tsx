@@ -25,9 +25,13 @@ async function flush(): Promise<void> {
   });
 }
 
-function changeInput(input: HTMLInputElement, value: string): void {
-  const setter = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value')?.set;
-  setter?.call(input, value);
+function changeInput(input: HTMLElement & { value?: string }, value: string): void {
+  if (input instanceof HTMLInputElement) {
+    const setter = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value')?.set;
+    setter?.call(input, value);
+  } else {
+    input.value = value;
+  }
   input.dispatchEvent(new KeyboardEvent('keyup', { bubbles: true, key: 'x' }));
 }
 
@@ -64,8 +68,8 @@ function installFlightRecorder(): Array<{ readonly event: string; readonly attrs
   return records;
 }
 
-function buttonByText(container: HTMLElement, text: string): HTMLButtonElement {
-  const button = Array.from(container.querySelectorAll<HTMLButtonElement>('button')).find((item) =>
+function buttonByText(container: HTMLElement, text: string): HTMLElement & { disabled?: boolean } {
+  const button = Array.from(container.querySelectorAll<HTMLElement & { disabled?: boolean }>('button, sp-button')).find((item) =>
     item.textContent?.includes(text),
   );
   if (!button) {
@@ -79,7 +83,7 @@ describe('SettingsDetailPage contract', () => {
     const container = document.createElement('div');
     document.body.appendChild(container);
     const { spies, onProfilesChanged } = await renderDetail(container);
-    const inputs = Array.from(container.querySelectorAll<HTMLInputElement>('.field-input'));
+    const inputs = Array.from(container.querySelectorAll<HTMLElement & { value?: string }>('.field-input'));
 
     await act(async () => {
       changeInput(inputs[0]!, 'Renamed Mock');
@@ -219,7 +223,7 @@ describe('SettingsDetailPage contract', () => {
     });
     await flush();
 
-    expect(buttonByText(container, '测试连接').disabled).toBe(false);
+    expect(Boolean(buttonByText(container, '测试连接').disabled)).toBe(false);
     expect(container.textContent).toContain('连接成功');
   });
 
@@ -243,7 +247,7 @@ describe('SettingsDetailPage contract', () => {
     const container = document.createElement('div');
     document.body.appendChild(container);
     const { onProfilesChanged } = await renderDetail(container);
-    const inputs = Array.from(container.querySelectorAll<HTMLInputElement>('.field-input'));
+    const inputs = Array.from(container.querySelectorAll<HTMLElement & { value?: string }>('.field-input'));
 
     await act(async () => {
       changeInput(inputs[0]!, 'Sensitive Alias Should Not Log');

@@ -4,8 +4,9 @@ import { useAppServices } from '../../ports/app-services-context';
 import { providerConfigFromForm, useProfileDetail, useProfileModels } from '../hooks/use-provider-settings';
 import { Icon } from '../components/icons';
 import { StatusNotice } from '../components/status-notice';
-import { UxpCheckbox, UxpTextField } from '../components/uxp-form-controls';
+import { UxpTextField } from '../components/uxp-form-controls';
 import { useI18n } from '../i18n/i18n-context';
+import { Button, Checkbox, TextField } from '../primitives/spectrum-controls';
 import { statusFromProviderTestResult, type ProviderStatus } from '../provider-status';
 
 interface SettingsDetailPageProps {
@@ -257,11 +258,11 @@ export function SettingsDetailPage({ onNav, profileId, onProfilesChanged }: Sett
               <div className="section-title">{t.settings.connectionInfo}</div>
               <div className="field">
                 <label className="field-label">{t.settings.alias}</label>
-                <UxpTextField data-testid="provider-alias-input" className="field-input" value={displayName} onValue={setDisplayName} />
+                <TextField data-testid="provider-alias-input" className="field-input swc-field" value={displayName} onValue={setDisplayName} />
               </div>
               <div className="field">
                 <label className="field-label">Base URL</label>
-                <UxpTextField data-testid="provider-base-url-input" className="field-input mono" value={baseUrl} onValue={setBaseUrl} />
+                <TextField data-testid="provider-base-url-input" className="field-input mono swc-field" value={baseUrl} onValue={setBaseUrl} />
               </div>
               <div className="field">
                 <label className="field-label">API Key</label>
@@ -279,8 +280,17 @@ export function SettingsDetailPage({ onNav, profileId, onProfilesChanged }: Sett
                   </button>
                 </div>
               </div>
-              <label className="status-inline loose" style={{ color: 'var(--txm)', fontSize: 12 }}>
-                <UxpCheckbox data-testid="provider-enabled-checkbox" checked={enabled} onChecked={setEnabled} />
+              <label
+                className="status-inline loose"
+                style={{ color: 'var(--txm)', fontSize: 12 }}
+                onClick={() => setEnabled((current) => !current)}
+              >
+                <Checkbox
+                  data-testid="provider-enabled-checkbox"
+                  checked={enabled}
+                  onChecked={setEnabled}
+                  onClick={(event) => event.stopPropagation()}
+                />
                 {t.settings.enableProfile}
               </label>
             </div>
@@ -313,12 +323,12 @@ export function SettingsDetailPage({ onNav, profileId, onProfilesChanged }: Sett
             </div>
 
             <div className="test-area">
-              <button data-testid="provider-test-button" className="test-btn" disabled={busy} onClick={() => void test()}>
+              <Button data-testid="provider-test-button" className="test-btn swc-button" disabled={busy} onClick={() => void test()}>
                 {busy
                   ? <><Icon name="spinner" size={13} className="spin" /> {t.settings.testingConnection}</>
                   : <><Icon name="arrow-right" /> {t.settings.testConnection}</>
                 }
-              </button>
+              </Button>
               {status && <StatusNotice tone={status.tone} message={status.message} />}
             </div>
           </>

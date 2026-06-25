@@ -116,9 +116,27 @@ async function checkpoint(page, capture, screenshotName, assertion) {
 }
 
 async function fillUxp(locator, value) {
+  const tagName = await locator.evaluate((element) => element.tagName.toLowerCase());
+  if (tagName === 'sp-textfield') {
+    await locator.click();
+    await locator.evaluate((element, nextValue) => {
+      element.value = nextValue;
+      element.dispatchEvent(new KeyboardEvent('keyup', { bubbles: true, key: 'x' }));
+      element.dispatchEvent(new Event('change', { bubbles: true, composed: true }));
+    }, value);
+    await locator.evaluate((element) => element.dispatchEvent(new FocusEvent('blur', { bubbles: true })));
+    return;
+  }
   await locator.click();
   await locator.fill(value);
   await locator.press('Tab');
+}
+
+async function expectControlDisabled(locator, label) {
+  const disabled = await locator.evaluate((control) => Boolean(control.disabled));
+  if (!disabled) {
+    throw new Error(`${label} was not disabled while pending.`);
+  }
 }
 
 async function expectNoVisibleSecret(page) {
@@ -290,11 +308,7 @@ async function addProviderTestScenario({ page, url, capture }) {
   await testButton.click();
   await checkpoint(page, capture, '05-add-provider-testing.png', async () => {
     await page.getByText('Testing...', { exact: true }).waitFor({ state: 'visible', timeout: 3000 });
-    await testButton.evaluate((button) => {
-      if (!(button instanceof HTMLButtonElement) || !button.disabled) {
-        throw new Error('Test connection button was not disabled while pending.');
-      }
-    });
+    await expectControlDisabled(testButton, 'Test connection button');
   });
   await checkpoint(page, capture, '06-add-provider-test-connected.png', async () => {
     await expectVisibleText(page, 'Connected');

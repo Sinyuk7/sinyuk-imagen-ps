@@ -6,6 +6,7 @@ import { Icon } from '../components/icons';
 import { StatusNotice } from '../components/status-notice';
 import { UxpTextField } from '../components/uxp-form-controls';
 import { useI18n } from '../i18n/i18n-context';
+import { Button, TextField } from '../primitives/spectrum-controls';
 import { statusFromProviderTestResult, type ProviderStatus } from '../provider-status';
 
 interface SettingsAddPageProps {
@@ -151,11 +152,11 @@ export function SettingsAddPage({ onNav, profiles, onProfileSaved }: SettingsAdd
               <div className="section-title">{t.settings.config}</div>
               <div className="field">
                 <label className="field-label">{t.settings.alias}</label>
-                <UxpTextField data-testid="provider-alias-input" className="field-input" placeholder={selected?.displayName} value={name} onValue={setName} />
+                <TextField data-testid="provider-alias-input" className="field-input swc-field" placeholder={selected?.displayName} value={name} onValue={setName} />
               </div>
               <div className="field">
                 <label className="field-label">Base URL</label>
-                <UxpTextField data-testid="provider-base-url-input" className="field-input mono" placeholder="https://api.example.com" value={baseUrl} onValue={setBaseUrl} />
+                <TextField data-testid="provider-base-url-input" className="field-input mono swc-field" placeholder="https://api.example.com" value={baseUrl} onValue={setBaseUrl} />
                 <div className="field-hint">{t.settings.baseUrlHint}</div>
               </div>
               <div className="field">
@@ -180,12 +181,12 @@ export function SettingsAddPage({ onNav, profiles, onProfileSaved }: SettingsAdd
               </div>
             </div>
             <div className="test-area">
-              <button data-testid="provider-test-button" className="test-btn" disabled={busy} onClick={() => void handleTest()}>
+              <Button data-testid="provider-test-button" className="test-btn swc-button" disabled={busy} onClick={() => void handleTest()}>
                 {busy
                   ? <><Icon name="spinner" size={13} className="spin" /> {t.settings.testingConnection}</>
                   : t.settings.testConnection
                 }
-              </button>
+              </Button>
               {status && <StatusNotice tone={status.tone} message={status.message} />}
             </div>
           </div>
