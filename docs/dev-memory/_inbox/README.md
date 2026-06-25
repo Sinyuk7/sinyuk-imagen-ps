@@ -1,11 +1,12 @@
 # Engineering Record Inbox
 
-Write one short Markdown draft for each fix, investigation, or design decision with project-shared value.
-
-Filename shape:
+Short drafts pending promotion to `memories/` or deletion. One file per topic:
 
 ```text
 YYYY-MM-DD-short-topic.md
 ```
 
-Keep drafts factual and current-state oriented. Do not add compatibility, migration, legacy, rollout, or future-support framing unless the user explicitly asks for it in the same conversation.
+A draft is a temporary scratchpad. Promote it to a stable record under
+`memories/` only if it produces reusable, stable engineering knowledge that
+cannot live in an authoritative doc. Otherwise delete it. Do not keep task
+process, chat context, raw logs, or one-off implementation details here.

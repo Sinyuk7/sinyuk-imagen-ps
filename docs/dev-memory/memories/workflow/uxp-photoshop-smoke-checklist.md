@@ -60,7 +60,7 @@
 
 ## 记录格式
 
-完成 smoke 后，将以下信息记录到当前 loop 或 `_inbox/` 笔记：
+完成 smoke 后，将以下信息作为 manual evidence 记录到 `_inbox/` 笔记（脱敏后）：
 
 - Photoshop 版本号
 - UXP Developer Tool 版本号

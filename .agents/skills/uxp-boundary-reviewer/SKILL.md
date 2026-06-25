@@ -18,7 +18,7 @@ Read:
 - `docs/TESTING.md`
 - relevant files under `apps/app/src/host` or `apps/app/tests`
 
-Use `docs/dev-memory/memories/workflow/uxp-host-debug-prep.md` only when the
+Use `docs/dev-memory/memories/workflow/uxp-host-debugging.md` only when the
 task needs manual Photoshop / UXP host smoke planning.
 Classify each doc per `docs/agent/LOOP.md` Document Authority before reading;
 do not treat completed Loops as active plans.

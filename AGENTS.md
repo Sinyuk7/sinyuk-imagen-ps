@@ -11,8 +11,7 @@ This repo uses current-state, harness-first loop engineering.
 
 ## Entrypoints
 
-- The authoritative active-loop entrypoint is only root `AGENTS.md`.
-- The CLI surface contract loop is complete; the app-loop-ready harness loop is complete; no active loop is currently specified.
+- The only authoritative active-loop entrypoint is root `AGENTS.md`. No active loop is currently declared; `docs/loops/` holds only the active loop or is empty.
 - Before non-trivial fixes or architecture changes, search project engineering records and current docs with `rg`:
   `rg -n "<module|symptom|error|decision>" docs/dev-memory docs/loops AGENTS.md README.md`
 - Use [docs/agent/LOOP.md](docs/agent/LOOP.md) for the Loop collaboration contract and `.agents/skills/` for repository-specific agent workflows.
@@ -22,8 +21,10 @@ This repo uses current-state, harness-first loop engineering.
 ## Writeback
 
 - Before finishing non-trivial work, decide whether the turn produced reusable knowledge.
+- Write only **stable, reusable engineering knowledge that cannot live more naturally in an authoritative doc** to `docs/dev-memory/`. Each record states the current fact, why future development needs it, and how to re-verify it through code, tests, harness, or a command.
+- Do not store completed plans, execution logs, task process, raw logs, full investigation transcripts, or one-off implementation details in memory. If the knowledge fits `README.md`, `docs/ENGINEERING_CONTEXT.md`, `docs/TESTING.md`, or a module doc, write it there instead.
+- Unorganized drafts go to `_inbox/`; promote stable ones under the matching `memories/` subdirectory or delete them.
 - Ask before writing user/local/profile/cross-project habits to agent memory.
-- Write project-shared engineering facts to `docs/dev-memory/`: unorganized notes go to `_inbox/`; stable architecture, decision, bug, or workflow records go under the matching `memories/` subdirectory.
 - Never store secrets, raw logs, build output, generated artifacts, or provider keys.
 
 ## Language And API

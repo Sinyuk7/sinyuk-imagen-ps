@@ -14,9 +14,13 @@ Agents must classify documents before using them as planning input.
 | Class | Examples | How to use |
 |---|---|---|
 | Current authority | `AGENTS.md`, package `AGENTS.md`, `docs/ENGINEERING_CONTEXT.md`, `docs/TESTING.md`, active Loop named by root `AGENTS.md` | May constrain current work. |
-| Completed Loop record | `docs/loops/*` with `Status: completed` | Historical evidence only; do not resume as a plan. |
-| Historical reference | `docs/dev-memory/memories/architecture/uxp-design-reference/`, `docs/dev-memory/memories/architecture/provider-openapi-reference/`, old design docs, completed sprint plans | Read only when the current task asks for that context. |
+| Active Loop | `docs/loops/*.md` named by root `AGENTS.md` | Executable plan for the current slice only. |
+| Historical reference | `docs/dev-memory/memories/architecture/provider-openapi-reference/`, `docs/dev-memory/memories/architecture/UXP_STORAGE_STRATEGY.md`, old design docs | Read only when the current task asks for that context. |
 | Manual-only workflow | UXP host smoke notes, live provider smoke notes | Use only as manual validation instructions, not default CI proof. |
+
+Completed Loop records are not retained in `docs/loops/`; their durable outcomes
+are merged into authoritative docs or stable `docs/dev-memory/` records. Do not
+treat a deleted Loop as resumable.
 
 Read targeted current authority first. Broad historical documents can add
 context without improving execution and can make completed or abandoned plans
@@ -59,21 +63,16 @@ Forbidden content:
 
 ## File Naming
 
-Date-prefixed names are useful while a Loop is active or newly drafted:
+Date-prefixed names while a Loop is active or newly drafted:
 
 ```text
 docs/loops/YYYY-MM-DD-short-name.md
 ```
 
-Completed records should prefer stable semantic names when the date no longer
-helps execution:
-
-```text
-docs/loops/short-name-loop.md
-```
-
-Status and authority metadata, not the filename, decide whether a Loop is
-active.
+When a Loop reaches `completed`, merge its durable outcomes into authoritative
+docs or stable `docs/dev-memory/` records and delete the file. `docs/loops/`
+holds only the current active Loop or is empty. Status and authority metadata,
+not the filename, decide whether a Loop is active.
 
 ## Goal And Slice Rules
 

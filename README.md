@@ -6,22 +6,24 @@ Photoshop 图像生成插件 monorepo。包含两个 surface 应用和共享 run
 
 ```
 apps/
-  app/     — Photoshop / UXP surface
+  app/     — Photoshop / UXP + Chrome dual-runtime surface
   cli/     — Node.js CLI surface
 packages/
   application/ — headless application/session layer
-  core-engine/     — job execution kernel
-  providers/       — provider adapter layer
+  core-engine/ — job execution kernel
+  providers/   — provider adapter layer
+  foundation/  — host-agnostic shared utilities (logging, redaction, sinks)
 ```
 
 ## 先读哪里
 
 - 项目入口与硬规则：`AGENTS.md`
-- 工程上下文：`docs/ENGINEERING_CONTEXT.md`
+- 工程上下文、当前限制与 open questions：`docs/ENGINEERING_CONTEXT.md`
+- 测试与 Harness 总入口：`docs/TESTING.md`
 - Loop 协作契约：`docs/agent/LOOP.md`
+- 当前 active loop 入口：`AGENTS.md`（无 active loop 时 `docs/loops/` 为空）
+- 稳定工程知识：`docs/dev-memory/`
 - 仓库级 agent skills：`.agents/skills/`
-- 当前 active loop 入口：`AGENTS.md`
-- 测试说明：`docs/TESTING.md`
 - 模块本地硬规则：各模块下的 `AGENTS.md`
 
 ## 命令
