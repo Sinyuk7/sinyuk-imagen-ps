@@ -116,9 +116,7 @@ describe('AppShell', () => {
     await flush();
 
     await act(async () => {
-      const settingsButton = Array.from(container.querySelectorAll<HTMLButtonElement>('button')).find((button) =>
-        button.innerHTML.includes('settings.png'),
-      );
+      const settingsButton = container.querySelector<HTMLButtonElement>('[data-testid="main-providers-button"]');
       settingsButton?.click();
     });
     await flush();

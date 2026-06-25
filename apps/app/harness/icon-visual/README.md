@@ -8,8 +8,8 @@ because it requires a real Photoshop host and the UXP Developer Tool.
 
 ## When to run
 
-- After replacing the `Icon` component or changing icon asset paths.
-- After updating `apps/app/public/assets/icons/` files.
+- After replacing the `Icon` component or changing SWC workflow icon mappings.
+- After changing `@spectrum-web-components/icons-workflow` imports.
 - Before declaring a UI change safe for real Photoshop.
 
 ## Prerequisites

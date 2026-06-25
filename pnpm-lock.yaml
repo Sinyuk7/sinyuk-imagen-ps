@@ -23,6 +23,18 @@ importers:
       '@imagen-ps/foundation':
         specifier: workspace:*
         version: link:../../packages/foundation
+      '@spectrum-web-components/button':
+        specifier: 0.37.0
+        version: 0.37.0
+      '@spectrum-web-components/checkbox':
+        specifier: 0.37.0
+        version: 0.37.0
+      '@spectrum-web-components/icons-workflow':
+        specifier: 0.37.0
+        version: 0.37.0
+      '@spectrum-web-components/textfield':
+        specifier: 0.37.0
+        version: 0.37.0
       '@swc-uxp-wrappers/button':
         specifier: ^2.0.0
         version: 2.0.0
@@ -31,6 +43,9 @@ importers:
         version: 2.0.0
       '@swc-uxp-wrappers/textfield':
         specifier: ^2.0.0
+        version: 2.0.0
+      '@swc-uxp-wrappers/utils':
+        specifier: 2.0.0
         version: 2.0.0
       react:
         specifier: ^19.0.0
@@ -656,6 +671,9 @@ packages:
 
   '@swc-uxp-wrappers/textfield@2.0.0':
     resolution: {integrity: sha512-gKs8rxl4y9ajV/mAiibPI1pXRcagiQSBZ1mrk0or3WU7EiFzcP//kSclL2EihtVxLLsxhLFgxwZYjfkavdSCRA==}
+
+  '@swc-uxp-wrappers/utils@2.0.0':
+    resolution: {integrity: sha512-L3dMvd8qHIESF6Qbi3P7kbxM81X+28iS62J0lHRCRGzZe4svEUzMJiw/G92CVseJ3ZBPQoTAilROZ0TVcij6rg==}
 
   '@turbo/darwin-64@2.9.6':
     resolution: {integrity: sha512-X/56SnVXIQZBLKwniGTwEQTGmtE5brSACnKMBWpY3YafuxVYefrC2acamfjgxP7BG5w3I+6jf0UrLoSzgPcSJg==}
@@ -1757,6 +1775,8 @@ snapshots:
     dependencies:
       '@swc-uxp-internal/textfield': '@spectrum-web-components/textfield@0.37.0'
       '@swc-uxp-wrappers/help-text': 2.0.0
+
+  '@swc-uxp-wrappers/utils@2.0.0': {}
 
   '@turbo/darwin-64@2.9.6':
     optional: true

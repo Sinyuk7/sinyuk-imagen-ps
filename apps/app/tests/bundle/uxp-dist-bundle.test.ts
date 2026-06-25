@@ -1,6 +1,7 @@
+import { execFileSync } from 'node:child_process';
 import { existsSync, readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
-import { describe, expect, it } from 'vitest';
+import { beforeAll, describe, expect, it } from 'vitest';
 
 const LEGACY_BAD_MOCK_PNG_BASE64 =
   'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAACklEQVR4nGNgAAAAAgAB4iG8MwAAAABJRU5ErkJggg==';
@@ -11,12 +12,26 @@ function arrayLiteralForBase64(base64: string): string {
   return Array.from(Buffer.from(base64, 'base64')).join(',');
 }
 
+function pnpmCommand(): string {
+  return process.platform === 'win32' ? 'pnpm.cmd' : 'pnpm';
+}
+
 describe('UXP dist bundle safety', () => {
+  beforeAll(() => {
+    execFileSync(pnpmCommand(), ['run', 'build'], {
+      cwd: resolve('.'),
+      stdio: 'pipe',
+      maxBuffer: 10 * 1024 * 1024,
+    });
+  });
+
   it('does not ship the legacy corrupted mock PNG in the host-loaded bundle', () => {
     const bundle = readFileSync(resolve('dist/assets/index.js'), 'utf8');
 
     expect(bundle).not.toContain(arrayLiteralForBase64(LEGACY_BAD_MOCK_PNG_BASE64));
     expect(bundle).toContain(arrayLiteralForBase64(VALID_MOCK_PNG_BASE64));
+    expect(bundle).not.toContain('import.meta');
+    expect(bundle).not.toContain('import("./focus-visible.js")');
   });
 
   it('builds a separate Chrome shell output without replacing the UXP manifest target', () => {
@@ -30,8 +45,8 @@ describe('UXP dist bundle safety', () => {
     expect(chromeHtml).toContain('Imagen Chrome Harness');
     expect(chromeHtml).toContain('type="module"');
     expect(chromeHtml).toContain('./assets/index.js');
-    expect(existsSync(resolve('dist/web/assets/icons/settings.png'))).toBe(true);
-    expect(uxpHtml).toContain('<script defer src="./assets/index.js"></script>');
+    expect(existsSync(resolve('public/assets/icons/settings.png'))).toBe(false);
+    expect(uxpHtml).toContain('./assets/index.js');
   });
 
   it('ships UXP network all-domain permission in manifest v5 string form', () => {

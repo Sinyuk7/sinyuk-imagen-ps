@@ -9,14 +9,14 @@
 
 (function checkIconRects() {
   const checks = [
-    { label: 'header history', selector: '.hdr .hdr-btn img' },
-    { label: 'header settings', selector: '.hdr .hdr-btn:nth-child(3) img' },
-    { label: 'composer add', selector: '.cmp-add img' },
-    { label: 'composer model chevron', selector: '.cmp-chip img' },
-    { label: 'composer send', selector: '.cmp-send img' },
-    { label: 'provider card place-ps', selector: '.prov-actions .act-ico:first-child img' },
-    { label: 'provider card regenerate', selector: '.prov-actions .act-ico:nth-child(2) img' },
-    { label: 'provider card copy', selector: '.prov-actions .act-ico:nth-child(3) img' },
+    { label: 'header history', selector: '[data-testid="main-history-button"] [data-icon-name="history"]' },
+    { label: 'header settings', selector: '[data-testid="main-providers-button"] [data-icon-name="settings"]' },
+    { label: 'composer add', selector: '.cmp-add [data-icon-name="add"]' },
+    { label: 'composer model chevron', selector: '.cmp-chip [data-icon-name="chevron-down"]' },
+    { label: 'composer send', selector: '.cmp-send [data-icon-name="send"]' },
+    { label: 'provider card place-ps', selector: '.prov-actions .act-ico:first-child [data-icon-name="place-ps"]' },
+    { label: 'provider card regenerate', selector: '.prov-actions .act-ico:nth-child(2) [data-icon-name="regenerate"]' },
+    { label: 'provider card copy', selector: '.prov-actions .act-ico:nth-child(3) [data-icon-name="copy"]' },
   ];
 
   const failures = [];

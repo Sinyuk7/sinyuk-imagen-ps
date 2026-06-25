@@ -1,4 +1,4 @@
-import { mkdirSync, renameSync, rmSync } from 'node:fs';
+import { mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { dirname, resolve } from 'node:path';
 import { defineConfig, mergeConfig, type Plugin } from 'vite';
 import { appViteBaseConfig } from './vite.base.config';
@@ -11,8 +11,12 @@ function chromeRootHtmlPlugin(): Plugin {
       const nestedHtml = resolve(outDir, 'src/shells/chrome/index.html');
       const rootHtml = resolve(outDir, 'index.html');
       try {
+        const html = readFileSync(nestedHtml, 'utf8');
+        // 从 src/shells/chrome/index.html 移到 dist/web/index.html 后，
+        // Vite 生成的相对路径 ../../../assets/ 要改成基于产物根的 ./assets/。
+        const fixedHtml = html.replace(/\.\.\/\.\.\/\.\.\/assets\//g, './assets/');
         mkdirSync(dirname(rootHtml), { recursive: true });
-        renameSync(nestedHtml, rootHtml);
+        writeFileSync(rootHtml, fixedHtml);
         rmSync(resolve(outDir, 'src'), { recursive: true, force: true });
       } catch {
         return;

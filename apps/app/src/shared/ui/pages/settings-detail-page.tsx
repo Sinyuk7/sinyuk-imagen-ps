@@ -4,7 +4,6 @@ import { useAppServices } from '../../ports/app-services-context';
 import { providerConfigFromForm, useProfileDetail, useProfileModels } from '../hooks/use-provider-settings';
 import { Icon } from '../components/icons';
 import { StatusNotice } from '../components/status-notice';
-import { UxpTextField } from '../components/uxp-form-controls';
 import { useI18n } from '../i18n/i18n-context';
 import { Button, Checkbox, TextField } from '../primitives/spectrum-controls';
 import { statusFromProviderTestResult, type ProviderStatus } from '../provider-status';
@@ -267,10 +266,10 @@ export function SettingsDetailPage({ onNav, profileId, onProfilesChanged }: Sett
               <div className="field">
                 <label className="field-label">API Key</label>
                 <div className="pw-wrap">
-                  <UxpTextField
+                  <TextField
                     data-testid="provider-api-key-input"
                     type={showKey ? 'text' : 'password'}
-                    className="field-input mono"
+                    className="field-input mono swc-field"
                     placeholder={detail.profile.secretRefs?.apiKey ? t.settings.savedSecretPlaceholder : 'sk-...'}
                     value={apiKey}
                     onValue={setApiKey}
@@ -307,9 +306,9 @@ export function SettingsDetailPage({ onNav, profileId, onProfilesChanged }: Sett
                     {model.displayName ?? model.id}
                   </button>
                 ))}
-                <UxpTextField
+                <TextField
                   data-testid="provider-default-model-input"
-                  className="field-input mono"
+                  className="field-input mono swc-field"
                   style={{ marginTop: 8 }}
                   placeholder={t.settings.customModelId}
                   value={defaultModel}

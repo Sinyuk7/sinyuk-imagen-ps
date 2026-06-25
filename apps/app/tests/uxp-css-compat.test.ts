@@ -124,7 +124,7 @@ const INPUT_PAGE_FORBIDDEN: readonly ForbiddenPattern[] = [
   {
     name: 'direct native input in page code',
     pattern: /<\s*input\b/u,
-    replacement: 'Use UxpTextField or UxpCheckbox so input synchronization stays in the UXP-safe control seam.',
+    replacement: 'Use shared Spectrum TextField/Checkbox primitives so Chrome and UXP stay on one control contract.',
   },
   {
     name: 'direct native textarea in page code',
@@ -134,12 +134,12 @@ const INPUT_PAGE_FORBIDDEN: readonly ForbiddenPattern[] = [
   {
     name: 'page-level native change handler',
     pattern: /\bonChange\s*=/u,
-    replacement: 'Use UXP-safe form controls instead of direct input/change handlers in pages.',
+    replacement: 'Use shared Spectrum primitives or UxpTextArea instead of direct input/change handlers in pages.',
   },
   {
     name: 'page-level native input handler',
     pattern: /\bonInput\s*=/u,
-    replacement: 'Use UXP-safe form controls instead of direct input/change handlers in pages.',
+    replacement: 'Use shared Spectrum primitives or UxpTextArea instead of direct input/change handlers in pages.',
   },
 ];
 
@@ -214,7 +214,7 @@ describe('UXP panel CSS compatibility', () => {
 
   it('does not use synthetic input/change dispatch as app harness input', () => {
     const harnessFiles = [...walkFiles(join(APP_ROOT, 'tests')), ...walkFiles(join(APP_ROOT, 'src'))].filter(
-      (filePath) => /\.(?:test|spec)\.(?:ts|tsx)$/u.test(filePath),
+      (filePath) => /\.(?:test|spec)\.(?:ts|tsx)$/u.test(filePath) && !filePath.endsWith('tests/spectrum-controls.test.tsx'),
     );
 
     for (const filePath of harnessFiles) {

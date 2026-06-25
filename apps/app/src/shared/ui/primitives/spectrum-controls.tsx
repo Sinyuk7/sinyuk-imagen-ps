@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, type HTMLAttributes, type KeyboardEvent, type ReactNode } from 'react';
-import { Button as SpectrumButton } from '@swc-uxp-wrappers/button';
-import { Checkbox as SpectrumCheckbox } from '@swc-uxp-wrappers/checkbox';
-import { Textfield as SpectrumTextfield } from '@swc-uxp-wrappers/textfield';
+import { Button as SpectrumButton } from '@spectrum-web-components/button';
+import { Checkbox as SpectrumCheckbox } from '@spectrum-web-components/checkbox';
+import { Textfield as SpectrumTextfield } from '@spectrum-web-components/textfield';
 
 type SpectrumButtonVariant = 'accent' | 'primary' | 'secondary' | 'negative';
 type SpectrumTextFieldType = 'text' | 'password' | 'url' | 'search';
@@ -20,7 +20,7 @@ interface ButtonProps extends Omit<HTMLAttributes<HTMLElement>, 'onInput' | 'onC
   readonly children: ReactNode;
 }
 
-interface TextFieldProps extends Omit<React.HTMLAttributes<HTMLElement>, 'defaultValue' | 'onInput' | 'onChange'> {
+interface TextFieldProps extends Omit<HTMLAttributes<HTMLElement>, 'defaultValue' | 'onInput' | 'onChange'> {
   readonly value: string;
   readonly onValue: (value: string) => void;
   readonly type?: SpectrumTextFieldType;
@@ -38,7 +38,11 @@ interface CheckboxProps extends Omit<React.HTMLAttributes<HTMLElement>, 'onInput
 let registered = false;
 
 /**
- * 注册 SWC 自定义元素，并避免 UXP reload 或测试重复 import 时重复 define。
+ * Shared UI 统一直接引用原生 SWC 包名；UXP build 通过 bundler alias 指向
+ * `@swc-uxp-wrappers/*`，这样页面层只维护一套 `sp-*` 合同和注册流程。
+ *
+ * 这里显式 `define()` 而不是依赖副作用入口，便于在 React 测试、Chrome build、
+ * 和 UXP reload 场景下保持同一套 registry guard。
  */
 function registerSpectrumControls(): void {
   if (registered || typeof customElements === 'undefined') {
@@ -124,12 +128,10 @@ export function TextField({
     const syncFromEvent = (event: Event) => sync(event.currentTarget);
     control.addEventListener('change', syncFromEvent);
     control.addEventListener('input', syncFromEvent);
-    control.addEventListener('keyup', syncFromEvent);
     control.addEventListener('blur', syncFromEvent);
     return () => {
       control.removeEventListener('change', syncFromEvent);
       control.removeEventListener('input', syncFromEvent);
-      control.removeEventListener('keyup', syncFromEvent);
       control.removeEventListener('blur', syncFromEvent);
     };
   }, [sync]);
@@ -147,10 +149,7 @@ export function TextField({
         sync(event.currentTarget);
         onKeyUp?.(event);
       }}
-      onBlur={(event) => {
-        sync(event.currentTarget);
-        onBlur?.(event);
-      }}
+      onBlur={onBlur}
     />
   );
 }
@@ -194,14 +193,8 @@ export function Checkbox({ checked, onChecked, disabled, children, className, on
       class={className}
       checked={checked || undefined}
       disabled={disabled || undefined}
-      onClick={(event) => {
-        window.setTimeout(() => sync(event.currentTarget), 0);
-        onClick?.(event);
-      }}
-      onKeyUp={(event) => {
-        sync(event.currentTarget);
-        onKeyUp?.(event);
-      }}
+      onClick={onClick}
+      onKeyUp={onKeyUp}
     >
       {children}
     </sp-checkbox>

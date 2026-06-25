@@ -1,13 +1,33 @@
+import { createElement, type CSSProperties, type ReactElement } from 'react';
+
+import '@spectrum-web-components/icons-workflow/icons/sp-icon-add.js';
+import '@spectrum-web-components/icons-workflow/icons/sp-icon-alert-circle.js';
+import '@spectrum-web-components/icons-workflow/icons/sp-icon-arrow-right.js';
+import '@spectrum-web-components/icons-workflow/icons/sp-icon-checkmark.js';
+import '@spectrum-web-components/icons-workflow/icons/sp-icon-chevron-down.js';
+import '@spectrum-web-components/icons-workflow/icons/sp-icon-chevron-left.js';
+import '@spectrum-web-components/icons-workflow/icons/sp-icon-chevron-right.js';
+import '@spectrum-web-components/icons-workflow/icons/sp-icon-copy.js';
+import '@spectrum-web-components/icons-workflow/icons/sp-icon-delete.js';
+import '@spectrum-web-components/icons-workflow/icons/sp-icon-drag-handle.js';
+import '@spectrum-web-components/icons-workflow/icons/sp-icon-download.js';
+import '@spectrum-web-components/icons-workflow/icons/sp-icon-file-add.js';
+import '@spectrum-web-components/icons-workflow/icons/sp-icon-history.js';
+import '@spectrum-web-components/icons-workflow/icons/sp-icon-image-add.js';
+import '@spectrum-web-components/icons-workflow/icons/sp-icon-layers.js';
+import '@spectrum-web-components/icons-workflow/icons/sp-icon-move-left-right.js';
+import '@spectrum-web-components/icons-workflow/icons/sp-icon-redo.js';
+import '@spectrum-web-components/icons-workflow/icons/sp-icon-refresh.js';
+import '@spectrum-web-components/icons-workflow/icons/sp-icon-send.js';
+import '@spectrum-web-components/icons-workflow/icons/sp-icon-settings.js';
+import '@spectrum-web-components/icons-workflow/icons/sp-icon-visibility-off.js';
+import '@spectrum-web-components/icons-workflow/icons/sp-icon-visibility.js';
+
 /**
- * @imagen-ps/app UXP 面板图标注册表
+ * @imagen-ps/app 图标调用合同。
  *
- * 之前使用 inline SVG（stroke-only Lucide 风格）的按钮图标在真实 Photoshop/UXP host
- * 中经常渲染为 0x0 或完全不可见。该模块将所有图标放到 public/assets/icons/
- * 下作为静态资源，代码只维护一个名称到文件路径的映射。
- *
- * 第一版使用 PNG 占位图，后续可以直接替换同名文件而无需修改 JSX。
- *
- * @see docs/dev-memory/memories/bug/uxp-inline-svg-icons.md
+ * Shared UI 继续只通过业务语义名称调用图标；具体图形使用 SWC workflow
+ * icon 的按需 custom element 注册，避免重新引入自制 PNG 或全量图标库。
  */
 
 export type IconName =
@@ -40,41 +60,58 @@ interface IconProps {
   /** 图标尺寸，默认 14。 */
   readonly size?: number;
   /** 自定义样式。 */
-  readonly style?: React.CSSProperties;
+  readonly style?: CSSProperties;
   /** 自定义类名。 */
   readonly className?: string;
 }
 
-const ICON_BASE_PATH = './assets/icons';
+const ICON_TAG_BY_NAME: Record<IconName, string> = {
+  add: 'sp-icon-add',
+  'arrow-right': 'sp-icon-arrow-right',
+  check: 'sp-icon-checkmark',
+  'chevron-down': 'sp-icon-chevron-down',
+  'chevron-left': 'sp-icon-chevron-left',
+  'chevron-right': 'sp-icon-chevron-right',
+  'compare-handle': 'sp-icon-drag-handle',
+  copy: 'sp-icon-copy',
+  download: 'sp-icon-download',
+  error: 'sp-icon-alert-circle',
+  eye: 'sp-icon-visibility',
+  'eye-off': 'sp-icon-visibility-off',
+  history: 'sp-icon-history',
+  'place-ps': 'sp-icon-image-add',
+  'ps-layers': 'sp-icon-layers',
+  refresh: 'sp-icon-refresh',
+  regenerate: 'sp-icon-redo',
+  send: 'sp-icon-send',
+  settings: 'sp-icon-settings',
+  spinner: 'sp-icon-refresh',
+  trash: 'sp-icon-delete',
+  upload: 'sp-icon-file-add',
+};
 
 /**
- * UXP 安全的图标组件，使用经过打包的静态 PNG 资源。
+ * 渲染已按需注册的 SWC workflow icon。
  *
  * @param props.name - 图标名称
  * @param props.size - 渲染尺寸
  * @param props.style - 额外样式
  * @param props.className - 额外类名
  */
-export function Icon({ name, size = 14, style, className }: IconProps) {
-  return (
-    <img
-      src={`${ICON_BASE_PATH}/${name}.png`}
-      alt=""
-      width={size}
-      height={size}
-      className={className}
-      style={{ display: 'block', flexShrink: 0, ...style }}
-      draggable={false}
-    />
-  );
-}
-
-/**
- * 获取图标的静态资源 URL，用于需要直接使用 <img> 之外场景。
- *
- * @param name - 图标名称
- * @returns 相对于当前页面的图标 URL
- */
-export function iconUrl(name: IconName): string {
-  return `${ICON_BASE_PATH}/${name}.png`;
+export function Icon({ name, size = 14, style, className }: IconProps): ReactElement {
+  return createElement(ICON_TAG_BY_NAME[name], {
+    'aria-hidden': 'true',
+    className,
+    'data-icon': ICON_TAG_BY_NAME[name],
+    'data-icon-name': name,
+    slot: 'icon',
+    style: {
+      color: 'inherit',
+      display: 'block',
+      flexShrink: 0,
+      height: size,
+      width: size,
+      ...style,
+    },
+  });
 }

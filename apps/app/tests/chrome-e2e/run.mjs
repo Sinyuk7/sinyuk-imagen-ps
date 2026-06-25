@@ -132,6 +132,21 @@ async function fillUxp(locator, value) {
   await locator.press('Tab');
 }
 
+function normalizeAppUrl(url) {
+  return url.replace('/index.html?', '/?');
+}
+
+async function expectControlProperty(locator, property, expectedValue, label) {
+  await locator.evaluate((element, expectation) => {
+    const actualValue = element?.[expectation.property];
+    if (actualValue !== expectation.expectedValue) {
+      throw new Error(
+        `${expectation.label}: expected ${expectation.property}=${JSON.stringify(expectation.expectedValue)}, got ${JSON.stringify(actualValue)} on <${element.tagName.toLowerCase()}>.`,
+      );
+    }
+  }, { property, expectedValue, label });
+}
+
 async function expectControlDisabled(locator, label) {
   const disabled = await locator.evaluate((control) => Boolean(control.disabled));
   if (!disabled) {
@@ -147,15 +162,16 @@ async function expectNoVisibleSecret(page) {
 }
 
 async function expectSavedSecretPlaceholder(page) {
-  await page.getByTestId('provider-api-key-input').evaluate((input) => {
-    if (!(input instanceof HTMLInputElement) || input.placeholder !== 'Saved; leave blank to keep unchanged') {
-      throw new Error(`Unexpected saved secret placeholder: ${input instanceof HTMLInputElement ? input.placeholder : 'not an input'}`);
-    }
-  });
+  await expectControlProperty(
+    page.getByTestId('provider-api-key-input'),
+    'placeholder',
+    'Saved; leave blank to keep unchanged',
+    'Saved secret placeholder mismatch',
+  );
 }
 
 async function openApp(page, url) {
-  await page.goto(url, { waitUntil: 'networkidle' });
+  await page.goto(normalizeAppUrl(url), { waitUntil: 'networkidle' });
   await page.locator('#root[data-runtime="chrome"][data-status="ok"]').waitFor({ timeout: 10000 });
 }
 
@@ -273,17 +289,9 @@ async function addProviderSaveScenario({ page, url, capture }) {
   await openAddProviderStep2(page, url);
   await fillMockProviderDraft(page, 'Mock Profile E2E');
   await page.getByTestId('provider-api-key-toggle').click();
-  await page.getByTestId('provider-api-key-input').evaluate((input) => {
-    if (!(input instanceof HTMLInputElement) || input.type !== 'text') {
-      throw new Error('API key input did not switch to text type.');
-    }
-  });
+  await expectControlProperty(page.getByTestId('provider-api-key-input'), 'type', 'text', 'API key input did not switch to text type');
   await page.getByTestId('provider-api-key-toggle').click();
-  await page.getByTestId('provider-api-key-input').evaluate((input) => {
-    if (!(input instanceof HTMLInputElement) || input.type !== 'password') {
-      throw new Error('API key input did not switch back to password type.');
-    }
-  });
+  await expectControlProperty(page.getByTestId('provider-api-key-input'), 'type', 'password', 'API key input did not switch back to password type');
   await checkpoint(page, capture, '03-add-provider-step-2-filled.png', async () => {
     await expectVisibleText(page, 'Alias');
     await expectVisibleText(page, 'Base URL');
@@ -611,7 +619,7 @@ async function persistenceSmokeScenario({ page, origin, capture }) {
   await fillMockProviderDraft(page, 'Mock Persisted E2E');
   await page.getByTestId('provider-save-button').click();
   await expectVisibleText(page, 'Mock Persisted E2E');
-  await page.goto(`${origin}/index.html?testHarness=1&storage=indexed-db&db=${encodeURIComponent(dbName)}&scenario=seeded-document`, { waitUntil: 'networkidle' });
+  await page.goto(normalizeAppUrl(`${origin}/index.html?testHarness=1&storage=indexed-db&db=${encodeURIComponent(dbName)}&scenario=seeded-document`), { waitUntil: 'networkidle' });
   await page.locator('#root[data-runtime="chrome"][data-status="ok"]').waitFor({ timeout: 10000 });
   await checkpoint(page, capture, '38-persisted-provider-after-reload.png', async () => {
     await expectVisibleText(page, 'Mock Persisted E2E');

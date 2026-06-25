@@ -4,7 +4,6 @@ import { useAppServices } from '../../ports/app-services-context';
 import { providerConfigFromForm, useProviderCatalog } from '../hooks/use-provider-settings';
 import { Icon } from '../components/icons';
 import { StatusNotice } from '../components/status-notice';
-import { UxpTextField } from '../components/uxp-form-controls';
 import { useI18n } from '../i18n/i18n-context';
 import { Button, TextField } from '../primitives/spectrum-controls';
 import { statusFromProviderTestResult, type ProviderStatus } from '../provider-status';
@@ -161,15 +160,21 @@ export function SettingsAddPage({ onNav, profiles, onProfileSaved }: SettingsAdd
               </div>
               <div className="field">
                 <label className="field-label">{t.settings.defaultModel}</label>
-                <UxpTextField data-testid="provider-default-model-input" className="field-input mono" placeholder="gpt-image-2" value={defaultModel} onValue={setDefaultModel} />
+                <TextField
+                  data-testid="provider-default-model-input"
+                  className="field-input mono swc-field"
+                  placeholder="gpt-image-2"
+                  value={defaultModel}
+                  onValue={setDefaultModel}
+                />
               </div>
               <div className="field" style={{ marginBottom: 0 }}>
                 <label className="field-label">API Key</label>
                 <div className="pw-wrap">
-                  <UxpTextField
+                  <TextField
                     data-testid="provider-api-key-input"
                     type={showKey ? 'text' : 'password'}
-                    className="field-input mono"
+                    className="field-input mono swc-field"
                     placeholder="sk-..."
                     value={apiKey}
                     onValue={setApiKey}
