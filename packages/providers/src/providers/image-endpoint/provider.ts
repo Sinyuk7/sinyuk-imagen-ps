@@ -6,6 +6,7 @@ import { imageEndpointDescriptor } from './descriptor.js';
 import { imageEndpointConfigSchema, type ImageEndpointProviderConfig } from './config-schema.js';
 import { mockRequestSchema, type MockProviderRequest } from '../mock/request-schema.js';
 import { httpRequest } from '../../transport/image-endpoint/http.js';
+import { resolvePaidRetryConfig, resolveIdempotencyHeader } from '../../transport/image-endpoint/paid-retry.js';
 import {
   buildEditRequestBody,
   buildEditMultipartBody,
@@ -107,6 +108,10 @@ export function createImageEndpointProvider(): Provider<ImageEndpointProviderCon
             ? buildEditMultipartBody(request, config.defaultModel)
             : buildEditRequestBody(request, config.defaultModel);
 
+      // 付费生成请求：按 provider 能力解析保守重试策略与可选 idempotency key。
+      const paidRetry = resolvePaidRetryConfig(imageEndpointDescriptor);
+      const idempotencyHeader = resolveIdempotencyHeader(paidRetry, request as unknown as Record<string, unknown>);
+
       const response = await httpRequest(
         {
           url,
@@ -114,13 +119,15 @@ export function createImageEndpointProvider(): Provider<ImageEndpointProviderCon
           headers: {
             Authorization: `Bearer ${config.apiKey}`,
             ...(config.extraHeaders ?? {}),
+            ...(idempotencyHeader ?? {}),
           },
           body,
           timeoutMs: config.timeoutMs,
         },
-        undefined,
+        paidRetry.policy,
         signal,
         args.logger,
+        { retryability: 'paid', idempotencySupported: paidRetry.idempotencySupported },
       );
 
       const parsed = parseResponse(response.response.data);

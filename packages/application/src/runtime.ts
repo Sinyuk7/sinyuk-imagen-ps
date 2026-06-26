@@ -552,6 +552,18 @@ export function _resetForTesting(): void {
   runtimeLogger = undefined;
 }
 
+/**
+ * 直接注入已装配的 Runtime 实例（仅供测试）。
+ *
+ * 用于端到端 submit→retry→provider 计数测试：让真实 `submitJob`/`retryJob` 命令
+ * （它们调用 `getRuntime()`）使用注入的、带 counting/deferred provider adapter 的
+ * runtime，从而在真实命令路径上观测 L2（新建 Job）/ L3（provider.invoke）计数。
+ * 调用方需自行确保已通过 `setJobHistoryStore` 等注入配套 adapter。
+ */
+export function _setRuntimeInstanceForTesting(runtime: ExtendedRuntime): void {
+  instance = runtime;
+}
+
 /** 将 terminal job 写入 host-injected durable history。 */
 export async function flushJobHistoryForTerminalJob(job: Job, options?: DurableJobFlushOptions): Promise<void> {
   await flushTerminalJobHistory(job, options);

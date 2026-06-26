@@ -50,6 +50,41 @@ export interface ProviderDescriptor {
    * `listProfileModels` 行为上等价（均视为"无 implementation 兜底"）。
    */
   readonly defaultModels?: readonly ProviderModelInfo[];
+
+  /**
+   * 传输层能力与付费重试策略（OPTIONAL）。
+   *
+   * 仅影响付费生成请求的 transport 自动重试边界与 idempotency key 透传；
+   * 未声明时 transport 按保守的付费默认策略处理（见
+   * `transport/image-endpoint/paid-retry.ts`）。
+   */
+  readonly transport?: ProviderTransportCapability;
+}
+
+/**
+ * Provider 传输层能力声明。
+ *
+ * 用于把「provider 是否支持可靠 idempotency key」与「付费重试数值策略」显式表达，
+ * 而不是隐式假设所有 provider 行为一致。
+ */
+export interface ProviderTransportCapability {
+  /**
+   * Provider 后端是否对付费生成请求支持可靠的 idempotency key。
+   *
+   * - `'supported'`：transport 会为每次逻辑请求生成稳定的 `Idempotency-Key` header
+   *   透传给后端，并对 502/504/`network_error` 这类模糊失败恢复自动重试（重试安全）。
+   * - `'unsupported'` 或未声明：transport 对模糊失败不自动重试，避免重复扣费。
+   */
+  readonly idempotency?: 'supported' | 'unsupported';
+
+  /**
+   * 付费生成请求的 retry 数值策略覆盖（OPTIONAL）。
+   *
+   * 未声明时使用 `defaultPaidRetryPolicy`。「哪些错误可重试」的分类由 transport
+   * 内部决定，与此数值无关。此处用结构化类型而非直接引用 transport 的
+   * `RetryPolicy`，避免 contract 反向依赖 transport 层。
+   */
+  readonly retryPolicy?: { readonly maxRetries: number; readonly baseDelayMs: number; readonly factor: number };
 }
 
 /** `invoke()` 的调用参数。 */

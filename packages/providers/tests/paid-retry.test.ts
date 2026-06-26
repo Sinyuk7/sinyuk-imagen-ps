@@ -1,0 +1,132 @@
+import { afterEach, describe, expect, it, vi } from 'vitest';
+import { buildIdempotencyKey, resolvePaidRetryConfig, resolveIdempotencyHeader } from '../src/transport/image-endpoint/paid-retry.js';
+import { defaultPaidRetryPolicy } from '../src/transport/image-endpoint/retry.js';
+import { httpRequest } from '../src/transport/image-endpoint/http.js';
+import { createCountingFetch } from './counting-transport.js';
+import type { ProviderDescriptor } from '../src/contract/provider.js';
+
+const baseDescriptor: ProviderDescriptor = {
+  id: 'test-provider',
+  family: 'image-endpoint',
+  displayName: 'Test',
+  operations: ['text_to_image'],
+  invokeMode: 'sync',
+};
+
+afterEach(() => {
+  vi.unstubAllGlobals();
+});
+
+describe('resolvePaidRetryConfig', () => {
+  it('defaults to conservative paid policy + no idempotency when transport undeclared', () => {
+    const config = resolvePaidRetryConfig(baseDescriptor);
+    expect(config.idempotencySupported).toBe(false);
+    expect(config.policy).toEqual(defaultPaidRetryPolicy);
+  });
+
+  it('reads idempotency supported from descriptor.transport', () => {
+    const config = resolvePaidRetryConfig({
+      ...baseDescriptor,
+      transport: { idempotency: 'supported' },
+    });
+    expect(config.idempotencySupported).toBe(true);
+  });
+
+  it('reads custom retry policy from descriptor.transport', () => {
+    const custom = { maxRetries: 1, baseDelayMs: 5, factor: 1 };
+    const config = resolvePaidRetryConfig({
+      ...baseDescriptor,
+      transport: { idempotency: 'unsupported', retryPolicy: custom },
+    });
+    expect(config.policy).toEqual(custom);
+    expect(config.idempotencySupported).toBe(false);
+  });
+});
+
+describe('buildIdempotencyKey', () => {
+  it('is stable for identical canonical requests', () => {
+    const request = { operation: 'text_to_image', prompt: 'a cat', providerOptions: { model: 'gpt-image-1' } };
+    expect(buildIdempotencyKey(request)).toBe(buildIdempotencyKey({ ...request }));
+  });
+
+  it('differs for different prompts', () => {
+    const a = buildIdempotencyKey({ operation: 'text_to_image', prompt: 'a cat' });
+    const b = buildIdempotencyKey({ operation: 'text_to_image', prompt: 'a dog' });
+    expect(a).not.toBe(b);
+  });
+
+  it('differs for different image counts', () => {
+    const a = buildIdempotencyKey({ operation: 'image_edit', prompt: 'edit', images: [] });
+    const b = buildIdempotencyKey({ operation: 'image_edit', prompt: 'edit', images: [{ data: 'x' }] });
+    expect(a).not.toBe(b);
+  });
+
+  it('produces a header-safe hex string', () => {
+    const key = buildIdempotencyKey({ operation: 'text_to_image', prompt: 'a cat' });
+    expect(key).toMatch(/^imagen-[0-9a-f]+$/);
+  });
+});
+
+describe('resolveIdempotencyHeader', () => {
+  it('returns undefined when idempotency unsupported', () => {
+    const config = resolvePaidRetryConfig(baseDescriptor);
+    expect(resolveIdempotencyHeader(config, { operation: 'text_to_image', prompt: 'a cat' })).toBeUndefined();
+  });
+
+  it('returns Idempotency-Key header when supported', () => {
+    const config = resolvePaidRetryConfig({ ...baseDescriptor, transport: { idempotency: 'supported' } });
+    const header = resolveIdempotencyHeader(config, { operation: 'text_to_image', prompt: 'a cat' });
+    expect(header).toEqual({ 'Idempotency-Key': expect.any(String) });
+  });
+});
+
+describe('httpRequest idempotency-key passthrough across retries', () => {
+  it('sends the same Idempotency-Key on every attempt when idempotency is supported', async () => {
+    // 第 1 次 network_error（模糊失败），第 2 次成功；paid + idempotencySupported → 重试。
+    const counting = createCountingFetch([
+      { kind: 'network_error' },
+      { kind: 'response', status: 200, data: { ok: true } },
+    ]);
+    vi.stubGlobal('fetch', counting.fetch);
+
+    const idempotencyKey = 'imagen-stable-key';
+    await httpRequest(
+      {
+        url: 'https://example.local/v1/images/generations',
+        method: 'POST',
+        headers: { Authorization: 'Bearer sk-test', 'Idempotency-Key': idempotencyKey },
+        body: { prompt: 'a cat' },
+      },
+      { maxRetries: 3, baseDelayMs: 0, factor: 1 },
+      undefined,
+      undefined,
+      { retryability: 'paid', idempotencySupported: true },
+    );
+
+    expect(counting.attemptCount()).toBe(2);
+    expect(counting.calls[0].headers['Idempotency-Key']).toBe(idempotencyKey);
+    expect(counting.calls[1].headers['Idempotency-Key']).toBe(idempotencyKey);
+  });
+
+  it('does NOT retry network_error when idempotency unsupported (no double charge)', async () => {
+    const counting = createCountingFetch([{ kind: 'network_error' }, { kind: 'response', status: 200 }]);
+    vi.stubGlobal('fetch', counting.fetch);
+
+    await expect(
+      httpRequest(
+        {
+          url: 'https://example.local/v1/images/generations',
+          method: 'POST',
+          headers: { Authorization: 'Bearer sk-test' },
+          body: { prompt: 'a cat' },
+        },
+        { maxRetries: 3, baseDelayMs: 0, factor: 1 },
+        undefined,
+        undefined,
+        { retryability: 'paid', idempotencySupported: false },
+      ),
+    ).rejects.toThrow();
+
+    expect(counting.attemptCount()).toBe(1);
+  });
+});

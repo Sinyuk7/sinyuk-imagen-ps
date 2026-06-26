@@ -1,12 +1,21 @@
 /**
  * Image endpoint transport 的有限指数退避 retry 策略。
  *
- * 仅对以下情况触发重试：
- * - 网络错误（fetch 抛异常）
- * - HTTP 429
- * - HTTP 502 / 503 / 504
+ * 重试决策分为两条正交轴：
  *
- * 策略参数：最多 3 次，指数退避，支持 AbortSignal。
+ * 1. **retryability mode**（重试范围）：
+ *    - `'broad'`（默认，向后兼容）：对 429/502/503/504 与 `network_error` 重试，`timeout` 不重试。
+ *      适用于非付费的 discovery / 探测类请求。
+ *    - `'paid'`：付费生成请求的保守策略。无 idempotency 支持时只重试「可证明未被服务端
+ *      处理」的状态（429 rate-limited、503 service-unavailable）；对 502/504/`network_error`/
+ *      `timeout` 这类「服务端可能已处理、响应丢失」的模糊失败**不自动重试**，避免重复扣费。
+ *      当 `idempotencySupported` 为真（provider 透传了稳定的 `Idempotency-Key`）时，
+ *      恢复对 502/504/`network_error` 的重试（`timeout` 仍不重试）。
+ *
+ * 2. **RetryPolicy**（次数 / 退避参数）：`maxRetries` / `baseDelayMs` / `factor`。
+ *
+ * 逻辑任务重试（retryJob）与传输层自动重试 MUST 分开计数、分开决策；传输层重试只在
+ * 同一次 `provider.invoke` 内部发生，对上层不可见。
  */
 
 import type { ProviderDiagnostic } from '../../contract/diagnostics.js';
@@ -32,8 +41,102 @@ export const defaultRetryPolicy: RetryPolicy = {
   factor: 2,
 };
 
-function isRetryableStatusCode(statusCode: number): boolean {
+/**
+ * 付费生成请求的默认 retry 数值策略。
+ *
+ * 数值与 `defaultRetryPolicy` 相同，但作为独立常量声明，便于未来独立调优；
+ * 付费语义的「哪些错误可重试」由 `classifyPaidRetry` 决定，与此数值无关。
+ */
+export const defaultPaidRetryPolicy: RetryPolicy = {
+  maxRetries: 3,
+  baseDelayMs: 1000,
+  factor: 2,
+};
+
+/** 重试范围模式。 */
+export type RetryabilityMode = 'broad' | 'paid';
+
+/** `withRetry` / `httpRequest` 的重试决策选项。 */
+export interface RetryOptions {
+  /** 重试范围模式，默认 `'broad'`（向后兼容）。付费生成请求应传 `'paid'`。 */
+  readonly retryability?: RetryabilityMode;
+
+  /**
+   * Provider 是否支持可靠 idempotency key。仅 `'paid'` 模式下生效：为真时对
+   * 502/504/`network_error` 这类模糊失败恢复重试（因 `Idempotency-Key` 使重试安全）。
+   */
+  readonly idempotencySupported?: boolean;
+}
+
+function extractKind(error: unknown): string | undefined {
+  return typeof error === 'object' && error !== null && 'kind' in error
+    ? (error as { kind?: string }).kind
+    : undefined;
+}
+
+function extractStatusCode(error: unknown): number | undefined {
+  return typeof error === 'object' &&
+    error !== null &&
+    'statusCode' in error &&
+    typeof (error as { statusCode?: unknown }).statusCode === 'number'
+    ? (error as { statusCode: number }).statusCode
+    : undefined;
+}
+
+function isRetryableStatusCodeBroad(statusCode: number): boolean {
   return statusCode === 429 || statusCode === 502 || statusCode === 503 || statusCode === 504;
+}
+
+/**
+ * `broad` 模式的重试判定（向后兼容旧行为）：
+ * 429/502/503/504 或 `network_error` 重试；`timeout` 不重试。
+ */
+function shouldRetryBroad(error: unknown): boolean {
+  const kind = extractKind(error);
+  if (kind === 'timeout') {
+    return false;
+  }
+  const statusCode = extractStatusCode(error);
+  return (statusCode !== undefined && isRetryableStatusCodeBroad(statusCode)) || kind === 'network_error';
+}
+
+/**
+ * `paid` 模式的重试判定（付费生成请求保守策略）。
+ *
+ * - `timeout`：永不重试（请求可能已被服务端处理，响应未返回）。
+ * - `network_error`：仅当 `idempotencySupported` 时重试（否则可能重复扣费）。
+ * - 429：重试（rate-limited，服务端明确未处理）。
+ * - 503：重试（service-unavailable，服务端明确未处理）。
+ * - 502 / 504：仅当 `idempotencySupported` 时重试（gateway/ upstream 模糊失败）。
+ * - 其它：不重试。
+ */
+export function classifyPaidRetry(error: unknown, idempotencySupported: boolean): boolean {
+  const kind = extractKind(error);
+  if (kind === 'timeout') {
+    return false;
+  }
+  const statusCode = extractStatusCode(error);
+
+  if (kind === 'network_error') {
+    return idempotencySupported;
+  }
+
+  if (statusCode === 429 || statusCode === 503) {
+    return true;
+  }
+
+  if (statusCode === 502 || statusCode === 504) {
+    return idempotencySupported;
+  }
+
+  return false;
+}
+
+function shouldRetry(error: unknown, opts: RetryOptions | undefined): boolean {
+  if (opts?.retryability === 'paid') {
+    return classifyPaidRetry(error, opts.idempotencySupported === true);
+  }
+  return shouldRetryBroad(error);
 }
 
 function delay(ms: number, signal?: AbortSignal): Promise<void> {
@@ -87,6 +190,9 @@ function createAbortError(message: string): Error {
  * @param operation 需要重试的异步操作
  * @param policy retry 策略
  * @param signal 可选的取消信号
+ * @param onRetry 可选的重试诊断回调
+ * @param logger 可选 Logger
+ * @param opts 重试决策选项（`retryability` / `idempotencySupported`）
  * @returns operation 的结果
  */
 export async function withRetry<T>(
@@ -95,6 +201,7 @@ export async function withRetry<T>(
   signal?: AbortSignal,
   onRetry?: (diagnostic: ProviderDiagnostic) => void,
   logger?: Logger,
+  opts?: RetryOptions,
 ): Promise<T> {
   let lastError: ProviderInvokeError | undefined;
 
@@ -106,33 +213,10 @@ export async function withRetry<T>(
     try {
       return await operation();
     } catch (error) {
-      // 判断是否为 ProviderInvokeError 且带有 statusCode
-      const statusCode =
-        typeof error === 'object' &&
-        error !== null &&
-        'statusCode' in error &&
-        typeof (error as { statusCode?: unknown }).statusCode === 'number'
-          ? (error as { statusCode: number }).statusCode
-          : undefined;
+      const shouldRetryThisAttempt = shouldRetry(error, opts);
 
-      const isNetworkError =
-        typeof error === 'object' &&
-        error !== null &&
-        'kind' in error &&
-        (error as { kind?: string }).kind === 'network_error';
-
-      const isTimeoutError =
-        typeof error === 'object' &&
-        error !== null &&
-        'kind' in error &&
-        (error as { kind?: string }).kind === 'timeout';
-
-      const shouldRetry =
-        !isTimeoutError &&
-        ((statusCode !== undefined && isRetryableStatusCode(statusCode)) || isNetworkError);
-
-      if (!shouldRetry) {
-        // 不可重试的 HTTP 错误直接抛出
+      if (!shouldRetryThisAttempt) {
+        // 不可重试的错误直接抛出
         throw error;
       }
 
@@ -143,6 +227,7 @@ export async function withRetry<T>(
 
       lastError = error as ProviderInvokeError;
 
+      const statusCode = extractStatusCode(error);
       // 计算退避延迟
       const waitMs = policy.baseDelayMs * Math.pow(policy.factor, attempt);
       const diagnostic: ProviderDiagnostic = {
