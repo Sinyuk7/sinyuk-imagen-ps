@@ -322,7 +322,7 @@ export function MainPage({
                       </span>
                     </div>
                     <div className="err-msg">{round.errorMessage}</div>
-                    <button data-testid={`error-retry-button-${round.id}`} className="err-retry" onClick={() => void conversation.retry(round.id)}>{t.history.retry}</button>
+                    <button data-testid={`error-retry-button-${round.id}`} className="err-retry" disabled={conversation.running} onClick={() => void conversation.retry(round.id)}>{t.history.retry}</button>
                   </div>
                 </div>
               )}
@@ -379,7 +379,7 @@ export function MainPage({
                         </button>
                       </Tip>
                       <Tip label={t.main.regenerate}>
-                        <button data-testid={`result-regenerate-button-${round.id}`} className="act-ico" onClick={(event) => { event.stopPropagation(); void conversation.retry(round.id); }}>
+                        <button data-testid={`result-regenerate-button-${round.id}`} className="act-ico" disabled={conversation.running} onClick={(event) => { event.stopPropagation(); void conversation.retry(round.id); }}>
                           <Icon name="regenerate" />
                         </button>
                       </Tip>

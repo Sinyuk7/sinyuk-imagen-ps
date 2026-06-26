@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { JobError, JobSessionSnapshot } from '@imagen-ps/application';
 import type { AppServices } from '../../ports/app-services';
 import {
@@ -158,6 +158,18 @@ export function useConversation(
   const [rounds, setRounds] = useState<readonly ConversationRound[]>([]);
   const running = useMemo(() => rounds.some((round) => round.status === 'running'), [rounds]);
 
+  /**
+   * UI 同步 ref 门禁（交互反馈层，非唯一权威）。
+   *
+   * - `submitInFlightRef`：交互宿主单 in-flight contract —— 在 React 状态更新前封住
+   *   同 tick 的 send/regenerate 双击窗口。session 层 in-flight registry 是权威边界。
+   * - `retryInFlightRef`：按 roundId 封住同一 round 的同 tick retry burst。
+   *
+   * 使用 useRef（同步）而非 state，确保在异步 session 调用前即生效。
+   */
+  const submitInFlightRef = useRef(false);
+  const retryInFlightRef = useRef<Set<string>>(new Set());
+
   useEffect(() => {
     if (!running) {
       return;
@@ -188,39 +200,107 @@ export function useConversation(
         return;
       }
 
-      const roundId = createRoundId();
-      const attachments = input.attachments ?? [];
-      const round: ConversationRound = {
-        id: roundId,
-        time: nowTime(),
-        prompt,
-        status: 'running',
-        providerName: input.providerName,
-        profileId: input.profileId,
-        ...(input.modelId ? { modelId: input.modelId } : {}),
-        elapsedSeconds: 0,
-        previews: [],
-        attachments,
-      };
-      setRounds((current) => [...current, round]);
-
-      const providerOptions = input.modelId ? { model: input.modelId } : undefined;
-      const workflow = attachments.length > 0 ? 'provider-edit' : 'provider-generate';
-      const jobInput = {
-        __clientRoundId: roundId,
-        profileId: input.profileId,
-        prompt,
-        output: { count: 1 },
-        ...(providerOptions ? { providerOptions } : {}),
-        ...(attachments.length > 0 ? { images: attachments.map((attachment) => attachment.image.asset) } : {}),
-      };
+      // 同 tick 门禁：封住 React 状态更新前的 send/regenerate 双击窗口。
+      if (submitInFlightRef.current) {
+        return;
+      }
+      submitInFlightRef.current = true;
 
       try {
-        const result = await sessionBinding.session.submitJob({
-          workflow,
-          input: jobInput,
-        });
+        const roundId = createRoundId();
+        const attachments = input.attachments ?? [];
+        const round: ConversationRound = {
+          id: roundId,
+          time: nowTime(),
+          prompt,
+          status: 'running',
+          providerName: input.providerName,
+          profileId: input.profileId,
+          ...(input.modelId ? { modelId: input.modelId } : {}),
+          elapsedSeconds: 0,
+          previews: [],
+          attachments,
+        };
+        setRounds((current) => [...current, round]);
 
+        const providerOptions = input.modelId ? { model: input.modelId } : undefined;
+        const workflow = attachments.length > 0 ? 'provider-edit' : 'provider-generate';
+        const jobInput = {
+          __clientRoundId: roundId,
+          profileId: input.profileId,
+          prompt,
+          output: { count: 1 },
+          ...(providerOptions ? { providerOptions } : {}),
+          ...(attachments.length > 0 ? { images: attachments.map((attachment) => attachment.image.asset) } : {}),
+        };
+
+        try {
+          const result = await sessionBinding.session.submitJob({
+            workflow,
+            input: jobInput,
+          });
+
+          setRounds((current) =>
+            current.map((item) => {
+              if (item.id !== roundId) {
+                return item;
+              }
+              return result.ok
+                ? roundFromSessionJob(
+                    sessionBinding.snapshot.jobs.find((job) => job.id === result.value.id) ??
+                      jobSnapshotFromResult(
+                        result.value.id,
+                        workflow,
+                        result.value.status,
+                        result.value.output,
+                        result.value.error,
+                      ),
+                    item,
+                    messages,
+                  )
+                : errorRound(item, result.error);
+            }),
+          );
+        } catch (error) {
+          setRounds((current) =>
+            current.map((item) =>
+              item.id === roundId ? errorRound(item, error instanceof Error ? error : new Error(String(error))) : item,
+            ),
+          );
+        }
+      } finally {
+        submitInFlightRef.current = false;
+      }
+    },
+    [messages, sessionBinding.session, sessionBinding.snapshot.jobs],
+  );
+
+  const retry = useCallback(
+    async (roundId: string) => {
+      // 同 tick 门禁：封住同一 round 的 regenerate / error-retry burst。
+      if (retryInFlightRef.current.has(roundId)) {
+        return;
+      }
+      retryInFlightRef.current.add(roundId);
+      try {
+        const round = rounds.find((item) => item.id === roundId);
+        if (round?.status === 'ok' && round.profileId) {
+          await submit({
+            prompt: round.prompt,
+            profileId: round.profileId,
+            providerName: round.providerName,
+            ...(round.modelId ? { modelId: round.modelId } : {}),
+            attachments: round.attachments,
+          });
+          return;
+        }
+        if (!round?.jobId) {
+          return;
+        }
+        setRounds((current) =>
+          current.map((item) => (item.id === roundId ? { ...item, status: 'running', elapsedSeconds: 0 } : item)),
+        );
+        const result = await sessionBinding.session.retryJob(round.jobId);
         setRounds((current) =>
           current.map((item) => {
             if (item.id !== roundId) {
@@ -231,7 +311,7 @@ export function useConversation(
                   sessionBinding.snapshot.jobs.find((job) => job.id === result.value.id) ??
                     jobSnapshotFromResult(
                       result.value.id,
-                      workflow,
+                      String(result.value.input._workflowName ?? 'provider-generate'),
                       result.value.status,
                       result.value.output,
                       result.value.error,
@@ -242,58 +322,9 @@ export function useConversation(
               : errorRound(item, result.error);
           }),
         );
-      } catch (error) {
-        setRounds((current) =>
-          current.map((item) =>
-            item.id === roundId ? errorRound(item, error instanceof Error ? error : new Error(String(error))) : item,
-          ),
-        );
+      } finally {
+        retryInFlightRef.current.delete(roundId);
       }
-    },
-    [messages, sessionBinding.session, sessionBinding.snapshot.jobs],
-  );
-
-  const retry = useCallback(
-    async (roundId: string) => {
-      const round = rounds.find((item) => item.id === roundId);
-      if (round?.status === 'ok' && round.profileId) {
-        await submit({
-          prompt: round.prompt,
-          profileId: round.profileId,
-          providerName: round.providerName,
-          ...(round.modelId ? { modelId: round.modelId } : {}),
-          attachments: round.attachments,
-        });
-        return;
-      }
-      if (!round?.jobId) {
-        return;
-      }
-      setRounds((current) =>
-        current.map((item) => (item.id === roundId ? { ...item, status: 'running', elapsedSeconds: 0 } : item)),
-      );
-      const result = await sessionBinding.session.retryJob(round.jobId);
-      setRounds((current) =>
-        current.map((item) => {
-          if (item.id !== roundId) {
-            return item;
-          }
-          return result.ok
-            ? roundFromSessionJob(
-                sessionBinding.snapshot.jobs.find((job) => job.id === result.value.id) ??
-                  jobSnapshotFromResult(
-                    result.value.id,
-                    String(result.value.input._workflowName ?? 'provider-generate'),
-                    result.value.status,
-                    result.value.output,
-                    result.value.error,
-                  ),
-                item,
-                messages,
-              )
-            : errorRound(item, result.error);
-        }),
-      );
     },
     [messages, rounds, sessionBinding.session, sessionBinding.snapshot.jobs, submit],
   );

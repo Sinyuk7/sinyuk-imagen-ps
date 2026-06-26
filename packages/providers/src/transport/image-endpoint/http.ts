@@ -7,7 +7,7 @@
 import type { ProviderDiagnostic } from '../../contract/diagnostics.js';
 import { mapHttpError, mapNetworkError } from './error-map.js';
 import { withRetry, defaultRetryPolicy } from './retry.js';
-import type { RetryPolicy } from './retry.js';
+import type { RetryPolicy, RetryOptions } from './retry.js';
 import type { Logger } from '@imagen-ps/foundation';
 import { canListenToAbort } from '../../shared/abort-signal.js';
 
@@ -198,12 +198,16 @@ export interface HttpRequestResult {
  * @param request HTTP 请求参数
  * @param policy 可选的 retry 策略（默认指数退避 3 次）
  * @param signal 可选的取消信号
+ * @param logger 可选 Logger
+ * @param opts 重试决策选项（`retryability` / `idempotencySupported`）；付费生成
+ *   请求应传 `{ retryability: 'paid', idempotencySupported }` 以启用保守重试策略。
  */
 export async function httpRequest(
   request: HttpRequest,
   policy: RetryPolicy = defaultRetryPolicy,
   signal?: AbortSignal,
   logger?: Logger,
+  opts?: RetryOptions,
 ): Promise<HttpRequestResult> {
   const diagnostics: ProviderDiagnostic[] = [];
   const transportLogger =
@@ -220,6 +224,7 @@ export async function httpRequest(
         diagnostics.push(diagnostic);
       },
       transportLogger,
+      opts,
     );
 
     span?.finish();
