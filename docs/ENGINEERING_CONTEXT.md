@@ -28,7 +28,7 @@ surface apps -> application/session -> core-engine + providers
 - Active loop authority is declared only in root `AGENTS.md`. No active loop is currently declared.
 - `packages/application` is the shared application/session package.
 - `apps/app`, `apps/cli`, and `packages/providers` are stable boundaries unless a loop slice explicitly allows changes.
-- `apps/app` is a dual-runtime surface: one shared UXP-safe React UI consumed by a Photoshop UXP shell and a Chrome browser shell. See `apps/app/SPEC.md` and `apps/app/STATUS.md`.
+- `apps/app` is a dual-runtime surface: one shared UXP-safe React UI consumed by a Photoshop UXP shell and a Chrome browser shell. See `apps/app/AGENTS.md` and `apps/app/README.md`.
 
 ## Logging Contract
 

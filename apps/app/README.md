@@ -4,8 +4,6 @@
 
 ## Read First
 
-- `STATUS.md`: current implementation state and validation boundary.
-- `SPEC.md`: app contract and ownership rules.
 - `AGENTS.md`: package-local hard rules.
 - `../../docs/TESTING.md`: repository validation authority.
 
