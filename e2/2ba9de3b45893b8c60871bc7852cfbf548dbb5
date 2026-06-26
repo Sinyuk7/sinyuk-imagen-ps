@@ -1,0 +1,78 @@
+packages/providers/src/contract/provider.ts
+  s_8cf9a2ccbf31a5::t_cfc0eabe13a5d1 84-85,87
+  s_8cf9a2ccbf31a5::t_31b08e1815fe78 53-83,86
+packages/application/src/runtime.ts
+  s_8cf9a2ccbf31a5::t_2d879ac967089e 555-566
+packages/providers/tests/retry.test.ts
+  s_8cf9a2ccbf31a5::t_d7fdbdfcba084c 2,4-13,35-256
+packages/application/src/duplicate-submission.test.ts
+  s_8cf9a2ccbf31a5::t_2ccf505969960b 12
+  s_8cf9a2ccbf31a5::t_cb5f558371c900 1-11,13-60,63-216
+  s_8cf9a2ccbf31a5::t_d7f57bff5a100a 61-62
+packages/providers/tests/counting-transport.ts
+  s_8cf9a2ccbf31a5::t_1b8808404a8d71 1-10,13-103
+  s_8cf9a2ccbf31a5::t_9eee22937c9064 11-12
+docs/dev-memory/_inbox/2026-06-26-duplicate-submission-prevention.md
+  s_8cf9a2ccbf31a5::t_9fd1480010868d 1-155
+packages/providers/tests/paid-retry.test.ts
+  s_8cf9a2ccbf31a5::t_bb2d1dfe1bc0f1 1-132
+packages/application/src/session/session.ts
+  s_8cf9a2ccbf31a5::t_30ab9d2fdd0732 134-149
+  s_8cf9a2ccbf31a5::t_891315e42bff0a 1
+  s_8cf9a2ccbf31a5::t_d6a7c9374b5167 170-199,201,205-210,212-230,248-249
+packages/providers/src/transport/image-endpoint/paid-retry.ts
+  s_8cf9a2ccbf31a5::t_20c63d16b331f2 1-70
+packages/providers/src/transport/image-endpoint/http.ts
+  s_8cf9a2ccbf31a5::t_9f303348e99887 10
+  s_8cf9a2ccbf31a5::t_59307451cec411 201-203,210,227
+packages/providers/src/providers/image-endpoint/provider.ts
+  s_8cf9a2ccbf31a5::t_cac59ba333f8cc 9
+  s_8cf9a2ccbf31a5::t_6989d0ee0b7f79 111-114,122,127,130
+packages/application/src/session/session.test.ts
+  s_8cf9a2ccbf31a5::t_e344e8f13ed7aa 200-201,203-204,212-213,217-218,229,231,236,238,248-252,261-263,265,267,269,302,314
+  s_8cf9a2ccbf31a5::t_0ca4f8be0012a7 291
+  s_8cf9a2ccbf31a5::t_edb18169932509 383,386,392
+  s_8cf9a2ccbf31a5::t_d3ca2df80cd7b9 210,227
+  s_8cf9a2ccbf31a5::t_40ef3d76cc45da 2-8
+  s_8cf9a2ccbf31a5::t_d07c4cf4460145 194-199,202,205-209,211,214-216,219-226,228,230,232-235,237,239-247,253-257,264,266,268,270-290,292-301,303-313,315-382,384-385,387-391,393-455
+  s_8cf9a2ccbf31a5::t_b3507d54df1f2d 258-260
+packages/providers/src/transport/image-endpoint/retry.ts
+  s_8cf9a2ccbf31a5::t_d0d709fd0832cd 4,6-18,44-86,90-141,193-195,204,216-219,230
+apps/app/src/shared/ui/pages/main-page.tsx
+  s_8cf9a2ccbf31a5::t_d77951e17f335f 325
+  s_8cf9a2ccbf31a5::t_afae9caf7c91bf 382
+apps/app/tests/use-conversation.test.tsx
+  s_8cf9a2ccbf31a5::t_bef64bfc6d381f 3-4,21-33,35-52,54
+  s_8cf9a2ccbf31a5::t_86375933cf359f 103,106,112,123,128,131,139,149,154,157,164-165,168,197,200,207-208,211-212
+  s_8cf9a2ccbf31a5::t_cd2cca56d317e9 173
+  s_8cf9a2ccbf31a5::t_d3323ba1a5c65e 34
+  s_8cf9a2ccbf31a5::t_781f0dd354b8dc 100-102,104-105,107-111,113-122,124-127,129-130,132-138,140-148,150-153,155-156,158-163,166-167,169-172,174-196,198-199,201-206,209-210,213-218
+  s_8cf9a2ccbf31a5::t_82653c690f91c9 53
+  s_8cf9a2ccbf31a5::t_8bfe4b3677b338 55
+apps/app/src/shared/ui/hooks/use-conversation.ts
+  s_8cf9a2ccbf31a5::t_afdf2466e89a0a 161-172
+  s_8cf9a2ccbf31a5::t_ce8b932d16725c 1
+  s_8cf9a2ccbf31a5::t_e14b48b273eb47 280-303,314,325-326
+  s_8cf9a2ccbf31a5::t_09994b5969502e 203-207,210-235,237-273
+  s_8cf9a2ccbf31a5::t_5327a4fe414a74 274-279
+packages/providers/src/providers/chat-image/provider.ts
+  s_8cf9a2ccbf31a5::t_404173543942f7 90
+  s_8cf9a2ccbf31a5::t_1d4b8de7ecbad7 8
+  s_8cf9a2ccbf31a5::t_b5e7f21891a5ff 72-75,83,88,91
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.3",
+  "base_commit_sha": "e22ba9de3b45893b8c60871bc7852cfbf548dbb5",
+  "prompts": {},
+  "sessions": {
+    "s_8cf9a2ccbf31a5": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "8ca7a6c5-4877-4961-9b9d-7e612e8f6d46",
+        "model": "glm-5.2"
+      },
+      "human_author": "Sinyuk <80998062@qq.com>"
+    }
+  }
+}
