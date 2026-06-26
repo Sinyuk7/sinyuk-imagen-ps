@@ -1,0 +1,26 @@
+.agents/skills/ui-fix-guardrails/SKILL.md
+  s_ef347bd308d029::t_68fc866f283809 1-171
+.agents/skills/ui-fix-guardrails/eval.json
+  s_ef347bd308d029::t_b15006e87b3ce4 2
+  s_ef347bd308d029::t_2dd660271a16a4 1,3-356
+docs/agent/LOOP.md
+  s_ef347bd308d029::t_f6909c0cec3c1a 172
+.claude
+  s_ef347bd308d029::t_b4c62daeef5ee9 1
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.3",
+  "base_commit_sha": "010661566d5b86c9eca53cf001e9b85a4e660c24",
+  "prompts": {},
+  "sessions": {
+    "s_ef347bd308d029": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "aab02a4a-b643-4973-bdc2-9a66a35a8a32",
+        "model": "glm-5.2"
+      },
+      "human_author": "Sinyuk <80998062@qq.com>"
+    }
+  }
+}
