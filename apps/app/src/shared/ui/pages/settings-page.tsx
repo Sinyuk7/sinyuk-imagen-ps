@@ -1,7 +1,7 @@
 import type { ProviderProfile } from '@imagen-ps/application';
 import { profileToProviderRow } from '../../domain/mappers';
 import { Icon } from '../components/icons';
-import { Tip } from '../components/tip';
+import { ActionButton, Tag } from '../primitives/spectrum-controls';
 import { useI18n } from '../i18n/i18n-context';
 
 interface SettingsPageProps {
@@ -29,20 +29,34 @@ export function SettingsPage({ onNav, profiles, loading, error, onReload, onOpen
   return (
     <div className="page page-enter">
       <header className="hdr">
-        <button data-testid="providers-back-button" className="hdr-btn" onClick={() => onNav('main')}>
+        <ActionButton
+          data-testid="providers-back-button"
+          className="hdr-btn"
+          quiet
+          onClick={() => onNav('main')}
+        >
           <Icon name="chevron-left" />
-        </button>
+        </ActionButton>
         <div className="hdr-title">Providers</div>
-        <Tip label={t.common.refresh}>
-          <button data-testid="providers-refresh-button" className="hdr-btn" title={t.common.refresh} onClick={() => void onReload()}>
-            <Icon name="refresh" />
-          </button>
-        </Tip>
-        <Tip label={t.common.addProvider} right>
-          <button data-testid="providers-add-button" className="hdr-btn" title={t.common.addProvider} onClick={() => onNav('settings-add')}>
-            <Icon name="add" />
-          </button>
-        </Tip>
+        <ActionButton
+          data-testid="providers-refresh-button"
+          className="hdr-btn"
+          quiet
+          label={t.common.refresh}
+          onClick={() => void onReload()}
+        >
+          <Icon name="refresh" />
+        </ActionButton>
+        <ActionButton
+          data-testid="providers-add-button"
+          className="hdr-btn"
+          quiet
+          label={t.common.addProvider}
+          placement="bottom"
+          onClick={() => onNav('settings-add')}
+        >
+          <Icon name="add" />
+        </ActionButton>
       </header>
       <div className="scroll">
         <div className="sec-lbl">{t.settings.configured}</div>
@@ -59,7 +73,7 @@ export function SettingsPage({ onNav, profiles, loading, error, onReload, onOpen
             <div className="prov-info">
               <div className="prov-name">
                 <span>{row.displayName}</span>
-                <span className="prov-family">{row.family}</span>
+                <Tag className="prov-family">{row.family}</Tag>
                 <span className={`badge ${row.enabled ? 'connected' : 'error'}`}>{row.enabled ? t.common.enabled : t.common.disabled}</span>
               </div>
               <div className="prov-model">{row.defaultModel ?? row.providerId}</div>

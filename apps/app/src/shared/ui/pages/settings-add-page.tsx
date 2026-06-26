@@ -5,7 +5,7 @@ import { providerConfigFromForm, useProviderCatalog } from '../hooks/use-provide
 import { Icon } from '../components/icons';
 import { StatusNotice } from '../components/status-notice';
 import { useI18n } from '../i18n/i18n-context';
-import { Button, TextField } from '../primitives/spectrum-controls';
+import { Button, ActionButton, TextField, FieldLabel, HelpText } from '../primitives/spectrum-controls';
 import { statusFromProviderTestResult, type ProviderStatus } from '../provider-status';
 
 interface SettingsAddPageProps {
@@ -106,9 +106,14 @@ export function SettingsAddPage({ onNav, profiles, onProfileSaved }: SettingsAdd
   return (
     <div className="page page-enter">
       <header className="hdr">
-        <button data-testid="add-provider-back-button" className="hdr-btn" onClick={() => (step === 1 ? onNav('settings') : setStep(1))}>
+        <ActionButton
+          data-testid="add-provider-back-button"
+          className="hdr-btn"
+          quiet
+          onClick={() => (step === 1 ? onNav('settings') : setStep(1))}
+        >
           <Icon name="chevron-left" />
-        </button>
+        </ActionButton>
         <div className="hdr-center">
           <span style={{ fontFamily: 'var(--fD)', fontSize: 14, fontWeight: 600, color: 'var(--tx)' }}>
             {step === 1 ? t.common.addProvider : selected?.displayName}
@@ -150,18 +155,19 @@ export function SettingsAddPage({ onNav, profiles, onProfileSaved }: SettingsAdd
             <div className="section">
               <div className="section-title">{t.settings.config}</div>
               <div className="field">
-                <label className="field-label">{t.settings.alias}</label>
-                <TextField data-testid="provider-alias-input" className="field-input swc-field" placeholder={selected?.displayName} value={name} onValue={setName} />
+                <FieldLabel htmlFor="provider-alias-input">{t.settings.alias}</FieldLabel>
+                <TextField data-testid="provider-alias-input" id="provider-alias-input" className="field-input swc-field" placeholder={selected?.displayName} value={name} onValue={setName} />
               </div>
               <div className="field">
-                <label className="field-label">Base URL</label>
-                <TextField data-testid="provider-base-url-input" className="field-input mono swc-field" placeholder="https://api.example.com" value={baseUrl} onValue={setBaseUrl} />
-                <div className="field-hint">{t.settings.baseUrlHint}</div>
+                <FieldLabel htmlFor="provider-base-url-input">Base URL</FieldLabel>
+                <TextField data-testid="provider-base-url-input" id="provider-base-url-input" className="field-input mono swc-field" placeholder="https://api.example.com" value={baseUrl} onValue={setBaseUrl} />
+                <HelpText className="field-hint">{t.settings.baseUrlHint}</HelpText>
               </div>
               <div className="field">
-                <label className="field-label">{t.settings.defaultModel}</label>
+                <FieldLabel htmlFor="provider-default-model-input">{t.settings.defaultModel}</FieldLabel>
                 <TextField
                   data-testid="provider-default-model-input"
+                  id="provider-default-model-input"
                   className="field-input mono swc-field"
                   placeholder="gpt-image-2"
                   value={defaultModel}
@@ -169,19 +175,25 @@ export function SettingsAddPage({ onNav, profiles, onProfileSaved }: SettingsAdd
                 />
               </div>
               <div className="field" style={{ marginBottom: 0 }}>
-                <label className="field-label">API Key</label>
+                <FieldLabel htmlFor="provider-api-key-input">API Key</FieldLabel>
                 <div className="pw-wrap">
                   <TextField
                     data-testid="provider-api-key-input"
+                    id="provider-api-key-input"
                     type={showKey ? 'text' : 'password'}
                     className="field-input mono swc-field"
                     placeholder="sk-..."
                     value={apiKey}
                     onValue={setApiKey}
                   />
-                  <button data-testid="provider-api-key-toggle" className="pw-toggle" onClick={() => setShowKey((shown) => !shown)}>
+                  <ActionButton
+                    data-testid="provider-api-key-toggle"
+                    className="pw-toggle"
+                    quiet
+                    onClick={() => setShowKey((shown) => !shown)}
+                  >
                     <Icon name={showKey ? 'eye-off' : 'eye'} />
-                  </button>
+                  </ActionButton>
                 </div>
               </div>
             </div>
@@ -200,13 +212,14 @@ export function SettingsAddPage({ onNav, profiles, onProfileSaved }: SettingsAdd
 
       {step === 2 && (
         <footer className="det-footer">
-          <button data-testid="provider-save-button" className="btn-save" disabled={busy} onClick={() => void handleSave()}>{t.common.save}</button>
-          <button
-            className="btn-cancel"
+          <Button data-testid="provider-save-button" className="btn-save swc-button" variant="accent" disabled={busy} onClick={() => void handleSave()}>{t.common.save}</Button>
+          <Button
+            className="btn-cancel swc-button"
+            variant="secondary"
             onClick={() => onNav('settings')}
           >
             {t.common.cancel}
-          </button>
+          </Button>
         </footer>
       )}
     </div>

@@ -14,6 +14,8 @@ apps/*/src/**/*.js
 apps/*/src/**/*.js.map
 apps/*/src/**/*.d.ts
 apps/*/src/**/*.d.ts.map
+# Hand-written React JSX declaration for SWC custom elements — not emit, must be tracked.
+!apps/*/src/shared/ui/primitives/custom-elements.d.ts
 
 # Turbo
 .turbo/

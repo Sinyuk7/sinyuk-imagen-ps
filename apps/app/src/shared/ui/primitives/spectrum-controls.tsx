@@ -2,9 +2,29 @@ import { useCallback, useEffect, useRef, type HTMLAttributes, type KeyboardEvent
 import { Button as SpectrumButton } from '@spectrum-web-components/button';
 import { Checkbox as SpectrumCheckbox } from '@spectrum-web-components/checkbox';
 import { Textfield as SpectrumTextfield } from '@spectrum-web-components/textfield';
+import { ActionButton as SpectrumActionButton } from '@spectrum-web-components/action-button';
+import { FieldLabel as SpectrumFieldLabel } from '@spectrum-web-components/field-label';
+import { HelpText as SpectrumHelpText } from '@spectrum-web-components/help-text';
+import { Tag as SpectrumTag, Tags as SpectrumTags } from '@spectrum-web-components/tags';
+import { Divider as SpectrumDivider } from '@spectrum-web-components/divider';
+import { Tooltip as SpectrumTooltip } from '@spectrum-web-components/tooltip';
+import { Toast as SpectrumToast } from '@spectrum-web-components/toast';
 
 type SpectrumButtonVariant = 'accent' | 'primary' | 'secondary' | 'negative';
 type SpectrumTextFieldType = 'text' | 'password' | 'url' | 'search';
+type TooltipPlacement =
+  | 'top'
+  | 'top-start'
+  | 'top-end'
+  | 'right'
+  | 'right-start'
+  | 'right-end'
+  | 'bottom'
+  | 'bottom-start'
+  | 'bottom-end'
+  | 'left'
+  | 'left-start'
+  | 'left-end';
 
 type SpectrumElement = HTMLElement & {
   disabled?: boolean;
@@ -12,6 +32,7 @@ type SpectrumElement = HTMLElement & {
   value?: string;
   type?: string;
   placeholder?: string;
+  selected?: boolean;
 };
 
 interface ButtonProps extends Omit<HTMLAttributes<HTMLElement>, 'onInput' | 'onChange'> {
@@ -35,6 +56,43 @@ interface CheckboxProps extends Omit<React.HTMLAttributes<HTMLElement>, 'onInput
   readonly children?: ReactNode;
 }
 
+interface ActionButtonProps extends Omit<HTMLAttributes<HTMLElement>, 'onChange'> {
+  readonly quiet?: boolean;
+  readonly emphasized?: boolean;
+  readonly selected?: boolean;
+  readonly toggles?: boolean;
+  readonly disabled?: boolean;
+  /** 提供时渲染 self-managed <sp-tooltip>，作为该按钮的 hover/focus 提示。 */
+  readonly label?: string;
+  readonly placement?: TooltipPlacement;
+  readonly className?: string;
+  readonly children?: ReactNode;
+}
+
+interface FieldLabelProps {
+  readonly htmlFor: string;
+  readonly children: ReactNode;
+  readonly required?: boolean;
+  readonly disabled?: boolean;
+  readonly className?: string;
+}
+
+interface HelpTextProps {
+  readonly children: ReactNode;
+  readonly variant?: 'negative';
+  readonly className?: string;
+}
+
+interface TagProps {
+  readonly children: ReactNode;
+  readonly className?: string;
+}
+
+interface DividerProps {
+  readonly className?: string;
+  readonly vertical?: boolean;
+}
+
 let registered = false;
 
 /**
@@ -42,9 +100,10 @@ let registered = false;
  * `@swc-uxp-wrappers/*`，这样页面层只维护一套 `sp-*` 合同和注册流程。
  *
  * 这里显式 `define()` 而不是依赖副作用入口，便于在 React 测试、Chrome build、
- * 和 UXP reload 场景下保持同一套 registry guard。
+ * 和 UXP reload 场景下保持同一套 registry guard。`sp-theme` 的注册在
+ * `spectrum-theme.ts` 中独立完成（它没有 UXP wrapper，走官方 SWC 包）。
  */
-function registerSpectrumControls(): void {
+export function registerSpectrumControls(): void {
   if (registered || typeof customElements === 'undefined') {
     return;
   }
@@ -56,6 +115,30 @@ function registerSpectrumControls(): void {
   }
   if (!customElements.get('sp-checkbox')) {
     customElements.define('sp-checkbox', SpectrumCheckbox);
+  }
+  if (!customElements.get('sp-action-button')) {
+    customElements.define('sp-action-button', SpectrumActionButton);
+  }
+  if (!customElements.get('sp-field-label')) {
+    customElements.define('sp-field-label', SpectrumFieldLabel);
+  }
+  if (!customElements.get('sp-help-text')) {
+    customElements.define('sp-help-text', SpectrumHelpText);
+  }
+  if (!customElements.get('sp-tag')) {
+    customElements.define('sp-tag', SpectrumTag);
+  }
+  if (!customElements.get('sp-tags')) {
+    customElements.define('sp-tags', SpectrumTags);
+  }
+  if (!customElements.get('sp-divider')) {
+    customElements.define('sp-divider', SpectrumDivider);
+  }
+  if (!customElements.get('sp-tooltip')) {
+    customElements.define('sp-tooltip', SpectrumTooltip);
+  }
+  if (!customElements.get('sp-toast')) {
+    customElements.define('sp-toast', SpectrumToast);
   }
   registered = true;
 }
@@ -199,4 +282,76 @@ export function Checkbox({ checked, onChecked, disabled, children, className, on
       {children}
     </sp-checkbox>
   );
+}
+
+/**
+ * 通用图标 / 行动按钮。`label` 提供时挂载 self-managed `<sp-tooltip>`，
+ * 取代旧的 CSS `Tip` 组件。`selected` 由调用方受控（不使用 `toggles` 的内部翻转），
+ * 以便在单选 chip / filter 场景下由 React state 决定高亮。
+ */
+export function ActionButton({
+  quiet,
+  emphasized,
+  selected,
+  toggles,
+  disabled,
+  label,
+  placement = 'top',
+  className,
+  children,
+  onClick,
+  onKeyUp,
+  ...props
+}: ActionButtonProps) {
+  registerSpectrumControls();
+  return (
+    <sp-action-button
+      {...props}
+      class={className}
+      quiet={quiet || undefined}
+      emphasized={emphasized || undefined}
+      selected={selected || undefined}
+      toggles={toggles || undefined}
+      disabled={disabled || undefined}
+      onClick={onClick}
+      onKeyUp={onKeyUp}
+    >
+      {children}
+      {label ? <sp-tooltip self-managed placement={placement}>{label}</sp-tooltip> : null}
+    </sp-action-button>
+  );
+}
+
+export function FieldLabel({ htmlFor, children, required, disabled, className }: FieldLabelProps) {
+  registerSpectrumControls();
+  return (
+    <sp-field-label
+      class={className}
+      for={htmlFor}
+      size="m"
+      required={required || undefined}
+      disabled={disabled || undefined}
+    >
+      {children}
+    </sp-field-label>
+  );
+}
+
+export function HelpText({ children, variant, className }: HelpTextProps) {
+  registerSpectrumControls();
+  return (
+    <sp-help-text class={className} size="m" variant={variant === 'negative' ? 'negative' : undefined}>
+      {children}
+    </sp-help-text>
+  );
+}
+
+export function Tag({ children, className }: TagProps) {
+  registerSpectrumControls();
+  return <sp-tag class={className}>{children}</sp-tag>;
+}
+
+export function Divider({ className, vertical }: DividerProps) {
+  registerSpectrumControls();
+  return <sp-divider class={className} vertical={vertical || undefined} />;
 }

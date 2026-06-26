@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import type { ProviderModelInfo, ProviderProfile } from '@imagen-ps/application';
 import { useAppServices } from '../../ports/app-services-context';
 import type { LayerInfo } from '../../ports/host-port';
@@ -9,8 +9,9 @@ import type {
   ConversationRound,
 } from '../hooks/use-conversation';
 import { Icon } from '../components/icons';
-import { Tip } from '../components/tip';
 import { UxpTextArea } from '../components/uxp-form-controls';
+import { useToast, ToastHost } from '../components/toast-host';
+import { ActionButton } from '../primitives/spectrum-controls';
 import { useI18n } from '../i18n/i18n-context';
 
 interface MainPageProps {
@@ -85,7 +86,7 @@ export function MainPage({
   const [modelMenuOpen, setModelMenuOpen] = useState(false);
   const [attachOpen, setAttachOpen] = useState(false);
   const [layerOpen, setLayerOpen] = useState(false);
-  const [toast, setToast] = useState<string | null>(null);
+  const { toast, show, close } = useToast();
   const [copied, setCopied] = useState<Record<string, boolean>>({});
   const convRef = useRef<HTMLDivElement>(null);
   const taRef = useRef<HTMLTextAreaElement>(null);
@@ -93,11 +94,6 @@ export function MainPage({
   const selectedModelLabel = selectedModelId || (modelsLoading ? t.main.modelLoading : t.main.modelUnselected);
   const currentPromptValue = () => taRef.current?.value ?? input;
   const canSend = input.trim().length > 0 && Boolean(selectedProfile) && !conversation.running;
-
-  const showToast = useCallback((message: string) => {
-    setToast(message);
-    window.setTimeout(() => setToast(null), 2000);
-  }, []);
 
   useEffect(() => {
     if (convRef.current) {
@@ -118,7 +114,7 @@ export function MainPage({
     window.setTimeout(() => setCopied((current) => ({ ...current, [id]: false })), 1500);
     setInput(text);
     taRef.current?.focus();
-    showToast(t.toast.promptFilled);
+    show(t.toast.promptFilled, 'info');
   };
 
   const addAttachment = (attachment: ConversationAttachment) => {
@@ -137,9 +133,9 @@ export function MainPage({
         image,
         previewUrl: image.preview.url ?? assetToPreviewUrl(image.asset),
       });
-      showToast(t.toast.layerAdded);
+      show(t.toast.layerAdded, 'positive');
     } catch (error) {
-      showToast(error instanceof Error ? error.message : t.toast.layerReadFailed);
+      show(error instanceof Error ? error.message : t.toast.layerReadFailed, 'negative');
     }
   };
 
@@ -156,15 +152,15 @@ export function MainPage({
         image,
         previewUrl: image.preview.url ?? assetToPreviewUrl(image.asset),
       });
-      showToast(t.toast.fileAdded);
+      show(t.toast.fileAdded, 'positive');
     } catch (error) {
-      showToast(error instanceof Error ? error.message : t.toast.filePickFailed);
+      show(error instanceof Error ? error.message : t.toast.filePickFailed, 'negative');
     }
   };
 
   const handleSend = async () => {
     if (!selectedProfile) {
-      showToast(t.toast.selectProviderProfileFirst);
+      show(t.toast.selectProviderProfileFirst, 'info');
       return;
     }
     if (!canSend) {
@@ -188,25 +184,30 @@ export function MainPage({
   const placeAsset = async (round: ConversationRound) => {
     const asset = round.previews[0]?.asset;
     if (!asset) {
-      showToast(t.toast.noPlaceableImage);
+      show(t.toast.noPlaceableImage, 'info');
       return;
     }
     try {
       await services.host.placeAssetOnCanvas(asset);
-      showToast(t.toast.placedOnCanvas);
+      show(t.toast.placedOnCanvas, 'positive');
     } catch (error) {
-      showToast(error instanceof Error ? error.message : t.toast.placeFailed);
+      show(error instanceof Error ? error.message : t.toast.placeFailed, 'negative');
     }
   };
 
   return (
     <div className="page" onClick={closeAll}>
       <header className="hdr">
-        <Tip label={t.main.history}>
-          <button data-testid="main-history-button" className="hdr-btn" onClick={(event) => { event.stopPropagation(); onNav('history'); }}>
-            <Icon name="history" />
-          </button>
-        </Tip>
+        <ActionButton
+          data-testid="main-history-button"
+          className="hdr-btn"
+          quiet
+          label={t.main.history}
+          placement="bottom"
+          onClick={(event) => { event.stopPropagation(); onNav('history'); }}
+        >
+          <Icon name="history" />
+        </ActionButton>
         <button
           data-testid="main-profile-selector"
           className="hdr-center"
@@ -220,11 +221,16 @@ export function MainPage({
           <span className="hdr-provider">{selectedProfile?.displayName ?? t.main.noProviderProfile}</span>
           <span className="hdr-model">{selectedModelLabel}</span>
         </button>
-        <Tip label="Providers" right>
-          <button data-testid="main-providers-button" className="hdr-btn" onClick={(event) => { event.stopPropagation(); onNav('settings'); }}>
-            <Icon name="settings" />
-          </button>
-        </Tip>
+        <ActionButton
+          data-testid="main-providers-button"
+          className="hdr-btn"
+          quiet
+          label="Providers"
+          placement="bottom"
+          onClick={(event) => { event.stopPropagation(); onNav('settings'); }}
+        >
+          <Icon name="settings" />
+        </ActionButton>
       </header>
 
       {profileMenuOpen && (
@@ -295,18 +301,15 @@ export function MainPage({
                   </div>
                   <div className="user-meta">
                     <span className="msg-time">{round.time}</span>
-                    <Tip label={t.main.reusePrompt}>
-                      <button
-                        data-testid={`round-copy-button-${round.id}`}
-                        className={`copy-btn${copied[round.id] ? ' cp' : ''}`}
-                        onClick={(event) => { event.stopPropagation(); handleCopy(round.id, round.prompt); }}
-                      >
-                        {copied[round.id]
-                          ? <Icon name="check" />
-                          : <Icon name="copy" />
-                        }
-                      </button>
-                    </Tip>
+                    <ActionButton
+                      data-testid={`round-copy-button-${round.id}`}
+                      className={`copy-btn${copied[round.id] ? ' cp' : ''}`}
+                      quiet
+                      label={t.main.reusePrompt}
+                      onClick={(event) => { event.stopPropagation(); handleCopy(round.id, round.prompt); }}
+                    >
+                      {copied[round.id] ? <Icon name="check" /> : <Icon name="copy" />}
+                    </ActionButton>
                   </div>
                 </div>
               </div>
@@ -373,21 +376,33 @@ export function MainPage({
                       </div>
                     </div>
                     <div className="prov-actions">
-                      <Tip label={t.main.placePs}>
-                        <button data-testid={`result-place-button-${round.id}`} className="act-ico prim" onClick={(event) => { event.stopPropagation(); void placeAsset(round); }}>
-                          <Icon name="place-ps" />
-                        </button>
-                      </Tip>
-                      <Tip label={t.main.regenerate}>
-                        <button data-testid={`result-regenerate-button-${round.id}`} className="act-ico" onClick={(event) => { event.stopPropagation(); void conversation.retry(round.id); }}>
-                          <Icon name="regenerate" />
-                        </button>
-                      </Tip>
-                      <Tip label={t.main.copyPrompt}>
-                        <button data-testid={`result-copy-button-${round.id}`} className="act-ico" onClick={(event) => { event.stopPropagation(); handleCopy(`${round.id}-copy`, round.prompt); }}>
-                          <Icon name="copy" />
-                        </button>
-                      </Tip>
+                      <ActionButton
+                        data-testid={`result-place-button-${round.id}`}
+                        className="act-ico prim"
+                        quiet
+                        label={t.main.placePs}
+                        onClick={(event) => { event.stopPropagation(); void placeAsset(round); }}
+                      >
+                        <Icon name="place-ps" />
+                      </ActionButton>
+                      <ActionButton
+                        data-testid={`result-regenerate-button-${round.id}`}
+                        className="act-ico"
+                        quiet
+                        label={t.main.regenerate}
+                        onClick={(event) => { event.stopPropagation(); void conversation.retry(round.id); }}
+                      >
+                        <Icon name="regenerate" />
+                      </ActionButton>
+                      <ActionButton
+                        data-testid={`result-copy-button-${round.id}`}
+                        className="act-ico"
+                        quiet
+                        label={t.main.copyPrompt}
+                        onClick={(event) => { event.stopPropagation(); handleCopy(`${round.id}-copy`, round.prompt); }}
+                      >
+                        {copied[`${round.id}-copy`] ? <Icon name="check" /> : <Icon name="copy" />}
+                      </ActionButton>
                     </div>
                   </div>
                 </div>
@@ -506,21 +521,23 @@ export function MainPage({
             disabled={conversation.running}
           />
           <div className="cmp-bar">
-            <Tip label={t.main.addImage}>
-              <button
-                data-testid="composer-add-image-button"
-                className={`cmp-add${attachOpen || layerOpen ? ' open' : ''}`}
-                onClick={(event) => {
-                  event.stopPropagation();
-                  setAttachOpen((open) => !open);
-                  setLayerOpen(false);
-                  setModelMenuOpen(false);
-                  setProfileMenuOpen(false);
-                }}
-              >
-                <Icon name="add" />
-              </button>
-            </Tip>
+            <ActionButton
+              data-testid="composer-add-image-button"
+              className="cmp-add"
+              quiet
+              selected={attachOpen || layerOpen}
+              label={t.main.addImage}
+              placement="top"
+              onClick={(event) => {
+                event.stopPropagation();
+                setAttachOpen((open) => !open);
+                setLayerOpen(false);
+                setModelMenuOpen(false);
+                setProfileMenuOpen(false);
+              }}
+            >
+              <Icon name="add" />
+            </ActionButton>
             <div
               data-testid="main-model-selector"
               className={`cmp-chip${modelMenuOpen ? ' open' : ''}`}
@@ -549,7 +566,7 @@ export function MainPage({
         </div>
       </footer>
 
-      {toast && <div data-testid="toast" className="toast">{toast}</div>}
+      <ToastHost toast={toast} onClose={close} />
     </div>
   );
 }

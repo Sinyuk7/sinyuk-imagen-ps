@@ -3,9 +3,17 @@ import { aliases as swcUxpAliases } from '@swc-uxp-wrappers/utils';
 import { appViteBaseConfig } from './vite.base.config';
 
 const UXP_SHARED_SWC_ALIAS_KEYS = [
+  '@spectrum-web-components/action-button',
+  '@spectrum-web-components/avatar',
   '@spectrum-web-components/button',
   '@spectrum-web-components/checkbox',
+  '@spectrum-web-components/divider',
+  '@spectrum-web-components/field-label',
+  '@spectrum-web-components/help-text',
+  '@spectrum-web-components/tags',
   '@spectrum-web-components/textfield',
+  '@spectrum-web-components/toast',
+  '@spectrum-web-components/tooltip',
 ] as const;
 
 /**
@@ -112,12 +120,31 @@ function uxpSwcFocusVisibleCompatPlugin(): Plugin {
   };
 }
 
+/**
+ * UXP host 以 classic script 加载主 bundle，`import.meta` 是语法错误。即便
+ * `modulePreload: false` + `inlineDynamicImports: true`，vite 的 `__vitePreload`
+ * 仍会为内联后的动态 import 注入 `import.meta.url` 作为 preload base。该参数在
+ * modulePreload 关闭时不被使用，因此在 renderChunk 阶段把 `import.meta.url`
+ * 替换为空串，彻底消除 `import.meta`，避免重新出现启动问题。
+ */
+function uxpImportMetaCompatPlugin(): Plugin {
+  return {
+    name: 'imagen-ps-uxp-import-meta-compat',
+    renderChunk(code) {
+      if (!code.includes('import.meta')) {
+        return null;
+      }
+      return { code: code.replaceAll('import.meta.url', '""'), map: null };
+    },
+  };
+}
+
 export default defineConfig(
   mergeConfig(appViteBaseConfig, {
     resolve: {
       alias: uxpSharedSwcAliases,
     },
-    plugins: [uxpSwcFocusVisibleCompatPlugin()],
+    plugins: [uxpSwcFocusVisibleCompatPlugin(), uxpImportMetaCompatPlugin()],
     build: {
       outDir: 'dist',
       emptyOutDir: true,
@@ -125,6 +152,10 @@ export default defineConfig(
       rollupOptions: {
         input: 'index.html',
         output: {
+          // UXP host 以 classic script 执行单 bundle：内联所有动态 import，避免 Rollup
+          // 为 sp-tooltip self-managed overlay / focus-visible 生成基于 import.meta.url 的
+          // chunk loader（会重新引入 import.meta 启动问题）。单入口下可安全内联。
+          inlineDynamicImports: true,
           entryFileNames: 'assets/[name].js',
           chunkFileNames: 'assets/[name].js',
           assetFileNames: 'assets/[name][extname]',

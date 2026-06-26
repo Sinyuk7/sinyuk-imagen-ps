@@ -2,6 +2,7 @@ import { useMemo, useState } from 'react';
 import type { DurableJobRecord } from '@imagen-ps/application';
 import type { ConversationRound, RoundStatus } from '../hooks/use-conversation';
 import { Icon } from '../components/icons';
+import { ActionButton } from '../primitives/spectrum-controls';
 import { useI18n } from '../i18n/i18n-context';
 
 const STATUS_COLOR: Record<RoundStatus, string> = { ok: 'var(--ok)', running: 'var(--wa)', err: 'var(--er)' };
@@ -105,17 +106,37 @@ export function HistoryPage({ onNav, rounds, records, loading, error, onReload, 
   return (
     <div className="page page-enter">
       <header className="hdr">
-        <button data-testid="history-back-button" className="hdr-btn" onClick={() => onNav('main')}>
+        <ActionButton
+          data-testid="history-back-button"
+          className="hdr-btn"
+          quiet
+          onClick={() => onNav('main')}
+        >
           <Icon name="chevron-left" />
-        </button>
+        </ActionButton>
         <div className="hdr-title">{t.history.title}</div>
-        <button data-testid="history-refresh-button" className="hdr-btn" onClick={() => { void onReload(); }}>
+        <ActionButton
+          data-testid="history-refresh-button"
+          className="hdr-btn"
+          quiet
+          label={t.common.refresh}
+          onClick={() => { void onReload(); }}
+        >
           <Icon name="refresh" />
-        </button>
+        </ActionButton>
       </header>
       <div className="filter-bar">
         {filters.map(([key, label]) => (
-          <button key={key} data-testid={`history-filter-${key}`} className={`fchip${filter === key ? ' act' : ''}`} onClick={() => setFilter(key)}>{label}</button>
+          <ActionButton
+            key={key}
+            data-testid={`history-filter-${key}`}
+            className="fchip"
+            quiet
+            selected={filter === key}
+            onClick={() => setFilter(key)}
+          >
+            {label}
+          </ActionButton>
         ))}
       </div>
       <div className="scroll">
@@ -150,7 +171,7 @@ export function HistoryPage({ onNav, rounds, records, loading, error, onReload, 
                   {retryRoundId && (
                     <button
                       data-testid={`history-retry-button-${retryRoundId}`}
-                      style={{ marginLeft: 'auto', fontSize: 10, color: 'var(--er)', background: 'none', border: 'none', cursor: 'pointer' }}
+                      className="row-retry"
                       onClick={(event) => {
                         event.stopPropagation();
                         void onRetry(retryRoundId);

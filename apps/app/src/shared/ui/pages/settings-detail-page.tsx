@@ -5,7 +5,7 @@ import { providerConfigFromForm, useProfileDetail, useProfileModels } from '../h
 import { Icon } from '../components/icons';
 import { StatusNotice } from '../components/status-notice';
 import { useI18n } from '../i18n/i18n-context';
-import { Button, Checkbox, TextField } from '../primitives/spectrum-controls';
+import { Button, Checkbox, TextField, ActionButton, FieldLabel, Divider } from '../primitives/spectrum-controls';
 import { statusFromProviderTestResult, type ProviderStatus } from '../provider-status';
 
 interface SettingsDetailPageProps {
@@ -215,9 +215,9 @@ export function SettingsDetailPage({ onNav, profileId, onProfilesChanged }: Sett
     return (
       <div className="page page-enter">
         <header className="hdr">
-          <button className="hdr-btn" onClick={() => onNav('settings')}>
+          <ActionButton className="hdr-btn" quiet onClick={() => onNav('settings')}>
             <Icon name="chevron-left" />
-          </button>
+          </ActionButton>
           <div className="hdr-title">Provider</div>
           <div style={{ width: 32 }} />
         </header>
@@ -231,9 +231,14 @@ export function SettingsDetailPage({ onNav, profileId, onProfilesChanged }: Sett
   return (
     <div className="page page-enter">
       <header className="hdr">
-        <button data-testid="provider-detail-back-button" className="hdr-btn" onClick={() => onNav('settings')}>
+        <ActionButton
+          data-testid="provider-detail-back-button"
+          className="hdr-btn"
+          quiet
+          onClick={() => onNav('settings')}
+        >
           <Icon name="chevron-left" />
-        </button>
+        </ActionButton>
         <div className="hdr-center">
           <span style={{ fontFamily: 'var(--fD)', fontSize: 14, fontWeight: 600, color: 'var(--tx)' }}>
             {detail.profile?.displayName ?? 'Provider'}
@@ -243,9 +248,15 @@ export function SettingsDetailPage({ onNav, profileId, onProfilesChanged }: Sett
             {enabled ? t.common.enabled : t.common.disabled}
           </div>
         </div>
-        <button data-testid="provider-detail-refresh-button" className="hdr-btn" onClick={() => void detail.reload()}>
+        <ActionButton
+          data-testid="provider-detail-refresh-button"
+          className="hdr-btn"
+          quiet
+          label={t.common.refresh}
+          onClick={() => void detail.reload()}
+        >
           <Icon name="refresh" />
-        </button>
+        </ActionButton>
       </header>
 
       <div className="scroll">
@@ -256,27 +267,33 @@ export function SettingsDetailPage({ onNav, profileId, onProfilesChanged }: Sett
             <div className="section">
               <div className="section-title">{t.settings.connectionInfo}</div>
               <div className="field">
-                <label className="field-label">{t.settings.alias}</label>
-                <TextField data-testid="provider-alias-input" className="field-input swc-field" value={displayName} onValue={setDisplayName} />
+                <FieldLabel htmlFor="provider-alias-input">{t.settings.alias}</FieldLabel>
+                <TextField data-testid="provider-alias-input" id="provider-alias-input" className="field-input swc-field" value={displayName} onValue={setDisplayName} />
               </div>
               <div className="field">
-                <label className="field-label">Base URL</label>
-                <TextField data-testid="provider-base-url-input" className="field-input mono swc-field" value={baseUrl} onValue={setBaseUrl} />
+                <FieldLabel htmlFor="provider-base-url-input">Base URL</FieldLabel>
+                <TextField data-testid="provider-base-url-input" id="provider-base-url-input" className="field-input mono swc-field" value={baseUrl} onValue={setBaseUrl} />
               </div>
               <div className="field">
-                <label className="field-label">API Key</label>
+                <FieldLabel htmlFor="provider-api-key-input">API Key</FieldLabel>
                 <div className="pw-wrap">
                   <TextField
                     data-testid="provider-api-key-input"
+                    id="provider-api-key-input"
                     type={showKey ? 'text' : 'password'}
                     className="field-input mono swc-field"
                     placeholder={detail.profile.secretRefs?.apiKey ? t.settings.savedSecretPlaceholder : 'sk-...'}
                     value={apiKey}
                     onValue={setApiKey}
                   />
-                  <button data-testid="provider-api-key-toggle" className="pw-toggle" onClick={() => setShowKey((shown) => !shown)}>
+                  <ActionButton
+                    data-testid="provider-api-key-toggle"
+                    className="pw-toggle"
+                    quiet
+                    onClick={() => setShowKey((shown) => !shown)}
+                  >
                     <Icon name={showKey ? 'eye-off' : 'eye'} />
-                  </button>
+                  </ActionButton>
                 </div>
               </div>
               <label
@@ -294,20 +311,25 @@ export function SettingsDetailPage({ onNav, profileId, onProfilesChanged }: Sett
               </label>
             </div>
 
+            <Divider />
+
             <div className="section">
               <div className="section-title">{t.settings.defaultModel}</div>
               <div className="chips">
                 {models.models.map((model) => (
-                  <button
+                  <ActionButton
                     key={model.id}
-                    className={`chip${model.id === defaultModel ? ' act' : ''}`}
+                    className="chip"
+                    quiet
+                    selected={model.id === defaultModel}
                     onClick={() => setDefaultModel(model.id)}
                   >
                     {model.displayName ?? model.id}
-                  </button>
+                  </ActionButton>
                 ))}
                 <TextField
                   data-testid="provider-default-model-input"
+                  id="provider-default-model-input"
                   className="field-input mono swc-field"
                   style={{ marginTop: 8 }}
                   placeholder={t.settings.customModelId}
@@ -316,13 +338,13 @@ export function SettingsDetailPage({ onNav, profileId, onProfilesChanged }: Sett
                 />
               </div>
               {models.error && <StatusNotice tone="error" message={models.error} />}
-              <button data-testid="provider-refresh-models-button" className="test-btn" style={{ marginTop: 10 }} disabled={models.loading || busy} onClick={() => void refreshModels()}>
+              <Button data-testid="provider-refresh-models-button" className="test-btn swc-button" variant="secondary" style={{ marginTop: 10 }} disabled={models.loading || busy} onClick={() => void refreshModels()}>
                 {models.loading ? t.settings.refreshingModels : t.settings.refreshModels}
-              </button>
+              </Button>
             </div>
 
             <div className="test-area">
-              <Button data-testid="provider-test-button" className="test-btn swc-button" disabled={busy} onClick={() => void test()}>
+              <Button data-testid="provider-test-button" className="test-btn swc-button" variant="secondary" disabled={busy} onClick={() => void test()}>
                 {busy
                   ? <><Icon name="spinner" size={13} className="spin" /> {t.settings.testingConnection}</>
                   : <><Icon name="arrow-right" /> {t.settings.testConnection}</>
@@ -335,10 +357,10 @@ export function SettingsDetailPage({ onNav, profileId, onProfilesChanged }: Sett
       </div>
 
       <footer className="det-footer">
-        <button data-testid="provider-save-button" className="btn-save" disabled={busy || !detail.profile} onClick={() => void save()}>{t.common.save}</button>
-        <button data-testid="provider-delete-button" className="btn-del" disabled={busy || !detail.profile} onClick={() => void remove()}>
+        <Button data-testid="provider-save-button" className="btn-save swc-button" variant="accent" disabled={busy || !detail.profile} onClick={() => void save()}>{t.common.save}</Button>
+        <Button data-testid="provider-delete-button" className="btn-del swc-button" variant="negative" disabled={busy || !detail.profile} onClick={() => void remove()}>
           <Icon name="trash" />
-        </button>
+        </Button>
       </footer>
     </div>
   );

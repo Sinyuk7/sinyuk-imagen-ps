@@ -16,6 +16,7 @@ import { SettingsPage } from './pages/settings-page';
 import { SettingsAddPage } from './pages/settings-add-page';
 import { SettingsDetailPage } from './pages/settings-detail-page';
 import { I18nProvider, useI18n } from './i18n/i18n-context';
+import { registerSpectrumTheme } from './primitives/spectrum-theme';
 
 export interface AppShellHost {
   readonly app: PluginAppModel;
@@ -193,10 +194,13 @@ function AppShellContent({ host }: AppShellProps) {
 
 export function AppShell({ host }: AppShellProps) {
   usePanelCss();
+  registerSpectrumTheme();
   return (
     <I18nProvider locale={host.locale}>
       <AppServicesProvider services={host.services}>
-        <AppShellContent host={host} />
+        <sp-theme color="dark" scale="medium" class="app-theme">
+          <AppShellContent host={host} />
+        </sp-theme>
       </AppServicesProvider>
     </I18nProvider>
   );
