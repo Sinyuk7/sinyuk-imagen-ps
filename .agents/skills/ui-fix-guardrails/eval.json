@@ -1,0 +1,356 @@
+{
+  "schema_version": "ui-fix-guardrails-eval-v1",
+  "skill": "ui-fix-guardrails",
+  "purpose": "Regression validation for the ui-fix-guardrails SKILL. Each case probes whether an agent invoked on a UI defect fix satisfies the SKILL's pre-fix frame, architecture guardrails, minimal harness contract, regression scope, and stop rules — without prescribing the debugging method.",
+  "format_note": "Proposed schema; no in-repo eval convention existed when written. Evaluate each case by checking the agent's Pre-fix Frame (Section 3), Post-fix Review (Section 7), Minimal Harness Contract (Section 6), and Final Report (Section 10) against the `must` / `must_not` rubric. `scenario` is the triggering situation; `runtime_coverage` is the answer the agent should reach, not input it is given.",
+  "categories": ["boundary", "core", "no_goals", "regression", "stop"],
+  "how_to_run": "Human- or harness-reviewed. For each case: present `scenario` as a UI defect report, invoke the skill, then inspect the agent's pre-fix frame, diff, harness contract, and final report. A case passes only if every `must` holds and no `must_not` holds. There is no automated runner in the repo today.",
+  "cases": [
+    {
+      "id": "boundary-both-runtimes",
+      "category": "boundary",
+      "scenario": "The history page shows an empty list in both the Photoshop plugin and the Chrome shell, even though saved jobs exist in storage.",
+      "runtime_coverage": "Both",
+      "expected_initial_owner": ["shared/ui", "shared/ports", "@imagen-ps/application seam"],
+      "must": [
+        "frame runtime coverage as Both",
+        "name shared UI or the shared port/application contract as the initial owner hypothesis",
+        "require regression on both UXP and Chrome"
+      ],
+      "must_not": [
+        "assume a single-runtime adapter is the fix target",
+        "edit a UXP-only or Chrome-only adapter first"
+      ]
+    },
+    {
+      "id": "boundary-uxp-only-writeback",
+      "category": "boundary",
+      "scenario": "Placing a generated image onto the canvas does nothing in Photoshop, but the same flow visibly works in the Chrome shell.",
+      "runtime_coverage": "UXP only",
+      "expected_initial_owner": ["adapters/uxp/photoshop-host-bridge", "shells/uxp"],
+      "must": [
+        "frame runtime coverage as UXP only",
+        "name the UXP host bridge (placeAssetOnCanvas / executeAsModal / batchPlay / session token) as the initial owner hypothesis",
+        "require real UXP smoke as manual evidence; flag that Chrome working does not prove the UXP path",
+        "note Chrome works because the simulator fakes placeAssetOnCanvas"
+      ],
+      "must_not": [
+        "edit shared UI to patch the symptom",
+        "treat chrome-e2e green as proof the UXP writeback is fixed"
+      ]
+    },
+    {
+      "id": "boundary-chrome-only-sim-fidelity",
+      "category": "boundary",
+      "scenario": "Reading a layer mask returns empty in the Chrome shell, but returns the mask in Photoshop.",
+      "runtime_coverage": "Chrome only",
+      "expected_initial_owner": ["simulators/photoshop", "adapters/chrome/chrome-host-port"],
+      "must": [
+        "distinguish simulator fidelity gap, Chrome adapter defect, and capability difference before choosing a layer",
+        "name the simulator / Chrome adapter as the initial owner hypothesis",
+        "investigate simulator fidelity first because UXP does not use the simulator"
+      ],
+      "must_not": [
+        "default to editing shared UI",
+        "assume the bug reproduces in Photoshop"
+      ]
+    },
+    {
+      "id": "boundary-capability-gated",
+      "category": "boundary",
+      "scenario": "The 'read layer mask' control is greyed out in the Chrome shell and the user reports it as a broken button.",
+      "runtime_coverage": "Chrome only",
+      "expected_initial_owner": ["shared/ports/host-port (RuntimeCapabilities)", "adapters/chrome/chrome-host-port"],
+      "must": [
+        "identify this as capability-driven (canReadLayerMasks), not a UI defect",
+        "point at the RuntimeCapabilities declaration in the Chrome host port",
+        "express the runtime difference through capabilities, not a runtime-kind branch"
+      ],
+      "must_not": [
+        "add a runtime/adapter/host.kind branch in shared UI",
+        "un-grey the control in shared UI without addressing the capability"
+      ]
+    },
+    {
+      "id": "boundary-port-contract-change",
+      "category": "boundary",
+      "scenario": "A fix requires adding a new method to the HostBridge port so the UI can query document DPI.",
+      "runtime_coverage": "Both",
+      "expected_initial_owner": ["shared/ports/host-port", "adapters/uxp/photoshop-host-bridge", "adapters/chrome/chrome-host-port"],
+      "must": [
+        "treat this as a shared contract change requiring both adapters to implement the new method",
+        "require regression on UXP and Chrome",
+        "escalate via Decision Packet if the contract change is not authorized by the current task"
+      ],
+      "must_not": [
+        "implement the method on only one adapter",
+        "add the capability only on one runtime and silently diverge the port"
+      ]
+    },
+    {
+      "id": "boundary-unknown-cross-layer",
+      "category": "boundary",
+      "scenario": "Saving a provider profile sometimes silently fails with no clear runtime pattern; the user cannot say whether it happens in Photoshop, Chrome, or both.",
+      "runtime_coverage": "Unknown",
+      "expected_initial_owner": [],
+      "must": [
+        "frame runtime coverage as Unknown / cross-layer",
+        "refuse to force a layer classification before investigation",
+        "establish reproduction evidence before naming an owner hypothesis"
+      ],
+      "must_not": [
+        "assume a modification layer from the reproduction matrix alone",
+        "begin editing shared UI or an adapter without a baseline"
+      ]
+    },
+    {
+      "id": "core-preflight-frame-produced",
+      "category": "core",
+      "scenario": "Any non-trivial UI defect is reported and the agent begins work.",
+      "must": [
+        "produce the Pre-fix Frame record (Symptom, Expected, Runtime coverage, Initial owner, Reproduction evidence, Likely touched boundary, Required acceptance check) before editing",
+        "keep the frame as an output requirement, not a debugging-method prescription"
+      ],
+      "must_not": [
+        "skip the frame and jump to editing",
+        "prescribe a specific reproduction or bisect procedure"
+      ]
+    },
+    {
+      "id": "core-harness-before-after",
+      "category": "core",
+      "scenario": "The agent proposes to validate a fix by running the existing app test suite, which was already green before the fix and never exercised the reported symptom.",
+      "must": [
+        "require a Baseline describing how the check failed before the fix",
+        "require an Acceptance oracle describing when the same check passes after the fix",
+        "require that the same check explain why it failed before and passes after"
+      ],
+      "must_not": [
+        "accept a previously-green test suite that never covered the symptom as acceptance",
+        "claim the fix is verified without a before/after check"
+      ]
+    },
+    {
+      "id": "core-capability-not-runtime-branch",
+      "category": "core",
+      "scenario": "The agent is tempted to write `if (host.kind === 'photoshop-uxp')` inside a shared UI component to handle a UXP-only quirk.",
+      "must": [
+        "reject runtime-kind branching in shared UI",
+        "redirect the difference to capabilities, a port, or an adapter",
+        "note that pnpm check:policy enforces this and will fail the branch"
+      ],
+      "must_not": [
+        "commit a runtime/adapter/host.kind branch in shared/ui",
+        "disable the policy check to land the fix"
+      ]
+    },
+    {
+      "id": "core-shared-contract-dual-regression",
+      "category": "core",
+      "scenario": "A fix changes a type or method signature in shared/ports.",
+      "must": [
+        "update both the UXP adapter and the Chrome adapter to the new contract",
+        "regress UXP and Chrome",
+        "confirm the other runtime's filtered tests remain green as a non-regression baseline"
+      ],
+      "must_not": [
+        "update only one adapter",
+        "leave the other runtime's adapter referencing the old contract"
+      ]
+    },
+    {
+      "id": "core-fallback-context",
+      "category": "core",
+      "scenario": "secureStorage.getItem returns undefined and the agent must decide whether that is a bug.",
+      "must": [
+        "treat in-memory fallback as expected in a non-UXP test context",
+        "treat the same UXP module missing inside real Photoshop as a config, assembly, or host error, not silent degradation",
+        "state the context that determines which interpretation applies"
+      ],
+      "must_not": [
+        "silently treat real-Photoshop module absence as normal degradation",
+        "file a storage adapter bug for expected test-context fallback"
+      ]
+    },
+    {
+      "id": "no-goal-prescribe-debugging-method",
+      "category": "no_goals",
+      "scenario": "A UI defect is reported with minimal detail.",
+      "must": [
+        "constrain only owner boundary, acceptance evidence, and regression scope",
+        "leave reproduction, log analysis, search, test design, root-cause localization, and the fix to the agent"
+      ],
+      "must_not": [
+        "prescribe a step-by-step reproduction or bisect procedure",
+        "dictate which diagnostic tool or search to run"
+      ]
+    },
+    {
+      "id": "no-goal-duplicate-policy",
+      "category": "no_goals",
+      "scenario": "The agent asks whether the SKILL should restate the full import policy and test command list.",
+      "must": [
+        "reference AGENTS.md, apps/app/AGENTS.md, scripts/policy/, and docs/TESTING.md as authority",
+        "state that on conflict the authoritative docs win",
+        "keep only the small set of UI-fix-specific guardrails inline"
+      ],
+      "must_not": [
+        "duplicate the full import policy or all test commands into the SKILL",
+        "introduce rules that can drift from the authoritative docs"
+      ]
+    },
+    {
+      "id": "no-goal-replace-loop-or-arch-review",
+      "category": "no_goals",
+      "scenario": "A fix crosses an ownership boundary that is not authorized by an active Loop.",
+      "must": [
+        "escalate via a Decision Packet per docs/loops/_decision-packet.md",
+        "stop editing in the crossed area"
+      ],
+      "must_not": [
+        "silently push through an unauthorized cross-boundary change",
+        "claim to replace Loop execution or architecture review"
+      ]
+    },
+    {
+      "id": "no-goal-claim-fake-is-host-proof",
+      "category": "no_goals",
+      "scenario": "The agent wants to assert that a fake UXP test and a green Vite/UXP build prove the real Photoshop writeback now works.",
+      "must": [
+        "flag real host behavior as manual-only evidence",
+        "state that fake UXP tests and builds are not host IO proof"
+      ],
+      "must_not": [
+        "assert fake tests or builds prove real Photoshop host behavior",
+        "report a host-behavior claim as CI evidence"
+      ]
+    },
+    {
+      "id": "no-goal-cite-lint-gate",
+      "category": "no_goals",
+      "scenario": "The agent proposes pnpm lint as a quick or per-slice validation gate.",
+      "must": [
+        "decline pnpm lint as a supported gate per docs/TESTING.md",
+        "use check:policy / filtered build+test / validate / chrome-e2e / manual UXP smoke instead"
+      ],
+      "must_not": [
+        "cite pnpm lint as quick, per-slice, or final validation"
+      ]
+    },
+    {
+      "id": "regression-shared-ui",
+      "category": "regression",
+      "scenario": "The fix touches apps/app/src/shared/ui only.",
+      "expected_regression_scope": ["UXP", "Chrome"],
+      "must": [
+        "regress UXP and Chrome (app test plus chrome-e2e plus manual UXP for visible behavior)",
+        "confirm the same UI change applies to both runtimes"
+      ],
+      "must_not": [
+        "regress only one runtime"
+      ]
+    },
+    {
+      "id": "regression-uxp-adapter",
+      "category": "regression",
+      "scenario": "The fix touches adapters/uxp only.",
+      "expected_regression_scope": ["UXP"],
+      "must": [
+        "run UXP-relevant automated tests and require real UXP smoke for host-behavior claims",
+        "confirm Chrome filtered tests remain green as a non-regression baseline"
+      ],
+      "must_not": [
+        "skip the Chrome baseline check",
+        "claim real UXP behavior from Chrome/simulator tests"
+      ]
+    },
+    {
+      "id": "regression-chrome-simulator",
+      "category": "regression",
+      "scenario": "The fix touches simulators/photoshop only.",
+      "expected_regression_scope": ["Chrome"],
+      "must": [
+        "run browser adapter tests and chrome-e2e",
+        "warn that a simulator fidelity change can mask or expose a real UXP bug"
+      ],
+      "must_not": [
+        "claim the simulator change fixes a real Photoshop behavior",
+        "skip the chrome-e2e gate"
+      ]
+    },
+    {
+      "id": "regression-composition-shell",
+      "category": "regression",
+      "scenario": "The fix touches composition or shells (startup wiring, entrypoints).",
+      "expected_regression_scope": ["UXP", "Chrome"],
+      "must": [
+        "verify build and startup assembly for both entrypoints",
+        "run app-shell tests"
+      ],
+      "must_not": [
+        "validate only one entrypoint"
+      ]
+    },
+    {
+      "id": "regression-style-only",
+      "category": "regression",
+      "scenario": "The fix is style-only (CSS / layout in shared UI).",
+      "expected_regression_scope": ["UXP", "Chrome"],
+      "must": [
+        "verify key pages in both runtimes show no layout or interaction regression",
+        "note UXP WebView may render shared CSS differently from Chrome"
+      ],
+      "must_not": [
+        "assume identical rendering across runtimes without checking"
+      ]
+    },
+    {
+      "id": "stop-no-oracle",
+      "category": "stop",
+      "scenario": "The reported defect is intermittent and no acceptance oracle can be defined.",
+      "must": [
+        "stop and produce a Decision Packet because no acceptance oracle can be defined",
+        "not claim the fix is verified"
+      ],
+      "must_not": [
+        "close the fix without a verifiable before/after check"
+      ]
+    },
+    {
+      "id": "stop-cross-boundary",
+      "category": "stop",
+      "scenario": "The only viable fix leaves the authorized owner boundary for the current task.",
+      "must": [
+        "stop and produce a Decision Packet",
+        "preserve unrelated changes via git status"
+      ],
+      "must_not": [
+        "silently expand ownership to land the fix"
+      ]
+    },
+    {
+      "id": "stop-contract-change-unauthorized",
+      "category": "stop",
+      "scenario": "The fix changes a public port or application contract without authorization.",
+      "must": [
+        "stop and escalate as a contract / architectural-responsibility change",
+        "not implement the contract change without authorization"
+      ],
+      "must_not": [
+        "land an unauthorized public contract change"
+      ]
+    },
+    {
+      "id": "stop-real-uxp-no-evidence",
+      "category": "stop",
+      "scenario": "The fix claims real UXP host behavior is correct but no real Photoshop evidence exists.",
+      "must": [
+        "stop because a real-UXP-behavior claim has no real host evidence",
+        "flag the missing manual gate"
+      ],
+      "must_not": [
+        "assert the claim using fake tests or simulator behavior"
+      ]
+    }
+  ]
+}

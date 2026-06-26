@@ -168,9 +168,8 @@ skill whose trigger matches the task:
 |---|---|
 | `requirement-to-loop-planner` | New non-trivial requirement or architecture / provider / CLI / UXP workflow change needs bounded scope, validation, and stop rules before implementation. |
 | `bounded-loop-executor` | An approved Loop slice already defines owner boundary, allowed files, forbidden files, validation, stop rules, and reporting requirements. |
-| `cli-contract-reviewer` | CLI parser, stdout/stderr, profile/job commands, config/log paths, subprocess tests, or `--out` artifact behavior. |
 | `provider-contract-reviewer` | Provider config schemas, canonical requests, model discovery, transport builders, response parsers, descriptors, mock/live smoke boundaries, or normalization. |
-| `uxp-boundary-reviewer` | React-to-application seams, HostBridge, UXP storage, secureStorage, manifest permissions, Photoshop writeback, fake UXP tests, or real host smoke planning. |
+| `ui-fix-guardrails` | UI defect fixes in `apps/app` touching shared UI, ports, UXP/Chrome adapters, simulator, or composition; frames owner boundary and acceptance before the fix and verifies dual-runtime regression after. |
 
 Do not create one skill per feature. Do not create generic TypeScript monorepo
 skills that ignore this repository's CLI / Provider / UXP boundaries.
