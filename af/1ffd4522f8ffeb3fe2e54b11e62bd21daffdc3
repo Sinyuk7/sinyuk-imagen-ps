@@ -1,0 +1,52 @@
+apps/app/src/shared/ui/pages/main-page.tsx
+  s_8cf9a2ccbf31a5::t_f9bb78d3942845 393
+  s_8cf9a2ccbf31a5::t_12f9d5a6f26d3a 328
+apps/app/src/shared/ui/hooks/use-conversation.ts
+  s_8cf9a2ccbf31a5::t_6d44ca0db96d56 1,161-172,203-207,210-235,237-303,314,325-326
+apps/app/tests/use-conversation.test.tsx
+  s_8cf9a2ccbf31a5::t_e895c515684125 3-4,21-55,100-218
+docs/dev-memory/_inbox/2026-06-26-duplicate-submission-prevention.md
+  s_8cf9a2ccbf31a5::t_17886d0840c520 1-155
+packages/application/src/duplicate-submission.test.ts
+  s_8cf9a2ccbf31a5::t_eb149bfb290f79 1-216
+packages/application/src/runtime.ts
+  s_8cf9a2ccbf31a5::t_de83acb6e7d5cd 555-566
+packages/application/src/session/session.test.ts
+  s_8cf9a2ccbf31a5::t_fdddb5c125adeb 2-8,194-455
+packages/application/src/session/session.ts
+  s_8cf9a2ccbf31a5::t_fefc32c86662c8 1,134-149,170-199,201,205-210,212-230,248-249
+packages/providers/src/contract/provider.ts
+  s_8cf9a2ccbf31a5::t_17dfc6887b087f 53-87
+packages/providers/src/providers/chat-image/provider.ts
+  s_8cf9a2ccbf31a5::t_32f823bc0bed6e 8,72-75,83,88,90-91
+packages/providers/src/providers/image-endpoint/provider.ts
+  s_8cf9a2ccbf31a5::t_73c630045b2f55 9,111-114,122,127,130
+packages/providers/src/transport/image-endpoint/http.ts
+  s_8cf9a2ccbf31a5::t_58d36d0dfc2a6f 10,201-203,210,227
+packages/providers/src/transport/image-endpoint/paid-retry.ts
+  s_8cf9a2ccbf31a5::t_81f81ac8e41e10 1-70
+packages/providers/src/transport/image-endpoint/retry.ts
+  s_8cf9a2ccbf31a5::t_484e425e6a7298 4,6-18,44-86,90-141,193-195,204,216-219,230
+packages/providers/tests/counting-transport.ts
+  s_8cf9a2ccbf31a5::t_189ac7d4add682 1-103
+packages/providers/tests/paid-retry.test.ts
+  s_8cf9a2ccbf31a5::t_cccce460cdfcd3 1-132
+packages/providers/tests/retry.test.ts
+  s_8cf9a2ccbf31a5::t_61f8022bc13744 2,4-13,35-256
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.3",
+  "base_commit_sha": "af1ffd4522f8ffeb3fe2e54b11e62bd21daffdc3",
+  "prompts": {},
+  "sessions": {
+    "s_8cf9a2ccbf31a5": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "8ca7a6c5-4877-4961-9b9d-7e612e8f6d46",
+        "model": "glm-5.2"
+      },
+      "human_author": "Sinyuk <80998062@qq.com>"
+    }
+  }
+}
