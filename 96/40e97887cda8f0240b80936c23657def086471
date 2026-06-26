@@ -1,0 +1,67 @@
+apps/app/src/shared/ui/primitives/custom-elements.d.ts
+  s_5d734c176f0c32::t_b738d1e9ba9560 1-42
+  s_5d734c176f0c32::t_c35679d2cdfe38 43-46
+apps/app/src/shared/ui/primitives/spectrum-theme.ts
+  s_5d734c176f0c32::t_ffc120cb125a6e 1-36
+apps/app/src/shared/ui/app-shell.tsx
+  s_5d734c176f0c32::t_e925dcfae47fc0 19
+  s_5d734c176f0c32::t_5e4a58df94b154 197,201-203
+apps/app/src/shared/ui/pages/settings-detail-page.tsx
+  s_5d734c176f0c32::t_0a725287778eb7 8,218,220,234-239,241,251-257,259,270-271,274-275,278,282,289-294,296,314-315,320,322-324,328,332,341,343,347,360-361,363
+apps/app/tests/swc-migration-residual.test.ts
+  s_5d734c176f0c32::t_79440b499a46ae 1-91
+apps/app/src/shared/ui/primitives/spectrum-controls.tsx
+  s_5d734c176f0c32::t_30203431f602ad 5-11,15-27,35,59-95,103-104,119-142,286-357
+  s_5d734c176f0c32::t_36599c415f16e1 106
+.gitignore
+  s_5d734c176f0c32::t_55bac8a503e83b 17-18
+apps/app/vite.uxp.config.ts
+  s_5d734c176f0c32::t_3b1db90c8df207 155-158
+  s_5d734c176f0c32::t_688a4e63cd58d2 123-141,147
+  s_5d734c176f0c32::t_e34fb3f95287e0 6-7,10-13,15-16
+apps/app/tests/settings-page.test.tsx
+  s_5d734c176f0c32::t_73a866939ed0ed 20,41-50
+apps/app/src/shared/ui/pages/main-page.tsx
+  s_5d734c176f0c32::t_033f3ee2417e94 1,13
+  s_5d734c176f0c32::t_a8e057a825242a 14,89,117,136,138,155,157,163,187,192,194,201-210,224-233,304-312,379-405,524-540,569
+apps/app/package.json
+  s_5d734c176f0c32::t_15a6c3ec9fb419 18-19,22-24,26,28-32,35-38,40-41
+apps/app/src/shared/ui/pages/settings-page.tsx
+  s_5d734c176f0c32::t_b7efd55dd08670 4,32-37,39,41-59,76
+apps/app/src/shared/ui/pages/settings-add-page.tsx
+  s_5d734c176f0c32::t_c7fb2ffea8329d 109-114,116,158-159,162-164,167,170,178,182,189-194,196,215-218,222
+  s_5d734c176f0c32::t_dec0497b9b1ec6 8
+apps/app/src/shared/ui/panel-css.ts
+  s_5d734c176f0c32::t_9dc466ea828e63 436
+  s_5d734c176f0c32::t_17c7f5a0e82065 448
+  s_5d734c176f0c32::t_2b9817395b27fc 31-54,67-70,87-88,133-134,201-202,224-228,340-341,344,357,374,412-415,452-453,460,463,483
+  s_5d734c176f0c32::t_84186a65531701 55-66
+  s_5d734c176f0c32::t_a09d1290da376e 419,421
+  s_5d734c176f0c32::t_158f7e926e9732 454-458,461-462,464-465
+apps/app/tests/setup.ts
+  s_5d734c176f0c32::t_71a9a7cd3b742c 8-17,19
+  s_5d734c176f0c32::t_05189f44ff6f4f 2-7,18,20-25
+apps/app/src/shared/ui/components/toast-host.tsx
+  s_5d734c176f0c32::t_8bd0b1ea2ff7b8 1
+  s_5d734c176f0c32::t_f0801443be25be 2-106
+apps/app/src/shared/ui/pages/history-page.tsx
+  s_5d734c176f0c32::t_d4f181ed73553a 5,109-114,116,118-124,126,130-139,174
+pnpm-lock.yaml
+  s_5d734c176f0c32::t_797f9749906797 26-31,38-46,50-52,56-70,77-88,92-97,523-534,593,599,605,611,617,623,629,635,641,647,653,659,665,700-705,721-726,742-747,751-756,760-768,772-777,784-789,793-795,799-804,1721-1733,1835-1847,1876-1887,1913-1926,1933-1943,1953-1970,1973-1981,1990-1997,2002-2006,2012-2020
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.3",
+  "base_commit_sha": "9640e97887cda8f0240b80936c23657def086471",
+  "prompts": {},
+  "sessions": {
+    "s_5d734c176f0c32": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "6202a10f-f549-4ea5-8b47-bbfc7fcb72d7",
+        "model": "glm-5.2"
+      },
+      "human_author": "Sinyuk <80998062@qq.com>"
+    }
+  }
+}
