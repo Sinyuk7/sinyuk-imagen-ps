@@ -1,0 +1,2 @@
+- [模型选择器状态保留](docs/dev-memory/model-selector-state-preservation.md) — 防止异步列表刷新覆盖用户选择
+- [Composer 选择控件 SWC 链](docs/dev-memory/composer-select-swc-chain.md) — 选 action-button+popover+menu，picker/action-menu 无 UXP wrapper

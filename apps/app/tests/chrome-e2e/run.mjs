@@ -228,9 +228,10 @@ async function smokeScenario({ page, url, capture }) {
   await expectVisibleText(page, 'No provider profile');
   await expectVisibleText(page, 'No model selected');
   await expectVisibleText(page, 'Current session');
-  await expectVisibleText(page, 'Enter a prompt to submit a real job through the application layer.');
-  await expectVisibleText(page, 'Blue glass perfume product photo');
+  await expectVisibleText(page, 'What would you like to create? Pick a profile, describe your image, and send.');
+  await expectVisibleText(page, 'Product photo of a blue glass perfume bottle');
   await expectVisibleText(page, 'Cyberpunk night reference edit');
+  await expectVisibleText(page, 'Generate around the current PS layer');
   await page.locator('textarea[placeholder="Add a profile in Providers first"]').waitFor({ state: 'visible' });
   await page.locator('button.cmp-send').evaluate((button) => {
     if (!(button instanceof HTMLButtonElement) || !button.disabled) {
@@ -415,7 +416,7 @@ async function mainProfileModelMenusScenario({ page, url, capture }) {
 
 async function promptSuggestionGenerateScenario({ page, url, capture }) {
   await openApp(page, url);
-  await page.getByText('Blue glass perfume product photo', { exact: true }).click();
+  await page.getByText('Product photo of a blue glass perfume bottle', { exact: true }).click();
   await checkpoint(page, capture, '16-main-suggestion-filled.png', async () => {
     await page.getByTestId('composer-textarea').evaluate((textarea) => {
       if (!(textarea instanceof HTMLTextAreaElement) || !textarea.value.includes('blue glass perfume')) {

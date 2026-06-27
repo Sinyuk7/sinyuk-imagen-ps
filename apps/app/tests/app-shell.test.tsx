@@ -88,7 +88,7 @@ describe('AppShell', () => {
     await flush();
 
     expect(container.textContent).toContain('Current session');
-    expect(container.textContent).toContain('Enter a prompt to submit a real job through the application layer.');
+    expect(container.textContent).toContain('What would you like to create? Pick a profile, describe your image, and send.');
     expect(document.documentElement.lang).toBe('en');
   });
 

@@ -99,7 +99,7 @@ export function ToastHost({ toast, onClose }: ToastHostProps) {
   const variant = toast.variant === 'neutral' ? undefined : toast.variant;
 
   return (
-    <sp-toast data-testid="toast" ref={ref} variant={variant}>
+    <sp-toast data-testid="toast" ref={ref} variant={variant} tabIndex={-1} aria-live="polite">
       {toast.message}
     </sp-toast>
   );

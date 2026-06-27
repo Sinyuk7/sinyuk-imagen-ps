@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { AppServicesProvider } from '../ports/app-services-context';
 import type { AppServices } from '../ports/app-services';
 import type { LayerInfo } from '../ports/host-port';
@@ -82,6 +82,7 @@ function AppShellContent({ host }: AppShellProps) {
   const [view, setView] = useState<View>('main');
   const [selectedProfileId, setSelectedProfileId] = useState<string | null>(null);
   const [selectedModelId, setSelectedModelId] = useState('');
+  const [highlightedRoundId, setHighlightedRoundId] = useState<string | null>(null);
   const profilesState = useProviderProfiles(services);
   const selectedProfile = useMemo(
     () => profilesState.profiles.find((profile) => profile.profileId === selectedProfileId),
@@ -101,12 +102,46 @@ function AppShellContent({ host }: AppShellProps) {
   }, [profilesState.profiles, selectedProfileId]);
 
   useEffect(() => {
+    const available = modelsState.models;
+    const stillValid = available.some((model) => model.id === selectedModelId);
+    if (stillValid) {
+      return;
+    }
     const configured = defaultModelFor(selectedProfile);
-    const firstDiscovered = modelsState.models[0]?.id ?? '';
-    setSelectedModelId(configured || firstDiscovered);
-  }, [modelsState.models, selectedProfile]);
+    const next = configured || available[0]?.id || '';
+    setSelectedModelId(next);
+  }, [modelsState.models, selectedProfile, selectedModelId]);
 
   const onNav = (next: string) => setView(next as View);
+
+  const onEditProfile = useCallback(
+    (profileId: string) => {
+      setSelectedProfileId(profileId);
+      setView('settings-detail');
+    },
+    [],
+  );
+
+  const onLocateRound = useCallback(
+    (roundId: string) => {
+      setHighlightedRoundId(roundId);
+      setView('main');
+    },
+    [],
+  );
+
+  const onHistoryMiss = useCallback(() => {
+    setHighlightedRoundId(null);
+    setView('main');
+  }, []);
+
+  useEffect(() => {
+    if (!highlightedRoundId) {
+      return;
+    }
+    const timer = window.setTimeout(() => setHighlightedRoundId(null), 1800);
+    return () => window.clearTimeout(timer);
+  }, [highlightedRoundId]);
 
   return (
     <div className="panel">
@@ -128,6 +163,8 @@ function AppShellContent({ host }: AppShellProps) {
           layersError={layersError}
           reloadLayers={reloadLayers}
           conversation={conversation}
+          highlightedRoundId={highlightedRoundId}
+          onEditProfile={onEditProfile}
         />
       )}
       {view === 'history' && (
@@ -139,6 +176,8 @@ function AppShellContent({ host }: AppShellProps) {
           error={history.error}
           onReload={history.reload}
           onRetry={conversation.retry}
+          onLocateRound={onLocateRound}
+          onMiss={onHistoryMiss}
         />
       )}
       {view === 'settings' && (

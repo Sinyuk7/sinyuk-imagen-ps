@@ -1,4 +1,13 @@
-import { useCallback, useEffect, useRef, type HTMLAttributes, type KeyboardEvent, type ReactNode } from 'react';
+import {
+  useCallback,
+  useEffect,
+  useRef,
+  forwardRef,
+  type HTMLAttributes,
+  type KeyboardEvent,
+  type ReactNode,
+  type Ref,
+} from 'react';
 import { Button as SpectrumButton } from '@spectrum-web-components/button';
 import { Checkbox as SpectrumCheckbox } from '@spectrum-web-components/checkbox';
 import { Textfield as SpectrumTextfield } from '@spectrum-web-components/textfield';
@@ -9,6 +18,8 @@ import { Tag as SpectrumTag, Tags as SpectrumTags } from '@spectrum-web-componen
 import { Divider as SpectrumDivider } from '@spectrum-web-components/divider';
 import { Tooltip as SpectrumTooltip } from '@spectrum-web-components/tooltip';
 import { Toast as SpectrumToast } from '@spectrum-web-components/toast';
+import { Menu as SpectrumMenu, MenuItem as SpectrumMenuItem } from '@spectrum-web-components/menu';
+import { Popover as SpectrumPopover } from '@spectrum-web-components/popover';
 
 type SpectrumButtonVariant = 'accent' | 'primary' | 'secondary' | 'negative';
 type SpectrumTextFieldType = 'text' | 'password' | 'url' | 'search';
@@ -56,7 +67,7 @@ interface CheckboxProps extends Omit<React.HTMLAttributes<HTMLElement>, 'onInput
   readonly children?: ReactNode;
 }
 
-interface ActionButtonProps extends Omit<HTMLAttributes<HTMLElement>, 'onChange'> {
+interface ActionButtonProps extends Omit<HTMLAttributes<HTMLElement>, 'onChange' | 'ref'> {
   readonly quiet?: boolean;
   readonly emphasized?: boolean;
   readonly selected?: boolean;
@@ -139,6 +150,15 @@ export function registerSpectrumControls(): void {
   }
   if (!customElements.get('sp-toast')) {
     customElements.define('sp-toast', SpectrumToast);
+  }
+  if (!customElements.get('sp-menu')) {
+    customElements.define('sp-menu', SpectrumMenu);
+  }
+  if (!customElements.get('sp-menu-item')) {
+    customElements.define('sp-menu-item', SpectrumMenuItem);
+  }
+  if (!customElements.get('sp-popover')) {
+    customElements.define('sp-popover', SpectrumPopover);
   }
   registered = true;
 }
@@ -289,24 +309,28 @@ export function Checkbox({ checked, onChecked, disabled, children, className, on
  * 取代旧的 CSS `Tip` 组件。`selected` 由调用方受控（不使用 `toggles` 的内部翻转），
  * 以便在单选 chip / filter 场景下由 React state 决定高亮。
  */
-export function ActionButton({
-  quiet,
-  emphasized,
-  selected,
-  toggles,
-  disabled,
-  label,
-  placement = 'top',
-  className,
-  children,
-  onClick,
-  onKeyUp,
-  ...props
-}: ActionButtonProps) {
+export const ActionButton = forwardRef<HTMLElement, ActionButtonProps>(function ActionButton(
+  {
+    quiet,
+    emphasized,
+    selected,
+    toggles,
+    disabled,
+    label,
+    placement = 'top',
+    className,
+    children,
+    onClick,
+    onKeyUp,
+    ...props
+  },
+  ref,
+) {
   registerSpectrumControls();
   return (
     <sp-action-button
       {...props}
+      ref={ref as Ref<HTMLElement>}
       class={className}
       quiet={quiet || undefined}
       emphasized={emphasized || undefined}
@@ -320,7 +344,7 @@ export function ActionButton({
       {label ? <sp-tooltip self-managed placement={placement}>{label}</sp-tooltip> : null}
     </sp-action-button>
   );
-}
+});
 
 export function FieldLabel({ htmlFor, children, required, disabled, className }: FieldLabelProps) {
   registerSpectrumControls();

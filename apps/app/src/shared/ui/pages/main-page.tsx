@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { ProviderModelInfo, ProviderProfile } from '@imagen-ps/application';
 import { useAppServices } from '../../ports/app-services-context';
 import type { LayerInfo } from '../../ports/host-port';
@@ -9,6 +9,7 @@ import type {
   ConversationRound,
 } from '../hooks/use-conversation';
 import { Icon } from '../components/icons';
+import { ComposerSelect } from '../components/composer-select';
 import { UxpTextArea } from '../components/uxp-form-controls';
 import { useToast, ToastHost } from '../components/toast-host';
 import { ActionButton } from '../primitives/spectrum-controls';
@@ -31,6 +32,8 @@ interface MainPageProps {
   readonly layersError: string | null;
   readonly reloadLayers: () => Promise<void>;
   readonly conversation: ConversationController;
+  readonly highlightedRoundId?: string | null;
+  readonly onEditProfile?: (profileId: string) => void;
 }
 
 interface FlatLayer {
@@ -60,6 +63,21 @@ function attachmentId(prefix: string): string {
   return `${prefix}-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
 }
 
+function dedupeById(models: readonly ProviderModelInfo[]): readonly ProviderModelInfo[] {
+  const seen = new Set<string>();
+  return models.filter((model) => {
+    if (seen.has(model.id)) {
+      return false;
+    }
+    seen.add(model.id);
+    return true;
+  });
+}
+
+function findRoundElement(container: HTMLElement, roundId: string): HTMLElement | null {
+  return container.querySelector(`[data-round-id="${roundId}"]`);
+}
+
 export function MainPage({
   onNav,
   profiles,
@@ -70,51 +88,103 @@ export function MainPage({
   onSelectProfile,
   models,
   modelsLoading,
-  modelsError,
   selectedModelId,
   onSelectModel,
   layers,
   layersError,
   reloadLayers,
   conversation,
+  highlightedRoundId,
+  onEditProfile,
 }: MainPageProps) {
   const services = useAppServices();
   const { messages: t } = useI18n();
   const [input, setInput] = useState('');
   const [attachments, setAttachments] = useState<readonly ConversationAttachment[]>([]);
+  const [target, setTarget] = useState('layer');
+  const [aspectRatio, setAspectRatio] = useState('auto');
   const [profileMenuOpen, setProfileMenuOpen] = useState(false);
-  const [modelMenuOpen, setModelMenuOpen] = useState(false);
+  const [openMenu, setOpenMenu] = useState<'model' | 'target' | 'aspect' | null>(null);
   const [attachOpen, setAttachOpen] = useState(false);
   const [layerOpen, setLayerOpen] = useState(false);
   const { toast, show, close } = useToast();
   const [copied, setCopied] = useState<Record<string, boolean>>({});
+  const [scrolledAway, setScrolledAway] = useState(false);
   const convRef = useRef<HTMLDivElement>(null);
   const taRef = useRef<HTMLTextAreaElement>(null);
   const flatLayers = useMemo(() => flattenLayers(layers), [layers]);
+  const uniqueModels = useMemo(() => dedupeById(models), [models]);
+  const modelOptions = useMemo(
+    () => uniqueModels.map((model) => ({ id: model.id, label: modelLabel(model) })),
+    [uniqueModels],
+  );
   const selectedModelLabel = selectedModelId || (modelsLoading ? t.main.modelLoading : t.main.modelUnselected);
   const currentPromptValue = () => taRef.current?.value ?? input;
   const canSend = input.trim().length > 0 && Boolean(selectedProfile) && !conversation.running;
+  const isAtBottom = useCallback(() => {
+    const el = convRef.current;
+    if (!el) return true;
+    return el.scrollHeight - el.scrollTop - el.clientHeight <= 64;
+  }, []);
 
   useEffect(() => {
-    if (convRef.current) {
+    if (convRef.current && isAtBottom()) {
       convRef.current.scrollTop = convRef.current.scrollHeight;
     }
-  }, [conversation.rounds]);
+  }, [conversation.rounds, isAtBottom]);
+
+  useEffect(() => {
+    const el = convRef.current;
+    if (!el) return;
+    function handleScroll() {
+      setScrolledAway(el!.scrollHeight - el!.scrollTop - el!.clientHeight > 64);
+    }
+    el.addEventListener('scroll', handleScroll);
+    handleScroll();
+    return () => el.removeEventListener('scroll', handleScroll);
+  }, [conversation.rounds.length]);
+
+  useEffect(() => {
+    if (!highlightedRoundId || !convRef.current) return;
+    const el = findRoundElement(convRef.current, highlightedRoundId);
+    if (el) {
+      el.scrollIntoView({ behavior: 'auto', block: 'center' });
+      el.classList.add('round-flash');
+      const timer = window.setTimeout(() => el.classList.remove('round-flash'), 1500);
+      return () => window.clearTimeout(timer);
+    }
+  }, [highlightedRoundId]);
 
   const closeAll = () => {
     setProfileMenuOpen(false);
-    setModelMenuOpen(false);
+    setOpenMenu(null);
     setAttachOpen(false);
     setLayerOpen(false);
   };
 
-  const handleCopy = (id: string, text: string) => {
-    navigator.clipboard?.writeText(text).catch(() => undefined);
-    setCopied((current) => ({ ...current, [id]: true }));
-    window.setTimeout(() => setCopied((current) => ({ ...current, [id]: false })), 1500);
-    setInput(text);
+  const restoreRound = (round: ConversationRound) => {
+    setInput(round.prompt);
+    if (round.modelId && uniqueModels.some((model) => model.id === round.modelId)) {
+      onSelectModel(round.modelId);
+    }
+    if (round.attachments.length > 0) {
+      setAttachments(round.attachments);
+    }
     taRef.current?.focus();
     show(t.toast.promptFilled, 'info');
+  };
+
+  const handleCopy = (id: string, round: ConversationRound) => {
+    navigator.clipboard?.writeText(round.prompt).catch(() => undefined);
+    setCopied((current) => ({ ...current, [id]: true }));
+    window.setTimeout(() => setCopied((current) => ({ ...current, [id]: false })), 1500);
+    restoreRound(round);
+  };
+
+  const scrollToBottom = () => {
+    if (convRef.current) {
+      convRef.current.scrollTop = convRef.current.scrollHeight;
+    }
   };
 
   const addAttachment = (attachment: ConversationAttachment) => {
@@ -170,6 +240,15 @@ export function MainPage({
     if (prompt.length === 0) {
       return;
     }
+    if (/^\/new\b$/i.test(prompt)) {
+      if (conversation.running) {
+        show(t.toast.waitForRunningTask, 'info');
+      } else {
+        conversation.clear();
+        show(t.toast.newSessionStarted, 'info');
+      }
+      return;
+    }
     setInput('');
     setAttachments([]);
     await conversation.submit({
@@ -215,11 +294,10 @@ export function MainPage({
           onClick={(event) => {
             event.stopPropagation();
             setProfileMenuOpen((open) => !open);
-            setModelMenuOpen(false);
+            setOpenMenu(null);
           }}
         >
           <span className="hdr-provider">{selectedProfile?.displayName ?? t.main.noProviderProfile}</span>
-          <span className="hdr-model">{selectedModelLabel}</span>
         </button>
         <ActionButton
           data-testid="main-providers-button"
@@ -273,12 +351,15 @@ export function MainPage({
                 <button className="empty-hint" onClick={() => setInput(t.main.promptSuggestionCyberpunkValue)}>
                   {t.main.promptSuggestionCyberpunkLabel}
                 </button>
+                <button className="empty-hint" onClick={() => setInput(t.main.promptSuggestionLayerValue)}>
+                  {t.main.promptSuggestionLayerLabel}
+                </button>
               </div>
             </div>
           )}
 
           {conversation.rounds.map((round) => (
-            <div key={round.id}>
+            <div key={round.id} data-round-id={round.id} data-testid={`round-${round.id}`}>
               <div className="msg-user">
                 <div className="user-wrap">
                   <div className="user-bubble">
@@ -306,7 +387,7 @@ export function MainPage({
                       className={`copy-btn${copied[round.id] ? ' cp' : ''}`}
                       quiet
                       label={t.main.reusePrompt}
-                      onClick={(event) => { event.stopPropagation(); handleCopy(round.id, round.prompt); }}
+                      onClick={(event) => { event.stopPropagation(); handleCopy(round.id, round); }}
                     >
                       {copied[round.id] ? <Icon name="check" /> : <Icon name="copy" />}
                     </ActionButton>
@@ -325,14 +406,36 @@ export function MainPage({
                       </span>
                     </div>
                     <div className="err-msg">{round.errorMessage}</div>
-                    <button data-testid={`error-retry-button-${round.id}`} className="err-retry" disabled={conversation.running} onClick={() => void conversation.retry(round.id)}>{t.history.retry}</button>
+                    <div className="err-actions">
+                      <button data-testid={`error-retry-button-${round.id}`} className="err-retry" disabled={conversation.running} onClick={() => void conversation.retry(round.id)}>{t.history.retry}</button>
+                      <ActionButton
+                        data-testid={`error-copy-button-${round.id}`}
+                        className={`err-copy${copied[round.id] ? ' cp' : ''}`}
+                        quiet
+                        label={t.main.copyPrompt}
+                        onClick={(event) => { event.stopPropagation(); handleCopy(round.id, round); }}
+                      >
+                        {copied[round.id] ? <Icon name="check" /> : <Icon name="copy" />}
+                      </ActionButton>
+                    </div>
                   </div>
                 </div>
               )}
 
               {round.status === 'running' && (
                 <div className="msg-prov" style={{ marginTop: 4 }}>
-                  <div className="av-prov">{round.providerName.slice(0, 1).toUpperCase()}</div>
+                  <button
+                    className="av-prov"
+                    disabled={!onEditProfile || !round.profileId}
+                    onClick={(event) => {
+                      event.stopPropagation();
+                      if (round.profileId && onEditProfile) {
+                        onEditProfile(round.profileId);
+                      }
+                    }}
+                  >
+                    {round.providerName.slice(0, 1).toUpperCase()}
+                  </button>
                   <div className="prov-card">
                     <div className="prov-top">
                       <span className="prov-name-lbl">{round.providerName}</span>
@@ -351,7 +454,18 @@ export function MainPage({
 
               {round.status === 'ok' && (
                 <div className="msg-prov" style={{ marginTop: 4 }}>
-                  <div className="av-prov">{round.providerName.slice(0, 1).toUpperCase()}</div>
+                  <button
+                    className="av-prov"
+                    disabled={!onEditProfile || !round.profileId}
+                    onClick={(event) => {
+                      event.stopPropagation();
+                      if (round.profileId && onEditProfile) {
+                        onEditProfile(round.profileId);
+                      }
+                    }}
+                  >
+                    {round.providerName.slice(0, 1).toUpperCase()}
+                  </button>
                   <div className="prov-card">
                     <div className="prov-top">
                       <span className="prov-name-lbl">{round.providerName}</span>
@@ -363,8 +477,8 @@ export function MainPage({
                     <div className="prov-img">
                       <div className="img-result">
                         {round.previews[0]?.url
-                          ? <img src={round.previews[0].url} className="img-bg" style={{ height: 158, objectFit: 'cover' }} alt={round.previews[0].label} />
-                          : <div className="img-bg" style={{ height: 158, background: 'var(--s2)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--txd)', fontSize: 12 }}>{t.main.noAssetPreview}</div>
+                          ? <img src={round.previews[0].url} className="img-bg" alt={round.previews[0].label} />
+                          : <div className="img-bg" style={{ background: 'var(--s2)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--txd)', fontSize: 12 }}>{t.main.noAssetPreview}</div>
                         }
                         <div className="img-meta">{round.outputSize ?? t.main.assetFallback} · {round.outputFormat ?? t.main.imageFallback}</div>
                         <div className="img-overlay">
@@ -400,7 +514,7 @@ export function MainPage({
                         className="act-ico"
                         quiet
                         label={t.main.copyPrompt}
-                        onClick={(event) => { event.stopPropagation(); handleCopy(`${round.id}-copy`, round.prompt); }}
+                        onClick={(event) => { event.stopPropagation(); handleCopy(`${round.id}-copy`, round); }}
                       >
                         {copied[`${round.id}-copy`] ? <Icon name="check" /> : <Icon name="copy" />}
                       </ActionButton>
@@ -469,102 +583,141 @@ export function MainPage({
           </div>
         )}
 
-        {modelMenuOpen && (
-          <div className="model-menu" onClick={(event) => event.stopPropagation()}>
-            {modelsError && <div className="model-opt">{modelsError}</div>}
-            {modelsLoading && <div className="model-opt">{t.main.loadingModels}</div>}
-            {!modelsLoading && models.length === 0 && <div className="model-opt">{t.main.noModelCandidates}</div>}
-            {models.map((model) => (
-              <div
-                key={model.id}
-                data-testid={`model-menu-option-${model.id}`}
-                className={`model-opt${model.id === selectedModelId ? ' act' : ''}`}
-                onClick={() => {
-                  onSelectModel(model.id);
-                  setModelMenuOpen(false);
-                }}
-              >
-                {model.id === selectedModelId && <Icon name="check" />}
-                <span>{modelLabel(model)}</span>
-              </div>
-            ))}
-          </div>
-        )}
-
         <div className={`cmp-inner${conversation.running ? ' off' : ''}`}>
           {attachments.length > 0 && (
-            <div className="attach-row">
-              {attachments.map((attachment) => (
-                <div key={attachment.id} className="att-thumb">
-                  {attachment.previewUrl
-                    ? <img src={attachment.previewUrl} style={{ width: '100%', height: '100%', objectFit: 'cover' }} alt={attachment.name} />
-                    : <div style={{ width: '100%', height: '100%', background: 'var(--s1)' }} />
-                  }
-                  <button data-testid={`attachment-remove-button-${attachment.id}`} className="att-rm" onClick={() => setAttachments((current) => current.filter((item) => item.id !== attachment.id))}>x</button>
-                </div>
-              ))}
+            <div className="cmp-top">
+              <div className="attach-row">
+                {attachments.map((attachment) => (
+                  <div key={attachment.id} className="att-thumb">
+                    {attachment.previewUrl
+                      ? <img src={attachment.previewUrl} style={{ width: '100%', height: '100%', objectFit: 'cover' }} alt={attachment.name} />
+                      : <div style={{ width: '100%', height: '100%', background: 'var(--s1)' }} />
+                    }
+                    <button data-testid={`attachment-remove-button-${attachment.id}`} className="att-rm" onClick={() => setAttachments((current) => current.filter((item) => item.id !== attachment.id))}>x</button>
+                  </div>
+                ))}
+              </div>
             </div>
           )}
-          <UxpTextArea
-            data-testid="composer-textarea"
-            controlRef={taRef}
-            className="cmp-ta"
-            placeholder={selectedProfile ? t.main.promptPlaceholderReady : t.main.promptPlaceholderNoProfile}
-            rows={2}
-            value={input}
-            onValue={setInput}
-            onKeyDown={(event) => {
-              if (event.key === 'Enter' && !event.shiftKey) {
-                event.preventDefault();
-                void handleSend();
-              }
-            }}
-            disabled={conversation.running}
-          />
-          <div className="cmp-bar">
-            <ActionButton
-              data-testid="composer-add-image-button"
-              className="cmp-add"
-              quiet
-              selected={attachOpen || layerOpen}
-              label={t.main.addImage}
-              placement="top"
-              onClick={(event) => {
-                event.stopPropagation();
-                setAttachOpen((open) => !open);
-                setLayerOpen(false);
-                setModelMenuOpen(false);
-                setProfileMenuOpen(false);
-              }}
-            >
-              <Icon name="add" />
-            </ActionButton>
-            <div
-              data-testid="main-model-selector"
-              className={`cmp-chip${modelMenuOpen ? ' open' : ''}`}
-              onClick={(event) => {
-                event.stopPropagation();
-                setModelMenuOpen((open) => !open);
-                setAttachOpen(false);
-                setLayerOpen(false);
-                setProfileMenuOpen(false);
-              }}
-            >
-              <span className="cmp-dot" />
-              <span>{selectedModelLabel}</span>
-              <Icon name="chevron-down" size={9} />
-            </div>
-            <div className="cmp-sp" />
-            <div className="send-wrap">
-              <button data-testid="composer-send-button" className="cmp-send" disabled={!canSend} onClick={() => void handleSend()} title={t.main.send}>
-                {conversation.running
-                  ? <Icon name="spinner" size={13} className="spin" />
-                  : <Icon name="send" />
+          <div className="cmp-body">
+            <UxpTextArea
+              data-testid="composer-textarea"
+              controlRef={taRef}
+              className="cmp-ta"
+              placeholder={selectedProfile ? t.main.promptPlaceholderReady : t.main.promptPlaceholderNoProfile}
+              rows={2}
+              value={input}
+              onValue={setInput}
+              onKeyDown={(event) => {
+                if (event.key === 'Enter' && !event.shiftKey) {
+                  event.preventDefault();
+                  void handleSend();
                 }
-              </button>
+              }}
+              disabled={conversation.running}
+            />
+          </div>
+          <div className="cmp-bottom">
+            <div className="cmp-left">
+              <ActionButton
+                data-testid="composer-add-image-button"
+                className="cmp-add"
+                quiet
+                selected={attachOpen || layerOpen}
+                label={t.main.addImage}
+                placement="top"
+                disabled={conversation.running}
+                onClick={(event) => {
+                  event.stopPropagation();
+                  setAttachOpen((open) => !open);
+                  setLayerOpen(false);
+                  setOpenMenu(null);
+                  setProfileMenuOpen(false);
+                }}
+              >
+                <Icon name="add" />
+              </ActionButton>
+              <ComposerSelect
+                testId="main-model-selector"
+                label="Model"
+                value={selectedModelLabel}
+                disabled={conversation.running}
+                open={openMenu === 'model'}
+                onOpenChange={(open) => setOpenMenu(open ? 'model' : null)}
+                options={modelOptions}
+                selectedId={selectedModelId}
+                onSelect={onSelectModel}
+              />
+              <ComposerSelect
+                testId="composer-target-selector"
+                label={t.main.target}
+                value={target === 'layer' ? t.main.targetLayer : t.main.targetSelection}
+                disabled={conversation.running}
+                open={openMenu === 'target'}
+                onOpenChange={(open) => setOpenMenu(open ? 'target' : null)}
+                options={[
+                  { id: 'layer', label: t.main.targetLayer, icon: 'ps-layers' },
+                  { id: 'selection', label: t.main.targetSelection, icon: 'selection' },
+                ]}
+                selectedId={target}
+                onSelect={setTarget}
+                leadingIcon={target === 'layer' ? 'ps-layers' : 'selection'}
+              />
+            </div>
+            <div className="cmp-right">
+              <ComposerSelect
+                testId="composer-aspect-ratio-selector"
+                label={t.main.aspectRatio}
+                value={aspectRatio === 'auto' ? t.main.aspectRatioAuto : t.main.aspectRatioSquare}
+                disabled={conversation.running}
+                open={openMenu === 'aspect'}
+                onOpenChange={(open) => setOpenMenu(open ? 'aspect' : null)}
+                options={[
+                  { id: 'auto', label: t.main.aspectRatioAuto, icon: 'image-auto-mode' },
+                  { id: '1:1', label: t.main.aspectRatioSquare },
+                ]}
+                selectedId={aspectRatio}
+                onSelect={setAspectRatio}
+                leadingIcon="image-auto-mode"
+              />
+              <ActionButton
+                data-testid="composer-prompt-optimize-button"
+                className="cmp-opt"
+                quiet
+                label={t.main.promptOptimize}
+                placement="top"
+                disabled={conversation.running}
+                onClick={(event) => {
+                  event.stopPropagation();
+                  show(t.main.promptOptimizePlaceholder, 'neutral');
+                }}
+              >
+                <Icon name="magic-wand" />
+              </ActionButton>
+              <div className="send-wrap">
+                <button data-testid="composer-send-button" className="cmp-send" disabled={!canSend} onClick={() => void handleSend()} title={t.main.send}>
+                  {conversation.running
+                    ? <Icon name="spinner" size={13} className="spin" />
+                    : <Icon name="send" />
+                  }
+                </button>
+              </div>
             </div>
           </div>
         </div>
+
+        {scrolledAway && (
+          <button
+            data-testid="back-to-bottom-button"
+            className="back-to-bottom"
+            onClick={(event) => {
+              event.stopPropagation();
+              scrollToBottom();
+            }}
+          >
+            <Icon name="chevron-down" size={10} />
+          </button>
+        )}
       </footer>
 
       <ToastHost toast={toast} onClose={close} />

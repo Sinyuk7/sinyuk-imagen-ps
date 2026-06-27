@@ -42,6 +42,6 @@ describe('Chrome shared UI shell', () => {
     expect(host.services.host.capabilities.runtime).toBe('chrome-browser');
     expect(await host.services.host.listLayers()).toHaveLength(10);
     expect(container.textContent).toContain('Current session');
-    expect(container.textContent).toContain('Enter a prompt to submit a real job through the application layer.');
+    expect(container.textContent).toContain('What would you like to create? Pick a profile, describe your image, and send.');
   });
 });

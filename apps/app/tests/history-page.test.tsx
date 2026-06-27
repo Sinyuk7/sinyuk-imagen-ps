@@ -23,6 +23,8 @@ describe('HistoryPage', () => {
     readonly rounds?: readonly ConversationRound[];
     readonly records?: readonly DurableJobRecord[];
     readonly onRetry?: (roundId: string) => Promise<void>;
+    readonly onLocateRound?: (roundId: string) => void;
+    readonly onMiss?: () => void;
   } = {}): Promise<HTMLDivElement> {
     const container = document.createElement('div');
     document.body.appendChild(container);
@@ -38,6 +40,8 @@ describe('HistoryPage', () => {
             loading={false}
             onReload={vi.fn(async () => undefined)}
             onRetry={input.onRetry ?? vi.fn(async () => undefined)}
+            onLocateRound={input.onLocateRound}
+            onMiss={input.onMiss}
           />
         </TestI18nProvider>,
       );
@@ -144,5 +148,43 @@ describe('HistoryPage', () => {
     });
 
     expect(onRetry).toHaveBeenCalledWith('round-failed');
+  });
+
+  it('calls onLocateRound when a current-session round is clicked', async () => {
+    const onLocateRound = vi.fn();
+    const onMiss = vi.fn();
+    const runningRound: ConversationRound = {
+      id: 'round-running',
+      time: '9:30',
+      prompt: 'running prompt',
+      status: 'running',
+      providerName: 'Mock Profile',
+      elapsedSeconds: 2,
+      previews: [],
+      attachments: [],
+    };
+
+    const container = await renderHistory({ rounds: [runningRound], records: [], onLocateRound, onMiss });
+
+    await act(async () => {
+      container.querySelector<HTMLElement>('[data-testid="history-row-round-running"]')!.click();
+    });
+
+    expect(onLocateRound).toHaveBeenCalledWith('round-running');
+    expect(onMiss).not.toHaveBeenCalled();
+  });
+
+  it('calls onMiss when a durable record is clicked', async () => {
+    const onLocateRound = vi.fn();
+    const onMiss = vi.fn();
+
+    const container = await renderHistory({ records: [fakeDurableRecord], onLocateRound, onMiss });
+
+    await act(async () => {
+      container.querySelector<HTMLElement>('[data-testid="history-row-job-history-1"]')!.click();
+    });
+
+    expect(onLocateRound).not.toHaveBeenCalled();
+    expect(onMiss).toHaveBeenCalled();
   });
 });

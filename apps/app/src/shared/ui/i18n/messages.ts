@@ -32,6 +32,8 @@ export interface AppMessages {
     readonly promptSuggestionProductLabel: string;
     readonly promptSuggestionCyberpunkValue: string;
     readonly promptSuggestionCyberpunkLabel: string;
+    readonly promptSuggestionLayerValue: string;
+    readonly promptSuggestionLayerLabel: string;
     readonly reusePrompt: string;
     readonly submitJobRunning: string;
     readonly noAssetPreview: string;
@@ -57,6 +59,14 @@ export interface AppMessages {
     readonly generatedImage: string;
     readonly download: string;
     readonly layerCount: (count: number) => string;
+    readonly target: string;
+    readonly targetLayer: string;
+    readonly targetSelection: string;
+    readonly aspectRatio: string;
+    readonly aspectRatioAuto: string;
+    readonly aspectRatioSquare: string;
+    readonly promptOptimize: string;
+    readonly promptOptimizePlaceholder: string;
   };
   readonly history: {
     readonly title: string;
@@ -101,6 +111,9 @@ export interface AppMessages {
     readonly noPlaceableImage: string;
     readonly placedOnCanvas: string;
     readonly placeFailed: string;
+    readonly newSessionStarted: string;
+    readonly waitForRunningTask: string;
+    readonly historyNotInCurrentSession: string;
   };
   readonly conversation: {
     readonly jobFailed: string;
@@ -134,13 +147,15 @@ const EN_MESSAGES: AppMessages = {
     loadingProfiles: 'Loading profiles...',
     addProviderProfile: 'Add Provider profile',
     currentSession: 'Current session',
-    emptyHint: 'Enter a prompt to submit a real job through the application layer.',
+    emptyHint: 'What would you like to create? Pick a profile, describe your image, and send.',
     promptSuggestionProductValue: 'A blue glass perfume bottle in product photography style with soft studio lighting',
-    promptSuggestionProductLabel: 'Blue glass perfume product photo',
+    promptSuggestionProductLabel: 'Product photo of a blue glass perfume bottle',
     promptSuggestionCyberpunkValue: 'Turn the reference image into a cyberpunk night scene while preserving the subject outline',
     promptSuggestionCyberpunkLabel: 'Cyberpunk night reference edit',
+    promptSuggestionLayerValue: 'Use the selected Photoshop layer as a base and generate a fantasy forest environment around it',
+    promptSuggestionLayerLabel: 'Generate around the current PS layer',
     reusePrompt: 'Reuse Prompt',
-    submitJobRunning: 'submitJob running...',
+    submitJobRunning: 'Generating...',
     noAssetPreview: 'No asset preview',
     assetFallback: 'Asset',
     imageFallback: 'image',
@@ -164,6 +179,14 @@ const EN_MESSAGES: AppMessages = {
     generatedImage: 'Generated',
     download: 'Download',
     layerCount: (count) => `${count} layer${count === 1 ? '' : 's'}`,
+    target: 'Target',
+    targetLayer: 'Layer',
+    targetSelection: 'Selection',
+    aspectRatio: 'Aspect ratio',
+    aspectRatioAuto: 'Auto',
+    aspectRatioSquare: '1:1',
+    promptOptimize: 'Optimize prompt',
+    promptOptimizePlaceholder: 'Coming soon',
   },
   history: {
     title: 'History',
@@ -208,6 +231,9 @@ const EN_MESSAGES: AppMessages = {
     noPlaceableImage: 'No image to place',
     placedOnCanvas: 'Placed on Photoshop canvas',
     placeFailed: 'Failed to place in Photoshop',
+    newSessionStarted: 'New session started',
+    waitForRunningTask: 'Wait for the running task to finish',
+    historyNotInCurrentSession: 'This task is not in the current session',
   },
   conversation: {
     jobFailed: 'Job failed.',
@@ -241,13 +267,15 @@ const ZH_CN_MESSAGES: AppMessages = {
     loadingProfiles: '加载 profiles...',
     addProviderProfile: '添加 Provider profile',
     currentSession: '当前会话',
-    emptyHint: '输入 prompt 后会通过 application 提交真实 job。',
+    emptyHint: '想生成或编辑什么图像？选择模型，输入描述，然后发送。',
     promptSuggestionProductValue: '一张产品摄影风格的蓝色玻璃香水瓶，柔和棚拍光线',
     promptSuggestionProductLabel: '产品摄影风格的蓝色玻璃香水瓶',
     promptSuggestionCyberpunkValue: '把参考图改成赛博朋克夜景，保留主体轮廓',
     promptSuggestionCyberpunkLabel: '参考图改成赛博朋克夜景',
+    promptSuggestionLayerValue: '使用当前 PS 图层作为基础，围绕它生成奇幻森林环境',
+    promptSuggestionLayerLabel: '围绕当前 PS 图层生成环境',
     reusePrompt: '复用 Prompt',
-    submitJobRunning: 'submitJob running...',
+    submitJobRunning: '生成中...',
     noAssetPreview: 'No asset preview',
     assetFallback: 'Asset',
     imageFallback: 'image',
@@ -271,6 +299,14 @@ const ZH_CN_MESSAGES: AppMessages = {
     generatedImage: '生成',
     download: '下载',
     layerCount: (count) => `${count} 个图层`,
+    target: '目标',
+    targetLayer: '图层',
+    targetSelection: '选区',
+    aspectRatio: '宽高比',
+    aspectRatioAuto: '智能',
+    aspectRatioSquare: '1:1',
+    promptOptimize: '优化提示词',
+    promptOptimizePlaceholder: '即将支持',
   },
   history: {
     title: '历史',
@@ -315,6 +351,9 @@ const ZH_CN_MESSAGES: AppMessages = {
     noPlaceableImage: '没有可置入的图片',
     placedOnCanvas: '已置入 Photoshop 画布',
     placeFailed: '置入 Photoshop 失败',
+    newSessionStarted: '已开始新会话',
+    waitForRunningTask: '请等待当前任务完成',
+    historyNotInCurrentSession: '该任务不在当前会话中',
   },
   conversation: {
     jobFailed: 'Job failed.',

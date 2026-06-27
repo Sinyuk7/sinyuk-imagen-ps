@@ -17,7 +17,9 @@ type SpectrumElementProps = DetailedHTMLProps<HTMLAttributes<HTMLElement>, HTMLE
   readonly toggles?: boolean;
   readonly placement?: string;
   readonly 'self-managed'?: boolean;
+  readonly selects?: string;
   readonly open?: boolean;
+  readonly selects?: string;
   readonly timeout?: number;
   readonly vertical?: boolean;
   readonly color?: string;
@@ -40,6 +42,9 @@ declare module 'react/jsx-runtime' {
       'sp-divider': SpectrumElementProps;
       'sp-tooltip': SpectrumElementProps;
       'sp-toast': SpectrumElementProps;
+      'sp-menu': SpectrumElementProps;
+      'sp-menu-item': SpectrumElementProps;
+      'sp-popover': SpectrumElementProps;
       [key: `sp-icon-${string}`]: SpectrumElementProps;
     }
   }

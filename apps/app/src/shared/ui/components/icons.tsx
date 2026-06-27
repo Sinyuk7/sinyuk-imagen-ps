@@ -14,10 +14,13 @@ import '@spectrum-web-components/icons-workflow/icons/sp-icon-download.js';
 import '@spectrum-web-components/icons-workflow/icons/sp-icon-file-add.js';
 import '@spectrum-web-components/icons-workflow/icons/sp-icon-history.js';
 import '@spectrum-web-components/icons-workflow/icons/sp-icon-image-add.js';
+import '@spectrum-web-components/icons-workflow/icons/sp-icon-image-auto-mode.js';
 import '@spectrum-web-components/icons-workflow/icons/sp-icon-layers.js';
+import '@spectrum-web-components/icons-workflow/icons/sp-icon-magic-wand.js';
 import '@spectrum-web-components/icons-workflow/icons/sp-icon-move-left-right.js';
 import '@spectrum-web-components/icons-workflow/icons/sp-icon-redo.js';
 import '@spectrum-web-components/icons-workflow/icons/sp-icon-refresh.js';
+import '@spectrum-web-components/icons-workflow/icons/sp-icon-selection.js';
 import '@spectrum-web-components/icons-workflow/icons/sp-icon-send.js';
 import '@spectrum-web-components/icons-workflow/icons/sp-icon-settings.js';
 import '@spectrum-web-components/icons-workflow/icons/sp-icon-visibility-off.js';
@@ -44,10 +47,13 @@ export type IconName =
   | 'eye'
   | 'eye-off'
   | 'history'
+  | 'image-auto-mode'
+  | 'magic-wand'
   | 'place-ps'
   | 'ps-layers'
   | 'refresh'
   | 'regenerate'
+  | 'selection'
   | 'send'
   | 'settings'
   | 'spinner'
@@ -79,10 +85,13 @@ const ICON_TAG_BY_NAME: Record<IconName, string> = {
   eye: 'sp-icon-visibility',
   'eye-off': 'sp-icon-visibility-off',
   history: 'sp-icon-history',
+  'image-auto-mode': 'sp-icon-image-auto-mode',
+  'magic-wand': 'sp-icon-magic-wand',
   'place-ps': 'sp-icon-image-add',
   'ps-layers': 'sp-icon-layers',
   refresh: 'sp-icon-refresh',
   regenerate: 'sp-icon-redo',
+  selection: 'sp-icon-selection',
   send: 'sp-icon-send',
   settings: 'sp-icon-settings',
   spinner: 'sp-icon-refresh',

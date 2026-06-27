@@ -3,6 +3,7 @@ import type { DurableJobRecord } from '@imagen-ps/application';
 import type { ConversationRound, RoundStatus } from '../hooks/use-conversation';
 import { Icon } from '../components/icons';
 import { ActionButton } from '../primitives/spectrum-controls';
+import { ToastHost, useToast } from '../components/toast-host';
 import { useI18n } from '../i18n/i18n-context';
 
 const STATUS_COLOR: Record<RoundStatus, string> = { ok: 'var(--ok)', running: 'var(--wa)', err: 'var(--er)' };
@@ -15,6 +16,8 @@ interface HistoryPageProps {
   readonly error?: string;
   readonly onReload: () => Promise<void>;
   readonly onRetry: (roundId: string) => Promise<void>;
+  readonly onLocateRound?: (roundId: string) => void;
+  readonly onMiss?: () => void;
 }
 
 type HistoryFilter = 'all' | RoundStatus;
@@ -83,8 +86,9 @@ function itemFromRound(round: ConversationRound): HistoryItem {
   };
 }
 
-export function HistoryPage({ onNav, rounds, records, loading, error, onReload, onRetry }: HistoryPageProps) {
+export function HistoryPage({ onNav, rounds, records, loading, error, onReload, onRetry, onLocateRound, onMiss }: HistoryPageProps) {
   const { messages: t } = useI18n();
+  const { toast, show, close } = useToast();
   const [filter, setFilter] = useState<'all' | RoundStatus>('all');
   const filters: readonly [HistoryFilter, string][] = [
     ['all', t.status.all],
@@ -147,7 +151,15 @@ export function HistoryPage({ onNav, rounds, records, loading, error, onReload, 
           : filtered.map((item) => {
             const retryRoundId = item.retryRoundId;
             return (
-            <div key={item.id} data-testid={`history-row-${item.id}`} className="task-row" onClick={() => onNav('main')}>
+            <div key={item.id} data-testid={`history-row-${item.id}`} className="task-row" onClick={() => {
+              const isCurrent = rounds.some((round) => round.id === item.id);
+              if (isCurrent) {
+                onLocateRound?.(item.id);
+              } else {
+                show(t.toast.historyNotInCurrentSession, 'info');
+                onMiss?.();
+              }
+            }}>
               <div className="task-thumb">
                 {item.previewUrl
                   ? <img src={item.previewUrl} style={{ width: '100%', height: '100%', objectFit: 'cover', borderRadius: 'inherit' }} alt="" />
@@ -187,6 +199,7 @@ export function HistoryPage({ onNav, rounds, records, loading, error, onReload, 
           })
         }
       </div>
+      <ToastHost toast={toast} onClose={close} />
     </div>
   );
 }
