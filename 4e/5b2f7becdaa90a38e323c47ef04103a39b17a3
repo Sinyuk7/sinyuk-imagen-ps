@@ -1,0 +1,172 @@
+apps/app/src/shared/ui/primitives/spectrum-controls.tsx
+  s_520b3aca11bc54::t_2a8c686d4d724a 154-162
+  s_520b3aca11bc54::t_518564d6d42392 70
+  s_520b3aca11bc54::t_c8bc12a5a54073 312-328,333,347
+  s_520b3aca11bc54::t_43436753493590 21-22
+  s_520b3aca11bc54::t_1110621ccec082 1-10
+apps/app/src/shared/ui/app-shell.tsx
+  s_7f975b4d348099::t_3fecf938e838d2 179-180
+  s_7f975b4d348099::t_409680a9f0f096 166-167
+  s_7f975b4d348099::t_ba7872c54f1b8f 1
+  s_7f975b4d348099::t_9627bbdb051a90 85,105-109,111-113,117-144
+  s_7f975b4d348099::t_e87f315ff67720 145
+apps/app/tests/chrome-shell.test.tsx
+  s_7f975b4d348099::t_bd21f8be08761e 45
+apps/app/tests/composer-select.test.tsx
+  s_b7f5301a1719e1::t_390ba83416dc6b 166-187
+  s_520b3aca11bc54::t_1cc6c273fd60fa 105-128
+  s_520b3aca11bc54::t_0db8e96e5cb59f 1-29,31-49,51-94,96-97,132-140,142-147,149-150,163,165,188
+  s_520b3aca11bc54::t_00bf72e7b0b038 30,50,95,98-104,129-131,141,148,151-162,164
+apps/app/src/shared/ui/pages/history-page.tsx
+  s_7f975b4d348099::t_f5157a76cc4a79 159
+  s_7f975b4d348099::t_fa1b473ff642f0 202
+  s_7f975b4d348099::t_fe9fbaeccda2f5 89
+  s_7f975b4d348099::t_afc2a08a42cfa2 91
+  s_7f975b4d348099::t_2f9c82171e8e27 6
+  s_7f975b4d348099::t_b05397616d2ee1 154-158,160-162
+  s_7f975b4d348099::t_b065446ddf18f6 19-20
+apps/app/src/shared/ui/primitives/custom-elements.d.ts
+  s_520b3aca11bc54::t_470cdeee17955e 45-47
+  s_520b3aca11bc54::t_dc535964e70542 20
+  s_520b3aca11bc54::t_1f0788df25a5d5 22
+apps/app/src/shared/ui/i18n/messages.ts
+  s_7f975b4d348099::t_9dc58564f252bb 270,278
+  s_7f975b4d348099::t_819569d397c5eb 150,152,155-156,158
+  s_7f975b4d348099::t_47e417f7e526e8 234-236
+  s_7f975b4d348099::t_a306ddf75eee55 114-116
+  s_7f975b4d348099::t_0652b3c32df61e 275-276
+  s_520b3aca11bc54::t_8f42486469fa8e 182-189
+  s_7f975b4d348099::t_4f12f92b19955b 354-356
+  s_520b3aca11bc54::t_598cbdedc6cc60 302-309
+  s_520b3aca11bc54::t_8038ef25ea9a58 62-69
+  s_7f975b4d348099::t_c4dab2d96a2f0e 35-36
+docs/dev-memory/model-selector-state-preservation.md
+  s_7f975b4d348099::t_c7d77e9a661be7 1-14
+apps/app/src/shared/ui/components/icons.tsx
+  s_520b3aca11bc54::t_39ff58252777e7 17,19
+  s_520b3aca11bc54::t_826c35120abb6b 23,50-51,56,88-89,94
+apps/app/tests/history-page.test.tsx
+  s_7f975b4d348099::t_41ab7161804f42 26-27,43-44,152-189
+apps/app/tests/app-shell.test.tsx
+  s_7f975b4d348099::t_bd21f8be08761e 91
+apps/app/package.json
+  s_520b3aca11bc54::t_d1c1fda24271c9 40-41
+  s_520b3aca11bc54::t_a6374ad7321fa3 26-27
+apps/app/src/shared/ui/pages/main-page.tsx
+  s_520b3aca11bc54::t_82b47d3c088c06 117-120
+  s_520b3aca11bc54::t_b24aacea82f7a6 297
+  s_520b3aca11bc54::t_0a3ea22b0acec8 12
+  s_7f975b4d348099::t_de1b000d8a088f 588-599,602-615,617-620,708-720
+  s_7f975b4d348099::t_b3b917f982a2c9 517
+  s_7f975b4d348099::t_7d19b4c9a7f0d9 165-172,181
+  s_7f975b4d348099::t_535be1c1acbdc1 362
+  s_520b3aca11bc54::t_2ffc31ae013518 104-105
+  s_7f975b4d348099::t_945f05f53cc6f3 140
+  s_7f975b4d348099::t_5c87217ab61597 35-36
+  s_520b3aca11bc54::t_c36d075c07be79 621-665,667-704
+  s_7f975b4d348099::t_008f14b337f47b 97-98
+  s_7f975b4d348099::t_57ee2fb2784e25 1
+  s_7f975b4d348099::t_8c8703723a9029 390
+  s_520b3aca11bc54::t_9c59ff3de81b8d 107
+  s_7f975b4d348099::t_024ae30325b8fc 427-438,457-468
+  s_7f975b4d348099::t_4f30434f9e511c 480-481
+  s_7f975b4d348099::t_b296510df530ad 182,184-189
+  s_7f975b4d348099::t_318fb19001e8b9 66-80
+  s_7f975b4d348099::t_97aaafacc3d91c 112,116,124-128,131,134-139,141-156
+  s_520b3aca11bc54::t_a05e55bf15364e 160
+  s_7f975b4d348099::t_a3dc19043c9c7b 243-251
+  s_7f975b4d348099::t_33a9d04faee667 177-178
+  s_7f975b4d348099::t_c5d5c03a85920c 354-356
+  s_7f975b4d348099::t_a7244fec63aef8 409-420
+  s_7f975b4d348099::t_c0cde1bed954b4 179-180
+  s_7f975b4d348099::t_ca2ef64c1bdb86 183
+apps/app/vite.uxp.config.ts
+  s_520b3aca11bc54::t_2baa11799458c4 12,14-15
+MEMORY.md
+  s_b7f5301a1719e1::t_8686134cb74362 1-2
+apps/app/src/shared/ui/panel-css.ts
+  s_7f975b4d348099::t_471e591bc3e4e1 219,231,234
+  s_7f975b4d348099::t_8899bb11934746 429,431
+  s_7f975b4d348099::t_521fd5f768bc65 167-169
+  s_7f975b4d348099::t_9a213e8bd90274 228-230,232-233
+  s_7f975b4d348099::t_2b1bd92b5be93b 338-340,342,362,366,369
+  s_7f975b4d348099::t_c6426c01516af9 119
+  s_7f975b4d348099::t_ed58241fc1a458 144,146-147
+  s_7f975b4d348099::t_c86245a86e670f 428
+  s_7f975b4d348099::t_b2f6d602b7f408 221,226-227
+  s_7f975b4d348099::t_e219eb68ebd0f3 502-522
+apps/app/src/shared/ui/components/composer-select.tsx
+  s_520b3aca11bc54::t_d9586a7f81ae57 117
+  s_520b3aca11bc54::t_8359813efc04c7 1
+  s_520b3aca11bc54::t_e073f1f6fb659a 120,126-132,134-135,143-145,147
+  s_520b3aca11bc54::t_57840f86800115 200
+  s_520b3aca11bc54::t_839a07c4c05b9c 133
+  s_520b3aca11bc54::t_66a0a689b714a4 2-44,49-54,59-74,76,78-98,106-110,118-119,121-125,153-199,201-209
+  s_520b3aca11bc54::t_bbdf036940df07 136,141-142,146
+  s_520b3aca11bc54::t_b2248557d03578 45-48,55-58,75,77,99-105,111-116,137-140
+  s_b7f5301a1719e1::t_c616b3f4141454 148-152
+apps/app/tests/chrome-e2e/run.mjs
+  s_7f975b4d348099::t_26287e10feae91 419
+  s_7f975b4d348099::t_e0dd7c0601f4ed 231-232,234
+apps/app/src/shared/ui/components/toast-host.tsx
+  s_7f975b4d348099::t_4e895445fc3bc0 102
+apps/app/tests/main-page.test.tsx
+  s_520b3aca11bc54::t_08ed0967d18e52 196
+  s_7f975b4d348099::t_4d87fe3a36e675 200
+  s_b7f5301a1719e1::t_ee09d822708a70 210-406
+  s_520b3aca11bc54::t_20d916af026f0e 192
+  s_7f975b4d348099::t_5920eb6a208d74 156-191,193-195,197-199,201-209
+docs/loops/2026-06-27-composer-ui-rework-plan.md
+  s_b7f5301a1719e1::t_3a2a7a39955981 5
+  s_b7f5301a1719e1::t_782605b349fa7b 479-513,515-535,537-541,543-545,547-553,555-559,561-567,569-574,576-580,582-584,586
+  s_a39fde3e0b468f::t_e954a8dfa1b43e 1-4,6-478,514,536,542,546,554,560,568,575,581,585,587-599
+docs/dev-memory/composer-select-swc-chain.md
+  s_b7f5301a1719e1::t_bb996159dc602e 1-14
+pnpm-lock.yaml
+  s_520b3aca11bc54::t_f0aa9c6821fcb0 50-55,92-97,754-756,760-762,811-816,1937-1947,1958-1962,2042-2051
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.3",
+  "base_commit_sha": "4e5b2f7becdaa90a38e323c47ef04103a39b17a3",
+  "prompts": {},
+  "humans": {
+    "h_36ccd825a182d0": {
+      "author": "Sinyuk <80998062@qq.com>"
+    }
+  },
+  "sessions": {
+    "s_520b3aca11bc54": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "ec568ea7-476b-4dbe-9d35-d9ba6b8853f0",
+        "model": "kimi-k2.7-code"
+      },
+      "human_author": "Sinyuk <80998062@qq.com>"
+    },
+    "s_7f975b4d348099": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "32402c7e-8ca0-4c4a-83d1-e4618743ae9c",
+        "model": "kimi-k2.7-code"
+      },
+      "human_author": "Sinyuk <80998062@qq.com>"
+    },
+    "s_a39fde3e0b468f": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "019f04f9-c268-7d41-bb7a-d6605e37256a",
+        "model": "gpt-5.4"
+      },
+      "human_author": "Sinyuk <80998062@qq.com>"
+    },
+    "s_b7f5301a1719e1": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "b780153e-f18d-4de8-8896-59e5904bcb57",
+        "model": "glm-5.2"
+      },
+      "human_author": "Sinyuk <80998062@qq.com>"
+    }
+  }
+}
