@@ -405,7 +405,7 @@ export function MainPage({
 
           {conversation.rounds.length === 0 && (
             <div className="conv-empty">
-              <div style={{ color: 'var(--txm)', fontSize: 13 }}>{t.main.emptyHint}</div>
+              <div style={{ color: 'var(--app-color-text-secondary)', fontSize: 13 }}>{t.main.emptyHint}</div>
               <div className="empty-hints">
                 <button className="empty-hint" onClick={() => setInput(t.main.promptSuggestionProductValue)}>
                   {t.main.promptSuggestionProductLabel}
@@ -431,7 +431,7 @@ export function MainPage({
                           <div key={attachment.id} className="bimg">
                             {attachment.previewUrl
                               ? <img src={attachment.previewUrl} className="bimg-bg" alt={attachment.name} />
-                              : <div className="bimg-bg" style={{ background: 'var(--s2)' }} />
+                              : <div className="bimg-bg" style={{ background: 'var(--app-color-background-layer-2)' }} />
                             }
                             {index === 1 && round.attachments.length > 2 && (
                               <div className="bimg-count">+{round.attachments.length - 1}</div>
@@ -463,7 +463,7 @@ export function MainPage({
                   <div className="err-card">
                     <div className="err-top">
                       <span className="sdot err" />
-                      <span style={{ fontSize: 11, fontWeight: 500, color: 'var(--er)', fontFamily: 'var(--fM)' }}>
+                      <span style={{ fontSize: 11, fontWeight: 500, color: 'var(--app-color-negative)', fontFamily: 'var(--app-font-family-mono)' }}>
                         {t.status.failed} · {round.providerName}
                       </span>
                     </div>
@@ -503,12 +503,12 @@ export function MainPage({
                       <span className="prov-name-lbl">{round.providerName}</span>
                       <div className="prov-status">
                         <span className="sdot run" />
-                        <span style={{ color: 'var(--wa)' }}>{roundStatusElapsed(round)}</span>
+                        <span style={{ color: 'var(--app-color-notice)' }}>{roundStatusElapsed(round)}</span>
                       </div>
                     </div>
                     <div className="prov-loading">
                       <div className="ldots"><div className="ldot" /><div className="ldot" /><div className="ldot" /></div>
-                      <span style={{ fontFamily: 'var(--fM)', fontSize: 11, color: 'var(--txd)' }}>{t.main.submitJobRunning}</span>
+                      <span style={{ fontFamily: 'var(--app-font-family-mono)', fontSize: 11, color: 'var(--app-color-text-muted)' }}>{t.main.submitJobRunning}</span>
                     </div>
                   </div>
                 </div>
@@ -533,14 +533,14 @@ export function MainPage({
                       <span className="prov-name-lbl">{round.providerName}</span>
                       <div className="prov-status">
                         <span className={`sdot ${statusDot(round.status)}`} />
-                        <span style={{ color: 'var(--ok)' }}>{t.status.done} · {round.elapsedLabel}</span>
+                        <span style={{ color: 'var(--app-color-positive)' }}>{t.status.done} · {round.elapsedLabel}</span>
                       </div>
                     </div>
                     <div className="prov-img">
                       <div className="img-result">
                         {round.previews[0]?.url
                           ? <img src={round.previews[0].url} className="img-bg" alt={round.previews[0].label} />
-                          : <div className="img-bg" style={{ background: 'var(--s2)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--txd)', fontSize: 12 }}>{t.main.noAssetPreview}</div>
+                          : <div className="img-bg" style={{ background: 'var(--app-color-background-layer-2)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--app-color-text-muted)', fontSize: 12 }}>{t.main.noAssetPreview}</div>
                         }
                         <div className="img-meta">{round.outputSize ?? t.main.assetFallback} · {round.outputFormat ?? t.main.imageFallback}</div>
                         <div className="img-overlay">
@@ -612,7 +612,7 @@ export function MainPage({
               {!layersError && flatLayers.length === 0 && <div className="layer-item"><span className="layer-name">{t.main.noAvailableLayers}</span></div>}
               {flatLayers.map(({ layer, depth }) => (
                 <div key={layer.id} data-testid={`layer-row-${layer.id}`} className="layer-item" onClick={() => void addLayer(layer)}>
-                  <div className="layer-swatch" style={{ background: layer.visible === false ? 'var(--s1)' : 'var(--s2)' }} />
+                  <div className="layer-swatch" style={{ background: layer.visible === false ? 'var(--app-color-background-layer-1)' : 'var(--app-color-background-layer-2)' }} />
                   <span className="layer-name" style={{ paddingLeft: depth * 10 }}>{layer.name}</span>
                   <span className="layer-meta-lbl">{layer.kind ?? 'layer'}</span>
                 </div>
@@ -653,7 +653,7 @@ export function MainPage({
                   <div key={attachment.id} className="att-thumb">
                     {attachment.previewUrl
                       ? <img src={attachment.previewUrl} style={{ width: '100%', height: '100%', objectFit: 'cover' }} alt={attachment.name} />
-                      : <div style={{ width: '100%', height: '100%', background: 'var(--s1)' }} />
+                      : <div style={{ width: '100%', height: '100%', background: 'var(--app-color-background-layer-1)' }} />
                     }
                     <button data-testid={`attachment-remove-button-${attachment.id}`} className="att-rm" onClick={() => setAttachments((current) => current.filter((item) => item.id !== attachment.id))}>x</button>
                   </div>

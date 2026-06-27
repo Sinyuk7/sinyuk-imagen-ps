@@ -115,10 +115,10 @@ export function SettingsAddPage({ onNav, profiles, onProfileSaved }: SettingsAdd
           <Icon name="chevron-left" />
         </ActionButton>
         <div className="hdr-center">
-          <span style={{ fontFamily: 'var(--fD)', fontSize: 14, fontWeight: 600, color: 'var(--tx)' }}>
+          <span style={{ fontFamily: 'var(--app-font-family-base)', fontSize: 14, fontWeight: 600, color: 'var(--app-color-text-primary)' }}>
             {step === 1 ? t.common.addProvider : selected?.displayName}
           </span>
-          {step === 2 && <span style={{ fontFamily: 'var(--fM)', fontSize: 10, color: 'var(--txd)' }}>2 / 2</span>}
+          {step === 2 && <span style={{ fontFamily: 'var(--app-font-family-mono)', fontSize: 10, color: 'var(--app-color-text-muted)' }}>2 / 2</span>}
         </div>
         <div style={{ width: 32 }} />
       </header>
@@ -139,14 +139,14 @@ export function SettingsAddPage({ onNav, profiles, onProfileSaved }: SettingsAdd
                   setStep(2);
                 }}
               >
-                <div className="prov-ico" style={{ background: 'var(--s2)', color: 'var(--txm)', fontFamily: 'var(--fM)', fontSize: 10 }}>
+                <div className="prov-ico" style={{ background: 'var(--app-color-background-layer-2)', color: 'var(--app-color-text-secondary)', fontFamily: 'var(--app-font-family-mono)', fontSize: 10 }}>
                   {provider.displayName.slice(0, 2).toUpperCase()}
                 </div>
                 <div className="prov-info">
-                  <div style={{ fontSize: 13, fontWeight: 500, color: 'var(--tx)' }}>{provider.displayName}</div>
-                  <div style={{ fontFamily: 'var(--fM)', fontSize: 10, color: 'var(--txd)', marginTop: 2 }}>{provider.family}</div>
+                  <div style={{ fontSize: 13, fontWeight: 500, color: 'var(--app-color-text-primary)' }}>{provider.displayName}</div>
+                  <div style={{ fontFamily: 'var(--app-font-family-mono)', fontSize: 10, color: 'var(--app-color-text-muted)', marginTop: 2 }}>{provider.family}</div>
                 </div>
-                <Icon name="chevron-right" style={{ color: 'var(--txd)' }} />
+                <Icon name="chevron-right" style={{ color: 'var(--app-color-text-muted)' }} />
               </div>
             ))}
           </div>

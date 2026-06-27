@@ -13,6 +13,8 @@ export interface AppMessages {
     readonly addProvider: string;
     readonly enabled: string;
     readonly disabled: string;
+    readonly ready: string;
+    readonly needsSetup: string;
   };
   readonly status: {
     readonly all: string;
@@ -140,6 +142,8 @@ const EN_MESSAGES: AppMessages = {
     addProvider: 'Add Provider',
     enabled: 'Enabled',
     disabled: 'Disabled',
+    ready: 'Ready',
+    needsSetup: 'Needs setup',
   },
   status: {
     all: 'All',
@@ -267,6 +271,8 @@ const ZH_CN_MESSAGES: AppMessages = {
     addProvider: '添加 Provider',
     enabled: '已启用',
     disabled: '已停用',
+    ready: '就绪',
+    needsSetup: '待配置',
   },
   status: {
     all: '全部',

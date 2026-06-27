@@ -27,7 +27,7 @@
         "zh": "Imagen"
       },
       "minimumSize": {
-        "width": 280,
+        "width": 240,
         "height": 420
       },
       "preferredDockedSize": {

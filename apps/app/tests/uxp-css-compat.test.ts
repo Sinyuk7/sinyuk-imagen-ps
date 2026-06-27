@@ -4,70 +4,97 @@ import { describe, expect, it } from 'vitest';
 
 const APP_ROOT = process.cwd();
 const UI_ROOT = join(APP_ROOT, 'src', 'shared', 'ui');
-const CSS_SOURCE = join(UI_ROOT, 'panel-css.ts');
+const STYLES_ROOT = join(UI_ROOT, 'styles');
 const STYLE_FILE_EXTENSIONS = new Set(['.ts', '.tsx']);
+
+/** 设计 token 三层模型拆分后，CSS 字面量分散在 styles/*.ts 中。 */
+function listStyleSources(): readonly string[] {
+  return readdirSync(STYLES_ROOT)
+    .filter((entry) => entry.endsWith('.ts'))
+    .map((entry) => join(STYLES_ROOT, entry));
+}
+
+const CSS_SOURCES = listStyleSources();
 
 interface ForbiddenPattern {
   readonly name: string;
   readonly pattern: RegExp;
   readonly replacement: string;
+  /** 'uxp-unsupported' = Adobe UXP 官方不支持；'project-policy' = 项目主动禁用以避免跨端/wrapper 问题 */
+  readonly category: 'uxp-unsupported' | 'project-policy';
 }
 
-const PANEL_CSS_FORBIDDEN: readonly ForbiddenPattern[] = [
+/* UXP platform unsupported：Adobe UXP CSS reference 明确不支持的属性 */
+const UXP_UNSUPPORTED_PATTERNS: readonly ForbiddenPattern[] = [
   {
     name: 'CSS animation',
     pattern: /(?:^|[;{\n])\s*animation(?:-[a-z-]+)?\s*:/u,
-    replacement: 'Use static state changes; repeated Photoshop UXP host drawing is sensitive to animation paths.',
+    replacement: 'Use static state changes; Adobe UXP CSS reference does not support animation properties.',
+    category: 'uxp-unsupported',
   },
   {
     name: 'CSS keyframes',
     pattern: /@keyframes\b/u,
-    replacement: 'Use static state changes; do not define host-side keyframe animations.',
+    replacement: 'Use static state changes; Adobe UXP CSS reference does not support keyframes.',
+    category: 'uxp-unsupported',
   },
   {
     name: 'CSS transition',
     pattern: /(?:^|[;{\n])\s*transition(?:-[a-z-]+)?\s*:/u,
-    replacement: 'Use immediate visual states; avoid transition work in the UXP host renderer.',
-  },
-  {
-    name: 'CSS transform',
-    pattern: /(?:^|[;{\n])\s*(?<!-)transform\s*:/u,
-    replacement: 'Use explicit positioning instead of host-renderer transforms.',
-  },
-  {
-    name: 'CSS shadow/filter effects',
-    pattern: /(?:^|[;{\n])\s*(?:box-shadow|filter|backdrop-filter)\s*:/u,
-    replacement: 'Use borders and flat colors instead of host-renderer effect paths.',
-  },
-  {
-    name: 'flex/grid gap',
-    pattern: /(?:^|[;{\n])\s*(?:gap|row-gap|column-gap)\s*:/u,
-    replacement: 'Use explicit class-level margins; sibling selector spacing is not reliable in Photoshop UXP.',
+    replacement: 'Use immediate visual states; Adobe UXP CSS reference does not support transition properties.',
+    category: 'uxp-unsupported',
   },
   {
     name: 'CSS grid layout',
     pattern: /(?:^|[;{\n])\s*display\s*:\s*grid\b/u,
     replacement: 'Use flex layout; Adobe UXP documents flex display values but not grid.',
+    category: 'uxp-unsupported',
   },
   {
     name: 'grid place-items',
     pattern: /(?:^|[;{\n])\s*place-items\s*:/u,
     replacement: 'Use `align-items` and `justify-content` on flex containers.',
+    category: 'uxp-unsupported',
+  },
+];
+
+/* Project safety policy：为避免跨端或 wrapper 问题主动禁用的属性或 shorthand */
+const PROJECT_POLICY_PATTERNS: readonly ForbiddenPattern[] = [
+  {
+    name: 'CSS transform',
+    pattern: /(?:^|[;{\n])\s*(?<!-)transform\s*:/u,
+    replacement: 'Use explicit positioning instead of host-renderer transforms (project policy: transform reliability varies across UXP host versions).',
+    category: 'project-policy',
+  },
+  {
+    name: 'CSS shadow/filter effects',
+    pattern: /(?:^|[;{\n])\s*(?:box-shadow|filter|backdrop-filter)\s*:/u,
+    replacement: 'Use borders and flat colors instead of host-renderer effect paths (project policy: shadow rendering is inconsistent across UXP host versions).',
+    category: 'project-policy',
+  },
+  {
+    name: 'flex/grid gap',
+    pattern: /(?:^|[;{\n])\s*(?:gap|row-gap|column-gap)\s*:/u,
+    replacement: 'Use explicit class-level margins; sibling selector spacing is not reliable in Photoshop UXP (project policy: gap support is partial in older UXP versions).',
+    category: 'project-policy',
   },
   {
     name: 'font shorthand',
     pattern: /(?:^|[;{\n])\s*font\s*:/u,
-    replacement: 'Set font-family, font-size, font-weight, and line-height individually.',
+    replacement: 'Set font-family, font-size, font-weight, and line-height individually (project policy: font shorthand is unreliable in UXP host renderer).',
+    category: 'project-policy',
   },
   {
     name: 'margin shorthand',
     pattern: /(?:^|[;{\n])\s*margin\s*:/u,
-    replacement: 'Set margin-top, margin-right, margin-bottom, and margin-left individually.',
+    replacement: 'Set margin-top, margin-right, margin-bottom, and margin-left individually (project policy: margin shorthand is unreliable in UXP host renderer).',
+    category: 'project-policy',
   },
   {
     name: 'adjacent sibling spacing',
     pattern: />\s*\*\s*\+\s*\*/u,
-    replacement: 'Use explicit class-level margins; Photoshop UXP did not apply this spacing reliably in host smoke.',
+    replacement: 'Use explicit class-level margins; Photoshop UXP did not apply this spacing reliably in host smoke (project policy based on host smoke evidence).',
+    category: 'project-policy',
   },
 ];
 
@@ -76,46 +103,55 @@ const INLINE_STYLE_FORBIDDEN: readonly ForbiddenPattern[] = [
     name: 'inline transition',
     pattern: /\btransition\s*:/u,
     replacement: 'Keep Photoshop UXP visual state immediate and static.',
+    category: 'uxp-unsupported',
   },
   {
     name: 'inline animation',
     pattern: /\banimation\s*:/u,
     replacement: 'Keep Photoshop UXP visual state immediate and static.',
+    category: 'uxp-unsupported',
   },
   {
     name: 'inline transform',
     pattern: /\btransform\s*:/u,
     replacement: 'Use explicit positioning instead of transforms.',
+    category: 'project-policy',
   },
   {
     name: 'inline shadow/filter effects',
     pattern: /\b(?:boxShadow|filter|backdropFilter)\s*:/u,
     replacement: 'Use borders and flat colors instead of host-renderer effects.',
+    category: 'project-policy',
   },
   {
     name: 'inline style gap',
     pattern: /\bgap\s*:/u,
     replacement: 'Move spacing into a class that uses explicit UXP-safe margins.',
+    category: 'project-policy',
   },
   {
     name: 'inline grid display',
     pattern: /display\s*:\s*['"]grid['"]/u,
     replacement: 'Use inline flex centering or a shared CSS class.',
+    category: 'uxp-unsupported',
   },
   {
     name: 'inline placeItems',
     pattern: /\bplaceItems\s*:/u,
     replacement: 'Use `alignItems` and `justifyContent` on flex containers.',
+    category: 'uxp-unsupported',
   },
   {
     name: 'inline font shorthand',
     pattern: /\bfont\s*:/u,
     replacement: 'Use explicit font longhand properties.',
+    category: 'project-policy',
   },
   {
     name: 'inline margin shorthand',
     pattern: /\bmargin\s*:/u,
     replacement: 'Use explicit marginTop/marginRight/marginBottom/marginLeft values.',
+    category: 'project-policy',
   },
 ];
 
@@ -125,21 +161,25 @@ const INPUT_PAGE_FORBIDDEN: readonly ForbiddenPattern[] = [
     name: 'direct native input in page code',
     pattern: /<\s*input\b/u,
     replacement: 'Use shared Spectrum TextField/Checkbox primitives so Chrome and UXP stay on one control contract.',
+    category: 'project-policy',
   },
   {
     name: 'direct native textarea in page code',
     pattern: /<\s*textarea\b/u,
     replacement: 'Use UxpTextArea so input synchronization stays in the UXP-safe control seam.',
+    category: 'project-policy',
   },
   {
     name: 'page-level native change handler',
     pattern: /\bonChange\s*=/u,
     replacement: 'Use shared Spectrum primitives or UxpTextArea instead of direct input/change handlers in pages.',
+    category: 'project-policy',
   },
   {
     name: 'page-level native input handler',
     pattern: /\bonInput\s*=/u,
     replacement: 'Use shared Spectrum primitives or UxpTextArea instead of direct input/change handlers in pages.',
+    category: 'project-policy',
   },
 ];
 
@@ -148,11 +188,13 @@ const SYNTHETIC_INPUT_TEST_FORBIDDEN: readonly ForbiddenPattern[] = [
     name: 'synthetic input event dispatch',
     pattern: /dispatchEvent\(\s*new\s+Event\(\s*['"]input['"]/u,
     replacement: 'Use keyboard/click/blur paths in repo harness; CDT input/change dispatch is a known host-crash risk.',
+    category: 'project-policy',
   },
   {
     name: 'synthetic change event dispatch',
     pattern: /dispatchEvent\(\s*new\s+Event\(\s*['"]change['"]/u,
     replacement: 'Use keyboard/click/blur paths in repo harness; CDT input/change dispatch is a known host-crash risk.',
+    category: 'project-policy',
   },
 ];
 
@@ -176,29 +218,42 @@ function linesWithPattern(filePath: string, pattern: RegExp): readonly string[] 
 
 function expectNoPattern(filePath: string, forbidden: ForbiddenPattern): void {
   const matches = linesWithPattern(filePath, forbidden.pattern);
-  expect(matches, `${forbidden.name} is not UXP-safe. ${forbidden.replacement}\n${matches.join('\n')}`).toEqual([]);
+  const categoryLabel = forbidden.category === 'uxp-unsupported'
+    ? 'UXP platform unsupported'
+    : 'project safety policy';
+  expect(matches, `[${categoryLabel}] ${forbidden.name} is not allowed. ${forbidden.replacement}\n${matches.join('\n')}`).toEqual([]);
 }
 
 describe('UXP panel CSS compatibility', () => {
-  it('keeps the shared panel stylesheet on UXP-safe layout primitives', () => {
-    for (const forbidden of PANEL_CSS_FORBIDDEN) {
-      expectNoPattern(CSS_SOURCE, forbidden);
+  it('keeps the shared panel stylesheet free of UXP-unsupported properties', () => {
+    for (const source of CSS_SOURCES) {
+      for (const forbidden of UXP_UNSUPPORTED_PATTERNS) {
+        expectNoPattern(source, forbidden);
+      }
+    }
+  });
+
+  it('keeps the shared panel stylesheet free of project-policy-denied patterns', () => {
+    for (const source of CSS_SOURCES) {
+      for (const forbidden of PROJECT_POLICY_PATTERNS) {
+        expectNoPattern(source, forbidden);
+      }
     }
   });
 
   it('covers the Composer bottom-row class contract used by MainPage', () => {
-    const source = readFileSync(CSS_SOURCE, 'utf8');
-    expect(source).toContain('.cmp-bottom{');
-    expect(source).toContain('.cmp-action-left');
-    expect(source).toContain('.cmp-action-right');
-    expect(source).toContain('.cmp-opt{');
-    expect(source).toContain('.cmp-chip-value{');
+    const unionSource = CSS_SOURCES.map((path) => readFileSync(path, 'utf8')).join('\n');
+    expect(unionSource).toContain('.cmp-bottom{');
+    expect(unionSource).toContain('.cmp-action-left');
+    expect(unionSource).toContain('.cmp-action-right');
+    expect(unionSource).toContain('.cmp-opt{');
+    expect(unionSource).toContain('.cmp-chip-value{');
   });
 
   it('keeps React inline styles from bypassing the UXP-safe spacing rules', () => {
     const uiFiles = walkFiles(UI_ROOT).filter((filePath) => {
       const extension = filePath.slice(filePath.lastIndexOf('.'));
-      return STYLE_FILE_EXTENSIONS.has(extension) && filePath !== CSS_SOURCE;
+      return STYLE_FILE_EXTENSIONS.has(extension) && !filePath.startsWith(STYLES_ROOT);
     });
 
     for (const filePath of uiFiles) {

@@ -72,10 +72,10 @@ export function SettingsPage({
       </header>
       <div className="scroll">
         <div className="sec-lbl">{t.settings.configured}</div>
-        {loading && <div style={{ padding: 16, color: 'var(--txd)', fontSize: 12 }}>{t.settings.loading}</div>}
-        {error && <div style={{ padding: 16, color: 'var(--er)', fontSize: 12 }}>{error}</div>}
+        {loading && <div style={{ padding: 16, color: 'var(--app-color-text-muted)', fontSize: 12 }}>{t.settings.loading}</div>}
+        {error && <div style={{ padding: 16, color: 'var(--app-color-negative)', fontSize: 12 }}>{error}</div>}
         {!loading && rows.length === 0 && !optimizerRow && (
-          <div style={{ padding: 16, color: 'var(--txd)', fontSize: 12 }}>{t.settings.noProviderProfile}</div>
+          <div style={{ padding: 16, color: 'var(--app-color-text-muted)', fontSize: 12 }}>{t.settings.noProviderProfile}</div>
         )}
         {optimizerRow && (
           <div
@@ -84,7 +84,7 @@ export function SettingsPage({
             className="prov-row"
             onClick={() => onOpenPromptOptimizer?.()}
           >
-            <div className="prov-ico" style={{ background: 'rgba(167,139,250,.12)', color: 'var(--pr)' }}>
+            <div className="prov-ico" style={{ background: 'var(--app-color-informative-subtle)', color: 'var(--app-color-informative)' }}>
               <Icon name="magic-wand" size={14} />
             </div>
             <div className="prov-info">
@@ -102,9 +102,12 @@ export function SettingsPage({
             <div className="prov-trail"><Icon name="chevron-right" /></div>
           </div>
         )}
-        {rows.map((row) => (
+        {rows.map((row) => {
+          const ready = row.enabled && Boolean(row.defaultModel);
+          const completenessLabel = ready ? t.common.ready : t.common.disabled;
+          return (
           <div key={row.profileId} data-testid={`provider-row-${row.profileId}`} className="prov-row" onClick={() => onOpenProfile(row.profileId)}>
-            <div className="prov-ico" style={{ background: 'rgba(120,231,192,.12)', color: 'var(--pr)' }}>
+            <div className="prov-ico" style={{ background: 'var(--app-color-accent-subtle)', color: 'var(--app-color-accent-default)' }}>
               {initials(row.displayName)}
             </div>
             <div className="prov-info">
@@ -120,13 +123,15 @@ export function SettingsPage({
                   <div className="cdot f" />
                   <div className={row.defaultModel ? 'cdot f' : 'cdot w'} />
                 </div>
+                <span className="prov-status-text" aria-label={completenessLabel}>{ready ? t.common.ready : t.common.needsSetup}</span>
               </div>
             </div>
             <div className="prov-trail"><Icon name="chevron-right" /></div>
           </div>
-        ))}
+          );
+        })}
         <div className="footer-info">
-          <span style={{ fontFamily: 'var(--fM)', fontSize: 10, color: 'var(--txd)' }}>imagen-ps app</span>
+          <span style={{ fontFamily: 'var(--app-font-family-mono)', fontSize: 10, color: 'var(--app-color-text-muted)' }}>imagen-ps app</span>
         </div>
       </div>
     </div>

@@ -243,7 +243,7 @@ export function SettingsDetailPage({ onNav, profileId, onProfilesChanged }: Sett
           <div style={{ width: 32 }} />
         </header>
         <div className="scroll">
-          <div style={{ padding: 16, color: 'var(--txd)', fontSize: 12 }}>{t.settings.noProfileSelected}</div>
+          <div style={{ padding: 16, color: 'var(--app-color-text-muted)', fontSize: 12 }}>{t.settings.noProfileSelected}</div>
         </div>
       </div>
     );
@@ -261,11 +261,11 @@ export function SettingsDetailPage({ onNav, profileId, onProfilesChanged }: Sett
           <Icon name="chevron-left" />
         </ActionButton>
         <div className="hdr-center">
-          <span style={{ fontFamily: 'var(--fD)', fontSize: 14, fontWeight: 600, color: 'var(--tx)' }}>
+          <span style={{ fontFamily: 'var(--app-font-family-base)', fontSize: 14, fontWeight: 600, color: 'var(--app-color-text-primary)' }}>
             {detail.profile?.displayName ?? 'Provider'}
           </span>
-          <div className="status-inline tight" style={{ fontFamily: 'var(--fM)', fontSize: 10, color: enabled ? 'var(--ok)' : 'var(--txd)' }}>
-            <span style={{ width: 5, height: 5, borderRadius: '50%', background: enabled ? 'var(--ok)' : 'var(--txd)', display: 'inline-block' }} />
+          <div className="status-inline tight" style={{ fontFamily: 'var(--app-font-family-mono)', fontSize: 10, color: enabled ? 'var(--app-color-positive)' : 'var(--app-color-text-muted)' }}>
+            <span style={{ width: 5, height: 5, borderRadius: '50%', background: enabled ? 'var(--app-color-positive)' : 'var(--app-color-text-muted)', display: 'inline-block' }} />
             {enabled ? t.common.enabled : t.common.disabled}
           </div>
         </div>
@@ -281,8 +281,8 @@ export function SettingsDetailPage({ onNav, profileId, onProfilesChanged }: Sett
       </header>
 
       <div className="scroll scroll-footer-pad">
-        {detail.loading && <div style={{ padding: 16, color: 'var(--txd)', fontSize: 12 }}>{t.settings.loading}</div>}
-        {detail.error && <div style={{ padding: 16, color: 'var(--er)', fontSize: 12 }}>{detail.error}</div>}
+        {detail.loading && <div style={{ padding: 16, color: 'var(--app-color-text-muted)', fontSize: 12 }}>{t.settings.loading}</div>}
+        {detail.error && <div style={{ padding: 16, color: 'var(--app-color-negative)', fontSize: 12 }}>{detail.error}</div>}
         {detail.profile && (
           <>
             <div className="section">
@@ -320,7 +320,7 @@ export function SettingsDetailPage({ onNav, profileId, onProfilesChanged }: Sett
               </div>
               <label
                 className="status-inline loose"
-                style={{ color: 'var(--txm)', fontSize: 12 }}
+                style={{ color: 'var(--app-color-text-secondary)', fontSize: 12 }}
                 onClick={() => setEnabled((current) => !current)}
               >
                 <Checkbox

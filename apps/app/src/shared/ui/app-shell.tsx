@@ -30,6 +30,14 @@ export interface AppShellProps {
 }
 
 type View = 'main' | 'history' | 'settings' | 'settings-add' | 'settings-detail';
+type AppTheme = 'dark' | 'light';
+
+/**
+ * Photoshop 主题同步 query：UXP 自 4.1 起支持四值 `prefers-color-scheme`
+ * （lightest/light/dark/darkest）。`light` 与 `lightest` 合并查询，
+ * 其余（dark/darkest）回退到 dark。
+ */
+const LIGHT_THEME_QUERY = '(prefers-color-scheme: light), (prefers-color-scheme: lightest)';
 
 function usePanelCss(): void {
   useEffect(() => {
@@ -44,6 +52,151 @@ function usePanelCss(): void {
       document.getElementById(styleId)?.remove();
     };
   }, []);
+}
+
+/**
+ * 同步 `<sp-theme color="light|dark">` 到宿主主题。
+ *
+ * 自定义 UI 已通过 `--uxp-host-*` + `@media (prefers-color-scheme)` 纯 CSS
+ * 自动跟随 Photoshop 四主题，不需要 JavaScript state。此处 JS 唯一职责
+ * 是同步 SWC `<sp-theme>` 的 `color` property（CSS custom property 无法
+ * 直接驱动 SWC 内部 theme fragment 选择）。
+ *
+ * 同步优先级：
+ *  1. `window.matchMedia(LIGHT_THEME_QUERY)` + `change` listener —— 若 UXP
+ *     实机支持，作为主实时同步机制
+ *  2. CSS theme probe (`.uxp-theme-probe`) + `ResizeObserver` —— 若
+ *     `matchMedia` listener 不可靠，用 probe 尺寸变化桥接
+ *  3. `focus` / `visibilitychange` —— 仅作为恢复性 fallback，修复可能
+ *     错过的同步，不作为主实时方案
+ *
+ * Chrome harness 通过 `?theme=light|dark` 显式覆盖以测试双主题。
+ * 不使用 polling、`requestAnimationFrame` 或硬编码 Photoshop 四色值。
+ */
+function useAppTheme(): AppTheme {
+  const [theme, setTheme] = useState<AppTheme>(() => readInitialTheme());
+
+  useEffect(() => {
+    const params = readThemeParam();
+    if (params === 'light' || params === 'dark') {
+      setTheme(params);
+      return;
+    }
+
+    let current: AppTheme = readThemeViaMatchMedia() ?? readThemeViaProbe() ?? 'dark';
+    setTheme(current);
+
+    let cleanupMatchMedia: (() => void) | undefined;
+    let cleanupProbe: (() => void) | undefined;
+
+    const media = typeof window !== 'undefined' && typeof window.matchMedia === 'function'
+      ? window.matchMedia(LIGHT_THEME_QUERY)
+      : null;
+    if (media) {
+      const handler = () => {
+        const next = media.matches ? 'light' : 'dark';
+        if (next !== current) {
+          current = next;
+          setTheme(next);
+        }
+      };
+      if (typeof media.addEventListener === 'function') {
+        media.addEventListener('change', handler);
+        cleanupMatchMedia = () => media.removeEventListener('change', handler);
+      } else if (typeof (media as MediaQueryList).addListener === 'function') {
+        (media as MediaQueryList).addListener(handler);
+        cleanupMatchMedia = () => (media as MediaQueryList).removeListener(handler);
+      }
+    }
+
+    if (!cleanupMatchMedia && typeof ResizeObserver !== 'undefined') {
+      const probe = createThemeProbe();
+      if (probe) {
+        const observer = new ResizeObserver(() => {
+          const next = probe.offsetWidth === 2 ? 'light' : 'dark';
+          if (next !== current) {
+            current = next;
+            setTheme(next);
+          }
+        });
+        observer.observe(probe);
+        cleanupProbe = () => {
+          observer.disconnect();
+          probe.remove();
+        };
+      }
+    }
+
+    const recoverySync = () => {
+      const params = readThemeParam();
+      if (params === 'light' || params === 'dark') {
+        setTheme(params);
+        return;
+      }
+      const next: AppTheme = readThemeViaMatchMedia() ?? readThemeViaProbe() ?? 'dark';
+      if (next !== current) {
+        current = next;
+        setTheme(next);
+      }
+    };
+    window.addEventListener('focus', recoverySync);
+    document.addEventListener('visibilitychange', recoverySync);
+
+    return () => {
+      cleanupMatchMedia?.();
+      cleanupProbe?.();
+      window.removeEventListener('focus', recoverySync);
+      document.removeEventListener('visibilitychange', recoverySync);
+    };
+  }, []);
+
+  return theme;
+}
+
+function readThemeParam(): string | null {
+  if (typeof window === 'undefined' || typeof window.location === 'undefined') {
+    return null;
+  }
+  const params = new URLSearchParams(window.location.search);
+  return params.get('theme');
+}
+
+function readInitialTheme(): AppTheme {
+  const params = readThemeParam();
+  if (params === 'light' || params === 'dark') {
+    return params;
+  }
+  return readThemeViaMatchMedia() ?? readThemeViaProbe() ?? 'dark';
+}
+function readThemeViaMatchMedia(): AppTheme | null {
+  if (typeof window === 'undefined' || typeof window.matchMedia !== 'function') {
+    return null;
+  }
+  return window.matchMedia(LIGHT_THEME_QUERY).matches ? 'light' : 'dark';
+}
+
+function readThemeViaProbe(): AppTheme | null {
+  if (typeof document === 'undefined') {
+    return null;
+  }
+  const probe = createThemeProbe();
+  if (!probe) {
+    return null;
+  }
+  const isLight = probe.offsetWidth === 2;
+  probe.remove();
+  return isLight ? 'light' : 'dark';
+}
+
+function createThemeProbe(): HTMLDivElement | null {
+  if (typeof document === 'undefined') {
+    return null;
+  }
+  const probe = document.createElement('div');
+  probe.className = 'uxp-theme-probe';
+  probe.setAttribute('aria-hidden', 'true');
+  document.body.appendChild(probe);
+  return probe;
 }
 
 function useHostLayers(host: AppShellHost): {
@@ -263,10 +416,11 @@ function AppShellContent({ host }: AppShellProps) {
 export function AppShell({ host }: AppShellProps) {
   usePanelCss();
   registerSpectrumTheme();
+  const theme = useAppTheme();
   return (
     <I18nProvider locale={host.locale}>
       <AppServicesProvider services={host.services}>
-        <sp-theme color="dark" scale="medium" class="app-theme">
+        <sp-theme color={theme} scale="medium" class="app-theme">
           <AppShellContent host={host} />
         </sp-theme>
       </AppServicesProvider>

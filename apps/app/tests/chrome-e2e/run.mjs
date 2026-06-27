@@ -842,6 +842,63 @@ async function responsiveHistoryNarrowScenario({ page, url, capture }) {
   await assertNoBrokenImages(page);
 }
 
+async function responsiveMinWidth240Scenario({ page, url, capture }) {
+  await openApp(page, url);
+  await expectVisibleText(page, 'Mock Profile');
+  await assertPanelFillsRoot(page);
+  await assertNoHorizontalScroll(page);
+  await assertCoreControlsVisible(page);
+  await assertSinglePrimaryScroll(page, '.scroll');
+  await capture('responsive-240-empty.png');
+
+  await submitPrompt(page, 'minimum width 240 test');
+  await waitForDoneResult(page);
+  await assertNoHorizontalScroll(page);
+  await assertCoreControlsVisible(page);
+  await capture('responsive-240-with-result.png');
+  await assertNoBrokenImages(page);
+}
+
+async function responsiveMinWidth240OverlayScenario({ page, url, capture }) {
+  await openApp(page, url);
+  await expectVisibleText(page, 'Mock Profile');
+
+  await page.getByTestId('main-profile-selector').click();
+  const profileMenu = page.locator('.model-menu');
+  await profileMenu.waitFor({ state: 'visible', timeout: 10000 });
+  await assertOverlayWithinPanel(page, '.model-menu');
+  await capture('responsive-240-profile-menu.png');
+  await page.mouse.click(10, 120);
+
+  await page.getByTestId('composer-add-image-button').click();
+  await expectVisibleText(page, 'Choose from PS layers');
+  await assertOverlayWithinPanel(page, '.attach-picker');
+  await capture('responsive-240-attach-picker.png');
+  await assertNoBrokenImages(page);
+}
+
+async function themeLightScenario({ page, url, capture }) {
+  await openApp(page, url);
+  await expectVisibleText(page, 'Mock Profile');
+  const spTheme = page.locator('sp-theme');
+  await spTheme.evaluate((el) => el.getAttribute('color') === 'light');
+  await assertPanelFillsRoot(page);
+  await assertNoHorizontalScroll(page);
+  await capture('theme-light-main.png');
+  await assertNoBrokenImages(page);
+}
+
+async function themeDarkScenario({ page, url, capture }) {
+  await openApp(page, url);
+  await expectVisibleText(page, 'Mock Profile');
+  const spTheme = page.locator('sp-theme');
+  await spTheme.evaluate((el) => el.getAttribute('color') === 'dark');
+  await assertPanelFillsRoot(page);
+  await assertNoHorizontalScroll(page);
+  await capture('theme-dark-main.png');
+  await assertNoBrokenImages(page);
+}
+
 const scenarios = [
   {
     id: '00-smoke-main-empty',
@@ -1065,6 +1122,56 @@ const scenarios = [
     screenshotName: 'responsive-narrow-history.png',
     assertions: ['panel fills root', 'no horizontal scroll', 'single primary scroll', 'no broken images', 'no console/page/network errors'],
     run: responsiveHistoryNarrowScenario,
+  },
+  {
+    id: 'responsive-min-width-240x420',
+    name: 'Responsive minimum width 240x420',
+    tags: ['responsive'],
+    viewport: { width: 240, height: 420, deviceScaleFactor: 1 },
+    path: '/index.html?testHarness=1&storage=memory&seedProfile=mock&scenario=seeded-document',
+    screenshotName: 'responsive-240-empty.png',
+    assertions: ['panel fills root', 'no horizontal scroll', 'core controls visible', 'single primary scroll', 'no broken images', 'no console/page/network errors'],
+    run: responsiveMinWidth240Scenario,
+  },
+  {
+    id: 'responsive-min-width-240-overlay',
+    name: 'Responsive minimum width 240 overlay containment',
+    tags: ['responsive'],
+    viewport: { width: 240, height: 420, deviceScaleFactor: 1 },
+    path: '/index.html?testHarness=1&storage=memory&seedProfile=mock&scenario=seeded-document',
+    screenshotName: 'responsive-240-profile-menu.png',
+    assertions: ['profile menu within panel', 'attach picker within panel', 'no broken images', 'no console/page/network errors'],
+    run: responsiveMinWidth240OverlayScenario,
+  },
+  {
+    id: 'responsive-min-width-260x520',
+    name: 'Responsive minimum width 260x520',
+    tags: ['responsive'],
+    viewport: { width: 260, height: 520, deviceScaleFactor: 1 },
+    path: '/index.html?testHarness=1&storage=memory&seedProfile=mock&scenario=seeded-document',
+    screenshotName: 'responsive-260-empty.png',
+    assertions: ['panel fills root', 'no horizontal scroll', 'core controls visible', 'no broken images', 'no console/page/network errors'],
+    run: responsiveMinWidth240Scenario,
+  },
+  {
+    id: 'theme-light-390x720',
+    name: 'Theme light main page',
+    tags: ['responsive', 'theme'],
+    viewport: { width: 390, height: 720, deviceScaleFactor: 1 },
+    path: '/index.html?testHarness=1&storage=memory&seedProfile=mock&scenario=seeded-document&theme=light',
+    screenshotName: 'theme-light-main.png',
+    assertions: ['panel has light theme class', 'panel fills root', 'no horizontal scroll', 'no broken images', 'no console/page/network errors'],
+    run: themeLightScenario,
+  },
+  {
+    id: 'theme-dark-390x720',
+    name: 'Theme dark main page',
+    tags: ['responsive', 'theme'],
+    viewport: { width: 390, height: 720, deviceScaleFactor: 1 },
+    path: '/index.html?testHarness=1&storage=memory&seedProfile=mock&scenario=seeded-document&theme=dark',
+    screenshotName: 'theme-dark-main.png',
+    assertions: ['panel has dark theme class', 'panel fills root', 'no horizontal scroll', 'no broken images', 'no console/page/network errors'],
+    run: themeDarkScenario,
   },
 ];
 

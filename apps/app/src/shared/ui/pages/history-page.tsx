@@ -6,7 +6,7 @@ import { ActionButton } from '../primitives/spectrum-controls';
 import { ToastHost, useToast } from '../components/toast-host';
 import { useI18n } from '../i18n/i18n-context';
 
-const STATUS_COLOR: Record<RoundStatus, string> = { ok: 'var(--ok)', running: 'var(--wa)', err: 'var(--er)' };
+const STATUS_COLOR: Record<RoundStatus, string> = { ok: 'var(--app-color-positive)', running: 'var(--app-color-notice)', err: 'var(--app-color-negative)' };
 
 interface HistoryPageProps {
   readonly onNav: (view: string) => void;
@@ -144,10 +144,10 @@ export function HistoryPage({ onNav, rounds, records, loading, error, onReload, 
         ))}
       </div>
       <div className="scroll">
-        {loading && <div style={{ padding: '16px', color: 'var(--txd)', fontSize: 12 }}>{t.history.loading}</div>}
-        {error && <div style={{ padding: '16px', color: 'var(--er)', fontSize: 12 }}>{error}</div>}
+        {loading && <div style={{ padding: '16px', color: 'var(--app-color-text-muted)', fontSize: 12 }}>{t.history.loading}</div>}
+        {error && <div style={{ padding: '16px', color: 'var(--app-color-negative)', fontSize: 12 }}>{error}</div>}
         {!loading && filtered.length === 0
-          ? <div style={{ padding: '40px 16px', textAlign: 'center', color: 'var(--txd)', fontSize: 12 }}>{t.history.empty}</div>
+          ? <div style={{ padding: '40px 16px', textAlign: 'center', color: 'var(--app-color-text-muted)', fontSize: 12 }}>{t.history.empty}</div>
           : filtered.map((item) => {
             const retryRoundId = item.retryRoundId;
             return (
@@ -167,15 +167,15 @@ export function HistoryPage({ onNav, rounds, records, loading, error, onReload, 
                     ? <Icon name="spinner" size={14} className="spin" />
                     : item.status === 'err'
                       ? <Icon name="error" size={14} />
-                      : <div style={{ width: '100%', height: '100%', background: 'var(--s2)', borderRadius: 'inherit' }} />
+                      : <div style={{ width: '100%', height: '100%', background: 'var(--app-color-background-layer-2)', borderRadius: 'inherit' }} />
                 }
               </div>
               <div className="task-info">
                 <div className="task-prompt">{item.prompt}</div>
                 <div className="task-meta">
-                  <span style={{ fontFamily: 'var(--fM)', fontSize: 10, color: 'var(--txd)' }}>{item.providerName}</span>
+                  <span style={{ fontFamily: 'var(--app-font-family-mono)', fontSize: 10, color: 'var(--app-color-text-muted)' }}>{item.providerName}</span>
                   <span className="task-meta-dot">·</span>
-                  <span style={{ fontFamily: 'var(--fM)', fontSize: 10, color: 'var(--txd)' }}>{item.time}</span>
+                  <span style={{ fontFamily: 'var(--app-font-family-mono)', fontSize: 10, color: 'var(--app-color-text-muted)' }}>{item.time}</span>
                 </div>
                 <div className="status-inline" style={{ marginTop: 1 }}>
                   <span className={`sdot ${item.status === 'running' ? 'run' : item.status}`} />
