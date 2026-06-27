@@ -1,11 +1,16 @@
 ---
 name: requirement-to-loop-planner
-description: Convert a new repository requirement into a bounded Loop plan. Use when work is non-trivial, changes architecture, changes provider behavior, changes CLI command behavior, changes Photoshop UXP workflow, or otherwise needs goal/scope/ownership/harness/stop-rule planning before implementation.
+description: Convert a new repository requirement or multi-step change into a bounded Loop plan before implementation. Use when work is not already a confirmed bug fix and needs goal/scope/ownership/harness/stop-rule planning, including architecture changes, provider behavior, CLI command behavior, Photoshop UXP workflow changes, or refactors with unclear boundaries.
 ---
 
 # Requirement To Loop Planner
 
 Create a bounded Loop plan grounded in this repository's current state.
+
+Use this skill when the task is a new requirement, refactor, or multi-step
+change that still needs scope definition. If the task is already a confirmed UI
+bug fix with symptom, expected behavior, and reproduction evidence, hand off to
+`ui-fix-guardrails` instead.
 
 ## Procedure
 

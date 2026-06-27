@@ -1,24 +1,27 @@
 ---
 name: ui-fix-guardrails
-description: Frame owner boundary and acceptance evidence before a UI defect fix, then verify dual-runtime regression after. Use for UI bug fixes in apps/app that may touch shared UI, ports, UXP or Chrome adapters, simulator, or composition. Does not prescribe how to reproduce, localize, or fix; it constrains only boundary, acceptance, and regression.
+description: Use only for confirmed UI bug fixes in apps/app when the symptom, expected behavior, and reproduction evidence are already known. Frame owner boundary and acceptance evidence before editing, then verify regression after the fix. Do not use for new requirements, refactors, or multi-step planning; use requirement-to-loop-planner instead.
 ---
 
 # UI Fix Guardrails
 
-A thin before/after guardrail for UI defect fixes: establish a reproducible
-baseline and an owner hypothesis before editing, then prove the fix with the
-same check and complete dual-runtime regression after.
+A thin before/after guardrail for confirmed UI bug fixes only: establish a
+reproducible baseline and an owner hypothesis before editing, then prove the
+fix with the same check and complete regression after.
 
 ## 1. Purpose
 
-Constrain UI defect fixes on four points only:
+Constrain confirmed UI bug fixes on four points only:
 
 - pre-fix owner boundary framing;
 - modification scope constraints;
 - post-fix dual-runtime regression;
 - evidence-based acceptance.
 
-It does not prescribe a debugging method and does not replace general
+If the work is a new requirement, refactor, or multi-step change that still
+needs scope or slice planning, use `requirement-to-loop-planner` instead.
+
+This skill does not prescribe a debugging method and does not replace general
 debugging, Loop execution, or architecture review.
 
 ## 2. Required Inputs
@@ -30,6 +33,9 @@ Before editing, the agent must be able to state:
 - reproduction runtime: `UXP` / `Chrome` / `Both` / `Unknown`;
 - available evidence: test, log, screenshot, or manual step;
 - initial owner hypothesis.
+
+If those inputs are not yet available, stop and plan the work first instead of
+using this skill as the entry point.
 
 Insufficient evidence may justify further investigation, but never an assumed
 modification layer.
