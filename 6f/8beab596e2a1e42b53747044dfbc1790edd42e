@@ -1,0 +1,37 @@
+apps/app/src/shared/ui/panel-css.ts
+  s_1180723a31dc6c::t_4a2fc8a7291484 350,353-354
+  s_1180723a31dc6c::t_24022d1af81940 392-395
+  s_1180723a31dc6c::t_9d8984558ea5b6 340-349,351-352,355-359,381,388-390,547-548
+apps/app/src/shared/ui/components/composer-select.tsx
+  s_1180723a31dc6c::t_1ea21d85a1c53d 1,30-31,74,83,146,153,167,193
+  s_1180723a31dc6c::t_0f8946c5f7ab71 54-58,168,170,191
+apps/app/tests/uxp-css-compat.test.ts
+  s_1180723a31dc6c::t_51d92bb9213e98 189-197
+apps/app/src/shared/ui/pages/main-page.tsx
+  s_1180723a31dc6c::t_d1d43eb5b9adda 643,656,675
+  s_1180723a31dc6c::t_9ec9d95fcbb934 642,655,674
+pnpm-workspace.yaml
+  s_1180723a31dc6c::t_926ead11166181 5
+  s_1180723a31dc6c::t_4c9878156b0df3 4
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.3",
+  "base_commit_sha": "6f8beab596e2a1e42b53747044dfbc1790edd42e",
+  "prompts": {},
+  "humans": {
+    "h_36ccd825a182d0": {
+      "author": "Sinyuk <80998062@qq.com>"
+    }
+  },
+  "sessions": {
+    "s_1180723a31dc6c": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "019f0716-77ab-7251-9556-3a2301bcf9e7",
+        "model": "gpt-5.4"
+      },
+      "human_author": "Sinyuk <80998062@qq.com>"
+    }
+  }
+}
