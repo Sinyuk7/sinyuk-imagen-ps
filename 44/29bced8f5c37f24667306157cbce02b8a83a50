@@ -1,0 +1,26 @@
+.agents/skills/requirement-to-loop-planner/SKILL.md
+  s_52854d5400ea25::t_95216f6818d7b3 3,10-14
+.agents/skills/ui-fix-guardrails/SKILL.md
+  s_52854d5400ea25::t_7ec7615cbf7c37 3,8-10,14,21-24,37-39
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.3",
+  "base_commit_sha": "4429bced8f5c37f24667306157cbce02b8a83a50",
+  "prompts": {},
+  "humans": {
+    "h_36ccd825a182d0": {
+      "author": "Sinyuk <80998062@qq.com>"
+    }
+  },
+  "sessions": {
+    "s_52854d5400ea25": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "019f088a-8fba-7631-873f-e49049b922ed",
+        "model": "unknown"
+      },
+      "human_author": "Sinyuk <80998062@qq.com>"
+    }
+  }
+}
