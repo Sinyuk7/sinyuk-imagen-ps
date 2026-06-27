@@ -1,0 +1,26 @@
+.agents/skills/docs-consolidator/SKILL.md
+  h_36ccd825a182d0 1-290
+.agents/skills/docs-consolidator/agents/openai.yaml
+  s_1fd8216aa8211c::t_ac1c3379a4f895 1-7
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.3",
+  "base_commit_sha": "2f1ab9abc41d10d5b3d2a6da941010841335ccd1",
+  "prompts": {},
+  "humans": {
+    "h_36ccd825a182d0": {
+      "author": "Sinyuk <80998062@qq.com>"
+    }
+  },
+  "sessions": {
+    "s_1fd8216aa8211c": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "019f0959-fa09-7342-8751-332e89643aeb",
+        "model": "unknown"
+      },
+      "human_author": "Sinyuk <80998062@qq.com>"
+    }
+  }
+}
