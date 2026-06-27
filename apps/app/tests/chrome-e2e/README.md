@@ -54,7 +54,21 @@ Supported query controls:
 - `scenario=<id>`: select a deterministic Photoshop simulator scenario.
 - `filePicker=image|cancel`: return a generated PNG file or simulate cancel.
 - `mockFailure=always|none`: preload the mock provider failure mode.
+- `harness=composer-select`: bypass the normal app shell and render the manual
+  ComposerSelect responsive harness instead.
 
 When enabled, the page exposes `globalThis.__IMAGEN_CHROME_TEST_HARNESS__` for
 scenario-local controls: `resetStorage`, `seedMockProfile`, `seedHistory`,
 `setFilePickerMode`, `setMockFailureMode`, `setScenario`, and `snapshot`.
+
+## Manual Component Harness
+
+For focused `ComposerSelect` regression work, open the Chrome build with:
+
+```text
+http://localhost:4173/?harness=composer-select
+```
+
+This is a manual-first responsive harness, not a broad visual-test framework.
+It exists to make width shrink, truncation, open-menu, and edge-placement
+regressions easy to reproduce and inspect.

@@ -82,3 +82,12 @@ http://localhost:4173/?testHarness=1&seedProfile=mock&seedHistory=1
 ```
 
 When enabled, the page exposes `globalThis.__IMAGEN_CHROME_TEST_HARNESS__` for snapshotting and runtime controls.
+
+For isolated `ComposerSelect` regression work, open:
+
+```text
+http://localhost:4173/?harness=composer-select
+```
+
+That page is a small manual responsive harness for width shrink, long text,
+open-menu, and edge-placement inspection.

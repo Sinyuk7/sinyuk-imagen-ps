@@ -2,6 +2,15 @@ import { createRoot, type Root } from 'react-dom/client';
 import { AppShell } from '../../shared/ui/app-shell';
 import { createChromeAppShell } from '../../composition/chrome/create-chrome-app-shell';
 import { chromeTestHarnessConfigFromUrl } from '../../composition/chrome/chrome-test-harness';
+import { ComposerSelectHarnessPage } from '../../harness/components/composer-select';
+
+function resolveChromeHarness(url: URL): 'composer-select' | null {
+  const harness = url.searchParams.get('harness');
+  if (harness === 'composer-select') {
+    return harness;
+  }
+  return null;
+}
 
 let root: Root | undefined;
 
@@ -22,14 +31,21 @@ try {
   }
   container.dataset.runtime = 'chrome';
   container.dataset.status = 'ok';
-  const testHarness = chromeTestHarnessConfigFromUrl(new URL(window.location.href));
-  const host = createChromeAppShell(testHarness ? { testHarness } : undefined);
+  const url = new URL(window.location.href);
+  const harness = resolveChromeHarness(url);
   root = createRoot(container);
-  root.render(<AppShell host={host} />);
-  globalThis.__IMAGEN_CHROME_RUNTIME__ = { host, dispose: () => {
-    root?.unmount();
-    host.dispose();
-  } };
+  if (harness === 'composer-select') {
+    root.render(<ComposerSelectHarnessPage />);
+    globalThis.__IMAGEN_CHROME_RUNTIME__ = undefined;
+  } else {
+    const testHarness = chromeTestHarnessConfigFromUrl(url);
+    const host = createChromeAppShell(testHarness ? { testHarness } : undefined);
+    root.render(<AppShell host={host} />);
+    globalThis.__IMAGEN_CHROME_RUNTIME__ = { host, dispose: () => {
+      root?.unmount();
+      host.dispose();
+    } };
+  }
 } catch (error: unknown) {
   const message = error instanceof Error ? error.message : 'Unknown Chrome shell startup error.';
   renderStartupError(message);

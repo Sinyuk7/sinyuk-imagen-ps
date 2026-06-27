@@ -94,14 +94,15 @@ describe('ComposerSelect', () => {
     expect(container.querySelector('[data-testid="test-select-option-option-b"]')).not.toBeNull();
   });
 
-  it('marks selected option with selected attribute', async () => {
+  it('marks selected option with aria-selected', async () => {
     const container = document.createElement('div');
     document.body.appendChild(container);
     await renderSelect(container, { open: true, selectedId: 'option-b' });
 
     const selectedItem = container.querySelector('[data-testid="test-select-option-option-b"]') as HTMLElement;
     expect(selectedItem).not.toBeNull();
-    expect(selectedItem.getAttribute('selected')).not.toBeNull();
+    expect(selectedItem.getAttribute('role')).toBe('option');
+    expect(selectedItem.getAttribute('aria-selected')).toBe('true');
   });
 
   it('selects an option when clicked', async () => {
@@ -238,7 +239,7 @@ describe('ComposerSelect', () => {
     const popover = container.querySelector<HTMLElement>('[data-testid="test-select-popover"]')!;
     expect(popover.classList.contains('cmp-select-menu-down')).toBe(true);
     expect(popover.classList.contains('cmp-select-menu-end')).toBe(true);
-    expect(popover.style.width).toBe('132px');
-    expect(popover.style.maxHeight).toBe('120px');
+    expect(popover.style.width).toBe('228px');
+    expect(popover.style.maxHeight).toBe('204px');
   });
 });

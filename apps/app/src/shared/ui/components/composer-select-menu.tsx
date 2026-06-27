@@ -1,0 +1,112 @@
+import type { KeyboardEvent, MouseEvent, RefObject } from 'react';
+import { Icon } from './icons';
+import type { ComposerSelectMenuPlacement, ComposerSelectOption } from './composer-select.types';
+
+interface ComposerSelectMenuProps {
+  readonly label: string;
+  readonly testId?: string;
+  readonly menuRef: RefObject<HTMLDivElement | null>;
+  readonly menuClassName?: string;
+  readonly menuPlacement: ComposerSelectMenuPlacement;
+  readonly options: readonly ComposerSelectOption[];
+  readonly selectedId: string;
+  readonly onSelect: (id: string) => void;
+  readonly onClose: () => void;
+  readonly onClick: (event: MouseEvent<HTMLElement>) => void;
+}
+
+export function ComposerSelectMenu({
+  label,
+  testId,
+  menuRef,
+  menuClassName,
+  menuPlacement,
+  options,
+  selectedId,
+  onSelect,
+  onClose,
+  onClick,
+}: ComposerSelectMenuProps) {
+  const placementClass = [
+    menuClassName ?? 'cmp-select-menu',
+    `cmp-select-menu-${menuPlacement.direction}`,
+    `cmp-select-menu-${menuPlacement.align}`,
+  ].join(' ');
+
+  const handleKeyDown = (event: KeyboardEvent<HTMLDivElement>) => {
+    if (event.key === 'Escape') {
+      event.stopPropagation();
+      onClose();
+      return;
+    }
+    if (event.key === 'ArrowDown' || event.key === 'ArrowUp') {
+      event.preventDefault();
+      event.stopPropagation();
+      const items = Array.from(menuRef.current?.querySelectorAll<HTMLButtonElement>('[role="option"]') ?? []);
+      if (items.length === 0) {
+        return;
+      }
+      const currentIndex = Math.max(0, items.findIndex((item) => item === document.activeElement));
+      const delta = event.key === 'ArrowDown' ? 1 : -1;
+      const nextIndex = (currentIndex + delta + items.length) % items.length;
+      items[nextIndex]?.focus();
+      return;
+    }
+    if (event.key !== 'Enter' && event.key !== ' ') {
+      return;
+    }
+    const active = document.activeElement as HTMLElement | null;
+    const id = active?.getAttribute('data-value');
+    if (!id) {
+      return;
+    }
+    event.preventDefault();
+    event.stopPropagation();
+    onSelect(id);
+  };
+
+  return (
+    <div
+      data-testid={testId ? `${testId}-popover` : undefined}
+      className={placementClass}
+      style={{
+        width: `${Math.round(menuPlacement.width)}px`,
+        maxHeight: `${Math.round(menuPlacement.maxHeight)}px`,
+      }}
+      onClick={onClick}
+    >
+      <div
+        ref={menuRef}
+        data-testid={testId ? `${testId}-menu` : undefined}
+        className="cmp-select-listbox"
+        role="listbox"
+        aria-label={label}
+        tabIndex={0}
+        onKeyDown={handleKeyDown}
+      >
+        {options.map((option) => {
+          const selected = option.id === selectedId;
+          return (
+            <button
+              key={option.id}
+              type="button"
+              data-testid={testId ? `${testId}-option-${option.id}` : undefined}
+              data-value={option.id}
+              className={`cmp-select-option${selected ? ' selected' : ''}`}
+              role="option"
+              aria-selected={selected}
+              onClick={(event) => {
+                event.stopPropagation();
+                onSelect(option.id);
+              }}
+            >
+              {option.icon && <Icon name={option.icon} size={14} className="cmp-select-option-icon" />}
+              <span className="cmp-select-option-label">{option.label}</span>
+              {selected && <Icon name="check" size={12} className="cmp-select-option-check" />}
+            </button>
+          );
+        })}
+      </div>
+    </div>
+  );
+}

@@ -69,6 +69,8 @@ interface IconProps {
   readonly style?: CSSProperties;
   /** 自定义类名。 */
   readonly className?: string;
+  /** 仅在宿主组件需要显式 slot 时传入。 */
+  readonly slot?: string;
 }
 
 const ICON_TAG_BY_NAME: Record<IconName, string> = {
@@ -107,13 +109,13 @@ const ICON_TAG_BY_NAME: Record<IconName, string> = {
  * @param props.style - 额外样式
  * @param props.className - 额外类名
  */
-export function Icon({ name, size = 14, style, className }: IconProps): ReactElement {
+export function Icon({ name, size = 14, style, className, slot }: IconProps): ReactElement {
   return createElement(ICON_TAG_BY_NAME[name], {
     'aria-hidden': 'true',
     className,
     'data-icon': ICON_TAG_BY_NAME[name],
     'data-icon-name': name,
-    slot: 'icon',
+    ...(slot ? { slot } : {}),
     style: {
       color: 'inherit',
       display: 'block',

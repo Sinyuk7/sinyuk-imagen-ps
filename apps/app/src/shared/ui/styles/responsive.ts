@@ -15,8 +15,8 @@ export const RESPONSIVE_CSS = `
   .cmp-select-model{ flex:1 1 100%; min-width:0; }
   .cmp-toolbar-left{ flex:1 1 100%; }
   .cmp-toolbar-right{ flex:1 1 100%; justify-content:space-between; }
-  .cmp-select-target{ flex:1 1 0; }
-  .cmp-select-aspect{ flex:1 1 0; }
+  .cmp-select-target{ flex:1 1 0; min-width:74px; }
+  .cmp-select-aspect{ flex:1 1 0; min-width:70px; }
   .cmp-chip{ padding:2px 6px; font-size:9px; }
   .cmp-select-target .cmp-chip [data-icon-name="ps-layers"],
   .cmp-select-target .cmp-chip [data-icon-name="selection"],
