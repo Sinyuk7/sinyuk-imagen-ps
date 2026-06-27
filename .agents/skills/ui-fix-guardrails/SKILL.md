@@ -152,7 +152,7 @@ as a gate.
 
 ## 9. Stop Rules
 
-Stop and escalate (Decision Packet per `docs/loops/_decision-packet.md`) only
+Stop and escalate (Decision Packet with A/B/C choice, evidence, and recommendation) only
 when:
 
 - no acceptance oracle can be defined;

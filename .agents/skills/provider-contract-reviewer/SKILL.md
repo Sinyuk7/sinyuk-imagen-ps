@@ -61,7 +61,7 @@ IMAGEN_RUN_SMOKE=1 pnpm --filter @imagen-ps/cli test
 
 ## Stop Conditions
 
-Stop and produce a Decision Packet using `docs/loops/_decision-packet.md` when:
+Stop and produce a Decision Packet (A/B/C choice with evidence and recommendation) when:
 
 - behavior can only be proven by paid/live APIs without approval;
 - provider logic needs UI state, CLI flags, local paths, or UXP storage;

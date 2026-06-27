@@ -204,7 +204,7 @@
       "category": "no_goals",
       "scenario": "A fix crosses an ownership boundary that is not authorized by an active Loop.",
       "must": [
-        "escalate via a Decision Packet per docs/loops/_decision-packet.md",
+        "escalate via a Decision Packet (A/B/C choice with evidence and recommendation)",
         "stop editing in the crossed area"
       ],
       "must_not": [

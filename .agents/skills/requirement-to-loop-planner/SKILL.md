@@ -39,7 +39,7 @@ bug fix with symptom, expected behavior, and reproduction evidence, hand off to
    - validation categories;
    - Decision Packet triggers;
    - memory note candidate rule.
-5. Use `docs/loops/_template.md` for file-backed Loop docs.
+5. Format Loop docs with status/authority/owner metadata, goal/non-goals, scope, slices, and validation categories.
 
 ## Repository Boundaries
 
@@ -52,7 +52,7 @@ bug fix with symptom, expected behavior, and reproduction evidence, hand off to
 
 ## Stop Conditions
 
-Produce `docs/loops/_decision-packet.md` content instead of guessing when:
+Produce a Decision Packet (A/B/C choice with evidence and recommendation) instead of guessing when:
 
 - the requirement has multiple incompatible interpretations;
 - a slice needs unauthorized cross-boundary ownership changes;

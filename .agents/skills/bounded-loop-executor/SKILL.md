@@ -42,7 +42,7 @@ supported.
 
 ## Stop Conditions
 
-Stop and produce a Decision Packet using `docs/loops/_decision-packet.md` when:
+Stop and produce a Decision Packet (A/B/C choice with evidence and recommendation) when:
 
 - the needed change crosses forbidden scope;
 - a shared contract needs design before implementation;

@@ -116,8 +116,8 @@ harness first or produce a Decision Packet.
 
 ## Decision Packets
 
-A Decision Packet is the standard stop mechanism. Use
-`docs/loops/_decision-packet.md` as the output format.
+A Decision Packet is the standard stop mechanism. Format it as a concise
+A/B/C choice with evidence, trade-offs, and a clear recommendation.
 
 Produce one when:
 
