@@ -49,4 +49,51 @@ describe('SettingsPage UXP compatibility', () => {
     // Tooltips that do exist are Spectrum sp-tooltip elements.
     expect(container.querySelectorAll('sp-tooltip').length).toBeGreaterThan(0);
   });
+
+  it('renders provider rows with primary status separated from secondary metadata', async () => {
+    const { services } = createFakeServices();
+    const container = document.createElement('div');
+    document.body.appendChild(container);
+    root = createRoot(container);
+
+    await act(async () => {
+      root!.render(
+        <TestAppProviders services={services}>
+          <SettingsPage
+            onNav={() => undefined}
+            profiles={[
+              {
+                profileId: 'long-profile',
+                providerId: 'mock',
+                displayName: 'Very Long Provider Display Name That Needs Room To Wrap',
+                enabled: true,
+                config: {
+                  providerId: 'mock',
+                  displayName: 'Mock Provider',
+                  family: 'image-endpoint',
+                  baseUrl: 'https://mock.local',
+                  defaultModel: 'very-long-model-name-that-should-not-own-the-primary-row',
+                },
+                secretRefs: {},
+                createdAt: '2026-06-27T00:00:00.000Z',
+                updatedAt: '2026-06-27T00:00:00.000Z',
+              },
+            ]}
+            loading={false}
+            error={null}
+            onReload={async () => undefined}
+            onOpenProfile={vi.fn()}
+          />
+        </TestAppProviders>,
+      );
+    });
+
+    const row = container.querySelector<HTMLElement>('[data-testid="provider-row-long-profile"]')!;
+    expect(row.querySelector('.prov-primary-status')?.textContent).toContain('已启用');
+    expect(row.querySelector('.prov-meta .prov-family')?.textContent).toContain('image-endpoint');
+    expect(row.querySelector('.prov-meta .prov-model')?.textContent).toContain('very-long-model-name');
+    expect(row.querySelector('.prov-meta .completeness')).not.toBeNull();
+    expect(row.querySelector('.prov-trail')).not.toBeNull();
+    expect(getComputedStyle(row).height).not.toBe('64px');
+  });
 });

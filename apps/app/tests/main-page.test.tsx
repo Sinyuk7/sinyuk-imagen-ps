@@ -284,6 +284,20 @@ describe('MainPage contract', () => {
     expect(right!.querySelector('[data-testid="composer-add-image-button"]')).toBeNull();
   });
 
+  it('Composer 参数工具栏允许自然换行且保持参数当前值可见', async () => {
+    const container = document.createElement('div');
+    document.body.appendChild(container);
+    await renderApp(container);
+
+    const toolbar = container.querySelector<HTMLElement>('[data-testid="composer-toolbar"]')!;
+    const toolbarStyle = getComputedStyle(toolbar);
+    expect(toolbarStyle.flexWrap).toBe('wrap');
+
+    expect(toolbar.querySelector('[data-testid="main-model-selector"]')!.textContent).toContain('mock-image-v1');
+    expect(toolbar.querySelector('[data-testid="composer-target-selector"]')!.textContent).toContain('图层');
+    expect(toolbar.querySelector('[data-testid="composer-aspect-ratio-selector"]')!.textContent).toContain('智能宽高比');
+  });
+
   it('target 与 aspect-ratio 选择器可打开、选择并关闭', async () => {
     const container = document.createElement('div');
     document.body.appendChild(container);

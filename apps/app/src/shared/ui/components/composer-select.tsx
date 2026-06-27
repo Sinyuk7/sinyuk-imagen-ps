@@ -1,4 +1,4 @@
-import { useEffect, useLayoutEffect, useRef } from 'react';
+import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { Icon, type IconName } from './icons';
 import { ActionButton, registerSpectrumControls } from '../primitives/spectrum-controls';
 
@@ -48,7 +48,24 @@ type MenuItemElement = HTMLElement & {
   value?: string;
 };
 
+interface MenuPlacement {
+  readonly direction: 'up' | 'down';
+  readonly align: 'start' | 'end';
+  readonly width: number;
+  readonly maxHeight: number;
+}
+
 const DEBUG_COMPOSER_SELECT_QUERY = 'debugComposerSelect';
+const PANEL_EDGE_PADDING = 12;
+const MENU_GAP = 6;
+const MENU_ITEM_ESTIMATE = 34;
+const MENU_MAX_VISIBLE_ITEMS = 6;
+const MENU_MIN_HEIGHT = 96;
+const MENU_MIN_WIDTH = 132;
+
+function clampNumber(value: number, min: number, max: number): number {
+  return Math.min(Math.max(value, min), max);
+}
 
 function shouldDebugComposerSelectLayout(): boolean {
   if (typeof window === 'undefined') {
@@ -108,9 +125,53 @@ export function ComposerSelect({
   const chipBodyRef = useRef<HTMLSpanElement | null>(null);
   const chipValueRef = useRef<HTMLSpanElement | null>(null);
   const chipArrowRef = useRef<HTMLSpanElement | null>(null);
+  const [menuPlacement, setMenuPlacement] = useState<MenuPlacement>({
+    direction: 'up',
+    align: 'start',
+    width: MENU_MIN_WIDTH,
+    maxHeight: MENU_ITEM_ESTIMATE * MENU_MAX_VISIBLE_ITEMS,
+  });
+
+  const updateMenuPlacement = () => {
+    const chip = chipRef.current;
+    if (!chip) {
+      return;
+    }
+    const panel = chip.closest('.panel') as HTMLElement | null;
+    const panelRect = panel?.getBoundingClientRect();
+    const chipRect = chip.getBoundingClientRect();
+    if (!panelRect || panelRect.width <= 0 || panelRect.height <= 0) {
+      return;
+    }
+
+    const availableWidth = Math.max(0, panelRect.width - PANEL_EDGE_PADDING * 2);
+    const minWidth = Math.min(MENU_MIN_WIDTH, availableWidth);
+    const preferredWidth = Math.max(chipRect.width, MENU_MIN_WIDTH);
+    const width = clampNumber(preferredWidth, minWidth, availableWidth);
+    const spaceAbove = chipRect.top - panelRect.top - PANEL_EDGE_PADDING - MENU_GAP;
+    const spaceBelow = panelRect.bottom - chipRect.bottom - PANEL_EDGE_PADDING - MENU_GAP;
+    const direction = spaceBelow >= MENU_MIN_HEIGHT || spaceBelow >= spaceAbove ? 'down' : 'up';
+    const verticalSpace = Math.max(direction === 'down' ? spaceBelow : spaceAbove, 48);
+    const maxHeight = clampNumber(verticalSpace, 48, MENU_ITEM_ESTIMATE * MENU_MAX_VISIBLE_ITEMS);
+    const spaceToRight = panelRect.right - chipRect.left - PANEL_EDGE_PADDING;
+    const align = spaceToRight >= width ? 'start' : 'end';
+
+    setMenuPlacement((current) => {
+      if (
+        current.direction === direction &&
+        current.align === align &&
+        Math.round(current.width) === Math.round(width) &&
+        Math.round(current.maxHeight) === Math.round(maxHeight)
+      ) {
+        return current;
+      }
+      return { direction, align, width, maxHeight };
+    });
+  };
 
   useEffect(() => {
     if (open) {
+      updateMenuPlacement();
       // 轻微延迟让 sp-menu 完成首次渲染后再聚焦，确保键盘导航可用。
       const timer = window.setTimeout(() => {
         menuRef.current?.focus?.();
@@ -119,6 +180,31 @@ export function ComposerSelect({
     }
     return undefined;
   }, [open]);
+
+  useLayoutEffect(() => {
+    if (!open) {
+      return undefined;
+    }
+
+    updateMenuPlacement();
+    const chip = chipRef.current;
+    const panel = chip?.closest('.panel') as HTMLElement | null;
+    const resizeObserver = typeof ResizeObserver === 'undefined' ? null : new ResizeObserver(updateMenuPlacement);
+    if (resizeObserver) {
+      if (chip) {
+        resizeObserver.observe(chip);
+      }
+      if (panel) {
+        resizeObserver.observe(panel);
+      }
+    }
+    window.addEventListener('resize', updateMenuPlacement);
+
+    return () => {
+      resizeObserver?.disconnect();
+      window.removeEventListener('resize', updateMenuPlacement);
+    };
+  }, [open, options.length]);
 
   useLayoutEffect(() => {
     if (!shouldDebugComposerSelectLayout()) {
@@ -253,6 +339,12 @@ export function ComposerSelect({
     event.stopPropagation();
   };
 
+  const placementClass = [
+    menuClassName ?? 'cmp-select-menu',
+    `cmp-select-menu-${menuPlacement.direction}`,
+    `cmp-select-menu-${menuPlacement.align}`,
+  ].join(' ');
+
   return (
     <div className={containerClassName ?? 'cmp-select'}>
       <ActionButton
@@ -276,7 +368,11 @@ export function ComposerSelect({
       {open && (
         <div
           data-testid={testId ? `${testId}-popover` : undefined}
-          className={menuClassName ?? 'cmp-select-menu'}
+          className={placementClass}
+          style={{
+            width: `${Math.round(menuPlacement.width)}px`,
+            maxHeight: `${Math.round(menuPlacement.maxHeight)}px`,
+          }}
           onClick={handleMenuClick}
         >
           <sp-menu

@@ -1,0 +1,12 @@
+{
+  "mcpServers": {
+    "react-spectrum-s2": {
+      "type": "stdio",
+      "command": "npx",
+      "args": [
+        "@react-spectrum/mcp@latest"
+      ],
+      "env": {}
+    }
+  }
+}

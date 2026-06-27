@@ -90,14 +90,16 @@ export function SettingsPage({
             <div className="prov-info">
               <div className="prov-name">
                 <span>{optimizerRow.displayName}</span>
-                <Tag className="prov-family">{optimizerRow.family}</Tag>
-                <span className={`badge ${optimizerRow.enabled ? 'connected' : 'error'}`}>
+                <span className={`badge prov-primary-status ${optimizerRow.enabled ? 'connected' : 'error'}`}>
                   {optimizerRow.enabled ? t.common.enabled : t.common.disabled}
                 </span>
               </div>
-              <div className="prov-model">{optimizerRow.defaultModel ?? optimizerRow.providerId}</div>
+              <div className="prov-meta">
+                <Tag className="prov-family">{optimizerRow.family}</Tag>
+                <span className="prov-model">{optimizerRow.defaultModel ?? optimizerRow.providerId}</span>
+              </div>
             </div>
-            <Icon name="chevron-right" />
+            <div className="prov-trail"><Icon name="chevron-right" /></div>
           </div>
         )}
         {rows.map((row) => (
@@ -108,17 +110,19 @@ export function SettingsPage({
             <div className="prov-info">
               <div className="prov-name">
                 <span>{row.displayName}</span>
-                <Tag className="prov-family">{row.family}</Tag>
-                <span className={`badge ${row.enabled ? 'connected' : 'error'}`}>{row.enabled ? t.common.enabled : t.common.disabled}</span>
+                <span className={`badge prov-primary-status ${row.enabled ? 'connected' : 'error'}`}>{row.enabled ? t.common.enabled : t.common.disabled}</span>
               </div>
-              <div className="prov-model">{row.defaultModel ?? row.providerId}</div>
+              <div className="prov-meta">
+                <Tag className="prov-family">{row.family}</Tag>
+                <span className="prov-model">{row.defaultModel ?? row.providerId}</span>
+                <div className="completeness" aria-hidden="true">
+                  <div className={`cdot ${row.enabled ? 'f' : 'e'}`} />
+                  <div className="cdot f" />
+                  <div className={row.defaultModel ? 'cdot f' : 'cdot w'} />
+                </div>
+              </div>
             </div>
-            <div className="completeness">
-              <div className={`cdot ${row.enabled ? 'f' : 'e'}`} />
-              <div className="cdot f" />
-              <div className={row.defaultModel ? 'cdot f' : 'cdot w'} />
-            </div>
-            <Icon name="chevron-right" />
+            <div className="prov-trail"><Icon name="chevron-right" /></div>
           </div>
         ))}
         <div className="footer-info">

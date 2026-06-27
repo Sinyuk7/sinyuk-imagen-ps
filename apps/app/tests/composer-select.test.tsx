@@ -28,6 +28,7 @@ async function renderSelect(
     onSelect?: (id: string) => void;
     onOpenChange?: (open: boolean) => void;
     disabled?: boolean;
+    beforeFlush?: (container: HTMLElement) => void;
   } = {},
 ) {
   const selectedId = props.selectedId ?? 'option-a';
@@ -51,6 +52,7 @@ async function renderSelect(
       }),
     );
   });
+  props.beforeFlush?.(container);
   await flush();
   await flush();
 }
@@ -184,5 +186,59 @@ describe('ComposerSelect', () => {
     await flush();
 
     expect(open).toBe(false);
+  });
+
+  it('constrains open menu to the nearest panel and flips direction when needed', async () => {
+    const container = document.createElement('div');
+    const panel = document.createElement('div');
+    panel.className = 'panel';
+    panel.appendChild(container);
+    document.body.appendChild(panel);
+    Object.defineProperty(panel, 'getBoundingClientRect', {
+      configurable: true,
+      value: () => ({
+        top: 0,
+        left: 0,
+        right: 240,
+        bottom: 180,
+        width: 240,
+        height: 180,
+        x: 0,
+        y: 0,
+        toJSON: () => undefined,
+      }),
+    });
+
+    await renderSelect(container, {
+      open: true,
+      beforeFlush: (rendered) => {
+        const trigger = rendered.querySelector<HTMLElement>('[data-testid="test-select"]')!;
+        Object.defineProperty(trigger, 'getBoundingClientRect', {
+          configurable: true,
+          value: () => ({
+            top: 18,
+            left: 170,
+            right: 226,
+            bottom: 42,
+            width: 56,
+            height: 24,
+            x: 170,
+            y: 18,
+            toJSON: () => undefined,
+          }),
+        });
+      },
+    });
+
+    await act(async () => {
+      window.dispatchEvent(new Event('resize'));
+    });
+    await flush();
+
+    const popover = container.querySelector<HTMLElement>('[data-testid="test-select-popover"]')!;
+    expect(popover.classList.contains('cmp-select-menu-down')).toBe(true);
+    expect(popover.classList.contains('cmp-select-menu-end')).toBe(true);
+    expect(popover.style.width).toBe('132px');
+    expect(popover.style.maxHeight).toBe('120px');
   });
 });
