@@ -5,6 +5,6 @@ export const promptOptimizeDescriptor: ProviderDescriptor = {
   id: 'prompt-optimize',
   family: 'prompt-optimize',
   displayName: 'Prompt Optimizer',
-  operations: ['text_to_image'],
+  operations: ['prompt_optimize'],
   invokeMode: 'sync',
 };

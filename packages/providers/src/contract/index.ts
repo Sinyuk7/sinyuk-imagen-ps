@@ -5,7 +5,7 @@ export type {
   PromptOptimizeProviderConfig,
   ProviderConfig,
 } from './config.js';
-export type { AssetRef, CanonicalImageJobRequest, ProviderOutputOptions, ProviderRequest } from './request.js';
+export type { AssetRef, CanonicalImageJobRequest, PromptOptimizeRequest, ProviderOutputOptions, ProviderRequest } from './request.js';
 export type { ProviderDiagnostic, ProviderDiagnosticLevel, ProviderDiagnostics } from './diagnostics.js';
 export type { ProviderInvokeMetadata, ProviderInvokeResult, ProviderInvokeUsage } from './result.js';
 export type { ProviderModelInfo } from './model.js';

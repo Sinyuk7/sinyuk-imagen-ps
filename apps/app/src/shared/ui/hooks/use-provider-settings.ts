@@ -45,7 +45,10 @@ export function useProviderProfiles(services: AppServices): ProviderProfilesStat
 }
 
 export function useProviderCatalog(services: AppServices): readonly ProviderDescriptor[] {
-  return useMemo(() => services.commands.listProviders(), [services]);
+  return useMemo(
+    () => services.commands.listProviders().filter((provider) => provider.id !== 'prompt-optimize'),
+    [services],
+  );
 }
 
 export interface ProfileModelsState {

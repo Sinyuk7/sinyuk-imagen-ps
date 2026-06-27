@@ -1,4 +1,4 @@
-import type { CanonicalImageJobRequest } from '../../contract/request.js';
+import type { PromptOptimizeRequest } from './request-schema.js';
 import type { PromptOptimizeProviderConfig } from './config-schema.js';
 
 export interface PromptOptimizeSystemMessage {
@@ -17,14 +17,14 @@ export interface PromptOptimizeCompletionBody {
   readonly [key: string]: unknown;
 }
 
-function resolveModel(request: CanonicalImageJobRequest, defaultModel?: string): string {
+function resolveModel(request: PromptOptimizeRequest, defaultModel?: string): string {
   return typeof request.providerOptions?.model === 'string'
     ? (request.providerOptions.model as string)
     : (defaultModel ?? 'gpt-4o-mini');
 }
 
 export function buildPromptOptimizeRequestBody(
-  request: CanonicalImageJobRequest,
+  request: PromptOptimizeRequest,
   config: PromptOptimizeProviderConfig,
 ): PromptOptimizeCompletionBody {
   return {

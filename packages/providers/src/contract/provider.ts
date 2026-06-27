@@ -3,7 +3,7 @@ import type { Logger } from '@imagen-ps/foundation';
 import type { ProviderFamily, ProviderOperation } from './capability.js';
 import type { ProviderConfig } from './config.js';
 import type { ProviderModelInfo } from './model.js';
-import type { CanonicalImageJobRequest } from './request.js';
+import type { CanonicalImageJobRequest, ProviderRequest } from './request.js';
 import type { ProviderInvokeResult } from './result.js';
 
 /**
@@ -149,7 +149,7 @@ export interface Provider<TConfig = ProviderConfig, TRequest = CanonicalImageJob
 }
 
 /** bridge 创建 `ProviderDispatchAdapter` 所需的输入。 */
-export interface ProviderDispatchBridgeArgs<TConfig = ProviderConfig, TRequest = CanonicalImageJobRequest> {
+export interface ProviderDispatchBridgeArgs<TConfig = ProviderConfig, TRequest extends ProviderRequest = ProviderRequest> {
   /** 待适配的 provider 实例。 */
   readonly provider: Provider<TConfig, TRequest>;
 
@@ -161,7 +161,7 @@ export interface ProviderDispatchBridgeArgs<TConfig = ProviderConfig, TRequest =
 }
 
 /** 从 `Provider` 到 `ProviderDispatchAdapter` 的显式桥接契约。 */
-export interface ProviderDispatchBridge<TConfig = ProviderConfig, TRequest = CanonicalImageJobRequest> {
+export interface ProviderDispatchBridge<TConfig = ProviderConfig, TRequest extends ProviderRequest = ProviderRequest> {
   /**
    * 创建 `core-engine` 可消费的 dispatch adapter。
    *

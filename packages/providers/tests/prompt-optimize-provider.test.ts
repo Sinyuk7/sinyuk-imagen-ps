@@ -26,7 +26,7 @@ describe('prompt-optimize provider', () => {
     expect(provider.id).toBe('prompt-optimize');
     expect(provider.family).toBe('prompt-optimize');
     expect(provider.describe()).toEqual(promptOptimizeDescriptor);
-    expect(provider.describe().operations).toEqual(['text_to_image']);
+    expect(provider.describe().operations).toEqual(['prompt_optimize']);
     expect(config.instruction).toBe('Rewrite the prompt.');
   });
 
@@ -39,7 +39,7 @@ describe('prompt-optimize provider', () => {
   it('builds chat completion body with system instruction and user prompt', () => {
     const config = promptOptimizeConfigSchema.parse(validConfigInput);
     const body = buildPromptOptimizeRequestBody(
-      { operation: 'text_to_image', prompt: 'a red square' },
+      { operation: 'prompt_optimize', prompt: 'a red square' },
       config,
     );
 
@@ -94,7 +94,7 @@ describe('prompt-optimize provider', () => {
     );
     const provider = createPromptOptimizeProvider();
     const config = provider.validateConfig(validConfigInput);
-    const request = provider.validateRequest({ operation: 'text_to_image', prompt: 'test' });
+    const request = provider.validateRequest({ operation: 'prompt_optimize', prompt: 'test' });
 
     const result = await provider.invoke({ config, request });
 

@@ -1,16 +1,18 @@
-import type { Provider, ProviderDescriptor } from '../contract/index.js';
+import type { Provider, ProviderConfig, ProviderDescriptor, ProviderRequest } from '../contract/index.js';
 
 /**
  * Provider registry 接口。
  *
  * 纯内存路由表，不持有 runtime state、config 持久化或 lifecycle。
+ * 接受所有 provider family 的 request 联合，使 prompt-optimize 等文本 provider
+ * 能与 image provider 共存。
  */
 export interface ProviderRegistry {
   /** 注册一个 provider 实例。 */
-  register(provider: Provider): void;
+  register(provider: Provider<ProviderConfig, ProviderRequest>): void;
 
   /** 按 id 获取 provider 实例。 */
-  get(providerId: string): Provider | undefined;
+  get(providerId: string): Provider<ProviderConfig, ProviderRequest> | undefined;
 
   /** 列出所有已注册 provider 的 descriptor。 */
   list(): ProviderDescriptor[];

@@ -1,11 +1,11 @@
 import type { Provider, ProviderDescriptor, ProviderInvokeArgs } from '../../contract/provider.js';
 import type { ProviderInvokeResult } from '../../contract/result.js';
 import type { ProviderModelInfo } from '../../contract/model.js';
-import { mockRequestSchema, type MockProviderRequest } from '../mock/request-schema.js';
 import { promptOptimizeConfigSchema, type PromptOptimizeProviderConfig } from './config-schema.js';
 import { promptOptimizeDescriptor } from './descriptor.js';
 import { buildPromptOptimizeRequestBody } from './build-request.js';
 import { parsePromptOptimizeModelsResponse } from './models.js';
+import { promptOptimizeRequestSchema, type PromptOptimizeRequest } from './request-schema.js';
 import { httpRequest } from '../../transport/image-endpoint/http.js';
 
 interface ProviderValidationError extends Error {
@@ -23,7 +23,7 @@ function endpointUrl(baseURL: string, path: string): string {
   return new URL(path.replace(/^\//, ''), baseURL.endsWith('/') ? baseURL : `${baseURL}/`).toString();
 }
 
-export function createPromptOptimizeProvider(): Provider<PromptOptimizeProviderConfig, MockProviderRequest> {
+export function createPromptOptimizeProvider(): Provider<PromptOptimizeProviderConfig, PromptOptimizeRequest> {
   return {
     id: promptOptimizeDescriptor.id,
     family: promptOptimizeDescriptor.family,
@@ -47,8 +47,8 @@ export function createPromptOptimizeProvider(): Provider<PromptOptimizeProviderC
       return result.data;
     },
 
-    validateRequest(input: unknown): MockProviderRequest {
-      const result = mockRequestSchema.safeParse(input);
+    validateRequest(input: unknown): PromptOptimizeRequest {
+      const result = promptOptimizeRequestSchema.safeParse(input);
       if (!result.success) {
         const issues = result.error.issues.map((issue) => ({
           path: issue.path.join('.'),
@@ -62,7 +62,7 @@ export function createPromptOptimizeProvider(): Provider<PromptOptimizeProviderC
       return result.data;
     },
 
-    async invoke(args: ProviderInvokeArgs<PromptOptimizeProviderConfig, MockProviderRequest>): Promise<ProviderInvokeResult> {
+    async invoke(args: ProviderInvokeArgs<PromptOptimizeProviderConfig, PromptOptimizeRequest>): Promise<ProviderInvokeResult> {
       const { config, request, signal } = args;
       const url = endpointUrl(config.baseURL, 'chat/completions');
       const body = buildPromptOptimizeRequestBody(request, config);

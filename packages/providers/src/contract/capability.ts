@@ -8,4 +8,4 @@
 export type ProviderFamily = 'image-endpoint' | 'chat-image' | 'prompt-optimize';
 
 /** 当前阶段允许的 provider operation。 */
-export type ProviderOperation = 'text_to_image' | 'image_edit';
+export type ProviderOperation = 'text_to_image' | 'image_edit' | 'prompt_optimize';

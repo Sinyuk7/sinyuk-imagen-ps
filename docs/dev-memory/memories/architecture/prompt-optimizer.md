@@ -18,15 +18,19 @@
 | 文件 | 职责 |
 |---|---|
 | `packages/providers/src/providers/prompt-optimize/defaults.ts` | `DEFAULT_OPTIMIZER_INSTRUCTION` 常量，仅用于初始化内置 Profile |
-| `packages/providers/src/providers/prompt-optimize/descriptor.ts` | 静态 descriptor：`id/family = 'prompt-optimize'`，`operations: ['text_to_image']` |
+| `packages/providers/src/providers/prompt-optimize/descriptor.ts` | 静态 descriptor：`id/family = 'prompt-optimize'`，`operations: ['prompt_optimize']` |
 | `packages/providers/src/providers/prompt-optimize/config-schema.ts` | Zod schema，含 `instruction`（必填）、`testPrompt`（可选） |
+| `packages/providers/src/providers/prompt-optimize/request-schema.ts` | Zod schema：`{ operation: 'prompt_optimize', prompt, providerOptions? }`，不携带 image/output 字段 |
 | `packages/providers/src/providers/prompt-optimize/build-request.ts` | 构造 `{ model, messages: [system(instruction), user(prompt)] }` |
 | `packages/providers/src/providers/prompt-optimize/parse-response.ts` | 从 `choices[0].message.content` 提取文本（支持 string 和 array parts） |
 | `packages/providers/src/providers/prompt-optimize/models.ts` | 解析 `/models` 响应，不做 image-only 过滤 |
-| `packages/providers/src/providers/prompt-optimize/provider.ts` | provider 实现：invoke 返回 `{ assets: [], raw }`；discoverModels 复用 `httpRequest` |
+| `packages/providers/src/providers/prompt-optimize/provider.ts` | provider 实现：validateRequest 用专用 schema；invoke 返回 `{ assets: [], raw }`；discoverModels 复用 `httpRequest` |
 | `packages/providers/src/providers/prompt-optimize/index.ts` | 导出 |
-| `packages/providers/src/contract/capability.ts` | `ProviderFamily += 'prompt-optimize'` |
+| `packages/providers/src/contract/capability.ts` | `ProviderFamily += 'prompt-optimize'`；`ProviderOperation += 'prompt_optimize'` |
+| `packages/providers/src/contract/request.ts` | `PromptOptimizeRequest` 接口 + `ProviderRequest` 联合 |
+| `packages/providers/src/contract/provider.ts` | `ProviderDispatchBridgeArgs/ProviderDispatchBridge` 接受 `ProviderRequest` 联合 |
 | `packages/providers/src/contract/config.ts` | `PromptOptimizeProviderConfig` 接口 + `ProviderConfig` 联合 |
+| `packages/providers/src/registry/provider-registry.ts` | Registry 接受 `Provider<ProviderConfig, ProviderRequest>`，支持多 family 共存 |
 | `packages/providers/src/registry/builtins.ts` | 注册 `createPromptOptimizeProvider()` |
 | `packages/providers/src/index.ts` | 包级导出（含 `DEFAULT_OPTIMIZER_INSTRUCTION`、`parsePromptOptimizeResponse`） |
 
@@ -196,13 +200,14 @@ useEffect(() => {
              provider: 'profile',
              params: {
                profileId: '__prompt-optimizer__',
-               request: { operation: 'text_to_image', prompt }
+               request: { operation: 'prompt_optimize', prompt }
            })
            → createProfileAwareDispatchAdapter (runtime.ts)
              → resolve profile config（含 apiKey secret）
-             → capability guard（descriptor.operations 含 'text_to_image' ✓）
+             → capability guard（descriptor.operations 含 'prompt_optimize' ✓）
              → injectDefaultModel
              → createDispatchAdapter → provider.invoke()
+               → validateRequest 校验专用 prompt_optimize schema
                → buildPromptOptimizeRequestBody（system + user messages）
                → httpRequest POST chat/completions
                → 返回 { assets: [], raw: response.data }

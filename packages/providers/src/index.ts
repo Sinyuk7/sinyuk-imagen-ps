@@ -12,6 +12,7 @@ export type {
   ChatImageProviderConfig,
   ImageEndpointProviderConfig,
   PromptOptimizeProviderConfig,
+  PromptOptimizeRequest,
   Provider,
   ProviderConfig,
   ProviderDescriptor,

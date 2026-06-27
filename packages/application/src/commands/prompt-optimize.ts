@@ -159,7 +159,7 @@ export async function optimizePrompt(input: OptimizePromptInput): Promise<Comman
       provider: 'profile',
       params: {
         profileId: PROMPT_OPTIMIZER_PROFILE_ID,
-        request: { operation: 'text_to_image', prompt },
+        request: { operation: 'prompt_optimize', prompt },
       },
     });
     optimizeInFlight = dispatchPromise;
@@ -250,7 +250,7 @@ export async function validatePromptOptimizerProfile(
       provider: 'profile',
       params: {
         profileId,
-        request: { operation: 'text_to_image', prompt: testPrompt },
+        request: { operation: 'prompt_optimize', prompt: testPrompt },
       },
     })) as { raw?: unknown } | undefined;
 

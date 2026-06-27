@@ -3,7 +3,7 @@ import { createProviderError, createValidationError } from '@imagen-ps/core-engi
 import type { Logger } from '@imagen-ps/foundation';
 import type { ProviderDispatchBridgeArgs } from '../contract/provider.js';
 import type { ProviderConfig } from '../contract/config.js';
-import type { CanonicalImageJobRequest } from '../contract/request.js';
+import type { ProviderRequest } from '../contract/request.js';
 
 /**
  * 判断 unknown 是否已携带可被 engine 消费的 `JobError` 结构。
@@ -100,7 +100,7 @@ function extractRequestAndSignal(params: Record<string, unknown>): {
  */
 export function createDispatchAdapter<
   TConfig extends ProviderConfig = ProviderConfig,
-  TRequest extends CanonicalImageJobRequest = CanonicalImageJobRequest,
+  TRequest extends ProviderRequest = ProviderRequest,
 >(args: ProviderDispatchBridgeArgs<TConfig, TRequest>): ProviderDispatchAdapter {
   const { provider, config, logger } = args;
 
