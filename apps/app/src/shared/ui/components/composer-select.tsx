@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef } from 'react';
 import { Icon, type IconName } from './icons';
 import { ActionButton, registerSpectrumControls } from '../primitives/spectrum-controls';
 
@@ -27,6 +27,8 @@ export interface ComposerSelectProps {
   readonly onSelect: (id: string) => void;
   /** 数据测试 ID 前缀。 */
   readonly testId?: string;
+  /** 触发器 + 菜单容器类名，用于窄面板里的局部宽度约束。 */
+  readonly containerClassName?: string;
   /** 触发器内额外前缀图标。 */
   readonly leadingIcon?: IconName;
   /** 触发器内额外后缀图标，默认 chevron-down。 */
@@ -49,9 +51,11 @@ type MenuItemElement = HTMLElement & {
 /**
  * Composer 底部控制行用的受控单选下拉原语。
  *
- * 触发器保持自定义 chip 外观（基于 `sp-action-button`），下拉表面使用
- * `sp-popover` + `sp-menu` + `sp-menu-item`，比纯 div 方案更贴近 Spectrum
- * 选择语义，同时避免引入 `picker` / `action-menu` 等无 UXP wrapper 的组件。
+ * 触发器保持自定义 chip 外观（基于 `sp-action-button`），候选项列表仍由
+ * `sp-menu` + `sp-menu-item` 承载。菜单外层改回普通定位容器，而不是直接依赖
+ * `sp-popover` 的定位行为：Chrome 实测里 `sp-popover` 叠加到 panel 内的
+ * positioned ancestor 后，会把菜单坐标再偏移一次并压缩可视区域，导致
+ * 菜单跑出屏幕或整块表面异常。
  *
  * 选择反馈同时监听 `sp-menu` 的 `change` 事件（真实浏览器）与各
  * `sp-menu-item` 的 `click` 事件（测试 harness / 轻量环境兜底），两者
@@ -67,22 +71,16 @@ export function ComposerSelect({
   selectedId,
   onSelect,
   testId,
+  containerClassName,
   leadingIcon,
   trailingIcon = 'chevron-down',
   menuClassName,
 }: ComposerSelectProps) {
   registerSpectrumControls();
   const menuRef = useRef<MenuElement | null>(null);
-  const [position, setPosition] = useState<{ top: number; left: number } | null>(null);
-  const triggerRef = useRef<HTMLElement | null>(null);
 
   useEffect(() => {
-    if (open && triggerRef.current) {
-      const rect = triggerRef.current.getBoundingClientRect();
-      setPosition({
-        top: rect.bottom + window.scrollY + 4,
-        left: rect.left + window.scrollX,
-      });
+    if (open) {
       // 轻微延迟让 sp-menu 完成首次渲染后再聚焦，确保键盘导航可用。
       const timer = window.setTimeout(() => {
         menuRef.current?.focus?.();
@@ -145,20 +143,15 @@ export function ComposerSelect({
       menu.removeEventListener('keydown', handleKeyDown);
       items.forEach((item) => item.removeEventListener('click', handleItemClick));
     };
-    // 依赖里必须包含 `position`：下拉表面只在 `position` 计算完成后才挂载到
-    // DOM（见上方 effect），`menuRef.current` 在 `open` 首次变 true 的那个
-    // commit 里仍是 null。若不把 `position` 列入依赖，本 effect 不会在菜单
-    // 真正出现后重跑，监听器永远不会挂上，点击选项将无任何反馈。
-  }, [open, options, position]);
+  }, [open, options]);
 
   const handleMenuClick = (event: React.MouseEvent<HTMLElement>) => {
     event.stopPropagation();
   };
 
   return (
-    <>
+    <div className={containerClassName ?? 'cmp-select'}>
       <ActionButton
-        ref={triggerRef}
         data-testid={testId}
         className="cmp-chip"
         quiet
@@ -171,17 +164,10 @@ export function ComposerSelect({
         <span className="cmp-chip-value">{value}</span>
         <Icon name={trailingIcon} size={9} />
       </ActionButton>
-      {open && position && (
-        <sp-popover
+      {open && (
+        <div
           data-testid={testId ? `${testId}-popover` : undefined}
-          class={menuClassName}
-          open
-          style={{
-            position: 'absolute',
-            top: position.top,
-            left: position.left,
-            zIndex: 200,
-          }}
+          className={menuClassName ?? 'cmp-select-menu'}
           onClick={handleMenuClick}
         >
           <sp-menu
@@ -202,8 +188,8 @@ export function ComposerSelect({
               </sp-menu-item>
             ))}
           </sp-menu>
-        </sp-popover>
+        </div>
       )}
-    </>
+    </div>
   );
 }

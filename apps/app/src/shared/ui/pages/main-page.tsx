@@ -639,6 +639,8 @@ export function MainPage({
               </ActionButton>
               <ComposerSelect
                 testId="main-model-selector"
+                containerClassName="cmp-select cmp-select-model"
+                menuClassName="cmp-select-menu cmp-select-menu-model"
                 label="Model"
                 value={selectedModelLabel}
                 disabled={conversation.running}
@@ -650,6 +652,8 @@ export function MainPage({
               />
               <ComposerSelect
                 testId="composer-target-selector"
+                containerClassName="cmp-select cmp-select-target"
+                menuClassName="cmp-select-menu cmp-select-menu-compact"
                 label={t.main.target}
                 value={target === 'layer' ? t.main.targetLayer : t.main.targetSelection}
                 disabled={conversation.running}
@@ -667,6 +671,8 @@ export function MainPage({
             <div className="cmp-right">
               <ComposerSelect
                 testId="composer-aspect-ratio-selector"
+                containerClassName="cmp-select cmp-select-aspect"
+                menuClassName="cmp-select-menu cmp-select-menu-compact"
                 label={t.main.aspectRatio}
                 value={aspectRatio === 'auto' ? t.main.aspectRatioAuto : t.main.aspectRatioSquare}
                 disabled={conversation.running}

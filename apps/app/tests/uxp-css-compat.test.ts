@@ -186,6 +186,15 @@ describe('UXP panel CSS compatibility', () => {
     }
   });
 
+  it('covers the Composer bottom-row class contract used by MainPage', () => {
+    const source = readFileSync(CSS_SOURCE, 'utf8');
+    expect(source).toContain('.cmp-bottom{');
+    expect(source).toContain('.cmp-left{');
+    expect(source).toContain('.cmp-right{');
+    expect(source).toContain('.cmp-opt{');
+    expect(source).toContain('.cmp-chip-value{');
+  });
+
   it('keeps React inline styles from bypassing the UXP-safe spacing rules', () => {
     const uiFiles = walkFiles(UI_ROOT).filter((filePath) => {
       const extension = filePath.slice(filePath.lastIndexOf('.'));

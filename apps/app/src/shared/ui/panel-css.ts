@@ -337,7 +337,26 @@ sp-action-button[selected]{
 .cmp-inner.off{ opacity:.38; pointer-events:none; }
 .cmp-top{ display:flex; flex-direction:column; }
 .cmp-body{ display:flex; flex-direction:column; }
-.cmp-bottom{ display:flex; align-items:center; margin-top:8px; }
+/* Composer 底部控制区改为双行分组：上行承载左组上下文控件，下行承载右组动作，
+ * 在 380px panel 里优先保证可读性与点击命中，而不是把所有 chip 强塞成一行。 */
+.cmp-bottom{ display:flex; flex-wrap:wrap; align-items:center; margin-top:8px; min-width:0; }
+.cmp-left{ display:flex; align-items:center; width:100%; min-width:0; }
+.cmp-right{
+  display:flex; align-items:center; justify-content:flex-end;
+  width:100%; min-width:0;
+  margin-top:6px; margin-right:0; margin-bottom:0; margin-left:0;
+}
+.cmp-select{ position:relative; display:flex; align-items:center; min-width:0; flex-shrink:0; }
+.cmp-select-model{ flex:1; min-width:0; }
+.cmp-select-target{ margin-top:0; margin-right:0; margin-bottom:0; margin-left:0; }
+.cmp-select-aspect{ margin-top:0; margin-right:0; margin-bottom:0; margin-left:0; }
+.cmp-select-menu{
+  position:absolute; left:0; bottom:calc(100% + 4px); z-index:200;
+  min-width:120px; background:var(--s3); border:1px solid var(--bd2); border-radius:var(--rmd);
+  overflow:hidden;
+}
+.cmp-select-menu-model{ min-width:180px; max-width:220px; }
+.cmp-select-menu-compact{ min-width:96px; }
 .cmp-ta{
   margin-top:0; margin-right:0; margin-bottom:0; margin-left:0;
   display:block; appearance:none; -webkit-appearance:none;
@@ -359,14 +378,21 @@ sp-action-button[selected]{
   display:flex; align-items:center; margin-top:0; margin-right:6px; margin-bottom:0; margin-left:0; padding:3px 8px; border-radius:var(--rfl);
   border:1px solid var(--bd); background:var(--s1);
   font-family:var(--fM); font-size:10px; color:var(--txm);
-  cursor:pointer; white-space:nowrap; user-select:none; flex-shrink:0;
+  cursor:pointer; white-space:nowrap; user-select:none; min-width:0; max-width:100%; flex-shrink:0;
 }
 .cmp-chip:hover{ border-color:var(--bd2); color:var(--tx); }
 .cmp-chip.open{ border-color:var(--pr); color:var(--pr); }
 .cmp-chip.dis{ opacity:.45; cursor:not-allowed; }
 .cmp-dot{ width:5px; height:5px; margin-right:4px; border-radius:50%; background:var(--pr); }
 .cmp-chip [data-icon]{ margin-left:4px; }
+.cmp-chip-value{ min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.cmp-select-model .cmp-chip{ width:100%; min-width:0; }
+.cmp-select-model .cmp-chip-value{ display:inline-block; max-width:100%; }
 .cmp-sp{ flex:1; min-width:0; }
+.cmp-opt{
+  display:inline-flex; align-items:center; justify-content:center;
+  margin-top:0; margin-right:6px; margin-bottom:0; margin-left:0; color:var(--txm); flex-shrink:0;
+}
 
 /* Send button (native, e2e checks HTMLButtonElement) */
 .send-wrap{ display:flex; align-items:stretch; border-radius:var(--rsm); overflow:hidden; flex-shrink:0; }
@@ -518,6 +544,7 @@ sp-divider{ --spectrum-divider-background-color:var(--bd); }
 
 /* Narrow panel guards */
 .cmp-bottom{ min-width:0; }
-.cmp-chip span{ overflow:hidden; text-overflow:ellipsis; max-width:120px; }
+.cmp-select-target .cmp-chip-value{ max-width:48px; }
+.cmp-select-aspect .cmp-chip-value{ max-width:56px; }
 .hdr-provider{ max-width:100%; overflow:hidden; text-overflow:ellipsis; }
 `;
