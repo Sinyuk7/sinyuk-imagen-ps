@@ -1,0 +1,207 @@
+{
+  "schema_version": "docs-consolidator-eval-v1",
+  "skill": "docs-consolidator",
+  "purpose": "Regression validation for the docs-consolidator SKILL. Each case checks whether an agent consolidating project documentation preserves durable knowledge, removes stale lifecycle content, repairs references, and respects stop conditions without prescribing a single cleanup method.",
+  "format_note": "Proposed schema. Evaluate each case by checking the agent's document inventory, canonical-destination choices, merge/delete decisions, reference repair, validation steps, and final report against the must / must_not rubric. The scenario is the triggering situation; the expected fields describe the output the agent should reach.",
+  "categories": ["canonical", "lifecycle", "agents", "validation", "stop"],
+  "how_to_run": "Human-reviewed or harness-reviewed. Present the scenario as a repo documentation cleanup task, invoke the skill, then inspect the agent's stated canonical documents, retained knowledge, removed files, repaired links, and validation results. A case passes only if every must holds and no must_not holds.",
+  "cases": [
+    {
+      "id": "canonical-merge-duplicate-architecture",
+      "category": "canonical",
+      "scenario": "A repository has README.md, docs/ARCHITECTURE.md, and several old design notes that all describe the same current system boundary and data flow.",
+      "must": [
+        "choose one canonical destination for the durable architecture knowledge",
+        "merge the valid current-state content into the canonical document",
+        "delete or demote the duplicate notes instead of keeping multiple current-state sources"
+      ],
+      "must_not": [
+        "leave multiple files claiming the same architectural authority",
+        "preserve task-history prose as if it were current architecture"
+      ]
+    },
+    {
+      "id": "canonical-prefer-delete-over-keep-duplicates",
+      "category": "canonical",
+      "scenario": "A duplicate document exists only because it is easier to edit than the canonical file, and it adds no distinct long-term role.",
+      "must": [
+        "prefer removing the duplicate after extracting any durable content",
+        "keep only the file with the real canonical responsibility",
+        "avoid preserving extra files just for convenience"
+      ],
+      "must_not": [
+        "keep a redundant file without a distinct role",
+        "treat edit convenience as a reason to retain duplication"
+      ]
+    },
+    {
+      "id": "canonical-choose-better-overlap",
+      "category": "canonical",
+      "scenario": "Two documentation files overlap: one is a stable entrypoint with a narrow source-of-truth role, the other is a longer note with duplicated prose and a few unique durable facts.",
+      "must": [
+        "choose the file with the clearer current-state role and unique authority as the canonical home",
+        "merge the unique durable facts from the other file into the chosen canonical document",
+        "delete the file that adds no distinct long-term role"
+      ],
+      "must_not": [
+        "delete the file with the stronger ownership or entrypoint role",
+        "keep both files without assigning a distinct purpose"
+      ]
+    },
+    {
+      "id": "canonical-root-agents-controls-flow",
+      "category": "canonical",
+      "scenario": "A docs cleanup skill is about to modify repository documentation, but the repo has a root AGENTS.md that defines operating rules and scope boundaries.",
+      "must": [
+        "follow the root AGENTS.md as the controlling operating rule before editing",
+        "defer to more specific maintained repository rules when they conflict with the skill text",
+        "keep the edit plan aligned with the repository's current-state workflow"
+      ],
+      "must_not": [
+        "treat the skill text as overriding the root AGENTS.md",
+        "ignore repository-specific operating rules during cleanup"
+      ]
+    },
+    {
+      "id": "lifecycle-remove-completed-plan",
+      "category": "lifecycle",
+      "scenario": "The repo contains docs/ACTIVE.md, a completed implementation plan, and a memory/inbox tree full of dated work logs.",
+      "must": [
+        "extract only durable constraints, decisions, and validation knowledge",
+        "merge durable knowledge into canonical docs",
+        "remove the completed plan and the lifecycle tree if no external requirement justifies keeping them"
+      ],
+      "must_not": [
+        "keep completed plans as maintained documentation",
+        "move stale content into a new archive directory"
+      ]
+    },
+    {
+      "id": "lifecycle-keep-root-entry-docs-small",
+      "category": "lifecycle",
+      "scenario": "A root entry document is growing large because it mixes canonical knowledge with task history and multiple long examples.",
+      "must": [
+        "keep root entry docs especially small",
+        "split or delete historical material instead of expanding the file",
+        "avoid broad rewrites unless the canonical role must change"
+      ],
+      "must_not": [
+        "let a root entry doc grow into a dump of mixed historical material",
+        "rewrite the root entry doc broadly when a smaller edit will do"
+      ]
+    },
+    {
+      "id": "agents-prune-redundant-local-instructions",
+      "category": "agents",
+      "scenario": "Several nested AGENTS.md files repeat the same repo-wide rules, while only one subdirectory has a real runtime-specific boundary.",
+      "must": [
+        "keep the local AGENTS.md only where it adds a distinct local boundary or validation rule",
+        "move shared rules to the root AGENTS.md",
+        "remove redundant copies that only repeat global boilerplate"
+      ],
+      "must_not": [
+        "keep local AGENTS.md files for symmetry only",
+        "delete a file that encodes a genuine local ownership or runtime constraint"
+      ]
+    },
+    {
+      "id": "validation-file-size-pressure",
+      "category": "validation",
+      "scenario": "A maintained documentation file has grown beyond a few hundred lines and now mixes durable knowledge with task history.",
+      "must": [
+        "treat the size as a signal to split or remove historical material",
+        "prefer moving durable content into smaller canonical docs",
+        "avoid expanding the large file further unless the role requires it"
+      ],
+      "must_not": [
+        "keep growing a large mixed-purpose file by default",
+        "use file size as a reason to retain history"
+      ]
+    },
+    {
+      "id": "canonical-keep-entrypoint-index",
+      "category": "canonical",
+      "scenario": "A repository has a CLAUDE.md that mostly links to canonical docs and serves as the documented entrypoint for contributors and agents.",
+      "must": [
+        "treat the file as a purposeful entrypoint or navigation index rather than automatic duplication",
+        "keep the file when it identifies scope and points directly to canonical documents",
+        "avoid deleting it solely because it contains links"
+      ],
+      "must_not": [
+        "delete a CLAUDE.md that has a distinct navigation or ownership role",
+        "equate link-heavy structure with redundancy"
+      ]
+    },
+    {
+      "id": "validation-repair-links-and-checks",
+      "category": "validation",
+      "scenario": "The cleanup deletes several docs and rewrites canonical targets, so some links and doc references may be stale.",
+      "must": [
+        "search for removed paths and filenames",
+        "repair valid references across docs, code, configs, scripts, and comments",
+        "repair direct root links to canonical targets",
+        "run git diff --check and report the result"
+      ],
+      "must_not": [
+        "leave broken links behind",
+        "claim completion without reporting validation results"
+      ]
+    },
+    {
+      "id": "validation-rewrite-hard-coded-paths",
+      "category": "validation",
+      "scenario": "A deleted documentation path is still embedded in a script, config file, or code comment.",
+      "must": [
+        "scan the repository for the deleted path beyond markdown links",
+        "update every surviving hard-coded reference that still matters",
+        "report any remaining unresolved references explicitly"
+      ],
+      "must_not": [
+        "repair only markdown links",
+        "leave stale hard-coded paths in code or config"
+      ]
+    },
+    {
+      "id": "validation-compatibility-reference-limit",
+      "category": "validation",
+      "scenario": "A retained document still points to a deleted path for historical compatibility, but that path is not required by any external contract.",
+      "must": [
+        "treat compatibility references as intentional only when they are explicitly justified",
+        "keep compatibility references narrow and documented",
+        "remove historical noise that is not required by an external contract"
+      ],
+      "must_not": [
+        "preserve compatibility references by default",
+        "leave broad historical path references in place without a reason"
+      ]
+    },
+    {
+      "id": "stop-protected-or-ambiguous-docs",
+      "category": "stop",
+      "scenario": "A document may be a security policy, compliance record, release note with external obligations, or the only evidence of an unclear runtime boundary.",
+      "must": [
+        "leave the file unchanged when repository evidence is insufficient",
+        "report the uncertainty instead of guessing",
+        "limit unresolved items to the smallest possible set"
+      ],
+      "must_not": [
+        "delete protected content without strong evidence",
+        "force a canonical choice when the repository does not support it"
+      ]
+    },
+    {
+      "id": "stop-generated-doc-output",
+      "category": "stop",
+      "scenario": "The repo has tracked generated logs, crash output, or build artifacts that look like documentation.",
+      "must": [
+        "treat generated artifacts as non-maintained documentation",
+        "keep any genuine reusable finding elsewhere before removing the generated output",
+        "avoid creating a new archive tree for the removed material"
+      ],
+      "must_not": [
+        "preserve generated output as if it were canonical knowledge",
+        "delete fixtures or golden files that are intentionally tracked"
+      ]
+    }
+  ]
+}

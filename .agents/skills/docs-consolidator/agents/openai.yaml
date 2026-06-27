@@ -1,0 +1,7 @@
+interface:
+  display_name: "Documentation Consolidator"
+  short_description: "Consolidate project docs and stale plans"
+  default_prompt: "Use $docs-consolidator to consolidate duplicated docs, prune stale plans, and repair references while preserving durable knowledge."
+
+policy:
+  allow_implicit_invocation: true
