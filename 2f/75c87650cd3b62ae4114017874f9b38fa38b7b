@@ -1,0 +1,30 @@
+.gitignore
+  h_36ccd825a182d0 40-41
+.mcp.json
+  s_97c38c55e030ba::t_3d14226afb8201 1-12
+apps/app/src/shared/ui/components/composer-select.tsx
+  s_97c38c55e030ba::t_1cf02c1d891403 1,51-57,59-68,128-170,174,184-208,342-347,371-375
+apps/app/src/shared/ui/pages/settings-page.tsx
+  s_97c38c55e030ba::t_8ab0cd4f1f5dfc 93,97-100,102,113-115,117-122,125
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.3",
+  "base_commit_sha": "2f75c87650cd3b62ae4114017874f9b38fa38b7b",
+  "prompts": {},
+  "humans": {
+    "h_36ccd825a182d0": {
+      "author": "Sinyuk <80998062@qq.com>"
+    }
+  },
+  "sessions": {
+    "s_97c38c55e030ba": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "019f0981-30ae-7672-89e1-def4af9a7a0c",
+        "model": "unknown"
+      },
+      "human_author": "Sinyuk <80998062@qq.com>"
+    }
+  }
+}
