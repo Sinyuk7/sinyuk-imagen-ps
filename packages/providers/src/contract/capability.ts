@@ -5,7 +5,7 @@
  */
 
 /** 当前阶段允许的 provider family。按 wire shape 分类，仅作展示/分组标签。 */
-export type ProviderFamily = 'image-endpoint' | 'chat-image';
+export type ProviderFamily = 'image-endpoint' | 'chat-image' | 'prompt-optimize';
 
 /** 当前阶段允许的 provider operation。 */
 export type ProviderOperation = 'text_to_image' | 'image_edit';

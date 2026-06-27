@@ -11,6 +11,7 @@ export type {
   CanonicalImageJobRequest,
   ChatImageProviderConfig,
   ImageEndpointProviderConfig,
+  PromptOptimizeProviderConfig,
   Provider,
   ProviderConfig,
   ProviderDescriptor,
@@ -47,6 +48,15 @@ export {
 
 // Chat image provider
 export { chatImageConfigSchema, createChatImageProvider, chatImageDescriptor } from './providers/chat-image/index.js';
+
+// Prompt optimize provider
+export {
+  promptOptimizeConfigSchema,
+  createPromptOptimizeProvider,
+  promptOptimizeDescriptor,
+  DEFAULT_OPTIMIZER_INSTRUCTION,
+} from './providers/prompt-optimize/index.js';
+export { parsePromptOptimizeResponse } from './providers/prompt-optimize/parse-response.js';
 
 // Bridge adapter
 export { createDispatchAdapter } from './bridge/index.js';

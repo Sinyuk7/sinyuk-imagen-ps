@@ -67,6 +67,10 @@ export interface AppMessages {
     readonly aspectRatioSquare: string;
     readonly promptOptimize: string;
     readonly promptOptimizePlaceholder: string;
+    readonly promptOptimizeUndo: string;
+    readonly promptOptimizing: string;
+    readonly promptOptimizeNoProfile: string;
+    readonly promptOptimizeEmpty: string;
   };
   readonly history: {
     readonly title: string;
@@ -114,6 +118,9 @@ export interface AppMessages {
     readonly newSessionStarted: string;
     readonly waitForRunningTask: string;
     readonly historyNotInCurrentSession: string;
+    readonly promptOptimized: string;
+    readonly promptOptimizeNoChanges: string;
+    readonly promptOptimizeFailed: string;
   };
   readonly conversation: {
     readonly jobFailed: string;
@@ -169,8 +176,8 @@ const EN_MESSAGES: AppMessages = {
     uploadFromComputer: 'Upload from computer',
     loadingModels: 'Loading models...',
     noModelCandidates: 'No model candidates',
-    modelLoading: 'Loading models...',
-    modelUnselected: 'No model selected',
+    modelLoading: 'Loading',
+    modelUnselected: 'No model',
     promptPlaceholderReady: 'Describe the image you want to generate or edit...',
     promptPlaceholderNoProfile: 'Add a profile in Providers first',
     addImage: 'Add image',
@@ -187,6 +194,10 @@ const EN_MESSAGES: AppMessages = {
     aspectRatioSquare: '1:1',
     promptOptimize: 'Optimize prompt',
     promptOptimizePlaceholder: 'Coming soon',
+    promptOptimizeUndo: 'Undo',
+    promptOptimizing: 'Optimizing…',
+    promptOptimizeNoProfile: 'Configure Prompt Optimizer in Providers',
+    promptOptimizeEmpty: 'Enter a prompt first',
   },
   history: {
     title: 'History',
@@ -234,6 +245,9 @@ const EN_MESSAGES: AppMessages = {
     newSessionStarted: 'New session started',
     waitForRunningTask: 'Wait for the running task to finish',
     historyNotInCurrentSession: 'This task is not in the current session',
+    promptOptimized: 'Prompt optimized',
+    promptOptimizeNoChanges: 'No changes were suggested',
+    promptOptimizeFailed: 'Prompt optimization failed',
   },
   conversation: {
     jobFailed: 'Job failed.',
@@ -289,8 +303,8 @@ const ZH_CN_MESSAGES: AppMessages = {
     uploadFromComputer: '从电脑上传',
     loadingModels: '加载模型...',
     noModelCandidates: '无模型候选',
-    modelLoading: '加载模型...',
-    modelUnselected: '未选择模型',
+    modelLoading: '加载中',
+    modelUnselected: '未选模型',
     promptPlaceholderReady: '描述你想要生成或编辑的图像...',
     promptPlaceholderNoProfile: '先在 Providers 中添加 profile',
     addImage: '添加图片',
@@ -307,6 +321,10 @@ const ZH_CN_MESSAGES: AppMessages = {
     aspectRatioSquare: '1:1',
     promptOptimize: '优化提示词',
     promptOptimizePlaceholder: '即将支持',
+    promptOptimizeUndo: '撤销',
+    promptOptimizing: '优化中…',
+    promptOptimizeNoProfile: '请在 Providers 中配置 Prompt Optimizer',
+    promptOptimizeEmpty: '请先输入提示词',
   },
   history: {
     title: '历史',
@@ -354,6 +372,9 @@ const ZH_CN_MESSAGES: AppMessages = {
     newSessionStarted: '已开始新会话',
     waitForRunningTask: '请等待当前任务完成',
     historyNotInCurrentSession: '该任务不在当前会话中',
+    promptOptimized: '提示词已优化',
+    promptOptimizeNoChanges: '没有建议的修改',
+    promptOptimizeFailed: '提示词优化失败',
   },
   conversation: {
     jobFailed: 'Job failed.',

@@ -1,4 +1,4 @@
-import { useEffect, useRef } from 'react';
+import { useEffect, useLayoutEffect, useRef } from 'react';
 import { Icon, type IconName } from './icons';
 import { ActionButton, registerSpectrumControls } from '../primitives/spectrum-controls';
 
@@ -48,6 +48,32 @@ type MenuItemElement = HTMLElement & {
   value?: string;
 };
 
+const DEBUG_COMPOSER_SELECT_QUERY = 'debugComposerSelect';
+
+function shouldDebugComposerSelectLayout(): boolean {
+  if (typeof window === 'undefined') {
+    return false;
+  }
+  const params = new URLSearchParams(window.location.search);
+  if (params.get(DEBUG_COMPOSER_SELECT_QUERY) === '1') {
+    return true;
+  }
+  try {
+    return window.localStorage.getItem(DEBUG_COMPOSER_SELECT_QUERY) === '1';
+  } catch {
+    return false;
+  }
+}
+
+function resolveComposerSelectKind(testId?: string, label?: string): string {
+  const hint = `${testId ?? ''} ${label ?? ''}`.toLowerCase();
+  if (hint.includes('model')) return 'model';
+  if (hint.includes('target')) return 'target';
+  if (hint.includes('aspect')) return 'aspect';
+  if (hint.includes('ratio')) return 'aspect';
+  return testId ?? label ?? 'composer-select';
+}
+
 /**
  * Composer 底部控制行用的受控单选下拉原语。
  *
@@ -78,6 +104,10 @@ export function ComposerSelect({
 }: ComposerSelectProps) {
   registerSpectrumControls();
   const menuRef = useRef<MenuElement | null>(null);
+  const chipRef = useRef<HTMLElement | null>(null);
+  const chipBodyRef = useRef<HTMLSpanElement | null>(null);
+  const chipValueRef = useRef<HTMLSpanElement | null>(null);
+  const chipArrowRef = useRef<HTMLSpanElement | null>(null);
 
   useEffect(() => {
     if (open) {
@@ -89,6 +119,80 @@ export function ComposerSelect({
     }
     return undefined;
   }, [open]);
+
+  useLayoutEffect(() => {
+    if (!shouldDebugComposerSelectLayout()) {
+      return undefined;
+    }
+
+    const measureAndLog = () => {
+      const chip = chipRef.current;
+      const chipBody = chipBodyRef.current;
+      const chipValue = chipValueRef.current;
+      const chipArrow = chipArrowRef.current;
+      if (!chip || !chipBody || !chipValue || !chipArrow) {
+        return;
+      }
+
+      const chipRect = chip.getBoundingClientRect();
+      const bodyRect = chipBody.getBoundingClientRect();
+      const valueRect = chipValue.getBoundingClientRect();
+      const arrowRect = chipArrow.getBoundingClientRect();
+      const kind = resolveComposerSelectKind(testId, label);
+
+      console.info(`[ComposerSelect:${kind}]`, {
+        testId,
+        label,
+        value,
+        selectedId,
+        open,
+        container: {
+          width: Math.round(chipRect.width),
+          height: Math.round(chipRect.height),
+        },
+        body: {
+          left: Math.round(bodyRect.left - chipRect.left),
+          right: Math.round(chipRect.right - bodyRect.right),
+          top: Math.round(bodyRect.top - chipRect.top),
+          bottom: Math.round(chipRect.bottom - bodyRect.bottom),
+          width: Math.round(bodyRect.width),
+          height: Math.round(bodyRect.height),
+        },
+        text: {
+          left: Math.round(valueRect.left - chipRect.left),
+          right: Math.round(chipRect.right - valueRect.right),
+          top: Math.round(valueRect.top - chipRect.top),
+          bottom: Math.round(chipRect.bottom - valueRect.bottom),
+          width: Math.round(valueRect.width),
+          height: Math.round(valueRect.height),
+        },
+        arrow: {
+          left: Math.round(arrowRect.left - chipRect.left),
+          right: Math.round(chipRect.right - arrowRect.right),
+          top: Math.round(arrowRect.top - chipRect.top),
+          bottom: Math.round(chipRect.bottom - arrowRect.bottom),
+          width: Math.round(arrowRect.width),
+          height: Math.round(arrowRect.height),
+        },
+      });
+    };
+
+    measureAndLog();
+
+    const resizeObserver = new ResizeObserver(() => {
+      measureAndLog();
+    });
+    const chip = chipRef.current;
+    if (chip) {
+      resizeObserver.observe(chip);
+    }
+    window.addEventListener('resize', measureAndLog);
+
+    return () => {
+      resizeObserver.disconnect();
+      window.removeEventListener('resize', measureAndLog);
+    };
+  }, [label, open, selectedId, testId, value]);
 
   const handleTriggerClick = (event: React.MouseEvent<HTMLElement>) => {
     event.stopPropagation();
@@ -152,6 +256,7 @@ export function ComposerSelect({
   return (
     <div className={containerClassName ?? 'cmp-select'}>
       <ActionButton
+        ref={chipRef}
         data-testid={testId}
         className="cmp-chip"
         quiet
@@ -160,9 +265,13 @@ export function ComposerSelect({
         label={label}
         onClick={handleTriggerClick}
       >
-        {leadingIcon ? <Icon name={leadingIcon} size={12} /> : <span className="cmp-dot" />}
-        <span className="cmp-chip-value">{value}</span>
-        <Icon name={trailingIcon} size={9} />
+        <span ref={chipBodyRef} className="cmp-chip-body">
+          {leadingIcon ? <Icon name={leadingIcon} size={10} className="cmp-chip-leading" /> : <span className="cmp-dot" />}
+          <span ref={chipValueRef} className="cmp-chip-value">{value}</span>
+        </span>
+        <span ref={chipArrowRef} className="cmp-chip-arrow" aria-hidden="true">
+          <Icon name={trailingIcon} size={12} className="cmp-chip-chevron" />
+        </span>
       </ActionButton>
       {open && (
         <div

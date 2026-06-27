@@ -189,8 +189,8 @@ describe('UXP panel CSS compatibility', () => {
   it('covers the Composer bottom-row class contract used by MainPage', () => {
     const source = readFileSync(CSS_SOURCE, 'utf8');
     expect(source).toContain('.cmp-bottom{');
-    expect(source).toContain('.cmp-left{');
-    expect(source).toContain('.cmp-right{');
+    expect(source).toContain('.cmp-action-left');
+    expect(source).toContain('.cmp-action-right');
     expect(source).toContain('.cmp-opt{');
     expect(source).toContain('.cmp-chip-value{');
   });

@@ -104,7 +104,7 @@ export function SettingsAddPage({ onNav, profiles, onProfileSaved }: SettingsAdd
   };
 
   return (
-    <div className="page page-enter">
+    <div className="page page-enter settings-page">
       <header className="hdr">
         <ActionButton
           data-testid="add-provider-back-button"
@@ -123,7 +123,7 @@ export function SettingsAddPage({ onNav, profiles, onProfileSaved }: SettingsAdd
         <div style={{ width: 32 }} />
       </header>
 
-      <div className="scroll">
+      <div className="scroll scroll-footer-pad">
         {step === 1 ? (
           <div>
             <div className="sec-lbl" style={{ paddingTop: 16 }}>{t.settings.chooseType}</div>

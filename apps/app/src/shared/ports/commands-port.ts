@@ -15,6 +15,9 @@ export interface CommandsPort {
   readonly testProviderProfile: typeof commands.testProviderProfile;
   readonly listProfileModels: typeof commands.listProfileModels;
   readonly refreshProfileModels: typeof commands.refreshProfileModels;
+  readonly ensurePromptOptimizerProfile: typeof commands.ensurePromptOptimizerProfile;
+  readonly optimizePrompt: typeof commands.optimizePrompt;
+  readonly validatePromptOptimizerProfile: typeof commands.validatePromptOptimizerProfile;
 }
 
 export function createCommandsAdapter(): CommandsPort {
@@ -33,5 +36,8 @@ export function createCommandsAdapter(): CommandsPort {
     testProviderProfile: commands.testProviderProfile,
     listProfileModels: commands.listProfileModels,
     refreshProfileModels: commands.refreshProfileModels,
+    ensurePromptOptimizerProfile: commands.ensurePromptOptimizerProfile,
+    optimizePrompt: commands.optimizePrompt,
+    validatePromptOptimizerProfile: commands.validatePromptOptimizerProfile,
   };
 }

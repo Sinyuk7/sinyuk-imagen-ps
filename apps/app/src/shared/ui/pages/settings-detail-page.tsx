@@ -4,6 +4,7 @@ import { useAppServices } from '../../ports/app-services-context';
 import { providerConfigFromForm, useProfileDetail, useProfileModels } from '../hooks/use-provider-settings';
 import { Icon } from '../components/icons';
 import { StatusNotice } from '../components/status-notice';
+import { UxpTextArea } from '../components/uxp-form-controls';
 import { useI18n } from '../i18n/i18n-context';
 import { Button, Checkbox, TextField, ActionButton, FieldLabel, Divider } from '../primitives/spectrum-controls';
 import { statusFromProviderTestResult, type ProviderStatus } from '../provider-status';
@@ -45,11 +46,13 @@ export function SettingsDetailPage({ onNav, profileId, onProfilesChanged }: Sett
   const [displayName, setDisplayName] = useState('');
   const [baseUrl, setBaseUrl] = useState('');
   const [defaultModel, setDefaultModel] = useState('');
+  const [instruction, setInstruction] = useState('');
   const [enabled, setEnabled] = useState(true);
   const [apiKey, setApiKey] = useState('');
   const [showKey, setShowKey] = useState(false);
   const [status, setStatus] = useState<ProviderStatus | null>(null);
   const [busy, setBusy] = useState(false);
+  const isOptimizerProfile = detail.profile?.providerId === 'prompt-optimize';
 
   useEffect(() => {
     if (!detail.profile) {
@@ -58,6 +61,7 @@ export function SettingsDetailPage({ onNav, profileId, onProfilesChanged }: Sett
     setDisplayName(detail.profile.displayName);
     setBaseUrl(readConfigString(detail.profile, 'baseURL'));
     setDefaultModel(readConfigString(detail.profile, 'defaultModel'));
+    setInstruction(readConfigString(detail.profile, 'instruction'));
     setEnabled(detail.profile.enabled);
     setApiKey('');
   }, [detail.profile]);
@@ -89,6 +93,7 @@ export function SettingsDetailPage({ onNav, profileId, onProfilesChanged }: Sett
           family,
           baseUrl.trim(),
           defaultModel,
+          isOptimizerProfile ? instruction : undefined,
         ),
       },
       ...(apiKey.trim() ? { secretValues: { apiKey: apiKey.trim() } } : {}),
@@ -176,6 +181,22 @@ export function SettingsDetailPage({ onNav, profileId, onProfilesChanged }: Sett
       if (profile) {
         await onProfilesChanged(profile.profileId);
       }
+      if (isOptimizerProfile && profile) {
+        const result = await services.commands.validatePromptOptimizerProfile(profile.profileId);
+        if (result.ok) {
+          setStatus({ tone: 'success', message: t.settings.testSuccess });
+          await detail.reload();
+          await onProfilesChanged(profile.profileId);
+        } else {
+          setStatus({
+            tone: 'error',
+            message: result.error.category === 'validation'
+              ? result.error.message
+              : `${result.error.category}: ${result.error.message}`,
+          });
+        }
+        return;
+      }
       const result = await detail.test(true);
       setStatus(statusFromProviderTestResult(result, t));
     } catch (error) {
@@ -229,7 +250,7 @@ export function SettingsDetailPage({ onNav, profileId, onProfilesChanged }: Sett
   }
 
   return (
-    <div className="page page-enter">
+    <div className="page page-enter settings-page">
       <header className="hdr">
         <ActionButton
           data-testid="provider-detail-back-button"
@@ -259,7 +280,7 @@ export function SettingsDetailPage({ onNav, profileId, onProfilesChanged }: Sett
         </ActionButton>
       </header>
 
-      <div className="scroll">
+      <div className="scroll scroll-footer-pad">
         {detail.loading && <div style={{ padding: 16, color: 'var(--txd)', fontSize: 12 }}>{t.settings.loading}</div>}
         {detail.error && <div style={{ padding: 16, color: 'var(--er)', fontSize: 12 }}>{detail.error}</div>}
         {detail.profile && (
@@ -311,6 +332,21 @@ export function SettingsDetailPage({ onNav, profileId, onProfilesChanged }: Sett
               </label>
             </div>
 
+            {isOptimizerProfile && (
+              <div className="field" style={{ marginTop: 12 }}>
+                <FieldLabel htmlFor="provider-instruction-input">Instruction</FieldLabel>
+                <UxpTextArea
+                  data-testid="provider-instruction-input"
+                  id="provider-instruction-input"
+                  className="field-input swc-field"
+                  rows={4}
+                  value={instruction}
+                  onValue={setInstruction}
+                  placeholder="System instruction for prompt optimization"
+                />
+              </div>
+            )}
+
             <Divider />
 
             <div className="section">
@@ -358,9 +394,11 @@ export function SettingsDetailPage({ onNav, profileId, onProfilesChanged }: Sett
 
       <footer className="det-footer">
         <Button data-testid="provider-save-button" className="btn-save swc-button" variant="accent" disabled={busy || !detail.profile} onClick={() => void save()}>{t.common.save}</Button>
-        <Button data-testid="provider-delete-button" className="btn-del swc-button" variant="negative" disabled={busy || !detail.profile} onClick={() => void remove()}>
-          <Icon name="trash" />
-        </Button>
+        {!isOptimizerProfile && (
+          <Button data-testid="provider-delete-button" className="btn-del swc-button" variant="negative" disabled={busy || !detail.profile} onClick={() => void remove()}>
+            <Icon name="trash" />
+          </Button>
+        )}
       </footer>
     </div>
   );

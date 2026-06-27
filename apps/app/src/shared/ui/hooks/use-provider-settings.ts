@@ -240,6 +240,7 @@ export function providerConfigFromForm(
   family: string,
   baseURL: string,
   defaultModel: string,
+  instruction?: string,
 ): ProviderProfileConfig {
   return {
     providerId,
@@ -247,5 +248,6 @@ export function providerConfigFromForm(
     family,
     baseURL,
     ...(defaultModel.trim() ? { defaultModel: defaultModel.trim() } : {}),
+    ...(instruction && instruction.trim() ? { instruction: instruction.trim() } : {}),
   };
 }

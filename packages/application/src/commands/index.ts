@@ -29,6 +29,13 @@ export {
 export { retryJob } from './retry-job.js';
 export { getJobHistoryRecord, listJobHistoryRecords } from './job-history.js';
 export { resolveSecretValue } from './secret-utils.js';
+export {
+  PROMPT_OPTIMIZER_PROFILE_ID,
+  ensurePromptOptimizerProfile,
+  optimizePrompt,
+  validatePromptOptimizerProfile,
+} from './prompt-optimize.js';
+export type { OptimizePromptInput } from './prompt-optimize.js';
 
 export type {
   CommandResult,

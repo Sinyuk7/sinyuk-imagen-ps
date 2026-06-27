@@ -650,6 +650,8 @@ async function assertCoreControlsVisible(page) {
     '[data-testid="composer-textarea"]',
     '[data-testid="composer-send-button"]',
     '[data-testid="composer-add-image-button"]',
+    '[data-testid="composer-action-row"]',
+    '[data-testid="composer-toolbar"]',
   ];
   for (const selector of selectors) {
     const count = await page.locator(selector).count();
@@ -751,7 +753,9 @@ async function responsiveNarrowOverlayScenario({ page, url, capture }) {
   await expectVisibleText(page, 'Mock Profile');
 
   await page.getByTestId('main-profile-selector').click();
-  await page.getByTestId('profile-menu-option-mock-profile').waitFor({ state: 'visible' });
+  const profileMenu = page.locator('.model-menu');
+  await profileMenu.waitFor({ state: 'visible', timeout: 10000 });
+  await page.getByTestId('profile-menu-option-mock-profile').waitFor({ state: 'attached' });
   await assertOverlayWithinPanel(page, '.model-menu');
   await capture('responsive-narrow-profile-menu.png');
   await page.mouse.click(10, 120);
@@ -993,8 +997,8 @@ const scenarios = [
     run: persistenceSmokeScenario,
   },
   {
-    id: 'responsive-narrow-390x720',
-    name: 'Responsive narrow width 390x720',
+    id: 'responsive-narrow-300x520',
+    name: 'Responsive narrow width 300x520',
     tags: ['responsive'],
     viewport: { width: 300, height: 520, deviceScaleFactor: 1 },
     path: '/index.html?testHarness=1&storage=memory&seedProfile=mock&scenario=seeded-document',
@@ -1211,7 +1215,7 @@ async function main() {
       id: 'runner-setup',
       name: 'Chrome E2E runner setup',
       tags: ['setup'],
-      viewport,
+      viewport: defaultViewport,
       url: `${server.origin}/index.html`,
       status: 'failed',
       assertions: [],

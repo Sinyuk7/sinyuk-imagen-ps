@@ -327,28 +327,54 @@ sp-action-button[selected]{
 .layer-name{ font-size:12px; color:var(--tx); flex:1; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
 .layer-meta-lbl{ font-family:var(--fM); font-size:9px; color:var(--txd); white-space:nowrap; }
 
-/* Composer inner */
-.cmp-inner{
+/* Composer */
+.cmp-shell{
+  width:100%;
+  display:flex;
+  flex-direction:column;
+ 
+}
+.cmp-shell.off{ opacity:.38; pointer-events:none; }
+.cmp-attach-band{ display:flex; flex-direction:column; }
+.cmp-core{
   width:100%; background:var(--s2); border:1px solid var(--bd); border-radius:var(--rxl);
-  padding:9px 12px; display:flex; flex-direction:column;
+  padding:9px 10px 8px; display:flex; flex-direction:column;
 }
-.cmp-inner:focus-within{ border-color:var(--bd2); }
-.cmp-inner.off{ opacity:.38; pointer-events:none; }
-.cmp-top{ display:flex; flex-direction:column; }
+.cmp-core:focus-within{ border-color:var(--bd2); }
 .cmp-body{ display:flex; flex-direction:column; }
-/* Composer 底部控制区改为双行分组：上行承载左组上下文控件，下行承载右组动作，
- * 在 380px panel 里优先保证可读性与点击命中，而不是把所有 chip 强塞成一行。 */
-.cmp-bottom{ display:flex; flex-wrap:wrap; align-items:center; margin-top:8px; min-width:0; }
-.cmp-left{ display:flex; align-items:center; width:100%; min-width:0; }
-.cmp-right{
-  display:flex; align-items:center; justify-content:flex-end;
-  width:100%; min-width:0;
-  margin-top:6px; margin-right:0; margin-bottom:0; margin-left:0;
+.cmp-action-row,
+.cmp-toolbar{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  flex-wrap:nowrap;
+  min-width:0;
+ 
 }
-.cmp-select{ position:relative; display:flex; align-items:center; min-width:0; flex-shrink:0; }
-.cmp-select-model{ flex:1; min-width:0; }
-.cmp-select-target{ margin-top:0; margin-right:0; margin-bottom:0; margin-left:0; }
-.cmp-select-aspect{ margin-top:0; margin-right:0; margin-bottom:0; margin-left:0; }
+.cmp-action-row{ margin-top:8px; }
+.cmp-toolbar{ padding:0 2px; }
+.cmp-action-left,
+.cmp-toolbar-left{
+  display:flex;
+  align-items:center;
+  min-width:0;
+  flex:1 1 auto;
+  overflow:hidden;
+ 
+}
+.cmp-action-right,
+.cmp-toolbar-right{
+  display:flex;
+  align-items:center;
+  justify-content:flex-end;
+  min-width:0;
+  flex:0 0 auto;
+ 
+}
+.cmp-select{ position:relative; display:flex; align-items:center; min-width:0; flex-shrink:1; }
+.cmp-select-model{ flex:1 1 108px; min-width:108px; }
+.cmp-select-target{ flex:0 1 74px; min-width:0; }
+.cmp-select-aspect{ flex:0 1 64px; min-width:0; }
 .cmp-select-menu{
   position:absolute; left:0; bottom:calc(100% + 4px); z-index:200;
   min-width:120px; max-width:calc(100% - 0px); background:var(--s3); border:1px solid var(--bd2); border-radius:var(--rmd);
@@ -369,40 +395,97 @@ sp-action-button[selected]{
 /* + attach button */
 .cmp-add{
   display:inline-flex; align-items:center; justify-content:center;
-  margin-top:0; margin-right:6px; margin-bottom:0; margin-left:0; color:var(--txm); flex-shrink:0;
+  margin-top:0; margin-right:0; margin-bottom:0; margin-left:0; color:var(--txm); flex-shrink:0;
 }
 
 /* Model chip (native dropdown trigger) */
 .cmp-chip{
-  display:flex; align-items:center; margin-top:0; margin-right:6px; margin-bottom:0; margin-left:0; padding:3px 8px; border-radius:var(--rfl);
+  display:flex; align-items:center; min-width:0; max-width:100%;
+  margin-top:0; margin-right:0; margin-bottom:0; margin-left:0;
+  padding:2px 7px; border-radius:var(--rfl);
   border:1px solid var(--bd); background:var(--s1);
-  font-family:var(--fM); font-size:10px; color:var(--txm);
-  cursor:pointer; white-space:nowrap; user-select:none; min-width:0; max-width:100%; flex-shrink:0;
+  font-family:var(--fM); font-size:10px; line-height:14px; color:var(--txm);
+  cursor:pointer; white-space:nowrap; user-select:none; min-width:0; max-width:100%; flex-shrink:1;
 }
 .cmp-chip:hover{ border-color:var(--bd2); color:var(--tx); }
 .cmp-chip.open{ border-color:var(--pr); color:var(--pr); }
 .cmp-chip.dis{ opacity:.45; cursor:not-allowed; }
 .cmp-dot{ width:5px; height:5px; margin-right:4px; border-radius:50%; background:var(--pr); }
-.cmp-chip [data-icon]{ margin-left:4px; }
-.cmp-chip-value{ min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.cmp-chip-body{
+  display:flex;
+  align-items:center;
+  min-width:0;
+  flex:1 1 auto;
+ 
+  overflow:hidden;
+}
+.cmp-chip-leading{ flex-shrink:0; }
+.cmp-chip-value{
+  display:block;
+  min-width:0;
+  overflow:hidden;
+  text-overflow:ellipsis;
+  white-space:nowrap;
+  flex:1 1 auto;
+}
+.cmp-chip-arrow{
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  width:18px;
+  height:18px;
+  margin-left:4px;
+  flex:0 0 auto;
+  border-radius:50%;
+  background:var(--s2);
+  color:var(--txm);
+}
+.cmp-chip-chevron{ flex-shrink:0; }
 .cmp-select-model .cmp-chip{ width:100%; min-width:0; }
-.cmp-select-model .cmp-chip-value{ display:inline-block; max-width:100%; }
 .cmp-sp{ flex:1; min-width:0; }
 .cmp-opt{
   display:inline-flex; align-items:center; justify-content:center;
-  margin-top:0; margin-right:6px; margin-bottom:0; margin-left:0; color:var(--txm); flex-shrink:0;
+  margin-top:0; margin-right:0; margin-bottom:0; margin-left:0; color:var(--txm); flex-shrink:0;
 }
 
 /* Send button (native, e2e checks HTMLButtonElement) */
-.send-wrap{ display:flex; align-items:stretch; border-radius:var(--rsm); overflow:hidden; flex-shrink:0; }
+.send-wrap{ display:flex; align-items:stretch; border-radius:50%; overflow:hidden; flex-shrink:0; }
 .cmp-send{
-  width:36px; height:36px; margin-top:0; margin-right:0; margin-bottom:0; margin-left:0; border:none;
+  width:32px; height:32px; margin-top:0; margin-right:0; margin-bottom:0; margin-left:0; border:none;
+  border-radius:50%;
   background:var(--pr); color:var(--txi); cursor:pointer;
   display:flex; align-items:center; justify-content:center;
 }
 .cmp-send:hover{ background:var(--prh); }
 .cmp-send:active{ background:var(--pra); }
 .cmp-send:disabled{ opacity:.35; cursor:not-allowed; }
+
+@media (max-width:360px){
+  .cmp-core{ padding:8px; }
+  .cmp-action-row{ margin-top:6px; }
+  .cmp-action-row,
+  .cmp-toolbar{ }
+  .cmp-add,
+  .cmp-opt{ width:28px; height:28px; }
+  .cmp-send{ width:30px; height:30px; }
+  .cmp-select-target{ flex-basis:92px; }
+  .cmp-select-aspect{ flex-basis:84px; }
+  .cmp-chip{ padding:2px 6px; font-size:9px; }
+  .cmp-select-model{ min-width:100px; }
+  .cmp-select-target .cmp-chip [data-icon-name="ps-layers"],
+  .cmp-select-target .cmp-chip [data-icon-name="selection"],
+  .cmp-select-aspect .cmp-chip [data-icon-name="image-auto-mode"]{ display:none !important; }
+}
+
+@media (max-width:320px){
+  .cmp-toolbar{ }
+  .cmp-select-model{ min-width:92px; }
+  .cmp-select-target{ flex-basis:66px; }
+  .cmp-select-aspect{ flex-basis:58px; }
+  .cmp-chip{ padding:2px 5px; }
+  .cmp-select-target .cmp-chip-value,
+  .cmp-select-aspect .cmp-chip-value{ max-width:56px; }
+}
 
 /* Compare Lightbox */
 .lightbox{
@@ -418,7 +501,7 @@ sp-action-button[selected]{
 }
 .lb-close:hover{ color:#fff; }
 .compare-wrap{
-  position:relative; width:500px; height:500px; max-width:calc(100vw - 48px); max-height:calc(100vw - 48px); border-radius:var(--rmd);
+  position:relative; width:500px; height:500px; max-width:calc(100vw - 48px); max-height:calc(100vh - 48px); border-radius:var(--rmd);
   overflow:hidden; user-select:none; border:1px solid var(--bd);
 }
 .cmp-layer{ position:absolute; top:0; right:0; bottom:0; left:0; }
@@ -499,10 +582,19 @@ sp-divider{ --spectrum-divider-background-color:var(--bd); }
 .test-area{ padding:16px; border-top:1px solid var(--bd); display:flex; flex-direction:column; }
 .test-area .swc-button{ width:100%; }
 .test-area .status-notice{ margin-top:10px; }
+.scroll-footer-pad{ padding-bottom:80px; }
 .det-footer{ flex-shrink:0; padding:12px 16px; border-top:1px solid var(--bd); display:flex; background:var(--bg); }
 .btn-save{ flex:1; }
 .btn-del{ margin-left:8px; }
 .btn-cancel{ margin-left:8px; }
+@media (max-height:440px){
+  .settings-page .section{ padding:12px; }
+  .settings-page .field{ margin-bottom:10px; }
+  .settings-page .test-area{ padding:12px; }
+  .settings-page .det-footer{ padding:8px 12px; }
+  .settings-page .scroll-footer-pad{ padding-bottom:96px; }
+  .settings-page .chip{ margin-right:6px; margin-bottom:6px; }
+}
 .status-notice{
   display:flex; align-items:flex-start;
   padding:8px 10px; border-radius:var(--rsm); border:1px solid var(--bd);

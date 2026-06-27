@@ -45,7 +45,7 @@ describe('CLI basic contract', () => {
   it('lists and describes providers', () => {
     const providers = expectSuccess(runImagen(['provider', 'list'], { configDir: tempDir('config') }));
     const ids = providers.map((provider: { id: string }) => provider.id);
-    expect(ids).toEqual(['mock', 'image-endpoint', 'chat-image']);
+    expect(ids).toEqual(['mock', 'image-endpoint', 'chat-image', 'prompt-optimize']);
 
     const mock = expectSuccess(runImagen(['provider', 'describe', 'mock'], { configDir: tempDir('config') }));
     expect(mock).toMatchObject({

@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { ProviderModelInfo, ProviderProfile } from '@imagen-ps/application';
 import { useAppServices } from '../../ports/app-services-context';
 import type { LayerInfo } from '../../ports/host-port';
-import { assetToPreviewUrl, modelLabel } from '../../domain/mappers';
+import { assetToPreviewUrl, commandErrorToMessage, modelLabel } from '../../domain/mappers';
 import type {
   ConversationAttachment,
   ConversationController,
@@ -34,7 +34,13 @@ interface MainPageProps {
   readonly conversation: ConversationController;
   readonly highlightedRoundId?: string | null;
   readonly onEditProfile?: (profileId: string) => void;
+  readonly promptOptimizerProfile?: ProviderProfile | null;
 }
+
+type OptimizeState =
+  | { status: 'idle' }
+  | { status: 'optimizing'; source: string }
+  | { status: 'optimized'; source: string; result: string };
 
 interface FlatLayer {
   readonly layer: LayerInfo;
@@ -96,6 +102,7 @@ export function MainPage({
   conversation,
   highlightedRoundId,
   onEditProfile,
+  promptOptimizerProfile,
 }: MainPageProps) {
   const services = useAppServices();
   const { messages: t } = useI18n();
@@ -110,6 +117,7 @@ export function MainPage({
   const { toast, show, close } = useToast();
   const [copied, setCopied] = useState<Record<string, boolean>>({});
   const [scrolledAway, setScrolledAway] = useState(false);
+  const [optimizeState, setOptimizeState] = useState<OptimizeState>({ status: 'idle' });
   const convRef = useRef<HTMLDivElement>(null);
   const taRef = useRef<HTMLTextAreaElement>(null);
   const flatLayers = useMemo(() => flattenLayers(layers), [layers]);
@@ -121,6 +129,11 @@ export function MainPage({
   const selectedModelLabel = selectedModelId || (modelsLoading ? t.main.modelLoading : t.main.modelUnselected);
   const currentPromptValue = () => taRef.current?.value ?? input;
   const canSend = input.trim().length > 0 && Boolean(selectedProfile) && !conversation.running;
+  const optimizerReady = Boolean(promptOptimizerProfile?.enabled);
+  const optimizing = optimizeState.status === 'optimizing';
+  const showUndo = optimizeState.status === 'optimized' && input === optimizeState.result;
+  const canOptimize = optimizerReady && input.trim().length > 0 && !optimizing;
+  const optimizeButtonLabel = showUndo ? t.main.promptOptimizeUndo : t.main.promptOptimize;
   const isAtBottom = useCallback(() => {
     const el = convRef.current;
     if (!el) return true;
@@ -259,6 +272,55 @@ export function MainPage({
       attachments,
     });
   };
+
+  const handleOptimize = async () => {
+    if (optimizing) {
+      return;
+    }
+    if (!optimizerReady) {
+      show(t.main.promptOptimizeNoProfile, 'info');
+      return;
+    }
+    const prompt = currentPromptValue().trim();
+    if (prompt.length === 0) {
+      show(t.main.promptOptimizeEmpty, 'info');
+      return;
+    }
+    setOptimizeState({ status: 'optimizing', source: prompt });
+    try {
+      const result = await services.commands.optimizePrompt({ prompt });
+      if (result.ok) {
+        const optimized = result.value;
+        if (optimized.trim() === prompt.trim()) {
+          setOptimizeState({ status: 'idle' });
+          show(t.toast.promptOptimizeNoChanges, 'neutral');
+          return;
+        }
+        setInput(optimized);
+        setOptimizeState({ status: 'optimized', source: prompt, result: optimized });
+        show(t.toast.promptOptimized, 'positive');
+      } else {
+        setOptimizeState({ status: 'idle' });
+        show(commandErrorToMessage(result.error), 'negative');
+      }
+    } catch (error) {
+      setOptimizeState({ status: 'idle' });
+      show(error instanceof Error ? error.message : t.toast.promptOptimizeFailed, 'negative');
+    }
+  };
+
+  const handleUndoOptimize = () => {
+    if (optimizeState.status === 'optimized') {
+      setInput(optimizeState.source);
+      setOptimizeState({ status: 'idle' });
+    }
+  };
+
+  useEffect(() => {
+    if (optimizeState.status === 'optimized' && input !== optimizeState.result) {
+      setOptimizeState({ status: 'idle' });
+    }
+  }, [input, optimizeState]);
 
   const placeAsset = async (round: ConversationRound) => {
     const asset = round.previews[0]?.asset;
@@ -583,9 +645,9 @@ export function MainPage({
           </div>
         )}
 
-        <div className={`cmp-inner${conversation.running ? ' off' : ''}`}>
+        <div className={`cmp-shell${conversation.running ? ' off' : ''}`}>
           {attachments.length > 0 && (
-            <div className="cmp-top">
+            <div className="cmp-attach-band">
               <div className="attach-row">
                 {attachments.map((attachment) => (
                   <div key={attachment.id} className="att-thumb">
@@ -599,44 +661,82 @@ export function MainPage({
               </div>
             </div>
           )}
-          <div className="cmp-body">
-            <UxpTextArea
-              data-testid="composer-textarea"
-              controlRef={taRef}
-              className="cmp-ta"
-              placeholder={selectedProfile ? t.main.promptPlaceholderReady : t.main.promptPlaceholderNoProfile}
-              rows={2}
-              value={input}
-              onValue={setInput}
-              onKeyDown={(event) => {
-                if (event.key === 'Enter' && !event.shiftKey) {
-                  event.preventDefault();
-                  void handleSend();
-                }
-              }}
-              disabled={conversation.running}
-            />
-          </div>
-          <div className="cmp-bottom">
-            <div className="cmp-left">
-              <ActionButton
-                data-testid="composer-add-image-button"
-                className="cmp-add"
-                quiet
-                selected={attachOpen || layerOpen}
-                label={t.main.addImage}
-                placement="top"
-                disabled={conversation.running}
-                onClick={(event) => {
-                  event.stopPropagation();
-                  setAttachOpen((open) => !open);
-                  setLayerOpen(false);
-                  setOpenMenu(null);
-                  setProfileMenuOpen(false);
+          <div className="cmp-core">
+            <div className="cmp-body">
+              <UxpTextArea
+                data-testid="composer-textarea"
+                controlRef={taRef}
+                className="cmp-ta"
+                placeholder={selectedProfile ? t.main.promptPlaceholderReady : t.main.promptPlaceholderNoProfile}
+                rows={2}
+                value={input}
+                onValue={setInput}
+                onKeyDown={(event) => {
+                  if (event.key === 'Enter' && !event.shiftKey) {
+                    event.preventDefault();
+                    void handleSend();
+                  }
                 }}
-              >
-                <Icon name="add" />
-              </ActionButton>
+                disabled={conversation.running || optimizing}
+              />
+            </div>
+            <div className="cmp-action-row" data-testid="composer-action-row">
+              <div className="cmp-action-left">
+                <ActionButton
+                  data-testid="composer-add-image-button"
+                  className="cmp-add"
+                  quiet
+                  selected={attachOpen || layerOpen}
+                  label={t.main.addImage}
+                  placement="top"
+                  disabled={conversation.running}
+                  onClick={(event) => {
+                    event.stopPropagation();
+                    setAttachOpen((open) => !open);
+                    setLayerOpen(false);
+                    setOpenMenu(null);
+                    setProfileMenuOpen(false);
+                  }}
+                  >
+                  <Icon name="add" />
+                </ActionButton>
+              </div>
+              <div className="cmp-action-right">
+                <ActionButton
+                  data-testid="composer-prompt-optimize-button"
+                  className="cmp-opt"
+                  quiet
+                  label={optimizeButtonLabel}
+                  placement="top"
+                  disabled={showUndo ? false : !canOptimize}
+                  onClick={(event) => {
+                    event.stopPropagation();
+                    if (showUndo) {
+                      handleUndoOptimize();
+                    } else {
+                      void handleOptimize();
+                    }
+                  }}
+                >
+                  {optimizing
+                    ? <Icon name="spinner" size={13} className="spin" />
+                    : showUndo
+                      ? <Icon name="refresh" />
+                      : <Icon name="magic-wand" />}
+                </ActionButton>
+                <div className="send-wrap">
+                  <button data-testid="composer-send-button" className="cmp-send" disabled={!canSend || optimizing} onClick={() => void handleSend()} title={t.main.send}>
+                    {conversation.running
+                      ? <Icon name="spinner" size={13} className="spin" />
+                      : <Icon name="send" />
+                    }
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+          <div className="cmp-toolbar" data-testid="composer-toolbar">
+            <div className="cmp-toolbar-left">
               <ComposerSelect
                 testId="main-model-selector"
                 containerClassName="cmp-select cmp-select-model"
@@ -650,6 +750,8 @@ export function MainPage({
                 selectedId={selectedModelId}
                 onSelect={onSelectModel}
               />
+            </div>
+            <div className="cmp-toolbar-right">
               <ComposerSelect
                 testId="composer-target-selector"
                 containerClassName="cmp-select cmp-select-target"
@@ -667,8 +769,6 @@ export function MainPage({
                 onSelect={setTarget}
                 leadingIcon={target === 'layer' ? 'ps-layers' : 'selection'}
               />
-            </div>
-            <div className="cmp-right">
               <ComposerSelect
                 testId="composer-aspect-ratio-selector"
                 containerClassName="cmp-select cmp-select-aspect"
@@ -686,28 +786,6 @@ export function MainPage({
                 onSelect={setAspectRatio}
                 leadingIcon="image-auto-mode"
               />
-              <ActionButton
-                data-testid="composer-prompt-optimize-button"
-                className="cmp-opt"
-                quiet
-                label={t.main.promptOptimize}
-                placement="top"
-                disabled={conversation.running}
-                onClick={(event) => {
-                  event.stopPropagation();
-                  show(t.main.promptOptimizePlaceholder, 'neutral');
-                }}
-              >
-                <Icon name="magic-wand" />
-              </ActionButton>
-              <div className="send-wrap">
-                <button data-testid="composer-send-button" className="cmp-send" disabled={!canSend} onClick={() => void handleSend()} title={t.main.send}>
-                  {conversation.running
-                    ? <Icon name="spinner" size={13} className="spin" />
-                    : <Icon name="send" />
-                  }
-                </button>
-              </div>
             </div>
           </div>
         </div>

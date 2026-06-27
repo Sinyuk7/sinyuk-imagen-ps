@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { AppServicesProvider } from '../ports/app-services-context';
 import type { AppServices } from '../ports/app-services';
 import type { LayerInfo } from '../ports/host-port';
-import type { ProviderProfile } from '@imagen-ps/application';
+import { PROMPT_OPTIMIZER_PROFILE_ID, type ProviderProfile } from '@imagen-ps/application';
 import type { SupportedLocale } from '../domain/locale';
 import type { PluginAppModel } from '../domain/plugin-app-model';
 import { PANEL_CSS } from './panel-css';
@@ -84,9 +84,17 @@ function AppShellContent({ host }: AppShellProps) {
   const [selectedModelId, setSelectedModelId] = useState('');
   const [highlightedRoundId, setHighlightedRoundId] = useState<string | null>(null);
   const profilesState = useProviderProfiles(services);
+  const imageProfiles = useMemo(
+    () => profilesState.profiles.filter((profile) => profile.profileId !== PROMPT_OPTIMIZER_PROFILE_ID),
+    [profilesState.profiles],
+  );
+  const promptOptimizerProfile = useMemo(
+    () => profilesState.profiles.find((profile) => profile.profileId === PROMPT_OPTIMIZER_PROFILE_ID) ?? null,
+    [profilesState.profiles],
+  );
   const selectedProfile = useMemo(
-    () => profilesState.profiles.find((profile) => profile.profileId === selectedProfileId),
-    [profilesState.profiles, selectedProfileId],
+    () => imageProfiles.find((profile) => profile.profileId === selectedProfileId),
+    [imageProfiles, selectedProfileId],
   );
   const modelsState = useProfileModels(services, selectedProfileId);
   const imagenSession = useImagenSession(services);
@@ -95,11 +103,20 @@ function AppShellContent({ host }: AppShellProps) {
   const { layers, layersError, reloadLayers } = useHostLayers(host);
 
   useEffect(() => {
-    if (selectedProfileId && profilesState.profiles.some((profile) => profile.profileId === selectedProfileId)) {
+    if (selectedProfileId && imageProfiles.some((profile) => profile.profileId === selectedProfileId)) {
       return;
     }
-    setSelectedProfileId(profilesState.profiles[0]?.profileId ?? null);
-  }, [profilesState.profiles, selectedProfileId]);
+    setSelectedProfileId(imageProfiles[0]?.profileId ?? null);
+  }, [imageProfiles, selectedProfileId]);
+
+  useEffect(() => {
+    void services.commands.ensurePromptOptimizerProfile().then((result) => {
+      if (result.ok) {
+        void profilesState.reload();
+      }
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [services]);
 
   useEffect(() => {
     const available = modelsState.models;
@@ -148,7 +165,7 @@ function AppShellContent({ host }: AppShellProps) {
       {view === 'main' && (
         <MainPage
           onNav={onNav}
-          profiles={profilesState.profiles}
+          profiles={imageProfiles}
           profilesLoading={profilesState.loading}
           profilesError={profilesState.error}
           selectedProfile={selectedProfile}
@@ -165,6 +182,7 @@ function AppShellContent({ host }: AppShellProps) {
           conversation={conversation}
           highlightedRoundId={highlightedRoundId}
           onEditProfile={onEditProfile}
+          promptOptimizerProfile={promptOptimizerProfile}
         />
       )}
       {view === 'history' && (
@@ -183,7 +201,7 @@ function AppShellContent({ host }: AppShellProps) {
       {view === 'settings' && (
         <SettingsPage
           onNav={onNav}
-          profiles={profilesState.profiles}
+          profiles={imageProfiles}
           loading={profilesState.loading}
           error={profilesState.error}
           onReload={profilesState.reload}
@@ -191,12 +209,17 @@ function AppShellContent({ host }: AppShellProps) {
             setSelectedProfileId(profileId);
             setView('settings-detail');
           }}
+          promptOptimizerProfile={promptOptimizerProfile}
+          onOpenPromptOptimizer={() => {
+            setSelectedProfileId(PROMPT_OPTIMIZER_PROFILE_ID);
+            setView('settings-detail');
+          }}
         />
       )}
       {view === 'settings-add' && (
         <SettingsAddPage
           onNav={onNav}
-          profiles={profilesState.profiles}
+          profiles={imageProfiles}
           onProfileSaved={async (profileId) => {
             await profilesState.reload();
             setSelectedProfileId(profileId);

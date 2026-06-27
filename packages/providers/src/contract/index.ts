@@ -1,5 +1,10 @@
 export type { ProviderFamily, ProviderOperation } from './capability.js';
-export type { ChatImageProviderConfig, ImageEndpointProviderConfig, ProviderConfig } from './config.js';
+export type {
+  ChatImageProviderConfig,
+  ImageEndpointProviderConfig,
+  PromptOptimizeProviderConfig,
+  ProviderConfig,
+} from './config.js';
 export type { AssetRef, CanonicalImageJobRequest, ProviderOutputOptions, ProviderRequest } from './request.js';
 export type { ProviderDiagnostic, ProviderDiagnosticLevel, ProviderDiagnostics } from './diagnostics.js';
 export type { ProviderInvokeMetadata, ProviderInvokeResult, ProviderInvokeUsage } from './result.js';

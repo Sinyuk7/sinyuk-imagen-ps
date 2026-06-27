@@ -16,6 +16,7 @@ import type {
   TestProviderProfileOptions,
 } from './types.js';
 import { resolveSecretValue } from './secret-utils.js';
+import { PROMPT_OPTIMIZER_PROFILE_ID } from './prompt-optimize.js';
 
 function errorMessage(error: unknown, fallback: string): string {
   return error instanceof Error ? error.message : fallback;
@@ -118,6 +119,17 @@ export async function saveProviderProfile(input: ProviderProfileInput): Promise<
     return {
       ok: false,
       error: createValidationError(`Provider implementation "${providerId}" not found.`, { providerId }),
+    };
+  }
+
+  if (input.profileId === PROMPT_OPTIMIZER_PROFILE_ID && providerId !== 'prompt-optimize') {
+    span.fail({ message: `Prompt Optimizer profile must use provider "prompt-optimize".` });
+    return {
+      ok: false,
+      error: createValidationError(`Prompt Optimizer profile must use provider "prompt-optimize".`, {
+        profileId: input.profileId,
+        providerId,
+      }),
     };
   }
 
@@ -254,6 +266,13 @@ export async function deleteProviderProfile(
   });
   const span = logger.startSpan('command.profile.delete');
   const repository = getProviderProfileRepository();
+  if (profileId === PROMPT_OPTIMIZER_PROFILE_ID) {
+    span.fail({ message: `Prompt Optimizer profile "${profileId}" cannot be deleted.` });
+    return {
+      ok: false,
+      error: createValidationError(`Prompt Optimizer profile "${profileId}" cannot be deleted.`, { profileId }),
+    };
+  }
   const profile = await repository.get(profileId);
   if (!profile) {
     span.fail({ message: `Provider profile "${profileId}" not found.` });

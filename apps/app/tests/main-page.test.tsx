@@ -1,8 +1,8 @@
 import { act } from 'react';
 import { createRoot, type Root } from 'react-dom/client';
-import { afterEach, describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import { AppShell } from '../src/shared/ui/app-shell';
-import { fakeAsset } from './fakes';
+import { fakeAsset, fakeOptimizerProfile } from './fakes';
 import { createFakeServices } from './fakes';
 
 let root: Root | undefined;
@@ -213,23 +213,19 @@ describe('MainPage contract', () => {
     document.body.appendChild(container);
     await renderApp(container);
 
-    const left = container.querySelector('.cmp-left');
-    const right = container.querySelector('.cmp-right');
+    const left = container.querySelector('.cmp-action-left');
+    const right = container.querySelector('.cmp-action-right');
     expect(left).not.toBeNull();
     expect(right).not.toBeNull();
 
-    // 左组：添加图片 / 模型 / 目标
+    // 左组：添加图片
     expect(left!.querySelector('[data-testid="composer-add-image-button"]')).not.toBeNull();
-    expect(left!.querySelector('[data-testid="main-model-selector"]')).not.toBeNull();
-    expect(left!.querySelector('[data-testid="composer-target-selector"]')).not.toBeNull();
-    expect(left!.querySelector('[data-testid="composer-aspect-ratio-selector"]')).toBeNull();
     expect(left!.querySelector('[data-testid="composer-send-button"]')).toBeNull();
 
-    // 右组：宽高比 / 优化提示词 / 发送
-    expect(right!.querySelector('[data-testid="composer-aspect-ratio-selector"]')).not.toBeNull();
+    // 右组：优化提示词 / 发送
     expect(right!.querySelector('[data-testid="composer-prompt-optimize-button"]')).not.toBeNull();
     expect(right!.querySelector('[data-testid="composer-send-button"]')).not.toBeNull();
-    expect(right!.querySelector('[data-testid="composer-target-selector"]')).toBeNull();
+    expect(right!.querySelector('[data-testid="composer-add-image-button"]')).toBeNull();
   });
 
   it('target 与 aspect-ratio 选择器可打开、选择并关闭', async () => {
@@ -312,19 +308,31 @@ describe('MainPage contract', () => {
     expect(send.querySelector('[data-icon-name="spinner"]')).not.toBeNull();
   });
 
-  it('prompt optimization 点击展示即将支持占位反馈', async () => {
+  it('prompt optimization 调用 optimizePrompt 并回填结果', async () => {
     const container = document.createElement('div');
     document.body.appendChild(container);
-    await renderApp(container);
+    const services = createFakeServices();
+    (services.services.commands as {
+      listProviderProfiles: (profileId?: unknown) => Promise<{ ok: true; value: readonly typeof fakeOptimizerProfile[] }>;
+    }).listProviderProfiles = vi.fn(async () => ({
+      ok: true as const,
+      value: [{ ...fakeOptimizerProfile, enabled: true }],
+    }));
+    await renderApp(container, services);
+
+    await act(async () => {
+      changeTextarea(container.querySelector<HTMLTextAreaElement>('.cmp-ta')!, 'a red square');
+    });
+    await flush();
 
     await act(async () => {
       container.querySelector<HTMLElement>('[data-testid="composer-prompt-optimize-button"]')!.click();
     });
     await flush();
 
-    const toast = container.querySelector<HTMLElement>('[data-testid="toast"]');
-    expect(toast).not.toBeNull();
-    expect(toast!.textContent).toContain('即将支持');
+    expect(services.spies.optimizePrompt).toHaveBeenCalledWith({ prompt: 'a red square' });
+    const textarea = container.querySelector<HTMLTextAreaElement>('.cmp-ta')!;
+    expect(textarea.value).toBe('optimized prompt');
   });
 
   it('target 与 aspect-ratio 在发送后保留，而输入与附件清空', async () => {

@@ -11,6 +11,8 @@ interface SettingsPageProps {
   readonly error: string | null;
   readonly onReload: () => Promise<void>;
   readonly onOpenProfile: (profileId: string) => void;
+  readonly promptOptimizerProfile?: ProviderProfile | null;
+  readonly onOpenPromptOptimizer?: () => void;
 }
 
 function initials(name: string): string {
@@ -22,9 +24,19 @@ function initials(name: string): string {
     .join('') || 'P';
 }
 
-export function SettingsPage({ onNav, profiles, loading, error, onReload, onOpenProfile }: SettingsPageProps) {
+export function SettingsPage({
+  onNav,
+  profiles,
+  loading,
+  error,
+  onReload,
+  onOpenProfile,
+  promptOptimizerProfile,
+  onOpenPromptOptimizer,
+}: SettingsPageProps) {
   const { messages: t } = useI18n();
   const rows = profiles.map(profileToProviderRow);
+  const optimizerRow = promptOptimizerProfile ? profileToProviderRow(promptOptimizerProfile) : null;
 
   return (
     <div className="page page-enter">
@@ -62,8 +74,31 @@ export function SettingsPage({ onNav, profiles, loading, error, onReload, onOpen
         <div className="sec-lbl">{t.settings.configured}</div>
         {loading && <div style={{ padding: 16, color: 'var(--txd)', fontSize: 12 }}>{t.settings.loading}</div>}
         {error && <div style={{ padding: 16, color: 'var(--er)', fontSize: 12 }}>{error}</div>}
-        {!loading && rows.length === 0 && (
+        {!loading && rows.length === 0 && !optimizerRow && (
           <div style={{ padding: 16, color: 'var(--txd)', fontSize: 12 }}>{t.settings.noProviderProfile}</div>
+        )}
+        {optimizerRow && (
+          <div
+            key={optimizerRow.profileId}
+            data-testid={`provider-row-${optimizerRow.profileId}`}
+            className="prov-row"
+            onClick={() => onOpenPromptOptimizer?.()}
+          >
+            <div className="prov-ico" style={{ background: 'rgba(167,139,250,.12)', color: 'var(--pr)' }}>
+              <Icon name="magic-wand" size={14} />
+            </div>
+            <div className="prov-info">
+              <div className="prov-name">
+                <span>{optimizerRow.displayName}</span>
+                <Tag className="prov-family">{optimizerRow.family}</Tag>
+                <span className={`badge ${optimizerRow.enabled ? 'connected' : 'error'}`}>
+                  {optimizerRow.enabled ? t.common.enabled : t.common.disabled}
+                </span>
+              </div>
+              <div className="prov-model">{optimizerRow.defaultModel ?? optimizerRow.providerId}</div>
+            </div>
+            <Icon name="chevron-right" />
+          </div>
         )}
         {rows.map((row) => (
           <div key={row.profileId} data-testid={`provider-row-${row.profileId}`} className="prov-row" onClick={() => onOpenProfile(row.profileId)}>
