@@ -57,10 +57,11 @@ doubt.
 
 `pnpm --filter @imagen-ps/app test:chrome-e2e` is an opt-in Chrome browser E2E
 gate for the app Chrome build. It builds `dist/web/`, serves it locally, runs
-Playwright Chromium at one fixed `390x720` viewport, and writes ignored local
-artifacts under `apps/app/tests/chrome-e2e/screenshots/`. It is repo-side
-browser evidence only; it does not prove real Photoshop / UXP host behavior or
-live provider behavior.
+Playwright Chromium at representative viewports (`390x720` default,
+`300x520`/`600x800`/`390x400`/`300x400` for responsive scenarios), and writes
+ignored local artifacts under `apps/app/tests/chrome-e2e/screenshots/`. It is
+repo-side browser evidence only; it does not prove real Photoshop / UXP host
+behavior or live provider behavior.
 
 ## Loop Validation Categories
 

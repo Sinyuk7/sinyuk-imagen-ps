@@ -86,7 +86,6 @@ export function SettingsPage({ onNav, profiles, loading, error, onReload, onOpen
             <Icon name="chevron-right" />
           </div>
         ))}
-        <div style={{ flex: 1 }} />
         <div className="footer-info">
           <span style={{ fontFamily: 'var(--fM)', fontSize: 10, color: 'var(--txd)' }}>imagen-ps app</span>
         </div>

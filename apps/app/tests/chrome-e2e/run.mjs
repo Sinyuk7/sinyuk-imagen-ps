@@ -10,7 +10,7 @@ const testRoot = resolve(fileURLToPath(new URL('.', import.meta.url)));
 const appRoot = resolve(testRoot, '../..');
 const repoRoot = resolve(appRoot, '../..');
 const webRoot = resolve(appRoot, 'dist/web');
-const viewport = { width: 390, height: 720, deviceScaleFactor: 1 };
+const defaultViewport = { width: 390, height: 720, deviceScaleFactor: 1 };
 const keepScreenshots = process.env.KEEP_SCREENSHOTS === '1';
 const runId = new Date().toISOString().replace(/[:.]/g, '-');
 const artifactRoot = resolve(testRoot, 'screenshots', runId);
@@ -633,6 +633,211 @@ async function persistenceSmokeScenario({ page, origin, capture }) {
   await assertNoBrokenImages(page);
 }
 
+async function assertNoHorizontalScroll(page) {
+  const overflow = await page.evaluate(() => {
+    const root = document.getElementById('root');
+    const panel = root?.querySelector('.panel');
+    const el = panel ?? root ?? document.body;
+    return { scrollWidth: el.scrollWidth, clientWidth: el.clientWidth };
+  });
+  if (overflow.scrollWidth > overflow.clientWidth) {
+    throw new Error(`Horizontal scroll detected: scrollWidth=${overflow.scrollWidth} > clientWidth=${overflow.clientWidth}`);
+  }
+}
+
+async function assertCoreControlsVisible(page) {
+  const selectors = [
+    '[data-testid="composer-textarea"]',
+    '[data-testid="composer-send-button"]',
+    '[data-testid="composer-add-image-button"]',
+  ];
+  for (const selector of selectors) {
+    const count = await page.locator(selector).count();
+    if (count === 0) {
+      throw new Error(`Core control not found: ${selector}`);
+    }
+  }
+}
+
+async function assertPanelFillsRoot(page) {
+  const result = await page.evaluate(() => {
+    const root = document.getElementById('root');
+    const panel = root?.querySelector('.panel');
+    if (!root || !panel) {
+      return { ok: false, reason: 'root or panel missing' };
+    }
+    const rootRect = root.getBoundingClientRect();
+    const panelRect = panel.getBoundingClientRect();
+    return {
+      ok: Math.abs(panelRect.width - rootRect.width) < 2 && Math.abs(panelRect.height - rootRect.height) < 2,
+      rootWidth: Math.round(rootRect.width),
+      rootHeight: Math.round(rootRect.height),
+      panelWidth: Math.round(panelRect.width),
+      panelHeight: Math.round(panelRect.height),
+    };
+  });
+  if (!result.ok) {
+    throw new Error(`Panel does not fill root: ${JSON.stringify(result)}`);
+  }
+}
+
+async function assertSinglePrimaryScroll(page, expectedSelector) {
+  const scrollables = await page.evaluate((selector) => {
+    const target = document.querySelector(selector);
+    if (!target) {
+      return { found: false };
+    }
+    const style = window.getComputedStyle(target);
+    return {
+      found: true,
+      overflowY: style.overflowY,
+      flex: style.flex,
+      minHeight: style.minHeight,
+      scrollHeight: target.scrollHeight,
+      clientHeight: target.clientHeight,
+    };
+  }, expectedSelector);
+  if (!scrollables.found) {
+    throw new Error(`Primary scroll container not found: ${expectedSelector}`);
+  }
+  if (scrollables.overflowY !== 'auto' && scrollables.overflowY !== 'scroll') {
+    throw new Error(`Primary scroll container ${expectedSelector} has overflow-y=${scrollables.overflowY}`);
+  }
+}
+
+async function assertOverlayWithinPanel(page, overlaySelector) {
+  const result = await page.evaluate((selector) => {
+    const panel = document.querySelector('.panel');
+    const overlay = document.querySelector(selector);
+    if (!panel || !overlay) {
+      return { ok: false, reason: 'panel or overlay missing' };
+    }
+    const panelRect = panel.getBoundingClientRect();
+    const overlayRect = overlay.getBoundingClientRect();
+    return {
+      ok: overlayRect.left >= panelRect.left - 1 &&
+        overlayRect.right <= panelRect.right + 1 &&
+        overlayRect.top >= panelRect.top - 1 &&
+        overlayRect.bottom <= panelRect.bottom + 1,
+      panelRight: Math.round(panelRect.right),
+      overlayRight: Math.round(overlayRect.right),
+    };
+  }, overlaySelector);
+  if (!result.ok) {
+    throw new Error(`Overlay ${overlaySelector} escapes panel: ${JSON.stringify(result)}`);
+  }
+}
+
+async function responsiveNarrowScenario({ page, url, capture }) {
+  await openApp(page, url);
+  await expectVisibleText(page, 'Mock Profile');
+  await assertPanelFillsRoot(page);
+  await assertNoHorizontalScroll(page);
+  await assertCoreControlsVisible(page);
+  await assertSinglePrimaryScroll(page, '.scroll');
+  await capture('responsive-narrow-empty.png');
+
+  await page.getByText('Product photo of a blue glass perfume bottle', { exact: true }).click();
+  await page.getByTestId('composer-send-button').click();
+  await waitForDoneResult(page);
+  await assertNoHorizontalScroll(page);
+  await assertCoreControlsVisible(page);
+  await capture('responsive-narrow-with-result.png');
+  await assertNoBrokenImages(page);
+}
+
+async function responsiveNarrowOverlayScenario({ page, url, capture }) {
+  await openApp(page, url);
+  await expectVisibleText(page, 'Mock Profile');
+
+  await page.getByTestId('main-profile-selector').click();
+  await page.getByTestId('profile-menu-option-mock-profile').waitFor({ state: 'visible' });
+  await assertOverlayWithinPanel(page, '.model-menu');
+  await capture('responsive-narrow-profile-menu.png');
+  await page.mouse.click(10, 120);
+
+  await page.getByTestId('composer-add-image-button').click();
+  await expectVisibleText(page, 'Choose from PS layers');
+  await assertOverlayWithinPanel(page, '.attach-picker');
+  await capture('responsive-narrow-attach-picker.png');
+  await page.getByTestId('attach-ps-layers-option').click();
+  await page.getByTestId('layer-row-1').waitFor({ state: 'visible' });
+  await assertOverlayWithinPanel(page, '.layer-list-wrap');
+  await capture('responsive-narrow-layer-list.png');
+  await assertNoBrokenImages(page);
+}
+
+async function responsiveWideScenario({ page, url, capture }) {
+  await openApp(page, url);
+  await expectVisibleText(page, 'Mock Profile');
+  await assertPanelFillsRoot(page);
+  await assertNoHorizontalScroll(page);
+
+  await submitPrompt(page, 'wide panel test prompt');
+  await waitForDoneResult(page);
+  await assertNoHorizontalScroll(page);
+  await capture('responsive-wide-with-result.png');
+  await assertNoBrokenImages(page);
+}
+
+async function responsiveShortScenario({ page, url, capture }) {
+  await openApp(page, url);
+  await expectVisibleText(page, 'Mock Profile');
+  await assertPanelFillsRoot(page);
+  await assertNoHorizontalScroll(page);
+  await assertCoreControlsVisible(page);
+  await assertSinglePrimaryScroll(page, '.scroll');
+
+  await submitPrompt(page, 'short panel test prompt');
+  await waitForDoneResult(page);
+  await assertNoHorizontalScroll(page);
+  await assertCoreControlsVisible(page);
+  await capture('responsive-short-with-result.png');
+  await assertNoBrokenImages(page);
+}
+
+async function responsiveNarrowShortScenario({ page, url, capture }) {
+  await openApp(page, url);
+  await expectVisibleText(page, 'Mock Profile');
+  await assertPanelFillsRoot(page);
+  await assertNoHorizontalScroll(page);
+  await assertCoreControlsVisible(page);
+
+  await submitPrompt(page, 'narrow short stress test');
+  await waitForDoneResult(page);
+  await assertNoHorizontalScroll(page);
+  await assertCoreControlsVisible(page);
+  await capture('responsive-narrow-short-stress.png');
+  await assertNoBrokenImages(page);
+}
+
+async function responsiveSettingsNarrowScenario({ page, url, capture }) {
+  await openApp(page, url);
+  await page.getByTestId('main-providers-button').click();
+  await expectVisibleText(page, 'Providers');
+  await assertPanelFillsRoot(page);
+  await assertNoHorizontalScroll(page);
+  await assertSinglePrimaryScroll(page, '.scroll');
+  await capture('responsive-narrow-settings.png');
+
+  await page.getByTestId('providers-add-button').click();
+  await expectVisibleText(page, 'Add Provider');
+  await assertNoHorizontalScroll(page);
+  await capture('responsive-narrow-settings-add.png');
+  await assertNoBrokenImages(page);
+}
+
+async function responsiveHistoryNarrowScenario({ page, url, capture }) {
+  await openApp(page, url);
+  await page.getByTestId('main-history-button').click();
+  await expectVisibleText(page, 'History');
+  await assertPanelFillsRoot(page);
+  await assertNoHorizontalScroll(page);
+  await assertSinglePrimaryScroll(page, '.scroll');
+  await capture('responsive-narrow-history.png');
+  await assertNoBrokenImages(page);
+}
+
 const scenarios = [
   {
     id: '00-smoke-main-empty',
@@ -787,6 +992,76 @@ const scenarios = [
     assertions: ['profile persists after reload', 'persisted profile selectable', 'saved secret placeholder visible', 'secret hidden', 'no console/page/network errors'],
     run: persistenceSmokeScenario,
   },
+  {
+    id: 'responsive-narrow-390x720',
+    name: 'Responsive narrow width 390x720',
+    tags: ['responsive'],
+    viewport: { width: 300, height: 520, deviceScaleFactor: 1 },
+    path: '/index.html?testHarness=1&storage=memory&seedProfile=mock&scenario=seeded-document',
+    screenshotName: 'responsive-narrow-empty.png',
+    assertions: ['panel fills root', 'no horizontal scroll', 'core controls visible', 'single primary scroll', 'no broken images', 'no console/page/network errors'],
+    run: responsiveNarrowScenario,
+  },
+  {
+    id: 'responsive-narrow-overlay-300x520',
+    name: 'Responsive narrow overlay containment 300x520',
+    tags: ['responsive'],
+    viewport: { width: 300, height: 520, deviceScaleFactor: 1 },
+    path: '/index.html?testHarness=1&storage=memory&seedProfile=mock&scenario=seeded-document',
+    screenshotName: 'responsive-narrow-profile-menu.png',
+    assertions: ['profile menu within panel', 'attach picker within panel', 'layer list within panel', 'no broken images', 'no console/page/network errors'],
+    run: responsiveNarrowOverlayScenario,
+  },
+  {
+    id: 'responsive-wide-600x800',
+    name: 'Responsive wide panel 600x800',
+    tags: ['responsive'],
+    viewport: { width: 600, height: 800, deviceScaleFactor: 1 },
+    path: '/index.html?testHarness=1&storage=memory&seedProfile=mock&scenario=seeded-document',
+    screenshotName: 'responsive-wide-with-result.png',
+    assertions: ['panel fills root', 'no horizontal scroll', 'no broken images', 'no console/page/network errors'],
+    run: responsiveWideScenario,
+  },
+  {
+    id: 'responsive-short-390x400',
+    name: 'Responsive short height 390x400',
+    tags: ['responsive'],
+    viewport: { width: 390, height: 400, deviceScaleFactor: 1 },
+    path: '/index.html?testHarness=1&storage=memory&seedProfile=mock&scenario=seeded-document',
+    screenshotName: 'responsive-short-with-result.png',
+    assertions: ['panel fills root', 'no horizontal scroll', 'core controls visible', 'single primary scroll', 'no broken images', 'no console/page/network errors'],
+    run: responsiveShortScenario,
+  },
+  {
+    id: 'responsive-narrow-short-300x400',
+    name: 'Responsive narrow + short stress 300x400',
+    tags: ['responsive'],
+    viewport: { width: 300, height: 400, deviceScaleFactor: 1 },
+    path: '/index.html?testHarness=1&storage=memory&seedProfile=mock&scenario=seeded-document',
+    screenshotName: 'responsive-narrow-short-stress.png',
+    assertions: ['panel fills root', 'no horizontal scroll', 'core controls visible', 'no broken images', 'no console/page/network errors'],
+    run: responsiveNarrowShortScenario,
+  },
+  {
+    id: 'responsive-settings-narrow-300x520',
+    name: 'Responsive settings narrow 300x520',
+    tags: ['responsive'],
+    viewport: { width: 300, height: 520, deviceScaleFactor: 1 },
+    path: '/index.html?testHarness=1&storage=memory&seedProfile=mock&scenario=seeded-document',
+    screenshotName: 'responsive-narrow-settings.png',
+    assertions: ['panel fills root', 'no horizontal scroll', 'single primary scroll', 'no broken images', 'no console/page/network errors'],
+    run: responsiveSettingsNarrowScenario,
+  },
+  {
+    id: 'responsive-history-narrow-300x520',
+    name: 'Responsive history narrow 300x520',
+    tags: ['responsive'],
+    viewport: { width: 300, height: 520, deviceScaleFactor: 1 },
+    path: '/index.html?testHarness=1&storage=memory&seedProfile=mock&seedHistory=1&scenario=seeded-document',
+    screenshotName: 'responsive-narrow-history.png',
+    assertions: ['panel fills root', 'no horizontal scroll', 'single primary scroll', 'no broken images', 'no console/page/network errors'],
+    run: responsiveHistoryNarrowScenario,
+  },
 ];
 
 function scenarioMatches(scenario, grep) {
@@ -798,11 +1073,12 @@ function scenarioMatches(scenario, grep) {
 }
 
 async function writeRunReadme(entries) {
+  const viewports = [...new Set(entries.map((entry) => `${entry.viewport.width}x${entry.viewport.height}`))];
   const lines = [
     '# Chrome E2E Run',
     '',
     `- Run id: ${runId}`,
-    `- Viewport: ${viewport.width}x${viewport.height} @${viewport.deviceScaleFactor}`,
+    `- Viewports: ${viewports.join(', ')}`,
     `- KEEP_SCREENSHOTS: ${keepScreenshots ? '1' : '0'}`,
     '',
     '| Scenario | Status | Evidence | Notes |',
@@ -814,9 +1090,10 @@ async function writeRunReadme(entries) {
 }
 
 async function runScenario(browser, server, scenario) {
+  const scenarioViewport = scenario.viewport ?? defaultViewport;
   const context = await browser.newContext({
-    viewport: { width: viewport.width, height: viewport.height },
-    deviceScaleFactor: viewport.deviceScaleFactor,
+    viewport: { width: scenarioViewport.width, height: scenarioViewport.height },
+    deviceScaleFactor: scenarioViewport.deviceScaleFactor,
   });
   await context.clearCookies();
   const page = await context.newPage();
@@ -850,7 +1127,7 @@ async function runScenario(browser, server, scenario) {
     id: scenario.id,
     name: scenario.name,
     tags: scenario.tags,
-    viewport,
+    viewport: scenarioViewport,
     url,
     startedAt,
     status: 'passed',
@@ -953,7 +1230,7 @@ async function main() {
     generatedAt: new Date().toISOString(),
     runner: '@playwright/test chromium',
     grep,
-    viewport,
+    viewport: defaultViewport,
     webRoot: relativeFromApp(webRoot),
     scenarios: entries,
     summary: {
