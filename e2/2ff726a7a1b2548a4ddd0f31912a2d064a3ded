@@ -1,0 +1,55 @@
+apps/app/README.md
+  s_26973d51956f5b::t_aaa9bec8ca3e04 85-93
+apps/app/src/harness/components/composer-select/composer-select-harness-data.ts
+  s_26973d51956f5b::t_d5bca8cef5a859 1-26
+apps/app/src/harness/components/composer-select/composer-select-harness.tsx
+  s_32a50ec1d0a8b0::t_b3c94586b63c87 1-521
+apps/app/src/harness/components/composer-select/index.ts
+  s_26973d51956f5b::t_c280fb9fd00114 1
+apps/app/src/shared/ui/components/composer-select-menu.tsx
+  s_32a50ec1d0a8b0::t_bb9ddf2504a71e 1-112
+apps/app/src/shared/ui/components/composer-select-trigger.tsx
+  s_32a50ec1d0a8b0::t_1f659196112673 1-60
+apps/app/src/shared/ui/components/composer-select.tsx
+  s_32a50ec1d0a8b0::t_1abb7cffdf01fa 1-6,11-14,31-32,36-46,49,55-60,68-70,72-73,75,81,83-92,94-95,97-106,108
+apps/app/src/shared/ui/components/composer-select.types.ts
+  s_26973d51956f5b::t_c979a5c9ce1015 1-46
+apps/app/src/shared/ui/components/icons.tsx
+  s_26973d51956f5b::t_038e4de736dda5 72-73,112,118
+apps/app/src/shared/ui/components/use-composer-select-placement.ts
+  s_32a50ec1d0a8b0::t_b5b849335aa5e7 1-221
+apps/app/src/shared/ui/panel-css.ts
+  s_32a50ec1d0a8b0::t_732cbace1e0d9b 379-380,383-384,394-462,481-482,484,487,492-496,502-510,519,522,525-526,528-531,536-537,570-571
+apps/app/src/shells/chrome/main.tsx
+  s_26973d51956f5b::t_818c55370f8db9 5-13,34-35,37-48
+apps/app/tests/chrome-e2e/README.md
+  s_26973d51956f5b::t_9bfb69a8677bd1 57-58,63-74
+apps/app/tests/component-harness/README.md
+  s_26973d51956f5b::t_b2033f7dca2117 1-24
+apps/app/tests/composer-select.test.tsx
+  s_32a50ec1d0a8b0::t_700e70a855c347 97,104-105,242-243
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.3",
+  "base_commit_sha": "e22ff726a7a1b2548a4ddd0f31912a2d064a3ded",
+  "prompts": {},
+  "sessions": {
+    "s_26973d51956f5b": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "019f09c7-1916-7f12-a2ab-76d086f9ce1c",
+        "model": "unknown"
+      },
+      "human_author": "Sinyuk <80998062@qq.com>"
+    },
+    "s_32a50ec1d0a8b0": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "019f0a1c-559e-7612-8283-39a2d8311947",
+        "model": "unknown"
+      },
+      "human_author": "Sinyuk <80998062@qq.com>"
+    }
+  }
+}
