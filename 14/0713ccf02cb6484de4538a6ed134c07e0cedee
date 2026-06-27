@@ -1,0 +1,80 @@
+apps/app/src/shared/ports/commands-port.ts
+  s_1662d0c5dde644::t_ceb7a7a4e4798c 18-20,39-41
+apps/app/src/shared/ui/app-shell.tsx
+  s_1662d0c5dde644::t_fa130d80e1135a 5,87-94,96-97,106,109-119,168,185,204,212-216,222
+apps/app/src/shared/ui/hooks/use-provider-settings.ts
+  s_1662d0c5dde644::t_d3591ff8fe9289 243,251
+apps/app/src/shared/ui/i18n/messages.ts
+  s_1662d0c5dde644::t_a807a473e7365a 70-73,121-123,179-180,197-200,248-250,306-307,324-327,375-377
+apps/app/src/shared/ui/pages/main-page.tsx
+  s_1662d0c5dde644::t_f1ee04ed2f2829 5,37,40-44,105,120,132-136,276-324,648,650,664-678,680-739,753-754
+apps/app/src/shared/ui/pages/settings-add-page.tsx
+  s_1662d0c5dde644::t_a547320d7ae0f7 107,126
+apps/app/src/shared/ui/pages/settings-detail-page.tsx
+  s_1662d0c5dde644::t_05aee1d2709eb8 7,49,55,64,96,184-199,253,283,335-349,397-401
+apps/app/src/shared/ui/pages/settings-page.tsx
+  s_1662d0c5dde644::t_9ad63f9480cbf3 14-15,27-36,39,77,80-102
+apps/app/tests/chrome-e2e/run.mjs
+  s_1662d0c5dde644::t_c42cb405d296cb 653-654,756-758,1000-1001,1218
+apps/app/tests/fakes.ts
+  s_1662d0c5dde644::t_0ea93042c86ff6 48-65,136-138,145,172-174,195-197,236-238
+packages/application/src/commands/index.ts
+  s_1662d0c5dde644::t_89f3ec23489401 32-38
+packages/application/src/commands/prompt-optimize.test.ts
+  s_1662d0c5dde644::t_311718daf1ebb6 1-207
+packages/application/src/commands/prompt-optimize.ts
+  s_1662d0c5dde644::t_c4a2ee21f17cd3 1-285
+packages/application/src/commands/provider-profiles.ts
+  s_1662d0c5dde644::t_54d63c1af3311f 19,125-135,269-275
+packages/providers/src/contract/capability.ts
+  s_1662d0c5dde644::t_137b3929d796fd 8
+packages/providers/src/contract/config.ts
+  s_1662d0c5dde644::t_f2f4abfeae283d 66-98,100-103
+packages/providers/src/contract/index.ts
+  s_1662d0c5dde644::t_7bce8981f1e8b4 2-7
+packages/providers/src/index.ts
+  s_1662d0c5dde644::t_74677c230fa2f7 14,52-60
+packages/providers/src/providers/prompt-optimize/build-request.ts
+  s_1662d0c5dde644::t_efbf02bb186f9f 1-37
+packages/providers/src/providers/prompt-optimize/config-schema.ts
+  s_1662d0c5dde644::t_cbd55d20053cd5 1-22
+packages/providers/src/providers/prompt-optimize/defaults.ts
+  s_1662d0c5dde644::t_d8296cc5257440 1-5
+packages/providers/src/providers/prompt-optimize/descriptor.ts
+  s_1662d0c5dde644::t_6ae85dbcafe6fb 1-10
+packages/providers/src/providers/prompt-optimize/index.ts
+  s_1662d0c5dde644::t_b1082232ef8696 1-7
+packages/providers/src/providers/prompt-optimize/models.ts
+  s_1662d0c5dde644::t_08ecea1050ffa7 1-35
+packages/providers/src/providers/prompt-optimize/parse-response.ts
+  s_1662d0c5dde644::t_7e4227c457876a 1-52
+packages/providers/src/providers/prompt-optimize/provider.ts
+  s_1662d0c5dde644::t_04679592f7996d 1-111
+packages/providers/src/registry/builtins.ts
+  s_1662d0c5dde644::t_561970fe6d5b66 5,16
+packages/providers/tests/prompt-optimize-provider.test.ts
+  s_1662d0c5dde644::t_3df8c06d01d67b 1-106
+packages/providers/tests/registry-exports.test.ts
+  s_1662d0c5dde644::t_84ac4bca924857 7,10,19,22,25,30-35
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.3",
+  "base_commit_sha": "140713ccf02cb6484de4538a6ed134c07e0cedee",
+  "prompts": {},
+  "humans": {
+    "h_36ccd825a182d0": {
+      "author": "Sinyuk <80998062@qq.com>"
+    }
+  },
+  "sessions": {
+    "s_1662d0c5dde644": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "019f08a3-a421-7d63-89ca-b4611d98f2f4",
+        "model": "unknown"
+      },
+      "human_author": "Sinyuk <80998062@qq.com>"
+    }
+  }
+}
