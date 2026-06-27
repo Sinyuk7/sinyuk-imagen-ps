@@ -7,7 +7,6 @@ const highAuthorityDocs = [
   'docs/TESTING.md',
   'docs/agent/LOOP.md',
   'apps/app/AGENTS.md',
-  'apps/cli/AGENTS.md',
   'packages/AGENTS.md',
   'packages/application/AGENTS.md',
   'packages/core-engine/AGENTS.md',

@@ -524,7 +524,7 @@ export function setProviderConfigResolver(resolver: ProviderConfigResolver): voi
 }
 
 /** 配置 application runtime 的日志 sink 与表面。 */
-export function configureRuntimeLogging(sink: LogSink, surface: 'cli' | 'uxp'): void {
+export function configureRuntimeLogging(sink: LogSink, surface: 'uxp'): void {
   runtimeLogger = createLogger({
     sink,
     context: {

@@ -1,6 +1,6 @@
 ---
 name: requirement-to-loop-planner
-description: Convert a new repository requirement or multi-step change into a bounded Loop plan before implementation. Use when work is not already a confirmed bug fix and needs goal/scope/ownership/harness/stop-rule planning, including architecture changes, provider behavior, CLI command behavior, Photoshop UXP workflow changes, or refactors with unclear boundaries.
+description: Convert a new repository requirement or multi-step change into a bounded Loop plan before implementation. Use when work is not already a confirmed bug fix and needs goal/scope/ownership/harness/stop-rule planning, including architecture changes, provider behavior, Photoshop UXP workflow changes, or refactors with unclear boundaries.
 ---
 
 # Requirement To Loop Planner
@@ -43,7 +43,6 @@ bug fix with symptom, expected behavior, and reproduction evidence, hand off to
 
 ## Repository Boundaries
 
-- CLI behavior belongs in `apps/cli`.
 - Photoshop / UXP host IO belongs in `apps/app/src/host/` or injected app adapters.
 - Session, profile/model coordination, request builders, and command facades belong in `packages/application`.
 - Job lifecycle and dispatch boundary belong in `packages/core-engine`.

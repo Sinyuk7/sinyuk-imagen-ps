@@ -9,10 +9,11 @@ catalog and React provider live in `apps/app/src/shared/ui/i18n/`.
 
 ## Why future development needs this
 
-`packages/application`, `packages/core-engine`, `packages/providers`, and
-`apps/cli` must not own UI copy or locale state. UI still reaches application
-behavior only through `AppServices.commands`; Photoshop/UXP IO stays under
-adapters/shells.
+`packages/application`, `packages/core-engine`, and `packages/providers` must
+not own UI copy or locale state. (The former `apps/cli` surface was removed;
+its old tests are no longer relevant to this boundary.) UI still reaches
+application behavior only through `AppServices.commands`; Photoshop/UXP IO stays
+under adapters/shells.
 
 ## Copy policy
 

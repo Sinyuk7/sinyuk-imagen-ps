@@ -4,14 +4,13 @@ This file stores repository engineering context that should stay out of root `AG
 
 ## Project Overview
 
-`sinyuk-imagen-ps` is a Photoshop image-generation monorepo with two surface apps and shared runtime/application packages.
+`sinyuk-imagen-ps` is a Photoshop image-generation monorepo with one surface app and shared runtime/application packages.
 
 ## Module Roles
 
 | Module | Role | Owns | Must Not Own |
 |---|---|---|---|
-| `apps/app` | Photoshop UXP + Chrome app surface | shared React UI, app ports, UXP shell/adapters, Chrome shell/adapters, Photoshop simulator, UI-local bindings | runtime internals, provider transport semantics, CLI parser |
-| `apps/cli` | Node CLI surface | commander parsing, stdout/stderr, Node adapters | UI, Photoshop/UXP IO, runtime internals |
+| `apps/app` | Photoshop UXP + Chrome app surface | shared React UI, app ports, UXP shell/adapters, Chrome shell/adapters, Photoshop simulator, UI-local bindings | runtime internals, provider transport semantics |
 | `packages/application` | application/session layer | session controller, command facade, request builders, runtime assembly, profile/model coordination | React, DOM, Photoshop, UXP, Node fs/path/os |
 | `packages/core-engine` | job execution kernel | job facts, lifecycle, store, events, runner, dispatch boundary | profile/model selection, host persistence, provider raw transport |
 | `packages/providers` | provider adapter layer | config/request validation, transport, normalization, error mapping | app/session state, job lifecycle, host IO |
@@ -27,7 +26,7 @@ surface apps -> application/session -> core-engine + providers
 
 - Active loop authority is declared only in root `AGENTS.md`. No active loop is currently declared.
 - `packages/application` is the shared application/session package.
-- `apps/app`, `apps/cli`, and `packages/providers` are stable boundaries unless a loop slice explicitly allows changes.
+- `apps/app` and `packages/providers` are stable boundaries unless a loop slice explicitly allows changes.
 - `apps/app` is a dual-runtime surface: one shared UXP-safe React UI consumed by a Photoshop UXP shell and a Chrome browser shell. See `apps/app/AGENTS.md` and `apps/app/README.md`.
 
 ## Logging Contract
@@ -37,7 +36,7 @@ surface apps -> application/session -> core-engine + providers
 - Format: JSONL / NDJSON, one stable JSON object per line.
 - Trace fields: top-level commands and host entries create a trace; child spans preserve parent/child linkage.
 - Redaction: secrets, authorization values, raw provider payload dumps, absolute local paths, and environment dumps are removed or sanitized before logging.
-- Sink boundary: shared logging constructs records and applies redaction; host adapters own storage (CLI Node file sink, UXP data-folder sink).
+- Sink boundary: shared logging constructs records and applies redaction; host adapters own storage (UXP data-folder sink, Chrome IndexedDB-style sink).
 - Failure mode: logging is fail-open and must not break product behavior.
 - No raw provider request/response logging and no remote telemetry pipeline.
 
@@ -50,7 +49,7 @@ surface apps -> application/session -> core-engine + providers
 
 ## Open Questions
 
-- CLI platform paths: `IMAGEN_CONFIG_DIR` and `IMAGEN_LOG_DIR` are split today, but config / data / state / cache / logs defaults are not yet unified, and Linux / Windows defaults are not explicitly specified (current defaults are macOS-only).
+- Host storage paths: UXP data-folder and Chrome storage defaults are not yet unified across platforms, and Linux / Windows defaults are not explicitly specified (current defaults are macOS-only).
 
 ## Code Placement Rules
 
@@ -60,7 +59,6 @@ surface apps -> application/session -> core-engine + providers
 | App ports and host image wrappers | `apps/app/src/shared/ports/`, `apps/app/src/shared/domain/` |
 | Photoshop / UXP host IO | `apps/app/src/adapters/uxp/`, `apps/app/src/shells/uxp/` |
 | Chrome host IO and simulator | `apps/app/src/adapters/chrome/`, `apps/app/src/simulators/photoshop/` |
-| CLI parser, stdout/stderr, Node adapters | `apps/cli` |
 | Session state, commands, profile/model coordination | `packages/application` |
 | Request builders | `packages/application/src/requests/` |
 | Job facts, events, runner, dispatch contracts | `packages/core-engine` |

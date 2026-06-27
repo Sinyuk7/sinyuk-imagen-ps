@@ -135,8 +135,10 @@ history 2 条（1 failed + 1 completed）、retry 记录 `originJobId`+`retryAtt
 - idempotency key 当前从规范化 request 字段（operation/prompt/imageCount/providerOptions）派生，
   `invoke` args 不携带 job origin；相同 prompt 的独立请求存在 key 碰撞风险。干净的长期方案是
   扩展 `ProviderInvokeArgs` 携带 `requestId`（本 slice 不做）。
-- 跨进程 / 跨重载去重不在内存 session registry 覆盖范围：CLI 跨进程、浏览器 reload 后 in-flight
+- 跨进程 / 跨重载去重不在内存 session registry 覆盖范围：浏览器 reload 后 in-flight
   状态丢失。交互宿主单 in-flight + 按钮禁用部分缓解，但 reload 期间重复提交仍是残余风险。
+  (The former `apps/cli` surface was removed, so CLI cross-process behavior is
+  no longer in scope.)
 - 502/504 是否「可证明未处理」存在判断空间；本 slice 保守判为模糊、无 idempotency 时不重试。
   若某 provider 能证明其 502/504 恒为预处理，可声明 `transport.retryPolicy` 重新启用。
 

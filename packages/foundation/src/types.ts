@@ -8,10 +8,10 @@
 export type LogLevel = 'debug' | 'info' | 'warn' | 'error';
 
 /** 日志来源表面。 */
-export type LogSurface = 'cli' | 'uxp' | 'test' | 'unknown';
+export type LogSurface = 'uxp' | 'test' | 'unknown';
 
 /** 产生日志的 workspace 包。 */
-export type LogPackage = 'foundation' | 'application' | 'core-engine' | 'providers' | 'cli' | 'app';
+export type LogPackage = 'foundation' | 'application' | 'core-engine' | 'providers' | 'app';
 
 /** 细分组件。 */
 export type LogComponent =

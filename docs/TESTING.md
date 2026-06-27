@@ -29,7 +29,7 @@ pnpm check:policy
 runs build, default tests, and policy checks.
 
 `pnpm test` uses the Turbo pipeline and includes the stable mock-only tests for
-foundation, core-engine, providers, application, app, and CLI surfaces.
+foundation, core-engine, providers, application, and app surfaces.
 
 `pnpm check:policy` is the local architecture and documentation policy gate. It
 checks package import boundaries, high-authority documentation wording, and
@@ -47,13 +47,10 @@ pnpm --filter @imagen-ps/app build:uxp
 pnpm --filter @imagen-ps/app build:chrome
 pnpm --filter @imagen-ps/app test
 pnpm --filter @imagen-ps/app test:chrome-e2e
-pnpm --filter @imagen-ps/cli build
-pnpm --filter @imagen-ps/cli test
 ```
 
-Filtered tests are not a clean-checkout baseline. CLI contract and smoke tests
-run `apps/cli/dist/index.js` in subprocesses, so build the CLI first when in
-doubt.
+Filtered tests are not a clean-checkout baseline. Build the touched packages
+first when in doubt.
 
 `pnpm --filter @imagen-ps/app test:chrome-e2e` is an opt-in Chrome browser E2E
 gate for the app Chrome build. It builds `dist/web/`, serves it locally, runs
@@ -73,7 +70,7 @@ Loop documents must classify validation commands before citing them.
 | per-slice | Focused checks for the touched owner boundary. | Filtered package build/test commands above. | Requires the related package build state to be valid. |
 | final | Default closeout for non-trivial completed work. | `pnpm validate` | Aligns with the default CI gate. |
 | manual-only | Human-observed host behavior. | UXP Developer Tool + Photoshop smoke checklist. | Fake UXP tests and Vite build do not prove real Photoshop host IO. |
-| live-provider | Opt-in provider smoke using network, credentials, or paid APIs. | `pnpm build` then `IMAGEN_RUN_SMOKE=1 pnpm --filter @imagen-ps/cli test` | Never part of default CI or default Loop validation. |
+| live-provider | Opt-in provider smoke using network, credentials, or paid APIs. | Currently no active smoke harness. | Never part of default CI or default Loop validation. |
 
 `pnpm lint` is not a supported Loop gate today. The root `package.json` has a
 `lint` script, but workspace packages do not define package-level lint scripts.
@@ -91,9 +88,6 @@ Default tests are mock-only and reproducible:
   transport builders, response parsing, diagnostics, and provider descriptors.
 - `packages/application`: command/session facade, profile/model coordination,
   request mapping, runtime assembly, and logging wiring.
-- `apps/cli`: parser contract, subprocess stdout/stderr, config/log dir
-  isolation, profile/job commands, durable history, retry, and `--out`
-  artifacts.
 - `apps/app`: shared React-to-application seam, UXP and Chrome port adapters,
   Chrome IndexedDB-style storage boundary, deterministic Photoshop simulator,
   history/settings flows, and Photoshop bridge call mapping through fakes.
@@ -110,16 +104,8 @@ Chrome browser smoke is repo-side evidence only when it loads the browser build
 in a real browser and reports the Chrome shell ready state. It still does not
 prove real Photoshop / UXP host behavior or live provider behavior.
 
-Live provider smoke is opt-in:
-
-```bash
-pnpm build
-IMAGEN_RUN_SMOKE=1 pnpm --filter @imagen-ps/cli test
-```
-
-Provider matrix, `.test.env` variables, proxy notes, retained output artifacts,
-and sidecar inspection details live in
-`apps/cli/tests/smoke/README.md`.
+Live provider smoke is currently not available after the CLI surface was
+removed. If a new smoke harness is added, it must stay opt-in and config-driven.
 
 ## CI Boundary
 
