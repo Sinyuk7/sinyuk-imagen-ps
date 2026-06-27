@@ -1,0 +1,34 @@
+.test.env.example
+  s_ac0c23d9c12b69::t_72a67d4c5df2ea 19-26
+apps/app/src/shared/ui/app-shell.tsx
+  s_ac0c23d9c12b69::t_28ef38e5c33a82 83-84,97-98,100,107,110-111,137,173-174,210,215,226-227,235,239-240,247-250
+apps/app/tests/app-shell.test.tsx
+  s_ac0c23d9c12b69::t_47b3351130e523 145-221
+apps/app/tests/main-page.test.tsx
+  s_ac0c23d9c12b69::t_ff0d4e88fa89a8 211-266
+apps/app/tests/settings-detail-page.test.tsx
+  s_ac0c23d9c12b69::t_4b3530af96d735 5,57-83,191-212
+packages/application/src/commands/prompt-optimize.test.ts
+  s_ac0c23d9c12b69::t_9c7176bfa522d9 146-175
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.3",
+  "base_commit_sha": "4021ea3c953b58c579f990af8564bb9867b40fbb",
+  "prompts": {},
+  "humans": {
+    "h_36ccd825a182d0": {
+      "author": "Sinyuk <80998062@qq.com>"
+    }
+  },
+  "sessions": {
+    "s_ac0c23d9c12b69": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "019f0947-c41c-76b1-8442-545a5ddf0491",
+        "model": "unknown"
+      },
+      "human_author": "Sinyuk <80998062@qq.com>"
+    }
+  }
+}
