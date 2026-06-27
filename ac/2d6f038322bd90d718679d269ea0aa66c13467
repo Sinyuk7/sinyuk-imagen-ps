@@ -1,0 +1,27 @@
+apps/app/README.md
+  s_26973d51956f5b::t_aaa9bec8ca3e04 59-60
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.3",
+  "base_commit_sha": "ac2d6f038322bd90d718679d269ea0aa66c13467",
+  "prompts": {},
+  "sessions": {
+    "s_26973d51956f5b": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "019f09c7-1916-7f12-a2ab-76d086f9ce1c",
+        "model": "unknown"
+      },
+      "human_author": "Sinyuk <80998062@qq.com>"
+    },
+    "s_32a50ec1d0a8b0": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "019f0a1c-559e-7612-8283-39a2d8311947",
+        "model": "unknown"
+      },
+      "human_author": "Sinyuk <80998062@qq.com>"
+    }
+  }
+}
