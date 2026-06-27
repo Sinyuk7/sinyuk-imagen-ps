@@ -80,7 +80,8 @@ function AppShellContent({ host }: AppShellProps) {
   const { messages: t } = useI18n();
   const services = host.services;
   const [view, setView] = useState<View>('main');
-  const [selectedProfileId, setSelectedProfileId] = useState<string | null>(null);
+  const [selectedImageProfileId, setSelectedImageProfileId] = useState<string | null>(null);
+  const [selectedSettingsProfileId, setSelectedSettingsProfileId] = useState<string | null>(null);
   const [selectedModelId, setSelectedModelId] = useState('');
   const [highlightedRoundId, setHighlightedRoundId] = useState<string | null>(null);
   const profilesState = useProviderProfiles(services);
@@ -93,21 +94,21 @@ function AppShellContent({ host }: AppShellProps) {
     [profilesState.profiles],
   );
   const selectedProfile = useMemo(
-    () => imageProfiles.find((profile) => profile.profileId === selectedProfileId),
-    [imageProfiles, selectedProfileId],
+    () => imageProfiles.find((profile) => profile.profileId === selectedImageProfileId),
+    [imageProfiles, selectedImageProfileId],
   );
-  const modelsState = useProfileModels(services, selectedProfileId);
+  const modelsState = useProfileModels(services, selectedImageProfileId);
   const imagenSession = useImagenSession(services);
   const conversation = useConversation(services, imagenSession, t.conversation);
   const history = useJobHistory(services);
   const { layers, layersError, reloadLayers } = useHostLayers(host);
 
   useEffect(() => {
-    if (selectedProfileId && imageProfiles.some((profile) => profile.profileId === selectedProfileId)) {
+    if (selectedImageProfileId && imageProfiles.some((profile) => profile.profileId === selectedImageProfileId)) {
       return;
     }
-    setSelectedProfileId(imageProfiles[0]?.profileId ?? null);
-  }, [imageProfiles, selectedProfileId]);
+    setSelectedImageProfileId(imageProfiles[0]?.profileId ?? null);
+  }, [imageProfiles, selectedImageProfileId]);
 
   useEffect(() => {
     void services.commands.ensurePromptOptimizerProfile().then((result) => {
@@ -133,7 +134,7 @@ function AppShellContent({ host }: AppShellProps) {
 
   const onEditProfile = useCallback(
     (profileId: string) => {
-      setSelectedProfileId(profileId);
+      setSelectedSettingsProfileId(profileId);
       setView('settings-detail');
     },
     [],
@@ -169,8 +170,8 @@ function AppShellContent({ host }: AppShellProps) {
           profilesLoading={profilesState.loading}
           profilesError={profilesState.error}
           selectedProfile={selectedProfile}
-          selectedProfileId={selectedProfileId}
-          onSelectProfile={setSelectedProfileId}
+          selectedProfileId={selectedImageProfileId}
+          onSelectProfile={setSelectedImageProfileId}
           models={modelsState.models}
           modelsLoading={modelsState.loading}
           modelsError={modelsState.error}
@@ -206,12 +207,12 @@ function AppShellContent({ host }: AppShellProps) {
           error={profilesState.error}
           onReload={profilesState.reload}
           onOpenProfile={(profileId) => {
-            setSelectedProfileId(profileId);
+            setSelectedSettingsProfileId(profileId);
             setView('settings-detail');
           }}
           promptOptimizerProfile={promptOptimizerProfile}
           onOpenPromptOptimizer={() => {
-            setSelectedProfileId(PROMPT_OPTIMIZER_PROFILE_ID);
+            setSelectedSettingsProfileId(PROMPT_OPTIMIZER_PROFILE_ID);
             setView('settings-detail');
           }}
         />
@@ -222,7 +223,8 @@ function AppShellContent({ host }: AppShellProps) {
           profiles={imageProfiles}
           onProfileSaved={async (profileId) => {
             await profilesState.reload();
-            setSelectedProfileId(profileId);
+            setSelectedImageProfileId(profileId);
+            setSelectedSettingsProfileId(profileId);
             setView('settings-detail');
           }}
         />
@@ -230,18 +232,22 @@ function AppShellContent({ host }: AppShellProps) {
       {view === 'settings-detail' && (
         <SettingsDetailPage
           onNav={onNav}
-          profileId={selectedProfileId}
+          profileId={selectedSettingsProfileId}
           onProfilesChanged={async (profileId) => {
             await services.diagnostics?.checkpoint('uxp.ui.app_shell.profiles_changed.entered', {
               profileId,
-              currentSelectedProfileId: selectedProfileId,
+              currentSelectedImageProfileId: selectedImageProfileId,
+              currentSelectedSettingsProfileId: selectedSettingsProfileId,
             });
             try {
               await services.diagnostics?.checkpoint('uxp.ui.app_shell.profiles_changed.before_reload', { profileId });
               await profilesState.reload();
               await services.diagnostics?.checkpoint('uxp.ui.app_shell.profiles_changed.after_reload', { profileId });
               await services.diagnostics?.checkpoint('uxp.ui.app_shell.profiles_changed.before_select_profile', { profileId });
-              setSelectedProfileId(profileId);
+              setSelectedSettingsProfileId(profileId);
+              if (profileId && profileId !== PROMPT_OPTIMIZER_PROFILE_ID) {
+                setSelectedImageProfileId(profileId);
+              }
               await services.diagnostics?.checkpoint('uxp.ui.app_shell.profiles_changed.after_select_profile', { profileId });
             } catch (error) {
               await services.diagnostics?.failure('uxp.ui.app_shell.profiles_changed.failed', error, { profileId });

@@ -6,7 +6,7 @@ import { Icon } from '../components/icons';
 import { StatusNotice } from '../components/status-notice';
 import { UxpTextArea } from '../components/uxp-form-controls';
 import { useI18n } from '../i18n/i18n-context';
-import { Button, Checkbox, TextField, ActionButton, FieldLabel, Divider } from '../primitives/spectrum-controls';
+import { Button, Checkbox, TextField, ActionButton, FieldLabel, HelpText, Divider } from '../primitives/spectrum-controls';
 import { statusFromProviderTestResult, type ProviderStatus } from '../provider-status';
 
 interface SettingsDetailPageProps {
@@ -294,6 +294,7 @@ export function SettingsDetailPage({ onNav, profileId, onProfilesChanged }: Sett
               <div className="field">
                 <FieldLabel htmlFor="provider-base-url-input">Base URL</FieldLabel>
                 <TextField data-testid="provider-base-url-input" id="provider-base-url-input" className="field-input mono swc-field" value={baseUrl} onValue={setBaseUrl} />
+                <HelpText className="field-hint">{t.settings.baseUrlHint}</HelpText>
               </div>
               <div className="field">
                 <FieldLabel htmlFor="provider-api-key-input">API Key</FieldLabel>

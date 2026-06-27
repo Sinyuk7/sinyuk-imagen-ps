@@ -277,7 +277,9 @@ export async function validatePromptOptimizerProfile(
     span.fail(error);
     return {
       ok: false,
-      error: createProviderError(errorMessage(error, `Prompt Optimizer validation failed for profile "${profileId}".`), {
+      error: createProviderError(
+        `Prompt Optimizer validation failed for profile "${profileId}": ${errorMessage(error, 'unknown error')}`,
+        {
         profileId,
       }),
     };

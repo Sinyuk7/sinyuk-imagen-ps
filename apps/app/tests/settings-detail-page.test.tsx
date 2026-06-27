@@ -2,7 +2,7 @@ import { act } from 'react';
 import { createRoot, type Root } from 'react-dom/client';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { SettingsDetailPage } from '../src/shared/ui/pages/settings-detail-page';
-import { createFakeServices } from './fakes';
+import { createFakeServices, fakeOptimizerProfile } from './fakes';
 import { TestAppProviders } from './render-helpers';
 import type { UxpFlightRecorder } from '../src/host/uxp-log-sink';
 
@@ -44,6 +44,33 @@ async function renderDetail(container: HTMLElement, onProfilesChanged = vi.fn(as
         <SettingsDetailPage
           onNav={vi.fn()}
           profileId="mock-profile"
+          onProfilesChanged={onProfilesChanged}
+        />
+      </TestAppProviders>,
+    );
+  });
+  await flush();
+  await flush();
+  return { ...services, onProfilesChanged };
+}
+
+async function renderOptimizerDetail(container: HTMLElement, onProfilesChanged = vi.fn(async () => undefined)) {
+  const services = createFakeServices();
+  services.spies.getProviderProfile.mockResolvedValue({
+    ok: true as const,
+    value: fakeOptimizerProfile,
+  });
+  services.spies.listProfileModels.mockResolvedValue({
+    ok: true as const,
+    value: [{ id: 'gpt-4o-mini' }, { id: 'gpt-4.1-mini' }],
+  });
+  root = createRoot(container);
+  await act(async () => {
+    root!.render(
+      <TestAppProviders services={services.services}>
+        <SettingsDetailPage
+          onNav={vi.fn()}
+          profileId="__prompt-optimizer__"
           onProfilesChanged={onProfilesChanged}
         />
       </TestAppProviders>,
@@ -159,6 +186,28 @@ describe('SettingsDetailPage contract', () => {
     await flush();
 
     expect(spies.refreshProfileModels).toHaveBeenCalledWith('mock-profile');
+  });
+
+  it('tests Prompt Optimizer through the dedicated validation command', async () => {
+    const container = document.createElement('div');
+    document.body.appendChild(container);
+    const { spies, onProfilesChanged } = await renderOptimizerDetail(container);
+
+    await act(async () => {
+      buttonByText(container, '测试连接').click();
+    });
+    await flush();
+
+    expect(spies.saveProviderProfile).toHaveBeenCalledWith(
+      expect.objectContaining({
+        profileId: '__prompt-optimizer__',
+        providerId: 'prompt-optimize',
+      }),
+    );
+    expect(spies.validatePromptOptimizerProfile).toHaveBeenCalledWith('__prompt-optimizer__');
+    expect(spies.testProviderProfile).not.toHaveBeenCalled();
+    expect(onProfilesChanged).toHaveBeenCalledWith('__prompt-optimizer__');
+    expect(container.textContent).toContain('连接成功');
   });
 
   it('shows copyable connection errors instead of a saved status while testing', async () => {

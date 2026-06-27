@@ -208,6 +208,62 @@ describe('MainPage contract', () => {
     );
   });
 
+  it('主输入区 provider 与 model 选择不包含 Prompt Optimizer', async () => {
+    const container = document.createElement('div');
+    document.body.appendChild(container);
+    const services = createFakeServices();
+    services.services.commands.listProviderProfiles = vi.fn(async () => ({
+      ok: true as const,
+      value: [
+        {
+          profileId: 'mock-profile',
+          providerId: 'mock',
+          displayName: 'Mock Profile',
+          enabled: true,
+          config: {
+            providerId: 'mock',
+            displayName: 'Mock Profile',
+            family: 'image-endpoint',
+            baseURL: 'https://mock.local',
+            defaultModel: 'mock-image-v1',
+          },
+          secretRefs: {
+            apiKey: 'secret:provider-profile:mock-profile:apiKey',
+          },
+          createdAt: '2026-06-15T00:00:00.000Z',
+          updatedAt: '2026-06-15T00:00:00.000Z',
+        },
+        {
+          profileId: '__prompt-optimizer__',
+          providerId: 'prompt-optimize',
+          displayName: 'Prompt Optimizer',
+          enabled: true,
+          config: {
+            providerId: 'prompt-optimize',
+            displayName: 'Prompt Optimizer',
+            family: 'prompt-optimize',
+            baseURL: 'https://openrouter.ai/api/v1',
+            defaultModel: 'gpt-4o-mini',
+            instruction: 'Rewrite the prompt.',
+            testPrompt: 'test',
+          },
+          createdAt: '2026-06-15T00:00:00.000Z',
+          updatedAt: '2026-06-15T00:00:00.000Z',
+        },
+      ],
+    }));
+    await renderApp(container, services);
+
+    await act(async () => {
+      container.querySelector<HTMLElement>('[data-testid="main-profile-selector"]')!.click();
+    });
+    await flush();
+
+    expect(container.querySelector('[data-testid="profile-menu-option-mock-profile"]')).not.toBeNull();
+    expect(container.querySelector('[data-testid="profile-menu-option-__prompt-optimizer__"]')).toBeNull();
+    expect(container.textContent).not.toContain('prompt-optimize');
+  });
+
   it('Composer 底部控制行按左右分组结构契约', async () => {
     const container = document.createElement('div');
     document.body.appendChild(container);

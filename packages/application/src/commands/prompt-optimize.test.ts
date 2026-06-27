@@ -143,6 +143,36 @@ describe('prompt-optimize commands', () => {
     fetchSpy.mockRestore();
   });
 
+  it('uses the optimizer profile defaultModel as the actual request model', async () => {
+    _resetForTesting();
+    setProviderProfileRepository(
+      createProfileRepository([
+        {
+          ...optimizerProfile,
+          config: {
+            ...optimizerProfile.config,
+            defaultModel: 'openai/gpt-4.1-mini',
+          },
+        },
+      ]),
+    );
+    setSecretStorageAdapter(createSecretStorage());
+    const fetchSpy = vi.spyOn(globalThis, 'fetch').mockImplementation(async (_input, init) => {
+      const body = JSON.parse(String(init?.body ?? '{}')) as { model?: string };
+      expect(body.model).toBe('openai/gpt-4.1-mini');
+      return mockChatCompletionResponse('optimized with configured model');
+    });
+
+    const result = await optimizePrompt({ prompt: 'a red square' });
+
+    expect(result.ok).toBe(true);
+    if (!result.ok) {
+      return;
+    }
+    expect(result.value).toBe('optimized with configured model');
+    fetchSpy.mockRestore();
+  });
+
   it('rejects empty optimizer response', async () => {
     _resetForTesting();
     setProviderProfileRepository(createProfileRepository([optimizerProfile]));
