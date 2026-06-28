@@ -1,0 +1,28 @@
+docs/loops/review.md
+  h_36ccd825a182d0 1-1119
+apps/app/src/shared/image/resize.ts
+  s_d00100f4c4cee1::t_766a087105e1a3 1-483
+apps/app/tests/image-resize.test.ts
+  s_d00100f4c4cee1::t_60e9c054f49713 1-110
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.3",
+  "base_commit_sha": "789b75bcda44b490dffc39e7542ae0863a1df04f",
+  "prompts": {},
+  "humans": {
+    "h_36ccd825a182d0": {
+      "author": "Sinyuk <80998062@qq.com>"
+    }
+  },
+  "sessions": {
+    "s_d00100f4c4cee1": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "019f0e44-bb8d-7750-bfcf-ced5495238ba",
+        "model": "unknown"
+      },
+      "human_author": "Sinyuk <80998062@qq.com>"
+    }
+  }
+}
