@@ -1,0 +1,24 @@
+apps/app/src/shells/uxp/uxp-panel-runtime.tsx
+  s_c6a3ce914cacdc::t_0190eae859afe5 7,33,211-225,248,255-264,282-286,288-290,308-339,354,394
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.3",
+  "base_commit_sha": "616d0ab1b25a42f519201aa01926873f6e572f5f",
+  "prompts": {},
+  "humans": {
+    "h_36ccd825a182d0": {
+      "author": "Sinyuk <80998062@qq.com>"
+    }
+  },
+  "sessions": {
+    "s_c6a3ce914cacdc": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "019f0cb5-0c1e-7103-a5bd-8804e8b977ef",
+        "model": "unknown"
+      },
+      "human_author": "Sinyuk <80998062@qq.com>"
+    }
+  }
+}
