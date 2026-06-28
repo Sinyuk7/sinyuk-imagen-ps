@@ -4,6 +4,7 @@ import type { PluginHostShell } from './create-plugin-host-shell';
 import { createPluginHostShell } from './create-plugin-host-shell';
 import { readRecentLogRecords } from '../../adapters/uxp/uxp-diagnostics';
 import { resolveUxpModules, type UxpModules } from '../../adapters/uxp/uxp-api';
+import { renderRuntimeHarness, resolveUxpHarness } from '../../harness/runtime-harness';
 
 interface UxpPanelController {
   create?(): HTMLElement | undefined;
@@ -29,6 +30,7 @@ interface UxpEntrypointsModule {
 export interface ImagenPanelRuntime {
   readonly host: PluginHostShell | undefined;
   mount(rootEl: HTMLElement | null): PluginHostShell | undefined;
+  setRecoveryCleanup(cleanup: (() => void) | undefined): void;
   dispose(): void;
 }
 
@@ -206,6 +208,21 @@ export function createImagenPanelRuntime(options?: ImagenPanelRuntimeOptions): I
   let reactRoot: Root | undefined;
   let host: PluginHostShell | undefined;
   let mountedRootEl: HTMLElement | undefined;
+  let recoveryCleanup: (() => void) | undefined;
+
+  const teardownMountedState = (): void => {
+    clearHostSmokeHandle();
+    unmountReactRoot();
+    reactRoot = undefined;
+    mountedRootEl = undefined;
+    try {
+      host?.dispose?.();
+    } catch (error) {
+      console.warn('Imagen PS host shell dispose failed', error);
+    } finally {
+      host = undefined;
+    }
+  };
 
   const runtime: ImagenPanelRuntime = {
     get host() {
@@ -228,15 +245,23 @@ export function createImagenPanelRuntime(options?: ImagenPanelRuntimeOptions): I
         return host;
       }
 
-      runtime.dispose();
+      teardownMountedState();
       mountedRootEl = rootEl;
       clearHostSmokeHandle();
 
       try {
-        host = createHost();
-        bootstrapCheckpoint('panel.bootstrap.host_shell.created');
         reactRoot = createRoot(rootEl);
         globalThis.__IMAGEN_PS_REACT_ROOT__ = reactRoot;
+        const harness = resolveUxpHarness();
+        if (harness) {
+          bootstrapCheckpoint('panel.bootstrap.runtime.harness', { harness });
+          reactRoot.render(renderRuntimeHarness(harness));
+          bootstrapCheckpoint('panel.bootstrap.react.rendered');
+          bootstrapCheckpoint('panel.bootstrap.runtime.mount.complete', { hasHost: false, harness });
+          return undefined;
+        }
+        host = createHost();
+        bootstrapCheckpoint('panel.bootstrap.host_shell.created');
         reactRoot.render(<AppShell host={host} />);
         bootstrapCheckpoint('panel.bootstrap.react.rendered');
         exposeHostSmokeHandle(host, resolveModules);
@@ -254,18 +279,15 @@ export function createImagenPanelRuntime(options?: ImagenPanelRuntimeOptions): I
       }
     },
 
+    setRecoveryCleanup(cleanup: (() => void) | undefined): void {
+      recoveryCleanup?.();
+      recoveryCleanup = cleanup;
+    },
+
     dispose(): void {
-      clearHostSmokeHandle();
-      unmountReactRoot();
-      reactRoot = undefined;
-      mountedRootEl = undefined;
-      try {
-        host?.dispose?.();
-      } catch (error) {
-        console.warn('Imagen PS host shell dispose failed', error);
-      } finally {
-        host = undefined;
-      }
+      recoveryCleanup?.();
+      recoveryCleanup = undefined;
+      teardownMountedState();
     },
   };
 
@@ -283,6 +305,38 @@ function rootElementById(rootId: string): HTMLElement | null {
   return document.getElementById(rootId);
 }
 
+function installPanelRecoveryListeners(options: {
+  readonly runtime: ImagenPanelRuntime;
+  readonly rootId: string;
+}): () => void {
+  if (typeof window === 'undefined' || typeof document === 'undefined') {
+    return () => undefined;
+  }
+
+  const resume = (reason: 'focus' | 'visibilitychange'): void => {
+    bootstrapCheckpoint('panel.bootstrap.panel.resume', { reason });
+    options.runtime.mount(rootElementById(options.rootId));
+  };
+
+  const handleFocus = (): void => {
+    resume('focus');
+  };
+  const handleVisibilityChange = (): void => {
+    if (document.visibilityState !== 'visible') {
+      return;
+    }
+    resume('visibilitychange');
+  };
+
+  window.addEventListener('focus', handleFocus);
+  document.addEventListener('visibilitychange', handleVisibilityChange);
+
+  return () => {
+    window.removeEventListener('focus', handleFocus);
+    document.removeEventListener('visibilitychange', handleVisibilityChange);
+  };
+}
+
 export function installUxpPanelEntrypoints(
   runtime: ImagenPanelRuntime,
   modules: UxpModules,
@@ -297,6 +351,7 @@ export function installUxpPanelEntrypoints(
   const rootId = options?.rootId ?? 'root';
 
   try {
+    runtime.setRecoveryCleanup(installPanelRecoveryListeners({ runtime, rootId }));
     bootstrapCheckpoint('panel.bootstrap.entrypoints.setup.start', { panelId });
     entrypoints.setup({
       plugin: {
@@ -336,6 +391,7 @@ export function installUxpPanelEntrypoints(
     bootstrapCheckpoint('panel.bootstrap.entrypoints.setup.ok', { panelId });
     return true;
   } catch (error) {
+    runtime.setRecoveryCleanup(undefined);
     console.warn('Imagen PS UXP entrypoints setup failed', error);
     bootstrapFailure('panel.bootstrap.entrypoints.setup.failed', error, { panelId });
     return false;
