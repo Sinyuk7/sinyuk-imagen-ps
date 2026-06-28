@@ -126,7 +126,7 @@ export const COMPOSER_CSS = `
 .cmp-select{ position:relative; display:flex; align-items:center; min-width:0; flex-shrink:1; }
 .cmp-select-model{ flex:1 1 142px; min-width:112px; }
 .cmp-select-target{ flex:0 1 92px; min-width:74px; }
-.cmp-select-aspect{ flex:0 1 80px; min-width:70px; }
+.cmp-select-aspect{ flex:0 0 92px; min-width:92px; }
 .cmp-select-target{ margin-right:6px; }
 .cmp-select-menu{
   position:absolute; left:0; bottom:calc(100% + 6px); z-index:200;
@@ -231,7 +231,7 @@ export const COMPOSER_CSS = `
   display:flex; align-items:center;
   min-width:0; max-width:100%; width:100%;
   margin-top:0; margin-right:0; margin-bottom:0; margin-left:0;
-  min-height:28px; padding:4px 8px 4px 10px; border-radius:var(--app-radius-pill);
+  min-height:28px; padding:4px 8px 4px 10px; border-radius:var(--app-radius-medium);
   border:1px solid var(--app-color-border-default); background:var(--app-color-background-layer-1);
   font-family:var(--app-font-family-mono); font-size:10px; line-height:14px; color:var(--app-color-text-secondary);
   cursor:pointer; white-space:nowrap; user-select:none; flex-shrink:1;
@@ -285,6 +285,63 @@ export const COMPOSER_CSS = `
 }
 .cmp-chip.open .cmp-chip-arrow{ color:var(--app-color-text-primary); }
 .cmp-chip-chevron{ flex:0 0 auto; color:inherit; }
+.cmp-chip-sp-button{
+  width:100%;
+  min-width:100%;
+  max-width:100%;
+  --mod-button-min-width:0;
+  --mod-button-edge-to-text:10px;
+  --mod-button-edge-to-visual:10px;
+  --mod-button-padding-label-to-icon:8px;
+}
+.cmp-chip-icon-slot{
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
+  height:100%;
+  line-height:0;
+}
+.cmp-chip-leading-sp-button{
+  display:block;
+  margin-top:0;
+  margin-right:0;
+  margin-bottom:0;
+  margin-left:0;
+}
+.provider-model-dropdown{
+  flex:1 1 142px;
+  min-width:112px;
+  width:100%;
+}
+.cmp-chip-body-sp-button{
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
+  min-height:14px;
+  line-height:14px;
+  vertical-align:middle;
+}
+.cmp-chip-value-sp-button{
+  display:inline-flex;
+  align-items:center;
+  min-height:14px;
+  line-height:14px;
+}
+.cmp-chip-arrow-text{
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
+  flex:0 0 auto;
+  margin-top:0;
+  margin-right:0;
+  margin-bottom:0;
+  margin-left:8px;
+  color:inherit;
+  font-size:10px;
+  line-height:14px;
+  min-height:14px;
+  align-self:center;
+}
 .cmp-select-model .cmp-chip{ width:100%; min-width:0; }
 .cmp-sp{ flex:1; min-width:0; }
 .cmp-opt{
@@ -292,7 +349,7 @@ export const COMPOSER_CSS = `
   margin-top:0; margin-right:6px; margin-bottom:0; margin-left:0; color:var(--app-color-text-secondary); flex-shrink:0;
 }
 
-/* Send button (native, e2e checks HTMLButtonElement) */
+/* Send button */
 .send-wrap{ display:flex; align-items:stretch; border-radius:50%; overflow:hidden; flex-shrink:0; }
 .cmp-send{
   width:32px; height:32px; margin-top:0; margin-right:0; margin-bottom:0; margin-left:0; border:none;

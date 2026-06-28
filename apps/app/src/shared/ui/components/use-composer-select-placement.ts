@@ -45,7 +45,7 @@ interface UseComposerSelectPlacementOptions {
   readonly value: string;
   readonly selectedId: string;
   readonly testId?: string;
-  readonly chipRef: RefObject<HTMLButtonElement | null>;
+  readonly chipRef: RefObject<HTMLElement | null>;
   readonly chipBodyRef: RefObject<HTMLSpanElement | null>;
   readonly chipValueRef: RefObject<HTMLSpanElement | null>;
   readonly chipArrowRef: RefObject<HTMLSpanElement | null>;

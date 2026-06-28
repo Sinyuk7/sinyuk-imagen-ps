@@ -10,6 +10,7 @@ import type {
 } from '../hooks/use-conversation';
 import { Icon } from '../components/icons';
 import { ComposerSelect } from '../components/composer-select';
+import { ComposerSelectSpButton } from '../components/composer-select-sp-button';
 import { UxpTextArea } from '../components/uxp-form-controls';
 import { useToast, ToastHost } from '../components/toast-host';
 import { ActionButton } from '../primitives/spectrum-controls';
@@ -347,7 +348,7 @@ export function MainPage({
           placement="bottom"
           onClick={(event) => { event.stopPropagation(); onNav('history'); }}
         >
-          <Icon name="history" />
+          <Icon name="history" slot="icon" />
         </ActionButton>
         <button
           data-testid="main-profile-selector"
@@ -369,7 +370,7 @@ export function MainPage({
           placement="bottom"
           onClick={(event) => { event.stopPropagation(); onNav('settings'); }}
         >
-          <Icon name="settings" />
+          <Icon name="settings" slot="icon" />
         </ActionButton>
       </header>
 
@@ -451,7 +452,7 @@ export function MainPage({
                       label={t.main.reusePrompt}
                       onClick={(event) => { event.stopPropagation(); handleCopy(round.id, round); }}
                     >
-                      {copied[round.id] ? <Icon name="check" /> : <Icon name="copy" />}
+                      {copied[round.id] ? <Icon name="check" slot="icon" /> : <Icon name="copy" slot="icon" />}
                     </ActionButton>
                   </div>
                 </div>
@@ -477,7 +478,7 @@ export function MainPage({
                         label={t.main.copyPrompt}
                         onClick={(event) => { event.stopPropagation(); handleCopy(round.id, round); }}
                       >
-                        {copied[round.id] ? <Icon name="check" /> : <Icon name="copy" />}
+                        {copied[round.id] ? <Icon name="check" slot="icon" /> : <Icon name="copy" slot="icon" />}
                       </ActionButton>
                     </div>
                   </div>
@@ -559,7 +560,7 @@ export function MainPage({
                         label={t.main.placePs}
                         onClick={(event) => { event.stopPropagation(); void placeAsset(round); }}
                       >
-                        <Icon name="place-ps" />
+                        <Icon name="place-ps" slot="icon" />
                       </ActionButton>
                       <ActionButton
                         data-testid={`result-regenerate-button-${round.id}`}
@@ -569,7 +570,7 @@ export function MainPage({
                         disabled={conversation.running}
                         onClick={(event) => { event.stopPropagation(); void conversation.retry(round.id); }}
                       >
-                        <Icon name="regenerate" />
+                        <Icon name="regenerate" slot="icon" />
                       </ActionButton>
                       <ActionButton
                         data-testid={`result-copy-button-${round.id}`}
@@ -578,7 +579,7 @@ export function MainPage({
                         label={t.main.copyPrompt}
                         onClick={(event) => { event.stopPropagation(); handleCopy(`${round.id}-copy`, round); }}
                       >
-                        {copied[`${round.id}-copy`] ? <Icon name="check" /> : <Icon name="copy" />}
+                        {copied[`${round.id}-copy`] ? <Icon name="check" slot="icon" /> : <Icon name="copy" slot="icon" />}
                       </ActionButton>
                     </div>
                   </div>
@@ -698,7 +699,7 @@ export function MainPage({
                     setProfileMenuOpen(false);
                   }}
                   >
-                  <Icon name="add" />
+                  <Icon name="add" slot="icon" />
                 </ActionButton>
               </div>
               <div className="cmp-action-right">
@@ -719,18 +720,25 @@ export function MainPage({
                   }}
                 >
                   {optimizing
-                    ? <Icon name="spinner" size={13} className="spin" />
+                    ? <Icon name="spinner" size={13} className="spin" slot="icon" />
                     : showUndo
-                      ? <Icon name="refresh" />
-                      : <Icon name="magic-wand" />}
+                      ? <Icon name="refresh" slot="icon" />
+                      : <Icon name="magic-wand" slot="icon" />}
                 </ActionButton>
                 <div className="send-wrap">
-                  <button data-testid="composer-send-button" className="cmp-send" disabled={!canSend || optimizing} onClick={() => void handleSend()} title={t.main.send}>
+                  <ActionButton
+                    data-testid="composer-send-button"
+                    className="cmp-send"
+                    disabled={!canSend || optimizing}
+                    label={t.main.send}
+                    placement="top"
+                    onClick={() => void handleSend()}
+                  >
                     {conversation.running
-                      ? <Icon name="spinner" size={13} className="spin" />
-                      : <Icon name="send" />
+                      ? <Icon name="spinner" size={13} className="spin" slot="icon" />
+                      : <Icon name="send" slot="icon" />
                     }
-                  </button>
+                  </ActionButton>
                 </div>
               </div>
             </div>
@@ -769,7 +777,7 @@ export function MainPage({
                 onSelect={setTarget}
                 leadingIcon={target === 'layer' ? 'ps-layers' : 'selection'}
               />
-              <ComposerSelect
+              <ComposerSelectSpButton
                 testId="composer-aspect-ratio-selector"
                 containerClassName="cmp-select cmp-select-aspect"
                 menuClassName="cmp-select-menu cmp-select-menu-compact"
