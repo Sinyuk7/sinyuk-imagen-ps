@@ -100,17 +100,37 @@ function createFakeDataFolder(initialEntries?: Record<string, FakeEntry>): {
         }
         return file;
       },
-      async createFile(name: string): Promise<FakeFile> {
+      async createFile(name: string, options?: { readonly overwrite?: boolean }): Promise<FakeFile> {
+        if (files[name] && options?.overwrite !== true) {
+          throw new Error(`entry exists: ${name}`);
+        }
         const entry = new MutableFakeFile(name);
         files[name] = entry;
         return entry;
       },
       async createFolder(name: string): Promise<FakeFolder> {
+        if (files[name]) {
+          throw new Error(`entry exists: ${name}`);
+        }
         const entry = createFakeDataFolder();
         files[name] = entry.folder;
         return entry.folder;
       },
     },
+  };
+}
+
+function makeLogRecord(event: string, spanId = 'sp_1') {
+  return {
+    schema_version: 1,
+    timestamp: '2026-06-16T00:00:00.000Z',
+    level: 'info' as const,
+    event,
+    surface: 'test',
+    package: 'app',
+    component: 'sink',
+    trace_id: 'tr_1',
+    span_id: spanId,
   };
 }
 
@@ -566,6 +586,97 @@ describe('fake UXP host adapters', () => {
     expect(createdFiles).toEqual([]);
     expect(writes).toHaveLength(1);
     expect(writes[0]).toContain('"event":"test.event"');
+  });
+
+  it('UXP log sink 容忍并发 writer 抢先创建 logs folder', async () => {
+    let staleLogsMisses = 2;
+    const dataFolder = createFakeDataFolder();
+    const modules: UxpModules = {
+      uxp: {
+        storage: {
+          localFileSystem: {
+            async getDataFolder() {
+              return {
+                async getEntry(name: string) {
+                  if (name === 'logs' && staleLogsMisses > 0) {
+                    staleLogsMisses -= 1;
+                    throw new Error(`stale missing entry: ${name}`);
+                  }
+                  return dataFolder.folder.getEntry(name);
+                },
+                createFile: dataFolder.folder.createFile,
+                createFolder: dataFolder.folder.createFolder,
+              };
+            },
+          },
+        },
+      },
+    };
+
+    const firstSink = createUxpLogSink(modules);
+    const secondSink = createUxpLogSink(modules);
+    await Promise.all([
+      firstSink.write(makeLogRecord('test.concurrent-folder.first', 'sp_1')),
+      secondSink.write(makeLogRecord('test.concurrent-folder.second', 'sp_2')),
+    ]);
+
+    const logsFolder = await dataFolder.folder.getEntry('logs') as FakeFolder;
+    const dateFolder = await logsFolder.getEntry(new Date().toISOString().slice(0, 10)) as FakeFolder;
+    const file = await dateFolder.getEntry('imagen.jsonl') as MutableFakeFile;
+    const lines = String(await file.read()).split('\n').filter(Boolean);
+
+    expect(lines).toHaveLength(2);
+    expect(lines.join('\n')).toContain('"event":"test.concurrent-folder.first"');
+    expect(lines.join('\n')).toContain('"event":"test.concurrent-folder.second"');
+  });
+
+  it('UXP log sink 容忍并发 writer 抢先创建 JSONL 文件', async () => {
+    let staleFileMisses = 2;
+    const today = new Date().toISOString().slice(0, 10);
+    const dateFolder = createFakeDataFolder();
+    const racyDateFolder: FakeFolder = {
+      async getEntry(name: string) {
+        if (name === 'imagen.jsonl' && staleFileMisses > 0) {
+          staleFileMisses -= 1;
+          throw new Error(`stale missing entry: ${name}`);
+        }
+        return dateFolder.folder.getEntry(name);
+      },
+      createFile: dateFolder.folder.createFile,
+      createFolder: dateFolder.folder.createFolder,
+    };
+    const logsFolder = createFakeDataFolder({ [today]: racyDateFolder });
+    const dataFolder = createFakeDataFolder({ logs: logsFolder.folder });
+    const modules: UxpModules = {
+      uxp: {
+        storage: {
+          formats: { utf8: 'uxp-utf8' },
+          localFileSystem: {
+            async getDataFolder() {
+              return dataFolder.folder;
+            },
+          },
+        },
+      },
+    };
+
+    const firstSink = createUxpLogSink(modules);
+    const secondSink = createUxpLogSink(modules);
+    await Promise.all([
+      firstSink.write(makeLogRecord('test.concurrent-file.first', 'sp_1')),
+      secondSink.write(makeLogRecord('test.concurrent-file.second', 'sp_2')),
+    ]);
+
+    const file = await racyDateFolder.getEntry('imagen.jsonl') as MutableFakeFile;
+    const lines = String(await file.read()).split('\n').filter(Boolean);
+
+    expect(lines).toHaveLength(2);
+    expect(lines.join('\n')).toContain('"event":"test.concurrent-file.first"');
+    expect(lines.join('\n')).toContain('"event":"test.concurrent-file.second"');
+    expect(file.writes.map((write) => write.options)).toEqual([
+      { append: true, format: 'uxp-utf8' },
+      { append: true, format: 'uxp-utf8' },
+    ]);
   });
 
   it('UXP log sink 在 data folder 中创建日期 JSONL 并追加写入', async () => {

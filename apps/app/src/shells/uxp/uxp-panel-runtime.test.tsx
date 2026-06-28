@@ -45,6 +45,7 @@ describe('UXP panel runtime', () => {
     delete globalThis.__IMAGEN_PS_REACT_ROOT__;
     delete globalThis.__IMAGEN_PS_HOST_SMOKE__;
     delete globalThis.__IMAGEN_PS_PANEL_RUNTIME__;
+    delete (globalThis as { __IMAGEN_PS_BOOTSTRAP_LOG__?: unknown }).__IMAGEN_PS_BOOTSTRAP_LOG__;
     document.body.innerHTML = '<div id="root"></div>';
     window.localStorage.clear();
   });
@@ -100,6 +101,30 @@ describe('UXP panel runtime', () => {
     }
 
     expect(consoleWarnSpy).not.toHaveBeenCalled();
+  });
+
+  it('writes bootstrap checkpoints for entrypoint setup and panel mount', () => {
+    const checkpoint = vi.fn();
+    const failure = vi.fn();
+    (globalThis as { __IMAGEN_PS_BOOTSTRAP_LOG__?: { checkpoint: typeof checkpoint; failure: typeof failure } })
+      .__IMAGEN_PS_BOOTSTRAP_LOG__ = { checkpoint, failure };
+    const setup = vi.fn();
+    const runtime = createImagenPanelRuntime({ createHost: () => fakeHost() });
+    const modules = {
+      uxp: { entrypoints: { setup } },
+    } as unknown as UxpModules;
+
+    expect(installUxpPanelEntrypoints(runtime, modules)).toBe(true);
+    const panel = setup.mock.calls[0]?.[0].panels['imagen-ps-panel'];
+    panel.create();
+
+    expect(checkpoint).toHaveBeenCalledWith('panel.bootstrap.entrypoints.setup.start', { panelId: 'imagen-ps-panel' });
+    expect(checkpoint).toHaveBeenCalledWith('panel.bootstrap.entrypoints.setup.ok', { panelId: 'imagen-ps-panel' });
+    expect(checkpoint).toHaveBeenCalledWith('panel.bootstrap.panel.create');
+    expect(checkpoint).toHaveBeenCalledWith('panel.bootstrap.host_shell.created');
+    expect(checkpoint).toHaveBeenCalledWith('panel.bootstrap.react.rendered');
+    expect(checkpoint).toHaveBeenCalledWith('panel.bootstrap.runtime.mount.complete', { hasHost: true });
+    expect(failure).not.toHaveBeenCalled();
   });
 
   it('disposes the globally registered previous runtime', () => {

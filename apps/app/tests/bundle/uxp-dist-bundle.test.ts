@@ -47,6 +47,8 @@ describe('UXP dist bundle safety', () => {
     expect(chromeHtml).toContain('./assets/index.js');
     expect(existsSync(resolve('public/assets/icons/settings.png'))).toBe(false);
     expect(uxpHtml).toContain('./assets/index.js');
+    expect(uxpHtml).toContain('panel.bootstrap.html.loaded');
+    expect(uxpHtml).not.toContain('type="module"');
   });
 
   it('ships UXP network all-domain permission in manifest v5 string form', () => {

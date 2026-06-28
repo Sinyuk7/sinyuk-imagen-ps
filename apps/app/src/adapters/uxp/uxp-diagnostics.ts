@@ -133,28 +133,70 @@ function decodeArrayBufferUtf8(buffer: ArrayBuffer): string {
   return String.fromCharCode(...out);
 }
 
-async function ensureFolder(parent: UxpFolderEntry, name: string): Promise<UxpFolderEntry> {
+function isFolderEntry(entry: UxpFolderEntry | UxpFileEntry | null | undefined): entry is UxpFolderEntry {
+  return entry !== null && entry !== undefined && typeof (entry as UxpFolderEntry).createFile === 'function';
+}
+
+function isFileEntry(entry: UxpFolderEntry | UxpFileEntry | null | undefined): entry is UxpFileEntry {
+  return entry !== null && entry !== undefined && typeof (entry as UxpFileEntry).write === 'function';
+}
+
+async function getExistingFolder(parent: UxpFolderEntry, name: string): Promise<UxpFolderEntry | undefined> {
   try {
     const existing = await parent.getEntry(name);
-    if (existing && typeof (existing as UxpFolderEntry).createFile === 'function') {
-      return existing as UxpFolderEntry;
+    if (isFolderEntry(existing)) {
+      return existing;
     }
   } catch {
     // 真实 UXP 在 entry 缺失时 throw。
   }
-  return parent.createFolder(name);
+  return undefined;
 }
 
-async function getOrCreateFile(parent: UxpFolderEntry, name: string): Promise<UxpFileEntry> {
+async function ensureFolder(parent: UxpFolderEntry, name: string): Promise<UxpFolderEntry> {
+  const existing = await getExistingFolder(parent, name);
+  if (existing) {
+    return existing;
+  }
+
+  try {
+    return await parent.createFolder(name);
+  } catch (error) {
+    const createdByPeer = await getExistingFolder(parent, name);
+    if (createdByPeer) {
+      return createdByPeer;
+    }
+    throw error;
+  }
+}
+
+async function getExistingFile(parent: UxpFolderEntry, name: string): Promise<UxpFileEntry | undefined> {
   try {
     const existing = await parent.getEntry(name);
-    if (existing && typeof (existing as UxpFileEntry).write === 'function') {
-      return existing as UxpFileEntry;
+    if (isFileEntry(existing)) {
+      return existing;
     }
   } catch {
     // 真实 UXP 在文件缺失时 throw。
   }
-  return parent.createFile(name, { overwrite: true });
+  return undefined;
+}
+
+async function getOrCreateFile(parent: UxpFolderEntry, name: string): Promise<UxpFileEntry> {
+  const existing = await getExistingFile(parent, name);
+  if (existing) {
+    return existing;
+  }
+
+  try {
+    return await parent.createFile(name, { overwrite: false });
+  } catch (error) {
+    const createdByPeer = await getExistingFile(parent, name);
+    if (createdByPeer) {
+      return createdByPeer;
+    }
+    throw error;
+  }
 }
 
 async function getLogFile(lfs: UxpLocalFileSystem, date: string): Promise<UxpFileEntry> {

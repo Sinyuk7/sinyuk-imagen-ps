@@ -38,6 +38,11 @@ export interface ImagenPanelRuntimeOptions {
   readonly renderStartupError?: (rootEl: HTMLElement, error: unknown) => void;
 }
 
+interface BootstrapLogger {
+  checkpoint(event: string, attrs?: Record<string, unknown>): void | Promise<void>;
+  failure(event: string, error: unknown, attrs?: Record<string, unknown>): void | Promise<void>;
+}
+
 declare global {
   // eslint-disable-next-line no-var
   var __IMAGEN_PS_HOST_SMOKE__: unknown;
@@ -45,6 +50,42 @@ declare global {
   var __IMAGEN_PS_REACT_ROOT__: Root | undefined;
   // eslint-disable-next-line no-var
   var __IMAGEN_PS_PANEL_RUNTIME__: ImagenPanelRuntime | undefined;
+}
+
+function bootstrapLogger(): BootstrapLogger | undefined {
+  return (globalThis as { __IMAGEN_PS_BOOTSTRAP_LOG__?: BootstrapLogger }).__IMAGEN_PS_BOOTSTRAP_LOG__;
+}
+
+function bootstrapCheckpoint(event: string, attrs?: Record<string, unknown>): void {
+  try {
+    const logger = bootstrapLogger();
+    if (!logger) {
+      return;
+    }
+    if (attrs === undefined) {
+      void logger.checkpoint(event);
+      return;
+    }
+    void logger.checkpoint(event, attrs);
+  } catch {
+    // bootstrap 诊断不能影响真实面板启动。
+  }
+}
+
+function bootstrapFailure(event: string, error: unknown, attrs?: Record<string, unknown>): void {
+  try {
+    const logger = bootstrapLogger();
+    if (!logger) {
+      return;
+    }
+    if (attrs === undefined) {
+      void logger.failure(event, error);
+      return;
+    }
+    void logger.failure(event, error, attrs);
+  } catch {
+    // bootstrap 诊断不能影响真实面板启动。
+  }
 }
 
 function errorMessageFrom(error: unknown): string {
@@ -172,11 +213,18 @@ export function createImagenPanelRuntime(options?: ImagenPanelRuntimeOptions): I
     },
 
     mount(rootEl: HTMLElement | null): PluginHostShell | undefined {
+      bootstrapCheckpoint('panel.bootstrap.runtime.mount.start', {
+        hasRoot: Boolean(rootEl),
+        hasHost: Boolean(host),
+        hasReactRoot: Boolean(reactRoot),
+      });
       if (!rootEl) {
+        bootstrapCheckpoint('panel.bootstrap.runtime.mount.skipped', { reason: 'missing_root' });
         return undefined;
       }
       if (host && reactRoot && mountedRootEl === rootEl) {
         exposeHostSmokeHandle(host, resolveModules);
+        bootstrapCheckpoint('panel.bootstrap.runtime.mount.reused', { hasHost: true });
         return host;
       }
 
@@ -186,13 +234,17 @@ export function createImagenPanelRuntime(options?: ImagenPanelRuntimeOptions): I
 
       try {
         host = createHost();
+        bootstrapCheckpoint('panel.bootstrap.host_shell.created');
         reactRoot = createRoot(rootEl);
         globalThis.__IMAGEN_PS_REACT_ROOT__ = reactRoot;
         reactRoot.render(<AppShell host={host} />);
+        bootstrapCheckpoint('panel.bootstrap.react.rendered');
         exposeHostSmokeHandle(host, resolveModules);
+        bootstrapCheckpoint('panel.bootstrap.runtime.mount.complete', { hasHost: true });
         return host;
       } catch (error) {
         console.error('Imagen PS startup failed', error);
+        bootstrapFailure('panel.bootstrap.runtime.mount.failed', error);
         host = undefined;
         reactRoot = undefined;
         globalThis.__IMAGEN_PS_REACT_ROOT__ = undefined;
@@ -245,37 +297,47 @@ export function installUxpPanelEntrypoints(
   const rootId = options?.rootId ?? 'root';
 
   try {
+    bootstrapCheckpoint('panel.bootstrap.entrypoints.setup.start', { panelId });
     entrypoints.setup({
       plugin: {
         create() {
           // Photoshop UXP host 要求 plugin lifecycle 声明 create，即使 panel 挂载仍由 panel controller 负责。
+          bootstrapCheckpoint('panel.bootstrap.plugin.create');
         },
         destroy() {
+          bootstrapCheckpoint('panel.bootstrap.plugin.destroy');
           runtime.dispose();
         },
       },
       panels: {
         [panelId]: {
           create() {
+            bootstrapCheckpoint('panel.bootstrap.panel.create');
             const rootEl = rootElementById(rootId);
             runtime.mount(rootEl);
+            bootstrapCheckpoint('panel.bootstrap.panel.create.complete', { hasRoot: Boolean(rootEl) });
             return rootEl ?? undefined;
           },
           show() {
+            bootstrapCheckpoint('panel.bootstrap.panel.show');
             runtime.mount(rootElementById(rootId));
           },
           hide() {
+            bootstrapCheckpoint('panel.bootstrap.panel.hide');
             clearHostSmokeHandle();
           },
           destroy() {
+            bootstrapCheckpoint('panel.bootstrap.panel.destroy');
             runtime.dispose();
           },
         },
       },
     });
+    bootstrapCheckpoint('panel.bootstrap.entrypoints.setup.ok', { panelId });
     return true;
   } catch (error) {
     console.warn('Imagen PS UXP entrypoints setup failed', error);
+    bootstrapFailure('panel.bootstrap.entrypoints.setup.failed', error, { panelId });
     return false;
   }
 }

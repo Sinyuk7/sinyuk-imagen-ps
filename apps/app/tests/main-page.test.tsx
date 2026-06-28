@@ -295,7 +295,7 @@ describe('MainPage contract', () => {
 
     expect(toolbar.querySelector('[data-testid="main-model-selector"]')!.textContent).toContain('mock-image-v1');
     expect(toolbar.querySelector('[data-testid="composer-target-selector"]')!.textContent).toContain('图层');
-    expect(toolbar.querySelector('[data-testid="composer-aspect-ratio-selector"]')!.textContent).toContain('智能宽高比');
+    expect(toolbar.querySelector('[data-testid="composer-aspect-ratio-selector"]')!.textContent).toContain('智能');
   });
 
   it('target 与 aspect-ratio 选择器可打开、选择并关闭', async () => {

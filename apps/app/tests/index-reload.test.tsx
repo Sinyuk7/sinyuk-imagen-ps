@@ -102,6 +102,7 @@ describe('UXP panel entry reload behavior', () => {
     delete globalThis.__IMAGEN_PS_REACT_ROOT__;
     delete globalThis.__IMAGEN_PS_HOST_SMOKE__;
     delete globalThis.__IMAGEN_PS_PANEL_RUNTIME__;
+    delete (globalThis as { __IMAGEN_PS_BOOTSTRAP_LOG__?: unknown }).__IMAGEN_PS_BOOTSTRAP_LOG__;
     window.localStorage.clear();
     document.body.innerHTML = '<div id="root"></div>';
   });
