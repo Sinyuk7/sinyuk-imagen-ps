@@ -45,7 +45,9 @@ eviction, and the host-agnostic shared layer.
 - `pnpm --filter @imagen-ps/core-engine test` and
   `pnpm --filter @imagen-ps/application test` cover the types, invariants, and
   in-memory adapters.
-- `pnpm --filter @imagen-ps/cli test` covers durable `job list/get/retry`.
+- `pnpm --filter @imagen-ps/application test` covers durable `job list/get/retry`.
+  (The former `apps/cli` surface was removed; its old CLI contract tests are no
+  longer relevant to this boundary.)
 - `pnpm --filter @imagen-ps/app test` covers the UXP data-folder adapters.
 - `pnpm check:policy` keeps `node:*`, `uxp`, `photoshop`, `react`, and surface
   packages out of `application` and `core-engine`.

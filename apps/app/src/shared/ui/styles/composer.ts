@@ -106,8 +106,7 @@ export const COMPOSER_CSS = `
   padding:4px 2px 0;
   flex-wrap:nowrap;
   align-items:center;
-  justify-content:space-between;
-  gap:8px;
+  justify-content:flex-start;
   flex:0 0 auto;
 }
 .cmp-action-left,
@@ -128,24 +127,37 @@ export const COMPOSER_CSS = `
   overflow:visible;
 }
 .cmp-toolbar-left{
-  flex:1 1 0;
+  flex:1 1 auto;
+  min-width:136px;
+  max-width:176px;
   margin-bottom:4px;
 }
 .cmp-toolbar-right{
   flex:0 0 auto;
-  gap:6px;
+  margin-top:0;
+  margin-right:0;
   margin-bottom:4px;
+  margin-left:12px;
 }
 .cmp-select{ position:relative; display:flex; align-items:center; min-width:0; flex-shrink:1; }
 .cmp-select-model{
-  flex:1 1 0;
-  min-width:136px;
-  max-width:228px;
+  flex:1 1 auto;
+  min-width:0;
+  max-width:100%;
 }
-.cmp-select-target,
+.cmp-select-target{
+  flex:0 1 auto;
+  min-width:118px;
+}
 .cmp-select-aspect{
-  flex:0 0 96px;
-  min-width:96px;
+  flex:0 1 auto;
+  min-width:104px;
+}
+.cmp-select-aspect{
+  margin-top:0;
+  margin-right:0;
+  margin-bottom:0;
+  margin-left:6px;
 }
 .cmp-select-menu{
   position:absolute; left:0; bottom:calc(100% + 6px); z-index:200;
@@ -306,24 +318,23 @@ export const COMPOSER_CSS = `
 .cmp-chip-chevron{ flex:0 0 auto; color:inherit; }
 .cmp-chip-sp-button{
   width:100%;
-  min-width:100%;
+  min-width:0;
   max-width:100%;
   --mod-button-min-width:0;
-  --mod-button-edge-to-text:10px;
-  --mod-button-edge-to-visual:10px;
-  --mod-button-padding-label-to-icon:8px;
+  --mod-button-edge-to-text:9px;
+  --mod-button-edge-to-visual:9px;
+  --mod-button-padding-label-to-icon:0;
 }
-.cmp-chip-icon-slot{
+.cmp-chip-leading-sp-button{
   display:inline-flex;
   align-items:center;
   justify-content:center;
-  height:100%;
-  line-height:0;
-}
-.cmp-chip-leading-sp-button{
-  display:block;
+  flex:0 0 auto;
+  width:14px;
+  min-width:14px;
+  height:14px;
   margin-top:0;
-  margin-right:0;
+  margin-right:8px;
   margin-bottom:0;
   margin-left:0;
 }
@@ -336,16 +347,18 @@ export const COMPOSER_CSS = `
   display:inline-flex;
   align-items:center;
   justify-content:flex-start;
-  min-height:14px;
-  line-height:14px;
+  width:100%;
+  min-height:16px;
+  line-height:16px;
   vertical-align:middle;
 }
 .cmp-chip-value-sp-button{
   display:inline-flex;
   align-items:center;
-  flex:0 1 auto;
-  min-height:14px;
-  line-height:14px;
+  flex:1 1 auto;
+  min-width:0;
+  min-height:16px;
+  line-height:16px;
 }
 .cmp-chip-arrow-text{
   display:inline-flex;
@@ -358,23 +371,25 @@ export const COMPOSER_CSS = `
   margin-left:8px;
   color:inherit;
   font-size:10px;
-  line-height:14px;
-  min-height:14px;
+  line-height:16px;
+  min-height:16px;
   align-self:center;
 }
 .cmp-select-model .cmp-chip{ width:100%; min-width:0; }
-.cmp-select-model .cmp-chip-body-sp-button{
-  width:100%;
-}
 .cmp-select-model .cmp-chip-value-sp-button{
-  min-width:0;
   overflow:hidden;
   text-overflow:ellipsis;
   white-space:nowrap;
 }
 .cmp-select-target .cmp-chip-body-sp-button,
 .cmp-select-aspect .cmp-chip-body-sp-button{
-  justify-content:center;
+  justify-content:flex-start;
+}
+.cmp-select-target .cmp-chip-value-sp-button,
+.cmp-select-aspect .cmp-chip-value-sp-button{
+  overflow:visible;
+  text-overflow:clip;
+  white-space:nowrap;
 }
 .cmp-sp{ flex:1; min-width:0; }
 .cmp-opt{

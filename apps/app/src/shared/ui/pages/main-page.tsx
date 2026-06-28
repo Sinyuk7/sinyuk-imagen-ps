@@ -756,6 +756,7 @@ export function MainPage({
                 options={modelOptions}
                 selectedId={selectedModelId}
                 onSelect={onSelectModel}
+                leadingIcon="magic-wand"
               />
             </div>
             <div className="cmp-toolbar-right">

@@ -14,7 +14,7 @@ export const LOG_LEVELS: ReadonlySet<LogLevel> = new Set(['debug', 'info', 'warn
 export const LOG_STATUSES: ReadonlySet<LogStatus> = new Set(['start', 'ok', 'fail', 'retry']);
 
 /** 有效的 LogSurface 集合。 */
-export const LOG_SURFACES: ReadonlySet<LogSurface> = new Set(['cli', 'uxp', 'test', 'unknown']);
+export const LOG_SURFACES: ReadonlySet<LogSurface> = new Set(['uxp', 'test', 'unknown']);
 
 /** 有效的 LogPackage 集合。 */
 export const LOG_PACKAGES: ReadonlySet<LogPackage> = new Set([
@@ -22,7 +22,6 @@ export const LOG_PACKAGES: ReadonlySet<LogPackage> = new Set([
   'application',
   'core-engine',
   'providers',
-  'cli',
   'app',
 ]);
 

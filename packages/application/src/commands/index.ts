@@ -72,7 +72,7 @@ export type {
   SecretStorageAdapter,
 } from './types.js';
 
-// Adapter injection (exposed for CLI / UI)
+// Adapter injection（暴露给 UI / host adapters 注入自定义实现）
 export {
   setAssetStore,
   setJobHistoryStore,

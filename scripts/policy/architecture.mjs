@@ -2,26 +2,12 @@ import { scanLineRules, sourceExtensions, walkFiles } from './shared.mjs';
 
 const architectureRules = [
   {
-    name: 'CLI 只能依赖 application 层，不能依赖 UI、UXP、Photoshop 或 runtime internals',
-    roots: ['apps/cli/src', 'apps/cli/tests'],
+    name: 'UXP app 只能通过 application seam 接入共享业务层',
+    roots: ['apps/app/src', 'apps/app/tests'],
     patterns: [
       /\bfrom\s+['"]@imagen-ps\/(?:core-engine|providers)(?:['"/])/,
       /\bimport\s+['"]@imagen-ps\/(?:core-engine|providers)(?:['"/])/,
       /\brequire\(['"]@imagen-ps\/(?:core-engine|providers)(?:['"/])/,
-      /\bfrom\s+['"]react(?:\/[^'"]*)?['"]/,
-      /\bimport\s+['"]react(?:\/[^'"]*)?['"]/,
-      /\bfrom\s+['"](?:photoshop|uxp)['"]/i,
-      /\bimport\s+['"](?:photoshop|uxp)['"]/i,
-      /\brequire\(['"](?:photoshop|uxp)['"]\)/i,
-    ],
-  },
-  {
-    name: 'UXP app 只能通过 application seam 接入共享业务层',
-    roots: ['apps/app/src', 'apps/app/tests'],
-    patterns: [
-      /\bfrom\s+['"]@imagen-ps\/(?:core-engine|providers|cli)(?:['"/])/,
-      /\bimport\s+['"]@imagen-ps\/(?:core-engine|providers|cli)(?:['"/])/,
-      /\brequire\(['"]@imagen-ps\/(?:core-engine|providers|cli)(?:['"/])/,
     ],
   },
   {
@@ -33,9 +19,6 @@ const architectureRules = [
       /\bfrom\s+['"](?:photoshop|uxp)['"]/i,
       /\bimport\s+['"](?:photoshop|uxp)['"]/i,
       /\brequire\(['"](?:photoshop|uxp)['"]\)/i,
-      /\bfrom\s+['"]@imagen-ps\/cli(?:['"/])/,
-      /\bimport\s+['"]@imagen-ps\/cli(?:['"/])/,
-      /\brequire\(['"]@imagen-ps\/cli(?:['"/])/,
     ],
   },
   {
@@ -62,27 +45,27 @@ const architectureRules = [
       /\bfrom\s+['"](?:photoshop|uxp)['"]/i,
       /\bimport\s+['"](?:photoshop|uxp)['"]/i,
       /\brequire\(['"](?:photoshop|uxp)['"]\)/i,
-      /\bfrom\s+['"]@imagen-ps\/(?:app|cli)(?:['"/])/,
-      /\bimport\s+['"]@imagen-ps\/(?:app|cli)(?:['"/])/,
-      /\brequire\(['"]@imagen-ps\/(?:app|cli)(?:['"/])/,
+      /\bfrom\s+['"]@imagen-ps\/app(?:['"/])/,
+      /\bimport\s+['"]@imagen-ps\/app(?:['"/])/,
+      /\brequire\(['"]@imagen-ps\/app(?:['"/])/,
     ],
   },
   {
     name: 'core-engine 不能依赖 provider、application 或 surface package',
     roots: ['packages/core-engine/src'],
     patterns: [
-      /\bfrom\s+['"]@imagen-ps\/(?:providers|application|app|cli)(?:['"/])/,
-      /\bimport\s+['"]@imagen-ps\/(?:providers|application|app|cli)(?:['"/])/,
-      /\brequire\(['"]@imagen-ps\/(?:providers|application|app|cli)(?:['"/])/,
+      /\bfrom\s+['"]@imagen-ps\/(?:providers|application|app)(?:['"/])/,
+      /\bimport\s+['"]@imagen-ps\/(?:providers|application|app)(?:['"/])/,
+      /\brequire\(['"]@imagen-ps\/(?:providers|application|app)(?:['"/])/,
     ],
   },
   {
     name: 'providers 不能依赖 application 或 surface package',
     roots: ['packages/providers/src', 'packages/providers/tests'],
     patterns: [
-      /\bfrom\s+['"]@imagen-ps\/(?:application|app|cli)(?:['"/])/,
-      /\bimport\s+['"]@imagen-ps\/(?:application|app|cli)(?:['"/])/,
-      /\brequire\(['"]@imagen-ps\/(?:application|app|cli)(?:['"/])/,
+      /\bfrom\s+['"]@imagen-ps\/(?:application|app)(?:['"/])/,
+      /\bimport\s+['"]@imagen-ps\/(?:application|app)(?:['"/])/,
+      /\brequire\(['"]@imagen-ps\/(?:application|app)(?:['"/])/,
     ],
   },
   {
@@ -100,9 +83,9 @@ const architectureRules = [
       /\bfrom\s+['"](?:photoshop|uxp)['"]/i,
       /\bimport\s+['"](?:photoshop|uxp)['"]/i,
       /\brequire\(['"](?:photoshop|uxp)['"]\)/i,
-      /\bfrom\s+['"]@imagen-ps\/(?:application|core-engine|providers|app|cli)(?:['"/])/,
-      /\bimport\s+['"]@imagen-ps\/(?:application|core-engine|providers|app|cli)(?:['"/])/,
-      /\brequire\(['"]@imagen-ps\/(?:application|core-engine|providers|app|cli)(?:['"/])/,
+      /\bfrom\s+['"]@imagen-ps\/(?:application|core-engine|providers|app)(?:['"/])/,
+      /\bimport\s+['"]@imagen-ps\/(?:application|core-engine|providers|app)(?:['"/])/,
+      /\brequire\(['"]@imagen-ps\/(?:application|core-engine|providers|app)(?:['"/])/,
     ],
   },
 ];

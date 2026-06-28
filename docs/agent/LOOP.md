@@ -44,7 +44,7 @@ Required sections:
 - `Goal`: one observable outcome.
 - `Non-goals`: tempting but excluded work.
 - `Scope`: allowed and forbidden files/packages.
-- `Ownership boundary`: CLI / Provider / Application / Core / UXP ownership.
+- `Ownership boundary`: App / Provider / Application / Core / UXP ownership.
 - `Baseline`: current validation state and what to do if it fails.
 - `Slices`: bounded steps with goal, allowed scope, validation, and stop rules.
 - `Validation`: quick, per-slice, final, manual-only, and live-provider gates.
@@ -89,11 +89,10 @@ Each slice must have:
 
 Stop when a slice needs unauthorized cross-boundary ownership changes. Examples:
 
-- CLI needs provider transport or Photoshop / UXP imports.
-- `apps/app` needs direct imports from `@imagen-ps/core-engine`,
-  `@imagen-ps/providers`, or `@imagen-ps/cli`.
+- `apps/app` needs direct imports from `@imagen-ps/core-engine` or
+  `@imagen-ps/providers`.
 - `packages/application` needs React, DOM, Node `fs/path/os`, Photoshop, or UXP.
-- Provider work needs UI state, CLI flags, local paths, or host IO.
+- Provider work needs UI state, local paths, or host IO.
 - A claim requires live provider or real Photoshop proof that has not been
   approved.
 
@@ -166,10 +165,10 @@ skill whose trigger matches the task:
 
 | Skill | Trigger |
 |---|---|
-| `requirement-to-loop-planner` | New non-trivial requirement or architecture / provider / CLI / UXP workflow change needs bounded scope, validation, and stop rules before implementation. |
+| `requirement-to-loop-planner` | New non-trivial requirement or architecture / provider / UXP workflow change needs bounded scope, validation, and stop rules before implementation. |
 | `bounded-loop-executor` | An approved Loop slice already defines owner boundary, allowed files, forbidden files, validation, stop rules, and reporting requirements. |
 | `provider-contract-reviewer` | Provider config schemas, canonical requests, model discovery, transport builders, response parsers, descriptors, mock/live smoke boundaries, or normalization. |
 | `ui-fix-guardrails` | UI defect fixes in `apps/app` touching shared UI, ports, UXP/Chrome adapters, simulator, or composition; frames owner boundary and acceptance before the fix and verifies dual-runtime regression after. |
 
 Do not create one skill per feature. Do not create generic TypeScript monorepo
-skills that ignore this repository's CLI / Provider / UXP boundaries.
+skills that ignore this repository's App / Provider / UXP boundaries.

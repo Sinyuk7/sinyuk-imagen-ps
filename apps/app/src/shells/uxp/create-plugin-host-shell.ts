@@ -38,7 +38,7 @@ export function createPluginHostShell(): PluginHostShell {
   const uxpModules = resolveUxpModules();
 
   // UXP 日志：data-folder 持久化 + console 即时镜像。
-  // 两者与 CLI 共享同一套 foundation 日志格式与语义，只有 sink 不同。
+  // 使用 foundation 日志格式与语义，sink 由 UXP host adapter 提供。
   configureRuntimeLogging(
     createCompositeSink([
       createUxpLogSink(uxpModules),

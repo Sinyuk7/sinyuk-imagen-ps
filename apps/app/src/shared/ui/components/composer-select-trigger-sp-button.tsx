@@ -46,12 +46,8 @@ export function ComposerSelectTriggerSpButton({
       onClick={onClick}
       onKeyDown={onKeyDown}
     >
-      {leadingIcon ? (
-        <span className="cmp-chip-icon-slot" slot="icon" aria-hidden="true">
-          <Icon name={leadingIcon} size={14} className="cmp-chip-leading-sp-button" />
-        </span>
-      ) : null}
       <span ref={chipBodyRef} className="cmp-chip-body cmp-chip-body-sp-button">
+        {leadingIcon ? <Icon name={leadingIcon} size={14} className="cmp-chip-leading-sp-button" /> : null}
         <span ref={chipValueRef} className="cmp-chip-value cmp-chip-value-sp-button">{value}</span>
         <span ref={chipArrowRef} className="cmp-chip-arrow-text" aria-hidden="true">v</span>
       </span>

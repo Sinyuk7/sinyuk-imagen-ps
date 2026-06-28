@@ -24,7 +24,8 @@ describe('schema', () => {
   });
 
   it('validates surfaces', () => {
-    expect(isLogSurface('cli')).toBe(true);
+    expect(isLogSurface('uxp')).toBe(true);
+    expect(isLogSurface('cli')).toBe(false);
     expect(isLogSurface('browser')).toBe(false);
   });
 
