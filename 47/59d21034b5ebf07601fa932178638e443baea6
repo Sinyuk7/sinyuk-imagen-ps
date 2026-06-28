@@ -1,0 +1,28 @@
+apps/app/AGENTS.md
+  h_36ccd825a182d0 1,3-4,6-44
+.gitignore
+  h_36ccd825a182d0 42
+apps/app/src/shared/ui/components/composer-select.tsx
+  s_9c0f1588fcd73b::t_078b795f182c14 11,13
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.3",
+  "base_commit_sha": "4759d21034b5ebf07601fa932178638e443baea6",
+  "prompts": {},
+  "humans": {
+    "h_36ccd825a182d0": {
+      "author": "Sinyuk <80998062@qq.com>"
+    }
+  },
+  "sessions": {
+    "s_9c0f1588fcd73b": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "019f0ca8-b905-7120-9333-f0e7dbb172a9",
+        "model": "unknown"
+      },
+      "human_author": "Sinyuk <80998062@qq.com>"
+    }
+  }
+}
