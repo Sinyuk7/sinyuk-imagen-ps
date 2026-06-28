@@ -122,9 +122,6 @@ const HARNESS_CSS = `
   justify-content:center;
   overflow:visible;
 }
-.harness-panel[data-clip="true"]{
-  overflow:hidden;
-}
 .harness-resizable{
   width:100%;
   max-width:100%;
@@ -300,7 +297,6 @@ export function ComposerSelectHarnessPage() {
   useHarnessStyleMount();
 
   const [containerWidth, setContainerWidth] = useState(360);
-  const [clipSurface, setClipSurface] = useState(false);
   const [longModelValue, setLongModelValue] = useState(true);
   const [trio, setTrio] = useState<HarnessSelectState>(DEFAULT_STATE);
   const [singleOpen, setSingleOpen] = useState(false);
@@ -362,7 +358,6 @@ export function ComposerSelectHarnessPage() {
                 </label>
               </div>
               <div className="harness-toggle-row">
-                <HarnessToggle active={clipSurface} label="Parent clips overflow" onClick={() => setClipSurface((current) => !current)} />
                 <HarnessToggle active={longModelValue} label="Long single value" onClick={() => setLongModelValue((current) => !current)} />
                 <HarnessToggle active={singleOpen} label="Single menu open" onClick={() => setSingleOpen((current) => !current)} />
               </div>
@@ -379,7 +374,7 @@ export function ComposerSelectHarnessPage() {
             </div>
             <div className="harness-card-body">
               <div className="harness-surface">
-                <div className="harness-panel" data-clip={clipSurface}>
+                <div className="harness-panel">
                   <div className="harness-resizable" style={{ width: containerWidth }}>
                     <div className="panel harness-panel-inner">
                       <div className="harness-row">
@@ -436,7 +431,7 @@ export function ComposerSelectHarnessPage() {
             </div>
             <div className="harness-card-body">
               <div className="harness-surface">
-                <div className="harness-panel" data-clip={clipSurface}>
+                <div className="harness-panel">
                   <div className="harness-resizable" style={{ width: containerWidth }}>
                     <div className="panel harness-panel-inner">
                       <div className="harness-col">
@@ -470,7 +465,7 @@ export function ComposerSelectHarnessPage() {
             </div>
             <div className="harness-card-body">
               <div className="harness-surface">
-                <div className="harness-panel" data-clip={clipSurface}>
+                <div className="harness-panel">
                   <div className="harness-resizable" style={{ width: containerWidth }}>
                     <div className="panel harness-panel-inner">
                       <div className="harness-row">
@@ -501,7 +496,7 @@ export function ComposerSelectHarnessPage() {
             </div>
             <div className="harness-card-body">
               <div className="harness-surface">
-                <div className="harness-panel" data-clip={clipSurface}>
+                <div className="harness-panel">
                   <div className="panel harness-panel-inner">
                     <div className="harness-edge-wrap">
                       <EdgeCaseSelect x="left" y="top" width={edgeWidth} />

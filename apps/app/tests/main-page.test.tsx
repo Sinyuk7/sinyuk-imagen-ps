@@ -291,7 +291,11 @@ describe('MainPage contract', () => {
 
     const toolbar = container.querySelector<HTMLElement>('[data-testid="composer-toolbar"]')!;
     const toolbarStyle = getComputedStyle(toolbar);
+    const toolbarLeftStyle = getComputedStyle(container.querySelector<HTMLElement>('.cmp-toolbar-left')!);
+    const toolbarRightStyle = getComputedStyle(container.querySelector<HTMLElement>('.cmp-toolbar-right')!);
     expect(toolbarStyle.flexWrap).toBe('wrap');
+    expect(toolbarLeftStyle.overflow).toBe('visible');
+    expect(toolbarRightStyle.overflow).toBe('visible');
 
     expect(toolbar.querySelector('[data-testid="main-model-selector"]')!.textContent).toContain('mock-image-v1');
     expect(toolbar.querySelector('[data-testid="composer-target-selector"]')!.textContent).toContain('图层');

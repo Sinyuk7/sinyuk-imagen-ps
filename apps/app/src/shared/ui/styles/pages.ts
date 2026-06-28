@@ -11,7 +11,7 @@ export const PAGES_CSS = `
 .task-prompt{ font-size:12px; line-height:16px; color:var(--app-color-text-primary); overflow:hidden; display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; }
 .task-meta{ display:flex; align-items:center; flex-wrap:wrap; min-width:0; margin-top:3px; }
 .task-meta-dot{ margin-top:0; margin-right:8px; margin-bottom:0; margin-left:8px; color:var(--app-color-border-strong); }
-.sec-lbl{ padding:12px 16px 8px; font-size:11px; font-weight:600; color:var(--app-color-text-muted); text-transform:uppercase; letter-spacing:.6px; }
+.sec-lbl{ padding:12px 16px 8px; font-size:11px; font-weight:600; color:var(--app-color-text-muted); letter-spacing:.6px; }
 
 /* Provider row —— 删除固定 height:64px，改为 min-height 允许内容换行；
  * 名称优先，辅助 tag / dots / chevron 退居其后；状态不仅靠颜色圆点。 */
@@ -38,7 +38,7 @@ export const PAGES_CSS = `
 .footer-info{ padding:12px 16px; border-top:1px solid var(--app-color-border-default); display:flex; align-items:center; min-width:0; }
 .footer-info [data-icon]{ margin-right:8px; }
 .section{ padding:16px; }
-.section-title{ font-size:11px; font-weight:600; color:var(--app-color-text-muted); text-transform:uppercase; letter-spacing:.6px; margin-bottom:12px; }
+.section-title{ font-size:11px; font-weight:600; color:var(--app-color-text-muted); letter-spacing:.6px; margin-bottom:12px; }
 .field{ margin-bottom:12px; }
 .field:last-child{ margin-bottom:0; }
 .field-input{ width:100%; }

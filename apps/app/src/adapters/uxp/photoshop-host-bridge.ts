@@ -40,6 +40,7 @@ interface PhotoshopApp {
 }
 
 interface PhotoshopImageData {
+  readonly colorSpace?: string;
   dispose(): void;
 }
 
@@ -207,6 +208,9 @@ async function imageDataToJpegAsset(
   name: string,
 ): Promise<HostImageAsset> {
   try {
+    if (imageData.colorSpace !== 'RGB') {
+      throw new Error(`Photoshop imaging.encodeImageData requires RGB image data, got ${imageData.colorSpace ?? 'unknown'}.`);
+    }
     const data = await imaging.encodeImageData({ imageData, base64: true });
     return createHostImageAsset({
       type: 'image',
@@ -357,6 +361,7 @@ export function createPhotoshopHostBridge(modules: UxpModules, options?: CreateP
               documentID: app.activeDocument?.id,
               layerID: layerId,
               ...(bounds ? { sourceBounds: bounds } : {}),
+              colorSpace: 'RGB',
               componentSize: 8,
               applyAlpha: false,
             });
@@ -380,19 +385,22 @@ export function createPhotoshopHostBridge(modules: UxpModules, options?: CreateP
       }
       const getLayerMask = imaging.getLayerMask.bind(imaging);
       try {
-        const asset = await executeHostModal(
-          async () => {
-            const result = await getLayerMask({
+        const result = await executeHostModal(
+          async () =>
+            getLayerMask({
               documentID: app.activeDocument?.id,
               layerID: layerId,
               kind: 'user',
-            });
-            return imageDataToJpegAsset(imaging, result.imageData, `layer-${layerId}-mask.jpg`);
-          },
+            }),
           { commandName: 'Read layer mask' },
         );
-        span.finish({ layerId, hasMask: true, name: asset.asset.name, mimeType: asset.asset.mimeType });
-        return asset;
+        result.imageData.dispose();
+        span.finish({ layerId, hasMask: true, previewAvailable: false, reason: 'grayscale-mask-not-encodable' });
+        logger.info('hostbridge.read_layer_mask.preview_unavailable', {
+          layerId,
+          reason: 'Photoshop imaging.encodeImageData requires RGB image data; layer masks are grayscale.',
+        });
+        return undefined;
       } catch (error) {
         span.fail(error, { layerId });
         return undefined;

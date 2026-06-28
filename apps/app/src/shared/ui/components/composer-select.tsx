@@ -8,10 +8,9 @@ import { useComposerSelectPlacement } from './use-composer-select-placement';
 /**
  * Composer 底部控制行用的受控单选下拉原语。
  *
- * 触发器和菜单都使用项目内原生元素承载稳定的窄面板 picker 布局：
+ * 当前实现使用项目内原生元素承载触发器与菜单：
  * content lane 负责图标与可截断文本，chevron/check lane 独立保留点击和
- * 选中语义。这里不使用 SWC picker/action-menu，因为当前 UXP wrapper 合同
- * 不覆盖这些组件，且 shadow 布局会干扰窄面板截断。
+ * 选中语义。后续排查与修改都应以这条受控 open/menu 链路为准。
  */
 export function ComposerSelect({
   label,

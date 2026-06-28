@@ -62,7 +62,7 @@ export const COMPOSER_CSS = `
 }
 .layer-list-hdr{
   padding:7px 12px; font-size:10px; font-weight:600; color:var(--app-color-text-muted);
-  text-transform:uppercase; letter-spacing:.5px; border-bottom:1px solid var(--app-color-border-default);
+  letter-spacing:.5px; border-bottom:1px solid var(--app-color-border-default);
   display:flex; align-items:center;
 }
 .layer-back{ margin-top:0; margin-right:8px; margin-bottom:0; margin-left:0; background:transparent; border:none; color:var(--app-color-text-muted); cursor:pointer; display:flex; align-items:center; }
@@ -110,7 +110,7 @@ export const COMPOSER_CSS = `
   align-items:center;
   min-width:0;
   flex:1 1 auto;
-  overflow:hidden;
+  overflow:visible;
 }
 .cmp-action-right,
 .cmp-toolbar-right{
@@ -119,7 +119,7 @@ export const COMPOSER_CSS = `
   justify-content:flex-end;
   min-width:0;
   flex:0 0 auto;
-  overflow:hidden;
+  overflow:visible;
 }
 .cmp-toolbar-left{ margin-right:6px; margin-bottom:4px; }
 .cmp-toolbar-right{ margin-bottom:4px; }

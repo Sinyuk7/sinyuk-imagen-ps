@@ -43,6 +43,8 @@ const LEGACY_TRUNCATED_MOCK_PNG = new Uint8Array([
 function createFakeModules(options?: {
   readonly pickedFileName?: string;
   readonly pickedFileData?: ArrayBuffer;
+  readonly layerColorSpace?: string;
+  readonly maskColorSpace?: string;
 }): {
   readonly modules: UxpModules;
   readonly spies: {
@@ -65,8 +67,8 @@ function createFakeModules(options?: {
   const pickedFileData = options?.pickedFileData ?? arrayBufferFromBytes(VALID_TRANSPARENT_PNG);
   const disposeLayer = vi.fn();
   const disposeMask = vi.fn();
-  const layerImageData = { dispose: disposeLayer };
-  const maskImageData = { dispose: disposeMask };
+  const layerImageData = { colorSpace: options?.layerColorSpace ?? 'RGB', dispose: disposeLayer };
+  const maskImageData = { colorSpace: options?.maskColorSpace ?? 'Grayscale', dispose: disposeMask };
   const getPixels = vi.fn(async () => ({ imageData: layerImageData }));
   const getLayerMask = vi.fn(async () => ({ imageData: maskImageData }));
   const encodeImageData = vi.fn(async ({ imageData }: { readonly imageData: unknown }) =>
@@ -189,7 +191,7 @@ describe('PhotoshopHostBridge fake harness', () => {
     ]);
   });
 
-  it('通过 imaging 读取 layer 和 mask，并释放 imageData', async () => {
+  it('通过 imaging 读取 layer，并在 mask 为 grayscale 时安全跳过预览编码', async () => {
     const { modules, spies } = createFakeModules();
     const bridge = createPhotoshopHostBridge(modules);
 
@@ -198,16 +200,13 @@ describe('PhotoshopHostBridge fake harness', () => {
       metadata: { source: 'layer', name: 'layer-2.jpg', mimeType: 'image/jpeg' },
       payload: { kind: 'inline-asset' },
     });
-    await expect(bridge.readLayerMaskAsAsset(2)).resolves.toMatchObject({
-      asset: { type: 'image', name: 'layer-2-mask.jpg', data: 'mask-jpeg-base64', mimeType: 'image/jpeg' },
-      metadata: { source: 'layer', name: 'layer-2-mask.jpg', mimeType: 'image/jpeg' },
-      payload: { kind: 'inline-asset' },
-    });
+    await expect(bridge.readLayerMaskAsAsset(2)).resolves.toBeUndefined();
 
     expect(spies.getPixels).toHaveBeenCalledWith({
       documentID: 42,
       layerID: 2,
       sourceBounds: { left: 0, top: 0, right: 64, bottom: 64 },
+      colorSpace: 'RGB',
       componentSize: 8,
       applyAlpha: false,
     });
@@ -218,8 +217,19 @@ describe('PhotoshopHostBridge fake harness', () => {
     });
     expect(spies.executeAsModal).toHaveBeenCalledWith(expect.any(Function), { commandName: 'Read layer pixels' });
     expect(spies.executeAsModal).toHaveBeenCalledWith(expect.any(Function), { commandName: 'Read layer mask' });
+    expect(spies.encodeImageData).toHaveBeenCalledTimes(1);
     expect(spies.disposeLayer).toHaveBeenCalledTimes(1);
     expect(spies.disposeMask).toHaveBeenCalledTimes(1);
+  });
+
+  it('layer pixels 未转成 RGB 时返回清晰错误并释放 imageData', async () => {
+    const { modules, spies } = createFakeModules({ layerColorSpace: 'Lab' });
+    const bridge = createPhotoshopHostBridge(modules);
+
+    await expect(bridge.readLayerAsAsset(2)).rejects.toThrow('requires RGB image data, got Lab');
+
+    expect(spies.encodeImageData).not.toHaveBeenCalled();
+    expect(spies.disposeLayer).toHaveBeenCalledTimes(1);
   });
 
   it('读取空 bounds 图层前返回清晰错误', async () => {

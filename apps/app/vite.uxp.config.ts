@@ -11,7 +11,6 @@ const UXP_SHARED_SWC_ALIAS_KEYS = [
   '@spectrum-web-components/checkbox',
   '@spectrum-web-components/divider',
   '@spectrum-web-components/field-label',
-  '@spectrum-web-components/field-label',
   '@spectrum-web-components/help-text',
   '@spectrum-web-components/menu',
   '@spectrum-web-components/popover',
