@@ -371,11 +371,11 @@ export const LIGHT_THEME_CSS = `
 }
 `;
 
- /* === CSS theme probe（ResizeObserver fallback 用） ===
- * 仅当 `window.matchMedia` change listener 在 UXP 实机中不可靠时启用。
+ /* === CSS theme probe（初始化 / 恢复同步兜底） ===
+ * 仅当 `window.matchMedia` change listener 未命中时，用一次性 DOM 读取兜底。
  * Dark/Darkest 下 width:1px，Light/Lightest 下 width:2px。
- * `useAppTheme()` 用 ResizeObserver 监听此元素尺寸变化，
- * 将结果桥接到必须由 JavaScript 设置的 `<sp-theme color>` property。
+ * `useAppTheme()` 读取此元素尺寸，桥接到必须由 JavaScript 设置的
+ * `<sp-theme color>` property。
  * 元素不可见、不参与布局、不接收事件。 */
 export const THEME_PROBE_CSS = `
 .uxp-theme-probe{

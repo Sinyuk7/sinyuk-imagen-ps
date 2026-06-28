@@ -5,7 +5,7 @@ and drives the normal Chrome shell with Playwright Chromium.
 
 Default scenarios run at `390x720`, `deviceScaleFactor=1`. Responsive scenarios
 tagged `responsive` run at representative smaller and larger viewports
-(`300x520`, `600x800`, `390x400`, `300x400`) to validate panel resize behavior.
+(`300x420`, `300x520`, `390x400`, `600x800`) to validate panel resize behavior.
 
 Run a focused subset:
 

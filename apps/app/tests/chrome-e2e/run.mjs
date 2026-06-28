@@ -842,24 +842,24 @@ async function responsiveHistoryNarrowScenario({ page, url, capture }) {
   await assertNoBrokenImages(page);
 }
 
-async function responsiveMinWidth240Scenario({ page, url, capture }) {
+async function responsiveMinSupportedScenario({ page, url, capture }) {
   await openApp(page, url);
   await expectVisibleText(page, 'Mock Profile');
   await assertPanelFillsRoot(page);
   await assertNoHorizontalScroll(page);
   await assertCoreControlsVisible(page);
   await assertSinglePrimaryScroll(page, '.scroll');
-  await capture('responsive-240-empty.png');
+  await capture('responsive-min-supported-empty.png');
 
-  await submitPrompt(page, 'minimum width 240 test');
+  await submitPrompt(page, 'minimum supported size test');
   await waitForDoneResult(page);
   await assertNoHorizontalScroll(page);
   await assertCoreControlsVisible(page);
-  await capture('responsive-240-with-result.png');
+  await capture('responsive-min-supported-with-result.png');
   await assertNoBrokenImages(page);
 }
 
-async function responsiveMinWidth240OverlayScenario({ page, url, capture }) {
+async function responsiveMinSupportedOverlayScenario({ page, url, capture }) {
   await openApp(page, url);
   await expectVisibleText(page, 'Mock Profile');
 
@@ -867,13 +867,13 @@ async function responsiveMinWidth240OverlayScenario({ page, url, capture }) {
   const profileMenu = page.locator('.model-menu');
   await profileMenu.waitFor({ state: 'visible', timeout: 10000 });
   await assertOverlayWithinPanel(page, '.model-menu');
-  await capture('responsive-240-profile-menu.png');
+  await capture('responsive-min-supported-profile-menu.png');
   await page.mouse.click(10, 120);
 
   await page.getByTestId('composer-add-image-button').click();
   await expectVisibleText(page, 'Choose from PS layers');
   await assertOverlayWithinPanel(page, '.attach-picker');
-  await capture('responsive-240-attach-picker.png');
+  await capture('responsive-min-supported-attach-picker.png');
   await assertNoBrokenImages(page);
 }
 
@@ -1124,34 +1124,24 @@ const scenarios = [
     run: responsiveHistoryNarrowScenario,
   },
   {
-    id: 'responsive-min-width-240x420',
-    name: 'Responsive minimum width 240x420',
+    id: 'responsive-min-supported-300x420',
+    name: 'Responsive minimum supported size 300x420',
     tags: ['responsive'],
-    viewport: { width: 240, height: 420, deviceScaleFactor: 1 },
+    viewport: { width: 300, height: 420, deviceScaleFactor: 1 },
     path: '/index.html?testHarness=1&storage=memory&seedProfile=mock&scenario=seeded-document',
-    screenshotName: 'responsive-240-empty.png',
+    screenshotName: 'responsive-min-supported-empty.png',
     assertions: ['panel fills root', 'no horizontal scroll', 'core controls visible', 'single primary scroll', 'no broken images', 'no console/page/network errors'],
-    run: responsiveMinWidth240Scenario,
+    run: responsiveMinSupportedScenario,
   },
   {
-    id: 'responsive-min-width-240-overlay',
-    name: 'Responsive minimum width 240 overlay containment',
+    id: 'responsive-min-supported-overlay-300x420',
+    name: 'Responsive minimum supported overlay containment 300x420',
     tags: ['responsive'],
-    viewport: { width: 240, height: 420, deviceScaleFactor: 1 },
+    viewport: { width: 300, height: 420, deviceScaleFactor: 1 },
     path: '/index.html?testHarness=1&storage=memory&seedProfile=mock&scenario=seeded-document',
-    screenshotName: 'responsive-240-profile-menu.png',
+    screenshotName: 'responsive-min-supported-profile-menu.png',
     assertions: ['profile menu within panel', 'attach picker within panel', 'no broken images', 'no console/page/network errors'],
-    run: responsiveMinWidth240OverlayScenario,
-  },
-  {
-    id: 'responsive-min-width-260x520',
-    name: 'Responsive minimum width 260x520',
-    tags: ['responsive'],
-    viewport: { width: 260, height: 520, deviceScaleFactor: 1 },
-    path: '/index.html?testHarness=1&storage=memory&seedProfile=mock&scenario=seeded-document',
-    screenshotName: 'responsive-260-empty.png',
-    assertions: ['panel fills root', 'no horizontal scroll', 'core controls visible', 'no broken images', 'no console/page/network errors'],
-    run: responsiveMinWidth240Scenario,
+    run: responsiveMinSupportedOverlayScenario,
   },
   {
     id: 'theme-light-390x720',

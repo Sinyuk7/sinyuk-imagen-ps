@@ -22,12 +22,12 @@ export const COMPOSER_CSS = `
 }
 .att-rm:hover{ background:var(--app-color-negative); }
 
-/* Header profile menu (absolute) —— left:84px 对齐 header center 区域；
- * max-width 约束在 Panel 内，min-width 降低到 160 以适应 240px 最窄面板 */
+/* Header profile menu (absolute) —— 默认对齐 header center 区域；
+ * 窄面板时由 responsive root mode 收敛到 panel 内 full-width containment。 */
 .model-menu{
-  position:absolute; bottom:calc(100% + 4px); left:84px;
+  position:absolute; top:52px; left:84px; right:12px;
   background:var(--app-color-background-elevated); border:1px solid var(--app-color-border-strong); border-radius:var(--app-radius-medium);
-  overflow:hidden; min-width:140px; max-width:calc(100% - 96px); z-index:200;
+  overflow-y:auto; min-width:140px; max-height:240px; z-index:200;
 }
 .model-opt{
   padding:8px 12px; font-family:var(--app-font-family-mono); font-size:12px; color:var(--app-color-text-secondary);
@@ -41,7 +41,7 @@ export const COMPOSER_CSS = `
 .attach-picker{
   position:absolute; bottom:calc(100% + 4px); left:12px;
   background:var(--app-color-background-elevated); border:1px solid var(--app-color-border-strong); border-radius:var(--app-radius-medium);
-  overflow:hidden; width:196px; max-width:calc(100% - 24px); max-height:calc(100vh - 120px); z-index:200;
+  overflow-y:auto; width:196px; max-width:calc(100% - 24px); max-height:240px; z-index:200;
 }
 .attach-opt{
   display:flex; align-items:center; padding:10px 14px;
@@ -57,7 +57,7 @@ export const COMPOSER_CSS = `
 .layer-list-wrap{
   position:absolute; bottom:calc(100% + 4px); left:12px;
   background:var(--app-color-background-elevated); border:1px solid var(--app-color-border-strong); border-radius:var(--app-radius-medium);
-  overflow:hidden; width:230px; max-width:calc(100% - 24px); max-height:calc(100vh - 120px); z-index:201;
+  overflow:hidden; width:230px; max-width:calc(100% - 24px); max-height:240px; z-index:201;
   display:flex; flex-direction:column;
 }
 .layer-list-hdr{
@@ -67,7 +67,7 @@ export const COMPOSER_CSS = `
 }
 .layer-back{ margin-top:0; margin-right:8px; margin-bottom:0; margin-left:0; background:transparent; border:none; color:var(--app-color-text-muted); cursor:pointer; display:flex; align-items:center; }
 .layer-refresh{ margin-left:auto; background:transparent; border:none; color:var(--app-color-text-muted); cursor:pointer; display:flex; align-items:center; }
-.layer-scroll{ max-height:190px; max-height:min(190px, calc(100vh - 184px)); overflow-y:auto; scrollbar-width:thin; scrollbar-color:var(--app-color-border-default) transparent; }
+.layer-scroll{ max-height:190px; overflow-y:auto; scrollbar-width:thin; scrollbar-color:var(--app-color-border-default) transparent; }
 .layer-scroll::-webkit-scrollbar{ width:3px; }
 .layer-item{
   display:flex; align-items:center; padding:5px 12px;
@@ -127,9 +127,10 @@ export const COMPOSER_CSS = `
 .cmp-select-model{ flex:1 1 142px; min-width:112px; }
 .cmp-select-target{ flex:0 1 92px; min-width:74px; }
 .cmp-select-aspect{ flex:0 1 80px; min-width:70px; }
+.cmp-select-target{ margin-right:6px; }
 .cmp-select-menu{
   position:absolute; left:0; bottom:calc(100% + 6px); z-index:200;
-  min-width:0; max-width:calc(100vw - 24px); background:var(--app-color-background-elevated); border:1px solid var(--app-color-border-strong); border-radius:var(--app-radius-small);
+  min-width:0; max-width:320px; background:var(--app-color-background-elevated); border:1px solid var(--app-color-border-strong); border-radius:var(--app-radius-small);
   overflow:hidden;
 }
 .cmp-select-menu::-webkit-scrollbar{ width:3px; }
@@ -288,7 +289,7 @@ export const COMPOSER_CSS = `
 .cmp-sp{ flex:1; min-width:0; }
 .cmp-opt{
   display:inline-flex; align-items:center; justify-content:center;
-  margin-top:0; margin-right:0; margin-bottom:0; margin-left:0; color:var(--app-color-text-secondary); flex-shrink:0;
+  margin-top:0; margin-right:6px; margin-bottom:0; margin-left:0; color:var(--app-color-text-secondary); flex-shrink:0;
 }
 
 /* Send button (native, e2e checks HTMLButtonElement) */

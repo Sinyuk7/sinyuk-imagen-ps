@@ -3,12 +3,12 @@ export const SHELL_CSS = `
 .panel{
   width:100%; height:100%; background:var(--app-color-background-base); color:var(--app-color-text-primary);
   font-size:14px; line-height:20px; overflow:hidden;
-  display:flex; flex-direction:column; position:relative;
+  display:flex; flex-direction:column; position:relative; min-width:0; min-height:0;
   border-radius:4px;
 }
 
 /* Pages */
-.page{ position:absolute; top:0; right:0; bottom:0; left:0; display:flex; flex-direction:column; background:var(--app-color-background-base); }
+.page{ position:absolute; top:0; right:0; bottom:0; left:0; display:flex; flex-direction:column; background:var(--app-color-background-base); min-width:0; min-height:0; overflow:hidden; }
 
 /* Header */
 .hdr{
@@ -29,8 +29,8 @@ export const SHELL_CSS = `
 .hdr-title{ flex:1; min-width:0; margin-top:0; margin-right:8px; margin-bottom:0; margin-left:8px; font-family:var(--app-font-family-base); font-size:14px; font-weight:600; color:var(--app-color-text-primary); text-align:center; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
 
 /* Scroll */
-.scroll{ overflow-y:auto; scrollbar-width:thin; scrollbar-color:var(--app-color-border-default) transparent; flex:1; min-height:0; }
+.scroll{ overflow-y:auto; scrollbar-width:thin; scrollbar-color:var(--app-color-border-default) transparent; flex:1; min-width:0; min-height:0; }
 .scroll::-webkit-scrollbar{ width:3px; }
 .scroll::-webkit-scrollbar-thumb{ background:var(--app-color-border-default); border-radius:2px; }
-.round-list{ padding:12px 12px 4px; display:flex; flex-direction:column; min-height:100%; }
+.round-list{ padding:12px 12px 4px; display:flex; flex-direction:column; min-width:0; min-height:100%; }
 `;

@@ -1,6 +1,6 @@
 import { act, createElement } from 'react';
 import { createRoot, type Root } from 'react-dom/client';
-import { afterEach, describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import { ComposerSelect } from '../src/shared/ui/components/composer-select';
 
 let root: Root | undefined;
@@ -241,5 +241,21 @@ describe('ComposerSelect', () => {
     expect(popover.classList.contains('cmp-select-menu-end')).toBe(true);
     expect(popover.style.width).toBe('228px');
     expect(popover.style.maxHeight).toBe('204px');
+  });
+
+  it('does not allocate a component-local ResizeObserver', async () => {
+    const original = globalThis.ResizeObserver;
+    const resizeObserverCtor = vi.fn();
+    // @ts-expect-error test stub
+    globalThis.ResizeObserver = resizeObserverCtor;
+
+    try {
+      const container = document.createElement('div');
+      document.body.appendChild(container);
+      await renderSelect(container, { open: true });
+      expect(resizeObserverCtor).not.toHaveBeenCalled();
+    } finally {
+      globalThis.ResizeObserver = original;
+    }
   });
 });

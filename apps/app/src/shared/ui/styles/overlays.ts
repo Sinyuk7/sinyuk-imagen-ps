@@ -2,7 +2,7 @@
 export const OVERLAYS_CSS = `
 /* Compare Lightbox */
 .lightbox{
-  position:fixed; top:0; right:0; bottom:0; left:0; background:rgba(0,0,0,.92); z-index:1000;
+  position:absolute; top:0; right:0; bottom:0; left:0; background:rgba(0,0,0,.92); z-index:1000;
   display:flex; align-items:center; justify-content:center;
 }
 .lb-inner{ position:relative; display:flex; flex-direction:column; align-items:center; }
@@ -14,7 +14,7 @@ export const OVERLAYS_CSS = `
 }
 .lb-close:hover{ color:#fff; }
 .compare-wrap{
-  position:relative; width:500px; height:500px; max-width:calc(100vw - 48px); max-height:calc(100vh - 48px); border-radius:var(--app-radius-medium);
+  position:relative; width:500px; height:500px; max-width:calc(100% - 48px); max-height:calc(100% - 48px); border-radius:var(--app-radius-medium);
   overflow:hidden; user-select:none; border:1px solid var(--app-color-border-default);
 }
 .cmp-layer{ position:absolute; top:0; right:0; bottom:0; left:0; }

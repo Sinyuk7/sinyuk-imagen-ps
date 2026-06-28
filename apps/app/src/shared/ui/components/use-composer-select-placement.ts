@@ -124,21 +124,9 @@ export function useComposerSelectPlacement({
     }
 
     updateMenuPlacement();
-    const chip = chipRef.current;
-    const panel = chip?.closest('.panel') as HTMLElement | null;
-    const resizeObserver = typeof ResizeObserver === 'undefined' ? null : new ResizeObserver(updateMenuPlacement);
-    if (resizeObserver) {
-      if (chip) {
-        resizeObserver.observe(chip);
-      }
-      if (panel) {
-        resizeObserver.observe(panel);
-      }
-    }
     window.addEventListener('resize', updateMenuPlacement);
 
     return () => {
-      resizeObserver?.disconnect();
       window.removeEventListener('resize', updateMenuPlacement);
     };
   }, [open, optionsLength]);
@@ -202,17 +190,9 @@ export function useComposerSelectPlacement({
 
     measureAndLog();
 
-    const resizeObserver = new ResizeObserver(() => {
-      measureAndLog();
-    });
-    const chip = chipRef.current;
-    if (chip) {
-      resizeObserver.observe(chip);
-    }
     window.addEventListener('resize', measureAndLog);
 
     return () => {
-      resizeObserver.disconnect();
       window.removeEventListener('resize', measureAndLog);
     };
   }, [chipArrowRef, chipBodyRef, chipRef, chipValueRef, label, open, selectedId, testId, value]);

@@ -1,59 +1,55 @@
-/** 响应式：Panel 级粗粒度 media query。
- * 组件级语义布局变化由 ComposerSelect 内部 ResizeObserver 处理，
- * 不在此处为每个像素写规则。 */
+/** 响应式：Panel root 写入离散 `data-*` 模式，CSS 只消费语义模式。 */
 export const RESPONSIVE_CSS = `
-@media (max-width:360px){
-  .cmp-core{ padding:8px; }
-  .composer{ padding:7px 8px 9px; }
-  .cmp-action-row{ margin-top:6px; }
-  .cmp-toolbar{ padding-top:3px; }
-  .cmp-toolbar-left{ margin-right:0; margin-bottom:3px; }
-  .cmp-toolbar-right{ margin-bottom:3px; }
-  .cmp-add,
-  .cmp-opt{ width:28px; height:28px; }
-  .cmp-send{ width:30px; height:30px; }
-  .cmp-select-model{ flex:1 1 100%; min-width:0; }
-  .cmp-toolbar-left{ flex:1 1 100%; }
-  .cmp-toolbar-right{ flex:1 1 100%; justify-content:space-between; }
-  .cmp-select-target{ flex:1 1 0; min-width:74px; }
-  .cmp-select-aspect{ flex:1 1 0; min-width:70px; }
-  .cmp-chip{ padding:2px 6px; font-size:9px; }
-  .cmp-select-target .cmp-chip [data-icon-name="ps-layers"],
-  .cmp-select-target .cmp-chip [data-icon-name="selection"],
-  .cmp-select-aspect .cmp-chip [data-icon-name="image-auto-mode"]{ display:none !important; }
-}
+.panel[data-panel-width-mode="compact"] .cmp-core{ padding:8px; }
+.panel[data-panel-width-mode="compact"] .composer{ padding:7px 8px 9px; }
+.panel[data-panel-width-mode="compact"] .cmp-action-row{ margin-top:6px; }
+.panel[data-panel-width-mode="compact"] .cmp-toolbar{ padding-top:3px; }
+.panel[data-panel-width-mode="compact"] .cmp-toolbar-left{ flex:1 1 100%; margin-right:0; margin-bottom:3px; }
+.panel[data-panel-width-mode="compact"] .cmp-toolbar-right{ flex:1 1 100%; justify-content:space-between; margin-bottom:3px; }
+.panel[data-panel-width-mode="compact"] .cmp-add,
+.panel[data-panel-width-mode="compact"] .cmp-opt{ width:28px; height:28px; }
+.panel[data-panel-width-mode="compact"] .cmp-send{ width:30px; height:30px; }
+.panel[data-panel-width-mode="compact"] .cmp-select-model{ flex:1 1 100%; min-width:0; }
+.panel[data-panel-width-mode="compact"] .cmp-select-target{ flex:1 1 0; min-width:74px; }
+.panel[data-panel-width-mode="compact"] .cmp-select-aspect{ flex:1 1 0; min-width:70px; }
+.panel[data-panel-width-mode="compact"] .cmp-chip{ padding:2px 6px; font-size:9px; }
+.panel[data-panel-width-mode="compact"] .cmp-select-target .cmp-chip [data-icon-name="ps-layers"],
+.panel[data-panel-width-mode="compact"] .cmp-select-target .cmp-chip [data-icon-name="selection"],
+.panel[data-panel-width-mode="compact"] .cmp-select-aspect .cmp-chip [data-icon-name="image-auto-mode"]{ display:none !important; }
+.panel[data-panel-width-mode="compact"] .cmp-select-target .cmp-chip-value,
+.panel[data-panel-width-mode="compact"] .cmp-select-aspect .cmp-chip-value{ max-width:56px; }
+.panel[data-panel-width-mode="compact"] .prov-row{ padding:9px 12px; }
+.panel[data-panel-width-mode="compact"] .prov-ico{ width:32px; height:32px; margin-right:9px; }
+.panel[data-panel-width-mode="compact"] .prov-meta .completeness{ display:none; }
+.panel[data-panel-width-mode="compact"] .prov-top{ align-items:flex-start; flex-wrap:wrap; }
+.panel[data-panel-width-mode="compact"] .prov-status{ margin-top:4px; margin-left:auto; }
+.panel[data-panel-width-mode="compact"] .prov-actions{ flex-wrap:wrap; padding-top:4px; padding-bottom:4px; }
+.panel[data-panel-width-mode="compact"] .img-meta{ max-width:calc(100% - 16px); overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.panel[data-panel-width-mode="compact"] .err-actions{ flex-wrap:wrap; }
+.panel[data-panel-width-mode="compact"] .err-copy{ margin-top:6px; margin-left:0; }
+.panel[data-panel-width-mode="compact"] .model-menu{ left:12px; right:12px; }
+.panel[data-panel-width-mode="compact"] .attach-picker,
+.panel[data-panel-width-mode="compact"] .layer-list-wrap{ left:12px; right:12px; width:auto; max-width:none; }
 
-@media (max-width:320px){
-  .cmp-select-model{ min-width:0; }
-  .cmp-select-target{ flex-basis:0; }
-  .cmp-select-aspect{ flex-basis:0; }
-  .cmp-chip{ padding:2px 5px; }
-  .cmp-select-target .cmp-chip-value,
-  .cmp-select-aspect .cmp-chip-value{ max-width:56px; }
-}
+.panel[data-panel-width-mode="wide"] .img-result{ max-height:320px; }
+.panel[data-panel-width-mode="wide"] .img-bg{ max-height:320px; }
+.panel[data-panel-width-mode="wide"] .user-wrap{ max-width:74%; }
+.panel[data-panel-width-mode="wide"] .cmp-select-target .cmp-chip-value,
+.panel[data-panel-width-mode="wide"] .cmp-select-aspect .cmp-chip-value{ max-width:none; }
 
-@media (max-height:440px){
-  .composer{ max-height:min(48%, 210px); padding-top:6px; padding-bottom:8px; }
-  .cmp-ta{ max-height:54px; }
-  .cmp-toolbar{ padding-top:3px; }
-  .attach-picker,
-  .layer-list-wrap{ max-height:calc(100vh - 104px); }
-  .layer-scroll{ max-height:min(190px, calc(100vh - 184px)); }
-  .settings-page .section{ padding:12px; }
-  .settings-page .field{ margin-bottom:10px; }
-  .settings-page .test-area{ padding:12px; }
-  .settings-page .det-footer{ padding:8px 12px; }
-  .settings-page .scroll-footer-pad{ padding-bottom:96px; }
-  .settings-page .chip{ margin-right:6px; margin-bottom:6px; }
-}
+.panel[data-panel-height-mode="short"] .composer{ max-height:min(48%, 210px); padding-top:6px; padding-bottom:8px; }
+.panel[data-panel-height-mode="short"] .cmp-ta{ max-height:54px; }
+.panel[data-panel-height-mode="short"] .cmp-toolbar{ padding-top:3px; }
+.panel[data-panel-height-mode="short"] .attach-picker,
+.panel[data-panel-height-mode="short"] .layer-list-wrap{ max-height:180px; }
+.panel[data-panel-height-mode="short"] .layer-scroll{ max-height:136px; }
+.panel[data-panel-height-mode="short"] .settings-page .section{ padding:12px; }
+.panel[data-panel-height-mode="short"] .settings-page .field{ margin-bottom:10px; }
+.panel[data-panel-height-mode="short"] .settings-page .test-area{ padding:12px; }
+.panel[data-panel-height-mode="short"] .settings-page .det-footer{ padding:8px 12px; }
+.panel[data-panel-height-mode="short"] .settings-page .scroll-footer-pad{ padding-bottom:96px; }
+.panel[data-panel-height-mode="short"] .settings-page .chip{ margin-right:6px; margin-bottom:6px; }
 
-@media (max-width:320px){
-  .prov-row{ padding:9px 12px; }
-  .prov-ico{ width:32px; height:32px; margin-right:9px; }
-  .prov-meta .completeness{ display:none; }
-}
-
-/* Narrow panel guards */
 .cmp-select-target .cmp-chip-value{ max-width:48px; }
 .cmp-select-aspect .cmp-chip-value{ max-width:56px; }
 `;

@@ -27,16 +27,20 @@
         "zh": "Imagen"
       },
       "minimumSize": {
-        "width": 240,
+        "width": 300,
         "height": 420
       },
       "preferredDockedSize": {
-        "width": 380,
-        "height": 640
+        "width": 360,
+        "height": 600
       },
       "preferredFloatingSize": {
-        "width": 380,
-        "height": 640
+        "width": 420,
+        "height": 680
+      },
+      "maximumSize": {
+        "width": 2000,
+        "height": 2000
       }
     }
   ]

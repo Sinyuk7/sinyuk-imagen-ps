@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type RefObject } from 'react';
 import { AppServicesProvider } from '../ports/app-services-context';
 import type { AppServices } from '../ports/app-services';
 import type { LayerInfo } from '../ports/host-port';
@@ -31,6 +31,12 @@ export interface AppShellProps {
 
 type View = 'main' | 'history' | 'settings' | 'settings-add' | 'settings-detail';
 type AppTheme = 'dark' | 'light';
+type PanelWidthMode = 'compact' | 'regular' | 'wide';
+type PanelHeightMode = 'short' | 'normal';
+
+const PANEL_COMPACT_MAX_WIDTH = 339;
+const PANEL_WIDE_MIN_WIDTH = 520;
+const PANEL_SHORT_MAX_HEIGHT = 459;
 
 /**
  * Photoshop 主题同步 query：UXP 自 4.1 起支持四值 `prefers-color-scheme`
@@ -63,12 +69,9 @@ function usePanelCss(): void {
  * 直接驱动 SWC 内部 theme fragment 选择）。
  *
  * 同步优先级：
- *  1. `window.matchMedia(LIGHT_THEME_QUERY)` + `change` listener —— 若 UXP
- *     实机支持，作为主实时同步机制
- *  2. CSS theme probe (`.uxp-theme-probe`) + `ResizeObserver` —— 若
- *     `matchMedia` listener 不可靠，用 probe 尺寸变化桥接
- *  3. `focus` / `visibilitychange` —— 仅作为恢复性 fallback，修复可能
- *     错过的同步，不作为主实时方案
+ *  1. `window.matchMedia(LIGHT_THEME_QUERY)` + `change` listener —— 主实时同步机制
+ *  2. CSS theme probe (`.uxp-theme-probe`) —— 仅在初始化 / 恢复同步时兜底读取
+ *  3. `focus` / `visibilitychange` —— 恢复性 fallback，修复可能错过的同步
  *
  * Chrome harness 通过 `?theme=light|dark` 显式覆盖以测试双主题。
  * 不使用 polling、`requestAnimationFrame` 或硬编码 Photoshop 四色值。
@@ -87,8 +90,6 @@ function useAppTheme(): AppTheme {
     setTheme(current);
 
     let cleanupMatchMedia: (() => void) | undefined;
-    let cleanupProbe: (() => void) | undefined;
-
     const media = typeof window !== 'undefined' && typeof window.matchMedia === 'function'
       ? window.matchMedia(LIGHT_THEME_QUERY)
       : null;
@@ -109,24 +110,6 @@ function useAppTheme(): AppTheme {
       }
     }
 
-    if (!cleanupMatchMedia && typeof ResizeObserver !== 'undefined') {
-      const probe = createThemeProbe();
-      if (probe) {
-        const observer = new ResizeObserver(() => {
-          const next = probe.offsetWidth === 2 ? 'light' : 'dark';
-          if (next !== current) {
-            current = next;
-            setTheme(next);
-          }
-        });
-        observer.observe(probe);
-        cleanupProbe = () => {
-          observer.disconnect();
-          probe.remove();
-        };
-      }
-    }
-
     const recoverySync = () => {
       const params = readThemeParam();
       if (params === 'light' || params === 'dark') {
@@ -144,7 +127,6 @@ function useAppTheme(): AppTheme {
 
     return () => {
       cleanupMatchMedia?.();
-      cleanupProbe?.();
       window.removeEventListener('focus', recoverySync);
       document.removeEventListener('visibilitychange', recoverySync);
     };
@@ -199,6 +181,85 @@ function createThemeProbe(): HTMLDivElement | null {
   return probe;
 }
 
+function classifyPanelWidthMode(width: number): PanelWidthMode {
+  if (width <= PANEL_COMPACT_MAX_WIDTH) {
+    return 'compact';
+  }
+  if (width >= PANEL_WIDE_MIN_WIDTH) {
+    return 'wide';
+  }
+  return 'regular';
+}
+
+function classifyPanelHeightMode(height: number): PanelHeightMode {
+  return height <= PANEL_SHORT_MAX_HEIGHT ? 'short' : 'normal';
+}
+
+function readPanelModes(width: number, height: number): {
+  readonly widthMode: PanelWidthMode;
+  readonly heightMode: PanelHeightMode;
+} {
+  return {
+    widthMode: classifyPanelWidthMode(width),
+    heightMode: classifyPanelHeightMode(height),
+  };
+}
+
+/**
+ * Panel 响应式只允许一个 root 级 `ResizeObserver`。
+ *
+ * observer 只负责把像素尺寸折叠成离散语义模式，再写到 root `data-*`；
+ * 不把每次 drag-resize 像素值塞进 React state，也不为子组件分发 observer。
+ */
+function usePanelResponsiveAttributes(panelRef: RefObject<HTMLDivElement | null>): void {
+  const latestModesRef = useRef<string>('');
+
+  useLayoutEffect(() => {
+    const panel = panelRef.current;
+    if (!panel) {
+      return undefined;
+    }
+
+    const applyModes = (width: number, height: number) => {
+      const next = readPanelModes(width, height);
+      const nextKey = `${next.widthMode}:${next.heightMode}`;
+      if (latestModesRef.current === nextKey) {
+        return;
+      }
+      latestModesRef.current = nextKey;
+      panel.dataset.panelWidthMode = next.widthMode;
+      panel.dataset.panelHeightMode = next.heightMode;
+    };
+
+    const rect = panel.getBoundingClientRect();
+    applyModes(rect.width, rect.height);
+
+    if (typeof ResizeObserver === 'undefined') {
+      return () => {
+        delete panel.dataset.panelWidthMode;
+        delete panel.dataset.panelHeightMode;
+        latestModesRef.current = '';
+      };
+    }
+
+    const observer = new ResizeObserver((entries) => {
+      const entry = entries[entries.length - 1];
+      if (!entry) {
+        return;
+      }
+      applyModes(entry.contentRect.width, entry.contentRect.height);
+    });
+    observer.observe(panel);
+
+    return () => {
+      observer.disconnect();
+      delete panel.dataset.panelWidthMode;
+      delete panel.dataset.panelHeightMode;
+      latestModesRef.current = '';
+    };
+  }, [panelRef]);
+}
+
 function useHostLayers(host: AppShellHost): {
   readonly layers: readonly LayerInfo[];
   readonly layersError: string | null;
@@ -232,6 +293,7 @@ function defaultModelFor(profile: ProviderProfile | undefined): string {
 function AppShellContent({ host }: AppShellProps) {
   const { messages: t } = useI18n();
   const services = host.services;
+  const panelRef = useRef<HTMLDivElement | null>(null);
   const [view, setView] = useState<View>('main');
   const [selectedImageProfileId, setSelectedImageProfileId] = useState<string | null>(null);
   const [selectedSettingsProfileId, setSelectedSettingsProfileId] = useState<string | null>(null);
@@ -255,6 +317,8 @@ function AppShellContent({ host }: AppShellProps) {
   const conversation = useConversation(services, imagenSession, t.conversation);
   const history = useJobHistory(services);
   const { layers, layersError, reloadLayers } = useHostLayers(host);
+
+  usePanelResponsiveAttributes(panelRef);
 
   useEffect(() => {
     if (selectedImageProfileId && imageProfiles.some((profile) => profile.profileId === selectedImageProfileId)) {
@@ -315,7 +379,7 @@ function AppShellContent({ host }: AppShellProps) {
   }, [highlightedRoundId]);
 
   return (
-    <div className="panel">
+    <div className="panel" ref={panelRef}>
       {view === 'main' && (
         <MainPage
           onNav={onNav}

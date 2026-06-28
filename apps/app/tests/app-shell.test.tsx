@@ -1,6 +1,6 @@
 import { act } from 'react';
 import { createRoot, type Root } from 'react-dom/client';
-import { afterEach, describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import { AppShell } from '../src/shared/ui/app-shell';
 import { createFakeServices } from './fakes';
 import type { UxpFlightRecorder } from '../src/host/uxp-log-sink';
@@ -218,5 +218,83 @@ describe('AppShell', () => {
     expect(container.querySelector<HTMLInputElement>('[data-testid="provider-base-url-input"]')?.value).toBe('https://openrouter.ai/api/v1');
     expect(container.querySelector<HTMLInputElement>('[data-testid="provider-default-model-input"]')?.value).toBe('gpt-4o-mini');
     expect(container.querySelector<HTMLTextAreaElement>('[data-testid="provider-instruction-input"]')?.value).toBe('Rewrite the prompt.');
+  });
+
+  it('writes root panel semantic size modes and disconnects the root observer on unmount', async () => {
+    const originalResizeObserver = globalThis.ResizeObserver;
+    const disconnect = vi.fn();
+    const observe = vi.fn();
+    let resizeCallback: ResizeObserverCallback | undefined;
+
+    class MockResizeObserver {
+      constructor(callback: ResizeObserverCallback) {
+        resizeCallback = callback;
+      }
+
+      observe = observe;
+      disconnect = disconnect;
+      unobserve = vi.fn();
+    }
+
+    // @ts-expect-error test stub
+    globalThis.ResizeObserver = MockResizeObserver;
+
+    try {
+      const { services } = createFakeServices();
+      const container = document.createElement('div');
+      container.style.width = '300px';
+      container.style.height = '420px';
+      document.body.appendChild(container);
+      root = createRoot(container);
+
+      await act(async () => {
+        root!.render(
+          <AppShell
+            host={{
+              kind: 'photoshop-uxp',
+              app: { stage: 'uxp-first-shell', host: 'photoshop-uxp', services: ['commands', 'host'] },
+              locale: 'en',
+              services,
+              dispose: () => undefined,
+            }}
+          />,
+        );
+      });
+      await flush();
+      await flush();
+
+      const panel = container.querySelector<HTMLDivElement>('.panel');
+      expect(panel).not.toBeNull();
+      expect(observe).toHaveBeenCalledWith(panel);
+
+      resizeCallback?.(
+        [{
+          target: panel!,
+          contentRect: { width: 300, height: 420 } as DOMRectReadOnly,
+        } as ResizeObserverEntry],
+        {} as ResizeObserver,
+      );
+      expect(panel?.getAttribute('data-panel-width-mode')).toBe('compact');
+      expect(panel?.getAttribute('data-panel-height-mode')).toBe('short');
+
+      resizeCallback?.(
+        [{
+          target: panel!,
+          contentRect: { width: 600, height: 800 } as DOMRectReadOnly,
+        } as ResizeObserverEntry],
+        {} as ResizeObserver,
+      );
+      expect(panel?.getAttribute('data-panel-width-mode')).toBe('wide');
+      expect(panel?.getAttribute('data-panel-height-mode')).toBe('normal');
+
+      await act(async () => {
+        root!.unmount();
+      });
+      root = undefined;
+
+      expect(disconnect).toHaveBeenCalledTimes(1);
+    } finally {
+      globalThis.ResizeObserver = originalResizeObserver;
+    }
   });
 });

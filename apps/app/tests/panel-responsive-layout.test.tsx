@@ -93,7 +93,7 @@ describe('Panel responsive layout contract', () => {
 
   it('panel adapts to a smaller container', async () => {
     const container = document.createElement('div');
-    await renderApp(container, 300, 480);
+    await renderApp(container, 300, 420);
     const layout = measureLayout(container);
 
     expect(layout.panelWidth).toBe(layout.rootWidth);
@@ -122,7 +122,7 @@ describe('Panel responsive layout contract', () => {
 
   it('no page-level horizontal scroll at narrow width', async () => {
     const container = document.createElement('div');
-    await renderApp(container, 280, 420);
+    await renderApp(container, 300, 420);
     const layout = measureLayout(container);
 
     expect(layout.pageHasHorizontalScroll).toBe(false);
