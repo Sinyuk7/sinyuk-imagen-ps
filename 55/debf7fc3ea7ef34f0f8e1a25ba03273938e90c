@@ -1,0 +1,21 @@
+docs/loops/2026-06-28-photoshop-frame-placement.md
+  s_5ae8684dc9efad::t_37e592c6695368 1-717
+docs/loops/README.md
+  s_5ae8684dc9efad::t_c08315f6a57c9d 6-7
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.3",
+  "base_commit_sha": "55debf7fc3ea7ef34f0f8e1a25ba03273938e90c",
+  "prompts": {},
+  "sessions": {
+    "s_5ae8684dc9efad": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "019f0e47-303e-7ef2-9b27-1b45356566ff",
+        "model": "unknown"
+      },
+      "human_author": "Sinyuk <80998062@qq.com>"
+    }
+  }
+}
