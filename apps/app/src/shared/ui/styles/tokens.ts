@@ -1,65 +1,134 @@
 /**
- * 设计 token 三层模型。
+ * 设计 token 三层模型（Material Design 3 色彩体系）。
  *
- * Layer A — 宿主与环境输入：应用语义 token 的中性颜色（背景、文字、边框、
- * Hover）优先从 Photoshop UXP 官方 `--uxp-host-*` 变量派生，并在不存在时
- * 回退到固定暗色值（Chrome runtime 与未注入宿主变量的环境共用此 fallback）。
- * Accent / Positive / Notice / Negative 继续使用应用语义值，不从宿主派生。
+ * Layer A — md-sys 原料层：6 套 Material Design 3 主题（dark / dark-hc /
+ * dark-mc / light / light-hc / light-mc），每套 58 个 token（50 标准 +
+ * 8 yellow/green 扩展）。4 套通过 `@media (prefers-color-scheme)` 接入
+ * UXP 四主题映射，2 套 mc 通过 class 备用。
  *
- * Layer B — 应用语义 token：页面与自定义组件只消费 `--app-*` 命名，不直接
- * 读取缩写 token 或 raw color。亮色主题通过 UXP 官方
- * `@media (prefers-color-scheme: light|lightest)` 切换 —— 自定义 UI 完全
- * 纯 CSS 自动跟随宿主主题，不需要 JavaScript 重新写入 token 或挂 class。
- * Chrome harness 用 `?theme=light|dark` 显式覆盖，仅用于同步 `<sp-theme color>`。
+ * UXP 四主题映射（方案 A：hc 两端 + 默认中间，mc 储备）：
+ *   darkest  → dark-hc   @media (prefers-color-scheme: darkest)
+ *   dark     → dark      :root 默认
+ *   light    → light     @media (prefers-color-scheme: light)
+ *   lightest → light-hc  @media (prefers-color-scheme: lightest)
  *
- * Layer C — Spectrum bridge：`sp-theme.app-theme` 只做少量应用语义 token 到
- * SWC 0.37.0 公开 token 的映射，见本文件底部 `SPECTRUM_BRIDGE_CSS`。
+ * Layer B — 宿主派生 + 应用语义层：6 个中性 token 优先从 Photoshop UXP
+ * `--uxp-host-*` 变量派生（实机跟随宿主四主题），fallback 到 md-sys 值
+ * （Chrome 与未注入宿主变量的环境）。Accent 从 mint 绿切换为 md-sys
+ * primary 蓝系。positive ← green 扩展色，notice ← yellow 扩展色，
+ * informative ← primary，negative ← error。
+ *
+ * Layer C — Spectrum bridge：`sp-theme.app-theme` 只做少量应用语义 token
+ * 到 SWC 0.37.0 公开 token 的映射，见本文件底部 `SPECTRUM_BRIDGE_CSS`。
  *
  * 不使用 transition / animation / transform / box-shadow / grid / gap /
  * margin 简写 / font 简写 / 相邻兄弟选择器 —— 这些在 Photoshop UXP host
  * renderer 中不可靠，由 `uxp-css-compat.test.ts` 强制。
  */
 
-/* === Layer A + B：暗色默认（同时也是 Chrome fallback） ===
- * 中性 token 通过 `var(--uxp-host-*, <fallback>)` 链路从宿主派生；
- * Accent / 语义状态色保持应用自有值，不映射到宿主。 */
+/* === Layer A + B：暗色默认（dark = UXP dark 主题 fallback） ===
+ * 6 个中性 token 通过 `var(--uxp-host-*, var(--md-sys-color-*))` 链路从宿主
+ * 派生；Accent / 语义状态色直接引用 md-sys token。
+ * accent-hover / accent-down 从 primary 派生（±8% 明度），因 md-sys 无
+ * hover/down 变体。subtle 变体为对应色 14% rgba，因 UXP 不支持 color-mix()。 */
 export const TOKENS_CSS = `
 :root{
+  /* === md-sys dark 主题原料 === */
+  --md-sys-color-primary:#ACC7FF;
+  --md-sys-color-surface-tint:#ACC7FF;
+  --md-sys-color-on-primary:#0E2F60;
+  --md-sys-color-primary-container:#294677;
+  --md-sys-color-on-primary-container:#D7E2FF;
+  --md-sys-color-secondary:#BEC6DC;
+  --md-sys-color-on-secondary:#283041;
+  --md-sys-color-secondary-container:#3F4759;
+  --md-sys-color-on-secondary-container:#DAE2F9;
+  --md-sys-color-tertiary:#DDBCE0;
+  --md-sys-color-on-tertiary:#3F2844;
+  --md-sys-color-tertiary-container:#573E5B;
+  --md-sys-color-on-tertiary-container:#FBD7FC;
+  --md-sys-color-error:#FFB4AB;
+  --md-sys-color-on-error:#690005;
+  --md-sys-color-error-container:#93000A;
+  --md-sys-color-on-error-container:#FFDAD6;
+  --md-sys-color-background:#111318;
+  --md-sys-color-on-background:#E2E2E9;
+  --md-sys-color-surface:#111318;
+  --md-sys-color-on-surface:#E2E2E9;
+  --md-sys-color-surface-variant:#44474E;
+  --md-sys-color-on-surface-variant:#C4C6D0;
+  --md-sys-color-outline:#8E9099;
+  --md-sys-color-outline-variant:#44474E;
+  --md-sys-color-shadow:#000000;
+  --md-sys-color-scrim:#000000;
+  --md-sys-color-inverse-surface:#E2E2E9;
+  --md-sys-color-inverse-on-surface:#2E3036;
+  --md-sys-color-inverse-primary:#435E91;
+  --md-sys-color-primary-fixed:#D7E2FF;
+  --md-sys-color-on-primary-fixed:#001A40;
+  --md-sys-color-primary-fixed-dim:#ACC7FF;
+  --md-sys-color-on-primary-fixed-variant:#294677;
+  --md-sys-color-secondary-fixed:#DAE2F9;
+  --md-sys-color-on-secondary-fixed:#131C2C;
+  --md-sys-color-secondary-fixed-dim:#BEC6DC;
+  --md-sys-color-on-secondary-fixed-variant:#3F4759;
+  --md-sys-color-tertiary-fixed:#FBD7FC;
+  --md-sys-color-on-tertiary-fixed:#29132E;
+  --md-sys-color-tertiary-fixed-dim:#DDBCE0;
+  --md-sys-color-on-tertiary-fixed-variant:#573E5B;
+  --md-sys-color-surface-dim:#111318;
+  --md-sys-color-surface-bright:#37393E;
+  --md-sys-color-surface-container-lowest:#0C0E13;
+  --md-sys-color-surface-container-low:#1A1B20;
+  --md-sys-color-surface-container:#1E2025;
+  --md-sys-color-surface-container-high:#282A2F;
+  --md-sys-color-surface-container-highest:#33353A;
+  --md-extended-color-yellow-color:#C6CC79;
+  --md-extended-color-yellow-on-color:#303300;
+  --md-extended-color-yellow-color-container:#464A03;
+  --md-extended-color-yellow-on-color-container:#E3E892;
+  --md-extended-color-green-color:#9CD49F;
+  --md-extended-color-green-on-color:#013913;
+  --md-extended-color-green-color-container:#1D5128;
+  --md-extended-color-green-on-color-container:#B8F1B9;
+
+  /* === Layer B：应用语义 token === */
   /* 背景层级 —— 收敛为 Base / Layer-1 / Layer-2 / Elevated 四档 */
-  --app-color-background-base:var(--uxp-host-background-color, #0D1117);
-  --app-color-background-layer-1:#151A22;
-  --app-color-background-layer-2:#1C2330;
-  --app-color-background-elevated:#242C3B;
+  --app-color-background-base:var(--uxp-host-background-color, var(--md-sys-color-surface));
+  --app-color-background-layer-1:var(--md-sys-color-surface-container-low);
+  --app-color-background-layer-2:var(--md-sys-color-surface-container);
+  --app-color-background-elevated:var(--md-sys-color-surface-container-high);
 
   /* 边框 */
-  --app-color-border-default:var(--uxp-host-border-color, #2E3748);
-  --app-color-border-strong:#3A4457;
+  --app-color-border-default:var(--uxp-host-border-color, var(--md-sys-color-outline-variant));
+  --app-color-border-strong:var(--md-sys-color-outline);
 
   /* 文字 —— primary / secondary / muted / on-accent */
-  --app-color-text-primary:var(--uxp-host-text-color, #E9EDF4);
-  --app-color-text-secondary:var(--uxp-host-text-color-secondary, #A6B0BF);
-  --app-color-text-muted:#738093;
-  --app-color-text-on-accent:#0D1117;
+  --app-color-text-primary:var(--uxp-host-text-color, var(--md-sys-color-on-surface));
+  --app-color-text-secondary:var(--uxp-host-text-color-secondary, var(--md-sys-color-on-surface-variant));
+  --app-color-text-muted:var(--md-sys-color-outline);
+  --app-color-text-on-accent:var(--md-sys-color-on-primary);
   --app-color-link:var(--uxp-host-link-text-color, var(--app-color-informative));
 
-  /* 品牌 Accent（Mint）—— 仅用于 CTA / 选中强调 / focus / 品牌识别 */
-  --app-color-accent-default:#78E7C0;
-  --app-color-accent-hover:#8AF0CC;
-  --app-color-accent-down:#58D9AF;
-  --app-color-accent-subtle:rgba(120,231,192,.14);
+  /* 品牌 Accent（md-sys primary 蓝系）—— CTA / 选中强调 / focus / 品牌识别 */
+  --app-color-accent-default:var(--md-sys-color-primary);
+  --app-color-accent-hover:#B3CBFF;
+  --app-color-accent-down:#9EB7EB;
+  --app-color-accent-subtle:rgba(172,199,255,.14);
 
-  /* 语义状态色 —— 与 Accent 区分，不共用绿色 */
-  --app-color-positive:#63D48F;
-  --app-color-positive-subtle:rgba(99,212,143,.14);
-  --app-color-informative:#67B7FF;
-  --app-color-informative-subtle:rgba(103,183,255,.14);
-  --app-color-notice:#F2B84B;
-  --app-color-notice-subtle:rgba(242,184,75,.14);
-  --app-color-negative:#F26D6D;
-  --app-color-negative-subtle:rgba(242,109,109,.14);
+  /* 语义状态色 —— negative ← error，positive ← green，notice ← yellow，informative ← primary */
+  --app-color-positive:var(--md-extended-color-green-color);
+  --app-color-positive-subtle:rgba(156,212,159,.14);
+  --app-color-informative:var(--md-sys-color-primary);
+  --app-color-informative-subtle:rgba(172,199,255,.14);
+  --app-color-notice:var(--md-extended-color-yellow-color);
+  --app-color-notice-subtle:rgba(198,204,121,.14);
+  --app-color-negative:var(--md-sys-color-error);
+  --app-color-negative-subtle:rgba(255,180,171,.14);
 
-  /* 交互叠层 —— Hover 从宿主派生 */
-  --app-color-hover-overlay:var(--uxp-host-widget-hover-background-color, rgba(255,255,255,.05));
+  /* 交互叠层 —— Hover 从宿主派生，fallback 随主题切换 */
+  --app-hover-overlay-fallback:rgba(255,255,255,.05);
+  --app-color-hover-overlay:var(--uxp-host-widget-hover-background-color, var(--app-hover-overlay-fallback));
   --app-color-active-overlay:rgba(255,255,255,.09);
   --app-color-focus-ring:var(--app-color-accent-default);
 
@@ -79,57 +148,230 @@ export const TOKENS_CSS = `
   --app-font-family-base:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;
   --app-font-family-mono:'SF Mono','Menlo',monospace;
 
-  /* 满屏底色（html/body），略深于 panel base 以产生面板浮起感 */
-  --app-color-canvas:#060A0F;
+  /* 满屏底色（html/body），md-sys surface-container-lowest 在暗色端最深 */
+  --app-color-canvas:var(--md-sys-color-surface-container-lowest);
 }
-`;
 
-/* === 亮色主题：覆盖中性 token，Accent 调暗保证浅底对比 ===
- * 使用 UXP 官方 `@media (prefers-color-scheme: light|lightest)` —— 自定义 UI
- * 纯 CSS 自动跟随 Photoshop 四主题，不需要 JavaScript state 或 class。
- * UXP 自 4.1 起支持四值 prefers-color-scheme（lightest/light/dark/darkest）。
- * Chrome 同样支持标准 prefers-color-scheme media query。 */
-export const LIGHT_THEME_CSS = `
-@media (prefers-color-scheme: light),
-       (prefers-color-scheme: lightest){
+/* === UXP darkest 主题 → md-sys dark-hc === */
+@media (prefers-color-scheme: darkest){
   :root{
-    --app-color-background-base:#F5F6F8;
-    --app-color-background-layer-1:#FFFFFF;
-    --app-color-background-layer-2:#EBEDEF;
-    --app-color-background-elevated:#E0E3E8;
+    --md-sys-color-primary:#EBF0FF;
+    --md-sys-color-surface-tint:#ACC7FF;
+    --md-sys-color-on-primary:#000000;
+    --md-sys-color-primary-container:#A7C3FC;
+    --md-sys-color-on-primary-container:#000B21;
+    --md-sys-color-secondary:#EBF0FF;
+    --md-sys-color-on-secondary:#000000;
+    --md-sys-color-secondary-container:#BAC2D8;
+    --md-sys-color-on-secondary-container:#040B1A;
+    --md-sys-color-tertiary:#FFEAFD;
+    --md-sys-color-on-tertiary:#000000;
+    --md-sys-color-tertiary-container:#D9B8DC;
+    --md-sys-color-on-tertiary-container:#17031C;
+    --md-sys-color-error:#FFECE9;
+    --md-sys-color-on-error:#000000;
+    --md-sys-color-error-container:#FFAEA4;
+    --md-sys-color-on-error-container:#220001;
+    --md-sys-color-background:#111318;
+    --md-sys-color-on-background:#E2E2E9;
+    --md-sys-color-surface:#111318;
+    --md-sys-color-on-surface:#FFFFFF;
+    --md-sys-color-surface-variant:#44474E;
+    --md-sys-color-on-surface-variant:#FFFFFF;
+    --md-sys-color-outline:#EEEFF9;
+    --md-sys-color-outline-variant:#C0C2CC;
+    --md-sys-color-shadow:#000000;
+    --md-sys-color-scrim:#000000;
+    --md-sys-color-inverse-surface:#E2E2E9;
+    --md-sys-color-inverse-on-surface:#000000;
+    --md-sys-color-inverse-primary:#2B4779;
+    --md-sys-color-primary-fixed:#D7E2FF;
+    --md-sys-color-on-primary-fixed:#000000;
+    --md-sys-color-primary-fixed-dim:#ACC7FF;
+    --md-sys-color-on-primary-fixed-variant:#00102C;
+    --md-sys-color-secondary-fixed:#DAE2F9;
+    --md-sys-color-on-secondary-fixed:#000000;
+    --md-sys-color-secondary-fixed-dim:#BEC6DC;
+    --md-sys-color-on-secondary-fixed-variant:#081121;
+    --md-sys-color-tertiary-fixed:#FBD7FC;
+    --md-sys-color-on-tertiary-fixed:#000000;
+    --md-sys-color-tertiary-fixed-dim:#DDBCE0;
+    --md-sys-color-on-tertiary-fixed-variant:#1D0823;
+    --md-sys-color-surface-dim:#111318;
+    --md-sys-color-surface-bright:#4E5056;
+    --md-sys-color-surface-container-lowest:#000000;
+    --md-sys-color-surface-container-low:#1E2025;
+    --md-sys-color-surface-container:#2E3036;
+    --md-sys-color-surface-container-high:#3A3B41;
+    --md-sys-color-surface-container-highest:#45474C;
+    --md-extended-color-yellow-color:#F0F69F;
+    --md-extended-color-yellow-on-color:#000000;
+    --md-extended-color-yellow-color-container:#C2C876;
+    --md-extended-color-yellow-on-color-container:#0B0C00;
+    --md-extended-color-green-color:#C5FEC6;
+    --md-extended-color-green-on-color:#000000;
+    --md-extended-color-green-color-container:#99D09B;
+    --md-extended-color-green-on-color-container:#000F02;
 
-    --app-color-border-default:#D2D6DC;
-    --app-color-border-strong:#B8BEC7;
-
-    --app-color-text-primary:#1F232A;
-    --app-color-text-secondary:#5A6470;
-    --app-color-text-muted:#8B94A0;
-    --app-color-text-on-accent:#0D1117;
-    --app-color-link:#2E7DD6;
-
-    --app-color-accent-default:#2DB89A;
-    --app-color-accent-hover:#25A68A;
-    --app-color-accent-down:#1F8E76;
-    --app-color-accent-subtle:rgba(45,184,154,.14);
-
-    --app-color-positive:#2E9F5C;
-    --app-color-positive-subtle:rgba(46,159,92,.14);
-    --app-color-informative:#2E7DD6;
-    --app-color-informative-subtle:rgba(46,125,214,.14);
-    --app-color-notice:#C77E1F;
-    --app-color-notice-subtle:rgba(199,126,31,.14);
-    --app-color-negative:#D14545;
-    --app-color-negative-subtle:rgba(209,69,69,.14);
-
-    --app-color-hover-overlay:rgba(0,0,0,.04);
-    --app-color-active-overlay:rgba(0,0,0,.08);
-
-    --app-color-canvas:#ECEEF1;
+    --app-color-accent-hover:#ECF1FF;
+    --app-color-accent-down:#D8DDEB;
+    --app-color-accent-subtle:rgba(235,240,255,.14);
+    --app-color-positive-subtle:rgba(197,254,198,.14);
+    --app-color-informative-subtle:rgba(235,240,255,.14);
+    --app-color-notice-subtle:rgba(240,246,159,.14);
+    --app-color-negative-subtle:rgba(255,236,233,.14);
   }
 }
 `;
 
-/* === CSS theme probe（ResizeObserver fallback 用） ===
+/* === UXP light 主题 → md-sys light + UXP lightest → md-sys light-hc ===
+ * 亮色通过 `@media (prefers-color-scheme)` 纯 CSS 自动跟随宿主主题。
+ * 自定义 UI 无需 JavaScript state 或 class。 */
+export const LIGHT_THEME_CSS = `
+@media (prefers-color-scheme: light){
+  :root{
+    --md-sys-color-primary:#435E91;
+    --md-sys-color-surface-tint:#435E91;
+    --md-sys-color-on-primary:#FFFFFF;
+    --md-sys-color-primary-container:#D7E2FF;
+    --md-sys-color-on-primary-container:#294677;
+    --md-sys-color-secondary:#565E71;
+    --md-sys-color-on-secondary:#FFFFFF;
+    --md-sys-color-secondary-container:#DAE2F9;
+    --md-sys-color-on-secondary-container:#3F4759;
+    --md-sys-color-tertiary:#705574;
+    --md-sys-color-on-tertiary:#FFFFFF;
+    --md-sys-color-tertiary-container:#FBD7FC;
+    --md-sys-color-on-tertiary-container:#573E5B;
+    --md-sys-color-error:#BA1A1A;
+    --md-sys-color-on-error:#FFFFFF;
+    --md-sys-color-error-container:#FFDAD6;
+    --md-sys-color-on-error-container:#93000A;
+    --md-sys-color-background:#F9F9FF;
+    --md-sys-color-on-background:#1A1B20;
+    --md-sys-color-surface:#F9F9FF;
+    --md-sys-color-on-surface:#1A1B20;
+    --md-sys-color-surface-variant:#E0E2EC;
+    --md-sys-color-on-surface-variant:#44474E;
+    --md-sys-color-outline:#74777F;
+    --md-sys-color-outline-variant:#C4C6D0;
+    --md-sys-color-shadow:#000000;
+    --md-sys-color-scrim:#000000;
+    --md-sys-color-inverse-surface:#2E3036;
+    --md-sys-color-inverse-on-surface:#F0F0F7;
+    --md-sys-color-inverse-primary:#ACC7FF;
+    --md-sys-color-primary-fixed:#D7E2FF;
+    --md-sys-color-on-primary-fixed:#001A40;
+    --md-sys-color-primary-fixed-dim:#ACC7FF;
+    --md-sys-color-on-primary-fixed-variant:#294677;
+    --md-sys-color-secondary-fixed:#DAE2F9;
+    --md-sys-color-on-secondary-fixed:#131C2C;
+    --md-sys-color-secondary-fixed-dim:#BEC6DC;
+    --md-sys-color-on-secondary-fixed-variant:#3F4759;
+    --md-sys-color-tertiary-fixed:#FBD7FC;
+    --md-sys-color-on-tertiary-fixed:#29132E;
+    --md-sys-color-tertiary-fixed-dim:#DDBCE0;
+    --md-sys-color-on-tertiary-fixed-variant:#573E5B;
+    --md-sys-color-surface-dim:#D9D9E0;
+    --md-sys-color-surface-bright:#F9F9FF;
+    --md-sys-color-surface-container-lowest:#FFFFFF;
+    --md-sys-color-surface-container-low:#F3F3FA;
+    --md-sys-color-surface-container:#EDEDF4;
+    --md-sys-color-surface-container-high:#E8E7EE;
+    --md-sys-color-surface-container-highest:#E2E2E9;
+    --md-extended-color-yellow-color:#5D621C;
+    --md-extended-color-yellow-on-color:#FFFFFF;
+    --md-extended-color-yellow-color-container:#E3E892;
+    --md-extended-color-yellow-on-color-container:#464A03;
+    --md-extended-color-green-color:#36693D;
+    --md-extended-color-green-on-color:#FFFFFF;
+    --md-extended-color-green-color-container:#B8F1B9;
+    --md-extended-color-green-on-color-container:#1D5128;
+
+    --app-color-accent-hover:#526B9A;
+    --app-color-accent-down:#3E5685;
+    --app-color-accent-subtle:rgba(67,94,145,.14);
+    --app-color-positive-subtle:rgba(54,105,61,.14);
+    --app-color-informative-subtle:rgba(67,94,145,.14);
+    --app-color-notice-subtle:rgba(93,98,28,.14);
+    --app-color-negative-subtle:rgba(186,26,26,.14);
+    --app-hover-overlay-fallback:rgba(0,0,0,.04);
+    --app-color-active-overlay:rgba(0,0,0,.08);
+  }
+}
+
+@media (prefers-color-scheme: lightest){
+  :root{
+    --md-sys-color-primary:#072B5B;
+    --md-sys-color-surface-tint:#435E91;
+    --md-sys-color-on-primary:#FFFFFF;
+    --md-sys-color-primary-container:#2C497A;
+    --md-sys-color-on-primary-container:#FFFFFF;
+    --md-sys-color-secondary:#242C3D;
+    --md-sys-color-on-secondary:#FFFFFF;
+    --md-sys-color-secondary-container:#41495B;
+    --md-sys-color-on-secondary-container:#FFFFFF;
+    --md-sys-color-tertiary:#3B243F;
+    --md-sys-color-on-tertiary:#FFFFFF;
+    --md-sys-color-tertiary-container:#5A405E;
+    --md-sys-color-on-tertiary-container:#FFFFFF;
+    --md-sys-color-error:#600004;
+    --md-sys-color-on-error:#FFFFFF;
+    --md-sys-color-error-container:#98000A;
+    --md-sys-color-on-error-container:#FFFFFF;
+    --md-sys-color-background:#F9F9FF;
+    --md-sys-color-on-background:#1A1B20;
+    --md-sys-color-surface:#F9F9FF;
+    --md-sys-color-on-surface:#000000;
+    --md-sys-color-surface-variant:#E0E2EC;
+    --md-sys-color-on-surface-variant:#000000;
+    --md-sys-color-outline:#292C33;
+    --md-sys-color-outline-variant:#464951;
+    --md-sys-color-shadow:#000000;
+    --md-sys-color-scrim:#000000;
+    --md-sys-color-inverse-surface:#2E3036;
+    --md-sys-color-inverse-on-surface:#FFFFFF;
+    --md-sys-color-inverse-primary:#ACC7FF;
+    --md-sys-color-primary-fixed:#2C497A;
+    --md-sys-color-on-primary-fixed:#FFFFFF;
+    --md-sys-color-primary-fixed-dim:#113262;
+    --md-sys-color-on-primary-fixed-variant:#FFFFFF;
+    --md-sys-color-secondary-fixed:#41495B;
+    --md-sys-color-on-secondary-fixed:#FFFFFF;
+    --md-sys-color-secondary-fixed-dim:#2A3344;
+    --md-sys-color-on-secondary-fixed-variant:#FFFFFF;
+    --md-sys-color-tertiary-fixed:#5A405E;
+    --md-sys-color-on-tertiary-fixed:#FFFFFF;
+    --md-sys-color-tertiary-fixed-dim:#422A46;
+    --md-sys-color-on-tertiary-fixed-variant:#FFFFFF;
+    --md-sys-color-surface-dim:#B8B8BF;
+    --md-sys-color-surface-bright:#F9F9FF;
+    --md-sys-color-surface-container-lowest:#FFFFFF;
+    --md-sys-color-surface-container-low:#F0F0F7;
+    --md-sys-color-surface-container:#E2E2E9;
+    --md-sys-color-surface-container-high:#D4D4DB;
+    --md-sys-color-surface-container-highest:#C6C6CD;
+    --md-extended-color-yellow-color:#2B2F00;
+    --md-extended-color-yellow-on-color:#FFFFFF;
+    --md-extended-color-yellow-color-container:#484D05;
+    --md-extended-color-yellow-on-color-container:#FFFFFF;
+    --md-extended-color-green-color:#003411;
+    --md-extended-color-green-on-color:#FFFFFF;
+    --md-extended-color-green-color-container:#20532A;
+    --md-extended-color-green-on-color-container:#FFFFFF;
+
+    --app-color-accent-hover:#1B3C68;
+    --app-color-accent-down:#062854;
+    --app-color-accent-subtle:rgba(7,43,91,.14);
+    --app-color-positive-subtle:rgba(0,52,17,.14);
+    --app-color-informative-subtle:rgba(7,43,91,.14);
+    --app-color-notice-subtle:rgba(43,47,0,.14);
+    --app-color-negative-subtle:rgba(96,0,4,.14);
+  }
+}
+`;
+
+ /* === CSS theme probe（ResizeObserver fallback 用） ===
  * 仅当 `window.matchMedia` change listener 在 UXP 实机中不可靠时启用。
  * Dark/Darkest 下 width:1px，Light/Lightest 下 width:2px。
  * `useAppTheme()` 用 ResizeObserver 监听此元素尺寸变化，
@@ -154,9 +396,8 @@ export const THEME_PROBE_CSS = `
 
 /* === Layer C：Spectrum bridge ===
  * 只保留经审核确认在 SWC 0.37.0 公开 token 中生效的映射项。
- * 所有映射指向 `--app-*` 语义 token，因此亮色主题切换时 SWC 表面背景
- * 会跟随应用层翻转。删除了原文件中重复、过宽或依赖内部实现的 override。
- */
+ * 所有映射指向 `--app-*` 语义 token，因此主题切换时 SWC 表面背景
+ * 会跟随应用层翻转。 */
 export const SPECTRUM_BRIDGE_CSS = `
 sp-theme.app-theme{
   display:contents;
@@ -165,7 +406,7 @@ sp-theme.app-theme{
   --spectrum-accent-background-color-hover:var(--app-color-accent-hover);
   --spectrum-accent-background-color-down:var(--app-color-accent-down);
   --spectrum-accent-background-color-key-focus:var(--app-color-accent-hover);
-  /* accent 内容色固定深色，保证 mint 底上文字可读 */
+  /* accent 内容色跟随 md-sys on-primary，亮色主题下自动翻转为白色 */
   --spectrum-accent-content-color-default:var(--app-color-text-on-accent);
   --spectrum-accent-content-color-hover:var(--app-color-text-on-accent);
   --spectrum-accent-content-color-down:var(--app-color-text-on-accent);

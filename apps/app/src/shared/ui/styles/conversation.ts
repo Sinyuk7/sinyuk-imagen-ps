@@ -153,6 +153,6 @@ export const CONVERSATION_CSS = `
 
 /* Round highlight flash (static class, no animations) */
 .round-flash{ background:var(--app-color-informative-subtle) !important; }
-.round-flash .user-bubble{ background:rgba(103,183,255,.2) !important; }
+.round-flash .user-bubble{ background:var(--app-color-informative-subtle) !important; }
 .round-flash .prov-card{ border-color:var(--app-color-informative) !important; }
 `;

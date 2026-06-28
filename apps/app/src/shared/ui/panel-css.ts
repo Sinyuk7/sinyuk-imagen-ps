@@ -15,6 +15,7 @@
  * 保持 UXP 与 Chrome 共享同一套样式语义；不复制两套 CSS。
  */
 import { TOKENS_CSS, LIGHT_THEME_CSS, THEME_PROBE_CSS, SPECTRUM_BRIDGE_CSS } from './styles/tokens';
+import { EXTRA_THEMES_CSS } from './styles/extra-themes';
 import { BASE_CSS } from './styles/base';
 import { SHELL_CSS } from './styles/shell';
 import { CONVERSATION_CSS } from './styles/conversation';
@@ -26,6 +27,7 @@ import { RESPONSIVE_CSS } from './styles/responsive';
 export const PANEL_CSS = [
   TOKENS_CSS,
   LIGHT_THEME_CSS,
+  EXTRA_THEMES_CSS,
   THEME_PROBE_CSS,
   SPECTRUM_BRIDGE_CSS,
   BASE_CSS,

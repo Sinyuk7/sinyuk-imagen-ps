@@ -71,7 +71,7 @@ export const COMPOSER_CSS = `
 .layer-scroll::-webkit-scrollbar{ width:3px; }
 .layer-item{
   display:flex; align-items:center; padding:5px 12px;
-  cursor:pointer; border-bottom:1px solid rgba(46,55,72,.5);
+  cursor:pointer; border-bottom:1px solid var(--app-color-border-default);
 }
 .layer-item:last-child{ border-bottom:none; }
 .layer-item:hover{ background:var(--app-color-hover-overlay); }
