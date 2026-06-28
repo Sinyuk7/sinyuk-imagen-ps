@@ -1,0 +1,146 @@
+.agents/skills/ps-uxp-ui-rca/SKILL.md
+  s_e2443fd5061a38::t_59d02f6548a975 1-157
+.agents/skills/ps-uxp-ui-rca/agents/openai.yaml
+  s_e2443fd5061a38::t_256c68facc7bcc 1-4
+.agents/skills/ps-uxp-ui-rca/references/checklist.md
+  s_e2443fd5061a38::t_9060cf54460f85 1-11
+.agents/skills/ps-uxp-ui-rca/references/source-map.md
+  s_e2443fd5061a38::t_3b5b6dae0baa58 1-28
+apps/app/package.json
+  s_b7fd5342f694c5::t_7a32cba251c33e 19-20,22,24,26-27,29,31,34,36,38-41,43-48,51,56-58,60,62-63,65,67,70-71,73-76,78-84
+apps/app/src/harness/components/composer-select/composer-select-harness.tsx
+  s_9c0f1588fcd73b::t_8496b64fcb264e 4-5,36-38,62-64,133-135,152-155,216-322,362,366-452,722-739
+apps/app/src/shared/ui/components/composer-select.tsx
+  s_c602b5829d30bb::t_7baa2152ffb73b 3,11-12,29,52,78
+apps/app/src/shared/ui/components/status-notice.tsx
+  s_96842f642b3995::t_760013c8c1d0b1 3,56,58-59,63-64
+apps/app/src/shared/ui/components/uxp-model-dropdown.tsx
+  s_af9da955bfc9d9::t_416547f79a2311 1,3-4,6-8,10-11,13,15,18-31,33-34,36,38-66,69-71,73-74,76-83
+apps/app/src/shared/ui/pages/history-page.tsx
+  s_e2443fd5061a38::t_ad66996a68c80a 119,129
+apps/app/src/shared/ui/pages/main-page.tsx
+  s_c602b5829d30bb::t_2785e1443f0724 779
+apps/app/src/shared/ui/pages/settings-add-page.tsx
+  s_e2443fd5061a38::t_bb3bf32682f009 115,195,203
+apps/app/src/shared/ui/pages/settings-detail-page.tsx
+  s_af9da955bfc9d9::t_4c2d7961fb0e45 1,5,8,11,13,26-29,62,64,76,231-238,258,279,297,335,339-340,344-347,369-395,414-415,428
+apps/app/src/shared/ui/pages/settings-page.tsx
+  s_e2443fd5061a38::t_599a85b95bd778 1,5,28-110,124-130,141,151,161,172-177,179-186
+apps/app/src/shared/ui/panel-css.ts
+  s_9a01a0de0d7901::t_ff22b44a9cc4c4 11,27-31,44
+apps/app/src/shared/ui/primitives/custom-elements.d.ts
+  s_af9da955bfc9d9::t_bbee963e1b70dc 9,34-35,37-40,44-46,48,50-51,55-58,60-62,67-69
+apps/app/src/shared/ui/primitives/spectrum-controls.tsx
+  s_af9da955bfc9d9::t_8476450d1b7b57 12-13,15-16,19-21,24-27,30-33,35-37,41-43,128-241,259-264,274-288,304-327,331-339,352-360,580-783
+apps/app/src/shared/ui/styles/composer.ts
+  s_c602b5829d30bb::t_f817aa120a6ef0 105-112,130-138,140-148,337,345,365-377
+apps/app/src/shared/ui/styles/conversation.ts
+  s_e2443fd5061a38::t_fa880b0f6dd2a3 85
+apps/app/src/shared/ui/styles/overlays.ts
+  s_9a01a0de0d7901::t_9dbad9f7181981 1
+apps/app/src/shared/ui/styles/pages.ts
+  s_96842f642b3995::t_dc6fe86a03fdfd 20-27,29-33,38-45,47-49,85-86
+apps/app/src/shared/ui/styles/responsive.ts
+  s_c602b5829d30bb::t_9f16583e5eb303 7-8,14-15,17-33,44-45,59-60
+apps/app/src/shared/ui/styles/tokens.ts
+  s_e2443fd5061a38::t_c8c25313b25ab1 139
+apps/app/tests/bundle/uxp-dist-bundle.test.ts
+  s_9c0f1588fcd73b::t_89e5abca1b0c9a 44,51-53
+apps/app/tests/chrome-e2e/run.mjs
+  s_9717d5a5325d58::t_598f392e0fc838 199,236-237,427
+apps/app/tests/main-page.test.tsx
+  s_9717d5a5325d58::t_485c16796d7d32 56,365,380-381
+apps/app/tests/settings-detail-page.test.tsx
+  s_af9da955bfc9d9::t_2ba88e2af1a247 3,6,110-114,198-241
+apps/app/tests/settings-page.test.tsx
+  s_e5eb366138a8b2::t_cb19a8b41132d8 53,93-95
+apps/app/vite.uxp.config.ts
+  s_b7fd5342f694c5::t_ad97f3115b63ff 1,8-9,11,13,15-16,18,20,23-24,26-29,31-35,37-38,369-370,373-375,378,383
+pnpm-lock.yaml
+  s_b7fd5342f694c5::t_71c2f1f7b14c67 26-28,32-37,41-43,47-52,56-58,62-64,74-79,83-94,98-118,134-136,140-145,149-151,155-160,164-166,170-172,179-184,188-199,203-223,266,307,329,338,673-675,689-691,844-846,850-855,859-861,865-867,871-873,883-885,889-891,910-915,919-927,931-933,937-943,947-949,953-955,959-967,983-985,989-991,995-1000,1004-1009,1013-1015,1019-1021,1025-1027,1034-1039,1043-1054,1058-1078,1094-1096,1136-1138,1165-1166,1171-1172,1193-1194,1202-1203,1211-1212,1220-1221,1229-1230,1413-1415,1419-1421,1425-1427,1646-1648,1774-1775,1782-1783,2038-2041,2054-2058,2148-2154,2163-2174,2180-2183,2188-2192,2202-2211,2227-2237,2242-2246,2280-2289,2301-2321,2332-2337,2343-2354,2359-2366,2373-2378,2383-2405,2440-2443,2446-2450,2456-2464,2469-2477,2482-2488,2493-2499,2504-2508,2517-2524,2531-2551,2556-2589,2611-2614,2642-2643,2674,2677-2678,2691,2693,2707,2721,2723,2738,2740,2755,2768,2770,2919,2984-2989,2994-2997,3004-3009,3211-3212,3325,3328-3334
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.3",
+  "base_commit_sha": "a254a5e5d990c7495363c3ede19b7fff2a62293e",
+  "prompts": {},
+  "humans": {
+    "h_36ccd825a182d0": {
+      "author": "Sinyuk <80998062@qq.com>"
+    }
+  },
+  "sessions": {
+    "s_96842f642b3995": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "019f0d8d-3329-7470-a63b-cccce0d648c6",
+        "model": "unknown"
+      },
+      "human_author": "Sinyuk <80998062@qq.com>"
+    },
+    "s_9717d5a5325d58": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "019f0d91-353e-7690-9b88-db095590bb3e",
+        "model": "unknown"
+      },
+      "human_author": "Sinyuk <80998062@qq.com>"
+    },
+    "s_9a01a0de0d7901": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "019f0d63-2399-7260-8c55-f2e4fddd3cf5",
+        "model": "unknown"
+      },
+      "human_author": "Sinyuk <80998062@qq.com>"
+    },
+    "s_9c0f1588fcd73b": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "019f0ca8-b905-7120-9333-f0e7dbb172a9",
+        "model": "unknown"
+      },
+      "human_author": "Sinyuk <80998062@qq.com>"
+    },
+    "s_af9da955bfc9d9": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "019f0d97-5e81-7130-a241-34531ea9dd61",
+        "model": "unknown"
+      },
+      "human_author": "Sinyuk <80998062@qq.com>"
+    },
+    "s_b7fd5342f694c5": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "019f0d5c-bf24-7142-999f-4cbddee85bf1",
+        "model": "unknown"
+      },
+      "human_author": "Sinyuk <80998062@qq.com>"
+    },
+    "s_c602b5829d30bb": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "019f0d95-82a7-76d0-b228-6f54aff9bc9d",
+        "model": "unknown"
+      },
+      "human_author": "Sinyuk <80998062@qq.com>"
+    },
+    "s_e2443fd5061a38": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "019f0d65-8d67-7fe2-8a17-39b5bb213212",
+        "model": "unknown"
+      },
+      "human_author": "Sinyuk <80998062@qq.com>"
+    },
+    "s_e5eb366138a8b2": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "019f0caa-68b5-73c0-920b-8e35e2be4cf5",
+        "model": "unknown"
+      },
+      "human_author": "Sinyuk <80998062@qq.com>"
+    }
+  }
+}
