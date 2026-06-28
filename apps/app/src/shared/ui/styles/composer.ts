@@ -140,6 +140,7 @@ export const COMPOSER_CSS = `
 .cmp-select-model{
   flex:1 1 0;
   min-width:136px;
+  max-width:228px;
 }
 .cmp-select-target,
 .cmp-select-aspect{
