@@ -41,13 +41,16 @@ describe('UXP dist bundle safety', () => {
     }
     const chromeHtml = readFileSync(chromeOutput, 'utf8');
     const uxpHtml = readFileSync(resolve('dist/index.html'), 'utf8');
+    const uxpBootstrap = readFileSync(resolve('dist/assets/uxp-bootstrap.js'), 'utf8');
 
     expect(chromeHtml).toContain('Imagen Chrome Harness');
     expect(chromeHtml).toContain('type="module"');
     expect(chromeHtml).toContain('./assets/index.js');
     expect(existsSync(resolve('public/assets/icons/settings.png'))).toBe(false);
     expect(uxpHtml).toContain('./assets/index.js');
-    expect(uxpHtml).toContain('panel.bootstrap.html.loaded');
+    expect(uxpHtml).toContain('./assets/uxp-bootstrap.js');
+    expect(uxpBootstrap).toContain('panel.bootstrap.html.loaded');
+    expect(uxpHtml).not.toContain('<script>(function () {');
     expect(uxpHtml).not.toContain('type="module"');
   });
 

@@ -24,15 +24,6 @@ vi.mock('../../shared/ui/app-shell', () => ({
   AppShell: () => null,
 }));
 
-vi.mock('../../harness/runtime-harness', () => ({
-  renderRuntimeHarness: vi.fn(() => null),
-  resolveUxpHarness: vi.fn(() => null),
-}));
-
-const runtimeHarnessModule = await import('../../harness/runtime-harness');
-const resolveUxpHarnessMock = vi.mocked(runtimeHarnessModule.resolveUxpHarness);
-const renderRuntimeHarnessMock = vi.mocked(runtimeHarnessModule.renderRuntimeHarness);
-
 function fakeHost(dispose = vi.fn()): PluginHostShell {
   return {
     kind: 'photoshop-uxp',
@@ -57,10 +48,6 @@ describe('UXP panel runtime', () => {
     delete (globalThis as { __IMAGEN_PS_BOOTSTRAP_LOG__?: unknown }).__IMAGEN_PS_BOOTSTRAP_LOG__;
     document.body.innerHTML = '<div id="root"></div>';
     window.localStorage.clear();
-    resolveUxpHarnessMock.mockReset();
-    resolveUxpHarnessMock.mockReturnValue(null);
-    renderRuntimeHarnessMock.mockReset();
-    renderRuntimeHarnessMock.mockReturnValue(null);
   });
 
   it('mounts one React root and disposes host shell on teardown', () => {
@@ -75,19 +62,6 @@ describe('UXP panel runtime', () => {
     expect(renderMock).toHaveBeenCalledTimes(1);
     expect(unmountMock).toHaveBeenCalledTimes(1);
     expect(dispose).toHaveBeenCalledTimes(1);
-  });
-
-  it('renders the requested UXP runtime harness without creating the host shell', () => {
-    const createHost = vi.fn(() => fakeHost());
-    resolveUxpHarnessMock.mockReturnValue('composer-select');
-    const runtime = createImagenPanelRuntime({ createHost });
-
-    const result = runtime.mount(document.getElementById('root'));
-
-    expect(result).toBeUndefined();
-    expect(createHost).not.toHaveBeenCalled();
-    expect(createRootMock).toHaveBeenCalledTimes(1);
-    expect(renderRuntimeHarnessMock).toHaveBeenCalledWith('composer-select');
   });
 
   it('installs UXP panel lifecycle callbacks without immediate mount', () => {

@@ -1,13 +1,16 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import type { ProviderProfile } from '@imagen-ps/application';
 import { useAppServices } from '../../ports/app-services-context';
 import { providerConfigFromForm, useProfileDetail, useProfileModels } from '../hooks/use-provider-settings';
+import type { HostPort } from '../../ports/host-port';
 import { Icon } from '../components/icons';
 import { StatusNotice } from '../components/status-notice';
+import { UxpModelDropdown } from '../components/uxp-model-dropdown';
 import { UxpTextArea } from '../components/uxp-form-controls';
 import { useI18n } from '../i18n/i18n-context';
-import { Button, Checkbox, TextField, ActionButton, FieldLabel, HelpText, Divider } from '../primitives/spectrum-controls';
+import { Button, Switch, TextField, ActionButton, FieldLabel, HelpText, Divider } from '../primitives/spectrum-controls';
 import { statusFromProviderTestResult, type ProviderStatus } from '../provider-status';
+import { ComposerSelect } from '../components/composer-select';
 
 interface SettingsDetailPageProps {
   readonly onNav: (view: string) => void;
@@ -18,6 +21,10 @@ interface SettingsDetailPageProps {
 function readConfigString(profile: ProviderProfile, key: string): string {
   const value = profile.config[key];
   return typeof value === 'string' ? value : '';
+}
+
+function isPhotoshopUxpRuntime(host: HostPort): boolean {
+  return host.capabilities.runtime === 'photoshop-uxp';
 }
 
 function profileFormCheckpointAttrs(
@@ -52,7 +59,9 @@ export function SettingsDetailPage({ onNav, profileId, onProfilesChanged }: Sett
   const [showKey, setShowKey] = useState(false);
   const [status, setStatus] = useState<ProviderStatus | null>(null);
   const [busy, setBusy] = useState(false);
+  const [modelMenuOpen, setModelMenuOpen] = useState(false);
   const isOptimizerProfile = detail.profile?.providerId === 'prompt-optimize';
+  const useNativeModelDropdown = isPhotoshopUxpRuntime(services.host);
 
   useEffect(() => {
     if (!detail.profile) {
@@ -64,6 +73,7 @@ export function SettingsDetailPage({ onNav, profileId, onProfilesChanged }: Sett
     setInstruction(readConfigString(detail.profile, 'instruction'));
     setEnabled(detail.profile.enabled);
     setApiKey('');
+    setModelMenuOpen(false);
   }, [detail.profile]);
 
   const persistProfile = async (): Promise<ProviderProfile | null> => {
@@ -218,6 +228,14 @@ export function SettingsDetailPage({ onNav, profileId, onProfilesChanged }: Sett
     }
   };
 
+  const modelOptions = useMemo(
+    () => models.models.map((model) => ({
+      id: model.id,
+      label: model.displayName ?? model.id,
+    })),
+    [models.models],
+  );
+
   const remove = async () => {
     setBusy(true);
     setStatus(null);
@@ -237,7 +255,7 @@ export function SettingsDetailPage({ onNav, profileId, onProfilesChanged }: Sett
       <div className="page page-enter">
         <header className="hdr">
           <ActionButton className="hdr-btn" quiet onClick={() => onNav('settings')}>
-            <Icon name="chevron-left" />
+            <Icon name="chevron-left" slot="icon" />
           </ActionButton>
           <div className="hdr-title">Provider</div>
           <div style={{ width: 32 }} />
@@ -258,7 +276,7 @@ export function SettingsDetailPage({ onNav, profileId, onProfilesChanged }: Sett
           quiet
           onClick={() => onNav('settings')}
         >
-          <Icon name="chevron-left" />
+          <Icon name="chevron-left" slot="icon" />
         </ActionButton>
         <div className="hdr-center">
           <span style={{ fontFamily: 'var(--app-font-family-base)', fontSize: 14, fontWeight: 600, color: 'var(--app-color-text-primary)' }}>
@@ -276,7 +294,7 @@ export function SettingsDetailPage({ onNav, profileId, onProfilesChanged }: Sett
           label={t.common.refresh}
           onClick={() => void detail.reload()}
         >
-          <Icon name="refresh" />
+          <Icon name="refresh" slot="icon" />
         </ActionButton>
       </header>
 
@@ -314,23 +332,19 @@ export function SettingsDetailPage({ onNav, profileId, onProfilesChanged }: Sett
                     quiet
                     onClick={() => setShowKey((shown) => !shown)}
                   >
-                    <Icon name={showKey ? 'eye-off' : 'eye'} />
+                    <Icon name={showKey ? 'eye-off' : 'eye'} slot="icon" />
                   </ActionButton>
                 </div>
               </div>
-              <label
-                className="status-inline loose"
-                style={{ color: 'var(--app-color-text-secondary)', fontSize: 12 }}
-                onClick={() => setEnabled((current) => !current)}
-              >
-                <Checkbox
+              <div className="field">
+                <Switch
                   data-testid="provider-enabled-checkbox"
                   checked={enabled}
                   onChecked={setEnabled}
-                  onClick={(event) => event.stopPropagation()}
-                />
-                {t.settings.enableProfile}
-              </label>
+                >
+                  {t.settings.enableProfile}
+                </Switch>
+              </div>
             </div>
 
             {isOptimizerProfile && (
@@ -352,23 +366,37 @@ export function SettingsDetailPage({ onNav, profileId, onProfilesChanged }: Sett
 
             <div className="section">
               <div className="section-title">{t.settings.defaultModel}</div>
-              <div className="chips">
-                {models.models.map((model) => (
-                  <ActionButton
-                    key={model.id}
-                    className="chip"
-                    quiet
-                    selected={model.id === defaultModel}
-                    onClick={() => setDefaultModel(model.id)}
-                  >
-                    {model.displayName ?? model.id}
-                  </ActionButton>
-                ))}
+              <div className="model-select-wrap">
+                {useNativeModelDropdown ? (
+                  <UxpModelDropdown
+                    className="provider-model-dropdown cmp-select-model"
+                    testId="provider-default-model-dropdown"
+                    placeholder={t.settings.customModelId}
+                    disabled={busy || models.loading || modelOptions.length === 0 || undefined}
+                    value={defaultModel}
+                    options={modelOptions}
+                    onValue={setDefaultModel}
+                  />
+                ) : (
+                  <ComposerSelect
+                    label={t.settings.defaultModel}
+                    value={defaultModel.trim() || t.settings.customModelId}
+                    open={modelMenuOpen}
+                    onOpenChange={setModelMenuOpen}
+                    options={modelOptions}
+                    selectedId={defaultModel}
+                    onSelect={(id) => {
+                      setDefaultModel(id);
+                      setModelMenuOpen(false);
+                    }}
+                    containerClassName="cmp-select cmp-select-model provider-model-select"
+                    menuClassName="cmp-select-menu cmp-select-menu-model"
+                  />
+                )}
                 <TextField
                   data-testid="provider-default-model-input"
                   id="provider-default-model-input"
                   className="field-input mono swc-field"
-                  style={{ marginTop: 8 }}
                   placeholder={t.settings.customModelId}
                   value={defaultModel}
                   onValue={setDefaultModel}
@@ -383,8 +411,8 @@ export function SettingsDetailPage({ onNav, profileId, onProfilesChanged }: Sett
             <div className="test-area">
               <Button data-testid="provider-test-button" className="test-btn swc-button" variant="secondary" disabled={busy} onClick={() => void test()}>
                 {busy
-                  ? <><Icon name="spinner" size={13} className="spin" /> {t.settings.testingConnection}</>
-                  : <><Icon name="arrow-right" /> {t.settings.testConnection}</>
+                  ? <><Icon name="spinner" size={13} className="spin" slot="icon" /> {t.settings.testingConnection}</>
+                  : <><Icon name="arrow-right" slot="icon" /> {t.settings.testConnection}</>
                 }
               </Button>
               {status && <StatusNotice tone={status.tone} message={status.message} />}
@@ -397,7 +425,7 @@ export function SettingsDetailPage({ onNav, profileId, onProfilesChanged }: Sett
         <Button data-testid="provider-save-button" className="btn-save swc-button" variant="accent" disabled={busy || !detail.profile} onClick={() => void save()}>{t.common.save}</Button>
         {!isOptimizerProfile && (
           <Button data-testid="provider-delete-button" className="btn-del swc-button" variant="negative" disabled={busy || !detail.profile} onClick={() => void remove()}>
-            <Icon name="trash" />
+            <Icon name="trash" slot="icon" />
           </Button>
         )}
       </footer>

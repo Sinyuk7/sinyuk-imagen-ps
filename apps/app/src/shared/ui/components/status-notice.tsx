@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { Icon } from './icons';
+import { ActionButton } from '../primitives/spectrum-controls';
 
 export type StatusTone = 'success' | 'warning' | 'error' | 'info';
 
@@ -52,14 +53,15 @@ export function StatusNotice({ tone, message }: StatusNoticeProps) {
   return (
     <div className={`status-notice ${tone}`} role={tone === 'error' ? 'alert' : 'status'}>
       <pre className="status-message">{message}</pre>
-      <button
-        type="button"
+      <ActionButton
         className={`status-copy${copied ? ' cp' : ''}`}
+        quiet
+        label="Copy status message"
         aria-label="Copy status message"
         onClick={() => void handleCopy()}
       >
-        <Icon name={copied ? 'check' : 'copy'} />
-      </button>
+        <Icon name={copied ? 'check' : 'copy'} slot="icon" />
+      </ActionButton>
     </div>
   );
 }

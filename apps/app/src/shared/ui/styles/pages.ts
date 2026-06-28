@@ -17,24 +17,36 @@ export const PAGES_CSS = `
  * 名称优先，辅助 tag / dots / chevron 退居其后；状态不仅靠颜色圆点。 */
 .prov-row{ display:flex; align-items:center; padding:10px 16px; min-height:56px; border-top:1px solid var(--app-color-border-default); cursor:pointer; }
 .prov-row:hover{ background:var(--app-color-hover-overlay); }
-.prov-ico{ width:36px; height:36px; margin-right:12px; border-radius:var(--app-radius-medium); display:flex; align-items:center; justify-content:center; flex-shrink:0; font-family:var(--app-font-family-mono); font-size:12px; font-weight:500; }
-.prov-info{ flex:1; min-width:0; overflow:hidden; }
-.prov-name{ display:flex; align-items:flex-start; font-size:13px; font-weight:500; color:var(--app-color-text-primary); min-width:0; }
-.prov-name > span:first-child{ min-width:0; overflow:hidden; display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; line-height:17px; }
+.settings-provider-row{ border-radius:var(--app-radius-small); margin-top:0; margin-right:6px; margin-bottom:4px; margin-left:6px; border-top:none; outline:none; }
+.settings-provider-row:focus-visible{ outline:2px solid var(--app-color-focus-ring); outline-offset:-1px; background:var(--app-color-hover-overlay); }
+.settings-provider-row:active{ background:var(--app-color-active-overlay); }
+.prov-leading{ display:flex; align-items:center; flex-shrink:0; margin-right:12px; }
+.prov-ico{ width:36px; height:36px; border-radius:var(--app-radius-medium); display:flex; align-items:center; justify-content:center; flex-shrink:0; font-family:var(--app-font-family-mono); font-size:12px; font-weight:500; }
+.prov-content{ flex:1; min-width:0; display:flex; flex-direction:column; justify-content:center; }
+.prov-title-row{ display:flex; align-items:flex-start; min-width:0; }
+.prov-name{ min-width:0; overflow:hidden; display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; line-height:17px; font-size:13px; font-weight:500; color:var(--app-color-text-primary); }
 .prov-primary-status{ flex-shrink:0; margin-top:0; margin-left:6px; }
-.prov-meta{ display:flex; align-items:center; flex-wrap:wrap; min-width:0; margin-top:3px; }
-.prov-model{ font-family:var(--app-font-family-mono); font-size:10px; color:var(--app-color-text-muted); margin-top:3px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
-.prov-family{ flex-shrink:1; min-width:0; max-width:100%; overflow:hidden; text-overflow:ellipsis; margin-right:6px; margin-bottom:3px; }
-.badge{ padding:1px 7px; border-radius:var(--app-radius-pill); font-size:10px; font-weight:500; flex-shrink:0; }
+.prov-meta-row{ display:flex; align-items:center; min-width:0; margin-top:3px; font-size:10px; color:var(--app-color-text-muted); }
+.prov-model{ min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; font-family:var(--app-font-family-mono); color:var(--app-color-text-secondary); }
+.prov-family{ flex-shrink:1; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; font-family:var(--app-font-family-mono); color:var(--app-color-text-muted); letter-spacing:.2px; }
+.prov-meta-sep{ flex-shrink:0; color:var(--app-color-border-strong); margin-right:6px; margin-left:6px; }
+.badge{ padding:1px 7px; border-radius:var(--app-radius-small); font-size:10px; font-weight:500; flex-shrink:0; }
 .badge.active{ background:var(--app-color-positive-subtle); color:var(--app-color-positive); }
 .badge.connected{ background:var(--app-color-informative-subtle); color:var(--app-color-informative); }
 .badge.error{ background:var(--app-color-negative-subtle); color:var(--app-color-negative); }
 .badge.none{ background:var(--app-color-hover-overlay); color:var(--app-color-text-muted); }
-.completeness{ display:flex; flex-shrink:0; margin-left:6px; margin-bottom:3px; }
-.prov-trail{ display:flex; align-items:center; flex-shrink:0; color:var(--app-color-text-secondary); margin-left:12px; }
+.prov-end{ display:flex; align-items:center; flex-shrink:0; min-width:0; margin-left:12px; }
+.prov-readiness{ display:flex; align-items:center; min-width:0; flex-shrink:0; margin-right:12px; }
+.prov-readiness-dot{ width:8px; height:8px; border-radius:50%; background:var(--app-color-border-default); }
+.prov-readiness-dot{ margin-right:6px; }
+.prov-readiness.ready .prov-readiness-dot{ background:var(--app-color-positive); }
+.prov-readiness.warning .prov-readiness-dot{ background:var(--app-color-notice); }
+.prov-readiness.configured .prov-readiness-dot{ background:var(--app-color-informative); }
+.prov-trail{ display:flex; align-items:center; flex-shrink:0; color:var(--app-color-text-muted); }
 .prov-status-text{ font-family:var(--app-font-family-mono); font-size:10px; color:var(--app-color-text-muted); flex-shrink:0; }
-.cdot{ width:5px; height:5px; margin-right:2px; border-radius:50%; background:var(--app-color-border-default); }
-.cdot.f{ background:var(--app-color-positive); } .cdot.w{ background:var(--app-color-notice); } .cdot.e{ background:var(--app-color-negative); }
+.settings-provider-row.is-disabled .prov-leading,
+.settings-provider-row.is-disabled .prov-content{ opacity:.62; }
+.settings-provider-row.is-special .prov-name{ color:var(--app-color-informative); }
 .footer-info{ padding:12px 16px; border-top:1px solid var(--app-color-border-default); display:flex; align-items:center; min-width:0; }
 .footer-info [data-icon]{ margin-right:8px; }
 .section{ padding:16px; }
@@ -46,8 +58,6 @@ export const PAGES_CSS = `
 .pw-wrap{ display:flex; align-items:center; }
 .pw-wrap .field-input{ flex:1; }
 .pw-toggle{ margin-left:6px; color:var(--app-color-text-muted); display:inline-flex; align-items:center; justify-content:center; flex-shrink:0; }
-.chips{ display:flex; flex-wrap:wrap; align-items:center; }
-.chip{ margin-right:8px; margin-bottom:8px; flex-shrink:0; }
 .test-area{ padding:16px; border-top:1px solid var(--app-color-border-default); display:flex; flex-direction:column; }
 .test-area .swc-button{ width:100%; }
 .test-area .status-notice{ margin-top:10px; }
@@ -72,9 +82,8 @@ export const PAGES_CSS = `
 }
 .status-copy{
   flex-shrink:0; margin-left:8px;
-  width:28px; height:28px; border-radius:var(--app-radius-small); color:currentColor; cursor:pointer;
-  display:flex; align-items:center; justify-content:center; opacity:.8;
-  background:transparent; border:none;
+  width:28px; height:28px; color:currentColor;
+  display:inline-flex; align-items:center; justify-content:center; opacity:.8;
 }
 .status-copy:hover{ background:var(--app-color-hover-overlay); opacity:1; }
 .status-copy.cp{ color:var(--app-color-positive); }

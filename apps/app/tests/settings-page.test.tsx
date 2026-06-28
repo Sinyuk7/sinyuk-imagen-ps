@@ -50,7 +50,7 @@ describe('SettingsPage UXP compatibility', () => {
     expect(container.querySelectorAll('sp-tooltip').length).toBeGreaterThan(0);
   });
 
-  it('renders provider rows with primary status separated from secondary metadata', async () => {
+  it('renders provider rows with prototype-inspired layout and explicit readiness', async () => {
     const { services } = createFakeServices();
     const container = document.createElement('div');
     document.body.appendChild(container);
@@ -90,9 +90,9 @@ describe('SettingsPage UXP compatibility', () => {
 
     const row = container.querySelector<HTMLElement>('[data-testid="provider-row-long-profile"]')!;
     expect(row.querySelector('.prov-primary-status')?.textContent).toContain('已启用');
-    expect(row.querySelector('.prov-meta .prov-family')?.textContent).toContain('image-endpoint');
-    expect(row.querySelector('.prov-meta .prov-model')?.textContent).toContain('very-long-model-name');
-    expect(row.querySelector('.prov-meta .completeness')).not.toBeNull();
+    expect(row.querySelector('.prov-content .prov-family')?.textContent).toContain('image-endpoint');
+    expect(row.querySelector('.prov-content .prov-model')?.textContent).toContain('very-long-model-name');
+    expect(row.querySelector('.prov-readiness .prov-status-text')?.textContent).toContain('就绪');
     expect(row.querySelector('.prov-trail')).not.toBeNull();
     expect(getComputedStyle(row).height).not.toBe('64px');
   });

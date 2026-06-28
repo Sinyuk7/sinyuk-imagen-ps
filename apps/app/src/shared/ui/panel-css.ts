@@ -8,7 +8,7 @@
  *  - shell.ts         panel / page / header / scroll 布局
  *  - conversation.ts  会话气泡 / provider card / loading / error / empty
  *  - composer.ts      底部输入区 / chip / select 菜单 / 附件 / 图层
- *  - overlays.ts      lightbox / toast / back-to-bottom
+ *  - overlays.ts      toast / back-to-bottom
  *  - pages.ts         history / settings 共享 / provider row / status notice
  *  - responsive.ts    Panel 级 media query
  *
@@ -24,7 +24,11 @@ import { OVERLAYS_CSS } from './styles/overlays';
 import { PAGES_CSS } from './styles/pages';
 import { RESPONSIVE_CSS } from './styles/responsive';
 
-export const PANEL_CSS = [
+function stripCssComments(css: string): string {
+  return css.replace(/\/\*[\s\S]*?\*\//g, '');
+}
+
+export const PANEL_CSS = stripCssComments([
   TOKENS_CSS,
   LIGHT_THEME_CSS,
   EXTRA_THEMES_CSS,
@@ -37,4 +41,4 @@ export const PANEL_CSS = [
   OVERLAYS_CSS,
   PAGES_CSS,
   RESPONSIVE_CSS,
-].join('\n');
+].join('\n'));

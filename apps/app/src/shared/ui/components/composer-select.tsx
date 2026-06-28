@@ -1,6 +1,6 @@
 import { useRef, type KeyboardEvent, type MouseEvent } from 'react';
 import { ComposerSelectMenu } from './composer-select-menu';
-import { ComposerSelectTrigger } from './composer-select-trigger';
+import { ComposerSelectTriggerSpButton } from './composer-select-trigger-sp-button';
 import type { ComposerSelectProps } from './composer-select.types';
 export type { ComposerSelectOption, ComposerSelectProps } from './composer-select.types';
 import { useComposerSelectPlacement } from './use-composer-select-placement';
@@ -8,9 +8,8 @@ import { useComposerSelectPlacement } from './use-composer-select-placement';
 /**
  * Composer 底部控制行用的受控单选下拉原语。
  *
- * 当前实现使用项目内原生元素承载触发器与菜单：
- * content lane 负责图标与可截断文本，chevron/check lane 独立保留点击和
- * 选中语义。后续排查与修改都应以这条受控 open/menu 链路为准。
+ * 当前实现统一使用 wrapper-safe `sp-button` 承载 trigger，与共享菜单链路
+ * 组合成可复用的 primary / compact selector 轨道。
  */
 export function ComposerSelect({
   label,
@@ -24,11 +23,10 @@ export function ComposerSelect({
   testId,
   containerClassName,
   leadingIcon,
-  trailingIcon = 'chevron-down',
   menuClassName,
 }: ComposerSelectProps) {
   const menuRef = useRef<HTMLDivElement | null>(null);
-  const chipRef = useRef<HTMLButtonElement | null>(null);
+  const chipRef = useRef<HTMLElement | null>(null);
   const chipBodyRef = useRef<HTMLSpanElement | null>(null);
   const chipValueRef = useRef<HTMLSpanElement | null>(null);
   const chipArrowRef = useRef<HTMLSpanElement | null>(null);
@@ -51,7 +49,7 @@ export function ComposerSelect({
     onOpenChange(!open);
   };
 
-  const handleTriggerKeyDown = (event: KeyboardEvent<HTMLButtonElement>) => {
+  const handleTriggerKeyDown = (event: KeyboardEvent<HTMLElement>) => {
     if (disabled) return;
     if (event.key === 'ArrowDown' || event.key === 'Enter' || event.key === ' ') {
       event.preventDefault();
@@ -77,14 +75,13 @@ export function ComposerSelect({
 
   return (
     <div className={containerClassName ?? 'cmp-select'}>
-      <ComposerSelectTrigger
+      <ComposerSelectTriggerSpButton
         label={label}
         value={value}
         disabled={disabled}
         open={open}
         testId={testId}
         leadingIcon={leadingIcon}
-        trailingIcon={trailingIcon}
         chipRef={chipRef}
         chipBodyRef={chipBodyRef}
         chipValueRef={chipValueRef}

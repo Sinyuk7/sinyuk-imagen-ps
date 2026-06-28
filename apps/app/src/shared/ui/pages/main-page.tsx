@@ -10,7 +10,6 @@ import type {
 } from '../hooks/use-conversation';
 import { Icon } from '../components/icons';
 import { ComposerSelect } from '../components/composer-select';
-import { ComposerSelectSpButton } from '../components/composer-select-sp-button';
 import { UxpTextArea } from '../components/uxp-form-controls';
 import { useToast, ToastHost } from '../components/toast-host';
 import { ActionButton } from '../primitives/spectrum-controls';
@@ -777,7 +776,7 @@ export function MainPage({
                 onSelect={setTarget}
                 leadingIcon={target === 'layer' ? 'ps-layers' : 'selection'}
               />
-              <ComposerSelectSpButton
+              <ComposerSelect
                 testId="composer-aspect-ratio-selector"
                 containerClassName="cmp-select cmp-select-aspect"
                 menuClassName="cmp-select-menu cmp-select-menu-compact"

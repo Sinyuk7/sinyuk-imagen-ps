@@ -4,7 +4,6 @@ import type { PluginHostShell } from './create-plugin-host-shell';
 import { createPluginHostShell } from './create-plugin-host-shell';
 import { readRecentLogRecords } from '../../adapters/uxp/uxp-diagnostics';
 import { resolveUxpModules, type UxpModules } from '../../adapters/uxp/uxp-api';
-import { renderRuntimeHarness, resolveUxpHarness } from '../../harness/runtime-harness';
 
 interface UxpPanelController {
   create?(): HTMLElement | undefined;
@@ -252,14 +251,6 @@ export function createImagenPanelRuntime(options?: ImagenPanelRuntimeOptions): I
       try {
         reactRoot = createRoot(rootEl);
         globalThis.__IMAGEN_PS_REACT_ROOT__ = reactRoot;
-        const harness = resolveUxpHarness();
-        if (harness) {
-          bootstrapCheckpoint('panel.bootstrap.runtime.harness', { harness });
-          reactRoot.render(renderRuntimeHarness(harness));
-          bootstrapCheckpoint('panel.bootstrap.react.rendered');
-          bootstrapCheckpoint('panel.bootstrap.runtime.mount.complete', { hasHost: false, harness });
-          return undefined;
-        }
         host = createHost();
         bootstrapCheckpoint('panel.bootstrap.host_shell.created');
         reactRoot.render(<AppShell host={host} />);

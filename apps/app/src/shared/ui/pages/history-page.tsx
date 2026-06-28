@@ -116,7 +116,7 @@ export function HistoryPage({ onNav, rounds, records, loading, error, onReload, 
           quiet
           onClick={() => onNav('main')}
         >
-          <Icon name="chevron-left" />
+          <Icon name="chevron-left" slot="icon" />
         </ActionButton>
         <div className="hdr-title">{t.history.title}</div>
         <ActionButton
@@ -126,7 +126,7 @@ export function HistoryPage({ onNav, rounds, records, loading, error, onReload, 
           label={t.common.refresh}
           onClick={() => { void onReload(); }}
         >
-          <Icon name="refresh" />
+          <Icon name="refresh" slot="icon" />
         </ActionButton>
       </header>
       <div className="filter-bar">

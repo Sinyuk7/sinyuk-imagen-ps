@@ -82,7 +82,7 @@ export const CONVERSATION_CSS = `
 .img-result:hover .img-meta{ opacity:1; }
 .img-act{
   display:flex; align-items:center; margin-top:0; margin-right:0; margin-bottom:0; margin-left:0;
-  padding:4px 10px; border-radius:var(--app-radius-pill); border:none;
+  padding:4px 10px; border-radius:var(--app-radius-medium); border:none;
   font-family:var(--app-font-family-base); font-size:11px; font-weight:600; cursor:pointer;
 }
 .img-act [data-icon]{ margin-right:5px; }

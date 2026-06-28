@@ -1,6 +1,8 @@
 import { useEffect, useMemo, useState } from 'react';
 import { ComposerSelect } from '../../../shared/ui/components/composer-select';
 import type { ComposerSelectOption } from '../../../shared/ui/components/composer-select';
+import { Icon } from '../../../shared/ui/components/icons';
+import { registerSpectrumControls } from '../../../shared/ui/primitives/spectrum-controls';
 import { registerSpectrumTheme } from '../../../shared/ui/primitives/spectrum-theme';
 import { PANEL_CSS } from '../../../shared/ui/panel-css';
 import { ASPECT_OPTIONS, MODEL_OPTIONS, TARGET_OPTIONS } from './composer-select-harness-data';
@@ -31,6 +33,9 @@ const HARNESS_CSS = `
   box-shadow:0 18px 40px rgba(0,0,0,.22);
   overflow:hidden;
 }
+.harness-card[data-overflow-visible="true"]{
+  overflow:visible;
+}
 .harness-card-head{
   padding:14px 16px 10px;
   border-bottom:1px solid rgba(255,255,255,.06);
@@ -53,6 +58,9 @@ const HARNESS_CSS = `
   display:flex;
   flex-direction:column;
   gap:14px;
+}
+.harness-card-body[data-overflow-visible="true"]{
+  overflow:visible;
 }
 .harness-controls{
   display:grid;
@@ -122,6 +130,9 @@ const HARNESS_CSS = `
   justify-content:center;
   overflow:visible;
 }
+.harness-panel[data-overflow-visible="true"]{
+  overflow:visible;
+}
 .harness-resizable{
   width:100%;
   max-width:100%;
@@ -137,6 +148,10 @@ const HARNESS_CSS = `
   width:100%;
   min-width:0;
   padding:14px;
+}
+.harness-panel-inner[data-overflow-visible="true"]{
+  overflow:visible;
+  padding-bottom:220px;
 }
 .harness-row{
   display:flex;
@@ -198,6 +213,113 @@ const HARNESS_CSS = `
   font-size:11px;
   color:var(--txd);
 }
+.harness-picker-spike{
+  width:100%;
+  display:flex;
+  flex-direction:column;
+  min-width:0;
+}
+.harness-picker-spike-grid{
+  display:flex;
+  flex-wrap:wrap;
+  margin-top:0;
+  margin-right:-12px;
+  margin-bottom:-12px;
+  margin-left:0;
+}
+.harness-picker-spike-case{
+  width:320px;
+  max-width:100%;
+  min-width:0;
+  margin-top:0;
+  margin-right:12px;
+  margin-bottom:12px;
+  margin-left:0;
+  padding:12px;
+  border:1px solid rgba(255,255,255,.08);
+  border-radius:12px;
+  background:rgba(255,255,255,.02);
+}
+.harness-picker-spike-title{
+  margin-top:0;
+  margin-right:0;
+  margin-bottom:8px;
+  margin-left:0;
+  font-family:var(--app-font-family-base);
+  font-size:12px;
+  font-weight:600;
+  color:var(--app-color-text-primary);
+}
+.harness-picker-spike-copy{
+  margin-top:0;
+  margin-right:0;
+  margin-bottom:12px;
+  margin-left:0;
+  font-family:var(--app-font-family-mono);
+  font-size:10px;
+  line-height:14px;
+  color:var(--app-color-text-secondary);
+}
+.harness-picker-row{
+  width:100%;
+  display:flex;
+  min-width:0;
+  overflow:visible;
+}
+.harness-picker-trigger{
+  width:100%;
+  min-width:0;
+  display:inline-flex;
+  --mod-picker-button-background-color:var(--app-color-background-layer-1);
+  --mod-picker-button-background-color-hover:var(--app-color-background-layer-1);
+  --mod-picker-button-background-color-down:var(--app-color-background-layer-2);
+  --mod-picker-button-background-color-key-focus:var(--app-color-background-layer-1);
+  --mod-picker-button-border-color:var(--app-color-border-default);
+  --mod-picker-button-font-color:var(--app-color-text-secondary);
+  --mod-picker-button-font-color-hover:var(--app-color-text-primary);
+  --mod-picker-button-font-color-down:var(--app-color-text-primary);
+  --mod-picker-button-font-color-key-focus:var(--app-color-text-primary);
+  --mod-picker-button-icon-color:var(--app-color-text-secondary);
+  --mod-picker-button-icon-color-hover:var(--app-color-text-primary);
+  --mod-picker-button-icon-color-down:var(--app-color-text-primary);
+  --mod-picker-button-icon-color-key-focus:var(--app-color-text-primary);
+  --mod-picker-button-width:auto;
+  --mod-picker-button-height:32px;
+  --mod-picker-button-padding:10px;
+  --mod-picker-button-fill-padding:0px;
+  --mod-picker-button-label-padding:10px;
+  --mod-picker-button-gap:8px;
+  --mod-picker-button-border-radius:12px;
+  --mod-picker-button-border-radius-rounded:12px;
+}
+.harness-picker-trigger [slot="label"]{
+  display:inline-flex;
+  align-items:center;
+  min-width:0;
+  flex:1 1 auto;
+  font-family:var(--app-font-family-mono);
+  font-size:10px;
+  line-height:14px;
+}
+.harness-picker-trigger .harness-picker-icon{
+  color:inherit;
+  flex:0 0 auto;
+}
+.harness-picker-menu{
+  margin-top:6px;
+  width:100%;
+  max-width:260px;
+  position:relative;
+  z-index:20;
+  background:var(--app-color-background-elevated);
+  border:1px solid var(--app-color-border-strong);
+  border-radius:8px;
+  padding:4px;
+}
+.harness-picker-menu-item{
+  --mod-menu-item-label-color:var(--app-color-text-secondary);
+  --mod-menu-item-label-color-hover:var(--app-color-text-primary);
+}
 @media (max-width: 720px){
   .harness-page{ padding:14px; }
   .harness-card-body{ padding:12px; }
@@ -237,7 +359,95 @@ function currentLabel(options: readonly ComposerSelectOption[], selectedId: stri
 function useHarnessStyleMount(): void {
   useEffect(() => {
     ensureHarnessStyles();
+    registerSpectrumControls();
   }, []);
+}
+
+function PickerButtonSpikeCase({
+  title,
+  copy,
+  renderTrigger,
+}: {
+  readonly title: string;
+  readonly copy: string;
+  readonly renderTrigger: (selected: ComposerSelectOption | undefined) => React.ReactNode;
+}) {
+  const [open, setOpen] = useState(false);
+  const [selectedId, setSelectedId] = useState(TARGET_OPTIONS[0]?.id ?? 'layer');
+  const selected = TARGET_OPTIONS.find((option) => option.id === selectedId) ?? TARGET_OPTIONS[0];
+
+  return (
+    <div className="harness-picker-spike-case">
+      <h3 className="harness-picker-spike-title">{title}</h3>
+      <p className="harness-picker-spike-copy">{copy}</p>
+      <div className="harness-picker-row">
+        <sp-picker-button
+          class="harness-picker-trigger"
+          data-testid={`picker-button-spike-trigger-${title}`}
+          aria-haspopup="listbox"
+          aria-expanded={open}
+          open={open}
+          onClick={() => setOpen((current) => !current)}
+        >
+          {renderTrigger(selected)}
+        </sp-picker-button>
+      </div>
+      {open ? (
+        <div className="harness-picker-menu">
+          <sp-menu selects="single" value={selectedId}>
+            {TARGET_OPTIONS.map((option) => (
+              <sp-menu-item
+                key={option.id}
+                class="harness-picker-menu-item"
+                selected={option.id === selectedId}
+                value={option.id}
+                onClick={() => {
+                  setSelectedId(option.id);
+                  setOpen(false);
+                }}
+              >
+                {option.icon ? <Icon name={option.icon} slot="icon" /> : null}
+                {option.label}
+              </sp-menu-item>
+            ))}
+          </sp-menu>
+        </div>
+      ) : null}
+    </div>
+  );
+}
+
+function PickerButtonSpike() {
+  return (
+    <div className="harness-picker-spike">
+      <div className="harness-picker-spike-grid">
+        <PickerButtonSpikeCase
+          title="Label Only"
+          copy="Native picker-button contract: text label + built-in chevron. This is the only shape it naturally owns."
+          renderTrigger={(selected) => <span slot="label">{selected?.label ?? 'Selection'}</span>}
+        />
+        <PickerButtonSpikeCase
+          title="Label + slot=icon"
+          copy="Current business attempt: slot=icon replaces the chevron slot, it is not a leading business icon slot."
+          renderTrigger={(selected) => (
+            <>
+              {selected?.icon ? <Icon name={selected.icon} slot="icon" className="harness-picker-icon" /> : null}
+              <span slot="label">{selected?.label ?? 'Selection'}</span>
+            </>
+          )}
+        />
+        <PickerButtonSpikeCase
+          title="Icon Slot Only"
+          copy="When only the icon slot is populated, picker-button collapses into its icon-only carrier shape."
+          renderTrigger={(selected) => (
+            <>
+              {selected?.icon ? <Icon name={selected.icon} slot="icon" className="harness-picker-icon" /> : null}
+            </>
+          )}
+        />
+      </div>
+    </div>
+  );
 }
 
 function HarnessToggle({
@@ -503,6 +713,24 @@ export function ComposerSelectHarnessPage() {
                       <EdgeCaseSelect x="right" y="top" width={edgeWidth} />
                       <EdgeCaseSelect x="left" y="bottom" width={edgeWidth} />
                       <EdgeCaseSelect x="right" y="bottom" width={edgeWidth} />
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </section>
+
+          <section className="harness-card" data-overflow-visible="true">
+            <div className="harness-card-head">
+              <h2 className="harness-title">5. Picker Button Spike</h2>
+              <p className="harness-copy">Isolated picker-button contract check. This section stays overflow-visible so the popup menu can be inspected directly in UXP.</p>
+            </div>
+            <div className="harness-card-body" data-overflow-visible="true">
+              <div className="harness-surface">
+                <div className="harness-panel" data-overflow-visible="true">
+                  <div className="harness-resizable" style={{ width: containerWidth }}>
+                    <div className="panel harness-panel-inner" data-overflow-visible="true">
+                      <PickerButtonSpike />
                     </div>
                   </div>
                 </div>

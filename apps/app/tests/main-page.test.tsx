@@ -53,7 +53,7 @@ async function sendPrompt(container: HTMLElement, prompt: string): Promise<void>
     changeTextarea(container.querySelector<HTMLTextAreaElement>('.cmp-ta')!, prompt);
   });
   await act(async () => {
-    container.querySelector<HTMLButtonElement>('.cmp-send')!.click();
+    container.querySelector<HTMLElement>('[data-testid="composer-send-button"]')!.click();
   });
   await flush();
 }
@@ -362,7 +362,7 @@ describe('MainPage contract', () => {
       changeTextarea(container.querySelector<HTMLTextAreaElement>('.cmp-ta')!, 'running disable test');
     });
     await act(async () => {
-      container.querySelector<HTMLButtonElement>('.cmp-send')!.click();
+      container.querySelector<HTMLElement>('[data-testid="composer-send-button"]')!.click();
     });
     await flush();
 
@@ -377,8 +377,8 @@ describe('MainPage contract', () => {
     expect(isDisabled('[data-testid="composer-aspect-ratio-selector"]')).toBe(true);
     expect(isDisabled('[data-testid="composer-prompt-optimize-button"]')).toBe(true);
 
-    const send = container.querySelector<HTMLButtonElement>('[data-testid="composer-send-button"]')!;
-    expect(send.disabled).toBe(true);
+    const send = container.querySelector<HTMLElement & { disabled?: boolean }>('[data-testid="composer-send-button"]')!;
+    expect(Boolean(send.disabled)).toBe(true);
     expect(send.querySelector('[data-icon-name="spinner"]')).not.toBeNull();
   });
 

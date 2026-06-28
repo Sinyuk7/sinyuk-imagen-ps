@@ -196,7 +196,7 @@ async function fillMockProviderDraft(page, alias) {
 async function submitPrompt(page, prompt) {
   await fillUxp(page.getByTestId('composer-textarea'), prompt);
   await page.getByTestId('composer-send-button').evaluate((button) => {
-    if (!(button instanceof HTMLButtonElement) || button.disabled) {
+    if (!button || button.disabled) {
       throw new Error('Send button did not become enabled before submit.');
     }
   });
@@ -233,8 +233,8 @@ async function smokeScenario({ page, url, capture }) {
   await expectVisibleText(page, 'Cyberpunk night reference edit');
   await expectVisibleText(page, 'Generate around the current PS layer');
   await page.locator('textarea[placeholder="Add a profile in Providers first"]').waitFor({ state: 'visible' });
-  await page.locator('button.cmp-send').evaluate((button) => {
-    if (!(button instanceof HTMLButtonElement) || !button.disabled) {
+  await page.getByTestId('composer-send-button').evaluate((button) => {
+    if (!button || !button.disabled) {
       throw new Error('Send button is not disabled in first-run smoke state.');
     }
   });
@@ -424,7 +424,7 @@ async function promptSuggestionGenerateScenario({ page, url, capture }) {
       }
     });
     await page.getByTestId('composer-send-button').evaluate((button) => {
-      if (!(button instanceof HTMLButtonElement) || button.disabled) {
+      if (!button || button.disabled) {
         throw new Error('Send button is disabled after prompt suggestion.');
       }
     });

@@ -1,7 +1,9 @@
 import { act } from 'react';
 import { createRoot, type Root } from 'react-dom/client';
+import { useState } from 'react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { SettingsDetailPage } from '../src/shared/ui/pages/settings-detail-page';
+import { UxpModelDropdown } from '../src/shared/ui/components/uxp-model-dropdown';
 import { createFakeServices, fakeOptimizerProfile } from './fakes';
 import { TestAppProviders } from './render-helpers';
 import type { UxpFlightRecorder } from '../src/host/uxp-log-sink';
@@ -105,6 +107,11 @@ function buttonByText(container: HTMLElement, text: string): HTMLElement & { dis
   return button;
 }
 
+type DropdownLikeElement = HTMLElement & {
+  value?: string;
+  selectedIndex?: number;
+};
+
 describe('SettingsDetailPage contract', () => {
   it('saves edited provider profile through profile commands', async () => {
     const container = document.createElement('div');
@@ -186,6 +193,50 @@ describe('SettingsDetailPage contract', () => {
     await flush();
 
     expect(spies.refreshProfileModels).toHaveBeenCalledWith('mock-profile');
+  });
+
+  it('syncs native UXP default-model dropdown trigger text from the selected option label', async () => {
+    const container = document.createElement('div');
+    document.body.appendChild(container);
+
+    function Harness() {
+      const [value, setValue] = useState('mock-image-v1');
+      return (
+        <>
+          <UxpModelDropdown
+            testId="provider-default-model-dropdown"
+            placeholder="Custom model id"
+            value={value}
+            options={[
+              { id: 'mock-image-v1', label: 'Mock Image V1' },
+              { id: 'mock-image-v2', label: 'Mock Image V2' },
+            ]}
+            onValue={setValue}
+          />
+          <button type="button" onClick={() => setValue('mock-image-v2')}>
+            Switch
+          </button>
+        </>
+      );
+    }
+
+    await act(async () => {
+      root = createRoot(container);
+      root.render(<Harness />);
+    });
+
+    const dropdown = container.querySelector<DropdownLikeElement>('[data-testid="provider-default-model-dropdown"]');
+    expect(dropdown).not.toBeNull();
+    expect(dropdown?.value).toBe('Mock Image V1');
+    expect(dropdown?.selectedIndex).toBe(0);
+
+    await act(async () => {
+      container.querySelector<HTMLButtonElement>('button')!.click();
+    });
+    await flush();
+
+    expect(dropdown?.value).toBe('Mock Image V2');
+    expect(dropdown?.selectedIndex).toBe(1);
   });
 
   it('tests Prompt Optimizer through the dedicated validation command', async () => {

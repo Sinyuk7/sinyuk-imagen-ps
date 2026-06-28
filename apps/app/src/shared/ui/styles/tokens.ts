@@ -136,7 +136,7 @@ export const TOKENS_CSS = `
   --app-radius-small:8px;
   --app-radius-medium:12px;
   --app-radius-large:20px;
-  --app-radius-pill:9999px;
+  --app-radius-pill:var(--app-radius-medium);
 
   /* 间距尺度（用于需要语义间距处，非全局强制） */
   --app-space-1:4px;

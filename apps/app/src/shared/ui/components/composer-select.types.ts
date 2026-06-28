@@ -29,8 +29,6 @@ export interface ComposerSelectProps {
   readonly containerClassName?: string;
   /** 触发器内额外前缀图标。 */
   readonly leadingIcon?: IconName;
-  /** 触发器内额外后缀图标，默认 chevron-down。 */
-  readonly trailingIcon?: IconName;
   /**
    * 下拉表面额外 CSS 类名。定位默认使用内联 style，但在复杂布局里需要额外
    * 微调时可通过 className 覆盖。

@@ -1,20 +1,41 @@
-import { readFileSync, writeFileSync } from 'node:fs';
+import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { defineConfig, mergeConfig, type Plugin } from 'vite';
 import { aliases as swcUxpAliases } from '@swc-uxp-wrappers/utils';
 import { appViteBaseConfig } from './vite.base.config';
 
 const UXP_SHARED_SWC_ALIAS_KEYS = [
+  '@spectrum-web-components/action-bar',
+  '@spectrum-web-components/action-group',
   '@spectrum-web-components/action-button',
+  '@spectrum-web-components/asset',
   '@spectrum-web-components/avatar',
+  '@spectrum-web-components/banner',
   '@spectrum-web-components/button',
+  '@spectrum-web-components/button-group',
+  '@spectrum-web-components/card',
   '@spectrum-web-components/checkbox',
+  '@spectrum-web-components/dialog',
   '@spectrum-web-components/divider',
+  '@spectrum-web-components/field-group',
   '@spectrum-web-components/field-label',
   '@spectrum-web-components/help-text',
+  '@spectrum-web-components/illustrated-message',
+  '@spectrum-web-components/link',
   '@spectrum-web-components/menu',
+  '@spectrum-web-components/meter',
+  '@spectrum-web-components/number-field',
+  '@spectrum-web-components/overlay',
+  '@spectrum-web-components/picker-button',
   '@spectrum-web-components/popover',
+  '@spectrum-web-components/quick-actions',
+  '@spectrum-web-components/radio',
+  '@spectrum-web-components/search',
+  '@spectrum-web-components/sidenav',
+  '@spectrum-web-components/swatch',
   '@spectrum-web-components/tags',
+  '@spectrum-web-components/switch',
+  '@spectrum-web-components/table',
   '@spectrum-web-components/textfield',
   '@spectrum-web-components/toast',
   '@spectrum-web-components/tooltip',
@@ -333,10 +354,6 @@ const UXP_BOOTSTRAP_LOGGER_SCRIPT = String.raw`(function () {
   });
 })();`;
 
-function escapeInlineScript(script: string): string {
-  return script.replaceAll('</script>', '<\\/script>');
-}
-
 /**
  * Photoshop UXP treats the host-loaded panel script as a classic script in the
  * real runtime. Keep the built bundle executable as a classic script and place a
@@ -349,16 +366,21 @@ function uxpClassicHtmlBootstrapPlugin(): Plugin {
     writeBundle(options) {
       const outDir = options.dir ?? 'dist';
       const htmlPath = resolve(outDir, 'index.html');
+      const assetsDir = resolve(outDir, 'assets');
+      const bootstrapPath = resolve(assetsDir, 'uxp-bootstrap.js');
       let html = readFileSync(htmlPath, 'utf8');
+
+      mkdirSync(assetsDir, { recursive: true });
+      writeFileSync(bootstrapPath, UXP_BOOTSTRAP_LOGGER_SCRIPT);
 
       html = html.replace(
         /<script\s+type="module"\s+crossorigin\s+src="\.\/assets\/index\.js"><\/script>/,
-        `<script>${escapeInlineScript(UXP_BOOTSTRAP_LOGGER_SCRIPT)}</script>\n    <script src="./assets/index.js"></script>`,
+        '<script src="./assets/uxp-bootstrap.js"></script>\n    <script src="./assets/index.js"></script>',
       );
 
       html = html.replace(
         /<script\s+type="module"\s+src="\.\/assets\/index\.js"><\/script>/,
-        `<script>${escapeInlineScript(UXP_BOOTSTRAP_LOGGER_SCRIPT)}</script>\n    <script src="./assets/index.js"></script>`,
+        '<script src="./assets/uxp-bootstrap.js"></script>\n    <script src="./assets/index.js"></script>',
       );
 
       writeFileSync(htmlPath, html);

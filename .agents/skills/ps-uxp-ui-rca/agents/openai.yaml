@@ -1,0 +1,4 @@
+interface:
+  display_name: "PS UXP UI RCA"
+  short_description: "RCA Photoshop UXP UI mismatches"
+  default_prompt: "Use $ps-uxp-ui-rca to diagnose a Photoshop UXP UI display, layout, click, or interaction issue in apps/app."

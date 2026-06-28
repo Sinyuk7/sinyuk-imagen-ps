@@ -9,7 +9,6 @@ import '@spectrum-web-components/icons-workflow/icons/sp-icon-chevron-left.js';
 import '@spectrum-web-components/icons-workflow/icons/sp-icon-chevron-right.js';
 import '@spectrum-web-components/icons-workflow/icons/sp-icon-copy.js';
 import '@spectrum-web-components/icons-workflow/icons/sp-icon-delete.js';
-import '@spectrum-web-components/icons-workflow/icons/sp-icon-drag-handle.js';
 import '@spectrum-web-components/icons-workflow/icons/sp-icon-download.js';
 import '@spectrum-web-components/icons-workflow/icons/sp-icon-file-add.js';
 import '@spectrum-web-components/icons-workflow/icons/sp-icon-history.js';
@@ -40,7 +39,6 @@ export type IconName =
   | 'chevron-down'
   | 'chevron-left'
   | 'chevron-right'
-  | 'compare-handle'
   | 'copy'
   | 'download'
   | 'error'
@@ -80,7 +78,6 @@ const ICON_TAG_BY_NAME: Record<IconName, string> = {
   'chevron-down': 'sp-icon-chevron-down',
   'chevron-left': 'sp-icon-chevron-left',
   'chevron-right': 'sp-icon-chevron-right',
-  'compare-handle': 'sp-icon-drag-handle',
   copy: 'sp-icon-copy',
   download: 'sp-icon-download',
   error: 'sp-icon-alert-circle',

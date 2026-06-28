@@ -112,7 +112,7 @@ export function SettingsAddPage({ onNav, profiles, onProfileSaved }: SettingsAdd
           quiet
           onClick={() => (step === 1 ? onNav('settings') : setStep(1))}
         >
-          <Icon name="chevron-left" />
+          <Icon name="chevron-left" slot="icon" />
         </ActionButton>
         <div className="hdr-center">
           <span style={{ fontFamily: 'var(--app-font-family-base)', fontSize: 14, fontWeight: 600, color: 'var(--app-color-text-primary)' }}>
@@ -192,7 +192,7 @@ export function SettingsAddPage({ onNav, profiles, onProfileSaved }: SettingsAdd
                     quiet
                     onClick={() => setShowKey((shown) => !shown)}
                   >
-                    <Icon name={showKey ? 'eye-off' : 'eye'} />
+                    <Icon name={showKey ? 'eye-off' : 'eye'} slot="icon" />
                   </ActionButton>
                 </div>
               </div>
@@ -200,7 +200,7 @@ export function SettingsAddPage({ onNav, profiles, onProfileSaved }: SettingsAdd
             <div className="test-area">
               <Button data-testid="provider-test-button" className="test-btn swc-button" disabled={busy} onClick={() => void handleTest()}>
                 {busy
-                  ? <><Icon name="spinner" size={13} className="spin" /> {t.settings.testingConnection}</>
+                  ? <><Icon name="spinner" size={13} className="spin" slot="icon" /> {t.settings.testingConnection}</>
                   : t.settings.testConnection
                 }
               </Button>
