@@ -347,3 +347,8 @@ pnpm --filter @imagen-ps/app test main-page
 
 `apps/cli/tests/smoke/cli-e2e.test.ts` 的 `EntrySpec` 类型未扩展 `prompt-optimize`，
 因为 smoke 配置是外部 JSON，不影响默认 CI。
+
+> **Update after CLI removal**: `apps/cli` was removed in branch
+> `feat/remove-apps-cli`. The referenced CLI test files no longer exist; the
+> provider ID list assertion is now covered by `packages/providers` and
+> `apps/app` tests.

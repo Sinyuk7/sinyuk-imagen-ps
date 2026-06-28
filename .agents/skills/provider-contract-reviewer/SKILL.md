@@ -34,10 +34,9 @@ do not treat completed Loops as active plans.
 2. Check ownership:
    - provider adapters do not own app/session state;
    - provider adapters do not own host IO;
-   - provider adapters do not own CLI flags or local paths.
+   - provider adapters do not own UI state, local paths, or host storage.
 3. Prefer mock/fetch tests for default validation.
-4. Keep live provider smoke opt-in and config-driven through
-   `apps/cli/tests/smoke/e2e.config.json`.
+4. Keep live provider smoke opt-in and config-driven if a smoke harness exists.
 5. If request mapping changes, include `packages/application` request tests in
    the Loop validation plan.
 
@@ -52,18 +51,14 @@ pnpm check:policy
 pnpm validate
 ```
 
-Live provider smoke is manual / opt-in only:
-
-```sh
-pnpm build
-IMAGEN_RUN_SMOKE=1 pnpm --filter @imagen-ps/cli test
-```
+Live provider smoke is manual / opt-in only. There is currently no active CLI
+smoke harness; add one as a separate Loop slice if needed.
 
 ## Stop Conditions
 
 Stop and produce a Decision Packet (A/B/C choice with evidence and recommendation) when:
 
 - behavior can only be proven by paid/live APIs without approval;
-- provider logic needs UI state, CLI flags, local paths, or UXP storage;
+- provider logic needs UI state, local paths, or UXP storage;
 - endpoint behavior is guessed rather than evidenced by docs, tests, or live
   smoke output.
