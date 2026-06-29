@@ -1,0 +1,396 @@
+apps/app/AGENTS.md
+  h_36ccd825a182d0 15
+.agents/skills/react-spectrum-s2/references/components/ActionBar.md
+  s_97c38c55e030ba::t_180666914d8868 1-195
+.agents/skills/react-spectrum-s2/references/components/ActionButton.md
+  s_97c38c55e030ba::t_4841c8c3be51fb 1-116
+.agents/skills/react-spectrum-s2/references/components/ActionButtonGroup.md
+  s_97c38c55e030ba::t_1968d51b5a3971 1-54
+.agents/skills/react-spectrum-s2/references/components/ActionMenu.md
+  s_97c38c55e030ba::t_95b2e9944b9faa 1-74
+.agents/skills/react-spectrum-s2/references/components/Avatar.md
+  s_97c38c55e030ba::t_c92b9e44991a42 1-23
+.agents/skills/react-spectrum-s2/references/components/AvatarGroup.md
+  s_97c38c55e030ba::t_8f169c315e5d47 1-47
+.agents/skills/react-spectrum-s2/references/components/Badge.md
+  s_97c38c55e030ba::t_2e5e95af13868e 1-38
+.agents/skills/react-spectrum-s2/references/components/Breadcrumbs.md
+  s_97c38c55e030ba::t_85a2fd67ae0fe2 1-131
+.agents/skills/react-spectrum-s2/references/components/Button.md
+  s_97c38c55e030ba::t_00b0b50c19f87c 1-117
+.agents/skills/react-spectrum-s2/references/components/ButtonGroup.md
+  s_97c38c55e030ba::t_7487e96c78b8ee 1-68
+.agents/skills/react-spectrum-s2/references/components/Calendar.md
+  s_97c38c55e030ba::t_2fa4ff51e78a41 1-227
+.agents/skills/react-spectrum-s2/references/components/Card.md
+  s_97c38c55e030ba::t_390d46f24a90df 1-424
+.agents/skills/react-spectrum-s2/references/components/Checkbox.md
+  s_97c38c55e030ba::t_d215d7322f9fbc 1-106
+.agents/skills/react-spectrum-s2/references/components/CheckboxGroup.md
+  s_97c38c55e030ba::t_73c1db6c15550d 1-135
+.agents/skills/react-spectrum-s2/references/components/ColorArea.md
+  s_97c38c55e030ba::t_4414f320d383fd 1-94
+.agents/skills/react-spectrum-s2/references/components/ColorField.md
+  s_97c38c55e030ba::t_ba7920abd1ca77 1-181
+.agents/skills/react-spectrum-s2/references/components/ColorSlider.md
+  s_97c38c55e030ba::t_29433cb7009c37 1-93
+.agents/skills/react-spectrum-s2/references/components/ColorSwatch.md
+  s_97c38c55e030ba::t_84a5da3c0ac0e9 1-89
+.agents/skills/react-spectrum-s2/references/components/ColorSwatchPicker.md
+  s_97c38c55e030ba::t_ba01ddc3cdc1a5 1-101
+.agents/skills/react-spectrum-s2/references/components/ColorWheel.md
+  s_97c38c55e030ba::t_2d02b3905b7e56 1-124
+.agents/skills/react-spectrum-s2/references/components/ComboBox.md
+  s_97c38c55e030ba::t_0ee04b70e8117e 1-552
+.agents/skills/react-spectrum-s2/references/components/ContextualHelp.md
+  s_97c38c55e030ba::t_a31da7a8974136 1-51
+.agents/skills/react-spectrum-s2/references/components/DateField.md
+  s_97c38c55e030ba::t_e279e36b1f900c 1-137
+.agents/skills/react-spectrum-s2/references/components/DatePicker.md
+  s_97c38c55e030ba::t_7258b1801d9076 1-161
+.agents/skills/react-spectrum-s2/references/components/DateRangePicker.md
+  s_97c38c55e030ba::t_9c7c3206c1088b 1-177
+.agents/skills/react-spectrum-s2/references/components/Dialog.md
+  s_97c38c55e030ba::t_f3c45db6f7f0e7 1-384
+.agents/skills/react-spectrum-s2/references/components/Disclosure.md
+  s_97c38c55e030ba::t_43f235d9c3b558 1-198
+.agents/skills/react-spectrum-s2/references/components/Divider.md
+  s_97c38c55e030ba::t_71663c930b5b28 1-27
+.agents/skills/react-spectrum-s2/references/components/DropZone.md
+  s_97c38c55e030ba::t_302910d52eb4d2 1-100
+.agents/skills/react-spectrum-s2/references/components/Form.md
+  s_97c38c55e030ba::t_6b31ed0256ae7f 1-203
+.agents/skills/react-spectrum-s2/references/components/IllustratedMessage.md
+  s_97c38c55e030ba::t_5ca093f2293ee6 1-33
+.agents/skills/react-spectrum-s2/references/components/Image.md
+  s_97c38c55e030ba::t_495446a1875061 1-101
+.agents/skills/react-spectrum-s2/references/components/InlineAlert.md
+  s_97c38c55e030ba::t_0d7316caf3bd32 1-65
+.agents/skills/react-spectrum-s2/references/components/LabeledValue.md
+  s_97c38c55e030ba::t_fe71e80a5990a2 1-159
+.agents/skills/react-spectrum-s2/references/components/Link.md
+  s_97c38c55e030ba::t_cb153c38ecebe6 1-58
+.agents/skills/react-spectrum-s2/references/components/LinkButton.md
+  s_97c38c55e030ba::t_fc46f7c28d35a8 1-61
+.agents/skills/react-spectrum-s2/references/components/ListView.md
+  s_97c38c55e030ba::t_7b1e94950deb63 1-575
+.agents/skills/react-spectrum-s2/references/components/Menu.md
+  s_97c38c55e030ba::t_1f457ad28dfde8 1-637
+.agents/skills/react-spectrum-s2/references/components/Meter.md
+  s_97c38c55e030ba::t_3674cb40bfc05d 1-44
+.agents/skills/react-spectrum-s2/references/components/NumberField.md
+  s_97c38c55e030ba::t_db40ef9ad50960 1-194
+.agents/skills/react-spectrum-s2/references/components/Provider.md
+  s_97c38c55e030ba::t_3ce8e59d8930a2 1-114
+.agents/skills/react-spectrum-s2/references/components/RadioGroup.md
+  s_97c38c55e030ba::t_afac3e3bfee250 1-163
+.agents/skills/react-spectrum-s2/references/components/RangeCalendar.md
+  s_97c38c55e030ba::t_5bc67f083e0e1e 1-249
+.agents/skills/react-spectrum-s2/references/components/RangeSlider.md
+  s_97c38c55e030ba::t_ffdafaa4240de4 1-85
+.agents/skills/react-spectrum-s2/references/components/SearchField.md
+  s_97c38c55e030ba::t_a3be3ab3dde346 1-131
+.agents/skills/react-spectrum-s2/references/components/SegmentedControl.md
+  s_97c38c55e030ba::t_951584be439a43 1-142
+.agents/skills/react-spectrum-s2/references/components/SelectBoxGroup.md
+  s_97c38c55e030ba::t_983bd820fe87ff 1-180
+.agents/skills/react-spectrum-s2/references/components/Skeleton.md
+  s_97c38c55e030ba::t_a30eb75f20186f 1-53
+.agents/skills/react-spectrum-s2/references/components/Slider.md
+  s_97c38c55e030ba::t_9d3b6203a7d570 1-85
+.agents/skills/react-spectrum-s2/references/components/Switch.md
+  s_97c38c55e030ba::t_79ea107959ff51 1-104
+.agents/skills/react-spectrum-s2/references/components/TableView.md
+  s_97c38c55e030ba::t_90f9a889460e84 1-1250
+.agents/skills/react-spectrum-s2/references/components/Tabs.md
+  s_97c38c55e030ba::t_c8dbf22af95aa9 1-348
+.agents/skills/react-spectrum-s2/references/components/TagGroup.md
+  s_97c38c55e030ba::t_c0a6ae5fe53002 1-343
+.agents/skills/react-spectrum-s2/references/components/TextArea.md
+  s_97c38c55e030ba::t_ed3798345226a8 1-376
+.agents/skills/react-spectrum-s2/references/components/TextField.md
+  s_97c38c55e030ba::t_5198165e93489a 1-147
+.agents/skills/react-spectrum-s2/references/components/TimeField.md
+  s_97c38c55e030ba::t_c40095b29ebe45 1-121
+.agents/skills/react-spectrum-s2/references/components/Toast.md
+  s_97c38c55e030ba::t_a46f9b450ba6d0 1-203
+.agents/skills/react-spectrum-s2/references/components/ToggleButton.md
+  s_97c38c55e030ba::t_2c3c60eb20e6f1 1-89
+.agents/skills/react-spectrum-s2/references/components/ToggleButtonGroup.md
+  s_97c38c55e030ba::t_48d543ff444018 1-106
+.agents/skills/react-spectrum-s2/references/components/icons.md
+  s_97c38c55e030ba::t_e671b4f23afb97 1-531
+.agents/skills/react-spectrum-s2/references/components/illustrations.md
+  s_97c38c55e030ba::t_af42e773d235ed 1-257
+.agents/skills/react-spectrum-s2/references/guides/styling.md
+  s_97c38c55e030ba::t_a4e4a1f9f6b45b 1-318
+.agents/skills/react-spectrum-s2/references/guides/test-utils-guidance.md
+  s_97c38c55e030ba::t_cd4c037b165a12 1-127
+.agents/skills/react-spectrum-s2/references/guides/testing.md
+  s_97c38c55e030ba::t_bde1981e963229 1-219
+.agents/skills/react-spectrum-s2/references/llms.txt
+  s_97c38c55e030ba::t_6bccc079ea02e7 1-116
+.agents/skills/react-spectrum-s2/references/react-aria/components/Autocomplete.md
+  s_97c38c55e030ba::t_937aabbc752ce4 1-1397
+.agents/skills/react-spectrum-s2/references/react-aria/components/Breadcrumbs.md
+  s_97c38c55e030ba::t_5b0babc1453ce8 1-372
+.agents/skills/react-spectrum-s2/references/react-aria/components/Button.md
+  s_97c38c55e030ba::t_57b7eb5a83c94e 1-415
+.agents/skills/react-spectrum-s2/references/react-aria/components/Calendar.md
+  s_97c38c55e030ba::t_a87c71973fcdd3 1-1352
+.agents/skills/react-spectrum-s2/references/react-aria/components/Checkbox.md
+  s_97c38c55e030ba::t_728268fd115bd4 1-477
+.agents/skills/react-spectrum-s2/references/react-aria/components/CheckboxGroup.md
+  s_97c38c55e030ba::t_0abcdac9fe9cab 1-271
+.agents/skills/react-spectrum-s2/references/react-aria/components/ColorArea.md
+  s_97c38c55e030ba::t_3d124c8c54634f 1-360
+.agents/skills/react-spectrum-s2/references/react-aria/components/ColorField.md
+  s_97c38c55e030ba::t_45b780998679b5 1-346
+.agents/skills/react-spectrum-s2/references/react-aria/components/ColorPicker.md
+  s_97c38c55e030ba::t_505c5c90f43f26 1-329
+.agents/skills/react-spectrum-s2/references/react-aria/components/ColorSlider.md
+  s_97c38c55e030ba::t_1fbc12d0a2e3a1 1-454
+.agents/skills/react-spectrum-s2/references/react-aria/components/ColorSwatch.md
+  s_97c38c55e030ba::t_8dc1549fb0d6f5 1-172
+.agents/skills/react-spectrum-s2/references/react-aria/components/ColorSwatchPicker.md
+  s_97c38c55e030ba::t_543ef2f9d504f3 1-411
+.agents/skills/react-spectrum-s2/references/react-aria/components/ColorWheel.md
+  s_97c38c55e030ba::t_fb902328800932 1-433
+.agents/skills/react-spectrum-s2/references/react-aria/components/ComboBox.md
+  s_97c38c55e030ba::t_1f92514a5f1c56 1-1018
+.agents/skills/react-spectrum-s2/references/react-aria/components/DateField.md
+  s_97c38c55e030ba::t_df7a997f07d8a3 1-568
+.agents/skills/react-spectrum-s2/references/react-aria/components/DatePicker.md
+  s_97c38c55e030ba::t_39ce525ce00285 1-368
+.agents/skills/react-spectrum-s2/references/react-aria/components/DateRangePicker.md
+  s_97c38c55e030ba::t_2770f865472a45 1-391
+.agents/skills/react-spectrum-s2/references/react-aria/components/Disclosure.md
+  s_97c38c55e030ba::t_b0aece9ea5fecb 1-462
+.agents/skills/react-spectrum-s2/references/react-aria/components/DisclosureGroup.md
+  s_97c38c55e030ba::t_1c98809b83d89d 1-215
+.agents/skills/react-spectrum-s2/references/react-aria/components/DropZone.md
+  s_97c38c55e030ba::t_b6b5e7cee1c809 1-281
+.agents/skills/react-spectrum-s2/references/react-aria/components/Form.md
+  s_97c38c55e030ba::t_ae885535a708b1 1-446
+.agents/skills/react-spectrum-s2/references/react-aria/components/GridList.md
+  s_97c38c55e030ba::t_818792194c142c 1-1904
+.agents/skills/react-spectrum-s2/references/react-aria/components/Group.md
+  s_97c38c55e030ba::t_21cf50e3af4a8b 1-314
+.agents/skills/react-spectrum-s2/references/react-aria/components/Link.md
+  s_97c38c55e030ba::t_3f894c7d21c283 1-242
+.agents/skills/react-spectrum-s2/references/react-aria/components/ListBox.md
+  s_97c38c55e030ba::t_bb14f9aaf6b1a2 1-1350
+.agents/skills/react-spectrum-s2/references/react-aria/components/Meter.md
+  s_97c38c55e030ba::t_1f79b9d6a779a7 1-268
+.agents/skills/react-spectrum-s2/references/react-aria/components/Modal.md
+  s_97c38c55e030ba::t_09cc37dc02fdde 1-493
+.agents/skills/react-spectrum-s2/references/react-aria/components/NumberField.md
+  s_97c38c55e030ba::t_00ec0241727b5a 1-406
+.agents/skills/react-spectrum-s2/references/react-aria/components/Popover.md
+  s_97c38c55e030ba::t_8e56fa0d1c705d 1-719
+.agents/skills/react-spectrum-s2/references/react-aria/components/ProgressBar.md
+  s_97c38c55e030ba::t_90f6c8352d00e5 1-307
+.agents/skills/react-spectrum-s2/references/react-aria/components/SearchField.md
+  s_97c38c55e030ba::t_5aff42a55350a2 1-392
+.agents/skills/react-spectrum-s2/references/react-aria/components/Select.md
+  s_97c38c55e030ba::t_4a473b3096e268 1-926
+.agents/skills/react-spectrum-s2/references/react-aria/components/Separator.md
+  s_97c38c55e030ba::t_4768e0a8e72691 1-160
+.agents/skills/react-spectrum-s2/references/react-aria/components/Slider.md
+  s_97c38c55e030ba::t_70de4851a6d402 1-845
+.agents/skills/react-spectrum-s2/references/react-aria/components/Switch.md
+  s_97c38c55e030ba::t_961b2fcce88d4f 1-490
+.agents/skills/react-spectrum-s2/references/react-aria/components/Table.md
+  s_97c38c55e030ba::t_7e8e538ba83a08 1-2441
+.agents/skills/react-spectrum-s2/references/react-aria/components/Tabs.md
+  s_97c38c55e030ba::t_48c746583015b3 1-1014
+.agents/skills/react-spectrum-s2/references/react-aria/components/TagGroup.md
+  s_97c38c55e030ba::t_9c977c78f41c15 1-762
+.agents/skills/react-spectrum-s2/references/react-aria/components/TextField.md
+  s_97c38c55e030ba::t_a38821f5b08480 1-368
+.agents/skills/react-spectrum-s2/references/react-aria/components/TimeField.md
+  s_97c38c55e030ba::t_cc0cd875f3031f 1-379
+.agents/skills/react-spectrum-s2/references/react-aria/guides/getting-started.md
+  s_97c38c55e030ba::t_d7039ea2dbef76 1-381
+.agents/skills/react-spectrum-s2/references/react-aria/guides/quality.md
+  s_97c38c55e030ba::t_d40709cd74c4d3 1-140
+.agents/skills/react-spectrum-s2/references/react-aria/guides/selection.md
+  s_97c38c55e030ba::t_ac5adcc7d2a813 1-1319
+.agents/skills/react-spectrum-s2/references/react-aria/guides/styling.md
+  s_97c38c55e030ba::t_84b5907716751c 1-419
+.agents/skills/react-spectrum-s2/references/react-aria/guides/testing.md
+  s_97c38c55e030ba::t_b5568b9c13cf22 1-227
+.agents/skills/react-spectrum-s2/references/react-aria/interactions/FocusRing.md
+  s_97c38c55e030ba::t_2ffb657e42f640 1-38
+.agents/skills/react-spectrum-s2/references/react-aria/interactions/FocusScope.md
+  s_97c38c55e030ba::t_da506daddc35dd 1-131
+.agents/skills/react-spectrum-s2/references/react-aria/interactions/useClipboard.md
+  s_97c38c55e030ba::t_ed8e0a2c5a1864 1-483
+.agents/skills/react-spectrum-s2/references/react-aria/interactions/useDrag.md
+  s_97c38c55e030ba::t_4c16d8fbcfee43 1-316
+.agents/skills/react-spectrum-s2/references/react-aria/interactions/useDrop.md
+  s_97c38c55e030ba::t_a38d4477e39022 1-439
+.agents/skills/react-spectrum-s2/references/react-aria/interactions/useFocus.md
+  s_97c38c55e030ba::t_d92bc69c525ad5 1-73
+.agents/skills/react-spectrum-s2/references/react-aria/interactions/useFocusRing.md
+  s_97c38c55e030ba::t_fcf56fcdc01d01 1-65
+.agents/skills/react-spectrum-s2/references/react-aria/interactions/useFocusVisible.md
+  s_97c38c55e030ba::t_f0b29deda50ce7 1-55
+.agents/skills/react-spectrum-s2/references/react-aria/interactions/useFocusWithin.md
+  s_97c38c55e030ba::t_97cb2dbd55583b 1-81
+.agents/skills/react-spectrum-s2/references/react-aria/interactions/useHover.md
+  s_97c38c55e030ba::t_22912a084385b7 1-83
+.agents/skills/react-spectrum-s2/references/react-aria/interactions/useKeyboard.md
+  s_97c38c55e030ba::t_446ce142c48fcb 1-339
+.agents/skills/react-spectrum-s2/references/react-aria/interactions/useLandmark.md
+  s_97c38c55e030ba::t_f8560e424eda38 1-101
+.agents/skills/react-spectrum-s2/references/react-aria/interactions/useLongPress.md
+  s_97c38c55e030ba::t_798a0b47ba8b5a 1-104
+.agents/skills/react-spectrum-s2/references/react-aria/interactions/useMove.md
+  s_97c38c55e030ba::t_aa0983f4bcf85a 1-120
+.agents/skills/react-spectrum-s2/references/react-aria/interactions/usePress.md
+  s_97c38c55e030ba::t_0e5922c4d10c2c 1-83
+.agents/skills/react-spectrum-s2/references/react-aria/internationalized/date/CalendarDate.md
+  s_97c38c55e030ba::t_c5179530c63f45 1-609
+.agents/skills/react-spectrum-s2/references/react-aria/internationalized/date/CalendarDateTime.md
+  s_97c38c55e030ba::t_a13d290994b2d7 1-641
+.agents/skills/react-spectrum-s2/references/react-aria/internationalized/date/DateFormatter.md
+  s_97c38c55e030ba::t_996d689347dc55 1-22
+.agents/skills/react-spectrum-s2/references/react-aria/internationalized/date/Time.md
+  s_97c38c55e030ba::t_490e5e0394861c 1-255
+.agents/skills/react-spectrum-s2/references/react-aria/internationalized/date/ZonedDateTime.md
+  s_97c38c55e030ba::t_dbfb971e55114d 1-804
+.agents/skills/react-spectrum-s2/references/react-aria/internationalized/date/index.md
+  s_97c38c55e030ba::t_536336ff48144f 1-48
+.agents/skills/react-spectrum-s2/references/react-aria/internationalized/number/NumberFormatter.md
+  s_97c38c55e030ba::t_567f9c55aff979 1-22
+.agents/skills/react-spectrum-s2/references/react-aria/internationalized/number/NumberParser.md
+  s_97c38c55e030ba::t_a35aaea882d484 1-139
+.agents/skills/react-spectrum-s2/references/react-aria/internationalized/number/index.md
+  s_97c38c55e030ba::t_894b1ae2045295 1-32
+.agents/skills/react-spectrum-s2/references/react-aria/llms.txt
+  s_97c38c55e030ba::t_ddad2d630c0ba1 1-162
+.agents/skills/react-spectrum-s2/references/react-aria/testing/CheckboxGroup/testing.md
+  s_97c38c55e030ba::t_8d4a9d8a3813da 1-57
+.agents/skills/react-spectrum-s2/references/react-aria/testing/ComboBox/testing.md
+  s_97c38c55e030ba::t_b39a8d5ef14e82 1-55
+.agents/skills/react-spectrum-s2/references/react-aria/testing/GridList/testing.md
+  s_97c38c55e030ba::t_5a5f2e76494f74 1-66
+.agents/skills/react-spectrum-s2/references/react-aria/testing/ListBox/testing.md
+  s_97c38c55e030ba::t_20547d5ee387dc 1-57
+.agents/skills/react-spectrum-s2/references/react-aria/testing/Menu/testing.md
+  s_97c38c55e030ba::t_55787bedf2b7f8 1-67
+.agents/skills/react-spectrum-s2/references/react-aria/testing/Modal/testing.md
+  s_97c38c55e030ba::t_276e4982ff9523 1-60
+.agents/skills/react-spectrum-s2/references/react-aria/testing/Popover/testing.md
+  s_97c38c55e030ba::t_c7a88d6daf5806 1-60
+.agents/skills/react-spectrum-s2/references/react-aria/testing/RadioGroup/testing.md
+  s_97c38c55e030ba::t_cfa174e6c12407 1-57
+.agents/skills/react-spectrum-s2/references/react-aria/testing/Select/testing.md
+  s_97c38c55e030ba::t_2802309f26c420 1-52
+.agents/skills/react-spectrum-s2/references/react-aria/testing/Table/testing.md
+  s_97c38c55e030ba::t_ea6ba2cf43a70b 1-71
+.agents/skills/react-spectrum-s2/references/react-aria/testing/Tabs/testing.md
+  s_97c38c55e030ba::t_4f06e64cdfda7e 1-53
+.agents/skills/react-spectrum-s2/references/react-aria/testing/Tree/testing.md
+  s_97c38c55e030ba::t_a7fc3e845287d8 1-69
+.agents/skills/react-spectrum-s2/references/react-aria/utilities/I18nProvider.md
+  s_97c38c55e030ba::t_570f7520d4172f 1-27
+.agents/skills/react-spectrum-s2/references/react-aria/utilities/PortalProvider.md
+  s_97c38c55e030ba::t_db8b7bd3fecb77 1-159
+.agents/skills/react-spectrum-s2/references/react-aria/utilities/SSRProvider.md
+  s_97c38c55e030ba::t_5c7d82a836aca0 1-31
+.agents/skills/react-spectrum-s2/references/react-aria/utilities/VisuallyHidden.md
+  s_97c38c55e030ba::t_c019f9f04defe1 1-263
+.agents/skills/react-spectrum-s2/references/react-aria/utilities/mergeProps.md
+  s_97c38c55e030ba::t_e879a850a711a3 1-48
+.agents/skills/react-spectrum-s2/references/react-aria/utilities/useCollator.md
+  s_97c38c55e030ba::t_deef47e7048fc3 1-62
+.agents/skills/react-spectrum-s2/references/react-aria/utilities/useDateFormatter.md
+  s_97c38c55e030ba::t_a1a90370ac7709 1-74
+.agents/skills/react-spectrum-s2/references/react-aria/utilities/useField.md
+  s_97c38c55e030ba::t_da70f64424ca5d 1-83
+.agents/skills/react-spectrum-s2/references/react-aria/utilities/useFilter.md
+  s_97c38c55e030ba::t_7793c63acb224b 1-69
+.agents/skills/react-spectrum-s2/references/react-aria/utilities/useId.md
+  s_97c38c55e030ba::t_87525361244e09 1-24
+.agents/skills/react-spectrum-s2/references/react-aria/utilities/useIsSSR.md
+  s_97c38c55e030ba::t_09662727807103 1-34
+.agents/skills/react-spectrum-s2/references/react-aria/utilities/useLabel.md
+  s_97c38c55e030ba::t_dfa755fcf0c2dd 1-64
+.agents/skills/react-spectrum-s2/references/react-aria/utilities/useLocale.md
+  s_97c38c55e030ba::t_fc6f4876318622 1-39
+.agents/skills/react-spectrum-s2/references/react-aria/utilities/useNumberFormatter.md
+  s_97c38c55e030ba::t_b81818adc8752d 1-53
+.agents/skills/react-spectrum-s2/references/react-aria/utilities/useObjectRef.md
+  s_97c38c55e030ba::t_3d13606b062f92 1-45
+.agents/skills/react-spectrum-s2/references/testing/CheckboxGroup/testing.md
+  s_97c38c55e030ba::t_e32d572d3cc427 1-57
+.agents/skills/react-spectrum-s2/references/testing/ComboBox/testing.md
+  s_97c38c55e030ba::t_392931d8df7f19 1-55
+.agents/skills/react-spectrum-s2/references/testing/Dialog/testing.md
+  s_97c38c55e030ba::t_882fa402c3b5e0 1-57
+.agents/skills/react-spectrum-s2/references/testing/ListView/testing.md
+  s_97c38c55e030ba::t_7fb0361468fce7 1-66
+.agents/skills/react-spectrum-s2/references/testing/Menu/testing.md
+  s_97c38c55e030ba::t_9bca540d3228f8 1-67
+.agents/skills/react-spectrum-s2/references/testing/Picker/testing.md
+  s_97c38c55e030ba::t_722d8f295dcc92 1-52
+.agents/skills/react-spectrum-s2/references/testing/RadioGroup/testing.md
+  s_97c38c55e030ba::t_2a5b8c0a7683ac 1-57
+.agents/skills/react-spectrum-s2/references/testing/TableView/testing.md
+  s_97c38c55e030ba::t_d18deae64cb992 1-71
+.agents/skills/react-spectrum-s2/references/testing/Tabs/testing.md
+  s_97c38c55e030ba::t_25e6a31e6da2ff 1-53
+.agents/skills/react-spectrum-s2/references/testing/TreeView/testing.md
+  s_97c38c55e030ba::t_05b5b9a29eca08 1-69
+.agents/skills/spectrum-audit/SKILL.md
+  s_97c38c55e030ba::t_f8ce55bfe39e58 1-63
+.agents/skills/spectrum-audit/references/checks/01-setup-config.md
+  s_97c38c55e030ba::t_eac58aa3e6044b 1-53
+.agents/skills/spectrum-audit/references/checks/02-component-usage.md
+  s_97c38c55e030ba::t_f42c5325f0dcd3 1-42
+.agents/skills/spectrum-audit/references/checks/03-styling.md
+  s_97c38c55e030ba::t_664c4d8ff058e4 1-47
+.agents/skills/spectrum-audit/references/checks/04-accessibility.md
+  s_97c38c55e030ba::t_7678d2e87c3c32 1-30
+.agents/skills/spectrum-audit/references/checks/05-versioning.md
+  s_97c38c55e030ba::t_e2c05fac98fc16 1-18
+.agents/skills/spectrum-audit/references/checks/06-testing.md
+  s_97c38c55e030ba::t_6f682dd9a640ed 1-12
+.agents/skills/spectrum-audit/references/report-template.md
+  s_97c38c55e030ba::t_c9ddb32b31ab84 1-72
+.agents/skills/spectrum-audit/references/scoring-rubric.md
+  s_97c38c55e030ba::t_d804ab087338fb 1-57
+docs/loops/2026-06-30-durable-task-history.md
+  s_1fe9be37713da8::t_c021802f39ac50 1-893
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.3",
+  "base_commit_sha": "e8cedb3327ca46f4186321f12e09c5cdcf096547",
+  "prompts": {},
+  "humans": {
+    "h_36ccd825a182d0": {
+      "author": "Sinyuk <80998062@qq.com>"
+    }
+  },
+  "sessions": {
+    "s_1fe9be37713da8": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "019f146d-ed86-7690-802d-6875e3fa3d43",
+        "model": "unknown"
+      },
+      "human_author": "Sinyuk <80998062@qq.com>"
+    },
+    "s_97c38c55e030ba": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "019f0981-30ae-7672-89e1-def4af9a7a0c",
+        "model": "unknown"
+      },
+      "human_author": "Sinyuk <80998062@qq.com>"
+    }
+  }
+}
