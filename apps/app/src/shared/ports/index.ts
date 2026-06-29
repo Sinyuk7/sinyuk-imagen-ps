@@ -3,3 +3,4 @@ export * from './app-services-context';
 export * from './commands-port';
 export * from './diagnostics-port';
 export * from './host-port';
+export * from '../image/thumbnail-store';

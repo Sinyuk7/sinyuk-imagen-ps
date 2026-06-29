@@ -217,6 +217,77 @@ describe('executeWorkflow', () => {
     expect(result.error!.category).toBe('provider');
   });
 
+  it('passes abort signal to provider dispatch and fails if aborted after dispatch', async () => {
+    const { store, controller } = createJobStore();
+    const registry = createWorkflowRegistry();
+    const abortController = new AbortController();
+    const dispatcher = createProviderDispatcher([
+      {
+        provider: 'echo',
+        async dispatch(_params, context) {
+          expect(context?.signal).toBe(abortController.signal);
+          abortController.abort();
+          return { ignored: true };
+        },
+      },
+    ]);
+
+    const workflow: Workflow = {
+      name: 'abort-after-dispatch',
+      steps: [
+        { name: 'echo', kind: 'provider', input: { provider: 'echo' } },
+      ],
+    };
+    registry.register(workflow);
+
+    const job = store.submitJob({});
+    const result = await executeWorkflow(job, 'abort-after-dispatch', {
+      registry,
+      controller,
+      dispatcher,
+      signal: abortController.signal,
+    });
+
+    expect(result.status).toBe('failed');
+    expect(result.error).toMatchObject({
+      category: 'validation',
+      message: 'Job submission was cancelled.',
+    });
+  });
+
+  it('does not call provider dispatch when already aborted', async () => {
+    const { store, controller } = createJobStore();
+    const registry = createWorkflowRegistry();
+    const abortController = new AbortController();
+    const dispatcher = createProviderDispatcher([
+      {
+        provider: 'echo',
+        async dispatch() {
+          throw new Error('dispatch should not run');
+        },
+      },
+    ]);
+    const workflow: Workflow = {
+      name: 'abort-before-dispatch',
+      steps: [
+        { name: 'echo', kind: 'provider', input: { provider: 'echo' } },
+      ],
+    };
+    registry.register(workflow);
+    abortController.abort();
+
+    const job = store.submitJob({});
+    const result = await executeWorkflow(job, 'abort-before-dispatch', {
+      registry,
+      controller,
+      dispatcher,
+      signal: abortController.signal,
+    });
+
+    expect(result.status).toBe('failed');
+    expect(result.error?.message).toBe('Job submission was cancelled.');
+  });
+
   it('produces immutable outputs', async () => {
     const { store, controller } = createJobStore();
     const registry = createWorkflowRegistry();

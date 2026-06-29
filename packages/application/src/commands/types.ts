@@ -48,6 +48,9 @@ export interface SubmitJobInput {
 
   /** Job 输入数据。 */
   readonly input: JobInput;
+
+  /** 可选取消信号；不进入 durable job input。 */
+  readonly signal?: AbortSignal;
 }
 
 /** Job lifecycle 事件处理器，接收所有事件类型 */

@@ -228,6 +228,63 @@ describe('profile dispatch runtime', () => {
     expect(JSON.stringify(result.value.output)).not.toContain('"data"');
   });
 
+  it('honors aborted submit signals before resolving provider input refs', async () => {
+    _resetForTesting();
+    const storedRef: StoredAssetRef = {
+      kind: 'hostObject',
+      ref: 'input-asset-1',
+      name: 'input.png',
+      mimeType: 'image/png',
+      byteSize: 8,
+    };
+    const records: DurableJobRecord[] = [];
+    setJobHistoryStore(createJobHistoryStore(records));
+    setAssetStore(createAssetStore({ ref: storedRef, bytes: new Uint8Array([1, 2, 3, 4]) }));
+    setProviderProfileRepository(
+      createProfileRepository({
+        profileId: 'mock-profile',
+        providerId: 'mock',
+        displayName: 'Mock Profile',
+        config: {
+          providerId: 'mock',
+          displayName: 'Mock Profile',
+          family: 'image-endpoint',
+          baseURL: 'https://mock.local',
+          defaultModel: 'mock-image-v1',
+          imageMaxSide: 2048,
+        },
+        secretRefs: { apiKey: 'secret:mock' },
+        enabled: true,
+        createdAt: '2026-06-15T00:00:00.000Z',
+        updatedAt: '2026-06-15T00:00:00.000Z',
+      }),
+    );
+    setSecretStorageAdapter(createSecretStorage());
+    const abortController = new AbortController();
+    abortController.abort();
+
+    const result = await submitJob({
+      workflow: 'provider-edit',
+      input: {
+        profileId: 'mock-profile',
+        prompt: 'edit stored image',
+        images: [{ type: 'image', name: 'input.png', mimeType: 'image/png', storedRef }],
+      },
+      signal: abortController.signal,
+    });
+
+    expect(result.ok).toBe(true);
+    if (result.ok) {
+      expect(result.value.status).toBe('failed');
+      expect(result.value.error).toMatchObject({
+        category: 'validation',
+        message: 'Job submission was cancelled.',
+      });
+    }
+    expect(records[0]?.input.images).toEqual([{ type: 'image', name: 'input.png', mimeType: 'image/png', storedRef }]);
+    expect(JSON.stringify(records[0]?.input)).not.toContain('"data"');
+  });
+
   it('rejects terminal history flush when job input contains secret values', async () => {
     _resetForTesting();
     const records: DurableJobRecord[] = [];

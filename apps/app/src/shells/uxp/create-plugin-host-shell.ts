@@ -18,6 +18,7 @@ import { createUxpAssetStore, createUxpJobHistoryStore } from '../../adapters/ux
 import { createUxpProviderProfileRepository } from '../../adapters/uxp/uxp-provider-profile-repository';
 import { createUxpSecretStorageAdapter } from '../../adapters/uxp/uxp-secret-storage-adapter';
 import { createUxpLogSink, writeUxpUiCheckpoint, writeUxpUiFailure } from '../../adapters/uxp/uxp-log-sink';
+import { createMemoryThumbnailStore } from '../../shared/image/thumbnail-store';
 
 export interface PluginHostShell {
   readonly kind: 'photoshop-uxp' | 'chrome-browser';
@@ -80,6 +81,7 @@ export function createPluginHostShell(): PluginHostShell {
       services: {
         commands: createCommandsAdapter(),
         host: hostBridge,
+        thumbnails: createMemoryThumbnailStore({ resolveStoredRef: assetStore.resolve }),
         diagnostics: createUxpDiagnosticsPort(),
       },
       dispose() {

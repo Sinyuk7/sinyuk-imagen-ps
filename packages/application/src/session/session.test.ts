@@ -123,6 +123,34 @@ describe('createImagenSession', () => {
     expect(snapshots).toHaveLength(2);
   });
 
+  it('passes submit abort signal through to the command layer without storing it in job input', async () => {
+    let received: SubmitJobInput | undefined;
+    const abortController = new AbortController();
+    const { commands } = createCommands();
+    const session = createImagenSession({
+      commands: {
+        ...commands,
+        async submitJob(input: SubmitJobInput) {
+          received = input;
+          return commands.submitJob(input);
+        },
+      },
+    });
+
+    const result = await session.submitJob({
+      workflow: 'provider-generate',
+      input: {
+        profileId: 'mock-profile',
+        prompt: 'make an image',
+      },
+      signal: abortController.signal,
+    });
+
+    expect(result.ok).toBe(true);
+    expect(received?.signal).toBe(abortController.signal);
+    expect(result.ok ? result.value.input : {}).not.toHaveProperty('signal');
+  });
+
   it('projects lifecycle events and failed job errors without inventing cancel support', () => {
     const { commands, emit, unsubscribe } = createCommands();
     const session = createImagenSession({ commands });

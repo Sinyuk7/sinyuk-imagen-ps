@@ -1,4 +1,5 @@
 import type { Asset } from '@imagen-ps/application';
+import { imageResourceFromHostImage, type ImageResource } from './image-resource';
 import type { PhotoshopCapturePlacement } from './photoshop-placement';
 
 export interface HostImageMetadata {
@@ -23,6 +24,7 @@ export interface HostImagePayloadRef {
 
 export interface HostImageAsset {
   readonly asset: Asset;
+  readonly resource: ImageResource;
   readonly metadata: HostImageMetadata;
   readonly preview: HostImagePreviewHandle;
   readonly payload: HostImagePayloadRef;
@@ -38,23 +40,36 @@ export function createHostImageAsset(
     readonly payloadRef?: string;
     readonly disposePreview?: () => void;
     readonly photoshopPlacement?: PhotoshopCapturePlacement;
+    readonly width?: number;
+    readonly height?: number;
+    readonly byteSize?: number;
   },
 ): HostImageAsset {
-  return {
+  const byteSize = options.byteSize ?? asset.storedRef?.byteSize ?? (asset.data instanceof Uint8Array ? asset.data.byteLength : undefined);
+  const metadata: HostImageMetadata = {
+    source: options.source,
+    ...(asset.name !== undefined ? { name: asset.name } : {}),
+    ...(asset.mimeType !== undefined ? { mimeType: asset.mimeType } : {}),
+    ...(byteSize !== undefined ? { byteSize } : {}),
+    ...(options.width !== undefined ? { width: options.width } : {}),
+    ...(options.height !== undefined ? { height: options.height } : {}),
+  };
+  const preview: HostImagePreviewHandle = options.previewUrl
+    ? { kind: options.previewUrl.startsWith('blob:') ? 'object-url' : 'data-url', url: options.previewUrl, dispose: options.disposePreview }
+    : { kind: 'none' };
+  const payload: HostImagePayloadRef = {
+    kind: options.payloadKind ?? 'inline-asset',
+    ...(options.payloadRef !== undefined ? { ref: options.payloadRef } : {}),
+  };
+  const image = {
     asset,
-    metadata: {
-      source: options.source,
-      ...(asset.name !== undefined ? { name: asset.name } : {}),
-      ...(asset.mimeType !== undefined ? { mimeType: asset.mimeType } : {}),
-      ...(asset.data instanceof Uint8Array ? { byteSize: asset.data.byteLength } : {}),
-    },
-    preview: options.previewUrl
-      ? { kind: options.previewUrl.startsWith('blob:') ? 'object-url' : 'data-url', url: options.previewUrl, dispose: options.disposePreview }
-      : { kind: 'none' },
-    payload: {
-      kind: options.payloadKind ?? 'inline-asset',
-      ...(options.payloadRef !== undefined ? { ref: options.payloadRef } : {}),
-    },
+    metadata,
+    preview,
+    payload,
     ...(options.photoshopPlacement ? { photoshopPlacement: options.photoshopPlacement } : {}),
+  };
+  return {
+    ...image,
+    resource: imageResourceFromHostImage(options.payloadRef ?? asset.storedRef?.ref ?? asset.fileId ?? asset.url ?? asset.name ?? 'host-image', image),
   };
 }

@@ -10,7 +10,7 @@ import {
   type ConversationController,
 } from '../src/shared/ui/hooks/use-conversation';
 import { useImagenSession } from '../src/shared/ui/hooks/use-imagen-session';
-import { createFakeServices, fakeHostImage } from './fakes';
+import { createFakeServices, fakeAsset, fakeHostImage, fakeOutputAsset, fakeProviderInputAsset } from './fakes';
 
 let root: Root | undefined;
 
@@ -76,6 +76,22 @@ async function mountProbe(services: ReturnType<typeof createFakeServices>['servi
     );
   });
   return { getController: () => controller!, container };
+}
+
+async function waitForExpectation(assertion: () => void): Promise<void> {
+  let lastError: unknown;
+  for (let attempt = 0; attempt < 10; attempt += 1) {
+    try {
+      assertion();
+      return;
+    } catch (error) {
+      lastError = error;
+      await act(async () => {
+        await new Promise((resolve) => window.setTimeout(resolve, 0));
+      });
+    }
+  }
+  throw lastError;
 }
 
 describe('useConversation', () => {
@@ -152,29 +168,177 @@ describe('useConversation', () => {
         prompt: 'make an image',
         providerOptions: { model: 'mock-image-v1' },
       }),
+      signal: expect.any(AbortSignal),
     });
     expect(controller!.rounds[0]?.status).toBe('ok');
     expect(controller!.rounds[0]?.previews[0]?.asset.name).toBe('result.png');
   });
 
-  it('submits image-edit attachments as hostObject refs instead of inline bytes when available', async () => {
+  it('passes an AbortSignal into submitJob and aborts it on clear', async () => {
+    const { services, spies } = createFakeServices();
+    let receivedSignal: AbortSignal | undefined;
+    let resolveSubmit!: (value: Awaited<ReturnType<typeof services.commands.submitJob>>) => void;
+    const pendingSubmit = new Promise<Awaited<ReturnType<typeof services.commands.submitJob>>>((resolve) => {
+      resolveSubmit = resolve;
+    });
+    services.commands.submitJob = vi.fn((input) => {
+      receivedSignal = input.signal;
+      return pendingSubmit;
+    });
+    const { getController } = await mountProbe(services);
+
+    await act(async () => {
+      void getController().submit({
+        operation: 'text-to-image',
+        prompt: 'make an image',
+        profileId: 'mock-profile',
+        providerName: 'Mock Profile',
+        modelId: 'mock-image-v1',
+      });
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+
+    expect(receivedSignal).toBeInstanceOf(AbortSignal);
+    expect(receivedSignal?.aborted).toBe(false);
+
+    act(() => {
+      getController().clear();
+    });
+
+    expect(receivedSignal?.aborted).toBe(true);
+    resolveSubmit({
+      ok: true,
+      value: {
+        id: 'job-aborted',
+        status: 'failed',
+        input: { _workflowName: 'provider-generate' },
+        output: undefined,
+        error: { category: 'validation', message: 'Job submission was cancelled.' },
+        createdAt: '2026-06-15T00:00:00.000Z',
+        updatedAt: '2026-06-15T00:00:01.000Z',
+      },
+    });
+    await act(async () => {
+      await pendingSubmit;
+    });
+
+    expect(spies.submitJob).not.toHaveBeenCalled();
+  });
+
+  it('renders provider output through thumbnail store without keeping inline preview bytes in round state', async () => {
+    const { services } = createFakeServices();
+    const release = vi.fn();
+    services.thumbnails = {
+      async getOrCreate(request) {
+        expect(request.asset).toEqual(fakeOutputAsset);
+        return {
+          cacheKey: 'thumb:output-1',
+          preview: {
+            asset: request.asset,
+            url: 'blob:thumb-output-1',
+            label: request.label ?? 'result.png',
+          },
+          release,
+        };
+      },
+      release,
+      clear: vi.fn(),
+    };
+    const { getController } = await mountProbe(services);
+
+    await act(async () => {
+      await getController().submit({
+        operation: 'text-to-image',
+        prompt: 'make an image',
+        profileId: 'mock-profile',
+        providerName: 'Mock Profile',
+        modelId: 'mock-image-v1',
+      });
+      await Promise.resolve();
+    });
+
+    await waitForExpectation(() => {
+      expect(getController().rounds[0]?.previews[0]).toEqual({
+        asset: fakeOutputAsset,
+        url: 'blob:thumb-output-1',
+        label: 'result.png',
+      });
+    });
+    expect(JSON.stringify(getController().rounds[0]?.previews)).not.toContain('ZmFrZS1pbWFnZQ==');
+
+    act(() => {
+      getController().clear();
+    });
+
+    expect(release).toHaveBeenCalledWith('thumb:output-1');
+  });
+
+  it('aborts in-flight thumbnail work on clear', async () => {
+    const { services } = createFakeServices();
+    let thumbnailSignal: AbortSignal | undefined;
+    services.thumbnails = {
+      async getOrCreate(request) {
+        thumbnailSignal = request.signal;
+        return new Promise(() => undefined);
+      },
+      release: vi.fn(),
+      clear: vi.fn(),
+    };
+    const { getController } = await mountProbe(services);
+
+    await act(async () => {
+      await getController().submit({
+        operation: 'text-to-image',
+        prompt: 'make an image',
+        profileId: 'mock-profile',
+        providerName: 'Mock Profile',
+        modelId: 'mock-image-v1',
+      });
+      await Promise.resolve();
+    });
+
+    expect(thumbnailSignal).toBeInstanceOf(AbortSignal);
+    expect(thumbnailSignal?.aborted).toBe(false);
+
+    act(() => {
+      getController().clear();
+    });
+
+    expect(thumbnailSignal?.aborted).toBe(true);
+  });
+
+  it('submits image-edit attachments from the ready provider derivative only', async () => {
     const { services, spies } = createFakeServices();
     const { getController } = await mountProbe(services);
+    const providerInputRef = {
+      kind: 'hostObject' as const,
+      ref: 'provider-derivative-1',
+      name: 'provider-input.png',
+      mimeType: 'image/png',
+      byteSize: 7,
+    };
     const image = {
       ...fakeHostImage,
-      asset: {
-        type: 'image' as const,
-        name: 'picked.png',
-        mimeType: 'image/png',
-        data: new Uint8Array([1, 2, 3, 4]),
-      },
-      metadata: {
-        ...fakeHostImage.metadata,
-        byteSize: 4,
-      },
-      payload: {
-        kind: 'host-object' as const,
-        ref: 'memory-asset-1',
+      asset: fakeAsset,
+      resource: {
+        ...fakeHostImage.resource,
+        derivatives: {
+          ...fakeHostImage.resource.derivatives,
+          thumbnail: {
+            kind: 'ready' as const,
+            role: 'thumbnail' as const,
+            previewUrl: 'blob:thumbnail-should-not-submit',
+          },
+          providerInput: {
+            kind: 'ready' as const,
+            role: 'provider-input' as const,
+            width: 1024,
+            height: 1024,
+            mimeType: 'image/png',
+            storedRef: providerInputRef,
+          },
+        },
       },
     };
 
@@ -199,18 +363,53 @@ describe('useConversation', () => {
       input: expect.objectContaining({
         images: [{
           type: 'image',
-          name: 'picked.png',
+          name: 'provider-input.png',
           mimeType: 'image/png',
-          storedRef: {
-            kind: 'hostObject',
-            ref: 'memory-asset-1',
-            name: 'picked.png',
-            mimeType: 'image/png',
-            byteSize: 4,
-          },
+          storedRef: providerInputRef,
         }],
       }),
+      signal: expect.any(AbortSignal),
     });
+    expect(JSON.stringify(spies.submitJob.mock.calls[0]?.[0].input.images)).not.toContain('blob:thumbnail-should-not-submit');
+    expect(JSON.stringify(spies.submitJob.mock.calls[0]?.[0].input.images)).not.toContain('ZmFrZS1pbWFnZQ==');
+  });
+
+  it('fails clearly before dispatch when an attachment has no ready provider derivative', async () => {
+    const { services, spies } = createFakeServices();
+    const { getController } = await mountProbe(services);
+    const image = {
+      ...fakeHostImage,
+      resource: {
+        ...fakeHostImage.resource,
+        derivatives: {
+          ...fakeHostImage.resource.derivatives,
+          providerInput: {
+            kind: 'pending' as const,
+            role: 'provider-input' as const,
+          },
+        },
+      },
+    };
+
+    await act(async () => {
+      await getController().submit({
+        operation: 'image-edit',
+        prompt: 'edit image',
+        profileId: 'mock-profile',
+        providerName: 'Mock Profile',
+        attachments: [{
+          id: 'file-1',
+          type: 'file',
+          name: 'picked.png',
+          image,
+          previewUrl: '',
+        }],
+      });
+    });
+
+    expect(spies.submitJob).not.toHaveBeenCalled();
+    expect(getController().rounds[0]?.status).toBe('err');
+    expect(getController().rounds[0]?.errorMessage).toContain('Provider input derivative is not ready');
   });
 
   it('blocks same-tick double submit to a single submitJob call (UI ref-gate)', async () => {
@@ -291,6 +490,36 @@ describe('useConversation', () => {
     // regenerate → submitJob 路径（不调用 retryJob）。
     expect(spies.submitJob).toHaveBeenCalledTimes(2);
     expect(vi.mocked(services.commands.retryJob)).not.toHaveBeenCalled();
+  });
+
+  it('reuses the same provider derivative ref for successful-round image retry', async () => {
+    const { services, spies } = createFakeServices();
+    const { getController } = await mountProbe(services);
+
+    await act(async () => {
+      await getController().submit({
+        operation: 'image-edit',
+        prompt: 'edit image',
+        profileId: 'mock-profile',
+        providerName: 'Mock Profile',
+        attachments: [{
+          id: 'file-1',
+          type: 'file',
+          name: 'input.png',
+          image: fakeHostImage,
+          previewUrl: '',
+        }],
+      });
+    });
+    const roundId = getController().rounds[0]!.id;
+
+    await act(async () => {
+      await getController().retry(roundId);
+    });
+
+    expect(spies.submitJob).toHaveBeenCalledTimes(2);
+    expect(spies.submitJob.mock.calls[0]?.[0].input.images).toEqual([fakeProviderInputAsset]);
+    expect(spies.submitJob.mock.calls[1]?.[0].input.images).toEqual([fakeProviderInputAsset]);
   });
 
   it('blocks same-tick double retry on a failed round to a single retryJob call', async () => {

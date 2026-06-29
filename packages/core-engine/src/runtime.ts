@@ -56,6 +56,9 @@ export interface RuntimeOptions {
 export interface RunWorkflowOptions {
   /** 可选 Logger；未提供时使用 null logger。 */
   logger?: Logger;
+
+  /** 可选取消信号；runner 在 provider dispatch 前后协作检查。 */
+  signal?: AbortSignal;
 }
 
 /** 单个 workflow step result 的后处理 hook。 */
@@ -107,6 +110,7 @@ export async function runWorkflow(
     controller: deps.controller,
     dispatcher: deps.dispatcher,
     logger: jobLogger,
+    ...(options?.signal !== undefined ? { signal: options.signal } : {}),
     ...(runtimeOptions?.afterStepResult !== undefined ? { afterStepResult: runtimeOptions.afterStepResult } : {}),
   });
 
@@ -144,7 +148,7 @@ export function createRuntime(options?: RuntimeOptions): Runtime {
         workflowName,
         input,
         { store, controller, registry, dispatcher, events },
-        { logger: options?.logger ?? runtimeLogger },
+        { logger: options?.logger ?? runtimeLogger, ...(options?.signal !== undefined ? { signal: options.signal } : {}) },
         { afterStepResult },
       );
     },

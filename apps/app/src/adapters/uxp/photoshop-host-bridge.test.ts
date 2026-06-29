@@ -69,6 +69,14 @@ const VALID_1024_TRANSPARENT_PNG = (() => {
   return bytes;
 })();
 
+function pngWithSize(width: number, height: number): Uint8Array {
+  const bytes = new Uint8Array(VALID_TRANSPARENT_PNG);
+  writeUint32BE(bytes, 16, width);
+  writeUint32BE(bytes, 20, height);
+  writeUint32BE(bytes, 29, crc32(bytes, 12, 17));
+  return bytes;
+}
+
 const LEGACY_TRUNCATED_MOCK_PNG = new Uint8Array([
   0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a,
   0x00, 0x00, 0x00, 0x0d, 0x49, 0x48, 0x44, 0x52,
@@ -96,6 +104,7 @@ function createFakeModules(options?: {
   readonly layerData?: Uint8Array | Uint16Array | Float32Array;
   readonly maskColorSpace?: string;
   readonly selectionBounds?: { readonly left: number; readonly top: number; readonly right: number; readonly bottom: number } | null;
+  readonly activeLayerBounds?: { readonly _left: number; readonly _top: number; readonly _right: number; readonly _bottom: number };
   readonly pixelResultSourceBounds?: { readonly left: number; readonly top: number; readonly right: number; readonly bottom: number };
   readonly pixelResultLevel?: number;
   readonly pixelResultSize?: { readonly width: number; readonly height: number };
@@ -119,6 +128,8 @@ function createFakeModules(options?: {
     readonly batchPlay: ReturnType<typeof vi.fn>;
     readonly scalePlacedLayer: ReturnType<typeof vi.fn>;
     readonly translatePlacedLayer: ReturnType<typeof vi.fn>;
+    readonly openDocument: ReturnType<typeof vi.fn>;
+    readonly closeTempDocument: ReturnType<typeof vi.fn>;
   };
 } {
   const pickedFileName = options?.pickedFileName ?? 'picked.png';
@@ -181,14 +192,25 @@ function createFakeModules(options?: {
   const batchPlay = vi.fn(async () => undefined);
   const scalePlacedLayer = vi.fn(async () => undefined);
   const translatePlacedLayer = vi.fn(async () => undefined);
+  const closeTempDocument = vi.fn(async () => undefined);
+  const openDocument = vi.fn(async () => ({
+    id: 99,
+    width: 512,
+    height: 512,
+    layers: [],
+    activeLayers: [],
+    close: closeTempDocument,
+  }));
   const executeAsModal = vi.fn(async (callback: () => Promise<void>) => callback());
   const isModal = vi.fn(() => false);
   const setExecutionMode = vi.fn();
+  const activeLayerBounds = options?.activeLayerBounds ?? { _left: 0, _top: 0, _right: 64, _bottom: 64 };
 
   return {
     modules: {
       photoshop: {
         app: {
+          open: openDocument,
           activeDocument: {
             id: 42,
             width: 512,
@@ -203,8 +225,8 @@ function createFakeModules(options?: {
                 kind: 'pixel',
                 visible: false,
                 hasUserMask: true,
-                bounds: { _left: 0, _top: 0, _right: 64, _bottom: 64 },
-                boundsNoEffects: { _left: 0, _top: 0, _right: 64, _bottom: 64 },
+                bounds: activeLayerBounds,
+                boundsNoEffects: activeLayerBounds,
                 scale: scalePlacedLayer,
                 translate: translatePlacedLayer,
               },
@@ -222,8 +244,8 @@ function createFakeModules(options?: {
                     kind: 'pixel',
                     visible: false,
                     hasUserMask: true,
-                    bounds: { _left: 0, _top: 0, _right: 64, _bottom: 64 },
-                    boundsNoEffects: { _left: 0, _top: 0, _right: 64, _bottom: 64 },
+                    bounds: activeLayerBounds,
+                    boundsNoEffects: activeLayerBounds,
                     scale: scalePlacedLayer,
                     translate: translatePlacedLayer,
                   },
@@ -274,6 +296,8 @@ function createFakeModules(options?: {
       batchPlay,
       scalePlacedLayer,
       translatePlacedLayer,
+      openDocument,
+      closeTempDocument,
     },
   };
 }
@@ -358,7 +382,16 @@ describe('PhotoshopHostBridge fake harness', () => {
     expect((await resolveAssetBytes(assetStore, layerAsset.asset)).slice(0, 8)).toEqual(VALID_TRANSPARENT_PNG.slice(0, 8));
     await expect(bridge.readLayerMaskAsAsset(2)).resolves.toBeUndefined();
 
-    expect(spies.getPixels).toHaveBeenCalledWith({
+    expect(spies.getPixels).toHaveBeenNthCalledWith(1, {
+      documentID: 42,
+      layerID: 2,
+      sourceBounds: { left: 0, top: 0, right: 64, bottom: 64 },
+      targetSize: { width: 64, height: 64 },
+      colorSpace: 'RGB',
+      componentSize: 8,
+      applyAlpha: false,
+    });
+    expect(spies.getPixels).toHaveBeenNthCalledWith(2, {
       documentID: 42,
       layerID: 2,
       sourceBounds: { left: 0, top: 0, right: 64, bottom: 64 },
@@ -376,8 +409,40 @@ describe('PhotoshopHostBridge fake harness', () => {
     expect(spies.executeAsModal).toHaveBeenCalledWith(expect.any(Function), { commandName: 'Read layer pixels' });
     expect(spies.executeAsModal).toHaveBeenCalledWith(expect.any(Function), { commandName: 'Read layer mask' });
     expect(spies.encodeImageData).not.toHaveBeenCalled();
-    expect(spies.disposeLayer).toHaveBeenCalledTimes(1);
+    expect(spies.disposeLayer).toHaveBeenCalledTimes(2);
     expect(spies.disposeMask).toHaveBeenCalledTimes(1);
+  });
+
+  it('为 Photoshop 图层独立生成 bounded thumbnail derivative 和 provider derivative', async () => {
+    const { modules, spies } = createFakeModules({
+      activeLayerBounds: { _left: 0, _top: 0, _right: 3000, _bottom: 1500 },
+    });
+    const { bridge } = createBridge(modules);
+
+    const layerAsset = await bridge.readLayerAsAsset(2, providerPolicy);
+
+    expect(layerAsset.resource.derivatives.thumbnail).toMatchObject({
+      kind: 'ready',
+      role: 'thumbnail',
+      mimeType: 'image/png',
+    });
+    expect(layerAsset.resource.derivatives.providerInput).toMatchObject({
+      kind: 'ready',
+      role: 'provider-input',
+      width: 2048,
+      height: 1024,
+      mimeType: 'image/png',
+    });
+    expect(spies.getPixels).toHaveBeenNthCalledWith(1, expect.objectContaining({
+      documentID: 42,
+      layerID: 2,
+      targetSize: { width: 256, height: 128 },
+    }));
+    expect(spies.getPixels).toHaveBeenNthCalledWith(2, expect.objectContaining({
+      documentID: 42,
+      layerID: 2,
+      targetSize: { width: 2048, height: 1024 },
+    }));
   });
 
   it('layer pixels 未转成 RGB 时返回清晰错误并释放 imageData', async () => {
@@ -458,14 +523,84 @@ describe('PhotoshopHostBridge fake harness', () => {
     await expect(bridge.pickImageFile(providerPolicy)).rejects.toThrow('PNG asset chunk CRC is invalid.');
   });
 
-  it('拒绝需要 resize 的本地 picker image，避免未验证 decoder 路径持久化原图', async () => {
-    const { modules } = createFakeModules({
+  it('通过临时 Photoshop document 为小尺寸本地文件生成 provider derivative', async () => {
+    const { modules, spies } = createFakeModules({
       pickedFileName: 'tiny.png',
-      pickedFileData: arrayBufferFromBytes(VALID_TRANSPARENT_PNG),
+      pickedFileData: arrayBufferFromBytes(pngWithSize(512, 512)),
+    });
+    const { bridge, assetStore } = createBridge(modules);
+
+    const asset = await bridge.pickImageFile(providerPolicy);
+
+    expect(spies.openDocument).toHaveBeenCalledTimes(1);
+    expect(spies.executeAsModal).toHaveBeenCalledWith(expect.any(Function), { commandName: 'Normalize local image for provider input' });
+    expect(spies.getPixels).toHaveBeenCalledWith({
+      documentID: 99,
+      targetSize: { width: 1024, height: 1024 },
+      colorSpace: 'RGB',
+      componentSize: 8,
+      applyAlpha: false,
+    });
+    expect(spies.closeTempDocument).toHaveBeenCalledTimes(1);
+    expect(asset?.asset).toMatchObject({
+      type: 'image',
+      name: 'tiny.png',
+      mimeType: 'image/png',
+    });
+    expect(asset?.asset.storedRef).toMatchObject({
+      kind: 'hostObject',
+      name: 'tiny.png',
+      mimeType: 'image/png',
+    });
+    expect(asset?.metadata).toMatchObject({
+      source: 'file',
+      width: 1024,
+      height: 1024,
+      mimeType: 'image/png',
+      name: 'tiny.png',
+    });
+    expect(asset?.resource.derivatives.providerInput).toMatchObject({
+      kind: 'ready',
+      role: 'provider-input',
+      width: 1024,
+      height: 1024,
+      mimeType: 'image/png',
+    });
+    const bytes = await resolveAssetBytes(assetStore, asset!.asset);
+    expect(bytes.slice(0, 8)).toEqual(VALID_TRANSPARENT_PNG.slice(0, 8));
+    expect(asset?.asset.data).toBeUndefined();
+  });
+
+  it('downscales very large local files within the selected provider max side', async () => {
+    const { modules, spies } = createFakeModules({
+      pickedFileName: 'large.png',
+      pickedFileData: arrayBufferFromBytes(pngWithSize(10000, 6000)),
     });
     const { bridge } = createBridge(modules);
 
-    await expect(bridge.pickImageFile(providerPolicy)).rejects.toThrow('Local image requires provider input normalization');
+    await bridge.pickImageFile(providerPolicy);
+
+    expect(spies.getPixels).toHaveBeenCalledWith(expect.objectContaining({
+      documentID: 99,
+      targetSize: { width: 2046, height: 1228 },
+    }));
+    expect(spies.closeTempDocument).toHaveBeenCalledTimes(1);
+  });
+
+  it('normalizes local files when only provider multiple/min-side policy changes size', async () => {
+    const { modules, spies } = createFakeModules({
+      pickedFileName: 'wide.png',
+      pickedFileData: arrayBufferFromBytes(pngWithSize(1201, 800)),
+    });
+    const { bridge } = createBridge(modules);
+
+    await bridge.pickImageFile(providerPolicy);
+
+    expect(spies.getPixels).toHaveBeenCalledWith(expect.objectContaining({
+      documentID: 99,
+      targetSize: { width: 1198, height: 798 },
+    }));
+    expect(spies.closeTempDocument).toHaveBeenCalledTimes(1);
   });
 
   it('captureActiveImage materializes active layer as PNG with placement metadata', async () => {
@@ -497,7 +632,14 @@ describe('PhotoshopHostBridge fake harness', () => {
       targetHeight: 1024,
       wasUpscaled: true,
     });
-    expect(spies.getPixels).toHaveBeenCalledWith(expect.objectContaining({
+    expect(spies.getPixels).toHaveBeenNthCalledWith(1, expect.objectContaining({
+      documentID: 42,
+      layerID: 2,
+      sourceBounds: { left: 0, top: 0, right: 64, bottom: 64 },
+      targetSize: { width: 64, height: 64 },
+      applyAlpha: false,
+    }));
+    expect(spies.getPixels).toHaveBeenNthCalledWith(2, expect.objectContaining({
       documentID: 42,
       layerID: 2,
       sourceBounds: { left: 0, top: 0, right: 64, bottom: 64 },

@@ -2,7 +2,7 @@ import { act } from 'react';
 import { createRoot, type Root } from 'react-dom/client';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { AppShell } from '../src/shared/ui/app-shell';
-import { fakeAsset, fakeOptimizerProfile } from './fakes';
+import { fakeHostImage, fakeOptimizerProfile, fakeOutputAsset, fakeProfile, fakeProviderInputAsset } from './fakes';
 import { createFakeServices } from './fakes';
 
 let root: Root | undefined;
@@ -100,8 +100,9 @@ describe('MainPage contract', () => {
       workflow: 'provider-edit',
       input: expect.objectContaining({
         prompt: 'edit uploaded image',
-        images: [fakeAsset],
+        images: [fakeProviderInputAsset],
       }),
+      signal: expect.any(AbortSignal),
     });
   });
 
@@ -128,8 +129,9 @@ describe('MainPage contract', () => {
       workflow: 'provider-edit',
       input: expect.objectContaining({
         prompt: 'edit layer image',
-        images: [fakeAsset],
+        images: [fakeProviderInputAsset],
       }),
+      signal: expect.any(AbortSignal),
     });
   });
 
@@ -168,8 +170,9 @@ describe('MainPage contract', () => {
       workflow: 'provider-edit',
       input: expect.objectContaining({
         prompt: 'edit captured image',
-        images: [fakeAsset],
+        images: [fakeProviderInputAsset],
       }),
+      signal: expect.any(AbortSignal),
     });
   });
 
@@ -188,7 +191,7 @@ describe('MainPage contract', () => {
       container.querySelector<HTMLButtonElement>('.img-act')!.click();
     });
 
-    expect(spies.placeAssetOnCanvas).toHaveBeenCalledWith(fakeAsset, expect.objectContaining({
+    expect(spies.placeAssetOnCanvas).toHaveBeenCalledWith(fakeOutputAsset, expect.objectContaining({
       kind: 'exact-frame',
       documentId: 42,
       placementRect: { left: 10, top: 20, right: 266, bottom: 276 },
@@ -216,7 +219,7 @@ describe('MainPage contract', () => {
       container.querySelector<HTMLButtonElement>('.img-act')!.click();
     });
 
-    expect(spies.placeAssetOnCanvas).toHaveBeenCalledWith(fakeAsset, expect.objectContaining({
+    expect(spies.placeAssetOnCanvas).toHaveBeenCalledWith(fakeOutputAsset, expect.objectContaining({
       kind: 'document-only',
       documentId: 42,
     }));
@@ -622,7 +625,16 @@ describe('MainPage contract', () => {
   it('attachment 可通过移除按钮移除', async () => {
     const container = document.createElement('div');
     document.body.appendChild(container);
-    await renderApp(container);
+    const services = createFakeServices();
+    const dispose = vi.fn();
+    services.services.host.pickImageFile = vi.fn(async () => ({
+      ...fakeHostImage,
+      preview: {
+        ...fakeHostImage.preview,
+        dispose,
+      },
+    }));
+    await renderApp(container, services);
 
     await act(async () => {
       container.querySelector<HTMLElement>('[data-testid="composer-add-image-button"]')!.click();
@@ -638,6 +650,57 @@ describe('MainPage contract', () => {
     });
     await flush();
     expect(container.querySelector('.att-thumb')).toBeNull();
+    expect(dispose).toHaveBeenCalledTimes(1);
+  });
+
+  it('切换 provider profile 会释放并清空旧 policy 下的附件', async () => {
+    const container = document.createElement('div');
+    document.body.appendChild(container);
+    const dispose = vi.fn();
+    const services = createFakeServices({
+      profiles: [
+        fakeProfile,
+        {
+          ...fakeProfile,
+          profileId: 'mock-profile-2',
+          displayName: 'Mock Profile 2',
+          config: {
+            ...fakeProfile.config,
+            imageMaxSide: 1024,
+          },
+        },
+        fakeOptimizerProfile,
+      ],
+    });
+    services.services.host.pickImageFile = vi.fn(async () => ({
+      ...fakeHostImage,
+      preview: {
+        ...fakeHostImage.preview,
+        dispose,
+      },
+    }));
+    await renderApp(container, services);
+
+    await act(async () => {
+      container.querySelector<HTMLElement>('[data-testid="composer-add-image-button"]')!.click();
+    });
+    await act(async () => {
+      clickText(container, '.attach-opt', '从电脑上传');
+    });
+    await flush();
+    expect(container.querySelector('.att-thumb')).not.toBeNull();
+
+    await act(async () => {
+      container.querySelector<HTMLElement>('[data-testid="main-profile-selector"]')!.click();
+    });
+    await flush();
+    await act(async () => {
+      container.querySelector<HTMLElement>('[data-testid="profile-menu-option-mock-profile-2"]')!.click();
+    });
+    await flush();
+
+    expect(container.querySelector('.att-thumb')).toBeNull();
+    expect(dispose).toHaveBeenCalledTimes(1);
   });
 
   it('attachment zone 在空状态也常驻，并将 add tile 固定为第一项', async () => {

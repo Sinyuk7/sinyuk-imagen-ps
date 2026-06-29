@@ -2,12 +2,12 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { JobError, JobSessionSnapshot } from '@imagen-ps/application';
 import type { AppServices } from '../../ports/app-services';
 import {
-  assetToPreview,
   commandErrorToMessage,
   outputAssets,
   outputMetadata,
   type AssetPreview,
 } from '../../domain/mappers';
+import { createMemoryThumbnailStore, type ThumbnailStore } from '../../image/thumbnail-store';
 import type { ImagenSessionBinding } from './use-imagen-session';
 import type { AppMessages } from '../i18n/messages';
 import type { HostImageAsset } from '../../domain/host-image-asset';
@@ -93,6 +93,42 @@ function errorMessage(error: unknown, fallback: string): string {
   return isJobError(error) ? commandErrorToMessage(error) : fallback;
 }
 
+const fallbackThumbnailStore = createMemoryThumbnailStore();
+
+function thumbnailStoreFrom(services: AppServices): ThumbnailStore {
+  return services.thumbnails ?? fallbackThumbnailStore;
+}
+
+function pendingPreviews(assets: readonly Asset[]): readonly AssetPreview[] {
+  return assets.map((asset, index) => ({
+    asset: {
+      type: asset.type,
+      ...(asset.name ? { name: asset.name } : {}),
+      ...(asset.mimeType ? { mimeType: asset.mimeType } : {}),
+      ...(asset.url ? { url: asset.url } : {}),
+      ...(asset.fileId ? { fileId: asset.fileId } : {}),
+      ...(asset.storedRef ? { storedRef: asset.storedRef } : {}),
+    },
+    url: '',
+    label: asset.name ?? `Asset ${index + 1}`,
+  }));
+}
+
+function releaseAttachment(attachment: ConversationAttachment): void {
+  attachment.image.preview.dispose?.();
+}
+
+function releaseAttachments(attachments: readonly ConversationAttachment[]): void {
+  const released = new Set<HostImageAsset>();
+  for (const attachment of attachments) {
+    if (released.has(attachment.image)) {
+      continue;
+    }
+    released.add(attachment.image);
+    releaseAttachment(attachment);
+  }
+}
+
 function roundFromSessionJob(
   job: JobSessionSnapshot,
   current: ConversationRound,
@@ -120,7 +156,10 @@ function roundFromSessionJob(
     ...current,
     status: 'ok',
     jobId: job.id,
-    previews: assets.map(assetToPreview),
+    previews:
+      current.status === 'ok' && current.previews.length === assets.length && current.previews.every((preview) => preview.url)
+        ? current.previews
+        : pendingPreviews(assets),
     elapsedLabel: elapsedLabel(current.elapsedSeconds),
     ...(metadata?.size ? { outputSize: metadata.size } : {}),
     ...(metadata?.outputFormat ? { outputFormat: metadata.outputFormat } : {}),
@@ -156,21 +195,20 @@ function errorRound(current: ConversationRound, error: JobError | Error): Conver
 }
 
 function assetForJobInput(image: HostImageAsset): Asset {
-  if (image.payload.ref && image.payload.kind === 'host-object') {
-    return {
-      type: image.asset.type,
-      ...(image.asset.name ? { name: image.asset.name } : {}),
-      ...(image.asset.mimeType ? { mimeType: image.asset.mimeType } : {}),
-      storedRef: {
-        kind: 'hostObject',
-        ref: image.payload.ref,
-        ...(image.asset.name ? { name: image.asset.name } : {}),
-        ...(image.asset.mimeType ? { mimeType: image.asset.mimeType } : {}),
-        ...(image.metadata.byteSize !== undefined ? { byteSize: image.metadata.byteSize } : {}),
-      },
-    };
+  const providerInput = image.resource.derivatives.providerInput;
+  const storedRef = providerInput?.storedRef;
+  if (providerInput?.kind !== 'ready' || storedRef === undefined) {
+    throw new Error(`Provider input derivative is not ready for image "${image.metadata.name ?? image.asset.name ?? image.resource.id}".`);
   }
-  return image.asset;
+
+  const name = storedRef.name ?? image.asset.name ?? image.metadata.name;
+  const mimeType = providerInput.mimeType ?? storedRef.mimeType ?? image.asset.mimeType ?? image.metadata.mimeType;
+  return {
+    type: image.asset.type,
+    ...(name ? { name } : {}),
+    ...(mimeType ? { mimeType } : {}),
+    storedRef,
+  };
 }
 
 export function derivePlacementIntent(attachments: readonly ConversationAttachment[]): PlacementIntent {
@@ -202,12 +240,16 @@ export function derivePlacementIntent(attachments: readonly ConversationAttachme
 }
 
 export function useConversation(
-  _services: AppServices,
+  services: AppServices,
   sessionBinding: ImagenSessionBinding,
   messages: ConversationMessages | AppMessages['conversation'] = DEFAULT_CONVERSATION_MESSAGES,
 ): ConversationController {
   const [rounds, setRounds] = useState<readonly ConversationRound[]>([]);
   const running = useMemo(() => rounds.some((round) => round.status === 'running'), [rounds]);
+  const thumbnailStore = thumbnailStoreFrom(services);
+  const previewCacheKeysRef = useRef<Map<string, readonly string[]>>(new Map());
+  const previewAbortControllersRef = useRef<Map<string, AbortController>>(new Map());
+  const roundsRef = useRef<readonly ConversationRound[]>(rounds);
 
   /**
    * UI 同步 ref 门禁（交互反馈层，非唯一权威）。
@@ -220,6 +262,18 @@ export function useConversation(
    */
   const submitInFlightRef = useRef(false);
   const retryInFlightRef = useRef<Set<string>>(new Set());
+  const submitAbortRef = useRef<AbortController | null>(null);
+
+  const abortPreviewWork = useCallback(() => {
+    for (const controller of previewAbortControllersRef.current.values()) {
+      controller.abort();
+    }
+    previewAbortControllersRef.current.clear();
+  }, []);
+
+  useEffect(() => {
+    roundsRef.current = rounds;
+  }, [rounds]);
 
   useEffect(() => {
     if (!running) {
@@ -244,6 +298,83 @@ export function useConversation(
     );
   }, [messages, sessionBinding.snapshot.jobs]);
 
+  useEffect(() => {
+    return () => {
+      submitAbortRef.current?.abort();
+      submitAbortRef.current = null;
+      abortPreviewWork();
+      releaseAttachments(roundsRef.current.flatMap((round) => round.attachments));
+      for (const keys of previewCacheKeysRef.current.values()) {
+        keys.forEach((key) => thumbnailStore.release(key));
+      }
+      previewCacheKeysRef.current.clear();
+    };
+  }, [abortPreviewWork, thumbnailStore]);
+
+  useEffect(() => {
+    let disposed = false;
+
+    for (const round of rounds) {
+      if (
+        round.status !== 'ok' ||
+        !round.jobId ||
+        round.previews.length === 0 ||
+        round.previews.every((preview) => preview.url) ||
+        previewCacheKeysRef.current.has(round.id) ||
+        previewAbortControllersRef.current.has(round.id)
+      ) {
+        continue;
+      }
+      const job = sessionBinding.snapshot.jobs.find((item) => item.id === round.jobId);
+      const assets = job ? outputAssets(job.output) : round.previews.map((preview) => preview.asset);
+      if (assets.length === 0) {
+        continue;
+      }
+
+      const abortController = new AbortController();
+      previewAbortControllersRef.current.set(round.id, abortController);
+      void Promise.all(
+        assets.map((asset, index) =>
+          thumbnailStore.getOrCreate({
+            asset,
+            label: asset.name ?? `Asset ${index + 1}`,
+            sourceKey: `${round.id}:${asset.storedRef?.ref ?? asset.url ?? asset.fileId ?? asset.name ?? index}`,
+            signal: abortController.signal,
+          }),
+        ),
+      ).then((entries) => {
+        previewAbortControllersRef.current.delete(round.id);
+        if (disposed) {
+          entries.forEach((entry) => entry.release());
+          if (!abortController.signal.aborted) {
+            setRounds((current) => current.slice());
+          }
+          return;
+        }
+        const previous = previewCacheKeysRef.current.get(round.id) ?? [];
+        previous.forEach((key) => thumbnailStore.release(key));
+        previewCacheKeysRef.current.set(round.id, entries.map((entry) => entry.cacheKey));
+        setRounds((current) =>
+          current.map((item) => (item.id === round.id ? { ...item, previews: entries.map((entry) => entry.preview) } : item)),
+        );
+      }).catch((error) => {
+        previewAbortControllersRef.current.delete(round.id);
+        if (abortController.signal.aborted) {
+          return;
+        }
+        setRounds((current) =>
+          current.map((item) =>
+            item.id === round.id ? errorRound(item, error instanceof Error ? error : new Error(String(error))) : item,
+          ),
+        );
+      });
+    }
+
+    return () => {
+      disposed = true;
+    };
+  }, [rounds, sessionBinding.snapshot.jobs, thumbnailStore]);
+
   const submit = useCallback(
     async (input: SubmitConversationInput) => {
       const prompt = input.prompt.trim();
@@ -256,6 +387,9 @@ export function useConversation(
         return;
       }
       submitInFlightRef.current = true;
+      const abortController = new AbortController();
+      submitAbortRef.current?.abort();
+      submitAbortRef.current = abortController;
 
       try {
         const roundId = createRoundId();
@@ -276,24 +410,28 @@ export function useConversation(
         };
         setRounds((current) => [...current, round]);
 
-        const providerOptions = input.modelId ? { model: input.modelId } : undefined;
-        const workflow = input.operation === 'image-edit' ? 'provider-edit' : 'provider-generate';
-        const jobInput = {
-          __clientRoundId: roundId,
-          profileId: input.profileId,
-          prompt,
-          output: { count: 1 },
-          ...(providerOptions ? { providerOptions } : {}),
-          ...(input.operation === 'image-edit' ? { images: attachments.map((attachment) => assetForJobInput(attachment.image)) } : {}),
-        };
-
         try {
           if (input.operation === 'image-edit' && attachments.length === 0) {
             throw new Error('Image edit requires an attachment. Capture from Photoshop or add an image.');
           }
+          const providerOptions = input.modelId ? { model: input.modelId } : undefined;
+          const workflow = input.operation === 'image-edit' ? 'provider-edit' : 'provider-generate';
+          const providerInputAssets =
+            input.operation === 'image-edit'
+              ? attachments.map((attachment) => assetForJobInput(attachment.image))
+              : undefined;
+          const jobInput = {
+            __clientRoundId: roundId,
+            profileId: input.profileId,
+            prompt,
+            output: { count: 1 },
+            ...(providerOptions ? { providerOptions } : {}),
+            ...(providerInputAssets ? { images: providerInputAssets } : {}),
+          };
           const result = await sessionBinding.session.submitJob({
             workflow,
             input: jobInput,
+            signal: abortController.signal,
           });
 
           setRounds((current) =>
@@ -325,6 +463,9 @@ export function useConversation(
           );
         }
       } finally {
+        if (submitAbortRef.current === abortController) {
+          submitAbortRef.current = null;
+        }
         submitInFlightRef.current = false;
       }
     },
@@ -386,7 +527,18 @@ export function useConversation(
     [messages, rounds, sessionBinding.session, sessionBinding.snapshot.jobs, submit],
   );
 
-  const clear = useCallback(() => setRounds([]), []);
+  const clear = useCallback(() => {
+    submitAbortRef.current?.abort();
+    submitAbortRef.current = null;
+    abortPreviewWork();
+    releaseAttachments(rounds.flatMap((round) => round.attachments));
+    roundsRef.current = [];
+    for (const keys of previewCacheKeysRef.current.values()) {
+      keys.forEach((key) => thumbnailStore.release(key));
+    }
+    previewCacheKeysRef.current.clear();
+    setRounds([]);
+  }, [abortPreviewWork, rounds, thumbnailStore]);
 
   return {
     rounds,

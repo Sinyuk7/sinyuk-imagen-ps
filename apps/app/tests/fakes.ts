@@ -12,6 +12,7 @@ import type { AppServices } from '../src/app-services/app-services';
 import type { CommandsPort } from '../src/app-services/commands-port';
 import { PHOTOSHOP_UXP_RUNTIME_CAPABILITIES, type HostBridge } from '../src/app-services/host-bridge';
 import { createHostImageAsset } from '../src/shared/domain/host-image-asset';
+import { createMemoryThumbnailStore } from '../src/shared/image/thumbnail-store';
 import type { DiagnosticsPort } from '../src/shared/ports/diagnostics-port';
 
 export const fakeAsset: Asset = {
@@ -21,9 +22,40 @@ export const fakeAsset: Asset = {
   mimeType: 'image/png',
 };
 
-export const fakeHostImage = createHostImageAsset(fakeAsset, {
+const fakeProviderInputBytes = new TextEncoder().encode('fake-provider-input');
+const fakeOutputBytes = new TextEncoder().encode('fake-image');
+
+export const fakeProviderInputAsset: Asset = {
+  type: 'image',
+  name: 'input.png',
+  mimeType: 'image/png',
+  storedRef: {
+    kind: 'hostObject',
+    ref: 'fake-provider-input-1',
+    name: 'input.png',
+    mimeType: 'image/png',
+    byteSize: fakeProviderInputBytes.byteLength,
+  },
+};
+
+export const fakeOutputAsset: Asset = {
+  type: 'image',
+  name: 'result.png',
+  mimeType: 'image/png',
+  storedRef: {
+    kind: 'hostObject',
+    ref: 'fake-output-asset-1',
+    name: 'result.png',
+    mimeType: 'image/png',
+    byteSize: fakeOutputBytes.byteLength,
+  },
+};
+
+export const fakeHostImage = createHostImageAsset(fakeProviderInputAsset, {
   source: 'file',
   previewUrl: 'data:image/png;base64,ZmFrZS1pbWFnZQ==',
+  payloadKind: 'host-object',
+  payloadRef: fakeProviderInputAsset.storedRef?.ref,
 });
 
 export const fakeProfile: ProviderProfile = {
@@ -94,7 +126,7 @@ function completedJob(input: Record<string, unknown>): Job {
     input,
     output: {
       image: {
-        assets: [fakeAsset],
+        assets: [fakeOutputAsset],
         metadata: {
           size: '1024x1024',
           outputFormat: 'png',
@@ -122,7 +154,9 @@ function savedProfile(input: ProviderProfileInput): ProviderProfile {
   };
 }
 
-export function createFakeServices(): {
+export function createFakeServices(options?: {
+  readonly profiles?: readonly ProviderProfile[];
+}): {
   readonly services: AppServices;
   readonly spies: {
     readonly submitJob: ReturnType<typeof vi.fn>;
@@ -144,7 +178,7 @@ export function createFakeServices(): {
     readonly placeAssetOnCanvas: ReturnType<typeof vi.fn>;
   };
 } {
-  let profiles: readonly ProviderProfile[] = [fakeProfile, fakeOptimizerProfile];
+  let profiles: readonly ProviderProfile[] = options?.profiles ?? [fakeProfile, fakeOptimizerProfile];
 
   const submitJob = vi.fn(async (input: Parameters<CommandsPort['submitJob']>[0]) => ({
     ok: true as const,
@@ -251,7 +285,22 @@ export function createFakeServices(): {
   };
 
   return {
-    services: { commands, host, diagnostics },
+    services: {
+      commands,
+      host,
+      thumbnails: createMemoryThumbnailStore({
+        async resolveStoredRef(ref) {
+          if (ref.ref === fakeOutputAsset.storedRef?.ref) {
+            return fakeOutputBytes.buffer.slice(0);
+          }
+          if (ref.ref === fakeProviderInputAsset.storedRef?.ref) {
+            return fakeProviderInputBytes.buffer.slice(0);
+          }
+          return undefined;
+        },
+      }),
+      diagnostics,
+    },
     spies: {
       submitJob,
       subscribeJobEvents,

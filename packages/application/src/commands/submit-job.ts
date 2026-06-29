@@ -110,7 +110,10 @@ export async function submitJob(input: SubmitJobInput): Promise<CommandResult<Jo
       ...(needsProfileDispatch ? { provider: 'profile' } : {}),
       [WORKFLOW_NAME_KEY]: input.workflow,
     };
-    const job = await runtime.runWorkflow(input.workflow, enrichedInput, { logger: commandLogger });
+    const job = await runtime.runWorkflow(input.workflow, enrichedInput, {
+      logger: commandLogger,
+      ...(input.signal !== undefined ? { signal: input.signal } : {}),
+    });
     await flushJobHistoryForTerminalJob(job);
     span.finish();
     return { ok: true, value: job };

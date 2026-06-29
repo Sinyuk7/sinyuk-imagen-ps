@@ -27,6 +27,33 @@ describe('createProviderDispatcher', () => {
     });
   });
 
+  it('passes dispatch context signal through to the adapter', async () => {
+    const abortController = new AbortController();
+    const dispatcher = createProviderDispatcher([
+      {
+        provider: 'mock',
+        async dispatch(_params, context) {
+          return {
+            sameSignal: context?.signal === abortController.signal,
+          };
+        },
+      },
+    ]);
+
+    await expect(
+      dispatchProvider(
+        dispatcher,
+        {
+          provider: 'mock',
+          params: { prompt: 'hello' },
+        },
+        { signal: abortController.signal },
+      ),
+    ).resolves.toEqual({
+      sameSignal: true,
+    });
+  });
+
   it('fails when provider adapter is missing', async () => {
     const dispatcher = createProviderDispatcher();
 

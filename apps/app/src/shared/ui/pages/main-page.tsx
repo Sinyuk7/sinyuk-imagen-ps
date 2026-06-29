@@ -129,6 +129,21 @@ function providerInputPolicy(profile: ProviderProfile | undefined): ProviderInpu
   return { maxSide, ...(multiple !== undefined ? { multiple } : {}) };
 }
 
+function releaseAttachment(attachment: ConversationAttachment): void {
+  attachment.image.preview.dispose?.();
+}
+
+function releaseAttachments(attachments: readonly ConversationAttachment[]): void {
+  const released = new Set<ConversationAttachment['image']>();
+  for (const attachment of attachments) {
+    if (released.has(attachment.image)) {
+      continue;
+    }
+    released.add(attachment.image);
+    releaseAttachment(attachment);
+  }
+}
+
 export function MainPage({
   onNav,
   profiles,
@@ -165,6 +180,7 @@ export function MainPage({
   const [optimizeState, setOptimizeState] = useState<OptimizeState>({ status: 'idle' });
   const convRef = useRef<HTMLDivElement>(null);
   const taRef = useRef<HTMLTextAreaElement>(null);
+  const attachmentsRef = useRef<readonly ConversationAttachment[]>(attachments);
   const flatLayers = useMemo(() => flattenLayers(layers), [layers]);
   const uniqueModels = useMemo(() => dedupeById(models), [models]);
   const selectableProfiles = useMemo(
@@ -188,6 +204,17 @@ export function MainPage({
     const el = convRef.current;
     if (!el) return true;
     return el.scrollHeight - el.scrollTop - el.clientHeight <= 64;
+  }, []);
+
+  useEffect(() => {
+    attachmentsRef.current = attachments;
+  }, [attachments]);
+
+  useEffect(() => {
+    return () => {
+      releaseAttachments(attachmentsRef.current);
+      attachmentsRef.current = [];
+    };
   }, []);
 
   useEffect(() => {
@@ -254,6 +281,25 @@ export function MainPage({
     setAttachments((current) => [...current, attachment]);
     setAttachOpen(false);
     setLayerOpen(false);
+  };
+
+  const removeAttachment = (attachmentId: string) => {
+    setAttachments((current) => {
+      const removed = current.find((item) => item.id === attachmentId);
+      if (removed) {
+        releaseAttachment(removed);
+      }
+      return current.filter((item) => item.id !== attachmentId);
+    });
+  };
+
+  const selectProfile = (profileId: string) => {
+    if (profileId !== selectedProfileId) {
+      releaseAttachments(attachments);
+      setAttachments([]);
+    }
+    onSelectProfile(profileId);
+    setProfileMenuOpen(false);
   };
 
   const addLayer = async (layer: LayerInfo) => {
@@ -458,10 +504,7 @@ export function MainPage({
                   type="button"
                   data-testid={`profile-menu-option-${profile.profileId}`}
                   className={`model-opt${profile.profileId === selectedProfileId ? ' act' : ''}`}
-                  onClick={() => {
-                    onSelectProfile(profile.profileId);
-                    setProfileMenuOpen(false);
-                  }}
+                  onClick={() => selectProfile(profile.profileId)}
                 >
                   {profile.profileId === selectedProfileId && <Icon name="check" />}
                   <span>{profile.displayName}</span>
@@ -765,7 +808,7 @@ export function MainPage({
                       ? <img src={attachment.previewUrl} style={{ width: '100%', height: '100%', objectFit: 'cover' }} alt={attachment.name} />
                       : <div style={{ width: '100%', height: '100%', background: 'var(--app-color-background-layer-1)' }} />
                     }
-                    <button data-testid={`attachment-remove-button-${attachment.id}`} className="att-rm" onClick={() => setAttachments((current) => current.filter((item) => item.id !== attachment.id))}>x</button>
+                    <button data-testid={`attachment-remove-button-${attachment.id}`} className="att-rm" onClick={() => removeAttachment(attachment.id)}>x</button>
                   </div>
                 ))}
               </div>

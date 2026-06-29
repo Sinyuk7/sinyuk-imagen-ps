@@ -8,7 +8,7 @@ import type { Job, JobOutput, JobStoreController } from './types/job.js';
 import type { WorkflowRegistry } from './types/workflow.js';
 import type { ProviderDispatcher, ProviderRef } from './types/provider.js';
 import type { JobError } from './errors.js';
-import { createWorkflowError, createRuntimeError } from './errors.js';
+import { createWorkflowError, createRuntimeError, createValidationError } from './errors.js';
 import { assertImmutable } from './invariants.js';
 import type { Logger } from '@imagen-ps/foundation';
 import { createNullLogger } from '@imagen-ps/foundation';
@@ -26,6 +26,9 @@ export interface RunnerDeps {
 
   /** 可选 Logger；未提供时使用 null logger。 */
   logger?: Logger;
+
+  /** 可选取消信号；provider dispatch 前后协作检查。 */
+  signal?: AbortSignal;
 
   /** 可选 step result 后处理；用于 host/application 在进入 JobStore 前收敛长期状态。 */
   afterStepResult?(args: {
@@ -103,6 +106,12 @@ function resolveStepInput(
   return resolveValue(input ?? {}, context, `step("${stepName}").input`) as Record<string, unknown>;
 }
 
+function throwIfAborted(signal: AbortSignal | undefined): void {
+  if (signal?.aborted) {
+    throw createValidationError('Job submission was cancelled.', { reason: 'abort-signal' });
+  }
+}
+
 // ------------------------------------------------------------------
 // ------------------------------------------------------------------
 // Workflow 执行
@@ -141,6 +150,7 @@ export async function executeWorkflow(job: Job, workflowName: string, deps: Runn
 
   try {
     for (const step of workflow.steps) {
+      throwIfAborted(deps.signal);
       if (step.kind !== 'provider') {
         throw createWorkflowError(
           `Unsupported step kind "${step.kind}" in step "${step.name}". Only "provider" steps are currently supported.`,
@@ -161,11 +171,16 @@ export async function executeWorkflow(job: Job, workflowName: string, deps: Runn
         };
 
         const outputKey = step.outputKey ?? step.name;
-        const result = await dispatcher.dispatch(ref, { logger: stepLogger });
+        const result = await dispatcher.dispatch(ref, {
+          logger: stepLogger,
+          ...(deps.signal !== undefined ? { signal: deps.signal } : {}),
+        });
+        throwIfAborted(deps.signal);
         const processedResult =
           deps.afterStepResult !== undefined
             ? await deps.afterStepResult({ workflowName, stepName: step.name, outputKey, result })
             : result;
+        throwIfAborted(deps.signal);
         context[outputKey] = assertImmutable(processedResult);
         span.finish();
       } catch (error) {

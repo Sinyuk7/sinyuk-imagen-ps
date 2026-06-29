@@ -14,6 +14,7 @@ import {
   type ChromeKeyValueBackend,
 } from '../../adapters/chrome/indexed-db-storage';
 import { createPhotoshopSimulator, type PhotoshopSimulatorScenarioId } from '../../simulators/photoshop/simulator';
+import { createMemoryThumbnailStore } from '../../shared/image/thumbnail-store';
 import { createChromeTestHarnessRuntime, type ChromeTestHarnessConfig } from './chrome-test-harness';
 
 export interface ChromeAppShellOptions {
@@ -79,6 +80,7 @@ export function createChromeAppShell(options?: ChromeAppShellOptions): AppShellH
     services: {
       commands: testHarness?.wrapCommands(commands) ?? commands,
       host,
+      thumbnails: createMemoryThumbnailStore({ resolveStoredRef: storage.assets.resolve }),
       diagnostics: createChromeDiagnosticsPort(),
     },
     dispose() {

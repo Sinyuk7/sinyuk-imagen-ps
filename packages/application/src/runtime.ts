@@ -7,6 +7,7 @@
 
 import {
   assertNoSecrets,
+  createValidationError,
   createRuntime,
   type DurableJobRecord,
   type Job,
@@ -413,7 +414,14 @@ function isPlainRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value);
 }
 
-async function resolveStoredAssetForDispatch(asset: unknown): Promise<unknown> {
+function throwIfAborted(signal: AbortSignal | undefined): void {
+  if (signal?.aborted) {
+    throw createValidationError('Job submission was cancelled.', { reason: 'abort-signal' });
+  }
+}
+
+async function resolveStoredAssetForDispatch(asset: unknown, signal?: AbortSignal): Promise<unknown> {
+  throwIfAborted(signal);
   if (!isPlainRecord(asset)) {
     return asset;
   }
@@ -422,6 +430,7 @@ async function resolveStoredAssetForDispatch(asset: unknown): Promise<unknown> {
     return asset;
   }
   const bytes = await getAssetStore().resolve(storedRef);
+  throwIfAborted(signal);
   if (bytes === undefined) {
     throw new Error(`AssetStore object is unavailable: ${storedRef.ref}`);
   }
@@ -431,14 +440,15 @@ async function resolveStoredAssetForDispatch(asset: unknown): Promise<unknown> {
   };
 }
 
-async function resolveStoredAssetsForDispatch(params: Record<string, unknown>): Promise<Record<string, unknown>> {
+async function resolveStoredAssetsForDispatch(params: Record<string, unknown>, signal?: AbortSignal): Promise<Record<string, unknown>> {
+  throwIfAborted(signal);
   const { requestObj, hasRequestKey } = locateRequestInParams(params);
   let nextRequest = requestObj;
 
   if (Array.isArray(requestObj.images)) {
     const images: unknown[] = [];
     for (const image of requestObj.images) {
-      images.push(await resolveStoredAssetForDispatch(image));
+      images.push(await resolveStoredAssetForDispatch(image, signal));
     }
     nextRequest = {
       ...nextRequest,
@@ -448,7 +458,7 @@ async function resolveStoredAssetsForDispatch(params: Record<string, unknown>): 
   if (requestObj.maskImage !== undefined) {
     nextRequest = {
       ...nextRequest,
-      maskImage: await resolveStoredAssetForDispatch(requestObj.maskImage),
+      maskImage: await resolveStoredAssetForDispatch(requestObj.maskImage, signal),
     };
   }
 
@@ -535,7 +545,8 @@ function createProfileAwareDispatchAdapter(logger?: Logger): ReturnType<typeof c
   return {
     provider: 'profile',
 
-    async dispatch(params: Record<string, unknown>, context?: { readonly logger?: Logger }): Promise<unknown> {
+    async dispatch(params: Record<string, unknown>, context?: { readonly logger?: Logger; readonly signal?: AbortSignal }): Promise<unknown> {
+      throwIfAborted(context?.signal);
       const dispatchLogger = context?.logger ?? logger;
       const profileId = resolveProfileId(params);
       if (profileId === undefined || profileId.trim().length === 0) {
@@ -543,6 +554,7 @@ function createProfileAwareDispatchAdapter(logger?: Logger): ReturnType<typeof c
       }
 
       const { providerConfig } = await getProviderConfigResolver().resolve(profileId);
+      throwIfAborted(context?.signal);
       const provider = getRuntime().providerRegistry.get(providerConfig.providerId);
       if (!provider) {
         throw new Error(`Provider implementation not found: ${providerConfig.providerId}`);
@@ -567,7 +579,7 @@ function createProfileAwareDispatchAdapter(logger?: Logger): ReturnType<typeof c
       const defaultModel = (providerConfig as unknown as Record<string, unknown>).defaultModel;
       const modelResolvedParams =
         typeof defaultModel === 'string' && defaultModel.length > 0 ? injectDefaultModel(params, defaultModel) : params;
-      const resolvedParams = await resolveStoredAssetsForDispatch(modelResolvedParams);
+      const resolvedParams = await resolveStoredAssetsForDispatch(modelResolvedParams, context?.signal);
 
       const adapter = createDispatchAdapter({ provider, config: providerConfig, logger: dispatchLogger });
       return adapter.dispatch(resolvedParams, context);

@@ -7,7 +7,7 @@
 
 import { createProviderError, createValidationError } from './errors.js';
 import { assertImmutable, assertSerializable } from './invariants.js';
-import type { ProviderDispatchAdapter, ProviderDispatcher, ProviderRef } from './types/provider.js';
+import type { ProviderDispatchAdapter, ProviderDispatchContext, ProviderDispatcher, ProviderRef } from './types/provider.js';
 import type { JobError } from './errors.js';
 import type { Logger } from '@imagen-ps/foundation';
 import { createNullLogger } from '@imagen-ps/foundation';
@@ -142,7 +142,7 @@ export function createProviderDispatcher(
   }
 
   return {
-    async dispatch(ref: ProviderRef, context?: { readonly logger?: Logger }): Promise<unknown> {
+    async dispatch(ref: ProviderRef, context?: ProviderDispatchContext): Promise<unknown> {
       const normalizedRef = normalizeProviderRef(ref);
       const adapter = adapterMap.get(normalizedRef.provider);
       if (!adapter) {
@@ -184,7 +184,7 @@ export function createProviderDispatcher(
 export async function dispatchProvider(
   dispatcher: ProviderDispatcher,
   ref: ProviderRef,
-  context?: { readonly logger?: Logger },
+  context?: ProviderDispatchContext,
 ): Promise<unknown> {
   return dispatcher.dispatch(ref, context);
 }

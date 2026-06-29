@@ -1,4 +1,5 @@
 export * from './host-image-asset';
+export * from './image-resource';
 export * from './image-payload-preflight';
 export * from './locale';
 export * from './mappers';

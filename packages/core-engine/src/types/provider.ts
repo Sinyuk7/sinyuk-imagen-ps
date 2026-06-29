@@ -5,6 +5,16 @@
  */
 
 import type { Logger } from '@imagen-ps/foundation';
+
+/** Provider dispatch 运行期上下文。 */
+export interface ProviderDispatchContext {
+  /** 可选 Logger；用于 per-run 日志传播。 */
+  readonly logger?: Logger;
+
+  /** 可选取消信号；provider/transport 可协作响应。 */
+  readonly signal?: AbortSignal;
+}
+
 /** Provider 调用的最小引用。 */
 export interface ProviderRef {
   /** Provider 标识符（如 `"image-endpoint"`、`"chat-image"`、`"mock"`）。 */
@@ -23,9 +33,9 @@ export interface ProviderDispatchAdapter {
    * 执行一次 provider 调用。
    *
    * `params` 的具体语义由 provider 层拥有，engine 仅做透传。
-   * 可选 `context` 用于传递运行期上下文（如 per-run logger）。
+   * 可选 `context` 用于传递运行期上下文（如 per-run logger / abort signal）。
    */
-  dispatch(params: Record<string, unknown>, context?: { readonly logger?: Logger }): Promise<unknown>;
+  dispatch(params: Record<string, unknown>, context?: ProviderDispatchContext): Promise<unknown>;
 }
 
 /** Provider 调用的抽象边界。 */
@@ -34,7 +44,7 @@ export interface ProviderDispatcher {
    * 根据 `ProviderRef` 路由到对应 adapter 并执行。
    *
    * engine 仅依赖这个 runtime contract，不感知 provider registry 或 transport 细节。
-   * 可选 `context` 用于传递 per-run logger 等运行期上下文。
+   * 可选 `context` 用于传递 per-run logger / abort signal 等运行期上下文。
    */
-  dispatch(ref: ProviderRef, context?: { readonly logger?: Logger }): Promise<unknown>;
+  dispatch(ref: ProviderRef, context?: ProviderDispatchContext): Promise<unknown>;
 }
