@@ -108,12 +108,12 @@ export function MainPage({
   const { messages: t } = useI18n();
   const [input, setInput] = useState('');
   const [attachments, setAttachments] = useState<readonly ConversationAttachment[]>([]);
-  const [target, setTarget] = useState('layer');
   const [aspectRatio, setAspectRatio] = useState('auto');
   const [profileMenuOpen, setProfileMenuOpen] = useState(false);
-  const [openMenu, setOpenMenu] = useState<'model' | 'target' | 'aspect' | null>(null);
+  const [openMenu, setOpenMenu] = useState<'model' | 'aspect' | null>(null);
   const [attachOpen, setAttachOpen] = useState(false);
   const [layerOpen, setLayerOpen] = useState(false);
+  const [captureInFlight, setCaptureInFlight] = useState(false);
   const { toast, show, close } = useToast();
   const [copied, setCopied] = useState<Record<string, boolean>>({});
   const [scrolledAway, setScrolledAway] = useState(false);
@@ -133,6 +133,7 @@ export function MainPage({
   const optimizing = optimizeState.status === 'optimizing';
   const showUndo = optimizeState.status === 'optimized' && input === optimizeState.result;
   const canOptimize = optimizerReady && input.trim().length > 0 && !optimizing;
+  const canCapture = !conversation.running && !captureInFlight;
   const optimizeButtonLabel = showUndo ? t.main.promptOptimizeUndo : t.main.promptOptimize;
   const isAtBottom = useCallback(() => {
     const el = convRef.current;
@@ -241,6 +242,29 @@ export function MainPage({
     }
   };
 
+  const captureFromPhotoshop = async () => {
+    if (!canCapture) {
+      return;
+    }
+    setCaptureInFlight(true);
+    try {
+      const result = await services.host.captureActiveImage();
+      addAttachment({
+        id: attachmentId('capture'),
+        type: 'photoshop-capture',
+        name: result.image.asset.name ?? (result.sourceKind === 'selection' ? t.main.captureSelection : t.main.captureLayer),
+        image: result.image,
+        previewUrl: result.image.preview.url ?? assetToPreviewUrl(result.image.asset),
+        photoshopPlacement: result.placement,
+      });
+      show(t.toast.captureAdded, 'positive');
+    } catch (error) {
+      show(error instanceof Error ? error.message : t.toast.captureFailed, 'negative');
+    } finally {
+      setCaptureInFlight(false);
+    }
+  };
+
   const handleSend = async () => {
     if (!selectedProfile) {
       show(t.toast.selectProviderProfileFirst, 'info');
@@ -265,6 +289,7 @@ export function MainPage({
     setInput('');
     setAttachments([]);
     await conversation.submit({
+      operation: 'image-edit',
       prompt,
       profileId: selectedProfile.profileId,
       providerName: selectedProfile.displayName,
@@ -322,14 +347,14 @@ export function MainPage({
     }
   }, [input, optimizeState]);
 
-  const placeAsset = async (round: ConversationRound) => {
-    const asset = round.previews[0]?.asset;
+  const placeAsset = async (round: ConversationRound, previewIndex = 0) => {
+    const asset = round.previews[previewIndex]?.asset;
     if (!asset) {
       show(t.toast.noPlaceableImage, 'info');
       return;
     }
     try {
-      await services.host.placeAssetOnCanvas(asset);
+      await services.host.placeAssetOnCanvas(asset, round.placementIntent);
       show(t.toast.placedOnCanvas, 'positive');
     } catch (error) {
       show(error instanceof Error ? error.message : t.toast.placeFailed, 'negative');
@@ -537,19 +562,25 @@ export function MainPage({
                       </div>
                     </div>
                     <div className="prov-img">
-                      <div className="img-result">
-                        {round.previews[0]?.url
-                          ? <img src={round.previews[0].url} className="img-bg" alt={round.previews[0].label} />
-                          : <div className="img-bg" style={{ background: 'var(--app-color-background-layer-2)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--app-color-text-muted)', fontSize: 12 }}>{t.main.noAssetPreview}</div>
-                        }
-                        <div className="img-meta">{round.outputSize ?? t.main.assetFallback} · {round.outputFormat ?? t.main.imageFallback}</div>
-                        <div className="img-overlay">
-                          <button className="img-act prim" onClick={(event) => { event.stopPropagation(); void placeAsset(round); }}>
-                            <Icon name="place-ps" />
-                            {t.main.placePs}
-                          </button>
+                      {round.previews.length === 0 ? (
+                        <div className="img-result">
+                          <div className="img-bg" style={{ background: 'var(--app-color-background-layer-2)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--app-color-text-muted)', fontSize: 12 }}>{t.main.noAssetPreview}</div>
                         </div>
-                      </div>
+                      ) : round.previews.map((preview, index) => (
+                        <div key={`${round.id}-${index}`} className="img-result">
+                          {preview.url
+                            ? <img src={preview.url} className="img-bg" alt={preview.label} />
+                            : <div className="img-bg" style={{ background: 'var(--app-color-background-layer-2)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--app-color-text-muted)', fontSize: 12 }}>{t.main.noAssetPreview}</div>
+                          }
+                          <div className="img-meta">{round.outputSize ?? t.main.assetFallback} · {round.outputFormat ?? t.main.imageFallback}</div>
+                          <div className="img-overlay">
+                            <button className="img-act prim" onClick={(event) => { event.stopPropagation(); void placeAsset(round, index); }}>
+                              <Icon name="place-ps" />
+                              {t.main.placePs}
+                            </button>
+                          </div>
+                        </div>
+                      ))}
                     </div>
                     <div className="prov-actions">
                       <ActionButton
@@ -557,7 +588,7 @@ export function MainPage({
                         className="act-ico prim"
                         quiet
                         label={t.main.placePs}
-                        onClick={(event) => { event.stopPropagation(); void placeAsset(round); }}
+                        onClick={(event) => { event.stopPropagation(); void placeAsset(round, 0); }}
                       >
                         <Icon name="place-ps" slot="icon" />
                       </ActionButton>
@@ -760,23 +791,25 @@ export function MainPage({
               />
             </div>
             <div className="cmp-toolbar-right">
-              <ComposerSelect
-                testId="composer-target-selector"
-                containerClassName="cmp-select cmp-select-target"
-                menuClassName="cmp-select-menu cmp-select-menu-compact"
-                label={t.main.target}
-                value={target === 'layer' ? t.main.targetLayer : t.main.targetSelection}
-                disabled={conversation.running}
-                open={openMenu === 'target'}
-                onOpenChange={(open) => setOpenMenu(open ? 'target' : null)}
-                options={[
-                  { id: 'layer', label: t.main.targetLayer, icon: 'ps-layers' },
-                  { id: 'selection', label: t.main.targetSelection, icon: 'selection' },
-                ]}
-                selectedId={target}
-                onSelect={setTarget}
-                leadingIcon={target === 'layer' ? 'ps-layers' : 'selection'}
-              />
+              <ActionButton
+                data-testid="composer-capture-button"
+                className="cmp-capture"
+                quiet
+                label={t.main.capture}
+                placement="top"
+                disabled={!canCapture}
+                onClick={(event) => {
+                  event.stopPropagation();
+                  setOpenMenu(null);
+                  setAttachOpen(false);
+                  setLayerOpen(false);
+                  void captureFromPhotoshop();
+                }}
+              >
+                {captureInFlight
+                  ? <Icon name="spinner" size={13} className="spin" slot="icon" />
+                  : <Icon name="selection" slot="icon" />}
+              </ActionButton>
               <ComposerSelect
                 testId="composer-aspect-ratio-selector"
                 containerClassName="cmp-select cmp-select-aspect"

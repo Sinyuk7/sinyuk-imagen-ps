@@ -145,9 +145,15 @@ export const COMPOSER_CSS = `
   min-width:0;
   max-width:100%;
 }
-.cmp-select-target{
-  flex:0 1 auto;
-  min-width:118px;
+.cmp-capture{
+  width:30px;
+  height:28px;
+  margin-top:0;
+  margin-right:6px;
+  margin-bottom:0;
+  margin-left:0;
+  color:var(--app-color-text-secondary);
+  flex:0 0 auto;
 }
 .cmp-select-aspect{
   flex:0 1 auto;
@@ -381,11 +387,9 @@ export const COMPOSER_CSS = `
   text-overflow:ellipsis;
   white-space:nowrap;
 }
-.cmp-select-target .cmp-chip-body-sp-button,
 .cmp-select-aspect .cmp-chip-body-sp-button{
   justify-content:flex-start;
 }
-.cmp-select-target .cmp-chip-value-sp-button,
 .cmp-select-aspect .cmp-chip-value-sp-button{
   overflow:visible;
   text-overflow:clip;

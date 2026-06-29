@@ -11,12 +11,10 @@ export const RESPONSIVE_CSS = `
 .panel[data-panel-width-mode="compact"] .cmp-opt{ width:28px; height:28px; }
 .panel[data-panel-width-mode="compact"] .cmp-send{ width:30px; height:30px; }
 .panel[data-panel-width-mode="compact"] .cmp-select-model{ flex:1 1 100%; min-width:0; }
-.panel[data-panel-width-mode="compact"] .cmp-select-target{ flex:1 1 0; min-width:96px; }
-.panel[data-panel-width-mode="compact"] .cmp-select-aspect{ flex:1 1 0; min-width:92px; margin-top:0; margin-right:0; margin-bottom:0; margin-left:6px; }
+.panel[data-panel-width-mode="compact"] .cmp-capture{ width:28px; height:28px; }
+.panel[data-panel-width-mode="compact"] .cmp-select-aspect{ flex:1 1 0; min-width:92px; margin-top:0; margin-right:0; margin-bottom:0; margin-left:0; }
 .panel[data-panel-width-mode="compact"] .cmp-chip{ padding:2px 6px; font-size:9px; }
-.panel[data-panel-width-mode="compact"] .cmp-select-target .cmp-chip-leading-sp-button,
 .panel[data-panel-width-mode="compact"] .cmp-select-aspect .cmp-chip-leading-sp-button{ display:none !important; }
-.panel[data-panel-width-mode="compact"] .cmp-select-target .cmp-chip-value-sp-button,
 .panel[data-panel-width-mode="compact"] .cmp-select-aspect .cmp-chip-value-sp-button{ max-width:56px; }
   .panel[data-panel-width-mode="compact"] .prov-row{ padding:9px 12px; }
   .panel[data-panel-width-mode="compact"] .settings-provider-row{ margin-left:4px; margin-right:4px; }
@@ -41,7 +39,6 @@ export const RESPONSIVE_CSS = `
 .panel[data-panel-width-mode="wide"] .img-result{ max-height:320px; }
 .panel[data-panel-width-mode="wide"] .img-bg{ max-height:320px; }
 .panel[data-panel-width-mode="wide"] .user-wrap{ max-width:74%; }
-.panel[data-panel-width-mode="wide"] .cmp-select-target .cmp-chip-value-sp-button,
 .panel[data-panel-width-mode="wide"] .cmp-select-aspect .cmp-chip-value-sp-button{ max-width:none; }
 
 .panel[data-panel-height-mode="short"] .composer{ max-height:min(48%, 210px); padding-top:6px; padding-bottom:8px; }
@@ -56,6 +53,5 @@ export const RESPONSIVE_CSS = `
 .panel[data-panel-height-mode="short"] .settings-page .det-footer{ padding:8px 12px; }
 .panel[data-panel-height-mode="short"] .settings-page .scroll-footer-pad{ padding-bottom:96px; }
 
-.cmp-select-target .cmp-chip-value-sp-button{ max-width:none; }
 .cmp-select-aspect .cmp-chip-value-sp-button{ max-width:none; }
 `;

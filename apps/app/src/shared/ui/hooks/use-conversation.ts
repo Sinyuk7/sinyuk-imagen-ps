@@ -11,13 +11,15 @@ import {
 import type { ImagenSessionBinding } from './use-imagen-session';
 import type { AppMessages } from '../i18n/messages';
 import type { HostImageAsset } from '../../domain/host-image-asset';
+import type { PlacementIntent, PhotoshopCapturePlacement } from '../../domain/photoshop-placement';
 
 export interface ConversationAttachment {
   readonly id: string;
-  readonly type: 'layer' | 'file';
+  readonly type: 'layer' | 'file' | 'photoshop-capture';
   readonly name: string;
   readonly image: HostImageAsset;
   readonly previewUrl: string;
+  readonly photoshopPlacement?: PhotoshopCapturePlacement;
 }
 
 export type RoundStatus = 'running' | 'ok' | 'err';
@@ -38,9 +40,11 @@ export interface ConversationRound {
   readonly attachments: readonly ConversationAttachment[];
   readonly outputSize?: string;
   readonly outputFormat?: string;
+  readonly placementIntent: PlacementIntent;
 }
 
 export interface SubmitConversationInput {
+  readonly operation: 'image-edit' | 'text-to-image';
   readonly prompt: string;
   readonly profileId: string;
   readonly providerName: string;
@@ -150,6 +154,34 @@ function errorRound(current: ConversationRound, error: JobError | Error): Conver
   };
 }
 
+export function derivePlacementIntent(attachments: readonly ConversationAttachment[]): PlacementIntent {
+  const captures = attachments.filter((attachment) => attachment.photoshopPlacement !== undefined);
+  if (captures.length === 0) {
+    return { kind: 'unbound', reason: 'no-photoshop-capture' };
+  }
+
+  const documentIds = new Set(captures.map((attachment) => attachment.photoshopPlacement!.snapshot.documentId));
+  if (documentIds.size !== 1) {
+    return { kind: 'unbound', reason: 'multiple-documents' };
+  }
+
+  const firstCapture = captures[0].photoshopPlacement!;
+  if (captures.length === 1 && attachments.length === 1) {
+    return {
+      kind: 'exact-frame',
+      documentId: firstCapture.snapshot.documentId,
+      documentSizeAtCapture: firstCapture.snapshot.documentSize,
+      placementRect: firstCapture.placementRect,
+    };
+  }
+
+  return {
+    kind: 'document-only',
+    documentId: firstCapture.snapshot.documentId,
+    documentSizeAtCapture: firstCapture.snapshot.documentSize,
+  };
+}
+
 export function useConversation(
   _services: AppServices,
   sessionBinding: ImagenSessionBinding,
@@ -209,6 +241,7 @@ export function useConversation(
       try {
         const roundId = createRoundId();
         const attachments = input.attachments ?? [];
+        const placementIntent = derivePlacementIntent(attachments);
         const round: ConversationRound = {
           id: roundId,
           time: nowTime(),
@@ -220,21 +253,25 @@ export function useConversation(
           elapsedSeconds: 0,
           previews: [],
           attachments,
+          placementIntent,
         };
         setRounds((current) => [...current, round]);
 
         const providerOptions = input.modelId ? { model: input.modelId } : undefined;
-        const workflow = attachments.length > 0 ? 'provider-edit' : 'provider-generate';
+        const workflow = input.operation === 'image-edit' ? 'provider-edit' : 'provider-generate';
         const jobInput = {
           __clientRoundId: roundId,
           profileId: input.profileId,
           prompt,
           output: { count: 1 },
           ...(providerOptions ? { providerOptions } : {}),
-          ...(attachments.length > 0 ? { images: attachments.map((attachment) => attachment.image.asset) } : {}),
+          ...(input.operation === 'image-edit' ? { images: attachments.map((attachment) => attachment.image.asset) } : {}),
         };
 
         try {
+          if (input.operation === 'image-edit' && attachments.length === 0) {
+            throw new Error('Image edit requires an attachment. Capture from Photoshop or add an image.');
+          }
           const result = await sessionBinding.session.submitJob({
             workflow,
             input: jobInput,
@@ -286,6 +323,7 @@ export function useConversation(
         const round = rounds.find((item) => item.id === roundId);
         if (round?.status === 'ok' && round.profileId) {
           await submit({
+            operation: round.attachments.length > 0 ? 'image-edit' : 'text-to-image',
             prompt: round.prompt,
             profileId: round.profileId,
             providerName: round.providerName,

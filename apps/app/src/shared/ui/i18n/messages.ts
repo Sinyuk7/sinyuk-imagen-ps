@@ -56,14 +56,14 @@ export interface AppMessages {
     readonly promptPlaceholderReady: string;
     readonly promptPlaceholderNoProfile: string;
     readonly addImage: string;
+    readonly capture: string;
+    readonly captureLayer: string;
+    readonly captureSelection: string;
     readonly send: string;
     readonly referenceImage: string;
     readonly generatedImage: string;
     readonly download: string;
     readonly layerCount: (count: number) => string;
-    readonly target: string;
-    readonly targetLayer: string;
-    readonly targetSelection: string;
     readonly aspectRatio: string;
     readonly aspectRatioAuto: string;
     readonly aspectRatioSquare: string;
@@ -113,6 +113,8 @@ export interface AppMessages {
     readonly layerReadFailed: string;
     readonly fileAdded: string;
     readonly filePickFailed: string;
+    readonly captureAdded: string;
+    readonly captureFailed: string;
     readonly selectProviderProfileFirst: string;
     readonly noPlaceableImage: string;
     readonly placedOnCanvas: string;
@@ -185,14 +187,14 @@ const EN_MESSAGES: AppMessages = {
     promptPlaceholderReady: 'Describe the image you want to generate or edit...',
     promptPlaceholderNoProfile: 'Add a profile in Providers first',
     addImage: 'Add image',
+    capture: 'Capture',
+    captureLayer: 'Photoshop layer capture',
+    captureSelection: 'Photoshop selection capture',
     send: 'Send',
     referenceImage: 'Reference',
     generatedImage: 'Generated',
     download: 'Download',
     layerCount: (count) => `${count} layer${count === 1 ? '' : 's'}`,
-    target: 'Target',
-    targetLayer: 'Layer',
-    targetSelection: 'Selection',
     aspectRatio: 'Aspect ratio',
     aspectRatioAuto: 'Auto',
     aspectRatioSquare: '1:1',
@@ -242,6 +244,8 @@ const EN_MESSAGES: AppMessages = {
     layerReadFailed: 'Failed to read layer',
     fileAdded: 'Image added',
     filePickFailed: 'Failed to choose image',
+    captureAdded: 'Capture added',
+    captureFailed: 'Failed to capture Photoshop image',
     selectProviderProfileFirst: 'Add and select a Provider profile first',
     noPlaceableImage: 'No image to place',
     placedOnCanvas: 'Placed on Photoshop canvas',
@@ -314,14 +318,14 @@ const ZH_CN_MESSAGES: AppMessages = {
     promptPlaceholderReady: '描述你想要生成或编辑的图像...',
     promptPlaceholderNoProfile: '先在 Providers 中添加 profile',
     addImage: '添加图片',
+    capture: '捕获',
+    captureLayer: 'Photoshop 图层捕获',
+    captureSelection: 'Photoshop 选区捕获',
     send: '发送',
     referenceImage: '参考',
     generatedImage: '生成',
     download: '下载',
     layerCount: (count) => `${count} 个图层`,
-    target: '目标',
-    targetLayer: '图层',
-    targetSelection: '选区',
     aspectRatio: '宽高比',
     aspectRatioAuto: '智能',
     aspectRatioSquare: '1:1',
@@ -371,6 +375,8 @@ const ZH_CN_MESSAGES: AppMessages = {
     layerReadFailed: '读取图层失败',
     fileAdded: '已添加图片',
     filePickFailed: '选择图片失败',
+    captureAdded: '已添加捕获',
+    captureFailed: '捕获 Photoshop 图像失败',
     selectProviderProfileFirst: '请先添加并选择 Provider profile',
     noPlaceableImage: '没有可置入的图片',
     placedOnCanvas: '已置入 Photoshop 画布',

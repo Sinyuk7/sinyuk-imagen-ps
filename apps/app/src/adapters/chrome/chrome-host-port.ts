@@ -1,5 +1,6 @@
 import type { Asset } from '@imagen-ps/application';
 import { createHostImageAsset, type HostImageAsset } from '../../shared/domain/host-image-asset';
+import type { PlacementIntent, PhotoshopCaptureResult } from '../../shared/domain/photoshop-placement';
 import { NON_UXP_RUNTIME_CAPABILITIES, type HostBridge, type LayerInfo } from '../../shared/ports/host-port';
 import type { PhotoshopSimulator } from '../../simulators/photoshop/simulator';
 
@@ -47,14 +48,17 @@ export function createChromeHostPort(options: {
       const file = await options.filePicker.pick();
       return file ? fileToHostImage(file) : undefined;
     },
+    async captureActiveImage(): Promise<PhotoshopCaptureResult> {
+      return options.simulator.captureActiveImage();
+    },
     async readLayerAsAsset(layerId: number): Promise<HostImageAsset> {
       return options.simulator.readLayerAsAsset(layerId);
     },
     async readLayerMaskAsAsset(layerId: number): Promise<HostImageAsset | undefined> {
       return options.simulator.readLayerMaskAsAsset(layerId);
     },
-    async placeAssetOnCanvas(asset: Asset): Promise<void> {
-      await options.simulator.placeAssetOnCanvas(asset);
+    async placeAssetOnCanvas(asset: Asset, placement: PlacementIntent): Promise<void> {
+      await options.simulator.placeAssetOnCanvas(asset, placement);
     },
   };
 }

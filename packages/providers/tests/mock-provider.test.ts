@@ -94,4 +94,61 @@ describe('mock provider', () => {
     expect(asset.data).toBeInstanceOf(Uint8Array);
     expectValidPng(asset.data as Uint8Array);
   });
+
+  it('echoes image_edit input images as result assets in input order', async () => {
+    const provider = createMockProvider();
+    const config = provider.validateConfig({
+      providerId: 'mock',
+      displayName: 'Mock',
+      family: 'image-endpoint',
+      baseURL: 'https://mock.local',
+      apiKey: 'test-key',
+      delayMs: 0,
+    });
+    const firstBytes = new Uint8Array([1, 2, 3]);
+    const request = provider.validateRequest({
+      operation: 'image_edit',
+      prompt: 'echo uploaded images',
+      images: [
+        { type: 'image', name: 'first.png', data: firstBytes, mimeType: 'image/png' },
+        { type: 'image', name: 'second.png', url: 'https://example.com/second.png', mimeType: 'image/png' },
+        { type: 'image', name: 'third.png', fileId: 'file-third', mimeType: 'image/png' },
+      ],
+      output: { count: 5 },
+    });
+
+    const result = await provider.invoke({ config, request });
+
+    expect(result.assets).toEqual([
+      { type: 'image', name: 'first.png', data: firstBytes, mimeType: 'image/png' },
+      { type: 'image', name: 'second.png', url: 'https://example.com/second.png', mimeType: 'image/png' },
+      { type: 'image', name: 'third.png', fileId: 'file-third', mimeType: 'image/png' },
+    ]);
+    expect((result.raw as { assetCount: number }).assetCount).toBe(3);
+  });
+
+  it('keeps synthetic output for image_edit requests without images', async () => {
+    const provider = createMockProvider();
+    const config = provider.validateConfig({
+      providerId: 'mock',
+      displayName: 'Mock',
+      family: 'image-endpoint',
+      baseURL: 'https://mock.local',
+      apiKey: 'test-key',
+      delayMs: 0,
+    });
+    const request = provider.validateRequest({
+      operation: 'image_edit',
+      prompt: 'generate fallback image',
+      output: { count: 2 },
+    });
+
+    const result = await provider.invoke({ config, request });
+
+    expect(result.assets).toHaveLength(2);
+    expect(result.assets[0]?.name).toBe('mock-image-1.png');
+    expect(result.assets[1]?.name).toBe('mock-image-2.png');
+    expectValidPng(result.assets[0]?.data as Uint8Array);
+    expectValidPng(result.assets[1]?.data as Uint8Array);
+  });
 });

@@ -69,22 +69,15 @@ function clickText(container: HTMLElement, selector: string, text: string): void
 }
 
 describe('MainPage contract', () => {
-  it('无 attachment 时 submitJob workflow 为 provider-generate', async () => {
+  it('无 attachment 时 image-edit send 在 hook 内阻止 provider 调用', async () => {
     const container = document.createElement('div');
     document.body.appendChild(container);
     const { spies } = await renderApp(container);
 
     await sendPrompt(container, 'make an image');
 
-    expect(spies.submitJob).toHaveBeenCalledWith({
-      workflow: 'provider-generate',
-      input: expect.objectContaining({
-        profileId: 'mock-profile',
-        prompt: 'make an image',
-        providerOptions: { model: 'mock-image-v1' },
-      }),
-    });
-    expect(spies.submitJob.mock.calls[0]?.[0].input).not.toHaveProperty('images');
+    expect(spies.submitJob).not.toHaveBeenCalled();
+    expect(container.textContent).toContain('Image edit requires an attachment');
   });
 
   it('file attachment 只能经 HostBridge 读取，并提交 provider-edit', async () => {
@@ -140,18 +133,48 @@ describe('MainPage contract', () => {
     });
   });
 
-  it('preview writeback 只能经 host.placeAssetOnCanvas', async () => {
+  it('Capture materializes Photoshop attachment and submits provider-edit', async () => {
     const container = document.createElement('div');
     document.body.appendChild(container);
     const { spies } = await renderApp(container);
 
-    await sendPrompt(container, 'make an image');
+    await act(async () => {
+      container.querySelector<HTMLElement>('[data-testid="composer-capture-button"]')!.click();
+    });
+    await flush();
+    await sendPrompt(container, 'edit captured image');
+
+    expect(spies.captureActiveImage).toHaveBeenCalledTimes(1);
+    expect(spies.readLayerAsAsset).not.toHaveBeenCalled();
+    expect(spies.submitJob).toHaveBeenCalledWith({
+      workflow: 'provider-edit',
+      input: expect.objectContaining({
+        prompt: 'edit captured image',
+        images: [fakeAsset],
+      }),
+    });
+  });
+
+  it('preview writeback 只能经 host.placeAssetOnCanvas 并携带 placement intent', async () => {
+    const container = document.createElement('div');
+    document.body.appendChild(container);
+    const { spies } = await renderApp(container);
+
+    await act(async () => {
+      container.querySelector<HTMLElement>('[data-testid="composer-capture-button"]')!.click();
+    });
+    await flush();
+    await sendPrompt(container, 'edit captured image');
 
     await act(async () => {
       container.querySelector<HTMLButtonElement>('.img-act')!.click();
     });
 
-    expect(spies.placeAssetOnCanvas).toHaveBeenCalledWith(fakeAsset);
+    expect(spies.placeAssetOnCanvas).toHaveBeenCalledWith(fakeAsset, expect.objectContaining({
+      kind: 'exact-frame',
+      documentId: 42,
+      placementRect: { left: 10, top: 20, right: 266, bottom: 276 },
+    }));
   });
 
   it('/new 作为本地命令，不提交任务', async () => {
@@ -170,6 +193,10 @@ describe('MainPage contract', () => {
     await renderApp(container);
 
     expect(container.textContent).toContain('当前会话');
+    await act(async () => {
+      container.querySelector<HTMLElement>('[data-testid="composer-capture-button"]')!.click();
+    });
+    await flush();
     await sendPrompt(container, 'running task');
 
     expect(container.querySelector('.empty-hint')).toBeNull();
@@ -197,6 +224,10 @@ describe('MainPage contract', () => {
     });
     await flush();
 
+    await act(async () => {
+      container.querySelector<HTMLElement>('[data-testid="composer-capture-button"]')!.click();
+    });
+    await flush();
     await sendPrompt(container, 'generate with selected model');
 
     expect(services.spies.submitJob).toHaveBeenCalledWith(
@@ -298,26 +329,21 @@ describe('MainPage contract', () => {
     expect(toolbarRightStyle.overflow).toBe('visible');
 
     expect(toolbar.querySelector('[data-testid="main-model-selector"]')!.textContent).toContain('mock-image-v1');
-    expect(toolbar.querySelector('[data-testid="composer-target-selector"]')!.textContent).toContain('图层');
+    expect(toolbar.querySelector('[data-testid="composer-capture-button"]')).not.toBeNull();
     expect(toolbar.querySelector('[data-testid="composer-aspect-ratio-selector"]')!.textContent).toContain('智能');
   });
 
-  it('target 与 aspect-ratio 选择器可打开、选择并关闭', async () => {
+  it('aspect-ratio 选择器可打开、选择并关闭，Capture 不打开菜单', async () => {
     const container = document.createElement('div');
     document.body.appendChild(container);
-    await renderApp(container);
+    const { spies } = await renderApp(container);
 
     await act(async () => {
-      container.querySelector<HTMLElement>('[data-testid="composer-target-selector"]')!.click();
+      container.querySelector<HTMLElement>('[data-testid="composer-capture-button"]')!.click();
     });
     await flush();
-    expect(container.querySelector('[data-testid="composer-target-selector-menu"]')).not.toBeNull();
-    await act(async () => {
-      clickText(container, '[data-testid^="composer-target-selector-option-"]', '选区');
-    });
-    await flush();
-    expect(container.querySelector('[data-testid="composer-target-selector-menu"]')).toBeNull();
-    expect(container.querySelector('[data-testid="composer-target-selector"]')!.textContent).toContain('选区');
+    expect(spies.captureActiveImage).toHaveBeenCalledTimes(1);
+    expect(container.querySelector('[data-testid="composer-capture-button-menu"]')).toBeNull();
 
     await act(async () => {
       container.querySelector<HTMLElement>('[data-testid="composer-aspect-ratio-selector"]')!.click();
@@ -344,10 +370,10 @@ describe('MainPage contract', () => {
     expect(container.querySelector('[data-testid="main-model-selector-menu"]')).not.toBeNull();
 
     await act(async () => {
-      container.querySelector<HTMLElement>('[data-testid="composer-target-selector"]')!.click();
+      container.querySelector<HTMLElement>('[data-testid="composer-aspect-ratio-selector"]')!.click();
     });
     await flush();
-    expect(container.querySelector('[data-testid="composer-target-selector-menu"]')).not.toBeNull();
+    expect(container.querySelector('[data-testid="composer-aspect-ratio-selector-menu"]')).not.toBeNull();
     expect(container.querySelector('[data-testid="main-model-selector-menu"]')).toBeNull();
   });
 
@@ -358,6 +384,10 @@ describe('MainPage contract', () => {
     services.spies.submitJob.mockImplementation(() => new Promise<never>(() => {}));
     await renderApp(container, services);
 
+    await act(async () => {
+      container.querySelector<HTMLElement>('[data-testid="composer-capture-button"]')!.click();
+    });
+    await flush();
     await act(async () => {
       changeTextarea(container.querySelector<HTMLTextAreaElement>('.cmp-ta')!, 'running disable test');
     });
@@ -373,7 +403,7 @@ describe('MainPage contract', () => {
     };
     expect(isDisabled('[data-testid="composer-add-image-button"]')).toBe(true);
     expect(isDisabled('[data-testid="main-model-selector"]')).toBe(true);
-    expect(isDisabled('[data-testid="composer-target-selector"]')).toBe(true);
+    expect(isDisabled('[data-testid="composer-capture-button"]')).toBe(true);
     expect(isDisabled('[data-testid="composer-aspect-ratio-selector"]')).toBe(true);
     expect(isDisabled('[data-testid="composer-prompt-optimize-button"]')).toBe(true);
 
@@ -409,19 +439,11 @@ describe('MainPage contract', () => {
     expect(textarea.value).toBe('optimized prompt');
   });
 
-  it('target 与 aspect-ratio 在发送后保留，而输入与附件清空', async () => {
+  it('aspect-ratio 在发送后保留，而输入与附件清空', async () => {
     const container = document.createElement('div');
     document.body.appendChild(container);
     await renderApp(container);
 
-    await act(async () => {
-      container.querySelector<HTMLElement>('[data-testid="composer-target-selector"]')!.click();
-    });
-    await flush();
-    await act(async () => {
-      clickText(container, '[data-testid^="composer-target-selector-option-"]', '选区');
-    });
-    await flush();
     await act(async () => {
       container.querySelector<HTMLElement>('[data-testid="composer-aspect-ratio-selector"]')!.click();
     });
@@ -444,7 +466,6 @@ describe('MainPage contract', () => {
 
     expect(container.querySelector<HTMLTextAreaElement>('.cmp-ta')!.value).toBe('');
     expect(container.querySelector('.att-thumb')).toBeNull();
-    expect(container.querySelector('[data-testid="composer-target-selector"]')!.textContent).toContain('选区');
     expect(container.querySelector('[data-testid="composer-aspect-ratio-selector"]')!.textContent).toContain('1:1');
   });
 

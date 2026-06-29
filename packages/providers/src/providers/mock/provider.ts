@@ -3,6 +3,7 @@ import type { ProviderInvokeResult } from '../../contract/result.js';
 import { mockDescriptor } from './descriptor.js';
 import { mockConfigSchema, type MockProviderConfig } from './config-schema.js';
 import { mockRequestSchema, type MockProviderRequest } from './request-schema.js';
+import { createMockImageEditEchoAssets } from './edit-echo.js';
 import { createSyntheticAssets } from '../../shared/asset-normalizer.js';
 import type { ProviderDiagnostic } from '../../contract/diagnostics.js';
 import { canListenToAbort } from '../../shared/abort-signal.js';
@@ -137,8 +138,8 @@ export function createMockProvider(
             }
           }
 
-          const outputCount = request.output?.count ?? 1;
-          const assets = createSyntheticAssets(outputCount);
+          const syntheticOutputCount = request.output?.count ?? 1;
+          const assets = createMockImageEditEchoAssets(request) ?? createSyntheticAssets(syntheticOutputCount);
 
           const diagnostics: ProviderDiagnostic[] = [];
           if (delayMs > 0) {
@@ -159,7 +160,7 @@ export function createMockProvider(
               mock: true,
               operation: request.operation,
               prompt: request.prompt,
-              assetCount: outputCount,
+              assetCount: assets.length,
               model: effectiveModel,
             },
           };

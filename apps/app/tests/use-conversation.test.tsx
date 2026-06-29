@@ -3,9 +3,14 @@ import { createRoot, type Root } from 'react-dom/client';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import type { Job } from '@imagen-ps/application';
 import { AppServicesProvider } from '../src/app-services/app-services-context';
-import { useConversation, type ConversationController } from '../src/shared/ui/hooks/use-conversation';
+import {
+  derivePlacementIntent,
+  useConversation,
+  type ConversationAttachment,
+  type ConversationController,
+} from '../src/shared/ui/hooks/use-conversation';
 import { useImagenSession } from '../src/shared/ui/hooks/use-imagen-session';
-import { createFakeServices } from './fakes';
+import { createFakeServices, fakeHostImage } from './fakes';
 
 let root: Root | undefined;
 
@@ -27,6 +32,26 @@ function failedJob(input: Record<string, unknown>): Job {
     error: { category: 'provider', message: 'provider failed' },
     createdAt: '2026-06-15T00:00:00.000Z',
     updatedAt: '2026-06-15T00:00:01.000Z',
+  };
+}
+
+function captureAttachment(id: string, documentId = 42): ConversationAttachment {
+  return {
+    id,
+    type: 'photoshop-capture',
+    name: `${id}.png`,
+    image: fakeHostImage,
+    previewUrl: fakeHostImage.preview.url ?? '',
+    photoshopPlacement: {
+      snapshot: {
+        documentId,
+        documentSize: { width: 1024, height: 768 },
+        layerId: 1,
+        layerBoundsNoEffects: { left: 0, top: 0, right: 128, bottom: 128 },
+        selectionBounds: null,
+      },
+      placementRect: { left: 0, top: 0, right: 128, bottom: 128 },
+    },
   };
 }
 
@@ -54,6 +79,31 @@ async function mountProbe(services: ReturnType<typeof createFakeServices>['servi
 }
 
 describe('useConversation', () => {
+  it('derives request-level placement intent from submitted attachments', () => {
+    const fileAttachment: ConversationAttachment = {
+      id: 'file-1',
+      type: 'file',
+      name: 'file.png',
+      image: fakeHostImage,
+      previewUrl: fakeHostImage.preview.url ?? '',
+    };
+
+    expect(derivePlacementIntent([captureAttachment('capture-1')])).toMatchObject({
+      kind: 'exact-frame',
+      documentId: 42,
+      placementRect: { left: 0, top: 0, right: 128, bottom: 128 },
+    });
+    expect(derivePlacementIntent([captureAttachment('capture-1'), fileAttachment])).toMatchObject({
+      kind: 'document-only',
+      documentId: 42,
+    });
+    expect(derivePlacementIntent([captureAttachment('capture-1'), captureAttachment('capture-2', 99)])).toEqual({
+      kind: 'unbound',
+      reason: 'multiple-documents',
+    });
+    expect(derivePlacementIntent([fileAttachment])).toEqual({ kind: 'unbound', reason: 'no-photoshop-capture' });
+  });
+
   it('submits generation through CommandsPort.submitJob', async () => {
     const { services, spies } = createFakeServices();
     let controller: ConversationController | undefined;
@@ -78,6 +128,7 @@ describe('useConversation', () => {
 
     await act(async () => {
       await controller!.submit({
+        operation: 'text-to-image',
         prompt: 'make an image',
         profileId: 'mock-profile',
         providerName: 'Mock Profile',
@@ -104,12 +155,14 @@ describe('useConversation', () => {
 
     await act(async () => {
       const a = getController().submit({
+        operation: 'text-to-image',
         prompt: 'make an image',
         profileId: 'mock-profile',
         providerName: 'Mock Profile',
         modelId: 'mock-image-v1',
       });
       const b = getController().submit({
+        operation: 'text-to-image',
         prompt: 'make an image',
         profileId: 'mock-profile',
         providerName: 'Mock Profile',
@@ -129,6 +182,7 @@ describe('useConversation', () => {
 
     await act(async () => {
       await getController().submit({
+        operation: 'text-to-image',
         prompt: 'first',
         profileId: 'mock-profile',
         providerName: 'Mock Profile',
@@ -137,6 +191,7 @@ describe('useConversation', () => {
     });
     await act(async () => {
       await getController().submit({
+        operation: 'text-to-image',
         prompt: 'second',
         profileId: 'mock-profile',
         providerName: 'Mock Profile',
@@ -155,6 +210,7 @@ describe('useConversation', () => {
 
     await act(async () => {
       await getController().submit({
+        operation: 'text-to-image',
         prompt: 'make an image',
         profileId: 'mock-profile',
         providerName: 'Mock Profile',
@@ -198,6 +254,7 @@ describe('useConversation', () => {
 
     await act(async () => {
       await getController().submit({
+        operation: 'text-to-image',
         prompt: 'will fail',
         profileId: 'mock-profile',
         providerName: 'Mock Profile',

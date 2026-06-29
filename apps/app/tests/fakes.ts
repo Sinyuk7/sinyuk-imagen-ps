@@ -138,6 +138,7 @@ export function createFakeServices(): {
     readonly validatePromptOptimizerProfile: ReturnType<typeof vi.fn>;
     readonly listLayers: ReturnType<typeof vi.fn>;
     readonly pickImageFile: ReturnType<typeof vi.fn>;
+    readonly captureActiveImage: ReturnType<typeof vi.fn>;
     readonly readLayerAsAsset: ReturnType<typeof vi.fn>;
     readonly placeAssetOnCanvas: ReturnType<typeof vi.fn>;
   };
@@ -174,6 +175,20 @@ export function createFakeServices(): {
   const validatePromptOptimizerProfile = vi.fn(async () => ({ ok: true as const, value: 'optimized test prompt' }));
   const listLayers = vi.fn(async () => [{ id: 1, name: 'Layer 1', kind: 'pixel', visible: true }]);
   const pickImageFile = vi.fn(async () => fakeHostImage);
+  const captureActiveImage = vi.fn(async () => ({
+    image: fakeHostImage,
+    sourceKind: 'layer' as const,
+    placement: {
+      snapshot: {
+        documentId: 42,
+        documentSize: { width: 1024, height: 768 },
+        layerId: 1,
+        layerBoundsNoEffects: { left: 10, top: 20, right: 266, bottom: 276 },
+        selectionBounds: null,
+      },
+      placementRect: { left: 10, top: 20, right: 266, bottom: 276 },
+    },
+  }));
   const readLayerAsAsset = vi.fn(async () => fakeHostImage);
   const placeAssetOnCanvas = vi.fn(async () => undefined);
 
@@ -201,6 +216,7 @@ export function createFakeServices(): {
     capabilities: PHOTOSHOP_UXP_RUNTIME_CAPABILITIES,
     listLayers,
     pickImageFile,
+    captureActiveImage,
     readLayerAsAsset,
     readLayerMaskAsAsset: vi.fn(async () => undefined),
     placeAssetOnCanvas,
@@ -238,6 +254,7 @@ export function createFakeServices(): {
       validatePromptOptimizerProfile,
       listLayers,
       pickImageFile,
+      captureActiveImage,
       readLayerAsAsset,
       placeAssetOnCanvas,
     },

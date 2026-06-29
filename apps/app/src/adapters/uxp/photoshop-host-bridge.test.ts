@@ -40,15 +40,35 @@ const LEGACY_TRUNCATED_MOCK_PNG = new Uint8Array([
   0x42, 0x60, 0x82,
 ]);
 
+function bytesToBase64(bytes: Uint8Array): string {
+  let binary = '';
+  for (const byte of bytes) binary += String.fromCharCode(byte);
+  return btoa(binary);
+}
+
+function mockCanvasPngEncoding(): ReturnType<typeof vi.fn> {
+  const putImageData = vi.fn();
+  HTMLCanvasElement.prototype.getContext = vi.fn(() => ({
+    putImageData,
+  })) as unknown as HTMLCanvasElement['getContext'];
+  HTMLCanvasElement.prototype.toDataURL = vi.fn(() => `data:image/png;base64,${bytesToBase64(VALID_TRANSPARENT_PNG)}`);
+  return putImageData;
+}
+
 function createFakeModules(options?: {
   readonly pickedFileName?: string;
   readonly pickedFileData?: ArrayBuffer;
   readonly layerColorSpace?: string;
   readonly maskColorSpace?: string;
+  readonly selectionBounds?: { readonly left: number; readonly top: number; readonly right: number; readonly bottom: number } | null;
+  readonly pixelResultSourceBounds?: { readonly left: number; readonly top: number; readonly right: number; readonly bottom: number };
+  readonly pixelResultLevel?: number;
+  readonly pixelResultSize?: { readonly width: number; readonly height: number };
 }): {
   readonly modules: UxpModules;
   readonly spies: {
     readonly getPixels: ReturnType<typeof vi.fn>;
+    readonly getSelection: ReturnType<typeof vi.fn>;
     readonly getLayerMask: ReturnType<typeof vi.fn>;
     readonly encodeImageData: ReturnType<typeof vi.fn>;
     readonly disposeLayer: ReturnType<typeof vi.fn>;
@@ -61,16 +81,54 @@ function createFakeModules(options?: {
     readonly setExecutionMode: ReturnType<typeof vi.fn>;
     readonly executeAsModal: ReturnType<typeof vi.fn>;
     readonly batchPlay: ReturnType<typeof vi.fn>;
+    readonly scalePlacedLayer: ReturnType<typeof vi.fn>;
+    readonly translatePlacedLayer: ReturnType<typeof vi.fn>;
   };
 } {
   const pickedFileName = options?.pickedFileName ?? 'picked.png';
   const pickedFileData = options?.pickedFileData ?? arrayBufferFromBytes(VALID_TRANSPARENT_PNG);
   const disposeLayer = vi.fn();
   const disposeMask = vi.fn();
-  const layerImageData = { colorSpace: options?.layerColorSpace ?? 'RGB', dispose: disposeLayer };
-  const maskImageData = { colorSpace: options?.maskColorSpace ?? 'Grayscale', dispose: disposeMask };
-  const getPixels = vi.fn(async () => ({ imageData: layerImageData }));
-  const getLayerMask = vi.fn(async () => ({ imageData: maskImageData }));
+  const createLayerImageData = (width = 64, height = 64) => {
+    const rgbaBytes = new Uint8Array(width * height * 4);
+    rgbaBytes.fill(255);
+    return {
+      width,
+      height,
+      colorSpace: options?.layerColorSpace ?? 'RGB',
+      components: 4,
+      pixelFormat: 'RGBA',
+      getData: vi.fn(async () => rgbaBytes),
+      dispose: disposeLayer,
+    };
+  };
+  const createMaskImageData = (width = 64, height = 64) => {
+    const maskBytes = new Uint8Array(width * height);
+    maskBytes.fill(255);
+    return {
+      width,
+      height,
+      colorSpace: options?.maskColorSpace ?? 'Grayscale',
+      components: 1,
+      pixelFormat: 'Grayscale',
+      getData: vi.fn(async () => maskBytes),
+      dispose: disposeMask,
+    };
+  };
+  const getPixels = vi.fn(async (request?: { readonly targetSize?: { readonly width?: number; readonly height?: number } }) => ({
+    imageData: createLayerImageData(
+      options?.pixelResultSize?.width ?? request?.targetSize?.width,
+      options?.pixelResultSize?.height ?? request?.targetSize?.height,
+    ),
+    ...(options?.pixelResultSourceBounds ? { sourceBounds: options.pixelResultSourceBounds } : {}),
+    ...(options?.pixelResultLevel !== undefined ? { level: options.pixelResultLevel } : {}),
+  }));
+  const getSelection = vi.fn(async (request?: { readonly targetSize?: { readonly width?: number; readonly height?: number } }) => ({
+    imageData: createMaskImageData(request?.targetSize?.width, request?.targetSize?.height),
+  }));
+  const getLayerMask = vi.fn(async () => ({ imageData: createMaskImageData() }));
+  const layerImageData = createLayerImageData();
+  const maskImageData = createMaskImageData();
   const encodeImageData = vi.fn(async ({ imageData }: { readonly imageData: unknown }) =>
     imageData === maskImageData ? 'mask-jpeg-base64' : 'layer-jpeg-base64',
   );
@@ -87,6 +145,8 @@ function createFakeModules(options?: {
   }));
   const createSessionToken = vi.fn(() => 'session-token-1');
   const batchPlay = vi.fn(async () => undefined);
+  const scalePlacedLayer = vi.fn(async () => undefined);
+  const translatePlacedLayer = vi.fn(async () => undefined);
   const executeAsModal = vi.fn(async (callback: () => Promise<void>) => callback());
   const isModal = vi.fn(() => false);
   const setExecutionMode = vi.fn();
@@ -97,6 +157,24 @@ function createFakeModules(options?: {
         app: {
           activeDocument: {
             id: 42,
+            width: 512,
+            height: 384,
+            selection: {
+              bounds: options?.selectionBounds ?? null,
+            },
+            activeLayers: [
+              {
+                id: 2,
+                name: 'Child',
+                kind: 'pixel',
+                visible: false,
+                hasUserMask: true,
+                bounds: { _left: 0, _top: 0, _right: 64, _bottom: 64 },
+                boundsNoEffects: { _left: 0, _top: 0, _right: 64, _bottom: 64 },
+                scale: scalePlacedLayer,
+                translate: translatePlacedLayer,
+              },
+            ],
             layers: [
               {
                 id: 1,
@@ -111,6 +189,9 @@ function createFakeModules(options?: {
                     visible: false,
                     hasUserMask: true,
                     bounds: { _left: 0, _top: 0, _right: 64, _bottom: 64 },
+                    boundsNoEffects: { _left: 0, _top: 0, _right: 64, _bottom: 64 },
+                    scale: scalePlacedLayer,
+                    translate: translatePlacedLayer,
                   },
                   {
                     id: 3,
@@ -124,7 +205,7 @@ function createFakeModules(options?: {
             ],
           },
         },
-        imaging: { getPixels, getLayerMask, encodeImageData },
+        imaging: { getPixels, getSelection, getLayerMask, encodeImageData },
         core: { executeAsModal, isModal, setExecutionMode },
         action: { batchPlay },
       },
@@ -143,6 +224,7 @@ function createFakeModules(options?: {
     },
     spies: {
       getPixels,
+      getSelection,
       getLayerMask,
       encodeImageData,
       disposeLayer,
@@ -155,6 +237,8 @@ function createFakeModules(options?: {
       setExecutionMode,
       executeAsModal,
       batchPlay,
+      scalePlacedLayer,
+      translatePlacedLayer,
     },
   };
 }
@@ -288,6 +372,92 @@ describe('PhotoshopHostBridge fake harness', () => {
     await expect(bridge.pickImageFile()).rejects.toThrow('PNG asset chunk CRC is invalid.');
   });
 
+  it('captureActiveImage materializes active layer as PNG with placement metadata', async () => {
+    mockCanvasPngEncoding();
+    const { modules, spies } = createFakeModules();
+    const bridge = createPhotoshopHostBridge(modules);
+
+    const capture = await bridge.captureActiveImage();
+
+    expect(capture.sourceKind).toBe('layer');
+    expect(capture.image.asset).toMatchObject({
+      type: 'image',
+      name: 'photoshop-layer-2.png',
+      mimeType: 'image/png',
+    });
+    expect(capture.image.asset.data).toBeInstanceOf(Uint8Array);
+    expect(capture.placement.snapshot).toMatchObject({
+      documentId: 42,
+      documentSize: { width: 512, height: 384 },
+      layerId: 2,
+      layerBoundsNoEffects: { left: 0, top: 0, right: 64, bottom: 64 },
+      selectionBounds: null,
+    });
+    expect(capture.placement.placementRect).toEqual({ left: 0, top: 0, right: 64, bottom: 64 });
+    expect(spies.getPixels).toHaveBeenCalledWith(expect.objectContaining({
+      documentID: 42,
+      layerID: 2,
+      sourceBounds: { left: 0, top: 0, right: 64, bottom: 64 },
+      targetSize: { width: 64, height: 64 },
+      applyAlpha: false,
+    }));
+    expect(spies.getSelection).not.toHaveBeenCalled();
+  });
+
+  it('captureActiveImage pads Photoshop-trimmed pixel results back to requested frame', async () => {
+    const putImageData = mockCanvasPngEncoding();
+    const { modules } = createFakeModules({
+      pixelResultSourceBounds: { left: 8, top: 4, right: 24, bottom: 20 },
+      pixelResultSize: { width: 16, height: 16 },
+    });
+    const bridge = createPhotoshopHostBridge(modules);
+
+    await bridge.captureActiveImage();
+
+    const imageData = putImageData.mock.calls[0]?.[0] as ImageData;
+    expect(imageData.width).toBe(64);
+    expect(imageData.height).toBe(64);
+    expect(imageData.data[(3 * 4)]).toBe(0);
+    expect(imageData.data[((4 * 64 + 8) * 4) + 3]).toBe(255);
+  });
+
+  it('captureActiveImage maps cached sourceBounds by pyramid level before padding', async () => {
+    const putImageData = mockCanvasPngEncoding();
+    const { modules } = createFakeModules({
+      pixelResultSourceBounds: { left: 4, top: 2, right: 12, bottom: 10 },
+      pixelResultLevel: 1,
+      pixelResultSize: { width: 8, height: 8 },
+    });
+    const bridge = createPhotoshopHostBridge(modules);
+
+    await bridge.captureActiveImage();
+
+    const imageData = putImageData.mock.calls[0]?.[0] as ImageData;
+    expect(imageData.width).toBe(64);
+    expect(imageData.height).toBe(64);
+    expect(imageData.data[((4 * 64 + 7) * 4) + 3]).toBe(0);
+    expect(imageData.data[((4 * 64 + 8) * 4) + 3]).toBe(255);
+  });
+
+  it('captureActiveImage applies selection mask when selection bounds exist', async () => {
+    mockCanvasPngEncoding();
+    const { modules, spies } = createFakeModules({
+      selectionBounds: { left: 8, top: 8, right: 40, bottom: 40 },
+    });
+    const bridge = createPhotoshopHostBridge(modules);
+
+    const capture = await bridge.captureActiveImage();
+
+    expect(capture.sourceKind).toBe('selection');
+    expect(capture.placement.snapshot.selectionBounds).toEqual({ left: 8, top: 8, right: 40, bottom: 40 });
+    expect(capture.placement.placementRect).toEqual({ left: 8, top: 8, right: 40, bottom: 40 });
+    expect(spies.getSelection).toHaveBeenCalledWith({
+      documentID: 42,
+      sourceBounds: { left: 8, top: 8, right: 40, bottom: 40 },
+      targetSize: { width: 32, height: 32 },
+    });
+  });
+
   it('placeAssetOnCanvas 生成 temporary file/session token 并在 modal 内调用 placeEvent', async () => {
     const { modules, spies } = createFakeModules();
     const bridge = createPhotoshopHostBridge(modules);
@@ -297,6 +467,10 @@ describe('PhotoshopHostBridge fake harness', () => {
       name: 'generated.png',
       data: VALID_TRANSPARENT_PNG,
       mimeType: 'image/png',
+    }, {
+      kind: 'document-only',
+      documentId: 42,
+      documentSizeAtCapture: { width: 512, height: 384 },
     });
 
     expect(spies.createFile).toHaveBeenCalledWith(expect.stringMatching(/^imagen-ps-\d+\.png$/), { overwrite: true });
@@ -315,6 +489,27 @@ describe('PhotoshopHostBridge fake harness', () => {
       ],
       { synchronousExecution: false },
     );
+  });
+
+  it('exact-frame placement targets capture document and transforms the placed layer', async () => {
+    const { modules, spies } = createFakeModules();
+    const bridge = createPhotoshopHostBridge(modules);
+
+    await bridge.placeAssetOnCanvas({
+      type: 'image',
+      name: 'generated.png',
+      data: VALID_TRANSPARENT_PNG,
+      mimeType: 'image/png',
+    }, {
+      kind: 'exact-frame',
+      documentId: 42,
+      documentSizeAtCapture: { width: 512, height: 384 },
+      placementRect: { left: 10, top: 20, right: 138, bottom: 148 },
+    });
+
+    expect(spies.batchPlay).toHaveBeenCalledTimes(1);
+    expect(spies.scalePlacedLayer).toHaveBeenCalledWith(200, 200);
+    expect(spies.translatePlacedLayer).toHaveBeenCalledWith(10, 20);
   });
 
   it('串行执行 Photoshop modal 操作，避免并发 executeAsModal 互相踩踏', async () => {
@@ -383,6 +578,10 @@ describe('PhotoshopHostBridge fake harness', () => {
         name: 'legacy-mock.png',
         data: LEGACY_TRUNCATED_MOCK_PNG,
         mimeType: 'image/png',
+      }, {
+        kind: 'document-only',
+        documentId: 42,
+        documentSizeAtCapture: { width: 512, height: 384 },
       }),
     ).rejects.toThrow('PNG asset chunk CRC is invalid.');
 
@@ -399,6 +598,7 @@ describe('PhotoshopHostBridge fake harness', () => {
     await expect(bridge.pickImageFile()).resolves.toBeUndefined();
     await expect(bridge.readLayerMaskAsAsset(1)).resolves.toBeUndefined();
     await expect(bridge.readLayerAsAsset(1)).rejects.toThrow('unavailable outside UXP');
-    await expect(bridge.placeAssetOnCanvas({ type: 'image' })).rejects.toThrow('unavailable outside UXP');
+    await expect(bridge.captureActiveImage()).rejects.toThrow('unavailable outside UXP');
+    await expect(bridge.placeAssetOnCanvas({ type: 'image' }, { kind: 'unbound', reason: 'no-photoshop-capture' })).rejects.toThrow('unavailable outside UXP');
   });
 });

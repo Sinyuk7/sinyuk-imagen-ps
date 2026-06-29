@@ -1,5 +1,6 @@
 import type { Asset } from '@imagen-ps/application';
 import type { HostImageAsset } from '../domain/host-image-asset';
+import type { PhotoshopCaptureResult, PlacementIntent } from '../domain/photoshop-placement';
 
 export interface LayerInfo {
   readonly id: number;
@@ -49,9 +50,10 @@ export interface HostPort {
   readonly capabilities: RuntimeCapabilities;
   listLayers(): Promise<readonly LayerInfo[]>;
   pickImageFile(): Promise<HostImageAsset | undefined>;
+  captureActiveImage(): Promise<PhotoshopCaptureResult>;
   readLayerAsAsset(layerId: number): Promise<HostImageAsset>;
   readLayerMaskAsAsset(layerId: number): Promise<HostImageAsset | undefined>;
-  placeAssetOnCanvas(asset: Asset): Promise<void>;
+  placeAssetOnCanvas(asset: Asset, placement: PlacementIntent): Promise<void>;
 }
 
 export type HostBridge = HostPort;
@@ -95,13 +97,16 @@ export function createHostBridgeStub(): HostBridge {
     async pickImageFile(): Promise<HostImageAsset | undefined> {
       return undefined;
     },
+    async captureActiveImage(): Promise<PhotoshopCaptureResult> {
+      throw new Error('Photoshop capture is unavailable outside UXP.');
+    },
     async readLayerAsAsset(layerId: number): Promise<HostImageAsset> {
       throw new Error(`Photoshop layer read is unavailable outside UXP. layerId=${layerId}`);
     },
     async readLayerMaskAsAsset(): Promise<HostImageAsset | undefined> {
       return undefined;
     },
-    async placeAssetOnCanvas(): Promise<void> {
+    async placeAssetOnCanvas(_asset: Asset, _placement: PlacementIntent): Promise<void> {
       throw new Error('Photoshop writeback is unavailable outside UXP.');
     },
   };
