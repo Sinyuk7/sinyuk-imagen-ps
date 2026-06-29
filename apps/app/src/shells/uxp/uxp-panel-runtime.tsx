@@ -1,5 +1,6 @@
 import { createRoot, type Root } from 'react-dom/client';
 import { AppShell } from '../../shared/ui/app-shell';
+import { primeSharedUi } from '../../shared/ui/panel-bootstrap';
 import type { PluginHostShell } from './create-plugin-host-shell';
 import { createPluginHostShell } from './create-plugin-host-shell';
 import { readRecentLogRecords } from '../../adapters/uxp/uxp-diagnostics';
@@ -249,6 +250,8 @@ export function createImagenPanelRuntime(options?: ImagenPanelRuntimeOptions): I
       clearHostSmokeHandle();
 
       try {
+        primeSharedUi(rootEl.ownerDocument);
+        bootstrapCheckpoint('panel.bootstrap.shared_ui.primed');
         reactRoot = createRoot(rootEl);
         globalThis.__IMAGEN_PS_REACT_ROOT__ = reactRoot;
         host = createHost();

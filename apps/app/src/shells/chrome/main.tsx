@@ -1,5 +1,6 @@
 import { createRoot, type Root } from 'react-dom/client';
 import { AppShell } from '../../shared/ui/app-shell';
+import { primeSharedUi } from '../../shared/ui/panel-bootstrap';
 import { createChromeAppShell } from '../../composition/chrome/create-chrome-app-shell';
 import { chromeTestHarnessConfigFromUrl } from '../../composition/chrome/chrome-test-harness';
 import { ComposerSelectHarnessPage } from '../../harness/components/composer-select';
@@ -33,6 +34,7 @@ try {
   container.dataset.status = 'ok';
   const url = new URL(window.location.href);
   const harness = resolveChromeHarness(url);
+  primeSharedUi(container.ownerDocument);
   root = createRoot(container);
   if (harness === 'composer-select') {
     root.render(<ComposerSelectHarnessPage />);

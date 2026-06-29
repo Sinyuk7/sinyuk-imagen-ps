@@ -1,6 +1,6 @@
 /**
  * Panel CSS 单一注入入口。源码按职责拆分到 `styles/` 下多个模块，此处
- * 聚合后由 `usePanelCss()` 注入为单个 `<style id="imagen-ps-panel-styles">`。
+ * 聚合后由 `ensurePanelCss()` 同步注入为单个 `<style id="imagen-ps-panel-styles">`。
  *
  * 拆分边界：
  *  - tokens.ts        Layer A 宿主默认 + Layer B 应用语义 token + Layer C Spectrum bridge + theme probe

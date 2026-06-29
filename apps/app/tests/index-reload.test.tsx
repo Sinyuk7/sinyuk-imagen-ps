@@ -7,6 +7,7 @@ const mocks = vi.hoisted(() => {
   const createRootMock = vi.fn(() => ({ render: renderMock, unmount: unmountMock }));
   const createPluginHostShellMock = vi.fn();
   const entrypointsSetupMock = vi.fn();
+  const primeSharedUiMock = vi.fn();
   return {
     renderMock,
     unmountMock,
@@ -14,6 +15,7 @@ const mocks = vi.hoisted(() => {
     createRootMock,
     createPluginHostShellMock,
     entrypointsSetupMock,
+    primeSharedUiMock,
   };
 });
 
@@ -24,6 +26,7 @@ const {
   createRootMock,
   createPluginHostShellMock,
   entrypointsSetupMock,
+  primeSharedUiMock,
 } = mocks;
 
 vi.mock('react-dom/client', () => ({
@@ -63,6 +66,10 @@ vi.mock('../src/shared/ui/app-shell', () => ({
   AppShell: () => null,
 }));
 
+vi.mock('../src/shared/ui/panel-bootstrap', () => ({
+  primeSharedUi: primeSharedUiMock,
+}));
+
 function latestPanelController() {
   const setupConfig = entrypointsSetupMock.mock.calls.at(-1)?.[0];
   const panel = setupConfig?.panels?.['imagen-ps-panel'];
@@ -99,6 +106,7 @@ describe('UXP panel entry reload behavior', () => {
     unmountMock.mockClear();
     disposeMock.mockClear();
     entrypointsSetupMock.mockClear();
+    primeSharedUiMock.mockClear();
     delete globalThis.__IMAGEN_PS_REACT_ROOT__;
     delete globalThis.__IMAGEN_PS_HOST_SMOKE__;
     delete globalThis.__IMAGEN_PS_PANEL_RUNTIME__;
@@ -118,6 +126,7 @@ describe('UXP panel entry reload behavior', () => {
     latestPanelController().create();
 
     expect(createPluginHostShellMock).toHaveBeenCalledTimes(1);
+    expect(primeSharedUiMock).toHaveBeenCalledTimes(1);
     expect(createRootMock).toHaveBeenCalledTimes(1);
     expect(renderMock).toHaveBeenCalledTimes(1);
   });

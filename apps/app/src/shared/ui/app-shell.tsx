@@ -5,7 +5,6 @@ import type { LayerInfo } from '../ports/host-port';
 import { PROMPT_OPTIMIZER_PROFILE_ID, type ProviderProfile } from '@imagen-ps/application';
 import type { SupportedLocale } from '../domain/locale';
 import type { PluginAppModel } from '../domain/plugin-app-model';
-import { PANEL_CSS } from './panel-css';
 import { useConversation } from './hooks/use-conversation';
 import { useImagenSession } from './hooks/use-imagen-session';
 import { useJobHistory } from './hooks/use-job-history';
@@ -16,6 +15,7 @@ import { SettingsPage } from './pages/settings-page';
 import { SettingsAddPage } from './pages/settings-add-page';
 import { SettingsDetailPage } from './pages/settings-detail-page';
 import { I18nProvider, useI18n } from './i18n/i18n-context';
+import { ensurePanelCss } from './panel-bootstrap';
 import { registerSpectrumTheme } from './primitives/spectrum-theme';
 
 export interface AppShellHost {
@@ -44,21 +44,6 @@ const PANEL_SHORT_MAX_HEIGHT = 459;
  * 其余（dark/darkest）回退到 dark。
  */
 const LIGHT_THEME_QUERY = '(prefers-color-scheme: light), (prefers-color-scheme: lightest)';
-
-function usePanelCss(): void {
-  useEffect(() => {
-    const styleId = 'imagen-ps-panel-styles';
-    if (!document.getElementById(styleId)) {
-      const el = document.createElement('style');
-      el.id = styleId;
-      el.textContent = PANEL_CSS;
-      document.head.appendChild(el);
-    }
-    return () => {
-      document.getElementById(styleId)?.remove();
-    };
-  }, []);
-}
 
 /**
  * 同步 `<sp-theme color="light|dark">` 到宿主主题。
@@ -478,7 +463,7 @@ function AppShellContent({ host }: AppShellProps) {
 }
 
 export function AppShell({ host }: AppShellProps) {
-  usePanelCss();
+  ensurePanelCss();
   registerSpectrumTheme();
   const theme = useAppTheme();
   return (

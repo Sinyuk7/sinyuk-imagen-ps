@@ -138,6 +138,10 @@ export function MainPage({
   const taRef = useRef<HTMLTextAreaElement>(null);
   const flatLayers = useMemo(() => flattenLayers(layers), [layers]);
   const uniqueModels = useMemo(() => dedupeById(models), [models]);
+  const selectableProfiles = useMemo(
+    () => profiles.filter((profile) => profile.profileId !== '__prompt-optimizer__'),
+    [profiles],
+  );
   const modelOptions = useMemo(
     () => uniqueModels.map((model) => ({ id: model.id, label: modelLabel(model) })),
     [uniqueModels],
@@ -150,7 +154,6 @@ export function MainPage({
   const showUndo = optimizeState.status === 'optimized' && input === optimizeState.result;
   const canOptimize = optimizerReady && input.trim().length > 0 && !optimizing;
   const canCapture = !conversation.running && !captureInFlight;
-  const captureAttachmentCount = attachments.filter((attachment) => attachment.type === 'photoshop-capture').length;
   const optimizeButtonLabel = showUndo ? t.main.promptOptimizeUndo : t.main.promptOptimize;
   const isAtBottom = useCallback(() => {
     const el = convRef.current;
@@ -397,18 +400,47 @@ export function MainPage({
         >
           <Icon name="history" slot="icon" />
         </ActionButton>
-        <button
-          data-testid="main-profile-selector"
-          className="hdr-center"
-          style={{ background: 'transparent', border: 'none', cursor: 'pointer' }}
-          onClick={(event) => {
-            event.stopPropagation();
-            setProfileMenuOpen((open) => !open);
-            setOpenMenu(null);
-          }}
-        >
-          <span className="hdr-provider">{selectedProfile?.displayName ?? t.main.noProviderProfile}</span>
-        </button>
+        <div className="hdr-center-wrap">
+          <button
+            type="button"
+            data-testid="main-profile-selector"
+            className={`hdr-center hdr-provider-trigger${profileMenuOpen ? ' open' : ''}`}
+            aria-haspopup="listbox"
+            aria-expanded={profileMenuOpen}
+            onClick={(event) => {
+              event.stopPropagation();
+              setProfileMenuOpen((open) => !open);
+              setOpenMenu(null);
+            }}
+          >
+            <span className="hdr-provider">{selectedProfile?.displayName ?? t.main.noProviderProfile}</span>
+            <Icon name="chevron-down" size={10} className="hdr-provider-chevron" />
+          </button>
+          {profileMenuOpen && (
+            <div className="model-menu hdr-model-menu" onClick={(event) => event.stopPropagation()}>
+              {profilesLoading && <div className="model-opt">{t.main.loadingProfiles}</div>}
+              {profilesError && <div className="model-opt">{profilesError}</div>}
+              {!profilesLoading && selectableProfiles.length === 0 && (
+                <div data-testid="profile-menu-add-provider" className="model-opt" onClick={() => onNav('settings-add')}>{t.main.addProviderProfile}</div>
+              )}
+              {selectableProfiles.map((profile) => (
+                <button
+                  key={profile.profileId}
+                  type="button"
+                  data-testid={`profile-menu-option-${profile.profileId}`}
+                  className={`model-opt${profile.profileId === selectedProfileId ? ' act' : ''}`}
+                  onClick={() => {
+                    onSelectProfile(profile.profileId);
+                    setProfileMenuOpen(false);
+                  }}
+                >
+                  {profile.profileId === selectedProfileId && <Icon name="check" />}
+                  <span>{profile.displayName}</span>
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
         <ActionButton
           data-testid="main-providers-button"
           className="hdr-btn"
@@ -420,30 +452,6 @@ export function MainPage({
           <Icon name="settings" slot="icon" />
         </ActionButton>
       </header>
-
-      {profileMenuOpen && (
-        <div className="model-menu" style={{ top: 52, bottom: 'auto' }} onClick={(event) => event.stopPropagation()}>
-          {profilesLoading && <div className="model-opt">{t.main.loadingProfiles}</div>}
-          {profilesError && <div className="model-opt">{profilesError}</div>}
-          {!profilesLoading && profiles.length === 0 && (
-            <div data-testid="profile-menu-add-provider" className="model-opt" onClick={() => onNav('settings-add')}>{t.main.addProviderProfile}</div>
-          )}
-          {profiles.map((profile) => (
-            <div
-              key={profile.profileId}
-              data-testid={`profile-menu-option-${profile.profileId}`}
-              className={`model-opt${profile.profileId === selectedProfileId ? ' act' : ''}`}
-              onClick={() => {
-                onSelectProfile(profile.profileId);
-                setProfileMenuOpen(false);
-              }}
-            >
-              {profile.profileId === selectedProfileId && <Icon name="check" />}
-              <span>{profile.displayName}</span>
-            </div>
-          ))}
-        </div>
-      )}
 
       <div className="scroll" ref={convRef}>
         <div className="round-list">
@@ -646,65 +654,82 @@ export function MainPage({
       </div>
 
       <footer className="composer" onClick={(event) => event.stopPropagation()}>
-        {layerOpen && (
-          <div className="layer-list-wrap" onClick={(event) => event.stopPropagation()}>
-            <div className="layer-list-hdr">
-              <button
-                className="layer-back"
-                onClick={() => setLayerOpen(false)}
-              >
-                <Icon name="chevron-left" size={12} />
-              </button>
-              {t.main.psLayers}
-              <button
-                className="layer-refresh"
-                onClick={() => void reloadLayers()}
-              >
-                <Icon name="refresh" size={12} />
-              </button>
-            </div>
-            <div className="layer-scroll">
-              {layersError && <div className="layer-item"><span className="layer-name">{layersError}</span></div>}
-              {!layersError && flatLayers.length === 0 && <div className="layer-item"><span className="layer-name">{t.main.noAvailableLayers}</span></div>}
-              {flatLayers.map(({ layer, depth }) => (
-                <div key={layer.id} data-testid={`layer-row-${layer.id}`} className="layer-item" onClick={() => void addLayer(layer)}>
-                  <div className="layer-swatch" style={{ background: layer.visible === false ? 'var(--app-color-background-layer-1)' : 'var(--app-color-background-layer-2)' }} />
-                  <span className="layer-name" style={{ paddingLeft: depth * 10 }}>{layer.name}</span>
-                  <span className="layer-meta-lbl">{layer.kind ?? 'layer'}</span>
-                </div>
-              ))}
-            </div>
-          </div>
-        )}
-
-        {attachOpen && !layerOpen && (
-          <div className="attach-picker" onClick={(event) => event.stopPropagation()}>
-            <div data-testid="attach-ps-layers-option" className="attach-opt" onClick={openLayerPicker}>
-              <div className="attach-opt-ico">
-                <Icon name="ps-layers" size={13} />
-              </div>
-              <div>
-                <div className="attach-opt-label">{t.main.choosePsLayer}</div>
-                <div className="attach-opt-sub">{t.main.layerCount(flatLayers.length)}</div>
-              </div>
-              <Icon name="chevron-right" style={{ marginLeft: 'auto' }} />
-            </div>
-            <div data-testid="attach-upload-option" className="attach-opt" onClick={() => void addFile()}>
-              <div className="attach-opt-ico">
-                <Icon name="upload" size={13} />
-              </div>
-              <div>
-                <div className="attach-opt-label">{t.main.uploadFromComputer}</div>
-                <div className="attach-opt-sub">PNG / JPG / WebP</div>
-              </div>
-            </div>
-          </div>
-        )}
-
         <div className={`cmp-shell${conversation.running ? ' off' : ''}`}>
-          {attachments.length > 0 && (
-            <div className="cmp-attach-band">
+          <div className="cmp-attach-band">
+            {layerOpen && (
+              <div className="layer-list-wrap" onClick={(event) => event.stopPropagation()}>
+                <div className="layer-list-hdr">
+                  <button
+                    className="layer-back"
+                    onClick={() => setLayerOpen(false)}
+                  >
+                    <Icon name="chevron-left" size={12} />
+                  </button>
+                  {t.main.psLayers}
+                  <button
+                    className="layer-refresh"
+                    onClick={() => void reloadLayers()}
+                  >
+                    <Icon name="refresh" size={12} />
+                  </button>
+                </div>
+                <div className="layer-scroll">
+                  {layersError && <div className="layer-item"><span className="layer-name">{layersError}</span></div>}
+                  {!layersError && flatLayers.length === 0 && <div className="layer-item"><span className="layer-name">{t.main.noAvailableLayers}</span></div>}
+                  {flatLayers.map(({ layer, depth }) => (
+                    <div key={layer.id} data-testid={`layer-row-${layer.id}`} className="layer-item" onClick={() => void addLayer(layer)}>
+                      <div className="layer-swatch" style={{ background: layer.visible === false ? 'var(--app-color-background-layer-1)' : 'var(--app-color-background-layer-2)' }} />
+                      <span className="layer-name" style={{ paddingLeft: depth * 10 }}>{layer.name}</span>
+                      <span className="layer-meta-lbl">{layer.kind ?? 'layer'}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {attachOpen && !layerOpen && (
+              <div className="attach-picker" onClick={(event) => event.stopPropagation()}>
+                <div data-testid="attach-ps-layers-option" className="attach-opt" onClick={openLayerPicker}>
+                  <div className="attach-opt-ico">
+                    <Icon name="ps-layers" size={13} />
+                  </div>
+                  <div>
+                    <div className="attach-opt-label">{t.main.choosePsLayer}</div>
+                    <div className="attach-opt-sub">{t.main.layerCount(flatLayers.length)}</div>
+                  </div>
+                  <Icon name="chevron-right" style={{ marginLeft: 'auto' }} />
+                </div>
+                <div data-testid="attach-upload-option" className="attach-opt" onClick={() => void addFile()}>
+                  <div className="attach-opt-ico">
+                    <Icon name="upload" size={13} />
+                  </div>
+                  <div>
+                    <div className="attach-opt-label">{t.main.uploadFromComputer}</div>
+                    <div className="attach-opt-sub">PNG / JPG / WebP</div>
+                  </div>
+                </div>
+              </div>
+            )}
+
               <div className="attach-row">
+                <ActionButton
+                  data-testid="composer-add-image-button"
+                  className="att-add cmp-add"
+                  quiet
+                  selected={attachOpen || layerOpen}
+                  label={t.main.addImage}
+                  placement="top"
+                  disabled={conversation.running}
+                  onClick={(event) => {
+                    event.stopPropagation();
+                    setAttachOpen((open) => !open);
+                    setLayerOpen(false);
+                    setOpenMenu(null);
+                    setProfileMenuOpen(false);
+                  }}
+                >
+                  <Icon name="add" slot="icon" />
+                </ActionButton>
                 {attachments.map((attachment) => (
                   <div key={attachment.id} className="att-thumb">
                     {attachment.previewUrl
@@ -715,8 +740,7 @@ export function MainPage({
                   </div>
                 ))}
               </div>
-            </div>
-          )}
+          </div>
           <div className="cmp-core">
             <div className="cmp-body">
               <UxpTextArea
@@ -739,22 +763,26 @@ export function MainPage({
             <div className="cmp-action-row" data-testid="composer-action-row">
               <div className="cmp-action-left">
                 <ActionButton
-                  data-testid="composer-add-image-button"
-                  className="cmp-add"
+                  data-testid="composer-prompt-optimize-button"
+                  className="cmp-opt-icon-button"
                   quiet
-                  selected={attachOpen || layerOpen}
-                  label={t.main.addImage}
+                  label={optimizeButtonLabel}
                   placement="top"
-                  disabled={conversation.running}
+                  disabled={showUndo ? false : !canOptimize}
                   onClick={(event) => {
                     event.stopPropagation();
-                    setAttachOpen((open) => !open);
-                    setLayerOpen(false);
-                    setOpenMenu(null);
-                    setProfileMenuOpen(false);
+                    if (showUndo) {
+                      handleUndoOptimize();
+                    } else {
+                      void handleOptimize();
+                    }
                   }}
-                  >
-                  <Icon name="add" slot="icon" />
+                >
+                  {optimizing
+                    ? <Icon name="spinner" size={13} className="cmp-opt-icon spin" slot="icon" />
+                    : showUndo
+                      ? <Icon name="refresh" size={13} className="cmp-opt-icon" slot="icon" />
+                      : <Icon name="magic-wand" size={13} className="cmp-opt-icon" slot="icon" />}
                 </ActionButton>
               </div>
               <div className="cmp-action-right">
@@ -774,13 +802,8 @@ export function MainPage({
                 >
                   {captureInFlight
                     ? <Icon name="spinner" size={13} className="cmp-capture-icon spin" slot="icon" />
-                    : <Icon name={captureAttachmentCount > 0 ? 'image-check' : 'target'} size={13} className="cmp-capture-icon" slot="icon" />}
+                    : <Icon name="target" size={13} className="cmp-capture-icon" slot="icon" />}
                   <span className="cmp-action-label">{t.main.capture}</span>
-                  {captureAttachmentCount > 0 ? (
-                    <span className="cmp-capture-badge" aria-label={t.main.captureCount(captureAttachmentCount)}>
-                      {captureAttachmentCount}
-                    </span>
-                  ) : null}
                 </ActionButton>
                 <div className="send-wrap">
                   <ActionButton
@@ -811,11 +834,13 @@ export function MainPage({
                 value={selectedModelLabel}
                 disabled={conversation.running}
                 open={openMenu === 'model'}
-                onOpenChange={(open) => setOpenMenu(open ? 'model' : null)}
+                onOpenChange={(open) => {
+                  setProfileMenuOpen(false);
+                  setOpenMenu(open ? 'model' : null);
+                }}
                 options={modelOptions}
                 selectedId={selectedModelId}
                 onSelect={onSelectModel}
-                leadingIcon="magic-wand"
               />
             </div>
             <div className="cmp-toolbar-right">
@@ -827,7 +852,10 @@ export function MainPage({
                 value={aspectRatio === 'auto' ? t.main.aspectRatioAuto : t.main.aspectRatioSquare}
                 disabled={conversation.running}
                 open={openMenu === 'aspect'}
-                onOpenChange={(open) => setOpenMenu(open ? 'aspect' : null)}
+                onOpenChange={(open) => {
+                  setProfileMenuOpen(false);
+                  setOpenMenu(open ? 'aspect' : null);
+                }}
                 options={[
                   { id: 'auto', label: t.main.aspectRatioAuto, icon: 'image-auto-mode' },
                   { id: '1:1', label: t.main.aspectRatioSquare },
@@ -836,28 +864,6 @@ export function MainPage({
                 onSelect={setAspectRatio}
                 leadingIcon="image-auto-mode"
               />
-              <ActionButton
-                data-testid="composer-prompt-optimize-button"
-                className="cmp-opt"
-                label={optimizeButtonLabel}
-                placement="top"
-                disabled={showUndo ? false : !canOptimize}
-                onClick={(event) => {
-                  event.stopPropagation();
-                  if (showUndo) {
-                    handleUndoOptimize();
-                  } else {
-                    void handleOptimize();
-                  }
-                }}
-              >
-                {optimizing
-                  ? <Icon name="spinner" size={13} className="cmp-opt-icon spin" slot="icon" />
-                  : showUndo
-                    ? <Icon name="refresh" size={13} className="cmp-opt-icon" slot="icon" />
-                    : <Icon name="magic-wand" size={13} className="cmp-opt-icon" slot="icon" />}
-                <span className="cmp-action-label">{showUndo ? t.main.promptOptimizeUndo : t.main.promptRefine}</span>
-              </ActionButton>
             </div>
           </div>
         </div>

@@ -86,7 +86,7 @@ describe('MainPage contract', () => {
     const { spies } = await renderApp(container);
 
     await act(async () => {
-      container.querySelector<HTMLButtonElement>('.cmp-add')!.click();
+      container.querySelector<HTMLElement>('[data-testid="composer-add-image-button"]')!.click();
     });
     await act(async () => {
       clickText(container, '.attach-opt', '从电脑上传');
@@ -111,7 +111,7 @@ describe('MainPage contract', () => {
     const { spies } = await renderApp(container);
 
     await act(async () => {
-      container.querySelector<HTMLButtonElement>('.cmp-add')!.click();
+      container.querySelector<HTMLElement>('[data-testid="composer-add-image-button"]')!.click();
     });
     await act(async () => {
       clickText(container, '.attach-opt', '从 PS 图层选择');
@@ -141,7 +141,7 @@ describe('MainPage contract', () => {
     expect(spies.listLayers).toHaveBeenCalledTimes(1);
 
     await act(async () => {
-      container.querySelector<HTMLButtonElement>('.cmp-add')!.click();
+      container.querySelector<HTMLElement>('[data-testid="composer-add-image-button"]')!.click();
     });
     await act(async () => {
       clickText(container, '.attach-opt', '从 PS 图层选择');
@@ -201,7 +201,7 @@ describe('MainPage contract', () => {
     const { spies } = await renderApp(container);
 
     await act(async () => {
-      container.querySelector<HTMLButtonElement>('.cmp-add')!.click();
+      container.querySelector<HTMLElement>('[data-testid="composer-add-image-button"]')!.click();
     });
     await act(async () => {
       clickText(container, '.attach-opt', '从 PS 图层选择');
@@ -340,28 +340,85 @@ describe('MainPage contract', () => {
     expect(container.textContent).not.toContain('prompt-optimize');
   });
 
-  it('Composer 底部控制行按左右分组结构契约', async () => {
+  it('main profile selector exposes dropdown affordance and keeps menu scoped to selectable profiles', async () => {
+    const container = document.createElement('div');
+    document.body.appendChild(container);
+    await renderApp(container, createFakeServices({
+      profiles: [
+        {
+          profileId: 'mock-profile',
+          displayName: 'Image Endpoint',
+          providerId: 'image-endpoint',
+          enabled: true,
+          config: {
+            family: 'image-endpoint',
+            baseURL: 'https://example.invalid/v1',
+            apiKey: 'sk-test',
+            defaultModel: 'mock-image-v1',
+          },
+          createdAt: '2026-06-15T00:00:00.000Z',
+          updatedAt: '2026-06-15T00:00:00.000Z',
+        },
+        {
+          profileId: '__prompt-optimizer__',
+          displayName: 'Prompt Optimizer',
+          providerId: 'prompt-optimize',
+          enabled: true,
+          config: {
+            family: 'prompt-optimize',
+            baseURL: 'https://openrouter.ai/api/v1',
+            defaultModel: 'gpt-4o-mini',
+            instruction: 'Rewrite the prompt.',
+            testPrompt: 'test',
+          },
+          createdAt: '2026-06-15T00:00:00.000Z',
+          updatedAt: '2026-06-15T00:00:00.000Z',
+        },
+      ],
+    }));
+
+    const selector = container.querySelector<HTMLElement>('[data-testid="main-profile-selector"]')!;
+    expect(selector.getAttribute('aria-haspopup')).toBe('listbox');
+    expect(selector.getAttribute('aria-expanded')).toBe('false');
+    expect(selector.querySelector('sp-icon-chevron-down')).not.toBeNull();
+
+    await act(async () => {
+      selector.click();
+    });
+    await flush();
+
+    expect(selector.getAttribute('aria-expanded')).toBe('true');
+    expect(container.querySelector('[data-testid="profile-menu-option-mock-profile"]')).not.toBeNull();
+    expect(container.querySelector('[data-testid="profile-menu-option-__prompt-optimizer__"]')).toBeNull();
+  });
+
+  it('Composer 底部控制行按 prompt action 与 send/capture 分组结构契约', async () => {
     const container = document.createElement('div');
     document.body.appendChild(container);
     await renderApp(container);
 
     const left = container.querySelector('.cmp-action-left');
     const right = container.querySelector('.cmp-action-right');
+    const attachBand = container.querySelector('.cmp-attach-band');
     expect(left).not.toBeNull();
     expect(right).not.toBeNull();
+    expect(attachBand).not.toBeNull();
 
-    // 左组：添加图片
-    expect(left!.querySelector('[data-testid="composer-add-image-button"]')).not.toBeNull();
+    // attachment zone: 常驻 add tile
+    expect(attachBand!.querySelector('[data-testid="composer-add-image-button"]')).not.toBeNull();
+
+    // 左组：Prompt Optimizer
+    expect(left!.querySelector('[data-testid="composer-prompt-optimize-button"]')).not.toBeNull();
     expect(left!.querySelector('[data-testid="composer-send-button"]')).toBeNull();
+    expect(left!.querySelector('[data-testid="composer-add-image-button"]')).toBeNull();
 
     // 右组：Capture / Send
     expect(right!.querySelector('[data-testid="composer-capture-button"]')).not.toBeNull();
     expect(right!.querySelector('[data-testid="composer-send-button"]')).not.toBeNull();
     expect(right!.querySelector('[data-testid="composer-prompt-optimize-button"]')).toBeNull();
-    expect(right!.querySelector('[data-testid="composer-add-image-button"]')).toBeNull();
   });
 
-  it('Composer 参数工具栏保持 Model 左侧、Ratio 和 Refine 右侧', async () => {
+  it('Composer 参数工具栏保持 Model 左侧、Ratio 右侧，不再承载 optimizer', async () => {
     const container = document.createElement('div');
     document.body.appendChild(container);
     await renderApp(container);
@@ -378,7 +435,7 @@ describe('MainPage contract', () => {
     expect(toolbar.querySelector('[data-testid="main-model-selector"]')!.textContent).toContain('mock-image-v1');
     expect(toolbar.querySelector('[data-testid="composer-capture-button"]')).toBeNull();
     expect(toolbar.querySelector('[data-testid="composer-aspect-ratio-selector"]')!.textContent).toContain('智能');
-    expect(toolbar.querySelector('[data-testid="composer-prompt-optimize-button"]')!.textContent).toContain('优化');
+    expect(toolbar.querySelector('[data-testid="composer-prompt-optimize-button"]')).toBeNull();
   });
 
   it('aspect-ratio 选择器可打开、选择并关闭，Capture 不打开菜单', async () => {
@@ -546,7 +603,7 @@ describe('MainPage contract', () => {
     await flush();
 
     await act(async () => {
-      container.querySelector<HTMLButtonElement>('.cmp-add')!.click();
+      container.querySelector<HTMLElement>('[data-testid="composer-add-image-button"]')!.click();
     });
     await act(async () => {
       clickText(container, '.attach-opt', '从电脑上传');
@@ -567,7 +624,7 @@ describe('MainPage contract', () => {
     await renderApp(container);
 
     await act(async () => {
-      container.querySelector<HTMLButtonElement>('.cmp-add')!.click();
+      container.querySelector<HTMLElement>('[data-testid="composer-add-image-button"]')!.click();
     });
     await act(async () => {
       clickText(container, '.attach-opt', '从电脑上传');
@@ -580,6 +637,17 @@ describe('MainPage contract', () => {
     });
     await flush();
     expect(container.querySelector('.att-thumb')).toBeNull();
+  });
+
+  it('attachment zone 在空状态也常驻，并将 add tile 固定为第一项', async () => {
+    const container = document.createElement('div');
+    document.body.appendChild(container);
+    await renderApp(container);
+
+    const attachRow = container.querySelector('.attach-row');
+    expect(attachRow).not.toBeNull();
+    expect(attachRow!.firstElementChild?.getAttribute('data-testid')).toBe('composer-add-image-button');
+    expect(attachRow!.querySelectorAll('.att-thumb')).toHaveLength(0);
   });
 
   it('点击选择表面外部关闭菜单', async () => {

@@ -11,10 +11,11 @@ const mocks = vi.hoisted(() => {
   const renderMock = vi.fn();
   const unmountMock = vi.fn();
   const createRootMock = vi.fn(() => ({ render: renderMock, unmount: unmountMock }));
-  return { renderMock, unmountMock, createRootMock };
+  const primeSharedUiMock = vi.fn();
+  return { renderMock, unmountMock, createRootMock, primeSharedUiMock };
 });
 
-const { renderMock, unmountMock, createRootMock } = mocks;
+const { renderMock, unmountMock, createRootMock, primeSharedUiMock } = mocks;
 
 vi.mock('react-dom/client', () => ({
   createRoot: mocks.createRootMock,
@@ -22,6 +23,10 @@ vi.mock('react-dom/client', () => ({
 
 vi.mock('../../shared/ui/app-shell', () => ({
   AppShell: () => null,
+}));
+
+vi.mock('../../shared/ui/panel-bootstrap', () => ({
+  primeSharedUi: mocks.primeSharedUiMock,
 }));
 
 function fakeHost(dispose = vi.fn()): PluginHostShell {
@@ -42,6 +47,7 @@ describe('UXP panel runtime', () => {
     createRootMock.mockClear();
     renderMock.mockClear();
     unmountMock.mockClear();
+    primeSharedUiMock.mockClear();
     delete globalThis.__IMAGEN_PS_REACT_ROOT__;
     delete globalThis.__IMAGEN_PS_HOST_SMOKE__;
     delete globalThis.__IMAGEN_PS_PANEL_RUNTIME__;
@@ -60,6 +66,7 @@ describe('UXP panel runtime', () => {
 
     expect(createRootMock).toHaveBeenCalledTimes(1);
     expect(renderMock).toHaveBeenCalledTimes(1);
+    expect(primeSharedUiMock).toHaveBeenCalledTimes(1);
     expect(unmountMock).toHaveBeenCalledTimes(1);
     expect(dispose).toHaveBeenCalledTimes(1);
   });
@@ -121,6 +128,7 @@ describe('UXP panel runtime', () => {
     expect(checkpoint).toHaveBeenCalledWith('panel.bootstrap.entrypoints.setup.start', { panelId: 'imagen-ps-panel' });
     expect(checkpoint).toHaveBeenCalledWith('panel.bootstrap.entrypoints.setup.ok', { panelId: 'imagen-ps-panel' });
     expect(checkpoint).toHaveBeenCalledWith('panel.bootstrap.panel.create');
+    expect(checkpoint).toHaveBeenCalledWith('panel.bootstrap.shared_ui.primed');
     expect(checkpoint).toHaveBeenCalledWith('panel.bootstrap.host_shell.created');
     expect(checkpoint).toHaveBeenCalledWith('panel.bootstrap.react.rendered');
     expect(checkpoint).toHaveBeenCalledWith('panel.bootstrap.runtime.mount.complete', { hasHost: true });
