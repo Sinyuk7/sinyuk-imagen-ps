@@ -2,14 +2,15 @@ import type { KeyboardEvent, MouseEvent, RefObject } from 'react';
 import type { IconName } from './icons';
 import { Icon } from './icons';
 
-interface ComposerSelectTriggerSpButtonProps {
+interface ComposerSelectTriggerButtonProps {
   readonly label: string;
   readonly value: string;
   readonly disabled?: boolean;
   readonly open: boolean;
   readonly testId?: string;
+  readonly triggerId?: string;
   readonly leadingIcon?: IconName;
-  readonly chipRef: RefObject<HTMLElement | null>;
+  readonly chipRef: RefObject<HTMLButtonElement | null>;
   readonly chipBodyRef: RefObject<HTMLSpanElement | null>;
   readonly chipValueRef: RefObject<HTMLSpanElement | null>;
   readonly chipArrowRef: RefObject<HTMLSpanElement | null>;
@@ -17,12 +18,13 @@ interface ComposerSelectTriggerSpButtonProps {
   readonly onKeyDown: (event: KeyboardEvent<HTMLElement>) => void;
 }
 
-export function ComposerSelectTriggerSpButton({
+export function ComposerSelectTriggerButton({
   label,
   value,
   disabled,
   open,
   testId,
+  triggerId,
   leadingIcon,
   chipRef,
   chipBodyRef,
@@ -30,29 +32,30 @@ export function ComposerSelectTriggerSpButton({
   chipArrowRef,
   onClick,
   onKeyDown,
-}: ComposerSelectTriggerSpButtonProps) {
-  const className = ['cmp-chip', 'cmp-chip-sp-button', open ? 'open' : '', disabled ? 'dis' : ''].filter(Boolean).join(' ');
+}: ComposerSelectTriggerButtonProps) {
+  const className = ['cmp-chip', open ? 'open' : '', disabled ? 'dis' : ''].filter(Boolean).join(' ');
 
   return (
-    <sp-button
+    <button
       ref={chipRef}
-      class={className}
+      id={triggerId}
+      type="button"
+      className={className}
       data-testid={testId}
       aria-label={label}
       aria-haspopup="listbox"
       aria-expanded={open}
-      variant="secondary"
-      disabled={disabled || undefined}
+      disabled={disabled}
       onClick={onClick}
       onKeyDown={onKeyDown}
     >
-      <span ref={chipBodyRef} className="cmp-chip-body cmp-chip-body-sp-button">
-        {leadingIcon ? <Icon name={leadingIcon} size={14} className="cmp-chip-leading-sp-button" /> : null}
-        <span ref={chipValueRef} className="cmp-chip-value cmp-chip-value-sp-button">{value}</span>
+      <span ref={chipBodyRef} className="cmp-chip-body">
+        {leadingIcon ? <Icon name={leadingIcon} size={14} className="cmp-chip-leading" /> : null}
+        <span ref={chipValueRef} className="cmp-chip-value">{value}</span>
         <span ref={chipArrowRef} className="cmp-chip-arrow-text" aria-hidden="true">
           <Icon name="chevron-down" size={10} className="cmp-chip-arrow-icon" />
         </span>
       </span>
-    </sp-button>
+    </button>
   );
 }

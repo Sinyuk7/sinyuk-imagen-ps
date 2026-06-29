@@ -18,8 +18,7 @@
  * primary 蓝系。positive ← green 扩展色，notice ← yellow 扩展色，
  * informative ← primary，negative ← error。
  *
- * Layer C — Spectrum bridge：`sp-theme.app-theme` 只做少量应用语义 token
- * 到 SWC 0.37.0 公开 token 的映射，见本文件底部 `SPECTRUM_BRIDGE_CSS`。
+ * Layer C — Native controls：项目轻量原生控件消费 `--app-*` 语义 token。
  *
  * 不使用 transition / animation / transform / box-shadow / grid / gap /
  * margin 简写 / font 简写 / 相邻兄弟选择器 —— 这些在 Photoshop UXP host
@@ -371,81 +370,210 @@ export const LIGHT_THEME_CSS = `
 }
 `;
 
- /* === CSS theme probe（初始化 / 恢复同步兜底） ===
- * 仅当 `window.matchMedia` change listener 未命中时，用一次性 DOM 读取兜底。
- * Dark/Darkest 下 width:1px，Light/Lightest 下 width:2px。
- * `useAppTheme()` 读取此元素尺寸，桥接到必须由 JavaScript 设置的
- * `<sp-theme color>` property。
- * 元素不可见、不参与布局、不接收事件。 */
-export const THEME_PROBE_CSS = `
-.uxp-theme-probe{
-  position:absolute;
-  width:1px;
-  height:1px;
-  overflow:hidden;
-  opacity:0;
-  pointer-events:none;
-}
-@media (prefers-color-scheme: light),
-       (prefers-color-scheme: lightest){
-  .uxp-theme-probe{
-    width:2px;
-  }
-}
-`;
-
-/* === Layer C：Spectrum bridge ===
- * 只保留经审核确认在 SWC 0.37.0 公开 token 中生效的映射项。
- * 所有映射指向 `--app-*` 语义 token，因此主题切换时 SWC 表面背景
- * 会跟随应用层翻转。 */
-export const SPECTRUM_BRIDGE_CSS = `
-sp-theme.app-theme{
+/* === Layer C：Native controls ===
+ * Photoshop UXP 直接消费上方 `@media (prefers-color-scheme)` 与
+ * `--uxp-host-*` 链路；不要在 UXP 根节点写 `data-app-theme`，否则会
+ * 固定 light/dark 覆盖宿主动态主题。下面两个 selector 只用于 Chrome
+ * harness 的 `?theme=light|dark` 显式覆盖。 */
+export const NATIVE_CONTROLS_CSS = `
+.panel{
   display:block;
   width:100%;
   height:100%;
   min-width:0;
   min-height:0;
-  /* Accent 映射到 SWC accent 公开 token */
-  --spectrum-accent-background-color-default:var(--app-color-accent-default);
-  --spectrum-accent-background-color-hover:var(--app-color-accent-hover);
-  --spectrum-accent-background-color-down:var(--app-color-accent-down);
-  --spectrum-accent-background-color-key-focus:var(--app-color-accent-hover);
-  /* accent 内容色跟随 md-sys on-primary，亮色主题下自动翻转为白色 */
-  --spectrum-accent-content-color-default:var(--app-color-text-on-accent);
-  --spectrum-accent-content-color-hover:var(--app-color-text-on-accent);
-  --spectrum-accent-content-color-down:var(--app-color-text-on-accent);
-  --spectrum-accent-content-color-focus:var(--app-color-text-on-accent);
-  /* SWC 控件基础底色跟随应用层背景，使主题切换时表面一致 */
-  --spectrum-background-base-color:var(--app-color-background-base);
-  --spectrum-neutral-background-color-default:var(--app-color-background-layer-2);
 }
-/* SWC 输入控件表面对齐到 Layer-2，边框对齐到 default border */
-sp-action-button,
-.swc-field sp-textfield,
-sp-textfield{
-  --spectrum-textfield-background-color:var(--app-color-background-layer-2);
-  --spectrum-textfield-border-color:var(--app-color-border-default);
+.panel[data-app-theme="dark"]{
+  --app-color-background-base:#111318;
+  --app-color-background-layer-1:#1A1B20;
+  --app-color-background-layer-2:#1E2025;
+  --app-color-background-elevated:#282A2F;
+  --app-color-border-default:#44474E;
+  --app-color-border-strong:#8E9099;
+  --app-color-text-primary:#E2E2E9;
+  --app-color-text-secondary:#C4C6D0;
+  --app-color-text-muted:#8E9099;
+  --app-color-text-on-accent:#0E2F60;
+  --app-color-link:#ACC7FF;
+  --app-color-accent-default:#ACC7FF;
+  --app-color-accent-hover:#B3CBFF;
+  --app-color-accent-down:#9EB7EB;
+  --app-color-accent-subtle:rgba(172,199,255,.14);
+  --app-color-positive:#9CD49F;
+  --app-color-positive-subtle:rgba(156,212,159,.14);
+  --app-color-informative:#ACC7FF;
+  --app-color-informative-subtle:rgba(172,199,255,.14);
+  --app-color-notice:#C6CC79;
+  --app-color-notice-subtle:rgba(198,204,121,.14);
+  --app-color-negative:#FFB4AB;
+  --app-color-negative-subtle:rgba(255,180,171,.14);
+  --app-hover-overlay-fallback:rgba(255,255,255,.05);
+  --app-color-hover-overlay:rgba(255,255,255,.05);
+  --app-color-active-overlay:rgba(255,255,255,.09);
+  --app-color-focus-ring:#ACC7FF;
+  --app-color-canvas:#0C0E13;
 }
-.swc-field{
-  display:flex;
+.panel[data-app-theme="light"]{
+  --app-color-background-base:#F9F9FF;
+  --app-color-background-layer-1:#F3F3FA;
+  --app-color-background-layer-2:#EDEDF4;
+  --app-color-background-elevated:#E8E7EE;
+  --app-color-border-default:#C4C6D0;
+  --app-color-border-strong:#74777F;
+  --app-color-text-primary:#1A1B20;
+  --app-color-text-secondary:#44474E;
+  --app-color-text-muted:#74777F;
+  --app-color-text-on-accent:#FFFFFF;
+  --app-color-link:#435E91;
+  --app-color-accent-default:#435E91;
+  --app-color-accent-hover:#526B9A;
+  --app-color-accent-down:#3E5685;
+  --app-color-accent-subtle:rgba(67,94,145,.14);
+  --app-color-positive:#36693D;
+  --app-color-positive-subtle:rgba(54,105,61,.14);
+  --app-color-informative:#435E91;
+  --app-color-informative-subtle:rgba(67,94,145,.14);
+  --app-color-notice:#5D621C;
+  --app-color-notice-subtle:rgba(93,98,28,.14);
+  --app-color-negative:#BA1A1A;
+  --app-color-negative-subtle:rgba(186,26,26,.14);
+  --app-hover-overlay-fallback:rgba(0,0,0,.04);
+  --app-color-hover-overlay:rgba(0,0,0,.04);
+  --app-color-active-overlay:rgba(0,0,0,.08);
+  --app-color-focus-ring:#435E91;
+  --app-color-canvas:#FFFFFF;
+}
+.ui-field-control{
+  display:block;
   width:100%;
-  --spectrum-textfield-width:100%;
-  --mod-textfield-width:100%;
-  --spectrum-textfield-background-color:var(--app-color-background-layer-2);
-  --spectrum-textfield-border-color:var(--app-color-border-default);
 }
-.swc-field sp-textfield,
-.field-input.mono{
+.ui-textfield{
+  min-height:32px;
+  padding:6px 10px;
+  border:1px solid var(--app-color-border-default);
+  border-radius:var(--app-radius-small);
+  background:var(--app-color-background-layer-2);
+  color:var(--app-color-text-primary);
+  outline:none;
+}
+.ui-textfield::placeholder{ color:var(--app-color-text-muted); }
+.ui-textfield:focus{
+  border-color:var(--app-color-focus-ring);
+  outline:1px solid var(--app-color-focus-ring);
+  outline-offset:-1px;
+}
+.ui-textfield:disabled{
+  opacity:.45;
+  cursor:not-allowed;
+}
+.ui-textfield.mono,
+.field-input.mono,
+.mono{
   font-family:var(--app-font-family-mono);
 }
-.swc-button{
+.ui-field-label{
+  display:block;
+  margin-bottom:6px;
+  font-size:11px;
+  font-weight:600;
+  color:var(--app-color-text-secondary);
+}
+.ui-field-label[data-disabled="true"]{ opacity:.45; }
+.ui-field-label[data-required="true"] span::after{
+  content:"*";
+  margin-left:3px;
+  color:var(--app-color-negative);
+}
+.ui-help-text{
+  display:block;
+  font-size:11px;
+  line-height:15px;
+  color:var(--app-color-text-muted);
+}
+.ui-help-text[data-variant="negative"]{ color:var(--app-color-negative); }
+.ui-divider{
+  display:block;
   width:100%;
-  display:flex;
+  height:1px;
+  margin-top:0;
+  margin-right:0;
+  margin-bottom:0;
+  margin-left:0;
+  padding:0;
+  border:none;
+  background:var(--app-color-border-default);
+}
+.ui-divider[data-orientation="vertical"]{
+  width:1px;
+  height:auto;
+  align-self:stretch;
+}
+.ui-button-block{
+  width:100%;
+}
+.ui-btn,
+.ui-action-button{
+  position:relative;
+  min-height:32px;
+  padding:6px 12px;
+  border:1px solid var(--app-color-border-default);
+  border-radius:var(--app-radius-medium);
+  background:var(--app-color-background-layer-2);
+  color:var(--app-color-text-primary);
+  cursor:pointer;
+  display:inline-flex;
   align-items:center;
   justify-content:center;
+  min-width:0;
 }
-.swc-button::part(button){
-  width:100%;
+.ui-btn:hover,
+.ui-action-button:hover{
+  border-color:var(--app-color-border-strong);
+  background:var(--app-color-background-elevated);
+}
+.ui-btn:active,
+.ui-action-button:active{ background:var(--app-color-active-overlay); }
+.ui-btn:focus-visible,
+.ui-action-button:focus-visible{
+  outline:1px solid var(--app-color-focus-ring);
+  outline-offset:1px;
+}
+.ui-btn:disabled,
+.ui-action-button:disabled{
+  opacity:.45;
+  cursor:not-allowed;
+}
+.ui-btn[data-variant="accent"]{
+  border-color:var(--app-color-accent-default);
+  background:var(--app-color-accent-default);
+  color:var(--app-color-text-on-accent);
+}
+.ui-btn[data-variant="accent"]:hover{ background:var(--app-color-accent-hover); }
+.ui-btn[data-variant="accent"]:active{ background:var(--app-color-accent-down); }
+.ui-btn[data-variant="negative"]{
+  border-color:var(--app-color-negative);
+  color:var(--app-color-negative);
+}
+.ui-btn[data-variant="primary"]{
+  border-color:var(--app-color-accent-default);
+  color:var(--app-color-accent-default);
+}
+.ui-action-button[data-quiet="true"]{
+  border-color:transparent;
+  background:transparent;
+}
+.ui-action-button[data-quiet="true"]:hover{
+  border-color:transparent;
+  background:var(--app-color-hover-overlay);
+}
+.ui-action-button[data-selected="true"]{
+  border-color:var(--app-color-accent-default);
+  background:var(--app-color-accent-subtle);
+  color:var(--app-color-accent-default);
+}
+.ui-action-button[data-emphasized="true"]{
+  border-color:var(--app-color-accent-default);
+  color:var(--app-color-accent-default);
 }
 .ui-button-content{
   display:inline-flex;
@@ -475,11 +603,4 @@ sp-textfield{
   position:relative;
   top:1px;
 }
-sp-divider{
-  --spectrum-divider-background-color:var(--app-color-border-default);
-}
-/* Workaround: SWC 0.37.0 menu surface 不会继承 sp-theme 的 background，
- * 在 UXP host 中默认透明会导致菜单叠在内容上不可读。显式给菜单容器
- * （.cmp-select-menu / .model-menu / .attach-picker / .layer-list-wrap）
- * 在各自规则里设置背景，不在此处依赖 shadow DOM 内部 token。 */
 `;

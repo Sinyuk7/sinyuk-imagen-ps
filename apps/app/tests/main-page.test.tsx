@@ -69,15 +69,20 @@ function clickText(container: HTMLElement, selector: string, text: string): void
 }
 
 describe('MainPage contract', () => {
-  it('无 attachment 时 image-edit send 在 hook 内阻止 provider 调用', async () => {
+  it('无 attachment 时提交 provider-generate', async () => {
     const container = document.createElement('div');
     document.body.appendChild(container);
     const { spies } = await renderApp(container);
 
     await sendPrompt(container, 'make an image');
 
-    expect(spies.submitJob).not.toHaveBeenCalled();
-    expect(container.textContent).toContain('Image edit requires an attachment');
+    expect(spies.submitJob).toHaveBeenCalledWith(expect.objectContaining({
+      workflow: 'provider-generate',
+      input: expect.objectContaining({
+        prompt: 'make an image',
+        profileId: 'mock-profile',
+      }),
+    }));
   });
 
   it('file attachment 只能经 HostBridge 读取，并提交 provider-edit', async () => {
@@ -465,7 +470,7 @@ describe('MainPage contract', () => {
     const selector = container.querySelector<HTMLElement>('[data-testid="main-profile-selector"]')!;
     expect(selector.getAttribute('aria-haspopup')).toBe('listbox');
     expect(selector.getAttribute('aria-expanded')).toBe('false');
-    expect(selector.querySelector('sp-icon-chevron-down')).not.toBeNull();
+    expect(selector.querySelector('[data-icon-name="chevron-down"]')).not.toBeNull();
 
     await act(async () => {
       selector.click();
@@ -614,10 +619,10 @@ describe('MainPage contract', () => {
 
     const send = container.querySelector<HTMLElement>('[data-testid="composer-send-button"]')!;
     expect(send.querySelector('[data-icon-name="send"]')).not.toBeNull();
-    expect(send.querySelector('[data-icon="sp-icon-send"]')).not.toBeNull();
-    expect(send.querySelector('[data-icon="sp-icon-refresh"]')).toBeNull();
+    expect(send.querySelector('[data-icon="icon-send"]')).not.toBeNull();
+    expect(send.querySelector('[data-icon-name="spinner"]')).toBeNull();
     expect(send.getAttribute('aria-label')).toBe('发送');
-    expect(send.textContent).toContain('发送');
+    expect(send.getAttribute('title')).toBe('发送');
   });
 
   it('running Send surface labels the regenerate-like glyph as Regenerate', async () => {
@@ -641,9 +646,9 @@ describe('MainPage contract', () => {
 
     const send = container.querySelector<HTMLElement>('[data-testid="composer-send-button"]')!;
     expect(send.querySelector('[data-icon-name="spinner"]')).not.toBeNull();
-    expect(send.querySelector('[data-icon="sp-icon-refresh"]')).not.toBeNull();
+    expect(send.querySelector('[data-icon="icon-spinner"]')).not.toBeNull();
     expect(send.getAttribute('aria-label')).toBe('重新生成');
-    expect(send.textContent).toContain('重新生成');
+    expect(send.getAttribute('title')).toBe('重新生成');
   });
 
   it('prompt optimization 调用 optimizePrompt 并回填结果', async () => {

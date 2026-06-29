@@ -54,23 +54,31 @@ describe('Chrome adapter contracts', () => {
     pngHeader[18] = 4;
     pngHeader[22] = 4;
     const file = new File([pngHeader], 'upload.png', { type: 'image/png' });
+    const storage = createChromeIndexedDbStorage({ backend: createMemoryIndexedDbBackend() });
     const host = createChromeHostPort({
-      simulator: createPhotoshopSimulator('seeded-document'),
+      assetStore: storage.assets,
+      simulator: createPhotoshopSimulator(storage.assets, 'seeded-document'),
       filePicker: { pick: async () => file },
     });
 
     const image = await host.pickImageFile({ maxSide: 2048 });
     expect(image?.asset.name).toBe('upload.png');
-    expect(image?.asset.data).toBeInstanceOf(Uint8Array);
+    expect(image?.asset.storedRef).toMatchObject({ kind: 'hostObject', name: 'upload.png', mimeType: 'image/png' });
+    expect(image?.resource.derivatives.providerInput?.kind).toBe('ready');
     expect(image?.metadata.source).toBe('file');
+    expect(new Uint8Array((await storage.assets.resolve(image!.asset.storedRef!)) ?? new ArrayBuffer(0))).toEqual(pngHeader);
   });
 
   it('provides a seeded Photoshop simulator with ten fixed image-backed layers', async () => {
-    const simulator = createPhotoshopSimulator('seeded-document');
+    const storage = createChromeIndexedDbStorage({ backend: createMemoryIndexedDbBackend() });
+    const simulator = createPhotoshopSimulator(storage.assets, 'seeded-document');
     const layers = simulator.listLayers();
     expect(layers).toHaveLength(10);
     expect(layers.map((layer) => layer.name)).toContain('sim-layer-10.svg');
-    expect((await simulator.readLayerAsAsset(10, { maxSide: 2048 })).preview.url).toContain('data:image/svg+xml;base64,');
+    const layerAsset = await simulator.readLayerAsAsset(10, { maxSide: 2048 });
+    expect(layerAsset.preview.url).toContain('data:image/svg+xml;base64,');
+    expect(layerAsset.asset.storedRef).toMatchObject({ kind: 'hostObject', name: 'sim-layer-10.svg' });
+    expect(layerAsset.resource.derivatives.providerInput?.kind).toBe('ready');
   });
 
   it('runs the Chrome provider command path with mock provider state and simulator layers', async () => {

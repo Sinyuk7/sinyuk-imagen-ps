@@ -156,11 +156,12 @@ const INLINE_STYLE_FORBIDDEN: readonly ForbiddenPattern[] = [
 ];
 
 const FORM_CONTROL_FILE = join(UI_ROOT, 'components', 'uxp-form-controls.tsx');
+const NATIVE_CONTROL_FILE = join(UI_ROOT, 'primitives', 'native-controls.tsx');
 const INPUT_PAGE_FORBIDDEN: readonly ForbiddenPattern[] = [
   {
     name: 'direct native input in page code',
     pattern: /<\s*input\b/u,
-    replacement: 'Use shared Spectrum TextField/Checkbox primitives so Chrome and UXP stay on one control contract.',
+    replacement: 'Use shared native TextField/Checkbox primitives so Chrome and UXP stay on one control contract.',
     category: 'project-policy',
   },
   {
@@ -172,13 +173,13 @@ const INPUT_PAGE_FORBIDDEN: readonly ForbiddenPattern[] = [
   {
     name: 'page-level native change handler',
     pattern: /\bonChange\s*=/u,
-    replacement: 'Use shared Spectrum primitives or UxpTextArea instead of direct input/change handlers in pages.',
+    replacement: 'Use shared native primitives or UxpTextArea instead of direct input/change handlers in pages.',
     category: 'project-policy',
   },
   {
     name: 'page-level native input handler',
     pattern: /\bonInput\s*=/u,
-    replacement: 'Use shared Spectrum primitives or UxpTextArea instead of direct input/change handlers in pages.',
+    replacement: 'Use shared native primitives or UxpTextArea instead of direct input/change handlers in pages.',
     category: 'project-policy',
   },
 ];
@@ -253,9 +254,9 @@ describe('UXP panel CSS compatibility', () => {
   it('keeps toasts below the app header and fluid in compact panels', () => {
     const unionSource = CSS_SOURCES.map((path) => readFileSync(path, 'utf8')).join('\n');
     expect(unionSource).toContain('--app-header-height:48px');
-    expect(unionSource).toContain('sp-toast[data-testid="toast"]');
+    expect(unionSource).toContain('.ui-toast[data-testid="toast"]');
     expect(unionSource).toContain('top:calc(var(--app-header-height, 48px) + 10px)');
-    expect(unionSource).toContain('.panel[data-panel-width-mode="compact"] sp-toast[data-testid="toast"]');
+    expect(unionSource).toContain('.panel[data-panel-width-mode="compact"] .ui-toast[data-testid="toast"]');
     expect(unionSource).toContain('left:12px; right:12px; width:auto; max-width:none;');
   });
 
@@ -282,7 +283,7 @@ describe('UXP panel CSS compatibility', () => {
   it('keeps native form events behind the UXP-safe control seam', () => {
     const uiFiles = walkFiles(UI_ROOT).filter((filePath) => {
       const extension = filePath.slice(filePath.lastIndexOf('.'));
-      return STYLE_FILE_EXTENSIONS.has(extension) && filePath !== FORM_CONTROL_FILE;
+      return STYLE_FILE_EXTENSIONS.has(extension) && filePath !== FORM_CONTROL_FILE && filePath !== NATIVE_CONTROL_FILE;
     });
 
     for (const filePath of uiFiles) {
@@ -294,7 +295,7 @@ describe('UXP panel CSS compatibility', () => {
 
   it('does not use synthetic input/change dispatch as app harness input', () => {
     const harnessFiles = [...walkFiles(join(APP_ROOT, 'tests')), ...walkFiles(join(APP_ROOT, 'src'))].filter(
-      (filePath) => /\.(?:test|spec)\.(?:ts|tsx)$/u.test(filePath) && !filePath.endsWith('tests/spectrum-controls.test.tsx'),
+      (filePath) => /\.(?:test|spec)\.(?:ts|tsx)$/u.test(filePath) && !filePath.endsWith('tests/native-controls.test.tsx'),
     );
 
     for (const filePath of harnessFiles) {

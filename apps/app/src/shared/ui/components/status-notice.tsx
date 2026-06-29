@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Icon } from './icons';
-import { ActionButton } from '../primitives/spectrum-controls';
+import { ActionButton } from '../primitives/native-controls';
 
 export type StatusTone = 'success' | 'warning' | 'error' | 'info';
 
@@ -60,7 +60,7 @@ export function StatusNotice({ tone, message }: StatusNoticeProps) {
         aria-label="Copy status message"
         onClick={() => void handleCopy()}
       >
-        <Icon name={copied ? 'check' : 'copy'} slot="icon" />
+        <Icon name={copied ? 'check' : 'copy'} />
       </ActionButton>
     </div>
   );

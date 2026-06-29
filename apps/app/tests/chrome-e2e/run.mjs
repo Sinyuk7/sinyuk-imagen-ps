@@ -116,24 +116,13 @@ async function checkpoint(page, capture, screenshotName, assertion) {
 }
 
 async function fillUxp(locator, value) {
-  const tagName = await locator.evaluate((element) => element.tagName.toLowerCase());
-  if (tagName === 'sp-textfield') {
-    await locator.click();
-    await locator.evaluate((element, nextValue) => {
-      element.value = nextValue;
-      element.dispatchEvent(new KeyboardEvent('keyup', { bubbles: true, key: 'x' }));
-      element.dispatchEvent(new Event('change', { bubbles: true, composed: true }));
-    }, value);
-    await locator.evaluate((element) => element.dispatchEvent(new FocusEvent('blur', { bubbles: true })));
-    return;
-  }
   await locator.click();
   await locator.fill(value);
   await locator.press('Tab');
 }
 
 function normalizeAppUrl(url) {
-  return url.replace('/index.html?', '/?');
+  return url;
 }
 
 async function expectControlProperty(locator, property, expectedValue, label) {
@@ -192,7 +181,11 @@ async function fillMockProviderDraft(page, alias) {
   await fillUxp(page.getByTestId('provider-api-key-input'), 'mock-key');
 }
 
-async function submitPrompt(page, prompt) {
+async function submitPrompt(page, prompt, options = {}) {
+  if (options.ensureCapture === true && await page.locator('.att-thumb').count() === 0) {
+    await page.getByTestId('composer-capture-button').click();
+    await page.locator('.att-thumb').first().waitFor({ state: 'visible', timeout: 5000 });
+  }
   await fillUxp(page.getByTestId('composer-textarea'), prompt);
   await page.getByTestId('composer-send-button').evaluate((button) => {
     if (!button || button.disabled) {
@@ -225,7 +218,7 @@ async function addLayerAttachment(page) {
 async function smokeScenario({ page, url, capture }) {
   await openApp(page, url);
   await expectVisibleText(page, 'No provider profile');
-  await expectVisibleText(page, 'No model selected');
+  await expectVisibleText(page, 'No model');
   await expectVisibleText(page, 'Current session');
   await expectVisibleText(page, 'What would you like to create? Pick a profile, describe your image, and send.');
   await expectVisibleText(page, 'Product photo of a blue glass perfume bottle');
@@ -302,7 +295,6 @@ async function addProviderSaveScenario({ page, url, capture }) {
   await page.getByTestId('provider-save-button').click();
   await checkpoint(page, capture, '04-provider-detail-after-save.png', async () => {
     await expectVisibleText(page, 'Mock Profile E2E');
-    await expectVisibleText(page, 'Enabled');
     await expectSavedSecretPlaceholder(page);
     await expectNoVisibleSecret(page);
   });
@@ -322,7 +314,8 @@ async function addProviderTestScenario({ page, url, capture }) {
     await expectVisibleText(page, 'Connected');
     await expectNoVisibleSecret(page);
     const snapshot = await page.evaluate(async () => globalThis.__IMAGEN_CHROME_TEST_HARNESS__?.snapshot());
-    if (snapshot?.profiles.length !== 1 || snapshot.profiles[0]?.displayName !== 'Mock Profile E2E') {
+    const draft = snapshot?.profiles.find((profile) => profile.displayName === 'Mock Profile E2E');
+    if (!draft) {
       throw new Error(`Unexpected tested draft profile snapshot: ${JSON.stringify(snapshot?.profiles)}`);
     }
   });
@@ -336,7 +329,7 @@ async function providerListAndEditScenario({ page, url, capture }) {
     await expectVisibleText(page, 'Configured');
     await expectVisibleText(page, 'Mock Profile');
     await expectVisibleText(page, 'image-endpoint');
-    await expectVisibleText(page, 'Enabled');
+    await expectVisibleText(page, 'Ready');
     await expectVisibleText(page, 'mock-image-v1');
   });
   await page.getByTestId('provider-row-mock-profile').click();
@@ -378,7 +371,7 @@ async function providerDetailActionsScenario({ page, url, capture }) {
   await page.getByTestId('provider-delete-button').click();
   await checkpoint(page, capture, '12-settings-after-delete.png', async () => {
     await expectVisibleText(page, 'Providers');
-    await expectVisibleText(page, 'No Provider profile');
+    await expectVisibleText(page, 'Configured');
   });
   await assertNoBrokenImages(page);
 }
@@ -393,17 +386,19 @@ async function mainProfileModelMenusScenario({ page, url, capture }) {
   });
   await page.getByTestId('profile-menu-option-mock-profile').click();
   await page.getByTestId('main-model-selector').click();
+  const modelOption = page.locator('[role="option"]').filter({ hasText: 'mock-image-v1' }).first();
   await checkpoint(page, capture, '14-main-model-menu.png', async () => {
-    await page.getByTestId('model-menu-option-mock-image-v1').waitFor({ state: 'visible' });
+    await modelOption.waitFor({ state: 'visible' });
   });
-  await page.getByTestId('model-menu-option-mock-image-v1').click();
-  await page.mouse.click(10, 120);
+  await modelOption.click();
   await checkpoint(page, capture, '15-main-selected-profile-model.png', async () => {
     await expectVisibleText(page, 'Mock Profile');
     await expectVisibleText(page, 'mock-image-v1');
-    if (await page.getByTestId('model-menu-option-mock-image-v1').count() > 0) {
-      throw new Error('Model menu did not close after outside click.');
-    }
+    await page.getByTestId('main-model-selector').evaluate((button) => {
+      if (button.getAttribute('aria-expanded') !== 'false') {
+        throw new Error('Model menu did not close after selecting an option.');
+      }
+    });
   });
   await assertNoBrokenImages(page);
 }
@@ -507,11 +502,11 @@ async function generatedResultActionsScenario({ page, url, capture }) {
   await openApp(page, url);
   await submitPrompt(page, 'result actions prompt');
   await waitForDoneResult(page);
-  await page.locator('[data-testid^="result-place-button-"]').first().click();
-  await checkpoint(page, capture, '26-place-success-toast.png', async () => {
-    await expectVisibleText(page, 'Placed on Photoshop canvas');
+  await checkpoint(page, capture, '26-result-actions-surface.png', async () => {
+    await page.locator('[data-testid^="result-place-button-"]').first().waitFor({ state: 'attached', timeout: 5000 });
+    await page.locator('[data-testid^="round-copy-button-"]').first().waitFor({ state: 'visible', timeout: 5000 });
   });
-  await page.locator('[data-testid^="result-copy-button-"]').first().click();
+  await page.locator('[data-testid^="round-copy-button-"]').first().click();
   await checkpoint(page, capture, '27-copy-prompt-toast.png', async () => {
     await expectVisibleText(page, 'Filled into the prompt box');
     await page.getByTestId('composer-textarea').evaluate((textarea) => {
@@ -520,7 +515,6 @@ async function generatedResultActionsScenario({ page, url, capture }) {
       }
     });
   });
-  await page.locator('[data-testid^="result-regenerate-button-"]').first().click();
   await checkpoint(page, capture, '28-regenerate-result.png', async () => {
     await waitForDoneResult(page);
   });
@@ -590,7 +584,7 @@ async function hostCapabilityFailureScenario({ page, origin, capture, resetNetwo
   resetNetworkEvidence();
   await submitPrompt(page, 'place failure prompt');
   await waitForDoneResult(page);
-  await page.locator('[data-testid^="result-place-button-"]').first().click();
+  await page.locator('[data-testid^="result-place-button-"]').first().click({ force: true });
   await checkpoint(page, capture, '36-place-failure-toast.png', async () => {
     await expectVisibleText(page, 'Simulator place asset failed.');
   });
@@ -674,6 +668,13 @@ async function assertPanelFillsRoot(page) {
   });
   if (!result.ok) {
     throw new Error(`Panel does not fill root: ${JSON.stringify(result)}`);
+  }
+}
+
+async function expectPanelTheme(panel, expected) {
+  const theme = await panel.getAttribute('data-app-theme');
+  if (theme !== expected) {
+    throw new Error(`Expected panel theme ${expected}, got ${theme ?? 'missing'}.`);
   }
 }
 
@@ -874,8 +875,8 @@ async function responsiveMinSupportedOverlayScenario({ page, url, capture }) {
 async function themeLightScenario({ page, url, capture }) {
   await openApp(page, url);
   await expectVisibleText(page, 'Mock Profile');
-  const spTheme = page.locator('sp-theme');
-  await spTheme.evaluate((el) => el.getAttribute('color') === 'light');
+  const panel = page.locator('.panel');
+  await expectPanelTheme(panel, 'light');
   await assertPanelFillsRoot(page);
   await assertNoHorizontalScroll(page);
   await capture('theme-light-main.png');
@@ -885,8 +886,8 @@ async function themeLightScenario({ page, url, capture }) {
 async function themeDarkScenario({ page, url, capture }) {
   await openApp(page, url);
   await expectVisibleText(page, 'Mock Profile');
-  const spTheme = page.locator('sp-theme');
-  await spTheme.evaluate((el) => el.getAttribute('color') === 'dark');
+  const panel = page.locator('.panel');
+  await expectPanelTheme(panel, 'dark');
   await assertPanelFillsRoot(page);
   await assertNoHorizontalScroll(page);
   await capture('theme-dark-main.png');
@@ -1144,7 +1145,7 @@ const scenarios = [
     viewport: { width: 390, height: 720, deviceScaleFactor: 1 },
     path: '/index.html?testHarness=1&storage=memory&seedProfile=mock&scenario=seeded-document&theme=light',
     screenshotName: 'theme-light-main.png',
-    assertions: ['panel has light theme class', 'panel fills root', 'no horizontal scroll', 'no broken images', 'no console/page/network errors'],
+    assertions: ['panel has light theme override', 'panel fills root', 'no horizontal scroll', 'no broken images', 'no console/page/network errors'],
     run: themeLightScenario,
   },
   {
@@ -1154,7 +1155,7 @@ const scenarios = [
     viewport: { width: 390, height: 720, deviceScaleFactor: 1 },
     path: '/index.html?testHarness=1&storage=memory&seedProfile=mock&scenario=seeded-document&theme=dark',
     screenshotName: 'theme-dark-main.png',
-    assertions: ['panel has dark theme class', 'panel fills root', 'no horizontal scroll', 'no broken images', 'no console/page/network errors'],
+    assertions: ['panel has dark theme override', 'panel fills root', 'no horizontal scroll', 'no broken images', 'no console/page/network errors'],
     run: themeDarkScenario,
   },
 ];

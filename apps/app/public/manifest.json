@@ -4,9 +4,6 @@
   "name": "Imagen PS",
   "version": "0.1.0",
   "main": "index.html",
-  "featureFlags": {
-    "enableSWCSupport": true
-  },
   "host": {
     "app": "PS",
     "minVersion": "26.1.0"

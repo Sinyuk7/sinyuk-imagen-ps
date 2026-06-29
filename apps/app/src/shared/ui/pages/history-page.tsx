@@ -2,7 +2,7 @@ import { useMemo, useState } from 'react';
 import type { DurableJobRecord } from '@imagen-ps/application';
 import type { ConversationRound, RoundStatus } from '../hooks/use-conversation';
 import { Icon } from '../components/icons';
-import { ActionButton } from '../primitives/spectrum-controls';
+import { ActionButton } from '../primitives/native-controls';
 import { ToastHost, useToast } from '../components/toast-host';
 import { useI18n } from '../i18n/i18n-context';
 
@@ -114,9 +114,10 @@ export function HistoryPage({ onNav, rounds, records, loading, error, onReload, 
           data-testid="history-back-button"
           className="hdr-btn"
           quiet
+          label={t.common.back}
           onClick={() => onNav('main')}
         >
-          <Icon name="chevron-left" slot="icon" />
+          <Icon name="chevron-left" />
         </ActionButton>
         <div className="hdr-title">{t.history.title}</div>
         <ActionButton
@@ -126,7 +127,7 @@ export function HistoryPage({ onNav, rounds, records, loading, error, onReload, 
           label={t.common.refresh}
           onClick={() => { void onReload(); }}
         >
-          <Icon name="refresh" slot="icon" />
+          <Icon name="refresh" />
         </ActionButton>
       </header>
       <div className="filter-bar">

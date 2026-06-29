@@ -121,11 +121,11 @@ export const PAGES_CSS = `
 .field-input-affordance .field-input-embedded{
   flex:1;
   min-width:0;
-  --spectrum-textfield-border-color:transparent;
 }
-.field-input-affordance .field-input-embedded sp-textfield,
 .field-input-affordance .field-input-embedded{
   background:transparent;
+  border:none;
+  border-radius:0;
 }
 .field-input-action{
   min-width:36px;
@@ -142,7 +142,7 @@ export const PAGES_CSS = `
   border-left-color:var(--app-color-focus-ring);
 }
 .test-area{ padding:16px; border-top:1px solid var(--app-color-border-default); display:flex; flex-direction:column; }
-.test-area .swc-button{ width:100%; }
+.test-area .ui-button-block{ width:100%; }
 .test-meta{ margin-top:8px; font-family:var(--app-font-family-mono); font-size:11px; color:var(--app-color-text-muted); }
 .test-area .status-notice{ margin-top:10px; }
 .scroll-footer-pad{ padding-bottom:80px; }

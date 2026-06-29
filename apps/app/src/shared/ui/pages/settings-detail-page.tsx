@@ -2,14 +2,12 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import type { ProviderProfile } from '@imagen-ps/application';
 import { useAppServices } from '../../ports/app-services-context';
 import { providerConfigFromForm, useProfileDetail, useProfileModels } from '../hooks/use-provider-settings';
-import type { HostPort } from '../../ports/host-port';
 import { Icon } from '../components/icons';
 import { ProviderProfileEditor } from '../components/provider-profile-editor';
 import { StatusNotice } from '../components/status-notice';
-import { UxpModelDropdown } from '../components/uxp-model-dropdown';
 import { UxpTextArea } from '../components/uxp-form-controls';
 import { useI18n } from '../i18n/i18n-context';
-import { Button, ActionButton, FieldLabel, HelpText, TextField } from '../primitives/spectrum-controls';
+import { Button, ActionButton, FieldLabel, HelpText, TextField } from '../primitives/native-controls';
 import { statusFromProviderTestResult, type ProviderStatus } from '../provider-status';
 import { ComposerSelect } from '../components/composer-select';
 
@@ -26,10 +24,6 @@ function formatElapsedMs(startedAt: number): string {
 function readConfigString(profile: ProviderProfile, key: string): string {
   const value = profile.config[key];
   return typeof value === 'string' ? value : '';
-}
-
-function isPhotoshopUxpRuntime(host: HostPort): boolean {
-  return host.capabilities.runtime === 'photoshop-uxp';
 }
 
 function profileFormCheckpointAttrs(
@@ -66,7 +60,6 @@ export function SettingsDetailPage({ onNav, profileId, onProfilesChanged }: Sett
   const [modelMenuOpen, setModelMenuOpen] = useState(false);
   const lastLoadedProfileIdRef = useRef<string | null>(null);
   const isOptimizerProfile = detail.profile?.providerId === 'prompt-optimize';
-  const useNativeModelDropdown = isPhotoshopUxpRuntime(services.host);
 
   useEffect(() => {
     if (!detail.profile) {
@@ -285,8 +278,8 @@ export function SettingsDetailPage({ onNav, profileId, onProfilesChanged }: Sett
     return (
       <div className="page page-enter">
         <header className="hdr">
-          <ActionButton className="hdr-btn" quiet onClick={() => onNav('settings')}>
-            <Icon name="chevron-left" slot="icon" />
+          <ActionButton className="hdr-btn" quiet label={t.common.back} onClick={() => onNav('settings')}>
+            <Icon name="chevron-left" />
           </ActionButton>
           <div className="hdr-title">Provider</div>
           <div style={{ width: 32 }} />
@@ -305,9 +298,10 @@ export function SettingsDetailPage({ onNav, profileId, onProfilesChanged }: Sett
           data-testid="provider-detail-back-button"
           className="hdr-btn"
           quiet
+          label={t.common.back}
           onClick={() => onNav('settings')}
         >
-          <Icon name="chevron-left" slot="icon" />
+          <Icon name="chevron-left" />
         </ActionButton>
         <div className="page-header-meta">
           <div className="hdr-title page-header-title">{detail.profile?.displayName ?? 'Provider'}</div>
@@ -319,7 +313,7 @@ export function SettingsDetailPage({ onNav, profileId, onProfilesChanged }: Sett
           label={t.common.refresh}
           onClick={() => void detail.reload()}
         >
-          <Icon name="refresh" slot="icon" />
+          <Icon name="refresh" />
         </ActionButton>
       </header>
 
@@ -359,41 +353,31 @@ export function SettingsDetailPage({ onNav, profileId, onProfilesChanged }: Sett
             defaultModelSection={(
               <>
                 <div className="field">
-                  <FieldLabel htmlFor="provider-default-model-input">{t.settings.defaultModel}</FieldLabel>
-                  {useNativeModelDropdown ? (
-                    <UxpModelDropdown
-                      className="provider-model-dropdown cmp-select-model"
-                      testId="provider-default-model-dropdown"
-                      placeholder={t.settings.customModelId}
-                      disabled={modelSelectDisabled || undefined}
-                      value={defaultModel}
-                      options={modelOptions}
-                      onValue={setDefaultModel}
-                    />
-                  ) : (
-                    <ComposerSelect
-                      label={t.settings.defaultModel}
-                      value={modelTriggerValue}
-                      disabled={modelSelectDisabled}
-                      open={modelMenuOpen}
-                      onOpenChange={setModelMenuOpen}
-                      options={modelOptions}
-                      selectedId={defaultModel}
-                      onSelect={(id) => {
-                        setDefaultModel(id);
-                        setModelMenuOpen(false);
-                      }}
-                      containerClassName="cmp-select cmp-select-model provider-model-select"
-                      menuClassName="cmp-select-menu cmp-select-menu-model"
-                    />
-                  )}
+                  <FieldLabel htmlFor="provider-default-model-selector">{t.settings.defaultModel}</FieldLabel>
+                  <ComposerSelect
+                    label={t.settings.defaultModel}
+                    value={modelTriggerValue}
+                    disabled={modelSelectDisabled}
+                    open={modelMenuOpen}
+                    onOpenChange={setModelMenuOpen}
+                    options={modelOptions}
+                    selectedId={defaultModel}
+                    onSelect={(id) => {
+                      setDefaultModel(id);
+                      setModelMenuOpen(false);
+                    }}
+                    testId="provider-default-model-selector"
+                    triggerId="provider-default-model-selector"
+                    containerClassName="cmp-select cmp-select-model provider-model-select"
+                    menuClassName="cmp-select-menu cmp-select-menu-model"
+                  />
                 </div>
                 <div className="field">
                   <FieldLabel htmlFor="provider-default-model-input">{t.settings.customModelId}</FieldLabel>
                   <TextField
                     data-testid="provider-default-model-input"
                     id="provider-default-model-input"
-                    className="field-input mono swc-field"
+                    className="field-input mono ui-field-control"
                     placeholder={t.settings.customModelId}
                     value={defaultModel}
                     onValue={setDefaultModel}
@@ -406,7 +390,7 @@ export function SettingsDetailPage({ onNav, profileId, onProfilesChanged }: Sett
                 </div>
                 {modelListNotice && <StatusNotice tone={modelListNotice.tone} message={modelListNotice.message} />}
                 {models.error && <StatusNotice tone="error" message={models.error} />}
-                <Button data-testid="provider-refresh-models-button" className="test-btn swc-button" variant="secondary" style={{ marginTop: 10 }} disabled={models.loading || busy} onClick={() => void refreshModels()}>
+                <Button data-testid="provider-refresh-models-button" className="test-btn ui-button-block" variant="secondary" style={{ marginTop: 10 }} disabled={models.loading || busy} onClick={() => void refreshModels()}>
                   {models.loading ? t.settings.refreshingModels : t.settings.refreshModels}
                 </Button>
               </>
@@ -421,10 +405,10 @@ export function SettingsDetailPage({ onNav, profileId, onProfilesChanged }: Sett
 
       <footer className="det-footer">
         <div className="settings-detail-footer-inner">
-          <Button data-testid="provider-save-button" className="btn-save swc-button" variant="accent" disabled={busy || !detail.profile} onClick={() => void save()}>{t.common.save}</Button>
+          <Button data-testid="provider-save-button" className="btn-save ui-button-block" variant="accent" disabled={busy || !detail.profile} onClick={() => void save()}>{t.common.save}</Button>
           {!isOptimizerProfile && (
-            <Button data-testid="provider-delete-button" className="btn-del swc-button" variant="negative" disabled={busy || !detail.profile} onClick={() => void remove()}>
-              <Icon name="trash" slot="icon" />
+            <Button data-testid="provider-delete-button" className="btn-del ui-button-block" variant="negative" aria-label={t.common.delete} disabled={busy || !detail.profile} onClick={() => void remove()}>
+              <Icon name="trash" />
             </Button>
           )}
         </div>

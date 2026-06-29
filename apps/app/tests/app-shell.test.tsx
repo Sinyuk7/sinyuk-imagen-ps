@@ -14,6 +14,7 @@ afterEach(async () => {
     });
   }
   root = undefined;
+  window.history.replaceState(null, '', '/');
   delete globalThis.__IMAGEN_PS_UI_FLIGHT_RECORDER__;
 });
 
@@ -297,5 +298,56 @@ describe('AppShell', () => {
     } finally {
       globalThis.ResizeObserver = originalResizeObserver;
     }
+  });
+
+  it('does not override Photoshop UXP host theme with a root data attribute', async () => {
+    const { services } = createFakeServices();
+    const container = document.createElement('div');
+    document.body.appendChild(container);
+    root = createRoot(container);
+
+    await act(async () => {
+      root!.render(
+        <AppShell
+          host={{
+            kind: 'photoshop-uxp',
+            app: { stage: 'uxp-first-shell', host: 'photoshop-uxp', services: ['commands', 'host'] },
+            locale: 'en',
+            services,
+            dispose: () => undefined,
+          }}
+        />,
+      );
+    });
+    await flush();
+    await flush();
+
+    expect(container.querySelector<HTMLDivElement>('.panel')?.hasAttribute('data-app-theme')).toBe(false);
+  });
+
+  it('applies Chrome theme query override to the root panel', async () => {
+    window.history.replaceState(null, '', '/?theme=light');
+    const { services } = createFakeServices();
+    const container = document.createElement('div');
+    document.body.appendChild(container);
+    root = createRoot(container);
+
+    await act(async () => {
+      root!.render(
+        <AppShell
+          host={{
+            kind: 'photoshop-uxp',
+            app: { stage: 'uxp-first-shell', host: 'photoshop-uxp', services: ['commands', 'host'] },
+            locale: 'en',
+            services,
+            dispose: () => undefined,
+          }}
+        />,
+      );
+    });
+    await flush();
+    await flush();
+
+    expect(container.querySelector<HTMLDivElement>('.panel')?.getAttribute('data-app-theme')).toBe('light');
   });
 });

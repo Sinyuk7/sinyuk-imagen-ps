@@ -12,7 +12,7 @@ import { Icon } from '../components/icons';
 import { ComposerSelect } from '../components/composer-select';
 import { UxpTextArea } from '../components/uxp-form-controls';
 import { useToast, ToastHost } from '../components/toast-host';
-import { ActionButton } from '../primitives/spectrum-controls';
+import { ActionButton } from '../primitives/native-controls';
 import { useI18n } from '../i18n/i18n-context';
 import type { ProviderInputSizePolicy } from '../../image/resize';
 
@@ -436,7 +436,7 @@ export function MainPage({
     setInput('');
     setAttachments([]);
     await conversation.submit({
-      operation: 'image-edit',
+      operation: attachments.length > 0 ? 'image-edit' : 'text-to-image',
       prompt,
       profileId: selectedProfile.profileId,
       providerName: selectedProfile.displayName,
@@ -536,7 +536,7 @@ export function MainPage({
           placement="bottom"
           onClick={(event) => { event.stopPropagation(); onNav('history'); }}
         >
-          <Icon name="history" slot="icon" />
+          <Icon name="history" />
         </ActionButton>
         <div className="hdr-center-wrap">
           <button
@@ -584,7 +584,7 @@ export function MainPage({
           placement="bottom"
           onClick={(event) => { event.stopPropagation(); onNav('settings'); }}
         >
-          <Icon name="settings" slot="icon" />
+          <Icon name="settings" />
         </ActionButton>
       </header>
 
@@ -642,7 +642,7 @@ export function MainPage({
                       label={t.main.reusePrompt}
                       onClick={(event) => { event.stopPropagation(); handleCopy(round.id, round); }}
                     >
-                      {copied[round.id] ? <Icon name="check" slot="icon" /> : <Icon name="copy" slot="icon" />}
+                      {copied[round.id] ? <Icon name="check" /> : <Icon name="copy" />}
                     </ActionButton>
                   </div>
                 </div>
@@ -668,7 +668,7 @@ export function MainPage({
                         label={t.main.copyPrompt}
                         onClick={(event) => { event.stopPropagation(); handleCopy(round.id, round); }}
                       >
-                        {copied[round.id] ? <Icon name="check" slot="icon" /> : <Icon name="copy" slot="icon" />}
+                        {copied[round.id] ? <Icon name="check" /> : <Icon name="copy" />}
                       </ActionButton>
                     </div>
                   </div>
@@ -775,7 +775,11 @@ export function MainPage({
                               </>
                             )}
                             <div className="img-overlay">
-                              <button className="img-act prim" onClick={(event) => { event.stopPropagation(); void placeAsset(round, selectedPreviewIndex); }}>
+                              <button
+                                data-testid={`result-place-button-${round.id}`}
+                                className="img-act prim"
+                                onClick={(event) => { event.stopPropagation(); void placeAsset(round, selectedPreviewIndex); }}
+                              >
                                 <span className="ui-icon-text">
                                   <Icon name="place-ps" size={13} className="ui-icon-text-icon" />
                                   <span className="ui-icon-text-label">{t.main.placePs}</span>
@@ -794,7 +798,7 @@ export function MainPage({
                         label={t.main.download}
                         onClick={(event) => { event.stopPropagation(); downloadPreview(round, previewIndexForRound(round)); }}
                       >
-                        <Icon name="download" slot="icon" />
+                        <Icon name="download" />
                       </ActionButton>
                     </div>
                   </div>
@@ -880,7 +884,7 @@ export function MainPage({
                     setProfileMenuOpen(false);
                   }}
                 >
-                  <Icon name="add" slot="icon" />
+                  <Icon name="add" />
                 </ActionButton>
                 {attachments.map((attachment) => (
                   <div key={attachment.id} className="att-thumb">
@@ -931,10 +935,10 @@ export function MainPage({
                   }}
                 >
                   {optimizing
-                    ? <Icon name="spinner" size={13} className="cmp-opt-icon spin" slot="icon" />
+                    ? <Icon name="spinner" size={13} className="cmp-opt-icon spin" />
                     : showUndo
-                      ? <Icon name="refresh" size={13} className="cmp-opt-icon" slot="icon" />
-                      : <Icon name="magic-wand" size={13} className="cmp-opt-icon" slot="icon" />}
+                      ? <Icon name="refresh" size={13} className="cmp-opt-icon" />
+                      : <Icon name="magic-wand" size={13} className="cmp-opt-icon" />}
                 </ActionButton>
               </div>
               <div className="cmp-action-right">
@@ -953,8 +957,8 @@ export function MainPage({
                   }}
                 >
                   {captureInFlight
-                    ? <Icon name="spinner" size={13} className="cmp-capture-icon spin" slot="icon" />
-                    : <Icon name="target" size={13} className="cmp-capture-icon" slot="icon" />}
+                    ? <Icon name="spinner" size={13} className="cmp-capture-icon spin" />
+                    : <Icon name="target" size={13} className="cmp-capture-icon" />}
                   <span className="cmp-action-label">{t.main.capture}</span>
                 </ActionButton>
                 <div className="send-wrap">
@@ -968,8 +972,8 @@ export function MainPage({
                     onClick={() => void handleSend()}
                   >
                     {conversation.running
-                      ? <Icon name="spinner" size={13} className="spin" slot="icon" />
-                      : <Icon name="send" slot="icon" />
+                      ? <Icon name="spinner" size={13} className="spin" />
+                      : <Icon name="send" />
                     }
                   </ActionButton>
                 </div>

@@ -113,7 +113,7 @@ describe('SettingsAddPage', () => {
       container.querySelector<HTMLElement>('[data-testid="provider-type-mock"]')!.click();
     });
 
-    const nameInput = Array.from(container.querySelectorAll<HTMLElement & { value?: string }>('sp-textfield, input'))[0];
+    const nameInput = Array.from(container.querySelectorAll<HTMLElement & { value?: string }>('input'))[0];
     expect(nameInput.value).toBe('Mock Provider(1)');
   });
 

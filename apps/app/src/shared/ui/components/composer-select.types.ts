@@ -25,6 +25,8 @@ export interface ComposerSelectProps {
   readonly onSelect: (id: string) => void;
   /** 数据测试 ID 前缀。 */
   readonly testId?: string;
+  /** 触发按钮 id，用于外部 label 关联。 */
+  readonly triggerId?: string;
   /** 触发器 + 菜单容器类名，用于窄面板里的局部宽度约束。 */
   readonly containerClassName?: string;
   /** 触发器内额外前缀图标。 */

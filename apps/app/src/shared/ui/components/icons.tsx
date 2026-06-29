@@ -1,39 +1,11 @@
-import { createElement, type CSSProperties, type ReactElement } from 'react';
-
-import '@spectrum-web-components/icons-workflow/icons/sp-icon-add.js';
-import '@spectrum-web-components/icons-workflow/icons/sp-icon-alert-circle.js';
-import '@spectrum-web-components/icons-workflow/icons/sp-icon-arrow-right.js';
-import '@spectrum-web-components/icons-workflow/icons/sp-icon-checkmark.js';
-import '@spectrum-web-components/icons-workflow/icons/sp-icon-chevron-down.js';
-import '@spectrum-web-components/icons-workflow/icons/sp-icon-chevron-left.js';
-import '@spectrum-web-components/icons-workflow/icons/sp-icon-chevron-right.js';
-import '@spectrum-web-components/icons-workflow/icons/sp-icon-copy.js';
-import '@spectrum-web-components/icons-workflow/icons/sp-icon-delete.js';
-import '@spectrum-web-components/icons-workflow/icons/sp-icon-download.js';
-import '@spectrum-web-components/icons-workflow/icons/sp-icon-file-add.js';
-import '@spectrum-web-components/icons-workflow/icons/sp-icon-history.js';
-import '@spectrum-web-components/icons-workflow/icons/sp-icon-image-add.js';
-import '@spectrum-web-components/icons-workflow/icons/sp-icon-image-auto-mode.js';
-import '@spectrum-web-components/icons-workflow/icons/sp-icon-image-check.js';
-import '@spectrum-web-components/icons-workflow/icons/sp-icon-layers.js';
-import '@spectrum-web-components/icons-workflow/icons/sp-icon-magic-wand.js';
-import '@spectrum-web-components/icons-workflow/icons/sp-icon-move-left-right.js';
-import '@spectrum-web-components/icons-workflow/icons/sp-icon-redo.js';
-import '@spectrum-web-components/icons-workflow/icons/sp-icon-refresh.js';
-import '@spectrum-web-components/icons-workflow/icons/sp-icon-selection.js';
-import '@spectrum-web-components/icons-workflow/icons/sp-icon-send.js';
-import '@spectrum-web-components/icons-workflow/icons/sp-icon-settings.js';
-import '@spectrum-web-components/icons-workflow/icons/sp-icon-target.js';
-import '@spectrum-web-components/icons-workflow/icons/sp-icon-visibility-off.js';
-import '@spectrum-web-components/icons-workflow/icons/sp-icon-visibility.js';
+import type { CSSProperties, ReactElement, SVGProps } from 'react';
 
 /**
  * @imagen-ps/app 图标调用合同。
  *
- * Shared UI 继续只通过业务语义名称调用图标；具体图形使用 SWC workflow
- * icon 的按需 custom element 注册，避免重新引入自制 PNG 或全量图标库。
+ * Shared UI 只通过业务语义名称调用图标；底层输出普通 inline SVG，
+ * 避免 Photoshop UXP 中 workflow icon custom element 的首帧几何不稳定。
  */
-
 export type IconName =
   | 'add'
   | 'arrow-right'
@@ -71,61 +43,213 @@ interface IconProps {
   readonly style?: CSSProperties;
   /** 自定义类名。 */
   readonly className?: string;
-  /** 仅在宿主组件需要显式 slot 时传入。 */
-  readonly slot?: string;
 }
 
-const ICON_TAG_BY_NAME: Record<IconName, string> = {
-  add: 'sp-icon-add',
-  'arrow-right': 'sp-icon-arrow-right',
-  check: 'sp-icon-checkmark',
-  'chevron-down': 'sp-icon-chevron-down',
-  'chevron-left': 'sp-icon-chevron-left',
-  'chevron-right': 'sp-icon-chevron-right',
-  copy: 'sp-icon-copy',
-  download: 'sp-icon-download',
-  error: 'sp-icon-alert-circle',
-  eye: 'sp-icon-visibility',
-  'eye-off': 'sp-icon-visibility-off',
-  history: 'sp-icon-history',
-  'image-auto-mode': 'sp-icon-image-auto-mode',
-  'image-check': 'sp-icon-image-check',
-  'magic-wand': 'sp-icon-magic-wand',
-  'place-ps': 'sp-icon-image-add',
-  'ps-layers': 'sp-icon-layers',
-  refresh: 'sp-icon-refresh',
-  regenerate: 'sp-icon-redo',
-  selection: 'sp-icon-selection',
-  send: 'sp-icon-send',
-  settings: 'sp-icon-settings',
-  spinner: 'sp-icon-refresh',
-  target: 'sp-icon-target',
-  trash: 'sp-icon-delete',
-  upload: 'sp-icon-file-add',
+type SvgBody = (props: SVGProps<SVGSVGElement>) => ReactElement;
+
+const ICON_BODY_BY_NAME: Record<IconName, SvgBody> = {
+  add: () => (
+    <>
+      <line x1="12" y1="5" x2="12" y2="19" />
+      <line x1="5" y1="12" x2="19" y2="12" />
+    </>
+  ),
+  'arrow-right': () => <polyline points="9 5 16 12 9 19" />,
+  check: () => <polyline points="5 12.5 9.4 17 19 7" />,
+  'chevron-down': () => <polyline points="6 9 12 15 18 9" />,
+  'chevron-left': () => <polyline points="15 5 8 12 15 19" />,
+  'chevron-right': () => <polyline points="9 5 16 12 9 19" />,
+  copy: () => (
+    <>
+      <rect x="8" y="8" width="11" height="11" rx="2" />
+      <path d="M5 15V7c0-1.1.9-2 2-2h8" />
+    </>
+  ),
+  download: () => (
+    <>
+      <path d="M12 4v10" />
+      <polyline points="8 10 12 14 16 10" />
+      <path d="M5 19h14" />
+    </>
+  ),
+  error: () => (
+    <>
+      <circle cx="12" cy="12" r="9" />
+      <line x1="12" y1="7" x2="12" y2="13" />
+      <circle cx="12" cy="17" r="1" />
+    </>
+  ),
+  eye: () => (
+    <>
+      <path d="M3.5 12s3-5.5 8.5-5.5S20.5 12 20.5 12s-3 5.5-8.5 5.5S3.5 12 3.5 12" />
+      <circle cx="12" cy="12" r="2.6" />
+    </>
+  ),
+  'eye-off': () => (
+    <>
+      <path d="M4 4l16 16" />
+      <path d="M8.4 8.4C5.5 9.7 3.5 12 3.5 12s3 5.5 8.5 5.5c1.3 0 2.5-.3 3.5-.8" />
+      <path d="M12.8 6.6C17.8 7.1 20.5 12 20.5 12s-.8 1.5-2.2 2.9" />
+    </>
+  ),
+  history: () => (
+    <>
+      <path d="M5 8V4" />
+      <path d="M5 8h4" />
+      <path d="M5.6 8.2A7 7 0 1 1 4.9 14" />
+      <polyline points="12 8 12 12.5 15 14" />
+    </>
+  ),
+  'image-auto-mode': () => (
+    <>
+      <rect x="4" y="5" width="16" height="12" rx="2" />
+      <path d="M7 14l3-3 2 2 2.5-3 2.5 4" />
+      <path d="M17.5 3.5l.7 1.5 1.5.7-1.5.7-.7 1.5-.7-1.5-1.5-.7 1.5-.7.7-1.5z" />
+    </>
+  ),
+  'image-check': () => (
+    <>
+      <rect x="4" y="5" width="16" height="12" rx="2" />
+      <path d="M7 14l3-3 2 2 2.5-3 2.5 4" />
+      <polyline points="14 5 16 7 20 3" />
+    </>
+  ),
+  'magic-wand': () => (
+    <>
+      <path d="M5 19L19 5" />
+      <path d="M14 4l6 6" />
+      <path d="M5 5h2" />
+      <path d="M6 4v2" />
+      <path d="M18 17h2" />
+      <path d="M19 16v2" />
+    </>
+  ),
+  'place-ps': () => (
+    <>
+      <rect x="4" y="5" width="16" height="14" rx="2" />
+      <path d="M7 15l3-3 2 2 2.5-3 2.5 4" />
+      <line x1="12" y1="8" x2="12" y2="13" />
+      <line x1="9.5" y1="10.5" x2="14.5" y2="10.5" />
+    </>
+  ),
+  'ps-layers': () => (
+    <>
+      <path d="M12 3l8 4-8 4-8-4 8-4z" />
+      <path d="M4 12l8 4 8-4" />
+      <path d="M4 17l8 4 8-4" />
+    </>
+  ),
+  refresh: () => (
+    <>
+      <path d="M19 8a7 7 0 0 0-12-2l-2 2" />
+      <polyline points="5 4 5 8 9 8" />
+      <path d="M5 16a7 7 0 0 0 12 2l2-2" />
+      <polyline points="19 20 19 16 15 16" />
+    </>
+  ),
+  regenerate: () => (
+    <>
+      <path d="M19 8a7 7 0 0 0-12-2l-2 2" />
+      <polyline points="5 4 5 8 9 8" />
+      <path d="M5 16a7 7 0 0 0 12 2l2-2" />
+      <polyline points="19 20 19 16 15 16" />
+    </>
+  ),
+  selection: () => (
+    <>
+      <rect x="5" y="5" width="14" height="14" rx="2" />
+      <path d="M9 5v14" />
+      <path d="M15 5v14" />
+    </>
+  ),
+  send: () => (
+    <>
+      <path d="M21 4L10 15" />
+      <path d="M21 4l-7 17-4-6-6-4 17-7z" />
+    </>
+  ),
+  settings: () => (
+    <>
+      <circle cx="12" cy="12" r="3" />
+      <path d="M12 3v3" />
+      <path d="M12 18v3" />
+      <path d="M3 12h3" />
+      <path d="M18 12h3" />
+      <path d="M5.6 5.6l2.1 2.1" />
+      <path d="M16.3 16.3l2.1 2.1" />
+      <path d="M18.4 5.6l-2.1 2.1" />
+      <path d="M7.7 16.3l-2.1 2.1" />
+    </>
+  ),
+  spinner: () => (
+    <>
+      <path d="M19 8a7 7 0 0 0-12-2l-2 2" />
+      <polyline points="5 4 5 8 9 8" />
+      <path d="M5 16a7 7 0 0 0 12 2l2-2" />
+      <polyline points="19 20 19 16 15 16" />
+    </>
+  ),
+  target: () => (
+    <>
+      <circle cx="12" cy="12" r="8" />
+      <circle cx="12" cy="12" r="3" />
+      <line x1="12" y1="2" x2="12" y2="5" />
+      <line x1="12" y1="19" x2="12" y2="22" />
+      <line x1="2" y1="12" x2="5" y2="12" />
+      <line x1="19" y1="12" x2="22" y2="12" />
+    </>
+  ),
+  trash: () => (
+    <>
+      <path d="M5 7h14" />
+      <path d="M9 7V5h6v2" />
+      <path d="M8 10v9" />
+      <path d="M12 10v9" />
+      <path d="M16 10v9" />
+      <path d="M7 7l1 14h8l1-14" />
+    </>
+  ),
+  upload: () => (
+    <>
+      <path d="M12 20V9" />
+      <polyline points="8 13 12 9 16 13" />
+      <path d="M5 20h14" />
+      <path d="M6 4h12v4" />
+    </>
+  ),
 };
 
 /**
- * 渲染已按需注册的 SWC workflow icon。
+ * 渲染项目自有 inline SVG 图标。
  *
  * @param props.name - 图标名称
  * @param props.size - 渲染尺寸
  * @param props.style - 额外样式
  * @param props.className - 额外类名
  */
-export function Icon({ name, size = 14, style, className, slot }: IconProps): ReactElement {
-  return createElement(ICON_TAG_BY_NAME[name], {
-    'aria-hidden': 'true',
-    className,
-    'data-icon': ICON_TAG_BY_NAME[name],
-    'data-icon-name': name,
-    ...(slot ? { slot } : {}),
-    style: {
-      color: 'inherit',
-      display: 'block',
-      flexShrink: 0,
-      height: size,
-      width: size,
-      ...style,
-    },
-  });
+export function Icon({ name, size = 14, style, className }: IconProps): ReactElement {
+  const Body = ICON_BODY_BY_NAME[name];
+  return (
+    <svg
+      aria-hidden="true"
+      className={className}
+      data-icon={`icon-${name}`}
+      data-icon-name={name}
+      focusable="false"
+      height={size}
+      style={{ color: 'inherit', display: 'block', flexShrink: 0, ...style }}
+      viewBox="0 0 24 24"
+      width={size}
+    >
+      <g
+        fill="none"
+        stroke="currentColor"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        strokeWidth="1.8"
+      >
+        <Body />
+      </g>
+    </svg>
+  );
 }

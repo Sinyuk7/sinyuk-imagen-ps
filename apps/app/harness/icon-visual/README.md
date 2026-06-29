@@ -8,8 +8,8 @@ because it requires a real Photoshop host and the UXP Developer Tool.
 
 ## When to run
 
-- After replacing the `Icon` component or changing SWC workflow icon mappings.
-- After changing `@spectrum-web-components/icons-workflow` imports.
+- After replacing the `Icon` component or changing inline SVG icon mappings.
+- Before replacing native inline icons with another renderer.
 - Before declaring a UI change safe for real Photoshop.
 
 ## Prerequisites
@@ -64,6 +64,6 @@ This keeps the JSX clean while still giving host-visible evidence.
 
 When new icon names or pages are added:
 
-- Add the new icon name to `apps/app/src/ui/components/icons.tsx`.
+- Add the new icon name to `apps/app/src/shared/ui/components/icons.tsx`.
 - Add a representative selector to `check-icon-rects.js`.
 - Update this README's screenshot checklist.

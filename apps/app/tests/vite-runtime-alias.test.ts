@@ -31,21 +31,20 @@ function normalizedAliases(config: { resolve?: { alias?: unknown } }): readonly 
   );
 }
 
-describe('Dual-runtime SWC resolution', () => {
-  it('aliases shared SWC imports to UXP wrappers only in the UXP build', () => {
+describe('Dual-runtime native UI resolution', () => {
+  it('does not carry SWC aliases or focus-visible wrapper patches', () => {
     const uxpAliasMap = new Map(normalizedAliases(uxpConfig).map((entry) => [entry.find, entry.replacement]));
     const chromeAliasMap = new Map(normalizedAliases(chromeConfig).map((entry) => [entry.find, entry.replacement]));
     const uxpPlugins = Array.isArray(uxpConfig.plugins) ? uxpConfig.plugins : [];
     const chromePlugins = Array.isArray(chromeConfig.plugins) ? chromeConfig.plugins : [];
 
-    expect(uxpAliasMap.get('@spectrum-web-components/button')).toBe('@swc-uxp-wrappers/button');
-    expect(uxpAliasMap.get('@spectrum-web-components/checkbox')).toBe('@swc-uxp-wrappers/checkbox');
-    expect(uxpAliasMap.get('@spectrum-web-components/textfield')).toBe('@swc-uxp-wrappers/textfield');
-
+    expect(uxpAliasMap.has('@spectrum-web-components/button')).toBe(false);
+    expect(uxpAliasMap.has('@spectrum-web-components/checkbox')).toBe(false);
+    expect(uxpAliasMap.has('@spectrum-web-components/textfield')).toBe(false);
     expect(chromeAliasMap.has('@spectrum-web-components/button')).toBe(false);
     expect(chromeAliasMap.has('@spectrum-web-components/checkbox')).toBe(false);
     expect(chromeAliasMap.has('@spectrum-web-components/textfield')).toBe(false);
-    expect(uxpPlugins.some((plugin) => plugin?.name === 'imagen-ps-uxp-focus-visible-compat')).toBe(true);
+    expect(uxpPlugins.some((plugin) => plugin?.name === 'imagen-ps-uxp-focus-visible-compat')).toBe(false);
     expect(chromePlugins.some((plugin) => plugin?.name === 'imagen-ps-uxp-focus-visible-compat')).toBe(false);
   });
 });

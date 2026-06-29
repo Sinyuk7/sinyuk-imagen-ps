@@ -16,7 +16,6 @@ import { SettingsAddPage } from './pages/settings-add-page';
 import { SettingsDetailPage } from './pages/settings-detail-page';
 import { I18nProvider, useI18n } from './i18n/i18n-context';
 import { ensurePanelCss } from './panel-bootstrap';
-import { registerSpectrumTheme } from './primitives/spectrum-theme';
 
 export interface AppShellHost {
   readonly app: PluginAppModel;
@@ -31,6 +30,7 @@ export interface AppShellProps {
 
 type View = 'main' | 'history' | 'settings' | 'settings-add' | 'settings-detail';
 type AppTheme = 'dark' | 'light';
+type AppThemeOverride = AppTheme | undefined;
 type PanelWidthMode = 'compact' | 'regular' | 'wide';
 type PanelHeightMode = 'short' | 'normal';
 
@@ -39,87 +39,12 @@ const PANEL_WIDE_MIN_WIDTH = 520;
 const PANEL_SHORT_MAX_HEIGHT = 459;
 
 /**
- * Photoshop 主题同步 query：UXP 自 4.1 起支持四值 `prefers-color-scheme`
- * （lightest/light/dark/darkest）。`light` 与 `lightest` 合并查询，
- * 其余（dark/darkest）回退到 dark。
+ * 读取 Chrome harness 的显式主题覆盖。
+ *
+ * Photoshop UXP 运行时不写 `data-app-theme`，让 `@media
+ * (prefers-color-scheme)` 与 `--uxp-host-*` 变量直接跟随宿主主题。
+ * `data-app-theme` 只服务 Chrome 截图/测试入口，避免覆盖 UXP 动态 token。
  */
-const LIGHT_THEME_QUERY = '(prefers-color-scheme: light), (prefers-color-scheme: lightest)';
-
-/**
- * 同步 `<sp-theme color="light|dark">` 到宿主主题。
- *
- * 自定义 UI 已通过 `--uxp-host-*` + `@media (prefers-color-scheme)` 纯 CSS
- * 自动跟随 Photoshop 四主题，不需要 JavaScript state。此处 JS 唯一职责
- * 是同步 SWC `<sp-theme>` 的 `color` property（CSS custom property 无法
- * 直接驱动 SWC 内部 theme fragment 选择）。
- *
- * 同步优先级：
- *  1. `window.matchMedia(LIGHT_THEME_QUERY)` + `change` listener —— 主实时同步机制
- *  2. CSS theme probe (`.uxp-theme-probe`) —— 仅在初始化 / 恢复同步时兜底读取
- *  3. `focus` / `visibilitychange` —— 恢复性 fallback，修复可能错过的同步
- *
- * Chrome harness 通过 `?theme=light|dark` 显式覆盖以测试双主题。
- * 不使用 polling、`requestAnimationFrame` 或硬编码 Photoshop 四色值。
- */
-function useAppTheme(): AppTheme {
-  const [theme, setTheme] = useState<AppTheme>(() => readInitialTheme());
-
-  useEffect(() => {
-    const params = readThemeParam();
-    if (params === 'light' || params === 'dark') {
-      setTheme(params);
-      return;
-    }
-
-    let current: AppTheme = readThemeViaMatchMedia() ?? readThemeViaProbe() ?? 'dark';
-    setTheme(current);
-
-    let cleanupMatchMedia: (() => void) | undefined;
-    const media = typeof window !== 'undefined' && typeof window.matchMedia === 'function'
-      ? window.matchMedia(LIGHT_THEME_QUERY)
-      : null;
-    if (media) {
-      const handler = () => {
-        const next = media.matches ? 'light' : 'dark';
-        if (next !== current) {
-          current = next;
-          setTheme(next);
-        }
-      };
-      if (typeof media.addEventListener === 'function') {
-        media.addEventListener('change', handler);
-        cleanupMatchMedia = () => media.removeEventListener('change', handler);
-      } else if (typeof (media as MediaQueryList).addListener === 'function') {
-        (media as MediaQueryList).addListener(handler);
-        cleanupMatchMedia = () => (media as MediaQueryList).removeListener(handler);
-      }
-    }
-
-    const recoverySync = () => {
-      const params = readThemeParam();
-      if (params === 'light' || params === 'dark') {
-        setTheme(params);
-        return;
-      }
-      const next: AppTheme = readThemeViaMatchMedia() ?? readThemeViaProbe() ?? 'dark';
-      if (next !== current) {
-        current = next;
-        setTheme(next);
-      }
-    };
-    window.addEventListener('focus', recoverySync);
-    document.addEventListener('visibilitychange', recoverySync);
-
-    return () => {
-      cleanupMatchMedia?.();
-      window.removeEventListener('focus', recoverySync);
-      document.removeEventListener('visibilitychange', recoverySync);
-    };
-  }, []);
-
-  return theme;
-}
-
 function readThemeParam(): string | null {
   if (typeof window === 'undefined' || typeof window.location === 'undefined') {
     return null;
@@ -128,42 +53,12 @@ function readThemeParam(): string | null {
   return params.get('theme');
 }
 
-function readInitialTheme(): AppTheme {
+function readThemeOverride(): AppThemeOverride {
   const params = readThemeParam();
   if (params === 'light' || params === 'dark') {
     return params;
   }
-  return readThemeViaMatchMedia() ?? readThemeViaProbe() ?? 'dark';
-}
-function readThemeViaMatchMedia(): AppTheme | null {
-  if (typeof window === 'undefined' || typeof window.matchMedia !== 'function') {
-    return null;
-  }
-  return window.matchMedia(LIGHT_THEME_QUERY).matches ? 'light' : 'dark';
-}
-
-function readThemeViaProbe(): AppTheme | null {
-  if (typeof document === 'undefined') {
-    return null;
-  }
-  const probe = createThemeProbe();
-  if (!probe) {
-    return null;
-  }
-  const isLight = probe.offsetWidth === 2;
-  probe.remove();
-  return isLight ? 'light' : 'dark';
-}
-
-function createThemeProbe(): HTMLDivElement | null {
-  if (typeof document === 'undefined') {
-    return null;
-  }
-  const probe = document.createElement('div');
-  probe.className = 'uxp-theme-probe';
-  probe.setAttribute('aria-hidden', 'true');
-  document.body.appendChild(probe);
-  return probe;
+  return undefined;
 }
 
 function classifyPanelWidthMode(width: number): PanelWidthMode {
@@ -279,6 +174,7 @@ function AppShellContent({ host }: AppShellProps) {
   const { messages: t } = useI18n();
   const services = host.services;
   const panelRef = useRef<HTMLDivElement | null>(null);
+  const themeOverride = readThemeOverride();
   const [view, setView] = useState<View>('main');
   const [selectedImageProfileId, setSelectedImageProfileId] = useState<string | null>(null);
   const [selectedSettingsProfileId, setSelectedSettingsProfileId] = useState<string | null>(null);
@@ -364,7 +260,7 @@ function AppShellContent({ host }: AppShellProps) {
   }, [highlightedRoundId]);
 
   return (
-    <div className="panel" ref={panelRef}>
+    <div className="panel" data-app-theme={themeOverride} ref={panelRef}>
       {view === 'main' && (
         <MainPage
           onNav={onNav}
@@ -464,14 +360,10 @@ function AppShellContent({ host }: AppShellProps) {
 
 export function AppShell({ host }: AppShellProps) {
   ensurePanelCss();
-  registerSpectrumTheme();
-  const theme = useAppTheme();
   return (
     <I18nProvider locale={host.locale}>
       <AppServicesProvider services={host.services}>
-        <sp-theme color={theme} scale="medium" class="app-theme">
-          <AppShellContent host={host} />
-        </sp-theme>
+        <AppShellContent host={host} />
       </AppServicesProvider>
     </I18nProvider>
   );

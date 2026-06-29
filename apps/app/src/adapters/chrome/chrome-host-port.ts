@@ -1,4 +1,4 @@
-import type { Asset } from '@imagen-ps/application';
+import type { Asset, AssetStore, StoredAssetRef } from '@imagen-ps/application';
 import { createHostImageAsset, type HostImageAsset } from '../../shared/domain/host-image-asset';
 import type { PlacementIntent, PhotoshopCaptureResult } from '../../shared/domain/photoshop-placement';
 import { resolveProviderInputPlan, type ProviderInputSizePolicy } from '../../shared/image/resize';
@@ -85,26 +85,37 @@ function ensureFileMatchesProviderInputPolicy(bytes: Uint8Array, mimeType: strin
   }
 }
 
-async function fileToHostImage(file: File, policy: ProviderInputSizePolicy): Promise<HostImageAsset> {
-  const data = new Uint8Array(await file.arrayBuffer());
+function storedRefToAssetPayload(ref: StoredAssetRef): Asset {
+  return {
+    type: 'image',
+    ...(ref.name ? { name: ref.name } : {}),
+    ...(ref.mimeType ? { mimeType: ref.mimeType } : {}),
+    storedRef: ref,
+  };
+}
+
+async function fileToHostImage(file: File, policy: ProviderInputSizePolicy, assetStore: AssetStore): Promise<HostImageAsset> {
+  const buffer = await file.arrayBuffer();
+  const data = new Uint8Array(buffer);
   const mimeType = file.type || 'image/png';
   ensureFileMatchesProviderInputPolicy(data, mimeType, policy);
   const previewUrl = typeof URL !== 'undefined' && typeof URL.createObjectURL === 'function' ? URL.createObjectURL(file) : undefined;
-  const asset: Asset = {
-    type: 'image',
-    name: file.name,
-    data,
+  const storedRef = await assetStore.put(buffer.slice(0), {
     mimeType,
-  };
-  return createHostImageAsset(asset, {
+    name: file.name,
+  });
+  return createHostImageAsset(storedRefToAssetPayload(storedRef), {
     source: 'file',
     previewUrl,
-    payloadKind: 'inline-asset',
+    payloadKind: 'host-object',
+    payloadRef: storedRef.ref,
     disposePreview: previewUrl ? () => URL.revokeObjectURL(previewUrl) : undefined,
+    byteSize: storedRef.byteSize,
   });
 }
 
 export function createChromeHostPort(options: {
+  readonly assetStore: AssetStore;
   readonly filePicker: ChromeFilePicker;
   readonly simulator: PhotoshopSimulator;
 }): HostBridge {
@@ -125,7 +136,7 @@ export function createChromeHostPort(options: {
     },
     async pickImageFile(policy: ProviderInputSizePolicy): Promise<HostImageAsset | undefined> {
       const file = await options.filePicker.pick();
-      return file ? fileToHostImage(file, policy) : undefined;
+      return file ? fileToHostImage(file, policy, options.assetStore) : undefined;
     },
     async captureActiveImage(policy: ProviderInputSizePolicy): Promise<PhotoshopCaptureResult> {
       return options.simulator.captureActiveImage(policy);

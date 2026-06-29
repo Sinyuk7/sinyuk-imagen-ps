@@ -1,10 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { registerSpectrumControls } from '../primitives/spectrum-controls';
 
 /**
- * 主流程瞬时 Toast 的语义级别。Variant 名称依据本地 SWC 0.37.0 的
- * `ToastVariants = 'negative' | 'positive' | 'info' | 'error' | 'warning' | ''`。
- * `neutral` 对应空 variant（SWC 的中性样式）。
+ * 主流程瞬时 Toast 的语义级别。
  */
 export type ToastVariant = 'positive' | 'negative' | 'info' | 'neutral';
 
@@ -23,8 +20,6 @@ export interface ToastHostProps {
   readonly toast: ToastState | null;
   readonly onClose: () => void;
 }
-
-type ToastElement = HTMLElement & { open?: boolean };
 
 const TOAST_TIMEOUT_MS = 2400;
 
@@ -71,36 +66,29 @@ export function useToast(): ToastController {
 }
 
 /**
- * Toast 视图宿主。`open` 与自动关闭由 controller 的 timer 管理，不使用 `sp-toast`
- * 自身的 `timeout`，避免双重定时器。`sp-toast` 内置 close button 触发 `close` 事件，
- * 通过 ref 监听交回 controller（手动关闭）。
+ * Toast 视图宿主。`open` 与自动关闭由 controller 的 timer 管理。
  */
 export function ToastHost({ toast, onClose }: ToastHostProps) {
-  registerSpectrumControls();
-  const ref = useRef<ToastElement | null>(null);
-
-  useEffect(() => {
-    const el = ref.current;
-    if (!el) {
-      return;
-    }
-    el.open = true;
-    const handler = () => onClose();
-    el.addEventListener('close', handler);
-    return () => {
-      el.removeEventListener('close', handler);
-    };
-  }, [onClose, toast]);
+  const ref = useRef<HTMLDivElement | null>(null);
 
   if (!toast) {
     return null;
   }
 
-  const variant = toast.variant === 'neutral' ? undefined : toast.variant;
-
   return (
-    <sp-toast data-testid="toast" ref={ref} variant={variant} tabIndex={-1} aria-live="polite">
-      {toast.message}
-    </sp-toast>
+    <div
+      data-testid="toast"
+      ref={ref}
+      className="ui-toast"
+      data-variant={toast.variant}
+      tabIndex={-1}
+      aria-live="polite"
+      role={toast.variant === 'negative' ? 'alert' : 'status'}
+    >
+      <span className="ui-toast-message">{toast.message}</span>
+      <button type="button" className="ui-toast-close" aria-label="Dismiss" onClick={onClose}>
+        x
+      </button>
+    </div>
   );
 }

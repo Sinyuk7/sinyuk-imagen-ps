@@ -2,7 +2,7 @@ import type { ReactNode } from 'react';
 import { StatusNotice } from './status-notice';
 import { Icon } from './icons';
 import { useI18n } from '../i18n/i18n-context';
-import { Button, ActionButton, TextField, FieldLabel, HelpText, Divider } from '../primitives/spectrum-controls';
+import { Button, ActionButton, TextField, FieldLabel, HelpText, Divider } from '../primitives/native-controls';
 import type { ProviderStatus } from '../provider-status';
 
 interface ProviderProfileEditorProps {
@@ -59,7 +59,7 @@ export function ProviderProfileEditor({
           <TextField
             data-testid="provider-alias-input"
             id="provider-alias-input"
-            className="field-input swc-field"
+            className="field-input ui-field-control"
             placeholder={aliasPlaceholder}
             value={aliasValue}
             onValue={onAliasValue}
@@ -70,7 +70,7 @@ export function ProviderProfileEditor({
           <TextField
             data-testid="provider-base-url-input"
             id="provider-base-url-input"
-            className="field-input mono swc-field"
+            className="field-input mono ui-field-control"
             placeholder={baseUrlPlaceholder}
             value={baseUrlValue}
             onValue={onBaseUrlValue}
@@ -84,7 +84,7 @@ export function ProviderProfileEditor({
               data-testid="provider-api-key-input"
               id="provider-api-key-input"
               type={showKey ? 'text' : 'password'}
-              className="field-input mono swc-field field-input-embedded"
+              className="field-input mono ui-field-control field-input-embedded"
               placeholder={apiKeyPlaceholder}
               value={apiKeyValue}
               onValue={onApiKeyValue}
@@ -93,9 +93,10 @@ export function ProviderProfileEditor({
               data-testid="provider-api-key-toggle"
               className="field-input-action"
               quiet
+              label={showKey ? t.settings.hideApiKey : t.settings.showApiKey}
               onClick={() => onShowKeyChange(!showKey)}
             >
-              <Icon name={showKey ? 'eye-off' : 'eye'} slot="icon" />
+              <Icon name={showKey ? 'eye-off' : 'eye'} />
             </ActionButton>
           </div>
         </div>
@@ -115,7 +116,7 @@ export function ProviderProfileEditor({
       )}
 
       <div className="test-area">
-        <Button data-testid="provider-test-button" className="test-btn swc-button" variant="secondary" disabled={testBusy} onClick={() => void onTest()}>
+        <Button data-testid="provider-test-button" className="test-btn ui-button-block" variant="secondary" disabled={testBusy} onClick={() => void onTest()}>
           {testBusy
             ? (
               <span className="ui-button-content">

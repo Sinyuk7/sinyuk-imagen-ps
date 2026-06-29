@@ -7,8 +7,10 @@ export interface AppMessages {
     readonly profile: string;
     readonly prompt: string;
     readonly loading: string;
+    readonly back: string;
     readonly save: string;
     readonly cancel: string;
+    readonly delete: string;
     readonly refresh: string;
     readonly addProvider: string;
     readonly enabled: string;
@@ -103,6 +105,8 @@ export interface AppMessages {
     readonly connectionInfo: string;
     readonly noProfileSelected: string;
     readonly savedSecretPlaceholder: string;
+    readonly showApiKey: string;
+    readonly hideApiKey: string;
     readonly refreshModels: string;
     readonly refreshingModels: string;
     readonly testConnection: string;
@@ -146,8 +150,10 @@ const EN_MESSAGES: AppMessages = {
     profile: 'profile',
     prompt: 'Prompt',
     loading: 'Loading...',
+    back: 'Back',
     save: 'Save',
     cancel: 'Cancel',
+    delete: 'Delete',
     refresh: 'Refresh',
     addProvider: 'Add Provider',
     enabled: 'Enabled',
@@ -242,6 +248,8 @@ const EN_MESSAGES: AppMessages = {
     connectionInfo: 'Connection info',
     noProfileSelected: 'No Provider profile selected',
     savedSecretPlaceholder: 'Saved; leave blank to keep unchanged',
+    showApiKey: 'Show API Key',
+    hideApiKey: 'Hide API Key',
     refreshModels: 'Refresh model list',
     refreshingModels: 'Refreshing...',
     testConnection: 'Test connection',
@@ -285,8 +293,10 @@ const ZH_CN_MESSAGES: AppMessages = {
     profile: 'profile',
     prompt: 'Prompt',
     loading: '加载中...',
+    back: '返回',
     save: '保存',
     cancel: '取消',
+    delete: '删除',
     refresh: '刷新',
     addProvider: '添加 Provider',
     enabled: '已启用',
@@ -381,6 +391,8 @@ const ZH_CN_MESSAGES: AppMessages = {
     connectionInfo: '连接信息',
     noProfileSelected: '未选择 Provider profile',
     savedSecretPlaceholder: '已保存；留空不修改',
+    showApiKey: '显示 API Key',
+    hideApiKey: '隐藏 API Key',
     refreshModels: '刷新模型列表',
     refreshingModels: '刷新中...',
     testConnection: '测试连接',

@@ -5,7 +5,7 @@ import { providerConfigFromForm, useProviderCatalog } from '../hooks/use-provide
 import { Icon } from '../components/icons';
 import { ProviderProfileEditor } from '../components/provider-profile-editor';
 import { useI18n } from '../i18n/i18n-context';
-import { Button, ActionButton, TextField, FieldLabel } from '../primitives/spectrum-controls';
+import { Button, ActionButton, TextField, FieldLabel } from '../primitives/native-controls';
 import { statusFromProviderTestResult, type ProviderStatus } from '../provider-status';
 
 interface SettingsAddPageProps {
@@ -110,9 +110,10 @@ export function SettingsAddPage({ onNav, profiles, onProfileSaved }: SettingsAdd
           data-testid="add-provider-back-button"
           className="hdr-btn"
           quiet
+          label={t.common.back}
           onClick={() => (step === 1 ? onNav('settings') : setStep(1))}
         >
-          <Icon name="chevron-left" slot="icon" />
+          <Icon name="chevron-left" />
         </ActionButton>
         <div className="hdr-title">{step === 1 ? t.common.addProvider : selected?.displayName}</div>
         <div style={{ width: 32 }} />
@@ -169,7 +170,7 @@ export function SettingsAddPage({ onNav, profiles, onProfileSaved }: SettingsAdd
                 <TextField
                   data-testid="provider-default-model-input"
                   id="provider-default-model-input"
-                  className="field-input mono swc-field"
+                  className="field-input mono ui-field-control"
                   placeholder="gpt-image-2"
                   value={defaultModel}
                   onValue={setDefaultModel}
@@ -185,9 +186,9 @@ export function SettingsAddPage({ onNav, profiles, onProfileSaved }: SettingsAdd
 
       {step === 2 && (
         <footer className="det-footer">
-          <Button data-testid="provider-save-button" className="btn-save swc-button" variant="accent" disabled={busy} onClick={() => void handleSave()}>{t.common.save}</Button>
+          <Button data-testid="provider-save-button" className="btn-save ui-button-block" variant="accent" disabled={busy} onClick={() => void handleSave()}>{t.common.save}</Button>
           <Button
-            className="btn-cancel swc-button"
+            className="btn-cancel ui-button-block"
             variant="secondary"
             onClick={() => onNav('settings')}
           >

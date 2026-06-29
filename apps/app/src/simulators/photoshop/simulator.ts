@@ -1,4 +1,4 @@
-import type { Asset } from '@imagen-ps/application';
+import type { Asset, AssetStore, StoredAssetRef } from '@imagen-ps/application';
 import { createHostImageAsset, type HostImageAsset } from '../../shared/domain/host-image-asset';
 import type { PhotoshopCaptureResult, PlacementIntent } from '../../shared/domain/photoshop-placement';
 import type { ProviderInputSizePolicy } from '../../shared/image/resize';
@@ -31,18 +31,93 @@ function svgDataUrl(label: string, width: number, height: number, fill: string, 
   return `data:image/svg+xml;base64,${btoa(binary)}`;
 }
 
-function seededAsset(index: number): HostImageAsset {
+function storedRefToAssetPayload(ref: StoredAssetRef): Asset {
+  return {
+    type: 'image',
+    ...(ref.name ? { name: ref.name } : {}),
+    ...(ref.mimeType ? { mimeType: ref.mimeType } : {}),
+    storedRef: ref,
+  };
+}
+
+function dataUrlBytes(dataUrl: string): ArrayBuffer {
+  const comma = dataUrl.indexOf(',');
+  const base64 = comma >= 0 ? dataUrl.slice(comma + 1) : dataUrl;
+  const binary = atob(base64);
+  const bytes = new Uint8Array(binary.length);
+  for (let index = 0; index < binary.length; index += 1) {
+    bytes[index] = binary.charCodeAt(index);
+  }
+  return bytes.buffer;
+}
+
+function bytesViewBuffer(bytes: Uint8Array): ArrayBuffer {
+  const copy = new Uint8Array(bytes.byteLength);
+  copy.set(bytes);
+  return copy.buffer;
+}
+
+async function storedHostImageAsset(
+  assetStore: AssetStore,
+  asset: Asset,
+  options: {
+    readonly source: HostImageAsset['metadata']['source'];
+    readonly previewUrl: string;
+    readonly width?: number;
+    readonly height?: number;
+  },
+): Promise<HostImageAsset> {
+  const bytes =
+    asset.data instanceof Uint8Array
+      ? bytesViewBuffer(asset.data)
+      : typeof asset.data === 'string'
+        ? dataUrlBytes(asset.data)
+        : new ArrayBuffer(0);
+  const storedRef = await assetStore.put(bytes, {
+    ...(asset.mimeType ? { mimeType: asset.mimeType } : {}),
+    ...(asset.name ? { name: asset.name } : {}),
+  });
+  return createHostImageAsset(storedRefToAssetPayload(storedRef), {
+    ...options,
+    payloadKind: 'host-object',
+    payloadRef: storedRef.ref,
+    byteSize: storedRef.byteSize,
+  });
+}
+
+interface SeededSimulatorAsset {
+  readonly asset: Asset;
+  readonly previewUrl: string;
+  readonly width: number;
+  readonly height: number;
+}
+
+function seededAsset(index: number): SeededSimulatorAsset {
   const width = 240 + index * 12;
   const height = index % 2 === 0 ? 160 : 220;
   const fills = ['#f4d35e', '#0d3b66', '#ee964b', '#5f0f40', '#9a031e', '#2a9d8f', '#e9c46a', '#264653', '#8ab17d', '#f72585'];
   const data = svgDataUrl(`Layer ${index + 1}`, width, height, fills[index % fills.length]!, index === 9);
-  return createHostImageAsset(
-    { type: 'image', name: `sim-layer-${index + 1}.svg`, data, mimeType: 'image/svg+xml' },
-    { source: 'simulator', previewUrl: data },
-  );
+  return {
+    asset: { type: 'image', name: `sim-layer-${index + 1}.svg`, data, mimeType: 'image/svg+xml' },
+    previewUrl: data,
+    width,
+    height,
+  };
 }
 
-export function createPhotoshopSimulator(scenarioId: PhotoshopSimulatorScenarioId = 'seeded-document'): PhotoshopSimulator {
+async function toStoredAsset(assetStore: AssetStore, seeded: SeededSimulatorAsset): Promise<HostImageAsset> {
+  return storedHostImageAsset(assetStore, seeded.asset, {
+    source: 'simulator',
+    previewUrl: seeded.previewUrl,
+    width: seeded.width,
+    height: seeded.height,
+  });
+}
+
+export function createPhotoshopSimulator(
+  assetStore: AssetStore,
+  scenarioId: PhotoshopSimulatorScenarioId = 'seeded-document',
+): PhotoshopSimulator {
   const assets = Array.from({ length: 10 }, (_, index) => seededAsset(index));
   const layers: readonly LayerInfo[] =
     scenarioId === 'no-document' || scenarioId === 'empty-document'
@@ -66,13 +141,14 @@ export function createPhotoshopSimulator(scenarioId: PhotoshopSimulatorScenarioI
       if (scenarioId === 'host-busy') throw new Error('Simulator host is busy.');
       const asset = assets[layerId - 1];
       if (!asset) throw new Error(`Simulator layer not found: ${layerId}`);
-      return asset;
+      return toStoredAsset(assetStore, asset);
     },
     async captureActiveImage(_policy): Promise<PhotoshopCaptureResult> {
       if (scenarioId === 'host-busy') throw new Error('Simulator host is busy.');
       const layer = layers[0];
-      const image = assets[0];
-      if (!layer || !image || !layer.bounds) throw new Error('Simulator has no active layer to capture.');
+      const asset = assets[0];
+      if (!layer || !asset || !layer.bounds) throw new Error('Simulator has no active layer to capture.');
+      const image = await toStoredAsset(assetStore, asset);
       return {
         image,
         sourceKind: 'layer',
@@ -91,7 +167,11 @@ export function createPhotoshopSimulator(scenarioId: PhotoshopSimulatorScenarioI
     async readLayerMaskAsAsset(layerId): Promise<HostImageAsset | undefined> {
       if (scenarioId !== 'mask-capable-layer' || layerId !== 1) return undefined;
       const data = svgDataUrl('Mask 1', 160, 160, '#ffffff', true);
-      return createHostImageAsset({ type: 'image', name: 'sim-mask-1.svg', data, mimeType: 'image/svg+xml' }, { source: 'simulator', previewUrl: data });
+      return storedHostImageAsset(
+        assetStore,
+        { type: 'image', name: 'sim-mask-1.svg', data, mimeType: 'image/svg+xml' },
+        { source: 'simulator', previewUrl: data, width: 160, height: 160 },
+      );
     },
     async placeAssetOnCanvas(_asset: Asset, placement: PlacementIntent): Promise<void> {
       if (scenarioId === 'place-asset-failure') throw new Error('Simulator place asset failed.');

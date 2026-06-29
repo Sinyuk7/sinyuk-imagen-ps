@@ -360,8 +360,13 @@ export const COMPOSER_CSS = `
   margin-left:0;
 }
 .cmp-chip-value{
-  display:block;
+  display:inline-flex;
+  align-items:center;
   min-width:0;
+  min-height:16px;
+  line-height:16px;
+  position:relative;
+  top:1px;
   overflow:hidden;
   text-overflow:ellipsis;
   white-space:nowrap;
@@ -385,16 +390,12 @@ export const COMPOSER_CSS = `
 }
 .cmp-chip.open .cmp-chip-arrow{ color:var(--app-color-text-primary); }
 .cmp-chip-chevron{ flex:0 0 auto; color:inherit; }
-.cmp-chip-sp-button{
+.cmp-chip{
   width:100%;
   min-width:0;
   max-width:100%;
-  --mod-button-min-width:0;
-  --mod-button-edge-to-text:9px;
-  --mod-button-edge-to-visual:9px;
-  --mod-button-padding-label-to-icon:0;
 }
-.cmp-chip-leading-sp-button{
+.cmp-chip-leading{
   display:inline-flex;
   align-items:center;
   justify-content:center;
@@ -406,34 +407,6 @@ export const COMPOSER_CSS = `
   margin-right:8px;
   margin-bottom:0;
   margin-left:0;
-}
-.provider-model-dropdown{
-  flex:1 1 142px;
-  min-width:112px;
-  width:100%;
-}
-.cmp-chip-body-sp-button{
-  display:inline-flex;
-  align-items:center;
-  justify-content:flex-start;
-  width:100%;
-  min-width:0;
-  min-height:16px;
-  line-height:16px;
-  vertical-align:middle;
-}
-.cmp-chip-value-sp-button{
-  display:inline-flex;
-  align-items:center;
-  flex:1 1 auto;
-  min-width:0;
-  min-height:16px;
-  line-height:16px;
-  position:relative;
-  top:1px;
-  overflow:hidden;
-  text-overflow:ellipsis;
-  white-space:nowrap;
 }
 .cmp-chip-arrow-text{
   display:inline-flex;
@@ -454,15 +427,15 @@ export const COMPOSER_CSS = `
 }
 .cmp-chip-arrow-icon{ flex:0 0 auto; color:inherit; }
 .cmp-select-model .cmp-chip{ width:100%; min-width:0; }
-.cmp-select-model .cmp-chip-value-sp-button{
+.cmp-select-model .cmp-chip-value{
   overflow:hidden;
   text-overflow:ellipsis;
   white-space:nowrap;
 }
-.cmp-select-aspect .cmp-chip-body-sp-button{
+.cmp-select-aspect .cmp-chip-body{
   justify-content:flex-start;
 }
-.cmp-select-aspect .cmp-chip-value-sp-button{
+.cmp-select-aspect .cmp-chip-value{
   overflow:visible;
   text-overflow:clip;
   white-space:nowrap;

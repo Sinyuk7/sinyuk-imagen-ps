@@ -2,7 +2,7 @@ import { type KeyboardEvent } from 'react';
 import type { ProviderProfile } from '@imagen-ps/application';
 import { profileToProviderRow } from '../../domain/mappers';
 import { Icon } from '../components/icons';
-import { ActionButton } from '../primitives/spectrum-controls';
+import { ActionButton } from '../primitives/native-controls';
 import { useI18n } from '../i18n/i18n-context';
 
 interface SettingsPageProps {
@@ -136,9 +136,10 @@ export function SettingsPage({
           data-testid="providers-back-button"
           className="hdr-btn"
           quiet
+          label={t.common.back}
           onClick={() => onNav('main')}
         >
-          <Icon name="chevron-left" slot="icon" />
+          <Icon name="chevron-left" />
         </ActionButton>
         <div className="hdr-title">Providers</div>
         <ActionButton
@@ -148,7 +149,7 @@ export function SettingsPage({
           label={t.common.refresh}
           onClick={() => void onReload()}
         >
-          <Icon name="refresh" slot="icon" />
+          <Icon name="refresh" />
         </ActionButton>
         <ActionButton
           data-testid="providers-add-button"
@@ -158,7 +159,7 @@ export function SettingsPage({
           placement="bottom"
           onClick={() => onNav('settings-add')}
         >
-          <Icon name="add" slot="icon" />
+          <Icon name="add" />
         </ActionButton>
       </header>
       <div className="scroll">

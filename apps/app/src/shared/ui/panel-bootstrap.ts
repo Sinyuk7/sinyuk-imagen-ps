@@ -1,6 +1,4 @@
 import { PANEL_CSS } from './panel-css';
-import { registerSpectrumControls } from './primitives/spectrum-controls';
-import { registerSpectrumTheme } from './primitives/spectrum-theme';
 
 const PANEL_STYLE_ID = 'imagen-ps-panel-styles';
 
@@ -17,11 +15,6 @@ export function ensurePanelCss(doc: Document | undefined = typeof document === '
   (doc.head ?? doc.documentElement).appendChild(style);
 }
 
-/**
- * 把 shared UI 依赖的 SWC 注册和样式注入前移到 shell bootstrap。
- */
 export function primeSharedUi(doc: Document | undefined = typeof document === 'undefined' ? undefined : document): void {
-  registerSpectrumTheme();
-  registerSpectrumControls();
   ensurePanelCss(doc);
 }

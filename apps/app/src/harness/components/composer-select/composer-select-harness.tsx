@@ -1,9 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { ComposerSelect } from '../../../shared/ui/components/composer-select';
 import type { ComposerSelectOption } from '../../../shared/ui/components/composer-select';
-import { Icon } from '../../../shared/ui/components/icons';
-import { registerSpectrumControls } from '../../../shared/ui/primitives/spectrum-controls';
-import { registerSpectrumTheme } from '../../../shared/ui/primitives/spectrum-theme';
 import { PANEL_CSS } from '../../../shared/ui/panel-css';
 import { ASPECT_OPTIONS, MODEL_OPTIONS, TARGET_OPTIONS } from './composer-select-harness-data';
 
@@ -292,7 +289,7 @@ const HARNESS_CSS = `
   --mod-picker-button-border-radius:12px;
   --mod-picker-button-border-radius-rounded:12px;
 }
-.harness-picker-trigger [slot="label"]{
+.harness-picker-trigger .cmp-chip-body{
   display:inline-flex;
   align-items:center;
   min-width:0;
@@ -359,95 +356,7 @@ function currentLabel(options: readonly ComposerSelectOption[], selectedId: stri
 function useHarnessStyleMount(): void {
   useEffect(() => {
     ensureHarnessStyles();
-    registerSpectrumControls();
   }, []);
-}
-
-function PickerButtonSpikeCase({
-  title,
-  copy,
-  renderTrigger,
-}: {
-  readonly title: string;
-  readonly copy: string;
-  readonly renderTrigger: (selected: ComposerSelectOption | undefined) => React.ReactNode;
-}) {
-  const [open, setOpen] = useState(false);
-  const [selectedId, setSelectedId] = useState(TARGET_OPTIONS[0]?.id ?? 'layer');
-  const selected = TARGET_OPTIONS.find((option) => option.id === selectedId) ?? TARGET_OPTIONS[0];
-
-  return (
-    <div className="harness-picker-spike-case">
-      <h3 className="harness-picker-spike-title">{title}</h3>
-      <p className="harness-picker-spike-copy">{copy}</p>
-      <div className="harness-picker-row">
-        <sp-picker-button
-          class="harness-picker-trigger"
-          data-testid={`picker-button-spike-trigger-${title}`}
-          aria-haspopup="listbox"
-          aria-expanded={open}
-          open={open}
-          onClick={() => setOpen((current) => !current)}
-        >
-          {renderTrigger(selected)}
-        </sp-picker-button>
-      </div>
-      {open ? (
-        <div className="harness-picker-menu">
-          <sp-menu selects="single" value={selectedId}>
-            {TARGET_OPTIONS.map((option) => (
-              <sp-menu-item
-                key={option.id}
-                class="harness-picker-menu-item"
-                selected={option.id === selectedId}
-                value={option.id}
-                onClick={() => {
-                  setSelectedId(option.id);
-                  setOpen(false);
-                }}
-              >
-                {option.icon ? <Icon name={option.icon} slot="icon" /> : null}
-                {option.label}
-              </sp-menu-item>
-            ))}
-          </sp-menu>
-        </div>
-      ) : null}
-    </div>
-  );
-}
-
-function PickerButtonSpike() {
-  return (
-    <div className="harness-picker-spike">
-      <div className="harness-picker-spike-grid">
-        <PickerButtonSpikeCase
-          title="Label Only"
-          copy="Native picker-button contract: text label + built-in chevron. This is the only shape it naturally owns."
-          renderTrigger={(selected) => <span slot="label">{selected?.label ?? 'Selection'}</span>}
-        />
-        <PickerButtonSpikeCase
-          title="Label + slot=icon"
-          copy="Current business attempt: slot=icon replaces the chevron slot, it is not a leading business icon slot."
-          renderTrigger={(selected) => (
-            <>
-              {selected?.icon ? <Icon name={selected.icon} slot="icon" className="harness-picker-icon" /> : null}
-              <span slot="label">{selected?.label ?? 'Selection'}</span>
-            </>
-          )}
-        />
-        <PickerButtonSpikeCase
-          title="Icon Slot Only"
-          copy="When only the icon slot is populated, picker-button collapses into its icon-only carrier shape."
-          renderTrigger={(selected) => (
-            <>
-              {selected?.icon ? <Icon name={selected.icon} slot="icon" className="harness-picker-icon" /> : null}
-            </>
-          )}
-        />
-      </div>
-    </div>
-  );
 }
 
 function HarnessToggle({
@@ -503,7 +412,6 @@ function EdgeCaseSelect({
 }
 
 export function ComposerSelectHarnessPage() {
-  registerSpectrumTheme();
   useHarnessStyleMount();
 
   const [containerWidth, setContainerWidth] = useState(360);
@@ -720,23 +628,6 @@ export function ComposerSelectHarnessPage() {
             </div>
           </section>
 
-          <section className="harness-card" data-overflow-visible="true">
-            <div className="harness-card-head">
-              <h2 className="harness-title">5. Picker Button Spike</h2>
-              <p className="harness-copy">Isolated picker-button contract check. This section stays overflow-visible so the popup menu can be inspected directly in UXP.</p>
-            </div>
-            <div className="harness-card-body" data-overflow-visible="true">
-              <div className="harness-surface">
-                <div className="harness-panel" data-overflow-visible="true">
-                  <div className="harness-resizable" style={{ width: containerWidth }}>
-                    <div className="panel harness-panel-inner" data-overflow-visible="true">
-                      <PickerButtonSpike />
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </section>
         </div>
       </div>
     </div>

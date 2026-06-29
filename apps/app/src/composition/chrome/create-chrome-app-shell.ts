@@ -66,8 +66,9 @@ export function createChromeAppShell(options?: ChromeAppShellOptions): AppShellH
   setJobHistoryStore(storage.history);
   setAssetStore(storage.assets);
 
-  const simulator = createPhotoshopSimulator(options?.scenario ?? testHarness?.scenario ?? 'seeded-document');
+  const simulator = createPhotoshopSimulator(storage.assets, options?.scenario ?? testHarness?.scenario ?? 'seeded-document');
   const host = createChromeHostPort({
+    assetStore: storage.assets,
     simulator,
     filePicker: options?.filePicker ?? testHarness?.filePicker ?? createBrowserFilePicker(),
   });

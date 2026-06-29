@@ -3,7 +3,7 @@
  * 聚合后由 `ensurePanelCss()` 同步注入为单个 `<style id="imagen-ps-panel-styles">`。
  *
  * 拆分边界：
- *  - tokens.ts        Layer A 宿主默认 + Layer B 应用语义 token + Layer C Spectrum bridge + theme probe
+ *  - tokens.ts        Layer A 宿主默认 + Layer B 应用语义 token + Layer C native controls
  *  - base.ts          reset
  *  - shell.ts         panel / page / header / scroll 布局
  *  - conversation.ts  会话气泡 / provider card / loading / error / empty
@@ -14,7 +14,7 @@
  *
  * 保持 UXP 与 Chrome 共享同一套样式语义；不复制两套 CSS。
  */
-import { TOKENS_CSS, LIGHT_THEME_CSS, THEME_PROBE_CSS, SPECTRUM_BRIDGE_CSS } from './styles/tokens';
+import { TOKENS_CSS, LIGHT_THEME_CSS, NATIVE_CONTROLS_CSS } from './styles/tokens';
 import { EXTRA_THEMES_CSS } from './styles/extra-themes';
 import { BASE_CSS } from './styles/base';
 import { SHELL_CSS } from './styles/shell';
@@ -32,8 +32,7 @@ export const PANEL_CSS = stripCssComments([
   TOKENS_CSS,
   LIGHT_THEME_CSS,
   EXTRA_THEMES_CSS,
-  THEME_PROBE_CSS,
-  SPECTRUM_BRIDGE_CSS,
+  NATIVE_CONTROLS_CSS,
   BASE_CSS,
   SHELL_CSS,
   CONVERSATION_CSS,

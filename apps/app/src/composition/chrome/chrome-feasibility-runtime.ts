@@ -78,8 +78,9 @@ export async function runChromeFeasibilityRuntime(options?: {
   readonly filePicker?: ChromeFilePicker;
 }): Promise<ChromeFeasibilityResult> {
   const storage = createChromeIndexedDbStorage({ backend: options?.backend });
-  const simulator = createPhotoshopSimulator('seeded-document');
+  const simulator = createPhotoshopSimulator(storage.assets, 'seeded-document');
   const host = createChromeHostPort({
+    assetStore: storage.assets,
     simulator,
     filePicker: options?.filePicker ?? { pick: async () => undefined },
   });
