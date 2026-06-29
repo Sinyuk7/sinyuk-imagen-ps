@@ -49,10 +49,12 @@ export const COMPOSER_CSS = `
 }
 .hdr-model-menu{
   top:calc(100% + 8px);
-  right:auto;
-  left:50%;
-  width:min(280px, calc(100vw - 24px));
-  transform:translateX(-50%);
+  left:12px;
+  right:12px;
+  width:auto;
+  max-width:280px;
+  margin-left:auto;
+  margin-right:auto;
 }
 .model-opt{
   padding:8px 12px; font-family:var(--app-font-family-mono); font-size:12px; color:var(--app-color-text-secondary);

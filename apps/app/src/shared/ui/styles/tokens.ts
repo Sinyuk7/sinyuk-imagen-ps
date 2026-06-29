@@ -400,7 +400,11 @@ export const THEME_PROBE_CSS = `
  * 会跟随应用层翻转。 */
 export const SPECTRUM_BRIDGE_CSS = `
 sp-theme.app-theme{
-  display:contents;
+  display:block;
+  width:100%;
+  height:100%;
+  min-width:0;
+  min-height:0;
   /* Accent 映射到 SWC accent 公开 token */
   --spectrum-accent-background-color-default:var(--app-color-accent-default);
   --spectrum-accent-background-color-hover:var(--app-color-accent-hover);

@@ -24,10 +24,9 @@ export const SHELL_CSS = `
   margin-top:0; margin-right:8px; margin-bottom:0; margin-left:8px;
 }
 .hdr-center{
-  min-width:0; max-width:min(100%, 320px); display:inline-flex; align-items:center; justify-content:center; gap:6px;
+  min-width:0; max-width:min(100%, 320px); display:inline-flex; align-items:center; justify-content:center;
   min-height:30px; padding:4px 12px; border-radius:var(--app-radius-large); border:1px solid var(--app-color-border-default); background:var(--app-color-background-layer-2); color:var(--app-color-text-primary); cursor:pointer; outline:none;
   overflow:hidden;
-  box-shadow:inset 0 0 0 1px rgba(255,255,255,.03);
 }
 .hdr-center > span:first-child{ max-width:100%; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
 .hdr-provider-trigger:hover{ border-color:var(--app-color-border-strong); background:var(--app-color-background-elevated); color:var(--app-color-text-primary); }
@@ -35,7 +34,7 @@ export const SHELL_CSS = `
 .hdr-provider{ font-family:var(--app-font-family-mono); font-size:10px; font-weight:600; color:inherit; letter-spacing:.4px; max-width:100%; overflow:hidden; text-overflow:ellipsis; }
 .hdr-provider-trigger:hover .hdr-provider,
 .hdr-provider-trigger.open .hdr-provider{ color:inherit; }
-.hdr-provider-chevron{ flex:0 0 auto; color:inherit; opacity:.88; }
+.hdr-provider-chevron{ flex:0 0 auto; color:inherit; opacity:.88; margin-left:6px; }
 .hdr-title{ flex:1; min-width:0; margin-top:0; margin-right:8px; margin-bottom:0; margin-left:8px; font-family:var(--app-font-family-base); font-size:14px; font-weight:600; color:var(--app-color-text-primary); text-align:center; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
 
 /* Scroll */
