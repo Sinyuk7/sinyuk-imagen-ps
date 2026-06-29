@@ -29,6 +29,12 @@ export interface ImageEndpointProviderConfig {
   /** 缺省 model target。 */
   readonly defaultModel?: string;
 
+  /** Provider-bound raster input 的最大长边 ceiling。 */
+  readonly imageMaxSide: number;
+
+  /** Provider-bound raster input 的尺寸倍数要求。 */
+  readonly imageDimensionMultiple?: number;
+
   /** 兼容非标准 relay 鉴权或路由所需的附加 headers。 */
   readonly extraHeaders?: Readonly<Record<string, string>>;
 
@@ -55,6 +61,12 @@ export interface ChatImageProviderConfig {
 
   /** 缺省 model target。 */
   readonly defaultModel?: string;
+
+  /** Provider-bound raster input 的最大长边 ceiling。 */
+  readonly imageMaxSide: number;
+
+  /** Provider-bound raster input 的尺寸倍数要求。 */
+  readonly imageDimensionMultiple?: number;
 
   /** 兼容非标准 relay 鉴权或路由所需的附加 headers。 */
   readonly extraHeaders?: Readonly<Record<string, string>>;

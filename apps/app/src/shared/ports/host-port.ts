@@ -1,6 +1,7 @@
 import type { Asset } from '@imagen-ps/application';
 import type { HostImageAsset } from '../domain/host-image-asset';
 import type { PhotoshopCaptureResult, PlacementIntent } from '../domain/photoshop-placement';
+import type { ProviderInputSizePolicy } from '../image/resize';
 
 export interface LayerInfo {
   readonly id: number;
@@ -49,9 +50,9 @@ export interface RuntimeCapabilities {
 export interface HostPort {
   readonly capabilities: RuntimeCapabilities;
   listLayers(): Promise<readonly LayerInfo[]>;
-  pickImageFile(): Promise<HostImageAsset | undefined>;
-  captureActiveImage(): Promise<PhotoshopCaptureResult>;
-  readLayerAsAsset(layerId: number): Promise<HostImageAsset>;
+  pickImageFile(policy: ProviderInputSizePolicy): Promise<HostImageAsset | undefined>;
+  captureActiveImage(policy: ProviderInputSizePolicy): Promise<PhotoshopCaptureResult>;
+  readLayerAsAsset(layerId: number, policy: ProviderInputSizePolicy): Promise<HostImageAsset>;
   readLayerMaskAsAsset(layerId: number): Promise<HostImageAsset | undefined>;
   placeAssetOnCanvas(asset: Asset, placement: PlacementIntent): Promise<void>;
 }

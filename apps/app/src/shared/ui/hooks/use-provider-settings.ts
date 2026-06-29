@@ -4,6 +4,7 @@ import type {
   ProviderModelInfo,
   ProviderProfile,
   ProviderProfileConfig,
+  ProviderProfileConfigValue,
   ProviderProfileInput,
   ProviderProfileTestResult,
 } from '@imagen-ps/application';
@@ -245,12 +246,20 @@ export function providerConfigFromForm(
   defaultModel: string,
   instruction?: string,
 ): ProviderProfileConfig {
-  return {
+  const config: Record<string, ProviderProfileConfigValue> = {
     providerId,
     displayName,
     family,
     baseURL,
-    ...(defaultModel.trim() ? { defaultModel: defaultModel.trim() } : {}),
-    ...(instruction && instruction.trim() ? { instruction: instruction.trim() } : {}),
   };
+  if (family === 'image-endpoint' || family === 'chat-image') {
+    config.imageMaxSide = 2048;
+  }
+  if (defaultModel.trim()) {
+    config.defaultModel = defaultModel.trim();
+  }
+  if (instruction && instruction.trim()) {
+    config.instruction = instruction.trim();
+  }
+  return config;
 }

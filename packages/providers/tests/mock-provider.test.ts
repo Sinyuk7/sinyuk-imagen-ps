@@ -62,6 +62,7 @@ describe('mock provider', () => {
       family: 'image-endpoint',
       baseURL: 'https://mock.local',
       apiKey: 'test-key',
+      imageMaxSide: 2048,
       delayMs: 0,
     });
     const request = provider.validateRequest({ operation: 'text_to_image', prompt: 'test' });
@@ -83,6 +84,7 @@ describe('mock provider', () => {
       family: 'image-endpoint',
       baseURL: 'https://mock.local',
       apiKey: 'test-key',
+      imageMaxSide: 2048,
       delayMs: 0,
     });
     const request = provider.validateRequest({ operation: 'text_to_image', prompt: 'test' });
@@ -103,6 +105,7 @@ describe('mock provider', () => {
       family: 'image-endpoint',
       baseURL: 'https://mock.local',
       apiKey: 'test-key',
+      imageMaxSide: 2048,
       delayMs: 0,
     });
     const firstBytes = new Uint8Array([1, 2, 3]);
@@ -135,6 +138,7 @@ describe('mock provider', () => {
       family: 'image-endpoint',
       baseURL: 'https://mock.local',
       apiKey: 'test-key',
+      imageMaxSide: 2048,
       delayMs: 0,
     });
     const request = provider.validateRequest({

@@ -71,6 +71,7 @@ function mockProfileInput(profileId: string, displayName: string, model: string,
       displayName,
       baseURL: 'https://mock.local',
       defaultModel: model,
+      imageMaxSide: 2048,
     },
     secretValues: {
       apiKey,

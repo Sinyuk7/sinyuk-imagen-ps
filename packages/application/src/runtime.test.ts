@@ -107,6 +107,7 @@ describe('profile dispatch runtime', () => {
           family: 'image-endpoint',
           baseURL: 'https://mock.local',
           defaultModel: 'mock-image-v1',
+          imageMaxSide: 2048,
         },
         secretRefs: { apiKey: 'secret:mock' },
         enabled: true,
@@ -195,6 +196,7 @@ describe('profile dispatch runtime', () => {
           family: 'image-endpoint',
           baseURL: 'https://mock.local',
           defaultModel: 'mock-image-v1',
+          imageMaxSide: 2048,
         },
         secretRefs: { apiKey: 'secret:mock' },
         enabled: true,
@@ -221,7 +223,9 @@ describe('profile dispatch runtime', () => {
       return;
     }
     const outputAssets = (result.value.output?.image as { assets?: Array<{ data?: unknown; storedRef?: unknown }> })?.assets ?? [];
-    expect(outputAssets[0]?.data).toBeInstanceOf(Uint8Array);
+    expect(outputAssets[0]?.data).toBeUndefined();
+    expect(outputAssets[0]?.storedRef).toMatchObject({ kind: 'hostObject', mimeType: 'image/png' });
+    expect(JSON.stringify(result.value.output)).not.toContain('"data"');
   });
 
   it('rejects terminal history flush when job input contains secret values', async () => {

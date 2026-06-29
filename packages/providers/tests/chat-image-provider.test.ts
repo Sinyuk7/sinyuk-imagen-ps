@@ -13,6 +13,7 @@ describe('chat-image provider', () => {
       family: 'chat-image',
       baseURL: 'https://openrouter.ai/api/v1',
       apiKey: 'test-key',
+      imageMaxSide: 2048,
     });
 
     expect(provider.id).toBe('chat-image');
@@ -58,6 +59,22 @@ describe('chat-image provider', () => {
       { type: 'text', text: 'Use the following image as the edit mask.' },
       { type: 'image_url', image_url: { url: 'https://example.com/mask.png' } },
     ]);
+  });
+
+  it('converts Uint8Array edit input to base64 data URL inside the chat request builder', () => {
+    const body = buildChatImageRequestBody(
+      {
+        operation: 'image_edit',
+        prompt: 'use bytes',
+        images: [{ type: 'image', data: new Uint8Array([1, 2, 3]), mimeType: 'image/png' }],
+      },
+      'google/gemini-2.5-flash-image-preview',
+    );
+
+    expect(body.messages[0].content).toContainEqual({
+      type: 'image_url',
+      image_url: { url: 'data:image/png;base64,AQID' },
+    });
   });
 
   it('normalizes OpenRouter-style image response', () => {
@@ -114,6 +131,7 @@ describe('chat-image provider', () => {
       family: 'chat-image',
       baseURL: 'https://openrouter.ai/api/v1',
       apiKey: 'test-key',
+      imageMaxSide: 2048,
       defaultModel: 'google/gemini-2.5-flash-image-preview',
     });
     const request = provider.validateRequest({ operation: 'text_to_image', prompt: 'test' });

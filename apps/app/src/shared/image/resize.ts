@@ -14,6 +14,12 @@ export interface ModelSizePolicy {
   readonly minLongSideUtilization?: number;
 }
 
+export interface ProviderInputSizePolicy {
+  readonly maxSide: number;
+  readonly minSide?: number;
+  readonly multiple?: number;
+}
+
 export type CaptureDownscaleMode = 'photoshop-target-size' | 'app-area';
 
 export type PlacementScaleMode = 'smart-object-transform' | 'raster-bilinear';
@@ -37,12 +43,28 @@ export interface ResolvedModelSize {
   readonly effectiveMultiple: number;
 }
 
+export interface ProviderInputPlan {
+  readonly sourceWidth: number;
+  readonly sourceHeight: number;
+  readonly targetWidth: number;
+  readonly targetHeight: number;
+  readonly scale: number;
+  readonly minSide: number;
+  readonly maxSide: number;
+  readonly multiple: number;
+  readonly wasResized: boolean;
+  readonly wasUpscaled: boolean;
+  readonly wasDownscaled: boolean;
+}
+
 export const DEFAULT_MODEL_SIZE_POLICY = {
   maxSide: 1028,
   multiple: 2,
   maxAspectError: 0.0005,
   minLongSideUtilization: 0.9,
 } as const satisfies Required<ModelSizePolicy>;
+
+export const DEFAULT_PROVIDER_INPUT_MIN_SIDE = 1024;
 
 export const DEFAULT_IMAGE_RESIZE_STRATEGY = {
   captureDownscaleMode: 'photoshop-target-size',
@@ -250,6 +272,46 @@ export function resolveModelSize(originalSize: ImageSize, options: ModelSizePoli
   }
 
   return bestCandidate;
+}
+
+export function resolveProviderInputPlan(
+  originalSize: ImageSize,
+  policy: ProviderInputSizePolicy,
+): ProviderInputPlan {
+  if (policy.maxSide === undefined || !Number.isInteger(policy.maxSide) || policy.maxSide <= 0) {
+    throw new RangeError(`effectiveProviderMaxSide must be a positive integer, got ${policy.maxSide}`);
+  }
+  const minSide = policy.minSide ?? DEFAULT_PROVIDER_INPUT_MIN_SIDE;
+  assertPositiveInteger('providerInputMinSide', minSide);
+  if (minSide > policy.maxSide) {
+    throw new RangeError(`providerInputMinSide must be <= effectiveProviderMaxSide, got ${minSide} > ${policy.maxSide}`);
+  }
+  const multiple = policy.multiple ?? DEFAULT_MODEL_SIZE_POLICY.multiple;
+  const originalLongSide = Math.max(originalSize.width, originalSize.height);
+  const planSource =
+    originalLongSide >= minSide
+      ? resolveModelSize(originalSize, { maxSide: policy.maxSide, multiple })
+      : resolveModelSize(
+          {
+            width: Math.max(1, Math.round((originalSize.width / originalLongSide) * minSide)),
+            height: Math.max(1, Math.round((originalSize.height / originalLongSide) * minSide)),
+          },
+          { maxSide: policy.maxSide, multiple },
+        );
+  const scale = Math.min(planSource.width / originalSize.width, planSource.height / originalSize.height);
+  return {
+    sourceWidth: originalSize.width,
+    sourceHeight: originalSize.height,
+    targetWidth: planSource.width,
+    targetHeight: planSource.height,
+    scale,
+    minSide,
+    maxSide: planSource.maxSide,
+    multiple: planSource.effectiveMultiple,
+    wasResized: planSource.width !== originalSize.width || planSource.height !== originalSize.height,
+    wasUpscaled: scale > 1,
+    wasDownscaled: scale < 1,
+  };
 }
 
 export function resolveCaptureUploadPlan(

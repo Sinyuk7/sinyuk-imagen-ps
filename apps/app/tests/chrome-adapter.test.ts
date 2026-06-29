@@ -11,7 +11,13 @@ function sampleProfile(): ProviderProfile {
     providerId: 'mock',
     displayName: 'Chrome Profile',
     enabled: true,
-    config: { providerId: 'mock', displayName: 'Chrome Profile', family: 'image-endpoint', baseURL: 'https://mock.local' },
+    config: {
+      providerId: 'mock',
+      displayName: 'Chrome Profile',
+      family: 'image-endpoint',
+      baseURL: 'https://mock.local',
+      imageMaxSide: 2048,
+    },
     createdAt: '2026-06-25T00:00:00.000Z',
     updatedAt: '2026-06-25T00:00:00.000Z',
   };
@@ -43,13 +49,17 @@ describe('Chrome adapter contracts', () => {
   });
 
   it('uses File API upload to create a HostImageAsset accepted by the shared submit flow', async () => {
-    const file = new File([new Uint8Array([137, 80, 78, 71])], 'upload.png', { type: 'image/png' });
+    const pngHeader = new Uint8Array(24);
+    pngHeader.set([137, 80, 78, 71], 0);
+    pngHeader[18] = 4;
+    pngHeader[22] = 4;
+    const file = new File([pngHeader], 'upload.png', { type: 'image/png' });
     const host = createChromeHostPort({
       simulator: createPhotoshopSimulator('seeded-document'),
       filePicker: { pick: async () => file },
     });
 
-    const image = await host.pickImageFile();
+    const image = await host.pickImageFile({ maxSide: 2048 });
     expect(image?.asset.name).toBe('upload.png');
     expect(image?.asset.data).toBeInstanceOf(Uint8Array);
     expect(image?.metadata.source).toBe('file');
@@ -60,7 +70,7 @@ describe('Chrome adapter contracts', () => {
     const layers = simulator.listLayers();
     expect(layers).toHaveLength(10);
     expect(layers.map((layer) => layer.name)).toContain('sim-layer-10.svg');
-    expect((await simulator.readLayerAsAsset(10)).preview.url).toContain('data:image/svg+xml;base64,');
+    expect((await simulator.readLayerAsAsset(10, { maxSide: 2048 })).preview.url).toContain('data:image/svg+xml;base64,');
   });
 
   it('runs the Chrome provider command path with mock provider state and simulator layers', async () => {

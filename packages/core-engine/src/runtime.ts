@@ -47,6 +47,9 @@ export interface RuntimeOptions {
 
   /** 可选 Logger；未提供时使用 null logger。 */
   logger?: Logger;
+
+  /** 可选 step result 后处理；在 terminal output 进入 JobStore 与事件前执行。 */
+  afterStepResult?: RunnerDepsPostprocessor;
 }
 
 /** 使用已有依赖执行一次 workflow 的额外选项。 */
@@ -54,6 +57,9 @@ export interface RunWorkflowOptions {
   /** 可选 Logger；未提供时使用 null logger。 */
   logger?: Logger;
 }
+
+/** 单个 workflow step result 的后处理 hook。 */
+export type RunnerDepsPostprocessor = NonNullable<import('./runner.js').RunnerDeps['afterStepResult']>;
 
 /** 从 event bus 实例中提取内部 `emit` 方法。 */
 function getEmit(events: JobEventBus): (event: JobEvent) => void {
@@ -81,6 +87,7 @@ export async function runWorkflow(
     events: JobEventBus;
   },
   options?: RunWorkflowOptions,
+  runtimeOptions?: Pick<RuntimeOptions, 'afterStepResult'>,
 ): Promise<Job> {
   const logger = options?.logger ?? createNullLogger();
   const job = deps.store.submitJob(input);
@@ -100,6 +107,7 @@ export async function runWorkflow(
     controller: deps.controller,
     dispatcher: deps.dispatcher,
     logger: jobLogger,
+    ...(runtimeOptions?.afterStepResult !== undefined ? { afterStepResult: runtimeOptions.afterStepResult } : {}),
   });
 
   if (result.status === 'completed') {
@@ -128,10 +136,17 @@ export function createRuntime(options?: RuntimeOptions): Runtime {
   const dispatcher = createProviderDispatcher(options?.adapters, options?.logger);
 
   const runtimeLogger = options?.logger ?? createNullLogger();
+  const afterStepResult = options?.afterStepResult;
 
   const runtime: Runtime = {
     async runWorkflow(workflowName: string, input: JobInput, options?: RunWorkflowOptions): Promise<Job> {
-      return runWorkflow(workflowName, input, { store, controller, registry, dispatcher, events }, { logger: options?.logger ?? runtimeLogger });
+      return runWorkflow(
+        workflowName,
+        input,
+        { store, controller, registry, dispatcher, events },
+        { logger: options?.logger ?? runtimeLogger },
+        { afterStepResult },
+      );
     },
     store,
     events,

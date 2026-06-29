@@ -291,6 +291,76 @@ async function materializeOutputRefs(output: Record<string, unknown> | undefined
   return refs;
 }
 
+function assetFromStoredRef(record: Record<string, unknown>, storedRef: StoredAssetRef): Record<string, unknown> {
+  const type = typeof record.type === 'string' ? record.type : 'image';
+  const name = typeof record.name === 'string' ? record.name : storedRef.name;
+  const mimeType = typeof record.mimeType === 'string' ? record.mimeType : storedRef.mimeType;
+  return {
+    type,
+    ...(name !== undefined ? { name } : {}),
+    ...(mimeType !== undefined ? { mimeType } : {}),
+    storedRef,
+  };
+}
+
+async function materializeOutputAsset(asset: unknown): Promise<unknown> {
+  if (!isPlainRecord(asset)) {
+    return asset;
+  }
+  const existingRef = storedRefFromAsset(asset);
+  if (existingRef !== undefined) {
+    return assetFromStoredRef(asset, existingRef);
+  }
+  const mimeType = typeof asset.mimeType === 'string' ? asset.mimeType : undefined;
+  const name = typeof asset.name === 'string' ? asset.name : undefined;
+  const bytes = bytesFromAsset(asset);
+  if (bytes !== undefined) {
+    const storedRef = await getAssetStore().put(bytes, { mimeType, name });
+    return assetFromStoredRef(asset, storedRef);
+  }
+  if (typeof asset.url === 'string' && asset.url.length > 0) {
+    return {
+      ...assetFromStoredRef(asset, {
+        kind: 'url',
+        ref: asset.url,
+        ...(mimeType !== undefined ? { mimeType } : {}),
+        ...(name !== undefined ? { name } : {}),
+      }),
+      url: asset.url,
+    };
+  }
+  if (typeof asset.fileId === 'string' && asset.fileId.length > 0) {
+    return {
+      ...assetFromStoredRef(asset, {
+        kind: 'externalToken',
+        ref: asset.fileId,
+        ...(mimeType !== undefined ? { mimeType } : {}),
+        ...(name !== undefined ? { name } : {}),
+      }),
+      fileId: asset.fileId,
+    };
+  }
+  return asset;
+}
+
+async function materializeProviderOutputForLongLivedState(result: unknown): Promise<unknown> {
+  if (!isPlainRecord(result)) {
+    return result;
+  }
+  const assets = Array.isArray(result.assets) ? result.assets : undefined;
+  if (assets === undefined) {
+    return result;
+  }
+  const materializedAssets: unknown[] = [];
+  for (const asset of assets) {
+    materializedAssets.push(await materializeOutputAsset(asset));
+  }
+  return {
+    ...result,
+    assets: materializedAssets,
+  };
+}
+
 interface DurableJobFlushOptions {
   readonly originJobId?: string;
   readonly retryAttempt?: number;
@@ -366,9 +436,13 @@ async function resolveStoredAssetsForDispatch(params: Record<string, unknown>): 
   let nextRequest = requestObj;
 
   if (Array.isArray(requestObj.images)) {
+    const images: unknown[] = [];
+    for (const image of requestObj.images) {
+      images.push(await resolveStoredAssetForDispatch(image));
+    }
     nextRequest = {
       ...nextRequest,
-      images: await Promise.all(requestObj.images.map(resolveStoredAssetForDispatch)),
+      images,
     };
   }
   if (requestObj.maskImage !== undefined) {
@@ -521,6 +595,7 @@ export function getRuntime(): ExtendedRuntime {
       family: mockProvider.family,
       baseURL: 'https://mock.local',
       apiKey: 'mock-key',
+      imageMaxSide: 2048,
     });
     const mockAdapter = createDispatchAdapter({
       provider: mockProvider,
@@ -532,6 +607,9 @@ export function getRuntime(): ExtendedRuntime {
       initialWorkflows: builtinWorkflows,
       adapters: [mockAdapter, createProfileAwareDispatchAdapter(logger)],
       logger,
+      async afterStepResult({ result }) {
+        return materializeProviderOutputForLongLivedState(result);
+      },
     });
 
     instance = Object.assign(baseRuntime, {

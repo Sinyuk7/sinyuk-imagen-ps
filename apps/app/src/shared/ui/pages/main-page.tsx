@@ -14,6 +14,7 @@ import { UxpTextArea } from '../components/uxp-form-controls';
 import { useToast, ToastHost } from '../components/toast-host';
 import { ActionButton } from '../primitives/spectrum-controls';
 import { useI18n } from '../i18n/i18n-context';
+import type { ProviderInputSizePolicy } from '../../image/resize';
 
 interface MainPageProps {
   readonly onNav: (view: string) => void;
@@ -98,6 +99,34 @@ function mediaShapeFromSize(size: string | undefined): 'portrait' | 'square' | '
   if (ratio < 0.9) return 'portrait';
   if (ratio > 1.15) return 'landscape';
   return 'square';
+}
+
+function readPositiveIntegerConfig(profile: ProviderProfile | undefined, keys: readonly string[]): number | undefined {
+  if (!profile) {
+    return undefined;
+  }
+  for (const key of keys) {
+    const value = profile.config[key];
+    if (typeof value === 'number' && Number.isInteger(value) && value > 0) {
+      return value;
+    }
+    if (typeof value === 'string' && /^\d+$/.test(value)) {
+      const parsed = Number(value);
+      if (parsed > 0) {
+        return parsed;
+      }
+    }
+  }
+  return undefined;
+}
+
+function providerInputPolicy(profile: ProviderProfile | undefined): ProviderInputSizePolicy {
+  const maxSide = readPositiveIntegerConfig(profile, ['imageMaxSide', 'providerMaxSide', 'maxSide']);
+  if (maxSide === undefined) {
+    throw new Error('Provider profile config is missing imageMaxSide for provider-bound raster input.');
+  }
+  const multiple = readPositiveIntegerConfig(profile, ['imageDimensionMultiple', 'dimensionMultiple']);
+  return { maxSide, ...(multiple !== undefined ? { multiple } : {}) };
 }
 
 export function MainPage({
@@ -229,7 +258,7 @@ export function MainPage({
 
   const addLayer = async (layer: LayerInfo) => {
     try {
-      const image = await services.host.readLayerAsAsset(layer.id);
+      const image = await services.host.readLayerAsAsset(layer.id, providerInputPolicy(selectedProfile));
       addAttachment({
         id: attachmentId('layer'),
         type: 'layer',
@@ -251,7 +280,7 @@ export function MainPage({
 
   const addFile = async () => {
     try {
-      const image = await services.host.pickImageFile();
+      const image = await services.host.pickImageFile(providerInputPolicy(selectedProfile));
       if (!image) {
         return;
       }
@@ -274,7 +303,7 @@ export function MainPage({
     }
     setCaptureInFlight(true);
     try {
-      const result = await services.host.captureActiveImage();
+      const result = await services.host.captureActiveImage(providerInputPolicy(selectedProfile));
       addAttachment({
         id: attachmentId('capture'),
         type: 'photoshop-capture',

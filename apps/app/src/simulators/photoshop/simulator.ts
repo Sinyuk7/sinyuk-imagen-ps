@@ -1,6 +1,7 @@
 import type { Asset } from '@imagen-ps/application';
 import { createHostImageAsset, type HostImageAsset } from '../../shared/domain/host-image-asset';
 import type { PhotoshopCaptureResult, PlacementIntent } from '../../shared/domain/photoshop-placement';
+import type { ProviderInputSizePolicy } from '../../shared/image/resize';
 import type { LayerInfo } from '../../shared/ports/host-port';
 
 export type PhotoshopSimulatorScenarioId =
@@ -15,8 +16,8 @@ export type PhotoshopSimulatorScenarioId =
 export interface PhotoshopSimulator {
   readonly scenarioId: PhotoshopSimulatorScenarioId;
   listLayers(): readonly LayerInfo[];
-  captureActiveImage(): Promise<PhotoshopCaptureResult>;
-  readLayerAsAsset(layerId: number): Promise<HostImageAsset>;
+  captureActiveImage(policy: ProviderInputSizePolicy): Promise<PhotoshopCaptureResult>;
+  readLayerAsAsset(layerId: number, policy: ProviderInputSizePolicy): Promise<HostImageAsset>;
   readLayerMaskAsAsset(layerId: number): Promise<HostImageAsset | undefined>;
   placeAssetOnCanvas(asset: Asset, placement: PlacementIntent): Promise<void>;
 }
@@ -61,13 +62,13 @@ export function createPhotoshopSimulator(scenarioId: PhotoshopSimulatorScenarioI
       if (scenarioId === 'host-busy') throw new Error('Simulator host is busy.');
       return layers;
     },
-    async readLayerAsAsset(layerId): Promise<HostImageAsset> {
+    async readLayerAsAsset(layerId, _policy): Promise<HostImageAsset> {
       if (scenarioId === 'host-busy') throw new Error('Simulator host is busy.');
       const asset = assets[layerId - 1];
       if (!asset) throw new Error(`Simulator layer not found: ${layerId}`);
       return asset;
     },
-    async captureActiveImage(): Promise<PhotoshopCaptureResult> {
+    async captureActiveImage(_policy): Promise<PhotoshopCaptureResult> {
       if (scenarioId === 'host-busy') throw new Error('Simulator host is busy.');
       const layer = layers[0];
       const image = assets[0];

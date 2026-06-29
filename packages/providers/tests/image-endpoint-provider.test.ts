@@ -20,6 +20,7 @@ describe('image-endpoint provider', () => {
       family: 'image-endpoint',
       baseURL: 'https://api.example.com',
       apiKey: 'test-key',
+      imageMaxSide: 2048,
     });
 
     expect(provider.id).toBe('image-endpoint');
@@ -121,6 +122,7 @@ describe('image-endpoint provider', () => {
       family: 'image-endpoint',
       baseURL: 'https://api.example.com',
       apiKey: 'test-key',
+      imageMaxSide: 2048,
     });
 
     await provider.discoverModels(config);
@@ -145,6 +147,7 @@ describe('image-endpoint provider', () => {
       family: 'image-endpoint',
       baseURL: 'https://api.example.com',
       apiKey: 'test-key',
+      imageMaxSide: 2048,
       defaultModel: 'dall-e-3',
     });
     const request = provider.validateRequest({ operation: 'text_to_image', prompt: 'test' });

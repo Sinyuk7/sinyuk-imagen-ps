@@ -7,6 +7,13 @@
 
 ## Current Fact
 
+2026-06-29 update: this audit is historical evidence for the pre-hardening
+implementation. The current active sprint supersedes its implicit "small source
+images stay original size" assumption. Provider-bound raster input now requires
+a global minimum long side of `1024` while still using the selected
+Provider/Profile max-side as the only ceiling. See
+`docs/loops/2026-06-29-provider-bounded-image-pipeline.md`.
+
 The app treats Photoshop and local image inputs as host-owned image resources at
 the React/application boundary:
 
