@@ -1,5 +1,9 @@
 import { describe, expect, it, vi } from 'vitest';
-import { createHostModalRunner, createPhotoshopHostBridge } from './photoshop-host-bridge';
+import {
+  createHostModalRunner,
+  createPhotoshopHostBridge,
+  createPhotoshopThumbnailGenerator,
+} from './photoshop-host-bridge';
 import type { UxpModules } from './uxp-api';
 import { createNullLogger } from '@imagen-ps/foundation';
 import { createInMemoryAssetStore } from './in-memory-host-storage';
@@ -95,6 +99,24 @@ function bytesToBase64(bytes: Uint8Array): string {
   let binary = '';
   for (const byte of bytes) binary += String.fromCharCode(byte);
   return btoa(binary);
+}
+
+async function withObjectUrlMock<T>(
+  run: (spies: { readonly create: ReturnType<typeof vi.fn>; readonly revoke: ReturnType<typeof vi.fn> }) => Promise<T>,
+): Promise<T> {
+  const originalCreate = URL.createObjectURL;
+  const originalRevoke = URL.revokeObjectURL;
+  let nextUrl = 1;
+  const create = vi.fn(() => `blob:thumb-${nextUrl++}`);
+  const revoke = vi.fn();
+  URL.createObjectURL = create;
+  URL.revokeObjectURL = revoke;
+  try {
+    return await run({ create, revoke });
+  } finally {
+    URL.createObjectURL = originalCreate;
+    URL.revokeObjectURL = originalRevoke;
+  }
 }
 
 function createFakeModules(options?: {
@@ -310,6 +332,12 @@ function createBridge(modules: UxpModules) {
   };
 }
 
+function createThumbnailGenerator(modules: UxpModules) {
+  return createPhotoshopThumbnailGenerator(modules, {
+    logger: createNullLogger(),
+  });
+}
+
 async function resolveAssetBytes(assetStore: ReturnType<typeof createInMemoryAssetStore>, asset: { readonly storedRef?: unknown }): Promise<Uint8Array> {
   expect(asset.storedRef).toMatchObject({ kind: 'hostObject' });
   const bytes = await assetStore.resolve(asset.storedRef as StoredAssetRef);
@@ -413,7 +441,7 @@ describe('PhotoshopHostBridge fake harness', () => {
     expect(spies.disposeMask).toHaveBeenCalledTimes(1);
   });
 
-  it('为 Photoshop 图层独立生成 bounded thumbnail derivative 和 provider derivative', async () => {
+  it('为 Photoshop 图层独立生成 bounded thumbnail derivative 和 provider derivative', async () => withObjectUrlMock(async ({ create, revoke }) => {
     const { modules, spies } = createFakeModules({
       activeLayerBounds: { _left: 0, _top: 0, _right: 3000, _bottom: 1500 },
     });
@@ -443,7 +471,11 @@ describe('PhotoshopHostBridge fake harness', () => {
       layerID: 2,
       targetSize: { width: 2048, height: 1024 },
     }));
-  });
+    expect(layerAsset.preview).toMatchObject({ kind: 'object-url', url: 'blob:thumb-1' });
+    expect(create).toHaveBeenCalledTimes(1);
+    layerAsset.preview.dispose?.();
+    expect(revoke).toHaveBeenCalledWith('blob:thumb-1');
+  }));
 
   it('layer pixels 未转成 RGB 时返回清晰错误并释放 imageData', async () => {
     const { modules, spies } = createFakeModules({ layerColorSpace: 'Lab' });
@@ -534,7 +566,14 @@ describe('PhotoshopHostBridge fake harness', () => {
 
     expect(spies.openDocument).toHaveBeenCalledTimes(1);
     expect(spies.executeAsModal).toHaveBeenCalledWith(expect.any(Function), { commandName: 'Normalize local image for provider input' });
-    expect(spies.getPixels).toHaveBeenCalledWith({
+    expect(spies.getPixels).toHaveBeenNthCalledWith(1, {
+      documentID: 99,
+      targetSize: { width: 256, height: 256 },
+      colorSpace: 'RGB',
+      componentSize: 8,
+      applyAlpha: false,
+    });
+    expect(spies.getPixels).toHaveBeenNthCalledWith(2, {
       documentID: 99,
       targetSize: { width: 1024, height: 1024 },
       colorSpace: 'RGB',
@@ -580,7 +619,11 @@ describe('PhotoshopHostBridge fake harness', () => {
 
     await bridge.pickImageFile(providerPolicy);
 
-    expect(spies.getPixels).toHaveBeenCalledWith(expect.objectContaining({
+    expect(spies.getPixels).toHaveBeenNthCalledWith(1, expect.objectContaining({
+      documentID: 99,
+      targetSize: { width: 256, height: 154 },
+    }));
+    expect(spies.getPixels).toHaveBeenNthCalledWith(2, expect.objectContaining({
       documentID: 99,
       targetSize: { width: 2046, height: 1228 },
     }));
@@ -596,12 +639,64 @@ describe('PhotoshopHostBridge fake harness', () => {
 
     await bridge.pickImageFile(providerPolicy);
 
-    expect(spies.getPixels).toHaveBeenCalledWith(expect.objectContaining({
+    expect(spies.getPixels).toHaveBeenNthCalledWith(1, expect.objectContaining({
+      documentID: 99,
+      targetSize: { width: 256, height: 171 },
+    }));
+    expect(spies.getPixels).toHaveBeenNthCalledWith(2, expect.objectContaining({
       documentID: 99,
       targetSize: { width: 1198, height: 798 },
     }));
     expect(spies.closeTempDocument).toHaveBeenCalledTimes(1);
   });
+
+  it('为无需 provider resize 的本地文件仍生成 bounded thumbnail preview', async () => withObjectUrlMock(async ({ create, revoke }) => {
+    const { modules, spies } = createFakeModules({
+      pickedFileName: 'ready.png',
+      pickedFileData: arrayBufferFromBytes(pngWithSize(2000, 2000)),
+    });
+    const { bridge } = createBridge(modules);
+
+    const asset = await bridge.pickImageFile(providerPolicy);
+
+    expect(spies.openDocument).toHaveBeenCalledTimes(1);
+    expect(spies.getPixels).toHaveBeenCalledTimes(1);
+    expect(spies.getPixels).toHaveBeenCalledWith(expect.objectContaining({
+      documentID: 99,
+      targetSize: { width: 256, height: 256 },
+    }));
+    expect(asset?.preview).toMatchObject({ kind: 'object-url', url: 'blob:thumb-1' });
+    expect(asset?.asset.storedRef).toMatchObject({ name: 'ready.png', mimeType: 'image/png' });
+    expect(create).toHaveBeenCalledTimes(1);
+    asset?.preview.dispose?.();
+    expect(revoke).toHaveBeenCalledWith('blob:thumb-1');
+  }));
+
+  it('为 storedRef provider output 通过临时 Photoshop document 生成 bounded thumbnail', async () => withObjectUrlMock(async ({ create, revoke }) => {
+    const { modules, spies } = createFakeModules();
+    const createThumbnail = createThumbnailGenerator(modules);
+
+    const preview = await createThumbnail?.({
+      asset: { type: 'image', name: 'echo.png', mimeType: 'image/png' },
+      bytes: pngWithSize(4096, 2048),
+      mimeType: 'image/png',
+      maxSide: 256,
+    });
+
+    expect(preview).toMatchObject({ url: 'blob:thumb-1' });
+    expect(spies.createFile).toHaveBeenCalledWith(expect.stringMatching(/^imagen-thumb-\d+\.png$/), { overwrite: true });
+    expect(spies.writeTempFile).toHaveBeenCalledWith(expect.any(Uint8Array), { format: 'binary' });
+    expect(spies.openDocument).toHaveBeenCalledTimes(1);
+    expect(spies.getPixels).toHaveBeenCalledWith(expect.objectContaining({
+      documentID: 99,
+      targetSize: { width: 256, height: 128 },
+    }));
+    expect(spies.closeTempDocument).toHaveBeenCalledTimes(1);
+    expect(spies.deleteTempFile).toHaveBeenCalledTimes(1);
+    expect(create).toHaveBeenCalledTimes(1);
+    preview?.release();
+    expect(revoke).toHaveBeenCalledWith('blob:thumb-1');
+  }));
 
   it('captureActiveImage materializes active layer as PNG with placement metadata', async () => {
     const { modules, spies } = createFakeModules();

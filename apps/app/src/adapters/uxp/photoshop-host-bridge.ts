@@ -15,6 +15,11 @@ import {
   resolveProviderInputPlan,
   type ProviderInputSizePolicy,
 } from '../../shared/image/resize';
+import {
+  createRuntimeImageUrlOrDataUrl,
+  type RuntimeImageUrl,
+} from '../../shared/image/runtime-image-url';
+import type { ThumbnailStoreOptions } from '../../shared/image/thumbnail-store';
 import type {
   PhotoshopCaptureResult,
   PhotoshopRect,
@@ -117,7 +122,6 @@ const PNG_IHDR = 'IHDR';
 const PNG_IDAT = 'IDAT';
 const PNG_IEND = 'IEND';
 const DEFLATE_STORED_BLOCK_MAX = 0xffff;
-const MAX_INLINE_PREVIEW_BYTES = 256 * 1024;
 const PHOTOSHOP_THUMBNAIL_MAX_SIDE = 256;
 
 function photoshopAppFrom(modules: UxpModules): PhotoshopApp | undefined {
@@ -295,47 +299,6 @@ function dataUrlToBytes(dataUrl: string): Uint8Array {
   return bytes;
 }
 
-function bytesToBase64(bytes: Uint8Array): string {
-  const alphabet = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/';
-  const chunks: string[] = [];
-  let chunk = '';
-  let index = 0;
-  const append = (a: string, b: string, c: string, d: string): void => {
-    chunk += `${a}${b}${c}${d}`;
-    if (chunk.length >= 8192) {
-      chunks.push(chunk);
-      chunk = '';
-    }
-  };
-
-  for (; index + 2 < bytes.length; index += 3) {
-    const value = (bytes[index] << 16) | (bytes[index + 1] << 8) | bytes[index + 2];
-    append(alphabet[(value >> 18) & 63], alphabet[(value >> 12) & 63], alphabet[(value >> 6) & 63], alphabet[value & 63]);
-  }
-
-  const remaining = bytes.length - index;
-  if (remaining === 1) {
-    const value = bytes[index] << 16;
-    append(alphabet[(value >> 18) & 63], alphabet[(value >> 12) & 63], '=', '=');
-  } else if (remaining === 2) {
-    const value = (bytes[index] << 16) | (bytes[index + 1] << 8);
-    append(alphabet[(value >> 18) & 63], alphabet[(value >> 12) & 63], alphabet[(value >> 6) & 63], '=');
-  }
-
-  if (chunk.length > 0) {
-    chunks.push(chunk);
-  }
-
-  return chunks.join('');
-}
-
-function previewUrlForImage(bytes: Uint8Array, mimeType: string): string | undefined {
-  if (bytes.byteLength > MAX_INLINE_PREVIEW_BYTES) {
-    return undefined;
-  }
-  return `data:${mimeType};base64,${bytesToBase64(bytes)}`;
-}
-
 function thumbnailTargetSize(
   sourceSize: { readonly width: number; readonly height: number },
   maxSide = PHOTOSHOP_THUMBNAIL_MAX_SIDE,
@@ -367,7 +330,7 @@ async function createStoredHostImageAsset(
     readonly source: HostImageAsset['metadata']['source'];
     readonly name: string;
     readonly mimeType: string;
-    readonly previewUrl?: string;
+    readonly preview?: RuntimeImageUrl;
     readonly width?: number;
     readonly height?: number;
   },
@@ -380,7 +343,8 @@ async function createStoredHostImageAsset(
   });
   return createHostImageAsset(storedRefToAssetPayload(ref), {
     source: meta.source,
-    previewUrl: meta.previewUrl,
+    previewUrl: meta.preview?.url,
+    disposePreview: meta.preview?.release,
     payloadKind: 'host-object',
     payloadRef: ref.ref,
     width: meta.width,
@@ -547,8 +511,9 @@ async function createLocalFileProviderDerivative(
   imaging: PhotoshopImaging,
   assetStore: AssetStore,
   file: unknown,
+  bytes: Uint8Array,
   plan: ReturnType<typeof resolveProviderInputPlan>,
-  meta: { readonly name: string; readonly mimeType: string; readonly previewUrl?: string },
+  meta: { readonly name: string; readonly mimeType: string },
 ): Promise<HostImageAsset> {
   if (!app.open) {
     throw new Error('Local image requires provider input normalization, but Photoshop app.open() is unavailable.');
@@ -560,6 +525,34 @@ async function createLocalFileProviderDerivative(
     if (!tempDocument.id) {
       throw new Error('Photoshop did not return a document id for the selected local image.');
     }
+    const sourceRect = { left: 0, top: 0, right: plan.sourceWidth, bottom: plan.sourceHeight };
+    const thumbnailSize = thumbnailTargetSize({ width: plan.sourceWidth, height: plan.sourceHeight });
+    const preview = await createPhotoshopThumbnailUrl(
+      imaging,
+      {
+        documentID: tempDocument.id,
+        targetSize: thumbnailSize,
+        colorSpace: 'RGB',
+        componentSize: 8,
+        applyAlpha: false,
+      },
+      {
+        requestedRect: sourceRect,
+        targetSize: thumbnailSize,
+      },
+    );
+
+    if (!plan.wasResized) {
+      return createStoredHostImageAsset(assetStore, bytes, {
+        source: 'file',
+        name: meta.name,
+        mimeType: meta.mimeType,
+        preview,
+        width: plan.targetWidth,
+        height: plan.targetHeight,
+      });
+    }
+
     const targetSize = {
       width: plan.targetWidth,
       height: plan.targetHeight,
@@ -571,7 +564,6 @@ async function createLocalFileProviderDerivative(
       componentSize: 8,
       applyAlpha: false,
     });
-    const sourceRect = { left: 0, top: 0, right: plan.sourceWidth, bottom: plan.sourceHeight };
     const rgba = await imageDataToRgba(result.imageData, {
       requestedRect: sourceRect,
       targetSize,
@@ -583,7 +575,7 @@ async function createLocalFileProviderDerivative(
       source: 'file',
       name: meta.name.replace(/\.[^.]+$/, '') + '.png',
       mimeType: 'image/png',
-      previewUrl: meta.previewUrl,
+      preview,
       width: targetSize.width,
       height: targetSize.height,
     });
@@ -606,7 +598,7 @@ async function createPhotoshopThumbnailUrl(
     readonly targetSize: { readonly width: number; readonly height: number };
   },
   selectionRequest?: Record<string, unknown>,
-): Promise<string | undefined> {
+): Promise<RuntimeImageUrl> {
   const result = await imaging.getPixels(request);
   const rgba = await imageDataToRgba(result.imageData, {
     requestedRect: frame.requestedRect,
@@ -627,7 +619,7 @@ async function createPhotoshopThumbnailUrl(
     applySelectionAlpha(rgba, alpha);
   }
   const png = await rgbaToPngBytes({ width: frame.targetSize.width, height: frame.targetSize.height, data: rgba });
-  return previewUrlForImage(png, 'image/png');
+  return createRuntimeImageUrlOrDataUrl(png, 'image/png');
 }
 
 function assertExactPlacementAspect(
@@ -1032,6 +1024,89 @@ export interface CreatePhotoshopHostBridgeOptions {
   readonly logger?: Logger;
   /** 可选 asset store；测试可注入隔离实例，生产使用 application runtime store。 */
   readonly assetStore?: AssetStore;
+  /** 可选共享 Photoshop modal runner；避免 host IO 与 thumbnail 派生并发进入 modal。 */
+  readonly executeHostModal?: <T>(callback: () => Promise<T>, options?: { readonly commandName?: string }) => Promise<T>;
+}
+
+export function createPhotoshopHostModalRunner(
+  modules: UxpModules,
+  logger: Logger,
+): CreatePhotoshopHostBridgeOptions['executeHostModal'] | undefined {
+  const core = photoshopCoreFrom(modules);
+  return core ? createHostModalRunner(core, logger) : undefined;
+}
+
+export function createPhotoshopThumbnailGenerator(
+  modules: UxpModules,
+  options?: Pick<CreatePhotoshopHostBridgeOptions, 'logger' | 'executeHostModal'>,
+): ThumbnailStoreOptions['createThumbnail'] {
+  const app = photoshopAppFrom(modules);
+  const imaging = photoshopImagingFrom(modules);
+  const core = photoshopCoreFrom(modules);
+  const fs = localFileSystemFrom(modules);
+  const formats = storageFormatsFrom(modules);
+  const logger = options?.logger ?? getRuntimeLogger().child({ package: 'app', component: 'host' });
+
+  if (!app?.open || !imaging || !core || !fs) {
+    return undefined;
+  }
+
+  const executeHostModal = options?.executeHostModal ?? createHostModalRunner(core, logger);
+
+  return async ({ asset, bytes, mimeType, maxSide, signal }) => {
+    if (signal?.aborted) {
+      throw new DOMException('Thumbnail generation was cancelled.', 'AbortError');
+    }
+    const size = readImageSize(bytes, mimeType);
+    if (!size) {
+      return undefined;
+    }
+    const targetSize = thumbnailTargetSize(size, maxSide);
+    return executeHostModal(async () => {
+      const previousDocument = app.activeDocument;
+      let tempDocument: PhotoshopDocument | undefined;
+      const folder = await fs.getTemporaryFolder();
+      const file = await folder.createFile(`imagen-thumb-${Date.now()}.${fileExtensionFor(mimeType)}`, {
+        overwrite: true,
+      });
+      try {
+        await file.write(bytes, { format: uxpBinaryFormat(formats) });
+        tempDocument = await app.open!(file);
+        if (!tempDocument.id) {
+          throw new Error('Photoshop did not return a document id for thumbnail generation.');
+        }
+        if (signal?.aborted) {
+          throw new DOMException('Thumbnail generation was cancelled.', 'AbortError');
+        }
+        return createPhotoshopThumbnailUrl(
+          imaging,
+          {
+            documentID: tempDocument.id,
+            targetSize,
+            colorSpace: 'RGB',
+            componentSize: 8,
+            applyAlpha: false,
+          },
+          {
+            requestedRect: { left: 0, top: 0, right: size.width, bottom: size.height },
+            targetSize,
+          },
+        );
+      } finally {
+        try {
+          await tempDocument?.close?.();
+        } finally {
+          try {
+            await file.delete?.();
+          } finally {
+            if (previousDocument) {
+              app.activeDocument = previousDocument;
+            }
+          }
+        }
+      }
+    }, { commandName: `Generate thumbnail for ${asset.name ?? 'asset'}` });
+  };
 }
 
 export function createPhotoshopHostBridge(modules: UxpModules, options?: CreatePhotoshopHostBridgeOptions): HostBridge {
@@ -1049,7 +1124,7 @@ export function createPhotoshopHostBridge(modules: UxpModules, options?: CreateP
     return createHostBridgeStub();
   }
 
-  const executeHostModal = createHostModalRunner(core, logger);
+  const executeHostModal = options?.executeHostModal ?? createHostModalRunner(core, logger);
 
   return {
     capabilities: PHOTOSHOP_UXP_RUNTIME_CAPABILITIES,
@@ -1094,25 +1169,14 @@ export function createPhotoshopHostBridge(modules: UxpModules, options?: CreateP
         const bytes = typeof data === 'string' ? dataUrlToBytes(data) : new Uint8Array(data);
         const providerInputPlan = resolveLocalFileProviderInputPlan(bytes, mimeType, policy);
         const name = file.name ?? 'selected-image';
-        const previewUrl = previewUrlForImage(bytes, mimeType);
-        const asset = providerInputPlan.wasResized
-          ? await executeHostModal(
-              () =>
-                createLocalFileProviderDerivative(app, imaging, assetStore, file, providerInputPlan, {
-                  name,
-                  mimeType,
-                  previewUrl,
-                }),
-              { commandName: 'Normalize local image for provider input' },
-            )
-          : await createStoredHostImageAsset(assetStore, bytes, {
-              source: 'file',
+        const asset = await executeHostModal(
+          () =>
+            createLocalFileProviderDerivative(app, imaging, assetStore, file, bytes, providerInputPlan, {
               name,
               mimeType,
-              previewUrl,
-              width: providerInputPlan.targetWidth,
-              height: providerInputPlan.targetHeight,
-            });
+            }),
+          { commandName: 'Normalize local image for provider input' },
+        );
         span.finish({
           picked: true,
           name,
@@ -1233,7 +1297,7 @@ export function createPhotoshopHostBridge(modules: UxpModules, options?: CreateP
               source: 'layer',
               name,
               mimeType: 'image/png',
-              previewUrl: thumbnailUrl,
+              preview: thumbnailUrl,
               width: targetSize.width,
               height: targetSize.height,
             });
@@ -1338,7 +1402,7 @@ export function createPhotoshopHostBridge(modules: UxpModules, options?: CreateP
               source: 'layer',
               name: `layer-${layerId}.png`,
               mimeType: 'image/png',
-              previewUrl: thumbnailUrl,
+              preview: thumbnailUrl,
               width: targetSize.width,
               height: targetSize.height,
             });

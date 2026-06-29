@@ -12,7 +12,11 @@ import type { AppServices } from '../../app-services/app-services';
 import type { DiagnosticsPort } from '../../shared/ports/diagnostics-port';
 import { createPluginAppModel, type PluginAppModel } from '../../shared/plugin-app-model';
 import { normalizeLocale, type SupportedLocale } from '../../shared/locale';
-import { createPhotoshopHostBridge } from '../../adapters/uxp/photoshop-host-bridge';
+import {
+  createPhotoshopHostBridge,
+  createPhotoshopHostModalRunner,
+  createPhotoshopThumbnailGenerator,
+} from '../../adapters/uxp/photoshop-host-bridge';
 import { resolveUxpModules } from '../../adapters/uxp/uxp-api';
 import { createUxpAssetStore, createUxpJobHistoryStore } from '../../adapters/uxp/uxp-job-history-adapter';
 import { createUxpProviderProfileRepository } from '../../adapters/uxp/uxp-provider-profile-repository';
@@ -69,7 +73,13 @@ export function createPluginHostShell(): PluginHostShell {
     setJobHistoryStore(jobHistoryStore);
     setAssetStore(assetStore);
 
-    const hostBridge = createPhotoshopHostBridge(uxpModules, { logger: logger.child({ component: 'host' }) });
+    const hostLogger = logger.child({ component: 'host' });
+    const executeHostModal = createPhotoshopHostModalRunner(uxpModules, hostLogger);
+    const hostBridge = createPhotoshopHostBridge(uxpModules, { logger: hostLogger, executeHostModal });
+    const createThumbnail = createPhotoshopThumbnailGenerator(uxpModules, {
+      logger: hostLogger,
+      executeHostModal,
+    });
 
     span.finish();
     logger.info('panel.startup.complete');
@@ -81,7 +91,7 @@ export function createPluginHostShell(): PluginHostShell {
       services: {
         commands: createCommandsAdapter(),
         host: hostBridge,
-        thumbnails: createMemoryThumbnailStore({ resolveStoredRef: assetStore.resolve }),
+        thumbnails: createMemoryThumbnailStore({ resolveStoredRef: assetStore.resolve, createThumbnail }),
         diagnostics: createUxpDiagnosticsPort(),
       },
       dispose() {

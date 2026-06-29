@@ -33,12 +33,15 @@ describe('thumbnail store', () => {
     expect(releaseUrl).toHaveBeenCalledTimes(1);
   });
 
-  it('does not promote oversized stored assets into UI preview URLs', async () => {
+  it('derives thumbnails for oversized stored assets instead of returning empty preview', async () => {
+    const release = vi.fn();
+    const createThumbnail = vi.fn(async () => ({ url: 'blob:derived-thumb', release }));
     const store = createMemoryThumbnailStore({
       maxInlineBytes: 2,
       async resolveStoredRef() {
         return new Uint8Array([1, 2, 3]).buffer;
       },
+      createThumbnail,
     });
 
     const entry = await store.getOrCreate({
@@ -48,9 +51,18 @@ describe('thumbnail store', () => {
         mimeType: 'image/png',
         storedRef: { kind: 'hostObject', ref: 'large-asset', mimeType: 'image/png' },
       },
+      maxSide: 256,
     });
 
-    expect(entry.preview.url).toBe('');
+    expect(entry.preview.url).toBe('blob:derived-thumb');
+    expect(createThumbnail).toHaveBeenCalledWith(expect.objectContaining({
+      bytes: new Uint8Array([1, 2, 3]),
+      mimeType: 'image/png',
+      maxSide: 256,
+    }));
     expect(JSON.stringify(entry.preview.asset)).not.toContain('data');
+
+    store.release(entry.cacheKey);
+    expect(release).toHaveBeenCalledTimes(1);
   });
 });

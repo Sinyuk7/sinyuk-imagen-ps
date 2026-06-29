@@ -1,6 +1,7 @@
 import type { Asset, StoredAssetRef } from '@imagen-ps/application';
 import type { AssetPreview } from '../domain/mappers';
 import { assetToPreviewUrl } from '../domain/mappers';
+import { createRuntimeImageUrlOrDataUrl, type RuntimeImageUrl } from './runtime-image-url';
 
 const DEFAULT_THUMBNAIL_MAX_SIDE = 512;
 const DEFAULT_MAX_INLINE_THUMBNAIL_BYTES = 512 * 1024;
@@ -28,7 +29,14 @@ export interface ThumbnailStore {
 export interface ThumbnailStoreOptions {
   readonly maxInlineBytes?: number;
   readonly resolveStoredRef?: (ref: StoredAssetRef) => Promise<ArrayBuffer | undefined>;
-  readonly createObjectUrl?: (bytes: Uint8Array, mimeType: string) => { readonly url: string; release(): void };
+  readonly createObjectUrl?: (bytes: Uint8Array, mimeType: string) => RuntimeImageUrl;
+  readonly createThumbnail?: (request: {
+    readonly asset: Asset;
+    readonly bytes: Uint8Array;
+    readonly mimeType: string;
+    readonly maxSide: number;
+    readonly signal?: AbortSignal;
+  }) => Promise<RuntimeImageUrl | undefined>;
 }
 
 interface CacheEntry {
@@ -84,46 +92,50 @@ function previewFromAsset(asset: Asset): string {
   return assetToPreviewUrl(asset);
 }
 
-function bytesToBase64(bytes: Uint8Array): string {
-  let binary = '';
-  for (const byte of bytes) {
-    binary += String.fromCharCode(byte);
-  }
-  return btoa(binary);
-}
-
 export function createMemoryThumbnailStore(options: ThumbnailStoreOptions = {}): ThumbnailStore {
   const cache = new Map<string, CacheEntry>();
   const maxInlineBytes = options.maxInlineBytes ?? DEFAULT_MAX_INLINE_THUMBNAIL_BYTES;
 
-  async function thumbnailUrlFor(asset: Asset, signal: AbortSignal | undefined): Promise<{ readonly url: string; release(): void }> {
+  async function thumbnailUrlFor(
+    asset: Asset,
+    maxSide: number,
+    signal: AbortSignal | undefined,
+  ): Promise<RuntimeImageUrl> {
     throwIfAborted(signal);
     const direct = previewFromAsset(asset);
     if (direct) {
       return { url: direct, release: () => undefined };
     }
 
+    const mimeType = asset.mimeType ?? asset.storedRef?.mimeType ?? 'image/png';
     if (asset.storedRef && options.resolveStoredRef) {
       const resolved = await options.resolveStoredRef(asset.storedRef);
       throwIfAborted(signal);
-      if (resolved !== undefined && resolved.byteLength <= maxInlineBytes) {
+      if (resolved !== undefined) {
         const bytes = new Uint8Array(resolved);
-        if (options.createObjectUrl) {
-          return options.createObjectUrl(bytes, asset.mimeType ?? asset.storedRef.mimeType ?? 'image/png');
+        if (bytes.byteLength <= maxInlineBytes) {
+          return options.createObjectUrl
+            ? options.createObjectUrl(bytes, mimeType)
+            : createRuntimeImageUrlOrDataUrl(bytes, mimeType);
         }
-        return {
-          url: `data:${asset.mimeType ?? asset.storedRef.mimeType ?? 'image/png'};base64,${bytesToBase64(bytes)}`,
-          release: () => undefined,
-        };
+        const thumbnail = await options.createThumbnail?.({ asset, bytes, mimeType, maxSide, signal });
+        throwIfAborted(signal);
+        if (thumbnail) {
+          return thumbnail;
+        }
       }
     }
 
     const inlineBytes = bytesFromAsset(asset);
-    if (inlineBytes !== undefined && inlineBytes.byteLength <= maxInlineBytes) {
-      return {
-        url: assetToPreviewUrl(asset),
-        release: () => undefined,
-      };
+    if (inlineBytes !== undefined) {
+      if (inlineBytes.byteLength <= maxInlineBytes) {
+        return { url: assetToPreviewUrl(asset), release: () => undefined };
+      }
+      const thumbnail = await options.createThumbnail?.({ asset, bytes: inlineBytes, mimeType, maxSide, signal });
+      throwIfAborted(signal);
+      if (thumbnail) {
+        return thumbnail;
+      }
     }
 
     return { url: '', release: () => undefined };
@@ -143,7 +155,7 @@ export function createMemoryThumbnailStore(options: ThumbnailStoreOptions = {}):
         };
       }
 
-      const generated = await thumbnailUrlFor(request.asset, request.signal);
+      const generated = await thumbnailUrlFor(request.asset, maxSide, request.signal);
       const preview: AssetPreview = {
         asset: sanitizedAsset(request.asset),
         url: generated.url,
