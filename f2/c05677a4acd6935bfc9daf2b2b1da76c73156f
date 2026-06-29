@@ -1,0 +1,19 @@
+apps/app/src/shared/ui/pages/settings-add-page.tsx
+  s_b6eee7ac3e27d5::t_161c9a193d0215 8
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.3",
+  "base_commit_sha": "f2c05677a4acd6935bfc9daf2b2b1da76c73156f",
+  "prompts": {},
+  "sessions": {
+    "s_b6eee7ac3e27d5": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "019f1339-5c46-7352-bda8-66066778486b",
+        "model": "unknown"
+      },
+      "human_author": "Sinyuk <80998062@qq.com>"
+    }
+  }
+}
