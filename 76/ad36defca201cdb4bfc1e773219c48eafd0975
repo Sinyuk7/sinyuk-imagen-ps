@@ -1,0 +1,27 @@
+apps/app/src/shared/ui/components/provider-profile-editor.tsx
+  s_edbd1782181280::t_fc176172c4777e 1-139
+apps/app/src/shared/ui/pages/settings-add-page.tsx
+  s_edbd1782181280::t_49c20e9353b687 6,153-166,178-182
+apps/app/src/shared/ui/pages/settings-detail-page.tsx
+  s_edbd1782181280::t_f92d3411b62572 7,12,102,112,330-342,358-396,401-418
+apps/app/tests/settings-add-page.test.tsx
+  s_edbd1782181280::t_2675fac2ebf40b 29-36,57-60,164-167
+apps/app/tests/settings-detail-page.test.tsx
+  s_edbd1782181280::t_f9a4c3520093f7 198,205-207
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.3",
+  "base_commit_sha": "76ad36defca201cdb4bfc1e773219c48eafd0975",
+  "prompts": {},
+  "sessions": {
+    "s_edbd1782181280": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "019f1350-ee1c-7a53-a172-37c3ad5cca98",
+        "model": "unknown"
+      },
+      "human_author": "Sinyuk <80998062@qq.com>"
+    }
+  }
+}
