@@ -1,0 +1,31 @@
+.agents/skills/design-review/agents/openai.yaml
+  s_d8461876b212ab::t_229f5118f86ca4 1-4
+apps/app/src/shared/ui/i18n/messages.ts
+  s_d8461876b212ab::t_169c62f86c96a8 93-95,100-102,111,233-235,240-242,251,373-375,380-382,391
+apps/app/src/shared/ui/pages/settings-add-page.tsx
+  s_d8461876b212ab::t_8e315cdad35b36 204,206-212
+apps/app/src/shared/ui/pages/settings-detail-page.tsx
+  s_d8461876b212ab::t_748d5a9cd33061 1,21-24,64-66,69,86-96,135,155,181,197,202,205,207-208,217-218,222,228,233-234,236-237,244-245,249,252,266,272,278-286,339,382,386-399,407-408,414,422-423,436-438,447-451,453,464,466,470-472,477-478,480,485-492
+apps/app/src/shared/ui/styles/pages.ts
+  s_d8461876b212ab::t_b7b125160a01e9 52-58,64-84,91,95-103,114
+apps/app/src/shared/ui/styles/tokens.ts
+  s_d8461876b212ab::t_05a14c39342020 443-454,465
+apps/app/tests/settings-detail-page.test.tsx
+  s_d8461876b212ab::t_0712b4a851aee7 264-290,357-374
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.3",
+  "base_commit_sha": "878f43c62cb70a891d1c838058eada4b69943e82",
+  "prompts": {},
+  "sessions": {
+    "s_d8461876b212ab": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "019f1223-30cb-75d1-b234-5973454fd1f1",
+        "model": "unknown"
+      },
+      "human_author": "Sinyuk <80998062@qq.com>"
+    }
+  }
+}
