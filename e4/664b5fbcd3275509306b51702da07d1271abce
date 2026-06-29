@@ -1,0 +1,49 @@
+apps/app/src/shared/domain/host-image-asset.ts
+  s_2ebc81d94bcf2c::t_c1d29fbe4f0703 2,29,40,58
+apps/app/src/shared/ui/components/icons.tsx
+  s_bbdbfa785ab687::t_c9a5550e036038 17,26,51,61,92,102
+apps/app/src/shared/ui/hooks/use-conversation.ts
+  s_2ebc81d94bcf2c::t_1b2b964db77f20 15,158-175,188,287
+apps/app/src/shared/ui/i18n/messages.ts
+  s_bbdbfa785ab687::t_cb99fa9e053bfa 60,72,193,205,326,338
+apps/app/src/shared/ui/styles/responsive.ts
+  s_bbdbfa785ab687::t_790719d5c48eaf 7-11,13-15,18,41
+apps/app/tests/fakes.ts
+  s_2ebc81d94bcf2c::t_0dc2b2ca2acffe 192-204
+apps/app/tests/main-page.test.tsx
+  s_bbdbfa785ab687::t_77fd8dc9ce037f 136-153,198-224,357-358,360,364,373-374,379,381
+apps/app/tests/use-conversation.test.tsx
+  s_2ebc81d94bcf2c::t_db6ca69c0d506f 90-93,104-107,160-215
+packages/application/src/commands/index.ts
+  s_2ebc81d94bcf2c::t_ce155deb557925 77
+packages/application/src/runtime.test.ts
+  s_2ebc81d94bcf2c::t_3d1b28a0483bd7 5,17-18,64-95,175-226
+packages/application/src/runtime.ts
+  s_2ebc81d94bcf2c::t_9e482d5ba8eeeb 213-251,264-268,312,346-386,494,496
+packages/core-engine/src/types/asset.ts
+  s_2ebc81d94bcf2c::t_1ddb039a69fef7 1-2,20-23,52-54
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.3",
+  "base_commit_sha": "e4664b5fbcd3275509306b51702da07d1271abce",
+  "prompts": {},
+  "sessions": {
+    "s_2ebc81d94bcf2c": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "019f11d8-d661-7230-a930-2915950629dc",
+        "model": "unknown"
+      },
+      "human_author": "Sinyuk <80998062@qq.com>"
+    },
+    "s_bbdbfa785ab687": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "019f11e2-3797-7400-996d-a4a77df7b3c6",
+        "model": "unknown"
+      },
+      "human_author": "Sinyuk <80998062@qq.com>"
+    }
+  }
+}
