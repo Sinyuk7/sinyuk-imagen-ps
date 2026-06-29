@@ -440,6 +440,18 @@ sp-textfield{
   align-items:center;
   justify-content:center;
 }
+.swc-button::part(button){
+  width:100%;
+}
+.ui-button-content{
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
+  width:100%;
+}
+.ui-button-label{
+  display:block;
+}
 .ui-icon-text{
   display:inline-flex;
   align-items:center;
@@ -450,7 +462,7 @@ sp-textfield{
   display:block;
   flex:0 0 auto;
   margin-top:0;
-  margin-right:7px;
+  margin-right:8px;
   margin-bottom:0;
   margin-left:0;
 }

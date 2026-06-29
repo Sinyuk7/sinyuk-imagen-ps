@@ -261,6 +261,33 @@ describe('SettingsDetailPage contract', () => {
     expect(container.textContent).toContain('连接成功');
   });
 
+  it('renders Prompt Optimizer instruction as a styled multiline field inside its own section', async () => {
+    const container = document.createElement('div');
+    document.body.appendChild(container);
+    await renderOptimizerDetail(container);
+
+    const textarea = container.querySelector<HTMLTextAreaElement>('[data-testid="provider-instruction-input"]');
+    expect(textarea).not.toBeNull();
+    expect(textarea?.tagName).toBe('TEXTAREA');
+    expect(textarea?.getAttribute('rows')).toBe('5');
+    expect(textarea?.className).toContain('field-textarea-input');
+    expect(container.textContent).toContain('提示词行为');
+    expect(container.textContent).toContain('Instruction');
+  });
+
+  it('keeps a single default-model trigger and a separate custom model field for Prompt Optimizer', async () => {
+    const container = document.createElement('div');
+    document.body.appendChild(container);
+    await renderOptimizerDetail(container);
+
+    const dropdown = container.querySelectorAll('[data-testid="provider-default-model-dropdown"]');
+    const textInput = container.querySelectorAll('[data-testid="provider-default-model-input"]');
+    expect(dropdown).toHaveLength(1);
+    expect(textInput).toHaveLength(1);
+    expect(container.textContent).toContain('当前模型');
+    expect(container.textContent).toContain('gpt-4o-mini');
+  });
+
   it('shows copyable connection errors instead of a saved status while testing', async () => {
     const container = document.createElement('div');
     document.body.appendChild(container);
@@ -325,6 +352,24 @@ describe('SettingsDetailPage contract', () => {
 
     expect(Boolean(buttonByText(container, '测试连接').disabled)).toBe(false);
     expect(container.textContent).toContain('连接成功');
+  });
+
+  it('renders the test button as a centered icon and label combo with nearby test result meta', async () => {
+    const container = document.createElement('div');
+    document.body.appendChild(container);
+    await renderDetail(container);
+
+    const button = container.querySelector('[data-testid="provider-test-button"]');
+    expect(button?.querySelector('.ui-button-content')).not.toBeNull();
+    expect(button?.querySelector('[data-icon-name="check"]')).not.toBeNull();
+
+    await act(async () => {
+      buttonByText(container, '测试连接').click();
+    });
+    await flush();
+
+    expect(container.textContent).toContain('最近一次测试结果');
+    expect(container.textContent).toMatch(/最近一次测试结果 · \d+ ms/);
   });
 
   it('does not send secretValues when API key field is left blank', async () => {

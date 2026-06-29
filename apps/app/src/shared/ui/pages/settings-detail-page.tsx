@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import type { ProviderProfile } from '@imagen-ps/application';
 import { useAppServices } from '../../ports/app-services-context';
 import { providerConfigFromForm, useProfileDetail, useProfileModels } from '../hooks/use-provider-settings';
@@ -16,6 +16,10 @@ interface SettingsDetailPageProps {
   readonly onNav: (view: string) => void;
   readonly profileId: string | null;
   readonly onProfilesChanged: (profileId: string | null) => Promise<void>;
+}
+
+function formatElapsedMs(startedAt: number): string {
+  return `${Math.max(1, Math.round(performance.now() - startedAt))} ms`;
 }
 
 function readConfigString(profile: ProviderProfile, key: string): string {
@@ -57,9 +61,12 @@ export function SettingsDetailPage({ onNav, profileId, onProfilesChanged }: Sett
   const [enabled, setEnabled] = useState(true);
   const [apiKey, setApiKey] = useState('');
   const [showKey, setShowKey] = useState(false);
-  const [status, setStatus] = useState<ProviderStatus | null>(null);
+  const [saveStatus, setSaveStatus] = useState<ProviderStatus | null>(null);
+  const [testStatus, setTestStatus] = useState<ProviderStatus | null>(null);
+  const [testMeta, setTestMeta] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [modelMenuOpen, setModelMenuOpen] = useState(false);
+  const lastLoadedProfileIdRef = useRef<string | null>(null);
   const isOptimizerProfile = detail.profile?.providerId === 'prompt-optimize';
   const useNativeModelDropdown = isPhotoshopUxpRuntime(services.host);
 
@@ -75,6 +82,17 @@ export function SettingsDetailPage({ onNav, profileId, onProfilesChanged }: Sett
     setApiKey('');
     setModelMenuOpen(false);
   }, [detail.profile]);
+
+  useEffect(() => {
+    const nextProfileId = detail.profile?.profileId ?? null;
+    if (lastLoadedProfileIdRef.current === nextProfileId) {
+      return;
+    }
+    lastLoadedProfileIdRef.current = nextProfileId;
+    setSaveStatus(null);
+    setTestStatus(null);
+    setTestMeta(null);
+  }, [detail.profile?.profileId]);
 
   const persistProfile = async (): Promise<ProviderProfile | null> => {
     if (!detail.profile) {
@@ -114,7 +132,7 @@ export function SettingsDetailPage({ onNav, profileId, onProfilesChanged }: Sett
     await services.diagnostics?.checkpoint('uxp.ui.settings_detail.save.entered', { profileId });
     setBusy(true);
     await services.diagnostics?.checkpoint('uxp.ui.settings_detail.save.busy_set', { busy: true, profileId });
-    setStatus(null);
+    setSaveStatus(null);
     await services.diagnostics?.checkpoint('uxp.ui.settings_detail.save.status_cleared', { profileId });
     try {
       await services.diagnostics?.checkpoint('uxp.ui.settings_detail.save.before_persist', { profileId });
@@ -134,7 +152,7 @@ export function SettingsDetailPage({ onNav, profileId, onProfilesChanged }: Sett
           profile_id: profile.profileId,
           provider_id: profile.providerId,
         });
-        setStatus({ tone: 'success', message: t.settings.saved });
+        setSaveStatus({ tone: 'success', message: t.settings.saved });
         await services.diagnostics?.checkpoint('uxp.ui.settings_detail.save.after_success_status', {
           profileId: profile.profileId,
           providerId: profile.providerId,
@@ -160,7 +178,7 @@ export function SettingsDetailPage({ onNav, profileId, onProfilesChanged }: Sett
       }
     } catch (error) {
       await services.diagnostics?.failure('uxp.ui.settings_detail.save.failed', error, { profileId });
-      setStatus({ tone: 'error', message: error instanceof Error ? error.message : String(error) });
+      setSaveStatus({ tone: 'error', message: error instanceof Error ? error.message : String(error) });
     } finally {
       await services.diagnostics?.checkpoint('uxp.ui.settings_detail.save.before_busy_clear', { profileId });
       setBusy(false);
@@ -176,16 +194,18 @@ export function SettingsDetailPage({ onNav, profileId, onProfilesChanged }: Sett
       profileId: detail.profile.profileId,
       providerId: detail.profile.providerId,
       busy,
-      hasStatus: status !== null,
+      hasStatus: saveStatus !== null || testStatus !== null,
     }, {
       profile_id: detail.profile.profileId,
       provider_id: detail.profile.providerId,
     });
-  }, [busy, detail.profile, status]);
+  }, [busy, detail.profile, saveStatus, testStatus]);
 
   const test = async () => {
+    const startedAt = performance.now();
     setBusy(true);
-    setStatus(null);
+    setTestStatus(null);
+    setTestMeta(null);
     try {
       const profile = await persistProfile();
       if (profile) {
@@ -194,37 +214,42 @@ export function SettingsDetailPage({ onNav, profileId, onProfilesChanged }: Sett
       if (isOptimizerProfile && profile) {
         const result = await services.commands.validatePromptOptimizerProfile(profile.profileId);
         if (result.ok) {
-          setStatus({ tone: 'success', message: t.settings.testSuccess });
+          setTestStatus({ tone: 'success', message: t.settings.testSuccess });
+          setTestMeta(`${t.settings.testResultPrefix} · ${formatElapsedMs(startedAt)}`);
           await detail.reload();
           await onProfilesChanged(profile.profileId);
         } else {
-          setStatus({
+          setTestStatus({
             tone: 'error',
             message: result.error.category === 'validation'
               ? result.error.message
               : `${result.error.category}: ${result.error.message}`,
           });
+          setTestMeta(`${t.settings.testResultPrefix} · ${formatElapsedMs(startedAt)}`);
         }
         return;
       }
       const result = await detail.test(true);
-      setStatus(statusFromProviderTestResult(result, t));
+      setTestStatus(statusFromProviderTestResult(result, t));
+      setTestMeta(`${t.settings.testResultPrefix} · ${formatElapsedMs(startedAt)}`);
     } catch (error) {
-      setStatus({ tone: 'error', message: error instanceof Error ? error.message : String(error) });
+      setTestStatus({ tone: 'error', message: error instanceof Error ? error.message : String(error) });
+      setTestMeta(`${t.settings.testResultPrefix} · ${formatElapsedMs(startedAt)}`);
     } finally {
       setBusy(false);
     }
   };
 
   const refreshModels = async () => {
-    setStatus(null);
+    setTestStatus(null);
+    setTestMeta(null);
     try {
       const refreshed = await models.refresh();
       if (refreshed.length === 0) {
-        setStatus({ tone: 'warning', message: t.settings.configValidProviderNoModels });
+        setTestStatus({ tone: 'warning', message: t.settings.configValidProviderNoModels });
       }
     } catch (error) {
-      setStatus({ tone: 'error', message: error instanceof Error ? error.message : String(error) });
+      setTestStatus({ tone: 'error', message: error instanceof Error ? error.message : String(error) });
     }
   };
 
@@ -238,17 +263,26 @@ export function SettingsDetailPage({ onNav, profileId, onProfilesChanged }: Sett
 
   const remove = async () => {
     setBusy(true);
-    setStatus(null);
+    setSaveStatus(null);
     try {
       await detail.remove();
       await onProfilesChanged(null);
       onNav('settings');
     } catch (error) {
-      setStatus({ tone: 'error', message: error instanceof Error ? error.message : String(error) });
+      setSaveStatus({ tone: 'error', message: error instanceof Error ? error.message : String(error) });
     } finally {
       setBusy(false);
     }
   };
+
+  const modelSelectionLabel = modelOptions.find((option) => option.id === defaultModel)?.label ?? defaultModel.trim();
+  const modelTriggerValue = modelSelectionLabel || t.settings.customModelId;
+  const modelSelectDisabled = busy || models.loading || modelOptions.length === 0;
+  const modelListNotice = models.error
+    ? { tone: 'warning' as const, message: t.settings.modelListFailed }
+    : modelOptions.length === 0
+      ? { tone: 'info' as const, message: t.settings.modelListEmpty }
+      : null;
 
   if (!profileId) {
     return (
@@ -302,7 +336,7 @@ export function SettingsDetailPage({ onNav, profileId, onProfilesChanged }: Sett
         {detail.loading && <div style={{ padding: 16, color: 'var(--app-color-text-muted)', fontSize: 12 }}>{t.settings.loading}</div>}
         {detail.error && <div style={{ padding: 16, color: 'var(--app-color-negative)', fontSize: 12 }}>{detail.error}</div>}
         {detail.profile && (
-          <>
+          <div className="settings-detail-layout">
             <div className="section">
               <div className="section-title">{t.settings.connectionInfo}</div>
               <div className="field">
@@ -345,20 +379,24 @@ export function SettingsDetailPage({ onNav, profileId, onProfilesChanged }: Sett
                   {t.settings.enableProfile}
                 </Switch>
               </div>
+              {saveStatus && <StatusNotice tone={saveStatus.tone} message={saveStatus.message} />}
             </div>
 
             {isOptimizerProfile && (
-              <div className="field" style={{ marginTop: 12 }}>
-                <FieldLabel htmlFor="provider-instruction-input">Instruction</FieldLabel>
-                <UxpTextArea
-                  data-testid="provider-instruction-input"
-                  id="provider-instruction-input"
-                  className="field-input swc-field"
-                  rows={4}
-                  value={instruction}
-                  onValue={setInstruction}
-                  placeholder="System instruction for prompt optimization"
-                />
+              <div className="section">
+                <div className="section-title">{t.settings.promptBehavior}</div>
+                <div className="field field-textarea">
+                  <FieldLabel htmlFor="provider-instruction-input">{t.settings.instruction}</FieldLabel>
+                  <UxpTextArea
+                    data-testid="provider-instruction-input"
+                    id="provider-instruction-input"
+                    className="field-input field-textarea-input mono"
+                    rows={5}
+                    value={instruction}
+                    onValue={setInstruction}
+                    placeholder={t.settings.instructionPlaceholder}
+                  />
+                </div>
               </div>
             )}
 
@@ -366,13 +404,14 @@ export function SettingsDetailPage({ onNav, profileId, onProfilesChanged }: Sett
 
             <div className="section">
               <div className="section-title">{t.settings.defaultModel}</div>
-              <div className="model-select-wrap">
+              <div className="field">
+                <FieldLabel htmlFor="provider-default-model-input">{t.settings.defaultModel}</FieldLabel>
                 {useNativeModelDropdown ? (
                   <UxpModelDropdown
                     className="provider-model-dropdown cmp-select-model"
                     testId="provider-default-model-dropdown"
                     placeholder={t.settings.customModelId}
-                    disabled={busy || models.loading || modelOptions.length === 0 || undefined}
+                    disabled={modelSelectDisabled || undefined}
                     value={defaultModel}
                     options={modelOptions}
                     onValue={setDefaultModel}
@@ -380,7 +419,8 @@ export function SettingsDetailPage({ onNav, profileId, onProfilesChanged }: Sett
                 ) : (
                   <ComposerSelect
                     label={t.settings.defaultModel}
-                    value={defaultModel.trim() || t.settings.customModelId}
+                    value={modelTriggerValue}
+                    disabled={modelSelectDisabled}
                     open={modelMenuOpen}
                     onOpenChange={setModelMenuOpen}
                     options={modelOptions}
@@ -393,6 +433,9 @@ export function SettingsDetailPage({ onNav, profileId, onProfilesChanged }: Sett
                     menuClassName="cmp-select-menu cmp-select-menu-model"
                   />
                 )}
+              </div>
+              <div className="field">
+                <FieldLabel htmlFor="provider-default-model-input">{t.settings.customModelId}</FieldLabel>
                 <TextField
                   data-testid="provider-default-model-input"
                   id="provider-default-model-input"
@@ -401,7 +444,13 @@ export function SettingsDetailPage({ onNav, profileId, onProfilesChanged }: Sett
                   value={defaultModel}
                   onValue={setDefaultModel}
                 />
+                <HelpText className="field-hint">
+                  {modelSelectionLabel
+                    ? `${t.settings.selectedModel}: ${modelSelectionLabel}`
+                    : t.settings.customModelId}
+                </HelpText>
               </div>
+              {modelListNotice && <StatusNotice tone={modelListNotice.tone} message={modelListNotice.message} />}
               {models.error && <StatusNotice tone="error" message={models.error} />}
               <Button data-testid="provider-refresh-models-button" className="test-btn swc-button" variant="secondary" style={{ marginTop: 10 }} disabled={models.loading || busy} onClick={() => void refreshModels()}>
                 {models.loading ? t.settings.refreshingModels : t.settings.refreshModels}
@@ -412,32 +461,35 @@ export function SettingsDetailPage({ onNav, profileId, onProfilesChanged }: Sett
               <Button data-testid="provider-test-button" className="test-btn swc-button" variant="secondary" disabled={busy} onClick={() => void test()}>
                 {busy
                   ? (
-                    <span className="ui-icon-text">
+                    <span className="ui-button-content">
                       <Icon name="spinner" size={13} className="ui-icon-text-icon spin" />
-                      <span className="ui-icon-text-label">{t.settings.testingConnection}</span>
+                      <span className="ui-button-label">{t.settings.testingConnection}</span>
                     </span>
                   )
                   : (
-                    <span className="ui-icon-text">
-                      <Icon name="arrow-right" size={13} className="ui-icon-text-icon" />
-                      <span className="ui-icon-text-label">{t.settings.testConnection}</span>
+                    <span className="ui-button-content">
+                      <Icon name="check" size={13} className="ui-icon-text-icon" />
+                      <span className="ui-button-label">{t.settings.testConnection}</span>
                     </span>
                   )
                 }
               </Button>
-              {status && <StatusNotice tone={status.tone} message={status.message} />}
+              {testMeta ? <div className="test-meta">{testMeta}</div> : null}
+              {testStatus && <StatusNotice tone={testStatus.tone} message={testStatus.message} />}
             </div>
-          </>
+          </div>
         )}
       </div>
 
       <footer className="det-footer">
-        <Button data-testid="provider-save-button" className="btn-save swc-button" variant="accent" disabled={busy || !detail.profile} onClick={() => void save()}>{t.common.save}</Button>
-        {!isOptimizerProfile && (
-          <Button data-testid="provider-delete-button" className="btn-del swc-button" variant="negative" disabled={busy || !detail.profile} onClick={() => void remove()}>
-            <Icon name="trash" slot="icon" />
-          </Button>
-        )}
+        <div className="settings-detail-footer-inner">
+          <Button data-testid="provider-save-button" className="btn-save swc-button" variant="accent" disabled={busy || !detail.profile} onClick={() => void save()}>{t.common.save}</Button>
+          {!isOptimizerProfile && (
+            <Button data-testid="provider-delete-button" className="btn-del swc-button" variant="negative" disabled={busy || !detail.profile} onClick={() => void remove()}>
+              <Icon name="trash" slot="icon" />
+            </Button>
+          )}
+        </div>
       </footer>
     </div>
   );

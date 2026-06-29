@@ -201,12 +201,17 @@ export function SettingsAddPage({ onNav, profiles, onProfileSaved }: SettingsAdd
               <Button data-testid="provider-test-button" className="test-btn swc-button" disabled={busy} onClick={() => void handleTest()}>
                 {busy
                   ? (
-                    <span className="ui-icon-text">
+                    <span className="ui-button-content">
                       <Icon name="spinner" size={13} className="ui-icon-text-icon spin" />
-                      <span className="ui-icon-text-label">{t.settings.testingConnection}</span>
+                      <span className="ui-button-label">{t.settings.testingConnection}</span>
                     </span>
                   )
-                  : t.settings.testConnection
+                  : (
+                    <span className="ui-button-content">
+                      <Icon name="check" size={13} className="ui-icon-text-icon" />
+                      <span className="ui-button-label">{t.settings.testConnection}</span>
+                    </span>
+                  )
                 }
               </Button>
               {status && <StatusNotice tone={status.tone} message={status.message} />}

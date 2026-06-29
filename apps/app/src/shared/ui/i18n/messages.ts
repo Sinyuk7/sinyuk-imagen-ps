@@ -90,10 +90,16 @@ export interface AppMessages {
     readonly noProviderProfile: string;
     readonly chooseType: string;
     readonly config: string;
+    readonly promptBehavior: string;
+    readonly instruction: string;
+    readonly instructionPlaceholder: string;
     readonly alias: string;
     readonly baseUrlHint: string;
     readonly defaultModel: string;
     readonly customModelId: string;
+    readonly selectedModel: string;
+    readonly modelListEmpty: string;
+    readonly modelListFailed: string;
     readonly connectionInfo: string;
     readonly noProfileSelected: string;
     readonly savedSecretPlaceholder: string;
@@ -102,6 +108,7 @@ export interface AppMessages {
     readonly refreshingModels: string;
     readonly testConnection: string;
     readonly testingConnection: string;
+    readonly testResultPrefix: string;
     readonly saved: string;
     readonly testSuccess: string;
     readonly connectionFailed: string;
@@ -223,10 +230,16 @@ const EN_MESSAGES: AppMessages = {
     noProviderProfile: 'No Provider profile',
     chooseType: 'Choose type',
     config: 'Configuration',
+    promptBehavior: 'Prompt behavior',
+    instruction: 'Instruction',
+    instructionPlaceholder: 'System instruction for prompt optimization',
     alias: 'Alias',
     baseUrlHint: 'If this provider does not auto-complete endpoint paths, enter the full API base URL such as https://example.com/v1',
     defaultModel: 'Default model',
     customModelId: 'Custom model id',
+    selectedModel: 'Selected model',
+    modelListEmpty: 'No models available. Refresh the model list or enter a custom model id.',
+    modelListFailed: 'Model list unavailable. Refresh the model list or enter a custom model id.',
     connectionInfo: 'Connection info',
     noProfileSelected: 'No Provider profile selected',
     savedSecretPlaceholder: 'Saved; leave blank to keep unchanged',
@@ -235,6 +248,7 @@ const EN_MESSAGES: AppMessages = {
     refreshingModels: 'Refreshing...',
     testConnection: 'Test connection',
     testingConnection: 'Testing...',
+    testResultPrefix: 'Latest test result',
     saved: 'Saved',
     testSuccess: 'Connected',
     connectionFailed: 'Connection failed',
@@ -356,10 +370,16 @@ const ZH_CN_MESSAGES: AppMessages = {
     noProviderProfile: '暂无 Provider profile',
     chooseType: '选择类型',
     config: '配置',
+    promptBehavior: '提示词行为',
+    instruction: 'Instruction',
+    instructionPlaceholder: '用于优化提示词的系统指令',
     alias: '别名',
     baseUrlHint: '如果该 Provider 不会自动补全端点路径，请填写完整 API 基础地址，例如 https://example.com/v1',
     defaultModel: '默认模型',
     customModelId: '自定义 model id',
+    selectedModel: '当前模型',
+    modelListEmpty: '暂无可用模型。请刷新模型列表或手动填写自定义 model id。',
+    modelListFailed: '模型列表不可用。请刷新模型列表或手动填写自定义 model id。',
     connectionInfo: '连接信息',
     noProfileSelected: '未选择 Provider profile',
     savedSecretPlaceholder: '已保存；留空不修改',
@@ -368,6 +388,7 @@ const ZH_CN_MESSAGES: AppMessages = {
     refreshingModels: '刷新中...',
     testConnection: '测试连接',
     testingConnection: '测试中...',
+    testResultPrefix: '最近一次测试结果',
     saved: '已保存',
     testSuccess: '连接成功',
     connectionFailed: '连接失败',
