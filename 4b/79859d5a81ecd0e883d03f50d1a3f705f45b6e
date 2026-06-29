@@ -1,0 +1,87 @@
+apps/app/harness/icon-visual/README.md
+  s_b68d588e30f79a::t_977eb91a814983 11-12,67
+apps/app/src/adapters/chrome/chrome-host-port.ts
+  s_b68d588e30f79a::t_99dee1c1bfb400 1,88-99,103,105-107,110-111,113,118,139
+apps/app/src/composition/chrome/chrome-feasibility-runtime.ts
+  s_b68d588e30f79a::t_77739117e4d889 81,83
+apps/app/src/composition/chrome/chrome-test-harness.ts
+  s_b68d588e30f79a::t_3c82c50db9d612 175-191,194
+apps/app/src/composition/chrome/create-chrome-app-shell.ts
+  s_b68d588e30f79a::t_9ad85ba6c3340c 69,71
+apps/app/src/harness/components/composer-select/composer-select-harness.tsx
+  s_b68d588e30f79a::t_8c42d12843c17f 292
+apps/app/src/shared/ui/components/composer-select-trigger-button.tsx
+  s_b68d588e30f79a::t_97f9d97a0c1d32 5,11,13,21,27,35-36,39,41-43,48,52-54,59
+apps/app/src/shared/ui/components/composer-select.tsx
+  s_b68d588e30f79a::t_eac36590567715 3,11-12,24,30,79,85
+apps/app/src/shared/ui/components/composer-select.types.ts
+  s_b68d588e30f79a::t_ce0ac1655d866a 28-29
+apps/app/src/shared/ui/components/icons.tsx
+  s_b68d588e30f79a::t_eabfc8d15cb9ea 1,6-7,48-219,223,230-254
+apps/app/src/shared/ui/components/provider-profile-editor.tsx
+  s_b68d588e30f79a::t_48ae0a6e67227d 5,62,73,87,96,99,119
+apps/app/src/shared/ui/components/status-notice.tsx
+  s_b68d588e30f79a::t_2fe9a8fbfc9308 3,63
+apps/app/src/shared/ui/components/toast-host.tsx
+  s_b68d588e30f79a::t_612212dd131215 4,69,72,79-92
+apps/app/src/shared/ui/i18n/messages.ts
+  s_b68d588e30f79a::t_7446cc5211049c 10,13,108-109,153,156,251-252,296,299,394-395
+apps/app/src/shared/ui/pages/history-page.tsx
+  s_b68d588e30f79a::t_5e8071f53745a6 5,117,120,130
+apps/app/src/shared/ui/pages/main-page.tsx
+  s_b68d588e30f79a::t_7f2a5209715918 15,439,539,587,645,671,778-782,801,887,938,940-941,960-961,975-976
+apps/app/src/shared/ui/pages/settings-add-page.tsx
+  s_b68d588e30f79a::t_c6c4ef07925685 8,113,116,173,189,191
+apps/app/src/shared/ui/pages/settings-detail-page.tsx
+  s_b68d588e30f79a::t_cccc6e80759a81 10,281-282,301,304,316,356-373,380,393,408,410-411
+apps/app/src/shared/ui/pages/settings-page.tsx
+  s_b68d588e30f79a::t_b232bc53199e94 5,139,142,152,162
+apps/app/src/shared/ui/primitives/native-controls.tsx
+  s_b68d588e30f79a::t_3e7621f78527cd 3,5,10-11,26-27,31,34,37,43,72-74,77-78,83-89,91,106,109,111,115-119,122-125,130,132-141,145,153,163,165-176,181,187-191,193-194,200,202,207,210
+apps/app/src/shared/ui/styles/composer.ts
+  s_b68d588e30f79a::t_d66f975c3b2e7c 363-364,366-369,393,398,430,435,438
+apps/app/src/shared/ui/styles/overlays.ts
+  s_b68d588e30f79a::t_96cee6fbabf598 3-4,7-18
+apps/app/src/shared/ui/styles/pages.ts
+  s_b68d588e30f79a::t_ad2a33d95823fb 127-128,145
+apps/app/src/shared/ui/styles/responsive.ts
+  s_b68d588e30f79a::t_57d499f4e23f92 17-18,36,43,57
+apps/app/src/simulators/photoshop/simulator.ts
+  s_b68d588e30f79a::t_05e2f35c5b619d 1,34-95,100-114,117-120,144,149-151,170-174
+apps/app/tests/chrome-adapter.test.ts
+  s_b68d588e30f79a::t_5e5716584e2d3c 57,59-60,66-67,69,73-74,78-81
+apps/app/tests/main-page.test.tsx
+  s_b68d588e30f79a::t_e3918386b1e2d7 72,79-85,473,622-623,625,649,651
+apps/app/tests/native-controls.test.tsx
+  s_b68d588e30f79a::t_29303a571d3af0 4,17-18,28,37,44,54,58
+apps/app/tests/native-ui-residual.test.ts
+  s_b68d588e30f79a::t_c2bb18c0646aa3 24,37,39-40,44-48,51,58-62
+apps/app/tests/settings-add-page.test.tsx
+  s_b68d588e30f79a::t_5e1334e3eb66b9 116
+apps/app/tests/settings-detail-page.test.tsx
+  s_b68d588e30f79a::t_d417c30cf750ca 99,244,246,248
+apps/app/tests/settings-page.test.tsx
+  s_b68d588e30f79a::t_8723721faf30aa 20,41,43-46,49
+apps/app/tests/uxp-css-compat.test.ts
+  s_b68d588e30f79a::t_44f73e958922a1 159,164,176,182,257,259,286,298
+apps/app/tests/vite-runtime-alias.test.ts
+  s_b68d588e30f79a::t_ed5ce1f6bff74f 34-35,41-43,47
+apps/app/vite.uxp.config.ts
+  s_b68d588e30f79a::t_13eb422a5bc630 251,260-261
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.3",
+  "base_commit_sha": "4b79859d5a81ecd0e883d03f50d1a3f705f45b6e",
+  "prompts": {},
+  "sessions": {
+    "s_b68d588e30f79a": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "019f145e-3d22-7063-8ae5-4ae820d3444a",
+        "model": "unknown"
+      },
+      "human_author": "Sinyuk <80998062@qq.com>"
+    }
+  }
+}
