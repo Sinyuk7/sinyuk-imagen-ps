@@ -1,0 +1,27 @@
+apps/app/src/shared/ui/pages/settings-add-page.tsx
+  s_ad661e54b59f11::t_1d100fd40d5310 117,129,137-140,142-147,178,183,190
+apps/app/src/shared/ui/pages/settings-detail-page.tsx
+  s_ad661e54b59f11::t_3f3aeb89a38a40 315-317,351,356,363
+apps/app/src/shared/ui/styles/pages.ts
+  s_ad661e54b59f11::t_a3e264a72c2e62 64-87,110-146,187-248
+apps/app/tests/settings-add-page.test.tsx
+  s_ad661e54b59f11::t_3ca12e48e72827 45,106,113-137,153
+apps/app/tests/settings-detail-page.test.tsx
+  s_ad661e54b59f11::t_635e61be2d3c17 198-207
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.3",
+  "base_commit_sha": "ee1c1bc0a1a1b7700ad3a3eef1ea7585f97bbde0",
+  "prompts": {},
+  "sessions": {
+    "s_ad661e54b59f11": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "019f1330-7aae-7670-bbb2-a41dccb7473a",
+        "model": "unknown"
+      },
+      "human_author": "Sinyuk <80998062@qq.com>"
+    }
+  }
+}
