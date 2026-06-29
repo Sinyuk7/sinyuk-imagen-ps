@@ -1,0 +1,89 @@
+apps/app/src/adapters/chrome/chrome-host-port.ts
+  s_04930561727905::t_89b2a4fb93e5b3 4,12-88,90-91,97,126,128,130-131,133-134
+apps/app/src/adapters/uxp/photoshop-host-bridge.test.ts
+  s_04930561727905::t_d7acd5e6ade6bb 32-70,84-85,114,125,173,178,269,332,346-354,365,387,397,407,417,436,440,458-468,475,493-499,504,517,531,543,551,587,657,718,720-721
+apps/app/src/adapters/uxp/photoshop-host-bridge.ts
+  s_04930561727905::t_767df92d496b9d 13-17,95,514-527,973,990,1006,1029-1041,1114,1123,1135-1148,1179-1183,1257-1271,1273-1284
+apps/app/src/adapters/uxp/uxp-host-adapters.test.ts
+  s_04930561727905::t_dbacf0a5c4492e 19,69,88-91,168,204,424-429,454-457,482-483
+apps/app/src/adapters/uxp/uxp-job-history-adapter.ts
+  s_04930561727905::t_1ab82145ead22e 9,219-224
+apps/app/src/composition/chrome/chrome-feasibility-runtime.ts
+  s_04930561727905::t_0b5bd2b5db4278 103
+apps/app/src/composition/chrome/chrome-test-harness.ts
+  s_04930561727905::t_6ce335e4354a90 116
+apps/app/src/shared/domain/photoshop-placement.ts
+  s_04930561727905::t_533c1b1dc93056 1,22
+apps/app/src/shared/image/resize.ts
+  s_04930561727905::t_a731ec4a0b1bf8 17-22,46-59,67-68,277-316
+apps/app/src/shared/ports/host-port.ts
+  s_04930561727905::t_efb1cd6e1b3b80 4,53-55
+apps/app/src/shared/ui/hooks/use-provider-settings.ts
+  s_04930561727905::t_3e46adce914c55 7,249,255-264
+apps/app/src/shared/ui/pages/main-page.tsx
+  s_04930561727905::t_25788022dd295f 17,104-131,258,280,303
+apps/app/src/simulators/photoshop/simulator.ts
+  s_04930561727905::t_be3585c5081b4a 4,19-20,65,71
+apps/app/tests/app-shell.test.tsx
+  s_04930561727905::t_11911d0fde027b 179
+apps/app/tests/chrome-adapter.test.ts
+  s_04930561727905::t_f928e96e9b591a 14-20,52-56,62,73
+apps/app/tests/fakes.ts
+  s_04930561727905::t_14e5ddc8e01524 40
+apps/app/tests/image-resize.test.ts
+  s_04930561727905::t_c132a2ed1cc9f8 7,73-124
+apps/app/tests/main-page.test.tsx
+  s_04930561727905::t_9d43e991d4d5a5 125,305
+apps/app/tests/settings-add-page.test.tsx
+  s_04930561727905::t_5131c11a133cd7 93
+apps/app/tests/settings-page.test.tsx
+  s_04930561727905::t_a590938f16a85c 76
+docs/dev-memory/memories/architecture/image-ownership-peak-memory-audit.md
+  s_04930561727905::t_1cd19a179f282e 10-16
+docs/loops/2026-06-28-photoshop-frame-placement.md
+  s_04930561727905::t_e415340079c97a 3,7-26
+docs/loops/2026-06-29-provider-bounded-image-pipeline.md
+  s_04930561727905::t_8f4e64ad1dc4b6 1-172
+packages/application/src/commands/provider-profiles.test.ts
+  s_04930561727905::t_3019f8f5741305 74
+packages/application/src/runtime.test.ts
+  s_04930561727905::t_4f2c8b27790be7 110,199,226-228
+packages/application/src/runtime.ts
+  s_04930561727905::t_637981dcf7ee93 294-363,439-442,445,598,610-612
+packages/core-engine/src/runner.ts
+  s_04930561727905::t_40db948e0ac8c3 29-36,164-169
+packages/core-engine/src/runtime.ts
+  s_04930561727905::t_3a6125359008a3 50-52,61-63,90,110,139,143-149
+packages/providers/src/contract/config.ts
+  s_04930561727905::t_552836c6b047c9 32-37,65-70
+packages/providers/src/providers/chat-image/config-schema.ts
+  s_04930561727905::t_c0f927716e30ce 15-16
+packages/providers/src/providers/image-endpoint/config-schema.ts
+  s_04930561727905::t_9757b7e109331e 15-16
+packages/providers/src/providers/mock/config-schema.ts
+  s_04930561727905::t_a4e6d1c29639ef 15-16
+packages/providers/src/transport/chat-image/build-request.ts
+  s_04930561727905::t_8c5bc70da04356 72-75,82-89
+packages/providers/tests/chat-image-provider.test.ts
+  s_04930561727905::t_363384382c0b8e 16,64-79,134
+packages/providers/tests/image-endpoint-provider.test.ts
+  s_04930561727905::t_912dd57f6444d1 23,125,150
+packages/providers/tests/mock-provider.test.ts
+  s_04930561727905::t_2486d164dc79e2 65,87,108,141
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.3",
+  "base_commit_sha": "f633607ad107665fe500a327829148971bb11c04",
+  "prompts": {},
+  "sessions": {
+    "s_04930561727905": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "019f123d-65b3-7522-be8b-1dac1d20a722",
+        "model": "unknown"
+      },
+      "human_author": "Sinyuk <80998062@qq.com>"
+    }
+  }
+}
