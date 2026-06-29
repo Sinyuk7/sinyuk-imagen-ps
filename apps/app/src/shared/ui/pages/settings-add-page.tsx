@@ -5,7 +5,7 @@ import { providerConfigFromForm, useProviderCatalog } from '../hooks/use-provide
 import { Icon } from '../components/icons';
 import { ProviderProfileEditor } from '../components/provider-profile-editor';
 import { useI18n } from '../i18n/i18n-context';
-import { Button, ActionButton, TextField, FieldLabel, HelpText } from '../primitives/spectrum-controls';
+import { Button, ActionButton, TextField, FieldLabel } from '../primitives/spectrum-controls';
 import { statusFromProviderTestResult, type ProviderStatus } from '../provider-status';
 
 interface SettingsAddPageProps {
