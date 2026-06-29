@@ -1,0 +1,85 @@
+apps/app/src/composition/chrome/create-chrome-app-shell.ts
+  s_c3cc75e96b3d11::t_0c6f7ff79c4034 17,83
+apps/app/src/shared/domain/host-image-asset.ts
+  s_c3cc75e96b3d11::t_2015d9051888e4 2,27,43-45,48-64,66-68,71-74
+apps/app/src/shared/domain/image-resource.ts
+  s_c3cc75e96b3d11::t_1b7d166717f9ba 1-173
+apps/app/src/shared/domain/index.ts
+  s_c3cc75e96b3d11::t_2b31d63ae2b76a 2
+apps/app/src/shared/image/thumbnail-store.ts
+  s_c3cc75e96b3d11::t_b3db8eef906ee9 1-178
+apps/app/src/shared/ports/app-services.ts
+  s_c3cc75e96b3d11::t_a735901fa5028c 4,9
+apps/app/src/shared/ports/index.ts
+  s_c3cc75e96b3d11::t_58df41b1519d58 6
+apps/app/src/shared/ui/hooks/use-conversation.ts
+  s_c3cc75e96b3d11::t_573c3e6a3232a0 10,96-131,159-162,198-201,203-211,243,249-252,265-276,301-377,390-392,417-430,434,466-468,530-541
+apps/app/src/shared/ui/pages/main-page.tsx
+  s_c3cc75e96b3d11::t_7c884043a84d72 132-146,183,209-219,286-304,507,811
+apps/app/src/shared/ui/pages/settings-page.tsx
+  s_84795d1918b2f2::t_ca059036a90997 1,4,51-182,254-256,267-273,279,289,299
+apps/app/src/shells/uxp/create-plugin-host-shell.ts
+  s_c3cc75e96b3d11::t_e16e90e296c1f4 21,84
+apps/app/tests/fakes.ts
+  s_c3cc75e96b3d11::t_df5abe1dec1c6b 15,25-54,57-58,129,157-159,181,288-303
+apps/app/tests/image-resource.test.ts
+  s_c3cc75e96b3d11::t_74f2247f2bbe77 1-171
+apps/app/tests/main-page.test.tsx
+  s_c3cc75e96b3d11::t_df162075f81e99 5,103,105,132,134,173,175,194,222,628-637,653-703
+apps/app/tests/thumbnail-store.test.ts
+  s_c3cc75e96b3d11::t_183ead5feeac4f 1-56
+apps/app/tests/use-conversation.test.tsx
+  s_c3cc75e96b3d11::t_89a8b71cde5127 13,81-96,171,177,179-187,189-243,245-283,285-341,366,368,371-407,409-412,495-524
+docs/dev-memory/memories/architecture/image-resource-derivative-lifecycle.md
+  s_c3cc75e96b3d11::t_ecd6e5606190ed 3,5-8,10-14,16-21,23,25-34,36,38-41,43,45,54-55
+packages/application/src/commands/submit-job.ts
+  s_c3cc75e96b3d11::t_7a02b34d09b400 113-116
+packages/application/src/commands/types.ts
+  s_c3cc75e96b3d11::t_f62d00eb00b552 51-53
+packages/application/src/runtime.test.ts
+  s_c3cc75e96b3d11::t_876656de34481f 231-287
+packages/application/src/runtime.ts
+  s_c3cc75e96b3d11::t_b5cc828b0930c0 10,417-424,433,443-444,451,461,548-549,557,582
+packages/application/src/session/session.test.ts
+  s_c3cc75e96b3d11::t_cc9f6fd7062ce4 126-153
+packages/core-engine/src/dispatch.test.ts
+  s_c3cc75e96b3d11::t_f88450944465e3 30-56
+packages/core-engine/src/dispatch.ts
+  s_c3cc75e96b3d11::t_e6241f7026a44e 10,145,187
+packages/core-engine/src/runner.test.ts
+  s_c3cc75e96b3d11::t_30f05a0e2d87c4 220-290
+packages/core-engine/src/runner.ts
+  s_c3cc75e96b3d11::t_71c1a30981b789 11,30-32,109-114,153,174-178,183
+packages/core-engine/src/runtime.ts
+  s_c3cc75e96b3d11::t_8fcd6cd887d43e 59-61,113,151
+packages/core-engine/src/types/provider.ts
+  s_c3cc75e96b3d11::t_2ad65e78af2941 8-17,36,38,47,49
+packages/providers/src/bridge/create-dispatch-adapter.test.ts
+  s_c3cc75e96b3d11::t_bb4abe1bdf1aa3 1-48
+packages/providers/src/bridge/create-dispatch-adapter.ts
+  s_c3cc75e96b3d11::t_3bff5adbef60bd 1,109,112,127
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.3",
+  "base_commit_sha": "ba6f9f5be67d42682984b46c87e499295a39a8d6",
+  "prompts": {},
+  "sessions": {
+    "s_84795d1918b2f2": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "019f1266-92c6-7b10-81b0-c5887a221120",
+        "model": "unknown"
+      },
+      "human_author": "Sinyuk <80998062@qq.com>"
+    },
+    "s_c3cc75e96b3d11": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "019f129a-25c2-74c3-8fbb-e9dc0d2439a0",
+        "model": "unknown"
+      },
+      "human_author": "Sinyuk <80998062@qq.com>"
+    }
+  }
+}
