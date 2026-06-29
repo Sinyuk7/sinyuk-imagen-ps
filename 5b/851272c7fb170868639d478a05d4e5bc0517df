@@ -1,0 +1,19 @@
+docs/dev-memory/memories/bug/uxp-first-frame-spectrum-geometry.md
+  s_84795d1918b2f2::t_700faf4be1c509 1-50
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.3",
+  "base_commit_sha": "5b851272c7fb170868639d478a05d4e5bc0517df",
+  "prompts": {},
+  "sessions": {
+    "s_84795d1918b2f2": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "019f1266-92c6-7b10-81b0-c5887a221120",
+        "model": "unknown"
+      },
+      "human_author": "Sinyuk <80998062@qq.com>"
+    }
+  }
+}
