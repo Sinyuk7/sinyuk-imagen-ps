@@ -1,4 +1,4 @@
 interface:
   display_name: "Design Review"
-  short_description: "Evidence-first page design review guardrail"
-  default_prompt: "Use $design-review to review this page or screenshot with evidence-first findings and A/B/C decisions."
+  short_description: "Report-only page review from screenshots and constraints"
+  default_prompt: "Use $design-review to review this page or screenshot without implementation advice, using evidence-first findings and A/B/C/D decisions."

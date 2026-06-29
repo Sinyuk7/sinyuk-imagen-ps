@@ -1,6 +1,6 @@
 ---
 name: ui-fix-guardrails
-description: Use only for confirmed UI bug fixes in apps/app when the symptom, expected behavior, and reproduction evidence are already known. Frame owner boundary and acceptance evidence before editing, then verify regression after the fix. Do not use for new requirements, refactors, or multi-step planning; use requirement-to-loop-planner instead.
+description: Use only for confirmed UI bug fixes in apps/app when the symptom, expected behavior, and reproduction evidence are already known. Frame owner boundary and acceptance evidence before editing, then verify regression after the fix. Do not use for screenshot-only review, Photoshop-only RCA before ownership is established, new requirements, refactors, or multi-step planning; use requirement-to-loop-planner instead.
 ---
 
 # UI Fix Guardrails
@@ -23,6 +23,17 @@ needs scope or slice planning, use `requirement-to-loop-planner` instead.
 
 This skill does not prescribe a debugging method and does not replace general
 debugging, Loop execution, or architecture review.
+
+## 1A. Do Not Use
+
+Do not use this skill when:
+
+- the user only wants a screenshot or page review;
+- the issue may be Photoshop-only and still needs RCA across wrapper, host, or
+  adapter layers;
+- the work is still deciding whether a visible issue is a bug or only an
+  optimization;
+- scope is not yet clear enough to define a concrete acceptance oracle.
 
 ## 2. Required Inputs
 

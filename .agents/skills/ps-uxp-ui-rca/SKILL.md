@@ -1,6 +1,6 @@
 ---
 name: ps-uxp-ui-rca
-description: Diagnose Photoshop UXP UI display, click, focus, layout, or interaction defects in apps/app when the user explicitly says the issue appears in Photoshop, UXP, or differs between Chrome and PS. Use for fast RCA of broken rendering, wrong spacing, missing icons, bad focus or keyboard behavior, click failures, popover or menu issues, wrapper misuse, and “Chrome normal but PS abnormal” questions. Prefer this skill when Codex must inspect repo versions, wrapper aliases, local Adobe docs, and current component usage before proposing a fix.
+description: Diagnose Photoshop UXP-specific UI defects in apps/app when the user explicitly says the issue appears in Photoshop, UXP, or differs between Chrome and PS. Use for repo-level RCA of broken rendering, click, focus, keyboard, menu, popover, wrapper, or host-behavior mismatches that require inspecting component usage, wrapper coverage, local Adobe docs, or runtime boundaries. Do not use for screenshot-only visual review, broad design optimization, or shared UI bugs already confirmed in both Chrome and UXP.
 ---
 
 # PS UXP UI RCA
@@ -11,6 +11,18 @@ Use this skill to answer one question only:
 
 Keep the investigation simple. Do not turn it into a broad architecture or test
 exercise.
+
+## Do Not Use
+
+Do not use this skill when:
+
+- the user only wants a page or screenshot review without repo RCA;
+- the problem is already confirmed in both Chrome and UXP and is now ready to
+  implement;
+- the discussion is about general density, spacing, grouping, or optimization
+  without Photoshop-specific evidence;
+- the issue can already be explained as a shared UI bug without host or wrapper
+  investigation.
 
 ## 1. Start From The User Claim
 
@@ -25,7 +37,8 @@ Type: display | click | focus | keyboard | layout | menu/popover | input
 
 Then decide the first suspicion:
 
-- `Both wrong` -> likely repo CSS or component usage
+- `Both wrong` -> likely shared UI or component usage; prefer `ui-fix-guardrails`
+  once the bug is confirmed
 - `PS only wrong` -> likely wrapper usage, unsupported pattern, or host difference
 - `Unknown` -> inspect code first
 
