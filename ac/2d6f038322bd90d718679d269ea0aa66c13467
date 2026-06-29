@@ -22,6 +22,14 @@ apps/app/README.md
         "model": "unknown"
       },
       "human_author": "Sinyuk <80998062@qq.com>"
+    },
+    "s_ad661e54b59f11": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "019f1330-7aae-7670-bbb2-a41dccb7473a",
+        "model": "unknown"
+      },
+      "human_author": "Sinyuk <80998062@qq.com>"
     }
   }
 }
