@@ -57,6 +57,7 @@ export interface AppMessages {
     readonly promptPlaceholderNoProfile: string;
     readonly addImage: string;
     readonly capture: string;
+    readonly captureCount: (count: number) => string;
     readonly captureLayer: string;
     readonly captureSelection: string;
     readonly send: string;
@@ -68,6 +69,7 @@ export interface AppMessages {
     readonly aspectRatioAuto: string;
     readonly aspectRatioSquare: string;
     readonly promptOptimize: string;
+    readonly promptRefine: string;
     readonly promptOptimizePlaceholder: string;
     readonly promptOptimizeUndo: string;
     readonly promptOptimizing: string;
@@ -188,6 +190,7 @@ const EN_MESSAGES: AppMessages = {
     promptPlaceholderNoProfile: 'Add a profile in Providers first',
     addImage: 'Add image',
     capture: 'Capture',
+    captureCount: (count) => `${count} capture${count === 1 ? '' : 's'}`,
     captureLayer: 'Photoshop layer capture',
     captureSelection: 'Photoshop selection capture',
     send: 'Send',
@@ -199,6 +202,7 @@ const EN_MESSAGES: AppMessages = {
     aspectRatioAuto: 'Auto',
     aspectRatioSquare: '1:1',
     promptOptimize: 'Optimize prompt',
+    promptRefine: 'Refine',
     promptOptimizePlaceholder: 'Coming soon',
     promptOptimizeUndo: 'Undo',
     promptOptimizing: 'Optimizing…',
@@ -319,6 +323,7 @@ const ZH_CN_MESSAGES: AppMessages = {
     promptPlaceholderNoProfile: '先在 Providers 中添加 profile',
     addImage: '添加图片',
     capture: '捕获',
+    captureCount: (count) => `${count} 个捕获`,
     captureLayer: 'Photoshop 图层捕获',
     captureSelection: 'Photoshop 选区捕获',
     send: '发送',
@@ -330,6 +335,7 @@ const ZH_CN_MESSAGES: AppMessages = {
     aspectRatioAuto: '智能',
     aspectRatioSquare: '1:1',
     promptOptimize: '优化提示词',
+    promptRefine: '优化',
     promptOptimizePlaceholder: '即将支持',
     promptOptimizeUndo: '撤销',
     promptOptimizing: '优化中…',

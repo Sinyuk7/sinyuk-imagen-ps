@@ -14,6 +14,7 @@ import '@spectrum-web-components/icons-workflow/icons/sp-icon-file-add.js';
 import '@spectrum-web-components/icons-workflow/icons/sp-icon-history.js';
 import '@spectrum-web-components/icons-workflow/icons/sp-icon-image-add.js';
 import '@spectrum-web-components/icons-workflow/icons/sp-icon-image-auto-mode.js';
+import '@spectrum-web-components/icons-workflow/icons/sp-icon-image-check.js';
 import '@spectrum-web-components/icons-workflow/icons/sp-icon-layers.js';
 import '@spectrum-web-components/icons-workflow/icons/sp-icon-magic-wand.js';
 import '@spectrum-web-components/icons-workflow/icons/sp-icon-move-left-right.js';
@@ -22,6 +23,7 @@ import '@spectrum-web-components/icons-workflow/icons/sp-icon-refresh.js';
 import '@spectrum-web-components/icons-workflow/icons/sp-icon-selection.js';
 import '@spectrum-web-components/icons-workflow/icons/sp-icon-send.js';
 import '@spectrum-web-components/icons-workflow/icons/sp-icon-settings.js';
+import '@spectrum-web-components/icons-workflow/icons/sp-icon-target.js';
 import '@spectrum-web-components/icons-workflow/icons/sp-icon-visibility-off.js';
 import '@spectrum-web-components/icons-workflow/icons/sp-icon-visibility.js';
 
@@ -46,6 +48,7 @@ export type IconName =
   | 'eye-off'
   | 'history'
   | 'image-auto-mode'
+  | 'image-check'
   | 'magic-wand'
   | 'place-ps'
   | 'ps-layers'
@@ -55,6 +58,7 @@ export type IconName =
   | 'send'
   | 'settings'
   | 'spinner'
+  | 'target'
   | 'trash'
   | 'upload';
 
@@ -85,6 +89,7 @@ const ICON_TAG_BY_NAME: Record<IconName, string> = {
   'eye-off': 'sp-icon-visibility-off',
   history: 'sp-icon-history',
   'image-auto-mode': 'sp-icon-image-auto-mode',
+  'image-check': 'sp-icon-image-check',
   'magic-wand': 'sp-icon-magic-wand',
   'place-ps': 'sp-icon-image-add',
   'ps-layers': 'sp-icon-layers',
@@ -94,6 +99,7 @@ const ICON_TAG_BY_NAME: Record<IconName, string> = {
   send: 'sp-icon-send',
   settings: 'sp-icon-settings',
   spinner: 'sp-icon-refresh',
+  target: 'sp-icon-target',
   trash: 'sp-icon-delete',
   upload: 'sp-icon-file-add',
 };

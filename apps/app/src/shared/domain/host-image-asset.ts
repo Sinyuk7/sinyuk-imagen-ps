@@ -1,4 +1,5 @@
 import type { Asset } from '@imagen-ps/application';
+import type { PhotoshopCapturePlacement } from './photoshop-placement';
 
 export interface HostImageMetadata {
   readonly source: 'file' | 'layer' | 'generated' | 'simulator' | 'unknown';
@@ -25,6 +26,7 @@ export interface HostImageAsset {
   readonly metadata: HostImageMetadata;
   readonly preview: HostImagePreviewHandle;
   readonly payload: HostImagePayloadRef;
+  readonly photoshopPlacement?: PhotoshopCapturePlacement;
 }
 
 export function createHostImageAsset(
@@ -35,6 +37,7 @@ export function createHostImageAsset(
     readonly payloadKind?: HostImagePayloadRef['kind'];
     readonly payloadRef?: string;
     readonly disposePreview?: () => void;
+    readonly photoshopPlacement?: PhotoshopCapturePlacement;
   },
 ): HostImageAsset {
   return {
@@ -52,5 +55,6 @@ export function createHostImageAsset(
       kind: options.payloadKind ?? 'inline-asset',
       ...(options.payloadRef !== undefined ? { ref: options.payloadRef } : {}),
     },
+    ...(options.photoshopPlacement ? { photoshopPlacement: options.photoshopPlacement } : {}),
   };
 }

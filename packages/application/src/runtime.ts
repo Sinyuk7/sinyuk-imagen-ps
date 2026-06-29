@@ -210,6 +210,45 @@ function bytesFromAsset(asset: Record<string, unknown>): ArrayBuffer | undefined
   return undefined;
 }
 
+function storedRefFromAsset(asset: Record<string, unknown>): StoredAssetRef | undefined {
+  const ref = asset.storedRef;
+  if (typeof ref !== 'object' || ref === null || Array.isArray(ref)) {
+    return undefined;
+  }
+  const record = ref as Record<string, unknown>;
+  const kind = record.kind;
+  if (kind !== 'inline' && kind !== 'url' && kind !== 'hostObject' && kind !== 'externalToken') {
+    return undefined;
+  }
+  if (typeof record.ref !== 'string' || record.ref.length === 0) {
+    return undefined;
+  }
+  return record as unknown as StoredAssetRef;
+}
+
+function sanitizeAssetForDurableInput(asset: unknown): unknown {
+  if (!isPlainRecord(asset)) {
+    return asset;
+  }
+  const storedRef = storedRefFromAsset(asset);
+  if (storedRef === undefined) {
+    return asset;
+  }
+  const { data: _data, ...rest } = asset;
+  return rest;
+}
+
+function sanitizeJobInputForDurableHistory(input: Record<string, unknown>): Record<string, unknown> {
+  const next: Record<string, unknown> = { ...input };
+  if (Array.isArray(next.images)) {
+    next.images = next.images.map(sanitizeAssetForDurableInput);
+  }
+  if (next.maskImage !== undefined) {
+    next.maskImage = sanitizeAssetForDurableInput(next.maskImage);
+  }
+  return next;
+}
+
 async function materializeOutputRefs(output: Record<string, unknown> | undefined): Promise<readonly StoredAssetRef[]> {
   const image = output?.image as { assets?: unknown } | undefined;
   const assets = Array.isArray(image?.assets) ? image.assets : [];
@@ -222,6 +261,11 @@ async function materializeOutputRefs(output: Record<string, unknown> | undefined
     const record = asset as Record<string, unknown>;
     const mimeType = typeof record.mimeType === 'string' ? record.mimeType : undefined;
     const name = typeof record.name === 'string' ? record.name : undefined;
+    const storedRef = storedRefFromAsset(record);
+    if (storedRef !== undefined) {
+      refs.push(storedRef);
+      continue;
+    }
     const bytes = bytesFromAsset(record);
 
     if (bytes !== undefined) {
@@ -265,7 +309,7 @@ async function flushTerminalJobHistory(job: Job, options?: DurableJobFlushOption
     jobId: job.id,
     status: job.status,
     workflow,
-    input: job.input,
+    input: sanitizeJobInputForDurableHistory(job.input),
     outputs: await materializeOutputRefs(job.output),
     ...(job.error !== undefined ? { error: job.error } : {}),
     createdAt: job.createdAt,
@@ -297,6 +341,47 @@ function locateRequestInParams(params: Record<string, unknown>): {
 
 function isPlainRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value);
+}
+
+async function resolveStoredAssetForDispatch(asset: unknown): Promise<unknown> {
+  if (!isPlainRecord(asset)) {
+    return asset;
+  }
+  const storedRef = storedRefFromAsset(asset);
+  if (storedRef === undefined || asset.data !== undefined || asset.url !== undefined || asset.fileId !== undefined) {
+    return asset;
+  }
+  const bytes = await getAssetStore().resolve(storedRef);
+  if (bytes === undefined) {
+    throw new Error(`AssetStore object is unavailable: ${storedRef.ref}`);
+  }
+  return {
+    ...asset,
+    data: new Uint8Array(bytes),
+  };
+}
+
+async function resolveStoredAssetsForDispatch(params: Record<string, unknown>): Promise<Record<string, unknown>> {
+  const { requestObj, hasRequestKey } = locateRequestInParams(params);
+  let nextRequest = requestObj;
+
+  if (Array.isArray(requestObj.images)) {
+    nextRequest = {
+      ...nextRequest,
+      images: await Promise.all(requestObj.images.map(resolveStoredAssetForDispatch)),
+    };
+  }
+  if (requestObj.maskImage !== undefined) {
+    nextRequest = {
+      ...nextRequest,
+      maskImage: await resolveStoredAssetForDispatch(requestObj.maskImage),
+    };
+  }
+
+  if (nextRequest === requestObj) {
+    return params;
+  }
+  return hasRequestKey ? { ...params, request: nextRequest } : { ...params, ...nextRequest };
 }
 
 /**
@@ -406,8 +491,9 @@ function createProfileAwareDispatchAdapter(logger?: Logger): ReturnType<typeof c
 
       // Inject profile defaultModel into providerOptions (three-tier priority: tier 2)
       const defaultModel = (providerConfig as unknown as Record<string, unknown>).defaultModel;
-      const resolvedParams =
+      const modelResolvedParams =
         typeof defaultModel === 'string' && defaultModel.length > 0 ? injectDefaultModel(params, defaultModel) : params;
+      const resolvedParams = await resolveStoredAssetsForDispatch(modelResolvedParams);
 
       const adapter = createDispatchAdapter({ provider, config: providerConfig, logger: dispatchLogger });
       return adapter.dispatch(resolvedParams, context);

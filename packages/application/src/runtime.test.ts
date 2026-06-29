@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import {
   _resetForTesting,
   setJobHistoryStore,
+  setAssetStore,
   setProviderProfileRepository,
   setSecretStorageAdapter,
 } from './runtime.js';
@@ -13,6 +14,8 @@ import type {
   ProviderProfile,
   ProviderProfileRepository,
   SecretStorageAdapter,
+  AssetStore,
+  StoredAssetRef,
 } from './commands/types.js';
 
 function createProfileRepository(profile: ProviderProfile): ProviderProfileRepository {
@@ -54,6 +57,38 @@ function createJobHistoryStore(records: DurableJobRecord[] = []): JobHistoryStor
       if (index !== -1) {
         records.splice(index, 1);
       }
+    },
+  };
+}
+
+function arrayBufferFromBytes(bytes: Uint8Array): ArrayBuffer {
+  const copy = new Uint8Array(bytes.byteLength);
+  copy.set(bytes);
+  return copy.buffer;
+}
+
+function createAssetStore(seed?: { readonly ref: StoredAssetRef; readonly bytes: Uint8Array }): AssetStore {
+  const records = new Map<string, ArrayBuffer>();
+  if (seed) {
+    records.set(seed.ref.ref, arrayBufferFromBytes(seed.bytes));
+  }
+  return {
+    async put(bytes, meta) {
+      const ref = `test-asset-${records.size + 1}`;
+      records.set(ref, bytes);
+      return {
+        kind: 'hostObject',
+        ref,
+        ...(meta.mimeType ? { mimeType: meta.mimeType } : {}),
+        ...(meta.name ? { name: meta.name } : {}),
+        byteSize: bytes.byteLength,
+      };
+    },
+    async resolve(ref) {
+      return records.get(ref.ref);
+    },
+    async delete(ref) {
+      records.delete(ref.ref);
     },
   };
 }
@@ -135,6 +170,58 @@ describe('profile dispatch runtime', () => {
     expect(records[0].outputs[0].kind).toBe('hostObject');
     expect(records[0].outputs[0].ref).not.toContain('base64');
     expect(JSON.stringify(records[0])).not.toContain('mock-key');
+  });
+
+  it('keeps input image bytes out of durable history while resolving hostObject refs for provider dispatch', async () => {
+    _resetForTesting();
+    const storedRef: StoredAssetRef = {
+      kind: 'hostObject',
+      ref: 'input-asset-1',
+      name: 'input.png',
+      mimeType: 'image/png',
+      byteSize: 8,
+    };
+    const records: DurableJobRecord[] = [];
+    setJobHistoryStore(createJobHistoryStore(records));
+    setAssetStore(createAssetStore({ ref: storedRef, bytes: new Uint8Array([1, 2, 3, 4]) }));
+    setProviderProfileRepository(
+      createProfileRepository({
+        profileId: 'mock-profile',
+        providerId: 'mock',
+        displayName: 'Mock Profile',
+        config: {
+          providerId: 'mock',
+          displayName: 'Mock Profile',
+          family: 'image-endpoint',
+          baseURL: 'https://mock.local',
+          defaultModel: 'mock-image-v1',
+        },
+        secretRefs: { apiKey: 'secret:mock' },
+        enabled: true,
+        createdAt: '2026-06-15T00:00:00.000Z',
+        updatedAt: '2026-06-15T00:00:00.000Z',
+      }),
+    );
+    setSecretStorageAdapter(createSecretStorage());
+
+    const result = await submitJob({
+      workflow: 'provider-edit',
+      input: {
+        profileId: 'mock-profile',
+        prompt: 'edit stored image',
+        images: [{ type: 'image', name: 'input.png', mimeType: 'image/png', storedRef }],
+      },
+    });
+
+    expect(result.ok).toBe(true);
+    expect(records).toHaveLength(1);
+    expect(records[0].input.images).toEqual([{ type: 'image', name: 'input.png', mimeType: 'image/png', storedRef }]);
+    expect(JSON.stringify(records[0].input)).not.toContain('"0":1');
+    if (!result.ok) {
+      return;
+    }
+    const outputAssets = (result.value.output?.image as { assets?: Array<{ data?: unknown; storedRef?: unknown }> })?.assets ?? [];
+    expect(outputAssets[0]?.data).toBeInstanceOf(Uint8Array);
   });
 
   it('rejects terminal history flush when job input contains secret values', async () => {

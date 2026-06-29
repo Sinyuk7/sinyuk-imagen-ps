@@ -1,3 +1,5 @@
+import type { StoredAssetRef } from './durable-job.js';
+
 /**
  * Host-agnostic asset 资源类型。
  *
@@ -15,8 +17,10 @@ export type AssetType = 'image';
  *  引用通道（三者互不排斥、可并存）：
  *  - `url`：外部可访问的 URL。
  *  - `data`：内联 base64 string 或 `Uint8Array` 二进制数据。
- *  - `fileId`：上游文件存储（例如 OpenAI File API）返回的 opaque identifier；
- *    其语义、生命周期、鉴权细节由 provider 层解释，engine 仅将其视为字符串。
+   *  - `fileId`：上游文件存储（例如 OpenAI File API）返回的 opaque identifier；
+   *    其语义、生命周期、鉴权细节由 provider 层解释，engine 仅将其视为字符串。
+   *  - `storedRef`：host 注入的 AssetStore 引用；provider dispatch 前由 application
+   *    临时解析为内联 bytes，禁止 provider 层直接解释。
  */
 export interface Asset {
   /** Asset 类别。 */
@@ -45,4 +49,7 @@ export interface Asset {
    *  映射为例如 `{ file_id: ... }` 的请求字段。
    */
   readonly fileId?: string;
+
+  /** Host AssetStore 引用。仅 application dispatch 边界可解析。 */
+  readonly storedRef?: StoredAssetRef;
 }

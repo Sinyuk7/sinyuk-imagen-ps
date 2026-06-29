@@ -12,6 +12,7 @@ import type { ImagenSessionBinding } from './use-imagen-session';
 import type { AppMessages } from '../i18n/messages';
 import type { HostImageAsset } from '../../domain/host-image-asset';
 import type { PlacementIntent, PhotoshopCapturePlacement } from '../../domain/photoshop-placement';
+import type { Asset } from '@imagen-ps/application';
 
 export interface ConversationAttachment {
   readonly id: string;
@@ -154,6 +155,24 @@ function errorRound(current: ConversationRound, error: JobError | Error): Conver
   };
 }
 
+function assetForJobInput(image: HostImageAsset): Asset {
+  if (image.payload.ref && image.payload.kind === 'host-object') {
+    return {
+      type: image.asset.type,
+      ...(image.asset.name ? { name: image.asset.name } : {}),
+      ...(image.asset.mimeType ? { mimeType: image.asset.mimeType } : {}),
+      storedRef: {
+        kind: 'hostObject',
+        ref: image.payload.ref,
+        ...(image.asset.name ? { name: image.asset.name } : {}),
+        ...(image.asset.mimeType ? { mimeType: image.asset.mimeType } : {}),
+        ...(image.metadata.byteSize !== undefined ? { byteSize: image.metadata.byteSize } : {}),
+      },
+    };
+  }
+  return image.asset;
+}
+
 export function derivePlacementIntent(attachments: readonly ConversationAttachment[]): PlacementIntent {
   const captures = attachments.filter((attachment) => attachment.photoshopPlacement !== undefined);
   if (captures.length === 0) {
@@ -166,7 +185,7 @@ export function derivePlacementIntent(attachments: readonly ConversationAttachme
   }
 
   const firstCapture = captures[0].photoshopPlacement!;
-  if (captures.length === 1 && attachments.length === 1) {
+  if (captures.length === 1 && attachments.length === 1 && captures[0].type === 'photoshop-capture') {
     return {
       kind: 'exact-frame',
       documentId: firstCapture.snapshot.documentId,
@@ -265,7 +284,7 @@ export function useConversation(
           prompt,
           output: { count: 1 },
           ...(providerOptions ? { providerOptions } : {}),
-          ...(input.operation === 'image-edit' ? { images: attachments.map((attachment) => attachment.image.asset) } : {}),
+          ...(input.operation === 'image-edit' ? { images: attachments.map((attachment) => assetForJobInput(attachment.image)) } : {}),
         };
 
         try {

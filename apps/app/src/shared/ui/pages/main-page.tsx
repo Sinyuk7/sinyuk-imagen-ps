@@ -84,6 +84,22 @@ function findRoundElement(container: HTMLElement, roundId: string): HTMLElement 
   return container.querySelector(`[data-round-id="${roundId}"]`);
 }
 
+function mediaShapeFromSize(size: string | undefined): 'portrait' | 'square' | 'landscape' | 'unknown' {
+  const match = size?.match(/(\d+)\s*[x×]\s*(\d+)/i);
+  if (!match) {
+    return 'unknown';
+  }
+  const width = Number(match[1]);
+  const height = Number(match[2]);
+  if (!Number.isFinite(width) || !Number.isFinite(height) || width <= 0 || height <= 0) {
+    return 'unknown';
+  }
+  const ratio = width / height;
+  if (ratio < 0.9) return 'portrait';
+  if (ratio > 1.15) return 'landscape';
+  return 'square';
+}
+
 export function MainPage({
   onNav,
   profiles,
@@ -134,6 +150,7 @@ export function MainPage({
   const showUndo = optimizeState.status === 'optimized' && input === optimizeState.result;
   const canOptimize = optimizerReady && input.trim().length > 0 && !optimizing;
   const canCapture = !conversation.running && !captureInFlight;
+  const captureAttachmentCount = attachments.filter((attachment) => attachment.type === 'photoshop-capture').length;
   const optimizeButtonLabel = showUndo ? t.main.promptOptimizeUndo : t.main.promptOptimize;
   const isAtBottom = useCallback(() => {
     const el = convRef.current;
@@ -216,11 +233,17 @@ export function MainPage({
         name: layer.name,
         image,
         previewUrl: image.preview.url ?? assetToPreviewUrl(image.asset),
+        ...(image.photoshopPlacement ? { photoshopPlacement: image.photoshopPlacement } : {}),
       });
       show(t.toast.layerAdded, 'positive');
     } catch (error) {
       show(error instanceof Error ? error.message : t.toast.layerReadFailed, 'negative');
     }
+  };
+
+  const openLayerPicker = () => {
+    setLayerOpen(true);
+    void reloadLayers();
   };
 
   const addFile = async () => {
@@ -553,7 +576,7 @@ export function MainPage({
                   >
                     {round.providerName.slice(0, 1).toUpperCase()}
                   </button>
-                  <div className="prov-card">
+                  <div className={`prov-card prov-card-media media-${mediaShapeFromSize(round.outputSize)}`}>
                     <div className="prov-top">
                       <span className="prov-name-lbl">{round.providerName}</span>
                       <div className="prov-status">
@@ -575,8 +598,10 @@ export function MainPage({
                           <div className="img-meta">{round.outputSize ?? t.main.assetFallback} · {round.outputFormat ?? t.main.imageFallback}</div>
                           <div className="img-overlay">
                             <button className="img-act prim" onClick={(event) => { event.stopPropagation(); void placeAsset(round, index); }}>
-                              <Icon name="place-ps" />
-                              {t.main.placePs}
+                              <span className="ui-icon-text">
+                                <Icon name="place-ps" size={13} className="ui-icon-text-icon" />
+                                <span className="ui-icon-text-label">{t.main.placePs}</span>
+                              </span>
                             </button>
                           </div>
                         </div>
@@ -654,7 +679,7 @@ export function MainPage({
 
         {attachOpen && !layerOpen && (
           <div className="attach-picker" onClick={(event) => event.stopPropagation()}>
-            <div data-testid="attach-ps-layers-option" className="attach-opt" onClick={() => setLayerOpen(true)}>
+            <div data-testid="attach-ps-layers-option" className="attach-opt" onClick={openLayerPicker}>
               <div className="attach-opt-ico">
                 <Icon name="ps-layers" size={13} />
               </div>
@@ -734,26 +759,28 @@ export function MainPage({
               </div>
               <div className="cmp-action-right">
                 <ActionButton
-                  data-testid="composer-prompt-optimize-button"
-                  className="cmp-opt"
-                  quiet
-                  label={optimizeButtonLabel}
+                  data-testid="composer-capture-button"
+                  className="cmp-capture"
+                  label={t.main.capture}
                   placement="top"
-                  disabled={showUndo ? false : !canOptimize}
+                  disabled={!canCapture}
                   onClick={(event) => {
                     event.stopPropagation();
-                    if (showUndo) {
-                      handleUndoOptimize();
-                    } else {
-                      void handleOptimize();
-                    }
+                    setOpenMenu(null);
+                    setAttachOpen(false);
+                    setLayerOpen(false);
+                    void captureFromPhotoshop();
                   }}
                 >
-                  {optimizing
-                    ? <Icon name="spinner" size={13} className="spin" slot="icon" />
-                    : showUndo
-                      ? <Icon name="refresh" slot="icon" />
-                      : <Icon name="magic-wand" slot="icon" />}
+                  {captureInFlight
+                    ? <Icon name="spinner" size={13} className="cmp-capture-icon spin" slot="icon" />
+                    : <Icon name={captureAttachmentCount > 0 ? 'image-check' : 'target'} size={13} className="cmp-capture-icon" slot="icon" />}
+                  <span className="cmp-action-label">{t.main.capture}</span>
+                  {captureAttachmentCount > 0 ? (
+                    <span className="cmp-capture-badge" aria-label={t.main.captureCount(captureAttachmentCount)}>
+                      {captureAttachmentCount}
+                    </span>
+                  ) : null}
                 </ActionButton>
                 <div className="send-wrap">
                   <ActionButton
@@ -791,25 +818,6 @@ export function MainPage({
               />
             </div>
             <div className="cmp-toolbar-right">
-              <ActionButton
-                data-testid="composer-capture-button"
-                className="cmp-capture"
-                quiet
-                label={t.main.capture}
-                placement="top"
-                disabled={!canCapture}
-                onClick={(event) => {
-                  event.stopPropagation();
-                  setOpenMenu(null);
-                  setAttachOpen(false);
-                  setLayerOpen(false);
-                  void captureFromPhotoshop();
-                }}
-              >
-                {captureInFlight
-                  ? <Icon name="spinner" size={13} className="spin" slot="icon" />
-                  : <Icon name="selection" slot="icon" />}
-              </ActionButton>
               <ComposerSelect
                 testId="composer-aspect-ratio-selector"
                 containerClassName="cmp-select cmp-select-aspect"
@@ -827,6 +835,28 @@ export function MainPage({
                 onSelect={setAspectRatio}
                 leadingIcon="image-auto-mode"
               />
+              <ActionButton
+                data-testid="composer-prompt-optimize-button"
+                className="cmp-opt"
+                label={optimizeButtonLabel}
+                placement="top"
+                disabled={showUndo ? false : !canOptimize}
+                onClick={(event) => {
+                  event.stopPropagation();
+                  if (showUndo) {
+                    handleUndoOptimize();
+                  } else {
+                    void handleOptimize();
+                  }
+                }}
+              >
+                {optimizing
+                  ? <Icon name="spinner" size={13} className="cmp-opt-icon spin" slot="icon" />
+                  : showUndo
+                    ? <Icon name="refresh" size={13} className="cmp-opt-icon" slot="icon" />
+                    : <Icon name="magic-wand" size={13} className="cmp-opt-icon" slot="icon" />}
+                <span className="cmp-action-label">{showUndo ? t.main.promptOptimizeUndo : t.main.promptRefine}</span>
+              </ActionButton>
             </div>
           </div>
         </div>
@@ -844,7 +874,6 @@ export function MainPage({
           </button>
         )}
       </footer>
-
       <ToastHost toast={toast} onClose={close} />
     </div>
   );

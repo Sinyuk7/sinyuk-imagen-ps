@@ -74,6 +74,7 @@ export type {
 
 // Adapter injection（暴露给 UI / host adapters 注入自定义实现）
 export {
+  getAssetStore,
   setAssetStore,
   setJobHistoryStore,
   setProviderConfigResolver,

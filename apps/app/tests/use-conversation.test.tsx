@@ -87,6 +87,10 @@ describe('useConversation', () => {
       image: fakeHostImage,
       previewUrl: fakeHostImage.preview.url ?? '',
     };
+    const layerAttachment: ConversationAttachment = {
+      ...captureAttachment('layer-1'),
+      type: 'layer',
+    };
 
     expect(derivePlacementIntent([captureAttachment('capture-1')])).toMatchObject({
       kind: 'exact-frame',
@@ -94,6 +98,10 @@ describe('useConversation', () => {
       placementRect: { left: 0, top: 0, right: 128, bottom: 128 },
     });
     expect(derivePlacementIntent([captureAttachment('capture-1'), fileAttachment])).toMatchObject({
+      kind: 'document-only',
+      documentId: 42,
+    });
+    expect(derivePlacementIntent([layerAttachment])).toMatchObject({
       kind: 'document-only',
       documentId: 42,
     });
@@ -147,6 +155,62 @@ describe('useConversation', () => {
     });
     expect(controller!.rounds[0]?.status).toBe('ok');
     expect(controller!.rounds[0]?.previews[0]?.asset.name).toBe('result.png');
+  });
+
+  it('submits image-edit attachments as hostObject refs instead of inline bytes when available', async () => {
+    const { services, spies } = createFakeServices();
+    const { getController } = await mountProbe(services);
+    const image = {
+      ...fakeHostImage,
+      asset: {
+        type: 'image' as const,
+        name: 'picked.png',
+        mimeType: 'image/png',
+        data: new Uint8Array([1, 2, 3, 4]),
+      },
+      metadata: {
+        ...fakeHostImage.metadata,
+        byteSize: 4,
+      },
+      payload: {
+        kind: 'host-object' as const,
+        ref: 'memory-asset-1',
+      },
+    };
+
+    await act(async () => {
+      await getController().submit({
+        operation: 'image-edit',
+        prompt: 'edit image',
+        profileId: 'mock-profile',
+        providerName: 'Mock Profile',
+        attachments: [{
+          id: 'file-1',
+          type: 'file',
+          name: 'picked.png',
+          image,
+          previewUrl: '',
+        }],
+      });
+    });
+
+    expect(spies.submitJob).toHaveBeenCalledWith({
+      workflow: 'provider-edit',
+      input: expect.objectContaining({
+        images: [{
+          type: 'image',
+          name: 'picked.png',
+          mimeType: 'image/png',
+          storedRef: {
+            kind: 'hostObject',
+            ref: 'memory-asset-1',
+            name: 'picked.png',
+            mimeType: 'image/png',
+            byteSize: 4,
+          },
+        }],
+      }),
+    });
   });
 
   it('blocks same-tick double submit to a single submitJob call (UI ref-gate)', async () => {

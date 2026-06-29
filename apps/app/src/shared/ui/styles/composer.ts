@@ -106,7 +106,7 @@ export const COMPOSER_CSS = `
   padding:4px 2px 0;
   flex-wrap:nowrap;
   align-items:center;
-  justify-content:flex-start;
+  justify-content:space-between;
   flex:0 0 auto;
 }
 .cmp-action-left,
@@ -146,24 +146,34 @@ export const COMPOSER_CSS = `
   max-width:100%;
 }
 .cmp-capture{
-  width:30px;
-  height:28px;
+  position:relative;
+  min-width:92px;
+  height:30px;
   margin-top:0;
-  margin-right:6px;
+  margin-right:8px;
   margin-bottom:0;
   margin-left:0;
-  color:var(--app-color-text-secondary);
+  padding:0 10px;
+  border-radius:var(--app-radius-medium);
+  color:var(--app-color-text-primary);
+  background:var(--app-color-background-layer-1);
+  border:1px solid var(--app-color-border-default);
   flex:0 0 auto;
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
+  --mod-actionbutton-edge-to-text:8px;
 }
+.cmp-capture:hover{ border-color:var(--app-color-border-strong); background:var(--app-color-background-elevated); }
 .cmp-select-aspect{
   flex:0 1 auto;
   min-width:104px;
 }
 .cmp-select-aspect{
   margin-top:0;
-  margin-right:0;
+  margin-right:6px;
   margin-bottom:0;
-  margin-left:6px;
+  margin-left:0;
 }
 .cmp-select-menu{
   position:absolute; left:0; bottom:calc(100% + 6px); z-index:200;
@@ -365,6 +375,8 @@ export const COMPOSER_CSS = `
   min-width:0;
   min-height:16px;
   line-height:16px;
+  position:relative;
+  top:1px;
 }
 .cmp-chip-arrow-text{
   display:inline-flex;
@@ -397,8 +409,54 @@ export const COMPOSER_CSS = `
 }
 .cmp-sp{ flex:1; min-width:0; }
 .cmp-opt{
+  min-width:78px;
+  height:28px;
   display:inline-flex; align-items:center; justify-content:center;
-  margin-top:0; margin-right:6px; margin-bottom:0; margin-left:0; color:var(--app-color-text-secondary); flex-shrink:0;
+  margin-top:0; margin-right:0; margin-bottom:0; margin-left:0;
+  padding:0 10px;
+  color:var(--app-color-text-secondary);
+  flex-shrink:0;
+  border-radius:var(--app-radius-medium);
+  --mod-actionbutton-edge-to-text:8px;
+}
+.cmp-action-label{
+  display:block;
+  margin-left:7px;
+  font-family:var(--app-font-family-mono);
+  font-size:10px;
+  line-height:14px;
+  white-space:nowrap;
+}
+.cmp-capture-icon{
+  display:block;
+  flex:0 0 auto;
+}
+.cmp-capture .cmp-action-label{
+  position:relative;
+  top:1px;
+}
+.cmp-opt-icon{
+  display:block;
+  flex:0 0 auto;
+}
+.cmp-opt .cmp-action-label{
+  position:relative;
+  top:1px;
+}
+.cmp-capture-badge{
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
+  min-width:14px;
+  height:14px;
+  margin-left:6px;
+  padding:0 4px;
+  border-radius:999px;
+  background:var(--app-color-accent-default);
+  color:var(--app-color-text-on-accent);
+  font-family:var(--app-font-family-mono);
+  font-size:9px;
+  line-height:14px;
 }
 
 /* Send button */

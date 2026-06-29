@@ -189,7 +189,19 @@ export function createFakeServices(): {
       placementRect: { left: 10, top: 20, right: 266, bottom: 276 },
     },
   }));
-  const readLayerAsAsset = vi.fn(async () => fakeHostImage);
+  const readLayerAsAsset = vi.fn(async () => ({
+    ...fakeHostImage,
+    photoshopPlacement: {
+      snapshot: {
+        documentId: 42,
+        documentSize: { width: 1024, height: 768 },
+        layerId: 1,
+        layerBoundsNoEffects: { left: 10, top: 20, right: 266, bottom: 276 },
+        selectionBounds: null,
+      },
+      placementRect: { left: 10, top: 20, right: 266, bottom: 276 },
+    },
+  }));
   const placeAssetOnCanvas = vi.fn(async () => undefined);
 
   const commands: CommandsPort = {

@@ -133,6 +133,24 @@ describe('MainPage contract', () => {
     });
   });
 
+  it('opening the Photoshop layer picker refreshes host layers', async () => {
+    const container = document.createElement('div');
+    document.body.appendChild(container);
+    const { spies } = await renderApp(container);
+
+    expect(spies.listLayers).toHaveBeenCalledTimes(1);
+
+    await act(async () => {
+      container.querySelector<HTMLButtonElement>('.cmp-add')!.click();
+    });
+    await act(async () => {
+      clickText(container, '.attach-opt', '从 PS 图层选择');
+    });
+    await flush();
+
+    expect(spies.listLayers).toHaveBeenCalledTimes(2);
+  });
+
   it('Capture materializes Photoshop attachment and submits provider-edit', async () => {
     const container = document.createElement('div');
     document.body.appendChild(container);
@@ -174,6 +192,33 @@ describe('MainPage contract', () => {
       kind: 'exact-frame',
       documentId: 42,
       placementRect: { left: 10, top: 20, right: 266, bottom: 276 },
+    }));
+  });
+
+  it('layer attachment writeback targets the source Photoshop document', async () => {
+    const container = document.createElement('div');
+    document.body.appendChild(container);
+    const { spies } = await renderApp(container);
+
+    await act(async () => {
+      container.querySelector<HTMLButtonElement>('.cmp-add')!.click();
+    });
+    await act(async () => {
+      clickText(container, '.attach-opt', '从 PS 图层选择');
+    });
+    await act(async () => {
+      clickText(container, '.layer-item', 'Layer 1');
+    });
+    await flush();
+    await sendPrompt(container, 'edit layer image');
+
+    await act(async () => {
+      container.querySelector<HTMLButtonElement>('.img-act')!.click();
+    });
+
+    expect(spies.placeAssetOnCanvas).toHaveBeenCalledWith(fakeAsset, expect.objectContaining({
+      kind: 'document-only',
+      documentId: 42,
     }));
   });
 
@@ -309,13 +354,14 @@ describe('MainPage contract', () => {
     expect(left!.querySelector('[data-testid="composer-add-image-button"]')).not.toBeNull();
     expect(left!.querySelector('[data-testid="composer-send-button"]')).toBeNull();
 
-    // 右组：优化提示词 / 发送
-    expect(right!.querySelector('[data-testid="composer-prompt-optimize-button"]')).not.toBeNull();
+    // 右组：Capture / Send
+    expect(right!.querySelector('[data-testid="composer-capture-button"]')).not.toBeNull();
     expect(right!.querySelector('[data-testid="composer-send-button"]')).not.toBeNull();
+    expect(right!.querySelector('[data-testid="composer-prompt-optimize-button"]')).toBeNull();
     expect(right!.querySelector('[data-testid="composer-add-image-button"]')).toBeNull();
   });
 
-  it('Composer 参数工具栏允许自然换行且保持参数当前值可见', async () => {
+  it('Composer 参数工具栏保持 Model 左侧、Ratio 和 Refine 右侧', async () => {
     const container = document.createElement('div');
     document.body.appendChild(container);
     await renderApp(container);
@@ -324,13 +370,15 @@ describe('MainPage contract', () => {
     const toolbarStyle = getComputedStyle(toolbar);
     const toolbarLeftStyle = getComputedStyle(container.querySelector<HTMLElement>('.cmp-toolbar-left')!);
     const toolbarRightStyle = getComputedStyle(container.querySelector<HTMLElement>('.cmp-toolbar-right')!);
-    expect(toolbarStyle.flexWrap).toBe('wrap');
+    expect(toolbarStyle.flexWrap).toBe('nowrap');
+    expect(toolbarStyle.justifyContent).toBe('space-between');
     expect(toolbarLeftStyle.overflow).toBe('visible');
     expect(toolbarRightStyle.overflow).toBe('visible');
 
     expect(toolbar.querySelector('[data-testid="main-model-selector"]')!.textContent).toContain('mock-image-v1');
-    expect(toolbar.querySelector('[data-testid="composer-capture-button"]')).not.toBeNull();
+    expect(toolbar.querySelector('[data-testid="composer-capture-button"]')).toBeNull();
     expect(toolbar.querySelector('[data-testid="composer-aspect-ratio-selector"]')!.textContent).toContain('智能');
+    expect(toolbar.querySelector('[data-testid="composer-prompt-optimize-button"]')!.textContent).toContain('优化');
   });
 
   it('aspect-ratio 选择器可打开、选择并关闭，Capture 不打开菜单', async () => {

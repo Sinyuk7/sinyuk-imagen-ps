@@ -413,12 +413,13 @@ describe('fake UXP host adapters', () => {
   it('把二进制 asset 写入 data folder 并返回 opaque hostObject ref', async () => {
     const bytes = arrayBufferFromBytes(VALID_TRANSPARENT_PNG);
     const fileWrites: Array<string | ArrayBuffer> = [];
-    const storedFiles = new Map<string, { read(): Promise<string | ArrayBuffer>; write(data: string | ArrayBuffer): Promise<void> }>();
+    const fileFormats: unknown[] = [];
+    const storedFiles = new Map<string, { read(options?: { readonly format?: unknown }): Promise<string | ArrayBuffer>; write(data: string | ArrayBuffer, options?: { readonly format?: unknown }): Promise<void> }>();
     const modules: UxpModules = {
       uxp: {
         storage: {
+          formats: { binary: 'storage-binary' },
           localFileSystem: {
-            formats: { binary: 'binary' },
             async getDataFolder() {
               return {
                 async getEntry(name: string) {
@@ -430,10 +431,12 @@ describe('fake UXP host adapters', () => {
                 },
                 async createFile(name: string) {
                   const file = {
-                    async read(): Promise<string | ArrayBuffer> {
+                    async read(options?: { readonly format?: unknown }): Promise<string | ArrayBuffer> {
+                      fileFormats.push(options?.format);
                       return bytes;
                     },
-                    async write(data: string | ArrayBuffer): Promise<void> {
+                    async write(data: string | ArrayBuffer, options?: { readonly format?: unknown }): Promise<void> {
+                      fileFormats.push(options?.format);
                       fileWrites.push(data);
                     },
                   };
@@ -459,6 +462,7 @@ describe('fake UXP host adapters', () => {
     expect(ref.ref).toMatch(/^uxp-asset-/);
     expect(resolved).toEqual(bytes);
     expect(fileWrites[0]).toBeInstanceOf(ArrayBuffer);
+    expect(fileFormats).toEqual(['storage-binary', 'storage-binary']);
   });
 
   it('拒绝把旧 mock 坏 PNG 写入 UXP asset store', async () => {
@@ -467,8 +471,8 @@ describe('fake UXP host adapters', () => {
     const modules: UxpModules = {
       uxp: {
         storage: {
+          formats: { binary: 'storage-binary' },
           localFileSystem: {
-            formats: { binary: 'binary' },
             async getDataFolder() {
               return {
                 async getEntry(name: string) {
@@ -501,6 +505,22 @@ describe('fake UXP host adapters', () => {
     expect(fileWrites).toEqual([]);
   });
 
+  it('UXP asset store 缺少 storage-level binary format 时给出清晰错误', async () => {
+    const modules: UxpModules = {
+      uxp: {
+        storage: {
+          localFileSystem: {
+            async getDataFolder() {
+              return createFakeDataFolder().folder;
+            },
+          },
+        },
+      },
+    };
+
+    expect(() => createUxpAssetStore(modules)).toThrow('UXP binary file format is unavailable.');
+  });
+
   it('读取到旧 mock 坏 PNG hostObject 时返回 undefined', async () => {
     const dataFolder = createFakeDataFolder({
       'legacy-bad.png': new MutableFakeFile('legacy-bad.png', arrayBufferFromBytes(LEGACY_TRUNCATED_MOCK_PNG)),
@@ -508,8 +528,8 @@ describe('fake UXP host adapters', () => {
     const modules: UxpModules = {
       uxp: {
         storage: {
+          formats: { binary: 'storage-binary' },
           localFileSystem: {
-            formats: { binary: 'binary' },
             async getDataFolder() {
               return dataFolder.folder;
             },

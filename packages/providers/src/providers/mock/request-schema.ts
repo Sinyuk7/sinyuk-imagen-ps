@@ -18,6 +18,14 @@ const assetRefSchema = z.object({
   data: z.union([z.string(), z.instanceof(Uint8Array)]).optional(),
   mimeType: z.string().optional(),
   fileId: z.string().optional(),
+  storedRef: z.object({
+    kind: z.union([z.literal('inline'), z.literal('url'), z.literal('hostObject'), z.literal('externalToken')]),
+    ref: z.string(),
+    name: z.string().optional(),
+    mimeType: z.string().optional(),
+    sha256: z.string().optional(),
+    byteSize: z.number().optional(),
+  }).optional(),
 });
 
 /**

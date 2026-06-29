@@ -16,9 +16,16 @@ interface UxpFolder {
 interface UxpLocalFileSystem {
   readonly formats?: {
     readonly utf8?: unknown;
-    readonly binary?: unknown;
   };
   getDataFolder(): Promise<UxpFolder>;
+}
+
+interface UxpStorage {
+  readonly formats?: {
+    readonly utf8?: unknown;
+    readonly binary?: unknown;
+  };
+  readonly localFileSystem?: UxpLocalFileSystem;
 }
 
 interface JobHistoryFile {
@@ -27,8 +34,20 @@ interface JobHistoryFile {
 }
 
 function localFileSystemFrom(modules: UxpModules): UxpLocalFileSystem | undefined {
-  const storage = modules.uxp?.storage as { readonly localFileSystem?: UxpLocalFileSystem } | undefined;
+  const storage = modules.uxp?.storage as UxpStorage | undefined;
   return storage?.localFileSystem;
+}
+
+function storageFormatsFrom(modules: UxpModules): UxpStorage['formats'] | undefined {
+  const storage = modules.uxp?.storage as UxpStorage | undefined;
+  return storage?.formats;
+}
+
+function uxpBinaryFormat(formats: UxpStorage['formats'] | undefined): unknown {
+  if (!formats?.binary) {
+    throw new Error('UXP binary file format is unavailable.');
+  }
+  return formats.binary;
 }
 
 async function getOrCreateFile(fs: UxpLocalFileSystem, name: string): Promise<UxpFile> {
@@ -167,13 +186,14 @@ export function createUxpAssetStore(modules: UxpModules): AssetStore {
     return createInMemoryAssetStore();
   }
   const localFileSystem = fs;
+  const binaryFormat = uxpBinaryFormat(storageFormatsFrom(modules));
 
   return {
     async put(bytes: ArrayBuffer, meta: { readonly mimeType?: string; readonly name?: string }): Promise<StoredAssetRef> {
       preflightStoredAsset(bytes, meta);
       const ref = createAssetRef(bytes, meta);
       const file = await getOrCreateFile(localFileSystem, ref.ref);
-      await file.write(bytesToArrayBuffer(new Uint8Array(bytes)), { format: localFileSystem.formats?.binary });
+      await file.write(bytesToArrayBuffer(new Uint8Array(bytes)), { format: binaryFormat });
       return ref;
     },
     async resolve(ref: StoredAssetRef): Promise<ArrayBuffer | undefined> {
@@ -185,7 +205,7 @@ export function createUxpAssetStore(modules: UxpModules): AssetStore {
         if (!file) {
           return undefined;
         }
-        const raw = await file.read({ format: localFileSystem.formats?.binary });
+        const raw = await file.read({ format: binaryFormat });
         const bytes = arrayBufferFrom(raw);
         if (bytes !== undefined) {
           preflightStoredAsset(bytes, ref);

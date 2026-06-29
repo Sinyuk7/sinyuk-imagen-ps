@@ -200,7 +200,12 @@ export function SettingsAddPage({ onNav, profiles, onProfileSaved }: SettingsAdd
             <div className="test-area">
               <Button data-testid="provider-test-button" className="test-btn swc-button" disabled={busy} onClick={() => void handleTest()}>
                 {busy
-                  ? <><Icon name="spinner" size={13} className="spin" slot="icon" /> {t.settings.testingConnection}</>
+                  ? (
+                    <span className="ui-icon-text">
+                      <Icon name="spinner" size={13} className="ui-icon-text-icon spin" />
+                      <span className="ui-icon-text-label">{t.settings.testingConnection}</span>
+                    </span>
+                  )
                   : t.settings.testConnection
                 }
               </Button>

@@ -440,6 +440,25 @@ sp-textfield{
   align-items:center;
   justify-content:center;
 }
+.ui-icon-text{
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
+  white-space:nowrap;
+}
+.ui-icon-text-icon{
+  display:block;
+  flex:0 0 auto;
+  margin-top:0;
+  margin-right:7px;
+  margin-bottom:0;
+  margin-left:0;
+}
+.ui-icon-text-label{
+  display:block;
+  position:relative;
+  top:1px;
+}
 sp-divider{
   --spectrum-divider-background-color:var(--app-color-border-default);
 }

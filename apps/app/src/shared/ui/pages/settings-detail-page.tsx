@@ -411,8 +411,18 @@ export function SettingsDetailPage({ onNav, profileId, onProfilesChanged }: Sett
             <div className="test-area">
               <Button data-testid="provider-test-button" className="test-btn swc-button" variant="secondary" disabled={busy} onClick={() => void test()}>
                 {busy
-                  ? <><Icon name="spinner" size={13} className="spin" slot="icon" /> {t.settings.testingConnection}</>
-                  : <><Icon name="arrow-right" slot="icon" /> {t.settings.testConnection}</>
+                  ? (
+                    <span className="ui-icon-text">
+                      <Icon name="spinner" size={13} className="ui-icon-text-icon spin" />
+                      <span className="ui-icon-text-label">{t.settings.testingConnection}</span>
+                    </span>
+                  )
+                  : (
+                    <span className="ui-icon-text">
+                      <Icon name="arrow-right" size={13} className="ui-icon-text-icon" />
+                      <span className="ui-icon-text-label">{t.settings.testConnection}</span>
+                    </span>
+                  )
                 }
               </Button>
               {status && <StatusNotice tone={status.tone} message={status.message} />}
