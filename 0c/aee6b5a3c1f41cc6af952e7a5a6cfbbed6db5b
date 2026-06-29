@@ -1,0 +1,31 @@
+apps/app/src/shared/ui/app-shell.tsx
+  s_84795d1918b2f2::t_b81fe78c9f0b1b 18,466
+apps/app/src/shared/ui/panel-bootstrap.ts
+  s_84795d1918b2f2::t_cfe40f16f354ed 1-27
+apps/app/src/shared/ui/panel-css.ts
+  s_84795d1918b2f2::t_1ec1e42747a8e8 3
+apps/app/src/shells/chrome/main.tsx
+  s_84795d1918b2f2::t_1194dcbc6320cc 3,37
+apps/app/src/shells/uxp/uxp-panel-runtime.test.tsx
+  s_84795d1918b2f2::t_319c066edb16ad 14-15,18,28-31,50,69,131
+apps/app/src/shells/uxp/uxp-panel-runtime.tsx
+  s_84795d1918b2f2::t_0ca93637075175 3,253-254
+apps/app/tests/index-reload.test.tsx
+  s_84795d1918b2f2::t_4cb2b2a352875f 10,18,29,69-72,109,129
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.3",
+  "base_commit_sha": "0caee6b5a3c1f41cc6af952e7a5a6cfbbed6db5b",
+  "prompts": {},
+  "sessions": {
+    "s_84795d1918b2f2": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "019f1266-92c6-7b10-81b0-c5887a221120",
+        "model": "unknown"
+      },
+      "human_author": "Sinyuk <80998062@qq.com>"
+    }
+  }
+}
