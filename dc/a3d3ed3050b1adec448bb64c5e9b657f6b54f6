@@ -1,0 +1,29 @@
+.agents/skills/design-review/SKILL.md
+  s_d8461876b212ab::t_bac410ea6e6a13 1-338
+.agents/skills/design-review/agents/openai.yaml
+  s_d8461876b212ab::t_5cf5d7cecea697 3-4
+.agents/skills/ps-uxp-ui-rca/SKILL.md
+  s_d8461876b212ab::t_a019eed897348e 3,15-26,40-41
+.agents/skills/ps-uxp-ui-rca/agents/openai.yaml
+  s_d8461876b212ab::t_40fde1904f2059 3-4
+.agents/skills/ui-fix-guardrails/SKILL.md
+  s_d8461876b212ab::t_2b13e0e8bdf50d 3,27-37
+.agents/skills/ui-fix-guardrails/agents/openai.yaml
+  s_d8461876b212ab::t_eb3ced9ef2e4cb 1-4
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.3",
+  "base_commit_sha": "dca3d3ed3050b1adec448bb64c5e9b657f6b54f6",
+  "prompts": {},
+  "sessions": {
+    "s_d8461876b212ab": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "019f1223-30cb-75d1-b234-5973454fd1f1",
+        "model": "unknown"
+      },
+      "human_author": "Sinyuk <80998062@qq.com>"
+    }
+  }
+}
