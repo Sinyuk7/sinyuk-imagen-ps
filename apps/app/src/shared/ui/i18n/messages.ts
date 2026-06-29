@@ -103,7 +103,6 @@ export interface AppMessages {
     readonly connectionInfo: string;
     readonly noProfileSelected: string;
     readonly savedSecretPlaceholder: string;
-    readonly enableProfile: string;
     readonly refreshModels: string;
     readonly refreshingModels: string;
     readonly testConnection: string;
@@ -243,7 +242,6 @@ const EN_MESSAGES: AppMessages = {
     connectionInfo: 'Connection info',
     noProfileSelected: 'No Provider profile selected',
     savedSecretPlaceholder: 'Saved; leave blank to keep unchanged',
-    enableProfile: 'Enable profile',
     refreshModels: 'Refresh model list',
     refreshingModels: 'Refreshing...',
     testConnection: 'Test connection',
@@ -383,7 +381,6 @@ const ZH_CN_MESSAGES: AppMessages = {
     connectionInfo: '连接信息',
     noProfileSelected: '未选择 Provider profile',
     savedSecretPlaceholder: '已保存；留空不修改',
-    enableProfile: '启用 profile',
     refreshModels: '刷新模型列表',
     refreshingModels: '刷新中...',
     testConnection: '测试连接',

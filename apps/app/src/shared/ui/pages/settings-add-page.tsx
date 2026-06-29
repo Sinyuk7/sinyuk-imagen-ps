@@ -3,7 +3,7 @@ import type { ProviderProfile } from '@imagen-ps/application';
 import { useAppServices } from '../../ports/app-services-context';
 import { providerConfigFromForm, useProviderCatalog } from '../hooks/use-provider-settings';
 import { Icon } from '../components/icons';
-import { StatusNotice } from '../components/status-notice';
+import { ProviderProfileEditor } from '../components/provider-profile-editor';
 import { useI18n } from '../i18n/i18n-context';
 import { Button, ActionButton, TextField, FieldLabel, HelpText } from '../primitives/spectrum-controls';
 import { statusFromProviderTestResult, type ProviderStatus } from '../provider-status';
@@ -150,18 +150,20 @@ export function SettingsAddPage({ onNav, profiles, onProfileSaved }: SettingsAdd
             ))}
           </div>
         ) : (
-          <div>
-            <div className="section">
-              <div className="section-title">{t.settings.config}</div>
-              <div className="field">
-                <FieldLabel htmlFor="provider-alias-input">{t.settings.alias}</FieldLabel>
-                <TextField data-testid="provider-alias-input" id="provider-alias-input" className="field-input swc-field" placeholder={selected?.displayName} value={name} onValue={setName} />
-              </div>
-              <div className="field">
-                <FieldLabel htmlFor="provider-base-url-input">Base URL</FieldLabel>
-                <TextField data-testid="provider-base-url-input" id="provider-base-url-input" className="field-input mono swc-field" placeholder="https://api.example.com" value={baseUrl} onValue={setBaseUrl} />
-                <HelpText className="field-hint">{t.settings.baseUrlHint}</HelpText>
-              </div>
+          <ProviderProfileEditor
+            connectionTitle={t.settings.config}
+            aliasValue={name}
+            onAliasValue={setName}
+            aliasPlaceholder={selected?.displayName}
+            baseUrlValue={baseUrl}
+            onBaseUrlValue={setBaseUrl}
+            baseUrlPlaceholder="https://api.example.com"
+            apiKeyValue={apiKey}
+            onApiKeyValue={setApiKey}
+            apiKeyPlaceholder="sk-..."
+            showKey={showKey}
+            onShowKeyChange={setShowKey}
+            defaultModelSection={(
               <div className="field">
                 <FieldLabel htmlFor="provider-default-model-input">{t.settings.defaultModel}</FieldLabel>
                 <TextField
@@ -173,49 +175,11 @@ export function SettingsAddPage({ onNav, profiles, onProfileSaved }: SettingsAdd
                   onValue={setDefaultModel}
                 />
               </div>
-              <div className="field" style={{ marginBottom: 0 }}>
-                <FieldLabel htmlFor="provider-api-key-input">API Key</FieldLabel>
-                <div className="field-input-affordance">
-                  <TextField
-                    data-testid="provider-api-key-input"
-                    id="provider-api-key-input"
-                    type={showKey ? 'text' : 'password'}
-                    className="field-input mono swc-field field-input-embedded"
-                    placeholder="sk-..."
-                    value={apiKey}
-                    onValue={setApiKey}
-                  />
-                  <ActionButton
-                    data-testid="provider-api-key-toggle"
-                    className="field-input-action"
-                    quiet
-                    onClick={() => setShowKey((shown) => !shown)}
-                  >
-                    <Icon name={showKey ? 'eye-off' : 'eye'} slot="icon" />
-                  </ActionButton>
-                </div>
-              </div>
-            </div>
-            <div className="test-area">
-              <Button data-testid="provider-test-button" className="test-btn swc-button" disabled={busy} onClick={() => void handleTest()}>
-                {busy
-                  ? (
-                    <span className="ui-button-content">
-                      <Icon name="spinner" size={13} className="ui-icon-text-icon spin" />
-                      <span className="ui-button-label">{t.settings.testingConnection}</span>
-                    </span>
-                  )
-                  : (
-                    <span className="ui-button-content">
-                      <Icon name="check" size={13} className="ui-icon-text-icon" />
-                      <span className="ui-button-label">{t.settings.testConnection}</span>
-                    </span>
-                  )
-                }
-              </Button>
-              {status && <StatusNotice tone={status.tone} message={status.message} />}
-            </div>
-          </div>
+            )}
+            testBusy={busy}
+            onTest={() => void handleTest()}
+            testStatus={status}
+          />
         )}
       </div>
 

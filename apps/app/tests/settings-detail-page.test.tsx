@@ -195,14 +195,16 @@ describe('SettingsDetailPage contract', () => {
     expect(spies.refreshProfileModels).toHaveBeenCalledWith('mock-profile');
   });
 
-  it('renders a plain page header title with a separate status line', async () => {
+  it('renders a plain page header title without provider enable status affordances', async () => {
     const container = document.createElement('div');
     document.body.appendChild(container);
     await renderDetail(container);
 
     expect(container.querySelector('.hdr-center')).toBeNull();
     expect(container.querySelector('.page-header-title')?.textContent).toContain('Mock Profile');
-    expect(container.querySelector('.page-header-status')?.textContent).toMatch(/(已启用|Enabled)/);
+    expect(container.querySelector('.page-header-status')).toBeNull();
+    expect(container.querySelector('[data-testid="provider-enabled-checkbox"]')).toBeNull();
+    expect(container.textContent).not.toContain('Enable profile');
   });
 
   it('syncs native UXP default-model dropdown trigger text from the selected option label', async () => {

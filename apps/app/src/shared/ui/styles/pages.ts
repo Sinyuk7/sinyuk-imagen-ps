@@ -82,9 +82,6 @@ export const PAGES_CSS = `
   margin-bottom:0;
   margin-left:0;
 }
-.page-header-status{
-  margin-top:2px;
-}
 .field-textarea{ display:block; }
 .field-textarea-input{ margin-top:6px;
   width:100%;

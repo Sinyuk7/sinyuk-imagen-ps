@@ -26,6 +26,14 @@ function changeInput(input: HTMLElement & { value?: string }, value: string): vo
   input.dispatchEvent(new KeyboardEvent('keyup', { bubbles: true, key: 'x' }));
 }
 
+function queryByTestId(container: HTMLElement, testId: string): HTMLElement & { value?: string } {
+  const element = container.querySelector<HTMLElement & { value?: string }>(`[data-testid="${testId}"]`);
+  if (!element) {
+    throw new Error(`找不到元素: ${testId}`);
+  }
+  return element;
+}
+
 describe('SettingsAddPage', () => {
   it('saves provider profile through profile commands with write-only secretValues', async () => {
     const { services, spies } = createFakeServices();
@@ -45,12 +53,11 @@ describe('SettingsAddPage', () => {
       container.querySelector<HTMLElement>('[data-testid="provider-type-mock"]')!.click();
     });
 
-    const inputs = Array.from(container.querySelectorAll<HTMLElement & { value?: string }>('sp-textfield, input'));
     await act(async () => {
-      changeInput(inputs[0]!, 'Local Mock');
-      changeInput(inputs[1]!, 'https://mock.local');
-      changeInput(inputs[2]!, 'mock-image-v1');
-      changeInput(inputs[3]!, 'secret-key');
+      changeInput(queryByTestId(container, 'provider-alias-input'), 'Local Mock');
+      changeInput(queryByTestId(container, 'provider-base-url-input'), 'https://mock.local');
+      changeInput(queryByTestId(container, 'provider-default-model-input'), 'mock-image-v1');
+      changeInput(queryByTestId(container, 'provider-api-key-input'), 'secret-key');
     });
 
     await act(async () => {
@@ -153,12 +160,11 @@ describe('SettingsAddPage', () => {
       container.querySelector<HTMLElement>('[data-testid="provider-type-mock"]')!.click();
     });
 
-    const inputs = Array.from(container.querySelectorAll<HTMLElement & { value?: string }>('sp-textfield, input'));
     await act(async () => {
-      changeInput(inputs[0]!, 'Test Then Save');
-      changeInput(inputs[1]!, 'https://mock.local');
-      changeInput(inputs[2]!, 'mock-image-v1');
-      changeInput(inputs[3]!, 'secret-key');
+      changeInput(queryByTestId(container, 'provider-alias-input'), 'Test Then Save');
+      changeInput(queryByTestId(container, 'provider-base-url-input'), 'https://mock.local');
+      changeInput(queryByTestId(container, 'provider-default-model-input'), 'mock-image-v1');
+      changeInput(queryByTestId(container, 'provider-api-key-input'), 'secret-key');
     });
 
     await act(async () => {

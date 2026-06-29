@@ -341,11 +341,6 @@ async function providerListAndEditScenario({ page, url, capture }) {
   });
   await page.getByTestId('provider-row-mock-profile').click();
   await fillUxp(page.getByTestId('provider-alias-input'), 'Mock Profile Renamed');
-  const enabled = page.getByText('Enable profile', { exact: true });
-  await enabled.click();
-  await expectVisibleText(page, 'Disabled');
-  await enabled.click();
-  await expectVisibleText(page, 'Enabled');
   await fillUxp(page.getByTestId('provider-api-key-input'), '');
   await checkpoint(page, capture, '08-provider-detail-editing.png', async () => {
     await expectVisibleText(page, 'Connection info');

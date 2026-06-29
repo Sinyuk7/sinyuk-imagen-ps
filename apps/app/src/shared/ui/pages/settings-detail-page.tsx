@@ -4,11 +4,12 @@ import { useAppServices } from '../../ports/app-services-context';
 import { providerConfigFromForm, useProfileDetail, useProfileModels } from '../hooks/use-provider-settings';
 import type { HostPort } from '../../ports/host-port';
 import { Icon } from '../components/icons';
+import { ProviderProfileEditor } from '../components/provider-profile-editor';
 import { StatusNotice } from '../components/status-notice';
 import { UxpModelDropdown } from '../components/uxp-model-dropdown';
 import { UxpTextArea } from '../components/uxp-form-controls';
 import { useI18n } from '../i18n/i18n-context';
-import { Button, Switch, TextField, ActionButton, FieldLabel, HelpText, Divider } from '../primitives/spectrum-controls';
+import { Button, ActionButton, FieldLabel, HelpText, TextField } from '../primitives/spectrum-controls';
 import { statusFromProviderTestResult, type ProviderStatus } from '../provider-status';
 import { ComposerSelect } from '../components/composer-select';
 
@@ -34,7 +35,6 @@ function isPhotoshopUxpRuntime(host: HostPort): boolean {
 function profileFormCheckpointAttrs(
   profile: ProviderProfile | null,
   form: {
-    readonly enabled: boolean;
     readonly apiKey: string;
     readonly defaultModel: string;
   },
@@ -42,7 +42,6 @@ function profileFormCheckpointAttrs(
   return {
     profileId: profile?.profileId ?? null,
     providerId: profile?.providerId ?? null,
-    enabled: form.enabled,
     configKeyCount: profile ? Object.keys(profile.config).length : 0,
     hasDirtyCredential: form.apiKey.trim().length > 0,
     modelIdLength: form.defaultModel.trim().length,
@@ -58,7 +57,6 @@ export function SettingsDetailPage({ onNav, profileId, onProfilesChanged }: Sett
   const [baseUrl, setBaseUrl] = useState('');
   const [defaultModel, setDefaultModel] = useState('');
   const [instruction, setInstruction] = useState('');
-  const [enabled, setEnabled] = useState(true);
   const [apiKey, setApiKey] = useState('');
   const [showKey, setShowKey] = useState(false);
   const [saveStatus, setSaveStatus] = useState<ProviderStatus | null>(null);
@@ -78,7 +76,6 @@ export function SettingsDetailPage({ onNav, profileId, onProfilesChanged }: Sett
     setBaseUrl(readConfigString(detail.profile, 'baseURL'));
     setDefaultModel(readConfigString(detail.profile, 'defaultModel'));
     setInstruction(readConfigString(detail.profile, 'instruction'));
-    setEnabled(detail.profile.enabled);
     setApiKey('');
     setModelMenuOpen(false);
   }, [detail.profile]);
@@ -102,7 +99,7 @@ export function SettingsDetailPage({ onNav, profileId, onProfilesChanged }: Sett
     const family = String(detail.profile.config.family ?? detail.profile.providerId);
     await services.diagnostics?.checkpoint(
       'uxp.ui.settings_detail.persist.input_prepared',
-      profileFormCheckpointAttrs(detail.profile, { enabled, apiKey, defaultModel }),
+      profileFormCheckpointAttrs(detail.profile, { apiKey, defaultModel }),
       {
         profile_id: detail.profile.profileId,
         provider_id: detail.profile.providerId,
@@ -112,7 +109,7 @@ export function SettingsDetailPage({ onNav, profileId, onProfilesChanged }: Sett
       profileId: detail.profile.profileId,
       providerId: detail.profile.providerId,
       displayName: displayName.trim() || detail.profile.displayName,
-      enabled,
+      enabled: detail.profile.enabled,
       config: {
         ...detail.profile.config,
         ...providerConfigFromForm(
@@ -314,10 +311,6 @@ export function SettingsDetailPage({ onNav, profileId, onProfilesChanged }: Sett
         </ActionButton>
         <div className="page-header-meta">
           <div className="hdr-title page-header-title">{detail.profile?.displayName ?? 'Provider'}</div>
-          <div className="status-inline tight page-header-status" style={{ fontFamily: 'var(--app-font-family-mono)', fontSize: 10, color: enabled ? 'var(--app-color-positive)' : 'var(--app-color-text-muted)' }}>
-            <span style={{ width: 5, height: 5, borderRadius: '50%', background: enabled ? 'var(--app-color-positive)' : 'var(--app-color-text-muted)', display: 'inline-block' }} />
-            {enabled ? t.common.enabled : t.common.disabled}
-          </div>
         </div>
         <ActionButton
           data-testid="provider-detail-refresh-button"
@@ -334,53 +327,19 @@ export function SettingsDetailPage({ onNav, profileId, onProfilesChanged }: Sett
         {detail.loading && <div style={{ padding: 16, color: 'var(--app-color-text-muted)', fontSize: 12 }}>{t.settings.loading}</div>}
         {detail.error && <div style={{ padding: 16, color: 'var(--app-color-negative)', fontSize: 12 }}>{detail.error}</div>}
         {detail.profile && (
-          <div className="settings-detail-layout">
-            <div className="section">
-              <div className="section-title">{t.settings.connectionInfo}</div>
-              <div className="field">
-                <FieldLabel htmlFor="provider-alias-input">{t.settings.alias}</FieldLabel>
-                <TextField data-testid="provider-alias-input" id="provider-alias-input" className="field-input swc-field" value={displayName} onValue={setDisplayName} />
-              </div>
-              <div className="field">
-                <FieldLabel htmlFor="provider-base-url-input">Base URL</FieldLabel>
-                <TextField data-testid="provider-base-url-input" id="provider-base-url-input" className="field-input mono swc-field" value={baseUrl} onValue={setBaseUrl} />
-                <HelpText className="field-hint">{t.settings.baseUrlHint}</HelpText>
-              </div>
-              <div className="field">
-                <FieldLabel htmlFor="provider-api-key-input">API Key</FieldLabel>
-                <div className="field-input-affordance">
-                  <TextField
-                    data-testid="provider-api-key-input"
-                    id="provider-api-key-input"
-                    type={showKey ? 'text' : 'password'}
-                    className="field-input mono swc-field field-input-embedded"
-                    placeholder={detail.profile.secretRefs?.apiKey ? t.settings.savedSecretPlaceholder : 'sk-...'}
-                    value={apiKey}
-                    onValue={setApiKey}
-                  />
-                  <ActionButton
-                    data-testid="provider-api-key-toggle"
-                    className="field-input-action"
-                    quiet
-                    onClick={() => setShowKey((shown) => !shown)}
-                  >
-                    <Icon name={showKey ? 'eye-off' : 'eye'} slot="icon" />
-                  </ActionButton>
-                </div>
-              </div>
-              <div className="field">
-                <Switch
-                  data-testid="provider-enabled-checkbox"
-                  checked={enabled}
-                  onChecked={setEnabled}
-                >
-                  {t.settings.enableProfile}
-                </Switch>
-              </div>
-              {saveStatus && <StatusNotice tone={saveStatus.tone} message={saveStatus.message} />}
-            </div>
-
-            {isOptimizerProfile && (
+          <ProviderProfileEditor
+            connectionTitle={t.settings.connectionInfo}
+            aliasValue={displayName}
+            onAliasValue={setDisplayName}
+            baseUrlValue={baseUrl}
+            onBaseUrlValue={setBaseUrl}
+            apiKeyValue={apiKey}
+            onApiKeyValue={setApiKey}
+            apiKeyPlaceholder={detail.profile.secretRefs?.apiKey ? t.settings.savedSecretPlaceholder : 'sk-...'}
+            showKey={showKey}
+            onShowKeyChange={setShowKey}
+            connectionStatus={saveStatus}
+            extraSections={isOptimizerProfile ? (
               <div className="section">
                 <div className="section-title">{t.settings.promptBehavior}</div>
                 <div className="field field-textarea">
@@ -396,86 +355,67 @@ export function SettingsDetailPage({ onNav, profileId, onProfilesChanged }: Sett
                   />
                 </div>
               </div>
-            )}
-
-            <Divider />
-
-            <div className="section">
-              <div className="section-title">{t.settings.defaultModel}</div>
-              <div className="field">
-                <FieldLabel htmlFor="provider-default-model-input">{t.settings.defaultModel}</FieldLabel>
-                {useNativeModelDropdown ? (
-                  <UxpModelDropdown
-                    className="provider-model-dropdown cmp-select-model"
-                    testId="provider-default-model-dropdown"
+            ) : null}
+            defaultModelSection={(
+              <>
+                <div className="field">
+                  <FieldLabel htmlFor="provider-default-model-input">{t.settings.defaultModel}</FieldLabel>
+                  {useNativeModelDropdown ? (
+                    <UxpModelDropdown
+                      className="provider-model-dropdown cmp-select-model"
+                      testId="provider-default-model-dropdown"
+                      placeholder={t.settings.customModelId}
+                      disabled={modelSelectDisabled || undefined}
+                      value={defaultModel}
+                      options={modelOptions}
+                      onValue={setDefaultModel}
+                    />
+                  ) : (
+                    <ComposerSelect
+                      label={t.settings.defaultModel}
+                      value={modelTriggerValue}
+                      disabled={modelSelectDisabled}
+                      open={modelMenuOpen}
+                      onOpenChange={setModelMenuOpen}
+                      options={modelOptions}
+                      selectedId={defaultModel}
+                      onSelect={(id) => {
+                        setDefaultModel(id);
+                        setModelMenuOpen(false);
+                      }}
+                      containerClassName="cmp-select cmp-select-model provider-model-select"
+                      menuClassName="cmp-select-menu cmp-select-menu-model"
+                    />
+                  )}
+                </div>
+                <div className="field">
+                  <FieldLabel htmlFor="provider-default-model-input">{t.settings.customModelId}</FieldLabel>
+                  <TextField
+                    data-testid="provider-default-model-input"
+                    id="provider-default-model-input"
+                    className="field-input mono swc-field"
                     placeholder={t.settings.customModelId}
-                    disabled={modelSelectDisabled || undefined}
                     value={defaultModel}
-                    options={modelOptions}
                     onValue={setDefaultModel}
                   />
-                ) : (
-                  <ComposerSelect
-                    label={t.settings.defaultModel}
-                    value={modelTriggerValue}
-                    disabled={modelSelectDisabled}
-                    open={modelMenuOpen}
-                    onOpenChange={setModelMenuOpen}
-                    options={modelOptions}
-                    selectedId={defaultModel}
-                    onSelect={(id) => {
-                      setDefaultModel(id);
-                      setModelMenuOpen(false);
-                    }}
-                    containerClassName="cmp-select cmp-select-model provider-model-select"
-                    menuClassName="cmp-select-menu cmp-select-menu-model"
-                  />
-                )}
-              </div>
-              <div className="field">
-                <FieldLabel htmlFor="provider-default-model-input">{t.settings.customModelId}</FieldLabel>
-                <TextField
-                  data-testid="provider-default-model-input"
-                  id="provider-default-model-input"
-                  className="field-input mono swc-field"
-                  placeholder={t.settings.customModelId}
-                  value={defaultModel}
-                  onValue={setDefaultModel}
-                />
-                <HelpText className="field-hint">
-                  {modelSelectionLabel
-                    ? `${t.settings.selectedModel}: ${modelSelectionLabel}`
-                    : t.settings.customModelId}
-                </HelpText>
-              </div>
-              {modelListNotice && <StatusNotice tone={modelListNotice.tone} message={modelListNotice.message} />}
-              {models.error && <StatusNotice tone="error" message={models.error} />}
-              <Button data-testid="provider-refresh-models-button" className="test-btn swc-button" variant="secondary" style={{ marginTop: 10 }} disabled={models.loading || busy} onClick={() => void refreshModels()}>
-                {models.loading ? t.settings.refreshingModels : t.settings.refreshModels}
-              </Button>
-            </div>
-
-            <div className="test-area">
-              <Button data-testid="provider-test-button" className="test-btn swc-button" variant="secondary" disabled={busy} onClick={() => void test()}>
-                {busy
-                  ? (
-                    <span className="ui-button-content">
-                      <Icon name="spinner" size={13} className="ui-icon-text-icon spin" />
-                      <span className="ui-button-label">{t.settings.testingConnection}</span>
-                    </span>
-                  )
-                  : (
-                    <span className="ui-button-content">
-                      <Icon name="check" size={13} className="ui-icon-text-icon" />
-                      <span className="ui-button-label">{t.settings.testConnection}</span>
-                    </span>
-                  )
-                }
-              </Button>
-              {testMeta ? <div className="test-meta">{testMeta}</div> : null}
-              {testStatus && <StatusNotice tone={testStatus.tone} message={testStatus.message} />}
-            </div>
-          </div>
+                  <HelpText className="field-hint">
+                    {modelSelectionLabel
+                      ? `${t.settings.selectedModel}: ${modelSelectionLabel}`
+                      : t.settings.customModelId}
+                  </HelpText>
+                </div>
+                {modelListNotice && <StatusNotice tone={modelListNotice.tone} message={modelListNotice.message} />}
+                {models.error && <StatusNotice tone="error" message={models.error} />}
+                <Button data-testid="provider-refresh-models-button" className="test-btn swc-button" variant="secondary" style={{ marginTop: 10 }} disabled={models.loading || busy} onClick={() => void refreshModels()}>
+                  {models.loading ? t.settings.refreshingModels : t.settings.refreshModels}
+                </Button>
+              </>
+            )}
+            testBusy={busy}
+            onTest={() => void test()}
+            testMeta={testMeta}
+            testStatus={testStatus}
+          />
         )}
       </div>
 
