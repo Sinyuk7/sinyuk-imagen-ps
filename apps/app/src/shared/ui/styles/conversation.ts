@@ -4,6 +4,12 @@ export const CONVERSATION_CSS = `
 .day-sep{ display:flex; align-items:center; padding:8px 0; }
 .day-sep-line{ flex:1; height:1px; background:var(--app-color-border-default); }
 .day-sep-lbl{ margin-top:0; margin-right:8px; margin-bottom:0; margin-left:8px; font-family:var(--app-font-family-mono); font-size:10px; color:var(--app-color-text-muted); padding:0 4px; }
+.round-item{
+  padding-top:0; padding-right:0; padding-bottom:12px; padding-left:0;
+  margin-top:0; margin-right:0; margin-bottom:12px; margin-left:0;
+  border-bottom:1px solid var(--app-color-border-default);
+}
+.round-item:last-child{ margin-bottom:0; border-bottom:none; }
 
 /* USER bubble (right) */
 .msg-user{ display:flex; justify-content:flex-end; padding:3px 0; }

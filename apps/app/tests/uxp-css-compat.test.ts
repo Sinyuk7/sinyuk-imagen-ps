@@ -250,6 +250,22 @@ describe('UXP panel CSS compatibility', () => {
     expect(unionSource).toContain('.cmp-chip-value{');
   });
 
+  it('keeps toasts below the app header and fluid in compact panels', () => {
+    const unionSource = CSS_SOURCES.map((path) => readFileSync(path, 'utf8')).join('\n');
+    expect(unionSource).toContain('--app-header-height:48px');
+    expect(unionSource).toContain('sp-toast[data-testid="toast"]');
+    expect(unionSource).toContain('top:calc(var(--app-header-height, 48px) + 10px)');
+    expect(unionSource).toContain('.panel[data-panel-width-mode="compact"] sp-toast[data-testid="toast"]');
+    expect(unionSource).toContain('left:12px; right:12px; width:auto; max-width:none;');
+  });
+
+  it('keeps conversation rounds visually separated without card restructuring', () => {
+    const unionSource = CSS_SOURCES.map((path) => readFileSync(path, 'utf8')).join('\n');
+    expect(unionSource).toContain('.round-item{');
+    expect(unionSource).toContain('border-bottom:1px solid var(--app-color-border-default);');
+    expect(unionSource).toContain('.round-item:last-child{ margin-bottom:0; border-bottom:none; }');
+  });
+
   it('keeps React inline styles from bypassing the UXP-safe spacing rules', () => {
     const uiFiles = walkFiles(UI_ROOT).filter((filePath) => {
       const extension = filePath.slice(filePath.lastIndexOf('.'));

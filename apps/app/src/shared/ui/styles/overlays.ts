@@ -2,7 +2,7 @@
 export const OVERLAYS_CSS = `
 /* Toast (sp-toast host positioning) */
 sp-toast[data-testid="toast"]{
-  position:absolute; top:12px; right:12px; left:auto; bottom:auto; z-index:2000;
+  position:absolute; top:calc(var(--app-header-height, 48px) + 10px); right:12px; left:auto; bottom:auto; z-index:2000;
   max-width:calc(100% - 48px); max-height:calc(100% - 48px); overflow-y:auto; pointer-events:auto;
 }
 

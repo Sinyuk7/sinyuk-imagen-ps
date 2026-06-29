@@ -469,7 +469,7 @@ export function MainPage({
           )}
 
           {conversation.rounds.map((round) => (
-            <div key={round.id} data-round-id={round.id} data-testid={`round-${round.id}`}>
+            <div key={round.id} className="round-item" data-round-id={round.id} data-testid={`round-${round.id}`}>
               <div className="msg-user">
                 <div className="user-wrap">
                   <div className="user-bubble">
@@ -787,7 +787,8 @@ export function MainPage({
                     data-testid="composer-send-button"
                     className="cmp-send"
                     disabled={!canSend || optimizing}
-                    label={t.main.send}
+                    label={conversation.running ? t.main.regenerate : t.main.send}
+                    aria-label={conversation.running ? t.main.regenerate : t.main.send}
                     placement="top"
                     onClick={() => void handleSend()}
                   >

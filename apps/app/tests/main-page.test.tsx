@@ -460,6 +460,50 @@ describe('MainPage contract', () => {
     expect(send.querySelector('[data-icon-name="spinner"]')).not.toBeNull();
   });
 
+  it('idle Send keeps the send glyph and matching accessible label', async () => {
+    const container = document.createElement('div');
+    document.body.appendChild(container);
+    await renderApp(container);
+
+    await act(async () => {
+      changeTextarea(container.querySelector<HTMLTextAreaElement>('.cmp-ta')!, 'ready to send');
+    });
+    await flush();
+
+    const send = container.querySelector<HTMLElement>('[data-testid="composer-send-button"]')!;
+    expect(send.querySelector('[data-icon-name="send"]')).not.toBeNull();
+    expect(send.querySelector('[data-icon="sp-icon-send"]')).not.toBeNull();
+    expect(send.querySelector('[data-icon="sp-icon-refresh"]')).toBeNull();
+    expect(send.getAttribute('aria-label')).toBe('发送');
+    expect(send.textContent).toContain('发送');
+  });
+
+  it('running Send surface labels the regenerate-like glyph as Regenerate', async () => {
+    const container = document.createElement('div');
+    document.body.appendChild(container);
+    const services = createFakeServices();
+    services.spies.submitJob.mockImplementation(() => new Promise<never>(() => {}));
+    await renderApp(container, services);
+
+    await act(async () => {
+      container.querySelector<HTMLElement>('[data-testid="composer-capture-button"]')!.click();
+    });
+    await flush();
+    await act(async () => {
+      changeTextarea(container.querySelector<HTMLTextAreaElement>('.cmp-ta')!, 'running label test');
+    });
+    await act(async () => {
+      container.querySelector<HTMLElement>('[data-testid="composer-send-button"]')!.click();
+    });
+    await flush();
+
+    const send = container.querySelector<HTMLElement>('[data-testid="composer-send-button"]')!;
+    expect(send.querySelector('[data-icon-name="spinner"]')).not.toBeNull();
+    expect(send.querySelector('[data-icon="sp-icon-refresh"]')).not.toBeNull();
+    expect(send.getAttribute('aria-label')).toBe('重新生成');
+    expect(send.textContent).toContain('重新生成');
+  });
+
   it('prompt optimization 调用 optimizePrompt 并回填结果', async () => {
     const container = document.createElement('div');
     document.body.appendChild(container);
