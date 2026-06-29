@@ -1,0 +1,23 @@
+apps/app/src/shared/image/runtime-image-url.ts
+  s_b6eee7ac3e27d5::t_2d830d979ee65b 1-94
+apps/app/src/shared/image/thumbnail-store.ts
+  s_b6eee7ac3e27d5::t_9fd9a4b6a7f5d3 4,32-39,99-103,110,114,116-124,130-138,158
+apps/app/tests/thumbnail-store.test.ts
+  s_b6eee7ac3e27d5::t_b90a5b915b232e 36-38,44,54,57-62,64-66
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.3",
+  "base_commit_sha": "ac7d3378dce53de9e2a3d01cccb05f2ee7bfb671",
+  "prompts": {},
+  "sessions": {
+    "s_b6eee7ac3e27d5": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "019f1339-5c46-7352-bda8-66066778486b",
+        "model": "unknown"
+      },
+      "human_author": "Sinyuk <80998062@qq.com>"
+    }
+  }
+}
