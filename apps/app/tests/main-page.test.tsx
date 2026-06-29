@@ -122,7 +122,7 @@ describe('MainPage contract', () => {
     await flush();
     await sendPrompt(container, 'edit layer image');
 
-    expect(spies.readLayerAsAsset).toHaveBeenCalledWith(1);
+    expect(spies.readLayerAsAsset).toHaveBeenCalledWith(1, { maxSide: 2048 });
     expect(spies.pickImageFile).not.toHaveBeenCalled();
     expect(spies.submitJob).toHaveBeenCalledWith({
       workflow: 'provider-edit',
@@ -302,6 +302,7 @@ describe('MainPage contract', () => {
             family: 'image-endpoint',
             baseURL: 'https://mock.local',
             defaultModel: 'mock-image-v1',
+            imageMaxSide: 2048,
           },
           secretRefs: {
             apiKey: 'secret:provider-profile:mock-profile:apiKey',

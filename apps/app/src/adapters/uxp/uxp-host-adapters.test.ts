@@ -16,6 +16,7 @@ interface FakeFile {
   readonly name?: string;
   read(options?: { readonly format?: unknown }): Promise<string | ArrayBuffer>;
   write(data: string | ArrayBuffer, options?: { readonly append?: boolean; readonly format?: unknown }): Promise<void>;
+  delete?(): Promise<void>;
 }
 
 interface FakeFolder {
@@ -65,6 +66,7 @@ class MutableFakeFile implements FakeFile {
     readonly data: string | ArrayBuffer;
     readonly options?: { readonly append?: boolean; readonly format?: unknown };
   }> = [];
+  deleted = false;
 
   constructor(
     readonly name: string,
@@ -82,6 +84,10 @@ class MutableFakeFile implements FakeFile {
       return;
     }
     this.content = data;
+  }
+
+  async delete(): Promise<void> {
+    this.deleted = true;
   }
 }
 
@@ -159,7 +165,7 @@ describe('fake UXP host adapters', () => {
       providerId: 'mock',
       displayName: 'Mock Profile',
       enabled: true,
-      config: { family: 'image-endpoint', baseURL: 'https://mock.local' },
+      config: { family: 'image-endpoint', baseURL: 'https://mock.local', imageMaxSide: 2048 },
       createdAt: '2026-06-15T00:00:00.000Z',
       updatedAt: '2026-06-15T00:00:01.000Z',
     };
@@ -195,6 +201,7 @@ describe('fake UXP host adapters', () => {
       config: {
         family: 'image-endpoint',
         baseURL: 'https://mock.local',
+        imageMaxSide: 2048,
         notes: '/Users/sinyuk/should-not-enter-flight-recorder',
       },
       secretRefs: { apiKey: 'secret:provider-profile:profile-1:apiKey' },
@@ -414,7 +421,12 @@ describe('fake UXP host adapters', () => {
     const bytes = arrayBufferFromBytes(VALID_TRANSPARENT_PNG);
     const fileWrites: Array<string | ArrayBuffer> = [];
     const fileFormats: unknown[] = [];
-    const storedFiles = new Map<string, { read(options?: { readonly format?: unknown }): Promise<string | ArrayBuffer>; write(data: string | ArrayBuffer, options?: { readonly format?: unknown }): Promise<void> }>();
+    const storedFiles = new Map<string, {
+      read(options?: { readonly format?: unknown }): Promise<string | ArrayBuffer>;
+      write(data: string | ArrayBuffer, options?: { readonly format?: unknown }): Promise<void>;
+      delete?(): Promise<void>;
+      deleted?: boolean;
+    }>();
     const modules: UxpModules = {
       uxp: {
         storage: {
@@ -439,6 +451,10 @@ describe('fake UXP host adapters', () => {
                       fileFormats.push(options?.format);
                       fileWrites.push(data);
                     },
+                    async delete(): Promise<void> {
+                      file.deleted = true;
+                    },
+                    deleted: false,
                   };
                   storedFiles.set(name, file);
                   return file;
@@ -463,6 +479,8 @@ describe('fake UXP host adapters', () => {
     expect(resolved).toEqual(bytes);
     expect(fileWrites[0]).toBeInstanceOf(ArrayBuffer);
     expect(fileFormats).toEqual(['storage-binary', 'storage-binary']);
+    await store.delete(ref);
+    expect(storedFiles.get(ref.ref)?.deleted).toBe(true);
   });
 
   it('拒绝把旧 mock 坏 PNG 写入 UXP asset store', async () => {

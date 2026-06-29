@@ -26,6 +26,14 @@ export interface RunnerDeps {
 
   /** 可选 Logger；未提供时使用 null logger。 */
   logger?: Logger;
+
+  /** 可选 step result 后处理；用于 host/application 在进入 JobStore 前收敛长期状态。 */
+  afterStepResult?(args: {
+    readonly workflowName: string;
+    readonly stepName: string;
+    readonly outputKey: string;
+    readonly result: unknown;
+  }): Promise<unknown> | unknown;
 }
 
 // ------------------------------------------------------------------
@@ -152,10 +160,13 @@ export async function executeWorkflow(job: Job, workflowName: string, deps: Runn
           params: resolvedInput,
         };
 
-        const result = await dispatcher.dispatch(ref, { logger: stepLogger });
-
         const outputKey = step.outputKey ?? step.name;
-        context[outputKey] = assertImmutable(result);
+        const result = await dispatcher.dispatch(ref, { logger: stepLogger });
+        const processedResult =
+          deps.afterStepResult !== undefined
+            ? await deps.afterStepResult({ workflowName, stepName: step.name, outputKey, result })
+            : result;
+        context[outputKey] = assertImmutable(processedResult);
         span.finish();
       } catch (error) {
         span.fail(error);

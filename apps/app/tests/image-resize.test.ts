@@ -4,6 +4,7 @@ import {
   downscaleArea,
   resolveCaptureUploadPlan,
   resolveModelSize,
+  resolveProviderInputPlan,
   upscaleBilinear,
   type RgbaImage,
 } from '../src/shared/image/resize';
@@ -67,6 +68,58 @@ describe('shared image resize', () => {
     expect(resolved.ratioY).toBe(1);
     expect(resolved.requestedMultiple).toBe(2);
     expect(resolved.effectiveMultiple).toBe(1);
+  });
+
+  it('resolves provider input downscale under the selected max side', () => {
+    const square = resolveProviderInputPlan({ width: 4096, height: 4096 }, { maxSide: 2048 });
+    expect(square).toMatchObject({
+      sourceWidth: 4096,
+      sourceHeight: 4096,
+      targetWidth: 2048,
+      targetHeight: 2048,
+      minSide: 1024,
+      maxSide: 2048,
+      multiple: 2,
+      wasResized: true,
+      wasUpscaled: false,
+      wasDownscaled: true,
+    });
+
+    const wide = resolveProviderInputPlan({ width: 10000, height: 6000 }, { maxSide: 2048 });
+    expect(Math.max(wide.targetWidth, wide.targetHeight)).toBeLessThanOrEqual(2048);
+    expect(wide.targetWidth / wide.targetHeight).toBeCloseTo(10000 / 6000, 2);
+    expect(wide.wasDownscaled).toBe(true);
+  });
+
+  it('upscales small provider input to the global minimum long side', () => {
+    const plan = resolveProviderInputPlan({ width: 512, height: 512 }, { maxSide: 2048 });
+
+    expect(plan).toMatchObject({
+      sourceWidth: 512,
+      sourceHeight: 512,
+      targetWidth: 1024,
+      targetHeight: 1024,
+      minSide: 1024,
+      maxSide: 2048,
+      wasResized: true,
+      wasUpscaled: true,
+      wasDownscaled: false,
+    });
+  });
+
+  it('uses each provider max side as the only ceiling', () => {
+    expect(resolveProviderInputPlan({ width: 4096, height: 4096 }, { maxSide: 1024 }).targetWidth).toBe(1024);
+    expect(resolveProviderInputPlan({ width: 4096, height: 4096 }, { maxSide: 2048 }).targetWidth).toBe(2048);
+    expect(resolveProviderInputPlan({ width: 4096, height: 4096 }, { maxSide: 4096 }).targetWidth).toBe(4096);
+  });
+
+  it('rejects missing or invalid provider input max size before pixel reads', () => {
+    expect(() => resolveProviderInputPlan({ width: 512, height: 512 }, { maxSide: 0 })).toThrow(
+      'effectiveProviderMaxSide must be a positive integer',
+    );
+    expect(() => resolveProviderInputPlan({ width: 512, height: 512 }, { maxSide: 512 })).toThrow(
+      'providerInputMinSide must be <= effectiveProviderMaxSide',
+    );
   });
 
   it('downscales with exact area averaging for opaque RGBA pixels', () => {

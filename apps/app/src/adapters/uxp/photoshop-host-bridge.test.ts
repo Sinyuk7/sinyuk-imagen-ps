@@ -29,6 +29,45 @@ const VALID_TRANSPARENT_PNG = new Uint8Array([
 ]);
 
 const VALID_TINY_JPEG = new Uint8Array([0xff, 0xd8, 0xff, 0xd9]);
+const VALID_1024_JPEG = new Uint8Array([
+  0xff, 0xd8,
+  0xff, 0xc0,
+  0x00, 0x11,
+  0x08,
+  0x04, 0x00,
+  0x04, 0x00,
+  0x03,
+  0x01, 0x11, 0x00,
+  0x02, 0x11, 0x00,
+  0x03, 0x11, 0x00,
+  0xff, 0xd9,
+]);
+
+function crc32(bytes: Uint8Array, offset: number, length: number): number {
+  let crc = 0xffffffff;
+  for (let i = offset; i < offset + length; i += 1) {
+    crc ^= bytes[i] ?? 0;
+    for (let bit = 0; bit < 8; bit += 1) {
+      crc = (crc >>> 1) ^ (crc & 1 ? 0xedb88320 : 0);
+    }
+  }
+  return (crc ^ 0xffffffff) >>> 0;
+}
+
+function writeUint32BE(bytes: Uint8Array, offset: number, value: number): void {
+  bytes[offset] = (value >>> 24) & 0xff;
+  bytes[offset + 1] = (value >>> 16) & 0xff;
+  bytes[offset + 2] = (value >>> 8) & 0xff;
+  bytes[offset + 3] = value & 0xff;
+}
+
+const VALID_1024_TRANSPARENT_PNG = (() => {
+  const bytes = new Uint8Array(VALID_TRANSPARENT_PNG);
+  writeUint32BE(bytes, 16, 1024);
+  writeUint32BE(bytes, 20, 1024);
+  writeUint32BE(bytes, 29, crc32(bytes, 12, 17));
+  return bytes;
+})();
 
 const LEGACY_TRUNCATED_MOCK_PNG = new Uint8Array([
   0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a,
@@ -41,6 +80,8 @@ const LEGACY_TRUNCATED_MOCK_PNG = new Uint8Array([
   0x00, 0x00, 0x00, 0x49, 0x45, 0x4e, 0x44, 0xae,
   0x42, 0x60, 0x82,
 ]);
+
+const providerPolicy = { maxSide: 2048 } as const;
 
 function bytesToBase64(bytes: Uint8Array): string {
   let binary = '';
@@ -70,6 +111,7 @@ function createFakeModules(options?: {
     readonly getFileForOpening: ReturnType<typeof vi.fn>;
     readonly createFile: ReturnType<typeof vi.fn>;
     readonly writeTempFile: ReturnType<typeof vi.fn>;
+    readonly deleteTempFile: ReturnType<typeof vi.fn>;
     readonly createSessionToken: ReturnType<typeof vi.fn>;
     readonly isModal: ReturnType<typeof vi.fn>;
     readonly setExecutionMode: ReturnType<typeof vi.fn>;
@@ -80,7 +122,7 @@ function createFakeModules(options?: {
   };
 } {
   const pickedFileName = options?.pickedFileName ?? 'picked.png';
-  const pickedFileData = options?.pickedFileData ?? arrayBufferFromBytes(VALID_TRANSPARENT_PNG);
+  const pickedFileData = options?.pickedFileData ?? arrayBufferFromBytes(VALID_1024_TRANSPARENT_PNG);
   const disposeLayer = vi.fn();
   const disposeMask = vi.fn();
   const createLayerImageData = (width = 64, height = 64) => {
@@ -128,10 +170,12 @@ function createFakeModules(options?: {
     write: vi.fn(async () => undefined),
   }));
   const writeTempFile = vi.fn(async () => undefined);
+  const deleteTempFile = vi.fn(async () => undefined);
   const createFile = vi.fn(async () => ({
     name: 'temp-image.png',
     read: vi.fn(async () => arrayBufferFromText('unused')),
     write: writeTempFile,
+    delete: deleteTempFile,
   }));
   const createSessionToken = vi.fn(() => 'session-token-1');
   const batchPlay = vi.fn(async () => undefined);
@@ -222,6 +266,7 @@ function createFakeModules(options?: {
       getFileForOpening,
       createFile,
       writeTempFile,
+      deleteTempFile,
       createSessionToken,
       isModal,
       setExecutionMode,
@@ -284,7 +329,7 @@ describe('PhotoshopHostBridge fake harness', () => {
     const { modules, spies } = createFakeModules();
     const { bridge, assetStore } = createBridge(modules);
 
-    const layerAsset = await bridge.readLayerAsAsset(2);
+    const layerAsset = await bridge.readLayerAsAsset(2, providerPolicy);
     expect(layerAsset).toMatchObject({
       asset: { type: 'image', name: 'layer-2.png', mimeType: 'image/png' },
       metadata: { source: 'layer', name: 'layer-2.png', mimeType: 'image/png' },
@@ -298,6 +343,15 @@ describe('PhotoshopHostBridge fake harness', () => {
           selectionBounds: null,
         },
         placementRect: { left: 0, top: 0, right: 64, bottom: 64 },
+        providerInputPlan: expect.objectContaining({
+          sourceWidth: 64,
+          sourceHeight: 64,
+          targetWidth: 1024,
+          targetHeight: 1024,
+          minSide: 1024,
+          maxSide: 2048,
+          wasUpscaled: true,
+        }),
       },
     });
     expect(layerAsset.asset.data).toBeUndefined();
@@ -308,7 +362,7 @@ describe('PhotoshopHostBridge fake harness', () => {
       documentID: 42,
       layerID: 2,
       sourceBounds: { left: 0, top: 0, right: 64, bottom: 64 },
-      targetSize: { width: 64, height: 64 },
+      targetSize: { width: 1024, height: 1024 },
       colorSpace: 'RGB',
       componentSize: 8,
       applyAlpha: false,
@@ -330,7 +384,7 @@ describe('PhotoshopHostBridge fake harness', () => {
     const { modules, spies } = createFakeModules({ layerColorSpace: 'Lab' });
     const { bridge } = createBridge(modules);
 
-    await expect(bridge.readLayerAsAsset(2)).rejects.toThrow('Photoshop capture requires RGB image data, got Lab.');
+    await expect(bridge.readLayerAsAsset(2, providerPolicy)).rejects.toThrow('Photoshop capture requires RGB image data, got Lab.');
 
     expect(spies.encodeImageData).not.toHaveBeenCalled();
     expect(spies.disposeLayer).toHaveBeenCalledTimes(1);
@@ -340,7 +394,7 @@ describe('PhotoshopHostBridge fake harness', () => {
     const { modules, spies } = createFakeModules({ layerData: new Uint16Array(64 * 64 * 4) });
     const { bridge } = createBridge(modules);
 
-    await expect(bridge.readLayerAsAsset(2)).rejects.toThrow('Photoshop capture requires 8-bit component data.');
+    await expect(bridge.readLayerAsAsset(2, providerPolicy)).rejects.toThrow('Photoshop capture requires 8-bit component data.');
 
     expect(spies.encodeImageData).not.toHaveBeenCalled();
     expect(spies.disposeLayer).toHaveBeenCalledTimes(1);
@@ -350,7 +404,7 @@ describe('PhotoshopHostBridge fake harness', () => {
     const { modules, spies } = createFakeModules();
     const { bridge } = createBridge(modules);
 
-    await expect(bridge.readLayerAsAsset(3)).rejects.toThrow('Photoshop layer has no readable pixels: Empty');
+    await expect(bridge.readLayerAsAsset(3, providerPolicy)).rejects.toThrow('Photoshop layer has no readable pixels: Empty');
 
     expect(spies.getPixels).not.toHaveBeenCalled();
     expect(spies.executeAsModal).not.toHaveBeenCalled();
@@ -360,7 +414,7 @@ describe('PhotoshopHostBridge fake harness', () => {
     const { modules, spies } = createFakeModules();
     const { bridge } = createBridge(modules);
 
-    const asset = await bridge.pickImageFile();
+    const asset = await bridge.pickImageFile(providerPolicy);
 
     expect(spies.getFileForOpening).toHaveBeenCalledWith({
       types: ['png', 'jpg', 'jpeg', 'webp'],
@@ -379,11 +433,11 @@ describe('PhotoshopHostBridge fake harness', () => {
   it('按 picker 文件名推断 JPEG MIME，避免后续 PNG 预检误判', async () => {
     const { modules } = createFakeModules({
       pickedFileName: 'picked.JPG',
-      pickedFileData: arrayBufferFromBytes(VALID_TINY_JPEG),
+      pickedFileData: arrayBufferFromBytes(VALID_1024_JPEG),
     });
     const { bridge } = createBridge(modules);
 
-    const asset = await bridge.pickImageFile();
+    const asset = await bridge.pickImageFile(providerPolicy);
 
     expect(asset?.asset).toMatchObject({
       type: 'image',
@@ -401,14 +455,24 @@ describe('PhotoshopHostBridge fake harness', () => {
     });
     const { bridge } = createBridge(modules);
 
-    await expect(bridge.pickImageFile()).rejects.toThrow('PNG asset chunk CRC is invalid.');
+    await expect(bridge.pickImageFile(providerPolicy)).rejects.toThrow('PNG asset chunk CRC is invalid.');
+  });
+
+  it('拒绝需要 resize 的本地 picker image，避免未验证 decoder 路径持久化原图', async () => {
+    const { modules } = createFakeModules({
+      pickedFileName: 'tiny.png',
+      pickedFileData: arrayBufferFromBytes(VALID_TRANSPARENT_PNG),
+    });
+    const { bridge } = createBridge(modules);
+
+    await expect(bridge.pickImageFile(providerPolicy)).rejects.toThrow('Local image requires provider input normalization');
   });
 
   it('captureActiveImage materializes active layer as PNG with placement metadata', async () => {
     const { modules, spies } = createFakeModules();
     const { bridge, assetStore } = createBridge(modules);
 
-    const capture = await bridge.captureActiveImage();
+    const capture = await bridge.captureActiveImage(providerPolicy);
 
     expect(capture.sourceKind).toBe('layer');
     expect(capture.image.asset).toMatchObject({
@@ -426,11 +490,18 @@ describe('PhotoshopHostBridge fake harness', () => {
       selectionBounds: null,
     });
     expect(capture.placement.placementRect).toEqual({ left: 0, top: 0, right: 64, bottom: 64 });
+    expect(capture.placement.providerInputPlan).toMatchObject({
+      sourceWidth: 64,
+      sourceHeight: 64,
+      targetWidth: 1024,
+      targetHeight: 1024,
+      wasUpscaled: true,
+    });
     expect(spies.getPixels).toHaveBeenCalledWith(expect.objectContaining({
       documentID: 42,
       layerID: 2,
       sourceBounds: { left: 0, top: 0, right: 64, bottom: 64 },
-      targetSize: { width: 64, height: 64 },
+      targetSize: { width: 1024, height: 1024 },
       applyAlpha: false,
     }));
     expect(spies.getSelection).not.toHaveBeenCalled();
@@ -443,7 +514,7 @@ describe('PhotoshopHostBridge fake harness', () => {
     });
     const { bridge, assetStore } = createBridge(modules);
 
-    const capture = await bridge.captureActiveImage();
+    const capture = await bridge.captureActiveImage(providerPolicy);
 
     const bytes = await resolveAssetBytes(assetStore, capture.image.asset);
     expect(bytes.slice(0, 8)).toEqual(VALID_TRANSPARENT_PNG.slice(0, 8));
@@ -457,7 +528,7 @@ describe('PhotoshopHostBridge fake harness', () => {
     });
     const { bridge, assetStore } = createBridge(modules);
 
-    const capture = await bridge.captureActiveImage();
+    const capture = await bridge.captureActiveImage(providerPolicy);
 
     const bytes = await resolveAssetBytes(assetStore, capture.image.asset);
     expect(bytes.slice(0, 8)).toEqual(VALID_TRANSPARENT_PNG.slice(0, 8));
@@ -469,7 +540,7 @@ describe('PhotoshopHostBridge fake harness', () => {
     });
     const { bridge } = createBridge(modules);
 
-    const capture = await bridge.captureActiveImage();
+    const capture = await bridge.captureActiveImage(providerPolicy);
 
     expect(capture.sourceKind).toBe('selection');
     expect(capture.placement.snapshot.selectionBounds).toEqual({ left: 8, top: 8, right: 40, bottom: 40 });
@@ -477,7 +548,7 @@ describe('PhotoshopHostBridge fake harness', () => {
     expect(spies.getSelection).toHaveBeenCalledWith({
       documentID: 42,
       sourceBounds: { left: 8, top: 8, right: 40, bottom: 40 },
-      targetSize: { width: 32, height: 32 },
+      targetSize: { width: 1024, height: 1024 },
       componentSize: 8,
     });
   });
@@ -513,6 +584,7 @@ describe('PhotoshopHostBridge fake harness', () => {
       ],
       { synchronousExecution: false },
     );
+    expect(spies.deleteTempFile).toHaveBeenCalledTimes(1);
   });
 
   it('placeAssetOnCanvas resolves hostObject storedRef before writing the temporary file', async () => {
@@ -582,7 +654,7 @@ describe('PhotoshopHostBridge fake harness', () => {
       });
     const { bridge } = createBridge(modules);
 
-    const first = bridge.readLayerAsAsset(2);
+    const first = bridge.readLayerAsAsset(2, providerPolicy);
     const second = bridge.readLayerMaskAsAsset(2);
     await new Promise((resolve) => setTimeout(resolve, 0));
 
@@ -643,10 +715,10 @@ describe('PhotoshopHostBridge fake harness', () => {
     const { bridge } = createBridge({});
 
     await expect(bridge.listLayers()).resolves.toEqual([]);
-    await expect(bridge.pickImageFile()).resolves.toBeUndefined();
+    await expect(bridge.pickImageFile(providerPolicy)).resolves.toBeUndefined();
     await expect(bridge.readLayerMaskAsAsset(1)).resolves.toBeUndefined();
-    await expect(bridge.readLayerAsAsset(1)).rejects.toThrow('unavailable outside UXP');
-    await expect(bridge.captureActiveImage()).rejects.toThrow('unavailable outside UXP');
+    await expect(bridge.readLayerAsAsset(1, providerPolicy)).rejects.toThrow('unavailable outside UXP');
+    await expect(bridge.captureActiveImage(providerPolicy)).rejects.toThrow('unavailable outside UXP');
     await expect(bridge.placeAssetOnCanvas({ type: 'image' }, { kind: 'unbound', reason: 'no-photoshop-capture' })).rejects.toThrow('unavailable outside UXP');
   });
 });

@@ -6,6 +6,7 @@ import type { UxpModules } from './uxp-api';
 interface UxpFile {
   read(options?: { readonly format?: unknown }): Promise<string | ArrayBuffer>;
   write(data: string | ArrayBuffer, options?: { readonly format?: unknown }): Promise<void>;
+  delete?(): Promise<void>;
 }
 
 interface UxpFolder {
@@ -215,8 +216,12 @@ export function createUxpAssetStore(modules: UxpModules): AssetStore {
         return undefined;
       }
     },
-    async delete(): Promise<void> {
-      // 当前最小 UXP 文件抽象未暴露 delete；artifact eviction 后续单独设计。
+    async delete(ref: StoredAssetRef): Promise<void> {
+      if (ref.kind !== 'hostObject') {
+        return;
+      }
+      const file = await getFile(localFileSystem, ref.ref);
+      await file?.delete?.();
     },
   };
 }

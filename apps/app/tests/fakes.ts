@@ -37,6 +37,7 @@ export const fakeProfile: ProviderProfile = {
     family: 'image-endpoint',
     baseURL: 'https://mock.local',
     defaultModel: 'mock-image-v1',
+    imageMaxSide: 2048,
   },
   secretRefs: {
     apiKey: 'secret:provider-profile:mock-profile:apiKey',

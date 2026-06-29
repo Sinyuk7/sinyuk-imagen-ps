@@ -1,4 +1,4 @@
-import type { CaptureUploadPlan, ImageSize, PlacementScalePlan } from '../image/resize';
+import type { CaptureUploadPlan, ImageSize, PlacementScalePlan, ProviderInputPlan } from '../image/resize';
 
 export interface PhotoshopRect {
   readonly left: number;
@@ -19,6 +19,7 @@ export interface PhotoshopCapturePlacement {
   readonly snapshot: PhotoshopCaptureSnapshot;
   readonly placementRect: PhotoshopRect;
   readonly uploadPlan?: CaptureUploadPlan;
+  readonly providerInputPlan?: ProviderInputPlan;
 }
 
 export interface PhotoshopCaptureResult {
@@ -52,4 +53,3 @@ export type PlacementIntent =
   | ExactFramePlacementIntent
   | DocumentOnlyPlacementIntent
   | UnboundPlacementIntent;
-

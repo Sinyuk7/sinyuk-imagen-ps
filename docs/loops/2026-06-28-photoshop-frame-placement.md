@@ -1,9 +1,29 @@
 # Photoshop Capture And Placement Loop
 
-Status: draft
+Status: superseded
 Authority: current user authorization, 2026-06-28
 Owner: `apps/app`, with a bounded `packages/providers` MockProvider slice
 Created: 2026-06-28
+Superseded by: `docs/loops/2026-06-29-provider-bounded-image-pipeline.md` for provider-bound input sizing and image-byte lifecycle hardening
+
+## Supersession Note
+
+This document is historical placement-loop context, not current provider-input
+sizing authority. Its `maxSide: 1028` capture/upload policy and implicit
+"small source images stay original size" assumption are superseded by
+`docs/loops/2026-06-29-provider-bounded-image-pipeline.md`:
+
+- provider-bound raster input has global `providerInputMinSide: 1024`;
+- selected Provider/Profile max-side is the only provider-input ceiling;
+- images below the minimum are upscaled for provider input when the selected
+  max-side allows it;
+- missing or invalid Provider/Profile max-side is a configuration error before
+  expensive pixel read/encode.
+
+Its default placement guidance remains valid unless later code proves a
+conflict: provider output bytes are not upscaled in JavaScript to the Photoshop
+source frame; Photoshop placement geometry remains separate from provider input
+pixels.
 
 ## Context Docs
 

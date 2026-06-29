@@ -69,10 +69,22 @@ function assetToImageUrl(asset: Asset): string {
     const mimeType = asset.mimeType ?? 'image/png';
     return asset.data.startsWith('data:') ? asset.data : `data:${mimeType};base64,${asset.data}`;
   }
+  if (asset.data instanceof Uint8Array && asset.data.byteLength > 0) {
+    const mimeType = asset.mimeType ?? 'image/png';
+    return `data:${mimeType};base64,${bytesToBase64(asset.data)}`;
+  }
   throw new BuildChatImageRequestError('Chat image input asset requires url or base64 data.', {
     fileId: asset.fileId,
     name: asset.name,
   });
+}
+
+function bytesToBase64(bytes: Uint8Array): string {
+  let binary = '';
+  for (const byte of bytes) {
+    binary += String.fromCharCode(byte);
+  }
+  return btoa(binary);
 }
 
 function inferSize(width: number | undefined, height: number | undefined): string | undefined {

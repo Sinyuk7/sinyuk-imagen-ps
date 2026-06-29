@@ -10,7 +10,11 @@ import {
 import type { UxpModules } from './uxp-api';
 import { ensurePlaceableImagePayload } from '../../shared/image-payload-preflight';
 import { createHostImageAsset, type HostImageAsset } from '../../shared/domain/host-image-asset';
-import { resolveCaptureUploadPlan } from '../../shared/image/resize';
+import {
+  resolveCaptureUploadPlan,
+  resolveProviderInputPlan,
+  type ProviderInputSizePolicy,
+} from '../../shared/image/resize';
 import type {
   PhotoshopCaptureResult,
   PhotoshopRect,
@@ -88,6 +92,7 @@ interface UxpFile {
   readonly name?: string;
   read(options?: { readonly format?: unknown }): Promise<ArrayBuffer | string>;
   write(data: ArrayBuffer | Uint8Array | string, options?: { readonly format?: unknown }): Promise<void>;
+  delete?(): Promise<void>;
 }
 
 interface UxpFolder {
@@ -504,6 +509,20 @@ function readImageSize(bytes: Uint8Array, mimeType: string): { readonly width: n
     return readWebpSize(bytes);
   }
   return undefined;
+}
+
+function ensureLocalFileMatchesProviderInputPolicy(bytes: Uint8Array, mimeType: string, policy: ProviderInputSizePolicy): void {
+  const size = readImageSize(bytes, mimeType);
+  if (!size) {
+    throw new Error(`Cannot inspect local image dimensions for provider input: ${mimeType}.`);
+  }
+  const plan = resolveProviderInputPlan(size, policy);
+  if (plan.wasResized) {
+    throw new Error(
+      `Local image requires provider input normalization from ${plan.sourceWidth}x${plan.sourceHeight} to ${plan.targetWidth}x${plan.targetHeight}, ` +
+        'but this UXP runtime has no verified native file decode/downsample path. Use Photoshop Capture or Choose Layer for normalized provider input.',
+    );
+  }
 }
 
 function assertExactPlacementAspect(
@@ -951,7 +970,7 @@ export function createPhotoshopHostBridge(modules: UxpModules, options?: CreateP
       }
     },
 
-    async pickImageFile(): Promise<HostImageAsset | undefined> {
+    async pickImageFile(policy: ProviderInputSizePolicy): Promise<HostImageAsset | undefined> {
       const span = logger.startSpan('hostbridge.pick_image_file');
       try {
         const file = await fs.getFileForOpening({
@@ -968,6 +987,7 @@ export function createPhotoshopHostBridge(modules: UxpModules, options?: CreateP
           ensurePlaceableImagePayload(data, mimeType);
         }
         const bytes = typeof data === 'string' ? dataUrlToBytes(data) : new Uint8Array(data);
+        ensureLocalFileMatchesProviderInputPolicy(bytes, mimeType, policy);
         const name = file.name ?? 'selected-image';
         const asset = await createStoredHostImageAsset(assetStore, bytes, {
           source: 'file',
@@ -983,7 +1003,7 @@ export function createPhotoshopHostBridge(modules: UxpModules, options?: CreateP
       }
     },
 
-    async captureActiveImage(): Promise<PhotoshopCaptureResult> {
+    async captureActiveImage(policy: ProviderInputSizePolicy): Promise<PhotoshopCaptureResult> {
       const span = logger.startSpan('hostbridge.capture_active_image');
       try {
         const activeDocument = app.activeDocument;
@@ -1006,8 +1026,19 @@ export function createPhotoshopHostBridge(modules: UxpModules, options?: CreateP
         const captureRect = selectionBounds ?? layerBounds;
         const captureSize = rectSize(captureRect);
         const documentId = activeDocument.id;
-        const uploadPlan = resolveCaptureUploadPlan(captureSize);
-        const targetSize = uploadPlan.capture.uploadSize;
+        const providerInputPlan = resolveProviderInputPlan(captureSize, policy);
+        const uploadPlan = resolveCaptureUploadPlan(captureSize, {
+          captureDownscaleMode: 'photoshop-target-size',
+          placementScaleMode: 'smart-object-transform',
+          sizePolicy: {
+            maxSide: providerInputPlan.maxSide,
+            multiple: providerInputPlan.multiple,
+          },
+        });
+        const targetSize = {
+          width: providerInputPlan.targetWidth,
+          height: providerInputPlan.targetHeight,
+        };
 
         const asset = await executeHostModal(
           async () => {
@@ -1080,6 +1111,7 @@ export function createPhotoshopHostBridge(modules: UxpModules, options?: CreateP
             },
             placementRect: captureRect,
             uploadPlan: uploadPlan.capture,
+            providerInputPlan,
           },
         };
       } catch (error) {
@@ -1088,7 +1120,7 @@ export function createPhotoshopHostBridge(modules: UxpModules, options?: CreateP
       }
     },
 
-    async readLayerAsAsset(layerId: number): Promise<HostImageAsset> {
+    async readLayerAsAsset(layerId: number, policy: ProviderInputSizePolicy): Promise<HostImageAsset> {
       const span = logger.startSpan('hostbridge.read_layer', { layerId });
       try {
         const activeDocument = app.activeDocument;
@@ -1100,8 +1132,20 @@ export function createPhotoshopHostBridge(modules: UxpModules, options?: CreateP
         if (!activeDocument?.id || !layer || !bounds) {
           throw new Error(`Photoshop layer is no longer available: ${layerId}`);
         }
-        const uploadPlan = resolveCaptureUploadPlan(rectSize(bounds));
-        const targetSize = uploadPlan.capture.uploadSize;
+        const sourceSize = rectSize(bounds);
+        const providerInputPlan = resolveProviderInputPlan(sourceSize, policy);
+        const uploadPlan = resolveCaptureUploadPlan(sourceSize, {
+          captureDownscaleMode: 'photoshop-target-size',
+          placementScaleMode: 'smart-object-transform',
+          sizePolicy: {
+            maxSide: providerInputPlan.maxSide,
+            multiple: providerInputPlan.multiple,
+          },
+        });
+        const targetSize = {
+          width: providerInputPlan.targetWidth,
+          height: providerInputPlan.targetHeight,
+        };
         const asset = await executeHostModal(
           async () => {
             const result = await imaging.getPixels({
@@ -1132,7 +1176,11 @@ export function createPhotoshopHostBridge(modules: UxpModules, options?: CreateP
         const placement = layerPlacementFor(activeDocument, layer, bounds);
         const placedAsset = {
           ...asset,
-          photoshopPlacement: placement,
+          photoshopPlacement: {
+            ...placement,
+            uploadPlan: uploadPlan.capture,
+            providerInputPlan,
+          },
         };
         span.finish({
           layerId,
@@ -1206,30 +1254,34 @@ export function createPhotoshopHostBridge(modules: UxpModules, options?: CreateP
         const file = await folder.createFile(`imagen-ps-${Date.now()}.${fileExtensionFor(mimeType)}`, {
           overwrite: true,
         });
-        await file.write(data, { format: uxpBinaryFormat(formats) });
-        const token = fs.createSessionToken(file);
+        try {
+          await file.write(data, { format: uxpBinaryFormat(formats) });
+          const token = fs.createSessionToken(file);
 
-        await executeHostModal(
-          async () => {
-            setActiveDocument(app, targetDocument);
-            await action.batchPlay(
-              [
-                {
-                  _obj: 'placeEvent',
-                  null: {
-                    _path: token,
-                    _kind: 'local',
+          await executeHostModal(
+            async () => {
+              setActiveDocument(app, targetDocument);
+              await action.batchPlay(
+                [
+                  {
+                    _obj: 'placeEvent',
+                    null: {
+                      _path: token,
+                      _kind: 'local',
+                    },
                   },
-                },
-              ],
-              { synchronousExecution: false },
-            );
-            if (placement.kind === 'exact-frame') {
-              await transformActivePlacedLayer(targetDocument, placement.placementRect);
-            }
-          },
-          { commandName: 'Place generated image' },
-        );
+                ],
+                { synchronousExecution: false },
+              );
+              if (placement.kind === 'exact-frame') {
+                await transformActivePlacedLayer(targetDocument, placement.placementRect);
+              }
+            },
+            { commandName: 'Place generated image' },
+          );
+        } finally {
+          await file.delete?.();
+        }
         span.finish({ name: asset.name, mimeType, placement: placement.kind });
       } catch (error) {
         span.fail(error, { name: asset.name, mimeType: asset.mimeType, placement: placement.kind });

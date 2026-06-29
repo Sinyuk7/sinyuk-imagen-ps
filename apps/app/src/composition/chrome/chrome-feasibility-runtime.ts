@@ -100,6 +100,7 @@ export async function runChromeFeasibilityRuntime(options?: {
       family: 'image-endpoint',
       baseURL: 'https://mock.local',
       defaultModel: 'mock-image-v1',
+      imageMaxSide: 2048,
     },
     secretValues: {
       apiKey: 'mock-key',
