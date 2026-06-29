@@ -1,0 +1,19 @@
+apps/app/src/shared/ui/pages/settings-page.tsx
+  s_edbd1782181280::t_a43248bdbb726d 1
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.3",
+  "base_commit_sha": "d390e1822cd719f383f5e2c5dfd0df1bcaa6cad4",
+  "prompts": {},
+  "sessions": {
+    "s_edbd1782181280": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "019f1350-ee1c-7a53-a172-37c3ad5cca98",
+        "model": "unknown"
+      },
+      "human_author": "Sinyuk <80998062@qq.com>"
+    }
+  }
+}
