@@ -1,0 +1,35 @@
+apps/app/src/shared/ui/styles/conversation.ts
+  s_43cbe7fac678f3::t_fcda0c79b4e203 7-12
+apps/app/src/shared/ui/styles/overlays.ts
+  s_04930561727905::t_b7ec44257ba79c 5
+apps/app/src/shared/ui/styles/responsive.ts
+  s_04930561727905::t_5f44b97d4ad3f2 36
+apps/app/src/shared/ui/styles/shell.ts
+  s_04930561727905::t_23f419480ad86d 11
+apps/app/tests/uxp-css-compat.test.ts
+  s_04930561727905::t_032b27e422bdb1 253-268
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.3",
+  "base_commit_sha": "50d315f38a046fddb388d2460be346b5ab865bc7",
+  "prompts": {},
+  "sessions": {
+    "s_04930561727905": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "019f123d-65b3-7522-be8b-1dac1d20a722",
+        "model": "unknown"
+      },
+      "human_author": "Sinyuk <80998062@qq.com>"
+    },
+    "s_43cbe7fac678f3": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "019f124c-3c59-7eb0-9a0c-dc6155c1a668",
+        "model": "unknown"
+      },
+      "human_author": "Sinyuk <80998062@qq.com>"
+    }
+  }
+}
