@@ -114,12 +114,7 @@ export function SettingsAddPage({ onNav, profiles, onProfileSaved }: SettingsAdd
         >
           <Icon name="chevron-left" slot="icon" />
         </ActionButton>
-        <div className="hdr-center">
-          <span style={{ fontFamily: 'var(--app-font-family-base)', fontSize: 14, fontWeight: 600, color: 'var(--app-color-text-primary)' }}>
-            {step === 1 ? t.common.addProvider : selected?.displayName}
-          </span>
-          {step === 2 && <span style={{ fontFamily: 'var(--app-font-family-mono)', fontSize: 10, color: 'var(--app-color-text-muted)' }}>2 / 2</span>}
-        </div>
+        <div className="hdr-title">{step === 1 ? t.common.addProvider : selected?.displayName}</div>
         <div style={{ width: 32 }} />
       </header>
 
@@ -131,7 +126,7 @@ export function SettingsAddPage({ onNav, profiles, onProfileSaved }: SettingsAdd
               <div
                 key={provider.id}
                 data-testid={`provider-type-${provider.id}`}
-                className="prov-row"
+                className="provider-type-row"
                 onClick={() => {
                   setProviderId(provider.id);
                   setName(nextAlias(provider.displayName, profiles));
@@ -139,14 +134,18 @@ export function SettingsAddPage({ onNav, profiles, onProfileSaved }: SettingsAdd
                   setStep(2);
                 }}
               >
-                <div className="prov-ico" style={{ background: 'var(--app-color-background-layer-2)', color: 'var(--app-color-text-secondary)', fontFamily: 'var(--app-font-family-mono)', fontSize: 10 }}>
-                  {provider.displayName.slice(0, 2).toUpperCase()}
+                <div className="provider-type-leading">
+                  <div className="provider-type-badge">
+                    {provider.displayName.slice(0, 2).toUpperCase()}
+                  </div>
                 </div>
-                <div className="prov-info">
-                  <div style={{ fontSize: 13, fontWeight: 500, color: 'var(--app-color-text-primary)' }}>{provider.displayName}</div>
-                  <div style={{ fontFamily: 'var(--app-font-family-mono)', fontSize: 10, color: 'var(--app-color-text-muted)', marginTop: 2 }}>{provider.family}</div>
+                <div className="provider-type-content">
+                  <div className="provider-type-name">{provider.displayName}</div>
+                  <div className="provider-type-family">{provider.family}</div>
                 </div>
-                <Icon name="chevron-right" style={{ color: 'var(--app-color-text-muted)' }} />
+                <div className="provider-type-trail">
+                  <Icon name="chevron-right" />
+                </div>
               </div>
             ))}
           </div>
@@ -176,19 +175,19 @@ export function SettingsAddPage({ onNav, profiles, onProfileSaved }: SettingsAdd
               </div>
               <div className="field" style={{ marginBottom: 0 }}>
                 <FieldLabel htmlFor="provider-api-key-input">API Key</FieldLabel>
-                <div className="pw-wrap">
+                <div className="field-input-affordance">
                   <TextField
                     data-testid="provider-api-key-input"
                     id="provider-api-key-input"
                     type={showKey ? 'text' : 'password'}
-                    className="field-input mono swc-field"
+                    className="field-input mono swc-field field-input-embedded"
                     placeholder="sk-..."
                     value={apiKey}
                     onValue={setApiKey}
                   />
                   <ActionButton
                     data-testid="provider-api-key-toggle"
-                    className="pw-toggle"
+                    className="field-input-action"
                     quiet
                     onClick={() => setShowKey((shown) => !shown)}
                   >

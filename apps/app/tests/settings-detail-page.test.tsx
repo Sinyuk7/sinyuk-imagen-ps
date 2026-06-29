@@ -195,6 +195,16 @@ describe('SettingsDetailPage contract', () => {
     expect(spies.refreshProfileModels).toHaveBeenCalledWith('mock-profile');
   });
 
+  it('renders a plain page header title with a separate status line', async () => {
+    const container = document.createElement('div');
+    document.body.appendChild(container);
+    await renderDetail(container);
+
+    expect(container.querySelector('.hdr-center')).toBeNull();
+    expect(container.querySelector('.page-header-title')?.textContent).toContain('Mock Profile');
+    expect(container.querySelector('.page-header-status')?.textContent).toMatch(/(已启用|Enabled)/);
+  });
+
   it('syncs native UXP default-model dropdown trigger text from the selected option label', async () => {
     const container = document.createElement('div');
     document.body.appendChild(container);

@@ -312,11 +312,9 @@ export function SettingsDetailPage({ onNav, profileId, onProfilesChanged }: Sett
         >
           <Icon name="chevron-left" slot="icon" />
         </ActionButton>
-        <div className="hdr-center">
-          <span style={{ fontFamily: 'var(--app-font-family-base)', fontSize: 14, fontWeight: 600, color: 'var(--app-color-text-primary)' }}>
-            {detail.profile?.displayName ?? 'Provider'}
-          </span>
-          <div className="status-inline tight" style={{ fontFamily: 'var(--app-font-family-mono)', fontSize: 10, color: enabled ? 'var(--app-color-positive)' : 'var(--app-color-text-muted)' }}>
+        <div className="page-header-meta">
+          <div className="hdr-title page-header-title">{detail.profile?.displayName ?? 'Provider'}</div>
+          <div className="status-inline tight page-header-status" style={{ fontFamily: 'var(--app-font-family-mono)', fontSize: 10, color: enabled ? 'var(--app-color-positive)' : 'var(--app-color-text-muted)' }}>
             <span style={{ width: 5, height: 5, borderRadius: '50%', background: enabled ? 'var(--app-color-positive)' : 'var(--app-color-text-muted)', display: 'inline-block' }} />
             {enabled ? t.common.enabled : t.common.disabled}
           </div>
@@ -350,19 +348,19 @@ export function SettingsDetailPage({ onNav, profileId, onProfilesChanged }: Sett
               </div>
               <div className="field">
                 <FieldLabel htmlFor="provider-api-key-input">API Key</FieldLabel>
-                <div className="pw-wrap">
+                <div className="field-input-affordance">
                   <TextField
                     data-testid="provider-api-key-input"
                     id="provider-api-key-input"
                     type={showKey ? 'text' : 'password'}
-                    className="field-input mono swc-field"
+                    className="field-input mono swc-field field-input-embedded"
                     placeholder={detail.profile.secretRefs?.apiKey ? t.settings.savedSecretPlaceholder : 'sk-...'}
                     value={apiKey}
                     onValue={setApiKey}
                   />
                   <ActionButton
                     data-testid="provider-api-key-toggle"
-                    className="pw-toggle"
+                    className="field-input-action"
                     quiet
                     onClick={() => setShowKey((shown) => !shown)}
                   >

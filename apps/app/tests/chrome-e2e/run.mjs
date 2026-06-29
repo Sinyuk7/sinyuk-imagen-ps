@@ -183,7 +183,6 @@ async function openAddProviderStep2(page, url) {
   await expectVisibleText(page, 'Add Provider');
   await page.getByTestId('provider-type-mock').click();
   await expectVisibleText(page, 'Mock Provider');
-  await expectVisibleText(page, '2 / 2');
 }
 
 async function fillMockProviderDraft(page, alias) {

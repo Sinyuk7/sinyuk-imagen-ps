@@ -42,7 +42,7 @@ describe('SettingsAddPage', () => {
     });
 
     await act(async () => {
-      container.querySelector<HTMLElement>('.prov-row')!.click();
+      container.querySelector<HTMLElement>('[data-testid="provider-type-mock"]')!.click();
     });
 
     const inputs = Array.from(container.querySelectorAll<HTMLElement & { value?: string }>('sp-textfield, input'));
@@ -103,11 +103,36 @@ describe('SettingsAddPage', () => {
     });
 
     await act(async () => {
-      container.querySelector<HTMLElement>('.prov-row')!.click();
+      container.querySelector<HTMLElement>('[data-testid="provider-type-mock"]')!.click();
     });
 
     const nameInput = Array.from(container.querySelectorAll<HTMLElement & { value?: string }>('sp-textfield, input'))[0];
     expect(nameInput.value).toBe('Mock Provider(1)');
+  });
+
+  it('uses a plain header title and removes unexplained step text on the config screen', async () => {
+    const { services } = createFakeServices();
+    const container = document.createElement('div');
+    document.body.appendChild(container);
+    root = createRoot(container);
+
+    await act(async () => {
+      root!.render(
+        <TestAppProviders services={services}>
+          <SettingsAddPage onNav={() => undefined} profiles={[]} onProfileSaved={async () => undefined} />
+        </TestAppProviders>,
+      );
+    });
+
+    expect(container.querySelector('.hdr-center')).toBeNull();
+
+    await act(async () => {
+      container.querySelector<HTMLElement>('[data-testid="provider-type-mock"]')!.click();
+    });
+
+    expect(container.querySelector('.hdr-center')).toBeNull();
+    expect(container.querySelector('.hdr-title')?.textContent).toContain('Mock Provider');
+    expect(container.textContent).not.toContain('2 / 2');
   });
 
   it('reuses the draft profile id when testing before save', async () => {
@@ -125,7 +150,7 @@ describe('SettingsAddPage', () => {
     });
 
     await act(async () => {
-      container.querySelector<HTMLElement>('.prov-row')!.click();
+      container.querySelector<HTMLElement>('[data-testid="provider-type-mock"]')!.click();
     });
 
     const inputs = Array.from(container.querySelectorAll<HTMLElement & { value?: string }>('sp-textfield, input'));
