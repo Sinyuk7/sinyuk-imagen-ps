@@ -61,12 +61,6 @@ const UXP_UNSUPPORTED_PATTERNS: readonly ForbiddenPattern[] = [
 /* Project safety policy：为避免跨端或 wrapper 问题主动禁用的属性或 shorthand */
 const PROJECT_POLICY_PATTERNS: readonly ForbiddenPattern[] = [
   {
-    name: 'CSS transform',
-    pattern: /(?:^|[;{\n])\s*(?<!-)transform\s*:/u,
-    replacement: 'Use explicit positioning instead of host-renderer transforms (project policy: transform reliability varies across UXP host versions).',
-    category: 'project-policy',
-  },
-  {
     name: 'CSS shadow/filter effects',
     pattern: /(?:^|[;{\n])\s*(?:box-shadow|filter|backdrop-filter)\s*:/u,
     replacement: 'Use borders and flat colors instead of host-renderer effect paths (project policy: shadow rendering is inconsistent across UXP host versions).',
@@ -110,12 +104,6 @@ const INLINE_STYLE_FORBIDDEN: readonly ForbiddenPattern[] = [
     pattern: /\banimation\s*:/u,
     replacement: 'Keep Photoshop UXP visual state immediate and static.',
     category: 'uxp-unsupported',
-  },
-  {
-    name: 'inline transform',
-    pattern: /\btransform\s*:/u,
-    replacement: 'Use explicit positioning instead of transforms.',
-    category: 'project-policy',
   },
   {
     name: 'inline shadow/filter effects',
@@ -277,6 +265,23 @@ describe('UXP panel CSS compatibility', () => {
       for (const forbidden of INLINE_STYLE_FORBIDDEN) {
         expectNoPattern(filePath, forbidden);
       }
+    }
+  });
+
+  it('keeps CSS transform inside the motion layer only', () => {
+    const motionRoot = join(UI_ROOT, 'motion');
+    const uiFiles = walkFiles(UI_ROOT).filter((filePath) => {
+      const extension = filePath.slice(filePath.lastIndexOf('.'));
+      return STYLE_FILE_EXTENSIONS.has(extension) && !filePath.startsWith(motionRoot);
+    });
+
+    for (const filePath of uiFiles) {
+      expectNoPattern(filePath, {
+        name: 'CSS transform outside motion layer',
+        pattern: /\btransform\s*:/u,
+        replacement: 'Use the shared motion layer and apply transform via JS DOM style.transform; do not write `transform:` in styles or inline style objects.',
+        category: 'project-policy',
+      });
     }
   });
 

@@ -18,14 +18,16 @@
 - `docs/dev-memory/memories/bug/uxp-first-frame-spectrum-geometry.md`
 - `apps/app/tests/uxp-css-compat.test.ts` (project policy gate)
 - `.local/share/uxp/src/pages/uxp-api/known-issues.md` (CSS transitions / animations unsupported)
+- `.local/share/uxp/src/pages/uxp-api/changelog3P.md` (`CSSNextSupport` feature flag)
 
 ## Goal
 
 Deliver a `@tweenjs/tween.js` driven Motion System inside `apps/app` that clarifies state, preserves object continuity, and provides consistent async feedback across Main / History / Settings, while strictly respecting the project's CSS policy:
 
 - no CSS transitions, CSS animations, or keyframes;
-- no `transform`, `box-shadow`, `filter`, `backdrop-filter`, `gap`, `margin` shorthand, or `font` shorthand;
-- no inline `transform` / `transition` / `animation`.
+- no `box-shadow`, `filter`, `backdrop-filter`, `gap`, `margin` shorthand, or `font` shorthand;
+- `transform` allowed **only** via JS-driven `style.transform` and **only** for `translateX` / `translateY` / `scale`;
+- all motion must degrade to a functional static state if the host cannot render it.
 
 The system must keep the default CI gate green and provide a clear manual Photoshop/UXP smoke checklist for host behavior that cannot be proven in Chrome or unit tests.
 
@@ -33,11 +35,11 @@ The system must keep the default CI gate green and provide a clear manual Photos
 
 - Do not introduce any animation library other than `@tweenjs/tween.js`.
 - Do not use CSS transitions, CSS keyframes, Web Animations API, or SVG SMIL.
-- Do not use `transform` for translate, scale, or rotate in source code or CSS.
+- Do not use `transform: rotate`, `skew`, `matrix`, or 3D transforms.
 - Do not animate layout properties for in-flow elements (`width`, `height`, `margin`, `padding`, `scrollTop`, `flex-basis`).
 - Do not modify runtime, application, provider, or foundation packages.
 - Do not make live provider calls part of default validation.
-- Do not treat decorative effects (ripple, bounce, strong overshoot, long page slides, rotated chevrons) as system defaults.
+- Do not treat decorative effects (ripple, bounce, strong overshoot, rotated chevrons) as system defaults.
 
 ## Scope
 
@@ -48,12 +50,15 @@ The system must keep the default CI gate green and provide a clear manual Photos
 - `apps/app/src/shared/ui/components/*` and `apps/app/src/shared/ui/pages/*` — bind motion recipes to state.
 - `apps/app/tests/*` and new motion unit/harness tests.
 - `apps/app/package.json` — add `@tweenjs/tween.js` dependency.
+- `apps/app/public/manifest.json` — add explicit `featureFlags.CSSNextSupport: true`.
 
 ### Forbidden
 
 - Changes outside `apps/app` except dependency lockfile updates.
-- Any source that contains `transform:`, `transition:`, `animation:`, `box-shadow:`, `filter:`, `backdrop-filter:`, `gap:`, `margin:` shorthand, or `font:` shorthand.
-- Direct animation of SWC or native form element internals (use wrapper elements).
+- Any source that contains `transition:`, `animation:`, `@keyframes`, `box-shadow:`, `filter:`, `backdrop-filter:`, `gap:`, `margin:` shorthand, or `font:` shorthand.
+- `transform:` in CSS strings or JSX inline style objects; transform must be applied through JS DOM `style.transform` only.
+- `transform: rotate(...)`, `skew(...)`, `matrix(...)`, or any 3D transform.
+- Direct animation of native form element internals (use wrapper elements).
 - Hard-coded durations / easings outside `motion-tokens.ts`.
 - Animation that delays disabled state, focus management, or keyboard events.
 
@@ -79,7 +84,7 @@ pnpm --filter @imagen-ps/app build:chrome
 pnpm --filter @imagen-ps/app test
 ```
 
-must pass before claiming the slice is done. `apps/app/tests/uxp-css-compat.test.ts` is an especially important gate for this Loop because it enforces the no-transform / no-transition policy.
+must pass before claiming the slice is done. `apps/app/tests/uxp-css-compat.test.ts` is an especially important gate for this Loop because it enforces the no-transition / no-animation / no-CSS-transform policy.
 
 ## Current UI architecture facts
 
@@ -89,8 +94,9 @@ must pass before claiming the slice is done. `apps/app/tests/uxp-css-compat.test
 - All panel styles are injected from `apps/app/src/shared/ui/styles/*.ts` and concatenated in `panel-css.ts`.
 - `uxp-css-compat.test.ts` scans every `.ts/.tsx` under `src/shared/ui` for banned patterns, including inline `transform:`, `transition:`, and `animation:`.
 - `main-page.tsx` still dims the whole Composer with `.cmp-shell.off` (`opacity: .38; pointer-events: none`). The Motion System will fade that state but will not, in the first implementation, change the underlying disabled-appearance policy.
-- Spinner icons currently use a static `spinner` SVG and a dead `.spin` class. The Motion System will replace this with an opacity-based activity indicator.
+- Spinner icons currently use a static `spinner` SVG and a dead `.spin` class. The Motion System will replace this with an opacity-based activity indicator by default; SVG attribute rotation may be introduced only after real-host verification.
 - `placeAsset()` in `main-page.tsx` has no local button state. The Motion System will add a per-round `placeStatus` state machine (`idle → placing → placed → idle`).
+- `apps/app/public/manifest.json` did not declare `CSSNextSupport`, so it has been updated to add `featureFlags.CSSNextSupport: true` before any transform-based motion is used.
 
 ## Motion Language
 
@@ -98,11 +104,11 @@ must pass before claiming the slice is done. `apps/app/tests/uxp-css-compat.test
 
 Precise, restrained, fast, interruptible, and tool-like. Motion explains state; it does not entertain.
 
-Because `transform` is banned by project policy, the system is intentionally **opacity-first**:
+The system is **opacity-first, transform-second**:
 
-- Enter/exit is primarily opacity.
-- Small spatial hints are allowed only for absolutely positioned surfaces and only by animating `top` / `bottom` / `left` / `right` by up to `4px`.
-- No scale, no rotate, no translate, no parallax, no elastic bounce.
+- `opacity` is the primary motion property and is officially supported in UXP.
+- `transform: translateX / translateY / scale` are allowed for spatial emphasis, but only via JS `style.transform` and only after `CSSNextSupport` is explicitly enabled.
+- `transform: rotate` is not a system default; chevrons and spinners use opacity or verified SVG attributes instead.
 
 ### Levels
 
@@ -132,11 +138,13 @@ MOTION_EASING = {
 
 ```ts
 MOTION_OPACITY = { hidden: 0, visible: 1, dim: 0.38 }
-MOTION_OFFSET  = { micro: 2, small: 4 }     // top/bottom/left/right only
-MOTION_PULSE   = { min: 0.35, max: 1 }
+MOTION_TRANSLATE = { micro: 2, small: 4, medium: 8 }
+MOTION_SCALE     = { subtleIn: 0.98, emphasisIn: 0.96, press: 0.98 }
 ```
 
-Default spatial motion is limited to `4px` and only for absolutely positioned elements. No scale or rotation.
+- Default translation must not exceed `8px`.
+- Default scale must not go below `0.96`.
+- Rotation is not a default motion property.
 
 ## Core design models
 
@@ -182,10 +190,11 @@ A single user action should produce one primary motion. Supporting changes may b
 
 - CSS transitions and CSS animations are **not supported** in UXP. All motion must be driven by JavaScript writing `style` properties each frame.
 - `opacity` is supported since UXP v2.
-- `top` / `bottom` / `left` / `right` are standard layout properties and are safe to update via JS for absolutely positioned elements.
-- `transform` is explicitly banned by this project's `uxp-css-compat.test.ts` due to host-version reliability issues, even though UXP's `CSSNextSupport` can enable it. Do not try to work around the test with CSS variables or hidden files.
+- `transform` functions (`translateX`, `translateY`, `scaleX`, `scaleY`) and `transform-origin` are available in UXP 8.0.1+ when `CSSNextSupport` is enabled.
+- This project targets Photoshop 26.1 / UXP 8.1, so transform support is available **if and only if** `CSSNextSupport` is explicitly declared in `manifest.json`.
+- Because `manifest.json` did not declare `enableSWCSupport`, the Motion System must add an explicit `featureFlags.CSSNextSupport` entry before using any transform.
 - `requestAnimationFrame` is used in the existing codebase but is not officially documented as a guaranteed UXP API. The Phase 0 prototype must confirm it is stable in Photoshop 26.1 / UXP 8.1; a `setTimeout(16)` fallback must be retained.
-- First-frame Spectrum geometry instability is documented in `docs/dev-memory/memories/bug/uxp-first-frame-spectrum-geometry.md`. Although SWC is gone, the underlying risk remains: do not base animation start values on geometry measured during the first render frame.
+- First-frame geometry instability is documented in `docs/dev-memory/memories/bug/uxp-first-frame-spectrum-geometry.md`. Do not base animation start values on geometry measured during the first render frame.
 - `will-change`, `filter`, `backdrop-filter`, and `box-shadow` are not allowed.
 
 ## Architecture
@@ -199,11 +208,11 @@ MotionController    (play / stop / finish / isRunning)
   ↓
 MotionPresence      (mount → entering → entered → exiting → unmount)
   ↓
-MotionRecipes       (fade, slide-fade-for-absolute, icon-crossfade,
+MotionRecipes       (fade, slide-fade, scale-pop, icon-crossfade,
                      button-state, popover-presence, toast-presence,
                      content-crossfade, image-reveal, surface-highlight,
                      attachment-presence, floating-control-presence,
-                     page-crossfade, activity-pulse)
+                     page-crossfade, activity-pulse, optional rotate-loop)
   ↓
 Feature components  (MainPage, ComposerSelect, ToastHost, etc.)
 ```
@@ -218,12 +227,13 @@ apps/app/src/shared/ui/motion/
   motion-tokens.ts
   motion-preference.ts
   motion-presence.ts
-  motion-property-guard.ts
+  motion-transform-guard.ts
   motion-debug.ts
   motion-types.ts
   recipes/
     fade.ts
-    slide-fade-absolute.ts
+    slide-fade.ts
+    scale-pop.ts
     icon-crossfade.ts
     button-state.ts
     popover-presence.ts
@@ -235,6 +245,7 @@ apps/app/src/shared/ui/motion/
     floating-control-presence.ts
     page-crossfade.ts
     activity-pulse.ts
+    rotate-loop.ts              // optional, only after real-host SVG verification
   react/
     use-motion-controller.ts
     use-motion-presence.ts
@@ -269,29 +280,42 @@ Channels:
 - `highlight` — transient emphasis (attachment added, place success, round locate).
 - `ambient` — activity pulse.
 
+### Transform guard
+
+`motion-transform-guard.ts` validates every transform string before it is applied:
+
+```text
+allowed:  translateX(...) translateY(...) scale(...) scaleX(...) scaleY(...)
+forbidden: rotate(...) skew(...) matrix(...) matrix3d(...) perspective(...) rotateX/Y/Z(...)
+```
+
+If a recipe tries to build a forbidden transform, it throws in development and falls back to opacity-only in production.
+
 ### Style property ownership
 
-One DOM wrapper can have only one tween owner per CSS property. Separate layout wrappers from motion wrappers. If a button already owns `opacity` for a state change, do not add a second independent `opacity` tween to the same node.
+One DOM wrapper can have only one tween owner per CSS property. Separate layout wrappers from motion wrappers. If a button already owns `transform` for a menu animation, do not add an independent press-scale tween to the same node.
 
 Allowed properties per recipe:
 
 | Recipe | Allowed properties |
 |---|---|
 | fade | opacity |
-| slide-fade-absolute | opacity, top, bottom, left, right |
+| slide-fade | opacity, transform (translate only) |
+| scale-pop | opacity, transform (scale only) |
 | icon-crossfade | opacity |
-| button-state | opacity, backgroundColor, color (on wrappers) |
-| popover-presence | opacity, top/bottom |
-| toast-presence | opacity, top |
+| button-state | opacity, backgroundColor, color, transform (scale only on a wrapper) |
+| popover-presence | opacity, transform (translate only) |
+| toast-presence | opacity, transform (translate only) |
 | content-crossfade | opacity |
 | image-reveal | opacity |
 | surface-highlight | opacity (overlay) |
-| attachment-presence | opacity |
-| floating-control-presence | opacity, bottom |
-| page-crossfade | opacity |
+| attachment-presence | opacity, transform (translate/scale) |
+| floating-control-presence | opacity, transform (translate only) |
+| page-crossfade | opacity, transform (translate only) |
 | activity-pulse | opacity |
+| rotate-loop | SVG transform attribute only, gated by real-host verification |
 
-No recipe may write `transform`, `transition`, `animation`, `boxShadow`, `filter`, `backdropFilter`, `gap`, `margin`, or `font`.
+No recipe may write `transition`, `animation`, `boxShadow`, `filter`, `backdropFilter`, `gap`, `margin`, or `font`.
 
 ### MotionPreference
 
@@ -307,14 +331,22 @@ The `reduce` path must keep every business function working.
 
 ## Slices
 
-### Slice 0 — Motion infrastructure prototype
+### Slice 0 — Motion infrastructure + manifest safety
 
-**Goal**: Prove Tween.js can run safely in UXP/Chrome under the project's CSS policy, with a single runtime, presence lifecycle, and property ownership.
+**Goal**: Establish the UXP prerequisites and prove Tween.js can run safely under the project's CSS policy, with a single runtime, presence lifecycle, transform guard, and no-animation fallback.
 
 **Allowed scope**:
 
 - Add `@tweenjs/tween.js` to `apps/app`.
-- Create `motion-runtime.ts`, `motion-controller.ts`, `motion-tokens.ts`, `motion-preference.ts`, `motion-presence.ts`, `motion-property-guard.ts`, `motion-debug.ts`, and minimal recipes: `fade`, `slide-fade-absolute`, `icon-crossfade`, `activity-pulse`, `popover-presence`.
+- Add explicit `CSSNextSupport` to `apps/app/public/manifest.json`:
+  ```json
+  {
+    "featureFlags": {
+      "CSSNextSupport": true
+    }
+  }
+  ```
+- Create `motion-runtime.ts`, `motion-controller.ts`, `motion-tokens.ts`, `motion-preference.ts`, `motion-presence.ts`, `motion-transform-guard.ts`, `motion-debug.ts`, and minimal recipes: `fade`, `slide-fade`, `scale-pop`, `icon-crossfade`, `activity-pulse`, `popover-presence`.
 - Add unit tests that drive time manually via `group.update(time)`.
 - Create a minimal UI harness page (e.g. `/harness=motion-prototype` in Chrome shell) with one popover, one activity pulse, and one icon crossfade.
 - Run `apps/app/tests/uxp-css-compat.test.ts` after adding any new styles to prove no banned patterns were introduced.
@@ -323,9 +355,9 @@ The `reduce` path must keep every business function working.
 
 - quick: `pnpm check:policy`
 - per-slice: `pnpm --filter @imagen-ps/app test`; `pnpm --filter @imagen-ps/app build:uxp`; `pnpm --filter @imagen-ps/app build:chrome`
-- manual-only: load the built UXP panel in Photoshop 26.1 and verify the popover opens/closes, the activity pulse breathes, and icon crossfades without layout jumps or orphan tweens.
+- manual-only: load the built UXP panel in Photoshop 26.1 and verify transform-based motion renders correctly and that disabling motion leaves every button clickable and every field usable.
 
-**Stop rule**: If `requestAnimationFrame` is missing or unstable, or if updating `opacity` / `top` on plain `div` wrappers causes layout issues in UXP, produce a Decision Packet before moving to Slice 1.
+**Stop rule**: If `requestAnimationFrame` is missing or unstable, or if `CSSNextSupport` does not enable `translate` / `scale` in real UXP, produce a Decision Packet before moving to Slice 1.
 
 ### Slice 1 — Core generation loop
 
@@ -351,7 +383,7 @@ The `reduce` path must keep every business function working.
 
 ### Slice 2 — Overlays and selectors
 
-**Goal**: Unify Provider menu, ComposerSelect, attachment presence, and back-to-bottom with opacity + small absolute-offset recipes.
+**Goal**: Unify Provider menu, ComposerSelect, attachment presence, and back-to-bottom with opacity + translate recipes.
 
 **Allowed scope**:
 
@@ -371,13 +403,13 @@ The `reduce` path must keep every business function working.
 
 ### Slice 3 — Navigation and content continuity
 
-**Goal**: Make History→Main locate, Round highlight, page changes, and image carousel feel connected without transform.
+**Goal**: Make History→Main locate, Round highlight, page changes, and image carousel feel connected.
 
 **Allowed scope**:
 
-- `app-shell.tsx`: `page-crossfade` for all view changes (no directional slide; transform is banned).
+- `app-shell.tsx`: `page-crossfade` for view changes; optional slight `translateX` only for parent-child transitions.
 - `history-page.tsx` → `main-page.tsx` Round locate: scroll first, then `surface-highlight` overlay on the target Round.
-- Image carousel in result card: `content-crossfade` between previews.
+- Image carousel in result card: `content-crossfade` between previews (or `slide-fade` after real-host verification).
 - New Provider add/delete in Settings: `attachment-presence`-style presence.
 
 **Validation**:
@@ -396,8 +428,8 @@ The `reduce` path must keep every business function working.
 - Respect `MotionPreference.reduce` across all recipes.
 - Tune durations/offsets for `compact`, `regular`, `wide`, `short` panel modes via `data-panel-width-mode` / `data-panel-height-mode`.
 - Add `motion-debug.ts` dev-mode diagnostics: active tween count, orphan count, scheduler state.
-- Scan for hard-coded durations/easings outside tokens and for any banned property strings (`transform:`, `transition:`, etc.).
-- Add component tests for rapid triggers, unmount cleanup, and reduced motion.
+- Scan for hard-coded durations/easings outside tokens and for any banned property strings (`transition:`, `animation:`, `rotate`, etc.).
+- Add component tests for rapid triggers, unmount cleanup, reduced motion, and no-animation fallback.
 
 **Validation**:
 
@@ -424,7 +456,7 @@ The `reduce` path must keep every business function working.
 - [ ] Open/close Provider menu 10 times rapidly; no stuck open/closed state.
 - [ ] Open/close Model and Ratio menus; no layout jumps.
 - [ ] Add and remove attachments rapidly; no detached thumbnails or lingering highlight.
-- [ ] Send a prompt; Send button switches to activity state; new Round fades in; Running card appears without list jump.
+- [ ] Send a prompt; Send button switches to activity state; new Round fades/slides in; Running card appears without list jump.
 - [ ] Wait for result; image fades in; Place button shows placing / placed states.
 - [ ] Retry an error Round; Error surface crossfades to Running without unmounting the Round.
 - [ ] Capture from Photoshop; Capture button shows activity, attachment highlight appears.
@@ -435,17 +467,18 @@ The `reduce` path must keep every business function working.
 - [ ] Short panel: back-to-bottom does not overlap Composer.
 - [ ] Panel hidden and reshown: no animation burst or resumed stale tweens.
 - [ ] Reduced motion: all functions work; enter/exit are near-instant.
+- [ ] No-animation fallback: disable motion globally; every button, menu, and Round remains fully functional.
 
 ## Decision Packet triggers
 
 Produce a Decision Packet (A/B/C with evidence and recommendation) if any of the following occur:
 
 1. `requestAnimationFrame` is unavailable or causes dropped frames in Photoshop 26.1.
-2. Updating `opacity` or absolute-position offsets causes layout loops or host instability in UXP.
-3. A required effect cannot be achieved without `transform`, `transition`, `animation`, `box-shadow`, or `filter`.
-4. Preserving Round continuity requires changes outside `apps/app`.
-5. Real Photoshop smoke contradicts Chrome or unit-test evidence.
-6. The team wants to relax the no-transform project policy based on new host evidence.
+2. `CSSNextSupport` in `manifest.json` does not enable `translate` / `scale` in real UXP after SWC removal.
+3. Transform-based motion causes layout loops, blurry text, or host instability in UXP.
+4. A required effect cannot be achieved without `transition`, `animation`, `box-shadow`, `filter`, or `backdrop-filter`.
+5. Preserving Round continuity requires changes outside `apps/app`.
+6. Real Photoshop smoke contradicts Chrome or unit-test evidence.
 
 ## Completion report
 
@@ -463,4 +496,4 @@ When this Loop is completed, report:
 
 ## Memory note candidate
 
-Yes: `architecture` record for UXP motion constraints and property ownership; `decision` record if the no-transform policy is changed or reaffirmed.
+Yes: `architecture` record for UXP motion constraints, `CSSNextSupport` dependency, and transform ownership; `decision` record if the no-rotate / no-CSS-transform policy is changed or reaffirmed.
