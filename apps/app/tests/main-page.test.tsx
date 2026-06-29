@@ -198,6 +198,87 @@ describe('MainPage contract', () => {
     }));
   });
 
+  it('多张 provider 结果只渲染一个主图，并按当前选择置入', async () => {
+    const container = document.createElement('div');
+    document.body.appendChild(container);
+    const { storedRef: _storedRef, ...secondOutputAssetBase } = fakeOutputAsset;
+    const secondOutputAsset = {
+      ...secondOutputAssetBase,
+      name: 'result-2.png',
+      data: 'ZmFrZS1pbWFnZS0y',
+    };
+    const services = createFakeServices();
+    services.spies.submitJob.mockResolvedValue({
+      ok: true as const,
+      value: {
+        id: 'job-1',
+        status: 'completed',
+        input: {},
+        output: {
+          image: {
+            assets: [fakeOutputAsset, secondOutputAsset],
+            metadata: {
+              size: '1024x1024',
+              outputFormat: 'png',
+            },
+          },
+        },
+        error: undefined,
+        createdAt: '2026-06-15T00:00:00.000Z',
+        updatedAt: '2026-06-15T00:00:01.000Z',
+      },
+    });
+    const { spies } = await renderApp(container, services);
+
+    await act(async () => {
+      container.querySelector<HTMLElement>('[data-testid="composer-capture-button"]')!.click();
+    });
+    await flush();
+    await sendPrompt(container, 'edit captured image');
+
+    expect(container.querySelectorAll('.prov-img .img-result')).toHaveLength(1);
+    const previewCount = container.querySelector<HTMLElement>('[data-testid^="result-preview-count-"]')!;
+    const roundId = previewCount.dataset.testid?.replace('result-preview-count-', '') ?? '';
+    expect(previewCount.textContent).toContain('1 / 2');
+
+    await act(async () => {
+      container.querySelector<HTMLElement>(`[data-testid="result-preview-next-${roundId}"]`)!.click();
+    });
+    await flush();
+
+    expect(container.querySelector<HTMLElement>(`[data-testid="result-preview-${roundId}"]`)?.dataset.previewIndex).toBe('1');
+
+    await act(async () => {
+      container.querySelector<HTMLButtonElement>('.img-act')!.click();
+    });
+
+    expect(spies.placeAssetOnCanvas).toHaveBeenCalledWith(expect.objectContaining({
+      name: 'result-2.png',
+      type: 'image',
+    }), expect.objectContaining({
+      kind: 'exact-frame',
+      documentId: 42,
+    }));
+  });
+
+  it('结果底部 action bar 只保留当前图下载入口', async () => {
+    const container = document.createElement('div');
+    document.body.appendChild(container);
+    await renderApp(container);
+
+    await act(async () => {
+      container.querySelector<HTMLElement>('[data-testid="composer-capture-button"]')!.click();
+    });
+    await flush();
+    await sendPrompt(container, 'edit captured image');
+
+    const actions = container.querySelector<HTMLElement>('.prov-actions')!;
+    expect(actions.querySelector('[data-testid^="result-download-button-"]')).not.toBeNull();
+    expect(actions.querySelector('[data-testid^="result-place-button-"]')).toBeNull();
+    expect(actions.querySelector('[data-testid^="result-regenerate-button-"]')).toBeNull();
+    expect(actions.querySelector('[data-testid^="result-copy-button-"]')).toBeNull();
+  });
+
   it('layer attachment writeback targets the source Photoshop document', async () => {
     const container = document.createElement('div');
     document.body.appendChild(container);

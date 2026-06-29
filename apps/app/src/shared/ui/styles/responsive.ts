@@ -1,6 +1,6 @@
 /** 响应式：Panel root 写入离散 `data-*` 模式，CSS 只消费语义模式。 */
 export const RESPONSIVE_CSS = `
-.panel[data-panel-width-mode="compact"] .cmp-core{ padding:8px; }
+.panel[data-panel-width-mode="compact"] .cmp-shell{ padding:8px; }
 .panel[data-panel-width-mode="compact"] .composer{ padding:7px 8px 9px; }
 .panel[data-panel-width-mode="compact"] .cmp-action-row{ margin-top:6px; }
 .panel[data-panel-width-mode="compact"] .cmp-toolbar{ padding-top:3px; }
@@ -44,7 +44,7 @@ export const RESPONSIVE_CSS = `
 
 .panel[data-panel-height-mode="short"] .composer{ max-height:min(48%, 210px); padding-top:6px; padding-bottom:8px; }
 .panel[data-panel-height-mode="short"] .cmp-ta{ max-height:54px; }
-.panel[data-panel-height-mode="short"] .cmp-toolbar{ padding-top:3px; }
+.panel[data-panel-height-mode="short"] .cmp-toolbar{ padding-top:6px; }
 .panel[data-panel-height-mode="short"] .attach-picker,
 .panel[data-panel-height-mode="short"] .layer-list-wrap{ max-height:180px; }
 .panel[data-panel-height-mode="short"] .layer-scroll{ max-height:136px; }

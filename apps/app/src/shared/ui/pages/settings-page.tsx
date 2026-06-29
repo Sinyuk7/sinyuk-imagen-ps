@@ -1,7 +1,6 @@
-import { useEffect, useRef, type KeyboardEvent } from 'react';
+import { type KeyboardEvent } from 'react';
 import type { ProviderProfile } from '@imagen-ps/application';
 import { profileToProviderRow } from '../../domain/mappers';
-import { useAppServices } from '../../ports/app-services-context';
 import { Icon } from '../components/icons';
 import { ActionButton } from '../primitives/spectrum-controls';
 import { useI18n } from '../i18n/i18n-context';
@@ -46,138 +45,6 @@ interface ProviderListItemProps {
     readonly needsSetup: string;
     readonly configured: string;
   };
-}
-
-interface HeaderActionDiagnosticTarget {
-  readonly name: 'back' | 'refresh' | 'add';
-  readonly element: HTMLElement | null;
-}
-
-function readNumericRect(element: Element): Record<string, number> {
-  const rect = element.getBoundingClientRect();
-  return {
-    width: Number(rect.width.toFixed(2)),
-    height: Number(rect.height.toFixed(2)),
-    x: Number(rect.x.toFixed(2)),
-    y: Number(rect.y.toFixed(2)),
-  };
-}
-
-function readComputedSnapshot(element: HTMLElement): Record<string, string> {
-  const style = window.getComputedStyle(element);
-  return {
-    display: style.display,
-    width: style.width,
-    height: style.height,
-    color: style.color,
-    backgroundColor: style.backgroundColor,
-    position: style.position,
-    spectrumBackgroundBase: style.getPropertyValue('--spectrum-background-base-color').trim(),
-    spectrumNeutralBackground: style.getPropertyValue('--spectrum-neutral-background-color-default').trim(),
-    spectrumAccentBackground: style.getPropertyValue('--spectrum-accent-background-color-default').trim(),
-  };
-}
-
-function readElementSnapshot(element: HTMLElement | null): Record<string, unknown> | null {
-  if (!element) {
-    return null;
-  }
-
-  const icon = element.querySelector<HTMLElement>('[slot="icon"]');
-  return {
-    tagName: element.tagName.toLowerCase(),
-    constructorName: element.constructor.name,
-    isConnected: element.isConnected,
-    childElementCount: element.childElementCount,
-    shadowRootMode: element.shadowRoot?.mode ?? null,
-    shadowChildCount: element.shadowRoot?.childElementCount ?? 0,
-    attributes: Array.from(element.attributes).map((attr) => `${attr.name}=${attr.value}`),
-    rect: readNumericRect(element),
-    clientWidth: element.clientWidth,
-    clientHeight: element.clientHeight,
-    computed: readComputedSnapshot(element),
-    icon: icon
-      ? {
-          tagName: icon.tagName.toLowerCase(),
-          constructorName: icon.constructor.name,
-          isConnected: icon.isConnected,
-          shadowRootMode: icon.shadowRoot?.mode ?? null,
-          shadowChildCount: icon.shadowRoot?.childElementCount ?? 0,
-          assignedSlot: icon.assignedSlot?.name ?? null,
-          rect: readNumericRect(icon),
-          clientWidth: icon.clientWidth,
-          clientHeight: icon.clientHeight,
-          computed: readComputedSnapshot(icon),
-        }
-      : null,
-  };
-}
-
-function readThemeSnapshot(targets: readonly HeaderActionDiagnosticTarget[]): Record<string, unknown> | null {
-  const theme = targets.find((target) => target.element)?.element?.closest('sp-theme') as HTMLElement | null;
-  if (!theme) {
-    return null;
-  }
-  return {
-    tagName: theme.tagName.toLowerCase(),
-    constructorName: theme.constructor.name,
-    isConnected: theme.isConnected,
-    shadowRootMode: theme.shadowRoot?.mode ?? null,
-    shadowChildCount: theme.shadowRoot?.childElementCount ?? 0,
-    attributes: Array.from(theme.attributes).map((attr) => `${attr.name}=${attr.value}`),
-    rect: readNumericRect(theme),
-    computed: readComputedSnapshot(theme),
-  };
-}
-
-function useProvidersHeaderDiagnostics(
-  active: boolean,
-  targets: readonly HeaderActionDiagnosticTarget[],
-): void {
-  const services = useAppServices();
-
-  useEffect(() => {
-    if (!active || !services.diagnostics) {
-      return;
-    }
-
-    let disposed = false;
-    let frameId: number | undefined;
-    let timerId: number | undefined;
-
-    const capture = (phase: string) => {
-      if (disposed) {
-        return;
-      }
-      void services.diagnostics?.checkpoint('uxp.ui.settings.providers_header.snapshot', {
-        phase,
-        definitions: {
-          spTheme: customElements.get('sp-theme')?.name ?? null,
-          spActionButton: customElements.get('sp-action-button')?.name ?? null,
-        },
-        theme: readThemeSnapshot(targets),
-        actions: targets.map((target) => ({
-          name: target.name,
-          snapshot: readElementSnapshot(target.element),
-        })),
-      });
-    };
-
-    capture('sync');
-    queueMicrotask(() => capture('microtask'));
-    frameId = window.requestAnimationFrame(() => capture('raf'));
-    timerId = window.setTimeout(() => capture('timeout_50ms'), 50);
-
-    return () => {
-      disposed = true;
-      if (frameId !== undefined) {
-        window.cancelAnimationFrame(frameId);
-      }
-      if (timerId !== undefined) {
-        window.clearTimeout(timerId);
-      }
-    };
-  }, [active, services, targets]);
 }
 
 function onRowKeyDown(event: KeyboardEvent<HTMLDivElement>, onOpen: () => void): void {
@@ -251,9 +118,6 @@ export function SettingsPage({
   promptOptimizerProfile,
   onOpenPromptOptimizer,
 }: SettingsPageProps) {
-  const backButtonRef = useRef<HTMLElement | null>(null);
-  const refreshButtonRef = useRef<HTMLElement | null>(null);
-  const addButtonRef = useRef<HTMLElement | null>(null);
   const { messages: t } = useI18n();
   const rows = profiles.map(profileToProviderRow);
   const optimizerRow = promptOptimizerProfile ? profileToProviderRow(promptOptimizerProfile) : null;
@@ -264,19 +128,11 @@ export function SettingsPage({
     needsSetup: t.common.needsSetup,
     configured: t.settings.configured,
   };
-  const headerTargets: readonly HeaderActionDiagnosticTarget[] = [
-    { name: 'back', element: backButtonRef.current },
-    { name: 'refresh', element: refreshButtonRef.current },
-    { name: 'add', element: addButtonRef.current },
-  ];
-
-  useProvidersHeaderDiagnostics(true, headerTargets);
 
   return (
     <div className="page page-enter">
       <header className="hdr">
         <ActionButton
-          ref={backButtonRef}
           data-testid="providers-back-button"
           className="hdr-btn"
           quiet
@@ -286,7 +142,6 @@ export function SettingsPage({
         </ActionButton>
         <div className="hdr-title">Providers</div>
         <ActionButton
-          ref={refreshButtonRef}
           data-testid="providers-refresh-button"
           className="hdr-btn"
           quiet
@@ -296,7 +151,6 @@ export function SettingsPage({
           <Icon name="refresh" slot="icon" />
         </ActionButton>
         <ActionButton
-          ref={addButtonRef}
           data-testid="providers-add-button"
           className="hdr-btn"
           quiet

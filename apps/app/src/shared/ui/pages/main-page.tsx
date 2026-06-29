@@ -176,6 +176,7 @@ export function MainPage({
   const [captureInFlight, setCaptureInFlight] = useState(false);
   const { toast, show, close } = useToast();
   const [copied, setCopied] = useState<Record<string, boolean>>({});
+  const [selectedPreviewIndexes, setSelectedPreviewIndexes] = useState<Record<string, number>>({});
   const [scrolledAway, setScrolledAway] = useState(false);
   const [optimizeState, setOptimizeState] = useState<OptimizeState>({ status: 'idle' });
   const convRef = useRef<HTMLDivElement>(null);
@@ -224,6 +225,27 @@ export function MainPage({
   }, [conversation.rounds, isAtBottom]);
 
   useEffect(() => {
+    setSelectedPreviewIndexes((current) => {
+      let changed = false;
+      const next: Record<string, number> = {};
+      for (const round of conversation.rounds) {
+        if (round.status !== 'ok' || round.previews.length <= 1) {
+          continue;
+        }
+        const clamped = Math.min(Math.max(current[round.id] ?? 0, 0), round.previews.length - 1);
+        next[round.id] = clamped;
+        if (current[round.id] !== clamped) {
+          changed = true;
+        }
+      }
+      if (Object.keys(current).length !== Object.keys(next).length) {
+        changed = true;
+      }
+      return changed ? next : current;
+    });
+  }, [conversation.rounds]);
+
+  useEffect(() => {
     const el = convRef.current;
     if (!el) return;
     function handleScroll() {
@@ -269,6 +291,30 @@ export function MainPage({
     setCopied((current) => ({ ...current, [id]: true }));
     window.setTimeout(() => setCopied((current) => ({ ...current, [id]: false })), 1500);
     restoreRound(round);
+  };
+
+  const previewIndexForRound = (round: ConversationRound): number => {
+    if (round.previews.length === 0) {
+      return 0;
+    }
+    return Math.min(Math.max(selectedPreviewIndexes[round.id] ?? 0, 0), round.previews.length - 1);
+  };
+
+  const selectPreview = (round: ConversationRound, previewIndex: number) => {
+    if (round.previews.length <= 1) {
+      return;
+    }
+    const nextIndex = Math.min(Math.max(previewIndex, 0), round.previews.length - 1);
+    setSelectedPreviewIndexes((current) => ({ ...current, [round.id]: nextIndex }));
+  };
+
+  const stepPreview = (round: ConversationRound, step: -1 | 1) => {
+    if (round.previews.length <= 1) {
+      return;
+    }
+    const currentIndex = previewIndexForRound(round);
+    const nextIndex = (currentIndex + step + round.previews.length) % round.previews.length;
+    selectPreview(round, nextIndex);
   };
 
   const scrollToBottom = () => {
@@ -460,6 +506,23 @@ export function MainPage({
     } catch (error) {
       show(error instanceof Error ? error.message : t.toast.placeFailed, 'negative');
     }
+  };
+
+  const downloadPreview = (round: ConversationRound, previewIndex = 0) => {
+    const preview = round.previews[previewIndex];
+    const href = preview?.url ?? '';
+    if (!href) {
+      show(t.toast.noPlaceableImage, 'info');
+      return;
+    }
+    const name = preview.asset.name ?? preview.label ?? `imagen-result-${previewIndex + 1}.png`;
+    const anchor = document.createElement('a');
+    anchor.href = href;
+    anchor.download = name;
+    anchor.rel = 'noopener';
+    document.body.appendChild(anchor);
+    anchor.click();
+    anchor.remove();
   };
 
   return (
@@ -669,52 +732,69 @@ export function MainPage({
                         <div className="img-result">
                           <div className="img-bg" style={{ background: 'var(--app-color-background-layer-2)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--app-color-text-muted)', fontSize: 12 }}>{t.main.noAssetPreview}</div>
                         </div>
-                      ) : round.previews.map((preview, index) => (
-                        <div key={`${round.id}-${index}`} className="img-result">
-                          {preview.url
-                            ? <img src={preview.url} className="img-bg" alt={preview.label} />
-                            : <div className="img-bg" style={{ background: 'var(--app-color-background-layer-2)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--app-color-text-muted)', fontSize: 12 }}>{t.main.noAssetPreview}</div>
-                          }
-                          <div className="img-meta">{round.outputSize ?? t.main.assetFallback} · {round.outputFormat ?? t.main.imageFallback}</div>
-                          <div className="img-overlay">
-                            <button className="img-act prim" onClick={(event) => { event.stopPropagation(); void placeAsset(round, index); }}>
-                              <span className="ui-icon-text">
-                                <Icon name="place-ps" size={13} className="ui-icon-text-icon" />
-                                <span className="ui-icon-text-label">{t.main.placePs}</span>
-                              </span>
-                            </button>
+                      ) : (() => {
+                        const selectedPreviewIndex = previewIndexForRound(round);
+                        const preview = round.previews[selectedPreviewIndex];
+                        const hasMultiplePreviews = round.previews.length > 1;
+                        return (
+                          <div className="img-result" data-testid={`result-preview-${round.id}`} data-preview-index={selectedPreviewIndex}>
+                            {preview.url
+                              ? <img src={preview.url} className="img-bg" alt={preview.label} />
+                              : <div className="img-bg" style={{ background: 'var(--app-color-background-layer-2)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--app-color-text-muted)', fontSize: 12 }}>{t.main.noAssetPreview}</div>
+                            }
+                            <div className="img-meta">{round.outputSize ?? t.main.assetFallback} · {round.outputFormat ?? t.main.imageFallback}</div>
+                            {hasMultiplePreviews && (
+                              <>
+                                <div className="img-count" data-testid={`result-preview-count-${round.id}`}>
+                                  {selectedPreviewIndex + 1} / {round.previews.length}
+                                </div>
+                                <button
+                                  type="button"
+                                  className="img-nav img-nav-prev"
+                                  data-testid={`result-preview-prev-${round.id}`}
+                                  aria-label="Previous image"
+                                  onClick={(event) => {
+                                    event.stopPropagation();
+                                    stepPreview(round, -1);
+                                  }}
+                                >
+                                  <Icon name="chevron-left" size={13} />
+                                </button>
+                                <button
+                                  type="button"
+                                  className="img-nav img-nav-next"
+                                  data-testid={`result-preview-next-${round.id}`}
+                                  aria-label="Next image"
+                                  onClick={(event) => {
+                                    event.stopPropagation();
+                                    stepPreview(round, 1);
+                                  }}
+                                >
+                                  <Icon name="chevron-right" size={13} />
+                                </button>
+                              </>
+                            )}
+                            <div className="img-overlay">
+                              <button className="img-act prim" onClick={(event) => { event.stopPropagation(); void placeAsset(round, selectedPreviewIndex); }}>
+                                <span className="ui-icon-text">
+                                  <Icon name="place-ps" size={13} className="ui-icon-text-icon" />
+                                  <span className="ui-icon-text-label">{t.main.placePs}</span>
+                                </span>
+                              </button>
+                            </div>
                           </div>
-                        </div>
-                      ))}
+                        );
+                      })()}
                     </div>
                     <div className="prov-actions">
                       <ActionButton
-                        data-testid={`result-place-button-${round.id}`}
-                        className="act-ico prim"
-                        quiet
-                        label={t.main.placePs}
-                        onClick={(event) => { event.stopPropagation(); void placeAsset(round, 0); }}
-                      >
-                        <Icon name="place-ps" slot="icon" />
-                      </ActionButton>
-                      <ActionButton
-                        data-testid={`result-regenerate-button-${round.id}`}
+                        data-testid={`result-download-button-${round.id}`}
                         className="act-ico"
                         quiet
-                        label={t.main.regenerate}
-                        disabled={conversation.running}
-                        onClick={(event) => { event.stopPropagation(); void conversation.retry(round.id); }}
+                        label={t.main.download}
+                        onClick={(event) => { event.stopPropagation(); downloadPreview(round, previewIndexForRound(round)); }}
                       >
-                        <Icon name="regenerate" slot="icon" />
-                      </ActionButton>
-                      <ActionButton
-                        data-testid={`result-copy-button-${round.id}`}
-                        className="act-ico"
-                        quiet
-                        label={t.main.copyPrompt}
-                        onClick={(event) => { event.stopPropagation(); handleCopy(`${round.id}-copy`, round); }}
-                      >
-                        {copied[`${round.id}-copy`] ? <Icon name="check" slot="icon" /> : <Icon name="copy" slot="icon" />}
+                        <Icon name="download" slot="icon" />
                       </ActionButton>
                     </div>
                   </div>

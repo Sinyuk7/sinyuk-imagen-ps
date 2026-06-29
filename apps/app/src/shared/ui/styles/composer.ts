@@ -8,7 +8,7 @@ export const COMPOSER_CSS = `
 
 /* Attachment row */
 .attach-row{
-  display:flex; align-items:flex-start; overflow-x:auto; padding-bottom:6px; scrollbar-width:none; flex-wrap:nowrap;
+  display:flex; align-items:flex-start; overflow-x:auto; padding:0 0 8px; scrollbar-width:none; flex-wrap:nowrap;
 }
 .attach-row::-webkit-scrollbar{ display:none; }
 .att-add{
@@ -36,7 +36,7 @@ export const COMPOSER_CSS = `
 .att-rm{
   position:absolute; top:2px; right:2px; width:16px; height:16px; border-radius:50%;
   background:rgba(0,0,0,.75); color:white; border:none; cursor:pointer;
-  display:flex; align-items:center; justify-content:center; font-size:11px; line-height:1;
+  display:flex; align-items:center; justify-content:center; padding:0; font-size:11px; line-height:16px; text-align:center;
 }
 .att-rm:hover{ background:var(--app-color-negative); }
 
@@ -119,6 +119,10 @@ export const COMPOSER_CSS = `
   flex-direction:column;
   max-height:100%;
   min-height:0;
+  background:var(--app-color-background-layer-2);
+  border:1px solid var(--app-color-border-default);
+  border-radius:var(--app-radius-large);
+  padding:8px;
 }
 .cmp-shell.off{ opacity:.38; pointer-events:none; }
 .cmp-attach-band{
@@ -126,14 +130,21 @@ export const COMPOSER_CSS = `
   display:flex;
   flex-direction:column;
   flex:0 0 auto;
-  min-height:58px;
-  margin-bottom:8px;
+  min-height:0;
+  margin-bottom:0;
 }
 .cmp-core{
-  width:100%; background:var(--app-color-background-layer-2); border:1px solid var(--app-color-border-default); border-radius:var(--app-radius-large);
-  padding:9px 10px 8px; display:flex; flex-direction:column; flex:0 1 auto; min-height:0;
+  width:100%;
+  background:transparent;
+  border:none;
+  border-radius:0;
+  padding:0;
+  display:flex;
+  flex-direction:column;
+  flex:0 1 auto;
+  min-height:0;
 }
-.cmp-core:focus-within{ border-color:var(--app-color-border-strong); }
+.cmp-shell:focus-within{ border-color:var(--app-color-border-strong); }
 .cmp-body{ display:flex; flex-direction:column; min-height:0; }
 .cmp-action-row,
 .cmp-toolbar{
@@ -143,7 +154,9 @@ export const COMPOSER_CSS = `
 }
 .cmp-action-row{ flex-wrap:nowrap; margin-top:8px; }
 .cmp-toolbar{
-  padding:4px 2px 0;
+  margin-top:8px;
+  padding:8px 2px 0;
+  border-top:1px solid var(--app-color-border-default);
   flex-wrap:nowrap;
   align-items:center;
   justify-content:space-between;
