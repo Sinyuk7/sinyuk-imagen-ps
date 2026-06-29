@@ -12,6 +12,7 @@ UXP HTML/CSS, Spectrum Web Components, or SWC wrapper question:
    - .local/share/uxp-photoshop
    - .local/share/uxp
    - .local/share/uxp-photoshop-plugin-samples
+   - ~/Users/sinyuk~/Documents/github/monorepo
 
 3. Use this authority order:
 
