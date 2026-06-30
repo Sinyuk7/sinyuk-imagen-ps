@@ -1,0 +1,131 @@
+apps/app/package.json
+  s_9533ece0fb6d1d::t_54c4d5a911793c 19
+apps/app/src/harness/components/motion-prototype/index.ts
+  s_9533ece0fb6d1d::t_14fa05cd826909 1
+apps/app/src/harness/components/motion-prototype/motion-prototype-harness.tsx
+  s_9533ece0fb6d1d::t_1ec456b28ba1a6 1-157
+apps/app/src/shared/ui/app-shell.tsx
+  s_9533ece0fb6d1d::t_652129cf3d6296 19,266-267,287-288,291-292,302-303,306-307,322-323,326-327,336-337,340-341,365-366
+apps/app/src/shared/ui/components/composer-select-menu.tsx
+  s_9533ece0fb6d1d::t_10eadc5138b962 8,10-11,24,26-27,78-80,84,90
+apps/app/src/shared/ui/components/composer-select.tsx
+  s_9533ece0fb6d1d::t_37b8b9e6d89059 7,95-113
+apps/app/src/shared/ui/components/motion-ui.tsx
+  s_9533ece0fb6d1d::t_e8c3e5e4f33519 1-189
+apps/app/src/shared/ui/components/toast-host.tsx
+  s_9533ece0fb6d1d::t_c857b5ec7b1191 2,74,76-82,87-117
+apps/app/src/shared/ui/i18n/messages.ts
+  s_9533ece0fb6d1d::t_a42af7bad026a8 48-49,193-194,338-339
+apps/app/src/shared/ui/motion/index.ts
+  s_9533ece0fb6d1d::t_4848f32383da0b 1-39
+apps/app/src/shared/ui/motion/motion-clock.ts
+  s_9533ece0fb6d1d::t_46bf8388b29338 1-59
+apps/app/src/shared/ui/motion/motion-controller.ts
+  s_9533ece0fb6d1d::t_44372f75327353 1-72
+apps/app/src/shared/ui/motion/motion-debug.ts
+  s_9533ece0fb6d1d::t_3d3fcad1d2b2fe 1-6
+apps/app/src/shared/ui/motion/motion-preference.ts
+  s_9533ece0fb6d1d::t_0b2aa34acdc51c 1-15
+apps/app/src/shared/ui/motion/motion-presence.ts
+  s_9533ece0fb6d1d::t_0783e2a4f02333 1-30
+apps/app/src/shared/ui/motion/motion-runtime.ts
+  s_9533ece0fb6d1d::t_692a6ad44ea09d 1-206
+apps/app/src/shared/ui/motion/motion-tokens.ts
+  s_9533ece0fb6d1d::t_76b7d99472432c 1-39
+apps/app/src/shared/ui/motion/motion-transform-guard.ts
+  s_454379689b8414::t_2e57e8636ab840 1-45
+apps/app/src/shared/ui/motion/motion-types.ts
+  s_9533ece0fb6d1d::t_a28767e56ed75f 1-52
+apps/app/src/shared/ui/motion/react/use-motion-controller.ts
+  s_9533ece0fb6d1d::t_11035d3d406a8a 1-12
+apps/app/src/shared/ui/motion/react/use-motion-preference.ts
+  s_9533ece0fb6d1d::t_b09f25e516cab5 1-21
+apps/app/src/shared/ui/motion/react/use-motion-presence.ts
+  s_9533ece0fb6d1d::t_c289bf7d293a19 1-66
+apps/app/src/shared/ui/motion/recipes/activity-pulse.ts
+  s_9533ece0fb6d1d::t_539582735eaa62 1-43
+apps/app/src/shared/ui/motion/recipes/attachment-presence.ts
+  s_9533ece0fb6d1d::t_32a6e26d55acb9 1-37
+apps/app/src/shared/ui/motion/recipes/button-state.ts
+  s_9533ece0fb6d1d::t_f3b428cd8dcab9 1-30
+apps/app/src/shared/ui/motion/recipes/content-crossfade.ts
+  s_9533ece0fb6d1d::t_6729a4d582b35e 1-22
+apps/app/src/shared/ui/motion/recipes/fade.ts
+  s_9533ece0fb6d1d::t_f6f8342008429e 1-22
+apps/app/src/shared/ui/motion/recipes/floating-control-presence.ts
+  s_9533ece0fb6d1d::t_8358791cb7d37d 1-22
+apps/app/src/shared/ui/motion/recipes/icon-crossfade.ts
+  s_9533ece0fb6d1d::t_be85f802137660 1-22
+apps/app/src/shared/ui/motion/recipes/image-reveal.ts
+  s_9533ece0fb6d1d::t_c4718318df23ee 1-20
+apps/app/src/shared/ui/motion/recipes/page-crossfade.ts
+  s_9533ece0fb6d1d::t_87a1d0a641ff28 1-23
+apps/app/src/shared/ui/motion/recipes/popover-presence.ts
+  s_9533ece0fb6d1d::t_ca8155db52358b 1-22
+apps/app/src/shared/ui/motion/recipes/recipe-utils.ts
+  s_9533ece0fb6d1d::t_2b08a550944b4a 1-134
+apps/app/src/shared/ui/motion/recipes/rotate-loop.ts
+  s_9533ece0fb6d1d::t_f8e55b27a76cc3 1-11
+apps/app/src/shared/ui/motion/recipes/scale-pop.ts
+  s_9533ece0fb6d1d::t_a62e53e287d39d 1-37
+apps/app/src/shared/ui/motion/recipes/slide-fade.ts
+  s_9533ece0fb6d1d::t_e28f4292dd8683 1-42
+apps/app/src/shared/ui/motion/recipes/surface-highlight.ts
+  s_9533ece0fb6d1d::t_9810c9933e4a2c 1-39
+apps/app/src/shared/ui/motion/recipes/toast-presence.ts
+  s_9533ece0fb6d1d::t_8c3bfd4a435c41 1-22
+apps/app/src/shared/ui/pages/main-page.tsx
+  s_9533ece0fb6d1d::t_e580c568236bbe 15-24,28,57-58,193-194,261-273,356,502,533,536-537,539-541,543,594-596,615-616,655-663,699,701,728,750-754,762,795,831-855,875,882,884-886,914-915,917-919,940-941,964,976,996-1019,1022,1024-1026,1028-1035,1037-1040,1042-1059,1106,1108-1123
+apps/app/src/shared/ui/pages/settings-add-page.tsx
+  s_9533ece0fb6d1d::t_08ea5acb0dce9a 6,128-149,152
+apps/app/src/shared/ui/pages/settings-page.tsx
+  s_9533ece0fb6d1d::t_ac7b4ddcde7756 5,70-87,89-100,102-107,110
+apps/app/src/shared/ui/styles/base.ts
+  s_9533ece0fb6d1d::t_f66bb9598c24f2 16-18
+apps/app/src/shared/ui/styles/composer.ts
+  s_9533ece0fb6d1d::t_f1cf6e8968b22a 128,149,237
+apps/app/src/shared/ui/styles/conversation.ts
+  s_9533ece0fb6d1d::t_ffe62883f1c6c6 8,13-21,165
+apps/app/src/shared/ui/styles/overlays.ts
+  s_9533ece0fb6d1d::t_d2b95cb0d6ee63 15
+apps/app/src/shared/ui/styles/shell.ts
+  s_9533ece0fb6d1d::t_6f08632475c18a 9
+apps/app/src/shells/chrome/main.tsx
+  s_9533ece0fb6d1d::t_6e7caa36ce59ad 7,9,11,43-45
+apps/app/tests/bundle/uxp-dist-bundle.test.ts
+  s_9533ece0fb6d1d::t_0e44ed9a22bad6 59,63,67-68
+apps/app/tests/main-page.test.tsx
+  s_9533ece0fb6d1d::t_321ed51697479a 7,207-247
+apps/app/tests/motion-runtime.test.ts
+  s_9533ece0fb6d1d::t_6d884e646475b0 1-87
+apps/app/vite.base.config.ts
+  s_454379689b8414::t_5e0c8e147a984e 6-8
+docs/dev-memory/memories/architecture/uxp-motion-system.md
+  s_9533ece0fb6d1d::t_c4d950a855716b 1-61
+pnpm-lock.yaml
+  s_9533ece0fb6d1d::t_e19add6487d85b 26-28,470-472,1132-1133
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.3",
+  "base_commit_sha": "ec38405a13b81845d2d17d268e21a7cbed051a7d",
+  "prompts": {},
+  "sessions": {
+    "s_454379689b8414": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "019f14c8-c456-7f82-a564-c0cdf6647eb8",
+        "model": "unknown"
+      },
+      "human_author": "Sinyuk <80998062@qq.com>"
+    },
+    "s_9533ece0fb6d1d": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "019f14c9-4ab0-70f2-b5aa-3d9a616d4d87",
+        "model": "unknown"
+      },
+      "human_author": "Sinyuk <80998062@qq.com>"
+    }
+  }
+}
