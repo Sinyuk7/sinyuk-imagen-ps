@@ -28,6 +28,18 @@ surface apps -> application/session -> core-engine + providers
 - `packages/application` is the shared application/session package.
 - `apps/app` and `packages/providers` are stable boundaries unless a loop slice explicitly allows changes.
 - `apps/app` is a dual-runtime surface: one shared UXP-safe React UI consumed by a Photoshop UXP shell and a Chrome browser shell. See `apps/app/AGENTS.md` and `apps/app/README.md`.
+- Product history is task-oriented. `TaskRecord` is the durable user-task
+  history contract; `DurableJobRecord` remains execution/job compatibility
+  history. A send creates a running task, terminal provider execution updates
+  the same `taskId`, and retry/regenerate creates a new task.
+- Task records store only serializable, secret-free evidence and opaque
+  resource refs. Preview/download/place availability is resolved dynamically
+  through app resource resolvers; missing or evicted resources must not corrupt
+  the history list.
+- Photoshop placement replay is app/host-owned. Durable placement evidence is
+  matched against current Photoshop runtime state before any write, and weak,
+  ambiguous, missing, or dimension-mismatched targets do not write to
+  Photoshop.
 
 ## Logging Contract
 
@@ -45,6 +57,9 @@ surface apps -> application/session -> core-engine + providers
 - Default validation is mock-only and reproducible. It does not prove real Photoshop / UXP host behavior, real provider transport, CORS behavior, or live credential flows.
 - Chrome real-provider execution is conditional on browser-compatible transport and provider CORS policy; only the `mock` family is repo-side default.
 - UXP host behavior (panel load/reload, layer/mask read, file picker, `placeEvent`, persistence across Photoshop restart) remains manual-only evidence.
+- Restart/reopen history placement through real Photoshop remains manual-only
+  evidence. Mock tests and Chrome E2E can prove contract behavior, but not real
+  Photoshop document identity after app or host restart.
 - `pnpm lint` is not a supported gate; workspace packages do not define package-level lint scripts.
 
 ## Open Questions

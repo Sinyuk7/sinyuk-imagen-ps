@@ -5,6 +5,7 @@ import {
   setJobHistoryStore,
   setProviderProfileRepository,
   setSecretStorageAdapter,
+  setTaskStore,
   submitJob,
   type ProviderDescriptor,
 } from '@imagen-ps/application';
@@ -87,6 +88,7 @@ export async function runChromeFeasibilityRuntime(options?: {
   setProviderProfileRepository(storage.profiles);
   setSecretStorageAdapter(storage.secrets);
   setJobHistoryStore(storage.history);
+  setTaskStore(storage.tasks);
   setAssetStore(storage.assets);
 
   const providers = listProviders();

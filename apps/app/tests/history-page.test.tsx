@@ -1,10 +1,11 @@
 import { act } from 'react';
 import { createRoot, type Root } from 'react-dom/client';
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import type { DurableJobRecord } from '@imagen-ps/application';
+import type { TaskRecord } from '@imagen-ps/application';
+import type { TaskResourceResolverPort } from '../src/shared/ports/app-services';
 import type { ConversationRound } from '../src/shared/ui/hooks/use-conversation';
 import { HistoryPage } from '../src/shared/ui/pages/history-page';
-import { fakeAsset, fakeDurableRecord } from './fakes';
+import { fakeAsset, fakeTaskRecord } from './fakes';
 import { TestI18nProvider } from './render-helpers';
 
 let root: Root | undefined;
@@ -21,8 +22,10 @@ afterEach(async () => {
 describe('HistoryPage', () => {
   async function renderHistory(input: {
     readonly rounds?: readonly ConversationRound[];
-    readonly records?: readonly DurableJobRecord[];
+    readonly records?: readonly TaskRecord[];
+    readonly taskResources?: TaskResourceResolverPort;
     readonly onRetry?: (roundId: string) => Promise<void>;
+    readonly onPlaceTaskOutput?: (record: TaskRecord, outputId: string) => Promise<void>;
     readonly onLocateRound?: (roundId: string) => void;
     readonly onMiss?: () => void;
   } = {}): Promise<HTMLDivElement> {
@@ -36,10 +39,12 @@ describe('HistoryPage', () => {
           <HistoryPage
             onNav={vi.fn()}
             rounds={input.rounds ?? []}
-            records={input.records ?? [fakeDurableRecord]}
+            records={input.records ?? [fakeTaskRecord]}
             loading={false}
             onReload={vi.fn(async () => undefined)}
             onRetry={input.onRetry ?? vi.fn(async () => undefined)}
+            taskResources={input.taskResources}
+            onPlaceTaskOutput={input.onPlaceTaskOutput}
             onLocateRound={input.onLocateRound}
             onMiss={input.onMiss}
           />
@@ -50,11 +55,11 @@ describe('HistoryPage', () => {
     return container;
   }
 
-  it('renders durable job records from application history', async () => {
+  it('renders durable task records from application history', async () => {
     const container = await renderHistory();
 
     expect(container.textContent).toContain('history prompt');
-    expect(container.textContent).toContain('mock-profile');
+    expect(container.textContent).toContain('Mock Profile');
     expect(container.textContent).toContain('完成');
   });
 
@@ -70,7 +75,7 @@ describe('HistoryPage', () => {
       attachments: [],
     };
 
-    const container = await renderHistory({ rounds: [runningRound], records: [fakeDurableRecord] });
+    const container = await renderHistory({ rounds: [runningRound], records: [fakeTaskRecord] });
 
     expect(container.textContent).toContain('running prompt');
     expect(container.textContent).toContain('history prompt');
@@ -88,16 +93,18 @@ describe('HistoryPage', () => {
       previews: [],
       attachments: [],
     };
-    const failedRecord: DurableJobRecord = {
-      ...fakeDurableRecord,
-      jobId: 'job-history-failed',
+    const failedRecord: TaskRecord = {
+      ...fakeTaskRecord,
+      taskId: 'task-history-failed',
       status: 'failed',
-      input: { profileId: 'mock-profile', prompt: 'failed durable prompt' },
+      prompt: 'failed durable prompt',
+      outputs: [],
       updatedAt: '2026-06-15T00:00:02.000Z',
       error: { category: 'provider', message: 'failed' },
+      finishedAt: '2026-06-15T00:00:02.000Z',
     };
 
-    const container = await renderHistory({ rounds: [runningRound], records: [fakeDurableRecord, failedRecord] });
+    const container = await renderHistory({ rounds: [runningRound], records: [fakeTaskRecord, failedRecord] });
 
     const filters = Array.from(container.querySelectorAll<HTMLButtonElement>('.fchip'));
 
@@ -178,13 +185,152 @@ describe('HistoryPage', () => {
     const onLocateRound = vi.fn();
     const onMiss = vi.fn();
 
-    const container = await renderHistory({ records: [fakeDurableRecord], onLocateRound, onMiss });
+    const container = await renderHistory({ records: [fakeTaskRecord], onLocateRound, onMiss });
 
     await act(async () => {
-      container.querySelector<HTMLElement>('[data-testid="history-row-job-history-1"]')!.click();
+      container.querySelector<HTMLElement>('[data-testid="history-row-task-history-1"]')!.click();
     });
 
     expect(onLocateRound).not.toHaveBeenCalled();
     expect(onMiss).toHaveBeenCalled();
+  });
+
+  it('resolves task output previews and downloads available bytes', async () => {
+    const resolver: TaskResourceResolverPort = {
+      resolve: vi.fn(async () => ({
+        resource: fakeTaskRecord.outputs[0]!.asset,
+        availability: 'available',
+        bytes: new Uint8Array([1, 2, 3]).buffer,
+        preview: { url: 'blob:history-preview', dispose: vi.fn() },
+      })),
+    };
+    const createObjectURL = vi.spyOn(URL, 'createObjectURL').mockReturnValue('blob:download');
+    const revokeObjectURL = vi.spyOn(URL, 'revokeObjectURL').mockImplementation(() => undefined);
+    const click = vi.spyOn(HTMLAnchorElement.prototype, 'click').mockImplementation(() => undefined);
+
+    const container = await renderHistory({ records: [fakeTaskRecord], taskResources: resolver });
+    await act(async () => {
+      await Promise.resolve();
+    });
+
+    expect(container.querySelector<HTMLImageElement>('img')?.src).toBe('blob:history-preview');
+    await act(async () => {
+      container.querySelector<HTMLButtonElement>('[data-testid="history-download-button-task-history-1"]')!.click();
+    });
+
+    expect(click).toHaveBeenCalledTimes(1);
+    expect(createObjectURL).toHaveBeenCalledTimes(1);
+    expect(revokeObjectURL).toHaveBeenCalledWith('blob:download');
+
+    createObjectURL.mockRestore();
+    revokeObjectURL.mockRestore();
+    click.mockRestore();
+  });
+
+  it('preserves stable durable output order across history rows', async () => {
+    const record: TaskRecord = {
+      ...fakeTaskRecord,
+      outputs: [
+        fakeTaskRecord.outputs[0]!,
+        {
+          ...fakeTaskRecord.outputs[0]!,
+          outputId: 'task-history-1:output:1',
+          index: 1,
+          asset: { ref: { kind: 'hostObject', ref: 'history-asset-2', name: 'history-2.png', mimeType: 'image/png' } },
+        },
+      ],
+    };
+    const resolver: TaskResourceResolverPort = {
+      resolve: vi.fn(async (resource) => ({
+        resource,
+        availability: 'available',
+        bytes: new Uint8Array([1, 2, 3]).buffer,
+        preview: { url: `blob:${resource.ref.ref}` },
+      })),
+    };
+
+    const container = await renderHistory({ records: [record], taskResources: resolver });
+    await act(async () => {
+      await Promise.resolve();
+    });
+
+    expect(Array.from(container.querySelectorAll('[data-testid^="history-row-"]')).map((row) => row.getAttribute('data-testid'))).toEqual([
+      'history-row-task-history-1:task-history-1:output:0',
+      'history-row-task-history-1:task-history-1:output:1',
+    ]);
+    expect(Array.from(container.querySelectorAll<HTMLImageElement>('img')).map((image) => image.src)).toEqual([
+      'blob:history-asset-1',
+      'blob:history-asset-2',
+    ]);
+  });
+
+  it('keeps unavailable durable resources visible without a valid download', async () => {
+    const resolver: TaskResourceResolverPort = {
+      resolve: vi.fn(async () => ({
+        resource: fakeTaskRecord.outputs[0]!.asset,
+        availability: 'missing',
+      })),
+    };
+    const click = vi.spyOn(HTMLAnchorElement.prototype, 'click').mockImplementation(() => undefined);
+
+    const container = await renderHistory({ records: [fakeTaskRecord], taskResources: resolver });
+    await act(async () => {
+      await Promise.resolve();
+    });
+
+    expect(container.querySelector('[data-testid="history-row-task-history-1"]')).not.toBeNull();
+    await act(async () => {
+      container.querySelector<HTMLButtonElement>('[data-testid="history-download-button-task-history-1"]')!.click();
+    });
+    expect(click).not.toHaveBeenCalled();
+    expect(container.textContent).toContain('资源不可用');
+
+    click.mockRestore();
+  });
+
+  it('keeps remote-only URL outputs visible and unavailable for download', async () => {
+    const record: TaskRecord = {
+      ...fakeTaskRecord,
+      outputs: [{
+        ...fakeTaskRecord.outputs[0]!,
+        asset: { ref: { kind: 'url', ref: 'https://example.test/output.png', name: 'output.png', mimeType: 'image/png' } },
+      }],
+    };
+    const click = vi.spyOn(HTMLAnchorElement.prototype, 'click').mockImplementation(() => undefined);
+
+    const container = await renderHistory({ records: [record] });
+    await act(async () => {
+      await Promise.resolve();
+    });
+
+    expect(container.querySelector<HTMLImageElement>('img')?.src).toBe('https://example.test/output.png');
+    await act(async () => {
+      container.querySelector<HTMLButtonElement>('[data-testid="history-download-button-task-history-1"]')!.click();
+    });
+    expect(click).not.toHaveBeenCalled();
+    expect(container.textContent).toContain('资源不可用');
+
+    click.mockRestore();
+  });
+
+  it('routes durable task placement through the supplied task action', async () => {
+    const resolver: TaskResourceResolverPort = {
+      resolve: vi.fn(async () => ({
+        resource: fakeTaskRecord.outputs[0]!.asset,
+        availability: 'available',
+        bytes: new Uint8Array([1, 2, 3]).buffer,
+      })),
+    };
+    const onPlaceTaskOutput = vi.fn(async () => undefined);
+
+    const container = await renderHistory({ records: [fakeTaskRecord], taskResources: resolver, onPlaceTaskOutput });
+    await act(async () => {
+      await Promise.resolve();
+    });
+    await act(async () => {
+      container.querySelector<HTMLButtonElement>('[data-testid="history-place-button-task-history-1"]')!.click();
+    });
+
+    expect(onPlaceTaskOutput).toHaveBeenCalledWith(fakeTaskRecord, 'task-history-1:output:0');
   });
 });

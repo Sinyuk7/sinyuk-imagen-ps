@@ -1,3 +1,4 @@
+import { decodeTaskRecord } from '@imagen-ps/application';
 import type {
   AssetStore,
   DurableJobRecord,
@@ -6,6 +7,8 @@ import type {
   ProviderProfileRepository,
   SecretStorageAdapter,
   StoredAssetRef,
+  TaskRecord,
+  TaskStore,
 } from '@imagen-ps/application';
 
 export function createInMemoryProviderProfileRepository(): ProviderProfileRepository {
@@ -58,6 +61,30 @@ export function createInMemoryJobHistoryStore(): JobHistoryStore {
     },
     async delete(jobId: string): Promise<void> {
       records.delete(jobId);
+    },
+  };
+}
+
+export function createInMemoryTaskStore(): TaskStore {
+  const records = new Map<string, TaskRecord>();
+  return {
+    async put(record: TaskRecord): Promise<void> {
+      records.set(record.taskId, record);
+    },
+    async get(taskId: string): Promise<TaskRecord | undefined> {
+      return records.get(taskId);
+    },
+    async list(query?: { readonly limit?: number; readonly status?: string }): Promise<readonly TaskRecord[]> {
+      const values = Array.from(records.values())
+        .map((record) => decodeTaskRecord(record))
+        .filter((result): result is { readonly ok: true; readonly value: TaskRecord } => result.ok)
+        .map((result) => result.value)
+        .filter((record) => query?.status === undefined || record.status === query.status)
+        .sort((a, b) => b.updatedAt.localeCompare(a.updatedAt));
+      return typeof query?.limit === 'number' ? values.slice(0, query.limit) : values;
+    },
+    async delete(taskId: string): Promise<void> {
+      records.delete(taskId);
     },
   };
 }

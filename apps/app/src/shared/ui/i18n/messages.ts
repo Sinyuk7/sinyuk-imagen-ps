@@ -85,6 +85,9 @@ export interface AppMessages {
     readonly noPrompt: string;
     readonly unknownProvider: string;
     readonly retry: string;
+    readonly download: string;
+    readonly place: string;
+    readonly resourceUnavailable: string;
   };
   readonly settings: {
     readonly configured: string;
@@ -228,6 +231,9 @@ const EN_MESSAGES: AppMessages = {
     noPrompt: '(no prompt)',
     unknownProvider: 'unknown',
     retry: 'Retry',
+    download: 'Download',
+    place: 'Place in Photoshop',
+    resourceUnavailable: 'Resource unavailable',
   },
   settings: {
     configured: 'Configured',
@@ -371,6 +377,9 @@ const ZH_CN_MESSAGES: AppMessages = {
     noPrompt: '(no prompt)',
     unknownProvider: 'unknown',
     retry: '重试',
+    download: '下载',
+    place: '放入 Photoshop',
+    resourceUnavailable: '资源不可用',
   },
   settings: {
     configured: '已配置',

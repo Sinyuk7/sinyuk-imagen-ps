@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import type { DurableJobRecord, ProviderProfile } from '@imagen-ps/application';
+import type { DurableJobRecord, ProviderProfile, TaskRecord } from '@imagen-ps/application';
 import { createChromeHostPort } from '../src/adapters/chrome/chrome-host-port';
 import { createChromeIndexedDbStorage, createMemoryIndexedDbBackend } from '../src/adapters/chrome/indexed-db-storage';
 import { runChromeFeasibilityRuntime } from '../src/composition/chrome/chrome-feasibility-runtime';
@@ -23,9 +23,32 @@ function sampleProfile(): ProviderProfile {
   };
 }
 
+function sampleTask(overrides: Partial<TaskRecord> = {}): TaskRecord {
+  return {
+    schemaVersion: 1,
+    taskId: 'task-1',
+    status: 'completed',
+    operation: 'text-to-image',
+    prompt: 'history prompt',
+    attachments: [],
+    outputs: [{
+      outputId: 'out-1',
+      index: 0,
+      kind: 'image',
+      asset: { ref: { kind: 'hostObject', ref: 'history-asset-1', mimeType: 'image/png' } },
+    }],
+    placement: { kind: 'unbound', reason: 'no-photoshop-source' },
+    createdAt: '2026-06-25T00:00:00.000Z',
+    updatedAt: '2026-06-25T00:00:01.000Z',
+    finishedAt: '2026-06-25T00:00:01.000Z',
+    ...overrides,
+  };
+}
+
 describe('Chrome adapter contracts', () => {
   it('persists profiles, history, secrets, and binary assets through the IndexedDB adapter boundary', async () => {
-    const storage = createChromeIndexedDbStorage({ backend: createMemoryIndexedDbBackend() });
+    const backend = createMemoryIndexedDbBackend();
+    const storage = createChromeIndexedDbStorage({ backend });
     const profile = sampleProfile();
     await storage.profiles.save(profile);
     await storage.secrets.setSecret('secret:chrome-profile:apiKey', 'mock-key');
@@ -41,11 +64,24 @@ describe('Chrome adapter contracts', () => {
       updatedAt: '2026-06-25T00:00:01.000Z',
     };
     await storage.history.put(record);
+    const task = sampleTask();
+    await storage.tasks.put(task);
+    await storage.tasks.put({ ...sampleTask({
+      taskId: 'running-task',
+      status: 'running',
+      outputs: [],
+      finishedAt: undefined,
+      updatedAt: '2026-06-25T00:00:02.000Z',
+    }) });
+    await backend.put('tasks', 'bad-task', { ...sampleTask({ taskId: 'bad-task' }), schemaVersion: 999 });
 
     expect(await storage.profiles.get(profile.profileId)).toEqual(profile);
     expect(await storage.secrets.getSecret('secret:chrome-profile:apiKey')).toBe('mock-key');
     expect(new Uint8Array((await storage.assets.resolve(assetRef)) ?? new ArrayBuffer(0))).toEqual(new Uint8Array([1, 2, 3]));
     expect(await storage.history.list()).toEqual([record]);
+    expect(await storage.tasks.get('task-1')).toEqual(task);
+    expect((await storage.tasks.list()).map((item) => item.taskId)).toEqual(['running-task', 'task-1']);
+    expect(await storage.tasks.list({ status: 'completed' })).toEqual([task]);
   });
 
   it('uses File API upload to create a HostImageAsset accepted by the shared submit flow', async () => {

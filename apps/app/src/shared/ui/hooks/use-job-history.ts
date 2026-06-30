@@ -1,19 +1,19 @@
 import { useCallback, useEffect, useState } from 'react';
-import type { DurableJobRecord } from '@imagen-ps/application';
+import type { TaskRecord } from '@imagen-ps/application';
 import type { AppServices } from '../../ports/app-services';
 
-type JobHistoryStatus = 'completed' | 'failed';
+type JobHistoryStatus = TaskRecord['status'];
 
 export interface JobHistoryState {
-  readonly records: readonly DurableJobRecord[];
+  readonly records: readonly TaskRecord[];
   readonly loading: boolean;
   readonly error?: string;
   readonly reload: () => Promise<void>;
 }
 
-/** 从 application durable history command 读取历史 job record。 */
+/** 从 application durable task command 读取 product history。 */
 export function useJobHistory(services: AppServices, status?: JobHistoryStatus): JobHistoryState {
-  const [records, setRecords] = useState<readonly DurableJobRecord[]>([]);
+  const [records, setRecords] = useState<readonly TaskRecord[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | undefined>();
 
@@ -21,7 +21,7 @@ export function useJobHistory(services: AppServices, status?: JobHistoryStatus):
     setLoading(true);
     setError(undefined);
     try {
-      const next = await services.commands.listJobHistoryRecords({
+      const next = await services.commands.listTaskRecords({
         limit: 50,
         ...(status !== undefined ? { status } : {}),
       });

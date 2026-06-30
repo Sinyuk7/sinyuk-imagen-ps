@@ -4,7 +4,7 @@
  * 本模块定义 commands 层的公共类型契约。
  */
 
-import type { DurableJobRecord, JobError, JobEvent, JobInput, JobStatus, StoredAssetRef } from '@imagen-ps/core-engine';
+import type { DurableJobRecord, JobError, JobEvent, JobInput, JobStatus, StoredAssetRef, TaskRecord, TaskStatus } from '@imagen-ps/core-engine';
 import type {
   ProviderDescriptor as _ProviderDescriptor,
   ProviderConfig as _ProviderConfig,
@@ -14,7 +14,31 @@ import type {
 
 // Re-export provider types for commands layer consumers
 export type { ProviderDescriptor, ProviderConfig, ProviderFamily, ProviderModelInfo } from '@imagen-ps/providers';
-export type { Asset, DurableJobRecord, Job, JobError, JobEvent, JobStatus, StoredAssetRef, Unsubscribe } from '@imagen-ps/core-engine';
+export type {
+  Asset,
+  DecodeTaskRecordResult,
+  DurableJobRecord,
+  FileEvidence,
+  Job,
+  JobError,
+  JobEvent,
+  JobStatus,
+  Rect,
+  ResolvedPreview,
+  ResolvedTaskResource,
+  StoredAssetRef,
+  TaskAttachment,
+  TaskEvidence,
+  TaskError,
+  TaskExecutionSnapshot,
+  TaskOperation,
+  TaskOutput,
+  TaskPlacement,
+  TaskRecord,
+  TaskResourceRef,
+  TaskStatus,
+  Unsubscribe,
+} from '@imagen-ps/core-engine';
 
 // 为本模块内部使用引入类型别名
 type ProviderConfig = _ProviderConfig;
@@ -139,6 +163,14 @@ export interface JobHistoryStore {
   get(jobId: string): Promise<DurableJobRecord | undefined>;
   list(query?: { readonly limit?: number; readonly status?: JobStatus }): Promise<readonly DurableJobRecord[]>;
   delete(jobId: string): Promise<void>;
+}
+
+/** Host-injected durable task store. Upsert is keyed by taskId. */
+export interface TaskStore {
+  put(record: TaskRecord): Promise<void>;
+  get(taskId: string): Promise<TaskRecord | undefined>;
+  list(query?: { readonly limit?: number; readonly status?: TaskStatus }): Promise<readonly TaskRecord[]>;
+  delete(taskId: string): Promise<void>;
 }
 
 /** Host-injected binary asset store. Implementations own host-specific object resolution. */

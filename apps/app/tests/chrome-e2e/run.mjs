@@ -556,11 +556,12 @@ async function historyFiltersScenario({ page, url, capture }) {
   });
   await page.getByTestId('history-filter-running').click();
   await checkpoint(page, capture, '33-history-running-filter.png', async () => {
-    await expectVisibleText(page, 'running history prompt');
+    await expectVisibleText(page, 'No history yet');
   });
   await page.getByTestId('history-filter-err').click();
   await checkpoint(page, capture, '34-history-failed-filter.png', async () => {
     await expectVisibleText(page, 'failed history prompt');
+    await expectVisibleText(page, 'running history prompt');
     await expectVisibleText(page, 'Retry');
   });
   await page.getByTestId('history-refresh-button').click();
@@ -1027,7 +1028,7 @@ const scenarios = [
     tags: ['main-history'],
     path: '/index.html?testHarness=1&storage=memory&seedProfile=mock&seedHistory=1&scenario=seeded-document',
     screenshotName: '34-history-failed-filter.png',
-    assertions: ['history all filter visible', 'done filter visible', 'running filter visible', 'failed filter visible', 'back returns main', 'no console/page/network errors'],
+    assertions: ['history all filter visible', 'done filter visible', 'stale running projects to non-running', 'failed filter visible', 'back returns main', 'no console/page/network errors'],
     run: historyFiltersScenario,
   },
   {

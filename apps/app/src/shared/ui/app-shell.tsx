@@ -16,6 +16,8 @@ import { SettingsAddPage } from './pages/settings-add-page';
 import { SettingsDetailPage } from './pages/settings-detail-page';
 import { I18nProvider, useI18n } from './i18n/i18n-context';
 import { ensurePanelCss } from './panel-bootstrap';
+import { placeTaskOutputOnCanvas } from '../domain/task-actions';
+import type { TaskRecord } from '@imagen-ps/application';
 
 export interface AppShellHost {
   readonly app: PluginAppModel;
@@ -251,6 +253,17 @@ function AppShellContent({ host }: AppShellProps) {
     setView('main');
   }, []);
 
+  const onPlaceTaskOutput = useCallback(async (record: TaskRecord, outputId: string) => {
+    const taskResources = services.taskResources;
+    if (!taskResources || !services.host.capabilities.canPlaceAssetOnCanvas) {
+      throw new Error(t.history.resourceUnavailable);
+    }
+    await placeTaskOutputOnCanvas(record, outputId, {
+      taskResources,
+      host: services.host,
+    });
+  }, [services.host, services.taskResources, t.history.resourceUnavailable]);
+
   useEffect(() => {
     if (!highlightedRoundId) {
       return;
@@ -293,6 +306,8 @@ function AppShellContent({ host }: AppShellProps) {
           error={history.error}
           onReload={history.reload}
           onRetry={conversation.retry}
+          taskResources={services.taskResources}
+          onPlaceTaskOutput={onPlaceTaskOutput}
           onLocateRound={onLocateRound}
           onMiss={onHistoryMiss}
         />

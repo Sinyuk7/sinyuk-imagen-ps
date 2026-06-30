@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import type { DurableJobRecord, ProviderProfile } from '@imagen-ps/application';
+import type { DurableJobRecord, ProviderProfile, TaskRecord } from '@imagen-ps/application';
 import { decodeLogRecords } from '@imagen-ps/foundation';
-import { createUxpAssetStore, createUxpJobHistoryStore } from './uxp-job-history-adapter';
+import { createUxpAssetStore, createUxpJobHistoryStore, createUxpTaskStore } from './uxp-job-history-adapter';
 import { createUxpLogSink } from './uxp-log-sink';
 import { createUxpProviderProfileRepository } from './uxp-provider-profile-repository';
 import { createUxpSecretStorageAdapter } from './uxp-secret-storage-adapter';
@@ -137,6 +137,28 @@ function makeLogRecord(event: string, spanId = 'sp_1') {
     component: 'sink',
     trace_id: 'tr_1',
     span_id: spanId,
+  };
+}
+
+function sampleTask(overrides: Partial<TaskRecord> = {}): TaskRecord {
+  return {
+    schemaVersion: 1,
+    taskId: 'task-1',
+    status: 'completed',
+    operation: 'text-to-image',
+    prompt: 'history prompt',
+    attachments: [],
+    outputs: [{
+      outputId: 'out-1',
+      index: 0,
+      kind: 'image',
+      asset: { ref: { kind: 'hostObject', ref: 'history-asset-1', mimeType: 'image/png' } },
+    }],
+    placement: { kind: 'unbound', reason: 'no-photoshop-source' },
+    createdAt: '2026-06-25T00:00:00.000Z',
+    updatedAt: '2026-06-25T00:00:01.000Z',
+    finishedAt: '2026-06-25T00:00:01.000Z',
+    ...overrides,
   };
 }
 
@@ -415,6 +437,49 @@ describe('fake UXP host adapters', () => {
     expect(await store.list({ limit: 1 })).toEqual([second]);
     await store.delete('job-1');
     expect(await store.get('job-1')).toBeUndefined();
+  });
+
+  it('在 task history JSON 中隔离坏记录并按 taskId upsert', async () => {
+    const stored = createFakeDataFolder({
+      'task-history.json': new MutableFakeFile('task-history.json', JSON.stringify({
+        schemaVersion: 1,
+        records: [
+          { schemaVersion: 999, taskId: 'old-task' },
+          { schemaVersion: 1, taskId: '', status: 'completed' },
+        ],
+      })),
+    });
+    const modules: UxpModules = {
+      uxp: {
+        storage: {
+          localFileSystem: {
+            formats: { utf8: 'utf8', binary: 'binary' },
+            async getDataFolder() {
+              return stored.folder;
+            },
+          },
+        },
+      },
+    };
+    const store = createUxpTaskStore(modules);
+    const first = sampleTask();
+    const second = sampleTask({
+      taskId: 'task-2',
+      status: 'running',
+      outputs: [],
+      finishedAt: undefined,
+      updatedAt: '2026-06-25T00:00:02.000Z',
+    });
+
+    await store.put(first);
+    await store.put(second);
+    await store.put({ ...first, prompt: 'updated prompt', updatedAt: '2026-06-25T00:00:03.000Z' });
+
+    expect(await store.get('task-1')).toMatchObject({ prompt: 'updated prompt' });
+    expect((await store.list()).map((record) => record.taskId)).toEqual(['task-1', 'task-2']);
+    expect(await store.list({ status: 'completed' })).toMatchObject([{ taskId: 'task-1' }]);
+    await store.delete('task-1');
+    expect(await store.get('task-1')).toBeUndefined();
   });
 
   it('把二进制 asset 写入 data folder 并返回 opaque hostObject ref', async () => {

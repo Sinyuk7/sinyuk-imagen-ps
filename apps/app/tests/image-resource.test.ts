@@ -1,8 +1,9 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import type { Asset, StoredAssetRef } from '@imagen-ps/application';
 import { createHostImageAsset } from '../src/shared/domain/host-image-asset';
 import { imageResourceFromAttachment, imageResourceFromHostImage, type ImageResource } from '../src/shared/domain/image-resource';
 import type { PhotoshopCapturePlacement } from '../src/shared/domain/photoshop-placement';
+import { createTaskResourceResolver } from '../src/shared/image/task-resource-resolver';
 
 const hostRef: StoredAssetRef = {
   kind: 'hostObject',
@@ -167,5 +168,38 @@ describe('image resource contract', () => {
     });
     expect(resource.derivatives.thumbnail).not.toBe(resource.derivatives.providerInput);
     expectNoInlinePayload(resource);
+  });
+
+  it('resolves task resources with dynamic availability and disposable previews', async () => {
+    const release = vi.fn();
+    const resolver = createTaskResourceResolver({
+      async resolveStoredRef(ref) {
+        return ref.ref === 'provider-output-1' ? new Uint8Array([1, 2, 3]).buffer : undefined;
+      },
+      createPreviewUrl(bytes, mimeType) {
+        expect(bytes).toEqual(new Uint8Array([1, 2, 3]));
+        expect(mimeType).toBe('image/png');
+        return { url: 'blob:task-preview-1', release };
+      },
+    });
+
+    const available = await resolver.resolve({
+      ref: { kind: 'hostObject', ref: 'provider-output-1', mimeType: 'image/png' },
+    });
+    expect(available.availability).toBe('available');
+    expect(available.preview?.url).toBe('blob:task-preview-1');
+    available.preview?.dispose?.();
+    expect(release).toHaveBeenCalledTimes(1);
+
+    await expect(resolver.resolve({ ref: { kind: 'hostObject', ref: 'missing-output' } })).resolves.toMatchObject({
+      availability: 'missing',
+    });
+    await expect(resolver.resolve({ ref: { kind: 'url', ref: 'https://example.test/out.png' } })).resolves.toMatchObject({
+      availability: 'remote-only',
+      preview: { url: 'https://example.test/out.png' },
+    });
+    await expect(resolver.resolve({ ref: { kind: 'externalToken', ref: 'file-token' } })).resolves.toMatchObject({
+      availability: 'unresolvable',
+    });
   });
 });

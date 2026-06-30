@@ -7,12 +7,18 @@
 
 import {
   assertNoSecrets,
+  assertTaskRecord,
   createValidationError,
   createRuntime,
+  sanitizeTaskEvidenceUrl,
   type DurableJobRecord,
   type Job,
+  type JobError,
   type Runtime,
   type StoredAssetRef,
+  type TaskExecutionSnapshot,
+  type TaskOutput,
+  type TaskRecord,
 } from '@imagen-ps/core-engine';
 import {
   createDispatchAdapter,
@@ -31,6 +37,7 @@ import type {
   ProviderProfileRepository,
   ResolvedProviderConfig,
   SecretStorageAdapter,
+  TaskStore,
 } from './commands/types.js';
 import { resolveSecretValue } from './commands/secret-utils.js';
 import { builtinWorkflows } from './requests/index.js';
@@ -47,6 +54,7 @@ let providerProfileRepositoryInstance: ProviderProfileRepository | null = null;
 let secretStorageAdapterInstance: SecretStorageAdapter | null = null;
 let providerConfigResolverInstance: ProviderConfigResolver | null = null;
 let jobHistoryStoreInstance: JobHistoryStore | null = null;
+let taskStoreInstance: TaskStore | null = null;
 let assetStoreInstance: AssetStore | null = null;
 let runtimeLogger: Logger | undefined = undefined;
 
@@ -103,6 +111,28 @@ function createInMemoryJobHistoryStore(): JobHistoryStore {
     },
     async delete(jobId: string): Promise<void> {
       store.delete(jobId);
+    },
+  };
+}
+
+function createInMemoryTaskStore(): TaskStore {
+  const store = new Map<string, TaskRecord>();
+  return {
+    async put(record: TaskRecord): Promise<void> {
+      assertTaskRecord(record);
+      store.set(record.taskId, record);
+    },
+    async get(taskId: string): Promise<TaskRecord | undefined> {
+      return store.get(taskId);
+    },
+    async list(query?: { readonly limit?: number; readonly status?: string }): Promise<readonly TaskRecord[]> {
+      const records = Array.from(store.values())
+        .filter((record) => query?.status === undefined || record.status === query.status)
+        .sort((a, b) => b.updatedAt.localeCompare(a.updatedAt));
+      return typeof query?.limit === 'number' ? records.slice(0, query.limit) : records;
+    },
+    async delete(taskId: string): Promise<void> {
+      store.delete(taskId);
     },
   };
 }
@@ -292,6 +322,152 @@ async function materializeOutputRefs(output: Record<string, unknown> | undefined
   return refs;
 }
 
+function outputAssetsFromJobOutput(output: Record<string, unknown> | undefined): readonly Record<string, unknown>[] {
+  const image = output?.image as { assets?: unknown } | undefined;
+  const assets = Array.isArray(image?.assets) ? image.assets : [];
+  return assets.filter(isPlainRecord);
+}
+
+function outputSourceFromAsset(asset: Record<string, unknown>, ref: StoredAssetRef): TaskOutput['source'] {
+  if (typeof asset.url === 'string' && asset.url.length > 0) {
+    return {
+      providerAssetKind: 'url',
+      sanitizedOriginalUrl: sanitizeTaskEvidenceUrl(asset.url),
+    };
+  }
+  if (typeof asset.fileId === 'string' && asset.fileId.length > 0) {
+    return {
+      providerAssetKind: 'fileId',
+      fileId: asset.fileId,
+    };
+  }
+  if (asset.data !== undefined) {
+    return { providerAssetKind: 'base64' };
+  }
+  return { providerAssetKind: ref.kind === 'url' ? 'url' : 'storedRef' };
+}
+
+function taskOutputsFromRefs(taskId: string, output: Record<string, unknown> | undefined, refs: readonly StoredAssetRef[]): readonly TaskOutput[] {
+  const assets = outputAssetsFromJobOutput(output);
+  return refs.map((ref, index) => {
+    const sourceAsset = assets[index] ?? {};
+    const taskOutput: TaskOutput = {
+      outputId: `${taskId}:output:${index}`,
+      index,
+      kind: 'image',
+      asset: { ref },
+      source: outputSourceFromAsset(sourceAsset, ref),
+    };
+    return taskOutput;
+  });
+}
+
+function normalizedTaskError(error: JobError | undefined, fallback: string): TaskRecord['error'] {
+  return {
+    category: error?.category ?? 'runtime',
+    message: error?.message ?? fallback,
+  };
+}
+
+async function executionSnapshotFromJobInput(input: Record<string, unknown>): Promise<TaskExecutionSnapshot | undefined> {
+  const profileId = typeof input.profileId === 'string'
+    ? input.profileId
+    : typeof input.providerProfileId === 'string'
+      ? input.providerProfileId
+      : undefined;
+  const providerOptions = isPlainRecord(input.providerOptions) ? input.providerOptions : undefined;
+  const modelId = typeof providerOptions?.model === 'string' ? providerOptions.model : undefined;
+  const output = isPlainRecord(input.output) ? input.output : undefined;
+  const profile = profileId ? await getProviderProfileRepository().get(profileId) : undefined;
+
+  return {
+    ...(profileId !== undefined ? { profileId } : {}),
+    ...(profile?.displayName !== undefined ? { profileName: profile.displayName } : {}),
+    ...(profile?.providerId !== undefined ? { providerId: profile.providerId } : {}),
+    ...(modelId !== undefined ? { modelId } : {}),
+    ...(output
+      ? {
+          output: {
+            ...(typeof output.count === 'number' ? { count: output.count } : {}),
+            ...(typeof output.size === 'string' ? { size: output.size } : {}),
+            ...(typeof output.format === 'string' ? { format: output.format } : {}),
+            ...(typeof output.quality === 'string' ? { quality: output.quality } : {}),
+          },
+        }
+      : {}),
+  };
+}
+
+async function flushTerminalTaskHistory(job: Job, outputRefs: readonly StoredAssetRef[]): Promise<void> {
+  if (job.status !== 'completed' && job.status !== 'failed') {
+    return;
+  }
+  const taskId = typeof job.input.__clientTaskId === 'string' ? job.input.__clientTaskId : undefined;
+  if (taskId === undefined || taskId.length === 0) {
+    return;
+  }
+
+  const existing = await getTaskStore().get(taskId);
+  if (!existing) {
+    return;
+  }
+
+  const finishedAt = job.updatedAt;
+  const execution = await executionSnapshotFromJobInput(job.input);
+  const base: Omit<TaskRecord, 'status' | 'outputs' | 'error' | 'finishedAt'> = {
+    ...existing,
+    updatedAt: job.updatedAt,
+    execution: {
+      ...(existing.execution ?? {}),
+      ...(execution ?? {}),
+    },
+    executionJobId: job.id,
+  };
+  const terminal: TaskRecord = job.status === 'completed'
+    ? {
+        ...base,
+        status: 'completed',
+        outputs: taskOutputsFromRefs(taskId, job.output, outputRefs),
+        finishedAt,
+      }
+    : {
+        ...base,
+        status: 'failed',
+        outputs: [],
+        error: normalizedTaskError(job.error, 'Job failed.'),
+        finishedAt,
+      };
+
+  assertTaskRecord(terminal);
+  await getTaskStore().put(terminal);
+}
+
+async function flushTaskMaterializationFailure(job: Job, error: unknown): Promise<void> {
+  const taskId = typeof job.input.__clientTaskId === 'string' ? job.input.__clientTaskId : undefined;
+  if (taskId === undefined || taskId.length === 0) {
+    return;
+  }
+  const existing = await getTaskStore().get(taskId);
+  if (!existing) {
+    return;
+  }
+  const message = error instanceof Error ? error.message : String(error);
+  const failed: TaskRecord = {
+    ...existing,
+    status: 'failed',
+    outputs: [],
+    error: {
+      category: 'storage',
+      message,
+    },
+    executionJobId: job.id,
+    updatedAt: job.updatedAt,
+    finishedAt: job.updatedAt,
+  };
+  assertTaskRecord(failed);
+  await getTaskStore().put(failed);
+}
+
 function assetFromStoredRef(record: Record<string, unknown>, storedRef: StoredAssetRef): Record<string, unknown> {
   const type = typeof record.type === 'string' ? record.type : 'image';
   const name = typeof record.name === 'string' ? record.name : storedRef.name;
@@ -375,13 +551,20 @@ async function flushTerminalJobHistory(job: Job, options?: DurableJobFlushOption
   const workflow = typeof job.input._workflowName === 'string' ? job.input._workflowName : 'unknown';
   const originJobId = options?.originJobId ?? job.originJobId;
   const retryAttempt = options?.retryAttempt ?? job.retryAttempt;
+  let outputRefs: readonly StoredAssetRef[];
+  try {
+    outputRefs = await materializeOutputRefs(job.output);
+  } catch (error) {
+    await flushTaskMaterializationFailure(job, error);
+    throw error;
+  }
   const record: DurableJobRecord = {
     schemaVersion: 1,
     jobId: job.id,
     status: job.status,
     workflow,
     input: sanitizeJobInputForDurableHistory(job.input),
-    outputs: await materializeOutputRefs(job.output),
+    outputs: outputRefs,
     ...(job.error !== undefined ? { error: job.error } : {}),
     createdAt: job.createdAt,
     updatedAt: job.updatedAt,
@@ -391,6 +574,7 @@ async function flushTerminalJobHistory(job: Job, options?: DurableJobFlushOption
 
   assertNoSecrets(record);
   await getJobHistoryStore().put(record);
+  await flushTerminalTaskHistory(job, outputRefs);
 }
 
 /**
@@ -673,6 +857,19 @@ export function setJobHistoryStore(store: JobHistoryStore): void {
   jobHistoryStoreInstance = store;
 }
 
+/** 获取当前 task store */
+export function getTaskStore(): TaskStore {
+  if (taskStoreInstance === null) {
+    taskStoreInstance = createInMemoryTaskStore();
+  }
+  return taskStoreInstance;
+}
+
+/** 设置 task store，允许 UI / host adapters 注入自定义实现 */
+export function setTaskStore(store: TaskStore): void {
+  taskStoreInstance = store;
+}
+
 /** 获取当前 asset store */
 export function getAssetStore(): AssetStore {
   if (assetStoreInstance === null) {
@@ -724,6 +921,7 @@ export function _resetForTesting(): void {
   secretStorageAdapterInstance = null;
   providerConfigResolverInstance = null;
   jobHistoryStoreInstance = null;
+  taskStoreInstance = null;
   assetStoreInstance = null;
   runtimeLogger = undefined;
 }

@@ -1,3 +1,4 @@
+import { assertTaskRecord, decodeTaskRecord } from '@imagen-ps/application';
 import type {
   AssetStore,
   DurableJobRecord,
@@ -6,9 +7,11 @@ import type {
   ProviderProfileRepository,
   SecretStorageAdapter,
   StoredAssetRef,
+  TaskRecord,
+  TaskStore,
 } from '@imagen-ps/application';
 
-export type ChromeStoreName = 'profiles' | 'secrets' | 'history' | 'assets';
+export type ChromeStoreName = 'profiles' | 'secrets' | 'history' | 'tasks' | 'assets';
 
 export interface ChromeKeyValueBackend {
   get<T>(store: ChromeStoreName, key: string): Promise<T | undefined>;
@@ -24,8 +27,8 @@ interface ChromeStoredRecord<T> {
 }
 
 const CHROME_DB_NAME = 'imagen-ps-chrome-runtime';
-const CHROME_DB_VERSION = 1;
-const CHROME_STORES: readonly ChromeStoreName[] = ['profiles', 'secrets', 'history', 'assets'];
+const CHROME_DB_VERSION = 2;
+const CHROME_STORES: readonly ChromeStoreName[] = ['profiles', 'secrets', 'history', 'tasks', 'assets'];
 
 function requestResult<T>(request: IDBRequest<T>): Promise<T> {
   return new Promise((resolve, reject) => {
@@ -106,6 +109,7 @@ export function createMemoryIndexedDbBackend(options?: {
     profiles: new Map(),
     secrets: new Map(),
     history: new Map(),
+    tasks: new Map(),
     assets: new Map(),
   };
   for (const [store, records] of Object.entries(options?.initial ?? {}) as Array<[
@@ -152,6 +156,7 @@ export function createChromeIndexedDbStorage(options?: { readonly backend?: Chro
   readonly profiles: ProviderProfileRepository;
   readonly secrets: SecretStorageAdapter;
   readonly history: JobHistoryStore;
+  readonly tasks: TaskStore;
   readonly assets: AssetStore;
 } {
   const backend = options?.backend ?? createBrowserIndexedDbBackend();
@@ -197,6 +202,30 @@ export function createChromeIndexedDbStorage(options?: { readonly backend?: Chro
       },
       async delete(jobId): Promise<void> {
         await backend.delete('history', jobId);
+      },
+    },
+    tasks: {
+      async put(record): Promise<void> {
+        assertTaskRecord(record);
+        await backend.put('tasks', record.taskId, record);
+      },
+      async get(taskId): Promise<TaskRecord | undefined> {
+        const record = await backend.get<unknown>('tasks', taskId);
+        const decoded = decodeTaskRecord(record);
+        return decoded.ok ? decoded.value : undefined;
+      },
+      async list(query): Promise<readonly TaskRecord[]> {
+        const records = await backend.list<unknown>('tasks');
+        const filtered = records
+          .map((record) => decodeTaskRecord(record))
+          .filter((result): result is { readonly ok: true; readonly value: TaskRecord } => result.ok)
+          .map((result) => result.value)
+          .filter((record) => query?.status === undefined || record.status === query.status)
+          .sort((a, b) => b.updatedAt.localeCompare(a.updatedAt));
+        return typeof query?.limit === 'number' ? filtered.slice(0, query.limit) : filtered;
+      },
+      async delete(taskId): Promise<void> {
+        await backend.delete('tasks', taskId);
       },
     },
     assets: {

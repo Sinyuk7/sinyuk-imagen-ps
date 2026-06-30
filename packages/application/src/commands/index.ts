@@ -28,7 +28,9 @@ export {
 
 export { retryJob } from './retry-job.js';
 export { getJobHistoryRecord, listJobHistoryRecords } from './job-history.js';
+export { getTaskRecord, listTaskRecords, putTaskRecord } from './task-history.js';
 export { resolveSecretValue } from './secret-utils.js';
+export { assertTaskRecord, decodeTaskRecord, sanitizeTaskEvidenceUrl } from '@imagen-ps/core-engine';
 export {
   PROMPT_OPTIMIZER_PROFILE_ID,
   ensurePromptOptimizerProfile,
@@ -43,7 +45,9 @@ export type {
   AssetStore,
   SubmitJobInput,
   Asset,
+  DecodeTaskRecordResult,
   DurableJobRecord,
+  FileEvidence,
   Job,
   JobError,
   JobEvent,
@@ -51,7 +55,21 @@ export type {
   JobStatus,
   JobHistoryStore,
   ProviderProfileTestResult,
+  Rect,
+  ResolvedPreview,
+  ResolvedTaskResource,
   StoredAssetRef,
+  TaskAttachment,
+  TaskEvidence,
+  TaskError,
+  TaskExecutionSnapshot,
+  TaskOperation,
+  TaskOutput,
+  TaskPlacement,
+  TaskRecord,
+  TaskResourceRef,
+  TaskStatus,
+  TaskStore,
   TestProviderProfileOptions,
   Unsubscribe,
 } from './types.js';
@@ -80,6 +98,7 @@ export {
   setProviderConfigResolver,
   setProviderProfileRepository,
   setSecretStorageAdapter,
+  setTaskStore,
   configureRuntimeLogging,
   getRuntimeLogger,
 } from '../runtime.js';

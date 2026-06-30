@@ -4,6 +4,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import { AppShell } from '../src/shared/ui/app-shell';
 import { createFakeServices } from './fakes';
 import type { UxpFlightRecorder } from '../src/host/uxp-log-sink';
+import { NON_UXP_RUNTIME_CAPABILITIES } from '../src/shared/ports/host-port';
 
 let root: Root | undefined;
 
@@ -220,6 +221,48 @@ describe('AppShell', () => {
     expect(container.querySelector<HTMLInputElement>('[data-testid="provider-base-url-input"]')?.value).toBe('https://openrouter.ai/api/v1');
     expect(container.querySelector<HTMLInputElement>('[data-testid="provider-default-model-input"]')?.value).toBe('gpt-4o-mini');
     expect(container.querySelector<HTMLTextAreaElement>('[data-testid="provider-instruction-input"]')?.value).toBe('Rewrite the prompt.');
+  });
+
+  it('reports history placement unavailable when the runtime cannot place assets', async () => {
+    const { services, spies } = createFakeServices();
+    const chromeLikeServices = {
+      ...services,
+      host: {
+        ...services.host,
+        capabilities: NON_UXP_RUNTIME_CAPABILITIES,
+      },
+    };
+    const container = document.createElement('div');
+    document.body.appendChild(container);
+    root = createRoot(container);
+
+    await act(async () => {
+      root!.render(
+        <AppShell
+          host={{
+            kind: 'chrome-browser',
+            app: { stage: 'chrome-shell', host: 'chrome-browser', services: ['commands', 'host'] },
+            locale: 'en',
+            services: chromeLikeServices,
+            dispose: () => undefined,
+          }}
+        />,
+      );
+    });
+    await flush();
+    await flush();
+
+    await act(async () => {
+      container.querySelector<HTMLButtonElement>('[data-testid="main-history-button"]')?.click();
+    });
+    await flush();
+    await act(async () => {
+      container.querySelector<HTMLButtonElement>('[data-testid="history-place-button-task-history-1"]')?.click();
+    });
+    await flush();
+
+    expect(spies.placeAssetOnCanvas).not.toHaveBeenCalled();
+    expect(container.textContent).toContain('Resource unavailable');
   });
 
   it('writes root panel semantic size modes and disconnects the root observer on unmount', async () => {

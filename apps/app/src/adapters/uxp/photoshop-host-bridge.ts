@@ -21,10 +21,12 @@ import {
 } from '../../shared/image/runtime-image-url';
 import type { ThumbnailStoreOptions } from '../../shared/image/thumbnail-store';
 import type {
+  PlacementDocumentCandidate,
   PhotoshopCaptureResult,
   PhotoshopRect,
   PlacementIntent,
 } from '../../shared/domain/photoshop-placement';
+import { matchPlacementIntent, type PlacementMatchResult } from '../../shared/domain/photoshop-placement';
 
 interface PhotoshopLayer {
   readonly id: number;
@@ -58,6 +60,7 @@ interface PhotoshopApp {
 
 interface PhotoshopDocument {
   readonly id?: number;
+  readonly name?: string;
   readonly width?: number;
   readonly height?: number;
   readonly layers?: readonly PhotoshopLayer[];
@@ -257,6 +260,39 @@ function requireDocumentById(app: PhotoshopApp, documentId: number): PhotoshopDo
     throw new Error(`Photoshop document is no longer available: ${documentId}`);
   }
   return document;
+}
+
+function documentsForPlacement(app: PhotoshopApp): readonly PlacementDocumentCandidate[] {
+  const documents = app.documents ?? [];
+  const candidates = documents.length > 0 ? documents : app.activeDocument ? [app.activeDocument] : [];
+  return candidates.map((document) => ({
+    ...(document.id !== undefined ? { documentId: document.id } : {}),
+    ...(document.width !== undefined ? { width: document.width } : {}),
+    ...(document.height !== undefined ? { height: document.height } : {}),
+    ...(document.name !== undefined ? { name: document.name } : {}),
+  }));
+}
+
+function assertPlacementMatched(result: PlacementMatchResult): number {
+  if (result.kind === 'matched') {
+    if (result.confidence === 'weak') {
+      throw new Error('Photoshop placement target is unverifiable: weak document match requires explicit confirmation.');
+    }
+    return result.documentId;
+  }
+  if (result.kind === 'missing-document') {
+    throw new Error('Photoshop placement target document is no longer available.');
+  }
+  if (result.kind === 'ambiguous-document') {
+    throw new Error(`Photoshop placement target is ambiguous across ${result.candidates} documents.`);
+  }
+  if (result.kind === 'document-mismatch') {
+    throw new Error(`Photoshop placement target document mismatch: ${result.reason}.`);
+  }
+  if (result.kind === 'layer-mismatch') {
+    throw new Error(`Photoshop placement target layer mismatch: ${result.reason}.`);
+  }
+  throw new Error(`Photoshop placement target is unverifiable: ${result.reason}.`);
 }
 
 function setActiveDocument(app: PhotoshopApp, document: PhotoshopDocument): void {
@@ -898,14 +934,6 @@ function applySelectionAlpha(rgba: Uint8Array, alpha: Uint8Array): void {
   }
 }
 
-function assertDocumentSize(document: PhotoshopDocument, expected: { readonly width: number; readonly height: number }): void {
-  if (document.width !== expected.width || document.height !== expected.height) {
-    throw new Error(
-      `Photoshop document size changed since capture: ${document.width ?? 'unknown'}x${document.height ?? 'unknown'}, expected ${expected.width}x${expected.height}.`,
-    );
-  }
-}
-
 async function transformActivePlacedLayer(document: PhotoshopDocument, placementRect: PhotoshopRect): Promise<void> {
   const placedLayer = document.activeLayers?.[0];
   if (!placedLayer?.scale || !placedLayer.translate) {
@@ -1010,6 +1038,7 @@ function layerPlacementFor(document: PhotoshopDocument, layer: PhotoshopLayer, b
   return {
     snapshot: {
       documentId: document.id!,
+      ...(document.name !== undefined ? { documentName: document.name } : {}),
       documentSize: size,
       layerId: layer.id,
       layerBoundsNoEffects: bounds,
@@ -1318,6 +1347,7 @@ export function createPhotoshopHostBridge(modules: UxpModules, options?: CreateP
           placement: {
             snapshot: {
               documentId,
+              ...(activeDocument.name !== undefined ? { documentName: activeDocument.name } : {}),
               documentSize: {
                 width: activeDocument.width ?? captureSize.width,
                 height: activeDocument.height ?? captureSize.height,
@@ -1476,10 +1506,8 @@ export function createPhotoshopHostBridge(modules: UxpModules, options?: CreateP
         if (placement.kind === 'unbound') {
           throw new Error('Photoshop placement target is ambiguous. Capture from Photoshop to place into a known document.');
         }
-        const targetDocument = requireDocumentById(app, placement.documentId);
-        if (placement.kind === 'exact-frame') {
-          assertDocumentSize(targetDocument, placement.documentSizeAtCapture);
-        }
+        const matchedDocumentId = assertPlacementMatched(matchPlacementIntent(placement, documentsForPlacement(app)));
+        const targetDocument = requireDocumentById(app, matchedDocumentId);
         const { data, mimeType } = await assetToArrayBuffer(asset, assetStore);
         ensurePlaceableImagePayload(data, mimeType);
         const bytes = new Uint8Array(data);

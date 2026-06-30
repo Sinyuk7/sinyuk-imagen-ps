@@ -5,9 +5,11 @@ import {
   setAssetStore,
   setProviderProfileRepository,
   setSecretStorageAdapter,
+  setTaskStore,
 } from './runtime.js';
 import { retryJob } from './commands/retry-job.js';
 import { submitJob } from './commands/submit-job.js';
+import { getTaskRecord, listTaskRecords } from './commands/task-history.js';
 import type {
   DurableJobRecord,
   JobHistoryStore,
@@ -16,6 +18,8 @@ import type {
   SecretStorageAdapter,
   AssetStore,
   StoredAssetRef,
+  TaskRecord,
+  TaskStore,
 } from './commands/types.js';
 
 function createProfileRepository(profile: ProviderProfile): ProviderProfileRepository {
@@ -54,6 +58,31 @@ function createJobHistoryStore(records: DurableJobRecord[] = []): JobHistoryStor
     },
     async delete(jobId) {
       const index = records.findIndex((record) => record.jobId === jobId);
+      if (index !== -1) {
+        records.splice(index, 1);
+      }
+    },
+  };
+}
+
+function createTaskStore(records: TaskRecord[] = []): TaskStore {
+  return {
+    async put(record) {
+      const index = records.findIndex((item) => item.taskId === record.taskId);
+      if (index === -1) {
+        records.push(record);
+      } else {
+        records[index] = record;
+      }
+    },
+    async get(taskId) {
+      return records.find((record) => record.taskId === taskId);
+    },
+    async list() {
+      return records;
+    },
+    async delete(taskId) {
+      const index = records.findIndex((record) => record.taskId === taskId);
       if (index !== -1) {
         records.splice(index, 1);
       }
@@ -171,6 +200,91 @@ describe('profile dispatch runtime', () => {
     expect(records[0].outputs[0].kind).toBe('hostObject');
     expect(records[0].outputs[0].ref).not.toContain('base64');
     expect(JSON.stringify(records[0])).not.toContain('mock-key');
+  });
+
+  it('updates an existing running task to terminal state with materialized output refs', async () => {
+    _resetForTesting();
+    const jobs: DurableJobRecord[] = [];
+    const tasks: TaskRecord[] = [{
+      schemaVersion: 1,
+      taskId: 'task-1',
+      status: 'running',
+      operation: 'text-to-image',
+      prompt: 'simple blue square icon',
+      attachments: [],
+      outputs: [],
+      placement: { kind: 'unbound', reason: 'no-photoshop-source' },
+      execution: {
+        profileId: 'mock-profile',
+        profileName: 'Mock Profile',
+      },
+      createdAt: '2026-06-15T00:00:00.000Z',
+      updatedAt: '2026-06-15T00:00:00.000Z',
+    }];
+    setJobHistoryStore(createJobHistoryStore(jobs));
+    setTaskStore(createTaskStore(tasks));
+
+    const result = await submitJob({
+      workflow: 'provider-generate',
+      input: {
+        __clientTaskId: 'task-1',
+        provider: 'mock',
+        profileId: 'mock-profile',
+        prompt: 'simple blue square icon',
+        output: { count: 1 },
+      },
+    });
+
+    expect(result.ok).toBe(true);
+    expect(jobs).toHaveLength(1);
+    expect(tasks).toHaveLength(1);
+    expect(tasks[0]).toMatchObject({
+      taskId: 'task-1',
+      status: 'completed',
+      executionJobId: result.ok ? result.value.id : '',
+      outputs: [{
+        outputId: 'task-1:output:0',
+        index: 0,
+        kind: 'image',
+        asset: { ref: { kind: 'hostObject', mimeType: 'image/png' } },
+        source: { providerAssetKind: 'storedRef' },
+      }],
+      execution: {
+        profileId: 'mock-profile',
+        profileName: 'Mock Profile',
+        output: { count: 1 },
+      },
+    });
+    expect(tasks[0].finishedAt).toBeDefined();
+    expect(JSON.stringify(tasks[0])).not.toContain('providerOptions');
+    expect(JSON.stringify(tasks[0])).not.toContain('mock-key');
+  });
+
+  it('projects stale running task records as interrupted after restart', async () => {
+    _resetForTesting();
+    const tasks: TaskRecord[] = [{
+      schemaVersion: 1,
+      taskId: 'running-task',
+      status: 'running',
+      operation: 'text-to-image',
+      prompt: 'pending before restart',
+      attachments: [],
+      outputs: [],
+      placement: { kind: 'unbound', reason: 'no-photoshop-source' },
+      createdAt: '2026-06-15T00:00:00.000Z',
+      updatedAt: '2026-06-15T00:00:00.000Z',
+    }];
+    setTaskStore(createTaskStore(tasks));
+
+    await expect(getTaskRecord('running-task')).resolves.toMatchObject({
+      taskId: 'running-task',
+      status: 'interrupted',
+      error: { category: 'interrupted', message: 'App restarted before completion.' },
+      outputs: [],
+    });
+    await expect(listTaskRecords({ status: 'running' })).resolves.toEqual([]);
+    await expect(listTaskRecords({ status: 'interrupted' })).resolves.toMatchObject([{ taskId: 'running-task' }]);
+    expect(tasks[0].status).toBe('running');
   });
 
   it('keeps input image bytes out of durable history while resolving hostObject refs for provider dispatch', async () => {

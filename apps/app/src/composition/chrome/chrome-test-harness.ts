@@ -4,6 +4,7 @@ import type {
   ProviderProfile,
   ProviderProfileConfig,
   ProviderProfileTestResult,
+  TaskRecord,
 } from '@imagen-ps/application';
 import type { ChromeFilePicker } from '../../adapters/chrome/chrome-host-port';
 import {
@@ -23,6 +24,7 @@ interface ChromeRuntimeStorage {
   readonly profiles: { save(profile: ProviderProfile): Promise<void>; list(): Promise<readonly ProviderProfile[]> };
   readonly secrets: { setSecret(key: string, value: string): Promise<void> };
   readonly history: { put(record: DurableJobRecord): Promise<void>; list(): Promise<readonly DurableJobRecord[]> };
+  readonly tasks: { put(record: TaskRecord): Promise<void> };
 }
 
 export interface ChromeTestHarnessConfig {
@@ -164,11 +166,64 @@ function seededHistoryRecords(): readonly DurableJobRecord[] {
   ];
 }
 
+function seededTaskRecords(): readonly TaskRecord[] {
+  return [
+    {
+      schemaVersion: 1,
+      taskId: 'chrome-e2e-task-completed',
+      status: 'completed',
+      operation: 'text-to-image',
+      prompt: 'completed history prompt',
+      attachments: [],
+      outputs: [{
+        outputId: 'chrome-e2e-task-completed:output:0',
+        index: 0,
+        kind: 'image',
+        asset: { ref: { kind: 'hostObject', ref: 'chrome-e2e-history-asset', mimeType: 'image/png', byteSize: 16 } },
+      }],
+      placement: { kind: 'unbound', reason: 'no-photoshop-source' },
+      execution: { profileId: MOCK_PROFILE_ID, profileName: 'Mock Profile' },
+      createdAt: FIXED_NOW,
+      updatedAt: '2026-06-25T00:00:01.000Z',
+      finishedAt: '2026-06-25T00:00:01.000Z',
+    },
+    {
+      schemaVersion: 1,
+      taskId: 'chrome-e2e-task-failed',
+      status: 'failed',
+      operation: 'text-to-image',
+      prompt: 'failed history prompt',
+      attachments: [],
+      outputs: [],
+      placement: { kind: 'unbound', reason: 'no-photoshop-source' },
+      error: { category: 'provider', message: 'Seeded mock provider failure.' },
+      execution: { profileId: MOCK_PROFILE_ID, profileName: 'Mock Profile' },
+      createdAt: FIXED_NOW,
+      updatedAt: '2026-06-25T00:00:02.000Z',
+      finishedAt: '2026-06-25T00:00:02.000Z',
+    },
+    {
+      schemaVersion: 1,
+      taskId: 'chrome-e2e-task-running',
+      status: 'running',
+      operation: 'text-to-image',
+      prompt: 'running history prompt',
+      attachments: [],
+      outputs: [],
+      placement: { kind: 'unbound', reason: 'no-photoshop-source' },
+      execution: { profileId: MOCK_PROFILE_ID, profileName: 'Mock Profile' },
+      createdAt: FIXED_NOW,
+      updatedAt: '2026-06-25T00:00:03.000Z',
+    },
+  ];
+}
+
 function initialRecords(config: ChromeTestHarnessConfig): Partial<Record<ChromeStoreName, readonly { readonly key: string; readonly value: unknown }[]>> {
   return {
     profiles: config.seedProfile ? [{ key: MOCK_PROFILE_ID, value: mockProfile({ failMode: config.mockFailureMode }) }] : [],
     secrets: config.seedProfile ? [{ key: MOCK_SECRET_REF, value: 'mock-key' }] : [],
     history: config.seedHistory ? seededHistoryRecords().map((record) => ({ key: record.jobId, value: record })) : [],
+    tasks: config.seedHistory ? seededTaskRecords().map((record) => ({ key: record.taskId, value: record })) : [],
   };
 }
 
@@ -205,7 +260,10 @@ async function seedMockProfile(storage: ChromeRuntimeStorage, options?: { readon
 }
 
 async function seedHistory(storage: ChromeRuntimeStorage): Promise<void> {
-  await Promise.all(seededHistoryRecords().map((record) => storage.history.put(record)));
+  await Promise.all([
+    ...seededHistoryRecords().map((record) => storage.history.put(record)),
+    ...seededTaskRecords().map((record) => storage.tasks.put(record)),
+  ]);
 }
 
 function mockProfileTestResult(profile: ProviderProfile): ProviderProfileTestResult {

@@ -164,6 +164,7 @@ describe('useConversation', () => {
     expect(spies.submitJob).toHaveBeenCalledWith({
       workflow: 'provider-generate',
       input: expect.objectContaining({
+        __clientTaskId: expect.any(String),
         profileId: 'mock-profile',
         prompt: 'make an image',
         providerOptions: { model: 'mock-image-v1' },
@@ -172,6 +173,59 @@ describe('useConversation', () => {
     });
     expect(controller!.rounds[0]?.status).toBe('ok');
     expect(controller!.rounds[0]?.previews[0]?.asset.name).toBe('result.png');
+  });
+
+  it('creates a running durable task snapshot before provider dispatch', async () => {
+    const { services, spies } = createFakeServices();
+    const { getController } = await mountProbe(services);
+
+    await act(async () => {
+      await getController().submit({
+        operation: 'image-edit',
+        prompt: 'edit image',
+        profileId: 'mock-profile',
+        providerName: 'Mock Profile',
+        modelId: 'mock-image-v1',
+        attachments: [captureAttachment('capture-1')],
+      });
+    });
+
+    expect(spies.putTaskRecord).toHaveBeenCalledTimes(1);
+    expect(spies.putTaskRecord.mock.invocationCallOrder[0]).toBeLessThan(
+      spies.submitJob.mock.invocationCallOrder[0] ?? 0,
+    );
+    const record = spies.putTaskRecord.mock.calls[0]?.[0];
+    expect(record).toMatchObject({
+      schemaVersion: 1,
+      taskId: getController().rounds[0]?.id,
+      status: 'running',
+      operation: 'image-edit',
+      prompt: 'edit image',
+      placement: {
+        kind: 'exact-frame',
+        sourceSnapshotId: expect.stringContaining('capture-1:42:1'),
+      },
+      execution: {
+        profileId: 'mock-profile',
+        profileName: 'Mock Profile',
+        modelId: 'mock-image-v1',
+      },
+      outputs: [],
+    });
+    expect(record.attachments[0]).toMatchObject({
+      kind: 'photoshop-capture',
+      attachmentId: 'capture-1',
+      asset: { ref: fakeProviderInputAsset.storedRef },
+      providerInput: { ref: fakeProviderInputAsset.storedRef },
+      evidence: {
+        host: 'photoshop',
+        snapshotId: expect.stringContaining('capture-1:42:1'),
+        document: { documentId: 42, width: 1024, height: 768 },
+        placementRect: { left: 0, top: 0, right: 128, bottom: 128 },
+      },
+    });
+    expect(JSON.stringify(record)).not.toContain('ZmFrZS1pbWFnZQ==');
+    expect(JSON.stringify(record)).not.toContain('providerOptions');
   });
 
   it('passes an AbortSignal into submitJob and aborts it on clear', async () => {
@@ -522,7 +576,7 @@ describe('useConversation', () => {
     expect(spies.submitJob.mock.calls[1]?.[0].input.images).toEqual([fakeProviderInputAsset]);
   });
 
-  it('blocks same-tick double retry on a failed round to a single retryJob call', async () => {
+  it('blocks same-tick double retry on a failed round to one new task submission', async () => {
     const { services } = createFakeServices();
     const retryJobSpy = vi.fn(async () => ({
       ok: true as const,
@@ -563,7 +617,9 @@ describe('useConversation', () => {
       await Promise.all([a, b]);
     });
 
-    // 同 tick 双击 retry 只穿透一次 retryJob。
-    expect(retryJobSpy).toHaveBeenCalledTimes(1);
+    // failed retry/regenerate 创建新 task，不 mutate 旧 job attempt。
+    expect(services.commands.submitJob).toHaveBeenCalledTimes(2);
+    expect(retryJobSpy).not.toHaveBeenCalled();
+    expect(getController().rounds).toHaveLength(2);
   });
 });

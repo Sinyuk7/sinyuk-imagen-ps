@@ -869,6 +869,101 @@ describe('PhotoshopHostBridge fake harness', () => {
     expect(spies.translatePlacedLayer).toHaveBeenCalledWith(10, 20);
   });
 
+  it('exact-frame placement rejects document mismatch before Photoshop write', async () => {
+    const { modules, spies } = createFakeModules();
+    const app = modules.photoshop?.app as { activeDocument?: { width?: number; height?: number } };
+    app.activeDocument = { ...app.activeDocument, width: 256, height: 384 };
+    const { bridge } = createBridge(modules);
+
+    await expect(bridge.placeAssetOnCanvas({
+      type: 'image',
+      name: 'generated.png',
+      data: VALID_TRANSPARENT_PNG,
+      mimeType: 'image/png',
+    }, {
+      kind: 'exact-frame',
+      documentId: 42,
+      documentSizeAtCapture: { width: 512, height: 384 },
+      placementRect: { left: 10, top: 20, right: 138, bottom: 148 },
+    })).rejects.toThrow('document mismatch');
+
+    expect(spies.createFile).not.toHaveBeenCalled();
+    expect(spies.batchPlay).not.toHaveBeenCalled();
+  });
+
+  it('placement rejects missing document before Photoshop write', async () => {
+    const { modules, spies } = createFakeModules();
+    const app = modules.photoshop?.app as { activeDocument?: unknown; documents?: readonly unknown[] };
+    app.activeDocument = undefined;
+    app.documents = [];
+    const { bridge } = createBridge(modules);
+
+    await expect(bridge.placeAssetOnCanvas({
+      type: 'image',
+      name: 'generated.png',
+      data: VALID_TRANSPARENT_PNG,
+      mimeType: 'image/png',
+    }, {
+      kind: 'document-only',
+      documentId: 42,
+      documentSizeAtCapture: { width: 512, height: 384 },
+    })).rejects.toThrow('no longer available');
+
+    expect(spies.createFile).not.toHaveBeenCalled();
+    expect(spies.batchPlay).not.toHaveBeenCalled();
+  });
+
+  it('placement rejects ambiguous reopened document matches before Photoshop write', async () => {
+    const { modules, spies } = createFakeModules();
+    const app = modules.photoshop?.app as { activeDocument?: unknown; documents?: readonly unknown[] };
+    app.activeDocument = undefined;
+    app.documents = [
+      { id: 99, name: 'source.psd', width: 512, height: 384 },
+      { id: 100, name: 'source.psd', width: 512, height: 384 },
+    ];
+    const { bridge } = createBridge(modules);
+
+    await expect(bridge.placeAssetOnCanvas({
+      type: 'image',
+      name: 'generated.png',
+      data: VALID_TRANSPARENT_PNG,
+      mimeType: 'image/png',
+    }, {
+      kind: 'document-only',
+      documentId: 42,
+      documentName: 'source.psd',
+      documentSizeAtCapture: { width: 512, height: 384 },
+    })).rejects.toThrow('ambiguous across 2 documents');
+
+    expect(spies.createFile).not.toHaveBeenCalled();
+    expect(spies.batchPlay).not.toHaveBeenCalled();
+  });
+
+  it('placement rejects weak reopened document matches before Photoshop write', async () => {
+    const { modules, spies } = createFakeModules();
+    const app = modules.photoshop?.app as { activeDocument?: unknown; documents?: readonly unknown[] };
+    app.activeDocument = undefined;
+    app.documents = [
+      { id: 99, name: 'source.psd', width: 512, height: 384 },
+    ];
+    const { bridge } = createBridge(modules);
+
+    await expect(bridge.placeAssetOnCanvas({
+      type: 'image',
+      name: 'generated.png',
+      data: VALID_TRANSPARENT_PNG,
+      mimeType: 'image/png',
+    }, {
+      kind: 'document-only',
+      documentId: 42,
+      documentName: 'source.psd',
+      documentSizeAtCapture: { width: 512, height: 384 },
+    })).rejects.toThrow('weak document match requires explicit confirmation');
+
+    expect(spies.createFile).not.toHaveBeenCalled();
+    expect(spies.batchPlay).not.toHaveBeenCalled();
+  });
+
   it('串行执行 Photoshop modal 操作，避免并发 executeAsModal 互相踩踏', async () => {
     const { modules, spies } = createFakeModules();
     const order: string[] = [];

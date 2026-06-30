@@ -3,6 +3,7 @@ import {
   setJobHistoryStore,
   setProviderProfileRepository,
   setSecretStorageAdapter,
+  setTaskStore,
 } from '@imagen-ps/application';
 import { createCommandsAdapter } from '../../shared/ports/commands-port';
 import type { AppShellHost } from '../../shared/ui/app-shell';
@@ -15,6 +16,7 @@ import {
 } from '../../adapters/chrome/indexed-db-storage';
 import { createPhotoshopSimulator, type PhotoshopSimulatorScenarioId } from '../../simulators/photoshop/simulator';
 import { createMemoryThumbnailStore } from '../../shared/image/thumbnail-store';
+import { createTaskResourceResolver } from '../../shared/image/task-resource-resolver';
 import { createChromeTestHarnessRuntime, type ChromeTestHarnessConfig } from './chrome-test-harness';
 
 export interface ChromeAppShellOptions {
@@ -64,6 +66,7 @@ export function createChromeAppShell(options?: ChromeAppShellOptions): AppShellH
   setProviderProfileRepository(storage.profiles);
   setSecretStorageAdapter(storage.secrets);
   setJobHistoryStore(storage.history);
+  setTaskStore(storage.tasks);
   setAssetStore(storage.assets);
 
   const simulator = createPhotoshopSimulator(storage.assets, options?.scenario ?? testHarness?.scenario ?? 'seeded-document');
@@ -82,6 +85,7 @@ export function createChromeAppShell(options?: ChromeAppShellOptions): AppShellH
       commands: testHarness?.wrapCommands(commands) ?? commands,
       host,
       thumbnails: createMemoryThumbnailStore({ resolveStoredRef: storage.assets.resolve }),
+      taskResources: createTaskResourceResolver({ resolveStoredRef: storage.assets.resolve }),
       diagnostics: createChromeDiagnosticsPort(),
     },
     dispose() {

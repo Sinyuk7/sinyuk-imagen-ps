@@ -3,6 +3,7 @@ import {
   setJobHistoryStore,
   setProviderProfileRepository,
   setSecretStorageAdapter,
+  setTaskStore,
   configureRuntimeLogging,
   getRuntimeLogger,
 } from '@imagen-ps/application';
@@ -18,11 +19,12 @@ import {
   createPhotoshopThumbnailGenerator,
 } from '../../adapters/uxp/photoshop-host-bridge';
 import { resolveUxpModules } from '../../adapters/uxp/uxp-api';
-import { createUxpAssetStore, createUxpJobHistoryStore } from '../../adapters/uxp/uxp-job-history-adapter';
+import { createUxpAssetStore, createUxpJobHistoryStore, createUxpTaskStore } from '../../adapters/uxp/uxp-job-history-adapter';
 import { createUxpProviderProfileRepository } from '../../adapters/uxp/uxp-provider-profile-repository';
 import { createUxpSecretStorageAdapter } from '../../adapters/uxp/uxp-secret-storage-adapter';
 import { createUxpLogSink, writeUxpUiCheckpoint, writeUxpUiFailure } from '../../adapters/uxp/uxp-log-sink';
 import { createMemoryThumbnailStore } from '../../shared/image/thumbnail-store';
+import { createTaskResourceResolver } from '../../shared/image/task-resource-resolver';
 
 export interface PluginHostShell {
   readonly kind: 'photoshop-uxp' | 'chrome-browser';
@@ -59,18 +61,21 @@ export function createPluginHostShell(): PluginHostShell {
     const profileRepository = createUxpProviderProfileRepository(uxpModules);
     const secretStorage = createUxpSecretStorageAdapter(uxpModules);
     const jobHistoryStore = createUxpJobHistoryStore(uxpModules);
+    const taskStore = createUxpTaskStore(uxpModules);
     const assetStore = createUxpAssetStore(uxpModules);
 
     logger.info('panel.adapters.initialized', {
       hasProfileRepository: true,
       hasSecretStorage: true,
       hasJobHistoryStore: true,
+      hasTaskStore: true,
       hasAssetStore: true,
     });
 
     setProviderProfileRepository(profileRepository);
     setSecretStorageAdapter(secretStorage);
     setJobHistoryStore(jobHistoryStore);
+    setTaskStore(taskStore);
     setAssetStore(assetStore);
 
     const hostLogger = logger.child({ component: 'host' });
@@ -92,6 +97,7 @@ export function createPluginHostShell(): PluginHostShell {
         commands: createCommandsAdapter(),
         host: hostBridge,
         thumbnails: createMemoryThumbnailStore({ resolveStoredRef: assetStore.resolve, createThumbnail }),
+        taskResources: createTaskResourceResolver({ resolveStoredRef: assetStore.resolve }),
         diagnostics: createUxpDiagnosticsPort(),
       },
       dispose() {

@@ -13,6 +13,7 @@ import type { AppMessages } from '../i18n/messages';
 import type { HostImageAsset } from '../../domain/host-image-asset';
 import type { PlacementIntent, PhotoshopCapturePlacement } from '../../domain/photoshop-placement';
 import type { Asset } from '@imagen-ps/application';
+import { createRunningTaskRecord } from '../../domain/task-snapshot';
 
 export interface ConversationAttachment {
   readonly id: string;
@@ -228,6 +229,7 @@ export function derivePlacementIntent(attachments: readonly ConversationAttachme
       kind: 'exact-frame',
       documentId: firstCapture.snapshot.documentId,
       documentSizeAtCapture: firstCapture.snapshot.documentSize,
+      ...(firstCapture.snapshot.documentName !== undefined ? { documentName: firstCapture.snapshot.documentName } : {}),
       placementRect: firstCapture.placementRect,
     };
   }
@@ -236,6 +238,7 @@ export function derivePlacementIntent(attachments: readonly ConversationAttachme
     kind: 'document-only',
     documentId: firstCapture.snapshot.documentId,
     documentSizeAtCapture: firstCapture.snapshot.documentSize,
+    ...(firstCapture.snapshot.documentName !== undefined ? { documentName: firstCapture.snapshot.documentName } : {}),
   };
 }
 
@@ -395,6 +398,7 @@ export function useConversation(
         const roundId = createRoundId();
         const attachments = input.attachments ?? [];
         const placementIntent = derivePlacementIntent(attachments);
+        const createdAt = new Date().toISOString();
         const round: ConversationRound = {
           id: roundId,
           time: nowTime(),
@@ -411,6 +415,17 @@ export function useConversation(
         setRounds((current) => [...current, round]);
 
         try {
+          await services.commands.putTaskRecord(createRunningTaskRecord({
+            taskId: roundId,
+            operation: input.operation,
+            prompt,
+            attachments,
+            placementIntent,
+            providerName: input.providerName,
+            profileId: input.profileId,
+            ...(input.modelId ? { modelId: input.modelId } : {}),
+            createdAt,
+          }));
           if (input.operation === 'image-edit' && attachments.length === 0) {
             throw new Error('Image edit requires an attachment. Capture from Photoshop or add an image.');
           }
@@ -422,6 +437,7 @@ export function useConversation(
               : undefined;
           const jobInput = {
             __clientRoundId: roundId,
+            __clientTaskId: roundId,
             profileId: input.profileId,
             prompt,
             output: { count: 1 },
@@ -469,7 +485,7 @@ export function useConversation(
         submitInFlightRef.current = false;
       }
     },
-    [messages, sessionBinding.session, sessionBinding.snapshot.jobs],
+    [messages, services.commands, sessionBinding.session, sessionBinding.snapshot.jobs],
   );
 
   const retry = useCallback(
@@ -481,7 +497,7 @@ export function useConversation(
       retryInFlightRef.current.add(roundId);
       try {
         const round = rounds.find((item) => item.id === roundId);
-        if (round?.status === 'ok' && round.profileId) {
+        if ((round?.status === 'ok' || round?.status === 'err') && round.profileId) {
           await submit({
             operation: round.attachments.length > 0 ? 'image-edit' : 'text-to-image',
             prompt: round.prompt,

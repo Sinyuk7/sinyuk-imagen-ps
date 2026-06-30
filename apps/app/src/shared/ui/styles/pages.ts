@@ -11,6 +11,9 @@ export const PAGES_CSS = `
 .task-prompt{ font-size:12px; line-height:16px; color:var(--app-color-text-primary); overflow:hidden; display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; }
 .task-meta{ display:flex; align-items:center; flex-wrap:wrap; min-width:0; margin-top:3px; }
 .task-meta-dot{ margin-top:0; margin-right:8px; margin-bottom:0; margin-left:8px; color:var(--app-color-border-strong); }
+	.row-icon-action{ margin-left:6px; width:24px; height:24px; min-width:24px; padding:0; display:flex; align-items:center; justify-content:center; color:var(--app-color-text-muted); }
+	.row-icon-action:first-of-type{ margin-left:auto; }
+.row-icon-action:hover{ color:var(--app-color-text-primary); background:var(--app-color-hover-overlay); }
 .sec-lbl{ padding:12px 16px 8px; font-size:11px; font-weight:600; color:var(--app-color-text-muted); letter-spacing:.6px; }
 
 /* Provider row —— 删除固定 height:64px，改为 min-height 允许内容换行；

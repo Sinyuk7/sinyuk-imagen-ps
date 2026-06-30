@@ -7,6 +7,7 @@ import type {
   ProviderProfile,
   ProviderProfileInput,
   ProviderProfileTestResult,
+  TaskRecord,
 } from '@imagen-ps/application';
 import type { AppServices } from '../src/app-services/app-services';
 import type { CommandsPort } from '../src/app-services/commands-port';
@@ -119,6 +120,37 @@ export const fakeDurableRecord: DurableJobRecord = {
   updatedAt: '2026-06-15T00:00:01.000Z',
 };
 
+export const fakeTaskRecord: TaskRecord = {
+  schemaVersion: 1,
+  taskId: 'task-history-1',
+  status: 'completed',
+  operation: 'text-to-image',
+  prompt: 'history prompt',
+  attachments: [],
+  outputs: [{
+    outputId: 'task-history-1:output:0',
+    index: 0,
+    kind: 'image',
+    asset: {
+      ref: {
+        kind: 'hostObject',
+        ref: 'history-asset-1',
+        name: 'history.png',
+        mimeType: 'image/png',
+        byteSize: 16,
+      },
+    },
+  }],
+  placement: { kind: 'unbound', reason: 'no-photoshop-source' },
+  execution: {
+    profileId: 'mock-profile',
+    profileName: 'Mock Profile',
+  },
+  createdAt: '2026-06-15T00:00:00.000Z',
+  updatedAt: '2026-06-15T00:00:01.000Z',
+  finishedAt: '2026-06-15T00:00:01.000Z',
+};
+
 function completedJob(input: Record<string, unknown>): Job {
   return {
     id: 'job-1',
@@ -160,6 +192,7 @@ export function createFakeServices(options?: {
   readonly services: AppServices;
   readonly spies: {
     readonly submitJob: ReturnType<typeof vi.fn>;
+    readonly putTaskRecord: ReturnType<typeof vi.fn>;
     readonly subscribeJobEvents: ReturnType<typeof vi.fn>;
     readonly listJobHistoryRecords: ReturnType<typeof vi.fn>;
     readonly getProviderProfile: ReturnType<typeof vi.fn>;
@@ -176,6 +209,7 @@ export function createFakeServices(options?: {
     readonly captureActiveImage: ReturnType<typeof vi.fn>;
     readonly readLayerAsAsset: ReturnType<typeof vi.fn>;
     readonly placeAssetOnCanvas: ReturnType<typeof vi.fn>;
+    readonly resolveTaskResource: ReturnType<typeof vi.fn>;
   };
 } {
   let profiles: readonly ProviderProfile[] = options?.profiles ?? [fakeProfile, fakeOptimizerProfile];
@@ -184,6 +218,15 @@ export function createFakeServices(options?: {
     ok: true as const,
     value: completedJob(input.input),
   }));
+  const taskRecords: TaskRecord[] = [fakeTaskRecord];
+  const putTaskRecord = vi.fn(async (record: TaskRecord) => {
+    const index = taskRecords.findIndex((item) => item.taskId === record.taskId);
+    if (index === -1) {
+      taskRecords.push(record);
+    } else {
+      taskRecords[index] = record;
+    }
+  });
   const subscribeJobEvents = vi.fn(() => () => undefined);
   const listJobHistoryRecords = vi.fn(async () => [fakeDurableRecord]);
   const getProviderProfile = vi.fn(async () => ({ ok: true as const, value: profiles[0] ?? fakeProfile }));
@@ -238,6 +281,12 @@ export function createFakeServices(options?: {
     },
   }));
   const placeAssetOnCanvas = vi.fn(async () => undefined);
+  const resolveTaskResource = vi.fn(async () => ({
+    resource: fakeTaskRecord.outputs[0]!.asset,
+    availability: 'available' as const,
+    bytes: fakeOutputBytes.buffer.slice(0),
+    preview: { url: 'blob:task-history-preview' },
+  }));
 
   const commands: CommandsPort = {
     submitJob,
@@ -245,6 +294,9 @@ export function createFakeServices(options?: {
     subscribeJobEvents,
     retryJob: vi.fn(async () => ({ ok: true as const, value: completedJob({}) })),
     listJobHistoryRecords,
+    putTaskRecord,
+    getTaskRecord: vi.fn(async (taskId: string) => taskRecords.find((record) => record.taskId === taskId)),
+    listTaskRecords: vi.fn(async () => taskRecords),
     listProviders: vi.fn(() => [fakeProvider]),
     describeProvider: vi.fn(() => fakeProvider),
     listProviderProfiles: vi.fn(async () => ({ ok: true as const, value: profiles })),
@@ -299,10 +351,12 @@ export function createFakeServices(options?: {
           return undefined;
         },
       }),
+      taskResources: { resolve: resolveTaskResource },
       diagnostics,
     },
     spies: {
       submitJob,
+      putTaskRecord,
       subscribeJobEvents,
       listJobHistoryRecords,
       getProviderProfile,
@@ -319,6 +373,7 @@ export function createFakeServices(options?: {
       captureActiveImage,
       readLayerAsAsset,
       placeAssetOnCanvas,
+      resolveTaskResource,
     },
   };
 }

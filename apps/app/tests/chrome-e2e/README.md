@@ -50,7 +50,8 @@ Supported query controls:
 - `seedProfile=mock`: seed `profileId=mock-profile`, display name
   `Mock Profile`, default model `mock-image-v1`, and secret ref backed by the
   non-secret test value `mock-key`.
-- `seedHistory=1`: seed completed, failed, and running history records.
+- `seedHistory=1`: seed completed, failed, and stale running task/history
+  records. Product history projects stale running tasks as interrupted.
 - `scenario=<id>`: select a deterministic Photoshop simulator scenario.
 - `filePicker=image|cancel`: return a generated PNG file or simulate cancel.
 - `mockFailure=always|none`: preload the mock provider failure mode.

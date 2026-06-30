@@ -8,3 +8,4 @@ export * from './provider.js';
 export * from './asset.js';
 export * from './events.js';
 export * from './durable-job.js';
+export * from './task.js';

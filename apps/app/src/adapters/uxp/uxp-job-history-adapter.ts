@@ -1,6 +1,7 @@
-import type { AssetStore, DurableJobRecord, JobHistoryStore, StoredAssetRef } from '@imagen-ps/application';
+import type { AssetStore, DurableJobRecord, JobHistoryStore, StoredAssetRef, TaskRecord, TaskStore } from '@imagen-ps/application';
+import { assertTaskRecord, decodeTaskRecord } from '@imagen-ps/application';
 import { ensurePlaceableImagePayload } from '../../shared/image-payload-preflight';
-import { createInMemoryAssetStore, createInMemoryJobHistoryStore } from './in-memory-host-storage';
+import { createInMemoryAssetStore, createInMemoryJobHistoryStore, createInMemoryTaskStore } from './in-memory-host-storage';
 import type { UxpModules } from './uxp-api';
 
 interface UxpFile {
@@ -32,6 +33,11 @@ interface UxpStorage {
 interface JobHistoryFile {
   readonly schemaVersion: 1;
   readonly records: readonly DurableJobRecord[];
+}
+
+interface TaskHistoryFile {
+  readonly schemaVersion: 1;
+  readonly records: readonly unknown[];
 }
 
 function localFileSystemFrom(modules: UxpModules): UxpLocalFileSystem | undefined {
@@ -74,6 +80,17 @@ function parseHistory(raw: string): JobHistoryFile {
     return { schemaVersion: 1, records: [] };
   }
   const parsed = JSON.parse(raw) as Partial<JobHistoryFile>;
+  return {
+    schemaVersion: 1,
+    records: Array.isArray(parsed.records) ? parsed.records : [],
+  };
+}
+
+function parseTaskHistory(raw: string): TaskHistoryFile {
+  if (raw.trim().length === 0) {
+    return { schemaVersion: 1, records: [] };
+  }
+  const parsed = JSON.parse(raw) as Partial<TaskHistoryFile>;
   return {
     schemaVersion: 1,
     records: Array.isArray(parsed.records) ? parsed.records : [],
@@ -176,6 +193,66 @@ export function createUxpJobHistoryStore(modules: UxpModules): JobHistoryStore {
     async delete(jobId: string): Promise<void> {
       const file = await readAll();
       await writeAll(file.records.filter((record) => record.jobId !== jobId));
+    },
+  };
+}
+
+/** UXP data-folder backed durable task store。 */
+export function createUxpTaskStore(modules: UxpModules): TaskStore {
+  const fs = localFileSystemFrom(modules);
+  if (!fs) {
+    return createInMemoryTaskStore();
+  }
+  const localFileSystem = fs;
+  const fileName = 'task-history.json';
+
+  async function readAll(): Promise<TaskHistoryFile> {
+    const file = await getOrCreateFile(localFileSystem, fileName);
+    try {
+      const raw = await file.read({ format: localFileSystem.formats?.utf8 });
+      return parseTaskHistory(String(raw));
+    } catch {
+      return { schemaVersion: 1, records: [] };
+    }
+  }
+
+  async function writeAll(records: readonly unknown[]): Promise<void> {
+    const file = await getOrCreateFile(localFileSystem, fileName);
+    await file.write(JSON.stringify({ schemaVersion: 1, records }, null, 2), {
+      format: localFileSystem.formats?.utf8,
+    });
+  }
+
+  function decoded(records: readonly unknown[], query?: { readonly limit?: number; readonly status?: string }): readonly TaskRecord[] {
+    const values = records
+      .map((record) => decodeTaskRecord(record))
+      .filter((result): result is { readonly ok: true; readonly value: TaskRecord } => result.ok)
+      .map((result) => result.value)
+      .filter((record) => query?.status === undefined || record.status === query.status)
+      .sort((a, b) => b.updatedAt.localeCompare(a.updatedAt));
+    return typeof query?.limit === 'number' ? values.slice(0, query.limit) : values;
+  }
+
+  function decodedTaskId(record: unknown): string | undefined {
+    const result = decodeTaskRecord(record);
+    return result.ok ? result.value.taskId : result.taskId;
+  }
+
+  return {
+    async put(record: TaskRecord): Promise<void> {
+      assertTaskRecord(record);
+      const file = await readAll();
+      await writeAll([...file.records.filter((item) => decodedTaskId(item) !== record.taskId), record]);
+    },
+    async get(taskId: string): Promise<TaskRecord | undefined> {
+      return decoded((await readAll()).records).find((record) => record.taskId === taskId);
+    },
+    async list(query?: { readonly limit?: number; readonly status?: string }): Promise<readonly TaskRecord[]> {
+      return decoded((await readAll()).records, query);
+    },
+    async delete(taskId: string): Promise<void> {
+      const file = await readAll();
+      await writeAll(file.records.filter((record) => decodedTaskId(record) !== taskId));
     },
   };
 }

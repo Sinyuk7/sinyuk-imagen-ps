@@ -1,5 +1,6 @@
-import { useMemo, useState } from 'react';
-import type { DurableJobRecord } from '@imagen-ps/application';
+import { useCallback, useEffect, useMemo, useState } from 'react';
+import type { ResolvedTaskResource, TaskOutput, TaskRecord } from '@imagen-ps/application';
+import type { TaskResourceResolverPort } from '../../ports/app-services';
 import type { ConversationRound, RoundStatus } from '../hooks/use-conversation';
 import { Icon } from '../components/icons';
 import { ActionButton } from '../primitives/native-controls';
@@ -11,11 +12,13 @@ const STATUS_COLOR: Record<RoundStatus, string> = { ok: 'var(--app-color-positiv
 interface HistoryPageProps {
   readonly onNav: (view: string) => void;
   readonly rounds: readonly ConversationRound[];
-  readonly records: readonly DurableJobRecord[];
+  readonly records: readonly TaskRecord[];
   readonly loading: boolean;
   readonly error?: string;
   readonly onReload: () => Promise<void>;
   readonly onRetry: (roundId: string) => Promise<void>;
+  readonly taskResources?: TaskResourceResolverPort;
+  readonly onPlaceTaskOutput?: (record: TaskRecord, outputId: string) => Promise<void>;
   readonly onLocateRound?: (roundId: string) => void;
   readonly onMiss?: () => void;
 }
@@ -30,30 +33,23 @@ interface HistoryItem {
   readonly time: string;
   readonly previewUrl?: string;
   readonly retryRoundId?: string;
+  readonly output?: TaskOutput;
+  readonly taskRecord?: TaskRecord;
+  readonly resourceState?: ResolvedTaskResource['availability'];
 }
 
-function statusFromRecord(record: DurableJobRecord): RoundStatus {
+function statusFromRecord(record: TaskRecord): RoundStatus {
   if (record.status === 'completed') {
     return 'ok';
   }
-  if (record.status === 'failed') {
+  if (record.status === 'failed' || record.status === 'interrupted') {
     return 'err';
   }
   return 'running';
 }
 
-function promptFromInput(input: Record<string, unknown>, fallback: string): string {
-  return typeof input.prompt === 'string' && input.prompt.length > 0 ? input.prompt : fallback;
-}
-
-function providerFromInput(input: Record<string, unknown>, fallback: string): string {
-  if (typeof input.profileId === 'string') {
-    return input.profileId;
-  }
-  if (typeof input.providerProfileId === 'string') {
-    return input.providerProfileId;
-  }
-  return typeof input.provider === 'string' ? input.provider : fallback;
+function providerFromRecord(record: TaskRecord, fallback: string): string {
+  return record.execution?.profileName ?? record.execution?.providerName ?? record.execution?.profileId ?? record.execution?.providerId ?? fallback;
 }
 
 function timeFromIso(value: string): string {
@@ -64,14 +60,29 @@ function timeFromIso(value: string): string {
   return `${date.getHours()}:${String(date.getMinutes()).padStart(2, '0')}`;
 }
 
-function itemFromRecord(record: DurableJobRecord, noPrompt: string, unknownProvider: string): HistoryItem {
+function itemFromRecord(
+  record: TaskRecord,
+  noPrompt: string,
+  unknownProvider: string,
+  previewUrl: string | undefined,
+  resourceState: ResolvedTaskResource['availability'] | undefined,
+): HistoryItem {
+  const output = record.outputs[0];
   return {
-    id: record.jobId,
-    prompt: promptFromInput(record.input, noPrompt),
+    id: record.taskId,
+    prompt: record.prompt.length > 0 ? record.prompt : noPrompt,
     status: statusFromRecord(record),
-    providerName: providerFromInput(record.input, unknownProvider),
+    providerName: providerFromRecord(record, unknownProvider),
     time: timeFromIso(record.updatedAt),
+    ...(previewUrl ? { previewUrl } : {}),
+    ...(output ? { output } : {}),
+    taskRecord: record,
+    ...(resourceState ? { resourceState } : {}),
   };
+}
+
+function outputItemId(record: TaskRecord, output: TaskOutput): string {
+  return record.outputs.length <= 1 ? record.taskId : `${record.taskId}:${output.outputId}`;
 }
 
 function itemFromRound(round: ConversationRound): HistoryItem {
@@ -86,10 +97,32 @@ function itemFromRound(round: ConversationRound): HistoryItem {
   };
 }
 
-export function HistoryPage({ onNav, rounds, records, loading, error, onReload, onRetry, onLocateRound, onMiss }: HistoryPageProps) {
+interface PreviewState {
+  readonly url: string;
+  readonly availability: ResolvedTaskResource['availability'];
+}
+
+function downloadBytes(bytes: ArrayBuffer, name: string, mimeType: string): void {
+  if (typeof document === 'undefined' || typeof URL === 'undefined' || typeof URL.createObjectURL !== 'function') {
+    throw new Error('Download is unavailable in this runtime.');
+  }
+  const blob = new Blob([bytes.slice(0)], { type: mimeType });
+  const url = URL.createObjectURL(blob);
+  const anchor = document.createElement('a');
+  anchor.href = url;
+  anchor.download = name;
+  anchor.style.display = 'none';
+  document.body.appendChild(anchor);
+  anchor.click();
+  anchor.remove();
+  URL.revokeObjectURL(url);
+}
+
+export function HistoryPage({ onNav, rounds, records, loading, error, onReload, onRetry, taskResources, onPlaceTaskOutput, onLocateRound, onMiss }: HistoryPageProps) {
   const { messages: t } = useI18n();
   const { toast, show, close } = useToast();
   const [filter, setFilter] = useState<'all' | RoundStatus>('all');
+  const [previews, setPreviews] = useState<Record<string, PreviewState>>({});
   const filters: readonly [HistoryFilter, string][] = [
     ['all', t.status.all],
     ['ok', t.status.done],
@@ -97,11 +130,93 @@ export function HistoryPage({ onNav, rounds, records, loading, error, onReload, 
     ['err', t.status.failed],
   ];
   const statusLabel: Record<RoundStatus, string> = { ok: t.status.done, running: t.status.running, err: t.status.failed };
+
+  useEffect(() => {
+    let disposed = false;
+    const disposers: Array<() => void> = [];
+    void Promise.all(records.flatMap((record) => record.outputs.map(async (output) => {
+      if (!taskResources && output.asset.ref.kind !== 'url') {
+        return undefined;
+      }
+      const resolved: ResolvedTaskResource = taskResources
+        ? await taskResources.resolve(output.asset)
+        : { resource: output.asset, availability: 'remote-only' as const, preview: { url: output.asset.ref.ref } };
+      if (resolved.preview?.dispose) {
+        disposers.push(resolved.preview.dispose);
+      }
+      return [outputItemId(record, output), { url: resolved.preview?.url ?? '', availability: resolved.availability }] as const;
+    }))).then((entries) => {
+      if (disposed) {
+        disposers.forEach((dispose) => dispose());
+        return;
+      }
+      setPreviews(Object.fromEntries(entries.filter((entry): entry is readonly [string, PreviewState] => entry !== undefined)));
+    });
+
+    return () => {
+      disposed = true;
+      disposers.forEach((dispose) => dispose());
+    };
+  }, [records, taskResources]);
+
+  const onDownload = useCallback(async (item: HistoryItem) => {
+    if (!item.output || !taskResources) {
+      show(t.history.resourceUnavailable, 'info');
+      return;
+    }
+    try {
+      const resolved = await taskResources.resolve(item.output.asset);
+      if (resolved.availability !== 'available' || !resolved.bytes) {
+        resolved.preview?.dispose?.();
+        show(t.history.resourceUnavailable, 'info');
+        return;
+      }
+      downloadBytes(
+        resolved.bytes,
+        item.output.asset.ref.name ?? `${item.output.outputId}.png`,
+        item.output.asset.ref.mimeType ?? 'image/png',
+      );
+      resolved.preview?.dispose?.();
+    } catch (downloadError) {
+      show(downloadError instanceof Error ? downloadError.message : String(downloadError), 'negative');
+    }
+  }, [show, t.history.resourceUnavailable, taskResources]);
+
+  const onPlace = useCallback(async (item: HistoryItem) => {
+    if (!item.output || !item.taskRecord || !onPlaceTaskOutput) {
+      show(t.history.resourceUnavailable, 'info');
+      return;
+    }
+    try {
+      await onPlaceTaskOutput(item.taskRecord, item.output.outputId);
+    } catch (placeError) {
+      show(placeError instanceof Error ? placeError.message : String(placeError), 'negative');
+    }
+  }, [onPlaceTaskOutput, show, t.history.resourceUnavailable]);
+
   const items = useMemo(() => {
-    const durable = records.map((record) => itemFromRecord(record, t.history.noPrompt, t.history.unknownProvider));
+    const durable = records.flatMap((record) => {
+      const firstItem = itemFromRecord(
+        record,
+        t.history.noPrompt,
+        t.history.unknownProvider,
+        previews[record.taskId]?.url,
+        previews[record.taskId]?.availability,
+      );
+      if (record.outputs.length <= 1) {
+        return [firstItem];
+      }
+      return record.outputs.map((output) => ({
+        ...firstItem,
+        id: outputItemId(record, output),
+        previewUrl: previews[outputItemId(record, output)]?.url,
+        resourceState: previews[outputItemId(record, output)]?.availability,
+        output,
+      }));
+    });
     const active = rounds.filter((round) => round.status === 'running' || round.status === 'err').map(itemFromRound);
     return [...active, ...durable];
-  }, [records, rounds, t.history.noPrompt, t.history.unknownProvider]);
+  }, [previews, records, rounds, t.history.noPrompt, t.history.unknownProvider]);
   const filtered = useMemo(
     () => (filter === 'all' ? items : items.filter((item) => item.status === filter)),
     [filter, items],
@@ -192,6 +307,34 @@ export function HistoryPage({ onNav, rounds, records, loading, error, onReload, 
                     >
                       {t.history.retry}
                     </button>
+                  )}
+                  {item.output && (
+                    <>
+                    <ActionButton
+                      data-testid={`history-download-button-${item.id}`}
+                      className="row-icon-action"
+                      quiet
+                      label={t.history.download}
+                      onClick={(event) => {
+                        event.stopPropagation();
+                        void onDownload(item);
+                      }}
+                    >
+                      <Icon name="download" size={12} />
+                    </ActionButton>
+                    <ActionButton
+                      data-testid={`history-place-button-${item.id}`}
+                      className="row-icon-action"
+                      quiet
+                      label={t.history.place}
+                      onClick={(event) => {
+                        event.stopPropagation();
+                        void onPlace(item);
+                      }}
+                    >
+                      <Icon name="place-ps" size={12} />
+                    </ActionButton>
+                    </>
                   )}
                 </div>
               </div>
