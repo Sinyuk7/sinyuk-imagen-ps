@@ -4,10 +4,11 @@ import { primeSharedUi } from '../../shared/ui/panel-bootstrap';
 import { createChromeAppShell } from '../../composition/chrome/create-chrome-app-shell';
 import { chromeTestHarnessConfigFromUrl } from '../../composition/chrome/chrome-test-harness';
 import { ComposerSelectHarnessPage } from '../../harness/components/composer-select';
+import { MotionPrototypeHarnessPage } from '../../harness/components/motion-prototype';
 
-function resolveChromeHarness(url: URL): 'composer-select' | null {
+function resolveChromeHarness(url: URL): 'composer-select' | 'motion-prototype' | null {
   const harness = url.searchParams.get('harness');
-  if (harness === 'composer-select') {
+  if (harness === 'composer-select' || harness === 'motion-prototype') {
     return harness;
   }
   return null;
@@ -38,6 +39,9 @@ try {
   root = createRoot(container);
   if (harness === 'composer-select') {
     root.render(<ComposerSelectHarnessPage />);
+    globalThis.__IMAGEN_CHROME_RUNTIME__ = undefined;
+  } else if (harness === 'motion-prototype') {
+    root.render(<MotionPrototypeHarnessPage />);
     globalThis.__IMAGEN_CHROME_RUNTIME__ = undefined;
   } else {
     const testHarness = chromeTestHarnessConfigFromUrl(url);

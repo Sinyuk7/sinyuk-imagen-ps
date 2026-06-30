@@ -12,9 +12,20 @@ import { Icon } from '../components/icons';
 import { ComposerSelect } from '../components/composer-select';
 import { UxpTextArea } from '../components/uxp-form-controls';
 import { useToast, ToastHost } from '../components/toast-host';
+import {
+  MotionActivityDot,
+  MotionActivityIcon,
+  MotionButtonSurface,
+  MotionContent,
+  MotionDimSurface,
+  MotionHighlight,
+  MotionImage,
+  MotionPresenceView,
+} from '../components/motion-ui';
 import { ActionButton } from '../primitives/native-controls';
 import { useI18n } from '../i18n/i18n-context';
 import type { ProviderInputSizePolicy } from '../../image/resize';
+import { MOTION_DURATION } from '../motion';
 
 interface MainPageProps {
   readonly onNav: (view: string) => void;
@@ -42,6 +53,8 @@ type OptimizeState =
   | { status: 'idle' }
   | { status: 'optimizing'; source: string }
   | { status: 'optimized'; source: string; result: string };
+
+type PlaceStatus = 'idle' | 'placing' | 'placed';
 
 interface FlatLayer {
   readonly layer: LayerInfo;
@@ -177,6 +190,8 @@ export function MainPage({
   const { toast, show, close } = useToast();
   const [copied, setCopied] = useState<Record<string, boolean>>({});
   const [selectedPreviewIndexes, setSelectedPreviewIndexes] = useState<Record<string, number>>({});
+  const [placeStatus, setPlaceStatus] = useState<Record<string, PlaceStatus>>({});
+  const [highlightKey, setHighlightKey] = useState<string | null>(null);
   const [scrolledAway, setScrolledAway] = useState(false);
   const [optimizeState, setOptimizeState] = useState<OptimizeState>({ status: 'idle' });
   const convRef = useRef<HTMLDivElement>(null);
@@ -240,6 +255,19 @@ export function MainPage({
       }
       if (Object.keys(current).length !== Object.keys(next).length) {
         changed = true;
+      }
+      return changed ? next : current;
+    });
+    setPlaceStatus((current) => {
+      let changed = false;
+      const liveRoundIds = new Set(conversation.rounds.map((round) => round.id));
+      const next: Record<string, PlaceStatus> = {};
+      for (const [roundId, status] of Object.entries(current)) {
+        if (liveRoundIds.has(roundId)) {
+          next[roundId] = status;
+        } else {
+          changed = true;
+        }
       }
       return changed ? next : current;
     });
@@ -325,6 +353,7 @@ export function MainPage({
 
   const addAttachment = (attachment: ConversationAttachment) => {
     setAttachments((current) => [...current, attachment]);
+    setHighlightKey(`attachment:${attachment.id}`);
     setAttachOpen(false);
     setLayerOpen(false);
   };
@@ -470,6 +499,7 @@ export function MainPage({
         }
         setInput(optimized);
         setOptimizeState({ status: 'optimized', source: prompt, result: optimized });
+        setHighlightKey(`optimize:${Date.now()}`);
         show(t.toast.promptOptimized, 'positive');
       } else {
         setOptimizeState({ status: 'idle' });
@@ -500,10 +530,17 @@ export function MainPage({
       show(t.toast.noPlaceableImage, 'info');
       return;
     }
+    setPlaceStatus((current) => ({ ...current, [round.id]: 'placing' }));
     try {
       await services.host.placeAssetOnCanvas(asset, round.placementIntent);
+      setPlaceStatus((current) => ({ ...current, [round.id]: 'placed' }));
+      setHighlightKey(`place:${round.id}:${Date.now()}`);
       show(t.toast.placedOnCanvas, 'positive');
+      window.setTimeout(() => {
+        setPlaceStatus((current) => ({ ...current, [round.id]: 'idle' }));
+      }, MOTION_DURATION.statusReset);
     } catch (error) {
+      setPlaceStatus((current) => ({ ...current, [round.id]: 'idle' }));
       show(error instanceof Error ? error.message : t.toast.placeFailed, 'negative');
     }
   };
@@ -554,8 +591,9 @@ export function MainPage({
             <span className="hdr-provider">{selectedProfile?.displayName ?? t.main.noProviderProfile}</span>
             <Icon name="chevron-down" size={10} className="hdr-provider-chevron" />
           </button>
-          {profileMenuOpen && (
-            <div className="model-menu hdr-model-menu" onClick={(event) => event.stopPropagation()}>
+          <MotionPresenceView visible={profileMenuOpen} kind="popover">
+            {({ ref, state }) => (
+            <div ref={ref} className="model-menu hdr-model-menu" data-motion-state={state} onClick={(event) => event.stopPropagation()}>
               {profilesLoading && <div className="model-opt">{t.main.loadingProfiles}</div>}
               {profilesError && <div className="model-opt">{profilesError}</div>}
               {!profilesLoading && selectableProfiles.length === 0 && (
@@ -574,7 +612,8 @@ export function MainPage({
                 </button>
               ))}
             </div>
-          )}
+            )}
+          </MotionPresenceView>
         </div>
         <ActionButton
           data-testid="main-providers-button"
@@ -613,6 +652,15 @@ export function MainPage({
 
           {conversation.rounds.map((round) => (
             <div key={round.id} className="round-item" data-round-id={round.id} data-testid={`round-${round.id}`}>
+              <MotionHighlight
+                activeKey={
+                  highlightedRoundId === round.id
+                    ? highlightedRoundId
+                    : highlightKey?.startsWith(`place:${round.id}:`)
+                      ? highlightKey
+                      : null
+                }
+              />
               <div className="msg-user">
                 <div className="user-wrap">
                   <div className="user-bubble">
@@ -648,8 +696,9 @@ export function MainPage({
                 </div>
               </div>
 
+              <MotionContent watch={`${round.id}:${round.status}:${previewIndexForRound(round)}`}>
               {round.status === 'err' && (
-                <div className="msg-prov" style={{ marginTop: 4 }}>
+                <div className="msg-prov msg-prov-surface" style={{ marginTop: 4 }}>
                   <div className="av-prov err">!</div>
                   <div className="err-card">
                     <div className="err-top">
@@ -676,7 +725,7 @@ export function MainPage({
               )}
 
               {round.status === 'running' && (
-                <div className="msg-prov" style={{ marginTop: 4 }}>
+                <div className="msg-prov msg-prov-surface" style={{ marginTop: 4 }}>
                   <button
                     className="av-prov"
                     disabled={!onEditProfile || !round.profileId}
@@ -698,7 +747,11 @@ export function MainPage({
                       </div>
                     </div>
                     <div className="prov-loading">
-                      <div className="ldots"><div className="ldot" /><div className="ldot" /><div className="ldot" /></div>
+                      <div className="ldots">
+                        <MotionActivityDot className="ldot" />
+                        <MotionActivityDot className="ldot" />
+                        <MotionActivityDot className="ldot" />
+                      </div>
                       <span style={{ fontFamily: 'var(--app-font-family-mono)', fontSize: 11, color: 'var(--app-color-text-muted)' }}>{t.main.submitJobRunning}</span>
                     </div>
                   </div>
@@ -706,7 +759,7 @@ export function MainPage({
               )}
 
               {round.status === 'ok' && (
-                <div className="msg-prov" style={{ marginTop: 4 }}>
+                <div className="msg-prov msg-prov-surface" style={{ marginTop: 4 }}>
                   <button
                     className="av-prov"
                     disabled={!onEditProfile || !round.profileId}
@@ -739,7 +792,7 @@ export function MainPage({
                         return (
                           <div className="img-result" data-testid={`result-preview-${round.id}`} data-preview-index={selectedPreviewIndex}>
                             {preview.url
-                              ? <img src={preview.url} className="img-bg" alt={preview.label} />
+                              ? <MotionImage key={`${round.id}:${selectedPreviewIndex}`} src={preview.url} className="img-bg" alt={preview.label} />
                               : <div className="img-bg" style={{ background: 'var(--app-color-background-layer-2)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--app-color-text-muted)', fontSize: 12 }}>{t.main.noAssetPreview}</div>
                             }
                             <div className="img-meta">{round.outputSize ?? t.main.assetFallback} · {round.outputFormat ?? t.main.imageFallback}</div>
@@ -775,16 +828,31 @@ export function MainPage({
                               </>
                             )}
                             <div className="img-overlay">
-                              <button
-                                data-testid={`result-place-button-${round.id}`}
-                                className="img-act prim"
-                                onClick={(event) => { event.stopPropagation(); void placeAsset(round, selectedPreviewIndex); }}
-                              >
-                                <span className="ui-icon-text">
-                                  <Icon name="place-ps" size={13} className="ui-icon-text-icon" />
-                                  <span className="ui-icon-text-label">{t.main.placePs}</span>
-                                </span>
-                              </button>
+                              <MotionButtonSurface>
+                                <button
+                                  data-testid={`result-place-button-${round.id}`}
+                                  className="img-act prim"
+                                  data-place-status={placeStatus[round.id] ?? 'idle'}
+                                  disabled={placeStatus[round.id] === 'placing'}
+                                  onClick={(event) => { event.stopPropagation(); void placeAsset(round, selectedPreviewIndex); }}
+                                >
+                                  <span className="ui-icon-text">
+                                    {placeStatus[round.id] === 'placing'
+                                      ? <Icon name="spinner" size={13} className="ui-icon-text-icon" />
+                                      : placeStatus[round.id] === 'placed'
+                                        ? <Icon name="check" size={13} className="ui-icon-text-icon" />
+                                        : <Icon name="place-ps" size={13} className="ui-icon-text-icon" />
+                                    }
+                                    <span className="ui-icon-text-label">
+                                      {placeStatus[round.id] === 'placing'
+                                        ? t.main.placingPs
+                                        : placeStatus[round.id] === 'placed'
+                                          ? t.main.placedPs
+                                          : t.main.placePs}
+                                    </span>
+                                  </span>
+                                </button>
+                              </MotionButtonSurface>
                             </div>
                           </div>
                         );
@@ -804,16 +872,18 @@ export function MainPage({
                   </div>
                 </div>
               )}
+              </MotionContent>
             </div>
           ))}
         </div>
       </div>
 
       <footer className="composer" onClick={(event) => event.stopPropagation()}>
-        <div className={`cmp-shell${conversation.running ? ' off' : ''}`}>
+          <MotionDimSurface className={`cmp-shell cmp-shell-motion${conversation.running ? ' off' : ''}`} dim={conversation.running}>
           <div className="cmp-attach-band">
-            {layerOpen && (
-              <div className="layer-list-wrap" onClick={(event) => event.stopPropagation()}>
+            <MotionPresenceView visible={layerOpen} kind="popover">
+              {({ ref, state }) => (
+              <div ref={ref} className="layer-list-wrap" data-motion-state={state} onClick={(event) => event.stopPropagation()}>
                 <div className="layer-list-hdr">
                   <button
                     className="layer-back"
@@ -841,10 +911,12 @@ export function MainPage({
                   ))}
                 </div>
               </div>
-            )}
+              )}
+            </MotionPresenceView>
 
-            {attachOpen && !layerOpen && (
-              <div className="attach-picker" onClick={(event) => event.stopPropagation()}>
+            <MotionPresenceView visible={attachOpen && !layerOpen} kind="popover">
+              {({ ref, state }) => (
+              <div ref={ref} className="attach-picker" data-motion-state={state} onClick={(event) => event.stopPropagation()}>
                 <div data-testid="attach-ps-layers-option" className="attach-opt" onClick={openLayerPicker}>
                   <div className="attach-opt-ico">
                     <Icon name="ps-layers" size={13} />
@@ -865,7 +937,8 @@ export function MainPage({
                   </div>
                 </div>
               </div>
-            )}
+              )}
+            </MotionPresenceView>
 
               <div className="attach-row">
                 <ActionButton
@@ -888,6 +961,7 @@ export function MainPage({
                 </ActionButton>
                 {attachments.map((attachment) => (
                   <div key={attachment.id} className="att-thumb">
+                    <MotionHighlight activeKey={highlightKey === `attachment:${attachment.id}` ? highlightKey : null} />
                     {attachment.previewUrl
                       ? <img src={attachment.previewUrl} style={{ width: '100%', height: '100%', objectFit: 'cover' }} alt={attachment.name} />
                       : <div style={{ width: '100%', height: '100%', background: 'var(--app-color-background-layer-1)' }} />
@@ -899,6 +973,7 @@ export function MainPage({
           </div>
           <div className="cmp-core">
             <div className="cmp-body">
+              <MotionHighlight activeKey={highlightKey?.startsWith('optimize:') ? highlightKey : null} />
               <UxpTextArea
                 data-testid="composer-textarea"
                 controlRef={taRef}
@@ -918,64 +993,70 @@ export function MainPage({
             </div>
             <div className="cmp-action-row" data-testid="composer-action-row">
               <div className="cmp-action-left">
-                <ActionButton
-                  data-testid="composer-prompt-optimize-button"
-                  className="cmp-opt-icon-button"
-                  quiet
-                  label={optimizeButtonLabel}
-                  placement="top"
-                  disabled={showUndo ? false : !canOptimize}
-                  onClick={(event) => {
-                    event.stopPropagation();
-                    if (showUndo) {
-                      handleUndoOptimize();
-                    } else {
-                      void handleOptimize();
-                    }
-                  }}
-                >
-                  {optimizing
-                    ? <Icon name="spinner" size={13} className="cmp-opt-icon spin" />
-                    : showUndo
-                      ? <Icon name="refresh" size={13} className="cmp-opt-icon" />
-                      : <Icon name="magic-wand" size={13} className="cmp-opt-icon" />}
-                </ActionButton>
+                <MotionButtonSurface>
+                  <ActionButton
+                    data-testid="composer-prompt-optimize-button"
+                    className="cmp-opt-icon-button"
+                    quiet
+                    label={optimizeButtonLabel}
+                    placement="top"
+                    disabled={showUndo ? false : !canOptimize}
+                    onClick={(event) => {
+                      event.stopPropagation();
+                      if (showUndo) {
+                        handleUndoOptimize();
+                      } else {
+                        void handleOptimize();
+                      }
+                    }}
+                  >
+                    {optimizing
+                      ? <MotionActivityIcon className="cmp-opt-icon"><Icon name="spinner" size={13} /></MotionActivityIcon>
+                      : showUndo
+                        ? <Icon name="refresh" size={13} className="cmp-opt-icon" />
+                        : <Icon name="magic-wand" size={13} className="cmp-opt-icon" />}
+                  </ActionButton>
+                </MotionButtonSurface>
               </div>
               <div className="cmp-action-right">
-                <ActionButton
-                  data-testid="composer-capture-button"
-                  className="cmp-capture"
-                  label={t.main.capture}
-                  placement="top"
-                  disabled={!canCapture}
-                  onClick={(event) => {
-                    event.stopPropagation();
-                    setOpenMenu(null);
-                    setAttachOpen(false);
-                    setLayerOpen(false);
-                    void captureFromPhotoshop();
-                  }}
-                >
-                  {captureInFlight
-                    ? <Icon name="spinner" size={13} className="cmp-capture-icon spin" />
-                    : <Icon name="target" size={13} className="cmp-capture-icon" />}
-                  <span className="cmp-action-label">{t.main.capture}</span>
-                </ActionButton>
-                <div className="send-wrap">
+                <MotionButtonSurface>
                   <ActionButton
-                    data-testid="composer-send-button"
-                    className="cmp-send"
-                    disabled={!canSend || optimizing}
-                    label={conversation.running ? t.main.regenerate : t.main.send}
-                    aria-label={conversation.running ? t.main.regenerate : t.main.send}
+                    data-testid="composer-capture-button"
+                    className="cmp-capture"
+                    label={t.main.capture}
                     placement="top"
-                    onClick={() => void handleSend()}
+                    disabled={!canCapture}
+                    onClick={(event) => {
+                      event.stopPropagation();
+                      setOpenMenu(null);
+                      setAttachOpen(false);
+                      setLayerOpen(false);
+                      void captureFromPhotoshop();
+                    }}
                   >
-                    {conversation.running
-                      ? <Icon name="spinner" size={13} className="spin" />
-                      : <Icon name="send" />
-                    }
+                    {captureInFlight
+                      ? <MotionActivityIcon className="cmp-capture-icon"><Icon name="spinner" size={13} /></MotionActivityIcon>
+                      : <Icon name="target" size={13} className="cmp-capture-icon" />}
+                    <span className="cmp-action-label">{t.main.capture}</span>
                   </ActionButton>
+                </MotionButtonSurface>
+                <div className="send-wrap">
+                  <MotionButtonSurface>
+                    <ActionButton
+                      data-testid="composer-send-button"
+                      className="cmp-send"
+                      disabled={!canSend || optimizing}
+                      label={conversation.running ? t.main.regenerate : t.main.send}
+                      aria-label={conversation.running ? t.main.regenerate : t.main.send}
+                      placement="top"
+                      onClick={() => void handleSend()}
+                    >
+                      {conversation.running
+                        ? <MotionActivityIcon><Icon name="spinner" size={13} /></MotionActivityIcon>
+                        : <Icon name="send" />
+                      }
+                    </ActionButton>
+                  </MotionButtonSurface>
                 </div>
               </div>
             </div>
@@ -1022,20 +1103,24 @@ export function MainPage({
               />
             </div>
           </div>
-        </div>
+          </MotionDimSurface>
 
-        {scrolledAway && (
-          <button
-            data-testid="back-to-bottom-button"
-            className="back-to-bottom"
-            onClick={(event) => {
-              event.stopPropagation();
-              scrollToBottom();
-            }}
-          >
-            <Icon name="chevron-down" size={10} />
-          </button>
-        )}
+        <MotionPresenceView visible={scrolledAway} kind="floating">
+          {({ ref, state }) => (
+            <button
+              ref={ref}
+              data-testid="back-to-bottom-button"
+              className="back-to-bottom"
+              data-motion-state={state}
+              onClick={(event) => {
+                event.stopPropagation();
+                scrollToBottom();
+              }}
+            >
+              <Icon name="chevron-down" size={10} />
+            </button>
+          )}
+        </MotionPresenceView>
       </footer>
       <ToastHost toast={toast} onClose={close} />
     </div>

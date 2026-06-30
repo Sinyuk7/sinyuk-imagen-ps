@@ -4,6 +4,7 @@ import { ComposerSelectTriggerButton } from './composer-select-trigger-button';
 import type { ComposerSelectProps } from './composer-select.types';
 export type { ComposerSelectOption, ComposerSelectProps } from './composer-select.types';
 import { useComposerSelectPlacement } from './use-composer-select-placement';
+import { MotionPresenceView } from './motion-ui';
 
 /**
  * Composer 底部控制行用的受控单选下拉原语。
@@ -91,20 +92,25 @@ export function ComposerSelect({
         onClick={handleTriggerClick}
         onKeyDown={handleTriggerKeyDown}
       />
-      {open && (
-        <ComposerSelectMenu
-          label={label}
-          testId={testId}
-          menuRef={menuRef}
-          menuClassName={menuClassName}
-          menuPlacement={menuPlacement}
-          options={options}
-          selectedId={selectedId}
-          onSelect={selectValue}
-          onClose={() => onOpenChange(false)}
-          onClick={handleMenuClick}
-        />
-      )}
+      <MotionPresenceView visible={open} kind="popover">
+        {({ ref, state }) => (
+          <ComposerSelectMenu
+            label={label}
+            testId={testId}
+            visible={open}
+            menuRef={menuRef}
+            motionRef={ref}
+            motionState={state}
+            menuClassName={menuClassName}
+            menuPlacement={menuPlacement}
+            options={options}
+            selectedId={selectedId}
+            onSelect={selectValue}
+            onClose={() => onOpenChange(false)}
+            onClick={handleMenuClick}
+          />
+        )}
+      </MotionPresenceView>
     </div>
   );
 }

@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
+import { MotionPresenceView } from './motion-ui';
 
 /**
  * 主流程瞬时 Toast 的语义级别。
@@ -70,25 +71,49 @@ export function useToast(): ToastController {
  */
 export function ToastHost({ toast, onClose }: ToastHostProps) {
   const ref = useRef<HTMLDivElement | null>(null);
+  const [renderedToast, setRenderedToast] = useState<ToastState | null>(toast);
 
-  if (!toast) {
+  useEffect(() => {
+    if (toast) {
+      setRenderedToast(toast);
+    }
+  }, [toast]);
+
+  if (!toast && !renderedToast) {
     return null;
   }
 
   return (
-    <div
-      data-testid="toast"
-      ref={ref}
-      className="ui-toast"
-      data-variant={toast.variant}
-      tabIndex={-1}
-      aria-live="polite"
-      role={toast.variant === 'negative' ? 'alert' : 'status'}
-    >
-      <span className="ui-toast-message">{toast.message}</span>
-      <button type="button" className="ui-toast-close" aria-label="Dismiss" onClick={onClose}>
-        x
-      </button>
-    </div>
+    <MotionPresenceView visible={Boolean(toast)} kind="toast">
+      {({ ref: motionRef, state }) => {
+        const current = toast ?? renderedToast;
+        if (!current) {
+          return null;
+        }
+        return (
+          <div
+            data-testid="toast"
+            ref={(element) => {
+              ref.current = element;
+              motionRef(element);
+              if (!element && !toast) {
+                setRenderedToast(null);
+              }
+            }}
+            className="ui-toast"
+            data-variant={current.variant}
+            data-motion-state={state}
+            tabIndex={-1}
+            aria-live="polite"
+            role={current.variant === 'negative' ? 'alert' : 'status'}
+          >
+            <span className="ui-toast-message">{current.message}</span>
+            <button type="button" className="ui-toast-close" aria-label="Dismiss" onClick={onClose}>
+              x
+            </button>
+          </div>
+        );
+      }}
+    </MotionPresenceView>
   );
 }

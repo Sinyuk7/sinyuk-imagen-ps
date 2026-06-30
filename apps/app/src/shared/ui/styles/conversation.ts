@@ -5,10 +5,20 @@ export const CONVERSATION_CSS = `
 .day-sep-line{ flex:1; height:1px; background:var(--app-color-border-default); }
 .day-sep-lbl{ margin-top:0; margin-right:8px; margin-bottom:0; margin-left:8px; font-family:var(--app-font-family-mono); font-size:10px; color:var(--app-color-text-muted); padding:0 4px; }
 .round-item{
+  position:relative;
   padding-top:0; padding-right:0; padding-bottom:12px; padding-left:0;
   margin-top:0; margin-right:0; margin-bottom:12px; margin-left:0;
   border-bottom:1px solid var(--app-color-border-default);
 }
+.motion-highlight{
+  position:absolute; top:0; right:0; bottom:8px; left:0;
+  border-radius:var(--app-radius-medium);
+  background:var(--app-color-informative-subtle);
+  opacity:0;
+  pointer-events:none;
+}
+.motion-content{ min-width:0; }
+.msg-prov-surface{ min-width:0; }
 .round-item:last-child{ margin-bottom:0; border-bottom:none; }
 
 /* USER bubble (right) */
@@ -152,6 +162,7 @@ export const CONVERSATION_CSS = `
 .img-act > [data-icon]{ margin-right:5px; }
 .img-act.prim{ background:var(--app-color-accent-default); color:var(--app-color-text-on-accent); }
 .img-act.prim:hover{ background:var(--app-color-accent-hover); }
+.img-act.prim:disabled{ opacity:.78; cursor:default; }
 .img-act.sec{ background:var(--app-color-active-overlay); color:var(--app-color-text-primary); }
 .img-act.sec:hover{ background:var(--app-color-hover-overlay); }
 

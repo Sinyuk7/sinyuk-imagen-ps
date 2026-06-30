@@ -45,6 +45,8 @@ export interface AppMessages {
     readonly imageFallback: string;
     readonly placePs: string;
     readonly placePsLong: string;
+    readonly placingPs: string;
+    readonly placedPs: string;
     readonly regenerate: string;
     readonly copyPrompt: string;
     readonly psLayers: string;
@@ -191,6 +193,8 @@ const EN_MESSAGES: AppMessages = {
     imageFallback: 'image',
     placePs: 'Place in PS',
     placePsLong: 'Place in Photoshop',
+    placingPs: 'Placing...',
+    placedPs: 'Placed',
     regenerate: 'Regenerate',
     copyPrompt: 'Copy Prompt',
     psLayers: 'PS Layers',
@@ -337,6 +341,8 @@ const ZH_CN_MESSAGES: AppMessages = {
     imageFallback: 'image',
     placePs: '置入 PS',
     placePsLong: '置入 Photoshop',
+    placingPs: '置入中...',
+    placedPs: '已置入',
     regenerate: '重新生成',
     copyPrompt: '复制 Prompt',
     psLayers: 'PS 图层',

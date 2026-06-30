@@ -12,6 +12,7 @@ export const OVERLAYS_CSS = `
 .ui-toast[data-variant="positive"]{ border-color:var(--app-color-positive); background:var(--app-color-positive-subtle); color:var(--app-color-positive); }
 .ui-toast[data-variant="negative"]{ border-color:var(--app-color-negative); background:var(--app-color-negative-subtle); color:var(--app-color-negative); }
 .ui-toast[data-variant="info"]{ border-color:var(--app-color-informative); background:var(--app-color-informative-subtle); color:var(--app-color-informative); }
+.ui-toast[data-motion-state="exiting"]{ pointer-events:none; }
 .ui-toast-message{ flex:1; min-width:0; overflow-wrap:anywhere; }
 .ui-toast-close{
   flex:0 0 auto; width:20px; height:20px; margin-left:8px; border-radius:50%;

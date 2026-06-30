@@ -125,6 +125,7 @@ export const COMPOSER_CSS = `
   padding:8px;
 }
 .cmp-shell.off{ opacity:.38; pointer-events:none; }
+.cmp-shell-motion.off{ pointer-events:none; }
 .cmp-attach-band{
   position:relative;
   display:flex;
@@ -145,7 +146,7 @@ export const COMPOSER_CSS = `
   min-height:0;
 }
 .cmp-shell:focus-within{ border-color:var(--app-color-border-strong); }
-.cmp-body{ display:flex; flex-direction:column; min-height:0; }
+.cmp-body{ display:flex; flex-direction:column; min-height:0; position:relative; }
 .cmp-action-row,
 .cmp-toolbar{
   display:flex;
@@ -233,6 +234,7 @@ export const COMPOSER_CSS = `
   min-width:0; max-width:320px; background:var(--app-color-background-elevated); border:1px solid var(--app-color-border-strong); border-radius:var(--app-radius-small);
   overflow:hidden;
 }
+.cmp-select-menu[data-motion-state="exiting"]{ pointer-events:none; }
 .cmp-select-menu::-webkit-scrollbar{ width:3px; }
 .cmp-select-menu::-webkit-scrollbar-thumb{ background:var(--app-color-border-default); border-radius:2px; }
 .cmp-select-menu-down{ top:calc(100% + 6px); bottom:auto; }

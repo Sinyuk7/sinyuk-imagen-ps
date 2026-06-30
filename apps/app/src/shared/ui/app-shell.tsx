@@ -18,6 +18,7 @@ import { I18nProvider, useI18n } from './i18n/i18n-context';
 import { ensurePanelCss } from './panel-bootstrap';
 import { placeTaskOutputOnCanvas } from '../domain/task-actions';
 import type { TaskRecord } from '@imagen-ps/application';
+import { MotionPageFrame } from './components/motion-ui';
 
 export interface AppShellHost {
   readonly app: PluginAppModel;
@@ -275,7 +276,8 @@ function AppShellContent({ host }: AppShellProps) {
   return (
     <div className="panel" data-app-theme={themeOverride} ref={panelRef}>
       {view === 'main' && (
-        <MainPage
+        <MotionPageFrame watch={view}>
+          <MainPage
           onNav={onNav}
           profiles={imageProfiles}
           profilesLoading={profilesState.loading}
@@ -295,10 +297,12 @@ function AppShellContent({ host }: AppShellProps) {
           highlightedRoundId={highlightedRoundId}
           onEditProfile={onEditProfile}
           promptOptimizerProfile={promptOptimizerProfile}
-        />
+          />
+        </MotionPageFrame>
       )}
       {view === 'history' && (
-        <HistoryPage
+        <MotionPageFrame watch={view}>
+          <HistoryPage
           onNav={onNav}
           rounds={conversation.rounds}
           records={history.records}
@@ -310,10 +314,12 @@ function AppShellContent({ host }: AppShellProps) {
           onPlaceTaskOutput={onPlaceTaskOutput}
           onLocateRound={onLocateRound}
           onMiss={onHistoryMiss}
-        />
+          />
+        </MotionPageFrame>
       )}
       {view === 'settings' && (
-        <SettingsPage
+        <MotionPageFrame watch={view}>
+          <SettingsPage
           onNav={onNav}
           profiles={imageProfiles}
           loading={profilesState.loading}
@@ -328,10 +334,12 @@ function AppShellContent({ host }: AppShellProps) {
             setSelectedSettingsProfileId(PROMPT_OPTIMIZER_PROFILE_ID);
             setView('settings-detail');
           }}
-        />
+          />
+        </MotionPageFrame>
       )}
       {view === 'settings-add' && (
-        <SettingsAddPage
+        <MotionPageFrame watch={view}>
+          <SettingsAddPage
           onNav={onNav}
           profiles={imageProfiles}
           onProfileSaved={async (profileId) => {
@@ -340,10 +348,12 @@ function AppShellContent({ host }: AppShellProps) {
             setSelectedSettingsProfileId(profileId);
             setView('settings-detail');
           }}
-        />
+          />
+        </MotionPageFrame>
       )}
       {view === 'settings-detail' && (
-        <SettingsDetailPage
+        <MotionPageFrame watch={view}>
+          <SettingsDetailPage
           onNav={onNav}
           profileId={selectedSettingsProfileId}
           onProfilesChanged={async (profileId) => {
@@ -367,7 +377,8 @@ function AppShellContent({ host }: AppShellProps) {
               throw error;
             }
           }}
-        />
+          />
+        </MotionPageFrame>
       )}
     </div>
   );

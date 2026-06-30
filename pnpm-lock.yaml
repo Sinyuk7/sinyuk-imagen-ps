@@ -23,6 +23,9 @@ importers:
       '@imagen-ps/foundation':
         specifier: workspace:*
         version: link:../../packages/foundation
+      '@tweenjs/tween.js':
+        specifier: ^25.0.0
+        version: 25.0.0
       react:
         specifier: ^19.0.0
         version: 19.2.5
@@ -463,6 +466,9 @@ packages:
     resolution: {integrity: sha512-1XUUyWW0W6FTSqGEhU8RHVqb2wP1SPkr7hIvBlMEwH9jr+sJQK5kqeosLJ/QaUv4ecSAd1ZhIrLoW7qslAzT4A==}
     cpu: [arm64]
     os: [win32]
+
+  '@tweenjs/tween.js@25.0.0':
+    resolution: {integrity: sha512-XKLA6syeBUaPzx4j3qwMqzzq+V4uo72BnlbOjmuljLrRqdsd3qnzvZZoxvMHZ23ndsRS4aufU6JOZYpCbU6T1A==}
 
   '@types/chai@5.2.3':
     resolution: {integrity: sha512-Mw558oeA9fFbv65/y4mHtXDs9bPnFMZAL/jxdPFUpOHHIXX91mcgEHbS5Lahr+pwZFR8A7GQleRWeI6cGFC2UA==}
@@ -1122,6 +1128,8 @@ snapshots:
 
   '@turbo/windows-arm64@2.9.6':
     optional: true
+
+  '@tweenjs/tween.js@25.0.0': {}
 
   '@types/chai@5.2.3':
     dependencies:

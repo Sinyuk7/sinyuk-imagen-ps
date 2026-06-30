@@ -3,6 +3,7 @@ import type { ProviderProfile } from '@imagen-ps/application';
 import { useAppServices } from '../../ports/app-services-context';
 import { providerConfigFromForm, useProviderCatalog } from '../hooks/use-provider-settings';
 import { Icon } from '../components/icons';
+import { MotionContent } from '../components/motion-ui';
 import { ProviderProfileEditor } from '../components/provider-profile-editor';
 import { useI18n } from '../i18n/i18n-context';
 import { Button, ActionButton, TextField, FieldLabel } from '../primitives/native-controls';
@@ -124,30 +125,31 @@ export function SettingsAddPage({ onNav, profiles, onProfileSaved }: SettingsAdd
           <div>
             <div className="sec-lbl" style={{ paddingTop: 16 }}>{t.settings.chooseType}</div>
             {providers.map((provider) => (
-              <div
-                key={provider.id}
-                data-testid={`provider-type-${provider.id}`}
-                className="provider-type-row"
-                onClick={() => {
-                  setProviderId(provider.id);
-                  setName(nextAlias(provider.displayName, profiles));
-                  setBaseUrl(defaultBaseUrl(provider.id));
-                  setStep(2);
-                }}
-              >
-                <div className="provider-type-leading">
-                  <div className="provider-type-badge">
-                    {provider.displayName.slice(0, 2).toUpperCase()}
+              <MotionContent key={provider.id} watch={provider.id}>
+                <div
+                  data-testid={`provider-type-${provider.id}`}
+                  className="provider-type-row"
+                  onClick={() => {
+                    setProviderId(provider.id);
+                    setName(nextAlias(provider.displayName, profiles));
+                    setBaseUrl(defaultBaseUrl(provider.id));
+                    setStep(2);
+                  }}
+                >
+                  <div className="provider-type-leading">
+                    <div className="provider-type-badge">
+                      {provider.displayName.slice(0, 2).toUpperCase()}
+                    </div>
+                  </div>
+                  <div className="provider-type-content">
+                    <div className="provider-type-name">{provider.displayName}</div>
+                    <div className="provider-type-family">{provider.family}</div>
+                  </div>
+                  <div className="provider-type-trail">
+                    <Icon name="chevron-right" />
                   </div>
                 </div>
-                <div className="provider-type-content">
-                  <div className="provider-type-name">{provider.displayName}</div>
-                  <div className="provider-type-family">{provider.family}</div>
-                </div>
-                <div className="provider-type-trail">
-                  <Icon name="chevron-right" />
-                </div>
-              </div>
+              </MotionContent>
             ))}
           </div>
         ) : (

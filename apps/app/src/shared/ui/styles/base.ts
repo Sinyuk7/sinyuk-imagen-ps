@@ -13,4 +13,7 @@ html,body{
   font-family:var(--app-font-family-base); -webkit-font-smoothing:antialiased;
 }
 #root{ width:100%; height:100%; }
+.motion-button-surface{ display:inline-flex; align-items:center; justify-content:center; flex:0 0 auto; }
+.motion-button-surface > .ui-action-button,
+.motion-button-surface > button{ flex:0 0 auto; }
 `;
