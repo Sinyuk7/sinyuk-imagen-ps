@@ -7,7 +7,6 @@ Photoshop 图像生成插件 monorepo。包含两个 surface 应用和共享 run
 ```
 apps/
   app/     — Photoshop / UXP + Chrome dual-runtime surface
-  cli/     — Node.js CLI surface
 packages/
   application/ — headless application/session layer
   core-engine/ — job execution kernel
