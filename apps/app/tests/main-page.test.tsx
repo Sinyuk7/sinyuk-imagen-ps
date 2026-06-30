@@ -4,6 +4,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import { AppShell } from '../src/shared/ui/app-shell';
 import { fakeHostImage, fakeOptimizerProfile, fakeOutputAsset, fakeProfile, fakeProviderInputAsset } from './fakes';
 import { createFakeServices } from './fakes';
+import { MOTION_DURATION } from '../src/shared/ui/motion';
 
 let root: Root | undefined;
 
@@ -201,6 +202,47 @@ describe('MainPage contract', () => {
       documentId: 42,
       placementRect: { left: 10, top: 20, right: 266, bottom: 276 },
     }));
+  });
+
+  it('Place button exposes placing and placed states without delaying host writeback', async () => {
+    vi.useFakeTimers();
+    try {
+      const container = document.createElement('div');
+      document.body.appendChild(container);
+      const services = createFakeServices();
+      let resolvePlace: (() => void) | undefined;
+      services.spies.placeAssetOnCanvas.mockImplementation(() => new Promise<void>((resolve) => {
+        resolvePlace = resolve;
+      }));
+      const { spies } = await renderApp(container, services);
+
+      await act(async () => {
+        container.querySelector<HTMLElement>('[data-testid="composer-capture-button"]')!.click();
+      });
+      await flush();
+      await sendPrompt(container, 'edit captured image');
+
+      const placeButton = container.querySelector<HTMLButtonElement>('[data-testid^="result-place-button-"]')!;
+      await act(async () => {
+        placeButton.click();
+      });
+      expect(spies.placeAssetOnCanvas).toHaveBeenCalledTimes(1);
+      expect(placeButton.dataset.placeStatus).toBe('placing');
+      expect(placeButton.disabled).toBe(true);
+
+      await act(async () => {
+        resolvePlace?.();
+        await Promise.resolve();
+      });
+      expect(placeButton.dataset.placeStatus).toBe('placed');
+
+      await act(async () => {
+        vi.advanceTimersByTime(MOTION_DURATION.statusReset);
+      });
+      expect(placeButton.dataset.placeStatus).toBe('idle');
+    } finally {
+      vi.useRealTimers();
+    }
   });
 
   it('多张 provider 结果只渲染一个主图，并按当前选择置入', async () => {

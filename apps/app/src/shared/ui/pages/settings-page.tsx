@@ -2,6 +2,7 @@ import { type KeyboardEvent } from 'react';
 import type { ProviderProfile } from '@imagen-ps/application';
 import { profileToProviderRow } from '../../domain/mappers';
 import { Icon } from '../components/icons';
+import { MotionContent } from '../components/motion-ui';
 import { ActionButton } from '../primitives/native-controls';
 import { useI18n } from '../i18n/i18n-context';
 
@@ -66,45 +67,47 @@ function ProviderListItem({
   const readinessLabel = !hasDefaultModel ? labels.needsSetup : row.enabled ? labels.ready : labels.configured;
 
   return (
-    <div
-      data-testid={`provider-row-${row.profileId}`}
-      className={`prov-row settings-provider-row ${special ? 'is-special' : ''} ${row.enabled ? 'is-enabled' : 'is-disabled'}`}
-      role="button"
-      tabIndex={0}
-      onClick={onOpen}
-      onKeyDown={(event) => onRowKeyDown(event, onOpen)}
-    >
-      <div className="prov-leading">
-        <div
-          className="prov-ico"
-          style={special
-            ? { background: 'var(--app-color-informative-subtle)', color: 'var(--app-color-informative)' }
-            : { background: 'var(--app-color-accent-subtle)', color: 'var(--app-color-accent-default)' }}
-        >
-          {special ? <Icon name="magic-wand" size={14} /> : initials(row.displayName)}
+    <MotionContent watch={`${row.profileId}:${row.enabled}:${row.defaultModel ?? ''}`}>
+      <div
+        data-testid={`provider-row-${row.profileId}`}
+        className={`prov-row settings-provider-row ${special ? 'is-special' : ''} ${row.enabled ? 'is-enabled' : 'is-disabled'}`}
+        role="button"
+        tabIndex={0}
+        onClick={onOpen}
+        onKeyDown={(event) => onRowKeyDown(event, onOpen)}
+      >
+        <div className="prov-leading">
+          <div
+            className="prov-ico"
+            style={special
+              ? { background: 'var(--app-color-informative-subtle)', color: 'var(--app-color-informative)' }
+              : { background: 'var(--app-color-accent-subtle)', color: 'var(--app-color-accent-default)' }}
+          >
+            {special ? <Icon name="magic-wand" size={14} /> : initials(row.displayName)}
+          </div>
+        </div>
+        <div className="prov-content">
+          <div className="prov-title-row">
+            <span className="prov-name">{row.displayName}</span>
+            <span className={`badge prov-primary-status ${row.enabled ? 'connected' : 'none'}`}>
+              {row.enabled ? labels.enabled : labels.disabled}
+            </span>
+          </div>
+          <div className="prov-meta-row">
+            <span className="prov-family">{row.family}</span>
+            <span className="prov-meta-sep" aria-hidden="true">•</span>
+            <span className="prov-model">{row.defaultModel ?? row.providerId}</span>
+          </div>
+        </div>
+        <div className="prov-end">
+          <div className={`prov-readiness ${readinessTone}`} aria-label={readinessLabel}>
+            <span className="prov-readiness-dot" aria-hidden="true" />
+            <span className="prov-status-text">{readinessLabel}</span>
+          </div>
+          <div className="prov-trail"><Icon name="chevron-right" /></div>
         </div>
       </div>
-      <div className="prov-content">
-        <div className="prov-title-row">
-          <span className="prov-name">{row.displayName}</span>
-          <span className={`badge prov-primary-status ${row.enabled ? 'connected' : 'none'}`}>
-            {row.enabled ? labels.enabled : labels.disabled}
-          </span>
-        </div>
-        <div className="prov-meta-row">
-          <span className="prov-family">{row.family}</span>
-          <span className="prov-meta-sep" aria-hidden="true">•</span>
-          <span className="prov-model">{row.defaultModel ?? row.providerId}</span>
-        </div>
-      </div>
-      <div className="prov-end">
-        <div className={`prov-readiness ${readinessTone}`} aria-label={readinessLabel}>
-          <span className="prov-readiness-dot" aria-hidden="true" />
-          <span className="prov-status-text">{readinessLabel}</span>
-        </div>
-        <div className="prov-trail"><Icon name="chevron-right" /></div>
-      </div>
-    </div>
+    </MotionContent>
   );
 }
 

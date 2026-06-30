@@ -56,12 +56,16 @@ describe('UXP dist bundle safety', () => {
 
   it('ships UXP network all-domain permission in manifest v5 string form', () => {
     const sourceManifest = JSON.parse(readFileSync(resolve('public/manifest.json'), 'utf8')) as {
+      featureFlags?: { CSSNextSupport?: unknown };
       requiredPermissions?: { network?: { domains?: unknown } };
     };
     const distManifest = JSON.parse(readFileSync(resolve('dist/manifest.json'), 'utf8')) as {
+      featureFlags?: { CSSNextSupport?: unknown };
       requiredPermissions?: { network?: { domains?: unknown } };
     };
 
+    expect(sourceManifest.featureFlags?.CSSNextSupport).toBe(true);
+    expect(distManifest.featureFlags?.CSSNextSupport).toBe(true);
     expect(sourceManifest.requiredPermissions?.network?.domains).toBe('all');
     expect(distManifest.requiredPermissions?.network?.domains).toBe('all');
   });

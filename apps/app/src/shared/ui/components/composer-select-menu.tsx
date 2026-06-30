@@ -5,7 +5,10 @@ import type { ComposerSelectMenuPlacement, ComposerSelectOption } from './compos
 interface ComposerSelectMenuProps {
   readonly label: string;
   readonly testId?: string;
+  readonly visible: boolean;
   readonly menuRef: RefObject<HTMLDivElement | null>;
+  readonly motionRef?: (element: HTMLElement | null) => void;
+  readonly motionState?: string;
   readonly menuClassName?: string;
   readonly menuPlacement: ComposerSelectMenuPlacement;
   readonly options: readonly ComposerSelectOption[];
@@ -18,7 +21,10 @@ interface ComposerSelectMenuProps {
 export function ComposerSelectMenu({
   label,
   testId,
+  visible,
   menuRef,
+  motionRef,
+  motionState,
   menuClassName,
   menuPlacement,
   options,
@@ -69,15 +75,19 @@ export function ComposerSelectMenu({
     <div
       data-testid={testId ? `${testId}-popover` : undefined}
       className={placementClass}
+      data-motion-state={motionState}
+      aria-hidden={motionState === 'exiting' ? true : undefined}
+      ref={motionRef}
       style={{
         width: `${Math.round(menuPlacement.width)}px`,
         maxHeight: `${Math.round(menuPlacement.maxHeight)}px`,
+        pointerEvents: motionState === 'exiting' ? 'none' : undefined,
       }}
       onClick={onClick}
     >
       <div
         ref={menuRef}
-        data-testid={testId ? `${testId}-menu` : undefined}
+        data-testid={visible && testId ? `${testId}-menu` : undefined}
         className="cmp-select-listbox"
         role="listbox"
         aria-label={label}
