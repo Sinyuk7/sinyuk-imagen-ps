@@ -8,7 +8,6 @@ export const RESPONSIVE_CSS = `
 .panel[data-panel-width-mode="compact"] .cmp-toolbar-left{ flex:1 1 auto; min-width:0; max-width:none; margin-bottom:3px; }
 .panel[data-panel-width-mode="compact"] .cmp-toolbar-right{ flex:0 0 auto; justify-content:flex-end; margin-top:0; margin-right:0; margin-bottom:3px; margin-left:8px; }
 .panel[data-panel-width-mode="compact"] .cmp-add{ width:28px; height:28px; }
-.panel[data-panel-width-mode="compact"] .cmp-opt{ min-width:72px; height:28px; padding-left:8px; padding-right:8px; }
 .panel[data-panel-width-mode="compact"] .cmp-send{ width:30px; height:30px; }
 .panel[data-panel-width-mode="compact"] .cmp-select-model{ flex:1 1 auto; min-width:0; }
 .panel[data-panel-width-mode="compact"] .cmp-capture{ min-width:84px; height:28px; padding-left:8px; padding-right:8px; }

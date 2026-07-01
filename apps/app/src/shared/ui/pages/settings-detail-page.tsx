@@ -7,7 +7,8 @@ import { ProviderProfileEditor } from '../components/provider-profile-editor';
 import { StatusNotice } from '../components/status-notice';
 import { UxpTextArea } from '../components/uxp-form-controls';
 import { useI18n } from '../i18n/i18n-context';
-import { Button, ActionButton, FieldLabel, HelpText, TextField } from '../primitives/native-controls';
+import { Button, FieldLabel, HelpText, TextField } from '../primitives/native-controls';
+import { IconButton } from '../primitives/icon-button';
 import { statusFromProviderTestResult, type ProviderStatus } from '../provider-status';
 import { ComposerSelect } from '../components/composer-select';
 
@@ -278,9 +279,13 @@ export function SettingsDetailPage({ onNav, profileId, onProfilesChanged }: Sett
     return (
       <div className="page page-enter">
         <header className="hdr">
-          <ActionButton className="hdr-btn" quiet label={t.common.back} onClick={() => onNav('settings')}>
-            <Icon name="chevron-left" />
-          </ActionButton>
+          <IconButton
+            className="hdr-btn"
+            quiet
+            icon={<Icon name="chevron-left" />}
+            tooltip={t.common.back}
+            onClick={() => onNav('settings')}
+          />
           <div className="hdr-title">Provider</div>
           <div style={{ width: 32 }} />
         </header>
@@ -294,27 +299,25 @@ export function SettingsDetailPage({ onNav, profileId, onProfilesChanged }: Sett
   return (
     <div className="page page-enter settings-page">
       <header className="hdr">
-        <ActionButton
+        <IconButton
           data-testid="provider-detail-back-button"
           className="hdr-btn"
           quiet
-          label={t.common.back}
+          icon={<Icon name="chevron-left" />}
+          tooltip={t.common.back}
           onClick={() => onNav('settings')}
-        >
-          <Icon name="chevron-left" />
-        </ActionButton>
+        />
         <div className="page-header-meta">
           <div className="hdr-title page-header-title">{detail.profile?.displayName ?? 'Provider'}</div>
         </div>
-        <ActionButton
+        <IconButton
           data-testid="provider-detail-refresh-button"
           className="hdr-btn"
           quiet
-          label={t.common.refresh}
+          icon={<Icon name="refresh" />}
+          tooltip={t.common.refresh}
           onClick={() => void detail.reload()}
-        >
-          <Icon name="refresh" />
-        </ActionButton>
+        />
       </header>
 
       <div className="scroll scroll-footer-pad">
@@ -407,9 +410,15 @@ export function SettingsDetailPage({ onNav, profileId, onProfilesChanged }: Sett
         <div className="settings-detail-footer-inner">
           <Button data-testid="provider-save-button" className="btn-save ui-button-block" variant="accent" disabled={busy || !detail.profile} onClick={() => void save()}>{t.common.save}</Button>
           {!isOptimizerProfile && (
-            <Button data-testid="provider-delete-button" className="btn-del ui-button-block" variant="negative" aria-label={t.common.delete} disabled={busy || !detail.profile} onClick={() => void remove()}>
-              <Icon name="trash" />
-            </Button>
+            <IconButton
+              data-testid="provider-delete-button"
+              className="btn-del ui-button-block"
+              variant="negative"
+              icon={<Icon name="trash" />}
+              tooltip={t.common.delete}
+              disabled={busy || !detail.profile}
+              onClick={() => void remove()}
+            />
           )}
         </div>
       </footer>

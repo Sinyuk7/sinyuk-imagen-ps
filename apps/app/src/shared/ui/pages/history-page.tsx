@@ -4,6 +4,7 @@ import type { TaskResourceResolverPort } from '../../ports/app-services';
 import type { ConversationRound, RoundStatus } from '../hooks/use-conversation';
 import { Icon } from '../components/icons';
 import { ActionButton } from '../primitives/native-controls';
+import { IconButton } from '../primitives/icon-button';
 import { ToastHost, useToast } from '../components/toast-host';
 import { useI18n } from '../i18n/i18n-context';
 
@@ -225,25 +226,23 @@ export function HistoryPage({ onNav, rounds, records, loading, error, onReload, 
   return (
     <div className="page page-enter">
       <header className="hdr">
-        <ActionButton
+        <IconButton
           data-testid="history-back-button"
           className="hdr-btn"
           quiet
-          label={t.common.back}
+          icon={<Icon name="chevron-left" />}
+          tooltip={t.common.back}
           onClick={() => onNav('main')}
-        >
-          <Icon name="chevron-left" />
-        </ActionButton>
+        />
         <div className="hdr-title">{t.history.title}</div>
-        <ActionButton
+        <IconButton
           data-testid="history-refresh-button"
           className="hdr-btn"
           quiet
-          label={t.common.refresh}
+          icon={<Icon name="refresh" />}
+          tooltip={t.common.refresh}
           onClick={() => { void onReload(); }}
-        >
-          <Icon name="refresh" />
-        </ActionButton>
+        />
       </header>
       <div className="filter-bar">
         {filters.map(([key, label]) => (
@@ -310,30 +309,30 @@ export function HistoryPage({ onNav, rounds, records, loading, error, onReload, 
                   )}
                   {item.output && (
                     <>
-                    <ActionButton
+                    <IconButton
                       data-testid={`history-download-button-${item.id}`}
                       className="row-icon-action"
                       quiet
-                      label={t.history.download}
+                      icon={<Icon name="download" size={12} />}
+                      tooltip={t.history.download}
+                      iconSize={12}
                       onClick={(event) => {
                         event.stopPropagation();
                         void onDownload(item);
                       }}
-                    >
-                      <Icon name="download" size={12} />
-                    </ActionButton>
-                    <ActionButton
+                    />
+                    <IconButton
                       data-testid={`history-place-button-${item.id}`}
                       className="row-icon-action"
                       quiet
-                      label={t.history.place}
+                      icon={<Icon name="place-ps" size={12} />}
+                      tooltip={t.history.place}
+                      iconSize={12}
                       onClick={(event) => {
                         event.stopPropagation();
                         void onPlace(item);
                       }}
-                    >
-                      <Icon name="place-ps" size={12} />
-                    </ActionButton>
+                    />
                     </>
                   )}
                 </div>

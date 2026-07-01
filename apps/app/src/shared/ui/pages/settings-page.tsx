@@ -3,7 +3,7 @@ import type { ProviderProfile } from '@imagen-ps/application';
 import { profileToProviderRow } from '../../domain/mappers';
 import { Icon } from '../components/icons';
 import { MotionContent } from '../components/motion-ui';
-import { ActionButton } from '../primitives/native-controls';
+import { IconButton } from '../primitives/icon-button';
 import { useI18n } from '../i18n/i18n-context';
 
 interface SettingsPageProps {
@@ -135,35 +135,32 @@ export function SettingsPage({
   return (
     <div className="page page-enter">
       <header className="hdr">
-        <ActionButton
+        <IconButton
           data-testid="providers-back-button"
           className="hdr-btn"
           quiet
-          label={t.common.back}
+          icon={<Icon name="chevron-left" />}
+          tooltip={t.common.back}
           onClick={() => onNav('main')}
-        >
-          <Icon name="chevron-left" />
-        </ActionButton>
+        />
         <div className="hdr-title">Providers</div>
-        <ActionButton
+        <IconButton
           data-testid="providers-refresh-button"
           className="hdr-btn"
           quiet
-          label={t.common.refresh}
+          icon={<Icon name="refresh" />}
+          tooltip={t.common.refresh}
           onClick={() => void onReload()}
-        >
-          <Icon name="refresh" />
-        </ActionButton>
-        <ActionButton
+        />
+        <IconButton
           data-testid="providers-add-button"
           className="hdr-btn"
           quiet
-          label={t.common.addProvider}
+          icon={<Icon name="add" />}
+          tooltip={t.common.addProvider}
           placement="bottom"
           onClick={() => onNav('settings-add')}
-        >
-          <Icon name="add" />
-        </ActionButton>
+        />
       </header>
       <div className="scroll">
         <div className="sec-lbl">{t.settings.configured}</div>

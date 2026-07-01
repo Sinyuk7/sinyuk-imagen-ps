@@ -22,7 +22,7 @@ import {
   MotionImage,
   MotionPresenceView,
 } from '../components/motion-ui';
-import { ActionButton } from '../primitives/native-controls';
+import { IconButton } from '../primitives/icon-button';
 import { useI18n } from '../i18n/i18n-context';
 import type { ProviderInputSizePolicy } from '../../image/resize';
 import { MOTION_DURATION } from '../motion';
@@ -565,32 +565,31 @@ export function MainPage({
   return (
     <div className="page" onClick={closeAll}>
       <header className="hdr">
-        <ActionButton
+        <IconButton
           data-testid="main-history-button"
           className="hdr-btn"
           quiet
-          label={t.main.history}
+          icon={<Icon name="history" />}
+          tooltip={t.main.history}
           placement="bottom"
           onClick={(event) => { event.stopPropagation(); onNav('history'); }}
-        >
-          <Icon name="history" />
-        </ActionButton>
+        />
         <div className="hdr-center-wrap">
-          <button
-            type="button"
+          <IconButton
             data-testid="main-profile-selector"
             className={`hdr-center hdr-provider-trigger${profileMenuOpen ? ' open' : ''}`}
             aria-haspopup="listbox"
             aria-expanded={profileMenuOpen}
+            text={selectedProfile?.displayName ?? t.main.noProviderProfile}
+            icon={<Icon name="chevron-down" size={10} className="hdr-provider-chevron" />}
+            tooltip={selectedProfile?.displayName ?? t.main.noProviderProfile}
+            iconSize={10}
             onClick={(event) => {
               event.stopPropagation();
               setProfileMenuOpen((open) => !open);
               setOpenMenu(null);
             }}
-          >
-            <span className="hdr-provider">{selectedProfile?.displayName ?? t.main.noProviderProfile}</span>
-            <Icon name="chevron-down" size={10} className="hdr-provider-chevron" />
-          </button>
+          />
           <MotionPresenceView visible={profileMenuOpen} kind="popover">
             {({ ref, state }) => (
             <div ref={ref} className="model-menu hdr-model-menu" data-motion-state={state} onClick={(event) => event.stopPropagation()}>
@@ -615,16 +614,15 @@ export function MainPage({
             )}
           </MotionPresenceView>
         </div>
-        <ActionButton
+        <IconButton
           data-testid="main-providers-button"
           className="hdr-btn"
           quiet
-          label="Providers"
+          icon={<Icon name="settings" />}
+          tooltip="Providers"
           placement="bottom"
           onClick={(event) => { event.stopPropagation(); onNav('settings'); }}
-        >
-          <Icon name="settings" />
-        </ActionButton>
+        />
       </header>
 
       <div className="scroll" ref={convRef}>
@@ -683,15 +681,14 @@ export function MainPage({
                   </div>
                   <div className="user-meta">
                     <span className="msg-time">{round.time}</span>
-                    <ActionButton
+                    <IconButton
                       data-testid={`round-copy-button-${round.id}`}
                       className={`copy-btn${copied[round.id] ? ' cp' : ''}`}
                       quiet
-                      label={t.main.reusePrompt}
+                      icon={copied[round.id] ? <Icon name="check" /> : <Icon name="copy" />}
+                      tooltip={t.main.reusePrompt}
                       onClick={(event) => { event.stopPropagation(); handleCopy(round.id, round); }}
-                    >
-                      {copied[round.id] ? <Icon name="check" /> : <Icon name="copy" />}
-                    </ActionButton>
+                    />
                   </div>
                 </div>
               </div>
@@ -710,15 +707,14 @@ export function MainPage({
                     <div className="err-msg">{round.errorMessage}</div>
                     <div className="err-actions">
                       <button data-testid={`error-retry-button-${round.id}`} className="err-retry" disabled={conversation.running} onClick={() => void conversation.retry(round.id)}>{t.history.retry}</button>
-                      <ActionButton
+                      <IconButton
                         data-testid={`error-copy-button-${round.id}`}
                         className={`err-copy${copied[round.id] ? ' cp' : ''}`}
                         quiet
-                        label={t.main.copyPrompt}
+                        icon={copied[round.id] ? <Icon name="check" /> : <Icon name="copy" />}
+                        tooltip={t.main.copyPrompt}
                         onClick={(event) => { event.stopPropagation(); handleCopy(round.id, round); }}
-                      >
-                        {copied[round.id] ? <Icon name="check" /> : <Icon name="copy" />}
-                      </ActionButton>
+                      />
                     </div>
                   </div>
                 </div>
@@ -801,57 +797,57 @@ export function MainPage({
                                 <div className="img-count" data-testid={`result-preview-count-${round.id}`}>
                                   {selectedPreviewIndex + 1} / {round.previews.length}
                                 </div>
-                                <button
-                                  type="button"
+                                <IconButton
                                   className="img-nav img-nav-prev"
                                   data-testid={`result-preview-prev-${round.id}`}
+                                  icon={<Icon name="chevron-left" size={13} />}
+                                  tooltip="Previous image"
                                   aria-label="Previous image"
+                                  iconSize={13}
                                   onClick={(event) => {
                                     event.stopPropagation();
                                     stepPreview(round, -1);
                                   }}
-                                >
-                                  <Icon name="chevron-left" size={13} />
-                                </button>
-                                <button
-                                  type="button"
+                                />
+                                <IconButton
                                   className="img-nav img-nav-next"
                                   data-testid={`result-preview-next-${round.id}`}
+                                  icon={<Icon name="chevron-right" size={13} />}
+                                  tooltip="Next image"
                                   aria-label="Next image"
+                                  iconSize={13}
                                   onClick={(event) => {
                                     event.stopPropagation();
                                     stepPreview(round, 1);
                                   }}
-                                >
-                                  <Icon name="chevron-right" size={13} />
-                                </button>
+                                />
                               </>
                             )}
                             <div className="img-overlay">
                               <MotionButtonSurface>
-                                <button
+                                <IconButton
                                   data-testid={`result-place-button-${round.id}`}
                                   className="img-act prim"
                                   data-place-status={placeStatus[round.id] ?? 'idle'}
+                                  icon={placeStatus[round.id] === 'placing'
+                                    ? <Icon name="spinner" size={13} className="ui-icon-text-icon" />
+                                    : placeStatus[round.id] === 'placed'
+                                      ? <Icon name="check" size={13} className="ui-icon-text-icon" />
+                                      : <Icon name="place-ps" size={13} className="ui-icon-text-icon" />}
+                                  text={placeStatus[round.id] === 'placing'
+                                    ? t.main.placingPs
+                                    : placeStatus[round.id] === 'placed'
+                                      ? t.main.placedPs
+                                      : t.main.placePs}
+                                  tooltip={placeStatus[round.id] === 'placing'
+                                    ? t.main.placingPs
+                                    : placeStatus[round.id] === 'placed'
+                                      ? t.main.placedPs
+                                      : t.main.placePs}
+                                  iconSize={13}
                                   disabled={placeStatus[round.id] === 'placing'}
                                   onClick={(event) => { event.stopPropagation(); void placeAsset(round, selectedPreviewIndex); }}
-                                >
-                                  <span className="ui-icon-text">
-                                    {placeStatus[round.id] === 'placing'
-                                      ? <Icon name="spinner" size={13} className="ui-icon-text-icon" />
-                                      : placeStatus[round.id] === 'placed'
-                                        ? <Icon name="check" size={13} className="ui-icon-text-icon" />
-                                        : <Icon name="place-ps" size={13} className="ui-icon-text-icon" />
-                                    }
-                                    <span className="ui-icon-text-label">
-                                      {placeStatus[round.id] === 'placing'
-                                        ? t.main.placingPs
-                                        : placeStatus[round.id] === 'placed'
-                                          ? t.main.placedPs
-                                          : t.main.placePs}
-                                    </span>
-                                  </span>
-                                </button>
+                                />
                               </MotionButtonSurface>
                             </div>
                           </div>
@@ -859,15 +855,14 @@ export function MainPage({
                       })()}
                     </div>
                     <div className="prov-actions">
-                      <ActionButton
+                      <IconButton
                         data-testid={`result-download-button-${round.id}`}
                         className="act-ico"
                         quiet
-                        label={t.main.download}
+                        icon={<Icon name="download" />}
+                        tooltip={t.main.download}
                         onClick={(event) => { event.stopPropagation(); downloadPreview(round, previewIndexForRound(round)); }}
-                      >
-                        <Icon name="download" />
-                      </ActionButton>
+                      />
                     </div>
                   </div>
                 </div>
@@ -885,19 +880,21 @@ export function MainPage({
               {({ ref, state }) => (
               <div ref={ref} className="layer-list-wrap" data-motion-state={state} onClick={(event) => event.stopPropagation()}>
                 <div className="layer-list-hdr">
-                  <button
+                  <IconButton
                     className="layer-back"
+                    icon={<Icon name="chevron-left" size={12} />}
+                    tooltip={t.common.back}
+                    iconSize={12}
                     onClick={() => setLayerOpen(false)}
-                  >
-                    <Icon name="chevron-left" size={12} />
-                  </button>
+                  />
                   {t.main.psLayers}
-                  <button
+                  <IconButton
                     className="layer-refresh"
+                    icon={<Icon name="refresh" size={12} />}
+                    tooltip={t.common.refresh}
+                    iconSize={12}
                     onClick={() => void reloadLayers()}
-                  >
-                    <Icon name="refresh" size={12} />
-                  </button>
+                  />
                 </div>
                 <div className="layer-scroll">
                   {layersError && <div className="layer-item"><span className="layer-name">{layersError}</span></div>}
@@ -941,12 +938,13 @@ export function MainPage({
             </MotionPresenceView>
 
               <div className="attach-row">
-                <ActionButton
+                <IconButton
                   data-testid="composer-add-image-button"
                   className="att-add cmp-add"
                   quiet
                   selected={attachOpen || layerOpen}
-                  label={t.main.addImage}
+                  icon={<Icon name="add" />}
+                  tooltip={t.main.addImage}
                   placement="top"
                   disabled={conversation.running}
                   onClick={(event) => {
@@ -956,9 +954,7 @@ export function MainPage({
                     setOpenMenu(null);
                     setProfileMenuOpen(false);
                   }}
-                >
-                  <Icon name="add" />
-                </ActionButton>
+                />
                 {attachments.map((attachment) => (
                   <div key={attachment.id} className="att-thumb">
                     <MotionHighlight activeKey={highlightKey === `attachment:${attachment.id}` ? highlightKey : null} />
@@ -994,12 +990,18 @@ export function MainPage({
             <div className="cmp-action-row" data-testid="composer-action-row">
               <div className="cmp-action-left">
                 <MotionButtonSurface>
-                  <ActionButton
+                  <IconButton
                     data-testid="composer-prompt-optimize-button"
                     className="cmp-opt-icon-button"
                     quiet
-                    label={optimizeButtonLabel}
+                    icon={optimizing
+                      ? <MotionActivityIcon className="cmp-opt-icon"><Icon name="spinner" size={13} /></MotionActivityIcon>
+                      : showUndo
+                        ? <Icon name="refresh" size={13} className="cmp-opt-icon" />
+                        : <Icon name="magic-wand" size={13} className="cmp-opt-icon" />}
+                    tooltip={optimizeButtonLabel}
                     placement="top"
+                    iconSize={13}
                     disabled={showUndo ? false : !canOptimize}
                     onClick={(event) => {
                       event.stopPropagation();
@@ -1009,22 +1011,23 @@ export function MainPage({
                         void handleOptimize();
                       }
                     }}
-                  >
-                    {optimizing
-                      ? <MotionActivityIcon className="cmp-opt-icon"><Icon name="spinner" size={13} /></MotionActivityIcon>
-                      : showUndo
-                        ? <Icon name="refresh" size={13} className="cmp-opt-icon" />
-                        : <Icon name="magic-wand" size={13} className="cmp-opt-icon" />}
-                  </ActionButton>
+                  />
                 </MotionButtonSurface>
               </div>
               <div className="cmp-action-right">
                 <MotionButtonSurface>
-                  <ActionButton
+                  <IconButton
                     data-testid="composer-capture-button"
                     className="cmp-capture"
-                    label={t.main.capture}
+                    hostClassName="cmp-capture-host"
+                    overlayClassName="cmp-capture-overlay"
+                    icon={captureInFlight
+                      ? <MotionActivityIcon className="cmp-capture-icon"><Icon name="spinner" size={13} /></MotionActivityIcon>
+                      : <Icon name="target" size={13} className="cmp-capture-icon" />}
+                    text={t.main.capture}
+                    tooltip={t.main.capture}
                     placement="top"
+                    iconSize={13}
                     disabled={!canCapture}
                     onClick={(event) => {
                       event.stopPropagation();
@@ -1033,29 +1036,25 @@ export function MainPage({
                       setLayerOpen(false);
                       void captureFromPhotoshop();
                     }}
-                  >
-                    {captureInFlight
-                      ? <MotionActivityIcon className="cmp-capture-icon"><Icon name="spinner" size={13} /></MotionActivityIcon>
-                      : <Icon name="target" size={13} className="cmp-capture-icon" />}
-                    <span className="cmp-action-label">{t.main.capture}</span>
-                  </ActionButton>
+                  />
                 </MotionButtonSurface>
                 <div className="send-wrap">
                   <MotionButtonSurface>
-                    <ActionButton
+                    <IconButton
                       data-testid="composer-send-button"
                       className="cmp-send"
-                      disabled={!canSend || optimizing}
-                      label={conversation.running ? t.main.regenerate : t.main.send}
+                      hostClassName="cmp-send-host"
+                      overlayClassName="cmp-send-overlay"
+                      icon={conversation.running
+                        ? <MotionActivityIcon><Icon name="spinner" size={13} /></MotionActivityIcon>
+                        : <Icon name="send" />}
+                      tooltip={conversation.running ? t.main.regenerate : t.main.send}
                       aria-label={conversation.running ? t.main.regenerate : t.main.send}
                       placement="top"
+                      iconSize={13}
+                      disabled={!canSend || optimizing}
                       onClick={() => void handleSend()}
-                    >
-                      {conversation.running
-                        ? <MotionActivityIcon><Icon name="spinner" size={13} /></MotionActivityIcon>
-                        : <Icon name="send" />
-                      }
-                    </ActionButton>
+                    />
                   </MotionButtonSurface>
                 </div>
               </div>
@@ -1107,18 +1106,20 @@ export function MainPage({
 
         <MotionPresenceView visible={scrolledAway} kind="floating">
           {({ ref, state }) => (
-            <button
+            <IconButton
               ref={ref}
               data-testid="back-to-bottom-button"
               className="back-to-bottom"
               data-motion-state={state}
+              icon={<Icon name="chevron-down" size={10} />}
+              tooltip="Back to bottom"
+              aria-label="Back to bottom"
+              iconSize={10}
               onClick={(event) => {
                 event.stopPropagation();
                 scrollToBottom();
               }}
-            >
-              <Icon name="chevron-down" size={10} />
-            </button>
+            />
           )}
         </MotionPresenceView>
       </footer>

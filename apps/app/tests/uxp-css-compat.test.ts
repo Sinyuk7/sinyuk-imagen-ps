@@ -235,7 +235,7 @@ describe('UXP panel CSS compatibility', () => {
     expect(unionSource).toContain('.cmp-bottom{');
     expect(unionSource).toContain('.cmp-action-left');
     expect(unionSource).toContain('.cmp-action-right');
-    expect(unionSource).toContain('.cmp-opt{');
+    expect(unionSource).toContain('.cmp-opt-icon-button{');
     expect(unionSource).toContain('.cmp-chip-value{');
   });
 

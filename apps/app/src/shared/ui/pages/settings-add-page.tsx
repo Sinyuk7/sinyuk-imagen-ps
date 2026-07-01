@@ -6,7 +6,8 @@ import { Icon } from '../components/icons';
 import { MotionContent } from '../components/motion-ui';
 import { ProviderProfileEditor } from '../components/provider-profile-editor';
 import { useI18n } from '../i18n/i18n-context';
-import { Button, ActionButton, TextField, FieldLabel } from '../primitives/native-controls';
+import { Button, TextField, FieldLabel } from '../primitives/native-controls';
+import { IconButton } from '../primitives/icon-button';
 import { statusFromProviderTestResult, type ProviderStatus } from '../provider-status';
 
 interface SettingsAddPageProps {
@@ -107,15 +108,14 @@ export function SettingsAddPage({ onNav, profiles, onProfileSaved }: SettingsAdd
   return (
     <div className="page page-enter settings-page">
       <header className="hdr">
-        <ActionButton
+        <IconButton
           data-testid="add-provider-back-button"
           className="hdr-btn"
           quiet
-          label={t.common.back}
+          icon={<Icon name="chevron-left" />}
+          tooltip={t.common.back}
           onClick={() => (step === 1 ? onNav('settings') : setStep(1))}
-        >
-          <Icon name="chevron-left" />
-        </ActionButton>
+        />
         <div className="hdr-title">{step === 1 ? t.common.addProvider : selected?.displayName}</div>
         <div style={{ width: 32 }} />
       </header>

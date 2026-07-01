@@ -575,6 +575,69 @@ export const NATIVE_CONTROLS_CSS = `
   border-color:var(--app-color-accent-default);
   color:var(--app-color-accent-default);
 }
+.ui-overlay-icon-host{
+  position:relative;
+  display:inline-flex;
+  min-width:0;
+  flex:0 0 auto;
+}
+.ui-overlay-icon-button{
+  position:relative;
+  z-index:1;
+}
+.ui-overlay-icon-layer{
+  position:absolute;
+  top:0;
+  left:0;
+  right:0;
+  bottom:0;
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
+  color:inherit;
+  pointer-events:none;
+  z-index:2;
+}
+.ui-overlay-icon-host[data-disabled="true"] > .ui-overlay-icon-layer{
+  opacity:.45;
+}
+
+/* IconButton：统一图标按钮的 overlay 与占位布局。 */
+.ui-icon-button{
+  /* 外观由使用方的 className 负责；这里只保证内部 flex 居中。 */
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
+}
+.ui-icon-button-host{
+  color:inherit;
+}
+.ui-icon-button-overlay{
+  display:inline-flex;
+  align-items:center;
+  color:inherit;
+}
+.ui-icon-button-icon-slot{
+  display:block;
+  width:var(--ui-icon-button-size, 14px);
+  min-width:var(--ui-icon-button-size, 14px);
+  height:var(--ui-icon-button-size, 14px);
+  flex:0 0 auto;
+}
+.ui-icon-button-label{
+  display:block;
+  margin-left:6px;
+  font-size:10px;
+  line-height:14px;
+  white-space:nowrap;
+}
+.ui-icon-button--icon-only .ui-icon-button-overlay{
+  justify-content:center;
+  padding:0;
+}
+.ui-icon-button--labeled .ui-icon-button-overlay{
+  justify-content:flex-start;
+}
 .ui-button-content{
   display:inline-flex;
   align-items:center;

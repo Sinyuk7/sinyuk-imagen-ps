@@ -23,6 +23,9 @@ importers:
       '@imagen-ps/foundation':
         specifier: workspace:*
         version: link:../../packages/foundation
+      '@spectrum-web-components/icons-workflow':
+        specifier: ^0.37.0
+        version: 0.37.0
       '@tweenjs/tween.js':
         specifier: ^25.0.0
         version: 25.0.0
@@ -291,6 +294,9 @@ packages:
   '@jridgewell/sourcemap-codec@1.5.5':
     resolution: {integrity: sha512-cYQ9310grqxueWbl+WuIUIaiUaDcj7WOq5fVhEljNVgRfOUhY9fy2zTvfoqWsnebh8Sl70VScFbICvJnLKB0Og==}
 
+  '@lit/reactive-element@1.5.0':
+    resolution: {integrity: sha512-fQh9FDK0LPTwDk+0HhSZEtb8K0LTN1wXerwpGrWA+a8tWulYRDLI4vQDWp4GOIsewn0572KYV/oZ3+492D7osA==}
+
   '@playwright/test@1.61.1':
     resolution: {integrity: sha512-8nKv6+0RJSL9FE4jYOEGXnPeM/Hg12qZpmqzZjRh3qM0Y7c3z1mrOTfFLids72RDQYVh9WpLEfR5WdpNX4fkig==}
     engines: {node: '>=18'}
@@ -434,6 +440,18 @@ packages:
     cpu: [x64]
     os: [win32]
 
+  '@spectrum-web-components/base@0.37.0':
+    resolution: {integrity: sha512-3JOI36CemlFzXKAuennOBZ2k99ayd6yooG8eX24z58r0nT6I+3q6jYbytBRJuj48Y7vxwxqMIKX4V118A1dmMQ==}
+
+  '@spectrum-web-components/icon@0.37.0':
+    resolution: {integrity: sha512-DZ1yOKHxNQygzIJ7u9akYComDnMmxuTzfmYxxt9sHdUXmc1NbMkCJqEaAG/LYsdb+hc4xWaDTT9SzArLKZ/btA==}
+
+  '@spectrum-web-components/icons-workflow@0.37.0':
+    resolution: {integrity: sha512-D1Dg+ZjlqbaU/2uKYhmMtZXQMVUw9J9LevHSKSzMFL+Y++JMqRROQuzwAOFW7tttCw1w0+3kIuv2ohkeE+8fNQ==}
+
+  '@spectrum-web-components/iconset@0.37.0':
+    resolution: {integrity: sha512-s1TBjWeQtGdGf6n+r+aG2glv77IgR0pNs0HLusGyYt6jzWFkP276fE7Neqq/2XvG9a9zvAwngffnWS3td/Gtmg==}
+
   '@standard-schema/spec@1.1.0':
     resolution: {integrity: sha512-l2aFy5jALhniG5HgqrD6jXLi/rUWrKvqN/qJx6yoJsgKhblVd+iqqU4RCXavm/jPityDo5TCvKMnpjKnOriy0w==}
 
@@ -492,6 +510,9 @@ packages:
 
   '@types/react@19.2.14':
     resolution: {integrity: sha512-ilcTH/UniCkMdtexkoCN0bI7pMcJDvmQFPvuPvmEaYA/NSfFTAgdUSLAoVjaRJm7+6PvcM+q1zYOwS4wTYMF9w==}
+
+  '@types/trusted-types@2.0.7':
+    resolution: {integrity: sha512-ScaPdn1dQczgbl0QFTeTOmVHFULt394XJgOQNoyVhZ6r2vLnMLJfBPd53SB52T/3G36VI1/g2MZaX0cwDuXsfw==}
 
   '@types/whatwg-mimetype@3.0.2':
     resolution: {integrity: sha512-c2AKvDT8ToxLIOUlN51gTiHXflsfIFisS4pO7pDPoKouJCESkhZnEy623gwP9laCy5lnLDAw1vAzu2vM2YLOrA==}
@@ -659,6 +680,15 @@ packages:
 
   js-tokens@9.0.1:
     resolution: {integrity: sha512-mxa9E9ITFOt0ban3j6L5MpjwegGz6lBQmM1IJkWeBZGcMxto50+eWdjC/52xDbS2vy0k7vIMK0Fe2wfL9OQSpQ==}
+
+  lit-element@3.2.0:
+    resolution: {integrity: sha512-HbE7yt2SnUtg5DCrWt028oaU4D5F4k/1cntAFHTkzY8ZIa8N0Wmu92PxSxucsQSOXlODFrICkQ5x/tEshKi13g==}
+
+  lit-html@2.5.0:
+    resolution: {integrity: sha512-bLHosg1XL3JRUcKdSVI0sLCs0y1wWrj2sqqAN3cZ7bDDPNgmDHH29RV48x6Wz3ZmkxIupaE+z7uXSZ/pXWAO1g==}
+
+  lit@2.5.0:
+    resolution: {integrity: sha512-DtnUP6vR3l4Q8nRPPNBD+UxbAhwJPeky+OVbi3pdgMqm0g57xFSl1Sj64D1rIB+nVNdiVVg8YxB0hqKjvdadZA==}
 
   loupe@3.2.1:
     resolution: {integrity: sha512-CdzqowRJCeLU72bHvWqwRBBlLcMEtIvGrlvef74kMnV2AolS9Y8xUv1I0U/MNAWMhBlKIoyuEgoJ0t/bbwHbLQ==}
@@ -1030,6 +1060,8 @@ snapshots:
 
   '@jridgewell/sourcemap-codec@1.5.5': {}
 
+  '@lit/reactive-element@1.5.0': {}
+
   '@playwright/test@1.61.1':
     dependencies:
       playwright: 1.61.1
@@ -1109,6 +1141,24 @@ snapshots:
   '@rollup/rollup-win32-x64-msvc@4.60.2':
     optional: true
 
+  '@spectrum-web-components/base@0.37.0':
+    dependencies:
+      lit: 2.5.0
+
+  '@spectrum-web-components/icon@0.37.0':
+    dependencies:
+      '@spectrum-web-components/base': 0.37.0
+      '@spectrum-web-components/iconset': 0.37.0
+
+  '@spectrum-web-components/icons-workflow@0.37.0':
+    dependencies:
+      '@spectrum-web-components/base': 0.37.0
+      '@spectrum-web-components/icon': 0.37.0
+
+  '@spectrum-web-components/iconset@0.37.0':
+    dependencies:
+      '@spectrum-web-components/base': 0.37.0
+
   '@standard-schema/spec@1.1.0': {}
 
   '@turbo/darwin-64@2.9.6':
@@ -1153,6 +1203,8 @@ snapshots:
   '@types/react@19.2.14':
     dependencies:
       csstype: 3.2.3
+
+  '@types/trusted-types@2.0.7': {}
 
   '@types/whatwg-mimetype@3.0.2': {}
 
@@ -1350,6 +1402,21 @@ snapshots:
       - utf-8-validate
 
   js-tokens@9.0.1: {}
+
+  lit-element@3.2.0:
+    dependencies:
+      '@lit/reactive-element': 1.5.0
+      lit-html: 2.5.0
+
+  lit-html@2.5.0:
+    dependencies:
+      '@types/trusted-types': 2.0.7
+
+  lit@2.5.0:
+    dependencies:
+      '@lit/reactive-element': 1.5.0
+      lit-element: 3.2.0
+      lit-html: 2.5.0
 
   loupe@3.2.1: {}
 

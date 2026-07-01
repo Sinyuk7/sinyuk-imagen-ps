@@ -78,10 +78,14 @@ function dataState(value: boolean | undefined): string | undefined {
   return value ? 'true' : undefined;
 }
 
-export function Button({ variant = 'secondary', children, disabled, className, ...props }: ButtonProps) {
+export const Button = forwardRef<HTMLButtonElement, ButtonProps>(function Button(
+  { variant = 'secondary', children, disabled, className, ...props },
+  ref,
+) {
   return (
     <button
       {...props}
+      ref={ref}
       type="button"
       className={classNames('ui-btn', className)}
       data-variant={variant}
@@ -90,7 +94,7 @@ export function Button({ variant = 'secondary', children, disabled, className, .
       {children}
     </button>
   );
-}
+});
 
 export function TextField({
   value,

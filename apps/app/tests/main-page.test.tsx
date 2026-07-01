@@ -69,6 +69,11 @@ function clickText(container: HTMLElement, selector: string, text: string): void
   element.click();
 }
 
+function findIconInHost(button: Element, selector: string): Element | null {
+  const host = button.closest('.ui-icon-button-host');
+  return host?.querySelector(selector) ?? null;
+}
+
 describe('MainPage contract', () => {
   it('无 attachment 时提交 provider-generate', async () => {
     const container = document.createElement('div');
@@ -512,7 +517,7 @@ describe('MainPage contract', () => {
     const selector = container.querySelector<HTMLElement>('[data-testid="main-profile-selector"]')!;
     expect(selector.getAttribute('aria-haspopup')).toBe('listbox');
     expect(selector.getAttribute('aria-expanded')).toBe('false');
-    expect(selector.querySelector('[data-icon-name="chevron-down"]')).not.toBeNull();
+    expect(findIconInHost(selector, '[data-icon-name="chevron-down"]')).not.toBeNull();
 
     await act(async () => {
       selector.click();
@@ -646,7 +651,7 @@ describe('MainPage contract', () => {
 
     const send = container.querySelector<HTMLElement & { disabled?: boolean }>('[data-testid="composer-send-button"]')!;
     expect(Boolean(send.disabled)).toBe(true);
-    expect(send.querySelector('[data-icon-name="spinner"]')).not.toBeNull();
+    expect(findIconInHost(send, '[data-icon-name="spinner"]')).not.toBeNull();
   });
 
   it('idle Send keeps the send glyph and matching accessible label', async () => {
@@ -660,9 +665,9 @@ describe('MainPage contract', () => {
     await flush();
 
     const send = container.querySelector<HTMLElement>('[data-testid="composer-send-button"]')!;
-    expect(send.querySelector('[data-icon-name="send"]')).not.toBeNull();
-    expect(send.querySelector('[data-icon="icon-send"]')).not.toBeNull();
-    expect(send.querySelector('[data-icon-name="spinner"]')).toBeNull();
+    expect(findIconInHost(send, '[data-icon-name="send"]')).not.toBeNull();
+    expect(findIconInHost(send, '[data-icon="icon-send"]')).not.toBeNull();
+    expect(findIconInHost(send, '[data-icon-name="spinner"]')).toBeNull();
     expect(send.getAttribute('aria-label')).toBe('发送');
     expect(send.getAttribute('title')).toBe('发送');
   });
@@ -687,8 +692,8 @@ describe('MainPage contract', () => {
     await flush();
 
     const send = container.querySelector<HTMLElement>('[data-testid="composer-send-button"]')!;
-    expect(send.querySelector('[data-icon-name="spinner"]')).not.toBeNull();
-    expect(send.querySelector('[data-icon="icon-spinner"]')).not.toBeNull();
+    expect(findIconInHost(send, '[data-icon-name="spinner"]')).not.toBeNull();
+    expect(findIconInHost(send, '[data-icon="icon-spinner"]')).not.toBeNull();
     expect(send.getAttribute('aria-label')).toBe('重新生成');
     expect(send.getAttribute('title')).toBe('重新生成');
   });
@@ -838,7 +843,7 @@ describe('MainPage contract', () => {
 
     const attachRow = container.querySelector('.attach-row');
     expect(attachRow).not.toBeNull();
-    expect(attachRow!.firstElementChild?.getAttribute('data-testid')).toBe('composer-add-image-button');
+    expect(attachRow!.querySelector('[data-testid="composer-add-image-button"]')).not.toBeNull();
     expect(attachRow!.querySelectorAll('.att-thumb')).toHaveLength(0);
   });
 

@@ -22,10 +22,10 @@ export const OVERLAYS_CSS = `
 /* Back to bottom */
 .back-to-bottom{
   position:absolute; right:12px; bottom:calc(100% + 12px);
-  width:32px; height:32px; border-radius:50%;
+  width:32px; height:32px; min-height:0; padding:0; border-radius:50%;
   background:var(--app-color-background-layer-2); border:1px solid var(--app-color-border-default);
   color:var(--app-color-text-secondary); cursor:pointer;
-  display:flex; align-items:center; justify-content:center;
+  display:inline-flex; align-items:center; justify-content:center;
   z-index:100;
 }
 .back-to-bottom:hover{ background:var(--app-color-background-elevated); color:var(--app-color-text-primary); }

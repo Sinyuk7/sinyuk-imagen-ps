@@ -2,7 +2,8 @@ import type { ReactNode } from 'react';
 import { StatusNotice } from './status-notice';
 import { Icon } from './icons';
 import { useI18n } from '../i18n/i18n-context';
-import { Button, ActionButton, TextField, FieldLabel, HelpText, Divider } from '../primitives/native-controls';
+import { Button, TextField, FieldLabel, HelpText, Divider } from '../primitives/native-controls';
+import { IconButton } from '../primitives/icon-button';
 import type { ProviderStatus } from '../provider-status';
 
 interface ProviderProfileEditorProps {
@@ -89,15 +90,14 @@ export function ProviderProfileEditor({
               value={apiKeyValue}
               onValue={onApiKeyValue}
             />
-            <ActionButton
+            <IconButton
               data-testid="provider-api-key-toggle"
               className="field-input-action"
               quiet
-              label={showKey ? t.settings.hideApiKey : t.settings.showApiKey}
+              icon={<Icon name={showKey ? 'eye-off' : 'eye'} />}
+              tooltip={showKey ? t.settings.hideApiKey : t.settings.showApiKey}
               onClick={() => onShowKeyChange(!showKey)}
-            >
-              <Icon name={showKey ? 'eye-off' : 'eye'} />
-            </ActionButton>
+            />
           </div>
         </div>
         {connectionStatus && <StatusNotice tone={connectionStatus.tone} message={connectionStatus.message} />}

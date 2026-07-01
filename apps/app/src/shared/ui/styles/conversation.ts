@@ -46,6 +46,7 @@ export const CONVERSATION_CSS = `
 .copy-btn{
   display:inline-flex; align-items:center; justify-content:center;
   margin-top:0; margin-right:0; margin-bottom:0; margin-left:6px; color:var(--app-color-text-muted); flex-shrink:0;
+  min-height:0; padding:0; border:none; background:transparent;
 }
 .copy-btn.cp{ color:var(--app-color-positive); }
 
@@ -130,11 +131,12 @@ export const CONVERSATION_CSS = `
   position:absolute;
   top:calc(50% - 18px);
   z-index:2;
-  display:flex;
+  display:inline-flex;
   align-items:center;
   justify-content:center;
   width:28px;
   height:36px;
+  min-height:0;
   margin-top:0;
   margin-right:0;
   margin-bottom:0;
@@ -155,11 +157,12 @@ export const CONVERSATION_CSS = `
 .img-nav-prev{ left:8px; }
 .img-nav-next{ right:8px; }
 .img-act{
-  display:flex; align-items:center; margin-top:0; margin-right:0; margin-bottom:0; margin-left:0;
+  display:inline-flex; align-items:center; margin-top:0; margin-right:0; margin-bottom:0; margin-left:0;
   padding:4px 10px; border-radius:var(--app-radius-medium); border:none;
   font-family:var(--app-font-family-base); font-size:11px; font-weight:600; cursor:pointer;
+  min-height:0;
 }
-.img-act > [data-icon]{ margin-right:5px; }
+.img-act .ui-icon-button-label{ font-size:11px; margin-left:5px; }
 .img-act.prim{ background:var(--app-color-accent-default); color:var(--app-color-text-on-accent); }
 .img-act.prim:hover{ background:var(--app-color-accent-hover); }
 .img-act.prim:disabled{ opacity:.78; cursor:default; }
@@ -176,6 +179,7 @@ export const CONVERSATION_CSS = `
 .act-ico{
   display:inline-flex; align-items:center; justify-content:center;
   margin-top:0; margin-right:1px; margin-bottom:0; margin-left:0; color:var(--app-color-text-muted); flex-shrink:0;
+  min-height:0; padding:0; border:none; background:transparent;
 }
 .act-ico.prim{ color:var(--app-color-accent-default); }
 
