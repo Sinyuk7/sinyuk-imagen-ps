@@ -1,0 +1,210 @@
+asset/图标资源.txt
+  h_36ccd825a182d0 1-32
+apps/app/AGENTS.md
+  s_069b76e40d4d54::t_29f9aa46797922 63-101
+apps/app/src/adapters/uxp/photoshop-host-bridge.test.ts
+  s_bf06e5e1cee18d::t_f143e2f122e748 827-883
+apps/app/src/adapters/uxp/photoshop-host-bridge.ts
+  s_bf06e5e1cee18d::t_ed2cf5c20b6473 298-314,1523
+apps/app/src/harness/components/composer-select/composer-select-harness.tsx
+  s_9a29d71e7cda98::t_1be85ae49f7f19 2-3,25-30,63-68,74-79,84-89,97-100,105-110,125-128,139-142,433,534,546,552,559,565,591,625
+apps/app/src/shared/ui/components/composer-select.tsx
+  s_4657fe000666fc::t_ad8feb7a32d8e3 4-5,7-12,22-36,88-119
+apps/app/src/shared/ui/components/composer-select.types.ts
+  s_4657fe000666fc::t_9d98b09487ce58 9,39-50
+apps/app/src/shared/ui/components/generated/model-avatar-icons.ts
+  s_e357adebe6cf6e::t_808f36f32c6f11 1-36
+apps/app/src/shared/ui/components/icon-select-trigger-button.tsx
+  s_4657fe000666fc::t_d1c910095f957f 1-63
+apps/app/src/shared/ui/components/icon-select.tsx
+  s_4657fe000666fc::t_7b31816e468422 1-31
+apps/app/src/shared/ui/components/model-avatar-icon.tsx
+  s_e357adebe6cf6e::t_58cab548cc5d20 1-39
+apps/app/src/shared/ui/components/model-avatar-rules.ts
+  s_e357adebe6cf6e::t_47c91707a15859 1-53
+apps/app/src/shared/ui/components/provider-identity.tsx
+  s_e357adebe6cf6e::t_4211752060a92c 1-62
+apps/app/src/shared/ui/components/select-trigger-button.types.ts
+  s_4657fe000666fc::t_a83aeb10a93d42 1-16
+apps/app/src/shared/ui/components/text-select-trigger-button.tsx
+  s_4657fe000666fc::t_40314ea7c5b447 3,5,18-20,27,38-41,46-49
+apps/app/src/shared/ui/components/text-select.tsx
+  s_4657fe000666fc::t_a26c72860c6310 1-28
+apps/app/src/shared/ui/hooks/use-conversation.ts
+  s_3608b662f2bf62::t_519dd985ebab1e 218,225,229,231,233,235,239,244-247,253-255,265
+apps/app/src/shared/ui/i18n/messages.ts
+  s_3608b662f2bf62::t_8041e2c3106a42 204-210,375-381
+apps/app/src/shared/ui/motion/motion-tokens.ts
+  s_32d003cc134c32::t_8420c2dce5f804 5-6,31
+apps/app/src/shared/ui/motion/motion-transform-guard.ts
+  s_3608b662f2bf62::t_0e879b49282b96 2-6
+apps/app/src/shared/ui/pages/global-generation-settings-page.tsx
+  s_3608b662f2bf62::t_0a225f2c4b7d9d 8-9,110,127,144
+apps/app/src/shared/ui/pages/main-page.tsx
+  s_e357adebe6cf6e::t_75c221d0b703db 12,15,108,119,121,334,427,751-756,800,805,831-843,846,864,871-873,876,878-890,893,934,946-947,953,960-961,967,1011-1012,1099,1121-1130,1229,1235,1248,1270
+apps/app/src/shared/ui/pages/settings-add-page.tsx
+  s_4657fe000666fc::t_85004848e6e527 7,199
+apps/app/src/shared/ui/pages/settings-detail-page.tsx
+  s_4657fe000666fc::t_90d3645e9944a9 14,382
+apps/app/src/shared/ui/styles/composer.ts
+  s_d3d52327d85dd7::t_5f1aa0bff4a338 14-19,26,44-48,50-59,355,357,359-379,393-400,414,418,425,428-430,432,436-437,468,473-475,477,481-482,487-488,499-500,502-504,506-507,511-512,519-522,526-528,530,535-536,541-542,546-547,557-558,563,566
+apps/app/src/shared/ui/styles/conversation.ts
+  s_e357adebe6cf6e::t_59077d93db42fc 9-10,23,26,45,55,57-58,60,63-112,124-128,132,136,176-189,227-228,242-250,256-263,283,286-287,289-290,295-296,298,302,337,339
+apps/app/src/shared/ui/styles/overlays.ts
+  s_32d003cc134c32::t_2c9d535dedb704 4,6-7
+apps/app/src/shared/ui/styles/pages.ts
+  s_4657fe000666fc::t_28798f7730e197 103
+apps/app/src/shared/ui/styles/responsive.ts
+  s_e357adebe6cf6e::t_5df2794c4ecdcc 15-18,32-45,50,54-69,71,85
+apps/app/src/simulators/photoshop/simulator.ts
+  s_bf06e5e1cee18d::t_c30c460619d537 178-183
+apps/app/tests/app-shell.test.tsx
+  s_3608b662f2bf62::t_896355bc7eeb8a 93
+apps/app/tests/chrome-adapter.test.ts
+  s_bf06e5e1cee18d::t_dd862f5d36179c 146-169
+apps/app/tests/chrome-e2e/run.mjs
+  s_3608b662f2bf62::t_92426134851ba4 207-217,241-244,426,429
+apps/app/tests/chrome-shell.test.tsx
+  s_3608b662f2bf62::t_2eb12aff7ec10b 45
+apps/app/tests/composer-select.test.tsx
+  s_4657fe000666fc::t_91539eb1b7dd26 4-5,39,71-119
+apps/app/tests/fakes.ts
+  s_3608b662f2bf62::t_47ab5ed145a2f0 164-171
+apps/app/tests/global-generation-settings-page.test.tsx
+  s_3608b662f2bf62::t_950d63c7353bcb 102,128,133-138
+apps/app/tests/main-page.test.tsx
+  s_e357adebe6cf6e::t_f7307bedbf7705 357-364,368-375,378,383-385,387-402,428-432,438,456-461,476-480,487,490,493-510,512-526,549,554,557
+apps/app/tests/model-avatar-rules.test.ts
+  s_e357adebe6cf6e::t_5f5275d6e31eb6 1-25
+apps/app/tests/motion-runtime.test.ts
+  s_3608b662f2bf62::t_47a18dba109a5b 39
+apps/app/tests/settings-page.test.tsx
+  s_378497fd61b220::t_d57c4593d0b99d 92
+apps/app/tests/use-conversation.test.tsx
+  s_3608b662f2bf62::t_43f550dbd0c570 195,218-221
+apps/app/tests/uxp-css-compat.test.ts
+  s_9a29d71e7cda98::t_9dfed1a3ab9956 4-8,13,33-43,45-48,159-161,171-172,180-181,183-185,196
+apps/app/vitest.config.ts
+  s_3608b662f2bf62::t_2363229639b42c 4-6
+asset/model-avatar-icons/debug-mock.svg
+  s_e357adebe6cf6e::t_4e9fcf37ea92c8 1
+asset/model-avatar-icons/default.svg
+  s_e357adebe6cf6e::t_474bf6737f5e69 1
+asset/model-avatar-icons/google.svg
+  s_e357adebe6cf6e::t_e1f29fb1aa2772 1
+asset/model-avatar-icons/gpt.svg
+  s_e357adebe6cf6e::t_4d0d02d0b63bc0 1
+asset/model-avatar-icons/grok.svg
+  s_e357adebe6cf6e::t_1afe97c948174f 1
+asset/model-avatar-icons/jimeng.svg
+  s_e357adebe6cf6e::t_2e97b5ba50c752 1
+asset/model-avatar-icons/nano-banana.svg
+  s_e357adebe6cf6e::t_53392cda3b4130 1
+asset/model-avatar-icons/openapi.svg
+  s_e357adebe6cf6e::t_d9677e842458fa 1
+asset/model-avatar-icons/qwen.svg
+  s_e357adebe6cf6e::t_ee8cd2efa10fc0 1
+docs/TESTING.md
+  s_9a29d71e7cda98::t_52b781fb9bbc16 35-38
+package.json
+  s_e357adebe6cf6e::t_bd521e83742fd1 9
+packages/application/src/runtime.test.ts
+  s_3608b662f2bf62::t_4c2e84bf51c6c8 164-166
+packages/providers/src/providers/mock/provider.ts
+  s_3608b662f2bf62::t_3cfcfe3bc6de34 45-54,68-76
+packages/providers/tests/mock-provider.test.ts
+  s_3608b662f2bf62::t_90e5b0c215bdd0 68,77-79,158-159
+scripts/build-model-avatar-icons.mjs
+  s_e357adebe6cf6e::t_0919f0ce21075b 1-164
+scripts/check-policy.mjs
+  s_9a29d71e7cda98::t_c869d1a7920d4b 5,14
+scripts/policy/uxp-css-contract.mjs
+  s_9a29d71e7cda98::t_c9acb0df7cd53e 1-147
+scripts/policy/uxp-css.mjs
+  s_9a29d71e7cda98::t_2e7c7aeba6dc90 1-47
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.3",
+  "base_commit_sha": "25015950e03adf214ef9cc431ad7cb6f719f426c",
+  "prompts": {},
+  "humans": {
+    "h_36ccd825a182d0": {
+      "author": "Sinyuk <80998062@qq.com>"
+    }
+  },
+  "sessions": {
+    "s_069b76e40d4d54": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "019f1f7a-0866-7a90-865b-5206c04f6fa7",
+        "model": "unknown"
+      },
+      "human_author": "Sinyuk <80998062@qq.com>"
+    },
+    "s_32d003cc134c32": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "019f1dae-be74-73f2-8d96-cba394de06bd",
+        "model": "unknown"
+      },
+      "human_author": "Sinyuk <80998062@qq.com>"
+    },
+    "s_3608b662f2bf62": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "019f1ece-a187-7e90-b3d3-28c440d47687",
+        "model": "unknown"
+      },
+      "human_author": "Sinyuk <80998062@qq.com>"
+    },
+    "s_378497fd61b220": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "019f1f25-bf84-71d0-b9e2-9ee6f2aa4bbd",
+        "model": "unknown"
+      },
+      "human_author": "Sinyuk <80998062@qq.com>"
+    },
+    "s_4657fe000666fc": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "019f1ede-f96d-75f1-ade0-f5ebeb8314cc",
+        "model": "unknown"
+      },
+      "human_author": "Sinyuk <80998062@qq.com>"
+    },
+    "s_9a29d71e7cda98": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "019f1f42-f1b7-7f52-b081-6c63384f0035",
+        "model": "unknown"
+      },
+      "human_author": "Sinyuk <80998062@qq.com>"
+    },
+    "s_bf06e5e1cee18d": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "019f1f70-f3a4-75c2-99c1-5ca5dd46b2c1",
+        "model": "unknown"
+      },
+      "human_author": "Sinyuk <80998062@qq.com>"
+    },
+    "s_d3d52327d85dd7": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "019f1f0d-4743-7343-9826-f540356807ba",
+        "model": "unknown"
+      },
+      "human_author": "Sinyuk <80998062@qq.com>"
+    },
+    "s_e357adebe6cf6e": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "019f1f23-3a17-7f53-b62e-5a44bd7cc630",
+        "model": "unknown"
+      },
+      "human_author": "Sinyuk <80998062@qq.com>"
+    }
+  }
+}
