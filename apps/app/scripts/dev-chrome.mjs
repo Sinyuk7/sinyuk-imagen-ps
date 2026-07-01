@@ -16,7 +16,7 @@
  */
 
 import { createServer } from 'node:http';
-import { spawn, exec } from 'node:child_process';
+import { spawn, spawnSync, exec } from 'node:child_process';
 import { promises as fs, existsSync, createReadStream } from 'node:fs';
 import { resolve, extname, normalize, sep, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -329,6 +329,22 @@ function startWatchBuild() {
 }
 
 /**
+ * 先构建 workspace 依赖，避免 Vite 打包过期的 package dist。
+ */
+function buildWorkspaceDependencies() {
+  log('Building workspace dependencies...');
+  const result = spawnSync('pnpm', ['run', 'build:deps'], {
+    cwd: appRoot,
+    stdio: 'inherit',
+    env: process.env,
+    shell: process.platform === 'win32',
+  });
+  if (result.status !== 0) {
+    throw new Error(`Workspace dependency build failed with exit code ${result.status ?? 'unknown'}.`);
+  }
+}
+
+/**
  * 安全的文件路径解析，防止目录遍历。
  */
 function safeFilePath(urlPath) {
@@ -458,6 +474,8 @@ async function main() {
     }
     log(`Port ${options.port} is now free.`);
   }
+
+  buildWorkspaceDependencies();
 
   // 启动 watch build
   const build = startWatchBuild();

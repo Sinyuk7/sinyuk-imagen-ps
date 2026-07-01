@@ -200,6 +200,15 @@ async function waitForDoneResult(page) {
   await page.locator('.prov-img img').first().waitFor({ state: 'visible', timeout: 5000 });
 }
 
+async function expectMockResponseText(page) {
+  const responseText = page.locator('[data-testid^="result-response-text-"]').first();
+  await responseText.waitFor({ state: 'visible', timeout: 5000 });
+  const text = await responseText.textContent();
+  if (!text?.includes('operation=text_to_image model=mock-image-v1')) {
+    throw new Error('Mock provider response text was not rendered in the Chrome result card.');
+  }
+}
+
 async function addFileAttachment(page) {
   await page.getByTestId('composer-add-image-button').click();
   await page.getByTestId('attach-upload-option').click();
@@ -421,6 +430,7 @@ async function promptSuggestionGenerateScenario({ page, url, capture }) {
   await page.getByTestId('composer-send-button').click();
   await checkpoint(page, capture, '17-main-generate-result.png', async () => {
     await waitForDoneResult(page);
+    await expectMockResponseText(page);
     await expectVisibleText(page, 'Mock Profile');
     await expectVisibleText(page, 'Place in PS');
     await page.getByTestId('composer-textarea').evaluate((textarea) => {
@@ -974,7 +984,7 @@ const scenarios = [
     tags: ['main-history'],
     path: '/index.html?testHarness=1&storage=memory&seedProfile=mock&scenario=seeded-document',
     screenshotName: '17-main-generate-result.png',
-    assertions: ['suggestion fills prompt', 'send enabled', 'generate result done', 'preview visible', 'actions visible', 'no console/page/network errors'],
+    assertions: ['suggestion fills prompt', 'send enabled', 'generate result done', 'response text visible', 'preview visible', 'actions visible', 'no console/page/network errors'],
     run: promptSuggestionGenerateScenario,
   },
   {

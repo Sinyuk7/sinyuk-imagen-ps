@@ -160,6 +160,12 @@ function completedJob(input: Record<string, unknown>): Job {
     output: {
       image: {
         assets: [fakeOutputAsset],
+        text: [
+          'operation=text_to_image model=mock-image-v1',
+          `prompt=${String(input.prompt ?? 'make an image')}`,
+          'output=size=2k format=png aspect=auto providerInputMaxSide=2048',
+          'images=0 mask=no assets=1',
+        ].join('\n'),
         metadata: {
           size: '1024x1024',
           outputFormat: 'png',

@@ -4,6 +4,7 @@
   "tasks": {
     "build": {
       "dependsOn": ["^build"],
+      "env": ["IMAGEN_SKIP_APP_BUILD_DEPS"],
       "outputs": ["dist/**"]
     },
     "dev": {

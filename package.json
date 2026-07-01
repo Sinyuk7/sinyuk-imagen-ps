@@ -5,9 +5,9 @@
   "packageManager": "pnpm@9.15.4",
   "scripts": {
     "bootstrap": "pnpm install --frozen-lockfile && pnpm validate",
-    "build": "turbo run build",
+    "build": "IMAGEN_SKIP_APP_BUILD_DEPS=1 turbo run build",
     "dev": "turbo run dev",
-    "test": "turbo run test",
+    "test": "IMAGEN_SKIP_APP_BUILD_DEPS=1 turbo run test",
     "lint": "turbo run lint",
     "check:policy": "node scripts/check-policy.mjs",
     "validate": "pnpm build && pnpm test && pnpm check:policy",
