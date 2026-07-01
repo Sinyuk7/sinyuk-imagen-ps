@@ -36,6 +36,7 @@ describe('motion runtime', () => {
   it('rejects rotate, matrix, skew, and 3d transform strings', () => {
     expect(validateMotionTransform('translateY(4px) scale(0.98)')).toBe(true);
     expect(validateMotionTransform('translateX(-2px) scaleX(1) scaleY(1)')).toBe(true);
+    expect(validateMotionTransform('translateY(-1.2169569618691867e-7px)')).toBe(true);
     expect(validateMotionTransform('rotate(90deg)')).toBe(false);
     expect(validateMotionTransform('matrix(1, 0, 0, 1, 0, 0)')).toBe(false);
     expect(validateMotionTransform('skewX(4deg)')).toBe(false);

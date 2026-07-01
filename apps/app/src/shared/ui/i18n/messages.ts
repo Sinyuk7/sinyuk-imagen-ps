@@ -143,10 +143,6 @@ export interface AppMessages {
     readonly aspectRatio: string;
     readonly providerInputMaxSide: string;
     readonly providerInputMaxSideHint: string;
-    readonly resultDisplayGroup: string;
-    readonly showProviderResponseText: string;
-    readonly showProviderResponseTextHint: string;
-    readonly showProviderResponseTextSessionHint: string;
     readonly saving: string;
   };
   readonly toast: {
@@ -205,13 +201,13 @@ const EN_MESSAGES: AppMessages = {
     loadingProfiles: 'Loading profiles...',
     addProviderProfile: 'Add Provider profile',
     currentSession: 'Current session',
-    emptyHint: 'What would you like to create? Pick a profile, describe your image, and send.',
-    promptSuggestionProductValue: 'A blue glass perfume bottle in product photography style with soft studio lighting',
-    promptSuggestionProductLabel: 'Product photo of a blue glass perfume bottle',
-    promptSuggestionCyberpunkValue: 'Turn the reference image into a cyberpunk night scene while preserving the subject outline',
-    promptSuggestionCyberpunkLabel: 'Cyberpunk night reference edit',
-    promptSuggestionLayerValue: 'Use the selected Photoshop layer as a base and generate a fantasy forest environment around it',
-    promptSuggestionLayerLabel: 'Generate around the current PS layer',
+    emptyHint: 'Where should we start?',
+    promptSuggestionProductValue: 'Create an illustration of a girl with pink hair',
+    promptSuggestionProductLabel: 'Create an illustration of a girl with pink hair',
+    promptSuggestionCyberpunkValue: 'Transform this image into a hand-drawn illustration',
+    promptSuggestionCyberpunkLabel: 'Transform this image into a hand-drawn illustration',
+    promptSuggestionLayerValue: 'Generate a full-body portrait from the given image',
+    promptSuggestionLayerLabel: 'Generate a full-body portrait from the given image',
     reusePrompt: 'Reuse Prompt',
     submitJobRunning: 'Generating...',
     noAssetPreview: 'No asset preview',
@@ -317,11 +313,6 @@ const EN_MESSAGES: AppMessages = {
     aspectRatio: 'Aspect ratio',
     providerInputMaxSide: 'Provider input max side',
     providerInputMaxSideHint: 'Reference and captured images are resized before provider edit requests.',
-    resultDisplayGroup: 'Result display',
-    showProviderResponseText: 'Show provider response text',
-    showProviderResponseTextHint:
-      'Provider-returned text is shown in generated results. This changes UI display only and does not change the generation request.',
-    showProviderResponseTextSessionHint: 'Response text is current-session-only and is not written into history.',
     saving: 'Saving...',
   },
   toast: {
@@ -381,13 +372,13 @@ const ZH_CN_MESSAGES: AppMessages = {
     loadingProfiles: '加载 profiles...',
     addProviderProfile: '添加 Provider profile',
     currentSession: '当前会话',
-    emptyHint: '想生成或编辑什么图像？选择模型，输入描述，然后发送。',
-    promptSuggestionProductValue: '一张产品摄影风格的蓝色玻璃香水瓶，柔和棚拍光线',
-    promptSuggestionProductLabel: '产品摄影风格的蓝色玻璃香水瓶',
-    promptSuggestionCyberpunkValue: '把参考图改成赛博朋克夜景，保留主体轮廓',
-    promptSuggestionCyberpunkLabel: '参考图改成赛博朋克夜景',
-    promptSuggestionLayerValue: '使用当前 PS 图层作为基础，围绕它生成奇幻森林环境',
-    promptSuggestionLayerLabel: '围绕当前 PS 图层生成环境',
+    emptyHint: '我们从哪里开始？',
+    promptSuggestionProductValue: '生成一张粉色头发女孩的插画',
+    promptSuggestionProductLabel: '生成一张粉色头发女孩的插画',
+    promptSuggestionCyberpunkValue: '将这张图片转换为手绘插画',
+    promptSuggestionCyberpunkLabel: '将这张图片转换为手绘插画',
+    promptSuggestionLayerValue: '根据给定图片生成一张全身肖像',
+    promptSuggestionLayerLabel: '根据给定图片生成一张全身肖像',
     reusePrompt: '复用 Prompt',
     submitJobRunning: '生成中...',
     noAssetPreview: 'No asset preview',
@@ -493,10 +484,6 @@ const ZH_CN_MESSAGES: AppMessages = {
     aspectRatio: '宽高比',
     providerInputMaxSide: 'Provider 输入最大边',
     providerInputMaxSideHint: '参考图和捕获图会在发送给 provider edit 请求前调整尺寸。',
-    resultDisplayGroup: '结果显示',
-    showProviderResponseText: '显示 provider response text',
-    showProviderResponseTextHint: '生成结果中显示 provider 返回的文本。这里只影响 UI 展示，不改变生成请求。',
-    showProviderResponseTextSessionHint: 'Response text 只保留在当前会话，不写入历史记录。',
     saving: '保存中...',
   },
   toast: {

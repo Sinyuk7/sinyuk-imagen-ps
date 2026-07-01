@@ -192,7 +192,7 @@ describe('useConversation', () => {
         output: {
           image: {
             assets: [fakeOutputAsset],
-            text: 'operation=text_to_image model=mock-image-v1\nprompt=make an image',
+            text: '[operation=text_to_image] [model=mock-image-v1] [prompt=make an ...]',
           },
         },
         error: undefined,
@@ -215,10 +215,10 @@ describe('useConversation', () => {
       });
     });
 
-    expect(getController().rounds[0]?.responseText).toContain('operation=text_to_image model=mock-image-v1');
-    expect(getController().rounds[0]?.responseText).toContain('app.output=size=4k format=webp aspect=16:9 providerInputMaxSide=1024');
-    expect(getController().rounds[0]?.responseText).toContain('app.attachments=0');
-    expect(getController().rounds[0]?.responseText).toContain('app.placement=unbound');
+    expect(getController().rounds[0]?.responseText).toContain('[operation=text_to_image] [model=mock-image-v1]');
+    expect(getController().rounds[0]?.responseText).toContain('[app.output=size=4k format=webp aspect=16:9 providerInputMaxSide=1024]');
+    expect(getController().rounds[0]?.responseText).toContain('[app.attachments=0]');
+    expect(getController().rounds[0]?.responseText).toContain('[app.placement=unbound]');
   });
 
   it('creates a running durable task snapshot before provider dispatch', async () => {

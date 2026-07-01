@@ -92,7 +92,6 @@ describe('Chrome adapter contracts', () => {
       outputFormat: 'png',
       aspectRatio: 'auto',
       providerInputMaxSide: 2048,
-      showProviderResponseText: true,
     });
 
     await storage.generationSettings.save({
@@ -100,7 +99,6 @@ describe('Chrome adapter contracts', () => {
       outputFormat: 'webp',
       aspectRatio: '9:16',
       providerInputMaxSide: 1024,
-      showProviderResponseText: false,
     });
 
     expect(await storage.generationSettings.load()).toEqual({
@@ -108,7 +106,6 @@ describe('Chrome adapter contracts', () => {
       outputFormat: 'webp',
       aspectRatio: '9:16',
       providerInputMaxSide: 1024,
-      showProviderResponseText: false,
     });
     expect(await storage.profiles.list()).toEqual([]);
   });
@@ -144,6 +141,30 @@ describe('Chrome adapter contracts', () => {
     expect(layerAsset.preview.url).toContain('data:image/svg+xml;base64,');
     expect(layerAsset.asset.storedRef).toMatchObject({ kind: 'hostObject', name: 'sim-layer-10.svg' });
     expect(layerAsset.resource.derivatives.providerInput?.kind).toBe('ready');
+  });
+
+  it('simulator places unbound local-file outputs into the active document contract', async () => {
+    const storage = createChromeIndexedDbStorage({ backend: createMemoryIndexedDbBackend() });
+    const simulator = createPhotoshopSimulator(storage.assets, 'seeded-document');
+
+    await expect(simulator.placeAssetOnCanvas(
+      { type: 'image', name: 'generated.png', data: new Uint8Array([1]), mimeType: 'image/png' },
+      { kind: 'unbound', reason: 'no-photoshop-capture' },
+    )).resolves.toBeUndefined();
+  });
+
+  it('simulator rejects unbound multiple-document placement and missing active documents', async () => {
+    const storage = createChromeIndexedDbStorage({ backend: createMemoryIndexedDbBackend() });
+
+    await expect(createPhotoshopSimulator(storage.assets, 'seeded-document').placeAssetOnCanvas(
+      { type: 'image', name: 'generated.png', data: new Uint8Array([1]), mimeType: 'image/png' },
+      { kind: 'unbound', reason: 'multiple-documents' },
+    )).rejects.toThrow('ambiguous across multiple source documents');
+
+    await expect(createPhotoshopSimulator(storage.assets, 'no-document').placeAssetOnCanvas(
+      { type: 'image', name: 'generated.png', data: new Uint8Array([1]), mimeType: 'image/png' },
+      { kind: 'unbound', reason: 'no-photoshop-capture' },
+    )).rejects.toThrow('requires an active Photoshop document');
   });
 
   it('runs the Chrome provider command path with mock provider state and simulator layers', async () => {

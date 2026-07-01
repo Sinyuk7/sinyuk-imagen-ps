@@ -42,6 +42,16 @@ function describeOutput(request: MockProviderRequest): string {
   ].join(' ');
 }
 
+function compactPrompt(prompt: string): string {
+  const compact = prompt.trim().replace(/\s+/g, ' ');
+  const chars = Array.from(compact);
+  return chars.length > 8 ? `${chars.slice(0, 8).join('')}...` : compact;
+}
+
+function token(key: string, value: string): string {
+  return `[${key}=${value}]`;
+}
+
 function createMockResponseText(
   request: MockProviderRequest,
   effectiveModel: string,
@@ -55,11 +65,15 @@ function createMockResponseText(
   ].filter((item): item is string => item !== undefined);
 
   return [
-    `operation=${request.operation} model=${effectiveModel}`,
-    `prompt=${request.prompt}`,
-    `output=${describeOutput(request)} providerInputMaxSide=${config.imageMaxSide ?? 'default'}`,
-    `images=${imageCount} mask=${request.maskImage ? 'yes' : 'no'} assets=${assetCount}${markers.length > 0 ? ` ${markers.join(' ')}` : ''}`,
-  ].join('\n');
+    token('operation', request.operation),
+    token('model', effectiveModel),
+    token('prompt', compactPrompt(request.prompt)),
+    token('output', `${describeOutput(request)} providerInputMaxSide=${config.imageMaxSide ?? 'default'}`),
+    token('images', String(imageCount)),
+    token('mask', request.maskImage ? 'yes' : 'no'),
+    token('assets', String(assetCount)),
+    ...markers.map((marker) => `[${marker}]`),
+  ].join(' ');
 }
 
 /** 创建 mock provider 实例。 */

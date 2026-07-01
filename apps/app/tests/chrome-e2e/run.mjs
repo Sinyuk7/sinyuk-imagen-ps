@@ -204,8 +204,17 @@ async function expectMockResponseText(page) {
   const responseText = page.locator('[data-testid^="result-response-text-"]').first();
   await responseText.waitFor({ state: 'visible', timeout: 5000 });
   const text = await responseText.textContent();
-  if (!text?.includes('operation=text_to_image model=mock-image-v1')) {
-    throw new Error('Mock provider response text was not rendered in the Chrome result card.');
+  if (!text?.includes('[operation=text_to_image] [model=mock-image-v1]')) {
+    throw new Error('Mock provider token response was not rendered in the Chrome result card.');
+  }
+  if (!text.includes('[app.output=size=2k format=png aspect=auto providerInputMaxSide=2048]')) {
+    throw new Error('Mock app context token response was not rendered in the Chrome result card.');
+  }
+  if (text.includes('collapsed')) {
+    throw new Error('Obsolete response summary placeholder was rendered in the Chrome result card.');
+  }
+  if (await page.locator('.prov-response-details').count() > 0) {
+    throw new Error('Obsolete provider response details block was rendered in the Chrome result card.');
   }
 }
 
@@ -229,10 +238,10 @@ async function smokeScenario({ page, url, capture }) {
   await expectVisibleText(page, 'No provider profile');
   await expectVisibleText(page, 'No model');
   await expectVisibleText(page, 'Current session');
-  await expectVisibleText(page, 'What would you like to create? Pick a profile, describe your image, and send.');
-  await expectVisibleText(page, 'Product photo of a blue glass perfume bottle');
-  await expectVisibleText(page, 'Cyberpunk night reference edit');
-  await expectVisibleText(page, 'Generate around the current PS layer');
+  await expectVisibleText(page, 'Where should we start?');
+  await expectVisibleText(page, 'Create an illustration of a girl with pink hair');
+  await expectVisibleText(page, 'Transform this image into a hand-drawn illustration');
+  await expectVisibleText(page, 'Generate a full-body portrait from the given image');
   await page.locator('textarea[placeholder="Add a profile in Providers first"]').waitFor({ state: 'visible' });
   await page.getByTestId('composer-send-button').evaluate((button) => {
     if (!button || !button.disabled) {
@@ -414,10 +423,10 @@ async function mainProfileModelMenusScenario({ page, url, capture }) {
 
 async function promptSuggestionGenerateScenario({ page, url, capture }) {
   await openApp(page, url);
-  await page.getByText('Product photo of a blue glass perfume bottle', { exact: true }).click();
+  await page.getByText('Create an illustration of a girl with pink hair', { exact: true }).click();
   await checkpoint(page, capture, '16-main-suggestion-filled.png', async () => {
     await page.getByTestId('composer-textarea').evaluate((textarea) => {
-      if (!(textarea instanceof HTMLTextAreaElement) || !textarea.value.includes('blue glass perfume')) {
+      if (!(textarea instanceof HTMLTextAreaElement) || !textarea.value.includes('girl with pink hair')) {
         throw new Error('Suggestion did not fill the composer textarea.');
       }
     });

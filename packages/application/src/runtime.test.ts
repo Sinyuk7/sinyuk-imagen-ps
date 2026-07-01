@@ -161,9 +161,9 @@ describe('profile dispatch runtime', () => {
     }
     const image = result.value.output?.image as { text?: string; raw?: { model?: unknown } };
     expect(image.raw?.model).toBe('mock-image-v1');
-    expect(image.text).toContain('operation=image_edit model=mock-image-v1');
-    expect(image.text).toContain('prompt=make the geometric shape blue');
-    expect(image.text).toContain('images=1 mask=no assets=1');
+    expect(image.text).toContain('[operation=image_edit] [model=mock-image-v1]');
+    expect(image.text).toContain('[prompt=make the...]');
+    expect(image.text).toContain('[images=1] [mask=no] [assets=1]');
   });
 
   it('flushes terminal jobs to injected durable history without raw secret values', async () => {

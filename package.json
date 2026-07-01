@@ -6,6 +6,7 @@
   "scripts": {
     "bootstrap": "pnpm install --frozen-lockfile && pnpm validate",
     "build": "IMAGEN_SKIP_APP_BUILD_DEPS=1 turbo run build",
+    "build:model-avatar-icons": "node scripts/build-model-avatar-icons.mjs",
     "dev": "turbo run dev",
     "test": "IMAGEN_SKIP_APP_BUILD_DEPS=1 turbo run test",
     "lint": "turbo run lint",

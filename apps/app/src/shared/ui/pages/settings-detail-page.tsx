@@ -11,7 +11,7 @@ import { useI18n } from '../i18n/i18n-context';
 import { Button, FieldLabel, HelpText, TextField } from '../primitives/native-controls';
 import { IconButton } from '../primitives/icon-button';
 import { statusFromProviderTestResult } from '../provider-status';
-import { ComposerSelect } from '../components/composer-select';
+import { TextSelect } from '../components/text-select';
 
 interface SettingsDetailPageProps {
   readonly onNav: (view: string) => void;
@@ -379,7 +379,7 @@ export function SettingsDetailPage({ onNav, profileId, onProfilesChanged }: Sett
               <>
                 <div className="field">
                   {modelMode === 'list' && modelOptions.length > 0 ? (
-                    <ComposerSelect
+                    <TextSelect
                       label={t.settings.defaultModel}
                       value={modelTriggerValue}
                       disabled={modelSelectDisabled}

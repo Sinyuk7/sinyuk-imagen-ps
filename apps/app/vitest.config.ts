@@ -1,6 +1,9 @@
 import { defineConfig } from 'vitest/config';
 
 export default defineConfig({
+  define: {
+    __IMAGEN_PS_DEV__: 'true',
+  },
   test: {
     environment: 'happy-dom',
     include: [

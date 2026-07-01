@@ -1,5 +1,9 @@
 const FORBIDDEN_TRANSFORM_PATTERN = /\b(?:rotate(?:X|Y|Z|3d)?|skew(?:X|Y)?|matrix(?:3d)?|perspective|translateZ|scaleZ|translate3d|scale3d)\s*\(/u;
-const TRANSFORM_TOKEN_PATTERN = /^(?:translateX|translateY|scale|scaleX|scaleY)\(-?(?:\d+|\d*\.\d+)(?:px)?\)$/u;
+const TRANSFORM_NUMBER_PATTERN = '-?(?:(?:\\d+|\\d*\\.\\d+)(?:e-?\\d+)?)';
+const TRANSFORM_TOKEN_PATTERN = new RegExp(
+  `^(?:translateX|translateY|scale|scaleX|scaleY)\\(${TRANSFORM_NUMBER_PATTERN}(?:px)?\\)$`,
+  'u',
+);
 
 declare const __IMAGEN_PS_DEV__: boolean;
 

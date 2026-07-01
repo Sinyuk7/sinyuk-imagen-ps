@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
-import { ComposerSelect } from '../../../shared/ui/components/composer-select';
+import { IconSelect } from '../../../shared/ui/components/icon-select';
+import { TextSelect } from '../../../shared/ui/components/text-select';
 import type { ComposerSelectOption } from '../../../shared/ui/components/composer-select';
 import { PANEL_CSS } from '../../../shared/ui/panel-css';
 import { ASPECT_OPTIONS, MODEL_OPTIONS, TARGET_OPTIONS } from './composer-select-harness-data';
@@ -21,7 +22,12 @@ const HARNESS_CSS = `
   margin:0 auto;
   display:flex;
   flex-direction:column;
-  gap:18px;
+}
+.harness-shell > .harness-card{
+  margin-top:18px;
+}
+.harness-shell > .harness-card:first-child{
+  margin-top:0;
 }
 .harness-card{
   border:1px solid var(--bd);
@@ -54,20 +60,33 @@ const HARNESS_CSS = `
   padding:16px;
   display:flex;
   flex-direction:column;
-  gap:14px;
+}
+.harness-card-body > *{
+  margin-top:14px;
+}
+.harness-card-body > *:first-child{
+  margin-top:0;
 }
 .harness-card-body[data-overflow-visible="true"]{
   overflow:visible;
 }
 .harness-controls{
-  display:grid;
-  grid-template-columns:repeat(auto-fit, minmax(180px, 1fr));
-  gap:10px 14px;
+  display:flex;
+  flex-wrap:wrap;
+  margin-top:0;
+  margin-right:-14px;
+  margin-bottom:-10px;
+  margin-left:0;
 }
 .harness-field{
   display:flex;
   flex-direction:column;
-  gap:6px;
+  flex:1 1 180px;
+  min-width:180px;
+  margin-top:0;
+  margin-right:14px;
+  margin-bottom:10px;
+  margin-left:0;
 }
 .harness-label{
   font-family:var(--fM);
@@ -75,11 +94,20 @@ const HARNESS_CSS = `
   letter-spacing:.04em;
   color:var(--txd);
   text-transform:uppercase;
+  margin-top:0;
+  margin-right:0;
+  margin-bottom:6px;
+  margin-left:0;
 }
 .harness-range-row{
   display:flex;
   align-items:center;
-  gap:12px;
+}
+.harness-range-row > .harness-range{
+  margin-top:0;
+  margin-right:12px;
+  margin-bottom:0;
+  margin-left:0;
 }
 .harness-range{
   width:100%;
@@ -94,7 +122,10 @@ const HARNESS_CSS = `
 .harness-toggle-row{
   display:flex;
   flex-wrap:wrap;
-  gap:8px;
+  margin-top:0;
+  margin-right:-8px;
+  margin-bottom:-8px;
+  margin-left:0;
 }
 .harness-toggle{
   padding:6px 10px;
@@ -105,6 +136,10 @@ const HARNESS_CSS = `
   font-family:var(--fM);
   font-size:11px;
   cursor:pointer;
+  margin-top:0;
+  margin-right:8px;
+  margin-bottom:8px;
+  margin-left:0;
 }
 .harness-toggle[data-active="true"]{
   border-color:var(--pr);
@@ -395,7 +430,7 @@ function EdgeCaseSelect({
       data-y={y}
       style={{ '--harness-edge-width': `${width}px` } as React.CSSProperties}
     >
-      <ComposerSelect
+      <TextSelect
         testId={`edge-${x}-${y}`}
         containerClassName="cmp-select harness-picker-fill"
         menuClassName="cmp-select-menu cmp-select-menu-model"
@@ -496,7 +531,7 @@ export function ComposerSelectHarnessPage() {
                   <div className="harness-resizable" style={{ width: containerWidth }}>
                     <div className="panel harness-panel-inner">
                       <div className="harness-row">
-                        <ComposerSelect
+                        <TextSelect
                           testId="harness-trio-model"
                           containerClassName="cmp-select harness-picker-col"
                           menuClassName="cmp-select-menu cmp-select-menu-model"
@@ -508,31 +543,31 @@ export function ComposerSelectHarnessPage() {
                           selectedId={trio.modelId}
                           onSelect={(modelId) => setTrio((current) => ({ ...current, modelId }))}
                         />
-                        <ComposerSelect
+                        <IconSelect
                           testId="harness-trio-target"
                           containerClassName="cmp-select harness-picker-col"
                           menuClassName="cmp-select-menu cmp-select-menu-compact"
                           label="Target"
                           value={currentLabel(TARGET_OPTIONS, trio.targetId)}
+                          icon={trio.targetId === 'layer' ? 'ps-layers' : 'selection'}
                           open={trioOpen === 'target'}
                           onOpenChange={(open) => setTrioOpen(open ? 'target' : null)}
                           options={TARGET_OPTIONS}
                           selectedId={trio.targetId}
                           onSelect={(targetId) => setTrio((current) => ({ ...current, targetId }))}
-                          leadingIcon={trio.targetId === 'layer' ? 'ps-layers' : 'selection'}
                         />
-                        <ComposerSelect
+                        <IconSelect
                           testId="harness-trio-aspect"
                           containerClassName="cmp-select harness-picker-col"
                           menuClassName="cmp-select-menu cmp-select-menu-compact"
                           label="Aspect ratio"
                           value={currentLabel(ASPECT_OPTIONS, trio.aspectId)}
+                          icon={ASPECT_OPTIONS.find((option) => option.id === trio.aspectId)?.icon ?? 'image-auto-mode'}
                           open={trioOpen === 'aspect'}
                           onOpenChange={(open) => setTrioOpen(open ? 'aspect' : null)}
                           options={ASPECT_OPTIONS}
                           selectedId={trio.aspectId}
                           onSelect={(aspectId) => setTrio((current) => ({ ...current, aspectId }))}
-                          leadingIcon={trio.aspectId === 'auto' ? 'image-auto-mode' : undefined}
                         />
                       </div>
                     </div>
@@ -553,7 +588,7 @@ export function ComposerSelectHarnessPage() {
                   <div className="harness-resizable" style={{ width: containerWidth }}>
                     <div className="panel harness-panel-inner">
                       <div className="harness-col">
-                        <ComposerSelect
+                        <TextSelect
                           testId="harness-single-model"
                           containerClassName="cmp-select harness-picker-fill"
                           menuClassName="cmp-select-menu cmp-select-menu-model"
@@ -587,7 +622,7 @@ export function ComposerSelectHarnessPage() {
                   <div className="harness-resizable" style={{ width: containerWidth }}>
                     <div className="panel harness-panel-inner">
                       <div className="harness-row">
-                        <ComposerSelect
+                        <TextSelect
                           testId="harness-open-menu"
                           containerClassName="cmp-select harness-picker-fill"
                           menuClassName="cmp-select-menu cmp-select-menu-model"

@@ -215,30 +215,34 @@ function errorRound(current: ConversationRound, error: JobError | Error): Conver
 
 function attachmentSummary(attachments: readonly ConversationAttachment[]): string {
   if (attachments.length === 0) {
-    return 'attachments=0';
+    return '0';
   }
   const counts = new Map<ConversationAttachment['type'], number>();
   for (const attachment of attachments) {
     counts.set(attachment.type, (counts.get(attachment.type) ?? 0) + 1);
   }
   const types = Array.from(counts.entries()).map(([type, count]) => `${type}:${count}`).join(',');
-  return `attachments=${attachments.length} types=${types}`;
+  return `${attachments.length} types=${types}`;
 }
 
 function placementSummary(intent: PlacementIntent): readonly string[] {
-  const lines = [`placement=${intent.kind}`];
+  const lines = [`app.placement=${intent.kind}`];
   if (intent.kind === 'exact-frame' || intent.kind === 'document-only') {
-    lines.push(`documentId=${intent.documentId}`);
+    lines.push(`app.documentId=${intent.documentId}`);
     if (intent.documentName !== undefined) {
-      lines.push(`documentName=${intent.documentName}`);
+      lines.push(`app.documentName=${intent.documentName}`);
     }
-    lines.push(`documentSizeAtCapture=${intent.documentSizeAtCapture.width}x${intent.documentSizeAtCapture.height}`);
+    lines.push(`app.documentSizeAtCapture=${intent.documentSizeAtCapture.width}x${intent.documentSizeAtCapture.height}`);
   }
   if (intent.kind === 'exact-frame') {
     const rect = intent.placementRect;
-    lines.push(`placementRect=${rect.left},${rect.top},${rect.right},${rect.bottom}`);
+    lines.push(`app.placementRect=${rect.left},${rect.top},${rect.right},${rect.bottom}`);
   }
   return lines;
+}
+
+function contextToken(line: string): string {
+  return `[${line}]`;
 }
 
 function composeMockAppContext(round: ConversationRound): string {
@@ -246,9 +250,9 @@ function composeMockAppContext(round: ConversationRound): string {
   return [
     `app.model=${round.modelId ?? 'default'}`,
     `app.output=size=${output?.sizePreset ?? 'default'} format=${output?.outputFormat ?? 'default'} aspect=${output?.aspectRatio ?? 'default'} providerInputMaxSide=${round.providerInputMaxSide ?? 'default'}`,
-    `app.${attachmentSummary(round.attachments)}`,
-    ...placementSummary(round.placementIntent).map((line) => `app.${line}`),
-  ].join('\n');
+    `app.attachments=${attachmentSummary(round.attachments)}`,
+    ...placementSummary(round.placementIntent),
+  ].map(contextToken).join(' ');
 }
 
 function composeResponseText(providerText: string | undefined, round: ConversationRound): string | undefined {
@@ -258,7 +262,7 @@ function composeResponseText(providerText: string | undefined, round: Conversati
   if (round.providerId !== 'mock') {
     return providerText;
   }
-  return `${providerText}\n${composeMockAppContext(round)}`;
+  return `${providerText} ${composeMockAppContext(round)}`;
 }
 
 function assetForJobInput(image: HostImageAsset): Asset {

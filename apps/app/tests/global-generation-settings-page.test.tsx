@@ -50,7 +50,6 @@ describe('GlobalGenerationSettingsPage', () => {
               outputFormat: 'png',
               aspectRatio: 'auto',
               providerInputMaxSide: 2048,
-              showProviderResponseText: true,
             }}
             loading={false}
             error={null}
@@ -100,7 +99,7 @@ describe('GlobalGenerationSettingsPage', () => {
     }
   });
 
-  it('saves the result display response text toggle', async () => {
+  it('does not expose a provider response text toggle and saves generation settings only', async () => {
     const { services } = createFakeServices();
     const container = document.createElement('div');
     document.body.appendChild(container);
@@ -116,7 +115,6 @@ describe('GlobalGenerationSettingsPage', () => {
               outputFormat: 'png',
               aspectRatio: 'auto',
               providerInputMaxSide: 2048,
-              showProviderResponseText: true,
             }}
             loading={false}
             error={null}
@@ -127,15 +125,16 @@ describe('GlobalGenerationSettingsPage', () => {
       );
     });
 
-    await act(async () => {
-      container.querySelector<HTMLInputElement>('[data-testid="show-provider-response-text-toggle"]')!.click();
-    });
+    expect(container.textContent).not.toContain('provider response text');
     await act(async () => {
       container.querySelector<HTMLButtonElement>('[data-testid="global-settings-save-button"]')!.click();
     });
 
-    expect(onSave).toHaveBeenCalledWith(expect.objectContaining({
-      showProviderResponseText: false,
-    }));
+    expect(onSave).toHaveBeenCalledWith({
+      outputSizePreset: '2k',
+      outputFormat: 'png',
+      aspectRatio: 'auto',
+      providerInputMaxSide: 2048,
+    });
   });
 });

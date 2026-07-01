@@ -2,8 +2,8 @@ import { Easing } from '@tweenjs/tween.js';
 
 export const MOTION_DURATION = {
   direct: 90,
-  enter: 140,
-  exit: 120,
+  enter: 130,
+  exit: 110,
   state: 180,
   business: 210,
   reveal: 220,
@@ -28,7 +28,7 @@ export const MOTION_OPACITY = {
 
 export const MOTION_TRANSLATE = {
   micro: 2,
-  small: 6,
+  small: 4,
   medium: 8,
 } as const;
 

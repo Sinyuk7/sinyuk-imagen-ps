@@ -295,6 +295,23 @@ function assertPlacementMatched(result: PlacementMatchResult): number {
   throw new Error(`Photoshop placement target is unverifiable: ${result.reason}.`);
 }
 
+/** 解析点击置入时的 Photoshop 目标文档，未绑定来源时使用当前 active document。 */
+function targetDocumentForPlacement(app: PhotoshopApp, placement: PlacementIntent): PhotoshopDocument {
+  if (placement.kind === 'unbound') {
+    if (placement.reason === 'multiple-documents') {
+      throw new Error('Photoshop placement target is ambiguous across multiple source documents.');
+    }
+    const document = app.activeDocument;
+    if (!document) {
+      throw new Error('Photoshop placement target requires an active Photoshop document.');
+    }
+    return document;
+  }
+
+  const matchedDocumentId = assertPlacementMatched(matchPlacementIntent(placement, documentsForPlacement(app)));
+  return requireDocumentById(app, matchedDocumentId);
+}
+
 function setActiveDocument(app: PhotoshopApp, document: PhotoshopDocument): void {
   app.activeDocument = document;
 }
@@ -1503,11 +1520,7 @@ export function createPhotoshopHostBridge(modules: UxpModules, options?: CreateP
         placement: placement.kind,
       });
       try {
-        if (placement.kind === 'unbound') {
-          throw new Error('Photoshop placement target is ambiguous. Capture from Photoshop to place into a known document.');
-        }
-        const matchedDocumentId = assertPlacementMatched(matchPlacementIntent(placement, documentsForPlacement(app)));
-        const targetDocument = requireDocumentById(app, matchedDocumentId);
+        const targetDocument = targetDocumentForPlacement(app, placement);
         const { data, mimeType } = await assetToArrayBuffer(asset, assetStore);
         ensurePlaceableImagePayload(data, mimeType);
         const bytes = new Uint8Array(data);

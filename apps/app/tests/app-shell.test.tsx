@@ -90,7 +90,7 @@ describe('AppShell', () => {
     await flush();
 
     expect(container.textContent).toContain('Current session');
-    expect(container.textContent).toContain('What would you like to create? Pick a profile, describe your image, and send.');
+    expect(container.textContent).toContain('Where should we start?');
     expect(document.documentElement.lang).toBe('en');
   });
 

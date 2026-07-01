@@ -7,7 +7,6 @@ export interface AppGenerationSettings {
   readonly outputFormat: AppOutputFormat;
   readonly aspectRatio: AppAspectRatio;
   readonly providerInputMaxSide: number;
-  readonly showProviderResponseText: boolean;
 }
 
 export interface AppGenerationSettingsStore {
@@ -20,7 +19,6 @@ export const DEFAULT_APP_GENERATION_SETTINGS = {
   outputFormat: 'png',
   aspectRatio: 'auto',
   providerInputMaxSide: 2048,
-  showProviderResponseText: true,
 } as const satisfies AppGenerationSettings;
 
 const OUTPUT_SIZE_PRESETS = new Set<AppOutputSizePreset>(['512', '1k', '2k', '4k']);
@@ -51,10 +49,6 @@ export function normalizeAppGenerationSettings(input: unknown): AppGenerationSet
       ? value.aspectRatio as AppAspectRatio
       : DEFAULT_APP_GENERATION_SETTINGS.aspectRatio,
     providerInputMaxSide: providerInputMaxSide ?? DEFAULT_APP_GENERATION_SETTINGS.providerInputMaxSide,
-    showProviderResponseText:
-      typeof value.showProviderResponseText === 'boolean'
-        ? value.showProviderResponseText
-        : DEFAULT_APP_GENERATION_SETTINGS.showProviderResponseText,
   };
 }
 

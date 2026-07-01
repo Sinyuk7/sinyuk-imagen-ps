@@ -1,13 +1,10 @@
 /** 浮层：Toast、Back-to-bottom。 */
 export const OVERLAYS_CSS = `
 /* Toast */
-.ui-toast-shell{
-  position:absolute; top:calc(var(--app-header-height, 48px) + 10px); right:12px; left:12px; bottom:auto; z-index:2000;
-  display:flex; justify-content:flex-end; pointer-events:none;
-}
+.ui-toast-shell{ pointer-events:none; }
 .ui-toast[data-testid="toast"]{
-  position:relative;
-  width:100%; min-width:0; max-width:360px; min-height:44px; max-height:calc(100% - 48px); overflow-y:auto; pointer-events:auto;
+  position:absolute; top:calc(var(--app-header-height, 48px) + 10px); right:12px; left:auto; bottom:auto; z-index:2000;
+  width:320px; min-width:220px; max-width:calc(100% - 24px); min-height:44px; max-height:calc(100% - 48px); overflow-y:auto; pointer-events:auto;
   display:flex; align-items:flex-start;
   padding:8px 10px 8px 12px; border:1px solid var(--app-color-border-default); border-radius:10px;
   background:var(--app-color-background-elevated); color:var(--app-color-text-primary);

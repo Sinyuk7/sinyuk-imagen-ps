@@ -6,7 +6,7 @@ export interface ComposerSelectOption {
   readonly icon?: IconName;
 }
 
-export interface ComposerSelectProps {
+interface ComposerSelectPropsBase {
   /** 下拉触发按钮的 aria-label / tooltip 文本。 */
   readonly label: string;
   /** 当前触发器上显示的简短文本。 */
@@ -29,14 +29,24 @@ export interface ComposerSelectProps {
   readonly triggerId?: string;
   /** 触发器 + 菜单容器类名，用于窄面板里的局部宽度约束。 */
   readonly containerClassName?: string;
-  /** 触发器内额外前缀图标。 */
-  readonly leadingIcon?: IconName;
   /**
    * 下拉表面额外 CSS 类名。定位默认使用内联 style，但在复杂布局里需要额外
    * 微调时可通过 className 覆盖。
    */
   readonly menuClassName?: string;
 }
+
+export interface IconComposerSelectProps extends ComposerSelectPropsBase {
+  readonly triggerKind: 'icon';
+  /** 图标版触发器必填前缀图标。 */
+  readonly leadingIcon: IconName;
+}
+
+export interface TextComposerSelectProps extends ComposerSelectPropsBase {
+  readonly triggerKind: 'text';
+}
+
+export type ComposerSelectProps = IconComposerSelectProps | TextComposerSelectProps;
 
 export interface ComposerSelectMenuPlacement {
   readonly direction: 'up' | 'down';

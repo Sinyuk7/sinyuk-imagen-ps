@@ -43,8 +43,6 @@ interface ProviderListItemProps {
   readonly special?: boolean;
   readonly onOpen: () => void;
   readonly labels: {
-    readonly enabled: string;
-    readonly disabled: string;
     readonly ready: string;
     readonly needsSetup: string;
     readonly configured: string;
@@ -92,9 +90,6 @@ function ProviderListItem({
         <div className="prov-content">
           <div className="prov-title-row">
             <span className="prov-name">{row.displayName}</span>
-            <span className={`badge prov-primary-status ${row.enabled ? 'connected' : 'none'}`}>
-              {row.enabled ? labels.enabled : labels.disabled}
-            </span>
           </div>
           <div className="prov-meta-row">
             <span className="prov-family">{row.family}</span>
@@ -130,8 +125,6 @@ export function SettingsPage({
   const rows = profiles.map(profileToProviderRow);
   const optimizerRow = promptOptimizerProfile ? profileToProviderRow(promptOptimizerProfile) : null;
   const labels = {
-    enabled: t.common.enabled,
-    disabled: t.common.disabled,
     ready: t.common.ready,
     needsSetup: t.common.needsSetup,
     configured: t.settings.configured,

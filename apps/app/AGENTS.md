@@ -60,6 +60,45 @@ Translate UI actions, status labels, empty states, placeholders, toasts, and too
 
 Motion ownership must not move into `packages/application`, `packages/core-engine`, or `packages/providers`. A single visual node should have one motion owner per CSS property.
 
+## Photoshop Placement Contract
+
+Preview writeback follows source anchoring when available and active-document
+placement when the user explicitly places an unanchored result.
+
+- `exact-frame`: place back into the captured document and transform to the
+  captured rectangle. Reject if the document cannot be strongly verified.
+- `document-only`: place back into the captured document without frame
+  transform. Reject if the document cannot be strongly verified.
+- `unbound` with `no-photoshop-capture`: place into the current active
+  Photoshop document at click time. Reject only when no active document exists.
+- `unbound` with `multiple-documents`: reject as ambiguous. Do not silently
+  choose an active document when source attachments came from different
+  Photoshop documents.
+
+Keep this rule at the host bridge/simulator boundary. Shared UI should pass the
+round placement intent through unchanged; it should not branch on Photoshop
+runtime identity or guess a document target.
+
+## UXP CSS Contract
+
+Shared UI and local UI harness CSS in `apps/app` must stay inside the Adobe-documented UXP contract first, not browser-first assumptions.
+
+- `display: inline-flex` is allowed. `display` may use `none`, `inline`, `block`, `inline-block`, `flex`, or `inline-flex`.
+- Flex alignment must stay within Adobe-documented values:
+  `justify-content`: `flex-start`, `flex-end`, `center`, `space-between`, `space-around`, `stretch`
+  `align-items`: `flex-start`, `flex-end`, `center`, `stretch`
+  `flex-wrap`: `nowrap`, `wrap`
+- Treat these as unsupported for repo-owned CSS contracts unless Adobe documents them for the current UXP version:
+  `space-evenly`, `baseline`, `wrap-reverse`, `order`, `flex-flow`, `place-content`, `place-items`, `place-self`, `justify-items`, `justify-self`, `safe center`, `unsafe center`, `start`, `end`
+- Do not use `gap`, `row-gap`, or `column-gap` in shared UI or harness CSS. Use explicit margins instead.
+- Keep `flex-direction` / `flex-wrap` explicit instead of `flex-flow`.
+- Do not rely on visual reordering through CSS `order`; keep DOM order aligned with visual order.
+
+Mechanical enforcement:
+
+- `pnpm check:policy` scans `apps/app/src/shared/ui` and `apps/app/src/harness` for UXP CSS contract violations.
+- `pnpm --filter @imagen-ps/app test` includes `tests/uxp-css-compat.test.ts`, which rechecks the same contract in the app harness.
+
 ## Current Structure
 
 ```txt

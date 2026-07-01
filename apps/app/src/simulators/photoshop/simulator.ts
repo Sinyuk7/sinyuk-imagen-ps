@@ -175,7 +175,12 @@ export function createPhotoshopSimulator(
     },
     async placeAssetOnCanvas(_asset: Asset, placement: PlacementIntent): Promise<void> {
       if (scenarioId === 'place-asset-failure') throw new Error('Simulator place asset failed.');
-      if (placement.kind === 'unbound') throw new Error('Photoshop placement target is ambiguous.');
+      if (placement.kind === 'unbound' && placement.reason === 'multiple-documents') {
+        throw new Error('Photoshop placement target is ambiguous across multiple source documents.');
+      }
+      if (placement.kind === 'unbound' && scenarioId === 'no-document') {
+        throw new Error('Photoshop placement target requires an active Photoshop document.');
+      }
     },
   };
 }

@@ -4,7 +4,7 @@ import { useAppServices } from '../../ports/app-services-context';
 import { providerConfigFromForm, useProviderCatalog } from '../hooks/use-provider-settings';
 import { Icon } from '../components/icons';
 import { MotionContent } from '../components/motion-ui';
-import { ComposerSelect } from '../components/composer-select';
+import { TextSelect } from '../components/text-select';
 import { useNotice } from '../components/notice';
 import { ProviderProfileEditor } from '../components/provider-profile-editor';
 import { useI18n } from '../i18n/i18n-context';
@@ -196,7 +196,7 @@ export function SettingsAddPage({ onNav, profiles, onProfileSaved }: SettingsAdd
             defaultModelSection={(
               <div className="field">
                 {modelMode === 'list' && modelOptions.length > 0 ? (
-                  <ComposerSelect
+                  <TextSelect
                     label={t.settings.defaultModel}
                     value={modelOptions.find((option) => option.id === defaultModel)?.label ?? t.settings.chooseFromList}
                     disabled={busy}

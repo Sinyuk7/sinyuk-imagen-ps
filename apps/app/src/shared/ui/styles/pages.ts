@@ -100,7 +100,7 @@ export const PAGES_CSS = `
   text-decoration:none;
 }
 .settings-select{ width:100%; min-width:0; }
-.settings-select .cmp-chip{ width:100%; justify-content:space-between; }
+.settings-select .cmp-chip-text{ width:100%; justify-content:space-between; }
 .generation-settings-grid{ display:flex; align-items:stretch; min-width:0; }
 .generation-settings-grid .field{ flex:1 1 0; min-width:0; margin-right:12px; }
 .generation-settings-grid .field:last-child{ margin-right:0; }

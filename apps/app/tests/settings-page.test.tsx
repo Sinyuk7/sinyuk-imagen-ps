@@ -89,7 +89,7 @@ describe('SettingsPage UXP compatibility', () => {
     });
 
     const row = container.querySelector<HTMLElement>('[data-testid="provider-row-long-profile"]')!;
-    expect(row.querySelector('.prov-primary-status')?.textContent).toContain('已启用');
+    expect(row.querySelector('.prov-primary-status')).toBeNull();
     expect(row.querySelector('.prov-content .prov-family')?.textContent).toContain('image-endpoint');
     expect(row.querySelector('.prov-content .prov-model')?.textContent).toContain('very-long-model-name');
     expect(row.querySelector('.prov-readiness .prov-status-text')?.textContent).toContain('就绪');
@@ -119,7 +119,6 @@ describe('SettingsPage UXP compatibility', () => {
               outputFormat: 'png',
               aspectRatio: 'auto',
               providerInputMaxSide: 2048,
-              showProviderResponseText: true,
             }}
             onOpenGlobalGeneration={onOpenGlobalGeneration}
           />

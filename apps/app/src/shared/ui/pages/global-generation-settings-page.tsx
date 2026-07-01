@@ -5,8 +5,8 @@ import type {
   AppOutputFormat,
   AppOutputSizePreset,
 } from '../../ports/app-generation-settings';
-import { Button, Checkbox, FieldLabel, HelpText, TextField } from '../primitives/native-controls';
-import { ComposerSelect } from '../components/composer-select';
+import { Button, FieldLabel, HelpText, TextField } from '../primitives/native-controls';
+import { TextSelect } from '../components/text-select';
 import { Icon } from '../components/icons';
 import { IconButton } from '../primitives/icon-button';
 import { useI18n } from '../i18n/i18n-context';
@@ -107,7 +107,7 @@ export function GlobalGenerationSettingsPage({
             <div className="generation-settings-grid">
               <div className="field">
                 <FieldLabel htmlFor="global-output-size-trigger">{t.settings.outputSize}</FieldLabel>
-                <ComposerSelect
+                <TextSelect
                   testId="global-output-size-selector"
                   triggerId="global-output-size-trigger"
                   containerClassName="cmp-select settings-select"
@@ -124,7 +124,7 @@ export function GlobalGenerationSettingsPage({
               </div>
               <div className="field">
                 <FieldLabel htmlFor="global-output-format-trigger">{t.settings.outputFormat}</FieldLabel>
-                <ComposerSelect
+                <TextSelect
                   testId="global-output-format-selector"
                   triggerId="global-output-format-trigger"
                   containerClassName="cmp-select settings-select"
@@ -141,7 +141,7 @@ export function GlobalGenerationSettingsPage({
               </div>
               <div className="field">
                 <FieldLabel htmlFor="global-aspect-ratio-trigger">{t.settings.aspectRatio}</FieldLabel>
-                <ComposerSelect
+                <TextSelect
                   testId="global-aspect-ratio-selector"
                   triggerId="global-aspect-ratio-trigger"
                   containerClassName="cmp-select settings-select"
@@ -170,21 +170,6 @@ export function GlobalGenerationSettingsPage({
                 onValue={setMaxSideText}
               />
               <HelpText className="field-hint">{t.settings.providerInputMaxSideHint}</HelpText>
-            </div>
-          </section>
-          <section className="section">
-            <div className="section-title">{t.settings.resultDisplayGroup}</div>
-            <div className="field">
-              <Checkbox
-                data-testid="show-provider-response-text-toggle"
-                checked={draft.showProviderResponseText}
-                disabled={loading || saving}
-                onChecked={(checked) => updateDraft({ showProviderResponseText: checked })}
-              >
-                {t.settings.showProviderResponseText}
-              </Checkbox>
-              <HelpText className="field-hint">{t.settings.showProviderResponseTextHint}</HelpText>
-              <HelpText className="field-hint">{t.settings.showProviderResponseTextSessionHint}</HelpText>
             </div>
           </section>
           {error && <div style={{ padding: 16, color: 'var(--app-color-negative)', fontSize: 12 }}>{error}</div>}

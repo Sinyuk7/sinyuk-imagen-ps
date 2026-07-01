@@ -11,13 +11,19 @@ export const COMPOSER_CSS = `
   display:flex; align-items:flex-start; overflow-x:auto; padding:0 0 8px; scrollbar-width:none; flex-wrap:nowrap;
 }
 .attach-row::-webkit-scrollbar{ display:none; }
+.att-add-host{
+  margin-top:0;
+  margin-right:6px;
+  margin-bottom:0;
+  margin-left:0;
+}
 .att-add{
   width:52px;
   height:52px;
   min-width:52px;
   min-height:0;
   margin-top:0;
-  margin-right:6px;
+  margin-right:0;
   margin-bottom:0;
   margin-left:0;
   padding:0;
@@ -35,12 +41,23 @@ export const COMPOSER_CSS = `
   position:relative; width:52px; height:52px; margin-right:6px; border-radius:8px;
   overflow:hidden; border:1px solid var(--app-color-border-default); flex-shrink:0;
 }
-.att-rm{
-  position:absolute; top:2px; right:2px; width:16px; height:16px; border-radius:50%;
-  background:rgba(0,0,0,.75); color:white; border:none; cursor:pointer;
-  display:flex; align-items:center; justify-content:center; padding:0; font-size:11px; line-height:16px; text-align:center;
+.att-thumb:last-child{ margin-right:0; }
+.att-rm-host{
+  position:absolute; top:2px; right:2px; width:18px; min-width:18px; height:18px; min-height:18px;
+  color:var(--app-color-text-primary);
 }
-.att-rm:hover{ background:var(--app-color-negative); }
+.att-rm{
+  width:18px; min-width:18px; height:18px; min-height:18px; border-radius:50%;
+  border:1px solid var(--app-color-border-default);
+  background:var(--app-color-background-elevated);
+  color:inherit; cursor:pointer; padding:0;
+  display:inline-flex; align-items:center; justify-content:center;
+}
+.att-rm:hover{
+  border-color:var(--app-color-border-strong);
+  background:var(--app-color-hover-overlay);
+  color:var(--app-color-text-primary);
+}
 
 /* Header profile menu (absolute) —— 默认对齐 header center 区域；
  * 窄面板时由 responsive root mode 收敛到 panel 内 full-width containment。 */
@@ -335,15 +352,31 @@ export const COMPOSER_CSS = `
 /* Model chip (native dropdown trigger) */
 .cmp-chip{
   display:flex; align-items:center;
-  min-width:0; max-width:100%; width:100%;
+  min-width:0; width:100%;
   margin-top:0; margin-right:0; margin-bottom:0; margin-left:0;
-  min-height:28px; padding:4px 8px 4px 10px; border-radius:var(--app-radius-medium);
-  border:1px solid var(--app-color-border-default); background:var(--app-color-background-layer-1);
-  font-family:var(--app-font-family-mono); font-size:10px; line-height:14px; color:var(--app-color-text-secondary);
-  cursor:pointer; white-space:nowrap; user-select:none; flex-shrink:1;
+  cursor:pointer; user-select:none; flex-shrink:1;
 }
-.cmp-chip:hover{ border-color:var(--app-color-border-strong); color:var(--app-color-text-primary); }
-.cmp-chip.open{ border-color:var(--app-color-accent-default); color:var(--app-color-accent-default); }
+.cmp-chip-icon,
+.cmp-chip-text{
+  max-width:100%;
+  min-height:28px;
+  padding:4px 8px 4px 10px;
+  border:1px solid var(--app-color-border-default);
+  border-radius:var(--app-radius-medium);
+  background:var(--app-color-background-layer-1);
+  font-family:var(--app-font-family-mono);
+  font-size:10px;
+  line-height:14px;
+  color:var(--app-color-text-secondary);
+  white-space:nowrap;
+}
+.cmp-chip-icon{
+  padding:4px 12px 4px 14px;
+}
+.cmp-chip-icon:hover,
+.cmp-chip-text:hover{ border-color:var(--app-color-border-strong); color:var(--app-color-text-primary); }
+.cmp-chip-icon.open,
+.cmp-chip-text.open{ border-color:var(--app-color-accent-default); color:var(--app-color-accent-default); }
 .cmp-chip.dis{ opacity:.45; cursor:not-allowed; }
 .cmp-chip:focus-visible{
   outline:1px solid var(--app-color-focus-ring);
@@ -351,6 +384,14 @@ export const COMPOSER_CSS = `
 }
 .cmp-dot{ width:5px; height:5px; border-radius:50%; background:var(--app-color-accent-default); flex:0 0 auto; }
 .cmp-chip-body{
+  display:flex;
+  align-items:center;
+  min-width:0;
+  flex:1 1 auto;
+  overflow:hidden;
+}
+.cmp-chip-body-icon,
+.cmp-chip-body-text{
   display:flex;
   align-items:center;
   min-width:0;
@@ -370,29 +411,30 @@ export const COMPOSER_CSS = `
 .cmp-chip-host[data-open="true"] > .ui-overlay-icon-layer{
   color:var(--app-color-accent-default);
 }
-.cmp-chip-leading{
+.cmp-chip-leading-icon{
   flex:0 0 auto;
   color:inherit;
 }
-.cmp-chip-leading,
+.cmp-chip-leading-icon,
 .cmp-dot{
   margin-top:0;
   margin-right:6px;
   margin-bottom:0;
   margin-left:0;
 }
-.cmp-chip-leading-slot{
+.cmp-chip-leading-slot-icon{
   display:block;
   flex:0 0 auto;
-  width:14px;
-  min-width:14px;
-  height:14px;
+  width:16px;
+  min-width:16px;
+  height:16px;
   margin-top:0;
-  margin-right:8px;
+  margin-right:6px;
   margin-bottom:0;
   margin-left:0;
 }
-.cmp-chip-value{
+.cmp-chip-value-icon,
+.cmp-chip-value-text{
   display:inline-flex;
   align-items:center;
   min-width:0;
@@ -423,31 +465,27 @@ export const COMPOSER_CSS = `
 }
 .cmp-chip.open .cmp-chip-arrow{ color:var(--app-color-text-primary); }
 .cmp-chip-chevron{ flex:0 0 auto; color:inherit; }
-.cmp-chip{
-  width:100%;
-  min-width:0;
-  max-width:100%;
+.cmp-chip-leading-icon{
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
+  flex:0 0 auto;
+  width:16px;
+  min-width:16px;
+  height:16px;
+  margin-top:0;
+  margin-right:6px;
+  margin-bottom:0;
+  margin-left:0;
 }
-.cmp-chip-leading{
+.cmp-chip-arrow-text-icon,
+.cmp-chip-arrow-text-text{
   display:inline-flex;
   align-items:center;
   justify-content:center;
   flex:0 0 auto;
   width:14px;
   min-width:14px;
-  height:14px;
-  margin-top:0;
-  margin-right:8px;
-  margin-bottom:0;
-  margin-left:0;
-}
-.cmp-chip-arrow-text{
-  display:inline-flex;
-  align-items:center;
-  justify-content:center;
-  flex:0 0 auto;
-  width:12px;
-  min-width:12px;
   margin-top:0;
   margin-right:0;
   margin-bottom:0;
@@ -458,47 +496,55 @@ export const COMPOSER_CSS = `
   min-height:16px;
   align-self:center;
 }
-.cmp-chip-arrow-slot{
+.cmp-chip-arrow-slot-icon,
+.cmp-chip-arrow-slot-text{
   display:block;
-  width:10px;
-  min-width:10px;
-  height:10px;
+  width:12px;
+  min-width:12px;
+  height:12px;
 }
-.cmp-chip-arrow-icon{ flex:0 0 auto; color:inherit; }
+.cmp-chip-arrow-icon-icon,
+.cmp-chip-arrow-icon-text{ flex:0 0 auto; color:inherit; }
 .cmp-chip-overlay{
   justify-content:stretch;
 }
-.cmp-chip-overlay-inner{
+.cmp-chip-overlay-inner-icon,
+.cmp-chip-overlay-inner-text{
   display:flex;
   align-items:center;
   width:100%;
   min-width:0;
   padding:4px 8px 4px 10px;
 }
-.cmp-chip-leading-proxy{
+.cmp-chip-overlay-inner-icon{
+  padding:4px 12px 4px 14px;
+}
+.cmp-chip-leading-proxy-icon{
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
+  width:16px;
+  min-width:16px;
+  height:16px;
+  margin-top:0;
+  margin-right:6px;
+  margin-bottom:0;
+  margin-left:0;
+  flex:0 0 auto;
+}
+.cmp-chip-overlay-spacer-icon,
+.cmp-chip-overlay-spacer-text{
+  display:block;
+  flex:1 1 auto;
+  min-width:0;
+}
+.cmp-chip-arrow-proxy-icon,
+.cmp-chip-arrow-proxy-text{
   display:inline-flex;
   align-items:center;
   justify-content:center;
   width:14px;
   min-width:14px;
-  height:14px;
-  margin-top:0;
-  margin-right:8px;
-  margin-bottom:0;
-  margin-left:0;
-  flex:0 0 auto;
-}
-.cmp-chip-overlay-spacer{
-  display:block;
-  flex:1 1 auto;
-  min-width:0;
-}
-.cmp-chip-arrow-proxy{
-  display:inline-flex;
-  align-items:center;
-  justify-content:center;
-  width:12px;
-  min-width:12px;
   min-height:16px;
   margin-top:0;
   margin-right:0;
@@ -508,15 +554,16 @@ export const COMPOSER_CSS = `
   flex:0 0 auto;
 }
 .cmp-select-model .cmp-chip{ width:100%; min-width:0; }
-.cmp-select-model .cmp-chip-value{
+.cmp-select-model .cmp-chip-value-icon,
+.cmp-select-model .cmp-chip-value-text{
   overflow:hidden;
   text-overflow:ellipsis;
   white-space:nowrap;
 }
-.cmp-select-output-size .cmp-chip-body{
+.cmp-select-output-size .cmp-chip-body-icon{
   justify-content:flex-start;
 }
-.cmp-select-output-size .cmp-chip-value{
+.cmp-select-output-size .cmp-chip-value-icon{
   overflow:visible;
   text-overflow:clip;
   white-space:nowrap;

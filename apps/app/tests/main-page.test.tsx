@@ -354,17 +354,52 @@ describe('MainPage contract', () => {
     await sendPrompt(container, 'edit captured image');
 
     expect(container.querySelectorAll('.prov-img .img-result')).toHaveLength(1);
+    expect(container.querySelector('.msg-prov > .av-prov')).toBeNull();
+    const providerIdentity = container.querySelector<HTMLElement>('.prov-top .prov-identity')!;
+    const providerIdentityHost = providerIdentity.querySelector<HTMLElement>('.prov-identity-host')!;
+    expect(providerIdentity.textContent).toContain('Mock Profile');
+    expect(providerIdentity.textContent).toContain('mock-image-v1');
+    expect(providerIdentityHost.querySelector('.prov-identity-icon-shell')).not.toBeNull();
+    expect(providerIdentityHost.querySelector('.prov-identity-icon-svg')).not.toBeNull();
+    expect(providerIdentityHost.querySelector('[data-model-avatar-icon="debug-mock"]')).not.toBeNull();
     const previewCount = container.querySelector<HTMLElement>('[data-testid^="result-preview-count-"]')!;
     const roundId = previewCount.dataset.testid?.replace('result-preview-count-', '') ?? '';
     expect(previewCount.textContent).toContain('1 / 2');
+    const preview = container.querySelector<HTMLElement>(`[data-testid="result-preview-${roundId}"]`)!;
+    const prevButton = container.querySelector<HTMLButtonElement>(`[data-testid="result-preview-prev-${roundId}"]`)!;
+    const nextButton = container.querySelector<HTMLButtonElement>(`[data-testid="result-preview-next-${roundId}"]`)!;
+    expect(preview.className).toContain('media-square');
+    expect(prevButton.disabled).toBe(true);
+    expect(prevButton.closest('.img-nav-host-prev')).not.toBeNull();
+    expect(nextButton.disabled).toBe(false);
+    expect(nextButton.closest('.img-nav-host-next')).not.toBeNull();
 
     await act(async () => {
-      container.querySelector<HTMLElement>(`[data-testid="result-preview-next-${roundId}"]`)!.click();
+      nextButton.click();
     });
     await flush();
 
     expect(container.querySelector<HTMLElement>(`[data-testid="result-preview-${roundId}"]`)?.dataset.previewIndex).toBe('1');
+    expect(previewCount.textContent).toContain('2 / 2');
+    expect(prevButton.disabled).toBe(false);
+    expect(nextButton.disabled).toBe(true);
 
+    await act(async () => {
+      nextButton.click();
+    });
+    await flush();
+    expect(container.querySelector<HTMLElement>(`[data-testid="result-preview-${roundId}"]`)?.dataset.previewIndex).toBe('1');
+
+    await act(async () => {
+      prevButton.click();
+    });
+    await flush();
+    expect(container.querySelector<HTMLElement>(`[data-testid="result-preview-${roundId}"]`)?.dataset.previewIndex).toBe('0');
+
+    await act(async () => {
+      nextButton.click();
+    });
+    await flush();
     await act(async () => {
       container.querySelector<HTMLButtonElement>('.img-act')!.click();
     });
@@ -390,13 +425,17 @@ describe('MainPage contract', () => {
     await sendPrompt(container, 'edit captured image');
 
     const actions = container.querySelector<HTMLElement>('.prov-actions')!;
-    expect(actions.querySelector('[data-testid^="result-download-button-"]')).not.toBeNull();
+    const download = actions.querySelector<HTMLElement>('[data-testid^="result-download-button-"]')!;
+    expect(download).not.toBeNull();
+    expect(download.className).toContain('act-download');
+    expect(download.closest('.act-download-host')).not.toBeNull();
+    expect(actions.firstElementChild?.classList.contains('act-download-host')).toBe(true);
     expect(actions.querySelector('[data-testid^="result-place-button-"]')).toBeNull();
     expect(actions.querySelector('[data-testid^="result-regenerate-button-"]')).toBeNull();
     expect(actions.querySelector('[data-testid^="result-copy-button-"]')).toBeNull();
   });
 
-  it('renders provider response text above image results when enabled and supports copying it', async () => {
+  it('renders provider response text above image results and supports copying the complete text', async () => {
     const container = document.createElement('div');
     document.body.appendChild(container);
     const writeText = vi.fn(async () => undefined);
@@ -414,7 +453,12 @@ describe('MainPage contract', () => {
         output: {
           image: {
             assets: [fakeOutputAsset],
-            text: 'line one\nline two',
+            text: [
+              'line one',
+              'line two',
+              '[operation=text_to_image] [model=mock-image-v1]',
+              '[prompt=image te...]',
+            ].join('\n'),
             metadata: { size: '1024x1024', outputFormat: 'png' },
           },
         },
@@ -429,21 +473,57 @@ describe('MainPage contract', () => {
 
     const response = container.querySelector<HTMLElement>('[data-testid^="result-response-text-"]')!;
     expect(response.textContent).toContain('line one\nline two');
-    expect(response.textContent).toContain('app.output=size=2k format=png aspect=auto providerInputMaxSide=2048');
+    expect(response.textContent).toContain('[operation=text_to_image] [model=mock-image-v1]');
+    expect(response.textContent).toContain('[app.output=size=2k format=png aspect=auto providerInputMaxSide=2048]');
+    expect(container.querySelector('.prov-response-details')).toBeNull();
+    const responseBox = response.closest<HTMLElement>('.prov-response')!;
+    expect(responseBox.dataset.expanded).toBeUndefined();
     expect(container.querySelector('[data-testid^="result-preview-"]')).not.toBeNull();
 
     await act(async () => {
       container.querySelector<HTMLElement>('[data-testid^="result-response-copy-button-"]')!.click();
     });
     expect(writeText).toHaveBeenCalledWith(expect.stringContaining('line one\nline two'));
+    expect(writeText).toHaveBeenCalledWith(expect.stringContaining('[app.output=size=2k format=png aspect=auto providerInputMaxSide=2048]'));
   });
 
-  it('hides supplemental response text for image results when the global toggle is off', async () => {
+  it('renders compact mock token response as plain response text without details splitting', async () => {
     const container = document.createElement('div');
     document.body.appendChild(container);
-    const services = createFakeServices({
-      generationSettings: { showProviderResponseText: false },
+    const services = createFakeServices();
+    services.spies.submitJob.mockResolvedValue({
+      ok: true as const,
+      value: {
+        id: 'job-debug-only',
+        status: 'completed',
+        input: {},
+        output: {
+          image: {
+            assets: [fakeOutputAsset],
+            text: '[operation=text_to_image] [model=mock-image-v1] [prompt=debug on...]',
+            metadata: { size: '1024x2048', outputFormat: 'png' },
+          },
+        },
+        error: undefined,
+        createdAt: '2026-06-15T00:00:00.000Z',
+        updatedAt: '2026-06-15T00:00:01.000Z',
+      },
     });
+    await renderApp(container, services);
+
+    await sendPrompt(container, 'debug only');
+
+    const response = container.querySelector<HTMLElement>('[data-testid^="result-response-text-"]')!;
+    expect(response.textContent).toContain('[operation=text_to_image] [model=mock-image-v1] [prompt=debug on...]');
+    expect(response.textContent).toContain('[app.model=mock-image-v1]');
+    expect(container.querySelector('.prov-response-details')).toBeNull();
+    expect(container.querySelector<HTMLElement>('[data-testid^="result-preview-"]')?.className).toContain('media-tall');
+  });
+
+  it('always renders response text for image results when present', async () => {
+    const container = document.createElement('div');
+    document.body.appendChild(container);
+    const services = createFakeServices();
     services.spies.submitJob.mockResolvedValue({
       ok: true as const,
       value: {
@@ -466,17 +546,15 @@ describe('MainPage contract', () => {
 
     await sendPrompt(container, 'image text hidden');
 
-    expect(container.querySelector('[data-testid^="result-response-text-"]')).toBeNull();
+    expect(container.querySelector('[data-testid^="result-response-text-"]')?.textContent).toContain('hidden supplemental text');
     expect(container.querySelector('[data-testid^="result-preview-"]')).not.toBeNull();
     expect(container.querySelector('[data-testid^="result-download-button-"]')).not.toBeNull();
   });
 
-  it('renders text-only success results even when the response-text toggle is off', async () => {
+  it('renders text-only success results without Media Stage or footer', async () => {
     const container = document.createElement('div');
     document.body.appendChild(container);
-    const services = createFakeServices({
-      generationSettings: { showProviderResponseText: false },
-    });
+    const services = createFakeServices();
     services.spies.submitJob.mockResolvedValue({
       ok: true as const,
       value: {

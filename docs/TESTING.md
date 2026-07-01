@@ -32,9 +32,10 @@ runs build, default tests, and policy checks.
 foundation, core-engine, providers, application, and app surfaces.
 
 `pnpm check:policy` is the local architecture and documentation policy gate. It
-checks package import boundaries, high-authority documentation wording, and
-portable path references. It does not access the network, credentials, or paid
-provider APIs.
+checks package import boundaries, high-authority documentation wording,
+portable path references, and the shared UXP CSS contract for `apps/app`
+shared UI plus local UI harnesses. It does not access the network, credentials,
+or paid provider APIs.
 
 Filtered package tests are useful for focused verification after the relevant
 workspace has been built:

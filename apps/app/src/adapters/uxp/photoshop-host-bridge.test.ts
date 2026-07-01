@@ -824,6 +824,63 @@ describe('PhotoshopHostBridge fake harness', () => {
     expect(spies.deleteTempFile).toHaveBeenCalledTimes(1);
   });
 
+  it('unbound no-photoshop-capture placement targets the active Photoshop document', async () => {
+    const { modules, spies } = createFakeModules();
+    const { bridge } = createBridge(modules);
+
+    await bridge.placeAssetOnCanvas({
+      type: 'image',
+      name: 'generated.png',
+      data: VALID_TRANSPARENT_PNG,
+      mimeType: 'image/png',
+    }, {
+      kind: 'unbound',
+      reason: 'no-photoshop-capture',
+    });
+
+    expect(spies.batchPlay).toHaveBeenCalledTimes(1);
+    expect(spies.createFile).toHaveBeenCalledWith(expect.stringMatching(/^imagen-ps-\d+\.png$/), { overwrite: true });
+  });
+
+  it('unbound no-photoshop-capture placement rejects missing active Photoshop document', async () => {
+    const { modules, spies } = createFakeModules();
+    const app = modules.photoshop?.app as { activeDocument?: unknown; documents?: readonly unknown[] };
+    app.activeDocument = undefined;
+    app.documents = [];
+    const { bridge } = createBridge(modules);
+
+    await expect(bridge.placeAssetOnCanvas({
+      type: 'image',
+      name: 'generated.png',
+      data: VALID_TRANSPARENT_PNG,
+      mimeType: 'image/png',
+    }, {
+      kind: 'unbound',
+      reason: 'no-photoshop-capture',
+    })).rejects.toThrow('requires an active Photoshop document');
+
+    expect(spies.createFile).not.toHaveBeenCalled();
+    expect(spies.batchPlay).not.toHaveBeenCalled();
+  });
+
+  it('unbound multiple-documents placement rejects before Photoshop write', async () => {
+    const { modules, spies } = createFakeModules();
+    const { bridge } = createBridge(modules);
+
+    await expect(bridge.placeAssetOnCanvas({
+      type: 'image',
+      name: 'generated.png',
+      data: VALID_TRANSPARENT_PNG,
+      mimeType: 'image/png',
+    }, {
+      kind: 'unbound',
+      reason: 'multiple-documents',
+    })).rejects.toThrow('ambiguous across multiple source documents');
+
+    expect(spies.createFile).not.toHaveBeenCalled();
+    expect(spies.batchPlay).not.toHaveBeenCalled();
+  });
+
   it('placeAssetOnCanvas resolves hostObject storedRef before writing the temporary file', async () => {
     const { modules, spies } = createFakeModules();
     const assetStore = createInMemoryAssetStore();

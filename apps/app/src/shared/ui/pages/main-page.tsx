@@ -9,9 +9,10 @@ import type {
   ConversationRound,
 } from '../hooks/use-conversation';
 import { Icon } from '../components/icons';
-import { ComposerSelect } from '../components/composer-select';
+import { IconSelect } from '../components/icon-select';
 import { UxpTextArea } from '../components/uxp-form-controls';
 import { useNotice } from '../components/notice';
+import { ProviderIdentity } from '../components/provider-identity';
 import { ToastHost } from '../components/toast-host';
 import {
   MotionActivityDot,
@@ -104,7 +105,7 @@ function findRoundElement(container: HTMLElement, roundId: string): HTMLElement 
   return container.querySelector(`[data-round-id="${roundId}"]`);
 }
 
-function mediaShapeFromSize(size: string | undefined): 'portrait' | 'square' | 'landscape' | 'unknown' {
+function mediaShapeFromSize(size: string | undefined): 'portrait' | 'square' | 'landscape' | 'wide' | 'tall' | 'unknown' {
   const match = size?.match(/(\d+)\s*[x×]\s*(\d+)/i);
   if (!match) {
     return 'unknown';
@@ -115,7 +116,9 @@ function mediaShapeFromSize(size: string | undefined): 'portrait' | 'square' | '
     return 'unknown';
   }
   const ratio = width / height;
+  if (ratio < 0.55) return 'tall';
   if (ratio < 0.9) return 'portrait';
+  if (ratio > 2.4) return 'wide';
   if (ratio > 1.15) return 'landscape';
   return 'square';
 }
@@ -328,7 +331,7 @@ export function MainPage({
 
   useEffect(() => {
     measureResponseOverflow();
-  }, [conversation.rounds, expandedResponses, generationSettings.showProviderResponseText, measureResponseOverflow]);
+  }, [conversation.rounds, expandedResponses, measureResponseOverflow]);
 
   useEffect(() => {
     window.addEventListener('resize', measureResponseOverflow);
@@ -421,7 +424,7 @@ export function MainPage({
       return;
     }
     const currentIndex = previewIndexForRound(round);
-    const nextIndex = (currentIndex + step + round.previews.length) % round.previews.length;
+    const nextIndex = Math.min(Math.max(currentIndex + step, 0), round.previews.length - 1);
     selectPreview(round, nextIndex);
   };
 
@@ -745,7 +748,12 @@ export function MainPage({
           )}
 
           {conversation.rounds.map((round) => (
-            <div key={round.id} className="round-item" data-round-id={round.id} data-testid={`round-${round.id}`}>
+            <div
+              key={round.id}
+              className={`round-item ${round.status === 'running' ? 'round-item-open' : 'round-item-complete'}`}
+              data-round-id={round.id}
+              data-testid={`round-${round.id}`}
+            >
               <MotionHighlight
                 activeKey={
                   highlightedRoundId === round.id
@@ -789,12 +797,12 @@ export function MainPage({
                 </div>
               </div>
 
-              <MotionContent watch={`${round.id}:${round.status}:${previewIndexForRound(round)}`}>
+              <MotionContent watch={`${round.id}:${round.status}`}>
               {round.status === 'err' && (
                 <div className="msg-prov msg-prov-surface" style={{ marginTop: 4 }}>
-                  <div className="av-prov err">!</div>
                   <div className="err-card">
                     <div className="err-top">
+                      <span className="prov-identity-icon err">!</span>
                       <span className="sdot err" />
                       <span style={{ fontSize: 11, fontWeight: 500, color: 'var(--app-color-negative)', fontFamily: 'var(--app-font-family-mono)' }}>
                         {t.status.failed} · {round.providerName}
@@ -818,24 +826,24 @@ export function MainPage({
 
               {round.status === 'running' && (
                 <div className="msg-prov msg-prov-surface" style={{ marginTop: 4 }}>
-                  <button
-                    className="av-prov"
-                    disabled={!onEditProfile || !round.profileId}
-                    onClick={(event) => {
-                      event.stopPropagation();
-                      if (round.profileId && onEditProfile) {
-                        onEditProfile(round.profileId);
-                      }
-                    }}
-                  >
-                    {round.providerName.slice(0, 1).toUpperCase()}
-                  </button>
                   <div className="prov-card">
                     <div className="prov-top">
-                      <span className="prov-name-lbl">{round.providerName}</span>
+                      <ProviderIdentity
+                        providerName={round.providerName}
+                        providerId={round.providerId}
+                        modelId={round.modelId}
+                        modelLabel={round.modelId}
+                        disabled={!onEditProfile || !round.profileId}
+                        onClick={(event) => {
+                          event.stopPropagation();
+                          if (round.profileId && onEditProfile) {
+                            onEditProfile(round.profileId);
+                          }
+                        }}
+                      />
                       <div className="prov-status">
                         <span className="sdot run" />
-                        <span style={{ color: 'var(--app-color-notice)' }}>{roundStatusElapsed(round)}</span>
+                        <span className="prov-status-text run">{roundStatusElapsed(round)}</span>
                       </div>
                     </div>
                     <div className="prov-loading">
@@ -853,33 +861,36 @@ export function MainPage({
               {round.status === 'ok' && (() => {
                 const hasImages = round.previews.length > 0;
                 const hasResponseText = Boolean(round.responseText?.trim());
-                const showResponseText = hasResponseText && (generationSettings.showProviderResponseText || !hasImages);
+                const showResponseText = hasResponseText;
                 const responseExpanded = Boolean(expandedResponses[round.id]);
                 const responseOverflows = Boolean(overflowingResponses[round.id]);
                 const selectedPreviewIndex = previewIndexForRound(round);
                 const preview = round.previews[selectedPreviewIndex];
                 const hasMultiplePreviews = round.previews.length > 1;
                 const copyKey = responseTextKey(round.id);
+                const providerModelLabel = round.modelId || selectedModelLabel;
+                const canGoPrev = selectedPreviewIndex > 0;
+                const canGoNext = selectedPreviewIndex < round.previews.length - 1;
                 return (
                 <div className="msg-prov msg-prov-surface" style={{ marginTop: 4 }}>
-                  <button
-                    className="av-prov"
-                    disabled={!onEditProfile || !round.profileId}
-                    onClick={(event) => {
-                      event.stopPropagation();
-                      if (round.profileId && onEditProfile) {
-                        onEditProfile(round.profileId);
-                      }
-                    }}
-                  >
-                    {round.providerName.slice(0, 1).toUpperCase()}
-                  </button>
-                  <div className={`prov-card ${hasImages ? `prov-card-media media-${mediaShapeFromSize(round.outputSize)}` : 'prov-card-text-only'}`}>
+                  <div className={`prov-card${hasImages ? ` prov-card-media media-${mediaShapeFromSize(round.outputSize)}` : ' prov-card-text-only'}`}>
                     <div className="prov-top">
-                      <span className="prov-name-lbl">{round.providerName}</span>
+                      <ProviderIdentity
+                        providerName={round.providerName}
+                        providerId={round.providerId}
+                        modelId={round.modelId}
+                        modelLabel={providerModelLabel}
+                        disabled={!onEditProfile || !round.profileId}
+                        onClick={(event) => {
+                          event.stopPropagation();
+                          if (round.profileId && onEditProfile) {
+                            onEditProfile(round.profileId);
+                          }
+                        }}
+                      />
                       <div className="prov-status">
                         <span className={`sdot ${hasImages ? statusDot(round.status) : 'info'}`} />
-                        <span style={{ color: hasImages ? 'var(--app-color-positive)' : 'var(--app-color-informative)' }}>
+                        <span className={`prov-status-text ${hasImages ? 'ok' : 'info'}`}>
                           {hasImages ? t.status.done : t.main.textResult} · {round.elapsedLabel}
                         </span>
                       </div>
@@ -920,7 +931,7 @@ export function MainPage({
                     )}
                     {hasImages ? (
                       <div className="prov-img">
-                        <div className="img-result" data-testid={`result-preview-${round.id}`} data-preview-index={selectedPreviewIndex}>
+                        <div className={`img-result media-${mediaShapeFromSize(round.outputSize)}`} data-testid={`result-preview-${round.id}`} data-preview-index={selectedPreviewIndex}>
                           {preview?.url
                             ? <MotionImage key={`${round.id}:${selectedPreviewIndex}`} src={preview.url} className="img-bg" alt={preview.label} />
                             : <div className="img-bg" style={{ background: 'var(--app-color-background-layer-2)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--app-color-text-muted)', fontSize: 12 }}>{t.main.noAssetPreview}</div>
@@ -932,24 +943,28 @@ export function MainPage({
                                 {selectedPreviewIndex + 1} / {round.previews.length}
                               </div>
                               <IconButton
-                                className="img-nav img-nav-prev"
+                                className={`img-nav img-nav-prev${!canGoPrev ? ' is-disabled' : ''}`}
+                                hostClassName="img-nav-host img-nav-host-prev"
                                 data-testid={`result-preview-prev-${round.id}`}
                                 icon={<Icon name="chevron-left" size={13} />}
                                 tooltip="Previous image"
                                 aria-label="Previous image"
                                 iconSize={13}
+                                disabled={!canGoPrev}
                                 onClick={(event) => {
                                   event.stopPropagation();
                                   stepPreview(round, -1);
                                 }}
                               />
                               <IconButton
-                                className="img-nav img-nav-next"
+                                className={`img-nav img-nav-next${!canGoNext ? ' is-disabled' : ''}`}
+                                hostClassName="img-nav-host img-nav-host-next"
                                 data-testid={`result-preview-next-${round.id}`}
                                 icon={<Icon name="chevron-right" size={13} />}
                                 tooltip="Next image"
                                 aria-label="Next image"
                                 iconSize={13}
+                                disabled={!canGoNext}
                                 onClick={(event) => {
                                   event.stopPropagation();
                                   stepPreview(round, 1);
@@ -993,7 +1008,8 @@ export function MainPage({
                       <div className="prov-actions">
                         <IconButton
                           data-testid={`result-download-button-${round.id}`}
-                          className="act-ico"
+                          className="act-ico act-download"
+                          hostClassName="act-download-host"
                           quiet
                           icon={<Icon name="download" />}
                           tooltip={t.main.download}
@@ -1080,6 +1096,7 @@ export function MainPage({
                 <IconButton
                   data-testid="composer-add-image-button"
                   className="att-add cmp-add"
+                  hostClassName="att-add-host"
                   quiet
                   selected={attachOpen || layerOpen}
                   icon={<Icon name="add" />}
@@ -1101,7 +1118,16 @@ export function MainPage({
                       ? <img src={attachment.previewUrl} style={{ width: '100%', height: '100%', objectFit: 'cover' }} alt={attachment.name} />
                       : <div style={{ width: '100%', height: '100%', background: 'var(--app-color-background-layer-1)' }} />
                     }
-                    <button data-testid={`attachment-remove-button-${attachment.id}`} className="att-rm" onClick={() => removeAttachment(attachment.id)}>x</button>
+                    <IconButton
+                      data-testid={`attachment-remove-button-${attachment.id}`}
+                      className="att-rm"
+                      hostClassName="att-rm-host"
+                      quiet
+                      icon={<Icon name="close" size={10} />}
+                      tooltip={`Remove ${attachment.name}`}
+                      placement="top"
+                      onClick={() => removeAttachment(attachment.id)}
+                    />
                   </div>
                 ))}
               </div>
@@ -1200,13 +1226,13 @@ export function MainPage({
           </div>
           <div className="cmp-toolbar" data-testid="composer-toolbar">
             <div className="cmp-toolbar-left">
-              <ComposerSelect
+              <IconSelect
                 testId="main-model-selector"
                 containerClassName="cmp-select cmp-select-model"
                 menuClassName="cmp-select-menu cmp-select-menu-model"
                 label="Model"
                 value={selectedModelLabel}
-                leadingIcon="image-check"
+                icon="image-check"
                 disabled={conversation.running}
                 open={openMenu === 'model'}
                 onOpenChange={(open) => {
@@ -1219,7 +1245,7 @@ export function MainPage({
               />
             </div>
             <div className="cmp-toolbar-right">
-              <ComposerSelect
+              <IconSelect
                 testId="composer-output-size-selector"
                 containerClassName="cmp-select cmp-select-output-size"
                 menuClassName="cmp-select-menu cmp-select-menu-compact"
@@ -1241,7 +1267,7 @@ export function MainPage({
                 onSelect={(value) => {
                   void onChangeOutputSizePreset(value as AppOutputSizePreset);
                 }}
-                leadingIcon="image-auto-mode"
+                icon="image-auto-mode"
               />
             </div>
           </div>

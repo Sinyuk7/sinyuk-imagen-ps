@@ -1,7 +1,8 @@
 import { act, createElement } from 'react';
 import { createRoot, type Root } from 'react-dom/client';
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { ComposerSelect } from '../src/shared/ui/components/composer-select';
+import { IconSelect } from '../src/shared/ui/components/icon-select';
+import { TextSelect } from '../src/shared/ui/components/text-select';
 
 let root: Root | undefined;
 
@@ -35,7 +36,7 @@ async function renderSelect(
   root = createRoot(container);
   await act(async () => {
     root!.render(
-      createElement(ComposerSelect, {
+      createElement(TextSelect, {
         label: 'Test Select',
         value: 'Option A',
         open: props.open ?? false,
@@ -65,6 +66,55 @@ describe('ComposerSelect', () => {
 
     expect(container.textContent).toContain('Option A');
     expect(container.querySelector('[data-testid="test-select"]')).not.toBeNull();
+  });
+
+  it('renders icon trigger when icon variant is used', async () => {
+    const container = document.createElement('div');
+    document.body.appendChild(container);
+    root = createRoot(container);
+    await act(async () => {
+      root!.render(
+        createElement(IconSelect, {
+          label: 'Test Select',
+          value: 'Option A',
+          icon: 'add',
+          open: false,
+          onOpenChange: () => undefined,
+          options: [{ id: 'option-a', label: 'Option A' }],
+          selectedId: 'option-a',
+          onSelect: () => undefined,
+          testId: 'icon-select',
+        }),
+      );
+    });
+    await flush();
+
+    expect(container.querySelector('.cmp-chip-icon')).not.toBeNull();
+    expect(container.querySelector('.cmp-chip-leading-slot')).not.toBeNull();
+  });
+
+  it('renders text trigger without icon slot when text variant is used', async () => {
+    const container = document.createElement('div');
+    document.body.appendChild(container);
+    root = createRoot(container);
+    await act(async () => {
+      root!.render(
+        createElement(TextSelect, {
+          label: 'Test Select',
+          value: 'Option A',
+          open: false,
+          onOpenChange: () => undefined,
+          options: [{ id: 'option-a', label: 'Option A' }],
+          selectedId: 'option-a',
+          onSelect: () => undefined,
+          testId: 'text-select',
+        }),
+      );
+    });
+    await flush();
+
+    expect(container.querySelector('.cmp-chip-text')).not.toBeNull();
+    expect(container.querySelector('.cmp-chip-leading-slot')).toBeNull();
   });
 
   it('opens menu when trigger is clicked', async () => {
