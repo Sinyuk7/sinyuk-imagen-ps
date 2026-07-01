@@ -1,0 +1,19 @@
+apps/app/src/shared/ui/styles/composer.ts
+  s_690c8b840181ab::t_df694db488e39f 332-345
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.3",
+  "base_commit_sha": "2a86b19f76d94d130a7271bfc18437a5ede6b941",
+  "prompts": {},
+  "sessions": {
+    "s_690c8b840181ab": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "019f1d4c-9b58-72a2-b3fb-92c2356f1c44",
+        "model": "unknown"
+      },
+      "human_author": "Sinyuk <80998062@qq.com>"
+    }
+  }
+}
