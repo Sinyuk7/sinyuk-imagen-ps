@@ -398,9 +398,11 @@ describe('PhotoshopHostBridge fake harness', () => {
         providerInputPlan: expect.objectContaining({
           sourceWidth: 64,
           sourceHeight: 64,
-          targetWidth: 1024,
-          targetHeight: 1024,
-          minSide: 1024,
+          targetWidth: 2048,
+          targetHeight: 2048,
+          fit: 'preserve-ratio',
+          maxSideBucket: 2048,
+          effectiveMultiple: 2,
           maxSide: 2048,
           wasUpscaled: true,
         }),
@@ -423,7 +425,7 @@ describe('PhotoshopHostBridge fake harness', () => {
       documentID: 42,
       layerID: 2,
       sourceBounds: { left: 0, top: 0, right: 64, bottom: 64 },
-      targetSize: { width: 1024, height: 1024 },
+      targetSize: { width: 2048, height: 2048 },
       colorSpace: 'RGB',
       componentSize: 8,
       applyAlpha: false,
@@ -511,7 +513,7 @@ describe('PhotoshopHostBridge fake harness', () => {
     const { modules, spies } = createFakeModules();
     const { bridge } = createBridge(modules);
 
-    const asset = await bridge.pickImageFile(providerPolicy);
+    const asset = await bridge.pickImageFile({ maxSide: 1024 });
 
     expect(spies.getFileForOpening).toHaveBeenCalledWith({
       types: ['png', 'jpg', 'jpeg', 'webp'],
@@ -534,7 +536,7 @@ describe('PhotoshopHostBridge fake harness', () => {
     });
     const { bridge } = createBridge(modules);
 
-    const asset = await bridge.pickImageFile(providerPolicy);
+    const asset = await bridge.pickImageFile({ maxSide: 1024 });
 
     expect(asset?.asset).toMatchObject({
       type: 'image',
@@ -575,7 +577,7 @@ describe('PhotoshopHostBridge fake harness', () => {
     });
     expect(spies.getPixels).toHaveBeenNthCalledWith(2, {
       documentID: 99,
-      targetSize: { width: 1024, height: 1024 },
+      targetSize: { width: 2048, height: 2048 },
       colorSpace: 'RGB',
       componentSize: 8,
       applyAlpha: false,
@@ -593,16 +595,16 @@ describe('PhotoshopHostBridge fake harness', () => {
     });
     expect(asset?.metadata).toMatchObject({
       source: 'file',
-      width: 1024,
-      height: 1024,
+      width: 2048,
+      height: 2048,
       mimeType: 'image/png',
       name: 'tiny.png',
     });
     expect(asset?.resource.derivatives.providerInput).toMatchObject({
       kind: 'ready',
       role: 'provider-input',
-      width: 1024,
-      height: 1024,
+      width: 2048,
+      height: 2048,
       mimeType: 'image/png',
     });
     const bytes = await resolveAssetBytes(assetStore, asset!.asset);
@@ -625,7 +627,7 @@ describe('PhotoshopHostBridge fake harness', () => {
     }));
     expect(spies.getPixels).toHaveBeenNthCalledWith(2, expect.objectContaining({
       documentID: 99,
-      targetSize: { width: 2046, height: 1228 },
+      targetSize: { width: 2050, height: 1230 },
     }));
     expect(spies.closeTempDocument).toHaveBeenCalledTimes(1);
   });
@@ -645,7 +647,7 @@ describe('PhotoshopHostBridge fake harness', () => {
     }));
     expect(spies.getPixels).toHaveBeenNthCalledWith(2, expect.objectContaining({
       documentID: 99,
-      targetSize: { width: 1198, height: 798 },
+      targetSize: { width: 2402, height: 1600 },
     }));
     expect(spies.closeTempDocument).toHaveBeenCalledTimes(1);
   });
@@ -653,7 +655,7 @@ describe('PhotoshopHostBridge fake harness', () => {
   it('为无需 provider resize 的本地文件仍生成 bounded thumbnail preview', async () => withObjectUrlMock(async ({ create, revoke }) => {
     const { modules, spies } = createFakeModules({
       pickedFileName: 'ready.png',
-      pickedFileData: arrayBufferFromBytes(pngWithSize(2000, 2000)),
+      pickedFileData: arrayBufferFromBytes(pngWithSize(2048, 2048)),
     });
     const { bridge } = createBridge(modules);
 
@@ -723,8 +725,8 @@ describe('PhotoshopHostBridge fake harness', () => {
     expect(capture.placement.providerInputPlan).toMatchObject({
       sourceWidth: 64,
       sourceHeight: 64,
-      targetWidth: 1024,
-      targetHeight: 1024,
+      targetWidth: 2048,
+      targetHeight: 2048,
       wasUpscaled: true,
     });
     expect(spies.getPixels).toHaveBeenNthCalledWith(1, expect.objectContaining({
@@ -738,7 +740,7 @@ describe('PhotoshopHostBridge fake harness', () => {
       documentID: 42,
       layerID: 2,
       sourceBounds: { left: 0, top: 0, right: 64, bottom: 64 },
-      targetSize: { width: 1024, height: 1024 },
+      targetSize: { width: 2048, height: 2048 },
       applyAlpha: false,
     }));
     expect(spies.getSelection).not.toHaveBeenCalled();
@@ -785,7 +787,7 @@ describe('PhotoshopHostBridge fake harness', () => {
     expect(spies.getSelection).toHaveBeenCalledWith({
       documentID: 42,
       sourceBounds: { left: 8, top: 8, right: 40, bottom: 40 },
-      targetSize: { width: 1024, height: 1024 },
+      targetSize: { width: 2048, height: 2048 },
       componentSize: 8,
     });
   });
@@ -924,6 +926,46 @@ describe('PhotoshopHostBridge fake harness', () => {
     expect(spies.batchPlay).toHaveBeenCalledTimes(1);
     expect(spies.scalePlacedLayer).toHaveBeenCalledWith(200, 200);
     expect(spies.translatePlacedLayer).toHaveBeenCalledWith(10, 20);
+  });
+
+  it('document-only placement accepts provider-owned output ratio without transform', async () => {
+    const { modules, spies } = createFakeModules();
+    const { bridge } = createBridge(modules);
+
+    await bridge.placeAssetOnCanvas({
+      type: 'image',
+      name: 'generated.png',
+      data: pngWithSize(1016, 946),
+      mimeType: 'image/png',
+    }, {
+      kind: 'document-only',
+      documentId: 42,
+      documentSizeAtCapture: { width: 512, height: 384 },
+    });
+
+    expect(spies.batchPlay).toHaveBeenCalledTimes(1);
+    expect(spies.scalePlacedLayer).not.toHaveBeenCalled();
+    expect(spies.translatePlacedLayer).not.toHaveBeenCalled();
+  });
+
+  it('exact-frame placement rejects provider output ratio mismatch before Photoshop write', async () => {
+    const { modules, spies } = createFakeModules();
+    const { bridge } = createBridge(modules);
+
+    await expect(bridge.placeAssetOnCanvas({
+      type: 'image',
+      name: 'generated.png',
+      data: pngWithSize(1016, 946),
+      mimeType: 'image/png',
+    }, {
+      kind: 'exact-frame',
+      documentId: 42,
+      documentSizeAtCapture: { width: 512, height: 384 },
+      placementRect: { left: 0, top: 0, right: 345, bottom: 321 },
+    })).rejects.toThrow('Exact-frame placement requires matching aspect ratio');
+
+    expect(spies.createFile).not.toHaveBeenCalled();
+    expect(spies.batchPlay).not.toHaveBeenCalled();
   });
 
   it('exact-frame placement rejects document mismatch before Photoshop write', async () => {

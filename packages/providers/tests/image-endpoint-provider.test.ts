@@ -20,7 +20,6 @@ describe('image-endpoint provider', () => {
       family: 'image-endpoint',
       baseURL: 'https://api.example.com',
       apiKey: 'test-key',
-      imageMaxSide: 2048,
     });
 
     expect(provider.id).toBe('image-endpoint');
@@ -94,6 +93,30 @@ describe('image-endpoint provider', () => {
     });
   });
 
+  it('does not force a square output size for source-ratio image edits', () => {
+    const body = buildEditRequestBody(
+      {
+        operation: 'image_edit',
+        prompt: 'preserve source ratio',
+        images: [{ type: 'image', url: 'https://example.com/input.png' }],
+        output: {
+          count: 1,
+          sizePreset: '2k',
+          aspectRatio: 'auto',
+          outputFormat: 'png',
+        },
+      },
+      'gpt-image-2',
+    );
+
+    expect(body).toMatchObject({
+      n: 1,
+      output_format: 'png',
+    });
+    expect(body).not.toHaveProperty('size');
+    expect(body).not.toHaveProperty('aspect_ratio');
+  });
+
   it('builds multipart edit body for inline image data', () => {
     const body = buildEditMultipartBody(
       {
@@ -148,7 +171,6 @@ describe('image-endpoint provider', () => {
       family: 'image-endpoint',
       baseURL: 'https://api.example.com',
       apiKey: 'test-key',
-      imageMaxSide: 2048,
     });
 
     await provider.discoverModels(config);
@@ -173,7 +195,6 @@ describe('image-endpoint provider', () => {
       family: 'image-endpoint',
       baseURL: 'https://api.example.com',
       apiKey: 'test-key',
-      imageMaxSide: 2048,
       defaultModel: 'dall-e-3',
     });
     const request = provider.validateRequest({ operation: 'text_to_image', prompt: 'test' });

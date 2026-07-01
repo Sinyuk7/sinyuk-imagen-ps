@@ -13,7 +13,6 @@ describe('chat-image provider', () => {
       family: 'chat-image',
       baseURL: 'https://openrouter.ai/api/v1',
       apiKey: 'test-key',
-      imageMaxSide: 2048,
     });
 
     expect(provider.id).toBe('chat-image');
@@ -66,6 +65,29 @@ describe('chat-image provider', () => {
       },
     });
     expect(body.image_config).not.toHaveProperty('quality');
+  });
+
+  it('omits hard aspect ratio for source-ratio chat image edits', () => {
+    const body = buildChatImageRequestBody(
+      {
+        operation: 'image_edit',
+        prompt: 'preserve source ratio',
+        images: [{ type: 'image', data: 'abc', mimeType: 'image/png' }],
+        output: {
+          count: 1,
+          sizePreset: '2k',
+          aspectRatio: 'source',
+          outputFormat: 'png',
+        },
+      },
+      'google/gemini-2.5-flash-image-preview',
+    );
+
+    expect(body.image_config).toMatchObject({
+      size: '2K',
+      output_format: 'png',
+    });
+    expect(body.image_config).not.toHaveProperty('aspect_ratio');
   });
 
   it('builds edit chat completion body with image and mask content', () => {
@@ -166,7 +188,6 @@ describe('chat-image provider', () => {
       family: 'chat-image',
       baseURL: 'https://openrouter.ai/api/v1',
       apiKey: 'test-key',
-      imageMaxSide: 2048,
       defaultModel: 'google/gemini-2.5-flash-image-preview',
     });
     const request = provider.validateRequest({ operation: 'text_to_image', prompt: 'test' });

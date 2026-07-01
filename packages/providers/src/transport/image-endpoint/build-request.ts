@@ -178,9 +178,16 @@ function sizeFromPreset(preset: NonNullable<ProviderOutputOptions['sizePreset']>
   }
 }
 
-function concreteSizeFromOutput(output: ProviderOutputOptions): string | undefined {
+function concreteSizeFromOutput(
+  output: ProviderOutputOptions,
+  options: { readonly operation: CanonicalImageJobRequest['operation'] },
+): string | undefined {
   if (output.sizePreset === undefined) {
     return inferSize(output.width, output.height);
+  }
+
+  if (options.operation === 'image_edit' && (output.aspectRatio === 'auto' || output.aspectRatio === 'source')) {
+    return undefined;
   }
 
   const side = sizeFromPreset(output.sizePreset);
@@ -190,6 +197,7 @@ function concreteSizeFromOutput(output: ProviderOutputOptions): string | undefin
     case '9:16':
       return `${Math.round(side * 9 / 16)}x${side}`;
     case '1:1':
+    case 'source':
     case 'auto':
     case undefined:
     default:
@@ -388,7 +396,7 @@ function appendMultipartBodyFields(parts: MultipartPart[], body: OpenAIImageEdit
 function applyOutputToBody(
   body: Record<string, unknown>,
   output: ProviderOutputOptions | undefined,
-  options: { readonly includeInputFidelity: boolean },
+  options: { readonly includeInputFidelity: boolean; readonly operation: CanonicalImageJobRequest['operation'] },
 ): void {
   if (output === undefined) {
     return;
@@ -398,7 +406,7 @@ function applyOutputToBody(
     body.n = output.count;
   }
 
-  const semanticSize = concreteSizeFromOutput(output);
+  const semanticSize = concreteSizeFromOutput(output, { operation: options.operation });
   if (semanticSize !== undefined) {
     body.size = semanticSize;
   }
@@ -458,7 +466,7 @@ export function buildRequestBody(request: CanonicalImageJobRequest, defaultModel
     prompt: request.prompt,
   };
 
-  applyOutputToBody(body, request.output, { includeInputFidelity: false });
+  applyOutputToBody(body, request.output, { includeInputFidelity: false, operation: request.operation });
 
   const isGptImageModel = body.model.startsWith('gpt-image') || body.model === 'chatgpt-image-latest';
   const responseFormatOverride =
@@ -503,7 +511,7 @@ export function buildEditRequestBody(request: CanonicalImageJobRequest, defaultM
     body.mask = assetToMaskRef(request.maskImage);
   }
 
-  applyOutputToBody(body, request.output, { includeInputFidelity: true });
+  applyOutputToBody(body, request.output, { includeInputFidelity: true, operation: request.operation });
 
   applyProviderOptions(body, request.providerOptions, ['image_response_format']);
 

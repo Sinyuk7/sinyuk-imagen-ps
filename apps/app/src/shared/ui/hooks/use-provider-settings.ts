@@ -252,9 +252,6 @@ export function providerConfigFromForm(
     family,
     baseURL,
   };
-  if (family === 'image-endpoint' || family === 'chat-image') {
-    config.imageMaxSide = 2048;
-  }
   if (defaultModel.trim()) {
     config.defaultModel = defaultModel.trim();
   }

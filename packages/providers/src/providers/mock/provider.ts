@@ -68,7 +68,7 @@ function createMockResponseText(
     token('operation', request.operation),
     token('model', effectiveModel),
     token('prompt', compactPrompt(request.prompt)),
-    token('output', `${describeOutput(request)} providerInputMaxSide=${config.imageMaxSide ?? 'default'}`),
+    token('output', describeOutput(request)),
     token('images', String(imageCount)),
     token('mask', request.maskImage ? 'yes' : 'no'),
     token('assets', String(assetCount)),

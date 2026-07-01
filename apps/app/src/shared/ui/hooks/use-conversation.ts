@@ -15,7 +15,7 @@ import type { HostImageAsset } from '../../domain/host-image-asset';
 import type { PlacementIntent, PhotoshopCapturePlacement } from '../../domain/photoshop-placement';
 import type { Asset } from '@imagen-ps/application';
 import { createRunningTaskRecord } from '../../domain/task-snapshot';
-import type { AppGenerationSettings } from '../../ports/app-generation-settings';
+import type { AppGenerationSettings, AppProviderInputSizePreset } from '../../ports/app-generation-settings';
 
 export interface ConversationAttachment {
   readonly id: string;
@@ -46,7 +46,7 @@ export interface ConversationRound {
   readonly outputSize?: string;
   readonly outputFormat?: string;
   readonly responseText?: string;
-  readonly providerInputMaxSide?: number;
+  readonly providerInputSizePreset?: AppProviderInputSizePreset;
   readonly placementIntent: PlacementIntent;
   readonly output?: AppGenerationSettingsOutput;
 }
@@ -60,7 +60,7 @@ export interface SubmitConversationInput {
   readonly modelId?: string;
   readonly attachments?: readonly ConversationAttachment[];
   readonly output?: AppGenerationSettingsOutput;
-  readonly providerInputMaxSide?: number;
+  readonly providerInputSizePreset?: AppProviderInputSizePreset;
 }
 
 export interface AppGenerationSettingsOutput {
@@ -249,7 +249,7 @@ function composeMockAppContext(round: ConversationRound): string {
   const output = round.output;
   return [
     `app.model=${round.modelId ?? 'default'}`,
-    `app.output=size=${output?.sizePreset ?? 'default'} format=${output?.outputFormat ?? 'default'} aspect=${output?.aspectRatio ?? 'default'} providerInputMaxSide=${round.providerInputMaxSide ?? 'default'}`,
+    `app.output=size=${output?.sizePreset ?? 'default'} format=${output?.outputFormat ?? 'default'} aspect=${output?.aspectRatio ?? 'default'} providerInputSize=${round.providerInputSizePreset ?? 'default'}`,
     `app.attachments=${attachmentSummary(round.attachments)}`,
     ...placementSummary(round.placementIntent),
   ].map(contextToken).join(' ');
@@ -294,16 +294,6 @@ export function derivePlacementIntent(attachments: readonly ConversationAttachme
   }
 
   const firstCapture = captures[0].photoshopPlacement!;
-  if (captures.length === 1 && attachments.length === 1 && captures[0].type === 'photoshop-capture') {
-    return {
-      kind: 'exact-frame',
-      documentId: firstCapture.snapshot.documentId,
-      documentSizeAtCapture: firstCapture.snapshot.documentSize,
-      ...(firstCapture.snapshot.documentName !== undefined ? { documentName: firstCapture.snapshot.documentName } : {}),
-      placementRect: firstCapture.placementRect,
-    };
-  }
-
   return {
     kind: 'document-only',
     documentId: firstCapture.snapshot.documentId,
@@ -476,7 +466,7 @@ export function useConversation(
           outputFormat: defaultOutput?.outputFormat ?? 'png',
           aspectRatio: defaultOutput?.aspectRatio ?? 'auto',
         };
-        const providerInputMaxSide = input.providerInputMaxSide ?? defaultOutput?.providerInputMaxSide;
+        const providerInputSizePreset = input.providerInputSizePreset ?? defaultOutput?.providerInputSizePreset;
         const round: ConversationRound = {
           id: roundId,
           time: nowTime(),
@@ -490,7 +480,7 @@ export function useConversation(
           previews: [],
           attachments,
           output,
-          ...(providerInputMaxSide !== undefined ? { providerInputMaxSide } : {}),
+          ...(providerInputSizePreset !== undefined ? { providerInputSizePreset } : {}),
           placementIntent,
         };
         setRounds((current) => [...current, round]);
@@ -588,7 +578,7 @@ export function useConversation(
             ...(round.modelId ? { modelId: round.modelId } : {}),
             attachments: round.attachments,
             ...(round.output ? { output: round.output } : {}),
-            ...(round.providerInputMaxSide ? { providerInputMaxSide: round.providerInputMaxSide } : {}),
+            ...(round.providerInputSizePreset ? { providerInputSizePreset: round.providerInputSizePreset } : {}),
           });
           return;
         }

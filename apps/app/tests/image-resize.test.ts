@@ -70,14 +70,17 @@ describe('shared image resize', () => {
     expect(resolved.effectiveMultiple).toBe(1);
   });
 
-  it('resolves provider input downscale under the selected max side', () => {
+  it('resolves provider input downscale near the selected max side without ratio drift', () => {
     const square = resolveProviderInputPlan({ width: 4096, height: 4096 }, { maxSide: 2048 });
     expect(square).toMatchObject({
       sourceWidth: 4096,
       sourceHeight: 4096,
       targetWidth: 2048,
       targetHeight: 2048,
-      minSide: 1024,
+      fit: 'preserve-ratio',
+      maxSideBucket: 2048,
+      preferredMultiple: 2,
+      effectiveMultiple: 2,
       maxSide: 2048,
       multiple: 2,
       wasResized: true,
@@ -86,23 +89,24 @@ describe('shared image resize', () => {
     });
 
     const wide = resolveProviderInputPlan({ width: 10000, height: 6000 }, { maxSide: 2048 });
-    expect(Math.max(wide.targetWidth, wide.targetHeight)).toBeLessThanOrEqual(2048);
-    expect(wide.targetWidth / wide.targetHeight).toBeCloseTo(10000 / 6000, 2);
+    expect(wide.targetWidth).toBe(2050);
+    expect(wide.targetHeight).toBe(1230);
+    expect(wide.targetWidth / wide.targetHeight).toBe(10000 / 6000);
     expect(wide.wasDownscaled).toBe(true);
   });
 
-  it('upscales small provider input to the global minimum long side', () => {
-    const plan = resolveProviderInputPlan({ width: 512, height: 512 }, { maxSide: 2048 });
+  it('treats provider input max side as a bucket target, not a short-side minimum', () => {
+    const plan = resolveProviderInputPlan({ width: 512, height: 512 }, { maxSide: 512 });
 
     expect(plan).toMatchObject({
       sourceWidth: 512,
       sourceHeight: 512,
-      targetWidth: 1024,
-      targetHeight: 1024,
-      minSide: 1024,
-      maxSide: 2048,
-      wasResized: true,
-      wasUpscaled: true,
+      targetWidth: 512,
+      targetHeight: 512,
+      maxSideBucket: 512,
+      maxSide: 512,
+      wasResized: false,
+      wasUpscaled: false,
       wasDownscaled: false,
     });
   });
@@ -113,12 +117,26 @@ describe('shared image resize', () => {
     expect(resolveProviderInputPlan({ width: 4096, height: 4096 }, { maxSide: 4096 }).targetWidth).toBe(4096);
   });
 
+  it('preserves reduced source ratio and degrades the multiple before accepting drift', () => {
+    const plan = resolveProviderInputPlan({ width: 345, height: 321 }, { maxSide: 1024, multiple: 2 });
+
+    expect(plan).toMatchObject({
+      targetWidth: 1035,
+      targetHeight: 963,
+      fit: 'preserve-ratio',
+      maxSideBucket: 1024,
+      preferredMultiple: 2,
+      effectiveMultiple: 1,
+      multiple: 1,
+    });
+    expect(plan.targetWidth).not.toBe(1016);
+    expect(plan.targetHeight).not.toBe(946);
+    expect(plan.targetWidth / plan.targetHeight).toBe(345 / 321);
+  });
+
   it('rejects missing or invalid provider input max size before pixel reads', () => {
     expect(() => resolveProviderInputPlan({ width: 512, height: 512 }, { maxSide: 0 })).toThrow(
       'effectiveProviderMaxSide must be a positive integer',
-    );
-    expect(() => resolveProviderInputPlan({ width: 512, height: 512 }, { maxSide: 512 })).toThrow(
-      'providerInputMinSide must be <= effectiveProviderMaxSide',
     );
   });
 

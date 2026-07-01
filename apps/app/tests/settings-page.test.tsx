@@ -72,7 +72,6 @@ describe('SettingsPage UXP compatibility', () => {
                   family: 'image-endpoint',
                   baseUrl: 'https://mock.local',
                   defaultModel: 'very-long-model-name-that-should-not-own-the-primary-row',
-                  imageMaxSide: 2048,
                 },
                 secretRefs: {},
                 createdAt: '2026-06-27T00:00:00.000Z',
@@ -118,7 +117,7 @@ describe('SettingsPage UXP compatibility', () => {
               outputSizePreset: '2k',
               outputFormat: 'png',
               aspectRatio: 'auto',
-              providerInputMaxSide: 2048,
+              providerInputSizePreset: '2k',
             }}
             onOpenGlobalGeneration={onOpenGlobalGeneration}
           />

@@ -32,7 +32,6 @@ describe('createDispatchAdapter', () => {
         family: 'image-endpoint',
         baseURL: 'https://mock.local',
         apiKey: 'mock-key',
-        imageMaxSide: 2048,
       },
     });
 

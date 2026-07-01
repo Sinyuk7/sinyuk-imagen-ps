@@ -12,8 +12,6 @@ export const mockConfigSchema = z.object({
   baseURL: z.string().url(),
   apiKey: z.string().min(1),
   defaultModel: z.string().optional(),
-  imageMaxSide: z.number().int().positive(),
-  imageDimensionMultiple: z.number().int().positive().optional(),
   extraHeaders: z.record(z.string(), z.string()).optional(),
   timeoutMs: z.number().int().positive().optional(),
 

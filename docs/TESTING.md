@@ -78,6 +78,7 @@ Supported query controls:
 - `filePicker=image|cancel`: return a generated PNG file or simulate cancel.
 - `mockFailure=always|none`: preload the mock provider failure mode.
 - `harness=composer-select`: render the manual ComposerSelect responsive harness instead.
+- `harness=uxp-css-contract`: render the UXP CSS contract review board for manual Chrome/Photoshop visual comparison.
 
 When enabled, the page exposes `globalThis.__IMAGEN_CHROME_TEST_HARNESS__` for
 scenario-local controls: `resetStorage`, `seedMockProfile`, `seedHistory`,
@@ -129,6 +130,20 @@ real Photoshop. It requires a real Photoshop host and UXP Developer Tool; run
 it after replacing the `Icon` component or changing inline SVG icon mappings.
 The `check-icon-rects.js` script queries expected icon selectors and reports
 any icon with a `0x0` bounding rect.
+
+The UXP CSS contract board can also run inside the real Photoshop panel. Before
+reloading the plugin, set:
+
+```js
+localStorage.setItem('imagenPsPanelHarness', 'uxp-css-contract');
+```
+
+Then reload the panel in UXP Developer Tool. Clear it to return to the normal
+app surface:
+
+```js
+localStorage.removeItem('imagenPsPanelHarness');
+```
 
 Chrome browser smoke is repo-side evidence only when it loads the browser build
 in a real browser and reports the Chrome shell ready state. It still does not

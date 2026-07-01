@@ -108,7 +108,6 @@ describe('SettingsAddPage', () => {
                   displayName: 'Mock Provider',
                   family: 'image-endpoint',
                   baseURL: 'https://mock.local',
-                  imageMaxSide: 2048,
                 },
                 createdAt: '2026-06-15T00:00:00.000Z',
                 updatedAt: '2026-06-15T00:00:00.000Z',

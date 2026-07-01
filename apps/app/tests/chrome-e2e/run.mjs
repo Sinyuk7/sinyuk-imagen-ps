@@ -207,7 +207,7 @@ async function expectMockResponseText(page) {
   if (!text?.includes('[operation=text_to_image] [model=mock-image-v1]')) {
     throw new Error('Mock provider token response was not rendered in the Chrome result card.');
   }
-  if (!text.includes('[app.output=size=2k format=png aspect=auto providerInputMaxSide=2048]')) {
+  if (!text.includes('[app.output=size=2k format=png aspect=auto providerInputSize=1k]')) {
     throw new Error('Mock app context token response was not rendered in the Chrome result card.');
   }
   if (text.includes('collapsed')) {

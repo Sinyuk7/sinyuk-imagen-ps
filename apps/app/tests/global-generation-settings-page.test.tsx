@@ -17,7 +17,7 @@ afterEach(async () => {
 });
 
 describe('GlobalGenerationSettingsPage', () => {
-  it('keeps composer select positioning classes and opens each output selector menu', async () => {
+  it('keeps composer select positioning classes and opens each generation selector menu', async () => {
     const { services } = createFakeServices();
     const container = document.createElement('div');
     const panel = document.createElement('div');
@@ -49,7 +49,7 @@ describe('GlobalGenerationSettingsPage', () => {
               outputSizePreset: '2k',
               outputFormat: 'png',
               aspectRatio: 'auto',
-              providerInputMaxSide: 2048,
+              providerInputSizePreset: '2k',
             }}
             loading={false}
             error={null}
@@ -64,6 +64,7 @@ describe('GlobalGenerationSettingsPage', () => {
       'global-output-size-selector',
       'global-output-format-selector',
       'global-aspect-ratio-selector',
+      'provider-input-size-selector',
     ] as const;
 
     for (const testId of selectors) {
@@ -114,7 +115,7 @@ describe('GlobalGenerationSettingsPage', () => {
               outputSizePreset: '2k',
               outputFormat: 'png',
               aspectRatio: 'auto',
-              providerInputMaxSide: 2048,
+              providerInputSizePreset: '2k',
             }}
             loading={false}
             error={null}
@@ -134,7 +135,53 @@ describe('GlobalGenerationSettingsPage', () => {
       outputSizePreset: '2k',
       outputFormat: 'png',
       aspectRatio: 'auto',
-      providerInputMaxSide: 2048,
+      providerInputSizePreset: '2k',
+    });
+  });
+
+  it('saves the provider input size preset label from the selector', async () => {
+    const { services } = createFakeServices();
+    const container = document.createElement('div');
+    document.body.appendChild(container);
+    root = createRoot(container);
+    const onSave = vi.fn(async () => undefined);
+
+    await act(async () => {
+      root!.render(
+        <TestAppProviders services={services}>
+          <GlobalGenerationSettingsPage
+            settings={{
+              outputSizePreset: '2k',
+              outputFormat: 'png',
+              aspectRatio: 'auto',
+              providerInputSizePreset: '1k',
+            }}
+            loading={false}
+            error={null}
+            onSave={onSave}
+            onNav={vi.fn()}
+          />
+        </TestAppProviders>,
+      );
+    });
+
+    expect(container.querySelector('[data-testid="provider-input-max-side-input"]')).toBeNull();
+
+    await act(async () => {
+      container.querySelector<HTMLElement>('[data-testid="provider-input-size-selector"]')!.click();
+    });
+    await act(async () => {
+      container.querySelector<HTMLElement>('[data-testid="provider-input-size-selector-option-4k"]')!.click();
+    });
+    await act(async () => {
+      container.querySelector<HTMLButtonElement>('[data-testid="global-settings-save-button"]')!.click();
+    });
+
+    expect(onSave).toHaveBeenCalledWith({
+      outputSizePreset: '2k',
+      outputFormat: 'png',
+      aspectRatio: 'auto',
+      providerInputSizePreset: '4k',
     });
   });
 });

@@ -33,7 +33,7 @@ export interface ProviderOutputOptions {
   readonly sizePreset?: '512' | '1k' | '2k' | '4k';
 
   /** 期望 aspect ratio。 */
-  readonly aspectRatio?: 'auto' | '1:1' | '16:9' | '9:16' | string;
+  readonly aspectRatio?: 'auto' | 'source' | '1:1' | '16:9' | '9:16' | string;
 
   /** 背景偏好。 */
   readonly background?: 'auto' | 'transparent' | 'opaque';

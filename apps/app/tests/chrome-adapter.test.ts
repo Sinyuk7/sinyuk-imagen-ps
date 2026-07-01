@@ -16,7 +16,6 @@ function sampleProfile(): ProviderProfile {
       displayName: 'Chrome Profile',
       family: 'image-endpoint',
       baseURL: 'https://mock.local',
-      imageMaxSide: 2048,
     },
     createdAt: '2026-06-25T00:00:00.000Z',
     updatedAt: '2026-06-25T00:00:00.000Z',
@@ -91,21 +90,21 @@ describe('Chrome adapter contracts', () => {
       outputSizePreset: '2k',
       outputFormat: 'png',
       aspectRatio: 'auto',
-      providerInputMaxSide: 2048,
+      providerInputSizePreset: '1k',
     });
 
     await storage.generationSettings.save({
       outputSizePreset: '4k',
       outputFormat: 'webp',
       aspectRatio: '9:16',
-      providerInputMaxSide: 1024,
+      providerInputSizePreset: '1k',
     });
 
     expect(await storage.generationSettings.load()).toEqual({
       outputSizePreset: '4k',
       outputFormat: 'webp',
       aspectRatio: '9:16',
-      providerInputMaxSide: 1024,
+      providerInputSizePreset: '1k',
     });
     expect(await storage.profiles.list()).toEqual([]);
   });

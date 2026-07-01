@@ -141,8 +141,8 @@ export interface AppMessages {
     readonly outputSize: string;
     readonly outputFormat: string;
     readonly aspectRatio: string;
-    readonly providerInputMaxSide: string;
-    readonly providerInputMaxSideHint: string;
+    readonly providerInputSizePreset: string;
+    readonly providerInputSizePresetHint: string;
     readonly saving: string;
   };
   readonly toast: {
@@ -311,8 +311,8 @@ const EN_MESSAGES: AppMessages = {
     outputSize: 'Output size',
     outputFormat: 'Output format',
     aspectRatio: 'Aspect ratio',
-    providerInputMaxSide: 'Provider input max side',
-    providerInputMaxSideHint: 'Reference and captured images are resized before provider edit requests.',
+    providerInputSizePreset: 'Provider input size',
+    providerInputSizePresetHint: 'Reference and captured images are resized locally before provider edit requests while preserving aspect ratio.',
     saving: 'Saving...',
   },
   toast: {
@@ -482,8 +482,8 @@ const ZH_CN_MESSAGES: AppMessages = {
     outputSize: '输出尺寸',
     outputFormat: '输出格式',
     aspectRatio: '宽高比',
-    providerInputMaxSide: 'Provider 输入最大边',
-    providerInputMaxSideHint: '参考图和捕获图会在发送给 provider edit 请求前调整尺寸。',
+    providerInputSizePreset: 'Provider 输入尺寸',
+    providerInputSizePresetHint: '参考图和捕获图会在发送给 provider edit 请求前本地近似缩放，并保持原比例。',
     saving: '保存中...',
   },
   toast: {

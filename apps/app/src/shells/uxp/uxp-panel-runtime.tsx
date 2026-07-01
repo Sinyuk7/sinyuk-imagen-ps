@@ -1,6 +1,7 @@
 import { createRoot, type Root } from 'react-dom/client';
 import { AppShell } from '../../shared/ui/app-shell';
 import { primeSharedUi } from '../../shared/ui/panel-bootstrap';
+import { UxpCssContractHarnessPage } from '../../harness/components/uxp-css-contract';
 import type { PluginHostShell } from './create-plugin-host-shell';
 import { createPluginHostShell } from './create-plugin-host-shell';
 import { readRecentLogRecords } from '../../adapters/uxp/uxp-diagnostics';
@@ -175,6 +176,32 @@ function exposeHostSmokeHandle(host: PluginHostShell | undefined, resolveModules
   };
 }
 
+function resolveUxpPanelHarness(): 'uxp-css-contract' | null {
+  try {
+    if (typeof window !== 'undefined' && typeof window.location?.search === 'string') {
+      const fromUrl = new URLSearchParams(window.location.search).get('harness');
+      if (fromUrl === 'uxp-css-contract') {
+        return fromUrl;
+      }
+    }
+  } catch {
+    // UXP host may not expose a normal browser URL shape.
+  }
+
+  try {
+    if (typeof window !== 'undefined') {
+      const fromStorage = window.localStorage?.getItem('imagenPsPanelHarness');
+      if (fromStorage === 'uxp-css-contract') {
+        return fromStorage;
+      }
+    }
+  } catch {
+    // localStorage failures must not block the normal panel.
+  }
+
+  return null;
+}
+
 function unmountReactRoot(): void {
   const previousRoot = globalThis.__IMAGEN_PS_REACT_ROOT__;
   if (!previousRoot) {
@@ -254,6 +281,13 @@ export function createImagenPanelRuntime(options?: ImagenPanelRuntimeOptions): I
         bootstrapCheckpoint('panel.bootstrap.shared_ui.primed');
         reactRoot = createRoot(rootEl);
         globalThis.__IMAGEN_PS_REACT_ROOT__ = reactRoot;
+        const harness = resolveUxpPanelHarness();
+        if (harness === 'uxp-css-contract') {
+          bootstrapCheckpoint('panel.bootstrap.harness.rendered', { harness });
+          reactRoot.render(<UxpCssContractHarnessPage />);
+          globalThis.__IMAGEN_PS_PANEL_RUNTIME__ = runtime;
+          return undefined;
+        }
         host = createHost();
         bootstrapCheckpoint('panel.bootstrap.host_shell.created');
         reactRoot.render(<AppShell host={host} />);

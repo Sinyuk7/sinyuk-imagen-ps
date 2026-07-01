@@ -71,7 +71,6 @@ export const fakeProfile: ProviderProfile = {
     family: 'image-endpoint',
     baseURL: 'https://mock.local',
     defaultModel: 'mock-image-v1',
-    imageMaxSide: 2048,
   },
   secretRefs: {
     apiKey: 'secret:provider-profile:mock-profile:apiKey',
@@ -164,7 +163,7 @@ function completedJob(input: Record<string, unknown>): Job {
           '[operation=text_to_image]',
           '[model=mock-image-v1]',
           `[prompt=${String(input.prompt ?? 'make an image')}]`,
-          '[output=size=2k format=png aspect=auto providerInputMaxSide=2048]',
+          '[output=size=2k format=png aspect=auto providerInputSize=1k]',
           '[images=0]',
           '[mask=no]',
           '[assets=1]',

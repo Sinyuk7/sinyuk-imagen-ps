@@ -165,7 +165,7 @@ describe('MainPage contract', () => {
     await flush();
     await sendPrompt(container, 'edit layer image');
 
-    expect(spies.readLayerAsAsset).toHaveBeenCalledWith(1, { maxSide: 2048 });
+    expect(spies.readLayerAsAsset).toHaveBeenCalledWith(1, { maxSide: 1024 });
     expect(spies.pickImageFile).not.toHaveBeenCalled();
     expect(spies.submitJob).toHaveBeenCalledWith({
       workflow: 'provider-edit',
@@ -207,7 +207,7 @@ describe('MainPage contract', () => {
     await sendPrompt(container, 'edit captured image');
 
     expect(spies.captureActiveImage).toHaveBeenCalledTimes(1);
-    expect(spies.captureActiveImage).toHaveBeenCalledWith({ maxSide: 2048 });
+    expect(spies.captureActiveImage).toHaveBeenCalledWith({ maxSide: 1024 });
     expect(spies.readLayerAsAsset).not.toHaveBeenCalled();
     expect(spies.submitJob).toHaveBeenCalledWith({
       workflow: 'provider-edit',
@@ -227,7 +227,7 @@ describe('MainPage contract', () => {
         outputSizePreset: '4k',
         outputFormat: 'webp',
         aspectRatio: '16:9',
-        providerInputMaxSide: 1024,
+        providerInputSizePreset: '1k',
       },
     });
     const { spies } = await renderApp(container, services);
@@ -267,9 +267,8 @@ describe('MainPage contract', () => {
     });
 
     expect(spies.placeAssetOnCanvas).toHaveBeenCalledWith(fakeOutputAsset, expect.objectContaining({
-      kind: 'exact-frame',
+      kind: 'document-only',
       documentId: 42,
-      placementRect: { left: 10, top: 20, right: 266, bottom: 276 },
     }));
   });
 
@@ -408,7 +407,7 @@ describe('MainPage contract', () => {
       name: 'result-2.png',
       type: 'image',
     }), expect.objectContaining({
-      kind: 'exact-frame',
+      kind: 'document-only',
       documentId: 42,
     }));
   });
@@ -474,7 +473,7 @@ describe('MainPage contract', () => {
     const response = container.querySelector<HTMLElement>('[data-testid^="result-response-text-"]')!;
     expect(response.textContent).toContain('line one\nline two');
     expect(response.textContent).toContain('[operation=text_to_image] [model=mock-image-v1]');
-    expect(response.textContent).toContain('[app.output=size=2k format=png aspect=auto providerInputMaxSide=2048]');
+    expect(response.textContent).toContain('[app.output=size=2k format=png aspect=auto providerInputSize=1k]');
     expect(container.querySelector('.prov-response-details')).toBeNull();
     const responseBox = response.closest<HTMLElement>('.prov-response')!;
     expect(responseBox.dataset.expanded).toBeUndefined();
@@ -484,7 +483,7 @@ describe('MainPage contract', () => {
       container.querySelector<HTMLElement>('[data-testid^="result-response-copy-button-"]')!.click();
     });
     expect(writeText).toHaveBeenCalledWith(expect.stringContaining('line one\nline two'));
-    expect(writeText).toHaveBeenCalledWith(expect.stringContaining('[app.output=size=2k format=png aspect=auto providerInputMaxSide=2048]'));
+    expect(writeText).toHaveBeenCalledWith(expect.stringContaining('[app.output=size=2k format=png aspect=auto providerInputSize=1k]'));
   });
 
   it('renders compact mock token response as plain response text without details splitting', async () => {
@@ -690,7 +689,6 @@ describe('MainPage contract', () => {
             family: 'image-endpoint',
             baseURL: 'https://mock.local',
             defaultModel: 'mock-image-v1',
-            imageMaxSide: 2048,
           },
           secretRefs: {
             apiKey: 'secret:provider-profile:mock-profile:apiKey',
@@ -1077,7 +1075,6 @@ describe('MainPage contract', () => {
           displayName: 'Mock Profile 2',
           config: {
             ...fakeProfile.config,
-            imageMaxSide: 1024,
           },
         },
         fakeOptimizerProfile,

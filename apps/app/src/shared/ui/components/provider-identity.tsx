@@ -1,3 +1,4 @@
+import type { SyntheticEvent } from 'react';
 import { ModelAvatarIcon } from './model-avatar-icon';
 import { OverlayControlShell } from './overlay-controls';
 import { resolveModelAvatarIcon } from './model-avatar-rules';
@@ -8,7 +9,7 @@ interface ProviderIdentityProps {
   readonly modelId?: string;
   readonly modelLabel?: string;
   readonly disabled?: boolean;
-  readonly onClick?: (event: React.MouseEvent<HTMLButtonElement>) => void;
+  readonly onClick?: (event: SyntheticEvent<HTMLDivElement>) => void;
 }
 
 export function ProviderIdentity({
@@ -34,7 +35,7 @@ export function ProviderIdentity({
         ? (event) => {
             if (event.key === 'Enter' || event.key === ' ') {
               event.preventDefault();
-              onClick?.(event as unknown as React.MouseEvent<HTMLButtonElement>);
+              onClick?.(event);
             }
           }
         : undefined}

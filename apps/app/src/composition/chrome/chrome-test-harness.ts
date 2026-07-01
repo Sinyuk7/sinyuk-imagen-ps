@@ -115,7 +115,6 @@ function mockProfile(options?: { readonly failMode?: ChromeTestMockFailureMode; 
     family: 'image-endpoint',
     baseURL: 'https://mock.local',
     defaultModel: 'mock-image-v1',
-    imageMaxSide: 2048,
     ...(options?.failMode === 'always' ? { failMode: { type: 'always' } } : {}),
   };
   return {

@@ -5,10 +5,11 @@ import { createChromeAppShell } from '../../composition/chrome/create-chrome-app
 import { chromeTestHarnessConfigFromUrl } from '../../composition/chrome/chrome-test-harness';
 import { ComposerSelectHarnessPage } from '../../harness/components/composer-select';
 import { MotionPrototypeHarnessPage } from '../../harness/components/motion-prototype';
+import { UxpCssContractHarnessPage } from '../../harness/components/uxp-css-contract';
 
-function resolveChromeHarness(url: URL): 'composer-select' | 'motion-prototype' | null {
+function resolveChromeHarness(url: URL): 'composer-select' | 'motion-prototype' | 'uxp-css-contract' | null {
   const harness = url.searchParams.get('harness');
-  if (harness === 'composer-select' || harness === 'motion-prototype') {
+  if (harness === 'composer-select' || harness === 'motion-prototype' || harness === 'uxp-css-contract') {
     return harness;
   }
   return null;
@@ -42,6 +43,9 @@ try {
     globalThis.__IMAGEN_CHROME_RUNTIME__ = undefined;
   } else if (harness === 'motion-prototype') {
     root.render(<MotionPrototypeHarnessPage />);
+    globalThis.__IMAGEN_CHROME_RUNTIME__ = undefined;
+  } else if (harness === 'uxp-css-contract') {
+    root.render(<UxpCssContractHarnessPage />);
     globalThis.__IMAGEN_CHROME_RUNTIME__ = undefined;
   } else {
     const testHarness = chromeTestHarnessConfigFromUrl(url);

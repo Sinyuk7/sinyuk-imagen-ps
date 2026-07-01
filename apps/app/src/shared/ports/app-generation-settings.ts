@@ -1,12 +1,13 @@
 export type AppOutputSizePreset = '512' | '1k' | '2k' | '4k';
 export type AppOutputFormat = 'png' | 'jpeg' | 'webp';
 export type AppAspectRatio = 'auto' | '1:1' | '16:9' | '9:16';
+export type AppProviderInputSizePreset = '1k' | '2k' | '4k';
 
 export interface AppGenerationSettings {
   readonly outputSizePreset: AppOutputSizePreset;
   readonly outputFormat: AppOutputFormat;
   readonly aspectRatio: AppAspectRatio;
-  readonly providerInputMaxSide: number;
+  readonly providerInputSizePreset: AppProviderInputSizePreset;
 }
 
 export interface AppGenerationSettingsStore {
@@ -18,26 +19,27 @@ export const DEFAULT_APP_GENERATION_SETTINGS = {
   outputSizePreset: '2k',
   outputFormat: 'png',
   aspectRatio: 'auto',
-  providerInputMaxSide: 2048,
+  providerInputSizePreset: '1k',
 } as const satisfies AppGenerationSettings;
 
 const OUTPUT_SIZE_PRESETS = new Set<AppOutputSizePreset>(['512', '1k', '2k', '4k']);
 const OUTPUT_FORMATS = new Set<AppOutputFormat>(['png', 'jpeg', 'webp']);
 const ASPECT_RATIOS = new Set<AppAspectRatio>(['auto', '1:1', '16:9', '9:16']);
+const PROVIDER_INPUT_SIZE_PRESETS = new Set<AppProviderInputSizePreset>(['1k', '2k', '4k']);
 
-function readInteger(value: unknown): number | undefined {
-  if (typeof value === 'number' && Number.isInteger(value) && value > 0) {
-    return value;
+export function providerInputSizePresetToMaxSide(preset: AppProviderInputSizePreset): number {
+  switch (preset) {
+    case '1k':
+      return 1024;
+    case '2k':
+      return 2048;
+    case '4k':
+      return 4096;
   }
-  if (typeof value === 'string' && /^\d+$/.test(value)) {
-    return Number(value);
-  }
-  return undefined;
 }
 
 export function normalizeAppGenerationSettings(input: unknown): AppGenerationSettings {
   const value = typeof input === 'object' && input !== null ? input as Partial<AppGenerationSettings> : {};
-  const providerInputMaxSide = readInteger(value.providerInputMaxSide);
   return {
     outputSizePreset: OUTPUT_SIZE_PRESETS.has(value.outputSizePreset as AppOutputSizePreset)
       ? value.outputSizePreset as AppOutputSizePreset
@@ -48,7 +50,9 @@ export function normalizeAppGenerationSettings(input: unknown): AppGenerationSet
     aspectRatio: ASPECT_RATIOS.has(value.aspectRatio as AppAspectRatio)
       ? value.aspectRatio as AppAspectRatio
       : DEFAULT_APP_GENERATION_SETTINGS.aspectRatio,
-    providerInputMaxSide: providerInputMaxSide ?? DEFAULT_APP_GENERATION_SETTINGS.providerInputMaxSide,
+    providerInputSizePreset: PROVIDER_INPUT_SIZE_PRESETS.has(value.providerInputSizePreset as AppProviderInputSizePreset)
+      ? value.providerInputSizePreset as AppProviderInputSizePreset
+      : DEFAULT_APP_GENERATION_SETTINGS.providerInputSizePreset,
   };
 }
 

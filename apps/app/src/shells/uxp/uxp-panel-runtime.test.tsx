@@ -25,6 +25,10 @@ vi.mock('../../shared/ui/app-shell', () => ({
   AppShell: () => null,
 }));
 
+vi.mock('../../harness/components/uxp-css-contract', () => ({
+  UxpCssContractHarnessPage: () => null,
+}));
+
 vi.mock('../../shared/ui/panel-bootstrap', () => ({
   primeSharedUi: mocks.primeSharedUiMock,
 }));
@@ -133,6 +137,20 @@ describe('UXP panel runtime', () => {
     expect(checkpoint).toHaveBeenCalledWith('panel.bootstrap.react.rendered');
     expect(checkpoint).toHaveBeenCalledWith('panel.bootstrap.runtime.mount.complete', { hasHost: true });
     expect(failure).not.toHaveBeenCalled();
+  });
+
+  it('renders the UXP CSS contract harness instead of AppShell when the panel harness override is enabled', () => {
+    window.localStorage.setItem('imagenPsPanelHarness', 'uxp-css-contract');
+    const createHost = vi.fn(() => fakeHost());
+    const runtime = createImagenPanelRuntime({ createHost });
+
+    const mounted = runtime.mount(document.getElementById('root'));
+
+    expect(mounted).toBeUndefined();
+    expect(createHost).not.toHaveBeenCalled();
+    expect(createRootMock).toHaveBeenCalledTimes(1);
+    expect(renderMock).toHaveBeenCalledTimes(1);
+    expect(primeSharedUiMock).toHaveBeenCalledTimes(1);
   });
 
   it('disposes the globally registered previous runtime', () => {

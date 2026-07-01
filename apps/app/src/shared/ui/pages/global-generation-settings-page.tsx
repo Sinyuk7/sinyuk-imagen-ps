@@ -2,10 +2,11 @@ import { useEffect, useState } from 'react';
 import type {
   AppAspectRatio,
   AppGenerationSettings,
+  AppProviderInputSizePreset,
   AppOutputFormat,
   AppOutputSizePreset,
 } from '../../ports/app-generation-settings';
-import { Button, FieldLabel, HelpText, TextField } from '../primitives/native-controls';
+import { Button, FieldLabel, HelpText } from '../primitives/native-controls';
 import { TextSelect } from '../components/text-select';
 import { Icon } from '../components/icons';
 import { IconButton } from '../primitives/icon-button';
@@ -19,7 +20,7 @@ interface GlobalGenerationSettingsPageProps {
   readonly onNav: (view: string) => void;
 }
 
-type MenuId = 'size' | 'format' | 'aspect' | null;
+type MenuId = 'size' | 'format' | 'aspect' | 'provider-input-size' | null;
 
 const SIZE_OPTIONS: ReadonlyArray<{ readonly id: AppOutputSizePreset; readonly label: string }> = [
   { id: '512', label: '512' },
@@ -41,12 +42,14 @@ const ASPECT_OPTIONS: ReadonlyArray<{ readonly id: AppAspectRatio; readonly labe
   { id: '9:16', label: '9:16' },
 ];
 
+const PROVIDER_INPUT_SIZE_OPTIONS: ReadonlyArray<{ readonly id: AppProviderInputSizePreset; readonly label: string }> = [
+  { id: '1k', label: '1K' },
+  { id: '2k', label: '2K' },
+  { id: '4k', label: '4K' },
+];
+
 function labelFor<T extends string>(options: ReadonlyArray<{ readonly id: T; readonly label: string }>, id: T): string {
   return options.find((option) => option.id === id)?.label ?? id;
-}
-
-function positiveInteger(value: string, fallback: number): number {
-  return /^\d+$/.test(value) && Number(value) > 0 ? Number(value) : fallback;
 }
 
 export function GlobalGenerationSettingsPage({
@@ -58,7 +61,6 @@ export function GlobalGenerationSettingsPage({
 }: GlobalGenerationSettingsPageProps) {
   const { messages: t } = useI18n();
   const [draft, setDraft] = useState<AppGenerationSettings>(settings);
-  const [maxSideText, setMaxSideText] = useState(String(settings.providerInputMaxSide));
   const [saving, setSaving] = useState(false);
   const [openMenu, setOpenMenu] = useState<MenuId>(null);
 
@@ -68,19 +70,13 @@ export function GlobalGenerationSettingsPage({
 
   useEffect(() => {
     setDraft(settings);
-    setMaxSideText(String(settings.providerInputMaxSide));
   }, [settings]);
 
   const save = async () => {
     setSaving(true);
     try {
-      const next = {
-        ...draft,
-        providerInputMaxSide: positiveInteger(maxSideText, settings.providerInputMaxSide),
-      };
-      await onSave(next);
-      setDraft(next);
-      setMaxSideText(String(next.providerInputMaxSide));
+      await onSave(draft);
+      setDraft(draft);
     } finally {
       setSaving(false);
     }
@@ -161,15 +157,22 @@ export function GlobalGenerationSettingsPage({
           <section className="section">
             <div className="section-title">{t.settings.inputGroup}</div>
             <div className="field">
-              <FieldLabel htmlFor="provider-input-max-side">{t.settings.providerInputMaxSide}</FieldLabel>
-              <TextField
-                id="provider-input-max-side"
-                data-testid="provider-input-max-side-input"
-                className="field-input"
-                value={maxSideText}
-                onValue={setMaxSideText}
+              <FieldLabel htmlFor="provider-input-size-trigger">{t.settings.providerInputSizePreset}</FieldLabel>
+              <TextSelect
+                testId="provider-input-size-selector"
+                triggerId="provider-input-size-trigger"
+                containerClassName="cmp-select settings-select"
+                menuClassName="cmp-select-menu cmp-select-menu-compact"
+                label={t.settings.providerInputSizePreset}
+                value={labelFor(PROVIDER_INPUT_SIZE_OPTIONS, draft.providerInputSizePreset)}
+                disabled={loading || saving}
+                open={openMenu === 'provider-input-size'}
+                onOpenChange={(open) => setOpenMenu(open ? 'provider-input-size' : null)}
+                options={PROVIDER_INPUT_SIZE_OPTIONS}
+                selectedId={draft.providerInputSizePreset}
+                onSelect={(value) => updateDraft({ providerInputSizePreset: value as AppProviderInputSizePreset })}
               />
-              <HelpText className="field-hint">{t.settings.providerInputMaxSideHint}</HelpText>
+              <HelpText className="field-hint">{t.settings.providerInputSizePresetHint}</HelpText>
             </div>
           </section>
           {error && <div style={{ padding: 16, color: 'var(--app-color-negative)', fontSize: 12 }}>{error}</div>}

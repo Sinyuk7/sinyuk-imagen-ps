@@ -791,7 +791,6 @@ export function getRuntime(): ExtendedRuntime {
       family: mockProvider.family,
       baseURL: 'https://mock.local',
       apiKey: 'mock-key',
-      imageMaxSide: 2048,
     });
     const mockAdapter = createDispatchAdapter({
       provider: mockProvider,

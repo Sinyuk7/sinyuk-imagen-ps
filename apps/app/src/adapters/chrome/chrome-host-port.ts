@@ -77,7 +77,7 @@ function ensureFileMatchesProviderInputPolicy(bytes: Uint8Array, mimeType: strin
     throw new Error(`Cannot inspect local image dimensions for provider input: ${mimeType}.`);
   }
   const plan = resolveProviderInputPlan(size, policy);
-  if (plan.wasResized) {
+  if (plan.wasDownscaled) {
     throw new Error(
       `Local image requires provider input normalization from ${plan.sourceWidth}x${plan.sourceHeight} to ${plan.targetWidth}x${plan.targetHeight}, ` +
         'but this runtime has no verified local file derivative path. Use Photoshop Capture or Choose Layer for normalized provider input.',

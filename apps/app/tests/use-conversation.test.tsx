@@ -109,9 +109,8 @@ describe('useConversation', () => {
     };
 
     expect(derivePlacementIntent([captureAttachment('capture-1')])).toMatchObject({
-      kind: 'exact-frame',
+      kind: 'document-only',
       documentId: 42,
-      placementRect: { left: 0, top: 0, right: 128, bottom: 128 },
     });
     expect(derivePlacementIntent([captureAttachment('capture-1'), fileAttachment])).toMatchObject({
       kind: 'document-only',
@@ -211,12 +210,12 @@ describe('useConversation', () => {
         providerName: 'Mock Profile',
         modelId: 'mock-image-v1',
         output: { count: 1, sizePreset: '4k', outputFormat: 'webp', aspectRatio: '16:9' },
-        providerInputMaxSide: 1024,
+        providerInputSizePreset: '1k',
       });
     });
 
     expect(getController().rounds[0]?.responseText).toContain('[operation=text_to_image] [model=mock-image-v1]');
-    expect(getController().rounds[0]?.responseText).toContain('[app.output=size=4k format=webp aspect=16:9 providerInputMaxSide=1024]');
+    expect(getController().rounds[0]?.responseText).toContain('[app.output=size=4k format=webp aspect=16:9 providerInputSize=1k]');
     expect(getController().rounds[0]?.responseText).toContain('[app.attachments=0]');
     expect(getController().rounds[0]?.responseText).toContain('[app.placement=unbound]');
   });
@@ -248,8 +247,13 @@ describe('useConversation', () => {
       operation: 'image-edit',
       prompt: 'edit image',
       placement: {
-        kind: 'exact-frame',
-        sourceSnapshotId: expect.stringContaining('capture-1:42:1'),
+        kind: 'document-only',
+        document: expect.objectContaining({
+          host: 'photoshop',
+          documentId: 42,
+          width: 1024,
+          height: 768,
+        }),
       },
       execution: {
         profileId: 'mock-profile',

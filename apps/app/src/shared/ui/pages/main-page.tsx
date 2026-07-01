@@ -28,8 +28,11 @@ import { IconButton } from '../primitives/icon-button';
 import { Button } from '../primitives/native-controls';
 import { useI18n } from '../i18n/i18n-context';
 import type { ProviderInputSizePolicy } from '../../image/resize';
-import { DEFAULT_PROVIDER_INPUT_MIN_SIDE } from '../../image/resize';
-import type { AppGenerationSettings, AppOutputSizePreset } from '../../ports/app-generation-settings';
+import {
+  providerInputSizePresetToMaxSide,
+  type AppGenerationSettings,
+  type AppOutputSizePreset,
+} from '../../ports/app-generation-settings';
 import { MOTION_DURATION } from '../motion';
 
 interface MainPageProps {
@@ -123,32 +126,10 @@ function mediaShapeFromSize(size: string | undefined): 'portrait' | 'square' | '
   return 'square';
 }
 
-function readPositiveIntegerConfig(profile: ProviderProfile | undefined, keys: readonly string[]): number | undefined {
-  if (!profile) {
-    return undefined;
-  }
-  for (const key of keys) {
-    const value = profile.config[key];
-    if (typeof value === 'number' && Number.isInteger(value) && value > 0) {
-      return value;
-    }
-    if (typeof value === 'string' && /^\d+$/.test(value)) {
-      const parsed = Number(value);
-      if (parsed > 0) {
-        return parsed;
-      }
-    }
-  }
-  return undefined;
-}
-
-function providerInputPolicy(profile: ProviderProfile | undefined, settings: AppGenerationSettings): ProviderInputSizePolicy {
-  const profileMaxSide = readPositiveIntegerConfig(profile, ['imageMaxSide', 'providerMaxSide', 'maxSide']);
-  const maxSide = Math.min(settings.providerInputMaxSide, profileMaxSide ?? settings.providerInputMaxSide);
-  const multiple = readPositiveIntegerConfig(profile, ['imageDimensionMultiple', 'dimensionMultiple']);
+function providerInputPolicy(settings: AppGenerationSettings): ProviderInputSizePolicy {
+  const maxSide = providerInputSizePresetToMaxSide(settings.providerInputSizePreset);
   return {
-    maxSide: Math.max(maxSide, DEFAULT_PROVIDER_INPUT_MIN_SIDE),
-    ...(multiple !== undefined ? { multiple } : {}),
+    maxSide,
   };
 }
 
@@ -462,7 +443,7 @@ export function MainPage({
 
   const addLayer = async (layer: LayerInfo) => {
     try {
-      const image = await services.host.readLayerAsAsset(layer.id, providerInputPolicy(selectedProfile, generationSettings));
+      const image = await services.host.readLayerAsAsset(layer.id, providerInputPolicy(generationSettings));
       addAttachment({
         id: attachmentId('layer'),
         type: 'layer',
@@ -484,7 +465,7 @@ export function MainPage({
 
   const addFile = async () => {
     try {
-      const image = await services.host.pickImageFile(providerInputPolicy(selectedProfile, generationSettings));
+      const image = await services.host.pickImageFile(providerInputPolicy(generationSettings));
       if (!image) {
         return;
       }
@@ -515,7 +496,7 @@ export function MainPage({
     }
     setCaptureInFlight(true);
     try {
-      const result = await services.host.captureActiveImage(providerInputPolicy(selectedProfile, generationSettings));
+      const result = await services.host.captureActiveImage(providerInputPolicy(generationSettings));
       addAttachment({
         id: attachmentId('capture'),
         type: 'photoshop-capture',
@@ -569,7 +550,7 @@ export function MainPage({
         outputFormat: generationSettings.outputFormat,
         aspectRatio: generationSettings.aspectRatio,
       },
-      providerInputMaxSide: generationSettings.providerInputMaxSide,
+      providerInputSizePreset: generationSettings.providerInputSizePreset,
     });
   };
 

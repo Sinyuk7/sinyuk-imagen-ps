@@ -106,7 +106,7 @@ function outputToImageConfig(output: ProviderOutputOptions | undefined): Record<
   if (size !== undefined) {
     imageConfig.size = size;
   }
-  if (output.aspectRatio !== undefined && output.aspectRatio !== 'auto') {
+  if (output.aspectRatio !== undefined && output.aspectRatio !== 'auto' && output.aspectRatio !== 'source') {
     imageConfig.aspect_ratio = output.aspectRatio;
   }
   if (output.quality !== undefined) {
