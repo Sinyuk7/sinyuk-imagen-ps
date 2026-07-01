@@ -1,0 +1,53 @@
+apps/app/src/shared/domain/mappers.ts
+  s_67715cfaa16725::t_5f4d2a43bef78c 21,193-204
+apps/app/src/shared/ports/app-generation-settings.ts
+  s_67715cfaa16725::t_98ee654753708a 10,23,54-57
+apps/app/src/shared/ui/hooks/use-conversation.ts
+  s_67715cfaa16725::t_7401236030b5e8 8,37,48-49,51,58,63,156,184,216-263,469-475,482,488-489,582,586-587
+apps/app/src/shared/ui/i18n/messages.ts
+  s_67715cfaa16725::t_2decd0f3c4cf60 52-55,146-149,226-229,320-324,402-405,496-499
+apps/app/src/shared/ui/pages/global-generation-settings-page.tsx
+  s_67715cfaa16725::t_02befa435eb28f 8,175-189
+apps/app/src/shared/ui/pages/main-page.tsx
+  s_67715cfaa16725::t_d44a9f99079a9a 205-206,212,233,276-288,304-336,385-402,557,567,851-861,875,879-882,885-988,992-1005,1008-1009
+apps/app/src/shared/ui/styles/conversation.ts
+  s_67715cfaa16725::t_1e817e9d112628 77,86,92-135
+apps/app/tests/chrome-adapter.test.ts
+  s_67715cfaa16725::t_762b761c3b85e4 95,103,111
+apps/app/tests/global-generation-settings-page.test.tsx
+  s_67715cfaa16725::t_2b65e310e7c8a2 53,102-140
+apps/app/tests/main-page.test.tsx
+  s_67715cfaa16725::t_3c91f806d3417f 398-506
+apps/app/tests/settings-page.test.tsx
+  s_67715cfaa16725::t_75f264a67db46e 122
+apps/app/tests/use-conversation.test.tsx
+  s_67715cfaa16725::t_d05a5cd5a5c8fa 184-223
+packages/providers/src/contract/result.ts
+  s_67715cfaa16725::t_6ef14a80e015e2 72-74
+packages/providers/src/providers/chat-image/provider.ts
+  s_67715cfaa16725::t_653ff93c1c73af 97,109-111
+packages/providers/src/providers/mock/provider.ts
+  s_67715cfaa16725::t_146a50f4b5c959 36-64,186,188
+packages/providers/src/transport/chat-image/parse-response.ts
+  s_67715cfaa16725::t_31c3d404928313 30,89-106,118,123-126,139-141,146,151-154
+packages/providers/tests/chat-image-provider.test.ts
+  s_67715cfaa16725::t_018f489c9ac3e1 112,121,125-134,154,177
+packages/providers/tests/mock-provider.test.ts
+  s_67715cfaa16725::t_ed3fae1d5fba37 77-78,157-158
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.3",
+  "base_commit_sha": "f5e6b470dd015770685f8c38dfc8b653ccd080d4",
+  "prompts": {},
+  "sessions": {
+    "s_67715cfaa16725": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "019f1dc0-eea5-7993-acc9-faf8f2ea5b31",
+        "model": "unknown"
+      },
+      "human_author": "Sinyuk <80998062@qq.com>"
+    }
+  }
+}
