@@ -72,6 +72,7 @@ export interface AppMessages {
     readonly aspectRatio: string;
     readonly aspectRatioAuto: string;
     readonly aspectRatioSquare: string;
+    readonly outputSize: string;
     readonly promptOptimize: string;
     readonly promptRefine: string;
     readonly promptOptimizePlaceholder: string;
@@ -123,6 +124,15 @@ export interface AppMessages {
     readonly configValidNoModels: string;
     readonly configValidProviderNoModels: string;
     readonly selectProviderType: string;
+    readonly globalGeneration: string;
+    readonly outputGroup: string;
+    readonly inputGroup: string;
+    readonly outputSize: string;
+    readonly outputFormat: string;
+    readonly aspectRatio: string;
+    readonly providerInputMaxSide: string;
+    readonly providerInputMaxSideHint: string;
+    readonly saving: string;
   };
   readonly toast: {
     readonly promptFilled: string;
@@ -220,6 +230,7 @@ const EN_MESSAGES: AppMessages = {
     aspectRatio: 'Aspect ratio',
     aspectRatioAuto: 'Auto',
     aspectRatioSquare: '1:1',
+    outputSize: 'Size',
     promptOptimize: 'Optimize prompt',
     promptRefine: 'Refine',
     promptOptimizePlaceholder: 'Coming soon',
@@ -271,6 +282,15 @@ const EN_MESSAGES: AppMessages = {
     configValidNoModels: 'Configuration is valid; no model list found',
     configValidProviderNoModels: 'Configuration is valid; this provider returned no available model list',
     selectProviderType: 'Choose a Provider type',
+    globalGeneration: 'Generation settings',
+    outputGroup: 'Output',
+    inputGroup: 'Input',
+    outputSize: 'Output size',
+    outputFormat: 'Output format',
+    aspectRatio: 'Aspect ratio',
+    providerInputMaxSide: 'Provider input max side',
+    providerInputMaxSideHint: 'Reference and captured images are resized before provider edit requests.',
+    saving: 'Saving...',
   },
   toast: {
     promptFilled: 'Filled into the prompt box',
@@ -368,6 +388,7 @@ const ZH_CN_MESSAGES: AppMessages = {
     aspectRatio: '宽高比',
     aspectRatioAuto: '智能',
     aspectRatioSquare: '1:1',
+    outputSize: '尺寸',
     promptOptimize: '优化提示词',
     promptRefine: '优化',
     promptOptimizePlaceholder: '即将支持',
@@ -419,6 +440,15 @@ const ZH_CN_MESSAGES: AppMessages = {
     configValidNoModels: '配置有效；未发现模型列表',
     configValidProviderNoModels: '配置有效；该 provider 未返回可用模型列表',
     selectProviderType: '请选择 Provider 类型',
+    globalGeneration: '生成设置',
+    outputGroup: '输出',
+    inputGroup: '输入',
+    outputSize: '输出尺寸',
+    outputFormat: '输出格式',
+    aspectRatio: '宽高比',
+    providerInputMaxSide: 'Provider 输入最大边',
+    providerInputMaxSideHint: '参考图和捕获图会在发送给 provider edit 请求前调整尺寸。',
+    saving: '保存中...',
   },
   toast: {
     promptFilled: '已填入输入框',

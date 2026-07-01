@@ -123,7 +123,7 @@ describe('AppShell', () => {
     });
     await flush();
     await act(async () => {
-      container.querySelector<HTMLElement>('.prov-row')!.click();
+      container.querySelector<HTMLElement>('[data-testid="provider-row-mock-profile"]')!.click();
     });
     await flush();
     await flush();

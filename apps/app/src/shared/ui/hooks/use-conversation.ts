@@ -14,6 +14,7 @@ import type { HostImageAsset } from '../../domain/host-image-asset';
 import type { PlacementIntent, PhotoshopCapturePlacement } from '../../domain/photoshop-placement';
 import type { Asset } from '@imagen-ps/application';
 import { createRunningTaskRecord } from '../../domain/task-snapshot';
+import type { AppGenerationSettings } from '../../ports/app-generation-settings';
 
 export interface ConversationAttachment {
   readonly id: string;
@@ -52,6 +53,14 @@ export interface SubmitConversationInput {
   readonly providerName: string;
   readonly modelId?: string;
   readonly attachments?: readonly ConversationAttachment[];
+  readonly output?: AppGenerationSettingsOutput;
+}
+
+export interface AppGenerationSettingsOutput {
+  readonly count: 1;
+  readonly sizePreset: AppGenerationSettings['outputSizePreset'];
+  readonly outputFormat: AppGenerationSettings['outputFormat'];
+  readonly aspectRatio: AppGenerationSettings['aspectRatio'];
 }
 
 export interface ConversationController {
@@ -245,6 +254,7 @@ export function derivePlacementIntent(attachments: readonly ConversationAttachme
 export function useConversation(
   services: AppServices,
   sessionBinding: ImagenSessionBinding,
+  defaultOutput?: AppGenerationSettings,
   messages: ConversationMessages | AppMessages['conversation'] = DEFAULT_CONVERSATION_MESSAGES,
 ): ConversationController {
   const [rounds, setRounds] = useState<readonly ConversationRound[]>([]);
@@ -435,12 +445,18 @@ export function useConversation(
             input.operation === 'image-edit'
               ? attachments.map((attachment) => assetForJobInput(attachment.image))
               : undefined;
+          const output = input.output ?? {
+            count: 1,
+            sizePreset: defaultOutput?.outputSizePreset ?? '2k',
+            outputFormat: defaultOutput?.outputFormat ?? 'png',
+            aspectRatio: defaultOutput?.aspectRatio ?? 'auto',
+          };
           const jobInput = {
             __clientRoundId: roundId,
             __clientTaskId: roundId,
             profileId: input.profileId,
             prompt,
-            output: { count: 1 },
+            output,
             ...(providerOptions ? { providerOptions } : {}),
             ...(providerInputAssets ? { images: providerInputAssets } : {}),
           };
@@ -485,7 +501,7 @@ export function useConversation(
         submitInFlightRef.current = false;
       }
     },
-    [messages, services.commands, sessionBinding.session, sessionBinding.snapshot.jobs],
+    [defaultOutput, messages, services.commands, sessionBinding.session, sessionBinding.snapshot.jobs],
   );
 
   const retry = useCallback(

@@ -84,6 +84,7 @@ export function createChromeAppShell(options?: ChromeAppShellOptions): AppShellH
     services: {
       commands: testHarness?.wrapCommands(commands) ?? commands,
       host,
+      generationSettings: storage.generationSettings,
       thumbnails: createMemoryThumbnailStore({ resolveStoredRef: storage.assets.resolve }),
       taskResources: createTaskResourceResolver({ resolveStoredRef: storage.assets.resolve }),
       diagnostics: createChromeDiagnosticsPort(),

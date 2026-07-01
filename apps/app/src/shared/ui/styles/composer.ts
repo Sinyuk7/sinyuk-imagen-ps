@@ -329,6 +329,20 @@ export const COMPOSER_CSS = `
   display:inline-flex; align-items:center; justify-content:center;
   margin-top:0; margin-right:0; margin-bottom:0; margin-left:0; color:var(--app-color-text-secondary); flex-shrink:0;
 }
+.cmp-add.ui-action-button[data-quiet="true"]{
+  border-color:var(--app-color-border-default);
+  background:var(--app-color-background-layer-1);
+}
+.cmp-add.ui-action-button[data-quiet="true"]:hover,
+.cmp-add.ui-action-button[data-quiet="true"]:focus-visible{
+  border-color:var(--app-color-border-strong);
+  background:var(--app-color-background-elevated);
+}
+.cmp-add.ui-action-button[data-selected="true"]{
+  border-color:var(--app-color-border-strong);
+  background:var(--app-color-background-elevated);
+  color:var(--app-color-text-primary);
+}
 
 /* Model chip (native dropdown trigger) */
 .cmp-chip{

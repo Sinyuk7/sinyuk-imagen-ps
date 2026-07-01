@@ -15,6 +15,7 @@ import { PHOTOSHOP_UXP_RUNTIME_CAPABILITIES, type HostBridge } from '../src/app-
 import { createHostImageAsset } from '../src/shared/domain/host-image-asset';
 import { createMemoryThumbnailStore } from '../src/shared/image/thumbnail-store';
 import type { DiagnosticsPort } from '../src/shared/ports/diagnostics-port';
+import { createMemoryGenerationSettingsStore, type AppGenerationSettings } from '../src/shared/ports/app-generation-settings';
 
 export const fakeAsset: Asset = {
   type: 'image',
@@ -188,6 +189,7 @@ function savedProfile(input: ProviderProfileInput): ProviderProfile {
 
 export function createFakeServices(options?: {
   readonly profiles?: readonly ProviderProfile[];
+  readonly generationSettings?: Partial<AppGenerationSettings>;
 }): {
   readonly services: AppServices;
   readonly spies: {
@@ -340,6 +342,7 @@ export function createFakeServices(options?: {
     services: {
       commands,
       host,
+      generationSettings: createMemoryGenerationSettingsStore(options?.generationSettings),
       thumbnails: createMemoryThumbnailStore({
         async resolveStoredRef(ref) {
           if (ref.ref === fakeOutputAsset.storedRef?.ref) {

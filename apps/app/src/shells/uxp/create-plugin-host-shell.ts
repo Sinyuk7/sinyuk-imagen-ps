@@ -22,6 +22,7 @@ import { resolveUxpModules } from '../../adapters/uxp/uxp-api';
 import { createUxpAssetStore, createUxpJobHistoryStore, createUxpTaskStore } from '../../adapters/uxp/uxp-job-history-adapter';
 import { createUxpProviderProfileRepository } from '../../adapters/uxp/uxp-provider-profile-repository';
 import { createUxpSecretStorageAdapter } from '../../adapters/uxp/uxp-secret-storage-adapter';
+import { createInMemoryGenerationSettingsStore } from '../../adapters/uxp/in-memory-host-storage';
 import { createUxpLogSink, writeUxpUiCheckpoint, writeUxpUiFailure } from '../../adapters/uxp/uxp-log-sink';
 import { createMemoryThumbnailStore } from '../../shared/image/thumbnail-store';
 import { createTaskResourceResolver } from '../../shared/image/task-resource-resolver';
@@ -63,6 +64,7 @@ export function createPluginHostShell(): PluginHostShell {
     const jobHistoryStore = createUxpJobHistoryStore(uxpModules);
     const taskStore = createUxpTaskStore(uxpModules);
     const assetStore = createUxpAssetStore(uxpModules);
+    const generationSettings = createInMemoryGenerationSettingsStore();
 
     logger.info('panel.adapters.initialized', {
       hasProfileRepository: true,
@@ -96,6 +98,7 @@ export function createPluginHostShell(): PluginHostShell {
       services: {
         commands: createCommandsAdapter(),
         host: hostBridge,
+        generationSettings,
         thumbnails: createMemoryThumbnailStore({ resolveStoredRef: assetStore.resolve, createThumbnail }),
         taskResources: createTaskResourceResolver({ resolveStoredRef: assetStore.resolve }),
         diagnostics: createUxpDiagnosticsPort(),

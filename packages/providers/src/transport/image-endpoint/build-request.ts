@@ -6,7 +6,7 @@
  * 中的 create-image / create-image-edit 快照：
  *
  * - `request.output.count` → body `n`
- * - `request.output.width / height` → body `size`（通过 `inferSize` 匹配已知尺寸）
+ * - `request.output.sizePreset / aspectRatio` → body `size`
  * - `request.output.background` → body `background`
  * - `request.output.quality` → body `quality`
  * - `request.output.outputFormat` → body `output_format`
@@ -166,6 +166,37 @@ function inferSize(width: number | undefined, height: number | undefined): strin
 
   const key = `${width}x${height}`;
   return sizeMap[key];
+}
+
+function sizeFromPreset(preset: NonNullable<ProviderOutputOptions['sizePreset']>): 512 | 1024 | 1536 {
+  switch (preset) {
+    case '512':
+      return 512;
+    case '1k':
+      return 1024;
+    case '2k':
+    case '4k':
+      return 1536;
+  }
+}
+
+function concreteSizeFromOutput(output: ProviderOutputOptions): string | undefined {
+  if (output.sizePreset === undefined) {
+    return inferSize(output.width, output.height);
+  }
+
+  const side = sizeFromPreset(output.sizePreset);
+  switch (output.aspectRatio) {
+    case '16:9':
+      return `${side}x${Math.round(side * 9 / 16)}`;
+    case '9:16':
+      return `${Math.round(side * 9 / 16)}x${side}`;
+    case '1:1':
+    case 'auto':
+    case undefined:
+    default:
+      return `${side}x${side}`;
+  }
 }
 
 /** 从 request 与 config 解析有效 model。 */
@@ -369,9 +400,9 @@ function applyOutputToBody(
     body.n = output.count;
   }
 
-  const size = inferSize(output.width, output.height);
-  if (size !== undefined) {
-    body.size = size;
+  const semanticSize = concreteSizeFromOutput(output);
+  if (semanticSize !== undefined) {
+    body.size = semanticSize;
   }
 
   if (output.background !== undefined) {

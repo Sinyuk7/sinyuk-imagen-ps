@@ -25,6 +25,8 @@ import {
 import { IconButton } from '../primitives/icon-button';
 import { useI18n } from '../i18n/i18n-context';
 import type { ProviderInputSizePolicy } from '../../image/resize';
+import { DEFAULT_PROVIDER_INPUT_MIN_SIDE } from '../../image/resize';
+import type { AppGenerationSettings, AppOutputSizePreset } from '../../ports/app-generation-settings';
 import { MOTION_DURATION } from '../motion';
 
 interface MainPageProps {
@@ -47,6 +49,7 @@ interface MainPageProps {
   readonly highlightedRoundId?: string | null;
   readonly onEditProfile?: (profileId: string) => void;
   readonly promptOptimizerProfile?: ProviderProfile | null;
+  readonly generationSettings: AppGenerationSettings;
 }
 
 type OptimizeState =
@@ -133,13 +136,14 @@ function readPositiveIntegerConfig(profile: ProviderProfile | undefined, keys: r
   return undefined;
 }
 
-function providerInputPolicy(profile: ProviderProfile | undefined): ProviderInputSizePolicy {
-  const maxSide = readPositiveIntegerConfig(profile, ['imageMaxSide', 'providerMaxSide', 'maxSide']);
-  if (maxSide === undefined) {
-    throw new Error('Provider profile config is missing imageMaxSide for provider-bound raster input.');
-  }
+function providerInputPolicy(profile: ProviderProfile | undefined, settings: AppGenerationSettings): ProviderInputSizePolicy {
+  const profileMaxSide = readPositiveIntegerConfig(profile, ['imageMaxSide', 'providerMaxSide', 'maxSide']);
+  const maxSide = Math.min(settings.providerInputMaxSide, profileMaxSide ?? settings.providerInputMaxSide);
   const multiple = readPositiveIntegerConfig(profile, ['imageDimensionMultiple', 'dimensionMultiple']);
-  return { maxSide, ...(multiple !== undefined ? { multiple } : {}) };
+  return {
+    maxSide: Math.max(maxSide, DEFAULT_PROVIDER_INPUT_MIN_SIDE),
+    ...(multiple !== undefined ? { multiple } : {}),
+  };
 }
 
 function releaseAttachment(attachment: ConversationAttachment): void {
@@ -176,14 +180,15 @@ export function MainPage({
   highlightedRoundId,
   onEditProfile,
   promptOptimizerProfile,
+  generationSettings,
 }: MainPageProps) {
   const services = useAppServices();
   const { messages: t } = useI18n();
   const [input, setInput] = useState('');
   const [attachments, setAttachments] = useState<readonly ConversationAttachment[]>([]);
-  const [aspectRatio, setAspectRatio] = useState('auto');
+  const [outputSizePreset, setOutputSizePreset] = useState<AppOutputSizePreset>(generationSettings.outputSizePreset);
   const [profileMenuOpen, setProfileMenuOpen] = useState(false);
-  const [openMenu, setOpenMenu] = useState<'model' | 'aspect' | null>(null);
+  const [openMenu, setOpenMenu] = useState<'model' | 'output-size' | null>(null);
   const [attachOpen, setAttachOpen] = useState(false);
   const [layerOpen, setLayerOpen] = useState(false);
   const [captureInFlight, setCaptureInFlight] = useState(false);
@@ -225,6 +230,10 @@ export function MainPage({
   useEffect(() => {
     attachmentsRef.current = attachments;
   }, [attachments]);
+
+  useEffect(() => {
+    setOutputSizePreset(generationSettings.outputSizePreset);
+  }, [generationSettings.outputSizePreset]);
 
   useEffect(() => {
     return () => {
@@ -379,7 +388,7 @@ export function MainPage({
 
   const addLayer = async (layer: LayerInfo) => {
     try {
-      const image = await services.host.readLayerAsAsset(layer.id, providerInputPolicy(selectedProfile));
+      const image = await services.host.readLayerAsAsset(layer.id, providerInputPolicy(selectedProfile, generationSettings));
       addAttachment({
         id: attachmentId('layer'),
         type: 'layer',
@@ -401,7 +410,7 @@ export function MainPage({
 
   const addFile = async () => {
     try {
-      const image = await services.host.pickImageFile(providerInputPolicy(selectedProfile));
+      const image = await services.host.pickImageFile(providerInputPolicy(selectedProfile, generationSettings));
       if (!image) {
         return;
       }
@@ -424,7 +433,7 @@ export function MainPage({
     }
     setCaptureInFlight(true);
     try {
-      const result = await services.host.captureActiveImage(providerInputPolicy(selectedProfile));
+      const result = await services.host.captureActiveImage(providerInputPolicy(selectedProfile, generationSettings));
       addAttachment({
         id: attachmentId('capture'),
         type: 'photoshop-capture',
@@ -471,6 +480,12 @@ export function MainPage({
       providerName: selectedProfile.displayName,
       ...(selectedModelId ? { modelId: selectedModelId } : {}),
       attachments,
+      output: {
+        count: 1,
+        sizePreset: outputSizePreset,
+        outputFormat: generationSettings.outputFormat,
+        aspectRatio: generationSettings.aspectRatio,
+      },
     });
   };
 
@@ -1081,23 +1096,25 @@ export function MainPage({
             </div>
             <div className="cmp-toolbar-right">
               <ComposerSelect
-                testId="composer-aspect-ratio-selector"
+                testId="composer-output-size-selector"
                 containerClassName="cmp-select cmp-select-aspect"
                 menuClassName="cmp-select-menu cmp-select-menu-compact"
-                label={t.main.aspectRatio}
-                value={aspectRatio === 'auto' ? t.main.aspectRatioAuto : t.main.aspectRatioSquare}
+                label={t.main.outputSize}
+                value={outputSizePreset.toUpperCase()}
                 disabled={conversation.running}
-                open={openMenu === 'aspect'}
+                open={openMenu === 'output-size'}
                 onOpenChange={(open) => {
                   setProfileMenuOpen(false);
-                  setOpenMenu(open ? 'aspect' : null);
+                  setOpenMenu(open ? 'output-size' : null);
                 }}
                 options={[
-                  { id: 'auto', label: t.main.aspectRatioAuto, icon: 'image-auto-mode' },
-                  { id: '1:1', label: t.main.aspectRatioSquare },
+                  { id: '512', label: '512' },
+                  { id: '1k', label: '1K' },
+                  { id: '2k', label: '2K' },
+                  { id: '4k', label: '4K' },
                 ]}
-                selectedId={aspectRatio}
-                onSelect={setAspectRatio}
+                selectedId={outputSizePreset}
+                onSelect={(value) => setOutputSizePreset(value as AppOutputSizePreset)}
                 leadingIcon="image-auto-mode"
               />
             </div>

@@ -7,6 +7,7 @@ import type {
   SecretStorageAdapter,
   StoredAssetRef,
 } from '@imagen-ps/application';
+import { createMemoryGenerationSettingsStore, type AppGenerationSettingsStore } from '../../shared/ports/app-generation-settings';
 
 /**
  * Slice 0 的浏览器内存 adapter 只用于证明 application command facade 可在
@@ -17,6 +18,7 @@ export function createChromeFeasibilityStorage(): {
   readonly secrets: SecretStorageAdapter;
   readonly history: JobHistoryStore;
   readonly assets: AssetStore;
+  readonly generationSettings: AppGenerationSettingsStore;
 } {
   const profiles = new Map<string, ProviderProfile>();
   const secrets = new Map<string, string>();
@@ -85,5 +87,6 @@ export function createChromeFeasibilityStorage(): {
         assets.delete(ref.ref);
       },
     },
+    generationSettings: createMemoryGenerationSettingsStore(),
   };
 }

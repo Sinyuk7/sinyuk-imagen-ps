@@ -42,6 +42,32 @@ describe('chat-image provider', () => {
     });
   });
 
+  it('maps semantic output settings to chat image_config and downgrades 4K provider-side', () => {
+    const body = buildChatImageRequestBody(
+      {
+        operation: 'text_to_image',
+        prompt: 'a portrait',
+        output: {
+          count: 1,
+          sizePreset: '4k',
+          aspectRatio: '9:16',
+          outputFormat: 'png',
+        },
+      },
+      'google/gemini-2.5-flash-image-preview',
+    );
+
+    expect(body).toMatchObject({
+      n: 1,
+      image_config: {
+        size: '2K',
+        aspect_ratio: '9:16',
+        output_format: 'png',
+      },
+    });
+    expect(body.image_config).not.toHaveProperty('quality');
+  });
+
   it('builds edit chat completion body with image and mask content', () => {
     const body = buildChatImageRequestBody(
       {

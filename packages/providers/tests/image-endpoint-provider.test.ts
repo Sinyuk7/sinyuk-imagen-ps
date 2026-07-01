@@ -49,6 +49,32 @@ describe('image-endpoint provider', () => {
     });
   });
 
+  it('maps semantic output settings to provider-owned image endpoint size and format', () => {
+    const body = buildRequestBody(
+      {
+        operation: 'text_to_image',
+        prompt: 'a wide image',
+        output: {
+          count: 1,
+          sizePreset: '4k',
+          aspectRatio: '16:9',
+          outputFormat: 'png',
+        },
+      },
+      'gpt-image-2',
+    );
+
+    expect(body).toMatchObject({
+      model: 'gpt-image-2',
+      prompt: 'a wide image',
+      n: 1,
+      size: '1536x864',
+      output_format: 'png',
+    });
+    expect(body).not.toHaveProperty('aspect_ratio');
+    expect(body).not.toHaveProperty('quality');
+  });
+
   it('builds edit JSON body for URL images', () => {
     const body = buildEditRequestBody(
       {

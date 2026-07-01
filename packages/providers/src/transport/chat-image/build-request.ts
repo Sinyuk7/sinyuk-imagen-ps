@@ -91,18 +91,22 @@ function inferSize(width: number | undefined, height: number | undefined): strin
   return width !== undefined && height !== undefined ? `${width}x${height}` : undefined;
 }
 
+function sizeFromPreset(preset: NonNullable<ProviderOutputOptions['sizePreset']>): '512' | '1K' | '2K' {
+  return preset === '512' ? '512' : preset === '1k' ? '1K' : '2K';
+}
+
 function outputToImageConfig(output: ProviderOutputOptions | undefined): Record<string, unknown> | undefined {
   if (output === undefined) {
     return undefined;
   }
 
   const imageConfig: Record<string, unknown> = {};
-  const size = inferSize(output.width, output.height);
+  const size = output.sizePreset !== undefined ? sizeFromPreset(output.sizePreset) : inferSize(output.width, output.height);
 
   if (size !== undefined) {
     imageConfig.size = size;
   }
-  if (output.aspectRatio !== undefined) {
+  if (output.aspectRatio !== undefined && output.aspectRatio !== 'auto') {
     imageConfig.aspect_ratio = output.aspectRatio;
   }
   if (output.quality !== undefined) {

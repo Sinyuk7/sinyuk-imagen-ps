@@ -167,6 +167,12 @@ describe('useConversation', () => {
         __clientTaskId: expect.any(String),
         profileId: 'mock-profile',
         prompt: 'make an image',
+        output: {
+          count: 1,
+          sizePreset: '2k',
+          outputFormat: 'png',
+          aspectRatio: 'auto',
+        },
         providerOptions: { model: 'mock-image-v1' },
       }),
       signal: expect.any(AbortSignal),

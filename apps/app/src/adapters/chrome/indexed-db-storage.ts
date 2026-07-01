@@ -10,8 +10,9 @@ import type {
   TaskRecord,
   TaskStore,
 } from '@imagen-ps/application';
+import { DEFAULT_APP_GENERATION_SETTINGS, normalizeAppGenerationSettings, type AppGenerationSettings, type AppGenerationSettingsStore } from '../../shared/ports/app-generation-settings';
 
-export type ChromeStoreName = 'profiles' | 'secrets' | 'history' | 'tasks' | 'assets';
+export type ChromeStoreName = 'profiles' | 'secrets' | 'history' | 'tasks' | 'assets' | 'appSettings';
 
 export interface ChromeKeyValueBackend {
   get<T>(store: ChromeStoreName, key: string): Promise<T | undefined>;
@@ -27,8 +28,9 @@ interface ChromeStoredRecord<T> {
 }
 
 const CHROME_DB_NAME = 'imagen-ps-chrome-runtime';
-const CHROME_DB_VERSION = 2;
-const CHROME_STORES: readonly ChromeStoreName[] = ['profiles', 'secrets', 'history', 'tasks', 'assets'];
+const CHROME_DB_VERSION = 3;
+const CHROME_STORES: readonly ChromeStoreName[] = ['profiles', 'secrets', 'history', 'tasks', 'assets', 'appSettings'];
+const GENERATION_SETTINGS_KEY = 'generation';
 
 function requestResult<T>(request: IDBRequest<T>): Promise<T> {
   return new Promise((resolve, reject) => {
@@ -111,6 +113,7 @@ export function createMemoryIndexedDbBackend(options?: {
     history: new Map(),
     tasks: new Map(),
     assets: new Map(),
+    appSettings: new Map(),
   };
   for (const [store, records] of Object.entries(options?.initial ?? {}) as Array<[
     ChromeStoreName,
@@ -158,6 +161,7 @@ export function createChromeIndexedDbStorage(options?: { readonly backend?: Chro
   readonly history: JobHistoryStore;
   readonly tasks: TaskStore;
   readonly assets: AssetStore;
+  readonly generationSettings: AppGenerationSettingsStore;
 } {
   const backend = options?.backend ?? createBrowserIndexedDbBackend();
   let assetCounter = 0;
@@ -250,6 +254,16 @@ export function createChromeIndexedDbStorage(options?: { readonly backend?: Chro
       },
       async delete(ref): Promise<void> {
         await backend.delete('assets', ref.ref);
+      },
+    },
+    generationSettings: {
+      async load(): Promise<AppGenerationSettings> {
+        return normalizeAppGenerationSettings(
+          await backend.get<AppGenerationSettings>('appSettings', GENERATION_SETTINGS_KEY) ?? DEFAULT_APP_GENERATION_SETTINGS,
+        );
+      },
+      async save(settings): Promise<void> {
+        await backend.put('appSettings', GENERATION_SETTINGS_KEY, normalizeAppGenerationSettings(settings));
       },
     },
   };

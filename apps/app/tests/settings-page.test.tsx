@@ -96,4 +96,42 @@ describe('SettingsPage UXP compatibility', () => {
     expect(row.querySelector('.prov-trail')).not.toBeNull();
     expect(getComputedStyle(row).height).not.toBe('64px');
   });
+
+  it('renders a global generation settings entry before provider profiles', async () => {
+    const { services } = createFakeServices();
+    const container = document.createElement('div');
+    document.body.appendChild(container);
+    root = createRoot(container);
+    const onOpenGlobalGeneration = vi.fn();
+
+    await act(async () => {
+      root!.render(
+        <TestAppProviders services={services}>
+          <SettingsPage
+            onNav={() => undefined}
+            profiles={[]}
+            loading={false}
+            error={null}
+            onReload={async () => undefined}
+            onOpenProfile={vi.fn()}
+            generationSettings={{
+              outputSizePreset: '2k',
+              outputFormat: 'png',
+              aspectRatio: 'auto',
+              providerInputMaxSide: 2048,
+            }}
+            onOpenGlobalGeneration={onOpenGlobalGeneration}
+          />
+        </TestAppProviders>,
+      );
+    });
+
+    const row = container.querySelector<HTMLElement>('[data-testid="global-generation-settings-row"]')!;
+    expect(row.textContent).toContain('生成设置');
+    expect(row.textContent).toContain('2K');
+    await act(async () => {
+      row.click();
+    });
+    expect(onOpenGlobalGeneration).toHaveBeenCalledTimes(1);
+  });
 });

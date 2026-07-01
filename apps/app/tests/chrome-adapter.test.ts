@@ -84,6 +84,32 @@ describe('Chrome adapter contracts', () => {
     expect(await storage.tasks.list({ status: 'completed' })).toEqual([task]);
   });
 
+  it('persists app generation settings separately from provider profiles', async () => {
+    const storage = createChromeIndexedDbStorage({ backend: createMemoryIndexedDbBackend() });
+
+    expect(await storage.generationSettings.load()).toEqual({
+      outputSizePreset: '2k',
+      outputFormat: 'png',
+      aspectRatio: 'auto',
+      providerInputMaxSide: 2048,
+    });
+
+    await storage.generationSettings.save({
+      outputSizePreset: '4k',
+      outputFormat: 'webp',
+      aspectRatio: '9:16',
+      providerInputMaxSide: 1024,
+    });
+
+    expect(await storage.generationSettings.load()).toEqual({
+      outputSizePreset: '4k',
+      outputFormat: 'webp',
+      aspectRatio: '9:16',
+      providerInputMaxSide: 1024,
+    });
+    expect(await storage.profiles.list()).toEqual([]);
+  });
+
   it('uses File API upload to create a HostImageAsset accepted by the shared submit flow', async () => {
     const pngHeader = new Uint8Array(24);
     pngHeader.set([137, 80, 78, 71], 0);

@@ -31,8 +31,11 @@ export interface ProviderOutputOptions {
   /** 期望输出高度。 */
   readonly height?: number;
 
+  /** 语义输出尺寸预设；transport 层负责落到 provider wire 字段。 */
+  readonly sizePreset?: '512' | '1k' | '2k' | '4k';
+
   /** 期望 aspect ratio。 */
-  readonly aspectRatio?: string;
+  readonly aspectRatio?: 'auto' | '1:1' | '16:9' | '9:16' | string;
 
   /** 背景偏好。 */
   readonly background?: 'auto' | 'transparent' | 'opaque';

@@ -7,6 +7,7 @@ import type { SupportedLocale } from '../domain/locale';
 import type { PluginAppModel } from '../domain/plugin-app-model';
 import { useConversation } from './hooks/use-conversation';
 import { useImagenSession } from './hooks/use-imagen-session';
+import { useGenerationSettings } from './hooks/use-generation-settings';
 import { useJobHistory } from './hooks/use-job-history';
 import { useProfileModels, useProviderProfiles } from './hooks/use-provider-settings';
 import { MainPage } from './pages/main-page';
@@ -14,6 +15,7 @@ import { HistoryPage } from './pages/history-page';
 import { SettingsPage } from './pages/settings-page';
 import { SettingsAddPage } from './pages/settings-add-page';
 import { SettingsDetailPage } from './pages/settings-detail-page';
+import { GlobalGenerationSettingsPage } from './pages/global-generation-settings-page';
 import { I18nProvider, useI18n } from './i18n/i18n-context';
 import { ensurePanelCss } from './panel-bootstrap';
 import { placeTaskOutputOnCanvas } from '../domain/task-actions';
@@ -31,7 +33,7 @@ export interface AppShellProps {
   readonly host: AppShellHost;
 }
 
-type View = 'main' | 'history' | 'settings' | 'settings-add' | 'settings-detail';
+type View = 'main' | 'history' | 'settings' | 'settings-add' | 'settings-detail' | 'global-generation-settings';
 type AppTheme = 'dark' | 'light';
 type AppThemeOverride = AppTheme | undefined;
 type PanelWidthMode = 'compact' | 'regular' | 'wide';
@@ -197,8 +199,9 @@ function AppShellContent({ host }: AppShellProps) {
     [imageProfiles, selectedImageProfileId],
   );
   const modelsState = useProfileModels(services, selectedImageProfileId);
+  const generationSettings = useGenerationSettings(services);
   const imagenSession = useImagenSession(services);
-  const conversation = useConversation(services, imagenSession, t.conversation);
+  const conversation = useConversation(services, imagenSession, generationSettings.settings, t.conversation);
   const history = useJobHistory(services);
   const { layers, layersError, reloadLayers } = useHostLayers(host);
 
@@ -297,6 +300,7 @@ function AppShellContent({ host }: AppShellProps) {
           highlightedRoundId={highlightedRoundId}
           onEditProfile={onEditProfile}
           promptOptimizerProfile={promptOptimizerProfile}
+          generationSettings={generationSettings.settings}
           />
         </MotionPageFrame>
       )}
@@ -334,6 +338,7 @@ function AppShellContent({ host }: AppShellProps) {
             setSelectedSettingsProfileId(PROMPT_OPTIMIZER_PROFILE_ID);
             setView('settings-detail');
           }}
+          onOpenGlobalGeneration={() => setView('global-generation-settings')}
           />
         </MotionPageFrame>
       )}
@@ -377,6 +382,17 @@ function AppShellContent({ host }: AppShellProps) {
               throw error;
             }
           }}
+          />
+        </MotionPageFrame>
+      )}
+      {view === 'global-generation-settings' && (
+        <MotionPageFrame watch={view}>
+          <GlobalGenerationSettingsPage
+          onNav={onNav}
+          settings={generationSettings.settings}
+          loading={generationSettings.loading}
+          error={generationSettings.error}
+          onSave={generationSettings.save}
           />
         </MotionPageFrame>
       )}

@@ -64,6 +64,11 @@ export const PAGES_CSS = `
 .field{ margin-bottom:12px; }
 .field:last-child{ margin-bottom:0; }
 .field-input{ width:100%; }
+.settings-select{ width:100%; min-width:0; }
+.settings-select .cmp-chip{ width:100%; justify-content:space-between; }
+.generation-settings-grid{ display:flex; align-items:stretch; min-width:0; }
+.generation-settings-grid .field{ flex:1 1 0; min-width:0; margin-right:12px; }
+.generation-settings-grid .field:last-child{ margin-right:0; }
 .page-header-meta{
   flex:1;
   min-width:0;

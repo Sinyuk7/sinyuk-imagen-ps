@@ -51,6 +51,7 @@ export const mockRequestSchema = z.object({
         count: z.number().int().positive().optional(),
         width: z.number().int().positive().optional(),
         height: z.number().int().positive().optional(),
+        sizePreset: z.union([z.literal('512'), z.literal('1k'), z.literal('2k'), z.literal('4k')]).optional(),
         aspectRatio: z.string().optional(),
         background: z.union([z.literal('auto'), z.literal('transparent'), z.literal('opaque')]).optional(),
         quality: z

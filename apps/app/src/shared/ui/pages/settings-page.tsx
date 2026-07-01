@@ -1,5 +1,6 @@
 import { type KeyboardEvent } from 'react';
 import type { ProviderProfile } from '@imagen-ps/application';
+import type { AppGenerationSettings } from '../../ports/app-generation-settings';
 import { profileToProviderRow } from '../../domain/mappers';
 import { Icon } from '../components/icons';
 import { MotionContent } from '../components/motion-ui';
@@ -15,6 +16,8 @@ interface SettingsPageProps {
   readonly onOpenProfile: (profileId: string) => void;
   readonly promptOptimizerProfile?: ProviderProfile | null;
   readonly onOpenPromptOptimizer?: () => void;
+  readonly generationSettings?: AppGenerationSettings;
+  readonly onOpenGlobalGeneration?: () => void;
 }
 
 function initials(name: string): string {
@@ -120,6 +123,8 @@ export function SettingsPage({
   onOpenProfile,
   promptOptimizerProfile,
   onOpenPromptOptimizer,
+  generationSettings,
+  onOpenGlobalGeneration,
 }: SettingsPageProps) {
   const { messages: t } = useI18n();
   const rows = profiles.map(profileToProviderRow);
@@ -164,6 +169,35 @@ export function SettingsPage({
       </header>
       <div className="scroll">
         <div className="sec-lbl">{t.settings.configured}</div>
+        <div
+          data-testid="global-generation-settings-row"
+          className="prov-row settings-provider-row is-special"
+          role="button"
+          tabIndex={0}
+          onClick={() => onOpenGlobalGeneration?.()}
+          onKeyDown={(event) => onRowKeyDown(event, () => onOpenGlobalGeneration?.())}
+        >
+          <div className="prov-leading">
+            <div className="prov-ico" style={{ background: 'var(--app-color-accent-subtle)', color: 'var(--app-color-accent-default)' }}>
+              <Icon name="settings" size={14} />
+            </div>
+          </div>
+          <div className="prov-content">
+            <div className="prov-title-row">
+              <span className="prov-name">{t.settings.globalGeneration}</span>
+            </div>
+            <div className="prov-meta-row">
+              <span className="prov-family">
+                {generationSettings
+                  ? `${generationSettings.outputSizePreset.toUpperCase()} · ${generationSettings.outputFormat.toUpperCase()} · ${generationSettings.aspectRatio}`
+                  : t.settings.loading}
+              </span>
+            </div>
+          </div>
+          <div className="prov-end">
+            <div className="prov-trail"><Icon name="chevron-right" /></div>
+          </div>
+        </div>
         {loading && <div style={{ padding: 16, color: 'var(--app-color-text-muted)', fontSize: 12 }}>{t.settings.loading}</div>}
         {error && <div style={{ padding: 16, color: 'var(--app-color-negative)', fontSize: 12 }}>{error}</div>}
         {!loading && rows.length === 0 && !optimizerRow && (
