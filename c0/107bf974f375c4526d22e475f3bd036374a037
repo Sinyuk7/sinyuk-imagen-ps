@@ -1,0 +1,93 @@
+apps/app/package.json
+  s_5dae0c6f3fe33c::t_4e9c304e7b797f 8-9
+apps/app/src/shared/ui/app-shell.tsx
+  s_4dd596a5c57fe4::t_1f10da6694c0b5 304-309
+apps/app/src/shared/ui/components/composer-select-menu.tsx
+  s_3aed9b16b455ae::t_28b144b5d80183 19,36,40,87-90
+apps/app/src/shared/ui/components/composer-select.tsx
+  s_3aed9b16b455ae::t_0e3d9bda630a8a 2,48,98-118
+apps/app/src/shared/ui/components/composer-select.types.ts
+  s_3aed9b16b455ae::t_e083595b8039c7 46-49
+apps/app/src/shared/ui/components/use-composer-select-placement.ts
+  s_3aed9b16b455ae::t_56f0ba67d9672d 71-72,103-106,113-117,121
+apps/app/src/shared/ui/pages/global-generation-settings-page.tsx
+  s_4dd596a5c57fe4::t_8e91714c0ff633 113,130,147
+apps/app/src/shared/ui/styles/composer.ts
+  s_cc79404c96fcf9::t_a079b1699f1ccc 90,207-208,213-217,223-231,235,246,250-253,536,539,568-569,574-575,578-579
+apps/app/src/shared/ui/styles/pages.ts
+  s_3aed9b16b455ae::t_a9c2b59f801ffc 67-101,174-175,183-184
+apps/app/src/shared/ui/styles/responsive.ts
+  s_cc79404c96fcf9::t_9d0a856f9bcea9 13-14,16-17,45,59
+apps/app/src/shared/ui/styles/shell.ts
+  s_3b7cd0cea4e6bd::t_f1d2691fa30214 21-22,24-26
+apps/app/tests/app-shell.test.tsx
+  s_4dd596a5c57fe4::t_00084f577efb22 396-443
+apps/app/tests/bundle/uxp-dist-bundle.test.ts
+  s_5dae0c6f3fe33c::t_fe7771ca80f232 35-37
+apps/app/tests/composer-select.test.tsx
+  s_3aed9b16b455ae::t_b2f4fd19911b05 239,244-245
+apps/app/tests/global-generation-settings-page.test.tsx
+  s_3aed9b16b455ae::t_aa71d617bc8181 1-101
+apps/app/tests/settings-add-page.test.tsx
+  s_3aed9b16b455ae::t_f93f52f9903315 37-44,67-69,177-179
+apps/app/tests/settings-detail-page.test.tsx
+  s_3aed9b16b455ae::t_16b8703d794a0b 38-45,116-122,133-136,265,268,381-384
+docs/loops/2026-07-01-session-success-response-text.md
+  s_07b633195b8af4::t_2b51c0e73e98e5 1-486
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.3",
+  "base_commit_sha": "c0107bf974f375c4526d22e475f3bd036374a037",
+  "prompts": {},
+  "sessions": {
+    "s_07b633195b8af4": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "019f1d85-4d9a-7ec0-9a4a-4762253c8761",
+        "model": "unknown"
+      },
+      "human_author": "Sinyuk <80998062@qq.com>"
+    },
+    "s_3aed9b16b455ae": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "019f1d9e-031f-7950-90ec-3d63b3073097",
+        "model": "unknown"
+      },
+      "human_author": "Sinyuk <80998062@qq.com>"
+    },
+    "s_3b7cd0cea4e6bd": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "019f1d62-4ac2-7df1-b49a-f0d523bf550f",
+        "model": "unknown"
+      },
+      "human_author": "Sinyuk <80998062@qq.com>"
+    },
+    "s_4dd596a5c57fe4": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "019f1d77-2610-7c20-8084-c31546870573",
+        "model": "unknown"
+      },
+      "human_author": "Sinyuk <80998062@qq.com>"
+    },
+    "s_5dae0c6f3fe33c": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "019f1d54-8738-72c0-94c3-afc2b6173297",
+        "model": "unknown"
+      },
+      "human_author": "Sinyuk <80998062@qq.com>"
+    },
+    "s_cc79404c96fcf9": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "019f1da9-4ac0-7290-9564-4d1da8f125cf",
+        "model": "unknown"
+      },
+      "human_author": "Sinyuk <80998062@qq.com>"
+    }
+  }
+}
