@@ -11,6 +11,7 @@ const highAuthorityDocs = [
   'packages/application/AGENTS.md',
   'packages/core-engine/AGENTS.md',
   'packages/providers/AGENTS.md',
+  'packages/foundation/AGENTS.md',
 ];
 
 const currentStatePhraseRules = [

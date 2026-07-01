@@ -13,7 +13,6 @@ Created: 2026-07-01
 - Current authority: `docs/TESTING.md`
 - Current authority: `apps/app/AGENTS.md`
 - Current authority: `packages/providers/AGENTS.md`
-- Historical reference only: `docs/dev-memory/memories/architecture/provider-openapi-reference/`
 
 ## Goal
 

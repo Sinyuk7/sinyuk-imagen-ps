@@ -58,7 +58,7 @@ export function SettingsAddPage({ onNav, profiles, onProfileSaved }: SettingsAdd
   const [showKey, setShowKey] = useState(false);
   const [busy, setBusy] = useState(false);
   const modelModeTouchedRef = useRef(false);
-  const statusNotice = useNotice();
+  const statusNotice = useNotice({ defaultDurationMs: null });
   const selected = useMemo(() => providers.find((provider) => provider.id === providerId), [providerId, providers]);
   const modelOptions = useMemo(
     () => (selected?.defaultModels ?? []).map((model) => ({
@@ -105,7 +105,7 @@ export function SettingsAddPage({ onNav, profiles, onProfileSaved }: SettingsAdd
       const profileId = await saveProfile();
       await onProfileSaved(profileId);
     } catch (error) {
-      statusNotice.show(error instanceof Error ? error.message : String(error), 'negative');
+      statusNotice.show(error instanceof Error ? error.message : String(error), 'negative', { durationMs: null, copyable: true });
     } finally {
       setBusy(false);
     }
@@ -121,9 +121,9 @@ export function SettingsAddPage({ onNav, profiles, onProfileSaved }: SettingsAdd
         throw new Error(`${result.error.category}: ${result.error.message}`);
       }
       const status = statusFromProviderTestResult(result.value, t);
-      statusNotice.show(status.message, status.tone);
+      statusNotice.show(status.message, status.tone, status);
     } catch (error) {
-      statusNotice.show(error instanceof Error ? error.message : String(error), 'negative');
+      statusNotice.show(error instanceof Error ? error.message : String(error), 'negative', { durationMs: null, copyable: true });
     } finally {
       setBusy(false);
     }

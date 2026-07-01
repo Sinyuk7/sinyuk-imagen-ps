@@ -203,30 +203,10 @@ export const COMPOSER_CSS = `
   max-width:100%;
 }
 .cmp-capture{
-  position:relative;
-  width:28px;
-  height:28px;
   margin-top:0;
-  margin-right:8px;
+  margin-right:0;
   margin-bottom:0;
   margin-left:0;
-  padding:0;
-  border-radius:50%;
-  color:var(--app-color-text-secondary);
-  background:transparent;
-  border:none;
-  flex:0 0 auto;
-  display:inline-flex;
-  align-items:center;
-  justify-content:center;
-}
-.cmp-capture:hover{
-  color:var(--app-color-text-primary);
-  background:var(--app-color-hover-overlay);
-}
-.cmp-capture:active{
-  color:var(--app-color-text-primary);
-  background:var(--app-color-hover-overlay);
 }
 .cmp-select-output-size{
   flex:0 1 auto;
@@ -546,6 +526,7 @@ export const COMPOSER_CSS = `
   width:30px;
   height:30px;
   min-width:30px;
+  min-height:30px;
   margin-top:0;
   margin-right:0;
   margin-bottom:0;
@@ -556,7 +537,27 @@ export const COMPOSER_CSS = `
   background:transparent;
   flex:0 0 auto;
 }
-.cmp-opt-icon-button:hover{
+.cmp-capture{
+  width:30px;
+  height:30px;
+  min-width:30px;
+  min-height:30px;
+  margin-top:0;
+  margin-bottom:0;
+  margin-left:0;
+  padding:0;
+  border-radius:999px;
+  color:var(--app-color-text-secondary);
+  background:transparent;
+  flex:0 0 auto;
+}
+.cmp-opt-icon-button:hover,
+.cmp-capture:hover{
+  color:var(--app-color-text-primary);
+  background:var(--app-color-hover-overlay);
+}
+.cmp-opt-icon-button:active,
+.cmp-capture:active{
   color:var(--app-color-text-primary);
   background:var(--app-color-hover-overlay);
 }
@@ -565,18 +566,10 @@ export const COMPOSER_CSS = `
   flex:0 0 auto;
 }
 .cmp-capture-host{
-  width:28px;
-  height:28px;
   margin-top:0;
   margin-right:8px;
   margin-bottom:0;
   margin-left:0;
-  border-radius:50%;
-  color:var(--app-color-text-secondary);
-}
-.cmp-capture-overlay{
-  justify-content:center;
-  padding:0;
 }
 .cmp-opt-icon{
   display:block;

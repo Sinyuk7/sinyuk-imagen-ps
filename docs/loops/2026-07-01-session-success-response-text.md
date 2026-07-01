@@ -13,7 +13,6 @@ Created: 2026-07-01
 - Current authority: `docs/TESTING.md`
 - Current authority: `apps/app/AGENTS.md`
 - Current authority: `packages/providers/AGENTS.md`
-- Historical reference only: `docs/dev-memory/memories/architecture/prompt-optimizer.md`
 - Draft reference only, not active authority: `docs/loops/2026-07-01-global-generation-settings.md`
 
 ## Goal

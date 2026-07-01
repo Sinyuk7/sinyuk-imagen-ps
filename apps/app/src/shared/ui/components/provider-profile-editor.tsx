@@ -4,7 +4,7 @@ import { Icon } from './icons';
 import { useI18n } from '../i18n/i18n-context';
 import { Button, TextField, FieldLabel, HelpText, Divider } from '../primitives/native-controls';
 import { IconButton } from '../primitives/icon-button';
-import type { ProviderStatus } from '../provider-status';
+import type { NoticeState } from './notice';
 
 interface ProviderProfileEditorProps {
   readonly connectionTitle: string;
@@ -19,13 +19,13 @@ interface ProviderProfileEditorProps {
   readonly apiKeyPlaceholder: string;
   readonly showKey: boolean;
   readonly onShowKeyChange: (shown: boolean) => void;
-  readonly connectionStatus?: ProviderStatus | null;
+  readonly connectionStatus?: NoticeState | null;
   readonly extraSections?: ReactNode;
   readonly defaultModelSection?: ReactNode;
   readonly testBusy: boolean;
   readonly onTest: () => void;
   readonly testMeta?: string | null;
-  readonly testStatus?: ProviderStatus | null;
+  readonly testStatus?: NoticeState | null;
 }
 
 export function ProviderProfileEditor({
@@ -100,7 +100,7 @@ export function ProviderProfileEditor({
             />
           </div>
         </div>
-        {connectionStatus && <StatusNotice tone={connectionStatus.tone} message={connectionStatus.message} />}
+        {connectionStatus && <StatusNotice {...connectionStatus} />}
       </div>
 
       {extraSections}
@@ -133,7 +133,7 @@ export function ProviderProfileEditor({
           }
         </Button>
         {testMeta ? <div className="test-meta">{testMeta}</div> : null}
-        {testStatus && <StatusNotice tone={testStatus.tone} message={testStatus.message} />}
+        {testStatus && <StatusNotice {...testStatus} />}
       </div>
     </div>
   );

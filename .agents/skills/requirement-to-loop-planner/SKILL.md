@@ -22,7 +22,7 @@ bug fix with symptom, expected behavior, and reproduction evidence, hand off to
    - relevant package `AGENTS.md`
 2. Search project records before non-trivial work:
    ```sh
-   rg -n "<module|symptom|error|decision>" docs/dev-memory docs/loops AGENTS.md README.md
+   rg -n "<module|symptom|error|decision>" docs/loops AGENTS.md README.md docs/ENGINEERING_CONTEXT.md docs/TESTING.md
    ```
 3. Classify docs before using them:
    - current authority;

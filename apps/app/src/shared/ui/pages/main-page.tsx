@@ -24,6 +24,7 @@ import {
   MotionPresenceView,
 } from '../components/motion-ui';
 import { IconButton } from '../primitives/icon-button';
+import { Button } from '../primitives/native-controls';
 import { useI18n } from '../i18n/i18n-context';
 import type { ProviderInputSizePolicy } from '../../image/resize';
 import { DEFAULT_PROVIDER_INPUT_MIN_SIDE } from '../../image/resize';
@@ -198,7 +199,7 @@ export function MainPage({
   const [attachOpen, setAttachOpen] = useState(false);
   const [layerOpen, setLayerOpen] = useState(false);
   const [captureInFlight, setCaptureInFlight] = useState(false);
-  const { notice: toast, show, clear } = useNotice({ autoDismissMs: 2400 });
+  const { notice: toast, show, clear, pause, resume } = useNotice({ defaultDurationMs: null });
   const [copied, setCopied] = useState<Record<string, boolean>>({});
   const [selectedPreviewIndexes, setSelectedPreviewIndexes] = useState<Record<string, number>>({});
   const [placeStatus, setPlaceStatus] = useState<Record<string, PlaceStatus>>({});
@@ -467,9 +468,9 @@ export function MainPage({
         previewUrl: image.preview.url ?? assetToPreviewUrl(image.asset),
         ...(image.photoshopPlacement ? { photoshopPlacement: image.photoshopPlacement } : {}),
       });
-      show(t.toast.layerAdded, 'positive');
+    show(t.toast.layerAdded, 'positive', { durationMs: 2800 });
     } catch (error) {
-      show(error instanceof Error ? error.message : t.toast.layerReadFailed, 'negative');
+      show(error instanceof Error ? error.message : t.toast.layerReadFailed, 'negative', { durationMs: 7000, dismissible: true });
     }
   };
 
@@ -491,7 +492,7 @@ export function MainPage({
         image,
         previewUrl: image.preview.url ?? assetToPreviewUrl(image.asset),
       });
-      show(t.toast.fileAdded, 'positive');
+      show(t.toast.fileAdded, 'positive', { durationMs: 2800 });
     } catch (error) {
       show(
         isLocalFileNormalizationError(error)
@@ -500,6 +501,7 @@ export function MainPage({
             ? error.message
             : t.toast.filePickFailed,
         'negative',
+        { durationMs: 7000, dismissible: true },
       );
     }
   };
@@ -519,9 +521,9 @@ export function MainPage({
         previewUrl: result.image.preview.url ?? assetToPreviewUrl(result.image.asset),
         photoshopPlacement: result.placement,
       });
-      show(t.toast.captureAdded, 'positive');
+      show(t.toast.captureAdded, 'positive', { durationMs: 2800 });
     } catch (error) {
-      show(error instanceof Error ? error.message : t.toast.captureFailed, 'negative');
+      show(error instanceof Error ? error.message : t.toast.captureFailed, 'negative', { durationMs: 7000, dismissible: true });
     } finally {
       setCaptureInFlight(false);
     }
@@ -529,7 +531,7 @@ export function MainPage({
 
   const handleSend = async () => {
     if (!selectedProfile) {
-      show(t.toast.selectProviderProfileFirst, 'info');
+      show(t.toast.selectProviderProfileFirst, 'info', { durationMs: 4000 });
       return;
     }
     if (!canSend) {
@@ -541,10 +543,10 @@ export function MainPage({
     }
     if (/^\/new\b$/i.test(prompt)) {
       if (conversation.running) {
-        show(t.toast.waitForRunningTask, 'info');
+        show(t.toast.waitForRunningTask, 'info', { durationMs: 4000 });
       } else {
         conversation.clear();
-        show(t.toast.newSessionStarted, 'info');
+        show(t.toast.newSessionStarted, 'info', { durationMs: 3600 });
       }
       return;
     }
@@ -573,12 +575,12 @@ export function MainPage({
       return;
     }
     if (!optimizerReady) {
-      show(t.main.promptOptimizeNoProfile, 'info');
+      show(t.main.promptOptimizeNoProfile, 'info', { durationMs: 4000 });
       return;
     }
     const prompt = currentPromptValue().trim();
     if (prompt.length === 0) {
-      show(t.main.promptOptimizeEmpty, 'info');
+      show(t.main.promptOptimizeEmpty, 'info', { durationMs: 4000 });
       return;
     }
     setOptimizeState({ status: 'optimizing', source: prompt });
@@ -588,20 +590,20 @@ export function MainPage({
         const optimized = result.value;
         if (optimized.trim() === prompt.trim()) {
           setOptimizeState({ status: 'idle' });
-          show(t.toast.promptOptimizeNoChanges, 'neutral');
+          show(t.toast.promptOptimizeNoChanges, 'neutral', { durationMs: 3200, icon: 'message' });
           return;
         }
         setInput(optimized);
         setOptimizeState({ status: 'optimized', source: prompt, result: optimized });
         setHighlightKey(`optimize:${Date.now()}`);
-        show(t.toast.promptOptimized, 'positive');
+        show(t.toast.promptOptimized, 'positive', { durationMs: 2800 });
       } else {
         setOptimizeState({ status: 'idle' });
-        show(commandErrorToMessage(result.error), 'negative');
+        show(commandErrorToMessage(result.error), 'negative', { durationMs: 7000, dismissible: true });
       }
     } catch (error) {
       setOptimizeState({ status: 'idle' });
-      show(error instanceof Error ? error.message : t.toast.promptOptimizeFailed, 'negative');
+      show(error instanceof Error ? error.message : t.toast.promptOptimizeFailed, 'negative', { durationMs: 7000, dismissible: true });
     }
   };
 
@@ -621,7 +623,7 @@ export function MainPage({
   const placeAsset = async (round: ConversationRound, previewIndex = 0) => {
     const asset = round.previews[previewIndex]?.asset;
     if (!asset) {
-      show(t.toast.noPlaceableImage, 'info');
+      show(t.toast.noPlaceableImage, 'info', { durationMs: 4000 });
       return;
     }
     setPlaceStatus((current) => ({ ...current, [round.id]: 'placing' }));
@@ -629,13 +631,13 @@ export function MainPage({
       await services.host.placeAssetOnCanvas(asset, round.placementIntent);
       setPlaceStatus((current) => ({ ...current, [round.id]: 'placed' }));
       setHighlightKey(`place:${round.id}:${Date.now()}`);
-      show(t.toast.placedOnCanvas, 'positive');
+      show(t.toast.placedOnCanvas, 'positive', { durationMs: 2800 });
       window.setTimeout(() => {
         setPlaceStatus((current) => ({ ...current, [round.id]: 'idle' }));
       }, MOTION_DURATION.statusReset);
     } catch (error) {
       setPlaceStatus((current) => ({ ...current, [round.id]: 'idle' }));
-      show(error instanceof Error ? error.message : t.toast.placeFailed, 'negative');
+      show(error instanceof Error ? error.message : t.toast.placeFailed, 'negative', { durationMs: 7000, dismissible: true });
     }
   };
 
@@ -643,7 +645,7 @@ export function MainPage({
     const preview = round.previews[previewIndex];
     const href = preview?.url ?? '';
     if (!href) {
-      show(t.toast.noPlaceableImage, 'info');
+      show(t.toast.noPlaceableImage, 'info', { durationMs: 4000 });
       return;
     }
     const name = preview.asset.name ?? preview.label ?? `imagen-result-${previewIndex + 1}.png`;
@@ -957,29 +959,25 @@ export function MainPage({
                           )}
                           <div className="img-overlay">
                             <MotionButtonSurface>
-                              <IconButton
+                              <Button
                                 data-testid={`result-place-button-${round.id}`}
                                 className="img-act prim"
                                 data-place-status={placeStatus[round.id] ?? 'idle'}
-                                icon={placeStatus[round.id] === 'placing'
-                                  ? <Icon name="spinner" size={13} className="ui-icon-text-icon" />
-                                  : placeStatus[round.id] === 'placed'
-                                    ? <Icon name="check" size={13} className="ui-icon-text-icon" />
-                                    : <Icon name="place-ps" size={13} className="ui-icon-text-icon" />}
-                                text={placeStatus[round.id] === 'placing'
+                                variant="accent"
+                                title={placeStatus[round.id] === 'placing'
                                   ? t.main.placingPs
                                   : placeStatus[round.id] === 'placed'
                                     ? t.main.placedPs
                                     : t.main.placePs}
-                                tooltip={placeStatus[round.id] === 'placing'
-                                  ? t.main.placingPs
-                                  : placeStatus[round.id] === 'placed'
-                                    ? t.main.placedPs
-                                    : t.main.placePs}
-                                iconSize={13}
                                 disabled={placeStatus[round.id] === 'placing'}
                                 onClick={(event) => { event.stopPropagation(); void placeAsset(round, selectedPreviewIndex); }}
-                              />
+                              >
+                                {placeStatus[round.id] === 'placing'
+                                  ? t.main.placingPs
+                                  : placeStatus[round.id] === 'placed'
+                                    ? t.main.placedPs
+                                    : t.main.placePs}
+                              </Button>
                             </MotionButtonSurface>
                           </div>
                         </div>
@@ -1161,7 +1159,6 @@ export function MainPage({
                     data-testid="composer-capture-button"
                     className="cmp-capture"
                     hostClassName="cmp-capture-host"
-                    overlayClassName="cmp-capture-overlay"
                     icon={captureInFlight
                       ? <MotionActivityIcon className="cmp-capture-icon"><Icon name="spinner" size={13} /></MotionActivityIcon>
                       : <Icon name="target" size={13} className="cmp-capture-icon" />}
@@ -1256,6 +1253,7 @@ export function MainPage({
               ref={ref}
               data-testid="back-to-bottom-button"
               className="back-to-bottom"
+              hostClassName="back-to-bottom-host"
               data-motion-state={state}
               icon={<Icon name="chevron-down" size={10} />}
               tooltip="Back to bottom"
@@ -1269,7 +1267,7 @@ export function MainPage({
           )}
         </MotionPresenceView>
       </footer>
-      <ToastHost toast={toast} onClose={clear} />
+      <ToastHost toast={toast} onClose={clear} onPause={pause} onResume={resume} />
     </div>
   );
 }

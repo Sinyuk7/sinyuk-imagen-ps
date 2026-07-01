@@ -122,7 +122,7 @@ function downloadBytes(bytes: ArrayBuffer, name: string, mimeType: string): void
 
 export function HistoryPage({ onNav, rounds, records, loading, error, onReload, onRetry, taskResources, onPlaceTaskOutput, onLocateRound, onMiss }: HistoryPageProps) {
   const { messages: t } = useI18n();
-  const { notice: toast, show, clear } = useNotice({ autoDismissMs: 2400 });
+  const { notice: toast, show, clear, pause, resume } = useNotice({ defaultDurationMs: null });
   const [filter, setFilter] = useState<'all' | RoundStatus>('all');
   const [previews, setPreviews] = useState<Record<string, PreviewState>>({});
   const filters: readonly [HistoryFilter, string][] = [
@@ -163,14 +163,14 @@ export function HistoryPage({ onNav, rounds, records, loading, error, onReload, 
 
   const onDownload = useCallback(async (item: HistoryItem) => {
     if (!item.output || !taskResources) {
-      show(t.history.resourceUnavailable, 'info');
+      show(t.history.resourceUnavailable, 'info', { durationMs: 4000 });
       return;
     }
     try {
       const resolved = await taskResources.resolve(item.output.asset);
       if (resolved.availability !== 'available' || !resolved.bytes) {
         resolved.preview?.dispose?.();
-        show(t.history.resourceUnavailable, 'info');
+        show(t.history.resourceUnavailable, 'info', { durationMs: 4000 });
         return;
       }
       downloadBytes(
@@ -180,19 +180,19 @@ export function HistoryPage({ onNav, rounds, records, loading, error, onReload, 
       );
       resolved.preview?.dispose?.();
     } catch (downloadError) {
-      show(downloadError instanceof Error ? downloadError.message : String(downloadError), 'negative');
+      show(downloadError instanceof Error ? downloadError.message : String(downloadError), 'negative', { durationMs: 7000, dismissible: true });
     }
   }, [show, t.history.resourceUnavailable, taskResources]);
 
   const onPlace = useCallback(async (item: HistoryItem) => {
     if (!item.output || !item.taskRecord || !onPlaceTaskOutput) {
-      show(t.history.resourceUnavailable, 'info');
+      show(t.history.resourceUnavailable, 'info', { durationMs: 4000 });
       return;
     }
     try {
       await onPlaceTaskOutput(item.taskRecord, item.output.outputId);
     } catch (placeError) {
-      show(placeError instanceof Error ? placeError.message : String(placeError), 'negative');
+      show(placeError instanceof Error ? placeError.message : String(placeError), 'negative', { durationMs: 7000, dismissible: true });
     }
   }, [onPlaceTaskOutput, show, t.history.resourceUnavailable]);
 
@@ -272,7 +272,7 @@ export function HistoryPage({ onNav, rounds, records, loading, error, onReload, 
               if (isCurrent) {
                 onLocateRound?.(item.id);
               } else {
-                show(t.toast.historyNotInCurrentSession, 'info');
+                show(t.toast.historyNotInCurrentSession, 'info', { durationMs: 4000 });
                 onMiss?.();
               }
             }}>
@@ -343,7 +343,7 @@ export function HistoryPage({ onNav, rounds, records, loading, error, onReload, 
           })
         }
       </div>
-      <ToastHost toast={toast} onClose={clear} />
+      <ToastHost toast={toast} onClose={clear} onPause={pause} onResume={resume} />
     </div>
   );
 }

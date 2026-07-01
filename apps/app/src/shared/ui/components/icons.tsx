@@ -13,15 +13,18 @@ export type IconName =
   | 'chevron-down'
   | 'chevron-left'
   | 'chevron-right'
+  | 'close'
   | 'copy'
   | 'download'
   | 'error'
   | 'eye'
   | 'eye-off'
   | 'history'
+  | 'info'
   | 'image-auto-mode'
   | 'image-check'
   | 'magic-wand'
+  | 'message'
   | 'place-ps'
   | 'ps-layers'
   | 'refresh'
@@ -32,7 +35,8 @@ export type IconName =
   | 'spinner'
   | 'target'
   | 'trash'
-  | 'upload';
+  | 'upload'
+  | 'warning';
 
 interface IconProps {
   /** 图标名称，必须在 IconName 联合类型中定义。 */
@@ -59,6 +63,12 @@ const ICON_BODY_BY_NAME: Record<IconName, SvgBody> = {
   'chevron-down': () => <polyline points="6 9 12 15 18 9" />,
   'chevron-left': () => <polyline points="15 5 8 12 15 19" />,
   'chevron-right': () => <polyline points="9 5 16 12 9 19" />,
+  close: () => (
+    <>
+      <line x1="6.5" y1="6.5" x2="17.5" y2="17.5" />
+      <line x1="17.5" y1="6.5" x2="6.5" y2="17.5" />
+    </>
+  ),
   copy: () => (
     <>
       <rect x="8" y="8" width="11" height="11" rx="2" />
@@ -100,6 +110,13 @@ const ICON_BODY_BY_NAME: Record<IconName, SvgBody> = {
       <polyline points="12 8 12 12.5 15 14" />
     </>
   ),
+  info: () => (
+    <>
+      <circle cx="12" cy="12" r="9" />
+      <line x1="12" y1="10.5" x2="12" y2="16.5" />
+      <circle cx="12" cy="7.4" r="1" />
+    </>
+  ),
   'image-auto-mode': () => (
     <>
       <rect x="4" y="5" width="16" height="12" rx="2" />
@@ -122,6 +139,11 @@ const ICON_BODY_BY_NAME: Record<IconName, SvgBody> = {
       <path d="M6 4v2" />
       <path d="M18 17h2" />
       <path d="M19 16v2" />
+    </>
+  ),
+  message: () => (
+    <>
+      <path d="M5 6.5h14a2 2 0 0 1 2 2v7a2 2 0 0 1-2 2H11l-4.5 3v-3H5a2 2 0 0 1-2-2v-7a2 2 0 0 1 2-2z" />
     </>
   ),
   'place-ps': () => (
@@ -215,6 +237,13 @@ const ICON_BODY_BY_NAME: Record<IconName, SvgBody> = {
       <polyline points="8 13 12 9 16 13" />
       <path d="M5 20h14" />
       <path d="M6 4h12v4" />
+    </>
+  ),
+  warning: () => (
+    <>
+      <path d="M12 4.5l8 14H4l8-14z" />
+      <line x1="12" y1="9.5" x2="12" y2="13.5" />
+      <circle cx="12" cy="16.5" r="1" />
     </>
   ),
 };

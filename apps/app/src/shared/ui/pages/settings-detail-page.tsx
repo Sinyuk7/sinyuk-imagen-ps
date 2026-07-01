@@ -61,8 +61,8 @@ export function SettingsDetailPage({ onNav, profileId, onProfilesChanged }: Sett
   const [modelMode, setModelMode] = useState<'list' | 'custom'>('list');
   const lastLoadedProfileIdRef = useRef<string | null>(null);
   const modelModeTouchedRef = useRef(false);
-  const saveNotice = useNotice();
-  const testNotice = useNotice();
+  const saveNotice = useNotice({ defaultDurationMs: null });
+  const testNotice = useNotice({ defaultDurationMs: null });
   const isOptimizerProfile = detail.profile?.providerId === 'prompt-optimize';
 
   useEffect(() => {
@@ -150,7 +150,7 @@ export function SettingsDetailPage({ onNav, profileId, onProfilesChanged }: Sett
           profile_id: profile.profileId,
           provider_id: profile.providerId,
         });
-        saveNotice.show(t.settings.saved, 'positive');
+        saveNotice.show(t.settings.saved, 'positive', { durationMs: 1800, dismissible: false, copyable: false });
         await services.diagnostics?.checkpoint('uxp.ui.settings_detail.save.after_success_status', {
           profileId: profile.profileId,
           providerId: profile.providerId,
@@ -176,7 +176,7 @@ export function SettingsDetailPage({ onNav, profileId, onProfilesChanged }: Sett
       }
     } catch (error) {
       await services.diagnostics?.failure('uxp.ui.settings_detail.save.failed', error, { profileId });
-      saveNotice.show(error instanceof Error ? error.message : String(error), 'negative');
+      saveNotice.show(error instanceof Error ? error.message : String(error), 'negative', { durationMs: null, copyable: true });
     } finally {
       await services.diagnostics?.checkpoint('uxp.ui.settings_detail.save.before_busy_clear', { profileId });
       setBusy(false);
@@ -212,7 +212,7 @@ export function SettingsDetailPage({ onNav, profileId, onProfilesChanged }: Sett
       if (isOptimizerProfile && profile) {
         const result = await services.commands.validatePromptOptimizerProfile(profile.profileId);
         if (result.ok) {
-          testNotice.show(t.settings.testSuccess, 'positive');
+          testNotice.show(t.settings.testSuccess, 'positive', { durationMs: 2200, dismissible: false, copyable: false });
           setTestMeta(`${t.settings.testResultPrefix} · ${formatElapsedMs(startedAt)}`);
           await detail.reload();
           await onProfilesChanged(profile.profileId);
@@ -222,6 +222,7 @@ export function SettingsDetailPage({ onNav, profileId, onProfilesChanged }: Sett
               ? result.error.message
               : `${result.error.category}: ${result.error.message}`,
             'negative',
+            { durationMs: null, copyable: true },
           );
           setTestMeta(`${t.settings.testResultPrefix} · ${formatElapsedMs(startedAt)}`);
         }
@@ -229,10 +230,10 @@ export function SettingsDetailPage({ onNav, profileId, onProfilesChanged }: Sett
       }
       const result = await detail.test(true);
       const status = statusFromProviderTestResult(result, t);
-      testNotice.show(status.message, status.tone);
+      testNotice.show(status.message, status.tone, status);
       setTestMeta(`${t.settings.testResultPrefix} · ${formatElapsedMs(startedAt)}`);
     } catch (error) {
-      testNotice.show(error instanceof Error ? error.message : String(error), 'negative');
+      testNotice.show(error instanceof Error ? error.message : String(error), 'negative', { durationMs: null, copyable: true });
       setTestMeta(`${t.settings.testResultPrefix} · ${formatElapsedMs(startedAt)}`);
     } finally {
       setBusy(false);
@@ -245,10 +246,10 @@ export function SettingsDetailPage({ onNav, profileId, onProfilesChanged }: Sett
     try {
       const refreshed = await models.refresh();
       if (refreshed.length === 0) {
-        testNotice.show(t.settings.configValidProviderNoModels, 'warning');
+        testNotice.show(t.settings.configValidProviderNoModels, 'warning', { durationMs: null, copyable: false });
       }
     } catch (error) {
-      testNotice.show(error instanceof Error ? error.message : String(error), 'negative');
+      testNotice.show(error instanceof Error ? error.message : String(error), 'negative', { durationMs: null, copyable: true });
     }
   };
 
@@ -281,7 +282,7 @@ export function SettingsDetailPage({ onNav, profileId, onProfilesChanged }: Sett
       await onProfilesChanged(null);
       onNav('settings');
     } catch (error) {
-      saveNotice.show(error instanceof Error ? error.message : String(error), 'negative');
+      saveNotice.show(error instanceof Error ? error.message : String(error), 'negative', { durationMs: null, copyable: true });
     } finally {
       setBusy(false);
     }

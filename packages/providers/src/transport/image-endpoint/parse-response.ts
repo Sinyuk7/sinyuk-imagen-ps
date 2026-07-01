@@ -2,9 +2,7 @@
  * 解析 image endpoint images/generations 响应，归一化为结构化
  * `ParsedImagesResponse` 对象（`assets` + 可选 `created` / `usage` / `metadata`）。
  *
- * 字段映射参考
- * `docs/dev-memory/memories/architecture/provider-openapi-reference/`
- * 中 create-image / create-image-edit 快照的 `ImagesResponse`：
+ * 字段映射参考 OpenAI Images API 的 `ImagesResponse`（create-image / create-image-edit）：
  *
  * - `data[].url` / `data[].b64_json` → `assets[].url` / `assets[].data`
  * - 顶层 `output_format` → `assets[].mimeType` 与文件名后缀的唯一来源

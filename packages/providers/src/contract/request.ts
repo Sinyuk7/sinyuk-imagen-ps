@@ -12,9 +12,7 @@ export type AssetRef = Asset;
 
 /** 输出偏好信息。
  *
- * 字段集合与
- * `docs/dev-memory/memories/architecture/provider-openapi-reference/`
- * 中 create-image / create-image-edit 快照的 body parameters 对齐：
+ * 字段集合与 OpenAI Images API（create-image / create-image-edit）的 body parameters 对齐：
  * 调用方以领域语义填写，transport 层负责映射到上游字段
  * （例如 `count → n`、`outputFormat → output_format`）。
  *

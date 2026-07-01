@@ -298,6 +298,7 @@ describe('MainPage contract', () => {
       expect(spies.placeAssetOnCanvas).toHaveBeenCalledTimes(1);
       expect(placeButton.dataset.placeStatus).toBe('placing');
       expect(placeButton.disabled).toBe(true);
+      expect(placeButton.closest('.ui-icon-button-host')).toBeNull();
 
       await act(async () => {
         resolvePlace?.();

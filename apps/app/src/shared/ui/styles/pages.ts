@@ -207,25 +207,44 @@ export const PAGES_CSS = `
 
 .status-notice{
   display:flex; align-items:flex-start;
-  padding:8px 10px; border-radius:var(--app-radius-small); border:1px solid var(--app-color-border-default);
-  background:var(--app-color-background-layer-2); color:var(--app-color-text-secondary);
+  min-height:36px; padding:6px 8px; border-radius:7px; border:1px solid var(--app-color-border-default);
+  background:color-mix(in srgb, var(--app-color-background-elevated) 94%, black 6%);
+  color:var(--app-color-text-secondary); box-sizing:border-box;
 }
-.status-notice.success{ border-color:var(--app-color-positive); background:var(--app-color-positive-subtle); color:var(--app-color-positive); }
-.status-notice.info{ border-color:var(--app-color-informative); background:var(--app-color-informative-subtle); color:var(--app-color-informative); }
-.status-notice.warning{ border-color:var(--app-color-notice); background:var(--app-color-notice-subtle); color:var(--app-color-notice); }
-.status-notice.error{ border-color:var(--app-color-negative); background:var(--app-color-negative-subtle); color:var(--app-color-negative); }
+.status-notice.success,
+.status-notice[data-tone="neutral"]{
+  min-height:0;
+  padding-top:2px;
+  padding-right:0;
+  padding-bottom:2px;
+  padding-left:0;
+  border-color:transparent;
+  background:transparent;
+}
+.status-notice.info{ border-color:color-mix(in srgb, var(--app-color-informative) 28%, var(--app-color-border-default)); background:color-mix(in srgb, var(--app-color-background-elevated) 92%, var(--app-color-informative) 8%); }
+.status-notice.warning{ border-color:color-mix(in srgb, var(--app-color-notice) 30%, var(--app-color-border-default)); background:color-mix(in srgb, var(--app-color-background-elevated) 92%, var(--app-color-notice) 8%); }
+.status-notice.error{ border-color:color-mix(in srgb, var(--app-color-negative) 32%, var(--app-color-border-default)); background:color-mix(in srgb, var(--app-color-background-elevated) 91%, var(--app-color-negative) 9%); }
+.status-icon{
+  flex:0 0 auto; width:14px; height:14px; margin-top:2px; margin-right:8px;
+  display:inline-flex; align-items:center; justify-content:center; color:var(--app-color-text-secondary);
+}
+.status-notice.success .status-icon{ color:var(--app-color-positive); }
+.status-notice.info .status-icon{ color:var(--app-color-informative); }
+.status-notice.warning .status-icon{ color:var(--app-color-notice); }
+.status-notice.error .status-icon{ color:var(--app-color-negative); }
 .status-message{
   flex:1;
-  min-width:0; white-space:pre-wrap; word-break:break-word; overflow-wrap:anywhere;
-  font-family:var(--app-font-family-mono); font-size:11px; line-height:16px; user-select:text; -webkit-user-select:text;
+  min-width:0; margin-top:0; margin-right:0; margin-bottom:0; margin-left:0; white-space:pre-wrap; word-break:break-word; overflow-wrap:anywhere;
+  font-family:var(--app-font-family-base); font-size:13px; line-height:18px; font-weight:500;
+  color:var(--app-color-text-primary); user-select:text; -webkit-user-select:text;
 }
 .status-copy{
-  flex-shrink:0; margin-left:8px;
-  width:28px; height:28px; min-height:0; padding:0; color:currentColor;
-  display:inline-flex; align-items:center; justify-content:center; opacity:.8;
-  border:none; background:transparent;
+  flex-shrink:0; align-self:flex-start; margin-left:8px;
+  width:24px; min-width:24px; height:24px; min-height:24px; padding:0; color:var(--app-color-text-muted);
+  display:inline-flex; align-items:center; justify-content:center; opacity:.9;
+  border:none; border-radius:6px; background:transparent;
 }
-.status-copy:hover{ background:var(--app-color-hover-overlay); opacity:1; }
+.status-copy:hover{ background:var(--app-color-hover-overlay); opacity:1; color:var(--app-color-text-primary); }
 .status-copy.cp{ color:var(--app-color-positive); }
 
 .provider-type-row{

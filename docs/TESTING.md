@@ -60,6 +60,28 @@ ignored local artifacts under `apps/app/tests/chrome-e2e/screenshots/`. It is
 repo-side browser evidence only; it does not prove real Photoshop / UXP host
 behavior or live provider behavior.
 
+### Chrome E2E Seed API
+
+Chrome-only seed state is enabled with `?testHarness=1`. The normal Chrome shell
+still renders the shared `AppShell`; the query swaps deterministic browser
+adapters and preloads test state.
+
+Supported query controls:
+
+- `storage=memory|indexed-db`: isolated in-memory state for most specs, or real IndexedDB for persistence smoke.
+- `db=<name>`: optional IndexedDB database name for isolated runs.
+- `resetStorage=1`: clear the selected IndexedDB database before seeding.
+- `seedProfile=mock`: seed `mock-profile` with default model `mock-image-v1` and non-secret test key.
+- `seedHistory=1`: seed completed, failed, and stale running task/history records.
+- `scenario=<id>`: select a deterministic Photoshop simulator scenario.
+- `filePicker=image|cancel`: return a generated PNG file or simulate cancel.
+- `mockFailure=always|none`: preload the mock provider failure mode.
+- `harness=composer-select`: render the manual ComposerSelect responsive harness instead.
+
+When enabled, the page exposes `globalThis.__IMAGEN_CHROME_TEST_HARNESS__` for
+scenario-local controls: `resetStorage`, `seedMockProfile`, `seedHistory`,
+`setFilePickerMode`, `setMockFailureMode`, `setScenario`, and `snapshot`.
+
 ## Loop Validation Categories
 
 Loop documents must classify validation commands before citing them.
@@ -99,6 +121,13 @@ Developer Tool, external network access, or paid APIs.
 
 Manual Photoshop / UXP proof is a separate gate. Record it as manual evidence;
 do not describe it as covered by `pnpm validate`.
+
+The icon visual harness (`apps/app/harness/icon-visual/`) is a manual host
+harness for verifying that UXP panel icons render with non-zero rects inside
+real Photoshop. It requires a real Photoshop host and UXP Developer Tool; run
+it after replacing the `Icon` component or changing inline SVG icon mappings.
+The `check-icon-rects.js` script queries expected icon selectors and reports
+any icon with a `0x0` bounding rect.
 
 Chrome browser smoke is repo-side evidence only when it loads the browser build
 in a real browser and reports the Chrome shell ready state. It still does not

@@ -12,8 +12,9 @@ This repo uses current-state, harness-first loop engineering.
 ## Entrypoints
 
 - The only authoritative active-loop entrypoint is root `AGENTS.md`. No active loop is currently declared; `docs/loops/` holds only the active loop or is empty.
-- Before non-trivial fixes or architecture changes, search project engineering records and current docs with `rg`:
-  `rg -n "<module|symptom|error|decision>" docs/dev-memory docs/loops AGENTS.md README.md`
+- The permanent documentation set is exactly the `scripts/policy/docs.mjs` `highAuthorityDocs` list. No permanent doc may exist outside it; amending the list is part of the change that introduces a new permanent doc. `docs/dev-memory/` is read-only historical reference, not current authority.
+- Before non-trivial fixes or architecture changes, search current authority first, then historical records:
+  `rg -n "<module|symptom|error|decision>" AGENTS.md README.md docs/ENGINEERING_CONTEXT.md docs/TESTING.md docs/loops`
 - Use [docs/agent/LOOP.md](docs/agent/LOOP.md) for the Loop collaboration contract and `.agents/skills/` for repository-specific agent workflows.
 - Keep broad context in [docs/ENGINEERING_CONTEXT.md](docs/ENGINEERING_CONTEXT.md), not here.
 - `pnpm check:policy` owns mechanical policy checks: package boundaries, current-state wording in high-authority docs, and portable path references.
@@ -21,9 +22,9 @@ This repo uses current-state, harness-first loop engineering.
 ## Writeback
 
 - Before finishing non-trivial work, decide whether the turn produced reusable knowledge.
-- Write only **stable, reusable engineering knowledge that cannot live more naturally in an authoritative doc** to `docs/dev-memory/`. Each record states the current fact, why future development needs it, and how to re-verify it through code, tests, harness, or a command.
-- Do not store completed plans, execution logs, task process, raw logs, full investigation transcripts, or one-off implementation details in memory. If the knowledge fits `README.md`, `docs/ENGINEERING_CONTEXT.md`, `docs/TESTING.md`, or a module doc, write it there instead.
-- Unorganized drafts go to `_inbox/`; promote stable ones under the matching `memories/` subdirectory or delete them.
+- Write stable, reusable engineering knowledge into the canonical doc it belongs to: `README.md`, `docs/ENGINEERING_CONTEXT.md`, `docs/TESTING.md`, or the matching module `AGENTS.md`. Do not park durable facts in `docs/dev-memory/`; it is read-only historical reference, not a permanent knowledge store.
+- Do not store completed plans, execution logs, task process, raw logs, full investigation transcripts, or one-off implementation details anywhere. If a fact is not canonical, it does not belong in maintained docs.
+- Do not create new `docs/dev-memory/` records. Existing records are reduced over time by promoting still-needed facts into canonical docs and deleting the rest.
 - Ask before writing user/local/profile/cross-project habits to agent memory.
 - Never store secrets, raw logs, build output, generated artifacts, or provider keys.
 

@@ -1,8 +1,8 @@
 import type { ProviderProfileTestResult } from '@imagen-ps/application';
-import type { NoticeTone } from './components/notice';
+import type { NoticeOptions, NoticeTone } from './components/notice';
 import type { AppMessages } from './i18n/messages';
 
-export interface ProviderStatus {
+export interface ProviderStatus extends NoticeOptions {
   readonly tone: NoticeTone;
   readonly message: string;
 }
@@ -14,6 +14,9 @@ export function statusFromProviderTestResult(
   if (result.connectivity?.reachable === false) {
     return {
       tone: 'negative',
+      copyable: true,
+      durationMs: null,
+      dismissible: false,
       message: result.connectivity.errorMessage
         ? `${messages.settings.connectionFailed}: ${result.connectivity.errorMessage}`
         : messages.settings.connectionFailed,
@@ -22,8 +25,8 @@ export function statusFromProviderTestResult(
 
   const modelCount = result.connectivity?.modelCount ?? result.connectivity?.models?.length;
   if (modelCount === 0) {
-    return { tone: 'warning', message: messages.settings.configValidProviderNoModels };
+    return { tone: 'warning', durationMs: null, dismissible: false, copyable: false, message: messages.settings.configValidProviderNoModels };
   }
 
-  return { tone: 'positive', message: messages.settings.testSuccess };
+  return { tone: 'positive', durationMs: 2200, dismissible: false, copyable: false, message: messages.settings.testSuccess };
 }

@@ -15,6 +15,8 @@ export interface ToastController extends NoticeController {
 export interface ToastHostProps {
   readonly toast: ToastState | null;
   readonly onClose: () => void;
+  readonly onPause?: () => void;
+  readonly onResume?: () => void;
 }
 
 const TOAST_TIMEOUT_MS = 2400;
@@ -29,7 +31,7 @@ const TOAST_TIMEOUT_MS = 2400;
  * 不引入全局 Context / 队列 / 去重：当前只有 main-page 一处调用方。
  */
 export function useToast(): ToastController {
-  const controller = useNotice({ autoDismissMs: TOAST_TIMEOUT_MS });
+  const controller = useNotice({ defaultDurationMs: TOAST_TIMEOUT_MS });
   return {
     ...controller,
     toast: controller.notice,
@@ -40,7 +42,7 @@ export function useToast(): ToastController {
 /**
  * Toast 视图宿主。`open` 与自动关闭由 controller 的 timer 管理。
  */
-export function ToastHost({ toast, onClose }: ToastHostProps) {
+export function ToastHost({ toast, onClose, onPause, onResume }: ToastHostProps) {
   const ref = useRef<HTMLDivElement | null>(null);
   const [renderedToast, setRenderedToast] = useState<ToastState | null>(toast);
 
@@ -63,6 +65,7 @@ export function ToastHost({ toast, onClose }: ToastHostProps) {
         }
         return (
           <div
+            className="ui-toast-shell"
             ref={(element) => {
               ref.current = element;
               motionRef(element);
@@ -71,7 +74,7 @@ export function ToastHost({ toast, onClose }: ToastHostProps) {
               }
             }}
           >
-            <NoticeView notice={current} kind="toast" motionState={state} onClear={onClose} />
+            <NoticeView notice={current} kind="toast" motionState={state} onClear={onClose} onPause={onPause} onResume={onResume} />
           </div>
         );
       }}

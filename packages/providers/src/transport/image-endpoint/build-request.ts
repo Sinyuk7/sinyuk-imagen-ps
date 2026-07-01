@@ -1,9 +1,7 @@
 /**
  * 将 `CanonicalImageJobRequest` 转换为 image endpoint HTTP request body。
  *
- * 字段映射参考
- * `docs/dev-memory/memories/architecture/provider-openapi-reference/`
- * 中的 create-image / create-image-edit 快照：
+ * 字段映射参考 OpenAI Images API（create-image / create-image-edit）快照：
  *
  * - `request.output.count` → body `n`
  * - `request.output.sizePreset / aspectRatio` → body `size`

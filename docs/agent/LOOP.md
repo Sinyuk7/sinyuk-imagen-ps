@@ -15,12 +15,12 @@ Agents must classify documents before using them as planning input.
 |---|---|---|
 | Current authority | `AGENTS.md`, package `AGENTS.md`, `docs/ENGINEERING_CONTEXT.md`, `docs/TESTING.md`, active Loop named by root `AGENTS.md` | May constrain current work. |
 | Active Loop | `docs/loops/*.md` named by root `AGENTS.md` | Executable plan for the current slice only. |
-| Historical reference | `docs/dev-memory/memories/architecture/provider-openapi-reference/`, `docs/dev-memory/memories/architecture/UXP_STORAGE_STRATEGY.md`, old design docs | Read only when the current task asks for that context. |
+| Historical reference | deleted `docs/dev-memory/` records, old design docs | Read only when the current task explicitly asks for that context. |
 | Manual-only workflow | UXP host smoke notes, live provider smoke notes | Use only as manual validation instructions, not default CI proof. |
 
 Completed Loop records are not retained in `docs/loops/`; their durable outcomes
-are merged into authoritative docs or stable `docs/dev-memory/` records. Do not
-treat a deleted Loop as resumable.
+are merged into authoritative docs. `docs/dev-memory/` is read-only historical
+reference, not a writeback target. Do not treat a deleted Loop as resumable.
 
 Read targeted current authority first. Broad historical documents can add
 context without improving execution and can make completed or abandoned plans
@@ -70,7 +70,7 @@ docs/loops/YYYY-MM-DD-short-name.md
 ```
 
 When a Loop reaches `completed`, merge its durable outcomes into authoritative
-docs or stable `docs/dev-memory/` records and delete the file. `docs/loops/`
+docs and delete the file. `docs/loops/`
 holds only the current active Loop or is empty. Status and authority metadata,
 not the filename, decide whether a Loop is active.
 
@@ -155,8 +155,9 @@ After executing a Loop slice, report:
 - `bug`
 - `manual-host-result`
 
-Use `docs/dev-memory/README.md` for project memory writeback rules. The
-execution report proposes candidates; it does not make memory writes mandatory.
+A `yes` candidate proposes that durable knowledge be written into the canonical
+doc that owns it (per root `AGENTS.md` Writeback), not into `docs/dev-memory/`.
+The execution report proposes candidates; it does not make writes mandatory.
 
 ## Skill Entry Index
 
@@ -169,6 +170,7 @@ skill whose trigger matches the task:
 | `bounded-loop-executor` | An approved Loop slice already defines owner boundary, allowed files, forbidden files, validation, stop rules, and reporting requirements. |
 | `provider-contract-reviewer` | Provider config schemas, canonical requests, model discovery, transport builders, response parsers, descriptors, mock/live smoke boundaries, or normalization. |
 | `ui-fix-guardrails` | UI defect fixes in `apps/app` touching shared UI, ports, UXP/Chrome adapters, simulator, or composition; frames owner boundary and acceptance before the fix and verifies dual-runtime regression after. |
+| `docs-reducer` | Documentation has grown, `docs/dev-memory` / `docs/loops` / inbox trees have accumulated, `AGENTS.md` files duplicate global rules, or canonical authority is unclear; reduce toward the `scripts/policy/docs.mjs` whitelist. |
 
 Do not create one skill per feature. Do not create generic TypeScript monorepo
 skills that ignore this repository's App / Provider / UXP boundaries.

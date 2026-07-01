@@ -27,7 +27,7 @@ surface apps -> application/session -> core-engine + providers
 - Active loop authority is declared only in root `AGENTS.md`. No active loop is currently declared.
 - `packages/application` is the shared application/session package.
 - `apps/app` and `packages/providers` are stable boundaries unless a loop slice explicitly allows changes.
-- `apps/app` is a dual-runtime surface: one shared UXP-safe React UI consumed by a Photoshop UXP shell and a Chrome browser shell. See `apps/app/AGENTS.md` and `apps/app/README.md`.
+- `apps/app` is a dual-runtime surface: one shared UXP-safe React UI consumed by a Photoshop UXP shell and a Chrome browser shell. See `apps/app/AGENTS.md`.
 - Product history is task-oriented. `TaskRecord` is the durable user-task
   history contract; `DurableJobRecord` remains execution/job compatibility
   history. A send creates a running task, terminal provider execution updates
@@ -52,14 +52,48 @@ surface apps -> application/session -> core-engine + providers
 - Failure mode: logging is fail-open and must not break product behavior.
 - No raw provider request/response logging and no remote telemetry pipeline.
 
+## Image Resource Lifecycle
+
+`apps/app` owns the image resource lifecycle. Local files, Photoshop layers, captures, and provider outputs are app-local `ImageResource` descriptors with independent `thumbnail` and `providerInput` derivative states.
+
+- Provider requests must resolve image-edit inputs from `image.resource.derivatives.providerInput.storedRef`. They must not submit the original asset, thumbnail, inline `data`, or full preview URL. Retry reuses the storedRef already present in the original job input.
+- UI previews use the app `ThumbnailStore`. Long-lived round preview state keeps sanitized `Asset` metadata and bounded thumbnail URLs only; provider output inline bytes are materialized into `AssetStore` refs before entering long-lived state.
+- Cancellation is cooperative: app clear/unmount aborts in-flight submit and thumbnail work; application/core pass `AbortSignal` through submit → runtime → runner → provider dispatch; runner checks the signal before and after dispatch and after output postprocessing.
+
+## Durable Job History
+
+- Record and artifacts are separate stores. `DurableJobRecord` holds metadata only; binary artifacts live in a separate `AssetStore` keyed by asset id. A record survives artifact eviction as a resolvable "evicted" state.
+- `StoredAssetRef` is host-neutral, discriminated by channel (`inline` | `url` | `hostObject` | `externalToken`), never a native path. The shared layer treats `ref` as opaque; the matching host adapter interprets it.
+- UXP stores records in `localFileSystem.getDataFolder()` as schema-versioned JSON; artifacts under `cache/images/<yyyy-mm>/<jobId>/`.
+- `JobHistoryStore` and `AssetStore` are host-injected interfaces in `packages/application`; shared packages depend only on the interfaces.
+- Secrets are never persisted in a job record. Retry re-resolves secrets at execution time via `profileId` + `SecretStorageAdapter`.
+- Two read paths: session = hot in-memory view of active jobs; durable = cold `JobHistoryStore`. Terminal jobs flush from session into the durable store.
+
+## UXP Host IO Constraints
+
+- `localFileSystem.getDataFolder()` is the plugin-private persistence root (settings, cache index, plugin database). `getTemporaryFolder()` is non-persistent; `getPluginFolder()` is read-only.
+- `secureStorage` is a secure cache, not a reliable business database. API keys go into secure storage, not JSON, cache index, or logs.
+- `nativePath` is not a persistent reference. External file references use persistent tokens; every token resolution must handle failure.
+- Photoshop document writes must run inside `require('photoshop').core.executeAsModal` and use session tokens, not native paths.
+- UXP binary file reads/writes use `require('uxp').storage.formats.binary`, not `localFileSystem.formats.binary`.
+- Photoshop layer/capture attachments are materialized as PNG bytes through the app-local PNG encoder (stored deflate, no compression), then stored in `AssetStore`. `imaging.getPixels()` requests `componentSize: 8`; selection/mask data stays single-channel grayscale.
+- manifest v5 must declare `requiredPermissions.localFileSystem` and `requiredPermissions.network.domains`.
+
+## Submission And Retry Contract
+
+- Session-level in-flight registry (`packages/application/src/session/session.ts`): `inFlightRetry` deduplicates by failed-job `jobId`; `inFlightSubmit` deduplicates by `__clientRoundId`. Locks release on all settle paths including `{ok:true,value:failedJob}`.
+- UI ref gates (`submitInFlightRef`, `retryInFlightRef`) cover same-tick double-click windows. Error-retry and regenerate buttons are disabled while `conversation.running`.
+- Transport retry policy: `paid` mode (default for image-endpoint/chat-image) retries only 429/503 without idempotency. 502/504/`network_error` are not retried without an `Idempotency-Key` header. `timeout` is never retried. `broad` mode (default for discovery) preserves legacy behavior.
+
 ## Current Limitations
 
 - Default validation is mock-only and reproducible. It does not prove real Photoshop / UXP host behavior, real provider transport, CORS behavior, or live credential flows.
 - Chrome real-provider execution is conditional on browser-compatible transport and provider CORS policy; only the `mock` family is repo-side default.
 - UXP host behavior (panel load/reload, layer/mask read, file picker, `placeEvent`, persistence across Photoshop restart) remains manual-only evidence.
-- Restart/reopen history placement through real Photoshop remains manual-only
-  evidence. Mock tests and Chrome E2E can prove contract behavior, but not real
-  Photoshop document identity after app or host restart.
+- Restart/reopen history placement through real Photoshop remains manual-only evidence. Mock tests and Chrome E2E can prove contract behavior, but not real Photoshop document identity after app or host restart.
+- UXP first-frame geometry: Spectrum controls can establish custom element definitions and shadow trees but still report collapsed `0x0` first-frame geometry. This is a Photoshop UXP layout instability, not a missing-registration or late-CSS issue. Future RCA should verify host geometry before trying style-only fixes.
+- Provider-output base64 in `job.output` has no size cap; a large provider image exists simultaneously as base64 string, decoded copy, data URL, and decoded pixels. No global full-resolution concurrency cap on input resolve.
+- Temp files in `plugin-temp` are created per placement and not cleaned up; `AssetStore.delete` is a no-op.
 - `pnpm lint` is not a supported gate; workspace packages do not define package-level lint scripts.
 
 ## Open Questions

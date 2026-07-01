@@ -16,12 +16,12 @@ packages/
 
 ## 先读哪里
 
-- 项目入口与硬规则：`AGENTS.md`
+- 项目入口与硬规则：`AGENTS.md`（`CLAUDE.md` 为其 symlink 别名）
 - 工程上下文、当前限制与 open questions：`docs/ENGINEERING_CONTEXT.md`
 - 测试与 Harness 总入口：`docs/TESTING.md`
 - Loop 协作契约：`docs/agent/LOOP.md`
 - 当前 active loop 入口：`AGENTS.md`（无 active loop 时 `docs/loops/` 为空）
-- 稳定工程知识：`docs/dev-memory/`
+- 永久文档白名单 = `scripts/policy/docs.mjs` `highAuthorityDocs`
 - 仓库级 agent skills：`.agents/skills/`
 - 模块本地硬规则：各模块下的 `AGENTS.md`
 

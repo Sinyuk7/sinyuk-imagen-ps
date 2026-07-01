@@ -1,0 +1,175 @@
+{
+  "schema_version": "docs-reducer-eval-v1",
+  "skill": "docs-reducer",
+  "purpose": "Regression validation for the docs-reducer SKILL. Each case checks whether an agent reduces project documentation to the policy-checker whitelist, preserves durable knowledge, removes stale lifecycle content, repairs references, and respects stop conditions.",
+  "format_note": "Evaluate each case by checking the agent's document inventory, whitelist alignment, merge/delete decisions, reference repair, validation steps, and final report against the must / must_not rubric. The scenario is the triggering situation; the expected fields describe the output the agent should reach.",
+  "categories": ["whitelist", "lifecycle", "agents", "validation", "stop"],
+  "how_to_run": "Human-reviewed or harness-reviewed. Present the scenario as a repo documentation reduction task, invoke the skill, then inspect the agent's stated canonical documents, retained knowledge, removed files, repaired links, policy-list amendments, and validation results. A case passes only if every must holds and no must_not holds.",
+  "cases": [
+    {
+      "id": "whitelist-no-permanent-doc-outside-policy-list",
+      "category": "whitelist",
+      "scenario": "A repository has a docs/ARCHITECTURE.md and docs/DECISIONS.md that contain some durable facts, but neither is on the policy checker high-authority list.",
+      "must": [
+        "treat the policy checker highAuthorityDocs list as the hard whitelist target",
+        "extract durable facts from the non-whitelisted docs into a canonical destination on the list",
+        "delete the non-whitelisted docs after extraction rather than keeping them as extra permanent files"
+      ],
+      "must_not": [
+        "keep a permanent doc the policy checker does not know about",
+        "create a new permanent file without amending the policy list in the same change"
+      ]
+    },
+    {
+      "id": "whitelist-amend-policy-when-keeping-new-permanent",
+      "category": "whitelist",
+      "scenario": "A genuinely distinct ownership boundary warrants keeping a new module-level AGENTS.md that the policy checker does not yet list.",
+      "must": [
+        "add the new file to the policy high-authority list in the same change",
+        "keep the local AGENTS.md only because it encodes a real boundary the root cannot express",
+        "verify the permanent set and policy list match after the change"
+      ],
+      "must_not": [
+        "keep a permanent local AGENTS.md without amending the policy list",
+        "retain the file merely for symmetry with sibling packages"
+      ]
+    },
+    {
+      "id": "whitelist-delete-bias-over-convenience",
+      "category": "whitelist",
+      "scenario": "A duplicate doc exists only because it is easier to edit than the canonical file, and adds no distinct long-term role.",
+      "must": [
+        "default to deletion after extracting any durable content",
+        "keep only the file with the real canonical responsibility",
+        "refuse to retain a file for edit convenience"
+      ],
+      "must_not": [
+        "keep a redundant file without a distinct role",
+        "treat edit convenience as a retention reason"
+      ]
+    },
+    {
+      "id": "lifecycle-dev-memory-exits-permanent-tree",
+      "category": "lifecycle",
+      "scenario": "The repo has a docs/dev-memory/ tree of dated architecture and bug memory records, some still containing durable facts.",
+      "must": [
+        "treat docs/dev-memory/ as non-permanent historical reference, not a knowledge store",
+        "promote still-needed durable facts into canonical docs (ENGINEERING_CONTEXT, TESTING, module AGENTS.md)",
+        "delete the dev-memory files after promotion rather than keeping the tree as a permanent store"
+      ],
+      "must_not": [
+        "treat docs/dev-memory/ as a permanent knowledge tree",
+        "leave durable facts stranded in a non-canonical historical file"
+      ]
+    },
+    {
+      "id": "lifecycle-loops-ephemeral-only",
+      "category": "lifecycle",
+      "scenario": "docs/loops/ holds two completed loop files and a README, while no active loop is declared by root AGENTS.md.",
+      "must": [
+        "merge durable outcomes of completed loops into canonical docs and delete the files",
+        "leave docs/loops/ holding only the active loop or empty",
+        "treat the loops README as removable when its rule already lives in docs/agent/LOOP.md"
+      ],
+      "must_not": [
+        "retain completed loops as maintained documentation",
+        "treat docs/loops/ as a permanent archive"
+      ]
+    },
+    {
+      "id": "lifecycle-no-new-archive",
+      "category": "lifecycle",
+      "scenario": "A memory/inbox tree is full of dated work logs the agent is about to reduce.",
+      "must": [
+        "inspect, extract durable knowledge, verify nothing important is lost, then delete",
+        "delete empty directories after removing files"
+      ],
+      "must_not": [
+        "move stale content into a new archive directory",
+        "preserve a manual promotion system as permanent structure"
+      ]
+    },
+    {
+      "id": "agents-prune-redundant-local-instructions",
+      "category": "agents",
+      "scenario": "Several nested AGENTS.md files repeat the same repo-wide rules, while only one subdirectory has a real runtime-specific boundary.",
+      "must": [
+        "keep the local AGENTS.md only where it adds a distinct local boundary or validation rule",
+        "remove redundant copies that only repeat global boilerplate"
+      ],
+      "must_not": [
+        "keep local AGENTS.md files for symmetry only",
+        "delete a file that encodes a genuine local ownership or runtime constraint"
+      ]
+    },
+    {
+      "id": "agents-keep-entrypoint-index",
+      "category": "agents",
+      "scenario": "The repo has a CLAUDE.md symlink alias to AGENTS.md that serves as a documented entrypoint for agents.",
+      "must": [
+        "treat the alias as a purposeful entrypoint rather than automatic duplication",
+        "keep it when it routes readers to canonical docs"
+      ],
+      "must_not": [
+        "delete a CLAUDE.md alias that has a distinct navigation role",
+        "equate a link alias with redundancy"
+      ]
+    },
+    {
+      "validation-policy-checker-passes",
+      "category": "validation",
+      "scenario": "The reduction edited several high-authority docs and amended the policy high-authority list.",
+      "must": [
+        "run pnpm check:policy and report the result",
+        "ensure the permanent set matches the policy checker exactly",
+        "run git diff --check and report the result"
+      ],
+      "must_not": [
+        "claim completion without running the policy checker",
+        "leave the whitelist and policy list out of sync"
+      ]
+    },
+    {
+      "id": "validation-rewrite-hard-coded-paths",
+      "category": "validation",
+      "scenario": "A deleted documentation path is still embedded in a script, config file, or code comment.",
+      "must": [
+        "scan the repository for the deleted path beyond markdown links",
+        "update every surviving hard-coded reference that still matters",
+        "report any remaining unresolved references explicitly"
+      ],
+      "must_not": [
+        "repair only markdown links",
+        "leave stale hard-coded paths in code or config"
+      ]
+    },
+    {
+      "id": "validation-root-entry-docs-small",
+      "category": "validation",
+      "scenario": "A root entry document is growing large because it mixes canonical knowledge with task history.",
+      "must": [
+        "keep root entry docs especially small",
+        "split or delete historical material instead of expanding the file",
+        "avoid broad rewrites unless the canonical role must change"
+      ],
+      "must_not": [
+        "let a root entry doc grow into a dump of mixed historical material",
+        "rewrite the root entry doc broadly when a smaller edit will do"
+      ]
+    },
+    {
+      "id": "stop-protected-or-ambiguous-docs",
+      "category": "stop",
+      "scenario": "A document may be a security policy, compliance record, release note with external obligations, or the only evidence of an unclear runtime boundary.",
+      "must": [
+        "leave the file unchanged when repository evidence is insufficient",
+        "report the uncertainty instead of guessing",
+        "limit unresolved items to the smallest possible set"
+      ],
+      "must_not": [
+        "delete protected content without strong evidence",
+        "force a canonical choice when the repository does not support it"
+      ]
+    }
+  ]
+}
