@@ -1,0 +1,35 @@
+apps/app/package.json
+  s_779d0d3a009ee3::t_78b585e368f915 19
+apps/app/src/shared/ui/components/composer-select-trigger-button.tsx
+  s_779d0d3a009ee3::t_b90c9fc9d23852 4,38,41,44-45,52,55-67,70,73,76
+apps/app/src/shared/ui/components/overlay-controls.tsx
+  s_18a21df8a62f39::t_2510a6ebaa7181 1-132
+apps/app/src/shared/ui/pages/settings-detail-page.tsx
+  s_18a21df8a62f39::t_817f068a99f55d 10-11,282-288,302,306-307,309,313,317-318,320,413-421
+apps/app/src/shared/ui/primitives/native-controls.tsx
+  s_18a21df8a62f39::t_bac34bcde134d7 81-84,88,97
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.3",
+  "base_commit_sha": "634aeb5c1c9e03223d55095da379b709205c730f",
+  "prompts": {},
+  "sessions": {
+    "s_18a21df8a62f39": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "019f1d33-d732-74a0-86f0-5bde8291db19",
+        "model": "unknown"
+      },
+      "human_author": "Sinyuk <80998062@qq.com>"
+    },
+    "s_779d0d3a009ee3": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "019f187c-65e6-7f82-907a-3d43f6d63b66",
+        "model": "unknown"
+      },
+      "human_author": "Sinyuk <80998062@qq.com>"
+    }
+  }
+}
