@@ -301,6 +301,12 @@ function AppShellContent({ host }: AppShellProps) {
           onEditProfile={onEditProfile}
           promptOptimizerProfile={promptOptimizerProfile}
           generationSettings={generationSettings.settings}
+          onChangeOutputSizePreset={async (outputSizePreset) => {
+            await generationSettings.save({
+              ...generationSettings.settings,
+              outputSizePreset,
+            });
+          }}
           />
         </MotionPageFrame>
       )}

@@ -10,11 +10,11 @@ export const RESPONSIVE_CSS = `
 .panel[data-panel-width-mode="compact"] .cmp-add{ width:28px; height:28px; }
 .panel[data-panel-width-mode="compact"] .cmp-send{ width:30px; height:30px; }
 .panel[data-panel-width-mode="compact"] .cmp-select-model{ flex:1 1 auto; min-width:0; }
-.panel[data-panel-width-mode="compact"] .cmp-capture{ min-width:84px; height:28px; padding-left:8px; padding-right:8px; }
-.panel[data-panel-width-mode="compact"] .cmp-select-aspect{ flex:0 0 auto; min-width:82px; margin-top:0; margin-right:5px; margin-bottom:0; margin-left:0; }
+.panel[data-panel-width-mode="compact"] .cmp-capture{ width:28px; height:28px; }
+.panel[data-panel-width-mode="compact"] .cmp-select-output-size{ flex:0 0 auto; min-width:82px; margin-top:0; margin-right:5px; margin-bottom:0; margin-left:0; }
 .panel[data-panel-width-mode="compact"] .cmp-chip{ padding:2px 6px; font-size:9px; }
-.panel[data-panel-width-mode="compact"] .cmp-select-aspect .cmp-chip-leading{ display:none !important; }
-.panel[data-panel-width-mode="compact"] .cmp-select-aspect .cmp-chip-value{ max-width:48px; }
+.panel[data-panel-width-mode="compact"] .cmp-select-output-size .cmp-chip-leading{ display:none !important; }
+.panel[data-panel-width-mode="compact"] .cmp-select-output-size .cmp-chip-value{ max-width:48px; }
 .panel[data-panel-width-mode="compact"] .generation-settings-grid{ flex-direction:column; }
 .panel[data-panel-width-mode="compact"] .generation-settings-grid .field{ margin-right:0; margin-bottom:8px; }
 .panel[data-panel-width-mode="compact"] .generation-settings-grid .field:last-child{ margin-bottom:0; }
@@ -42,7 +42,7 @@ export const RESPONSIVE_CSS = `
 .panel[data-panel-width-mode="wide"] .img-result{ max-height:320px; }
 .panel[data-panel-width-mode="wide"] .img-bg{ max-height:320px; }
 .panel[data-panel-width-mode="wide"] .user-wrap{ max-width:min(74%, 72ch); }
-.panel[data-panel-width-mode="wide"] .cmp-select-aspect .cmp-chip-value{ max-width:none; }
+.panel[data-panel-width-mode="wide"] .cmp-select-output-size .cmp-chip-value{ max-width:none; }
 
 .panel[data-panel-height-mode="short"] .composer{ max-height:min(48%, 210px); padding-top:6px; padding-bottom:8px; }
 .panel[data-panel-height-mode="short"] .cmp-ta{ max-height:54px; }
@@ -56,5 +56,5 @@ export const RESPONSIVE_CSS = `
 .panel[data-panel-height-mode="short"] .settings-page .det-footer{ padding:8px 12px; }
 .panel[data-panel-height-mode="short"] .settings-page .scroll-footer-pad{ padding-bottom:96px; }
 
-.cmp-select-aspect .cmp-chip-value{ max-width:none; }
+.cmp-select-output-size .cmp-chip-value{ max-width:none; }
 `;

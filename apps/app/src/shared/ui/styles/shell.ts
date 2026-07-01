@@ -18,8 +18,12 @@ export const SHELL_CSS = `
 }
 .hdr-btn{
   display:inline-flex; align-items:center; justify-content:center;
+  width:32px; min-width:32px; height:32px;
+  padding:0;
   color:var(--app-color-text-secondary); flex-shrink:0;
-  min-height:0; padding:0; border:none; background:transparent;
+  box-sizing:border-box;
+  min-height:0; border:none; background:transparent;
+  line-height:0;
 }
 .hdr-center-wrap{
   flex:1; min-width:0; display:flex; justify-content:center; position:relative;

@@ -5,7 +5,8 @@ import type { ConversationRound, RoundStatus } from '../hooks/use-conversation';
 import { Icon } from '../components/icons';
 import { ActionButton } from '../primitives/native-controls';
 import { IconButton } from '../primitives/icon-button';
-import { ToastHost, useToast } from '../components/toast-host';
+import { useNotice } from '../components/notice';
+import { ToastHost } from '../components/toast-host';
 import { useI18n } from '../i18n/i18n-context';
 
 const STATUS_COLOR: Record<RoundStatus, string> = { ok: 'var(--app-color-positive)', running: 'var(--app-color-notice)', err: 'var(--app-color-negative)' };
@@ -121,7 +122,7 @@ function downloadBytes(bytes: ArrayBuffer, name: string, mimeType: string): void
 
 export function HistoryPage({ onNav, rounds, records, loading, error, onReload, onRetry, taskResources, onPlaceTaskOutput, onLocateRound, onMiss }: HistoryPageProps) {
   const { messages: t } = useI18n();
-  const { toast, show, close } = useToast();
+  const { notice: toast, show, clear } = useNotice({ autoDismissMs: 2400 });
   const [filter, setFilter] = useState<'all' | RoundStatus>('all');
   const [previews, setPreviews] = useState<Record<string, PreviewState>>({});
   const filters: readonly [HistoryFilter, string][] = [
@@ -342,7 +343,7 @@ export function HistoryPage({ onNav, rounds, records, loading, error, onReload, 
           })
         }
       </div>
-      <ToastHost toast={toast} onClose={close} />
+      <ToastHost toast={toast} onClose={clear} />
     </div>
   );
 }

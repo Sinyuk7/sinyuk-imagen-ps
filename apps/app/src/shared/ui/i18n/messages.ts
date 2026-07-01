@@ -53,6 +53,8 @@ export interface AppMessages {
     readonly noAvailableLayers: string;
     readonly choosePsLayer: string;
     readonly uploadFromComputer: string;
+    readonly uploadFromComputerFormats: string;
+    readonly uploadFromComputerHint: string;
     readonly loadingModels: string;
     readonly noModelCandidates: string;
     readonly modelLoading: string;
@@ -61,6 +63,7 @@ export interface AppMessages {
     readonly promptPlaceholderNoProfile: string;
     readonly addImage: string;
     readonly capture: string;
+    readonly captureActionHint: string;
     readonly captureCount: (count: number) => string;
     readonly captureLayer: string;
     readonly captureSelection: string;
@@ -106,6 +109,10 @@ export interface AppMessages {
     readonly defaultModel: string;
     readonly customModelId: string;
     readonly selectedModel: string;
+    readonly chooseFromList: string;
+    readonly chooseFromListHint: string;
+    readonly useCustomModelId: string;
+    readonly customModelHint: string;
     readonly modelListEmpty: string;
     readonly modelListFailed: string;
     readonly connectionInfo: string;
@@ -140,6 +147,7 @@ export interface AppMessages {
     readonly layerReadFailed: string;
     readonly fileAdded: string;
     readonly filePickFailed: string;
+    readonly fileNeedsNormalization: string;
     readonly captureAdded: string;
     readonly captureFailed: string;
     readonly selectProviderProfileFirst: string;
@@ -211,6 +219,8 @@ const EN_MESSAGES: AppMessages = {
     noAvailableLayers: 'No available layers',
     choosePsLayer: 'Choose from PS layers',
     uploadFromComputer: 'Upload from computer',
+    uploadFromComputerFormats: 'PNG / JPG / WebP',
+    uploadFromComputerHint: 'Some sizes: use Capture or Layer.',
     loadingModels: 'Loading models...',
     noModelCandidates: 'No model candidates',
     modelLoading: 'Loading',
@@ -219,6 +229,7 @@ const EN_MESSAGES: AppMessages = {
     promptPlaceholderNoProfile: 'Add a profile in Providers first',
     addImage: 'Add image',
     capture: 'Capture',
+    captureActionHint: 'Capture the active Photoshop layer or selection',
     captureCount: (count) => `${count} capture${count === 1 ? '' : 's'}`,
     captureLayer: 'Photoshop layer capture',
     captureSelection: 'Photoshop selection capture',
@@ -264,6 +275,10 @@ const EN_MESSAGES: AppMessages = {
     defaultModel: 'Default model',
     customModelId: 'Custom model id',
     selectedModel: 'Selected model',
+    chooseFromList: 'Choose from list',
+    chooseFromListHint: 'Switch back to the discovered model list.',
+    useCustomModelId: 'Use custom model id',
+    customModelHint: 'Use a custom model id when the model is not in the list.',
     modelListEmpty: 'No models available. Refresh the model list or enter a custom model id.',
     modelListFailed: 'Model list unavailable. Refresh the model list or enter a custom model id.',
     connectionInfo: 'Connection info',
@@ -298,6 +313,8 @@ const EN_MESSAGES: AppMessages = {
     layerReadFailed: 'Failed to read layer',
     fileAdded: 'Image added',
     filePickFailed: 'Failed to choose image',
+    fileNeedsNormalization:
+      'This image size is not supported for Upload from computer here. Use Capture or Layer, or resize the image first.',
     captureAdded: 'Capture added',
     captureFailed: 'Failed to capture Photoshop image',
     selectProviderProfileFirst: 'Add and select a Provider profile first',
@@ -369,6 +386,8 @@ const ZH_CN_MESSAGES: AppMessages = {
     noAvailableLayers: '无可用图层',
     choosePsLayer: '从 PS 图层选择',
     uploadFromComputer: '从电脑上传',
+    uploadFromComputerFormats: 'PNG / JPG / WebP',
+    uploadFromComputerHint: '部分尺寸用 Capture / Layer',
     loadingModels: '加载模型...',
     noModelCandidates: '无模型候选',
     modelLoading: '加载中',
@@ -377,6 +396,7 @@ const ZH_CN_MESSAGES: AppMessages = {
     promptPlaceholderNoProfile: '先在 Providers 中添加 profile',
     addImage: '添加图片',
     capture: '捕获',
+    captureActionHint: '捕获当前 Photoshop 图层或选区',
     captureCount: (count) => `${count} 个捕获`,
     captureLayer: 'Photoshop 图层捕获',
     captureSelection: 'Photoshop 选区捕获',
@@ -422,6 +442,10 @@ const ZH_CN_MESSAGES: AppMessages = {
     defaultModel: '默认模型',
     customModelId: '自定义 model id',
     selectedModel: '当前模型',
+    chooseFromList: '从列表选择',
+    chooseFromListHint: '切回已发现的模型列表。',
+    useCustomModelId: '使用自定义 model id',
+    customModelHint: '当模型不在列表中时，使用自定义 model id。',
     modelListEmpty: '暂无可用模型。请刷新模型列表或手动填写自定义 model id。',
     modelListFailed: '模型列表不可用。请刷新模型列表或手动填写自定义 model id。',
     connectionInfo: '连接信息',
@@ -456,6 +480,7 @@ const ZH_CN_MESSAGES: AppMessages = {
     layerReadFailed: '读取图层失败',
     fileAdded: '已添加图片',
     filePickFailed: '选择图片失败',
+    fileNeedsNormalization: '这张图片尺寸当前不支持从电脑上传。请用 Capture / Layer，或先缩放后再上传。',
     captureAdded: '已添加捕获',
     captureFailed: '捕获 Photoshop 图像失败',
     selectProviderProfileFirst: '请先添加并选择 Provider profile',

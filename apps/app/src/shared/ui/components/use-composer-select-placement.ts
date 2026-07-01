@@ -68,6 +68,8 @@ export function useComposerSelectPlacement({
     align: 'start',
     width: MENU_MIN_WIDTH,
     maxHeight: MENU_ITEM_ESTIMATE * MENU_MAX_VISIBLE_ITEMS,
+    bottom: MENU_GAP,
+    left: 0,
   });
 
   const updateMenuPlacement = () => {
@@ -98,17 +100,25 @@ export function useComposerSelectPlacement({
     const spaceToRight = horizontalBoundaryRight - chipRect.left;
     const spaceToLeft = chipRect.right - horizontalBoundaryLeft;
     const align = spaceToRight >= width || spaceToRight >= spaceToLeft ? 'start' : 'end';
+    const top = direction === 'down' ? chipRect.bottom - panelRect.top + MENU_GAP : undefined;
+    const bottom = direction === 'up' ? panelRect.bottom - chipRect.top + MENU_GAP : undefined;
+    const left = align === 'start' ? chipRect.left - panelRect.left : undefined;
+    const right = align === 'end' ? panelRect.right - chipRect.right : undefined;
 
     setMenuPlacement((current) => {
       if (
         current.direction === direction &&
         current.align === align &&
         Math.round(current.width) === Math.round(width) &&
-        Math.round(current.maxHeight) === Math.round(maxHeight)
+        Math.round(current.maxHeight) === Math.round(maxHeight) &&
+        Math.round(current.top ?? -1) === Math.round(top ?? -1) &&
+        Math.round(current.bottom ?? -1) === Math.round(bottom ?? -1) &&
+        Math.round(current.left ?? -1) === Math.round(left ?? -1) &&
+        Math.round(current.right ?? -1) === Math.round(right ?? -1)
       ) {
         return current;
       }
-      return { direction, align, width, maxHeight };
+      return { direction, align, width, maxHeight, top, bottom, left, right };
     });
   };
 

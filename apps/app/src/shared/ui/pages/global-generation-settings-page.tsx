@@ -110,7 +110,7 @@ export function GlobalGenerationSettingsPage({
                 <ComposerSelect
                   testId="global-output-size-selector"
                   triggerId="global-output-size-trigger"
-                  containerClassName="settings-select"
+                  containerClassName="cmp-select settings-select"
                   menuClassName="cmp-select-menu cmp-select-menu-compact"
                   label={t.settings.outputSize}
                   value={labelFor(SIZE_OPTIONS, draft.outputSizePreset)}
@@ -127,7 +127,7 @@ export function GlobalGenerationSettingsPage({
                 <ComposerSelect
                   testId="global-output-format-selector"
                   triggerId="global-output-format-trigger"
-                  containerClassName="settings-select"
+                  containerClassName="cmp-select settings-select"
                   menuClassName="cmp-select-menu cmp-select-menu-compact"
                   label={t.settings.outputFormat}
                   value={labelFor(FORMAT_OPTIONS, draft.outputFormat)}
@@ -144,7 +144,7 @@ export function GlobalGenerationSettingsPage({
                 <ComposerSelect
                   testId="global-aspect-ratio-selector"
                   triggerId="global-aspect-ratio-trigger"
-                  containerClassName="settings-select"
+                  containerClassName="cmp-select settings-select"
                   menuClassName="cmp-select-menu cmp-select-menu-compact"
                   label={t.settings.aspectRatio}
                   value={labelFor(ASPECT_OPTIONS, draft.aspectRatio)}

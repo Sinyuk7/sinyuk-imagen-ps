@@ -133,6 +133,21 @@ describe('MainPage contract', () => {
     expect(findIconInHost(addButton!, '.cmp-add-icon-bg')).toBeNull();
   });
 
+  it('upload option shows the Chrome local file limitation before picker selection', async () => {
+    const container = document.createElement('div');
+    document.body.appendChild(container);
+    await renderApp(container);
+
+    await act(async () => {
+      container.querySelector<HTMLElement>('[data-testid="composer-add-image-button"]')!.click();
+    });
+    await flush();
+
+    const option = container.querySelector<HTMLElement>('[data-testid="attach-upload-option"]');
+    expect(option?.textContent).toContain('PNG / JPG / WebP');
+    expect(option?.textContent).toContain('部分尺寸用 Capture / Layer');
+  });
+
   it('layer attachment 只能经 HostBridge 读取，并提交 provider-edit', async () => {
     const container = document.createElement('div');
     document.body.appendChild(container);
@@ -618,7 +633,9 @@ describe('MainPage contract', () => {
     expect(toolbarLeftStyle.overflow).toBe('visible');
     expect(toolbarRightStyle.overflow).toBe('visible');
 
-    expect(toolbar.querySelector('[data-testid="main-model-selector"]')!.textContent).toContain('mock-image-v1');
+    const modelSelector = toolbar.querySelector<HTMLElement>('[data-testid="main-model-selector"]')!;
+    expect(modelSelector.textContent).toContain('mock-image-v1');
+    expect(modelSelector.closest('.ui-overlay-icon-host')?.querySelector('[data-icon-name="image-check"]')).not.toBeNull();
     expect(toolbar.querySelector('[data-testid="composer-capture-button"]')).toBeNull();
     expect(toolbar.querySelector('[data-testid="composer-output-size-selector"]')!.textContent).toContain('2K');
     expect(toolbar.querySelector('[data-testid="composer-prompt-optimize-button"]')).toBeNull();
@@ -833,6 +850,30 @@ describe('MainPage contract', () => {
     await flush();
     expect(container.querySelector('.att-thumb')).toBeNull();
     expect(dispose).toHaveBeenCalledTimes(1);
+  });
+
+  it('translates Chrome local file normalization failure into a user-facing toast', async () => {
+    const container = document.createElement('div');
+    document.body.appendChild(container);
+    const services = createFakeServices();
+    services.services.host.pickImageFile = vi.fn(async () => {
+      throw new Error(
+        'Local image requires provider input normalization from 1305x1305 to 1304x1304, but this runtime has no verified local file derivative path. Use Photoshop Capture or Choose Layer for normalized provider input.',
+      );
+    });
+    await renderApp(container, services);
+
+    await act(async () => {
+      container.querySelector<HTMLElement>('[data-testid="composer-add-image-button"]')!.click();
+    });
+    await act(async () => {
+      clickText(container, '.attach-opt', '从电脑上传');
+    });
+    await flush();
+
+    expect(container.querySelector('[data-testid="toast"]')?.textContent).toContain(
+      '这张图片尺寸当前不支持从电脑上传。请用 Capture / Layer，或先缩放后再上传。',
+    );
   });
 
   it('切换 provider profile 会释放并清空旧 policy 下的附件', async () => {

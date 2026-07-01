@@ -16,6 +16,7 @@ interface ComposerSelectMenuProps {
   readonly onSelect: (id: string) => void;
   readonly onClose: () => void;
   readonly onClick: (event: MouseEvent<HTMLElement>) => void;
+  readonly portaled?: boolean;
 }
 
 export function ComposerSelectMenu({
@@ -32,9 +33,11 @@ export function ComposerSelectMenu({
   onSelect,
   onClose,
   onClick,
+  portaled = false,
 }: ComposerSelectMenuProps) {
   const placementClass = [
     menuClassName ?? 'cmp-select-menu',
+    portaled ? 'cmp-select-menu-portal' : '',
     `cmp-select-menu-${menuPlacement.direction}`,
     `cmp-select-menu-${menuPlacement.align}`,
   ].join(' ');
@@ -81,6 +84,10 @@ export function ComposerSelectMenu({
       style={{
         width: `${Math.round(menuPlacement.width)}px`,
         maxHeight: `${Math.round(menuPlacement.maxHeight)}px`,
+        top: menuPlacement.top !== undefined ? `${Math.round(menuPlacement.top)}px` : undefined,
+        bottom: menuPlacement.bottom !== undefined ? `${Math.round(menuPlacement.bottom)}px` : undefined,
+        left: menuPlacement.left !== undefined ? `${Math.round(menuPlacement.left)}px` : undefined,
+        right: menuPlacement.right !== undefined ? `${Math.round(menuPlacement.right)}px` : undefined,
         pointerEvents: motionState === 'exiting' ? 'none' : undefined,
       }}
       onClick={onClick}

@@ -34,6 +34,14 @@ function queryByTestId(container: HTMLElement, testId: string): HTMLElement & { 
   return element;
 }
 
+async function switchToCustomModel(container: HTMLElement): Promise<void> {
+  await act(async () => {
+    Array.from(container.querySelectorAll<HTMLButtonElement>('button')).find((item) =>
+      item.textContent?.includes('使用自定义 model id') || item.textContent?.includes('Use custom model id'),
+    )?.click();
+  });
+}
+
 describe('SettingsAddPage', () => {
   it('saves provider profile through profile commands with write-only secretValues', async () => {
     const { services, spies } = createFakeServices();
@@ -56,6 +64,9 @@ describe('SettingsAddPage', () => {
     await act(async () => {
       changeInput(queryByTestId(container, 'provider-alias-input'), 'Local Mock');
       changeInput(queryByTestId(container, 'provider-base-url-input'), 'https://mock.local');
+    });
+    await switchToCustomModel(container);
+    await act(async () => {
       changeInput(queryByTestId(container, 'provider-default-model-input'), 'mock-image-v1');
       changeInput(queryByTestId(container, 'provider-api-key-input'), 'secret-key');
     });
@@ -163,6 +174,9 @@ describe('SettingsAddPage', () => {
     await act(async () => {
       changeInput(queryByTestId(container, 'provider-alias-input'), 'Test Then Save');
       changeInput(queryByTestId(container, 'provider-base-url-input'), 'https://mock.local');
+    });
+    await switchToCustomModel(container);
+    await act(async () => {
       changeInput(queryByTestId(container, 'provider-default-model-input'), 'mock-image-v1');
       changeInput(queryByTestId(container, 'provider-api-key-input'), 'secret-key');
     });

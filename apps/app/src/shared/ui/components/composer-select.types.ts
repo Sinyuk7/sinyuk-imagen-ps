@@ -43,4 +43,8 @@ export interface ComposerSelectMenuPlacement {
   readonly align: 'start' | 'end';
   readonly width: number;
   readonly maxHeight: number;
+  readonly top?: number;
+  readonly bottom?: number;
+  readonly left?: number;
+  readonly right?: number;
 }

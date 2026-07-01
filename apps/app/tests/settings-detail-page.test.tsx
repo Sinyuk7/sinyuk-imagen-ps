@@ -35,6 +35,14 @@ function changeInput(input: HTMLElement & { value?: string }, value: string): vo
   input.dispatchEvent(new KeyboardEvent('keyup', { bubbles: true, key: 'x' }));
 }
 
+function queryByTestId(container: HTMLElement, testId: string): HTMLElement & { value?: string } {
+  const element = container.querySelector<HTMLElement & { value?: string }>(`[data-testid="${testId}"]`);
+  if (!element) {
+    throw new Error(`找不到元素: ${testId}`);
+  }
+  return element;
+}
+
 async function renderDetail(container: HTMLElement, onProfilesChanged = vi.fn(async () => undefined)) {
   const services = createFakeServices();
   root = createRoot(container);
@@ -105,6 +113,13 @@ function buttonByText(container: HTMLElement, text: string): HTMLElement & { dis
   return button;
 }
 
+async function switchToCustomModel(container: HTMLElement): Promise<void> {
+  await act(async () => {
+    buttonByText(container, '使用自定义 model id').click();
+  });
+  await flush();
+}
+
 describe('SettingsDetailPage contract', () => {
   it('saves edited provider profile through profile commands', async () => {
     const container = document.createElement('div');
@@ -115,7 +130,10 @@ describe('SettingsDetailPage contract', () => {
     await act(async () => {
       changeInput(inputs[0]!, 'Renamed Mock');
       changeInput(inputs[1]!, 'https://mock.changed');
-      changeInput(inputs[3]!, 'mock-image-v2');
+    });
+    await switchToCustomModel(container);
+    await act(async () => {
+      changeInput(queryByTestId(container, 'provider-default-model-input'), 'mock-image-v2');
     });
     await act(async () => {
       container.querySelector<HTMLButtonElement>('.btn-save')!.click();
@@ -244,10 +262,10 @@ describe('SettingsDetailPage contract', () => {
     const selector = container.querySelectorAll('[data-testid="provider-default-model-selector"]');
     const textInput = container.querySelectorAll('[data-testid="provider-default-model-input"]');
     expect(selector).toHaveLength(1);
-    expect(textInput).toHaveLength(1);
+    expect(textInput).toHaveLength(0);
     expect(selector[0]?.getAttribute('aria-haspopup')).toBe('listbox');
-    expect(container.textContent).toContain('当前模型');
     expect(container.textContent).toContain('gpt-4o-mini');
+    expect(container.textContent).toContain('使用自定义 model id');
   });
 
   it('shows copyable connection errors instead of a saved status while testing', async () => {
@@ -360,7 +378,10 @@ describe('SettingsDetailPage contract', () => {
       changeInput(inputs[0]!, 'Sensitive Alias Should Not Log');
       changeInput(inputs[1]!, 'https://secret.example.local/path');
       changeInput(inputs[2]!, 'sk_live_secret_should_not_log');
-      changeInput(inputs[3]!, 'mock-image-v2-secret-name');
+    });
+    await switchToCustomModel(container);
+    await act(async () => {
+      changeInput(queryByTestId(container, 'provider-default-model-input'), 'mock-image-v2-secret-name');
     });
     await act(async () => {
       container.querySelector<HTMLButtonElement>('.btn-save')!.click();

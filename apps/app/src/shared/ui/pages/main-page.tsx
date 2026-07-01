@@ -11,7 +11,8 @@ import type {
 import { Icon } from '../components/icons';
 import { ComposerSelect } from '../components/composer-select';
 import { UxpTextArea } from '../components/uxp-form-controls';
-import { useToast, ToastHost } from '../components/toast-host';
+import { useNotice } from '../components/notice';
+import { ToastHost } from '../components/toast-host';
 import {
   MotionActivityDot,
   MotionActivityIcon,
@@ -50,6 +51,7 @@ interface MainPageProps {
   readonly onEditProfile?: (profileId: string) => void;
   readonly promptOptimizerProfile?: ProviderProfile | null;
   readonly generationSettings: AppGenerationSettings;
+  readonly onChangeOutputSizePreset: (sizePreset: AppOutputSizePreset) => Promise<void>;
 }
 
 type OptimizeState =
@@ -161,6 +163,10 @@ function releaseAttachments(attachments: readonly ConversationAttachment[]): voi
   }
 }
 
+function isLocalFileNormalizationError(error: unknown): boolean {
+  return error instanceof Error && error.message.includes('Local image requires provider input normalization');
+}
+
 export function MainPage({
   onNav,
   profiles,
@@ -181,18 +187,18 @@ export function MainPage({
   onEditProfile,
   promptOptimizerProfile,
   generationSettings,
+  onChangeOutputSizePreset,
 }: MainPageProps) {
   const services = useAppServices();
   const { messages: t } = useI18n();
   const [input, setInput] = useState('');
   const [attachments, setAttachments] = useState<readonly ConversationAttachment[]>([]);
-  const [outputSizePreset, setOutputSizePreset] = useState<AppOutputSizePreset>(generationSettings.outputSizePreset);
   const [profileMenuOpen, setProfileMenuOpen] = useState(false);
   const [openMenu, setOpenMenu] = useState<'model' | 'output-size' | null>(null);
   const [attachOpen, setAttachOpen] = useState(false);
   const [layerOpen, setLayerOpen] = useState(false);
   const [captureInFlight, setCaptureInFlight] = useState(false);
-  const { toast, show, close } = useToast();
+  const { notice: toast, show, clear } = useNotice({ autoDismissMs: 2400 });
   const [copied, setCopied] = useState<Record<string, boolean>>({});
   const [selectedPreviewIndexes, setSelectedPreviewIndexes] = useState<Record<string, number>>({});
   const [placeStatus, setPlaceStatus] = useState<Record<string, PlaceStatus>>({});
@@ -230,10 +236,6 @@ export function MainPage({
   useEffect(() => {
     attachmentsRef.current = attachments;
   }, [attachments]);
-
-  useEffect(() => {
-    setOutputSizePreset(generationSettings.outputSizePreset);
-  }, [generationSettings.outputSizePreset]);
 
   useEffect(() => {
     return () => {
@@ -423,7 +425,14 @@ export function MainPage({
       });
       show(t.toast.fileAdded, 'positive');
     } catch (error) {
-      show(error instanceof Error ? error.message : t.toast.filePickFailed, 'negative');
+      show(
+        isLocalFileNormalizationError(error)
+          ? t.toast.fileNeedsNormalization
+          : error instanceof Error
+            ? error.message
+            : t.toast.filePickFailed,
+        'negative',
+      );
     }
   };
 
@@ -482,7 +491,7 @@ export function MainPage({
       attachments,
       output: {
         count: 1,
-        sizePreset: outputSizePreset,
+        sizePreset: generationSettings.outputSizePreset,
         outputFormat: generationSettings.outputFormat,
         aspectRatio: generationSettings.aspectRatio,
       },
@@ -945,7 +954,8 @@ export function MainPage({
                   </div>
                   <div>
                     <div className="attach-opt-label">{t.main.uploadFromComputer}</div>
-                    <div className="attach-opt-sub">PNG / JPG / WebP</div>
+                    <div className="attach-opt-sub">{t.main.uploadFromComputerFormats}</div>
+                    <div className="attach-opt-sub attach-opt-hint">{t.main.uploadFromComputerHint}</div>
                   </div>
                 </div>
               </div>
@@ -1039,8 +1049,8 @@ export function MainPage({
                     icon={captureInFlight
                       ? <MotionActivityIcon className="cmp-capture-icon"><Icon name="spinner" size={13} /></MotionActivityIcon>
                       : <Icon name="target" size={13} className="cmp-capture-icon" />}
-                    text={t.main.capture}
-                    tooltip={t.main.capture}
+                    tooltip={t.main.captureActionHint}
+                    aria-label={t.main.captureActionHint}
                     placement="top"
                     iconSize={13}
                     disabled={!canCapture}
@@ -1083,6 +1093,7 @@ export function MainPage({
                 menuClassName="cmp-select-menu cmp-select-menu-model"
                 label="Model"
                 value={selectedModelLabel}
+                leadingIcon="image-check"
                 disabled={conversation.running}
                 open={openMenu === 'model'}
                 onOpenChange={(open) => {
@@ -1097,10 +1108,10 @@ export function MainPage({
             <div className="cmp-toolbar-right">
               <ComposerSelect
                 testId="composer-output-size-selector"
-                containerClassName="cmp-select cmp-select-aspect"
+                containerClassName="cmp-select cmp-select-output-size"
                 menuClassName="cmp-select-menu cmp-select-menu-compact"
                 label={t.main.outputSize}
-                value={outputSizePreset.toUpperCase()}
+                value={generationSettings.outputSizePreset.toUpperCase()}
                 disabled={conversation.running}
                 open={openMenu === 'output-size'}
                 onOpenChange={(open) => {
@@ -1113,8 +1124,10 @@ export function MainPage({
                   { id: '2k', label: '2K' },
                   { id: '4k', label: '4K' },
                 ]}
-                selectedId={outputSizePreset}
-                onSelect={(value) => setOutputSizePreset(value as AppOutputSizePreset)}
+                selectedId={generationSettings.outputSizePreset}
+                onSelect={(value) => {
+                  void onChangeOutputSizePreset(value as AppOutputSizePreset);
+                }}
                 leadingIcon="image-auto-mode"
               />
             </div>
@@ -1140,7 +1153,7 @@ export function MainPage({
           )}
         </MotionPresenceView>
       </footer>
-      <ToastHost toast={toast} onClose={close} />
+      <ToastHost toast={toast} onClose={clear} />
     </div>
   );
 }

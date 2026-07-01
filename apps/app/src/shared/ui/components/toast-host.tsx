@@ -1,19 +1,14 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { MotionPresenceView } from './motion-ui';
+import { NoticeView, useNotice, type NoticeController, type NoticeState, type NoticeTone } from './notice';
 
 /**
  * 主流程瞬时 Toast 的语义级别。
  */
-export type ToastVariant = 'positive' | 'negative' | 'info' | 'neutral';
-
-export interface ToastState {
-  readonly message: string;
-  readonly variant: ToastVariant;
-}
-
-export interface ToastController {
+export type ToastVariant = NoticeTone;
+export type ToastState = NoticeState;
+export interface ToastController extends NoticeController {
   readonly toast: ToastState | null;
-  readonly show: (message: string, variant?: ToastVariant) => void;
   readonly close: () => void;
 }
 
@@ -34,36 +29,12 @@ const TOAST_TIMEOUT_MS = 2400;
  * 不引入全局 Context / 队列 / 去重：当前只有 main-page 一处调用方。
  */
 export function useToast(): ToastController {
-  const [toast, setToast] = useState<ToastState | null>(null);
-  const timerRef = useRef<number | null>(null);
-
-  const clearTimer = useCallback(() => {
-    if (timerRef.current != null) {
-      window.clearTimeout(timerRef.current);
-      timerRef.current = null;
-    }
-  }, []);
-
-  const close = useCallback(() => {
-    clearTimer();
-    setToast(null);
-  }, [clearTimer]);
-
-  const show = useCallback(
-    (message: string, variant: ToastVariant = 'neutral') => {
-      clearTimer();
-      setToast({ message, variant });
-      timerRef.current = window.setTimeout(() => {
-        timerRef.current = null;
-        setToast(null);
-      }, TOAST_TIMEOUT_MS);
-    },
-    [clearTimer],
-  );
-
-  useEffect(() => () => clearTimer(), [clearTimer]);
-
-  return { toast, show, close };
+  const controller = useNotice({ autoDismissMs: TOAST_TIMEOUT_MS });
+  return {
+    ...controller,
+    toast: controller.notice,
+    close: controller.clear,
+  };
 }
 
 /**
@@ -92,7 +63,6 @@ export function ToastHost({ toast, onClose }: ToastHostProps) {
         }
         return (
           <div
-            data-testid="toast"
             ref={(element) => {
               ref.current = element;
               motionRef(element);
@@ -100,17 +70,8 @@ export function ToastHost({ toast, onClose }: ToastHostProps) {
                 setRenderedToast(null);
               }
             }}
-            className="ui-toast"
-            data-variant={current.variant}
-            data-motion-state={state}
-            tabIndex={-1}
-            aria-live="polite"
-            role={current.variant === 'negative' ? 'alert' : 'status'}
           >
-            <span className="ui-toast-message">{current.message}</span>
-            <button type="button" className="ui-toast-close" aria-label="Dismiss" onClick={onClose}>
-              x
-            </button>
+            <NoticeView notice={current} kind="toast" motionState={state} onClear={onClose} />
           </div>
         );
       }}

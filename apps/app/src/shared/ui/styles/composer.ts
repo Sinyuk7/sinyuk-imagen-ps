@@ -87,6 +87,7 @@ export const COMPOSER_CSS = `
 .attach-opt-ico{ width:28px; height:28px; margin-right:10px; border-radius:var(--app-radius-small); background:var(--app-color-background-layer-2); display:flex; align-items:center; justify-content:center; color:var(--app-color-text-secondary); flex-shrink:0; }
 .attach-opt-label{ font-size:12px; font-weight:500; color:var(--app-color-text-primary); }
 .attach-opt-sub{ font-size:10px; color:var(--app-color-text-muted); font-family:var(--app-font-family-mono); margin-top:1px; }
+.attach-opt-hint{ font-family:var(--app-font-family-base); line-height:1.35; max-width:132px; }
 
 /* Layer list */
 .layer-list-wrap{
@@ -203,29 +204,35 @@ export const COMPOSER_CSS = `
 }
 .cmp-capture{
   position:relative;
-  min-width:92px;
-  height:30px;
+  width:28px;
+  height:28px;
   margin-top:0;
   margin-right:8px;
   margin-bottom:0;
   margin-left:0;
-  padding:0 10px;
-  border-radius:var(--app-radius-medium);
-  color:var(--app-color-text-primary);
-  background:var(--app-color-background-layer-1);
-  border:1px solid var(--app-color-border-default);
+  padding:0;
+  border-radius:50%;
+  color:var(--app-color-text-secondary);
+  background:transparent;
+  border:none;
   flex:0 0 auto;
   display:inline-flex;
   align-items:center;
   justify-content:center;
-  --mod-actionbutton-edge-to-text:8px;
 }
-.cmp-capture:hover{ border-color:var(--app-color-border-strong); background:var(--app-color-background-elevated); }
-.cmp-select-aspect{
+.cmp-capture:hover{
+  color:var(--app-color-text-primary);
+  background:var(--app-color-hover-overlay);
+}
+.cmp-capture:active{
+  color:var(--app-color-text-primary);
+  background:var(--app-color-hover-overlay);
+}
+.cmp-select-output-size{
   flex:0 1 auto;
   min-width:104px;
 }
-.cmp-select-aspect{
+.cmp-select-output-size{
   margin-top:0;
   margin-right:6px;
   margin-bottom:0;
@@ -236,13 +243,14 @@ export const COMPOSER_CSS = `
   min-width:0; max-width:320px; background:var(--app-color-background-elevated); border:1px solid var(--app-color-border-strong); border-radius:var(--app-radius-small);
   overflow:hidden;
 }
+.cmp-select-menu-portal{ z-index:1500; }
 .cmp-select-menu[data-motion-state="exiting"]{ pointer-events:none; }
 .cmp-select-menu::-webkit-scrollbar{ width:3px; }
 .cmp-select-menu::-webkit-scrollbar-thumb{ background:var(--app-color-border-default); border-radius:2px; }
-.cmp-select-menu-down{ top:calc(100% + 6px); bottom:auto; }
-.cmp-select-menu-up{ top:auto; bottom:calc(100% + 6px); }
-.cmp-select-menu-start{ left:0; right:auto; }
-.cmp-select-menu-end{ left:auto; right:0; }
+.cmp-select-menu-down{ top:auto; bottom:auto; }
+.cmp-select-menu-up{ top:auto; bottom:auto; }
+.cmp-select-menu-start{ left:auto; right:auto; }
+.cmp-select-menu-end{ left:auto; right:auto; }
 .cmp-select-menu-model{ min-width:0; }
 .cmp-select-menu-compact{ min-width:0; }
 .cmp-select-listbox{
@@ -525,10 +533,10 @@ export const COMPOSER_CSS = `
   text-overflow:ellipsis;
   white-space:nowrap;
 }
-.cmp-select-aspect .cmp-chip-body{
+.cmp-select-output-size .cmp-chip-body{
   justify-content:flex-start;
 }
-.cmp-select-aspect .cmp-chip-value{
+.cmp-select-output-size .cmp-chip-value{
   overflow:visible;
   text-overflow:clip;
   white-space:nowrap;
@@ -557,18 +565,18 @@ export const COMPOSER_CSS = `
   flex:0 0 auto;
 }
 .cmp-capture-host{
+  width:28px;
+  height:28px;
   margin-top:0;
   margin-right:8px;
   margin-bottom:0;
   margin-left:0;
-  color:var(--app-color-text-primary);
+  border-radius:50%;
+  color:var(--app-color-text-secondary);
 }
 .cmp-capture-overlay{
-  justify-content:flex-start;
-  padding:0 10px;
-}
-.cmp-capture .ui-icon-button-label{
-  margin-left:8px;
+  justify-content:center;
+  padding:0;
 }
 .cmp-opt-icon{
   display:block;

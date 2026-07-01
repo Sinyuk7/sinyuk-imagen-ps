@@ -5,8 +5,8 @@
   "type": "module",
   "scripts": {
     "build": "tsc --noEmit --project tsconfig.build.json && pnpm run build:uxp && pnpm run build:chrome",
-    "build:uxp": "vite build --config vite.uxp.config.ts",
-    "build:chrome": "vite build --config vite.chrome.config.ts",
+    "build:uxp": "NODE_ENV=production vite build --config vite.uxp.config.ts",
+    "build:chrome": "NODE_ENV=production vite build --config vite.chrome.config.ts",
     "dev": "vite build --config vite.uxp.config.ts --watch",
     "dev:chrome": "node scripts/dev-chrome.mjs",
     "test": "vitest run",

@@ -1,9 +1,9 @@
 import type { ProviderProfileTestResult } from '@imagen-ps/application';
-import type { StatusTone } from './components/status-notice';
+import type { NoticeTone } from './components/notice';
 import type { AppMessages } from './i18n/messages';
 
 export interface ProviderStatus {
-  readonly tone: StatusTone;
+  readonly tone: NoticeTone;
   readonly message: string;
 }
 
@@ -13,7 +13,7 @@ export function statusFromProviderTestResult(
 ): ProviderStatus {
   if (result.connectivity?.reachable === false) {
     return {
-      tone: 'error',
+      tone: 'negative',
       message: result.connectivity.errorMessage
         ? `${messages.settings.connectionFailed}: ${result.connectivity.errorMessage}`
         : messages.settings.connectionFailed,
@@ -25,5 +25,5 @@ export function statusFromProviderTestResult(
     return { tone: 'warning', message: messages.settings.configValidProviderNoModels };
   }
 
-  return { tone: 'success', message: messages.settings.testSuccess };
+  return { tone: 'positive', message: messages.settings.testSuccess };
 }

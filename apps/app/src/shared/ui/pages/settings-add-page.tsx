@@ -1,14 +1,16 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import type { ProviderProfile } from '@imagen-ps/application';
 import { useAppServices } from '../../ports/app-services-context';
 import { providerConfigFromForm, useProviderCatalog } from '../hooks/use-provider-settings';
 import { Icon } from '../components/icons';
 import { MotionContent } from '../components/motion-ui';
+import { ComposerSelect } from '../components/composer-select';
+import { useNotice } from '../components/notice';
 import { ProviderProfileEditor } from '../components/provider-profile-editor';
 import { useI18n } from '../i18n/i18n-context';
-import { Button, TextField, FieldLabel } from '../primitives/native-controls';
+import { Button, TextField, HelpText } from '../primitives/native-controls';
 import { IconButton } from '../primitives/icon-button';
-import { statusFromProviderTestResult, type ProviderStatus } from '../provider-status';
+import { statusFromProviderTestResult } from '../provider-status';
 
 interface SettingsAddPageProps {
   readonly onNav: (view: string) => void;
@@ -51,10 +53,31 @@ export function SettingsAddPage({ onNav, profiles, onProfileSaved }: SettingsAdd
   const [baseUrl, setBaseUrl] = useState(defaultBaseUrl(providers[0]?.id ?? ''));
   const [apiKey, setApiKey] = useState('');
   const [defaultModel, setDefaultModel] = useState('');
+  const [modelMode, setModelMode] = useState<'list' | 'custom'>('list');
+  const [modelMenuOpen, setModelMenuOpen] = useState(false);
   const [showKey, setShowKey] = useState(false);
-  const [status, setStatus] = useState<ProviderStatus | null>(null);
   const [busy, setBusy] = useState(false);
+  const modelModeTouchedRef = useRef(false);
+  const statusNotice = useNotice();
   const selected = useMemo(() => providers.find((provider) => provider.id === providerId), [providerId, providers]);
+  const modelOptions = useMemo(
+    () => (selected?.defaultModels ?? []).map((model) => ({
+      id: model.id,
+      label: model.displayName ?? model.id,
+    })),
+    [selected],
+  );
+
+  useEffect(() => {
+    modelModeTouchedRef.current = false;
+  }, [providerId]);
+
+  useEffect(() => {
+    if (modelModeTouchedRef.current) {
+      return;
+    }
+    setModelMode(modelOptions.length > 0 ? 'list' : 'custom');
+  }, [modelOptions]);
 
   const saveProfile = async (): Promise<string> => {
     if (!selected) {
@@ -77,12 +100,12 @@ export function SettingsAddPage({ onNav, profiles, onProfileSaved }: SettingsAdd
 
   const handleSave = async () => {
     setBusy(true);
-    setStatus(null);
+    statusNotice.clear();
     try {
       const profileId = await saveProfile();
       await onProfileSaved(profileId);
     } catch (error) {
-      setStatus({ tone: 'error', message: error instanceof Error ? error.message : String(error) });
+      statusNotice.show(error instanceof Error ? error.message : String(error), 'negative');
     } finally {
       setBusy(false);
     }
@@ -90,16 +113,17 @@ export function SettingsAddPage({ onNav, profiles, onProfileSaved }: SettingsAdd
 
   const handleTest = async () => {
     setBusy(true);
-    setStatus(null);
+    statusNotice.clear();
     try {
       const profileId = await saveProfile();
       const result = await services.commands.testProviderProfile(profileId, { connect: true });
       if (!result.ok) {
         throw new Error(`${result.error.category}: ${result.error.message}`);
       }
-      setStatus(statusFromProviderTestResult(result.value, t));
+      const status = statusFromProviderTestResult(result.value, t);
+      statusNotice.show(status.message, status.tone);
     } catch (error) {
-      setStatus({ tone: 'error', message: error instanceof Error ? error.message : String(error) });
+      statusNotice.show(error instanceof Error ? error.message : String(error), 'negative');
     } finally {
       setBusy(false);
     }
@@ -133,6 +157,9 @@ export function SettingsAddPage({ onNav, profiles, onProfileSaved }: SettingsAdd
                     setProviderId(provider.id);
                     setName(nextAlias(provider.displayName, profiles));
                     setBaseUrl(defaultBaseUrl(provider.id));
+                    modelModeTouchedRef.current = false;
+                    setDefaultModel('');
+                    setModelMenuOpen(false);
                     setStep(2);
                   }}
                 >
@@ -168,20 +195,65 @@ export function SettingsAddPage({ onNav, profiles, onProfileSaved }: SettingsAdd
             onShowKeyChange={setShowKey}
             defaultModelSection={(
               <div className="field">
-                <FieldLabel htmlFor="provider-default-model-input">{t.settings.defaultModel}</FieldLabel>
-                <TextField
-                  data-testid="provider-default-model-input"
-                  id="provider-default-model-input"
-                  className="field-input mono ui-field-control"
-                  placeholder="gpt-image-2"
-                  value={defaultModel}
-                  onValue={setDefaultModel}
-                />
+                {modelMode === 'list' && modelOptions.length > 0 ? (
+                  <ComposerSelect
+                    label={t.settings.defaultModel}
+                    value={modelOptions.find((option) => option.id === defaultModel)?.label ?? t.settings.chooseFromList}
+                    disabled={busy}
+                    open={modelMenuOpen}
+                    onOpenChange={setModelMenuOpen}
+                    options={modelOptions}
+                    selectedId={defaultModel}
+                    onSelect={(id) => {
+                      modelModeTouchedRef.current = true;
+                      setDefaultModel(id);
+                      setModelMode('list');
+                      setModelMenuOpen(false);
+                    }}
+                    testId="provider-default-model-selector"
+                    triggerId="provider-default-model-selector"
+                    containerClassName="cmp-select cmp-select-model provider-model-select"
+                    menuClassName="cmp-select-menu cmp-select-menu-model"
+                  />
+                ) : (
+                  <TextField
+                    data-testid="provider-default-model-input"
+                    id="provider-default-model-input"
+                    aria-label={t.settings.defaultModel}
+                    className="field-input mono ui-field-control"
+                    placeholder={selected?.defaultModels?.[0]?.id ?? 'gpt-image-2'}
+                    value={defaultModel}
+                    onValue={(value) => {
+                      modelModeTouchedRef.current = true;
+                      setModelMode('custom');
+                      setDefaultModel(value);
+                    }}
+                  />
+                )}
+                {modelOptions.length > 0 && (
+                  <div className="provider-model-mode-row">
+                    <HelpText className="field-hint provider-model-mode-tip">
+                      {modelMode === 'list' ? t.settings.customModelHint : t.settings.chooseFromListHint}
+                    </HelpText>
+                    <button
+                      type="button"
+                      className="provider-model-mode-link"
+                      disabled={busy}
+                      onClick={() => {
+                        modelModeTouchedRef.current = true;
+                        setModelMode(modelMode === 'list' ? 'custom' : 'list');
+                        setModelMenuOpen(false);
+                      }}
+                    >
+                      {modelMode === 'list' ? t.settings.useCustomModelId : t.settings.chooseFromList}
+                    </button>
+                  </div>
+                )}
               </div>
             )}
             testBusy={busy}
             onTest={() => void handleTest()}
-            testStatus={status}
+            testStatus={statusNotice.notice}
           />
         )}
       </div>

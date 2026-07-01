@@ -393,4 +393,52 @@ describe('AppShell', () => {
 
     expect(container.querySelector<HTMLDivElement>('.panel')?.getAttribute('data-app-theme')).toBe('light');
   });
+
+  it('writes main-page output size changes back into global generation settings', async () => {
+    const { services } = createFakeServices();
+    const container = document.createElement('div');
+    document.body.appendChild(container);
+    root = createRoot(container);
+
+    await act(async () => {
+      root!.render(
+        <AppShell
+          host={{
+            kind: 'photoshop-uxp',
+            app: { stage: 'uxp-first-shell', host: 'photoshop-uxp', services: ['commands', 'host'] },
+            locale: 'en',
+            services,
+            dispose: () => undefined,
+          }}
+        />,
+      );
+    });
+    await flush();
+    await flush();
+
+    await act(async () => {
+      container.querySelector<HTMLElement>('[data-testid="composer-output-size-selector"]')?.click();
+    });
+    await flush();
+    await act(async () => {
+      const option = Array.from(
+        container.querySelectorAll<HTMLElement>('[data-testid^="composer-output-size-selector-option-"]'),
+      ).find((element) => element.textContent?.includes('4K'));
+      option?.click();
+    });
+    await flush();
+    await flush();
+
+    await act(async () => {
+      container.querySelector<HTMLButtonElement>('[data-testid="main-providers-button"]')?.click();
+    });
+    await flush();
+    await act(async () => {
+      container.querySelector<HTMLElement>('[data-testid="global-generation-settings-row"]')?.click();
+    });
+    await flush();
+    await flush();
+
+    expect(container.querySelector<HTMLElement>('[data-testid="global-output-size-selector"]')?.textContent).toContain('4K');
+  });
 });

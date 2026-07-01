@@ -32,6 +32,9 @@ describe('UXP dist bundle safety', () => {
     expect(bundle).toContain(arrayLiteralForBase64(VALID_MOCK_PNG_BASE64));
     expect(bundle).not.toContain('import.meta');
     expect(bundle).not.toContain('import("./focus-visible.js")');
+    expect(bundle).not.toContain('react-dom.development');
+    expect(bundle).not.toContain('react-dom-client.development');
+    expect(bundle).not.toContain('performance.measure(a,Sa)');
   });
 
   it('builds a separate Chrome shell output without replacing the UXP manifest target', () => {

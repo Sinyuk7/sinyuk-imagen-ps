@@ -1,4 +1,5 @@
 import { useRef, type KeyboardEvent, type MouseEvent } from 'react';
+import { createPortal } from 'react-dom';
 import { ComposerSelectMenu } from './composer-select-menu';
 import { ComposerSelectTriggerButton } from './composer-select-trigger-button';
 import type { ComposerSelectProps } from './composer-select.types';
@@ -44,6 +45,7 @@ export function ComposerSelect({
     chipValueRef,
     chipArrowRef,
   });
+  const portalContainer = chipRef.current?.closest('.panel') as HTMLElement | null;
 
   const handleTriggerClick = (event: MouseEvent<HTMLElement>) => {
     event.stopPropagation();
@@ -93,23 +95,27 @@ export function ComposerSelect({
         onKeyDown={handleTriggerKeyDown}
       />
       <MotionPresenceView visible={open} kind="popover">
-        {({ ref, state }) => (
-          <ComposerSelectMenu
-            label={label}
-            testId={testId}
-            visible={open}
-            menuRef={menuRef}
-            motionRef={ref}
-            motionState={state}
-            menuClassName={menuClassName}
-            menuPlacement={menuPlacement}
-            options={options}
-            selectedId={selectedId}
-            onSelect={selectValue}
-            onClose={() => onOpenChange(false)}
-            onClick={handleMenuClick}
-          />
-        )}
+        {({ ref, state }) => {
+          const menu = (
+            <ComposerSelectMenu
+              label={label}
+              testId={testId}
+              visible={open}
+              menuRef={menuRef}
+              motionRef={ref}
+              motionState={state}
+              menuClassName={menuClassName}
+              menuPlacement={menuPlacement}
+              options={options}
+              selectedId={selectedId}
+              onSelect={selectValue}
+              onClose={() => onOpenChange(false)}
+              onClick={handleMenuClick}
+              portaled={portalContainer !== null}
+            />
+          );
+          return portalContainer ? createPortal(menu, portalContainer) : menu;
+        }}
       </MotionPresenceView>
     </div>
   );
