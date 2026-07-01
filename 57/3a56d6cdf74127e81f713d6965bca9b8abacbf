@@ -1,0 +1,31 @@
+apps/app/package.json
+  s_67715cfaa16725::t_67b215f418f1a5 7-12
+apps/app/scripts/dev-chrome.mjs
+  s_67715cfaa16725::t_d5a20c9f667b50 19,331-346,478-479
+apps/app/tests/chrome-e2e/run.mjs
+  s_67715cfaa16725::t_66b242d585433e 203-211,433,987
+apps/app/tests/fakes.ts
+  s_67715cfaa16725::t_36211b28f47072 163-168
+package.json
+  s_67715cfaa16725::t_becdd7768e8ec2 8,10
+packages/application/src/runtime.test.ts
+  s_67715cfaa16725::t_f645d168446264 162,164-166
+turbo.json
+  s_67715cfaa16725::t_3cba68d7238ded 7
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.3",
+  "base_commit_sha": "573a56d6cdf74127e81f713d6965bca9b8abacbf",
+  "prompts": {},
+  "sessions": {
+    "s_67715cfaa16725": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "019f1dc0-eea5-7993-acc9-faf8f2ea5b31",
+        "model": "unknown"
+      },
+      "human_author": "Sinyuk <80998062@qq.com>"
+    }
+  }
+}
