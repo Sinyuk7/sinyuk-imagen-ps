@@ -35,7 +35,8 @@ export const RESPONSIVE_CSS = `
 .panel[data-panel-width-mode="compact"] .err-actions{ flex-wrap:wrap; }
 .panel[data-panel-width-mode="compact"] .err-copy{ margin-top:6px; margin-left:0; }
 .panel[data-panel-width-mode="compact"] .model-menu{ left:12px; right:12px; }
-.panel[data-panel-width-mode="compact"] .ui-toast[data-testid="toast"]{ left:12px; right:12px; width:auto; max-width:none; }
+.panel[data-panel-width-mode="compact"] .ui-toast-shell{ left:12px; right:12px; }
+.panel[data-panel-width-mode="compact"] .ui-toast[data-testid="toast"]{ width:100%; max-width:340px; }
 .panel[data-panel-width-mode="compact"] .attach-picker,
 .panel[data-panel-width-mode="compact"] .layer-list-wrap{ left:12px; right:12px; width:auto; max-width:none; }
 
