@@ -27,6 +27,7 @@ interface ChatImageResponseImage {
 
 export interface ParsedChatImageResponse {
   readonly assets: readonly Asset[];
+  readonly text?: string;
   readonly created?: number;
   readonly usage?: ProviderInvokeUsage;
 }
@@ -85,6 +86,24 @@ function assetFromUrl(url: string, index: number): Asset {
   };
 }
 
+function textFromContent(content: unknown): string | undefined {
+  if (typeof content === 'string') {
+    const trimmed = content.trim();
+    return trimmed.length > 0 ? trimmed : undefined;
+  }
+  if (!Array.isArray(content)) {
+    return undefined;
+  }
+  const parts = content.flatMap((part) => {
+    if (typeof part === 'object' && part !== null) {
+      const text = (part as { readonly text?: unknown }).text;
+      return typeof text === 'string' && text.trim().length > 0 ? [text.trim()] : [];
+    }
+    return [];
+  });
+  return parts.length > 0 ? parts.join('\n') : undefined;
+}
+
 export function parseChatImageResponse(raw: unknown): ParsedChatImageResponse {
   if (typeof raw !== 'object' || raw === null) {
     throw mapInvalidResponseError('Chat image response is not a JSON object.', { raw });
@@ -96,9 +115,14 @@ export function parseChatImageResponse(raw: unknown): ParsedChatImageResponse {
   }
 
   const assets: Asset[] = [];
+  const textParts: string[] = [];
   for (const choice of response.choices) {
     if (typeof choice !== 'object' || choice === null) {
       continue;
+    }
+    const text = textFromContent(choice.message?.content);
+    if (text !== undefined) {
+      textParts.push(text);
     }
     const images = choice.message?.images;
     if (!Array.isArray(images)) {
@@ -112,15 +136,21 @@ export function parseChatImageResponse(raw: unknown): ParsedChatImageResponse {
     }
   }
 
-  if (assets.length === 0) {
-    throw mapInvalidResponseError('Chat image response did not contain any image URLs.', { raw });
+  const text = textParts.length > 0 ? textParts.join('\n\n') : undefined;
+  if (assets.length === 0 && text === undefined) {
+    throw mapInvalidResponseError('Chat image response did not contain image URLs or text content.', { raw });
   }
 
   const result: {
     assets: readonly Asset[];
+    text?: string;
     created?: number;
     usage?: ProviderInvokeUsage;
   } = { assets };
+
+  if (text !== undefined) {
+    result.text = text;
+  }
 
   if (typeof response.created === 'number') {
     result.created = response.created;

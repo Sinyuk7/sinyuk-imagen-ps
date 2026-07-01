@@ -181,6 +181,46 @@ describe('useConversation', () => {
     expect(controller!.rounds[0]?.previews[0]?.asset.name).toBe('result.png');
   });
 
+  it('maps provider text into session-only round text with mock app context', async () => {
+    const { services } = createFakeServices();
+    services.commands.submitJob = vi.fn(async (input: { input: Record<string, unknown> }) => ({
+      ok: true as const,
+      value: {
+        id: 'job-text',
+        status: 'completed',
+        input: input.input,
+        output: {
+          image: {
+            assets: [fakeOutputAsset],
+            text: 'operation=text_to_image model=mock-image-v1\nprompt=make an image',
+          },
+        },
+        error: undefined,
+        createdAt: '2026-06-15T00:00:00.000Z',
+        updatedAt: '2026-06-15T00:00:01.000Z',
+      } satisfies Job,
+    }));
+    const { getController } = await mountProbe(services);
+
+    await act(async () => {
+      await getController().submit({
+        operation: 'text-to-image',
+        prompt: 'make an image',
+        profileId: 'mock-profile',
+        providerId: 'mock',
+        providerName: 'Mock Profile',
+        modelId: 'mock-image-v1',
+        output: { count: 1, sizePreset: '4k', outputFormat: 'webp', aspectRatio: '16:9' },
+        providerInputMaxSide: 1024,
+      });
+    });
+
+    expect(getController().rounds[0]?.responseText).toContain('operation=text_to_image model=mock-image-v1');
+    expect(getController().rounds[0]?.responseText).toContain('app.output=size=4k format=webp aspect=16:9 providerInputMaxSide=1024');
+    expect(getController().rounds[0]?.responseText).toContain('app.attachments=0');
+    expect(getController().rounds[0]?.responseText).toContain('app.placement=unbound');
+  });
+
   it('creates a running durable task snapshot before provider dispatch', async () => {
     const { services, spies } = createFakeServices();
     const { getController } = await mountProbe(services);

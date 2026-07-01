@@ -74,6 +74,8 @@ describe('mock provider', () => {
     });
 
     expect(result.assets).toHaveLength(1);
+    expect(result.text).toContain('operation=text_to_image model=mock-image-v1');
+    expect(result.text).toContain('prompt=test');
   });
 
   it('returns a structurally valid PNG asset for Photoshop host smoke tests', async () => {
@@ -152,6 +154,8 @@ describe('mock provider', () => {
     expect(result.assets).toHaveLength(2);
     expect(result.assets[0]?.name).toBe('mock-image-1.png');
     expect(result.assets[1]?.name).toBe('mock-image-2.png');
+    expect(result.text).toContain('operation=image_edit model=mock-image-v1');
+    expect(result.text).toContain('images=0 mask=no assets=2');
     expectValidPng(result.assets[0]?.data as Uint8Array);
     expectValidPng(result.assets[1]?.data as Uint8Array);
   });

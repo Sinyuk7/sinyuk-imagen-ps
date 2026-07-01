@@ -92,6 +92,7 @@ describe('Chrome adapter contracts', () => {
       outputFormat: 'png',
       aspectRatio: 'auto',
       providerInputMaxSide: 2048,
+      showProviderResponseText: true,
     });
 
     await storage.generationSettings.save({
@@ -99,6 +100,7 @@ describe('Chrome adapter contracts', () => {
       outputFormat: 'webp',
       aspectRatio: '9:16',
       providerInputMaxSide: 1024,
+      showProviderResponseText: false,
     });
 
     expect(await storage.generationSettings.load()).toEqual({
@@ -106,6 +108,7 @@ describe('Chrome adapter contracts', () => {
       outputFormat: 'webp',
       aspectRatio: '9:16',
       providerInputMaxSide: 1024,
+      showProviderResponseText: false,
     });
     expect(await storage.profiles.list()).toEqual([]);
   });

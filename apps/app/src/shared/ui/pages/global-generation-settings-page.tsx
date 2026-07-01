@@ -5,7 +5,7 @@ import type {
   AppOutputFormat,
   AppOutputSizePreset,
 } from '../../ports/app-generation-settings';
-import { Button, FieldLabel, HelpText, TextField } from '../primitives/native-controls';
+import { Button, Checkbox, FieldLabel, HelpText, TextField } from '../primitives/native-controls';
 import { ComposerSelect } from '../components/composer-select';
 import { Icon } from '../components/icons';
 import { IconButton } from '../primitives/icon-button';
@@ -170,6 +170,21 @@ export function GlobalGenerationSettingsPage({
                 onValue={setMaxSideText}
               />
               <HelpText className="field-hint">{t.settings.providerInputMaxSideHint}</HelpText>
+            </div>
+          </section>
+          <section className="section">
+            <div className="section-title">{t.settings.resultDisplayGroup}</div>
+            <div className="field">
+              <Checkbox
+                data-testid="show-provider-response-text-toggle"
+                checked={draft.showProviderResponseText}
+                disabled={loading || saving}
+                onChecked={(checked) => updateDraft({ showProviderResponseText: checked })}
+              >
+                {t.settings.showProviderResponseText}
+              </Checkbox>
+              <HelpText className="field-hint">{t.settings.showProviderResponseTextHint}</HelpText>
+              <HelpText className="field-hint">{t.settings.showProviderResponseTextSessionHint}</HelpText>
             </div>
           </section>
           {error && <div style={{ padding: 16, color: 'var(--app-color-negative)', fontSize: 12 }}>{error}</div>}

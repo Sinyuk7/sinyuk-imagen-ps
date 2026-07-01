@@ -33,6 +33,35 @@ function createProviderInvokeError(message: string, details?: Record<string, unk
   return err;
 }
 
+function describeOutput(request: MockProviderRequest): string {
+  const output = request.output;
+  return [
+    `size=${output?.sizePreset ?? 'default'}`,
+    `format=${output?.outputFormat ?? 'default'}`,
+    `aspect=${output?.aspectRatio ?? 'default'}`,
+  ].join(' ');
+}
+
+function createMockResponseText(
+  request: MockProviderRequest,
+  effectiveModel: string,
+  assetCount: number,
+  config: MockProviderConfig,
+): string {
+  const imageCount = request.images?.length ?? 0;
+  const markers = [
+    config.delayMs && config.delayMs > 0 ? `delay=${config.delayMs}ms` : undefined,
+    config.failMode ? `failMode=${config.failMode.type}` : undefined,
+  ].filter((item): item is string => item !== undefined);
+
+  return [
+    `operation=${request.operation} model=${effectiveModel}`,
+    `prompt=${request.prompt}`,
+    `output=${describeOutput(request)} providerInputMaxSide=${config.imageMaxSide ?? 'default'}`,
+    `images=${imageCount} mask=${request.maskImage ? 'yes' : 'no'} assets=${assetCount}${markers.length > 0 ? ` ${markers.join(' ')}` : ''}`,
+  ].join('\n');
+}
+
 /** 创建 mock provider 实例。 */
 export function createMockProvider(
   options: MockProviderOptions = {},
@@ -154,8 +183,9 @@ export function createMockProvider(
           // 契约：无诊断时**省略** `diagnostics` 字段（不写 `undefined`），
           // 与 ProviderInvokeResult 的 optional 语义对齐，避免序列化边界
           // 出现 `{ diagnostics: undefined }` 形状（参见 contract/result.ts）。
-          const result: { assets: typeof assets; raw: unknown; diagnostics?: ProviderDiagnostic[] } = {
+          const result: { assets: typeof assets; text: string; raw: unknown; diagnostics?: ProviderDiagnostic[] } = {
             assets,
+            text: createMockResponseText(request, effectiveModel, assets.length, config),
             raw: {
               mock: true,
               operation: request.operation,

@@ -49,6 +49,10 @@ export interface AppMessages {
     readonly placedPs: string;
     readonly regenerate: string;
     readonly copyPrompt: string;
+    readonly copyResponse: string;
+    readonly expandResponse: string;
+    readonly collapseResponse: string;
+    readonly textResult: string;
     readonly psLayers: string;
     readonly noAvailableLayers: string;
     readonly choosePsLayer: string;
@@ -139,6 +143,10 @@ export interface AppMessages {
     readonly aspectRatio: string;
     readonly providerInputMaxSide: string;
     readonly providerInputMaxSideHint: string;
+    readonly resultDisplayGroup: string;
+    readonly showProviderResponseText: string;
+    readonly showProviderResponseTextHint: string;
+    readonly showProviderResponseTextSessionHint: string;
     readonly saving: string;
   };
   readonly toast: {
@@ -215,6 +223,10 @@ const EN_MESSAGES: AppMessages = {
     placedPs: 'Placed',
     regenerate: 'Regenerate',
     copyPrompt: 'Copy Prompt',
+    copyResponse: 'Copy response',
+    expandResponse: 'Expand response',
+    collapseResponse: 'Collapse response',
+    textResult: 'Text result',
     psLayers: 'PS Layers',
     noAvailableLayers: 'No available layers',
     choosePsLayer: 'Choose from PS layers',
@@ -305,6 +317,11 @@ const EN_MESSAGES: AppMessages = {
     aspectRatio: 'Aspect ratio',
     providerInputMaxSide: 'Provider input max side',
     providerInputMaxSideHint: 'Reference and captured images are resized before provider edit requests.',
+    resultDisplayGroup: 'Result display',
+    showProviderResponseText: 'Show provider response text',
+    showProviderResponseTextHint:
+      'Provider-returned text is shown in generated results. This changes UI display only and does not change the generation request.',
+    showProviderResponseTextSessionHint: 'Response text is current-session-only and is not written into history.',
     saving: 'Saving...',
   },
   toast: {
@@ -382,6 +399,10 @@ const ZH_CN_MESSAGES: AppMessages = {
     placedPs: '已置入',
     regenerate: '重新生成',
     copyPrompt: '复制 Prompt',
+    copyResponse: '复制 response',
+    expandResponse: '展开 response',
+    collapseResponse: '收起 response',
+    textResult: '文本结果',
     psLayers: 'PS 图层',
     noAvailableLayers: '无可用图层',
     choosePsLayer: '从 PS 图层选择',
@@ -472,6 +493,10 @@ const ZH_CN_MESSAGES: AppMessages = {
     aspectRatio: '宽高比',
     providerInputMaxSide: 'Provider 输入最大边',
     providerInputMaxSideHint: '参考图和捕获图会在发送给 provider edit 请求前调整尺寸。',
+    resultDisplayGroup: '结果显示',
+    showProviderResponseText: '显示 provider response text',
+    showProviderResponseTextHint: '生成结果中显示 provider 返回的文本。这里只影响 UI 展示，不改变生成请求。',
+    showProviderResponseTextSessionHint: 'Response text 只保留在当前会话，不写入历史记录。',
     saving: '保存中...',
   },
   toast: {

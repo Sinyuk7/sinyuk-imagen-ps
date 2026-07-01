@@ -119,6 +119,7 @@ describe('SettingsPage UXP compatibility', () => {
               outputFormat: 'png',
               aspectRatio: 'auto',
               providerInputMaxSide: 2048,
+              showProviderResponseText: true,
             }}
             onOpenGlobalGeneration={onOpenGlobalGeneration}
           />

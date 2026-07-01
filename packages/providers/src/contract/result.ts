@@ -69,6 +69,9 @@ export interface ProviderInvokeResult {
   /** 归一化后的输出资源。 */
   readonly assets: readonly Asset[];
 
+  /** 上游返回的稳定纯文本结果；无有意义文本时省略。 */
+  readonly text?: string;
+
   /** 非阻塞的结构化诊断。**无诊断时省略字段，不要赋值 `undefined`。** */
   readonly diagnostics?: ProviderDiagnostics;
 

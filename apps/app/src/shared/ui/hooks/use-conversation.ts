@@ -5,6 +5,7 @@ import {
   commandErrorToMessage,
   outputAssets,
   outputMetadata,
+  outputText,
   type AssetPreview,
 } from '../../domain/mappers';
 import { createMemoryThumbnailStore, type ThumbnailStore } from '../../image/thumbnail-store';
@@ -33,6 +34,7 @@ export interface ConversationRound {
   readonly prompt: string;
   readonly status: RoundStatus;
   readonly providerName: string;
+  readonly providerId?: string;
   readonly elapsedSeconds: number;
   readonly elapsedLabel?: string;
   readonly errorMessage?: string;
@@ -43,17 +45,22 @@ export interface ConversationRound {
   readonly attachments: readonly ConversationAttachment[];
   readonly outputSize?: string;
   readonly outputFormat?: string;
+  readonly responseText?: string;
+  readonly providerInputMaxSide?: number;
   readonly placementIntent: PlacementIntent;
+  readonly output?: AppGenerationSettingsOutput;
 }
 
 export interface SubmitConversationInput {
   readonly operation: 'image-edit' | 'text-to-image';
   readonly prompt: string;
   readonly profileId: string;
+  readonly providerId?: string;
   readonly providerName: string;
   readonly modelId?: string;
   readonly attachments?: readonly ConversationAttachment[];
   readonly output?: AppGenerationSettingsOutput;
+  readonly providerInputMaxSide?: number;
 }
 
 export interface AppGenerationSettingsOutput {
@@ -146,6 +153,7 @@ function roundFromSessionJob(
 ): ConversationRound {
   const assets = outputAssets(job.output);
   const metadata = outputMetadata(job.output);
+  const responseText = composeResponseText(outputText(job.output), current);
   if (job.status === 'failed') {
     return {
       ...current,
@@ -173,6 +181,7 @@ function roundFromSessionJob(
     elapsedLabel: elapsedLabel(current.elapsedSeconds),
     ...(metadata?.size ? { outputSize: metadata.size } : {}),
     ...(metadata?.outputFormat ? { outputFormat: metadata.outputFormat } : {}),
+    ...(responseText ? { responseText } : {}),
   };
 }
 
@@ -202,6 +211,54 @@ function errorRound(current: ConversationRound, error: JobError | Error): Conver
     errorMessage: error instanceof Error ? error.message : commandErrorToMessage(error),
     elapsedLabel: elapsedLabel(current.elapsedSeconds),
   };
+}
+
+function attachmentSummary(attachments: readonly ConversationAttachment[]): string {
+  if (attachments.length === 0) {
+    return 'attachments=0';
+  }
+  const counts = new Map<ConversationAttachment['type'], number>();
+  for (const attachment of attachments) {
+    counts.set(attachment.type, (counts.get(attachment.type) ?? 0) + 1);
+  }
+  const types = Array.from(counts.entries()).map(([type, count]) => `${type}:${count}`).join(',');
+  return `attachments=${attachments.length} types=${types}`;
+}
+
+function placementSummary(intent: PlacementIntent): readonly string[] {
+  const lines = [`placement=${intent.kind}`];
+  if (intent.kind === 'exact-frame' || intent.kind === 'document-only') {
+    lines.push(`documentId=${intent.documentId}`);
+    if (intent.documentName !== undefined) {
+      lines.push(`documentName=${intent.documentName}`);
+    }
+    lines.push(`documentSizeAtCapture=${intent.documentSizeAtCapture.width}x${intent.documentSizeAtCapture.height}`);
+  }
+  if (intent.kind === 'exact-frame') {
+    const rect = intent.placementRect;
+    lines.push(`placementRect=${rect.left},${rect.top},${rect.right},${rect.bottom}`);
+  }
+  return lines;
+}
+
+function composeMockAppContext(round: ConversationRound): string {
+  const output = round.output;
+  return [
+    `app.model=${round.modelId ?? 'default'}`,
+    `app.output=size=${output?.sizePreset ?? 'default'} format=${output?.outputFormat ?? 'default'} aspect=${output?.aspectRatio ?? 'default'} providerInputMaxSide=${round.providerInputMaxSide ?? 'default'}`,
+    `app.${attachmentSummary(round.attachments)}`,
+    ...placementSummary(round.placementIntent).map((line) => `app.${line}`),
+  ].join('\n');
+}
+
+function composeResponseText(providerText: string | undefined, round: ConversationRound): string | undefined {
+  if (providerText === undefined) {
+    return undefined;
+  }
+  if (round.providerId !== 'mock') {
+    return providerText;
+  }
+  return `${providerText}\n${composeMockAppContext(round)}`;
 }
 
 function assetForJobInput(image: HostImageAsset): Asset {
@@ -409,17 +466,27 @@ export function useConversation(
         const attachments = input.attachments ?? [];
         const placementIntent = derivePlacementIntent(attachments);
         const createdAt = new Date().toISOString();
+        const output = input.output ?? {
+          count: 1,
+          sizePreset: defaultOutput?.outputSizePreset ?? '2k',
+          outputFormat: defaultOutput?.outputFormat ?? 'png',
+          aspectRatio: defaultOutput?.aspectRatio ?? 'auto',
+        };
+        const providerInputMaxSide = input.providerInputMaxSide ?? defaultOutput?.providerInputMaxSide;
         const round: ConversationRound = {
           id: roundId,
           time: nowTime(),
           prompt,
           status: 'running',
           providerName: input.providerName,
+          ...(input.providerId ? { providerId: input.providerId } : {}),
           profileId: input.profileId,
           ...(input.modelId ? { modelId: input.modelId } : {}),
           elapsedSeconds: 0,
           previews: [],
           attachments,
+          output,
+          ...(providerInputMaxSide !== undefined ? { providerInputMaxSide } : {}),
           placementIntent,
         };
         setRounds((current) => [...current, round]);
@@ -445,12 +512,6 @@ export function useConversation(
             input.operation === 'image-edit'
               ? attachments.map((attachment) => assetForJobInput(attachment.image))
               : undefined;
-          const output = input.output ?? {
-            count: 1,
-            sizePreset: defaultOutput?.outputSizePreset ?? '2k',
-            outputFormat: defaultOutput?.outputFormat ?? 'png',
-            aspectRatio: defaultOutput?.aspectRatio ?? 'auto',
-          };
           const jobInput = {
             __clientRoundId: roundId,
             __clientTaskId: roundId,
@@ -518,9 +579,12 @@ export function useConversation(
             operation: round.attachments.length > 0 ? 'image-edit' : 'text-to-image',
             prompt: round.prompt,
             profileId: round.profileId,
+            ...(round.providerId ? { providerId: round.providerId } : {}),
             providerName: round.providerName,
             ...(round.modelId ? { modelId: round.modelId } : {}),
             attachments: round.attachments,
+            ...(round.output ? { output: round.output } : {}),
+            ...(round.providerInputMaxSide ? { providerInputMaxSide: round.providerInputMaxSide } : {}),
           });
           return;
         }

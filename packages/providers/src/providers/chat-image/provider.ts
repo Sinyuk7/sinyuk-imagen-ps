@@ -94,6 +94,7 @@ export function createChatImageProvider(): Provider<ChatImageProviderConfig, Moc
       const parsed = parseChatImageResponse(response.response.data);
       const result: {
         assets: readonly ProviderInvokeResult['assets'][number][];
+        text?: string;
         raw: unknown;
         diagnostics?: ProviderInvokeResult['diagnostics'];
         created?: number;
@@ -104,6 +105,9 @@ export function createChatImageProvider(): Provider<ChatImageProviderConfig, Moc
       };
       if (response.diagnostics.length > 0) {
         result.diagnostics = response.diagnostics;
+      }
+      if (parsed.text !== undefined) {
+        result.text = parsed.text;
       }
       if (parsed.created !== undefined) {
         result.created = parsed.created;

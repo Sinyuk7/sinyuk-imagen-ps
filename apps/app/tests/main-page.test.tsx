@@ -395,6 +395,115 @@ describe('MainPage contract', () => {
     expect(actions.querySelector('[data-testid^="result-copy-button-"]')).toBeNull();
   });
 
+  it('renders provider response text above image results when enabled and supports copying it', async () => {
+    const container = document.createElement('div');
+    document.body.appendChild(container);
+    const writeText = vi.fn(async () => undefined);
+    Object.defineProperty(navigator, 'clipboard', {
+      configurable: true,
+      value: { writeText },
+    });
+    const services = createFakeServices();
+    services.spies.submitJob.mockResolvedValue({
+      ok: true as const,
+      value: {
+        id: 'job-text',
+        status: 'completed',
+        input: {},
+        output: {
+          image: {
+            assets: [fakeOutputAsset],
+            text: 'line one\nline two',
+            metadata: { size: '1024x1024', outputFormat: 'png' },
+          },
+        },
+        error: undefined,
+        createdAt: '2026-06-15T00:00:00.000Z',
+        updatedAt: '2026-06-15T00:00:01.000Z',
+      },
+    });
+    await renderApp(container, services);
+
+    await sendPrompt(container, 'image text result');
+
+    const response = container.querySelector<HTMLElement>('[data-testid^="result-response-text-"]')!;
+    expect(response.textContent).toContain('line one\nline two');
+    expect(response.textContent).toContain('app.output=size=2k format=png aspect=auto providerInputMaxSide=2048');
+    expect(container.querySelector('[data-testid^="result-preview-"]')).not.toBeNull();
+
+    await act(async () => {
+      container.querySelector<HTMLElement>('[data-testid^="result-response-copy-button-"]')!.click();
+    });
+    expect(writeText).toHaveBeenCalledWith(expect.stringContaining('line one\nline two'));
+  });
+
+  it('hides supplemental response text for image results when the global toggle is off', async () => {
+    const container = document.createElement('div');
+    document.body.appendChild(container);
+    const services = createFakeServices({
+      generationSettings: { showProviderResponseText: false },
+    });
+    services.spies.submitJob.mockResolvedValue({
+      ok: true as const,
+      value: {
+        id: 'job-text-hidden',
+        status: 'completed',
+        input: {},
+        output: {
+          image: {
+            assets: [fakeOutputAsset],
+            text: 'hidden supplemental text',
+            metadata: { size: '1024x1024', outputFormat: 'png' },
+          },
+        },
+        error: undefined,
+        createdAt: '2026-06-15T00:00:00.000Z',
+        updatedAt: '2026-06-15T00:00:01.000Z',
+      },
+    });
+    await renderApp(container, services);
+
+    await sendPrompt(container, 'image text hidden');
+
+    expect(container.querySelector('[data-testid^="result-response-text-"]')).toBeNull();
+    expect(container.querySelector('[data-testid^="result-preview-"]')).not.toBeNull();
+    expect(container.querySelector('[data-testid^="result-download-button-"]')).not.toBeNull();
+  });
+
+  it('renders text-only success results even when the response-text toggle is off', async () => {
+    const container = document.createElement('div');
+    document.body.appendChild(container);
+    const services = createFakeServices({
+      generationSettings: { showProviderResponseText: false },
+    });
+    services.spies.submitJob.mockResolvedValue({
+      ok: true as const,
+      value: {
+        id: 'job-text-only',
+        status: 'completed',
+        input: {},
+        output: {
+          image: {
+            assets: [],
+            text: 'text-only result',
+          },
+        },
+        error: undefined,
+        createdAt: '2026-06-15T00:00:00.000Z',
+        updatedAt: '2026-06-15T00:00:01.000Z',
+      },
+    });
+    await renderApp(container, services);
+
+    await sendPrompt(container, 'text only');
+
+    expect(container.querySelector('[data-testid^="result-response-text-"]')?.textContent).toContain('text-only result');
+    expect(container.textContent).toContain('文本结果');
+    expect(container.querySelector('[data-testid^="result-preview-"]')).toBeNull();
+    expect(container.querySelector('[data-testid^="result-download-button-"]')).toBeNull();
+    expect(container.querySelector('[data-testid^="result-place-button-"]')).toBeNull();
+  });
+
   it('layer attachment writeback targets the source Photoshop document', async () => {
     const container = document.createElement('div');
     document.body.appendChild(container);

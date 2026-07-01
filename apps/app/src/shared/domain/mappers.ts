@@ -18,6 +18,7 @@ export interface ProviderRowVM {
 
 interface ProviderInvokeResultLike {
   readonly assets?: readonly Asset[];
+  readonly text?: unknown;
   readonly metadata?: {
     readonly size?: string;
     readonly outputFormat?: string;
@@ -187,6 +188,18 @@ export function outputMetadata(output: unknown): ProviderInvokeResultLike['metad
   }
   const image = (output as { readonly image?: unknown }).image;
   return isProviderInvokeResultLike(image) ? image.metadata : undefined;
+}
+
+export function outputText(output: unknown): string | undefined {
+  if (typeof output !== 'object' || output === null) {
+    return undefined;
+  }
+  const image = (output as { readonly image?: unknown }).image;
+  if (!isProviderInvokeResultLike(image) || typeof image.text !== 'string') {
+    return undefined;
+  }
+  const text = image.text.trim();
+  return text.length > 0 ? text : undefined;
 }
 
 export function profileToProviderRow(profile: ProviderProfile): ProviderRowVM {

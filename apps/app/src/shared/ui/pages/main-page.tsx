@@ -202,11 +202,14 @@ export function MainPage({
   const [copied, setCopied] = useState<Record<string, boolean>>({});
   const [selectedPreviewIndexes, setSelectedPreviewIndexes] = useState<Record<string, number>>({});
   const [placeStatus, setPlaceStatus] = useState<Record<string, PlaceStatus>>({});
+  const [expandedResponses, setExpandedResponses] = useState<Record<string, boolean>>({});
+  const [overflowingResponses, setOverflowingResponses] = useState<Record<string, boolean>>({});
   const [highlightKey, setHighlightKey] = useState<string | null>(null);
   const [scrolledAway, setScrolledAway] = useState(false);
   const [optimizeState, setOptimizeState] = useState<OptimizeState>({ status: 'idle' });
   const convRef = useRef<HTMLDivElement>(null);
   const taRef = useRef<HTMLTextAreaElement>(null);
+  const responseTextRefs = useRef<Map<string, HTMLDivElement>>(new Map());
   const attachmentsRef = useRef<readonly ConversationAttachment[]>(attachments);
   const flatLayers = useMemo(() => flattenLayers(layers), [layers]);
   const uniqueModels = useMemo(() => dedupeById(models), [models]);
@@ -227,6 +230,7 @@ export function MainPage({
   const canOptimize = optimizerReady && input.trim().length > 0 && !optimizing;
   const canCapture = !conversation.running && !captureInFlight;
   const optimizeButtonLabel = showUndo ? t.main.promptOptimizeUndo : t.main.promptOptimize;
+  const responseTextKey = (roundId: string) => `response:${roundId}`;
   const isAtBottom = useCallback(() => {
     const el = convRef.current;
     if (!el) return true;
@@ -269,6 +273,19 @@ export function MainPage({
       }
       return changed ? next : current;
     });
+    setExpandedResponses((current) => {
+      let changed = false;
+      const liveRoundIds = new Set(conversation.rounds.map((round) => round.id));
+      const next: Record<string, boolean> = {};
+      for (const [roundId, expanded] of Object.entries(current)) {
+        if (liveRoundIds.has(roundId)) {
+          next[roundId] = expanded;
+        } else {
+          changed = true;
+        }
+      }
+      return changed ? next : current;
+    });
     setPlaceStatus((current) => {
       let changed = false;
       const liveRoundIds = new Set(conversation.rounds.map((round) => round.id));
@@ -283,6 +300,39 @@ export function MainPage({
       return changed ? next : current;
     });
   }, [conversation.rounds]);
+
+  const measureResponseOverflow = useCallback(() => {
+    setOverflowingResponses((current) => {
+      let changed = false;
+      const next: Record<string, boolean> = {};
+      for (const round of conversation.rounds) {
+        const element = responseTextRefs.current.get(round.id);
+        if (!element) {
+          continue;
+        }
+        const lineHeight = Number.parseFloat(window.getComputedStyle(element).lineHeight);
+        const clampHeight = Number.isFinite(lineHeight) && lineHeight > 0 ? lineHeight * 3 : 54;
+        const overflowing = element.scrollHeight > clampHeight + 1;
+        next[round.id] = overflowing;
+        if (current[round.id] !== overflowing) {
+          changed = true;
+        }
+      }
+      if (Object.keys(current).length !== Object.keys(next).length) {
+        changed = true;
+      }
+      return changed ? next : current;
+    });
+  }, [conversation.rounds]);
+
+  useEffect(() => {
+    measureResponseOverflow();
+  }, [conversation.rounds, expandedResponses, generationSettings.showProviderResponseText, measureResponseOverflow]);
+
+  useEffect(() => {
+    window.addEventListener('resize', measureResponseOverflow);
+    return () => window.removeEventListener('resize', measureResponseOverflow);
+  }, [measureResponseOverflow]);
 
   useEffect(() => {
     const el = convRef.current;
@@ -330,6 +380,24 @@ export function MainPage({
     setCopied((current) => ({ ...current, [id]: true }));
     window.setTimeout(() => setCopied((current) => ({ ...current, [id]: false })), 1500);
     restoreRound(round);
+  };
+
+  const handleCopyResponse = (round: ConversationRound) => {
+    if (!round.responseText) {
+      return;
+    }
+    const key = responseTextKey(round.id);
+    navigator.clipboard?.writeText(round.responseText).catch(() => undefined);
+    setCopied((current) => ({ ...current, [key]: true }));
+    window.setTimeout(() => setCopied((current) => ({ ...current, [key]: false })), 1500);
+  };
+
+  const responseTextRef = (roundId: string) => (element: HTMLDivElement | null) => {
+    if (element) {
+      responseTextRefs.current.set(roundId, element);
+    } else {
+      responseTextRefs.current.delete(roundId);
+    }
   };
 
   const previewIndexForRound = (round: ConversationRound): number => {
@@ -486,6 +554,7 @@ export function MainPage({
       operation: attachments.length > 0 ? 'image-edit' : 'text-to-image',
       prompt,
       profileId: selectedProfile.profileId,
+      providerId: selectedProfile.providerId,
       providerName: selectedProfile.displayName,
       ...(selectedModelId ? { modelId: selectedModelId } : {}),
       attachments,
@@ -495,6 +564,7 @@ export function MainPage({
         outputFormat: generationSettings.outputFormat,
         aspectRatio: generationSettings.aspectRatio,
       },
+      providerInputMaxSide: generationSettings.providerInputMaxSide,
     });
   };
 
@@ -778,7 +848,17 @@ export function MainPage({
                 </div>
               )}
 
-              {round.status === 'ok' && (
+              {round.status === 'ok' && (() => {
+                const hasImages = round.previews.length > 0;
+                const hasResponseText = Boolean(round.responseText?.trim());
+                const showResponseText = hasResponseText && (generationSettings.showProviderResponseText || !hasImages);
+                const responseExpanded = Boolean(expandedResponses[round.id]);
+                const responseOverflows = Boolean(overflowingResponses[round.id]);
+                const selectedPreviewIndex = previewIndexForRound(round);
+                const preview = round.previews[selectedPreviewIndex];
+                const hasMultiplePreviews = round.previews.length > 1;
+                const copyKey = responseTextKey(round.id);
+                return (
                 <div className="msg-prov msg-prov-surface" style={{ marginTop: 4 }}>
                   <button
                     className="av-prov"
@@ -792,105 +872,141 @@ export function MainPage({
                   >
                     {round.providerName.slice(0, 1).toUpperCase()}
                   </button>
-                  <div className={`prov-card prov-card-media media-${mediaShapeFromSize(round.outputSize)}`}>
+                  <div className={`prov-card ${hasImages ? `prov-card-media media-${mediaShapeFromSize(round.outputSize)}` : 'prov-card-text-only'}`}>
                     <div className="prov-top">
                       <span className="prov-name-lbl">{round.providerName}</span>
                       <div className="prov-status">
-                        <span className={`sdot ${statusDot(round.status)}`} />
-                        <span style={{ color: 'var(--app-color-positive)' }}>{t.status.done} · {round.elapsedLabel}</span>
+                        <span className={`sdot ${hasImages ? statusDot(round.status) : 'info'}`} />
+                        <span style={{ color: hasImages ? 'var(--app-color-positive)' : 'var(--app-color-informative)' }}>
+                          {hasImages ? t.status.done : t.main.textResult} · {round.elapsedLabel}
+                        </span>
                       </div>
                     </div>
-                    <div className="prov-img">
-                      {round.previews.length === 0 ? (
+                    {showResponseText && round.responseText && (
+                      <div className="prov-response" data-expanded={responseExpanded ? 'true' : undefined}>
+                        <div
+                          ref={responseTextRef(round.id)}
+                          data-testid={`result-response-text-${round.id}`}
+                          className="prov-response-text"
+                        >
+                          {round.responseText}
+                        </div>
+                        <div className="prov-response-actions">
+                          {responseOverflows && (
+                            <button
+                              type="button"
+                              data-testid={`result-response-toggle-${round.id}`}
+                              className="prov-response-toggle"
+                              onClick={(event) => {
+                                event.stopPropagation();
+                                setExpandedResponses((current) => ({ ...current, [round.id]: !responseExpanded }));
+                              }}
+                            >
+                              {responseExpanded ? `${t.main.collapseResponse} ▴` : `${t.main.expandResponse} ▾`}
+                            </button>
+                          )}
+                          <IconButton
+                            data-testid={`result-response-copy-button-${round.id}`}
+                            className={`prov-response-copy${copied[copyKey] ? ' cp' : ''}`}
+                            quiet
+                            icon={copied[copyKey] ? <Icon name="check" /> : <Icon name="copy" />}
+                            tooltip={t.main.copyResponse}
+                            onClick={(event) => { event.stopPropagation(); handleCopyResponse(round); }}
+                          />
+                        </div>
+                      </div>
+                    )}
+                    {hasImages ? (
+                      <div className="prov-img">
+                        <div className="img-result" data-testid={`result-preview-${round.id}`} data-preview-index={selectedPreviewIndex}>
+                          {preview?.url
+                            ? <MotionImage key={`${round.id}:${selectedPreviewIndex}`} src={preview.url} className="img-bg" alt={preview.label} />
+                            : <div className="img-bg" style={{ background: 'var(--app-color-background-layer-2)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--app-color-text-muted)', fontSize: 12 }}>{t.main.noAssetPreview}</div>
+                          }
+                          <div className="img-meta">{round.outputSize ?? t.main.assetFallback} · {round.outputFormat ?? t.main.imageFallback}</div>
+                          {hasMultiplePreviews && (
+                            <>
+                              <div className="img-count" data-testid={`result-preview-count-${round.id}`}>
+                                {selectedPreviewIndex + 1} / {round.previews.length}
+                              </div>
+                              <IconButton
+                                className="img-nav img-nav-prev"
+                                data-testid={`result-preview-prev-${round.id}`}
+                                icon={<Icon name="chevron-left" size={13} />}
+                                tooltip="Previous image"
+                                aria-label="Previous image"
+                                iconSize={13}
+                                onClick={(event) => {
+                                  event.stopPropagation();
+                                  stepPreview(round, -1);
+                                }}
+                              />
+                              <IconButton
+                                className="img-nav img-nav-next"
+                                data-testid={`result-preview-next-${round.id}`}
+                                icon={<Icon name="chevron-right" size={13} />}
+                                tooltip="Next image"
+                                aria-label="Next image"
+                                iconSize={13}
+                                onClick={(event) => {
+                                  event.stopPropagation();
+                                  stepPreview(round, 1);
+                                }}
+                              />
+                            </>
+                          )}
+                          <div className="img-overlay">
+                            <MotionButtonSurface>
+                              <IconButton
+                                data-testid={`result-place-button-${round.id}`}
+                                className="img-act prim"
+                                data-place-status={placeStatus[round.id] ?? 'idle'}
+                                icon={placeStatus[round.id] === 'placing'
+                                  ? <Icon name="spinner" size={13} className="ui-icon-text-icon" />
+                                  : placeStatus[round.id] === 'placed'
+                                    ? <Icon name="check" size={13} className="ui-icon-text-icon" />
+                                    : <Icon name="place-ps" size={13} className="ui-icon-text-icon" />}
+                                text={placeStatus[round.id] === 'placing'
+                                  ? t.main.placingPs
+                                  : placeStatus[round.id] === 'placed'
+                                    ? t.main.placedPs
+                                    : t.main.placePs}
+                                tooltip={placeStatus[round.id] === 'placing'
+                                  ? t.main.placingPs
+                                  : placeStatus[round.id] === 'placed'
+                                    ? t.main.placedPs
+                                    : t.main.placePs}
+                                iconSize={13}
+                                disabled={placeStatus[round.id] === 'placing'}
+                                onClick={(event) => { event.stopPropagation(); void placeAsset(round, selectedPreviewIndex); }}
+                              />
+                            </MotionButtonSurface>
+                          </div>
+                        </div>
+                      </div>
+                    ) : !hasResponseText ? (
+                      <div className="prov-img">
                         <div className="img-result">
                           <div className="img-bg" style={{ background: 'var(--app-color-background-layer-2)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--app-color-text-muted)', fontSize: 12 }}>{t.main.noAssetPreview}</div>
                         </div>
-                      ) : (() => {
-                        const selectedPreviewIndex = previewIndexForRound(round);
-                        const preview = round.previews[selectedPreviewIndex];
-                        const hasMultiplePreviews = round.previews.length > 1;
-                        return (
-                          <div className="img-result" data-testid={`result-preview-${round.id}`} data-preview-index={selectedPreviewIndex}>
-                            {preview.url
-                              ? <MotionImage key={`${round.id}:${selectedPreviewIndex}`} src={preview.url} className="img-bg" alt={preview.label} />
-                              : <div className="img-bg" style={{ background: 'var(--app-color-background-layer-2)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--app-color-text-muted)', fontSize: 12 }}>{t.main.noAssetPreview}</div>
-                            }
-                            <div className="img-meta">{round.outputSize ?? t.main.assetFallback} · {round.outputFormat ?? t.main.imageFallback}</div>
-                            {hasMultiplePreviews && (
-                              <>
-                                <div className="img-count" data-testid={`result-preview-count-${round.id}`}>
-                                  {selectedPreviewIndex + 1} / {round.previews.length}
-                                </div>
-                                <IconButton
-                                  className="img-nav img-nav-prev"
-                                  data-testid={`result-preview-prev-${round.id}`}
-                                  icon={<Icon name="chevron-left" size={13} />}
-                                  tooltip="Previous image"
-                                  aria-label="Previous image"
-                                  iconSize={13}
-                                  onClick={(event) => {
-                                    event.stopPropagation();
-                                    stepPreview(round, -1);
-                                  }}
-                                />
-                                <IconButton
-                                  className="img-nav img-nav-next"
-                                  data-testid={`result-preview-next-${round.id}`}
-                                  icon={<Icon name="chevron-right" size={13} />}
-                                  tooltip="Next image"
-                                  aria-label="Next image"
-                                  iconSize={13}
-                                  onClick={(event) => {
-                                    event.stopPropagation();
-                                    stepPreview(round, 1);
-                                  }}
-                                />
-                              </>
-                            )}
-                            <div className="img-overlay">
-                              <MotionButtonSurface>
-                                <IconButton
-                                  data-testid={`result-place-button-${round.id}`}
-                                  className="img-act prim"
-                                  data-place-status={placeStatus[round.id] ?? 'idle'}
-                                  icon={placeStatus[round.id] === 'placing'
-                                    ? <Icon name="spinner" size={13} className="ui-icon-text-icon" />
-                                    : placeStatus[round.id] === 'placed'
-                                      ? <Icon name="check" size={13} className="ui-icon-text-icon" />
-                                      : <Icon name="place-ps" size={13} className="ui-icon-text-icon" />}
-                                  text={placeStatus[round.id] === 'placing'
-                                    ? t.main.placingPs
-                                    : placeStatus[round.id] === 'placed'
-                                      ? t.main.placedPs
-                                      : t.main.placePs}
-                                  tooltip={placeStatus[round.id] === 'placing'
-                                    ? t.main.placingPs
-                                    : placeStatus[round.id] === 'placed'
-                                      ? t.main.placedPs
-                                      : t.main.placePs}
-                                  iconSize={13}
-                                  disabled={placeStatus[round.id] === 'placing'}
-                                  onClick={(event) => { event.stopPropagation(); void placeAsset(round, selectedPreviewIndex); }}
-                                />
-                              </MotionButtonSurface>
-                            </div>
-                          </div>
-                        );
-                      })()}
-                    </div>
-                    <div className="prov-actions">
-                      <IconButton
-                        data-testid={`result-download-button-${round.id}`}
-                        className="act-ico"
-                        quiet
-                        icon={<Icon name="download" />}
-                        tooltip={t.main.download}
-                        onClick={(event) => { event.stopPropagation(); downloadPreview(round, previewIndexForRound(round)); }}
-                      />
-                    </div>
+                      </div>
+                    ) : null}
+                    {hasImages && (
+                      <div className="prov-actions">
+                        <IconButton
+                          data-testid={`result-download-button-${round.id}`}
+                          className="act-ico"
+                          quiet
+                          icon={<Icon name="download" />}
+                          tooltip={t.main.download}
+                          onClick={(event) => { event.stopPropagation(); downloadPreview(round, previewIndexForRound(round)); }}
+                        />
+                      </div>
+                    )}
                   </div>
                 </div>
-              )}
+                );
+              })()}
               </MotionContent>
             </div>
           ))}

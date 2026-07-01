@@ -109,6 +109,7 @@ describe('chat-image provider', () => {
       choices: [
         {
           message: {
+            content: [{ type: 'text', text: 'provider text' }],
             images: [{ image_url: { url: 'data:image/png;base64,abc' } }],
           },
         },
@@ -117,12 +118,20 @@ describe('chat-image provider', () => {
     });
 
     expect(parsed.assets).toEqual([{ type: 'image', name: 'generated-1.png', data: 'abc', mimeType: 'image/png' }]);
+    expect(parsed.text).toBe('provider text');
     expect(parsed.usage).toEqual({ inputTokens: 1, outputTokens: 2, totalTokens: 3 });
   });
 
-  it('rejects chat responses without image URLs', () => {
-    expect(() => parseChatImageResponse({ choices: [{ message: { content: 'no image' } }] })).toThrow(
-      'Chat image response did not contain any image URLs.',
+  it('normalizes text-only chat responses as valid provider text', () => {
+    expect(parseChatImageResponse({ choices: [{ message: { content: 'no image' } }] })).toEqual({
+      assets: [],
+      text: 'no image',
+    });
+  });
+
+  it('rejects chat responses without image URLs or text', () => {
+    expect(() => parseChatImageResponse({ choices: [{ message: { content: '   ' } }] })).toThrow(
+      'Chat image response did not contain image URLs or text content.',
     );
   });
 
@@ -142,7 +151,7 @@ describe('chat-image provider', () => {
     const fetchSpy = vi.spyOn(globalThis, 'fetch').mockResolvedValue(
       new Response(
         JSON.stringify({
-          choices: [{ message: { images: [{ image_url: { url: 'https://example.com/out.png' } }] } }],
+            choices: [{ message: { content: 'done', images: [{ image_url: { url: 'https://example.com/out.png' } }] } }],
         }),
         {
           status: 200,
@@ -165,6 +174,7 @@ describe('chat-image provider', () => {
     const result = await provider.invoke({ config, request });
 
     expect(result.assets).toHaveLength(1);
+    expect(result.text).toBe('done');
     expect(String(fetchSpy.mock.calls[0][0])).toBe('https://openrouter.ai/api/v1/chat/completions');
     fetchSpy.mockRestore();
   });

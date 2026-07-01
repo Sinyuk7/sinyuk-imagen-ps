@@ -50,6 +50,7 @@ describe('GlobalGenerationSettingsPage', () => {
               outputFormat: 'png',
               aspectRatio: 'auto',
               providerInputMaxSide: 2048,
+              showProviderResponseText: true,
             }}
             loading={false}
             error={null}
@@ -97,5 +98,44 @@ describe('GlobalGenerationSettingsPage', () => {
         container.querySelector<HTMLElement>('.page')!.click();
       });
     }
+  });
+
+  it('saves the result display response text toggle', async () => {
+    const { services } = createFakeServices();
+    const container = document.createElement('div');
+    document.body.appendChild(container);
+    root = createRoot(container);
+    const onSave = vi.fn(async () => undefined);
+
+    await act(async () => {
+      root!.render(
+        <TestAppProviders services={services}>
+          <GlobalGenerationSettingsPage
+            settings={{
+              outputSizePreset: '2k',
+              outputFormat: 'png',
+              aspectRatio: 'auto',
+              providerInputMaxSide: 2048,
+              showProviderResponseText: true,
+            }}
+            loading={false}
+            error={null}
+            onSave={onSave}
+            onNav={vi.fn()}
+          />
+        </TestAppProviders>,
+      );
+    });
+
+    await act(async () => {
+      container.querySelector<HTMLInputElement>('[data-testid="show-provider-response-text-toggle"]')!.click();
+    });
+    await act(async () => {
+      container.querySelector<HTMLButtonElement>('[data-testid="global-settings-save-button"]')!.click();
+    });
+
+    expect(onSave).toHaveBeenCalledWith(expect.objectContaining({
+      showProviderResponseText: false,
+    }));
   });
 });
