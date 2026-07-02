@@ -2,6 +2,7 @@
   "name": "sinyuk-imagen-ps",
   "version": "0.0.0",
   "private": true,
+  "license": "MPL-2.0",
   "packageManager": "pnpm@9.15.4",
   "scripts": {
     "bootstrap": "pnpm install --frozen-lockfile && pnpm validate",

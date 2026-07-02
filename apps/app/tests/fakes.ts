@@ -239,6 +239,7 @@ export function createFakeServices(options?: {
     readonly ensurePromptOptimizerProfile: ReturnType<typeof vi.fn>;
     readonly optimizePrompt: ReturnType<typeof vi.fn>;
     readonly validatePromptOptimizerProfile: ReturnType<typeof vi.fn>;
+    readonly listTaskRecords: ReturnType<typeof vi.fn>;
     readonly listLayers: ReturnType<typeof vi.fn>;
     readonly pickImageFile: ReturnType<typeof vi.fn>;
     readonly captureActiveImage: ReturnType<typeof vi.fn>;
@@ -423,6 +424,7 @@ export function createFakeServices(options?: {
       ensurePromptOptimizerProfile,
       optimizePrompt,
       validatePromptOptimizerProfile,
+      listTaskRecords: commands.listTaskRecords as ReturnType<typeof vi.fn>,
       listLayers,
       pickImageFile,
       captureActiveImage,

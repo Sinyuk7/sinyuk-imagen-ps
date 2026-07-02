@@ -2,6 +2,14 @@
 
 Photoshop 图像生成插件 monorepo。包含两个 surface 应用和共享 runtime/domain packages。
 
+## License
+
+This repository is licensed under `MPL-2.0`. See `LICENSE`.
+
+Commercial users should contact the maintainer before production or large-scale use to confirm copyright, distribution, and any separate commercial licensing needs.
+
+External contributors should sign the Contributor License Agreement in `CLA.md` before non-trivial contributions are accepted. Non-member pull requests are expected to include a valid `CLA Issue:` link or carry `cla:exempt` before merge. This keeps future license changes or additional commercial licensing paths legally operable after the contributor base grows.
+
 ## 当前结构
 
 ```

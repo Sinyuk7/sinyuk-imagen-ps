@@ -206,7 +206,9 @@ function AppShellContent({ host }: AppShellProps) {
   const imagenSession = useImagenSession(services);
   const conversation = useConversation(services, imagenSession, generationSettings.settings, t.conversation);
   const history = useJobHistory(services);
+  const { records: historyRecords, loading: historyLoading, error: historyError, reload: reloadHistory } = history;
   const { layers, layersError, reloadLayers } = useHostLayers(host);
+  const previousRoundStatusRef = useRef<Record<string, 'running' | 'ok' | 'err'>>({});
 
   usePanelResponsiveAttributes(panelRef);
 
@@ -279,6 +281,22 @@ function AppShellContent({ host }: AppShellProps) {
     return () => window.clearTimeout(timer);
   }, [highlightedRoundId]);
 
+  useEffect(() => {
+    let shouldReload = false;
+    const next: Record<string, 'running' | 'ok' | 'err'> = {};
+    for (const round of conversation.rounds) {
+      next[round.id] = round.status;
+      const previous = previousRoundStatusRef.current[round.id];
+      if (previous === 'running' && round.status !== 'running') {
+        shouldReload = true;
+      }
+    }
+    previousRoundStatusRef.current = next;
+    if (shouldReload) {
+      void reloadHistory();
+    }
+  }, [conversation.rounds, reloadHistory]);
+
   return (
     <div className="panel" data-app-theme={themeOverride} ref={panelRef}>
       {view === 'main' && (
@@ -318,10 +336,10 @@ function AppShellContent({ host }: AppShellProps) {
           <HistoryPage
           onNav={onNav}
           rounds={conversation.rounds}
-          records={history.records}
-          loading={history.loading}
-          error={history.error}
-          onReload={history.reload}
+          records={historyRecords}
+          loading={historyLoading}
+          error={historyError}
+          onReload={reloadHistory}
           onRetry={conversation.retry}
           taskResources={services.taskResources}
           onPlaceTaskOutput={onPlaceTaskOutput}

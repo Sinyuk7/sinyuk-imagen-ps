@@ -1,0 +1,36 @@
+name: CLA Signature
+description: Sign the contributor license agreement for external contributions
+title: "CLA Signature: @<github-username>"
+labels:
+  - cla
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Use this form only if you are an external contributor to this repository.
+        Submit it from the same GitHub account that will open the pull request.
+  - type: input
+    id: github_handle
+    attributes:
+      label: GitHub username
+      description: Use the same GitHub username that will author the pull request.
+      placeholder: your-github-handle
+    validations:
+      required: true
+  - type: dropdown
+    id: contributor_type
+    attributes:
+      label: Contributor type
+      options:
+        - External contributor
+    validations:
+      required: true
+  - type: textarea
+    id: assent
+    attributes:
+      label: CLA assent
+      description: Keep the exact sentence unchanged.
+      value: |
+        I have read and agree to the CLA terms in CLA.md for my contributions to this repository.
+    validations:
+      required: true

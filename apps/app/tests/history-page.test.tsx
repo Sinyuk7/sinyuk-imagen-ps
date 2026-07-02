@@ -9,6 +9,41 @@ import { fakeAsset, fakeTaskRecord } from './fakes';
 import { TestI18nProvider } from './render-helpers';
 
 let root: Root | undefined;
+let observers: FakeIntersectionObserver[] = [];
+
+class FakeIntersectionObserver {
+  readonly callback: IntersectionObserverCallback;
+  readonly elements = new Set<Element>();
+
+  constructor(callback: IntersectionObserverCallback) {
+    this.callback = callback;
+    observers.push(this);
+  }
+
+  observe(element: Element): void {
+    this.elements.add(element);
+  }
+
+  unobserve(element: Element): void {
+    this.elements.delete(element);
+  }
+
+  disconnect(): void {
+    this.elements.clear();
+  }
+
+  trigger(element: Element, isIntersecting = true): void {
+    this.callback([{
+      target: element,
+      isIntersecting,
+      intersectionRatio: isIntersecting ? 1 : 0,
+      boundingClientRect: element.getBoundingClientRect(),
+      intersectionRect: element.getBoundingClientRect(),
+      rootBounds: null,
+      time: Date.now(),
+    } as IntersectionObserverEntry], this as unknown as IntersectionObserver);
+  }
+}
 
 afterEach(async () => {
   if (root) {
@@ -17,6 +52,8 @@ afterEach(async () => {
     });
   }
   root = undefined;
+  observers = [];
+  delete (globalThis as { IntersectionObserver?: typeof IntersectionObserver }).IntersectionObserver;
 });
 
 describe('HistoryPage', () => {
@@ -196,6 +233,8 @@ describe('HistoryPage', () => {
   });
 
   it('resolves task output previews and downloads available bytes', async () => {
+    (globalThis as { IntersectionObserver?: typeof IntersectionObserver }).IntersectionObserver =
+      FakeIntersectionObserver as unknown as typeof IntersectionObserver;
     const resolver: TaskResourceResolverPort = {
       resolve: vi.fn(async () => ({
         resource: fakeTaskRecord.outputs[0]!.asset,
@@ -209,7 +248,9 @@ describe('HistoryPage', () => {
     const click = vi.spyOn(HTMLAnchorElement.prototype, 'click').mockImplementation(() => undefined);
 
     const container = await renderHistory({ records: [fakeTaskRecord], taskResources: resolver });
+    expect(resolver.resolve).not.toHaveBeenCalled();
     await act(async () => {
+      observers[0]?.trigger(container.querySelector('[data-testid="history-row-task-history-1"] .task-thumb')!);
       await Promise.resolve();
     });
 
@@ -228,6 +269,8 @@ describe('HistoryPage', () => {
   });
 
   it('preserves stable durable output order across history rows', async () => {
+    (globalThis as { IntersectionObserver?: typeof IntersectionObserver }).IntersectionObserver =
+      FakeIntersectionObserver as unknown as typeof IntersectionObserver;
     const record: TaskRecord = {
       ...fakeTaskRecord,
       outputs: [
@@ -251,6 +294,9 @@ describe('HistoryPage', () => {
 
     const container = await renderHistory({ records: [record], taskResources: resolver });
     await act(async () => {
+      const thumbs = Array.from(container.querySelectorAll('.task-thumb'));
+      observers[0]?.trigger(thumbs[0]!);
+      observers[0]?.trigger(thumbs[1]!);
       await Promise.resolve();
     });
 
@@ -265,6 +311,8 @@ describe('HistoryPage', () => {
   });
 
   it('keeps unavailable durable resources visible without a valid download', async () => {
+    (globalThis as { IntersectionObserver?: typeof IntersectionObserver }).IntersectionObserver =
+      FakeIntersectionObserver as unknown as typeof IntersectionObserver;
     const resolver: TaskResourceResolverPort = {
       resolve: vi.fn(async () => ({
         resource: fakeTaskRecord.outputs[0]!.asset,
@@ -275,6 +323,7 @@ describe('HistoryPage', () => {
 
     const container = await renderHistory({ records: [fakeTaskRecord], taskResources: resolver });
     await act(async () => {
+      observers[0]?.trigger(container.querySelector('[data-testid="history-row-task-history-1"] .task-thumb')!);
       await Promise.resolve();
     });
 
@@ -314,6 +363,8 @@ describe('HistoryPage', () => {
   });
 
   it('routes durable task placement through the supplied task action', async () => {
+    (globalThis as { IntersectionObserver?: typeof IntersectionObserver }).IntersectionObserver =
+      FakeIntersectionObserver as unknown as typeof IntersectionObserver;
     const resolver: TaskResourceResolverPort = {
       resolve: vi.fn(async () => ({
         resource: fakeTaskRecord.outputs[0]!.asset,
@@ -325,6 +376,7 @@ describe('HistoryPage', () => {
 
     const container = await renderHistory({ records: [fakeTaskRecord], taskResources: resolver, onPlaceTaskOutput });
     await act(async () => {
+      observers[0]?.trigger(container.querySelector('[data-testid="history-row-task-history-1"] .task-thumb')!);
       await Promise.resolve();
     });
     await act(async () => {
@@ -332,5 +384,23 @@ describe('HistoryPage', () => {
     });
 
     expect(onPlaceTaskOutput).toHaveBeenCalledWith(fakeTaskRecord, 'task-history-1:output:0');
+  });
+
+  it('does not resolve durable previews before they become visible', async () => {
+    (globalThis as { IntersectionObserver?: typeof IntersectionObserver }).IntersectionObserver =
+      FakeIntersectionObserver as unknown as typeof IntersectionObserver;
+    const resolver: TaskResourceResolverPort = {
+      resolve: vi.fn(async () => ({
+        resource: fakeTaskRecord.outputs[0]!.asset,
+        availability: 'available',
+        bytes: new Uint8Array([1, 2, 3]).buffer,
+        preview: { url: 'blob:history-preview' },
+      })),
+    };
+
+    const container = await renderHistory({ records: [fakeTaskRecord], taskResources: resolver });
+
+    expect(resolver.resolve).not.toHaveBeenCalled();
+    expect(container.querySelector<HTMLImageElement>('img')).toBeNull();
   });
 });

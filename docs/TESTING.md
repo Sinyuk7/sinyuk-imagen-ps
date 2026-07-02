@@ -37,6 +37,11 @@ portable path references, and the shared UXP CSS contract for `apps/app`
 shared UI plus local UI harnesses. It does not access the network, credentials,
 or paid provider APIs.
 
+Repository pull requests also run a GitHub Actions `cla` gate for external
+contributors. Non-member pull requests must either include a valid `CLA Issue:`
+link to a same-author signing issue defined by `CLA.md`, or carry a maintainer
+applied `cla:exempt` label.
+
 Filtered package tests are useful for focused verification after the relevant
 workspace has been built:
 
@@ -168,6 +173,13 @@ removed. If a new smoke harness is added, it must stay opt-in and config-driven.
 
 Default CI and default Loop validation include only stable, mock-only,
 reproducible checks.
+
+Maintainer CLA operation is:
+
+1. Ask the external contributor to open the CLA signing issue template from the same GitHub account as the PR.
+2. Verify the pull request body includes `CLA Issue: https://github.com/<owner>/<repo>/issues/<number>`.
+3. Let the `cla` workflow verify same-repo, same-author, and required assent text.
+4. Use `cla:exempt` only for truly exempt changes such as typo-only docs or mechanical metadata edits.
 
 Keep these out of default `pnpm test`:
 

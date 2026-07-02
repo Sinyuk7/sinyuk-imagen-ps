@@ -73,6 +73,46 @@ describe('AppShell', () => {
     expect(document.documentElement.lang).toBe('zh-CN');
   });
 
+  it('reloads durable history after a running round reaches terminal state', async () => {
+    const { services, spies } = createFakeServices();
+    const container = document.createElement('div');
+    document.body.appendChild(container);
+    root = createRoot(container);
+
+    await act(async () => {
+      root!.render(
+        <AppShell
+          host={{
+            kind: 'photoshop-uxp',
+            app: { stage: 'uxp-first-shell', host: 'photoshop-uxp', services: ['commands', 'host'] },
+            locale: 'zh-CN',
+            services,
+            dispose: () => undefined,
+          }}
+        />,
+      );
+    });
+    await flush();
+    await flush();
+
+    const initialCalls = spies.listTaskRecords.mock.calls.length;
+
+    const textarea = container.querySelector<HTMLTextAreaElement>('.cmp-ta');
+    expect(textarea).not.toBeNull();
+    await act(async () => {
+      const setter = Object.getOwnPropertyDescriptor(HTMLTextAreaElement.prototype, 'value')?.set;
+      setter?.call(textarea!, 'refresh history');
+      textarea!.dispatchEvent(new KeyboardEvent('keyup', { bubbles: true, key: 'x' }));
+    });
+    await act(async () => {
+      container.querySelector<HTMLElement>('[data-testid="composer-send-button"]')!.click();
+    });
+    await flush();
+    await flush();
+
+    expect(spies.listTaskRecords.mock.calls.length).toBeGreaterThan(initialCalls);
+  });
+
   it('renders app content in English when host locale is English', async () => {
     const { services } = createFakeServices();
     const container = document.createElement('div');

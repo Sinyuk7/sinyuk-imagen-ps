@@ -7,6 +7,71 @@ on:
   pull_request:
 
 jobs:
+  cla:
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Enforce CLA record for external contributors
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          REPOSITORY: ${{ github.repository }}
+          AUTHOR_ASSOCIATION: ${{ github.event.pull_request.author_association }}
+          PR_AUTHOR: ${{ github.event.pull_request.user.login }}
+          PR_BODY: ${{ github.event.pull_request.body }}
+          LABELS_JSON: ${{ toJson(github.event.pull_request.labels.*.name) }}
+        run: |
+          case "$AUTHOR_ASSOCIATION" in
+            OWNER|MEMBER|COLLABORATOR)
+              exit 0
+              ;;
+          esac
+          node <<'EOF'
+          const requiredSentence =
+            'I have read and agree to the CLA terms in CLA.md for my contributions to this repository.';
+          const labels = JSON.parse(process.env.LABELS_JSON ?? '[]');
+          if (labels.includes('cla:exempt')) {
+            process.exit(0);
+          }
+
+          const prBody = process.env.PR_BODY ?? '';
+          const match = prBody.match(/^CLA Issue:\s*https:\/\/github\.com\/([^/\s]+)\/([^/\s]+)\/issues\/(\d+)\s*$/m);
+          if (!match) {
+            console.error('External pull requests must include a valid `CLA Issue:` link in the PR body or use `cla:exempt`.');
+            process.exit(1);
+          }
+
+          const [, owner, repo, issueNumber] = match;
+          if (`${owner}/${repo}` !== process.env.REPOSITORY) {
+            console.error('CLA issue must be in the same repository as the pull request.');
+            process.exit(1);
+          }
+
+          const response = await fetch(`https://api.github.com/repos/${owner}/${repo}/issues/${issueNumber}`, {
+            headers: {
+              Authorization: `Bearer ${process.env.GITHUB_TOKEN}`,
+              Accept: 'application/vnd.github+json',
+              'User-Agent': 'cla-check',
+            },
+          });
+
+          if (!response.ok) {
+            console.error(`Failed to load CLA issue: HTTP ${response.status}`);
+            process.exit(1);
+          }
+
+          const issue = await response.json();
+          if ((issue.user?.login ?? '').toLowerCase() !== (process.env.PR_AUTHOR ?? '').toLowerCase()) {
+            console.error('CLA issue author must match pull request author.');
+            process.exit(1);
+          }
+
+          const body = issue.body ?? '';
+          if (!body.includes(requiredSentence)) {
+            console.error('CLA issue does not contain the required affirmation sentence.');
+            process.exit(1);
+          }
+          EOF
+
   validate:
     runs-on: ubuntu-latest
     steps:

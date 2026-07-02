@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { ResolvedTaskResource, TaskOutput, TaskRecord } from '@imagen-ps/application';
 import type { TaskResourceResolverPort } from '../../ports/app-services';
 import type { ConversationRound, RoundStatus } from '../hooks/use-conversation';
@@ -100,9 +100,14 @@ function itemFromRound(round: ConversationRound): HistoryItem {
 }
 
 interface PreviewState {
-  readonly url: string;
-  readonly availability: ResolvedTaskResource['availability'];
+  readonly status: 'idle' | 'queued' | 'loading' | 'ready' | 'error';
+  readonly availability?: ResolvedTaskResource['availability'];
+  readonly url?: string;
+  readonly dispose?: () => void;
 }
+
+const PREVIEW_QUEUE_CONCURRENCY = 2;
+const PREVIEW_ROOT_MARGIN = '250px 0px';
 
 function downloadBytes(bytes: ArrayBuffer, name: string, mimeType: string): void {
   if (typeof document === 'undefined' || typeof URL === 'undefined' || typeof URL.createObjectURL !== 'function') {
@@ -125,6 +130,14 @@ export function HistoryPage({ onNav, rounds, records, loading, error, onReload, 
   const { notice: toast, show, clear, pause, resume } = useNotice({ defaultDurationMs: null });
   const [filter, setFilter] = useState<'all' | RoundStatus>('all');
   const [previews, setPreviews] = useState<Record<string, PreviewState>>({});
+  const scrollRef = useRef<HTMLDivElement | null>(null);
+  const previewTargetsRef = useRef(new Map<string, HTMLElement>());
+  const queueRef = useRef<string[]>([]);
+  const queuedRef = useRef(new Set<string>());
+  const loadingRef = useRef(new Set<string>());
+  const aliveIdsRef = useRef(new Set<string>());
+  const observerRef = useRef<IntersectionObserver | null>(null);
+  const previewsRef = useRef<Record<string, PreviewState>>({});
   const filters: readonly [HistoryFilter, string][] = [
     ['all', t.status.all],
     ['ok', t.status.done],
@@ -133,33 +146,214 @@ export function HistoryPage({ onNav, rounds, records, loading, error, onReload, 
   ];
   const statusLabel: Record<RoundStatus, string> = { ok: t.status.done, running: t.status.running, err: t.status.failed };
 
+  const releasePreview = useCallback((state: PreviewState | undefined) => {
+    state?.dispose?.();
+  }, []);
+
+  const outputPreviewCandidates = useMemo(() => records.flatMap((record) => {
+    if (record.status !== 'completed') {
+      return [];
+    }
+    return record.outputs
+      .filter((output) => output.asset.ref.kind !== 'url')
+      .map((output) => ({
+      id: outputItemId(record, output),
+      resource: output.asset,
+      }));
+  }), [records]);
+
+  const outputPreviewMap = useMemo(
+    () => new Map(outputPreviewCandidates.map((item) => [item.id, item.resource])),
+    [outputPreviewCandidates],
+  );
+
   useEffect(() => {
-    let disposed = false;
-    const disposers: Array<() => void> = [];
-    void Promise.all(records.flatMap((record) => record.outputs.map(async (output) => {
-      if (!taskResources && output.asset.ref.kind !== 'url') {
-        return undefined;
+    aliveIdsRef.current = new Set(outputPreviewCandidates.map((item) => item.id));
+    queueRef.current = queueRef.current.filter((id) => aliveIdsRef.current.has(id));
+    queuedRef.current = new Set([...queuedRef.current].filter((id) => aliveIdsRef.current.has(id)));
+    loadingRef.current = new Set([...loadingRef.current].filter((id) => aliveIdsRef.current.has(id)));
+    setPreviews((current) => {
+      const next: Record<string, PreviewState> = {};
+      for (const [id, state] of Object.entries(current)) {
+        if (aliveIdsRef.current.has(id)) {
+          next[id] = state;
+        } else {
+          releasePreview(state);
+        }
       }
-      const resolved: ResolvedTaskResource = taskResources
-        ? await taskResources.resolve(output.asset)
-        : { resource: output.asset, availability: 'remote-only' as const, preview: { url: output.asset.ref.ref } };
-      if (resolved.preview?.dispose) {
-        disposers.push(resolved.preview.dispose);
-      }
-      return [outputItemId(record, output), { url: resolved.preview?.url ?? '', availability: resolved.availability }] as const;
-    }))).then((entries) => {
-      if (disposed) {
-        disposers.forEach((dispose) => dispose());
+      return next;
+    });
+  }, [outputPreviewCandidates, releasePreview]);
+
+  useEffect(() => {
+    previewsRef.current = previews;
+  }, [previews]);
+
+  const drainPreviewQueue = useCallback(() => {
+    if (!taskResources) {
+      return;
+    }
+    while (loadingRef.current.size < PREVIEW_QUEUE_CONCURRENCY) {
+      const nextId = queueRef.current.shift();
+      if (!nextId) {
         return;
       }
-      setPreviews(Object.fromEntries(entries.filter((entry): entry is readonly [string, PreviewState] => entry !== undefined)));
-    });
+      queuedRef.current.delete(nextId);
+      if (loadingRef.current.has(nextId) || !aliveIdsRef.current.has(nextId)) {
+        continue;
+      }
+      const resource = outputPreviewMap.get(nextId);
+      if (!resource) {
+        continue;
+      }
+      loadingRef.current.add(nextId);
+      setPreviews((current) => ({
+        ...current,
+        [nextId]: { status: 'loading' },
+      }));
+      void taskResources.resolve(resource)
+        .then((resolved) => {
+          if (!aliveIdsRef.current.has(nextId)) {
+            resolved.preview?.dispose?.();
+            return;
+          }
+          setPreviews((current) => {
+            releasePreview(current[nextId]);
+            if (resolved.preview?.url) {
+              return {
+                ...current,
+                [nextId]: {
+                  status: 'ready',
+                  availability: resolved.availability,
+                  url: resolved.preview.url,
+                  dispose: resolved.preview.dispose,
+                },
+              };
+            }
+            return {
+              ...current,
+              [nextId]: {
+                status: 'error',
+                availability: resolved.availability,
+              },
+            };
+          });
+        })
+        .catch(() => {
+          if (!aliveIdsRef.current.has(nextId)) {
+            return;
+          }
+          setPreviews((current) => ({
+            ...current,
+            [nextId]: { status: 'error' },
+          }));
+        })
+        .finally(() => {
+          loadingRef.current.delete(nextId);
+          drainPreviewQueue();
+        });
+    }
+  }, [outputPreviewMap, releasePreview, taskResources]);
 
+  const enqueuePreview = useCallback((id: string, priority: 'background' | 'foreground' = 'background') => {
+    if (!taskResources || !aliveIdsRef.current.has(id)) {
+      return;
+    }
+    const current = previewsRef.current[id];
+    if (current?.status === 'ready' || current?.status === 'loading' || current?.status === 'queued') {
+      return;
+    }
+    if (queuedRef.current.has(id) || loadingRef.current.has(id)) {
+      return;
+    }
+    queuedRef.current.add(id);
+    if (priority === 'foreground') {
+      queueRef.current.unshift(id);
+    } else {
+      queueRef.current.push(id);
+    }
+    setPreviews((states) => ({
+      ...states,
+      [id]: { status: 'queued' },
+    }));
+    drainPreviewQueue();
+  }, [drainPreviewQueue, taskResources]);
+
+  useEffect(() => {
     return () => {
-      disposed = true;
-      disposers.forEach((dispose) => dispose());
+      observerRef.current?.disconnect();
+      observerRef.current = null;
+      for (const state of Object.values(previewsRef.current)) {
+        releasePreview(state);
+      }
+      previewTargetsRef.current.clear();
+      queueRef.current = [];
+      queuedRef.current.clear();
+      loadingRef.current.clear();
+      aliveIdsRef.current.clear();
     };
-  }, [records, taskResources]);
+  }, [releasePreview]);
+
+  useEffect(() => {
+    if (!taskResources) {
+      return undefined;
+    }
+    if (typeof IntersectionObserver !== 'function') {
+      outputPreviewCandidates.forEach((item) => {
+        if (item.resource.ref.kind !== 'url') {
+          enqueuePreview(item.id);
+        }
+      });
+      return undefined;
+    }
+    const root = scrollRef.current;
+    if (!root) {
+      return undefined;
+    }
+    const observer = new IntersectionObserver((entries) => {
+      for (const entry of entries) {
+        if (!entry.isIntersecting) {
+          continue;
+        }
+        const id = (entry.target as HTMLElement).dataset.previewId;
+        if (id) {
+          enqueuePreview(id);
+        }
+      }
+    }, {
+      root,
+      rootMargin: PREVIEW_ROOT_MARGIN,
+      threshold: 0.01,
+    });
+    observerRef.current = observer;
+    for (const element of previewTargetsRef.current.values()) {
+      observer.observe(element);
+    }
+    return () => {
+      observer.disconnect();
+      observerRef.current = null;
+    };
+  }, [enqueuePreview, outputPreviewCandidates, taskResources]);
+
+  const bindPreviewTarget = useCallback((id: string | undefined) => (element: HTMLDivElement | null) => {
+    const current = previewTargetsRef.current.get(id ?? '');
+    if (current && observerRef.current) {
+      observerRef.current.unobserve(current);
+    }
+    if (!id) {
+      return;
+    }
+    if (element) {
+      previewTargetsRef.current.set(id, element);
+      if (observerRef.current) {
+        observerRef.current.observe(element);
+      } else if (!taskResources) {
+        enqueuePreview(id);
+      }
+    } else {
+      previewTargetsRef.current.delete(id);
+    }
+  }, [enqueuePreview, taskResources]);
 
   const onDownload = useCallback(async (item: HistoryItem) => {
     if (!item.output || !taskResources) {
@@ -198,21 +392,21 @@ export function HistoryPage({ onNav, rounds, records, loading, error, onReload, 
 
   const items = useMemo(() => {
     const durable = records.flatMap((record) => {
-      const firstItem = itemFromRecord(
-        record,
-        t.history.noPrompt,
-        t.history.unknownProvider,
-        previews[record.taskId]?.url,
-        previews[record.taskId]?.availability,
-      );
+      const firstOutput = record.outputs[0];
+      const firstPreview = firstOutput
+        ? (firstOutput.asset.ref.kind === 'url'
+          ? { url: firstOutput.asset.ref.ref, availability: 'remote-only' as const }
+          : previews[outputItemId(record, firstOutput)])
+        : undefined;
+      const firstItem = itemFromRecord(record, t.history.noPrompt, t.history.unknownProvider, firstPreview?.url, firstPreview?.availability);
       if (record.outputs.length <= 1) {
         return [firstItem];
       }
       return record.outputs.map((output) => ({
         ...firstItem,
         id: outputItemId(record, output),
-        previewUrl: previews[outputItemId(record, output)]?.url,
-        resourceState: previews[outputItemId(record, output)]?.availability,
+        previewUrl: output.asset.ref.kind === 'url' ? output.asset.ref.ref : previews[outputItemId(record, output)]?.url,
+        resourceState: output.asset.ref.kind === 'url' ? 'remote-only' : previews[outputItemId(record, output)]?.availability,
         output,
       }));
     });
@@ -259,15 +453,19 @@ export function HistoryPage({ onNav, rounds, records, loading, error, onReload, 
           </ActionButton>
         ))}
       </div>
-      <div className="scroll">
+      <div className="scroll" ref={scrollRef}>
         {loading && <div style={{ padding: '16px', color: 'var(--app-color-text-muted)', fontSize: 12 }}>{t.history.loading}</div>}
         {error && <div style={{ padding: '16px', color: 'var(--app-color-negative)', fontSize: 12 }}>{error}</div>}
         {!loading && filtered.length === 0
           ? <div style={{ padding: '40px 16px', textAlign: 'center', color: 'var(--app-color-text-muted)', fontSize: 12 }}>{t.history.empty}</div>
           : filtered.map((item) => {
             const retryRoundId = item.retryRoundId;
+            const previewState = previews[item.id];
             return (
             <div key={item.id} data-testid={`history-row-${item.id}`} className="task-row" onClick={() => {
+              if (item.output && item.output.asset.ref.kind !== 'url') {
+                enqueuePreview(item.id, 'foreground');
+              }
               const isCurrent = rounds.some((round) => round.id === item.id);
               if (isCurrent) {
                 onLocateRound?.(item.id);
@@ -276,14 +474,20 @@ export function HistoryPage({ onNav, rounds, records, loading, error, onReload, 
                 onMiss?.();
               }
             }}>
-              <div className="task-thumb">
+              <div
+                className="task-thumb"
+                ref={bindPreviewTarget(item.output && item.output.asset.ref.kind !== 'url' ? item.id : undefined)}
+                data-preview-id={item.output && item.output.asset.ref.kind !== 'url' ? item.id : undefined}
+              >
                 {item.previewUrl
                   ? <img src={item.previewUrl} style={{ width: '100%', height: '100%', objectFit: 'cover', borderRadius: 'inherit' }} alt="" />
                   : item.status === 'running'
                     ? <Icon name="spinner" size={14} className="spin" />
                     : item.status === 'err'
                       ? <Icon name="error" size={14} />
-                      : <div style={{ width: '100%', height: '100%', background: 'var(--app-color-background-layer-2)', borderRadius: 'inherit' }} />
+                      : previewState?.status === 'loading' || previewState?.status === 'queued'
+                        ? <Icon name="spinner" size={14} className="spin" />
+                        : <div style={{ width: '100%', height: '100%', background: 'var(--app-color-background-layer-2)', borderRadius: 'inherit' }} />
                 }
               </div>
               <div className="task-info">

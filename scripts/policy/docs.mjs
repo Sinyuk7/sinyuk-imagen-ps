@@ -3,6 +3,7 @@ import { existingFiles, scanLineRules } from './shared.mjs';
 const highAuthorityDocs = [
   'AGENTS.md',
   'README.md',
+  'CLA.md',
   'docs/ENGINEERING_CONTEXT.md',
   'docs/TESTING.md',
   'docs/agent/LOOP.md',
