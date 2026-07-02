@@ -1,0 +1,81 @@
+apps/app/src/shared/domain/mappers.ts
+  s_79d14e8e523fa8::t_10f4b1588a64a6 218-225
+apps/app/src/shared/ui/app-shell.tsx
+  s_79d14e8e523fa8::t_1a600453103be6 241-242
+apps/app/src/shared/ui/i18n/messages.ts
+  s_79d14e8e523fa8::t_03866f1241ac25 134-136,324-326,515-517
+apps/app/src/shared/ui/pages/main-page.tsx
+  s_79d14e8e523fa8::t_8d12e6861a76b0 111-117,239,241-245,572-575
+apps/app/src/shared/ui/pages/settings-detail-page.tsx
+  s_79d14e8e523fa8::t_23916ae760959e 2,79-91,415-416,580-587
+apps/app/tests/main-page.test.tsx
+  s_79d14e8e523fa8::t_d79c8388cf30f6 868-901
+apps/app/tests/settings-detail-page.test.tsx
+  s_79d14e8e523fa8::t_1f9f1a90cf1786 345-415
+docs/ENGINEERING_CONTEXT.md
+  s_79d14e8e523fa8::t_115cab939570e8 31-34,106-109
+docs/TESTING.md
+  s_79d14e8e523fa8::t_a9097e85ed9a73 61-72
+packages/application/src/commands/profile-models.test.ts
+  s_79d14e8e523fa8::t_80c3eeaabf4039 43-66,134-177
+packages/application/src/commands/profile-models.ts
+  s_79d14e8e523fa8::t_8d7215b27e87a7 18-23,31,33,37-46,50-56,101-102
+packages/application/src/commands/provider-profiles.test.ts
+  s_79d14e8e523fa8::t_fc94e2cbd126b8 1,63-66,152-196
+packages/application/src/commands/provider-profiles.ts
+  s_79d14e8e523fa8::t_c6bd69dec6a886 21-25,64-89,432-440
+packages/application/src/commands/types.ts
+  s_79d14e8e523fa8::t_ca21744ba80f6f 106,109,220
+packages/providers/scripts/check-image-model-catalog.mjs
+  s_79d14e8e523fa8::t_26b2d95a68fddd 1-23
+packages/providers/src/contract/image-model-capability.ts
+  s_79d14e8e523fa8::t_45d01cf1791d81 1-20,24-25,27-30,35-51,54-56,64,72,76,79-83,85-86,88-95,97-245,247-249,251-260,262-274,276-284,286-294,296-318,320-325,327-345,347-358,360-371,373-387,389-402,404-416,418-420,422-516,518-525,527-555,557-598,600-628,630-642,644-701,703-735,737-749,751-782,784-841
+packages/providers/src/contract/index.ts
+  s_79d14e8e523fa8::t_b1d94bc01652cd 16-40,50
+packages/providers/src/contract/model.ts
+  s_79d14e8e523fa8::t_699cffc04d2383 4,9-12,14-18,25-42
+packages/providers/src/index.ts
+  s_79d14e8e523fa8::t_5ff87d023297a2 13-14,16-22,44-45,49-50,56-65
+packages/providers/src/providers/chat-image/descriptor.ts
+  s_79d14e8e523fa8::t_4c6ea80908454d 2,11
+packages/providers/src/providers/chat-image/provider.ts
+  s_79d14e8e523fa8::t_103d2fa5583f22 13,155-159
+packages/providers/src/providers/image-endpoint/descriptor.ts
+  s_79d14e8e523fa8::t_a0f11c73c3be54 2,11
+packages/providers/src/providers/image-endpoint/provider.ts
+  s_79d14e8e523fa8::t_04de56ae5dc506 18,202-206
+packages/providers/src/transport/chat-image/build-request.ts
+  s_79d14e8e523fa8::t_ce702da4747367 3,99-103,109-118,123-131,180-181,216,218,227
+packages/providers/src/transport/chat-image/models.ts
+  s_79d14e8e523fa8::t_788dd193bbe5b8 2,23,48-51
+packages/providers/src/transport/image-endpoint/build-request.ts
+  s_79d14e8e523fa8::t_2e224a8e60ad24 22,227,399-403,413-428,486-490,535-539
+packages/providers/src/transport/image-endpoint/error-map.ts
+  s_79d14e8e523fa8::t_451ce223260175 15,75-78
+packages/providers/src/transport/image-endpoint/failover.ts
+  s_79d14e8e523fa8::t_93573c8e5d2a2c 123-129
+packages/providers/src/transport/image-endpoint/models.ts
+  s_79d14e8e523fa8::t_f8c6fbcf891e3a 10,82,123-126
+packages/providers/tests/chat-image-provider.test.ts
+  s_79d14e8e523fa8::t_fea746ac7580d5 172
+packages/providers/tests/image-endpoint-provider.test.ts
+  s_79d14e8e523fa8::t_cf7b4a73a32e2d 11-14,164,169-205
+packages/providers/tests/retry-endpoint-failover.test.ts
+  s_79d14e8e523fa8::t_4bcc212a8cdca1 112-140
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.3",
+  "base_commit_sha": "3e2dd3d79c3a0e933d233ffe98d10d7484700904",
+  "prompts": {},
+  "sessions": {
+    "s_79d14e8e523fa8": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "019f2338-2ee7-70e3-b2e0-d2cbe55683e2",
+        "model": "unknown"
+      },
+      "human_author": "Sinyuk <80998062@qq.com>"
+    }
+  }
+}
