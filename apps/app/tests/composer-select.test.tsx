@@ -93,6 +93,46 @@ describe('ComposerSelect', () => {
     expect(container.querySelector('.cmp-chip-leading-slot')).not.toBeNull();
   });
 
+  it('keeps long icon-trigger values inside the shared overlay host contract', async () => {
+    const container = document.createElement('div');
+    document.body.appendChild(container);
+    root = createRoot(container);
+    await act(async () => {
+      root!.render(
+        createElement(IconSelect, {
+          label: 'Model',
+          value: 'gemini-3.1-flash-lite-imagen-very-long-model-name-preview',
+          icon: 'algorithm',
+          open: false,
+          onOpenChange: () => undefined,
+          options: [
+            {
+              id: 'gemini-3.1-flash-lite-imagen-very-long-model-name-preview',
+              label: 'gemini-3.1-flash-lite-imagen-very-long-model-name-preview',
+            },
+          ],
+          selectedId: 'gemini-3.1-flash-lite-imagen-very-long-model-name-preview',
+          onSelect: () => undefined,
+          testId: 'long-icon-select',
+          containerClassName: 'cmp-select cmp-select-model',
+        }),
+      );
+    });
+    await flush();
+
+    const host = container.querySelector('.ui-overlay-icon-host');
+    const trigger = container.querySelector('.cmp-chip-icon');
+    const overlayLayer = container.querySelector('.cmp-chip-host > .ui-overlay-icon-layer');
+    const overlayInner = container.querySelector('.cmp-chip-overlay-inner-icon');
+    const value = container.querySelector('.cmp-chip-value-icon');
+
+    expect(host).not.toBeNull();
+    expect(trigger).not.toBeNull();
+    expect(overlayLayer).not.toBeNull();
+    expect(overlayInner).not.toBeNull();
+    expect(value?.textContent).toContain('gemini-3.1-flash-lite-imagen');
+  });
+
   it('renders text trigger without icon slot when text variant is used', async () => {
     const container = document.createElement('div');
     document.body.appendChild(container);
@@ -177,6 +217,44 @@ describe('ComposerSelect', () => {
 
     expect(selected).toBe('option-b');
     expect(open).toBe(false);
+  });
+
+  it('stops press-start events from bubbling through menu options', async () => {
+    const container = document.createElement('div');
+    const parent = document.createElement('div');
+    let mouseDownCount = 0;
+    let pointerDownCount = 0;
+    parent.addEventListener('mousedown', () => {
+      mouseDownCount += 1;
+    });
+    parent.addEventListener('pointerdown', () => {
+      pointerDownCount += 1;
+    });
+    parent.appendChild(container);
+    document.body.appendChild(parent);
+    await renderSelect(container, { open: true });
+
+    const option = container.querySelector<HTMLElement>('[data-testid="test-select-option-option-b"]')!;
+    const mouseDownEvent = new MouseEvent('mousedown', { bubbles: true, cancelable: true });
+
+    await act(async () => {
+      option.dispatchEvent(mouseDownEvent);
+    });
+    await flush();
+
+    expect(mouseDownEvent.defaultPrevented).toBe(true);
+    expect(mouseDownCount).toBe(0);
+
+    if (typeof PointerEvent !== 'undefined') {
+      const pointerDownEvent = new PointerEvent('pointerdown', { bubbles: true, cancelable: true });
+      await act(async () => {
+        option.dispatchEvent(pointerDownEvent);
+      });
+      await flush();
+
+      expect(pointerDownEvent.defaultPrevented).toBe(true);
+      expect(pointerDownCount).toBe(0);
+    }
   });
 
   it('keeps compact menu options vertically contiguous', async () => {

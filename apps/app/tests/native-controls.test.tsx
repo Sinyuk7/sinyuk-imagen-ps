@@ -2,6 +2,8 @@ import { act } from 'react';
 import { createRoot, type Root } from 'react-dom/client';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { Checkbox, TextField } from '../src/shared/ui/primitives/native-controls';
+import { IconButton } from '../src/shared/ui/primitives/icon-button';
+import { Icon } from '../src/shared/ui/components/icons';
 
 let root: Root | undefined;
 
@@ -59,5 +61,30 @@ describe('Shared native control seam', () => {
     });
 
     expect(onChecked).toHaveBeenCalledWith(true);
+  });
+
+  it('keeps compact square icon buttons constrained across host, button, and overlay layers', async () => {
+    const container = document.createElement('div');
+    document.body.appendChild(container);
+    root = createRoot(container);
+
+    await act(async () => {
+      root!.render(
+        <IconButton
+          variant="negative"
+          compactSquare
+          icon={<Icon name="trash" />}
+          tooltip="Delete"
+        />,
+      );
+    });
+
+    const host = container.querySelector('.ui-icon-button-host');
+    const button = container.querySelector('button');
+    const overlay = container.querySelector('.ui-icon-button-overlay');
+
+    expect(host?.className).toContain('ui-icon-button-host--compact-square');
+    expect(button?.className).toContain('ui-icon-button--compact-square');
+    expect(overlay?.className).toContain('ui-icon-button-overlay--compact-square');
   });
 });

@@ -306,9 +306,14 @@ describe('SettingsDetailPage contract', () => {
     await renderDetail(container);
 
     const button = queryByTestId(container, 'provider-delete-button');
+    const host = button.closest('.ui-icon-button-host');
+    const overlay = host?.querySelector('.ui-icon-button-overlay');
     expect(button.getAttribute('data-variant')).toBe('negative');
     expect(button.textContent?.trim()).toBe('');
     expect(button.className).toContain('btn-del');
+    expect(button.className).toContain('ui-icon-button--compact-square');
+    expect(host?.className).toContain('ui-icon-button-host--compact-square');
+    expect(overlay?.className).toContain('ui-icon-button-overlay--compact-square');
   });
 
   it('renders a plain page header title without provider enable status affordances', async () => {

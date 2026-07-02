@@ -407,7 +407,18 @@ export const COMPOSER_CSS = `
   width:100%;
   min-width:0;
   max-width:100%;
+  flex:1 1 auto;
+  overflow:hidden;
   color:var(--app-color-text-secondary);
+}
+.cmp-chip-host > .ui-overlay-icon-button,
+.cmp-chip-host > .ui-overlay-icon-layer{
+  width:100%;
+  min-width:0;
+  max-width:100%;
+}
+.cmp-chip-host > .ui-overlay-icon-layer{
+  overflow:hidden;
 }
 .cmp-chip-host > .cmp-chip:hover ~ .ui-overlay-icon-layer,
 .cmp-chip-host > .cmp-chip:focus-visible ~ .ui-overlay-icon-layer{
@@ -511,6 +522,8 @@ export const COMPOSER_CSS = `
 .cmp-chip-arrow-icon-icon,
 .cmp-chip-arrow-icon-text{ flex:0 0 auto; color:inherit; }
 .cmp-chip-overlay{
+  width:100%;
+  min-width:0;
   justify-content:stretch;
 }
 .cmp-chip-overlay-inner-icon,
@@ -519,6 +532,7 @@ export const COMPOSER_CSS = `
   align-items:center;
   width:100%;
   min-width:0;
+  overflow:hidden;
   padding:4px 8px 4px 10px;
 }
 .cmp-chip-overlay-inner-icon{

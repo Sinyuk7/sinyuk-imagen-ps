@@ -170,6 +170,10 @@ describe('UXP panel CSS compatibility', () => {
     expect(unionSource).toContain('.cmp-opt-icon-button{');
     expect(unionSource).toContain('.cmp-chip-value-icon,');
     expect(unionSource).toContain('.cmp-chip-value-text{');
+    expect(unionSource).toContain('.cmp-chip-host > .ui-overlay-icon-button,');
+    expect(unionSource).toContain('.cmp-chip-host > .ui-overlay-icon-layer{');
+    expect(unionSource).toContain('.cmp-chip-overlay-inner-icon,');
+    expect(unionSource).toContain('.cmp-chip-overlay-inner-text{');
   });
 
   it('keeps toasts below the app header and fluid in compact panels', () => {

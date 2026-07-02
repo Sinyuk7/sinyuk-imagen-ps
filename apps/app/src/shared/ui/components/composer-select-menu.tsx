@@ -1,4 +1,4 @@
-import type { KeyboardEvent, MouseEvent, RefObject } from 'react';
+import type { KeyboardEvent, MouseEvent, PointerEvent, RefObject } from 'react';
 import { Icon } from './icons';
 import type { ComposerSelectMenuPlacement, ComposerSelectOption } from './composer-select.types';
 
@@ -74,6 +74,11 @@ export function ComposerSelectMenu({
     onSelect(id);
   };
 
+  const handlePressStart = (event: MouseEvent<HTMLElement> | PointerEvent<HTMLElement>) => {
+    event.preventDefault();
+    event.stopPropagation();
+  };
+
   return (
     <div
       data-testid={testId ? `${testId}-popover` : undefined}
@@ -91,6 +96,8 @@ export function ComposerSelectMenu({
         pointerEvents: motionState === 'exiting' ? 'none' : undefined,
       }}
       onClick={onClick}
+      onMouseDown={handlePressStart}
+      onPointerDown={handlePressStart}
     >
       <div
         ref={menuRef}
@@ -112,6 +119,8 @@ export function ComposerSelectMenu({
               className={`cmp-select-option${selected ? ' selected' : ''}`}
               role="option"
               aria-selected={selected}
+              onMouseDown={handlePressStart}
+              onPointerDown={handlePressStart}
               onClick={(event) => {
                 event.stopPropagation();
                 onSelect(option.id);

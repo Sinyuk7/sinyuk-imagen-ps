@@ -612,10 +612,23 @@ export const NATIVE_CONTROLS_CSS = `
 .ui-icon-button-host{
   color:inherit;
 }
+.ui-icon-button-host--compact-square{
+  width:32px;
+  min-width:32px;
+  height:32px;
+  min-height:32px;
+}
 .ui-icon-button-overlay{
   display:inline-flex;
   align-items:center;
   color:inherit;
+}
+.ui-icon-button-overlay--compact-square{
+  width:32px;
+  min-width:32px;
+  height:32px;
+  min-height:32px;
+  justify-content:center;
 }
 .ui-icon-button-icon-slot{
   display:block;
@@ -633,6 +646,13 @@ export const NATIVE_CONTROLS_CSS = `
 }
 .ui-icon-button--icon-only .ui-icon-button-overlay{
   justify-content:center;
+  padding:0;
+}
+.ui-icon-button--compact-square{
+  width:32px;
+  min-width:32px;
+  height:32px;
+  min-height:32px;
   padding:0;
 }
 .ui-icon-button--labeled .ui-icon-button-overlay{

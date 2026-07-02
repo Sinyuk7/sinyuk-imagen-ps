@@ -519,8 +519,9 @@ export function SettingsDetailPage({ onNav, profileId, onProfilesChanged }: Sett
           {!isOptimizerProfile && (
             <IconButton
               data-testid="provider-delete-button"
-              className="btn-del ui-button-block"
+              className="btn-del"
               variant="negative"
+              compactSquare
               icon={<Icon name="trash" />}
               tooltip={t.common.delete}
               disabled={busy || !detail.profile}

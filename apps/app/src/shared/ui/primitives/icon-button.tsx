@@ -30,6 +30,8 @@ interface IconButtonProps extends Omit<ButtonHTMLAttributes<HTMLButtonElement>, 
   readonly placement?: 'top' | 'top-start' | 'top-end' | 'right' | 'right-start' | 'right-end' | 'bottom' | 'bottom-start' | 'bottom-end' | 'left' | 'left-start' | 'left-end';
   /** 图标占位尺寸（px），默认 14。 */
   readonly iconSize?: number;
+  /** 是否使用紧凑正方形图标按钮盒模型。 */
+  readonly compactSquare?: boolean;
   readonly hostClassName?: string;
   readonly overlayClassName?: string;
 }
@@ -58,6 +60,7 @@ export const IconButton = forwardRef<HTMLButtonElement, IconButtonProps>(functio
     tooltip,
     placement,
     iconSize = 14,
+    compactSquare = false,
     className,
     hostClassName,
     overlayClassName,
@@ -73,6 +76,7 @@ export const IconButton = forwardRef<HTMLButtonElement, IconButtonProps>(functio
   const buttonClassName = classNames(
     'ui-icon-button',
     text ? 'ui-icon-button--labeled' : 'ui-icon-button--icon-only',
+    compactSquare && !text && 'ui-icon-button--compact-square',
     className,
   );
   const children = (
@@ -84,8 +88,16 @@ export const IconButton = forwardRef<HTMLButtonElement, IconButtonProps>(functio
 
   return (
     <OverlayControlShell
-      hostClassName={classNames('ui-icon-button-host', hostClassName)}
-      overlayClassName={classNames('ui-icon-button-overlay', overlayClassName)}
+      hostClassName={classNames(
+        'ui-icon-button-host',
+        compactSquare && !text && 'ui-icon-button-host--compact-square',
+        hostClassName,
+      )}
+      overlayClassName={classNames(
+        'ui-icon-button-overlay',
+        compactSquare && !text && 'ui-icon-button-overlay--compact-square',
+        overlayClassName,
+      )}
       disabled={props.disabled}
       overlay={icon}
       style={rootStyle}

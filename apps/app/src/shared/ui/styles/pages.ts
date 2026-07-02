@@ -341,11 +341,6 @@ export const PAGES_CSS = `
 .btn-save{ flex:1; }
 .btn-del{
   margin-left:8px;
-  width:32px;
-  min-width:32px;
-  height:32px;
-  min-height:32px;
-  padding:0;
 }
 .btn-del[data-variant="negative"]{
   border-color:var(--app-color-negative);
