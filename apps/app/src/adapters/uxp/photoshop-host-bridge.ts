@@ -587,12 +587,79 @@ function mimeTypeSupportsAppLocalDerivative(mimeType: string): boolean {
   return normalized.includes('png') || normalized.includes('jpeg') || normalized.includes('jpg');
 }
 
+function sampleToUint8(value: number): number {
+  if (!Number.isFinite(value)) {
+    return 0;
+  }
+  return Math.max(0, Math.min(255, Math.round(value)));
+}
+
+function pngComponentToUint8(value: number, depth: number): number {
+  if (depth <= 8) {
+    return sampleToUint8(value);
+  }
+  const max = (1 << depth) - 1;
+  if (max <= 0) {
+    return 0;
+  }
+  return sampleToUint8((value / max) * 255);
+}
+
+function normalizeDecodedPngToRgba(decoded: {
+  readonly width: number;
+  readonly height: number;
+  readonly data: Uint8Array | Uint8ClampedArray | Uint16Array;
+  readonly channels: number;
+  readonly depth: number;
+}): Uint8Array {
+  const pixelCount = decoded.width * decoded.height;
+  const rgba = new Uint8Array(pixelCount * 4);
+  for (let pixel = 0; pixel < pixelCount; pixel += 1) {
+    const source = pixel * decoded.channels;
+    const target = pixel * 4;
+    switch (decoded.channels) {
+      case 1: {
+        const gray = pngComponentToUint8(decoded.data[source] ?? 0, decoded.depth);
+        rgba[target] = gray;
+        rgba[target + 1] = gray;
+        rgba[target + 2] = gray;
+        rgba[target + 3] = 255;
+        break;
+      }
+      case 2: {
+        const gray = pngComponentToUint8(decoded.data[source] ?? 0, decoded.depth);
+        rgba[target] = gray;
+        rgba[target + 1] = gray;
+        rgba[target + 2] = gray;
+        rgba[target + 3] = pngComponentToUint8(decoded.data[source + 1] ?? 0, decoded.depth);
+        break;
+      }
+      case 3: {
+        rgba[target] = pngComponentToUint8(decoded.data[source] ?? 0, decoded.depth);
+        rgba[target + 1] = pngComponentToUint8(decoded.data[source + 1] ?? 0, decoded.depth);
+        rgba[target + 2] = pngComponentToUint8(decoded.data[source + 2] ?? 0, decoded.depth);
+        rgba[target + 3] = 255;
+        break;
+      }
+      case 4: {
+        rgba[target] = pngComponentToUint8(decoded.data[source] ?? 0, decoded.depth);
+        rgba[target + 1] = pngComponentToUint8(decoded.data[source + 1] ?? 0, decoded.depth);
+        rgba[target + 2] = pngComponentToUint8(decoded.data[source + 2] ?? 0, decoded.depth);
+        rgba[target + 3] = pngComponentToUint8(decoded.data[source + 3] ?? 0, decoded.depth);
+        break;
+      }
+      default:
+        throw new Error(`App-local PNG decode returned unsupported channel count: ${decoded.channels}.`);
+    }
+  }
+  return rgba;
+}
+
 function decodeLocalFileToRgba(bytes: Uint8Array, mimeType: string): RgbaImage {
   const normalized = mimeType.toLowerCase();
   if (normalized.includes('png')) {
     const decoded = decodePng(bytes);
-    const rgba = new Uint8Array(decoded.data.byteLength);
-    rgba.set(decoded.data);
+    const rgba = normalizeDecodedPngToRgba(decoded);
     return {
       width: decoded.width,
       height: decoded.height,

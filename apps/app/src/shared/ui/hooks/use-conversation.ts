@@ -525,7 +525,7 @@ export function useConversation(
               if (item.id !== roundId) {
                 return item;
               }
-              return result.ok
+              const next = result.ok
                 ? roundFromSessionJob(
                     sessionBinding.snapshot.jobs.find((job) => job.id === result.value.id) ??
                       jobSnapshotFromResult(
@@ -539,8 +539,12 @@ export function useConversation(
                     messages,
                   )
                 : errorRound(item, result.error);
+              return next;
             }),
           );
+          if (result.ok && result.value.status === 'completed') {
+            void services.retention?.requestSweep('generation-success');
+          }
         } catch (error) {
           setRounds((current) =>
             current.map((item) =>

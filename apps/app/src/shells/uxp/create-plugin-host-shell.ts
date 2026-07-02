@@ -20,12 +20,15 @@ import {
 } from '../../adapters/uxp/photoshop-host-bridge';
 import { resolveUxpModules } from '../../adapters/uxp/uxp-api';
 import { createUxpAssetStore, createUxpJobHistoryStore, createUxpTaskStore } from '../../adapters/uxp/uxp-job-history-adapter';
+import { createUxpStorageAdmin } from '../../adapters/uxp/uxp-job-history-adapter';
 import { createUxpProviderProfileRepository } from '../../adapters/uxp/uxp-provider-profile-repository';
 import { createUxpSecretStorageAdapter } from '../../adapters/uxp/uxp-secret-storage-adapter';
 import { createInMemoryGenerationSettingsStore } from '../../adapters/uxp/in-memory-host-storage';
-import { createUxpLogSink, writeUxpUiCheckpoint, writeUxpUiFailure } from '../../adapters/uxp/uxp-log-sink';
+import { cleanupUxpLogs, createUxpLogSink, writeUxpUiCheckpoint, writeUxpUiFailure } from '../../adapters/uxp/uxp-log-sink';
 import { createMemoryThumbnailStore } from '../../shared/image/thumbnail-store';
 import { createTaskResourceResolver } from '../../shared/image/task-resource-resolver';
+import { createRetentionController } from '../../shared/retention/controller';
+import { defaultTaskLinkedRetentionPolicy, runTaskLinkedRetention } from '../../shared/retention/task-linked-retention';
 
 export interface PluginHostShell {
   readonly kind: 'photoshop-uxp' | 'chrome-browser';
@@ -64,6 +67,7 @@ export function createPluginHostShell(): PluginHostShell {
     const jobHistoryStore = createUxpJobHistoryStore(uxpModules);
     const taskStore = createUxpTaskStore(uxpModules);
     const assetStore = createUxpAssetStore(uxpModules);
+    const storageAdmin = createUxpStorageAdmin(uxpModules);
     const generationSettings = createInMemoryGenerationSettingsStore();
 
     logger.info('panel.adapters.initialized', {
@@ -81,6 +85,23 @@ export function createPluginHostShell(): PluginHostShell {
     setAssetStore(assetStore);
 
     const hostLogger = logger.child({ component: 'host' });
+    const retentionPolicy = defaultTaskLinkedRetentionPolicy();
+    const retention = createRetentionController({
+      async sweep(reason) {
+        const summary = await runTaskLinkedRetention({ taskStore, jobHistoryStore, assetStore }, retentionPolicy);
+        const logSummary = await cleanupUxpLogs(uxpModules, { maxDays: 3, maxBytesPerDay: 256 * 1024 });
+        hostLogger.info('retention.sweep.ok', {
+          reason,
+          ...summary,
+          ...logSummary,
+          knownAssetRefs: storageAdmin ? (await storageAdmin.listAssetRefs()).length : undefined,
+        });
+      },
+      onError(error, reason) {
+        hostLogger.error('retention.sweep.fail', { reason });
+        void writeUxpUiFailure('retention.sweep.fail', error, { reason });
+      },
+    });
     const executeHostModal = createPhotoshopHostModalRunner(uxpModules, hostLogger);
     const hostBridge = createPhotoshopHostBridge(uxpModules, { logger: hostLogger, executeHostModal });
     const createThumbnail = createPhotoshopThumbnailGenerator(uxpModules, {
@@ -90,6 +111,7 @@ export function createPluginHostShell(): PluginHostShell {
 
     span.finish();
     logger.info('panel.startup.complete');
+    void retention.requestSweep('startup');
 
     return {
       kind: 'photoshop-uxp',
@@ -102,6 +124,7 @@ export function createPluginHostShell(): PluginHostShell {
         thumbnails: createMemoryThumbnailStore({ resolveStoredRef: assetStore.resolve, createThumbnail }),
         taskResources: createTaskResourceResolver({ resolveStoredRef: assetStore.resolve }),
         diagnostics: createUxpDiagnosticsPort(),
+        retention,
       },
       dispose() {
         logger.info('panel.dispose');

@@ -19,13 +19,21 @@ import { resolveUxpModules } from './uxp-api.js';
 import type { UxpModules } from './uxp-api.js';
 
 interface UxpFileEntry {
+  readonly name?: string;
+  readonly isFile?: boolean;
   write(data: string, options?: { append?: boolean; format?: unknown }): Promise<void>;
+  read?(options?: { readonly format?: unknown }): Promise<string | ArrayBuffer>;
+  delete?(): Promise<number | void>;
 }
 
 interface UxpFolderEntry {
+  readonly name?: string;
+  readonly isFolder?: boolean;
   createFolder(name: string): Promise<UxpFolderEntry>;
   createFile(name: string, options?: { overwrite?: boolean }): Promise<UxpFileEntry>;
   getEntry(name: string): Promise<UxpFolderEntry | UxpFileEntry | null>;
+  getEntries?(): Promise<readonly (UxpFolderEntry | UxpFileEntry)[]>;
+  delete?(): Promise<number | void>;
 }
 
 interface UxpLocalFileSystem {
@@ -174,6 +182,71 @@ export function createUxpLogSink(uxpModules: UxpModules): LogSink {
         });
     },
   };
+}
+
+export async function cleanupUxpLogs(
+  uxpModules: UxpModules,
+  options: {
+    readonly maxDays: number;
+    readonly maxBytesPerDay: number;
+  },
+): Promise<{ readonly deletedDays: number; readonly truncatedFiles: number }> {
+  const storage = (uxpModules.uxp?.storage ?? {}) as UxpStorage;
+  const lfs = storage.localFileSystem;
+  const textFormat = storage.formats?.utf8 ?? lfs?.formats?.utf8;
+  if (!lfs) {
+    return { deletedDays: 0, truncatedFiles: 0 };
+  }
+  const dataFolder = await lfs.getDataFolder();
+  const logsFolder = await getExistingFolder(dataFolder, 'logs');
+  if (!logsFolder || typeof logsFolder.getEntries !== 'function') {
+    return { deletedDays: 0, truncatedFiles: 0 };
+  }
+
+  const entries = await logsFolder.getEntries();
+  const dayFolders = entries
+    .filter(isFolderEntry)
+    .filter((entry) => typeof entry.name === 'string')
+    .sort((left, right) => String(right.name).localeCompare(String(left.name)));
+
+  let deletedDays = 0;
+  for (const folder of dayFolders.slice(options.maxDays)) {
+    if (typeof folder.delete === 'function') {
+      try {
+        await folder.delete();
+        deletedDays += 1;
+      } catch {
+        // fail-open
+      }
+    }
+  }
+
+  let truncatedFiles = 0;
+  for (const folder of dayFolders.slice(0, options.maxDays)) {
+    if (typeof folder.getEntries !== 'function') {
+      continue;
+    }
+    const children = await folder.getEntries();
+    for (const child of children) {
+      if (!isFileEntry(child) || child.name !== 'imagen.jsonl' || typeof child.read !== 'function') {
+        continue;
+      }
+      try {
+        const raw = await child.read({ format: textFormat });
+        const text = String(raw);
+        if (text.length <= options.maxBytesPerDay) {
+          continue;
+        }
+        const kept = text.slice(text.length - options.maxBytesPerDay);
+        await child.write(kept, { append: false, format: textFormat });
+        truncatedFiles += 1;
+      } catch {
+        // fail-open
+      }
+    }
+  }
+
+  return { deletedDays, truncatedFiles };
 }
 
 /** 创建可等待落盘的 UXP flight recorder checkpoint 写入器。 */

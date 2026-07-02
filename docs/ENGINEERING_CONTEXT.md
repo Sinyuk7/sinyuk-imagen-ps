@@ -72,7 +72,7 @@ surface apps -> application/session -> core-engine + providers
 
 - Record and artifacts are separate stores. `DurableJobRecord` holds metadata only; binary artifacts live in a separate `AssetStore` keyed by asset id. A record survives artifact eviction as a resolvable "evicted" state.
 - `StoredAssetRef` is host-neutral, discriminated by channel (`inline` | `url` | `hostObject` | `externalToken`), never a native path. The shared layer treats `ref` as opaque; the matching host adapter interprets it.
-- UXP stores records in `localFileSystem.getDataFolder()` as schema-versioned JSON; artifacts under `cache/images/<yyyy-mm>/<jobId>/`.
+- UXP stores durable records in `localFileSystem.getDataFolder()` as schema-versioned JSON files (`task-history.json`, `job-history.json`). UXP binary assets are separate `hostObject` files under the same data folder and are referenced through opaque `StoredAssetRef.ref` values such as `uxp-asset-*`.
 - `JobHistoryStore` and `AssetStore` are host-injected interfaces in `packages/application`; shared packages depend only on the interfaces.
 - Secrets are never persisted in a job record. Retry re-resolves secrets at execution time via `profileId` + `SecretStorageAdapter`.
 - Two read paths: session = hot in-memory view of active jobs; durable = cold `JobHistoryStore`. Terminal jobs flush from session into the durable store.
@@ -101,7 +101,7 @@ surface apps -> application/session -> core-engine + providers
 - Restart/reopen history placement through real Photoshop remains manual-only evidence. Mock tests and Chrome E2E can prove contract behavior, but not real Photoshop document identity after app or host restart.
 - UXP first-frame geometry: Spectrum controls can establish custom element definitions and shadow trees but still report collapsed `0x0` first-frame geometry. This is a Photoshop UXP layout instability, not a missing-registration or late-CSS issue. Future RCA should verify host geometry before trying style-only fixes.
 - Provider-output base64 in `job.output` has no size cap; a large provider image exists simultaneously as base64 string, decoded copy, data URL, and decoded pixels. No global full-resolution concurrency cap on input resolve.
-- Temp files in `plugin-temp` are created per placement and not cleaned up; `AssetStore.delete` is a no-op.
+- `apps/app` now applies best-effort retention at shell startup and after successful generation: task history and job history are count-capped, generated output assets use oldest-first high/low watermark eviction, and UXP logs under `logs/YYYY-MM-DD/imagen.jsonl` are bounded by day retention plus per-day size truncation. This is not a byte-accurate quota or historical orphan cleanup policy.
 - `pnpm lint` is not a supported gate; workspace packages do not define package-level lint scripts.
 
 ## Open Questions

@@ -27,6 +27,87 @@ const UXP_BOOTSTRAP_LOGGER_SCRIPT = String.raw`(function () {
   var sequence = 0;
   var filePromise;
 
+  function installTextEncodingPolyfill() {
+    function setGlobal(name, value) {
+      try {
+        if (typeof globalThis !== 'undefined') {
+          globalThis[name] = value;
+        }
+      } catch (_) {
+        // ignore globalThis assignment failures in host bootstrap
+      }
+      try {
+        if (typeof window !== 'undefined') {
+          window[name] = value;
+        }
+      } catch (_) {
+        // ignore window assignment failures in host bootstrap
+      }
+    }
+
+    function toUint8Array(input) {
+      if (input instanceof Uint8Array) {
+        return input;
+      }
+      if (input instanceof ArrayBuffer) {
+        return new Uint8Array(input);
+      }
+      if (typeof ArrayBuffer !== 'undefined' && ArrayBuffer.isView && ArrayBuffer.isView(input)) {
+        return new Uint8Array(input.buffer, input.byteOffset, input.byteLength);
+      }
+      if (Array.isArray(input)) {
+        return new Uint8Array(input);
+      }
+      return new Uint8Array(0);
+    }
+
+    function fallbackDecode(bytes) {
+      var output = '';
+      for (var index = 0; index < bytes.length; index += 1) {
+        output += String.fromCharCode(bytes[index]);
+      }
+      return output;
+    }
+
+    if (typeof TextEncoder === 'undefined') {
+      function TextEncoderPolyfill() {}
+      TextEncoderPolyfill.prototype.encode = function (value) {
+        var encoded = unescape(encodeURIComponent(String(value)));
+        var bytes = new Uint8Array(encoded.length);
+        for (var index = 0; index < encoded.length; index += 1) {
+          bytes[index] = encoded.charCodeAt(index);
+        }
+        return bytes;
+      };
+      setGlobal('TextEncoder', TextEncoderPolyfill);
+    }
+
+    if (typeof TextDecoder === 'undefined') {
+      function TextDecoderPolyfill(label) {
+        this.encoding = label || 'utf-8';
+      }
+      TextDecoderPolyfill.prototype.decode = function (input) {
+        var bytes = toUint8Array(input);
+        if (!bytes.length) {
+          return '';
+        }
+        var encoded = '';
+        for (var index = 0; index < bytes.length; index += 1) {
+          var hex = bytes[index].toString(16).toUpperCase();
+          encoded += '%' + (hex.length === 1 ? '0' + hex : hex);
+        }
+        try {
+          return decodeURIComponent(encoded);
+        } catch (_) {
+          return fallbackDecode(bytes);
+        }
+      };
+      setGlobal('TextDecoder', TextDecoderPolyfill);
+    }
+  }
+
+  installTextEncodingPolyfill();
+
   function spanId() {
     sequence += 1;
     return 'sp_' + Date.now().toString(36) + '_' + sequence.toString(36) + '_bootstrap';

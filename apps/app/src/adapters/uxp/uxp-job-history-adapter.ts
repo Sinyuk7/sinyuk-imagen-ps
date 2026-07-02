@@ -13,6 +13,14 @@ interface UxpFile {
 interface UxpFolder {
   getEntry(name: string): Promise<UxpFile>;
   createFile(name: string, options?: { readonly overwrite?: boolean }): Promise<UxpFile>;
+  getEntries?(): Promise<readonly UxpEntry[]>;
+}
+
+interface UxpEntry {
+  readonly name?: string;
+  readonly isFolder?: boolean;
+  readonly isFile?: boolean;
+  delete?(): Promise<number | void>;
 }
 
 interface UxpLocalFileSystem {
@@ -299,6 +307,49 @@ export function createUxpAssetStore(modules: UxpModules): AssetStore {
       }
       const file = await getFile(localFileSystem, ref.ref);
       await file?.delete?.();
+    },
+  };
+}
+
+export interface UxpTaskHistoryFile {
+  readonly schemaVersion: 1;
+  readonly records: readonly unknown[];
+}
+
+export interface UxpJobHistoryFile {
+  readonly schemaVersion: 1;
+  readonly records: readonly DurableJobRecord[];
+}
+
+export function createUxpStorageAdmin(modules: UxpModules): {
+  readTaskHistoryRaw(): Promise<UxpTaskHistoryFile>;
+  listAssetRefs(): Promise<readonly string[]>;
+} | undefined {
+  const fs = localFileSystemFrom(modules);
+  if (!fs) {
+    return undefined;
+  }
+  const localFileSystem = fs;
+
+  return {
+    async readTaskHistoryRaw(): Promise<UxpTaskHistoryFile> {
+      const file = await getOrCreateFile(localFileSystem, 'task-history.json');
+      try {
+        const raw = await file.read({ format: localFileSystem.formats?.utf8 });
+        return parseTaskHistory(String(raw));
+      } catch {
+        return { schemaVersion: 1, records: [] };
+      }
+    },
+    async listAssetRefs(): Promise<readonly string[]> {
+      const folder = await localFileSystem.getDataFolder();
+      if (typeof folder.getEntries !== 'function') {
+        return [];
+      }
+      const entries = await folder.getEntries();
+      return entries
+        .filter((entry) => entry.isFile === true && typeof entry.name === 'string' && entry.name.startsWith('uxp-asset-'))
+        .map((entry) => entry.name as string);
     },
   };
 }

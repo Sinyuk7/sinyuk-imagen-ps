@@ -94,6 +94,25 @@ function realPngWithSize(width: number, height: number): Uint8Array {
   });
 }
 
+function realRgbPngWithSize(width: number, height: number): Uint8Array {
+  const data = new Uint8Array(width * height * 3);
+  for (let y = 0; y < height; y += 1) {
+    for (let x = 0; x < width; x += 1) {
+      const offset = (y * width + x) * 3;
+      data[offset] = Math.round((x / Math.max(1, width - 1)) * 255);
+      data[offset + 1] = Math.round((y / Math.max(1, height - 1)) * 255);
+      data[offset + 2] = 160;
+    }
+  }
+  return encodePng({
+    width,
+    height,
+    data,
+    channels: 3,
+    depth: 8,
+  });
+}
+
 function realJpegWithSize(width: number, height: number): Uint8Array {
   const data = new Uint8Array(width * height * 4);
   for (let y = 0; y < height; y += 1) {
@@ -657,6 +676,33 @@ describe('PhotoshopHostBridge fake harness', () => {
       width: 2048,
       height: 2048,
       mimeType: 'image/png',
+    });
+    const bytes = await resolveAssetBytes(assetStore, asset!.asset);
+    expect(bytes.slice(0, 8)).toEqual(VALID_TRANSPARENT_PNG.slice(0, 8));
+  });
+
+  it('normalizes RGB PNG local files into RGBA before app-local resize', async () => {
+    const { modules, spies } = createFakeModules({
+      pickedFileName: 'rgb.png',
+      pickedFileData: arrayBufferFromBytes(realRgbPngWithSize(224, 225)),
+    });
+    const { bridge, assetStore } = createBridge(modules);
+
+    const asset = await bridge.pickImageFile(providerPolicy);
+
+    expect(spies.openDocument).not.toHaveBeenCalled();
+    expect(spies.getPixels).not.toHaveBeenCalled();
+    expect(asset?.asset).toMatchObject({
+      type: 'image',
+      name: 'rgb.png',
+      mimeType: 'image/png',
+    });
+    expect(asset?.metadata).toMatchObject({
+      source: 'file',
+      width: 2016,
+      height: 2025,
+      mimeType: 'image/png',
+      name: 'rgb.png',
     });
     const bytes = await resolveAssetBytes(assetStore, asset!.asset);
     expect(bytes.slice(0, 8)).toEqual(VALID_TRANSPARENT_PNG.slice(0, 8));

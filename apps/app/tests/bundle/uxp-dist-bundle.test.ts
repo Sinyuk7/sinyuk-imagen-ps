@@ -52,6 +52,9 @@ describe('UXP dist bundle safety', () => {
     expect(existsSync(resolve('public/assets/icons/settings.png'))).toBe(false);
     expect(uxpHtml).toContain('./assets/index.js');
     expect(uxpHtml).toContain('./assets/uxp-bootstrap.js');
+    expect(uxpBootstrap).toContain('installTextEncodingPolyfill');
+    expect(uxpBootstrap).toContain("setGlobal('TextEncoder'");
+    expect(uxpBootstrap).toContain("setGlobal('TextDecoder'");
     expect(uxpBootstrap).toContain('panel.bootstrap.html.loaded');
     expect(uxpHtml).not.toContain('<script>(function () {');
     expect(uxpHtml).not.toContain('type="module"');

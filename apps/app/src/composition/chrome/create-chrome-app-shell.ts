@@ -17,6 +17,8 @@ import {
 import { createPhotoshopSimulator, type PhotoshopSimulatorScenarioId } from '../../simulators/photoshop/simulator';
 import { createMemoryThumbnailStore } from '../../shared/image/thumbnail-store';
 import { createTaskResourceResolver } from '../../shared/image/task-resource-resolver';
+import { createRetentionController } from '../../shared/retention/controller';
+import { defaultTaskLinkedRetentionPolicy, runTaskLinkedRetention } from '../../shared/retention/task-linked-retention';
 import { createChromeTestHarnessRuntime, type ChromeTestHarnessConfig } from './chrome-test-harness';
 
 export interface ChromeAppShellOptions {
@@ -77,6 +79,18 @@ export function createChromeAppShell(options?: ChromeAppShellOptions): AppShellH
   });
   testHarness?.install(storage);
   const commands = createCommandsAdapter();
+  const retention = createRetentionController({
+    async sweep() {
+      await runTaskLinkedRetention(
+        { taskStore: storage.tasks, jobHistoryStore: storage.history, assetStore: storage.assets },
+        defaultTaskLinkedRetentionPolicy(),
+      );
+    },
+    onError(error, reason) {
+      console.error('[imagen-ps:chrome]', 'retention.sweep.fail', reason, error);
+    },
+  });
+  void retention.requestSweep('startup');
 
   return {
     app: createPluginAppModel('chrome-browser'),
@@ -88,6 +102,7 @@ export function createChromeAppShell(options?: ChromeAppShellOptions): AppShellH
       thumbnails: createMemoryThumbnailStore({ resolveStoredRef: storage.assets.resolve }),
       taskResources: createTaskResourceResolver({ resolveStoredRef: storage.assets.resolve }),
       diagnostics: createChromeDiagnosticsPort(),
+      retention,
     },
     dispose() {
       globalThis.__IMAGEN_CHROME_DIAGNOSTICS__ = undefined;
