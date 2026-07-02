@@ -72,7 +72,12 @@ Per section, not just file: `KEEP` (current + canonical), `MERGE` (durable, belo
 
 ### 4. Handle loops
 
-At most one active project-level loop in `docs/loops/`. Completed loops: merge durable outcomes into canonical docs, delete the file. `docs/loops/` holds the active loop or is empty.
+`docs/loops/` uses Loop statuses from `docs/agent/LOOP.md`: `draft`, `active`,
+`blocked`, `completed`, `superseded`. Multiple `draft` loops may coexist; do
+not delete a `draft` or `active` loop without explicit user authorization. At
+most one `active` loop is in effect. `completed` / `superseded` loops: merge
+durable outcomes into canonical docs and delete the file. An empty
+`docs/loops/` is also valid.
 
 ### 5. Handle local AGENTS
 

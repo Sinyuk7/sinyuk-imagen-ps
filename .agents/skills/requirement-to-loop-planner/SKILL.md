@@ -43,7 +43,7 @@ bug fix with symptom, expected behavior, and reproduction evidence, hand off to
 
 ## Repository Boundaries
 
-- Photoshop / UXP host IO belongs in `apps/app/src/host/` or injected app adapters.
+- Photoshop / UXP host IO belongs in `apps/app/src/adapters/uxp/` (e.g. `photoshop-host-bridge.ts`, `uxp-secret-storage-adapter.ts`, `uxp-api.ts`); `apps/app/src/host/` is only compatibility re-exports for older tests/imports, not the ownership target.
 - Session, profile/model coordination, request builders, and command facades belong in `packages/application`.
 - Job lifecycle and dispatch boundary belong in `packages/core-engine`.
 - Provider validation, transport, discovery, and response normalization belong in `packages/providers`.

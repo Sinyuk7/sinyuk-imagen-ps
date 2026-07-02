@@ -170,6 +170,8 @@ skill whose trigger matches the task:
 | `bounded-loop-executor` | An approved Loop slice already defines owner boundary, allowed files, forbidden files, validation, stop rules, and reporting requirements. |
 | `provider-contract-reviewer` | Provider config schemas, canonical requests, model discovery, transport builders, response parsers, descriptors, mock/live smoke boundaries, or normalization. |
 | `ui-fix-guardrails` | UI defect fixes in `apps/app` touching shared UI, ports, UXP/Chrome adapters, simulator, or composition; frames owner boundary and acceptance before the fix and verifies dual-runtime regression after. |
+| `ps-uxp-ui-rca` | Photoshop UXP-specific UI defect RCA in `apps/app` when the issue appears in Photoshop/UXP or differs between Chrome and PS; inspect component usage, native-control coverage, Adobe docs, and runtime boundaries. Do not use for screenshot-only review or shared bugs already confirmed in both runtimes. |
+| `design-review` | Page / panel / screenshot / layout review with evidence-first findings; classify visible issues into confirmed problems, conditional risks, optional optimizations, and A/B/C/D decisions without implementation. Hand off to `ui-fix-guardrails` once a bug is confirmed, or to `ps-uxp-ui-rca` for Photoshop-only divergence. |
 | `docs-reducer` | Documentation has grown, `docs/dev-memory` / `docs/loops` / inbox trees have accumulated, `AGENTS.md` files duplicate global rules, or canonical authority is unclear; reduce toward the `scripts/policy/docs.mjs` whitelist. |
 
 Do not create one skill per feature. Do not create generic TypeScript monorepo

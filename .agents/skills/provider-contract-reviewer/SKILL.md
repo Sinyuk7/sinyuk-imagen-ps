@@ -51,8 +51,9 @@ pnpm check:policy
 pnpm validate
 ```
 
-Live provider smoke is manual / opt-in only. There is currently no active CLI
-smoke harness; add one as a separate Loop slice if needed.
+Live provider smoke is manual / opt-in only. `apps/cli` is an empty placeholder
+(no source, only build artifacts); there is no wired CLI smoke harness — add
+one as a separate Loop slice if needed.
 
 ## Stop Conditions
 

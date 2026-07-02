@@ -325,7 +325,7 @@ export const CONVERSATION_CSS = `
   margin-top:0; margin-right:0; margin-bottom:0; margin-left:0;
   background:#4a1819;
   border:1px solid rgba(255,255,255,.04);
-  border-radius:12px; padding:11px 13px 10px;
+  border-radius:12px; padding:11px 13px 8px;
   display:flex; flex-direction:column;
 }
 .err-top{ display:flex; align-items:center; }
@@ -340,17 +340,17 @@ export const CONVERSATION_CSS = `
 .err-msg{
   margin-top:7px; font-size:13px; color:#fff4f2; line-height:18px; font-weight:600; padding-left:0;
 }
-.err-request{ margin-top:9px; min-width:0; }
+.err-request{ margin-top:8px; min-width:0; }
 .err-request-label{
   font-size:10px; line-height:12px; color:rgba(255,235,231,.72); letter-spacing:.04em;
   font-family:var(--app-font-family-mono);
 }
-.err-request-row{ display:inline-flex; align-items:center; min-width:0; max-width:100%; margin-top:4px; }
+.err-request-row{ display:inline-flex; align-items:center; min-width:0; max-width:100%; margin-top:3px; }
 .err-request-value{
   flex:0 1 auto; min-width:0; color:rgba(255,244,242,.9); font-size:11px; line-height:15px;
   font-family:var(--app-font-family-mono); overflow-wrap:anywhere;
 }
-.err-actions{ display:flex; align-items:center; align-self:flex-start; min-width:0; margin-top:9px; margin-left:0; }
+.err-actions{ display:flex; align-items:center; align-self:flex-start; min-width:0; margin-top:8px; margin-left:0; }
 .err-retry{
   min-height:30px; padding:0 14px; border-radius:8px; border:none;
   background:#cf5a57;
@@ -359,7 +359,7 @@ export const CONVERSATION_CSS = `
 .err-retry:hover{ background:#dd6662; }
 .err-retry:disabled{ opacity:.45; cursor:not-allowed; }
 .err-copy{
-  width:28px; height:28px; min-width:28px; min-height:28px; padding:0; margin-left:8px;
+  width:28px; height:28px; min-width:28px; min-height:28px; padding:0; margin-left:5px;
   border:1px solid rgba(255,255,255,.08); border-radius:8px; background:rgba(255,255,255,.03);
   color:rgba(255,244,242,.78); cursor:pointer; flex:0 0 auto;
 }

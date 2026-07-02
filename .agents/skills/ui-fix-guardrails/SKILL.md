@@ -82,8 +82,8 @@ Owner hypotheses are initial, not verdicts:
 - ports / application contract (`apps/app/src/shared/ports`, the
   `@imagen-ps/application` seam);
 - UXP adapter / host bridge (`apps/app/src/adapters/uxp`, `shells/uxp`);
-- Chrome adapter / simulator (`apps/app/src/adapters/chrome`,
-  `simulators/photoshop`);
+- Chrome adapter (`apps/app/src/adapters/chrome`);
+- Photoshop simulator (`apps/app/src/simulators/photoshop`);
 - composition / shell (`apps/app/src/composition`, `apps/app/src/shells`).
 
 ## 4. Architecture Guardrails

@@ -209,16 +209,21 @@ Do not assume a hidden overlay state exists if it is not shown.
 
 Do not review only the shown dark screenshot as if it proves the whole theme.
 
-If theme coverage is incomplete, require follow-up verification for:
+If theme coverage is incomplete, require follow-up verification for the repo's
+actual theme tokens:
 
-- `Darkest`
-- `Dark`
-- `Light`
-- `Lightest`
+- `dark`
+- `light`
+- `dark-mc`
+- `light-mc`
+
+These map to `data-app-theme="dark|light"` and `.theme-dark-mc` /
+`.theme-light-mc` classes in `apps/app/src/shared/ui/styles/`; they are not the
+generic Spectrum `Darkest / Dark / Light / Lightest` set.
 
 Call out theme issues conditionally unless directly visible. Prefer wording:
 
-`If this text uses host theme variables correctly, keep current. Otherwise verify contrast in Light and Lightest themes.`
+`If this text uses host theme variables correctly, keep current. Otherwise verify contrast in light and light-mc themes.`
 
 Do not rely on Chrome-only theme behavior as proof for UXP.
 
