@@ -1,5 +1,7 @@
 apps/app/README.md
   s_26973d51956f5b::t_aaa9bec8ca3e04 59-60
+pnpm-lock.yaml
+  s_6fb15245617e65::t_17da325d24fe06 864,867,1843,1855,1887,1889
 ---
 {
   "schema_version": "authorship/3.0.0",
@@ -19,6 +21,14 @@ apps/app/README.md
       "agent_id": {
         "tool": "codex",
         "id": "019f0a1c-559e-7612-8283-39a2d8311947",
+        "model": "unknown"
+      },
+      "human_author": "Sinyuk <80998062@qq.com>"
+    },
+    "s_6fb15245617e65": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "019f2214-4dfe-7143-a342-303cdab7bdbd",
         "model": "unknown"
       },
       "human_author": "Sinyuk <80998062@qq.com>"
