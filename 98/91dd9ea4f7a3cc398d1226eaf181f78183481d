@@ -1,0 +1,37 @@
+apps/app/src/shared/ui/components/composer-select-menu.tsx
+  s_225ed0dd96fb44::t_6db7bf6de770ef 1,77-81,99-100,122-123
+apps/app/src/shared/ui/pages/settings-detail-page.tsx
+  s_61fe25e835ac4e::t_a2862686bab3bd 522,524
+apps/app/src/shared/ui/primitives/icon-button.tsx
+  s_61fe25e835ac4e::t_6259116d4b18c9 33-34,63,79,91-100
+apps/app/src/shared/ui/styles/tokens.ts
+  s_61fe25e835ac4e::t_5e8c1e1a6c23b3 615-620,626-632,651-657
+apps/app/tests/native-controls.test.tsx
+  s_61fe25e835ac4e::t_73200388627f34 5-6,65-89
+apps/app/tests/settings-detail-page.test.tsx
+  s_61fe25e835ac4e::t_a0b6468695042e 309-310,314-316
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.3",
+  "base_commit_sha": "9891dd9ea4f7a3cc398d1226eaf181f78183481d",
+  "prompts": {},
+  "sessions": {
+    "s_225ed0dd96fb44": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "019f22b4-31ed-78d1-9f1e-71f80086e0b0",
+        "model": "unknown"
+      },
+      "human_author": "Sinyuk <80998062@qq.com>"
+    },
+    "s_61fe25e835ac4e": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "019f2297-b3d7-79b2-b5fa-61d0d4026f44",
+        "model": "unknown"
+      },
+      "human_author": "Sinyuk <80998062@qq.com>"
+    }
+  }
+}
