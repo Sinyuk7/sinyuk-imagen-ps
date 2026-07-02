@@ -581,9 +581,9 @@ export function SettingsDetailPage({ onNav, profileId, onProfilesChanged, onSave
           {!isOptimizerProfile && (
             <IconButton
               data-testid="provider-delete-button"
+              hostClassName="btn-del-host"
               className="btn-del"
               variant="negative"
-              compactSquare
               icon={<Icon name="trash" />}
               tooltip={t.common.delete}
               disabled={busy || !detail.profile}

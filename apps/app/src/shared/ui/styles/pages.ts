@@ -339,8 +339,18 @@ export const PAGES_CSS = `
   align-items:stretch;
 }
 .btn-save{ flex:1; }
-.btn-del{
+.btn-del-host{
   margin-left:8px;
+  flex:0 0 44px;
+  width:44px;
+  min-width:44px;
+  align-self:stretch;
+  display:flex;
+}
+.btn-del{
+  width:100%;
+  height:100%;
+  padding:0;
 }
 .btn-del[data-variant="negative"]{
   border-color:var(--app-color-negative);
@@ -350,6 +360,12 @@ export const PAGES_CSS = `
 .btn-del[data-variant="negative"]:hover{
   border-color:var(--app-color-negative);
   background:color-mix(in srgb, var(--app-color-negative) 92%, black 8%);
+}
+.btn-del .ui-icon-button-icon-slot{
+  margin-top:0;
+  margin-right:0;
+  margin-bottom:0;
+  margin-left:0;
 }
 .btn-cancel{ margin-left:8px; }
 

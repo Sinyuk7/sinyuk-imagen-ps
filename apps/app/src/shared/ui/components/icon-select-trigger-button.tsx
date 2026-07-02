@@ -15,9 +15,9 @@ export function IconSelectTriggerButton({
   triggerId,
   icon,
   chipRef,
-  chipBodyRef,
-  chipValueRef,
-  chipArrowRef,
+  chipBodyRef: _chipBodyRef,
+  chipValueRef: _chipValueRef,
+  chipArrowRef: _chipArrowRef,
   onClick,
   onKeyDown,
 }: IconSelectTriggerButtonProps) {
@@ -51,13 +51,7 @@ export function IconSelectTriggerButton({
         </span>
       )}
     >
-      <span ref={chipBodyRef} className="cmp-chip-body cmp-chip-body-icon">
-        <span className="cmp-chip-leading-slot cmp-chip-leading-slot-icon" aria-hidden="true" />
-        <span ref={chipValueRef} className="cmp-chip-value cmp-chip-value-icon">{value}</span>
-        <span ref={chipArrowRef} className="cmp-chip-arrow-text cmp-chip-arrow-text-icon" aria-hidden="true">
-          <span className="cmp-chip-arrow-slot cmp-chip-arrow-slot-icon" />
-        </span>
-      </span>
+      {value}
     </OverlayTriggerButton>
   );
 }

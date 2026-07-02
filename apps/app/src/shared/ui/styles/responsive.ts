@@ -14,6 +14,12 @@ export const RESPONSIVE_CSS = `
 .panel[data-panel-width-mode="compact"] .cmp-select-output-size{ flex:0 0 auto; min-width:82px; margin-top:0; margin-right:5px; margin-bottom:0; margin-left:0; }
 .panel[data-panel-width-mode="compact"] .cmp-chip-icon,
 .panel[data-panel-width-mode="compact"] .cmp-chip-text{ padding:2px 6px; font-size:9px; }
+.panel[data-panel-width-mode="compact"] .cmp-select-model .cmp-chip-icon{
+  padding-top:2px;
+  padding-right:32px;
+  padding-bottom:2px;
+  padding-left:36px;
+}
 .panel[data-panel-width-mode="compact"] .cmp-select-output-size .cmp-chip-leading-icon{ display:none !important; }
 .panel[data-panel-width-mode="compact"] .cmp-select-output-size .cmp-chip-value-icon{ max-width:48px; }
 .panel[data-panel-width-mode="compact"] .generation-settings-grid{ flex-direction:column; flex-wrap:nowrap; }

@@ -97,4 +97,29 @@ describe('UXP CSS contract harness', () => {
       globalThis.ResizeObserver = originalResizeObserver;
     }
   });
+
+  it('renders the real long-model IconSelect specimen for UXP manual verification', async () => {
+    const container = document.createElement('div');
+    container.style.width = '360px';
+    container.style.height = '900px';
+    document.body.appendChild(container);
+
+    root = createRoot(container);
+    await act(async () => {
+      root!.render(<UxpCssContractHarnessPage />);
+    });
+    await flush();
+    await flush();
+
+    const toolbar = container.querySelector<HTMLElement>('[data-testid="uxp-css-long-model-toolbar"]');
+    const modelSelector = container.querySelector<HTMLElement>('[data-testid="uxp-css-long-model-selector"]');
+    const geometry = container.querySelector<HTMLElement>('[data-testid="uxp-css-long-model-geometry"]');
+
+    expect(toolbar).not.toBeNull();
+    expect(modelSelector).not.toBeNull();
+    expect(modelSelector?.textContent).toContain('gemini-3.1-flash-image-preview');
+    expect(geometry).not.toBeNull();
+    expect(geometry?.textContent).toContain('pad.left=');
+    expect(geometry?.textContent).toContain('overlay.leading=');
+  });
 });

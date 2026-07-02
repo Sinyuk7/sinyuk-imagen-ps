@@ -3,6 +3,7 @@ import { PANEL_CSS } from '../../../shared/ui/panel-css';
 import { Icon } from '../../../shared/ui/components/icons';
 import { OverlayControlShell } from '../../../shared/ui/components/overlay-controls';
 import { ProviderIdentity } from '../../../shared/ui/components/provider-identity';
+import { IconSelect } from '../../../shared/ui/components/icon-select';
 import { IconButton } from '../../../shared/ui/primitives/icon-button';
 import { Button, TextField } from '../../../shared/ui/primitives/native-controls';
 
@@ -762,6 +763,17 @@ const HARNESS_CSS = `
   background:#f7fbff;
   overflow:hidden;
 }
+.uxp-css-select-panel{
+  width:300px;
+  max-width:100%;
+  padding-top:12px;
+  padding-right:12px;
+  padding-bottom:12px;
+  padding-left:12px;
+  border:1px solid #d7e1ed;
+  border-radius:16px;
+  background:var(--app-color-background-base);
+}
 .uxp-css-panel-frame .panel{
   min-width:0;
   height:100%;
@@ -1229,6 +1241,94 @@ function ProviderSettingsBoard() {
   );
 }
 
+function ModelSelectorSpecimen() {
+  const rootRef = useRef<HTMLDivElement | null>(null);
+  const [openMenu, setOpenMenu] = useState<'model' | 'size' | null>(null);
+  const [snapshot, setSnapshot] = useState('pending');
+
+  useLayoutEffect(() => {
+    const update = () => {
+      const root = rootRef.current;
+      if (!root) {
+        setSnapshot('missing root');
+        return;
+      }
+      const trigger = root.querySelector<HTMLElement>('[data-testid="uxp-css-long-model-selector"]');
+      const overlayLeading = root.querySelector<HTMLElement>('.cmp-chip-leading-proxy-icon');
+      const overlayArrow = root.querySelector<HTMLElement>('.cmp-chip-arrow-proxy-icon');
+      if (!trigger || !overlayLeading || !overlayArrow) {
+        setSnapshot('missing trigger geometry');
+        return;
+      }
+      const triggerRect = trigger.getBoundingClientRect();
+      const overlayLeadingRect = overlayLeading.getBoundingClientRect();
+      const overlayArrowRect = overlayArrow.getBoundingClientRect();
+      const triggerStyle = window.getComputedStyle(trigger);
+      setSnapshot([
+        `trigger=${Math.round(triggerRect.width)}x${Math.round(triggerRect.height)}`,
+        `font=${triggerStyle.fontSize}`,
+        `pad.left=${triggerStyle.paddingLeft}`,
+        `pad.right=${triggerStyle.paddingRight}`,
+        `overlay.leading=${Math.round(overlayLeadingRect.width)}x${Math.round(overlayLeadingRect.height)}`,
+        `overlay.arrow=${Math.round(overlayArrowRect.width)}x${Math.round(overlayArrowRect.height)}`,
+      ].join(' | '));
+    };
+
+    update();
+    window.addEventListener('resize', update);
+    const timer = window.setInterval(update, 400);
+    return () => {
+      window.removeEventListener('resize', update);
+      window.clearInterval(timer);
+    };
+  }, []);
+
+  return (
+    <div className="panel uxp-css-select-panel" data-panel-width-mode="compact">
+      <div ref={rootRef} className="cmp-toolbar" data-testid="uxp-css-long-model-toolbar">
+        <div className="cmp-toolbar-left">
+          <IconSelect
+            testId="uxp-css-long-model-selector"
+            containerClassName="cmp-select cmp-select-model"
+            menuClassName="cmp-select-menu cmp-select-menu-model"
+            label="Model"
+            value="gemini-3.1-flash-image-preview-super-long-model-name"
+            icon="algorithm"
+            open={openMenu === 'model'}
+            onOpenChange={(open) => setOpenMenu(open ? 'model' : null)}
+            options={[
+              { id: 'gemini-3.1-flash-image-preview-super-long-model-name', label: 'gemini-3.1-flash-image-preview-super-long-model-name' },
+              { id: 'gpt-image-1', label: 'gpt-image-1' },
+            ]}
+            selectedId="gemini-3.1-flash-image-preview-super-long-model-name"
+            onSelect={() => undefined}
+          />
+        </div>
+        <div className="cmp-toolbar-right">
+          <IconSelect
+            testId="uxp-css-size-selector"
+            containerClassName="cmp-select cmp-select-output-size"
+            menuClassName="cmp-select-menu cmp-select-menu-compact"
+            label="Output size"
+            value="2K"
+            icon="image-auto-mode"
+            open={openMenu === 'size'}
+            onOpenChange={(open) => setOpenMenu(open ? 'size' : null)}
+            options={[
+              { id: '512', label: '512' },
+              { id: '1k', label: '1K' },
+              { id: '2k', label: '2K' },
+            ]}
+            selectedId="2k"
+            onSelect={() => undefined}
+          />
+        </div>
+      </div>
+      <p className="uxp-css-geometry" data-testid="uxp-css-long-model-geometry">{snapshot}</p>
+    </div>
+  );
+}
+
 function ComposerConversationBoard({
   promptText,
   onPromptText,
@@ -1572,6 +1672,28 @@ export function UxpCssContractHarnessPage() {
               >
                 <div className="uxp-css-demo-stage">
                   <ProviderSettingsBoard />
+                </div>
+              </ScenarioCard>
+              <ScenarioCard
+                category="real page specimen"
+                title="Real IconSelect long-model stress"
+                tone="check"
+                summary="Uses the real shared `IconSelect` trigger with a long model name so Photoshop can prove whether the leading slot really reserves text space."
+                rules={[
+                  { text: 'real IconSelect trigger' },
+                  { text: 'long model label' },
+                  { text: 'trigger padding reserves icon space' },
+                  { text: 'overlay icon stays readable' },
+                  { text: 'empty spacer reliance', bad: true },
+                ]}
+                checks={[
+                  'Long model text starts after the trigger left padding reserve.',
+                  'The left icon stays readable and is not painted under the first glyph.',
+                  'Geometry line should show stable trigger padding plus non-zero overlay icon and arrow geometry.',
+                ]}
+              >
+                <div className="uxp-css-demo-stage" data-narrow="true">
+                  <ModelSelectorSpecimen />
                 </div>
               </ScenarioCard>
               <ScenarioCard

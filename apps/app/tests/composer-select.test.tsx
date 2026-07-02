@@ -90,7 +90,7 @@ describe('ComposerSelect', () => {
     await flush();
 
     expect(container.querySelector('.cmp-chip-icon')).not.toBeNull();
-    expect(container.querySelector('.cmp-chip-leading-slot')).not.toBeNull();
+    expect(container.querySelector('.cmp-chip-leading-proxy-icon')).not.toBeNull();
   });
 
   it('keeps long icon-trigger values inside the shared overlay host contract', async () => {
@@ -124,13 +124,13 @@ describe('ComposerSelect', () => {
     const trigger = container.querySelector('.cmp-chip-icon');
     const overlayLayer = container.querySelector('.cmp-chip-host > .ui-overlay-icon-layer');
     const overlayInner = container.querySelector('.cmp-chip-overlay-inner-icon');
-    const value = container.querySelector('.cmp-chip-value-icon');
+    const triggerText = container.querySelector('[data-testid="long-icon-select"]');
 
     expect(host).not.toBeNull();
     expect(trigger).not.toBeNull();
     expect(overlayLayer).not.toBeNull();
     expect(overlayInner).not.toBeNull();
-    expect(value?.textContent).toContain('gemini-3.1-flash-lite-imagen');
+    expect(triggerText?.textContent).toContain('gemini-3.1-flash-lite-imagen');
   });
 
   it('renders text trigger without icon slot when text variant is used', async () => {

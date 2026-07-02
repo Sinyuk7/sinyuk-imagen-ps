@@ -376,7 +376,10 @@ export const COMPOSER_CSS = `
   white-space:nowrap;
 }
 .cmp-chip-icon{
-  padding:4px 12px 4px 14px;
+  padding:4px 32px 4px 36px;
+  overflow:hidden;
+  text-overflow:ellipsis;
+  text-align:left;
 }
 .cmp-chip-icon:hover,
 .cmp-chip-text:hover{ border-color:var(--app-color-border-strong); color:var(--app-color-text-primary); }
@@ -395,7 +398,6 @@ export const COMPOSER_CSS = `
   flex:1 1 auto;
   overflow:hidden;
 }
-.cmp-chip-body-icon,
 .cmp-chip-body-text{
   display:flex;
   align-items:center;
@@ -433,17 +435,6 @@ export const COMPOSER_CSS = `
 }
 .cmp-chip-leading-icon,
 .cmp-dot{
-  margin-top:0;
-  margin-right:6px;
-  margin-bottom:0;
-  margin-left:0;
-}
-.cmp-chip-leading-slot-icon{
-  display:block;
-  flex:0 0 auto;
-  width:16px;
-  min-width:16px;
-  height:16px;
   margin-top:0;
   margin-right:6px;
   margin-bottom:0;
@@ -494,7 +485,6 @@ export const COMPOSER_CSS = `
   margin-bottom:0;
   margin-left:0;
 }
-.cmp-chip-arrow-text-icon,
 .cmp-chip-arrow-text-text{
   display:inline-flex;
   align-items:center;
@@ -512,7 +502,6 @@ export const COMPOSER_CSS = `
   min-height:16px;
   align-self:center;
 }
-.cmp-chip-arrow-slot-icon,
 .cmp-chip-arrow-slot-text{
   display:block;
   width:12px;

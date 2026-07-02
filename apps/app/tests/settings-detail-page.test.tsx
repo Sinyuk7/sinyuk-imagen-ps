@@ -243,6 +243,9 @@ describe('SettingsDetailPage contract', () => {
       container.querySelector<HTMLButtonElement>('.btn-del')!.click();
     });
 
+    expect(container.querySelector('.btn-del-host')).not.toBeNull();
+    expect(container.querySelector('.btn-del')?.className).not.toContain('ui-icon-button--compact-square');
+    expect(container.querySelector('.btn-del-host')?.className).not.toContain('ui-icon-button-host--compact-square');
     expect(services.spies.deleteProviderProfile).toHaveBeenCalledWith('mock-profile');
     expect(onProfilesChanged).toHaveBeenCalledWith(null);
     expect(onNav).toHaveBeenCalledWith('settings');
@@ -348,7 +351,7 @@ describe('SettingsDetailPage contract', () => {
     expect(container.querySelector('[data-testid="provider-endpoint-preferred-badge-0"]')).toBeNull();
   });
 
-  it('keeps detail delete as a compact solid icon action', async () => {
+  it('keeps detail delete as a footer-aligned solid icon action', async () => {
     const container = document.createElement('div');
     document.body.appendChild(container);
     await renderDetail(container);
@@ -359,9 +362,10 @@ describe('SettingsDetailPage contract', () => {
     expect(button.getAttribute('data-variant')).toBe('negative');
     expect(button.textContent?.trim()).toBe('');
     expect(button.className).toContain('btn-del');
-    expect(button.className).toContain('ui-icon-button--compact-square');
-    expect(host?.className).toContain('ui-icon-button-host--compact-square');
-    expect(overlay?.className).toContain('ui-icon-button-overlay--compact-square');
+    expect(button.className).not.toContain('ui-icon-button--compact-square');
+    expect(host?.className).toContain('btn-del-host');
+    expect(host?.className).not.toContain('ui-icon-button-host--compact-square');
+    expect(overlay?.className).not.toContain('ui-icon-button-overlay--compact-square');
   });
 
   it('renders a plain page header title without provider enable status affordances', async () => {
