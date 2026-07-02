@@ -1,0 +1,33 @@
+apps/app/src/shared/ui/app-shell.tsx
+  s_99c2f065121c80::t_3abb8402aee961 19-20,213,394,434
+apps/app/src/shared/ui/pages/settings-detail-page.tsx
+  s_99c2f065121c80::t_a4a9683535c846 29,62-112,215,222,244-245,345-354
+apps/app/tests/settings-detail-page.test.tsx
+  s_99c2f065121c80::t_838653e43619e0 127-143,157,178,278-309,594-595
+apps/app/tests/uxp-css-contract-harness.test.tsx
+  s_225ed0dd96fb44::t_d2b8ebe8c1f22e 1-100
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.3",
+  "base_commit_sha": "048fe40903182f2c5a4fdc1ef3448765523105c2",
+  "prompts": {},
+  "sessions": {
+    "s_225ed0dd96fb44": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "019f22b4-31ed-78d1-9f1e-71f80086e0b0",
+        "model": "unknown"
+      },
+      "human_author": "Sinyuk <80998062@qq.com>"
+    },
+    "s_99c2f065121c80": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "019f22bb-caa6-73b1-9f6c-57c373c46bca",
+        "model": "unknown"
+      },
+      "human_author": "Sinyuk <80998062@qq.com>"
+    }
+  }
+}
