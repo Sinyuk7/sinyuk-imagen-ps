@@ -44,8 +44,8 @@ export const RESPONSIVE_CSS = `
 .panel[data-panel-width-mode="compact"] .img-result.media-wide{ height:180px; }
 .panel[data-panel-width-mode="compact"] .img-result.media-unknown{ height:240px; }
 .panel[data-panel-width-mode="compact"] .img-meta{ max-width:calc(100% - 16px); overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
-.panel[data-panel-width-mode="compact"] .err-actions{ flex-wrap:wrap; }
-.panel[data-panel-width-mode="compact"] .err-copy{ margin-top:6px; margin-left:0; }
+.panel[data-panel-width-mode="compact"] .err-request-row{ align-items:flex-start; }
+.panel[data-panel-width-mode="compact"] .err-copy{ margin-top:0; margin-left:8px; }
 .panel[data-panel-width-mode="compact"] .model-menu{ left:12px; right:12px; }
 .panel[data-panel-width-mode="compact"] .ui-toast[data-testid="toast"]{ left:12px; right:12px; width:auto; min-width:0; max-width:none; }
 .panel[data-panel-width-mode="compact"] .attach-picker,

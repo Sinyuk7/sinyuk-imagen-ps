@@ -93,6 +93,10 @@ function attachmentId(prefix: string): string {
   return `${prefix}-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
 }
 
+function requestIdCopyKey(roundId: string): string {
+  return `error-request:${roundId}`;
+}
+
 function dedupeById(models: readonly ProviderModelInfo[]): readonly ProviderModelInfo[] {
   const seen = new Set<string>();
   return models.filter((model) => {
@@ -150,6 +154,23 @@ function releaseAttachments(attachments: readonly ConversationAttachment[]): voi
 
 function isLocalFileNormalizationError(error: unknown): boolean {
   return error instanceof Error && error.message.includes('Local image requires provider input normalization');
+}
+
+function parseRoundError(errorMessage: string | undefined): { message: string; requestId?: string } {
+  const fallback = errorMessage?.trim() ?? '';
+  if (!fallback) {
+    return { message: '' };
+  }
+  const match = /\(?\brequest[\s_-]*id\b\s*[:：]\s*([^\s)）]+)\)?/i.exec(fallback);
+  let message = fallback;
+  const requestId = match?.[1]?.trim();
+  if (match) {
+    const before = fallback.slice(0, match.index).replace(/[（(]\s*$/, '').trimEnd();
+    const after = fallback.slice(match.index + match[0].length).replace(/^\s*[）)]/, '').trimStart();
+    message = [before, after].filter(Boolean).join(' ').trim();
+  }
+  message = message.replace(/^(?:provider\s*[:：]\s*)+/i, '').trim();
+  return { message: message || fallback, ...(requestId ? { requestId } : {}) };
 }
 
 export function MainPage({
@@ -375,6 +396,13 @@ export function MainPage({
     }
     const key = responseTextKey(round.id);
     navigator.clipboard?.writeText(round.responseText).catch(() => undefined);
+    setCopied((current) => ({ ...current, [key]: true }));
+    window.setTimeout(() => setCopied((current) => ({ ...current, [key]: false })), 1500);
+  };
+
+  const handleCopyRequestId = (roundId: string, requestId: string) => {
+    const key = requestIdCopyKey(roundId);
+    navigator.clipboard?.writeText(requestId).catch(() => undefined);
     setCopied((current) => ({ ...current, [key]: true }));
     window.setTimeout(() => setCopied((current) => ({ ...current, [key]: false })), 1500);
   };
@@ -792,27 +820,43 @@ export function MainPage({
               <MotionContent watch={`${round.id}:${round.status}`}>
               {round.status === 'err' && (
                 <div className="msg-prov msg-prov-surface" style={{ marginTop: 4 }}>
-                  <div className="err-card">
-                    <div className="err-top">
-                      <span className="prov-identity-icon err">!</span>
-                      <span className="sdot err" />
-                      <span style={{ fontSize: 11, fontWeight: 500, color: 'var(--app-color-negative)', fontFamily: 'var(--app-font-family-mono)' }}>
-                        {t.status.failed} · {round.providerName}
-                      </span>
-                    </div>
-                    <div className="err-msg">{round.errorMessage}</div>
-                    <div className="err-actions">
-                      <button data-testid={`error-retry-button-${round.id}`} className="err-retry" disabled={conversation.running} onClick={() => void conversation.retry(round.id)}>{t.history.retry}</button>
-                      <IconButton
-                        data-testid={`error-copy-button-${round.id}`}
-                        className={`err-copy${copied[round.id] ? ' cp' : ''}`}
-                        quiet
-                        icon={copied[round.id] ? <Icon name="check" /> : <Icon name="copy" />}
-                        tooltip={t.main.copyPrompt}
-                        onClick={(event) => { event.stopPropagation(); handleCopy(round.id, round); }}
-                      />
-                    </div>
-                  </div>
+                  {(() => {
+                    const failure = parseRoundError(round.errorMessage);
+                    const requestCopyKey = requestIdCopyKey(round.id);
+                    return (
+                      <div className="err-card">
+                        <div className="err-top">
+                          <span className="prov-identity-icon err">!</span>
+                          <span className="err-title">
+                            {t.status.failed} · {round.providerName}
+                          </span>
+                        </div>
+                        <div className="err-msg">{failure.message}</div>
+                        {failure.requestId ? (
+                          <div className="err-request">
+                            <div className="err-request-label">{t.main.requestId}</div>
+                            <div className="err-request-row">
+                              <div className="err-request-value" data-testid={`error-request-id-${round.id}`}>{failure.requestId}</div>
+                              <IconButton
+                                data-testid={`error-request-copy-button-${round.id}`}
+                                className={`err-copy${copied[requestCopyKey] ? ' cp' : ''}`}
+                                quiet
+                                icon={copied[requestCopyKey] ? <Icon name="check" /> : <Icon name="copy" />}
+                                tooltip={t.main.copyRequestId}
+                                onClick={(event) => {
+                                  event.stopPropagation();
+                                  handleCopyRequestId(round.id, failure.requestId!);
+                                }}
+                              />
+                            </div>
+                          </div>
+                        ) : null}
+                        <div className="err-actions">
+                          <button data-testid={`error-retry-button-${round.id}`} className="err-retry" disabled={conversation.running} onClick={() => void conversation.retry(round.id)}>{t.history.retry}</button>
+                        </div>
+                      </div>
+                    );
+                  })()}
                 </div>
               )}
 

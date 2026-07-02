@@ -572,6 +572,51 @@ describe('MainPage contract', () => {
     expect(writeText).toHaveBeenCalledWith(expect.stringContaining('[app.output=size=2k format=png aspect=auto providerInputSize=1k]'));
   });
 
+  it('renders failed rounds as a structured error card and copies only the request id', async () => {
+    const container = document.createElement('div');
+    document.body.appendChild(container);
+    const writeText = vi.fn(async () => undefined);
+    Object.defineProperty(navigator, 'clipboard', {
+      configurable: true,
+      value: { writeText },
+    });
+    const services = createFakeServices();
+    services.spies.submitJob.mockResolvedValue({
+      ok: true as const,
+      value: {
+        id: 'job-failed',
+        status: 'failed',
+        input: {},
+        output: undefined,
+        error: {
+          category: 'provider',
+          message: 'provider: 无效的令牌 (request id: 20260702182031563028416evPNk4m7)',
+        },
+        createdAt: '2026-06-15T00:00:00.000Z',
+        updatedAt: '2026-06-15T00:00:01.000Z',
+      },
+    });
+    await renderApp(container, services);
+
+    await sendPrompt(container, 'failed request');
+
+    expect(container.querySelector('.err-title')?.textContent).toContain('失败 · Mock Profile');
+    expect(container.querySelector('.err-card .sdot')).toBeNull();
+    expect(container.querySelector('.err-msg')?.textContent).toContain('无效的令牌');
+    expect(container.querySelector('.err-msg')?.textContent).not.toContain('provider:');
+    expect(container.querySelector('.err-msg')?.textContent).not.toContain('request id');
+    expect(container.querySelector('[data-testid^="error-copy-button-"]')).toBeNull();
+    expect(container.textContent).toContain('Request ID');
+    expect(container.querySelector<HTMLElement>('[data-testid^="error-request-id-"]')?.textContent).toBe('20260702182031563028416evPNk4m7');
+
+    await act(async () => {
+      container.querySelector<HTMLElement>('[data-testid^="error-request-copy-button-"]')!.click();
+    });
+
+    expect(writeText).toHaveBeenCalledWith('20260702182031563028416evPNk4m7');
+    expect(container.querySelector<HTMLElement>('[data-testid^="error-retry-button-"]')?.textContent).toContain('重试');
+  });
+
   it('renders compact mock token response as plain response text without details splitting', async () => {
     const container = document.createElement('div');
     document.body.appendChild(container);

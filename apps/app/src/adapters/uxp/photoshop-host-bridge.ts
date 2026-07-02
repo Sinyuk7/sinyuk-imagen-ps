@@ -683,6 +683,25 @@ async function createAppLocalPreview(bytes: Uint8Array, mimeType: string): Promi
   return createRuntimeImageUrlOrDataUrl(copy, mimeType);
 }
 
+async function createAppLocalThumbnail(
+  bytes: Uint8Array,
+  mimeType: string,
+  targetSize: { readonly width: number; readonly height: number },
+): Promise<RuntimeImageUrl | undefined> {
+  if (!mimeTypeSupportsAppLocalDerivative(mimeType)) {
+    return undefined;
+  }
+  const sourceSize = readImageSize(bytes, mimeType);
+  if (!sourceSize) {
+    return undefined;
+  }
+  if (sourceSize.width === targetSize.width && sourceSize.height === targetSize.height) {
+    return createAppLocalPreview(bytes, mimeType);
+  }
+  const thumbnail = await resizeLocalFileBytes(bytes, mimeType, targetSize);
+  return createRuntimeImageUrlOrDataUrl(thumbnail, 'image/png');
+}
+
 async function resizeLocalFileBytes(
   bytes: Uint8Array,
   mimeType: string,
@@ -1285,6 +1304,10 @@ export function createPhotoshopThumbnailGenerator(
       return undefined;
     }
     const targetSize = thumbnailTargetSize(size, maxSide);
+    const appLocalThumbnail = await createAppLocalThumbnail(bytes, mimeType, targetSize);
+    if (appLocalThumbnail) {
+      return appLocalThumbnail;
+    }
     return executeHostModal(async () => {
       const previousDocument = app.activeDocument;
       let tempDocument: PhotoshopDocument | undefined;
