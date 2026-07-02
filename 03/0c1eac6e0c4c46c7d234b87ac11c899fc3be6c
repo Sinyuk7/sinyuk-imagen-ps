@@ -1,0 +1,27 @@
+packages/providers/src/contract/image-model-capability.ts
+  s_79d14e8e523fa8::t_264be43798e0fc 8
+packages/providers/src/contract/image-model-catalog/catalog.ts
+  s_79d14e8e523fa8::t_ab04fe482eea1e 1-8
+packages/providers/src/contract/image-model-catalog/rules/chat-image.ts
+  s_79d14e8e523fa8::t_42f198a2f2c192 1-43
+packages/providers/src/contract/image-model-catalog/rules/image-endpoint.ts
+  s_79d14e8e523fa8::t_5ea473bb82a73b 1-65
+packages/providers/src/contract/image-model-catalog/strategies.ts
+  s_79d14e8e523fa8::t_916010d6590ec5 1-49
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.3",
+  "base_commit_sha": "030c1eac6e0c4c46c7d234b87ac11c899fc3be6c",
+  "prompts": {},
+  "sessions": {
+    "s_79d14e8e523fa8": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "019f2338-2ee7-70e3-b2e0-d2cbe55683e2",
+        "model": "unknown"
+      },
+      "human_author": "Sinyuk <80998062@qq.com>"
+    }
+  }
+}
