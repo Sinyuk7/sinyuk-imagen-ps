@@ -1,0 +1,45 @@
+apps/app/scripts/verify-placement-core.mjs
+  s_b160ecdc137e83::t_3467446b34f1c7 1-44
+apps/app/src/adapters/uxp/photoshop-host-bridge.ts
+  s_b160ecdc137e83::t_60df3871215f25 29-32,279-286,291,294-317,320-330,1541,1571
+apps/app/src/shared/domain/photoshop-placement.ts
+  s_b160ecdc137e83::t_56df1de8d1d90a 32-33,62-69,132-206
+apps/app/src/shared/domain/task-actions.ts
+  s_b160ecdc137e83::t_e8129b4c20aee5 4-9,40-93,100-117,127-130,134,140-141,144-152
+apps/app/src/shared/domain/task-snapshot.ts
+  s_b160ecdc137e83::t_c688a3014c16fd 161-173,176-179
+apps/app/src/shared/ui/hooks/use-conversation.ts
+  s_b160ecdc137e83::t_a69ff9e8639b5e 15-19,301
+apps/app/src/shared/ui/pages/main-page.tsx
+  s_b160ecdc137e83::t_5c45cef26c7827 478
+apps/app/tests/main-page.test.tsx
+  s_b160ecdc137e83::t_96d39b5f2c1cc0 126-161,306,446,643
+apps/app/tests/photoshop-placement.test.ts
+  s_b160ecdc137e83::t_ca0af3ee9866fa 2,40-52
+apps/app/tests/provider-input-placement-integrity.test.ts
+  s_b160ecdc137e83::t_5e08193485cc4a 240-242
+apps/app/tests/task-actions.test.ts
+  s_b160ecdc137e83::t_cb0c9b0b2f434e 71-99
+apps/app/tests/use-conversation.test.tsx
+  s_b160ecdc137e83::t_67fe5b5347b2f8 112,114,117,119,122,252-253
+docs/ENGINEERING_CONTEXT.md
+  s_b160ecdc137e83::t_e48f06ea886107 39-48
+docs/TESTING.md
+  s_b160ecdc137e83::t_6aa6111bacd50b 56-65
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.3",
+  "base_commit_sha": "825647d5ec295ff18a59e1111bbfdac9efbd70e5",
+  "prompts": {},
+  "sessions": {
+    "s_b160ecdc137e83": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "019f2019-43e7-7151-a490-e56338a81398",
+        "model": "unknown"
+      },
+      "human_author": "Sinyuk <80998062@qq.com>"
+    }
+  }
+}
