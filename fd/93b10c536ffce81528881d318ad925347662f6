@@ -1,0 +1,89 @@
+apps/app/src/shared/domain/mappers.ts
+  s_4e760fd1e082dc::t_772381efb4a12f 2,221-254
+apps/app/src/shared/ports/commands-port.ts
+  s_4e760fd1e082dc::t_9c217ee8db2745 20-21,47-48
+apps/app/src/shared/ui/components/provider-billing-settings.tsx
+  s_4e760fd1e082dc::t_fb4504494946a1 1-85
+apps/app/src/shared/ui/hooks/use-profile-billing.ts
+  s_4e760fd1e082dc::t_0a0f15cc60e576 1-115
+apps/app/src/shared/ui/hooks/use-provider-settings.ts
+  s_4e760fd1e082dc::t_b76dd3216ccf8f 264-272,359-430,437,459-473,479-525
+apps/app/src/shared/ui/i18n/messages.ts
+  s_4e760fd1e082dc::t_14b2df91f89d21 87-90,117-134,206,297-300,327-344,417,508-511,538-555,627
+apps/app/src/shared/ui/pages/main-page.tsx
+  s_4e760fd1e082dc::t_7e596f8d43d694 2,6,12,225,244-245,256-287,615,632,679-691,764-769,806-812
+apps/app/src/shared/ui/pages/settings-add-page.tsx
+  s_4e760fd1e082dc::t_49ac2c1abd3aa1 5-6,8,12,17,80-81,110-114,120-126,132-140,169-175,180,227-228,271-283
+apps/app/src/shared/ui/pages/settings-detail-page.tsx
+  s_4e760fd1e082dc::t_6dcb2a15a34949 5-6,8,11,16,21,30-31,49,57,95,101,114,132-133,148,157-158,189,208,212-219,230-237,353,357-364,388,443,522-600
+apps/app/tests/fakes.ts
+  s_4e760fd1e082dc::t_5ad00de40a380d 4,7,9,135-137,244-245,311-331,391-392,450-451,459-462
+apps/app/tests/settings-add-page.test.tsx
+  s_4e760fd1e082dc::t_64cbf8dd06e42f 4,90-134
+apps/app/tests/settings-detail-page.test.tsx
+  s_4e760fd1e082dc::t_13e04929b78327 181-198
+packages/application/src/commands/index.ts
+  s_4e760fd1e082dc::t_d0d61748d693ff 29-35,68-71,74-75
+packages/application/src/commands/profile-billing.ts
+  s_4e760fd1e082dc::t_cb79bbc064457d 1-310
+packages/application/src/commands/provider-profiles.test.ts
+  s_4e760fd1e082dc::t_56adaeb2ce623a 148-179
+packages/application/src/commands/provider-profiles.ts
+  s_4e760fd1e082dc::t_7c9b28137564cb 21,46-71,242,291,349
+packages/application/src/commands/retry-job.ts
+  s_4e760fd1e082dc::t_2ba0f2f3c6a13f 9,11,61-70
+packages/application/src/commands/submit-job.ts
+  s_4e760fd1e082dc::t_00fed6f06b94c0 10-11,93-117,144-154
+packages/application/src/commands/types.ts
+  s_4e760fd1e082dc::t_6a65f7e18c77b4 9-11,20,271-293
+packages/application/src/runtime.ts
+  s_4e760fd1e082dc::t_6b7cd6c34ea8d5 186-187,193,206-238
+packages/providers/src/contract/billing.ts
+  s_4e760fd1e082dc::t_6f13558b558769 1-70
+packages/providers/src/contract/config.ts
+  s_4e760fd1e082dc::t_81fe601c5538c6 262-275,278-279
+packages/providers/src/contract/index.ts
+  s_4e760fd1e082dc::t_c374b0c7d287af 3,6,20-27
+packages/providers/src/contract/provider.ts
+  s_4e760fd1e082dc::t_b7b127ffddf1e7 4-8,67-69,98-105,165-176
+packages/providers/src/index.ts
+  s_4e760fd1e082dc::t_c743112615d016 10-11,15,17-21
+packages/providers/src/providers/chat-image/config-schema.ts
+  s_4e760fd1e082dc::t_65558e4972cc5a 4-13,26
+packages/providers/src/providers/chat-image/descriptor.ts
+  s_4e760fd1e082dc::t_7a52da5dd679bc 10-13
+packages/providers/src/providers/chat-image/provider.ts
+  s_4e760fd1e082dc::t_20fd19be43f5e3 2,14,158-184
+packages/providers/src/providers/image-endpoint/config-schema.ts
+  s_4e760fd1e082dc::t_6693f56a9d4657 4-13,26
+packages/providers/src/providers/image-endpoint/descriptor.ts
+  s_4e760fd1e082dc::t_f872127097f602 11-14
+packages/providers/src/providers/image-endpoint/provider.ts
+  s_4e760fd1e082dc::t_5a96bc6f620b25 2,19,205-231
+packages/providers/src/providers/mock/config-schema.ts
+  s_4e760fd1e082dc::t_3f8886311cdb66 4-13,26
+packages/providers/src/providers/mock/descriptor.ts
+  s_4e760fd1e082dc::t_3e1d86a51d94c2 22-24
+packages/providers/src/providers/mock/provider.ts
+  s_4e760fd1e082dc::t_1cf4375cda268a 2,230-239
+packages/providers/src/transport/billing/query-balance.ts
+  s_4e760fd1e082dc::t_c6b9c56a800520 1-84
+packages/providers/tests/billing-query.test.ts
+  s_4e760fd1e082dc::t_459079f1d1acba 1-41
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.3",
+  "base_commit_sha": "fd93b10c536ffce81528881d318ad925347662f6",
+  "prompts": {},
+  "sessions": {
+    "s_4e760fd1e082dc": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "019f2337-6dfc-7930-9a1a-01b291a995b0",
+        "model": "unknown"
+      },
+      "human_author": "Sinyuk <80998062@qq.com>"
+    }
+  }
+}
