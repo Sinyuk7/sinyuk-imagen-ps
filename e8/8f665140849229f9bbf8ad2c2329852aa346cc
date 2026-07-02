@@ -1,0 +1,33 @@
+apps/app/src/adapters/uxp/photoshop-host-bridge.test.ts
+  s_965a036e4900a8::t_25f1b15e1a1577 777,783,789-818,823
+apps/app/src/adapters/uxp/photoshop-host-bridge.ts
+  s_965a036e4900a8::t_93acf8977511c7 686-704,1307-1310
+apps/app/src/shared/ui/i18n/messages.ts
+  s_a974215e67cb2a::t_ad08a75e354447 53-54,225-226,398-399
+apps/app/src/shared/ui/styles/responsive.ts
+  s_a974215e67cb2a::t_295d74ba41f780 47-48
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.3",
+  "base_commit_sha": "e88f665140849229f9bbf8ad2c2329852aa346cc",
+  "prompts": {},
+  "sessions": {
+    "s_965a036e4900a8": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "019f2256-3d65-73f0-8c9b-0b0f9d7cc7e6",
+        "model": "unknown"
+      },
+      "human_author": "Sinyuk <80998062@qq.com>"
+    },
+    "s_a974215e67cb2a": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "019f225a-dc20-7b41-9267-cb7a3632f085",
+        "model": "unknown"
+      },
+      "human_author": "Sinyuk <80998062@qq.com>"
+    }
+  }
+}
