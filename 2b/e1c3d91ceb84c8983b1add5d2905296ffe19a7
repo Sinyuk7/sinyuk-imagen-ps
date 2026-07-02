@@ -1,0 +1,19 @@
+apps/app/tests/provider-endpoint-user-flows.test.tsx
+  s_cb2bc10c9c1d0c::t_cc719a8b08a4a2 478-481,484,488,491-492
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.3",
+  "base_commit_sha": "2be1c3d91ceb84c8983b1add5d2905296ffe19a7",
+  "prompts": {},
+  "sessions": {
+    "s_cb2bc10c9c1d0c": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "019f225e-f5e7-7d41-adbe-5edb3f5ee9d1",
+        "model": "unknown"
+      },
+      "human_author": "Sinyuk <80998062@qq.com>"
+    }
+  }
+}
