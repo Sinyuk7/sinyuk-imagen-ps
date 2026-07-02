@@ -1,3 +1,15 @@
+packages/providers/src/contract/provider.ts
+  s_4e760fd1e082dc::t_b7b127ffddf1e7 53-54
+packages/providers/src/providers/chat-image/config-schema.ts
+  s_4e760fd1e082dc::t_65558e4972cc5a 2
+packages/providers/src/providers/chat-image/provider.ts
+  s_4e760fd1e082dc::t_20fd19be43f5e3 115,118,126
+packages/providers/src/providers/image-endpoint/config-schema.ts
+  s_4e760fd1e082dc::t_6693f56a9d4657 2
+packages/providers/src/providers/image-endpoint/provider.ts
+  s_4e760fd1e082dc::t_5a96bc6f620b25 166,169,178
+packages/providers/src/providers/mock/config-schema.ts
+  s_4e760fd1e082dc::t_3f8886311cdb66 2
 ---
 {
   "schema_version": "authorship/3.0.0",
@@ -5,10 +17,10 @@
   "base_commit_sha": "7ea452023aaa1aa00e8a4d67a4089ced903d3953",
   "prompts": {},
   "sessions": {
-    "s_b6eee7ac3e27d5": {
+    "s_4e760fd1e082dc": {
       "agent_id": {
         "tool": "codex",
-        "id": "019f1339-5c46-7352-bda8-66066778486b",
+        "id": "019f2337-6dfc-7930-9a1a-01b291a995b0",
         "model": "unknown"
       },
       "human_author": "Sinyuk <80998062@qq.com>"
