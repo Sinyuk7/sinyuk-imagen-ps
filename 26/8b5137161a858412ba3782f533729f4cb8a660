@@ -1,0 +1,26 @@
+.gitignore
+  h_36ccd825a182d0 40
+.opencode
+  s_a453edc21a800e::t_6628c80ba0aa6c 1
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.3",
+  "base_commit_sha": "268b5137161a858412ba3782f533729f4cb8a660",
+  "prompts": {},
+  "humans": {
+    "h_36ccd825a182d0": {
+      "author": "Sinyuk <80998062@qq.com>"
+    }
+  },
+  "sessions": {
+    "s_a453edc21a800e": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "019f23a6-0b90-7013-9c0c-5114c20ebf1b",
+        "model": "unknown"
+      },
+      "human_author": "Sinyuk <80998062@qq.com>"
+    }
+  }
+}
