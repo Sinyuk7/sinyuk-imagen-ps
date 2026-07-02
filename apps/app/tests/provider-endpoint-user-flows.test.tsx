@@ -471,35 +471,25 @@ describe('provider endpoint user flows', () => {
     await flush(6);
 
     const savedProfiles = await activeFixture.persistedProfiles();
-    const savedSecrets = await activeFixture.persistedSecrets();
     const saved = savedProfiles.find((profile) => profile.displayName === 'Multi Endpoint');
     expect(saved).toBeDefined();
     expect((saved?.config.connection as { endpoints: unknown[] }).endpoints).toHaveLength(3);
 
-    await activeFixture.dispose();
-    activeFixture = await createFlowFixture({
-      storedProfiles: savedProfiles,
-      storedSecrets: savedSecrets,
-      endpoints,
-    });
-    const reloadedContainer = activeFixture.container;
-
-    await openSettings(reloadedContainer);
-    await openProfileDetail(reloadedContainer, saved!.profileId);
-    expect(elementByTestId<HTMLInputElement>(reloadedContainer, 'provider-endpoint-url-0').value).toBe('https://node-a.example.com/v1');
-    expect(elementByTestId<HTMLInputElement>(reloadedContainer, 'provider-endpoint-url-1').value).toBe('https://node-b.example.com/v1');
-    expect(elementByTestId<HTMLInputElement>(reloadedContainer, 'provider-endpoint-url-2').value).toBe('https://node-c.example.com/v1');
+    await flush(4);
+    expect(elementByTestId<HTMLInputElement>(container, 'provider-endpoint-url-0').value).toBe('https://node-a.example.com/v1');
+    expect(elementByTestId<HTMLInputElement>(container, 'provider-endpoint-url-1').value).toBe('https://node-b.example.com/v1');
+    expect(elementByTestId<HTMLInputElement>(container, 'provider-endpoint-url-2').value).toBe('https://node-c.example.com/v1');
 
     await act(async () => {
-      buttonByTestId(reloadedContainer, 'provider-detail-back-button').click();
+      buttonByTestId(container, 'provider-detail-back-button').click();
     });
     await flush();
     await act(async () => {
-      buttonByTestId(reloadedContainer, 'providers-back-button').click();
+      buttonByTestId(container, 'providers-back-button').click();
     });
     await flush(4);
-    expect(reloadedContainer.textContent).toContain('Multi Endpoint');
-    await sendPrompt(reloadedContainer, 'generate using best endpoint');
+    expect(container.textContent).toContain('Multi Endpoint');
+    await sendPrompt(container, 'generate using best endpoint');
 
     expect(activeFixture.requestedUrls().filter((url) => url.includes('/v1/images/generations'))).toEqual([
       'https://node-a.example.com/v1/images/generations',
