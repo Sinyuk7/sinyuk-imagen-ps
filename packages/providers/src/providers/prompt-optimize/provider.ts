@@ -7,6 +7,7 @@ import { buildPromptOptimizeRequestBody } from './build-request.js';
 import { parsePromptOptimizeModelsResponse } from './models.js';
 import { promptOptimizeRequestSchema, type PromptOptimizeRequest } from './request-schema.js';
 import { httpRequest } from '../../transport/image-endpoint/http.js';
+import { executeWithEndpointFailover } from '../../transport/image-endpoint/failover.js';
 
 interface ProviderValidationError extends Error {
   details?: Record<string, unknown>;
@@ -19,8 +20,8 @@ function createValidationError(message: string, details?: Record<string, unknown
   return err;
 }
 
-function endpointUrl(baseURL: string, path: string): string {
-  return new URL(path.replace(/^\//, ''), baseURL.endsWith('/') ? baseURL : `${baseURL}/`).toString();
+function endpointUrl(endpointRoot: string, path: string): string {
+  return new URL(path.replace(/^\//, ''), endpointRoot.endsWith('/') ? endpointRoot : `${endpointRoot}/`).toString();
 }
 
 export function createPromptOptimizeProvider(): Provider<PromptOptimizeProviderConfig, PromptOptimizeRequest> {
@@ -64,48 +65,65 @@ export function createPromptOptimizeProvider(): Provider<PromptOptimizeProviderC
 
     async invoke(args: ProviderInvokeArgs<PromptOptimizeProviderConfig, PromptOptimizeRequest>): Promise<ProviderInvokeResult> {
       const { config, request, signal } = args;
-      const url = endpointUrl(config.baseURL, 'chat/completions');
       const body = buildPromptOptimizeRequestBody(request, config);
 
-      const response = await httpRequest(
-        {
-          url,
-          method: 'POST',
-          headers: {
-            Authorization: `Bearer ${config.apiKey}`,
-            ...(config.extraHeaders ?? {}),
-          },
-          body,
-          timeoutMs: config.timeoutMs,
-        },
-        undefined,
+      const execution = await executeWithEndpointFailover({
+        connection: config.connection,
         signal,
-        undefined,
-      );
+        retryPolicy: { maxRetries: 0, baseDelayMs: 0, factor: 1 },
+        retryOptions: { retryability: 'broad' },
+        execute: async (candidate, candidateSignal) => httpRequest(
+          {
+            url: endpointUrl(candidate.url, 'chat/completions'),
+            method: 'POST',
+            headers: {
+              Authorization: `Bearer ${config.apiKey}`,
+              ...(config.extraHeaders ?? {}),
+            },
+            body,
+            timeoutMs: config.timeoutMs,
+          },
+          { maxRetries: 0, baseDelayMs: 0, factor: 1 },
+          candidateSignal,
+          undefined,
+        ),
+      });
 
       return {
         assets: [],
-        raw: response.response.data,
+        raw: execution.value.response.data,
+        execution: {
+          selectedEndpointId: execution.selectedEndpointId,
+          attempts: execution.attempts,
+        },
+        ...(execution.diagnostics.length > 0 || execution.value.diagnostics.length > 0
+          ? { diagnostics: [...execution.diagnostics, ...execution.value.diagnostics] }
+          : {}),
       };
     },
 
     async discoverModels(config: PromptOptimizeProviderConfig): Promise<readonly ProviderModelInfo[]> {
-      const url = endpointUrl(config.baseURL, 'models');
-      const response = await httpRequest(
-        {
-          url,
-          method: 'GET',
-          headers: {
-            Authorization: `Bearer ${config.apiKey}`,
-            ...(config.extraHeaders ?? {}),
+      const execution = await executeWithEndpointFailover({
+        connection: config.connection,
+        retryPolicy: { maxRetries: 0, baseDelayMs: 0, factor: 1 },
+        retryOptions: { retryability: 'broad' },
+        execute: async (candidate) => httpRequest(
+          {
+            url: endpointUrl(candidate.url, 'models'),
+            method: 'GET',
+            headers: {
+              Authorization: `Bearer ${config.apiKey}`,
+              ...(config.extraHeaders ?? {}),
+            },
+            timeoutMs: config.timeoutMs,
           },
-          timeoutMs: config.timeoutMs,
-        },
-        undefined,
-        undefined,
-      );
+          { maxRetries: 0, baseDelayMs: 0, factor: 1 },
+          undefined,
+          undefined,
+        ),
+      });
 
-      return parsePromptOptimizeModelsResponse(response.response.data);
+      return parsePromptOptimizeModelsResponse(execution.value.response.data);
     },
   };
 }

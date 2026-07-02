@@ -119,7 +119,9 @@ Default tests are mock-only and reproducible:
 - `packages/core-engine`: job facts, lifecycle, store, events, runner, and
   dispatch boundary.
 - `packages/providers`: config validation, canonical request handling,
-  transport builders, response parsing, diagnostics, and provider descriptors.
+  transport builders, response parsing, diagnostics, provider descriptors, and
+  endpoint failover harness coverage for retry/fallback/cooldown/global-budget
+  behavior.
 - `packages/application`: command/session facade, profile/model coordination,
   request mapping, runtime assembly, and logging wiring.
 - `apps/app`: shared React-to-application seam, UXP and Chrome port adapters,

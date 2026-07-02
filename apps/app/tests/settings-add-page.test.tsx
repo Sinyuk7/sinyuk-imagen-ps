@@ -63,7 +63,7 @@ describe('SettingsAddPage', () => {
 
     await act(async () => {
       changeInput(queryByTestId(container, 'provider-alias-input'), 'Local Mock');
-      changeInput(queryByTestId(container, 'provider-base-url-input'), 'https://mock.local');
+      changeInput(queryByTestId(container, 'provider-endpoint-url-0'), 'https://mock.local');
     });
     await switchToCustomModel(container);
     await act(async () => {
@@ -107,7 +107,12 @@ describe('SettingsAddPage', () => {
                   providerId: 'mock',
                   displayName: 'Mock Provider',
                   family: 'image-endpoint',
-                  baseURL: 'https://mock.local',
+                  connection: {
+                    selectionMode: 'manual',
+                    failoverEnabled: false,
+                    preferredEndpointId: 'primary',
+                    endpoints: [{ id: 'primary', url: 'https://mock.local', enabled: true }],
+                  },
                 },
                 createdAt: '2026-06-15T00:00:00.000Z',
                 updatedAt: '2026-06-15T00:00:00.000Z',
@@ -172,7 +177,7 @@ describe('SettingsAddPage', () => {
 
     await act(async () => {
       changeInput(queryByTestId(container, 'provider-alias-input'), 'Test Then Save');
-      changeInput(queryByTestId(container, 'provider-base-url-input'), 'https://mock.local');
+      changeInput(queryByTestId(container, 'provider-endpoint-url-0'), 'https://mock.local');
     });
     await switchToCustomModel(container);
     await act(async () => {
@@ -187,9 +192,59 @@ describe('SettingsAddPage', () => {
       container.querySelector<HTMLButtonElement>('.btn-save')!.click();
     });
 
-    const testedProfileId = spies.testProviderProfile.mock.calls[0]?.[0];
+    const testedProfileId = spies.probeProfileEndpoints.mock.calls[0]?.[0].profileId;
     const savedProfileId = spies.saveProviderProfile.mock.calls.at(-1)?.[0].profileId;
     expect(testedProfileId).toMatch(/^profile-/);
     expect(savedProfileId).toBe(testedProfileId);
+  });
+
+  it('adds endpoint rows and saves auto/manual plus failover config shape', async () => {
+    const { services, spies } = createFakeServices();
+    const container = document.createElement('div');
+    document.body.appendChild(container);
+    root = createRoot(container);
+
+    await act(async () => {
+      root!.render(
+        <TestAppProviders services={services}>
+          <SettingsAddPage onNav={() => undefined} profiles={[]} onProfileSaved={async () => undefined} />
+        </TestAppProviders>,
+      );
+    });
+
+    await act(async () => {
+      container.querySelector<HTMLElement>('[data-testid="provider-type-mock"]')!.click();
+    });
+
+    await act(async () => {
+      changeInput(queryByTestId(container, 'provider-endpoint-url-0'), 'https://mock-a.local');
+    });
+    await act(async () => {
+      queryByTestId(container, 'provider-endpoint-add').click();
+    });
+    await act(async () => {
+      changeInput(queryByTestId(container, 'provider-endpoint-url-1'), 'https://mock-b.local');
+    });
+    await act(async () => {
+      queryByTestId(container, 'provider-selection-mode-auto').click();
+      queryByTestId(container, 'provider-failover-enabled').click();
+    });
+
+    await act(async () => {
+      container.querySelector<HTMLButtonElement>('.btn-save')!.click();
+    });
+
+    expect(spies.saveProviderProfile).toHaveBeenCalledWith(expect.objectContaining({
+      config: expect.objectContaining({
+        connection: expect.objectContaining({
+          selectionMode: 'auto',
+          failoverEnabled: true,
+          endpoints: expect.arrayContaining([
+            expect.objectContaining({ url: 'https://mock-a.local' }),
+            expect.objectContaining({ url: 'https://mock-b.local' }),
+          ]),
+        }),
+      }),
+    }));
   });
 });

@@ -15,8 +15,22 @@ import type { ProviderDiagnostics } from './diagnostics.js';
  * - `raw`：调试可观测开口，**保留**字段，类型仍为 `unknown`，但
  *   **不属于 SemVer 稳定面**，shape 可能随 provider 内部实现演进而变化。
  *   生产代码（含 share_command、UI 主路径）只能消费 `assets`、`diagnostics`、
- *   `created`、`usage`、`metadata`；`raw` 仅供测试断言、本地调试与故障排查使用。
+ *   `created`、`usage`、`metadata`、`execution`；`raw` 仅供测试断言、本地调试与故障排查使用。
  */
+
+export interface ProviderExecutionAttempt {
+  readonly endpointId: string;
+  readonly endpointUrl: string;
+  readonly attemptIndex: number;
+  readonly outcome: 'success' | 'failure' | 'skipped_cooldown';
+  readonly kind?: string;
+  readonly statusCode?: number;
+}
+
+export interface ProviderExecutionInfo {
+  readonly selectedEndpointId: string;
+  readonly attempts: readonly ProviderExecutionAttempt[];
+}
 
 /** 上游返回的 token 消耗统计（来自 OpenAI `ImagesResponse.usage`）。
  *
@@ -91,4 +105,7 @@ export interface ProviderInvokeResult {
 
   /** 上游对响应参数的回声（`background` / `output_format` / `quality` / `size`）。 */
   readonly metadata?: ProviderInvokeMetadata;
+
+  /** 本次逻辑请求的稳定 endpoint 执行证据。 */
+  readonly execution?: ProviderExecutionInfo;
 }

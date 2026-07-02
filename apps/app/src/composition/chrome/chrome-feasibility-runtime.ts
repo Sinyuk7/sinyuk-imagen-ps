@@ -101,7 +101,12 @@ export async function runChromeFeasibilityRuntime(options?: {
       providerId: 'mock',
       displayName: 'Chrome Feasibility Mock',
       family: 'image-endpoint',
-      baseURL: 'https://mock.local',
+      connection: {
+        selectionMode: 'manual',
+        failoverEnabled: false,
+        preferredEndpointId: 'primary',
+        endpoints: [{ id: 'primary', url: 'https://mock.local', enabled: true }],
+      },
       defaultModel: 'mock-image-v1',
     },
     secretValues: {

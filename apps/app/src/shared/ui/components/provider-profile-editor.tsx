@@ -2,18 +2,22 @@ import type { ReactNode } from 'react';
 import { StatusNotice } from './status-notice';
 import { Icon } from './icons';
 import { useI18n } from '../i18n/i18n-context';
-import { Button, TextField, FieldLabel, HelpText, Divider } from '../primitives/native-controls';
+import { Button, TextField, FieldLabel, HelpText, Divider, Checkbox } from '../primitives/native-controls';
 import { IconButton } from '../primitives/icon-button';
 import type { NoticeState } from './notice';
+import type { ProviderConnectionDraft, ProviderEndpointDraft } from '../hooks/use-provider-settings';
+import type { EndpointProbeResult } from '@imagen-ps/application';
 
 interface ProviderProfileEditorProps {
   readonly connectionTitle: string;
   readonly aliasValue: string;
   readonly onAliasValue: (value: string) => void;
   readonly aliasPlaceholder?: string;
-  readonly baseUrlValue: string;
-  readonly onBaseUrlValue: (value: string) => void;
+  readonly connection: ProviderConnectionDraft;
+  readonly onConnectionChange: (connection: ProviderConnectionDraft) => void;
   readonly baseUrlPlaceholder?: string;
+  readonly probeResults?: ReadonlyMap<string, EndpointProbeResult>;
+  readonly suggestedEndpointId?: string;
   readonly apiKeyValue: string;
   readonly onApiKeyValue: (value: string) => void;
   readonly apiKeyPlaceholder: string;
@@ -28,14 +32,52 @@ interface ProviderProfileEditorProps {
   readonly testStatus?: NoticeState | null;
 }
 
+function removeEndpoint(
+  connection: ProviderConnectionDraft,
+  endpointId: string,
+): ProviderConnectionDraft {
+  const endpoints = connection.endpoints.filter((endpoint) => endpoint.id !== endpointId);
+  return {
+    ...connection,
+    endpoints,
+    preferredEndpointId:
+      connection.preferredEndpointId === endpointId
+        ? endpoints.find((endpoint) => endpoint.enabled)?.id
+        : connection.preferredEndpointId,
+  };
+}
+
+function updateEndpoint(
+  connection: ProviderConnectionDraft,
+  endpointId: string,
+  updater: (endpoint: ProviderEndpointDraft) => ProviderEndpointDraft,
+): ProviderConnectionDraft {
+  const endpoints = connection.endpoints.map((endpoint) => (
+    endpoint.id === endpointId ? updater(endpoint) : endpoint
+  ));
+  const preferredStillEnabled = endpoints.some((endpoint) => endpoint.id === connection.preferredEndpointId && endpoint.enabled);
+  return {
+    ...connection,
+    endpoints,
+    preferredEndpointId:
+      connection.selectionMode === 'manual'
+        ? preferredStillEnabled
+          ? connection.preferredEndpointId
+          : endpoints.find((endpoint) => endpoint.enabled)?.id
+        : undefined,
+  };
+}
+
 export function ProviderProfileEditor({
   connectionTitle,
   aliasValue,
   onAliasValue,
   aliasPlaceholder,
-  baseUrlValue,
-  onBaseUrlValue,
+  connection,
+  onConnectionChange,
   baseUrlPlaceholder,
+  probeResults,
+  suggestedEndpointId,
   apiKeyValue,
   onApiKeyValue,
   apiKeyPlaceholder,
@@ -67,16 +109,115 @@ export function ProviderProfileEditor({
           />
         </div>
         <div className="field">
-          <FieldLabel htmlFor="provider-base-url-input">Base URL</FieldLabel>
-          <TextField
-            data-testid="provider-base-url-input"
-            id="provider-base-url-input"
-            className="field-input mono ui-field-control"
-            placeholder={baseUrlPlaceholder}
-            value={baseUrlValue}
-            onValue={onBaseUrlValue}
-          />
+          <div className="section-title" style={{ marginBottom: 8 }}>{t.settings.requestAddresses}</div>
+          <div className="field provider-endpoint-list">
+            {connection.endpoints.map((endpoint, index) => {
+              const probe = probeResults?.get(endpoint.id);
+              const isPreferred = connection.preferredEndpointId === endpoint.id;
+              const isSuggested = suggestedEndpointId === endpoint.id;
+              const canDelete = connection.endpoints.length > 1;
+              return (
+                <div
+                  key={endpoint.id}
+                  data-testid={`provider-endpoint-row-${index}`}
+                  className={`provider-endpoint-row${index > 0 ? ' provider-endpoint-row-spaced' : ''}`}
+                  style={{
+                    padding: 10,
+                    border: '1px solid var(--app-color-border)',
+                    borderRadius: 10,
+                  }}
+                >
+                  <div className="provider-endpoint-header">
+                    <div className="provider-endpoint-badges">
+                      <span className="field-hint">{t.settings.endpointLabel(index + 1)}</span>
+                      {isPreferred ? <span data-testid={`provider-endpoint-preferred-badge-${index}`} className="field-hint">{t.settings.endpointPreferred}</span> : null}
+                      {isSuggested ? <span data-testid={`provider-endpoint-suggested-badge-${index}`} className="field-hint">{t.settings.endpointSuggested}</span> : null}
+                      {probe ? <span className="field-hint">{probe.status}</span> : null}
+                    </div>
+                    <IconButton
+                      data-testid={`provider-endpoint-remove-${index}`}
+                      quiet
+                      disabled={!canDelete}
+                      icon={<Icon name="trash" />}
+                      tooltip={t.common.delete}
+                      onClick={() => onConnectionChange(removeEndpoint(connection, endpoint.id))}
+                    />
+                  </div>
+                  <TextField
+                    className="field-input mono ui-field-control provider-endpoint-input"
+                    data-testid={`provider-endpoint-url-${index}`}
+                    id={`provider-endpoint-url-${endpoint.id}`}
+                    placeholder={baseUrlPlaceholder}
+                    value={endpoint.url}
+                    onValue={(value) => onConnectionChange(updateEndpoint(connection, endpoint.id, (current) => ({ ...current, url: value })))}
+                  />
+                  <div className="provider-endpoint-controls">
+                    <Checkbox
+                      data-testid={`provider-endpoint-enabled-${index}`}
+                      checked={endpoint.enabled}
+                      onChecked={(checked) => onConnectionChange(updateEndpoint(connection, endpoint.id, (current) => ({ ...current, enabled: checked })))}
+                    >
+                      {t.settings.endpointEnabled}
+                    </Checkbox>
+                    <Checkbox
+                      data-testid={`provider-endpoint-preferred-${index}`}
+                      checked={isPreferred}
+                      disabled={connection.selectionMode !== 'manual' || !endpoint.enabled}
+                      onChecked={(checked) => onConnectionChange({
+                        ...connection,
+                        preferredEndpointId: checked ? endpoint.id : connection.preferredEndpointId,
+                      })}
+                    >
+                      {t.settings.endpointPreferred}
+                    </Checkbox>
+                  </div>
+                </div>
+              );
+            })}
+            <Button
+              data-testid="provider-endpoint-add"
+              className="provider-endpoint-add"
+              variant="secondary"
+              onClick={() => onConnectionChange({
+                ...connection,
+                endpoints: [
+                  ...connection.endpoints,
+                  {
+                    id: typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function'
+                      ? `endpoint-${crypto.randomUUID()}`
+                      : `endpoint-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`,
+                    url: '',
+                    enabled: true,
+                  },
+                ],
+              })}
+            >
+              {t.settings.addEndpoint}
+            </Button>
+          </div>
           <HelpText className="field-hint">{t.settings.baseUrlHint}</HelpText>
+        </div>
+        <div className="field provider-connection-options">
+          <Checkbox
+            data-testid="provider-selection-mode-auto"
+            className="provider-connection-option"
+            checked={connection.selectionMode === 'auto'}
+            onChecked={(checked) => onConnectionChange({
+              ...connection,
+              selectionMode: checked ? 'auto' : 'manual',
+              preferredEndpointId: checked ? undefined : connection.preferredEndpointId ?? connection.endpoints.find((endpoint) => endpoint.enabled)?.id,
+            })}
+          >
+            {t.settings.autoSelect}
+          </Checkbox>
+          <Checkbox
+            data-testid="provider-failover-enabled"
+            className="provider-connection-option"
+            checked={connection.failoverEnabled}
+            onChecked={(checked) => onConnectionChange({ ...connection, failoverEnabled: checked })}
+          >
+            {t.settings.failoverEnabled}
+          </Checkbox>
         </div>
         <div className="field">
           <FieldLabel htmlFor="provider-api-key-input">API Key</FieldLabel>

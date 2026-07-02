@@ -68,6 +68,24 @@ export interface RetryOptions {
   readonly idempotencySupported?: boolean;
 }
 
+export function retryAfterMs(error: unknown): number | undefined {
+  if (
+    typeof error === 'object' &&
+    error !== null &&
+    'details' in error &&
+    typeof (error as { details?: unknown }).details === 'object' &&
+    (error as { details?: { readonly retryAfterMs?: unknown } }).details !== null &&
+    typeof (error as { details?: { readonly retryAfterMs?: unknown } }).details?.retryAfterMs === 'number'
+  ) {
+    return (error as { details: { readonly retryAfterMs: number } }).details.retryAfterMs;
+  }
+  return undefined;
+}
+
+export function isRetryableTransportError(error: unknown, opts?: RetryOptions): boolean {
+  return shouldRetry(error, opts);
+}
+
 function extractKind(error: unknown): string | undefined {
   return typeof error === 'object' && error !== null && 'kind' in error
     ? (error as { kind?: string }).kind

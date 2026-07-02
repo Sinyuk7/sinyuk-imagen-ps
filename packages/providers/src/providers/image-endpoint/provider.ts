@@ -6,6 +6,7 @@ import { imageEndpointDescriptor } from './descriptor.js';
 import { imageEndpointConfigSchema, type ImageEndpointProviderConfig } from './config-schema.js';
 import { mockRequestSchema, type MockProviderRequest } from '../mock/request-schema.js';
 import { httpRequest } from '../../transport/image-endpoint/http.js';
+import { executeWithEndpointFailover } from '../../transport/image-endpoint/failover.js';
 import { resolvePaidRetryConfig, resolveIdempotencyHeader } from '../../transport/image-endpoint/paid-retry.js';
 import {
   buildEditRequestBody,
@@ -100,7 +101,6 @@ export function createImageEndpointProvider(): Provider<ImageEndpointProviderCon
         throw createValidationError(`Unsupported image endpoint provider operation: "${request.operation}".`);
       }
 
-      const url = new URL(endpoint, config.baseURL).toString();
       const body =
         request.operation === 'text_to_image'
           ? buildRequestBody(request, config.defaultModel)
@@ -112,25 +112,32 @@ export function createImageEndpointProvider(): Provider<ImageEndpointProviderCon
       const paidRetry = resolvePaidRetryConfig(imageEndpointDescriptor);
       const idempotencyHeader = resolveIdempotencyHeader(paidRetry, request as unknown as Record<string, unknown>);
 
-      const response = await httpRequest(
-        {
-          url,
-          method: 'POST',
-          headers: {
-            Authorization: `Bearer ${config.apiKey}`,
-            ...(config.extraHeaders ?? {}),
-            ...(idempotencyHeader ?? {}),
-          },
-          body,
-          timeoutMs: config.timeoutMs,
-        },
-        paidRetry.policy,
+      const execution = await executeWithEndpointFailover({
+        connection: config.connection,
+        logger: args.logger,
         signal,
-        args.logger,
-        { retryability: 'paid', idempotencySupported: paidRetry.idempotencySupported },
-      );
+        retryPolicy: paidRetry.policy,
+        retryOptions: { retryability: 'paid', idempotencySupported: paidRetry.idempotencySupported },
+        execute: async (candidate, candidateSignal) => httpRequest(
+          {
+            url: new URL(endpoint, candidate.url).toString(),
+            method: 'POST',
+            headers: {
+              Authorization: `Bearer ${config.apiKey}`,
+              ...(config.extraHeaders ?? {}),
+              ...(idempotencyHeader ?? {}),
+            },
+            body,
+            timeoutMs: config.timeoutMs,
+          },
+          { ...paidRetry.policy, maxRetries: 0 },
+          candidateSignal,
+          args.logger,
+          { retryability: 'paid', idempotencySupported: paidRetry.idempotencySupported },
+        ),
+      });
 
-      const parsed = parseResponse(response.response.data);
+      const parsed = parseResponse(execution.value.response.data);
 
       // 契约：无值的可选字段 **省略**（不写 `undefined`），
       // 与 `ProviderInvokeResult` 的缺省字段约定对齐（见 contract/result.ts）。
@@ -141,12 +148,18 @@ export function createImageEndpointProvider(): Provider<ImageEndpointProviderCon
         created?: number;
         usage?: ProviderInvokeResult['usage'];
         metadata?: ProviderInvokeResult['metadata'];
+        execution?: ProviderInvokeResult['execution'];
       } = {
         assets: parsed.assets,
-        raw: response.response.data,
+        raw: execution.value.response.data,
+        execution: {
+          selectedEndpointId: execution.selectedEndpointId,
+          attempts: execution.attempts,
+        },
       };
-      if (response.diagnostics.length > 0) {
-        result.diagnostics = response.diagnostics;
+      const diagnostics = [...execution.diagnostics, ...execution.value.diagnostics];
+      if (diagnostics.length > 0) {
+        result.diagnostics = diagnostics;
       }
       if (parsed.created !== undefined) {
         result.created = parsed.created;
@@ -164,24 +177,28 @@ export function createImageEndpointProvider(): Provider<ImageEndpointProviderCon
       config: ImageEndpointProviderConfig,
       logger?: Logger,
     ): Promise<readonly ProviderModelInfo[]> {
-      const url = new URL('/v1/models', config.baseURL).toString();
-
-      const response = await httpRequest(
-        {
-          url,
-          method: 'GET',
-          headers: {
-            Authorization: `Bearer ${config.apiKey}`,
-            ...(config.extraHeaders ?? {}),
-          },
-          timeoutMs: config.timeoutMs,
-        },
-        undefined,
-        undefined,
+      const execution = await executeWithEndpointFailover({
+        connection: config.connection,
         logger,
-      );
+        retryPolicy: { maxRetries: 0, baseDelayMs: 0, factor: 1 },
+        retryOptions: { retryability: 'broad' },
+        execute: async (candidate) => httpRequest(
+          {
+            url: new URL('/v1/models', candidate.url).toString(),
+            method: 'GET',
+            headers: {
+              Authorization: `Bearer ${config.apiKey}`,
+              ...(config.extraHeaders ?? {}),
+            },
+            timeoutMs: config.timeoutMs,
+          },
+          { maxRetries: 0, baseDelayMs: 0, factor: 1 },
+          undefined,
+          logger,
+        ),
+      });
 
-      return parseModelsResponse(response.response.data);
+      return parseModelsResponse(execution.value.response.data);
     },
   };
 }

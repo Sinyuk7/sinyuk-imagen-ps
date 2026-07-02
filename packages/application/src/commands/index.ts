@@ -25,6 +25,7 @@ export {
   listProfileModels,
   refreshProfileModels,
 } from './profile-models.js';
+export { probeProfileEndpoints } from './profile-endpoints.js';
 
 export { retryJob } from './retry-job.js';
 export { getJobHistoryRecord, listJobHistoryRecords } from './job-history.js';
@@ -55,6 +56,10 @@ export type {
   JobStatus,
   JobHistoryStore,
   ProviderProfileTestResult,
+  EndpointProbeFailureKind,
+  EndpointProbeResult,
+  ProbeProfileEndpointsInput,
+  ProbeProfileEndpointsResult,
   Rect,
   ResolvedPreview,
   ResolvedTaskResource,

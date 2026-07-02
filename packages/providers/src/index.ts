@@ -11,6 +11,11 @@ export type {
   CanonicalImageJobRequest,
   ChatImageProviderConfig,
   ImageEndpointProviderConfig,
+  ProviderExecutionAttempt,
+  ProviderExecutionInfo,
+  ProviderConnectionConfig,
+  ProviderEndpointConfig,
+  ProviderEndpointSelectionMode,
   PromptOptimizeProviderConfig,
   PromptOptimizeRequest,
   Provider,
@@ -30,6 +35,11 @@ export type {
   ProviderOperation,
   ProviderOutputOptions,
   ProviderRequest,
+} from './contract/index.js';
+export {
+  canonicalizeProviderEndpointUrl,
+  getPrimaryProviderEndpoint,
+  normalizeProviderConnection,
 } from './contract/index.js';
 
 // Registry

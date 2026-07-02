@@ -1,7 +1,16 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import type { ProviderProfile } from '@imagen-ps/application';
+import type { EndpointProbeResult, ProviderProfile, ProviderProfileConfig, ProviderProfileConfigValue } from '@imagen-ps/application';
 import { useAppServices } from '../../ports/app-services-context';
-import { providerConfigFromForm, useProfileDetail, useProfileModels } from '../hooks/use-provider-settings';
+import {
+  connectionProbeResultById,
+  normalizeProviderConnectionDraft,
+  providerConfigFromForm,
+  readProviderConfigString,
+  readProviderConnectionDraft,
+  useProfileDetail,
+  useProfileModels,
+  type ProviderConnectionDraft,
+} from '../hooks/use-provider-settings';
 import { Icon } from '../components/icons';
 import { useNotice } from '../components/notice';
 import { ProviderProfileEditor } from '../components/provider-profile-editor';
@@ -10,7 +19,7 @@ import { UxpTextArea } from '../components/uxp-form-controls';
 import { useI18n } from '../i18n/i18n-context';
 import { Button, FieldLabel, HelpText, TextField } from '../primitives/native-controls';
 import { IconButton } from '../primitives/icon-button';
-import { statusFromProviderTestResult } from '../provider-status';
+import { statusFromEndpointProbeResult } from '../provider-status';
 import { TextSelect } from '../components/text-select';
 
 interface SettingsDetailPageProps {
@@ -21,11 +30,6 @@ interface SettingsDetailPageProps {
 
 function formatElapsedMs(startedAt: number): string {
   return `${Math.max(1, Math.round(performance.now() - startedAt))} ms`;
-}
-
-function readConfigString(profile: ProviderProfile, key: string): string {
-  const value = profile.config[key];
-  return typeof value === 'string' ? value : '';
 }
 
 function profileFormCheckpointAttrs(
@@ -44,13 +48,23 @@ function profileFormCheckpointAttrs(
   };
 }
 
+function mergeProfileConfigForSave(
+  profile: ProviderProfile,
+  nextConfig: ProviderProfileConfig,
+): ProviderProfileConfig {
+  return {
+    ...profile.config,
+    ...nextConfig,
+  } as Record<string, ProviderProfileConfigValue>;
+}
+
 export function SettingsDetailPage({ onNav, profileId, onProfilesChanged }: SettingsDetailPageProps) {
   const services = useAppServices();
   const { messages: t } = useI18n();
   const detail = useProfileDetail(services, profileId);
   const models = useProfileModels(services, profileId);
   const [displayName, setDisplayName] = useState('');
-  const [baseUrl, setBaseUrl] = useState('');
+  const [connection, setConnection] = useState<ProviderConnectionDraft>(readProviderConnectionDraft(null));
   const [defaultModel, setDefaultModel] = useState('');
   const [instruction, setInstruction] = useState('');
   const [apiKey, setApiKey] = useState('');
@@ -59,6 +73,8 @@ export function SettingsDetailPage({ onNav, profileId, onProfilesChanged }: Sett
   const [busy, setBusy] = useState(false);
   const [modelMenuOpen, setModelMenuOpen] = useState(false);
   const [modelMode, setModelMode] = useState<'list' | 'custom'>('list');
+  const [probeResults, setProbeResults] = useState<readonly EndpointProbeResult[]>([]);
+  const [suggestedEndpointId, setSuggestedEndpointId] = useState<string | undefined>();
   const lastLoadedProfileIdRef = useRef<string | null>(null);
   const modelModeTouchedRef = useRef(false);
   const saveNotice = useNotice({ defaultDurationMs: null });
@@ -70,11 +86,13 @@ export function SettingsDetailPage({ onNav, profileId, onProfilesChanged }: Sett
       return;
     }
     setDisplayName(detail.profile.displayName);
-    setBaseUrl(readConfigString(detail.profile, 'baseURL'));
-    setDefaultModel(readConfigString(detail.profile, 'defaultModel'));
-    setInstruction(readConfigString(detail.profile, 'instruction'));
+    setConnection(readProviderConnectionDraft(detail.profile));
+    setDefaultModel(readProviderConfigString(detail.profile, 'defaultModel'));
+    setInstruction(readProviderConfigString(detail.profile, 'instruction'));
     setApiKey('');
     setModelMenuOpen(false);
+    setProbeResults([]);
+    setSuggestedEndpointId(undefined);
   }, [detail.profile]);
 
   useEffect(() => {
@@ -111,17 +129,17 @@ export function SettingsDetailPage({ onNav, profileId, onProfilesChanged }: Sett
       providerId: detail.profile.providerId,
       displayName: displayName.trim() || detail.profile.displayName,
       enabled: detail.profile.enabled,
-      config: {
-        ...detail.profile.config,
-        ...providerConfigFromForm(
+      config: mergeProfileConfigForSave(
+        detail.profile,
+        providerConfigFromForm(
           detail.profile.providerId,
           displayName.trim() || detail.profile.displayName,
           family,
-          baseUrl.trim(),
+          connection,
           defaultModel,
           isOptimizerProfile ? instruction : undefined,
         ),
-      },
+      ),
       ...(apiKey.trim() ? { secretValues: { apiKey: apiKey.trim() } } : {}),
     });
   };
@@ -205,17 +223,20 @@ export function SettingsDetailPage({ onNav, profileId, onProfilesChanged }: Sett
     testNotice.clear();
     setTestMeta(null);
     try {
-      const profile = await persistProfile();
-      if (profile) {
-        await onProfilesChanged(profile.profileId);
-      }
-      if (isOptimizerProfile && profile) {
-        const result = await services.commands.validatePromptOptimizerProfile(profile.profileId);
+      if (isOptimizerProfile && detail.profile) {
+        const savedProfile = await persistProfile();
+        if (savedProfile) {
+          await onProfilesChanged(savedProfile.profileId);
+        }
+        if (!savedProfile) {
+          throw new Error('No provider profile selected.');
+        }
+        const result = await services.commands.validatePromptOptimizerProfile(savedProfile.profileId);
         if (result.ok) {
           testNotice.show(t.settings.testSuccess, 'positive', { durationMs: 2200, dismissible: false, copyable: false });
           setTestMeta(`${t.settings.testResultPrefix} · ${formatElapsedMs(startedAt)}`);
           await detail.reload();
-          await onProfilesChanged(profile.profileId);
+          await onProfilesChanged(savedProfile.profileId);
         } else {
           testNotice.show(
             result.error.category === 'validation'
@@ -228,8 +249,33 @@ export function SettingsDetailPage({ onNav, profileId, onProfilesChanged }: Sett
         }
         return;
       }
-      const result = await detail.test(true);
-      const status = statusFromProviderTestResult(result, t);
+      if (!detail.profile) {
+        throw new Error('No provider profile selected.');
+      }
+      const family = String(detail.profile.config.family ?? detail.profile.providerId);
+      const result = await services.commands.probeProfileEndpoints({
+        profileId: detail.profile.profileId,
+        providerId: detail.profile.providerId,
+        displayName: displayName.trim() || detail.profile.displayName,
+        config: mergeProfileConfigForSave(
+          detail.profile,
+          providerConfigFromForm(
+            detail.profile.providerId,
+            displayName.trim() || detail.profile.displayName,
+            family,
+            connection,
+            defaultModel,
+            undefined,
+          ),
+        ),
+        ...(apiKey.trim() ? { secretValues: { apiKey: apiKey.trim() } } : {}),
+      });
+      if (!result.ok) {
+        throw new Error(`${result.error.category}: ${result.error.message}`);
+      }
+      setProbeResults(result.value.results);
+      setSuggestedEndpointId(result.value.suggestedEndpointId);
+      const status = statusFromEndpointProbeResult(result.value, t);
       testNotice.show(status.message, status.tone, status);
       setTestMeta(`${t.settings.testResultPrefix} · ${formatElapsedMs(startedAt)}`);
     } catch (error) {
@@ -265,7 +311,7 @@ export function SettingsDetailPage({ onNav, profileId, onProfilesChanged }: Sett
     if (!detail.profile) {
       return;
     }
-    const currentModel = readConfigString(detail.profile, 'defaultModel').trim();
+    const currentModel = readProviderConfigString(detail.profile, 'defaultModel').trim();
     const hasOptions = modelOptions.length > 0;
     const hasMatch = modelOptions.some((option) => option.id === currentModel);
     if (!modelModeTouchedRef.current) {
@@ -350,8 +396,14 @@ export function SettingsDetailPage({ onNav, profileId, onProfilesChanged }: Sett
             connectionTitle={t.settings.connectionInfo}
             aliasValue={displayName}
             onAliasValue={setDisplayName}
-            baseUrlValue={baseUrl}
-            onBaseUrlValue={setBaseUrl}
+            connection={connection}
+            onConnectionChange={(next) => {
+              setConnection(normalizeProviderConnectionDraft(next));
+              setProbeResults([]);
+              setSuggestedEndpointId(undefined);
+            }}
+            probeResults={connectionProbeResultById(probeResults)}
+            suggestedEndpointId={suggestedEndpointId}
             apiKeyValue={apiKey}
             onApiKeyValue={setApiKey}
             apiKeyPlaceholder={detail.profile.secretRefs?.apiKey ? t.settings.savedSecretPlaceholder : 'sk-...'}

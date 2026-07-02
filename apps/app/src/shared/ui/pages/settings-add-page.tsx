@@ -1,7 +1,13 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import type { ProviderProfile } from '@imagen-ps/application';
+import type { EndpointProbeResult, ProviderProfile } from '@imagen-ps/application';
 import { useAppServices } from '../../ports/app-services-context';
-import { providerConfigFromForm, useProviderCatalog } from '../hooks/use-provider-settings';
+import {
+  connectionProbeResultById,
+  normalizeProviderConnectionDraft,
+  providerConfigFromForm,
+  useProviderCatalog,
+  type ProviderConnectionDraft,
+} from '../hooks/use-provider-settings';
 import { Icon } from '../components/icons';
 import { MotionContent } from '../components/motion-ui';
 import { TextSelect } from '../components/text-select';
@@ -10,7 +16,7 @@ import { ProviderProfileEditor } from '../components/provider-profile-editor';
 import { useI18n } from '../i18n/i18n-context';
 import { Button, TextField, HelpText } from '../primitives/native-controls';
 import { IconButton } from '../primitives/icon-button';
-import { statusFromProviderTestResult } from '../provider-status';
+import { statusFromEndpointProbeResult } from '../provider-status';
 
 interface SettingsAddPageProps {
   readonly onNav: (view: string) => void;
@@ -27,6 +33,19 @@ function createProfileId(): string {
 
 function defaultBaseUrl(providerId: string): string {
   return providerId === 'mock' ? 'https://mock.local' : '';
+}
+
+function defaultConnection(providerId: string): ProviderConnectionDraft {
+  return normalizeProviderConnectionDraft({
+    selectionMode: 'manual',
+    failoverEnabled: false,
+    preferredEndpointId: 'primary',
+    endpoints: [{
+      id: 'primary',
+      url: defaultBaseUrl(providerId),
+      enabled: true,
+    }],
+  });
 }
 
 function nextAlias(baseName: string, profiles: readonly ProviderProfile[]): string {
@@ -50,13 +69,15 @@ export function SettingsAddPage({ onNav, profiles, onProfileSaved }: SettingsAdd
   const [step, setStep] = useState(1);
   const [providerId, setProviderId] = useState<string | null>(providers[0]?.id ?? null);
   const [name, setName] = useState('');
-  const [baseUrl, setBaseUrl] = useState(defaultBaseUrl(providers[0]?.id ?? ''));
+  const [connection, setConnection] = useState<ProviderConnectionDraft>(defaultConnection(providers[0]?.id ?? ''));
   const [apiKey, setApiKey] = useState('');
   const [defaultModel, setDefaultModel] = useState('');
   const [modelMode, setModelMode] = useState<'list' | 'custom'>('list');
   const [modelMenuOpen, setModelMenuOpen] = useState(false);
   const [showKey, setShowKey] = useState(false);
   const [busy, setBusy] = useState(false);
+  const [probeResults, setProbeResults] = useState<readonly EndpointProbeResult[]>([]);
+  const [suggestedEndpointId, setSuggestedEndpointId] = useState<string | undefined>();
   const modelModeTouchedRef = useRef(false);
   const statusNotice = useNotice({ defaultDurationMs: null });
   const selected = useMemo(() => providers.find((provider) => provider.id === providerId), [providerId, providers]);
@@ -89,7 +110,7 @@ export function SettingsAddPage({ onNav, profiles, onProfileSaved }: SettingsAdd
       providerId: selected.id,
       displayName,
       enabled: true,
-      config: providerConfigFromForm(selected.id, displayName, selected.family, baseUrl.trim(), defaultModel),
+      config: providerConfigFromForm(selected.id, displayName, selected.family, connection, defaultModel),
       ...(apiKey.trim() ? { secretValues: { apiKey: apiKey.trim() } } : {}),
     });
     if (!result.ok) {
@@ -115,12 +136,23 @@ export function SettingsAddPage({ onNav, profiles, onProfileSaved }: SettingsAdd
     setBusy(true);
     statusNotice.clear();
     try {
-      const profileId = await saveProfile();
-      const result = await services.commands.testProviderProfile(profileId, { connect: true });
+      if (!selected) {
+        throw new Error(t.settings.selectProviderType);
+      }
+      const displayName = name.trim() || nextAlias(selected.displayName, profiles);
+      const result = await services.commands.probeProfileEndpoints({
+        profileId,
+        providerId: selected.id,
+        displayName,
+        config: providerConfigFromForm(selected.id, displayName, selected.family, connection, defaultModel),
+        ...(apiKey.trim() ? { secretValues: { apiKey: apiKey.trim() } } : {}),
+      });
       if (!result.ok) {
         throw new Error(`${result.error.category}: ${result.error.message}`);
       }
-      const status = statusFromProviderTestResult(result.value, t);
+      setProbeResults(result.value.results);
+      setSuggestedEndpointId(result.value.suggestedEndpointId);
+      const status = statusFromEndpointProbeResult(result.value, t);
       statusNotice.show(status.message, status.tone, status);
     } catch (error) {
       statusNotice.show(error instanceof Error ? error.message : String(error), 'negative', { durationMs: null, copyable: true });
@@ -156,10 +188,12 @@ export function SettingsAddPage({ onNav, profiles, onProfileSaved }: SettingsAdd
                   onClick={() => {
                     setProviderId(provider.id);
                     setName(nextAlias(provider.displayName, profiles));
-                    setBaseUrl(defaultBaseUrl(provider.id));
+                    setConnection(defaultConnection(provider.id));
                     modelModeTouchedRef.current = false;
                     setDefaultModel('');
                     setModelMenuOpen(false);
+                    setProbeResults([]);
+                    setSuggestedEndpointId(undefined);
                     setStep(2);
                   }}
                 >
@@ -185,9 +219,15 @@ export function SettingsAddPage({ onNav, profiles, onProfileSaved }: SettingsAdd
             aliasValue={name}
             onAliasValue={setName}
             aliasPlaceholder={selected?.displayName}
-            baseUrlValue={baseUrl}
-            onBaseUrlValue={setBaseUrl}
+            connection={connection}
+            onConnectionChange={(next) => {
+              setConnection((current) => normalizeProviderConnectionDraft(typeof next === 'object' ? next : current));
+              setProbeResults([]);
+              setSuggestedEndpointId(undefined);
+            }}
             baseUrlPlaceholder="https://api.example.com"
+            probeResults={connectionProbeResultById(probeResults)}
+            suggestedEndpointId={suggestedEndpointId}
             apiKeyValue={apiKey}
             onApiKeyValue={setApiKey}
             apiKeyPlaceholder="sk-..."

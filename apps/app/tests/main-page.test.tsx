@@ -881,7 +881,12 @@ describe('MainPage contract', () => {
             providerId: 'mock',
             displayName: 'Mock Profile',
             family: 'image-endpoint',
-            baseURL: 'https://mock.local',
+            connection: {
+              selectionMode: 'manual',
+              failoverEnabled: false,
+              preferredEndpointId: 'primary',
+              endpoints: [{ id: 'primary', url: 'https://mock.local', enabled: true }],
+            },
             defaultModel: 'mock-image-v1',
           },
           secretRefs: {
@@ -899,7 +904,12 @@ describe('MainPage contract', () => {
             providerId: 'prompt-optimize',
             displayName: 'Prompt Optimizer',
             family: 'prompt-optimize',
-            baseURL: 'https://openrouter.ai/api/v1',
+            connection: {
+              selectionMode: 'manual',
+              failoverEnabled: false,
+              preferredEndpointId: 'primary',
+              endpoints: [{ id: 'primary', url: 'https://openrouter.ai/api/v1', enabled: true }],
+            },
             defaultModel: 'gpt-4o-mini',
             instruction: 'Rewrite the prompt.',
             testPrompt: 'test',
@@ -933,7 +943,12 @@ describe('MainPage contract', () => {
           enabled: true,
           config: {
             family: 'image-endpoint',
-            baseURL: 'https://example.invalid/v1',
+            connection: {
+              selectionMode: 'manual',
+              failoverEnabled: false,
+              preferredEndpointId: 'primary',
+              endpoints: [{ id: 'primary', url: 'https://example.invalid/v1', enabled: true }],
+            },
             apiKey: 'sk-test',
             defaultModel: 'mock-image-v1',
           },
@@ -947,7 +962,12 @@ describe('MainPage contract', () => {
           enabled: true,
           config: {
             family: 'prompt-optimize',
-            baseURL: 'https://openrouter.ai/api/v1',
+            connection: {
+              selectionMode: 'manual',
+              failoverEnabled: false,
+              preferredEndpointId: 'primary',
+              endpoints: [{ id: 'primary', url: 'https://openrouter.ai/api/v1', enabled: true }],
+            },
             defaultModel: 'gpt-4o-mini',
             instruction: 'Rewrite the prompt.',
             testPrompt: 'test',

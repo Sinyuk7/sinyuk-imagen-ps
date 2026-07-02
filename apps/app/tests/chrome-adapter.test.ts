@@ -15,7 +15,12 @@ function sampleProfile(): ProviderProfile {
       providerId: 'mock',
       displayName: 'Chrome Profile',
       family: 'image-endpoint',
-      baseURL: 'https://mock.local',
+      connection: {
+        selectionMode: 'manual',
+        failoverEnabled: false,
+        preferredEndpointId: 'primary',
+        endpoints: [{ id: 'primary', url: 'https://mock.local', enabled: true }],
+      },
     },
     createdAt: '2026-06-25T00:00:00.000Z',
     updatedAt: '2026-06-25T00:00:00.000Z',

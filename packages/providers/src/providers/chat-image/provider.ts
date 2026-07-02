@@ -5,6 +5,7 @@ import { mockRequestSchema, type MockProviderRequest } from '../mock/request-sch
 import { chatImageConfigSchema, type ChatImageProviderConfig } from './config-schema.js';
 import { chatImageDescriptor } from './descriptor.js';
 import { httpRequest } from '../../transport/image-endpoint/http.js';
+import { executeWithEndpointFailover } from '../../transport/image-endpoint/failover.js';
 import { resolvePaidRetryConfig, resolveIdempotencyHeader } from '../../transport/image-endpoint/paid-retry.js';
 import { buildChatImageRequestBody } from '../../transport/chat-image/build-request.js';
 import { parseChatImageResponse } from '../../transport/chat-image/parse-response.js';
@@ -21,8 +22,8 @@ function createValidationError(message: string, details?: Record<string, unknown
   return err;
 }
 
-function endpointUrl(baseURL: string, path: string): string {
-  return new URL(path.replace(/^\//, ''), baseURL.endsWith('/') ? baseURL : `${baseURL}/`).toString();
+function endpointUrl(endpointRoot: string, path: string): string {
+  return new URL(path.replace(/^\//, ''), endpointRoot.endsWith('/') ? endpointRoot : `${endpointRoot}/`).toString();
 }
 
 export function createChatImageProvider(): Provider<ChatImageProviderConfig, MockProviderRequest> {
@@ -66,32 +67,37 @@ export function createChatImageProvider(): Provider<ChatImageProviderConfig, Moc
 
     async invoke(args: ProviderInvokeArgs<ChatImageProviderConfig, MockProviderRequest>): Promise<ProviderInvokeResult> {
       const { config, request, signal } = args;
-      const url = endpointUrl(config.baseURL, 'chat/completions');
       const body = buildChatImageRequestBody(request, config.defaultModel);
 
       // 付费生成请求：按 provider 能力解析保守重试策略与可选 idempotency key。
       const paidRetry = resolvePaidRetryConfig(chatImageDescriptor);
       const idempotencyHeader = resolveIdempotencyHeader(paidRetry, request as unknown as Record<string, unknown>);
 
-      const response = await httpRequest(
-        {
-          url,
-          method: 'POST',
-          headers: {
-            Authorization: `Bearer ${config.apiKey}`,
-            ...(config.extraHeaders ?? {}),
-            ...(idempotencyHeader ?? {}),
-          },
-          body,
-          timeoutMs: config.timeoutMs,
-        },
-        paidRetry.policy,
+      const execution = await executeWithEndpointFailover({
+        connection: config.connection,
         signal,
-        undefined,
-        { retryability: 'paid', idempotencySupported: paidRetry.idempotencySupported },
-      );
+        retryPolicy: paidRetry.policy,
+        retryOptions: { retryability: 'paid', idempotencySupported: paidRetry.idempotencySupported },
+        execute: async (candidate, candidateSignal) => httpRequest(
+          {
+            url: endpointUrl(candidate.url, 'chat/completions'),
+            method: 'POST',
+            headers: {
+              Authorization: `Bearer ${config.apiKey}`,
+              ...(config.extraHeaders ?? {}),
+              ...(idempotencyHeader ?? {}),
+            },
+            body,
+            timeoutMs: config.timeoutMs,
+          },
+          { ...paidRetry.policy, maxRetries: 0 },
+          candidateSignal,
+          undefined,
+          { retryability: 'paid', idempotencySupported: paidRetry.idempotencySupported },
+        ),
+      });
 
-      const parsed = parseChatImageResponse(response.response.data);
+      const parsed = parseChatImageResponse(execution.value.response.data);
       const result: {
         assets: readonly ProviderInvokeResult['assets'][number][];
         text?: string;
@@ -99,12 +105,18 @@ export function createChatImageProvider(): Provider<ChatImageProviderConfig, Moc
         diagnostics?: ProviderInvokeResult['diagnostics'];
         created?: number;
         usage?: ProviderInvokeResult['usage'];
+        execution?: ProviderInvokeResult['execution'];
       } = {
         assets: parsed.assets,
-        raw: response.response.data,
+        raw: execution.value.response.data,
+        execution: {
+          selectedEndpointId: execution.selectedEndpointId,
+          attempts: execution.attempts,
+        },
       };
-      if (response.diagnostics.length > 0) {
-        result.diagnostics = response.diagnostics;
+      const diagnostics = [...execution.diagnostics, ...execution.value.diagnostics];
+      if (diagnostics.length > 0) {
+        result.diagnostics = diagnostics;
       }
       if (parsed.text !== undefined) {
         result.text = parsed.text;
@@ -119,22 +131,27 @@ export function createChatImageProvider(): Provider<ChatImageProviderConfig, Moc
     },
 
     async discoverModels(config: ChatImageProviderConfig): Promise<readonly ProviderModelInfo[]> {
-      const url = endpointUrl(config.baseURL, 'models?output_modalities=image');
-      const response = await httpRequest(
-        {
-          url,
-          method: 'GET',
-          headers: {
-            Authorization: `Bearer ${config.apiKey}`,
-            ...(config.extraHeaders ?? {}),
+      const execution = await executeWithEndpointFailover({
+        connection: config.connection,
+        retryPolicy: { maxRetries: 0, baseDelayMs: 0, factor: 1 },
+        retryOptions: { retryability: 'broad' },
+        execute: async (candidate) => httpRequest(
+          {
+            url: endpointUrl(candidate.url, 'models?output_modalities=image'),
+            method: 'GET',
+            headers: {
+              Authorization: `Bearer ${config.apiKey}`,
+              ...(config.extraHeaders ?? {}),
+            },
+            timeoutMs: config.timeoutMs,
           },
-          timeoutMs: config.timeoutMs,
-        },
-        undefined,
-        undefined,
-      );
+          { maxRetries: 0, baseDelayMs: 0, factor: 1 },
+          undefined,
+          undefined,
+        ),
+      });
 
-      return parseChatImageModelsResponse(response.response.data);
+      return parseChatImageModelsResponse(execution.value.response.data);
     },
   };
 }

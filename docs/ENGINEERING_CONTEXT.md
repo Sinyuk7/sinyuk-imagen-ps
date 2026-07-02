@@ -89,9 +89,19 @@ surface apps -> application/session -> core-engine + providers
 
 ## Submission And Retry Contract
 
+- Provider profiles persist canonical `connection` config instead of a single endpoint field.
+  `selectionMode` and `failoverEnabled` are independent profile semantics;
+  `preferredEndpointId` persists only for manual mode, while auto-mode probe
+  ranking stays session-only.
 - Session-level in-flight registry (`packages/application/src/session/session.ts`): `inFlightRetry` deduplicates by failed-job `jobId`; `inFlightSubmit` deduplicates by `__clientRoundId`. Locks release on all settle paths including `{ok:true,value:failedJob}`.
 - UI ref gates (`submitInFlightRef`, `retryInFlightRef`) cover same-tick double-click windows. Error-retry and regenerate buttons are disabled while `conversation.running`.
-- Transport retry policy: `paid` mode (default for image-endpoint/chat-image) retries only 429/503 without idempotency. 502/504/`network_error` are not retried without an `Idempotency-Key` header. `timeout` is never retried. `broad` mode (default for discovery) preserves legacy behavior.
+- Shared provider failover executor owns endpoint ordering, same-endpoint retry,
+  cross-endpoint failover, cooldown skip, global attempt budget, and attempt
+  diagnostics. `paid` mode (default for image-endpoint/chat-image) retries only
+  429 on the same endpoint without idempotency and fails over on 503/502/504/
+  `network_error` within the logical-request budget. `timeout` is never
+  replayed across endpoints. `broad` mode (default for discovery) still
+  permits safe endpoint failover for non-paid probes.
 
 ## Current Limitations
 

@@ -69,7 +69,12 @@ function mockProfileInput(profileId: string, displayName: string, model: string,
       providerId: 'mock',
       family: 'image-endpoint',
       displayName,
-      baseURL: 'https://mock.local',
+      connection: {
+        selectionMode: 'manual',
+        failoverEnabled: false,
+        preferredEndpointId: 'primary',
+        endpoints: [{ id: 'primary', url: 'https://mock.local', enabled: true }],
+      },
       defaultModel: model,
     },
     secretValues: {
@@ -92,7 +97,11 @@ describe('provider profile alias contract', () => {
     expect(first.ok).toBe(true);
     expect(second.ok).toBe(true);
     expect(profiles.map((profile) => profile.displayName)).toEqual(['Nano Banana', 'GPT Image 2']);
-    expect(profiles.map((profile) => profile.config.baseURL)).toEqual(['https://mock.local', 'https://mock.local']);
+    expect(
+      profiles.map((profile) =>
+        ((profile.config.connection as { readonly endpoints?: Array<{ readonly url?: string }> } | undefined)?.endpoints?.[0]?.url),
+      ),
+    ).toEqual(['https://mock.local/', 'https://mock.local/']);
   });
 
   it('rejects duplicate aliases without changing existing profile or secrets', async () => {

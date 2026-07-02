@@ -13,7 +13,8 @@ describe('provider config boundary', () => {
       ['provider', 'Input', 'Size', 'Preset'].join(''),
     ];
     for (const schema of [imageEndpointConfigSchema, chatImageConfigSchema, mockConfigSchema]) {
-      expect(Object.keys(schema.shape)).not.toEqual(
+      const baseShape = (schema._def as { readonly schema?: { readonly shape?: Record<string, unknown> } }).schema?.shape;
+      expect(Object.keys(baseShape ?? {})).not.toEqual(
         expect.arrayContaining(forbiddenKeys),
       );
     }

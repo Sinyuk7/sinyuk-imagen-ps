@@ -92,10 +92,10 @@ export type ProviderProfileConfigValue =
 /**
  * Non-secret family-specific provider profile config.
  *
- * This object MAY include values such as baseURL, defaultModel, timeoutMs, and
- * extraHeaders. It MUST NOT include secret values such as
- * apiKey, accessToken, refreshToken, or vendor credentials. Legacy
- * ProviderConfig.apiKey should be migrated to secretRefs.apiKey with the secret
+ * This object MAY include values such as connection, defaultModel, timeoutMs,
+ * and extraHeaders. It MUST NOT include secret values such as
+ * apiKey, accessToken, refreshToken, or vendor credentials. ProviderConfig.apiKey
+ * should be stored via secretRefs.apiKey with the secret
  * value stored via SecretStorageAdapter.
  */
 export type ProviderProfileConfig = Readonly<Record<string, ProviderProfileConfigValue>>;
@@ -228,4 +228,43 @@ export interface ProviderProfileTestResult {
     readonly assetCount?: number;
     readonly modelUsed?: string;
   };
+}
+
+export type EndpointProbeStatus = 'healthy' | 'degraded' | 'unsupported' | 'unreachable' | 'incompatible';
+
+export type EndpointProbeFailureKind =
+  | 'dns'
+  | 'connect'
+  | 'timeout'
+  | 'auth'
+  | 'rate-limit'
+  | 'invalid-response'
+  | 'unsupported-probe';
+
+export interface EndpointProbeResult {
+  readonly endpointId: string;
+  readonly status: EndpointProbeStatus;
+  readonly latencyMs?: number;
+  readonly checkedAt: number;
+  readonly failureKind?: EndpointProbeFailureKind;
+  readonly httpStatus?: number;
+  readonly modelCount?: number;
+  readonly errorMessage?: string;
+}
+
+export interface ProbeProfileEndpointsInput {
+  readonly profileId?: string;
+  readonly providerId: string;
+  readonly displayName?: string;
+  readonly config: ProviderProfileConfig;
+  readonly secretRefs?: Readonly<Record<string, string>>;
+  readonly secretValues?: Readonly<Record<string, string>>;
+  readonly signal?: AbortSignal;
+  readonly timeoutMs?: number;
+  readonly maxConcurrency?: number;
+}
+
+export interface ProbeProfileEndpointsResult {
+  readonly results: readonly EndpointProbeResult[];
+  readonly suggestedEndpointId?: string;
 }

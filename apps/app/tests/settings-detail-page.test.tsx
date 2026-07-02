@@ -125,11 +125,10 @@ describe('SettingsDetailPage contract', () => {
     const container = document.createElement('div');
     document.body.appendChild(container);
     const { spies, onProfilesChanged } = await renderDetail(container);
-    const inputs = Array.from(container.querySelectorAll<HTMLElement & { value?: string }>('.field-input'));
 
     await act(async () => {
-      changeInput(inputs[0]!, 'Renamed Mock');
-      changeInput(inputs[1]!, 'https://mock.changed');
+      changeInput(queryByTestId(container, 'provider-alias-input'), 'Renamed Mock');
+      changeInput(queryByTestId(container, 'provider-endpoint-url-0'), 'https://mock.changed');
     });
     await switchToCustomModel(container);
     await act(async () => {
@@ -146,8 +145,17 @@ describe('SettingsDetailPage contract', () => {
         displayName: 'Renamed Mock',
         enabled: true,
         config: expect.objectContaining({
-          baseURL: 'https://mock.changed',
           defaultModel: 'mock-image-v2',
+          connection: {
+            selectionMode: 'manual',
+            failoverEnabled: false,
+            preferredEndpointId: 'primary',
+            endpoints: [{
+              id: 'primary',
+              url: 'https://mock.changed',
+              enabled: true,
+            }],
+          },
         }),
       }),
     );
@@ -234,8 +242,13 @@ describe('SettingsDetailPage contract', () => {
     });
     await flush();
 
-    expect(spies.saveProviderProfile).toHaveBeenCalled();
-    expect(spies.testProviderProfile).toHaveBeenCalledWith('mock-profile', { connect: true });
+    expect(spies.saveProviderProfile).not.toHaveBeenCalled();
+    expect(spies.probeProfileEndpoints).toHaveBeenCalledWith(
+      expect.objectContaining({
+        profileId: 'mock-profile',
+        providerId: 'mock',
+      }),
+    );
     expect(container.textContent).toContain('连接成功');
 
     await act(async () => {
@@ -276,6 +289,7 @@ describe('SettingsDetailPage contract', () => {
     );
     expect(spies.validatePromptOptimizerProfile).toHaveBeenCalledWith('__prompt-optimizer__');
     expect(spies.testProviderProfile).not.toHaveBeenCalled();
+    expect(spies.probeProfileEndpoints).not.toHaveBeenCalled();
     expect(onProfilesChanged).toHaveBeenCalledWith('__prompt-optimizer__');
     expect(container.textContent).toContain('连接成功');
   });
@@ -312,17 +326,15 @@ describe('SettingsDetailPage contract', () => {
     const container = document.createElement('div');
     document.body.appendChild(container);
     const { spies } = await renderDetail(container);
-    spies.testProviderProfile.mockResolvedValueOnce({
+    spies.probeProfileEndpoints.mockResolvedValueOnce({
       ok: true,
-      value: {
-        profileId: 'mock-profile',
-        providerId: 'image-endpoint',
-        family: 'image-endpoint',
-        valid: true,
-        connectivity: {
-          reachable: false,
-          errorMessage: "Cannot read properties of undefined (reading 'addEventListener')",
-        },
+        value: {
+          results: [{
+            endpointId: 'primary',
+            status: 'unreachable',
+            checkedAt: Date.now(),
+            errorMessage: "Cannot read properties of undefined (reading 'addEventListener')",
+          }],
       },
     });
 
@@ -341,8 +353,8 @@ describe('SettingsDetailPage contract', () => {
     const container = document.createElement('div');
     document.body.appendChild(container);
     const { spies } = await renderDetail(container);
-    let resolveTest: ((value: Awaited<ReturnType<typeof spies.testProviderProfile>>) => void) | undefined;
-    spies.testProviderProfile.mockImplementationOnce(
+    let resolveTest: ((value: Awaited<ReturnType<typeof spies.probeProfileEndpoints>>) => void) | undefined;
+    spies.probeProfileEndpoints.mockImplementationOnce(
       () =>
         new Promise((resolve) => {
           resolveTest = resolve;
@@ -360,11 +372,12 @@ describe('SettingsDetailPage contract', () => {
       resolveTest?.({
         ok: true,
         value: {
-          profileId: 'mock-profile',
-          providerId: 'mock',
-          family: 'image-endpoint',
-          valid: true,
-          connectivity: { reachable: true, modelCount: 1, models: [{ id: 'mock-image-v1' }] },
+          results: [{
+            endpointId: 'primary',
+            status: 'healthy',
+            checkedAt: Date.now(),
+            modelCount: 1,
+          }],
         },
       });
     });
@@ -372,6 +385,41 @@ describe('SettingsDetailPage contract', () => {
 
     expect(Boolean(buttonByText(container, '测试连接').disabled)).toBe(false);
     expect(container.textContent).toContain('连接成功');
+  });
+
+  it('marks the suggested endpoint after auto-mode probe without changing persisted preference', async () => {
+    const container = document.createElement('div');
+    document.body.appendChild(container);
+    const { spies } = await renderDetail(container);
+
+    await act(async () => {
+      queryByTestId(container, 'provider-endpoint-add').click();
+    });
+    const secondInput = queryByTestId(container, 'provider-endpoint-url-1') as HTMLInputElement;
+    const secondEndpointId = secondInput.id.replace('provider-endpoint-url-', '');
+    spies.probeProfileEndpoints.mockResolvedValueOnce({
+      ok: true,
+      value: {
+        results: [
+          { endpointId: 'primary', status: 'healthy', checkedAt: Date.now(), latencyMs: 20, modelCount: 1 },
+          { endpointId: secondEndpointId, status: 'healthy', checkedAt: Date.now(), latencyMs: 5, modelCount: 1 },
+        ],
+        suggestedEndpointId: secondEndpointId,
+      },
+    });
+    await act(async () => {
+      changeInput(secondInput, 'https://mock-secondary.local');
+    });
+    await act(async () => {
+      queryByTestId(container, 'provider-selection-mode-auto').click();
+    });
+    await act(async () => {
+      buttonByText(container, '测试连接').click();
+    });
+    await flush();
+
+    expect(container.querySelector('[data-testid="provider-endpoint-suggested-badge-1"]')?.textContent ?? '').toMatch(/建议|Suggested/);
+    expect(spies.saveProviderProfile).not.toHaveBeenCalled();
   });
 
   it('renders the test button as a centered icon and label combo with nearby test result meta', async () => {
@@ -412,12 +460,11 @@ describe('SettingsDetailPage contract', () => {
     const container = document.createElement('div');
     document.body.appendChild(container);
     const { onProfilesChanged } = await renderDetail(container);
-    const inputs = Array.from(container.querySelectorAll<HTMLElement & { value?: string }>('.field-input'));
 
     await act(async () => {
-      changeInput(inputs[0]!, 'Sensitive Alias Should Not Log');
-      changeInput(inputs[1]!, 'https://secret.example.local/path');
-      changeInput(inputs[2]!, 'sk_live_secret_should_not_log');
+      changeInput(queryByTestId(container, 'provider-alias-input'), 'Sensitive Alias Should Not Log');
+      changeInput(queryByTestId(container, 'provider-endpoint-url-0'), 'https://secret.example.local/path');
+      changeInput(queryByTestId(container, 'provider-api-key-input'), 'sk_live_secret_should_not_log');
     });
     await switchToCustomModel(container);
     await act(async () => {

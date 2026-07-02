@@ -18,7 +18,7 @@ export interface RecordedFetchCall {
 }
 
 export type FetchProgramStep =
-  | { readonly kind: 'response'; readonly status?: number; readonly data?: unknown }
+  | { readonly kind: 'response'; readonly status?: number; readonly data?: unknown; readonly headers?: Record<string, string> }
   | { readonly kind: 'network_error' }
   | { readonly kind: 'timeout' };
 
@@ -84,7 +84,7 @@ export function createCountingFetch(program: readonly FetchProgramStep[]): Count
       ok: status >= 200 && status < 300,
       status,
       statusText: status === 200 ? 'OK' : `HTTP ${status}`,
-      headers: new Headers({ 'content-type': 'application/json' }),
+      headers: new Headers({ 'content-type': 'application/json', ...(step.headers ?? {}) }),
       json: async () => data,
       text: async () => JSON.stringify(data),
     } as Response;

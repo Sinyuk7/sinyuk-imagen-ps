@@ -176,7 +176,7 @@ async function openAddProviderStep2(page, url) {
 
 async function fillMockProviderDraft(page, alias) {
   await fillUxp(page.getByTestId('provider-alias-input'), alias);
-  await fillUxp(page.getByTestId('provider-base-url-input'), 'https://mock.local');
+  await fillUxp(page.getByTestId('provider-endpoint-url-0'), 'https://mock.local');
   await fillUxp(page.getByTestId('provider-default-model-input'), 'mock-image-v1');
   await fillUxp(page.getByTestId('provider-api-key-input'), 'mock-key');
 }
@@ -305,7 +305,8 @@ async function addProviderSaveScenario({ page, url, capture }) {
   await expectControlProperty(page.getByTestId('provider-api-key-input'), 'type', 'password', 'API key input did not switch back to password type');
   await checkpoint(page, capture, '03-add-provider-step-2-filled.png', async () => {
     await expectVisibleText(page, 'Alias');
-    await expectVisibleText(page, 'Base URL');
+    await expectVisibleText(page, 'Request addresses');
+    await expectVisibleText(page, 'Endpoint 1');
     await expectVisibleText(page, 'Default model');
     await expectVisibleText(page, 'API Key');
     await expectNoVisibleSecret(page);

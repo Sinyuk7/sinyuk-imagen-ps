@@ -72,7 +72,16 @@ export async function ensurePromptOptimizerProfile(): Promise<CommandResult<Prov
         providerId: 'prompt-optimize',
         displayName: 'Prompt Optimizer',
         family: 'prompt-optimize',
-        baseURL: '',
+        connection: {
+          selectionMode: 'manual',
+          failoverEnabled: false,
+          preferredEndpointId: 'primary',
+          endpoints: [{
+            id: 'primary',
+            url: 'https://openrouter.ai/api/v1',
+            enabled: true,
+          }],
+        },
         defaultModel: '',
         instruction: DEFAULT_OPTIMIZER_INSTRUCTION,
         testPrompt: DEFAULT_TEST_PROMPT,

@@ -112,6 +112,14 @@ export interface AppMessages {
     readonly instructionPlaceholder: string;
     readonly alias: string;
     readonly baseUrlHint: string;
+    readonly requestAddresses: string;
+    readonly endpointLabel: (index: number) => string;
+    readonly endpointPreferred: string;
+    readonly endpointSuggested: string;
+    readonly endpointEnabled: string;
+    readonly addEndpoint: string;
+    readonly autoSelect: string;
+    readonly failoverEnabled: string;
     readonly defaultModel: string;
     readonly customModelId: string;
     readonly selectedModel: string;
@@ -284,6 +292,14 @@ const EN_MESSAGES: AppMessages = {
     instructionPlaceholder: 'System instruction for prompt optimization',
     alias: 'Alias',
     baseUrlHint: 'If this provider does not auto-complete endpoint paths, enter the full API base URL such as https://example.com/v1',
+    requestAddresses: 'Request addresses',
+    endpointLabel: (index) => `Endpoint ${index}`,
+    endpointPreferred: 'Preferred',
+    endpointSuggested: 'Suggested',
+    endpointEnabled: 'Enabled',
+    addEndpoint: 'Add endpoint',
+    autoSelect: 'Auto Select',
+    failoverEnabled: 'Fail over when unavailable',
     defaultModel: 'Default model',
     customModelId: 'Custom model id',
     selectedModel: 'Selected model',
@@ -457,6 +473,14 @@ const ZH_CN_MESSAGES: AppMessages = {
     instructionPlaceholder: '用于优化提示词的系统指令',
     alias: '别名',
     baseUrlHint: '如果该 Provider 不会自动补全端点路径，请填写完整 API 基础地址，例如 https://example.com/v1',
+    requestAddresses: '请求地址',
+    endpointLabel: (index) => `端点 ${index}`,
+    endpointPreferred: '首选',
+    endpointSuggested: '建议',
+    endpointEnabled: '启用',
+    addEndpoint: '添加端点',
+    autoSelect: '自动选择',
+    failoverEnabled: '不可用时切换',
     defaultModel: '默认模型',
     customModelId: '自定义 model id',
     selectedModel: '当前模型',

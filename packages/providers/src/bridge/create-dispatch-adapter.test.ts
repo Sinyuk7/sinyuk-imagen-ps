@@ -30,7 +30,12 @@ describe('createDispatchAdapter', () => {
         providerId: 'mock-provider',
         displayName: 'Mock Provider',
         family: 'image-endpoint',
-        baseURL: 'https://mock.local',
+        connection: {
+          selectionMode: 'manual',
+          failoverEnabled: false,
+          preferredEndpointId: 'primary',
+          endpoints: [{ id: 'primary', url: 'https://mock.local', enabled: true }],
+        },
         apiKey: 'mock-key',
       },
     });

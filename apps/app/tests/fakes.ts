@@ -2,10 +2,12 @@ import { vi } from 'vitest';
 import type {
   Asset,
   DurableJobRecord,
+  EndpointProbeResult,
   Job,
   ProviderDescriptor,
   ProviderProfile,
   ProviderProfileInput,
+  ProbeProfileEndpointsInput,
   ProviderProfileTestResult,
   TaskRecord,
 } from '@imagen-ps/application';
@@ -69,7 +71,18 @@ export const fakeProfile: ProviderProfile = {
     providerId: 'mock',
     displayName: 'Mock Profile',
     family: 'image-endpoint',
-    baseURL: 'https://mock.local',
+    connection: {
+      selectionMode: 'manual',
+      failoverEnabled: false,
+      preferredEndpointId: 'primary',
+      endpoints: [
+        {
+          id: 'primary',
+          url: 'https://mock.local',
+          enabled: true,
+        },
+      ],
+    },
     defaultModel: 'mock-image-v1',
   },
   secretRefs: {
@@ -88,7 +101,18 @@ export const fakeOptimizerProfile: ProviderProfile = {
     providerId: 'prompt-optimize',
     displayName: 'Prompt Optimizer',
     family: 'prompt-optimize',
-    baseURL: 'https://openrouter.ai/api/v1',
+    connection: {
+      selectionMode: 'manual',
+      failoverEnabled: false,
+      preferredEndpointId: 'primary',
+      endpoints: [
+        {
+          id: 'primary',
+          url: 'https://openrouter.ai/api/v1',
+          enabled: true,
+        },
+      ],
+    },
     defaultModel: 'gpt-4o-mini',
     instruction: 'Rewrite the prompt.',
     testPrompt: 'test',
@@ -209,6 +233,7 @@ export function createFakeServices(options?: {
     readonly saveProviderProfile: ReturnType<typeof vi.fn>;
     readonly deleteProviderProfile: ReturnType<typeof vi.fn>;
     readonly testProviderProfile: ReturnType<typeof vi.fn>;
+    readonly probeProfileEndpoints: ReturnType<typeof vi.fn>;
     readonly listProfileModels: ReturnType<typeof vi.fn>;
     readonly refreshProfileModels: ReturnType<typeof vi.fn>;
     readonly ensurePromptOptimizerProfile: ReturnType<typeof vi.fn>;
@@ -255,6 +280,23 @@ export function createFakeServices(options?: {
       valid: true,
       connectivity: { reachable: true, modelCount: 1, models: [{ id: 'mock-image-v1' }] },
     } satisfies ProviderProfileTestResult,
+  }));
+  const probeProfileEndpoints = vi.fn(async (input: ProbeProfileEndpointsInput) => ({
+    ok: true as const,
+    value: {
+      results: [
+        {
+          endpointId: 'primary',
+          status: 'healthy',
+          checkedAt: Date.now(),
+          latencyMs: 12,
+          modelCount: 1,
+        } satisfies EndpointProbeResult,
+      ],
+      ...((
+        (input.config.connection as { readonly selectionMode?: string } | undefined)?.selectionMode === 'auto'
+      ) ? { suggestedEndpointId: 'primary' } : {}),
+    },
   }));
   const listProfileModels = vi.fn(async () => ({ ok: true as const, value: [{ id: 'mock-image-v1' }] }));
   const refreshProfileModels = vi.fn(async () => ({ ok: true as const, value: [{ id: 'mock-image-v2' }] }));
@@ -314,6 +356,7 @@ export function createFakeServices(options?: {
     saveProviderProfile,
     deleteProviderProfile,
     testProviderProfile,
+    probeProfileEndpoints,
     listProfileModels,
     refreshProfileModels,
     ensurePromptOptimizerProfile,
@@ -374,6 +417,7 @@ export function createFakeServices(options?: {
       saveProviderProfile,
       deleteProviderProfile,
       testProviderProfile,
+      probeProfileEndpoints,
       listProfileModels,
       refreshProfileModels,
       ensurePromptOptimizerProfile,

@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { providerConnectionCollectionSchema } from '../../contract/config-schema.js';
 
 /**
  * Chat image provider config 的 Zod schema。
@@ -9,7 +10,7 @@ export const chatImageConfigSchema = z.object({
   providerId: z.string().min(1),
   displayName: z.string().min(1),
   family: z.literal('chat-image'),
-  baseURL: z.string().url(),
+  connection: providerConnectionCollectionSchema,
   apiKey: z.string().min(1),
   defaultModel: z.string().optional(),
   extraHeaders: z.record(z.string(), z.string()).optional(),

@@ -113,7 +113,12 @@ function mockProfile(options?: { readonly failMode?: ChromeTestMockFailureMode; 
     providerId: 'mock',
     displayName,
     family: 'image-endpoint',
-    baseURL: 'https://mock.local',
+    connection: {
+      selectionMode: 'manual',
+      failoverEnabled: false,
+      preferredEndpointId: 'primary',
+      endpoints: [{ id: 'primary', url: 'https://mock.local', enabled: true }],
+    },
     defaultModel: 'mock-image-v1',
     ...(options?.failMode === 'always' ? { failMode: { type: 'always' } } : {}),
   };

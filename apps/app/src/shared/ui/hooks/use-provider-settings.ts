@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import type {
+  EndpointProbeResult,
   ProviderDescriptor,
   ProviderModelInfo,
   ProviderProfile,
@@ -242,19 +243,133 @@ export function useProfileDetail(services: AppServices, profileId: string | null
   return { profile, loading, error, reload, save, remove, test };
 }
 
+function configString(config: ProviderProfileConfig, key: string): string {
+  const value = config[key];
+  return typeof value === 'string' ? value : '';
+}
+
+export interface ProviderEndpointDraft {
+  readonly id: string;
+  readonly url: string;
+  readonly enabled: boolean;
+}
+
+export interface ProviderConnectionDraft {
+  readonly selectionMode: 'manual' | 'auto';
+  readonly failoverEnabled: boolean;
+  readonly preferredEndpointId?: string;
+  readonly endpoints: readonly ProviderEndpointDraft[];
+}
+
+function createEndpointId(): string {
+  if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
+    return `endpoint-${crypto.randomUUID()}`;
+  }
+  return `endpoint-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`;
+}
+
+function nextPreferredEndpointId(endpoints: readonly ProviderEndpointDraft[]): string | undefined {
+  return endpoints.find((endpoint) => endpoint.enabled)?.id;
+}
+
+export function createProviderEndpointDraft(url = ''): ProviderEndpointDraft {
+  return {
+    id: createEndpointId(),
+    url,
+    enabled: true,
+  };
+}
+
+export function normalizeProviderConnectionDraft(
+  draft: ProviderConnectionDraft,
+): ProviderConnectionDraft {
+  const endpoints = draft.endpoints.length > 0
+    ? draft.endpoints
+    : [createProviderEndpointDraft()];
+  if (draft.selectionMode === 'auto') {
+    return {
+      selectionMode: 'auto',
+      failoverEnabled: draft.failoverEnabled,
+      endpoints,
+    };
+  }
+  const preferredEndpointId = endpoints.some((endpoint) => endpoint.id === draft.preferredEndpointId && endpoint.enabled)
+    ? draft.preferredEndpointId
+    : nextPreferredEndpointId(endpoints);
+  return {
+    selectionMode: 'manual',
+    failoverEnabled: draft.failoverEnabled,
+    ...(preferredEndpointId ? { preferredEndpointId } : {}),
+    endpoints,
+  };
+}
+
+export function readProviderConnectionDraft(profile: ProviderProfile | null): ProviderConnectionDraft {
+  const config = profile?.config;
+  const connection = config?.connection;
+  if (typeof connection === 'object' && connection !== null && !Array.isArray(connection)) {
+    const record = connection as {
+      readonly selectionMode?: 'manual' | 'auto';
+      readonly failoverEnabled?: boolean;
+      readonly preferredEndpointId?: string;
+      readonly endpoints?: readonly ProviderEndpointDraft[];
+    };
+    const endpoints = Array.isArray(record.endpoints)
+      ? record.endpoints
+          .filter((endpoint): endpoint is ProviderEndpointDraft => typeof endpoint?.id === 'string')
+          .map((endpoint) => ({
+            id: endpoint.id,
+            url: typeof endpoint.url === 'string' ? endpoint.url : '',
+            enabled: endpoint.enabled !== false,
+          }))
+      : [];
+    return normalizeProviderConnectionDraft({
+      selectionMode: record.selectionMode === 'auto' ? 'auto' : 'manual',
+      failoverEnabled: record.failoverEnabled === true,
+      preferredEndpointId: record.preferredEndpointId,
+      endpoints,
+    });
+  }
+  return normalizeProviderConnectionDraft({
+    selectionMode: 'manual',
+    failoverEnabled: false,
+    endpoints: [createProviderEndpointDraft()],
+  });
+}
+
+export function connectionProbeResultById(
+  results: readonly EndpointProbeResult[] | undefined,
+): ReadonlyMap<string, EndpointProbeResult> {
+  return new Map((results ?? []).map((result) => [result.endpointId, result] as const));
+}
+
+export function readProviderConfigString(profile: ProviderProfile, key: string): string {
+  return configString(profile.config, key);
+}
+
 export function providerConfigFromForm(
   providerId: string,
   displayName: string,
   family: string,
-  baseURL: string,
+  connection: ProviderConnectionDraft,
   defaultModel: string,
   instruction?: string,
 ): ProviderProfileConfig {
+  const normalizedConnection = normalizeProviderConnectionDraft(connection);
   const config: Record<string, ProviderProfileConfigValue> = {
     providerId,
     displayName,
     family,
-    baseURL,
+    connection: {
+      selectionMode: normalizedConnection.selectionMode,
+      failoverEnabled: normalizedConnection.failoverEnabled,
+      ...(normalizedConnection.preferredEndpointId ? { preferredEndpointId: normalizedConnection.preferredEndpointId } : {}),
+      endpoints: normalizedConnection.endpoints.map((endpoint) => ({
+        id: endpoint.id,
+        url: endpoint.url,
+        enabled: endpoint.enabled,
+      })),
+    },
   };
   if (defaultModel.trim()) {
     config.defaultModel = defaultModel.trim();

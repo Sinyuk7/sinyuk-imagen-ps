@@ -64,6 +64,32 @@ export const PAGES_CSS = `
 .field{ margin-bottom:12px; }
 .field:last-child{ margin-bottom:0; }
 .field-input{ width:100%; }
+.provider-endpoint-row-spaced{ margin-top:10px; }
+.provider-endpoint-row{ display:block; }
+.provider-endpoint-header{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+}
+.provider-endpoint-input{ margin-top:8px; }
+.provider-endpoint-badges{
+  display:flex;
+  align-items:center;
+  flex-wrap:wrap;
+}
+.provider-endpoint-badges > *{ margin-right:6px; }
+.provider-endpoint-badges > *:last-child{ margin-right:0; }
+.provider-endpoint-controls{
+  display:flex;
+  align-items:center;
+  flex-wrap:wrap;
+  margin-top:8px;
+}
+.provider-endpoint-controls > *{ margin-right:12px; }
+.provider-endpoint-controls > *:last-child{ margin-right:0; }
+.provider-connection-option{ margin-top:8px; }
+.provider-connection-option:first-child{ margin-top:0; }
+.provider-endpoint-add{ margin-top:10px; }
 .provider-model-mode-row{
   display:flex;
   align-items:flex-start;

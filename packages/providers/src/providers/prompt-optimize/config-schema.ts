@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { providerConnectionCollectionSchema } from '../../contract/config-schema.js';
 
 /**
  * Prompt optimize provider config 的 Zod schema。
@@ -9,7 +10,7 @@ export const promptOptimizeConfigSchema = z.object({
   providerId: z.string().min(1),
   displayName: z.string().min(1),
   family: z.literal('prompt-optimize'),
-  baseURL: z.string().url(),
+  connection: providerConnectionCollectionSchema,
   apiKey: z.string().min(1),
   defaultModel: z.string().optional(),
   instruction: z.string().min(1),

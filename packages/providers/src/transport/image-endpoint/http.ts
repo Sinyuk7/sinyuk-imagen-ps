@@ -90,6 +90,21 @@ function mergeAbortSignals(signal: AbortSignal | undefined, timeoutSignal: Abort
   return signal ?? timeoutSignal;
 }
 
+function parseRetryAfterMs(value: string | null): number | undefined {
+  if (!value) {
+    return undefined;
+  }
+  const seconds = Number(value);
+  if (Number.isFinite(seconds) && seconds >= 0) {
+    return Math.round(seconds * 1000);
+  }
+  const at = Date.parse(value);
+  if (Number.isNaN(at)) {
+    return undefined;
+  }
+  return Math.max(0, at - Date.now());
+}
+
 async function fetchOnce(args: HttpRequest, signal?: AbortSignal): Promise<HttpResponse> {
   const { url, method, headers, body, timeoutMs } = args;
 
@@ -158,7 +173,12 @@ async function fetchOnce(args: HttpRequest, signal?: AbortSignal): Promise<HttpR
       throw mapHttpError({
         statusCode: response.status,
         message,
-        details: { url, method, responseBody: data },
+        details: {
+          url,
+          method,
+          responseBody: data,
+          retryAfterMs: parseRetryAfterMs(response.headers.get('retry-after')),
+        },
       });
     }
 

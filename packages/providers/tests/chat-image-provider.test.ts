@@ -11,7 +11,12 @@ describe('chat-image provider', () => {
       providerId: 'chat-image',
       displayName: 'Chat Image',
       family: 'chat-image',
-      baseURL: 'https://openrouter.ai/api/v1',
+      connection: {
+        selectionMode: 'manual',
+        failoverEnabled: false,
+        preferredEndpointId: 'primary',
+        endpoints: [{ id: 'primary', url: 'https://openrouter.ai/api/v1', enabled: true }],
+      },
       apiKey: 'test-key',
     });
 
@@ -186,7 +191,12 @@ describe('chat-image provider', () => {
       providerId: 'chat-image',
       displayName: 'Chat Image',
       family: 'chat-image',
-      baseURL: 'https://openrouter.ai/api/v1',
+      connection: {
+        selectionMode: 'manual',
+        failoverEnabled: false,
+        preferredEndpointId: 'primary',
+        endpoints: [{ id: 'primary', url: 'https://openrouter.ai/api/v1', enabled: true }],
+      },
       apiKey: 'test-key',
       defaultModel: 'google/gemini-2.5-flash-image-preview',
     });

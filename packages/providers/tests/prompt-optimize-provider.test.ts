@@ -12,7 +12,12 @@ const validConfigInput = {
   providerId: 'prompt-optimize',
   displayName: 'Prompt Optimizer',
   family: 'prompt-optimize',
-  baseURL: 'https://openrouter.ai/api/v1',
+  connection: {
+    selectionMode: 'manual',
+    failoverEnabled: false,
+    preferredEndpointId: 'primary',
+    endpoints: [{ id: 'primary', url: 'https://openrouter.ai/api/v1', enabled: true }],
+  },
   apiKey: 'test-key',
   instruction: 'Rewrite the prompt.',
   defaultModel: 'gpt-4o-mini',

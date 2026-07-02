@@ -171,7 +171,12 @@ describe('AppShell', () => {
               providerId: 'prompt-optimize',
               displayName: 'Prompt Optimizer',
               family: 'prompt-optimize',
-              baseURL: 'https://openrouter.ai/api/v1',
+              connection: {
+                selectionMode: 'manual',
+                failoverEnabled: false,
+                preferredEndpointId: 'primary',
+                endpoints: [{ id: 'primary', url: 'https://openrouter.ai/api/v1', enabled: true }],
+              },
               defaultModel: 'gpt-4o-mini',
               instruction: 'Rewrite the prompt.',
               testPrompt: 'test',
@@ -188,7 +193,12 @@ describe('AppShell', () => {
               providerId: 'mock',
               displayName: 'Mock Profile',
               family: 'image-endpoint',
-              baseURL: 'https://mock.local',
+              connection: {
+                selectionMode: 'manual',
+                failoverEnabled: false,
+                preferredEndpointId: 'primary',
+                endpoints: [{ id: 'primary', url: 'https://mock.local', enabled: true }],
+              },
               defaultModel: 'mock-image-v1',
             },
             secretRefs: {
@@ -229,7 +239,7 @@ describe('AppShell', () => {
     await flush();
 
     expect(container.textContent).toContain('Prompt Optimizer');
-    expect(container.querySelector<HTMLInputElement>('[data-testid="provider-base-url-input"]')?.value).toBe('https://openrouter.ai/api/v1');
+    expect(container.querySelector<HTMLInputElement>('[data-testid="provider-endpoint-url-0"]')?.value).toBe('https://openrouter.ai/api/v1');
     const modelSelector = container.querySelector<HTMLElement>('[data-testid="provider-default-model-selector"]');
     expect(modelSelector).not.toBeNull();
     expect(modelSelector?.textContent ?? '').toContain('gpt-4o-mini');

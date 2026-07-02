@@ -18,7 +18,12 @@ describe('image-endpoint provider', () => {
       providerId: 'image-endpoint',
       displayName: 'Image Endpoint',
       family: 'image-endpoint',
-      baseURL: 'https://api.example.com',
+      connection: {
+        selectionMode: 'manual',
+        failoverEnabled: false,
+        preferredEndpointId: 'primary',
+        endpoints: [{ id: 'primary', url: 'https://api.example.com', enabled: true }],
+      },
       apiKey: 'test-key',
     });
 
@@ -169,7 +174,12 @@ describe('image-endpoint provider', () => {
       providerId: 'image-endpoint',
       displayName: 'Image Endpoint',
       family: 'image-endpoint',
-      baseURL: 'https://api.example.com',
+      connection: {
+        selectionMode: 'manual',
+        failoverEnabled: false,
+        preferredEndpointId: 'primary',
+        endpoints: [{ id: 'primary', url: 'https://api.example.com', enabled: true }],
+      },
       apiKey: 'test-key',
     });
 
@@ -193,7 +203,12 @@ describe('image-endpoint provider', () => {
       providerId: 'image-endpoint',
       displayName: 'Image Endpoint',
       family: 'image-endpoint',
-      baseURL: 'https://api.example.com',
+      connection: {
+        selectionMode: 'manual',
+        failoverEnabled: false,
+        preferredEndpointId: 'primary',
+        endpoints: [{ id: 'primary', url: 'https://api.example.com', enabled: true }],
+      },
       apiKey: 'test-key',
       defaultModel: 'dall-e-3',
     });

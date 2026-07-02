@@ -17,6 +17,7 @@ import type {
 } from './types.js';
 import { resolveSecretValue } from './secret-utils.js';
 import { PROMPT_OPTIMIZER_PROFILE_ID } from './prompt-optimize.js';
+import type { ProviderProfileConfigValue } from './types.js';
 
 function errorMessage(error: unknown, fallback: string): string {
   return error instanceof Error ? error.message : fallback;
@@ -28,6 +29,27 @@ function createSecretRef(profileId: string, secretName: string): string {
 
 function sanitizeProfile(profile: ProviderProfile): ProviderProfile {
   return { ...profile };
+}
+
+function stripSecretConfigFields(
+  config: Record<string, unknown>,
+  secretRefs: Readonly<Record<string, string>> | undefined,
+): Record<string, ProviderProfileConfigValue> {
+  const next = { ...config };
+  for (const name of Object.keys(secretRefs ?? {})) {
+    delete next[name];
+  }
+  return next as Record<string, ProviderProfileConfigValue>;
+}
+
+function mergeProfileConfig(
+  existing: Readonly<Record<string, unknown>> | undefined,
+  incoming: Readonly<Record<string, unknown>> | undefined,
+): Record<string, unknown> {
+  return {
+    ...(existing ?? {}),
+    ...(incoming ?? {}),
+  };
 }
 
 function normalizeAlias(displayName: string): string {
@@ -188,10 +210,7 @@ export async function saveProviderProfile(input: ProviderProfileInput): Promise<
       secretRefs[name] = ref;
     }
 
-    const mergedConfig = {
-      ...(existing?.config ?? {}),
-      ...(input.config ?? {}),
-    };
+    const mergedConfig = mergeProfileConfig(existing?.config, input.config);
     const nextEnabled = input.enabled ?? existing?.enabled ?? true;
     const displayName = nextDisplayName;
     const nextConfig = {
@@ -223,7 +242,7 @@ export async function saveProviderProfile(input: ProviderProfileInput): Promise<
       resolvedSecrets[name] = resolveSecretValue(value);
     }
 
-    provider.validateConfig({
+    const validatedConfig = provider.validateConfig({
       providerId: profile.providerId,
       displayName: profile.displayName,
       family: provider.family,
@@ -231,9 +250,19 @@ export async function saveProviderProfile(input: ProviderProfileInput): Promise<
       ...resolvedSecrets,
     });
 
-    await getProviderProfileRepository().save(profile);
+    const persistedConfig = stripSecretConfigFields(
+      validatedConfig as unknown as Record<string, unknown>,
+      profile.secretRefs,
+    );
+
+    const persistedProfile: ProviderProfile = {
+      ...profile,
+      config: persistedConfig,
+    };
+
+    await getProviderProfileRepository().save(persistedProfile);
     span.finish({ providerId: profile.providerId, displayName: profile.displayName });
-    return { ok: true, value: sanitizeProfile(profile) };
+    return { ok: true, value: sanitizeProfile(persistedProfile) };
   } catch (error) {
     await Promise.allSettled(
       Array.from(writtenSecrets.entries()).map(([ref, previous]) =>

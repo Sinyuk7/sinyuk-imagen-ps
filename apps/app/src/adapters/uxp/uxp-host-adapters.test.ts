@@ -187,7 +187,15 @@ describe('fake UXP host adapters', () => {
       providerId: 'mock',
       displayName: 'Mock Profile',
       enabled: true,
-      config: { family: 'image-endpoint', baseURL: 'https://mock.local' },
+      config: {
+        family: 'image-endpoint',
+        connection: {
+          selectionMode: 'manual',
+          failoverEnabled: false,
+          preferredEndpointId: 'primary',
+          endpoints: [{ id: 'primary', url: 'https://mock.local', enabled: true }],
+        },
+      },
       createdAt: '2026-06-15T00:00:00.000Z',
       updatedAt: '2026-06-15T00:00:01.000Z',
     };
@@ -222,7 +230,12 @@ describe('fake UXP host adapters', () => {
       enabled: true,
       config: {
         family: 'image-endpoint',
-        baseURL: 'https://mock.local',
+        connection: {
+          selectionMode: 'manual',
+          failoverEnabled: false,
+          preferredEndpointId: 'primary',
+          endpoints: [{ id: 'primary', url: 'https://mock.local', enabled: true }],
+        },
         notes: '/Users/sinyuk/should-not-enter-flight-recorder',
       },
       secretRefs: { apiKey: 'secret:provider-profile:profile-1:apiKey' },
