@@ -15,6 +15,7 @@ import {
 } from '../../transport/image-endpoint/build-request.js';
 import { parseResponse } from '../../transport/image-endpoint/parse-response.js';
 import { parseModelsResponse } from '../../transport/image-endpoint/models.js';
+import { listLocalCatalogModels } from '../../contract/image-model-capability.js';
 
 /** Provider 层可映射的结构化验证错误。 */
 interface ProviderValidationError extends Error {
@@ -198,7 +199,11 @@ export function createImageEndpointProvider(): Provider<ImageEndpointProviderCon
         ),
       });
 
-      return parseModelsResponse(execution.value.response.data);
+      const discovered = parseModelsResponse(execution.value.response.data);
+      return discovered.length > 0 ? discovered : listLocalCatalogModels('image-endpoint').map((model) => ({
+        ...model,
+        remotelyAvailable: false,
+      }));
     },
   };
 }

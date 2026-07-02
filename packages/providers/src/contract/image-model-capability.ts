@@ -1,0 +1,841 @@
+import type { ProviderOperation } from './capability.js';
+import type {
+  ProviderModelInfo,
+  ProviderModelMatchKind,
+  ProviderModelSupportStatus,
+} from './model.js';
+import type { ProviderOutputOptions } from './request.js';
+
+export type ImageCatalogProviderId = 'image-endpoint' | 'chat-image';
+export type ImageOperation = Extract<ProviderOperation, 'text_to_image' | 'image_edit'>;
+export type ImageSizePreset = NonNullable<ProviderOutputOptions['sizePreset']>;
+export type ImageAspectRatio = 'auto' | 'source' | '1:1' | '16:9' | '9:16';
+
+export interface ModelMatcherPattern {
+  readonly source: string;
+  readonly flags?: string;
+  readonly priority: number;
+}
+
+export interface ModelMatcher {
+  readonly ids?: readonly string[];
+  readonly aliases?: readonly string[];
+  readonly prefixes?: readonly string[];
+  readonly patterns?: readonly ModelMatcherPattern[];
+}
+
+export interface ImageOutputVariant {
+  readonly operation: ImageOperation;
+  readonly preset: ImageSizePreset;
+  readonly aspectRatio: ImageAspectRatio;
+  readonly wireSize?: string;
+  readonly useProviderAuto?: boolean;
+}
+
+interface ConstraintOperationSupport {
+  readonly presets: readonly ImageSizePreset[];
+  readonly aspectRatios: readonly ImageAspectRatio[];
+  readonly omitSizeForAspectRatios?: readonly ImageAspectRatio[];
+  readonly omitAspectRatioForAspectRatios?: readonly ImageAspectRatio[];
+}
+
+interface PixelSideConstraintStrategy {
+  readonly kind: 'pixel-side';
+  readonly sideByPreset: Readonly<Record<ImageSizePreset, number>>;
+  readonly operations: Readonly<Record<ImageOperation, ConstraintOperationSupport>>;
+}
+
+interface ChatImageLabelConstraintStrategy {
+  readonly kind: 'chat-image-label';
+  readonly labelByPreset: Readonly<Record<ImageSizePreset, string>>;
+  readonly operations: Readonly<Record<ImageOperation, ConstraintOperationSupport>>;
+}
+
+export type ImageOutputConstraintStrategy = PixelSideConstraintStrategy | ChatImageLabelConstraintStrategy;
+
+export interface ImageModelCapability {
+  readonly ruleId: string;
+  readonly match: ModelMatcher;
+  readonly displayName: string;
+  readonly selection: {
+    readonly visibleInPicker: boolean;
+    readonly allowAsDefault?: boolean;
+  };
+  readonly appliesToProviders?: readonly ImageCatalogProviderId[];
+  readonly variants?: readonly ImageOutputVariant[];
+  readonly constraintStrategy?: ImageOutputConstraintStrategy;
+  readonly discovery?: {
+    readonly requireRemotePresence?: boolean;
+  };
+}
+
+export interface ResolvedImageModelRule {
+  readonly ruleId: string;
+  readonly concreteModelId: string;
+  readonly capability: ImageModelCapability;
+  readonly matchKind: ProviderModelMatchKind;
+}
+
+export interface ResolvedImageModelOutput {
+  readonly rule: ResolvedImageModelRule;
+  readonly wireSize?: string;
+  readonly wireAspectRatio?: Exclude<ImageAspectRatio, 'auto' | 'source'>;
+}
+
+export class ImageModelContractError extends Error {
+  readonly details?: Readonly<Record<string, unknown>>;
+
+  constructor(message: string, details?: Readonly<Record<string, unknown>>) {
+    super(message);
+    this.name = 'ImageModelContractError';
+    if (details !== undefined) {
+      this.details = details;
+    }
+  }
+}
+
+const IMAGE_SIZE_PRESETS: readonly ImageSizePreset[] = ['512', '1k', '2k', '4k'];
+
+const IMAGE_ENDPOINT_DEFAULT_STRATEGY = Object.freeze({
+  kind: 'pixel-side',
+  sideByPreset: {
+    '512': 512,
+    '1k': 1024,
+    '2k': 1536,
+    '4k': 1536,
+  },
+  operations: {
+    text_to_image: {
+      presets: IMAGE_SIZE_PRESETS,
+      aspectRatios: ['auto', '1:1', '16:9', '9:16'],
+    },
+    image_edit: {
+      presets: IMAGE_SIZE_PRESETS,
+      aspectRatios: ['auto', 'source', '1:1', '16:9', '9:16'],
+      omitSizeForAspectRatios: ['auto', 'source'],
+    },
+  },
+} as const satisfies ImageOutputConstraintStrategy);
+
+const CHAT_IMAGE_DEFAULT_STRATEGY = Object.freeze({
+  kind: 'chat-image-label',
+  labelByPreset: {
+    '512': '512',
+    '1k': '1K',
+    '2k': '2K',
+    '4k': '2K',
+  },
+  operations: {
+    text_to_image: {
+      presets: IMAGE_SIZE_PRESETS,
+      aspectRatios: ['auto', '1:1', '16:9', '9:16'],
+      omitAspectRatioForAspectRatios: ['auto'],
+    },
+    image_edit: {
+      presets: IMAGE_SIZE_PRESETS,
+      aspectRatios: ['auto', 'source', '1:1', '16:9', '9:16'],
+      omitAspectRatioForAspectRatios: ['auto', 'source'],
+    },
+  },
+} as const satisfies ImageOutputConstraintStrategy);
+
+const IMAGE_MODEL_CAPABILITIES = Object.freeze([
+  {
+    ruleId: 'image-endpoint-gpt-image-2',
+    match: {
+      ids: ['gpt-image-2', 'chatgpt-image-latest'],
+    },
+    displayName: 'GPT Image 2',
+    selection: {
+      visibleInPicker: true,
+      allowAsDefault: true,
+    },
+    appliesToProviders: ['image-endpoint'],
+    constraintStrategy: IMAGE_ENDPOINT_DEFAULT_STRATEGY,
+  },
+  {
+    ruleId: 'image-endpoint-gpt-image-1',
+    match: {
+      ids: ['gpt-image-1'],
+    },
+    displayName: 'GPT Image 1',
+    selection: {
+      visibleInPicker: true,
+      allowAsDefault: true,
+    },
+    appliesToProviders: ['image-endpoint'],
+    variants: [
+      { operation: 'text_to_image', preset: '1k', aspectRatio: 'auto', wireSize: '1024x1024' },
+      { operation: 'text_to_image', preset: '1k', aspectRatio: '1:1', wireSize: '1024x1024' },
+      { operation: 'text_to_image', preset: '2k', aspectRatio: '16:9', wireSize: '1536x1024' },
+      { operation: 'text_to_image', preset: '2k', aspectRatio: '9:16', wireSize: '1024x1536' },
+    ],
+  },
+  {
+    ruleId: 'image-endpoint-dall-e-3',
+    match: {
+      ids: ['dall-e-3'],
+    },
+    displayName: 'DALL-E 3',
+    selection: {
+      visibleInPicker: true,
+      allowAsDefault: true,
+    },
+    appliesToProviders: ['image-endpoint'],
+    variants: [
+      { operation: 'text_to_image', preset: '1k', aspectRatio: 'auto', wireSize: '1024x1024' },
+      { operation: 'text_to_image', preset: '1k', aspectRatio: '1:1', wireSize: '1024x1024' },
+      { operation: 'text_to_image', preset: '2k', aspectRatio: '16:9', wireSize: '1792x1024' },
+      { operation: 'text_to_image', preset: '2k', aspectRatio: '9:16', wireSize: '1024x1792' },
+    ],
+  },
+  {
+    ruleId: 'chat-image-gemini-flash-image-preview',
+    match: {
+      ids: ['google/gemini-2.5-flash-image-preview'],
+      prefixes: ['google/gemini-2.5-flash-image-preview'],
+    },
+    displayName: 'Gemini 2.5 Flash Image Preview',
+    selection: {
+      visibleInPicker: true,
+      allowAsDefault: true,
+    },
+    appliesToProviders: ['chat-image'],
+    constraintStrategy: CHAT_IMAGE_DEFAULT_STRATEGY,
+  },
+  {
+    ruleId: 'chat-image-openai-gpt-image-2',
+    match: {
+      ids: ['openai/gpt-image-2'],
+    },
+    displayName: 'OpenAI GPT Image 2',
+    selection: {
+      visibleInPicker: true,
+      allowAsDefault: true,
+    },
+    appliesToProviders: ['chat-image'],
+    constraintStrategy: CHAT_IMAGE_DEFAULT_STRATEGY,
+  },
+  {
+    ruleId: 'image-endpoint-default',
+    match: {},
+    displayName: 'Default Image Endpoint Rule',
+    selection: {
+      visibleInPicker: false,
+      allowAsDefault: true,
+    },
+    appliesToProviders: ['image-endpoint'],
+    constraintStrategy: IMAGE_ENDPOINT_DEFAULT_STRATEGY,
+  },
+  {
+    ruleId: 'chat-image-default',
+    match: {},
+    displayName: 'Default Chat Image Rule',
+    selection: {
+      visibleInPicker: false,
+      allowAsDefault: true,
+    },
+    appliesToProviders: ['chat-image'],
+    constraintStrategy: CHAT_IMAGE_DEFAULT_STRATEGY,
+  },
+] as const satisfies readonly ImageModelCapability[]);
+
+function normalizeModelId(value: string): string {
+  return value.trim().toLowerCase();
+}
+
+function capabilityAppliesToProvider(capability: ImageModelCapability, providerId: ImageCatalogProviderId): boolean {
+  return capability.appliesToProviders === undefined || capability.appliesToProviders.includes(providerId);
+}
+
+function visibleCapabilitiesForProvider(
+  providerId: ImageCatalogProviderId,
+  capabilities: readonly ImageModelCapability[],
+): readonly ImageModelCapability[] {
+  return capabilities.filter(
+    (capability) =>
+      capabilityAppliesToProvider(capability, providerId) &&
+      capability.selection.visibleInPicker,
+  );
+}
+
+function defaultCapabilityForProvider(
+  providerId: ImageCatalogProviderId,
+  capabilities: readonly ImageModelCapability[],
+): ImageModelCapability {
+  const defaultCapability = capabilities.find(
+    (capability) =>
+      capability.ruleId.endsWith('-default') && capabilityAppliesToProvider(capability, providerId),
+  );
+  if (!defaultCapability) {
+    throw new ImageModelContractError(`Provider "${providerId}" is missing a default image model rule.`);
+  }
+  return defaultCapability;
+}
+
+function canonicalModelIdForCapability(capability: ImageModelCapability): string {
+  const canonical = capability.match.ids?.[0]?.trim();
+  if (!canonical) {
+    throw new ImageModelContractError(`Image model rule "${capability.ruleId}" requires at least one canonical id.`, {
+      ruleId: capability.ruleId,
+    });
+  }
+  return canonical;
+}
+
+function supportStatusForConfiguredModel(args: {
+  readonly locallySupported: boolean;
+  readonly remotelyAvailable: boolean;
+}): ProviderModelSupportStatus {
+  if (!args.locallySupported) {
+    return 'custom-unchecked';
+  }
+  return args.remotelyAvailable ? 'selectable' : 'saved-undiscovered';
+}
+
+function buildProviderModelInfo(
+  capability: ImageModelCapability,
+  overrides?: Partial<ProviderModelInfo>,
+): ProviderModelInfo {
+  const id = overrides?.id ?? canonicalModelIdForCapability(capability);
+  const locallySupported = overrides?.locallySupported ?? true;
+  const remotelyAvailable = overrides?.remotelyAvailable;
+  return {
+    id,
+    displayName: overrides?.displayName ?? capability.displayName,
+    ruleId: overrides?.ruleId ?? capability.ruleId,
+    matchKind: overrides?.matchKind,
+    pickerVisible: overrides?.pickerVisible ?? capability.selection.visibleInPicker,
+    locallySupported,
+    ...(remotelyAvailable !== undefined ? { remotelyAvailable } : {}),
+    supportStatus:
+      overrides?.supportStatus ??
+      supportStatusForConfiguredModel({
+        locallySupported,
+        remotelyAvailable: remotelyAvailable ?? capability.discovery?.requireRemotePresence !== true,
+      }),
+  };
+}
+
+function operationSupportFromStrategy(
+  strategy: ImageOutputConstraintStrategy,
+  operation: ImageOperation,
+): ConstraintOperationSupport {
+  return strategy.operations[operation];
+}
+
+function assertOperationSupported(
+  rule: ResolvedImageModelRule,
+  operation: ImageOperation,
+): void {
+  if (rule.capability.variants?.some((variant) => variant.operation === operation)) {
+    return;
+  }
+  if (rule.capability.constraintStrategy !== undefined) {
+    return;
+  }
+  throw new ImageModelContractError(
+    `Model "${rule.concreteModelId}" does not support operation "${operation}".`,
+    {
+      modelId: rule.concreteModelId,
+      operation,
+      ruleId: rule.ruleId,
+    },
+  );
+}
+
+function exactMatchCandidates(
+  providerId: ImageCatalogProviderId,
+  modelId: string,
+  capabilities: readonly ImageModelCapability[],
+): readonly ImageModelCapability[] {
+  const normalized = normalizeModelId(modelId);
+  return capabilities.filter(
+    (capability) =>
+      capabilityAppliesToProvider(capability, providerId) &&
+      capability.match.ids?.some((id) => normalizeModelId(id) === normalized),
+  );
+}
+
+function aliasMatchCandidates(
+  providerId: ImageCatalogProviderId,
+  modelId: string,
+  capabilities: readonly ImageModelCapability[],
+): readonly ImageModelCapability[] {
+  const normalized = normalizeModelId(modelId);
+  return capabilities.filter(
+    (capability) =>
+      capabilityAppliesToProvider(capability, providerId) &&
+      capability.match.aliases?.some((id) => normalizeModelId(id) === normalized),
+  );
+}
+
+function prefixMatchCandidates(
+  providerId: ImageCatalogProviderId,
+  modelId: string,
+  capabilities: readonly ImageModelCapability[],
+): ReadonlyArray<{ readonly capability: ImageModelCapability; readonly prefix: string }> {
+  const normalized = normalizeModelId(modelId);
+  return capabilities.flatMap((capability) => {
+    if (!capabilityAppliesToProvider(capability, providerId)) {
+      return [];
+    }
+    return (capability.match.prefixes ?? [])
+      .filter((prefix) => normalized.startsWith(normalizeModelId(prefix)))
+      .map((prefix) => ({ capability, prefix }));
+  });
+}
+
+function patternMatchCandidates(
+  providerId: ImageCatalogProviderId,
+  modelId: string,
+  capabilities: readonly ImageModelCapability[],
+): ReadonlyArray<{ readonly capability: ImageModelCapability; readonly pattern: ModelMatcherPattern }> {
+  return capabilities.flatMap((capability) => {
+    if (!capabilityAppliesToProvider(capability, providerId)) {
+      return [];
+    }
+    return (capability.match.patterns ?? [])
+      .filter((pattern) => new RegExp(pattern.source, pattern.flags).test(modelId))
+      .map((pattern) => ({ capability, pattern }));
+  });
+}
+
+function assertSingleCapability(
+  matches: readonly ImageModelCapability[],
+  errorMessage: string,
+  details: Readonly<Record<string, unknown>>,
+): ImageModelCapability | undefined {
+  if (matches.length === 0) {
+    return undefined;
+  }
+  if (matches.length > 1) {
+    throw new ImageModelContractError(errorMessage, details);
+  }
+  return matches[0];
+}
+
+export function providerUsesImageModelCatalog(providerId: string): providerId is ImageCatalogProviderId {
+  return providerId === 'image-endpoint' || providerId === 'chat-image';
+}
+
+export function resolveImageModelRule(args: {
+  readonly providerId: ImageCatalogProviderId;
+  readonly modelId: string;
+  readonly capabilities?: readonly ImageModelCapability[];
+}): ResolvedImageModelRule {
+  const modelId = args.modelId.trim();
+  const capabilities = args.capabilities ?? IMAGE_MODEL_CAPABILITIES;
+
+  const exact = assertSingleCapability(
+    exactMatchCandidates(args.providerId, modelId, capabilities),
+    `Image model catalog exact match is ambiguous for "${modelId}".`,
+    { providerId: args.providerId, modelId, matchKind: 'exact' },
+  );
+  if (exact) {
+    return {
+      ruleId: exact.ruleId,
+      concreteModelId: modelId,
+      capability: exact,
+      matchKind: 'exact',
+    };
+  }
+
+  const alias = assertSingleCapability(
+    aliasMatchCandidates(args.providerId, modelId, capabilities),
+    `Image model catalog alias match is ambiguous for "${modelId}".`,
+    { providerId: args.providerId, modelId, matchKind: 'alias' },
+  );
+  if (alias) {
+    return {
+      ruleId: alias.ruleId,
+      concreteModelId: canonicalModelIdForCapability(alias),
+      capability: alias,
+      matchKind: 'alias',
+    };
+  }
+
+  const prefixMatches = prefixMatchCandidates(args.providerId, modelId, capabilities);
+  if (prefixMatches.length > 0) {
+    const longest = Math.max(...prefixMatches.map((match) => normalizeModelId(match.prefix).length));
+    const topMatches = prefixMatches.filter((match) => normalizeModelId(match.prefix).length === longest);
+    const unique = Array.from(new Map(topMatches.map((match) => [match.capability.ruleId, match.capability])).values());
+    if (unique.length > 1) {
+      throw new ImageModelContractError(
+        `Image model catalog prefix match is ambiguous for "${modelId}".`,
+        {
+          providerId: args.providerId,
+          modelId,
+          matchKind: 'prefix',
+          ruleIds: unique.map((capability) => capability.ruleId),
+        },
+      );
+    }
+    const capability = unique[0]!;
+    return {
+      ruleId: capability.ruleId,
+      concreteModelId: modelId,
+      capability,
+      matchKind: 'prefix',
+    };
+  }
+
+  const patternMatches = patternMatchCandidates(args.providerId, modelId, capabilities);
+  if (patternMatches.length > 0) {
+    const highestPriority = Math.max(...patternMatches.map((match) => match.pattern.priority));
+    const topMatches = patternMatches.filter((match) => match.pattern.priority === highestPriority);
+    const unique = Array.from(new Map(topMatches.map((match) => [match.capability.ruleId, match.capability])).values());
+    if (unique.length > 1) {
+      throw new ImageModelContractError(
+        `Image model catalog pattern match is ambiguous for "${modelId}".`,
+        {
+          providerId: args.providerId,
+          modelId,
+          matchKind: 'pattern',
+          priority: highestPriority,
+          ruleIds: unique.map((capability) => capability.ruleId),
+        },
+      );
+    }
+    const capability = unique[0]!;
+    return {
+      ruleId: capability.ruleId,
+      concreteModelId: modelId,
+      capability,
+      matchKind: 'pattern',
+    };
+  }
+
+  const fallback = defaultCapabilityForProvider(args.providerId, capabilities);
+  return {
+    ruleId: fallback.ruleId,
+    concreteModelId: modelId,
+    capability: fallback,
+    matchKind: 'default',
+  };
+}
+
+export function listLocalCatalogModels(providerId: ImageCatalogProviderId): readonly ProviderModelInfo[] {
+  return visibleCapabilitiesForProvider(providerId, IMAGE_MODEL_CAPABILITIES).map((capability) =>
+    buildProviderModelInfo(capability, {
+      matchKind: 'exact',
+      supportStatus: 'selectable',
+    }),
+  );
+}
+
+export function reconcileDiscoveredCatalogModels(args: {
+  readonly providerId: ImageCatalogProviderId;
+  readonly discoveredModels: readonly ProviderModelInfo[];
+}): readonly ProviderModelInfo[] {
+  const discoveredRuleIds = new Set<string>();
+  for (const model of args.discoveredModels) {
+    const resolved = resolveImageModelRule({
+      providerId: args.providerId,
+      modelId: model.id,
+    });
+    if (
+      resolved.matchKind !== 'default' &&
+      resolved.capability.selection.visibleInPicker &&
+      resolved.capability.discovery?.requireRemotePresence !== false
+    ) {
+      discoveredRuleIds.add(resolved.ruleId);
+    }
+  }
+
+  return visibleCapabilitiesForProvider(args.providerId, IMAGE_MODEL_CAPABILITIES)
+    .filter((capability) => discoveredRuleIds.has(capability.ruleId))
+    .map((capability) =>
+      buildProviderModelInfo(capability, {
+        matchKind: 'exact',
+        remotelyAvailable: true,
+        supportStatus: 'selectable',
+      }),
+    );
+}
+
+export function describeConfiguredCatalogModel(args: {
+  readonly providerId: ImageCatalogProviderId;
+  readonly modelId: string;
+  readonly discoveredModels?: readonly ProviderModelInfo[];
+}): ProviderModelInfo {
+  const modelId = args.modelId.trim();
+  const resolved = resolveImageModelRule({
+    providerId: args.providerId,
+    modelId,
+  });
+  const discoveredRuleIds = new Set(
+    (args.discoveredModels ?? []).map((model) => model.ruleId ?? resolveImageModelRule({
+      providerId: args.providerId,
+      modelId: model.id,
+    }).ruleId),
+  );
+  const remotelyAvailable = discoveredRuleIds.has(resolved.ruleId);
+
+  if (resolved.matchKind === 'default') {
+    return {
+      id: modelId,
+      displayName: modelId,
+      ruleId: resolved.ruleId,
+      matchKind: resolved.matchKind,
+      pickerVisible: false,
+      locallySupported: false,
+      remotelyAvailable,
+      supportStatus: 'custom-unchecked',
+    };
+  }
+
+  return buildProviderModelInfo(resolved.capability, {
+    id: modelId,
+    matchKind: resolved.matchKind,
+    pickerVisible: remotelyAvailable && modelId === canonicalModelIdForCapability(resolved.capability),
+    remotelyAvailable,
+    supportStatus: supportStatusForConfiguredModel({
+      locallySupported: true,
+      remotelyAvailable,
+    }),
+  });
+}
+
+function resolveVariantOutput(args: {
+  readonly rule: ResolvedImageModelRule;
+  readonly operation: ImageOperation;
+  readonly preset: ImageSizePreset;
+  readonly aspectRatio: ImageAspectRatio;
+}): ResolvedImageModelOutput {
+  const variant = args.rule.capability.variants?.find(
+    (candidate) =>
+      candidate.operation === args.operation &&
+      candidate.preset === args.preset &&
+      candidate.aspectRatio === args.aspectRatio,
+  );
+  if (!variant) {
+    throw new ImageModelContractError(
+      `Model "${args.rule.concreteModelId}" does not support preset "${args.preset}" with aspect ratio "${args.aspectRatio}" for "${args.operation}".`,
+      {
+        modelId: args.rule.concreteModelId,
+        ruleId: args.rule.ruleId,
+        operation: args.operation,
+        preset: args.preset,
+        aspectRatio: args.aspectRatio,
+      },
+    );
+  }
+  return {
+    rule: args.rule,
+    ...(variant.wireSize !== undefined ? { wireSize: variant.wireSize } : {}),
+  };
+}
+
+function ratioSize(side: number, aspectRatio: ImageAspectRatio): string {
+  switch (aspectRatio) {
+    case '16:9':
+      return `${side}x${Math.round(side * 9 / 16)}`;
+    case '9:16':
+      return `${Math.round(side * 9 / 16)}x${side}`;
+    case 'auto':
+    case 'source':
+    case '1:1':
+    default:
+      return `${side}x${side}`;
+  }
+}
+
+function resolveConstraintOutput(args: {
+  readonly rule: ResolvedImageModelRule;
+  readonly operation: ImageOperation;
+  readonly preset: ImageSizePreset;
+  readonly aspectRatio: ImageAspectRatio;
+}): ResolvedImageModelOutput {
+  const strategy = args.rule.capability.constraintStrategy;
+  if (!strategy) {
+    throw new ImageModelContractError(
+      `Model "${args.rule.concreteModelId}" is missing a constraint strategy.`,
+      {
+        modelId: args.rule.concreteModelId,
+        ruleId: args.rule.ruleId,
+      },
+    );
+  }
+
+  const support = operationSupportFromStrategy(strategy, args.operation);
+  if (!support.presets.includes(args.preset)) {
+    throw new ImageModelContractError(
+      `Model "${args.rule.concreteModelId}" does not support preset "${args.preset}" for "${args.operation}".`,
+      {
+        modelId: args.rule.concreteModelId,
+        ruleId: args.rule.ruleId,
+        operation: args.operation,
+        preset: args.preset,
+      },
+    );
+  }
+  if (!support.aspectRatios.includes(args.aspectRatio)) {
+    throw new ImageModelContractError(
+      `Model "${args.rule.concreteModelId}" does not support aspect ratio "${args.aspectRatio}" for "${args.operation}".`,
+      {
+        modelId: args.rule.concreteModelId,
+        ruleId: args.rule.ruleId,
+        operation: args.operation,
+        aspectRatio: args.aspectRatio,
+      },
+    );
+  }
+
+  if (strategy.kind === 'pixel-side') {
+    const omitSize = support.omitSizeForAspectRatios?.includes(args.aspectRatio) === true;
+    return {
+      rule: args.rule,
+      ...(omitSize ? {} : { wireSize: ratioSize(strategy.sideByPreset[args.preset], args.aspectRatio) }),
+    };
+  }
+
+  const omitAspectRatio = support.omitAspectRatioForAspectRatios?.includes(args.aspectRatio) === true;
+  return {
+    rule: args.rule,
+    wireSize: strategy.labelByPreset[args.preset],
+    ...(omitAspectRatio || args.aspectRatio === 'auto' || args.aspectRatio === 'source'
+      ? {}
+      : { wireAspectRatio: args.aspectRatio }),
+  };
+}
+
+export function resolveImageModelOutput(args: {
+  readonly providerId: ImageCatalogProviderId;
+  readonly modelId: string;
+  readonly operation: ImageOperation;
+  readonly output?: ProviderOutputOptions;
+}): ResolvedImageModelOutput {
+  const rule = resolveImageModelRule({
+    providerId: args.providerId,
+    modelId: args.modelId,
+  });
+  assertOperationSupported(rule, args.operation);
+
+  const preset = args.output?.sizePreset;
+  if (preset === undefined) {
+    return { rule };
+  }
+
+  const aspectRatio = (args.output?.aspectRatio ?? 'auto') as ImageAspectRatio;
+  if (rule.capability.variants !== undefined) {
+    return resolveVariantOutput({
+      rule,
+      operation: args.operation,
+      preset,
+      aspectRatio,
+    });
+  }
+  return resolveConstraintOutput({
+    rule,
+    operation: args.operation,
+    preset,
+    aspectRatio,
+  });
+}
+
+export function isSupportedImageModelOutput(args: {
+  readonly providerId: ImageCatalogProviderId;
+  readonly modelId: string;
+  readonly operation: ImageOperation;
+  readonly output?: ProviderOutputOptions;
+}): boolean {
+  try {
+    resolveImageModelOutput(args);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+export function getSupportedImageOutputSizePresets(args: {
+  readonly providerId: ImageCatalogProviderId;
+  readonly modelId: string;
+  readonly operation: ImageOperation;
+  readonly aspectRatio?: ProviderOutputOptions['aspectRatio'];
+}): readonly ImageSizePreset[] {
+  const rule = resolveImageModelRule({
+    providerId: args.providerId,
+    modelId: args.modelId,
+  });
+  const aspectRatio = (args.aspectRatio ?? 'auto') as ImageAspectRatio;
+
+  if (rule.capability.variants !== undefined) {
+    return Array.from(
+      new Set(
+        rule.capability.variants
+          .filter(
+            (variant) =>
+              variant.operation === args.operation && variant.aspectRatio === aspectRatio,
+          )
+          .map((variant) => variant.preset),
+      ),
+    );
+  }
+
+  const strategy = rule.capability.constraintStrategy;
+  if (!strategy) {
+    return [];
+  }
+  const support = operationSupportFromStrategy(strategy, args.operation);
+  return support.aspectRatios.includes(aspectRatio) ? support.presets : [];
+}
+
+export function validateImageModelCatalog(
+  capabilities: readonly ImageModelCapability[] = IMAGE_MODEL_CAPABILITIES,
+): readonly string[] {
+  const errors: string[] = [];
+
+  for (const capability of capabilities) {
+    if (capability.selection.visibleInPicker && (capability.match.ids?.[0]?.trim() ?? '').length === 0) {
+      errors.push(`Rule "${capability.ruleId}" is picker-visible but has no canonical id.`);
+    }
+    if (capability.variants === undefined && capability.constraintStrategy === undefined) {
+      errors.push(`Rule "${capability.ruleId}" is missing variants or constraintStrategy.`);
+    }
+    const variantKeys = new Set<string>();
+    for (const variant of capability.variants ?? []) {
+      const key = `${variant.operation}:${variant.preset}:${variant.aspectRatio}`;
+      if (variantKeys.has(key)) {
+        errors.push(`Rule "${capability.ruleId}" contains duplicate variant "${key}".`);
+      }
+      variantKeys.add(key);
+    }
+  }
+
+  for (const providerId of ['image-endpoint', 'chat-image'] as const satisfies readonly ImageCatalogProviderId[]) {
+    const capabilitiesForProvider = capabilities.filter((capability) => capabilityAppliesToProvider(capability, providerId));
+    const exactIds = new Map<string, string>();
+    const aliases = new Map<string, string>();
+    const prefixes = new Map<string, string>();
+
+    for (const capability of capabilitiesForProvider) {
+      for (const id of capability.match.ids ?? []) {
+        const key = normalizeModelId(id);
+        const owner = exactIds.get(key);
+        if (owner && owner !== capability.ruleId) {
+          errors.push(`Provider "${providerId}" exact id "${id}" is owned by both "${owner}" and "${capability.ruleId}".`);
+        }
+        exactIds.set(key, capability.ruleId);
+      }
+      for (const alias of capability.match.aliases ?? []) {
+        const key = normalizeModelId(alias);
+        const owner = aliases.get(key);
+        if (owner && owner !== capability.ruleId) {
+          errors.push(`Provider "${providerId}" alias "${alias}" is owned by both "${owner}" and "${capability.ruleId}".`);
+        }
+        aliases.set(key, capability.ruleId);
+      }
+      for (const prefix of capability.match.prefixes ?? []) {
+        const key = normalizeModelId(prefix);
+        const owner = prefixes.get(key);
+        if (owner && owner !== capability.ruleId) {
+          errors.push(`Provider "${providerId}" prefix "${prefix}" is owned by both "${owner}" and "${capability.ruleId}".`);
+        }
+        prefixes.set(key, capability.ruleId);
+      }
+    }
+  }
+
+  return errors;
+}

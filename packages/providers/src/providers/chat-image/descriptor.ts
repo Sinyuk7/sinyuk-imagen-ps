@@ -1,4 +1,5 @@
 import type { ProviderDescriptor } from '../../contract/provider.js';
+import { listLocalCatalogModels } from '../../contract/image-model-capability.js';
 
 /** Chat image provider 的静态 descriptor。 */
 export const chatImageDescriptor: ProviderDescriptor = {
@@ -7,4 +8,5 @@ export const chatImageDescriptor: ProviderDescriptor = {
   displayName: 'Chat Image',
   operations: ['text_to_image', 'image_edit'],
   invokeMode: 'sync',
+  defaultModels: listLocalCatalogModels('chat-image'),
 };

@@ -10,6 +10,7 @@ import { resolvePaidRetryConfig, resolveIdempotencyHeader } from '../../transpor
 import { buildChatImageRequestBody } from '../../transport/chat-image/build-request.js';
 import { parseChatImageResponse } from '../../transport/chat-image/parse-response.js';
 import { parseChatImageModelsResponse } from '../../transport/chat-image/models.js';
+import { listLocalCatalogModels } from '../../contract/image-model-capability.js';
 
 interface ProviderValidationError extends Error {
   details?: Record<string, unknown>;
@@ -151,7 +152,11 @@ export function createChatImageProvider(): Provider<ChatImageProviderConfig, Moc
         ),
       });
 
-      return parseChatImageModelsResponse(execution.value.response.data);
+      const discovered = parseChatImageModelsResponse(execution.value.response.data);
+      return discovered.length > 0 ? discovered : listLocalCatalogModels('chat-image').map((model) => ({
+        ...model,
+        remotelyAvailable: false,
+      }));
     },
   };
 }

@@ -13,6 +13,31 @@ export {
   getPrimaryProviderEndpoint,
   normalizeProviderConnection,
 } from './config.js';
+export type {
+  ImageAspectRatio,
+  ImageCatalogProviderId,
+  ImageModelCapability,
+  ImageOperation,
+  ImageOutputConstraintStrategy,
+  ImageOutputVariant,
+  ImageSizePreset,
+  ModelMatcher,
+  ModelMatcherPattern,
+  ResolvedImageModelOutput,
+  ResolvedImageModelRule,
+} from './image-model-capability.js';
+export {
+  ImageModelContractError,
+  describeConfiguredCatalogModel,
+  getSupportedImageOutputSizePresets,
+  isSupportedImageModelOutput,
+  listLocalCatalogModels,
+  providerUsesImageModelCatalog,
+  reconcileDiscoveredCatalogModels,
+  resolveImageModelOutput,
+  resolveImageModelRule,
+  validateImageModelCatalog,
+} from './image-model-capability.js';
 export type { AssetRef, CanonicalImageJobRequest, PromptOptimizeRequest, ProviderOutputOptions, ProviderRequest } from './request.js';
 export type { ProviderDiagnostic, ProviderDiagnosticLevel, ProviderDiagnostics } from './diagnostics.js';
 export type {
@@ -22,7 +47,7 @@ export type {
   ProviderInvokeResult,
   ProviderInvokeUsage,
 } from './result.js';
-export type { ProviderModelInfo } from './model.js';
+export type { ProviderModelInfo, ProviderModelMatchKind, ProviderModelSupportStatus } from './model.js';
 export type {
   Provider,
   ProviderDescriptor,

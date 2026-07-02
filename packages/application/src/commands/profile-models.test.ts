@@ -40,6 +40,30 @@ function mockProfile(overrides?: Partial<ProviderProfile>): ProviderProfile {
   };
 }
 
+function imageEndpointProfile(overrides?: Partial<ProviderProfile>): ProviderProfile {
+  return {
+    profileId: 'image-endpoint-profile',
+    providerId: 'image-endpoint',
+    displayName: 'Image Endpoint Profile',
+    enabled: true,
+    config: {
+      providerId: 'image-endpoint',
+      displayName: 'Image Endpoint Profile',
+      family: 'image-endpoint',
+      connection: {
+        selectionMode: 'manual',
+        failoverEnabled: false,
+        preferredEndpointId: 'primary',
+        endpoints: [{ id: 'primary', url: 'https://example.com', enabled: true }],
+      },
+      defaultModel: 'gpt-image-2',
+    },
+    createdAt: '2026-06-15T00:00:00.000Z',
+    updatedAt: '2026-06-15T00:00:00.000Z',
+    ...overrides,
+  };
+}
+
 describe('profile model commands', () => {
   it('merges config.defaultModel into listed candidates when it is absent', async () => {
     _resetForTesting();
@@ -105,6 +129,50 @@ describe('profile model commands', () => {
     expect(result.ok).toBe(true);
     if (result.ok) {
       expect(result.value.map((model) => model.id)).toEqual(['mock-image-v1']);
+    }
+  });
+
+  it('uses the local catalog as the authoritative default list for image-endpoint providers', async () => {
+    _resetForTesting();
+    setProviderProfileRepository(createRepository([imageEndpointProfile()]));
+
+    const result = await listProfileModels('image-endpoint-profile');
+
+    expect(result.ok).toBe(true);
+    if (result.ok) {
+      expect(result.value.map((model) => model.id)).toEqual(['gpt-image-2', 'gpt-image-1', 'dall-e-3']);
+      expect(result.value.every((model) => model.supportStatus === 'selectable')).toBe(true);
+    }
+  });
+
+  it('marks a saved but currently undiscovered catalog model explicitly', async () => {
+    _resetForTesting();
+    setProviderProfileRepository(createRepository([
+      imageEndpointProfile({
+        models: [{ id: 'gpt-image-2', supportStatus: 'selectable' }],
+        config: {
+          providerId: 'image-endpoint',
+          displayName: 'Image Endpoint Profile',
+          family: 'image-endpoint',
+          connection: {
+            selectionMode: 'manual',
+            failoverEnabled: false,
+            preferredEndpointId: 'primary',
+            endpoints: [{ id: 'primary', url: 'https://example.com', enabled: true }],
+          },
+          defaultModel: 'dall-e-3',
+        },
+      }),
+    ]));
+
+    const result = await listProfileModels('image-endpoint-profile');
+
+    expect(result.ok).toBe(true);
+    if (result.ok) {
+      expect(result.value[0]).toMatchObject({
+        id: 'dall-e-3',
+        supportStatus: 'saved-undiscovered',
+      });
     }
   });
 });

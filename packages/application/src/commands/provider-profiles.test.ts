@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import {
   _resetForTesting,
   setProviderProfileRepository,
@@ -59,6 +59,10 @@ function createSecretStorage(): {
     },
   };
 }
+
+afterEach(() => {
+  vi.unstubAllGlobals();
+});
 
 function mockProfileInput(profileId: string, displayName: string, model: string, apiKey: string) {
   return {
@@ -142,6 +146,51 @@ describe('provider profile alias contract', () => {
       expect(result.value.connectivity).toMatchObject({
         reachable: false,
         errorMessage: 'Provider implementation "mock" does not support model discovery.',
+      });
+    }
+  });
+
+  it('reports only selectable discovered models in connectivity count and keeps the saved default visible', async () => {
+    _resetForTesting();
+    const { repository } = createProfileRepository();
+    const { adapter } = createSecretStorage();
+    setProviderProfileRepository(repository);
+    setSecretStorageAdapter(adapter);
+
+    const saved = await saveProviderProfile({
+      profileId: 'profile-image',
+      providerId: 'chat-image',
+      displayName: 'Chat Image',
+      config: {
+        providerId: 'chat-image',
+        family: 'chat-image',
+        displayName: 'Chat Image',
+        connection: {
+          selectionMode: 'manual',
+          failoverEnabled: false,
+          preferredEndpointId: 'primary',
+          endpoints: [{ id: 'primary', url: 'https://openrouter.ai/api/v1', enabled: true }],
+        },
+        defaultModel: 'google/gemini-2.5-flash-image-preview',
+      },
+      secretValues: { apiKey: 'key-a' },
+    });
+    expect(saved.ok).toBe(true);
+
+    vi.stubGlobal('fetch', async () => new Response(JSON.stringify({
+      data: [{ id: 'openai/gpt-image-2', architecture: { output_modalities: ['image'] } }],
+    }), {
+      status: 200,
+      headers: { 'Content-Type': 'application/json' },
+    }));
+
+    const result = await testProviderProfile('profile-image', { connect: true });
+    expect(result.ok).toBe(true);
+    if (result.ok) {
+      expect(result.value.connectivity?.modelCount).toBe(1);
+      expect(result.value.connectivity?.models?.[0]).toMatchObject({
+        id: 'google/gemini-2.5-flash-image-preview',
+        supportStatus: 'saved-undiscovered',
       });
     }
   });

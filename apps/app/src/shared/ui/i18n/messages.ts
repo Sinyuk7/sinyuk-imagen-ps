@@ -131,6 +131,9 @@ export interface AppMessages {
     readonly customModelHint: string;
     readonly modelListEmpty: string;
     readonly modelListFailed: string;
+    readonly modelSavedUndiscovered: string;
+    readonly modelCustomUnchecked: string;
+    readonly modelSelectableOnly: string;
     readonly connectionInfo: string;
     readonly noProfileSelected: string;
     readonly savedSecretPlaceholder: string;
@@ -318,6 +321,9 @@ const EN_MESSAGES: AppMessages = {
     customModelHint: 'Use a custom model id when the model is not in the list.',
     modelListEmpty: 'No models available. Refresh the model list or enter a custom model id.',
     modelListFailed: 'Model list unavailable. Refresh the model list or enter a custom model id.',
+    modelSavedUndiscovered: 'Saved model is currently not discovered',
+    modelCustomUnchecked: 'Custom model id is unchecked',
+    modelSelectableOnly: 'Only locally supported and currently discovered models can be sent.',
     connectionInfo: 'Connection info',
     noProfileSelected: 'No Provider profile selected',
     savedSecretPlaceholder: 'Saved; leave blank to keep unchanged',
@@ -506,6 +512,9 @@ const ZH_CN_MESSAGES: AppMessages = {
     customModelHint: '当模型不在列表中时，使用自定义 model id。',
     modelListEmpty: '暂无可用模型。请刷新模型列表或手动填写自定义 model id。',
     modelListFailed: '模型列表不可用。请刷新模型列表或手动填写自定义 model id。',
+    modelSavedUndiscovered: '已保存模型当前未被发现',
+    modelCustomUnchecked: '自定义 model id 未校验',
+    modelSelectableOnly: '仅允许发送本地支持且当前已发现的模型。',
     connectionInfo: '连接信息',
     noProfileSelected: '未选择 Provider profile',
     savedSecretPlaceholder: '已保存；留空不修改',

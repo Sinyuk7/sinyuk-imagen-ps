@@ -1,4 +1,5 @@
 import type { ProviderModelInfo } from '../../contract/model.js';
+import { reconcileDiscoveredCatalogModels } from '../../contract/image-model-capability.js';
 import { formatDisplayName } from '../image-endpoint/models.js';
 import { mapInvalidResponseError } from '../image-endpoint/error-map.js';
 
@@ -19,7 +20,7 @@ function hasImageOutput(model: Record<string, unknown>): boolean {
   return id.includes('image') || id.includes('gpt-image') || id.includes('banana');
 }
 
-export function parseChatImageModelsResponse(raw: unknown): ProviderModelInfo[] {
+export function parseChatImageModelsResponse(raw: unknown): readonly ProviderModelInfo[] {
   if (typeof raw !== 'object' || raw === null) {
     throw mapInvalidResponseError('Chat image models response is not a JSON object.', { raw });
   }
@@ -44,5 +45,8 @@ export function parseChatImageModelsResponse(raw: unknown): ProviderModelInfo[] 
     });
   }
 
-  return models;
+  return reconcileDiscoveredCatalogModels({
+    providerId: 'chat-image',
+    discoveredModels: models,
+  });
 }

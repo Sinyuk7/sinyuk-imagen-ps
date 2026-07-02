@@ -19,6 +19,7 @@
 
 import type { Asset } from '@imagen-ps/core-engine';
 import type { CanonicalImageJobRequest, ProviderOutputOptions } from '../../contract/request.js';
+import { resolveImageModelOutput, type ImageCatalogProviderId } from '../../contract/image-model-capability.js';
 
 /**
  * Image endpoint images/generations 的请求 body。
@@ -223,8 +224,7 @@ function mapQuality(
   model: string,
   quality: NonNullable<ProviderOutputOptions['quality']>,
 ): NonNullable<OpenAIImageGenerationBody['quality']> {
-  void model;
-  return quality;
+  return model === 'dall-e-3' && quality === 'high' ? 'high' : quality;
 }
 
 /** 已被 `request.output` 或 transport 层显式处理、禁止通过 providerOptions 覆盖的 body 字段。 */
@@ -396,7 +396,11 @@ function appendMultipartBodyFields(parts: MultipartPart[], body: OpenAIImageEdit
 function applyOutputToBody(
   body: Record<string, unknown>,
   output: ProviderOutputOptions | undefined,
-  options: { readonly includeInputFidelity: boolean; readonly operation: CanonicalImageJobRequest['operation'] },
+  options: {
+    readonly includeInputFidelity: boolean;
+    readonly operation: CanonicalImageJobRequest['operation'];
+    readonly providerId: ImageCatalogProviderId;
+  },
 ): void {
   if (output === undefined) {
     return;
@@ -406,9 +410,22 @@ function applyOutputToBody(
     body.n = output.count;
   }
 
-  const semanticSize = concreteSizeFromOutput(output, { operation: options.operation });
-  if (semanticSize !== undefined) {
-    body.size = semanticSize;
+  if (output.sizePreset !== undefined) {
+    const resolvedOutput = resolveImageModelOutput({
+      providerId: options.providerId,
+      modelId: String(body.model ?? ''),
+      operation: options.operation,
+      output,
+    });
+
+    if (resolvedOutput.wireSize !== undefined) {
+      body.size = resolvedOutput.wireSize;
+    }
+  } else {
+    const semanticSize = concreteSizeFromOutput(output, { operation: options.operation });
+    if (semanticSize !== undefined) {
+      body.size = semanticSize;
+    }
   }
 
   if (output.background !== undefined) {
@@ -466,7 +483,11 @@ export function buildRequestBody(request: CanonicalImageJobRequest, defaultModel
     prompt: request.prompt,
   };
 
-  applyOutputToBody(body, request.output, { includeInputFidelity: false, operation: request.operation });
+  applyOutputToBody(body, request.output, {
+    includeInputFidelity: false,
+    operation: request.operation,
+    providerId: 'image-endpoint',
+  });
 
   const isGptImageModel = body.model.startsWith('gpt-image') || body.model === 'chatgpt-image-latest';
   const responseFormatOverride =
@@ -511,7 +532,11 @@ export function buildEditRequestBody(request: CanonicalImageJobRequest, defaultM
     body.mask = assetToMaskRef(request.maskImage);
   }
 
-  applyOutputToBody(body, request.output, { includeInputFidelity: true, operation: request.operation });
+  applyOutputToBody(body, request.output, {
+    includeInputFidelity: true,
+    operation: request.operation,
+    providerId: 'image-endpoint',
+  });
 
   applyProviderOptions(body, request.providerOptions, ['image_response_format']);
 

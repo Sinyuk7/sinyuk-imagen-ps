@@ -103,10 +103,10 @@ export type ProviderProfileConfig = Readonly<Record<string, ProviderProfileConfi
 /**
  * Sanitized persisted provider profile. Returned commands MUST NOT include secret values.
  *
- * `models` 字段唯一来源是 `refreshProfileModels` 写入的 discovery 缓存：
+ * `models` 字段唯一来源是 `refreshProfileModels` 写入的「当前运行时可选模型交集」缓存：
  * `saveProviderProfile` 不会接受用户传入的 `models`、不会擦除现有缓存；
  * dispatch 路径与 `model-selection` 三级优先级 MUST NOT 读取该字段；
- * 它仅供 `listProfileModels` 与 surface-side model picker 渲染使用。
+ * 它仅供 `listProfileModels`、connectivity 状态、与 surface-side picker 渲染使用。
  */
 export interface ProviderProfile {
   readonly profileId: string;
@@ -217,6 +217,7 @@ export interface ProviderProfileTestResult {
   /** Layer 2：connect 测试结果，仅在 options.connect 时存在。 */
   readonly connectivity?: {
     readonly reachable: boolean;
+    /** 当前本地 catalog 与 runtime discovery 的可选交集数量。 */
     readonly modelCount?: number;
     readonly models?: readonly ProviderModelInfo[];
     /** 连通性失败时的安全错误摘要，不包含 resolved secret-bearing config。 */

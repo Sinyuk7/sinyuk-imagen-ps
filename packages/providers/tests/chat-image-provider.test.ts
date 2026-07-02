@@ -169,6 +169,7 @@ describe('chat-image provider', () => {
           { id: 'openai/gpt-4.1', architecture: { output_modalities: ['text'] } },
           { id: 'google/gemini-2.5-flash-image-preview', name: 'Gemini Image' },
           { id: 'openai/gpt-image-2', architecture: { output_modalities: ['image', 'text'] } },
+          { id: 'banana-preview-v2', architecture: { output_modalities: ['image'] } },
         ],
       }).map((model) => model.id),
     ).toEqual(['google/gemini-2.5-flash-image-preview', 'openai/gpt-image-2']);

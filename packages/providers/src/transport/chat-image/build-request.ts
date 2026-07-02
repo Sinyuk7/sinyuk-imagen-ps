@@ -1,5 +1,6 @@
 import type { Asset } from '@imagen-ps/core-engine';
 import type { CanonicalImageJobRequest, ProviderOutputOptions } from '../../contract/request.js';
+import { resolveImageModelOutput } from '../../contract/image-model-capability.js';
 
 export interface ChatImageContentText {
   readonly type: 'text';
@@ -95,18 +96,39 @@ function sizeFromPreset(preset: NonNullable<ProviderOutputOptions['sizePreset']>
   return preset === '512' ? '512' : preset === '1k' ? '1K' : '2K';
 }
 
-function outputToImageConfig(output: ProviderOutputOptions | undefined): Record<string, unknown> | undefined {
+function outputToImageConfig(
+  output: ProviderOutputOptions | undefined,
+  modelId: string,
+  operation: CanonicalImageJobRequest['operation'],
+): Record<string, unknown> | undefined {
   if (output === undefined) {
     return undefined;
   }
 
   const imageConfig: Record<string, unknown> = {};
-  const size = output.sizePreset !== undefined ? sizeFromPreset(output.sizePreset) : inferSize(output.width, output.height);
+  const resolvedOutput =
+    output.sizePreset !== undefined
+      ? resolveImageModelOutput({
+        providerId: 'chat-image',
+        modelId,
+        operation,
+        output,
+      })
+      : undefined;
+  const size = resolvedOutput?.wireSize ?? (output.sizePreset !== undefined ? sizeFromPreset(output.sizePreset) : inferSize(output.width, output.height));
 
   if (size !== undefined) {
     imageConfig.size = size;
   }
-  if (output.aspectRatio !== undefined && output.aspectRatio !== 'auto' && output.aspectRatio !== 'source') {
+  const wireAspectRatio = resolvedOutput?.wireAspectRatio;
+  if (wireAspectRatio !== undefined) {
+    imageConfig.aspect_ratio = wireAspectRatio;
+  } else if (
+    output.aspectRatio !== undefined &&
+    output.aspectRatio !== 'auto' &&
+    output.aspectRatio !== 'source' &&
+    output.sizePreset === undefined
+  ) {
     imageConfig.aspect_ratio = output.aspectRatio;
   }
   if (output.quality !== undefined) {
@@ -155,8 +177,8 @@ function resolveModalities(providerOptions: Readonly<Record<string, unknown>> | 
   return ['image'];
 }
 
-function resolveImageConfig(request: CanonicalImageJobRequest): Record<string, unknown> | undefined {
-  const fromOutput = outputToImageConfig(request.output);
+function resolveImageConfig(request: CanonicalImageJobRequest, modelId: string): Record<string, unknown> | undefined {
+  const fromOutput = outputToImageConfig(request.output, modelId, request.operation);
   const raw = request.providerOptions?.image_config;
   const fromOptions =
     typeof raw === 'object' && raw !== null && !Array.isArray(raw) ? (raw as Record<string, unknown>) : undefined;
@@ -191,8 +213,9 @@ export function buildChatImageRequestBody(
   request: CanonicalImageJobRequest,
   defaultModel?: string,
 ): ChatImageCompletionBody {
+  const model = resolveModel(request, defaultModel);
   const body: Record<string, unknown> = {
-    model: resolveModel(request, defaultModel),
+    model,
     messages: [{ role: 'user', content: buildMessageContent(request) }],
     modalities: resolveModalities(request.providerOptions),
   };
@@ -201,7 +224,7 @@ export function buildChatImageRequestBody(
     body.n = request.output.count;
   }
 
-  const imageConfig = resolveImageConfig(request);
+  const imageConfig = resolveImageConfig(request, model);
   if (imageConfig !== undefined) {
     body.image_config = imageConfig;
   }

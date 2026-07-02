@@ -1,4 +1,5 @@
 import type { ProviderDescriptor } from '../../contract/provider.js';
+import { listLocalCatalogModels } from '../../contract/image-model-capability.js';
 
 /** Image endpoint provider 的静态 descriptor。 */
 export const imageEndpointDescriptor: ProviderDescriptor = {
@@ -7,5 +8,5 @@ export const imageEndpointDescriptor: ProviderDescriptor = {
   displayName: 'Image Endpoint',
   operations: ['text_to_image', 'image_edit'],
   invokeMode: 'sync',
-  defaultModels: [{ id: 'gpt-image-2' }, { id: 'gpt-image-1' }],
+  defaultModels: listLocalCatalogModels('image-endpoint'),
 };

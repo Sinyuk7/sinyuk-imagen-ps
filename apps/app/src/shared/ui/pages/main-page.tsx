@@ -108,6 +108,13 @@ function dedupeById(models: readonly ProviderModelInfo[]): readonly ProviderMode
   });
 }
 
+function modelIsSelectable(model: ProviderModelInfo | undefined): boolean {
+  if (!model) {
+    return false;
+  }
+  return model.supportStatus === undefined || model.supportStatus === 'selectable';
+}
+
 function findRoundElement(container: HTMLElement, roundId: string): HTMLElement | null {
   return container.querySelector(`[data-round-id="${roundId}"]`);
 }
@@ -229,8 +236,13 @@ export function MainPage({
     [uniqueModels],
   );
   const selectedModelLabel = selectedModelId || (modelsLoading ? t.main.modelLoading : t.main.modelUnselected);
+  const selectedModelInfo = uniqueModels.find((model) => model.id === selectedModelId);
   const currentPromptValue = () => taRef.current?.value ?? input;
-  const canSend = input.trim().length > 0 && Boolean(selectedProfile) && !conversation.running;
+  const canSend =
+    input.trim().length > 0 &&
+    Boolean(selectedProfile) &&
+    !conversation.running &&
+    (selectedModelId.trim().length === 0 || modelIsSelectable(selectedModelInfo));
   const optimizerReady = Boolean(promptOptimizerProfile?.enabled);
   const optimizing = optimizeState.status === 'optimizing';
   const showUndo = optimizeState.status === 'optimized' && input === optimizeState.result;
@@ -555,6 +567,10 @@ export function MainPage({
   const handleSend = async () => {
     if (!selectedProfile) {
       show(t.toast.selectProviderProfileFirst, 'info', { durationMs: 4000 });
+      return;
+    }
+    if (selectedModelId.trim().length > 0 && !modelIsSelectable(selectedModelInfo)) {
+      show(t.settings.modelSelectableOnly, 'warning', { durationMs: 4200, dismissible: false });
       return;
     }
     if (!canSend) {

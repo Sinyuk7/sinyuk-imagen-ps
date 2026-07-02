@@ -8,6 +8,10 @@ import {
   buildEditRequestBody,
   buildRequestBody,
 } from '../src/transport/image-endpoint/build-request.js';
+import {
+  resolveImageModelRule,
+  validateImageModelCatalog,
+} from '../src/contract/image-model-capability.js';
 import { parseModelsResponse } from '../src/transport/image-endpoint/models.js';
 import { parseResponse } from '../src/transport/image-endpoint/parse-response.js';
 
@@ -157,9 +161,46 @@ describe('image-endpoint provider', () => {
     expect(
       parseModelsResponse({
         object: 'list',
-        data: [{ id: 'gpt-image-2' }, { id: 'gpt-4.1' }, { id: 'dall-e-3' }],
+        data: [{ id: 'gpt-image-2' }, { id: 'gpt-4.1' }, { id: 'dall-e-3' }, { id: 'unsupported-image-x' }],
       }).map((model) => model.id),
     ).toEqual(['gpt-image-2', 'dall-e-3']);
+  });
+
+  it('keeps the shared image model catalog internally consistent', () => {
+    expect(validateImageModelCatalog()).toEqual([]);
+  });
+
+  it('resolves rule identity separately from the concrete model id', () => {
+    const resolved = resolveImageModelRule({
+      providerId: 'image-endpoint',
+      modelId: 'chatgpt-image-latest',
+    });
+
+    expect(resolved.ruleId).toBe('image-endpoint-gpt-image-2');
+    expect(resolved.concreteModelId).toBe('chatgpt-image-latest');
+    expect(resolved.matchKind).toBe('exact');
+  });
+
+  it('rejects unsupported gpt-image-1 semantic output locally before transport', () => {
+    expect(() => buildRequestBody(
+      {
+        operation: 'text_to_image',
+        prompt: 'unsupported square',
+        output: { sizePreset: '2k', aspectRatio: 'auto' },
+      },
+      'gpt-image-1',
+    )).toThrow(/does not support preset "2k" with aspect ratio "auto"/);
+  });
+
+  it('rejects unsupported dall-e-3 semantic output locally before transport', () => {
+    expect(() => buildRequestBody(
+      {
+        operation: 'text_to_image',
+        prompt: 'unsupported square',
+        output: { sizePreset: '2k', aspectRatio: 'auto' },
+      },
+      'dall-e-3',
+    )).toThrow(/does not support preset "2k" with aspect ratio "auto"/);
   });
 
   it('omits undefined AbortSignal from fetch options for UXP compatibility', async () => {

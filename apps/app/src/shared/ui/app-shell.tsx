@@ -238,7 +238,8 @@ function AppShellContent({ host }: AppShellProps) {
       return;
     }
     const configured = defaultModelFor(selectedProfile);
-    const next = configured || available[0]?.id || '';
+    const selectable = available.find((model) => model.supportStatus === undefined || model.supportStatus === 'selectable');
+    const next = configured || selectable?.id || available[0]?.id || '';
     setSelectedModelId(next);
   }, [modelsState.models, selectedProfile, selectedModelId]);
 

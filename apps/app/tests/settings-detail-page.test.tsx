@@ -342,6 +342,77 @@ describe('SettingsDetailPage contract', () => {
     expect(container.querySelectorAll('[data-testid="provider-model-list-notice"]')).toHaveLength(1);
   });
 
+  it('shows an explicit status for a saved but currently undiscovered model', async () => {
+    const container = document.createElement('div');
+    document.body.appendChild(container);
+    const services = createFakeServices({
+      profiles: [{
+        ...fakeProfile,
+        config: {
+          ...fakeProfile.config,
+          defaultModel: 'dall-e-3',
+        },
+      }],
+    });
+    services.spies.listProfileModels.mockResolvedValue({
+      ok: true as const,
+      value: [
+        { id: 'dall-e-3', supportStatus: 'saved-undiscovered' },
+        { id: 'gpt-image-2', supportStatus: 'selectable' },
+      ],
+    });
+    root = createRoot(container);
+    await act(async () => {
+      root!.render(
+        <TestAppProviders services={services.services}>
+          <SettingsDetailPage
+            onNav={vi.fn()}
+            profileId="mock-profile"
+            onProfilesChanged={vi.fn(async () => undefined)}
+          />
+        </TestAppProviders>,
+      );
+    });
+    await flush();
+    await flush();
+
+    expect(queryByTestId(container, 'provider-model-status-notice').textContent).toContain('已保存模型当前未被发现');
+  });
+
+  it('shows an explicit status for a custom unchecked model', async () => {
+    const container = document.createElement('div');
+    document.body.appendChild(container);
+    const services = createFakeServices({
+      profiles: [{
+        ...fakeProfile,
+        config: {
+          ...fakeProfile.config,
+          defaultModel: 'custom-model-x',
+        },
+      }],
+    });
+    services.spies.listProfileModels.mockResolvedValue({
+      ok: true as const,
+      value: [{ id: 'custom-model-x', supportStatus: 'custom-unchecked' }],
+    });
+    root = createRoot(container);
+    await act(async () => {
+      root!.render(
+        <TestAppProviders services={services.services}>
+          <SettingsDetailPage
+            onNav={vi.fn()}
+            profileId="mock-profile"
+            onProfilesChanged={vi.fn(async () => undefined)}
+          />
+        </TestAppProviders>,
+      );
+    });
+    await flush();
+    await flush();
+
+    expect(queryByTestId(container, 'provider-model-status-notice').textContent).toContain('自定义 model id 未校验');
+  });
+
   it('marks the preferred endpoint with a semantic dot instead of a preferred text badge', async () => {
     const container = document.createElement('div');
     document.body.appendChild(container);

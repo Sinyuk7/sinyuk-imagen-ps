@@ -865,6 +865,40 @@ describe('MainPage contract', () => {
     expect(container.querySelector('[data-testid="main-model-selector-option-mock-image-v1"]')).not.toBeNull();
   });
 
+  it('prevents sending when the selected model is not currently selectable', async () => {
+    const container = document.createElement('div');
+    document.body.appendChild(container);
+    const services = createFakeServices({
+      profiles: [{
+        ...fakeProfile,
+        config: {
+          ...fakeProfile.config,
+          defaultModel: 'dall-e-3',
+        },
+      }],
+    });
+    services.spies.listProfileModels.mockResolvedValue({
+      ok: true as const,
+      value: [{ id: 'dall-e-3', supportStatus: 'saved-undiscovered' }],
+    });
+    await renderApp(container, services);
+
+    await act(async () => {
+      changeTextarea(container.querySelector<HTMLTextAreaElement>('.cmp-ta')!, 'do not send');
+    });
+    await flush();
+
+    const send = container.querySelector<HTMLElement & { disabled?: boolean }>('[data-testid="composer-send-button"]')!;
+    expect(Boolean(send.disabled)).toBe(true);
+
+    await act(async () => {
+      send.click();
+    });
+    await flush();
+
+    expect(services.spies.submitJob).not.toHaveBeenCalled();
+  });
+
   it('主输入区 provider 与 model 选择不包含 Prompt Optimizer', async () => {
     const container = document.createElement('div');
     document.body.appendChild(container);

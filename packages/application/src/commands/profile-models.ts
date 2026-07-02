@@ -15,7 +15,12 @@ import { createProviderError, createValidationError } from '@imagen-ps/core-engi
 import { generateTraceId } from '@imagen-ps/foundation';
 import { getProviderConfigResolver, getProviderProfileRepository, getRuntime, getRuntimeLogger } from '../runtime.js';
 import type { CommandResult, ProviderProfile } from './types.js';
-import type { ProviderModelInfo } from '@imagen-ps/providers';
+import {
+  describeConfiguredCatalogModel,
+  listLocalCatalogModels,
+  providerUsesImageModelCatalog,
+  type ProviderModelInfo,
+} from '@imagen-ps/providers';
 
 function errorMessage(error: unknown, fallback: string): string {
   return error instanceof Error ? error.message : fallback;
@@ -23,13 +28,30 @@ function errorMessage(error: unknown, fallback: string): string {
 
 function mergeConfiguredDefaultModel(
   models: readonly ProviderModelInfo[],
-  defaultModel: unknown,
+  profile: ProviderProfile,
 ): readonly ProviderModelInfo[] {
-  const configured = typeof defaultModel === 'string' ? defaultModel.trim() : '';
+  const configured = typeof profile.config.defaultModel === 'string' ? profile.config.defaultModel.trim() : '';
   if (configured.length === 0 || models.some((model) => model.id === configured)) {
     return models;
   }
+  if (providerUsesImageModelCatalog(profile.providerId)) {
+    return [
+      describeConfiguredCatalogModel({
+        providerId: profile.providerId,
+        modelId: configured,
+        discoveredModels: profile.models,
+      }),
+      ...models,
+    ];
+  }
   return [{ id: configured, displayName: configured }, ...models];
+}
+
+function defaultModelsForProfile(profile: ProviderProfile, descriptorDefaults: readonly ProviderModelInfo[]): readonly ProviderModelInfo[] {
+  if (providerUsesImageModelCatalog(profile.providerId)) {
+    return listLocalCatalogModels(profile.providerId);
+  }
+  return descriptorDefaults;
 }
 
 /**
@@ -76,8 +98,8 @@ export async function listProfileModels(profileId: string): Promise<CommandResul
   const descriptorDefaults = provider.describe().defaultModels ?? [];
   const baseModels = profile.models && profile.models.length > 0
     ? profile.models
-    : descriptorDefaults;
-  const mergedModels = mergeConfiguredDefaultModel(baseModels, profile.config.defaultModel);
+    : defaultModelsForProfile(profile, descriptorDefaults);
+  const mergedModels = mergeConfiguredDefaultModel(baseModels, profile);
   span.finish({
     source: profile.models && profile.models.length > 0
       ? 'profile.cache'

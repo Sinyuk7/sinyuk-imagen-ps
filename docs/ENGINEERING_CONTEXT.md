@@ -28,6 +28,10 @@ surface apps -> application/session -> core-engine + providers
 - `packages/application` is the shared application/session package.
 - `apps/app` and `packages/providers` are stable boundaries unless a loop slice explicitly allows changes.
 - `apps/app` is a dual-runtime surface: one shared UXP-safe React UI consumed by a Photoshop UXP shell and a Chrome browser shell. See `apps/app/AGENTS.md`.
+- Image-model selection is repo-owned. `packages/providers` owns the shared
+  local image-model capability catalog and resolver; remote `discoverModels()`
+  answers are only an availability filter over that local catalog, not the
+  authoritative picker source.
 - Product history is task-oriented. `TaskRecord` is the durable user-task
   history contract; `DurableJobRecord` remains execution/job compatibility
   history. A send creates a running task, terminal provider execution updates
@@ -99,9 +103,10 @@ surface apps -> application/session -> core-engine + providers
   cross-endpoint failover, cooldown skip, global attempt budget, and attempt
   diagnostics. `paid` mode (default for image-endpoint/chat-image) retries only
   429 on the same endpoint without idempotency and fails over on 503/502/504/
-  `network_error` within the logical-request budget. `timeout` is never
-  replayed across endpoints. `broad` mode (default for discovery) still
-  permits safe endpoint failover for non-paid probes.
+  `network_error` within the logical-request budget. Upstream 400/422
+  request-invalid failures never trigger retry, failover, or cooldown.
+  `timeout` is never replayed across endpoints. `broad` mode (default for
+  discovery) still permits safe endpoint failover for non-paid probes.
 
 ## Current Limitations
 

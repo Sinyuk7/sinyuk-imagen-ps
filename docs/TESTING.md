@@ -58,6 +58,18 @@ pnpm --filter @imagen-ps/app test:chrome-e2e
 Filtered tests are not a clean-checkout baseline. Build the touched packages
 first when in doubt.
 
+Provider catalog / request-contract work may additionally cite the deterministic
+catalog harness after `packages/providers` has been built:
+
+```bash
+node packages/providers/scripts/check-image-model-catalog.mjs
+```
+
+This script reads the shared image-model rule module from `dist/`, prints the
+effective selectable models per provider family, and fails on catalog
+inconsistencies. It is per-slice evidence only; `pnpm validate` remains the
+final gate.
+
 Placement-only app work may additionally cite the standalone mock harness:
 
 ```bash

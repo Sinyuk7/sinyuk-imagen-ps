@@ -109,6 +109,35 @@ describe('endpoint failover executor', () => {
     expect(result.attempts[1]?.endpointId).toBe('secondary');
   });
 
+  it('does not fail over after request-invalid 400', async () => {
+    const counting = createCountingFetch([
+      { kind: 'response', status: 400, data: { error: { message: 'Invalid size' } } },
+      { kind: 'response', status: 200, data: { ok: true } },
+    ]);
+    vi.stubGlobal('fetch', counting.fetch);
+
+    await expect(executeModelsRequest({ maxAttempts: 2 })).rejects.toThrow('Invalid size');
+    expect(counting.calls).toHaveLength(1);
+  });
+
+  it('does not put request-invalid 422 into cooldown for the next request', async () => {
+    const first = createCountingFetch([
+      { kind: 'response', status: 422, data: { error: { message: 'Invalid request' } } },
+      { kind: 'response', status: 200, data: { ok: true } },
+    ]);
+    vi.stubGlobal('fetch', first.fetch);
+
+    await expect(executeModelsRequest({ cooldownMs: 60_000, maxAttempts: 2 })).rejects.toThrow('Invalid request');
+    expect(first.calls).toHaveLength(1);
+
+    const second = createCountingFetch([{ kind: 'response', status: 200, data: { ok: true } }]);
+    vi.stubGlobal('fetch', second.fetch);
+
+    const result = await executeModelsRequest({ cooldownMs: 60_000, maxAttempts: 2 });
+    expect(result.selectedEndpointId).toBe('primary');
+    expect(second.calls[0]?.url).toBe('https://primary.example.com/v1/models');
+  });
+
   it('emits endpoint id and attempt index in diagnostics', async () => {
     const counting = createCountingFetch([
       { kind: 'network_error' },

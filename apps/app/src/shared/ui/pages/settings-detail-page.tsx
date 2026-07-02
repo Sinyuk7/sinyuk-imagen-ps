@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import type { EndpointProbeResult, ProviderProfile, ProviderProfileConfig, ProviderProfileConfigValue } from '@imagen-ps/application';
+import type { EndpointProbeResult, ProviderModelInfo, ProviderProfile, ProviderProfileConfig, ProviderProfileConfigValue } from '@imagen-ps/application';
 import { useAppServices } from '../../ports/app-services-context';
 import {
   connectionProbeResultById,
@@ -74,6 +74,19 @@ function stableSerialize(value: unknown): string {
 
 function normalizeConfigForDraftCompare(config: ProviderProfileConfig): string {
   return stableSerialize(config);
+}
+
+function modelStatusMessage(model: ProviderModelInfo | undefined, messages: ReturnType<typeof useI18n>['messages']): string | null {
+  if (!model) {
+    return null;
+  }
+  if (model.supportStatus === 'saved-undiscovered') {
+    return messages.settings.modelSavedUndiscovered;
+  }
+  if (model.supportStatus === 'custom-unchecked') {
+    return messages.settings.modelCustomUnchecked;
+  }
+  return null;
 }
 
 function hasDraftChanges(
@@ -399,6 +412,8 @@ export function SettingsDetailPage({ onNav, profileId, onProfilesChanged, onSave
   const modelSelectionLabel = modelOptions.find((option) => option.id === defaultModel)?.label ?? defaultModel.trim();
   const modelTriggerValue = modelSelectionLabel || t.settings.chooseFromList;
   const modelSelectDisabled = busy || models.loading || modelOptions.length === 0;
+  const selectedModelInfo = models.models.find((model) => model.id === defaultModel);
+  const selectedModelStatus = modelStatusMessage(selectedModelInfo, t);
   const modelListNotice = models.error
     ? {
         tone: 'warning' as const,
@@ -559,6 +574,14 @@ export function SettingsDetailPage({ onNav, profileId, onProfilesChanged, onSave
                       message={modelListNotice.message}
                       detail={'detail' in modelListNotice ? modelListNotice.detail : null}
                       detailCopyable={'detailCopyable' in modelListNotice ? modelListNotice.detailCopyable : false}
+                    />
+                  </div>
+                )}
+                {selectedModelStatus && (
+                  <div data-testid="provider-model-status-notice">
+                    <StatusNotice
+                      tone={selectedModelInfo?.supportStatus === 'custom-unchecked' ? 'warning' : 'info'}
+                      message={selectedModelStatus}
                     />
                   </div>
                 )}

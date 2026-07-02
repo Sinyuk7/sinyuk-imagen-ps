@@ -18,6 +18,11 @@ import type {
 import { resolveSecretValue } from './secret-utils.js';
 import { PROMPT_OPTIMIZER_PROFILE_ID } from './prompt-optimize.js';
 import type { ProviderProfileConfigValue } from './types.js';
+import {
+  describeConfiguredCatalogModel,
+  providerUsesImageModelCatalog,
+  type ProviderModelInfo,
+} from '@imagen-ps/providers';
 
 function errorMessage(error: unknown, fallback: string): string {
   return error instanceof Error ? error.message : fallback;
@@ -54,6 +59,32 @@ function mergeProfileConfig(
 
 function normalizeAlias(displayName: string): string {
   return displayName.trim();
+}
+
+function configuredDefaultModel(profile: ProviderProfile): string {
+  const value = profile.config.defaultModel;
+  return typeof value === 'string' ? value.trim() : '';
+}
+
+function connectivityModelsForProfile(
+  profile: ProviderProfile,
+  models: readonly ProviderModelInfo[],
+): readonly ProviderModelInfo[] {
+  const configured = configuredDefaultModel(profile);
+  if (configured.length === 0 || models.some((model) => model.id === configured)) {
+    return models;
+  }
+  if (!providerUsesImageModelCatalog(profile.providerId)) {
+    return [{ id: configured, displayName: configured }, ...models];
+  }
+  return [
+    describeConfiguredCatalogModel({
+      providerId: profile.providerId,
+      modelId: configured,
+      discoveredModels: models,
+    }),
+    ...models,
+  ];
 }
 
 /** 列出已保存的 provider profiles，不返回 secret values。 */
@@ -398,7 +429,15 @@ export async function testProviderProfile(
       } else {
         try {
           const models = await provider.discoverModels(resolved.providerConfig);
-          result.connectivity = { reachable: true, modelCount: models.length, models };
+          const connectivityModels = connectivityModelsForProfile(profile, models);
+          const selectableCount = connectivityModels.filter(
+            (model) => model.supportStatus === undefined || model.supportStatus === 'selectable',
+          ).length;
+          result.connectivity = {
+            reachable: true,
+            modelCount: selectableCount,
+            models: connectivityModels,
+          };
         } catch (error) {
           result.connectivity = {
             reachable: false,

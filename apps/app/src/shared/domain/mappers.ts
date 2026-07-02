@@ -215,5 +215,12 @@ export function profileToProviderRow(profile: ProviderProfile): ProviderRowVM {
 }
 
 export function modelLabel(model: ProviderModelInfo): string {
-  return model.displayName ?? model.id;
+  const base = model.displayName ?? model.id;
+  if (model.supportStatus === 'saved-undiscovered') {
+    return `${base} (saved, undiscovered)`;
+  }
+  if (model.supportStatus === 'custom-unchecked') {
+    return `${base} (custom, unchecked)`;
+  }
+  return base;
 }

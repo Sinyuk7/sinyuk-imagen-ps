@@ -120,7 +120,13 @@ function shouldFailover(error: unknown, failoverEnabled: boolean): boolean {
     return false;
   }
   const record = error as { readonly kind?: string; readonly statusCode?: number };
-  if (record.kind === 'auth_failed' || record.kind === 'rate_limited' || record.kind === 'timeout' || record.kind === 'invalid_response') {
+  if (
+    record.kind === 'auth_failed' ||
+    record.kind === 'rate_limited' ||
+    record.kind === 'timeout' ||
+    record.kind === 'invalid_response' ||
+    record.kind === 'request_invalid'
+  ) {
     return false;
   }
   if (record.kind === 'network_error' || record.kind === 'upstream_unavailable') {

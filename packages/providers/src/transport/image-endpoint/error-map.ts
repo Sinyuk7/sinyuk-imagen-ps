@@ -12,6 +12,7 @@ export type ProviderFailureKind =
   | 'upstream_unavailable'
   | 'timeout'
   | 'network_error'
+  | 'request_invalid'
   | 'invalid_response'
   | 'unknown_provider_error';
 
@@ -69,6 +70,10 @@ export function mapHttpError(args: {
 
   if (statusCode === 502 || statusCode === 503 || statusCode === 504) {
     return createProviderInvokeError('upstream_unavailable', message, { statusCode, details, cause });
+  }
+
+  if (statusCode === 400 || statusCode === 422) {
+    return createProviderInvokeError('request_invalid', message, { statusCode, details, cause });
   }
 
   if (statusCode !== undefined && statusCode >= 500) {

@@ -7,6 +7,7 @@
  */
 
 import type { ProviderModelInfo } from '../../contract/model.js';
+import { reconcileDiscoveredCatalogModels } from '../../contract/image-model-capability.js';
 import { mapInvalidResponseError } from './error-map.js';
 
 /**
@@ -78,7 +79,7 @@ export function formatDisplayName(id: string): string {
  * @returns 过滤后的 `ProviderModelInfo[]`；无匹配时返回 `[]`
  * @throws `ProviderInvokeError { kind: 'invalid_response' }` 当响应结构无效时
  */
-export function parseModelsResponse(raw: unknown): ProviderModelInfo[] {
+export function parseModelsResponse(raw: unknown): readonly ProviderModelInfo[] {
   if (typeof raw !== 'object' || raw === null) {
     throw mapInvalidResponseError('Models response is not a JSON object.', { raw });
   }
@@ -119,5 +120,8 @@ export function parseModelsResponse(raw: unknown): ProviderModelInfo[] {
     });
   }
 
-  return models;
+  return reconcileDiscoveredCatalogModels({
+    providerId: 'image-endpoint',
+    discoveredModels: models,
+  });
 }
