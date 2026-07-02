@@ -1,0 +1,21 @@
+apps/app/tests/host-bridge-harness.ts
+  s_c42295f7c05362::t_93893b613c124b 2,152-284,286-290,295-299,304
+apps/app/tests/host-bridge-thumbnail.test.ts
+  s_c42295f7c05362::t_92b18144e1db7c 5-6,8,36-75
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.3",
+  "base_commit_sha": "60c57b64e7c98bb04b7e3667faed137600ed0209",
+  "prompts": {},
+  "sessions": {
+    "s_c42295f7c05362": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "019f23c4-2086-76e2-9685-c216dc4c9be5",
+        "model": "unknown"
+      },
+      "human_author": "Sinyuk <80998062@qq.com>"
+    }
+  }
+}
