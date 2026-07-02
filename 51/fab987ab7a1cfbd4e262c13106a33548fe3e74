@@ -1,0 +1,47 @@
+.test.env.example
+  s_c42295f7c05362::t_6ad5153b66dcc1 1,4-10
+apps/app/tests/host-bridge-harness.ts
+  s_c42295f7c05362::t_720c615ab6b35b 1,8-9,11,14-16,20,26,39-40,72,80,88,99,118,132,144,146,152,170,375,383,389
+apps/app/tests/host-bridge-local-file.test.ts
+  s_c42295f7c05362::t_3616f5a06a901d 1-237
+apps/app/tests/host-bridge-modal-stub.test.ts
+  s_c42295f7c05362::t_d005a0c6359fb7 1-77
+apps/app/tests/host-bridge-placement.test.ts
+  s_c42295f7c05362::t_99dccc7aa7aa19 1-307
+apps/app/tests/host-bridge-thumbnail.test.ts
+  s_c42295f7c05362::t_7b8c55de1ea49e 1-64
+apps/app/tests/main-page-composer-controls.test.tsx
+  s_c42295f7c05362::t_00a204eb3fdea4 3-4,7,10,14,24,47,89,116,152,224,239,301,327,349,374,395,428,448,479
+apps/app/tests/main-page-placement-writeback.test.tsx
+  s_c42295f7c05362::t_9e77254b3ff33d 1-101
+apps/app/tests/main-page-result-rendering.test.tsx
+  s_c42295f7c05362::t_e28ceb2e701827 1-323
+apps/app/tests/settings-detail-model-list.test.tsx
+  s_c42295f7c05362::t_53fdb425a2df5e 1-109
+apps/app/vitest.config.ts
+  s_c42295f7c05362::t_c6f2f2e01d5473 1,16-20
+docs/TESTING.md
+  s_c42295f7c05362::t_f6947f62c21b7a 26-27,47-82,161,189-231,262-263,268
+packages/core-engine/vitest.config.ts
+  s_c42295f7c05362::t_64f4d2173422bf 1-12
+packages/foundation/vitest.config.ts
+  s_c42295f7c05362::t_f20299b2a535c6 1,6-10
+packages/providers/tests/release/release-env.ts
+  s_c42295f7c05362::t_5c57ff3f6bfd74 1-53
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.3",
+  "base_commit_sha": "51fab987ab7a1cfbd4e262c13106a33548fe3e74",
+  "prompts": {},
+  "sessions": {
+    "s_c42295f7c05362": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "019f23c4-2086-76e2-9685-c216dc4c9be5",
+        "model": "unknown"
+      },
+      "human_author": "Sinyuk <80998062@qq.com>"
+    }
+  }
+}
