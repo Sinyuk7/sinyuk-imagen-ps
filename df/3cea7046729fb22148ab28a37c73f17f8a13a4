@@ -1,0 +1,43 @@
+apps/app/src/harness/components/uxp-css-contract/uxp-css-contract-harness.tsx
+  s_1b9d2f112507ce::t_060ac3c76f7d0a 6,766-776,1244-1331,1677-1698
+apps/app/src/shared/ui/components/icon-select-trigger-button.tsx
+  s_1b9d2f112507ce::t_2a2e5777914631 18-20,54
+apps/app/src/shared/ui/pages/settings-detail-page.tsx
+  s_37193d313ac264::t_97af9d27935317 584
+apps/app/src/shared/ui/styles/composer.ts
+  s_1b9d2f112507ce::t_de15adfd214ae9 379-382
+apps/app/src/shared/ui/styles/pages.ts
+  s_37193d313ac264::t_22db5afa0b08e7 342,344-353,364-369
+apps/app/src/shared/ui/styles/responsive.ts
+  s_1b9d2f112507ce::t_82a0e411382c3d 17-22
+apps/app/tests/composer-select.test.tsx
+  s_1b9d2f112507ce::t_7cd7e5c18771e1 93,127,133
+apps/app/tests/settings-detail-page.test.tsx
+  s_37193d313ac264::t_03398da1c564b3 246-248,354,365-368
+apps/app/tests/uxp-css-contract-harness.test.tsx
+  s_1b9d2f112507ce::t_f0af28394a43ca 100-124
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.3",
+  "base_commit_sha": "df3cea7046729fb22148ab28a37c73f17f8a13a4",
+  "prompts": {},
+  "sessions": {
+    "s_1b9d2f112507ce": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "019f22be-18d2-7373-a70c-41ece5bb8225",
+        "model": "unknown"
+      },
+      "human_author": "Sinyuk <80998062@qq.com>"
+    },
+    "s_37193d313ac264": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "019f22e1-19d9-7852-b66b-cec7c9876b88",
+        "model": "unknown"
+      },
+      "human_author": "Sinyuk <80998062@qq.com>"
+    }
+  }
+}
