@@ -1,0 +1,41 @@
+apps/app/src/adapters/uxp/photoshop-host-bridge.test.ts
+  s_6fb15245617e65::t_cb548e831c2149 97-115,684-710
+apps/app/src/adapters/uxp/photoshop-host-bridge.ts
+  s_6fb15245617e65::t_1c578ceca0597b 590-657,662
+apps/app/src/adapters/uxp/uxp-job-history-adapter.ts
+  s_a8af2889cd5415::t_2a97e697c77ce6 16-23,313-355
+apps/app/src/shared/ports/app-services.ts
+  s_a8af2889cd5415::t_91b53d16ce5181 7,20
+apps/app/src/shared/retention/controller.ts
+  s_a8af2889cd5415::t_f94f038454efee 1-48
+apps/app/src/shared/ui/hooks/use-conversation.ts
+  s_a8af2889cd5415::t_9980eb5b4dc2f4 528,542,545-547
+apps/app/tests/bundle/uxp-dist-bundle.test.ts
+  s_6fb15245617e65::t_d6bac24da03cb5 55-57
+apps/app/vite.uxp.config.ts
+  s_6fb15245617e65::t_747272e4c8167e 30-110
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.3",
+  "base_commit_sha": "995cc765c12e1f8787db43dc24cb5e59a401f9d4",
+  "prompts": {},
+  "sessions": {
+    "s_6fb15245617e65": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "019f2214-4dfe-7143-a342-303cdab7bdbd",
+        "model": "unknown"
+      },
+      "human_author": "Sinyuk <80998062@qq.com>"
+    },
+    "s_a8af2889cd5415": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "019f2211-d679-7431-9149-619f717a675b",
+        "model": "unknown"
+      },
+      "human_author": "Sinyuk <80998062@qq.com>"
+    }
+  }
+}
