@@ -2,7 +2,7 @@ import { act } from 'react';
 import { createRoot, type Root } from 'react-dom/client';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { SettingsDetailPage } from '../src/shared/ui/pages/settings-detail-page';
-import { createFakeServices, fakeOptimizerProfile } from './fakes';
+import { createFakeServices, fakeOptimizerProfile, fakeProfile } from './fakes';
 import { TestAppProviders } from './render-helpers';
 import type { UxpFlightRecorder } from '../src/host/uxp-log-sink';
 
@@ -152,6 +152,46 @@ describe('SettingsDetailPage contract', () => {
       }),
     );
     expect(onProfilesChanged).toHaveBeenCalledWith('mock-profile');
+  });
+
+  it('merges the saved custom model into the selectable model list', async () => {
+    const container = document.createElement('div');
+    document.body.appendChild(container);
+    const services = createFakeServices({
+      profiles: [{
+        ...fakeProfile,
+        config: {
+          ...fakeProfile.config,
+          defaultModel: 'gpt-image2',
+        },
+      }],
+    });
+    services.spies.listProfileModels.mockResolvedValue({
+      ok: true as const,
+      value: [{ id: 'gpt-image2' }, { id: 'mock-image-v1' }],
+    });
+    root = createRoot(container);
+    await act(async () => {
+      root!.render(
+        <TestAppProviders services={services.services}>
+          <SettingsDetailPage
+            onNav={vi.fn()}
+            profileId="mock-profile"
+            onProfilesChanged={vi.fn(async () => undefined)}
+          />
+        </TestAppProviders>,
+      );
+    });
+    await flush();
+    await flush();
+
+    await act(async () => {
+      queryByTestId(container, 'provider-default-model-selector').click();
+    });
+    await flush();
+
+    expect(container.querySelector('[data-testid="provider-default-model-selector-option-gpt-image2"]')).not.toBeNull();
+    expect(container.querySelector('[data-testid="provider-default-model-selector-option-mock-image-v1"]')).not.toBeNull();
   });
 
   it('deletes provider profile through profile commands', async () => {

@@ -46,5 +46,5 @@ export const SHELL_CSS = `
 .scroll{ overflow-y:auto; scrollbar-width:thin; scrollbar-color:var(--app-color-border-default) transparent; flex:1; min-width:0; min-height:0; }
 .scroll::-webkit-scrollbar{ width:3px; }
 .scroll::-webkit-scrollbar-thumb{ background:var(--app-color-border-default); border-radius:2px; }
-.round-list{ padding:12px 12px 4px; display:flex; flex-direction:column; min-width:0; min-height:100%; }
+.round-list{ padding:12px 12px 12px; display:flex; flex-direction:column; min-width:0; min-height:100%; }
 `;

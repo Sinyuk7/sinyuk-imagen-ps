@@ -46,15 +46,19 @@ export const OVERLAYS_CSS = `
 
 /* Back to bottom */
 .back-to-bottom-host{
-  position:absolute; right:12px; bottom:calc(100% + 12px);
-  width:32px; min-width:32px; height:32px; min-height:32px;
+  position:absolute; left:50%; bottom:calc(100% + 10px);
+  width:40px; min-width:40px; height:28px; min-height:28px;
+  margin-left:-20px;
   z-index:100;
+  box-sizing:border-box;
 }
 .back-to-bottom{
-  width:32px; min-width:32px; height:32px; min-height:32px; padding:0; border-radius:50%;
-  background:var(--app-color-background-layer-2); border:1px solid var(--app-color-border-default);
+  width:40px; min-width:40px; height:28px; min-height:28px; padding:0; border-radius:9px;
+  background:var(--app-color-background-layer-1); border:1px solid var(--app-color-border-default);
   color:var(--app-color-text-secondary); cursor:pointer;
   display:inline-flex; align-items:center; justify-content:center;
+  box-sizing:border-box;
+  line-height:0;
 }
 .back-to-bottom:hover{ background:var(--app-color-background-elevated); color:var(--app-color-text-primary); }
 `;

@@ -25,6 +25,12 @@ async function flush(): Promise<void> {
   });
 }
 
+function changeInput(input: HTMLInputElement, value: string): void {
+  const setter = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value')?.set;
+  setter?.call(input, value);
+  input.dispatchEvent(new KeyboardEvent('keyup', { bubbles: true, key: 'x' }));
+}
+
 function installFlightRecorder(): Array<{ readonly event: string; readonly attrs?: Record<string, unknown> }> {
   const records: Array<{ readonly event: string; readonly attrs?: Record<string, unknown> }> = [];
   const recorder: UxpFlightRecorder = {
@@ -147,6 +153,12 @@ describe('AppShell', () => {
 
   it('keeps Prompt Optimizer selected in settings detail instead of falling back to the first image profile', async () => {
     const { services, spies } = createFakeServices();
+    spies.listProfileModels.mockImplementation(async (profileId: string) => ({
+      ok: true as const,
+      value: profileId === '__prompt-optimizer__'
+        ? [{ id: 'gpt-4o-mini' }, { id: 'gpt-4.1-mini' }]
+        : [{ id: 'mock-image-v1' }],
+    }));
     spies.getProviderProfile.mockImplementation(async (profileId: string) => ({
       ok: true as const,
       value: profileId === '__prompt-optimizer__'
@@ -218,7 +230,9 @@ describe('AppShell', () => {
 
     expect(container.textContent).toContain('Prompt Optimizer');
     expect(container.querySelector<HTMLInputElement>('[data-testid="provider-base-url-input"]')?.value).toBe('https://openrouter.ai/api/v1');
-    expect(container.querySelector<HTMLInputElement>('[data-testid="provider-default-model-input"]')?.value).toBe('gpt-4o-mini');
+    const modelSelector = container.querySelector<HTMLElement>('[data-testid="provider-default-model-selector"]');
+    expect(modelSelector).not.toBeNull();
+    expect(modelSelector?.textContent ?? '').toContain('gpt-4o-mini');
     expect(container.querySelector<HTMLTextAreaElement>('[data-testid="provider-instruction-input"]')?.value).toBe('Rewrite the prompt.');
   });
 
@@ -439,5 +453,105 @@ describe('AppShell', () => {
     await flush();
 
     expect(container.querySelector<HTMLElement>('[data-testid="global-output-size-selector"]')?.textContent).toContain('4K');
+  });
+
+  it('updates main-page model after settings saves a new custom default model', async () => {
+    const { services, spies } = createFakeServices({
+      profiles: [{
+        profileId: 'mock-profile',
+        providerId: 'mock',
+        displayName: 'Mock Profile',
+        enabled: true,
+        config: {
+          providerId: 'mock',
+          displayName: 'Mock Profile',
+          family: 'image-endpoint',
+          baseURL: 'https://mock.local',
+          defaultModel: 'gpt-image2',
+        },
+        secretRefs: {
+          apiKey: 'secret:provider-profile:mock-profile:apiKey',
+        },
+        createdAt: '2026-06-15T00:00:00.000Z',
+        updatedAt: '2026-06-15T00:00:00.000Z',
+      }],
+    });
+    spies.listProfileModels.mockImplementation(async () => {
+      const profiles = await services.commands.listProviderProfiles();
+      const defaultModel = profiles.ok ? String(profiles.value[0]?.config.defaultModel ?? '') : '';
+      return {
+        ok: true as const,
+        value: defaultModel ? [{ id: defaultModel }, { id: 'mock-image-v1' }] : [{ id: 'mock-image-v1' }],
+      };
+    });
+    const container = document.createElement('div');
+    document.body.appendChild(container);
+    root = createRoot(container);
+
+    await act(async () => {
+      root!.render(
+        <AppShell
+          host={{
+            kind: 'photoshop-uxp',
+            app: { stage: 'uxp-first-shell', host: 'photoshop-uxp', services: ['commands', 'host'] },
+            locale: 'en',
+            services,
+            dispose: () => undefined,
+          }}
+        />,
+      );
+    });
+    await flush();
+    await flush();
+
+    expect(container.querySelector<HTMLElement>('[data-testid="main-model-selector"]')?.textContent).toContain('gpt-image2');
+
+    await act(async () => {
+      container.querySelector<HTMLButtonElement>('[data-testid="main-providers-button"]')?.click();
+    });
+    await flush();
+    await act(async () => {
+      container.querySelector<HTMLElement>('[data-testid="provider-row-mock-profile"]')?.click();
+    });
+    await flush();
+    await flush();
+    await act(async () => {
+      Array.from(container.querySelectorAll<HTMLButtonElement>('button')).find((button) =>
+        button.textContent?.includes('Use custom model id') || button.textContent?.includes('使用自定义 model id'),
+      )?.click();
+    });
+    await flush();
+
+    const modelInput = container.querySelector<HTMLInputElement>('[data-testid="provider-default-model-input"]');
+    expect(modelInput).not.toBeNull();
+    await act(async () => {
+      if (modelInput) {
+        changeInput(modelInput, 'gpt-image3');
+      }
+    });
+    await flush();
+
+    await act(async () => {
+      container.querySelector<HTMLButtonElement>('[data-testid="provider-save-button"]')?.click();
+    });
+    await flush();
+    await flush();
+
+    expect(spies.saveProviderProfile).toHaveBeenCalledWith(expect.objectContaining({
+      config: expect.objectContaining({
+        defaultModel: 'gpt-image3',
+      }),
+    }));
+
+    await act(async () => {
+      container.querySelector<HTMLButtonElement>('[data-testid="provider-detail-back-button"]')?.click();
+    });
+    await flush();
+    await act(async () => {
+      container.querySelector<HTMLButtonElement>('[data-testid="providers-back-button"]')?.click();
+    });
+    await flush();
+
+    expect(container.querySelector<HTMLElement>('[data-testid="main-model-selector"]')?.textContent).toContain('gpt-image3');
   });
 });

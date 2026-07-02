@@ -194,6 +194,7 @@ export function MainPage({
   const [optimizeState, setOptimizeState] = useState<OptimizeState>({ status: 'idle' });
   const convRef = useRef<HTMLDivElement>(null);
   const taRef = useRef<HTMLTextAreaElement>(null);
+  const responseFoldRefs = useRef<Map<string, HTMLDivElement>>(new Map());
   const responseTextRefs = useRef<Map<string, HTMLDivElement>>(new Map());
   const attachmentsRef = useRef<readonly ConversationAttachment[]>(attachments);
   const flatLayers = useMemo(() => flattenLayers(layers), [layers]);
@@ -291,13 +292,14 @@ export function MainPage({
       let changed = false;
       const next: Record<string, boolean> = {};
       for (const round of conversation.rounds) {
-        const element = responseTextRefs.current.get(round.id);
-        if (!element) {
+        const foldElement = responseFoldRefs.current.get(round.id);
+        const contentElement = responseTextRefs.current.get(round.id);
+        if (!foldElement || !contentElement) {
           continue;
         }
-        const lineHeight = Number.parseFloat(window.getComputedStyle(element).lineHeight);
-        const clampHeight = Number.isFinite(lineHeight) && lineHeight > 0 ? lineHeight * 3 : 54;
-        const overflowing = element.scrollHeight > clampHeight + 1;
+        const lineHeight = Number.parseFloat(window.getComputedStyle(contentElement).lineHeight);
+        const foldedHeight = Number.isFinite(lineHeight) && lineHeight > 0 ? lineHeight * 3 : 54;
+        const overflowing = contentElement.scrollHeight > foldedHeight + 1 || contentElement.offsetHeight > foldElement.clientHeight + 1;
         next[round.id] = overflowing;
         if (current[round.id] !== overflowing) {
           changed = true;
@@ -375,6 +377,14 @@ export function MainPage({
     navigator.clipboard?.writeText(round.responseText).catch(() => undefined);
     setCopied((current) => ({ ...current, [key]: true }));
     window.setTimeout(() => setCopied((current) => ({ ...current, [key]: false })), 1500);
+  };
+
+  const responseFoldRef = (roundId: string) => (element: HTMLDivElement | null) => {
+    if (element) {
+      responseFoldRefs.current.set(roundId, element);
+    } else {
+      responseFoldRefs.current.delete(roundId);
+    }
   };
 
   const responseTextRef = (roundId: string) => (element: HTMLDivElement | null) => {
@@ -878,13 +888,22 @@ export function MainPage({
                       </div>
                     </div>
                     {showResponseText && round.responseText && (
-                      <div className="prov-response" data-expanded={responseExpanded ? 'true' : undefined}>
+                      <div
+                        className="prov-response"
+                        data-expanded={responseExpanded ? 'true' : undefined}
+                        data-overflowing={responseOverflows ? 'true' : undefined}
+                      >
                         <div
-                          ref={responseTextRef(round.id)}
-                          data-testid={`result-response-text-${round.id}`}
-                          className="prov-response-text"
+                          ref={responseFoldRef(round.id)}
+                          className="prov-response-body"
                         >
-                          {round.responseText}
+                          <div
+                            ref={responseTextRef(round.id)}
+                            data-testid={`result-response-text-${round.id}`}
+                            className="prov-response-text"
+                          >
+                            {round.responseText}
+                          </div>
                         </div>
                         <div className="prov-response-actions">
                           {responseOverflows && (
@@ -977,12 +996,6 @@ export function MainPage({
                               </Button>
                             </MotionButtonSurface>
                           </div>
-                        </div>
-                      </div>
-                    ) : !hasResponseText ? (
-                      <div className="prov-img">
-                        <div className="img-result">
-                          <div className="img-bg" style={{ background: 'var(--app-color-background-layer-2)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--app-color-text-muted)', fontSize: 12 }}>{t.main.noAssetPreview}</div>
                         </div>
                       </div>
                     ) : null}

@@ -51,13 +51,6 @@ export const RESPONSIVE_CSS = `
 .panel[data-panel-width-mode="compact"] .attach-picker,
 .panel[data-panel-width-mode="compact"] .layer-list-wrap{ left:12px; right:12px; width:auto; max-width:none; }
 
-.panel[data-panel-width-mode="wide"] .prov-card,
-.panel[data-panel-width-mode="wide"] .prov-card-media.media-portrait,
-.panel[data-panel-width-mode="wide"] .prov-card-media.media-square,
-.panel[data-panel-width-mode="wide"] .prov-card-media.media-landscape,
-.panel[data-panel-width-mode="wide"] .prov-card-media.media-wide,
-.panel[data-panel-width-mode="wide"] .prov-card-media.media-tall,
-.panel[data-panel-width-mode="wide"] .prov-card-media.media-unknown,
 .panel[data-panel-width-mode="wide"] .prov-card-text-only,
 .panel[data-panel-width-mode="wide"] .err-card{ max-width:760px; }
 .panel[data-panel-width-mode="wide"] .img-result{ height:300px; max-height:440px; }
@@ -67,7 +60,7 @@ export const RESPONSIVE_CSS = `
 .panel[data-panel-width-mode="wide"] .img-result.media-tall{ height:440px; }
 .panel[data-panel-width-mode="wide"] .img-result.media-wide{ height:240px; }
 .panel[data-panel-width-mode="wide"] .img-result.media-unknown{ height:320px; }
-.panel[data-panel-width-mode="wide"] .user-wrap{ max-width:min(74%, 72ch); }
+.panel[data-panel-width-mode="wide"] .user-wrap{ max-width:min(92%, 820px); }
 .panel[data-panel-width-mode="wide"] .cmp-select-output-size .cmp-chip-value-icon{ max-width:none; }
 
 .panel[data-panel-height-mode="short"] .composer{ max-height:min(48%, 210px); padding-top:6px; padding-bottom:8px; }

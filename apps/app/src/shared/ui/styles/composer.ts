@@ -272,7 +272,7 @@ export const COMPOSER_CSS = `
   min-height:28px;
   margin-top:0;
   margin-right:0;
-  margin-bottom:2px;
+  margin-bottom:0;
   margin-left:0;
   padding:5px 7px;
   border-radius:6px;
@@ -285,7 +285,12 @@ export const COMPOSER_CSS = `
   line-height:14px;
   text-align:left;
 }
-.cmp-select-option:last-child{ margin-bottom:0; }
+.cmp-select-menu-model .cmp-select-option{ margin-bottom:2px; }
+.cmp-select-menu-model .cmp-select-option:last-child{ margin-bottom:0; }
+.cmp-select-menu-compact .cmp-select-option{
+  min-height:32px;
+  padding:6px 7px;
+}
 .cmp-select-option:hover,
 .cmp-select-option:focus-visible{
   background:var(--app-color-hover-overlay);

@@ -21,6 +21,17 @@ function errorMessage(error: unknown, fallback: string): string {
   return error instanceof Error ? error.message : fallback;
 }
 
+function mergeConfiguredDefaultModel(
+  models: readonly ProviderModelInfo[],
+  defaultModel: unknown,
+): readonly ProviderModelInfo[] {
+  const configured = typeof defaultModel === 'string' ? defaultModel.trim() : '';
+  if (configured.length === 0 || models.some((model) => model.id === configured)) {
+    return models;
+  }
+  return [{ id: configured, displayName: configured }, ...models];
+}
+
 /**
  * 列出 provider profile 的 model 候选清单。
  *
@@ -59,18 +70,23 @@ export async function listProfileModels(profileId: string): Promise<CommandResul
     };
   }
 
-  // Candidate chain: profile.models → descriptor.defaultModels → []
-  if (profile.models && profile.models.length > 0) {
-    span.finish({ source: 'profile.cache', count: profile.models.length });
-    return { ok: true, value: profile.models };
-  }
-  const defaults = provider.describe().defaultModels;
-  if (defaults && defaults.length > 0) {
-    span.finish({ source: 'provider.defaults', count: defaults.length });
-    return { ok: true, value: defaults };
-  }
-  span.finish({ source: 'none', count: 0 });
-  return { ok: true, value: [] };
+  // Candidate chain: profile.models → descriptor.defaultModels → []，然后把
+  // 当前 config.defaultModel 作为 surface-side 当前值并入返回结果（仅按 id
+  // 去重，不写回 discovery cache）。
+  const descriptorDefaults = provider.describe().defaultModels ?? [];
+  const baseModels = profile.models && profile.models.length > 0
+    ? profile.models
+    : descriptorDefaults;
+  const mergedModels = mergeConfiguredDefaultModel(baseModels, profile.config.defaultModel);
+  span.finish({
+    source: profile.models && profile.models.length > 0
+      ? 'profile.cache'
+      : descriptorDefaults.length > 0
+        ? 'provider.defaults'
+        : 'none',
+    count: mergedModels.length,
+  });
+  return { ok: true, value: mergedModels };
 }
 
 /**

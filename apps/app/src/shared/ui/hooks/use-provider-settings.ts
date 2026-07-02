@@ -60,7 +60,11 @@ export interface ProfileModelsState {
   readonly refresh: () => Promise<readonly ProviderModelInfo[]>;
 }
 
-export function useProfileModels(services: AppServices, profileId: string | null): ProfileModelsState {
+export function useProfileModels(
+  services: AppServices,
+  profileId: string | null,
+  revisionKey?: string,
+): ProfileModelsState {
   const [models, setModels] = useState<readonly ProviderModelInfo[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -82,7 +86,7 @@ export function useProfileModels(services: AppServices, profileId: string | null
       setError(commandMessage(result.error));
     }
     setLoading(false);
-  }, [profileId, services]);
+  }, [profileId, revisionKey, services]);
 
   const refresh = useCallback(async (): Promise<readonly ProviderModelInfo[]> => {
     if (!profileId) {

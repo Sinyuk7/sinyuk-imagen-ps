@@ -24,8 +24,15 @@ export const CONVERSATION_CSS = `
 
 /* USER bubble (right) */
 .msg-user{ display:flex; justify-content:flex-end; padding:2px 0; }
-.user-wrap{ max-width:min(82%, 68ch); display:flex; flex-direction:column; align-items:flex-end; }
-.user-bubble{ max-width:100%; background:var(--app-color-background-elevated); border-radius:14px 14px 3px 14px; padding:9px 13px; }
+.user-wrap{
+  width:fit-content;
+  max-width:min(92%, 820px);
+  display:flex;
+  flex-direction:column;
+  align-items:flex-end;
+  margin-left:auto;
+}
+.user-bubble{ width:fit-content; max-width:100%; background:var(--app-color-background-elevated); border-radius:14px 14px 3px 14px; padding:9px 13px; }
 .bubble-imgs{ display:flex; margin-bottom:6px; }
 .bimg{
   position:relative; width:52px; height:52px; margin-right:4px; border-radius:8px;
@@ -39,7 +46,11 @@ export const CONVERSATION_CSS = `
 }
 .user-prompt{
   font-size:13px; line-height:18px; color:var(--app-color-text-primary);
-  overflow:hidden; display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical;
+  max-height:54px;
+  overflow:hidden;
+  white-space:pre-wrap;
+  overflow-wrap:anywhere;
+  word-break:break-word;
   text-wrap:pretty;
 }
 .user-meta{ display:flex; align-items:center; padding-right:2px; margin-top:6px; }
@@ -54,7 +65,7 @@ export const CONVERSATION_CSS = `
 /* PROVIDER bubble (left) */
 .msg-prov{ display:flex; align-items:flex-start; min-width:0; padding-top:14px; padding-right:0; padding-bottom:0; padding-left:0; }
 .prov-card{
-  flex:1 1 auto; min-width:0; width:100%; max-width:680px;
+  flex:1 1 auto; min-width:0; width:100%; max-width:100%;
   margin-top:0; margin-right:0; margin-bottom:0; margin-left:0;
   background:var(--app-color-background-layer-1); border:1px solid var(--app-color-border-default);
   border-radius:8px; overflow:hidden;
@@ -68,7 +79,7 @@ export const CONVERSATION_CSS = `
 .prov-card-media.media-landscape,
 .prov-card-media.media-wide,
 .prov-card-media.media-tall,
-.prov-card-media.media-unknown,
+.prov-card-media.media-unknown{ width:100%; max-width:100%; }
 .prov-card-text-only{ width:100%; max-width:680px; }
 .prov-top{ display:flex; align-items:flex-start; justify-content:flex-start; min-width:0; padding:8px 12px 7px; }
 .prov-identity{
@@ -132,24 +143,41 @@ export const CONVERSATION_CSS = `
   padding:9px 12px 8px;
   background:var(--app-color-background-layer-1);
 }
+.prov-response-body{
+  position:relative;
+  max-height:51px;
+  overflow:hidden;
+}
+.prov-response[data-expanded="true"] .prov-response-body{
+  max-height:none;
+  overflow:visible;
+}
 .prov-response-text{
   max-width:58ch;
   font-size:12px;
   line-height:17px;
   color:var(--app-color-text-secondary);
   white-space:pre-wrap;
-  overflow:hidden;
-  display:-webkit-box;
-  -webkit-line-clamp:3;
-  -webkit-box-orient:vertical;
   overflow-wrap:anywhere;
   word-break:break-word;
   user-select:text;
 }
-.prov-response[data-expanded="true"] .prov-response-text{
-  display:block;
-  -webkit-line-clamp:initial;
-  overflow:visible;
+.prov-response-body::after{
+  content:"";
+  position:absolute;
+  right:0;
+  bottom:0;
+  left:0;
+  height:16px;
+  pointer-events:none;
+  background:linear-gradient(180deg, rgba(24,25,31,0), var(--app-color-background-layer-1));
+  opacity:0;
+}
+.prov-response[data-expanded="true"] .prov-response-body::after{
+  display:none;
+}
+.prov-response[data-overflowing="true"] .prov-response-body::after{
+  opacity:1;
 }
 .prov-response-actions{ display:flex; align-items:center; min-width:0; margin-top:5px; }
 .prov-response-toggle{
@@ -189,9 +217,10 @@ export const CONVERSATION_CSS = `
 .img-bg{ max-width:100%; max-height:100%; display:block; object-fit:contain; }
 .img-overlay{
   position:absolute; top:0; right:0; bottom:0; left:0;
-  background:rgba(7,10,15,.72);
+  background:rgba(7,10,15,.24);
   opacity:0;
-  display:flex; align-items:flex-end; padding:8px;
+  display:flex; align-items:flex-end; justify-content:flex-start; padding:10px 12px;
+  transition:opacity ${'var(--app-motion-duration-medium, 180ms)'} ease, background-color ${'var(--app-motion-duration-medium, 180ms)'} ease;
 }
 .img-result:hover .img-overlay{ opacity:1; }
 .img-meta{
@@ -280,13 +309,14 @@ export const CONVERSATION_CSS = `
 .ldot{ width:5px; height:5px; margin-right:4px; border-radius:50%; background:var(--app-color-accent-default); }
 
 /* Action row */
-.prov-actions{ border-top:1px solid var(--app-color-border-default); padding:7px 12px; display:flex; align-items:center; justify-content:flex-start; min-width:0; min-height:42px; }
+.prov-actions{ border-top:1px solid var(--app-color-border-default); padding:4px 10px; display:flex; align-items:center; justify-content:flex-start; min-width:0; min-height:30px; }
 .act-ico{
   display:inline-flex; align-items:center; justify-content:center;
   margin-top:0; margin-right:0; margin-bottom:0; margin-left:0; color:var(--app-color-text-muted); flex-shrink:0;
   width:28px; height:28px; min-width:28px; min-height:28px; padding:0; border:1px solid transparent; border-radius:var(--app-radius-small); background:transparent;
 }
-.act-download-host{ width:28px; height:28px; min-width:28px; min-height:28px; margin-top:0; margin-right:0; margin-bottom:0; margin-left:0; color:var(--app-color-text-muted); }
+.act-download-host{ width:24px; height:24px; min-width:24px; min-height:24px; margin-top:0; margin-right:0; margin-bottom:0; margin-left:0; color:var(--app-color-text-muted); }
+.act-download{ width:24px; height:24px; min-width:24px; min-height:24px; border-radius:7px; }
 .act-download:hover{ background:var(--app-color-hover-overlay); border-color:var(--app-color-border-default); color:var(--app-color-text-primary); }
 .act-ico.prim{ color:var(--app-color-accent-default); }
 

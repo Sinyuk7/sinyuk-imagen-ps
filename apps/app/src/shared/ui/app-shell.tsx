@@ -198,7 +198,10 @@ function AppShellContent({ host }: AppShellProps) {
     () => imageProfiles.find((profile) => profile.profileId === selectedImageProfileId),
     [imageProfiles, selectedImageProfileId],
   );
-  const modelsState = useProfileModels(services, selectedImageProfileId);
+  const selectedProfileModelsRevision = selectedProfile
+    ? `${selectedProfile.updatedAt}:${defaultModelFor(selectedProfile)}`
+    : '';
+  const modelsState = useProfileModels(services, selectedImageProfileId, selectedProfileModelsRevision);
   const generationSettings = useGenerationSettings(services);
   const imagenSession = useImagenSession(services);
   const conversation = useConversation(services, imagenSession, generationSettings.settings, t.conversation);
@@ -381,6 +384,10 @@ function AppShellContent({ host }: AppShellProps) {
               setSelectedSettingsProfileId(profileId);
               if (profileId && profileId !== PROMPT_OPTIMIZER_PROFILE_ID) {
                 setSelectedImageProfileId(profileId);
+                const profileResult = await services.commands.getProviderProfile(profileId);
+                if (profileResult.ok) {
+                  setSelectedModelId(defaultModelFor(profileResult.value));
+                }
               }
               await services.diagnostics?.checkpoint('uxp.ui.app_shell.profiles_changed.after_select_profile', { profileId });
             } catch (error) {

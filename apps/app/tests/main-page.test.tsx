@@ -707,6 +707,69 @@ describe('MainPage contract', () => {
     );
   });
 
+  it('主输入区模型菜单会把当前自定义 model 合并进发现列表', async () => {
+    const container = document.createElement('div');
+    document.body.appendChild(container);
+    const services = createFakeServices({
+      profiles: [{
+        ...fakeProfile,
+        config: {
+          ...fakeProfile.config,
+          defaultModel: 'gpt-image2',
+        },
+      }],
+    });
+    services.spies.listProfileModels.mockResolvedValue({
+      ok: true as const,
+      value: [{ id: 'gpt-image2' }, { id: 'mock-image-v1' }],
+    });
+    await renderApp(container, services);
+
+    await act(async () => {
+      container.querySelector<HTMLElement>('[data-testid="main-model-selector"]')!.click();
+    });
+    await flush();
+
+    expect(container.querySelector('[data-testid="main-model-selector-option-gpt-image2"]')).not.toBeNull();
+    expect(container.querySelector('[data-testid="main-model-selector-option-mock-image-v1"]')).not.toBeNull();
+  });
+
+  it('主输入区选择自定义 model 后再次打开菜单仍保留该候选', async () => {
+    const container = document.createElement('div');
+    document.body.appendChild(container);
+    const services = createFakeServices({
+      profiles: [{
+        ...fakeProfile,
+        config: {
+          ...fakeProfile.config,
+          defaultModel: 'mock-image-v1',
+        },
+      }],
+    });
+    services.spies.listProfileModels.mockResolvedValue({
+      ok: true as const,
+      value: [{ id: 'gpt-image2' }, { id: 'mock-image-v1' }],
+    });
+    await renderApp(container, services);
+
+    await act(async () => {
+      container.querySelector<HTMLElement>('[data-testid="main-model-selector"]')!.click();
+    });
+    await flush();
+    await act(async () => {
+      container.querySelector<HTMLElement>('[data-testid="main-model-selector-option-gpt-image2"]')!.click();
+    });
+    await flush();
+
+    await act(async () => {
+      container.querySelector<HTMLElement>('[data-testid="main-model-selector"]')!.click();
+    });
+    await flush();
+
+    expect(container.querySelector('[data-testid="main-model-selector-option-gpt-image2"]')).not.toBeNull();
+    expect(container.querySelector('[data-testid="main-model-selector-option-mock-image-v1"]')).not.toBeNull();
+  });
+
   it('主输入区 provider 与 model 选择不包含 Prompt Optimizer', async () => {
     const container = document.createElement('div');
     document.body.appendChild(container);
