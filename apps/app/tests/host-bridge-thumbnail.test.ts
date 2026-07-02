@@ -2,7 +2,10 @@ import { describe, expect, it } from 'vitest';
 import {
   createFakeModules,
   createThumbnailGenerator,
+  decodePng,
+  decodedPngRgbAt,
   realPngWithSize,
+  rgbFilterRegressionPng,
   withObjectUrlMock,
 } from './host-bridge-harness';
 
@@ -28,6 +31,46 @@ describe('PhotoshopHostBridge fake harness — provider output thumbnail', () =>
     expect(create).toHaveBeenCalledTimes(1);
     preview?.release();
     expect(revoke).toHaveBeenCalledWith('blob:thumb-1');
+  }));
+
+  it('keeps RGB PNG filter 3/4 pixels stable through app-local decode and encode', async () => withObjectUrlMock(async ({ blobs }) => {
+    const fixture = rgbFilterRegressionPng();
+    const { modules, spies } = createFakeModules();
+    const createThumbnail = createThumbnailGenerator(modules);
+
+    const preview = await createThumbnail?.({
+      asset: { type: 'image', name: 'filtered-rgb.png', mimeType: 'image/png' },
+      bytes: fixture.bytes,
+      mimeType: 'image/png',
+      maxSide: 512,
+    });
+
+    expect(preview).toMatchObject({ url: 'blob:thumb-1' });
+    expect(spies.openDocument).not.toHaveBeenCalled();
+    expect(blobs).toHaveLength(1);
+
+    const encoded = new Uint8Array(await blobs[0]!.arrayBuffer());
+    const decoded = decodePng(encoded);
+
+    expect(decoded.width).toBe(fixture.width);
+    expect(decoded.height).toBe(fixture.height);
+    expect(decoded.channels === 3 || decoded.channels === 4).toBe(true);
+    expect(decodedPngRgbAt(decoded, 0)).toEqual([10, 20, 30]);
+    expect(decodedPngRgbAt(decoded, 1)).toEqual([80, 90, 100]);
+    expect(decodedPngRgbAt(decoded, 2)).toEqual([130, 140, 150]);
+    expect(decodedPngRgbAt(decoded, 3)).toEqual([220, 230, 240]);
+
+    const samplePixels = [0, 1, 4, 7];
+    for (const pixel of samplePixels) {
+      const source = pixel * 3;
+      expect(decodedPngRgbAt(decoded, pixel)).toEqual([
+        fixture.pixels[source],
+        fixture.pixels[source + 1],
+        fixture.pixels[source + 2],
+      ]);
+    }
+
+    preview?.release();
   }));
 
   it('为 WEBP storedRef provider output 保留 host-native temp-document thumbnail path', async () => withObjectUrlMock(async ({ create, revoke }) => {
