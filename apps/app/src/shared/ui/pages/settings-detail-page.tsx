@@ -26,6 +26,7 @@ interface SettingsDetailPageProps {
   readonly onNav: (view: string) => void;
   readonly profileId: string | null;
   readonly onProfilesChanged: (profileId: string | null) => Promise<void>;
+  readonly onSaved?: (message: string) => void;
 }
 
 function formatElapsedMs(startedAt: number): string {
@@ -58,7 +59,57 @@ function mergeProfileConfigForSave(
   } as Record<string, ProviderProfileConfigValue>;
 }
 
-export function SettingsDetailPage({ onNav, profileId, onProfilesChanged }: SettingsDetailPageProps) {
+function stableSerialize(value: unknown): string {
+  if (Array.isArray(value)) {
+    return `[${value.map((item) => stableSerialize(item)).join(',')}]`;
+  }
+  if (value && typeof value === 'object') {
+    const entries = Object.entries(value as Record<string, unknown>)
+      .sort(([left], [right]) => left.localeCompare(right))
+      .map(([key, entryValue]) => `${JSON.stringify(key)}:${stableSerialize(entryValue)}`);
+    return `{${entries.join(',')}}`;
+  }
+  return JSON.stringify(value);
+}
+
+function normalizeConfigForDraftCompare(config: ProviderProfileConfig): string {
+  return stableSerialize(config);
+}
+
+function hasDraftChanges(
+  profile: ProviderProfile,
+  draft: {
+    readonly displayName: string;
+    readonly connection: ProviderConnectionDraft;
+    readonly defaultModel: string;
+    readonly instruction: string;
+    readonly apiKey: string;
+  },
+  isOptimizerProfile: boolean,
+): boolean {
+  if (draft.apiKey.trim().length > 0) {
+    return true;
+  }
+  const family = String(profile.config.family ?? profile.providerId);
+  const nextDisplayName = draft.displayName.trim() || profile.displayName;
+  const nextConfig = mergeProfileConfigForSave(
+    profile,
+    providerConfigFromForm(
+      profile.providerId,
+      nextDisplayName,
+      family,
+      draft.connection,
+      draft.defaultModel,
+      isOptimizerProfile ? draft.instruction : undefined,
+    ),
+  );
+  return (
+    nextDisplayName !== profile.displayName ||
+    normalizeConfigForDraftCompare(nextConfig) !== normalizeConfigForDraftCompare(profile.config)
+  );
+}
+
+export function SettingsDetailPage({ onNav, profileId, onProfilesChanged, onSaved }: SettingsDetailPageProps) {
   const services = useAppServices();
   const { messages: t } = useI18n();
   const detail = useProfileDetail(services, profileId);
@@ -161,15 +212,14 @@ export function SettingsDetailPage({ onNav, profileId, onProfilesChanged }: Sett
         ...(profile ? { profile_id: profile.profileId, provider_id: profile.providerId } : {}),
       });
       if (profile) {
-        await services.diagnostics?.checkpoint('uxp.ui.settings_detail.save.before_success_status', {
+        await services.diagnostics?.checkpoint('uxp.ui.settings_detail.save.before_success_feedback', {
           profileId: profile.profileId,
           providerId: profile.providerId,
         }, {
           profile_id: profile.profileId,
           provider_id: profile.providerId,
         });
-        saveNotice.show(t.settings.saved, 'positive', { durationMs: 1800, dismissible: false, copyable: false });
-        await services.diagnostics?.checkpoint('uxp.ui.settings_detail.save.after_success_status', {
+        await services.diagnostics?.checkpoint('uxp.ui.settings_detail.save.after_success_feedback', {
           profileId: profile.profileId,
           providerId: profile.providerId,
         }, {
@@ -191,6 +241,8 @@ export function SettingsDetailPage({ onNav, profileId, onProfilesChanged }: Sett
           profile_id: profile.profileId,
           provider_id: profile.providerId,
         });
+        onSaved?.(t.settings.saved);
+        onNav('settings');
       }
     } catch (error) {
       await services.diagnostics?.failure('uxp.ui.settings_detail.save.failed', error, { profileId });
@@ -290,6 +342,16 @@ export function SettingsDetailPage({ onNav, profileId, onProfilesChanged }: Sett
     testNotice.clear();
     setTestMeta(null);
     try {
+      if (detail.profile && hasDraftChanges(
+        detail.profile,
+        { displayName, connection, defaultModel, instruction, apiKey },
+        isOptimizerProfile,
+      )) {
+        const savedProfile = await persistProfile();
+        if (savedProfile) {
+          await onProfilesChanged(savedProfile.profileId);
+        }
+      }
       const refreshed = await models.refresh();
       if (refreshed.length === 0) {
         testNotice.show(t.settings.configValidProviderNoModels, 'warning', { durationMs: null, copyable: false });

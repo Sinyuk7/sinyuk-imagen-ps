@@ -333,9 +333,16 @@ function rootElementById(rootId: string): HTMLElement | null {
   return document.getElementById(rootId);
 }
 
+function resolvePanelRoot(rootNode: unknown, rootId: string): HTMLElement | null {
+  if (rootNode instanceof HTMLElement) {
+    return rootNode;
+  }
+  return rootElementById(rootId);
+}
+
 function installPanelRecoveryListeners(options: {
   readonly runtime: ImagenPanelRuntime;
-  readonly rootId: string;
+  readonly resolveRoot: () => HTMLElement | null;
 }): () => void {
   if (typeof window === 'undefined' || typeof document === 'undefined') {
     return () => undefined;
@@ -343,7 +350,7 @@ function installPanelRecoveryListeners(options: {
 
   const resume = (reason: 'focus' | 'visibilitychange'): void => {
     bootstrapCheckpoint('panel.bootstrap.panel.resume', { reason });
-    options.runtime.mount(rootElementById(options.rootId));
+    options.runtime.mount(options.resolveRoot());
   };
 
   const handleFocus = (): void => {
@@ -377,9 +384,13 @@ export function installUxpPanelEntrypoints(
 
   const panelId = options?.panelId ?? 'imagen-ps-panel';
   const rootId = options?.rootId ?? 'root';
+  let latestPanelRoot: HTMLElement | null = rootElementById(rootId);
 
   try {
-    runtime.setRecoveryCleanup(installPanelRecoveryListeners({ runtime, rootId }));
+    runtime.setRecoveryCleanup(installPanelRecoveryListeners({
+      runtime,
+      resolveRoot: () => latestPanelRoot ?? rootElementById(rootId),
+    }));
     bootstrapCheckpoint('panel.bootstrap.entrypoints.setup.start', { panelId });
     entrypoints.setup({
       plugin: {
@@ -394,16 +405,19 @@ export function installUxpPanelEntrypoints(
       },
       panels: {
         [panelId]: {
-          create() {
+          create(rootNode?: unknown) {
             bootstrapCheckpoint('panel.bootstrap.panel.create');
-            const rootEl = rootElementById(rootId);
+            const rootEl = resolvePanelRoot(rootNode, rootId);
+            latestPanelRoot = rootEl;
             runtime.mount(rootEl);
             bootstrapCheckpoint('panel.bootstrap.panel.create.complete', { hasRoot: Boolean(rootEl) });
             return rootEl ?? undefined;
           },
-          show() {
+          show(rootNode?: unknown) {
             bootstrapCheckpoint('panel.bootstrap.panel.show');
-            runtime.mount(rootElementById(rootId));
+            const rootEl = resolvePanelRoot(rootNode, rootId);
+            latestPanelRoot = rootEl;
+            runtime.mount(rootEl);
           },
           hide() {
             bootstrapCheckpoint('panel.bootstrap.panel.hide');
@@ -411,6 +425,7 @@ export function installUxpPanelEntrypoints(
           },
           destroy() {
             bootstrapCheckpoint('panel.bootstrap.panel.destroy');
+            latestPanelRoot = null;
             runtime.dispose();
           },
         },

@@ -124,7 +124,23 @@ describe('SettingsDetailPage contract', () => {
   it('saves edited provider profile through profile commands', async () => {
     const container = document.createElement('div');
     document.body.appendChild(container);
-    const { spies, onProfilesChanged } = await renderDetail(container);
+    const onNav = vi.fn();
+    const services = createFakeServices();
+    root = createRoot(container);
+
+    await act(async () => {
+      root!.render(
+        <TestAppProviders services={services.services}>
+          <SettingsDetailPage
+            onNav={onNav}
+            profileId="mock-profile"
+            onProfilesChanged={vi.fn(async () => undefined)}
+          />
+        </TestAppProviders>,
+      );
+    });
+    await flush();
+    await flush();
 
     await act(async () => {
       changeInput(queryByTestId(container, 'provider-alias-input'), 'Renamed Mock');
@@ -138,7 +154,7 @@ describe('SettingsDetailPage contract', () => {
       container.querySelector<HTMLButtonElement>('.btn-save')!.click();
     });
 
-    expect(spies.saveProviderProfile).toHaveBeenCalledWith(
+    expect(services.spies.saveProviderProfile).toHaveBeenCalledWith(
       expect.objectContaining({
         profileId: 'mock-profile',
         providerId: 'mock',
@@ -159,7 +175,7 @@ describe('SettingsDetailPage contract', () => {
         }),
       }),
     );
-    expect(onProfilesChanged).toHaveBeenCalledWith('mock-profile');
+    expect(onNav).toHaveBeenCalledWith('settings');
   });
 
   it('merges the saved custom model into the selectable model list', async () => {
@@ -256,6 +272,38 @@ describe('SettingsDetailPage contract', () => {
     });
     await flush();
 
+    expect(spies.refreshProfileModels).toHaveBeenCalledWith('mock-profile');
+  });
+
+  it('persists draft config before refreshing models', async () => {
+    const container = document.createElement('div');
+    document.body.appendChild(container);
+    const { spies, onProfilesChanged } = await renderDetail(container);
+
+    await act(async () => {
+      changeInput(queryByTestId(container, 'provider-endpoint-url-0'), 'https://mock.changed');
+    });
+
+    await act(async () => {
+      buttonByText(container, '刷新模型列表').click();
+    });
+    await flush();
+
+    expect(spies.saveProviderProfile).toHaveBeenCalledWith(
+      expect.objectContaining({
+        profileId: 'mock-profile',
+        config: expect.objectContaining({
+          connection: expect.objectContaining({
+            endpoints: [
+              expect.objectContaining({
+                url: 'https://mock.changed',
+              }),
+            ],
+          }),
+        }),
+      }),
+    );
+    expect(onProfilesChanged).toHaveBeenCalledWith('mock-profile');
     expect(spies.refreshProfileModels).toHaveBeenCalledWith('mock-profile');
   });
 
@@ -543,8 +591,8 @@ describe('SettingsDetailPage contract', () => {
       'uxp.ui.profile_detail.save.before_set_profile',
       'uxp.ui.profile_detail.save.after_set_profile',
       'uxp.ui.settings_detail.save.after_persist',
-      'uxp.ui.settings_detail.save.before_success_status',
-      'uxp.ui.settings_detail.save.after_success_status',
+      'uxp.ui.settings_detail.save.before_success_feedback',
+      'uxp.ui.settings_detail.save.after_success_feedback',
       'uxp.ui.settings_detail.save.before_profiles_changed',
       'uxp.ui.settings_detail.save.after_profiles_changed',
       'uxp.ui.settings_detail.save.before_busy_clear',

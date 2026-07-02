@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { PANEL_CSS } from '../../../shared/ui/panel-css';
 import { Icon } from '../../../shared/ui/components/icons';
 import { OverlayControlShell } from '../../../shared/ui/components/overlay-controls';
@@ -6,16 +6,43 @@ import { ProviderIdentity } from '../../../shared/ui/components/provider-identit
 import { IconButton } from '../../../shared/ui/primitives/icon-button';
 import { Button, TextField } from '../../../shared/ui/primitives/native-controls';
 
+type HarnessPanelWidthMode = 'compact' | 'regular' | 'wide';
+type HarnessPanelHeightMode = 'short' | 'normal';
+
+const PANEL_COMPACT_MAX_WIDTH = 339;
+const PANEL_WIDE_MIN_WIDTH = 520;
+const PANEL_SHORT_MAX_HEIGHT = 459;
+
 const HARNESS_CSS = `
 .uxp-css-harness-root{
-  min-height:100vh;
+  width:100%;
+  height:100%;
+  min-width:0;
+  min-height:0;
   background:
     radial-gradient(circle at top left, rgba(88,168,255,.10), transparent 30%),
     linear-gradient(180deg, #f4f7fb 0%, #e8eef6 100%);
   color:#17202c;
 }
 .uxp-css-harness-page{
-  min-height:100vh;
+  display:flex;
+  flex-direction:column;
+  flex:1 1 auto;
+  min-width:0;
+  min-height:0;
+  overflow:hidden;
+}
+.uxp-css-harness-scroll{
+  overflow-y:auto;
+  flex:1 1 auto;
+  min-width:0;
+  min-height:0;
+}
+.uxp-css-harness-scroll::-webkit-scrollbar{ width:3px; }
+.uxp-css-harness-scroll::-webkit-scrollbar-thumb{ background:var(--app-color-border-default); border-radius:2px; }
+.uxp-css-harness-page-inner{
+  min-width:0;
+  min-height:100%;
   padding-top:24px;
   padding-right:24px;
   padding-bottom:32px;
@@ -74,6 +101,24 @@ const HARNESS_CSS = `
   font-size:13px;
   line-height:19px;
   color:#415264;
+}
+.uxp-css-runtime-note{
+  margin-top:12px;
+  margin-right:0;
+  margin-bottom:0;
+  margin-left:0;
+  padding-top:10px;
+  padding-right:12px;
+  padding-bottom:10px;
+  padding-left:12px;
+  border:1px solid #d8e2ee;
+  border-radius:12px;
+  background:rgba(247,250,253,.96);
+  font-family:var(--app-font-family-mono);
+  font-size:10px;
+  line-height:15px;
+  color:#4d5f72;
+  white-space:pre-wrap;
 }
 .uxp-css-legend{
   display:flex;
@@ -719,11 +764,13 @@ const HARNESS_CSS = `
 }
 .uxp-css-panel-frame .panel{
   min-width:0;
+  height:100%;
   background:var(--app-color-background-base);
 }
 .uxp-css-compact-panel{
   width:100%;
   min-width:0;
+  min-height:0;
 }
 .uxp-css-panel-head{
   display:flex;
@@ -764,10 +811,26 @@ const HARNESS_CSS = `
   line-height:14px;
 }
 .uxp-css-panel-body{
+  display:flex;
+  flex-direction:column;
+  min-width:0;
+  min-height:0;
   padding-top:10px;
   padding-right:10px;
   padding-bottom:10px;
   padding-left:10px;
+}
+.uxp-css-panel-body > *{
+  margin-top:0;
+  margin-right:0;
+  margin-bottom:10px;
+  margin-left:0;
+}
+.uxp-css-panel-body > *:last-child{
+  margin-bottom:0;
+}
+.uxp-css-panel-body .uxp-css-composer-board{
+  margin-top:auto;
 }
 .uxp-css-icon-grid{
   display:flex;
@@ -874,7 +937,7 @@ const HARNESS_CSS = `
   white-space:pre-wrap;
 }
 @media (max-width: 920px){
-  .uxp-css-harness-page{
+  .uxp-css-harness-page-inner{
     padding-top:14px;
     padding-right:14px;
     padding-bottom:24px;
@@ -938,6 +1001,94 @@ const HARNESS_CSS = `
   }
 }
 `;
+
+function classifyPanelWidthMode(width: number): HarnessPanelWidthMode {
+  if (width <= PANEL_COMPACT_MAX_WIDTH) {
+    return 'compact';
+  }
+  if (width >= PANEL_WIDE_MIN_WIDTH) {
+    return 'wide';
+  }
+  return 'regular';
+}
+
+function classifyPanelHeightMode(height: number): HarnessPanelHeightMode {
+  return height <= PANEL_SHORT_MAX_HEIGHT ? 'short' : 'normal';
+}
+
+function useHarnessPanelResponsiveAttributes(panelRef: React.RefObject<HTMLDivElement | null>): void {
+  const latestModesRef = useRef('');
+
+  useLayoutEffect(() => {
+    const panel = panelRef.current;
+    if (!panel) {
+      return undefined;
+    }
+
+    const applyModes = (width: number, height: number) => {
+      const widthMode = classifyPanelWidthMode(width);
+      const heightMode = classifyPanelHeightMode(height);
+      const nextKey = `${widthMode}:${heightMode}`;
+      if (latestModesRef.current === nextKey) {
+        return;
+      }
+      latestModesRef.current = nextKey;
+      panel.dataset.panelWidthMode = widthMode;
+      panel.dataset.panelHeightMode = heightMode;
+    };
+
+    const rect = panel.getBoundingClientRect();
+    applyModes(rect.width, rect.height);
+
+    if (typeof ResizeObserver === 'undefined') {
+      return () => {
+        delete panel.dataset.panelWidthMode;
+        delete panel.dataset.panelHeightMode;
+        latestModesRef.current = '';
+      };
+    }
+
+    const observer = new ResizeObserver((entries) => {
+      const entry = entries[entries.length - 1];
+      if (!entry) {
+        return;
+      }
+      applyModes(entry.contentRect.width, entry.contentRect.height);
+    });
+    observer.observe(panel);
+
+    return () => {
+      observer.disconnect();
+      delete panel.dataset.panelWidthMode;
+      delete panel.dataset.panelHeightMode;
+      latestModesRef.current = '';
+    };
+  }, [panelRef]);
+}
+
+function measureRuntimeInfo(
+  panel: HTMLDivElement | null,
+  scroll: HTMLDivElement | null,
+): string {
+  if (!panel || !scroll) {
+    return 'panel=missing\nscroll=missing';
+  }
+  const panelStyle = window.getComputedStyle(panel);
+  const scrollStyle = window.getComputedStyle(scroll);
+  const parent = panel.parentElement;
+  return [
+    `panel.tag=${panel.tagName.toLowerCase()}`,
+    `panel.parent=${parent?.tagName.toLowerCase() ?? 'none'}`,
+    `panel.height=${panel.clientHeight}`,
+    `panel.width=${panel.clientWidth}`,
+    `panel.mode=${panel.dataset.panelWidthMode ?? '?'} / ${panel.dataset.panelHeightMode ?? '?'}`,
+    `panel.overflow=${panelStyle.overflowY}/${panelStyle.overflowX}`,
+    `scroll.height=${scroll.clientHeight}`,
+    `scroll.scrollHeight=${scroll.scrollHeight}`,
+    `scroll.top=${scroll.scrollTop}`,
+    `scroll.overflowY=${scrollStyle.overflowY}`,
+  ].join('\n');
+}
 
 type StatusTone = 'pass' | 'check' | 'fail';
 
@@ -1252,16 +1403,39 @@ function IconGeometrySpecimen() {
 
 export function UxpCssContractHarnessPage() {
   const [promptText, setPromptText] = useState('Extend the captured background with soft film-grain texture while preserving the subject silhouette and the layer placement context.');
+  const panelRef = useRef<HTMLDivElement | null>(null);
+  const scrollRef = useRef<HTMLDivElement | null>(null);
+  const [runtimeInfo, setRuntimeInfo] = useState('panel=booting\nscroll=booting');
 
   useEffect(() => {
     ensureHarnessStyles();
   }, []);
 
+  useHarnessPanelResponsiveAttributes(panelRef);
+
+  useEffect(() => {
+    const update = () => {
+      setRuntimeInfo(measureRuntimeInfo(panelRef.current, scrollRef.current));
+    };
+    update();
+    const scroll = scrollRef.current;
+    scroll?.addEventListener('scroll', update);
+    window.addEventListener('resize', update);
+    const timer = window.setInterval(update, 600);
+    return () => {
+      scroll?.removeEventListener('scroll', update);
+      window.removeEventListener('resize', update);
+      window.clearInterval(timer);
+    };
+  }, []);
+
   return (
-    <div className="uxp-css-harness-root">
+    <div ref={panelRef} className="panel uxp-css-harness-root" data-testid="uxp-css-contract-panel">
       <div className="uxp-css-harness-page">
-        <div className="uxp-css-harness-shell">
-          <section className="uxp-css-hero">
+        <div ref={scrollRef} className="scroll uxp-css-harness-scroll" data-testid="uxp-css-contract-scroll">
+          <div className="uxp-css-harness-page-inner">
+            <div className="uxp-css-harness-shell">
+              <section className="uxp-css-hero">
             <div className="uxp-css-hero-head">
               <p className="uxp-css-eyebrow">Photoshop UXP CSS Contract Harness</p>
               <h1 className="uxp-css-hero-title">One page. One glance. One decision.</h1>
@@ -1269,6 +1443,7 @@ export function UxpCssContractHarnessPage() {
                 Each card shows one UXP CSS contract target, the expected safe pattern, and a live specimen to inspect in Chrome and real Photoshop.
                 Green means repo-approved pattern. Yellow means manual host check still matters. Red marks the pattern this harness is explicitly replacing.
               </p>
+              <p className="uxp-css-runtime-note" data-testid="uxp-css-contract-runtime-info">{runtimeInfo}</p>
             </div>
             <div className="uxp-css-legend">
               <span className="uxp-css-legend-item"><span className="uxp-css-legend-dot" data-tone="pass" />repo-safe pattern</span>
@@ -1526,7 +1701,9 @@ export function UxpCssContractHarnessPage() {
                 Decision rule: if a green card looks wrong in Photoshop, treat it as a repo bug. If a yellow card looks wrong only in Photoshop, capture host evidence and tighten the safe pattern. Red is not a pass target; it exists only to visualize the failure mode we are avoiding.
               </p>
             </div>
-          </section>
+              </section>
+            </div>
+          </div>
         </div>
       </div>
     </div>

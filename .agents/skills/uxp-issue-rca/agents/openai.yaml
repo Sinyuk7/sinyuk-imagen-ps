@@ -1,0 +1,4 @@
+interface:
+  display_name: "UXP Issue RCA"
+  short_description: "Log-first UXP issue diagnosis"
+  default_prompt: "Use $uxp-issue-rca to locate the Photoshop UXP root cause from real logs and define the UXP UI or runtime verification path."

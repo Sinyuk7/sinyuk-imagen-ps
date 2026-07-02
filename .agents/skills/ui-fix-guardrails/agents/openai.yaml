@@ -1,4 +1,0 @@
-interface:
-  display_name: "UI Fix Guardrails"
-  short_description: "Confirmed UI bug fix boundary and acceptance guardrail"
-  default_prompt: "Use $ui-fix-guardrails to implement this confirmed UI bug with boundary framing, regression scope, and acceptance checks."

@@ -1,4 +1,0 @@
-interface:
-  display_name: "PS UXP UI RCA"
-  short_description: "Repo-level RCA for Photoshop-only UI mismatches"
-  default_prompt: "Use $ps-uxp-ui-rca to diagnose this Chrome-vs-Photoshop UXP UI mismatch in apps/app by checking wrapper, host, and component usage boundaries."

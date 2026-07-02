@@ -16,6 +16,8 @@ import { SettingsPage } from './pages/settings-page';
 import { SettingsAddPage } from './pages/settings-add-page';
 import { SettingsDetailPage } from './pages/settings-detail-page';
 import { GlobalGenerationSettingsPage } from './pages/global-generation-settings-page';
+import { ToastHost } from './components/toast-host';
+import { useNotice } from './components/notice';
 import { I18nProvider, useI18n } from './i18n/i18n-context';
 import { ensurePanelCss } from './panel-bootstrap';
 import { placeTaskOutputOnCanvas } from '../domain/task-actions';
@@ -208,6 +210,7 @@ function AppShellContent({ host }: AppShellProps) {
   const history = useJobHistory(services);
   const { records: historyRecords, loading: historyLoading, error: historyError, reload: reloadHistory } = history;
   const { layers, layersError, reloadLayers } = useHostLayers(host);
+  const { notice: toast, show, clear, pause, resume } = useNotice({ defaultDurationMs: null });
   const previousRoundStatusRef = useRef<Record<string, 'running' | 'ok' | 'err'>>({});
 
   usePanelResponsiveAttributes(panelRef);
@@ -388,6 +391,7 @@ function AppShellContent({ host }: AppShellProps) {
           <SettingsDetailPage
           onNav={onNav}
           profileId={selectedSettingsProfileId}
+          onSaved={(message) => show(message, 'positive', { durationMs: 1800, dismissible: false, copyable: false })}
           onProfilesChanged={async (profileId) => {
             await services.diagnostics?.checkpoint('uxp.ui.app_shell.profiles_changed.entered', {
               profileId,
@@ -427,6 +431,7 @@ function AppShellContent({ host }: AppShellProps) {
           />
         </MotionPageFrame>
       )}
+      <ToastHost toast={toast} onClose={clear} onPause={pause} onResume={resume} />
     </div>
   );
 }

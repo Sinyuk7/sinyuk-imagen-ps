@@ -90,10 +90,57 @@ describe('UXP panel runtime', () => {
     expect(setup.mock.calls[0]?.[0].plugin.create).toEqual(expect.any(Function));
 
     const panel = setup.mock.calls[0]?.[0].panels['imagen-ps-panel'];
-    panel.create();
+    panel.create(document.getElementById('root'));
 
     expect(createHost).toHaveBeenCalledTimes(1);
     expect(createRootMock).toHaveBeenCalledTimes(1);
+  });
+
+  it('prefers the manifest v5 panel rootNode over document root lookup', () => {
+    const setup = vi.fn();
+    const mountSpy = vi.fn();
+    const runtime = {
+      host: undefined,
+      mount: mountSpy,
+      setRecoveryCleanup: vi.fn(),
+      dispose: vi.fn(),
+    };
+
+    expect(installUxpPanelEntrypoints(runtime, { uxp: { entrypoints: { setup } } } as unknown as UxpModules)).toBe(true);
+
+    const panelRoot = document.createElement('div');
+    panelRoot.id = 'uxp-panel-root';
+    const panel = setup.mock.calls[0]?.[0].panels['imagen-ps-panel'];
+
+    panel.create(panelRoot);
+    panel.show(panelRoot);
+
+    expect(mountSpy).toHaveBeenNthCalledWith(1, panelRoot);
+    expect(mountSpy).toHaveBeenNthCalledWith(2, panelRoot);
+  });
+
+  it('reuses the latest panel root during focus recovery instead of document root lookup', () => {
+    const setup = vi.fn();
+    const mountSpy = vi.fn();
+    const runtime = {
+      host: undefined,
+      mount: mountSpy,
+      setRecoveryCleanup: vi.fn(),
+      dispose: vi.fn(),
+    };
+
+    expect(installUxpPanelEntrypoints(runtime, { uxp: { entrypoints: { setup } } } as unknown as UxpModules)).toBe(true);
+
+    const panelRoot = document.createElement('div');
+    panelRoot.id = 'uxp-panel-root';
+    const panel = setup.mock.calls[0]?.[0].panels['imagen-ps-panel'];
+    panel.create(panelRoot);
+    mountSpy.mockClear();
+
+    window.dispatchEvent(new Event('focus'));
+
+    expect(mountSpy).toHaveBeenCalledTimes(1);
+    expect(mountSpy).toHaveBeenCalledWith(panelRoot);
   });
 
   it('matches the real UXP host plugin lifecycle create contract', () => {
@@ -127,7 +174,7 @@ describe('UXP panel runtime', () => {
 
     expect(installUxpPanelEntrypoints(runtime, modules)).toBe(true);
     const panel = setup.mock.calls[0]?.[0].panels['imagen-ps-panel'];
-    panel.create();
+    panel.create(document.getElementById('root'));
 
     expect(checkpoint).toHaveBeenCalledWith('panel.bootstrap.entrypoints.setup.start', { panelId: 'imagen-ps-panel' });
     expect(checkpoint).toHaveBeenCalledWith('panel.bootstrap.entrypoints.setup.ok', { panelId: 'imagen-ps-panel' });
