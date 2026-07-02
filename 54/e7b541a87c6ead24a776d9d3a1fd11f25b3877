@@ -1,0 +1,41 @@
+.github/ISSUE_TEMPLATE/cla-sign.yml
+  s_61fe25e835ac4e::t_ebbdaebe888dd2 1-36
+.github/workflows/validate.yml
+  s_61fe25e835ac4e::t_d8bbc96e62623f 10-74
+apps/app/src/shared/ui/app-shell.tsx
+  s_5bfee7bb300095::t_e66457e63b3035 209,211,284-299,339-342
+apps/app/src/shared/ui/pages/history-page.tsx
+  s_5bfee7bb300095::t_a3576f8dc64992 1,103-106,109-111,133-140,149-169,171-182,184-198,201-256,258-282,284-293,295-356,395-401,408-409,456,463,466-468,477-481,488-490
+apps/app/tests/app-shell.test.tsx
+  s_5bfee7bb300095::t_108420ce3fc4c9 76-115
+apps/app/tests/fakes.ts
+  s_5bfee7bb300095::t_e1f1ee2a7af04d 242,427
+apps/app/tests/history-page.test.tsx
+  s_5bfee7bb300095::t_98e30e25c40676 12-46,55-56,236-237,251,253,272-273,297-299,314-315,326,366-367,379,388-405
+docs/TESTING.md
+  s_61fe25e835ac4e::t_4cd96a2734544c 40-44,177-183
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.3",
+  "base_commit_sha": "54e7b541a87c6ead24a776d9d3a1fd11f25b3877",
+  "prompts": {},
+  "sessions": {
+    "s_5bfee7bb300095": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "019f226f-aaf1-7303-830c-df89161d8da1",
+        "model": "unknown"
+      },
+      "human_author": "Sinyuk <80998062@qq.com>"
+    },
+    "s_61fe25e835ac4e": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "019f2297-b3d7-79b2-b5fa-61d0d4026f44",
+        "model": "unknown"
+      },
+      "human_author": "Sinyuk <80998062@qq.com>"
+    }
+  }
+}
