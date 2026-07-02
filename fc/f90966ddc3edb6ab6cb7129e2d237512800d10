@@ -1,0 +1,19 @@
+docs/loops/2026-07-02-app-retention-and-generated-asset-eviction.md
+  s_a8af2889cd5415::t_e35c1c004e6419 1-439
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.3",
+  "base_commit_sha": "fcf90966ddc3edb6ab6cb7129e2d237512800d10",
+  "prompts": {},
+  "sessions": {
+    "s_a8af2889cd5415": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "019f2211-d679-7431-9149-619f717a675b",
+        "model": "unknown"
+      },
+      "human_author": "Sinyuk <80998062@qq.com>"
+    }
+  }
+}
