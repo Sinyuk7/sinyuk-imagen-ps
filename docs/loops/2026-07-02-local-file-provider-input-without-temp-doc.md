@@ -142,6 +142,24 @@ WEBP support is required by the current file picker and payload preflight. If th
 
 Do not silently drop WEBP support.
 
+### Recorded viability result
+
+Implementation evidence from this Loop:
+
+- A custom Jimp minimal build was evaluated first.
+- In the repository UXP/Vite runtime, the PNG branch pulled `pngjs` browser-externalized Node modules (`stream`, `zlib`, `util`) into the bundle path, which was rejected as unacceptable runtime risk for production UXP use.
+- The accepted app-local byte path uses:
+  - `fast-png` for PNG decode/encode
+  - `jpeg-js` for JPEG decode
+  - existing app-local `downscaleArea()` / `upscaleBilinear()` for serial resize
+- WEBP remains an explicit host-native fallback path because equivalent app-local decode coverage was not proven in this Loop.
+
+Decision:
+
+- Do not ship the Jimp path.
+- Ship the thinner PNG/JPEG byte pipeline in `apps/app`.
+- Keep WEBP on the existing temp-document path until a proven app-local WEBP decoder is added.
+
 ## Slices
 
 ### Slice 1: Local-file boundary extraction

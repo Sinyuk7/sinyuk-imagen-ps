@@ -1,6 +1,8 @@
 import type { Asset, AssetStore, StoredAssetRef } from '@imagen-ps/application';
 import { getAssetStore, getRuntimeLogger } from '@imagen-ps/application';
 import type { Logger } from '@imagen-ps/foundation';
+import { decode as decodeJpeg } from 'jpeg-js';
+import { decode as decodePng, encode as encodePng } from 'fast-png';
 import {
   PHOTOSHOP_UXP_RUNTIME_CAPABILITIES,
   createHostBridgeStub,
@@ -11,8 +13,11 @@ import type { UxpModules } from './uxp-api';
 import { ensurePlaceableImagePayload } from '../../shared/image-payload-preflight';
 import { createHostImageAsset, type HostImageAsset } from '../../shared/domain/host-image-asset';
 import {
+  downscaleArea,
   resolveCaptureUploadPlan,
   resolveProviderInputPlan,
+  upscaleBilinear,
+  type RgbaImage,
   type ProviderInputSizePolicy,
 } from '../../shared/image/resize';
 import {
@@ -577,6 +582,90 @@ function resolveLocalFileProviderInputPlan(bytes: Uint8Array, mimeType: string, 
   return resolveProviderInputPlan(size, policy);
 }
 
+function mimeTypeSupportsAppLocalDerivative(mimeType: string): boolean {
+  const normalized = mimeType.toLowerCase();
+  return normalized.includes('png') || normalized.includes('jpeg') || normalized.includes('jpg');
+}
+
+function decodeLocalFileToRgba(bytes: Uint8Array, mimeType: string): RgbaImage {
+  const normalized = mimeType.toLowerCase();
+  if (normalized.includes('png')) {
+    const decoded = decodePng(bytes);
+    const rgba = new Uint8Array(decoded.data.byteLength);
+    rgba.set(decoded.data);
+    return {
+      width: decoded.width,
+      height: decoded.height,
+      data: rgba,
+    };
+  }
+  if (normalized.includes('jpeg') || normalized.includes('jpg')) {
+    const decoded = decodeJpeg(bytes, { useTArray: true });
+    return {
+      width: decoded.width,
+      height: decoded.height,
+      data: decoded.data,
+    };
+  }
+  throw new Error(`App-local decode is unsupported for ${mimeType}.`);
+}
+
+async function createAppLocalPreview(bytes: Uint8Array, mimeType: string): Promise<RuntimeImageUrl> {
+  const copy = new Uint8Array(bytes.byteLength);
+  copy.set(bytes);
+  return createRuntimeImageUrlOrDataUrl(copy, mimeType);
+}
+
+async function resizeLocalFileBytes(
+  bytes: Uint8Array,
+  mimeType: string,
+  targetSize: { readonly width: number; readonly height: number },
+): Promise<Uint8Array> {
+  const image = decodeLocalFileToRgba(bytes, mimeType);
+  const resized =
+    targetSize.width <= image.width && targetSize.height <= image.height
+      ? downscaleArea(image, targetSize)
+      : upscaleBilinear(image, targetSize);
+  return encodePng({
+    width: resized.width,
+    height: resized.height,
+    data: resized.data,
+    channels: 4,
+    depth: 8,
+  });
+}
+
+async function createLocalFileProviderDerivativeFromBytes(
+  assetStore: AssetStore,
+  bytes: Uint8Array,
+  plan: ReturnType<typeof resolveProviderInputPlan>,
+  meta: { readonly name: string; readonly mimeType: string },
+): Promise<HostImageAsset> {
+  const preview = await createAppLocalPreview(bytes, meta.mimeType);
+  if (!plan.wasResized) {
+    return createStoredHostImageAsset(assetStore, bytes, {
+      source: 'file',
+      name: meta.name,
+      mimeType: meta.mimeType,
+      preview,
+      width: plan.targetWidth,
+      height: plan.targetHeight,
+    });
+  }
+  const normalized = await resizeLocalFileBytes(bytes, meta.mimeType, {
+    width: plan.targetWidth,
+    height: plan.targetHeight,
+  });
+  return createStoredHostImageAsset(assetStore, normalized, {
+    source: 'file',
+    name: meta.name.replace(/\.[^.]+$/, '') + '.png',
+    mimeType: 'image/png',
+    preview,
+    width: plan.targetWidth,
+    height: plan.targetHeight,
+  });
+}
+
 async function createLocalFileProviderDerivative(
   app: PhotoshopApp,
   imaging: PhotoshopImaging,
@@ -586,6 +675,9 @@ async function createLocalFileProviderDerivative(
   plan: ReturnType<typeof resolveProviderInputPlan>,
   meta: { readonly name: string; readonly mimeType: string },
 ): Promise<HostImageAsset> {
+  if (mimeTypeSupportsAppLocalDerivative(meta.mimeType)) {
+    return createLocalFileProviderDerivativeFromBytes(assetStore, bytes, plan, meta);
+  }
   if (!app.open) {
     throw new Error('Local image requires provider input normalization, but Photoshop app.open() is unavailable.');
   }

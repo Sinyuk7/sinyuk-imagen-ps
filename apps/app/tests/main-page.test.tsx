@@ -123,6 +123,56 @@ describe('MainPage contract', () => {
     });
   });
 
+  it('JPEG file attachment follows the same main success path and submits the provider derivative only', async () => {
+    const container = document.createElement('div');
+    document.body.appendChild(container);
+    const services = createFakeServices();
+    services.spies.pickImageFile.mockResolvedValueOnce({
+      ...fakeHostImage,
+      asset: {
+        ...fakeProviderInputAsset,
+        name: 'picked.JPG',
+        mimeType: 'image/jpeg',
+      },
+      metadata: {
+        ...fakeHostImage.metadata,
+        name: 'picked.JPG',
+        mimeType: 'image/jpeg',
+      },
+      resource: {
+        ...fakeHostImage.resource,
+        original: {
+          ...fakeHostImage.resource.original,
+          name: 'picked.JPG',
+          mimeType: 'image/jpeg',
+        },
+      },
+    });
+    const { spies } = await renderApp(container, services);
+
+    await act(async () => {
+      container.querySelector<HTMLElement>('[data-testid="composer-add-image-button"]')!.click();
+    });
+    await act(async () => {
+      clickText(container, '.attach-opt', '从电脑上传');
+    });
+    await flush();
+    await sendPrompt(container, 'edit uploaded jpeg');
+
+    expect(spies.pickImageFile).toHaveBeenCalledTimes(1);
+    expect(spies.readLayerAsAsset).not.toHaveBeenCalled();
+    expect(spies.submitJob).toHaveBeenCalledWith({
+      workflow: 'provider-edit',
+      input: expect.objectContaining({
+        prompt: 'edit uploaded jpeg',
+        images: [fakeProviderInputAsset],
+      }),
+      signal: expect.any(AbortSignal),
+    });
+    expect(JSON.stringify(spies.submitJob.mock.calls[0]?.[0].input.images)).not.toContain('picked.JPG');
+    expect(JSON.stringify(spies.submitJob.mock.calls[0]?.[0].input.images)).not.toContain('image/jpeg');
+  });
+
   it('preserves Photoshop placement evidence on local-file attachments when host provides it', async () => {
     const container = document.createElement('div');
     document.body.appendChild(container);

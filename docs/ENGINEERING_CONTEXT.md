@@ -62,6 +62,8 @@ surface apps -> application/session -> core-engine + providers
 
 `apps/app` owns the image resource lifecycle. Local files, Photoshop layers, captures, and provider outputs are app-local `ImageResource` descriptors with independent `thumbnail` and `providerInput` derivative states.
 
+- In Photoshop UXP, local PNG/JPEG attachments derive preview and provider-input refs through an app-local byte pipeline inside `apps/app`. They must not open temporary Photoshop documents during attachment add. Local WEBP remains an explicit host-native fallback until an app-local WEBP decode path is proven.
+
 - Provider requests must resolve image-edit inputs from `image.resource.derivatives.providerInput.storedRef`. They must not submit the original asset, thumbnail, inline `data`, or full preview URL. Retry reuses the storedRef already present in the original job input.
 - UI previews use the app `ThumbnailStore`. Long-lived round preview state keeps sanitized `Asset` metadata and bounded thumbnail URLs only; provider output inline bytes are materialized into `AssetStore` refs before entering long-lived state.
 - Cancellation is cooperative: app clear/unmount aborts in-flight submit and thumbnail work; application/core pass `AbortSignal` through submit → runtime → runner → provider dispatch; runner checks the signal before and after dispatch and after output postprocessing.

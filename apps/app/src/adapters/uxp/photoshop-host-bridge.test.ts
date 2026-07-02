@@ -1,4 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
+import { encode as encodePng } from 'fast-png';
+import jpeg from 'jpeg-js';
 import {
   createHostModalRunner,
   createPhotoshopHostBridge,
@@ -79,6 +81,31 @@ function pngWithSize(width: number, height: number): Uint8Array {
   writeUint32BE(bytes, 20, height);
   writeUint32BE(bytes, 29, crc32(bytes, 12, 17));
   return bytes;
+}
+
+function realPngWithSize(width: number, height: number): Uint8Array {
+  const data = new Uint8Array(width * height * 4);
+  return encodePng({
+    width,
+    height,
+    data,
+    channels: 4,
+    depth: 8,
+  });
+}
+
+function realJpegWithSize(width: number, height: number): Uint8Array {
+  const data = new Uint8Array(width * height * 4);
+  for (let y = 0; y < height; y += 1) {
+    for (let x = 0; x < width; x += 1) {
+      const offset = (y * width + x) * 4;
+      data[offset] = Math.round((x / Math.max(1, width - 1)) * 255);
+      data[offset + 1] = Math.round((y / Math.max(1, height - 1)) * 255);
+      data[offset + 2] = 160;
+      data[offset + 3] = 255;
+    }
+  }
+  return jpeg.encode({ width, height, data: Buffer.from(data) }, 90).data;
 }
 
 const LEGACY_TRUNCATED_MOCK_PNG = new Uint8Array([
@@ -557,32 +584,19 @@ describe('PhotoshopHostBridge fake harness', () => {
     await expect(bridge.pickImageFile(providerPolicy)).rejects.toThrow('PNG asset chunk CRC is invalid.');
   });
 
-  it('通过临时 Photoshop document 为小尺寸本地文件生成 provider derivative', async () => {
+  it('uses the app-local PNG derivative path for resized local files', async () => {
     const { modules, spies } = createFakeModules({
       pickedFileName: 'tiny.png',
-      pickedFileData: arrayBufferFromBytes(pngWithSize(512, 512)),
+      pickedFileData: arrayBufferFromBytes(realPngWithSize(512, 512)),
     });
     const { bridge, assetStore } = createBridge(modules);
 
     const asset = await bridge.pickImageFile(providerPolicy);
 
-    expect(spies.openDocument).toHaveBeenCalledTimes(1);
+    expect(spies.openDocument).not.toHaveBeenCalled();
     expect(spies.executeAsModal).toHaveBeenCalledWith(expect.any(Function), { commandName: 'Normalize local image for provider input' });
-    expect(spies.getPixels).toHaveBeenNthCalledWith(1, {
-      documentID: 99,
-      targetSize: { width: 256, height: 256 },
-      colorSpace: 'RGB',
-      componentSize: 8,
-      applyAlpha: false,
-    });
-    expect(spies.getPixels).toHaveBeenNthCalledWith(2, {
-      documentID: 99,
-      targetSize: { width: 2048, height: 2048 },
-      colorSpace: 'RGB',
-      componentSize: 8,
-      applyAlpha: false,
-    });
-    expect(spies.closeTempDocument).toHaveBeenCalledTimes(1);
+    expect(spies.getPixels).not.toHaveBeenCalled();
+    expect(spies.closeTempDocument).not.toHaveBeenCalled();
     expect(asset?.asset).toMatchObject({
       type: 'image',
       name: 'tiny.png',
@@ -612,44 +626,68 @@ describe('PhotoshopHostBridge fake harness', () => {
     expect(asset?.asset.data).toBeUndefined();
   });
 
+  it('uses the app-local JPEG derivative path for resized local files', async () => {
+    const { modules, spies } = createFakeModules({
+      pickedFileName: 'tiny.jpg',
+      pickedFileData: arrayBufferFromBytes(realJpegWithSize(512, 512)),
+    });
+    const { bridge, assetStore } = createBridge(modules);
+
+    const asset = await bridge.pickImageFile(providerPolicy);
+
+    expect(spies.openDocument).not.toHaveBeenCalled();
+    expect(spies.executeAsModal).toHaveBeenCalledWith(expect.any(Function), { commandName: 'Normalize local image for provider input' });
+    expect(spies.getPixels).not.toHaveBeenCalled();
+    expect(spies.closeTempDocument).not.toHaveBeenCalled();
+    expect(asset?.asset).toMatchObject({
+      type: 'image',
+      name: 'tiny.png',
+      mimeType: 'image/png',
+    });
+    expect(asset?.metadata).toMatchObject({
+      source: 'file',
+      width: 2048,
+      height: 2048,
+      mimeType: 'image/png',
+      name: 'tiny.png',
+    });
+    expect(asset?.resource.derivatives.providerInput).toMatchObject({
+      kind: 'ready',
+      role: 'provider-input',
+      width: 2048,
+      height: 2048,
+      mimeType: 'image/png',
+    });
+    const bytes = await resolveAssetBytes(assetStore, asset!.asset);
+    expect(bytes.slice(0, 8)).toEqual(VALID_TRANSPARENT_PNG.slice(0, 8));
+  });
+
   it('downscales very large local files within the selected provider max side', async () => {
     const { modules, spies } = createFakeModules({
       pickedFileName: 'large.png',
-      pickedFileData: arrayBufferFromBytes(pngWithSize(10000, 6000)),
+      pickedFileData: arrayBufferFromBytes(realPngWithSize(3000, 1800)),
     });
     const { bridge } = createBridge(modules);
 
     await bridge.pickImageFile(providerPolicy);
 
-    expect(spies.getPixels).toHaveBeenNthCalledWith(1, expect.objectContaining({
-      documentID: 99,
-      targetSize: { width: 256, height: 154 },
-    }));
-    expect(spies.getPixels).toHaveBeenNthCalledWith(2, expect.objectContaining({
-      documentID: 99,
-      targetSize: { width: 2050, height: 1230 },
-    }));
-    expect(spies.closeTempDocument).toHaveBeenCalledTimes(1);
+    expect(spies.openDocument).not.toHaveBeenCalled();
+    expect(spies.getPixels).not.toHaveBeenCalled();
+    expect(spies.closeTempDocument).not.toHaveBeenCalled();
   });
 
   it('normalizes local files when only provider multiple/min-side policy changes size', async () => {
     const { modules, spies } = createFakeModules({
       pickedFileName: 'wide.png',
-      pickedFileData: arrayBufferFromBytes(pngWithSize(1201, 800)),
+      pickedFileData: arrayBufferFromBytes(realPngWithSize(1201, 800)),
     });
     const { bridge } = createBridge(modules);
 
     await bridge.pickImageFile(providerPolicy);
 
-    expect(spies.getPixels).toHaveBeenNthCalledWith(1, expect.objectContaining({
-      documentID: 99,
-      targetSize: { width: 256, height: 171 },
-    }));
-    expect(spies.getPixels).toHaveBeenNthCalledWith(2, expect.objectContaining({
-      documentID: 99,
-      targetSize: { width: 2402, height: 1600 },
-    }));
-    expect(spies.closeTempDocument).toHaveBeenCalledTimes(1);
+    expect(spies.openDocument).not.toHaveBeenCalled();
+    expect(spies.getPixels).not.toHaveBeenCalled();
+    expect(spies.closeTempDocument).not.toHaveBeenCalled();
   });
 
   it('为无需 provider resize 的本地文件仍生成 bounded thumbnail preview', async () => withObjectUrlMock(async ({ create, revoke }) => {
@@ -661,17 +699,33 @@ describe('PhotoshopHostBridge fake harness', () => {
 
     const asset = await bridge.pickImageFile(providerPolicy);
 
-    expect(spies.openDocument).toHaveBeenCalledTimes(1);
-    expect(spies.getPixels).toHaveBeenCalledTimes(1);
-    expect(spies.getPixels).toHaveBeenCalledWith(expect.objectContaining({
-      documentID: 99,
-      targetSize: { width: 256, height: 256 },
-    }));
+    expect(spies.openDocument).not.toHaveBeenCalled();
+    expect(spies.getPixels).not.toHaveBeenCalled();
     expect(asset?.preview).toMatchObject({ kind: 'object-url', url: 'blob:thumb-1' });
     expect(asset?.asset.storedRef).toMatchObject({ name: 'ready.png', mimeType: 'image/png' });
     expect(create).toHaveBeenCalledTimes(1);
     asset?.preview.dispose?.();
     expect(revoke).toHaveBeenCalledWith('blob:thumb-1');
+  }));
+
+  it('keeps WEBP on the host-native temp-document path until app-local support is proven', async () => withObjectUrlMock(async () => {
+    const webpBytes = new Uint8Array([
+      0x52, 0x49, 0x46, 0x46, 0x16, 0x00, 0x00, 0x00,
+      0x57, 0x45, 0x42, 0x50, 0x56, 0x50, 0x38, 0x58,
+      0x0a, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+      0xff, 0x03, 0x00, 0xff, 0x03, 0x00,
+    ]);
+    const { modules, spies } = createFakeModules({
+      pickedFileName: 'picked.webp',
+      pickedFileData: arrayBufferFromBytes(webpBytes),
+    });
+    const { bridge } = createBridge(modules);
+
+    await bridge.pickImageFile(providerPolicy);
+
+    expect(spies.openDocument).toHaveBeenCalledTimes(1);
+    expect(spies.getPixels).toHaveBeenCalled();
+    expect(spies.closeTempDocument).toHaveBeenCalledTimes(1);
   }));
 
   it('为 storedRef provider output 通过临时 Photoshop document 生成 bounded thumbnail', async () => withObjectUrlMock(async ({ create, revoke }) => {

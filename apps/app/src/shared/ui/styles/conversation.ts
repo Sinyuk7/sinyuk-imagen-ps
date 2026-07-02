@@ -220,7 +220,6 @@ export const CONVERSATION_CSS = `
   background:rgba(7,10,15,.24);
   opacity:0;
   display:flex; align-items:flex-end; justify-content:flex-start; padding:10px 12px;
-  transition:opacity ${'var(--app-motion-duration-medium, 180ms)'} ease, background-color ${'var(--app-motion-duration-medium, 180ms)'} ease;
 }
 .img-result:hover .img-overlay{ opacity:1; }
 .img-meta{

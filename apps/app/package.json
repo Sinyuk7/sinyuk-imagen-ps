@@ -21,6 +21,8 @@
     "@imagen-ps/foundation": "workspace:*",
     "@spectrum-web-components/icons-workflow": "^0.37.0",
     "@tweenjs/tween.js": "^25.0.0",
+    "fast-png": "^8.0.0",
+    "jpeg-js": "^0.4.4",
     "react": "^19.0.0",
     "react-dom": "^19.0.0"
   },
