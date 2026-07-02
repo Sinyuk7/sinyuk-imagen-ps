@@ -1,0 +1,81 @@
+.agents/skills/uxp-issue-rca/SKILL.md
+  s_75fba50b631470::t_77eb4c88b3cd62 3,12-25,45-51,71-72,84,92-98,117,119,121-128,131,145,150-155,160,163
+.agents/skills/uxp-issue-rca/agents/openai.yaml
+  s_75fba50b631470::t_d6641b2f763b16 3-4
+.agents/skills/uxp-ui-debugger/MEMORY.md
+  s_75fba50b631470::t_dc7c30f6686dd6 1-41
+.agents/skills/uxp-ui-debugger/SKILL.md
+  s_75fba50b631470::t_a895dbcdb8dccd 1-203
+.agents/skills/uxp-ui-debugger/agents/openai.yaml
+  s_75fba50b631470::t_0ec76d9ac5406b 1-4
+apps/app/AGENTS.md
+  s_75fba50b631470::t_3dfc24566dc417 40-48
+apps/app/src/harness/components/uxp-css-contract/uxp-css-contract-harness.tsx
+  s_12fbf104418207::t_5f066623f9575b 1414-1417
+apps/app/src/shared/ui/components/icon-select-trigger-button.tsx
+  s_c42295f7c05362::t_a0004be139ddff 18-20,43,47,54
+apps/app/src/shared/ui/components/overlay-controls.tsx
+  s_c42295f7c05362::t_0dc388f86543e6 3-4,56-76,79,101,115,135-136,151-152
+apps/app/src/shared/ui/pages/main-page.tsx
+  s_12fbf104418207::t_bbec73aca28a93 1295-1300
+apps/app/src/shared/ui/styles/composer.ts
+  s_12fbf104418207::t_464269141516fc 203-204,381,486,532-544,564-571,618-654
+apps/app/src/shared/ui/styles/responsive.ts
+  s_12fbf104418207::t_7ba1d05076e8f1 10-13
+apps/app/src/shared/ui/styles/shell.ts
+  s_12fbf104418207::t_17eeb8093f8883 29
+apps/app/tests/app-shell.test.tsx
+  s_c42295f7c05362::t_750ebf31cc8c87 34-37,561,609
+apps/app/tests/composer-select.test.tsx
+  s_c42295f7c05362::t_93f8712076c9b8 96-132,164,170,259,282,292,297-328
+apps/app/tests/main-page-attachment-submission.test.tsx
+  s_c42295f7c05362::t_5b91e99c00f4c9 10-13,304
+apps/app/tests/main-page-billing.test.tsx
+  s_12fbf104418207::t_0ad87592ff8893 40-42
+apps/app/tests/main-page-composer-controls.test.tsx
+  s_12fbf104418207::t_1080fb44fcce83 10-13,343,346,350-366,389
+apps/app/tests/uxp-css-compat.test.ts
+  s_c42295f7c05362::t_dc5cd67f99c380 171-172
+apps/app/tests/uxp-css-contract-harness.test.tsx
+  s_c42295f7c05362::t_b5cd09a45a2c3f 23-26,124
+docs/ENGINEERING_CONTEXT.md
+  s_75fba50b631470::t_29189c6603daa3 115
+docs/TESTING.md
+  s_75fba50b631470::t_c60b2405c4442e 237-260,282-284
+docs/agent/LOOP.md
+  s_75fba50b631470::t_2497fad407f4b2 172-173
+scripts/uxp-debug/uxp-debug.mjs
+  s_c42295f7c05362::t_d794525195e0fd 1-977
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.3",
+  "base_commit_sha": "94a912be6fb056af500797669089d15e44da22fb",
+  "prompts": {},
+  "sessions": {
+    "s_12fbf104418207": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "019f242f-e01a-7ad2-9537-29c75dbf4379",
+        "model": "unknown"
+      },
+      "human_author": "Sinyuk <80998062@qq.com>"
+    },
+    "s_75fba50b631470": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "019f2426-c42f-7782-8aef-0c661a03c7cf",
+        "model": "unknown"
+      },
+      "human_author": "Sinyuk <80998062@qq.com>"
+    },
+    "s_c42295f7c05362": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "019f23c4-2086-76e2-9685-c216dc4c9be5",
+        "model": "unknown"
+      },
+      "human_author": "Sinyuk <80998062@qq.com>"
+    }
+  }
+}
