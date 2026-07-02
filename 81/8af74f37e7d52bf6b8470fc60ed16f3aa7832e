@@ -1,0 +1,31 @@
+apps/app/package.json
+  s_6fb15245617e65::t_2fed923286ce49 24-25
+apps/app/src/adapters/uxp/photoshop-host-bridge.test.ts
+  s_6fb15245617e65::t_9e10d7c3c5f297 2-3,86-110,587,590,596,598-599,629-664,668,674-676,682,688-690,702-703,711-730
+apps/app/src/adapters/uxp/photoshop-host-bridge.ts
+  s_6fb15245617e65::t_3429af079c2ca4 4-5,16,19-20,585-668,678-680
+apps/app/tests/main-page.test.tsx
+  s_6fb15245617e65::t_6dd4ef4e62971c 126-175
+docs/ENGINEERING_CONTEXT.md
+  s_6fb15245617e65::t_4096307af2f320 65-66
+docs/loops/2026-07-02-local-file-provider-input-without-temp-doc.md
+  s_6fb15245617e65::t_38a02772ed0940 145-162
+pnpm-lock.yaml
+  s_6fb15245617e65::t_17da325d24fe06 32-37,660-662,672-674,693-698,1393-1397,1402-1403,1429-1432
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.3",
+  "base_commit_sha": "818af74f37e7d52bf6b8470fc60ed16f3aa7832e",
+  "prompts": {},
+  "sessions": {
+    "s_6fb15245617e65": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "019f2214-4dfe-7143-a342-303cdab7bdbd",
+        "model": "unknown"
+      },
+      "human_author": "Sinyuk <80998062@qq.com>"
+    }
+  }
+}
