@@ -53,6 +53,16 @@ pnpm --filter @imagen-ps/app test:chrome-e2e
 Filtered tests are not a clean-checkout baseline. Build the touched packages
 first when in doubt.
 
+Placement-only app work may additionally cite the standalone mock harness:
+
+```bash
+node apps/app/scripts/verify-placement-core.mjs
+```
+
+This script isolates round derivation, durable replay, and host target fallback
+for Photoshop placement semantics. It is per-slice evidence only; `pnpm validate`
+remains the final gate.
+
 `pnpm --filter @imagen-ps/app test:chrome-e2e` is an opt-in Chrome browser E2E
 gate for the app Chrome build. It builds `dist/web/`, serves it locally, runs
 Playwright Chromium at representative viewports (`390x720` default,

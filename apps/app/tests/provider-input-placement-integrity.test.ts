@@ -237,8 +237,8 @@ describe('provider input placement integrity', () => {
     expect(sameRatio(providerInputSize, source), exactRatioMessage(providerInputSize, source)).toBe(true);
     expect(sameRatio(result.providerOutputSize, source), exactRatioMessage(result.providerOutputSize, source)).toBe(true);
     expect(sameRatio(result.tempWriteSize, source), exactRatioMessage(result.tempWriteSize, source)).toBe(true);
-    expect(result.placementKind).toBe('document-only');
-    expect(result.scalePlacedLayer).not.toHaveBeenCalled();
-    expect(result.translatePlacedLayer).not.toHaveBeenCalled();
+    expect(result.placementKind).toBe('exact-frame');
+    expect(result.scalePlacedLayer).toHaveBeenCalledTimes(1);
+    expect(result.translatePlacedLayer).toHaveBeenCalledTimes(1);
   });
 });

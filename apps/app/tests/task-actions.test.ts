@@ -68,6 +68,35 @@ describe('task output actions', () => {
     expect(resolved.preview?.dispose).toHaveBeenCalledTimes(1);
   });
 
+  it('rebuilds exact-frame intent from durable document-only records when attachment evidence still carries frame bounds', async () => {
+    const record: TaskRecord = {
+      ...exactFrameTaskRecord(),
+      placement: {
+        kind: 'document-only',
+        document: {
+          host: 'photoshop',
+          documentId: 42,
+          width: 1024,
+          height: 768,
+        },
+      },
+    };
+    const output = record.outputs[0]!;
+    const resolved = available(output.asset);
+    const placeAssetOnCanvas = vi.fn(async () => undefined);
+
+    await placeTaskOutputOnCanvas(record, output.outputId, {
+      taskResources: { resolve: vi.fn(async () => resolved) },
+      host: { placeAssetOnCanvas },
+    });
+
+    expect(placeAssetOnCanvas).toHaveBeenCalledWith(expect.any(Object), expect.objectContaining({
+      kind: 'exact-frame',
+      documentId: 42,
+      placementRect: { left: 10, top: 20, right: 266, bottom: 276 },
+    }));
+  });
+
   it('does not call the host when the output resource is unavailable', async () => {
     const output = fakeTaskRecord.outputs[0]!;
     const placeAssetOnCanvas = vi.fn(async () => undefined);

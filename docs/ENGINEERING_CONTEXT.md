@@ -36,10 +36,16 @@ surface apps -> application/session -> core-engine + providers
   resource refs. Preview/download/place availability is resolved dynamically
   through app resource resolvers; missing or evicted resources must not corrupt
   the history list.
-- Photoshop placement replay is app/host-owned. Durable placement evidence is
-  matched against current Photoshop runtime state before any write, and weak,
-  ambiguous, missing, or dimension-mismatched targets do not write to
-  Photoshop.
+- Photoshop placement replay is app/host-owned. Round placement semantics live
+  on the round/task snapshot, not on provider output assets. Frame evidence
+  (`document + placementRect`) resolves to `exact-frame`; document-only
+  evidence resolves to `document-only`; no surviving evidence resolves to
+  `unbound`.
+- Source-document strong match is always the first placement target path.
+  When that fails, app/host may fall back once to the current active document.
+  Weak reopen matches still do not auto-write. Under active-document fallback,
+  preserved frame evidence may still place as `exact-frame`; degraded evidence
+  must place as `document-only`.
 
 ## Logging Contract
 

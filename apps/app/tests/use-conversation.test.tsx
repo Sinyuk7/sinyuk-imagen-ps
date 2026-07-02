@@ -109,15 +109,17 @@ describe('useConversation', () => {
     };
 
     expect(derivePlacementIntent([captureAttachment('capture-1')])).toMatchObject({
-      kind: 'document-only',
+      kind: 'exact-frame',
       documentId: 42,
+      placementRect: { left: 0, top: 0, right: 128, bottom: 128 },
     });
     expect(derivePlacementIntent([captureAttachment('capture-1'), fileAttachment])).toMatchObject({
-      kind: 'document-only',
+      kind: 'exact-frame',
       documentId: 42,
+      placementRect: { left: 0, top: 0, right: 128, bottom: 128 },
     });
     expect(derivePlacementIntent([layerAttachment])).toMatchObject({
-      kind: 'document-only',
+      kind: 'exact-frame',
       documentId: 42,
     });
     expect(derivePlacementIntent([captureAttachment('capture-1'), captureAttachment('capture-2', 99)])).toEqual({
@@ -247,13 +249,8 @@ describe('useConversation', () => {
       operation: 'image-edit',
       prompt: 'edit image',
       placement: {
-        kind: 'document-only',
-        document: expect.objectContaining({
-          host: 'photoshop',
-          documentId: 42,
-          width: 1024,
-          height: 768,
-        }),
+        kind: 'exact-frame',
+        sourceSnapshotId: expect.any(String),
       },
       execution: {
         profileId: 'mock-profile',

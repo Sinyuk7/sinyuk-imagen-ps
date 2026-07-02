@@ -12,7 +12,11 @@ import { createMemoryThumbnailStore, type ThumbnailStore } from '../../image/thu
 import type { ImagenSessionBinding } from './use-imagen-session';
 import type { AppMessages } from '../i18n/messages';
 import type { HostImageAsset } from '../../domain/host-image-asset';
-import type { PlacementIntent, PhotoshopCapturePlacement } from '../../domain/photoshop-placement';
+import {
+  placementIntentFromCapturePlacement,
+  type PlacementIntent,
+  type PhotoshopCapturePlacement,
+} from '../../domain/photoshop-placement';
 import type { Asset } from '@imagen-ps/application';
 import { createRunningTaskRecord } from '../../domain/task-snapshot';
 import type { AppGenerationSettings, AppProviderInputSizePreset } from '../../ports/app-generation-settings';
@@ -294,12 +298,7 @@ export function derivePlacementIntent(attachments: readonly ConversationAttachme
   }
 
   const firstCapture = captures[0].photoshopPlacement!;
-  return {
-    kind: 'document-only',
-    documentId: firstCapture.snapshot.documentId,
-    documentSizeAtCapture: firstCapture.snapshot.documentSize,
-    ...(firstCapture.snapshot.documentName !== undefined ? { documentName: firstCapture.snapshot.documentName } : {}),
-  };
+  return placementIntentFromCapturePlacement(firstCapture);
 }
 
 export function useConversation(

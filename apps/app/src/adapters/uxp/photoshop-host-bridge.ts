@@ -26,7 +26,10 @@ import type {
   PhotoshopRect,
   PlacementIntent,
 } from '../../shared/domain/photoshop-placement';
-import { matchPlacementIntent, type PlacementMatchResult } from '../../shared/domain/photoshop-placement';
+import {
+  matchPlacementIntent,
+  resolvePlacementTarget,
+} from '../../shared/domain/photoshop-placement';
 
 interface PhotoshopLayer {
   readonly id: number;
@@ -273,43 +276,58 @@ function documentsForPlacement(app: PhotoshopApp): readonly PlacementDocumentCan
   }));
 }
 
-function assertPlacementMatched(result: PlacementMatchResult): number {
-  if (result.kind === 'matched') {
-    if (result.confidence === 'weak') {
-      throw new Error('Photoshop placement target is unverifiable: weak document match requires explicit confirmation.');
-    }
-    return result.documentId;
-  }
-  if (result.kind === 'missing-document') {
-    throw new Error('Photoshop placement target document is no longer available.');
-  }
-  if (result.kind === 'ambiguous-document') {
-    throw new Error(`Photoshop placement target is ambiguous across ${result.candidates} documents.`);
-  }
-  if (result.kind === 'document-mismatch') {
-    throw new Error(`Photoshop placement target document mismatch: ${result.reason}.`);
-  }
-  if (result.kind === 'layer-mismatch') {
-    throw new Error(`Photoshop placement target layer mismatch: ${result.reason}.`);
-  }
-  throw new Error(`Photoshop placement target is unverifiable: ${result.reason}.`);
-}
-
-/** 解析点击置入时的 Photoshop 目标文档，未绑定来源时使用当前 active document。 */
-function targetDocumentForPlacement(app: PhotoshopApp, placement: PlacementIntent): PhotoshopDocument {
+/**
+ * 解析 Photoshop 目标文档：先做 source-document strong match，失败后才允许 activeDocument fallback。
+ * weak reopen match 仍然拒绝自动写入。
+ */
+function targetDocumentForPlacement(
+  app: PhotoshopApp,
+  placement: PlacementIntent,
+): { readonly document: PhotoshopDocument; readonly usedActiveDocumentFallback: boolean } {
   if (placement.kind === 'unbound') {
     if (placement.reason === 'multiple-documents') {
       throw new Error('Photoshop placement target is ambiguous across multiple source documents.');
     }
-    const document = app.activeDocument;
-    if (!document) {
+    if (!app.activeDocument) {
       throw new Error('Photoshop placement target requires an active Photoshop document.');
     }
-    return document;
+    return {
+      document: app.activeDocument,
+      usedActiveDocumentFallback: false,
+    };
   }
 
-  const matchedDocumentId = assertPlacementMatched(matchPlacementIntent(placement, documentsForPlacement(app)));
-  return requireDocumentById(app, matchedDocumentId);
+  const directMatch = matchPlacementIntent(placement, documentsForPlacement(app));
+  if (directMatch.kind === 'matched') {
+    if (directMatch.confidence === 'weak') {
+      throw new Error('Photoshop placement target is unverifiable: weak document match requires explicit confirmation.');
+    }
+    return {
+      document: requireDocumentById(app, directMatch.documentId),
+      usedActiveDocumentFallback: false,
+    };
+  }
+  if (directMatch.kind === 'ambiguous-document') {
+    throw new Error(`Photoshop placement target is ambiguous across ${directMatch.candidates} documents.`);
+  }
+  if (directMatch.kind === 'document-mismatch') {
+    throw new Error(`Photoshop placement target document mismatch: ${directMatch.reason}.`);
+  }
+  if (directMatch.kind === 'layer-mismatch') {
+    throw new Error(`Photoshop placement target layer mismatch: ${directMatch.reason}.`);
+  }
+
+  const resolution = resolvePlacementTarget(placement, documentsForPlacement(app), app.activeDocument?.id);
+  if (resolution.kind === 'unbound') {
+    throw new Error('Photoshop placement target document is no longer available.');
+  }
+  if (resolution.targetDocumentId === undefined) {
+    throw new Error('Photoshop placement target document is no longer available.');
+  }
+  return {
+    document: requireDocumentById(app, resolution.targetDocumentId),
+    usedActiveDocumentFallback: resolution.matchConfidence === 'active-document-fallback',
+  };
 }
 
 function setActiveDocument(app: PhotoshopApp, document: PhotoshopDocument): void {
@@ -1520,7 +1538,7 @@ export function createPhotoshopHostBridge(modules: UxpModules, options?: CreateP
         placement: placement.kind,
       });
       try {
-        const targetDocument = targetDocumentForPlacement(app, placement);
+        const { document: targetDocument, usedActiveDocumentFallback } = targetDocumentForPlacement(app, placement);
         const { data, mimeType } = await assetToArrayBuffer(asset, assetStore);
         ensurePlaceableImagePayload(data, mimeType);
         const bytes = new Uint8Array(data);
@@ -1550,7 +1568,7 @@ export function createPhotoshopHostBridge(modules: UxpModules, options?: CreateP
                 ],
                 { synchronousExecution: false },
               );
-              if (placement.kind === 'exact-frame') {
+              if (placement.kind === 'exact-frame' && !usedActiveDocumentFallback) {
                 await transformActivePlacedLayer(targetDocument, placement.placementRect);
               }
             },

@@ -158,11 +158,25 @@ function taskAttachmentFromConversation(attachment: TaskSnapshotAttachmentInput)
   };
 }
 
+function capturePlacementForIntent(
+  intent: PlacementIntent,
+  attachments: readonly TaskSnapshotAttachmentInput[],
+): PhotoshopCapturePlacement | undefined {
+  if (intent.kind === 'unbound') {
+    return undefined;
+  }
+  return attachments.find((attachment) =>
+    attachment.photoshopPlacement !== undefined &&
+    attachment.photoshopPlacement.snapshot.documentId === intent.documentId,
+  )?.photoshopPlacement;
+}
+
 function placementFromIntent(intent: PlacementIntent, attachments: readonly TaskSnapshotAttachmentInput[]): TaskPlacement {
   if (intent.kind === 'exact-frame') {
-    const match = attachments.find((attachment) => attachment.photoshopPlacement !== undefined);
-    if (match?.photoshopPlacement !== undefined) {
-      return { kind: 'exact-frame', sourceSnapshotId: sourceSnapshotId(match.id, match.photoshopPlacement) };
+    const match = capturePlacementForIntent(intent, attachments);
+    const attachment = attachments.find((item) => item.photoshopPlacement === match);
+    if (attachment !== undefined && match !== undefined) {
+      return { kind: 'exact-frame', sourceSnapshotId: sourceSnapshotId(attachment.id, match) };
     }
   }
 

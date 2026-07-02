@@ -1,7 +1,12 @@
 import type { Asset, TaskRecord, TaskResourceRef } from '@imagen-ps/application';
 import type { ResolvedTaskResource } from '@imagen-ps/application';
 import type { HostBridge } from '../ports/host-port';
-import type { PlacementIntent, PhotoshopRect } from './photoshop-placement';
+import {
+  placementIntentFromCapturePlacement,
+  type PlacementIntent,
+  type PhotoshopCapturePlacement,
+  type PhotoshopRect,
+} from './photoshop-placement';
 
 export interface TaskActionResourceResolver {
   resolve(resource: TaskResourceRef): Promise<ResolvedTaskResource>;
@@ -32,10 +37,82 @@ function rectFromEvidence(value: unknown): PhotoshopRect | undefined {
   return { left, top, right, bottom };
 }
 
+function placementFromEvidence(source: Record<string, unknown> | undefined): PhotoshopCapturePlacement | undefined {
+  const document = asRecord(source?.document);
+  const layer = asRecord(source?.layer);
+  const documentId = numberValue(document?.documentId);
+  const width = numberValue(document?.width);
+  const height = numberValue(document?.height);
+  const layerId = numberValue(layer?.layerId);
+  const layerBoundsNoEffects = rectFromEvidence(layer?.bounds);
+  const placementRect = rectFromEvidence(source?.placementRect);
+  const selection = asRecord(asRecord(source?.selection)?.bounds);
+  const selectionBounds = selection ? rectFromEvidence(selection) ?? null : null;
+  const documentName = typeof document?.name === 'string' ? document.name : undefined;
+  if (
+    documentId === undefined ||
+    width === undefined ||
+    height === undefined ||
+    layerId === undefined ||
+    layerBoundsNoEffects === undefined ||
+    placementRect === undefined
+  ) {
+    return undefined;
+  }
+  return {
+    snapshot: {
+      documentId,
+      ...(documentName ? { documentName } : {}),
+      documentSize: { width, height },
+      layerId,
+      layerBoundsNoEffects,
+      selectionBounds,
+    },
+    placementRect,
+  };
+}
+
+function exactFrameIntentFromLegacyEvidence(source: Record<string, unknown> | undefined): PlacementIntent | undefined {
+  const document = asRecord(source?.document);
+  const documentId = numberValue(document?.documentId);
+  const width = numberValue(document?.width);
+  const height = numberValue(document?.height);
+  const documentName = typeof document?.name === 'string' ? document.name : undefined;
+  const placementRect = rectFromEvidence(source?.placementRect);
+  if (documentId === undefined || width === undefined || height === undefined || placementRect === undefined) {
+    return undefined;
+  }
+  return {
+    kind: 'exact-frame',
+    documentId,
+    documentSizeAtCapture: { width, height },
+    ...(documentName ? { documentName } : {}),
+    placementRect,
+  };
+}
+
 function placementIntentFromTask(record: TaskRecord): PlacementIntent {
   const placement = record.placement;
   if (placement.kind === 'unbound') {
     return { kind: 'unbound', reason: placement.reason === 'multiple-documents' ? 'multiple-documents' : 'no-photoshop-capture' };
+  }
+
+  const attachmentEvidence = record.attachments
+    .map((attachment) => asRecord(asRecord(attachment)?.evidence))
+    .find((evidence) =>
+      placement.kind === 'exact-frame'
+        ? evidence?.snapshotId === placement.sourceSnapshotId
+        : numberValue(asRecord(evidence?.document)?.documentId) === numberValue(placement.document.documentId),
+    );
+  const replayPlacement = placementFromEvidence(attachmentEvidence);
+  if (replayPlacement !== undefined) {
+    return placementIntentFromCapturePlacement(replayPlacement);
+  }
+  if (placement.kind === 'exact-frame') {
+    const legacyExactFrame = exactFrameIntentFromLegacyEvidence(attachmentEvidence);
+    if (legacyExactFrame !== undefined) {
+      return legacyExactFrame;
+    }
   }
 
   if (placement.kind === 'document-only') {
@@ -47,22 +124,32 @@ function placementIntentFromTask(record: TaskRecord): PlacementIntent {
     if (documentId === undefined || width === undefined || height === undefined) {
       return { kind: 'unbound', reason: 'no-photoshop-capture' };
     }
+    const legacyExactFrame = exactFrameIntentFromLegacyEvidence(attachmentEvidence);
+    if (legacyExactFrame !== undefined) {
+      return legacyExactFrame;
+    }
     return { kind: 'document-only', documentId, documentSizeAtCapture: { width, height }, ...(documentName ? { documentName } : {}) };
   }
 
-  const source = record.attachments
-    .map((attachment) => asRecord(asRecord(attachment)?.evidence))
-    .find((evidence) => evidence?.snapshotId === placement.sourceSnapshotId);
+  const source = attachmentEvidence;
   const document = asRecord(source?.document);
   const documentId = numberValue(document?.documentId);
   const width = numberValue(document?.width);
   const height = numberValue(document?.height);
   const documentName = typeof document?.name === 'string' ? document.name : undefined;
-  const placementRect = rectFromEvidence(source?.placementRect);
-  if (documentId === undefined || width === undefined || height === undefined || placementRect === undefined) {
+  const evidencePlacement = placementFromEvidence(source);
+  if (documentId === undefined || width === undefined || height === undefined || evidencePlacement === undefined) {
     return { kind: 'unbound', reason: 'no-photoshop-capture' };
   }
-  return { kind: 'exact-frame', documentId, documentSizeAtCapture: { width, height }, ...(documentName ? { documentName } : {}), placementRect };
+  return placementIntentFromCapturePlacement({
+    ...evidencePlacement,
+    snapshot: {
+      ...evidencePlacement.snapshot,
+      ...(documentName ? { documentName } : {}),
+      documentSize: { width, height },
+      documentId,
+    },
+  });
 }
 
 function assetFromResolved(record: TaskRecord, resource: ResolvedTaskResource): Asset {

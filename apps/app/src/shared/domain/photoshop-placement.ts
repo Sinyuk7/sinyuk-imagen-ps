@@ -29,6 +29,8 @@ export interface PhotoshopCaptureResult {
   readonly sourceKind: 'selection' | 'layer';
 }
 
+export type PlacementEvidenceStrength = 'frame' | 'document' | 'none';
+
 export type PlacementIntentKind = 'exact-frame' | 'document-only' | 'unbound';
 
 export interface ExactFramePlacementIntent {
@@ -56,6 +58,14 @@ export type PlacementIntent =
   | ExactFramePlacementIntent
   | DocumentOnlyPlacementIntent
   | UnboundPlacementIntent;
+
+export interface PlacementTargetResolution {
+  readonly kind: 'resolved' | 'unbound';
+  readonly targetDocumentId?: number;
+  readonly matchConfidence?: 'strong' | 'weak' | 'active-document-fallback';
+  readonly evidenceStrength: PlacementEvidenceStrength;
+  readonly reason?: UnboundPlacementIntent['reason'];
+}
 
 export interface PlacementDocumentCandidate {
   readonly documentId?: number;
@@ -118,4 +128,79 @@ export function matchPlacementIntent(
     };
   }
   return { kind: 'matched', confidence: 'strong', documentId: document.documentId };
+}
+
+/** 基于单条 Photoshop placement evidence 推导 round placement intent。 */
+export function placementIntentFromCapturePlacement(placement: PhotoshopCapturePlacement): PlacementIntent {
+  return {
+    kind: 'exact-frame',
+    documentId: placement.snapshot.documentId,
+    documentSizeAtCapture: placement.snapshot.documentSize,
+    ...(placement.snapshot.documentName !== undefined ? { documentName: placement.snapshot.documentName } : {}),
+    placementRect: placement.placementRect,
+  };
+}
+
+/** 判断当前 round intent 仍保留的 placement evidence 强度。 */
+export function placementEvidenceStrength(intent: PlacementIntent): PlacementEvidenceStrength {
+  if (intent.kind === 'exact-frame') {
+    return 'frame';
+  }
+  if (intent.kind === 'document-only') {
+    return 'document';
+  }
+  return 'none';
+}
+
+/**
+ * 先尝试 source-document strong match；失败后允许 caller 提供 activeDocument fallback。
+ * 这里不决定 exact/document-only，只负责目标文档解析与剩余证据强度。
+ */
+export function resolvePlacementTarget(
+  placement: PlacementIntent,
+  documents: readonly PlacementDocumentCandidate[],
+  activeDocumentId?: number,
+): PlacementTargetResolution {
+  const evidenceStrength = placementEvidenceStrength(placement);
+  if (placement.kind === 'unbound') {
+    return {
+      kind: 'unbound',
+      reason: placement.reason,
+      evidenceStrength,
+    };
+  }
+
+  const matched = matchPlacementIntent(placement, documents);
+  if (matched.kind === 'matched' && matched.confidence === 'strong') {
+    return {
+      kind: 'resolved',
+      targetDocumentId: matched.documentId,
+      matchConfidence: 'strong',
+      evidenceStrength,
+    };
+  }
+
+  if (matched.kind === 'missing-document' && activeDocumentId !== undefined) {
+    return {
+      kind: 'resolved',
+      targetDocumentId: activeDocumentId,
+      matchConfidence: 'active-document-fallback',
+      evidenceStrength,
+    };
+  }
+
+  if (matched.kind === 'matched') {
+    return {
+      kind: 'resolved',
+      targetDocumentId: matched.documentId,
+      matchConfidence: matched.confidence,
+      evidenceStrength,
+    };
+  }
+
+  return {
+    kind: 'unbound',
+    reason: 'no-photoshop-capture',
+    evidenceStrength,
+  };
 }

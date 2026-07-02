@@ -123,6 +123,42 @@ describe('MainPage contract', () => {
     });
   });
 
+  it('preserves Photoshop placement evidence on local-file attachments when host provides it', async () => {
+    const container = document.createElement('div');
+    document.body.appendChild(container);
+    const services = createFakeServices();
+    services.spies.pickImageFile.mockResolvedValueOnce({
+      ...fakeHostImage,
+      photoshopPlacement: {
+        snapshot: {
+          documentId: 42,
+          documentSize: { width: 1024, height: 768 },
+          layerId: 1,
+          layerBoundsNoEffects: { left: 10, top: 20, right: 266, bottom: 276 },
+          selectionBounds: { left: 10, top: 20, right: 266, bottom: 276 },
+        },
+        placementRect: { left: 10, top: 20, right: 266, bottom: 276 },
+      },
+    });
+    const { spies } = await renderApp(container, services);
+
+    await act(async () => {
+      container.querySelector<HTMLElement>('[data-testid="composer-add-image-button"]')!.click();
+    });
+    await act(async () => {
+      clickText(container, '.attach-opt', '从电脑上传');
+    });
+    await flush();
+    await sendPrompt(container, 'edit bound local file');
+
+    expect(spies.putTaskRecord).toHaveBeenCalledWith(expect.objectContaining({
+      placement: {
+        kind: 'exact-frame',
+        sourceSnapshotId: expect.any(String),
+      },
+    }));
+  });
+
   it('add attachment button does not inject a nested icon background wrapper', async () => {
     const container = document.createElement('div');
     document.body.appendChild(container);
@@ -267,7 +303,7 @@ describe('MainPage contract', () => {
     });
 
     expect(spies.placeAssetOnCanvas).toHaveBeenCalledWith(fakeOutputAsset, expect.objectContaining({
-      kind: 'document-only',
+      kind: 'exact-frame',
       documentId: 42,
     }));
   });
@@ -407,7 +443,7 @@ describe('MainPage contract', () => {
       name: 'result-2.png',
       type: 'image',
     }), expect.objectContaining({
-      kind: 'document-only',
+      kind: 'exact-frame',
       documentId: 42,
     }));
   });
@@ -604,7 +640,7 @@ describe('MainPage contract', () => {
     });
 
     expect(spies.placeAssetOnCanvas).toHaveBeenCalledWith(fakeOutputAsset, expect.objectContaining({
-      kind: 'document-only',
+      kind: 'exact-frame',
       documentId: 42,
     }));
   });

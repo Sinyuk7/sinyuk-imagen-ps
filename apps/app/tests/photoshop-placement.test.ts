@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { matchPlacementIntent } from '../src/shared/domain/photoshop-placement';
+import { matchPlacementIntent, resolvePlacementTarget } from '../src/shared/domain/photoshop-placement';
 
 describe('photoshop placement matching', () => {
   it('matches the same document id and dimensions strongly', () => {
@@ -36,5 +36,18 @@ describe('photoshop placement matching', () => {
       },
       [{ documentId: 42, width: 256, height: 384 }],
     )).toMatchObject({ kind: 'document-mismatch' });
+  });
+
+  it('falls back to activeDocument after source-document resolution fails', () => {
+    expect(resolvePlacementTarget(
+      { kind: 'exact-frame', documentId: 42, documentName: 'source.psd', documentSizeAtCapture: { width: 512, height: 384 }, placementRect: { left: 0, top: 0, right: 256, bottom: 256 } },
+      [{ documentId: 77, width: 640, height: 480, name: 'other.psd' }],
+      77,
+    )).toEqual({
+      kind: 'resolved',
+      targetDocumentId: 77,
+      matchConfidence: 'active-document-fallback',
+      evidenceStrength: 'frame',
+    });
   });
 });

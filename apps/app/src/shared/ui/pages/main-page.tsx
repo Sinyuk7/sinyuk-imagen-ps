@@ -475,6 +475,7 @@ export function MainPage({
         name: image.asset.name ?? 'image',
         image,
         previewUrl: image.preview.url ?? assetToPreviewUrl(image.asset),
+        ...(image.photoshopPlacement ? { photoshopPlacement: image.photoshopPlacement } : {}),
       });
       show(t.toast.fileAdded, 'positive', { durationMs: 2800 });
     } catch (error) {
