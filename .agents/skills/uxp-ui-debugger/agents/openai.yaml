@@ -1,0 +1,4 @@
+interface:
+  display_name: "UXP UI Debugger"
+  short_description: "Confirmed-UI Photoshop UXP debugger"
+  default_prompt: "Use $uxp-ui-debugger to debug a confirmed Photoshop UXP UI bug after UI ownership is already established, or after $uxp-issue-rca has handed off a pure UI finding."

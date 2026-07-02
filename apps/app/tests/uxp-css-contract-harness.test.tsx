@@ -20,6 +20,10 @@ async function flush(): Promise<void> {
   });
 }
 
+function iconSelectValue(root: ParentNode, selector: string): string {
+  return root.querySelector<HTMLElement>(selector)?.closest('.ui-overlay-icon-host')?.querySelector<HTMLElement>('.cmp-chip-overlay-value-icon')?.textContent ?? '';
+}
+
 describe('UXP CSS contract harness', () => {
   it('renders inside a real panel shell with a single primary scroll container', async () => {
     const container = document.createElement('div');
@@ -117,7 +121,7 @@ describe('UXP CSS contract harness', () => {
 
     expect(toolbar).not.toBeNull();
     expect(modelSelector).not.toBeNull();
-    expect(modelSelector?.textContent).toContain('gemini-3.1-flash-image-preview');
+    expect(iconSelectValue(container, '[data-testid="uxp-css-long-model-selector"]')).toContain('gemini-3.1-flash-image-preview');
     expect(geometry).not.toBeNull();
     expect(geometry?.textContent).toContain('pad.left=');
     expect(geometry?.textContent).toContain('overlay.leading=');

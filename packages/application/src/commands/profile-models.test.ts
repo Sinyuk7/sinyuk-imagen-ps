@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
-import { _resetForTesting, setProviderProfileRepository } from '../runtime.js';
-import { listProfileModels } from './profile-models.js';
+import { _resetForTesting, _setRuntimeInstanceForTesting, setProviderProfileRepository } from '../runtime.js';
+import { createProviderRegistry, type Provider, type ProviderConfig, type ProviderRequest } from '@imagen-ps/providers';
+import { listProfileModels, refreshProfileModels } from './profile-models.js';
 import type { ProviderProfile, ProviderProfileRepository } from './types.js';
 
 function createRepository(profiles: readonly ProviderProfile[]): ProviderProfileRepository {
@@ -19,6 +20,10 @@ function createRepository(profiles: readonly ProviderProfile[]): ProviderProfile
       store.delete(profileId);
     },
   };
+}
+
+function repositoryEntry(repository: ProviderProfileRepository, profileId: string): Promise<ProviderProfile | undefined> {
+  return repository.get(profileId);
 }
 
 function mockProfile(overrides?: Partial<ProviderProfile>): ProviderProfile {
@@ -174,5 +179,89 @@ describe('profile model commands', () => {
         supportStatus: 'saved-undiscovered',
       });
     }
+  });
+
+  it('reconciles stale image-endpoint cache against the current catalog before returning picker models', async () => {
+    _resetForTesting();
+    setProviderProfileRepository(createRepository([
+      imageEndpointProfile({
+        models: [
+          { id: 'gemini-2.5-flash-image', displayName: 'Gemini 2.5 Flash Image' },
+          { id: 'gemini-3-pro-image', displayName: 'Gemini 3 Pro Image' },
+          { id: 'gpt-image-2', displayName: 'GPT Image 2' },
+          { id: 'gpt-image-1-2025-04-15', displayName: 'GPT Image 1 2025 04 15' },
+          { id: 'gpt-image-1', displayName: 'GPT Image 1' },
+          { id: 'gemini-3.1-flash-lite-image', displayName: 'Gemini 3.1 Flash Lite Image' },
+          { id: 'gpt-image-1-mini', displayName: 'GPT Image 1 Mini' },
+          { id: 'dall-e-3', displayName: 'DALL-E 3' },
+          { id: 'gemini-3.1-flash-image', displayName: 'Gemini 3.1 Flash Image' },
+          { id: 'gemini-3.1-flash-image-preview', displayName: 'Gemini 3.1 Flash Image Preview' },
+          { id: 'gpt-image-1.5', displayName: 'GPT Image 1.5' },
+          { id: 'gemini-3-pro-image-preview', displayName: 'Gemini 3 Pro Image Preview' },
+        ],
+      }),
+    ]));
+
+    const result = await listProfileModels('image-endpoint-profile');
+
+    expect(result.ok).toBe(true);
+    if (result.ok) {
+      expect(result.value.map((model) => model.id)).toEqual(['gpt-image-2', 'gpt-image-1', 'dall-e-3']);
+      expect(result.value.every((model) => model.supportStatus === 'selectable')).toBe(true);
+    }
+  });
+
+  it('persists reconciled catalog models after refresh succeeds for image-endpoint profiles', async () => {
+    _resetForTesting();
+    const repository = createRepository([imageEndpointProfile()]);
+    setProviderProfileRepository(repository);
+
+    const registry = createProviderRegistry();
+    const refreshingProvider: Provider<ProviderConfig, ProviderRequest> = {
+      id: 'image-endpoint',
+      family: 'image-endpoint',
+      describe() {
+        return {
+          id: 'image-endpoint',
+          family: 'image-endpoint',
+          displayName: 'Image Endpoint',
+          operations: ['text_to_image', 'image_edit'],
+          invokeMode: 'sync',
+        };
+      },
+      validateConfig(input) {
+        return input as ProviderConfig;
+      },
+      validateRequest(input) {
+        return input as ProviderRequest;
+      },
+      async invoke() {
+        throw new Error('invoke not used in this test');
+      },
+      async discoverModels() {
+        return [
+          { id: 'gemini-2.5-flash-image', displayName: 'Gemini 2.5 Flash Image' },
+          { id: 'gpt-image-2', displayName: 'GPT Image 2' },
+          { id: 'gpt-image-1', displayName: 'GPT Image 1' },
+          { id: 'dall-e-3', displayName: 'DALL-E 3' },
+          { id: 'gpt-image-1-mini', displayName: 'GPT Image 1 Mini' },
+        ];
+      },
+      async queryBalance() {
+        throw new Error('queryBalance not used in this test');
+      },
+    };
+    registry.register(refreshingProvider);
+    _setRuntimeInstanceForTesting({ providerRegistry: registry } as never);
+
+    const result = await refreshProfileModels('image-endpoint-profile');
+
+    expect(result.ok).toBe(true);
+    if (result.ok) {
+      expect(result.value.map((model) => model.id)).toEqual(['gpt-image-2', 'gpt-image-1', 'dall-e-3']);
+    }
+
+    const persisted = await repositoryEntry(repository, 'image-endpoint-profile');
+    expect(persisted?.models?.map((model) => model.id)).toEqual(['gpt-image-2', 'gpt-image-1', 'dall-e-3']);
   });
 });

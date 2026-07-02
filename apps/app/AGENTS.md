@@ -37,6 +37,15 @@ UXP HTML/CSS, Spectrum Web Components, or SWC wrapper question:
    - Adobe official samples
    - the real Photoshop UXP runtime
 
+7. For repo-owned real Photoshop UXP runtime inspection, default to:
+
+   ```sh
+   node scripts/uxp-debug/uxp-debug.mjs
+   ```
+
+   Use it for targets, `eval`, `inspect`, `ancestors`, runtime style/reset,
+   and relay-backed console inspection before inventing ad hoc workflows.
+
 7. Clearly distinguish:
    - officially documented support
    - official sample behavior

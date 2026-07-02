@@ -19,6 +19,7 @@ import {
   describeConfiguredCatalogModel,
   listLocalCatalogModels,
   providerUsesImageModelCatalog,
+  reconcileDiscoveredCatalogModels,
   type ProviderModelInfo,
 } from '@imagen-ps/providers';
 
@@ -52,6 +53,16 @@ function defaultModelsForProfile(profile: ProviderProfile, descriptorDefaults: r
     return listLocalCatalogModels(profile.providerId);
   }
   return descriptorDefaults;
+}
+
+function reconcileCachedCatalogModels(profile: ProviderProfile): readonly ProviderModelInfo[] {
+  if (!providerUsesImageModelCatalog(profile.providerId)) {
+    return profile.models ?? [];
+  }
+  return reconcileDiscoveredCatalogModels({
+    providerId: profile.providerId,
+    discoveredModels: profile.models ?? [],
+  });
 }
 
 /**
@@ -97,7 +108,7 @@ export async function listProfileModels(profileId: string): Promise<CommandResul
   // 去重，不写回 discovery cache）。
   const descriptorDefaults = provider.describe().defaultModels ?? [];
   const baseModels = profile.models && profile.models.length > 0
-    ? profile.models
+    ? reconcileCachedCatalogModels(profile)
     : defaultModelsForProfile(profile, descriptorDefaults);
   const mergedModels = mergeConfiguredDefaultModel(baseModels, profile);
   span.finish({
@@ -195,9 +206,16 @@ export async function refreshProfileModels(profileId: string): Promise<CommandRe
     };
   }
 
+  const persistedModels = providerUsesImageModelCatalog(profile.providerId)
+    ? reconcileDiscoveredCatalogModels({
+      providerId: profile.providerId,
+      discoveredModels: models,
+    })
+    : models;
+
   const updated: ProviderProfile = {
     ...profile,
-    models,
+    models: persistedModels,
     updatedAt: new Date().toISOString(),
   };
   try {
@@ -213,6 +231,6 @@ export async function refreshProfileModels(profileId: string): Promise<CommandRe
     };
   }
 
-  span.finish({ count: models.length });
-  return { ok: true, value: models };
+  span.finish({ count: persistedModels.length });
+  return { ok: true, value: persistedModels };
 }

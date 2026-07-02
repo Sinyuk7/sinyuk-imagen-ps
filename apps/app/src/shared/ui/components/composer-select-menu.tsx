@@ -75,7 +75,6 @@ export function ComposerSelectMenu({
   };
 
   const handlePressStart = (event: MouseEvent<HTMLElement> | PointerEvent<HTMLElement>) => {
-    event.preventDefault();
     event.stopPropagation();
   };
 

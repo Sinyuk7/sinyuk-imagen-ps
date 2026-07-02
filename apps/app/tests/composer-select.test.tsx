@@ -93,6 +93,43 @@ describe('ComposerSelect', () => {
     expect(container.querySelector('.cmp-chip-leading-proxy-icon')).not.toBeNull();
   });
 
+  it('renders icon trigger value on the overlay rail to avoid UXP button child collapse', async () => {
+    const container = document.createElement('div');
+    document.body.appendChild(container);
+    root = createRoot(container);
+    await act(async () => {
+      root!.render(
+        createElement(IconSelect, {
+          label: 'Model',
+          value: 'gemini-3.1-flash-lite-image-ultra-long-preview-model',
+          icon: 'algorithm',
+          open: false,
+          onOpenChange: () => undefined,
+          options: [
+            {
+              id: 'gemini',
+              label: 'gemini-3.1-flash-lite-image-ultra-long-preview-model',
+            },
+          ],
+          selectedId: 'gemini',
+          onSelect: () => undefined,
+          testId: 'icon-select',
+          containerClassName: 'cmp-select cmp-select-model',
+        }),
+      );
+    });
+    await flush();
+
+    const trigger = container.querySelector<HTMLElement>('[data-testid="icon-select"]')!;
+    const overlayValue = container.querySelector('.cmp-chip-overlay-value-icon');
+    const a11ySlot = container.querySelector('.cmp-chip-a11y-value-icon');
+
+    expect(trigger.textContent).toBe('');
+    expect(trigger.getAttribute('aria-label')).toBe('Model');
+    expect(overlayValue?.textContent).toBe('gemini-3.1-flash-lite-image-ultra-long-preview-model');
+    expect(a11ySlot?.textContent).toBe('');
+  });
+
   it('keeps long icon-trigger values inside the shared overlay host contract', async () => {
     const container = document.createElement('div');
     document.body.appendChild(container);
@@ -124,13 +161,13 @@ describe('ComposerSelect', () => {
     const trigger = container.querySelector('.cmp-chip-icon');
     const overlayLayer = container.querySelector('.cmp-chip-host > .ui-overlay-icon-layer');
     const overlayInner = container.querySelector('.cmp-chip-overlay-inner-icon');
-    const triggerText = container.querySelector('[data-testid="long-icon-select"]');
+    const overlayValue = container.querySelector('.cmp-chip-overlay-value-icon');
 
     expect(host).not.toBeNull();
     expect(trigger).not.toBeNull();
     expect(overlayLayer).not.toBeNull();
     expect(overlayInner).not.toBeNull();
-    expect(triggerText?.textContent).toContain('gemini-3.1-flash-lite-imagen');
+    expect(overlayValue?.textContent).toContain('gemini-3.1-flash-lite-imagen');
   });
 
   it('renders text trigger without icon slot when text variant is used', async () => {
@@ -219,7 +256,7 @@ describe('ComposerSelect', () => {
     expect(open).toBe(false);
   });
 
-  it('stops press-start events from bubbling through menu options', async () => {
+  it('stops press-start events from bubbling through menu options without canceling native click', async () => {
     const container = document.createElement('div');
     const parent = document.createElement('div');
     let mouseDownCount = 0;
@@ -242,7 +279,7 @@ describe('ComposerSelect', () => {
     });
     await flush();
 
-    expect(mouseDownEvent.defaultPrevented).toBe(true);
+    expect(mouseDownEvent.defaultPrevented).toBe(false);
     expect(mouseDownCount).toBe(0);
 
     if (typeof PointerEvent !== 'undefined') {
@@ -252,9 +289,41 @@ describe('ComposerSelect', () => {
       });
       await flush();
 
-      expect(pointerDownEvent.defaultPrevented).toBe(true);
+      expect(pointerDownEvent.defaultPrevented).toBe(false);
       expect(pointerDownCount).toBe(0);
     }
+  });
+
+  it('opens icon select when the overlay host receives the UXP click target', async () => {
+    const container = document.createElement('div');
+    document.body.appendChild(container);
+    let open = false;
+    root = createRoot(container);
+    await act(async () => {
+      root!.render(
+        createElement(IconSelect, {
+          label: 'Model',
+          value: 'Option A',
+          icon: 'algorithm',
+          open: false,
+          onOpenChange: (value) => {
+            open = value;
+          },
+          options: [{ id: 'option-a', label: 'Option A' }],
+          selectedId: 'option-a',
+          onSelect: () => undefined,
+          testId: 'icon-select',
+        }),
+      );
+    });
+    await flush();
+
+    await act(async () => {
+      container.querySelector<HTMLElement>('.ui-overlay-icon-host')!.click();
+    });
+    await flush();
+
+    expect(open).toBe(true);
   });
 
   it('keeps compact menu options vertically contiguous', async () => {

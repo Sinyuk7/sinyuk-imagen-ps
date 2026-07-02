@@ -169,7 +169,8 @@ skill whose trigger matches the task:
 | `requirement-to-loop-planner` | New non-trivial requirement or architecture / provider / UXP workflow change needs bounded scope, validation, and stop rules before implementation. |
 | `bounded-loop-executor` | An approved Loop slice already defines owner boundary, allowed files, forbidden files, validation, stop rules, and reporting requirements. |
 | `provider-contract-reviewer` | Provider config schemas, canonical requests, model discovery, transport builders, response parsers, descriptors, mock/live smoke boundaries, or normalization. |
-| `uxp-issue-rca` | Final-test Photoshop UXP defects, Chrome-vs-UXP divergence, and UI/non-UI panel failures that need real host logs, owner localization, and a focused UXP UI or runtime verification path. |
+| `uxp-issue-rca` | Final-test Photoshop UXP defects, Chrome-vs-UXP divergence, and mixed/non-UI panel failures that need real host logs, owner localization, and dispatch. When host probing is needed, default to `node scripts/uxp-debug/uxp-debug.mjs`. |
+| `uxp-ui-debugger` | Confirmed Photoshop UXP UI bugs that need real host DOM/event/style probes before source edits. Default probe surface: `node scripts/uxp-debug/uxp-debug.mjs`. |
 | `docs-reducer` | Documentation has grown, `docs/dev-memory` / `docs/loops` / inbox trees have accumulated, `AGENTS.md` files duplicate global rules, or canonical authority is unclear; reduce toward the `scripts/policy/docs.mjs` whitelist. |
 
 Do not create one skill per feature. Do not create generic TypeScript monorepo

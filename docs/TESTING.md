@@ -234,6 +234,30 @@ least one is added, `pnpm test:release` fails with "Release suite is empty".
 Manual Photoshop / UXP proof is a separate gate. Record it as manual evidence;
 do not describe it as covered by `pnpm validate`.
 
+When the panel is reachable, the default repo-owned Photoshop UXP debug/probe
+surface is:
+
+```sh
+node scripts/uxp-debug/uxp-debug.mjs
+```
+
+Use it for real-host target discovery, DOM inspection, ancestor layout data,
+runtime style mutation, event instrumentation, and relay-backed console
+inspection. Do not replace it with ad hoc DevTools-only DOM workflows or
+Photoshop window automation.
+
+Minimum real-host probe sequence:
+
+```sh
+node scripts/uxp-debug/uxp-debug.mjs targets
+node scripts/uxp-debug/uxp-debug.mjs --plugin-id com.imagen-ps.panel eval 'document.body?.tagName'
+node scripts/uxp-debug/uxp-debug.mjs --plugin-id com.imagen-ps.panel inspect '<selector>'
+node scripts/uxp-debug/uxp-debug.mjs --plugin-id com.imagen-ps.panel ancestors '<selector>'
+```
+
+Run commands serially against the UDT relay. For multiple targets, pass
+`--plugin-id com.imagen-ps.panel`.
+
 The icon visual harness (`apps/app/harness/icon-visual/`) is a manual host
 harness for verifying that UXP panel icons render with non-zero rects inside
 real Photoshop. It requires a real Photoshop host and UXP Developer Tool; run
@@ -254,6 +278,9 @@ app surface:
 ```js
 localStorage.removeItem('imagenPsPanelHarness');
 ```
+
+Keep `node scripts/uxp-debug/uxp-debug.mjs` as the default way to inspect the
+real panel before and after enabling this harness.
 
 Chrome browser smoke is repo-side evidence only when it loads the browser build
 in a real browser and reports the Chrome shell ready state. It still does not

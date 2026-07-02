@@ -26,7 +26,7 @@ export const SHELL_CSS = `
   line-height:0;
 }
 .hdr-center-wrap{
-  flex:1; min-width:0; display:flex; justify-content:center; position:relative;
+  flex:1; min-width:0; display:flex; justify-content:center; align-items:center; position:relative;
   margin-top:0; margin-right:8px; margin-bottom:0; margin-left:8px;
 }
 .hdr-center{

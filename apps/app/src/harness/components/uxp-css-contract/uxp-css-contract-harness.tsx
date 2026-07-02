@@ -1411,6 +1411,10 @@ function ComposerConversationBoard({
                 placement="top"
                 iconSize={13}
               />
+              <div className="cmp-balance-pill" data-testid="harness-billing-pill">
+                <span className="cmp-balance-pill-label">Balance</span>
+                <span className="cmp-balance-pill-value">12.50 USD</span>
+              </div>
             </div>
             <div className="cmp-action-right">
               <IconButton

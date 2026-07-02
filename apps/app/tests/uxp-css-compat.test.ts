@@ -168,7 +168,8 @@ describe('UXP panel CSS compatibility', () => {
     expect(unionSource).toContain('.cmp-action-left');
     expect(unionSource).toContain('.cmp-action-right');
     expect(unionSource).toContain('.cmp-opt-icon-button{');
-    expect(unionSource).toContain('.cmp-chip-value-icon,');
+    expect(unionSource).toContain('.cmp-chip-overlay-value-icon{');
+    expect(unionSource).toContain('.cmp-chip-a11y-value-icon{');
     expect(unionSource).toContain('.cmp-chip-value-text{');
     expect(unionSource).toContain('.cmp-chip-host > .ui-overlay-icon-button,');
     expect(unionSource).toContain('.cmp-chip-host > .ui-overlay-icon-layer{');

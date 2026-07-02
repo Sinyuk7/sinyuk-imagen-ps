@@ -37,7 +37,9 @@ describe('MainPage contract — billing', () => {
 
     await renderMainPage(container, services);
 
-    expect(container.querySelector('[data-testid="main-billing-summary"]')?.textContent).toContain('12.50 USD');
+    const billingSummary = container.querySelector<HTMLElement>('[data-testid="main-billing-summary"]');
+    expect(billingSummary?.textContent).toContain('12.50 USD');
+    expect(billingSummary?.closest('.cmp-action-left')?.querySelector('[data-testid="composer-prompt-optimize-button"]')).not.toBeNull();
   });
 
   it('updates billing status after generation when async billing state settles with a balance change', async () => {

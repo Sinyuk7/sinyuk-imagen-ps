@@ -141,6 +141,21 @@ describe('image-endpoint provider', () => {
     expect(body.body).toBeInstanceOf(Blob);
   });
 
+  it('builds multipart edit body for Uint8Array image data', () => {
+    const body = buildEditMultipartBody(
+      {
+        operation: 'image_edit',
+        prompt: 'make it blue',
+        images: [{ type: 'image', data: new Uint8Array([1, 2, 3, 4]), mimeType: 'image/png', name: 'input.png' }],
+      },
+      'gpt-image-2',
+    );
+
+    expect(body.kind).toBe('multipart');
+    expect(body.contentType).toContain('multipart/form-data; boundary=');
+    expect(body.body).toBeInstanceOf(Blob);
+  });
+
   it('normalizes image endpoint responses', () => {
     const parsed = parseResponse({
       created: 1,
@@ -259,6 +274,45 @@ describe('image-endpoint provider', () => {
 
     expect(result.assets).toHaveLength(1);
     expect(String(fetchSpy.mock.calls[0][0])).toBe('https://api.example.com/v1/images/generations');
+    fetchSpy.mockRestore();
+  });
+
+  it('invokes edit endpoint through multipart fetch for Uint8Array input', async () => {
+    const fetchSpy = vi.spyOn(globalThis, 'fetch').mockResolvedValue(
+      new Response(JSON.stringify({ data: [{ url: 'https://example.com/out.png' }] }), {
+        status: 200,
+        headers: { 'Content-Type': 'application/json' },
+      }),
+    );
+    const provider = createImageEndpointProvider();
+    const config = provider.validateConfig({
+      providerId: 'image-endpoint',
+      displayName: 'Image Endpoint',
+      family: 'image-endpoint',
+      connection: {
+        selectionMode: 'manual',
+        failoverEnabled: false,
+        preferredEndpointId: 'primary',
+        endpoints: [{ id: 'primary', url: 'https://api.example.com', enabled: true }],
+      },
+      apiKey: 'test-key',
+      defaultModel: 'gpt-image-2',
+    });
+    const request = provider.validateRequest({
+      operation: 'image_edit',
+      prompt: 'test edit',
+      images: [{ type: 'image', data: new Uint8Array([1, 2, 3, 4]), mimeType: 'image/png', name: 'input.png' }],
+    });
+
+    const result = await provider.invoke({ config, request });
+
+    expect(result.assets).toHaveLength(1);
+    expect(String(fetchSpy.mock.calls[0][0])).toBe('https://api.example.com/v1/images/edits');
+    const init = fetchSpy.mock.calls[0][1] as RequestInit | undefined;
+    expect(init?.body).toBeInstanceOf(Blob);
+    expect(init?.headers).toMatchObject(expect.objectContaining({
+      'Content-Type': expect.stringContaining('multipart/form-data; boundary='),
+    }));
     fetchSpy.mockRestore();
   });
 });

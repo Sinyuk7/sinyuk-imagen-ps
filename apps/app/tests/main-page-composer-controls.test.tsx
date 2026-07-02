@@ -7,6 +7,10 @@ afterEach(async () => {
   await cleanupMainPageRoot();
 });
 
+function iconSelectValue(root: ParentNode, selector: string): string {
+  return root.querySelector<HTMLElement>(selector)?.closest('.ui-overlay-icon-host')?.querySelector<HTMLElement>('.cmp-chip-overlay-value-icon')?.textContent ?? '';
+}
+
 describe('MainPage contract — composer controls', () => {
   it('/new 作为本地命令，不提交任务', async () => {
     const container = document.createElement('div');
@@ -336,11 +340,28 @@ describe('MainPage contract — composer controls', () => {
     expect(toolbarRightStyle.overflow).toBe('visible');
 
     const modelSelector = toolbar.querySelector<HTMLElement>('[data-testid="main-model-selector"]')!;
-    expect(modelSelector.textContent).toContain('mock-image-v1');
+    expect(iconSelectValue(toolbar, '[data-testid="main-model-selector"]')).toContain('mock-image-v1');
     expect(modelSelector.closest('.ui-overlay-icon-host')?.querySelector('[data-icon-name="algorithm"]')).not.toBeNull();
     expect(toolbar.querySelector('[data-testid="composer-capture-button"]')).toBeNull();
-    expect(toolbar.querySelector('[data-testid="composer-output-size-selector"]')!.textContent).toContain('2K');
+    expect(iconSelectValue(toolbar, '[data-testid="composer-output-size-selector"]')).toContain('2K');
     expect(toolbar.querySelector('[data-testid="composer-prompt-optimize-button"]')).toBeNull();
+  });
+
+  it('余额显示跟在 Prompt Optimizer 后面，provider 选择器保持独立居中', async () => {
+    const container = document.createElement('div');
+    document.body.appendChild(container);
+    await renderMainPage(container);
+
+    const headerCenter = container.querySelector<HTMLElement>('.hdr-center-wrap')!;
+    const provider = container.querySelector<HTMLElement>('[data-testid="main-profile-selector"]')!;
+    const billing = container.querySelector<HTMLElement>('[data-testid="main-billing-summary"]')!;
+    const actionLeft = container.querySelector<HTMLElement>('.cmp-action-left')!;
+
+    expect(headerCenter.querySelector('[data-testid="main-billing-summary"]')).toBeNull();
+    expect(actionLeft.querySelector('[data-testid="composer-prompt-optimize-button"]')).not.toBeNull();
+    expect(actionLeft.lastElementChild).toBe(billing);
+    expect(billing.className).toContain('cmp-balance-pill');
+    expect(provider.closest('.hdr-center-wrap')).toBe(headerCenter);
   });
 
   it('output-size 选择器可打开、选择并关闭，Capture 不打开菜单', async () => {
@@ -365,7 +386,7 @@ describe('MainPage contract — composer controls', () => {
     });
     await flush();
     expect(container.querySelector('[data-testid="composer-output-size-selector-menu"]')).toBeNull();
-    expect(container.querySelector('[data-testid="composer-output-size-selector"]')!.textContent).toContain('4K');
+    expect(iconSelectValue(container, '[data-testid="composer-output-size-selector"]')).toContain('4K');
   });
 
   it('同一时刻只允许一个选择表面展开', async () => {

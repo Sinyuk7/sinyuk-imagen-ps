@@ -1,5 +1,7 @@
 import {
   forwardRef,
+  useEffect,
+  useRef,
   type ButtonHTMLAttributes,
   type ComponentPropsWithoutRef,
   type ReactNode,
@@ -51,8 +53,30 @@ export function OverlayControlShell({
   children,
   style,
 }: OverlayControlShellProps) {
+  const hostRef = useRef<HTMLDivElement | null>(null);
+
+  useEffect(() => {
+    const host = hostRef.current;
+    if (!host) return undefined;
+
+    const handleClick = (event: globalThis.MouseEvent) => {
+      if (event.target instanceof HTMLButtonElement) return;
+      const button = host.querySelector<HTMLButtonElement>('.ui-overlay-icon-button');
+      if (!button || button.disabled) return;
+      event.preventDefault();
+      event.stopPropagation();
+      button.click();
+    };
+
+    host.addEventListener('click', handleClick, true);
+    return () => {
+      host.removeEventListener('click', handleClick, true);
+    };
+  }, []);
+
   return (
     <div
+      ref={hostRef}
       className={classNames('ui-overlay-icon-host', hostClassName)}
       data-disabled={disabled ? 'true' : undefined}
       data-open={open ? 'true' : undefined}
@@ -74,6 +98,7 @@ export const OverlayActionButton = forwardRef<HTMLButtonElement, OverlayActionBu
     overlayClassName,
     className,
     disabled,
+    onClick,
     ...props
   },
   ref,
@@ -87,6 +112,7 @@ export const OverlayActionButton = forwardRef<HTMLButtonElement, OverlayActionBu
     >
       <ActionButton
         {...props}
+        onClick={onClick}
         ref={ref}
         disabled={disabled}
         className={classNames('ui-overlay-icon-button', className)}
@@ -106,6 +132,8 @@ export const OverlayTriggerButton = forwardRef<HTMLButtonElement, OverlayTrigger
     className,
     disabled,
     open,
+    onClick,
+    onKeyDown,
     ...props
   },
   ref,
@@ -120,6 +148,8 @@ export const OverlayTriggerButton = forwardRef<HTMLButtonElement, OverlayTrigger
     >
       <button
         {...props}
+        onClick={onClick}
+        onKeyDown={onKeyDown}
         ref={ref}
         type="button"
         className={classNames('ui-overlay-icon-button', className)}

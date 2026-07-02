@@ -7,6 +7,10 @@ afterEach(async () => {
   await cleanupMainPageRoot();
 });
 
+function iconSelectValue(root: ParentNode, selector: string): string {
+  return root.querySelector<HTMLElement>(selector)?.closest('.ui-overlay-icon-host')?.querySelector<HTMLElement>('.cmp-chip-overlay-value-icon')?.textContent ?? '';
+}
+
 describe('MainPage contract — attachment & submission', () => {
   it('无 attachment 时提交 provider-generate', async () => {
     const container = document.createElement('div');
@@ -297,7 +301,7 @@ describe('MainPage contract — attachment & submission', () => {
 
     expect(container.querySelector<HTMLTextAreaElement>('.cmp-ta')!.value).toBe('');
     expect(container.querySelector('.att-thumb')).toBeNull();
-    expect(container.querySelector('[data-testid="composer-output-size-selector"]')!.textContent).toContain('4K');
+    expect(iconSelectValue(container, '[data-testid="composer-output-size-selector"]')).toContain('4K');
   });
 
   it('attachment 可通过移除按钮移除', async () => {

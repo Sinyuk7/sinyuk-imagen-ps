@@ -31,6 +31,10 @@ function changeInput(input: HTMLInputElement, value: string): void {
   input.dispatchEvent(new KeyboardEvent('keyup', { bubbles: true, key: 'x' }));
 }
 
+function iconSelectValue(container: HTMLElement, selector: string): string {
+  return container.querySelector<HTMLElement>(selector)?.closest('.ui-overlay-icon-host')?.querySelector<HTMLElement>('.cmp-chip-overlay-value-icon')?.textContent ?? '';
+}
+
 function installFlightRecorder(): Array<{ readonly event: string; readonly attrs?: Record<string, unknown> }> {
   const records: Array<{ readonly event: string; readonly attrs?: Record<string, unknown> }> = [];
   const recorder: UxpFlightRecorder = {
@@ -554,7 +558,7 @@ describe('AppShell', () => {
     await flush();
     await flush();
 
-    expect(container.querySelector<HTMLElement>('[data-testid="main-model-selector"]')?.textContent).toContain('gpt-image2');
+    expect(iconSelectValue(container, '[data-testid="main-model-selector"]')).toContain('gpt-image2');
 
     await act(async () => {
       container.querySelector<HTMLButtonElement>('[data-testid="main-providers-button"]')?.click();
@@ -602,6 +606,6 @@ describe('AppShell', () => {
     });
     await flush();
 
-    expect(container.querySelector<HTMLElement>('[data-testid="main-model-selector"]')?.textContent).toContain('gpt-image3');
+    expect(iconSelectValue(container, '[data-testid="main-model-selector"]')).toContain('gpt-image3');
   });
 });

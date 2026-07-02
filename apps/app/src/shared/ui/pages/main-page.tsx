@@ -777,12 +777,6 @@ export function MainPage({
               setOpenMenu(null);
             }}
           />
-          <div
-            data-testid="main-billing-summary"
-            style={{ marginTop: 4, fontSize: 10, color: 'var(--app-color-text-muted)', textAlign: 'center' }}
-          >
-            {formatBillingPrimary(billing.billing) ?? t.main.billingUnknown}
-          </div>
           <MotionPresenceView visible={profileMenuOpen} kind="popover">
             {({ ref, state }) => (
             <div ref={ref} className="model-menu hdr-model-menu" data-motion-state={state} onClick={(event) => event.stopPropagation()}>
@@ -1298,6 +1292,12 @@ export function MainPage({
                     }}
                   />
                 </MotionButtonSurface>
+                <div className="cmp-balance-pill" data-testid="main-billing-summary">
+                  <span className="cmp-balance-pill-label">{t.main.billing}</span>
+                  <span className="cmp-balance-pill-value">
+                    {formatBillingPrimary(billing.billing) ?? t.main.billingUnknown}
+                  </span>
+                </div>
               </div>
               <div className="cmp-action-right">
                 <MotionButtonSurface>

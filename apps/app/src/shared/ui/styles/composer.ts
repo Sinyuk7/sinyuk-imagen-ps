@@ -200,6 +200,8 @@ export const COMPOSER_CSS = `
   flex:0 0 auto;
   overflow:visible;
 }
+.cmp-action-left{
+}
 .cmp-toolbar-left{
   flex:1 1 auto;
   min-width:136px;
@@ -376,7 +378,7 @@ export const COMPOSER_CSS = `
   white-space:nowrap;
 }
 .cmp-chip-icon{
-  padding:4px 32px 4px 36px;
+  padding:4px 12px 4px 14px;
   overflow:hidden;
   text-overflow:ellipsis;
   text-align:left;
@@ -481,7 +483,7 @@ export const COMPOSER_CSS = `
   min-width:16px;
   height:16px;
   margin-top:0;
-  margin-right:6px;
+  margin-right:0;
   margin-bottom:0;
   margin-left:0;
 }
@@ -527,6 +529,19 @@ export const COMPOSER_CSS = `
 .cmp-chip-overlay-inner-icon{
   padding:4px 12px 4px 14px;
 }
+.cmp-chip-overlay-value-icon{
+  display:block;
+  flex:1 1 auto;
+  min-width:0;
+  overflow:hidden;
+  text-overflow:ellipsis;
+  white-space:nowrap;
+  text-align:left;
+  min-height:16px;
+  line-height:16px;
+  position:relative;
+  top:1px;
+}
 .cmp-chip-leading-proxy-icon{
   display:inline-flex;
   align-items:center;
@@ -545,6 +560,14 @@ export const COMPOSER_CSS = `
   display:block;
   flex:1 1 auto;
   min-width:0;
+}
+.cmp-chip-a11y-value-icon{
+  display:block;
+  width:1px;
+  height:1px;
+  overflow:hidden;
+  opacity:0;
+  pointer-events:none;
 }
 .cmp-chip-arrow-proxy-icon,
 .cmp-chip-arrow-proxy-text{
@@ -591,6 +614,43 @@ export const COMPOSER_CSS = `
   color:var(--app-color-text-secondary);
   background:transparent;
   flex:0 0 auto;
+}
+.cmp-balance-pill{
+  display:inline-flex;
+  align-items:center;
+  min-width:0;
+  max-width:min(100%, 188px);
+  height:28px;
+  padding:0 10px;
+  border:1px solid color-mix(in srgb, var(--app-color-accent-default) 18%, var(--app-color-border-default));
+  border-radius:999px;
+  background:linear-gradient(180deg,
+    color-mix(in srgb, var(--app-color-accent-subtle) 82%, transparent),
+    color-mix(in srgb, var(--app-color-background-layer-2) 92%, transparent)
+  );
+}
+.cmp-balance-pill-label{
+  display:block;
+  flex:0 0 auto;
+  margin-right:6px;
+  font-size:9px;
+  line-height:1;
+  font-weight:700;
+  letter-spacing:.08em;
+  color:var(--app-color-accent-default);
+}
+.cmp-balance-pill-value{
+  display:block;
+  flex:1 1 auto;
+  min-width:0;
+  overflow:hidden;
+  text-overflow:ellipsis;
+  white-space:nowrap;
+  font-family:var(--app-font-family-mono);
+  font-size:10px;
+  line-height:1;
+  font-weight:600;
+  color:var(--app-color-text-primary);
 }
 .cmp-capture{
   width:30px;

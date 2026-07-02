@@ -558,7 +558,28 @@ export function buildEditMultipartBody(
     throw new BuildRequestError('Image endpoint edit request requires at least one input image.');
   }
 
-  const body = buildEditRequestBody(request, defaultModel);
+  const body: OpenAIImageEditBody = {
+    model: resolveModel(request, defaultModel),
+    prompt: request.prompt,
+    images: [],
+  };
+
+  if (request.maskImage !== undefined) {
+    const hasInlineMaskData =
+      typeof request.maskImage.data === 'string' ||
+      (request.maskImage.data instanceof Uint8Array && request.maskImage.data.byteLength > 0);
+    if (!hasInlineMaskData) {
+      body.mask = assetToMaskRef(request.maskImage);
+    }
+  }
+
+  applyOutputToBody(body, request.output, {
+    includeInputFidelity: true,
+    operation: request.operation,
+    providerId: 'image-endpoint',
+  });
+
+  applyProviderOptions(body, request.providerOptions, ['image_response_format']);
   const parts: MultipartPart[] = [];
 
   appendMultipartBodyFields(parts, body);
