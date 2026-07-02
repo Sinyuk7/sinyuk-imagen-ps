@@ -2,7 +2,7 @@ import type { Asset, AssetStore, StoredAssetRef } from '@imagen-ps/application';
 import { getAssetStore, getRuntimeLogger } from '@imagen-ps/application';
 import type { Logger } from '@imagen-ps/foundation';
 import { decode as decodeJpeg } from 'jpeg-js';
-import { decode as decodePng, encode as encodePng } from 'fast-png';
+import UPNG from 'upng-js';
 import {
   PHOTOSHOP_UXP_RUNTIME_CAPABILITIES,
   createHostBridgeStub,
@@ -587,84 +587,35 @@ function mimeTypeSupportsAppLocalDerivative(mimeType: string): boolean {
   return normalized.includes('png') || normalized.includes('jpeg') || normalized.includes('jpg');
 }
 
-function sampleToUint8(value: number): number {
-  if (!Number.isFinite(value)) {
-    return 0;
-  }
-  return Math.max(0, Math.min(255, Math.round(value)));
+function arrayBufferFromBytes(bytes: Uint8Array): ArrayBuffer {
+  const copy = new Uint8Array(bytes.byteLength);
+  copy.set(bytes);
+  return copy.buffer;
 }
 
-function pngComponentToUint8(value: number, depth: number): number {
-  if (depth <= 8) {
-    return sampleToUint8(value);
+function decodePngToRgba(bytes: Uint8Array): RgbaImage {
+  const decoded = UPNG.decode(arrayBufferFromBytes(bytes));
+  const rgbaFrames = UPNG.toRGBA8(decoded);
+  const firstFrame = rgbaFrames[0];
+  if (!firstFrame) {
+    throw new Error('App-local PNG decode returned no image frames.');
   }
-  const max = (1 << depth) - 1;
-  if (max <= 0) {
-    return 0;
-  }
-  return sampleToUint8((value / max) * 255);
+  return {
+    width: decoded.width,
+    height: decoded.height,
+    data: new Uint8Array(firstFrame),
+  };
 }
 
-function normalizeDecodedPngToRgba(decoded: {
-  readonly width: number;
-  readonly height: number;
-  readonly data: Uint8Array | Uint8ClampedArray | Uint16Array;
-  readonly channels: number;
-  readonly depth: number;
-}): Uint8Array {
-  const pixelCount = decoded.width * decoded.height;
-  const rgba = new Uint8Array(pixelCount * 4);
-  for (let pixel = 0; pixel < pixelCount; pixel += 1) {
-    const source = pixel * decoded.channels;
-    const target = pixel * 4;
-    switch (decoded.channels) {
-      case 1: {
-        const gray = pngComponentToUint8(decoded.data[source] ?? 0, decoded.depth);
-        rgba[target] = gray;
-        rgba[target + 1] = gray;
-        rgba[target + 2] = gray;
-        rgba[target + 3] = 255;
-        break;
-      }
-      case 2: {
-        const gray = pngComponentToUint8(decoded.data[source] ?? 0, decoded.depth);
-        rgba[target] = gray;
-        rgba[target + 1] = gray;
-        rgba[target + 2] = gray;
-        rgba[target + 3] = pngComponentToUint8(decoded.data[source + 1] ?? 0, decoded.depth);
-        break;
-      }
-      case 3: {
-        rgba[target] = pngComponentToUint8(decoded.data[source] ?? 0, decoded.depth);
-        rgba[target + 1] = pngComponentToUint8(decoded.data[source + 1] ?? 0, decoded.depth);
-        rgba[target + 2] = pngComponentToUint8(decoded.data[source + 2] ?? 0, decoded.depth);
-        rgba[target + 3] = 255;
-        break;
-      }
-      case 4: {
-        rgba[target] = pngComponentToUint8(decoded.data[source] ?? 0, decoded.depth);
-        rgba[target + 1] = pngComponentToUint8(decoded.data[source + 1] ?? 0, decoded.depth);
-        rgba[target + 2] = pngComponentToUint8(decoded.data[source + 2] ?? 0, decoded.depth);
-        rgba[target + 3] = pngComponentToUint8(decoded.data[source + 3] ?? 0, decoded.depth);
-        break;
-      }
-      default:
-        throw new Error(`App-local PNG decode returned unsupported channel count: ${decoded.channels}.`);
-    }
-  }
-  return rgba;
+function encodeRgbaPng(image: RgbaImage): Uint8Array {
+  const frame = arrayBufferFromBytes(image.data);
+  return new Uint8Array(UPNG.encode([frame], image.width, image.height, 0));
 }
 
 function decodeLocalFileToRgba(bytes: Uint8Array, mimeType: string): RgbaImage {
   const normalized = mimeType.toLowerCase();
   if (normalized.includes('png')) {
-    const decoded = decodePng(bytes);
-    const rgba = normalizeDecodedPngToRgba(decoded);
-    return {
-      width: decoded.width,
-      height: decoded.height,
-      data: rgba,
-    };
+    return decodePngToRgba(bytes);
   }
   if (normalized.includes('jpeg') || normalized.includes('jpg')) {
     const decoded = decodeJpeg(bytes, { useTArray: true });
@@ -712,13 +663,7 @@ async function resizeLocalFileBytes(
     targetSize.width <= image.width && targetSize.height <= image.height
       ? downscaleArea(image, targetSize)
       : upscaleBilinear(image, targetSize);
-  return encodePng({
-    width: resized.width,
-    height: resized.height,
-    data: resized.data,
-    channels: 4,
-    depth: 8,
-  });
+  return encodeRgbaPng(resized);
 }
 
 async function createLocalFileProviderDerivativeFromBytes(

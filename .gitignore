@@ -37,3 +37,4 @@ check-results
 .test-output/
 .artifacts/
 apps/app/tests/chrome-e2e/screenshots/
+.agents/goals

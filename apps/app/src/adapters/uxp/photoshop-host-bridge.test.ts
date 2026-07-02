@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest';
-import { encode as encodePng } from 'fast-png';
+import { decode as decodePng, encode as encodePng } from 'fast-png';
 import jpeg from 'jpeg-js';
 import {
   createHostModalRunner,
@@ -141,24 +141,163 @@ const LEGACY_TRUNCATED_MOCK_PNG = new Uint8Array([
 
 const providerPolicy = { maxSide: 2048 } as const;
 
+const DEFLATE_STORED_BLOCK_MAX = 0xffff;
+
 function bytesToBase64(bytes: Uint8Array): string {
   let binary = '';
   for (const byte of bytes) binary += String.fromCharCode(byte);
   return btoa(binary);
 }
 
+function adler32(data: Uint8Array): number {
+  let a = 1;
+  let b = 0;
+  for (const byte of data) {
+    a = (a + byte) % 65521;
+    b = (b + a) % 65521;
+  }
+  return ((b << 16) | a) >>> 0;
+}
+
+function writeUint16LE(bytes: Uint8Array, offset: number, value: number): void {
+  bytes[offset] = value & 0xff;
+  bytes[offset + 1] = (value >>> 8) & 0xff;
+}
+
+function deflateStored(data: Uint8Array): Uint8Array {
+  const blockCount = Math.max(1, Math.ceil(data.byteLength / DEFLATE_STORED_BLOCK_MAX));
+  const bytes = new Uint8Array(2 + data.byteLength + blockCount * 5 + 4);
+  let offset = 0;
+  bytes[offset++] = 0x78;
+  bytes[offset++] = 0x01;
+  let source = 0;
+  for (let block = 0; block < blockCount; block += 1) {
+    const length = Math.min(DEFLATE_STORED_BLOCK_MAX, data.byteLength - source);
+    bytes[offset++] = block === blockCount - 1 ? 0x01 : 0x00;
+    writeUint16LE(bytes, offset, length);
+    writeUint16LE(bytes, offset + 2, (~length) & 0xffff);
+    offset += 4;
+    bytes.set(data.subarray(source, source + length), offset);
+    source += length;
+    offset += length;
+  }
+  writeUint32BE(bytes, offset, adler32(data));
+  return bytes;
+}
+
+function createPngChunk(type: string, data: Uint8Array): Uint8Array {
+  const bytes = new Uint8Array(12 + data.byteLength);
+  writeUint32BE(bytes, 0, data.byteLength);
+  for (let index = 0; index < type.length; index += 1) {
+    bytes[4 + index] = type.charCodeAt(index);
+  }
+  bytes.set(data, 8);
+  writeUint32BE(bytes, 8 + data.byteLength, crc32(bytes, 4, 4 + data.byteLength));
+  return bytes;
+}
+
+function paethPredictor(a: number, b: number, c: number): number {
+  const p = a + b - c;
+  const pa = Math.abs(p - a);
+  const pb = Math.abs(p - b);
+  const pc = Math.abs(p - c);
+  return pa <= pb && pa <= pc ? a : pb <= pc ? b : c;
+}
+
+function encodeFilteredLine(
+  pixels: Uint8Array,
+  previous: Uint8Array | undefined,
+  filter: 3 | 4,
+): Uint8Array {
+  const bytesPerPixel = 3;
+  const line = new Uint8Array(1 + pixels.byteLength);
+  line[0] = filter;
+  for (let index = 0; index < pixels.byteLength; index += 1) {
+    const left = index >= bytesPerPixel ? pixels[index - bytesPerPixel] : 0;
+    const up = previous?.[index] ?? 0;
+    const upLeft = index >= bytesPerPixel ? previous?.[index - bytesPerPixel] ?? 0 : 0;
+    const predictor = filter === 3 ? Math.floor((left + up) / 2) : paethPredictor(left, up, upLeft);
+    line[index + 1] = (pixels[index] - predictor) & 0xff;
+  }
+  return line;
+}
+
+function rgbFilterRegressionPng(): {
+  readonly bytes: Uint8Array;
+  readonly pixels: Uint8Array;
+  readonly width: number;
+  readonly height: number;
+} {
+  const width = 4;
+  const height = 2;
+  const row0 = new Uint8Array([
+    10, 20, 30,
+    80, 90, 100,
+    130, 140, 150,
+    220, 230, 240,
+  ]);
+  const row1 = new Uint8Array([
+    14, 25, 36,
+    88, 99, 111,
+    144, 155, 166,
+    233, 244, 250,
+  ]);
+  const raw = new Uint8Array((1 + width * 3) * height);
+  raw.set(encodeFilteredLine(row0, undefined, 3), 0);
+  raw.set(encodeFilteredLine(row1, row0, 4), 1 + width * 3);
+  const ihdr = new Uint8Array(13);
+  writeUint32BE(ihdr, 0, width);
+  writeUint32BE(ihdr, 4, height);
+  ihdr[8] = 8;
+  ihdr[9] = 2;
+  const signature = new Uint8Array([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]);
+  const idat = deflateStored(raw);
+  const chunks = [
+    signature,
+    createPngChunk('IHDR', ihdr),
+    createPngChunk('IDAT', idat),
+    createPngChunk('IEND', new Uint8Array(0)),
+  ];
+  const byteLength = chunks.reduce((sum, chunk) => sum + chunk.byteLength, 0);
+  const bytes = new Uint8Array(byteLength);
+  let offset = 0;
+  for (const chunk of chunks) {
+    bytes.set(chunk, offset);
+    offset += chunk.byteLength;
+  }
+  const pixels = new Uint8Array([...row0, ...row1]);
+  return { bytes, pixels, width, height };
+}
+
+function decodedPngRgbAt(decoded: ReturnType<typeof decodePng>, pixel: number): readonly number[] {
+  const source = pixel * decoded.channels;
+  return [
+    decoded.data[source] ?? 0,
+    decoded.data[source + 1] ?? 0,
+    decoded.data[source + 2] ?? 0,
+  ];
+}
+
 async function withObjectUrlMock<T>(
-  run: (spies: { readonly create: ReturnType<typeof vi.fn>; readonly revoke: ReturnType<typeof vi.fn> }) => Promise<T>,
+  run: (spies: {
+    readonly create: ReturnType<typeof vi.fn>;
+    readonly revoke: ReturnType<typeof vi.fn>;
+    readonly blobs: Blob[];
+  }) => Promise<T>,
 ): Promise<T> {
   const originalCreate = URL.createObjectURL;
   const originalRevoke = URL.revokeObjectURL;
   let nextUrl = 1;
-  const create = vi.fn(() => `blob:thumb-${nextUrl++}`);
+  const blobs: Blob[] = [];
+  const create = vi.fn((blob: Blob) => {
+    blobs.push(blob);
+    return `blob:thumb-${nextUrl++}`;
+  });
   const revoke = vi.fn();
   URL.createObjectURL = create;
   URL.revokeObjectURL = revoke;
   try {
-    return await run({ create, revoke });
+    return await run({ create, revoke, blobs });
   } finally {
     URL.createObjectURL = originalCreate;
     URL.revokeObjectURL = originalRevoke;
@@ -795,6 +934,46 @@ describe('PhotoshopHostBridge fake harness', () => {
     expect(create).toHaveBeenCalledTimes(1);
     preview?.release();
     expect(revoke).toHaveBeenCalledWith('blob:thumb-1');
+  }));
+
+  it('keeps RGB PNG filter 3/4 pixels stable through app-local decode and encode', async () => withObjectUrlMock(async ({ blobs }) => {
+    const fixture = rgbFilterRegressionPng();
+    const { modules, spies } = createFakeModules();
+    const createThumbnail = createThumbnailGenerator(modules);
+
+    const preview = await createThumbnail?.({
+      asset: { type: 'image', name: 'filtered-rgb.png', mimeType: 'image/png' },
+      bytes: fixture.bytes,
+      mimeType: 'image/png',
+      maxSide: 512,
+    });
+
+    expect(preview).toMatchObject({ url: 'blob:thumb-1' });
+    expect(spies.openDocument).not.toHaveBeenCalled();
+    expect(blobs).toHaveLength(1);
+
+    const encoded = new Uint8Array(await blobs[0]!.arrayBuffer());
+    const decoded = decodePng(encoded);
+
+    expect(decoded.width).toBe(fixture.width);
+    expect(decoded.height).toBe(fixture.height);
+    expect(decoded.channels === 3 || decoded.channels === 4).toBe(true);
+    expect(decodedPngRgbAt(decoded, 0)).toEqual([10, 20, 30]);
+    expect(decodedPngRgbAt(decoded, 1)).toEqual([80, 90, 100]);
+    expect(decodedPngRgbAt(decoded, 2)).toEqual([130, 140, 150]);
+    expect(decodedPngRgbAt(decoded, 3)).toEqual([220, 230, 240]);
+
+    const samplePixels = [0, 1, 4, 7];
+    for (const pixel of samplePixels) {
+      const source = pixel * 3;
+      expect(decodedPngRgbAt(decoded, pixel)).toEqual([
+        fixture.pixels[source],
+        fixture.pixels[source + 1],
+        fixture.pixels[source + 2],
+      ]);
+    }
+
+    preview?.release();
   }));
 
   it('为 WEBP storedRef provider output 保留 host-native temp-document thumbnail path', async () => withObjectUrlMock(async ({ create, revoke }) => {
