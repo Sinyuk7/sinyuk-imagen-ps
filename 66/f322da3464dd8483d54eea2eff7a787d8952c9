@@ -1,0 +1,71 @@
+apps/app/src/shared/ui/app-shell.tsx
+  s_85a2172b2fccee::t_96fdd62661156f 201-204,387-390
+apps/app/src/shared/ui/hooks/use-provider-settings.ts
+  s_85a2172b2fccee::t_d9fc83ddd11211 63-67,89
+apps/app/src/shared/ui/pages/main-page.tsx
+  s_85a2172b2fccee::t_9865bfff12971f 197,295-297,300-302,382-389,891-895,897-898,900-906
+apps/app/src/shared/ui/styles/composer.ts
+  s_b00ab5baf05c92::t_f624ac0eaee956 275,288-293
+apps/app/src/shared/ui/styles/conversation.ts
+  s_980d735f2120bd::t_b9c2b8d04550db 27-35,49-53,68,82,146-154,165-180,220,222-223,312,318-319
+apps/app/src/shared/ui/styles/overlays.ts
+  s_980d735f2120bd::t_36f3ac73e233cf 49-51,53,56-57,60-61
+apps/app/src/shared/ui/styles/responsive.ts
+  s_980d735f2120bd::t_ee2983a1d3546f 63
+apps/app/src/shared/ui/styles/shell.ts
+  s_980d735f2120bd::t_649a2683970600 49
+apps/app/tests/app-shell.test.tsx
+  s_85a2172b2fccee::t_bedccc611526ed 28-33,156-161,233-235,457-556
+apps/app/tests/composer-select.test.tsx
+  s_b00ab5baf05c92::t_17b6d078767315 182-216
+apps/app/tests/main-page.test.tsx
+  s_85a2172b2fccee::t_66145867f91144 710-772
+apps/app/tests/settings-detail-page.test.tsx
+  s_85a2172b2fccee::t_90a7948f035df5 5,157-196
+docs/loops/2026-07-02-local-file-provider-input-without-temp-doc.md
+  s_b4fde49e0e0c59::t_0c399370554f6e 1-349
+packages/application/src/commands/profile-models.test.ts
+  s_85a2172b2fccee::t_09e1775407120e 1-110
+packages/application/src/commands/profile-models.ts
+  s_85a2172b2fccee::t_843091c7b27ba4 24-34,73-89
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.3",
+  "base_commit_sha": "66f322da3464dd8483d54eea2eff7a787d8952c9",
+  "prompts": {},
+  "sessions": {
+    "s_85a2172b2fccee": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "019f21da-150f-7592-96df-cae53dafb49e",
+        "model": "unknown"
+      },
+      "human_author": "Sinyuk <80998062@qq.com>"
+    },
+    "s_980d735f2120bd": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "019f21d8-841f-7711-99c6-1e11bf8bf743",
+        "model": "unknown"
+      },
+      "human_author": "Sinyuk <80998062@qq.com>"
+    },
+    "s_b00ab5baf05c92": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "019f21b7-c45a-79b3-b3de-182cc6b1c05d",
+        "model": "unknown"
+      },
+      "human_author": "Sinyuk <80998062@qq.com>"
+    },
+    "s_b4fde49e0e0c59": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "019f21e2-c5af-7012-a909-2930177388da",
+        "model": "unknown"
+      },
+      "human_author": "Sinyuk <80998062@qq.com>"
+    }
+  }
+}
