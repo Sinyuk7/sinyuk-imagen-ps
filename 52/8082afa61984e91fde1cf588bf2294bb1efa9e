@@ -1,0 +1,25 @@
+.agents/skills/design-review/SKILL.md
+  s_cb2bc10c9c1d0c::t_34aba24e94c49f 212-213,215-222,226
+.agents/skills/docs-reducer/SKILL.md
+  s_cb2bc10c9c1d0c::t_5ed3788c54e58a 75-80
+.agents/skills/ps-uxp-ui-rca/SKILL.md
+  s_cb2bc10c9c1d0c::t_450987ed7f4e10 53-55,60-63,79,83-88,90-93,106,108-113,118-119,125-127,152-153
+docs/agent/LOOP.md
+  s_cb2bc10c9c1d0c::t_c4ec216db7d796 173-174
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.3",
+  "base_commit_sha": "528082afa61984e91fde1cf588bf2294bb1efa9e",
+  "prompts": {},
+  "sessions": {
+    "s_cb2bc10c9c1d0c": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "019f225e-f5e7-7d41-adbe-5edb3f5ee9d1",
+        "model": "unknown"
+      },
+      "human_author": "Sinyuk <80998062@qq.com>"
+    }
+  }
+}
