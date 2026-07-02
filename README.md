@@ -46,15 +46,19 @@ mise install
 
 ```bash
 pnpm bootstrap        # 首次初始化：安装依赖并跑完整默认验收
-pnpm validate         # Default gate: build, tests, policy checks
+pnpm validate         # Default gate: build, mock-only tests, policy checks
 pnpm check:policy     # Local architecture and policy validator
 pnpm build            # 构建所有 workspace
-pnpm test             # 运行默认测试，会按 Turbo pipeline 先构建
+pnpm test             # 运行默认 mock-only 测试，会按 Turbo pipeline 先构建
+pnpm test:release     # Release 真实接口测试：读取 .test.env，不走 Turbo，可能产生真实 API 费用
+pnpm validate:release # pnpm validate 后再跑 test:release，发布前用
 pnpm --filter <pkg> build   # 构建单个包
 pnpm --filter <pkg> test    # 运行单个包测试，要求已完成 bootstrap 或相关 build
 ```
 
-测试框架：Vitest。构建产物输出到 `dist/`。CLI smoke 测试产物会保留在 gitignored 的 `.test-output/smoke/`，用于复查真实图片和 sidecar。
+测试分两级且互不污染：`pnpm test` / `pnpm validate` 只跑 mock-only 开发测试，绝不读取 `.test.env`、不调用真实接口；`pnpm test:release` / `pnpm validate:release` 只跑 `*.release.test.*` 真实接口测试，缺失 `.test.env`、缺失必需变量或未注册任何 release 测试时立即失败。详见 `docs/TESTING.md`。
+
+测试框架：Vitest。构建产物输出到 `dist/`。Release 测试产物会保留在 gitignored 的 `.test-output/`。
 
 ## 文档使用规则
 

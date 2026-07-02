@@ -23,6 +23,8 @@ pnpm validate
 pnpm build
 pnpm test
 pnpm check:policy
+pnpm test:release
+pnpm validate:release
 ```
 
 `pnpm validate` is the default final gate for non-trivial repository work. It
@@ -41,6 +43,42 @@ Repository pull requests also run a GitHub Actions `cla` gate for external
 contributors. Non-member pull requests must either pass the repository
 CLA Assistant check derived from `CLA.md`, or carry a maintainer applied
 `cla:exempt` label.
+
+## Test Levels
+
+The repository has two isolated test levels. They never share discovery rules,
+so the default development gate cannot accidentally run real interface tests.
+
+### Development tests — `pnpm test` / `pnpm validate`
+
+- Fast, stable, reproducible, mock-only. The default gate for everyday work and
+  CI.
+- Never reads `.test.env`, never calls real provider APIs, and never incurs
+  real API cost. The presence of a local `.test.env` or real API keys has no
+  effect on these commands.
+- Every package `vitest.config.ts` excludes `**/*.release.test.ts(x)`, so
+  release live files are structurally invisible to the development suite.
+
+### Release tests — `pnpm test:release` / `pnpm validate:release`
+
+- Opt-in real-interface and real-link verification, run only before a release.
+- `pnpm validate:release` runs `pnpm validate` first, then `pnpm test:release`.
+- `pnpm test:release` does NOT go through Turbo, so real calls are never
+  replayed from cache.
+- Loads credentials only from the fixed repository-root `.test.env`. Falls back
+  to no other file. `.test.env` is gitignored.
+- Double switch: the runner sets `IMAGEN_TEST_LEVEL=release`, and the release
+  vitest config re-checks it in `globalSetup` plus every test must call
+  `assertReleaseMode()`. Direct `vitest --config vitest.release.config.ts`
+  invocation fails immediately when the flag is absent.
+- Fail-closed: missing `.test.env`, missing required variable, or zero
+  discovered `*.release.test.*` files all fail the command with a clear message.
+  Errors list variable names only; they never print keys, Authorization
+  headers, or any secret value.
+- `pnpm test:release` may incur real provider API cost.
+
+Which tests may touch the real network: only `*.release.test.ts(x)` files under
+`<package>/tests/release/`, and only via the release commands above.
 
 Filtered package tests are useful for focused verification after the relevant
 workspace has been built:
@@ -120,8 +158,8 @@ Loop documents must classify validation commands before citing them.
 | quick | Cheap mechanical checks during planning or small documentation slices. | `pnpm check:policy` | Does not prove behavior correctness. |
 | per-slice | Focused checks for the touched owner boundary. | Filtered package build/test commands above. | Requires the related package build state to be valid. |
 | final | Default closeout for non-trivial completed work. | `pnpm validate` | Aligns with the default CI gate. |
+| release | Pre-release real-interface verification. | `pnpm validate:release` | Loads `.test.env`; may incur real API cost; never cached; fail-closed on missing env or empty suite. |
 | manual-only | Human-observed host behavior. | UXP Developer Tool + Photoshop smoke checklist. | Fake UXP tests and Vite build do not prove real Photoshop host IO. |
-| live-provider | Opt-in provider smoke using network, credentials, or paid APIs. | Currently no active smoke harness. | Never part of default CI or default Loop validation. |
 
 `pnpm lint` is not a supported Loop gate today. The root `package.json` has a
 `lint` script, but workspace packages do not define package-level lint scripts.
@@ -147,6 +185,49 @@ Default tests are mock-only and reproducible:
 
 These tests must not use real provider credentials, real Photoshop, UXP
 Developer Tool, external network access, or paid APIs.
+
+## Test Organization Rules
+
+Development tests are split by functional domain and user link, not by a fixed
+line budget. Each file name says what it covers and which level it belongs to.
+
+- One file covers one functional domain or one coherent user link. Long files
+  that mixed attachment, rendering, billing, and composer concerns were split.
+- A complete main-link test that only makes sense end-to-end stays as one case;
+  only unrelated scenarios are moved out.
+- Shared render/fake helpers live under `apps/app/tests/*-harness.ts(x)` next to
+  the tests that use them. They are not test files (no `.test.` segment) so
+  vitest never runs them, and they stay out of `tsconfig.build.json` (`include:
+  ["src"]`).
+- Fixtures are named by business meaning, not `data1`/`mock2`.
+- `*.release.test.ts(x)` files live under `<package>/tests/release/` and are the
+  only files that may touch real network. They are excluded from every
+  development vitest config.
+
+## Adding Release Tests
+
+The framework is ready but no real release tests are registered yet; until at
+least one is added, `pnpm test:release` fails with "Release suite is empty".
+
+1. Put the file at `<package>/tests/release/<name>.release.test.ts(x)`.
+2. If the package does not yet have `vitest.release.config.ts`, copy it from
+   `packages/providers/vitest.release.config.ts`. The config only includes
+   `tests/release/**/*.release.test.*` and disables cache.
+3. Declare and verify credentials at the top of the test:
+   ```ts
+   import { assertReleaseMode, requireReleaseEnv } from '<package>/tests/release/release-env';
+   assertReleaseMode();
+   requireReleaseEnv(['IMAGEN_SMOKE_N1N_API_KEY', 'IMAGEN_SMOKE_N1N_BASE_URL', 'IMAGEN_SMOKE_N1N_MODEL']);
+   ```
+   If the package needs a release-env helper, copy `packages/providers/tests/release/release-env.ts`.
+4. Add any new required variable to `.test.env.example` — the release runner
+   derives required variables from that file, so it becomes mandatory
+   automatically. Never put real keys in the example.
+5. The test never prints secrets. Use redaction helpers from
+   `@imagen-ps/foundation` for any logged payload.
+6. Run `pnpm test:release`. The runner loads `.test.env`, validates required
+   variables, discovers the file, and runs vitest with `--no-cache` so the real
+   call is never replayed from cache.
 
 ## Manual And Live Smoke
 
@@ -178,13 +259,13 @@ Chrome browser smoke is repo-side evidence only when it loads the browser build
 in a real browser and reports the Chrome shell ready state. It still does not
 prove real Photoshop / UXP host behavior or live provider behavior.
 
-Live provider smoke is currently not available after the CLI surface was
-removed. If a new smoke harness is added, it must stay opt-in and config-driven.
+Real provider live verification belongs to the release level
+(`pnpm test:release` / `pnpm validate:release`), not to default `pnpm test`.
 
 ## CI Boundary
 
 Default CI and default Loop validation include only stable, mock-only,
-reproducible checks.
+reproducible checks. Release tests are not part of default CI.
 
 Maintainer CLA operation is:
 

@@ -13,6 +13,8 @@
     "lint": "turbo run lint",
     "check:policy": "node scripts/check-policy.mjs",
     "validate": "pnpm build && pnpm test && pnpm check:policy",
+    "test:release": "node scripts/run-release-tests.mjs",
+    "validate:release": "pnpm validate && pnpm test:release",
     "clean": "turbo run clean"
   },
   "devDependencies": {

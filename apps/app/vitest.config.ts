@@ -1,4 +1,4 @@
-import { defineConfig } from 'vitest/config';
+import { defineConfig, configDefaults } from 'vitest/config';
 
 export default defineConfig({
   define: {
@@ -12,6 +12,11 @@ export default defineConfig({
       'src/host/**/*.test.ts',
       'src/adapters/uxp/**/*.test.ts',
       'src/shells/uxp/**/*.test.tsx',
+    ],
+    exclude: [
+      ...configDefaults.exclude,
+      '**/*.release.test.ts',
+      '**/*.release.test.tsx',
     ],
     setupFiles: ['tests/setup.ts'],
   },
