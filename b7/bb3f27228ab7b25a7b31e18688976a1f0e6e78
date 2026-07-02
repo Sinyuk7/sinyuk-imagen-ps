@@ -1,0 +1,837 @@
+README.md
+  s_fc99e3655c4118::t_7ca84b4af3f509 25-26
+apps/app/AGENTS.md
+  s_fc99e3655c4118::t_42058658255c0c 56-63
+apps/app/package.json
+  s_fc99e3655c4118::t_1891f8472c3a22 23
+apps/app/src/harness/components/uxp-css-contract/uxp-css-contract-harness.tsx
+  s_fc99e3655c4118::t_c986c1f15d89ff 392-418,1535-1549,1600-1618
+apps/app/src/shared/ui/pages/main-page.tsx
+  s_fc99e3655c4118::t_9266821ee30c59 1296
+apps/app/src/shells/uxp/register-swc-uxp.ts
+  s_fc99e3655c4118::t_3b068b9c4989a2 1-6
+apps/app/src/shells/uxp/uxp-panel-runtime.tsx
+  s_fc99e3655c4118::t_ed657362b5e5b7 9,281-282
+apps/app/tests/bundle/uxp-dist-bundle.test.ts
+  s_fc99e3655c4118::t_86d6307a336515 26,38-41
+apps/app/tests/swc-uxp-wrapper-boundary.test.ts
+  s_fc99e3655c4118::t_339df3e842e524 1-2,5-10,12-16,19-25,27-30,32-69,72-89,92-103
+apps/app/tests/vite-runtime-alias.test.ts
+  s_fc99e3655c4118::t_f1d7659588d3f1 34-35,41-44,48
+apps/app/vite.uxp.config.ts
+  s_fc99e3655c4118::t_1f0f2c6d8a795e 330-366,370-372
+docs/ENGINEERING_CONTEXT.md
+  s_fc99e3655c4118::t_c1adc71bbd6808 31-34,138
+docs/TESTING.md
+  s_fc99e3655c4118::t_2aae240c296984 42-51,174-179
+docs/loops/2026-07-03-swc-uxp-ui-replacement-plan.md
+  s_fc99e3655c4118::t_374cea96f77ba1 1-135
+packages/swc-uxp-wrappers/CODE_OF_CONDUCT.md
+  s_fc99e3655c4118::t_17c66ef2e36f9d 1-79
+packages/swc-uxp-wrappers/CONTRIBUTING.md
+  s_fc99e3655c4118::t_1718002b8ce8db 1-47
+packages/swc-uxp-wrappers/COPYRIGHT.txt
+  s_fc99e3655c4118::t_3292762a6ad6da 1-10
+packages/swc-uxp-wrappers/LICENSE.txt
+  s_fc99e3655c4118::t_021ae70a56b3b5 1-201
+packages/swc-uxp-wrappers/README.md
+  s_fc99e3655c4118::t_b3a6dfb31d5141 1-76
+packages/swc-uxp-wrappers/SECURITY.md
+  s_fc99e3655c4118::t_27c856f0dd780a 1-9
+packages/swc-uxp-wrappers/action-bar/README.md
+  s_fc99e3655c4118::t_ebc37a8b9dc4c4 1-49
+packages/swc-uxp-wrappers/action-bar/package.json
+  s_fc99e3655c4118::t_09d24d9ba7d8e6 1-36
+packages/swc-uxp-wrappers/action-bar/sp-action-bar.js
+  s_fc99e3655c4118::t_8270964378d244 1-17
+packages/swc-uxp-wrappers/action-bar/src/ActionBar.js
+  s_fc99e3655c4118::t_f0034e96bc51dc 1-24
+packages/swc-uxp-wrappers/action-bar/src/action-bar.css.js
+  s_fc99e3655c4118::t_19d3a28f2e03db 1-23
+packages/swc-uxp-wrappers/action-bar/src/index.js
+  s_fc99e3655c4118::t_52e2ff0ea0b47d 1-13
+packages/swc-uxp-wrappers/action-bar/src/uxp-action-bar.css
+  s_fc99e3655c4118::t_3534dd20863450 1-87
+packages/swc-uxp-wrappers/action-bar/src/uxp-action-bar.css.js
+  s_fc99e3655c4118::t_045a41bc027633 1-39
+packages/swc-uxp-wrappers/action-button/README.md
+  s_fc99e3655c4118::t_91c0a1f5b75c71 1-45
+packages/swc-uxp-wrappers/action-button/package.json
+  s_fc99e3655c4118::t_ea40e2ecd9bd1b 1-36
+packages/swc-uxp-wrappers/action-button/sp-action-button.js
+  s_fc99e3655c4118::t_755d09d3cd7921 1-17
+packages/swc-uxp-wrappers/action-button/src/ActionButton.js
+  s_fc99e3655c4118::t_37feadd1e258b5 1-23
+packages/swc-uxp-wrappers/action-button/src/action-button.css.js
+  s_fc99e3655c4118::t_d98b6beb11cf71 1-23
+packages/swc-uxp-wrappers/action-button/src/index.js
+  s_fc99e3655c4118::t_b45abb09955732 1-13
+packages/swc-uxp-wrappers/action-button/src/uxp-action-button.css
+  s_fc99e3655c4118::t_29d915d24b99b2 1-110
+packages/swc-uxp-wrappers/action-button/src/uxp-action-button.css.js
+  s_fc99e3655c4118::t_74fd0821a24ba5 1-59
+packages/swc-uxp-wrappers/action-group/README.md
+  s_fc99e3655c4118::t_2adeeb71a4ca63 1-45
+packages/swc-uxp-wrappers/action-group/package.json
+  s_fc99e3655c4118::t_5a98e8845a453e 1-36
+packages/swc-uxp-wrappers/action-group/sp-action-group.js
+  s_fc99e3655c4118::t_8c72e55bf0c761 1-17
+packages/swc-uxp-wrappers/action-group/src/ActionGroup.js
+  s_fc99e3655c4118::t_3881caf604baa7 1-23
+packages/swc-uxp-wrappers/action-group/src/action-group.css.js
+  s_fc99e3655c4118::t_4c5f4ee18a793d 1-23
+packages/swc-uxp-wrappers/action-group/src/index.js
+  s_fc99e3655c4118::t_c55c79646f6943 1-13
+packages/swc-uxp-wrappers/action-group/src/uxp-action-group.css
+  s_fc99e3655c4118::t_fbb7e81470bb67 1-132
+packages/swc-uxp-wrappers/action-group/src/uxp-action-group.css.js
+  s_fc99e3655c4118::t_9ebf6511a6a116 1-59
+packages/swc-uxp-wrappers/asset/README.md
+  s_fc99e3655c4118::t_f35c5c75aef0f7 1-49
+packages/swc-uxp-wrappers/asset/package.json
+  s_fc99e3655c4118::t_5eb4feecaafa76 1-35
+packages/swc-uxp-wrappers/asset/sp-asset.js
+  s_fc99e3655c4118::t_d71b07bb572745 1-17
+packages/swc-uxp-wrappers/asset/src/Asset.js
+  s_fc99e3655c4118::t_f2b7ba607d90d6 1-24
+packages/swc-uxp-wrappers/asset/src/asset.css.js
+  s_fc99e3655c4118::t_450b9b9b116354 1-23
+packages/swc-uxp-wrappers/asset/src/index.js
+  s_fc99e3655c4118::t_7104d070229704 1-13
+packages/swc-uxp-wrappers/asset/src/uxp-asset.css
+  s_fc99e3655c4118::t_d461a8aaefda69 1-19
+packages/swc-uxp-wrappers/asset/src/uxp-asset.css.js
+  s_fc99e3655c4118::t_296770dba4e762 1-17
+packages/swc-uxp-wrappers/avatar/README.md
+  s_fc99e3655c4118::t_8c3095fc397c14 1-45
+packages/swc-uxp-wrappers/avatar/package.json
+  s_fc99e3655c4118::t_44bf1c8fa65b9e 1-35
+packages/swc-uxp-wrappers/avatar/sp-avatar.js
+  s_fc99e3655c4118::t_7356776c020aea 1-17
+packages/swc-uxp-wrappers/avatar/src/Avatar.js
+  s_fc99e3655c4118::t_419d3666a2a128 1-23
+packages/swc-uxp-wrappers/avatar/src/avatar.css.js
+  s_fc99e3655c4118::t_39d36111380083 1-23
+packages/swc-uxp-wrappers/avatar/src/index.js
+  s_fc99e3655c4118::t_bafadea24f0634 1-13
+packages/swc-uxp-wrappers/avatar/src/uxp-avatar.css
+  s_fc99e3655c4118::t_bea9fb04a75a20 1-19
+packages/swc-uxp-wrappers/avatar/src/uxp-avatar.css.js
+  s_fc99e3655c4118::t_134db51dce21ad 1-17
+packages/swc-uxp-wrappers/banner/README.md
+  s_fc99e3655c4118::t_e3795c99417027 1-45
+packages/swc-uxp-wrappers/banner/package.json
+  s_fc99e3655c4118::t_bfbcf92f11f1e2 1-35
+packages/swc-uxp-wrappers/banner/sp-banner.js
+  s_fc99e3655c4118::t_926f68b669d3b2 1-17
+packages/swc-uxp-wrappers/banner/src/Banner.js
+  s_fc99e3655c4118::t_b63d2fd0c4b987 1-23
+packages/swc-uxp-wrappers/banner/src/banner.css.js
+  s_fc99e3655c4118::t_ccc0154ea2de54 1-23
+packages/swc-uxp-wrappers/banner/src/index.js
+  s_fc99e3655c4118::t_392d8ace5cc94a 1-13
+packages/swc-uxp-wrappers/banner/src/uxp-banner.css
+  s_fc99e3655c4118::t_a89ff504436b46 1-13
+packages/swc-uxp-wrappers/banner/src/uxp-banner.css.js
+  s_fc99e3655c4118::t_10ee99cd2253f5 1-17
+packages/swc-uxp-wrappers/button-group/README.md
+  s_fc99e3655c4118::t_3937b49595036d 1-45
+packages/swc-uxp-wrappers/button-group/package.json
+  s_fc99e3655c4118::t_fd97892a1a28c4 1-36
+packages/swc-uxp-wrappers/button-group/sp-button-group.js
+  s_fc99e3655c4118::t_17d653047edd42 1-17
+packages/swc-uxp-wrappers/button-group/src/ButtonGroup.js
+  s_fc99e3655c4118::t_525b7d5685edad 1-24
+packages/swc-uxp-wrappers/button-group/src/button-group.css.js
+  s_fc99e3655c4118::t_265bff03648faf 1-23
+packages/swc-uxp-wrappers/button-group/src/index.js
+  s_fc99e3655c4118::t_ed371bb299edb0 1-13
+packages/swc-uxp-wrappers/button-group/src/uxp-button-group.css
+  s_fc99e3655c4118::t_170f87ddbfd9d9 1-28
+packages/swc-uxp-wrappers/button-group/src/uxp-button-group.css.js
+  s_fc99e3655c4118::t_65db9a4bced661 1-21
+packages/swc-uxp-wrappers/button/README.md
+  s_fc99e3655c4118::t_967cbb190e6e6d 1-45
+packages/swc-uxp-wrappers/button/package.json
+  s_fc99e3655c4118::t_a1d1c2d00b47b6 1-43
+packages/swc-uxp-wrappers/button/sp-button.js
+  s_fc99e3655c4118::t_8be2e6b6b9a2b0 1-17
+packages/swc-uxp-wrappers/button/sp-clear-button.js
+  s_fc99e3655c4118::t_00c072665fb8b2 1-17
+packages/swc-uxp-wrappers/button/sp-close-button.js
+  s_fc99e3655c4118::t_96996685096f94 1-17
+packages/swc-uxp-wrappers/button/src/Button.js
+  s_fc99e3655c4118::t_a7375c5e08656b 1-23
+packages/swc-uxp-wrappers/button/src/ButtonBase.js
+  s_fc99e3655c4118::t_f4298307b83e2d 1-23
+packages/swc-uxp-wrappers/button/src/ClearButton.js
+  s_fc99e3655c4118::t_b88c6dd2b17c18 1-23
+packages/swc-uxp-wrappers/button/src/CloseButton.js
+  s_fc99e3655c4118::t_a8eb47b124ac06 1-23
+packages/swc-uxp-wrappers/button/src/StyledButton.js
+  s_fc99e3655c4118::t_36120ebfdde76c 1-23
+packages/swc-uxp-wrappers/button/src/button-base.css.js
+  s_fc99e3655c4118::t_9c312b8463f971 1-23
+packages/swc-uxp-wrappers/button/src/button.css.js
+  s_fc99e3655c4118::t_c5f8bd00ad36f1 1-23
+packages/swc-uxp-wrappers/button/src/index.js
+  s_fc99e3655c4118::t_e0435f53e2a102 1-17
+packages/swc-uxp-wrappers/button/src/uxp-button-base.css
+  s_fc99e3655c4118::t_c3f3f059aa051c 1-13
+packages/swc-uxp-wrappers/button/src/uxp-button.css
+  s_fc99e3655c4118::t_e40980fe7211bd 1-66
+packages/swc-uxp-wrappers/button/src/uxp-clear-button.css
+  s_fc99e3655c4118::t_fb8aed954b508f 1-21
+packages/swc-uxp-wrappers/button/src/uxp-close-button.css
+  s_fc99e3655c4118::t_d8fe9b1314e0e9 1-21
+packages/swc-uxp-wrappers/button/src/uxp-styled-button.css
+  s_fc99e3655c4118::t_9bc62c5a260347 1-13
+packages/swc-uxp-wrappers/card/README.md
+  s_fc99e3655c4118::t_cd31f98503ac0c 1-49
+packages/swc-uxp-wrappers/card/package.json
+  s_fc99e3655c4118::t_3c8815e2c5ca36 1-38
+packages/swc-uxp-wrappers/card/sp-card.js
+  s_fc99e3655c4118::t_9cc8bf3a1c1e2a 1-17
+packages/swc-uxp-wrappers/card/src/Card.js
+  s_fc99e3655c4118::t_5d612908e995de 1-23
+packages/swc-uxp-wrappers/card/src/card.css.js
+  s_fc99e3655c4118::t_ea5218dc27da93 1-23
+packages/swc-uxp-wrappers/card/src/index.js
+  s_fc99e3655c4118::t_4da0d8bd87a21d 1-13
+packages/swc-uxp-wrappers/card/src/uxp-card.css
+  s_fc99e3655c4118::t_9f01189371fdca 1-277
+packages/swc-uxp-wrappers/card/src/uxp-card.css.js
+  s_fc99e3655c4118::t_291e7130201ba2 1-60
+packages/swc-uxp-wrappers/checkbox/README.md
+  s_fc99e3655c4118::t_242f30b52697ad 1-49
+packages/swc-uxp-wrappers/checkbox/package.json
+  s_fc99e3655c4118::t_42c7cdb24a2007 1-36
+packages/swc-uxp-wrappers/checkbox/sp-checkbox.js
+  s_fc99e3655c4118::t_b274c3878d18cb 1-17
+packages/swc-uxp-wrappers/checkbox/src/Checkbox.js
+  s_fc99e3655c4118::t_3938d19a08000e 1-23
+packages/swc-uxp-wrappers/checkbox/src/CheckboxBase.js
+  s_fc99e3655c4118::t_4fd0214001f8e6 1-13
+packages/swc-uxp-wrappers/checkbox/src/checkbox.css.js
+  s_fc99e3655c4118::t_195239e6e0aad6 1-23
+packages/swc-uxp-wrappers/checkbox/src/index.js
+  s_fc99e3655c4118::t_74de66ee864874 1-13
+packages/swc-uxp-wrappers/checkbox/src/uxp-checkbox.css
+  s_fc99e3655c4118::t_45b3fb511bdd9e 1-84
+packages/swc-uxp-wrappers/checkbox/src/uxp-checkbox.css.js
+  s_fc99e3655c4118::t_a870d4a4a37652 1-33
+packages/swc-uxp-wrappers/dialog/README.md
+  s_fc99e3655c4118::t_5a5baaa4cf0308 1-45
+packages/swc-uxp-wrappers/dialog/package.json
+  s_fc99e3655c4118::t_bad375dd978feb 1-42
+packages/swc-uxp-wrappers/dialog/sp-dialog-base.js
+  s_fc99e3655c4118::t_8016330876f973 1-16
+packages/swc-uxp-wrappers/dialog/sp-dialog-wrapper.js
+  s_fc99e3655c4118::t_a0ca5cf0759770 1-16
+packages/swc-uxp-wrappers/dialog/sp-dialog.js
+  s_fc99e3655c4118::t_5ce704ac6c1f2a 1-17
+packages/swc-uxp-wrappers/dialog/src/Dialog.js
+  s_fc99e3655c4118::t_2c0c3ef4e63c63 1-24
+packages/swc-uxp-wrappers/dialog/src/DialogBase.js
+  s_fc99e3655c4118::t_7eaed91a81d4fa 1-24
+packages/swc-uxp-wrappers/dialog/src/DialogWrapper.js
+  s_fc99e3655c4118::t_43378e38ad87c0 1-24
+packages/swc-uxp-wrappers/dialog/src/dialog.css.js
+  s_fc99e3655c4118::t_cbaf16c687600f 1-23
+packages/swc-uxp-wrappers/dialog/src/index.js
+  s_fc99e3655c4118::t_9fbaf1436e3fad 1-15
+packages/swc-uxp-wrappers/dialog/src/uxp-dialog-base.css
+  s_fc99e3655c4118::t_92e34479ef0f0a 1-13
+packages/swc-uxp-wrappers/dialog/src/uxp-dialog-base.css.js
+  s_fc99e3655c4118::t_b59ea5f06ad6b2 1-17
+packages/swc-uxp-wrappers/dialog/src/uxp-dialog-wrapper.js
+  s_fc99e3655c4118::t_4c3df8a3eac192 1-13
+packages/swc-uxp-wrappers/dialog/src/uxp-dialog.css
+  s_fc99e3655c4118::t_1ed867f9ff0623 1-149
+packages/swc-uxp-wrappers/dialog/src/uxp-dialog.css.js
+  s_fc99e3655c4118::t_819750e834acea 1-17
+packages/swc-uxp-wrappers/divider/README.md
+  s_fc99e3655c4118::t_7a644829c40e6c 1-45
+packages/swc-uxp-wrappers/divider/package.json
+  s_fc99e3655c4118::t_376d4292db4a4e 1-35
+packages/swc-uxp-wrappers/divider/sp-divider.js
+  s_fc99e3655c4118::t_8bbe8bba489413 1-17
+packages/swc-uxp-wrappers/divider/src/Divider.js
+  s_fc99e3655c4118::t_33c20d6c858aa7 1-23
+packages/swc-uxp-wrappers/divider/src/divider.css.js
+  s_fc99e3655c4118::t_a1ca259b3b0c26 1-23
+packages/swc-uxp-wrappers/divider/src/index.js
+  s_fc99e3655c4118::t_a669056ffb761d 1-13
+packages/swc-uxp-wrappers/divider/src/uxp-divider.css
+  s_fc99e3655c4118::t_fe8d379834c738 1-23
+packages/swc-uxp-wrappers/divider/src/uxp-divider.css.js
+  s_fc99e3655c4118::t_0238dfc533921f 1-17
+packages/swc-uxp-wrappers/field-group/README.md
+  s_fc99e3655c4118::t_5b3a08d42b0f6e 1-45
+packages/swc-uxp-wrappers/field-group/package.json
+  s_fc99e3655c4118::t_452705c1ff8b1b 1-36
+packages/swc-uxp-wrappers/field-group/sp-field-group.js
+  s_fc99e3655c4118::t_26ce6cb3a2d674 1-17
+packages/swc-uxp-wrappers/field-group/src/FieldGroup.js
+  s_fc99e3655c4118::t_78be0117c73231 1-24
+packages/swc-uxp-wrappers/field-group/src/field-group.css.js
+  s_fc99e3655c4118::t_471ff80c63990c 1-23
+packages/swc-uxp-wrappers/field-group/src/index.js
+  s_fc99e3655c4118::t_5f8b92abdfe1c2 1-13
+packages/swc-uxp-wrappers/field-group/src/uxp-field-group.css
+  s_fc99e3655c4118::t_d3fb3cdde38bdd 1-13
+packages/swc-uxp-wrappers/field-group/src/uxp-field-group.css.js
+  s_fc99e3655c4118::t_46dd424207c02e 1-17
+packages/swc-uxp-wrappers/field-label/README.md
+  s_fc99e3655c4118::t_714e87f893e762 1-45
+packages/swc-uxp-wrappers/field-label/package.json
+  s_fc99e3655c4118::t_dc2462621209d4 1-35
+packages/swc-uxp-wrappers/field-label/sp-field-label.js
+  s_fc99e3655c4118::t_08b8251efa3672 1-17
+packages/swc-uxp-wrappers/field-label/src/FieldLabel.js
+  s_fc99e3655c4118::t_47796ed4502290 1-23
+packages/swc-uxp-wrappers/field-label/src/field-label.css.js
+  s_fc99e3655c4118::t_fa40e33d4ad48d 1-23
+packages/swc-uxp-wrappers/field-label/src/index.js
+  s_fc99e3655c4118::t_99b4e02ffbcfc6 1-13
+packages/swc-uxp-wrappers/field-label/src/uxp-field-label.css
+  s_fc99e3655c4118::t_caddc7cef70008 1-48
+packages/swc-uxp-wrappers/field-label/src/uxp-field-label.css.js
+  s_fc99e3655c4118::t_642f1e89f83536 1-25
+packages/swc-uxp-wrappers/help-text/README.md
+  s_fc99e3655c4118::t_53c540bb6648d7 1-45
+packages/swc-uxp-wrappers/help-text/package.json
+  s_fc99e3655c4118::t_f8f99aa293e73f 1-39
+packages/swc-uxp-wrappers/help-text/sp-help-text.js
+  s_fc99e3655c4118::t_8bb550e78234ac 1-17
+packages/swc-uxp-wrappers/help-text/src/HelpText.js
+  s_fc99e3655c4118::t_b618a03b72ed2b 1-24
+packages/swc-uxp-wrappers/help-text/src/HelpTextManagedElement.js
+  s_fc99e3655c4118::t_dc33322ba648c6 1-13
+packages/swc-uxp-wrappers/help-text/src/HelpTextManager.js
+  s_fc99e3655c4118::t_e0479f6d830f61 1-13
+packages/swc-uxp-wrappers/help-text/src/help-text.css.js
+  s_fc99e3655c4118::t_be69000c7ee6dd 1-23
+packages/swc-uxp-wrappers/help-text/src/index.js
+  s_fc99e3655c4118::t_6fa17f55c763cc 1-16
+packages/swc-uxp-wrappers/help-text/src/manage-help-text.js
+  s_fc99e3655c4118::t_4e3d63b21d22ff 1-13
+packages/swc-uxp-wrappers/help-text/src/uxp-help-text.css
+  s_fc99e3655c4118::t_14d2630ae5e63c 1-40
+packages/swc-uxp-wrappers/help-text/src/uxp-help-text.css.js
+  s_fc99e3655c4118::t_7a7ecff0b2d0e3 1-27
+packages/swc-uxp-wrappers/illustrated-message/README.md
+  s_fc99e3655c4118::t_2b9d4d3ac00aab 1-45
+packages/swc-uxp-wrappers/illustrated-message/package.json
+  s_fc99e3655c4118::t_bc888a41ded801 1-35
+packages/swc-uxp-wrappers/illustrated-message/sp-illustrated-message.js
+  s_fc99e3655c4118::t_fc8bcf145cc687 1-17
+packages/swc-uxp-wrappers/illustrated-message/src/IllustratedMessage.js
+  s_fc99e3655c4118::t_02ab9e5802427f 1-23
+packages/swc-uxp-wrappers/illustrated-message/src/illustrated-message.css.js
+  s_fc99e3655c4118::t_b7f75a068e37d9 1-23
+packages/swc-uxp-wrappers/illustrated-message/src/index.js
+  s_fc99e3655c4118::t_5af8a389dc8793 1-13
+packages/swc-uxp-wrappers/illustrated-message/src/uxp-illustrated-message.css
+  s_fc99e3655c4118::t_85a8eb0c9117ab 1-13
+packages/swc-uxp-wrappers/illustrated-message/src/uxp-illustrated-message.css.js
+  s_fc99e3655c4118::t_a013021530bd57 1-17
+packages/swc-uxp-wrappers/link/README.md
+  s_fc99e3655c4118::t_8f11c1b7dbd772 1-49
+packages/swc-uxp-wrappers/link/package.json
+  s_fc99e3655c4118::t_9edb97019af4ec 1-35
+packages/swc-uxp-wrappers/link/sp-link.js
+  s_fc99e3655c4118::t_7fddd6fbf8e1f3 1-17
+packages/swc-uxp-wrappers/link/src/Link.js
+  s_fc99e3655c4118::t_49212a4c8dda1a 1-23
+packages/swc-uxp-wrappers/link/src/index.js
+  s_fc99e3655c4118::t_4f53746c58af34 1-13
+packages/swc-uxp-wrappers/link/src/link.css.js
+  s_fc99e3655c4118::t_c7154e510e271e 1-23
+packages/swc-uxp-wrappers/link/src/uxp-link.css
+  s_fc99e3655c4118::t_8ba17a7c4fabea 1-13
+packages/swc-uxp-wrappers/link/src/uxp-link.css.js
+  s_fc99e3655c4118::t_fc98f5be4bb0f3 1-17
+packages/swc-uxp-wrappers/menu/README.md
+  s_fc99e3655c4118::t_50023cfabeb03c 1-51
+packages/swc-uxp-wrappers/menu/package.json
+  s_fc99e3655c4118::t_03e2f3f8dcbe50 1-46
+packages/swc-uxp-wrappers/menu/sp-menu-divider.js
+  s_fc99e3655c4118::t_ab967a196e5fc8 1-17
+packages/swc-uxp-wrappers/menu/sp-menu-group.js
+  s_fc99e3655c4118::t_c589a430e4445f 1-17
+packages/swc-uxp-wrappers/menu/sp-menu-item.js
+  s_fc99e3655c4118::t_56110b1e2cbd26 1-17
+packages/swc-uxp-wrappers/menu/sp-menu.js
+  s_fc99e3655c4118::t_c9a09a2ca72f43 1-17
+packages/swc-uxp-wrappers/menu/src/Menu.js
+  s_fc99e3655c4118::t_aabc8d390dae8e 1-24
+packages/swc-uxp-wrappers/menu/src/MenuDivider.js
+  s_fc99e3655c4118::t_f3b98e4ca87233 1-24
+packages/swc-uxp-wrappers/menu/src/MenuGroup.js
+  s_fc99e3655c4118::t_a1d75b6ad574f4 1-24
+packages/swc-uxp-wrappers/menu/src/MenuItem.js
+  s_fc99e3655c4118::t_670e7469ad359b 1-24
+packages/swc-uxp-wrappers/menu/src/index.js
+  s_fc99e3655c4118::t_f962698de5adf7 1-16
+packages/swc-uxp-wrappers/menu/src/menu-divider.css.js
+  s_fc99e3655c4118::t_2f9d4093b3c428 1-23
+packages/swc-uxp-wrappers/menu/src/menu-group.css.js
+  s_fc99e3655c4118::t_f4d263522f8995 1-23
+packages/swc-uxp-wrappers/menu/src/menu-item.css.js
+  s_fc99e3655c4118::t_3aa1e449e47541 1-23
+packages/swc-uxp-wrappers/menu/src/menu.css.js
+  s_fc99e3655c4118::t_6e8b3df7346692 1-23
+packages/swc-uxp-wrappers/menu/src/uxp-menu-divider.css
+  s_fc99e3655c4118::t_52bb64df2e5cd7 1-35
+packages/swc-uxp-wrappers/menu/src/uxp-menu-divider.css.js
+  s_fc99e3655c4118::t_8a92ef9da3e27d 1-19
+packages/swc-uxp-wrappers/menu/src/uxp-menu-group.css
+  s_fc99e3655c4118::t_f808d255c0b205 1-56
+packages/swc-uxp-wrappers/menu/src/uxp-menu-group.css.js
+  s_fc99e3655c4118::t_f3cb6799e3620c 1-33
+packages/swc-uxp-wrappers/menu/src/uxp-menu-item.css
+  s_fc99e3655c4118::t_7f6cee846f21cc 1-81
+packages/swc-uxp-wrappers/menu/src/uxp-menu-item.css.js
+  s_fc99e3655c4118::t_f3ee91c1dae172 1-39
+packages/swc-uxp-wrappers/menu/src/uxp-menu.css
+  s_fc99e3655c4118::t_63552bd2b54541 1-27
+packages/swc-uxp-wrappers/menu/src/uxp-menu.css.js
+  s_fc99e3655c4118::t_5abfc3c58c2b86 1-21
+packages/swc-uxp-wrappers/meter/README.md
+  s_fc99e3655c4118::t_c2b80bda2f87a8 1-50
+packages/swc-uxp-wrappers/meter/package.json
+  s_fc99e3655c4118::t_4faedb32c2eb82 1-36
+packages/swc-uxp-wrappers/meter/sp-meter.js
+  s_fc99e3655c4118::t_a7904187c228ef 1-17
+packages/swc-uxp-wrappers/meter/src/Meter.js
+  s_fc99e3655c4118::t_c03828225c3411 1-24
+packages/swc-uxp-wrappers/meter/src/index.js
+  s_fc99e3655c4118::t_62354334691b38 1-13
+packages/swc-uxp-wrappers/meter/src/meter.css.js
+  s_fc99e3655c4118::t_1fa7ae4b092549 1-23
+packages/swc-uxp-wrappers/meter/src/uxp-meter.css
+  s_fc99e3655c4118::t_35dfe75857ae32 1-76
+packages/swc-uxp-wrappers/meter/src/uxp-meter.css.js
+  s_fc99e3655c4118::t_c7f41a6f013c2b 1-33
+packages/swc-uxp-wrappers/number-field/README.md
+  s_fc99e3655c4118::t_8872f086e9bdd4 1-52
+packages/swc-uxp-wrappers/number-field/package.json
+  s_fc99e3655c4118::t_f72fcce6ff2e63 1-37
+packages/swc-uxp-wrappers/number-field/sp-number-field.js
+  s_fc99e3655c4118::t_c439692c61795a 1-17
+packages/swc-uxp-wrappers/number-field/src/NumberField.js
+  s_fc99e3655c4118::t_9fe54df8442dcb 1-24
+packages/swc-uxp-wrappers/number-field/src/index.js
+  s_fc99e3655c4118::t_467c3c7bb4ab06 1-13
+packages/swc-uxp-wrappers/number-field/src/number-field.css.js
+  s_fc99e3655c4118::t_1add8456ac3664 1-23
+packages/swc-uxp-wrappers/number-field/src/uxp-number-field.css
+  s_fc99e3655c4118::t_07055ac9ff6bf5 1-119
+packages/swc-uxp-wrappers/number-field/src/uxp-number-field.css.js
+  s_fc99e3655c4118::t_e719bb0e007a66 1-33
+packages/swc-uxp-wrappers/overlay/README.md
+  s_fc99e3655c4118::t_819c03ae3e5eb1 1-52
+packages/swc-uxp-wrappers/overlay/active-overlay.js
+  s_fc99e3655c4118::t_f495a39cd10ba8 1-15
+packages/swc-uxp-wrappers/overlay/overlay-trigger-sync.js
+  s_fc99e3655c4118::t_8a09898c012c0f 1-16
+packages/swc-uxp-wrappers/overlay/overlay-trigger.js
+  s_fc99e3655c4118::t_1e8f866535bfc5 1-15
+packages/swc-uxp-wrappers/overlay/package.json
+  s_fc99e3655c4118::t_2d55be2d8cb3f0 1-51
+packages/swc-uxp-wrappers/overlay/sp-overlay.js
+  s_fc99e3655c4118::t_3d8c509c3185c7 1-17
+packages/swc-uxp-wrappers/overlay/src/AbstractOverlay.js
+  s_fc99e3655c4118::t_0a6cc7660dd2d3 1-13
+packages/swc-uxp-wrappers/overlay/src/ActiveOverlay.js
+  s_fc99e3655c4118::t_97288009bdd962 1-13
+packages/swc-uxp-wrappers/overlay/src/Overlay.js
+  s_fc99e3655c4118::t_fc0c4e6291d450 1-24
+packages/swc-uxp-wrappers/overlay/src/OverlayDialog.js
+  s_fc99e3655c4118::t_ae9f525d96e61c 1-13
+packages/swc-uxp-wrappers/overlay/src/OverlayNoPopover.js
+  s_fc99e3655c4118::t_c86994e909f868 1-13
+packages/swc-uxp-wrappers/overlay/src/OverlayPopover.js
+  s_fc99e3655c4118::t_b336cfb5763bdc 1-13
+packages/swc-uxp-wrappers/overlay/src/OverlayStack.js
+  s_fc99e3655c4118::t_26a67da9c94d63 1-13
+packages/swc-uxp-wrappers/overlay/src/OverlayTrigger.js
+  s_fc99e3655c4118::t_1c3fe14a172c38 1-12
+packages/swc-uxp-wrappers/overlay/src/PlaceholderController.js
+  s_fc99e3655c4118::t_4c86ad04bb83a1 1-13
+packages/swc-uxp-wrappers/overlay/src/VirtualTrigger.js
+  s_fc99e3655c4118::t_bf67a81227e522 1-13
+packages/swc-uxp-wrappers/overlay/src/fullSizePlugin.js
+  s_fc99e3655c4118::t_ed1117f32cac5f 1-13
+packages/swc-uxp-wrappers/overlay/src/index.js
+  s_fc99e3655c4118::t_3606963d6247f1 1-15
+packages/swc-uxp-wrappers/overlay/src/loader.js
+  s_fc99e3655c4118::t_8960d51284f5cb 1-13
+packages/swc-uxp-wrappers/overlay/src/overlay-events.js
+  s_fc99e3655c4118::t_f37cdaba9a2348 1-13
+packages/swc-uxp-wrappers/overlay/src/overlay-timer.js
+  s_fc99e3655c4118::t_68247f107f1dd4 1-13
+packages/swc-uxp-wrappers/overlay/src/overlay-trigger.css.js
+  s_fc99e3655c4118::t_88f1218b585a0d 1-13
+packages/swc-uxp-wrappers/overlay/src/overlay-types.js
+  s_fc99e3655c4118::t_e14ac5459bae21 1-13
+packages/swc-uxp-wrappers/overlay/src/overlay.css.js
+  s_fc99e3655c4118::t_226fc40acde662 1-23
+packages/swc-uxp-wrappers/overlay/src/topLayerOverTransforms.js
+  s_fc99e3655c4118::t_412b641c18aaee 1-13
+packages/swc-uxp-wrappers/overlay/src/uxp-overlay.css
+  s_fc99e3655c4118::t_a1c6dfcf665b0c 1-18
+packages/swc-uxp-wrappers/overlay/src/uxp-overlay.css.js
+  s_fc99e3655c4118::t_46ca1b323f498f 1-17
+packages/swc-uxp-wrappers/package.json
+  s_fc99e3655c4118::t_f4d2682d85ee2b 1-16
+packages/swc-uxp-wrappers/picker-button/README.md
+  s_fc99e3655c4118::t_8b72023a4d384c 1-45
+packages/swc-uxp-wrappers/picker-button/package.json
+  s_fc99e3655c4118::t_22516d2e86558c 1-36
+packages/swc-uxp-wrappers/picker-button/sp-picker-button.js
+  s_fc99e3655c4118::t_f42472e97ba7bd 1-17
+packages/swc-uxp-wrappers/picker-button/src/PickerButton.js
+  s_fc99e3655c4118::t_eec7128101755f 1-24
+packages/swc-uxp-wrappers/picker-button/src/index.js
+  s_fc99e3655c4118::t_e510d285ebc331 1-13
+packages/swc-uxp-wrappers/picker-button/src/picker-button.css.js
+  s_fc99e3655c4118::t_0eab6a100deefa 1-23
+packages/swc-uxp-wrappers/picker-button/src/uxp-picker-button.css
+  s_fc99e3655c4118::t_b2bf681e2e8e1a 1-135
+packages/swc-uxp-wrappers/picker-button/src/uxp-picker-button.css.js
+  s_fc99e3655c4118::t_dfe607eeaad292 1-55
+packages/swc-uxp-wrappers/popover/README.md
+  s_fc99e3655c4118::t_c8a2ebd5a68af5 1-45
+packages/swc-uxp-wrappers/popover/package.json
+  s_fc99e3655c4118::t_d5642329635752 1-35
+packages/swc-uxp-wrappers/popover/sp-popover.js
+  s_fc99e3655c4118::t_b28325eae17f7f 1-17
+packages/swc-uxp-wrappers/popover/src/Popover.js
+  s_fc99e3655c4118::t_b561430ed2e9f1 1-24
+packages/swc-uxp-wrappers/popover/src/index.js
+  s_fc99e3655c4118::t_0e4385480e557f 1-13
+packages/swc-uxp-wrappers/popover/src/popover.css.js
+  s_fc99e3655c4118::t_98d79a66b30a1f 1-23
+packages/swc-uxp-wrappers/popover/src/uxp-popover.css
+  s_fc99e3655c4118::t_c0065c16ff5efe 1-36
+packages/swc-uxp-wrappers/popover/src/uxp-popover.css.js
+  s_fc99e3655c4118::t_cfaca45a5db894 1-19
+packages/swc-uxp-wrappers/quick-actions/README.md
+  s_fc99e3655c4118::t_cb27741eceeed9 1-45
+packages/swc-uxp-wrappers/quick-actions/package.json
+  s_fc99e3655c4118::t_46cb10356276f5 1-35
+packages/swc-uxp-wrappers/quick-actions/sp-quick-actions.js
+  s_fc99e3655c4118::t_e2946cdd856655 1-17
+packages/swc-uxp-wrappers/quick-actions/src/QuickActions.js
+  s_fc99e3655c4118::t_491d23e5ec4918 1-24
+packages/swc-uxp-wrappers/quick-actions/src/index.js
+  s_fc99e3655c4118::t_cfddc18faa73c0 1-13
+packages/swc-uxp-wrappers/quick-actions/src/quick-actions.css.js
+  s_fc99e3655c4118::t_78b8ae9e76c514 1-23
+packages/swc-uxp-wrappers/quick-actions/src/uxp-quick-actions.css
+  s_fc99e3655c4118::t_78b76ab1dcd6a7 1-13
+packages/swc-uxp-wrappers/quick-actions/src/uxp-quick-actions.css.js
+  s_fc99e3655c4118::t_433bb1d484b09c 1-17
+packages/swc-uxp-wrappers/radio/README.md
+  s_fc99e3655c4118::t_fbc90ca6979c6c 1-45
+packages/swc-uxp-wrappers/radio/package.json
+  s_fc99e3655c4118::t_55bff45ea600eb 1-39
+packages/swc-uxp-wrappers/radio/sp-radio-group.js
+  s_fc99e3655c4118::t_cefd5976a189e0 1-17
+packages/swc-uxp-wrappers/radio/sp-radio.js
+  s_fc99e3655c4118::t_7208317d19e8f0 1-17
+packages/swc-uxp-wrappers/radio/src/Radio.js
+  s_fc99e3655c4118::t_621b5586202687 1-24
+packages/swc-uxp-wrappers/radio/src/RadioGroup.js
+  s_fc99e3655c4118::t_9f13fd9d6e5941 1-24
+packages/swc-uxp-wrappers/radio/src/index.js
+  s_fc99e3655c4118::t_3393671ebe3f79 1-14
+packages/swc-uxp-wrappers/radio/src/radio.css.js
+  s_fc99e3655c4118::t_92f4e3fbf14237 1-23
+packages/swc-uxp-wrappers/radio/src/uxp-radio-group.css
+  s_fc99e3655c4118::t_7c3e327c60fafd 1-13
+packages/swc-uxp-wrappers/radio/src/uxp-radio-group.css.js
+  s_fc99e3655c4118::t_45c797e5831710 1-17
+packages/swc-uxp-wrappers/radio/src/uxp-radio.css
+  s_fc99e3655c4118::t_8ca1b47a53eb3a 1-62
+packages/swc-uxp-wrappers/radio/src/uxp-radio.css.js
+  s_fc99e3655c4118::t_21335ba9823d81 1-25
+packages/swc-uxp-wrappers/scripts/build-css.mjs
+  s_fc99e3655c4118::t_b3d64afaab33e6 1-63
+packages/swc-uxp-wrappers/search/README.md
+  s_fc99e3655c4118::t_5913203f9871f3 1-53
+packages/swc-uxp-wrappers/search/package.json
+  s_fc99e3655c4118::t_0a7a2dda13f909 1-37
+packages/swc-uxp-wrappers/search/sp-search.js
+  s_fc99e3655c4118::t_be105dfac22910 1-17
+packages/swc-uxp-wrappers/search/src/Search.js
+  s_fc99e3655c4118::t_d20d9cccf91d7f 1-24
+packages/swc-uxp-wrappers/search/src/index.js
+  s_fc99e3655c4118::t_f22e0a5e0172ff 1-13
+packages/swc-uxp-wrappers/search/src/search.css.js
+  s_fc99e3655c4118::t_5bf9d1da71a3b6 1-23
+packages/swc-uxp-wrappers/search/src/uxp-search.css
+  s_fc99e3655c4118::t_7ce210f34a4c5b 1-104
+packages/swc-uxp-wrappers/search/src/uxp-search.css.js
+  s_fc99e3655c4118::t_8cee79201dee95 1-30
+packages/swc-uxp-wrappers/sidenav/README.md
+  s_fc99e3655c4118::t_6a6c8084abac0c 1-50
+packages/swc-uxp-wrappers/sidenav/package.json
+  s_fc99e3655c4118::t_a38f4964386cf6 1-41
+packages/swc-uxp-wrappers/sidenav/sp-sidenav-heading.js
+  s_fc99e3655c4118::t_c289317c5e5a2d 1-17
+packages/swc-uxp-wrappers/sidenav/sp-sidenav-item.js
+  s_fc99e3655c4118::t_1b828c11ba4b38 1-17
+packages/swc-uxp-wrappers/sidenav/sp-sidenav.js
+  s_fc99e3655c4118::t_53cad4e9828fc1 1-17
+packages/swc-uxp-wrappers/sidenav/src/Sidenav.js
+  s_fc99e3655c4118::t_4c2173ff4d5a33 1-24
+packages/swc-uxp-wrappers/sidenav/src/SidenavHeading.js
+  s_fc99e3655c4118::t_231879592cfd14 1-24
+packages/swc-uxp-wrappers/sidenav/src/SidenavItem.js
+  s_fc99e3655c4118::t_83f9fb0fb658bb 1-24
+packages/swc-uxp-wrappers/sidenav/src/index.js
+  s_fc99e3655c4118::t_d8321b298daa6a 1-15
+packages/swc-uxp-wrappers/sidenav/src/sidenav-heading.css.js
+  s_fc99e3655c4118::t_c8ea672156b573 1-23
+packages/swc-uxp-wrappers/sidenav/src/sidenav-item.css.js
+  s_fc99e3655c4118::t_3b800f0fcb348a 1-23
+packages/swc-uxp-wrappers/sidenav/src/sidenav.css.js
+  s_fc99e3655c4118::t_14fea5ef573ea2 1-23
+packages/swc-uxp-wrappers/sidenav/src/uxp-sidenav-heading.css
+  s_fc99e3655c4118::t_5b888c84ef05c8 1-13
+packages/swc-uxp-wrappers/sidenav/src/uxp-sidenav-heading.css.js
+  s_fc99e3655c4118::t_32214a78f7115c 1-17
+packages/swc-uxp-wrappers/sidenav/src/uxp-sidenav-item.css
+  s_fc99e3655c4118::t_f1508019308f97 1-55
+packages/swc-uxp-wrappers/sidenav/src/uxp-sidenav-item.css.js
+  s_fc99e3655c4118::t_9121bf847f8dc0 1-27
+packages/swc-uxp-wrappers/sidenav/src/uxp-sidenav.css
+  s_fc99e3655c4118::t_11c3992257245f 1-13
+packages/swc-uxp-wrappers/sidenav/src/uxp-sidenav.css.js
+  s_fc99e3655c4118::t_126789f0086d59 1-17
+packages/swc-uxp-wrappers/swatch/README.md
+  s_fc99e3655c4118::t_14ebfa069768a7 1-45
+packages/swc-uxp-wrappers/swatch/package.json
+  s_fc99e3655c4118::t_89f7901a4ddb02 1-38
+packages/swc-uxp-wrappers/swatch/sp-swatch-group.js
+  s_fc99e3655c4118::t_51c58a72ba0ed0 1-17
+packages/swc-uxp-wrappers/swatch/sp-swatch.js
+  s_fc99e3655c4118::t_50019120fdef71 1-17
+packages/swc-uxp-wrappers/swatch/src/Swatch.js
+  s_fc99e3655c4118::t_f6464e76825e34 1-24
+packages/swc-uxp-wrappers/swatch/src/SwatchGroup.js
+  s_fc99e3655c4118::t_375525a00a78d3 1-24
+packages/swc-uxp-wrappers/swatch/src/index.js
+  s_fc99e3655c4118::t_95eaf05ceb3dad 1-14
+packages/swc-uxp-wrappers/swatch/src/swatch-group.css.js
+  s_fc99e3655c4118::t_2089a5204461f6 1-23
+packages/swc-uxp-wrappers/swatch/src/swatch.css.js
+  s_fc99e3655c4118::t_21b7cd607e323d 1-23
+packages/swc-uxp-wrappers/swatch/src/uxp-swatch-group.css
+  s_fc99e3655c4118::t_45416f80312ba6 1-34
+packages/swc-uxp-wrappers/swatch/src/uxp-swatch-group.css.js
+  s_fc99e3655c4118::t_49643c6f7e7859 1-23
+packages/swc-uxp-wrappers/swatch/src/uxp-swatch.css
+  s_fc99e3655c4118::t_b4348b4b47ab8b 1-80
+packages/swc-uxp-wrappers/swatch/src/uxp-swatch.css.js
+  s_fc99e3655c4118::t_9c1b82fdc0d187 1-29
+packages/swc-uxp-wrappers/switch/README.md
+  s_fc99e3655c4118::t_23c24459a1bf6f 1-50
+packages/swc-uxp-wrappers/switch/package.json
+  s_fc99e3655c4118::t_5157653f96858d 1-36
+packages/swc-uxp-wrappers/switch/sp-switch.js
+  s_fc99e3655c4118::t_3ce469eaa18b8e 1-17
+packages/swc-uxp-wrappers/switch/src/Switch.js
+  s_fc99e3655c4118::t_ce8f930a3b9dbd 1-24
+packages/swc-uxp-wrappers/switch/src/index.js
+  s_fc99e3655c4118::t_aa9e30f6140d92 1-13
+packages/swc-uxp-wrappers/switch/src/switch.css.js
+  s_fc99e3655c4118::t_0eb561850c8f17 1-23
+packages/swc-uxp-wrappers/switch/src/uxp-switch.css
+  s_fc99e3655c4118::t_3ee56254eaad66 1-105
+packages/swc-uxp-wrappers/switch/src/uxp-switch.css.js
+  s_fc99e3655c4118::t_8f53ee8e7d430e 1-43
+packages/swc-uxp-wrappers/table/README.md
+  s_fc99e3655c4118::t_32b6663c1b4d81 1-50
+packages/swc-uxp-wrappers/table/package.json
+  s_fc99e3655c4118::t_685779c951c9a1 1-54
+packages/swc-uxp-wrappers/table/sp-table-body.js
+  s_fc99e3655c4118::t_92a7b6a191bae8 1-17
+packages/swc-uxp-wrappers/table/sp-table-cell.js
+  s_fc99e3655c4118::t_670f504a604249 1-17
+packages/swc-uxp-wrappers/table/sp-table-checkbox-cell.js
+  s_fc99e3655c4118::t_45fed0f38e09a3 1-17
+packages/swc-uxp-wrappers/table/sp-table-head-cell.js
+  s_fc99e3655c4118::t_0a9ec7c15a610f 1-17
+packages/swc-uxp-wrappers/table/sp-table-head.js
+  s_fc99e3655c4118::t_98899f8dea0075 1-17
+packages/swc-uxp-wrappers/table/sp-table-row.js
+  s_fc99e3655c4118::t_a0c22e93d2ed02 1-17
+packages/swc-uxp-wrappers/table/sp-table.js
+  s_fc99e3655c4118::t_1dca8b20f75cb2 1-17
+packages/swc-uxp-wrappers/table/src/Table.js
+  s_fc99e3655c4118::t_d9948feaada2ed 1-24
+packages/swc-uxp-wrappers/table/src/TableBody.js
+  s_fc99e3655c4118::t_007839460f98ab 1-24
+packages/swc-uxp-wrappers/table/src/TableCell.js
+  s_fc99e3655c4118::t_9b2f710d31f3df 1-24
+packages/swc-uxp-wrappers/table/src/TableCheckboxCell.js
+  s_fc99e3655c4118::t_8dbbfc798ce3f9 1-24
+packages/swc-uxp-wrappers/table/src/TableHead.js
+  s_fc99e3655c4118::t_2a3a04821c94cb 1-24
+packages/swc-uxp-wrappers/table/src/TableHeadCell.js
+  s_fc99e3655c4118::t_1f5353531a307a 1-24
+packages/swc-uxp-wrappers/table/src/TableRow.js
+  s_fc99e3655c4118::t_df1b3084711958 1-24
+packages/swc-uxp-wrappers/table/src/index.js
+  s_fc99e3655c4118::t_829aefe136dc34 1-19
+packages/swc-uxp-wrappers/table/src/table-body.css.js
+  s_fc99e3655c4118::t_854ee3ec5bbb6f 1-23
+packages/swc-uxp-wrappers/table/src/table-cell.css.js
+  s_fc99e3655c4118::t_3032f281851b2c 1-23
+packages/swc-uxp-wrappers/table/src/table-checkbox-cell.css.js
+  s_fc99e3655c4118::t_465ac2922c24b7 1-23
+packages/swc-uxp-wrappers/table/src/table-head-cell.css.js
+  s_fc99e3655c4118::t_52d4a60341ef9d 1-23
+packages/swc-uxp-wrappers/table/src/table-head.css.js
+  s_fc99e3655c4118::t_390e4fe515a9e1 1-23
+packages/swc-uxp-wrappers/table/src/table-row.css.js
+  s_fc99e3655c4118::t_9e27adb5ce0b21 1-23
+packages/swc-uxp-wrappers/table/src/table.css.js
+  s_fc99e3655c4118::t_5b013e09bc88c9 1-23
+packages/swc-uxp-wrappers/table/src/uxp-table-body.css
+  s_fc99e3655c4118::t_a6b57bf4e7df42 1-13
+packages/swc-uxp-wrappers/table/src/uxp-table-body.css.js
+  s_fc99e3655c4118::t_1c5556266701ae 1-17
+packages/swc-uxp-wrappers/table/src/uxp-table-cell.css
+  s_fc99e3655c4118::t_befa6790292179 1-13
+packages/swc-uxp-wrappers/table/src/uxp-table-cell.css.js
+  s_fc99e3655c4118::t_de908d1502a652 1-17
+packages/swc-uxp-wrappers/table/src/uxp-table-checkbox-cell.css
+  s_fc99e3655c4118::t_2ea3ac9f4df350 1-13
+packages/swc-uxp-wrappers/table/src/uxp-table-checkbox-cell.css.js
+  s_fc99e3655c4118::t_bf6640b360bf89 1-17
+packages/swc-uxp-wrappers/table/src/uxp-table-head-cell.css
+  s_fc99e3655c4118::t_48c6518a8cd613 1-13
+packages/swc-uxp-wrappers/table/src/uxp-table-head-cell.css.js
+  s_fc99e3655c4118::t_944ffd7a43e4a8 1-17
+packages/swc-uxp-wrappers/table/src/uxp-table-head.css
+  s_fc99e3655c4118::t_5b8c37d0777619 1-13
+packages/swc-uxp-wrappers/table/src/uxp-table-head.css.js
+  s_fc99e3655c4118::t_138d72a4ce6a25 1-17
+packages/swc-uxp-wrappers/table/src/uxp-table-row.css
+  s_fc99e3655c4118::t_b5d8d4b5c4f28b 1-13
+packages/swc-uxp-wrappers/table/src/uxp-table-row.css.js
+  s_fc99e3655c4118::t_e6476a8c671bc4 1-17
+packages/swc-uxp-wrappers/table/src/uxp-table.css
+  s_fc99e3655c4118::t_3bb95d56c91ae7 1-13
+packages/swc-uxp-wrappers/table/src/uxp-table.css.js
+  s_fc99e3655c4118::t_7c89a0a696859f 1-17
+packages/swc-uxp-wrappers/tags/README.md
+  s_fc99e3655c4118::t_19e5d20e6a24d6 1-49
+packages/swc-uxp-wrappers/tags/package.json
+  s_fc99e3655c4118::t_688032b002be3c 1-39
+packages/swc-uxp-wrappers/tags/sp-tag.js
+  s_fc99e3655c4118::t_c718853068f3b1 1-17
+packages/swc-uxp-wrappers/tags/sp-tags.js
+  s_fc99e3655c4118::t_a27dd975903ef1 1-17
+packages/swc-uxp-wrappers/tags/src/Tag.js
+  s_fc99e3655c4118::t_1d515e83f2aea3 1-24
+packages/swc-uxp-wrappers/tags/src/Tags.js
+  s_fc99e3655c4118::t_0aa4a101d85721 1-24
+packages/swc-uxp-wrappers/tags/src/index.js
+  s_fc99e3655c4118::t_cfc1bfd0d9d157 1-14
+packages/swc-uxp-wrappers/tags/src/tag.css.js
+  s_fc99e3655c4118::t_449686bd29e855 1-23
+packages/swc-uxp-wrappers/tags/src/tags.css.js
+  s_fc99e3655c4118::t_1f95c6ced6dfe6 1-23
+packages/swc-uxp-wrappers/tags/src/uxp-tag.css
+  s_fc99e3655c4118::t_a3d057d19a0ac7 1-127
+packages/swc-uxp-wrappers/tags/src/uxp-tag.css.js
+  s_fc99e3655c4118::t_95f9bfd7e66f55 1-63
+packages/swc-uxp-wrappers/tags/src/uxp-tags.css
+  s_fc99e3655c4118::t_caa6ba0e672d73 1-18
+packages/swc-uxp-wrappers/tags/src/uxp-tags.css.js
+  s_fc99e3655c4118::t_aff6e7511934f9 1-17
+packages/swc-uxp-wrappers/textfield/README.md
+  s_fc99e3655c4118::t_b79dfbc65af06d 1-56
+packages/swc-uxp-wrappers/textfield/package.json
+  s_fc99e3655c4118::t_b9dd3db1486cb5 1-36
+packages/swc-uxp-wrappers/textfield/sp-textfield.js
+  s_fc99e3655c4118::t_f720fc147ef7ff 1-17
+packages/swc-uxp-wrappers/textfield/src/Textfield.js
+  s_fc99e3655c4118::t_165e75f89f87c2 1-35
+packages/swc-uxp-wrappers/textfield/src/index.js
+  s_fc99e3655c4118::t_7da9a9ab9a7582 1-13
+packages/swc-uxp-wrappers/textfield/src/textfield.css.js
+  s_fc99e3655c4118::t_15dee037c140bb 1-23
+packages/swc-uxp-wrappers/textfield/src/uxp-textfield.css
+  s_fc99e3655c4118::t_3b41a7d4f5f95c 1-313
+packages/swc-uxp-wrappers/textfield/src/uxp-textfield.css.js
+  s_fc99e3655c4118::t_6be8696bb2d1cb 1-130
+packages/swc-uxp-wrappers/toast/README.md
+  s_fc99e3655c4118::t_5a94b5adbb9557 1-45
+packages/swc-uxp-wrappers/toast/package.json
+  s_fc99e3655c4118::t_1d5cee3001d0ca 1-36
+packages/swc-uxp-wrappers/toast/sp-toast.js
+  s_fc99e3655c4118::t_05ffb0b2795280 1-17
+packages/swc-uxp-wrappers/toast/src/Toast.js
+  s_fc99e3655c4118::t_28462d49101ccb 1-24
+packages/swc-uxp-wrappers/toast/src/index.js
+  s_fc99e3655c4118::t_23aef0aa2faec5 1-13
+packages/swc-uxp-wrappers/toast/src/toast.css.js
+  s_fc99e3655c4118::t_9b2c46b7f3a92f 1-23
+packages/swc-uxp-wrappers/toast/src/uxp-toast.css
+  s_fc99e3655c4118::t_d7a9c7642110ec 1-112
+packages/swc-uxp-wrappers/toast/src/uxp-toast.css.js
+  s_fc99e3655c4118::t_81ed2c9657bf8e 1-53
+packages/swc-uxp-wrappers/tooltip/README.md
+  s_fc99e3655c4118::t_57376b34acdff9 1-45
+packages/swc-uxp-wrappers/tooltip/package.json
+  s_fc99e3655c4118::t_1012725a80a792 1-35
+packages/swc-uxp-wrappers/tooltip/sp-tooltip.js
+  s_fc99e3655c4118::t_080c1914cf069e 1-17
+packages/swc-uxp-wrappers/tooltip/src/Tooltip.js
+  s_fc99e3655c4118::t_bdd94f758b099d 1-24
+packages/swc-uxp-wrappers/tooltip/src/index.js
+  s_fc99e3655c4118::t_a8b9a4cf04f528 1-13
+packages/swc-uxp-wrappers/tooltip/src/tooltip.css.js
+  s_fc99e3655c4118::t_9193dde61d84e2 1-23
+packages/swc-uxp-wrappers/tooltip/src/uxp-tooltip.css
+  s_fc99e3655c4118::t_69aae93d37cccf 1-169
+packages/swc-uxp-wrappers/tooltip/src/uxp-tooltip.css.js
+  s_fc99e3655c4118::t_02047362f7c679 1-45
+packages/swc-uxp-wrappers/utils/README.md
+  s_fc99e3655c4118::t_d256ce263c7b54 1-13
+packages/swc-uxp-wrappers/utils/package.json
+  s_fc99e3655c4118::t_ed4fd3676c65fa 1-49
+packages/swc-uxp-wrappers/utils/src/aliases.js
+  s_fc99e3655c4118::t_78ef1baea04f5f 1-73
+packages/swc-uxp-wrappers/utils/src/index.js
+  s_fc99e3655c4118::t_dac64da1addf51 1-13
+pnpm-lock.yaml
+  s_fc99e3655c4118::t_0c8f1725104295 29-31,148-606,765-788,792-806,810-827,971-988,992-1024,1028-1030,1034-1036,1040-1115,1119-1121,1253-1260,1265-1273,1282-1287,1300-1310,1314-1357,1374-1396,1412-1415,1423-1426,1430-1432,1445-1454,1465-1468,1480-1491,1498-1501,1505-1510,1514-1519,1523-1534,1545-1555,1570-1571,1575-1585,1609-1612,1627-1794,1799-1805,1815-1818,1829-1835,1846-1853,1866-1876,1907-1913,1926-1931,1935-1937,2073-2076,2160-2189,2192-2211,2214-2233,2313-2348,2353-2424,2430-2435,2441-2445,2450-2613,2616-2619,2758-2761,2766-2777,2784-2792,2805-2810,2813-2881,2890-2915,2951-2952,2959-2966,2972-2975,2982-2989,2996-2999,3021-3028,3033-3034,3040-3051,3056-3063,3070-3085,3094-3102,3113-3121,3140-3141,3152-3306,3309,3313-3320,3328-3329,3366-3371,3378-3381,3392-3407,3427-3432,3446-3451,3456-3457,3570-3571
+pnpm-workspace.yaml
+  s_fc99e3655c4118::t_b455c8d0c6e6ef 4
+turbo.json
+  s_fc99e3655c4118::t_900c3c6d3f9c67 8
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.3",
+  "base_commit_sha": "b7bb3f27228ab7b25a7b31e18688976a1f0e6e78",
+  "prompts": {},
+  "sessions": {
+    "s_fc99e3655c4118": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "019f2457-8569-76a3-87f0-77e69b0648fb",
+        "model": "unknown"
+      },
+      "human_author": "Sinyuk <80998062@qq.com>"
+    }
+  }
+}
