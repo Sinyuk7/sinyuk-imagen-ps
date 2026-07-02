@@ -10,6 +10,7 @@ import {
 import { createCompositeSink, createConsoleSink } from '@imagen-ps/foundation';
 import { createCommandsAdapter } from '../../app-services/commands-port';
 import type { AppServices } from '../../app-services/app-services';
+import { createStaticAppPathInfoPort } from '../../shared/ports/app-path-info';
 import type { DiagnosticsPort } from '../../shared/ports/diagnostics-port';
 import { createPluginAppModel, type PluginAppModel } from '../../shared/plugin-app-model';
 import { normalizeLocale, type SupportedLocale } from '../../shared/locale';
@@ -42,6 +43,34 @@ function createUxpDiagnosticsPort(): DiagnosticsPort {
   return {
     checkpoint: writeUxpUiCheckpoint,
     failure: writeUxpUiFailure,
+  };
+}
+
+function createUxpFallbackPathInfoPort() {
+  return createStaticAppPathInfoPort({
+    logPath: 'data-folder/logs/YYYY-MM-DD/imagen.jsonl',
+    generatedImagePath: 'data-folder/uxp-asset-*',
+  });
+}
+
+async function resolveUxpPathInfo(uxpModules: ReturnType<typeof resolveUxpModules>): Promise<{
+  readonly logPath: string;
+  readonly generatedImagePath: string;
+}> {
+  const localFileSystem = (uxpModules.uxp?.storage as {
+    readonly localFileSystem?: { getDataFolder(): Promise<{ readonly nativePath?: string }> };
+  } | undefined)?.localFileSystem;
+  if (!localFileSystem) {
+    return createUxpFallbackPathInfoPort().getPathInfo();
+  }
+  const dataFolder = await localFileSystem.getDataFolder();
+  const basePath = typeof dataFolder.nativePath === 'string' && dataFolder.nativePath.length > 0
+    ? dataFolder.nativePath
+    : 'data-folder';
+  const today = new Date().toISOString().slice(0, 10);
+  return {
+    logPath: `${basePath}/logs/${today}/imagen.jsonl`,
+    generatedImagePath: `${basePath}/uxp-asset-*`,
   };
 }
 
@@ -121,6 +150,9 @@ export function createPluginHostShell(): PluginHostShell {
         commands: createCommandsAdapter(),
         host: hostBridge,
         generationSettings,
+        pathInfo: {
+          getPathInfo: async () => resolveUxpPathInfo(uxpModules),
+        },
         thumbnails: createMemoryThumbnailStore({ resolveStoredRef: assetStore.resolve, createThumbnail }),
         taskResources: createTaskResourceResolver({ resolveStoredRef: assetStore.resolve }),
         diagnostics: createUxpDiagnosticsPort(),

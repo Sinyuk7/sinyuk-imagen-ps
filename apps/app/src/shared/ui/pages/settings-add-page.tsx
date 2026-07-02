@@ -302,7 +302,7 @@ export function SettingsAddPage({ onNav, profiles, onProfileSaved }: SettingsAdd
         <footer className="det-footer">
           <Button data-testid="provider-save-button" className="btn-save ui-button-block" variant="accent" disabled={busy} onClick={() => void handleSave()}>{t.common.save}</Button>
           <Button
-            className="btn-cancel ui-button-block"
+            className="btn-cancel"
             variant="secondary"
             onClick={() => onNav('settings')}
           >

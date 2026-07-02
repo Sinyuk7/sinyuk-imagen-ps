@@ -20,38 +20,18 @@ By signing this CLA, you state that:
 
 ## How External Contributors Sign
 
-Open a GitHub issue using the `cla-sign.yml` template and submit it from the same GitHub account that will open the pull request.
+External contributors sign through the repository's CLA Assistant GitHub App flow on the pull request.
 
-The issue body must keep the required affirmation text intact.
+When CLA Assistant posts its check or comment, review the linked agreement text, confirm assent, and complete the signing step from the same GitHub account that opened the pull request.
 
-## How Pull Requests Link The CLA
-
-External contributor pull requests must include a line in the PR body:
-
-```text
-CLA Issue: https://github.com/<owner>/<repo>/issues/<number>
-```
-
-The linked issue must:
-
-- be open or closed in the same repository;
-- be authored by the same GitHub user as the pull request author;
-- use the CLA signing template content;
-- contain the exact affirmation sentence:
-
-```text
-I have read and agree to the CLA terms in CLA.md for my contributions to this repository.
-```
-
-Maintainers may apply `cla:exempt` only for changes that do not need a CLA record, such as typo-only documentation fixes or mechanical metadata edits.
+Maintainers may still apply `cla:exempt` only for changes that do not need a CLA record, such as typo-only documentation fixes or mechanical metadata edits.
 
 ## Maintainer Operation
 
-1. Ask the contributor to open a CLA signing issue with the provided template.
-2. Verify the issue author matches the pull request author.
-3. Verify the issue body still includes the required affirmation sentence.
-4. Verify the PR body includes a valid `CLA Issue:` link.
-5. Merge only after the workflow passes, or apply `cla:exempt` if the change is truly exempt.
+1. Install and enable CLA Assistant for this repository.
+2. Point CLA Assistant at the canonical agreement text derived from this file.
+3. Ask external contributors to complete the CLA Assistant flow on their pull requests.
+4. Merge only after the CLA Assistant status passes, or apply `cla:exempt` if the change is truly exempt.
 
 ## Notes
 

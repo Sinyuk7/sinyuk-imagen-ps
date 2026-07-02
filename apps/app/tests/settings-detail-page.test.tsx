@@ -259,6 +259,58 @@ describe('SettingsDetailPage contract', () => {
     expect(spies.refreshProfileModels).toHaveBeenCalledWith('mock-profile');
   });
 
+  it('renders a single model-list notice container with summary and technical detail', async () => {
+    const container = document.createElement('div');
+    document.body.appendChild(container);
+    const services = createFakeServices();
+    services.spies.listProfileModels.mockResolvedValue({
+      ok: false as const,
+      error: {
+        category: 'validation',
+        message: 'Provider implementation "mock" returned malformed discovery payload',
+      },
+    });
+    root = createRoot(container);
+    await act(async () => {
+      root!.render(
+        <TestAppProviders services={services.services}>
+          <SettingsDetailPage
+            onNav={vi.fn()}
+            profileId="mock-profile"
+            onProfilesChanged={vi.fn(async () => undefined)}
+          />
+        </TestAppProviders>,
+      );
+    });
+    await flush();
+    await flush();
+
+    const noticeHost = queryByTestId(container, 'provider-model-list-notice');
+    expect(noticeHost.textContent).toContain('模型列表不可用');
+    expect(noticeHost.textContent).toContain('Provider implementation "mock" returned malformed discovery payload');
+    expect(container.querySelectorAll('[data-testid="provider-model-list-notice"]')).toHaveLength(1);
+  });
+
+  it('marks the preferred endpoint with a semantic dot instead of a preferred text badge', async () => {
+    const container = document.createElement('div');
+    document.body.appendChild(container);
+    await renderDetail(container);
+
+    expect(container.querySelector('[data-testid="provider-endpoint-preferred-dot-0"]')).not.toBeNull();
+    expect(container.querySelector('[data-testid="provider-endpoint-preferred-badge-0"]')).toBeNull();
+  });
+
+  it('keeps detail delete as a compact solid icon action', async () => {
+    const container = document.createElement('div');
+    document.body.appendChild(container);
+    await renderDetail(container);
+
+    const button = queryByTestId(container, 'provider-delete-button');
+    expect(button.getAttribute('data-variant')).toBe('negative');
+    expect(button.textContent?.trim()).toBe('');
+    expect(button.className).toContain('btn-del');
+  });
+
   it('renders a plain page header title without provider enable status affordances', async () => {
     const container = document.createElement('div');
     document.body.appendChild(container);

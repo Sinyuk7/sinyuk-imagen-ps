@@ -16,6 +16,7 @@ import type { CommandsPort } from '../src/app-services/commands-port';
 import { PHOTOSHOP_UXP_RUNTIME_CAPABILITIES, type HostBridge } from '../src/app-services/host-bridge';
 import { createHostImageAsset } from '../src/shared/domain/host-image-asset';
 import { createMemoryThumbnailStore } from '../src/shared/image/thumbnail-store';
+import { createStaticAppPathInfoPort } from '../src/shared/ports/app-path-info';
 import type { DiagnosticsPort } from '../src/shared/ports/diagnostics-port';
 import { createMemoryGenerationSettingsStore, type AppGenerationSettings } from '../src/shared/ports/app-generation-settings';
 
@@ -395,6 +396,10 @@ export function createFakeServices(options?: {
       commands,
       host,
       generationSettings: createMemoryGenerationSettingsStore(options?.generationSettings),
+      pathInfo: createStaticAppPathInfoPort({
+        logPath: '/fake/data/logs/2026-07-02/imagen.jsonl',
+        generatedImagePath: '/fake/data/uxp-asset-*',
+      }),
       thumbnails: createMemoryThumbnailStore({
         async resolveStoredRef(ref) {
           if (ref.ref === fakeOutputAsset.storedRef?.ref) {

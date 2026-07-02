@@ -9,10 +9,12 @@ export type NoticeAriaLive = 'polite' | 'assertive';
 export interface NoticeOptions {
   readonly dismissible?: boolean;
   readonly copyable?: boolean;
+  readonly detailCopyable?: boolean;
   readonly durationMs?: number | null;
   readonly role?: NoticeRole;
   readonly ariaLive?: NoticeAriaLive;
   readonly icon?: IconName | null;
+  readonly detail?: string | null;
 }
 
 export interface NoticeState extends NoticeOptions {
@@ -194,7 +196,8 @@ export function NoticeView({ notice, kind, onClear, motionState, onPause, onResu
   const handleCopy = async () => {
     try {
       onPause?.();
-      const ok = await copyText(notice.message);
+      const payload = notice.detail ? `${notice.message}\n\n${notice.detail}` : notice.message;
+      const ok = await copyText(payload);
       if (!ok) {
         onResume?.();
         return;
@@ -282,8 +285,11 @@ export function NoticeView({ notice, kind, onClear, motionState, onPause, onResu
           <Icon name={notice.icon} size={14} />
         </span>
       ) : null}
-      <pre className="status-message">{notice.message}</pre>
-      {notice.copyable ? (
+      <div className="status-body">
+        <div className="status-message">{notice.message}</div>
+        {notice.detail ? <pre className="status-detail">{notice.detail}</pre> : null}
+      </div>
+      {notice.copyable || notice.detailCopyable ? (
         <IconButton
           className={`status-copy${copied ? ' cp' : ''}`}
           quiet

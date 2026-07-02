@@ -17,6 +17,8 @@ export interface AppMessages {
     readonly disabled: string;
     readonly ready: string;
     readonly needsSetup: string;
+    readonly copy: string;
+    readonly copied: string;
   };
   readonly status: {
     readonly all: string;
@@ -153,6 +155,11 @@ export interface AppMessages {
     readonly aspectRatio: string;
     readonly providerInputSizePreset: string;
     readonly providerInputSizePresetHint: string;
+    readonly storageGroup: string;
+    readonly logPath: string;
+    readonly generatedImagePath: string;
+    readonly pathInfoUnavailable: string;
+    readonly footerStatement: string;
     readonly saving: string;
   };
   readonly toast: {
@@ -197,6 +204,8 @@ const EN_MESSAGES: AppMessages = {
     disabled: 'Disabled',
     ready: 'Ready',
     needsSetup: 'Needs setup',
+    copy: 'Copy',
+    copied: 'Copied',
   },
   status: {
     all: 'All',
@@ -333,6 +342,11 @@ const EN_MESSAGES: AppMessages = {
     aspectRatio: 'Aspect ratio',
     providerInputSizePreset: 'Provider input size',
     providerInputSizePresetHint: 'Reference and captured images are resized locally before provider edit requests while preserving aspect ratio.',
+    storageGroup: 'Storage',
+    logPath: 'Current log path',
+    generatedImagePath: 'Generated image path',
+    pathInfoUnavailable: 'Path info is unavailable in the current runtime.',
+    footerStatement: 'Imagen PS by sinyuk. For internal and research use.',
     saving: 'Saving...',
   },
   toast: {
@@ -378,6 +392,8 @@ const ZH_CN_MESSAGES: AppMessages = {
     disabled: '已停用',
     ready: '就绪',
     needsSetup: '待配置',
+    copy: '复制',
+    copied: '已复制',
   },
   status: {
     all: '全部',
@@ -513,7 +529,12 @@ const ZH_CN_MESSAGES: AppMessages = {
     outputFormat: '输出格式',
     aspectRatio: '宽高比',
     providerInputSizePreset: 'Provider 输入尺寸',
-    providerInputSizePresetHint: '参考图和捕获图会在发送给 provider edit 请求前本地近似缩放，并保持原比例。',
+    providerInputSizePresetHint: '参考图和捕获图会在发送给 provider edit 请求前本地缩放，并保持原比例。',
+    storageGroup: '存储',
+    logPath: '当前日志路径',
+    generatedImagePath: '生成图片路径',
+    pathInfoUnavailable: '当前 runtime 无法提供路径信息。',
+    footerStatement: 'Imagen PS by sinyuk. 仅供内部与研究使用。',
     saving: '保存中...',
   },
   toast: {

@@ -184,4 +184,80 @@ describe('GlobalGenerationSettingsPage', () => {
       providerInputSizePreset: '4k',
     });
   });
+
+  it('shows copyable log and generated image paths', async () => {
+    const writeText = vi.fn(async () => undefined);
+    Object.defineProperty(navigator, 'clipboard', {
+      configurable: true,
+      value: { writeText },
+    });
+
+    const { services } = createFakeServices();
+    const container = document.createElement('div');
+    document.body.appendChild(container);
+    root = createRoot(container);
+
+    await act(async () => {
+      root!.render(
+        <TestAppProviders services={services}>
+          <GlobalGenerationSettingsPage
+            settings={{
+              outputSizePreset: '2k',
+              outputFormat: 'png',
+              aspectRatio: 'auto',
+              providerInputSizePreset: '1k',
+            }}
+            loading={false}
+            error={null}
+            onSave={vi.fn(async () => undefined)}
+            onNav={vi.fn()}
+          />
+        </TestAppProviders>,
+      );
+    });
+
+    expect(container.querySelector('[data-testid="global-settings-log-path"]')?.textContent).toContain('/fake/data/logs/2026-07-02/imagen.jsonl');
+    expect(container.querySelector('[data-testid="global-settings-generated-image-path"]')?.textContent).toContain('/fake/data/uxp-asset-*');
+    expect(container.querySelector('[data-testid="global-settings-copy-log-path"]')?.className).toContain('field-input-action');
+    expect(container.querySelector('[data-testid="global-settings-copy-generated-image-path"]')?.className).toContain('field-input-action');
+
+    await act(async () => {
+      container.querySelector<HTMLButtonElement>('[data-testid="global-settings-copy-log-path"]')!.click();
+    });
+    await act(async () => {
+      container.querySelector<HTMLButtonElement>('[data-testid="global-settings-copy-generated-image-path"]')!.click();
+    });
+
+    expect(writeText).toHaveBeenCalledWith('/fake/data/logs/2026-07-02/imagen.jsonl');
+    expect(writeText).toHaveBeenCalledWith('/fake/data/uxp-asset-*');
+  });
+
+  it('renders footer statement', async () => {
+    const { services } = createFakeServices();
+    const container = document.createElement('div');
+    document.body.appendChild(container);
+    root = createRoot(container);
+
+    await act(async () => {
+      root!.render(
+        <TestAppProviders services={services}>
+          <GlobalGenerationSettingsPage
+            settings={{
+              outputSizePreset: '2k',
+              outputFormat: 'png',
+              aspectRatio: 'auto',
+              providerInputSizePreset: '1k',
+            }}
+            loading={false}
+            error={null}
+            onSave={vi.fn(async () => undefined)}
+            onNav={vi.fn()}
+          />
+        </TestAppProviders>,
+      );
+    });
+
+    expect(container.querySelector('[data-testid="global-settings-footer-statement"]')?.textContent).toContain('Imagen PS');
+    expect(container.querySelector('.generation-settings-footer')).not.toBeNull();
+  });
 });

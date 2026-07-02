@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { useAppServices } from '../../ports/app-services-context';
 import type {
   AppAspectRatio,
   AppGenerationSettings,
@@ -6,6 +7,7 @@ import type {
   AppOutputFormat,
   AppOutputSizePreset,
 } from '../../ports/app-generation-settings';
+import { useAppPathInfo } from '../hooks/use-app-path-info';
 import { Button, FieldLabel, HelpText } from '../primitives/native-controls';
 import { TextSelect } from '../components/text-select';
 import { Icon } from '../components/icons';
@@ -52,6 +54,14 @@ function labelFor<T extends string>(options: ReadonlyArray<{ readonly id: T; rea
   return options.find((option) => option.id === id)?.label ?? id;
 }
 
+async function copyText(text: string): Promise<boolean> {
+  if (typeof navigator !== 'undefined' && typeof navigator.clipboard?.writeText === 'function') {
+    await navigator.clipboard.writeText(text);
+    return true;
+  }
+  return false;
+}
+
 export function GlobalGenerationSettingsPage({
   settings,
   loading,
@@ -59,10 +69,13 @@ export function GlobalGenerationSettingsPage({
   onSave,
   onNav,
 }: GlobalGenerationSettingsPageProps) {
+  const services = useAppServices();
   const { messages: t } = useI18n();
+  const pathInfo = useAppPathInfo(services);
   const [draft, setDraft] = useState<AppGenerationSettings>(settings);
   const [saving, setSaving] = useState(false);
   const [openMenu, setOpenMenu] = useState<MenuId>(null);
+  const [copiedKey, setCopiedKey] = useState<string | null>(null);
 
   const updateDraft = (next: Partial<AppGenerationSettings>) => {
     setDraft((current) => ({ ...current, ...next }));
@@ -82,6 +95,18 @@ export function GlobalGenerationSettingsPage({
     }
   };
 
+  const copyPath = async (key: string, value: string) => {
+    const ok = await copyText(value).catch(() => false);
+    if (!ok) {
+      setCopiedKey(null);
+      return;
+    }
+    setCopiedKey(key);
+    window.setTimeout(() => {
+      setCopiedKey((current) => (current === key ? null : current));
+    }, 1200);
+  };
+
   return (
     <div className="page page-enter settings-page" onClick={() => setOpenMenu(null)}>
       <header className="hdr">
@@ -97,8 +122,8 @@ export function GlobalGenerationSettingsPage({
         <div style={{ width: 32 }} />
       </header>
       <div className="scroll">
-        <div className="settings-detail-layout scroll-footer-pad">
-          <section className="section">
+        <div className="settings-detail-layout scroll-footer-pad generation-settings-layout">
+          <section className="section generation-settings-section">
             <div className="section-title">{t.settings.outputGroup}</div>
             <div className="generation-settings-grid">
               <div className="field">
@@ -154,7 +179,7 @@ export function GlobalGenerationSettingsPage({
               </div>
             </div>
           </section>
-          <section className="section">
+          <section className="section generation-settings-section">
             <div className="section-title">{t.settings.inputGroup}</div>
             <div className="field">
               <FieldLabel htmlFor="provider-input-size-trigger">{t.settings.providerInputSizePreset}</FieldLabel>
@@ -175,11 +200,72 @@ export function GlobalGenerationSettingsPage({
               <HelpText className="field-hint">{t.settings.providerInputSizePresetHint}</HelpText>
             </div>
           </section>
+          <section className="section generation-settings-section">
+            <div className="section-title">{t.settings.storageGroup}</div>
+            {pathInfo.value ? (
+              <div className="settings-path-list">
+                <div className="field">
+                  <FieldLabel htmlFor="global-settings-copy-log-path">{t.settings.logPath}</FieldLabel>
+                  <div className="field-input-affordance settings-path-affordance">
+                    <code
+                      className="settings-path-block field-input-embedded"
+                      data-testid="global-settings-log-path"
+                      title={pathInfo.value.logPath}
+                    >
+                      {pathInfo.value.logPath}
+                    </code>
+                    <IconButton
+                      id="global-settings-copy-log-path"
+                      data-testid="global-settings-copy-log-path"
+                      className={`field-input-action settings-path-copy${copiedKey === 'logPath' ? ' cp' : ''}`}
+                      quiet
+                      icon={copiedKey === 'logPath' ? <Icon name="check" /> : <Icon name="copy" />}
+                      tooltip={copiedKey === 'logPath' ? t.common.copied : t.common.copy}
+                      onClick={() => void copyPath('logPath', pathInfo.value!.logPath)}
+                    />
+                  </div>
+                </div>
+                <div className="field">
+                  <FieldLabel htmlFor="global-settings-copy-generated-image-path">{t.settings.generatedImagePath}</FieldLabel>
+                  <div className="field-input-affordance settings-path-affordance">
+                    <code
+                      className="settings-path-block field-input-embedded"
+                      data-testid="global-settings-generated-image-path"
+                      title={pathInfo.value.generatedImagePath}
+                    >
+                      {pathInfo.value.generatedImagePath}
+                    </code>
+                    <IconButton
+                      id="global-settings-copy-generated-image-path"
+                      data-testid="global-settings-copy-generated-image-path"
+                      className={`field-input-action settings-path-copy${copiedKey === 'generatedImagePath' ? ' cp' : ''}`}
+                      quiet
+                      icon={copiedKey === 'generatedImagePath' ? <Icon name="check" /> : <Icon name="copy" />}
+                      tooltip={copiedKey === 'generatedImagePath' ? t.common.copied : t.common.copy}
+                      onClick={() => void copyPath('generatedImagePath', pathInfo.value!.generatedImagePath)}
+                    />
+                  </div>
+                </div>
+              </div>
+            ) : (
+              <HelpText className="field-hint">
+                {pathInfo.loading ? t.common.loading : pathInfo.error ?? t.settings.pathInfoUnavailable}
+              </HelpText>
+            )}
+          </section>
+          <section className="section generation-settings-section generation-settings-meta-section">
+            <div
+              data-testid="global-settings-footer-statement"
+              className="generation-settings-meta"
+            >
+              {t.settings.footerStatement}
+            </div>
+          </section>
           {error && <div style={{ padding: 16, color: 'var(--app-color-negative)', fontSize: 12 }}>{error}</div>}
         </div>
       </div>
       <footer className="det-footer">
-        <div className="settings-detail-footer-inner">
+        <div className="settings-detail-footer-inner generation-settings-footer">
           <Button data-testid="global-settings-save-button" className="btn-save" variant="accent" disabled={saving} onClick={() => void save()}>
             {saving ? t.settings.saving : t.common.save}
           </Button>

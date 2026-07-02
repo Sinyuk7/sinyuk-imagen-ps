@@ -38,9 +38,9 @@ shared UI plus local UI harnesses. It does not access the network, credentials,
 or paid provider APIs.
 
 Repository pull requests also run a GitHub Actions `cla` gate for external
-contributors. Non-member pull requests must either include a valid `CLA Issue:`
-link to a same-author signing issue defined by `CLA.md`, or carry a maintainer
-applied `cla:exempt` label.
+contributors. Non-member pull requests must either pass the repository
+CLA Assistant check derived from `CLA.md`, or carry a maintainer applied
+`cla:exempt` label.
 
 Filtered package tests are useful for focused verification after the relevant
 workspace has been built:
@@ -177,8 +177,8 @@ reproducible checks.
 Maintainer CLA operation is:
 
 1. Ask the external contributor to open the CLA signing issue template from the same GitHub account as the PR.
-2. Verify the pull request body includes `CLA Issue: https://github.com/<owner>/<repo>/issues/<number>`.
-3. Let the `cla` workflow verify same-repo, same-author, and required assent text.
+2. Ensure CLA Assistant is installed and pointed at the canonical text in `CLA.md`.
+3. Let the bot collect assent and report pass/fail on the pull request.
 4. Use `cla:exempt` only for truly exempt changes such as typo-only docs or mechanical metadata edits.
 
 Keep these out of default `pnpm test`:

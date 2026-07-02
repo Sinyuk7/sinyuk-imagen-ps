@@ -1035,7 +1035,7 @@ describe('MainPage contract', () => {
 
     const modelSelector = toolbar.querySelector<HTMLElement>('[data-testid="main-model-selector"]')!;
     expect(modelSelector.textContent).toContain('mock-image-v1');
-    expect(modelSelector.closest('.ui-overlay-icon-host')?.querySelector('[data-icon-name="image-check"]')).not.toBeNull();
+    expect(modelSelector.closest('.ui-overlay-icon-host')?.querySelector('[data-icon-name="algorithm"]')).not.toBeNull();
     expect(toolbar.querySelector('[data-testid="composer-capture-button"]')).toBeNull();
     expect(toolbar.querySelector('[data-testid="composer-output-size-selector"]')!.textContent).toContain('2K');
     expect(toolbar.querySelector('[data-testid="composer-prompt-optimize-button"]')).toBeNull();

@@ -8,6 +8,7 @@ import type { CSSProperties, ReactElement, SVGProps } from 'react';
  */
 export type IconName =
   | 'add'
+  | 'algorithm'
   | 'arrow-right'
   | 'check'
   | 'chevron-down'
@@ -56,6 +57,18 @@ const ICON_BODY_BY_NAME: Record<IconName, SvgBody> = {
     <>
       <line x1="12" y1="5" x2="12" y2="19" />
       <line x1="5" y1="12" x2="19" y2="12" />
+    </>
+  ),
+  algorithm: () => (
+    <>
+      <circle cx="12" cy="5.5" r="2.2" />
+      <circle cx="5.5" cy="17.5" r="2.2" />
+      <circle cx="18.5" cy="17.5" r="2.2" />
+      <circle cx="12" cy="19.5" r="2.2" />
+      <path d="M10.9 7.4L7 15.6" />
+      <path d="M13.1 7.4l3.9 8.2" />
+      <path d="M8 17.5h8" />
+      <path d="M12 17.3v0" />
     </>
   ),
   'arrow-right': () => <polyline points="9 5 16 12 9 19" />,

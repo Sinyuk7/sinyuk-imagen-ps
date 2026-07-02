@@ -8,7 +8,9 @@ This repository is licensed under `MPL-2.0`. See `LICENSE`.
 
 Commercial users should contact the maintainer before production or large-scale use to confirm copyright, distribution, and any separate commercial licensing needs.
 
-External contributors should sign the Contributor License Agreement in `CLA.md` before non-trivial contributions are accepted. Non-member pull requests are expected to include a valid `CLA Issue:` link or carry `cla:exempt` before merge. This keeps future license changes or additional commercial licensing paths legally operable after the contributor base grows.
+External contributors should sign the Contributor License Agreement in `CLA.md` before non-trivial contributions are accepted. Until CLA Assistant is installed for this repository, non-member pull requests should be reviewed against the CLA manually by maintainers and may still use `cla:exempt` for truly exempt changes. This keeps future license changes or additional commercial licensing paths legally operable after the contributor base grows.
+
+TODO: install and configure CLA Assistant for this repository so external contributor assent is collected automatically from pull requests instead of manual maintainer review.
 
 ## 当前结构
 

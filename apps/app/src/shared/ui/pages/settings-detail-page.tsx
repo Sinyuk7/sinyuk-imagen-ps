@@ -338,7 +338,12 @@ export function SettingsDetailPage({ onNav, profileId, onProfilesChanged }: Sett
   const modelTriggerValue = modelSelectionLabel || t.settings.chooseFromList;
   const modelSelectDisabled = busy || models.loading || modelOptions.length === 0;
   const modelListNotice = models.error
-    ? { tone: 'warning' as const, message: t.settings.modelListFailed }
+    ? {
+        tone: 'warning' as const,
+        message: t.settings.modelListFailed,
+        detail: models.error,
+        detailCopyable: true,
+      }
     : modelOptions.length === 0
       ? { tone: 'info' as const, message: t.settings.modelListEmpty }
       : null;
@@ -485,8 +490,16 @@ export function SettingsDetailPage({ onNav, profileId, onProfilesChanged }: Sett
                     </div>
                   )}
                 </div>
-                {modelListNotice && <StatusNotice tone={modelListNotice.tone} message={modelListNotice.message} />}
-                {models.error && <StatusNotice tone="negative" message={models.error} />}
+                {modelListNotice && (
+                  <div data-testid="provider-model-list-notice">
+                    <StatusNotice
+                      tone={modelListNotice.tone}
+                      message={modelListNotice.message}
+                      detail={'detail' in modelListNotice ? modelListNotice.detail : null}
+                      detailCopyable={'detailCopyable' in modelListNotice ? modelListNotice.detailCopyable : false}
+                    />
+                  </div>
+                )}
                 <Button data-testid="provider-refresh-models-button" className="test-btn ui-button-block" variant="secondary" style={{ marginTop: 10 }} disabled={models.loading || busy} onClick={() => void refreshModels()}>
                   {models.loading ? t.settings.refreshingModels : t.settings.refreshModels}
                 </Button>

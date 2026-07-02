@@ -1271,7 +1271,7 @@ export function MainPage({
                 menuClassName="cmp-select-menu cmp-select-menu-model"
                 label="Model"
                 value={selectedModelLabel}
-                icon="image-check"
+                icon="algorithm"
                 disabled={conversation.running}
                 open={openMenu === 'model'}
                 onOpenChange={(open) => {

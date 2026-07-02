@@ -2,6 +2,7 @@ import type { CommandsPort } from './commands-port';
 import type { DiagnosticsPort } from './diagnostics-port';
 import type { HostBridge } from './host-port';
 import type { AppGenerationSettingsStore } from './app-generation-settings';
+import type { AppPathInfoPort } from './app-path-info';
 import type { ThumbnailStore } from '../image/thumbnail-store';
 import type { ResolvedTaskResource, TaskResourceRef } from '@imagen-ps/application';
 import type { RetentionPort } from '../retention/controller';
@@ -14,6 +15,7 @@ export interface AppServices {
   readonly commands: CommandsPort;
   readonly host: HostBridge;
   readonly generationSettings: AppGenerationSettingsStore;
+  readonly pathInfo?: AppPathInfoPort;
   readonly thumbnails?: ThumbnailStore;
   readonly taskResources?: TaskResourceResolverPort;
   readonly diagnostics?: DiagnosticsPort;

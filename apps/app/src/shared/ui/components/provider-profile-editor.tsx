@@ -96,7 +96,7 @@ export function ProviderProfileEditor({
   return (
     <div className="settings-detail-layout">
       <div className="section">
-        <div className="section-title">{connectionTitle}</div>
+        <div className="section-title settings-section-heading">{connectionTitle}</div>
         <div className="field">
           <FieldLabel htmlFor="provider-alias-input">{t.settings.alias}</FieldLabel>
           <TextField
@@ -109,7 +109,7 @@ export function ProviderProfileEditor({
           />
         </div>
         <div className="field">
-          <div className="section-title" style={{ marginBottom: 8 }}>{t.settings.requestAddresses}</div>
+          <div className="section-title settings-subsection-heading">{t.settings.requestAddresses}</div>
           <div className="field provider-endpoint-list">
             {connection.endpoints.map((endpoint, index) => {
               const probe = probeResults?.get(endpoint.id);
@@ -121,21 +121,25 @@ export function ProviderProfileEditor({
                   key={endpoint.id}
                   data-testid={`provider-endpoint-row-${index}`}
                   className={`provider-endpoint-row${index > 0 ? ' provider-endpoint-row-spaced' : ''}`}
-                  style={{
-                    padding: 10,
-                    border: '1px solid var(--app-color-border)',
-                    borderRadius: 10,
-                  }}
                 >
                   <div className="provider-endpoint-header">
-                    <div className="provider-endpoint-badges">
-                      <span className="field-hint">{t.settings.endpointLabel(index + 1)}</span>
-                      {isPreferred ? <span data-testid={`provider-endpoint-preferred-badge-${index}`} className="field-hint">{t.settings.endpointPreferred}</span> : null}
-                      {isSuggested ? <span data-testid={`provider-endpoint-suggested-badge-${index}`} className="field-hint">{t.settings.endpointSuggested}</span> : null}
-                      {probe ? <span className="field-hint">{probe.status}</span> : null}
+                    <div className="provider-endpoint-title-row">
+                      {isPreferred ? (
+                        <span
+                          data-testid={`provider-endpoint-preferred-dot-${index}`}
+                          className="provider-endpoint-preferred-dot"
+                          role="img"
+                          aria-label={t.settings.endpointPreferred}
+                          title={t.settings.endpointPreferred}
+                        />
+                      ) : null}
+                      <span className="provider-endpoint-label">{t.settings.endpointLabel(index + 1)}</span>
+                      {isSuggested ? <span data-testid={`provider-endpoint-suggested-badge-${index}`} className="provider-endpoint-meta">{t.settings.endpointSuggested}</span> : null}
+                      {probe ? <span className="provider-endpoint-meta">{probe.status}</span> : null}
                     </div>
                     <IconButton
                       data-testid={`provider-endpoint-remove-${index}`}
+                      className="provider-endpoint-remove"
                       quiet
                       disabled={!canDelete}
                       icon={<Icon name="trash" />}
@@ -250,7 +254,7 @@ export function ProviderProfileEditor({
         <>
           <Divider />
           <div className="section">
-            <div className="section-title">{t.settings.defaultModel}</div>
+            <div className="section-title settings-section-heading">{t.settings.defaultModel}</div>
             {defaultModelSection}
           </div>
         </>

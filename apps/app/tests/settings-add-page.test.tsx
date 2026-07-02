@@ -1,6 +1,6 @@
 import { act } from 'react';
 import { createRoot, type Root } from 'react-dom/client';
-import { afterEach, describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import { SettingsAddPage } from '../src/shared/ui/pages/settings-add-page';
 import { createFakeServices } from './fakes';
 import { TestAppProviders } from './render-helpers';
@@ -246,5 +246,54 @@ describe('SettingsAddPage', () => {
         }),
       }),
     }));
+  });
+
+  it('keeps cancel as a content-width secondary action beside the primary save action', async () => {
+    const { services } = createFakeServices();
+    const container = document.createElement('div');
+    document.body.appendChild(container);
+    root = createRoot(container);
+
+    await act(async () => {
+      root!.render(
+        <TestAppProviders services={services}>
+          <SettingsAddPage onNav={vi.fn()} profiles={[]} onProfileSaved={async () => undefined} />
+        </TestAppProviders>,
+      );
+    });
+
+    await act(async () => {
+      container.querySelector<HTMLElement>('[data-testid="provider-type-mock"]')!.click();
+    });
+
+    const cancel = Array.from(container.querySelectorAll<HTMLButtonElement>('button')).find((item) =>
+      item.textContent?.includes('取消') || item.textContent?.includes('Cancel'),
+    );
+    expect(cancel).toBeTruthy();
+    expect(cancel?.className).toContain('btn-cancel');
+    expect(cancel?.className).not.toContain('ui-button-block');
+  });
+
+  it('uses the form-style model selector trigger on the add page', async () => {
+    const { services } = createFakeServices();
+    const container = document.createElement('div');
+    document.body.appendChild(container);
+    root = createRoot(container);
+
+    await act(async () => {
+      root!.render(
+        <TestAppProviders services={services}>
+          <SettingsAddPage onNav={() => undefined} profiles={[]} onProfileSaved={async () => undefined} />
+        </TestAppProviders>,
+      );
+    });
+
+    await act(async () => {
+      container.querySelector<HTMLElement>('[data-testid="provider-type-mock"]')!.click();
+    });
+
+    const selector = queryByTestId(container, 'provider-default-model-selector');
+    expect(selector.className).toContain('cmp-chip');
+    expect(selector.closest('.provider-model-select')).not.toBeNull();
   });
 });

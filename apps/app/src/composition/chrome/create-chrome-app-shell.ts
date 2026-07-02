@@ -9,6 +9,7 @@ import { createCommandsAdapter } from '../../shared/ports/commands-port';
 import type { AppShellHost } from '../../shared/ui/app-shell';
 import type { DiagnosticsPort } from '../../shared/ports/diagnostics-port';
 import { createPluginAppModel } from '../../shared/domain/plugin-app-model';
+import { createStaticAppPathInfoPort } from '../../shared/ports/app-path-info';
 import { createChromeHostPort, type ChromeFilePicker } from '../../adapters/chrome/chrome-host-port';
 import {
   createChromeIndexedDbStorage,
@@ -58,6 +59,11 @@ function createChromeDiagnosticsPort(): DiagnosticsPort {
   };
 }
 
+const CHROME_PATH_INFO = createStaticAppPathInfoPort({
+  logPath: 'Browser runtime only: inspect DevTools console or window.__IMAGEN_CHROME_DIAGNOSTICS__',
+  generatedImagePath: 'Browser IndexedDB asset store (no native filesystem path)',
+});
+
 /**
  * Chrome composition 只装配 browser adapter 和 simulator；React UI 仍由 shared
  * AppShell 提供，避免浏览器 shell 复制 UXP 页面。
@@ -99,6 +105,7 @@ export function createChromeAppShell(options?: ChromeAppShellOptions): AppShellH
       commands: testHarness?.wrapCommands(commands) ?? commands,
       host,
       generationSettings: storage.generationSettings,
+      pathInfo: CHROME_PATH_INFO,
       thumbnails: createMemoryThumbnailStore({ resolveStoredRef: storage.assets.resolve }),
       taskResources: createTaskResourceResolver({ resolveStoredRef: storage.assets.resolve }),
       diagnostics: createChromeDiagnosticsPort(),
