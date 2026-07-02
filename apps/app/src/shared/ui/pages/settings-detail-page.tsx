@@ -2,17 +2,23 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import type { EndpointProbeResult, ProviderModelInfo, ProviderProfile, ProviderProfileConfig, ProviderProfileConfigValue } from '@imagen-ps/application';
 import { useAppServices } from '../../ports/app-services-context';
 import {
+  billingFieldError,
+  billingModeOptions,
   connectionProbeResultById,
+  formatBillingDetail,
   normalizeProviderConnectionDraft,
   providerConfigFromForm,
+  readProviderBillingDraft,
   readProviderConfigString,
   readProviderConnectionDraft,
   useProfileDetail,
   useProfileModels,
+  type ProviderBillingDraft,
   type ProviderConnectionDraft,
 } from '../hooks/use-provider-settings';
 import { Icon } from '../components/icons';
 import { useNotice } from '../components/notice';
+import { ProviderBillingSettings } from '../components/provider-billing-settings';
 import { ProviderProfileEditor } from '../components/provider-profile-editor';
 import { StatusNotice } from '../components/status-notice';
 import { UxpTextArea } from '../components/uxp-form-controls';
@@ -21,6 +27,8 @@ import { Button, FieldLabel, HelpText, TextField } from '../primitives/native-co
 import { IconButton } from '../primitives/icon-button';
 import { statusFromEndpointProbeResult } from '../provider-status';
 import { TextSelect } from '../components/text-select';
+import { useProfileBilling } from '../hooks/use-profile-billing';
+import { formatBalanceChange, formatBillingPrimary, formatExactTaskCost } from '../../domain/mappers';
 
 interface SettingsDetailPageProps {
   readonly onNav: (view: string) => void;
@@ -38,6 +46,7 @@ function profileFormCheckpointAttrs(
   form: {
     readonly apiKey: string;
     readonly defaultModel: string;
+    readonly billingAccessToken?: string;
   },
 ): Record<string, unknown> {
   return {
@@ -45,6 +54,7 @@ function profileFormCheckpointAttrs(
     providerId: profile?.providerId ?? null,
     configKeyCount: profile ? Object.keys(profile.config).length : 0,
     hasDirtyCredential: form.apiKey.trim().length > 0,
+    hasDirtyBillingCredential: (form.billingAccessToken ?? '').trim().length > 0,
     modelIdLength: form.defaultModel.trim().length,
   };
 }
@@ -95,12 +105,13 @@ function hasDraftChanges(
     readonly displayName: string;
     readonly connection: ProviderConnectionDraft;
     readonly defaultModel: string;
+    readonly billing: ProviderBillingDraft;
     readonly instruction: string;
     readonly apiKey: string;
   },
   isOptimizerProfile: boolean,
 ): boolean {
-  if (draft.apiKey.trim().length > 0) {
+  if (draft.apiKey.trim().length > 0 || draft.billing.accessToken.trim().length > 0) {
     return true;
   }
   const family = String(profile.config.family ?? profile.providerId);
@@ -113,6 +124,7 @@ function hasDraftChanges(
       family,
       draft.connection,
       draft.defaultModel,
+      draft.billing,
       isOptimizerProfile ? draft.instruction : undefined,
     ),
   );
@@ -130,6 +142,8 @@ export function SettingsDetailPage({ onNav, profileId, onProfilesChanged, onSave
   const [displayName, setDisplayName] = useState('');
   const [connection, setConnection] = useState<ProviderConnectionDraft>(readProviderConnectionDraft(null));
   const [defaultModel, setDefaultModel] = useState('');
+  const [billingDraft, setBillingDraft] = useState<ProviderBillingDraft>(readProviderBillingDraft(null));
+  const [billingModeMenuOpen, setBillingModeMenuOpen] = useState(false);
   const [instruction, setInstruction] = useState('');
   const [apiKey, setApiKey] = useState('');
   const [showKey, setShowKey] = useState(false);
@@ -144,6 +158,7 @@ export function SettingsDetailPage({ onNav, profileId, onProfilesChanged, onSave
   const saveNotice = useNotice({ defaultDurationMs: null });
   const testNotice = useNotice({ defaultDurationMs: null });
   const isOptimizerProfile = detail.profile?.providerId === 'prompt-optimize';
+  const billing = useProfileBilling(services, profileId);
 
   useEffect(() => {
     if (!detail.profile) {
@@ -152,6 +167,8 @@ export function SettingsDetailPage({ onNav, profileId, onProfilesChanged, onSave
     setDisplayName(detail.profile.displayName);
     setConnection(readProviderConnectionDraft(detail.profile));
     setDefaultModel(readProviderConfigString(detail.profile, 'defaultModel'));
+    setBillingDraft(readProviderBillingDraft(detail.profile));
+    setBillingModeMenuOpen(false);
     setInstruction(readProviderConfigString(detail.profile, 'instruction'));
     setApiKey('');
     setModelMenuOpen(false);
@@ -182,7 +199,7 @@ export function SettingsDetailPage({ onNav, profileId, onProfilesChanged, onSave
     const family = String(detail.profile.config.family ?? detail.profile.providerId);
     await services.diagnostics?.checkpoint(
       'uxp.ui.settings_detail.persist.input_prepared',
-      profileFormCheckpointAttrs(detail.profile, { apiKey, defaultModel }),
+      profileFormCheckpointAttrs(detail.profile, { apiKey, defaultModel, billingAccessToken: billingDraft.accessToken }),
       {
         profile_id: detail.profile.profileId,
         provider_id: detail.profile.providerId,
@@ -201,10 +218,18 @@ export function SettingsDetailPage({ onNav, profileId, onProfilesChanged, onSave
           family,
           connection,
           defaultModel,
+          billingDraft,
           isOptimizerProfile ? instruction : undefined,
         ),
       ),
-      ...(apiKey.trim() ? { secretValues: { apiKey: apiKey.trim() } } : {}),
+      ...((apiKey.trim() || billingDraft.accessToken.trim())
+        ? {
+            secretValues: {
+              ...(apiKey.trim() ? { apiKey: apiKey.trim() } : {}),
+              ...(billingDraft.accessToken.trim() ? { billingAccessToken: billingDraft.accessToken.trim() } : {}),
+            },
+          }
+        : {}),
     });
   };
 
@@ -215,6 +240,14 @@ export function SettingsDetailPage({ onNav, profileId, onProfilesChanged, onSave
     saveNotice.clear();
     await services.diagnostics?.checkpoint('uxp.ui.settings_detail.save.status_cleared', { profileId });
     try {
+      const providerDescriptor = detail.profile ? services.commands.describeProvider(detail.profile.providerId) : undefined;
+      const validation = billingFieldError(billingDraft, providerDescriptor);
+      if (validation === 'user-id') {
+        throw new Error(t.settings.billingValidationUserId);
+      }
+      if (validation === 'token') {
+        throw new Error(t.settings.billingValidationAccessToken);
+      }
       await services.diagnostics?.checkpoint('uxp.ui.settings_detail.save.before_persist', { profileId });
       const profile = await persistProfile();
       await services.diagnostics?.checkpoint('uxp.ui.settings_detail.save.after_persist', {
@@ -330,10 +363,18 @@ export function SettingsDetailPage({ onNav, profileId, onProfilesChanged, onSave
             family,
             connection,
             defaultModel,
+            billingDraft,
             undefined,
           ),
         ),
-        ...(apiKey.trim() ? { secretValues: { apiKey: apiKey.trim() } } : {}),
+        ...((apiKey.trim() || billingDraft.accessToken.trim())
+          ? {
+              secretValues: {
+                ...(apiKey.trim() ? { apiKey: apiKey.trim() } : {}),
+                ...(billingDraft.accessToken.trim() ? { billingAccessToken: billingDraft.accessToken.trim() } : {}),
+              },
+            }
+          : {}),
       });
       if (!result.ok) {
         throw new Error(`${result.error.category}: ${result.error.message}`);
@@ -357,7 +398,7 @@ export function SettingsDetailPage({ onNav, profileId, onProfilesChanged, onSave
     try {
       if (detail.profile && hasDraftChanges(
         detail.profile,
-        { displayName, connection, defaultModel, instruction, apiKey },
+        { displayName, connection, defaultModel, billing: billingDraft, instruction, apiKey },
         isOptimizerProfile,
       )) {
         const savedProfile = await persistProfile();
@@ -414,6 +455,7 @@ export function SettingsDetailPage({ onNav, profileId, onProfilesChanged, onSave
   const modelSelectDisabled = busy || models.loading || modelOptions.length === 0;
   const selectedModelInfo = models.models.find((model) => model.id === defaultModel);
   const selectedModelStatus = modelStatusMessage(selectedModelInfo, t);
+  const providerDescriptor = detail.profile ? services.commands.describeProvider(detail.profile.providerId) : undefined;
   const modelListNotice = models.error
     ? {
         tone: 'warning' as const,
@@ -492,23 +534,85 @@ export function SettingsDetailPage({ onNav, profileId, onProfilesChanged, onSave
             showKey={showKey}
             onShowKeyChange={setShowKey}
             connectionStatus={saveNotice.notice}
-            extraSections={isOptimizerProfile ? (
-              <div className="section">
-                <div className="section-title">{t.settings.promptBehavior}</div>
-                <div className="field field-textarea">
-                  <FieldLabel htmlFor="provider-instruction-input">{t.settings.instruction}</FieldLabel>
-                  <UxpTextArea
-                    data-testid="provider-instruction-input"
-                    id="provider-instruction-input"
-                    className="field-input field-textarea-input mono"
-                    rows={5}
-                    value={instruction}
-                    onValue={setInstruction}
-                    placeholder={t.settings.instructionPlaceholder}
-                  />
-                </div>
-              </div>
-            ) : null}
+            extraSections={(
+              <>
+                {!isOptimizerProfile && (
+                  <div className="section">
+                    <div className="section-title">{t.settings.billing}</div>
+                    <ProviderBillingSettings
+                      billing={billingDraft}
+                      onBillingChange={setBillingDraft}
+                      billingModeOptions={billingModeOptions(providerDescriptor)}
+                      modeMenuOpen={billingModeMenuOpen}
+                      onModeMenuOpenChange={setBillingModeMenuOpen}
+                      disabled={busy}
+                    />
+                    <div style={{ marginTop: 10, fontSize: 12, color: 'var(--app-color-text-secondary)' }}>
+                      {t.settings.billingBalanceLabel}: {formatBillingPrimary(billing.billing) ?? t.settings.billingDisabled}
+                    </div>
+                    {billing.billing?.balance?.checkedAt && (
+                      <div style={{ marginTop: 8, fontSize: 11, color: 'var(--app-color-text-muted)' }}>
+                        {t.settings.billingCheckedAt}: {new Date(billing.billing.balance.checkedAt).toLocaleString()}
+                      </div>
+                    )}
+                    {billing.billing?.balance?.snapshot.details?.length ? (
+                      <div style={{ marginTop: 10, fontSize: 11, color: 'var(--app-color-text-muted)' }}>
+                        {billing.billing.balance.snapshot.details.map((detail, index) => (
+                          <div key={`${detail.kind}:${index}`} style={{ marginTop: index === 0 ? 0 : 6 }}>
+                            {formatBillingDetail(detail)}
+                          </div>
+                        ))}
+                      </div>
+                    ) : null}
+                    <div style={{ fontSize: 12, color: 'var(--app-color-text-secondary)' }}>
+                      {billing.billing?.refreshState === 'refreshing' ? t.settings.billingRefreshing : null}
+                    </div>
+                    {billing.billing?.refreshState === 'error' && (
+                      <div style={{ marginTop: 10 }}>
+                        <StatusNotice tone="warning" message={t.settings.billingErrorStale} detail={billing.error} detailCopyable />
+                      </div>
+                    )}
+                    {formatExactTaskCost(billing.billing?.lastExactTaskCost) && (
+                      <div style={{ marginTop: 10, fontSize: 11, color: 'var(--app-color-text-muted)' }}>
+                        {t.main.billingLastCost}: {formatExactTaskCost(billing.billing?.lastExactTaskCost)}
+                      </div>
+                    )}
+                    {!formatExactTaskCost(billing.billing?.lastExactTaskCost) && formatBalanceChange(billing.billing?.lastBalanceChange) && (
+                      <div style={{ marginTop: 10, fontSize: 11, color: 'var(--app-color-text-muted)' }}>
+                        {t.main.billingLastChange}: {formatBalanceChange(billing.billing?.lastBalanceChange)}
+                      </div>
+                    )}
+                    <Button
+                      data-testid="provider-billing-refresh-button"
+                      className="test-btn ui-button-block"
+                      variant="secondary"
+                      style={{ marginTop: 10 }}
+                      disabled={billing.loading || busy}
+                      onClick={() => void billing.refresh()}
+                    >
+                      {billing.loading ? t.settings.billingRefreshing : t.settings.billingRefresh}
+                    </Button>
+                  </div>
+                )}
+                {isOptimizerProfile ? (
+                  <div className="section">
+                    <div className="section-title">{t.settings.promptBehavior}</div>
+                    <div className="field field-textarea">
+                      <FieldLabel htmlFor="provider-instruction-input">{t.settings.instruction}</FieldLabel>
+                      <UxpTextArea
+                        data-testid="provider-instruction-input"
+                        id="provider-instruction-input"
+                        className="field-input field-textarea-input mono"
+                        rows={5}
+                        value={instruction}
+                        onValue={setInstruction}
+                        placeholder={t.settings.instructionPlaceholder}
+                      />
+                    </div>
+                  </div>
+                ) : null}
+              </>
+            )}
             defaultModelSection={(
               <>
                 <div className="field">

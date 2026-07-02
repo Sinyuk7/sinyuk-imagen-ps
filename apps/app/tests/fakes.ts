@@ -1,9 +1,12 @@
 import { vi } from 'vitest';
 import type {
   Asset,
+  BalanceChange,
   DurableJobRecord,
   EndpointProbeResult,
+  ExactTaskCost,
   Job,
+  ProfileBillingState,
   ProviderDescriptor,
   ProviderProfile,
   ProviderProfileInput,
@@ -129,6 +132,9 @@ export const fakeProvider: ProviderDescriptor = {
   operations: ['text_to_image', 'image_edit'],
   invokeMode: 'sync',
   defaultModels: [{ id: 'mock-image-v1' }],
+  billing: {
+    supportedModes: ['none'],
+  },
 };
 
 export const fakeDurableRecord: DurableJobRecord = {
@@ -235,6 +241,8 @@ export function createFakeServices(options?: {
     readonly deleteProviderProfile: ReturnType<typeof vi.fn>;
     readonly testProviderProfile: ReturnType<typeof vi.fn>;
     readonly probeProfileEndpoints: ReturnType<typeof vi.fn>;
+    readonly refreshProfileBalance: ReturnType<typeof vi.fn>;
+    readonly getProfileBillingState: ReturnType<typeof vi.fn>;
     readonly listProfileModels: ReturnType<typeof vi.fn>;
     readonly refreshProfileModels: ReturnType<typeof vi.fn>;
     readonly ensurePromptOptimizerProfile: ReturnType<typeof vi.fn>;
@@ -300,6 +308,27 @@ export function createFakeServices(options?: {
       ) ? { suggestedEndpointId: 'primary' } : {}),
     },
   }));
+  let billingState: ProfileBillingState = { refreshState: 'idle' };
+  const getProfileBillingState = vi.fn(async () => ({ ok: true as const, value: billingState }));
+  const refreshProfileBalance = vi.fn(async ({ profileId }: { profileId: string }) => {
+    billingState = {
+      ...billingState,
+      refreshState: 'idle',
+      balance: {
+        profileId,
+        providerId: 'mock',
+        checkedAt: Date.now(),
+        snapshot: {
+          primary: {
+            kind: 'money',
+            remaining: '12.50',
+            currency: 'USD',
+          },
+        },
+      },
+    };
+    return { ok: true as const, value: { ...billingState.balance!, state: billingState } };
+  });
   const listProfileModels = vi.fn(async () => ({ ok: true as const, value: [{ id: 'mock-image-v1' }] }));
   const refreshProfileModels = vi.fn(async () => ({ ok: true as const, value: [{ id: 'mock-image-v2' }] }));
   const ensurePromptOptimizerProfile = vi.fn(async () => ({ ok: true as const, value: fakeOptimizerProfile }));
@@ -359,6 +388,8 @@ export function createFakeServices(options?: {
     deleteProviderProfile,
     testProviderProfile,
     probeProfileEndpoints,
+    refreshProfileBalance,
+    getProfileBillingState,
     listProfileModels,
     refreshProfileModels,
     ensurePromptOptimizerProfile,
@@ -416,6 +447,8 @@ export function createFakeServices(options?: {
     },
     spies: {
       submitJob,
+      listProviders: commands.listProviders as ReturnType<typeof vi.fn>,
+      describeProvider: commands.describeProvider as ReturnType<typeof vi.fn>,
       putTaskRecord,
       subscribeJobEvents,
       listJobHistoryRecords,
@@ -423,8 +456,10 @@ export function createFakeServices(options?: {
       saveProviderProfile,
       deleteProviderProfile,
       testProviderProfile,
-      probeProfileEndpoints,
-      listProfileModels,
+    probeProfileEndpoints,
+    refreshProfileBalance,
+    getProfileBillingState,
+    listProfileModels,
       refreshProfileModels,
       ensurePromptOptimizerProfile,
       optimizePrompt,

@@ -2,14 +2,19 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import type { EndpointProbeResult, ProviderProfile } from '@imagen-ps/application';
 import { useAppServices } from '../../ports/app-services-context';
 import {
+  billingFieldError,
+  billingModeOptions,
   connectionProbeResultById,
+  defaultBillingDraft,
   normalizeProviderConnectionDraft,
   providerConfigFromForm,
   useProviderCatalog,
+  type ProviderBillingDraft,
   type ProviderConnectionDraft,
 } from '../hooks/use-provider-settings';
 import { Icon } from '../components/icons';
 import { MotionContent } from '../components/motion-ui';
+import { ProviderBillingSettings } from '../components/provider-billing-settings';
 import { TextSelect } from '../components/text-select';
 import { useNotice } from '../components/notice';
 import { ProviderProfileEditor } from '../components/provider-profile-editor';
@@ -72,6 +77,8 @@ export function SettingsAddPage({ onNav, profiles, onProfileSaved }: SettingsAdd
   const [connection, setConnection] = useState<ProviderConnectionDraft>(defaultConnection(providers[0]?.id ?? ''));
   const [apiKey, setApiKey] = useState('');
   const [defaultModel, setDefaultModel] = useState('');
+  const [billing, setBilling] = useState<ProviderBillingDraft>(defaultBillingDraft(providers[0]));
+  const [billingModeMenuOpen, setBillingModeMenuOpen] = useState(false);
   const [modelMode, setModelMode] = useState<'list' | 'custom'>('list');
   const [modelMenuOpen, setModelMenuOpen] = useState(false);
   const [showKey, setShowKey] = useState(false);
@@ -100,18 +107,37 @@ export function SettingsAddPage({ onNav, profiles, onProfileSaved }: SettingsAdd
     setModelMode(modelOptions.length > 0 ? 'list' : 'custom');
   }, [modelOptions]);
 
+  useEffect(() => {
+    setBilling(defaultBillingDraft(selected));
+    setBillingModeMenuOpen(false);
+  }, [selected]);
+
   const saveProfile = async (): Promise<string> => {
     if (!selected) {
       throw new Error(t.settings.selectProviderType);
     }
     const displayName = name.trim() || nextAlias(selected.displayName, profiles);
+    const validation = billingFieldError(billing, selected);
+    if (validation === 'user-id') {
+      throw new Error(t.settings.billingValidationUserId);
+    }
+    if (validation === 'token') {
+      throw new Error(t.settings.billingValidationAccessToken);
+    }
     const result = await services.commands.saveProviderProfile({
       profileId,
       providerId: selected.id,
       displayName,
       enabled: true,
-      config: providerConfigFromForm(selected.id, displayName, selected.family, connection, defaultModel),
-      ...(apiKey.trim() ? { secretValues: { apiKey: apiKey.trim() } } : {}),
+      config: providerConfigFromForm(selected.id, displayName, selected.family, connection, defaultModel, billing),
+      ...((apiKey.trim() || billing.accessToken.trim())
+        ? {
+            secretValues: {
+              ...(apiKey.trim() ? { apiKey: apiKey.trim() } : {}),
+              ...(billing.accessToken.trim() ? { billingAccessToken: billing.accessToken.trim() } : {}),
+            },
+          }
+        : {}),
     });
     if (!result.ok) {
       throw new Error(`${result.error.category}: ${result.error.message}`);
@@ -140,11 +166,18 @@ export function SettingsAddPage({ onNav, profiles, onProfileSaved }: SettingsAdd
         throw new Error(t.settings.selectProviderType);
       }
       const displayName = name.trim() || nextAlias(selected.displayName, profiles);
+      const validation = billingFieldError(billing, selected);
+      if (validation === 'user-id') {
+        throw new Error(t.settings.billingValidationUserId);
+      }
+      if (validation === 'token') {
+        throw new Error(t.settings.billingValidationAccessToken);
+      }
       const result = await services.commands.probeProfileEndpoints({
         profileId,
         providerId: selected.id,
         displayName,
-        config: providerConfigFromForm(selected.id, displayName, selected.family, connection, defaultModel),
+        config: providerConfigFromForm(selected.id, displayName, selected.family, connection, defaultModel, billing),
         ...(apiKey.trim() ? { secretValues: { apiKey: apiKey.trim() } } : {}),
       });
       if (!result.ok) {
@@ -191,6 +224,8 @@ export function SettingsAddPage({ onNav, profiles, onProfileSaved }: SettingsAdd
                     setConnection(defaultConnection(provider.id));
                     modelModeTouchedRef.current = false;
                     setDefaultModel('');
+                    setBilling(defaultBillingDraft(provider));
+                    setBillingModeMenuOpen(false);
                     setModelMenuOpen(false);
                     setProbeResults([]);
                     setSuggestedEndpointId(undefined);
@@ -233,6 +268,19 @@ export function SettingsAddPage({ onNav, profiles, onProfileSaved }: SettingsAdd
             apiKeyPlaceholder="sk-..."
             showKey={showKey}
             onShowKeyChange={setShowKey}
+            extraSections={(
+              <div className="section">
+                <div className="section-title">{t.settings.billing}</div>
+                <ProviderBillingSettings
+                  billing={billing}
+                  onBillingChange={setBilling}
+                  billingModeOptions={billingModeOptions(selected)}
+                  modeMenuOpen={billingModeMenuOpen}
+                  onModeMenuOpenChange={setBillingModeMenuOpen}
+                  disabled={busy}
+                />
+              </div>
+            )}
             defaultModelSection={(
               <div className="field">
                 {modelMode === 'list' && modelOptions.length > 0 ? (

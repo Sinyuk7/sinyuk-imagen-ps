@@ -1,4 +1,5 @@
 import type { Asset, Job, JobError, ProviderModelInfo, ProviderProfile } from '@imagen-ps/application';
+import type { ProfileBillingState } from '@imagen-ps/application';
 import { ensurePlaceableImagePayload } from './image-payload-preflight';
 
 export interface AssetPreview {
@@ -223,4 +224,38 @@ export function modelLabel(model: ProviderModelInfo): string {
     return `${base} (custom, unchecked)`;
   }
   return base;
+}
+
+function trimTrailingZeros(value: string): string {
+  return value.includes('.') ? value.replace(/\.?0+$/, '') : value;
+}
+
+export function formatBillingPrimary(billing: ProfileBillingState | null | undefined): string | undefined {
+  const primary = billing?.balance?.snapshot.primary;
+  if (!primary) {
+    return undefined;
+  }
+  if (primary.kind === 'money') {
+    return `${primary.remaining} ${primary.currency}`;
+  }
+  const remaining = primary.remaining ? trimTrailingZeros(primary.remaining) : undefined;
+  const percent = typeof primary.usedPercent === 'number' ? `${Math.round(primary.usedPercent)}% used` : undefined;
+  const unit = primary.unit ?? 'quota';
+  return [remaining ? `${remaining} ${unit}` : undefined, percent].filter(Boolean).join(' · ') || unit;
+}
+
+export function formatExactTaskCost(cost: ProfileBillingState['lastExactTaskCost']): string | undefined {
+  if (!cost) {
+    return undefined;
+  }
+  const label = `${trimTrailingZeros(cost.amount)} ${cost.currency}`;
+  return cost.completeness === 'partial' ? `${label} (partial)` : label;
+}
+
+export function formatBalanceChange(change: ProfileBillingState['lastBalanceChange']): string | undefined {
+  if (!change) {
+    return undefined;
+  }
+  const prefix = change.direction === 'decreased' ? '-' : '+';
+  return `${prefix}${trimTrailingZeros(change.amount)} ${change.currency}`;
 }

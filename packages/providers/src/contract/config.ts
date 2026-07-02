@@ -259,8 +259,22 @@ export interface PromptOptimizeProviderConfig {
   readonly timeoutMs?: number;
 }
 
+export type ProviderBillingMode =
+  | { readonly mode: 'none' }
+  | { readonly mode: 'official' }
+  | {
+      readonly mode: 'new-api';
+      readonly userId: string;
+      readonly accessTokenSecretRef: string;
+    };
+
+export interface BillingEnabledProviderConfig {
+  /** Provider profile 级 billing 配置。 */
+  readonly billing?: ProviderBillingMode;
+}
+
 /** 当前阶段稳定公开的 provider config 联合。 */
 export type ProviderConfig =
-  | ImageEndpointProviderConfig
-  | ChatImageProviderConfig
+  | (ImageEndpointProviderConfig & BillingEnabledProviderConfig)
+  | (ChatImageProviderConfig & BillingEnabledProviderConfig)
   | PromptOptimizeProviderConfig;

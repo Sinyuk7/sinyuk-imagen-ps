@@ -183,11 +183,14 @@ function createDefaultProviderConfigResolver(): ProviderConfigResolver {
         resolvedSecrets[name] = resolveSecretValue(value);
       }
 
+      const resolvedBilling = await resolveBillingSecretConfig(profile.config, profile.secretRefs);
+
       const providerConfig = provider.validateConfig({
         providerId: profile.providerId,
         displayName: profile.displayName,
         family: provider.family,
         ...profile.config,
+        ...resolvedBilling,
         ...resolvedSecrets,
       });
 
@@ -196,6 +199,39 @@ function createDefaultProviderConfigResolver(): ProviderConfigResolver {
         family: provider.family,
         providerConfig,
       };
+    },
+  };
+}
+
+async function resolveBillingSecretConfig(
+  config: Record<string, unknown>,
+  secretRefs: Readonly<Record<string, string>> | undefined,
+): Promise<Record<string, unknown>> {
+  const billing = config.billing;
+  if (typeof billing !== 'object' || billing === null || Array.isArray(billing)) {
+    return {};
+  }
+  const record = billing as Record<string, unknown>;
+  if (record.mode !== 'new-api') {
+    return {};
+  }
+  const accessTokenSecretRef =
+    typeof record.accessTokenSecretRef === 'string' && record.accessTokenSecretRef.length > 0
+      ? record.accessTokenSecretRef
+      : typeof secretRefs?.billingAccessToken === 'string'
+        ? secretRefs.billingAccessToken
+        : undefined;
+  if (!accessTokenSecretRef) {
+    throw new Error('Provider billing config requires accessTokenSecretRef.');
+  }
+  const raw = await getSecretStorageAdapter().getSecret(accessTokenSecretRef);
+  if (raw === undefined) {
+    throw new Error('Provider billing access token is missing.');
+  }
+  return {
+    billing: {
+      ...record,
+      accessTokenSecretRef: resolveSecretValue(raw),
     },
   };
 }

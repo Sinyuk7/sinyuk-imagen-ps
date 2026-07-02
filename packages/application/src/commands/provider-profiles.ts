@@ -23,6 +23,7 @@ import {
   providerUsesImageModelCatalog,
   type ProviderModelInfo,
 } from '@imagen-ps/providers';
+import { invalidateProfileBillingState } from './profile-billing.js';
 
 function errorMessage(error: unknown, fallback: string): string {
   return error instanceof Error ? error.message : fallback;
@@ -45,6 +46,32 @@ function stripSecretConfigFields(
     delete next[name];
   }
   return next as Record<string, ProviderProfileConfigValue>;
+}
+
+function sanitizeBillingConfig(
+  config: Record<string, unknown>,
+  secretRefs: Readonly<Record<string, string>> | undefined,
+): Record<string, unknown> {
+  const billing = config.billing;
+  if (typeof billing !== 'object' || billing === null || Array.isArray(billing)) {
+    return config;
+  }
+  const record = billing as Record<string, unknown>;
+  if (record.mode !== 'new-api') {
+    return config;
+  }
+  return {
+    ...config,
+    billing: {
+      ...record,
+      accessTokenSecretRef:
+        typeof secretRefs?.billingAccessToken === 'string' && secretRefs.billingAccessToken.length > 0
+          ? secretRefs.billingAccessToken
+          : typeof record.accessTokenSecretRef === 'string' && record.accessTokenSecretRef.length > 0
+            ? record.accessTokenSecretRef
+            : undefined,
+    },
+  };
 }
 
 function mergeProfileConfig(
@@ -241,9 +268,9 @@ export async function saveProviderProfile(input: ProviderProfileInput): Promise<
       secretRefs[name] = ref;
     }
 
-    const mergedConfig = mergeProfileConfig(existing?.config, input.config);
     const nextEnabled = input.enabled ?? existing?.enabled ?? true;
     const displayName = nextDisplayName;
+    const mergedConfig = sanitizeBillingConfig(mergeProfileConfig(existing?.config, input.config), secretRefs);
     const nextConfig = {
       ...mergedConfig,
       providerId,
@@ -292,6 +319,7 @@ export async function saveProviderProfile(input: ProviderProfileInput): Promise<
     };
 
     await getProviderProfileRepository().save(persistedProfile);
+    invalidateProfileBillingState(persistedProfile.profileId);
     span.finish({ providerId: profile.providerId, displayName: profile.displayName });
     return { ok: true, value: sanitizeProfile(persistedProfile) };
   } catch (error) {
@@ -349,6 +377,7 @@ export async function deleteProviderProfile(
         Object.values(profile.secretRefs ?? {}).map((ref) => getSecretStorageAdapter().deleteSecret(ref)),
       );
     }
+    invalidateProfileBillingState(profileId);
     span.finish({ providerId: profile.providerId, retainSecrets: options.retainSecrets === true });
     return { ok: true, value: undefined };
   } catch (error) {

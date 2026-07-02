@@ -1,6 +1,16 @@
 import { z } from 'zod';
 import { providerConnectionCollectionSchema } from '../../contract/config-schema.js';
 
+const providerBillingSchema = z.union([
+  z.object({ mode: z.literal('none') }),
+  z.object({ mode: z.literal('official') }),
+  z.object({
+    mode: z.literal('new-api'),
+    userId: z.string().regex(/^\d+$/),
+    accessTokenSecretRef: z.string().min(1),
+  }),
+]).optional();
+
 /**
  * Chat image provider config 的 Zod schema。
  *
@@ -13,6 +23,7 @@ export const chatImageConfigSchema = z.object({
   connection: providerConnectionCollectionSchema,
   apiKey: z.string().min(1),
   defaultModel: z.string().optional(),
+  billing: providerBillingSchema,
   extraHeaders: z.record(z.string(), z.string()).optional(),
   timeoutMs: z.number().int().positive().optional(),
 });

@@ -26,6 +26,13 @@ export {
   refreshProfileModels,
 } from './profile-models.js';
 export { probeProfileEndpoints } from './profile-endpoints.js';
+export {
+  getProfileBillingState,
+  invalidateProfileBillingState,
+  noteProfileTaskBilling,
+  refreshProfileBalance,
+  scheduleProfileBalanceRefresh,
+} from './profile-billing.js';
 
 export { retryJob } from './retry-job.js';
 export { getJobHistoryRecord, listJobHistoryRecords } from './job-history.js';
@@ -58,8 +65,14 @@ export type {
   ProviderProfileTestResult,
   EndpointProbeFailureKind,
   EndpointProbeResult,
+  ExactTaskCost,
+  BalanceChange,
+  ProfileBalanceResult,
+  ProfileBillingState,
   ProbeProfileEndpointsInput,
   ProbeProfileEndpointsResult,
+  RefreshProfileBalanceInput,
+  RefreshProfileBalanceResult,
   Rect,
   ResolvedPreview,
   ResolvedTaskResource,

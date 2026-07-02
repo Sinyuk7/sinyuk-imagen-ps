@@ -19,4 +19,7 @@ export const mockDescriptor: ProviderDescriptor = {
   operations: ['text_to_image', 'image_edit'],
   invokeMode: 'sync',
   defaultModels: [{ id: 'mock-image-v1' }],
+  billing: {
+    supportedModes: ['none'],
+  },
 };

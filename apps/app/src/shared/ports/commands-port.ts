@@ -17,6 +17,8 @@ export interface CommandsPort {
   readonly deleteProviderProfile: typeof commands.deleteProviderProfile;
   readonly testProviderProfile: typeof commands.testProviderProfile;
   readonly probeProfileEndpoints: typeof commands.probeProfileEndpoints;
+  readonly refreshProfileBalance: typeof commands.refreshProfileBalance;
+  readonly getProfileBillingState: typeof commands.getProfileBillingState;
   readonly listProfileModels: typeof commands.listProfileModels;
   readonly refreshProfileModels: typeof commands.refreshProfileModels;
   readonly ensurePromptOptimizerProfile: typeof commands.ensurePromptOptimizerProfile;
@@ -42,6 +44,8 @@ export function createCommandsAdapter(): CommandsPort {
     deleteProviderProfile: commands.deleteProviderProfile,
     testProviderProfile: commands.testProviderProfile,
     probeProfileEndpoints: commands.probeProfileEndpoints,
+    refreshProfileBalance: commands.refreshProfileBalance,
+    getProfileBillingState: commands.getProfileBillingState,
     listProfileModels: commands.listProfileModels,
     refreshProfileModels: commands.refreshProfileModels,
     ensurePromptOptimizerProfile: commands.ensurePromptOptimizerProfile,

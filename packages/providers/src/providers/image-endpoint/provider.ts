@@ -1,4 +1,5 @@
 import type { Provider, ProviderDescriptor, ProviderInvokeArgs } from '../../contract/provider.js';
+import type { ProviderBalanceSnapshot } from '../../contract/billing.js';
 import type { ProviderInvokeResult } from '../../contract/result.js';
 import type { ProviderModelInfo } from '../../contract/model.js';
 import type { Logger } from '@imagen-ps/foundation';
@@ -16,6 +17,7 @@ import {
 import { parseResponse } from '../../transport/image-endpoint/parse-response.js';
 import { parseModelsResponse } from '../../transport/image-endpoint/models.js';
 import { listLocalCatalogModels } from '../../contract/image-model-capability.js';
+import { fetchProviderBalanceJson, parseNewApiBalanceResponse } from '../../transport/billing/query-balance.js';
 
 /** Provider 层可映射的结构化验证错误。 */
 interface ProviderValidationError extends Error {
@@ -204,6 +206,33 @@ export function createImageEndpointProvider(): Provider<ImageEndpointProviderCon
         ...model,
         remotelyAvailable: false,
       }));
+    },
+
+    async queryBalance(config: ImageEndpointProviderConfig, input): Promise<ProviderBalanceSnapshot> {
+      const mode = config.billing?.mode ?? imageEndpointDescriptor.billing?.defaultMode;
+      if (mode === undefined || mode === 'none') {
+        throw createValidationError(`Provider implementation "${imageEndpointDescriptor.id}" does not support balance query for mode "none".`);
+      }
+      const endpoint = config.connection.endpoints.find((candidate) => candidate.enabled) ?? config.connection.endpoints[0];
+      if (!endpoint) {
+        throw createValidationError('Balance query requires at least one endpoint.');
+      }
+      if (mode === 'new-api') {
+        const billing = config.billing;
+        if (!billing || billing.mode !== 'new-api') {
+          throw createValidationError('New API balance mode requires profile billing config.');
+        }
+        const json = await fetchProviderBalanceJson({
+          url: new URL('/api/user/self', endpoint.url).toString(),
+          headers: {
+            Authorization: `Bearer ${billing.accessTokenSecretRef}`,
+            'New-Api-User': billing.userId,
+          },
+          ...(input.signal ? { signal: input.signal } : {}),
+        });
+        return parseNewApiBalanceResponse(json);
+      }
+      throw createValidationError('Official balance query is not implemented for generic image-endpoint providers yet.');
     },
   };
 }

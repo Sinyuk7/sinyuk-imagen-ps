@@ -1,13 +1,15 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import type { ProviderModelInfo, ProviderProfile } from '@imagen-ps/application';
+import type { ProfileBillingState, ProviderModelInfo, ProviderProfile } from '@imagen-ps/application';
 import { useAppServices } from '../../ports/app-services-context';
 import type { LayerInfo } from '../../ports/host-port';
 import { assetToPreviewUrl, commandErrorToMessage, modelLabel } from '../../domain/mappers';
+import { formatBalanceChange, formatBillingPrimary, formatExactTaskCost } from '../../domain/mappers';
 import type {
   ConversationAttachment,
   ConversationController,
   ConversationRound,
 } from '../hooks/use-conversation';
+import { useProfileBilling } from '../hooks/use-profile-billing';
 import { Icon } from '../components/icons';
 import { IconSelect } from '../components/icon-select';
 import { UxpTextArea } from '../components/uxp-form-controls';
@@ -227,6 +229,7 @@ export function MainPage({
   const attachmentsRef = useRef<readonly ConversationAttachment[]>(attachments);
   const flatLayers = useMemo(() => flattenLayers(layers), [layers]);
   const uniqueModels = useMemo(() => dedupeById(models), [models]);
+  const billing = useProfileBilling(services, selectedProfileId);
   const selectableProfiles = useMemo(
     () => profiles.filter((profile) => profile.profileId !== '__prompt-optimizer__'),
     [profiles],
@@ -250,6 +253,8 @@ export function MainPage({
   const canCapture = !conversation.running && !captureInFlight;
   const optimizeButtonLabel = showUndo ? t.main.promptOptimizeUndo : t.main.promptOptimize;
   const responseTextKey = (roundId: string) => `response:${roundId}`;
+  const pendingBillingToastProfileIdRef = useRef<string | null>(null);
+  const lastBillingToastKeyRef = useRef<string | null>(null);
   const isAtBottom = useCallback(() => {
     const el = convRef.current;
     if (!el) return true;
@@ -259,6 +264,38 @@ export function MainPage({
   useEffect(() => {
     attachmentsRef.current = attachments;
   }, [attachments]);
+
+  const billingToastMessage = useCallback((state: ProfileBillingState | null): string | null => {
+    if (!state) {
+      return null;
+    }
+    const exact = formatExactTaskCost(state.lastExactTaskCost);
+    if (exact) {
+      return `${t.main.billingLastCost}: ${exact}`;
+    }
+    const change = formatBalanceChange(state.lastBalanceChange);
+    if (change) {
+      return `${t.main.billingLastChange}: ${change}`;
+    }
+    return null;
+  }, [t.main.billingLastChange, t.main.billingLastCost]);
+
+  const showObservedBillingToast = useCallback(async (profileId: string) => {
+    const observed = await billing.observeAsyncRefresh();
+    if (pendingBillingToastProfileIdRef.current !== profileId) {
+      return;
+    }
+    pendingBillingToastProfileIdRef.current = null;
+    const message = billingToastMessage(observed);
+    if (!message) {
+      return;
+    }
+    if (lastBillingToastKeyRef.current === message) {
+      return;
+    }
+    lastBillingToastKeyRef.current = message;
+    show(message, 'positive', { durationMs: 3200, icon: 'check' });
+  }, [billing, billingToastMessage, show]);
 
   useEffect(() => {
     return () => {
@@ -591,6 +628,7 @@ export function MainPage({
     }
     setInput('');
     setAttachments([]);
+    pendingBillingToastProfileIdRef.current = selectedProfile.profileId;
     await conversation.submit({
       operation: attachments.length > 0 ? 'image-edit' : 'text-to-image',
       prompt,
@@ -607,6 +645,7 @@ export function MainPage({
       },
       providerInputSizePreset: generationSettings.providerInputSizePreset,
     });
+    void showObservedBillingToast(selectedProfile.profileId);
   };
 
   const handleOptimize = async () => {
@@ -652,6 +691,19 @@ export function MainPage({
       setOptimizeState({ status: 'idle' });
     }
   };
+
+  useEffect(() => {
+    if (!billing.error) {
+      return;
+    }
+    if (pendingBillingToastProfileIdRef.current !== null) {
+      return;
+    }
+    if (billing.billing?.refreshState !== 'error') {
+      return;
+    }
+    // Manual or passive refresh failure should stay isolated from generation success.
+  }, [billing.billing?.refreshState, billing.error]);
 
   useEffect(() => {
     if (optimizeState.status === 'optimized' && input !== optimizeState.result) {
@@ -725,6 +777,12 @@ export function MainPage({
               setOpenMenu(null);
             }}
           />
+          <div
+            data-testid="main-billing-summary"
+            style={{ marginTop: 4, fontSize: 10, color: 'var(--app-color-text-muted)', textAlign: 'center' }}
+          >
+            {formatBillingPrimary(billing.billing) ?? t.main.billingUnknown}
+          </div>
           <MotionPresenceView visible={profileMenuOpen} kind="popover">
             {({ ref, state }) => (
             <div ref={ref} className="model-menu hdr-model-menu" data-motion-state={state} onClick={(event) => event.stopPropagation()}>
@@ -761,6 +819,13 @@ export function MainPage({
       </header>
 
       <div className="scroll" ref={convRef}>
+        {(formatExactTaskCost(billing.billing?.lastExactTaskCost) || formatBalanceChange(billing.billing?.lastBalanceChange)) && (
+          <div style={{ padding: '8px 16px 0', fontSize: 11, color: 'var(--app-color-text-muted)' }}>
+            {formatExactTaskCost(billing.billing?.lastExactTaskCost)
+              ? `${t.main.billingLastCost}: ${formatExactTaskCost(billing.billing?.lastExactTaskCost)}`
+              : `${t.main.billingLastChange}: ${formatBalanceChange(billing.billing?.lastBalanceChange)}`}
+          </div>
+        )}
         <div className="round-list">
           <div className="day-sep">
             <div className="day-sep-line" /><span className="day-sep-lbl">{t.main.currentSession}</span><div className="day-sep-line" />

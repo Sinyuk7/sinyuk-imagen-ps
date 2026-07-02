@@ -7,7 +7,8 @@
 import type { Job, JobError } from '@imagen-ps/core-engine';
 import { createRuntimeError } from '@imagen-ps/core-engine';
 import { generateTraceId } from '@imagen-ps/foundation';
-import { flushJobHistoryForTerminalJob, getRuntime, getRuntimeLogger } from '../runtime.js';
+import { flushJobHistoryForTerminalJob, getProviderProfileRepository, getRuntime, getRuntimeLogger } from '../runtime.js';
+import { noteProfileTaskBilling, scheduleProfileBalanceRefresh } from './profile-billing.js';
 import type { CommandResult, SubmitJobInput } from './types.js';
 
 /**
@@ -89,6 +90,31 @@ function hasExplicitProvider(params: Record<string, unknown>): boolean {
   return 'provider' in params;
 }
 
+export async function noteExactTaskCost(job: Job, profileId: string): Promise<void> {
+  if (job.status !== 'completed') {
+    return;
+  }
+  const image = job.output?.image as { raw?: unknown } | undefined;
+  const providerId = typeof job.input.provider === 'string' && job.input.provider !== 'profile'
+    ? job.input.provider
+    : (await getProviderProfileRepository().get(profileId))?.providerId;
+  if (!providerId) {
+    return;
+  }
+  const provider = getRuntime().providerRegistry.get(providerId);
+  if (!provider || typeof provider.extractTaskCost !== 'function') {
+    return;
+  }
+  const exactTaskCost = provider.extractTaskCost({
+    assets: [],
+    ...(image?.raw !== undefined ? { raw: image.raw } : {}),
+  });
+  if (!exactTaskCost) {
+    return;
+  }
+  await noteProfileTaskBilling(profileId, { exactTaskCost });
+}
+
 export async function submitJob(input: SubmitJobInput): Promise<CommandResult<Job>> {
   const runtime = getRuntime();
   const commandLogger = getRuntimeLogger().child({
@@ -115,6 +141,17 @@ export async function submitJob(input: SubmitJobInput): Promise<CommandResult<Jo
       ...(input.signal !== undefined ? { signal: input.signal } : {}),
     });
     await flushJobHistoryForTerminalJob(job);
+    const enrichedInputRecord = enrichedInput as Record<string, unknown>;
+    const profileId =
+      typeof enrichedInputRecord.providerProfileId === 'string'
+        ? enrichedInputRecord.providerProfileId
+        : typeof enrichedInputRecord.profileId === 'string'
+          ? enrichedInputRecord.profileId
+          : undefined;
+    if (profileId && (job.status === 'completed' || job.status === 'failed')) {
+      await noteExactTaskCost(job, profileId);
+      await scheduleProfileBalanceRefresh(profileId);
+    }
     span.finish();
     return { ok: true, value: job };
   } catch (error) {

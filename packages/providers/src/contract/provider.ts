@@ -1,6 +1,11 @@
 import type { ProviderDispatchAdapter } from '@imagen-ps/core-engine';
 import type { Logger } from '@imagen-ps/foundation';
 import type { ProviderFamily, ProviderOperation } from './capability.js';
+import type {
+  ExactTaskCost,
+  ProviderBalanceQueryInput,
+  ProviderBalanceSnapshot,
+} from './billing.js';
 import type { ProviderConfig } from './config.js';
 import type { ProviderModelInfo } from './model.js';
 import type { CanonicalImageJobRequest, ProviderRequest } from './request.js';
@@ -59,6 +64,9 @@ export interface ProviderDescriptor {
    * `transport/image-endpoint/paid-retry.ts`）。
    */
   readonly transport?: ProviderTransportCapability;
+
+  /** provider-specific billing capability declaration（OPTIONAL）。 */
+  readonly billing?: ProviderBillingCapability;
 }
 
 /**
@@ -85,6 +93,14 @@ export interface ProviderTransportCapability {
    * `RetryPolicy`，避免 contract 反向依赖 transport 层。
    */
   readonly retryPolicy?: { readonly maxRetries: number; readonly baseDelayMs: number; readonly factor: number };
+}
+
+export interface ProviderBillingCapability {
+  /** 支持的余额查询模式。 */
+  readonly supportedModes: readonly ('none' | 'official' | 'new-api')[];
+
+  /** 已知 preset 的缺省模式。 */
+  readonly defaultMode?: 'official' | 'new-api' | 'none';
 }
 
 /** `invoke()` 的调用参数。 */
@@ -146,6 +162,18 @@ export interface Provider<TConfig = ProviderConfig, TRequest = CanonicalImageJob
    * SHALL 按 `refreshProfileModels` 失败语义处理。
    */
   discoverModels?(config: TConfig): Promise<readonly ProviderModelInfo[]>;
+
+  /**
+   * Provider-specific billing query（OPTIONAL）。
+   *
+   * 与 model invocation 兼容性分离；失败不得被调用方解释为 provider 不可生成。
+   */
+  queryBalance?(config: TConfig, input: ProviderBalanceQueryInput): Promise<ProviderBalanceSnapshot>;
+
+  /**
+   * 从 provider invoke result 提取精确或部分精确的单次远端请求成本（OPTIONAL）。
+   */
+  extractTaskCost?(result: ProviderInvokeResult): ExactTaskCost | undefined;
 }
 
 /** bridge 创建 `ProviderDispatchAdapter` 所需的输入。 */

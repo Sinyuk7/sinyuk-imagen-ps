@@ -1,7 +1,9 @@
 export type { ProviderFamily, ProviderOperation } from './capability.js';
 export type {
+  BillingEnabledProviderConfig,
   ChatImageProviderConfig,
   ImageEndpointProviderConfig,
+  ProviderBillingMode,
   ProviderConnectionConfig,
   ProviderEndpointConfig,
   ProviderEndpointSelectionMode,
@@ -40,6 +42,14 @@ export {
 } from './image-model-capability.js';
 export type { AssetRef, CanonicalImageJobRequest, PromptOptimizeRequest, ProviderOutputOptions, ProviderRequest } from './request.js';
 export type { ProviderDiagnostic, ProviderDiagnosticLevel, ProviderDiagnostics } from './diagnostics.js';
+export type {
+  BalanceChange,
+  ExactTaskCost,
+  ProviderBalanceDetail,
+  ProviderBalanceQueryInput,
+  ProviderBalanceSnapshot,
+  ProviderBalanceSummary,
+} from './billing.js';
 export type {
   ProviderExecutionAttempt,
   ProviderExecutionInfo,

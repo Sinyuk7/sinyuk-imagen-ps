@@ -9,4 +9,8 @@ export const imageEndpointDescriptor: ProviderDescriptor = {
   operations: ['text_to_image', 'image_edit'],
   invokeMode: 'sync',
   defaultModels: listLocalCatalogModels('image-endpoint'),
+  billing: {
+    supportedModes: ['none', 'new-api'],
+    defaultMode: 'new-api',
+  },
 };

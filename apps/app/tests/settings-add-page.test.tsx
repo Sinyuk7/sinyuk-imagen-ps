@@ -1,6 +1,7 @@
 import { act } from 'react';
 import { createRoot, type Root } from 'react-dom/client';
 import { afterEach, describe, expect, it, vi } from 'vitest';
+import type { ProviderDescriptor } from '@imagen-ps/application';
 import { SettingsAddPage } from '../src/shared/ui/pages/settings-add-page';
 import { createFakeServices } from './fakes';
 import { TestAppProviders } from './render-helpers';
@@ -84,6 +85,51 @@ describe('SettingsAddPage', () => {
       }),
     );
     expect(spies.saveProviderProfile.mock.calls[0]?.[0]).not.toHaveProperty('apiKey');
+  });
+
+  it('reveals new-api billing fields when that mode is selected', async () => {
+    const { services, spies } = createFakeServices();
+    const newApiProvider: ProviderDescriptor = {
+      id: 'mock',
+      family: 'image-endpoint',
+      displayName: 'Mock Provider',
+      operations: ['text_to_image', 'image_edit'],
+      invokeMode: 'sync',
+      defaultModels: [{ id: 'mock-image-v1' }],
+      billing: {
+        supportedModes: ['none', 'new-api'],
+        defaultMode: 'new-api',
+      },
+    };
+    spies.listProviders.mockReturnValue([newApiProvider]);
+    spies.describeProvider.mockReturnValue(newApiProvider);
+    const container = document.createElement('div');
+    document.body.appendChild(container);
+    root = createRoot(container);
+
+    await act(async () => {
+      root!.render(
+        <TestAppProviders services={services}>
+          <SettingsAddPage onNav={() => undefined} profiles={[]} onProfileSaved={async () => undefined} />
+        </TestAppProviders>,
+      );
+    });
+
+    await act(async () => {
+      container.querySelector<HTMLElement>('[data-testid="provider-type-mock"]')!.click();
+    });
+    await act(async () => {
+      queryByTestId(container, 'provider-billing-mode-selector').click();
+    });
+    await act(async () => {
+      container.querySelector<HTMLElement>('[data-testid="provider-billing-mode-selector-option-new-api"]')!.click();
+    });
+    await act(async () => {
+      await Promise.resolve();
+    });
+
+    expect(queryByTestId(container, 'provider-billing-user-id-input')).not.toBeNull();
+    expect(queryByTestId(container, 'provider-billing-access-token-input')).not.toBeNull();
   });
 
   it('prefills a unique alias suggestion from existing profiles', async () => {

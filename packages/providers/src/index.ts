@@ -7,9 +7,12 @@
 
 // Contract types
 export type {
+  BalanceChange,
+  BillingEnabledProviderConfig,
   AssetRef,
   CanonicalImageJobRequest,
   ChatImageProviderConfig,
+  ExactTaskCost,
   ImageAspectRatio,
   ImageCatalogProviderId,
   ImageEndpointProviderConfig,
@@ -20,6 +23,11 @@ export type {
   ImageSizePreset,
   ModelMatcher,
   ModelMatcherPattern,
+  ProviderBalanceDetail,
+  ProviderBalanceQueryInput,
+  ProviderBalanceSnapshot,
+  ProviderBalanceSummary,
+  ProviderBillingMode,
   ProviderExecutionAttempt,
   ProviderExecutionInfo,
   ProviderConnectionConfig,

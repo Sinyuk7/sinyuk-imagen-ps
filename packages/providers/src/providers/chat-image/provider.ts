@@ -1,4 +1,5 @@
 import type { Provider, ProviderDescriptor, ProviderInvokeArgs } from '../../contract/provider.js';
+import type { ProviderBalanceSnapshot } from '../../contract/billing.js';
 import type { ProviderInvokeResult } from '../../contract/result.js';
 import type { ProviderModelInfo } from '../../contract/model.js';
 import { mockRequestSchema, type MockProviderRequest } from '../mock/request-schema.js';
@@ -11,6 +12,7 @@ import { buildChatImageRequestBody } from '../../transport/chat-image/build-requ
 import { parseChatImageResponse } from '../../transport/chat-image/parse-response.js';
 import { parseChatImageModelsResponse } from '../../transport/chat-image/models.js';
 import { listLocalCatalogModels } from '../../contract/image-model-capability.js';
+import { fetchProviderBalanceJson, parseNewApiBalanceResponse } from '../../transport/billing/query-balance.js';
 
 interface ProviderValidationError extends Error {
   details?: Record<string, unknown>;
@@ -157,6 +159,33 @@ export function createChatImageProvider(): Provider<ChatImageProviderConfig, Moc
         ...model,
         remotelyAvailable: false,
       }));
+    },
+
+    async queryBalance(config: ChatImageProviderConfig, input): Promise<ProviderBalanceSnapshot> {
+      const mode = config.billing?.mode ?? chatImageDescriptor.billing?.defaultMode;
+      if (mode === undefined || mode === 'none') {
+        throw createValidationError(`Provider implementation "${chatImageDescriptor.id}" does not support balance query for mode "none".`);
+      }
+      const endpoint = config.connection.endpoints.find((candidate) => candidate.enabled) ?? config.connection.endpoints[0];
+      if (!endpoint) {
+        throw createValidationError('Balance query requires at least one endpoint.');
+      }
+      if (mode === 'new-api') {
+        const billing = config.billing;
+        if (!billing || billing.mode !== 'new-api') {
+          throw createValidationError('New API balance mode requires profile billing config.');
+        }
+        const json = await fetchProviderBalanceJson({
+          url: endpointUrl(endpoint.url, '/api/user/self'),
+          headers: {
+            Authorization: `Bearer ${billing.accessTokenSecretRef}`,
+            'New-Api-User': billing.userId,
+          },
+          ...(input.signal ? { signal: input.signal } : {}),
+        });
+        return parseNewApiBalanceResponse(json);
+      }
+      throw createValidationError('Official balance query is not implemented for generic chat-image providers yet.');
     },
   };
 }

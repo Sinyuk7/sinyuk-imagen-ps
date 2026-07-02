@@ -194,4 +194,37 @@ describe('provider profile alias contract', () => {
       });
     }
   });
+
+  it('persists billing access token on the secret boundary while keeping secret ref in sanitized config', async () => {
+    _resetForTesting();
+    const { repository, profiles } = createProfileRepository();
+    const { adapter, secrets } = createSecretStorage();
+    setProviderProfileRepository(repository);
+    setSecretStorageAdapter(adapter);
+
+    const base = mockProfileInput('profile-c', 'Billing Mock', 'mock-image-v1', 'key-c');
+    const saved = await saveProviderProfile({
+      ...base,
+      config: {
+        ...base.config,
+        billing: {
+          mode: 'new-api',
+          userId: '10001',
+          accessTokenSecretRef: 'secret:pending:billingAccessToken',
+        },
+      },
+      secretValues: {
+        apiKey: 'key-c',
+        billingAccessToken: 'billing-secret',
+      },
+    });
+
+    expect(saved.ok).toBe(true);
+    expect(secrets.get('secret:provider-profile:profile-c:billingAccessToken')).toBe('billing-secret');
+    expect(profiles[0]?.config.billing).toEqual({
+      mode: 'new-api',
+      userId: '10001',
+      accessTokenSecretRef: 'secret:provider-profile:profile-c:billingAccessToken',
+    });
+  });
 });

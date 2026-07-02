@@ -84,6 +84,10 @@ export interface AppMessages {
     readonly aspectRatioAuto: string;
     readonly aspectRatioSquare: string;
     readonly outputSize: string;
+    readonly billingSummary: string;
+    readonly billingUnknown: string;
+    readonly billingLastCost: string;
+    readonly billingLastChange: string;
     readonly promptOptimize: string;
     readonly promptRefine: string;
     readonly promptOptimizePlaceholder: string;
@@ -110,6 +114,24 @@ export interface AppMessages {
     readonly chooseType: string;
     readonly config: string;
     readonly promptBehavior: string;
+    readonly billing: string;
+    readonly billingMode: string;
+    readonly billingModeHint: string;
+    readonly billingDisabled: string;
+    readonly billingRefresh: string;
+    readonly billingRefreshing: string;
+    readonly billingDetails: string;
+    readonly billingBalanceLabel: string;
+    readonly billingCheckedAt: string;
+    readonly billingErrorStale: string;
+    readonly billingUserId: string;
+    readonly billingUserIdHint: string;
+    readonly billingAccessToken: string;
+    readonly billingAccessTokenHint: string;
+    readonly billingAccessTokenSavedHint: string;
+    readonly billingNotSupported: string;
+    readonly billingValidationUserId: string;
+    readonly billingValidationAccessToken: string;
     readonly instruction: string;
     readonly instructionPlaceholder: string;
     readonly alias: string;
@@ -184,6 +206,7 @@ export interface AppMessages {
     readonly promptOptimized: string;
     readonly promptOptimizeNoChanges: string;
     readonly promptOptimizeFailed: string;
+    readonly billingRefreshFailed: string;
   };
   readonly conversation: {
     readonly jobFailed: string;
@@ -274,6 +297,10 @@ const EN_MESSAGES: AppMessages = {
     aspectRatioAuto: 'Auto',
     aspectRatioSquare: '1:1',
     outputSize: 'Size',
+    billingSummary: 'Balance',
+    billingUnknown: 'Billing unavailable',
+    billingLastCost: 'Last exact cost',
+    billingLastChange: 'Last balance change',
     promptOptimize: 'Optimize prompt',
     promptRefine: 'Refine',
     promptOptimizePlaceholder: 'Coming soon',
@@ -300,6 +327,24 @@ const EN_MESSAGES: AppMessages = {
     chooseType: 'Choose type',
     config: 'Configuration',
     promptBehavior: 'Prompt behavior',
+    billing: 'Billing',
+    billingMode: 'Billing mode',
+    billingModeHint: 'Balance query stays optional and separate from generation availability.',
+    billingDisabled: 'Billing is not configured for this profile.',
+    billingRefresh: 'Refresh balance',
+    billingRefreshing: 'Refreshing balance...',
+    billingDetails: 'Billing details',
+    billingBalanceLabel: 'Current balance',
+    billingCheckedAt: 'Last checked',
+    billingErrorStale: 'Latest refresh failed. Showing last successful balance if available.',
+    billingUserId: 'New API user id',
+    billingUserIdHint: 'Use the integer user id required by the panel family.',
+    billingAccessToken: 'Billing access token',
+    billingAccessTokenHint: 'Stored as a secret and used only for balance queries.',
+    billingAccessTokenSavedHint: 'Saved; leave blank to keep the current balance token.',
+    billingNotSupported: 'This provider preset does not expose a billing adapter yet.',
+    billingValidationUserId: 'Billing user id must be an integer.',
+    billingValidationAccessToken: 'Billing access token is required for New API mode.',
     instruction: 'Instruction',
     instructionPlaceholder: 'System instruction for prompt optimization',
     alias: 'Alias',
@@ -375,6 +420,7 @@ const EN_MESSAGES: AppMessages = {
     promptOptimized: 'Prompt optimized',
     promptOptimizeNoChanges: 'No changes were suggested',
     promptOptimizeFailed: 'Prompt optimization failed',
+    billingRefreshFailed: 'Balance refresh failed',
   },
   conversation: {
     jobFailed: 'Job failed.',
@@ -465,6 +511,10 @@ const ZH_CN_MESSAGES: AppMessages = {
     aspectRatioAuto: '智能',
     aspectRatioSquare: '1:1',
     outputSize: '尺寸',
+    billingSummary: '余额',
+    billingUnknown: 'Billing 不可用',
+    billingLastCost: '最近一次精确费用',
+    billingLastChange: '最近一次余额变化',
     promptOptimize: '优化提示词',
     promptRefine: '优化',
     promptOptimizePlaceholder: '即将支持',
@@ -491,6 +541,24 @@ const ZH_CN_MESSAGES: AppMessages = {
     chooseType: '选择类型',
     config: '配置',
     promptBehavior: '提示词行为',
+    billing: 'Billing',
+    billingMode: 'Billing 模式',
+    billingModeHint: '余额查询保持可选，并且与生成可用性分离。',
+    billingDisabled: '当前 profile 未配置 billing。',
+    billingRefresh: '刷新余额',
+    billingRefreshing: '刷新余额中...',
+    billingDetails: 'Billing 详情',
+    billingBalanceLabel: '当前余额',
+    billingCheckedAt: '最近检查时间',
+    billingErrorStale: '最近一次刷新失败；如果有上次成功数据，将继续显示。',
+    billingUserId: 'New API 用户 ID',
+    billingUserIdHint: '填写该面板要求的整数 user id。',
+    billingAccessToken: 'Billing access token',
+    billingAccessTokenHint: '仅用于余额查询，并按 secret 保存。',
+    billingAccessTokenSavedHint: '已保存；留空保持当前余额 token。',
+    billingNotSupported: '当前 provider preset 还没有可用的 billing adapter。',
+    billingValidationUserId: 'Billing user id 必须是整数。',
+    billingValidationAccessToken: 'New API 模式需要 billing access token。',
     instruction: 'Instruction',
     instructionPlaceholder: '用于优化提示词的系统指令',
     alias: '别名',
@@ -565,6 +633,7 @@ const ZH_CN_MESSAGES: AppMessages = {
     promptOptimized: '提示词已优化',
     promptOptimizeNoChanges: '没有建议的修改',
     promptOptimizeFailed: '提示词优化失败',
+    billingRefreshFailed: '余额刷新失败',
   },
   conversation: {
     jobFailed: 'Job failed.',

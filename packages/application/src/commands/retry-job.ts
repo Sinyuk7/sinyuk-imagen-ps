@@ -6,8 +6,9 @@ import type { Job } from '@imagen-ps/core-engine';
 import { createValidationError } from '@imagen-ps/core-engine';
 import { generateTraceId } from '@imagen-ps/foundation';
 import { flushJobHistoryForTerminalJob, getJobHistoryStore, getRuntime, getRuntimeLogger } from '../runtime.js';
+import { scheduleProfileBalanceRefresh } from './profile-billing.js';
 import type { CommandResult } from './types.js';
-import { toJobError, WORKFLOW_NAME_KEY } from './submit-job.js';
+import { toJobError, WORKFLOW_NAME_KEY, noteExactTaskCost } from './submit-job.js';
 
 interface RetrySource {
   readonly workflowName: string;
@@ -57,6 +58,16 @@ export async function retryJob(jobId: string): Promise<CommandResult<Job>> {
       ...(source.originJobId !== undefined ? { originJobId: source.originJobId } : {}),
       ...(source.retryAttempt !== undefined ? { retryAttempt: source.retryAttempt } : {}),
     });
+    const profileId =
+      typeof source.input.providerProfileId === 'string'
+        ? source.input.providerProfileId
+        : typeof source.input.profileId === 'string'
+          ? source.input.profileId
+          : undefined;
+    if (profileId && (newJob.status === 'completed' || newJob.status === 'failed')) {
+      await noteExactTaskCost(newJob, profileId);
+      await scheduleProfileBalanceRefresh(profileId);
+    }
     span.finish();
     return { ok: true, value: newJob };
   } catch (error) {

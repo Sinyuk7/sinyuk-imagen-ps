@@ -261,6 +261,15 @@ export interface ProviderConnectionDraft {
   readonly endpoints: readonly ProviderEndpointDraft[];
 }
 
+export type BillingModeDraft = 'none' | 'official' | 'new-api';
+
+export interface ProviderBillingDraft {
+  readonly mode: BillingModeDraft;
+  readonly userId: string;
+  readonly accessToken: string;
+  readonly hasSavedAccessToken: boolean;
+}
+
 function createEndpointId(): string {
   if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
     return `endpoint-${crypto.randomUUID()}`;
@@ -347,12 +356,85 @@ export function readProviderConfigString(profile: ProviderProfile, key: string):
   return configString(profile.config, key);
 }
 
+export function readProviderBillingDraft(profile: ProviderProfile | null): ProviderBillingDraft {
+  const billing = profile?.config.billing;
+  if (typeof billing !== 'object' || billing === null || Array.isArray(billing)) {
+    return {
+      mode: 'none',
+      userId: '',
+      accessToken: '',
+      hasSavedAccessToken: false,
+    };
+  }
+  const record = billing as {
+    readonly mode?: BillingModeDraft;
+    readonly userId?: string;
+    readonly accessTokenSecretRef?: string;
+  };
+  return {
+    mode: record.mode === 'official' || record.mode === 'new-api' ? record.mode : 'none',
+    userId: typeof record.userId === 'string' ? record.userId : '',
+    accessToken: '',
+    hasSavedAccessToken:
+      record.mode === 'new-api' &&
+      typeof record.accessTokenSecretRef === 'string' &&
+      record.accessTokenSecretRef.length > 0,
+  };
+}
+
+export function billingModeOptions(provider: ProviderDescriptor | undefined): readonly {
+  readonly id: BillingModeDraft;
+  readonly label: string;
+}[] {
+  const supported = provider?.billing?.supportedModes ?? ['none'];
+  const options: { readonly id: BillingModeDraft; readonly label: string }[] = [];
+  for (const mode of supported) {
+    if (mode === 'none') {
+      options.push({ id: 'none', label: 'Disabled' });
+      continue;
+    }
+    if (mode === 'official') {
+      options.push({ id: 'official', label: 'Official' });
+      continue;
+    }
+    if (mode === 'new-api') {
+      options.push({ id: 'new-api', label: 'New API' });
+    }
+  }
+  return options;
+}
+
+export function defaultBillingDraft(provider: ProviderDescriptor | undefined): ProviderBillingDraft {
+  const defaultMode = provider?.billing?.defaultMode;
+  const supported = new Set(provider?.billing?.supportedModes ?? ['none']);
+  const requiresExtraFields = defaultMode === 'new-api';
+  const mode: BillingModeDraft =
+    requiresExtraFields && supported.has('none')
+      ? 'none'
+      : defaultMode === 'official' || defaultMode === 'new-api' || defaultMode === 'none'
+      ? defaultMode
+      : supported.has('none')
+        ? 'none'
+        : supported.has('new-api')
+          ? 'new-api'
+          : supported.has('official')
+            ? 'official'
+            : 'none';
+  return {
+    mode,
+    userId: '',
+    accessToken: '',
+    hasSavedAccessToken: false,
+  };
+}
+
 export function providerConfigFromForm(
   providerId: string,
   displayName: string,
   family: string,
   connection: ProviderConnectionDraft,
   defaultModel: string,
+  billing?: ProviderBillingDraft,
   instruction?: string,
 ): ProviderProfileConfig {
   const normalizedConnection = normalizeProviderConnectionDraft(connection);
@@ -374,8 +456,70 @@ export function providerConfigFromForm(
   if (defaultModel.trim()) {
     config.defaultModel = defaultModel.trim();
   }
+  if (billing) {
+    if (billing.mode === 'none') {
+      config.billing = { mode: 'none' };
+    } else if (billing.mode === 'official') {
+      config.billing = { mode: 'official' };
+    } else {
+      config.billing = {
+        mode: 'new-api',
+        userId: billing.userId.trim(),
+        accessTokenSecretRef: billing.hasSavedAccessToken || billing.accessToken.trim()
+          ? 'secret:pending:billingAccessToken'
+          : '',
+      };
+    }
+  }
   if (instruction && instruction.trim()) {
     config.instruction = instruction.trim();
   }
   return config;
+}
+
+export function billingSecretValuesFromDraft(billing: ProviderBillingDraft): Readonly<Record<string, string>> | undefined {
+  if (billing.mode !== 'new-api') {
+    return undefined;
+  }
+  const token = billing.accessToken.trim();
+  if (!token) {
+    return undefined;
+  }
+  return { billingAccessToken: token };
+}
+
+export function billingFieldError(
+  billing: ProviderBillingDraft,
+  provider: ProviderDescriptor | undefined,
+): string | null {
+  if (!provider?.billing) {
+    return null;
+  }
+  if (!provider.billing.supportedModes.includes(billing.mode)) {
+    return 'unsupported';
+  }
+  if (billing.mode !== 'new-api') {
+    return null;
+  }
+  if (!/^\d+$/.test(billing.userId.trim())) {
+    return 'user-id';
+  }
+  if (!billing.hasSavedAccessToken && billing.accessToken.trim().length === 0) {
+    return 'token';
+  }
+  return null;
+}
+
+export function formatBillingDetail(detail: {
+  readonly kind: 'money' | 'quota';
+  readonly label: string;
+  readonly amount?: string;
+  readonly currency?: string;
+  readonly value?: string;
+  readonly unit?: string;
+}): string {
+  if (detail.kind === 'money') {
+    return `${detail.label}: ${detail.amount ?? ''} ${detail.currency ?? ''}`.trim();
+  }
+  return `${detail.label}: ${detail.value ?? ''} ${detail.unit ?? ''}`.trim();
 }

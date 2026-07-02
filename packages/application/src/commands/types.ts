@@ -6,6 +6,9 @@
 
 import type { DurableJobRecord, JobError, JobEvent, JobInput, JobStatus, StoredAssetRef, TaskRecord, TaskStatus } from '@imagen-ps/core-engine';
 import type {
+  BalanceChange,
+  ExactTaskCost,
+  ProviderBalanceSnapshot,
   ProviderDescriptor as _ProviderDescriptor,
   ProviderConfig as _ProviderConfig,
   ProviderFamily,
@@ -14,6 +17,7 @@ import type {
 
 // Re-export provider types for commands layer consumers
 export type { ProviderDescriptor, ProviderConfig, ProviderFamily, ProviderModelInfo } from '@imagen-ps/providers';
+export type { BalanceChange, ExactTaskCost, ProviderBalanceSnapshot } from '@imagen-ps/providers';
 export type {
   Asset,
   DecodeTaskRecordResult,
@@ -263,6 +267,29 @@ export interface ProbeProfileEndpointsInput {
   readonly signal?: AbortSignal;
   readonly timeoutMs?: number;
   readonly maxConcurrency?: number;
+}
+
+export interface ProfileBalanceResult {
+  readonly providerId: string;
+  readonly profileId: string;
+  readonly checkedAt: number;
+  readonly snapshot: ProviderBalanceSnapshot;
+}
+
+export interface ProfileBillingState {
+  readonly balance?: ProfileBalanceResult;
+  readonly lastExactTaskCost?: ExactTaskCost;
+  readonly lastBalanceChange?: BalanceChange;
+  readonly refreshState: 'idle' | 'refreshing' | 'error';
+}
+
+export interface RefreshProfileBalanceInput {
+  readonly profileId: string;
+  readonly signal?: AbortSignal;
+}
+
+export interface RefreshProfileBalanceResult extends ProfileBalanceResult {
+  readonly state: ProfileBillingState;
 }
 
 export interface ProbeProfileEndpointsResult {
