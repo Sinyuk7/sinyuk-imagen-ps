@@ -458,7 +458,7 @@ export function MainPage({
     [],
   );
   const currentPromptValue = () => taRef.current?.value ?? input;
-  const suspendComposerTextHitTesting = openMenu !== null;
+  const composerTextAreaNeedsUxpPopupOverlapWorkaround = openMenu !== null;
   const syncComposerInputBeforeMenuOpen = useCallback(() => {
     const liveValue = taRef.current?.value;
     if (liveValue !== undefined && liveValue !== input) {
@@ -1721,7 +1721,7 @@ export function MainPage({
                   rows={2}
                   value={input}
                   onValue={composerDraft.setInput}
-                  suspendHitTesting={suspendComposerTextHitTesting}
+                  uxpPopupOverlapWorkaround={composerTextAreaNeedsUxpPopupOverlapWorkaround}
                   onKeyDown={(event) => {
                     if (event.key === 'Enter' && !event.shiftKey && !isImeCompositionKey(event)) {
                       event.preventDefault();

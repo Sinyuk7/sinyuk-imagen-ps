@@ -170,7 +170,7 @@ describe('UXP textarea seam', () => {
     expect(document.activeElement).toBe(firstTextarea);
 
     await act(async () => {
-      root!.render(<UxpTextArea value="hello" onValue={() => undefined} suspendHitTesting data-testid="textarea" />);
+      root!.render(<UxpTextArea value="hello" onValue={() => undefined} uxpPopupOverlapWorkaround data-testid="textarea" />);
     });
 
     const textarea = container.querySelector<HTMLTextAreaElement>('textarea')!;

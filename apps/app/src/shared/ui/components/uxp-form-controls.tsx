@@ -16,8 +16,11 @@ type UxpTextAreaProps = Omit<
   readonly controlRef?: RefObject<HTMLTextAreaElement | null>;
   readonly value: string;
   readonly onValue: (value: string) => void;
-  /** UXP 原生 textarea 在浮层重叠时可能抢占命中；打开菜单时临时摘出 hit-test。 */
-  readonly suspendHitTesting?: boolean;
+  /**
+   * Photoshop UXP 下，原生 textarea 与 portaled popup 重叠时可能继续抢占命中。
+   * 打开相关浮层时启用这个 workaround，临时隐藏原生控件，关闭后再恢复显示。
+   */
+  readonly uxpPopupOverlapWorkaround?: boolean;
   readonly 'data-testid'?: string;
 };
 
@@ -93,7 +96,7 @@ export function UxpTextArea({
   value,
   onValue,
   onKeyDown,
-  suspendHitTesting = false,
+  uxpPopupOverlapWorkaround = false,
   style,
   className,
   placeholder,
@@ -121,13 +124,13 @@ export function UxpTextArea({
 
   useEffect(() => {
     const textarea = textAreaRef.current;
-    if (!textarea || !suspendHitTesting) {
+    if (!textarea || !uxpPopupOverlapWorkaround) {
       return;
     }
     if (document.activeElement === textarea) {
       textarea.blur();
     }
-  }, [suspendHitTesting]);
+  }, [uxpPopupOverlapWorkaround]);
 
   const sync = useCallback(
     (target?: HTMLTextAreaElement | null) => {
@@ -194,10 +197,10 @@ export function UxpTextArea({
       placeholder={placeholder}
       defaultValue={value}
       data-uxp-textarea-native="true"
-      data-hit-test-suspended={suspendHitTesting ? 'true' : undefined}
+      data-hit-test-suspended={uxpPopupOverlapWorkaround ? 'true' : undefined}
       style={{
         ...style,
-        ...(suspendHitTesting
+        ...(uxpPopupOverlapWorkaround
           ? {
               display: 'none',
             }
