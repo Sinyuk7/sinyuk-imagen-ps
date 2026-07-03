@@ -7,8 +7,8 @@ import { createValidationError } from '@imagen-ps/core-engine';
 import { generateTraceId } from '@imagen-ps/foundation';
 import { flushJobHistoryForTerminalJob, getJobHistoryStore, getRuntime, getRuntimeLogger } from '../runtime.js';
 import { scheduleProfileBalanceRefresh } from './profile-billing.js';
-import type { CommandResult } from './types.js';
-import { toJobError, WORKFLOW_NAME_KEY, noteExactTaskCost } from './submit-job.js';
+import type { CommandResult, RetryJobInput } from './types.js';
+import { toJobError, WORKFLOW_NAME_KEY, noteExactTaskCost, profileIdFromInput } from './submit-job.js';
 
 interface RetrySource {
   readonly workflowName: string;
@@ -18,22 +18,38 @@ interface RetrySource {
 }
 
 /** 重试指定 job，用相同输入创建新任务 */
-export async function retryJob(jobId: string): Promise<CommandResult<Job>> {
-  const commandLogger = getRuntimeLogger().child({
-    trace_id: generateTraceId(),
+export async function retryJob(jobId: string): Promise<CommandResult<Job>>;
+export async function retryJob(input: RetryJobInput): Promise<CommandResult<Job>>;
+export async function retryJob(input: string | RetryJobInput): Promise<CommandResult<Job>> {
+  const jobId = typeof input === 'string' ? input : input.jobId;
+  const callerLogger = typeof input === 'string' ? undefined : input.logger;
+  const baseLogger = callerLogger ?? getRuntimeLogger().child({ trace_id: generateTraceId() });
+  const runtime = getRuntime();
+  let source: RetrySource | undefined;
+  try {
+    const originalJob = runtime.store.getJob(jobId);
+    source = originalJob
+      ? sourceFromSessionJob(originalJob)
+      : await sourceFromDurableRecord(jobId);
+  } catch (error) {
+    const span = baseLogger.child({
+      package: 'application',
+      component: 'command',
+    }).startSpan('command.retry', { job_id: jobId });
+    span.fail(error);
+    return { ok: false, error: toJobError(error) };
+  }
+
+  const profileId = source ? profileIdFromInput(source.input) : undefined;
+  const commandLogger = baseLogger.child({
     package: 'application',
     component: 'command',
+    ...(source?.workflowName ? { workflow: source.workflowName } : {}),
+    ...(profileId ? { profile_id: profileId } : {}),
   });
   const span = commandLogger.startSpan('command.retry', { job_id: jobId });
 
   try {
-    const runtime = getRuntime();
-    const originalJob = runtime.store.getJob(jobId);
-
-    const source = originalJob
-      ? sourceFromSessionJob(originalJob)
-      : await sourceFromDurableRecord(jobId);
-
     if (!source) {
       span.fail({ message: `Job "${jobId}" not found.` });
       return {
@@ -53,17 +69,11 @@ export async function retryJob(jobId: string): Promise<CommandResult<Job>> {
     const newJob = await runtime.runWorkflow(source.workflowName, {
       ...source.input,
       [WORKFLOW_NAME_KEY]: source.workflowName,
-    }, { logger: commandLogger });
+    }, { logger: commandLogger.child({ span_id: span.span_id }) });
     await flushJobHistoryForTerminalJob(newJob, {
       ...(source.originJobId !== undefined ? { originJobId: source.originJobId } : {}),
       ...(source.retryAttempt !== undefined ? { retryAttempt: source.retryAttempt } : {}),
     });
-    const profileId =
-      typeof source.input.providerProfileId === 'string'
-        ? source.input.providerProfileId
-        : typeof source.input.profileId === 'string'
-          ? source.input.profileId
-          : undefined;
     if (profileId && (newJob.status === 'completed' || newJob.status === 'failed')) {
       await noteExactTaskCost(newJob, profileId);
       await scheduleProfileBalanceRefresh(profileId);

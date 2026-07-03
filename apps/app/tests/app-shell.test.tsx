@@ -35,6 +35,14 @@ function iconSelectValue(container: HTMLElement, selector: string): string {
   return container.querySelector<HTMLElement>(selector)?.closest('.ui-overlay-icon-host')?.querySelector<HTMLElement>('.cmp-chip-overlay-value-icon')?.textContent ?? '';
 }
 
+function deferred<T>(): { readonly promise: Promise<T>; resolve: (value: T) => void } {
+  let resolve!: (value: T) => void;
+  const promise = new Promise<T>((innerResolve) => {
+    resolve = innerResolve;
+  });
+  return { promise, resolve };
+}
+
 function installFlightRecorder(): Array<{ readonly event: string; readonly attrs?: Record<string, unknown> }> {
   const records: Array<{ readonly event: string; readonly attrs?: Record<string, unknown> }> = [];
   const recorder: UxpFlightRecorder = {
@@ -748,5 +756,77 @@ describe('AppShell', () => {
     await flush();
 
     expect(iconSelectValue(container, '[data-testid="main-model-selector"]')).toContain('gpt-image3');
+  });
+
+  it('ignores stale profile model responses after switching profiles', async () => {
+    type ListProfileModelsResult = { readonly ok: true; readonly value: readonly { readonly id: string }[] };
+    const slowFirstProfileModels = deferred<ListProfileModelsResult>();
+    const { services, spies } = createFakeServices({
+      profiles: [
+        {
+          ...fakeProfile,
+          profileId: 'profile-a',
+          displayName: 'Provider A',
+          updatedAt: '2026-06-15T00:00:00.000Z',
+        },
+        {
+          ...fakeProfile,
+          profileId: 'profile-b',
+          displayName: 'Provider B',
+          config: {
+            ...fakeProfile.config,
+            defaultModel: 'model-b',
+          },
+          updatedAt: '2026-06-15T00:00:01.000Z',
+        },
+      ],
+      activeImageProfileId: 'profile-a',
+    });
+    spies.listProfileModels.mockImplementation(async (profileId: string) => {
+      if (profileId === 'profile-a') {
+        return slowFirstProfileModels.promise;
+      }
+      return { ok: true as const, value: [{ id: 'model-b' }] };
+    });
+    const container = document.createElement('div');
+    document.body.appendChild(container);
+    root = createRoot(container);
+
+    await act(async () => {
+      root!.render(
+        <AppShell
+          host={{
+            kind: 'photoshop-uxp',
+            app: { stage: 'uxp-first-shell', host: 'photoshop-uxp', services: ['commands', 'host'] },
+            locale: 'en',
+            services,
+            dispose: () => undefined,
+          }}
+        />,
+      );
+    });
+    await flush();
+    await flush();
+
+    await act(async () => {
+      container.querySelector<HTMLElement>('[data-testid="main-profile-selector"]')!.click();
+    });
+    await flush();
+    await act(async () => {
+      document.body.querySelector<HTMLElement>('[data-testid="profile-menu-option-profile-b"]')!.click();
+    });
+    await flush();
+    await flush();
+
+    expect(iconSelectValue(container, '[data-testid="main-model-selector"]')).toContain('model-b');
+
+    await act(async () => {
+      slowFirstProfileModels.resolve({ ok: true as const, value: [{ id: 'model-a' }] });
+      await Promise.resolve();
+    });
+    await flush();
+
+    expect(iconSelectValue(container, '[data-testid="main-model-selector"]')).toContain('model-b');
+    expect(iconSelectValue(container, '[data-testid="main-model-selector"]')).not.toContain('model-a');
   });
 });

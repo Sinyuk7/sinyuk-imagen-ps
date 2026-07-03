@@ -183,6 +183,9 @@ export function parseResponse(raw: unknown): ParsedImagesResponse {
   if (!Array.isArray(response.data)) {
     throw mapInvalidResponseError('Response missing "data" array.', { raw });
   }
+  if (response.data.length === 0) {
+    throw mapInvalidResponseError('Response "data" array is empty.', { raw });
+  }
 
   const { mimeType, ext } = resolveFormat(response.output_format);
 

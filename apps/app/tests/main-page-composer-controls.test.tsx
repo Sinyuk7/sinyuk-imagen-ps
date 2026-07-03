@@ -22,6 +22,40 @@ describe('MainPage contract — composer controls', () => {
     expect(spies.submitJob).not.toHaveBeenCalled();
   });
 
+  it('IME composition Enter does not submit the prompt', async () => {
+    const container = document.createElement('div');
+    document.body.appendChild(container);
+    const { spies } = await renderMainPage(container);
+    const textarea = container.querySelector<HTMLTextAreaElement>('[data-testid="composer-textarea"]')!;
+
+    await act(async () => {
+      changeTextarea(textarea, '中文提示');
+      const event = new KeyboardEvent('keydown', { bubbles: true, cancelable: true, key: 'Enter' });
+      Object.defineProperty(event, 'isComposing', { value: true });
+      textarea.dispatchEvent(event);
+    });
+    await flush();
+
+    expect(spies.submitJob).not.toHaveBeenCalled();
+  });
+
+  it('IME keyCode 229 Enter fallback does not submit the prompt', async () => {
+    const container = document.createElement('div');
+    document.body.appendChild(container);
+    const { spies } = await renderMainPage(container);
+    const textarea = container.querySelector<HTMLTextAreaElement>('[data-testid="composer-textarea"]')!;
+
+    await act(async () => {
+      changeTextarea(textarea, '中文提示');
+      const event = new KeyboardEvent('keydown', { bubbles: true, cancelable: true, key: 'Enter' });
+      Object.defineProperty(event, 'keyCode', { value: 229 });
+      textarea.dispatchEvent(event);
+    });
+    await flush();
+
+    expect(spies.submitJob).not.toHaveBeenCalled();
+  });
+
   it('运行中时空状态提示不再显示', async () => {
     const container = document.createElement('div');
     document.body.appendChild(container);

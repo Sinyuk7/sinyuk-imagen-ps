@@ -50,14 +50,14 @@ describe('MainPage contract — attachment & submission', () => {
 
     expect(spies.pickImageFile).toHaveBeenCalledTimes(1);
     expect(spies.readLayerAsAsset).not.toHaveBeenCalled();
-    expect(spies.submitJob).toHaveBeenCalledWith({
+    expect(spies.submitJob).toHaveBeenCalledWith(expect.objectContaining({
       workflow: 'provider-edit',
       input: expect.objectContaining({
         prompt: 'edit uploaded image',
         images: [fakeProviderInputAsset],
       }),
       signal: expect.any(AbortSignal),
-    });
+    }));
   });
 
   it('JPEG file attachment follows the same main success path and submits the provider derivative only', async () => {
@@ -98,14 +98,14 @@ describe('MainPage contract — attachment & submission', () => {
 
     expect(spies.pickImageFile).toHaveBeenCalledTimes(1);
     expect(spies.readLayerAsAsset).not.toHaveBeenCalled();
-    expect(spies.submitJob).toHaveBeenCalledWith({
+    expect(spies.submitJob).toHaveBeenCalledWith(expect.objectContaining({
       workflow: 'provider-edit',
       input: expect.objectContaining({
         prompt: 'edit uploaded jpeg',
         images: [fakeProviderInputAsset],
       }),
       signal: expect.any(AbortSignal),
-    });
+    }));
     expect(JSON.stringify(spies.submitJob.mock.calls[0]?.[0].input.images)).not.toContain('picked.JPG');
     expect(JSON.stringify(spies.submitJob.mock.calls[0]?.[0].input.images)).not.toContain('image/jpeg');
   });
@@ -190,14 +190,14 @@ describe('MainPage contract — attachment & submission', () => {
 
     expect(spies.readLayerAsAsset).toHaveBeenCalledWith(1, { maxSide: 1024 });
     expect(spies.pickImageFile).not.toHaveBeenCalled();
-    expect(spies.submitJob).toHaveBeenCalledWith({
+    expect(spies.submitJob).toHaveBeenCalledWith(expect.objectContaining({
       workflow: 'provider-edit',
       input: expect.objectContaining({
         prompt: 'edit layer image',
         images: [fakeProviderInputAsset],
       }),
       signal: expect.any(AbortSignal),
-    });
+    }));
   });
 
   it('opening the Photoshop layer picker refreshes host layers', async () => {
@@ -232,14 +232,14 @@ describe('MainPage contract — attachment & submission', () => {
     expect(spies.captureActiveImage).toHaveBeenCalledTimes(1);
     expect(spies.captureActiveImage).toHaveBeenCalledWith({ maxSide: 1024 });
     expect(spies.readLayerAsAsset).not.toHaveBeenCalled();
-    expect(spies.submitJob).toHaveBeenCalledWith({
+    expect(spies.submitJob).toHaveBeenCalledWith(expect.objectContaining({
       workflow: 'provider-edit',
       input: expect.objectContaining({
         prompt: 'edit captured image',
         images: [fakeProviderInputAsset],
       }),
       signal: expect.any(AbortSignal),
-    });
+    }));
   });
 
   it('uses global generation settings for output payload and provider input resize', async () => {

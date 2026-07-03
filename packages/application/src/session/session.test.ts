@@ -1,8 +1,10 @@
 import { describe, expect, it, vi } from 'vitest';
+import { createLogger, createMemorySink } from '@imagen-ps/foundation';
 import type {
   Job,
   JobEvent,
   JobEventHandler,
+  RetryJobInput,
   SubmitJobInput,
   Unsubscribe,
 } from '../commands/types.js';
@@ -48,7 +50,7 @@ function createCommands(): {
           }),
         };
       },
-      async retryJob(jobId: string) {
+      async retryJob(input: RetryJobInput) {
         return {
           ok: true,
           value: createJob({
@@ -56,7 +58,7 @@ function createCommands(): {
             status: 'running',
             input: {
               _workflowName: 'provider-generate',
-              originJobId: jobId,
+              originJobId: input.jobId,
             },
           }),
         };
@@ -121,6 +123,134 @@ describe('createImagenSession', () => {
     });
     expect(session.getSnapshot().activeJobId).toBeUndefined();
     expect(snapshots).toHaveLength(2);
+  });
+
+  it('passes one submit trace and profile context through session and command logs', async () => {
+    const sink = createMemorySink();
+    const session = createImagenSession({
+      commands: {
+        async submitJob(input: SubmitJobInput) {
+          const logger = input.logger!.child({
+            package: 'application',
+            component: 'command',
+            workflow: input.workflow,
+            profile_id: String(input.input.profileId),
+          });
+          logger.startSpan('command.submit').finish();
+          return {
+            ok: true,
+            value: createJob({
+              id: 'job-completed',
+              status: 'completed',
+              input: {
+                ...input.input,
+                _workflowName: input.workflow,
+              },
+            }),
+          };
+        },
+        async retryJob(input: RetryJobInput) {
+          return {
+            ok: true,
+            value: createJob({ id: input.jobId, status: 'running', input: { _workflowName: 'provider-generate' } }),
+          };
+        },
+        getJob() {
+          return undefined;
+        },
+        subscribeJobEvents() {
+          return () => undefined;
+        },
+      },
+      logger: createLogger({
+        sink,
+        context: {
+          surface: 'test',
+          package: 'application',
+          component: 'runtime',
+        },
+      }),
+    });
+
+    const result = await session.submitJob({
+      workflow: 'provider-generate',
+      input: {
+        profileId: 'mock-profile',
+        prompt: 'make an image',
+      },
+    });
+
+    expect(result.ok).toBe(true);
+    const sessionStart = sink.records.find((record) => record.event === 'session.command.submit.start');
+    const commandStart = sink.records.find((record) => record.event === 'command.submit.start');
+    expect(commandStart?.trace_id).toBe(sessionStart?.trace_id);
+    expect(commandStart?.parent_span_id).toBe(sessionStart?.span_id);
+    expect(commandStart?.profile_id).toBe('mock-profile');
+  });
+
+  it('passes one retry trace through session and command logs', async () => {
+    const sink = createMemorySink();
+    const session = createImagenSession({
+      commands: {
+        async submitJob(input: SubmitJobInput) {
+          return {
+            ok: true,
+            value: createJob({
+              id: 'job-completed',
+              status: 'completed',
+              input: {
+                ...input.input,
+                _workflowName: input.workflow,
+              },
+            }),
+          };
+        },
+        async retryJob(input: RetryJobInput) {
+          const logger = input.logger!.child({
+            package: 'application',
+            component: 'command',
+            workflow: 'provider-generate',
+            profile_id: 'mock-profile',
+          });
+          logger.startSpan('command.retry', { job_id: input.jobId }).finish();
+          return {
+            ok: true,
+            value: createJob({
+              id: 'job-retry',
+              status: 'completed',
+              input: {
+                _workflowName: 'provider-generate',
+                profileId: 'mock-profile',
+                originJobId: input.jobId,
+              },
+            }),
+          };
+        },
+        getJob() {
+          return undefined;
+        },
+        subscribeJobEvents() {
+          return () => undefined;
+        },
+      },
+      logger: createLogger({
+        sink,
+        context: {
+          surface: 'test',
+          package: 'application',
+          component: 'runtime',
+        },
+      }),
+    });
+
+    const result = await session.retryJob('failed-job');
+
+    expect(result.ok).toBe(true);
+    const sessionStart = sink.records.find((record) => record.event === 'session.command.retry.start');
+    const commandStart = sink.records.find((record) => record.event === 'command.retry.start');
+    expect(commandStart?.trace_id).toBe(sessionStart?.trace_id);
+    expect(commandStart?.parent_span_id).toBe(sessionStart?.span_id);
+    expect(commandStart?.profile_id).toBe('mock-profile');
   });
 
   it('passes submit abort signal through to the command layer without storing it in job input', async () => {
@@ -279,7 +409,7 @@ function createDeferredCommands(): {
         value: { ...base.value, id, input: { ...base.value.input, ...input.input } } as Job,
       };
     },
-    async retryJob(jobId: string) {
+    async retryJob(input: RetryJobInput) {
       counts.retryCalls += 1;
       const id = `job-retry-${counts.retryCalls}`;
       distinctRetryJobIds.push(id);
@@ -292,7 +422,7 @@ function createDeferredCommands(): {
         value: {
           ...base.value,
           id,
-          input: { ...base.value.input, originJobId: jobId, _workflowName: 'provider-generate' } as Job['input'],
+          input: { ...base.value.input, originJobId: input.jobId, _workflowName: 'provider-generate' } as Job['input'],
         } as Job,
       };
     },

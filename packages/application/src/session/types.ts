@@ -3,9 +3,11 @@ import type {
   Job,
   JobError,
   JobEventHandler,
+  RetryJobInput,
   SubmitJobInput,
   Unsubscribe,
 } from '../commands/types.js';
+import type { Logger } from '@imagen-ps/foundation';
 
 export type ApplicationError = JobError;
 
@@ -30,7 +32,7 @@ export interface ImagenSessionSnapshot {
 
 export interface ImagenSessionCommands {
   readonly submitJob: (input: SubmitJobInput) => Promise<CommandResult<Job>>;
-  readonly retryJob: (jobId: string) => Promise<CommandResult<Job>>;
+  readonly retryJob: (input: RetryJobInput) => Promise<CommandResult<Job>>;
   readonly getJob: (jobId: string) => Job | undefined;
   readonly subscribeJobEvents: (handler: JobEventHandler) => Unsubscribe;
 }
@@ -47,4 +49,5 @@ export interface ImagenSessionController {
 
 export interface CreateImagenSessionOptions {
   readonly commands?: ImagenSessionCommands;
+  readonly logger?: Logger;
 }

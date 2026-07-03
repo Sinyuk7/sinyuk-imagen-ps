@@ -198,6 +198,10 @@ describe('image-endpoint provider', () => {
     expect(parsed.usage).toEqual({ inputTokens: 1, outputTokens: 2, totalTokens: 3 });
   });
 
+  it('rejects empty image endpoint data arrays', () => {
+    expect(() => parseResponse({ data: [] })).toThrow('Response "data" array is empty.');
+  });
+
   it('discovers image models from /v1/models responses', () => {
     expect(
       parseModelsResponse({

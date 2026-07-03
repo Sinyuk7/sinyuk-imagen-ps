@@ -71,8 +71,11 @@ export function useProfileModels(
   const [models, setModels] = useState<readonly ProviderModelInfo[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const sequenceRef = useRef(0);
 
   const reload = useCallback(async () => {
+    const sequence = sequenceRef.current + 1;
+    sequenceRef.current = sequence;
     if (!profileId) {
       setModels([]);
       setError(null);
@@ -80,24 +83,43 @@ export function useProfileModels(
       return;
     }
     setLoading(true);
-    const result = await services.commands.listProfileModels(profileId);
-    if (result.ok) {
-      setModels(result.value);
-      setError(null);
-    } else {
+    try {
+      const result = await services.commands.listProfileModels(profileId);
+      if (sequenceRef.current !== sequence) {
+        return;
+      }
+      if (result.ok) {
+        setModels(result.value);
+        setError(null);
+      } else {
+        setModels([]);
+        setError(commandMessage(result.error));
+      }
+    } catch (error) {
+      if (sequenceRef.current !== sequence) {
+        return;
+      }
       setModels([]);
-      setError(commandMessage(result.error));
+      setError(error instanceof Error ? error.message : String(error));
+    } finally {
+      if (sequenceRef.current === sequence) {
+        setLoading(false);
+      }
     }
-    setLoading(false);
   }, [profileId, revisionKey, services]);
 
   const refresh = useCallback(async (): Promise<readonly ProviderModelInfo[]> => {
+    const sequence = sequenceRef.current + 1;
+    sequenceRef.current = sequence;
     if (!profileId) {
       return [];
     }
     setLoading(true);
     try {
       const result = await services.commands.refreshProfileModels(profileId);
+      if (sequenceRef.current !== sequence) {
+        return result.ok ? result.value : [];
+      }
       if (result.ok) {
         setModels(result.value);
         setError(null);
@@ -107,13 +129,17 @@ export function useProfileModels(
       setError(message);
       throw new Error(message);
     } finally {
-      setLoading(false);
+      if (sequenceRef.current === sequence) {
+        setLoading(false);
+      }
     }
   }, [profileId, services]);
 
   const replace = useCallback((nextModels: readonly ProviderModelInfo[]) => {
+    sequenceRef.current += 1;
     setModels(nextModels);
     setError(null);
+    setLoading(false);
   }, []);
 
   useEffect(() => {

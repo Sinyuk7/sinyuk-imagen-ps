@@ -109,7 +109,7 @@ export async function runWorkflow(
     registry: deps.registry,
     controller: deps.controller,
     dispatcher: deps.dispatcher,
-    logger: jobLogger,
+    logger: jobLogger.child({ span_id: span.span_id }),
     ...(options?.signal !== undefined ? { signal: options.signal } : {}),
     ...(runtimeOptions?.afterStepResult !== undefined ? { afterStepResult: runtimeOptions.afterStepResult } : {}),
   });

@@ -188,7 +188,7 @@ describe('useConversation', () => {
     });
 
     expect(spies.subscribeJobEvents).toHaveBeenCalledTimes(1);
-    expect(spies.submitJob).toHaveBeenCalledWith({
+    expect(spies.submitJob).toHaveBeenCalledWith(expect.objectContaining({
       workflow: 'provider-generate',
       input: expect.objectContaining({
         __clientTaskId: expect.any(String),
@@ -203,7 +203,7 @@ describe('useConversation', () => {
         providerOptions: { model: 'mock-image-v1' },
       }),
       signal: expect.any(AbortSignal),
-    });
+    }));
     expect(controller!.rounds[0]?.status).toBe('ok');
     expect(controller!.rounds[0]?.previews[0]?.asset.name).toBe('result.png');
   });
@@ -567,7 +567,7 @@ describe('useConversation', () => {
       });
     });
 
-    expect(spies.submitJob).toHaveBeenCalledWith({
+    expect(spies.submitJob).toHaveBeenCalledWith(expect.objectContaining({
       workflow: 'provider-edit',
       input: expect.objectContaining({
         images: [{
@@ -578,7 +578,7 @@ describe('useConversation', () => {
         }],
       }),
       signal: expect.any(AbortSignal),
-    });
+    }));
     expect(JSON.stringify(spies.submitJob.mock.calls[0]?.[0].input.images)).not.toContain('blob:thumbnail-should-not-submit');
     expect(JSON.stringify(spies.submitJob.mock.calls[0]?.[0].input.images)).not.toContain('ZmFrZS1pbWFnZQ==');
   });

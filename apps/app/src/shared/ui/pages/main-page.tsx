@@ -38,6 +38,11 @@ import {
 } from '../../ports/app-generation-settings';
 import { MOTION_DURATION } from '../motion';
 
+function isImeCompositionKey(event: React.KeyboardEvent): boolean {
+  const nativeEvent = event.nativeEvent as KeyboardEvent & { readonly isComposing?: boolean };
+  return nativeEvent.isComposing === true || nativeEvent.keyCode === 229;
+}
+
 interface MainPageProps {
   readonly onNav: (view: string) => void;
   readonly profiles: readonly ProviderProfile[];
@@ -1346,7 +1351,7 @@ export function MainPage({
                 value={input}
                 onValue={setInput}
                 onKeyDown={(event) => {
-                  if (event.key === 'Enter' && !event.shiftKey) {
+                  if (event.key === 'Enter' && !event.shiftKey && !isImeCompositionKey(event)) {
                     event.preventDefault();
                     void handleSend();
                   }

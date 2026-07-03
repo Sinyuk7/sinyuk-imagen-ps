@@ -6,7 +6,6 @@
 
 import type { Job, JobError } from '@imagen-ps/core-engine';
 import { createRuntimeError } from '@imagen-ps/core-engine';
-import { generateTraceId } from '@imagen-ps/foundation';
 import { flushJobHistoryForTerminalJob, getProviderProfileRepository, getRuntime, getRuntimeLogger } from '../runtime.js';
 import { noteProfileTaskBilling, scheduleProfileBalanceRefresh } from './profile-billing.js';
 import type { CommandResult, SubmitJobInput } from './types.js';
@@ -90,6 +89,14 @@ function hasExplicitProvider(params: Record<string, unknown>): boolean {
   return 'provider' in params;
 }
 
+export function profileIdFromInput(input: Record<string, unknown>): string | undefined {
+  return typeof input.providerProfileId === 'string'
+    ? input.providerProfileId
+    : typeof input.profileId === 'string'
+      ? input.profileId
+      : undefined;
+}
+
 export async function noteExactTaskCost(job: Job, profileId: string): Promise<void> {
   if (job.status !== 'completed') {
     return;
@@ -117,11 +124,12 @@ export async function noteExactTaskCost(job: Job, profileId: string): Promise<vo
 
 export async function submitJob(input: SubmitJobInput): Promise<CommandResult<Job>> {
   const runtime = getRuntime();
-  const commandLogger = getRuntimeLogger().child({
-    trace_id: generateTraceId(),
+  const profileId = profileIdFromInput(input.input);
+  const commandLogger = (input.logger ?? getRuntimeLogger()).child({
     package: 'application',
     component: 'command',
     workflow: input.workflow,
+    ...(profileId ? { profile_id: profileId } : {}),
   });
   const span = commandLogger.startSpan('command.submit');
 
@@ -137,17 +145,10 @@ export async function submitJob(input: SubmitJobInput): Promise<CommandResult<Jo
       [WORKFLOW_NAME_KEY]: input.workflow,
     };
     const job = await runtime.runWorkflow(input.workflow, enrichedInput, {
-      logger: commandLogger,
+      logger: commandLogger.child({ span_id: span.span_id }),
       ...(input.signal !== undefined ? { signal: input.signal } : {}),
     });
     await flushJobHistoryForTerminalJob(job);
-    const enrichedInputRecord = enrichedInput as Record<string, unknown>;
-    const profileId =
-      typeof enrichedInputRecord.providerProfileId === 'string'
-        ? enrichedInputRecord.providerProfileId
-        : typeof enrichedInputRecord.profileId === 'string'
-          ? enrichedInputRecord.profileId
-          : undefined;
     if (profileId && (job.status === 'completed' || job.status === 'failed')) {
       await noteExactTaskCost(job, profileId);
       await scheduleProfileBalanceRefresh(profileId);

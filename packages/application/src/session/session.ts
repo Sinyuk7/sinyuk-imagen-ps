@@ -12,6 +12,7 @@ import type {
   ImagenSessionSubscriber,
   JobSessionSnapshot,
 } from './types.js';
+import { generateTraceId } from '@imagen-ps/foundation';
 import { getRuntimeLogger } from '../runtime.js';
 
 function inferJobType(job: Job): 'generate' | 'edit' | string {
@@ -125,6 +126,7 @@ export function createImagenSession(
     getJob: options?.commands?.getJob ?? defaultGetJob,
     subscribeJobEvents: options?.commands?.subscribeJobEvents ?? defaultSubscribeJobEvents,
   };
+  const rootLogger = options?.logger ?? getRuntimeLogger();
 
   let snapshot: ImagenSessionSnapshot = {
     jobs: [],
@@ -178,9 +180,16 @@ export function createImagenSession(
       }
 
       const submitPromise = (async () => {
-        const sessionLogger = getRuntimeLogger().child({ package: 'application', component: 'session' });
+        const sessionLogger = rootLogger.child({
+          trace_id: generateTraceId(),
+          package: 'application',
+          component: 'session',
+        });
         const span = sessionLogger.startSpan('session.command.submit', { workflow: input.workflow });
-        const result = await commands.submitJob(input);
+        const result = await commands.submitJob({
+          ...input,
+          logger: sessionLogger.child({ span_id: span.span_id }),
+        });
         if (result.ok) {
           syncJob(result.value);
           span.finish();
@@ -211,17 +220,29 @@ export function createImagenSession(
       }
 
       const retryPromise = (async () => {
-        const sessionLogger = getRuntimeLogger().child({ package: 'application', component: 'session' });
+        const sessionLogger = rootLogger.child({
+          trace_id: generateTraceId(),
+          package: 'application',
+          component: 'session',
+        });
         const span = sessionLogger.startSpan('session.command.retry', { job_id: jobId });
-        const result = await commands.retryJob(jobId);
-        if (result.ok) {
-          syncJob(result.value);
-          span.finish();
-        } else {
-          publish(updateSnapshotFromError(snapshot, result.error));
-          span.fail(result.error);
+        try {
+          const result = await commands.retryJob({
+            jobId,
+            logger: sessionLogger.child({ span_id: span.span_id }),
+          });
+          if (result.ok) {
+            syncJob(result.value);
+            span.finish();
+          } else {
+            publish(updateSnapshotFromError(snapshot, result.error));
+            span.fail(result.error);
+          }
+          return result;
+        } catch (error) {
+          span.fail(error);
+          throw error;
         }
-        return result;
       })().finally(() => {
         inFlightRetry.delete(jobId);
       });

@@ -51,6 +51,7 @@ export type {
   CommandResult,
   DeleteProviderProfileOptions,
   AssetStore,
+  RetryJobInput,
   SubmitJobInput,
   Asset,
   DecodeTaskRecordResult,

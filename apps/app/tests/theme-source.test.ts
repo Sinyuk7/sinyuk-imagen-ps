@@ -7,8 +7,8 @@ const appRoot = path.resolve(__dirname, '..');
 
 describe('theme source CSS', () => {
   it('keeps the generated theme wired into panel CSS', () => {
-    expect(PANEL_CSS).toContain('--md-extended-color-blue-color:#6BD3F8');
-    expect(PANEL_CSS).toContain('--md-extended-color-orange-color:#FFB68F');
+    expect(PANEL_CSS).toContain('--md-extended-color-blue-color:#99CBFF');
+    expect(PANEL_CSS).toContain('--md-extended-color-orange-color:#FFB689');
     expect(PANEL_CSS).toContain('.panel[data-app-theme="light"]');
     expect(PANEL_CSS).toContain('--app-color-notice:var(--md-extended-color-yellow-color)');
     expect(PANEL_CSS).toContain('--app-color-positive:var(--md-extended-color-green-color)');

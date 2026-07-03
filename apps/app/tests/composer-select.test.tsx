@@ -470,11 +470,11 @@ describe('ComposerSelect', () => {
 
     const popover = panel.querySelector<HTMLElement>('[data-testid="test-select-popover"]')!;
     expect(popover.classList.contains('cmp-select-menu-down')).toBe(true);
-    expect(popover.classList.contains('cmp-select-menu-end')).toBe(true);
-    expect(popover.style.width).toBe('228px');
+    expect(popover.classList.contains('cmp-select-menu-start')).toBe(true);
+    expect(popover.style.width).toBe('216px');
     expect(popover.style.maxHeight).toBe('204px');
     expect(popover.style.top).toBe('48px');
-    expect(popover.style.right).toBe('14px');
+    expect(popover.style.left).toBe('12px');
   });
 
   it('does not allocate a component-local ResizeObserver', async () => {

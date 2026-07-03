@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import { createLogger, createMemorySink } from '@imagen-ps/foundation';
 import {
   _resetForTesting,
   setJobHistoryStore,
@@ -207,6 +208,89 @@ describe('profile dispatch runtime', () => {
     expect(records[0].outputs[0].kind).toBe('hostObject');
     expect(records[0].outputs[0].ref).not.toContain('base64');
     expect(JSON.stringify(records[0])).not.toContain('mock-key');
+  });
+
+  it('keeps submit command, runtime, and dispatch logs on the caller trace with profile context', async () => {
+    _resetForTesting();
+    const sink = createMemorySink();
+    const logger = createLogger({
+      sink,
+      context: {
+        surface: 'test',
+        package: 'application',
+        component: 'session',
+      },
+    });
+
+    const result = await submitJob({
+      workflow: 'provider-generate',
+      input: {
+        provider: 'mock',
+        profileId: 'mock-profile',
+        prompt: 'simple blue square icon',
+      },
+      logger,
+    });
+
+    expect(result.ok).toBe(true);
+    const commandStart = sink.records.find((record) => record.event === 'command.submit.start');
+    const runtimeStart = sink.records.find((record) => record.event === 'runtime.job.start');
+    const stepStart = sink.records.find((record) => record.event === 'runner.step.start');
+    const dispatchStart = sink.records.find((record) => record.event === 'dispatch.provider.start');
+    expect(commandStart?.profile_id).toBe('mock-profile');
+    expect(runtimeStart?.trace_id).toBe(commandStart?.trace_id);
+    expect(dispatchStart?.trace_id).toBe(commandStart?.trace_id);
+    expect(runtimeStart?.parent_span_id).toBe(commandStart?.span_id);
+    expect(stepStart?.parent_span_id).toBe(runtimeStart?.span_id);
+    expect(dispatchStart?.parent_span_id).toBe(stepStart?.span_id);
+    expect(dispatchStart?.profile_id).toBe('mock-profile');
+    expect(dispatchStart?.provider_id).toBe('mock');
+  });
+
+  it('keeps retry command, runtime, and dispatch logs on the caller trace with profile context', async () => {
+    _resetForTesting();
+    const records: DurableJobRecord[] = [];
+    setJobHistoryStore(createJobHistoryStore(records));
+    const first = await submitJob({
+      workflow: 'provider-generate',
+      input: {
+        provider: 'mock',
+        profileId: 'mock-profile',
+        prompt: '',
+      },
+    });
+    expect(first.ok).toBe(true);
+    if (!first.ok) {
+      return;
+    }
+
+    const sink = createMemorySink();
+    const logger = createLogger({
+      sink,
+      context: {
+        surface: 'test',
+        package: 'application',
+        component: 'session',
+      },
+    });
+    const result = await retryJob({
+      jobId: first.value.id,
+      logger,
+    });
+
+    expect(result.ok).toBe(true);
+    const commandStart = sink.records.find((record) => record.event === 'command.retry.start');
+    const runtimeStart = sink.records.find((record) => record.event === 'runtime.job.start');
+    const stepStart = sink.records.find((record) => record.event === 'runner.step.start');
+    const dispatchStart = sink.records.find((record) => record.event === 'dispatch.provider.start');
+    expect(commandStart?.profile_id).toBe('mock-profile');
+    expect(runtimeStart?.trace_id).toBe(commandStart?.trace_id);
+    expect(dispatchStart?.trace_id).toBe(commandStart?.trace_id);
+    expect(runtimeStart?.parent_span_id).toBe(commandStart?.span_id);
+    expect(stepStart?.parent_span_id).toBe(runtimeStart?.span_id);
+    expect(dispatchStart?.parent_span_id).toBe(stepStart?.span_id);
+    expect(dispatchStart?.profile_id).toBe('mock-profile');
+    expect(dispatchStart?.provider_id).toBe('mock');
   });
 
   it('updates an existing running task to terminal state with materialized output refs', async () => {

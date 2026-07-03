@@ -5,6 +5,7 @@
  */
 
 import type { DurableJobRecord, JobError, JobEvent, JobInput, JobStatus, StoredAssetRef, TaskRecord, TaskStatus } from '@imagen-ps/core-engine';
+import type { Logger } from '@imagen-ps/foundation';
 import type {
   BalanceChange,
   ExactTaskCost,
@@ -79,6 +80,23 @@ export interface SubmitJobInput {
 
   /** 可选取消信号；不进入 durable job input。 */
   readonly signal?: AbortSignal;
+
+  /** 可选调用方 logger；不进入 durable job input。 */
+  readonly logger?: Logger;
+}
+
+/**
+ * `retryJob` 命令的输入参数。
+ *
+ * @property jobId - 要重试的失败 job id
+ * @property logger - 可选调用方 logger；不进入 durable job input
+ */
+export interface RetryJobInput {
+  /** 要重试的失败 job id。 */
+  readonly jobId: string;
+
+  /** 可选调用方 logger；不进入 durable job input。 */
+  readonly logger?: Logger;
 }
 
 /** Job lifecycle 事件处理器，接收所有事件类型 */

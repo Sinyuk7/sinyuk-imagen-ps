@@ -34,10 +34,16 @@ describe('createRuntime with logger', () => {
     expect(events).toContain('runtime.job.ok');
     expect(events).toContain('runner.step.start');
     expect(events).toContain('runner.step.ok');
+    expect(events).toContain('dispatch.provider.start');
 
+    const runtimeStart = sink.records.find((r) => r.event === 'runtime.job.start');
+    const stepStart = sink.records.find((r) => r.event === 'runner.step.start');
+    const dispatchStart = sink.records.find((r) => r.event === 'dispatch.provider.start');
     const jobOk = sink.records.find((r) => r.event === 'runtime.job.ok');
     expect(jobOk?.trace_id).toBe(traceId);
     expect(jobOk?.duration_ms).toBeGreaterThanOrEqual(0);
+    expect(stepStart?.parent_span_id).toBe(runtimeStart?.span_id);
+    expect(dispatchStart?.parent_span_id).toBe(stepStart?.span_id);
   });
 
   it('emits runner.step.fail and runtime.job.fail on step error', async () => {
