@@ -4,6 +4,7 @@ import {
   createThumbnailGenerator,
   decodePng,
   decodedPngRgbAt,
+  pngWithSize,
   realPngWithSize,
   rgbFilterRegressionPng,
   withObjectUrlMock,
@@ -28,6 +29,32 @@ describe('PhotoshopHostBridge fake harness — provider output thumbnail', () =>
     expect(spies.getPixels).not.toHaveBeenCalled();
     expect(spies.closeTempDocument).not.toHaveBeenCalled();
     expect(spies.deleteTempFile).not.toHaveBeenCalled();
+    expect(create).toHaveBeenCalledTimes(1);
+    preview?.release();
+    expect(revoke).toHaveBeenCalledWith('blob:thumb-1');
+  }));
+
+  it('超出 app-local RGBA decode 门禁的 PNG thumbnail 回退到 host targetSize path', async () => withObjectUrlMock(async ({ create, revoke }) => {
+    const { modules, spies } = createFakeModules();
+    const createThumbnail = createThumbnailGenerator(modules);
+
+    const preview = await createThumbnail?.({
+      asset: { type: 'image', name: 'huge.png', mimeType: 'image/png' },
+      bytes: pngWithSize(4097, 4097),
+      mimeType: 'image/png',
+      maxSide: 256,
+    });
+
+    expect(preview).toMatchObject({ url: 'blob:thumb-1' });
+    expect(spies.createFile).toHaveBeenCalledWith(expect.stringMatching(/^imagen-thumb-\d+\.png$/), { overwrite: true });
+    expect(spies.writeTempFile).toHaveBeenCalledWith(expect.any(Uint8Array), { format: 'binary' });
+    expect(spies.openDocument).toHaveBeenCalledTimes(1);
+    expect(spies.getPixels).toHaveBeenCalledWith(expect.objectContaining({
+      documentID: 99,
+      targetSize: { width: 256, height: 256 },
+    }));
+    expect(spies.closeTempDocument).toHaveBeenCalledTimes(1);
+    expect(spies.deleteTempFile).toHaveBeenCalledTimes(1);
     expect(create).toHaveBeenCalledTimes(1);
     preview?.release();
     expect(revoke).toHaveBeenCalledWith('blob:thumb-1');

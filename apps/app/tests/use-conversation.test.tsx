@@ -1,7 +1,7 @@
 import { act } from 'react';
 import { createRoot, type Root } from 'react-dom/client';
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import type { Job } from '@imagen-ps/application';
+import type { Asset, Job } from '@imagen-ps/application';
 import { AppServicesProvider } from '../src/app-services/app-services-context';
 import {
   derivePlacementIntent,
@@ -21,6 +21,7 @@ afterEach(async () => {
     });
   }
   root = undefined;
+  vi.useRealTimers();
 });
 
 function failedJob(input: Record<string, unknown>): Job {
@@ -33,6 +34,31 @@ function failedJob(input: Record<string, unknown>): Job {
     createdAt: '2026-06-15T00:00:00.000Z',
     updatedAt: '2026-06-15T00:00:01.000Z',
   };
+}
+
+function completedJobWithAssets(id: string, input: Record<string, unknown>, assets: readonly Asset[]): Job {
+  return {
+    id,
+    status: 'completed',
+    input,
+    output: {
+      image: {
+        assets,
+        text: '[operation=text_to_image] [model=mock-image-v1] [prompt=make an image]',
+      },
+    },
+    error: undefined,
+    createdAt: '2026-06-15T00:00:00.000Z',
+    updatedAt: '2026-06-15T00:00:01.000Z',
+  };
+}
+
+function deferred<T>() {
+  let resolve!: (value: T) => void;
+  const promise = new Promise<T>((innerResolve) => {
+    resolve = innerResolve;
+  });
+  return { promise, resolve };
 }
 
 function captureAttachment(id: string, documentId = 42): ConversationAttachment {
@@ -407,6 +433,88 @@ describe('useConversation', () => {
     });
 
     expect(thumbnailSignal?.aborted).toBe(true);
+  });
+
+  it('does not restart completed-round thumbnail work on running-round elapsed ticks', async () => {
+    vi.useFakeTimers();
+    const { services } = createFakeServices();
+    const preview = deferred<{
+      readonly cacheKey: string;
+      readonly preview: { readonly asset: Asset; readonly url: string; readonly label: string };
+      release(): void;
+    }>();
+    const getOrCreate = vi.fn(async () => preview.promise);
+    services.thumbnails = {
+      getOrCreate,
+      release: vi.fn(),
+      clear: vi.fn(),
+    };
+    let submitCount = 0;
+    let resolveSecondSubmit!: (value: { readonly ok: true; readonly value: Job }) => void;
+    const secondSubmit = new Promise<{ readonly ok: true; readonly value: Job }>((resolve) => {
+      resolveSecondSubmit = resolve;
+    });
+    services.commands.submitJob = vi.fn(async (input: { input: Record<string, unknown> }) => {
+      submitCount += 1;
+      if (submitCount === 2) {
+        return secondSubmit;
+      }
+      return {
+        ok: true as const,
+        value: completedJobWithAssets('job-preview', input.input, [fakeOutputAsset]),
+      };
+    });
+    const { getController } = await mountProbe(services);
+
+    await act(async () => {
+      await getController().submit({
+        operation: 'text-to-image',
+        prompt: 'first',
+        profileId: 'mock-profile',
+        providerName: 'Mock Profile',
+        modelId: 'mock-image-v1',
+      });
+      await Promise.resolve();
+    });
+    expect(getOrCreate).toHaveBeenCalledTimes(1);
+
+    let secondSubmitPromise: Promise<void> | undefined;
+    await act(async () => {
+      secondSubmitPromise = getController().submit({
+        operation: 'text-to-image',
+        prompt: 'second',
+        profileId: 'mock-profile',
+        providerName: 'Mock Profile',
+        modelId: 'mock-image-v1',
+      });
+      await Promise.resolve();
+    });
+    expect(getController().running).toBe(true);
+
+    await act(async () => {
+      vi.advanceTimersByTime(1000);
+      await Promise.resolve();
+    });
+    preview.resolve({
+      cacheKey: 'thumb:output-1',
+      preview: { asset: fakeOutputAsset, url: 'blob:thumb-output-1', label: 'result.png' },
+      release: vi.fn(),
+    });
+    await act(async () => {
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+
+    expect(getOrCreate).toHaveBeenCalledTimes(1);
+    expect(getController().rounds[0]?.previews[0]?.url).toBe('blob:thumb-output-1');
+
+    resolveSecondSubmit({
+      ok: true,
+      value: completedJobWithAssets('job-second', {}, []),
+    });
+    await act(async () => {
+      await secondSubmitPromise;
+    });
   });
 
   it('submits image-edit attachments from the ready provider derivative only', async () => {

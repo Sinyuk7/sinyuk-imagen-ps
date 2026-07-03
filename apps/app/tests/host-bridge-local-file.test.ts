@@ -183,6 +183,41 @@ describe('PhotoshopHostBridge fake harness — local file', () => {
     expect(spies.closeTempDocument).not.toHaveBeenCalled();
   });
 
+  it('routes oversized app-local PNG normalization through the host targetSize path', async () => withObjectUrlMock(async () => {
+    const { modules, spies } = createFakeModules({
+      pickedFileName: 'huge.png',
+      pickedFileData: arrayBufferFromBytes(pngWithSize(4097, 4097)),
+    });
+    const { bridge } = createBridge(modules);
+
+    const asset = await bridge.pickImageFile({ maxSide: 1024 });
+
+    expect(spies.openDocument).toHaveBeenCalledTimes(1);
+    expect(spies.getPixels).toHaveBeenCalledWith(expect.objectContaining({
+      documentID: 99,
+      targetSize: { width: 256, height: 256 },
+    }));
+    expect(spies.getPixels).toHaveBeenCalledWith(expect.objectContaining({
+      documentID: 99,
+      targetSize: { width: 1024, height: 1024 },
+    }));
+    expect(spies.closeTempDocument).toHaveBeenCalledTimes(1);
+    expect(asset?.metadata).toMatchObject({
+      source: 'file',
+      width: 1024,
+      height: 1024,
+      mimeType: 'image/png',
+      name: 'huge.png',
+    });
+    expect(asset?.resource.derivatives.providerInput).toMatchObject({
+      kind: 'ready',
+      role: 'provider-input',
+      width: 1024,
+      height: 1024,
+      mimeType: 'image/png',
+    });
+  }));
+
   it('normalizes local files when only provider multiple/min-side policy changes size', async () => {
     const { modules, spies } = createFakeModules({
       pickedFileName: 'wide.png',

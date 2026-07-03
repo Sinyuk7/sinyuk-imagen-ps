@@ -137,6 +137,35 @@ function pendingPreviews(assets: readonly Asset[]): readonly AssetPreview[] {
   }));
 }
 
+function previewAssetSourceKey(asset: Asset, index: number): string {
+  return asset.storedRef?.ref ?? asset.url ?? asset.fileId ?? asset.name ?? String(index);
+}
+
+function previewWorkSignature(
+  rounds: readonly ConversationRound[],
+  jobs: readonly JobSessionSnapshot[],
+): string {
+  const jobsById = new Map(jobs.map((job) => [job.id, job]));
+  const parts: string[] = [];
+  for (const round of rounds) {
+    if (
+      round.status !== 'ok' ||
+      !round.jobId ||
+      round.previews.length === 0 ||
+      round.previews.every((preview) => preview.url)
+    ) {
+      continue;
+    }
+    const job = jobsById.get(round.jobId);
+    const assets = job ? outputAssets(job.output) : round.previews.map((preview) => preview.asset);
+    if (assets.length === 0) {
+      continue;
+    }
+    parts.push(`${round.id}:${round.jobId}:${assets.map(previewAssetSourceKey).join(',')}`);
+  }
+  return parts.join('|');
+}
+
 function releaseAttachment(attachment: ConversationAttachment): void {
   attachment.image.preview.dispose?.();
 }
@@ -315,6 +344,11 @@ export function useConversation(
   const previewCacheKeysRef = useRef<Map<string, readonly string[]>>(new Map());
   const previewAbortControllersRef = useRef<Map<string, AbortController>>(new Map());
   const roundsRef = useRef<readonly ConversationRound[]>(rounds);
+  const jobsRef = useRef<readonly JobSessionSnapshot[]>(sessionBinding.snapshot.jobs);
+  const previewSignature = useMemo(
+    () => previewWorkSignature(rounds, sessionBinding.snapshot.jobs),
+    [rounds, sessionBinding.snapshot.jobs],
+  );
 
   /**
    * UI 同步 ref 门禁（交互反馈层，非唯一权威）。
@@ -339,6 +373,10 @@ export function useConversation(
   useEffect(() => {
     roundsRef.current = rounds;
   }, [rounds]);
+
+  useEffect(() => {
+    jobsRef.current = sessionBinding.snapshot.jobs;
+  }, [sessionBinding.snapshot.jobs]);
 
   useEffect(() => {
     if (!running) {
@@ -377,9 +415,8 @@ export function useConversation(
   }, [abortPreviewWork, thumbnailStore]);
 
   useEffect(() => {
-    let disposed = false;
-
-    for (const round of rounds) {
+    const jobs = jobsRef.current;
+    for (const round of roundsRef.current) {
       if (
         round.status !== 'ok' ||
         !round.jobId ||
@@ -390,7 +427,7 @@ export function useConversation(
       ) {
         continue;
       }
-      const job = sessionBinding.snapshot.jobs.find((item) => item.id === round.jobId);
+      const job = jobs.find((item) => item.id === round.jobId);
       const assets = job ? outputAssets(job.output) : round.previews.map((preview) => preview.asset);
       if (assets.length === 0) {
         continue;
@@ -403,17 +440,14 @@ export function useConversation(
           thumbnailStore.getOrCreate({
             asset,
             label: asset.name ?? `Asset ${index + 1}`,
-            sourceKey: `${round.id}:${asset.storedRef?.ref ?? asset.url ?? asset.fileId ?? asset.name ?? index}`,
+            sourceKey: `${round.id}:${previewAssetSourceKey(asset, index)}`,
             signal: abortController.signal,
           }),
         ),
       ).then((entries) => {
         previewAbortControllersRef.current.delete(round.id);
-        if (disposed) {
+        if (abortController.signal.aborted) {
           entries.forEach((entry) => entry.release());
-          if (!abortController.signal.aborted) {
-            setRounds((current) => current.slice());
-          }
           return;
         }
         const previous = previewCacheKeysRef.current.get(round.id) ?? [];
@@ -434,11 +468,7 @@ export function useConversation(
         );
       });
     }
-
-    return () => {
-      disposed = true;
-    };
-  }, [rounds, sessionBinding.snapshot.jobs, thumbnailStore]);
+  }, [previewSignature, thumbnailStore]);
 
   const submit = useCallback(
     async (input: SubmitConversationInput) => {

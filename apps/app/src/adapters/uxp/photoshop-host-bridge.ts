@@ -136,6 +136,7 @@ const PNG_IEND = 'IEND';
 const DEFLATE_STORED_BLOCK_MAX = 0xffff;
 const PHOTOSHOP_THUMBNAIL_MAX_SIDE = 256;
 const LAYER_PICKER_THUMBNAIL_MAX_SIDE = 48;
+const APP_LOCAL_MAX_RGBA_DECODE_BYTES = 64 * 1024 * 1024;
 
 function photoshopAppFrom(modules: UxpModules): PhotoshopApp | undefined {
   return modules.photoshop?.app as PhotoshopApp | undefined;
@@ -589,6 +590,10 @@ function mimeTypeSupportsAppLocalDerivative(mimeType: string): boolean {
   return normalized.includes('png') || normalized.includes('jpeg') || normalized.includes('jpg');
 }
 
+function fitsAppLocalRgbaDecodeLimit(size: { readonly width: number; readonly height: number }): boolean {
+  return size.width * size.height * 4 <= APP_LOCAL_MAX_RGBA_DECODE_BYTES;
+}
+
 function arrayBufferFromBytes(bytes: Uint8Array): ArrayBuffer {
   const copy = new Uint8Array(bytes.byteLength);
   copy.set(bytes);
@@ -651,6 +656,9 @@ async function createAppLocalThumbnail(
   if (sourceSize.width === targetSize.width && sourceSize.height === targetSize.height) {
     return createAppLocalPreview(bytes, mimeType);
   }
+  if (!fitsAppLocalRgbaDecodeLimit(sourceSize)) {
+    return undefined;
+  }
   const thumbnail = await resizeLocalFileBytes(bytes, mimeType, targetSize);
   return createRuntimeImageUrlOrDataUrl(thumbnail, 'image/png');
 }
@@ -660,6 +668,10 @@ async function resizeLocalFileBytes(
   mimeType: string,
   targetSize: { readonly width: number; readonly height: number },
 ): Promise<Uint8Array> {
+  const sourceSize = readImageSize(bytes, mimeType);
+  if (!sourceSize || !fitsAppLocalRgbaDecodeLimit(sourceSize)) {
+    throw new Error(`App-local resize is unavailable for ${mimeType} at this source size.`);
+  }
   const image = decodeLocalFileToRgba(bytes, mimeType);
   const resized =
     targetSize.width <= image.width && targetSize.height <= image.height
@@ -708,7 +720,10 @@ async function createLocalFileProviderDerivative(
   plan: ReturnType<typeof resolveProviderInputPlan>,
   meta: { readonly name: string; readonly mimeType: string },
 ): Promise<HostImageAsset> {
-  if (mimeTypeSupportsAppLocalDerivative(meta.mimeType)) {
+  if (
+    mimeTypeSupportsAppLocalDerivative(meta.mimeType) &&
+    (!plan.wasResized || fitsAppLocalRgbaDecodeLimit({ width: plan.sourceWidth, height: plan.sourceHeight }))
+  ) {
     return createLocalFileProviderDerivativeFromBytes(assetStore, bytes, plan, meta);
   }
   if (!app.open) {

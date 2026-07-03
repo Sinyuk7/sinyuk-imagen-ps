@@ -5,6 +5,7 @@ import { createRuntimeImageUrlOrDataUrl, type RuntimeImageUrl } from './runtime-
 
 const DEFAULT_THUMBNAIL_MAX_SIDE = 512;
 const DEFAULT_MAX_INLINE_THUMBNAIL_BYTES = 512 * 1024;
+const DEFAULT_MAX_CONCURRENT_GENERATIONS = 1;
 
 export interface ThumbnailRequest {
   readonly asset: Asset;
@@ -28,6 +29,7 @@ export interface ThumbnailStore {
 
 export interface ThumbnailStoreOptions {
   readonly maxInlineBytes?: number;
+  readonly maxConcurrentGenerations?: number;
   readonly resolveStoredRef?: (ref: StoredAssetRef) => Promise<ArrayBuffer | undefined>;
   readonly createObjectUrl?: (bytes: Uint8Array, mimeType: string) => RuntimeImageUrl;
   readonly createThumbnail?: (request: {
@@ -44,6 +46,8 @@ interface CacheEntry {
   readonly release: () => void;
   refs: number;
 }
+
+type GenerationQueueEntry = () => void;
 
 function throwIfAborted(signal: AbortSignal | undefined): void {
   if (signal?.aborted) {
@@ -95,7 +99,46 @@ function previewFromAsset(asset: Asset): string {
 
 export function createMemoryThumbnailStore(options: ThumbnailStoreOptions = {}): ThumbnailStore {
   const cache = new Map<string, CacheEntry>();
+  const inFlight = new Map<string, Promise<CacheEntry>>();
+  const generationQueue: GenerationQueueEntry[] = [];
   const maxInlineBytes = options.maxInlineBytes ?? DEFAULT_MAX_INLINE_THUMBNAIL_BYTES;
+  const maxConcurrentGenerations = Math.max(1, Math.floor(options.maxConcurrentGenerations ?? DEFAULT_MAX_CONCURRENT_GENERATIONS));
+  let activeGenerations = 0;
+
+  async function runWithGenerationSlot<T>(signal: AbortSignal | undefined, work: () => Promise<T>): Promise<T> {
+    throwIfAborted(signal);
+    if (activeGenerations >= maxConcurrentGenerations) {
+      await new Promise<void>((resolve, reject) => {
+        const queued: GenerationQueueEntry = () => {
+          signal?.removeEventListener('abort', onAbort);
+          resolve();
+        };
+        const onAbort = () => {
+          const index = generationQueue.indexOf(queued);
+          if (index >= 0) {
+            generationQueue.splice(index, 1);
+          }
+          reject(new DOMException('Thumbnail generation was cancelled.', 'AbortError'));
+        };
+        signal?.addEventListener('abort', onAbort, { once: true });
+        generationQueue.push(queued);
+      });
+    } else {
+      activeGenerations += 1;
+    }
+
+    try {
+      throwIfAborted(signal);
+      return await work();
+    } finally {
+      const next = generationQueue.shift();
+      if (next) {
+        next();
+      } else {
+        activeGenerations -= 1;
+      }
+    }
+  }
 
   async function thumbnailUrlFor(
     asset: Asset,
@@ -142,44 +185,73 @@ export function createMemoryThumbnailStore(options: ThumbnailStoreOptions = {}):
     return { url: '', release: () => undefined };
   }
 
+  function entryForCached(cacheKey: string): ThumbnailEntry | undefined {
+    const cached = cache.get(cacheKey);
+    if (!cached) {
+      return undefined;
+    }
+    cached.refs += 1;
+    return {
+      preview: cached.preview,
+      cacheKey,
+      release: () => releaseCacheKey(cacheKey),
+    };
+  }
+
+  function releaseCacheKey(cacheKey: string): void {
+    const entry = cache.get(cacheKey);
+    if (!entry) {
+      return;
+    }
+    entry.refs -= 1;
+    if (entry.refs > 0) {
+      return;
+    }
+    entry.release();
+    cache.delete(cacheKey);
+  }
+
   return {
     async getOrCreate(request): Promise<ThumbnailEntry> {
       const maxSide = request.maxSide ?? DEFAULT_THUMBNAIL_MAX_SIDE;
       const cacheKey = `${sourceKeyFor(request.asset, request.sourceKey)}:${maxSide}`;
-      const cached = cache.get(cacheKey);
+      const cached = entryForCached(cacheKey);
       if (cached) {
-        cached.refs += 1;
-        return {
-          preview: cached.preview,
-          cacheKey,
-          release: () => this.release(cacheKey),
-        };
+        return cached;
       }
 
-      const generated = await thumbnailUrlFor(request.asset, maxSide, request.signal);
-      const preview: AssetPreview = {
-        asset: sanitizedAsset(request.asset),
-        url: generated.url,
-        label: request.label ?? request.asset.name ?? 'Asset',
-      };
-      cache.set(cacheKey, { preview, release: generated.release, refs: 1 });
+      let pending = inFlight.get(cacheKey);
+      if (!pending) {
+        pending = runWithGenerationSlot(request.signal, async () => {
+          const existing = cache.get(cacheKey);
+          if (existing) {
+            return existing;
+          }
+          const generated = await thumbnailUrlFor(request.asset, maxSide, request.signal);
+          const preview: AssetPreview = {
+            asset: sanitizedAsset(request.asset),
+            url: generated.url,
+            label: request.label ?? request.asset.name ?? 'Asset',
+          };
+          const entry: CacheEntry = { preview, release: generated.release, refs: 0 };
+          cache.set(cacheKey, entry);
+          return entry;
+        }).finally(() => {
+          inFlight.delete(cacheKey);
+        });
+        inFlight.set(cacheKey, pending);
+      }
+
+      const entry = await pending;
+      entry.refs += 1;
       return {
-        preview,
+        preview: entry.preview,
         cacheKey,
-        release: () => this.release(cacheKey),
+        release: () => releaseCacheKey(cacheKey),
       };
     },
     release(cacheKey): void {
-      const entry = cache.get(cacheKey);
-      if (!entry) {
-        return;
-      }
-      entry.refs -= 1;
-      if (entry.refs > 0) {
-        return;
-      }
-      entry.release();
-      cache.delete(cacheKey);
+      releaseCacheKey(cacheKey);
     },
     clear(): void {
       for (const entry of cache.values()) {
