@@ -27,7 +27,7 @@ export function TextSelectTriggerButton({
       overlayClassName="cmp-chip-overlay cmp-chip-overlay-text"
       className={className}
       data-testid={testId}
-      aria-label={label}
+      aria-label={`${label}: ${value}`}
       aria-haspopup="listbox"
       aria-expanded={open}
       disabled={disabled}
@@ -35,20 +35,15 @@ export function TextSelectTriggerButton({
       onClick={onClick}
       onKeyDown={onKeyDown}
       overlay={(
-        <span className="cmp-chip-overlay-inner cmp-chip-overlay-inner-text">
-          <span className="cmp-chip-overlay-spacer cmp-chip-overlay-spacer-text" />
-          <span className="cmp-chip-arrow-proxy cmp-chip-arrow-proxy-text">
+        <span ref={chipBodyRef} className="cmp-chip-overlay-inner cmp-chip-overlay-inner-text">
+          <span ref={chipValueRef} className="cmp-chip-overlay-value cmp-chip-overlay-value-text">{value}</span>
+          <span ref={chipArrowRef} className="cmp-chip-arrow-proxy cmp-chip-arrow-proxy-text">
             <Icon name="chevron-down" size={10} className="cmp-chip-arrow-icon cmp-chip-arrow-icon-text" />
           </span>
         </span>
       )}
     >
-      <span ref={chipBodyRef} className="cmp-chip-body cmp-chip-body-text">
-        <span ref={chipValueRef} className="cmp-chip-value cmp-chip-value-text">{value}</span>
-        <span ref={chipArrowRef} className="cmp-chip-arrow-text cmp-chip-arrow-text-text" aria-hidden="true">
-          <span className="cmp-chip-arrow-slot cmp-chip-arrow-slot-text" />
-        </span>
-      </span>
+      <span className="cmp-chip-a11y-value cmp-chip-a11y-value-text" aria-hidden="true" />
     </OverlayTriggerButton>
   );
 }

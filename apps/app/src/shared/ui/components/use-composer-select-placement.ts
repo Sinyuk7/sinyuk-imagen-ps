@@ -14,6 +14,10 @@ function clampNumber(value: number, min: number, max: number): number {
   return Math.min(Math.max(value, min), max);
 }
 
+function finiteOrFallback(value: unknown, fallback: number): number {
+  return typeof value === 'number' && Number.isFinite(value) ? value : fallback;
+}
+
 function shouldDebugComposerSelectLayout(): boolean {
   if (typeof window === 'undefined') {
     return false;
@@ -84,8 +88,12 @@ export function useComposerSelectPlacement({
       return;
     }
 
-    const viewportWidth = typeof window === 'undefined' ? panelRect.width : window.innerWidth;
-    const viewportHeight = typeof window === 'undefined' ? panelRect.height : window.innerHeight;
+    const viewportWidth = typeof window === 'undefined'
+      ? panelRect.right
+      : finiteOrFallback(window.innerWidth, panelRect.right);
+    const viewportHeight = typeof window === 'undefined'
+      ? panelRect.bottom
+      : finiteOrFallback(window.innerHeight, panelRect.bottom);
     const horizontalBoundaryLeft = Math.max(panelRect.left + PANEL_EDGE_PADDING, PANEL_EDGE_PADDING);
     const horizontalBoundaryRight = Math.min(panelRect.right - PANEL_EDGE_PADDING, viewportWidth - PANEL_EDGE_PADDING);
     const availableWidth = Math.max(0, horizontalBoundaryRight - horizontalBoundaryLeft);

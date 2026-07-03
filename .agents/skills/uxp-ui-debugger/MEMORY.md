@@ -12,6 +12,7 @@ Durable notes for confirmed UI/page debugging in the Imagen Photoshop UXP app. R
 - Do not use Computer Use against Photoshop for this skill. It is too unstable for panel interaction proof and can create false confidence. Use `node scripts/uxp-debug/uxp-debug.mjs`, UDT relay data, user screenshots, or explicit user manual feedback instead.
 - If a runtime probe cannot reproduce the user's symptom, stop and report the missing proof. Do not keep editing from a partially proven hypothesis.
 - If on-disk CSS already contains the expected fix but real UXP `inspect` still shows old computed values, treat the loaded bundle as stale first. Prove the hypothesis with temporary `style` mutations before making another source edit.
+- Do not treat `uxp-debug.mjs click <selector>` as proof for hit-test bugs. That command calls the selected element directly and can bypass the host's real coordinate hit-testing path.
 
 ## UXP Runtime Facts
 
@@ -20,6 +21,8 @@ Durable notes for confirmed UI/page debugging in the Imagen Photoshop UXP app. R
 - Run UXP debug CLI commands serially against the relay; concurrent commands can confuse session/context state.
 - In UXP, inline style APIs can report misleading values. Style reset should snapshot and restore original inline `cssText` or equivalent original value/priority data through `window.__UXP_DEBUG_PATCHES__`.
 - UXP hit-testing can target a non-button overlay host even when a full-size native button is visually present underneath. For overlay controls, verify the actual event target and bridge host clicks back to the real button path when needed.
+- In Photoshop UXP 9.3, `window.innerWidth` / `window.innerHeight` may be unavailable in panel code. Placement logic should use the panel/root rect as a viewport fallback before doing clamp math.
+- UXP can compute CSS function widths such as `width:min(...)` as shrink-to-content in harness layouts. Prefer plain `width` plus `max-width` for UXP-facing hit-test regions and edge-placement fixtures.
 
 ## Reusable Probes
 
@@ -29,11 +32,13 @@ Durable notes for confirmed UI/page debugging in the Imagen Photoshop UXP app. R
 - For overlap bugs, inspect child boxes and not only the button/root rect. Hidden native button text, overlay text, icon slots, and arrow slots can occupy different visual layers.
 - For temporary CSS hypotheses, use `style`, then verify visually, then `reset <selector> <property>`, `reset <selector>`, or `reset --all` to prove reversible runtime mutation.
 - For interaction bugs, install capture-phase event logs for `pointerdown`, `mousedown`, `pointerup`, `mouseup`, `click`, `focus`, and `select`; inspect target, active element, `defaultPrevented`, and textarea selection before editing source.
+- For hit-test bugs where selector `.click()` is suspicious, use lower-level CDP `Input.dispatchMouseEvent` at the element's real `getBoundingClientRect()` center when the UDT relay supports it. This is closer to user pointer input than DOM `.click()`, though final visual/manual confirmation is still stronger.
 - If `inspect` shows old class names (e.g., `.layer-swatch`) after a source edit that introduced new class names (e.g., `.layer-thumb`), the running bundle is stale. Re-run UDT Debug to get a fresh `cdtDebugWsUrl` before treating it as a code defect.
 
 ## UI Failure Patterns
 
 - Long text inside native UXP buttons can visually conflict with overlay icons/text if the button's own visible text remains present. If an overlay owns the visible label, the native button should keep interaction/accessibility but not duplicate visible text.
+- For text select buttons with overlay arrows, UXP may paint the native button `textContent` independently of child span ellipsis boxes. Put the visible value and arrow in the same overlay flex row, and leave the native button without duplicated visible text.
 - For icon select triggers, avoid splitting spacing responsibility between the SVG/icon asset and the proxy layout. Let the proxy slots own horizontal spacing; keep the inner icon margin neutral when the overlay rail controls layout.
 - Text truncation fixes need both geometry and visual proof: `overflow: hidden`, `text-overflow: ellipsis`, stable child rects, and screenshot confirmation that icon/text/arrow do not overlap.
 - User prompt bubbles should not use bare `max-height + overflow:hidden` for previews. Prefer multi-line clamp with visible ellipsis so visual truncation is distinguishable from request/persistence truncation.

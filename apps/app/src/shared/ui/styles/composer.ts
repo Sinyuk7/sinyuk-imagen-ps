@@ -709,7 +709,8 @@ export const COMPOSER_CSS = `
   padding-bottom:3px;
   padding-left:9px;
 }
-.cmp-chip-overlay-value-icon{
+.cmp-chip-overlay-value-icon,
+.cmp-chip-overlay-value-text{
   display:block;
   flex:1 1 auto;
   min-width:0;
@@ -761,6 +762,14 @@ export const COMPOSER_CSS = `
   min-width:0;
 }
 .cmp-chip-a11y-value-icon{
+  display:block;
+  width:1px;
+  height:1px;
+  overflow:hidden;
+  opacity:0;
+  pointer-events:none;
+}
+.cmp-chip-a11y-value-text{
   display:block;
   width:1px;
   height:1px;

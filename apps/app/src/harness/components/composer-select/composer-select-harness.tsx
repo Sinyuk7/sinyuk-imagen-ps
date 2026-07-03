@@ -22,7 +22,8 @@ const HARNESS_CSS = `
   padding:24px;
 }
 .harness-shell{
-  width:min(1100px, 100%);
+  width:100%;
+  max-width:1100px;
   margin:0 auto;
   display:flex;
   flex-direction:column;
@@ -257,8 +258,8 @@ const HARNESS_CSS = `
   position:absolute;
   display:flex;
   min-width:110px;
+  width:var(--harness-edge-width);
   max-width:calc(100% - 24px);
-  width:min(var(--harness-edge-width), calc(50% - 18px));
 }
 .harness-edge-anchor[data-x="left"]{ left:12px; }
 .harness-edge-anchor[data-x="right"]{ right:12px; }
@@ -301,6 +302,16 @@ const HARNESS_CSS = `
   line-height:16px;
   font-weight:600;
   color:var(--tx);
+}
+.harness-diagnostics-revision{
+  margin-top:-4px;
+  margin-right:0;
+  margin-bottom:6px;
+  margin-left:0;
+  font-family:var(--fM);
+  font-size:10px;
+  line-height:14px;
+  color:var(--txd);
 }
 .harness-diagnostics-list{
   display:flex;
@@ -458,7 +469,8 @@ const HARNESS_CSS = `
   position:absolute;
   top:18px;
   left:18px;
-  width:min(280px, calc(100% - 36px));
+  width:280px;
+  max-width:calc(100% - 36px);
   z-index:2;
 }
 .harness-stress-grid{
@@ -604,6 +616,8 @@ interface HarnessSelectState {
 type HarnessMenuId = 'model' | 'target' | 'aspect' | null;
 type MainComposerMenuId = 'main-model' | 'main-size' | null;
 
+const HARNESS_REVISION = 'composer-select-uxp-r9-text-overlay';
+
 interface DiagnosticRow {
   readonly key: string;
   readonly value: string;
@@ -618,13 +632,16 @@ const DEFAULT_STATE: HarnessSelectState = {
 
 function ensureHarnessStyles(): void {
   const styleId = 'imagen-ps-composer-select-harness-styles';
-  if (typeof document === 'undefined' || document.getElementById(styleId)) {
+  if (typeof document === 'undefined') {
     return;
   }
-  const style = document.createElement('style');
-  style.id = styleId;
+  const existing = document.getElementById(styleId);
+  const style = existing?.tagName.toLowerCase() === 'style' ? existing : document.createElement('style');
+  if (!existing) {
+    style.id = styleId;
+    document.head.appendChild(style);
+  }
   style.textContent = `${PANEL_CSS}\n${HARNESS_CSS}`;
-  document.head.appendChild(style);
 }
 
 function currentLabel(options: readonly ComposerSelectOption[], selectedId: string): string {
@@ -698,6 +715,18 @@ function elementFromPointSafe(x: number, y: number): Element | null | 'unsupport
   return reader.call(document, x, y);
 }
 
+function viewportFallbackSize(): { readonly width: number; readonly height: number } {
+  const rootRect = document.querySelector('.panel')?.getBoundingClientRect();
+  return {
+    width: typeof window.innerWidth === 'number' && Number.isFinite(window.innerWidth)
+      ? window.innerWidth
+      : rootRect?.right ?? 0,
+    height: typeof window.innerHeight === 'number' && Number.isFinite(window.innerHeight)
+      ? window.innerHeight
+      : rootRect?.bottom ?? 0,
+  };
+}
+
 function useMenuDiagnostics(): readonly DiagnosticRow[] {
   const [rows, setRows] = useState<readonly DiagnosticRow[]>([]);
 
@@ -717,12 +746,13 @@ function useMenuDiagnostics(): readonly DiagnosticRow[] {
         const centerX = rect.left + rect.width / 2;
         const centerY = rect.top + Math.min(rect.height / 2, 18);
         const hit = elementFromPointSafe(centerX, centerY);
+        const viewport = viewportFallbackSize();
         const opacity = Number.parseFloat(style.opacity || '1');
         const transform = style.transform === 'none' ? 'none' : style.transform;
         const clipLeft = rect.left < 0;
-        const clipRight = rect.right > window.innerWidth;
+        const clipRight = rect.right > viewport.width;
         const clipTop = rect.top < 0;
-        const clipBottom = rect.bottom > window.innerHeight;
+        const clipBottom = rect.bottom > viewport.height;
         const clipped = clipLeft || clipRight || clipTop || clipBottom;
         const hitInside = hit !== 'unsupported' && hit ? popover.contains(hit) || hit === popover : false;
 
@@ -762,6 +792,7 @@ function DiagnosticsHeader({ logs }: { readonly logs: readonly string[] }) {
   return (
     <div className="harness-diagnostics-header" data-testid="composer-select-diagnostics-header">
       <p className="harness-diagnostics-header-title">Live Diagnostics</p>
+      <p className="harness-diagnostics-revision" data-testid="composer-select-harness-revision">{HARNESS_REVISION}</p>
       <div className="harness-diagnostics-list">
         {rows.map((row, index) => (
           <div key={`${row.key}-${index}`} className="harness-diagnostic-row" data-status={row.status}>
