@@ -1,0 +1,55 @@
+.agents/skills/uxp-ui-debugger/MEMORY.md
+  s_775fc84fc63746::t_4aed79fee988b7 37
+apps/app/src/shared/ui/app-shell.tsx
+  s_ca07f7c0ae52d5::t_b06df776084a58 41,52-53,72-134,165,247,249,370,501
+apps/app/src/shared/ui/components/motion-ui.tsx
+  s_ca07f7c0ae52d5::t_5e93e5832cc3e5 21
+apps/app/src/shared/ui/register-shared-swc.ts
+  s_ca07f7c0ae52d5::t_42cade8109349d 8-13
+apps/app/src/shared/ui/styles/overlays.ts
+  s_ca07f7c0ae52d5::t_5e7be8cec8dea1 6
+apps/app/src/shared/ui/styles/tokens.ts
+  s_855119aa122c91::t_f2b487f5fa8265 16-19,23-91,110,171-174,192-193,270-273,281-284,289-291,296-298,306-309,334
+apps/app/tests/shared-swc-registration.test.ts
+  s_ca07f7c0ae52d5::t_2d7caaea273715 8
+apps/app/tests/swc-uxp-wrapper-boundary.test.ts
+  s_775fc84fc63746::t_253e361d7da0ba 105-112
+apps/app/tests/uxp-css-compat.test.ts
+  s_ca07f7c0ae52d5::t_71b5134a08d404 186,189,191-195
+docs/ENGINEERING_CONTEXT.md
+  s_855119aa122c91::t_962255e1a0b203 87-96
+packages/swc-uxp-wrappers/textfield/src/Textfield.js
+  s_775fc84fc63746::t_c116b9d68f01ec 17-18,22-61,67-70,78-81
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.3",
+  "base_commit_sha": "50b50ed62de43f8f3713834f8fda5a17abcafb16",
+  "prompts": {},
+  "sessions": {
+    "s_775fc84fc63746": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "019f2631-f0f3-7c70-8cef-4ee5d8da33c9",
+        "model": "unknown"
+      },
+      "human_author": "Sinyuk <80998062@qq.com>"
+    },
+    "s_855119aa122c91": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "019f263c-7e6b-7bb2-be77-e5ea7f1a3e7a",
+        "model": "unknown"
+      },
+      "human_author": "Sinyuk <80998062@qq.com>"
+    },
+    "s_ca07f7c0ae52d5": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "019f2632-7f15-7c42-8810-80ecfd48544d",
+        "model": "unknown"
+      },
+      "human_author": "Sinyuk <80998062@qq.com>"
+    }
+  }
+}
