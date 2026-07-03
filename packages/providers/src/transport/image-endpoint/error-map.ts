@@ -10,6 +10,7 @@ export type ProviderFailureKind =
   | 'auth_failed'
   | 'rate_limited'
   | 'upstream_unavailable'
+  | 'provider_protocol_incompatible'
   | 'timeout'
   | 'network_error'
   | 'request_invalid'
@@ -49,6 +50,13 @@ function createProviderInvokeError(
   return err;
 }
 
+const QWEN_EDIT_PROTOCOL_INCOMPATIBLE_MESSAGE =
+  'expected io.Reader for image edits mode, got *ali.AliImageRequest';
+
+function isProviderProtocolIncompatible(statusCode: number | undefined, message: string): boolean {
+  return statusCode === 500 && message.includes(QWEN_EDIT_PROTOCOL_INCOMPATIBLE_MESSAGE);
+}
+
 /**
  * 根据 HTTP 响应状态码与异常类型映射为标准 provider 错误。
  */
@@ -59,6 +67,18 @@ export function mapHttpError(args: {
   cause?: unknown;
 }): ProviderInvokeError {
   const { statusCode, message, details, cause } = args;
+
+  if (isProviderProtocolIncompatible(statusCode, message)) {
+    return createProviderInvokeError('provider_protocol_incompatible', message, {
+      statusCode,
+      details: {
+        ...(details ?? {}),
+        retryable: false,
+        suggestedTransport: 'qwen-native-json',
+      },
+      cause,
+    });
+  }
 
   if (statusCode === 401 || statusCode === 403) {
     return createProviderInvokeError('auth_failed', message, { statusCode, details, cause });

@@ -290,6 +290,16 @@ function primaryActionLabel(t: ReturnType<typeof useI18n>['messages'], action: E
   }
 }
 
+function errorDisplayMessage(
+  t: ReturnType<typeof useI18n>['messages'],
+  failure: ReturnType<typeof classifyRoundError>,
+): string {
+  if (failure.category === 'provider-protocol-incompatible') {
+    return t.main.errorMessageProviderProtocolIncompatible;
+  }
+  return failure.message;
+}
+
 function placementButtonState(intent: ConversationRound['placementIntent'], status: PlaceStatus | undefined, t: ReturnType<typeof useI18n>['messages']): {
   readonly label: string;
   readonly title: string;
@@ -1327,7 +1337,7 @@ export function MainPage({
                           </span>
                         </div>
                         <div className="err-category">{t.main.errorCategory}: {t.main.errorCategoryLabel[failure.category] ?? t.main.errorCategoryLabel.unknown}</div>
-                        <div className="err-msg">{failure.message}</div>
+                        <div className="err-msg">{errorDisplayMessage(t, failure)}</div>
                         {failure.detail ? <div className="err-detail">{failure.detail}</div> : null}
                         {failure.requestId ? (
                           <div className="err-request">

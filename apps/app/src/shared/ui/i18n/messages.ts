@@ -143,6 +143,7 @@ export interface AppMessages {
     readonly runningPhaseGenerating: string;
     readonly errorCategory: string;
     readonly errorCategoryLabel: Record<string, string>;
+    readonly errorMessageProviderProtocolIncompatible: string;
     readonly errorActionOpenProviderSettings: string;
     readonly errorActionChooseSupportedSize: string;
     readonly errorActionChooseCompatibleModel: string;
@@ -439,10 +440,12 @@ const EN_MESSAGES: AppMessages = {
       'model-unavailable': 'Model unavailable',
       'size-unsupported': 'Unsupported size',
       'image-input-unreadable': 'Image input could not be read',
+      'provider-protocol-incompatible': 'Relay incompatible',
       'provider-temporarily-unavailable': 'Provider temporarily unavailable',
       'placement-conflict': 'Placement conflict',
       unknown: 'Unknown',
     },
+    errorMessageProviderProtocolIncompatible: 'Current relay is incompatible with Qwen image edit. Switch provider or profile.',
     errorActionOpenProviderSettings: 'Open provider settings',
     errorActionChooseSupportedSize: 'Choose supported size',
     errorActionChooseCompatibleModel: 'Choose compatible model',
@@ -740,10 +743,12 @@ const ZH_CN_MESSAGES: AppMessages = {
       'model-unavailable': '模型不可用',
       'size-unsupported': '尺寸不支持',
       'image-input-unreadable': '图片输入无法读取',
+      'provider-protocol-incompatible': '中转不兼容',
       'provider-temporarily-unavailable': 'Provider 暂时不可用',
       'placement-conflict': '置入冲突',
       unknown: '未知',
     },
+    errorMessageProviderProtocolIncompatible: '当前中转站与 Qwen 图像编辑不兼容。请更换 Provider 或 Profile。',
     errorActionOpenProviderSettings: '打开 Provider 设置',
     errorActionChooseSupportedSize: '选择支持尺寸',
     errorActionChooseCompatibleModel: '选择兼容模型',

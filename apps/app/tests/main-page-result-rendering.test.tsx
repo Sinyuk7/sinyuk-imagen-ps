@@ -286,7 +286,7 @@ describe('MainPage contract — result rendering', () => {
     expect(container.querySelector<HTMLElement>('[data-testid^="error-primary-action-button-"]')?.textContent).toContain('打开 Provider 设置');
   });
 
-  it('uses copy details as the primary action for unknown errors and keeps fill composer as a secondary action', async () => {
+  it('uses provider settings as the primary action for relay-incompatible errors and keeps fill composer as a secondary action', async () => {
     const container = document.createElement('div');
     document.body.appendChild(container);
     const writeText = vi.fn(async () => undefined);
@@ -314,23 +314,15 @@ describe('MainPage contract — result rendering', () => {
 
     await sendPrompt(container, 'failed unknown request');
 
-    expect(container.querySelector('.err-category')?.textContent).toContain('未知');
-    expect(container.querySelector<HTMLElement>('[data-testid^="error-primary-action-button-"]')?.textContent).toContain('复制详情');
+    expect(container.querySelector('.err-category')?.textContent).toContain('中转不兼容');
+    expect(container.querySelector<HTMLElement>('[data-testid^="error-primary-action-button-"]')?.textContent).toContain('打开 Provider 设置');
     expect(container.querySelectorAll<HTMLElement>('[data-testid^="error-fill-composer-button-"]')).toHaveLength(1);
 
     await act(async () => {
       container.querySelector<HTMLElement>('[data-testid^="error-primary-action-button-"]')!.click();
     });
 
-    expect(writeText).toHaveBeenCalledWith(
-      [
-        'Provider: Mock Profile',
-        'Category: 未知',
-        'Message: expected io.Reader for image edits mode, got *ali.AliImageRequest',
-        'Detail: provider: expected io.Reader for image edits mode, got *ali.AliImageRequest (request id: 20260704005518866266746fBZYb0GG)',
-        'Request ID: 20260704005518866266746fBZYb0GG',
-      ].join('\n'),
-    );
+    expect(writeText).not.toHaveBeenCalled();
   });
 
   it('failed-round Retry fills the composer without submitting or switching settings', async () => {

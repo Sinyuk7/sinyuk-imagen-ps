@@ -3,6 +3,7 @@ export type ErrorActionCategory =
   | 'model-unavailable'
   | 'size-unsupported'
   | 'image-input-unreadable'
+  | 'provider-protocol-incompatible'
   | 'provider-temporarily-unavailable'
   | 'placement-conflict'
   | 'unknown';
@@ -45,8 +46,15 @@ function normalizeDetailMessage(message: string): string {
   return message.replace(/^(?:provider\s*[:：]\s*){2,}/i, 'provider: ').trim();
 }
 
+function isProviderProtocolIncompatible(message: string): boolean {
+  return /expected io\.reader for image edits mode,\s*got \*ali\.aliimagerequest/i.test(message);
+}
+
 function classify(message: string): Pick<ClassifiedRoundError, 'category' | 'primaryAction'> {
   const lower = message.toLowerCase();
+  if (isProviderProtocolIncompatible(message)) {
+    return { category: 'provider-protocol-incompatible', primaryAction: 'open-provider-settings' };
+  }
   if (/\bauth(?:entication|orization)?\b|unauthorized|forbidden|api key|invalid key|token|令牌|401|403/.test(lower)) {
     return { category: 'authentication-failed', primaryAction: 'open-provider-settings' };
   }
