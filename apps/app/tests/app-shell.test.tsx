@@ -3,6 +3,7 @@ import { createRoot, type Root } from 'react-dom/client';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { AppShell } from '../src/shared/ui/app-shell';
 import { createFakeServices, fakeOptimizerProfile, fakeProfile } from './fakes';
+import type { Job } from '@imagen-ps/application';
 import type { UxpFlightRecorder } from '../src/host/uxp-log-sink';
 import { NON_UXP_RUNTIME_CAPABILITIES } from '../src/shared/ports/host-port';
 
@@ -55,6 +56,18 @@ function installFlightRecorder(): Array<{ readonly event: string; readonly attrs
   };
   globalThis.__IMAGEN_PS_UI_FLIGHT_RECORDER__ = recorder;
   return records;
+}
+
+function failedJob(input: Record<string, unknown>): Job {
+  return {
+    id: 'job-history-failed',
+    status: 'failed',
+    input,
+    output: undefined,
+    error: { category: 'provider', message: 'provider failed' },
+    createdAt: '2026-06-15T00:00:00.000Z',
+    updatedAt: '2026-06-15T00:00:01.000Z',
+  };
 }
 
 describe('AppShell', () => {
@@ -262,6 +275,66 @@ describe('AppShell', () => {
     await flush();
 
     expect(spies.listTaskRecords.mock.calls.length).toBeGreaterThan(initialCalls);
+  });
+
+  it('fills the composer from a failed current-session round retried on history page', async () => {
+    const { services, spies } = createFakeServices();
+    spies.submitJob.mockImplementation(async (input: { input: Record<string, unknown> }) => ({
+      ok: true as const,
+      value: failedJob(input.input),
+    }));
+    spies.putTaskRecord.mockResolvedValue(undefined);
+    vi.mocked(services.commands.retryJob).mockImplementation(async () => ({
+      ok: true as const,
+      value: failedJob({}),
+    }));
+    const container = document.createElement('div');
+    document.body.appendChild(container);
+    root = createRoot(container);
+
+    await act(async () => {
+      root!.render(
+        <AppShell
+          host={{
+            kind: 'photoshop-uxp',
+            app: { stage: 'uxp-first-shell', host: 'photoshop-uxp', services: ['commands', 'host'] },
+            locale: 'zh-CN',
+            services,
+            dispose: () => undefined,
+          }}
+        />,
+      );
+    });
+    await flush();
+    await flush();
+
+    const textarea = container.querySelector<HTMLTextAreaElement>('.cmp-ta');
+    expect(textarea).not.toBeNull();
+    await act(async () => {
+      const setter = Object.getOwnPropertyDescriptor(HTMLTextAreaElement.prototype, 'value')?.set;
+      setter?.call(textarea!, 'history failed prompt');
+      textarea!.dispatchEvent(new KeyboardEvent('keyup', { bubbles: true, key: 'x' }));
+    });
+    await act(async () => {
+      container.querySelector<HTMLElement>('[data-testid="composer-send-button"]')!.click();
+    });
+    await flush();
+    await flush();
+
+    expect(spies.submitJob).toHaveBeenCalledTimes(1);
+    await act(async () => {
+      container.querySelector<HTMLButtonElement>('[data-testid="main-history-button"]')?.click();
+    });
+    await flush();
+    await act(async () => {
+      container.querySelector<HTMLButtonElement>('[data-testid^="history-retry-button-"]')?.click();
+    });
+    await flush();
+    await flush();
+
+    expect(container.querySelector<HTMLTextAreaElement>('.cmp-ta')?.value).toBe('history failed prompt');
+    expect(spies.submitJob).toHaveBeenCalledTimes(1);
+    expect(services.commands.retryJob).not.toHaveBeenCalled();
   });
 
   it('renders app content in English when host locale is English', async () => {

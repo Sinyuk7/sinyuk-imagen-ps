@@ -21,8 +21,13 @@ export type {
   ImageOutputConstraintStrategy,
   ImageOutputVariant,
   ImageSizePreset,
+  ModelOperationCapability,
   ModelMatcher,
   ModelMatcherPattern,
+  ProviderModelAvailability,
+  ProviderModelAvailabilityReason,
+  ProviderModelCapabilities,
+  ProviderModelCapabilityReason,
   ProviderBalanceDetail,
   ProviderBalanceQueryInput,
   ProviderBalanceSnapshot,
@@ -56,6 +61,7 @@ export type {
   ProviderRequest,
   ResolvedImageModelOutput,
   ResolvedImageModelRule,
+  SupportEvidence,
 } from './contract/index.js';
 export {
   canonicalizeProviderEndpointUrl,
@@ -70,6 +76,7 @@ export {
   reconcileDiscoveredCatalogModels,
   resolveImageModelOutput,
   resolveImageModelRule,
+  summarizeImageModelCapabilities,
   validateImageModelCatalog,
 } from './contract/index.js';
 

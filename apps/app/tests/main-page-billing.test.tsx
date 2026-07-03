@@ -1,6 +1,8 @@
+import { act } from 'react';
 import { afterEach, describe, expect, it } from 'vitest';
 import { createFakeServices } from './fakes';
 import { cleanupMainPageRoot, flush, renderMainPage, sendPrompt } from './main-page-harness';
+import type { Job } from '@imagen-ps/application';
 
 afterEach(async () => {
   // Drain pending billing async refreshes while the root is still mounted,
@@ -12,6 +14,31 @@ afterEach(async () => {
 });
 
 describe('MainPage contract — billing', () => {
+  function deferred<T>() {
+    let resolve!: (value: T) => void;
+    const promise = new Promise<T>((innerResolve) => {
+      resolve = innerResolve;
+    });
+    return { promise, resolve };
+  }
+
+  function completedJob(id: string, input: Record<string, unknown>): Job {
+    return {
+      id,
+      status: 'completed',
+      input,
+      output: {
+        image: {
+          assets: [],
+          text: `[prompt=${String(input.prompt ?? '')}]`,
+        },
+      },
+      error: undefined,
+      createdAt: '2026-06-15T00:00:00.000Z',
+      updatedAt: '2026-06-15T00:00:01.000Z',
+    };
+  }
+
   it('shows billing summary in the main header after balance refresh state exists', async () => {
     const container = document.createElement('div');
     document.body.appendChild(container);
@@ -82,7 +109,7 @@ describe('MainPage contract — billing', () => {
     expect(billingSummary?.querySelector('.cmp-balance-pill-label')).toBeNull();
   });
 
-  it('updates billing status after generation when async billing state settles with a balance change', async () => {
+  it('attaches observed balance change to the completed round without a positive toast', async () => {
     const container = document.createElement('div');
     document.body.appendChild(container);
     const services = createFakeServices();
@@ -111,6 +138,107 @@ describe('MainPage contract — billing', () => {
     await flush();
     await flush();
 
-    expect(container.textContent).toContain('最近一次余额变化: -0.5 USD');
+    expect(container.querySelector('[data-testid^="round-billing-meta-"]')?.textContent).toContain('Observed balance change: -0.5 USD');
+    expect(container.querySelector('[data-testid="toast"]')?.textContent ?? '').not.toContain('-0.5 USD');
+  });
+
+  it('labels exact provider task cost as Cost on round metadata', async () => {
+    const container = document.createElement('div');
+    document.body.appendChild(container);
+    const services = createFakeServices();
+    let billingReads = 0;
+    services.spies.getProfileBillingState.mockImplementation(async () => {
+      billingReads += 1;
+      if (billingReads < 2) {
+        return { ok: true as const, value: { refreshState: 'idle' } };
+      }
+      return {
+        ok: true as const,
+        value: {
+          refreshState: 'idle',
+          lastExactTaskCost: {
+            amount: '0.08',
+            currency: 'CNY',
+            completeness: 'complete',
+          },
+        },
+      };
+    });
+
+    await renderMainPage(container, services);
+    await sendPrompt(container, 'billing exact cost');
+    await flush();
+    await flush();
+    await flush();
+
+    expect(container.querySelector('[data-testid^="round-billing-meta-"]')?.textContent).toContain('Cost: 0.08 CNY');
+    expect(container.querySelector('[data-testid^="round-billing-meta-"]')?.textContent).not.toContain('Observed balance change');
+  });
+
+  it('attaches billing observation to the submitted round when an older completed round has no meta', async () => {
+    const container = document.createElement('div');
+    document.body.appendChild(container);
+    const services = createFakeServices();
+    const first = deferred<{ readonly ok: true; readonly value: Job }>();
+    let submitCount = 0;
+    services.spies.submitJob.mockImplementation(async (request: { input: Record<string, unknown> }) => {
+      submitCount += 1;
+      if (submitCount === 1) {
+        return first.promise;
+      }
+      return {
+        ok: true as const,
+        value: completedJob('job-billing-new', request.input),
+      };
+    });
+    let billingReads = 0;
+    services.spies.getProfileBillingState.mockImplementation(async () => {
+      billingReads += 1;
+      if (billingReads < 4) {
+        return { ok: true as const, value: { refreshState: 'idle' } };
+      }
+      return {
+        ok: true as const,
+        value: {
+          refreshState: 'idle',
+          lastExactTaskCost: {
+            amount: '0.12',
+            currency: 'USD',
+            completeness: 'complete',
+          },
+        },
+      };
+    });
+
+    await renderMainPage(container, services);
+    await act(async () => {
+      const textarea = container.querySelector<HTMLTextAreaElement>('.cmp-ta')!;
+      const setter = Object.getOwnPropertyDescriptor(HTMLTextAreaElement.prototype, 'value')?.set;
+      setter?.call(textarea, 'old billing round');
+      textarea.dispatchEvent(new KeyboardEvent('keyup', { bubbles: true, key: 'x' }));
+    });
+    await act(async () => {
+      container.querySelector<HTMLElement>('[data-testid="composer-send-button"]')!.click();
+    });
+    await flush();
+    first.resolve({
+      ok: true as const,
+      value: completedJob('job-billing-old', { prompt: 'old billing round' }),
+    });
+    await flush();
+    await flush();
+    await sendPrompt(container, 'new billing round');
+    await flush();
+    await flush();
+    await flush();
+
+    const oldRound = Array.from(container.querySelectorAll<HTMLElement>('[data-round-id]')).find((round) =>
+      round.textContent?.includes('old billing round'),
+    );
+    const newRound = Array.from(container.querySelectorAll<HTMLElement>('[data-round-id]')).find((round) =>
+      round.textContent?.includes('new billing round'),
+    );
+    expect(oldRound?.querySelector('[data-testid^="round-billing-meta-"]')).toBeNull();
+    expect(newRound?.querySelector('[data-testid^="round-billing-meta-"]')?.textContent).toContain('Cost: 0.12 USD');
   });
 });

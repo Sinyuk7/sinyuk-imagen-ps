@@ -16,6 +16,56 @@ export type ProviderModelMatchKind = 'exact' | 'alias' | 'prefix' | 'pattern' | 
 /** model 在当前产品语义下的选择状态。 */
 export type ProviderModelSupportStatus = 'selectable' | 'saved-undiscovered' | 'custom-unchecked';
 
+/** catalog 证据强度，避免把未知能力误写成不支持。 */
+export type SupportEvidence = 'supported' | 'unsupported' | 'unknown';
+
+/** 当前 profile 对该 model 的运行时可用性。 */
+export interface ProviderModelAvailability {
+  /** 沿用现有 picker 选择状态。 */
+  readonly status: ProviderModelSupportStatus;
+
+  /** 当前不可用或未确认的原因。 */
+  readonly reason?: ProviderModelAvailabilityReason;
+}
+
+/** 当前 profile 对该 model 的运行时可用性原因。 */
+export type ProviderModelAvailabilityReason =
+  | 'not-remotely-available'
+  | 'auth-failed'
+  | 'profile-misconfigured'
+  | 'model-discovery-failed'
+  | 'unknown';
+
+/** repo-owned catalog 可证明的 model 能力摘要。 */
+export interface ProviderModelCapabilities {
+  /** 图像生成 / 编辑操作能力。 */
+  readonly operations: {
+    readonly textToImage: ModelOperationCapability;
+    readonly imageEdit: ModelOperationCapability;
+  };
+
+  /** 图像输入能力；缺少可靠证据时保持 unknown。 */
+  readonly inputImages?: {
+    readonly maxCount?: number;
+    readonly mask: SupportEvidence;
+  };
+}
+
+/** 单个操作的能力和尺寸证据。 */
+export interface ModelOperationCapability {
+  readonly support: SupportEvidence;
+  readonly sizePresets: readonly ('512' | '1k' | '2k' | '4k')[] | 'unknown';
+  readonly reason?: ProviderModelCapabilityReason;
+}
+
+/** catalog 能力摘要原因。 */
+export type ProviderModelCapabilityReason =
+  | 'not-in-local-catalog'
+  | 'operation-unsupported'
+  | 'size-unsupported'
+  | 'insufficient-catalog-evidence'
+  | 'unknown';
+
 export interface ProviderModelInfo {
   /** model 的稳定标识，等同于 provider 调用时 `request.providerOptions.model` 的值。 */
   readonly id: string;
@@ -40,4 +90,10 @@ export interface ProviderModelInfo {
 
   /** 供 surface 直接渲染的选择状态。 */
   readonly supportStatus?: ProviderModelSupportStatus;
+
+  /** 当前 profile 可用性；与理论能力分离。 */
+  readonly availability?: ProviderModelAvailability;
+
+  /** repo-owned catalog 可证明的理论能力摘要。 */
+  readonly capabilities?: ProviderModelCapabilities;
 }

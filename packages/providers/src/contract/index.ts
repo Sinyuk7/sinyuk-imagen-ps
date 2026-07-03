@@ -38,6 +38,7 @@ export {
   reconcileDiscoveredCatalogModels,
   resolveImageModelOutput,
   resolveImageModelRule,
+  summarizeImageModelCapabilities,
   validateImageModelCatalog,
 } from './image-model-capability.js';
 export type { AssetRef, CanonicalImageJobRequest, PromptOptimizeRequest, ProviderOutputOptions, ProviderRequest } from './request.js';
@@ -57,7 +58,17 @@ export type {
   ProviderInvokeResult,
   ProviderInvokeUsage,
 } from './result.js';
-export type { ProviderModelInfo, ProviderModelMatchKind, ProviderModelSupportStatus } from './model.js';
+export type {
+  ModelOperationCapability,
+  ProviderModelAvailability,
+  ProviderModelAvailabilityReason,
+  ProviderModelCapabilities,
+  ProviderModelCapabilityReason,
+  ProviderModelInfo,
+  ProviderModelMatchKind,
+  ProviderModelSupportStatus,
+  SupportEvidence,
+} from './model.js';
 export type {
   Provider,
   ProviderDescriptor,

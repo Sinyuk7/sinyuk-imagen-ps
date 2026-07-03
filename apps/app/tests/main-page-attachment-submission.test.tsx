@@ -242,6 +242,49 @@ describe('MainPage contract — attachment & submission', () => {
     }));
   });
 
+  it('disables image entry points when the current model cannot edit images', async () => {
+    const container = document.createElement('div');
+    document.body.appendChild(container);
+    const services = createFakeServices({
+      profiles: [{
+        ...fakeProfile,
+        config: {
+          ...fakeProfile.config,
+          defaultModel: 'dall-e-3',
+        },
+      }, fakeOptimizerProfile],
+    });
+    services.spies.listProfileModels.mockResolvedValue({
+      ok: true as const,
+      value: [{
+        id: 'dall-e-3',
+        supportStatus: 'selectable',
+        capabilities: {
+          operations: {
+            textToImage: { support: 'supported', sizePresets: ['1k', '2k'] },
+            imageEdit: { support: 'unsupported', sizePresets: [], reason: 'operation-unsupported' },
+          },
+        },
+      }],
+    });
+    await renderMainPage(container, services);
+
+    const add = container.querySelector<HTMLButtonElement>('[data-testid="composer-add-image-button"]')!;
+    const capture = container.querySelector<HTMLButtonElement>('[data-testid="composer-capture-button"]')!;
+    expect(add.disabled).toBe(true);
+    expect(capture.disabled).toBe(true);
+    expect(add.getAttribute('title')).toContain('当前模型不支持图片输入');
+
+    await act(async () => {
+      add.click();
+      capture.click();
+    });
+    await flush();
+
+    expect(services.spies.pickImageFile).not.toHaveBeenCalled();
+    expect(services.spies.captureActiveImage).not.toHaveBeenCalled();
+  });
+
   it('uses global generation settings for output payload and provider input resize', async () => {
     const container = document.createElement('div');
     document.body.appendChild(container);

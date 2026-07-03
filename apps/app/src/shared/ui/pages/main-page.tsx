@@ -1,5 +1,5 @@
 import { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import type { ProfileBillingState, ProviderModelInfo, ProviderProfile } from '@imagen-ps/application';
+import type { ProviderModelInfo, ProviderProfile } from '@imagen-ps/application';
 import { useAppServices } from '../../ports/app-services-context';
 import type { HostPort, LayerInfo } from '../../ports/host-port';
 import { suggestedGeneratedImageFileName } from '../../domain/asset-file';
@@ -10,6 +10,7 @@ import type {
   ConversationController,
   ConversationRound,
 } from '../hooks/use-conversation';
+import { derivePlacementIntent } from '../hooks/use-conversation';
 import { useProfileBilling } from '../hooks/use-profile-billing';
 import { useLayerThumbnail } from '../hooks/use-layer-thumbnail';
 import { Icon } from '../components/icons';
@@ -37,6 +38,17 @@ import {
   type AppOutputSizePreset,
 } from '../../ports/app-generation-settings';
 import { MOTION_DURATION } from '../motion';
+import {
+  deriveComposerReadiness,
+  modelSupportsImageInput,
+  modelSupportsOperation,
+  modelSupportsOutputSize,
+  supportedSizePresetsForOperation,
+  type ComposerOperation,
+  type ComposerReadinessState,
+} from '../composer-readiness';
+import { classifyRoundError, type ErrorPrimaryAction } from '../error-action';
+import type { BalanceChange, ExactTaskCost } from '@imagen-ps/application';
 
 function isImeCompositionKey(event: React.KeyboardEvent): boolean {
   const nativeEvent = event.nativeEvent as KeyboardEvent & { readonly isComposing?: boolean };
@@ -66,6 +78,8 @@ interface MainPageProps {
   readonly promptOptimizerProfile?: ProviderProfile | null;
   readonly generationSettings: AppGenerationSettings;
   readonly onChangeOutputSizePreset: (sizePreset: AppOutputSizePreset) => Promise<void>;
+  readonly restoreFailedRoundId?: string | null;
+  readonly onFailedRoundRestored?: (roundId: string) => void;
 }
 
 type OptimizeState =
@@ -75,10 +89,16 @@ type OptimizeState =
 
 type PlaceStatus = 'idle' | 'placing' | 'placed';
 
+type RoundBillingMeta =
+  | { readonly kind: 'cost'; readonly cost: ExactTaskCost }
+  | { readonly kind: 'balance-change'; readonly change: BalanceChange };
+
 interface FlatLayer {
   readonly layer: LayerInfo;
   readonly depth: number;
 }
+
+const OUTPUT_SIZE_OPTIONS: readonly AppOutputSizePreset[] = ['512', '1k', '2k', '4k'];
 
 function flattenLayers(layers: readonly LayerInfo[], depth = 0): FlatLayer[] {
   return layers.flatMap((layer) => [
@@ -169,6 +189,142 @@ function modelIsSelectable(model: ProviderModelInfo | undefined): boolean {
   return model.supportStatus === undefined || model.supportStatus === 'selectable';
 }
 
+function operationForAttachments(attachments: readonly ConversationAttachment[]): ComposerOperation {
+  return attachments.length > 0 ? 'image-edit' : 'text-to-image';
+}
+
+function outputSizeLabel(size: AppOutputSizePreset): string {
+  return size === '512' ? '512' : size.toUpperCase();
+}
+
+function firstSupportedSize(model: ProviderModelInfo | undefined, operation: ComposerOperation): AppOutputSizePreset | null {
+  const presets = supportedSizePresetsForOperation(model, operation);
+  return presets === 'unknown' ? null : presets[0] ?? null;
+}
+
+function readinessMessage(t: ReturnType<typeof useI18n>['messages'], state: ComposerReadinessState): string {
+  switch (state) {
+    case 'ready':
+      return t.main.readinessReady;
+    case 'generation-in-progress':
+      return t.main.readinessGenerationInProgress;
+    case 'select-profile':
+      return t.main.readinessSelectProfile;
+    case 'checking-profile':
+      return t.main.readinessCheckingProfile;
+    case 'profile-load-failed':
+      return t.main.readinessProfileLoadFailed;
+    case 'select-model':
+      return t.main.readinessSelectModel;
+    case 'loading-models':
+      return t.main.readinessLoadingModels;
+    case 'model-unavailable':
+      return t.main.readinessModelUnavailable;
+    case 'preparing-attachment':
+      return t.main.readinessPreparingAttachment;
+    case 'attachment-failed':
+      return t.main.readinessAttachmentFailed;
+    case 'model-does-not-support-image-edit':
+      return t.main.readinessModelNoImageEdit;
+    case 'model-does-not-support-text-to-image':
+      return t.main.readinessModelNoTextToImage;
+    case 'size-unsupported':
+      return t.main.readinessSizeUnsupported;
+    case 'resolve-placement-conflict':
+      return t.main.readinessPlacementConflict;
+    case 'enter-prompt':
+      return t.main.readinessEnterPrompt;
+    case 'optimizing-prompt':
+      return t.main.readinessOptimizingPrompt;
+  }
+}
+
+function modelAvailabilityReason(model: ProviderModelInfo | undefined, t: ReturnType<typeof useI18n>['messages']): string | null {
+  const reason = model?.availability?.reason;
+  if (model?.supportStatus === 'saved-undiscovered' || reason === 'not-remotely-available') {
+    return t.main.modelReasonNotRemotelyAvailable;
+  }
+  if (reason === 'auth-failed') {
+    return t.main.modelReasonAuthFailed;
+  }
+  if (reason === 'profile-misconfigured') {
+    return t.main.modelReasonProfileMisconfigured;
+  }
+  if (reason === 'model-discovery-failed') {
+    return t.main.modelReasonDiscoveryFailed;
+  }
+  if (model?.supportStatus === 'custom-unchecked' || reason === 'unknown') {
+    return t.main.modelReasonCustomUnchecked;
+  }
+  return null;
+}
+
+function modelCapabilityReason(
+  model: ProviderModelInfo | undefined,
+  operation: ComposerOperation,
+  outputSizePreset: AppOutputSizePreset,
+  t: ReturnType<typeof useI18n>['messages'],
+): string | null {
+  const operationSupport = modelSupportsOperation(model, operation);
+  if (operationSupport === 'unsupported') {
+    return operation === 'image-edit'
+      ? t.main.modelReasonNoImageEdit
+      : t.main.modelReasonNoTextToImage;
+  }
+  if (modelSupportsOutputSize(model, operation, outputSizePreset) === 'unsupported') {
+    return t.main.modelReasonSizeUnsupported(outputSizeLabel(outputSizePreset));
+  }
+  return null;
+}
+
+function modelBadges(model: ProviderModelInfo | undefined, t: ReturnType<typeof useI18n>['messages']): readonly string[] {
+  const text = modelSupportsOperation(model, 'text-to-image');
+  const edit = modelSupportsOperation(model, 'image-edit');
+  const badges: string[] = [];
+  if (text === 'supported') badges.push(t.main.badgeTextToImage);
+  if (edit === 'supported') badges.push(t.main.badgeImageEdit);
+  if (text === 'unknown' || edit === 'unknown') badges.push(t.main.badgeUnknownCapability);
+  return badges;
+}
+
+function primaryActionLabel(t: ReturnType<typeof useI18n>['messages'], action: ErrorPrimaryAction): string {
+  switch (action) {
+    case 'open-provider-settings':
+      return t.main.errorActionOpenProviderSettings;
+    case 'choose-supported-size':
+      return t.main.errorActionChooseSupportedSize;
+    case 'choose-compatible-model':
+      return t.main.errorActionChooseCompatibleModel;
+    case 'replace-image':
+      return t.main.errorActionReplaceImage;
+    case 'fill-composer-from-failed-round':
+      return t.main.errorActionFillComposer;
+  }
+}
+
+function placementButtonState(intent: ConversationRound['placementIntent'], status: PlaceStatus | undefined, t: ReturnType<typeof useI18n>['messages']): {
+  readonly label: string;
+  readonly title: string;
+  readonly disabled: boolean;
+} {
+  if (status === 'placing') {
+    return { label: t.main.placingPs, title: t.main.placingPs, disabled: true };
+  }
+  if (status === 'placed') {
+    return { label: t.main.placedPs, title: t.main.placedPs, disabled: false };
+  }
+  if (intent.kind === 'unbound' && intent.reason === 'multiple-documents') {
+    return { label: t.main.cannotPlace, title: t.main.placementMultipleDocuments, disabled: true };
+  }
+  if (intent.kind === 'unbound') {
+    return { label: t.main.placeActiveDocument, title: t.main.placementActiveDocumentHint, disabled: false };
+  }
+  if (intent.kind === 'exact-frame') {
+    return { label: t.main.placePsShort, title: t.main.placementExactFrameHint, disabled: false };
+  }
+  return { label: t.main.placePsShort, title: t.main.placementDocumentOnlyHint, disabled: false };
+}
+
 function findRoundElement(container: HTMLElement, roundId: string): HTMLElement | null {
   return container.querySelector(`[data-round-id="${roundId}"]`);
 }
@@ -217,23 +373,6 @@ function isLocalFileNormalizationError(error: unknown): boolean {
   return error instanceof Error && error.message.includes('Local image requires provider input normalization');
 }
 
-function parseRoundError(errorMessage: string | undefined): { message: string; requestId?: string } {
-  const fallback = errorMessage?.trim() ?? '';
-  if (!fallback) {
-    return { message: '' };
-  }
-  const match = /\(?\brequest[\s_-]*id\b\s*[:：]\s*([^\s)）]+)\)?/i.exec(fallback);
-  let message = fallback;
-  const requestId = match?.[1]?.trim();
-  if (match) {
-    const before = fallback.slice(0, match.index).replace(/[（(]\s*$/, '').trimEnd();
-    const after = fallback.slice(match.index + match[0].length).replace(/^\s*[）)]/, '').trimStart();
-    message = [before, after].filter(Boolean).join(' ').trim();
-  }
-  message = message.replace(/^(?:provider\s*[:：]\s*)+/i, '').trim();
-  return { message: message || fallback, ...(requestId ? { requestId } : {}) };
-}
-
 export function MainPage({
   onNav,
   profiles,
@@ -244,6 +383,7 @@ export function MainPage({
   onSelectProfile,
   models,
   modelsLoading,
+  modelsError,
   selectedModelId,
   onSelectModel,
   layers,
@@ -256,6 +396,8 @@ export function MainPage({
   promptOptimizerProfile,
   generationSettings,
   onChangeOutputSizePreset,
+  restoreFailedRoundId,
+  onFailedRoundRestored,
 }: MainPageProps) {
   const services = useAppServices();
   const { messages: t } = useI18n();
@@ -270,6 +412,9 @@ export function MainPage({
   const [copied, setCopied] = useState<Record<string, boolean>>({});
   const [selectedPreviewIndexes, setSelectedPreviewIndexes] = useState<Record<string, number>>({});
   const [placeStatus, setPlaceStatus] = useState<Record<string, PlaceStatus>>({});
+  const [roundBillingMeta, setRoundBillingMeta] = useState<Record<string, RoundBillingMeta>>({});
+  const [sizeUserSelected, setSizeUserSelected] = useState(false);
+  const [sizeFeedback, setSizeFeedback] = useState<string | null>(null);
   const [expandedResponses, setExpandedResponses] = useState<Record<string, boolean>>({});
   const [overflowingResponses, setOverflowingResponses] = useState<Record<string, boolean>>({});
   const [highlightKey, setHighlightKey] = useState<string | null>(null);
@@ -280,6 +425,8 @@ export function MainPage({
   const responseFoldRefs = useRef<Map<string, HTMLDivElement>>(new Map());
   const responseTextRefs = useRef<Map<string, HTMLDivElement>>(new Map());
   const attachmentsRef = useRef<readonly ConversationAttachment[]>(attachments);
+  const previousRoundStatusRef = useRef<Record<string, ConversationRound['status']>>({});
+  const lastSizeAutoScopeRef = useRef<string>('');
   const flatLayers = useMemo(() => flattenLayers(layers), [layers]);
   const uniqueModels = useMemo(() => dedupeById(models), [models]);
 
@@ -311,27 +458,68 @@ export function MainPage({
     () => profiles.filter((profile) => profile.profileId !== '__prompt-optimizer__'),
     [profiles],
   );
-  const modelOptions = useMemo(
-    () => uniqueModels.map((model) => ({ id: model.id, label: modelLabel(model) })),
-    [uniqueModels],
-  );
   const selectedModelLabel = selectedModelId || (modelsLoading ? t.main.modelLoading : t.main.modelUnselected);
   const selectedModelInfo = uniqueModels.find((model) => model.id === selectedModelId);
+  const currentOperation = operationForAttachments(attachments);
+  const placementIntent = useMemo(() => derivePlacementIntent(attachments), [attachments]);
+  const modelOptions = useMemo(
+    () => uniqueModels.map((model) => {
+      const availabilityReason = modelAvailabilityReason(model, t);
+      const capabilityReason = modelCapabilityReason(model, currentOperation, generationSettings.outputSizePreset, t);
+      const disabled = !modelIsSelectable(model) || capabilityReason !== null;
+      return {
+        id: model.id,
+        label: modelLabel(model),
+        disabled,
+        ...(availabilityReason ?? capabilityReason ? { description: availabilityReason ?? capabilityReason ?? undefined } : {}),
+        badges: modelBadges(model, t),
+      };
+    }),
+    [currentOperation, generationSettings.outputSizePreset, t, uniqueModels],
+  );
+  const outputSizeOptions = useMemo(
+    () => OUTPUT_SIZE_OPTIONS.map((size) => {
+      const support = modelSupportsOutputSize(selectedModelInfo, currentOperation, size);
+      return {
+        id: size,
+        label: outputSizeLabel(size),
+        disabled: support === 'unsupported',
+        ...(support === 'unsupported' ? { description: t.main.outputSizeUnsupportedForModel } : {}),
+      };
+    }),
+    [currentOperation, selectedModelInfo, t.main.outputSizeUnsupportedForModel],
+  );
   const currentPromptValue = () => taRef.current?.value ?? input;
-  const canSend =
-    input.trim().length > 0 &&
-    Boolean(selectedProfile) &&
-    !conversation.running &&
-    (selectedModelId.trim().length === 0 || modelIsSelectable(selectedModelInfo));
   const optimizerReady = Boolean(promptOptimizerProfile?.enabled);
   const optimizing = optimizeState.status === 'optimizing';
   const showUndo = optimizeState.status === 'optimized' && input === optimizeState.result;
   const canOptimize = optimizerReady && input.trim().length > 0 && !optimizing;
-  const canCapture = !conversation.running && !captureInFlight;
+  const readiness = deriveComposerReadiness({
+    running: conversation.running,
+    profilesLoading,
+    profilesError,
+    hasSelectedProfile: Boolean(selectedProfile),
+    modelsLoading,
+    modelsError,
+    selectedModelId,
+    selectedModel: selectedModelInfo,
+    attachmentPreparing: captureInFlight,
+    attachmentFailed: false,
+    operation: currentOperation,
+    outputSizePreset: generationSettings.outputSizePreset,
+    placementIntent,
+    prompt: input,
+    optimizing,
+  });
+  const readinessText = readinessMessage(t, readiness.state);
+  const canSend = readiness.canSend;
+  const imageInputSupport = modelSupportsImageInput(selectedModelInfo);
+  const imageInputDisabled = imageInputSupport === 'unsupported';
+  const imageInputDisabledReason = t.main.imageInputDisabledForModel;
+  const canCapture = !conversation.running && !captureInFlight && !imageInputDisabled;
   const optimizeButtonLabel = showUndo ? t.main.promptOptimizeUndo : t.main.promptOptimize;
   const responseTextKey = (roundId: string) => `response:${roundId}`;
-  const pendingBillingToastProfileIdRef = useRef<string | null>(null);
-  const lastBillingToastKeyRef = useRef<string | null>(null);
+  const pendingBillingProfileIdRef = useRef<string | null>(null);
   const isAtBottom = useCallback(() => {
     const el = convRef.current;
     if (!el) return true;
@@ -342,37 +530,48 @@ export function MainPage({
     attachmentsRef.current = attachments;
   }, [attachments]);
 
-  const billingToastMessage = useCallback((state: ProfileBillingState | null): string | null => {
-    if (!state) {
-      return null;
+  useEffect(() => {
+    const support = modelSupportsOutputSize(selectedModelInfo, currentOperation, generationSettings.outputSizePreset);
+    if (support !== 'unsupported') {
+      return;
     }
-    const exact = formatExactTaskCost(state.lastExactTaskCost);
-    if (exact) {
-      return `${t.main.billingLastCost}: ${exact}`;
+    const fallback = firstSupportedSize(selectedModelInfo, currentOperation);
+    if (!fallback) {
+      return;
     }
-    const change = formatBalanceChange(state.lastBalanceChange);
-    if (change) {
-      return `${t.main.billingLastChange}: ${change}`;
+    if (sizeUserSelected && supportedSizePresetsForOperation(selectedModelInfo, currentOperation) !== 'unknown') {
+      return;
     }
-    return null;
-  }, [t.main.billingLastChange, t.main.billingLastCost]);
+    if (fallback === generationSettings.outputSizePreset) {
+      return;
+    }
+    const from = outputSizeLabel(generationSettings.outputSizePreset);
+    const to = outputSizeLabel(fallback);
+    void onChangeOutputSizePreset(fallback).then(() => {
+      setSizeFeedback(t.main.outputSizeAutoChanged(from, to));
+    });
+  }, [
+    currentOperation,
+    generationSettings.outputSizePreset,
+    onChangeOutputSizePreset,
+    selectedModelInfo,
+    sizeUserSelected,
+    t.main,
+  ]);
 
-  const showObservedBillingToast = useCallback(async (profileId: string) => {
+  const observeBillingForSubmittedRound = useCallback(async (roundId: string) => {
     const observed = await billing.observeAsyncRefresh();
-    if (pendingBillingToastProfileIdRef.current !== profileId) {
+    if (!observed) {
       return;
     }
-    pendingBillingToastProfileIdRef.current = null;
-    const message = billingToastMessage(observed);
-    if (!message) {
+    if (observed.lastExactTaskCost) {
+      setRoundBillingMeta((current) => ({ ...current, [roundId]: { kind: 'cost', cost: observed.lastExactTaskCost! } }));
       return;
     }
-    if (lastBillingToastKeyRef.current === message) {
-      return;
+    if (observed.lastBalanceChange) {
+      setRoundBillingMeta((current) => ({ ...current, [roundId]: { kind: 'balance-change', change: observed.lastBalanceChange! } }));
     }
-    lastBillingToastKeyRef.current = message;
-    show(message, 'positive', { key: 'billing-observed', icon: 'check' });
-  }, [billing, billingToastMessage, show]);
+  }, [billing]);
 
   useEffect(() => {
     return () => {
@@ -426,6 +625,19 @@ export function MainPage({
       for (const [roundId, status] of Object.entries(current)) {
         if (liveRoundIds.has(roundId)) {
           next[roundId] = status;
+        } else {
+          changed = true;
+        }
+      }
+      return changed ? next : current;
+    });
+    setRoundBillingMeta((current) => {
+      let changed = false;
+      const liveRoundIds = new Set(conversation.rounds.map((round) => round.id));
+      const next: Record<string, RoundBillingMeta> = {};
+      for (const [roundId, meta] of Object.entries(current)) {
+        if (liveRoundIds.has(roundId)) {
+          next[roundId] = meta;
         } else {
           changed = true;
         }
@@ -503,10 +715,47 @@ export function MainPage({
       onSelectModel(round.modelId);
     }
     if (round.attachments.length > 0) {
+      releaseAttachments(attachmentsRef.current.filter((attachment) => !round.attachments.includes(attachment)));
       setAttachments(round.attachments);
     }
     taRef.current?.focus();
     show(t.toast.promptFilled, 'info', { key: 'prompt-fill' });
+  };
+
+  const fillComposerFromFailedRound = useCallback((round: ConversationRound) => {
+    setInput(round.prompt);
+    releaseAttachments(attachmentsRef.current.filter((attachment) => !round.attachments.includes(attachment)));
+    setAttachments(round.attachments);
+    taRef.current?.focus();
+    show(t.toast.promptFilled, 'info', { key: `prompt-fill:${round.id}` });
+  }, [show, t.toast.promptFilled]);
+
+  useEffect(() => {
+    if (!restoreFailedRoundId) {
+      return;
+    }
+    const round = conversation.rounds.find((item) => item.id === restoreFailedRoundId);
+    if (!round || round.status !== 'err') {
+      return;
+    }
+    fillComposerFromFailedRound(round);
+    onFailedRoundRestored?.(round.id);
+  }, [conversation.rounds, fillComposerFromFailedRound, onFailedRoundRestored, restoreFailedRoundId]);
+
+  useEffect(() => {
+    const scope = `${selectedModelId}:${currentOperation}`;
+    if (lastSizeAutoScopeRef.current === scope) {
+      return;
+    }
+    lastSizeAutoScopeRef.current = scope;
+    setSizeUserSelected(false);
+  }, [currentOperation, selectedModelId]);
+
+  const removeAllAttachments = () => {
+    setAttachments((current) => {
+      releaseAttachments(current);
+      return [];
+    });
   };
 
   const handleCopy = (id: string, round: ConversationRound) => {
@@ -606,6 +855,10 @@ export function MainPage({
   };
 
   const addLayer = async (layer: LayerInfo) => {
+    if (imageInputDisabled) {
+      show(imageInputDisabledReason, 'warning', { key: 'image-input-disabled' });
+      return;
+    }
     try {
       const image = await services.host.readLayerAsAsset(layer.id, providerInputPolicy(generationSettings));
       addAttachment({
@@ -623,11 +876,19 @@ export function MainPage({
   };
 
   const openLayerPicker = () => {
+    if (imageInputDisabled) {
+      show(imageInputDisabledReason, 'warning', { key: 'image-input-disabled' });
+      return;
+    }
     setLayerOpen(true);
     void reloadLayers();
   };
 
   const addFile = async () => {
+    if (imageInputDisabled) {
+      show(imageInputDisabledReason, 'warning', { key: 'image-input-disabled' });
+      return;
+    }
     try {
       const image = await services.host.pickImageFile(providerInputPolicy(generationSettings));
       if (!image) {
@@ -657,6 +918,9 @@ export function MainPage({
 
   const captureFromPhotoshop = async () => {
     if (!canCapture) {
+      if (imageInputDisabled) {
+        show(imageInputDisabledReason, 'warning', { key: 'image-input-disabled' });
+      }
       return;
     }
     setCaptureInFlight(true);
@@ -679,15 +943,13 @@ export function MainPage({
   };
 
   const handleSend = async () => {
-    if (!selectedProfile) {
-      show(t.toast.selectProviderProfileFirst, 'info', { key: 'send-select-profile' });
-      return;
-    }
-    if (selectedModelId.trim().length > 0 && !modelIsSelectable(selectedModelInfo)) {
-      show(t.settings.modelSelectableOnly, 'warning', { key: 'send-model-selectable' });
-      return;
-    }
     if (!canSend) {
+      if (readiness.state !== 'ready') {
+        show(readinessText, readiness.state === 'model-unavailable' ? 'warning' : 'info', { key: 'send-readiness' });
+      }
+      return;
+    }
+    if (!selectedProfile) {
       return;
     }
     const prompt = currentPromptValue().trim();
@@ -705,7 +967,7 @@ export function MainPage({
     }
     setInput('');
     setAttachments([]);
-    pendingBillingToastProfileIdRef.current = selectedProfile.profileId;
+    pendingBillingProfileIdRef.current = selectedProfile.profileId;
     await conversation.submit({
       operation: attachments.length > 0 ? 'image-edit' : 'text-to-image',
       prompt,
@@ -722,7 +984,6 @@ export function MainPage({
       },
       providerInputSizePreset: generationSettings.providerInputSizePreset,
     });
-    void showObservedBillingToast(selectedProfile.profileId);
   };
 
   const handleOptimize = async () => {
@@ -773,7 +1034,7 @@ export function MainPage({
     if (!billing.error) {
       return;
     }
-    if (pendingBillingToastProfileIdRef.current !== null) {
+    if (pendingBillingProfileIdRef.current !== null) {
       return;
     }
     if (billing.billing?.refreshState !== 'error') {
@@ -783,12 +1044,39 @@ export function MainPage({
   }, [billing.billing?.refreshState, billing.error]);
 
   useEffect(() => {
+    let observedRoundId: string | null = null;
+    const next: Record<string, ConversationRound['status']> = {};
+    for (const round of conversation.rounds) {
+      next[round.id] = round.status;
+      const previous = previousRoundStatusRef.current[round.id];
+      if (
+        pendingBillingProfileIdRef.current &&
+        (previous === 'running' || previous === undefined) &&
+        round.status === 'ok' &&
+        round.profileId === pendingBillingProfileIdRef.current &&
+        roundBillingMeta[round.id] === undefined
+      ) {
+        observedRoundId = round.id;
+      }
+    }
+    previousRoundStatusRef.current = next;
+    if (observedRoundId) {
+      pendingBillingProfileIdRef.current = null;
+      void observeBillingForSubmittedRound(observedRoundId);
+    }
+  }, [conversation.rounds, observeBillingForSubmittedRound, roundBillingMeta]);
+
+  useEffect(() => {
     if (optimizeState.status === 'optimized' && input !== optimizeState.result) {
       setOptimizeState({ status: 'idle' });
     }
   }, [input, optimizeState]);
 
   const placeAsset = async (round: ConversationRound, previewIndex = 0) => {
+    if (round.placementIntent.kind === 'unbound' && round.placementIntent.reason === 'multiple-documents') {
+      show(t.main.placementMultipleDocuments, 'warning', { key: `place-conflict:${round.id}` });
+      return;
+    }
     const asset = round.previews[previewIndex]?.asset;
     if (!asset) {
       show(t.toast.noPlaceableImage, 'info', { key: 'output-missing-placeable' });
@@ -893,13 +1181,6 @@ export function MainPage({
       </header>
 
       <div className="scroll" ref={convRef}>
-        {(formatExactTaskCost(billing.billing?.lastExactTaskCost) || formatBalanceChange(billing.billing?.lastBalanceChange)) && (
-          <div style={{ padding: '8px 16px 0', fontSize: 11, color: 'var(--app-color-text-muted)' }}>
-            {formatExactTaskCost(billing.billing?.lastExactTaskCost)
-              ? `${t.main.billingLastCost}: ${formatExactTaskCost(billing.billing?.lastExactTaskCost)}`
-              : `${t.main.billingLastChange}: ${formatBalanceChange(billing.billing?.lastBalanceChange)}`}
-          </div>
-        )}
         <div className="round-list">
           <div className="day-sep">
             <div className="day-sep-line" /><span className="day-sep-lbl">{t.main.currentSession}</span><div className="day-sep-line" />
@@ -976,8 +1257,30 @@ export function MainPage({
               {round.status === 'err' && (
                 <div className="msg-prov msg-prov-surface" style={{ marginTop: 4 }}>
                   {(() => {
-                    const failure = parseRoundError(round.errorMessage);
+                    const failure = classifyRoundError(round.errorMessage);
                     const requestCopyKey = requestIdCopyKey(round.id);
+                    const handlePrimaryErrorAction = () => {
+                      switch (failure.primaryAction) {
+                        case 'open-provider-settings':
+                          if (round.profileId && onEditProfile) {
+                            onEditProfile(round.profileId);
+                          }
+                          return;
+                        case 'choose-supported-size':
+                          setOpenMenu('output-size');
+                          return;
+                        case 'choose-compatible-model':
+                          setOpenMenu('model');
+                          return;
+                        case 'replace-image':
+                          removeAllAttachments();
+                          setAttachOpen(true);
+                          return;
+                        case 'fill-composer-from-failed-round':
+                          fillComposerFromFailedRound(round);
+                          return;
+                      }
+                    };
                     return (
                       <div className="err-card">
                         <div className="err-top">
@@ -986,7 +1289,9 @@ export function MainPage({
                             {t.status.failed} · {round.providerName}
                           </span>
                         </div>
+                        <div className="err-category">{t.main.errorCategory}: {t.main.errorCategoryLabel[failure.category] ?? t.main.errorCategoryLabel.unknown}</div>
                         <div className="err-msg">{failure.message}</div>
+                        {failure.detail ? <div className="err-detail">{failure.detail}</div> : null}
                         {failure.requestId ? (
                           <div className="err-request">
                             <div className="err-request-label">{t.main.requestId}</div>
@@ -1007,7 +1312,22 @@ export function MainPage({
                           </div>
                         ) : null}
                         <div className="err-actions">
-                          <button data-testid={`error-retry-button-${round.id}`} className="err-retry" disabled={conversation.running} onClick={() => void conversation.retry(round.id)}>{t.history.retry}</button>
+                          <button
+                            data-testid={`error-primary-action-button-${round.id}`}
+                            className="err-retry"
+                            disabled={conversation.running}
+                            onClick={handlePrimaryErrorAction}
+                          >
+                            {primaryActionLabel(t, failure.primaryAction)}
+                          </button>
+                          <button
+                            data-testid={`error-fill-composer-button-${round.id}`}
+                            className="err-retry err-retry-secondary"
+                            disabled={conversation.running}
+                            onClick={() => fillComposerFromFailedRound(round)}
+                          >
+                            {t.main.errorActionFillComposer}
+                          </button>
                         </div>
                       </div>
                     );
@@ -1034,7 +1354,9 @@ export function MainPage({
                       />
                       <div className="prov-status">
                         <span className="sdot run" />
-                        <span className="prov-status-text run">{roundStatusElapsed(round)}</span>
+                        <span className="prov-status-text run">
+                          {(round.elapsedSeconds <= 0 ? t.main.runningPhaseSubmitting : t.main.runningPhaseGenerating)} · {roundStatusElapsed(round)}
+                        </span>
                       </div>
                     </div>
                     <div className="prov-loading">
@@ -1043,7 +1365,7 @@ export function MainPage({
                         <MotionActivityDot className="ldot" />
                         <MotionActivityDot className="ldot" />
                       </div>
-                      <span style={{ fontFamily: 'var(--app-font-family-mono)', fontSize: 11, color: 'var(--app-color-text-muted)' }}>{t.main.submitJobRunning}</span>
+                      <span style={{ fontFamily: 'var(--app-font-family-mono)', fontSize: 11, color: 'var(--app-color-text-muted)' }}>{round.elapsedSeconds <= 0 ? t.main.runningPhaseSubmitting : t.main.runningPhaseGenerating}</span>
                     </div>
                   </div>
                 </div>
@@ -1062,6 +1384,7 @@ export function MainPage({
                 const providerModelLabel = round.modelId || selectedModelLabel;
                 const canGoPrev = selectedPreviewIndex > 0;
                 const canGoNext = selectedPreviewIndex < round.previews.length - 1;
+                const billingMeta = roundBillingMeta[round.id];
                 return (
                 <div className="msg-prov msg-prov-surface" style={{ marginTop: 4 }}>
                   <div className={`prov-card${hasImages ? ` prov-card-media media-${mediaShapeFromSize(round.outputSize)}` : ' prov-card-text-only'}`}>
@@ -1174,32 +1497,45 @@ export function MainPage({
                           )}
                           <div className="img-overlay">
                             <MotionButtonSurface>
+                              {(() => {
+                                const placeButton = placementButtonState(round.placementIntent, placeStatus[round.id] ?? 'idle', t);
+                                return (
                               <Button
                                 data-testid={`result-place-button-${round.id}`}
                                 className="img-act prim"
                                 data-place-status={placeStatus[round.id] ?? 'idle'}
                                 variant="accent"
-                                title={placeStatus[round.id] === 'placing'
-                                  ? t.main.placingPs
-                                  : placeStatus[round.id] === 'placed'
-                                    ? t.main.placedPs
-                                    : t.main.placePs}
-                                disabled={placeStatus[round.id] === 'placing'}
+                                title={placeButton.title}
+                                disabled={placeButton.disabled}
                                 onClick={(event) => { event.stopPropagation(); void placeAsset(round, selectedPreviewIndex); }}
                               >
-                                {placeStatus[round.id] === 'placing'
-                                  ? t.main.placingPs
-                                  : placeStatus[round.id] === 'placed'
-                                    ? t.main.placedPs
-                                    : t.main.placePs}
+                                {placeButton.label}
                               </Button>
+                                );
+                              })()}
                             </MotionButtonSurface>
                           </div>
                         </div>
                       </div>
                     ) : null}
+                    {!hasImages && billingMeta ? (
+                      <div className="prov-actions prov-actions-text-meta">
+                        <span className="round-billing-meta" data-testid={`round-billing-meta-${round.id}`}>
+                          {billingMeta.kind === 'cost'
+                            ? `${t.main.billingCost}: ${formatExactTaskCost(billingMeta.cost)}`
+                            : `${t.main.billingObservedChange}: ${formatBalanceChange(billingMeta.change)}`}
+                        </span>
+                      </div>
+                    ) : null}
                     {hasImages && (
                       <div className="prov-actions">
+                        {billingMeta ? (
+                          <span className="round-billing-meta" data-testid={`round-billing-meta-${round.id}`}>
+                            {billingMeta.kind === 'cost'
+                              ? `${t.main.billingCost}: ${formatExactTaskCost(billingMeta.cost)}`
+                              : `${t.main.billingObservedChange}: ${formatBalanceChange(billingMeta.change)}`}
+                          </span>
+                        ) : null}
                         <IconButton
                           data-testid={`result-download-button-${round.id}`}
                           className="act-ico act-download"
@@ -1307,9 +1643,9 @@ export function MainPage({
                   quiet
                   selected={attachOpen || layerOpen}
                   icon={<Icon name="add" />}
-                  tooltip={t.main.addImage}
+                  tooltip={imageInputDisabled ? imageInputDisabledReason : t.main.addImage}
                   placement="top"
-                  disabled={conversation.running}
+                  disabled={conversation.running || imageInputDisabled}
                   onClick={(event) => {
                     event.stopPropagation();
                     setAttachOpen((open) => !open);
@@ -1340,6 +1676,27 @@ export function MainPage({
               </div>
           </div>
           <div className="cmp-core">
+            {attachments.length > 0 && imageInputDisabled && (
+              <div className="cmp-conflict" data-testid="composer-image-input-conflict">
+                {t.main.imageInputConflict}
+                <div className="cmp-conflict-actions">
+                  <button
+                    type="button"
+                    className="cmp-conflict-action"
+                    onClick={() => {
+                      setOpenMenu('model');
+                      setAttachOpen(false);
+                      setLayerOpen(false);
+                    }}
+                  >
+                    {t.main.chooseCompatibleModel}
+                  </button>
+                  <button type="button" className="cmp-conflict-action" onClick={removeAllAttachments}>
+                    {t.main.removeImages}
+                  </button>
+                </div>
+              </div>
+            )}
             <div className="cmp-body">
               <MotionHighlight activeKey={highlightKey?.startsWith('optimize:') ? highlightKey : null} />
               <UxpTextArea
@@ -1356,7 +1713,7 @@ export function MainPage({
                     void handleSend();
                   }
                 }}
-                disabled={conversation.running || optimizing}
+                disabled={optimizing}
               />
             </div>
             <div className="cmp-action-row" data-testid="composer-action-row">
@@ -1417,8 +1774,8 @@ export function MainPage({
                     icon={captureInFlight
                       ? <MotionActivityIcon className="cmp-capture-icon"><Icon name="spinner" size={13} /></MotionActivityIcon>
                       : <Icon name="target" size={13} className="cmp-capture-icon" />}
-                    tooltip={t.main.captureActionHint}
-                    aria-label={t.main.captureActionHint}
+                    tooltip={imageInputDisabled ? imageInputDisabledReason : t.main.captureActionHint}
+                    aria-label={imageInputDisabled ? imageInputDisabledReason : t.main.captureActionHint}
                     placement="top"
                     iconSize={13}
                     disabled={!canCapture}
@@ -1441,8 +1798,8 @@ export function MainPage({
                       icon={conversation.running
                         ? <MotionActivityIcon><Icon name="spinner" size={13} /></MotionActivityIcon>
                         : <Icon name="send" />}
-                      tooltip={conversation.running ? t.main.regenerate : t.main.send}
-                      aria-label={conversation.running ? t.main.regenerate : t.main.send}
+                      tooltip={readinessText}
+                      aria-label={readinessText}
                       placement="top"
                       iconSize={13}
                       disabled={!canSend || optimizing}
@@ -1451,6 +1808,9 @@ export function MainPage({
                   </MotionButtonSurface>
                 </div>
               </div>
+            </div>
+            <div className="cmp-readiness" data-testid="composer-readiness-status" data-state={readiness.state}>
+              {readinessText}
             </div>
           </div>
           <div className="cmp-toolbar" data-testid="composer-toolbar">
@@ -1486,18 +1846,16 @@ export function MainPage({
                   setProfileMenuOpen(false);
                   setOpenMenu(open ? 'output-size' : null);
                 }}
-                options={[
-                  { id: '512', label: '512' },
-                  { id: '1k', label: '1K' },
-                  { id: '2k', label: '2K' },
-                  { id: '4k', label: '4K' },
-                ]}
+                options={outputSizeOptions}
                 selectedId={generationSettings.outputSizePreset}
                 onSelect={(value) => {
+                  setSizeUserSelected(true);
+                  setSizeFeedback(null);
                   void onChangeOutputSizePreset(value as AppOutputSizePreset);
                 }}
                 icon="image-auto-mode"
               />
+              {sizeFeedback ? <div className="cmp-size-feedback" data-testid="composer-size-feedback">{sizeFeedback}</div> : null}
             </div>
           </div>
           </MotionDimSurface>

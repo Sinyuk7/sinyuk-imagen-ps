@@ -343,6 +343,21 @@ export const CONVERSATION_CSS = `
 .err-msg{
   margin-top:7px; font-size:13px; color:#fff4f2; line-height:18px; font-weight:600; padding-left:0;
 }
+.err-category{
+  margin-top:7px;
+  font-size:10px;
+  line-height:13px;
+  color:rgba(255,235,231,.72);
+  font-family:var(--app-font-family-mono);
+}
+.err-detail{
+  margin-top:7px;
+  font-size:11px;
+  line-height:16px;
+  color:rgba(255,244,242,.72);
+  font-family:var(--app-font-family-mono);
+  overflow-wrap:anywhere;
+}
 .err-request{ margin-top:8px; min-width:0; }
 .err-request-label{
   font-size:10px; line-height:12px; color:rgba(255,235,231,.72); letter-spacing:.04em;
@@ -361,6 +376,12 @@ export const CONVERSATION_CSS = `
 }
 .err-retry:hover{ background:#dd6662; }
 .err-retry:disabled{ opacity:.45; cursor:not-allowed; }
+.err-retry-secondary{
+  margin-left:8px;
+  background:rgba(255,255,255,.08);
+  color:#fff4f2;
+}
+.err-retry-secondary:hover{ background:rgba(255,255,255,.14); }
 .err-copy{
   width:28px; height:28px; min-width:28px; min-height:28px; padding:0; margin-left:5px;
   border:1px solid rgba(255,255,255,.08); border-radius:8px; background:rgba(255,255,255,.03);
@@ -374,6 +395,21 @@ export const CONVERSATION_CSS = `
   background:transparent; color:var(--app-color-negative); font-size:10px; font-weight:500; cursor:pointer; font-family:var(--app-font-family-base);
 }
 .row-retry:hover{ background:var(--app-color-negative-subtle); }
+.round-billing-meta{
+  display:inline-flex;
+  align-items:center;
+  min-height:22px;
+  margin-right:8px;
+  color:var(--app-color-text-muted);
+  font-family:var(--app-font-family-mono);
+  font-size:10px;
+  line-height:14px;
+}
+.prov-actions-text-meta{
+  border-top:none;
+  padding-top:7px;
+  padding-bottom:7px;
+}
 
 /* Empty */
 .conv-empty{

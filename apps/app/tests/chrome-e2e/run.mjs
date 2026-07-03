@@ -551,7 +551,7 @@ async function errorRetryScenario({ page, url, capture }) {
     await expectVisibleText(page, 'Retry');
   });
   await page.evaluate(async () => globalThis.__IMAGEN_CHROME_TEST_HARNESS__?.setMockFailureMode('none'));
-  await page.locator('[data-testid^="error-retry-button-"]').first().click();
+  await page.locator('[data-testid^="error-primary-action-button-"]').first().click();
   await checkpoint(page, capture, '30-main-retry-success.png', async () => {
     await waitForDoneResult(page);
   });

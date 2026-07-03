@@ -731,7 +731,7 @@ describe('useConversation', () => {
     expect(spies.submitJob.mock.calls[1]?.[0].input.images).toEqual([fakeProviderInputAsset]);
   });
 
-  it('blocks same-tick double retry on a failed round to one new task submission', async () => {
+  it('keeps failed-round retry from submitting or calling retryJob', async () => {
     const { services } = createFakeServices();
     const retryJobSpy = vi.fn(async () => ({
       ok: true as const,
@@ -745,7 +745,7 @@ describe('useConversation', () => {
         updatedAt: '2026-06-15T00:00:01.000Z',
       } satisfies Job,
     }));
-    // 让 submit 产生一个 failed round（status==='err'），retry 走 retryJob 路径。
+    // 让 submit 产生一个 failed round（status==='err'）；UI 层负责把失败草稿填回 composer。
     services.commands.submitJob = vi.fn(async (input: { input: Record<string, unknown> }) => ({
       ok: true as const,
       value: failedJob(input.input),
@@ -772,9 +772,8 @@ describe('useConversation', () => {
       await Promise.all([a, b]);
     });
 
-    // failed retry/regenerate 创建新 task，不 mutate 旧 job attempt。
-    expect(services.commands.submitJob).toHaveBeenCalledTimes(2);
+    expect(services.commands.submitJob).toHaveBeenCalledTimes(1);
     expect(retryJobSpy).not.toHaveBeenCalled();
-    expect(getController().rounds).toHaveLength(2);
+    expect(getController().rounds).toHaveLength(1);
   });
 });

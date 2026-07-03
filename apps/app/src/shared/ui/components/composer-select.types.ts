@@ -4,6 +4,9 @@ export interface ComposerSelectOption {
   readonly id: string;
   readonly label: string;
   readonly icon?: IconName;
+  readonly disabled?: boolean;
+  readonly description?: string;
+  readonly badges?: readonly string[];
 }
 
 interface ComposerSelectPropsBase {

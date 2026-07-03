@@ -604,7 +604,10 @@ export function useConversation(
       retryInFlightRef.current.add(roundId);
       try {
         const round = rounds.find((item) => item.id === roundId);
-        if ((round?.status === 'ok' || round?.status === 'err') && round.profileId) {
+        if (round?.status === 'err') {
+          return;
+        }
+        if (round?.status === 'ok' && round.profileId) {
           await submit({
             operation: round.attachments.length > 0 ? 'image-edit' : 'text-to-image',
             prompt: round.prompt,

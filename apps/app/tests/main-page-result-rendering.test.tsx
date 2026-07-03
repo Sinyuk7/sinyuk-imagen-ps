@@ -282,7 +282,42 @@ describe('MainPage contract — result rendering', () => {
     });
 
     expect(writeText).toHaveBeenCalledWith('20260702182031563028416evPNk4m7');
-    expect(container.querySelector<HTMLElement>('[data-testid^="error-retry-button-"]')?.textContent).toContain('重试');
+    expect(container.querySelector('.err-category')?.textContent).toContain('认证失败');
+    expect(container.querySelector<HTMLElement>('[data-testid^="error-primary-action-button-"]')?.textContent).toContain('打开 Provider 设置');
+  });
+
+  it('failed-round Retry fills the composer without submitting or switching settings', async () => {
+    const container = document.createElement('div');
+    document.body.appendChild(container);
+    const services = createFakeServices();
+    services.spies.submitJob.mockResolvedValueOnce({
+      ok: true as const,
+      value: {
+        id: 'job-failed-fill',
+        status: 'failed',
+        input: {},
+        output: undefined,
+        error: {
+          category: 'provider',
+          message: 'provider temporarily unavailable',
+        },
+        createdAt: '2026-06-15T00:00:00.000Z',
+        updatedAt: '2026-06-15T00:00:01.000Z',
+      },
+    });
+    await renderMainPage(container, services);
+
+    await sendPrompt(container, 'draft from failed round');
+    expect(services.spies.submitJob).toHaveBeenCalledTimes(1);
+
+    await act(async () => {
+      container.querySelector<HTMLElement>('[data-testid^="error-primary-action-button-"]')!.click();
+    });
+    await flush();
+
+    expect(services.spies.submitJob).toHaveBeenCalledTimes(1);
+    expect(services.services.commands.retryJob).not.toHaveBeenCalled();
+    expect(container.querySelector<HTMLTextAreaElement>('.cmp-ta')?.value).toBe('draft from failed round');
   });
 
   it('renders compact mock token response as plain response text without details splitting', async () => {

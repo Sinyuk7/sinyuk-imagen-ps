@@ -1,5 +1,8 @@
 import type { ProviderOperation } from './capability.js';
 import type {
+  ModelOperationCapability,
+  ProviderModelAvailabilityReason,
+  ProviderModelCapabilities,
   ProviderModelInfo,
   ProviderModelMatchKind,
   ProviderModelSupportStatus,
@@ -148,6 +151,18 @@ function supportStatusForConfiguredModel(args: {
   return args.remotelyAvailable ? 'selectable' : 'saved-undiscovered';
 }
 
+function availabilityReasonForStatus(status: ProviderModelSupportStatus): ProviderModelAvailabilityReason | undefined {
+  switch (status) {
+    case 'saved-undiscovered':
+      return 'not-remotely-available';
+    case 'custom-unchecked':
+      return 'unknown';
+    case 'selectable':
+    default:
+      return undefined;
+  }
+}
+
 function buildProviderModelInfo(
   capability: ImageModelCapability,
   overrides?: Partial<ProviderModelInfo>,
@@ -155,6 +170,12 @@ function buildProviderModelInfo(
   const id = overrides?.id ?? canonicalModelIdForCapability(capability);
   const locallySupported = overrides?.locallySupported ?? true;
   const remotelyAvailable = overrides?.remotelyAvailable;
+  const supportStatus = overrides?.supportStatus ??
+    supportStatusForConfiguredModel({
+      locallySupported,
+      remotelyAvailable: remotelyAvailable ?? capability.discovery?.requireRemotePresence !== true,
+    });
+  const availabilityReason = availabilityReasonForStatus(supportStatus);
   return {
     id,
     displayName: overrides?.displayName ?? capability.displayName,
@@ -163,12 +184,15 @@ function buildProviderModelInfo(
     pickerVisible: overrides?.pickerVisible ?? capability.selection.visibleInPicker,
     locallySupported,
     ...(remotelyAvailable !== undefined ? { remotelyAvailable } : {}),
-    supportStatus:
-      overrides?.supportStatus ??
-      supportStatusForConfiguredModel({
-        locallySupported,
-        remotelyAvailable: remotelyAvailable ?? capability.discovery?.requireRemotePresence !== true,
-      }),
+    supportStatus,
+    availability: overrides?.availability ?? {
+      status: supportStatus,
+      ...(availabilityReason !== undefined ? { reason: availabilityReason } : {}),
+    },
+    capabilities: overrides?.capabilities ?? summarizeCapabilityForRule({
+      capability,
+      matchKind: overrides?.matchKind,
+    }),
   };
 }
 
@@ -272,6 +296,92 @@ function assertSingleCapability(
 
 export function providerUsesImageModelCatalog(providerId: string): providerId is ImageCatalogProviderId {
   return providerId === 'image-endpoint' || providerId === 'chat-image';
+}
+
+function sizePresetsForOperation(
+  capability: ImageModelCapability,
+  operation: ImageOperation,
+): readonly ImageSizePreset[] | 'unknown' {
+  if (capability.variants !== undefined) {
+    return Array.from(
+      new Set(
+        capability.variants
+          .filter((variant) => variant.operation === operation)
+          .map((variant) => variant.preset),
+      ),
+    );
+  }
+
+  if (capability.constraintStrategy === undefined) {
+    return 'unknown';
+  }
+
+  return operationSupportFromStrategy(capability.constraintStrategy, operation).presets;
+}
+
+function operationCapability(
+  capability: ImageModelCapability,
+  operation: ImageOperation,
+  matchKind?: ProviderModelMatchKind,
+): ModelOperationCapability {
+  if (matchKind === 'default') {
+    return {
+      support: 'unknown',
+      sizePresets: 'unknown',
+      reason: 'not-in-local-catalog',
+    };
+  }
+
+  const sizePresets = sizePresetsForOperation(capability, operation);
+  if (sizePresets === 'unknown') {
+    return {
+      support: 'unknown',
+      sizePresets: 'unknown',
+      reason: 'insufficient-catalog-evidence',
+    };
+  }
+
+  if (sizePresets.length === 0) {
+    return {
+      support: 'unsupported',
+      sizePresets,
+      reason: 'operation-unsupported',
+    };
+  }
+
+  return {
+    support: 'supported',
+    sizePresets,
+  };
+}
+
+function summarizeCapabilityForRule(args: {
+  readonly capability: ImageModelCapability;
+  readonly matchKind?: ProviderModelMatchKind;
+}): ProviderModelCapabilities {
+  return {
+    operations: {
+      textToImage: operationCapability(args.capability, 'text_to_image', args.matchKind),
+      imageEdit: operationCapability(args.capability, 'image_edit', args.matchKind),
+    },
+    inputImages: {
+      mask: 'unknown',
+    },
+  };
+}
+
+/**
+ * 汇总 catalog 对 model 能力的可证明证据；未命中 curated rule 时保持 unknown。
+ */
+export function summarizeImageModelCapabilities(args: {
+  readonly providerId: ImageCatalogProviderId;
+  readonly modelId: string;
+}): ProviderModelCapabilities {
+  const resolved = resolveImageModelRule(args);
+  return summarizeCapabilityForRule({
+    capability: resolved.capability,
+    matchKind: resolved.matchKind,
+  });
 }
 
 export function resolveImageModelRule(args: {
@@ -428,16 +538,15 @@ export function describeConfiguredCatalogModel(args: {
   const remotelyAvailable = discoveredRuleIds.has(resolved.ruleId);
 
   if (resolved.matchKind === 'default') {
-    return {
+    return buildProviderModelInfo(resolved.capability, {
       id: modelId,
       displayName: modelId,
-      ruleId: resolved.ruleId,
       matchKind: resolved.matchKind,
       pickerVisible: false,
       locallySupported: false,
       remotelyAvailable,
       supportStatus: 'custom-unchecked',
-    };
+    });
   }
 
   return buildProviderModelInfo(resolved.capability, {

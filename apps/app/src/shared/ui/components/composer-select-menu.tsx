@@ -51,7 +51,7 @@ export function ComposerSelectMenu({
     if (event.key === 'ArrowDown' || event.key === 'ArrowUp') {
       event.preventDefault();
       event.stopPropagation();
-      const items = Array.from(menuRef.current?.querySelectorAll<HTMLButtonElement>('[role="option"]') ?? []);
+      const items = Array.from(menuRef.current?.querySelectorAll<HTMLButtonElement>('[role="option"]:not(:disabled)') ?? []);
       if (items.length === 0) {
         return;
       }
@@ -67,6 +67,9 @@ export function ComposerSelectMenu({
     const active = document.activeElement as HTMLElement | null;
     const id = active?.getAttribute('data-value');
     if (!id) {
+      return;
+    }
+    if ((active as HTMLButtonElement).disabled) {
       return;
     }
     event.preventDefault();
@@ -115,18 +118,32 @@ export function ComposerSelectMenu({
               type="button"
               data-testid={testId ? `${testId}-option-${option.id}` : undefined}
               data-value={option.id}
-              className={`cmp-select-option${selected ? ' selected' : ''}`}
+              className={`cmp-select-option${selected ? ' selected' : ''}${option.disabled ? ' disabled' : ''}`}
               role="option"
               aria-selected={selected}
+              aria-disabled={option.disabled ? true : undefined}
+              disabled={option.disabled}
+              title={option.description}
               onMouseDown={handlePressStart}
               onPointerDown={handlePressStart}
               onClick={(event) => {
                 event.stopPropagation();
+                if (option.disabled) {
+                  return;
+                }
                 onSelect(option.id);
               }}
             >
               {option.icon && <Icon name={option.icon} size={14} className="cmp-select-option-icon" />}
-              <span className="cmp-select-option-label">{option.label}</span>
+              <span className="cmp-select-option-body">
+                <span className="cmp-select-option-label">{option.label}</span>
+                {option.description ? <span className="cmp-select-option-description">{option.description}</span> : null}
+              </span>
+              {option.badges?.length ? (
+                <span className="cmp-select-option-badges">
+                  {option.badges.map((badge) => <span key={badge} className="cmp-select-option-badge">{badge}</span>)}
+                </span>
+              ) : null}
               {selected && <Icon name="check" size={12} className="cmp-select-option-check" />}
             </button>
           );

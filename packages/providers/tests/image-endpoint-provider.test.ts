@@ -10,6 +10,7 @@ import {
 } from '../src/transport/image-endpoint/build-request.js';
 import {
   resolveImageModelRule,
+  summarizeImageModelCapabilities,
   validateImageModelCatalog,
 } from '../src/contract/image-model-capability.js';
 import { inspectModelsResponse, parseModelsResponse } from '../src/transport/image-endpoint/models.js';
@@ -288,6 +289,58 @@ describe('image-endpoint provider', () => {
     expect(resolved.ruleId).toBe('image-endpoint-grok-imagine-image-pro');
     expect(resolved.concreteModelId).toBe('grok-imagine-image-quality');
     expect(resolved.matchKind).toBe('exact');
+  });
+
+  it('summarizes gpt-image-1 text-to-image and image-edit capability separately from availability', () => {
+    const summary = summarizeImageModelCapabilities({
+      providerId: 'image-endpoint',
+      modelId: 'gpt-image-1',
+    });
+
+    expect(summary.operations.textToImage).toMatchObject({
+      support: 'supported',
+      sizePresets: ['1k', '2k'],
+    });
+    expect(summary.operations.imageEdit).toMatchObject({
+      support: 'unsupported',
+      sizePresets: [],
+      reason: 'operation-unsupported',
+    });
+  });
+
+  it('summarizes dall-e-3 as text-to-image only with its own size limits', () => {
+    const summary = summarizeImageModelCapabilities({
+      providerId: 'image-endpoint',
+      modelId: 'dall-e-3',
+    });
+
+    expect(summary.operations.textToImage).toMatchObject({
+      support: 'supported',
+      sizePresets: ['1k', '2k'],
+    });
+    expect(summary.operations.imageEdit).toMatchObject({
+      support: 'unsupported',
+      sizePresets: [],
+      reason: 'operation-unsupported',
+    });
+  });
+
+  it('keeps catalog-unknown models as unknown instead of unsupported', () => {
+    const summary = summarizeImageModelCapabilities({
+      providerId: 'image-endpoint',
+      modelId: 'custom-image-model',
+    });
+
+    expect(summary.operations.textToImage).toMatchObject({
+      support: 'unknown',
+      sizePresets: 'unknown',
+      reason: 'not-in-local-catalog',
+    });
+    expect(summary.operations.imageEdit).toMatchObject({
+      support: 'unknown',
+      sizePresets: 'unknown',
+      reason: 'not-in-local-catalog',
+    });
   });
 
   it('rejects unsupported gpt-image-1 semantic output locally before transport', () => {

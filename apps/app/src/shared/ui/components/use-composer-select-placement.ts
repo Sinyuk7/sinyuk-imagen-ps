@@ -104,11 +104,11 @@ export function useComposerSelectPlacement({
     const minLeft = horizontalBoundaryLeft;
     const maxLeft = Math.max(horizontalBoundaryLeft, horizontalBoundaryRight - width);
     const clampedLeft = clampNumber(rawLeft, minLeft, maxLeft);
-    const align = clampedLeft <= chipRect.left ? 'start' : 'end';
+    const align = preferredAlign;
     const top = direction === 'down' ? chipRect.bottom - panelRect.top + MENU_GAP : undefined;
     const bottom = direction === 'up' ? panelRect.bottom - chipRect.top + MENU_GAP : undefined;
-    const left = clampedLeft - panelRect.left;
-    const right = undefined;
+    const left = align === 'start' ? clampedLeft - panelRect.left : undefined;
+    const right = align === 'end' ? panelRect.right - (clampedLeft + width) : undefined;
 
     setMenuPlacement((current) => {
       if (

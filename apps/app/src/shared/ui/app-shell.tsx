@@ -2,7 +2,7 @@ import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, typ
 import { AppServicesProvider } from '../ports/app-services-context';
 import type { AppServices } from '../ports/app-services';
 import type { LayerInfo } from '../ports/host-port';
-import { PROMPT_OPTIMIZER_PROFILE_ID, type ProviderProfile } from '@imagen-ps/application';
+import { PROMPT_OPTIMIZER_PROFILE_ID, type ProviderModelInfo, type ProviderProfile } from '@imagen-ps/application';
 import type { SupportedLocale } from '../domain/locale';
 import type { PluginAppModel } from '../domain/plugin-app-model';
 import { useConversation } from './hooks/use-conversation';
@@ -181,6 +181,17 @@ function defaultModelFor(profile: ProviderProfile | undefined): string {
   return typeof configured === 'string' ? configured : '';
 }
 
+function mergeConfiguredDefaultModel(
+  models: readonly ProviderModelInfo[],
+  profile: ProviderProfile | undefined,
+): readonly ProviderModelInfo[] {
+  const configured = defaultModelFor(profile);
+  if (!configured || models.some((model) => model.id === configured)) {
+    return models;
+  }
+  return [{ id: configured, supportStatus: 'custom-unchecked' }, ...models];
+}
+
 function AppShellContent({ host }: AppShellProps) {
   const { messages: t } = useI18n();
   const services = host.services;
@@ -192,6 +203,7 @@ function AppShellContent({ host }: AppShellProps) {
   const [selectedSettingsProfileId, setSelectedSettingsProfileId] = useState<string | null>(null);
   const [selectedModelId, setSelectedModelId] = useState('');
   const [highlightedRoundId, setHighlightedRoundId] = useState<string | null>(null);
+  const [restoreFailedRoundId, setRestoreFailedRoundId] = useState<string | null>(null);
   const profilesState = useProviderProfiles(services);
   const imageProfiles = useMemo(
     () => profilesState.profiles.filter((profile) => profile.profileId !== PROMPT_OPTIMIZER_PROFILE_ID),
@@ -209,6 +221,10 @@ function AppShellContent({ host }: AppShellProps) {
     ? `${selectedProfile.updatedAt}:${defaultModelFor(selectedProfile)}`
     : '';
   const modelsState = useProfileModels(services, selectedImageProfileId, selectedProfileModelsRevision);
+  const imageModels = useMemo(
+    () => mergeConfiguredDefaultModel(modelsState.models, selectedProfile),
+    [modelsState.models, selectedProfile],
+  );
   const generationSettings = useGenerationSettings(services);
   const imagenSession = useImagenSession(services);
   const conversation = useConversation(services, imagenSession, generationSettings.settings, t.conversation);
@@ -260,7 +276,7 @@ function AppShellContent({ host }: AppShellProps) {
   }, [services]);
 
   useEffect(() => {
-    const available = modelsState.models;
+    const available = imageModels;
     const stillValid = available.some((model) => model.id === selectedModelId);
     if (stillValid) {
       return;
@@ -269,7 +285,7 @@ function AppShellContent({ host }: AppShellProps) {
     const selectable = available.find((model) => model.supportStatus === undefined || model.supportStatus === 'selectable');
     const next = configured || selectable?.id || available[0]?.id || '';
     setSelectedModelId(next);
-  }, [modelsState.models, selectedProfile, selectedModelId]);
+  }, [imageModels, selectedProfile, selectedModelId]);
 
   const onNav = (next: string) => setView(next as View);
 
@@ -293,6 +309,17 @@ function AppShellContent({ host }: AppShellProps) {
     setHighlightedRoundId(null);
     setView('main');
   }, []);
+
+  const onHistoryRetry = useCallback(async (roundId: string) => {
+    const round = conversation.rounds.find((item) => item.id === roundId);
+    if (round?.status === 'err') {
+      setRestoreFailedRoundId(roundId);
+      setHighlightedRoundId(roundId);
+      setView('main');
+      return;
+    }
+    await conversation.retry(roundId);
+  }, [conversation]);
 
   const onPlaceTaskOutput = useCallback(async (record: TaskRecord, outputId: string) => {
     const taskResources = services.taskResources;
@@ -352,7 +379,7 @@ function AppShellContent({ host }: AppShellProps) {
           onSelectProfile={(profileId) => {
             void selectImageProfile(profileId);
           }}
-          models={modelsState.models}
+          models={imageModels}
           modelsLoading={modelsState.loading}
           modelsError={modelsState.error}
           selectedModelId={selectedModelId}
@@ -372,6 +399,12 @@ function AppShellContent({ host }: AppShellProps) {
               outputSizePreset,
             });
           }}
+          restoreFailedRoundId={restoreFailedRoundId}
+          onFailedRoundRestored={(roundId) => {
+            if (restoreFailedRoundId === roundId) {
+              setRestoreFailedRoundId(null);
+            }
+          }}
           />
         </MotionPageFrame>
       )}
@@ -384,7 +417,7 @@ function AppShellContent({ host }: AppShellProps) {
           loading={historyLoading}
           error={historyError}
           onReload={reloadHistory}
-          onRetry={conversation.retry}
+          onRetry={onHistoryRetry}
           taskResources={services.taskResources}
           onDownloadTaskOutput={onDownloadTaskOutput}
           onPlaceTaskOutput={onPlaceTaskOutput}

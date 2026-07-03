@@ -160,6 +160,59 @@ describe('profile model commands', () => {
     }
   });
 
+  it('adds separate availability and catalog capability summaries to image-endpoint model candidates', async () => {
+    _resetForTesting();
+    setProviderProfileRepository(createRepository([imageEndpointProfile({
+      models: [{ id: 'gpt-image-1' }],
+      config: {
+        providerId: 'image-endpoint',
+        displayName: 'Image Endpoint Profile',
+        family: 'image-endpoint',
+        connection: {
+          selectionMode: 'manual',
+          failoverEnabled: false,
+          preferredEndpointId: 'primary',
+          endpoints: [{ id: 'primary', url: 'https://example.com', enabled: true }],
+        },
+        defaultModel: 'custom-image-model',
+      },
+    })]));
+
+    const result = await listProfileModels('image-endpoint-profile');
+
+    expect(result.ok).toBe(true);
+    if (result.ok) {
+      expect(result.value.find((model) => model.id === 'gpt-image-1')).toMatchObject({
+        availability: { status: 'selectable' },
+        capabilities: {
+          operations: {
+            textToImage: { support: 'supported', sizePresets: ['1k', '2k'] },
+            imageEdit: { support: 'unsupported', sizePresets: [], reason: 'operation-unsupported' },
+          },
+        },
+      });
+      expect(result.value.find((model) => model.id === 'dall-e-3')).toMatchObject({
+        availability: { status: 'selectable' },
+        remotelyAvailable: false,
+        capabilities: {
+          operations: {
+            textToImage: { support: 'supported', sizePresets: ['1k', '2k'] },
+            imageEdit: { support: 'unsupported', sizePresets: [], reason: 'operation-unsupported' },
+          },
+        },
+      });
+      expect(result.value.find((model) => model.id === 'custom-image-model')).toMatchObject({
+        availability: { status: 'custom-unchecked', reason: 'unknown' },
+        capabilities: {
+          operations: {
+            textToImage: { support: 'unknown', sizePresets: 'unknown', reason: 'not-in-local-catalog' },
+            imageEdit: { support: 'unknown', sizePresets: 'unknown', reason: 'not-in-local-catalog' },
+          },
+        },
+      });
+    }
+  });
+
   it('keeps configured local catalog defaults selectable even when discovery cache does not report them', async () => {
     _resetForTesting();
     setProviderProfileRepository(createRepository([

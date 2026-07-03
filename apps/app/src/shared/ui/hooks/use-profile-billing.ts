@@ -52,9 +52,9 @@ export function useProfileBilling(
     if (!profileId) {
       return null;
     }
+    const baselineKey = billingStateKey(billing);
     const initial = await services.commands.getProfileBillingState(profileId);
     const initialState = initial.ok ? initial.value : null;
-    const initialKey = billingStateKey(initialState);
     let sawRefreshing = initialState?.refreshState === 'refreshing';
     for (let attempt = 0; attempt < 12; attempt += 1) {
       if (attempt > 0) {
@@ -71,12 +71,12 @@ export function useProfileBilling(
         sawRefreshing = true;
         continue;
       }
-      if (sawRefreshing || billingStateKey(result.value) !== initialKey) {
+      if (sawRefreshing || billingStateKey(result.value) !== baselineKey) {
         return result.value;
       }
     }
     return initialState;
-  }, [profileId, services]);
+  }, [billing, profileId, services]);
 
   useEffect(() => {
     if (!profileId) {

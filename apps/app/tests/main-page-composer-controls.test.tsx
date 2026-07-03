@@ -74,7 +74,15 @@ describe('MainPage contract — composer controls', () => {
   it('模型选择保留用户选择而非强制回到第一个', async () => {
     const container = document.createElement('div');
     document.body.appendChild(container);
-    const services = createFakeServices();
+    const services = createFakeServices({
+      profiles: [{
+        ...fakeProfile,
+        config: {
+          ...fakeProfile.config,
+          defaultModel: 'gpt-image-2',
+        },
+      }, fakeOptimizerProfile],
+    });
     services.spies.listProfileModels.mockResolvedValue({
       ok: true as const,
       value: [
@@ -203,6 +211,116 @@ describe('MainPage contract — composer controls', () => {
     await flush();
 
     expect(services.spies.submitJob).not.toHaveBeenCalled();
+  });
+
+  it('shows a singular readiness reason for empty prompt and model blockers', async () => {
+    const container = document.createElement('div');
+    document.body.appendChild(container);
+    await renderMainPage(container);
+
+    expect(container.querySelector('[data-testid="composer-readiness-status"]')?.textContent).toContain('请输入提示词');
+
+    await act(async () => {
+      changeTextarea(container.querySelector<HTMLTextAreaElement>('.cmp-ta')!, 'has prompt');
+    });
+    await flush();
+
+    expect(container.querySelector('[data-testid="composer-readiness-status"]')?.textContent).toContain('就绪');
+  });
+
+  it('keeps incompatible model options visible but disabled with capability reasons', async () => {
+    const container = document.createElement('div');
+    document.body.appendChild(container);
+    const services = createFakeServices({
+      profiles: [{
+        ...fakeProfile,
+        config: {
+          ...fakeProfile.config,
+          defaultModel: 'gpt-image-2',
+        },
+      }, fakeOptimizerProfile],
+    });
+    services.spies.listProfileModels.mockResolvedValue({
+      ok: true as const,
+      value: [
+        {
+          id: 'gpt-image-2',
+          supportStatus: 'selectable',
+          capabilities: {
+            operations: {
+              textToImage: { support: 'supported', sizePresets: ['1k', '2k'] },
+              imageEdit: { support: 'supported', sizePresets: ['1k', '2k'] },
+            },
+          },
+        },
+        {
+          id: 'dall-e-3',
+          supportStatus: 'selectable',
+          capabilities: {
+            operations: {
+              textToImage: { support: 'supported', sizePresets: ['1k', '2k'] },
+              imageEdit: { support: 'unsupported', sizePresets: [], reason: 'operation-unsupported' },
+            },
+          },
+        },
+      ],
+    });
+    await renderMainPage(container, services);
+
+    await act(async () => {
+      container.querySelector<HTMLElement>('[data-testid="composer-add-image-button"]')!.click();
+    });
+    await flush();
+    await act(async () => {
+      clickText(container, '.attach-opt', '从电脑上传');
+    });
+    await flush();
+    await act(async () => {
+      container.querySelector<HTMLElement>('[data-testid="main-model-selector"]')!.click();
+    });
+    await flush();
+
+    const option = document.body.querySelector<HTMLButtonElement>('[data-testid="main-model-selector-option-dall-e-3"]')!;
+    expect(option).not.toBeNull();
+    expect(option.disabled).toBe(true);
+    expect(option.textContent).toContain('不支持图片输入');
+  });
+
+  it('derives output-size options from the selected model and blocks unsupported size', async () => {
+    const container = document.createElement('div');
+    document.body.appendChild(container);
+    const services = createFakeServices({
+      profiles: [{
+        ...fakeProfile,
+        config: {
+          ...fakeProfile.config,
+          defaultModel: 'dall-e-3',
+        },
+      }, fakeOptimizerProfile],
+    });
+    services.spies.listProfileModels.mockResolvedValue({
+      ok: true as const,
+      value: [{
+        id: 'dall-e-3',
+        supportStatus: 'selectable',
+        capabilities: {
+          operations: {
+            textToImage: { support: 'supported', sizePresets: ['1k'] },
+            imageEdit: { support: 'unsupported', sizePresets: [], reason: 'operation-unsupported' },
+          },
+        },
+      }],
+    });
+    await renderMainPage(container, services);
+
+    await act(async () => {
+      container.querySelector<HTMLElement>('[data-testid="composer-output-size-selector"]')!.click();
+    });
+    await flush();
+
+    expect(document.body.querySelector<HTMLButtonElement>('[data-testid="composer-output-size-selector-option-1k"]')?.disabled).toBe(false);
+    expect(document.body.querySelector<HTMLButtonElement>('[data-testid="composer-output-size-selector-option-2k"]')?.disabled).toBe(true);
+    expect(document.body.querySelector<HTMLButtonElement>('[data-testid="composer-output-size-selector-option-4k"]')?.textContent).toContain('当前模型不可用');
   });
 
   it('主输入区 provider 与 model 选择不包含 Prompt Optimizer', async () => {
@@ -491,8 +609,8 @@ describe('MainPage contract — composer controls', () => {
     expect(findIconInHost(send, '[data-icon-name="send"]')).not.toBeNull();
     expect(findIconInHost(send, '[data-icon="icon-send"]')).not.toBeNull();
     expect(findIconInHost(send, '[data-icon-name="spinner"]')).toBeNull();
-    expect(send.getAttribute('aria-label')).toBe('发送');
-    expect(send.getAttribute('title')).toBe('发送');
+    expect(send.getAttribute('aria-label')).toBe('就绪');
+    expect(send.getAttribute('title')).toBe('就绪');
   });
 
   it('running Send surface labels the regenerate-like glyph as Regenerate', async () => {
@@ -517,8 +635,8 @@ describe('MainPage contract — composer controls', () => {
     const send = container.querySelector<HTMLElement>('[data-testid="composer-send-button"]')!;
     expect(findIconInHost(send, '[data-icon-name="spinner"]')).not.toBeNull();
     expect(findIconInHost(send, '[data-icon="icon-spinner"]')).not.toBeNull();
-    expect(send.getAttribute('aria-label')).toBe('重新生成');
-    expect(send.getAttribute('title')).toBe('重新生成');
+    expect(send.getAttribute('aria-label')).toBe('生成任务运行中');
+    expect(send.getAttribute('title')).toBe('生成任务运行中');
   });
 
   it('prompt optimization 调用 optimizePrompt 并回填结果', async () => {

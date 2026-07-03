@@ -46,7 +46,14 @@ export interface AppMessages {
     readonly assetFallback: string;
     readonly imageFallback: string;
     readonly placePs: string;
+    readonly placePsShort: string;
     readonly placePsLong: string;
+    readonly placeActiveDocument: string;
+    readonly cannotPlace: string;
+    readonly placementActiveDocumentHint: string;
+    readonly placementMultipleDocuments: string;
+    readonly placementExactFrameHint: string;
+    readonly placementDocumentOnlyHint: string;
     readonly placingPs: string;
     readonly placedPs: string;
     readonly regenerate: string;
@@ -84,8 +91,12 @@ export interface AppMessages {
     readonly aspectRatioAuto: string;
     readonly aspectRatioSquare: string;
     readonly outputSize: string;
+    readonly outputSizeUnsupportedForModel: string;
+    readonly outputSizeAutoChanged: (from: string, to: string) => string;
     readonly billingSummary: string;
     readonly billingUnknown: string;
+    readonly billingCost: string;
+    readonly billingObservedChange: string;
     readonly billingLastCost: string;
     readonly billingLastChange: string;
     readonly promptOptimize: string;
@@ -100,6 +111,46 @@ export interface AppMessages {
     readonly layerKindText: string;
     readonly layerKindGroup: string;
     readonly layerKindDefault: string;
+    readonly readinessReady: string;
+    readonly readinessGenerationInProgress: string;
+    readonly readinessSelectProfile: string;
+    readonly readinessCheckingProfile: string;
+    readonly readinessProfileLoadFailed: string;
+    readonly readinessSelectModel: string;
+    readonly readinessLoadingModels: string;
+    readonly readinessModelUnavailable: string;
+    readonly readinessPreparingAttachment: string;
+    readonly readinessAttachmentFailed: string;
+    readonly readinessModelNoImageEdit: string;
+    readonly readinessModelNoTextToImage: string;
+    readonly readinessSizeUnsupported: string;
+    readonly readinessPlacementConflict: string;
+    readonly readinessEnterPrompt: string;
+    readonly readinessOptimizingPrompt: string;
+    readonly modelReasonNotRemotelyAvailable: string;
+    readonly modelReasonAuthFailed: string;
+    readonly modelReasonProfileMisconfigured: string;
+    readonly modelReasonDiscoveryFailed: string;
+    readonly modelReasonCustomUnchecked: string;
+    readonly modelReasonNoImageEdit: string;
+    readonly modelReasonNoTextToImage: string;
+    readonly modelReasonSizeUnsupported: (size: string) => string;
+    readonly badgeTextToImage: string;
+    readonly badgeImageEdit: string;
+    readonly badgeUnknownCapability: string;
+    readonly imageInputDisabledForModel: string;
+    readonly imageInputConflict: string;
+    readonly chooseCompatibleModel: string;
+    readonly removeImages: string;
+    readonly runningPhaseSubmitting: string;
+    readonly runningPhaseGenerating: string;
+    readonly errorCategory: string;
+    readonly errorCategoryLabel: Record<string, string>;
+    readonly errorActionOpenProviderSettings: string;
+    readonly errorActionChooseSupportedSize: string;
+    readonly errorActionChooseCompatibleModel: string;
+    readonly errorActionReplaceImage: string;
+    readonly errorActionFillComposer: string;
   };
   readonly history: {
     readonly title: string;
@@ -287,7 +338,14 @@ const EN_MESSAGES: AppMessages = {
     assetFallback: 'Asset',
     imageFallback: 'image',
     placePs: 'Place in PS',
+    placePsShort: 'Place',
     placePsLong: 'Place in Photoshop',
+    placeActiveDocument: 'Place in Active Document',
+    cannotPlace: 'Cannot Place',
+    placementActiveDocumentHint: 'Places into the active Photoshop document at click time.',
+    placementMultipleDocuments: 'Source images came from multiple Photoshop documents. Choose one document source before placing.',
+    placementExactFrameHint: 'Places back into the captured document frame.',
+    placementDocumentOnlyHint: 'Places into the captured document.',
     placingPs: 'Placing...',
     placedPs: 'Placed',
     regenerate: 'Regenerate',
@@ -325,8 +383,12 @@ const EN_MESSAGES: AppMessages = {
     aspectRatioAuto: 'Auto',
     aspectRatioSquare: '1:1',
     outputSize: 'Size',
+    outputSizeUnsupportedForModel: 'Unavailable for this model',
+    outputSizeAutoChanged: (from, to) => `${from} is unavailable; changed to ${to}`,
     billingSummary: 'Balance',
     billingUnknown: 'Billing unavailable',
+    billingCost: 'Cost',
+    billingObservedChange: 'Observed balance change',
     billingLastCost: 'Last exact cost',
     billingLastChange: 'Last balance change',
     promptOptimize: 'Optimize prompt',
@@ -341,6 +403,54 @@ const EN_MESSAGES: AppMessages = {
     layerKindText: 'Text',
     layerKindGroup: 'Group',
     layerKindDefault: 'Layer',
+    readinessReady: 'Ready',
+    readinessGenerationInProgress: 'Generation in progress',
+    readinessSelectProfile: 'Select a provider profile',
+    readinessCheckingProfile: 'Checking provider profile',
+    readinessProfileLoadFailed: 'Provider profiles failed to load',
+    readinessSelectModel: 'Select a model',
+    readinessLoadingModels: 'Loading models',
+    readinessModelUnavailable: 'Selected model is unavailable',
+    readinessPreparingAttachment: 'Preparing attachment',
+    readinessAttachmentFailed: 'Attachment failed',
+    readinessModelNoImageEdit: 'Current model does not support image input',
+    readinessModelNoTextToImage: 'Current model does not support text-to-image',
+    readinessSizeUnsupported: 'Current size is not supported by this model',
+    readinessPlacementConflict: 'Resolve placement conflict',
+    readinessEnterPrompt: 'Enter a prompt',
+    readinessOptimizingPrompt: 'Optimizing prompt',
+    modelReasonNotRemotelyAvailable: 'Not available for this profile',
+    modelReasonAuthFailed: 'Provider authentication failed',
+    modelReasonProfileMisconfigured: 'Profile needs configuration',
+    modelReasonDiscoveryFailed: 'Model discovery failed',
+    modelReasonCustomUnchecked: 'Custom model capability is unknown',
+    modelReasonNoImageEdit: 'Does not support image input',
+    modelReasonNoTextToImage: 'Does not support text-to-image',
+    modelReasonSizeUnsupported: (size) => `${size} is unavailable`,
+    badgeTextToImage: 'Text',
+    badgeImageEdit: 'Edit',
+    badgeUnknownCapability: 'Unknown',
+    imageInputDisabledForModel: 'Current model does not support image input',
+    imageInputConflict: 'Attached images are not compatible with the current model.',
+    chooseCompatibleModel: 'Choose compatible model',
+    removeImages: 'Remove images',
+    runningPhaseSubmitting: 'Submitting',
+    runningPhaseGenerating: 'Generating',
+    errorCategory: 'Category',
+    errorCategoryLabel: {
+      'authentication-failed': 'Authentication failed',
+      'model-unavailable': 'Model unavailable',
+      'size-unsupported': 'Unsupported size',
+      'image-input-unreadable': 'Image input could not be read',
+      'provider-temporarily-unavailable': 'Provider temporarily unavailable',
+      'placement-conflict': 'Placement conflict',
+      unknown: 'Unknown',
+    },
+    errorActionOpenProviderSettings: 'Open provider settings',
+    errorActionChooseSupportedSize: 'Choose supported size',
+    errorActionChooseCompatibleModel: 'Choose compatible model',
+    errorActionReplaceImage: 'Replace image',
+    errorActionFillComposer: 'Fill composer',
   },
   history: {
     title: 'History',
@@ -529,7 +639,14 @@ const ZH_CN_MESSAGES: AppMessages = {
     assetFallback: 'Asset',
     imageFallback: 'image',
     placePs: '置入 PS',
+    placePsShort: '置入',
     placePsLong: '置入 Photoshop',
+    placeActiveDocument: '置入 Active Document',
+    cannotPlace: '无法置入',
+    placementActiveDocumentHint: '点击时会置入当前活动的 Photoshop 文档。',
+    placementMultipleDocuments: '来源图片来自多个 Photoshop 文档。请先保留单一文档来源。',
+    placementExactFrameHint: '置回捕获时的文档和画面位置。',
+    placementDocumentOnlyHint: '置入捕获时的文档。',
     placingPs: '置入中...',
     placedPs: '已置入',
     regenerate: '重新生成',
@@ -567,8 +684,12 @@ const ZH_CN_MESSAGES: AppMessages = {
     aspectRatioAuto: '智能',
     aspectRatioSquare: '1:1',
     outputSize: '尺寸',
+    outputSizeUnsupportedForModel: '当前模型不可用',
+    outputSizeAutoChanged: (from, to) => `${from} 不可用；已改为 ${to}`,
     billingSummary: '余额',
     billingUnknown: 'Billing 不可用',
+    billingCost: 'Cost',
+    billingObservedChange: 'Observed balance change',
     billingLastCost: '最近一次精确费用',
     billingLastChange: '最近一次余额变化',
     promptOptimize: '优化提示词',
@@ -583,6 +704,54 @@ const ZH_CN_MESSAGES: AppMessages = {
     layerKindText: '文字图层',
     layerKindGroup: '图层组',
     layerKindDefault: '图层',
+    readinessReady: '就绪',
+    readinessGenerationInProgress: '生成任务运行中',
+    readinessSelectProfile: '请选择 Provider profile',
+    readinessCheckingProfile: '正在检查 Provider profile',
+    readinessProfileLoadFailed: 'Provider profiles 加载失败',
+    readinessSelectModel: '请选择模型',
+    readinessLoadingModels: '模型加载中',
+    readinessModelUnavailable: '当前模型不可用',
+    readinessPreparingAttachment: '正在准备附件',
+    readinessAttachmentFailed: '附件处理失败',
+    readinessModelNoImageEdit: '当前模型不支持图片输入',
+    readinessModelNoTextToImage: '当前模型不支持文生图',
+    readinessSizeUnsupported: '当前尺寸不被该模型支持',
+    readinessPlacementConflict: '请先解决置入冲突',
+    readinessEnterPrompt: '请输入提示词',
+    readinessOptimizingPrompt: '提示词优化中',
+    modelReasonNotRemotelyAvailable: '当前 profile 不可用',
+    modelReasonAuthFailed: 'Provider 认证失败',
+    modelReasonProfileMisconfigured: 'Profile 需要配置',
+    modelReasonDiscoveryFailed: '模型发现失败',
+    modelReasonCustomUnchecked: '自定义模型能力未知',
+    modelReasonNoImageEdit: '不支持图片输入',
+    modelReasonNoTextToImage: '不支持文生图',
+    modelReasonSizeUnsupported: (size) => `${size} 不可用`,
+    badgeTextToImage: '文生图',
+    badgeImageEdit: '编辑',
+    badgeUnknownCapability: '未知',
+    imageInputDisabledForModel: '当前模型不支持图片输入',
+    imageInputConflict: '已添加的图片与当前模型不兼容。',
+    chooseCompatibleModel: '选择兼容模型',
+    removeImages: '移除图片',
+    runningPhaseSubmitting: '提交中',
+    runningPhaseGenerating: '生成中',
+    errorCategory: '类别',
+    errorCategoryLabel: {
+      'authentication-failed': '认证失败',
+      'model-unavailable': '模型不可用',
+      'size-unsupported': '尺寸不支持',
+      'image-input-unreadable': '图片输入无法读取',
+      'provider-temporarily-unavailable': 'Provider 暂时不可用',
+      'placement-conflict': '置入冲突',
+      unknown: '未知',
+    },
+    errorActionOpenProviderSettings: '打开 Provider 设置',
+    errorActionChooseSupportedSize: '选择支持尺寸',
+    errorActionChooseCompatibleModel: '选择兼容模型',
+    errorActionReplaceImage: '替换图片',
+    errorActionFillComposer: '填入输入框',
   },
   history: {
     title: '历史',
