@@ -1,0 +1,21 @@
+apps/app/tests/settings-detail-diagnostics.test.tsx
+  s_e5809821a84e62::t_b8b3b05b9cb299 27-30,81-83
+docs/PROVIDER_SUPPORT.md
+  s_e5809821a84e62::t_b42bb1c97a375d 1-74
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.3",
+  "base_commit_sha": "1b6be08ef9479160b5c78bbb9415aef5eda8bc45",
+  "prompts": {},
+  "sessions": {
+    "s_e5809821a84e62": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "019f275b-0967-7391-a516-26bf686f0b6a",
+        "model": "unknown"
+      },
+      "human_author": "Sinyuk <80998062@qq.com>"
+    }
+  }
+}
