@@ -1,0 +1,38 @@
+apps/app/tests/global-generation-settings-page.test.tsx
+  s_fa09188dbc7905::t_746e3891d230f3 10-29,76,144,166,185,200,234,286,328,358
+apps/app/tests/app-shell.test.tsx
+  s_fa09188dbc7905::t_fdb6aa872bd2a2 35-40,346-396,793-940
+  s_fa09188dbc7905::t_965307c0961291 941
+apps/app/src/shared/ui/pages/global-generation-settings-page.tsx
+  s_fa09188dbc7905::t_23ced1cb97c5da 18,24,71
+apps/app/tests/main-page-result-rendering.test.tsx
+  s_fa09188dbc7905::t_f89c878463bd0c 4
+  s_fa09188dbc7905::t_92d702cfb53db9 372-416,418-423
+  s_fa09188dbc7905::t_f92c380c7d67ff 417
+  s_fa09188dbc7905::t_7c18b0cd4329ad 371
+docs/ENGINEERING_CONTEXT.md
+  s_fa09188dbc7905::t_731d0ecefd477d 143-148
+apps/app/src/shared/ui/pages/main-page.tsx
+  s_fa09188dbc7905::t_1418290e3d39c9 1176,1179,1182,1696
+  s_fa09188dbc7905::t_031aeaf1e52f29 14,54,82-83,369-370,402,434,682,686,692-693,696,720,809,816,821,938,981,997
+apps/app/src/shared/ui/app-shell.tsx
+  s_fa09188dbc7905::t_2fa8f8ae816f94 9,27,234,240-247,407-408,521
+apps/app/src/shared/ui/hooks/use-composer-draft.ts
+  s_fa09188dbc7905::t_a618fc93269fe5 1-106
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.10",
+  "base_commit_sha": "59c4c5d578f244632ae08bd02ca0b33ae53b44c1",
+  "prompts": {},
+  "sessions": {
+    "s_fa09188dbc7905": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "019f2918-2557-7bc1-9cca-b9fe085bb988",
+        "model": "gpt-5.4"
+      },
+      "human_author": "Sinyuk <80998062@qq.com>"
+    }
+  }
+}
