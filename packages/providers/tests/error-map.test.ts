@@ -21,4 +21,14 @@ describe('image-endpoint error map', () => {
       suggestedTransport: 'qwen-native-json',
     });
   });
+
+  it('maps 415 to request_invalid while preserving statusCode', () => {
+    const error = mapHttpError({
+      statusCode: 415,
+      message: 'Unsupported media type for multipart body.',
+    });
+
+    expect(error.kind).toBe('request_invalid');
+    expect(error.statusCode).toBe(415);
+  });
 });

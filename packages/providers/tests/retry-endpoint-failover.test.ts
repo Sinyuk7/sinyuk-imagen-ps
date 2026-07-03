@@ -138,6 +138,17 @@ describe('endpoint failover executor', () => {
     expect(second.calls[0]?.url).toBe('https://primary.example.com/v1/models');
   });
 
+  it('does not fail over after request-invalid 415', async () => {
+    const counting = createCountingFetch([
+      { kind: 'response', status: 415, data: { error: { message: 'Unsupported Media Type' } } },
+      { kind: 'response', status: 200, data: { ok: true } },
+    ]);
+    vi.stubGlobal('fetch', counting.fetch);
+
+    await expect(executeModelsRequest({ maxAttempts: 2 })).rejects.toThrow('Unsupported Media Type');
+    expect(counting.calls).toHaveLength(1);
+  });
+
   it('emits endpoint id and attempt index in diagnostics', async () => {
     const counting = createCountingFetch([
       { kind: 'network_error' },

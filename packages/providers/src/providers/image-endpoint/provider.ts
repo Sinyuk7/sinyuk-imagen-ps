@@ -1,4 +1,4 @@
-import type { Provider, ProviderDescriptor, ProviderInvokeArgs } from '../../contract/provider.js';
+import type { ImageEditCodec, Provider, ProviderDescriptor, ProviderInvokeArgs } from '../../contract/provider.js';
 import type { ProviderBalanceSnapshot } from '../../contract/billing.js';
 import type { ProviderInvokeResult } from '../../contract/result.js';
 import type { ProviderModelInfo } from '../../contract/model.js';
@@ -10,21 +10,25 @@ import { httpRequest } from '../../transport/image-endpoint/http.js';
 import { executeWithEndpointFailover } from '../../transport/image-endpoint/failover.js';
 import { resolvePaidRetryConfig, resolveIdempotencyHeader } from '../../transport/image-endpoint/paid-retry.js';
 import {
-  buildEditRequestBody,
-  buildEditMultipartBody,
+  buildImageEditRequestBody,
   buildRequestBody,
 } from '../../transport/image-endpoint/build-request.js';
 import { parseResponse } from '../../transport/image-endpoint/parse-response.js';
 import { inspectModelsResponse } from '../../transport/image-endpoint/models.js';
 import { listLocalCatalogModels } from '../../contract/image-model-capability.js';
 import { fetchProviderBalanceJson, parseNewApiBalanceResponse } from '../../transport/billing/query-balance.js';
+import {
+  rememberSuccessfulImageEditCodec,
+  resolveAlternateImageEditCodec,
+  resolveImageEditCodec,
+} from '../../transport/image-endpoint/wire-compatibility.js';
+import { classifyImageEditRequestShapeRejection } from '../../transport/image-endpoint/request-shape-classifier.js';
 
 /** Provider 层可映射的结构化验证错误。 */
 interface ProviderValidationError extends Error {
   details?: Record<string, unknown>;
 }
 
-type EditBodyMode = 'json-ref' | 'multipart-inline';
 type MockImageAsset = NonNullable<MockProviderRequest['images']>[number];
 
 function createValidationError(message: string, details?: Record<string, unknown>): ProviderValidationError {
@@ -32,20 +36,6 @@ function createValidationError(message: string, details?: Record<string, unknown
   err.details = details;
   err.name = 'ProviderValidationError';
   return err;
-}
-
-function hasInlineAssetData(asset: { readonly data?: unknown } | undefined): boolean {
-  return (
-    (typeof asset?.data === 'string' && asset.data.length > 0) ||
-    (asset?.data instanceof Uint8Array && asset.data.byteLength > 0)
-  );
-}
-
-function shouldUseMultipartEditBody(request: MockProviderRequest): boolean {
-  if (request.operation !== 'image_edit') {
-    return false;
-  }
-  return (request.images ?? []).some(hasInlineAssetData) || hasInlineAssetData(request.maskImage);
 }
 
 function summarizeAssetReferenceKind(asset: MockImageAsset | MockProviderRequest['maskImage']): string {
@@ -70,7 +60,11 @@ function summarizeAssetReferenceKind(asset: MockImageAsset | MockProviderRequest
 function logEditRequestSummary(
   logger: Logger | undefined,
   request: MockProviderRequest,
-  bodyMode: EditBodyMode,
+  resolvedCodec: {
+    readonly codec: string;
+    readonly source: string;
+    readonly cacheKey: string;
+  },
   defaultModel: string | undefined,
 ): void {
   if (request.operation !== 'image_edit') {
@@ -78,7 +72,9 @@ function logEditRequestSummary(
   }
 
   logger?.info('provider.image_endpoint.edit_request_summary', {
-    bodyMode,
+    codec: resolvedCodec.codec,
+    source: resolvedCodec.source,
+    compatibilityKey: resolvedCodec.cacheKey,
     model:
       typeof request.providerOptions?.model === 'string'
         ? (request.providerOptions.model as string)
@@ -88,6 +84,24 @@ function logEditRequestSummary(
     maskReferenceKind: summarizeAssetReferenceKind(request.maskImage),
     hasProviderOptions: request.providerOptions !== undefined,
   });
+}
+
+function enabledEndpointCount(config: ImageEndpointProviderConfig): number {
+  return config.connection.endpoints.filter((endpoint) => endpoint.enabled).length;
+}
+
+function logEditCodecFallbackDecision(
+  logger: Logger | undefined,
+  args: {
+    readonly initialCodec: ImageEditCodec;
+    readonly fallbackCodec: ImageEditCodec;
+    readonly fallbackReason: string;
+    readonly fallbackAttemptCount: number;
+    readonly fallbackDisabledBecauseMultipleEndpoints: boolean;
+    readonly statusCode?: number;
+  },
+): void {
+  logger?.warn('provider.image_endpoint.edit_codec_fallback', args);
 }
 
 /**
@@ -149,27 +163,30 @@ export function createImageEndpointProvider(): Provider<ImageEndpointProviderCon
         throw createValidationError(`Unsupported image endpoint provider operation: "${request.operation}".`);
       }
 
-      const editBodyMode: EditBodyMode | undefined =
+      const resolvedEditCodec =
         request.operation === 'image_edit'
-          ? (shouldUseMultipartEditBody(request) ? 'multipart-inline' : 'json-ref')
+          ? resolveImageEditCodec({
+              descriptor: imageEndpointDescriptor,
+              config,
+              request,
+              targetPath: endpoint,
+            })
           : undefined;
 
-      if (editBodyMode !== undefined) {
-        logEditRequestSummary(args.logger, request, editBodyMode, config.defaultModel);
+      if (resolvedEditCodec !== undefined) {
+        logEditRequestSummary(args.logger, request, resolvedEditCodec, config.defaultModel);
       }
 
       const body =
         request.operation === 'text_to_image'
           ? buildRequestBody(request, config.defaultModel)
-          : editBodyMode === 'multipart-inline'
-            ? buildEditMultipartBody(request, config.defaultModel)
-            : buildEditRequestBody(request, config.defaultModel);
+          : undefined;
 
       // 付费生成请求：按 provider 能力解析保守重试策略与可选 idempotency key。
       const paidRetry = resolvePaidRetryConfig(imageEndpointDescriptor);
       const idempotencyHeader = resolveIdempotencyHeader(paidRetry, request as unknown as Record<string, unknown>);
 
-      const execution = await executeWithEndpointFailover({
+      const executeRequest = async (requestBody: unknown) => executeWithEndpointFailover({
         connection: config.connection,
         logger: args.logger,
         signal,
@@ -184,7 +201,7 @@ export function createImageEndpointProvider(): Provider<ImageEndpointProviderCon
               ...(config.extraHeaders ?? {}),
               ...(idempotencyHeader ?? {}),
             },
-            body,
+            body: requestBody,
             timeoutMs: config.timeoutMs,
           },
           { ...paidRetry.policy, maxRetries: 0 },
@@ -194,7 +211,63 @@ export function createImageEndpointProvider(): Provider<ImageEndpointProviderCon
         ),
       });
 
-      const parsed = parseResponse(execution.value.response.data);
+      let execution;
+      let parsed;
+      let successfulEditCodec = resolvedEditCodec?.codec;
+
+      if (request.operation === 'text_to_image') {
+        execution = await executeRequest(body);
+        parsed = parseResponse(execution.value.response.data);
+      } else {
+        const initialBody = buildImageEditRequestBody(request, resolvedEditCodec!.codec, config.defaultModel);
+        try {
+          execution = await executeRequest(initialBody);
+          parsed = parseResponse(execution.value.response.data);
+        } catch (error) {
+          const rejection = classifyImageEditRequestShapeRejection(error);
+          const alternateCodec = resolveAlternateImageEditCodec({
+            descriptor: imageEndpointDescriptor,
+            request,
+            currentCodec: resolvedEditCodec!.codec,
+          });
+          const fallbackDisabledBecauseMultipleEndpoints =
+            config.connection.failoverEnabled && enabledEndpointCount(config) > 1;
+
+          if (alternateCodec === undefined || !rejection.eligible) {
+            throw error;
+          }
+
+          if (fallbackDisabledBecauseMultipleEndpoints) {
+            logEditCodecFallbackDecision(args.logger, {
+              initialCodec: resolvedEditCodec!.codec,
+              fallbackCodec: alternateCodec.codec,
+              fallbackReason: rejection.reason,
+              fallbackAttemptCount: 1,
+              fallbackDisabledBecauseMultipleEndpoints: true,
+              statusCode: rejection.statusCode,
+            });
+            throw error;
+          }
+
+          logEditCodecFallbackDecision(args.logger, {
+            initialCodec: resolvedEditCodec!.codec,
+            fallbackCodec: alternateCodec.codec,
+            fallbackReason: rejection.reason,
+            fallbackAttemptCount: 1,
+            fallbackDisabledBecauseMultipleEndpoints: false,
+            statusCode: rejection.statusCode,
+          });
+          execution = await executeRequest(
+            buildImageEditRequestBody(request, alternateCodec.codec, config.defaultModel),
+          );
+          parsed = parseResponse(execution.value.response.data);
+          successfulEditCodec = alternateCodec.codec;
+        }
+      }
+
+      if (resolvedEditCodec !== undefined && successfulEditCodec !== undefined) {
+        rememberSuccessfulImageEditCodec(resolvedEditCodec.cacheKey, successfulEditCodec);
+      }
 
       // 契约：无值的可选字段 **省略**（不写 `undefined`），
       // 与 `ProviderInvokeResult` 的缺省字段约定对齐（见 contract/result.ts）。

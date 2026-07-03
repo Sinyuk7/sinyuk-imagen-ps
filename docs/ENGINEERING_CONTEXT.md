@@ -122,6 +122,12 @@ surface apps -> application/session -> core-engine + providers
   request-invalid failures never trigger retry, failover, or cooldown.
   `timeout` is never replayed across endpoints. `broad` mode (default for
   discovery) still permits safe endpoint failover for non-paid probes.
+- `packages/providers` owns image-edit wire compatibility under
+  `descriptor.transport.wire`. `image-endpoint` declares supported request
+  codecs (`multipart-bracket`, `multipart-plain`, `json-reference`) plus
+  default order, while runtime resolution, compatibility fingerprinting, and
+  process-local success cache stay inside provider transport rather than
+  leaking into `packages/application` or `apps/app`.
 - Provider billing refresh keeps its own runtime-only per-profile cooldown in
   `packages/application/src/commands/profile-billing.ts`. A 429 balance-query
   failure opens a local cooldown immediately, while repeated auth-style balance

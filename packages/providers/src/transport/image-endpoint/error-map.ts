@@ -92,7 +92,7 @@ export function mapHttpError(args: {
     return createProviderInvokeError('upstream_unavailable', message, { statusCode, details, cause });
   }
 
-  if (statusCode === 400 || statusCode === 422) {
+  if (statusCode === 400 || statusCode === 415 || statusCode === 422) {
     return createProviderInvokeError('request_invalid', message, { statusCode, details, cause });
   }
 

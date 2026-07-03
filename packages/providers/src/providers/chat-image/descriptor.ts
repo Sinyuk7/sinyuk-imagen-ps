@@ -9,6 +9,11 @@ export const chatImageDescriptor: ProviderDescriptor = {
   operations: ['text_to_image', 'image_edit'],
   invokeMode: 'sync',
   defaultModels: listLocalCatalogModels('chat-image'),
+  transport: {
+    wire: {
+      responseCodecs: ['json'],
+    },
+  },
   billing: {
     supportedModes: ['none', 'new-api'],
     defaultMode: 'new-api',

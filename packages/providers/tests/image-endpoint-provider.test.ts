@@ -1,11 +1,13 @@
-import { describe, expect, it, vi } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { createLogger, createMemorySink } from '@imagen-ps/foundation';
 import {
   createImageEndpointProvider,
   imageEndpointDescriptor,
 } from '../src/providers/image-endpoint/index.js';
 import {
+  buildImageEditRequestBody,
   buildEditMultipartBody,
+  buildEditMultipartBodyForCodec,
   buildEditRequestBody,
   buildRequestBody,
 } from '../src/transport/image-endpoint/build-request.js';
@@ -16,6 +18,8 @@ import {
 } from '../src/contract/image-model-capability.js';
 import { inspectModelsResponse, parseModelsResponse } from '../src/transport/image-endpoint/models.js';
 import { parseResponse } from '../src/transport/image-endpoint/parse-response.js';
+import { resetImageEditCompatibilityCacheForTesting } from '../src/transport/image-endpoint/wire-compatibility.js';
+import { createCountingFetch } from './counting-transport.js';
 
 function expectFormDataFile(
   value: FormDataEntryValue | null,
@@ -28,6 +32,10 @@ function expectFormDataFile(
 }
 
 describe('image-endpoint provider', () => {
+  beforeEach(() => {
+    resetImageEditCompatibilityCacheForTesting();
+  });
+
   it('exposes image endpoint descriptor and validates config', () => {
     const provider = createImageEndpointProvider();
     const config = provider.validateConfig({
@@ -182,6 +190,53 @@ describe('image-endpoint provider', () => {
     expectFormDataFile(images[0] ?? null, { type: 'image/png', name: 'input.png' });
     expectFormDataFile(images[1] ?? null, { type: 'image/jpeg', name: 'second.jpg' });
     expectFormDataFile(body.get('mask'), { type: 'image/png', name: 'mask.png' });
+  });
+
+  it('builds multipart edit body with plain image field names when requested by codec', () => {
+    const body = buildEditMultipartBodyForCodec(
+      {
+        operation: 'image_edit',
+        prompt: 'make it blue',
+        images: [
+          { type: 'image', data: 'iVBORw0KGgo=', mimeType: 'image/png' },
+          { type: 'image', data: 'aGVsbG8=', mimeType: 'image/png' },
+        ],
+      },
+      'multipart-plain',
+      'gpt-image-2',
+    );
+
+    expect(body.getAll('image')).toHaveLength(2);
+    expect(body.getAll('image[]')).toHaveLength(0);
+  });
+
+  it('builds image edit request bodies through explicit codec selection', () => {
+    const jsonBody = buildImageEditRequestBody(
+      {
+        operation: 'image_edit',
+        prompt: 'json edit',
+        images: [{ type: 'image', url: 'https://example.com/input.png' }],
+      },
+      'json-reference',
+      'gpt-image-2',
+    );
+    const multipartBody = buildImageEditRequestBody(
+      {
+        operation: 'image_edit',
+        prompt: 'multipart edit',
+        images: [{ type: 'image', data: 'iVBORw0KGgo=', mimeType: 'image/png' }],
+      },
+      'multipart-bracket',
+      'gpt-image-2',
+    );
+
+    expect(jsonBody).not.toBeInstanceOf(FormData);
+    expect(jsonBody).toMatchObject({
+      model: 'gpt-image-2',
+      prompt: 'json edit',
+      images: [{ image_url: 'https://example.com/input.png' }],
+    });
+    expect(multipartBody).toBeInstanceOf(FormData);
   });
 
   it('normalizes image endpoint responses', () => {
@@ -481,6 +536,132 @@ describe('image-endpoint provider', () => {
     fetchSpy.mockRestore();
   });
 
+  it('replays image_edit once with an alternate codec after eligible 415 rejection', async () => {
+    const counting = createCountingFetch([
+      { kind: 'response', status: 415, data: { error: { message: 'Unsupported Media Type' } } },
+      { kind: 'response', status: 200, data: { data: [{ url: 'https://example.com/out.png' }] } },
+    ]);
+    vi.stubGlobal('fetch', counting.fetch);
+
+    const provider = createImageEndpointProvider();
+    const config = provider.validateConfig({
+      providerId: 'image-endpoint',
+      displayName: 'Image Endpoint',
+      family: 'image-endpoint',
+      connection: {
+        selectionMode: 'manual',
+        failoverEnabled: false,
+        preferredEndpointId: 'primary',
+        endpoints: [{ id: 'primary', url: 'https://api.example.com', enabled: true }],
+      },
+      apiKey: 'test-key',
+      defaultModel: 'gpt-image-2',
+    });
+
+    const result = await provider.invoke({
+      config,
+      request: provider.validateRequest({
+        operation: 'image_edit',
+        prompt: 'fallback edit',
+        images: [{ type: 'image', data: 'iVBORw0KGgo=', mimeType: 'image/png' }],
+      }),
+    });
+
+    expect(result.assets).toHaveLength(1);
+    expect(counting.calls).toHaveLength(2);
+    expect(counting.calls[0]?.body).toBeInstanceOf(FormData);
+    expect(typeof counting.calls[1]?.body).toBe('string');
+    expect(String(counting.calls[1]?.body)).toContain('"images"');
+  });
+
+  it('does not replay image_edit with an alternate codec after 500', async () => {
+    const counting = createCountingFetch([
+      { kind: 'response', status: 500, data: { error: { message: 'Internal Server Error' } } },
+      { kind: 'response', status: 200, data: { data: [{ url: 'https://example.com/out.png' }] } },
+    ]);
+    vi.stubGlobal('fetch', counting.fetch);
+
+    const provider = createImageEndpointProvider();
+    const config = provider.validateConfig({
+      providerId: 'image-endpoint',
+      displayName: 'Image Endpoint',
+      family: 'image-endpoint',
+      connection: {
+        selectionMode: 'manual',
+        failoverEnabled: false,
+        preferredEndpointId: 'primary',
+        endpoints: [{ id: 'primary', url: 'https://api.example.com', enabled: true }],
+      },
+      apiKey: 'test-key',
+      defaultModel: 'gpt-image-2',
+    });
+
+    await expect(provider.invoke({
+      config,
+      request: provider.validateRequest({
+        operation: 'image_edit',
+        prompt: 'no fallback edit',
+        images: [{ type: 'image', data: 'iVBORw0KGgo=', mimeType: 'image/png' }],
+      }),
+    })).rejects.toThrow('Internal Server Error');
+    expect(counting.calls).toHaveLength(1);
+  });
+
+  it('disables codec fallback on multi-endpoint failover configs and logs that decision', async () => {
+    const sink = createMemorySink();
+    const logger = createLogger({
+      sink,
+      context: { surface: 'test', package: 'application', component: 'runtime' },
+      traceId: 'tr_image_endpoint_multi_endpoint_fallback',
+    });
+    const counting = createCountingFetch([
+      { kind: 'response', status: 415, data: { error: { message: 'Unsupported Media Type' } } },
+      { kind: 'response', status: 200, data: { data: [{ url: 'https://example.com/out.png' }] } },
+    ]);
+    vi.stubGlobal('fetch', counting.fetch);
+
+    const provider = createImageEndpointProvider();
+    const config = provider.validateConfig({
+      providerId: 'image-endpoint',
+      displayName: 'Image Endpoint',
+      family: 'image-endpoint',
+      connection: {
+        selectionMode: 'manual',
+        failoverEnabled: true,
+        preferredEndpointId: 'primary',
+        endpoints: [
+          { id: 'primary', url: 'https://api.example.com', enabled: true },
+          { id: 'secondary', url: 'https://api-2.example.com', enabled: true },
+        ],
+      },
+      apiKey: 'test-key',
+      defaultModel: 'gpt-image-2',
+    });
+
+    await expect(provider.invoke({
+      config,
+      logger,
+      request: provider.validateRequest({
+        operation: 'image_edit',
+        prompt: 'multi endpoint edit',
+        images: [{ type: 'image', data: 'iVBORw0KGgo=', mimeType: 'image/png' }],
+      }),
+    })).rejects.toThrow('Unsupported Media Type');
+
+    expect(counting.calls).toHaveLength(1);
+    const fallbackLogs = sink.records.filter((record) => record.event === 'provider.image_endpoint.edit_codec_fallback');
+    expect(fallbackLogs).toHaveLength(1);
+    expect(fallbackLogs[0]?.level).toBe('warn');
+    expect(fallbackLogs[0]?.attrs).toMatchObject({
+      initialCodec: 'multipart-bracket',
+      fallbackCodec: 'json-reference',
+      fallbackReason: 'http_415',
+      fallbackAttemptCount: 1,
+      fallbackDisabledBecauseMultipleEndpoints: true,
+      statusCode: 415,
+    });
+  });
+
   it('logs edit request body selection without leaking image payloads', async () => {
     const sink = createMemorySink();
     const logger = createLogger({
@@ -536,19 +717,23 @@ describe('image-endpoint provider', () => {
     const summaries = sink.records.filter((record) => record.event === 'provider.image_endpoint.edit_request_summary');
     expect(summaries).toHaveLength(2);
     expect(summaries[0]?.attrs).toMatchObject({
-      bodyMode: 'json-ref',
+      codec: 'json-reference',
+      source: 'descriptor-default',
       model: 'qwen-image-2.0-2026-03-03',
       imageCount: 1,
       imageReferenceKinds: ['url'],
       maskReferenceKind: 'missing',
     });
     expect(summaries[1]?.attrs).toMatchObject({
-      bodyMode: 'multipart-inline',
+      codec: 'multipart-bracket',
+      source: 'descriptor-default',
       model: 'qwen-image-2.0-2026-03-03',
       imageCount: 1,
       imageReferenceKinds: ['inline-data'],
       maskReferenceKind: 'missing',
     });
+    expect(summaries[0]?.attrs?.compatibilityKey).toMatch(/^fnv1a64:[0-9a-f]{16}$/);
+    expect(summaries[1]?.attrs?.compatibilityKey).toMatch(/^fnv1a64:[0-9a-f]{16}$/);
     expect(JSON.stringify(sink.records)).not.toContain('iVBORw0KGgo=');
     fetchSpy.mockRestore();
   });
