@@ -1,0 +1,67 @@
+packages/providers/src/transport/image-endpoint/request-shape-classifier.ts
+  s_10deebb6917c48::t_909041478be185 62
+  s_10deebb6917c48::t_99deaa52722b5e 1-10,12-61,63-188,190-195
+  s_10deebb6917c48::t_9a8f419af29a76 11,189
+packages/providers/src/transport/image-endpoint/build-request.ts
+  s_10deebb6917c48::t_cc82aaa0f67cf4 22,333-336,498-508,539,541,549-562
+packages/providers/tests/paid-retry.test.ts
+  s_10deebb6917c48::t_b3163a6bccd502 177-201
+packages/providers/tests/request-shape-classifier.test.ts
+  s_10deebb6917c48::t_8e4f663c55274d 1-91
+packages/providers/tests/error-map.test.ts
+  s_10deebb6917c48::t_dbafafdf474018 24-33
+packages/providers/src/contract/provider.ts
+  s_10deebb6917c48::t_974e02db8baa45 96-121
+packages/providers/src/contract/index.ts
+  s_10deebb6917c48::t_974e02db8baa45 74,80-81
+packages/providers/tests/retry-endpoint-failover.test.ts
+  s_10deebb6917c48::t_dec5afec54a2bd 141-151
+packages/providers/tests/retry.test.ts
+  s_10deebb6917c48::t_d3f6d0bb0f4fd3 154-171,272
+packages/providers/tests/image-endpoint-provider.test.ts
+  s_10deebb6917c48::t_41e993dc793c34 22,240,539-663
+  s_10deebb6917c48::t_bf8defbd78c783 1,8,10,21,35-38,195-239,720-721,728-729,735-736
+  s_909430b759b770::t_7ed52a45340d02 241,664
+packages/providers/src/transport/image-endpoint/wire-compatibility.ts
+  s_10deebb6917c48::t_5c83b7a4b93454 1-12,18-341,362-372
+  s_10deebb6917c48::t_4648fb7435380c 13-17,342-361
+packages/providers/tests/image-endpoint-wire-compatibility.test.ts
+  s_10deebb6917c48::t_833bcd34b677d8 1-279
+packages/providers/src/providers/image-endpoint/provider.ts
+  s_10deebb6917c48::t_be988a3ade0b5f 1,22,25,89-106,183,189,204,214-269
+  s_10deebb6917c48::t_b28a29e51a99c9 13,20-21,23-24,63-67,75-77,166,168-173,176-177,270
+packages/providers/src/providers/image-endpoint/descriptor.ts
+  s_10deebb6917c48::t_974e02db8baa45 12-18
+packages/providers/src/transport/image-endpoint/error-map.ts
+  s_10deebb6917c48::t_1aab17910dc622 95
+packages/providers/src/index.ts
+  s_10deebb6917c48::t_974e02db8baa45 63-65
+docs/ENGINEERING_CONTEXT.md
+  s_10deebb6917c48::t_426a467f821023 125-130
+packages/providers/src/providers/chat-image/descriptor.ts
+  s_10deebb6917c48::t_974e02db8baa45 12-16
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.10",
+  "base_commit_sha": "33331cbab2664a852193a30c71849d26e28f5be1",
+  "prompts": {},
+  "sessions": {
+    "s_10deebb6917c48": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "019f2942-a1d5-7470-a3a5-f3f30f42873b",
+        "model": "gpt-5.4"
+      },
+      "human_author": "Sinyuk <80998062@qq.com>"
+    },
+    "s_909430b759b770": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "019f294c-7b7c-7912-b69d-edd2c7bf6589",
+        "model": "gpt-5.4"
+      },
+      "human_author": "Sinyuk <80998062@qq.com>"
+    }
+  }
+}
