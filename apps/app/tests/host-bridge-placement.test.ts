@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import {
   LEGACY_TRUNCATED_MOCK_PNG,
   VALID_TRANSPARENT_PNG,
@@ -123,6 +123,42 @@ describe('PhotoshopHostBridge fake harness — placement', () => {
     });
 
     expect(spies.writeTempFile).toHaveBeenCalledWith(expect.any(ArrayBuffer), { format: 'binary' });
+    expect(spies.batchPlay).toHaveBeenCalledTimes(1);
+  });
+
+  it('placeAssetOnCanvas fetches URL storedRefs before writing the temporary file', async () => {
+    const { modules, spies } = createFakeModules();
+    const { bridge } = createBridge(modules);
+    const originalFetch = globalThis.fetch;
+    const fetchMock = vi.fn(async () => new Response(arrayBufferFromBytes(VALID_TRANSPARENT_PNG), {
+      headers: { 'content-type': 'image/png' },
+    }));
+    globalThis.fetch = fetchMock as unknown as typeof fetch;
+
+    try {
+      await bridge.placeAssetOnCanvas({
+        type: 'image',
+        name: 'remote.png',
+        mimeType: 'image/png',
+        url: 'https://example.test/remote.png',
+        storedRef: {
+          kind: 'url',
+          ref: 'https://example.test/remote.png',
+          name: 'remote.png',
+          mimeType: 'image/png',
+        },
+      }, {
+        kind: 'document-only',
+        documentId: 42,
+        documentSizeAtCapture: { width: 512, height: 384 },
+      });
+    } finally {
+      globalThis.fetch = originalFetch;
+    }
+
+    expect(fetchMock).toHaveBeenCalledWith('https://example.test/remote.png');
+    expect(spies.writeTempFile).toHaveBeenCalledWith(expect.any(ArrayBuffer), { format: 'binary' });
+    expect(new Uint8Array(spies.writeTempFile.mock.calls[0]?.[0] as ArrayBuffer)).toEqual(VALID_TRANSPARENT_PNG);
     expect(spies.batchPlay).toHaveBeenCalledTimes(1);
   });
 

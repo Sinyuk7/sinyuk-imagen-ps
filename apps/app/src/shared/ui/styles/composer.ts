@@ -266,7 +266,7 @@ export const COMPOSER_CSS = `
   min-width:0; max-width:320px; background:var(--app-color-background-elevated); border:1px solid var(--app-color-border-strong); border-radius:var(--app-radius-small);
   overflow:hidden;
 }
-.cmp-select-menu-portal{ position:fixed; z-index:1500; }
+.cmp-select-menu-portal{ z-index:1500; }
 .cmp-select-menu[data-motion-state="exiting"]{ pointer-events:none; }
 .cmp-select-menu::-webkit-scrollbar{ width:3px; }
 .cmp-select-menu::-webkit-scrollbar-thumb{ background:var(--app-color-border-default); border-radius:2px; }

@@ -122,10 +122,32 @@ export function suggestedGeneratedImageFileName(
   }, fallbackBase);
 }
 
+async function arrayBufferFromUrl(
+  url: string,
+  mimeType: string | undefined,
+  fetchImpl: typeof fetch,
+): Promise<{ readonly data: ArrayBuffer; readonly mimeType: string }> {
+  const response = await fetchImpl(url);
+  if (!response.ok) {
+    throw new Error(`Failed to fetch asset URL: ${response.status}`);
+  }
+  return {
+    data: await response.arrayBuffer(),
+    mimeType: response.headers.get('content-type') ?? mimeType ?? 'image/png',
+  };
+}
+
 export async function assetToArrayBuffer(
   asset: Asset,
   options: AssetToArrayBufferOptions = {},
 ): Promise<{ readonly data: ArrayBuffer; readonly mimeType: string }> {
+  if (asset.storedRef?.kind === 'url') {
+    return arrayBufferFromUrl(
+      asset.storedRef.ref,
+      asset.storedRef.mimeType ?? asset.mimeType,
+      options.fetchImpl ?? fetch,
+    );
+  }
   if (asset.storedRef && options.resolveStoredRef) {
     const data = await options.resolveStoredRef(asset.storedRef);
     if (!data) {
@@ -148,15 +170,7 @@ export async function assetToArrayBuffer(
     return arrayBufferFromDataUrl(asset.data);
   }
   if (asset.url) {
-    const fetchImpl = options.fetchImpl ?? fetch;
-    const response = await fetchImpl(asset.url);
-    if (!response.ok) {
-      throw new Error(`Failed to fetch asset URL: ${response.status}`);
-    }
-    return {
-      data: await response.arrayBuffer(),
-      mimeType: response.headers.get('content-type') ?? asset.mimeType ?? 'image/png',
-    };
+    return arrayBufferFromUrl(asset.url, asset.mimeType, options.fetchImpl ?? fetch);
   }
   throw new Error('Asset has no URL or inline data.');
 }

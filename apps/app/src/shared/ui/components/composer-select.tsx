@@ -1,4 +1,5 @@
 import { useRef, type KeyboardEvent, type MouseEvent } from 'react';
+import { createPortal } from 'react-dom';
 import { ComposerSelectMenu } from './composer-select-menu';
 import { IconSelectTriggerButton } from './icon-select-trigger-button';
 import { TextSelectTriggerButton } from './text-select-trigger-button';
@@ -50,6 +51,8 @@ export function ComposerSelect(props: ComposerSelectProps) {
     chipValueRef,
     chipArrowRef,
   });
+  const portalContainer = chipRef.current?.closest('.panel') as HTMLElement | null;
+
   const handleTriggerClick = (event: MouseEvent<HTMLElement>) => {
     event.stopPropagation();
     if (disabled) return;
@@ -116,7 +119,7 @@ export function ComposerSelect(props: ComposerSelectProps) {
       )}
       <MotionPresenceView visible={open} kind="popover">
         {({ ref, state }) => {
-          return (
+          const menu = (
             <ComposerSelectMenu
               label={label}
               testId={testId}
@@ -131,9 +134,10 @@ export function ComposerSelect(props: ComposerSelectProps) {
               onSelect={selectValue}
               onClose={() => onOpenChange(false)}
               onClick={handleMenuClick}
-              floating={true}
+              portaled={portalContainer !== null}
             />
           );
+          return portalContainer ? createPortal(menu, portalContainer) : menu;
         }}
       </MotionPresenceView>
     </div>

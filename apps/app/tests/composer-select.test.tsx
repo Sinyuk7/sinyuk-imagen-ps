@@ -421,11 +421,7 @@ describe('ComposerSelect', () => {
     expect(open).toBe(false);
   });
 
-  it('ports open menu to body and constrains it to the viewport edge', async () => {
-    const originalInnerWidth = window.innerWidth;
-    const originalInnerHeight = window.innerHeight;
-    Object.defineProperty(window, 'innerWidth', { configurable: true, value: 240 });
-    Object.defineProperty(window, 'innerHeight', { configurable: true, value: 180 });
+  it('constrains open menu to the nearest panel and flips direction when needed', async () => {
     const container = document.createElement('div');
     const panel = document.createElement('div');
     panel.className = 'panel';
@@ -446,46 +442,39 @@ describe('ComposerSelect', () => {
       }),
     });
 
-    try {
-      await renderSelect(container, {
-        open: true,
-        beforeFlush: (rendered) => {
-          const trigger = rendered.querySelector<HTMLElement>('[data-testid="test-select"]')!;
-          Object.defineProperty(trigger, 'getBoundingClientRect', {
-            configurable: true,
-            value: () => ({
-              top: 18,
-              left: 170,
-              right: 226,
-              bottom: 42,
-              width: 56,
-              height: 24,
-              x: 170,
-              y: 18,
-              toJSON: () => undefined,
-            }),
-          });
-        },
-      });
+    await renderSelect(container, {
+      open: true,
+      beforeFlush: (rendered) => {
+        const trigger = rendered.querySelector<HTMLElement>('[data-testid="test-select"]')!;
+        Object.defineProperty(trigger, 'getBoundingClientRect', {
+          configurable: true,
+          value: () => ({
+            top: 18,
+            left: 170,
+            right: 226,
+            bottom: 42,
+            width: 56,
+            height: 24,
+            x: 170,
+            y: 18,
+            toJSON: () => undefined,
+          }),
+        });
+      },
+    });
 
-      await act(async () => {
-        window.dispatchEvent(new Event('resize'));
-      });
-      await flush();
+    await act(async () => {
+      window.dispatchEvent(new Event('resize'));
+    });
+    await flush();
 
-      const popover = document.body.querySelector<HTMLElement>('[data-testid="test-select-popover"]')!;
-      expect(panel.querySelector('[data-testid="test-select-popover"]')).toBeNull();
-      expect(popover.classList.contains('cmp-select-menu-portal')).toBe(true);
-      expect(popover.classList.contains('cmp-select-menu-down')).toBe(true);
-      expect(popover.classList.contains('cmp-select-menu-end')).toBe(true);
-      expect(popover.style.width).toBe('216px');
-      expect(popover.style.maxHeight).toBe('120px');
-      expect(popover.style.top).toBe('48px');
-      expect(popover.style.left).toBe('12px');
-    } finally {
-      Object.defineProperty(window, 'innerWidth', { configurable: true, value: originalInnerWidth });
-      Object.defineProperty(window, 'innerHeight', { configurable: true, value: originalInnerHeight });
-    }
+    const popover = panel.querySelector<HTMLElement>('[data-testid="test-select-popover"]')!;
+    expect(popover.classList.contains('cmp-select-menu-down')).toBe(true);
+    expect(popover.classList.contains('cmp-select-menu-end')).toBe(true);
+    expect(popover.style.width).toBe('228px');
+    expect(popover.style.maxHeight).toBe('204px');
+    expect(popover.style.top).toBe('48px');
+    expect(popover.style.right).toBe('14px');
   });
 
   it('does not allocate a component-local ResizeObserver', async () => {
