@@ -113,6 +113,7 @@ packages/providers/src/contract/model.ts
   s_953b7148ed2437::t_9db16136920b8a 19-68,93-98
 apps/app/tests/composer-select.test.tsx
   s_953b7148ed2437::t_402a5803af0294 474,477
+  s_953b7148ed2437::t_bac6c79e9da2b1 473
 packages/providers/src/contract/index.ts
   s_953b7148ed2437::t_07a4cf69a1a94d 41,61-71
 apps/app/tests/main-page-attachment-submission.test.tsx
