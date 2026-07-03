@@ -1,0 +1,43 @@
+apps/app/src/shared/ui/pages/main-page.tsx
+  s_46f18f6225125e::t_c93d46c40e32ed 293-302,1340
+apps/app/tests/error-action.test.ts
+  s_46f18f6225125e::t_f11d9bc1b58e4f 1-18
+apps/app/src/shared/ui/i18n/messages.ts
+  s_46f18f6225125e::t_0c47e2766a34f1 146
+  s_46f18f6225125e::t_0f20d4fe59c961 443,448,746,751
+apps/app/src/shared/ui/error-action.ts
+  s_46f18f6225125e::t_ae980a807dae8d 6,49-52,55-57
+packages/providers/src/transport/image-endpoint/error-map.ts
+  s_46f18f6225125e::t_7a94c05a62154d 13,53-59,71-81
+  s_46f18f6225125e::t_580e99bd2aba2a 82
+packages/providers/tests/error-map.test.ts
+  s_46f18f6225125e::t_f175d652497879 1-24
+apps/app/tests/main-page-result-rendering.test.tsx
+  s_46f18f6225125e::t_cb21a9dd475f70 289,317-318,325
+docs/loops/2026-07-04-composer-global-context-stage-2.md
+  s_8a820525a29ddb::t_8a3103256d55c9 23,29-32,41,43-45,48-49,58-59,66-68,74-78,85,95-164,168,172,182,184-189,193-196,199-201,206,208,212,216,219,223-226,240,242,246,252-253,257-259,273,275,279,285-286,290-295,304-305,310,323-337,356,366-371,392
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.10",
+  "base_commit_sha": "ad4bb405c5e5759f446ee36479e1d7cc943c0444",
+  "prompts": {},
+  "sessions": {
+    "s_46f18f6225125e": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "019f28ea-d5e3-7ae1-85e8-f8fc3d9cd322",
+        "model": "gpt-5.4"
+      },
+      "human_author": "Sinyuk <80998062@qq.com>"
+    },
+    "s_8a820525a29ddb": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "019f28d3-7660-7973-b3aa-27f7195e6f6b",
+        "model": "gpt-5.4"
+      },
+      "human_author": "Sinyuk <80998062@qq.com>"
+    }
+  }
+}
