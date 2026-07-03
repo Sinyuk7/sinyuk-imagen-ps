@@ -1,0 +1,25 @@
+apps/app/src/shared/ui/pages/main-page.tsx
+  s_b1872f507864aa::t_34410916f1439c 6,456-460,694-703
+  s_b1872f507864aa::t_befadfabb6db86 704-706
+  s_b1872f507864aa::t_9291f912cc9904 1828
+apps/app/src/shared/domain/mappers.ts
+  s_b1872f507864aa::t_3b7a1b67bdd4ee 1
+apps/app/tests/main-page-composer-controls.test.tsx
+  s_b1872f507864aa::t_a79f6c0e4441ce 231,285-340
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.10",
+  "base_commit_sha": "2042b8a3698fb90f89775d44bdab9222277eeed6",
+  "prompts": {},
+  "sessions": {
+    "s_b1872f507864aa": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "019f2890-28d7-75e2-a784-477fa537bae2",
+        "model": "gpt-5.5"
+      },
+      "human_author": "Sinyuk <80998062@qq.com>"
+    }
+  }
+}
