@@ -6,6 +6,7 @@ import { PROMPT_OPTIMIZER_PROFILE_ID, type ProviderModelInfo, type ProviderProfi
 import type { SupportedLocale } from '../domain/locale';
 import type { PluginAppModel } from '../domain/plugin-app-model';
 import { useConversation } from './hooks/use-conversation';
+import { useComposerDraft } from './hooks/use-composer-draft';
 import { useImagenSession } from './hooks/use-imagen-session';
 import { useGenerationSettings } from './hooks/use-generation-settings';
 import { useJobHistory } from './hooks/use-job-history';
@@ -23,6 +24,7 @@ import { ensurePanelCss } from './panel-bootstrap';
 import { placeTaskOutputOnCanvas, saveTaskOutputToFile } from '../domain/task-actions';
 import type { TaskRecord } from '@imagen-ps/application';
 import { MotionPageFrame } from './components/motion-ui';
+import type { OutputSizeSelectionContext } from './output-size';
 
 export interface AppShellHost {
   readonly app: PluginAppModel;
@@ -229,11 +231,20 @@ function AppShellContent({ host }: AppShellProps) {
   const generationSettings = useGenerationSettings(services);
   const imagenSession = useImagenSession(services);
   const conversation = useConversation(services, imagenSession, generationSettings.settings, t.conversation);
+  const composerDraft = useComposerDraft();
   const history = useJobHistory(services);
   const { records: historyRecords, loading: historyLoading, error: historyError, reload: reloadHistory } = history;
   const { layers, layersError, layersLoading, reloadLayers } = useHostLayers(host);
   const { show } = useToast();
   const previousRoundStatusRef = useRef<Record<string, 'running' | 'ok' | 'err'>>({});
+  const outputSizeContext = useMemo<OutputSizeSelectionContext>(
+    () => ({
+      kind: 'composer',
+      model: imageModels.find((model) => model.id === selectedModelId),
+      operation: composerDraft.operation,
+    }),
+    [composerDraft.operation, imageModels, selectedModelId],
+  );
 
   usePanelResponsiveAttributes(panelRef);
 
@@ -393,6 +404,8 @@ function AppShellContent({ host }: AppShellProps) {
           highlightedRoundId={highlightedRoundId}
           onEditProfile={onEditProfile}
           promptOptimizerProfile={promptOptimizerProfile}
+          composerDraft={composerDraft}
+          outputSizeContext={outputSizeContext}
           generationSettings={generationSettings.settings}
           onChangeOutputSizePreset={async (outputSizePreset) => {
             await generationSettings.save({
@@ -505,6 +518,7 @@ function AppShellContent({ host }: AppShellProps) {
           settings={generationSettings.settings}
           loading={generationSettings.loading}
           error={generationSettings.error}
+          outputSizeContext={outputSizeContext}
           onSave={generationSettings.save}
           />
         </MotionPageFrame>

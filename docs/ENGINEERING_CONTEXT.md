@@ -140,6 +140,12 @@ surface apps -> application/session -> core-engine + providers
 - `apps/app` now applies best-effort retention at shell startup and after successful generation: task history and job history are count-capped, generated output assets use oldest-first high/low watermark eviction, and UXP logs under `logs/YYYY-MM-DD/imagen.jsonl` are bounded by day retention plus per-day size truncation. This is not a byte-accurate quota or historical orphan cleanup policy.
 - `pnpm lint` is not a supported gate; workspace packages do not define package-level lint scripts.
 
+## Shared Composer Draft Ownership
+
+- `apps/app` `AppShell` owns the in-session Composer draft. The shared draft contract is: prompt text, draft attachments, and the derived Composer operation (`text-to-image` vs `image-edit`).
+- `MainPage` and `GlobalGenerationSettingsPage` must resolve output-size availability from the same selected model plus shared draft-derived operation. Settings must not fall back to a page-local or synthetic "no composer context" branch.
+- Draft reset after send, failed-round fill/restore, and attachment replacement must flow through the shared draft owner so attachment preview disposal has one owner. Menu open state, popup visibility, hover/highlight state, and copy affordances remain page-local UI state.
+
 ## Open Questions
 
 - Host storage paths: UXP data-folder and Chrome storage defaults are not yet unified across platforms, and Linux / Windows defaults are not explicitly specified (current defaults are macOS-only).

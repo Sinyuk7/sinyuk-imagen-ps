@@ -11,6 +11,7 @@ import type {
   ConversationRound,
 } from '../hooks/use-conversation';
 import { derivePlacementIntent } from '../hooks/use-conversation';
+import type { ComposerDraftController } from '../hooks/use-composer-draft';
 import { useProfileBilling } from '../hooks/use-profile-billing';
 import { useLayerThumbnail } from '../hooks/use-layer-thumbnail';
 import { Icon } from '../components/icons';
@@ -50,7 +51,7 @@ import {
 } from '../composer-readiness';
 import { classifyRoundError, type ErrorPrimaryAction } from '../error-action';
 import type { BalanceChange, ExactTaskCost } from '@imagen-ps/application';
-import { canSelectOutputSize, OUTPUT_SIZE_PRESETS, outputSizeLabel } from '../output-size';
+import { canSelectOutputSize, OUTPUT_SIZE_PRESETS, outputSizeLabel, type OutputSizeSelectionContext } from '../output-size';
 
 function isImeCompositionKey(event: React.KeyboardEvent): boolean {
   const nativeEvent = event.nativeEvent as KeyboardEvent & { readonly isComposing?: boolean };
@@ -78,6 +79,8 @@ interface MainPageProps {
   readonly highlightedRoundId?: string | null;
   readonly onEditProfile?: (profileId: string) => void;
   readonly promptOptimizerProfile?: ProviderProfile | null;
+  readonly composerDraft: ComposerDraftController;
+  readonly outputSizeContext: OutputSizeSelectionContext;
   readonly generationSettings: AppGenerationSettings;
   readonly onChangeOutputSizePreset: (sizePreset: AppOutputSizePreset) => Promise<void>;
   readonly restoreFailedRoundId?: string | null;
@@ -187,10 +190,6 @@ function modelIsSelectable(model: ProviderModelInfo | undefined): boolean {
     return false;
   }
   return model.supportStatus === undefined || model.supportStatus === 'selectable';
-}
-
-function operationForAttachments(attachments: readonly ConversationAttachment[]): ComposerOperation {
-  return attachments.length > 0 ? 'image-edit' : 'text-to-image';
 }
 
 function firstSupportedSize(model: ProviderModelInfo | undefined, operation: ComposerOperation): AppOutputSizePreset | null {
@@ -352,21 +351,6 @@ function providerInputPolicy(settings: AppGenerationSettings): ProviderInputSize
   };
 }
 
-function releaseAttachment(attachment: ConversationAttachment): void {
-  attachment.image.preview.dispose?.();
-}
-
-function releaseAttachments(attachments: readonly ConversationAttachment[]): void {
-  const released = new Set<ConversationAttachment['image']>();
-  for (const attachment of attachments) {
-    if (released.has(attachment.image)) {
-      continue;
-    }
-    released.add(attachment.image);
-    releaseAttachment(attachment);
-  }
-}
-
 function isLocalFileNormalizationError(error: unknown): boolean {
   return error instanceof Error && error.message.includes('Local image requires provider input normalization');
 }
@@ -392,6 +376,8 @@ export function MainPage({
   highlightedRoundId,
   onEditProfile,
   promptOptimizerProfile,
+  composerDraft,
+  outputSizeContext,
   generationSettings,
   onChangeOutputSizePreset,
   restoreFailedRoundId,
@@ -399,8 +385,6 @@ export function MainPage({
 }: MainPageProps) {
   const services = useAppServices();
   const { messages: t } = useI18n();
-  const [input, setInput] = useState('');
-  const [attachments, setAttachments] = useState<readonly ConversationAttachment[]>([]);
   const [profileMenuOpen, setProfileMenuOpen] = useState(false);
   const [openMenu, setOpenMenu] = useState<'model' | 'output-size' | null>(null);
   const [attachOpen, setAttachOpen] = useState(false);
@@ -421,11 +405,11 @@ export function MainPage({
   const taRef = useRef<HTMLTextAreaElement>(null);
   const responseFoldRefs = useRef<Map<string, HTMLDivElement>>(new Map());
   const responseTextRefs = useRef<Map<string, HTMLDivElement>>(new Map());
-  const attachmentsRef = useRef<readonly ConversationAttachment[]>(attachments);
   const previousRoundStatusRef = useRef<Record<string, ConversationRound['status']>>({});
   const lastSizeAutoScopeRef = useRef<string>('');
   const flatLayers = useMemo(() => flattenLayers(layers), [layers]);
   const uniqueModels = useMemo(() => dedupeById(models), [models]);
+  const { input, attachments } = composerDraft;
 
   function layerKindIcon(kind: string | undefined): 'layer-pixel' | 'layer-smart-object' | 'layer-text' | 'layer-group' | null {
     switch (kind) {
@@ -457,7 +441,7 @@ export function MainPage({
   );
   const selectedModelLabel = selectedModelId || (modelsLoading ? t.main.modelLoading : t.main.modelUnselected);
   const selectedModelInfo = uniqueModels.find((model) => model.id === selectedModelId);
-  const currentOperation = operationForAttachments(attachments);
+  const currentOperation = composerDraft.operation;
   const placementIntent = useMemo(() => derivePlacementIntent(attachments), [attachments]);
   const modelOptions = useMemo(
     () => uniqueModels.map((model) => ({
@@ -505,23 +489,11 @@ export function MainPage({
   const responseTextKey = (roundId: string) => `response:${roundId}`;
   const pendingBillingProfileIdRef = useRef<string | null>(null);
   const placeResetTimersRef = useRef<Record<string, number>>({});
-  const outputSizeContext = useMemo(
-    () => ({
-      kind: 'composer' as const,
-      model: selectedModelInfo,
-      operation: currentOperation,
-    }),
-    [currentOperation, selectedModelInfo],
-  );
   const isAtBottom = useCallback(() => {
     const el = convRef.current;
     if (!el) return true;
     return el.scrollHeight - el.scrollTop - el.clientHeight <= 64;
   }, []);
-
-  useEffect(() => {
-    attachmentsRef.current = attachments;
-  }, [attachments]);
 
   useEffect(() => () => {
     for (const timer of Object.values(placeResetTimersRef.current)) {
@@ -573,13 +545,6 @@ export function MainPage({
       setRoundBillingMeta((current) => ({ ...current, [roundId]: { kind: 'balance-change', change: observed.lastBalanceChange! } }));
     }
   }, [billing]);
-
-  useEffect(() => {
-    return () => {
-      releaseAttachments(attachmentsRef.current);
-      attachmentsRef.current = [];
-    };
-  }, []);
 
   useEffect(() => {
     if (convRef.current && isAtBottom()) {
@@ -724,25 +689,21 @@ export function MainPage({
   }, [currentOperation, generationSettings.outputSizePreset, onSelectModel, show, t, uniqueModels]);
 
   const restoreRound = (round: ConversationRound) => {
-    setInput(round.prompt);
+    composerDraft.setInput(round.prompt);
     if (round.modelId && uniqueModels.some((model) => model.id === round.modelId)) {
       onSelectModel(round.modelId);
     }
-    if (round.attachments.length > 0) {
-      releaseAttachments(attachmentsRef.current.filter((attachment) => !round.attachments.includes(attachment)));
-      setAttachments(round.attachments);
-    }
+    composerDraft.replaceAttachments(round.attachments);
     taRef.current?.focus();
     show(t.toast.promptFilled, 'info', { key: 'prompt-fill' });
   };
 
   const fillComposerFromFailedRound = useCallback((round: ConversationRound) => {
-    setInput(round.prompt);
-    releaseAttachments(attachmentsRef.current.filter((attachment) => !round.attachments.includes(attachment)));
-    setAttachments(round.attachments);
+    composerDraft.setInput(round.prompt);
+    composerDraft.replaceAttachments(round.attachments);
     taRef.current?.focus();
     show(t.toast.promptFilled, 'info', { key: `prompt-fill:${round.id}` });
-  }, [show, t.toast.promptFilled]);
+  }, [composerDraft, show, t.toast.promptFilled]);
 
   useEffect(() => {
     if (!restoreFailedRoundId) {
@@ -766,10 +727,7 @@ export function MainPage({
   }, [currentOperation, selectedModelId]);
 
   const removeAllAttachments = () => {
-    setAttachments((current) => {
-      releaseAttachments(current);
-      return [];
-    });
+    composerDraft.clearAttachments();
   };
 
   const handleCopy = (id: string, round: ConversationRound) => {
@@ -858,26 +816,19 @@ export function MainPage({
   };
 
   const addAttachment = (attachment: ConversationAttachment) => {
-    setAttachments((current) => [...current, attachment]);
+    composerDraft.addAttachment(attachment);
     setHighlightKey(`attachment:${attachment.id}`);
     setAttachOpen(false);
     setLayerOpen(false);
   };
 
   const removeAttachment = (attachmentId: string) => {
-    setAttachments((current) => {
-      const removed = current.find((item) => item.id === attachmentId);
-      if (removed) {
-        releaseAttachment(removed);
-      }
-      return current.filter((item) => item.id !== attachmentId);
-    });
+    composerDraft.removeAttachment(attachmentId);
   };
 
   const selectProfile = (profileId: string) => {
     if (profileId !== selectedProfileId) {
-      releaseAttachments(attachments);
-      setAttachments([]);
+      composerDraft.clearAttachments();
     }
     onSelectProfile(profileId);
     setProfileMenuOpen(false);
@@ -994,8 +945,7 @@ export function MainPage({
       }
       return;
     }
-    setInput('');
-    setAttachments([]);
+    composerDraft.reset();
     pendingBillingProfileIdRef.current = selectedProfile.profileId;
     await conversation.submit({
       operation: attachments.length > 0 ? 'image-edit' : 'text-to-image',
@@ -1038,7 +988,7 @@ export function MainPage({
           show(t.toast.promptOptimizeNoChanges, 'neutral', { key: 'optimize-unchanged', icon: 'message' });
           return;
         }
-        setInput(optimized);
+        composerDraft.setInput(optimized);
         setOptimizeState({ status: 'optimized', source: prompt, result: optimized });
         setHighlightKey(`optimize:${Date.now()}`);
         show(t.toast.promptOptimized, 'positive', { key: 'optimize-success' });
@@ -1054,7 +1004,7 @@ export function MainPage({
 
   const handleUndoOptimize = () => {
     if (optimizeState.status === 'optimized') {
-      setInput(optimizeState.source);
+      composerDraft.setInput(optimizeState.source);
       setOptimizeState({ status: 'idle' });
     }
   };
@@ -1233,13 +1183,13 @@ export function MainPage({
             <div className="conv-empty">
               <div style={{ color: 'var(--app-color-text-secondary)', fontSize: 13 }}>{t.main.emptyHint}</div>
               <div className="empty-hints">
-                <button className="empty-hint" onClick={() => setInput(t.main.promptSuggestionProductValue)}>
+                <button className="empty-hint" onClick={() => composerDraft.setInput(t.main.promptSuggestionProductValue)}>
                   {t.main.promptSuggestionProductLabel}
                 </button>
-                <button className="empty-hint" onClick={() => setInput(t.main.promptSuggestionCyberpunkValue)}>
+                <button className="empty-hint" onClick={() => composerDraft.setInput(t.main.promptSuggestionCyberpunkValue)}>
                   {t.main.promptSuggestionCyberpunkLabel}
                 </button>
-                <button className="empty-hint" onClick={() => setInput(t.main.promptSuggestionLayerValue)}>
+                <button className="empty-hint" onClick={() => composerDraft.setInput(t.main.promptSuggestionLayerValue)}>
                   {t.main.promptSuggestionLayerLabel}
                 </button>
               </div>
@@ -1753,7 +1703,7 @@ export function MainPage({
                 placeholder={selectedProfile ? t.main.promptPlaceholderReady : t.main.promptPlaceholderNoProfile}
                 rows={2}
                 value={input}
-                onValue={setInput}
+                onValue={composerDraft.setInput}
                 onKeyDown={(event) => {
                   if (event.key === 'Enter' && !event.shiftKey && !isImeCompositionKey(event)) {
                     event.preventDefault();

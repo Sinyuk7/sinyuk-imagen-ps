@@ -1,7 +1,7 @@
 import { act } from 'react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { fakeOutputAsset, createFakeServices } from './fakes';
-import { cleanupMainPageRoot, flush, renderMainPage, sendPrompt } from './main-page-harness';
+import { cleanupMainPageRoot, clickText, flush, renderMainPage, sendPrompt } from './main-page-harness';
 
 afterEach(async () => {
   await cleanupMainPageRoot();
@@ -359,6 +359,59 @@ describe('MainPage contract — result rendering', () => {
     expect(services.spies.submitJob).toHaveBeenCalledTimes(1);
     expect(services.services.commands.retryJob).not.toHaveBeenCalled();
     expect(container.querySelector<HTMLTextAreaElement>('.cmp-ta')?.value).toBe('draft from failed round');
+  });
+
+  it('replaces the current draft attachments when filling from a failed image-edit round', async () => {
+    const container = document.createElement('div');
+    document.body.appendChild(container);
+    const services = createFakeServices();
+    services.spies.submitJob.mockResolvedValueOnce({
+      ok: true as const,
+      value: {
+        id: 'job-failed-edit-fill',
+        status: 'failed',
+        input: {},
+        output: undefined,
+        error: {
+          category: 'provider',
+          message: 'provider edit failed',
+        },
+        createdAt: '2026-06-15T00:00:00.000Z',
+        updatedAt: '2026-06-15T00:00:01.000Z',
+      },
+    });
+    await renderMainPage(container, services);
+
+    await act(async () => {
+      container.querySelector<HTMLElement>('[data-testid="composer-add-image-button"]')!.click();
+    });
+    await flush();
+    await act(async () => {
+      clickText(container, '.attach-opt', '从电脑上传');
+    });
+    await flush();
+    await sendPrompt(container, 'failed image edit draft');
+
+    expect(container.querySelectorAll('.att-thumb')).toHaveLength(0);
+
+    await act(async () => {
+      container.querySelector<HTMLElement>('[data-testid="composer-add-image-button"]')!.click();
+    });
+    await flush();
+    await act(async () => {
+      clickText(container, '.attach-opt', '从电脑上传');
+    });
+    await flush();
+
+    expect(container.querySelectorAll('.att-thumb')).toHaveLength(1);
+
+    await act(async () => {
+      container.querySelector<HTMLElement>('[data-testid^="error-fill-composer-button-"]')!.click();
+    });
+    await flush();
+
+    expect(container.querySelector<HTMLTextAreaElement>('.cmp-ta')?.value).toBe('failed image edit draft');
+    expect(container.querySelectorAll('.att-thumb')).toHaveLength(1);
   });
 
   it('renders compact mock token response as plain response text without details splitting', async () => {
