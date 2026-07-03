@@ -1,4 +1,4 @@
-import { useRef, type KeyboardEvent, type MouseEvent } from 'react';
+import { useCallback, useEffect, useId, useLayoutEffect, useRef, useState, type KeyboardEvent, type MouseEvent, type WheelEvent } from 'react';
 import { createPortal } from 'react-dom';
 import { ComposerSelectMenu } from './composer-select-menu';
 import { IconSelectTriggerButton } from './icon-select-trigger-button';
@@ -12,6 +12,36 @@ export type {
 } from './composer-select.types';
 import { useComposerSelectPlacement } from './use-composer-select-placement';
 import { MotionPresenceView } from './motion-ui';
+import { usePopupLayer } from './popup-layer';
+
+interface ComposerSelectUnderlayProps {
+  readonly testId?: string;
+  readonly onClose: () => void;
+}
+
+function ComposerSelectUnderlay({ testId, onClose }: ComposerSelectUnderlayProps) {
+  const stop = (event: MouseEvent<HTMLDivElement> | WheelEvent<HTMLDivElement>) => {
+    event.preventDefault();
+    event.stopPropagation();
+    event.nativeEvent.stopImmediatePropagation();
+  };
+  const close = (event: MouseEvent<HTMLDivElement>) => {
+    stop(event);
+    onClose();
+  };
+
+  return (
+    <div
+      data-testid={testId ? `${testId}-underlay` : undefined}
+      className="cmp-select-underlay"
+      onPointerDownCapture={stop}
+      onMouseDownCapture={stop}
+      onWheelCapture={stop}
+      onContextMenuCapture={close}
+      onClickCapture={close}
+    />
+  );
+}
 
 /**
  * Composer 底部控制行用的受控单选下拉原语。
@@ -35,10 +65,24 @@ export function ComposerSelect(props: ComposerSelectProps) {
     menuClassName,
   } = props;
   const menuRef = useRef<HTMLDivElement | null>(null);
+  const hostRef = useRef<HTMLDivElement | null>(null);
+  const panelBoundaryRef = useRef<HTMLElement | null>(null);
   const chipRef = useRef<HTMLButtonElement | null>(null);
   const chipBodyRef = useRef<HTMLSpanElement | null>(null);
   const chipValueRef = useRef<HTMLSpanElement | null>(null);
   const chipArrowRef = useRef<HTMLSpanElement | null>(null);
+  const popupRootReadyRef = useRef(false);
+  const wasOpenRef = useRef(open);
+  const [fallbackPortalRoot, setFallbackPortalRoot] = useState<HTMLElement | null>(null);
+  const popupLayer = usePopupLayer();
+  const popupRoot = popupLayer?.root ?? null;
+  const portalRoot = popupRoot ?? fallbackPortalRoot;
+  const fallbackMenuId = useId();
+  const menuId = triggerId ? `${triggerId}-menu` : `${fallbackMenuId}-menu`;
+  const popupId = triggerId ?? testId ?? fallbackMenuId;
+  const closeForInvalidAnchor = useCallback(() => {
+    onOpenChange(false);
+  }, [onOpenChange]);
   const menuPlacement = useComposerSelectPlacement({
     open,
     optionsLength: options.length,
@@ -46,12 +90,15 @@ export function ComposerSelect(props: ComposerSelectProps) {
     value,
     selectedId,
     testId,
-    chipRef,
+    anchorRef: hostRef,
+    popupRoot,
+    menuRef,
+    scrollBoundaryRef: panelBoundaryRef,
+    onInvalidAnchor: closeForInvalidAnchor,
     chipBodyRef,
     chipValueRef,
     chipArrowRef,
   });
-  const portalContainer = chipRef.current?.closest('.panel') as HTMLElement | null;
 
   const handleTriggerClick = (event: MouseEvent<HTMLElement>) => {
     event.stopPropagation();
@@ -79,7 +126,49 @@ export function ComposerSelect(props: ComposerSelectProps) {
     onOpenChange(false);
   };
 
+  const closeAndReturnFocus = () => {
+    onOpenChange(false);
+    chipRef.current?.focus();
+  };
+
+  useEffect(() => {
+    if (!open) {
+      popupLayer?.releaseActivePopup(popupId);
+      return undefined;
+    }
+    popupLayer?.requestActivePopup(popupId);
+    return () => {
+      popupLayer?.releaseActivePopup(popupId);
+    };
+  }, [open, popupId, popupLayer]);
+
+  useEffect(() => {
+    const openedThisCommit = open && !wasOpenRef.current;
+    if (open && !openedThisCommit && popupLayer?.activePopupId && popupLayer.activePopupId !== popupId) {
+      onOpenChange(false);
+    }
+    wasOpenRef.current = open;
+  }, [onOpenChange, open, popupId, popupLayer?.activePopupId]);
+
+  useLayoutEffect(() => {
+    const panel = hostRef.current?.closest('.panel') as HTMLElement | null;
+    panelBoundaryRef.current = panel;
+    if (!popupLayer) {
+      setFallbackPortalRoot((current) => (current === panel ? current : panel));
+    }
+  }, [popupRoot]);
+
+  useEffect(() => {
+    if (popupRoot) {
+      popupRootReadyRef.current = true;
+    }
+    if (open && (disabled || options.length === 0 || !hostRef.current || (popupLayer && popupRootReadyRef.current && !popupRoot))) {
+      onOpenChange(false);
+    }
+  }, [disabled, onOpenChange, open, options.length, popupLayer, popupRoot]);
+
   const handleMenuClick = (event: MouseEvent<HTMLElement>) => {
+    event.nativeEvent.stopImmediatePropagation();
     event.stopPropagation();
   };
 
@@ -93,7 +182,9 @@ export function ComposerSelect(props: ComposerSelectProps) {
           open={open}
           testId={testId}
           triggerId={triggerId}
+          menuId={menuId}
           icon={props.leadingIcon}
+          hostRef={hostRef}
           chipRef={chipRef}
           chipBodyRef={chipBodyRef}
           chipValueRef={chipValueRef}
@@ -109,6 +200,8 @@ export function ComposerSelect(props: ComposerSelectProps) {
           open={open}
           testId={testId}
           triggerId={triggerId}
+          menuId={menuId}
+          hostRef={hostRef}
           chipRef={chipRef}
           chipBodyRef={chipBodyRef}
           chipValueRef={chipValueRef}
@@ -120,24 +213,30 @@ export function ComposerSelect(props: ComposerSelectProps) {
       <MotionPresenceView visible={open} kind="popover">
         {({ ref, state }) => {
           const menu = (
-            <ComposerSelectMenu
-              label={label}
-              testId={testId}
-              visible={open}
-              menuRef={menuRef}
-              motionRef={ref}
-              motionState={state}
-              menuClassName={menuClassName}
-              menuPlacement={menuPlacement}
-              options={options}
-              selectedId={selectedId}
-              onSelect={selectValue}
-              onClose={() => onOpenChange(false)}
-              onClick={handleMenuClick}
-              portaled={portalContainer !== null}
-            />
+            <>
+              {portalRoot ? (
+                <ComposerSelectUnderlay testId={testId} onClose={closeAndReturnFocus} />
+              ) : null}
+              <ComposerSelectMenu
+                label={label}
+                menuId={menuId}
+                testId={testId}
+                visible={open}
+                menuRef={menuRef}
+                motionRef={ref}
+                motionState={state}
+                menuClassName={menuClassName}
+                menuPlacement={menuPlacement}
+                options={options}
+                selectedId={selectedId}
+                onSelect={selectValue}
+                onClose={closeAndReturnFocus}
+                onClick={handleMenuClick}
+                portaled={portalRoot !== null}
+              />
+            </>
           );
-          return portalContainer ? createPortal(menu, portalContainer) : menu;
+          return portalRoot ? createPortal(menu, portalRoot) : menu;
         }}
       </MotionPresenceView>
     </div>

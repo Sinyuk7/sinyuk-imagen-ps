@@ -375,6 +375,8 @@ describe('MainPage contract — composer controls', () => {
     expect(document.body.querySelector<HTMLButtonElement>('[data-testid="composer-output-size-selector-option-1k"]')?.disabled).toBe(false);
     expect(document.body.querySelector<HTMLButtonElement>('[data-testid="composer-output-size-selector-option-2k"]')?.disabled).toBe(true);
     expect(document.body.querySelector<HTMLButtonElement>('[data-testid="composer-output-size-selector-option-4k"]')?.textContent).toContain('当前模型不可用');
+    expect(container.querySelector('[data-testid="composer-size-feedback"]')).toBeNull();
+    expect(container.querySelector('[data-testid="toast"]')?.textContent).toContain('2K 不可用；已改为 1K');
   });
 
   it('主输入区 provider 与 model 选择不包含 Prompt Optimizer', async () => {

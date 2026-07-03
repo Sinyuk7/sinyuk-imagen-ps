@@ -84,7 +84,7 @@ function fail(message) {
 
 function readSurfaceStrategy() {
   const arg = process.argv.find((item) => item.startsWith('--surface='));
-  const value = arg ? arg.slice('--surface='.length) : (process.env.IMAGEN_THEME_SURFACE ?? 'md');
+  const value = arg ? arg.slice('--surface='.length) : (process.env.IMAGEN_THEME_SURFACE ?? 'host');
   if (value !== 'host' && value !== 'md') {
     fail(`--surface must be "host" or "md", got "${value}"`);
   }

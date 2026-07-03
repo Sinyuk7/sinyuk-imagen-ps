@@ -1,4 +1,4 @@
-import { useEffect, useLayoutEffect, useState, type RefObject } from 'react';
+import { useCallback, useEffect, useLayoutEffect, useRef, useState, type RefObject } from 'react';
 import type { ComposerSelectMenuPlacement } from './composer-select.types';
 
 const DEBUG_COMPOSER_SELECT_QUERY = 'debugComposerSelect';
@@ -42,6 +42,23 @@ function resolveComposerSelectKind(testId?: string, label?: string): string {
   return testId ?? label ?? 'composer-select';
 }
 
+function scrollParentsFor(element: HTMLElement, boundary: HTMLElement): readonly HTMLElement[] {
+  const parents: HTMLElement[] = [];
+  let current = element.parentElement;
+  while (current && current !== boundary) {
+    parents.push(current);
+    current = current.parentElement;
+  }
+  if (current === boundary) {
+    parents.push(boundary);
+  }
+  return parents;
+}
+
+function rectDimension(value: number, fallback: number): number {
+  return value > 0 ? value : fallback;
+}
+
 interface UseComposerSelectPlacementOptions {
   readonly open: boolean;
   readonly optionsLength: number;
@@ -49,7 +66,11 @@ interface UseComposerSelectPlacementOptions {
   readonly value: string;
   readonly selectedId: string;
   readonly testId?: string;
-  readonly chipRef: RefObject<HTMLElement | null>;
+  readonly anchorRef: RefObject<HTMLElement | null>;
+  readonly popupRoot: HTMLElement | null;
+  readonly menuRef: RefObject<HTMLElement | null>;
+  readonly scrollBoundaryRef: RefObject<HTMLElement | null>;
+  readonly onInvalidAnchor?: () => void;
   readonly chipBodyRef: RefObject<HTMLSpanElement | null>;
   readonly chipValueRef: RefObject<HTMLSpanElement | null>;
   readonly chipArrowRef: RefObject<HTMLSpanElement | null>;
@@ -62,64 +83,90 @@ export function useComposerSelectPlacement({
   value,
   selectedId,
   testId,
-  chipRef,
+  anchorRef,
+  popupRoot,
+  menuRef,
+  scrollBoundaryRef,
+  onInvalidAnchor,
   chipBodyRef,
   chipValueRef,
   chipArrowRef,
 }: UseComposerSelectPlacementOptions): ComposerSelectMenuPlacement {
+  const scheduledFrameRef = useRef<number | null>(null);
+  const hasMeasuredRef = useRef(false);
   const [menuPlacement, setMenuPlacement] = useState<ComposerSelectMenuPlacement>({
-    direction: 'up',
+    direction: 'down',
     align: 'start',
     width: MENU_MIN_WIDTH,
     maxHeight: MENU_ITEM_ESTIMATE * MENU_MAX_VISIBLE_ITEMS,
-    bottom: MENU_GAP,
-    left: 0,
+    ready: false,
   });
 
-  const updateMenuPlacement = () => {
-    const chip = chipRef.current;
-    if (!chip) {
-      return;
-    }
-    const panel = chip.closest('.panel') as HTMLElement | null;
-    const panelRect = panel?.getBoundingClientRect();
-    const chipRect = chip.getBoundingClientRect();
-    if (!panelRect || panelRect.width <= 0 || panelRect.height <= 0) {
+  const updateMenuPlacement = useCallback(() => {
+    const anchor = anchorRef.current;
+    const root = popupRoot ?? (anchor?.closest('.panel') as HTMLElement | null);
+    if (!anchor || !root) {
+      if (hasMeasuredRef.current) {
+        onInvalidAnchor?.();
+      }
       return;
     }
 
+    const rootRect = root.getBoundingClientRect();
+    const anchorRect = anchor.getBoundingClientRect();
+    if (rootRect.width <= 0 || rootRect.height <= 0 || anchorRect.width <= 0 || anchorRect.height <= 0) {
+      if (hasMeasuredRef.current) {
+        onInvalidAnchor?.();
+      }
+      return;
+    }
+    hasMeasuredRef.current = true;
+
     const viewportWidth = typeof window === 'undefined'
-      ? panelRect.right
-      : finiteOrFallback(window.innerWidth, panelRect.right);
+      ? rootRect.right
+      : finiteOrFallback(window.innerWidth, rootRect.right);
     const viewportHeight = typeof window === 'undefined'
-      ? panelRect.bottom
-      : finiteOrFallback(window.innerHeight, panelRect.bottom);
-    const horizontalBoundaryLeft = Math.max(panelRect.left + PANEL_EDGE_PADDING, PANEL_EDGE_PADDING);
-    const horizontalBoundaryRight = Math.min(panelRect.right - PANEL_EDGE_PADDING, viewportWidth - PANEL_EDGE_PADDING);
-    const availableWidth = Math.max(0, horizontalBoundaryRight - horizontalBoundaryLeft);
+      ? rootRect.bottom
+      : finiteOrFallback(window.innerHeight, rootRect.bottom);
+    const boundaryLeft = Math.max(rootRect.left + PANEL_EDGE_PADDING, PANEL_EDGE_PADDING);
+    const boundaryTop = Math.max(rootRect.top + PANEL_EDGE_PADDING, PANEL_EDGE_PADDING);
+    const boundaryRight = Math.min(rootRect.right - PANEL_EDGE_PADDING, viewportWidth - PANEL_EDGE_PADDING);
+    const boundaryBottom = Math.min(rootRect.bottom - PANEL_EDGE_PADDING, viewportHeight - PANEL_EDGE_PADDING);
+    const availableWidth = Math.max(0, boundaryRight - boundaryLeft);
     const minWidth = Math.min(MENU_MIN_WIDTH, availableWidth);
-    const preferredWidth = Math.max(chipRect.width, Math.min(MENU_MAX_WIDTH, availableWidth));
+    const measuredMenuRect = menuRef.current?.getBoundingClientRect();
+    const measuredMenuWidth = rectDimension(measuredMenuRect?.width ?? 0, anchorRect.width);
+    const measuredMenuHeight = rectDimension(
+      measuredMenuRect?.height ?? 0,
+      Math.min(MENU_ITEM_ESTIMATE * Math.max(1, Math.min(optionsLength, MENU_MAX_VISIBLE_ITEMS)), MENU_ITEM_ESTIMATE * MENU_MAX_VISIBLE_ITEMS),
+    );
+    const preferredWidth = Math.max(anchorRect.width, Math.min(MENU_MAX_WIDTH, Math.max(measuredMenuWidth, minWidth)));
     const width = clampNumber(preferredWidth, minWidth, availableWidth);
-    const spaceAbove = chipRect.top - PANEL_EDGE_PADDING - MENU_GAP;
-    const spaceBelow = viewportHeight - chipRect.bottom - PANEL_EDGE_PADDING - MENU_GAP;
-    const direction = spaceBelow >= MENU_MIN_HEIGHT || spaceBelow >= spaceAbove ? 'down' : 'up';
+    const spaceAbove = anchorRect.top - boundaryTop - MENU_GAP;
+    const spaceBelow = boundaryBottom - anchorRect.bottom - MENU_GAP;
+    const canFitBelow = measuredMenuHeight <= spaceBelow;
+    const canFitAbove = measuredMenuHeight <= spaceAbove;
+    const direction = canFitBelow || (!canFitAbove && spaceBelow >= spaceAbove) ? 'down' : 'up';
     const verticalSpace = Math.max(direction === 'down' ? spaceBelow : spaceAbove, 48);
-    const maxHeight = clampNumber(verticalSpace, 48, MENU_ITEM_ESTIMATE * MENU_MAX_VISIBLE_ITEMS);
-    const spaceToRight = horizontalBoundaryRight - chipRect.left;
-    const spaceToLeft = chipRect.right - horizontalBoundaryLeft;
+    const maxHeight = clampNumber(
+      verticalSpace,
+      48,
+      Math.max(MENU_MIN_HEIGHT, MENU_ITEM_ESTIMATE * MENU_MAX_VISIBLE_ITEMS, measuredMenuHeight),
+    );
+    const spaceToRight = boundaryRight - anchorRect.left;
+    const spaceToLeft = anchorRect.right - boundaryLeft;
     const preferredAlign = spaceToRight >= width || spaceToRight >= spaceToLeft ? 'start' : 'end';
-    const rawLeft = preferredAlign === 'start' ? chipRect.left : chipRect.right - width;
-    const minLeft = horizontalBoundaryLeft;
-    const maxLeft = Math.max(horizontalBoundaryLeft, horizontalBoundaryRight - width);
-    const clampedLeft = clampNumber(rawLeft, minLeft, maxLeft);
+    const preferredLeft = preferredAlign === 'start' ? anchorRect.left : anchorRect.right - width;
+    const clampedLeft = clampNumber(preferredLeft, boundaryLeft, Math.max(boundaryLeft, boundaryRight - width));
     const align = preferredAlign;
-    const top = direction === 'down' ? chipRect.bottom - panelRect.top + MENU_GAP : undefined;
-    const bottom = direction === 'up' ? panelRect.bottom - chipRect.top + MENU_GAP : undefined;
-    const left = align === 'start' ? clampedLeft - panelRect.left : undefined;
-    const right = align === 'end' ? panelRect.right - (clampedLeft + width) : undefined;
+    const left = align === 'start' ? clampedLeft - rootRect.left : undefined;
+    const right = align === 'end' ? rootRect.right - (clampedLeft + width) : undefined;
+    const top = direction === 'down' ? anchorRect.bottom - rootRect.top + MENU_GAP : undefined;
+    const bottom = direction === 'up' ? rootRect.bottom - anchorRect.top + MENU_GAP : undefined;
 
     setMenuPlacement((current) => {
       if (
+        current.ready &&
         current.direction === direction &&
         current.align === align &&
         Math.round(current.width) === Math.round(width) &&
@@ -131,28 +178,71 @@ export function useComposerSelectPlacement({
       ) {
         return current;
       }
-      return { direction, align, width, maxHeight, top, bottom, left, right };
+      return { direction, align, width, maxHeight, ready: true, top, bottom, left, right };
     });
-  };
+  }, [anchorRef, menuRef, onInvalidAnchor, optionsLength, popupRoot]);
+
+  const scheduleMenuPlacement = useCallback(() => {
+    if (scheduledFrameRef.current !== null) {
+      return;
+    }
+    scheduledFrameRef.current = window.requestAnimationFrame(() => {
+      scheduledFrameRef.current = null;
+      updateMenuPlacement();
+    });
+  }, [updateMenuPlacement]);
 
   useEffect(() => {
     if (open) {
-      updateMenuPlacement();
+      scheduleMenuPlacement();
     }
-  }, [open]);
+  }, [open, scheduleMenuPlacement]);
 
   useLayoutEffect(() => {
     if (!open) {
+      hasMeasuredRef.current = false;
+      if (scheduledFrameRef.current !== null) {
+        window.cancelAnimationFrame(scheduledFrameRef.current);
+        scheduledFrameRef.current = null;
+      }
+      setMenuPlacement((current) => (current.ready ? { ...current, ready: false } : current));
       return undefined;
     }
 
     updateMenuPlacement();
-    window.addEventListener('resize', updateMenuPlacement);
+    const firstFrame = window.requestAnimationFrame(updateMenuPlacement);
+    const secondFrame = window.requestAnimationFrame(scheduleMenuPlacement);
+    window.addEventListener('resize', scheduleMenuPlacement);
+    const anchor = anchorRef.current;
+    const root = popupRoot ?? (anchor?.closest('.panel') as HTMLElement | null);
+    const scrollBoundary = scrollBoundaryRef.current ?? root;
+    const scrollParents = anchor && scrollBoundary ? scrollParentsFor(anchor, scrollBoundary) : [];
+    for (const parent of scrollParents) {
+      parent.addEventListener('scroll', scheduleMenuPlacement);
+    }
+
+    let observer: ResizeObserver | undefined;
+    if (typeof ResizeObserver !== 'undefined') {
+      observer = new ResizeObserver(scheduleMenuPlacement);
+      if (anchor) observer.observe(anchor);
+      if (root) observer.observe(root);
+      if (menuRef.current) observer.observe(menuRef.current);
+    }
 
     return () => {
-      window.removeEventListener('resize', updateMenuPlacement);
+      window.cancelAnimationFrame(firstFrame);
+      window.cancelAnimationFrame(secondFrame);
+      if (scheduledFrameRef.current !== null) {
+        window.cancelAnimationFrame(scheduledFrameRef.current);
+        scheduledFrameRef.current = null;
+      }
+      window.removeEventListener('resize', scheduleMenuPlacement);
+      for (const parent of scrollParents) {
+        parent.removeEventListener('scroll', scheduleMenuPlacement);
+      }
+      observer?.disconnect();
     };
-  }, [open, optionsLength]);
+  }, [anchorRef, menuRef, open, optionsLength, popupRoot, scheduleMenuPlacement, scrollBoundaryRef, selectedId, updateMenuPlacement, value]);
 
   useLayoutEffect(() => {
     if (!shouldDebugComposerSelectLayout()) {
@@ -160,15 +250,15 @@ export function useComposerSelectPlacement({
     }
 
     const measureAndLog = () => {
-      const chip = chipRef.current;
+      const anchor = anchorRef.current;
       const chipBody = chipBodyRef.current;
       const chipValue = chipValueRef.current;
       const chipArrow = chipArrowRef.current;
-      if (!chip || !chipBody || !chipValue || !chipArrow) {
+      if (!anchor || !chipBody || !chipValue || !chipArrow) {
         return;
       }
 
-      const chipRect = chip.getBoundingClientRect();
+      const anchorRect = anchor.getBoundingClientRect();
       const bodyRect = chipBody.getBoundingClientRect();
       const valueRect = chipValue.getBoundingClientRect();
       const arrowRect = chipArrow.getBoundingClientRect();
@@ -181,30 +271,30 @@ export function useComposerSelectPlacement({
         selectedId,
         open,
         container: {
-          width: Math.round(chipRect.width),
-          height: Math.round(chipRect.height),
+          width: Math.round(anchorRect.width),
+          height: Math.round(anchorRect.height),
         },
         body: {
-          left: Math.round(bodyRect.left - chipRect.left),
-          right: Math.round(chipRect.right - bodyRect.right),
-          top: Math.round(bodyRect.top - chipRect.top),
-          bottom: Math.round(chipRect.bottom - bodyRect.bottom),
+          left: Math.round(bodyRect.left - anchorRect.left),
+          right: Math.round(anchorRect.right - bodyRect.right),
+          top: Math.round(bodyRect.top - anchorRect.top),
+          bottom: Math.round(anchorRect.bottom - bodyRect.bottom),
           width: Math.round(bodyRect.width),
           height: Math.round(bodyRect.height),
         },
         text: {
-          left: Math.round(valueRect.left - chipRect.left),
-          right: Math.round(chipRect.right - valueRect.right),
-          top: Math.round(valueRect.top - chipRect.top),
-          bottom: Math.round(chipRect.bottom - valueRect.bottom),
+          left: Math.round(valueRect.left - anchorRect.left),
+          right: Math.round(anchorRect.right - valueRect.right),
+          top: Math.round(valueRect.top - anchorRect.top),
+          bottom: Math.round(anchorRect.bottom - valueRect.bottom),
           width: Math.round(valueRect.width),
           height: Math.round(valueRect.height),
         },
         arrow: {
-          left: Math.round(arrowRect.left - chipRect.left),
-          right: Math.round(chipRect.right - arrowRect.right),
-          top: Math.round(arrowRect.top - chipRect.top),
-          bottom: Math.round(chipRect.bottom - arrowRect.bottom),
+          left: Math.round(arrowRect.left - anchorRect.left),
+          right: Math.round(anchorRect.right - arrowRect.right),
+          top: Math.round(arrowRect.top - anchorRect.top),
+          bottom: Math.round(anchorRect.bottom - arrowRect.bottom),
           width: Math.round(arrowRect.width),
           height: Math.round(arrowRect.height),
         },
@@ -218,7 +308,7 @@ export function useComposerSelectPlacement({
     return () => {
       window.removeEventListener('resize', measureAndLog);
     };
-  }, [chipArrowRef, chipBodyRef, chipRef, chipValueRef, label, open, selectedId, testId, value]);
+  }, [anchorRef, chipArrowRef, chipBodyRef, chipValueRef, label, open, selectedId, testId, value]);
 
   return menuPlacement;
 }

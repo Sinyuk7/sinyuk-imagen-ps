@@ -33,7 +33,7 @@ function changeInput(input: HTMLInputElement, value: string): void {
 }
 
 function iconSelectValue(container: HTMLElement, selector: string): string {
-  return container.querySelector<HTMLElement>(selector)?.closest('.ui-overlay-icon-host')?.querySelector<HTMLElement>('.cmp-chip-overlay-value-icon')?.textContent ?? '';
+  return container.querySelector<HTMLElement>(selector)?.closest('.ui-overlay-icon-host')?.querySelector<HTMLElement>('.cmp-chip-overlay-value-icon, .cmp-chip-overlay-value-text')?.textContent ?? '';
 }
 
 function deferred<T>(): { readonly promise: Promise<T>; resolve: (value: T) => void } {
@@ -510,7 +510,7 @@ describe('AppShell', () => {
     expect(container.querySelector<HTMLInputElement>('[data-testid="provider-endpoint-url-0"]')?.value).toBe('https://openrouter.ai/api/v1');
     const modelSelector = container.querySelector<HTMLElement>('[data-testid="provider-default-model-selector"]');
     expect(modelSelector).not.toBeNull();
-    expect(modelSelector?.textContent ?? '').toContain('gpt-4o-mini');
+    expect(iconSelectValue(container, '[data-testid="provider-default-model-selector"]')).toContain('gpt-4o-mini');
     expect(container.querySelector<HTMLTextAreaElement>('[data-testid="provider-instruction-input"]')?.value).toBe('Rewrite the prompt.');
   });
 
@@ -730,7 +730,7 @@ describe('AppShell', () => {
     await flush();
     await flush();
 
-    expect(container.querySelector<HTMLElement>('[data-testid="global-output-size-selector"]')?.textContent).toContain('4K');
+    expect(iconSelectValue(container, '[data-testid="global-output-size-selector"]')).toContain('4K');
   });
 
   it('updates main-page model after settings saves a new custom default model', async () => {

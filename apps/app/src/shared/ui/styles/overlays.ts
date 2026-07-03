@@ -1,5 +1,13 @@
 /** 浮层：Toast、Back-to-bottom。 */
 export const OVERLAYS_CSS = `
+/* Popup layer */
+.ui-popup-layer-root{
+  position:absolute; top:0; right:0; bottom:0; left:0;
+  z-index:1400;
+  pointer-events:none;
+}
+.ui-popup-layer-root > *{ pointer-events:auto; }
+
 /* Toast */
 .ui-toast-shell{ pointer-events:none; }
 .ui-toast[data-testid="toast"]{

@@ -9,6 +9,8 @@ export function TextSelectTriggerButton({
   open,
   testId,
   triggerId,
+  menuId,
+  hostRef,
   chipRef,
   chipBodyRef,
   chipValueRef,
@@ -23,6 +25,7 @@ export function TextSelectTriggerButton({
     <OverlayTriggerButton
       ref={chipRef}
       id={triggerId}
+      hostRef={hostRef}
       hostClassName={hostClassName}
       overlayClassName="cmp-chip-overlay cmp-chip-overlay-text"
       className={className}
@@ -30,6 +33,7 @@ export function TextSelectTriggerButton({
       aria-label={`${label}: ${value}`}
       aria-haspopup="listbox"
       aria-expanded={open}
+      aria-controls={open ? menuId : undefined}
       disabled={disabled}
       open={open}
       onClick={onClick}

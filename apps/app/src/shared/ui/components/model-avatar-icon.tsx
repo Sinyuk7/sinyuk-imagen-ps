@@ -32,7 +32,7 @@ export function ModelAvatarIcon({
         flexShrink: 0,
         ...style,
       }}
-      // 素材由本仓库资产生成脚本输出，并强制改成单色 currentColor。
+      // 素材由本仓库资产生成脚本输出；SVG 自带品牌背景与白色主体。
       dangerouslySetInnerHTML={{ __html: svg }}
     />
   );

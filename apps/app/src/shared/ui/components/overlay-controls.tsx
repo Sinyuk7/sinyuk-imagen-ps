@@ -5,10 +5,12 @@ import {
   type ButtonHTMLAttributes,
   type ComponentPropsWithoutRef,
   type ReactNode,
+  type RefObject,
 } from 'react';
 import { ActionButton } from '../primitives/native-controls';
 
 interface OverlayControlShellProps {
+  readonly hostRef?: RefObject<HTMLDivElement | null>;
   readonly hostClassName?: string;
   readonly overlayClassName?: string;
   readonly disabled?: boolean;
@@ -29,6 +31,7 @@ interface OverlayTriggerButtonProps extends Omit<ButtonHTMLAttributes<HTMLButton
   readonly children?: ReactNode;
   readonly open?: boolean;
   readonly overlay: ReactNode;
+  readonly hostRef?: RefObject<HTMLDivElement | null>;
   readonly hostClassName?: string;
   readonly overlayClassName?: string;
 }
@@ -45,6 +48,7 @@ function classNames(...parts: Array<string | undefined | false>): string | undef
  * 本体负责，避免再次引入整组视觉叠加导致的重影问题。
  */
 export function OverlayControlShell({
+  hostRef,
   hostClassName,
   overlayClassName,
   disabled,
@@ -53,10 +57,10 @@ export function OverlayControlShell({
   children,
   style,
 }: OverlayControlShellProps) {
-  const hostRef = useRef<HTMLDivElement | null>(null);
+  const internalHostRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
-    const host = hostRef.current;
+    const host = internalHostRef.current;
     if (!host) return undefined;
 
     const handleClick = (event: globalThis.MouseEvent) => {
@@ -74,9 +78,16 @@ export function OverlayControlShell({
     };
   }, []);
 
+  const setHostRef = (element: HTMLDivElement | null) => {
+    internalHostRef.current = element;
+    if (hostRef) {
+      hostRef.current = element;
+    }
+  };
+
   return (
     <div
-      ref={hostRef}
+      ref={setHostRef}
       className={classNames('ui-overlay-icon-host', hostClassName)}
       data-disabled={disabled ? 'true' : undefined}
       data-open={open ? 'true' : undefined}
@@ -132,6 +143,7 @@ export const OverlayTriggerButton = forwardRef<HTMLButtonElement, OverlayTrigger
     className,
     disabled,
     open,
+    hostRef,
     onClick,
     onKeyDown,
     ...props
@@ -144,6 +156,7 @@ export const OverlayTriggerButton = forwardRef<HTMLButtonElement, OverlayTrigger
       overlayClassName={overlayClassName}
       disabled={disabled}
       open={open}
+      hostRef={hostRef}
       overlay={overlay}
     >
       <button

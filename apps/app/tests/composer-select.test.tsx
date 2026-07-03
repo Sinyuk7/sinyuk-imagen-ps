@@ -1,10 +1,12 @@
-import { act, createElement } from 'react';
+import { act, createElement, type ReactElement } from 'react';
 import { createRoot, type Root } from 'react-dom/client';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { IconSelect } from '../src/shared/ui/components/icon-select';
+import { PopupLayerProvider, PopupLayerRoot } from '../src/shared/ui/components/popup-layer';
 import { TextSelect } from '../src/shared/ui/components/text-select';
 
 let root: Root | undefined;
+const originalResizeObserver = globalThis.ResizeObserver;
 
 afterEach(async () => {
   if (root) {
@@ -13,12 +15,59 @@ afterEach(async () => {
     });
   }
   root = undefined;
+  globalThis.ResizeObserver = originalResizeObserver;
+  document.body.replaceChildren();
+  vi.restoreAllMocks();
 });
 
 async function flush(): Promise<void> {
   await act(async () => {
     await Promise.resolve();
   });
+}
+
+async function flushFrame(): Promise<void> {
+  await act(async () => {
+    await new Promise<void>((resolve) => {
+      window.requestAnimationFrame(() => resolve());
+    });
+  });
+  await flush();
+}
+
+function rectFrom(input: {
+  readonly top: number;
+  readonly left: number;
+  readonly width: number;
+  readonly height: number;
+}): DOMRect {
+  return {
+    top: input.top,
+    left: input.left,
+    right: input.left + input.width,
+    bottom: input.top + input.height,
+    width: input.width,
+    height: input.height,
+    x: input.left,
+    y: input.top,
+    toJSON: () => undefined,
+  } as DOMRect;
+}
+
+function installRect(element: HTMLElement, input: {
+  readonly top: number;
+  readonly left: number;
+  readonly width: number;
+  readonly height: number;
+}): void {
+  Object.defineProperty(element, 'getBoundingClientRect', {
+    configurable: true,
+    value: () => rectFrom(input),
+  });
+}
+
+function withPopupLayer(child: ReactElement): ReactElement {
+  return createElement(PopupLayerProvider, null, child, createElement(PopupLayerRoot));
 }
 
 async function renderSelect(
@@ -36,26 +85,30 @@ async function renderSelect(
   root = createRoot(container);
   await act(async () => {
     root!.render(
-      createElement(TextSelect, {
-        label: 'Test Select',
-        value: 'Option A',
-        open: props.open ?? false,
-        onOpenChange: props.onOpenChange ?? (() => undefined),
-        options: [
-          { id: 'option-a', label: 'Option A' },
-          { id: 'option-b', label: 'Option B' },
-          { id: 'option-c', label: 'Option C', icon: 'add' },
-        ],
-        selectedId,
-        onSelect: props.onSelect ?? (() => undefined),
-        testId: 'test-select',
-        disabled: props.disabled,
-      }),
+      withPopupLayer(
+        createElement(TextSelect, {
+          label: 'Test Select',
+          value: 'Option A',
+          open: props.open ?? false,
+          onOpenChange: props.onOpenChange ?? (() => undefined),
+          options: [
+            { id: 'option-a', label: 'Option A' },
+            { id: 'option-b', label: 'Option B' },
+            { id: 'option-c', label: 'Option C', icon: 'add' },
+          ],
+          selectedId,
+          onSelect: props.onSelect ?? (() => undefined),
+          testId: 'test-select',
+          disabled: props.disabled,
+        }),
+      ),
     );
   });
   props.beforeFlush?.(container);
   await flush();
   await flush();
+  await flush();
+  await flushFrame();
 }
 
 describe('ComposerSelect', () => {
@@ -74,7 +127,7 @@ describe('ComposerSelect', () => {
     root = createRoot(container);
     await act(async () => {
       root!.render(
-        createElement(IconSelect, {
+        withPopupLayer(createElement(IconSelect, {
           label: 'Test Select',
           value: 'Option A',
           icon: 'add',
@@ -84,7 +137,7 @@ describe('ComposerSelect', () => {
           selectedId: 'option-a',
           onSelect: () => undefined,
           testId: 'icon-select',
-        }),
+        })),
       );
     });
     await flush();
@@ -99,7 +152,7 @@ describe('ComposerSelect', () => {
     root = createRoot(container);
     await act(async () => {
       root!.render(
-        createElement(IconSelect, {
+        withPopupLayer(createElement(IconSelect, {
           label: 'Model',
           value: 'gemini-3.1-flash-lite-image-ultra-long-preview-model',
           icon: 'algorithm',
@@ -115,7 +168,7 @@ describe('ComposerSelect', () => {
           onSelect: () => undefined,
           testId: 'icon-select',
           containerClassName: 'cmp-select cmp-select-model',
-        }),
+        })),
       );
     });
     await flush();
@@ -136,7 +189,7 @@ describe('ComposerSelect', () => {
     root = createRoot(container);
     await act(async () => {
       root!.render(
-        createElement(IconSelect, {
+        withPopupLayer(createElement(IconSelect, {
           label: 'Model',
           value: 'gemini-3.1-flash-lite-imagen-very-long-model-name-preview',
           icon: 'algorithm',
@@ -152,7 +205,7 @@ describe('ComposerSelect', () => {
           onSelect: () => undefined,
           testId: 'long-icon-select',
           containerClassName: 'cmp-select cmp-select-model',
-        }),
+        })),
       );
     });
     await flush();
@@ -176,7 +229,7 @@ describe('ComposerSelect', () => {
     root = createRoot(container);
     await act(async () => {
       root!.render(
-        createElement(TextSelect, {
+        withPopupLayer(createElement(TextSelect, {
           label: 'Test Select',
           value: 'Option A',
           open: false,
@@ -185,7 +238,7 @@ describe('ComposerSelect', () => {
           selectedId: 'option-a',
           onSelect: () => undefined,
           testId: 'text-select',
-        }),
+        })),
       );
     });
     await flush();
@@ -221,6 +274,20 @@ describe('ComposerSelect', () => {
     expect(container.querySelector('[data-testid="test-select-option-option-b"]')).not.toBeNull();
   });
 
+  it('links the trigger and listbox through the select-like aria contract', async () => {
+    const container = document.createElement('div');
+    document.body.appendChild(container);
+    await renderSelect(container, { open: true });
+
+    const trigger = container.querySelector<HTMLElement>('[data-testid="test-select"]')!;
+    const menu = container.querySelector<HTMLElement>('[data-testid="test-select-menu"]')!;
+
+    expect(trigger.getAttribute('aria-haspopup')).toBe('listbox');
+    expect(trigger.getAttribute('aria-expanded')).toBe('true');
+    expect(trigger.getAttribute('aria-controls')).toBe(menu.id);
+    expect(menu.getAttribute('role')).toBe('listbox');
+  });
+
   it('marks selected option with aria-selected', async () => {
     const container = document.createElement('div');
     document.body.appendChild(container);
@@ -254,6 +321,29 @@ describe('ComposerSelect', () => {
 
     expect(selected).toBe('option-b');
     expect(open).toBe(false);
+  });
+
+  it('returns focus to the trigger when Escape closes the menu', async () => {
+    const container = document.createElement('div');
+    document.body.appendChild(container);
+    let open = true;
+    await renderSelect(container, {
+      open: true,
+      onOpenChange: (value) => {
+        open = value;
+      },
+    });
+
+    const trigger = container.querySelector<HTMLElement>('[data-testid="test-select"]')!;
+    const menu = container.querySelector<HTMLElement>('[data-testid="test-select-menu"]')!;
+
+    await act(async () => {
+      menu.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
+    });
+    await flush();
+
+    expect(open).toBe(false);
+    expect(document.activeElement).toBe(trigger);
   });
 
   it('stops press-start events from bubbling through menu options without canceling native click', async () => {
@@ -301,7 +391,7 @@ describe('ComposerSelect', () => {
     root = createRoot(container);
     await act(async () => {
       root!.render(
-        createElement(IconSelect, {
+        withPopupLayer(createElement(IconSelect, {
           label: 'Model',
           value: 'Option A',
           icon: 'algorithm',
@@ -313,7 +403,7 @@ describe('ComposerSelect', () => {
           selectedId: 'option-a',
           onSelect: () => undefined,
           testId: 'icon-select',
-        }),
+        })),
       );
     });
     await flush();
@@ -332,7 +422,7 @@ describe('ComposerSelect', () => {
     await act(async () => {
       root = createRoot(container);
       root.render(
-        createElement(IconSelect, {
+        withPopupLayer(createElement(IconSelect, {
           label: 'Output Size',
           value: '2K',
           icon: 'image-auto-mode',
@@ -348,7 +438,7 @@ describe('ComposerSelect', () => {
           onSelect: () => undefined,
           testId: 'compact-select',
           menuClassName: 'cmp-select-menu cmp-select-menu-compact',
-        }),
+        })),
       );
     });
     await flush();
@@ -427,67 +517,222 @@ describe('ComposerSelect', () => {
     panel.className = 'panel';
     panel.appendChild(container);
     document.body.appendChild(panel);
-    Object.defineProperty(panel, 'getBoundingClientRect', {
-      configurable: true,
-      value: () => ({
-        top: 0,
-        left: 0,
-        right: 240,
-        bottom: 180,
-        width: 240,
-        height: 180,
-        x: 0,
-        y: 0,
-        toJSON: () => undefined,
-      }),
-    });
+    installRect(panel, { top: 0, left: 0, width: 240, height: 180 });
 
     await renderSelect(container, {
       open: true,
       beforeFlush: (rendered) => {
-        const trigger = rendered.querySelector<HTMLElement>('[data-testid="test-select"]')!;
-        Object.defineProperty(trigger, 'getBoundingClientRect', {
-          configurable: true,
-          value: () => ({
-            top: 18,
-            left: 170,
-            right: 226,
-            bottom: 42,
-            width: 56,
-            height: 24,
-            x: 170,
-            y: 18,
-            toJSON: () => undefined,
-          }),
+        installRect(rendered.querySelector<HTMLElement>('[data-testid="popup-layer-root"]')!, {
+          top: 0,
+          left: 0,
+          width: 240,
+          height: 180,
         });
+        const host = rendered.querySelector<HTMLElement>('[data-testid="test-select"]')!.closest('.ui-overlay-icon-host')!;
+        installRect(host, { top: 18, left: 170, width: 56, height: 24 });
+        const menu = rendered.querySelector<HTMLElement>('[data-testid="test-select-menu"]');
+        if (menu) {
+          installRect(menu, { top: 0, left: 0, width: 216, height: 96 });
+        }
       },
     });
 
     await act(async () => {
       window.dispatchEvent(new Event('resize'));
     });
-    await flush();
+    await flushFrame();
 
     const popover = panel.querySelector<HTMLElement>('[data-testid="test-select-popover"]')!;
     expect(popover.classList.contains('cmp-select-menu-down')).toBe(true);
     expect(popover.classList.contains('cmp-select-menu-end')).toBe(true);
     expect(popover.style.width).toBe('216px');
-    expect(popover.style.maxHeight).toBe('204px');
+    expect(popover.style.maxHeight).toBe('120px');
     expect(popover.style.top).toBe('48px');
     expect(popover.style.right).toBe('12px');
   });
 
-  it('does not allocate a component-local ResizeObserver', async () => {
+  it('renders a panel underlay that closes the menu without clicking through', async () => {
+    const container = document.createElement('div');
+    const panel = document.createElement('div');
+    panel.className = 'panel';
+    let backgroundClicks = 0;
+    panel.addEventListener('click', () => {
+      backgroundClicks += 1;
+    });
+    panel.appendChild(container);
+    document.body.appendChild(panel);
+
+    let open = true;
+    await renderSelect(container, {
+      open: true,
+      onOpenChange: (value) => {
+        open = value;
+      },
+    });
+
+    const underlay = panel.querySelector<HTMLElement>('[data-testid="test-select-underlay"]')!;
+    expect(underlay).not.toBeNull();
+    const underlayClick = new MouseEvent('click', { bubbles: true, cancelable: true });
+
+    await act(async () => {
+      underlay.dispatchEvent(underlayClick);
+    });
+    await flush();
+
+    expect(open).toBe(false);
+    expect(underlayClick.defaultPrevented).toBe(true);
+    expect(backgroundClicks).toBe(0);
+  });
+
+  it('keeps only one ComposerSelect popup active within the shared popup layer', async () => {
+    const container = document.createElement('div');
+    const panel = document.createElement('div');
+    panel.className = 'panel';
+    panel.appendChild(container);
+    document.body.appendChild(panel);
+    const openCalls: Array<{ id: string; open: boolean }> = [];
+    root = createRoot(container);
+    await act(async () => {
+      root!.render(
+        createElement(PopupLayerProvider, null,
+          createElement(TextSelect, {
+            label: 'First',
+            value: 'One',
+            open: true,
+            onOpenChange: (open) => openCalls.push({ id: 'first', open }),
+            options: [{ id: 'one', label: 'One' }],
+            selectedId: 'one',
+            onSelect: () => undefined,
+            testId: 'first-select',
+            triggerId: 'first-select-trigger',
+          }),
+          createElement(TextSelect, {
+            label: 'Second',
+            value: 'Two',
+            open: true,
+            onOpenChange: (open) => openCalls.push({ id: 'second', open }),
+            options: [{ id: 'two', label: 'Two' }],
+            selectedId: 'two',
+            onSelect: () => undefined,
+            testId: 'second-select',
+            triggerId: 'second-select-trigger',
+          }),
+          createElement(PopupLayerRoot),
+        ),
+      );
+    });
+    await flush();
+    await flush();
+
+    expect(openCalls).toContainEqual({ id: 'first', open: false });
+  });
+
+  it('repositions the portaled menu when a scroll ancestor moves the trigger', async () => {
+    const container = document.createElement('div');
+    const panel = document.createElement('div');
+    const scroll = document.createElement('div');
+    panel.className = 'panel';
+    scroll.className = 'scroll';
+    scroll.appendChild(container);
+    panel.appendChild(scroll);
+    document.body.appendChild(panel);
+    installRect(panel, { top: 0, left: 0, width: 320, height: 360 });
+    let triggerTop = 80;
+
+    await renderSelect(container, {
+      open: true,
+      beforeFlush: (rendered) => {
+        installRect(rendered.querySelector<HTMLElement>('[data-testid="popup-layer-root"]')!, {
+          top: 0,
+          left: 0,
+          width: 320,
+          height: 360,
+        });
+        const host = rendered.querySelector<HTMLElement>('[data-testid="test-select"]')!.closest('.ui-overlay-icon-host')!;
+        Object.defineProperty(host, 'getBoundingClientRect', {
+          configurable: true,
+          value: () => rectFrom({ top: triggerTop, left: 24, width: 140, height: 24 }),
+        });
+      },
+    });
+
+    await flush();
+    await act(async () => {
+      window.dispatchEvent(new Event('resize'));
+    });
+    await flush();
+    const popover = panel.querySelector<HTMLElement>('[data-testid="test-select-popover"]')!;
+    expect(popover.style.top).toBe('110px');
+
+    triggerTop = 112;
+    await act(async () => {
+      scroll.dispatchEvent(new Event('scroll'));
+    });
+    await flushFrame();
+
+    expect(popover.style.top).toBe('142px');
+  });
+
+  it('observes popup root, trigger anchor, and menu content for placement changes', async () => {
     const original = globalThis.ResizeObserver;
-    const resizeObserverCtor = vi.fn();
-    // @ts-expect-error test stub
-    globalThis.ResizeObserver = resizeObserverCtor;
+    const observed: Element[] = [];
+    let resizeCallback: ResizeObserverCallback | undefined;
+    class MockResizeObserver {
+      constructor(callback: ResizeObserverCallback) {
+        resizeCallback = callback;
+      }
+      observe(element: Element) {
+        observed.push(element);
+      }
+      disconnect() {
+        observed.length = 0;
+      }
+    }
+    globalThis.ResizeObserver = MockResizeObserver as typeof ResizeObserver;
 
     try {
       const container = document.createElement('div');
-      document.body.appendChild(container);
-      await renderSelect(container, { open: true });
-      expect(resizeObserverCtor).not.toHaveBeenCalled();
+      const panel = document.createElement('div');
+      panel.className = 'panel';
+      panel.appendChild(container);
+      installRect(panel, { top: 0, left: 0, width: 360, height: 320 });
+      document.body.appendChild(panel);
+      let triggerTop = 80;
+      await renderSelect(container, {
+        open: true,
+        beforeFlush: (rendered) => {
+          installRect(rendered.querySelector<HTMLElement>('[data-testid="popup-layer-root"]')!, {
+            top: 0,
+            left: 0,
+            width: 360,
+            height: 320,
+          });
+          const host = rendered.querySelector<HTMLElement>('[data-testid="test-select"]')!.closest('.ui-overlay-icon-host')!;
+          Object.defineProperty(host, 'getBoundingClientRect', {
+            configurable: true,
+            value: () => rectFrom({ top: triggerTop, left: 40, width: 140, height: 24 }),
+          });
+        },
+      });
+
+      installRect(container.querySelector<HTMLElement>('[data-testid="test-select-menu"]')!, {
+        top: 0,
+        left: 0,
+        width: 180,
+        height: 96,
+      });
+      const popover = container.querySelector<HTMLElement>('[data-testid="test-select-popover"]')!;
+      expect(observed.some((element) => (element as HTMLElement).dataset.testid === 'popup-layer-root')).toBe(true);
+      expect(observed.some((element) => (element as HTMLElement).classList.contains('ui-overlay-icon-host'))).toBe(true);
+      expect(observed.some((element) => (element as HTMLElement).dataset.testid === 'test-select-menu')).toBe(true);
+
+      triggerTop = 104;
+      await act(async () => {
+        resizeCallback?.([], {} as ResizeObserver);
+      });
+      await flushFrame();
+
+      expect(popover.style.top).toBe('134px');
     } finally {
       globalThis.ResizeObserver = original;
     }

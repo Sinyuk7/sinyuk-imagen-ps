@@ -2,6 +2,7 @@ import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { PANEL_CSS } from '../../../shared/ui/panel-css';
 import { Icon } from '../../../shared/ui/components/icons';
 import { OverlayControlShell } from '../../../shared/ui/components/overlay-controls';
+import { PopupLayerProvider, PopupLayerRoot } from '../../../shared/ui/components/popup-layer';
 import { ProviderIdentity } from '../../../shared/ui/components/provider-identity';
 import { IconSelect } from '../../../shared/ui/components/icon-select';
 import { IconButton } from '../../../shared/ui/primitives/icon-button';
@@ -1540,8 +1541,9 @@ export function UxpCssContractHarnessPage() {
   }, []);
 
   return (
-    <div ref={panelRef} className="panel uxp-css-harness-root" data-testid="uxp-css-contract-panel">
-      <div className="uxp-css-harness-page">
+    <PopupLayerProvider>
+      <div ref={panelRef} className="panel uxp-css-harness-root" data-testid="uxp-css-contract-panel">
+        <div className="uxp-css-harness-page">
         <div ref={scrollRef} className="scroll uxp-css-harness-scroll" data-testid="uxp-css-contract-scroll">
           <div className="uxp-css-harness-page-inner">
             <div className="uxp-css-harness-shell">
@@ -1837,7 +1839,9 @@ export function UxpCssContractHarnessPage() {
             </div>
           </div>
         </div>
+        </div>
+        <PopupLayerRoot />
       </div>
-    </div>
+    </PopupLayerProvider>
   );
 }

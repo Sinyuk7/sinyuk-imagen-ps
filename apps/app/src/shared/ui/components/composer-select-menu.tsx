@@ -4,6 +4,7 @@ import type { ComposerSelectMenuPlacement, ComposerSelectOption } from './compos
 
 interface ComposerSelectMenuProps {
   readonly label: string;
+  readonly menuId: string;
   readonly testId?: string;
   readonly visible: boolean;
   readonly menuRef: RefObject<HTMLDivElement | null>;
@@ -21,6 +22,7 @@ interface ComposerSelectMenuProps {
 
 export function ComposerSelectMenu({
   label,
+  menuId,
   testId,
   visible,
   menuRef,
@@ -78,6 +80,7 @@ export function ComposerSelectMenu({
   };
 
   const handlePressStart = (event: MouseEvent<HTMLElement> | PointerEvent<HTMLElement>) => {
+    event.nativeEvent.stopImmediatePropagation?.();
     event.stopPropagation();
   };
 
@@ -87,7 +90,6 @@ export function ComposerSelectMenu({
       className={placementClass}
       data-motion-state={motionState}
       aria-hidden={motionState === 'exiting' ? true : undefined}
-      ref={motionRef}
       style={{
         width: `${Math.round(menuPlacement.width)}px`,
         maxHeight: `${Math.round(menuPlacement.maxHeight)}px`,
@@ -95,6 +97,7 @@ export function ComposerSelectMenu({
         bottom: menuPlacement.bottom !== undefined ? `${Math.round(menuPlacement.bottom)}px` : undefined,
         left: menuPlacement.left !== undefined ? `${Math.round(menuPlacement.left)}px` : undefined,
         right: menuPlacement.right !== undefined ? `${Math.round(menuPlacement.right)}px` : undefined,
+        visibility: menuPlacement.ready ? undefined : 'hidden',
         pointerEvents: motionState === 'exiting' ? 'none' : undefined,
       }}
       onClick={onClick}
@@ -102,52 +105,60 @@ export function ComposerSelectMenu({
       onPointerDown={handlePressStart}
     >
       <div
-        ref={menuRef}
-        data-testid={visible && testId ? `${testId}-menu` : undefined}
-        className="cmp-select-listbox"
-        role="listbox"
-        aria-label={label}
-        tabIndex={0}
-        onKeyDown={handleKeyDown}
+        ref={motionRef}
+        className="cmp-select-menu-motion"
+        data-motion-state={motionState}
+        aria-hidden={motionState === 'exiting' ? true : undefined}
       >
-        {options.map((option) => {
-          const selected = option.id === selectedId;
-          return (
-            <button
-              key={option.id}
-              type="button"
-              data-testid={testId ? `${testId}-option-${option.id}` : undefined}
-              data-value={option.id}
-              className={`cmp-select-option${selected ? ' selected' : ''}${option.disabled ? ' disabled' : ''}`}
-              role="option"
-              aria-selected={selected}
-              aria-disabled={option.disabled ? true : undefined}
-              disabled={option.disabled}
-              title={option.description}
-              onMouseDown={handlePressStart}
-              onPointerDown={handlePressStart}
-              onClick={(event) => {
-                event.stopPropagation();
-                if (option.disabled) {
-                  return;
-                }
-                onSelect(option.id);
-              }}
-            >
-              {option.icon && <Icon name={option.icon} size={14} className="cmp-select-option-icon" />}
-              <span className="cmp-select-option-body">
-                <span className="cmp-select-option-label">{option.label}</span>
-                {option.description ? <span className="cmp-select-option-description">{option.description}</span> : null}
-              </span>
-              {option.badges?.length ? (
-                <span className="cmp-select-option-badges">
-                  {option.badges.map((badge) => <span key={badge} className="cmp-select-option-badge">{badge}</span>)}
+        <div
+          id={menuId}
+          ref={menuRef}
+          data-testid={visible && testId ? `${testId}-menu` : undefined}
+          className="cmp-select-listbox"
+          role="listbox"
+          aria-label={label}
+          tabIndex={0}
+          onKeyDown={handleKeyDown}
+        >
+          {options.map((option) => {
+            const selected = option.id === selectedId;
+            return (
+              <button
+                key={option.id}
+                type="button"
+                data-testid={testId ? `${testId}-option-${option.id}` : undefined}
+                data-value={option.id}
+                className={`cmp-select-option${selected ? ' selected' : ''}${option.disabled ? ' disabled' : ''}`}
+                role="option"
+                aria-selected={selected}
+                aria-disabled={option.disabled ? true : undefined}
+                disabled={option.disabled}
+                title={option.description}
+                onMouseDown={handlePressStart}
+                onPointerDown={handlePressStart}
+                onClick={(event) => {
+                  event.stopPropagation();
+                  if (option.disabled) {
+                    return;
+                  }
+                  onSelect(option.id);
+                }}
+              >
+                {option.icon && <Icon name={option.icon} size={14} className="cmp-select-option-icon" />}
+                <span className="cmp-select-option-body">
+                  <span className="cmp-select-option-label">{option.label}</span>
+                  {option.description ? <span className="cmp-select-option-description">{option.description}</span> : null}
                 </span>
-              ) : null}
-              {selected && <Icon name="check" size={12} className="cmp-select-option-check" />}
-            </button>
-          );
-        })}
+                {option.badges?.length ? (
+                  <span className="cmp-select-option-badges">
+                    {option.badges.map((badge) => <span key={badge} className="cmp-select-option-badge">{badge}</span>)}
+                  </span>
+                ) : null}
+                {selected && <Icon name="check" size={12} className="cmp-select-option-check" />}
+              </button>
+            );
+          })}
+        </div>
       </div>
     </div>
   );

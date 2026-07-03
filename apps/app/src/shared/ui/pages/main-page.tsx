@@ -405,7 +405,6 @@ export function MainPage({
   const [placeStatus, setPlaceStatus] = useState<Record<string, PlaceStatus>>({});
   const [roundBillingMeta, setRoundBillingMeta] = useState<Record<string, RoundBillingMeta>>({});
   const [sizeUserSelected, setSizeUserSelected] = useState(false);
-  const [sizeFeedback, setSizeFeedback] = useState<string | null>(null);
   const [expandedResponses, setExpandedResponses] = useState<Record<string, boolean>>({});
   const [overflowingResponses, setOverflowingResponses] = useState<Record<string, boolean>>({});
   const [highlightKey, setHighlightKey] = useState<string | null>(null);
@@ -531,13 +530,14 @@ export function MainPage({
     const from = outputSizeLabel(generationSettings.outputSizePreset);
     const to = outputSizeLabel(fallback);
     void onChangeOutputSizePreset(fallback).then(() => {
-      setSizeFeedback(t.main.outputSizeAutoChanged(from, to));
+      show(t.main.outputSizeAutoChanged(from, to), 'info', { key: 'output-size-auto-changed' });
     });
   }, [
     currentOperation,
     generationSettings.outputSizePreset,
     onChangeOutputSizePreset,
     selectedModelInfo,
+    show,
     sizeUserSelected,
     t.main,
   ]);
@@ -1844,12 +1844,10 @@ export function MainPage({
                 selectedId={generationSettings.outputSizePreset}
                 onSelect={(value) => {
                   setSizeUserSelected(true);
-                  setSizeFeedback(null);
                   void onChangeOutputSizePreset(value as AppOutputSizePreset);
                 }}
                 icon="image-auto-mode"
               />
-              {sizeFeedback ? <div className="cmp-size-feedback" data-testid="composer-size-feedback">{sizeFeedback}</div> : null}
             </div>
           </div>
           </MotionDimSurface>

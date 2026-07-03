@@ -17,6 +17,7 @@ import { SettingsAddPage } from './pages/settings-add-page';
 import { SettingsDetailPage } from './pages/settings-detail-page';
 import { GlobalGenerationSettingsPage } from './pages/global-generation-settings-page';
 import { ToastHost, ToastProvider, useToast } from './components/toast-host';
+import { PopupLayerProvider, PopupLayerRoot } from './components/popup-layer';
 import { I18nProvider, useI18n } from './i18n/i18n-context';
 import { ensurePanelCss } from './panel-bootstrap';
 import { placeTaskOutputOnCanvas, saveTaskOutputToFile } from '../domain/task-actions';
@@ -509,6 +510,7 @@ function AppShellContent({ host }: AppShellProps) {
         </MotionPageFrame>
       )}
       <ToastHost />
+      <PopupLayerRoot />
     </div>
   );
 }
@@ -519,7 +521,9 @@ export function AppShell({ host }: AppShellProps) {
     <I18nProvider locale={host.locale}>
       <AppServicesProvider services={host.services}>
         <ToastProvider>
-          <AppShellContent host={host} />
+          <PopupLayerProvider>
+            <AppShellContent host={host} />
+          </PopupLayerProvider>
         </ToastProvider>
       </AppServicesProvider>
     </I18nProvider>

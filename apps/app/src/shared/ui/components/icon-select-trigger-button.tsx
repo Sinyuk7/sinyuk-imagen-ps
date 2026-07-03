@@ -13,7 +13,9 @@ export function IconSelectTriggerButton({
   open,
   testId,
   triggerId,
+  menuId,
   icon,
+  hostRef,
   chipRef,
   chipBodyRef,
   chipValueRef,
@@ -28,6 +30,7 @@ export function IconSelectTriggerButton({
     <OverlayTriggerButton
       ref={chipRef}
       id={triggerId}
+      hostRef={hostRef}
       hostClassName={hostClassName}
       overlayClassName="cmp-chip-overlay cmp-chip-overlay-icon"
       className={className}
@@ -35,6 +38,7 @@ export function IconSelectTriggerButton({
       aria-label={label}
       aria-haspopup="listbox"
       aria-expanded={open}
+      aria-controls={open ? menuId : undefined}
       disabled={disabled}
       open={open}
       onClick={onClick}

@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState, type CSSProperties } from 'react'
 import { IconSelect } from '../../../shared/ui/components/icon-select';
 import { TextSelect } from '../../../shared/ui/components/text-select';
 import type { ComposerSelectOption } from '../../../shared/ui/components/composer-select';
+import { PopupLayerProvider, PopupLayerRoot } from '../../../shared/ui/components/popup-layer';
 import { PANEL_CSS } from '../../../shared/ui/panel-css';
 import { ASPECT_OPTIONS, MODEL_OPTIONS, TARGET_OPTIONS } from './composer-select-harness-data';
 
@@ -1045,9 +1046,10 @@ export function ComposerSelectHarnessPage() {
   };
 
   return (
-    <div className="panel harness-root" data-testid="composer-select-harness-panel">
-      <DiagnosticsHeader logs={logs} />
-      <div className="scroll harness-scroll" data-testid="composer-select-harness-scroll">
+    <PopupLayerProvider>
+      <div className="panel harness-root" data-testid="composer-select-harness-panel">
+        <DiagnosticsHeader logs={logs} />
+        <div className="scroll harness-scroll" data-testid="composer-select-harness-scroll">
         <div className="harness-page">
         <div className="harness-shell">
           <section className="harness-card">
@@ -1323,7 +1325,9 @@ export function ComposerSelectHarnessPage() {
 
         </div>
       </div>
-    </div>
-    </div>
+        </div>
+        <PopupLayerRoot />
+      </div>
+    </PopupLayerProvider>
   );
 }

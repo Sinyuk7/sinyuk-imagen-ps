@@ -72,7 +72,10 @@ Motion ownership must not move into `packages/application`, `packages/core-engin
 ## Shared UI Theme Source
 
 Shared UI theme colors are generated from the six Material Design 3 CSS files
-under `apps/app/src/shared/ui/styles/theme-source/`:
+under `apps/app/src/shared/ui/styles/theme-source/`. These files remain the
+authoritative Material token source; the default generated app surface strategy
+is `host`, so app-level surface/text/border tokens prefer UXP host variables and
+host-matched neutral fallbacks while still emitting the Material token set.
 
 - `dark.css`
 - `dark-hc.css`
@@ -85,12 +88,15 @@ Replace these six files to update the theme. The generator validates the exact
 file set, source selectors, Material `md-sys` token set, and extended color
 families `blue`, `green`, `yellow`, `red`, and `orange`. It writes
 `apps/app/src/shared/ui/styles/generated/theme-css.ts`; do not edit that file by
-hand.
+hand. Use `--surface=md` only when intentionally regenerating the app surface
+tokens from Material surface tokens for comparison.
 
 Use:
 
 ```bash
-pnpm --filter @imagen-ps/app theme:generate
+pnpm --filter @imagen-ps/app theme:generate       # default host surface
+pnpm --filter @imagen-ps/app theme:generate:host  # explicit host surface
+pnpm --filter @imagen-ps/app theme:generate:md    # explicit Material surface
 pnpm --filter @imagen-ps/app theme:check
 ```
 
@@ -108,6 +114,34 @@ Toast styling must consume generated `--toast-*` tokens from
 `styles/generated/theme-css.ts`. Do not reintroduce direct
 `--app-color-positive` / `--app-color-negative` full-surface banner fills in
 `styles/overlays.ts`.
+
+## Popup Layer Contract
+
+Anchored panel popups must use the shared `PopupLayerProvider` /
+`PopupLayerRoot` in `src/shared/ui/components/popup-layer.tsx`. The popup layer
+is the panel-level coordinate root and is mounted as the last direct child of
+the app `.panel`; page-local scroll containers must not own popup clipping.
+
+Placement must convert viewport rects to popup-root-local coordinates:
+`anchorRect - popupRootRect`. Do not mix viewport `top/left` with absolute
+coordinates from another container. `.panel` may be the visual owner, but the
+stable contract is the explicit popup root, visible boundary, and trigger
+anchor relation.
+
+Trigger behavior must be one stable contract even when it spans multiple DOM
+nodes: measurement anchor, interaction target, focus return target, and ARIA
+state must have an explicit relationship. Prefer measuring the visible overlay
+host; return focus to the real button when closing.
+
+Positioning and hit-test shells must not use CSS transforms. If a popup animates,
+apply motion only to an inner visual node. Underlays are event shields and
+outside-click closers only; they do not solve placement, resize, scroll, or
+focus contracts.
+
+Open popups must coalesce resize, scroll, and `ResizeObserver` invalidations
+through `requestAnimationFrame`, avoid state updates when placement is
+unchanged, disconnect listeners on close, and close when their trigger contract
+becomes invalid.
 
 ## Photoshop Placement Contract
 

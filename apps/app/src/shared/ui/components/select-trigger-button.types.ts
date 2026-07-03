@@ -7,6 +7,8 @@ export interface SelectTriggerButtonCommonProps {
   readonly open: boolean;
   readonly testId?: string;
   readonly triggerId?: string;
+  readonly menuId?: string;
+  readonly hostRef: RefObject<HTMLDivElement | null>;
   readonly chipRef: RefObject<HTMLButtonElement | null>;
   readonly chipBodyRef: RefObject<HTMLSpanElement | null>;
   readonly chipValueRef: RefObject<HTMLSpanElement | null>;
