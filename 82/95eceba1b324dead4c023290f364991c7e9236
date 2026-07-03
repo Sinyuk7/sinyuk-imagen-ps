@@ -1,0 +1,81 @@
+apps/app/tests/theme-source.test.ts
+  s_434d057ed8a803::t_21bd2ce83d24fe 10-11
+apps/app/tests/main-page-composer-controls.test.tsx
+  s_434d057ed8a803::t_de12972b64f2d4 22-23,25-41
+  s_434d057ed8a803::t_28c7a3def47363 42-55
+  s_434d057ed8a803::t_fb3ff278ac3a35 24
+packages/application/src/commands/submit-job.ts
+  s_434d057ed8a803::t_28c7a3def47363 92
+  s_434d057ed8a803::t_6a53430b3d4900 93-99,127-128,132
+  s_434d057ed8a803::t_f28ff9a2853d32 148
+packages/application/src/commands/index.ts
+  s_434d057ed8a803::t_28c7a3def47363 54
+packages/core-engine/src/runner.ts
+  s_434d057ed8a803::t_51f5a1d7032e6d 175
+apps/app/src/shared/ui/hooks/use-provider-settings.ts
+  s_434d057ed8a803::t_3faaf792f187ce 74,77-78,112-113,120-122,132-134,139
+  s_434d057ed8a803::t_28c7a3def47363 86-101,103-107,142
+packages/core-engine/src/runtime-logger.test.ts
+  s_434d057ed8a803::t_58f049d1d8b894 37,39-41,45-46
+apps/app/src/shared/ui/styles/generated/theme-css.ts
+  s_434d057ed8a803::t_6f12d0ed4bb450 104-112,114,125
+apps/app/tests/composer-select.test.tsx
+  s_434d057ed8a803::t_7fc4171eda2044 473-474,477
+apps/app/tests/use-conversation.test.tsx
+  s_434d057ed8a803::t_4d33fdf760e513 191,206,570,581
+apps/app/tests/main-page-attachment-submission.test.tsx
+  s_434d057ed8a803::t_b4b2e53a73603f 53,60,101,108,193,200,235,242
+apps/app/tests/app-shell.test.tsx
+  s_434d057ed8a803::t_8b434b6ba2ba8e 762
+  s_434d057ed8a803::t_8501663d689c7d 38-45,760-761,763-831
+packages/application/src/commands/types.ts
+  s_434d057ed8a803::t_28c7a3def47363 88-99
+  s_434d057ed8a803::t_7d1baafc62c0f1 8,83-85
+  s_434d057ed8a803::t_83f901a2edb52f 86-87
+packages/application/src/session/session.test.ts
+  s_434d057ed8a803::t_604c5a1350b6c5 2,128-151,153-154,156-186,188
+  s_434d057ed8a803::t_3e14a038fc8b7d 7,53,61,152,155,189,191-255,412,425
+  s_434d057ed8a803::t_c97606b08fd66b 187
+  s_434d057ed8a803::t_b8c7f41d11ff27 190
+packages/providers/tests/image-endpoint-provider.test.ts
+  s_434d057ed8a803::t_f388c0c9a4a8ba 201-204
+apps/app/src/shared/ui/pages/main-page.tsx
+  s_434d057ed8a803::t_ed0cb49aedf7de 41-45,1354
+packages/application/src/session/session.ts
+  s_434d057ed8a803::t_b7c7e51ea0a22a 129,183
+  s_434d057ed8a803::t_28c7a3def47363 223-227,229-244
+  s_434d057ed8a803::t_a57b220bf52f04 191
+  s_434d057ed8a803::t_ba366aa603108c 15
+  s_434d057ed8a803::t_1a883b13f9a424 184-187,189-190,192
+packages/application/src/runtime.test.ts
+  s_434d057ed8a803::t_1ff751e291ff48 2,213-237,239-242,246-247
+  s_434d057ed8a803::t_3e14a038fc8b7d 248,250-256,258,260-292,294-295
+  s_434d057ed8a803::t_c8b1782332533f 257,259,293
+  s_434d057ed8a803::t_3418af60747516 238,243-245
+  s_434d057ed8a803::t_7bcc7b77b39f29 249
+packages/core-engine/src/runtime.ts
+  s_434d057ed8a803::t_6adf5f6a4d9dda 112
+packages/application/src/session/types.ts
+  s_434d057ed8a803::t_82a33cf6eccf0f 10,52
+  s_434d057ed8a803::t_28c7a3def47363 6,35
+packages/providers/src/transport/image-endpoint/parse-response.ts
+  s_434d057ed8a803::t_9a01a34142cc72 186-188
+packages/application/src/commands/retry-job.ts
+  s_434d057ed8a803::t_28c7a3def47363 10-11,21-44,47-48,72
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.10",
+  "base_commit_sha": "8295eceba1b324dead4c023290f364991c7e9236",
+  "prompts": {},
+  "sessions": {
+    "s_434d057ed8a803": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "019f282f-d4a2-7c92-a1de-97a940b35e24",
+        "model": "gpt-5.5"
+      },
+      "human_author": "Sinyuk <80998062@qq.com>"
+    }
+  }
+}
