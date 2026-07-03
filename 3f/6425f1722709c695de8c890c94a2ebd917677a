@@ -1,0 +1,23 @@
+AGENTS.md
+  s_acc545a6176016::t_d92a39ebb396f9 14
+README.md
+  s_acc545a6176016::t_56221d6472ff3b 13,35
+apps/app/AGENTS.md
+  s_acc545a6176016::t_4712cc8bd514e6 49
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.3",
+  "base_commit_sha": "3f6425f1722709c695de8c890c94a2ebd917677a",
+  "prompts": {},
+  "sessions": {
+    "s_acc545a6176016": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "019f2656-d03b-7ba2-b550-92a83b118040",
+        "model": "unknown"
+      },
+      "human_author": "Sinyuk <80998062@qq.com>"
+    }
+  }
+}
