@@ -86,8 +86,8 @@ export function useComposerSelectPlacement({
 
     const viewportWidth = typeof window === 'undefined' ? panelRect.width : window.innerWidth;
     const viewportHeight = typeof window === 'undefined' ? panelRect.height : window.innerHeight;
-    const horizontalBoundaryLeft = Math.max(panelRect.left, PANEL_EDGE_PADDING);
-    const horizontalBoundaryRight = Math.min(panelRect.right, viewportWidth - PANEL_EDGE_PADDING);
+    const horizontalBoundaryLeft = Math.max(panelRect.left + PANEL_EDGE_PADDING, PANEL_EDGE_PADDING);
+    const horizontalBoundaryRight = Math.min(panelRect.right - PANEL_EDGE_PADDING, viewportWidth - PANEL_EDGE_PADDING);
     const availableWidth = Math.max(0, horizontalBoundaryRight - horizontalBoundaryLeft);
     const minWidth = Math.min(MENU_MIN_WIDTH, availableWidth);
     const preferredWidth = Math.max(chipRect.width, Math.min(MENU_MAX_WIDTH, availableWidth));
@@ -99,11 +99,16 @@ export function useComposerSelectPlacement({
     const maxHeight = clampNumber(verticalSpace, 48, MENU_ITEM_ESTIMATE * MENU_MAX_VISIBLE_ITEMS);
     const spaceToRight = horizontalBoundaryRight - chipRect.left;
     const spaceToLeft = chipRect.right - horizontalBoundaryLeft;
-    const align = spaceToRight >= width || spaceToRight >= spaceToLeft ? 'start' : 'end';
+    const preferredAlign = spaceToRight >= width || spaceToRight >= spaceToLeft ? 'start' : 'end';
+    const rawLeft = preferredAlign === 'start' ? chipRect.left : chipRect.right - width;
+    const minLeft = horizontalBoundaryLeft;
+    const maxLeft = Math.max(horizontalBoundaryLeft, horizontalBoundaryRight - width);
+    const clampedLeft = clampNumber(rawLeft, minLeft, maxLeft);
+    const align = clampedLeft <= chipRect.left ? 'start' : 'end';
     const top = direction === 'down' ? chipRect.bottom - panelRect.top + MENU_GAP : undefined;
     const bottom = direction === 'up' ? panelRect.bottom - chipRect.top + MENU_GAP : undefined;
-    const left = align === 'start' ? chipRect.left - panelRect.left : undefined;
-    const right = align === 'end' ? panelRect.right - chipRect.right : undefined;
+    const left = clampedLeft - panelRect.left;
+    const right = undefined;
 
     setMenuPlacement((current) => {
       if (

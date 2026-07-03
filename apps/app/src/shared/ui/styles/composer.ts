@@ -453,6 +453,7 @@ export const COMPOSER_CSS = `
   display:flex;
   align-items:center;
   min-width:0;
+  width:100%;
   flex:1 1 auto;
   overflow:hidden;
 }
@@ -514,6 +515,11 @@ export const COMPOSER_CSS = `
   white-space:nowrap;
   flex:1 1 auto;
   text-align:left;
+}
+.cmp-chip-value-text{
+  display:block;
+  flex:1 1 0;
+  max-width:100%;
 }
 .cmp-chip-arrow{
   display:inline-flex;
@@ -684,6 +690,9 @@ export const COMPOSER_CSS = `
 .cmp-select-model .cmp-chip{ width:100%; min-width:0; }
 .cmp-select-model .cmp-chip-value-icon,
 .cmp-select-model .cmp-chip-value-text{
+  display:block;
+  min-width:0;
+  max-width:100%;
   overflow:hidden;
   text-overflow:ellipsis;
   white-space:nowrap;

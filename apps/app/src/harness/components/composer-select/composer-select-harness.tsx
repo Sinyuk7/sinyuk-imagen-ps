@@ -275,40 +275,65 @@ const HARNESS_CSS = `
   color:var(--txd);
 }
 .harness-page-grid{
-  display:grid;
-  grid-template-columns:minmax(0, 1fr) minmax(300px, 360px);
-  gap:18px;
-  align-items:start;
+  display:flex;
+  flex-direction:column;
+  min-width:0;
 }
-.harness-diagnostics{
-  position:sticky;
-  top:16px;
+.harness-page-grid > *{
+  margin-top:18px;
+}
+.harness-page-grid > *:first-child{
+  margin-top:0;
+}
+.harness-diagnostics-header{
+  flex:0 0 auto;
+  padding:10px 14px;
+  border-bottom:1px solid rgba(255,255,255,.1);
+  background:rgba(14,20,27,.96);
+}
+.harness-diagnostics-header-title{
+  margin-top:0;
+  margin-right:0;
+  margin-bottom:6px;
+  margin-left:0;
+  font-family:var(--fD);
+  font-size:12px;
+  line-height:16px;
+  font-weight:600;
+  color:var(--tx);
 }
 .harness-diagnostics-list{
   display:flex;
-  flex-direction:column;
-  margin-top:-8px;
+  flex-wrap:wrap;
+  margin-top:0;
+  margin-right:-10px;
+  margin-bottom:-6px;
+  margin-left:0;
 }
 .harness-diagnostic-row{
-  display:grid;
-  grid-template-columns:82px minmax(0, 1fr);
-  gap:8px;
-  padding:8px 0;
-  border-bottom:1px solid rgba(255,255,255,.07);
+  display:flex;
+  align-items:flex-start;
+  min-width:220px;
+  max-width:100%;
+  margin-top:0;
+  margin-right:10px;
+  margin-bottom:6px;
+  margin-left:0;
   font-family:var(--fM);
   font-size:10px;
   line-height:14px;
 }
-.harness-diagnostic-row:last-child{
-  border-bottom:none;
-}
 .harness-diagnostic-key{
+  flex:0 0 auto;
+  width:76px;
   color:var(--txd);
   overflow:hidden;
   text-overflow:ellipsis;
   white-space:nowrap;
 }
 .harness-diagnostic-value{
+  flex:1 1 auto;
+  min-width:0;
   color:var(--tx);
   overflow-wrap:anywhere;
 }
@@ -324,8 +349,8 @@ const HARNESS_CSS = `
 .harness-log{
   display:flex;
   flex-direction:column;
-  min-height:84px;
-  max-height:140px;
+  min-height:30px;
+  max-height:56px;
   overflow:auto;
   padding:8px;
   border:1px solid rgba(255,255,255,.08);
@@ -334,6 +359,7 @@ const HARNESS_CSS = `
   font-family:var(--fM);
   font-size:10px;
   line-height:14px;
+  margin-top:8px;
 }
 .harness-log-line{
   color:var(--txm);
@@ -410,10 +436,10 @@ const HARNESS_CSS = `
 }
 .harness-hit-backdrop{
   position:absolute;
-  top:52px;
+  top:72px;
   right:12px;
   left:12px;
-  height:150px;
+  height:170px;
   padding:12px;
   border:1px solid rgba(255,255,255,.08);
   border-radius:8px;
@@ -423,17 +449,25 @@ const HARNESS_CSS = `
   line-height:24px;
   user-select:text;
   -webkit-user-select:text;
+  background:rgba(255,255,255,.02);
+  resize:none;
+  outline:none;
+  z-index:1;
 }
 .harness-hit-control{
   position:absolute;
-  top:132px;
+  top:18px;
   left:18px;
   width:min(280px, calc(100% - 36px));
+  z-index:2;
 }
 .harness-stress-grid{
-  display:grid;
-  grid-template-columns:repeat(3, minmax(0, 1fr));
-  gap:10px;
+  display:flex;
+  flex-wrap:wrap;
+  margin-top:0;
+  margin-right:-10px;
+  margin-bottom:-10px;
+  margin-left:0;
 }
 .harness-stress-cell{
   min-width:0;
@@ -441,6 +475,10 @@ const HARNESS_CSS = `
   border:1px solid rgba(255,255,255,.08);
   border-radius:8px;
   background:rgba(255,255,255,.025);
+  margin-top:0;
+  margin-right:10px;
+  margin-bottom:10px;
+  margin-left:0;
 }
 .harness-picker-spike{
   width:100%;
@@ -553,9 +591,7 @@ const HARNESS_CSS = `
   .harness-page{ padding:14px; }
   .harness-card-body{ padding:12px; }
   .harness-panel{ padding:12px; }
-  .harness-page-grid{ grid-template-columns:1fr; }
-  .harness-diagnostics{ position:static; }
-  .harness-stress-grid{ grid-template-columns:1fr; }
+  .harness-stress-cell{ width:100% !important; }
 }
 `;
 
@@ -721,32 +757,27 @@ function useMenuDiagnostics(): readonly DiagnosticRow[] {
   return rows;
 }
 
-function DiagnosticsPanel({ logs }: { readonly logs: readonly string[] }) {
+function DiagnosticsHeader({ logs }: { readonly logs: readonly string[] }) {
   const rows = useMenuDiagnostics();
   return (
-    <section className="harness-card harness-diagnostics">
-      <div className="harness-card-head">
-        <h2 className="harness-title">Live Diagnostics</h2>
-        <p className="harness-copy">Reads open popover opacity, transform, viewport clipping, and elementFromPoint hit target.</p>
+    <div className="harness-diagnostics-header" data-testid="composer-select-diagnostics-header">
+      <p className="harness-diagnostics-header-title">Live Diagnostics</p>
+      <div className="harness-diagnostics-list">
+        {rows.map((row, index) => (
+          <div key={`${row.key}-${index}`} className="harness-diagnostic-row" data-status={row.status}>
+            <span className="harness-diagnostic-key">{row.key}</span>
+            <span className="harness-diagnostic-value">{row.value}</span>
+          </div>
+        ))}
       </div>
-      <div className="harness-card-body">
-        <div className="harness-diagnostics-list">
-          {rows.map((row, index) => (
-            <div key={`${row.key}-${index}`} className="harness-diagnostic-row" data-status={row.status}>
-              <span className="harness-diagnostic-key">{row.key}</span>
-              <span className="harness-diagnostic-value">{row.value}</span>
-            </div>
-          ))}
-        </div>
-        <div className="harness-log" data-testid="composer-select-event-log">
-          {logs.length === 0 ? (
-            <div className="harness-log-line">No pointer/select events yet.</div>
-          ) : logs.map((line, index) => (
-            <div key={`${line}-${index}`} className="harness-log-line">{line}</div>
-          ))}
-        </div>
+      <div className="harness-log" data-testid="composer-select-event-log">
+        {logs.length === 0 ? (
+          <div className="harness-log-line">No pointer/select events yet.</div>
+        ) : logs.slice(0, 3).map((line, index) => (
+          <div key={`${line}-${index}`} className="harness-log-line">{line}</div>
+        ))}
       </div>
-    </section>
+    </div>
   );
 }
 
@@ -872,13 +903,12 @@ function HitTestLab({
 }) {
   return (
     <div className="harness-hit-stage">
-      <div
+      <textarea
         className="harness-hit-backdrop"
+        defaultValue="Editable textarea behind the menu. If this receives pointer/click while clicking a visible menu item, the popover lost hit-test ownership."
         onPointerDown={(event) => onLog(`behind pointerdown ${describeNode(event.target as Element)}`)}
         onClick={(event) => onLog(`behind click ${describeNode(event.target as Element)}`)}
-      >
-        Background selectable text. If this logs while clicking a visible menu item, the popover lost hit-test ownership.
-      </div>
+      />
       <div className="harness-hit-control">
         <TextSelect
           testId="diagnostic-hit-model"
@@ -950,12 +980,7 @@ export function ComposerSelectHarnessPage() {
   const [logs, setLogs] = useState<readonly string[]>([]);
   const stressTimerRef = useRef<number | null>(null);
 
-  const singleValue = useMemo(() => {
-    if (longModelValue) {
-      return currentLabel(MODEL_OPTIONS, MODEL_OPTIONS[MODEL_OPTIONS.length - 1]?.id ?? singleSelectedId);
-    }
-    return currentLabel(MODEL_OPTIONS, singleSelectedId);
-  }, [longModelValue, singleSelectedId]);
+  const singleValue = useMemo(() => currentLabel(MODEL_OPTIONS, singleSelectedId), [singleSelectedId]);
 
   useEffect(() => () => {
     if (stressTimerRef.current !== null) {
@@ -990,6 +1015,7 @@ export function ComposerSelectHarnessPage() {
 
   return (
     <div className="panel harness-root" data-testid="composer-select-harness-panel">
+      <DiagnosticsHeader logs={logs} />
       <div className="scroll harness-scroll" data-testid="composer-select-harness-scroll">
         <div className="harness-page">
         <div className="harness-shell">
@@ -1034,7 +1060,19 @@ export function ComposerSelectHarnessPage() {
                 </label>
               </div>
               <div className="harness-toggle-row">
-                <HarnessToggle active={longModelValue} label="Long single value" onClick={() => setLongModelValue((current) => !current)} />
+                <HarnessToggle
+                  active={longModelValue}
+                  label="Long single value"
+                  onClick={() => {
+                    setLongModelValue((current) => {
+                      const next = !current;
+                      setSingleSelectedId(next
+                        ? MODEL_OPTIONS[MODEL_OPTIONS.length - 1]?.id ?? singleSelectedId
+                        : MODEL_OPTIONS[0]?.id ?? singleSelectedId);
+                      return next;
+                    });
+                  }}
+                />
                 <HarnessToggle active={singleOpen} label="Single menu open" onClick={() => setSingleOpen((current) => !current)} />
               </div>
               <div className="harness-command-row">
@@ -1093,8 +1131,6 @@ export function ComposerSelectHarnessPage() {
                 </div>
               </section>
             </div>
-
-            <DiagnosticsPanel logs={logs} />
           </div>
 
           <section className="harness-card">
