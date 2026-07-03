@@ -1,0 +1,19 @@
+docs/ENGINEERING_CONTEXT.md
+  s_a576bbd310c5ab::t_6592441041f0eb 35-42
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.10",
+  "base_commit_sha": "de566f93b5a0672a8bb5c48cf0966657cc089483",
+  "prompts": {},
+  "sessions": {
+    "s_a576bbd310c5ab": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_0d77914deffeYc1hCP6oBK3d9n",
+        "model": "glm-5.2"
+      },
+      "human_author": "Sinyuk <80998062@qq.com>"
+    }
+  }
+}
