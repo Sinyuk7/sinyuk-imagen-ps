@@ -140,7 +140,7 @@ export function createChatImageProvider(): Provider<ChatImageProviderConfig, Moc
         retryOptions: { retryability: 'broad' },
         execute: async (candidate) => httpRequest(
           {
-            url: endpointUrl(candidate.url, 'models?output_modalities=image'),
+            url: endpointUrl(candidate.url, 'models'),
             method: 'GET',
             headers: {
               Authorization: `Bearer ${config.apiKey}`,

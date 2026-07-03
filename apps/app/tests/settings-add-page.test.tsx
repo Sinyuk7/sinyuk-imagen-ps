@@ -3,7 +3,7 @@ import { createRoot, type Root } from 'react-dom/client';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import type { ProviderDescriptor } from '@imagen-ps/application';
 import { SettingsAddPage } from '../src/shared/ui/pages/settings-add-page';
-import { createFakeServices } from './fakes';
+import { createFakeServices, fakeProfile } from './fakes';
 import { TestAppProviders } from './render-helpers';
 
 let root: Root | undefined;
@@ -175,7 +175,67 @@ describe('SettingsAddPage', () => {
     });
 
     const nameInput = Array.from(container.querySelectorAll<HTMLElement & { value?: string }>('input'))[0];
-    expect(nameInput.value).toBe('Mock Provider(1)');
+    expect(nameInput.value).toBe('Mock Provider 2');
+  });
+
+  it('auto-generates the alias from endpoint host until the user edits the alias', async () => {
+    const { services } = createFakeServices();
+    const container = document.createElement('div');
+    document.body.appendChild(container);
+    root = createRoot(container);
+
+    await act(async () => {
+      root!.render(
+        <TestAppProviders services={services}>
+          <SettingsAddPage onNav={() => undefined} profiles={[]} onProfileSaved={async () => undefined} />
+        </TestAppProviders>,
+      );
+    });
+
+    await act(async () => {
+      container.querySelector<HTMLElement>('[data-testid="provider-type-mock"]')!.click();
+    });
+    await act(async () => {
+      changeInput(queryByTestId(container, 'provider-endpoint-url-0'), ' https://api.n1n.ai/v1\n');
+    });
+    expect((queryByTestId(container, 'provider-alias-input') as HTMLInputElement).value).toBe('n1n.ai');
+    expect((queryByTestId(container, 'provider-endpoint-url-0') as HTMLInputElement).value).toBe('https://api.n1n.ai/v1');
+
+    await act(async () => {
+      changeInput(queryByTestId(container, 'provider-alias-input'), 'Manual Name');
+    });
+    await act(async () => {
+      changeInput(queryByTestId(container, 'provider-endpoint-url-0'), 'https://api.other.example/v1');
+    });
+
+    expect((queryByTestId(container, 'provider-alias-input') as HTMLInputElement).value).toBe('Manual Name');
+  });
+
+  it('does not opt into using a new provider by default when another provider already exists', async () => {
+    const { services } = createFakeServices();
+    const onProfileSaved = vi.fn(async () => undefined);
+    const container = document.createElement('div');
+    document.body.appendChild(container);
+    root = createRoot(container);
+
+    await act(async () => {
+      root!.render(
+        <TestAppProviders services={services}>
+          <SettingsAddPage onNav={() => undefined} profiles={[fakeProfile]} onProfileSaved={onProfileSaved} />
+        </TestAppProviders>,
+      );
+    });
+
+    await act(async () => {
+      container.querySelector<HTMLElement>('[data-testid="provider-type-mock"]')!.click();
+    });
+    expect((queryByTestId(container, 'provider-use-after-saving') as HTMLInputElement).checked).toBe(false);
+
+    await act(async () => {
+      container.querySelector<HTMLButtonElement>('.btn-save')!.click();
+    });
+
+    expect(onProfileSaved).toHaveBeenCalledWith(expect.stringMatching(/^profile-/), { useProvider: false });
   });
 
   it('uses a plain header title and removes unexplained step text on the config screen', async () => {

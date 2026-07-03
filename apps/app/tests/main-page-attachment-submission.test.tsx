@@ -428,12 +428,12 @@ describe('MainPage contract — attachment & submission', () => {
       container.querySelector<HTMLElement>('[data-testid="main-model-selector"]')!.click();
     });
     await flush();
-    expect(container.querySelector('[data-testid="main-model-selector-menu"]')).not.toBeNull();
+    expect(document.body.querySelector('[data-testid="main-model-selector-menu"]')).not.toBeNull();
 
     await act(async () => {
       container.querySelector<HTMLElement>('.scroll')!.click();
     });
     await flush();
-    expect(container.querySelector('[data-testid="main-model-selector-menu"]')).toBeNull();
+    expect(document.body.querySelector('[data-testid="main-model-selector-menu"]')).toBeNull();
   });
 });

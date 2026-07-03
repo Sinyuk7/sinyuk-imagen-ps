@@ -8,6 +8,7 @@ import type {
   AppOutputSizePreset,
 } from '../../ports/app-generation-settings';
 import { useAppPathInfo } from '../hooks/use-app-path-info';
+import { StatusNotice } from '../components/status-notice';
 import { Button, FieldLabel, HelpText } from '../primitives/native-controls';
 import { TextSelect } from '../components/text-select';
 import { Icon } from '../components/icons';
@@ -124,7 +125,12 @@ export function GlobalGenerationSettingsPage({
       <div className="scroll">
         <div className="settings-detail-layout scroll-footer-pad generation-settings-layout">
           <section className="section generation-settings-section">
-            <div className="section-title">{t.settings.outputGroup}</div>
+            <div className="section-title settings-section-heading">{t.settings.outputGroup}</div>
+            <div className="generation-settings-section-intro">
+              <HelpText className="field-hint generation-settings-section-hint">
+                {t.settings.outputSize} / {t.settings.outputFormat} / {t.settings.aspectRatio}
+              </HelpText>
+            </div>
             <div className="generation-settings-grid">
               <div className="field">
                 <FieldLabel htmlFor="global-output-size-trigger">{t.settings.outputSize}</FieldLabel>
@@ -180,7 +186,7 @@ export function GlobalGenerationSettingsPage({
             </div>
           </section>
           <section className="section generation-settings-section">
-            <div className="section-title">{t.settings.inputGroup}</div>
+            <div className="section-title settings-section-heading">{t.settings.inputGroup}</div>
             <div className="field">
               <FieldLabel htmlFor="provider-input-size-trigger">{t.settings.providerInputSizePreset}</FieldLabel>
               <TextSelect
@@ -200,10 +206,15 @@ export function GlobalGenerationSettingsPage({
               <HelpText className="field-hint">{t.settings.providerInputSizePresetHint}</HelpText>
             </div>
           </section>
-          <section className="section generation-settings-section">
-            <div className="section-title">{t.settings.storageGroup}</div>
+          <section className="section generation-settings-section generation-settings-secondary-section">
+            <div className="section-title settings-section-heading">{t.settings.storageGroup}</div>
+            <div className="generation-settings-section-intro">
+              <HelpText className="field-hint generation-settings-section-hint">
+                {t.settings.storageGroupHint}
+              </HelpText>
+            </div>
             {pathInfo.value ? (
-              <div className="settings-path-list">
+              <div className="settings-path-list generation-settings-path-list">
                 <div className="field">
                   <FieldLabel htmlFor="global-settings-copy-log-path">{t.settings.logPath}</FieldLabel>
                   <div className="field-input-affordance settings-path-affordance">
@@ -248,12 +259,17 @@ export function GlobalGenerationSettingsPage({
                 </div>
               </div>
             ) : (
-              <HelpText className="field-hint">
-                {pathInfo.loading ? t.common.loading : pathInfo.error ?? t.settings.pathInfoUnavailable}
-              </HelpText>
+              <div data-testid="global-settings-path-status">
+                <StatusNotice
+                  tone={pathInfo.error ? 'warning' : 'info'}
+                  message={pathInfo.loading ? t.common.loading : pathInfo.error ?? t.settings.pathInfoUnavailable}
+                  detail={pathInfo.error}
+                  detailCopyable={Boolean(pathInfo.error)}
+                />
+              </div>
             )}
           </section>
-          <section className="section generation-settings-section generation-settings-meta-section">
+          <section className="section generation-settings-section generation-settings-meta-section generation-settings-secondary-section">
             <div
               data-testid="global-settings-footer-statement"
               className="generation-settings-meta"
@@ -261,7 +277,13 @@ export function GlobalGenerationSettingsPage({
               {t.settings.footerStatement}
             </div>
           </section>
-          {error && <div style={{ padding: 16, color: 'var(--app-color-negative)', fontSize: 12 }}>{error}</div>}
+          {error && (
+            <section className="section generation-settings-section generation-settings-secondary-section">
+              <div data-testid="global-settings-error-notice">
+                <StatusNotice tone="negative" message={error} detailCopyable copyable />
+              </div>
+            </section>
+          )}
         </div>
       </div>
       <footer className="det-footer">

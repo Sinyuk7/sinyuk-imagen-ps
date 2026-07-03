@@ -1,21 +1,22 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { ProfileBillingState, ProviderModelInfo, ProviderProfile } from '@imagen-ps/application';
 import { useAppServices } from '../../ports/app-services-context';
-import type { LayerInfo } from '../../ports/host-port';
+import type { HostPort, LayerInfo } from '../../ports/host-port';
+import { suggestedGeneratedImageFileName } from '../../domain/asset-file';
 import { assetToPreviewUrl, commandErrorToMessage, modelLabel } from '../../domain/mappers';
-import { formatBalanceChange, formatBillingPrimary, formatExactTaskCost } from '../../domain/mappers';
+import { formatBalanceChange, formatBillingPrimary, formatBillingPrimaryParts, formatExactTaskCost } from '../../domain/mappers';
 import type {
   ConversationAttachment,
   ConversationController,
   ConversationRound,
 } from '../hooks/use-conversation';
 import { useProfileBilling } from '../hooks/use-profile-billing';
+import { useLayerThumbnail } from '../hooks/use-layer-thumbnail';
 import { Icon } from '../components/icons';
 import { IconSelect } from '../components/icon-select';
 import { UxpTextArea } from '../components/uxp-form-controls';
-import { useNotice } from '../components/notice';
 import { ProviderIdentity } from '../components/provider-identity';
-import { ToastHost } from '../components/toast-host';
+import { useToast } from '../components/toast-host';
 import {
   MotionActivityDot,
   MotionActivityIcon,
@@ -52,6 +53,7 @@ interface MainPageProps {
   readonly onSelectModel: (modelId: string) => void;
   readonly layers: readonly LayerInfo[];
   readonly layersError: string | null;
+  readonly layersLoading: boolean;
   readonly reloadLayers: () => Promise<void>;
   readonly conversation: ConversationController;
   readonly highlightedRoundId?: string | null;
@@ -79,6 +81,51 @@ function flattenLayers(layers: readonly LayerInfo[], depth = 0): FlatLayer[] {
     ...flattenLayers(layer.children ?? [], depth + 1),
   ]);
 }
+
+function LayerThumbnailImpl({
+  host,
+  layerId,
+  visible,
+}: {
+  readonly host: HostPort;
+  readonly layerId: number;
+  readonly visible?: boolean;
+}) {
+  const { url, ref } = useLayerThumbnail(host, layerId);
+  const [loaded, setLoaded] = useState(false);
+  const imgRef = useRef<HTMLImageElement | null>(null);
+
+  useEffect(() => {
+    setLoaded(false);
+    if (imgRef.current?.complete) {
+      setLoaded(true);
+    }
+  }, [url]);
+
+  return (
+    <div
+      ref={ref}
+      className="layer-thumb"
+      style={{
+        background: visible === false
+          ? 'var(--app-color-background-layer-1)'
+          : 'var(--app-color-background-layer-2)',
+      }}
+    >
+      {url ? (
+        <img
+          ref={imgRef}
+          src={url}
+          className={`layer-thumb-img${loaded ? ' layer-thumb-img-loaded' : ''}`}
+          alt=""
+          onLoad={() => setLoaded(true)}
+        />
+      ) : null}
+    </div>
+  );
+}
+
+const LayerThumbnail = memo(LayerThumbnailImpl);
 
 function roundStatusElapsed(round: ConversationRound): string {
   if (round.status === 'running') {
@@ -196,6 +243,7 @@ export function MainPage({
   onSelectModel,
   layers,
   layersError,
+  layersLoading,
   reloadLayers,
   conversation,
   highlightedRoundId,
@@ -213,7 +261,7 @@ export function MainPage({
   const [attachOpen, setAttachOpen] = useState(false);
   const [layerOpen, setLayerOpen] = useState(false);
   const [captureInFlight, setCaptureInFlight] = useState(false);
-  const { notice: toast, show, clear, pause, resume } = useNotice({ defaultDurationMs: null });
+  const { show } = useToast();
   const [copied, setCopied] = useState<Record<string, boolean>>({});
   const [selectedPreviewIndexes, setSelectedPreviewIndexes] = useState<Record<string, number>>({});
   const [placeStatus, setPlaceStatus] = useState<Record<string, PlaceStatus>>({});
@@ -229,7 +277,31 @@ export function MainPage({
   const attachmentsRef = useRef<readonly ConversationAttachment[]>(attachments);
   const flatLayers = useMemo(() => flattenLayers(layers), [layers]);
   const uniqueModels = useMemo(() => dedupeById(models), [models]);
+
+  function layerKindIcon(kind: string | undefined): 'layer-pixel' | 'layer-smart-object' | 'layer-text' | 'layer-group' | null {
+    switch (kind) {
+      case 'smartObject': return 'layer-smart-object';
+      case 'pixel': return 'layer-pixel';
+      case 'text': return 'layer-text';
+      case 'group': return 'layer-group';
+      default: return null;
+    }
+  }
+
+  function layerKindLabel(kind: string | undefined): string {
+    switch (kind) {
+      case 'smartObject': return t.main.layerKindSmartObject;
+      case 'pixel': return t.main.layerKindPixel;
+      case 'text': return t.main.layerKindText;
+      case 'group': return t.main.layerKindGroup;
+      default: return kind ? kind.charAt(0).toUpperCase() + kind.slice(1) : t.main.layerKindDefault;
+    }
+  }
   const billing = useProfileBilling(services, selectedProfileId);
+  const billingPrimaryParts = formatBillingPrimaryParts(billing.billing);
+  const billingPrimaryHasNumericEmphasis = billingPrimaryParts ? /\d/.test(billingPrimaryParts.primary) : false;
+  const billingSummaryText = formatBillingPrimary(billing.billing) ?? t.main.billingUnknown;
+  const billingSummaryTitle = `${t.main.billingSummary}: ${billingSummaryText}`;
   const selectableProfiles = useMemo(
     () => profiles.filter((profile) => profile.profileId !== '__prompt-optimizer__'),
     [profiles],
@@ -294,7 +366,7 @@ export function MainPage({
       return;
     }
     lastBillingToastKeyRef.current = message;
-    show(message, 'positive', { durationMs: 3200, icon: 'check' });
+    show(message, 'positive', { key: 'billing-observed', icon: 'check' });
   }, [billing, billingToastMessage, show]);
 
   useEffect(() => {
@@ -429,7 +501,7 @@ export function MainPage({
       setAttachments(round.attachments);
     }
     taRef.current?.focus();
-    show(t.toast.promptFilled, 'info');
+    show(t.toast.promptFilled, 'info', { key: 'prompt-fill' });
   };
 
   const handleCopy = (id: string, round: ConversationRound) => {
@@ -539,9 +611,9 @@ export function MainPage({
         previewUrl: image.preview.url ?? assetToPreviewUrl(image.asset),
         ...(image.photoshopPlacement ? { photoshopPlacement: image.photoshopPlacement } : {}),
       });
-    show(t.toast.layerAdded, 'positive', { durationMs: 2800 });
+    show(t.toast.layerAdded, 'positive', { key: 'attachment-layer-added' });
     } catch (error) {
-      show(error instanceof Error ? error.message : t.toast.layerReadFailed, 'negative', { durationMs: 7000, dismissible: true });
+      show(error instanceof Error ? error.message : t.toast.layerReadFailed, 'negative', { key: 'attachment-layer-error' });
     }
   };
 
@@ -564,7 +636,7 @@ export function MainPage({
         previewUrl: image.preview.url ?? assetToPreviewUrl(image.asset),
         ...(image.photoshopPlacement ? { photoshopPlacement: image.photoshopPlacement } : {}),
       });
-      show(t.toast.fileAdded, 'positive', { durationMs: 2800 });
+      show(t.toast.fileAdded, 'positive', { key: 'attachment-file-added' });
     } catch (error) {
       show(
         isLocalFileNormalizationError(error)
@@ -573,7 +645,7 @@ export function MainPage({
             ? error.message
             : t.toast.filePickFailed,
         'negative',
-        { durationMs: 7000, dismissible: true },
+        { key: 'attachment-file-error' },
       );
     }
   };
@@ -593,9 +665,9 @@ export function MainPage({
         previewUrl: result.image.preview.url ?? assetToPreviewUrl(result.image.asset),
         photoshopPlacement: result.placement,
       });
-      show(t.toast.captureAdded, 'positive', { durationMs: 2800 });
+      show(t.toast.captureAdded, 'positive', { key: 'attachment-capture-added' });
     } catch (error) {
-      show(error instanceof Error ? error.message : t.toast.captureFailed, 'negative', { durationMs: 7000, dismissible: true });
+      show(error instanceof Error ? error.message : t.toast.captureFailed, 'negative', { key: 'attachment-capture-error' });
     } finally {
       setCaptureInFlight(false);
     }
@@ -603,11 +675,11 @@ export function MainPage({
 
   const handleSend = async () => {
     if (!selectedProfile) {
-      show(t.toast.selectProviderProfileFirst, 'info', { durationMs: 4000 });
+      show(t.toast.selectProviderProfileFirst, 'info', { key: 'send-select-profile' });
       return;
     }
     if (selectedModelId.trim().length > 0 && !modelIsSelectable(selectedModelInfo)) {
-      show(t.settings.modelSelectableOnly, 'warning', { durationMs: 4200, dismissible: false });
+      show(t.settings.modelSelectableOnly, 'warning', { key: 'send-model-selectable' });
       return;
     }
     if (!canSend) {
@@ -619,10 +691,10 @@ export function MainPage({
     }
     if (/^\/new\b$/i.test(prompt)) {
       if (conversation.running) {
-        show(t.toast.waitForRunningTask, 'info', { durationMs: 4000 });
+        show(t.toast.waitForRunningTask, 'info', { key: 'send-wait-running' });
       } else {
         conversation.clear();
-        show(t.toast.newSessionStarted, 'info', { durationMs: 3600 });
+        show(t.toast.newSessionStarted, 'info', { key: 'session-new' });
       }
       return;
     }
@@ -653,12 +725,12 @@ export function MainPage({
       return;
     }
     if (!optimizerReady) {
-      show(t.main.promptOptimizeNoProfile, 'info', { durationMs: 4000 });
+      show(t.main.promptOptimizeNoProfile, 'info', { key: 'optimize-profile-missing' });
       return;
     }
     const prompt = currentPromptValue().trim();
     if (prompt.length === 0) {
-      show(t.main.promptOptimizeEmpty, 'info', { durationMs: 4000 });
+      show(t.main.promptOptimizeEmpty, 'info', { key: 'optimize-empty' });
       return;
     }
     setOptimizeState({ status: 'optimizing', source: prompt });
@@ -668,20 +740,20 @@ export function MainPage({
         const optimized = result.value;
         if (optimized.trim() === prompt.trim()) {
           setOptimizeState({ status: 'idle' });
-          show(t.toast.promptOptimizeNoChanges, 'neutral', { durationMs: 3200, icon: 'message' });
+          show(t.toast.promptOptimizeNoChanges, 'neutral', { key: 'optimize-unchanged', icon: 'message' });
           return;
         }
         setInput(optimized);
         setOptimizeState({ status: 'optimized', source: prompt, result: optimized });
         setHighlightKey(`optimize:${Date.now()}`);
-        show(t.toast.promptOptimized, 'positive', { durationMs: 2800 });
+        show(t.toast.promptOptimized, 'positive', { key: 'optimize-success' });
       } else {
         setOptimizeState({ status: 'idle' });
-        show(commandErrorToMessage(result.error), 'negative', { durationMs: 7000, dismissible: true });
+        show(commandErrorToMessage(result.error), 'negative', { key: 'optimize-error' });
       }
     } catch (error) {
       setOptimizeState({ status: 'idle' });
-      show(error instanceof Error ? error.message : t.toast.promptOptimizeFailed, 'negative', { durationMs: 7000, dismissible: true });
+      show(error instanceof Error ? error.message : t.toast.promptOptimizeFailed, 'negative', { key: 'optimize-error' });
     }
   };
 
@@ -714,7 +786,7 @@ export function MainPage({
   const placeAsset = async (round: ConversationRound, previewIndex = 0) => {
     const asset = round.previews[previewIndex]?.asset;
     if (!asset) {
-      show(t.toast.noPlaceableImage, 'info', { durationMs: 4000 });
+      show(t.toast.noPlaceableImage, 'info', { key: 'output-missing-placeable' });
       return;
     }
     setPlaceStatus((current) => ({ ...current, [round.id]: 'placing' }));
@@ -722,31 +794,36 @@ export function MainPage({
       await services.host.placeAssetOnCanvas(asset, round.placementIntent);
       setPlaceStatus((current) => ({ ...current, [round.id]: 'placed' }));
       setHighlightKey(`place:${round.id}:${Date.now()}`);
-      show(t.toast.placedOnCanvas, 'positive', { durationMs: 2800 });
+      show(t.toast.placedOnCanvas, 'positive', { key: `place-success:${round.id}` });
       window.setTimeout(() => {
         setPlaceStatus((current) => ({ ...current, [round.id]: 'idle' }));
       }, MOTION_DURATION.statusReset);
     } catch (error) {
       setPlaceStatus((current) => ({ ...current, [round.id]: 'idle' }));
-      show(error instanceof Error ? error.message : t.toast.placeFailed, 'negative', { durationMs: 7000, dismissible: true });
+      show(error instanceof Error ? error.message : t.toast.placeFailed, 'negative', { key: `place-error:${round.id}` });
     }
   };
 
-  const downloadPreview = (round: ConversationRound, previewIndex = 0) => {
+  const downloadPreview = async (round: ConversationRound, previewIndex = 0) => {
     const preview = round.previews[previewIndex];
-    const href = preview?.url ?? '';
-    if (!href) {
-      show(t.toast.noPlaceableImage, 'info', { durationMs: 4000 });
+    if (!preview?.asset) {
+      show(t.toast.noPlaceableImage, 'info', { key: 'output-missing-placeable' });
       return;
     }
-    const name = preview.asset.name ?? preview.label ?? `imagen-result-${previewIndex + 1}.png`;
-    const anchor = document.createElement('a');
-    anchor.href = href;
-    anchor.download = name;
-    anchor.rel = 'noopener';
-    document.body.appendChild(anchor);
-    anchor.click();
-    anchor.remove();
+    try {
+      await services.host.saveAssetToFile(preview.asset, {
+        suggestedName: suggestedGeneratedImageFileName({
+          createdAt: round.createdAt,
+          providerName: round.providerName,
+          prompt: round.prompt,
+          outputIndex: previewIndex,
+          outputCount: round.previews.length,
+          mimeType: preview.asset.mimeType,
+        }),
+      });
+    } catch (error) {
+      show(error instanceof Error ? error.message : String(error), 'negative', { key: `download-error:${round.id}` });
+    }
   };
 
   return (
@@ -768,9 +845,7 @@ export function MainPage({
             aria-haspopup="listbox"
             aria-expanded={profileMenuOpen}
             text={selectedProfile?.displayName ?? t.main.noProviderProfile}
-            icon={<Icon name="chevron-down" size={10} className="hdr-provider-chevron" />}
             tooltip={selectedProfile?.displayName ?? t.main.noProviderProfile}
-            iconSize={10}
             onClick={(event) => {
               event.stopPropagation();
               setProfileMenuOpen((open) => !open);
@@ -1127,7 +1202,7 @@ export function MainPage({
                           quiet
                           icon={<Icon name="download" />}
                           tooltip={t.main.download}
-                          onClick={(event) => { event.stopPropagation(); downloadPreview(round, previewIndexForRound(round)); }}
+                          onClick={(event) => { event.stopPropagation(); void downloadPreview(round, previewIndexForRound(round)); }}
                         />
                       </div>
                     )}
@@ -1158,22 +1233,35 @@ export function MainPage({
                   {t.main.psLayers}
                   <IconButton
                     className="layer-refresh"
-                    icon={<Icon name="refresh" size={12} />}
+                    icon={layersLoading
+                      ? <MotionActivityIcon><Icon name="spinner" size={12} /></MotionActivityIcon>
+                      : <Icon name="refresh" size={12} />}
                     tooltip={t.common.refresh}
                     iconSize={12}
+                    disabled={layersLoading}
                     onClick={() => void reloadLayers()}
                   />
                 </div>
                 <div className="layer-scroll">
                   {layersError && <div className="layer-item"><span className="layer-name">{layersError}</span></div>}
                   {!layersError && flatLayers.length === 0 && <div className="layer-item"><span className="layer-name">{t.main.noAvailableLayers}</span></div>}
-                  {flatLayers.map(({ layer, depth }) => (
-                    <div key={layer.id} data-testid={`layer-row-${layer.id}`} className="layer-item" onClick={() => void addLayer(layer)}>
-                      <div className="layer-swatch" style={{ background: layer.visible === false ? 'var(--app-color-background-layer-1)' : 'var(--app-color-background-layer-2)' }} />
-                      <span className="layer-name" style={{ paddingLeft: depth * 10 }}>{layer.name}</span>
-                      <span className="layer-meta-lbl">{layer.kind ?? 'layer'}</span>
-                    </div>
-                  ))}
+                  {flatLayers.map(({ layer, depth }) => {
+                    const kindIcon = layerKindIcon(layer.kind);
+                    return (
+                      <div key={layer.id} data-testid={`layer-row-${layer.id}`} className="layer-item" onClick={() => void addLayer(layer)}>
+                        <LayerThumbnail host={services.host} layerId={layer.id} visible={layer.visible} />
+                        <div className="layer-body" style={{ paddingLeft: depth * 10 }}>
+                          <span className="layer-name" title={layer.name}>{layer.name}</span>
+                          {layer.kind && (
+                            <span className="layer-meta">
+                              {kindIcon ? <Icon name={kindIcon} size={10} /> : null}
+                              <span className="layer-meta-lbl">{layerKindLabel(layer.kind)}</span>
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                    );
+                  })}
                 </div>
               </div>
               )}
@@ -1292,11 +1380,27 @@ export function MainPage({
                     }}
                   />
                 </MotionButtonSurface>
-                <div className="cmp-balance-pill" data-testid="main-billing-summary">
-                  <span className="cmp-balance-pill-label">{t.main.billing}</span>
-                  <span className="cmp-balance-pill-value">
-                    {formatBillingPrimary(billing.billing) ?? t.main.billingUnknown}
+                <div
+                  className="cmp-balance-pill"
+                  data-testid="main-billing-summary"
+                  title={billingSummaryTitle}
+                  aria-label={billingSummaryTitle}
+                >
+                  <span className="cmp-balance-pill-main">
+                    <span
+                      className={billingPrimaryHasNumericEmphasis
+                        ? 'cmp-balance-pill-primary cmp-balance-pill-primary-accent'
+                        : 'cmp-balance-pill-primary'}
+                    >
+                      {billingPrimaryParts?.primary ?? t.main.billingUnknown}
+                    </span>
+                    {billingPrimaryParts?.unit && (
+                      <span className="cmp-balance-pill-unit"> {billingPrimaryParts.unit}</span>
+                    )}
                   </span>
+                  {billingPrimaryParts?.secondary && (
+                    <span className="cmp-balance-pill-secondary"> · {billingPrimaryParts.secondary}</span>
+                  )}
                 </div>
               </div>
               <div className="cmp-action-right">
@@ -1413,7 +1517,6 @@ export function MainPage({
           )}
         </MotionPresenceView>
       </footer>
-      <ToastHost toast={toast} onClose={clear} onPause={pause} onResume={resume} />
     </div>
   );
 }

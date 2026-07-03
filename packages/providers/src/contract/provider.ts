@@ -155,13 +155,14 @@ export interface Provider<TConfig = ProviderConfig, TRequest = CanonicalImageJob
    *
    * 语义为"向上游或 implementation 内部数据源询问当前可用的 model 候选清单"。
    * 该方法 MUST 是无状态查询：不得修改 `config`、不得写入任何 host 持久化状态。
+   * 可选 `logger` 仅用于记录 discovery 诊断信息，不得改变返回语义。
    *
    * 是否实现 `discoverModels` 由 implementation 自由决定；未实现时调用方
    * （`refreshProfileModels`）MUST 视为"该 implementation 不支持 discovery"
    * 并返回 validation error。实现可能抛错以表示 discovery 失败，调用方
    * SHALL 按 `refreshProfileModels` 失败语义处理。
    */
-  discoverModels?(config: TConfig): Promise<readonly ProviderModelInfo[]>;
+  discoverModels?(config: TConfig, logger?: Logger): Promise<readonly ProviderModelInfo[]>;
 
   /**
    * Provider-specific billing query（OPTIONAL）。

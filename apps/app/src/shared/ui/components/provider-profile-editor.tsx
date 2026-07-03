@@ -5,17 +5,25 @@ import { useI18n } from '../i18n/i18n-context';
 import { Button, TextField, FieldLabel, HelpText, Divider, Checkbox } from '../primitives/native-controls';
 import { IconButton } from '../primitives/icon-button';
 import type { NoticeState } from './notice';
-import type { ProviderConnectionDraft, ProviderEndpointDraft } from '../hooks/use-provider-settings';
+import {
+  sanitizeProviderDisplayName,
+  sanitizeProviderEndpointUrl,
+  sanitizeProviderSecretValue,
+  type ProviderConnectionDraft,
+  type ProviderEndpointDraft,
+} from '../hooks/use-provider-settings';
 import type { EndpointProbeResult } from '@imagen-ps/application';
 
 interface ProviderProfileEditorProps {
   readonly connectionTitle: string;
   readonly aliasValue: string;
   readonly onAliasValue: (value: string) => void;
+  readonly aliasError?: string | null;
   readonly aliasPlaceholder?: string;
   readonly connection: ProviderConnectionDraft;
   readonly onConnectionChange: (connection: ProviderConnectionDraft) => void;
   readonly baseUrlPlaceholder?: string;
+  readonly endpointErrors?: ReadonlyMap<string, string>;
   readonly probeResults?: ReadonlyMap<string, EndpointProbeResult>;
   readonly suggestedEndpointId?: string;
   readonly apiKeyValue: string;
@@ -30,6 +38,11 @@ interface ProviderProfileEditorProps {
   readonly onTest: () => void;
   readonly testMeta?: string | null;
   readonly testStatus?: NoticeState | null;
+  readonly apiKeySaved?: boolean;
+  readonly apiKeySavedHint?: string | null;
+  readonly apiKeyRemovalPending?: boolean;
+  readonly onApiKeyReplace?: () => void;
+  readonly onApiKeyRemove?: () => void;
 }
 
 function removeEndpoint(
@@ -68,14 +81,27 @@ function updateEndpoint(
   };
 }
 
+function renderStatusNotice(notice: NoticeState) {
+  const {
+    key: _key,
+    action: _action,
+    priority: _priority,
+    urgent: _urgent,
+    ...props
+  } = notice;
+  return <StatusNotice {...props} />;
+}
+
 export function ProviderProfileEditor({
   connectionTitle,
   aliasValue,
   onAliasValue,
+  aliasError = null,
   aliasPlaceholder,
   connection,
   onConnectionChange,
   baseUrlPlaceholder,
+  endpointErrors,
   probeResults,
   suggestedEndpointId,
   apiKeyValue,
@@ -90,6 +116,11 @@ export function ProviderProfileEditor({
   onTest,
   testMeta = null,
   testStatus = null,
+  apiKeySaved = false,
+  apiKeySavedHint = null,
+  apiKeyRemovalPending = false,
+  onApiKeyReplace,
+  onApiKeyRemove,
 }: ProviderProfileEditorProps) {
   const { messages: t } = useI18n();
 
@@ -106,13 +137,20 @@ export function ProviderProfileEditor({
             placeholder={aliasPlaceholder}
             value={aliasValue}
             onValue={onAliasValue}
+            onBlur={() => onAliasValue(sanitizeProviderDisplayName(aliasValue))}
           />
+          {aliasError ? (
+            <HelpText data-testid="provider-alias-error" className="field-hint" variant="negative">
+              {aliasError}
+            </HelpText>
+          ) : null}
         </div>
         <div className="field">
           <div className="section-title settings-subsection-heading">{t.settings.requestAddresses}</div>
           <div className="field provider-endpoint-list">
             {connection.endpoints.map((endpoint, index) => {
               const probe = probeResults?.get(endpoint.id);
+              const endpointError = endpointErrors?.get(endpoint.id);
               const isPreferred = connection.preferredEndpointId === endpoint.id;
               const isSuggested = suggestedEndpointId === endpoint.id;
               const canDelete = connection.endpoints.length > 1;
@@ -153,8 +191,13 @@ export function ProviderProfileEditor({
                     id={`provider-endpoint-url-${endpoint.id}`}
                     placeholder={baseUrlPlaceholder}
                     value={endpoint.url}
-                    onValue={(value) => onConnectionChange(updateEndpoint(connection, endpoint.id, (current) => ({ ...current, url: value })))}
+                    onValue={(value) => onConnectionChange(updateEndpoint(connection, endpoint.id, (current) => ({ ...current, url: sanitizeProviderEndpointUrl(value) })))}
                   />
+                  {endpointError ? (
+                    <HelpText data-testid={`provider-endpoint-error-${index}`} className="field-hint" variant="negative">
+                      {endpointError}
+                    </HelpText>
+                  ) : null}
                   <div className="provider-endpoint-controls">
                     <Checkbox
                       data-testid={`provider-endpoint-enabled-${index}`}
@@ -225,15 +268,30 @@ export function ProviderProfileEditor({
         </div>
         <div className="field">
           <FieldLabel htmlFor="provider-api-key-input">API Key</FieldLabel>
+          {apiKeySaved && apiKeySavedHint && !apiKeyRemovalPending ? (
+            <div data-testid="provider-api-key-saved-meta" className="settings-secret-meta">
+              {apiKeySavedHint}
+            </div>
+          ) : null}
+          {apiKeySaved && !apiKeyRemovalPending ? (
+            <div className="settings-secret-actions">
+              <Button data-testid="provider-api-key-replace" className="settings-secret-action" variant="secondary" onClick={onApiKeyReplace}>
+                {t.settings.replaceSecret}
+              </Button>
+              <Button data-testid="provider-api-key-remove" className="settings-secret-action" variant="secondary" onClick={onApiKeyRemove}>
+                {t.settings.removeSecret}
+              </Button>
+            </div>
+          ) : null}
           <div className="field-input-affordance">
             <TextField
               data-testid="provider-api-key-input"
               id="provider-api-key-input"
               type={showKey ? 'text' : 'password'}
               className="field-input mono ui-field-control field-input-embedded"
-              placeholder={apiKeyPlaceholder}
+              placeholder={apiKeySaved && !apiKeyValue ? t.settings.apiKeyReplacePlaceholder : apiKeyPlaceholder}
               value={apiKeyValue}
-              onValue={onApiKeyValue}
+              onValue={(value) => onApiKeyValue(sanitizeProviderSecretValue(value))}
             />
             <IconButton
               data-testid="provider-api-key-toggle"
@@ -244,8 +302,15 @@ export function ProviderProfileEditor({
               onClick={() => onShowKeyChange(!showKey)}
             />
           </div>
+          {apiKeyRemovalPending ? (
+            <HelpText data-testid="provider-api-key-removal-pending" className="field-hint" variant="negative">
+              {t.settings.secretRemovalPending}
+            </HelpText>
+          ) : apiKeySaved && apiKeySavedHint ? (
+            <HelpText className="field-hint">{apiKeySavedHint}</HelpText>
+          ) : null}
         </div>
-        {connectionStatus && <StatusNotice {...connectionStatus} />}
+        {connectionStatus ? renderStatusNotice(connectionStatus) : null}
       </div>
 
       {extraSections}
@@ -261,24 +326,26 @@ export function ProviderProfileEditor({
       )}
 
       <div className="test-area">
-        <Button data-testid="provider-test-button" className="test-btn ui-button-block" variant="secondary" disabled={testBusy} onClick={() => void onTest()}>
-          {testBusy
-            ? (
-              <span className="ui-button-content">
-                <Icon name="spinner" size={13} className="ui-icon-text-icon spin" />
-                <span className="ui-button-label">{t.settings.testingConnection}</span>
-              </span>
-            )
-            : (
-              <span className="ui-button-content">
-                <Icon name="check" size={13} className="ui-icon-text-icon" />
-                <span className="ui-button-label">{t.settings.testConnection}</span>
-              </span>
-            )
-          }
-        </Button>
+        <div className="settings-action-row">
+          <Button data-testid="provider-test-button" className="test-btn settings-action-emphasis" variant="secondary" disabled={testBusy} onClick={() => void onTest()}>
+            {testBusy
+              ? (
+                <span className="ui-button-content">
+                  <Icon name="spinner" size={13} className="ui-icon-text-icon spin" />
+                  <span className="ui-button-label">{t.settings.testingConnection}</span>
+                </span>
+              )
+              : (
+                <span className="ui-button-content">
+                  <Icon name="check" size={13} className="ui-icon-text-icon" />
+                  <span className="ui-button-label">{t.settings.testConnection}</span>
+                </span>
+              )
+            }
+          </Button>
+        </div>
         {testMeta ? <div className="test-meta">{testMeta}</div> : null}
-        {testStatus && <StatusNotice {...testStatus} />}
+        {testStatus ? renderStatusNotice(testStatus) : null}
       </div>
     </div>
   );

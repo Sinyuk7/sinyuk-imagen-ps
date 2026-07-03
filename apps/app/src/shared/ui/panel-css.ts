@@ -3,7 +3,9 @@
  * 聚合后由 `ensurePanelCss()` 同步注入为单个 `<style id="imagen-ps-panel-styles">`。
  *
  * 拆分边界：
- *  - tokens.ts        Layer A 宿主默认 + Layer B 应用语义 token + Layer C native controls
+ *  - theme-source/    6 个网站导出的 Material Design 3 源主题 CSS
+ *  - generated/       由 theme-source 自动生成的 md-sys + 应用语义 token
+ *  - native-controls.ts  Layer C native controls
  *  - base.ts          reset
  *  - shell.ts         panel / page / header / scroll 布局
  *  - conversation.ts  会话气泡 / provider card / loading / error / empty
@@ -14,8 +16,8 @@
  *
  * 保持 UXP 与 Chrome 共享同一套样式语义；不复制两套 CSS。
  */
-import { TOKENS_CSS, LIGHT_THEME_CSS, NATIVE_CONTROLS_CSS } from './styles/tokens';
-import { EXTRA_THEMES_CSS } from './styles/extra-themes';
+import { GENERATED_THEME_CSS } from './styles/generated/theme-css';
+import { NATIVE_CONTROLS_CSS } from './styles/native-controls';
 import { BASE_CSS } from './styles/base';
 import { SHELL_CSS } from './styles/shell';
 import { CONVERSATION_CSS } from './styles/conversation';
@@ -29,9 +31,7 @@ function stripCssComments(css: string): string {
 }
 
 export const PANEL_CSS = stripCssComments([
-  TOKENS_CSS,
-  LIGHT_THEME_CSS,
-  EXTRA_THEMES_CSS,
+  GENERATED_THEME_CSS,
   NATIVE_CONTROLS_CSS,
   BASE_CSS,
   SHELL_CSS,

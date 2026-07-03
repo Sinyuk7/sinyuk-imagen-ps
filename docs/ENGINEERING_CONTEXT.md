@@ -69,7 +69,7 @@ surface apps -> application/session -> core-engine + providers
 - In Photoshop UXP, local PNG/JPEG attachments derive preview and provider-input refs through an app-local byte pipeline inside `apps/app`. They must not open temporary Photoshop documents during attachment add. Local WEBP remains an explicit host-native fallback until an app-local WEBP decode path is proven.
 
 - Provider requests must resolve image-edit inputs from `image.resource.derivatives.providerInput.storedRef`. They must not submit the original asset, thumbnail, inline `data`, or full preview URL. Retry reuses the storedRef already present in the original job input.
-- UI previews use the app `ThumbnailStore`. Long-lived round preview state keeps sanitized `Asset` metadata and bounded thumbnail URLs only; provider output inline bytes are materialized into `AssetStore` refs before entering long-lived state.
+- UI previews use the app `ThumbnailStore`. Long-lived round preview state must keep the original output `Asset` locator payload (`storedRef`, `url`, or inline `data`) alongside bounded thumbnail URLs so main-page place/download actions can still resolve the full-size returned image after preview generation.
 - Cancellation is cooperative: app clear/unmount aborts in-flight submit and thumbnail work; application/core pass `AbortSignal` through submit → runtime → runner → provider dispatch; runner checks the signal before and after dispatch and after output postprocessing.
 
 ## Durable Job History
@@ -88,6 +88,7 @@ surface apps -> application/session -> core-engine + providers
 - `nativePath` is not a persistent reference. External file references use persistent tokens; every token resolution must handle failure.
 - Photoshop document writes must run inside `require('photoshop').core.executeAsModal` and use session tokens, not native paths.
 - UXP binary file reads/writes use `require('uxp').storage.formats.binary`, not `localFileSystem.formats.binary`.
+- UXP does not provide browser-style anchor download behavior. Saving a generated image to disk must go through the host save dialog (`localFileSystem.getFileForSaving()` / `HostPort.saveAssetToFile()`), not `<a download>` or synthetic anchor clicks.
 - Photoshop layer/capture attachments are materialized as PNG bytes through the app-local PNG encoder (stored deflate, no compression), then stored in `AssetStore`. `imaging.getPixels()` requests `componentSize: 8`; selection/mask data stays single-channel grayscale.
 - manifest v5 must declare `requiredPermissions.localFileSystem` and `requiredPermissions.network.domains`.
 
@@ -107,6 +108,12 @@ surface apps -> application/session -> core-engine + providers
   request-invalid failures never trigger retry, failover, or cooldown.
   `timeout` is never replayed across endpoints. `broad` mode (default for
   discovery) still permits safe endpoint failover for non-paid probes.
+- Provider billing refresh keeps its own runtime-only per-profile cooldown in
+  `packages/application/src/commands/profile-billing.ts`. A 429 balance-query
+  failure opens a local cooldown immediately, while repeated auth-style balance
+  failures open a local cooldown after a small consecutive-failure threshold.
+  This throttle is session-scoped, does not persist to profiles, and does not
+  change provider connectivity health semantics.
 
 ## Current Limitations
 

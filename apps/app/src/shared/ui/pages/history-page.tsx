@@ -5,8 +5,7 @@ import type { ConversationRound, RoundStatus } from '../hooks/use-conversation';
 import { Icon } from '../components/icons';
 import { ActionButton } from '../primitives/native-controls';
 import { IconButton } from '../primitives/icon-button';
-import { useNotice } from '../components/notice';
-import { ToastHost } from '../components/toast-host';
+import { useToast } from '../components/toast-host';
 import { useI18n } from '../i18n/i18n-context';
 
 const STATUS_COLOR: Record<RoundStatus, string> = { ok: 'var(--app-color-positive)', running: 'var(--app-color-notice)', err: 'var(--app-color-negative)' };
@@ -20,6 +19,7 @@ interface HistoryPageProps {
   readonly onReload: () => Promise<void>;
   readonly onRetry: (roundId: string) => Promise<void>;
   readonly taskResources?: TaskResourceResolverPort;
+  readonly onDownloadTaskOutput?: (record: TaskRecord, outputId: string) => Promise<void>;
   readonly onPlaceTaskOutput?: (record: TaskRecord, outputId: string) => Promise<void>;
   readonly onLocateRound?: (roundId: string) => void;
   readonly onMiss?: () => void;
@@ -109,25 +109,9 @@ interface PreviewState {
 const PREVIEW_QUEUE_CONCURRENCY = 2;
 const PREVIEW_ROOT_MARGIN = '250px 0px';
 
-function downloadBytes(bytes: ArrayBuffer, name: string, mimeType: string): void {
-  if (typeof document === 'undefined' || typeof URL === 'undefined' || typeof URL.createObjectURL !== 'function') {
-    throw new Error('Download is unavailable in this runtime.');
-  }
-  const blob = new Blob([bytes.slice(0)], { type: mimeType });
-  const url = URL.createObjectURL(blob);
-  const anchor = document.createElement('a');
-  anchor.href = url;
-  anchor.download = name;
-  anchor.style.display = 'none';
-  document.body.appendChild(anchor);
-  anchor.click();
-  anchor.remove();
-  URL.revokeObjectURL(url);
-}
-
-export function HistoryPage({ onNav, rounds, records, loading, error, onReload, onRetry, taskResources, onPlaceTaskOutput, onLocateRound, onMiss }: HistoryPageProps) {
+export function HistoryPage({ onNav, rounds, records, loading, error, onReload, onRetry, taskResources, onDownloadTaskOutput, onPlaceTaskOutput, onLocateRound, onMiss }: HistoryPageProps) {
   const { messages: t } = useI18n();
-  const { notice: toast, show, clear, pause, resume } = useNotice({ defaultDurationMs: null });
+  const { show } = useToast();
   const [filter, setFilter] = useState<'all' | RoundStatus>('all');
   const [previews, setPreviews] = useState<Record<string, PreviewState>>({});
   const scrollRef = useRef<HTMLDivElement | null>(null);
@@ -356,37 +340,26 @@ export function HistoryPage({ onNav, rounds, records, loading, error, onReload, 
   }, [enqueuePreview, taskResources]);
 
   const onDownload = useCallback(async (item: HistoryItem) => {
-    if (!item.output || !taskResources) {
-      show(t.history.resourceUnavailable, 'info', { durationMs: 4000 });
+    if (!item.output || !item.taskRecord || !onDownloadTaskOutput) {
+      show(t.history.resourceUnavailable, 'info', { key: 'history-output-unavailable' });
       return;
     }
     try {
-      const resolved = await taskResources.resolve(item.output.asset);
-      if (resolved.availability !== 'available' || !resolved.bytes) {
-        resolved.preview?.dispose?.();
-        show(t.history.resourceUnavailable, 'info', { durationMs: 4000 });
-        return;
-      }
-      downloadBytes(
-        resolved.bytes,
-        item.output.asset.ref.name ?? `${item.output.outputId}.png`,
-        item.output.asset.ref.mimeType ?? 'image/png',
-      );
-      resolved.preview?.dispose?.();
+      await onDownloadTaskOutput(item.taskRecord, item.output.outputId);
     } catch (downloadError) {
-      show(downloadError instanceof Error ? downloadError.message : String(downloadError), 'negative', { durationMs: 7000, dismissible: true });
+      show(downloadError instanceof Error ? downloadError.message : String(downloadError), 'negative', { key: 'history-download-error' });
     }
-  }, [show, t.history.resourceUnavailable, taskResources]);
+  }, [onDownloadTaskOutput, show, t.history.resourceUnavailable]);
 
   const onPlace = useCallback(async (item: HistoryItem) => {
     if (!item.output || !item.taskRecord || !onPlaceTaskOutput) {
-      show(t.history.resourceUnavailable, 'info', { durationMs: 4000 });
+      show(t.history.resourceUnavailable, 'info', { key: 'history-output-unavailable' });
       return;
     }
     try {
       await onPlaceTaskOutput(item.taskRecord, item.output.outputId);
     } catch (placeError) {
-      show(placeError instanceof Error ? placeError.message : String(placeError), 'negative', { durationMs: 7000, dismissible: true });
+      show(placeError instanceof Error ? placeError.message : String(placeError), 'negative', { key: 'history-place-error' });
     }
   }, [onPlaceTaskOutput, show, t.history.resourceUnavailable]);
 
@@ -470,7 +443,7 @@ export function HistoryPage({ onNav, rounds, records, loading, error, onReload, 
               if (isCurrent) {
                 onLocateRound?.(item.id);
               } else {
-                show(t.toast.historyNotInCurrentSession, 'info', { durationMs: 4000 });
+                show(t.toast.historyNotInCurrentSession, 'info', { key: 'history-session-miss' });
                 onMiss?.();
               }
             }}>
@@ -547,7 +520,6 @@ export function HistoryPage({ onNav, rounds, records, loading, error, onReload, 
           })
         }
       </div>
-      <ToastHost toast={toast} onClose={clear} onPause={pause} onResume={resume} />
     </div>
   );
 }

@@ -329,7 +329,9 @@ export function createFakeModules(options?: {
     readonly disposeLayer: ReturnType<typeof vi.fn>;
     readonly disposeMask: ReturnType<typeof vi.fn>;
     readonly getFileForOpening: ReturnType<typeof vi.fn>;
+    readonly getFileForSaving: ReturnType<typeof vi.fn>;
     readonly createFile: ReturnType<typeof vi.fn>;
+    readonly writeSavedFile: ReturnType<typeof vi.fn>;
     readonly writeTempFile: ReturnType<typeof vi.fn>;
     readonly deleteTempFile: ReturnType<typeof vi.fn>;
     readonly createSessionToken: ReturnType<typeof vi.fn>;
@@ -390,6 +392,12 @@ export function createFakeModules(options?: {
     name: pickedFileName,
     read: vi.fn(async () => pickedFileData),
     write: vi.fn(async () => undefined),
+  }));
+  const writeSavedFile = vi.fn(async () => undefined);
+  const getFileForSaving = vi.fn(async (_suggestedName?: string, _options?: { readonly types?: readonly string[] }) => ({
+    name: 'saved-image.png',
+    read: vi.fn(async () => arrayBufferFromText('unused-save')),
+    write: writeSavedFile,
   }));
   const writeTempFile = vi.fn(async () => undefined);
   const deleteTempFile = vi.fn(async () => undefined);
@@ -481,6 +489,7 @@ export function createFakeModules(options?: {
           formats: { binary: 'binary' },
           localFileSystem: {
             getFileForOpening,
+            getFileForSaving,
             async getTemporaryFolder() {
               return { createFile };
             },
@@ -497,7 +506,9 @@ export function createFakeModules(options?: {
       disposeLayer,
       disposeMask,
       getFileForOpening,
+      getFileForSaving,
       createFile,
+      writeSavedFile,
       writeTempFile,
       deleteTempFile,
       createSessionToken,

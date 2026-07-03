@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
 import type { ResolvedTaskResource, TaskRecord, TaskResourceRef } from '@imagen-ps/application';
-import { placeTaskOutputOnCanvas } from '../src/shared/domain/task-actions';
+import { placeTaskOutputOnCanvas, saveTaskOutputToFile } from '../src/shared/domain/task-actions';
 import { fakeTaskRecord } from './fakes';
 
 function exactFrameTaskRecord(): TaskRecord {
@@ -125,5 +125,84 @@ describe('task output actions', () => {
 
     expect(resolve).not.toHaveBeenCalled();
     expect(placeAssetOnCanvas).not.toHaveBeenCalled();
+  });
+
+  it('saves the durable full-size hostObject output through the host save port', async () => {
+    const output = {
+      outputId: 'task-save-host:output:0',
+      index: 0,
+      kind: 'image' as const,
+      asset: {
+        ref: {
+          kind: 'hostObject' as const,
+          ref: 'history-full-asset',
+          name: 'history-full.png',
+          mimeType: 'image/png',
+          byteSize: 128,
+        },
+      },
+      thumbnail: {
+        ref: {
+          kind: 'hostObject' as const,
+          ref: 'history-thumb-asset',
+          name: 'history-thumb.png',
+          mimeType: 'image/png',
+          byteSize: 16,
+        },
+      },
+    };
+    const record: TaskRecord = {
+      ...fakeTaskRecord,
+      taskId: 'task-save-host',
+      outputs: [output],
+    };
+    const saveAssetToFile = vi.fn(async () => undefined);
+
+    await saveTaskOutputToFile(record, output.outputId, {
+      host: { saveAssetToFile },
+    });
+
+    expect(saveAssetToFile).toHaveBeenCalledWith(expect.objectContaining({
+      type: 'image',
+      name: 'history-full.png',
+      mimeType: 'image/png',
+      storedRef: output.asset.ref,
+    }), { suggestedName: 'imagen_20260615-080000_Mock-Profile_history-prompt.png' });
+    expect(saveAssetToFile).not.toHaveBeenCalledWith(expect.objectContaining({
+      storedRef: output.thumbnail.ref,
+    }), expect.anything());
+  });
+
+  it('saves remote durable outputs by passing the original URL asset to the host', async () => {
+    const output = {
+      outputId: 'task-save-url:output:0',
+      index: 0,
+      kind: 'image' as const,
+      asset: {
+        ref: {
+          kind: 'url' as const,
+          ref: 'https://example.com/generated/final.webp',
+          name: 'final.webp',
+          mimeType: 'image/webp',
+        },
+      },
+    };
+    const record: TaskRecord = {
+      ...fakeTaskRecord,
+      taskId: 'task-save-url',
+      outputs: [output],
+    };
+    const saveAssetToFile = vi.fn(async () => undefined);
+
+    await saveTaskOutputToFile(record, output.outputId, {
+      host: { saveAssetToFile },
+    });
+
+    expect(saveAssetToFile).toHaveBeenCalledWith({
+      type: 'image',
+      name: 'final.webp',
+      mimeType: 'image/webp',
+      url: 'https://example.com/generated/final.webp',
+    }, { suggestedName: 'imagen_20260615-080000_Mock-Profile_history-prompt.webp' });
   });
 });

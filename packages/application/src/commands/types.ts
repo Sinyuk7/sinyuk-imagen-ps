@@ -144,6 +144,8 @@ export interface ProviderProfileInput {
   readonly config?: ProviderProfileConfig;
   readonly secretRefs?: Readonly<Record<string, string>>;
   readonly secretValues?: Readonly<Record<string, string>>;
+  /** 显式移除已保存 secret；未列出的空输入继续表示保留原 secret。 */
+  readonly removedSecretNames?: readonly string[];
 }
 
 /** Host-injected repository for persisted, sanitized provider profiles. */
@@ -254,6 +256,8 @@ export interface EndpointProbeResult {
   readonly failureKind?: EndpointProbeFailureKind;
   readonly httpStatus?: number;
   readonly modelCount?: number;
+  /** 本次草稿 probe 在该 endpoint 上发现的模型；失败或不支持时省略。 */
+  readonly models?: readonly ProviderModelInfo[];
   readonly errorMessage?: string;
 }
 
@@ -264,6 +268,8 @@ export interface ProbeProfileEndpointsInput {
   readonly config: ProviderProfileConfig;
   readonly secretRefs?: Readonly<Record<string, string>>;
   readonly secretValues?: Readonly<Record<string, string>>;
+  /** 测试草稿时排除这些已保存 secret。 */
+  readonly removedSecretNames?: readonly string[];
   readonly signal?: AbortSignal;
   readonly timeoutMs?: number;
   readonly maxConcurrency?: number;
@@ -294,5 +300,7 @@ export interface RefreshProfileBalanceResult extends ProfileBalanceResult {
 
 export interface ProbeProfileEndpointsResult {
   readonly results: readonly EndpointProbeResult[];
+  /** 汇总所有 healthy endpoint 的去重模型候选，不持久化。 */
+  readonly models?: readonly ProviderModelInfo[];
   readonly suggestedEndpointId?: string;
 }

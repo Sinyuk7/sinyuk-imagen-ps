@@ -227,4 +227,56 @@ describe('provider profile alias contract', () => {
       accessTokenSecretRef: 'secret:provider-profile:profile-c:billingAccessToken',
     });
   });
+
+  it('removes saved optional secrets only when removal is explicit', async () => {
+    _resetForTesting();
+    const { repository, profiles } = createProfileRepository();
+    const { adapter, secrets } = createSecretStorage();
+    setProviderProfileRepository(repository);
+    setSecretStorageAdapter(adapter);
+
+    const base = mockProfileInput('profile-remove', 'Remove Secret', 'mock-image-v1', 'key-a');
+    const saved = await saveProviderProfile({
+      ...base,
+      config: {
+        ...base.config,
+        billing: {
+          mode: 'new-api',
+          userId: '10001',
+          accessTokenSecretRef: 'secret:pending:billingAccessToken',
+        },
+      },
+      secretValues: {
+        apiKey: 'key-a',
+        billingAccessToken: 'billing-secret',
+      },
+    });
+    expect(saved.ok).toBe(true);
+    expect(secrets.get('secret:provider-profile:profile-remove:apiKey')).toBe('key-a');
+    expect(secrets.get('secret:provider-profile:profile-remove:billingAccessToken')).toBe('billing-secret');
+
+    const kept = await saveProviderProfile({
+      profileId: 'profile-remove',
+      config: {
+        defaultModel: 'mock-image-v2',
+      },
+    });
+    expect(kept.ok).toBe(true);
+    expect(profiles[0]?.secretRefs?.billingAccessToken).toBe('secret:provider-profile:profile-remove:billingAccessToken');
+    expect(secrets.get('secret:provider-profile:profile-remove:billingAccessToken')).toBe('billing-secret');
+
+    const removed = await saveProviderProfile({
+      profileId: 'profile-remove',
+      removedSecretNames: ['billingAccessToken'],
+      config: {
+        defaultModel: 'mock-image-v3',
+        billing: { mode: 'none' },
+      },
+    });
+    expect(removed.ok).toBe(true);
+    expect(profiles[0]?.secretRefs?.apiKey).toBe('secret:provider-profile:profile-remove:apiKey');
+    expect(profiles[0]?.secretRefs?.billingAccessToken).toBeUndefined();
+    expect(secrets.get('secret:provider-profile:profile-remove:apiKey')).toBe('key-a');
+    expect(secrets.has('secret:provider-profile:profile-remove:billingAccessToken')).toBe(false);
+  });
 });

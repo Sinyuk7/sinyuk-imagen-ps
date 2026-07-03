@@ -9,6 +9,37 @@ import {
 } from './host-bridge-harness';
 
 describe('PhotoshopHostBridge fake harness — layer read', () => {
+  it('为图层列表按需生成可释放的小尺寸缩略图', async () => withObjectUrlMock(async ({ create, revoke }) => {
+    const { modules, spies } = createFakeModules();
+    const { bridge } = createBridge(modules);
+
+    const thumbnail = await bridge.getLayerThumbnail(2, 48);
+
+    expect(thumbnail).toBeDefined();
+    expect(thumbnail!.url).toBe('blob:thumb-1');
+    expect(spies.executeAsModal).toHaveBeenCalledWith(expect.any(Function), { commandName: 'Get thumbnail for layer Child' });
+    expect(spies.getPixels).toHaveBeenCalledWith({
+      documentID: 42,
+      layerID: 2,
+      targetSize: { width: 48, height: 48 },
+      colorSpace: 'RGB',
+      componentSize: 8,
+      applyAlpha: false,
+    });
+
+    thumbnail!.release();
+    expect(revoke).toHaveBeenCalledWith('blob:thumb-1');
+  }));
+
+  it('未知图层或空 bounds 图层不生成缩略图', async () => {
+    const { modules, spies } = createFakeModules();
+    const { bridge } = createBridge(modules);
+
+    await expect(bridge.getLayerThumbnail(999)).resolves.toBeUndefined();
+    await expect(bridge.getLayerThumbnail(3)).resolves.toBeUndefined();
+    expect(spies.getPixels).not.toHaveBeenCalled();
+  });
+
   it('列出 Photoshop layer tree 并保留 mask/visible 元数据', async () => {
     const { modules } = createFakeModules();
     const { bridge } = createBridge(modules);

@@ -52,6 +52,62 @@ export const IMAGE_ENDPOINT_MODEL_CAPABILITIES = Object.freeze([
     ],
   },
   {
+    ruleId: 'image-endpoint-grok-imagine-image-pro',
+    match: {
+      ids: ['grok-imagine-image-pro', 'grok-imagine-image-quality'],
+      prefixes: ['grok-imagine-image-pro', 'grok-imagine-image-quality'],
+    },
+    displayName: 'Grok Pro',
+    selection: {
+      visibleInPicker: true,
+      allowAsDefault: true,
+    },
+    appliesToProviders: ['image-endpoint'],
+    constraintStrategy: IMAGE_ENDPOINT_DEFAULT_STRATEGY,
+  },
+  {
+    ruleId: 'image-endpoint-grok-imagine-image',
+    match: {
+      ids: ['grok-imagine-image'],
+      prefixes: ['grok-imagine-image'],
+    },
+    displayName: 'Grok',
+    selection: {
+      visibleInPicker: true,
+      allowAsDefault: true,
+    },
+    appliesToProviders: ['image-endpoint'],
+    constraintStrategy: IMAGE_ENDPOINT_DEFAULT_STRATEGY,
+  },
+  {
+    ruleId: 'image-endpoint-doubao-seedream-5-0-260128',
+    match: {
+      ids: ['doubao-seedream-5-0-260128'],
+      prefixes: ['doubao-seedream-5-0-260128'],
+    },
+    displayName: 'Doubao Seedream 5.0 Lite',
+    selection: {
+      visibleInPicker: true,
+      allowAsDefault: true,
+    },
+    appliesToProviders: ['image-endpoint'],
+    constraintStrategy: IMAGE_ENDPOINT_DEFAULT_STRATEGY,
+  },
+  {
+    ruleId: 'image-endpoint-qwen-image-2.0-2026-03-03',
+    match: {
+      ids: ['qwen-image-2.0-2026-03-03'],
+      prefixes: ['qwen-image-2.0-2026-03-03'],
+    },
+    displayName: 'Qwen Image 2.0',
+    selection: {
+      visibleInPicker: true,
+      allowAsDefault: true,
+    },
+    appliesToProviders: ['image-endpoint'],
+    constraintStrategy: IMAGE_ENDPOINT_DEFAULT_STRATEGY,
+  },
+  {
     ruleId: 'image-endpoint-default',
     match: {},
     displayName: 'Default Image Endpoint Rule',

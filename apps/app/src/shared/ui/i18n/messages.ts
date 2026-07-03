@@ -95,6 +95,11 @@ export interface AppMessages {
     readonly promptOptimizing: string;
     readonly promptOptimizeNoProfile: string;
     readonly promptOptimizeEmpty: string;
+    readonly layerKindSmartObject: string;
+    readonly layerKindPixel: string;
+    readonly layerKindText: string;
+    readonly layerKindGroup: string;
+    readonly layerKindDefault: string;
   };
   readonly history: {
     readonly title: string;
@@ -159,6 +164,19 @@ export interface AppMessages {
     readonly connectionInfo: string;
     readonly noProfileSelected: string;
     readonly savedSecretPlaceholder: string;
+    readonly apiKeyReplacePlaceholder: string;
+    readonly accessTokenReplacePlaceholder: string;
+    readonly replaceSecret: string;
+    readonly removeSecret: string;
+    readonly secretRemovalPending: string;
+    readonly changesNotTested: string;
+    readonly modelListStale: string;
+    readonly duplicateDisplayName: (name: string) => string;
+    readonly duplicateEndpointUrl: string;
+    readonly useProviderAfterSaving: string;
+    readonly saveProvider: string;
+    readonly saveChanges: string;
+    readonly savedButton: string;
     readonly showApiKey: string;
     readonly hideApiKey: string;
     readonly refreshModels: string;
@@ -181,6 +199,7 @@ export interface AppMessages {
     readonly providerInputSizePreset: string;
     readonly providerInputSizePresetHint: string;
     readonly storageGroup: string;
+    readonly storageGroupHint: string;
     readonly logPath: string;
     readonly generatedImagePath: string;
     readonly pathInfoUnavailable: string;
@@ -308,6 +327,11 @@ const EN_MESSAGES: AppMessages = {
     promptOptimizing: 'Optimizing…',
     promptOptimizeNoProfile: 'Configure Prompt Optimizer in Providers',
     promptOptimizeEmpty: 'Enter a prompt first',
+    layerKindSmartObject: 'Smart Object',
+    layerKindPixel: 'Pixel',
+    layerKindText: 'Text',
+    layerKindGroup: 'Group',
+    layerKindDefault: 'Layer',
   },
   history: {
     title: 'History',
@@ -341,7 +365,7 @@ const EN_MESSAGES: AppMessages = {
     billingUserIdHint: 'Use the integer user id required by the panel family.',
     billingAccessToken: 'Billing access token',
     billingAccessTokenHint: 'Stored as a secret and used only for balance queries.',
-    billingAccessTokenSavedHint: 'Saved; leave blank to keep the current balance token.',
+    billingAccessTokenSavedHint: 'Saved securely. Enter a new token to replace it, or remove it explicitly.',
     billingNotSupported: 'This provider preset does not expose a billing adapter yet.',
     billingValidationUserId: 'Billing user id must be an integer.',
     billingValidationAccessToken: 'Billing access token is required for New API mode.',
@@ -371,7 +395,20 @@ const EN_MESSAGES: AppMessages = {
     modelSelectableOnly: 'Only locally supported and currently discovered models can be sent.',
     connectionInfo: 'Connection info',
     noProfileSelected: 'No Provider profile selected',
-    savedSecretPlaceholder: 'Saved; leave blank to keep unchanged',
+    savedSecretPlaceholder: 'Saved securely',
+    apiKeyReplacePlaceholder: 'Enter a new key to replace the saved key',
+    accessTokenReplacePlaceholder: 'Enter a new token to replace the saved token',
+    replaceSecret: 'Replace',
+    removeSecret: 'Remove',
+    secretRemovalPending: 'Will be removed when you save changes.',
+    changesNotTested: 'Changes not tested',
+    modelListStale: 'Model list may be outdated for the current draft.',
+    duplicateDisplayName: (name) => `A provider named "${name}" already exists.`,
+    duplicateEndpointUrl: 'This endpoint is already used in this profile.',
+    useProviderAfterSaving: 'Use this provider after saving',
+    saveProvider: 'Save Provider',
+    saveChanges: 'Save changes',
+    savedButton: 'Saved',
     showApiKey: 'Show API Key',
     hideApiKey: 'Hide API Key',
     refreshModels: 'Refresh model list',
@@ -394,6 +431,7 @@ const EN_MESSAGES: AppMessages = {
     providerInputSizePreset: 'Provider input size',
     providerInputSizePresetHint: 'Reference and captured images are resized locally before provider edit requests while preserving aspect ratio.',
     storageGroup: 'Storage',
+    storageGroupHint: 'Current runtime paths and generated-image output location.',
     logPath: 'Current log path',
     generatedImagePath: 'Generated image path',
     pathInfoUnavailable: 'Path info is unavailable in the current runtime.',
@@ -522,6 +560,11 @@ const ZH_CN_MESSAGES: AppMessages = {
     promptOptimizing: '优化中…',
     promptOptimizeNoProfile: '请在 Providers 中配置 Prompt Optimizer',
     promptOptimizeEmpty: '请先输入提示词',
+    layerKindSmartObject: '智能对象',
+    layerKindPixel: '像素图层',
+    layerKindText: '文字图层',
+    layerKindGroup: '图层组',
+    layerKindDefault: '图层',
   },
   history: {
     title: '历史',
@@ -555,7 +598,7 @@ const ZH_CN_MESSAGES: AppMessages = {
     billingUserIdHint: '填写该面板要求的整数 user id。',
     billingAccessToken: 'Billing access token',
     billingAccessTokenHint: '仅用于余额查询，并按 secret 保存。',
-    billingAccessTokenSavedHint: '已保存；留空保持当前余额 token。',
+    billingAccessTokenSavedHint: '已安全保存。输入新 token 可替换，也可以显式移除。',
     billingNotSupported: '当前 provider preset 还没有可用的 billing adapter。',
     billingValidationUserId: 'Billing user id 必须是整数。',
     billingValidationAccessToken: 'New API 模式需要 billing access token。',
@@ -585,7 +628,20 @@ const ZH_CN_MESSAGES: AppMessages = {
     modelSelectableOnly: '仅允许发送本地支持且当前已发现的模型。',
     connectionInfo: '连接信息',
     noProfileSelected: '未选择 Provider profile',
-    savedSecretPlaceholder: '已保存；留空不修改',
+    savedSecretPlaceholder: '已安全保存',
+    apiKeyReplacePlaceholder: '输入新的 key 以替换已保存的 key',
+    accessTokenReplacePlaceholder: '输入新的 token 以替换已保存的 token',
+    replaceSecret: '替换',
+    removeSecret: '移除',
+    secretRemovalPending: '保存修改后会移除。',
+    changesNotTested: '修改尚未测试',
+    modelListStale: '模型列表可能不匹配当前草稿。',
+    duplicateDisplayName: (name) => `已存在名为“${name}”的 provider。`,
+    duplicateEndpointUrl: '当前 profile 中已有这个 endpoint。',
+    useProviderAfterSaving: '保存后立即使用该 provider',
+    saveProvider: '保存 Provider',
+    saveChanges: '保存修改',
+    savedButton: '已保存',
     showApiKey: '显示 API Key',
     hideApiKey: '隐藏 API Key',
     refreshModels: '刷新模型列表',
@@ -608,6 +664,7 @@ const ZH_CN_MESSAGES: AppMessages = {
     providerInputSizePreset: 'Provider 输入尺寸',
     providerInputSizePresetHint: '参考图和捕获图会在发送给 provider edit 请求前本地缩放，并保持原比例。',
     storageGroup: '存储',
+    storageGroupHint: '当前 runtime 路径和生成图片输出位置。',
     logPath: '当前日志路径',
     generatedImagePath: '生成图片路径',
     pathInfoUnavailable: '当前 runtime 无法提供路径信息。',

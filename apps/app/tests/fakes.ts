@@ -21,6 +21,7 @@ import { createHostImageAsset } from '../src/shared/domain/host-image-asset';
 import { createMemoryThumbnailStore } from '../src/shared/image/thumbnail-store';
 import { createStaticAppPathInfoPort } from '../src/shared/ports/app-path-info';
 import type { DiagnosticsPort } from '../src/shared/ports/diagnostics-port';
+import { createMemoryActiveImageProfileStore } from '../src/shared/ports/active-image-profile';
 import { createMemoryGenerationSettingsStore, type AppGenerationSettings } from '../src/shared/ports/app-generation-settings';
 
 export const fakeAsset: Asset = {
@@ -229,6 +230,7 @@ function savedProfile(input: ProviderProfileInput): ProviderProfile {
 export function createFakeServices(options?: {
   readonly profiles?: readonly ProviderProfile[];
   readonly generationSettings?: Partial<AppGenerationSettings>;
+  readonly activeImageProfileId?: string | null;
 }): {
   readonly services: AppServices;
   readonly spies: {
@@ -254,6 +256,7 @@ export function createFakeServices(options?: {
     readonly captureActiveImage: ReturnType<typeof vi.fn>;
     readonly readLayerAsAsset: ReturnType<typeof vi.fn>;
     readonly placeAssetOnCanvas: ReturnType<typeof vi.fn>;
+    readonly saveAssetToFile: ReturnType<typeof vi.fn>;
     readonly resolveTaskResource: ReturnType<typeof vi.fn>;
   };
 } {
@@ -277,7 +280,10 @@ export function createFakeServices(options?: {
   const getProviderProfile = vi.fn(async () => ({ ok: true as const, value: profiles[0] ?? fakeProfile }));
   const saveProviderProfile = vi.fn(async (input: ProviderProfileInput) => {
     const next = savedProfile(input);
-    profiles = [next];
+    const index = profiles.findIndex((profile) => profile.profileId === next.profileId);
+    profiles = index >= 0
+      ? profiles.map((profile) => (profile.profileId === next.profileId ? next : profile))
+      : [...profiles, next];
     return { ok: true as const, value: next };
   });
   const deleteProviderProfile = vi.fn(async () => ({ ok: true as const, value: undefined }));
@@ -301,8 +307,10 @@ export function createFakeServices(options?: {
           checkedAt: Date.now(),
           latencyMs: 12,
           modelCount: 1,
+          models: [{ id: 'mock-image-v1' }],
         } satisfies EndpointProbeResult,
       ],
+      models: [{ id: 'mock-image-v1' }],
       ...((
         (input.config.connection as { readonly selectionMode?: string } | undefined)?.selectionMode === 'auto'
       ) ? { suggestedEndpointId: 'primary' } : {}),
@@ -364,6 +372,7 @@ export function createFakeServices(options?: {
     },
   }));
   const placeAssetOnCanvas = vi.fn(async () => undefined);
+  const saveAssetToFile = vi.fn(async () => undefined);
   const resolveTaskResource = vi.fn(async () => ({
     resource: fakeTaskRecord.outputs[0]!.asset,
     availability: 'available' as const,
@@ -405,6 +414,8 @@ export function createFakeServices(options?: {
     readLayerAsAsset,
     readLayerMaskAsAsset: vi.fn(async () => undefined),
     placeAssetOnCanvas,
+    saveAssetToFile,
+    getLayerThumbnail: vi.fn(async () => undefined),
   };
 
   const diagnostics: DiagnosticsPort = {
@@ -427,6 +438,7 @@ export function createFakeServices(options?: {
       commands,
       host,
       generationSettings: createMemoryGenerationSettingsStore(options?.generationSettings),
+      activeImageProfile: createMemoryActiveImageProfileStore(options?.activeImageProfileId),
       pathInfo: createStaticAppPathInfoPort({
         logPath: '/fake/data/logs/2026-07-02/imagen.jsonl',
         generatedImagePath: '/fake/data/uxp-asset-*',
@@ -470,6 +482,7 @@ export function createFakeServices(options?: {
       captureActiveImage,
       readLayerAsAsset,
       placeAssetOnCanvas,
+      saveAssetToFile,
       resolveTaskResource,
     },
   };

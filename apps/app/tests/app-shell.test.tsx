@@ -2,7 +2,7 @@ import { act } from 'react';
 import { createRoot, type Root } from 'react-dom/client';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { AppShell } from '../src/shared/ui/app-shell';
-import { createFakeServices } from './fakes';
+import { createFakeServices, fakeOptimizerProfile, fakeProfile } from './fakes';
 import type { UxpFlightRecorder } from '../src/host/uxp-log-sink';
 import { NON_UXP_RUNTIME_CAPABILITIES } from '../src/shared/ports/host-port';
 
@@ -75,6 +75,145 @@ describe('AppShell', () => {
     expect(container.textContent).toContain('Mock Profile');
     expect(container.textContent).toContain('mock-image-v1');
     expect(document.documentElement.lang).toBe('zh-CN');
+  });
+
+  it('restores a persisted active image profile on startup instead of defaulting to the first profile', async () => {
+    const { services } = createFakeServices({
+      profiles: [
+        {
+          ...fakeProfile,
+          profileId: 'first-profile',
+          displayName: 'First Profile',
+          updatedAt: '2026-06-15T00:00:00.000Z',
+        },
+        {
+          ...fakeProfile,
+          profileId: 'saved-profile',
+          displayName: 'Saved Profile',
+          updatedAt: '2026-06-15T00:00:01.000Z',
+        },
+        fakeOptimizerProfile,
+      ],
+      activeImageProfileId: 'saved-profile',
+    });
+    const container = document.createElement('div');
+    document.body.appendChild(container);
+    root = createRoot(container);
+
+    await act(async () => {
+      root!.render(
+        <AppShell
+          host={{
+            kind: 'photoshop-uxp',
+            app: { stage: 'uxp-first-shell', host: 'photoshop-uxp', services: ['commands', 'host'] },
+            locale: 'en',
+            services,
+            dispose: () => undefined,
+          }}
+        />,
+      );
+    });
+    await flush();
+    await flush();
+
+    expect(container.textContent).toContain('Saved Profile');
+    expect(container.textContent).not.toContain('First Profilemock-image-v1');
+  });
+
+  it('writes active image profile selection back to app-local persistent store', async () => {
+    const { services } = createFakeServices({
+      profiles: [
+        {
+          ...fakeProfile,
+          profileId: 'first-profile',
+          displayName: 'First Profile',
+          updatedAt: '2026-06-15T00:00:00.000Z',
+        },
+        {
+          ...fakeProfile,
+          profileId: 'second-profile',
+          displayName: 'Second Profile',
+          updatedAt: '2026-06-15T00:00:01.000Z',
+        },
+        fakeOptimizerProfile,
+      ],
+    });
+    const container = document.createElement('div');
+    document.body.appendChild(container);
+    root = createRoot(container);
+
+    await act(async () => {
+      root!.render(
+        <AppShell
+          host={{
+            kind: 'photoshop-uxp',
+            app: { stage: 'uxp-first-shell', host: 'photoshop-uxp', services: ['commands', 'host'] },
+            locale: 'en',
+            services,
+            dispose: () => undefined,
+          }}
+        />,
+      );
+    });
+    await flush();
+    await flush();
+
+    await act(async () => {
+      container.querySelector<HTMLElement>('[data-testid="main-profile-selector"]')?.click();
+    });
+    await flush();
+    await act(async () => {
+      container.querySelector<HTMLElement>('[data-testid="profile-menu-option-second-profile"]')?.click();
+    });
+    await flush();
+    await flush();
+
+    expect(await services.activeImageProfile.load()).toBe('second-profile');
+  });
+
+  it('does not switch the active image provider after adding another provider unless opted in', async () => {
+    const { services } = createFakeServices({ activeImageProfileId: 'mock-profile' });
+    const container = document.createElement('div');
+    document.body.appendChild(container);
+    root = createRoot(container);
+
+    await act(async () => {
+      root!.render(
+        <AppShell
+          host={{
+            kind: 'photoshop-uxp',
+            app: { stage: 'uxp-first-shell', host: 'photoshop-uxp', services: ['commands', 'host'] },
+            locale: 'en',
+            services,
+            dispose: () => undefined,
+          }}
+        />,
+      );
+    });
+    await flush();
+    await flush();
+
+    await act(async () => {
+      container.querySelector<HTMLButtonElement>('[data-testid="main-providers-button"]')?.click();
+    });
+    await flush();
+    await act(async () => {
+      container.querySelector<HTMLButtonElement>('[data-testid="providers-add-button"]')?.click();
+    });
+    await flush();
+    await act(async () => {
+      container.querySelector<HTMLElement>('[data-testid="provider-type-mock"]')?.click();
+    });
+    await flush();
+    expect(container.querySelector<HTMLInputElement>('[data-testid="provider-use-after-saving"]')?.checked).toBe(false);
+
+    await act(async () => {
+      container.querySelector<HTMLButtonElement>('[data-testid="provider-save-button"]')?.click();
+    });
+    await flush();
+    await flush();
+
+    expect(await services.activeImageProfile.load()).toBe('mock-profile');
   });
 
   it('reloads durable history after a running round reaches terminal state', async () => {
@@ -489,7 +628,7 @@ describe('AppShell', () => {
     await flush();
     await act(async () => {
       const option = Array.from(
-        container.querySelectorAll<HTMLElement>('[data-testid^="composer-output-size-selector-option-"]'),
+        document.body.querySelectorAll<HTMLElement>('[data-testid^="composer-output-size-selector-option-"]'),
       ).find((element) => element.textContent?.includes('4K'));
       option?.click();
     });

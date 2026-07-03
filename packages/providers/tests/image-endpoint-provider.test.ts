@@ -12,7 +12,7 @@ import {
   resolveImageModelRule,
   validateImageModelCatalog,
 } from '../src/contract/image-model-capability.js';
-import { parseModelsResponse } from '../src/transport/image-endpoint/models.js';
+import { inspectModelsResponse, parseModelsResponse } from '../src/transport/image-endpoint/models.js';
 import { parseResponse } from '../src/transport/image-endpoint/parse-response.js';
 
 describe('image-endpoint provider', () => {
@@ -176,9 +176,62 @@ describe('image-endpoint provider', () => {
     expect(
       parseModelsResponse({
         object: 'list',
-        data: [{ id: 'gpt-image-2' }, { id: 'gpt-4.1' }, { id: 'dall-e-3' }, { id: 'unsupported-image-x' }],
+        data: [
+          { id: 'gpt-image-2' },
+          { id: 'gpt-4.1' },
+          { id: 'dall-e-3' },
+          { id: 'grok-imagine-image-pro' },
+          { id: 'grok-imagine-image' },
+          { id: 'doubao-seedream-5-0-260128' },
+          { id: 'qwen-image-2.0-2026-03-03' },
+          { id: 'unsupported-image-x' },
+        ],
       }).map((model) => model.id),
-    ).toEqual(['gpt-image-2', 'dall-e-3']);
+    ).toEqual([
+      'gpt-image-2',
+      'dall-e-3',
+      'grok-imagine-image-pro',
+      'grok-imagine-image',
+      'doubao-seedream-5-0-260128',
+      'qwen-image-2.0-2026-03-03',
+    ]);
+  });
+
+  it('inspects model discovery payloads using only local catalog rules', () => {
+    const inspected = inspectModelsResponse({
+      object: 'list',
+      data: [
+        { id: 'gpt-image-1-mini' },
+        { id: 'gpt-image-1-2025-04-15' },
+        { id: 'dall-e-3' },
+        { id: 'gpt-image-2' },
+        { id: 'gpt-image-1.5' },
+        { id: 'gpt-image-1' },
+        { id: 'qwen-image-2.0-2026-03-03' },
+      ],
+    });
+
+    expect(inspected.rawIds).toEqual([
+      'gpt-image-1-mini',
+      'gpt-image-1-2025-04-15',
+      'dall-e-3',
+      'gpt-image-2',
+      'gpt-image-1.5',
+      'gpt-image-1',
+      'qwen-image-2.0-2026-03-03',
+    ]);
+    expect(inspected.catalogMatchedIds).toEqual([
+      'dall-e-3',
+      'gpt-image-2',
+      'gpt-image-1',
+      'qwen-image-2.0-2026-03-03',
+    ]);
+    expect(inspected.reconciledModels.map((model) => model.id)).toEqual([
+      'gpt-image-2',
+      'gpt-image-1',
+      'dall-e-3',
+      'qwen-image-2.0-2026-03-03',
+    ]);
   });
 
   it('keeps the shared image model catalog internally consistent', () => {
@@ -193,6 +246,17 @@ describe('image-endpoint provider', () => {
 
     expect(resolved.ruleId).toBe('image-endpoint-gpt-image-2');
     expect(resolved.concreteModelId).toBe('chatgpt-image-latest');
+    expect(resolved.matchKind).toBe('exact');
+  });
+
+  it('maps grok quality ids onto the pro catalog rule', () => {
+    const resolved = resolveImageModelRule({
+      providerId: 'image-endpoint',
+      modelId: 'grok-imagine-image-quality',
+    });
+
+    expect(resolved.ruleId).toBe('image-endpoint-grok-imagine-image-pro');
+    expect(resolved.concreteModelId).toBe('grok-imagine-image-quality');
     expect(resolved.matchKind).toBe('exact');
   });
 

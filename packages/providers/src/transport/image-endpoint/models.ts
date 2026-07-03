@@ -7,7 +7,7 @@
  */
 
 import type { ProviderModelInfo } from '../../contract/model.js';
-import { reconcileDiscoveredCatalogModels } from '../../contract/image-model-capability.js';
+import { reconcileDiscoveredCatalogModels, resolveImageModelRule } from '../../contract/image-model-capability.js';
 import { mapInvalidResponseError } from './error-map.js';
 
 /**
@@ -40,17 +40,13 @@ export interface OpenAIModelsResponse {
   readonly data: readonly OpenAIModelObject[];
 }
 
-/**
- * 判断 model ID 是否属于 image generation 模型。
- *
- * 多关键词匹配（大小写不敏感）：
- * - `id` 以 `dall-e` 开头（OpenAI 官方）
- * - `id` 包含 `image`（社区/中转站通用）
- * - `id` 包含 `gpt-image`（中转站 GPT Image 系列）
- */
-function isImageModel(id: string): boolean {
-  const lower = id.toLowerCase();
-  return lower.startsWith('dall-e') || lower.includes('image') || lower.includes('gpt-image');
+export interface ParsedImageModelsResponse {
+  /** `/v1/models` 原始响应里的全部字符串 model id。 */
+  readonly rawIds: readonly string[];
+  /** 命中当前 picker-visible catalog rule 的原始 id。 */
+  readonly catalogMatchedIds: readonly string[];
+  /** reconcile 后返回给上层的最终模型列表。 */
+  readonly reconciledModels: readonly ProviderModelInfo[];
 }
 
 /**
@@ -71,15 +67,7 @@ export function formatDisplayName(id: string): string {
     .join(' ');
 }
 
-/**
- * 解析上游 `/v1/models` 响应，过滤出 image generation 模型并映射为
- * `ProviderModelInfo[]`。
- *
- * @param raw 原始响应数据（`httpRequest` 返回的 `response.data`）
- * @returns 过滤后的 `ProviderModelInfo[]`；无匹配时返回 `[]`
- * @throws `ProviderInvokeError { kind: 'invalid_response' }` 当响应结构无效时
- */
-export function parseModelsResponse(raw: unknown): readonly ProviderModelInfo[] {
+function parseImageModelsPayload(raw: unknown): ParsedImageModelsResponse {
   if (typeof raw !== 'object' || raw === null) {
     throw mapInvalidResponseError('Models response is not a JSON object.', { raw });
   }
@@ -94,25 +82,31 @@ export function parseModelsResponse(raw: unknown): readonly ProviderModelInfo[] 
     throw mapInvalidResponseError('Models response "data" is not an array.', { raw });
   }
 
+  const rawIds: string[] = [];
+  const catalogMatchedIds: string[] = [];
   const models: ProviderModelInfo[] = [];
 
   for (const item of response.data) {
-    // 跳过非 object 的 data 项
     if (typeof item !== 'object' || item === null) {
       continue;
     }
 
     const model = item as Partial<OpenAIModelObject>;
-
-    // 跳过缺少 `id` 字段的项
     if (typeof model.id !== 'string' || model.id.length === 0) {
       continue;
     }
 
-    // 过滤非 image generation 模型
-    if (!isImageModel(model.id)) {
+    rawIds.push(model.id);
+
+    const resolved = resolveImageModelRule({
+      providerId: 'image-endpoint',
+      modelId: model.id,
+    });
+    if (resolved.matchKind === 'default' || !resolved.capability.selection.visibleInPicker) {
       continue;
     }
+
+    catalogMatchedIds.push(model.id);
 
     models.push({
       id: model.id,
@@ -120,8 +114,28 @@ export function parseModelsResponse(raw: unknown): readonly ProviderModelInfo[] 
     });
   }
 
-  return reconcileDiscoveredCatalogModels({
-    providerId: 'image-endpoint',
-    discoveredModels: models,
-  });
+  return {
+    rawIds,
+    catalogMatchedIds,
+    reconciledModels: reconcileDiscoveredCatalogModels({
+      providerId: 'image-endpoint',
+      discoveredModels: models,
+    }),
+  };
+}
+
+export function inspectModelsResponse(raw: unknown): ParsedImageModelsResponse {
+  return parseImageModelsPayload(raw);
+}
+
+/**
+ * 解析上游 `/v1/models` 响应，过滤出 image generation 模型并映射为
+ * `ProviderModelInfo[]`。
+ *
+ * @param raw 原始响应数据（`httpRequest` 返回的 `response.data`）
+ * @returns 过滤后的 `ProviderModelInfo[]`；无匹配时返回 `[]`
+ * @throws `ProviderInvokeError { kind: 'invalid_response' }` 当响应结构无效时
+ */
+export function parseModelsResponse(raw: unknown): readonly ProviderModelInfo[] {
+  return parseImageModelsPayload(raw).reconciledModels;
 }

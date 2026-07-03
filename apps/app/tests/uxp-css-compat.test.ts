@@ -183,7 +183,8 @@ describe('UXP panel CSS compatibility', () => {
     expect(unionSource).toContain('.ui-toast[data-testid="toast"]');
     expect(unionSource).toContain('top:calc(var(--app-header-height, 48px) + 10px)');
     expect(unionSource).toContain('right:12px; left:auto;');
-    expect(unionSource).toContain('width:320px; min-width:220px; max-width:calc(100% - 24px);');
+    expect(unionSource).toContain('width:var(--toast-max-width); min-width:220px; max-width:calc(100% - 24px);');
+    expect(unionSource).toContain('min-height:var(--toast-min-height);');
     expect(unionSource).toContain('.panel[data-panel-width-mode="compact"] .ui-toast[data-testid="toast"]');
     expect(unionSource).toContain('left:12px; right:12px; width:auto; min-width:0; max-width:none;');
     expect(unionSource).not.toContain('.ui-toast-shell{ position:absolute;');

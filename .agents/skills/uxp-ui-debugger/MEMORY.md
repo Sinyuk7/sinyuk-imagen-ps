@@ -11,6 +11,7 @@ Durable notes for confirmed UI/page debugging in the Imagen Photoshop UXP app. R
 - When the user reports that repeated edits are drifting, pause source edits and re-enter probe mode: inspect current DOM, mutate runtime styles, and only then patch code.
 - Do not use Computer Use against Photoshop for this skill. It is too unstable for panel interaction proof and can create false confidence. Use `node scripts/uxp-debug/uxp-debug.mjs`, UDT relay data, user screenshots, or explicit user manual feedback instead.
 - If a runtime probe cannot reproduce the user's symptom, stop and report the missing proof. Do not keep editing from a partially proven hypothesis.
+- If on-disk CSS already contains the expected fix but real UXP `inspect` still shows old computed values, treat the loaded bundle as stale first. Prove the hypothesis with temporary `style` mutations before making another source edit.
 
 ## UXP Runtime Facts
 
@@ -23,17 +24,23 @@ Durable notes for confirmed UI/page debugging in the Imagen Photoshop UXP app. R
 ## Reusable Probes
 
 - Minimum UI probe: `targets`, `eval 'document.body?.tagName'`, `inspect '<selector>'`, `ancestors '<selector>'`.
+- If `targets` suddenly returns empty after a prior successful Debug session, inspect `targets-all` before assuming Photoshop is unreachable. A later plugin `load` / `reload` / `unload` invalidates older `cdtDebugWsUrl` sessions, and the probe should refuse stale targets instead of hanging on them.
 - Ancestor output must include tag/id/class, rect, display, position, overflow, width/height, min-width/min-height, flex-direction, flex-grow/flex-shrink/flex-basis, align-items/justify-content, padding, and gap.
 - For overlap bugs, inspect child boxes and not only the button/root rect. Hidden native button text, overlay text, icon slots, and arrow slots can occupy different visual layers.
 - For temporary CSS hypotheses, use `style`, then verify visually, then `reset <selector> <property>`, `reset <selector>`, or `reset --all` to prove reversible runtime mutation.
 - For interaction bugs, install capture-phase event logs for `pointerdown`, `mousedown`, `pointerup`, `mouseup`, `click`, `focus`, and `select`; inspect target, active element, `defaultPrevented`, and textarea selection before editing source.
+- If `inspect` shows old class names (e.g., `.layer-swatch`) after a source edit that introduced new class names (e.g., `.layer-thumb`), the running bundle is stale. Re-run UDT Debug to get a fresh `cdtDebugWsUrl` before treating it as a code defect.
 
 ## UI Failure Patterns
 
 - Long text inside native UXP buttons can visually conflict with overlay icons/text if the button's own visible text remains present. If an overlay owns the visible label, the native button should keep interaction/accessibility but not duplicate visible text.
 - For icon select triggers, avoid splitting spacing responsibility between the SVG/icon asset and the proxy layout. Let the proxy slots own horizontal spacing; keep the inner icon margin neutral when the overlay rail controls layout.
 - Text truncation fixes need both geometry and visual proof: `overflow: hidden`, `text-overflow: ellipsis`, stable child rects, and screenshot confirmation that icon/text/arrow do not overlap.
+- For compact composer pills in UXP, avoid mixing a visible field label with a mono metric value inside a short `inline-flex` row when the host contract forbids baseline alignment. Split the value into structured spans, keep the semantic label in `title` / `aria-label`, and use textual spacing inside the spans so visual tightening does not break copied or announced text.
 - For portaled select menus above text inputs, do not use `preventDefault()` on `pointerdown` / `mousedown` unless the real host proves it is required. In UXP this can interfere with native click synthesis and make option clicks unreliable; stop propagation is the safer first contract.
+- Shared UXP UI CSS in this repo must avoid `display:grid`, `gap`/`row-gap`/`column-gap`, and adjacent-sibling spacing selectors for layout fixes. Use flex/block layouts plus explicit class-level margins instead; the compatibility tests enforce this because host smoke was unreliable with those patterns.
+- Layer lists with potentially hundreds of items must not generate host-derived previews (imaging API calls, object/data URLs) for off-screen rows. Use per-row `IntersectionObserver` lazy loading and always `release()` `RuntimeImageUrl` on unmount or row replacement to avoid OOM and URL leaks.
+- When a button is wrapped in an overlay host, `el.click()` on the visible host may not reach the React handler. Dispatch the click on the underlying `<button>` element or rely on the host's capture-phase proxy; verify by checking whether the expected popover/layer list appears in the DOM.
 
 ## Validation Gates
 

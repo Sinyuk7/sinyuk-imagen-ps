@@ -1,10 +1,17 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { Icon, type IconName } from './icons';
 import { IconButton } from '../primitives/icon-button';
+import { ActionButton } from '../primitives/native-controls';
 
 export type NoticeTone = 'positive' | 'negative' | 'warning' | 'info' | 'neutral';
 export type NoticeRole = 'status' | 'alert';
 export type NoticeAriaLive = 'polite' | 'assertive';
+
+export interface NoticeAction {
+  readonly label: string;
+  readonly ariaLabel?: string;
+  readonly onAction: () => void | Promise<void>;
+}
 
 export interface NoticeOptions {
   readonly dismissible?: boolean;
@@ -15,6 +22,10 @@ export interface NoticeOptions {
   readonly ariaLive?: NoticeAriaLive;
   readonly icon?: IconName | null;
   readonly detail?: string | null;
+  readonly action?: NoticeAction | null;
+  readonly key?: string;
+  readonly priority?: number;
+  readonly urgent?: boolean;
 }
 
 export interface NoticeState extends NoticeOptions {
@@ -90,7 +101,7 @@ function defaultIcon(tone: NoticeTone): IconName | null {
   return null;
 }
 
-function createNoticeState(
+export function createNoticeState(
   message: string,
   tone: NoticeTone,
   options: NoticeOptions | undefined,
@@ -101,10 +112,16 @@ function createNoticeState(
     tone,
     dismissible: options?.dismissible ?? false,
     copyable: options?.copyable ?? false,
+    detailCopyable: options?.detailCopyable ?? false,
     durationMs: options?.durationMs ?? defaultDurationMs,
     role: options?.role ?? defaultRole(tone),
     ariaLive: options?.ariaLive ?? defaultAriaLive(tone),
     icon: options?.icon === undefined ? defaultIcon(tone) : options.icon,
+    detail: options?.detail,
+    action: options?.action ?? null,
+    key: options?.key,
+    priority: options?.priority,
+    urgent: options?.urgent ?? false,
   };
 }
 
@@ -246,6 +263,16 @@ export function NoticeView({ notice, kind, onClear, motionState, onPause, onResu
           </span>
         ) : null}
         <span className="ui-toast-message">{notice.message}</span>
+        {notice.action ? (
+          <ActionButton
+            className="ui-toast-action"
+            quiet
+            aria-label={notice.action.ariaLabel ?? notice.action.label}
+            onClick={() => void notice.action?.onAction()}
+          >
+            {notice.action.label}
+          </ActionButton>
+        ) : null}
         {notice.dismissible && typeof onClear === 'function' ? (
           <IconButton
             className="ui-toast-close"

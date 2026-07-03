@@ -6,7 +6,7 @@ import type { TaskResourceResolverPort } from '../src/shared/ports/app-services'
 import type { ConversationRound } from '../src/shared/ui/hooks/use-conversation';
 import { HistoryPage } from '../src/shared/ui/pages/history-page';
 import { fakeAsset, fakeTaskRecord } from './fakes';
-import { TestI18nProvider } from './render-helpers';
+import { TestToastSurface } from './render-helpers';
 
 let root: Root | undefined;
 let observers: FakeIntersectionObserver[] = [];
@@ -61,6 +61,7 @@ describe('HistoryPage', () => {
     readonly rounds?: readonly ConversationRound[];
     readonly records?: readonly TaskRecord[];
     readonly taskResources?: TaskResourceResolverPort;
+    readonly onDownloadTaskOutput?: (record: TaskRecord, outputId: string) => Promise<void>;
     readonly onRetry?: (roundId: string) => Promise<void>;
     readonly onPlaceTaskOutput?: (record: TaskRecord, outputId: string) => Promise<void>;
     readonly onLocateRound?: (roundId: string) => void;
@@ -72,7 +73,7 @@ describe('HistoryPage', () => {
 
     await act(async () => {
       root!.render(
-        <TestI18nProvider>
+        <TestToastSurface>
           <HistoryPage
             onNav={vi.fn()}
             rounds={input.rounds ?? []}
@@ -81,11 +82,12 @@ describe('HistoryPage', () => {
             onReload={vi.fn(async () => undefined)}
             onRetry={input.onRetry ?? vi.fn(async () => undefined)}
             taskResources={input.taskResources}
+            onDownloadTaskOutput={input.onDownloadTaskOutput}
             onPlaceTaskOutput={input.onPlaceTaskOutput}
             onLocateRound={input.onLocateRound}
             onMiss={input.onMiss}
           />
-        </TestI18nProvider>,
+        </TestToastSurface>,
       );
     });
 
@@ -230,9 +232,10 @@ describe('HistoryPage', () => {
 
     expect(onLocateRound).not.toHaveBeenCalled();
     expect(onMiss).toHaveBeenCalled();
+    expect(container.querySelector('[data-testid="toast"]')?.textContent).toContain('该任务不在当前会话中');
   });
 
-  it('resolves task output previews and downloads available bytes', async () => {
+  it('routes durable task downloads through the supplied task action', async () => {
     (globalThis as { IntersectionObserver?: typeof IntersectionObserver }).IntersectionObserver =
       FakeIntersectionObserver as unknown as typeof IntersectionObserver;
     const resolver: TaskResourceResolverPort = {
@@ -243,11 +246,9 @@ describe('HistoryPage', () => {
         preview: { url: 'blob:history-preview', dispose: vi.fn() },
       })),
     };
-    const createObjectURL = vi.spyOn(URL, 'createObjectURL').mockReturnValue('blob:download');
-    const revokeObjectURL = vi.spyOn(URL, 'revokeObjectURL').mockImplementation(() => undefined);
-    const click = vi.spyOn(HTMLAnchorElement.prototype, 'click').mockImplementation(() => undefined);
+    const onDownloadTaskOutput = vi.fn(async () => undefined);
 
-    const container = await renderHistory({ records: [fakeTaskRecord], taskResources: resolver });
+    const container = await renderHistory({ records: [fakeTaskRecord], taskResources: resolver, onDownloadTaskOutput });
     expect(resolver.resolve).not.toHaveBeenCalled();
     await act(async () => {
       observers[0]?.trigger(container.querySelector('[data-testid="history-row-task-history-1"] .task-thumb')!);
@@ -259,13 +260,7 @@ describe('HistoryPage', () => {
       container.querySelector<HTMLButtonElement>('[data-testid="history-download-button-task-history-1"]')!.click();
     });
 
-    expect(click).toHaveBeenCalledTimes(1);
-    expect(createObjectURL).toHaveBeenCalledTimes(1);
-    expect(revokeObjectURL).toHaveBeenCalledWith('blob:download');
-
-    createObjectURL.mockRestore();
-    revokeObjectURL.mockRestore();
-    click.mockRestore();
+    expect(onDownloadTaskOutput).toHaveBeenCalledWith(fakeTaskRecord, 'task-history-1:output:0');
   });
 
   it('preserves stable durable output order across history rows', async () => {
@@ -319,7 +314,6 @@ describe('HistoryPage', () => {
         availability: 'missing',
       })),
     };
-    const click = vi.spyOn(HTMLAnchorElement.prototype, 'click').mockImplementation(() => undefined);
 
     const container = await renderHistory({ records: [fakeTaskRecord], taskResources: resolver });
     await act(async () => {
@@ -331,10 +325,7 @@ describe('HistoryPage', () => {
     await act(async () => {
       container.querySelector<HTMLButtonElement>('[data-testid="history-download-button-task-history-1"]')!.click();
     });
-    expect(click).not.toHaveBeenCalled();
     expect(container.textContent).toContain('资源不可用');
-
-    click.mockRestore();
   });
 
   it('keeps remote-only URL outputs visible and unavailable for download', async () => {
@@ -345,7 +336,6 @@ describe('HistoryPage', () => {
         asset: { ref: { kind: 'url', ref: 'https://example.test/output.png', name: 'output.png', mimeType: 'image/png' } },
       }],
     };
-    const click = vi.spyOn(HTMLAnchorElement.prototype, 'click').mockImplementation(() => undefined);
 
     const container = await renderHistory({ records: [record] });
     await act(async () => {
@@ -356,10 +346,7 @@ describe('HistoryPage', () => {
     await act(async () => {
       container.querySelector<HTMLButtonElement>('[data-testid="history-download-button-task-history-1"]')!.click();
     });
-    expect(click).not.toHaveBeenCalled();
     expect(container.textContent).toContain('资源不可用');
-
-    click.mockRestore();
   });
 
   it('routes durable task placement through the supplied task action', async () => {

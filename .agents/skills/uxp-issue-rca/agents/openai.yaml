@@ -1,4 +1,4 @@
 interface:
   display_name: "UXP Issue RCA"
   short_description: "Log-first UXP triage and owner routing"
-  default_prompt: "Use $uxp-issue-rca to localize a Photoshop UXP failure from real logs when the owner is unknown, mixed, or non-UI, and hand off to $uxp-ui-debugger if it resolves to a pure UI bug."
+  default_prompt: "Use $uxp-issue-rca only when the user explicitly invokes it or explicitly asks for this workflow, then localize a Photoshop UXP failure from real logs when the owner is unknown, mixed, or non-UI, and hand off to $uxp-ui-debugger if it resolves to a pure UI bug."

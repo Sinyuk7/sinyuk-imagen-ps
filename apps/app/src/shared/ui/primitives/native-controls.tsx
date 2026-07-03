@@ -40,6 +40,12 @@ interface CheckboxProps extends Omit<InputHTMLAttributes<HTMLInputElement>, 'che
   readonly children?: ReactNode;
 }
 
+interface RadioProps extends Omit<InputHTMLAttributes<HTMLInputElement>, 'checked' | 'defaultChecked' | 'onChange' | 'type'> {
+  readonly checked: boolean;
+  readonly onChecked: (checked: boolean) => void;
+  readonly children?: ReactNode;
+}
+
 interface ActionButtonProps extends Omit<ButtonHTMLAttributes<HTMLButtonElement>, 'type' | 'aria-pressed'> {
   readonly quiet?: boolean;
   readonly emphasized?: boolean;
@@ -58,7 +64,7 @@ interface FieldLabelProps {
   readonly className?: string;
 }
 
-interface HelpTextProps {
+interface HelpTextProps extends HTMLAttributes<HTMLSpanElement> {
   readonly children: ReactNode;
   readonly variant?: 'negative';
   readonly className?: string;
@@ -146,6 +152,21 @@ export function Checkbox({ checked, onChecked, disabled, children, className, ..
   );
 }
 
+export function Radio({ checked, onChecked, disabled, children, className, ...props }: RadioProps) {
+  return (
+    <label className={classNames('ui-checkbox', 'ui-radio', className)}>
+      <input
+        {...props}
+        type="radio"
+        checked={checked}
+        disabled={disabled}
+        onChange={(event) => onChecked(event.currentTarget.checked)}
+      />
+      {children ? <span className="ui-checkbox-label">{children}</span> : null}
+    </label>
+  );
+}
+
 export const ActionButton = forwardRef<HTMLButtonElement, ActionButtonProps>(function ActionButton(
   {
     quiet,
@@ -199,9 +220,9 @@ export function FieldLabel({ htmlFor, children, required, disabled, className }:
   );
 }
 
-export function HelpText({ children, variant, className }: HelpTextProps) {
+export function HelpText({ children, variant, className, ...props }: HelpTextProps) {
   return (
-    <span className={classNames('ui-help-text', className)} data-variant={variant}>
+    <span {...props} className={classNames('ui-help-text', className)} data-variant={variant}>
       {children}
     </span>
   );

@@ -35,6 +35,7 @@ export type RoundStatus = 'running' | 'ok' | 'err';
 export interface ConversationRound {
   readonly id: string;
   readonly time: string;
+  readonly createdAt?: string;
   readonly prompt: string;
   readonly status: RoundStatus;
   readonly providerName: string;
@@ -127,6 +128,7 @@ function pendingPreviews(assets: readonly Asset[]): readonly AssetPreview[] {
       ...(asset.name ? { name: asset.name } : {}),
       ...(asset.mimeType ? { mimeType: asset.mimeType } : {}),
       ...(asset.url ? { url: asset.url } : {}),
+      ...(asset.data !== undefined ? { data: asset.data } : {}),
       ...(asset.fileId ? { fileId: asset.fileId } : {}),
       ...(asset.storedRef ? { storedRef: asset.storedRef } : {}),
     },
@@ -469,6 +471,7 @@ export function useConversation(
         const round: ConversationRound = {
           id: roundId,
           time: nowTime(),
+          createdAt,
           prompt,
           status: 'running',
           providerName: input.providerName,

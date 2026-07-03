@@ -10,9 +10,11 @@ import type {
   TaskRecord,
   TaskStore,
 } from '@imagen-ps/application';
+import { createMemoryActiveImageProfileStore } from '../../shared/ports/active-image-profile';
 import { createMemoryGenerationSettingsStore } from '../../shared/ports/app-generation-settings';
 
 export { createMemoryGenerationSettingsStore as createInMemoryGenerationSettingsStore };
+export { createMemoryActiveImageProfileStore as createInMemoryActiveImageProfileStore };
 
 export function createInMemoryProviderProfileRepository(): ProviderProfileRepository {
   const profiles = new Map<string, ProviderProfile>();

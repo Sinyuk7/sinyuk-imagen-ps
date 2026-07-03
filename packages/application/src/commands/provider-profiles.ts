@@ -67,9 +67,7 @@ function sanitizeBillingConfig(
       accessTokenSecretRef:
         typeof secretRefs?.billingAccessToken === 'string' && secretRefs.billingAccessToken.length > 0
           ? secretRefs.billingAccessToken
-          : typeof record.accessTokenSecretRef === 'string' && record.accessTokenSecretRef.length > 0
-            ? record.accessTokenSecretRef
-            : undefined,
+          : undefined,
     },
   };
 }
@@ -254,7 +252,20 @@ export async function saveProviderProfile(input: ProviderProfileInput): Promise<
   }
 
   const now = new Date().toISOString();
+  const incomingSecretNames = new Set(Object.keys(input.secretValues ?? {}));
+  const removedSecretNames = new Set(input.removedSecretNames ?? []);
   const secretRefs: Record<string, string> = { ...(existing?.secretRefs ?? {}), ...(input.secretRefs ?? {}) };
+  const removedSecretRefs = new Set<string>();
+  for (const name of removedSecretNames) {
+    if (incomingSecretNames.has(name)) {
+      continue;
+    }
+    const ref = secretRefs[name];
+    if (typeof ref === 'string' && ref.length > 0) {
+      removedSecretRefs.add(ref);
+      delete secretRefs[name];
+    }
+  }
   const writtenSecrets = new Map<string, string | undefined>();
 
   try {
@@ -319,6 +330,7 @@ export async function saveProviderProfile(input: ProviderProfileInput): Promise<
     };
 
     await getProviderProfileRepository().save(persistedProfile);
+    await Promise.allSettled(Array.from(removedSecretRefs, (ref) => secretStorage.deleteSecret(ref)));
     invalidateProfileBillingState(persistedProfile.profileId);
     span.finish({ providerId: profile.providerId, displayName: profile.displayName });
     return { ok: true, value: sanitizeProfile(persistedProfile) };

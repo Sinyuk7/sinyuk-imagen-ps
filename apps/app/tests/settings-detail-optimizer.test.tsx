@@ -12,7 +12,7 @@ afterEach(async () => {
 });
 
 describe('SettingsDetailPage contract — prompt optimizer', () => {
-  it('tests Prompt Optimizer through the dedicated validation command', async () => {
+  it('tests Prompt Optimizer draft without saving profile changes', async () => {
     const container = document.createElement('div');
     document.body.appendChild(container);
     const { spies, onProfilesChanged } = await renderOptimizerDetail(container);
@@ -22,16 +22,16 @@ describe('SettingsDetailPage contract — prompt optimizer', () => {
     });
     await flush();
 
-    expect(spies.saveProviderProfile).toHaveBeenCalledWith(
+    expect(spies.saveProviderProfile).not.toHaveBeenCalled();
+    expect(spies.validatePromptOptimizerProfile).not.toHaveBeenCalled();
+    expect(spies.testProviderProfile).not.toHaveBeenCalled();
+    expect(spies.probeProfileEndpoints).toHaveBeenCalledWith(
       expect.objectContaining({
         profileId: '__prompt-optimizer__',
         providerId: 'prompt-optimize',
       }),
     );
-    expect(spies.validatePromptOptimizerProfile).toHaveBeenCalledWith('__prompt-optimizer__');
-    expect(spies.testProviderProfile).not.toHaveBeenCalled();
-    expect(spies.probeProfileEndpoints).not.toHaveBeenCalled();
-    expect(onProfilesChanged).toHaveBeenCalledWith('__prompt-optimizer__');
+    expect(onProfilesChanged).not.toHaveBeenCalled();
     expect(container.textContent).toContain('连接成功');
   });
 

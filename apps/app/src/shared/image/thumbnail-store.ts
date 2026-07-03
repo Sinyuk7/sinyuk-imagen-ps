@@ -73,6 +73,7 @@ function sanitizedAsset(asset: Asset): Asset {
     ...(asset.name ? { name: asset.name } : {}),
     ...(asset.mimeType ? { mimeType: asset.mimeType } : {}),
     ...(asset.url ? { url: asset.url } : {}),
+    ...(asset.data !== undefined ? { data: asset.data } : {}),
     ...(asset.fileId ? { fileId: asset.fileId } : {}),
     ...(asset.storedRef ? { storedRef: asset.storedRef } : {}),
   };

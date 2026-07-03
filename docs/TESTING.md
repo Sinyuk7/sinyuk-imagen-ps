@@ -178,7 +178,8 @@ Default tests are mock-only and reproducible:
   endpoint failover harness coverage for retry/fallback/cooldown/global-budget
   behavior.
 - `packages/application`: command/session facade, profile/model coordination,
-  request mapping, runtime assembly, and logging wiring.
+  request mapping, runtime assembly, logging wiring, and session-scoped billing
+  refresh cooldown behavior for 429 and repeated auth-style failures.
 - `apps/app`: shared React-to-application seam, UXP and Chrome port adapters,
   Chrome IndexedDB-style storage boundary, deterministic Photoshop simulator,
   history/settings flows, and Photoshop bridge call mapping through fakes.

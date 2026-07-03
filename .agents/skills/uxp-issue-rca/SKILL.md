@@ -1,9 +1,22 @@
 ---
 name: uxp-issue-rca
-description: Triage and localize Imagen Photoshop UXP plugin failures from real host logs and repo evidence when ownership is unknown, mixed, or non-UI. Use for final-test defects, Photoshop/UXP runtime failures, provider/profile/status failures surfaced in the panel, Chrome-vs-UXP divergence with unclear cause, and requests that need fast owner localization plus a verification path. If the finding resolves to a pure UI bug, stop and hand off to uxp-ui-debugger. Do not use for confirmed UI-only bugs, broad new requirements, provider contract redesign, or approved Loop execution.
+description: >
+  Manual-only Photoshop UXP RCA workflow. Use only when the user explicitly
+  invokes `$uxp-issue-rca` or explicitly asks for this log-first
+  owner-localization workflow. Do not auto-select from a generic
+  Photoshop/UXP bug report. Trigger: "$uxp-issue-rca", "use uxp-issue-rca",
+  "run the UXP RCA workflow".
 ---
 
 # UXP Issue RCA
+
+## Trigger Mode
+
+Manual-only.
+
+- Enter this skill only when the user explicitly invokes `uxp-issue-rca` or explicitly asks for this RCA workflow.
+- Do not auto-enter just because the task mentions Photoshop, UXP, Chrome-vs-UXP divergence, logs, or a panel failure.
+- Inside an already-active `uxp-issue-rca` run, a UI-owned finding may hand off to `uxp-ui-debugger`. Outside that workflow, do not auto-switch skills.
 
 Use this skill to answer:
 

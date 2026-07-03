@@ -2,6 +2,7 @@ import type { Asset } from '@imagen-ps/application';
 import type { HostImageAsset } from '../domain/host-image-asset';
 import type { PhotoshopCaptureResult, PlacementIntent } from '../domain/photoshop-placement';
 import type { ProviderInputSizePolicy } from '../image/resize';
+import type { RuntimeImageUrl } from '../image/runtime-image-url';
 
 export interface LayerInfo {
   readonly id: number;
@@ -33,6 +34,10 @@ export interface HostError {
 
 export type HostResult<T> = { readonly ok: true; readonly value: T } | { readonly ok: false; readonly error: HostError };
 
+export interface SaveAssetToFileOptions {
+  readonly suggestedName?: string;
+}
+
 export interface RuntimeCapabilities {
   readonly runtime: 'photoshop-uxp' | 'chrome-browser';
   readonly canListLayers: boolean;
@@ -40,6 +45,8 @@ export interface RuntimeCapabilities {
   readonly canReadLayerMasks: boolean;
   readonly canPickImageFile: boolean;
   readonly canPlaceAssetOnCanvas: boolean;
+  readonly canSaveAssetToFile: boolean;
+  readonly canGetLayerThumbnails: boolean;
   readonly canPersistProfiles: boolean;
   readonly canPersistHistory: boolean;
   readonly canPersistBinaryAssets: boolean;
@@ -55,6 +62,12 @@ export interface HostPort {
   readLayerAsAsset(layerId: number, policy: ProviderInputSizePolicy): Promise<HostImageAsset>;
   readLayerMaskAsAsset(layerId: number): Promise<HostImageAsset | undefined>;
   placeAssetOnCanvas(asset: Asset, placement: PlacementIntent): Promise<void>;
+  saveAssetToFile(asset: Asset, options?: SaveAssetToFileOptions): Promise<void>;
+  /**
+   * 获取单个图层的缩略图预览。返回的 RuntimeImageUrl 需要在使用完毕后调用 release()
+   * 以避免 blob/data URL 内存泄漏。不支持或无法生成时返回 undefined。
+   */
+  getLayerThumbnail(layerId: number, maxSide?: number): Promise<RuntimeImageUrl | undefined>;
 }
 
 export type HostBridge = HostPort;
@@ -66,6 +79,8 @@ export const NON_UXP_RUNTIME_CAPABILITIES: RuntimeCapabilities = {
   canReadLayerMasks: false,
   canPickImageFile: false,
   canPlaceAssetOnCanvas: false,
+  canSaveAssetToFile: false,
+  canGetLayerThumbnails: false,
   canPersistProfiles: false,
   canPersistHistory: false,
   canPersistBinaryAssets: false,
@@ -82,6 +97,8 @@ export const PHOTOSHOP_UXP_RUNTIME_CAPABILITIES: RuntimeCapabilities = {
   canReadLayerMasks: true,
   canPickImageFile: true,
   canPlaceAssetOnCanvas: true,
+  canSaveAssetToFile: true,
+  canGetLayerThumbnails: true,
   canPersistProfiles: true,
   canPersistHistory: true,
   canPersistBinaryAssets: true,
@@ -109,6 +126,12 @@ export function createHostBridgeStub(): HostBridge {
     },
     async placeAssetOnCanvas(_asset: Asset, _placement: PlacementIntent): Promise<void> {
       throw new Error('Photoshop writeback is unavailable outside UXP.');
+    },
+    async saveAssetToFile(): Promise<void> {
+      throw new Error('File save is unavailable outside supported runtimes.');
+    },
+    async getLayerThumbnail(): Promise<RuntimeImageUrl | undefined> {
+      return undefined;
     },
   };
 }

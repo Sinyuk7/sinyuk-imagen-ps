@@ -57,7 +57,8 @@ export async function sendPrompt(container: HTMLElement, prompt: string): Promis
 }
 
 export function clickText(container: HTMLElement, selector: string, text: string): void {
-  const element = Array.from(container.querySelectorAll<HTMLElement>(selector)).find((item) =>
+  const root = container.ownerDocument?.body ?? container;
+  const element = Array.from(root.querySelectorAll<HTMLElement>(selector)).find((item) =>
     item.textContent?.includes(text),
   );
   if (!element) {

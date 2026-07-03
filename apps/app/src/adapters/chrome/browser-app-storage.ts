@@ -7,6 +7,7 @@ import type {
   SecretStorageAdapter,
   StoredAssetRef,
 } from '@imagen-ps/application';
+import { createMemoryActiveImageProfileStore, type ActiveImageProfileStore } from '../../shared/ports/active-image-profile';
 import { createMemoryGenerationSettingsStore, type AppGenerationSettingsStore } from '../../shared/ports/app-generation-settings';
 
 /**
@@ -19,6 +20,7 @@ export function createChromeFeasibilityStorage(): {
   readonly history: JobHistoryStore;
   readonly assets: AssetStore;
   readonly generationSettings: AppGenerationSettingsStore;
+  readonly activeImageProfile: ActiveImageProfileStore;
 } {
   const profiles = new Map<string, ProviderProfile>();
   const secrets = new Map<string, string>();
@@ -88,5 +90,6 @@ export function createChromeFeasibilityStorage(): {
       },
     },
     generationSettings: createMemoryGenerationSettingsStore(),
+    activeImageProfile: createMemoryActiveImageProfileStore(),
   };
 }

@@ -20,8 +20,8 @@ interface IconButtonProps extends Omit<ButtonHTMLAttributes<HTMLButtonElement>, 
   readonly selected?: boolean;
   /** 是否为切换按钮（仅 action 变体有效）。 */
   readonly toggles?: boolean;
-  /** 图标节点，通常传入 `<Icon name="..." />`。 */
-  readonly icon: ReactNode;
+  /** 图标节点，通常传入 `<Icon name="..." />`；不传时渲染纯文本按钮。 */
+  readonly icon?: ReactNode;
   /** 按钮内显示的文字；为空时只显示图标。 */
   readonly text?: string;
   /** tooltip / aria-label / title 文案。 */
@@ -69,6 +69,7 @@ export const IconButton = forwardRef<HTMLButtonElement, IconButtonProps>(functio
   },
   ref,
 ) {
+  const hasIcon = Boolean(icon);
   const rootStyle: CSSProperties = {
     '--ui-icon-button-size': `${iconSize}px`,
     ...style,
@@ -76,12 +77,13 @@ export const IconButton = forwardRef<HTMLButtonElement, IconButtonProps>(functio
   const buttonClassName = classNames(
     'ui-icon-button',
     text ? 'ui-icon-button--labeled' : 'ui-icon-button--icon-only',
+    text && !hasIcon && 'ui-icon-button--text-only',
     compactSquare && !text && 'ui-icon-button--compact-square',
     className,
   );
   const children = (
     <>
-      <span className="ui-icon-button-icon-slot" aria-hidden="true" />
+      {hasIcon ? <span className="ui-icon-button-icon-slot" aria-hidden="true" /> : null}
       {text ? <span className="ui-icon-button-label">{text}</span> : null}
     </>
   );
@@ -99,7 +101,7 @@ export const IconButton = forwardRef<HTMLButtonElement, IconButtonProps>(functio
         overlayClassName,
       )}
       disabled={props.disabled}
-      overlay={icon}
+      overlay={icon ?? null}
       style={rootStyle}
     >
       {variant === 'action' ? (

@@ -11,6 +11,8 @@ import {
   readProviderBillingDraft,
   readProviderConfigString,
   readProviderConnectionDraft,
+  sanitizeProviderDisplayName,
+  sanitizeProviderSecretValue,
   useProfileDetail,
   useProfileModels,
   type ProviderBillingDraft,
@@ -83,7 +85,17 @@ function stableSerialize(value: unknown): string {
 }
 
 function normalizeConfigForDraftCompare(config: ProviderProfileConfig): string {
-  return stableSerialize(config);
+  const normalized: Record<string, unknown> = { ...config };
+  const billing = normalized.billing;
+  if (
+    typeof billing === 'object' &&
+    billing !== null &&
+    !Array.isArray(billing) &&
+    (billing as { readonly mode?: unknown }).mode === 'none'
+  ) {
+    delete normalized.billing;
+  }
+  return stableSerialize(normalized);
 }
 
 function modelStatusMessage(model: ProviderModelInfo | undefined, messages: ReturnType<typeof useI18n>['messages']): string | null {
@@ -108,14 +120,21 @@ function hasDraftChanges(
     readonly billing: ProviderBillingDraft;
     readonly instruction: string;
     readonly apiKey: string;
+    readonly apiKeyRemovalPending: boolean;
+    readonly billingAccessTokenRemovalPending: boolean;
   },
   isOptimizerProfile: boolean,
 ): boolean {
-  if (draft.apiKey.trim().length > 0 || draft.billing.accessToken.trim().length > 0) {
+  if (
+    draft.apiKey.trim().length > 0 ||
+    draft.billing.accessToken.trim().length > 0 ||
+    draft.apiKeyRemovalPending ||
+    draft.billingAccessTokenRemovalPending
+  ) {
     return true;
   }
   const family = String(profile.config.family ?? profile.providerId);
-  const nextDisplayName = draft.displayName.trim() || profile.displayName;
+  const nextDisplayName = sanitizeProviderDisplayName(draft.displayName) || profile.displayName;
   const nextConfig = mergeProfileConfigForSave(
     profile,
     providerConfigFromForm(
@@ -134,6 +153,37 @@ function hasDraftChanges(
   );
 }
 
+function duplicateEndpointErrors(
+  connection: ProviderConnectionDraft,
+  message: string,
+): ReadonlyMap<string, string> {
+  const seen = new Map<string, string>();
+  const errors = new Map<string, string>();
+  for (const endpoint of connection.endpoints) {
+    const key = endpoint.url.trim().replace(/\/+$/, '').toLowerCase();
+    if (!key) {
+      continue;
+    }
+    const previousId = seen.get(key);
+    if (previousId) {
+      errors.set(previousId, message);
+      errors.set(endpoint.id, message);
+      continue;
+    }
+    seen.set(key, endpoint.id);
+  }
+  return errors;
+}
+
+function billingDraftForSave(
+  billing: ProviderBillingDraft,
+  removeAccessToken: boolean,
+): ProviderBillingDraft {
+  return removeAccessToken
+    ? { ...billing, accessToken: '', hasSavedAccessToken: false }
+    : billing;
+}
+
 export function SettingsDetailPage({ onNav, profileId, onProfilesChanged, onSaved }: SettingsDetailPageProps) {
   const services = useAppServices();
   const { messages: t } = useI18n();
@@ -146,6 +196,10 @@ export function SettingsDetailPage({ onNav, profileId, onProfilesChanged, onSave
   const [billingModeMenuOpen, setBillingModeMenuOpen] = useState(false);
   const [instruction, setInstruction] = useState('');
   const [apiKey, setApiKey] = useState('');
+  const [apiKeyRemovalPending, setApiKeyRemovalPending] = useState(false);
+  const [billingAccessTokenRemovalPending, setBillingAccessTokenRemovalPending] = useState(false);
+  const [aliasError, setAliasError] = useState<string | null>(null);
+  const [modelsStale, setModelsStale] = useState(false);
   const [showKey, setShowKey] = useState(false);
   const [testMeta, setTestMeta] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
@@ -160,6 +214,31 @@ export function SettingsDetailPage({ onNav, profileId, onProfilesChanged, onSave
   const isOptimizerProfile = detail.profile?.providerId === 'prompt-optimize';
   const billing = useProfileBilling(services, profileId);
 
+  const invalidateDraftProofs = () => {
+    if (probeResults.length > 0 || testNotice.notice) {
+      testNotice.show(t.settings.changesNotTested, 'warning', { durationMs: null, copyable: false });
+    }
+    if (models.models.length > 0) {
+      setModelsStale(true);
+    }
+    setProbeResults([]);
+    setSuggestedEndpointId(undefined);
+  };
+
+  const updateApiKey = (value: string) => {
+    setApiKey(sanitizeProviderSecretValue(value));
+    setApiKeyRemovalPending(false);
+    invalidateDraftProofs();
+  };
+
+  const updateBillingDraft = (next: ProviderBillingDraft) => {
+    setBillingDraft(next);
+    if (next.accessToken.trim().length > 0) {
+      setBillingAccessTokenRemovalPending(false);
+    }
+    invalidateDraftProofs();
+  };
+
   useEffect(() => {
     if (!detail.profile) {
       return;
@@ -171,6 +250,10 @@ export function SettingsDetailPage({ onNav, profileId, onProfilesChanged, onSave
     setBillingModeMenuOpen(false);
     setInstruction(readProviderConfigString(detail.profile, 'instruction'));
     setApiKey('');
+    setApiKeyRemovalPending(false);
+    setBillingAccessTokenRemovalPending(false);
+    setAliasError(null);
+    setModelsStale(false);
     setModelMenuOpen(false);
     setProbeResults([]);
     setSuggestedEndpointId(undefined);
@@ -205,28 +288,72 @@ export function SettingsDetailPage({ onNav, profileId, onProfilesChanged, onSave
         provider_id: detail.profile.providerId,
       },
     );
+    const effectiveBillingDraft = billingDraftForSave(billingDraft, billingAccessTokenRemovalPending);
+    const removedSecretNames = [
+      ...(apiKeyRemovalPending ? ['apiKey'] : []),
+      ...(billingAccessTokenRemovalPending ? ['billingAccessToken'] : []),
+    ];
     return detail.save({
       profileId: detail.profile.profileId,
       providerId: detail.profile.providerId,
-      displayName: displayName.trim() || detail.profile.displayName,
+      displayName: sanitizeProviderDisplayName(displayName) || detail.profile.displayName,
       enabled: detail.profile.enabled,
       config: mergeProfileConfigForSave(
         detail.profile,
         providerConfigFromForm(
           detail.profile.providerId,
-          displayName.trim() || detail.profile.displayName,
+          sanitizeProviderDisplayName(displayName) || detail.profile.displayName,
           family,
           connection,
           defaultModel,
-          billingDraft,
+          effectiveBillingDraft,
           isOptimizerProfile ? instruction : undefined,
         ),
       ),
-      ...((apiKey.trim() || billingDraft.accessToken.trim())
+      ...(removedSecretNames.length > 0 ? { removedSecretNames } : {}),
+      ...((apiKey.trim() || effectiveBillingDraft.accessToken.trim())
         ? {
             secretValues: {
               ...(apiKey.trim() ? { apiKey: apiKey.trim() } : {}),
-              ...(billingDraft.accessToken.trim() ? { billingAccessToken: billingDraft.accessToken.trim() } : {}),
+              ...(effectiveBillingDraft.accessToken.trim() ? { billingAccessToken: effectiveBillingDraft.accessToken.trim() } : {}),
+            },
+          }
+        : {}),
+    });
+  };
+
+  const probeCurrentDraft = async () => {
+    if (!detail.profile) {
+      throw new Error('No provider profile selected.');
+    }
+    const family = String(detail.profile.config.family ?? detail.profile.providerId);
+    const effectiveBillingDraft = billingDraftForSave(billingDraft, billingAccessTokenRemovalPending);
+    const removedSecretNames = [
+      ...(apiKeyRemovalPending ? ['apiKey'] : []),
+      ...(billingAccessTokenRemovalPending ? ['billingAccessToken'] : []),
+    ];
+    return services.commands.probeProfileEndpoints({
+      profileId: detail.profile.profileId,
+      providerId: detail.profile.providerId,
+      displayName: sanitizeProviderDisplayName(displayName) || detail.profile.displayName,
+      config: mergeProfileConfigForSave(
+        detail.profile,
+        providerConfigFromForm(
+          detail.profile.providerId,
+          sanitizeProviderDisplayName(displayName) || detail.profile.displayName,
+          family,
+          connection,
+          defaultModel,
+          effectiveBillingDraft,
+          isOptimizerProfile ? instruction : undefined,
+        ),
+      ),
+      ...(removedSecretNames.length > 0 ? { removedSecretNames } : {}),
+      ...((apiKey.trim() || effectiveBillingDraft.accessToken.trim())
+        ? {
+            secretValues: {
+              ...(apiKey.trim() ? { apiKey: apiKey.trim() } : {}),
+              ...(effectiveBillingDraft.accessToken.trim() ? { billingAccessToken: effectiveBillingDraft.accessToken.trim() } : {}),
             },
           }
         : {}),
@@ -238,10 +365,12 @@ export function SettingsDetailPage({ onNav, profileId, onProfilesChanged, onSave
     setBusy(true);
     await services.diagnostics?.checkpoint('uxp.ui.settings_detail.save.busy_set', { busy: true, profileId });
     saveNotice.clear();
+    setAliasError(null);
     await services.diagnostics?.checkpoint('uxp.ui.settings_detail.save.status_cleared', { profileId });
     try {
       const providerDescriptor = detail.profile ? services.commands.describeProvider(detail.profile.providerId) : undefined;
-      const validation = billingFieldError(billingDraft, providerDescriptor);
+      const effectiveBillingDraft = billingDraftForSave(billingDraft, billingAccessTokenRemovalPending);
+      const validation = billingFieldError(effectiveBillingDraft, providerDescriptor);
       if (validation === 'user-id') {
         throw new Error(t.settings.billingValidationUserId);
       }
@@ -292,7 +421,11 @@ export function SettingsDetailPage({ onNav, profileId, onProfilesChanged, onSave
       }
     } catch (error) {
       await services.diagnostics?.failure('uxp.ui.settings_detail.save.failed', error, { profileId });
-      saveNotice.show(error instanceof Error ? error.message : String(error), 'negative', { durationMs: null, copyable: true });
+      const message = error instanceof Error ? error.message : String(error);
+      if (message.includes('displayName')) {
+        setAliasError(t.settings.duplicateDisplayName(sanitizeProviderDisplayName(displayName)));
+      }
+      saveNotice.show(message, 'negative', { durationMs: null, copyable: true });
     } finally {
       await services.diagnostics?.checkpoint('uxp.ui.settings_detail.save.before_busy_clear', { profileId });
       setBusy(false);
@@ -321,66 +454,16 @@ export function SettingsDetailPage({ onNav, profileId, onProfilesChanged, onSave
     testNotice.clear();
     setTestMeta(null);
     try {
-      if (isOptimizerProfile && detail.profile) {
-        const savedProfile = await persistProfile();
-        if (savedProfile) {
-          await onProfilesChanged(savedProfile.profileId);
-        }
-        if (!savedProfile) {
-          throw new Error('No provider profile selected.');
-        }
-        const result = await services.commands.validatePromptOptimizerProfile(savedProfile.profileId);
-        if (result.ok) {
-          testNotice.show(t.settings.testSuccess, 'positive', { durationMs: 2200, dismissible: false, copyable: false });
-          setTestMeta(`${t.settings.testResultPrefix} · ${formatElapsedMs(startedAt)}`);
-          await detail.reload();
-          await onProfilesChanged(savedProfile.profileId);
-        } else {
-          testNotice.show(
-            result.error.category === 'validation'
-              ? result.error.message
-              : `${result.error.category}: ${result.error.message}`,
-            'negative',
-            { durationMs: null, copyable: true },
-          );
-          setTestMeta(`${t.settings.testResultPrefix} · ${formatElapsedMs(startedAt)}`);
-        }
-        return;
-      }
-      if (!detail.profile) {
-        throw new Error('No provider profile selected.');
-      }
-      const family = String(detail.profile.config.family ?? detail.profile.providerId);
-      const result = await services.commands.probeProfileEndpoints({
-        profileId: detail.profile.profileId,
-        providerId: detail.profile.providerId,
-        displayName: displayName.trim() || detail.profile.displayName,
-        config: mergeProfileConfigForSave(
-          detail.profile,
-          providerConfigFromForm(
-            detail.profile.providerId,
-            displayName.trim() || detail.profile.displayName,
-            family,
-            connection,
-            defaultModel,
-            billingDraft,
-            undefined,
-          ),
-        ),
-        ...((apiKey.trim() || billingDraft.accessToken.trim())
-          ? {
-              secretValues: {
-                ...(apiKey.trim() ? { apiKey: apiKey.trim() } : {}),
-                ...(billingDraft.accessToken.trim() ? { billingAccessToken: billingDraft.accessToken.trim() } : {}),
-              },
-            }
-          : {}),
-      });
+      const result = await probeCurrentDraft();
       if (!result.ok) {
         throw new Error(`${result.error.category}: ${result.error.message}`);
       }
       setProbeResults(result.value.results);
       setSuggestedEndpointId(result.value.suggestedEndpointId);
+      if (result.value.models) {
+        models.replace(result.value.models);
+        setModelsStale(false);
+      }
       const status = statusFromEndpointProbeResult(result.value, t);
       testNotice.show(status.message, status.tone, status);
       setTestMeta(`${t.settings.testResultPrefix} · ${formatElapsedMs(startedAt)}`);
@@ -398,15 +481,34 @@ export function SettingsDetailPage({ onNav, profileId, onProfilesChanged, onSave
     try {
       if (detail.profile && hasDraftChanges(
         detail.profile,
-        { displayName, connection, defaultModel, billing: billingDraft, instruction, apiKey },
+        {
+          displayName,
+          connection,
+          defaultModel,
+          billing: billingDraft,
+          instruction,
+          apiKey,
+          apiKeyRemovalPending,
+          billingAccessTokenRemovalPending,
+        },
         isOptimizerProfile,
       )) {
-        const savedProfile = await persistProfile();
-        if (savedProfile) {
-          await onProfilesChanged(savedProfile.profileId);
+        const result = await probeCurrentDraft();
+        if (!result.ok) {
+          throw new Error(`${result.error.category}: ${result.error.message}`);
         }
+        setProbeResults(result.value.results);
+        setSuggestedEndpointId(result.value.suggestedEndpointId);
+        const refreshed = result.value.models ?? [];
+        models.replace(refreshed);
+        setModelsStale(false);
+        if (refreshed.length === 0) {
+          testNotice.show(t.settings.configValidProviderNoModels, 'warning', { durationMs: null, copyable: false });
+        }
+        return;
       }
       const refreshed = await models.refresh();
+      setModelsStale(false);
       if (refreshed.length === 0) {
         testNotice.show(t.settings.configValidProviderNoModels, 'warning', { durationMs: null, copyable: false });
       }
@@ -456,6 +558,27 @@ export function SettingsDetailPage({ onNav, profileId, onProfilesChanged, onSave
   const selectedModelInfo = models.models.find((model) => model.id === defaultModel);
   const selectedModelStatus = modelStatusMessage(selectedModelInfo, t);
   const providerDescriptor = detail.profile ? services.commands.describeProvider(detail.profile.providerId) : undefined;
+  const endpointErrors = duplicateEndpointErrors(connection, t.settings.duplicateEndpointUrl);
+  const effectiveBillingDraft = billingDraftForSave(billingDraft, billingAccessTokenRemovalPending);
+  const billingValidation = billingFieldError(effectiveBillingDraft, providerDescriptor);
+  const draftDirty = detail.profile
+    ? hasDraftChanges(
+        detail.profile,
+        {
+          displayName,
+          connection,
+          defaultModel,
+          billing: billingDraft,
+          instruction,
+          apiKey,
+          apiKeyRemovalPending,
+          billingAccessTokenRemovalPending,
+        },
+        isOptimizerProfile,
+      )
+    : false;
+  const saveDisabled = busy || !detail.profile || endpointErrors.size > 0 || Boolean(aliasError);
+  const saveLabel = busy ? t.settings.saving : draftDirty ? t.settings.saveChanges : t.settings.savedButton;
   const modelListNotice = models.error
     ? {
         tone: 'warning' as const,
@@ -463,6 +586,8 @@ export function SettingsDetailPage({ onNav, profileId, onProfilesChanged, onSave
         detail: models.error,
         detailCopyable: true,
       }
+    : modelsStale
+      ? { tone: 'warning' as const, message: t.settings.modelListStale }
     : modelOptions.length === 0
       ? { tone: 'info' as const, message: t.settings.modelListEmpty }
       : null;
@@ -510,213 +635,267 @@ export function SettingsDetailPage({ onNav, profileId, onProfilesChanged, onSave
           tooltip={t.common.refresh}
           onClick={() => void detail.reload()}
         />
+        {!isOptimizerProfile && (
+          <IconButton
+            data-testid="provider-delete-button"
+            className="hdr-btn"
+            hostClassName="hdr-btn-danger"
+            quiet
+            icon={<Icon name="trash" />}
+            tooltip={t.common.delete}
+            disabled={busy || !detail.profile}
+            onClick={() => void remove()}
+          />
+        )}
       </header>
 
-      <div className="scroll scroll-footer-pad">
+      <div className="scroll scroll-footer-pad scroll-footer-pad-detail">
         {detail.loading && <div style={{ padding: 16, color: 'var(--app-color-text-muted)', fontSize: 12 }}>{t.settings.loading}</div>}
         {detail.error && <div style={{ padding: 16, color: 'var(--app-color-negative)', fontSize: 12 }}>{detail.error}</div>}
         {detail.profile && (
-          <ProviderProfileEditor
-            connectionTitle={t.settings.connectionInfo}
-            aliasValue={displayName}
-            onAliasValue={setDisplayName}
-            connection={connection}
-            onConnectionChange={(next) => {
-              setConnection(normalizeProviderConnectionDraft(next));
-              setProbeResults([]);
-              setSuggestedEndpointId(undefined);
-            }}
-            probeResults={connectionProbeResultById(probeResults)}
-            suggestedEndpointId={suggestedEndpointId}
-            apiKeyValue={apiKey}
-            onApiKeyValue={setApiKey}
-            apiKeyPlaceholder={detail.profile.secretRefs?.apiKey ? t.settings.savedSecretPlaceholder : 'sk-...'}
-            showKey={showKey}
-            onShowKeyChange={setShowKey}
-            connectionStatus={saveNotice.notice}
-            extraSections={(
-              <>
-                {!isOptimizerProfile && (
-                  <div className="section">
-                    <div className="section-title">{t.settings.billing}</div>
-                    <ProviderBillingSettings
-                      billing={billingDraft}
-                      onBillingChange={setBillingDraft}
-                      billingModeOptions={billingModeOptions(providerDescriptor)}
-                      modeMenuOpen={billingModeMenuOpen}
-                      onModeMenuOpenChange={setBillingModeMenuOpen}
-                      disabled={busy}
-                    />
-                    <div style={{ marginTop: 10, fontSize: 12, color: 'var(--app-color-text-secondary)' }}>
-                      {t.settings.billingBalanceLabel}: {formatBillingPrimary(billing.billing) ?? t.settings.billingDisabled}
-                    </div>
-                    {billing.billing?.balance?.checkedAt && (
-                      <div style={{ marginTop: 8, fontSize: 11, color: 'var(--app-color-text-muted)' }}>
-                        {t.settings.billingCheckedAt}: {new Date(billing.billing.balance.checkedAt).toLocaleString()}
-                      </div>
-                    )}
-                    {billing.billing?.balance?.snapshot.details?.length ? (
-                      <div style={{ marginTop: 10, fontSize: 11, color: 'var(--app-color-text-muted)' }}>
-                        {billing.billing.balance.snapshot.details.map((detail, index) => (
-                          <div key={`${detail.kind}:${index}`} style={{ marginTop: index === 0 ? 0 : 6 }}>
-                            {formatBillingDetail(detail)}
+          <>
+            <ProviderProfileEditor
+              connectionTitle={t.settings.connectionInfo}
+              aliasValue={displayName}
+              onAliasValue={(value) => {
+                setDisplayName(value);
+                setAliasError(null);
+              }}
+              aliasError={aliasError}
+              connection={connection}
+              onConnectionChange={(next) => {
+                setConnection(normalizeProviderConnectionDraft(next));
+                invalidateDraftProofs();
+              }}
+              endpointErrors={endpointErrors}
+              probeResults={connectionProbeResultById(probeResults)}
+              suggestedEndpointId={suggestedEndpointId}
+              apiKeyValue={apiKey}
+              onApiKeyValue={updateApiKey}
+              apiKeyPlaceholder="sk-..."
+              showKey={showKey}
+              onShowKeyChange={setShowKey}
+              connectionStatus={saveNotice.notice}
+              apiKeySaved={Boolean(detail.profile.secretRefs?.apiKey) && !apiKeyRemovalPending}
+              apiKeySavedHint={detail.profile.secretRefs?.apiKey ? t.settings.savedSecretPlaceholder : null}
+              apiKeyRemovalPending={apiKeyRemovalPending}
+              onApiKeyReplace={() => setApiKeyRemovalPending(false)}
+              onApiKeyRemove={() => {
+                setApiKey('');
+                setApiKeyRemovalPending(true);
+                invalidateDraftProofs();
+              }}
+              extraSections={(
+                <>
+                  {!isOptimizerProfile && (
+                    <div className="section">
+                      <div className="section-title settings-section-heading">{t.settings.billing}</div>
+                      <div className="billing-summary-card">
+                        <div className="billing-summary-header">
+                          <div className="billing-summary-header-body">
+                            <div className="billing-summary-kicker">{t.settings.billingBalanceLabel}</div>
+                            <div className="billing-summary-value">
+                              {formatBillingPrimary(billing.billing) ?? t.settings.billingDisabled}
+                            </div>
                           </div>
-                        ))}
+                          <div className="billing-summary-actions">
+                            <Button
+                              data-testid="provider-billing-refresh-button"
+                              className="settings-action-compact"
+                              variant="secondary"
+                              disabled={billing.loading || busy}
+                              onClick={() => void billing.refresh()}
+                            >
+                              {billing.loading ? t.settings.billingRefreshing : t.settings.billingRefresh}
+                            </Button>
+                          </div>
+                        </div>
+                        <div className="billing-summary-meta-list">
+                          {billing.billing?.balance?.checkedAt && (
+                            <div className="billing-summary-meta-item">
+                              {t.settings.billingCheckedAt}: {new Date(billing.billing.balance.checkedAt).toLocaleString()}
+                            </div>
+                          )}
+                          {billing.billing?.refreshState === 'refreshing' ? (
+                            <div className={`billing-summary-meta-item${billing.billing?.balance?.checkedAt ? ' billing-summary-meta-item-spaced' : ''}`}>
+                              {t.settings.billingRefreshing}
+                            </div>
+                          ) : null}
+                        </div>
+                        {billing.billing?.balance?.snapshot.details?.length ? (
+                          <div className="billing-detail-list">
+                            <div className="billing-detail-title">{t.settings.billingDetails}</div>
+                            {billing.billing.balance.snapshot.details.map((detail, index) => (
+                              <div
+                                key={`${detail.kind}:${index}`}
+                                className={`billing-detail-item${index > 0 ? ' billing-detail-item-spaced' : ''}`}
+                              >
+                                {formatBillingDetail(detail)}
+                              </div>
+                            ))}
+                          </div>
+                        ) : null}
                       </div>
-                    ) : null}
-                    <div style={{ fontSize: 12, color: 'var(--app-color-text-secondary)' }}>
-                      {billing.billing?.refreshState === 'refreshing' ? t.settings.billingRefreshing : null}
+                      <div className="billing-section">
+                        <ProviderBillingSettings
+                          billing={effectiveBillingDraft}
+                          onBillingChange={updateBillingDraft}
+                          billingModeOptions={billingModeOptions(providerDescriptor)}
+                          modeMenuOpen={billingModeMenuOpen}
+                          onModeMenuOpenChange={setBillingModeMenuOpen}
+                          disabled={busy}
+                          accessTokenPlaceholder="sk-..."
+                          accessTokenSavedMeta={billingDraft.hasSavedAccessToken && !billingAccessTokenRemovalPending ? t.settings.savedSecretPlaceholder : null}
+                          accessTokenSavedHint={billingDraft.hasSavedAccessToken && !billingAccessTokenRemovalPending ? t.settings.billingAccessTokenSavedHint : null}
+                          accessTokenRemovalPending={billingAccessTokenRemovalPending}
+                          onAccessTokenReplace={() => setBillingAccessTokenRemovalPending(false)}
+                          onAccessTokenRemove={() => {
+                            setBillingDraft({ ...billingDraft, accessToken: '', hasSavedAccessToken: false });
+                            setBillingAccessTokenRemovalPending(true);
+                            invalidateDraftProofs();
+                          }}
+                          userIdError={billingValidation === 'user-id' ? t.settings.billingValidationUserId : null}
+                          accessTokenError={billingValidation === 'token' ? t.settings.billingValidationAccessToken : null}
+                        />
+                      </div>
+                      {billing.billing?.refreshState === 'error' && (
+                        <div style={{ marginTop: 10 }}>
+                          <StatusNotice tone="warning" message={t.settings.billingErrorStale} detail={billing.error} detailCopyable />
+                        </div>
+                      )}
+                      {formatExactTaskCost(billing.billing?.lastExactTaskCost) && (
+                        <div style={{ marginTop: 10, fontSize: 11, color: 'var(--app-color-text-muted)' }}>
+                          {t.main.billingLastCost}: {formatExactTaskCost(billing.billing?.lastExactTaskCost)}
+                        </div>
+                      )}
+                      {!formatExactTaskCost(billing.billing?.lastExactTaskCost) && formatBalanceChange(billing.billing?.lastBalanceChange) && (
+                        <div style={{ marginTop: 10, fontSize: 11, color: 'var(--app-color-text-muted)' }}>
+                          {t.main.billingLastChange}: {formatBalanceChange(billing.billing?.lastBalanceChange)}
+                        </div>
+                      )}
                     </div>
-                    {billing.billing?.refreshState === 'error' && (
-                      <div style={{ marginTop: 10 }}>
-                        <StatusNotice tone="warning" message={t.settings.billingErrorStale} detail={billing.error} detailCopyable />
-                      </div>
-                    )}
-                    {formatExactTaskCost(billing.billing?.lastExactTaskCost) && (
-                      <div style={{ marginTop: 10, fontSize: 11, color: 'var(--app-color-text-muted)' }}>
-                        {t.main.billingLastCost}: {formatExactTaskCost(billing.billing?.lastExactTaskCost)}
-                      </div>
-                    )}
-                    {!formatExactTaskCost(billing.billing?.lastExactTaskCost) && formatBalanceChange(billing.billing?.lastBalanceChange) && (
-                      <div style={{ marginTop: 10, fontSize: 11, color: 'var(--app-color-text-muted)' }}>
-                        {t.main.billingLastChange}: {formatBalanceChange(billing.billing?.lastBalanceChange)}
-                      </div>
-                    )}
-                    <Button
-                      data-testid="provider-billing-refresh-button"
-                      className="test-btn ui-button-block"
-                      variant="secondary"
-                      style={{ marginTop: 10 }}
-                      disabled={billing.loading || busy}
-                      onClick={() => void billing.refresh()}
-                    >
-                      {billing.loading ? t.settings.billingRefreshing : t.settings.billingRefresh}
-                    </Button>
-                  </div>
-                )}
-                {isOptimizerProfile ? (
-                  <div className="section">
-                    <div className="section-title">{t.settings.promptBehavior}</div>
-                    <div className="field field-textarea">
-                      <FieldLabel htmlFor="provider-instruction-input">{t.settings.instruction}</FieldLabel>
-                      <UxpTextArea
-                        data-testid="provider-instruction-input"
-                        id="provider-instruction-input"
-                        className="field-input field-textarea-input mono"
-                        rows={5}
-                        value={instruction}
-                        onValue={setInstruction}
-                        placeholder={t.settings.instructionPlaceholder}
-                      />
-                    </div>
-                  </div>
-                ) : null}
-              </>
-            )}
-            defaultModelSection={(
-              <>
-                <div className="field">
-                  {modelMode === 'list' && modelOptions.length > 0 ? (
-                    <TextSelect
-                      label={t.settings.defaultModel}
-                      value={modelTriggerValue}
-                      disabled={modelSelectDisabled}
-                      open={modelMenuOpen}
-                      onOpenChange={setModelMenuOpen}
-                      options={modelOptions}
-                      selectedId={defaultModel}
-                      onSelect={(id) => {
-                        modelModeTouchedRef.current = true;
-                        setDefaultModel(id);
-                        setModelMode('list');
-                        setModelMenuOpen(false);
-                      }}
-                      testId="provider-default-model-selector"
-                      triggerId="provider-default-model-selector"
-                      containerClassName="cmp-select cmp-select-model provider-model-select"
-                      menuClassName="cmp-select-menu cmp-select-menu-model"
-                    />
-                  ) : (
-                    <TextField
-                      data-testid="provider-default-model-input"
-                      id="provider-default-model-input"
-                      aria-label={t.settings.defaultModel}
-                      className="field-input mono ui-field-control"
-                      placeholder={t.settings.customModelId}
-                      value={defaultModel}
-                      onValue={(value) => {
-                        modelModeTouchedRef.current = true;
-                        setModelMode('custom');
-                        setDefaultModel(value);
-                      }}
-                    />
                   )}
-                  {modelOptions.length > 0 && (
-                    <div className="provider-model-mode-row">
-                      <HelpText className="field-hint provider-model-mode-tip">
-                        {modelMode === 'list' ? t.settings.customModelHint : t.settings.chooseFromListHint}
-                      </HelpText>
-                      <button
-                        type="button"
-                        className="provider-model-mode-link"
-                        disabled={busy}
-                        onClick={() => {
+                  {isOptimizerProfile ? (
+                    <div className="section">
+                      <div className="section-title">{t.settings.promptBehavior}</div>
+                      <div className="field field-textarea">
+                        <FieldLabel htmlFor="provider-instruction-input">{t.settings.instruction}</FieldLabel>
+                        <UxpTextArea
+                          data-testid="provider-instruction-input"
+                          id="provider-instruction-input"
+                          className="field-input field-textarea-input mono"
+                          rows={5}
+                          value={instruction}
+                          onValue={(value) => {
+                            setInstruction(value);
+                            invalidateDraftProofs();
+                          }}
+                          placeholder={t.settings.instructionPlaceholder}
+                        />
+                      </div>
+                    </div>
+                  ) : null}
+                </>
+              )}
+              defaultModelSection={(
+                <>
+                  <div className="field">
+                    <div className="settings-inline-heading-row">
+                      <div className="settings-inline-heading-copy">
+                        <HelpText className="field-hint">
+                          {modelMode === 'list' ? t.settings.customModelHint : t.settings.chooseFromListHint}
+                        </HelpText>
+                      </div>
+                      <div className="settings-inline-heading-actions">
+                        <Button data-testid="provider-refresh-models-button" className="settings-action-compact" variant="secondary" disabled={models.loading || busy} onClick={() => void refreshModels()}>
+                          {models.loading ? t.settings.refreshingModels : t.settings.refreshModels}
+                        </Button>
+                      </div>
+                    </div>
+                    {modelMode === 'list' && modelOptions.length > 0 ? (
+                      <TextSelect
+                        label={t.settings.defaultModel}
+                        value={modelTriggerValue}
+                        disabled={modelSelectDisabled}
+                        open={modelMenuOpen}
+                        onOpenChange={setModelMenuOpen}
+                        options={modelOptions}
+                        selectedId={defaultModel}
+                        onSelect={(id) => {
                           modelModeTouchedRef.current = true;
-                          setModelMode(modelMode === 'list' ? 'custom' : 'list');
+                          setDefaultModel(id);
+                          setModelMode('list');
                           setModelMenuOpen(false);
                         }}
-                      >
-                        {modelMode === 'list' ? t.settings.useCustomModelId : t.settings.chooseFromList}
-                      </button>
+                        testId="provider-default-model-selector"
+                        triggerId="provider-default-model-selector"
+                        containerClassName="cmp-select cmp-select-model provider-model-select"
+                        menuClassName="cmp-select-menu cmp-select-menu-model"
+                      />
+                    ) : (
+                      <TextField
+                        data-testid="provider-default-model-input"
+                        id="provider-default-model-input"
+                        aria-label={t.settings.defaultModel}
+                        className="field-input mono ui-field-control"
+                        placeholder={t.settings.customModelId}
+                        value={defaultModel}
+                        onValue={(value) => {
+                          modelModeTouchedRef.current = true;
+                          setModelMode('custom');
+                          setDefaultModel(value);
+                        }}
+                      />
+                    )}
+                    {modelOptions.length > 0 && (
+                      <div className="provider-model-mode-row">
+                        <button
+                          type="button"
+                          className="provider-model-mode-link"
+                          disabled={busy}
+                          onClick={() => {
+                            modelModeTouchedRef.current = true;
+                            setModelMode(modelMode === 'list' ? 'custom' : 'list');
+                            setModelMenuOpen(false);
+                          }}
+                        >
+                          {modelMode === 'list' ? t.settings.useCustomModelId : t.settings.chooseFromList}
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                  {modelListNotice && (
+                    <div data-testid="provider-model-list-notice">
+                      <StatusNotice
+                        tone={modelListNotice.tone}
+                        message={modelListNotice.message}
+                        detail={'detail' in modelListNotice ? modelListNotice.detail : null}
+                        detailCopyable={'detailCopyable' in modelListNotice ? modelListNotice.detailCopyable : false}
+                      />
                     </div>
                   )}
-                </div>
-                {modelListNotice && (
-                  <div data-testid="provider-model-list-notice">
-                    <StatusNotice
-                      tone={modelListNotice.tone}
-                      message={modelListNotice.message}
-                      detail={'detail' in modelListNotice ? modelListNotice.detail : null}
-                      detailCopyable={'detailCopyable' in modelListNotice ? modelListNotice.detailCopyable : false}
-                    />
-                  </div>
-                )}
-                {selectedModelStatus && (
-                  <div data-testid="provider-model-status-notice">
-                    <StatusNotice
-                      tone={selectedModelInfo?.supportStatus === 'custom-unchecked' ? 'warning' : 'info'}
-                      message={selectedModelStatus}
-                    />
-                  </div>
-                )}
-                <Button data-testid="provider-refresh-models-button" className="test-btn ui-button-block" variant="secondary" style={{ marginTop: 10 }} disabled={models.loading || busy} onClick={() => void refreshModels()}>
-                  {models.loading ? t.settings.refreshingModels : t.settings.refreshModels}
-                </Button>
-              </>
-            )}
-            testBusy={busy}
-            onTest={() => void test()}
-            testMeta={testMeta}
-            testStatus={testNotice.notice}
-          />
+                  {selectedModelStatus && (
+                    <div data-testid="provider-model-status-notice">
+                      <StatusNotice
+                        tone={selectedModelInfo?.supportStatus === 'custom-unchecked' ? 'warning' : 'info'}
+                        message={selectedModelStatus}
+                      />
+                    </div>
+                  )}
+                </>
+              )}
+              testBusy={busy}
+              onTest={() => void test()}
+              testMeta={testMeta}
+              testStatus={testNotice.notice}
+            />
+          </>
         )}
       </div>
 
       <footer className="det-footer">
         <div className="settings-detail-footer-inner">
-          <Button data-testid="provider-save-button" className="btn-save ui-button-block" variant="accent" disabled={busy || !detail.profile} onClick={() => void save()}>{t.common.save}</Button>
-          {!isOptimizerProfile && (
-            <IconButton
-              data-testid="provider-delete-button"
-              hostClassName="btn-del-host"
-              className="btn-del"
-              variant="negative"
-              icon={<Icon name="trash" />}
-              tooltip={t.common.delete}
-              disabled={busy || !detail.profile}
-              onClick={() => void remove()}
-            />
-          )}
+          <Button data-testid="provider-save-button" className="btn-save ui-button-block" variant="accent" disabled={saveDisabled} onClick={() => void save()}>{saveLabel}</Button>
         </div>
       </footer>
     </div>

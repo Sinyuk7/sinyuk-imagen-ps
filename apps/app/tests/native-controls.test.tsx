@@ -1,7 +1,7 @@
 import { act } from 'react';
 import { createRoot, type Root } from 'react-dom/client';
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { Checkbox, TextField } from '../src/shared/ui/primitives/native-controls';
+import { Checkbox, Radio, TextField } from '../src/shared/ui/primitives/native-controls';
 import { IconButton } from '../src/shared/ui/primitives/icon-button';
 import { Icon } from '../src/shared/ui/components/icons';
 
@@ -58,6 +58,26 @@ describe('Shared native control seam', () => {
 
     await act(async () => {
       checkbox!.click();
+    });
+
+    expect(onChecked).toHaveBeenCalledWith(true);
+  });
+
+  it('syncs radio values through the shared checked contract', async () => {
+    const onChecked = vi.fn();
+    const container = document.createElement('div');
+    document.body.appendChild(container);
+    root = createRoot(container);
+
+    await act(async () => {
+      root!.render(<Radio name="preferred-endpoint" checked={false} onChecked={onChecked}>Preferred</Radio>);
+    });
+
+    const radio = container.querySelector<HTMLInputElement>('input[type="radio"]');
+    expect(radio).not.toBeNull();
+
+    await act(async () => {
+      radio!.click();
     });
 
     expect(onChecked).toHaveBeenCalledWith(true);

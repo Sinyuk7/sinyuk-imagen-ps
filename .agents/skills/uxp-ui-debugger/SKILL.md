@@ -1,9 +1,22 @@
 ---
 name: uxp-ui-debugger
-description: Debug and fix confirmed Imagen Photoshop UXP UI issues with real Photoshop UXP DOM, event, and visual probes before source edits. Use only when the bug is already known to be UI-owned, or when uxp-issue-rca has handed off a pure UI finding. Do not use for owner localization, provider logic, storage, dispatch, Photoshop bridge, backend/runtime failures, or mixed/unknown issues.
+description: >
+  Manual-only Photoshop UXP UI debugging workflow. Use only when the user
+  explicitly invokes `$uxp-ui-debugger` or explicitly asks for this real-host
+  DOM/event/style probe workflow. Do not auto-select from a generic UI bug
+  report. Trigger: "$uxp-ui-debugger", "use uxp-ui-debugger", "run the UXP UI
+  debugger workflow".
 ---
 
 # UXP UI Debugger
+
+## Trigger Mode
+
+Manual-only.
+
+- Enter this skill only when the user explicitly invokes `uxp-ui-debugger`, explicitly asks for this workflow, or a manually-invoked `uxp-issue-rca` run already concluded `hand off to uxp-ui-debugger`.
+- Do not auto-enter just because the task looks like a UI bug.
+- If UI ownership is not already established and there is no explicit invocation, stay in normal repo triage instead of loading this skill.
 
 Use this skill to avoid Chrome-only or jsdom-only UI conclusions. The default loop is:
 

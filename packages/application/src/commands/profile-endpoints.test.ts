@@ -92,6 +92,8 @@ describe('profile endpoint commands', () => {
     }
     expect(result.value.results).toHaveLength(2);
     expect(result.value.results[0]).toMatchObject({ endpointId: 'fast', status: 'healthy', modelCount: 1 });
+    expect(result.value.results[0]?.models?.map((model) => model.id)).toEqual(['gpt-image-2']);
+    expect(result.value.models?.map((model) => model.id)).toEqual(['gpt-image-2']);
     expect(result.value.results[1]).toMatchObject({ endpointId: 'slow', status: 'degraded' });
     expect(result.value.suggestedEndpointId).toBe('fast');
     expect(fetchSpy).toHaveBeenCalledTimes(2);
@@ -177,6 +179,54 @@ describe('profile endpoint commands', () => {
     expect(result.ok).toBe(true);
     expect(saveSpy).not.toHaveBeenCalled();
     expect(profile.models).toEqual([{ id: 'cached-model' }]);
+    if (result.ok) {
+      expect(result.value.models?.map((model) => model.id)).toEqual(['gpt-image-2']);
+    }
+  });
+
+  it('excludes explicitly removed saved secrets from draft probe resolution', async () => {
+    _resetForTesting();
+    const profile: ProviderProfile = {
+      profileId: 'profile-a',
+      providerId: 'image-endpoint',
+      displayName: 'Saved Endpoint',
+      enabled: true,
+      config: {
+        providerId: 'image-endpoint',
+        displayName: 'Saved Endpoint',
+        family: 'image-endpoint',
+        connection: {
+          selectionMode: 'manual',
+          failoverEnabled: false,
+          preferredEndpointId: 'saved',
+          endpoints: [{ id: 'saved', url: 'https://saved.example.com', enabled: true }],
+        },
+      },
+      secretRefs: { apiKey: 'secret:profile-a:apiKey' },
+      createdAt: '2026-07-02T00:00:00.000Z',
+      updatedAt: '2026-07-02T00:00:00.000Z',
+    };
+    setProviderProfileRepository(createProfileRepository([profile]).repository);
+    setSecretStorageAdapter(createSecretStorage({ 'secret:profile-a:apiKey': 'test-key' }));
+
+    const result = await probeProfileEndpoints({
+      profileId: 'profile-a',
+      providerId: 'image-endpoint',
+      removedSecretNames: ['apiKey'],
+      config: {
+        connection: {
+          selectionMode: 'manual',
+          failoverEnabled: false,
+          preferredEndpointId: 'saved',
+          endpoints: [{ id: 'saved', url: 'https://saved.example.com', enabled: true }],
+        },
+      },
+    });
+
+    expect(result.ok).toBe(false);
+    if (!result.ok) {
+      expect(result.error.message).toContain('apiKey');
+    }
   });
 
   it('keeps manual mode probe results from inventing an auto suggestion', async () => {

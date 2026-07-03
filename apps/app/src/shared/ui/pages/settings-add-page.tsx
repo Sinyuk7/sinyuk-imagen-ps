@@ -8,6 +8,8 @@ import {
   defaultBillingDraft,
   normalizeProviderConnectionDraft,
   providerConfigFromForm,
+  sanitizeProviderDisplayName,
+  sanitizeProviderSecretValue,
   useProviderCatalog,
   type ProviderBillingDraft,
   type ProviderConnectionDraft,
@@ -19,14 +21,14 @@ import { TextSelect } from '../components/text-select';
 import { useNotice } from '../components/notice';
 import { ProviderProfileEditor } from '../components/provider-profile-editor';
 import { useI18n } from '../i18n/i18n-context';
-import { Button, TextField, HelpText } from '../primitives/native-controls';
+import { Button, Checkbox, TextField, HelpText } from '../primitives/native-controls';
 import { IconButton } from '../primitives/icon-button';
 import { statusFromEndpointProbeResult } from '../provider-status';
 
 interface SettingsAddPageProps {
   readonly onNav: (view: string) => void;
   readonly profiles: readonly ProviderProfile[];
-  readonly onProfileSaved: (profileId: string) => Promise<void>;
+  readonly onProfileSaved: (profileId: string, options: { readonly useProvider: boolean }) => Promise<void>;
 }
 
 function createProfileId(): string {
@@ -58,12 +60,44 @@ function nextAlias(baseName: string, profiles: readonly ProviderProfile[]): stri
   if (!used.has(baseName)) {
     return baseName;
   }
-  for (let index = 1; ; index += 1) {
-    const candidate = `${baseName}(${index})`;
+  for (let index = 2; ; index += 1) {
+    const candidate = `${baseName} ${index}`;
     if (!used.has(candidate)) {
       return candidate;
     }
   }
+}
+
+function aliasFromEndpointUrl(value: string): string | null {
+  try {
+    const url = new URL(value);
+    const host = url.hostname.replace(/^(www|api)\./, '');
+    return host || null;
+  } catch {
+    return null;
+  }
+}
+
+function duplicateEndpointErrors(
+  connection: ProviderConnectionDraft,
+  message: string,
+): ReadonlyMap<string, string> {
+  const seen = new Map<string, string>();
+  const errors = new Map<string, string>();
+  for (const endpoint of connection.endpoints) {
+    const key = endpoint.url.trim().replace(/\/+$/, '').toLowerCase();
+    if (!key) {
+      continue;
+    }
+    const previousId = seen.get(key);
+    if (previousId) {
+      errors.set(previousId, message);
+      errors.set(endpoint.id, message);
+      continue;
+    }
+    seen.set(key, endpoint.id);
+  }
+  return errors;
 }
 
 export function SettingsAddPage({ onNav, profiles, onProfileSaved }: SettingsAddPageProps) {
@@ -85,7 +119,9 @@ export function SettingsAddPage({ onNav, profiles, onProfileSaved }: SettingsAdd
   const [busy, setBusy] = useState(false);
   const [probeResults, setProbeResults] = useState<readonly EndpointProbeResult[]>([]);
   const [suggestedEndpointId, setSuggestedEndpointId] = useState<string | undefined>();
+  const [useProviderAfterSaving, setUseProviderAfterSaving] = useState(profiles.length === 0);
   const modelModeTouchedRef = useRef(false);
+  const nameTouchedRef = useRef(false);
   const statusNotice = useNotice({ defaultDurationMs: null });
   const selected = useMemo(() => providers.find((provider) => provider.id === providerId), [providerId, providers]);
   const modelOptions = useMemo(
@@ -95,6 +131,12 @@ export function SettingsAddPage({ onNav, profiles, onProfileSaved }: SettingsAdd
     })),
     [selected],
   );
+  const normalizedName = sanitizeProviderDisplayName(name);
+  const aliasError = normalizedName && profiles.some((profile) => profile.displayName.trim() === normalizedName)
+    ? t.settings.duplicateDisplayName(normalizedName)
+    : null;
+  const endpointErrors = duplicateEndpointErrors(connection, t.settings.duplicateEndpointUrl);
+  const saveDisabled = busy || Boolean(aliasError) || endpointErrors.size > 0;
 
   useEffect(() => {
     modelModeTouchedRef.current = false;
@@ -112,11 +154,19 @@ export function SettingsAddPage({ onNav, profiles, onProfileSaved }: SettingsAdd
     setBillingModeMenuOpen(false);
   }, [selected]);
 
+  const invalidateDraftProofs = () => {
+    if (probeResults.length > 0 || statusNotice.notice) {
+      statusNotice.show(t.settings.changesNotTested, 'warning', { durationMs: null, copyable: false });
+    }
+    setProbeResults([]);
+    setSuggestedEndpointId(undefined);
+  };
+
   const saveProfile = async (): Promise<string> => {
     if (!selected) {
       throw new Error(t.settings.selectProviderType);
     }
-    const displayName = name.trim() || nextAlias(selected.displayName, profiles);
+    const displayName = sanitizeProviderDisplayName(name) || nextAlias(selected.displayName, profiles);
     const validation = billingFieldError(billing, selected);
     if (validation === 'user-id') {
       throw new Error(t.settings.billingValidationUserId);
@@ -130,11 +180,11 @@ export function SettingsAddPage({ onNav, profiles, onProfileSaved }: SettingsAdd
       displayName,
       enabled: true,
       config: providerConfigFromForm(selected.id, displayName, selected.family, connection, defaultModel, billing),
-      ...((apiKey.trim() || billing.accessToken.trim())
+      ...((sanitizeProviderSecretValue(apiKey) || sanitizeProviderSecretValue(billing.accessToken))
         ? {
             secretValues: {
-              ...(apiKey.trim() ? { apiKey: apiKey.trim() } : {}),
-              ...(billing.accessToken.trim() ? { billingAccessToken: billing.accessToken.trim() } : {}),
+              ...(sanitizeProviderSecretValue(apiKey) ? { apiKey: sanitizeProviderSecretValue(apiKey) } : {}),
+              ...(sanitizeProviderSecretValue(billing.accessToken) ? { billingAccessToken: sanitizeProviderSecretValue(billing.accessToken) } : {}),
             },
           }
         : {}),
@@ -150,7 +200,7 @@ export function SettingsAddPage({ onNav, profiles, onProfileSaved }: SettingsAdd
     statusNotice.clear();
     try {
       const profileId = await saveProfile();
-      await onProfileSaved(profileId);
+      await onProfileSaved(profileId, { useProvider: useProviderAfterSaving });
     } catch (error) {
       statusNotice.show(error instanceof Error ? error.message : String(error), 'negative', { durationMs: null, copyable: true });
     } finally {
@@ -165,7 +215,7 @@ export function SettingsAddPage({ onNav, profiles, onProfileSaved }: SettingsAdd
       if (!selected) {
         throw new Error(t.settings.selectProviderType);
       }
-      const displayName = name.trim() || nextAlias(selected.displayName, profiles);
+      const displayName = sanitizeProviderDisplayName(name) || nextAlias(selected.displayName, profiles);
       const validation = billingFieldError(billing, selected);
       if (validation === 'user-id') {
         throw new Error(t.settings.billingValidationUserId);
@@ -178,7 +228,7 @@ export function SettingsAddPage({ onNav, profiles, onProfileSaved }: SettingsAdd
         providerId: selected.id,
         displayName,
         config: providerConfigFromForm(selected.id, displayName, selected.family, connection, defaultModel, billing),
-        ...(apiKey.trim() ? { secretValues: { apiKey: apiKey.trim() } } : {}),
+        ...(sanitizeProviderSecretValue(apiKey) ? { secretValues: { apiKey: sanitizeProviderSecretValue(apiKey) } } : {}),
       });
       if (!result.ok) {
         throw new Error(`${result.error.category}: ${result.error.message}`);
@@ -221,6 +271,7 @@ export function SettingsAddPage({ onNav, profiles, onProfileSaved }: SettingsAdd
                   onClick={() => {
                     setProviderId(provider.id);
                     setName(nextAlias(provider.displayName, profiles));
+                    nameTouchedRef.current = false;
                     setConnection(defaultConnection(provider.id));
                     modelModeTouchedRef.current = false;
                     setDefaultModel('');
@@ -229,6 +280,7 @@ export function SettingsAddPage({ onNav, profiles, onProfileSaved }: SettingsAdd
                     setModelMenuOpen(false);
                     setProbeResults([]);
                     setSuggestedEndpointId(undefined);
+                    setUseProviderAfterSaving(profiles.length === 0);
                     setStep(2);
                   }}
                 >
@@ -252,37 +304,65 @@ export function SettingsAddPage({ onNav, profiles, onProfileSaved }: SettingsAdd
           <ProviderProfileEditor
             connectionTitle={t.settings.config}
             aliasValue={name}
-            onAliasValue={setName}
+            onAliasValue={(value) => {
+              nameTouchedRef.current = true;
+              setName(value);
+            }}
+            aliasError={aliasError}
             aliasPlaceholder={selected?.displayName}
             connection={connection}
             onConnectionChange={(next) => {
-              setConnection((current) => normalizeProviderConnectionDraft(typeof next === 'object' ? next : current));
-              setProbeResults([]);
-              setSuggestedEndpointId(undefined);
+              const normalized = normalizeProviderConnectionDraft(typeof next === 'object' ? next : connection);
+              setConnection(normalized);
+              if (!nameTouchedRef.current) {
+                const generatedAlias = aliasFromEndpointUrl(normalized.endpoints.find((endpoint) => endpoint.url.trim())?.url ?? '');
+                if (generatedAlias) {
+                  setName(nextAlias(generatedAlias, profiles));
+                }
+              }
+              invalidateDraftProofs();
             }}
             baseUrlPlaceholder="https://api.example.com"
+            endpointErrors={endpointErrors}
             probeResults={connectionProbeResultById(probeResults)}
             suggestedEndpointId={suggestedEndpointId}
             apiKeyValue={apiKey}
-            onApiKeyValue={setApiKey}
+            onApiKeyValue={(value) => {
+              setApiKey(sanitizeProviderSecretValue(value));
+              invalidateDraftProofs();
+            }}
             apiKeyPlaceholder="sk-..."
             showKey={showKey}
             onShowKeyChange={setShowKey}
+            apiKeySaved={false}
             extraSections={(
               <div className="section">
-                <div className="section-title">{t.settings.billing}</div>
+                <div className="section-title settings-section-heading">{t.settings.billing}</div>
                 <ProviderBillingSettings
                   billing={billing}
-                  onBillingChange={setBilling}
+                  onBillingChange={(next) => {
+                    setBilling(next);
+                    invalidateDraftProofs();
+                  }}
                   billingModeOptions={billingModeOptions(selected)}
                   modeMenuOpen={billingModeMenuOpen}
                   onModeMenuOpenChange={setBillingModeMenuOpen}
                   disabled={busy}
+                  accessTokenPlaceholder="sk-..."
                 />
               </div>
             )}
             defaultModelSection={(
               <div className="field">
+                {modelOptions.length > 0 && (
+                  <div className="settings-inline-heading-row">
+                    <div className="settings-inline-heading-copy">
+                      <HelpText className="field-hint">
+                        {modelMode === 'list' ? t.settings.customModelHint : t.settings.chooseFromListHint}
+                      </HelpText>
+                    </div>
+                  </div>
+                )}
                 {modelMode === 'list' && modelOptions.length > 0 ? (
                   <TextSelect
                     label={t.settings.defaultModel}
@@ -320,9 +400,6 @@ export function SettingsAddPage({ onNav, profiles, onProfileSaved }: SettingsAdd
                 )}
                 {modelOptions.length > 0 && (
                   <div className="provider-model-mode-row">
-                    <HelpText className="field-hint provider-model-mode-tip">
-                      {modelMode === 'list' ? t.settings.customModelHint : t.settings.chooseFromListHint}
-                    </HelpText>
                     <button
                       type="button"
                       className="provider-model-mode-link"
@@ -348,14 +425,24 @@ export function SettingsAddPage({ onNav, profiles, onProfileSaved }: SettingsAdd
 
       {step === 2 && (
         <footer className="det-footer">
-          <Button data-testid="provider-save-button" className="btn-save ui-button-block" variant="accent" disabled={busy} onClick={() => void handleSave()}>{t.common.save}</Button>
-          <Button
-            className="btn-cancel"
-            variant="secondary"
-            onClick={() => onNav('settings')}
-          >
-            {t.common.cancel}
-          </Button>
+          <div className="settings-detail-footer-inner">
+            <Checkbox
+              data-testid="provider-use-after-saving"
+              checked={useProviderAfterSaving}
+              disabled={busy}
+              onChecked={setUseProviderAfterSaving}
+            >
+              {t.settings.useProviderAfterSaving}
+            </Checkbox>
+            <Button data-testid="provider-save-button" className="btn-save ui-button-block" variant="accent" disabled={saveDisabled} onClick={() => void handleSave()}>{busy ? t.settings.saving : t.settings.saveProvider}</Button>
+            <Button
+              className="btn-cancel"
+              variant="secondary"
+              onClick={() => onNav('settings')}
+            >
+              {t.common.cancel}
+            </Button>
+          </div>
         </footer>
       )}
     </div>

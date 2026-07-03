@@ -1,5 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
 import { createChatImageProvider, chatImageDescriptor } from '../src/providers/chat-image/index.js';
+import { resolveImageModelRule } from '../src/contract/image-model-capability.js';
 import { buildChatImageRequestBody } from '../src/transport/chat-image/build-request.js';
 import { parseChatImageModelsResponse } from '../src/transport/chat-image/models.js';
 import { parseChatImageResponse } from '../src/transport/chat-image/parse-response.js';
@@ -168,11 +169,58 @@ describe('chat-image provider', () => {
         data: [
           { id: 'openai/gpt-4.1', architecture: { output_modalities: ['text'] } },
           { id: 'google/gemini-2.5-flash-image-preview', name: 'Gemini Image' },
+          { id: 'google/gemini-3-pro-image', name: 'Nano Banana Pro' },
+          { id: 'gemini-3.1-flash-image', architecture: { output_modalities: ['image', 'text'] } },
           { id: 'openai/gpt-image-2', architecture: { output_modalities: ['image', 'text'] } },
           { id: 'banana-preview-v2', architecture: { output_modalities: ['image'] } },
         ],
       }).map((model) => model.id),
-    ).toEqual(['google/gemini-2.5-flash-image-preview', 'openai/gpt-image-2']);
+    ).toEqual([
+      'google/gemini-2.5-flash-image-preview',
+      'gemini-3-pro-image',
+      'gemini-3.1-flash-image',
+      'openai/gpt-image-2',
+    ]);
+  });
+
+  it('discovers chat models from the unfiltered /models endpoint', async () => {
+    const fetchSpy = vi.spyOn(globalThis, 'fetch').mockResolvedValue(
+      new Response(JSON.stringify({ data: [{ id: 'google/gemini-3-pro-image' }] }), {
+        status: 200,
+        headers: { 'Content-Type': 'application/json' },
+      }),
+    );
+    const provider = createChatImageProvider();
+    const config = provider.validateConfig({
+      providerId: 'chat-image',
+      displayName: 'Chat Image',
+      family: 'chat-image',
+      connection: {
+        selectionMode: 'manual',
+        failoverEnabled: false,
+        preferredEndpointId: 'primary',
+        endpoints: [{ id: 'primary', url: 'https://openrouter.ai/api/v1', enabled: true }],
+      },
+      apiKey: 'test-key',
+      defaultModel: 'google/gemini-3-pro-image',
+    });
+
+    const models = await provider.discoverModels?.(config);
+
+    expect(models?.map((model) => model.id)).toEqual(['gemini-3-pro-image']);
+    expect(String(fetchSpy.mock.calls[0]?.[0])).toBe('https://openrouter.ai/api/v1/models');
+    fetchSpy.mockRestore();
+  });
+
+  it('resolves prefixed Gemini 3 chat model ids onto the curated local rules', () => {
+    const resolved = resolveImageModelRule({
+      providerId: 'chat-image',
+      modelId: 'google/gemini-3-pro-image',
+    });
+
+    expect(resolved.ruleId).toBe('chat-image-gemini-3-pro-image');
+    expect(resolved.concreteModelId).toBe('google/gemini-3-pro-image');
+    expect(resolved.matchKind).toBe('exact');
   });
 
   it('preserves base URL path when invoking OpenRouter-style endpoints', async () => {

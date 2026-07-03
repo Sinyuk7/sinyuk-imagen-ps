@@ -128,6 +128,66 @@ describe('MainPage contract — result rendering', () => {
     expect(actions.querySelector('[data-testid^="result-copy-button-"]')).toBeNull();
   });
 
+  it('下载按钮保存当前选中的原始结果图，而不是首图或缩略图', async () => {
+    const container = document.createElement('div');
+    document.body.appendChild(container);
+    const { storedRef: _storedRef, ...secondOutputAssetBase } = fakeOutputAsset;
+    const secondOutputAsset = {
+      ...secondOutputAssetBase,
+      name: 'result-2.png',
+      data: 'ZmFrZS1pbWFnZS0y',
+    };
+    const services = createFakeServices();
+    services.spies.submitJob.mockResolvedValue({
+      ok: true as const,
+      value: {
+        id: 'job-download-1',
+        status: 'completed',
+        input: {},
+        output: {
+          image: {
+            assets: [fakeOutputAsset, secondOutputAsset],
+            metadata: {
+              size: '1024x1024',
+              outputFormat: 'png',
+            },
+          },
+        },
+        error: undefined,
+        createdAt: '2026-06-15T00:00:00.000Z',
+        updatedAt: '2026-06-15T00:00:01.000Z',
+      },
+    });
+    await renderMainPage(container, services);
+
+    await act(async () => {
+      container.querySelector<HTMLElement>('[data-testid="composer-capture-button"]')!.click();
+    });
+    await flush();
+    await sendPrompt(container, 'download selected result');
+
+    const previewCount = container.querySelector<HTMLElement>('[data-testid^="result-preview-count-"]')!;
+    const roundId = previewCount.dataset.testid?.replace('result-preview-count-', '') ?? '';
+    await act(async () => {
+      container.querySelector<HTMLButtonElement>(`[data-testid="result-preview-next-${roundId}"]`)!.click();
+    });
+    await flush();
+    await act(async () => {
+      container.querySelector<HTMLElement>(`[data-testid="result-download-button-${roundId}"]`)!.click();
+    });
+    await flush();
+
+    expect(services.spies.saveAssetToFile).toHaveBeenCalledWith(expect.objectContaining({
+      type: 'image',
+      name: 'result-2.png',
+      mimeType: 'image/png',
+      data: 'ZmFrZS1pbWFnZS0y',
+    }), { suggestedName: expect.stringMatching(/^imagen_\d{8}-\d{6}_Mock-Profile_download-selected-result_2\.png$/) });
+    expect(services.spies.saveAssetToFile.mock.calls[0]?.[0]).not.toMatchObject({
+      storedRef: fakeOutputAsset.storedRef,
+    });
+  });
+
   it('renders provider response text above image results and supports copying the complete text', async () => {
     const container = document.createElement('div');
     document.body.appendChild(container);

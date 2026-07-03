@@ -1,6 +1,7 @@
 /** App shell / page / header / scroll 容器布局。 */
 export const SHELL_CSS = `
 .panel{
+  --app-header-height:48px;
   width:100%; height:100%; background:var(--app-color-background-base); color:var(--app-color-text-primary);
   font-size:14px; line-height:20px; overflow:hidden;
   display:flex; flex-direction:column; position:relative; min-width:0; min-height:0;
@@ -25,6 +26,7 @@ export const SHELL_CSS = `
   min-height:0; border:none; background:transparent;
   line-height:0;
 }
+.hdr-btn-danger{ color:var(--app-color-negative); }
 .hdr-center-wrap{
   flex:1; min-width:0; display:flex; justify-content:center; align-items:center; position:relative;
   margin-top:0; margin-right:8px; margin-bottom:0; margin-left:8px;
@@ -39,7 +41,6 @@ export const SHELL_CSS = `
 .hdr-provider-trigger.open{ border-color:var(--app-color-accent-default); background:var(--app-color-accent-subtle); color:var(--app-color-accent-default); }
 .hdr-provider-trigger:hover .ui-icon-button-label,
 .hdr-provider-trigger.open .ui-icon-button-label{ color:inherit; }
-.hdr-provider-chevron{ flex:0 0 auto; color:inherit; opacity:.88; margin-left:6px; }
 .hdr-title{ flex:1; min-width:0; margin-top:0; margin-right:8px; margin-bottom:0; margin-left:8px; font-family:var(--app-font-family-base); font-size:14px; font-weight:600; color:var(--app-color-text-primary); text-align:center; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
 
 /* Scroll */

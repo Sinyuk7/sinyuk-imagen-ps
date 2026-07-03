@@ -22,6 +22,7 @@ import {
 import { resolveUxpModules } from '../../adapters/uxp/uxp-api';
 import { createUxpAssetStore, createUxpJobHistoryStore, createUxpTaskStore } from '../../adapters/uxp/uxp-job-history-adapter';
 import { createUxpStorageAdmin } from '../../adapters/uxp/uxp-job-history-adapter';
+import { createUxpActiveImageProfileStore } from '../../adapters/uxp/uxp-active-image-profile-store';
 import { createUxpProviderProfileRepository } from '../../adapters/uxp/uxp-provider-profile-repository';
 import { createUxpSecretStorageAdapter } from '../../adapters/uxp/uxp-secret-storage-adapter';
 import { createInMemoryGenerationSettingsStore } from '../../adapters/uxp/in-memory-host-storage';
@@ -98,6 +99,7 @@ export function createPluginHostShell(): PluginHostShell {
     const assetStore = createUxpAssetStore(uxpModules);
     const storageAdmin = createUxpStorageAdmin(uxpModules);
     const generationSettings = createInMemoryGenerationSettingsStore();
+    const activeImageProfile = createUxpActiveImageProfileStore(uxpModules);
 
     logger.info('panel.adapters.initialized', {
       hasProfileRepository: true,
@@ -150,6 +152,7 @@ export function createPluginHostShell(): PluginHostShell {
         commands: createCommandsAdapter(),
         host: hostBridge,
         generationSettings,
+        activeImageProfile,
         pathInfo: {
           getPathInfo: async () => resolveUxpPathInfo(uxpModules),
         },

@@ -37,7 +37,11 @@ export type IconName =
   | 'target'
   | 'trash'
   | 'upload'
-  | 'warning';
+  | 'warning'
+  | 'layer-pixel'
+  | 'layer-smart-object'
+  | 'layer-text'
+  | 'layer-group';
 
 interface IconProps {
   /** 图标名称，必须在 IconName 联合类型中定义。 */
@@ -257,6 +261,32 @@ const ICON_BODY_BY_NAME: Record<IconName, SvgBody> = {
       <path d="M12 4.5l8 14H4l8-14z" />
       <line x1="12" y1="9.5" x2="12" y2="13.5" />
       <circle cx="12" cy="16.5" r="1" />
+    </>
+  ),
+  'layer-pixel': () => (
+    <>
+      <rect x="5" y="5" width="14" height="14" rx="2" />
+    </>
+  ),
+  'layer-smart-object': () => (
+    <>
+      <rect x="5" y="5" width="14" height="14" rx="2" />
+      <path d="M9 5v14" />
+      <path d="M15 5v14" />
+    </>
+  ),
+  'layer-text': () => (
+    <>
+      <path d="M7 7h10" />
+      <path d="M12 7v10" />
+      <path d="M9 17h6" />
+    </>
+  ),
+  'layer-group': () => (
+    <>
+      <path d="M5 8h14" />
+      <path d="M6 8v9a2 2 0 0 0 2 2h8a2 2 0 0 0 2-2V8" />
+      <path d="M8 5h8v3H8z" />
     </>
   ),
 };

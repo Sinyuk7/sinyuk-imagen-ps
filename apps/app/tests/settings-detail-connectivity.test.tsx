@@ -41,7 +41,7 @@ describe('SettingsDetailPage contract — connectivity', () => {
     expect(spies.refreshProfileModels).toHaveBeenCalledWith('mock-profile');
   });
 
-  it('persists draft config before refreshing models', async () => {
+  it('refreshes draft model candidates without persisting unsaved config', async () => {
     const container = document.createElement('div');
     document.body.appendChild(container);
     const { spies, onProfilesChanged } = await renderDetail(container);
@@ -55,7 +55,10 @@ describe('SettingsDetailPage contract — connectivity', () => {
     });
     await flush();
 
-    expect(spies.saveProviderProfile).toHaveBeenCalledWith(
+    expect(spies.saveProviderProfile).not.toHaveBeenCalled();
+    expect(onProfilesChanged).not.toHaveBeenCalled();
+    expect(spies.refreshProfileModels).not.toHaveBeenCalled();
+    expect(spies.probeProfileEndpoints).toHaveBeenCalledWith(
       expect.objectContaining({
         profileId: 'mock-profile',
         config: expect.objectContaining({
@@ -69,8 +72,24 @@ describe('SettingsDetailPage contract — connectivity', () => {
         }),
       }),
     );
-    expect(onProfilesChanged).toHaveBeenCalledWith('mock-profile');
-    expect(spies.refreshProfileModels).toHaveBeenCalledWith('mock-profile');
+  });
+
+  it('marks connection proof stale when a tested draft changes', async () => {
+    const container = document.createElement('div');
+    document.body.appendChild(container);
+    await renderDetail(container);
+
+    await act(async () => {
+      buttonByText(container, '测试连接').click();
+    });
+    await flush();
+    expect(container.textContent).toContain('连接成功');
+
+    await act(async () => {
+      changeInput(queryByTestId(container, 'provider-endpoint-url-0'), 'https://mock.changed');
+    });
+
+    expect(container.textContent).toContain('修改尚未测试');
   });
 
   it('shows copyable connection errors instead of a saved status while testing', async () => {
@@ -95,9 +114,10 @@ describe('SettingsDetailPage contract — connectivity', () => {
     await flush();
 
     expect(container.textContent).toContain("连接失败: Cannot read properties of undefined (reading 'addEventListener')");
-    expect(container.textContent).not.toContain('已保存');
-    expect(container.querySelector('.status-notice.error')).not.toBeNull();
-    expect(container.querySelector('.status-copy')).not.toBeNull();
+    const notice = container.querySelector('.status-notice.error');
+    expect(notice).not.toBeNull();
+    expect(notice?.textContent).toContain("Cannot read properties of undefined (reading 'addEventListener')");
+    expect(notice?.querySelector('.status-copy')).not.toBeNull();
   });
 
   it('keeps the test button disabled until the connection test finishes', async () => {
@@ -189,5 +209,15 @@ describe('SettingsDetailPage contract — connectivity', () => {
 
     expect(container.textContent).toContain('最近一次测试结果');
     expect(container.textContent).toMatch(/最近一次测试结果 · \d+ ms/);
+  });
+
+  it('keeps refresh model list as a compact inline action', async () => {
+    const container = document.createElement('div');
+    document.body.appendChild(container);
+    await renderDetail(container);
+
+    const refresh = queryByTestId(container, 'provider-refresh-models-button');
+    expect(refresh.className).toContain('settings-action-compact');
+    expect(refresh.className).not.toContain('ui-button-block');
   });
 });

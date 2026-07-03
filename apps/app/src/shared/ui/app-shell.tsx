@@ -16,11 +16,10 @@ import { SettingsPage } from './pages/settings-page';
 import { SettingsAddPage } from './pages/settings-add-page';
 import { SettingsDetailPage } from './pages/settings-detail-page';
 import { GlobalGenerationSettingsPage } from './pages/global-generation-settings-page';
-import { ToastHost } from './components/toast-host';
-import { useNotice } from './components/notice';
+import { ToastHost, ToastProvider, useToast } from './components/toast-host';
 import { I18nProvider, useI18n } from './i18n/i18n-context';
 import { ensurePanelCss } from './panel-bootstrap';
-import { placeTaskOutputOnCanvas } from '../domain/task-actions';
+import { placeTaskOutputOnCanvas, saveTaskOutputToFile } from '../domain/task-actions';
 import type { TaskRecord } from '@imagen-ps/application';
 import { MotionPageFrame } from './components/motion-ui';
 
@@ -150,18 +149,23 @@ function usePanelResponsiveAttributes(panelRef: RefObject<HTMLDivElement | null>
 function useHostLayers(host: AppShellHost): {
   readonly layers: readonly LayerInfo[];
   readonly layersError: string | null;
+  readonly layersLoading: boolean;
   readonly reloadLayers: () => Promise<void>;
 } {
   const [layers, setLayers] = useState<readonly LayerInfo[]>([]);
   const [layersError, setLayersError] = useState<string | null>(null);
+  const [layersLoading, setLayersLoading] = useState(false);
 
   async function reloadLayers(): Promise<void> {
+    setLayersLoading(true);
     try {
       setLayers(await host.services.host.listLayers());
       setLayersError(null);
     } catch (error) {
       setLayers([]);
       setLayersError(error instanceof Error ? error.message : String(error));
+    } finally {
+      setLayersLoading(false);
     }
   }
 
@@ -169,7 +173,7 @@ function useHostLayers(host: AppShellHost): {
     void reloadLayers();
   }, [host]);
 
-  return { layers, layersError, reloadLayers };
+  return { layers, layersError, layersLoading, reloadLayers };
 }
 
 function defaultModelFor(profile: ProviderProfile | undefined): string {
@@ -184,6 +188,7 @@ function AppShellContent({ host }: AppShellProps) {
   const themeOverride = readThemeOverride();
   const [view, setView] = useState<View>('main');
   const [selectedImageProfileId, setSelectedImageProfileId] = useState<string | null>(null);
+  const [activeImageProfileHydrated, setActiveImageProfileHydrated] = useState(false);
   const [selectedSettingsProfileId, setSelectedSettingsProfileId] = useState<string | null>(null);
   const [selectedModelId, setSelectedModelId] = useState('');
   const [highlightedRoundId, setHighlightedRoundId] = useState<string | null>(null);
@@ -209,18 +214,41 @@ function AppShellContent({ host }: AppShellProps) {
   const conversation = useConversation(services, imagenSession, generationSettings.settings, t.conversation);
   const history = useJobHistory(services);
   const { records: historyRecords, loading: historyLoading, error: historyError, reload: reloadHistory } = history;
-  const { layers, layersError, reloadLayers } = useHostLayers(host);
-  const { notice: toast, show, clear, pause, resume } = useNotice({ defaultDurationMs: null });
+  const { layers, layersError, layersLoading, reloadLayers } = useHostLayers(host);
+  const { show } = useToast();
   const previousRoundStatusRef = useRef<Record<string, 'running' | 'ok' | 'err'>>({});
 
   usePanelResponsiveAttributes(panelRef);
 
+  const selectImageProfile = useCallback(async (profileId: string | null) => {
+    setSelectedImageProfileId(profileId);
+    await services.activeImageProfile.save(profileId);
+  }, [services.activeImageProfile]);
+
   useEffect(() => {
+    let cancelled = false;
+    void services.activeImageProfile.load().then((profileId) => {
+      if (cancelled) {
+        return;
+      }
+      setSelectedImageProfileId(profileId);
+      setActiveImageProfileHydrated(true);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [services.activeImageProfile]);
+
+  useEffect(() => {
+    if (!activeImageProfileHydrated) {
+      return;
+    }
     if (selectedImageProfileId && imageProfiles.some((profile) => profile.profileId === selectedImageProfileId)) {
       return;
     }
-    setSelectedImageProfileId(imageProfiles[0]?.profileId ?? null);
-  }, [imageProfiles, selectedImageProfileId]);
+    const fallbackProfileId = imageProfiles[0]?.profileId ?? null;
+    void selectImageProfile(fallbackProfileId);
+  }, [activeImageProfileHydrated, imageProfiles, selectImageProfile, selectedImageProfileId]);
 
   useEffect(() => {
     void services.commands.ensurePromptOptimizerProfile().then((result) => {
@@ -277,6 +305,15 @@ function AppShellContent({ host }: AppShellProps) {
     });
   }, [services.host, services.taskResources, t.history.resourceUnavailable]);
 
+  const onDownloadTaskOutput = useCallback(async (record: TaskRecord, outputId: string) => {
+    if (!services.host.capabilities.canSaveAssetToFile) {
+      throw new Error(t.history.resourceUnavailable);
+    }
+    await saveTaskOutputToFile(record, outputId, {
+      host: services.host,
+    });
+  }, [services.host, t.history.resourceUnavailable]);
+
   useEffect(() => {
     if (!highlightedRoundId) {
       return;
@@ -312,7 +349,9 @@ function AppShellContent({ host }: AppShellProps) {
           profilesError={profilesState.error}
           selectedProfile={selectedProfile}
           selectedProfileId={selectedImageProfileId}
-          onSelectProfile={setSelectedImageProfileId}
+          onSelectProfile={(profileId) => {
+            void selectImageProfile(profileId);
+          }}
           models={modelsState.models}
           modelsLoading={modelsState.loading}
           modelsError={modelsState.error}
@@ -320,6 +359,7 @@ function AppShellContent({ host }: AppShellProps) {
           onSelectModel={setSelectedModelId}
           layers={layers}
           layersError={layersError}
+          layersLoading={layersLoading}
           reloadLayers={reloadLayers}
           conversation={conversation}
           highlightedRoundId={highlightedRoundId}
@@ -346,6 +386,7 @@ function AppShellContent({ host }: AppShellProps) {
           onReload={reloadHistory}
           onRetry={conversation.retry}
           taskResources={services.taskResources}
+          onDownloadTaskOutput={onDownloadTaskOutput}
           onPlaceTaskOutput={onPlaceTaskOutput}
           onLocateRound={onLocateRound}
           onMiss={onHistoryMiss}
@@ -378,9 +419,11 @@ function AppShellContent({ host }: AppShellProps) {
           <SettingsAddPage
           onNav={onNav}
           profiles={imageProfiles}
-          onProfileSaved={async (profileId) => {
+          onProfileSaved={async (profileId, options) => {
             await profilesState.reload();
-            setSelectedImageProfileId(profileId);
+            if (options.useProvider) {
+              await selectImageProfile(profileId);
+            }
             setSelectedSettingsProfileId(profileId);
             setView('settings-detail');
           }}
@@ -392,7 +435,7 @@ function AppShellContent({ host }: AppShellProps) {
           <SettingsDetailPage
           onNav={onNav}
           profileId={selectedSettingsProfileId}
-          onSaved={(message) => show(message, 'positive', { durationMs: 1800, dismissible: false, copyable: false })}
+          onSaved={(message) => show(message, 'positive', { key: 'settings-provider-saved' })}
           onProfilesChanged={async (profileId) => {
             await services.diagnostics?.checkpoint('uxp.ui.app_shell.profiles_changed.entered', {
               profileId,
@@ -406,7 +449,7 @@ function AppShellContent({ host }: AppShellProps) {
               await services.diagnostics?.checkpoint('uxp.ui.app_shell.profiles_changed.before_select_profile', { profileId });
               setSelectedSettingsProfileId(profileId);
               if (profileId && profileId !== PROMPT_OPTIMIZER_PROFILE_ID) {
-                setSelectedImageProfileId(profileId);
+                await selectImageProfile(profileId);
                 const profileResult = await services.commands.getProviderProfile(profileId);
                 if (profileResult.ok) {
                   setSelectedModelId(defaultModelFor(profileResult.value));
@@ -432,7 +475,7 @@ function AppShellContent({ host }: AppShellProps) {
           />
         </MotionPageFrame>
       )}
-      <ToastHost toast={toast} onClose={clear} onPause={pause} onResume={resume} />
+      <ToastHost />
     </div>
   );
 }
@@ -442,7 +485,9 @@ export function AppShell({ host }: AppShellProps) {
   return (
     <I18nProvider locale={host.locale}>
       <AppServicesProvider services={host.services}>
-        <AppShellContent host={host} />
+        <ToastProvider>
+          <AppShellContent host={host} />
+        </ToastProvider>
       </AppServicesProvider>
     </I18nProvider>
   );

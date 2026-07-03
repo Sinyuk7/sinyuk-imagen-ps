@@ -77,33 +77,34 @@ export function useComposerSelectPlacement({
     if (!chip) {
       return;
     }
-    const panel = chip.closest('.panel') as HTMLElement | null;
-    const panelRect = panel?.getBoundingClientRect();
     const chipRect = chip.getBoundingClientRect();
-    if (!panelRect || panelRect.width <= 0 || panelRect.height <= 0) {
+    const viewportWidth = typeof window === 'undefined' ? chipRect.right + PANEL_EDGE_PADDING : window.innerWidth;
+    const viewportHeight = typeof window === 'undefined' ? chipRect.bottom + PANEL_EDGE_PADDING : window.innerHeight;
+    if (viewportWidth <= 0 || viewportHeight <= 0) {
       return;
     }
 
-    const viewportWidth = typeof window === 'undefined' ? panelRect.width : window.innerWidth;
-    const viewportHeight = typeof window === 'undefined' ? panelRect.height : window.innerHeight;
-    const horizontalBoundaryLeft = Math.max(panelRect.left, PANEL_EDGE_PADDING);
-    const horizontalBoundaryRight = Math.min(panelRect.right, viewportWidth - PANEL_EDGE_PADDING);
+    const horizontalBoundaryLeft = PANEL_EDGE_PADDING;
+    const horizontalBoundaryRight = viewportWidth - PANEL_EDGE_PADDING;
+    const verticalBoundaryTop = PANEL_EDGE_PADDING;
+    const verticalBoundaryBottom = viewportHeight - PANEL_EDGE_PADDING;
     const availableWidth = Math.max(0, horizontalBoundaryRight - horizontalBoundaryLeft);
     const minWidth = Math.min(MENU_MIN_WIDTH, availableWidth);
     const preferredWidth = Math.max(chipRect.width, Math.min(MENU_MAX_WIDTH, availableWidth));
     const width = clampNumber(preferredWidth, minWidth, availableWidth);
-    const spaceAbove = chipRect.top - PANEL_EDGE_PADDING - MENU_GAP;
-    const spaceBelow = viewportHeight - chipRect.bottom - PANEL_EDGE_PADDING - MENU_GAP;
+    const spaceAbove = chipRect.top - verticalBoundaryTop - MENU_GAP;
+    const spaceBelow = verticalBoundaryBottom - chipRect.bottom - MENU_GAP;
     const direction = spaceBelow >= MENU_MIN_HEIGHT || spaceBelow >= spaceAbove ? 'down' : 'up';
     const verticalSpace = Math.max(direction === 'down' ? spaceBelow : spaceAbove, 48);
     const maxHeight = clampNumber(verticalSpace, 48, MENU_ITEM_ESTIMATE * MENU_MAX_VISIBLE_ITEMS);
     const spaceToRight = horizontalBoundaryRight - chipRect.left;
     const spaceToLeft = chipRect.right - horizontalBoundaryLeft;
     const align = spaceToRight >= width || spaceToRight >= spaceToLeft ? 'start' : 'end';
-    const top = direction === 'down' ? chipRect.bottom - panelRect.top + MENU_GAP : undefined;
-    const bottom = direction === 'up' ? panelRect.bottom - chipRect.top + MENU_GAP : undefined;
-    const left = align === 'start' ? chipRect.left - panelRect.left : undefined;
-    const right = align === 'end' ? panelRect.right - chipRect.right : undefined;
+    const preferredLeft = align === 'start' ? chipRect.left : chipRect.right - width;
+    const left = clampNumber(preferredLeft, horizontalBoundaryLeft, Math.max(horizontalBoundaryLeft, horizontalBoundaryRight - width));
+    const top = direction === 'down' ? chipRect.bottom + MENU_GAP : undefined;
+    const bottom = direction === 'up' ? viewportHeight - chipRect.top + MENU_GAP : undefined;
+    const right = undefined;
 
     setMenuPlacement((current) => {
       if (

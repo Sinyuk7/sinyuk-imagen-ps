@@ -1,5 +1,10 @@
 import { createProviderError, createValidationError } from '@imagen-ps/core-engine';
 import { generateTraceId } from '@imagen-ps/foundation';
+import {
+  providerUsesImageModelCatalog,
+  reconcileDiscoveredCatalogModels,
+  type ProviderModelInfo,
+} from '@imagen-ps/providers';
 import { getProviderProfileRepository, getRuntime, getSecretStorageAdapter, getRuntimeLogger } from '../runtime.js';
 import type {
   CommandResult,
@@ -57,6 +62,12 @@ async function resolveDraftSecrets(
   input: ProbeProfileEndpointsInput,
 ): Promise<Record<string, string>> {
   const refs = { ...(existing?.secretRefs ?? {}), ...(input.secretRefs ?? {}) };
+  const incomingSecretNames = new Set(Object.keys(input.secretValues ?? {}));
+  for (const name of input.removedSecretNames ?? []) {
+    if (!incomingSecretNames.has(name)) {
+      delete refs[name];
+    }
+  }
   const resolved: Record<string, string> = {};
   for (const [name, ref] of Object.entries(refs)) {
     const value = await getSecretStorageAdapter().getSecret(ref);
@@ -175,6 +186,37 @@ function normalizeProbeFailure(
         errorMessage: message,
       };
   }
+}
+
+function normalizeProbeModels(
+  providerId: string,
+  models: readonly ProviderModelInfo[],
+): readonly ProviderModelInfo[] {
+  if (!providerUsesImageModelCatalog(providerId)) {
+    return models;
+  }
+  return reconcileDiscoveredCatalogModels({
+    providerId,
+    discoveredModels: models,
+  });
+}
+
+function aggregateProbeModels(results: readonly EndpointProbeResult[]): readonly ProviderModelInfo[] {
+  const seen = new Set<string>();
+  const models: ProviderModelInfo[] = [];
+  for (const result of results) {
+    if (result.status !== 'healthy') {
+      continue;
+    }
+    for (const model of result.models ?? []) {
+      if (seen.has(model.id)) {
+        continue;
+      }
+      seen.add(model.id);
+      models.push(model);
+    }
+  }
+  return models;
 }
 
 function withCancellationAndTimeout<T>(
@@ -332,17 +374,19 @@ export async function probeProfileEndpoints(
         };
 
         try {
-          const models = await withCancellationAndTimeout(
+          const discoveredModels = await withCancellationAndTimeout(
             provider.discoverModels!(endpointConfig as never),
             input.signal,
             input.timeoutMs,
           );
+          const models = normalizeProbeModels(input.providerId, discoveredModels);
           return {
             endpointId: endpoint.id,
             status: 'healthy' as const,
             latencyMs: Math.max(1, Math.round(perfNow() - startedAt)),
             checkedAt,
             modelCount: models.length,
+            models,
           } satisfies EndpointProbeResult;
         } catch (error) {
           if ((error as JobErrorLike).category === 'validation' && (error as JobErrorLike).message === createAbortError().message) {
@@ -369,16 +413,19 @@ export async function probeProfileEndpoints(
             .sort((left, right) => (left.latencyMs ?? Number.POSITIVE_INFINITY) - (right.latencyMs ?? Number.POSITIVE_INFINITY))[0]
             ?.endpointId
         : undefined;
+    const models = aggregateProbeModels(results);
 
     span.finish({
       count: results.length,
       healthyCount: results.filter((result) => result.status === 'healthy').length,
+      modelCount: models.length,
       ...(suggestedEndpointId ? { suggestedEndpointId } : {}),
     });
     return {
       ok: true,
       value: {
         results,
+        models,
         ...(suggestedEndpointId ? { suggestedEndpointId } : {}),
       },
     };

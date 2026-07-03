@@ -1,6 +1,7 @@
 import type { Asset, TaskRecord, TaskResourceRef } from '@imagen-ps/application';
 import type { ResolvedTaskResource } from '@imagen-ps/application';
 import type { HostBridge } from '../ports/host-port';
+import { assetFromTaskResource, suggestedGeneratedImageFileName } from './asset-file';
 import {
   placementIntentFromCapturePlacement,
   type PlacementIntent,
@@ -14,7 +15,11 @@ export interface TaskActionResourceResolver {
 
 export interface TaskActionServices {
   readonly taskResources: TaskActionResourceResolver;
-  readonly host: Pick<HostBridge, 'placeAssetOnCanvas'>;
+  readonly host: Pick<HostBridge, 'placeAssetOnCanvas' | 'saveAssetToFile'>;
+}
+
+export interface TaskOutputSaveServices {
+  readonly host: Pick<HostBridge, 'saveAssetToFile'>;
 }
 
 function asRecord(value: unknown): Record<string, unknown> | undefined {
@@ -152,13 +157,13 @@ function placementIntentFromTask(record: TaskRecord): PlacementIntent {
   });
 }
 
-function assetFromResolved(record: TaskRecord, resource: ResolvedTaskResource): Asset {
+function assetFromResolved(resource: ResolvedTaskResource, fallbackName: string): Asset {
   if (resource.availability !== 'available' || !resource.bytes) {
     throw new Error('Task output resource is unavailable.');
   }
   return {
     type: 'image',
-    name: resource.resource.ref.name ?? `${record.taskId}.png`,
+    name: resource.resource.ref.name ?? fallbackName,
     mimeType: resource.resource.ref.mimeType ?? 'image/png',
     data: new Uint8Array(resource.bytes),
   };
@@ -171,8 +176,29 @@ export async function placeTaskOutputOnCanvas(record: TaskRecord, outputId: stri
   }
   const resolved = await services.taskResources.resolve(output.asset);
   try {
-    await services.host.placeAssetOnCanvas(assetFromResolved(record, resolved), placementIntentFromTask(record));
+    await services.host.placeAssetOnCanvas(
+      assetFromResolved(resolved, `${record.taskId}.png`),
+      placementIntentFromTask(record),
+    );
   } finally {
     resolved.preview?.dispose?.();
   }
+}
+
+export async function saveTaskOutputToFile(record: TaskRecord, outputId: string, services: TaskOutputSaveServices): Promise<void> {
+  const output = record.outputs.find((item) => item.outputId === outputId);
+  if (!output) {
+    throw new Error(`Task output not found: ${outputId}`);
+  }
+  const fallbackName = suggestedGeneratedImageFileName({
+    createdAt: record.createdAt,
+    providerName: record.execution?.profileName ?? record.execution?.providerName ?? record.execution?.profileId ?? record.execution?.providerId,
+    prompt: record.prompt,
+    outputIndex: output.index,
+    outputCount: record.outputs.length,
+    mimeType: output.asset.ref.mimeType,
+  });
+  await services.host.saveAssetToFile(assetFromTaskResource(output.asset), {
+    suggestedName: fallbackName,
+  });
 }

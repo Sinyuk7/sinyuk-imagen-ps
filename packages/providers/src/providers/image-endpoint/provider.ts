@@ -15,7 +15,7 @@ import {
   buildRequestBody,
 } from '../../transport/image-endpoint/build-request.js';
 import { parseResponse } from '../../transport/image-endpoint/parse-response.js';
-import { parseModelsResponse } from '../../transport/image-endpoint/models.js';
+import { inspectModelsResponse } from '../../transport/image-endpoint/models.js';
 import { listLocalCatalogModels } from '../../contract/image-model-capability.js';
 import { fetchProviderBalanceJson, parseNewApiBalanceResponse } from '../../transport/billing/query-balance.js';
 
@@ -201,11 +201,31 @@ export function createImageEndpointProvider(): Provider<ImageEndpointProviderCon
         ),
       });
 
-      const discovered = parseModelsResponse(execution.value.response.data);
-      return discovered.length > 0 ? discovered : listLocalCatalogModels('image-endpoint').map((model) => ({
+      const inspected = inspectModelsResponse(execution.value.response.data);
+      logger?.info('provider.image_endpoint.discover_models.analysis', {
+        selectedEndpointId: execution.selectedEndpointId,
+        rawCount: inspected.rawIds.length,
+        rawIds: inspected.rawIds,
+        catalogMatchedCount: inspected.catalogMatchedIds.length,
+        catalogMatchedIds: inspected.catalogMatchedIds,
+        reconciledCount: inspected.reconciledModels.length,
+        reconciledIds: inspected.reconciledModels.map((model) => model.id),
+      });
+
+      if (inspected.reconciledModels.length > 0) {
+        return inspected.reconciledModels;
+      }
+
+      const fallbackModels = listLocalCatalogModels('image-endpoint').map((model) => ({
         ...model,
         remotelyAvailable: false,
       }));
+      logger?.info('provider.image_endpoint.discover_models.fallback_local_catalog', {
+        selectedEndpointId: execution.selectedEndpointId,
+        fallbackCount: fallbackModels.length,
+        fallbackIds: fallbackModels.map((model) => model.id),
+      });
+      return fallbackModels;
     },
 
     async queryBalance(config: ImageEndpointProviderConfig, input): Promise<ProviderBalanceSnapshot> {

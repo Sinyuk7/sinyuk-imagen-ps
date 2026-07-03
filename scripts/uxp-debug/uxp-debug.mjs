@@ -2,6 +2,7 @@
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
+import WebSocket from 'ws';
 
 const DEFAULT_PLUGIN_ID = undefined;
 const DEFAULT_LOG_DIRS = [
@@ -55,6 +56,7 @@ function usage(exitCode = 0) {
   const out = exitCode === 0 ? console.log : console.error;
   out(`Usage:
   node scripts/uxp-debug/uxp-debug.mjs targets [--plugin-id com.imagen-ps.panel]
+  node scripts/uxp-debug/uxp-debug.mjs targets-all [--plugin-id com.imagen-ps.panel]
   node scripts/uxp-debug/uxp-debug.mjs eval <js> [--ws ws://...]
   node scripts/uxp-debug/uxp-debug.mjs inspect <selector>
   node scripts/uxp-debug/uxp-debug.mjs ancestors <selector> [depth]
@@ -168,11 +170,46 @@ function extractTargetFromMessage(message) {
   return { wsUrl, sessionId, appInfo };
 }
 
-function readTargets(options) {
-  const targets = [];
+function parsePluginCommandType(message) {
+  const match = message.match(/\b(Load|Unload|Reload|Debug) Plugin Command\b/i);
+  return match ? match[1].toLowerCase() : undefined;
+}
+
+function parsePluginLifecycleSuccessType(message) {
+  if (message.includes('Load command successfull')) {
+    return 'load';
+  }
+  if (message.includes('Unload command successfull')) {
+    return 'unload';
+  }
+  if (message.includes('Reload command successfull')) {
+    return 'reload';
+  }
+  if (message.includes('Debug command successfull') || message.includes('Debug command Succesful')) {
+    return 'debug';
+  }
+  return undefined;
+}
+
+function readTargetInventory(options) {
+  const targetsByWsUrl = new Map();
+  let pendingPluginCommand;
+  let lastKnownPluginId = options.pluginId;
+
+  function invalidateKnownTargets(reason, pluginId) {
+    for (const target of targetsByWsUrl.values()) {
+      if (pluginId && target.pluginId !== pluginId) {
+        continue;
+      }
+      if (!target.staleReason) {
+        target.staleReason = reason;
+      }
+    }
+  }
+
   for (const logDir of existingLogDirs(options.logDir)) {
-    for (const { filePath, mtimeMs } of listUdtLogFiles(logDir)) {
-      let lastDebugPluginId;
+    const logFiles = listUdtLogFiles(logDir).sort((a, b) => a.mtimeMs - b.mtimeMs);
+    for (const { filePath, mtimeMs } of logFiles) {
       const lines = fs.readFileSync(filePath, 'utf8').split(/\r?\n/);
       lines.forEach((line, index) => {
         if (!line.trim()) {
@@ -184,33 +221,67 @@ function readTargets(options) {
         } catch {
           return;
         }
-        if (record.id && typeof record.message === 'string' && record.message.includes('Debug Plugin Command')) {
-          lastDebugPluginId = record.id;
+
+        const rawMessage = typeof record.message === 'string' ? record.message : '';
+        const commandType = record.id && rawMessage ? parsePluginCommandType(rawMessage) : undefined;
+        if (commandType) {
+          pendingPluginCommand = {
+            pluginId: record.id,
+            commandType,
+          };
+          lastKnownPluginId = record.id;
           return;
         }
-        if (typeof record.message !== 'string' || !record.message.includes('cdtDebugWsUrl')) {
+
+        const lifecycleSuccessType = rawMessage ? parsePluginLifecycleSuccessType(rawMessage) : undefined;
+        if (lifecycleSuccessType && lifecycleSuccessType !== 'debug') {
+          const pluginId = pendingPluginCommand?.commandType === lifecycleSuccessType
+            ? pendingPluginCommand.pluginId
+            : lastKnownPluginId;
+          invalidateKnownTargets(
+            `${lifecycleSuccessType} success at ${path.basename(filePath)}:${index + 1}`,
+            pluginId,
+          );
+          pendingPluginCommand = undefined;
           return;
         }
-        const target = extractTargetFromMessage(record.message);
+
+        if (!rawMessage.includes('cdtDebugWsUrl')) {
+          return;
+        }
+
+        const pluginId = pendingPluginCommand?.commandType === 'debug'
+          ? pendingPluginCommand.pluginId
+          : (record.id ?? lastKnownPluginId ?? 'unknown');
+        const target = extractTargetFromMessage(rawMessage);
         if (!target?.wsUrl) {
           return;
         }
-        targets.push({
-          pluginId: lastDebugPluginId ?? record.id ?? 'unknown',
+
+        targetsByWsUrl.set(target.wsUrl, {
+          pluginId,
           wsUrl: target.wsUrl,
           sessionId: target.sessionId,
           appInfo: target.appInfo,
           logFile: filePath,
           line: index + 1,
           logMtimeMs: mtimeMs,
+          staleReason: null,
         });
+        pendingPluginCommand = undefined;
       });
     }
   }
+
+  const targets = Array.from(targetsByWsUrl.values());
   const filteredTargets = options.pluginId ? targets.filter((target) => target.pluginId === options.pluginId) : targets;
   return filteredTargets
     .sort((a, b) => (b.logMtimeMs - a.logMtimeMs) || (b.line - a.line))
     .filter((target, index, all) => all.findIndex((item) => item.wsUrl === target.wsUrl) === index);
+}
+
+function readTargets(options) {
+  return readTargetInventory(options).filter((target) => !target.staleReason);
 }
 
 function readContextCache(options) {
@@ -262,6 +333,12 @@ function resolveTarget(options) {
   }
   const target = targets[0];
   if (!target) {
+    const staleTargets = readTargetInventory(options);
+    if (staleTargets.length > 0) {
+      throw new Error(
+        `All discovered UDT debug targets for ${options.pluginId} were invalidated by a later plugin load/reload/unload. Run Debug once again for ${options.pluginId}.`,
+      );
+    }
     throw new Error(`No UDT debug target found for plugin id ${options.pluginId}. Open UDT and run Debug once for ${options.pluginId}.`);
   }
   return { ...target, source: 'udt-log' };
@@ -273,9 +350,6 @@ function sleep(ms) {
 
 class CdpClient {
   constructor(wsUrl) {
-    if (typeof WebSocket !== 'function') {
-      throw new Error('Global WebSocket is unavailable in this Node version.');
-    }
     this.wsUrl = wsUrl;
     this.nextId = 1;
     this.pending = new Map();
@@ -289,19 +363,27 @@ class CdpClient {
 
   async connect(cachedUniqueContextId) {
     this.ws = new WebSocket(this.wsUrl);
-    this.ws.addEventListener('message', (event) => {
-      void this.handleMessage(event.data);
+    this.ws.on('message', (data) => {
+      void this.handleMessage(data);
     });
     await new Promise((resolve, reject) => {
       const timer = setTimeout(() => reject(new Error('Timeout opening UDT relay WebSocket.')), WS_OPEN_TIMEOUT_MS);
-      this.ws.addEventListener('open', () => {
+      const cleanup = () => {
+        this.ws.off?.('open', handleOpen);
+        this.ws.off?.('error', handleError);
+      };
+      const handleOpen = () => {
         clearTimeout(timer);
+        cleanup();
         resolve();
-      }, { once: true });
-      this.ws.addEventListener('error', (event) => {
+      };
+      const handleError = (event) => {
         clearTimeout(timer);
-        reject(new Error(`WebSocket error: ${event.message ?? event.type ?? 'unknown'}`));
-      }, { once: true });
+        cleanup();
+        reject(new Error(`WebSocket error: ${event?.message ?? event?.error?.message ?? event?.type ?? 'unknown'}`));
+      };
+      this.ws.on('open', handleOpen);
+      this.ws.on('error', handleError);
     });
     if (cachedUniqueContextId) {
       try {
@@ -314,12 +396,11 @@ class CdpClient {
         this.usedCachedContext = false;
       }
     }
-    const enablePromise = this.rpc('Runtime.enable').catch(() => undefined);
+    await this.rpc('Runtime.enable').catch(() => undefined);
     await Promise.race([
       this.contextReady,
       new Promise((_, reject) => setTimeout(() => reject(new Error('Timeout waiting for Runtime.executionContextCreated.')), CONTEXT_TIMEOUT_MS)),
     ]);
-    void enablePromise;
   }
 
   close() {
@@ -899,6 +980,11 @@ async function main() {
 
   if (command === 'targets') {
     printJson(readTargets(options));
+    return;
+  }
+
+  if (command === 'targets-all') {
+    printJson(readTargetInventory(options));
     return;
   }
 

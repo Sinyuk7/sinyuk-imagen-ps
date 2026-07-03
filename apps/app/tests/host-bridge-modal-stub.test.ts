@@ -73,5 +73,6 @@ describe('PhotoshopHostBridge fake harness — modal & stub fallback', () => {
     await expect(bridge.readLayerAsAsset(1, providerPolicy)).rejects.toThrow('unavailable outside UXP');
     await expect(bridge.captureActiveImage(providerPolicy)).rejects.toThrow('unavailable outside UXP');
     await expect(bridge.placeAssetOnCanvas({ type: 'image' }, { kind: 'unbound', reason: 'no-photoshop-capture' })).rejects.toThrow('unavailable outside UXP');
+    await expect(bridge.saveAssetToFile({ type: 'image' })).rejects.toThrow('File save is unavailable');
   });
 });

@@ -3,6 +3,7 @@ import type { DurableJobRecord, ProviderProfile, TaskRecord } from '@imagen-ps/a
 import { decodeLogRecords } from '@imagen-ps/foundation';
 import { createUxpAssetStore, createUxpJobHistoryStore, createUxpTaskStore } from './uxp-job-history-adapter';
 import { createUxpLogSink } from './uxp-log-sink';
+import { createUxpActiveImageProfileStore } from './uxp-active-image-profile-store';
 import { createUxpProviderProfileRepository } from './uxp-provider-profile-repository';
 import { createUxpSecretStorageAdapter } from './uxp-secret-storage-adapter';
 import type { UxpModules } from './uxp-api';
@@ -206,6 +207,32 @@ describe('fake UXP host adapters', () => {
 
     await repo.delete('profile-1');
     expect(await repo.list()).toEqual([]);
+  });
+
+  it('在 data folder JSON 中持久化 active image profile', async () => {
+    const dataFolder = createFakeDataFolder();
+    const modules: UxpModules = {
+      uxp: {
+        storage: {
+          localFileSystem: {
+            formats: { utf8: 'utf8' },
+            async getDataFolder() {
+              return dataFolder.folder;
+            },
+          },
+        },
+      },
+    };
+
+    const store = createUxpActiveImageProfileStore(modules);
+    expect(await store.load()).toBeNull();
+
+    await store.save('profile-1');
+    expect(await store.load()).toBe('profile-1');
+
+    const file = dataFolder.files['active-image-profile.json'] as MutableFakeFile | undefined;
+    expect(file).toBeDefined();
+    expect(JSON.parse(String(await file?.read()))).toEqual({ activeImageProfileId: 'profile-1' });
   });
 
   it('profile repository 写入细粒度 flight recorder checkpoint 且不包含 secret/path', async () => {

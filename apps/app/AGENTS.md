@@ -69,6 +69,46 @@ Translate UI actions, status labels, empty states, placeholders, toasts, and too
 
 Motion ownership must not move into `packages/application`, `packages/core-engine`, or `packages/providers`. A single visual node should have one motion owner per CSS property.
 
+## Shared UI Theme Source
+
+Shared UI theme colors are generated from the six Material Design 3 CSS files
+under `apps/app/src/shared/ui/styles/theme-source/`:
+
+- `dark.css`
+- `dark-hc.css`
+- `dark-mc.css`
+- `light.css`
+- `light-hc.css`
+- `light-mc.css`
+
+Replace these six files to update the theme. The generator validates the exact
+file set, source selectors, Material `md-sys` token set, and extended color
+families `blue`, `green`, `yellow`, `red`, and `orange`. It writes
+`apps/app/src/shared/ui/styles/generated/theme-css.ts`; do not edit that file by
+hand.
+
+Use:
+
+```bash
+pnpm --filter @imagen-ps/app theme:generate
+pnpm --filter @imagen-ps/app theme:check
+```
+
+App build/dev scripts run generation before bundling, and `pnpm check:policy`
+fails when the generated theme is stale or the source CSS shape is invalid.
+
+## Toast Contract
+
+Toast is a shared `apps/app` surface primitive, not page-local state. The
+global toast state lives behind `ToastProvider` / `useToast()` /
+`ToastHost` in `src/shared/ui/components/toast-host.tsx`; page-level
+`useNotice()` remains for inline and persistent notices only.
+
+Toast styling must consume generated `--toast-*` tokens from
+`styles/generated/theme-css.ts`. Do not reintroduce direct
+`--app-color-positive` / `--app-color-negative` full-surface banner fills in
+`styles/overlays.ts`.
+
 ## Photoshop Placement Contract
 
 Preview writeback follows source anchoring when available and active-document

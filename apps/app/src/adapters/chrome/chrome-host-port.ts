@@ -1,7 +1,9 @@
 import type { Asset, AssetStore, StoredAssetRef } from '@imagen-ps/application';
+import { assetToArrayBuffer, suggestedAssetFileName } from '../../shared/domain/asset-file';
 import { createHostImageAsset, type HostImageAsset } from '../../shared/domain/host-image-asset';
 import type { PlacementIntent, PhotoshopCaptureResult } from '../../shared/domain/photoshop-placement';
 import { resolveProviderInputPlan, type ProviderInputSizePolicy } from '../../shared/image/resize';
+import type { RuntimeImageUrl } from '../../shared/image/runtime-image-url';
 import { NON_UXP_RUNTIME_CAPABILITIES, type HostBridge, type LayerInfo } from '../../shared/ports/host-port';
 import type { PhotoshopSimulator } from '../../simulators/photoshop/simulator';
 
@@ -126,6 +128,7 @@ export function createChromeHostPort(options: {
       canListLayers: true,
       canReadLayerPixels: true,
       canPickImageFile: true,
+      canSaveAssetToFile: true,
       canPersistProfiles: true,
       canPersistHistory: true,
       canPersistBinaryAssets: true,
@@ -138,6 +141,30 @@ export function createChromeHostPort(options: {
       const file = await options.filePicker.pick();
       return file ? fileToHostImage(file, policy, options.assetStore) : undefined;
     },
+    async saveAssetToFile(asset: Asset, saveOptions): Promise<void> {
+      if (typeof document === 'undefined' || typeof URL === 'undefined' || typeof URL.createObjectURL !== 'function') {
+        throw new Error('Download is unavailable in this runtime.');
+      }
+      const resolved = await assetToArrayBuffer(asset, {
+        resolveStoredRef: (ref) => options.assetStore.resolve(ref),
+      });
+      const blob = new Blob([resolved.data.slice(0)], { type: resolved.mimeType });
+      const url = URL.createObjectURL(blob);
+      const anchor = document.createElement('a');
+      anchor.href = url;
+      anchor.download = suggestedAssetFileName({
+        name: saveOptions?.suggestedName ?? asset.name,
+        mimeType: resolved.mimeType,
+      });
+      anchor.style.display = 'none';
+      document.body.appendChild(anchor);
+      try {
+        anchor.click();
+      } finally {
+        anchor.remove();
+        URL.revokeObjectURL(url);
+      }
+    },
     async captureActiveImage(policy: ProviderInputSizePolicy): Promise<PhotoshopCaptureResult> {
       return options.simulator.captureActiveImage(policy);
     },
@@ -149,6 +176,9 @@ export function createChromeHostPort(options: {
     },
     async placeAssetOnCanvas(asset: Asset, placement: PlacementIntent): Promise<void> {
       await options.simulator.placeAssetOnCanvas(asset, placement);
+    },
+    async getLayerThumbnail(): Promise<RuntimeImageUrl | undefined> {
+      return undefined;
     },
   };
 }

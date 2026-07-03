@@ -4,11 +4,14 @@
  * 本模块在不动 dispatch / secret 边界的前提下，提供与 provider profile
  * 的 model 候选相关的 surface-agnostic 命令：
  *
- * - `listProfileModels(profileId)`：候选来源 `profile.models` →
- *   `descriptor.defaultModels` → `[]`，不做任何网络调用。
+ * - `listProfileModels(profileId)`：catalog provider 始终以本地 catalog 为
+ *   picker 来源，`profile.models` 仅作为 remotelyAvailable 的缓存；其他
+ *   provider 仍按 `profile.models` → `descriptor.defaultModels` → `[]`
+ *   回退，不做任何网络调用。
  * - `refreshProfileModels(profileId)`：调用 implementation 的
- *   `discoverModels(config)`；成功时覆盖 `profile.models` 缓存，失败时
- *   不擦除已有缓存、不持久化任何失败状态。
+ *   `discoverModels(config)`；catalog provider 成功时只更新 discovery cache，
+ *   返回值仍是本地 catalog + availability metadata；失败时不擦除已有缓存、
+ *   不持久化任何失败状态。
  */
 
 import { createProviderError, createValidationError } from '@imagen-ps/core-engine';
@@ -48,21 +51,72 @@ function mergeConfiguredDefaultModel(
   return [{ id: configured, displayName: configured }, ...models];
 }
 
-function defaultModelsForProfile(profile: ProviderProfile, descriptorDefaults: readonly ProviderModelInfo[]): readonly ProviderModelInfo[] {
-  if (providerUsesImageModelCatalog(profile.providerId)) {
-    return listLocalCatalogModels(profile.providerId);
-  }
-  return descriptorDefaults;
-}
-
 function reconcileCachedCatalogModels(profile: ProviderProfile): readonly ProviderModelInfo[] {
   if (!providerUsesImageModelCatalog(profile.providerId)) {
     return profile.models ?? [];
   }
-  return reconcileDiscoveredCatalogModels({
+
+  const discoveredModels = reconcileDiscoveredCatalogModels({
     providerId: profile.providerId,
     discoveredModels: profile.models ?? [],
   });
+  if ((profile.models ?? []).length === 0) {
+    return listLocalCatalogModels(profile.providerId);
+  }
+
+  const remotelyAvailableRuleIds = new Set(discoveredModels.map((model) => model.ruleId));
+  return listLocalCatalogModels(profile.providerId).map((model) => ({
+    ...model,
+    remotelyAvailable: remotelyAvailableRuleIds.has(model.ruleId),
+  }));
+}
+
+function resolvedBaseModels(
+  profile: ProviderProfile,
+  descriptorDefaults: readonly ProviderModelInfo[],
+): { readonly models: readonly ProviderModelInfo[]; readonly source: 'profile.cache' | 'provider.defaults' | 'none' } {
+  if (providerUsesImageModelCatalog(profile.providerId)) {
+    if (profile.models && profile.models.length > 0) {
+      return {
+        models: reconcileCachedCatalogModels(profile),
+        source: 'profile.cache',
+      };
+    }
+    return {
+      models: listLocalCatalogModels(profile.providerId),
+      source: 'provider.defaults',
+    };
+  }
+
+  if (profile.models && profile.models.length > 0) {
+    return {
+      models: profile.models,
+      source: 'profile.cache',
+    };
+  }
+
+  if (descriptorDefaults.length > 0) {
+    return {
+      models: descriptorDefaults,
+      source: 'provider.defaults',
+    };
+  }
+
+  return {
+    models: [],
+    source: 'none',
+  };
+}
+
+function resolvedModelsForProfile(
+  profile: ProviderProfile,
+  descriptorDefaults: readonly ProviderModelInfo[],
+): { readonly models: readonly ProviderModelInfo[]; readonly source: 'profile.cache' | 'provider.defaults' | 'none' } {
+  const base = resolvedBaseModels(profile, descriptorDefaults);
+  return {
+    models: mergeConfiguredDefaultModel(base.models, profile),
+    source: base.source,
+  };
 }
 
 /**
@@ -107,19 +161,12 @@ export async function listProfileModels(profileId: string): Promise<CommandResul
   // 当前 config.defaultModel 作为 surface-side 当前值并入返回结果（仅按 id
   // 去重，不写回 discovery cache）。
   const descriptorDefaults = provider.describe().defaultModels ?? [];
-  const baseModels = profile.models && profile.models.length > 0
-    ? reconcileCachedCatalogModels(profile)
-    : defaultModelsForProfile(profile, descriptorDefaults);
-  const mergedModels = mergeConfiguredDefaultModel(baseModels, profile);
+  const resolved = resolvedModelsForProfile(profile, descriptorDefaults);
   span.finish({
-    source: profile.models && profile.models.length > 0
-      ? 'profile.cache'
-      : descriptorDefaults.length > 0
-        ? 'provider.defaults'
-        : 'none',
-    count: mergedModels.length,
+    source: resolved.source,
+    count: resolved.models.length,
   });
-  return { ok: true, value: mergedModels };
+  return { ok: true, value: resolved.models };
 }
 
 /**
@@ -192,7 +239,14 @@ export async function refreshProfileModels(profileId: string): Promise<CommandRe
 
   let models: readonly ProviderModelInfo[];
   try {
-    models = await provider.discoverModels(providerConfig as never);
+    models = await provider.discoverModels(
+      providerConfig as never,
+      logger.child({
+        package: 'providers',
+        component: 'provider',
+        provider_id: profile.providerId,
+      }),
+    );
   } catch (error) {
     // Sanitize secret leakage: only forward `Error.message`, never raw error or
     // resolved config; the provider implementation owns "no secret in messages".
@@ -231,6 +285,11 @@ export async function refreshProfileModels(profileId: string): Promise<CommandRe
     };
   }
 
-  span.finish({ count: persistedModels.length });
-  return { ok: true, value: persistedModels };
+  const descriptorDefaults = provider.describe().defaultModels ?? [];
+  const resolved = resolvedModelsForProfile(updated, descriptorDefaults);
+  span.finish({
+    persistedCount: persistedModels.length,
+    returnedCount: resolved.models.length,
+  });
+  return { ok: true, value: resolved.models };
 }

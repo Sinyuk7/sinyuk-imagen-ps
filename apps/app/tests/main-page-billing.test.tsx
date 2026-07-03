@@ -39,7 +39,47 @@ describe('MainPage contract — billing', () => {
 
     const billingSummary = container.querySelector<HTMLElement>('[data-testid="main-billing-summary"]');
     expect(billingSummary?.textContent).toContain('12.50 USD');
+    expect(billingSummary?.textContent).not.toContain('Balance');
+    expect(billingSummary?.querySelector('.cmp-balance-pill-primary')?.textContent).toBe('12.50');
+    expect(billingSummary?.querySelector('.cmp-balance-pill-unit')?.textContent).toBe(' USD');
+    expect(billingSummary?.querySelector('.cmp-balance-pill-primary')?.className).toContain('cmp-balance-pill-primary-accent');
+    expect(billingSummary?.querySelector('.cmp-balance-pill-label')).toBeNull();
+    expect(billingSummary?.getAttribute('title')).toContain('12.50 USD');
     expect(billingSummary?.closest('.cmp-action-left')?.querySelector('[data-testid="composer-prompt-optimize-button"]')).not.toBeNull();
+  });
+
+  it('compacts quota summaries in the main header', async () => {
+    const container = document.createElement('div');
+    document.body.appendChild(container);
+    const services = createFakeServices();
+    services.spies.getProfileBillingState.mockResolvedValue({
+      ok: true as const,
+      value: {
+        refreshState: 'idle',
+        balance: {
+          profileId: 'mock-profile',
+          providerId: 'mock',
+          checkedAt: Date.now(),
+          snapshot: {
+            primary: {
+              kind: 'quota',
+              remaining: '2227206',
+              unit: 'quota',
+            },
+          },
+        },
+      },
+    });
+
+    await renderMainPage(container, services);
+
+    const billingSummary = container.querySelector<HTMLElement>('[data-testid="main-billing-summary"]');
+    expect(billingSummary?.textContent).toContain('2.2M quota');
+    expect(billingSummary?.textContent).not.toContain('2227206 quota');
+    expect(billingSummary?.querySelector('.cmp-balance-pill-primary')?.textContent).toBe('2.2M');
+    expect(billingSummary?.querySelector('.cmp-balance-pill-unit')?.textContent).toBe(' quota');
+    expect(billingSummary?.querySelector('.cmp-balance-pill-primary')?.className).toContain('cmp-balance-pill-primary-accent');
+    expect(billingSummary?.querySelector('.cmp-balance-pill-label')).toBeNull();
   });
 
   it('updates billing status after generation when async billing state settles with a balance change', async () => {

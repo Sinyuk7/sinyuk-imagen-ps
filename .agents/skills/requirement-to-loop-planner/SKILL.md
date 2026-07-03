@@ -10,8 +10,9 @@ Create a bounded Loop plan grounded in this repository's current state.
 Use this skill when the task is a new requirement, refactor, or multi-step
 change that still needs scope definition. If the task is a final-test defect,
 Photoshop UXP runtime issue, Chrome-vs-UXP divergence, or confirmed bug with
-symptom, expected behavior, and reproduction evidence, hand off to
-`uxp-issue-rca` instead.
+symptom, expected behavior, and reproduction evidence, recommend
+`uxp-issue-rca` instead. Do not auto-switch into that skill unless the user
+explicitly asks for it.
 
 ## Procedure
 

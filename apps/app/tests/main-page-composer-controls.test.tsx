@@ -55,7 +55,7 @@ describe('MainPage contract — composer controls', () => {
     });
     await flush();
     await act(async () => {
-      container.querySelector<HTMLElement>('[data-testid="main-model-selector-option-mock-image-v2"]')!.click();
+      document.body.querySelector<HTMLElement>('[data-testid="main-model-selector-option-mock-image-v2"]')!.click();
     });
     await flush();
 
@@ -97,8 +97,8 @@ describe('MainPage contract — composer controls', () => {
     });
     await flush();
 
-    expect(container.querySelector('[data-testid="main-model-selector-option-gpt-image2"]')).not.toBeNull();
-    expect(container.querySelector('[data-testid="main-model-selector-option-mock-image-v1"]')).not.toBeNull();
+    expect(document.body.querySelector('[data-testid="main-model-selector-option-gpt-image2"]')).not.toBeNull();
+    expect(document.body.querySelector('[data-testid="main-model-selector-option-mock-image-v1"]')).not.toBeNull();
   });
 
   it('主输入区选择自定义 model 后再次打开菜单仍保留该候选', async () => {
@@ -124,7 +124,7 @@ describe('MainPage contract — composer controls', () => {
     });
     await flush();
     await act(async () => {
-      container.querySelector<HTMLElement>('[data-testid="main-model-selector-option-gpt-image2"]')!.click();
+      document.body.querySelector<HTMLElement>('[data-testid="main-model-selector-option-gpt-image2"]')!.click();
     });
     await flush();
 
@@ -133,8 +133,8 @@ describe('MainPage contract — composer controls', () => {
     });
     await flush();
 
-    expect(container.querySelector('[data-testid="main-model-selector-option-gpt-image2"]')).not.toBeNull();
-    expect(container.querySelector('[data-testid="main-model-selector-option-mock-image-v1"]')).not.toBeNull();
+    expect(document.body.querySelector('[data-testid="main-model-selector-option-gpt-image2"]')).not.toBeNull();
+    expect(document.body.querySelector('[data-testid="main-model-selector-option-mock-image-v1"]')).not.toBeNull();
   });
 
   it('prevents sending when the selected model is not currently selectable', async () => {
@@ -287,7 +287,7 @@ describe('MainPage contract — composer controls', () => {
     const selector = container.querySelector<HTMLElement>('[data-testid="main-profile-selector"]')!;
     expect(selector.getAttribute('aria-haspopup')).toBe('listbox');
     expect(selector.getAttribute('aria-expanded')).toBe('false');
-    expect(findIconInHost(selector, '[data-icon-name="chevron-down"]')).not.toBeNull();
+    expect(findIconInHost(selector, '[data-icon-name="chevron-down"]')).toBeNull();
 
     await act(async () => {
       selector.click();
@@ -380,12 +380,12 @@ describe('MainPage contract — composer controls', () => {
       container.querySelector<HTMLElement>('[data-testid="composer-output-size-selector"]')!.click();
     });
     await flush();
-    expect(container.querySelector('[data-testid="composer-output-size-selector-menu"]')).not.toBeNull();
+    expect(document.body.querySelector('[data-testid="composer-output-size-selector-menu"]')).not.toBeNull();
     await act(async () => {
       clickText(container, '[data-testid^="composer-output-size-selector-option-"]', '4K');
     });
     await flush();
-    expect(container.querySelector('[data-testid="composer-output-size-selector-menu"]')).toBeNull();
+    expect(document.body.querySelector('[data-testid="composer-output-size-selector-menu"]')).toBeNull();
     expect(iconSelectValue(container, '[data-testid="composer-output-size-selector"]')).toContain('4K');
   });
 
@@ -398,14 +398,14 @@ describe('MainPage contract — composer controls', () => {
       container.querySelector<HTMLElement>('[data-testid="main-model-selector"]')!.click();
     });
     await flush();
-    expect(container.querySelector('[data-testid="main-model-selector-menu"]')).not.toBeNull();
+    expect(document.body.querySelector('[data-testid="main-model-selector-menu"]')).not.toBeNull();
 
     await act(async () => {
       container.querySelector<HTMLElement>('[data-testid="composer-output-size-selector"]')!.click();
     });
     await flush();
-    expect(container.querySelector('[data-testid="composer-output-size-selector-menu"]')).not.toBeNull();
-    expect(container.querySelector('[data-testid="main-model-selector-menu"]')).toBeNull();
+    expect(document.body.querySelector('[data-testid="composer-output-size-selector-menu"]')).not.toBeNull();
+    expect(document.body.querySelector('[data-testid="main-model-selector-menu"]')).toBeNull();
   });
 
   it('运行中禁用所有非 send 的 Composer 控件', async () => {

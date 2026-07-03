@@ -1,9 +1,10 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import type { DurableJobRecord, ProviderProfile, TaskRecord } from '@imagen-ps/application';
 import { createChromeHostPort } from '../src/adapters/chrome/chrome-host-port';
 import { createChromeIndexedDbStorage, createMemoryIndexedDbBackend } from '../src/adapters/chrome/indexed-db-storage';
 import { runChromeFeasibilityRuntime } from '../src/composition/chrome/chrome-feasibility-runtime';
 import { createPhotoshopSimulator } from '../src/simulators/photoshop/simulator';
+import { withObjectUrlMock } from './host-bridge-harness';
 
 function sampleProfile(): ProviderProfile {
   return {
@@ -114,6 +115,23 @@ describe('Chrome adapter contracts', () => {
     expect(await storage.profiles.list()).toEqual([]);
   });
 
+  it('persists active image profile separately from provider profiles and generation settings', async () => {
+    const storage = createChromeIndexedDbStorage({ backend: createMemoryIndexedDbBackend() });
+
+    expect(await storage.activeImageProfile.load()).toBeNull();
+
+    await storage.activeImageProfile.save('chrome-profile');
+
+    expect(await storage.activeImageProfile.load()).toBe('chrome-profile');
+    expect(await storage.generationSettings.load()).toEqual({
+      outputSizePreset: '2k',
+      outputFormat: 'png',
+      aspectRatio: 'auto',
+      providerInputSizePreset: '1k',
+    });
+    expect(await storage.profiles.list()).toEqual([]);
+  });
+
   it('uses File API upload to create a HostImageAsset accepted by the shared submit flow', async () => {
     const pngHeader = new Uint8Array(24);
     pngHeader.set([137, 80, 78, 71], 0);
@@ -134,6 +152,42 @@ describe('Chrome adapter contracts', () => {
     expect(image?.metadata.source).toBe('file');
     expect(new Uint8Array((await storage.assets.resolve(image!.asset.storedRef!)) ?? new ArrayBuffer(0))).toEqual(pngHeader);
   });
+
+  it('saves resolved full-size asset bytes through the browser download bridge', async () => withObjectUrlMock(async ({ create, revoke, blobs }) => {
+    const storage = createChromeIndexedDbStorage({ backend: createMemoryIndexedDbBackend() });
+    const host = createChromeHostPort({
+      assetStore: storage.assets,
+      simulator: createPhotoshopSimulator(storage.assets, 'seeded-document'),
+      filePicker: { pick: async () => undefined },
+    });
+    const bytes = new Uint8Array([11, 22, 33, 44, 55]);
+    const storedRef = await storage.assets.put(bytes.buffer.slice(0), {
+      mimeType: 'image/png',
+      name: 'history-full.png',
+    });
+    const clicks: Array<{ readonly download: string; readonly href: string }> = [];
+    const originalClick = HTMLAnchorElement.prototype.click;
+    HTMLAnchorElement.prototype.click = function click(this: HTMLAnchorElement): void {
+      clicks.push({ download: this.download, href: this.href });
+    };
+
+    try {
+      await host.saveAssetToFile({
+        type: 'image',
+        name: 'history-full.png',
+        mimeType: 'image/png',
+        storedRef,
+      }, { suggestedName: 'saved-result' });
+    } finally {
+      HTMLAnchorElement.prototype.click = originalClick;
+    }
+
+    expect(create).toHaveBeenCalledTimes(1);
+    expect(clicks).toEqual([{ download: 'saved-result.png', href: 'blob:thumb-1' }]);
+    expect(revoke).toHaveBeenCalledWith('blob:thumb-1');
+    expect(blobs).toHaveLength(1);
+    expect(new Uint8Array(await blobs[0]!.arrayBuffer())).toEqual(bytes);
+  }));
 
   it('provides a seeded Photoshop simulator with ten fixed image-backed layers', async () => {
     const storage = createChromeIndexedDbStorage({ backend: createMemoryIndexedDbBackend() });

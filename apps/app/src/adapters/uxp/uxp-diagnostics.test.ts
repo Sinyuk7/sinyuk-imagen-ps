@@ -79,7 +79,7 @@ type FakeLocalFileSystem = NonNullable<NonNullable<UxpModules['uxp']>['storage']
 function createFakeLocalFileSystem(
   dataFolder: FakeFolderEntry,
   options?: {
-    readonly getFileForSaving?: (opts?: { readonly types?: readonly string[]; readonly suggestedName?: string }) => Promise<FakeFileEntry | undefined>;
+    readonly getFileForSaving?: (suggestedName: string, opts?: { readonly types?: readonly string[] }) => Promise<FakeFileEntry | undefined>;
   },
 ): FakeLocalFileSystem {
   const lfs = {
@@ -253,8 +253,9 @@ describe('UXP diagnostics fake harness', () => {
 
     const targetFile = new MutableFakeFileEntry('exported.jsonl', '', '/fake/exported.jsonl');
     const lfs = createFakeLocalFileSystem(dataFolder, {
-      async getFileForSaving(options) {
-        expect(options?.suggestedName).toBe(`imagen-ps-logs-${date}.jsonl`);
+      async getFileForSaving(suggestedName, options) {
+        expect(suggestedName).toBe(`imagen-ps-logs-${date}.jsonl`);
+        expect(options?.types).toEqual(['jsonl']);
         return targetFile;
       },
     });

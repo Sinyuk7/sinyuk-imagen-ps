@@ -10,6 +10,7 @@ import type {
   ProviderProfileTestResult,
 } from '@imagen-ps/application';
 import type { AppServices } from '../../ports/app-services';
+import { formatCompactMetric } from '../../domain/mappers';
 
 export interface ProviderProfilesState {
   readonly profiles: readonly ProviderProfile[];
@@ -59,6 +60,7 @@ export interface ProfileModelsState {
   readonly error: string | null;
   readonly reload: () => Promise<void>;
   readonly refresh: () => Promise<readonly ProviderModelInfo[]>;
+  readonly replace: (models: readonly ProviderModelInfo[]) => void;
 }
 
 export function useProfileModels(
@@ -109,11 +111,16 @@ export function useProfileModels(
     }
   }, [profileId, services]);
 
+  const replace = useCallback((nextModels: readonly ProviderModelInfo[]) => {
+    setModels(nextModels);
+    setError(null);
+  }, []);
+
   useEffect(() => {
     void reload();
   }, [reload]);
 
-  return { models, loading, error, reload, refresh };
+  return { models, loading, error, reload, refresh, replace };
 }
 
 export interface ProfileDetailState {
@@ -281,10 +288,34 @@ function nextPreferredEndpointId(endpoints: readonly ProviderEndpointDraft[]): s
   return endpoints.find((endpoint) => endpoint.enabled)?.id;
 }
 
+export function sanitizeProviderDisplayName(value: string): string {
+  return value.trim().replace(/\s+/g, ' ');
+}
+
+export function sanitizeProviderEndpointUrl(value: string): string {
+  return value.replace(/[\r\n]+/g, '').trim();
+}
+
+export function sanitizeProviderSecretValue(value: string): string {
+  return value.trim();
+}
+
+export function sanitizeProviderConnectionDraft(
+  draft: ProviderConnectionDraft,
+): ProviderConnectionDraft {
+  return {
+    ...draft,
+    endpoints: draft.endpoints.map((endpoint) => ({
+      ...endpoint,
+      url: sanitizeProviderEndpointUrl(endpoint.url),
+    })),
+  };
+}
+
 export function createProviderEndpointDraft(url = ''): ProviderEndpointDraft {
   return {
     id: createEndpointId(),
-    url,
+    url: sanitizeProviderEndpointUrl(url),
     enabled: true,
   };
 }
@@ -292,22 +323,23 @@ export function createProviderEndpointDraft(url = ''): ProviderEndpointDraft {
 export function normalizeProviderConnectionDraft(
   draft: ProviderConnectionDraft,
 ): ProviderConnectionDraft {
-  const endpoints = draft.endpoints.length > 0
-    ? draft.endpoints
+  const cleanedDraft = sanitizeProviderConnectionDraft(draft);
+  const endpoints = cleanedDraft.endpoints.length > 0
+    ? cleanedDraft.endpoints
     : [createProviderEndpointDraft()];
-  if (draft.selectionMode === 'auto') {
+  if (cleanedDraft.selectionMode === 'auto') {
     return {
       selectionMode: 'auto',
-      failoverEnabled: draft.failoverEnabled,
+      failoverEnabled: cleanedDraft.failoverEnabled,
       endpoints,
     };
   }
-  const preferredEndpointId = endpoints.some((endpoint) => endpoint.id === draft.preferredEndpointId && endpoint.enabled)
-    ? draft.preferredEndpointId
+  const preferredEndpointId = endpoints.some((endpoint) => endpoint.id === cleanedDraft.preferredEndpointId && endpoint.enabled)
+    ? cleanedDraft.preferredEndpointId
     : nextPreferredEndpointId(endpoints);
   return {
     selectionMode: 'manual',
-    failoverEnabled: draft.failoverEnabled,
+    failoverEnabled: cleanedDraft.failoverEnabled,
     ...(preferredEndpointId ? { preferredEndpointId } : {}),
     endpoints,
   };
@@ -438,9 +470,16 @@ export function providerConfigFromForm(
   instruction?: string,
 ): ProviderProfileConfig {
   const normalizedConnection = normalizeProviderConnectionDraft(connection);
+  const normalizedBilling = billing
+    ? {
+        ...billing,
+        userId: sanitizeProviderSecretValue(billing.userId),
+        accessToken: sanitizeProviderSecretValue(billing.accessToken),
+      }
+    : undefined;
   const config: Record<string, ProviderProfileConfigValue> = {
     providerId,
-    displayName,
+    displayName: sanitizeProviderDisplayName(displayName),
     family,
     connection: {
       selectionMode: normalizedConnection.selectionMode,
@@ -456,16 +495,16 @@ export function providerConfigFromForm(
   if (defaultModel.trim()) {
     config.defaultModel = defaultModel.trim();
   }
-  if (billing) {
-    if (billing.mode === 'none') {
+  if (normalizedBilling) {
+    if (normalizedBilling.mode === 'none') {
       config.billing = { mode: 'none' };
-    } else if (billing.mode === 'official') {
+    } else if (normalizedBilling.mode === 'official') {
       config.billing = { mode: 'official' };
     } else {
       config.billing = {
         mode: 'new-api',
-        userId: billing.userId.trim(),
-        accessTokenSecretRef: billing.hasSavedAccessToken || billing.accessToken.trim()
+        userId: normalizedBilling.userId,
+        accessTokenSecretRef: normalizedBilling.hasSavedAccessToken || normalizedBilling.accessToken
           ? 'secret:pending:billingAccessToken'
           : '',
       };
@@ -521,5 +560,5 @@ export function formatBillingDetail(detail: {
   if (detail.kind === 'money') {
     return `${detail.label}: ${detail.amount ?? ''} ${detail.currency ?? ''}`.trim();
   }
-  return `${detail.label}: ${detail.value ?? ''} ${detail.unit ?? ''}`.trim();
+  return `${detail.label}: ${formatCompactMetric(detail.value) ?? ''} ${detail.unit ?? ''}`.trim();
 }

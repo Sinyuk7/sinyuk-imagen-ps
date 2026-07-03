@@ -10,6 +10,7 @@ import {
   type LayerInfo,
 } from '../../app-services/host-bridge';
 import type { UxpModules } from './uxp-api';
+import { assetToArrayBuffer, suggestedAssetFileName } from '../../shared/domain/asset-file';
 import { ensurePlaceableImagePayload } from '../../shared/image-payload-preflight';
 import { createHostImageAsset, type HostImageAsset } from '../../shared/domain/host-image-asset';
 import {
@@ -121,7 +122,7 @@ interface UxpLocalFileSystem {
   getFileForOpening(options?: { readonly types?: readonly string[]; readonly allowMultiple?: boolean }): Promise<UxpFile | undefined>;
   getTemporaryFolder(): Promise<UxpFolder>;
   createSessionToken(entry: UxpFile): string;
-  getFileForSaving?(options?: { readonly types?: readonly string[]; readonly suggestedName?: string }): Promise<UxpFile | undefined>;
+  getFileForSaving?(suggestedName: string, options?: { readonly types?: readonly string[] }): Promise<UxpFile | undefined>;
 }
 
 interface UxpStorageFormats {
@@ -134,6 +135,7 @@ const PNG_IDAT = 'IDAT';
 const PNG_IEND = 'IEND';
 const DEFLATE_STORED_BLOCK_MAX = 0xffff;
 const PHOTOSHOP_THUMBNAIL_MAX_SIDE = 256;
+const LAYER_PICKER_THUMBNAIL_MAX_SIDE = 48;
 
 function photoshopAppFrom(modules: UxpModules): PhotoshopApp | undefined {
   return modules.photoshop?.app as PhotoshopApp | undefined;
@@ -816,6 +818,35 @@ async function createPhotoshopThumbnailUrl(
   return createRuntimeImageUrlOrDataUrl(png, 'image/png');
 }
 
+async function createLayerThumbnailUrl(
+  imaging: PhotoshopImaging,
+  documentId: number,
+  layer: PhotoshopLayer,
+  maxSide: number,
+): Promise<RuntimeImageUrl | undefined> {
+  const bounds = normalizeRect(layer.boundsNoEffects ?? layer.bounds);
+  if (!bounds || boundsAreEmpty(bounds)) {
+    return undefined;
+  }
+  const sourceSize = rectSize(bounds);
+  const targetSize = thumbnailTargetSize(sourceSize, maxSide);
+  return createPhotoshopThumbnailUrl(
+    imaging,
+    {
+      documentID: documentId,
+      layerID: layer.id,
+      targetSize,
+      colorSpace: 'RGB',
+      componentSize: 8,
+      applyAlpha: false,
+    },
+    {
+      requestedRect: bounds,
+      targetSize,
+    },
+  );
+}
+
 function assertExactPlacementAspect(
   bytes: Uint8Array,
   mimeType: string,
@@ -1106,55 +1137,6 @@ async function transformActivePlacedLayer(document: PhotoshopDocument, placement
   await placedLayer.scale((targetSize.width / currentSize.width) * 100, (targetSize.height / currentSize.height) * 100);
   const scaledBounds = normalizeRect(placedLayer.boundsNoEffects ?? placedLayer.bounds) ?? currentBounds;
   await placedLayer.translate(placementRect.left - scaledBounds.left, placementRect.top - scaledBounds.top);
-}
-
-function arrayBufferFromDataUrl(dataUrl: string): { readonly data: ArrayBuffer; readonly mimeType: string } {
-  const match = /^data:([^;]+);base64,(.*)$/.exec(dataUrl);
-  const base64 = match ? match[2] : dataUrl;
-  const binary = atob(base64);
-  const bytes = new Uint8Array(binary.length);
-  for (let i = 0; i < binary.length; i += 1) {
-    bytes[i] = binary.charCodeAt(i);
-  }
-  return {
-    data: bytes.buffer,
-    mimeType: match?.[1] ?? 'image/png',
-  };
-}
-
-async function assetToArrayBuffer(asset: Asset, assetStore?: AssetStore): Promise<{ readonly data: ArrayBuffer; readonly mimeType: string }> {
-  if (asset.storedRef && assetStore) {
-    const data = await assetStore.resolve(asset.storedRef);
-    if (!data) {
-      throw new Error(`AssetStore object is unavailable: ${asset.storedRef.ref}`);
-    }
-    return {
-      data,
-      mimeType: asset.storedRef.mimeType ?? asset.mimeType ?? 'image/png',
-    };
-  }
-  if (asset.data instanceof Uint8Array) {
-    const bytes = new Uint8Array(asset.data.byteLength);
-    bytes.set(asset.data);
-    return {
-      data: bytes.buffer,
-      mimeType: asset.mimeType ?? 'image/png',
-    };
-  }
-  if (typeof asset.data === 'string') {
-    return arrayBufferFromDataUrl(asset.data);
-  }
-  if (asset.url) {
-    const response = await fetch(asset.url);
-    if (!response.ok) {
-      throw new Error(`Failed to fetch asset URL: ${response.status}`);
-    }
-    return {
-      data: await response.arrayBuffer(),
-      mimeType: response.headers.get('content-type') ?? asset.mimeType ?? 'image/png',
-    };
-  }
-  throw new Error('Asset has no URL or inline data.');
 }
 
 function fileExtensionFor(mimeType: string): string {
@@ -1658,6 +1640,70 @@ export function createPhotoshopHostBridge(modules: UxpModules, options?: CreateP
       }
     },
 
+    async getLayerThumbnail(
+      layerId: number,
+      maxSide = LAYER_PICKER_THUMBNAIL_MAX_SIDE,
+    ): Promise<RuntimeImageUrl | undefined> {
+      const span = logger.startSpan('hostbridge.get_layer_thumbnail', { layerId, maxSide });
+      try {
+        const activeDocument = app.activeDocument;
+        const layer = activeDocument ? findLayer(activeDocument.layers ?? [], layerId) : undefined;
+        const documentId = activeDocument?.id;
+        if (!documentId || !layer) {
+          span.finish({ layerId, found: false });
+          return undefined;
+        }
+        const targetLayer = layer;
+        const thumbnail = await executeHostModal(
+          () => createLayerThumbnailUrl(imaging, documentId, targetLayer, maxSide),
+          { commandName: `Get thumbnail for layer ${targetLayer.name ?? layerId}` },
+        );
+        span.finish({ layerId, found: true, hasThumbnail: Boolean(thumbnail) });
+        return thumbnail;
+      } catch (error) {
+        span.fail(error, { layerId });
+        return undefined;
+      }
+    },
+
+    async saveAssetToFile(asset: Asset, options): Promise<void> {
+      const span = logger.startSpan('hostbridge.save_asset', {
+        name: asset.name,
+        mimeType: asset.mimeType,
+      });
+      try {
+        if (typeof fs.getFileForSaving !== 'function') {
+          throw new Error('Photoshop file save dialog is unavailable in this runtime.');
+        }
+        const { data, mimeType } = await assetToArrayBuffer(asset, {
+          resolveStoredRef: (ref) => assetStore.resolve(ref),
+        });
+        const suggestedName = suggestedAssetFileName({
+          name: options?.suggestedName ?? asset.name,
+          mimeType,
+        });
+        const target = await fs.getFileForSaving(suggestedName, {
+          types: [fileExtensionFor(mimeType)],
+        });
+        if (!target) {
+          span.finish({ cancelled: true, mimeType });
+          return;
+        }
+        await target.write(data, { format: uxpBinaryFormat(formats) });
+        span.finish({
+          mimeType,
+          byteLength: data.byteLength,
+          targetName: target.name,
+        });
+      } catch (error) {
+        span.fail(error, {
+          name: asset.name,
+          mimeType: asset.mimeType,
+        });
+        throw error;
+      }
+    },
+
     async placeAssetOnCanvas(asset: Asset, placement: PlacementIntent): Promise<void> {
       const span = logger.startSpan('hostbridge.place_asset', {
         name: asset.name,
@@ -1666,7 +1712,9 @@ export function createPhotoshopHostBridge(modules: UxpModules, options?: CreateP
       });
       try {
         const { document: targetDocument, usedActiveDocumentFallback } = targetDocumentForPlacement(app, placement);
-        const { data, mimeType } = await assetToArrayBuffer(asset, assetStore);
+        const { data, mimeType } = await assetToArrayBuffer(asset, {
+          resolveStoredRef: (ref) => assetStore.resolve(ref),
+        });
         ensurePlaceableImagePayload(data, mimeType);
         const bytes = new Uint8Array(data);
         if (placement.kind === 'exact-frame') {

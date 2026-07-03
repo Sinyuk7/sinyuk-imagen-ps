@@ -71,6 +71,7 @@ describe('GlobalGenerationSettingsPage', () => {
       const trigger = container.querySelector<HTMLElement>(`[data-testid="${testId}"]`);
       expect(trigger).not.toBeNull();
       expect(trigger?.closest('.cmp-select.settings-select')).not.toBeNull();
+      expect(trigger?.closest('.settings-page')).not.toBeNull();
 
       Object.defineProperty(trigger!, 'getBoundingClientRect', {
         configurable: true,
@@ -127,6 +128,7 @@ describe('GlobalGenerationSettingsPage', () => {
     });
 
     expect(container.textContent).not.toContain('provider response text');
+    expect(container.querySelector('.settings-page .btn-save')).not.toBeNull();
     await act(async () => {
       container.querySelector<HTMLButtonElement>('[data-testid="global-settings-save-button"]')!.click();
     });
@@ -259,5 +261,35 @@ describe('GlobalGenerationSettingsPage', () => {
 
     expect(container.querySelector('[data-testid="global-settings-footer-statement"]')?.textContent).toContain('Imagen PS');
     expect(container.querySelector('.generation-settings-footer')).not.toBeNull();
+  });
+
+  it('renders storage and error states as settings notices instead of raw text blocks', async () => {
+    const { services } = createFakeServices();
+    const container = document.createElement('div');
+    document.body.appendChild(container);
+    root = createRoot(container);
+
+    await act(async () => {
+      root!.render(
+        <TestAppProviders services={services}>
+          <GlobalGenerationSettingsPage
+            settings={{
+              outputSizePreset: '2k',
+              outputFormat: 'png',
+              aspectRatio: 'auto',
+              providerInputSizePreset: '1k',
+            }}
+            loading={false}
+            error="save failed"
+            onSave={vi.fn(async () => undefined)}
+            onNav={vi.fn()}
+          />
+        </TestAppProviders>,
+      );
+    });
+
+    expect(container.querySelector('[data-testid="global-settings-error-notice"] .status-notice.error')).not.toBeNull();
+    const storageHint = container.querySelectorAll('.generation-settings-section-hint')[1];
+    expect(storageHint?.textContent ?? '').toMatch(/输出位置|runtime paths|当前 runtime 路径/);
   });
 });

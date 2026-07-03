@@ -10,6 +10,7 @@ import type {
   TaskRecord,
   TaskStore,
 } from '@imagen-ps/application';
+import type { ActiveImageProfileStore } from '../../shared/ports/active-image-profile';
 import { DEFAULT_APP_GENERATION_SETTINGS, normalizeAppGenerationSettings, type AppGenerationSettings, type AppGenerationSettingsStore } from '../../shared/ports/app-generation-settings';
 
 export type ChromeStoreName = 'profiles' | 'secrets' | 'history' | 'tasks' | 'assets' | 'appSettings';
@@ -31,6 +32,7 @@ const CHROME_DB_NAME = 'imagen-ps-chrome-runtime';
 const CHROME_DB_VERSION = 3;
 const CHROME_STORES: readonly ChromeStoreName[] = ['profiles', 'secrets', 'history', 'tasks', 'assets', 'appSettings'];
 const GENERATION_SETTINGS_KEY = 'generation';
+const ACTIVE_IMAGE_PROFILE_KEY = 'activeImageProfile';
 
 function requestResult<T>(request: IDBRequest<T>): Promise<T> {
   return new Promise((resolve, reject) => {
@@ -162,6 +164,7 @@ export function createChromeIndexedDbStorage(options?: { readonly backend?: Chro
   readonly tasks: TaskStore;
   readonly assets: AssetStore;
   readonly generationSettings: AppGenerationSettingsStore;
+  readonly activeImageProfile: ActiveImageProfileStore;
 } {
   const backend = options?.backend ?? createBrowserIndexedDbBackend();
   let assetCounter = 0;
@@ -264,6 +267,14 @@ export function createChromeIndexedDbStorage(options?: { readonly backend?: Chro
       },
       async save(settings): Promise<void> {
         await backend.put('appSettings', GENERATION_SETTINGS_KEY, normalizeAppGenerationSettings(settings));
+      },
+    },
+    activeImageProfile: {
+      async load(): Promise<string | null> {
+        return await backend.get<string | null>('appSettings', ACTIVE_IMAGE_PROFILE_KEY) ?? null;
+      },
+      async save(profileId: string | null): Promise<void> {
+        await backend.put('appSettings', ACTIVE_IMAGE_PROFILE_KEY, profileId);
       },
     },
   };

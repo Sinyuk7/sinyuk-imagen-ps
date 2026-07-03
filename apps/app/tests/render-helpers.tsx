@@ -2,6 +2,7 @@ import { AppServicesProvider } from '../src/app-services/app-services-context';
 import type { AppServices } from '../src/app-services/app-services';
 import type { SupportedLocale } from '../src/shared/locale';
 import { I18nProvider } from '../src/shared/ui/i18n/i18n-context';
+import { ToastHost, ToastProvider } from '../src/shared/ui/components/toast-host';
 import type { ReactNode } from 'react';
 
 export function TestI18nProvider({
@@ -26,6 +27,25 @@ export function TestAppProviders({
   return (
     <TestI18nProvider locale={locale}>
       <AppServicesProvider services={services}>{children}</AppServicesProvider>
+    </TestI18nProvider>
+  );
+}
+
+export function TestToastSurface({
+  children,
+  locale = 'zh-CN',
+}: {
+  readonly children: ReactNode;
+  readonly locale?: SupportedLocale;
+}) {
+  return (
+    <TestI18nProvider locale={locale}>
+      <ToastProvider>
+        <div className="panel">
+          {children}
+          <ToastHost />
+        </div>
+      </ToastProvider>
     </TestI18nProvider>
   );
 }

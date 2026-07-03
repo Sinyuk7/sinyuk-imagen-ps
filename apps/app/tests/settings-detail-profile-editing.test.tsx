@@ -68,12 +68,9 @@ describe('SettingsDetailPage contract — profile editing', () => {
     await renderDetailWithRoot(container, services, 'mock-profile', onNav, onProfilesChanged);
 
     await act(async () => {
-      container.querySelector<HTMLButtonElement>('.btn-del')!.click();
+      queryByTestId(container, 'provider-delete-button').click();
     });
 
-    expect(container.querySelector('.btn-del-host')).not.toBeNull();
-    expect(container.querySelector('.btn-del')?.className).not.toContain('ui-icon-button--compact-square');
-    expect(container.querySelector('.btn-del-host')?.className).not.toContain('ui-icon-button-host--compact-square');
     expect(services.spies.deleteProviderProfile).toHaveBeenCalledWith('mock-profile');
     expect(onProfilesChanged).toHaveBeenCalledWith(null);
     expect(onNav).toHaveBeenCalledWith('settings');
@@ -88,21 +85,19 @@ describe('SettingsDetailPage contract — profile editing', () => {
     expect(container.querySelector('[data-testid="provider-endpoint-preferred-badge-0"]')).toBeNull();
   });
 
-  it('keeps detail delete as a footer-aligned solid icon action', async () => {
+  it('renders delete as a header action after refresh without danger-zone copy', async () => {
     const container = document.createElement('div');
     document.body.appendChild(container);
     await renderDetail(container);
 
-    const button = queryByTestId(container, 'provider-delete-button');
-    const host = button.closest('.ui-icon-button-host');
-    const overlay = host?.querySelector('.ui-icon-button-overlay');
-    expect(button.getAttribute('data-variant')).toBe('negative');
-    expect(button.textContent?.trim()).toBe('');
-    expect(button.className).toContain('btn-del');
-    expect(button.className).not.toContain('ui-icon-button--compact-square');
-    expect(host?.className).toContain('btn-del-host');
-    expect(host?.className).not.toContain('ui-icon-button-host--compact-square');
-    expect(overlay?.className).not.toContain('ui-icon-button-overlay--compact-square');
+    const refreshButton = queryByTestId(container, 'provider-detail-refresh-button');
+    const deleteButton = queryByTestId(container, 'provider-delete-button');
+    expect(deleteButton.className).toContain('hdr-btn');
+    expect(deleteButton.getAttribute('aria-label')).toMatch(/删除|Delete/);
+    expect(deleteButton.closest('.hdr')).not.toBeNull();
+    expect(deleteButton.closest('.scroll')).toBeNull();
+    expect(container.querySelector('.settings-danger-zone')).toBeNull();
+    expect(refreshButton.compareDocumentPosition(deleteButton) & Node.DOCUMENT_POSITION_FOLLOWING).not.toBe(0);
   });
 
   it('renders a plain page header title without provider enable status affordances', async () => {
@@ -130,5 +125,36 @@ describe('SettingsDetailPage contract — profile editing', () => {
     expect(input).toBeDefined();
     expect(input).not.toHaveProperty('secretValues');
     expect(input).not.toHaveProperty('apiKey');
+  });
+
+  it('shows explicit saved api key replace and remove actions', async () => {
+    const container = document.createElement('div');
+    document.body.appendChild(container);
+    await renderDetail(container);
+
+    const input = queryByTestId(container, 'provider-api-key-input') as HTMLInputElement;
+    expect(input.placeholder).toMatch(/替换|replace/i);
+    expect(queryByTestId(container, 'provider-api-key-saved-meta').textContent).toMatch(/已安全保存|Saved/);
+    expect(queryByTestId(container, 'provider-api-key-replace')).not.toBeNull();
+    expect(queryByTestId(container, 'provider-api-key-remove')).not.toBeNull();
+  });
+
+  it('persists explicit api key removal only after the remove action', async () => {
+    const container = document.createElement('div');
+    document.body.appendChild(container);
+    const { spies } = await renderDetail(container);
+
+    await act(async () => {
+      queryByTestId(container, 'provider-api-key-remove').click();
+    });
+    expect(queryByTestId(container, 'provider-api-key-removal-pending').textContent).toMatch(/移除|removed/i);
+
+    await act(async () => {
+      container.querySelector<HTMLButtonElement>('.btn-save')!.click();
+    });
+
+    expect(spies.saveProviderProfile).toHaveBeenCalledWith(expect.objectContaining({
+      removedSecretNames: ['apiKey'],
+    }));
   });
 });

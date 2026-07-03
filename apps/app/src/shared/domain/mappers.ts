@@ -17,6 +17,12 @@ export interface ProviderRowVM {
   readonly defaultModel?: string;
 }
 
+export interface BillingPrimaryParts {
+  readonly primary: string;
+  readonly unit?: string;
+  readonly secondary?: string;
+}
+
 interface ProviderInvokeResultLike {
   readonly assets?: readonly Asset[];
   readonly text?: unknown;
@@ -230,18 +236,70 @@ function trimTrailingZeros(value: string): string {
   return value.includes('.') ? value.replace(/\.?0+$/, '') : value;
 }
 
+export function formatCompactMetric(value: string | undefined): string | undefined {
+  if (typeof value !== 'string' || value.trim().length === 0) {
+    return undefined;
+  }
+  const normalized = trimTrailingZeros(value.trim());
+  const parsed = Number(normalized);
+  if (!Number.isFinite(parsed)) {
+    return normalized;
+  }
+  const absolute = Math.abs(parsed);
+  const units = [
+    { threshold: 1_000_000_000, suffix: 'B' },
+    { threshold: 1_000_000, suffix: 'M' },
+    { threshold: 1_000, suffix: 'K' },
+  ] as const;
+  for (const unit of units) {
+    if (absolute < unit.threshold) {
+      continue;
+    }
+    const scaled = parsed / unit.threshold;
+    const decimals = Math.abs(scaled) >= 100 ? 0 : 1;
+    return `${trimTrailingZeros(scaled.toFixed(decimals))}${unit.suffix}`;
+  }
+  return normalized;
+}
+
 export function formatBillingPrimary(billing: ProfileBillingState | null | undefined): string | undefined {
+  const parts = formatBillingPrimaryParts(billing);
+  if (!parts) {
+    return undefined;
+  }
+  const head = parts.unit ? `${parts.primary} ${parts.unit}` : parts.primary;
+  return parts.secondary ? `${head} · ${parts.secondary}` : head;
+}
+
+export function formatBillingPrimaryParts(billing: ProfileBillingState | null | undefined): BillingPrimaryParts | undefined {
   const primary = billing?.balance?.snapshot.primary;
   if (!primary) {
     return undefined;
   }
   if (primary.kind === 'money') {
-    return `${primary.remaining} ${primary.currency}`;
+    return {
+      primary: primary.remaining,
+      unit: primary.currency,
+    };
   }
-  const remaining = primary.remaining ? trimTrailingZeros(primary.remaining) : undefined;
+  const remaining = formatCompactMetric(primary.remaining);
   const percent = typeof primary.usedPercent === 'number' ? `${Math.round(primary.usedPercent)}% used` : undefined;
   const unit = primary.unit ?? 'quota';
-  return [remaining ? `${remaining} ${unit}` : undefined, percent].filter(Boolean).join(' · ') || unit;
+  if (remaining) {
+    return {
+      primary: remaining,
+      unit,
+      ...(percent ? { secondary: percent } : {}),
+    };
+  }
+  if (percent) {
+    return {
+      primary: percent,
+    };
+  }
+  return {
+    primary: unit,
+  };
 }
 
 export function formatExactTaskCost(cost: ProfileBillingState['lastExactTaskCost']): string | undefined {

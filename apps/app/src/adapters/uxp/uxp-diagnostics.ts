@@ -32,7 +32,7 @@ interface UxpLocalFileSystem {
     readonly utf8?: unknown;
   };
   getDataFolder(): Promise<UxpFolderEntry>;
-  getFileForSaving?(options?: { readonly types?: readonly string[]; readonly suggestedName?: string }): Promise<UxpFileEntry | undefined>;
+  getFileForSaving?(suggestedName: string, options?: { readonly types?: readonly string[] }): Promise<UxpFileEntry | undefined>;
 }
 
 interface UxpStorage {
@@ -290,7 +290,7 @@ export async function exportRecentLogRecords(
   const suggestedName = options?.suggestedName ?? `imagen-ps-logs-${date}.jsonl`;
 
   try {
-    const target = await lfs.getFileForSaving({ types: ['jsonl'], suggestedName });
+    const target = await lfs.getFileForSaving(suggestedName, { types: ['jsonl'] });
     if (!target) {
       return { ok: false, error: { message: 'Export cancelled by user.' } };
     }

@@ -19,12 +19,31 @@ type BillingCacheEntry = {
   readonly state: ProfileBillingState;
 };
 
+type BillingCooldownReason = 'rate-limit' | 'auth-fail';
+
+type BillingCooldownEntry = {
+  readonly consecutiveAuthFails: number;
+  readonly blockedUntil?: number;
+  readonly reason?: BillingCooldownReason;
+  readonly lastErrorMessage?: string;
+};
+
 const billingStateStore = new Map<string, BillingCacheEntry>();
 const inflightRefreshes = new Map<string, Promise<RefreshProfileBalanceResult>>();
 const scheduledRefreshes = new Map<string, ReturnType<typeof setTimeout>>();
+const billingCooldownStore = new Map<string, BillingCooldownEntry>();
+
+const BILLING_AUTH_FAIL_THRESHOLD = 3;
+const BILLING_AUTH_FAIL_COOLDOWN_MS = 120_000;
+const BILLING_RATE_LIMIT_COOLDOWN_MS = 120_000;
 
 function errorMessage(error: unknown, fallback: string): string {
   return error instanceof Error ? error.message : fallback;
+}
+
+function errorStatusCode(error: unknown): number | undefined {
+  const statusCode = (error as { readonly statusCode?: unknown } | null | undefined)?.statusCode;
+  return typeof statusCode === 'number' ? statusCode : undefined;
 }
 
 function stableSerialize(value: unknown): string {
@@ -87,6 +106,95 @@ function getOrCreateBillingEntry(profileId: string, fingerprint: string): Billin
 
 function setBillingEntry(profileId: string, entry: BillingCacheEntry): void {
   billingStateStore.set(profileId, entry);
+}
+
+function deleteBillingCooldown(profileId: string): void {
+  billingCooldownStore.delete(profileId);
+}
+
+function readBillingCooldown(profileId: string): BillingCooldownEntry {
+  const current = billingCooldownStore.get(profileId);
+  if (!current) {
+    return { consecutiveAuthFails: 0 };
+  }
+  if (current.blockedUntil !== undefined && current.blockedUntil <= Date.now()) {
+    billingCooldownStore.delete(profileId);
+    return { consecutiveAuthFails: 0 };
+  }
+  return current;
+}
+
+function setBillingCooldown(profileId: string, entry: BillingCooldownEntry): void {
+  if (entry.consecutiveAuthFails <= 0 && entry.blockedUntil === undefined) {
+    billingCooldownStore.delete(profileId);
+    return;
+  }
+  billingCooldownStore.set(profileId, entry);
+}
+
+function parseCooldownMsFromMessage(message: string): number | undefined {
+  const secondMatch = message.match(/(?:wait|等待)\s*(\d+)\s*(?:seconds?|秒)/i);
+  if (!secondMatch) {
+    return undefined;
+  }
+  const seconds = Number(secondMatch[1]);
+  return Number.isFinite(seconds) && seconds > 0 ? seconds * 1000 : undefined;
+}
+
+function isRateLimitBalanceError(error: unknown): boolean {
+  const statusCode = errorStatusCode(error);
+  if (statusCode === 429) {
+    return true;
+  }
+  const message = errorMessage(error, '');
+  return /\b429\b/.test(message) && /rate|limit|等待|wait/i.test(message);
+}
+
+function isAuthFailureBalanceError(error: unknown): boolean {
+  if (isRateLimitBalanceError(error)) {
+    return false;
+  }
+  const statusCode = errorStatusCode(error);
+  if (statusCode === 401 || statusCode === 403) {
+    return true;
+  }
+  const message = errorMessage(error, '').toLowerCase();
+  return message.includes('unauthorized')
+    || message.includes('invalid token')
+    || message.includes('access token invalid')
+    || message.includes('access token 无效')
+    || message.includes('无权进行此操作')
+    || message.includes('令牌无效');
+}
+
+function nextBillingCooldown(profileId: string, error: unknown): BillingCooldownEntry {
+  const previous = readBillingCooldown(profileId);
+  const message = errorMessage(error, 'Billing refresh failed.');
+  if (isRateLimitBalanceError(error)) {
+    const cooldownMs = parseCooldownMsFromMessage(message) ?? BILLING_RATE_LIMIT_COOLDOWN_MS;
+    return {
+      consecutiveAuthFails: 0,
+      blockedUntil: Date.now() + cooldownMs,
+      reason: 'rate-limit',
+      lastErrorMessage: message,
+    };
+  }
+  if (isAuthFailureBalanceError(error)) {
+    const consecutiveAuthFails = previous.consecutiveAuthFails + 1;
+    if (consecutiveAuthFails >= BILLING_AUTH_FAIL_THRESHOLD) {
+      return {
+        consecutiveAuthFails: 0,
+        blockedUntil: Date.now() + BILLING_AUTH_FAIL_COOLDOWN_MS,
+        reason: 'auth-fail',
+        lastErrorMessage: message,
+      };
+    }
+    return {
+      consecutiveAuthFails,
+      lastErrorMessage: message,
+    };
+  }
+  return { consecutiveAuthFails: 0 };
 }
 
 function parseDecimal(value: string | undefined): number | undefined {
@@ -194,6 +302,38 @@ export async function refreshProfileBalance(
     const cached = billingStateStore.get(input.profileId);
     if (cached && cached.fingerprint !== fingerprint) {
       billingStateStore.delete(input.profileId);
+      deleteBillingCooldown(input.profileId);
+    }
+
+    const cooldown = readBillingCooldown(input.profileId);
+    if (cooldown.blockedUntil !== undefined && cooldown.reason) {
+      const warm = getOrCreateBillingEntry(input.profileId, fingerprint);
+      setBillingEntry(input.profileId, {
+        fingerprint,
+        state: {
+          ...warm.state,
+          refreshState: 'error',
+        },
+      });
+      const remainingMs = Math.max(0, cooldown.blockedUntil - Date.now());
+      const seconds = Math.ceil(remainingMs / 1000);
+      const detail =
+        cooldown.reason === 'rate-limit'
+          ? `Billing refresh is cooling down after a 429 response. Retry in about ${seconds}s.`
+          : `Billing refresh is cooling down after repeated auth failures. Retry in about ${seconds}s.`;
+      span.fail({
+        message: detail,
+        cooldown_reason: cooldown.reason,
+        cooldown_remaining_ms: remainingMs,
+      });
+      return {
+        ok: false,
+        error: createProviderError(detail, {
+          profileId: input.profileId,
+          cooldownReason: cooldown.reason,
+          retryAfterMs: remainingMs,
+        }),
+      };
     }
 
     const inflightKey = `${input.profileId}:${fingerprint}`;
@@ -218,6 +358,7 @@ export async function refreshProfileBalance(
     });
     inflightRefreshes.set(inflightKey, task);
     const value = await task;
+    deleteBillingCooldown(input.profileId);
     span.finish();
     return { ok: true, value };
   } catch (error) {
@@ -232,6 +373,7 @@ export async function refreshProfileBalance(
           refreshState: 'error',
         },
       });
+      setBillingCooldown(input.profileId, nextBillingCooldown(input.profileId, error));
     }
     span.fail(error);
     return {
@@ -302,9 +444,20 @@ export async function noteProfileTaskBilling(
 
 export function invalidateProfileBillingState(profileId: string): void {
   billingStateStore.delete(profileId);
+  deleteBillingCooldown(profileId);
   const scheduled = scheduledRefreshes.get(profileId);
   if (scheduled) {
     clearTimeout(scheduled);
     scheduledRefreshes.delete(profileId);
   }
+}
+
+export function _resetProfileBillingStateForTesting(): void {
+  billingStateStore.clear();
+  inflightRefreshes.clear();
+  billingCooldownStore.clear();
+  for (const timer of scheduledRefreshes.values()) {
+    clearTimeout(timer);
+  }
+  scheduledRefreshes.clear();
 }
