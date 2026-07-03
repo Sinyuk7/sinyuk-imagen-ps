@@ -1,0 +1,56 @@
+packages/providers/tests/retry.test.ts
+  s_909430b759b770::t_6c450b8dbc0193 1,34-36,41,51,54
+  s_909430b759b770::t_54a63db93136bf 50,55
+  s_909430b759b770::t_79cdd561411f38 37-40,42-49,52-53,56-59
+  s_909430b759b770::t_fae8a9c03364ca 60
+apps/app/src/shared/ui/app-error-boundary.tsx
+  s_909430b759b770::t_6c450b8dbc0193 1-70
+packages/application/src/commands/profile-billing.test.ts
+  s_909430b759b770::t_6c450b8dbc0193 4-11,214-238
+  s_909430b759b770::t_36e4205589c062 239
+packages/providers/src/providers/mock/provider.ts
+  s_909430b759b770::t_ef6c047680405e 142,153,156,219-220,226
+  s_909430b759b770::t_09e96adf83d266 136,147-148
+apps/app/tests/chrome-adapter.test.ts
+  s_909430b759b770::t_6c450b8dbc0193 135-149
+packages/providers/src/transport/image-endpoint/failover.ts
+  s_909430b759b770::t_d0b33ecddd26e0 20,44,71-84,86,90,93,287,312
+  s_909430b759b770::t_bb7e3281d85208 50-53
+packages/providers/src/shared/abort-signal.ts
+  s_909430b759b770::t_b20c829188a14e 2
+apps/app/src/shells/uxp/uxp-panel-runtime.tsx
+  s_909430b759b770::t_6c450b8dbc0193 3,295-301,307
+apps/app/src/shells/chrome/main.tsx
+  s_909430b759b770::t_6c450b8dbc0193 4,43,46,49,54
+apps/app/src/adapters/chrome/indexed-db-storage.ts
+  s_909430b759b770::t_bb7e3281d85208 23,98-102,147-152,197-199,201
+  s_909430b759b770::t_d0b33ecddd26e0 171-180,193-196,200,202-207,277
+packages/providers/tests/retry-endpoint-failover.test.ts
+  s_909430b759b770::t_6c450b8dbc0193 2-6,211-239
+  s_909430b759b770::t_d9ac1b3e3a161a 240
+packages/application/src/commands/profile-billing.ts
+  s_909430b759b770::t_d0b33ecddd26e0 35,112-129,377-379,382,431,468-469,475
+  s_909430b759b770::t_bb7e3281d85208 482-497
+packages/providers/src/transport/image-endpoint/retry.ts
+  s_909430b759b770::t_d0b33ecddd26e0 163,171-174,200-201,203-205
+  s_909430b759b770::t_09e96adf83d266 175
+  s_909430b759b770::t_9d25660975ddea 164-165,176,192-193,199,202
+apps/app/tests/app-error-boundary.test.tsx
+  s_909430b759b770::t_6c450b8dbc0193 1-42
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.10",
+  "base_commit_sha": "c486c686f0798e3801d8491d9a429f9f4c859fa7",
+  "prompts": {},
+  "sessions": {
+    "s_909430b759b770": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "019f294c-7b7c-7912-b69d-edd2c7bf6589",
+        "model": "gpt-5.4"
+      },
+      "human_author": "Sinyuk <80998062@qq.com>"
+    }
+  }
+}
