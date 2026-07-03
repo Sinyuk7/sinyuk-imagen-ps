@@ -1,0 +1,43 @@
+.agents/skills/uxp-ui-debugger/MEMORY.md
+  s_46dbce977a2b90::t_7bfba8c4a3ab93 15,35
+  s_46dbce977a2b90::t_072c9e1c15268b 24-25,41
+apps/app/src/harness/components/composer-select/composer-select-harness.tsx
+  s_46dbce977a2b90::t_01d8389ec3c9f7 306-314,795
+  s_46dbce977a2b90::t_a8d02ccda9c7d5 25-26,261,472-473
+  s_46dbce977a2b90::t_709fd27a746ced 635,638,640-642
+  s_46dbce977a2b90::t_03ba747c1ad3d1 619
+  s_46dbce977a2b90::t_581a7c8b9f2eff 718-729,749,753,755
+  s_46dbce977a2b90::t_aecd7484ce2ac6 639
+  s_953b7148ed2437::t_904cea6bdeaf54 315,620,643
+apps/app/src/shared/ui/components/use-composer-select-placement.ts
+  s_46dbce977a2b90::t_f6fe4e32c85236 17-20,91-96
+apps/app/src/shared/ui/components/text-select-trigger-button.tsx
+  s_46dbce977a2b90::t_57d7ecb281abea 30,38-40,46
+apps/app/src/shared/ui/styles/composer.ts
+  s_46dbce977a2b90::t_785813e52bc8e6 712-713,772
+  s_953b7148ed2437::t_e998637d96b5cf 773-779
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.10",
+  "base_commit_sha": "bc04dd859aafcd6f156622bd077059a97d611cc0",
+  "prompts": {},
+  "sessions": {
+    "s_46dbce977a2b90": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "019f27c7-c841-7ab2-b0c1-de247af78fa0",
+        "model": "gpt-5.5"
+      },
+      "human_author": "Sinyuk <80998062@qq.com>"
+    },
+    "s_953b7148ed2437": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "019f2824-6e92-79c2-9c0c-c1dfd298c2ae",
+        "model": "gpt-5.5"
+      },
+      "human_author": "Sinyuk <80998062@qq.com>"
+    }
+  }
+}
