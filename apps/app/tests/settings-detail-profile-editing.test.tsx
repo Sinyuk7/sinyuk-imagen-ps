@@ -5,6 +5,7 @@ import {
   buttonByText,
   changeInput,
   cleanupSettingsDetailRoot,
+  flush,
   queryByTestId,
   renderDetail,
   renderDetailWithRoot,
@@ -85,19 +86,17 @@ describe('SettingsDetailPage contract — profile editing', () => {
     expect(container.querySelector('[data-testid="provider-endpoint-preferred-badge-0"]')).toBeNull();
   });
 
-  it('renders delete as a header action after refresh without danger-zone copy', async () => {
+  it('renders delete as a header action without danger-zone copy', async () => {
     const container = document.createElement('div');
     document.body.appendChild(container);
     await renderDetail(container);
 
-    const refreshButton = queryByTestId(container, 'provider-detail-refresh-button');
     const deleteButton = queryByTestId(container, 'provider-delete-button');
     expect(deleteButton.className).toContain('hdr-btn');
     expect(deleteButton.getAttribute('aria-label')).toMatch(/删除|Delete/);
     expect(deleteButton.closest('.hdr')).not.toBeNull();
     expect(deleteButton.closest('.scroll')).toBeNull();
     expect(container.querySelector('.settings-danger-zone')).toBeNull();
-    expect(refreshButton.compareDocumentPosition(deleteButton) & Node.DOCUMENT_POSITION_FOLLOWING).not.toBe(0);
   });
 
   it('renders a plain page header title without provider enable status affordances', async () => {
@@ -118,6 +117,9 @@ describe('SettingsDetailPage contract — profile editing', () => {
     const { spies } = await renderDetail(container);
 
     await act(async () => {
+      changeInput(queryByTestId(container, 'provider-alias-input'), 'Renamed Mock');
+    });
+    await act(async () => {
       container.querySelector<HTMLButtonElement>('.btn-save')!.click();
     });
 
@@ -127,16 +129,22 @@ describe('SettingsDetailPage contract — profile editing', () => {
     expect(input).not.toHaveProperty('apiKey');
   });
 
-  it('shows explicit saved api key replace and remove actions', async () => {
+  it('shows explicit saved api key edit and remove actions', async () => {
     const container = document.createElement('div');
     document.body.appendChild(container);
     await renderDetail(container);
 
+    expect(queryByTestId(container, 'provider-api-key-saved-meta').textContent).toMatch(/已安全保存|Saved/);
+    expect(queryByTestId(container, 'provider-api-key-edit')).not.toBeNull();
+    expect(queryByTestId(container, 'provider-api-key-remove')).not.toBeNull();
+
+    await act(async () => {
+      queryByTestId(container, 'provider-api-key-edit').click();
+    });
+    await flush();
+
     const input = queryByTestId(container, 'provider-api-key-input') as HTMLInputElement;
     expect(input.placeholder).toMatch(/替换|replace/i);
-    expect(queryByTestId(container, 'provider-api-key-saved-meta').textContent).toMatch(/已安全保存|Saved/);
-    expect(queryByTestId(container, 'provider-api-key-replace')).not.toBeNull();
-    expect(queryByTestId(container, 'provider-api-key-remove')).not.toBeNull();
   });
 
   it('persists explicit api key removal only after the remove action', async () => {

@@ -23,6 +23,13 @@ describe('SettingsDetailPage contract — billing', () => {
     expect(container.textContent).toContain('Billing');
     expect(container.textContent).toContain('当前余额');
     expect(container.textContent).toContain('12.50 USD');
+    expect(container.querySelector('[data-testid="provider-billing-mode-selector"]')).toBeNull();
+
+    await act(async () => {
+      queryByTestId(container, 'provider-billing-expand-button').click();
+    });
+    await flush();
+
     expect(container.querySelector('[data-testid="provider-billing-mode-selector"]')).not.toBeNull();
 
     await act(async () => {
@@ -82,9 +89,17 @@ describe('SettingsDetailPage contract — billing', () => {
     });
     await renderDetailWithRoot(container, services, 'mock-profile', vi.fn(), vi.fn(async () => undefined));
 
+    await act(async () => {
+      queryByTestId(container, 'provider-billing-expand-button').click();
+    });
+    await flush();
+
     expect(queryByTestId(container, 'provider-billing-access-token-saved-meta').textContent).toMatch(/已安全保存|Saved/);
+    await act(async () => {
+      queryByTestId(container, 'provider-billing-access-token-edit').click();
+    });
+    await flush();
     expect((queryByTestId(container, 'provider-billing-access-token-input') as HTMLInputElement).placeholder).toMatch(/替换|replace/i);
-    expect(queryByTestId(container, 'provider-billing-access-token-replace')).not.toBeNull();
     expect(queryByTestId(container, 'provider-billing-access-token-remove')).not.toBeNull();
   });
 
@@ -120,6 +135,11 @@ describe('SettingsDetailPage contract — billing', () => {
     });
     await renderDetailWithRoot(container, services, 'mock-profile', onNav, onProfilesChanged);
 
+    await act(async () => {
+      queryByTestId(container, 'provider-billing-expand-button').click();
+    });
+    await flush();
+
     expect(container.textContent).toContain('2.2M quota');
     expect(container.textContent).toContain('12.9M quota');
     expect(container.textContent).not.toContain('2227206 quota');
@@ -132,7 +152,7 @@ describe('SettingsDetailPage contract — billing', () => {
     await renderDetail(container);
 
     const refresh = queryByTestId(container, 'provider-billing-refresh-button');
-    expect(refresh.className).toContain('settings-action-compact');
+    expect(refresh.className).toContain('settings-icon-button');
     expect(refresh.className).not.toContain('ui-button-block');
   });
 });

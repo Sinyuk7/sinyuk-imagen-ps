@@ -115,7 +115,11 @@ export function buttonByText(container: HTMLElement, text: string): HTMLElement 
 
 export async function switchToCustomModel(container: HTMLElement): Promise<void> {
   await act(async () => {
-    buttonByText(container, '使用自定义 model id').click();
+    const checkbox = container.querySelector<HTMLInputElement>('input[data-testid="provider-use-custom-model-checkbox"]');
+    if (!checkbox) {
+      throw new Error('找不到自定义 model id checkbox');
+    }
+    checkbox.click();
   });
   await flush();
 }

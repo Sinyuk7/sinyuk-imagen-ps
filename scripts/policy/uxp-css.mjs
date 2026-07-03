@@ -8,6 +8,8 @@ import {
 } from './uxp-css-contract.mjs';
 import { unique, walkFiles } from './shared.mjs';
 
+const CSS_LITERAL_START = /\b[A-Za-z0-9_]*CSS\s*=\s*`/u;
+
 function buildCssPolicyFiles(repoRoot) {
   return unique(
     uxpCssRoots.flatMap((root) => walkFiles(repoRoot, root, uxpCssSourceExtensions)),
@@ -20,15 +22,45 @@ function collectViolations(repoRoot, files, rules, prefix) {
   for (const file of files) {
     const source = fs.readFileSync(path.join(repoRoot, file), 'utf8');
     const lines = source.split('\n');
+    let inCssLiteral = false;
 
     lines.forEach((line, index) => {
+      let cssLine = null;
+
+      if (!inCssLiteral) {
+        const startMatch = line.match(CSS_LITERAL_START);
+        if (startMatch) {
+          const startIndex = line.indexOf('`', startMatch.index);
+          const remainder = line.slice(startIndex + 1);
+          const endIndex = remainder.indexOf('`');
+          if (endIndex >= 0) {
+            cssLine = remainder.slice(0, endIndex);
+          } else {
+            cssLine = remainder;
+            inCssLiteral = true;
+          }
+        }
+      } else {
+        const endIndex = line.indexOf('`');
+        if (endIndex >= 0) {
+          cssLine = line.slice(0, endIndex);
+          inCssLiteral = false;
+        } else {
+          cssLine = line;
+        }
+      }
+
+      if (cssLine == null) {
+        return;
+      }
+
       for (const rule of rules) {
-        if (rule.pattern.test(line)) {
+        if (rule.pattern.test(cssLine)) {
           violations.push({
             rule: `${prefix}: ${rule.name}`,
             file,
             line: index + 1,
-            text: `${line.trim()} // ${rule.message}`,
+            text: `${cssLine.trim()} // ${rule.message}`,
           });
         }
       }

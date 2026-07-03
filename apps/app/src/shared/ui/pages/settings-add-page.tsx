@@ -20,8 +20,9 @@ import { ProviderBillingSettings } from '../components/provider-billing-settings
 import { TextSelect } from '../components/text-select';
 import { useNotice } from '../components/notice';
 import { ProviderProfileEditor } from '../components/provider-profile-editor';
+import { StatusNotice } from '../components/status-notice';
 import { useI18n } from '../i18n/i18n-context';
-import { Button, Checkbox, TextField, HelpText } from '../primitives/native-controls';
+import { Button, Checkbox, TextField } from '../primitives/native-controls';
 import { IconButton } from '../primitives/icon-button';
 import { statusFromEndpointProbeResult } from '../provider-status';
 
@@ -301,147 +302,156 @@ export function SettingsAddPage({ onNav, profiles, onProfileSaved }: SettingsAdd
             ))}
           </div>
         ) : (
-          <ProviderProfileEditor
-            connectionTitle={t.settings.config}
-            aliasValue={name}
-            onAliasValue={(value) => {
-              nameTouchedRef.current = true;
-              setName(value);
-            }}
-            aliasError={aliasError}
-            aliasPlaceholder={selected?.displayName}
-            connection={connection}
-            onConnectionChange={(next) => {
-              const normalized = normalizeProviderConnectionDraft(typeof next === 'object' ? next : connection);
-              setConnection(normalized);
-              if (!nameTouchedRef.current) {
-                const generatedAlias = aliasFromEndpointUrl(normalized.endpoints.find((endpoint) => endpoint.url.trim())?.url ?? '');
-                if (generatedAlias) {
-                  setName(nextAlias(generatedAlias, profiles));
+          <>
+            <ProviderProfileEditor
+              connectionTitle={t.settings.config}
+              aliasValue={name}
+              onAliasValue={(value) => {
+                nameTouchedRef.current = true;
+                setName(value);
+              }}
+              aliasError={aliasError}
+              aliasPlaceholder={selected?.displayName}
+              connection={connection}
+              onConnectionChange={(next) => {
+                const normalized = normalizeProviderConnectionDraft(typeof next === 'object' ? next : connection);
+                setConnection(normalized);
+                if (!nameTouchedRef.current) {
+                  const generatedAlias = aliasFromEndpointUrl(normalized.endpoints.find((endpoint) => endpoint.url.trim())?.url ?? '');
+                  if (generatedAlias) {
+                    setName(nextAlias(generatedAlias, profiles));
+                  }
                 }
-              }
-              invalidateDraftProofs();
-            }}
-            baseUrlPlaceholder="https://api.example.com"
-            endpointErrors={endpointErrors}
-            probeResults={connectionProbeResultById(probeResults)}
-            suggestedEndpointId={suggestedEndpointId}
-            apiKeyValue={apiKey}
-            onApiKeyValue={(value) => {
-              setApiKey(sanitizeProviderSecretValue(value));
-              invalidateDraftProofs();
-            }}
-            apiKeyPlaceholder="sk-..."
-            showKey={showKey}
-            onShowKeyChange={setShowKey}
-            apiKeySaved={false}
-            extraSections={(
-              <div className="section">
-                <div className="section-title settings-section-heading">{t.settings.billing}</div>
-                <ProviderBillingSettings
-                  billing={billing}
-                  onBillingChange={(next) => {
-                    setBilling(next);
-                    invalidateDraftProofs();
-                  }}
-                  billingModeOptions={billingModeOptions(selected)}
-                  modeMenuOpen={billingModeMenuOpen}
-                  onModeMenuOpenChange={setBillingModeMenuOpen}
+                invalidateDraftProofs();
+              }}
+              baseUrlPlaceholder="https://api.example.com"
+              endpointErrors={endpointErrors}
+              probeResults={connectionProbeResultById(probeResults)}
+              suggestedEndpointId={suggestedEndpointId}
+              apiKeyValue={apiKey}
+              onApiKeyValue={(value) => {
+                setApiKey(sanitizeProviderSecretValue(value));
+                invalidateDraftProofs();
+              }}
+              apiKeyPlaceholder="sk-..."
+              showKey={showKey}
+              onShowKeyChange={setShowKey}
+              apiKeySaved={false}
+            />
+          <div className="section">
+            <div className="section-title settings-section-heading">{t.settings.defaultModel}</div>
+            <div className="field">
+              {modelMode === 'list' && modelOptions.length > 0 ? (
+                <TextSelect
+                  label={t.settings.defaultModel}
+                  value={modelOptions.find((option) => option.id === defaultModel)?.label ?? t.settings.chooseFromList}
                   disabled={busy}
-                  accessTokenPlaceholder="sk-..."
+                  open={modelMenuOpen}
+                  onOpenChange={setModelMenuOpen}
+                  options={modelOptions}
+                  selectedId={defaultModel}
+                  onSelect={(id) => {
+                    modelModeTouchedRef.current = true;
+                    setDefaultModel(id);
+                    setModelMode('list');
+                    setModelMenuOpen(false);
+                  }}
+                  testId="provider-default-model-selector"
+                  triggerId="provider-default-model-selector"
+                  containerClassName="cmp-select cmp-select-model provider-model-select"
+                  menuClassName="cmp-select-menu cmp-select-menu-model"
                 />
-              </div>
-            )}
-            defaultModelSection={(
-              <div className="field">
-                {modelOptions.length > 0 && (
-                  <div className="settings-inline-heading-row">
-                    <div className="settings-inline-heading-copy">
-                      <HelpText className="field-hint">
-                        {modelMode === 'list' ? t.settings.customModelHint : t.settings.chooseFromListHint}
-                      </HelpText>
-                    </div>
-                  </div>
-                )}
-                {modelMode === 'list' && modelOptions.length > 0 ? (
-                  <TextSelect
-                    label={t.settings.defaultModel}
-                    value={modelOptions.find((option) => option.id === defaultModel)?.label ?? t.settings.chooseFromList}
-                    disabled={busy}
-                    open={modelMenuOpen}
-                    onOpenChange={setModelMenuOpen}
-                    options={modelOptions}
-                    selectedId={defaultModel}
-                    onSelect={(id) => {
+              ) : (
+                <TextField
+                  data-testid="provider-default-model-input"
+                  id="provider-default-model-input"
+                  aria-label={t.settings.defaultModel}
+                  className="field-input mono ui-field-control"
+                  placeholder={selected?.defaultModels?.[0]?.id ?? 'gpt-image-2'}
+                  value={defaultModel}
+                  onValue={(value) => {
+                    modelModeTouchedRef.current = true;
+                    setModelMode('custom');
+                    setDefaultModel(value);
+                  }}
+                />
+              )}
+              {modelOptions.length > 0 && (
+                <div className="provider-model-mode-row">
+                  <Checkbox
+                    data-testid="provider-use-custom-model-checkbox"
+                    checked={modelMode === 'custom'}
+                    onChecked={(checked) => {
                       modelModeTouchedRef.current = true;
-                      setDefaultModel(id);
-                      setModelMode('list');
+                      setModelMode(checked ? 'custom' : 'list');
                       setModelMenuOpen(false);
                     }}
-                    testId="provider-default-model-selector"
-                    triggerId="provider-default-model-selector"
-                    containerClassName="cmp-select cmp-select-model provider-model-select"
-                    menuClassName="cmp-select-menu cmp-select-menu-model"
-                  />
-                ) : (
-                  <TextField
-                    data-testid="provider-default-model-input"
-                    id="provider-default-model-input"
-                    aria-label={t.settings.defaultModel}
-                    className="field-input mono ui-field-control"
-                    placeholder={selected?.defaultModels?.[0]?.id ?? 'gpt-image-2'}
-                    value={defaultModel}
-                    onValue={(value) => {
-                      modelModeTouchedRef.current = true;
-                      setModelMode('custom');
-                      setDefaultModel(value);
-                    }}
-                  />
-                )}
-                {modelOptions.length > 0 && (
-                  <div className="provider-model-mode-row">
-                    <button
-                      type="button"
-                      className="provider-model-mode-link"
-                      disabled={busy}
-                      onClick={() => {
-                        modelModeTouchedRef.current = true;
-                        setModelMode(modelMode === 'list' ? 'custom' : 'list');
-                        setModelMenuOpen(false);
-                      }}
-                    >
-                      {modelMode === 'list' ? t.settings.useCustomModelId : t.settings.chooseFromList}
-                    </button>
-                  </div>
-                )}
-              </div>
-            )}
-            testBusy={busy}
-            onTest={() => void handleTest()}
-            testStatus={statusNotice.notice}
-          />
-        )}
+                  >
+                    {t.settings.useCustomModelId}
+                  </Checkbox>
+                </div>
+              )}
+            </div>
+          </div>
+          <div className="section">
+            <div className="section-title settings-section-heading">{t.settings.billing}</div>
+            <ProviderBillingSettings
+              billing={billing}
+              onBillingChange={(next) => {
+                setBilling(next);
+                invalidateDraftProofs();
+              }}
+              billingModeOptions={billingModeOptions(selected)}
+              modeMenuOpen={billingModeMenuOpen}
+              onModeMenuOpenChange={setBillingModeMenuOpen}
+              disabled={busy}
+              accessTokenPlaceholder="sk-..."
+            />
+          </div>
+        </>)}
       </div>
 
       {step === 2 && (
         <footer className="det-footer">
           <div className="settings-detail-footer-inner">
-            <Checkbox
-              data-testid="provider-use-after-saving"
-              checked={useProviderAfterSaving}
-              disabled={busy}
-              onChecked={setUseProviderAfterSaving}
-            >
-              {t.settings.useProviderAfterSaving}
-            </Checkbox>
-            <Button data-testid="provider-save-button" className="btn-save ui-button-block" variant="accent" disabled={saveDisabled} onClick={() => void handleSave()}>{busy ? t.settings.saving : t.settings.saveProvider}</Button>
-            <Button
-              className="btn-cancel"
-              variant="secondary"
-              onClick={() => onNav('settings')}
-            >
-              {t.common.cancel}
-            </Button>
+            <div className="settings-detail-footer-actions">
+              <IconButton
+                data-testid="provider-test-button"
+                className="settings-icon-button"
+                compactSquare
+                disabled={busy}
+                icon={busy ? <Icon name="spinner" size={16} className="spin" /> : <Icon name="plug" size={16} />}
+                tooltip={busy ? t.settings.testingConnection : t.settings.testConnection}
+                aria-label={busy ? t.settings.testingConnection : t.settings.testConnection}
+                onClick={() => void handleTest()}
+              />
+              {statusNotice.notice ? (
+                <StatusNotice
+                  tone={statusNotice.notice.tone}
+                  message={statusNotice.notice.message}
+                  detail={'detail' in statusNotice.notice ? statusNotice.notice.detail : null}
+                  detailCopyable={'detailCopyable' in statusNotice.notice ? statusNotice.notice.detailCopyable : false}
+                />
+              ) : null}
+            </div>
+            <div className="settings-detail-footer-save-group">
+              <Checkbox
+                data-testid="provider-use-after-saving"
+                checked={useProviderAfterSaving}
+                disabled={busy}
+                onChecked={setUseProviderAfterSaving}
+              >
+                {t.settings.useProviderAfterSaving}
+              </Checkbox>
+              <Button data-testid="provider-save-button" className="btn-save" variant="accent" disabled={saveDisabled} onClick={() => void handleSave()}>{busy ? t.settings.saving : t.settings.saveProvider}</Button>
+              <Button
+                className="btn-cancel"
+                variant="secondary"
+                onClick={() => onNav('settings')}
+              >
+                {t.common.cancel}
+              </Button>
+            </div>
           </div>
         </footer>
       )}

@@ -280,28 +280,36 @@ export const NATIVE_CONTROLS_CSS = `
 }
 
 .settings-page .ui-field-label{
-  margin-bottom:6px;
-  font-size:12px;
-  line-height:16px;
+  margin-bottom:4px;
+  font-size:11px;
+  line-height:15px;
   font-weight:600;
   color:var(--app-color-text-secondary);
 }
 .settings-page .ui-help-text{
-  font-size:11px;
-  line-height:16px;
+  font-size:10px;
+  line-height:14px;
 }
 .settings-page .ui-textfield{
-  min-height:36px;
-  padding:8px 12px;
+  min-height:30px;
+  padding:5px 10px;
+  font-size:12px;
 }
 .settings-page .ui-btn{
-  min-height:36px;
-  padding:8px 12px;
+  min-height:30px;
+  padding:5px 10px;
+  font-size:12px;
 }
 .settings-page .ui-btn.settings-action-compact{
-  min-height:30px;
-  padding:6px 10px;
+  min-height:26px;
+  padding:3px 8px;
   border-radius:var(--app-radius-small);
+  font-size:11px;
+}
+.settings-page .ui-checkbox-label{
+  font-size:11px;
+  line-height:15px;
+  color:var(--app-color-text-primary);
 }
 .settings-page .ui-btn.settings-action-emphasis{
   border-color:color-mix(in srgb, var(--app-color-accent-default) 42%, var(--app-color-border-default));

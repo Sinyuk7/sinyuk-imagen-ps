@@ -6,6 +6,7 @@ const highAuthorityDocs = [
   'CLA.md',
   'docs/ENGINEERING_CONTEXT.md',
   'docs/TESTING.md',
+  'docs/PROVIDER_SUPPORT.md',
   'docs/agent/LOOP.md',
   'apps/app/AGENTS.md',
   'packages/AGENTS.md',

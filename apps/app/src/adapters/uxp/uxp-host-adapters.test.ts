@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import type { DurableJobRecord, ProviderProfile, TaskRecord } from '@imagen-ps/application';
-import { decodeLogRecords } from '@imagen-ps/foundation';
+import { decodeLogRecords, type LogRecord } from '@imagen-ps/foundation';
 import { createUxpAssetStore, createUxpJobHistoryStore, createUxpTaskStore } from './uxp-job-history-adapter';
 import { createUxpLogSink } from './uxp-log-sink';
 import { createUxpActiveImageProfileStore } from './uxp-active-image-profile-store';
@@ -127,7 +127,7 @@ function createFakeDataFolder(initialEntries?: Record<string, FakeEntry>): {
   };
 }
 
-function makeLogRecord(event: string, spanId = 'sp_1') {
+function makeLogRecord(event: string, spanId = 'sp_1'): LogRecord {
   return {
     schema_version: 1,
     timestamp: '2026-06-16T00:00:00.000Z',

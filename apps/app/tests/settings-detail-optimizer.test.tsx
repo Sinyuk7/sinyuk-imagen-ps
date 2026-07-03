@@ -1,9 +1,9 @@
 import { act } from 'react';
 import { afterEach, describe, expect, it } from 'vitest';
 import {
-  buttonByText,
   cleanupSettingsDetailRoot,
   flush,
+  queryByTestId,
   renderOptimizerDetail,
 } from './settings-detail-harness';
 
@@ -18,7 +18,7 @@ describe('SettingsDetailPage contract — prompt optimizer', () => {
     const { spies, onProfilesChanged } = await renderOptimizerDetail(container);
 
     await act(async () => {
-      buttonByText(container, '测试连接').click();
+      queryByTestId(container, 'provider-test-button').click();
     });
     await flush();
 

@@ -124,12 +124,6 @@ export interface OpenAIImageEditBody {
   [key: string]: unknown;
 }
 
-export interface OpenAIImageEditMultipartBody {
-  readonly kind: 'multipart';
-  readonly body: Blob;
-  readonly contentType: string;
-}
-
 /** build-request 层抛出的结构化校验错误。 */
 class BuildRequestError extends Error {
   readonly details?: Record<string, unknown>;
@@ -307,74 +301,17 @@ function assetToBlob(asset: Asset): Blob {
   throw new BuildRequestError('Image endpoint multipart edit requires inline image data.');
 }
 
-interface MultipartTextPart {
-  readonly type: 'text';
-  readonly name: string;
-  readonly value: string;
-}
-
-interface MultipartFilePart {
-  readonly type: 'file';
-  readonly name: string;
-  readonly filename: string;
-  readonly contentType: string;
-  readonly blob: Blob;
-}
-
-type MultipartPart = MultipartTextPart | MultipartFilePart;
-
-function createMultipartBoundary(): string {
-  const suffix =
-    typeof globalThis.crypto?.randomUUID === 'function'
-      ? globalThis.crypto.randomUUID().replace(/-/g, '')
-      : Math.random().toString(16).slice(2);
-  return `imagenps-${suffix}`;
-}
-
-function escapeMultipartQuoted(value: string): string {
-  return value.replace(/\\/g, '\\\\').replace(/"/g, '\\"').replace(/\r|\n/g, '_');
-}
-
-function createMultipartBody(parts: readonly MultipartPart[]): OpenAIImageEditMultipartBody {
-  const boundary = createMultipartBoundary();
-  const bodyParts: (string | Blob)[] = [];
-
-  for (const part of parts) {
-    bodyParts.push(`--${boundary}\r\n`);
-    if (part.type === 'text') {
-      bodyParts.push(`Content-Disposition: form-data; name="${escapeMultipartQuoted(part.name)}"\r\n\r\n`);
-      bodyParts.push(`${part.value}\r\n`);
-    } else {
-      bodyParts.push(
-        `Content-Disposition: form-data; name="${escapeMultipartQuoted(part.name)}"; filename="${escapeMultipartQuoted(part.filename)}"\r\n`,
-      );
-      bodyParts.push(`Content-Type: ${part.contentType}\r\n\r\n`);
-      bodyParts.push(part.blob);
-      bodyParts.push('\r\n');
-    }
-  }
-
-  bodyParts.push(`--${boundary}--\r\n`);
-
-  return {
-    kind: 'multipart',
-    body: new Blob(bodyParts, { type: `multipart/form-data; boundary=${boundary}` }),
-    contentType: `multipart/form-data; boundary=${boundary}`,
-  };
-}
-
-function appendMultipartField(parts: MultipartPart[], key: string, value: unknown): void {
+function appendMultipartField(form: FormData, key: string, value: unknown): void {
   if (value === undefined) {
     return;
   }
-  parts.push({ type: 'text', name: key, value: String(value) });
+  form.append(key, String(value));
 }
 
-function appendMultipartImage(parts: MultipartPart[], key: string, asset: Asset, index: number): void {
+function appendMultipartImage(form: FormData, key: string, asset: Asset, index: number): void {
   if (typeof asset.data === 'string' || asset.data instanceof Uint8Array) {
     const filename = asset.name ?? `image-${index + 1}.png`;
-    const contentType = asset.mimeType ?? 'image/png';
-    parts.push({ type: 'file', name: key, filename, contentType, blob: assetToBlob(asset) });
+    form.append(key, assetToBlob(asset), filename);
     return;
   }
   throw new BuildRequestError('Image endpoint multipart edit input asset requires inline data.', {
@@ -383,11 +320,11 @@ function appendMultipartImage(parts: MultipartPart[], key: string, asset: Asset,
   });
 }
 
-function appendMultipartBodyFields(parts: MultipartPart[], body: OpenAIImageEditBody): void {
+function appendMultipartBodyFields(form: FormData, body: OpenAIImageEditBody): void {
   const skippedKeys = new Set(['images', 'mask']);
   for (const [key, value] of Object.entries(body)) {
     if (!skippedKeys.has(key)) {
-      appendMultipartField(parts, key, value);
+      appendMultipartField(form, key, value);
     }
   }
 }
@@ -553,7 +490,7 @@ export function buildEditRequestBody(request: CanonicalImageJobRequest, defaultM
 export function buildEditMultipartBody(
   request: CanonicalImageJobRequest,
   defaultModel?: string,
-): OpenAIImageEditMultipartBody {
+): FormData {
   if (request.images === undefined || request.images.length === 0) {
     throw new BuildRequestError('Image endpoint edit request requires at least one input image.');
   }
@@ -580,15 +517,15 @@ export function buildEditMultipartBody(
   });
 
   applyProviderOptions(body, request.providerOptions, ['image_response_format']);
-  const parts: MultipartPart[] = [];
+  const form = new FormData();
 
-  appendMultipartBodyFields(parts, body);
+  appendMultipartBodyFields(form, body);
 
-  request.images.forEach((asset, index) => appendMultipartImage(parts, 'image[]', asset, index));
+  request.images.forEach((asset, index) => appendMultipartImage(form, 'image[]', asset, index));
 
   if (request.maskImage !== undefined) {
-    appendMultipartImage(parts, 'mask', request.maskImage, 0);
+    appendMultipartImage(form, 'mask', request.maskImage, 0);
   }
 
-  return createMultipartBody(parts);
+  return form;
 }

@@ -111,13 +111,13 @@ export function createChatImageProvider(): Provider<ChatImageProviderConfig, Moc
         execution?: ProviderInvokeResult['execution'];
       } = {
         assets: parsed.assets,
-        raw: execution.value.response.data,
+        raw: parsed.raw,
         execution: {
           selectedEndpointId: execution.selectedEndpointId,
           attempts: execution.attempts,
         },
       };
-      const diagnostics = [...execution.diagnostics, ...execution.value.diagnostics];
+      const diagnostics = [...execution.diagnostics, ...execution.value.diagnostics, ...(parsed.diagnostics ?? [])];
       if (diagnostics.length > 0) {
         result.diagnostics = diagnostics;
       }

@@ -41,6 +41,8 @@ function fakeHost(dispose = vi.fn()): PluginHostShell {
     services: {
       commands: {} as PluginHostShell['services']['commands'],
       host: {} as PluginHostShell['services']['host'],
+      generationSettings: {} as PluginHostShell['services']['generationSettings'],
+      activeImageProfile: {} as PluginHostShell['services']['activeImageProfile'],
     },
     dispose,
   };

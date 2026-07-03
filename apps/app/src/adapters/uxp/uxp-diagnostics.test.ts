@@ -6,7 +6,7 @@ import type { UxpModules } from './uxp-api';
 interface FakeFileEntry {
   readonly nativePath?: string;
   content: string | ArrayBuffer;
-  writes: Array<{ readonly data: string | ArrayBuffer; readonly options?: { readonly format?: unknown } }>;
+  writes: Array<{ readonly data: string | ArrayBuffer | Uint8Array; readonly options?: { readonly format?: unknown } }>;
   read(options?: { readonly format?: unknown }): Promise<string | ArrayBuffer>;
   write(data: ArrayBuffer | Uint8Array | string, options?: { readonly format?: unknown }): Promise<void>;
 }
@@ -25,7 +25,7 @@ function textEncoder(value: string): ArrayBuffer {
 
 class MutableFakeFileEntry implements FakeFileEntry {
   readonly nativePath?: string;
-  writes: Array<{ readonly data: string | ArrayBuffer; readonly options?: { readonly format?: unknown } }> = [];
+  writes: Array<{ readonly data: string | ArrayBuffer | Uint8Array; readonly options?: { readonly format?: unknown } }> = [];
 
   constructor(
     readonly name: string,
@@ -43,7 +43,7 @@ class MutableFakeFileEntry implements FakeFileEntry {
 
   async write(data: ArrayBuffer | Uint8Array | string, options?: { readonly format?: unknown }): Promise<void> {
     this.writes.push({ data, options });
-    this.content = data instanceof Uint8Array ? data.buffer : data;
+    this.content = typeof data === 'string' ? data : data instanceof Uint8Array ? new Uint8Array(data).buffer : data;
   }
 }
 
@@ -74,7 +74,13 @@ class MutableFakeFolderEntry implements FakeFolderEntry {
   }
 }
 
-type FakeLocalFileSystem = NonNullable<NonNullable<UxpModules['uxp']>['storage']>['localFileSystem'];
+interface FakeLocalFileSystem {
+  readonly formats?: {
+    readonly utf8?: unknown;
+  };
+  getDataFolder(): Promise<FakeFolderEntry>;
+  getFileForSaving?(suggestedName: string, options?: { readonly types?: readonly string[] }): Promise<FakeFileEntry | undefined>;
+}
 
 function createFakeLocalFileSystem(
   dataFolder: FakeFolderEntry,

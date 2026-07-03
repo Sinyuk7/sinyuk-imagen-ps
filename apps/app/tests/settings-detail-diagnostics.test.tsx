@@ -1,7 +1,6 @@
 import { act } from 'react';
 import { afterEach, describe, expect, it } from 'vitest';
 import {
-  buttonByText,
   changeInput,
   cleanupSettingsDetailRoot,
   flush,
@@ -25,6 +24,10 @@ describe('SettingsDetailPage contract — diagnostics', () => {
     await act(async () => {
       changeInput(queryByTestId(container, 'provider-alias-input'), 'Sensitive Alias Should Not Log');
       changeInput(queryByTestId(container, 'provider-endpoint-url-0'), 'https://secret.example.local/path');
+      queryByTestId(container, 'provider-api-key-edit').click();
+    });
+    await flush();
+    await act(async () => {
       changeInput(queryByTestId(container, 'provider-api-key-input'), 'sk_live_secret_should_not_log');
     });
     await switchToCustomModel(container);
@@ -75,6 +78,9 @@ describe('SettingsDetailPage contract — diagnostics', () => {
     document.body.appendChild(container);
     const { onProfilesChanged } = await renderDetail(container);
 
+    await act(async () => {
+      changeInput(queryByTestId(container, 'provider-alias-input'), 'Disabled Flight Recorder');
+    });
     await act(async () => {
       container.querySelector<HTMLButtonElement>('.btn-save')!.click();
     });

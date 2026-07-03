@@ -125,6 +125,8 @@ export interface AppMessages {
     readonly billingDisabled: string;
     readonly billingRefresh: string;
     readonly billingRefreshing: string;
+    readonly billingExpand: string;
+    readonly billingCollapse: string;
     readonly billingDetails: string;
     readonly billingBalanceLabel: string;
     readonly billingCheckedAt: string;
@@ -179,12 +181,15 @@ export interface AppMessages {
     readonly savedButton: string;
     readonly showApiKey: string;
     readonly hideApiKey: string;
+    readonly editApiKey: string;
     readonly refreshModels: string;
     readonly refreshingModels: string;
     readonly testConnection: string;
     readonly testingConnection: string;
+    readonly testNotTested: string;
     readonly testResultPrefix: string;
     readonly saved: string;
+    readonly retrySave: string;
     readonly testSuccess: string;
     readonly connectionFailed: string;
     readonly configValidNoModels: string;
@@ -357,6 +362,8 @@ const EN_MESSAGES: AppMessages = {
     billingDisabled: 'Billing is not configured for this profile.',
     billingRefresh: 'Refresh balance',
     billingRefreshing: 'Refreshing balance...',
+    billingExpand: 'Expand',
+    billingCollapse: 'Collapse',
     billingDetails: 'Billing details',
     billingBalanceLabel: 'Current balance',
     billingCheckedAt: 'Last checked',
@@ -411,12 +418,15 @@ const EN_MESSAGES: AppMessages = {
     savedButton: 'Saved',
     showApiKey: 'Show API Key',
     hideApiKey: 'Hide API Key',
+    editApiKey: 'Edit API Key',
     refreshModels: 'Refresh model list',
     refreshingModels: 'Refreshing...',
     testConnection: 'Test connection',
     testingConnection: 'Testing...',
+    testNotTested: 'Not tested',
     testResultPrefix: 'Latest test result',
     saved: 'Saved',
+    retrySave: 'Retry save',
     testSuccess: 'Connected',
     connectionFailed: 'Connection failed',
     configValidNoModels: 'Configuration is valid; no model list found',
@@ -590,6 +600,8 @@ const ZH_CN_MESSAGES: AppMessages = {
     billingDisabled: '当前 profile 未配置 billing。',
     billingRefresh: '刷新余额',
     billingRefreshing: '刷新余额中...',
+    billingExpand: '展开',
+    billingCollapse: '收起',
     billingDetails: 'Billing 详情',
     billingBalanceLabel: '当前余额',
     billingCheckedAt: '最近检查时间',
@@ -644,12 +656,15 @@ const ZH_CN_MESSAGES: AppMessages = {
     savedButton: '已保存',
     showApiKey: '显示 API Key',
     hideApiKey: '隐藏 API Key',
+    editApiKey: '编辑 API Key',
     refreshModels: '刷新模型列表',
     refreshingModels: '刷新中...',
     testConnection: '测试连接',
     testingConnection: '测试中...',
+    testNotTested: '未测试',
     testResultPrefix: '最近一次测试结果',
     saved: '已保存',
+    retrySave: '重试保存',
     testSuccess: '连接成功',
     connectionFailed: '连接失败',
     configValidNoModels: '配置有效；未发现模型列表',

@@ -26,7 +26,9 @@ export type IconName =
   | 'image-check'
   | 'magic-wand'
   | 'message'
+  | 'pencil'
   | 'place-ps'
+  | 'plug'
   | 'ps-layers'
   | 'refresh'
   | 'regenerate'
@@ -34,6 +36,7 @@ export type IconName =
   | 'send'
   | 'settings'
   | 'spinner'
+  | 'star'
   | 'target'
   | 'trash'
   | 'upload'
@@ -75,7 +78,12 @@ const ICON_BODY_BY_NAME: Record<IconName, SvgBody> = {
       <path d="M12 17.3v0" />
     </>
   ),
-  'arrow-right': () => <polyline points="9 5 16 12 9 19" />,
+  'arrow-right': () => (
+    <>
+      <line x1="5" y1="12" x2="19" y2="12" />
+      <polyline points="14 7 19 12 14 17" />
+    </>
+  ),
   check: () => <polyline points="5 12.5 9.4 17 19 7" />,
   'chevron-down': () => <polyline points="6 9 12 15 18 9" />,
   'chevron-left': () => <polyline points="15 5 8 12 15 19" />,
@@ -163,6 +171,21 @@ const ICON_BODY_BY_NAME: Record<IconName, SvgBody> = {
       <path d="M5 6.5h14a2 2 0 0 1 2 2v7a2 2 0 0 1-2 2H11l-4.5 3v-3H5a2 2 0 0 1-2-2v-7a2 2 0 0 1 2-2z" />
     </>
   ),
+  pencil: () => (
+    <>
+      <path d="M12 20h9" />
+      <path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z" />
+    </>
+  ),
+  plug: () => (
+    <>
+      <path d="M11 2v6" />
+      <path d="M13 2v6" />
+      <path d="M12 8v13" />
+      <path d="M7 8h10" />
+      <path d="M16 16l3 3" />
+    </>
+  ),
   'place-ps': () => (
     <>
       <rect x="4" y="5" width="16" height="14" rx="2" />
@@ -192,14 +215,11 @@ const ICON_BODY_BY_NAME: Record<IconName, SvgBody> = {
       <polyline points="5 4 5 8 9 8" />
       <path d="M5 16a7 7 0 0 0 12 2l2-2" />
       <polyline points="19 20 19 16 15 16" />
+      <circle cx="12" cy="12" r="1.5" />
     </>
   ),
   selection: () => (
-    <>
-      <rect x="5" y="5" width="14" height="14" rx="2" />
-      <path d="M9 5v14" />
-      <path d="M15 5v14" />
-    </>
+    <rect x="4.5" y="4.5" width="15" height="15" rx="1.5" strokeDasharray="3.5 2.5" />
   ),
   send: () => (
     <>
@@ -209,23 +229,16 @@ const ICON_BODY_BY_NAME: Record<IconName, SvgBody> = {
   ),
   settings: () => (
     <>
-      <circle cx="12" cy="12" r="3" />
-      <path d="M12 3v3" />
-      <path d="M12 18v3" />
-      <path d="M3 12h3" />
-      <path d="M18 12h3" />
-      <path d="M5.6 5.6l2.1 2.1" />
-      <path d="M16.3 16.3l2.1 2.1" />
-      <path d="M18.4 5.6l-2.1 2.1" />
-      <path d="M7.7 16.3l-2.1 2.1" />
+      <polygon points="12,1.5 14.2,6.6 19.5,4.5 18,9.9 22.5,12 18,14.1 19.5,19.5 14.2,17.4 12,22.5 9.8,17.4 4.5,19.5 6,14.1 1.5,12 6,9.9 4.5,4.5 9.8,6.6" />
+      <circle cx="12" cy="12" r="4" />
     </>
   ),
   spinner: () => (
+    <path d="M12 3a9 9 0 0 1 9 9" strokeDasharray="42 14" />
+  ),
+  star: () => (
     <>
-      <path d="M19 8a7 7 0 0 0-12-2l-2 2" />
-      <polyline points="5 4 5 8 9 8" />
-      <path d="M5 16a7 7 0 0 0 12 2l2-2" />
-      <polyline points="19 20 19 16 15 16" />
+      <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2" />
     </>
   ),
   target: () => (
@@ -264,15 +277,12 @@ const ICON_BODY_BY_NAME: Record<IconName, SvgBody> = {
     </>
   ),
   'layer-pixel': () => (
-    <>
-      <rect x="5" y="5" width="14" height="14" rx="2" />
-    </>
+    <rect x="5" y="5" width="14" height="14" rx="2" fill="currentColor" fillOpacity="0.2" stroke="currentColor" />
   ),
   'layer-smart-object': () => (
     <>
       <rect x="5" y="5" width="14" height="14" rx="2" />
-      <path d="M9 5v14" />
-      <path d="M15 5v14" />
+      <circle cx="16.5" cy="16.5" r="2.5" fill="currentColor" fillOpacity="0.2" stroke="currentColor" />
     </>
   ),
   'layer-text': () => (

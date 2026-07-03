@@ -61,6 +61,11 @@ surface apps -> application/session -> core-engine + providers
 - Sink boundary: shared logging constructs records and applies redaction; host adapters own storage (UXP data-folder sink, Chrome IndexedDB-style sink).
 - Failure mode: logging is fail-open and must not break product behavior.
 - No raw provider request/response logging and no remote telemetry pipeline.
+- Provider response normalization must not retain full inline `data:image/...`
+  payloads in surfaced `text`, `raw`, diagnostics, or durable/session-facing
+  display paths. Chat-image style markdown inline images may be promoted into
+  `assets`, but invalid or oversized inline image payloads must degrade to
+  short placeholders plus non-sensitive diagnostics.
 
 ## Image Resource Lifecycle
 

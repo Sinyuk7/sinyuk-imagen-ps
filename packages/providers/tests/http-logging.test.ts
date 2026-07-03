@@ -56,4 +56,63 @@ describe('image endpoint HTTP logging', () => {
     expect(fetchSpy.mock.calls[0]?.[1]).not.toHaveProperty('signal');
     fetchSpy.mockRestore();
   });
+
+  it('removes all Content-Type variants when body is FormData', async () => {
+    const fetchSpy = vi.spyOn(globalThis, 'fetch').mockResolvedValueOnce(
+      new Response(JSON.stringify({ data: [] }), {
+        status: 200,
+        headers: { 'Content-Type': 'application/json' },
+      }),
+    );
+    const body = new FormData();
+    body.append('prompt', 'test');
+
+    await httpRequest({
+      url: 'https://api.example.com/v1/images/edits',
+      method: 'POST',
+      headers: {
+        Authorization: 'Bearer test',
+        Accept: 'application/json',
+        'X-Test': '1',
+        'Content-Type': 'text/plain',
+        'content-type': 'application/xml',
+      },
+      body,
+    });
+
+    const init = fetchSpy.mock.calls[0]?.[1] as RequestInit | undefined;
+    expect(init?.body).toBe(body);
+    expect(init?.headers).toMatchObject({
+      Authorization: 'Bearer test',
+      Accept: 'application/json',
+      'X-Test': '1',
+    });
+    expect(init?.headers).not.toHaveProperty('Content-Type');
+    expect(init?.headers).not.toHaveProperty('content-type');
+    fetchSpy.mockRestore();
+  });
+
+  it('keeps JSON requests on application/json', async () => {
+    const fetchSpy = vi.spyOn(globalThis, 'fetch').mockResolvedValueOnce(
+      new Response(JSON.stringify({ data: [] }), {
+        status: 200,
+        headers: { 'Content-Type': 'application/json' },
+      }),
+    );
+
+    await httpRequest({
+      url: 'https://api.example.com/v1/images/generations',
+      method: 'POST',
+      headers: { Authorization: 'Bearer test' },
+      body: { prompt: 'test' },
+    });
+
+    const init = fetchSpy.mock.calls[0]?.[1] as RequestInit | undefined;
+    expect(init?.headers).toMatchObject({
+      Authorization: 'Bearer test',
+      'Content-Type': 'application/json',
+    });
+    expect(init?.body).toBe(JSON.stringify({ prompt: 'test' }));
+    fetchSpy.mockRestore();
+  });
 });

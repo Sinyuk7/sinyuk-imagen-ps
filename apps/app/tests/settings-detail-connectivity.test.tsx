@@ -1,7 +1,6 @@
 import { act } from 'react';
 import { afterEach, describe, expect, it } from 'vitest';
 import {
-  buttonByText,
   changeInput,
   cleanupSettingsDetailRoot,
   flush,
@@ -20,7 +19,7 @@ describe('SettingsDetailPage contract — connectivity', () => {
     const { spies } = await renderDetail(container);
 
     await act(async () => {
-      buttonByText(container, '测试连接').click();
+      queryByTestId(container, 'provider-test-button').click();
     });
     await flush();
 
@@ -34,7 +33,7 @@ describe('SettingsDetailPage contract — connectivity', () => {
     expect(container.textContent).toContain('连接成功');
 
     await act(async () => {
-      buttonByText(container, '刷新模型列表').click();
+      queryByTestId(container, 'provider-refresh-models-button').click();
     });
     await flush();
 
@@ -51,7 +50,7 @@ describe('SettingsDetailPage contract — connectivity', () => {
     });
 
     await act(async () => {
-      buttonByText(container, '刷新模型列表').click();
+      queryByTestId(container, 'provider-refresh-models-button').click();
     });
     await flush();
 
@@ -80,7 +79,7 @@ describe('SettingsDetailPage contract — connectivity', () => {
     await renderDetail(container);
 
     await act(async () => {
-      buttonByText(container, '测试连接').click();
+      queryByTestId(container, 'provider-test-button').click();
     });
     await flush();
     expect(container.textContent).toContain('连接成功');
@@ -109,7 +108,7 @@ describe('SettingsDetailPage contract — connectivity', () => {
     });
 
     await act(async () => {
-      buttonByText(container, '测试连接').click();
+      queryByTestId(container, 'provider-test-button').click();
     });
     await flush();
 
@@ -133,11 +132,11 @@ describe('SettingsDetailPage contract — connectivity', () => {
     );
 
     await act(async () => {
-      buttonByText(container, '测试连接').click();
+      queryByTestId(container, 'provider-test-button').click();
       await Promise.resolve();
     });
 
-    expect(buttonByText(container, '测试中...').disabled).toBe(true);
+    expect(queryByTestId(container, 'provider-test-button').disabled).toBe(true);
 
     await act(async () => {
       resolveTest?.({
@@ -154,7 +153,7 @@ describe('SettingsDetailPage contract — connectivity', () => {
     });
     await flush();
 
-    expect(Boolean(buttonByText(container, '测试连接').disabled)).toBe(false);
+    expect(Boolean(queryByTestId(container, 'provider-test-button').disabled)).toBe(false);
     expect(container.textContent).toContain('连接成功');
   });
 
@@ -185,7 +184,7 @@ describe('SettingsDetailPage contract — connectivity', () => {
       queryByTestId(container, 'provider-selection-mode-auto').click();
     });
     await act(async () => {
-      buttonByText(container, '测试连接').click();
+      queryByTestId(container, 'provider-test-button').click();
     });
     await flush();
 
@@ -193,22 +192,23 @@ describe('SettingsDetailPage contract — connectivity', () => {
     expect(spies.saveProviderProfile).not.toHaveBeenCalled();
   });
 
-  it('renders the test button as a centered icon and label combo with nearby test result meta', async () => {
+  it('renders the test button as a compact icon with nearby test result meta', async () => {
     const container = document.createElement('div');
     document.body.appendChild(container);
     await renderDetail(container);
 
     const button = container.querySelector('[data-testid="provider-test-button"]');
-    expect(button?.querySelector('.ui-button-content')).not.toBeNull();
-    expect(button?.querySelector('[data-icon-name="check"]')).not.toBeNull();
+    expect(button).not.toBeNull();
+    expect(button?.classList.contains('ui-icon-button')).toBe(true);
+    expect(container.querySelector('[data-icon-name="plug"]')).not.toBeNull();
 
     await act(async () => {
-      buttonByText(container, '测试连接').click();
+      queryByTestId(container, 'provider-test-button').click();
     });
     await flush();
 
-    expect(container.textContent).toContain('最近一次测试结果');
-    expect(container.textContent).toMatch(/最近一次测试结果 · \d+ ms/);
+    expect(container.textContent).toContain('连接成功');
+    expect(container.textContent).toMatch(/\d+ ms/);
   });
 
   it('keeps refresh model list as a compact inline action', async () => {
@@ -217,7 +217,7 @@ describe('SettingsDetailPage contract — connectivity', () => {
     await renderDetail(container);
 
     const refresh = queryByTestId(container, 'provider-refresh-models-button');
-    expect(refresh.className).toContain('settings-action-compact');
+    expect(refresh.className).toContain('settings-icon-button');
     expect(refresh.className).not.toContain('ui-button-block');
   });
 });

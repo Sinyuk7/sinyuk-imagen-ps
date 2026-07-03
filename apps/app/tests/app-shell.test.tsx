@@ -317,6 +317,10 @@ describe('AppShell', () => {
     await flush();
     await flush();
     await act(async () => {
+      changeInput(container.querySelector<HTMLInputElement>('[data-testid="provider-alias-input"]')!, 'Updated Alias');
+    });
+    await flush();
+    await act(async () => {
       container.querySelector<HTMLButtonElement>('.btn-save')!.click();
     });
     await flush();
@@ -709,9 +713,7 @@ describe('AppShell', () => {
     await flush();
     await flush();
     await act(async () => {
-      Array.from(container.querySelectorAll<HTMLButtonElement>('button')).find((button) =>
-        button.textContent?.includes('Use custom model id') || button.textContent?.includes('使用自定义 model id'),
-      )?.click();
+      container.querySelector<HTMLInputElement>('input[data-testid="provider-use-custom-model-checkbox"]')?.click();
     });
     await flush();
 

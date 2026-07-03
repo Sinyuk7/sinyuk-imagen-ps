@@ -15,6 +15,16 @@ import {
 import { inspectModelsResponse, parseModelsResponse } from '../src/transport/image-endpoint/models.js';
 import { parseResponse } from '../src/transport/image-endpoint/parse-response.js';
 
+function expectFormDataFile(
+  value: FormDataEntryValue | null,
+  expected: { readonly type: string; readonly name: string },
+): void {
+  expect(value).toBeInstanceOf(Blob);
+  const file = value as Blob & { readonly name?: string };
+  expect(file.type).toBe(expected.type);
+  expect(file.name).toBe(expected.name);
+}
+
 describe('image-endpoint provider', () => {
   it('exposes image endpoint descriptor and validates config', () => {
     const provider = createImageEndpointProvider();
@@ -136,9 +146,13 @@ describe('image-endpoint provider', () => {
       'gpt-image-2',
     );
 
-    expect(body.kind).toBe('multipart');
-    expect(body.contentType).toContain('multipart/form-data; boundary=');
-    expect(body.body).toBeInstanceOf(Blob);
+    expect(body).toBeInstanceOf(FormData);
+    expect(body.get('model')).toBe('gpt-image-2');
+    expect(body.get('prompt')).toBe('make it blue');
+    const images = body.getAll('image[]');
+    expect(images).toHaveLength(1);
+    expectFormDataFile(images[0] ?? null, { type: 'image/png', name: 'image-1.png' });
+    expect(body.has('mask')).toBe(false);
   });
 
   it('builds multipart edit body for Uint8Array image data', () => {
@@ -146,14 +160,26 @@ describe('image-endpoint provider', () => {
       {
         operation: 'image_edit',
         prompt: 'make it blue',
-        images: [{ type: 'image', data: new Uint8Array([1, 2, 3, 4]), mimeType: 'image/png', name: 'input.png' }],
+        images: [
+          { type: 'image', data: new Uint8Array([1, 2, 3, 4]), mimeType: 'image/png', name: 'input.png' },
+          { type: 'image', data: new Uint8Array([5, 6, 7, 8]), mimeType: 'image/jpeg', name: 'second.jpg' },
+        ],
+        maskImage: { type: 'image', data: new Uint8Array([9, 10, 11]), mimeType: 'image/png', name: 'mask.png' },
+        output: { count: 2, outputFormat: 'png' },
       },
       'gpt-image-2',
     );
 
-    expect(body.kind).toBe('multipart');
-    expect(body.contentType).toContain('multipart/form-data; boundary=');
-    expect(body.body).toBeInstanceOf(Blob);
+    expect(body).toBeInstanceOf(FormData);
+    expect(body.get('model')).toBe('gpt-image-2');
+    expect(body.get('prompt')).toBe('make it blue');
+    expect(body.get('n')).toBe('2');
+    expect(body.get('output_format')).toBe('png');
+    const images = body.getAll('image[]');
+    expect(images).toHaveLength(2);
+    expectFormDataFile(images[0] ?? null, { type: 'image/png', name: 'input.png' });
+    expectFormDataFile(images[1] ?? null, { type: 'image/jpeg', name: 'second.jpg' });
+    expectFormDataFile(body.get('mask'), { type: 'image/png', name: 'mask.png' });
   });
 
   it('normalizes image endpoint responses', () => {
@@ -338,6 +364,11 @@ describe('image-endpoint provider', () => {
 
     expect(result.assets).toHaveLength(1);
     expect(String(fetchSpy.mock.calls[0][0])).toBe('https://api.example.com/v1/images/generations');
+    const init = fetchSpy.mock.calls[0][1] as RequestInit | undefined;
+    expect(init?.headers).toMatchObject(expect.objectContaining({
+      'Content-Type': 'application/json',
+      Authorization: 'Bearer test-key',
+    }));
     fetchSpy.mockRestore();
   });
 
@@ -361,6 +392,12 @@ describe('image-endpoint provider', () => {
       },
       apiKey: 'test-key',
       defaultModel: 'gpt-image-2',
+      extraHeaders: {
+        Accept: 'application/json',
+        'X-Provider-Test': '1',
+        'Content-Type': 'text/plain',
+        'content-type': 'application/xml',
+      },
     });
     const request = provider.validateRequest({
       operation: 'image_edit',
@@ -373,10 +410,14 @@ describe('image-endpoint provider', () => {
     expect(result.assets).toHaveLength(1);
     expect(String(fetchSpy.mock.calls[0][0])).toBe('https://api.example.com/v1/images/edits');
     const init = fetchSpy.mock.calls[0][1] as RequestInit | undefined;
-    expect(init?.body).toBeInstanceOf(Blob);
+    expect(init?.body).toBeInstanceOf(FormData);
     expect(init?.headers).toMatchObject(expect.objectContaining({
-      'Content-Type': expect.stringContaining('multipart/form-data; boundary='),
+      Authorization: 'Bearer test-key',
+      Accept: 'application/json',
+      'X-Provider-Test': '1',
     }));
+    expect(init?.headers).not.toHaveProperty('Content-Type');
+    expect(init?.headers).not.toHaveProperty('content-type');
     fetchSpy.mockRestore();
   });
 });

@@ -1,8 +1,8 @@
-import type { ReactNode } from 'react';
+import { useEffect, useState } from 'react';
 import { StatusNotice } from './status-notice';
 import { Icon } from './icons';
 import { useI18n } from '../i18n/i18n-context';
-import { Button, TextField, FieldLabel, HelpText, Divider, Checkbox } from '../primitives/native-controls';
+import { TextField, FieldLabel, HelpText, Checkbox, Radio } from '../primitives/native-controls';
 import { IconButton } from '../primitives/icon-button';
 import type { NoticeState } from './notice';
 import {
@@ -32,16 +32,9 @@ interface ProviderProfileEditorProps {
   readonly showKey: boolean;
   readonly onShowKeyChange: (shown: boolean) => void;
   readonly connectionStatus?: NoticeState | null;
-  readonly extraSections?: ReactNode;
-  readonly defaultModelSection?: ReactNode;
-  readonly testBusy: boolean;
-  readonly onTest: () => void;
-  readonly testMeta?: string | null;
-  readonly testStatus?: NoticeState | null;
   readonly apiKeySaved?: boolean;
   readonly apiKeySavedHint?: string | null;
   readonly apiKeyRemovalPending?: boolean;
-  readonly onApiKeyReplace?: () => void;
   readonly onApiKeyRemove?: () => void;
 }
 
@@ -110,19 +103,25 @@ export function ProviderProfileEditor({
   showKey,
   onShowKeyChange,
   connectionStatus = null,
-  extraSections,
-  defaultModelSection,
-  testBusy,
-  onTest,
-  testMeta = null,
-  testStatus = null,
   apiKeySaved = false,
   apiKeySavedHint = null,
   apiKeyRemovalPending = false,
-  onApiKeyReplace,
   onApiKeyRemove,
 }: ProviderProfileEditorProps) {
   const { messages: t } = useI18n();
+  const [apiKeyEditing, setApiKeyEditing] = useState(false);
+  const multiEndpoint = connection.endpoints.length > 1;
+
+  useEffect(() => {
+    setApiKeyEditing(!apiKeySaved || apiKeyValue.length > 0);
+  }, [apiKeySaved]);
+
+  const startApiKeyEdit = () => {
+    setApiKeyEditing(true);
+  };
+
+  const apiKeyInputVisible = apiKeyEditing || apiKeyRemovalPending || !apiKeySaved;
+  const showApiKeyToggle = apiKeyInputVisible && apiKeyValue.length > 0;
 
   return (
     <div className="settings-detail-layout">
@@ -146,14 +145,37 @@ export function ProviderProfileEditor({
           ) : null}
         </div>
         <div className="field">
-          <div className="section-title settings-subsection-heading">{t.settings.requestAddresses}</div>
+          <div className="settings-subsection-header">
+            <div className="section-title settings-subsection-heading">{t.settings.requestAddresses}</div>
+            <IconButton
+              data-testid="provider-endpoint-add"
+              className="settings-icon-button"
+              compactSquare
+              icon={<Icon name="add" size={16} />}
+              tooltip={t.settings.addEndpoint}
+              aria-label={t.settings.addEndpoint}
+              onClick={() => onConnectionChange({
+                ...connection,
+                endpoints: [
+                  ...connection.endpoints,
+                  {
+                    id: typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function'
+                      ? `endpoint-${crypto.randomUUID()}`
+                      : `endpoint-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`,
+                    url: '',
+                    enabled: true,
+                  },
+                ],
+              })}
+            />
+          </div>
           <div className="field provider-endpoint-list">
             {connection.endpoints.map((endpoint, index) => {
               const probe = probeResults?.get(endpoint.id);
               const endpointError = endpointErrors?.get(endpoint.id);
               const isPreferred = connection.preferredEndpointId === endpoint.id;
               const isSuggested = suggestedEndpointId === endpoint.id;
-              const canDelete = connection.endpoints.length > 1;
+              const canDelete = multiEndpoint;
               return (
                 <div
                   key={endpoint.id}
@@ -177,11 +199,12 @@ export function ProviderProfileEditor({
                     </div>
                     <IconButton
                       data-testid={`provider-endpoint-remove-${index}`}
-                      className="provider-endpoint-remove"
-                      quiet
+                      className="settings-icon-button danger"
+                      compactSquare
                       disabled={!canDelete}
-                      icon={<Icon name="trash" />}
+                      icon={<Icon name="trash" size={16} />}
                       tooltip={t.common.delete}
+                      aria-label={t.common.delete}
                       onClick={() => onConnectionChange(removeEndpoint(connection, endpoint.id))}
                     />
                   </div>
@@ -189,7 +212,7 @@ export function ProviderProfileEditor({
                     className="field-input mono ui-field-control provider-endpoint-input"
                     data-testid={`provider-endpoint-url-${index}`}
                     id={`provider-endpoint-url-${endpoint.id}`}
-                    placeholder={baseUrlPlaceholder}
+                    placeholder={baseUrlPlaceholder ?? t.settings.baseUrlHint}
                     value={endpoint.url}
                     onValue={(value) => onConnectionChange(updateEndpoint(connection, endpoint.id, (current) => ({ ...current, url: sanitizeProviderEndpointUrl(value) })))}
                   />
@@ -206,146 +229,113 @@ export function ProviderProfileEditor({
                     >
                       {t.settings.endpointEnabled}
                     </Checkbox>
-                    <Checkbox
-                      data-testid={`provider-endpoint-preferred-${index}`}
-                      checked={isPreferred}
-                      disabled={connection.selectionMode !== 'manual' || !endpoint.enabled}
-                      onChecked={(checked) => onConnectionChange({
-                        ...connection,
-                        preferredEndpointId: checked ? endpoint.id : connection.preferredEndpointId,
-                      })}
-                    >
-                      {t.settings.endpointPreferred}
-                    </Checkbox>
+                    {multiEndpoint && (
+                      <Radio
+                        data-testid={`provider-endpoint-preferred-${index}`}
+                        checked={isPreferred}
+                        disabled={connection.selectionMode !== 'manual' || !endpoint.enabled}
+                        onChecked={() => onConnectionChange({
+                          ...connection,
+                          preferredEndpointId: endpoint.id,
+                        })}
+                      >
+                        {t.settings.endpointPreferred}
+                      </Radio>
+                    )}
                   </div>
                 </div>
               );
             })}
-            <Button
-              data-testid="provider-endpoint-add"
-              className="provider-endpoint-add"
-              variant="secondary"
-              onClick={() => onConnectionChange({
+          </div>
+        </div>
+        {multiEndpoint && (
+          <div className="field provider-connection-options">
+            <Checkbox
+              data-testid="provider-selection-mode-auto"
+              className="provider-connection-option"
+              checked={connection.selectionMode === 'auto'}
+              onChecked={(checked) => onConnectionChange({
                 ...connection,
-                endpoints: [
-                  ...connection.endpoints,
-                  {
-                    id: typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function'
-                      ? `endpoint-${crypto.randomUUID()}`
-                      : `endpoint-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`,
-                    url: '',
-                    enabled: true,
-                  },
-                ],
+                selectionMode: checked ? 'auto' : 'manual',
+                preferredEndpointId: checked ? undefined : connection.preferredEndpointId ?? connection.endpoints.find((endpoint) => endpoint.enabled)?.id,
               })}
             >
-              {t.settings.addEndpoint}
-            </Button>
+              {t.settings.autoSelect}
+            </Checkbox>
+            <Checkbox
+              data-testid="provider-failover-enabled"
+              className="provider-connection-option"
+              checked={connection.failoverEnabled}
+              onChecked={(checked) => onConnectionChange({ ...connection, failoverEnabled: checked })}
+            >
+              {t.settings.failoverEnabled}
+            </Checkbox>
           </div>
-          <HelpText className="field-hint">{t.settings.baseUrlHint}</HelpText>
-        </div>
-        <div className="field provider-connection-options">
-          <Checkbox
-            data-testid="provider-selection-mode-auto"
-            className="provider-connection-option"
-            checked={connection.selectionMode === 'auto'}
-            onChecked={(checked) => onConnectionChange({
-              ...connection,
-              selectionMode: checked ? 'auto' : 'manual',
-              preferredEndpointId: checked ? undefined : connection.preferredEndpointId ?? connection.endpoints.find((endpoint) => endpoint.enabled)?.id,
-            })}
-          >
-            {t.settings.autoSelect}
-          </Checkbox>
-          <Checkbox
-            data-testid="provider-failover-enabled"
-            className="provider-connection-option"
-            checked={connection.failoverEnabled}
-            onChecked={(checked) => onConnectionChange({ ...connection, failoverEnabled: checked })}
-          >
-            {t.settings.failoverEnabled}
-          </Checkbox>
-        </div>
+        )}
         <div className="field">
-          <FieldLabel htmlFor="provider-api-key-input">API Key</FieldLabel>
-          {apiKeySaved && apiKeySavedHint && !apiKeyRemovalPending ? (
-            <div data-testid="provider-api-key-saved-meta" className="settings-secret-meta">
-              {apiKeySavedHint}
+          <div className="settings-field-header">
+            <FieldLabel htmlFor="provider-api-key-input">API Key</FieldLabel>
+            <div className="settings-field-header-actions">
+              {apiKeySaved && !apiKeyRemovalPending ? (
+                <span data-testid="provider-api-key-saved-meta" className="settings-secret-meta-inline">
+                  {apiKeySavedHint}
+                </span>
+              ) : null}
+              {!apiKeyInputVisible && apiKeySaved ? (
+                <IconButton
+                  data-testid="provider-api-key-edit"
+                  className="settings-icon-button"
+                  compactSquare
+                  icon={<Icon name="pencil" size={16} />}
+                  tooltip={t.settings.editApiKey}
+                  aria-label={t.settings.editApiKey}
+                  onClick={startApiKeyEdit}
+                />
+              ) : null}
+              {apiKeySaved ? (
+                <IconButton
+                  data-testid="provider-api-key-remove"
+                  className="settings-icon-button danger"
+                  compactSquare
+                  icon={<Icon name="trash" size={16} />}
+                  tooltip={t.settings.removeSecret}
+                  aria-label={t.settings.removeSecret}
+                  onClick={() => onApiKeyRemove?.()}
+                />
+              ) : null}
             </div>
-          ) : null}
-          {apiKeySaved && !apiKeyRemovalPending ? (
-            <div className="settings-secret-actions">
-              <Button data-testid="provider-api-key-replace" className="settings-secret-action" variant="secondary" onClick={onApiKeyReplace}>
-                {t.settings.replaceSecret}
-              </Button>
-              <Button data-testid="provider-api-key-remove" className="settings-secret-action" variant="secondary" onClick={onApiKeyRemove}>
-                {t.settings.removeSecret}
-              </Button>
-            </div>
-          ) : null}
-          <div className="field-input-affordance">
-            <TextField
-              data-testid="provider-api-key-input"
-              id="provider-api-key-input"
-              type={showKey ? 'text' : 'password'}
-              className="field-input mono ui-field-control field-input-embedded"
-              placeholder={apiKeySaved && !apiKeyValue ? t.settings.apiKeyReplacePlaceholder : apiKeyPlaceholder}
-              value={apiKeyValue}
-              onValue={(value) => onApiKeyValue(sanitizeProviderSecretValue(value))}
-            />
-            <IconButton
-              data-testid="provider-api-key-toggle"
-              className="field-input-action"
-              quiet
-              icon={<Icon name={showKey ? 'eye-off' : 'eye'} />}
-              tooltip={showKey ? t.settings.hideApiKey : t.settings.showApiKey}
-              onClick={() => onShowKeyChange(!showKey)}
-            />
           </div>
+          {apiKeyInputVisible ? (
+            <div className="field-input-affordance">
+              <TextField
+                data-testid="provider-api-key-input"
+                id="provider-api-key-input"
+                type={showKey ? 'text' : 'password'}
+                className="field-input mono ui-field-control field-input-embedded"
+                placeholder={apiKeySaved ? t.settings.apiKeyReplacePlaceholder : apiKeyPlaceholder}
+                value={apiKeyValue}
+                onValue={(value) => onApiKeyValue(sanitizeProviderSecretValue(value))}
+              />
+              {showApiKeyToggle ? (
+                <IconButton
+                  data-testid="provider-api-key-toggle"
+                  className="field-input-action"
+                  compactSquare
+                  icon={<Icon name={showKey ? 'eye-off' : 'eye'} size={14} />}
+                  tooltip={showKey ? t.settings.hideApiKey : t.settings.showApiKey}
+                  aria-label={showKey ? t.settings.hideApiKey : t.settings.showApiKey}
+                  onClick={() => onShowKeyChange(!showKey)}
+                />
+              ) : null}
+            </div>
+          ) : null}
           {apiKeyRemovalPending ? (
             <HelpText data-testid="provider-api-key-removal-pending" className="field-hint" variant="negative">
               {t.settings.secretRemovalPending}
             </HelpText>
-          ) : apiKeySaved && apiKeySavedHint ? (
-            <HelpText className="field-hint">{apiKeySavedHint}</HelpText>
           ) : null}
         </div>
         {connectionStatus ? renderStatusNotice(connectionStatus) : null}
-      </div>
-
-      {extraSections}
-
-      {defaultModelSection && (
-        <>
-          <Divider />
-          <div className="section">
-            <div className="section-title settings-section-heading">{t.settings.defaultModel}</div>
-            {defaultModelSection}
-          </div>
-        </>
-      )}
-
-      <div className="test-area">
-        <div className="settings-action-row">
-          <Button data-testid="provider-test-button" className="test-btn settings-action-emphasis" variant="secondary" disabled={testBusy} onClick={() => void onTest()}>
-            {testBusy
-              ? (
-                <span className="ui-button-content">
-                  <Icon name="spinner" size={13} className="ui-icon-text-icon spin" />
-                  <span className="ui-button-label">{t.settings.testingConnection}</span>
-                </span>
-              )
-              : (
-                <span className="ui-button-content">
-                  <Icon name="check" size={13} className="ui-icon-text-icon" />
-                  <span className="ui-button-label">{t.settings.testConnection}</span>
-                </span>
-              )
-            }
-          </Button>
-        </div>
-        {testMeta ? <div className="test-meta">{testMeta}</div> : null}
-        {testStatus ? renderStatusNotice(testStatus) : null}
       </div>
     </div>
   );

@@ -105,6 +105,23 @@ function parseRetryAfterMs(value: string | null): number | undefined {
   return Math.max(0, at - Date.now());
 }
 
+function mergeHeaders(headers: Readonly<Record<string, string>> | undefined): Record<string, string> | undefined {
+  return headers ? { ...headers } : undefined;
+}
+
+function stripMultipartContentType(headers: Record<string, string> | undefined): Record<string, string> | undefined {
+  if (headers === undefined) {
+    return undefined;
+  }
+  const next: Record<string, string> = {};
+  for (const [key, value] of Object.entries(headers)) {
+    if (key.toLowerCase() !== 'content-type') {
+      next[key] = value;
+    }
+  }
+  return Object.keys(next).length > 0 ? next : undefined;
+}
+
 async function fetchOnce(args: HttpRequest, signal?: AbortSignal): Promise<HttpResponse> {
   const { url, method, headers, body, timeoutMs } = args;
 
@@ -114,32 +131,21 @@ async function fetchOnce(args: HttpRequest, signal?: AbortSignal): Promise<HttpR
 
   try {
     const isMultipart = typeof FormData !== 'undefined' && body instanceof FormData;
-    const isMultipartBlob =
-      typeof body === 'object' &&
-      body !== null &&
-      (body as { kind?: unknown }).kind === 'multipart' &&
-      (body as { body?: unknown }).body instanceof Blob &&
-      typeof (body as { contentType?: unknown }).contentType === 'string';
-    const multipartBlob = isMultipartBlob
-      ? (body as { readonly body: Blob; readonly contentType: string })
-      : undefined;
+    const mergedHeaders = mergeHeaders(headers);
+    const requestHeaders = isMultipart
+      ? stripMultipartContentType(mergedHeaders)
+      : {
+          'Content-Type': 'application/json',
+          ...(mergedHeaders ?? {}),
+        };
     const init: RequestInit = {
       method,
-      headers: {
-        ...(multipartBlob
-          ? { 'Content-Type': multipartBlob.contentType }
-          : isMultipart
-            ? {}
-            : { 'Content-Type': 'application/json' }),
-        ...(headers ?? {}),
-      },
+      headers: requestHeaders,
       body:
         body !== undefined
-          ? multipartBlob
-            ? multipartBlob.body
-            : isMultipart
-              ? body
-              : JSON.stringify(body)
+          ? isMultipart
+            ? body
+            : JSON.stringify(body)
           : undefined,
     };
     if (fetchSignal !== undefined) {

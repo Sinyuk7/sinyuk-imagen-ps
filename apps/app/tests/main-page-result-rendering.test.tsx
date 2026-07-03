@@ -349,6 +349,39 @@ describe('MainPage contract — result rendering', () => {
     expect(container.querySelector('[data-testid^="result-download-button-"]')).not.toBeNull();
   });
 
+  it('renders image results with supplemental text as media cards, not text-only cards', async () => {
+    const container = document.createElement('div');
+    document.body.appendChild(container);
+    const services = createFakeServices();
+    services.spies.submitJob.mockResolvedValue({
+      ok: true as const,
+      value: {
+        id: 'job-inline-image-fixed',
+        status: 'completed',
+        input: {},
+        output: {
+          image: {
+            assets: [fakeOutputAsset],
+            text: 'Generated successfully',
+            metadata: { size: '1024x1024', outputFormat: 'png' },
+          },
+        },
+        error: undefined,
+        createdAt: '2026-06-15T00:00:00.000Z',
+        updatedAt: '2026-06-15T00:00:01.000Z',
+      },
+    });
+    await renderMainPage(container, services);
+
+    await sendPrompt(container, 'inline markdown image fixed');
+
+    expect(container.querySelector('.prov-card-text-only')).toBeNull();
+    expect(container.querySelector('[data-testid^="result-preview-"]')).not.toBeNull();
+    expect(container.querySelector('[data-testid^="result-response-text-"]')?.textContent).toContain('Generated successfully');
+    expect(container.querySelector('[data-testid^="result-response-text-"]')?.textContent).not.toContain('data:image');
+    expect(container.textContent).not.toContain('文本结果');
+  });
+
   it('renders text-only success results without Media Stage or footer', async () => {
     const container = document.createElement('div');
     document.body.appendChild(container);

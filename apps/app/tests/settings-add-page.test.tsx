@@ -37,9 +37,11 @@ function queryByTestId(container: HTMLElement, testId: string): HTMLElement & { 
 
 async function switchToCustomModel(container: HTMLElement): Promise<void> {
   await act(async () => {
-    Array.from(container.querySelectorAll<HTMLButtonElement>('button')).find((item) =>
-      item.textContent?.includes('使用自定义 model id') || item.textContent?.includes('Use custom model id'),
-    )?.click();
+    const checkbox = container.querySelector<HTMLInputElement>('input[data-testid="provider-use-custom-model-checkbox"]');
+    if (!checkbox) {
+      throw new Error('找不到自定义 model id checkbox');
+    }
+    checkbox.click();
   });
 }
 
@@ -292,7 +294,7 @@ describe('SettingsAddPage', () => {
     });
 
     await act(async () => {
-      container.querySelector<HTMLElement>('.test-btn')!.click();
+      queryByTestId(container, 'provider-test-button').click();
     });
     await act(async () => {
       container.querySelector<HTMLButtonElement>('.btn-save')!.click();

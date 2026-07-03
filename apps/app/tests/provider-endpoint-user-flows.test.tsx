@@ -449,7 +449,7 @@ describe('provider endpoint user flows', () => {
     });
     await flush();
     await act(async () => {
-      buttonByText(container, 'Use custom model id').click();
+      container.querySelector<HTMLInputElement>('input[data-testid="provider-use-custom-model-checkbox"]')?.click();
     });
     await flush();
     await act(async () => {
