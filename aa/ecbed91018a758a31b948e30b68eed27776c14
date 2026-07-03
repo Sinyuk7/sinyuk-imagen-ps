@@ -1,0 +1,124 @@
+apps/app/src/shared/ui/components/text-select.tsx
+  s_8a820525a29ddb::t_b1ff816085789d 13
+apps/app/src/shared/domain/mappers.ts
+  s_a3a312c48c8084::t_d95fc365f7a9c9 248-249
+apps/app/tests/settings-detail-billing.test.tsx
+  s_a3a312c48c8084::t_d95fc365f7a9c9 213-214
+.agents/skills/uxp-issue-rca/SKILL.md
+  s_260177229e399e::t_cf9ce6a7fbd1b5 37,148,152
+  s_260177229e399e::t_3f532a1ed30fb0 17-19,23,25,29,31,33,35,39,41,47-48,51,55,59-60,63,65,77,79,81-83,87,90-95,99-103,105,112,119,121-134,136-138,140-147,149-151,153-156,160-164,167-169,171-177,184-189,192,194-198
+apps/app/src/shared/ui/components/composer-select.tsx
+  s_8a820525a29ddb::t_94bbee7c934fca 62,234
+apps/app/tests/global-generation-settings-page.test.tsx
+  s_8a820525a29ddb::t_48e5b4e9ede883 144-177,179-191
+  s_8a820525a29ddb::t_b1ff816085789d 178
+apps/app/tests/main-page-composer-controls.test.tsx
+  s_8a820525a29ddb::t_48e5b4e9ede883 375-383
+apps/app/src/adapters/uxp/uxp-generation-settings-store.ts
+  s_8a820525a29ddb::t_94bbee7c934fca 1-65
+apps/app/src/shared/ui/components/composer-select.types.ts
+  s_8a820525a29ddb::t_94bbee7c934fca 28-29
+apps/app/src/shared/ui/components/icon-select.tsx
+  s_8a820525a29ddb::t_b1ff816085789d 15
+apps/app/src/shared/ui/output-size.ts
+  s_8a820525a29ddb::t_94bbee7c934fca 1-54
+apps/app/src/shells/uxp/create-plugin-host-shell.ts
+  s_8a820525a29ddb::t_94bbee7c934fca 28,101
+docs/loops/2026-07-04-composer-global-context-stage-2.md
+  s_8a820525a29ddb::t_fb0da054079c96 1-304
+apps/app/src/adapters/uxp/uxp-host-adapters.test.ts
+  s_8a820525a29ddb::t_48e5b4e9ede883 7,239-283
+  s_8a820525a29ddb::t_5222476234a40e 284-285
+apps/app/tests/render-helpers.tsx
+  s_8a820525a29ddb::t_21ef5f81132d9b 29-34
+apps/app/tests/main-page-billing.test.tsx
+  s_a3a312c48c8084::t_d95fc365f7a9c9 104,106,112-140
+  s_a3a312c48c8084::t_7ddadbf9fd6f67 141-142
+apps/app/src/shared/ui/error-action.ts
+  s_d7307963bd9d81::t_6e4b8e8514bd47 15,68
+  s_d7307963bd9d81::t_056bb7b6300669 44-47,81
+apps/app/src/shared/ui/i18n/messages.ts
+  s_d7307963bd9d81::t_6e4b8e8514bd47 150,287
+  s_8a820525a29ddb::t_94bbee7c934fca 255,555,856
+  s_d7307963bd9d81::t_422f55cfd189c4 450,588,751,888
+apps/app/src/shared/ui/pages/main-page.tsx
+  s_8a820525a29ddb::t_4ea7ca255e3b45 53,460-464,498-505,1146-1148,1150-1152,1887,1891
+  s_8a820525a29ddb::t_21ef5f81132d9b 1149
+  s_8a820525a29ddb::t_eb6996bc384a3c 497,516-522,1110-1114,1116
+  s_d7307963bd9d81::t_58de946812fd10 286-287,789-802
+  s_d7307963bd9d81::t_7d5a8044da5904 1312-1314,1320,1360-1369
+  s_d7307963bd9d81::t_c53c44d941d6c1 803
+  s_8a820525a29ddb::t_abdbf22968b315 1153-1154
+packages/providers/tests/image-endpoint-provider.test.ts
+  s_46f18f6225125e::t_001d952b93187c 435-437,440-441
+  s_46f18f6225125e::t_ceba2afc8b1104 491-498
+  s_46f18f6225125e::t_e057593a161630 399-401,404-405
+  s_46f18f6225125e::t_4ae450ce336653 2,483-490,499-552
+  s_46f18f6225125e::t_e684f35827998d 553-554
+apps/app/src/shared/ui/components/composer-select-menu.tsx
+  s_8a820525a29ddb::t_94bbee7c934fca 18,37,127,134,137
+packages/providers/src/providers/image-endpoint/provider.ts
+  s_46f18f6225125e::t_0c7a369521151e 28,51
+  s_46f18f6225125e::t_22724ee863aa60 27,29,52-92,152-160,164
+apps/app/tests/main-page-result-rendering.test.tsx
+  s_d7307963bd9d81::t_d7f2cbef91bff8 289-335
+  s_d7307963bd9d81::t_056bb7b6300669 359-360
+packages/providers/src/transport/image-endpoint/http.ts
+  s_46f18f6225125e::t_47dc252b9168af 238,383
+  s_46f18f6225125e::t_0894e2914dafd8 42-43,127-236,248-249,256-264,282,288,291,295,298-305
+  s_46f18f6225125e::t_29393fd53c1139 237
+  s_46f18f6225125e::t_bac7db5fc89575 306
+packages/providers/tests/http-logging.test.ts
+  s_46f18f6225125e::t_536ef6a78454b8 118-184
+apps/app/src/shared/ui/pages/global-generation-settings-page.tsx
+  s_8a820525a29ddb::t_21ef5f81132d9b 116
+  s_8a820525a29ddb::t_4ea7ca255e3b45 12,18,30-33,75,111-115,117-120,159,161
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.10",
+  "base_commit_sha": "aaecbed91018a758a31b948e30b68eed27776c14",
+  "prompts": {},
+  "sessions": {
+    "s_260177229e399e": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "019f2900-49ac-7091-8526-a7c4bce07988",
+        "model": "gpt-5.4"
+      },
+      "human_author": "Sinyuk <80998062@qq.com>"
+    },
+    "s_46f18f6225125e": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "019f28ea-d5e3-7ae1-85e8-f8fc3d9cd322",
+        "model": "gpt-5.4"
+      },
+      "human_author": "Sinyuk <80998062@qq.com>"
+    },
+    "s_8a820525a29ddb": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "019f28d3-7660-7973-b3aa-27f7195e6f6b",
+        "model": "gpt-5.4"
+      },
+      "human_author": "Sinyuk <80998062@qq.com>"
+    },
+    "s_a3a312c48c8084": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "019f28fa-0519-7882-a348-5df80ff74edb",
+        "model": "gpt-5.4"
+      },
+      "human_author": "Sinyuk <80998062@qq.com>"
+    },
+    "s_d7307963bd9d81": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "019f28ec-0f83-72e3-b968-3e9764866a30",
+        "model": "gpt-5.4"
+      },
+      "human_author": "Sinyuk <80998062@qq.com>"
+    }
+  }
+}
