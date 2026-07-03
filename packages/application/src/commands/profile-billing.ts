@@ -32,6 +32,7 @@ const billingStateStore = new Map<string, BillingCacheEntry>();
 const inflightRefreshes = new Map<string, Promise<RefreshProfileBalanceResult>>();
 const scheduledRefreshes = new Map<string, ReturnType<typeof setTimeout>>();
 const billingCooldownStore = new Map<string, BillingCooldownEntry>();
+const inflightRefreshProfiles = new Map<string, string>();
 
 const BILLING_AUTH_FAIL_THRESHOLD = 3;
 const BILLING_AUTH_FAIL_COOLDOWN_MS = 120_000;
@@ -106,6 +107,24 @@ function getOrCreateBillingEntry(profileId: string, fingerprint: string): Billin
 
 function setBillingEntry(profileId: string, entry: BillingCacheEntry): void {
   billingStateStore.set(profileId, entry);
+}
+
+function clearScheduledRefresh(profileId: string): void {
+  const scheduled = scheduledRefreshes.get(profileId);
+  if (!scheduled) {
+    return;
+  }
+  clearTimeout(scheduled);
+  scheduledRefreshes.delete(profileId);
+}
+
+function clearInflightRefresh(profileId: string): void {
+  const inflightKey = inflightRefreshProfiles.get(profileId);
+  if (!inflightKey) {
+    return;
+  }
+  inflightRefreshes.delete(inflightKey);
+  inflightRefreshProfiles.delete(profileId);
 }
 
 function deleteBillingCooldown(profileId: string): void {
@@ -355,8 +374,12 @@ export async function refreshProfileBalance(
 
     const task = performBalanceRefresh(input).finally(() => {
       inflightRefreshes.delete(inflightKey);
+      if (inflightRefreshProfiles.get(input.profileId) === inflightKey) {
+        inflightRefreshProfiles.delete(input.profileId);
+      }
     });
     inflightRefreshes.set(inflightKey, task);
+    inflightRefreshProfiles.set(input.profileId, inflightKey);
     const value = await task;
     deleteBillingCooldown(input.profileId);
     span.finish();
@@ -405,10 +428,7 @@ export async function scheduleProfileBalanceRefresh(
     readonly signal?: AbortSignal;
   },
 ): Promise<void> {
-  const existing = scheduledRefreshes.get(profileId);
-  if (existing) {
-    clearTimeout(existing);
-  }
+  clearScheduledRefresh(profileId);
   const timer = setTimeout(() => {
     scheduledRefreshes.delete(profileId);
     void refreshProfileBalance({
@@ -445,19 +465,33 @@ export async function noteProfileTaskBilling(
 export function invalidateProfileBillingState(profileId: string): void {
   billingStateStore.delete(profileId);
   deleteBillingCooldown(profileId);
-  const scheduled = scheduledRefreshes.get(profileId);
-  if (scheduled) {
-    clearTimeout(scheduled);
-    scheduledRefreshes.delete(profileId);
-  }
+  clearScheduledRefresh(profileId);
+  clearInflightRefresh(profileId);
 }
 
 export function _resetProfileBillingStateForTesting(): void {
   billingStateStore.clear();
   inflightRefreshes.clear();
+  inflightRefreshProfiles.clear();
   billingCooldownStore.clear();
   for (const timer of scheduledRefreshes.values()) {
     clearTimeout(timer);
   }
   scheduledRefreshes.clear();
+}
+
+export function _profileBillingStateCountsForTesting(): {
+  readonly billingStateEntries: number;
+  readonly inflightRefreshEntries: number;
+  readonly inflightRefreshProfiles: number;
+  readonly scheduledRefreshEntries: number;
+  readonly billingCooldownEntries: number;
+} {
+  return {
+    billingStateEntries: billingStateStore.size,
+    inflightRefreshEntries: inflightRefreshes.size,
+    inflightRefreshProfiles: inflightRefreshProfiles.size,
+    scheduledRefreshEntries: scheduledRefreshes.size,
+    billingCooldownEntries: billingCooldownStore.size,
+  };
 }

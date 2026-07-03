@@ -160,14 +160,20 @@ function shouldRetry(error: unknown, opts: RetryOptions | undefined): boolean {
 function delay(ms: number, signal?: AbortSignal): Promise<void> {
   return new Promise((resolve, reject) => {
     let timer: ReturnType<typeof setTimeout> | undefined;
-    const canListen = canListenToAbort(signal);
+    let poller: ReturnType<typeof setInterval> | undefined;
+    const activeSignal = signal;
+    const canListen = canListenToAbort(activeSignal);
     const cleanup = () => {
       if (timer !== undefined) {
         clearTimeout(timer);
         timer = undefined;
       }
-      if (canListen) {
-        signal.removeEventListener('abort', onAbort);
+      if (poller !== undefined) {
+        clearInterval(poller);
+        poller = undefined;
+      }
+      if (canListen && activeSignal) {
+        activeSignal.removeEventListener('abort', onAbort);
       }
     };
 
@@ -183,14 +189,20 @@ function delay(ms: number, signal?: AbortSignal): Promise<void> {
       resolve();
     }, ms);
 
-    if (signal) {
-      if (signal.aborted) {
+    if (activeSignal) {
+      if (activeSignal.aborted) {
         onAbort();
         return;
       }
 
       if (canListen) {
-        signal.addEventListener('abort', onAbort, { once: true });
+        activeSignal.addEventListener('abort', onAbort, { once: true });
+      } else {
+        poller = setInterval(() => {
+          if (activeSignal.aborted) {
+            onAbort();
+          }
+        }, Math.min(ms, 50));
       }
     }
   });

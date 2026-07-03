@@ -1,7 +1,14 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { createProviderRegistry, type Provider, type ProviderBalanceSnapshot, type ProviderConfig, type ProviderRequest } from '@imagen-ps/providers';
 import { _resetForTesting, _setRuntimeInstanceForTesting, setProviderProfileRepository, setSecretStorageAdapter } from '../runtime.js';
-import { _resetProfileBillingStateForTesting, getProfileBillingState, refreshProfileBalance } from './profile-billing.js';
+import {
+  _profileBillingStateCountsForTesting,
+  _resetProfileBillingStateForTesting,
+  getProfileBillingState,
+  invalidateProfileBillingState,
+  refreshProfileBalance,
+  scheduleProfileBalanceRefresh,
+} from './profile-billing.js';
 import type { ProviderProfile, ProviderProfileRepository, SecretStorageAdapter } from './types.js';
 
 function createRepository(profiles: readonly ProviderProfile[]): ProviderProfileRepository {
@@ -203,5 +210,31 @@ describe('profile billing commands', () => {
       expect(recovered.value.state.refreshState).toBe('idle');
       expect(recovered.value.snapshot.primary).toMatchObject({ kind: 'quota', remaining: '42' });
     }
+  });
+
+  it('invalidateProfileBillingState clears cached state and scheduled refresh timers', async () => {
+    vi.useFakeTimers();
+    _resetForTesting();
+    setProviderProfileRepository(createRepository([billingProfile()]));
+    setSecretStorageAdapter(createSecretStorage({ 'resolved-token': 'billing-token' }));
+    setBillingProvider(async () => balanceSnapshot());
+
+    await refreshProfileBalance({ profileId: 'billing-profile' });
+    await scheduleProfileBalanceRefresh('billing-profile', { delayMs: 5_000 });
+
+    expect(_profileBillingStateCountsForTesting()).toMatchObject({
+      billingStateEntries: 1,
+      scheduledRefreshEntries: 1,
+    });
+
+    invalidateProfileBillingState('billing-profile');
+
+    expect(_profileBillingStateCountsForTesting()).toMatchObject({
+      billingStateEntries: 0,
+      scheduledRefreshEntries: 0,
+      inflightRefreshEntries: 0,
+      inflightRefreshProfiles: 0,
+      billingCooldownEntries: 0,
+    });
   });
 });

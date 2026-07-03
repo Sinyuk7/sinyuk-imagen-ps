@@ -20,6 +20,7 @@ export interface ChromeKeyValueBackend {
   put<T>(store: ChromeStoreName, key: string, value: T): Promise<void>;
   delete(store: ChromeStoreName, key: string): Promise<void>;
   list<T>(store: ChromeStoreName): Promise<readonly T[]>;
+  listEntries?<T>(store: ChromeStoreName): Promise<readonly ChromeStoredRecord<T>[]>;
   clear?(store?: ChromeStoreName): Promise<void>;
 }
 
@@ -94,6 +95,11 @@ export function createBrowserIndexedDbBackend(options?: { readonly databaseName?
       const records = await requestResult<ChromeStoredRecord<T>[]>(transaction.objectStore(store).getAll());
       return records.map((record) => record.value);
     },
+    async listEntries<T>(store: ChromeStoreName): Promise<readonly ChromeStoredRecord<T>[]> {
+      const db = await database;
+      const transaction = db.transaction(store, 'readonly');
+      return requestResult<ChromeStoredRecord<T>[]>(transaction.objectStore(store).getAll());
+    },
     async clear(store): Promise<void> {
       const db = await database;
       const stores = store ? [store] : [...CHROME_STORES];
@@ -138,6 +144,12 @@ export function createMemoryIndexedDbBackend(options?: {
     async list<T>(store: ChromeStoreName): Promise<readonly T[]> {
       return Array.from(stores[store].values()) as T[];
     },
+    async listEntries<T>(store: ChromeStoreName): Promise<readonly ChromeStoredRecord<T>[]> {
+      return Array.from(stores[store].entries()).map(([key, value]) => ({
+        key,
+        value: value as T,
+      }));
+    },
     async clear(store): Promise<void> {
       if (store) {
         stores[store].clear();
@@ -156,6 +168,16 @@ interface AssetRecord {
   readonly name?: string;
 }
 
+const ASSET_KEY_PREFIX = 'chrome-idb-asset-';
+
+function parseAssetCounter(ref: string): number | undefined {
+  if (!ref.startsWith(ASSET_KEY_PREFIX)) {
+    return undefined;
+  }
+  const raw = Number.parseInt(ref.slice(ASSET_KEY_PREFIX.length), 10);
+  return Number.isFinite(raw) && raw > 0 ? raw : undefined;
+}
+
 /** Chrome runtime 的持久化 adapter；默认后端由 IndexedDB 提供，测试可注入等价后端。 */
 export function createChromeIndexedDbStorage(options?: { readonly backend?: ChromeKeyValueBackend }): {
   readonly profiles: ProviderProfileRepository;
@@ -168,6 +190,21 @@ export function createChromeIndexedDbStorage(options?: { readonly backend?: Chro
 } {
   const backend = options?.backend ?? createBrowserIndexedDbBackend();
   let assetCounter = 0;
+  let assetCounterSeeded = false;
+
+  async function nextAssetRef(): Promise<string> {
+    if (!assetCounterSeeded) {
+      const storedRecords = backend.listEntries
+        ? await backend.listEntries<AssetRecord>('assets')
+        : [];
+      for (const record of storedRecords) {
+        assetCounter = Math.max(assetCounter, parseAssetCounter(record.key) ?? 0);
+      }
+      assetCounterSeeded = true;
+    }
+    assetCounter += 1;
+    return `${ASSET_KEY_PREFIX}${assetCounter}`;
+  }
 
   return {
     profiles: {
@@ -237,7 +274,7 @@ export function createChromeIndexedDbStorage(options?: { readonly backend?: Chro
     },
     assets: {
       async put(bytes, meta): Promise<StoredAssetRef> {
-        const ref = `chrome-idb-asset-${++assetCounter}`;
+        const ref = await nextAssetRef();
         const copy = bytes.slice(0);
         await backend.put<AssetRecord>('assets', ref, {
           bytes: copy,

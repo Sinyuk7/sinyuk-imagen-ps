@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import { withRetry, classifyPaidRetry } from '../src/transport/image-endpoint/retry.js';
 
 function errorWithKind(kind: string, statusCode?: number): Error {
@@ -30,6 +30,33 @@ describe('image endpoint retry — broad mode (backward compatible)', () => {
 
     expect(result).toBe('ok');
     expect(attempts).toBe(2);
+  });
+
+  it('aborts retry backoff even when the AbortSignal polyfill has no event listeners', async () => {
+    vi.useFakeTimers();
+    try {
+      const signal = { aborted: false } as AbortSignal;
+      const networkError = Object.assign(new Error('offline'), { kind: 'network_error' });
+      let attempts = 0;
+
+      const pending = withRetry(
+        async () => {
+          attempts += 1;
+          throw networkError;
+        },
+        { maxRetries: 1, baseDelayMs: 1_000, factor: 1 },
+        signal,
+      );
+      const rejection = expect(pending).rejects.toMatchObject({ kind: 'timeout' });
+
+      signal.aborted = true;
+      await vi.advanceTimersByTimeAsync(60);
+
+      await rejection;
+      expect(attempts).toBe(1);
+    } finally {
+      vi.useRealTimers();
+    }
   });
 });
 

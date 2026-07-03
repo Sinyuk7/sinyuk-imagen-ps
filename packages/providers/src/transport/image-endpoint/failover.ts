@@ -17,6 +17,7 @@ export interface EndpointRuntimeHealth {
   consecutiveFailures: number;
   openUntil?: number;
   lastSuccessAt?: number;
+  lastTouchedAt: number;
 }
 
 export interface ExecuteWithEndpointFailoverOptions<T> {
@@ -40,9 +41,14 @@ export interface ExecuteWithEndpointFailoverResult<T> {
 }
 
 const endpointRuntimeHealth = new Map<string, EndpointRuntimeHealth>();
+const RUNTIME_HEALTH_STALE_MS = 10 * 60 * 1000;
 
 export function resetEndpointRuntimeHealthForTesting(): void {
   endpointRuntimeHealth.clear();
+}
+
+export function endpointRuntimeHealthSizeForTesting(): number {
+  return endpointRuntimeHealth.size;
 }
 
 function connectionFingerprint(connection: ProviderConnectionConfig): string {
@@ -62,13 +68,29 @@ function runtimeHealthKey(connection: ProviderConnectionConfig, endpoint: Provid
   return `${connectionFingerprint(connection)}::${endpoint.id}`;
 }
 
+function cleanupEndpointRuntimeHealth(connection: ProviderConnectionConfig): void {
+  const activeKeys = new Set(connection.endpoints.map((endpoint) => runtimeHealthKey(connection, endpoint)));
+  const now = currentTime();
+  for (const [key, health] of endpointRuntimeHealth.entries()) {
+    if (activeKeys.has(key)) {
+      continue;
+    }
+    const cooledDown = (health.openUntil ?? 0) <= now;
+    if (cooledDown && now - health.lastTouchedAt >= RUNTIME_HEALTH_STALE_MS) {
+      endpointRuntimeHealth.delete(key);
+    }
+  }
+}
+
 function endpointHealth(connection: ProviderConnectionConfig, endpoint: ProviderEndpointConfig): EndpointRuntimeHealth {
+  cleanupEndpointRuntimeHealth(connection);
   const key = runtimeHealthKey(connection, endpoint);
   const existing = endpointRuntimeHealth.get(key);
   if (existing) {
+    existing.lastTouchedAt = currentTime();
     return existing;
   }
-  const created: EndpointRuntimeHealth = { consecutiveFailures: 0 };
+  const created: EndpointRuntimeHealth = { consecutiveFailures: 0, lastTouchedAt: currentTime() };
   endpointRuntimeHealth.set(key, created);
   return created;
 }
@@ -262,6 +284,7 @@ export async function executeWithEndpointFailover<T>(
         health.consecutiveFailures = 0;
         health.openUntil = undefined;
         health.lastSuccessAt = currentTime();
+        health.lastTouchedAt = currentTime();
         attempts.push({
           endpointId: endpoint.id,
           endpointUrl: endpoint.url,
@@ -286,6 +309,7 @@ export async function executeWithEndpointFailover<T>(
         const failover = shouldFailover(error, failoverEnabled);
         lastError = error;
         health.consecutiveFailures += 1;
+        health.lastTouchedAt = currentTime();
         if (failover) {
           health.openUntil = currentTime() + cooldownMs;
         }

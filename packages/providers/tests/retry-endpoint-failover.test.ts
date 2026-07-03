@@ -1,5 +1,9 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { executeWithEndpointFailover, resetEndpointRuntimeHealthForTesting } from '../src/transport/image-endpoint/failover.js';
+import {
+  endpointRuntimeHealthSizeForTesting,
+  executeWithEndpointFailover,
+  resetEndpointRuntimeHealthForTesting,
+} from '../src/transport/image-endpoint/failover.js';
 import { httpRequest } from '../src/transport/image-endpoint/http.js';
 import { createCountingFetch } from './counting-transport.js';
 
@@ -203,5 +207,35 @@ describe('endpoint failover executor', () => {
     expect(second.selectedEndpointId).toBe('secondary');
     expect(counting.calls).toHaveLength(3);
     expect(second.attempts.some((attempt) => attempt.outcome === 'skipped_cooldown')).toBe(true);
+  });
+
+  it('cleans stale runtime health entries after connection edits stop referencing them', async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date('2026-07-04T00:00:00.000Z'));
+    const staleConnection = {
+      ...connection,
+      endpoints: [
+        { id: 'stale', url: 'https://stale.example.com', enabled: true },
+      ],
+      preferredEndpointId: 'stale',
+    };
+
+    await expect(executeWithEndpointFailover({
+      connection: staleConnection,
+      cooldownMs: 1_000,
+      maxAttempts: 1,
+      execute: async () => {
+        throw Object.assign(new Error('offline'), { kind: 'network_error' });
+      },
+    })).rejects.toThrow();
+    expect(endpointRuntimeHealthSizeForTesting()).toBe(1);
+
+    vi.setSystemTime(new Date('2026-07-04T00:11:00.000Z'));
+    const counting = createCountingFetch([{ kind: 'response', status: 200, data: { ok: true } }]);
+    vi.stubGlobal('fetch', counting.fetch);
+    await executeModelsRequest({ cooldownMs: 1_000, maxAttempts: 1 });
+
+    expect(endpointRuntimeHealthSizeForTesting()).toBe(1);
+    vi.useRealTimers();
   });
 });

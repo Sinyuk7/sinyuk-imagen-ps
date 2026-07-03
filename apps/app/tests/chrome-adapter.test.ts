@@ -132,6 +132,21 @@ describe('Chrome adapter contracts', () => {
     expect(await storage.profiles.list()).toEqual([]);
   });
 
+  it('continues asset refs after restart instead of reusing chrome-idb-asset keys', async () => {
+    const backend = createMemoryIndexedDbBackend();
+    const firstStorage = createChromeIndexedDbStorage({ backend });
+    const first = await firstStorage.assets.put(new Uint8Array([1]).buffer, { mimeType: 'image/png' });
+    const second = await firstStorage.assets.put(new Uint8Array([2]).buffer, { mimeType: 'image/png' });
+    expect(first.ref).toBe('chrome-idb-asset-1');
+    expect(second.ref).toBe('chrome-idb-asset-2');
+
+    const restartedStorage = createChromeIndexedDbStorage({ backend });
+    const third = await restartedStorage.assets.put(new Uint8Array([3]).buffer, { mimeType: 'image/png' });
+
+    expect(third.ref).toBe('chrome-idb-asset-3');
+    expect(new Uint8Array((await restartedStorage.assets.resolve(third)) ?? new ArrayBuffer(0))).toEqual(new Uint8Array([3]));
+  });
+
   it('uses File API upload to create a HostImageAsset accepted by the shared submit flow', async () => {
     const pngHeader = new Uint8Array(24);
     pngHeader.set([137, 80, 78, 71], 0);

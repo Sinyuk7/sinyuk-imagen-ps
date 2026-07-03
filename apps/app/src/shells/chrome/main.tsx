@@ -1,6 +1,7 @@
 import { createRoot, type Root } from 'react-dom/client';
 import { AppShell } from '../../shared/ui/app-shell';
 import { primeSharedUi } from '../../shared/ui/panel-bootstrap';
+import { AppErrorBoundary } from '../../shared/ui/app-error-boundary';
 import { createChromeAppShell } from '../../composition/chrome/create-chrome-app-shell';
 import { chromeTestHarnessConfigFromUrl } from '../../composition/chrome/chrome-test-harness';
 import { ComposerSelectHarnessPage } from '../../harness/components/composer-select';
@@ -39,18 +40,18 @@ try {
   primeSharedUi(container.ownerDocument);
   root = createRoot(container);
   if (harness === 'composer-select') {
-    root.render(<ComposerSelectHarnessPage />);
+    root.render(<AppErrorBoundary runtime="chrome"><ComposerSelectHarnessPage /></AppErrorBoundary>);
     globalThis.__IMAGEN_CHROME_RUNTIME__ = undefined;
   } else if (harness === 'motion-prototype') {
-    root.render(<MotionPrototypeHarnessPage />);
+    root.render(<AppErrorBoundary runtime="chrome"><MotionPrototypeHarnessPage /></AppErrorBoundary>);
     globalThis.__IMAGEN_CHROME_RUNTIME__ = undefined;
   } else if (harness === 'uxp-css-contract') {
-    root.render(<UxpCssContractHarnessPage />);
+    root.render(<AppErrorBoundary runtime="chrome"><UxpCssContractHarnessPage /></AppErrorBoundary>);
     globalThis.__IMAGEN_CHROME_RUNTIME__ = undefined;
   } else {
     const testHarness = chromeTestHarnessConfigFromUrl(url);
     const host = createChromeAppShell(testHarness ? { testHarness } : undefined);
-    root.render(<AppShell host={host} />);
+    root.render(<AppErrorBoundary runtime="chrome"><AppShell host={host} /></AppErrorBoundary>);
     globalThis.__IMAGEN_CHROME_RUNTIME__ = { host, dispose: () => {
       root?.unmount();
       host.dispose();

@@ -1,5 +1,6 @@
 import { createRoot, type Root } from 'react-dom/client';
 import { AppShell } from '../../shared/ui/app-shell';
+import { AppErrorBoundary } from '../../shared/ui/app-error-boundary';
 import { primeSharedUi } from '../../shared/ui/panel-bootstrap';
 import { ComposerSelectHarnessPage } from '../../harness/components/composer-select';
 import { UxpCssContractHarnessPage } from '../../harness/components/uxp-css-contract';
@@ -291,15 +292,19 @@ export function createImagenPanelRuntime(options?: ImagenPanelRuntimeOptions): I
         const harness = resolveUxpPanelHarness();
         if (harness !== null) {
           bootstrapCheckpoint('panel.bootstrap.harness.rendered', { harness });
-          reactRoot.render(harness === 'composer-select'
-            ? <ComposerSelectHarnessPage />
-            : <UxpCssContractHarnessPage />);
+          reactRoot.render(
+            <AppErrorBoundary runtime="uxp">
+              {harness === 'composer-select'
+                ? <ComposerSelectHarnessPage />
+                : <UxpCssContractHarnessPage />}
+            </AppErrorBoundary>,
+          );
           globalThis.__IMAGEN_PS_PANEL_RUNTIME__ = runtime;
           return undefined;
         }
         host = createHost();
         bootstrapCheckpoint('panel.bootstrap.host_shell.created');
-        reactRoot.render(<AppShell host={host} />);
+        reactRoot.render(<AppErrorBoundary runtime="uxp"><AppShell host={host} /></AppErrorBoundary>);
         bootstrapCheckpoint('panel.bootstrap.react.rendered');
         exposeHostSmokeHandle(host, resolveModules);
         bootstrapCheckpoint('panel.bootstrap.runtime.mount.complete', { hasHost: true });

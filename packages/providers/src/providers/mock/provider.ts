@@ -133,26 +133,27 @@ export function createMockProvider(
         (request.providerOptions?.model as string | undefined) ?? config.defaultModel ?? 'mock-image-v1';
 
       return new Promise((resolve, reject) => {
+        const activeSignal = signal;
         const canListen = canListenToAbort(signal);
         const onAbort = () => {
           clearTimeout(timer);
           reject(
             createProviderInvokeError('Mock provider invocation was aborted.', {
-              reason: signal?.reason,
+              reason: activeSignal?.reason,
             }),
           );
         };
         const cleanup = () => {
-          if (canListen) {
-            signal.removeEventListener('abort', onAbort);
+          if (canListen && activeSignal) {
+            activeSignal.removeEventListener('abort', onAbort);
           }
         };
         const timer = setTimeout(() => {
           cleanup();
-          if (signal?.aborted) {
+          if (activeSignal?.aborted) {
             reject(
               createProviderInvokeError('Mock provider invocation was aborted.', {
-                reason: signal.reason,
+                reason: activeSignal.reason,
               }),
             );
             return;
@@ -215,14 +216,14 @@ export function createMockProvider(
           resolve(result);
         }, delayMs);
 
-        if (signal) {
-          if (signal.aborted) {
+        if (activeSignal) {
+          if (activeSignal.aborted) {
             onAbort();
             return;
           }
 
           if (canListen) {
-            signal.addEventListener('abort', onAbort, { once: true });
+            activeSignal.addEventListener('abort', onAbort, { once: true });
           }
         }
       });
