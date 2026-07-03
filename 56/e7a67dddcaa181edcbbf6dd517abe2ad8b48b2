@@ -1,0 +1,103 @@
+apps/app/package.json
+  s_cec608b8eeb8cb::t_79a429349e00b6 23-31,33-38
+apps/app/src/harness/components/uxp-css-contract/uxp-css-contract-harness.tsx
+  s_cec608b8eeb8cb::t_09ff85a29a0dd4 967-977,1484-1487,1492-1495,1504-1507,1554-1596,1853,1855,1859-1860,1866
+apps/app/src/shared/ui/app-shell.tsx
+  s_cec608b8eeb8cb::t_9fb727aea67b3e 20,213,435
+apps/app/src/shared/ui/components/icon-select-trigger-button.tsx
+  s_cec608b8eeb8cb::t_9448da7a12fbbe 37
+apps/app/src/shared/ui/components/notice.tsx
+  s_cec608b8eeb8cb::t_e1778c33f7775d 39,181
+apps/app/src/shared/ui/components/text-select-trigger-button.tsx
+  s_cec608b8eeb8cb::t_2f3658abf702a6 32
+apps/app/src/shared/ui/components/toast-host.tsx
+  s_cec608b8eeb8cb::t_c550e7b56bb66b 3,15-22,28-43,46,48-49,52-69,71-77,82-83,85-86,95-108,120,122-132,141-142
+apps/app/src/shared/ui/components/uxp-form-controls.tsx
+  s_cec608b8eeb8cb::t_4d34e2349638cc 7,10-11,13-14,16-23,26,30,32-33,35-49,51,54,65,72,74,76-89,91,94-99
+apps/app/src/shared/ui/hooks/use-profile-billing.ts
+  s_cec608b8eeb8cb::t_62a33b4aa7a87e 1,28-37,48-50,57-59,71-73,75-77,83-86,89-91
+apps/app/src/shared/ui/pages/history-page.tsx
+  s_cec608b8eeb8cb::t_e993b23a045b7c 8,129,549
+apps/app/src/shared/ui/pages/main-page.tsx
+  s_cec608b8eeb8cb::t_d04c762d797313 17,39-40,217,227,303,771,1418
+apps/app/src/shared/ui/primitives/native-controls.tsx
+  s_cec608b8eeb8cb::t_f1678901dffd66 4,11,31-33,37-49,52-54,57-62,66-68,108,110,113,117,122-123,129-131,133-137,144-146,152-168,171-172,178-190,192-205,227,229,232-235,245,251,253-255,257-258,264,266,271
+apps/app/src/shared/ui/register-shared-swc.ts
+  s_cec608b8eeb8cb::t_bf1e0d7f3a9115 1-17
+apps/app/src/shared/ui/styles/composer.ts
+  s_cec608b8eeb8cb::t_5e62218870348e 336-345,354,358-359,363
+apps/app/src/shared/ui/styles/overlays.ts
+  s_cec608b8eeb8cb::t_cb9b2cf08a5696 13-17
+apps/app/src/shared/ui/styles/pages.ts
+  s_cec608b8eeb8cb::t_fe8cb35369569d 278-281,359,364
+apps/app/src/shared/ui/styles/tokens.ts
+  s_cec608b8eeb8cb::t_291fe38f574f2d 451-453,461-468,474-483,486,489,494,498,504,544,549-551,555,559,563,567,572
+apps/app/src/shells/chrome/main.tsx
+  s_cec608b8eeb8cb::t_3093e9e2c4b1b4 4,40
+apps/app/src/shells/uxp/register-swc-uxp.ts
+  s_cec608b8eeb8cb::t_7bdcd9d419b51e 1,4,6-8
+apps/app/tests/app-shell.test.tsx
+  s_cec608b8eeb8cb::t_303c03c72ec3cd 28-34,36,109,112,175,185,280,290,294,327,331,504,568,577,583,593,605,609
+apps/app/tests/bundle/uxp-dist-bundle.test.ts
+  s_cec608b8eeb8cb::t_597cbff97b81d9 60-62,65-70
+apps/app/tests/chrome-e2e/run.mjs
+  s_cec608b8eeb8cb::t_a7e7390815213e 430,447,533
+apps/app/tests/main-page-attachment-submission.test.tsx
+  s_cec608b8eeb8cb::t_d553ed184632a5 302
+apps/app/tests/main-page-composer-controls.test.tsx
+  s_cec608b8eeb8cb::t_8a4c9aafe425b4 159,423,452,476,503,513
+apps/app/tests/main-page-harness.tsx
+  s_cec608b8eeb8cb::t_2196b103a07d79 43-44,50
+apps/app/tests/native-controls.test.tsx
+  s_cec608b8eeb8cb::t_92d3218b8679c9 4-5,8,22-46,57,83,110,117-154
+apps/app/tests/provider-endpoint-user-flows.test.tsx
+  s_cec608b8eeb8cb::t_5b1d18ddca5d26 267-268,275,277,305-312,317-318,349,483-485
+apps/app/tests/settings-add-page.test.tsx
+  s_cec608b8eeb8cb::t_cbb0f66a661731 28,41,77,178-180,240,282,317
+apps/app/tests/settings-detail-connectivity.test.tsx
+  s_cec608b8eeb8cb::t_ddad228a2f1efc 120,149
+apps/app/tests/settings-detail-diagnostics.test.tsx
+  s_cec608b8eeb8cb::t_5cab1b00506c85 35,79
+apps/app/tests/settings-detail-harness.tsx
+  s_cec608b8eeb8cb::t_9ef67d8120f248 36,108
+apps/app/tests/settings-detail-optimizer.test.tsx
+  s_cec608b8eeb8cb::t_818f90add97b00 43,45-47
+apps/app/tests/settings-detail-profile-editing.test.tsx
+  s_cec608b8eeb8cb::t_862617d284c513 35,71,99,126
+apps/app/tests/settings-page.test.tsx
+  s_cec608b8eeb8cb::t_30f9988c62b9b4 41
+apps/app/tests/setup.ts
+  s_cec608b8eeb8cb::t_ee9f640453c184 1-2,4
+apps/app/tests/shared-swc-registration.test.ts
+  s_cec608b8eeb8cb::t_8b7cdc3a5051c7 1-17
+apps/app/tests/swc-react-event-bridge.test.tsx
+  s_cec608b8eeb8cb::t_cbad32c2431d0c 1-57
+apps/app/tests/uxp-css-compat.test.ts
+  s_cec608b8eeb8cb::t_9b1df209a56bda 187-188,193-194
+apps/app/tests/uxp-css-contract-harness.test.tsx
+  s_cec608b8eeb8cb::t_a3418b4124d0c0 129-147
+apps/app/tests/uxp-form-controls.test.tsx
+  s_cec608b8eeb8cb::t_71a2afbab5efb1 17-18,33
+apps/app/tests/vite-runtime-alias.test.ts
+  s_cec608b8eeb8cb::t_351d94d51f67e8 42,44-46,48,50,53-55,57
+apps/app/vite.uxp.config.ts
+  s_cec608b8eeb8cb::t_4a095e19d2479e 109-284,286-288,472-474
+pnpm-lock.yaml
+  s_cec608b8eeb8cb::t_4474e7e5fa8b03 26-43,47-55,59-76
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.3",
+  "base_commit_sha": "56e7a67dddcaa181edcbbf6dd517abe2ad8b48b2",
+  "prompts": {},
+  "sessions": {
+    "s_cec608b8eeb8cb": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "019f249b-f8b8-7693-b35d-db389ee67812",
+        "model": "unknown"
+      },
+      "human_author": "Sinyuk <80998062@qq.com>"
+    }
+  }
+}
