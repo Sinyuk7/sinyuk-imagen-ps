@@ -56,6 +56,36 @@ describe('MainPage contract — composer controls', () => {
     expect(spies.submitJob).not.toHaveBeenCalled();
   });
 
+  it('selector 打开时会暂停 composer textarea 的原生命中，关闭后恢复', async () => {
+    const container = document.createElement('div');
+    document.body.appendChild(container);
+    await renderMainPage(container);
+    const firstTextarea = container.querySelector<HTMLTextAreaElement>('[data-testid="composer-textarea"]')!;
+
+    expect(document.body.querySelector('[data-testid="composer-textarea-mirror"]')).toBeNull();
+    expect(firstTextarea.style.display).toBe('');
+
+    await act(async () => {
+      container.querySelector<HTMLElement>('[data-testid="composer-output-size-selector"]')!.click();
+    });
+    await flush();
+
+    const textarea = container.querySelector<HTMLTextAreaElement>('[data-testid="composer-textarea"]')!;
+    expect(document.body.querySelector('[data-testid="composer-textarea-mirror"]')).toBeNull();
+    expect(textarea.dataset.hitTestSuspended).toBe('true');
+    expect(textarea.style.display).toBe('none');
+
+    await act(async () => {
+      document.body.querySelector<HTMLElement>('[data-testid="composer-output-size-selector-underlay"]')!.click();
+    });
+    await flush();
+
+    const restoredTextarea = container.querySelector<HTMLTextAreaElement>('[data-testid="composer-textarea"]')!;
+    expect(document.body.querySelector('[data-testid="composer-textarea-mirror"]')).toBeNull();
+    expect(restoredTextarea.dataset.hitTestSuspended).toBeUndefined();
+    expect(restoredTextarea.style.display).toBe('');
+  });
+
   it('运行中时空状态提示不再显示', async () => {
     const container = document.createElement('div');
     document.body.appendChild(container);

@@ -155,4 +155,28 @@ describe('UXP textarea seam', () => {
       });
     }
   });
+
+  it('suspends native textarea hit-testing and blurs while an overlapping popup is open', async () => {
+    const container = document.createElement('div');
+    document.body.appendChild(container);
+    root = createRoot(container);
+
+    await act(async () => {
+      root!.render(<UxpTextArea value="hello" onValue={() => undefined} data-testid="textarea" />);
+    });
+
+    const firstTextarea = container.querySelector<HTMLTextAreaElement>('textarea')!;
+    firstTextarea.focus();
+    expect(document.activeElement).toBe(firstTextarea);
+
+    await act(async () => {
+      root!.render(<UxpTextArea value="hello" onValue={() => undefined} suspendHitTesting data-testid="textarea" />);
+    });
+
+    const textarea = container.querySelector<HTMLTextAreaElement>('textarea')!;
+    expect(container.querySelector('[data-testid="textarea-mirror"]')).toBeNull();
+    expect(textarea.dataset.hitTestSuspended).toBe('true');
+    expect(textarea.style.display).toBe('none');
+    expect(document.activeElement).not.toBe(firstTextarea);
+  });
 });

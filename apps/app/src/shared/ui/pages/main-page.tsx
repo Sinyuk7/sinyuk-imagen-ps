@@ -458,10 +458,26 @@ export function MainPage({
     [],
   );
   const currentPromptValue = () => taRef.current?.value ?? input;
+  const suspendComposerTextHitTesting = openMenu !== null;
+  const syncComposerInputBeforeMenuOpen = useCallback(() => {
+    const liveValue = taRef.current?.value;
+    if (liveValue !== undefined && liveValue !== input) {
+      composerDraft.setInput(liveValue);
+    }
+    taRef.current?.blur();
+  }, [composerDraft, input]);
   const optimizerReady = Boolean(promptOptimizerProfile?.enabled);
   const optimizing = optimizeState.status === 'optimizing';
   const showUndo = optimizeState.status === 'optimized' && input === optimizeState.result;
   const canOptimize = optimizerReady && input.trim().length > 0 && !optimizing;
+  const handleOpenComposerMenu = useCallback((menu: 'model' | 'output-size', open: boolean) => {
+    setProfileMenuOpen(false);
+    if (open) {
+      syncComposerInputBeforeMenuOpen();
+    }
+    setOpenMenu(open ? menu : null);
+  }, [syncComposerInputBeforeMenuOpen]);
+
   const readiness = deriveComposerReadiness({
     running: conversation.running,
     profilesLoading,
@@ -1696,22 +1712,25 @@ export function MainPage({
             )}
             <div className="cmp-body">
               <MotionHighlight activeKey={highlightKey?.startsWith('optimize:') ? highlightKey : null} />
-              <UxpTextArea
-                data-testid="composer-textarea"
-                controlRef={taRef}
-                className="cmp-ta"
-                placeholder={selectedProfile ? t.main.promptPlaceholderReady : t.main.promptPlaceholderNoProfile}
-                rows={2}
-                value={input}
-                onValue={composerDraft.setInput}
-                onKeyDown={(event) => {
-                  if (event.key === 'Enter' && !event.shiftKey && !isImeCompositionKey(event)) {
-                    event.preventDefault();
-                    void handleSend();
-                  }
-                }}
-                disabled={optimizing}
-              />
+              <div className="cmp-ta-shell">
+                <UxpTextArea
+                  data-testid="composer-textarea"
+                  controlRef={taRef}
+                  className="cmp-ta"
+                  placeholder={selectedProfile ? t.main.promptPlaceholderReady : t.main.promptPlaceholderNoProfile}
+                  rows={2}
+                  value={input}
+                  onValue={composerDraft.setInput}
+                  suspendHitTesting={suspendComposerTextHitTesting}
+                  onKeyDown={(event) => {
+                    if (event.key === 'Enter' && !event.shiftKey && !isImeCompositionKey(event)) {
+                      event.preventDefault();
+                      void handleSend();
+                    }
+                  }}
+                  disabled={optimizing}
+                />
+              </div>
             </div>
             <div className="cmp-action-row" data-testid="composer-action-row">
               <div className="cmp-action-left">
@@ -1822,8 +1841,7 @@ export function MainPage({
                 disabled={conversation.running}
                 open={openMenu === 'model'}
                 onOpenChange={(open) => {
-                  setProfileMenuOpen(false);
-                  setOpenMenu(open ? 'model' : null);
+                  handleOpenComposerMenu('model', open);
                 }}
                 options={modelOptions}
                 selectedId={selectedModelId}
@@ -1840,8 +1858,7 @@ export function MainPage({
                 disabled={conversation.running}
                 open={openMenu === 'output-size'}
                 onOpenChange={(open) => {
-                  setProfileMenuOpen(false);
-                  setOpenMenu(open ? 'output-size' : null);
+                  handleOpenComposerMenu('output-size', open);
                 }}
                 options={outputSizeOptions}
                 isOptionSelectable={(value) => canSelectOutputSize(outputSizeContext, value as AppOutputSizePreset, t).ok}

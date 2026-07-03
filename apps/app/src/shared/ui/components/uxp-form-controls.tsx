@@ -16,6 +16,9 @@ type UxpTextAreaProps = Omit<
   readonly controlRef?: RefObject<HTMLTextAreaElement | null>;
   readonly value: string;
   readonly onValue: (value: string) => void;
+  /** UXP 原生 textarea 在浮层重叠时可能抢占命中；打开菜单时临时摘出 hit-test。 */
+  readonly suspendHitTesting?: boolean;
+  readonly 'data-testid'?: string;
 };
 
 type ClipboardReader = {
@@ -85,7 +88,21 @@ function insertTextAtSelection(target: HTMLTextAreaElement, text: string, start:
  * SWC 0.37.0 / 当前 UXP wrapper 组合里没有与 Chrome/UXP 都稳定覆盖的 textarea
  * 契约，因此多行 prompt 输入继续走这一份 UXP-safe 实现。
  */
-export function UxpTextArea({ controlRef, value, onValue, onKeyDown, ...props }: UxpTextAreaProps) {
+export function UxpTextArea({
+  controlRef,
+  value,
+  onValue,
+  onKeyDown,
+  suspendHitTesting = false,
+  style,
+  className,
+  placeholder,
+  rows,
+  id,
+  title,
+  'data-testid': dataTestId,
+  ...props
+}: UxpTextAreaProps) {
   const textAreaRef = useRef<HTMLTextAreaElement>(null);
   const pasteFallbackRequestRef = useRef(0);
 
@@ -101,6 +118,16 @@ export function UxpTextArea({ controlRef, value, onValue, onKeyDown, ...props }:
       textAreaRef.current.value = value;
     }
   }, [value]);
+
+  useEffect(() => {
+    const textarea = textAreaRef.current;
+    if (!textarea || !suspendHitTesting) {
+      return;
+    }
+    if (document.activeElement === textarea) {
+      textarea.blur();
+    }
+  }, [suspendHitTesting]);
 
   const sync = useCallback(
     (target?: HTMLTextAreaElement | null) => {
@@ -155,11 +182,27 @@ export function UxpTextArea({ controlRef, value, onValue, onKeyDown, ...props }:
     scheduleSync(() => sync(target));
   };
 
-  return (
+  const nativeTextArea = (
     <textarea
       {...props}
       ref={bindRef}
+      id={id}
+      title={title}
+      className={className}
+      data-testid={dataTestId}
+      rows={rows}
+      placeholder={placeholder}
       defaultValue={value}
+      data-uxp-textarea-native="true"
+      data-hit-test-suspended={suspendHitTesting ? 'true' : undefined}
+      style={{
+        ...style,
+        ...(suspendHitTesting
+          ? {
+              display: 'none',
+            }
+          : null),
+      }}
       onBlur={syncFromFocus}
       onKeyDown={(event) => {
         if (!event.currentTarget.readOnly && !event.currentTarget.disabled && isPasteShortcut(event)) {
@@ -172,5 +215,9 @@ export function UxpTextArea({ controlRef, value, onValue, onKeyDown, ...props }:
       onPaste={fallbackPasteFromClipboardEvent}
       onCut={syncAfterClipboard}
     />
+  );
+
+  return (
+    nativeTextArea
   );
 }

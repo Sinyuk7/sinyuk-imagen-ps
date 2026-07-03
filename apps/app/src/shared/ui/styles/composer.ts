@@ -407,6 +407,11 @@ export const COMPOSER_CSS = `
   padding-left:2px;
   scrollbar-width:thin; width:100%;
 }
+.cmp-ta-shell{
+  display:block;
+  width:100%;
+  min-height:56px;
+}
 .cmp-ta::placeholder{ color:var(--app-color-text-muted); font-weight:400; }
 .cmp-readiness{
   min-height:17px;
