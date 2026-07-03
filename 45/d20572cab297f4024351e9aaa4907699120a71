@@ -1,0 +1,27 @@
+apps/app/src/shared/ui/app-shell.tsx
+  s_acc545a6176016::t_c62b2f42327568 52,183,305,436
+apps/app/src/shared/ui/styles/generated-theme-tokens.ts
+  s_acc545a6176016::t_b7ab2aa199d3cb 6
+apps/app/tests/bundle/uxp-dist-bundle.test.ts
+  s_acc545a6176016::t_ac89b48bd23f34 41-42
+apps/app/tests/theme-tokens.test.ts
+  s_acc545a6176016::t_28ec4195df498e 60
+scripts/generate-theme-tokens.mjs
+  s_acc545a6176016::t_55e3aaf0c0ebe4 352
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.3",
+  "base_commit_sha": "45d20572cab297f4024351e9aaa4907699120a71",
+  "prompts": {},
+  "sessions": {
+    "s_acc545a6176016": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "019f2656-d03b-7ba2-b550-92a83b118040",
+        "model": "unknown"
+      },
+      "human_author": "Sinyuk <80998062@qq.com>"
+    }
+  }
+}
