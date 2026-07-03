@@ -1,0 +1,43 @@
+apps/app/src/shared/domain/asset-file.ts
+  s_2f7174334b0f77::t_af1a325975236c 125-139,144-150,173
+apps/app/src/shared/ui/components/composer-select-menu.tsx
+  s_1aa99c8c066311::t_6e28511d4e35d2 19,36,40
+apps/app/src/shared/ui/components/composer-select.tsx
+  s_1aa99c8c066311::t_a7f9556fdb618a 2,54-55,122,137,140
+apps/app/src/shared/ui/components/use-composer-select-placement.ts
+  s_1aa99c8c066311::t_b1a0100c6425a7 80-81,83,87-90,95-96,103-106
+apps/app/src/shared/ui/styles/composer.ts
+  s_1aa99c8c066311::t_d6efe25ebc92e1 269
+apps/app/tests/asset-file.test.ts
+  s_1aa99c8c066311::t_d537d8a526019d 1-74
+apps/app/tests/composer-select.test.tsx
+  s_1aa99c8c066311::t_b998e32ffba6cc 424,445-464,466-469,471-477
+apps/app/tests/host-bridge-placement.test.ts
+  s_2f7174334b0f77::t_3d86e679db7970 1,129-164
+apps/app/tests/host-bridge-save.test.ts
+  s_2f7174334b0f77::t_f1075ed8673fe3 1,4,33-65
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.3",
+  "base_commit_sha": "227025c640e21f16836f628a12971f58d8fbb101",
+  "prompts": {},
+  "sessions": {
+    "s_1aa99c8c066311": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "019f2716-d97c-7753-941a-b28a8d86b702",
+        "model": "unknown"
+      },
+      "human_author": "Sinyuk <80998062@qq.com>"
+    },
+    "s_2f7174334b0f77": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "019f273d-b7a6-7e13-ba64-b365036dde60",
+        "model": "unknown"
+      },
+      "human_author": "Sinyuk <80998062@qq.com>"
+    }
+  }
+}
