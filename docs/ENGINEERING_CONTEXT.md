@@ -32,6 +32,14 @@ surface apps -> application/session -> core-engine + providers
   local image-model capability catalog and resolver; remote `discoverModels()`
   answers are only an availability filter over that local catalog, not the
   authoritative picker source.
+- Model avatar icons follow catalog brand identity as the single source.
+  `packages/providers` declares `ModelBrand` on `ImageModelCapability`;
+  `packages/application` exposes the sync `resolveModelBrand` command over
+  `resolveImageModelRule`; `apps/app` owns the `brand → icon slug` map and SVG
+  assets. The UI never imports `@imagen-ps/providers` and never re-derives
+  model identity via substring matching; non-catalog providers (mock,
+  prompt-optimize) and unknown models fall back to the default icon. Static
+  visual harnesses pass `iconName` directly without runtime resolution.
 - Product history is task-oriented. `TaskRecord` is the durable user-task
   history contract; `DurableJobRecord` remains execution/job compatibility
   history. A send creates a running task, terminal provider execution updates
