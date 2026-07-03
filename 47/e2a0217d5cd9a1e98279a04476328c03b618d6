@@ -1,0 +1,325 @@
+.agents/skills/requirement-to-loop-planner/SKILL.md
+  s_17c9af51040153::t_3394dd66baaecf 13-15
+.agents/skills/uxp-issue-rca/SKILL.md
+  s_17c9af51040153::t_7e2ad3858ca187 3-8,13-20
+.agents/skills/uxp-issue-rca/agents/openai.yaml
+  s_17c9af51040153::t_e37714948651fb 4
+.agents/skills/uxp-ui-debugger/SKILL.md
+  s_17c9af51040153::t_b7eb745bcc4124 3-8,13-20
+.agents/skills/uxp-ui-debugger/agents/openai.yaml
+  s_17c9af51040153::t_d07996aef1f90c 4
+apps/app/AGENTS.md
+  s_1c98647ff85f6a::t_6dfd73f5b85504 72-111
+apps/app/package.json
+  s_2f1bf3f12695f3::t_a82daed3d51b55 8,10,12,14-18
+apps/app/scripts/generate-theme-css.mjs
+  s_1c98647ff85f6a::t_f4ce714c4116cd 1-423
+apps/app/src/adapters/chrome/browser-app-storage.ts
+  s_fd43f6903faa79::t_89522da1a91c4e 10,23,93
+apps/app/src/adapters/chrome/chrome-host-port.ts
+  s_868755a6b8737b::t_7c37af2535507a 2,6,131,144-167,180-182
+apps/app/src/adapters/chrome/indexed-db-storage.ts
+  s_fd43f6903faa79::t_7d5687002c0889 13,35,167,272-279
+apps/app/src/adapters/uxp/in-memory-host-storage.ts
+  s_fd43f6903faa79::t_7faf7a6b0d07c1 13,17
+apps/app/src/adapters/uxp/photoshop-host-bridge.ts
+  s_5603a779b69b65::t_e8b0c83a32d396 13,125,138,821-849,1643-1706,1715-1717
+apps/app/src/adapters/uxp/uxp-active-image-profile-store.ts
+  s_fd43f6903faa79::t_a5d8893109c688 1-94
+apps/app/src/adapters/uxp/uxp-diagnostics.test.ts
+  s_5603a779b69b65::t_0b25a8fbfbadf9 82,256-258
+apps/app/src/adapters/uxp/uxp-diagnostics.ts
+  s_5603a779b69b65::t_9485d89f55cacd 35,293
+apps/app/src/adapters/uxp/uxp-host-adapters.test.ts
+  s_fd43f6903faa79::t_bedf64616c1238 6,212-237
+apps/app/src/composition/chrome/create-chrome-app-shell.ts
+  s_fd43f6903faa79::t_d4e6db297cb23e 108
+apps/app/src/harness/components/uxp-css-contract/uxp-css-contract-harness.tsx
+  s_4028dde44fae37::t_e8798b4e0b70fc 1414-1423
+apps/app/src/shared/domain/asset-file.ts
+  s_5603a779b69b65::t_c3fb969ee498a2 1-179
+apps/app/src/shared/domain/mappers.ts
+  s_868755a6b8737b::t_d96f1756856167 20-25,239-264,266-274,280-283,285,288-302
+apps/app/src/shared/domain/task-actions.ts
+  s_5603a779b69b65::t_94d52b4e4068b5 4,18-22,160,166,179-182,187-204
+apps/app/src/shared/image/thumbnail-store.ts
+  s_5603a779b69b65::t_34174f578fc246 76
+apps/app/src/shared/ports/active-image-profile.ts
+  s_2801bb97e67366::t_85927cc190d499 1-16
+apps/app/src/shared/ports/app-services.ts
+  s_fd43f6903faa79::t_77e5236ef4aefe 5,19
+apps/app/src/shared/ports/host-port.ts
+  s_868755a6b8737b::t_35977484cb0c83 5,37-40,48-49,65-70,82-83,100-101,130-135
+apps/app/src/shared/ui/app-shell.tsx
+  s_c3b7cd6f0bfdef::t_7eab70f16e6b19 19,22,152,157,160,167-168,176,191,217-218,223-227,229-245,249-251,308-316,352-354,362,389,422,424-426,438,452,478,488-490
+apps/app/src/shared/ui/components/icons.tsx
+  s_c3b7cd6f0bfdef::t_e828700ac746f8 40-44,266-291
+apps/app/src/shared/ui/components/notice.tsx
+  s_1c98647ff85f6a::t_b8338d790c9fad 4,10-15,25-28,104,115,120-124,266-275
+apps/app/src/shared/ui/components/provider-billing-settings.tsx
+  s_c3b7cd6f0bfdef::t_d287120bab63f7 1,4,18-25,35-42,49-69,71-72,80,82-84,86,88-102,108,110,112-119,122
+apps/app/src/shared/ui/components/provider-profile-editor.tsx
+  s_c3b7cd6f0bfdef::t_56f16a7e848953 8-14,21,26,41-45,84-94,99,104,119-123,140,142-146,153,194,196-200,271-285,292,294,305-311,313,329-346,348
+apps/app/src/shared/ui/components/toast-host.tsx
+  s_1fce62b511b351::t_f6c324c1a83f68 1,3,9,16-20,23-24,27-31,33-138,140-143,147-308,310,312,351-362
+apps/app/src/shared/ui/components/use-composer-select-placement.ts
+  s_1aa99c8c066311::t_ac72f9b01ad347 81-83,87-90,95-96,103-107
+apps/app/src/shared/ui/hooks/use-conversation.ts
+  s_5603a779b69b65::t_f41d41eece78fb 38,131,474
+apps/app/src/shared/ui/hooks/use-provider-settings.ts
+  s_c3b7cd6f0bfdef::t_26b0212373a296 13,63,114-118,123,291-314,318,326-328,330,333,337-338,342,473-479,482,498-499,501,506-507,563
+apps/app/src/shared/ui/i18n/messages.ts
+  s_c3b7cd6f0bfdef::t_366f08c5e050bb 98-102,167-179,202,330-334,368,398-411,434,563-567,601,631-644,667
+apps/app/src/shared/ui/motion/recipes/toast-presence.ts
+  s_1c98647ff85f6a::t_d63983de048270 15
+apps/app/src/shared/ui/pages/global-generation-settings-page.tsx
+  s_1c98647ff85f6a::t_d280b65abddb92 11,128-133,189,209-215,217,262-269,272,280-286
+apps/app/src/shared/ui/pages/history-page.tsx
+  s_1c98647ff85f6a::t_217dffe8223766 8,22,112,114,343-344,348,350,352,356,362,446
+apps/app/src/shared/ui/pages/main-page.tsx
+  s_c3b7cd6f0bfdef::t_b21242f81524c0 1,4-5,7,14,19,56,85-129,246,264,280-299,301-304,369,504,614,616,639,648,668,670,678,682,694,697,728,733,743,749,752,756,789,797,803,807,809-810,813-826,1205,1236-1238,1241,1248-1264,1383-1399,1401-1403
+apps/app/src/shared/ui/pages/settings-add-page.tsx
+  s_c3b7cd6f0bfdef::t_96071124632774 11-12,24,31,63-64,71-102,122,124,134-139,157-164,169,183,186-187,203,218,231,274,283,307-311,315-323,326,330-333,337,340,343-346,351,357-365,428-445
+apps/app/src/shared/ui/pages/settings-detail-page.tsx
+  s_1aa99c8c066311::t_b9e69c9368e627 14-15,88-98,123-124,128-133,137,156-186,199-202,217-241,253-256,291-295,299,305-343,347,351-352,356,368,372-373,424-428,457,463-466,484-493,496-506,508,511,561-581,589-590,638-649,652,656-735,737,739-775,777-794,796-812,814-848,850-863,867-873,877-882,885-892,898
+apps/app/src/shared/ui/panel-css.ts
+  s_2f1bf3f12695f3::t_c20b48b2f9fb2c 6-8,19-20,34
+apps/app/src/shared/ui/primitives/native-controls.tsx
+  s_1aa99c8c066311::t_672c6aa338373f 43-48,67,155-169,223,225
+apps/app/src/shared/ui/styles/overlays.ts
+  s_1fce62b511b351::t_61c13eb4b29cca 7-10,12-13,15,17-21,24-25,28-38,43,47,50,53
+apps/app/src/shared/ui/styles/pages.ts
+  s_c3b7cd6f0bfdef::t_bc9d0f98c2921b 62-73,75-92,95,99-235,237-238,243,245,272,304-307,311-331,365-369,426-435,439-441,452-460,545-556,559-560,562-564,566-567,573,577-580,745-746,750-762,820-822
+apps/app/src/shared/ui/styles/responsive.ts
+  s_1aa99c8c066311::t_095a5f34c10681 10-13,18,32-34,80-81
+apps/app/src/shared/ui/styles/shell.ts
+  s_c979cdca54b86f::t_33b92c91dbadeb 4,29
+apps/app/src/shared/ui/styles/theme-source/dark-hc.css
+  s_2f1bf3f12695f3::t_5afc2392a8fc3b 1-71
+apps/app/src/shared/ui/styles/theme-source/dark-mc.css
+  s_2f1bf3f12695f3::t_3f8af3246dcdee 1-71
+apps/app/src/shared/ui/styles/theme-source/dark.css
+  s_2f1bf3f12695f3::t_a6fe860d7b21b0 1-71
+apps/app/src/shared/ui/styles/theme-source/light-hc.css
+  s_2f1bf3f12695f3::t_cfe9e8d7c5f394 1-71
+apps/app/src/shared/ui/styles/theme-source/light-mc.css
+  s_2f1bf3f12695f3::t_fade71c877afa9 1-71
+apps/app/src/shared/ui/styles/theme-source/light.css
+  s_2f1bf3f12695f3::t_a6e55ab6358cd9 1-71
+apps/app/src/shells/uxp/create-plugin-host-shell.ts
+  s_fd43f6903faa79::t_558aa53cc118ce 25,102,155
+apps/app/tests/app-shell.test.tsx
+  s_1aa99c8c066311::t_3d5ac50994c6f1 5,80-218,631
+apps/app/tests/chrome-adapter.test.ts
+  s_5603a779b69b65::t_0154a545eb920f 1,7,118-134,156-191
+apps/app/tests/composer-select.test.tsx
+  s_1aa99c8c066311::t_1c091275acdb3e 424-428,449-469,471-474,476-488
+apps/app/tests/fakes.ts
+  s_c3b7cd6f0bfdef::t_500c98a1372a3e 24,233,259,283-286,310,313,375,417-418,441,485
+apps/app/tests/global-generation-settings-page.test.tsx
+  s_1c98647ff85f6a::t_1f5c759f47788a 74,131,265-294
+apps/app/tests/history-page.test.tsx
+  s_1c98647ff85f6a::t_858da6a14da0c4 9,64,76,85,90,235,238,249,251,263
+apps/app/tests/host-bridge-harness.ts
+  s_5603a779b69b65::t_aeb4f0bc54aa6d 332,334,396-401,492,509,511
+apps/app/tests/host-bridge-modal-stub.test.ts
+  s_5603a779b69b65::t_3ca85521c73b2e 76
+apps/app/tests/host-bridge-save.test.ts
+  s_5603a779b69b65::t_0ccaa551d72049 1-50
+apps/app/tests/main-page-attachment-submission.test.tsx
+  s_1aa99c8c066311::t_591f5206e5d989 431,437
+apps/app/tests/main-page-billing.test.tsx
+  s_17c9af51040153::t_b784aa0d38f0ff 42-47,51-84
+apps/app/tests/main-page-composer-controls.test.tsx
+  s_1aa99c8c066311::t_17bc8bad19ae09 58,100-101,127,136-137,290,383,388,401,407-408
+apps/app/tests/main-page-harness.tsx
+  s_1aa99c8c066311::t_6890b5af38a253 60-61
+apps/app/tests/main-page-result-rendering.test.tsx
+  s_5603a779b69b65::t_ab6f6bca96a11a 131-190
+apps/app/tests/native-controls.test.tsx
+  s_868755a6b8737b::t_64718a96c46978 4,66-85
+apps/app/tests/render-helpers.tsx
+  s_1c98647ff85f6a::t_35b3c3152e6f48 5,33-51
+apps/app/tests/settings-add-page.test.tsx
+  s_c3b7cd6f0bfdef::t_1ed70bcb07c615 6,178-238
+apps/app/tests/settings-detail-billing.test.tsx
+  s_c3b7cd6f0bfdef::t_a11f9c1efb3cdf 2-4,10,24-25,36-137
+apps/app/tests/settings-detail-connectivity.test.tsx
+  s_c3b7cd6f0bfdef::t_c20d54fc55cb4d 44,58-61,75-92,117-120,213-222
+apps/app/tests/settings-detail-optimizer.test.tsx
+  s_c3b7cd6f0bfdef::t_7f33a072e29f3d 15,25-28,34
+apps/app/tests/settings-detail-profile-editing.test.tsx
+  s_c3b7cd6f0bfdef::t_c99ba9e3c9ef20 71,88,93-100,129-159
+apps/app/tests/task-actions.test.ts
+  s_5603a779b69b65::t_2ea2fd55008c66 3,129-207
+apps/app/tests/theme-source.test.ts
+  s_1c98647ff85f6a::t_e29e868bb18572 1-39
+apps/app/tests/toast-host.test.tsx
+  s_1c98647ff85f6a::t_b3dc51105146c3 1-190
+apps/app/tests/uxp-css-compat.test.ts
+  s_1c98647ff85f6a::t_1230b45b54fd9f 186-187
+docs/ENGINEERING_CONTEXT.md
+  s_5603a779b69b65::t_470cc148207c25 72,91,111-116
+docs/TESTING.md
+  s_17071b59413b2d::t_20030191d81034 181-182
+docs/loops/2026-07-03-settings-form-unification.md
+  s_868755a6b8737b::t_8a242cbcc7452b 1-743
+package.json
+  s_2801bb97e67366::t_4ff063c5a9e822 22-23
+packages/application/src/commands/profile-billing.test.ts
+  s_17071b59413b2d::t_c2537c23005a11 1-207
+packages/application/src/commands/profile-billing.ts
+  s_17071b59413b2d::t_060c1de961016e 22-30,34-38,44-48,111-199,305-336,361,376,447,454-463
+packages/application/src/commands/profile-endpoints.test.ts
+  s_c3b7cd6f0bfdef::t_0adc06841d3b86 95-96,182-229
+packages/application/src/commands/profile-endpoints.ts
+  s_1aa99c8c066311::t_6f52bb5e0faf90 3-7,65-70,191-221,377,382,389,416,421,428
+packages/application/src/commands/profile-models.test.ts
+  s_1fce62b511b351::t_4828c9729c8e4e 7-16,158,163,187,189-190,208-211,224,226-228,262-318,336-342
+packages/application/src/commands/profile-models.ts
+  s_1fce62b511b351::t_477b320060201a 7-10,12-14,58-59,63-119,164,166-167,169,242-249,288-294
+packages/application/src/commands/provider-profiles.test.ts
+  s_c3b7cd6f0bfdef::t_f6f40d01982bdd 230-281
+packages/application/src/commands/provider-profiles.ts
+  s_c3b7cd6f0bfdef::t_967120541bd9a9 70,255-256,258-268,333
+packages/application/src/commands/types.ts
+  s_1aa99c8c066311::t_8d07a881956973 147-148,259-260,271-272,303-304
+packages/providers/src/contract/image-model-catalog/rules/chat-image.ts
+  s_1fce62b511b351::t_151e43f707c215 19-46
+packages/providers/src/contract/image-model-catalog/rules/image-endpoint.ts
+  s_1fce62b511b351::t_5bf2c1813dc5e1 54-109
+packages/providers/src/contract/provider.ts
+  s_1fce62b511b351::t_717386ef1439b4 158,165
+packages/providers/src/providers/chat-image/provider.ts
+  s_1aa99c8c066311::t_e5ab4cd06b03b9 143
+packages/providers/src/providers/image-endpoint/provider.ts
+  s_1aa99c8c066311::t_3ae2fd5c191b44 18,204-219,223-228
+packages/providers/src/transport/chat-image/models.ts
+  s_1aa99c8c066311::t_b1b379e18150a0 2,26,29-37
+packages/providers/src/transport/image-endpoint/models.ts
+  s_1aa99c8c066311::t_07dc84e5ddf347 10,43-49,70,85-86,99-105,109-110,117-140
+packages/providers/tests/chat-image-provider.test.ts
+  s_1aa99c8c066311::t_fcd02bc38906b4 3,172-173,178-223
+packages/providers/tests/image-endpoint-provider.test.ts
+  s_1aa99c8c066311::t_ff8f20e228d348 15,179-188,190-234,252-262
+pnpm-lock.yaml
+  s_2801bb97e67366::t_82cfb387a0cd01 17-19,741-742,1480,1511
+scripts/check-policy.mjs
+  s_2f1bf3f12695f3::t_947b2c82ec4f22 5,15
+scripts/policy/theme-source.mjs
+  s_2801bb97e67366::t_44dcba39d17e9b 1-21
+scripts/uxp-debug/uxp-debug.mjs
+  s_2801bb97e67366::t_0bd60f6cb9c139 5,59,173-209,211-212,224-232,235-245,248-256,260-262,269,271,275-276,283-286,336-341,366-367,371-375,377,379-380,382-386,399,986-990
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.3",
+  "base_commit_sha": "47e2a0217d5cd9a1e98279a04476328c03b618d6",
+  "prompts": {},
+  "sessions": {
+    "s_17071b59413b2d": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "019f2678-55b8-70a2-91c6-75baa9a167be",
+        "model": "unknown"
+      },
+      "human_author": "Sinyuk <80998062@qq.com>"
+    },
+    "s_17c9af51040153": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "019f26c3-95a0-7e60-88b2-646f9c10d488",
+        "model": "unknown"
+      },
+      "human_author": "Sinyuk <80998062@qq.com>"
+    },
+    "s_1aa99c8c066311": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "019f2716-d97c-7753-941a-b28a8d86b702",
+        "model": "unknown"
+      },
+      "human_author": "Sinyuk <80998062@qq.com>"
+    },
+    "s_1c98647ff85f6a": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "019f26c7-aad3-74a1-9eff-aebcef7f9a2d",
+        "model": "unknown"
+      },
+      "human_author": "Sinyuk <80998062@qq.com>"
+    },
+    "s_1fce62b511b351": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "019f26d9-677c-7ed3-b4e4-62a2d52f22d5",
+        "model": "unknown"
+      },
+      "human_author": "Sinyuk <80998062@qq.com>"
+    },
+    "s_2801bb97e67366": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "019f2662-c87a-76f0-800c-310ad6ec5627",
+        "model": "unknown"
+      },
+      "human_author": "Sinyuk <80998062@qq.com>"
+    },
+    "s_2f1bf3f12695f3": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "019f2661-0e74-7fc2-829d-20d5cf935a98",
+        "model": "unknown"
+      },
+      "human_author": "Sinyuk <80998062@qq.com>"
+    },
+    "s_4028dde44fae37": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "019f26af-5399-7bd3-94ce-fc0a46d932ff",
+        "model": "unknown"
+      },
+      "human_author": "Sinyuk <80998062@qq.com>"
+    },
+    "s_5603a779b69b65": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "019f26a9-a2d4-7372-8a97-f996045a663d",
+        "model": "unknown"
+      },
+      "human_author": "Sinyuk <80998062@qq.com>"
+    },
+    "s_868755a6b8737b": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "019f269f-913b-7e43-b815-0e1162a27956",
+        "model": "unknown"
+      },
+      "human_author": "Sinyuk <80998062@qq.com>"
+    },
+    "s_c3b7cd6f0bfdef": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "019f270f-514a-7a22-99fc-5a072cf1a1df",
+        "model": "unknown"
+      },
+      "human_author": "Sinyuk <80998062@qq.com>"
+    },
+    "s_c979cdca54b86f": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "019f26fe-af5e-72a2-b414-762b65a6e93d",
+        "model": "unknown"
+      },
+      "human_author": "Sinyuk <80998062@qq.com>"
+    },
+    "s_fd43f6903faa79": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "019f2666-378e-7180-9b3a-2aa8f0f71f22",
+        "model": "unknown"
+      },
+      "human_author": "Sinyuk <80998062@qq.com>"
+    }
+  }
+}
