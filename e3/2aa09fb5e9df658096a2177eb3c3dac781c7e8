@@ -1,0 +1,159 @@
+apps/app/src/harness/components/composer-select/composer-select-harness.tsx
+  s_46dbce977a2b90::t_989420a20537fc 816,853-854,1098
+  s_46dbce977a2b90::t_1998776acbea33 15-19,376-377,389,392-393,439,992-994
+  s_46dbce977a2b90::t_b905e30cc5ff14 359,808,874,1109,1166,1200,1230
+  s_46dbce977a2b90::t_94d26fda79fafa 159,174,178,282,286,291,301,304,310,314,317,320,323,337,341,344,358,362,374,385,390,395,398,410,426,432,437,444,575,632,636,651,655,657-706,722,751,858,901,931
+  s_46dbce977a2b90::t_2d2875444e9f34 156-158
+  s_46dbce977a2b90::t_9b78da78390f87 160-162,171-173
+  s_46dbce977a2b90::t_50f8d55377e404 175-177
+  s_46dbce977a2b90::t_532f5c3118ba92 279-281
+  s_46dbce977a2b90::t_ca16775bb6c4ee 283-285
+  s_46dbce977a2b90::t_598c8cfd1767d5 287-290
+  s_46dbce977a2b90::t_919e0402628636 292-294,298-300
+  s_46dbce977a2b90::t_cb543c799c528e 302-303
+  s_46dbce977a2b90::t_f3af156d67eff8 305-309
+  s_46dbce977a2b90::t_7b228976d770c9 311-313
+  s_46dbce977a2b90::t_6241a256de7cbf 315-316
+  s_46dbce977a2b90::t_1009d562a88b8e 318-319
+  s_46dbce977a2b90::t_bd5f038eb90f3e 321-322
+  s_46dbce977a2b90::t_028152b5072f5d 324-326,334-336
+  s_46dbce977a2b90::t_4f2472943e2f17 338-340
+  s_46dbce977a2b90::t_0562f2032fdacb 342-343
+  s_46dbce977a2b90::t_8c3fdfa392cad9 345-347,355-357
+  s_46dbce977a2b90::t_c23b63467652af 360-361
+  s_46dbce977a2b90::t_2ee9d187634e38 363-365,371-373
+  s_46dbce977a2b90::t_a352479f32b233 375
+  s_46dbce977a2b90::t_310fbeb33df967 378-380,382-384
+  s_46dbce977a2b90::t_fd1754a9e3ecf8 386-388
+  s_46dbce977a2b90::t_9ab2825ef9ecd1 391
+  s_46dbce977a2b90::t_6174685f9ee7ef 394
+  s_46dbce977a2b90::t_4111a05bf141ce 396-397
+  s_46dbce977a2b90::t_d6d66f7ee91eb6 399-401,407-409
+  s_46dbce977a2b90::t_114cedd29050c3 411-413,423-425
+  s_46dbce977a2b90::t_90a13f374e2ddd 427-431
+  s_46dbce977a2b90::t_c709ba777f1146 433-436
+  s_46dbce977a2b90::t_94caa7a2b60540 438
+  s_46dbce977a2b90::t_761e9753adf486 440-443
+  s_46dbce977a2b90::t_38af2414d066cb 572-574
+  s_46dbce977a2b90::t_99f4cb0248d379 629-631
+  s_46dbce977a2b90::t_17c4efe60cbff0 633-635
+  s_46dbce977a2b90::t_38ba8771abdec0 637-639,648-650
+  s_46dbce977a2b90::t_eaf9a3d2572a68 652-654
+  s_46dbce977a2b90::t_8b654d7fac9bc7 656
+  s_46dbce977a2b90::t_ed7ebcdff39a49 707-709,719-721
+  s_46dbce977a2b90::t_93448ab7b6379b 723-725,748-750
+  s_46dbce977a2b90::t_756d906339c70f 752
+  s_46dbce977a2b90::t_35949c3ffcaa49 805-807
+  s_46dbce977a2b90::t_d7edb8eb3cd588 809-811,813-815
+  s_46dbce977a2b90::t_107f5c98f9ae01 817-819,850-852
+  s_46dbce977a2b90::t_9ed86836977c07 855-857
+  s_46dbce977a2b90::t_a1296f1eaee5ee 859-861,871-873
+  s_46dbce977a2b90::t_849f29bcaf1780 875-877,898-900
+  s_46dbce977a2b90::t_166a6fcbc4cd34 902-904,928-930
+  s_46dbce977a2b90::t_13c2d54dd21bbe 932
+  s_46dbce977a2b90::t_4262d33220497b 1095-1097
+  s_46dbce977a2b90::t_81597602a5ef96 1099
+  s_46dbce977a2b90::t_3d666bc492de4c 1,38,152-155,163-170,188,204,253,277-278,295-297,327-333,348-354,366-370,381,402-406,414-422,556-558,569-571,620-628,640-647,710-718,726-747,771,789-804,812,820-849,862-870,878-897,905-927,945-951,960-990,1040-1047,1054-1094,1243-1256,1260
+apps/app/src/shared/ui/components/provider-billing-settings.tsx
+  s_3fc5a689c0097f::t_939cd363ec0c2d 9-10,18,67-68,70,88-89,136-137
+apps/app/src/shared/ui/components/provider-profile-editor.tsx
+  s_3fc5a689c0097f::t_b018e68700f4c5 9,18-19,27,42,114,118-122,148,168-170,172-173,175,213-214,223-224,235-236,243,245-254,271-273,275-276,284-285,308,320,335
+apps/app/src/shared/ui/hooks/use-provider-settings.ts
+  s_3fc5a689c0097f::t_4ed2461c8a6848 1,140,143-144,147-148,153-155,160
+apps/app/src/shared/ui/pages/settings-add-page.tsx
+  s_3fc5a689c0097f::t_7e71ca4e4a2092 2,25,36-38,108-123,128,147-150,179-181,185-192,194,202-221,256-259,268,274-278,303-308,310-312,314,338-378,381-383,397,411,444,473,493
+apps/app/src/shared/ui/pages/settings-detail-page.tsx
+  s_3fc5a689c0097f::t_8fdfc521bdefcc 42-44,217-220,226,242-246,252-258,263,265-267,269-271,285,389-392,460,482-485,487,496-505,508-512,514,520-524,546-552,559-560,586-589,599,695,710,715,723,728,837-839,899,970,988,1005
+apps/app/tests/settings-add-page.test.tsx
+  s_3fc5a689c0097f::t_40db9033cd4b0c 49-96,407-445
+apps/app/tests/settings-detail-billing.test.tsx
+  s_3fc5a689c0097f::t_7a76e6280c36d1 106-175
+apps/app/tests/settings-detail-connectivity.test.tsx
+  s_3fc5a689c0097f::t_ced980f61424ca 195-263,272
+apps/app/tests/settings-detail-profile-editing.test.tsx
+  s_3fc5a689c0097f::t_46632dd07cfb01 2,5-6,117-185
+.agents/skills/uxp-ui-debugger/MEMORY.md
+  s_f81c95e8a88eea::t_4c02ade874c70f 39
+apps/app/package.json
+  s_eb4b5ebbd4c82c::t_e465185efbff73 8,10,12,14-15,17-18
+apps/app/scripts/generate-theme-css.mjs
+  s_eb4b5ebbd4c82c::t_d5029b9c303c52 85-95,273-317,319-323,325-326,339-340,342-383
+apps/app/src/harness/components/icon-gallery/icon-gallery.tsx
+  s_166e027224a12e::t_e96b2a108f78fa 1-204
+apps/app/src/shared/ui/components/icons.tsx
+  s_166e027224a12e::t_76bcc0820dea52 29,64,84-91,93-95,98,100-102,105,108-109,112-113,127-129,131-133,136,138-151,154-167,182,184-187,190-192,194-198,201,203-204,207,209-211,214,216-218,221-228,230-231,234,236-239,242-245,247-248,251-258,268-269,272,274-279,284-289,292-294,296-302,305,307-310,313-315,317-319,322-325,327,329-334
+apps/app/src/shared/ui/i18n/messages.ts
+  s_166e027224a12e::t_9bcd76980a476f 120-123,361-364,603-606
+apps/app/src/shared/ui/styles/conversation.ts
+  s_f81c95e8a88eea::t_4beb87fd3831eb 49-51,53
+apps/app/src/shared/ui/styles/pages.ts
+  s_166e027224a12e::t_dfca0254e79b6b 913-921,926,975-983
+apps/app/src/shells/uxp/uxp-panel-runtime.test.tsx
+  s_46dbce977a2b90::t_21def7d9638bb1 32-35,209-222
+apps/app/src/shells/uxp/uxp-panel-runtime.tsx
+  s_46dbce977a2b90::t_5d85c4b62cee7c 4,180-186,190,201,292,294-296
+apps/app/tests/icon-gallery.test.tsx
+  s_166e027224a12e::t_62c2cd24762b72 1-103
+packages/providers/src/providers/chat-image/provider.ts
+  s_5f8bd2e1c56e88::t_be0c3d49c4b6f4 12,32-52,93-98,100-114,139,144-182
+packages/providers/src/transport/chat-image/parse-response.ts
+  s_5f8bd2e1c56e88::t_e7ba71cc195401 70-80,86,247,251-257,262-268,293,295,320,323-328,473-478,528,547-552,556,583,614-619,635,661,673-676,678,710
+packages/providers/tests/chat-image-provider.test.ts
+  s_5f8bd2e1c56e88::t_cd7b60564e7f89 2,460-530
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.10",
+  "base_commit_sha": "e32aa09fb5e9df658096a2177eb3c3dac781c7e8",
+  "prompts": {},
+  "sessions": {
+    "s_166e027224a12e": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "019f27c3-b409-7b20-b5db-008f9ff03baf",
+        "model": "unknown"
+      },
+      "human_author": "Sinyuk <80998062@qq.com>"
+    },
+    "s_3fc5a689c0097f": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "019f27d5-0fb8-7921-902a-0f178937bbae",
+        "model": "gpt-5.5"
+      },
+      "human_author": "Sinyuk <80998062@qq.com>"
+    },
+    "s_46dbce977a2b90": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "019f27c7-c841-7ab2-b0c1-de247af78fa0",
+        "model": "gpt-5.5"
+      },
+      "human_author": "Sinyuk <80998062@qq.com>"
+    },
+    "s_5f8bd2e1c56e88": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "019f2784-d2e1-70e0-ab50-79f92a263236",
+        "model": "unknown"
+      },
+      "human_author": "Sinyuk <80998062@qq.com>"
+    },
+    "s_eb4b5ebbd4c82c": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "019f27a2-1fb4-79f0-9d7b-c0ed6a990c6e",
+        "model": "unknown"
+      },
+      "human_author": "Sinyuk <80998062@qq.com>"
+    },
+    "s_f81c95e8a88eea": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "019f278a-fa8c-7ac3-9bd8-1ccdfa5999fe",
+        "model": "unknown"
+      },
+      "human_author": "Sinyuk <80998062@qq.com>"
+    }
+  }
+}
