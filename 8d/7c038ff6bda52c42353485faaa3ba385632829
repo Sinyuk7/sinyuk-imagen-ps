@@ -1,0 +1,97 @@
+apps/app/tests/brand-to-icon.test.ts
+  s_a576bbd310c5ab::t_ce2c0d58a1d0e6 1-68
+apps/app/src/shared/ui/pages/main-page.tsx
+  s_a576bbd310c5ab::t_05cf81ee483f25 20
+  s_76df762a3f1ddc::t_b2e207720cdc04 1339,1388
+scripts/build-model-avatar-icons.mjs
+  s_a576bbd310c5ab::t_26e84f8c4c9a92 14,17
+packages/providers/src/contract/index.ts
+  s_a576bbd310c5ab::t_46bf9095232638 26
+apps/app/tests/fakes.ts
+  s_a576bbd310c5ab::t_850cc5a5638a6a 395
+  s_a576bbd310c5ab::t_b9fc0ccf4aa05f 17
+apps/app/src/harness/components/uxp-css-contract/uxp-css-contract-harness.tsx
+  s_a576bbd310c5ab::t_5be111521bd85f 1346
+asset/model-avatar-icons/doubao.svg
+  s_a576bbd310c5ab::t_35dad5ff5f743b 1
+packages/application/src/commands/types.ts
+  s_a576bbd310c5ab::t_e7323828d30875 20
+apps/app/src/shared/ui/components/brand-to-icon.ts
+  s_a576bbd310c5ab::t_f978b03d39686e 1-41
+apps/app/src/shared/ports/commands-port.ts
+  s_a576bbd310c5ab::t_2ecdaa7bfd9138 14
+  s_a576bbd310c5ab::t_bab2abb3ebf699 42
+packages/application/src/commands/resolve-model-brand.test.ts
+  s_a576bbd310c5ab::t_8297034411b4fd 1-28
+packages/providers/src/contract/image-model-catalog/rules/image-endpoint.ts
+  s_a576bbd310c5ab::t_8d8f97bdd96786 79
+  s_a576bbd310c5ab::t_52987c4180e420 25
+  s_a576bbd310c5ab::t_1ab0576bfa5ab9 11
+  s_a576bbd310c5ab::t_ecf452148e8354 64
+  s_a576bbd310c5ab::t_c381594338d493 44
+  s_a576bbd310c5ab::t_d9767da5de6317 109
+  s_a576bbd310c5ab::t_2f8df9bbb1a6a4 94
+docs/loops/2026-07-03-model-avatar-brand-mapping.md
+  s_a576bbd310c5ab::t_87d83590725327 337-341
+  s_a576bbd310c5ab::t_a588562cc73691 1-148,156,159-336,342-376
+  s_a576bbd310c5ab::t_1a21ba3c90688b 149-155,157-158
+packages/providers/src/index.ts
+  s_a576bbd310c5ab::t_4f791e926d2241 24
+packages/providers/src/contract/image-model-catalog/rules/chat-image.ts
+  s_a576bbd310c5ab::t_e8801f17bbaca8 56
+  s_a576bbd310c5ab::t_374a9c294a86f8 42
+  s_b1872f507864aa::t_3d18a50df8c334 12
+  s_a576bbd310c5ab::t_77a62fd1522479 27
+apps/app/src/shared/ui/components/generated/model-avatar-icons.ts
+  s_a576bbd310c5ab::t_35dad5ff5f743b 6,12-13,18,25,28
+packages/application/src/commands/resolve-model-brand.ts
+  s_a576bbd310c5ab::t_917b6080a8d973 1-33
+apps/app/src/shared/ui/components/provider-identity.tsx
+  s_a576bbd310c5ab::t_24e04e345efba4 3,7,15
+apps/app/tests/main-page-result-rendering.test.tsx
+  s_a576bbd310c5ab::t_f67ad0df48f07e 57
+packages/application/src/commands/index.ts
+  s_a576bbd310c5ab::t_74589b56f23b7f 103
+  s_b1872f507864aa::t_61479452334817 17-18
+packages/providers/src/contract/image-model-capability.ts
+  s_a576bbd310c5ab::t_adb2733e49ad40 18-32
+  s_a576bbd310c5ab::t_763bee3e5aa58f 89-93
+  s_a576bbd310c5ab::t_349797c46a9562 777-778
+  s_a576bbd310c5ab::t_1f216b7a4208e6 779
+packages/providers/scripts/check-image-model-catalog.mjs
+  s_76df762a3f1ddc::t_4d56ccdce681b9 20
+packages/providers/tests/image-model-catalog-brand.test.ts
+  s_b1872f507864aa::t_0a93d5bd80351a 1-66
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.10",
+  "base_commit_sha": "8d7c038ff6bda52c42353485faaa3ba385632829",
+  "prompts": {},
+  "sessions": {
+    "s_76df762a3f1ddc": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "019f287e-80e5-74d3-803b-61f9b8f28afc",
+        "model": "unknown"
+      },
+      "human_author": "Sinyuk <80998062@qq.com>"
+    },
+    "s_a576bbd310c5ab": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_0d77914deffeYc1hCP6oBK3d9n",
+        "model": "glm-5.2"
+      },
+      "human_author": "Sinyuk <80998062@qq.com>"
+    },
+    "s_b1872f507864aa": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "019f2890-28d7-75e2-a784-477fa537bae2",
+        "model": "gpt-5.5"
+      },
+      "human_author": "Sinyuk <80998062@qq.com>"
+    }
+  }
+}
