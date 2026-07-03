@@ -228,7 +228,7 @@ describe('MainPage contract — composer controls', () => {
     expect(container.querySelector('[data-testid="composer-readiness-status"]')?.textContent).toContain('就绪');
   });
 
-  it('keeps incompatible model options visible but disabled with capability reasons', async () => {
+  it('keeps incompatible model options visually clean and blocks selection with a toast', async () => {
     const container = document.createElement('div');
     document.body.appendChild(container);
     const services = createFakeServices({
@@ -282,8 +282,62 @@ describe('MainPage contract — composer controls', () => {
 
     const option = document.body.querySelector<HTMLButtonElement>('[data-testid="main-model-selector-option-dall-e-3"]')!;
     expect(option).not.toBeNull();
-    expect(option.disabled).toBe(true);
-    expect(option.textContent).toContain('不支持图片输入');
+    expect(option.disabled).toBe(false);
+    expect(option.textContent).toContain('dall-e-3');
+    expect(option.textContent).not.toContain('不支持图片输入');
+    expect(option.textContent).not.toContain('文生图');
+    expect(option.textContent).not.toContain('编辑');
+
+    await act(async () => {
+      option.click();
+    });
+    await flush();
+
+    expect(iconSelectValue(container, '[data-testid="main-model-selector"]')).toContain('gpt-image-2');
+    expect(iconSelectValue(container, '[data-testid="main-model-selector"]')).not.toContain('dall-e-3');
+    expect(container.querySelector('[data-testid="toast"]')?.textContent).toContain('不支持图片输入');
+  });
+
+  it('blocks unavailable model selection with an availability toast', async () => {
+    const container = document.createElement('div');
+    document.body.appendChild(container);
+    const services = createFakeServices({
+      profiles: [{
+        ...fakeProfile,
+        config: {
+          ...fakeProfile.config,
+          defaultModel: 'gpt-image-2',
+        },
+      }, fakeOptimizerProfile],
+    });
+    services.spies.listProfileModels.mockResolvedValue({
+      ok: true as const,
+      value: [
+        { id: 'gpt-image-2', displayName: 'GPT Image 2', supportStatus: 'selectable' },
+        { id: 'dall-e-3', displayName: 'DALL-E 3', supportStatus: 'saved-undiscovered' },
+      ],
+    });
+    await renderMainPage(container, services);
+
+    await act(async () => {
+      container.querySelector<HTMLElement>('[data-testid="main-model-selector"]')!.click();
+    });
+    await flush();
+
+    const option = document.body.querySelector<HTMLButtonElement>('[data-testid="main-model-selector-option-dall-e-3"]')!;
+    expect(option.disabled).toBe(false);
+    expect(option.textContent).toContain('DALL-E 3');
+    expect(option.textContent).not.toContain('当前 profile 不可用');
+    expect(option.textContent).not.toContain('saved');
+
+    await act(async () => {
+      option.click();
+    });
+    await flush();
+
+    expect(iconSelectValue(container, '[data-testid="main-model-selector"]')).toContain('gpt-image-2');
+    expect(iconSelectValue(container, '[data-testid="main-model-selector"]')).not.toContain('dall-e-3');
+    expect(container.querySelector('[data-testid="toast"]')?.textContent).toContain('当前 profile 不可用');
   });
 
   it('derives output-size options from the selected model and blocks unsupported size', async () => {

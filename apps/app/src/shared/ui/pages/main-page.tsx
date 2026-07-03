@@ -3,7 +3,7 @@ import type { ProviderModelInfo, ProviderProfile } from '@imagen-ps/application'
 import { useAppServices } from '../../ports/app-services-context';
 import type { HostPort, LayerInfo } from '../../ports/host-port';
 import { suggestedGeneratedImageFileName } from '../../domain/asset-file';
-import { assetToPreviewUrl, commandErrorToMessage, modelLabel } from '../../domain/mappers';
+import { assetToPreviewUrl, commandErrorToMessage } from '../../domain/mappers';
 import { formatBalanceChange, formatBillingPrimary, formatBillingPrimaryParts, formatExactTaskCost } from '../../domain/mappers';
 import type {
   ConversationAttachment,
@@ -277,16 +277,6 @@ function modelCapabilityReason(
   return null;
 }
 
-function modelBadges(model: ProviderModelInfo | undefined, t: ReturnType<typeof useI18n>['messages']): readonly string[] {
-  const text = modelSupportsOperation(model, 'text-to-image');
-  const edit = modelSupportsOperation(model, 'image-edit');
-  const badges: string[] = [];
-  if (text === 'supported') badges.push(t.main.badgeTextToImage);
-  if (edit === 'supported') badges.push(t.main.badgeImageEdit);
-  if (text === 'unknown' || edit === 'unknown') badges.push(t.main.badgeUnknownCapability);
-  return badges;
-}
-
 function primaryActionLabel(t: ReturnType<typeof useI18n>['messages'], action: ErrorPrimaryAction): string {
   switch (action) {
     case 'open-provider-settings':
@@ -463,19 +453,11 @@ export function MainPage({
   const currentOperation = operationForAttachments(attachments);
   const placementIntent = useMemo(() => derivePlacementIntent(attachments), [attachments]);
   const modelOptions = useMemo(
-    () => uniqueModels.map((model) => {
-      const availabilityReason = modelAvailabilityReason(model, t);
-      const capabilityReason = modelCapabilityReason(model, currentOperation, generationSettings.outputSizePreset, t);
-      const disabled = !modelIsSelectable(model) || capabilityReason !== null;
-      return {
-        id: model.id,
-        label: modelLabel(model),
-        disabled,
-        ...(availabilityReason ?? capabilityReason ? { description: availabilityReason ?? capabilityReason ?? undefined } : {}),
-        badges: modelBadges(model, t),
-      };
-    }),
-    [currentOperation, generationSettings.outputSizePreset, t, uniqueModels],
+    () => uniqueModels.map((model) => ({
+      id: model.id,
+      label: model.displayName ?? model.id,
+    })),
+    [uniqueModels],
   );
   const outputSizeOptions = useMemo(
     () => OUTPUT_SIZE_OPTIONS.map((size) => {
@@ -708,6 +690,19 @@ export function MainPage({
     setAttachOpen(false);
     setLayerOpen(false);
   };
+
+  const handleSelectModel = useCallback((modelId: string) => {
+    const model = uniqueModels.find((item) => item.id === modelId);
+    const availabilityReason = modelAvailabilityReason(model, t);
+    const capabilityReason = modelCapabilityReason(model, currentOperation, generationSettings.outputSizePreset, t);
+    if (!modelIsSelectable(model) || capabilityReason !== null) {
+      show(availabilityReason ?? capabilityReason ?? t.main.readinessModelUnavailable, 'warning', {
+        key: `model-select-unavailable:${modelId}`,
+      });
+      return;
+    }
+    onSelectModel(modelId);
+  }, [currentOperation, generationSettings.outputSizePreset, onSelectModel, show, t, uniqueModels]);
 
   const restoreRound = (round: ConversationRound) => {
     setInput(round.prompt);
@@ -1830,7 +1825,7 @@ export function MainPage({
                 }}
                 options={modelOptions}
                 selectedId={selectedModelId}
-                onSelect={onSelectModel}
+                onSelect={handleSelectModel}
               />
             </div>
             <div className="cmp-toolbar-right">

@@ -135,9 +135,6 @@ export interface AppMessages {
     readonly modelReasonNoImageEdit: string;
     readonly modelReasonNoTextToImage: string;
     readonly modelReasonSizeUnsupported: (size: string) => string;
-    readonly badgeTextToImage: string;
-    readonly badgeImageEdit: string;
-    readonly badgeUnknownCapability: string;
     readonly imageInputDisabledForModel: string;
     readonly imageInputConflict: string;
     readonly chooseCompatibleModel: string;
@@ -427,9 +424,6 @@ const EN_MESSAGES: AppMessages = {
     modelReasonNoImageEdit: 'Does not support image input',
     modelReasonNoTextToImage: 'Does not support text-to-image',
     modelReasonSizeUnsupported: (size) => `${size} is unavailable`,
-    badgeTextToImage: 'Text',
-    badgeImageEdit: 'Edit',
-    badgeUnknownCapability: 'Unknown',
     imageInputDisabledForModel: 'Current model does not support image input',
     imageInputConflict: 'Attached images are not compatible with the current model.',
     chooseCompatibleModel: 'Choose compatible model',
@@ -728,9 +722,6 @@ const ZH_CN_MESSAGES: AppMessages = {
     modelReasonNoImageEdit: '不支持图片输入',
     modelReasonNoTextToImage: '不支持文生图',
     modelReasonSizeUnsupported: (size) => `${size} 不可用`,
-    badgeTextToImage: '文生图',
-    badgeImageEdit: '编辑',
-    badgeUnknownCapability: '未知',
     imageInputDisabledForModel: '当前模型不支持图片输入',
     imageInputConflict: '已添加的图片与当前模型不兼容。',
     chooseCompatibleModel: '选择兼容模型',

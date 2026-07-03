@@ -1,4 +1,4 @@
-import type { Asset, Job, JobError, ProviderModelInfo, ProviderProfile } from '@imagen-ps/application';
+import type { Asset, Job, JobError, ProviderProfile } from '@imagen-ps/application';
 import type { ProfileBillingState } from '@imagen-ps/application';
 import { ensurePlaceableImagePayload } from './image-payload-preflight';
 
@@ -219,17 +219,6 @@ export function profileToProviderRow(profile: ProviderProfile): ProviderRowVM {
     family: String(profile.config.family ?? profile.providerId),
     ...(typeof defaultModel === 'string' && defaultModel.length > 0 ? { defaultModel } : {}),
   };
-}
-
-export function modelLabel(model: ProviderModelInfo): string {
-  const base = model.displayName ?? model.id;
-  if (model.supportStatus === 'saved-undiscovered') {
-    return `${base} (saved, undiscovered)`;
-  }
-  if (model.supportStatus === 'custom-unchecked') {
-    return `${base} (custom, unchecked)`;
-  }
-  return base;
 }
 
 function trimTrailingZeros(value: string): string {
