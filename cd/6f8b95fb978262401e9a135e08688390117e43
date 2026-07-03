@@ -1,0 +1,144 @@
+apps/app/src/shared/ui/app-shell.tsx
+  s_953b7148ed2437::t_127fba6dd21a1e 5,184-194,224-227,279,288,382
+  s_953b7148ed2437::t_f789aadcd1192b 206,313-323,402-407,420
+apps/app/tests/main-page-result-rendering.test.tsx
+  s_953b7148ed2437::t_13f84e8ea80f43 285,287-313,315-320
+  s_953b7148ed2437::t_bb760ada759258 286,314
+apps/app/tests/chrome-e2e/run.mjs
+  s_953b7148ed2437::t_d8b937371bf8df 554
+apps/app/src/shared/ui/components/composer-select.types.ts
+  s_953b7148ed2437::t_e64d7b2501e9a3 7-9
+apps/app/src/shared/ui/components/use-composer-select-placement.ts
+  s_953b7148ed2437::t_b9d6b9b1eee000 107,110-111
+packages/providers/src/index.ts
+  s_953b7148ed2437::t_22a040f681f4a8 24,27-30,64,79
+apps/app/src/shared/ui/styles/generated/theme-css.ts
+  s_953b7148ed2437::t_e202aec3dcfcb9 104-112,114,125
+apps/app/tests/composer-readiness.test.ts
+  s_953b7148ed2437::t_a1ca9413e6318e 1-77
+apps/app/tests/use-conversation.test.tsx
+  s_953b7148ed2437::t_1951d43146d70e 734,748,775,777
+apps/app/src/shared/ui/styles/composer.ts
+  s_953b7148ed2437::t_c58a89a99d1cbe 326-335,347,351-362,366-391,414-474
+apps/app/tests/main-page-placement-writeback.test.tsx
+  s_953b7148ed2437::t_9723894da612ed 75-92,94-106,108-129,134,138,140,142-144
+  s_953b7148ed2437::t_a07f119d4ed7a9 4,93,107
+  s_953b7148ed2437::t_f8f50a9bd88a59 5
+  s_953b7148ed2437::t_2f8d1a5383f4e8 130-133,135-136,139,141
+  s_953b7148ed2437::t_99744943a35c20 137
+apps/app/src/shared/ui/pages/main-page.tsx
+  s_953b7148ed2437::t_65244b2f3fb3bb 970
+  s_953b7148ed2437::t_0d196d9fc523ec 946-949,952
+  s_953b7148ed2437::t_507442f5c1059b 92-95,101-102,192-326
+  s_953b7148ed2437::t_592073ec36b311 415-417,428
+  s_953b7148ed2437::t_4368cade7ce016 1387,1500-1502,1508-1509,1512,1514-1515,1532-1538
+  s_953b7148ed2437::t_9710e0b7b32a0f 725,731,743
+  s_953b7148ed2437::t_605ff1f0d6d4b5 534-540,542-543,545-546,548-560
+  s_953b7148ed2437::t_dc9f26d2d438c9 718,726-730,753-758
+  s_953b7148ed2437::t_dc02670c9a00ec 1260,1262-1283,1294,1315,1317-1330
+  s_953b7148ed2437::t_cf5a481eefffca 1357-1359,1368
+  s_953b7148ed2437::t_3c15a9977dfe4a 1646,1648,1679-1699,1777-1778,1802,1812-1813,1849,1852-1853,1858
+  s_953b7148ed2437::t_c23e9736c0ddcb 634-646
+  s_953b7148ed2437::t_7e3249e96bab3a 1716
+  s_953b7148ed2437::t_1db1d5011af0dd 564,567-568,571-572,574
+  s_84498ab3da617c::t_c885370b51ad96 1814
+  s_953b7148ed2437::t_789af622b8105a 463-491,497-519
+  s_953b7148ed2437::t_c2e9fa621fdc5a 1801
+  s_953b7148ed2437::t_533105437468aa 13,41-51
+  s_953b7148ed2437::t_86c4d383e6f80b 858-861,879-882,888-891,921-923
+  s_953b7148ed2437::t_b10c79f02b5c83 1054
+  s_953b7148ed2437::t_0640eebce13f57 386
+  s_953b7148ed2437::t_6d0b4db9cae1a9 1316
+  s_953b7148ed2437::t_093a41579044c4 81-82,399-400,429,732-742,744-752
+  s_953b7148ed2437::t_d7b4208f72a979 1076-1079
+  s_953b7148ed2437::t_98174f3cb528b7 1521-1529
+  s_953b7148ed2437::t_bac55d56f25afb 1292
+  s_953b7148ed2437::t_2280431347cfa6 1037,1046-1053,1055-1067
+  s_953b7148ed2437::t_2eac55395a7d86 533
+  s_953b7148ed2437::t_0789adced6ea41 2,522,562
+  s_953b7148ed2437::t_1cbf2ed1f37006 327
+  s_953b7148ed2437::t_a84ee264187fbb 759-760
+  s_953b7148ed2437::t_31f605d64a2a5e 1068
+apps/app/src/shared/ui/hooks/use-profile-billing.ts
+  s_953b7148ed2437::t_91011f9e7ebcb5 55,74,79
+apps/app/tests/main-page-billing.test.tsx
+  s_953b7148ed2437::t_b1e339e5eebbb6 1
+  s_953b7148ed2437::t_fda38e4c806295 5,17-41,176-242
+  s_953b7148ed2437::t_5cc0e41d26e268 112,141,143-175
+  s_953b7148ed2437::t_6012288a5f6c4f 142
+apps/app/src/shared/ui/composer-readiness.ts
+  s_953b7148ed2437::t_b4895cfaebd8eb 1-148
+apps/app/tests/main-page-composer-controls.test.tsx
+  s_953b7148ed2437::t_f1e4491439f83e 77-81,83-85
+  s_953b7148ed2437::t_e3f0de9d8f2920 234-238,240-242
+  s_953b7148ed2437::t_937eaac09811bc 273
+  s_953b7148ed2437::t_c1b6d845930642 612-613,638-639
+  s_953b7148ed2437::t_c0cde7de68f9e5 216-218,220-227,229-233,243-245,256-268,270,276-291,301-325
+  s_953b7148ed2437::t_b46032632ada05 269
+  s_953b7148ed2437::t_d06002ba806991 82,246-255,292-300
+  s_953b7148ed2437::t_1f8910286261d0 219,228
+  s_953b7148ed2437::t_0d7360eac9b21f 239
+  s_953b7148ed2437::t_dcb509fda2f647 271-272,274-275
+packages/providers/src/contract/image-model-capability.ts
+  s_953b7148ed2437::t_dccdb2700f18dc 3-5,154-165,173-177,187-189,191-195,301-385
+  s_953b7148ed2437::t_f71e469dcc5ae2 178,190
+  s_953b7148ed2437::t_bffa7782f9c136 541,549
+  s_84498ab3da617c::t_c5a1c4e3b1255f 386
+apps/app/src/shared/ui/styles/conversation.ts
+  s_953b7148ed2437::t_52be729a5edcaf 346-360,379-384,398-412
+apps/app/src/shared/ui/components/composer-select-menu.tsx
+  s_953b7148ed2437::t_f351738ead0476 54,72-74,121,124-126,131-133,138-146
+apps/app/tests/theme-source.test.ts
+  s_953b7148ed2437::t_5cc867b32f2b90 10-11
+packages/application/src/commands/profile-models.test.ts
+  s_953b7148ed2437::t_79bf08bc15ea53 163-215
+apps/app/src/shared/ui/error-action.ts
+  s_953b7148ed2437::t_0010d35e2b3014 45
+  s_953b7148ed2437::t_cbdd0011758af0 1-44,46-79
+apps/app/src/shared/ui/i18n/messages.ts
+  s_953b7148ed2437::t_e9c5f45aa72091 642,644-649,687-688,691-692,707-754
+  s_953b7148ed2437::t_b19d82b2535c08 341,343-348,386-387,390-391,406-453
+  s_953b7148ed2437::t_7a95c0a102ef27 49,51-56,94-95,98-99,114-153
+packages/providers/tests/image-endpoint-provider.test.ts
+  s_953b7148ed2437::t_cbb3e6999caa46 13,294-344
+  s_84498ab3da617c::t_5b900ee30fd655 345
+apps/app/src/shared/ui/hooks/use-conversation.ts
+  s_953b7148ed2437::t_c0088b2067e27a 607-610
+apps/app/tests/app-shell.test.tsx
+  s_953b7148ed2437::t_138298479c170c 282,287
+  s_953b7148ed2437::t_729ee6538cb01b 286
+  s_953b7148ed2437::t_5d3dbc726c64d5 6,61-72,280-281,283-285,288-337
+  s_953b7148ed2437::t_3c7421c8d466b6 338-339
+packages/providers/src/contract/model.ts
+  s_953b7148ed2437::t_9db16136920b8a 19-68,93-98
+apps/app/tests/composer-select.test.tsx
+  s_953b7148ed2437::t_402a5803af0294 474,477
+packages/providers/src/contract/index.ts
+  s_953b7148ed2437::t_07a4cf69a1a94d 41,61-71
+apps/app/tests/main-page-attachment-submission.test.tsx
+  s_953b7148ed2437::t_245707215c6ea2 245-287
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.10",
+  "base_commit_sha": "cd6f8b95fb978262401e9a135e08688390117e43",
+  "prompts": {},
+  "sessions": {
+    "s_84498ab3da617c": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_0d7a7f30cffePTUbmJShxU1s05",
+        "model": "glm-5.2"
+      },
+      "human_author": "Sinyuk <80998062@qq.com>"
+    },
+    "s_953b7148ed2437": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "019f2824-6e92-79c2-9c0c-c1dfd298c2ae",
+        "model": "gpt-5.5"
+      },
+      "human_author": "Sinyuk <80998062@qq.com>"
+    }
+  }
+}
