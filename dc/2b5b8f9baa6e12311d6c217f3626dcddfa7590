@@ -1,0 +1,45 @@
+apps/app/package.json
+  s_d1f535ab058fc8::t_0eb1e3bb20626e 8-10,18
+apps/app/src/shared/ui/panel-css.ts
+  s_d1f535ab058fc8::t_128b8e991f0060 17
+apps/app/src/shared/ui/styles/extra-themes.ts
+  s_d1f535ab058fc8::t_ddcdc03583d328 2-4,6
+apps/app/src/shared/ui/styles/generated-theme-tokens.ts
+  s_d1f535ab058fc8::t_9cc54f69f0b035 1-10
+apps/app/src/shared/ui/styles/theme-source/dark-hc.css
+  s_d1f535ab058fc8::t_33ed441934ce34 1-71
+apps/app/src/shared/ui/styles/theme-source/dark-mc.css
+  s_d1f535ab058fc8::t_f65afc551442f6 1-71
+apps/app/src/shared/ui/styles/theme-source/dark.css
+  s_d1f535ab058fc8::t_2a52567db2bec0 1-71
+apps/app/src/shared/ui/styles/theme-source/light-hc.css
+  s_d1f535ab058fc8::t_615db18b525e25 1-71
+apps/app/src/shared/ui/styles/theme-source/light-mc.css
+  s_d1f535ab058fc8::t_6422215ce9bbed 1-71
+apps/app/src/shared/ui/styles/theme-source/light.css
+  s_d1f535ab058fc8::t_6204fc2998c38c 1-71
+apps/app/src/shared/ui/styles/tokens.ts
+  s_d1f535ab058fc8::t_fd048c7861fc9f 4-6,8-9,11-14,18,20,30
+apps/app/tests/theme-tokens.test.ts
+  s_d1f535ab058fc8::t_712dd383b75fdc 1-57
+docs/ENGINEERING_CONTEXT.md
+  s_d1f535ab058fc8::t_dae34e8fd0219f 74-87
+scripts/generate-theme-tokens.mjs
+  s_d1f535ab058fc8::t_7ca98e7bed710a 1-370
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.3",
+  "base_commit_sha": "dc2b5b8f9baa6e12311d6c217f3626dcddfa7590",
+  "prompts": {},
+  "sessions": {
+    "s_d1f535ab058fc8": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "019f260c-4579-7100-9c8b-581c808047f4",
+        "model": "unknown"
+      },
+      "human_author": "Sinyuk <80998062@qq.com>"
+    }
+  }
+}
