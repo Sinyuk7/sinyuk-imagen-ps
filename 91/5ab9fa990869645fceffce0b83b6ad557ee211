@@ -1,0 +1,23 @@
+apps/app/src/shared/ui/components/uxp-form-controls.tsx
+  s_c99388b06edb18::t_598ed5b17b2e0d 19-23,99,127,133,200,203
+apps/app/tests/uxp-form-controls.test.tsx
+  s_c99388b06edb18::t_598ed5b17b2e0d 173
+apps/app/src/shared/ui/pages/main-page.tsx
+  s_c99388b06edb18::t_598ed5b17b2e0d 461,1724
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.10",
+  "base_commit_sha": "915ab9fa990869645fceffce0b83b6ad557ee211",
+  "prompts": {},
+  "sessions": {
+    "s_c99388b06edb18": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "019f295f-dd12-7b52-bbb7-647e98aeee36",
+        "model": "gpt-5.4"
+      },
+      "human_author": "Sinyuk <80998062@qq.com>"
+    }
+  }
+}
