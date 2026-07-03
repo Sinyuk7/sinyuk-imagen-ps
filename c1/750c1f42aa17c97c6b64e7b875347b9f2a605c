@@ -1,0 +1,33 @@
+apps/app/src/shared/ui/app-shell.tsx
+  s_fa09188dbc7905::t_3425f7d38f119d 9,27,234,240-247,407-408,521
+apps/app/src/shared/ui/hooks/use-composer-draft.ts
+  s_fa09188dbc7905::t_612c69e1d664b1 1-106
+apps/app/src/shared/ui/pages/global-generation-settings-page.tsx
+  s_fa09188dbc7905::t_7d0961aefee3d8 18,24,71
+apps/app/src/shared/ui/pages/main-page.tsx
+  s_fa09188dbc7905::t_560d411248d67e 14,54,82-83,379-380,412,444,692,696,702-703,706,730,819,826,831,948,991,1007,1186,1189,1192,1706
+apps/app/tests/app-shell.test.tsx
+  s_fa09188dbc7905::t_814d3cc7c7a664 35-40,346-396,793-941
+apps/app/tests/global-generation-settings-page.test.tsx
+  s_fa09188dbc7905::t_864060087afe2b 10-29,76,144,166,185,200,234,286,328,358
+apps/app/tests/main-page-result-rendering.test.tsx
+  s_fa09188dbc7905::t_eb20861b6d2efd 4,363-415
+docs/ENGINEERING_CONTEXT.md
+  s_fa09188dbc7905::t_b50191770769ed 143-148
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.10",
+  "base_commit_sha": "c1750c1f42aa17c97c6b64e7b875347b9f2a605c",
+  "prompts": {},
+  "sessions": {
+    "s_fa09188dbc7905": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "019f2918-2557-7bc1-9cca-b9fe085bb988",
+        "model": "gpt-5.4"
+      },
+      "human_author": "Sinyuk <80998062@qq.com>"
+    }
+  }
+}
