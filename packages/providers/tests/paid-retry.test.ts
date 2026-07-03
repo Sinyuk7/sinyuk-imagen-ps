@@ -174,4 +174,29 @@ describe('httpRequest idempotency-key passthrough across retries', () => {
     expect(counting.calls[0].headers['Idempotency-Key']).toBe(idempotencyKey);
     expect(counting.calls[1].headers['Idempotency-Key']).toBe(idempotencyKey);
   });
+
+  it('does not consume transport retries on 415 request_invalid', async () => {
+    const counting = createCountingFetch([
+      { kind: 'response', status: 415, data: { error: { message: 'Unsupported Media Type' } } },
+      { kind: 'response', status: 200, data: { ok: true } },
+    ]);
+    vi.stubGlobal('fetch', counting.fetch);
+
+    await expect(
+      httpRequest(
+        {
+          url: 'https://example.local/v1/images/edits',
+          method: 'POST',
+          headers: { Authorization: 'Bearer sk-test', 'Idempotency-Key': 'imagen-key' },
+          body: { prompt: 'edit' },
+        },
+        { maxRetries: 3, baseDelayMs: 0, factor: 1 },
+        undefined,
+        undefined,
+        { retryability: 'paid', idempotencySupported: true },
+      ),
+    ).rejects.toThrow('Unsupported Media Type');
+
+    expect(counting.attemptCount()).toBe(1);
+  });
 });

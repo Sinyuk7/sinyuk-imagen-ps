@@ -178,6 +178,24 @@ describe('image endpoint retry — paid mode (no idempotency)', () => {
     ).rejects.toThrow();
     expect(attempts).toBe(1);
   });
+
+  it('does NOT retry 415 request_invalid (codec fallback owns that decision)', async () => {
+    let attempts = 0;
+    await expect(
+      withRetry(
+        async () => {
+          attempts += 1;
+          throw errorWithKind('request_invalid', 415);
+        },
+        fastPolicy,
+        undefined,
+        undefined,
+        undefined,
+        paidOpts,
+      ),
+    ).rejects.toThrow();
+    expect(attempts).toBe(1);
+  });
 });
 
 describe('image endpoint retry — paid mode WITH idempotency support', () => {
@@ -278,6 +296,7 @@ describe('classifyPaidRetry (pure)', () => {
 
   it('non-retryable status codes do not retry', () => {
     expect(classifyPaidRetry(errorWithKind('auth_failed', 401), no)).toBe(false);
+    expect(classifyPaidRetry(errorWithKind('request_invalid', 415), no)).toBe(false);
     expect(classifyPaidRetry(errorWithKind('unknown_provider_error', 500), no)).toBe(false);
   });
 });

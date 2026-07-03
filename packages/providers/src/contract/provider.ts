@@ -93,6 +93,32 @@ export interface ProviderTransportCapability {
    * `RetryPolicy`，避免 contract 反向依赖 transport 层。
    */
   readonly retryPolicy?: { readonly maxRetries: number; readonly baseDelayMs: number; readonly factor: number };
+
+  /**
+   * provider 声明的 wire 兼容能力（OPTIONAL）。
+   *
+   * 当前仅用于 image-edit 请求方言与响应 codec 的静态声明；
+   * 具体解析、缓存与 fallback 仍由 `packages/providers` transport 内部拥有。
+   */
+  readonly wire?: ProviderWireCapability;
+}
+
+/** Image edit 请求体方言。 */
+export type ImageEditCodec = 'multipart-bracket' | 'multipart-plain' | 'json-reference';
+
+/** 当前 provider 响应解析 codec。 */
+export type ProviderResponseCodec = 'json';
+
+/** Provider 的 wire 兼容能力声明。 */
+export interface ProviderWireCapability {
+  /** provider 声明支持的 image-edit 请求方言。 */
+  readonly supportedEditCodecs?: readonly ImageEditCodec[];
+
+  /** provider 声明的 image-edit 默认尝试顺序。 */
+  readonly defaultEditCodecOrder?: readonly ImageEditCodec[];
+
+  /** provider 声明的响应 codec。 */
+  readonly responseCodecs?: readonly ProviderResponseCodec[];
 }
 
 export interface ProviderBillingCapability {

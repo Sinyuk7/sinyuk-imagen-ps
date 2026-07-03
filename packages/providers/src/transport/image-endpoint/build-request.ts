@@ -19,6 +19,7 @@
 
 import type { Asset } from '@imagen-ps/core-engine';
 import type { CanonicalImageJobRequest, ProviderOutputOptions } from '../../contract/request.js';
+import type { ImageEditCodec } from '../../contract/provider.js';
 import { resolveImageModelOutput, type ImageCatalogProviderId } from '../../contract/image-model-capability.js';
 
 /**
@@ -329,6 +330,10 @@ function appendMultipartBodyFields(form: FormData, body: OpenAIImageEditBody): v
   }
 }
 
+function imageFieldNameForCodec(codec: Extract<ImageEditCodec, 'multipart-bracket' | 'multipart-plain'>): 'image[]' | 'image' {
+  return codec === 'multipart-plain' ? 'image' : 'image[]';
+}
+
 /** 将 `request.output` 的 surface 字段映射到 HTTP body。 */
 function applyOutputToBody(
   body: Record<string, unknown>,
@@ -491,6 +496,17 @@ export function buildEditMultipartBody(
   request: CanonicalImageJobRequest,
   defaultModel?: string,
 ): FormData {
+  return buildEditMultipartBodyForCodec(request, 'multipart-bracket', defaultModel);
+}
+
+/**
+ * 按显式 multipart codec 构造 image endpoint images/edits multipart 请求体。
+ */
+export function buildEditMultipartBodyForCodec(
+  request: CanonicalImageJobRequest,
+  codec: Extract<ImageEditCodec, 'multipart-bracket' | 'multipart-plain'>,
+  defaultModel?: string,
+): FormData {
   if (request.images === undefined || request.images.length === 0) {
     throw new BuildRequestError('Image endpoint edit request requires at least one input image.');
   }
@@ -520,12 +536,27 @@ export function buildEditMultipartBody(
   const form = new FormData();
 
   appendMultipartBodyFields(form, body);
+  const imageFieldName = imageFieldNameForCodec(codec);
 
-  request.images.forEach((asset, index) => appendMultipartImage(form, 'image[]', asset, index));
+  request.images.forEach((asset, index) => appendMultipartImage(form, imageFieldName, asset, index));
 
   if (request.maskImage !== undefined) {
     appendMultipartImage(form, 'mask', request.maskImage, 0);
   }
 
   return form;
+}
+
+/**
+ * 按显式 codec 构造 image endpoint images/edits 请求体。
+ */
+export function buildImageEditRequestBody(
+  request: CanonicalImageJobRequest,
+  codec: ImageEditCodec,
+  defaultModel?: string,
+): OpenAIImageEditBody | FormData {
+  if (codec === 'json-reference') {
+    return buildEditRequestBody(request, defaultModel);
+  }
+  return buildEditMultipartBodyForCodec(request, codec, defaultModel);
 }

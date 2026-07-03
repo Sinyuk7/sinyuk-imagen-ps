@@ -71,9 +71,12 @@ export type {
   SupportEvidence,
 } from './model.js';
 export type {
+  ImageEditCodec,
   Provider,
   ProviderDescriptor,
   ProviderDispatchBridge,
   ProviderDispatchBridgeArgs,
   ProviderInvokeArgs,
+  ProviderResponseCodec,
+  ProviderWireCapability,
 } from './provider.js';
