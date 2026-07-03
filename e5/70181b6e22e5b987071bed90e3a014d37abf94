@@ -1,0 +1,38 @@
+apps/app/tests/use-conversation.test.tsx
+  s_bf02289f6c1d5a::t_2cdeed850bf921 4,24,39-63,438-518
+  s_bf02289f6c1d5a::t_0dbd93e4ccf47c 519
+apps/app/tests/host-bridge-local-file.test.ts
+  s_bf02289f6c1d5a::t_a22f520c9e3eab 186-220
+apps/app/src/shared/image/thumbnail-store.ts
+  s_bf02289f6c1d5a::t_48f02a7ffc2b45 8,32,50-51,102-103,105-141,188-213,218,220,223-246,248,250,254
+apps/app/src/shared/ui/hooks/use-conversation.ts
+  s_bf02289f6c1d5a::t_24717c3dbf682a 140-168,347-351,377-380,418-419,430,443,471
+  s_bf02289f6c1d5a::t_e0988a9a64321a 449
+apps/app/src/adapters/uxp/photoshop-host-bridge.ts
+  s_bf02289f6c1d5a::t_61aac4599e778c 139,593-596,659-661,671-674,723-726
+apps/app/tests/host-bridge-thumbnail.test.ts
+  s_bf02289f6c1d5a::t_a1bf658f73cd56 7,34-57
+  s_bf02289f6c1d5a::t_6f41c89505dbe2 58-59
+docs/ENGINEERING_CONTEXT.md
+  s_bf02289f6c1d5a::t_0bc955aa4f8965 74-75
+apps/app/tests/thumbnail-store.test.ts
+  s_bf02289f6c1d5a::t_51b89cfeee5781 4-11,86-119,121-159,161
+  s_bf02289f6c1d5a::t_4c931ed3cfb8d2 12-21,120
+  s_bf02289f6c1d5a::t_a8fe0f4545b1b9 160
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.10",
+  "base_commit_sha": "e570181b6e22e5b987071bed90e3a014d37abf94",
+  "prompts": {},
+  "sessions": {
+    "s_bf02289f6c1d5a": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "019f2800-7b03-77e1-8909-86eda8139774",
+        "model": "gpt-5.5"
+      },
+      "human_author": "Sinyuk <80998062@qq.com>"
+    }
+  }
+}
