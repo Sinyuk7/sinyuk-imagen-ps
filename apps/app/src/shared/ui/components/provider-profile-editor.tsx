@@ -6,6 +6,7 @@ import { TextField, FieldLabel, HelpText, Checkbox, Radio } from '../primitives/
 import { IconButton } from '../primitives/icon-button';
 import type { NoticeState } from './notice';
 import {
+  createProviderEndpointDraft,
   sanitizeProviderDisplayName,
   sanitizeProviderEndpointUrl,
   sanitizeProviderSecretValue,
@@ -14,6 +15,8 @@ import {
 } from '../hooks/use-provider-settings';
 import type { EndpointProbeResult } from '@imagen-ps/application';
 
+type ProviderConnectionUpdater = (connection: ProviderConnectionDraft) => ProviderConnectionDraft;
+
 interface ProviderProfileEditorProps {
   readonly connectionTitle: string;
   readonly aliasValue: string;
@@ -21,7 +24,7 @@ interface ProviderProfileEditorProps {
   readonly aliasError?: string | null;
   readonly aliasPlaceholder?: string;
   readonly connection: ProviderConnectionDraft;
-  readonly onConnectionChange: (connection: ProviderConnectionDraft) => void;
+  readonly onConnectionChange: (updater: ProviderConnectionUpdater) => void;
   readonly baseUrlPlaceholder?: string;
   readonly endpointErrors?: ReadonlyMap<string, string>;
   readonly probeResults?: ReadonlyMap<string, EndpointProbeResult>;
@@ -36,6 +39,7 @@ interface ProviderProfileEditorProps {
   readonly apiKeySavedHint?: string | null;
   readonly apiKeyRemovalPending?: boolean;
   readonly onApiKeyRemove?: () => void;
+  readonly disabled?: boolean;
 }
 
 function removeEndpoint(
@@ -107,9 +111,15 @@ export function ProviderProfileEditor({
   apiKeySavedHint = null,
   apiKeyRemovalPending = false,
   onApiKeyRemove,
+  disabled = false,
 }: ProviderProfileEditorProps) {
   const { messages: t } = useI18n();
   const [apiKeyEditing, setApiKeyEditing] = useState(false);
+  const [preferredRadioName] = useState(() => (
+    typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function'
+      ? `provider-preferred-endpoint-${crypto.randomUUID()}`
+      : `provider-preferred-endpoint-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`
+  ));
   const multiEndpoint = connection.endpoints.length > 1;
 
   useEffect(() => {
@@ -135,6 +145,7 @@ export function ProviderProfileEditor({
             className="field-input ui-field-control"
             placeholder={aliasPlaceholder}
             value={aliasValue}
+            disabled={disabled}
             onValue={onAliasValue}
             onBlur={() => onAliasValue(sanitizeProviderDisplayName(aliasValue))}
           />
@@ -154,19 +165,14 @@ export function ProviderProfileEditor({
               icon={<Icon name="add" size={16} />}
               tooltip={t.settings.addEndpoint}
               aria-label={t.settings.addEndpoint}
-              onClick={() => onConnectionChange({
-                ...connection,
+              disabled={disabled}
+              onClick={() => onConnectionChange((current) => ({
+                ...current,
                 endpoints: [
-                  ...connection.endpoints,
-                  {
-                    id: typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function'
-                      ? `endpoint-${crypto.randomUUID()}`
-                      : `endpoint-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`,
-                    url: '',
-                    enabled: true,
-                  },
+                  ...current.endpoints,
+                  createProviderEndpointDraft(),
                 ],
-              })}
+              }))}
             />
           </div>
           <div className="field provider-endpoint-list">
@@ -201,11 +207,11 @@ export function ProviderProfileEditor({
                       data-testid={`provider-endpoint-remove-${index}`}
                       className="settings-icon-button danger"
                       compactSquare
-                      disabled={!canDelete}
                       icon={<Icon name="trash" size={16} />}
                       tooltip={t.common.delete}
                       aria-label={t.common.delete}
-                      onClick={() => onConnectionChange(removeEndpoint(connection, endpoint.id))}
+                      disabled={disabled || !canDelete}
+                      onClick={() => onConnectionChange((current) => removeEndpoint(current, endpoint.id))}
                     />
                   </div>
                   <TextField
@@ -214,7 +220,8 @@ export function ProviderProfileEditor({
                     id={`provider-endpoint-url-${endpoint.id}`}
                     placeholder={baseUrlPlaceholder ?? t.settings.baseUrlHint}
                     value={endpoint.url}
-                    onValue={(value) => onConnectionChange(updateEndpoint(connection, endpoint.id, (current) => ({ ...current, url: sanitizeProviderEndpointUrl(value) })))}
+                    disabled={disabled}
+                    onValue={(value) => onConnectionChange((current) => updateEndpoint(current, endpoint.id, (endpointDraft) => ({ ...endpointDraft, url: sanitizeProviderEndpointUrl(value) })))}
                   />
                   {endpointError ? (
                     <HelpText data-testid={`provider-endpoint-error-${index}`} className="field-hint" variant="negative">
@@ -225,19 +232,26 @@ export function ProviderProfileEditor({
                     <Checkbox
                       data-testid={`provider-endpoint-enabled-${index}`}
                       checked={endpoint.enabled}
-                      onChecked={(checked) => onConnectionChange(updateEndpoint(connection, endpoint.id, (current) => ({ ...current, enabled: checked })))}
+                      disabled={disabled}
+                      onChecked={(checked) => onConnectionChange((current) => updateEndpoint(current, endpoint.id, (endpointDraft) => ({ ...endpointDraft, enabled: checked })))}
                     >
                       {t.settings.endpointEnabled}
                     </Checkbox>
                     {multiEndpoint && (
                       <Radio
                         data-testid={`provider-endpoint-preferred-${index}`}
+                        name={preferredRadioName}
                         checked={isPreferred}
-                        disabled={connection.selectionMode !== 'manual' || !endpoint.enabled}
-                        onChecked={() => onConnectionChange({
-                          ...connection,
-                          preferredEndpointId: endpoint.id,
-                        })}
+                        disabled={disabled || connection.selectionMode !== 'manual' || !endpoint.enabled}
+                        onChecked={(checked) => {
+                          if (!checked) {
+                            return;
+                          }
+                          onConnectionChange((current) => ({
+                            ...current,
+                            preferredEndpointId: endpoint.id,
+                          }));
+                        }}
                       >
                         {t.settings.endpointPreferred}
                       </Radio>
@@ -254,11 +268,12 @@ export function ProviderProfileEditor({
               data-testid="provider-selection-mode-auto"
               className="provider-connection-option"
               checked={connection.selectionMode === 'auto'}
-              onChecked={(checked) => onConnectionChange({
-                ...connection,
+              disabled={disabled}
+              onChecked={(checked) => onConnectionChange((current) => ({
+                ...current,
                 selectionMode: checked ? 'auto' : 'manual',
-                preferredEndpointId: checked ? undefined : connection.preferredEndpointId ?? connection.endpoints.find((endpoint) => endpoint.enabled)?.id,
-              })}
+                preferredEndpointId: checked ? undefined : current.preferredEndpointId ?? current.endpoints.find((endpoint) => endpoint.enabled)?.id,
+              }))}
             >
               {t.settings.autoSelect}
             </Checkbox>
@@ -266,7 +281,8 @@ export function ProviderProfileEditor({
               data-testid="provider-failover-enabled"
               className="provider-connection-option"
               checked={connection.failoverEnabled}
-              onChecked={(checked) => onConnectionChange({ ...connection, failoverEnabled: checked })}
+              disabled={disabled}
+              onChecked={(checked) => onConnectionChange((current) => ({ ...current, failoverEnabled: checked }))}
             >
               {t.settings.failoverEnabled}
             </Checkbox>
@@ -289,6 +305,7 @@ export function ProviderProfileEditor({
                   icon={<Icon name="pencil" size={16} />}
                   tooltip={t.settings.editApiKey}
                   aria-label={t.settings.editApiKey}
+                  disabled={disabled}
                   onClick={startApiKeyEdit}
                 />
               ) : null}
@@ -300,6 +317,7 @@ export function ProviderProfileEditor({
                   icon={<Icon name="trash" size={16} />}
                   tooltip={t.settings.removeSecret}
                   aria-label={t.settings.removeSecret}
+                  disabled={disabled}
                   onClick={() => onApiKeyRemove?.()}
                 />
               ) : null}
@@ -314,6 +332,7 @@ export function ProviderProfileEditor({
                 className="field-input mono ui-field-control field-input-embedded"
                 placeholder={apiKeySaved ? t.settings.apiKeyReplacePlaceholder : apiKeyPlaceholder}
                 value={apiKeyValue}
+                disabled={disabled}
                 onValue={(value) => onApiKeyValue(sanitizeProviderSecretValue(value))}
               />
               {showApiKeyToggle ? (

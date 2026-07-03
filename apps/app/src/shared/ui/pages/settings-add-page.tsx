@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import type { EndpointProbeResult, ProviderProfile } from '@imagen-ps/application';
+import type { EndpointProbeResult, ProviderDescriptor, ProviderProfile } from '@imagen-ps/application';
 import { useAppServices } from '../../ports/app-services-context';
 import {
   billingFieldError,
@@ -22,6 +22,7 @@ import { useNotice } from '../components/notice';
 import { ProviderProfileEditor } from '../components/provider-profile-editor';
 import { StatusNotice } from '../components/status-notice';
 import { useI18n } from '../i18n/i18n-context';
+import type { AppMessages } from '../i18n/messages';
 import { Button, Checkbox, TextField } from '../primitives/native-controls';
 import { IconButton } from '../primitives/icon-button';
 import { statusFromEndpointProbeResult } from '../provider-status';
@@ -31,6 +32,9 @@ interface SettingsAddPageProps {
   readonly profiles: readonly ProviderProfile[];
   readonly onProfileSaved: (profileId: string, options: { readonly useProvider: boolean }) => Promise<void>;
 }
+
+type ConnectionUpdater = (connection: ProviderConnectionDraft) => ProviderConnectionDraft;
+type BillingUpdater = (billing: ProviderBillingDraft) => ProviderBillingDraft;
 
 function createProfileId(): string {
   if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
@@ -101,10 +105,27 @@ function duplicateEndpointErrors(
   return errors;
 }
 
+function sortProviderTypes(providers: readonly ProviderDescriptor[]): readonly ProviderDescriptor[] {
+  return [...providers].sort((left, right) => {
+    if (left.id === 'mock' && right.id !== 'mock') return 1;
+    if (right.id === 'mock' && left.id !== 'mock') return -1;
+    return 0;
+  });
+}
+
+function providerTypeHint(provider: ProviderDescriptor, messages: AppMessages['settings']): string | null {
+  if (provider.id === 'mock') return messages.providerTypeHintMock;
+  if (provider.id === 'chat-image') return messages.providerTypeHintChatImage;
+  if (provider.family === 'image-endpoint') return messages.providerTypeHintImageEndpoint;
+  if (provider.family === 'chat-image') return messages.providerTypeHintChatImage;
+  return null;
+}
+
 export function SettingsAddPage({ onNav, profiles, onProfileSaved }: SettingsAddPageProps) {
   const services = useAppServices();
   const { messages: t } = useI18n();
   const providers = useProviderCatalog(services);
+  const providerTypeOptions = useMemo(() => sortProviderTypes(providers), [providers]);
   const [profileId] = useState(createProfileId);
   const [step, setStep] = useState(1);
   const [providerId, setProviderId] = useState<string | null>(providers[0]?.id ?? null);
@@ -123,6 +144,10 @@ export function SettingsAddPage({ onNav, profiles, onProfileSaved }: SettingsAdd
   const [useProviderAfterSaving, setUseProviderAfterSaving] = useState(profiles.length === 0);
   const modelModeTouchedRef = useRef(false);
   const nameTouchedRef = useRef(false);
+  const connectionRef = useRef(connection);
+  const billingRef = useRef(billing);
+  const draftRevisionRef = useRef(0);
+  const busyRef = useRef(false);
   const statusNotice = useNotice({ defaultDurationMs: null });
   const selected = useMemo(() => providers.find((provider) => provider.id === providerId), [providerId, providers]);
   const modelOptions = useMemo(
@@ -151,16 +176,47 @@ export function SettingsAddPage({ onNav, profiles, onProfileSaved }: SettingsAdd
   }, [modelOptions]);
 
   useEffect(() => {
-    setBilling(defaultBillingDraft(selected));
+    const nextBilling = defaultBillingDraft(selected);
+    billingRef.current = nextBilling;
+    setBilling(nextBilling);
     setBillingModeMenuOpen(false);
   }, [selected]);
 
+  useEffect(() => {
+    connectionRef.current = connection;
+  }, [connection]);
+
+  useEffect(() => {
+    billingRef.current = billing;
+  }, [billing]);
+
   const invalidateDraftProofs = () => {
+    draftRevisionRef.current += 1;
     if (probeResults.length > 0 || statusNotice.notice) {
       statusNotice.show(t.settings.changesNotTested, 'warning', { durationMs: null, copyable: false });
     }
     setProbeResults([]);
     setSuggestedEndpointId(undefined);
+  };
+
+  const applyConnectionChange = (updater: ConnectionUpdater) => {
+    const normalizedConnection = normalizeProviderConnectionDraft(updater(connectionRef.current));
+    connectionRef.current = normalizedConnection;
+    setConnection(normalizedConnection);
+    if (!nameTouchedRef.current) {
+      const generatedAlias = aliasFromEndpointUrl(normalizedConnection.endpoints.find((endpoint) => endpoint.url.trim())?.url ?? '');
+      if (generatedAlias) {
+        setName(nextAlias(generatedAlias, profiles));
+      }
+    }
+    invalidateDraftProofs();
+  };
+
+  const applyBillingChange = (updater: BillingUpdater) => {
+    const nextBilling = updater(billingRef.current);
+    billingRef.current = nextBilling;
+    setBilling(nextBilling);
+    invalidateDraftProofs();
   };
 
   const saveProfile = async (): Promise<string> => {
@@ -197,6 +253,10 @@ export function SettingsAddPage({ onNav, profiles, onProfileSaved }: SettingsAdd
   };
 
   const handleSave = async () => {
+    if (busyRef.current) {
+      return;
+    }
+    busyRef.current = true;
     setBusy(true);
     statusNotice.clear();
     try {
@@ -205,11 +265,17 @@ export function SettingsAddPage({ onNav, profiles, onProfileSaved }: SettingsAdd
     } catch (error) {
       statusNotice.show(error instanceof Error ? error.message : String(error), 'negative', { durationMs: null, copyable: true });
     } finally {
+      busyRef.current = false;
       setBusy(false);
     }
   };
 
   const handleTest = async () => {
+    if (busyRef.current) {
+      return;
+    }
+    busyRef.current = true;
+    const revision = draftRevisionRef.current;
     setBusy(true);
     statusNotice.clear();
     try {
@@ -234,13 +300,18 @@ export function SettingsAddPage({ onNav, profiles, onProfileSaved }: SettingsAdd
       if (!result.ok) {
         throw new Error(`${result.error.category}: ${result.error.message}`);
       }
-      setProbeResults(result.value.results);
-      setSuggestedEndpointId(result.value.suggestedEndpointId);
-      const status = statusFromEndpointProbeResult(result.value, t);
-      statusNotice.show(status.message, status.tone, status);
+      if (draftRevisionRef.current === revision) {
+        setProbeResults(result.value.results);
+        setSuggestedEndpointId(result.value.suggestedEndpointId);
+        const status = statusFromEndpointProbeResult(result.value, t);
+        statusNotice.show(status.message, status.tone, status);
+      }
     } catch (error) {
-      statusNotice.show(error instanceof Error ? error.message : String(error), 'negative', { durationMs: null, copyable: true });
+      if (draftRevisionRef.current === revision) {
+        statusNotice.show(error instanceof Error ? error.message : String(error), 'negative', { durationMs: null, copyable: true });
+      }
     } finally {
+      busyRef.current = false;
       setBusy(false);
     }
   };
@@ -264,42 +335,52 @@ export function SettingsAddPage({ onNav, profiles, onProfileSaved }: SettingsAdd
         {step === 1 ? (
           <div>
             <div className="sec-lbl" style={{ paddingTop: 16 }}>{t.settings.chooseType}</div>
-            {providers.map((provider) => (
-              <MotionContent key={provider.id} watch={provider.id}>
-                <div
-                  data-testid={`provider-type-${provider.id}`}
-                  className="provider-type-row"
-                  onClick={() => {
-                    setProviderId(provider.id);
-                    setName(nextAlias(provider.displayName, profiles));
-                    nameTouchedRef.current = false;
-                    setConnection(defaultConnection(provider.id));
-                    modelModeTouchedRef.current = false;
-                    setDefaultModel('');
-                    setBilling(defaultBillingDraft(provider));
-                    setBillingModeMenuOpen(false);
-                    setModelMenuOpen(false);
-                    setProbeResults([]);
-                    setSuggestedEndpointId(undefined);
-                    setUseProviderAfterSaving(profiles.length === 0);
-                    setStep(2);
-                  }}
-                >
-                  <div className="provider-type-leading">
-                    <div className="provider-type-badge">
-                      {provider.displayName.slice(0, 2).toUpperCase()}
+            <div className="provider-type-guide">{t.settings.providerTypeGuide}</div>
+            {providerTypeOptions.map((provider) => {
+              const hint = providerTypeHint(provider, t.settings);
+              return (
+                <MotionContent key={provider.id} watch={provider.id}>
+                  <div
+                    data-testid={`provider-type-${provider.id}`}
+                    className="provider-type-row"
+                    onClick={() => {
+                      setProviderId(provider.id);
+                      setName(nextAlias(provider.displayName, profiles));
+                      nameTouchedRef.current = false;
+                      const nextConnection = defaultConnection(provider.id);
+                      connectionRef.current = nextConnection;
+                      setConnection(nextConnection);
+                      modelModeTouchedRef.current = false;
+                      setDefaultModel('');
+                      const nextBilling = defaultBillingDraft(provider);
+                      billingRef.current = nextBilling;
+                      setBilling(nextBilling);
+                      setBillingModeMenuOpen(false);
+                      setModelMenuOpen(false);
+                      setProbeResults([]);
+                      setSuggestedEndpointId(undefined);
+                      draftRevisionRef.current += 1;
+                      setUseProviderAfterSaving(profiles.length === 0);
+                      setStep(2);
+                    }}
+                  >
+                    <div className="provider-type-leading">
+                      <div className="provider-type-badge">
+                        {provider.displayName.slice(0, 2).toUpperCase()}
+                      </div>
+                    </div>
+                    <div className="provider-type-content">
+                      <div className="provider-type-name">{provider.displayName}</div>
+                      <div className="provider-type-family">{provider.family}</div>
+                      {hint ? <div className="provider-type-hint">{hint}</div> : null}
+                    </div>
+                    <div className="provider-type-trail">
+                      <Icon name="chevron-right" />
                     </div>
                   </div>
-                  <div className="provider-type-content">
-                    <div className="provider-type-name">{provider.displayName}</div>
-                    <div className="provider-type-family">{provider.family}</div>
-                  </div>
-                  <div className="provider-type-trail">
-                    <Icon name="chevron-right" />
-                  </div>
-                </div>
-              </MotionContent>
-            ))}
+                </MotionContent>
+              );
+            })}
           </div>
         ) : (
           <>
@@ -313,17 +394,7 @@ export function SettingsAddPage({ onNav, profiles, onProfileSaved }: SettingsAdd
               aliasError={aliasError}
               aliasPlaceholder={selected?.displayName}
               connection={connection}
-              onConnectionChange={(next) => {
-                const normalized = normalizeProviderConnectionDraft(typeof next === 'object' ? next : connection);
-                setConnection(normalized);
-                if (!nameTouchedRef.current) {
-                  const generatedAlias = aliasFromEndpointUrl(normalized.endpoints.find((endpoint) => endpoint.url.trim())?.url ?? '');
-                  if (generatedAlias) {
-                    setName(nextAlias(generatedAlias, profiles));
-                  }
-                }
-                invalidateDraftProofs();
-              }}
+              onConnectionChange={applyConnectionChange}
               baseUrlPlaceholder="https://api.example.com"
               endpointErrors={endpointErrors}
               probeResults={connectionProbeResultById(probeResults)}
@@ -337,6 +408,7 @@ export function SettingsAddPage({ onNav, profiles, onProfileSaved }: SettingsAdd
               showKey={showKey}
               onShowKeyChange={setShowKey}
               apiKeySaved={false}
+              disabled={busy}
             />
           <div className="section">
             <div className="section-title settings-section-heading">{t.settings.defaultModel}</div>
@@ -369,6 +441,7 @@ export function SettingsAddPage({ onNav, profiles, onProfileSaved }: SettingsAdd
                   className="field-input mono ui-field-control"
                   placeholder={selected?.defaultModels?.[0]?.id ?? 'gpt-image-2'}
                   value={defaultModel}
+                  disabled={busy}
                   onValue={(value) => {
                     modelModeTouchedRef.current = true;
                     setModelMode('custom');
@@ -397,10 +470,7 @@ export function SettingsAddPage({ onNav, profiles, onProfileSaved }: SettingsAdd
             <div className="section-title settings-section-heading">{t.settings.billing}</div>
             <ProviderBillingSettings
               billing={billing}
-              onBillingChange={(next) => {
-                setBilling(next);
-                invalidateDraftProofs();
-              }}
+              onBillingChange={applyBillingChange}
               billingModeOptions={billingModeOptions(selected)}
               modeMenuOpen={billingModeMenuOpen}
               onModeMenuOpenChange={setBillingModeMenuOpen}
@@ -420,7 +490,7 @@ export function SettingsAddPage({ onNav, profiles, onProfileSaved }: SettingsAdd
                 className="settings-icon-button"
                 compactSquare
                 disabled={busy}
-                icon={busy ? <Icon name="spinner" size={16} className="spin" /> : <Icon name="plug" size={16} />}
+                icon={busy ? <Icon name="spinner" size={16} className="spin" /> : <Icon name="network" size={16} />}
                 tooltip={busy ? t.settings.testingConnection : t.settings.testConnection}
                 aria-label={busy ? t.settings.testingConnection : t.settings.testConnection}
                 onClick={() => void handleTest()}

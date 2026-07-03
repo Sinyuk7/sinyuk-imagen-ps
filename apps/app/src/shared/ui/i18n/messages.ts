@@ -117,6 +117,10 @@ export interface AppMessages {
     readonly loading: string;
     readonly noProviderProfile: string;
     readonly chooseType: string;
+    readonly providerTypeGuide: string;
+    readonly providerTypeHintImageEndpoint: string;
+    readonly providerTypeHintChatImage: string;
+    readonly providerTypeHintMock: string;
     readonly config: string;
     readonly promptBehavior: string;
     readonly billing: string;
@@ -354,6 +358,10 @@ const EN_MESSAGES: AppMessages = {
     loading: 'Loading...',
     noProviderProfile: 'No Provider profile',
     chooseType: 'Choose type',
+    providerTypeGuide: 'Choose by the API path in your provider docs: /v1/images/* uses Image Endpoint; /v1/chat/completions uses Chat Image.',
+    providerTypeHintImageEndpoint: 'For /v1/images/generations, /v1/images/edits, and similar image endpoints.',
+    providerTypeHintChatImage: 'For compatible image models called through /v1/chat/completions.',
+    providerTypeHintMock: 'Local test provider. No API key or real service required; it will be removed later.',
     config: 'Configuration',
     promptBehavior: 'Prompt behavior',
     billing: 'Billing',
@@ -592,6 +600,10 @@ const ZH_CN_MESSAGES: AppMessages = {
     loading: '加载中...',
     noProviderProfile: '暂无 Provider profile',
     chooseType: '选择类型',
+    providerTypeGuide: '根据服务商文档里的接口路径选择：/v1/images/* 选 Image Endpoint；/v1/chat/completions 选 Chat Image。',
+    providerTypeHintImageEndpoint: '适合 /v1/images/generations、/v1/images/edits 等图片接口。',
+    providerTypeHintChatImage: '适合通过 /v1/chat/completions 调用图片模型的兼容接口。',
+    providerTypeHintMock: '本地测试用 Provider，无需 API Key，不连接真实服务；后续会移除。',
     config: '配置',
     promptBehavior: '提示词行为',
     billing: 'Billing',

@@ -39,6 +39,9 @@ interface SettingsDetailPageProps {
   readonly onSaved?: (message: string) => void;
 }
 
+type ConnectionUpdater = (connection: ProviderConnectionDraft) => ProviderConnectionDraft;
+type BillingUpdater = (billing: ProviderBillingDraft) => ProviderBillingDraft;
+
 function formatElapsedMs(startedAt: number): string {
   return `${Math.max(1, Math.round(performance.now() - startedAt))} ms`;
 }
@@ -211,11 +214,16 @@ export function SettingsDetailPage({ onNav, profileId, onProfilesChanged, onSave
   const [suggestedEndpointId, setSuggestedEndpointId] = useState<string | undefined>();
   const lastLoadedProfileIdRef = useRef<string | null>(null);
   const modelModeTouchedRef = useRef(false);
+  const connectionRef = useRef(connection);
+  const billingDraftRef = useRef(billingDraft);
+  const draftRevisionRef = useRef(0);
+  const busyRef = useRef(false);
   const saveNotice = useNotice({ defaultDurationMs: null });
   const isOptimizerProfile = detail.profile?.providerId === 'prompt-optimize';
   const billing = useProfileBilling(services, profileId);
 
   const invalidateDraftProofs = () => {
+    draftRevisionRef.current += 1;
     setTestStatus({ tone: 'neutral', message: t.settings.changesNotTested });
     setTestMeta(null);
     if (models.models.length > 0) {
@@ -231,11 +239,20 @@ export function SettingsDetailPage({ onNav, profileId, onProfilesChanged, onSave
     invalidateDraftProofs();
   };
 
-  const updateBillingDraft = (next: ProviderBillingDraft) => {
-    setBillingDraft(next);
-    if (next.accessToken.trim().length > 0) {
+  const updateBillingDraft = (updater: BillingUpdater) => {
+    const nextBilling = updater(billingDraftRef.current);
+    billingDraftRef.current = nextBilling;
+    setBillingDraft(nextBilling);
+    if (nextBilling.accessToken.trim()) {
       setBillingAccessTokenRemovalPending(false);
     }
+    invalidateDraftProofs();
+  };
+
+  const updateConnectionDraft = (updater: ConnectionUpdater) => {
+    const nextConnection = normalizeProviderConnectionDraft(updater(connectionRef.current));
+    connectionRef.current = nextConnection;
+    setConnection(nextConnection);
     invalidateDraftProofs();
   };
 
@@ -243,10 +260,15 @@ export function SettingsDetailPage({ onNav, profileId, onProfilesChanged, onSave
     if (!detail.profile) {
       return;
     }
+    draftRevisionRef.current += 1;
     setDisplayName(detail.profile.displayName);
-    setConnection(readProviderConnectionDraft(detail.profile));
+    const nextConnection = readProviderConnectionDraft(detail.profile);
+    connectionRef.current = nextConnection;
+    setConnection(nextConnection);
     setDefaultModel(readProviderConfigString(detail.profile, 'defaultModel'));
-    setBillingDraft(readProviderBillingDraft(detail.profile));
+    const nextBillingDraft = readProviderBillingDraft(detail.profile);
+    billingDraftRef.current = nextBillingDraft;
+    setBillingDraft(nextBillingDraft);
     setBillingModeMenuOpen(false);
     setBillingExpanded(false);
     setInstruction(readProviderConfigString(detail.profile, 'instruction'));
@@ -260,7 +282,7 @@ export function SettingsDetailPage({ onNav, profileId, onProfilesChanged, onSave
     setSuggestedEndpointId(undefined);
     setTestStatus({ tone: 'neutral', message: t.settings.testNotTested });
     setTestMeta(null);
-  }, [detail.profile]);
+ }, [detail.profile]);
 
   useEffect(() => {
     const nextProfileId = detail.profile?.profileId ?? null;
@@ -364,6 +386,10 @@ export function SettingsDetailPage({ onNav, profileId, onProfilesChanged, onSave
   };
 
   const save = async () => {
+    if (busyRef.current) {
+      return;
+    }
+    busyRef.current = true;
     await services.diagnostics?.checkpoint('uxp.ui.settings_detail.save.entered', { profileId });
     setBusy(true);
     await services.diagnostics?.checkpoint('uxp.ui.settings_detail.save.busy_set', { busy: true, profileId });
@@ -431,6 +457,7 @@ export function SettingsDetailPage({ onNav, profileId, onProfilesChanged, onSave
       saveNotice.show(message, 'negative', { durationMs: null, copyable: true });
     } finally {
       await services.diagnostics?.checkpoint('uxp.ui.settings_detail.save.before_busy_clear', { profileId });
+      busyRef.current = false;
       setBusy(false);
       await services.diagnostics?.checkpoint('uxp.ui.settings_detail.save.after_busy_clear', { profileId });
     }
@@ -452,7 +479,12 @@ export function SettingsDetailPage({ onNav, profileId, onProfilesChanged, onSave
   }, [busy, detail.profile, saveNotice.notice, testStatus, t.settings.testNotTested, services.diagnostics]);
 
   const test = async () => {
+    if (busyRef.current) {
+      return;
+    }
+    busyRef.current = true;
     const startedAt = performance.now();
+    const revision = draftRevisionRef.current;
     setBusy(true);
     setTestStatus({ tone: 'neutral', message: t.settings.testingConnection });
     setTestMeta(null);
@@ -461,25 +493,35 @@ export function SettingsDetailPage({ onNav, profileId, onProfilesChanged, onSave
       if (!result.ok) {
         throw new Error(`${result.error.category}: ${result.error.message}`);
       }
-      setProbeResults(result.value.results);
-      setSuggestedEndpointId(result.value.suggestedEndpointId);
-      if (result.value.models) {
-        models.replace(result.value.models);
-        setModelsStale(false);
+      if (draftRevisionRef.current === revision) {
+        setProbeResults(result.value.results);
+        setSuggestedEndpointId(result.value.suggestedEndpointId);
+        if (result.value.models) {
+          models.replace(result.value.models);
+          setModelsStale(false);
+        }
+        const status = statusFromEndpointProbeResult(result.value, t);
+        setTestStatus({ tone: status.tone === 'positive' || status.tone === 'negative' ? status.tone : 'neutral', message: status.message });
+        setTestMeta(`${formatElapsedMs(startedAt)}`);
       }
-      const status = statusFromEndpointProbeResult(result.value, t);
-      setTestStatus({ tone: status.tone === 'positive' || status.tone === 'negative' ? status.tone : 'neutral', message: status.message });
-      setTestMeta(`${formatElapsedMs(startedAt)}`);
     } catch (error) {
-      const detail = error instanceof Error ? error.message : String(error);
-      setTestStatus({ tone: 'negative', message: `${t.settings.connectionFailed}: ${detail}` });
-      setTestMeta(`${formatElapsedMs(startedAt)}`);
+      if (draftRevisionRef.current === revision) {
+        const detail = error instanceof Error ? error.message : String(error);
+        setTestStatus({ tone: 'negative', message: `${t.settings.connectionFailed}: ${detail}` });
+        setTestMeta(`${formatElapsedMs(startedAt)}`);
+      }
     } finally {
+      busyRef.current = false;
       setBusy(false);
     }
   };
 
   const refreshModels = async () => {
+    if (busyRef.current) {
+      return;
+    }
+    busyRef.current = true;
+    const revision = draftRevisionRef.current;
     setTestStatus({ tone: 'neutral', message: t.settings.testNotTested });
     setTestMeta(null);
     try {
@@ -501,17 +543,21 @@ export function SettingsDetailPage({ onNav, profileId, onProfilesChanged, onSave
         if (!result.ok) {
           throw new Error(`${result.error.category}: ${result.error.message}`);
         }
-        setProbeResults(result.value.results);
-        setSuggestedEndpointId(result.value.suggestedEndpointId);
-        const refreshed = result.value.models ?? [];
-        models.replace(refreshed);
-        setModelsStale(false);
+        if (draftRevisionRef.current === revision) {
+          setProbeResults(result.value.results);
+          setSuggestedEndpointId(result.value.suggestedEndpointId);
+          const refreshed = result.value.models ?? [];
+          models.replace(refreshed);
+          setModelsStale(false);
+        }
         return;
       }
       await models.refresh();
       setModelsStale(false);
     } catch {
       // errors flow into models.error and are rendered by modelListNotice
+    } finally {
+      busyRef.current = false;
     }
   };
 
@@ -537,6 +583,10 @@ export function SettingsDetailPage({ onNav, profileId, onProfilesChanged, onSave
   }, [detail.profile, modelOptions]);
 
   const remove = async () => {
+    if (busyRef.current) {
+      return;
+    }
+    busyRef.current = true;
     setBusy(true);
     saveNotice.clear();
     try {
@@ -546,6 +596,7 @@ export function SettingsDetailPage({ onNav, profileId, onProfilesChanged, onSave
     } catch (error) {
       saveNotice.show(error instanceof Error ? error.message : String(error), 'negative', { durationMs: null, copyable: true });
     } finally {
+      busyRef.current = false;
       setBusy(false);
     }
   };
@@ -641,6 +692,7 @@ export function SettingsDetailPage({ onNav, profileId, onProfilesChanged, onSave
               setDefaultModel(id);
               setModelMode('list');
               setModelMenuOpen(false);
+              invalidateDraftProofs();
             }}
             testId="provider-default-model-selector"
             triggerId="provider-default-model-selector"
@@ -655,10 +707,12 @@ export function SettingsDetailPage({ onNav, profileId, onProfilesChanged, onSave
             className="field-input mono ui-field-control"
             placeholder={t.settings.customModelId}
             value={defaultModel}
+            disabled={busy}
             onValue={(value) => {
               modelModeTouchedRef.current = true;
               setModelMode('custom');
               setDefaultModel(value);
+              invalidateDraftProofs();
             }}
           />
         )}
@@ -666,10 +720,12 @@ export function SettingsDetailPage({ onNav, profileId, onProfilesChanged, onSave
           <Checkbox
             data-testid="provider-use-custom-model-checkbox"
             checked={modelMode === 'custom'}
+            disabled={busy}
             onChecked={(checked) => {
               modelModeTouchedRef.current = true;
               setModelMode(checked ? 'custom' : 'list');
               setModelMenuOpen(false);
+              invalidateDraftProofs();
             }}
           >
             {t.settings.useCustomModelId}
@@ -778,7 +834,9 @@ export function SettingsDetailPage({ onNav, profileId, onProfilesChanged, onSave
               accessTokenSavedMeta={billingDraft.hasSavedAccessToken && !billingAccessTokenRemovalPending ? t.settings.savedSecretPlaceholder : null}
               accessTokenRemovalPending={billingAccessTokenRemovalPending}
               onAccessTokenRemove={() => {
-                setBillingDraft({ ...billingDraft, accessToken: '', hasSavedAccessToken: false });
+                const nextBillingDraft = { ...billingDraftRef.current, accessToken: '', hasSavedAccessToken: false };
+                billingDraftRef.current = nextBillingDraft;
+                setBillingDraft(nextBillingDraft);
                 setBillingAccessTokenRemovalPending(true);
                 invalidateDraftProofs();
               }}
@@ -838,6 +896,7 @@ export function SettingsDetailPage({ onNav, profileId, onProfilesChanged, onSave
               setInstruction(value);
               invalidateDraftProofs();
             }}
+            disabled={busy}
             placeholder={t.settings.instructionPlaceholder}
           />
         </div>
@@ -908,10 +967,7 @@ export function SettingsDetailPage({ onNav, profileId, onProfilesChanged, onSave
               }}
               aliasError={aliasError}
               connection={connection}
-              onConnectionChange={(next) => {
-                setConnection(normalizeProviderConnectionDraft(next));
-                invalidateDraftProofs();
-              }}
+              onConnectionChange={updateConnectionDraft}
               endpointErrors={endpointErrors}
               probeResults={connectionProbeResultById(probeResults)}
               suggestedEndpointId={suggestedEndpointId}
@@ -929,6 +985,7 @@ export function SettingsDetailPage({ onNav, profileId, onProfilesChanged, onSave
                 setApiKeyRemovalPending(true);
                 invalidateDraftProofs();
               }}
+              disabled={busy}
             />
             {renderDefaultModelSection()}
             {renderPromptBehaviorSection()}
@@ -945,7 +1002,7 @@ export function SettingsDetailPage({ onNav, profileId, onProfilesChanged, onSave
               className="settings-icon-button"
               compactSquare
               disabled={busy}
-              icon={busy ? <Icon name="spinner" size={16} className="spin" /> : <Icon name="plug" size={16} />}
+              icon={busy ? <Icon name="spinner" size={16} className="spin" /> : <Icon name="network" size={16} />}
               tooltip={busy ? t.settings.testingConnection : t.settings.testConnection}
               aria-label={busy ? t.settings.testingConnection : t.settings.testConnection}
               onClick={() => void test()}

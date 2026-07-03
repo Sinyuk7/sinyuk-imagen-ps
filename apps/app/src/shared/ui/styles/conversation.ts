@@ -46,8 +46,11 @@ export const CONVERSATION_CSS = `
 }
 .user-prompt{
   font-size:13px; line-height:18px; color:var(--app-color-text-primary);
-  max-height:54px;
+  display:-webkit-box;
+  -webkit-box-orient:vertical;
+  -webkit-line-clamp:3;
   overflow:hidden;
+  text-overflow:ellipsis;
   white-space:pre-wrap;
   overflow-wrap:anywhere;
   word-break:break-word;

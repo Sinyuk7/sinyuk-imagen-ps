@@ -46,6 +46,54 @@ async function switchToCustomModel(container: HTMLElement): Promise<void> {
 }
 
 describe('SettingsAddPage', () => {
+  it('explains provider type selection by API path and keeps mock last as test-only', async () => {
+    const { services, spies } = createFakeServices();
+    const imageEndpointProvider: ProviderDescriptor = {
+      id: 'image-endpoint',
+      family: 'image-endpoint',
+      displayName: 'Image Endpoint',
+      operations: ['text_to_image', 'image_edit'],
+      invokeMode: 'sync',
+    };
+    const chatImageProvider: ProviderDescriptor = {
+      id: 'chat-image',
+      family: 'chat-image',
+      displayName: 'Chat Image',
+      operations: ['text_to_image', 'image_edit'],
+      invokeMode: 'sync',
+    };
+    const mockProvider: ProviderDescriptor = {
+      id: 'mock',
+      family: 'image-endpoint',
+      displayName: 'Mock Provider',
+      operations: ['text_to_image', 'image_edit'],
+      invokeMode: 'sync',
+    };
+    spies.listProviders.mockReturnValue([mockProvider, imageEndpointProvider, chatImageProvider]);
+    const container = document.createElement('div');
+    document.body.appendChild(container);
+    root = createRoot(container);
+
+    await act(async () => {
+      root!.render(
+        <TestAppProviders services={services}>
+          <SettingsAddPage onNav={() => undefined} profiles={[]} onProfileSaved={async () => undefined} />
+        </TestAppProviders>,
+      );
+    });
+
+    expect(container.textContent).toContain('/v1/images/*');
+    expect(container.textContent).toContain('/v1/chat/completions');
+    expect(container.textContent).toMatch(/本地测试用|Local test provider/);
+
+    const rows = Array.from(container.querySelectorAll<HTMLElement>('.provider-type-row'));
+    expect(rows.map((row) => row.dataset.testid)).toEqual([
+      'provider-type-image-endpoint',
+      'provider-type-chat-image',
+      'provider-type-mock',
+    ]);
+  });
+
   it('saves provider profile through profile commands with write-only secretValues', async () => {
     const { services, spies } = createFakeServices();
     const container = document.createElement('div');
@@ -354,6 +402,45 @@ describe('SettingsAddPage', () => {
         }),
       }),
     }));
+  });
+
+  it('preserves same-frame endpoint edits and preferred selection on add page', async () => {
+    const { services, spies } = createFakeServices();
+    const container = document.createElement('div');
+    document.body.appendChild(container);
+    root = createRoot(container);
+
+    await act(async () => {
+      root!.render(
+        <TestAppProviders services={services}>
+          <SettingsAddPage onNav={() => undefined} profiles={[]} onProfileSaved={async () => undefined} />
+        </TestAppProviders>,
+      );
+    });
+
+    await act(async () => {
+      container.querySelector<HTMLElement>('[data-testid="provider-type-mock"]')!.click();
+    });
+    await act(async () => {
+      queryByTestId(container, 'provider-endpoint-add').click();
+    });
+
+    await act(async () => {
+      changeInput(queryByTestId(container, 'provider-endpoint-url-1'), 'https://mock-b.local');
+      queryByTestId(container, 'provider-endpoint-preferred-1').click();
+    });
+    await act(async () => {
+      container.querySelector<HTMLButtonElement>('.btn-save')!.click();
+    });
+
+    const savedConnection = spies.saveProviderProfile.mock.calls[0]?.[0].config.connection as {
+      readonly preferredEndpointId?: string;
+      readonly endpoints: readonly { readonly id: string; readonly url: string }[];
+    };
+    const secondEndpoint = savedConnection.endpoints.find((endpoint) => endpoint.url === 'https://mock-b.local');
+    expect(secondEndpoint).toBeDefined();
+    expect(savedConnection.preferredEndpointId).toBe(secondEndpoint?.id);
+    expect(Array.from(container.querySelectorAll<HTMLInputElement>('input[type="radio"][data-testid^="provider-endpoint-preferred-"]')).filter((input) => input.checked)).toHaveLength(1);
   });
 
   it('keeps cancel as a content-width secondary action beside the primary save action', async () => {

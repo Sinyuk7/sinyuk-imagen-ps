@@ -9,7 +9,7 @@ import { httpRequest } from '../../transport/image-endpoint/http.js';
 import { executeWithEndpointFailover } from '../../transport/image-endpoint/failover.js';
 import { resolvePaidRetryConfig, resolveIdempotencyHeader } from '../../transport/image-endpoint/paid-retry.js';
 import { buildChatImageRequestBody } from '../../transport/chat-image/build-request.js';
-import { parseChatImageResponse } from '../../transport/chat-image/parse-response.js';
+import { parseChatImageResponse, type ParsedChatImageResponse } from '../../transport/chat-image/parse-response.js';
 import { parseChatImageModelsResponse } from '../../transport/chat-image/models.js';
 import { listLocalCatalogModels } from '../../contract/image-model-capability.js';
 import { fetchProviderBalanceJson, parseNewApiBalanceResponse } from '../../transport/billing/query-balance.js';
@@ -27,6 +27,27 @@ function createValidationError(message: string, details?: Record<string, unknown
 
 function endpointUrl(endpointRoot: string, path: string): string {
   return new URL(path.replace(/^\//, ''), endpointRoot.endsWith('/') ? endpointRoot : `${endpointRoot}/`).toString();
+}
+
+function stringField(value: unknown): string | undefined {
+  return typeof value === 'string' && value.length > 0 ? value : undefined;
+}
+
+function recordField(value: unknown): Record<string, unknown> | undefined {
+  return typeof value === 'object' && value !== null && !Array.isArray(value) ? value as Record<string, unknown> : undefined;
+}
+
+function expectedMimeTypeForOutputFormat(outputFormat: string | undefined): string | undefined {
+  if (outputFormat === 'png') {
+    return 'image/png';
+  }
+  if (outputFormat === 'jpeg') {
+    return 'image/jpeg';
+  }
+  if (outputFormat === 'webp') {
+    return 'image/webp';
+  }
+  return undefined;
 }
 
 export function createChatImageProvider(): Provider<ChatImageProviderConfig, MockProviderRequest> {
@@ -69,8 +90,28 @@ export function createChatImageProvider(): Provider<ChatImageProviderConfig, Moc
     },
 
     async invoke(args: ProviderInvokeArgs<ChatImageProviderConfig, MockProviderRequest>): Promise<ProviderInvokeResult> {
-      const { config, request, signal } = args;
+      const { config, request, signal, logger } = args;
+      const providerLogger = logger?.child({
+        package: 'providers',
+        component: 'provider',
+        provider_id: chatImageDescriptor.id,
+      });
       const body = buildChatImageRequestBody(request, config.defaultModel);
+      const imageConfig = recordField(body.image_config);
+      const requestedOutputFormat = stringField(request.output?.outputFormat);
+      providerLogger?.info('provider.chat_image.request_summary', {
+        operation: request.operation,
+        model: body.model,
+        endpointCount: config.connection.endpoints.filter((candidate) => candidate.enabled).length,
+        inputImageCount: request.images?.length ?? 0,
+        hasMaskImage: request.maskImage !== undefined,
+        requestedOutputFormat,
+        requestedSizePreset: request.output?.sizePreset,
+        requestedAspectRatio: request.output?.aspectRatio,
+        wireImageConfigOutputFormat: stringField(imageConfig?.output_format),
+        wireImageConfigSize: stringField(imageConfig?.size),
+        wireImageConfigAspectRatio: stringField(imageConfig?.aspect_ratio),
+      });
 
       // 付费生成请求：按 provider 能力解析保守重试策略与可选 idempotency key。
       const paidRetry = resolvePaidRetryConfig(chatImageDescriptor);
@@ -95,12 +136,50 @@ export function createChatImageProvider(): Provider<ChatImageProviderConfig, Moc
           },
           { ...paidRetry.policy, maxRetries: 0 },
           candidateSignal,
-          undefined,
+          providerLogger,
           { retryability: 'paid', idempotencySupported: paidRetry.idempotencySupported },
         ),
       });
 
-      const parsed = parseChatImageResponse(execution.value.response.data);
+      let parsed: ParsedChatImageResponse;
+      try {
+        parsed = parseChatImageResponse(execution.value.response.data);
+      } catch (error) {
+        providerLogger?.error('provider.chat_image.response_parse_fail', {
+          model: body.model,
+          requestedOutputFormat,
+          selectedEndpointId: execution.selectedEndpointId,
+        }, { error: error as Error });
+        throw error;
+      }
+
+      providerLogger?.info('provider.chat_image.response_summary', {
+        model: body.model,
+        selectedEndpointId: execution.selectedEndpointId,
+        assetCount: parsed.assets.length,
+        assetMimeTypes: parsed.assetSummaries?.map((item) => item.mimeType ?? 'unknown') ?? [],
+        assetNames: parsed.assetSummaries?.map((item) => item.name ?? 'unnamed') ?? [],
+        assetSources: parsed.assetSummaries?.map((item) => item.source) ?? [],
+        assetReferenceKinds: parsed.assetSummaries?.map((item) => item.referenceKind) ?? [],
+      });
+      const expectedMimeType = expectedMimeTypeForOutputFormat(requestedOutputFormat);
+      const actualMimeTypes = parsed.assetSummaries?.map((item) => item.mimeType).filter((item): item is string => item !== undefined) ?? [];
+      if (
+        expectedMimeType !== undefined &&
+        actualMimeTypes.length > 0 &&
+        actualMimeTypes.some((mimeType) => mimeType !== expectedMimeType)
+      ) {
+        providerLogger?.warn('provider.chat_image.response_format_mismatch', {
+          model: body.model,
+          requestedOutputFormat,
+          expectedMimeType,
+          actualMimeTypes,
+          assetNames: parsed.assetSummaries?.map((item) => item.name ?? 'unnamed') ?? [],
+          assetSources: parsed.assetSummaries?.map((item) => item.source) ?? [],
+          selectedEndpointId: execution.selectedEndpointId,
+        });
+      }
+
       const result: {
         assets: readonly ProviderInvokeResult['assets'][number][];
         text?: string;

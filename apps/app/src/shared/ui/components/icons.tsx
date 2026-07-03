@@ -26,6 +26,7 @@ export type IconName =
   | 'image-check'
   | 'magic-wand'
   | 'message'
+  | 'network'
   | 'pencil'
   | 'place-ps'
   | 'plug'
@@ -60,22 +61,11 @@ interface IconProps {
 type SvgBody = (props: SVGProps<SVGSVGElement>) => ReactElement;
 
 const ICON_BODY_BY_NAME: Record<IconName, SvgBody> = {
+  /* ── Layout grid ───────────────────────────────────────────────── */
   add: () => (
     <>
       <line x1="12" y1="5" x2="12" y2="19" />
       <line x1="5" y1="12" x2="19" y2="12" />
-    </>
-  ),
-  algorithm: () => (
-    <>
-      <circle cx="12" cy="5.5" r="2.2" />
-      <circle cx="5.5" cy="17.5" r="2.2" />
-      <circle cx="18.5" cy="17.5" r="2.2" />
-      <circle cx="12" cy="19.5" r="2.2" />
-      <path d="M10.9 7.4L7 15.6" />
-      <path d="M13.1 7.4l3.9 8.2" />
-      <path d="M8 17.5h8" />
-      <path d="M12 17.3v0" />
     </>
   ),
   'arrow-right': () => (
@@ -85,28 +75,19 @@ const ICON_BODY_BY_NAME: Record<IconName, SvgBody> = {
     </>
   ),
   check: () => <polyline points="5 12.5 9.4 17 19 7" />,
-  'chevron-down': () => <polyline points="6 9 12 15 18 9" />,
-  'chevron-left': () => <polyline points="15 5 8 12 15 19" />,
-  'chevron-right': () => <polyline points="9 5 16 12 9 19" />,
   close: () => (
     <>
       <line x1="6.5" y1="6.5" x2="17.5" y2="17.5" />
       <line x1="17.5" y1="6.5" x2="6.5" y2="17.5" />
     </>
   ),
-  copy: () => (
-    <>
-      <rect x="8" y="8" width="11" height="11" rx="2" />
-      <path d="M5 15V7c0-1.1.9-2 2-2h8" />
-    </>
-  ),
-  download: () => (
-    <>
-      <path d="M12 4v10" />
-      <polyline points="8 10 12 14 16 10" />
-      <path d="M5 19h14" />
-    </>
-  ),
+
+  /* ── Chevron family — shared skeleton 7×14 ─────────────────────── */
+  'chevron-down': () => <polyline points="6 8.5 12 14.5 18 8.5" strokeWidth="2.2" />,
+  'chevron-left': () => <polyline points="15 5 8 12 15 19" />,
+  'chevron-right': () => <polyline points="9 5 16 12 9 19" />,
+
+  /* ── Status family — shared circle(r=9) base ───────────────────── */
   error: () => (
     <>
       <circle cx="12" cy="12" r="9" />
@@ -114,6 +95,22 @@ const ICON_BODY_BY_NAME: Record<IconName, SvgBody> = {
       <circle cx="12" cy="17" r="1" />
     </>
   ),
+  info: () => (
+    <>
+      <circle cx="12" cy="12" r="9" />
+      <line x1="12" y1="10.5" x2="12" y2="16.5" />
+      <circle cx="12" cy="7.4" r="1" />
+    </>
+  ),
+  warning: () => (
+    <>
+      <circle cx="12" cy="12" r="9" />
+      <line x1="12" y1="8" x2="12" y2="13" />
+      <circle cx="12" cy="16.5" r="1" />
+    </>
+  ),
+
+  /* ── Eye family ────────────────────────────────────────────────── */
   eye: () => (
     <>
       <path d="M3.5 12s3-5.5 8.5-5.5S20.5 12 20.5 12s-3 5.5-8.5 5.5S3.5 12 3.5 12" />
@@ -127,21 +124,47 @@ const ICON_BODY_BY_NAME: Record<IconName, SvgBody> = {
       <path d="M12.8 6.6C17.8 7.1 20.5 12 20.5 12s-.8 1.5-2.2 2.9" />
     </>
   ),
-  history: () => (
+
+  /* ── Transfer family — download / upload ───────────────────────── */
+  download: () => (
     <>
-      <path d="M5 8V4" />
-      <path d="M5 8h4" />
-      <path d="M5.6 8.2A7 7 0 1 1 4.9 14" />
-      <polyline points="12 8 12 12.5 15 14" />
+      <path d="M12 5v9" />
+      <polyline points="8.5 10.5 12 14 15.5 10.5" />
+      <path d="M5 19h14" />
     </>
   ),
-  info: () => (
+  upload: () => (
     <>
-      <circle cx="12" cy="12" r="9" />
-      <line x1="12" y1="10.5" x2="12" y2="16.5" />
-      <circle cx="12" cy="7.4" r="1" />
+      <path d="M12 19V10" />
+      <polyline points="8.5 13.5 12 10 15.5 13.5" />
+      <path d="M5 19h14" />
+      <path d="M6 5h12v3" />
     </>
   ),
+
+  /* ── Refresh family — shared circular-arrows skeleton ──────────── */
+  refresh: () => (
+    <>
+      <path d="M19 9a7 7 0 0 0-12-2l-2 2" />
+      <polyline points="5 5 5 9 9 9" />
+      <path d="M5 15a7 7 0 0 0 12 2l2-2" />
+      <polyline points="19 19 19 15 15 15" />
+    </>
+  ),
+  regenerate: () => (
+    <>
+      <path d="M19 9a7 7 0 0 0-12-2l-2 2" />
+      <polyline points="5 5 5 9 9 9" />
+      <path d="M5 15a7 7 0 0 0 12 2l2-2" />
+      <polyline points="19 19 19 15 15 15" />
+      <path d="M15.5 4.5l1.5 3 3 1.5-3 1.5-1.5 3-1.5-3-3-1.5 3-1.5z" />
+    </>
+  ),
+  spinner: () => (
+    <path d="M12 3a9 9 0 0 1 9 9" strokeDasharray="42 14" />
+  ),
+
+  /* ── Image family ──────────────────────────────────────────────── */
   'image-auto-mode': () => (
     <>
       <rect x="4" y="5" width="16" height="12" rx="2" />
@@ -156,20 +179,68 @@ const ICON_BODY_BY_NAME: Record<IconName, SvgBody> = {
       <polyline points="14 5 16 7 20 3" />
     </>
   ),
-  'magic-wand': () => (
+  'place-ps': () => (
     <>
-      <path d="M5 19L19 5" />
-      <path d="M14 4l6 6" />
-      <path d="M5 5h2" />
-      <path d="M6 4v2" />
-      <path d="M18 17h2" />
-      <path d="M19 16v2" />
+      <rect x="4" y="5" width="16" height="14" rx="2" />
+      <path d="M7 15l3-3 2 2 2.5-3 2.5 4" />
+      <line x1="12" y1="8" x2="12" y2="13" />
+      <line x1="9.5" y1="10.5" x2="14.5" y2="10.5" />
+    </>
+  ),
+
+  /* ── Layer family — shared rect(5,5 14×14 rx=2) frame ─────────── */
+  'layer-pixel': () => (
+    <>
+      <rect x="5" y="5" width="14" height="14" rx="2" />
+      <line x1="9" y1="5" x2="9" y2="19" />
+      <line x1="15" y1="5" x2="15" y2="19" />
+      <line x1="5" y1="9" x2="19" y2="9" />
+      <line x1="5" y1="15" x2="19" y2="15" />
+    </>
+  ),
+  'layer-smart-object': () => (
+    <>
+      <rect x="5" y="5" width="14" height="14" rx="2" />
+      <path d="M16 11.5v-3a1 1 0 0 0-1-1h-6a1 1 0 0 0-1 1v6a1 1 0 0 0 1 1h3" />
+    </>
+  ),
+  'layer-text': () => (
+    <>
+      <path d="M6 7h12" />
+      <path d="M12 7v10" />
+      <path d="M8.5 17h7" />
+    </>
+  ),
+  'layer-group': () => (
+    <>
+      <path d="M5 8h14" />
+      <path d="M6 8v9a2 2 0 0 0 2 2h8a2 2 0 0 0 2-2V8" />
+      <path d="M8 5h8v3H8z" />
+    </>
+  ),
+
+  /* ── Selection ─────────────────────────────────────────────────── */
+  selection: () => (
+    <rect x="4.5" y="4.5" width="15" height="15" rx="1.5" strokeDasharray="3.5 2.5" />
+  ),
+
+  /* ── Action / tool icons ───────────────────────────────────────── */
+  copy: () => (
+    <>
+      <rect x="8" y="8" width="11" height="11" rx="2" />
+      <path d="M5 15V7c0-1.1.9-2 2-2h8" />
+    </>
+  ),
+  history: () => (
+    <>
+      <path d="M5 8V4" />
+      <path d="M5 8h4" />
+      <path d="M5.6 8.2A7 7 0 1 1 4.9 14" />
+      <polyline points="12 8 12 12.5 15 14" />
     </>
   ),
   message: () => (
-    <>
-      <path d="M5 6.5h14a2 2 0 0 1 2 2v7a2 2 0 0 1-2 2H11l-4.5 3v-3H5a2 2 0 0 1-2-2v-7a2 2 0 0 1 2-2z" />
-    </>
+    <path d="M5 6.5h14a2 2 0 0 1 2 2v7a2 2 0 0 1-2 2H11l-4.5 3v-3H5a2 2 0 0 1-2-2v-7a2 2 0 0 1 2-2z" />
   ),
   pencil: () => (
     <>
@@ -186,41 +257,6 @@ const ICON_BODY_BY_NAME: Record<IconName, SvgBody> = {
       <path d="M16 16l3 3" />
     </>
   ),
-  'place-ps': () => (
-    <>
-      <rect x="4" y="5" width="16" height="14" rx="2" />
-      <path d="M7 15l3-3 2 2 2.5-3 2.5 4" />
-      <line x1="12" y1="8" x2="12" y2="13" />
-      <line x1="9.5" y1="10.5" x2="14.5" y2="10.5" />
-    </>
-  ),
-  'ps-layers': () => (
-    <>
-      <path d="M12 3l8 4-8 4-8-4 8-4z" />
-      <path d="M4 12l8 4 8-4" />
-      <path d="M4 17l8 4 8-4" />
-    </>
-  ),
-  refresh: () => (
-    <>
-      <path d="M19 8a7 7 0 0 0-12-2l-2 2" />
-      <polyline points="5 4 5 8 9 8" />
-      <path d="M5 16a7 7 0 0 0 12 2l2-2" />
-      <polyline points="19 20 19 16 15 16" />
-    </>
-  ),
-  regenerate: () => (
-    <>
-      <path d="M19 8a7 7 0 0 0-12-2l-2 2" />
-      <polyline points="5 4 5 8 9 8" />
-      <path d="M5 16a7 7 0 0 0 12 2l2-2" />
-      <polyline points="19 20 19 16 15 16" />
-      <circle cx="12" cy="12" r="1.5" />
-    </>
-  ),
-  selection: () => (
-    <rect x="4.5" y="4.5" width="15" height="15" rx="1.5" strokeDasharray="3.5 2.5" />
-  ),
   send: () => (
     <>
       <path d="M21 4L10 15" />
@@ -229,17 +265,64 @@ const ICON_BODY_BY_NAME: Record<IconName, SvgBody> = {
   ),
   settings: () => (
     <>
-      <polygon points="12,1.5 14.2,6.6 19.5,4.5 18,9.9 22.5,12 18,14.1 19.5,19.5 14.2,17.4 12,22.5 9.8,17.4 4.5,19.5 6,14.1 1.5,12 6,9.9 4.5,4.5 9.8,6.6" />
-      <circle cx="12" cy="12" r="4" />
+      <path d="M12 3l1.8 4.2 4.5-1.2-1.2 4.5L19.5 12l-2.4 1.5 1.2 4.5-4.5-1.2L12 21l-1.8-4.2-4.5 1.2 1.2-4.5L4.5 12l2.4-1.5-1.2-4.5 4.5 1.2z" />
+      <circle cx="12" cy="12" r="3.5" />
     </>
   ),
-  spinner: () => (
-    <path d="M12 3a9 9 0 0 1 9 9" strokeDasharray="42 14" />
-  ),
-  star: () => (
+  'magic-wand': () => (
     <>
-      <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2" />
+      <path d="M5 19L19 5" strokeWidth="2.5" />
+      <path d="M14 4l6 6" strokeWidth="2.3" />
+      <path d="M5 5h2.5" strokeWidth="2.3" />
+      <path d="M6.25 3.75v2.5" strokeWidth="2.3" />
+      <path d="M17.5 17.5h2.5" strokeWidth="2.3" />
+      <path d="M18.75 16.25v2.5" strokeWidth="2.3" />
     </>
+  ),
+  trash: () => (
+    <>
+      <path d="M5 8h14" />
+      <path d="M9 8V6h6v2" />
+      <path d="M8 11v8" />
+      <path d="M12 11v8" />
+      <path d="M16 11v8" />
+      <path d="M7 8l1 13h8l1-13" />
+    </>
+  ),
+
+  /* ── Algorithm / network ───────────────────────────────────────── */
+  algorithm: () => (
+    <>
+      <circle cx="12" cy="5.5" r="2.2" />
+      <circle cx="5.5" cy="17.5" r="2.2" />
+      <circle cx="18.5" cy="17.5" r="2.2" />
+      <circle cx="12" cy="19.5" r="2.2" />
+      <path d="M10.9 7.4L7 15.6" />
+      <path d="M13.1 7.4l3.9 8.2" />
+      <path d="M8 17.5h8" />
+    </>
+  ),
+  network: () => (
+    <>
+      <path d="M4.5 10.5a11.2 11.2 0 0 1 15 0" />
+      <path d="M7.5 13.5a6.7 6.7 0 0 1 9 0" />
+      <path d="M10.4 16.4a2.4 2.4 0 0 1 3.2 0" />
+      <circle cx="12" cy="19" r="1.2" fill="currentColor" stroke="none" />
+    </>
+  ),
+
+  /* ── Layers panel ──────────────────────────────────────────────── */
+  'ps-layers': () => (
+    <>
+      <path d="M12 4l8 4-8 4-8-4z" />
+      <path d="M4 12l8 4 8-4" />
+      <path d="M4 17l8 4 8-4" />
+    </>
+  ),
+
+  /* ── Misc ──────────────────────────────────────────────────────── */
+  star: () => (
+    <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2" />
   ),
   target: () => (
     <>
@@ -249,54 +332,6 @@ const ICON_BODY_BY_NAME: Record<IconName, SvgBody> = {
       <line x1="12" y1="19" x2="12" y2="22" />
       <line x1="2" y1="12" x2="5" y2="12" />
       <line x1="19" y1="12" x2="22" y2="12" />
-    </>
-  ),
-  trash: () => (
-    <>
-      <path d="M5 7h14" />
-      <path d="M9 7V5h6v2" />
-      <path d="M8 10v9" />
-      <path d="M12 10v9" />
-      <path d="M16 10v9" />
-      <path d="M7 7l1 14h8l1-14" />
-    </>
-  ),
-  upload: () => (
-    <>
-      <path d="M12 20V9" />
-      <polyline points="8 13 12 9 16 13" />
-      <path d="M5 20h14" />
-      <path d="M6 4h12v4" />
-    </>
-  ),
-  warning: () => (
-    <>
-      <path d="M12 4.5l8 14H4l8-14z" />
-      <line x1="12" y1="9.5" x2="12" y2="13.5" />
-      <circle cx="12" cy="16.5" r="1" />
-    </>
-  ),
-  'layer-pixel': () => (
-    <rect x="5" y="5" width="14" height="14" rx="2" fill="currentColor" fillOpacity="0.2" stroke="currentColor" />
-  ),
-  'layer-smart-object': () => (
-    <>
-      <rect x="5" y="5" width="14" height="14" rx="2" />
-      <circle cx="16.5" cy="16.5" r="2.5" fill="currentColor" fillOpacity="0.2" stroke="currentColor" />
-    </>
-  ),
-  'layer-text': () => (
-    <>
-      <path d="M7 7h10" />
-      <path d="M12 7v10" />
-      <path d="M9 17h6" />
-    </>
-  ),
-  'layer-group': () => (
-    <>
-      <path d="M5 8h14" />
-      <path d="M6 8v9a2 2 0 0 0 2 2h8a2 2 0 0 0 2-2V8" />
-      <path d="M8 5h8v3H8z" />
     </>
   ),
 };

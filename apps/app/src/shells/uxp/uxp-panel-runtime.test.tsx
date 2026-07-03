@@ -29,6 +29,10 @@ vi.mock('../../harness/components/uxp-css-contract', () => ({
   UxpCssContractHarnessPage: () => null,
 }));
 
+vi.mock('../../harness/components/composer-select', () => ({
+  ComposerSelectHarnessPage: () => null,
+}));
+
 vi.mock('../../shared/ui/panel-bootstrap', () => ({
   primeSharedUi: mocks.primeSharedUiMock,
 }));
@@ -190,6 +194,20 @@ describe('UXP panel runtime', () => {
 
   it('renders the UXP CSS contract harness instead of AppShell when the panel harness override is enabled', () => {
     window.localStorage.setItem('imagenPsPanelHarness', 'uxp-css-contract');
+    const createHost = vi.fn(() => fakeHost());
+    const runtime = createImagenPanelRuntime({ createHost });
+
+    const mounted = runtime.mount(document.getElementById('root'));
+
+    expect(mounted).toBeUndefined();
+    expect(createHost).not.toHaveBeenCalled();
+    expect(createRootMock).toHaveBeenCalledTimes(1);
+    expect(renderMock).toHaveBeenCalledTimes(1);
+    expect(primeSharedUiMock).toHaveBeenCalledTimes(1);
+  });
+
+  it('renders the ComposerSelect harness instead of AppShell when the panel harness override is enabled', () => {
+    window.localStorage.setItem('imagenPsPanelHarness', 'composer-select');
     const createHost = vi.fn(() => fakeHost());
     const runtime = createImagenPanelRuntime({ createHost });
 

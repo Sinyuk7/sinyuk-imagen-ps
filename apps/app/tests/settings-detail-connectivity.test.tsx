@@ -192,6 +192,75 @@ describe('SettingsDetailPage contract — connectivity', () => {
     expect(spies.saveProviderProfile).not.toHaveBeenCalled();
   });
 
+  it('keeps preferred endpoint radio selection singular across rapid clicks', async () => {
+    const container = document.createElement('div');
+    document.body.appendChild(container);
+    const { spies } = await renderDetail(container);
+
+    await act(async () => {
+      queryByTestId(container, 'provider-endpoint-add').click();
+    });
+    const secondInput = queryByTestId(container, 'provider-endpoint-url-1') as HTMLInputElement;
+
+    await act(async () => {
+      changeInput(secondInput, 'https://mock-secondary.local');
+      queryByTestId(container, 'provider-endpoint-preferred-1').click();
+      queryByTestId(container, 'provider-endpoint-preferred-0').click();
+      queryByTestId(container, 'provider-endpoint-preferred-1').click();
+    });
+    await flush();
+
+    const checkedPreferred = Array.from(container.querySelectorAll<HTMLInputElement>('input[type="radio"][data-testid^="provider-endpoint-preferred-"]')).filter((input) => input.checked);
+    expect(checkedPreferred).toHaveLength(1);
+    expect(checkedPreferred[0]?.dataset.testid).toBe('provider-endpoint-preferred-1');
+    expect(container.querySelectorAll('[data-testid^="provider-endpoint-preferred-dot-"]')).toHaveLength(1);
+
+    await act(async () => {
+      queryByTestId(container, 'provider-save-button').click();
+    });
+
+    const savedConnection = spies.saveProviderProfile.mock.calls[0]?.[0].config.connection as {
+      readonly preferredEndpointId?: string;
+      readonly endpoints: readonly { readonly id: string; readonly url: string }[];
+    };
+    const secondEndpoint = savedConnection.endpoints.find((endpoint) => endpoint.url === 'https://mock-secondary.local');
+    expect(secondEndpoint).toBeDefined();
+    expect(savedConnection.preferredEndpointId).toBe(secondEndpoint?.id);
+  });
+
+  it('disables draft controls while a connection test is pending', async () => {
+    const container = document.createElement('div');
+    document.body.appendChild(container);
+    const { spies } = await renderDetail(container);
+    let resolveTest: ((value: Awaited<ReturnType<typeof spies.probeProfileEndpoints>>) => void) | undefined;
+    spies.probeProfileEndpoints.mockImplementationOnce(
+      () =>
+        new Promise((resolve) => {
+          resolveTest = resolve;
+        }),
+    );
+
+    await act(async () => {
+      queryByTestId(container, 'provider-test-button').click();
+      await Promise.resolve();
+    });
+
+    expect((queryByTestId(container, 'provider-endpoint-url-0') as HTMLInputElement).disabled).toBe(true);
+    expect((queryByTestId(container, 'provider-alias-input') as HTMLInputElement).disabled).toBe(true);
+
+    await act(async () => {
+      resolveTest?.({
+        ok: true,
+        value: {
+          results: [{ endpointId: 'primary', status: 'healthy', checkedAt: Date.now(), modelCount: 1 }],
+        },
+      });
+    });
+    await flush();
+
+    expect((queryByTestId(container, 'provider-endpoint-url-0') as HTMLInputElement).disabled).toBe(false);
+  });
+
   it('renders the test button as a compact icon with nearby test result meta', async () => {
     const container = document.createElement('div');
     document.body.appendChild(container);
@@ -200,7 +269,7 @@ describe('SettingsDetailPage contract — connectivity', () => {
     const button = container.querySelector('[data-testid="provider-test-button"]');
     expect(button).not.toBeNull();
     expect(button?.classList.contains('ui-icon-button')).toBe(true);
-    expect(container.querySelector('[data-icon-name="plug"]')).not.toBeNull();
+    expect(container.querySelector('[data-icon-name="network"]')).not.toBeNull();
 
     await act(async () => {
       queryByTestId(container, 'provider-test-button').click();

@@ -103,6 +103,76 @@ describe('SettingsDetailPage contract — billing', () => {
     expect(queryByTestId(container, 'provider-billing-access-token-remove')).not.toBeNull();
   });
 
+  it('preserves same-frame billing user and token edits when saving', async () => {
+    const container = document.createElement('div');
+    document.body.appendChild(container);
+    const services = createFakeServices({
+      profiles: [{
+        profileId: 'mock-profile',
+        providerId: 'mock',
+        displayName: 'Mock Profile',
+        enabled: true,
+        config: {
+          providerId: 'mock',
+          displayName: 'Mock Profile',
+          family: 'image-endpoint',
+          connection: {
+            selectionMode: 'manual',
+            failoverEnabled: false,
+            preferredEndpointId: 'primary',
+            endpoints: [{ id: 'primary', url: 'https://mock.local', enabled: true }],
+          },
+          defaultModel: 'mock-image-v1',
+          billing: { mode: 'new-api', userId: '', accessTokenSecretRef: '' },
+        },
+        createdAt: '2026-06-15T00:00:00.000Z',
+        updatedAt: '2026-06-15T00:00:00.000Z',
+      } satisfies ProviderProfile],
+    });
+    services.spies.describeProvider.mockReturnValue({
+      id: 'mock',
+      family: 'image-endpoint',
+      displayName: 'Mock Provider',
+      operations: ['text_to_image', 'image_edit'],
+      invokeMode: 'sync',
+      defaultModels: [{ id: 'mock-image-v1' }],
+      billing: {
+        supportedModes: ['none', 'new-api'],
+        defaultMode: 'new-api',
+      },
+    });
+    await renderDetailWithRoot(container, services, 'mock-profile', vi.fn(), vi.fn(async () => undefined));
+
+    await act(async () => {
+      queryByTestId(container, 'provider-billing-expand-button').click();
+    });
+    await flush();
+    await act(async () => {
+      const userInput = queryByTestId(container, 'provider-billing-user-id-input') as HTMLInputElement;
+      const tokenInput = queryByTestId(container, 'provider-billing-access-token-input') as HTMLInputElement;
+      userInput.value = '10001';
+      userInput.dispatchEvent(new KeyboardEvent('keyup', { bubbles: true, key: '1' }));
+      tokenInput.value = 'billing-token';
+      tokenInput.dispatchEvent(new KeyboardEvent('keyup', { bubbles: true, key: 'x' }));
+    });
+    await act(async () => {
+      queryByTestId(container, 'provider-save-button').click();
+    });
+
+    expect(services.spies.saveProviderProfile).toHaveBeenCalledWith(expect.objectContaining({
+      config: expect.objectContaining({
+        billing: expect.objectContaining({
+          mode: 'new-api',
+          userId: '10001',
+          accessTokenSecretRef: 'secret:pending:billingAccessToken',
+        }),
+      }),
+      secretValues: expect.objectContaining({
+        billingAccessToken: 'billing-token',
+      }),
+    }));
+  });
+
   it('compacts quota values in the billing detail card', async () => {
     const container = document.createElement('div');
     document.body.appendChild(container);

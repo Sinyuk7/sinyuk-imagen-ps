@@ -82,6 +82,17 @@ function fail(message) {
   throw new Error(`[theme-source] ${message}`);
 }
 
+function readSurfaceStrategy() {
+  const arg = process.argv.find((item) => item.startsWith('--surface='));
+  const value = arg ? arg.slice('--surface='.length) : (process.env.IMAGEN_THEME_SURFACE ?? 'md');
+  if (value !== 'host' && value !== 'md') {
+    fail(`--surface must be "host" or "md", got "${value}"`);
+  }
+  return value;
+}
+
+const surfaceStrategy = readSurfaceStrategy();
+
 function normalizeColor(value) {
   const trimmed = value.trim();
   const rgb = trimmed.match(/^rgb\(\s*(\d{1,3})\s+(\d{1,3})\s+(\d{1,3})\s*\)$/i);
@@ -259,16 +270,60 @@ function appDerivedVars(tokens, mode, includeBase) {
     ...toastVars(mode),
   ];
   if (includeBase) {
-    lines.push(
+    lines.push(...appSurfaceVars(tokens, mode), ...appBaseVars(hoverOverlay, activeOverlay));
+  } else if (isLight) {
+    if (surfaceStrategy === 'host') {
+      lines.push(...appSurfaceVars(tokens, mode));
+    }
+    lines.push(`--app-hover-overlay-fallback:${hoverOverlay};`, `--app-color-active-overlay:${activeOverlay};`);
+  }
+  return lines.map((line) => `    ${line}`).join('\n');
+}
+
+function appSurfaceVars(tokens, mode) {
+  return surfaceStrategy === 'host' ? hostSurfaceVars(mode) : mdSurfaceVars();
+}
+
+function mdSurfaceVars() {
+  return [
+    '--app-color-background-base:var(--md-sys-color-surface);',
+    '--app-color-background-layer-1:var(--md-sys-color-surface-container-low);',
+    '--app-color-background-layer-2:var(--md-sys-color-surface-container);',
+    '--app-color-background-elevated:var(--md-sys-color-surface-container-high);',
+    '--app-color-border-default:var(--md-sys-color-outline-variant);',
+    '--app-color-border-strong:var(--md-sys-color-outline);',
+    '--app-color-text-primary:var(--md-sys-color-on-surface);',
+    '--app-color-text-secondary:var(--md-sys-color-on-surface-variant);',
+    '--app-color-text-muted:var(--md-sys-color-outline);',
+    '--app-color-text-on-accent:var(--md-sys-color-on-primary);',
+    '--app-color-link:var(--app-color-informative);',
+    '--app-color-accent-default:var(--md-sys-color-primary);',
+    '--app-color-positive:var(--md-extended-color-green-color);',
+    '--app-color-on-positive:var(--md-extended-color-green-on-color);',
+    '--app-color-informative:var(--md-sys-color-primary);',
+    '--app-color-on-informative:var(--md-sys-color-on-primary);',
+    '--app-color-notice:var(--md-extended-color-yellow-color);',
+    '--app-color-on-notice:var(--md-extended-color-yellow-on-color);',
+    '--app-color-negative:var(--md-sys-color-error);',
+    '--app-color-on-negative:var(--md-sys-color-on-error);',
+    '--app-color-focus-ring:var(--app-color-accent-default);',
+    '--app-color-canvas:var(--md-sys-color-surface-container-lowest);',
+  ];
+}
+
+function hostSurfaceVars(mode) {
+  const isLight = mode.startsWith('light');
+  if (isLight) {
+    return [
       '--app-color-background-base:var(--uxp-host-background-color, var(--md-sys-color-surface));',
-      '--app-color-background-layer-1:var(--md-sys-color-surface-container-low);',
-      '--app-color-background-layer-2:var(--md-sys-color-surface-container);',
-      '--app-color-background-elevated:var(--md-sys-color-surface-container-high);',
-      '--app-color-border-default:var(--uxp-host-border-color, var(--md-sys-color-outline-variant));',
-      '--app-color-border-strong:var(--md-sys-color-outline);',
+      '--app-color-background-layer-1:#EFEFF2;',
+      '--app-color-background-layer-2:#E8E8EC;',
+      '--app-color-background-elevated:#E0E1E6;',
+      '--app-color-border-default:#B8BAC2;',
+      '--app-color-border-strong:#8C909A;',
       '--app-color-text-primary:var(--uxp-host-text-color, var(--md-sys-color-on-surface));',
-      '--app-color-text-secondary:var(--uxp-host-text-color-secondary, var(--md-sys-color-on-surface-variant));',
-      '--app-color-text-muted:var(--md-sys-color-outline);',
+      '--app-color-text-secondary:#454A54;',
+      '--app-color-text-muted:#707681;',
       '--app-color-text-on-accent:var(--md-sys-color-on-primary);',
       '--app-color-link:var(--uxp-host-link-text-color, var(--app-color-informative));',
       '--app-color-accent-default:var(--md-sys-color-primary);',
@@ -280,26 +335,52 @@ function appDerivedVars(tokens, mode, includeBase) {
       '--app-color-on-notice:var(--md-extended-color-yellow-on-color);',
       '--app-color-negative:var(--md-sys-color-error);',
       '--app-color-on-negative:var(--md-sys-color-on-error);',
-      `--app-hover-overlay-fallback:${hoverOverlay};`,
-      '--app-color-hover-overlay:var(--uxp-host-widget-hover-background-color, var(--app-hover-overlay-fallback));',
-      `--app-color-active-overlay:${activeOverlay};`,
       '--app-color-focus-ring:var(--app-color-accent-default);',
-      '--app-color-canvas:var(--md-sys-color-surface-container-lowest);',
-      '--app-radius-small:8px;',
-      '--app-radius-medium:12px;',
-      '--app-radius-large:20px;',
-      '--app-radius-pill:var(--app-radius-medium);',
-      '--app-space-1:4px;',
-      '--app-space-2:8px;',
-      '--app-space-3:12px;',
-      '--app-space-4:16px;',
-      "--app-font-family-base:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;",
-      "--app-font-family-mono:'SF Mono','Menlo',monospace;",
-    );
-  } else if (isLight) {
-    lines.push(`--app-hover-overlay-fallback:${hoverOverlay};`, `--app-color-active-overlay:${activeOverlay};`);
+      '--app-color-canvas:#FFFFFF;',
+    ];
   }
-  return lines.map((line) => `    ${line}`).join('\n');
+  return [
+    '--app-color-background-base:var(--uxp-host-background-color, var(--md-sys-color-surface));',
+    '--app-color-background-layer-1:#4B4B4B;',
+    '--app-color-background-layer-2:#464646;',
+    '--app-color-background-elevated:#414141;',
+    '--app-color-border-default:#6A6A6A;',
+    '--app-color-border-strong:#858585;',
+    '--app-color-text-primary:var(--uxp-host-text-color, var(--md-sys-color-on-surface));',
+    '--app-color-text-secondary:#C1C1C1;',
+    '--app-color-text-muted:#A6A6A6;',
+    '--app-color-text-on-accent:var(--md-sys-color-on-primary);',
+    '--app-color-link:var(--uxp-host-link-text-color, var(--app-color-informative));',
+    '--app-color-accent-default:var(--md-sys-color-primary);',
+    '--app-color-positive:var(--md-extended-color-green-color);',
+    '--app-color-on-positive:var(--md-extended-color-green-on-color);',
+    '--app-color-informative:var(--md-sys-color-primary);',
+    '--app-color-on-informative:var(--md-sys-color-on-primary);',
+    '--app-color-notice:var(--md-extended-color-yellow-color);',
+    '--app-color-on-notice:var(--md-extended-color-yellow-on-color);',
+    '--app-color-negative:var(--md-sys-color-error);',
+    '--app-color-on-negative:var(--md-sys-color-on-error);',
+    '--app-color-focus-ring:var(--app-color-accent-default);',
+    '--app-color-canvas:#3D3D3D;',
+  ];
+}
+
+function appBaseVars(hoverOverlay, activeOverlay) {
+  return [
+    `--app-hover-overlay-fallback:${hoverOverlay};`,
+    '--app-color-hover-overlay:var(--uxp-host-widget-hover-background-color, var(--app-hover-overlay-fallback));',
+    `--app-color-active-overlay:${activeOverlay};`,
+    '--app-radius-small:8px;',
+    '--app-radius-medium:12px;',
+    '--app-radius-large:20px;',
+    '--app-radius-pill:var(--app-radius-medium);',
+    '--app-space-1:4px;',
+    '--app-space-2:8px;',
+    '--app-space-3:12px;',
+    '--app-space-4:16px;',
+    "--app-font-family-base:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;",
+    "--app-font-family-mono:'SF Mono','Menlo',monospace;",
+  ];
 }
 
 function panelOverrideVars(tokens, mode) {

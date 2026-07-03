@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type {
   EndpointProbeResult,
   ProviderDescriptor,
@@ -137,18 +137,27 @@ export function useProfileDetail(services: AppServices, profileId: string | null
   const [profile, setProfile] = useState<ProviderProfile | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const reloadSequenceRef = useRef(0);
 
   const reload = useCallback(async () => {
+    const sequence = reloadSequenceRef.current + 1;
+    reloadSequenceRef.current = sequence;
     if (!profileId) {
       setProfile(null);
+      setError(null);
+      setLoading(false);
       return;
     }
     setLoading(true);
     const result = await services.commands.getProviderProfile(profileId);
+    if (reloadSequenceRef.current !== sequence) {
+      return;
+    }
     if (result.ok) {
       setProfile(result.value);
       setError(null);
     } else {
+      setProfile(null);
       setError(commandMessage(result.error));
     }
     setLoading(false);

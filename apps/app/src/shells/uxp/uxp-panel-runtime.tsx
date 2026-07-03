@@ -1,6 +1,7 @@
 import { createRoot, type Root } from 'react-dom/client';
 import { AppShell } from '../../shared/ui/app-shell';
 import { primeSharedUi } from '../../shared/ui/panel-bootstrap';
+import { ComposerSelectHarnessPage } from '../../harness/components/composer-select';
 import { UxpCssContractHarnessPage } from '../../harness/components/uxp-css-contract';
 import type { PluginHostShell } from './create-plugin-host-shell';
 import { createPluginHostShell } from './create-plugin-host-shell';
@@ -176,11 +177,17 @@ function exposeHostSmokeHandle(host: PluginHostShell | undefined, resolveModules
   };
 }
 
-function resolveUxpPanelHarness(): 'uxp-css-contract' | null {
+type UxpPanelHarness = 'composer-select' | 'uxp-css-contract';
+
+function isUxpPanelHarness(value: string | null): value is UxpPanelHarness {
+  return value === 'composer-select' || value === 'uxp-css-contract';
+}
+
+function resolveUxpPanelHarness(): UxpPanelHarness | null {
   try {
     if (typeof window !== 'undefined' && typeof window.location?.search === 'string') {
       const fromUrl = new URLSearchParams(window.location.search).get('harness');
-      if (fromUrl === 'uxp-css-contract') {
+      if (isUxpPanelHarness(fromUrl)) {
         return fromUrl;
       }
     }
@@ -191,7 +198,7 @@ function resolveUxpPanelHarness(): 'uxp-css-contract' | null {
   try {
     if (typeof window !== 'undefined') {
       const fromStorage = window.localStorage?.getItem('imagenPsPanelHarness');
-      if (fromStorage === 'uxp-css-contract') {
+      if (isUxpPanelHarness(fromStorage)) {
         return fromStorage;
       }
     }
@@ -282,9 +289,11 @@ export function createImagenPanelRuntime(options?: ImagenPanelRuntimeOptions): I
         reactRoot = createRoot(rootEl);
         globalThis.__IMAGEN_PS_REACT_ROOT__ = reactRoot;
         const harness = resolveUxpPanelHarness();
-        if (harness === 'uxp-css-contract') {
+        if (harness !== null) {
           bootstrapCheckpoint('panel.bootstrap.harness.rendered', { harness });
-          reactRoot.render(<UxpCssContractHarnessPage />);
+          reactRoot.render(harness === 'composer-select'
+            ? <ComposerSelectHarnessPage />
+            : <UxpCssContractHarnessPage />);
           globalThis.__IMAGEN_PS_PANEL_RUNTIME__ = runtime;
           return undefined;
         }

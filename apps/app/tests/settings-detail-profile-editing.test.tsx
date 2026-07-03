@@ -1,6 +1,9 @@
 import { act } from 'react';
+import { createRoot, type Root } from 'react-dom/client';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { fakeProfile, createFakeServices } from './fakes';
+import { SettingsDetailPage } from '../src/shared/ui/pages/settings-detail-page';
+import { TestAppProviders } from './render-helpers';
 import {
   buttonByText,
   changeInput,
@@ -109,6 +112,75 @@ describe('SettingsDetailPage contract — profile editing', () => {
     expect(container.querySelector('.page-header-status')).toBeNull();
     expect(container.querySelector('[data-testid="provider-enabled-checkbox"]')).toBeNull();
     expect(container.textContent).not.toContain('Enable profile');
+  });
+
+  it('ignores stale profile loads after switching to another profile', async () => {
+    const profileA = {
+      ...fakeProfile,
+      profileId: 'profile-a',
+      displayName: 'Profile A',
+    };
+    const profileB = {
+      ...fakeProfile,
+      profileId: 'profile-b',
+      displayName: 'Profile B',
+      config: {
+        ...fakeProfile.config,
+        displayName: 'Profile B',
+        connection: {
+          selectionMode: 'manual' as const,
+          failoverEnabled: false,
+          preferredEndpointId: 'primary',
+          endpoints: [{ id: 'primary', url: 'https://profile-b.local', enabled: true }],
+        },
+      },
+    };
+    const services = createFakeServices({ profiles: [profileA, profileB] });
+    let resolveA: ((value: Awaited<ReturnType<typeof services.spies.getProviderProfile>>) => void) | undefined;
+    let resolveB: ((value: Awaited<ReturnType<typeof services.spies.getProviderProfile>>) => void) | undefined;
+    services.spies.getProviderProfile.mockImplementation((profileId: string) => new Promise((resolve) => {
+      if (profileId === 'profile-a') {
+        resolveA = resolve;
+        return;
+      }
+      resolveB = resolve;
+    }));
+    const container = document.createElement('div');
+    document.body.appendChild(container);
+    const root: Root = createRoot(container);
+    const render = (profileId: string) => root.render(
+      <TestAppProviders services={services.services}>
+        <SettingsDetailPage onNav={vi.fn()} profileId={profileId} onProfilesChanged={vi.fn(async () => undefined)} />
+      </TestAppProviders>,
+    );
+
+    try {
+      await act(async () => {
+        render('profile-a');
+      });
+      await act(async () => {
+        render('profile-b');
+      });
+      await act(async () => {
+        resolveB?.({ ok: true as const, value: profileB });
+      });
+      await flush();
+      expect(container.textContent).toContain('Profile B');
+      expect((queryByTestId(container, 'provider-endpoint-url-0') as HTMLInputElement).value).toBe('https://profile-b.local');
+
+      await act(async () => {
+        resolveA?.({ ok: true as const, value: profileA });
+      });
+      await flush();
+
+      expect(container.textContent).toContain('Profile B');
+      expect(container.textContent).not.toContain('Profile A');
+      expect((queryByTestId(container, 'provider-endpoint-url-0') as HTMLInputElement).value).toBe('https://profile-b.local');
+    } finally {
+      await act(async () => {
+        root.unmount();
+      });
+    }
   });
 
   it('does not send secretValues when API key field is left blank', async () => {

@@ -6,6 +6,8 @@ import { TextSelect } from './text-select';
 import { useI18n } from '../i18n/i18n-context';
 import { sanitizeProviderSecretValue, type ProviderBillingDraft } from '../hooks/use-provider-settings';
 
+type ProviderBillingUpdater = (billing: ProviderBillingDraft) => ProviderBillingDraft;
+
 interface BillingModeOption {
   readonly id: ProviderBillingDraft['mode'];
   readonly label: string;
@@ -13,7 +15,7 @@ interface BillingModeOption {
 
 interface ProviderBillingSettingsProps {
   readonly billing: ProviderBillingDraft;
-  readonly onBillingChange: (billing: ProviderBillingDraft) => void;
+  readonly onBillingChange: (updater: ProviderBillingUpdater) => void;
   readonly billingModeOptions: readonly BillingModeOption[];
   readonly modeMenuOpen: boolean;
   readonly onModeMenuOpenChange: (open: boolean) => void;
@@ -62,10 +64,10 @@ export function ProviderBillingSettings({
           onOpenChange={onModeMenuOpenChange}
           options={billingModeOptions}
           selectedId={billing.mode}
-          onSelect={(id) => onBillingChange({
-            ...billing,
+          onSelect={(id) => onBillingChange((current) => ({
+            ...current,
             mode: id as ProviderBillingDraft['mode'],
-          })}
+          }))}
           testId="provider-billing-mode-selector"
           triggerId="provider-billing-mode-selector"
           containerClassName="cmp-select cmp-select-model provider-model-select"
@@ -83,7 +85,8 @@ export function ProviderBillingSettings({
               className="field-input mono ui-field-control"
               placeholder="10001"
               value={billing.userId}
-              onValue={(value) => onBillingChange({ ...billing, userId: sanitizeProviderSecretValue(value) })}
+              disabled={disabled}
+              onValue={(value) => onBillingChange((current) => ({ ...current, userId: sanitizeProviderSecretValue(value) }))}
             />
             <HelpText className="field-hint billing-settings-hint" variant={userIdError ? 'negative' : undefined}>
               {userIdError ?? t.settings.billingUserIdHint}
@@ -130,7 +133,8 @@ export function ProviderBillingSettings({
                 className="field-input mono ui-field-control"
                 placeholder={billing.hasSavedAccessToken && !billing.accessToken ? t.settings.accessTokenReplacePlaceholder : accessTokenPlaceholder}
                 value={billing.accessToken}
-                onValue={(value) => onBillingChange({ ...billing, accessToken: sanitizeProviderSecretValue(value) })}
+                disabled={disabled}
+                onValue={(value) => onBillingChange((current) => ({ ...current, accessToken: sanitizeProviderSecretValue(value) }))}
               />
             ) : null}
             <HelpText

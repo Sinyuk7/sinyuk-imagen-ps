@@ -910,11 +910,20 @@ export const PAGES_CSS = `
   min-width:160px;
 }
 
+.provider-type-guide{
+  padding-top:0;
+  padding-right:16px;
+  padding-bottom:10px;
+  padding-left:16px;
+  font-size:11px;
+  line-height:16px;
+  color:var(--app-color-text-secondary);
+}
 .provider-type-row{
   display:flex;
   align-items:center;
   padding:14px 16px;
-  min-height:72px;
+  min-height:88px;
   border-top:1px solid var(--app-color-border-default);
   cursor:pointer;
 }
@@ -962,6 +971,15 @@ export const PAGES_CSS = `
   line-height:14px;
   color:var(--app-color-text-muted);
   letter-spacing:.2px;
+}
+.provider-type-hint{
+  min-width:0;
+  margin-top:5px;
+  font-size:11px;
+  line-height:16px;
+  color:var(--app-color-text-secondary);
+  overflow-wrap:anywhere;
+  word-break:break-word;
 }
 .provider-type-trail{
   display:flex;

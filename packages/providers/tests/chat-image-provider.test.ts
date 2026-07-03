@@ -1,4 +1,5 @@
 import { describe, expect, it, vi } from 'vitest';
+import { createLogger, createMemorySink } from '@imagen-ps/foundation';
 import { createChatImageProvider, chatImageDescriptor } from '../src/providers/chat-image/index.js';
 import { resolveImageModelRule } from '../src/contract/image-model-capability.js';
 import { buildChatImageRequestBody } from '../src/transport/chat-image/build-request.js';
@@ -454,6 +455,77 @@ describe('chat-image provider', () => {
     expect(result.text).toBe('Generated successfully');
     expect(JSON.stringify(result.raw)).not.toContain('data:image');
     expect(JSON.stringify(result.diagnostics ?? [])).not.toContain('data:image');
+    fetchSpy.mockRestore();
+  });
+
+  it('logs request summaries, response summaries, and output-format mismatches without leaking image data', async () => {
+    const sink = createMemorySink();
+    const logger = createLogger({
+      sink,
+      context: { surface: 'test', package: 'application', component: 'runtime' },
+      traceId: 'tr_chat_image_logs',
+    });
+    const fetchSpy = vi.spyOn(globalThis, 'fetch').mockResolvedValue(
+      new Response(
+        JSON.stringify({
+          choices: [{ message: { content: `done\n![image](${tinyJpegDataUrl})` } }],
+        }),
+        {
+          status: 200,
+          headers: { 'Content-Type': 'application/json' },
+        },
+      ),
+    );
+    const provider = createChatImageProvider();
+    const config = provider.validateConfig({
+      providerId: 'chat-image',
+      displayName: 'Chat Image',
+      family: 'chat-image',
+      connection: {
+        selectionMode: 'manual',
+        failoverEnabled: false,
+        preferredEndpointId: 'primary',
+        endpoints: [{ id: 'primary', url: 'https://openrouter.ai/api/v1', enabled: true }],
+      },
+      apiKey: 'test-key',
+      defaultModel: 'gemini-3.1-flash-image',
+    });
+    const request = provider.validateRequest({
+      operation: 'text_to_image',
+      prompt: 'test',
+      output: { count: 1, outputFormat: 'png' },
+      providerOptions: { model: 'gemini-3.1-flash-image' },
+    });
+
+    await provider.invoke({ config, request, logger });
+
+    const requestSummary = sink.records.find((record) => record.event === 'provider.chat_image.request_summary');
+    expect(requestSummary?.attrs).toMatchObject({
+      requestedOutputFormat: 'png',
+      wireImageConfigOutputFormat: 'png',
+      model: 'gemini-3.1-flash-image',
+    });
+    const responseSummary = sink.records.find((record) => record.event === 'provider.chat_image.response_summary');
+    expect(responseSummary?.attrs).toMatchObject({
+      assetCount: 1,
+      assetMimeTypes: ['image/jpeg'],
+      assetNames: ['generated-1.jpg'],
+      assetSources: ['content'],
+      assetReferenceKinds: ['data-url'],
+      selectedEndpointId: 'primary',
+    });
+    const mismatch = sink.records.find((record) => record.event === 'provider.chat_image.response_format_mismatch');
+    expect(mismatch).toMatchObject({
+      level: 'warn',
+      attrs: expect.objectContaining({
+        requestedOutputFormat: 'png',
+        expectedMimeType: 'image/png',
+        actualMimeTypes: ['image/jpeg'],
+      }),
+    });
+    expect(sink.records.some((record) => record.event === 'transport.request.start')).toBe(true);
+    expect(JSON.stringify(sink.records)).not.toContain('data:image');
+    expect(JSON.stringify(sink.records)).not.toContain(tinyJpegBase64);
     fetchSpy.mockRestore();
   });
 });

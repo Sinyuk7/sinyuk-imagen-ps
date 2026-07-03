@@ -67,11 +67,23 @@ interface ChoiceProcessingResult {
   readonly diagnostics: readonly ProviderDiagnostic[];
 }
 
+type ParsedChatImageAssetSource = 'message-images' | 'content';
+type ParsedChatImageAssetReferenceKind = 'data-url' | 'remote-url';
+
+/** 供上层埋点使用的响应图片摘要，禁止包含原始 URL 或 base64。 */
+export interface ParsedChatImageAssetSummary {
+  readonly source: ParsedChatImageAssetSource;
+  readonly referenceKind: ParsedChatImageAssetReferenceKind;
+  readonly mimeType?: string;
+  readonly name?: string;
+}
+
 export interface ParsedChatImageResponse {
   readonly assets: readonly Asset[];
   readonly text?: string;
   readonly raw: unknown;
   readonly diagnostics?: readonly ProviderDiagnostic[];
+  readonly assetSummaries?: readonly ParsedChatImageAssetSummary[];
   readonly created?: number;
   readonly usage?: ProviderInvokeUsage;
 }
@@ -232,22 +244,28 @@ function extensionFromMimeType(mimeType: string): string {
   }
 }
 
-function assetFromUrl(url: string, index: number): Asset {
+function assetFromUrl(url: string, index: number): { readonly asset: Asset; readonly referenceKind: ParsedChatImageAssetReferenceKind } {
   if (url.startsWith('data:')) {
     const parsed = parseDataUrl(url);
     return {
-      type: 'image',
-      name: `generated-${index + 1}.${extensionFromMimeType(parsed.mimeType)}`,
-      data: parsed.payload,
-      mimeType: parsed.mimeType,
+      asset: {
+        type: 'image',
+        name: `generated-${index + 1}.${extensionFromMimeType(parsed.mimeType)}`,
+        data: parsed.payload,
+        mimeType: parsed.mimeType,
+      },
+      referenceKind: 'data-url',
     };
   }
   const parsedUrl = new URL(url);
   return {
-    type: 'image',
-    name: `generated-${index + 1}.png`,
-    url: parsedUrl.toString(),
-    mimeType: 'image/png',
+    asset: {
+      type: 'image',
+      name: `generated-${index + 1}.png`,
+      url: parsedUrl.toString(),
+      mimeType: 'image/png',
+    },
+    referenceKind: 'remote-url',
   };
 }
 
@@ -272,8 +290,9 @@ function fallbackTextForHttpImage(alt: string, url: string): string {
 function tryMaterializeAsset(args: {
   readonly url: string;
   readonly alt: string;
-  readonly source: 'message-images' | 'content';
+  readonly source: ParsedChatImageAssetSource;
   readonly assets: Asset[];
+  readonly assetSummaries: ParsedChatImageAssetSummary[];
   readonly seenAssetKeys: Set<string>;
   readonly diagnostics: ProviderDiagnostic[];
 }): {
@@ -298,9 +317,15 @@ function tryMaterializeAsset(args: {
           : {}),
       };
     }
-    const asset = assetFromUrl(args.url, args.assets.length);
+    const { asset, referenceKind } = assetFromUrl(args.url, args.assets.length);
     args.seenAssetKeys.add(identityKey);
     args.assets.push(asset);
+    args.assetSummaries.push({
+      source: args.source,
+      referenceKind,
+      ...(asset.mimeType !== undefined ? { mimeType: asset.mimeType } : {}),
+      ...(asset.name !== undefined ? { name: asset.name } : {}),
+    });
     return { consumed: true };
   } catch (error) {
     const reason = error instanceof Error ? error.message : String(error);
@@ -445,7 +470,12 @@ function parseInlineImageAt(text: string, start: number): ParsedInlineImage | un
   };
 }
 
-function processInlineText(text: string, assets: Asset[], seenAssetKeys: Set<string>): ExtractedTextResult {
+function processInlineText(
+  text: string,
+  assets: Asset[],
+  assetSummaries: ParsedChatImageAssetSummary[],
+  seenAssetKeys: Set<string>,
+): ExtractedTextResult {
   const diagnostics: ProviderDiagnostic[] = [];
   let cursor = 0;
   let output = '';
@@ -495,6 +525,7 @@ function processInlineText(text: string, assets: Asset[], seenAssetKeys: Set<str
       alt: parsedImage.alt,
       source: 'content',
       assets,
+      assetSummaries,
       seenAssetKeys,
       diagnostics,
     });
@@ -513,11 +544,16 @@ function processInlineText(text: string, assets: Asset[], seenAssetKeys: Set<str
   };
 }
 
-function sanitizeContent(content: unknown, assets: Asset[], seenAssetKeys: Set<string>): ChoiceProcessingResult {
+function sanitizeContent(
+  content: unknown,
+  assets: Asset[],
+  assetSummaries: ParsedChatImageAssetSummary[],
+  seenAssetKeys: Set<string>,
+): ChoiceProcessingResult {
   const diagnostics: ProviderDiagnostic[] = [];
   const textParts: string[] = [];
   if (typeof content === 'string') {
-    const processed = processInlineText(content, assets, seenAssetKeys);
+    const processed = processInlineText(content, assets, assetSummaries, seenAssetKeys);
     diagnostics.push(...processed.diagnostics);
     if (processed.text !== undefined) {
       textParts.push(processed.text);
@@ -544,7 +580,7 @@ function sanitizeContent(content: unknown, assets: Asset[], seenAssetKeys: Set<s
     }
     const text = (part as { readonly text?: unknown }).text;
     if (typeof text === 'string') {
-      const processed = processInlineText(text, assets, seenAssetKeys);
+      const processed = processInlineText(text, assets, assetSummaries, seenAssetKeys);
       diagnostics.push(...processed.diagnostics);
       if (processed.text !== undefined) {
         textParts.push(processed.text);
@@ -575,7 +611,12 @@ function sanitizeContent(content: unknown, assets: Asset[], seenAssetKeys: Set<s
   };
 }
 
-function sanitizeMessageImages(images: readonly ChatImageResponseImage[] | undefined, assets: Asset[], seenAssetKeys: Set<string>): {
+function sanitizeMessageImages(
+  images: readonly ChatImageResponseImage[] | undefined,
+  assets: Asset[],
+  assetSummaries: ParsedChatImageAssetSummary[],
+  seenAssetKeys: Set<string>,
+): {
   readonly sanitizedImages: readonly ChatImageResponseImage[] | undefined;
   readonly diagnostics: readonly ProviderDiagnostic[];
 } {
@@ -591,6 +632,7 @@ function sanitizeMessageImages(images: readonly ChatImageResponseImage[] | undef
         alt: '',
         source: 'message-images',
         assets,
+        assetSummaries,
         seenAssetKeys,
         diagnostics,
       });
@@ -616,6 +658,7 @@ export function parseChatImageResponse(raw: unknown): ParsedChatImageResponse {
   }
 
   const assets: Asset[] = [];
+  const assetSummaries: ParsedChatImageAssetSummary[] = [];
   const seenAssetKeys = new Set<string>();
   const textParts: string[] = [];
   const diagnostics: ProviderDiagnostic[] = [];
@@ -627,9 +670,12 @@ export function parseChatImageResponse(raw: unknown): ParsedChatImageResponse {
     if (typeof message !== 'object' || message === null) {
       return choice;
     }
-    const { sanitizedImages, diagnostics: imageDiagnostics } = sanitizeMessageImages(message.images, assets, seenAssetKeys);
+    const {
+      sanitizedImages,
+      diagnostics: imageDiagnostics,
+    } = sanitizeMessageImages(message.images, assets, assetSummaries, seenAssetKeys);
     diagnostics.push(...imageDiagnostics);
-    const contentResult = sanitizeContent(message.content, assets, seenAssetKeys);
+    const contentResult = sanitizeContent(message.content, assets, assetSummaries, seenAssetKeys);
     diagnostics.push(...contentResult.diagnostics);
     textParts.push(...contentResult.textParts);
     return {
@@ -661,6 +707,7 @@ export function parseChatImageResponse(raw: unknown): ParsedChatImageResponse {
       choices: sanitizedChoices,
     },
     ...(diagnostics.length > 0 ? { diagnostics } : {}),
+    ...(assetSummaries.length > 0 ? { assetSummaries } : {}),
   };
 
   if (text !== undefined) {
