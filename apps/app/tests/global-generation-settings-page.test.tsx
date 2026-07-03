@@ -7,6 +7,26 @@ import { createFakeServices } from './fakes';
 
 let root: Root | undefined;
 
+const textComposerContext = {
+  kind: 'composer',
+  model: undefined,
+  operation: 'text-to-image',
+} as const;
+
+const imageEditOnly1kContext = {
+  kind: 'composer',
+  model: {
+    id: 'image-edit-only-1k',
+    capabilities: {
+      operations: {
+        textToImage: { support: 'supported', sizePresets: ['1k', '2k', '4k'] },
+        imageEdit: { support: 'supported', sizePresets: ['1k'] },
+      },
+    },
+  },
+  operation: 'image-edit',
+} as const;
+
 afterEach(async () => {
   if (root) {
     await act(async () => {
@@ -53,6 +73,7 @@ describe('GlobalGenerationSettingsPage', () => {
             }}
             loading={false}
             error={null}
+            outputSizeContext={textComposerContext}
             onSave={vi.fn(async () => undefined)}
             onNav={vi.fn()}
           />
@@ -120,6 +141,7 @@ describe('GlobalGenerationSettingsPage', () => {
             }}
             loading={false}
             error={null}
+            outputSizeContext={textComposerContext}
             onSave={onSave}
             onNav={vi.fn()}
           />
@@ -141,7 +163,7 @@ describe('GlobalGenerationSettingsPage', () => {
     });
   });
 
-  it('blocks output size changes without composer context and shows a toast', async () => {
+  it('blocks output size changes when the shared composer context marks them unsupported', async () => {
     const { services } = createFakeServices();
     const container = document.createElement('div');
     document.body.appendChild(container);
@@ -160,6 +182,7 @@ describe('GlobalGenerationSettingsPage', () => {
             }}
             loading={false}
             error={null}
+            outputSizeContext={imageEditOnly1kContext}
             onSave={onSave}
             onNav={vi.fn()}
           />
@@ -174,7 +197,7 @@ describe('GlobalGenerationSettingsPage', () => {
       document.body.querySelector<HTMLElement>('[data-testid="global-output-size-selector-option-4k"]')!.click();
     });
 
-    expect(container.querySelector('[data-testid="toast"]')?.textContent).toContain('请先回到主编辑区');
+    expect(container.querySelector('[data-testid="toast"]')?.textContent).toContain('4K 不可用');
     expect(container.querySelector<HTMLElement>('[data-testid="global-output-size-selector"]')?.getAttribute('aria-label')).toContain('2K');
 
     await act(async () => {
@@ -208,6 +231,7 @@ describe('GlobalGenerationSettingsPage', () => {
             }}
             loading={false}
             error={null}
+            outputSizeContext={textComposerContext}
             onSave={onSave}
             onNav={vi.fn()}
           />
@@ -259,6 +283,7 @@ describe('GlobalGenerationSettingsPage', () => {
             }}
             loading={false}
             error={null}
+            outputSizeContext={textComposerContext}
             onSave={vi.fn(async () => undefined)}
             onNav={vi.fn()}
           />
@@ -300,6 +325,7 @@ describe('GlobalGenerationSettingsPage', () => {
             }}
             loading={false}
             error={null}
+            outputSizeContext={textComposerContext}
             onSave={vi.fn(async () => undefined)}
             onNav={vi.fn()}
           />
@@ -329,6 +355,7 @@ describe('GlobalGenerationSettingsPage', () => {
             }}
             loading={false}
             error="save failed"
+            outputSizeContext={textComposerContext}
             onSave={vi.fn(async () => undefined)}
             onNav={vi.fn()}
           />

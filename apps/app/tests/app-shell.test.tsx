@@ -32,6 +32,12 @@ function changeInput(input: HTMLInputElement, value: string): void {
   input.dispatchEvent(new KeyboardEvent('keyup', { bubbles: true, key: 'x' }));
 }
 
+function changeTextarea(textarea: HTMLTextAreaElement, value: string): void {
+  const setter = Object.getOwnPropertyDescriptor(HTMLTextAreaElement.prototype, 'value')?.set;
+  setter?.call(textarea, value);
+  textarea.dispatchEvent(new KeyboardEvent('keyup', { bubbles: true, key: 'x' }));
+}
+
 function iconSelectValue(container: HTMLElement, selector: string): string {
   return container.querySelector<HTMLElement>(selector)?.closest('.ui-overlay-icon-host')?.querySelector<HTMLElement>('.cmp-chip-overlay-value-icon, .cmp-chip-overlay-value-text')?.textContent ?? '';
 }
@@ -335,6 +341,57 @@ describe('AppShell', () => {
     expect(container.querySelector<HTMLTextAreaElement>('.cmp-ta')?.value).toBe('history failed prompt');
     expect(spies.submitJob).toHaveBeenCalledTimes(1);
     expect(services.commands.retryJob).not.toHaveBeenCalled();
+  });
+
+  it('keeps shared composer draft state across main -> settings -> main navigation', async () => {
+    const { services } = createFakeServices();
+    const container = document.createElement('div');
+    document.body.appendChild(container);
+    root = createRoot(container);
+
+    await act(async () => {
+      root!.render(
+        <AppShell
+          host={{
+            kind: 'photoshop-uxp',
+            app: { stage: 'uxp-first-shell', host: 'photoshop-uxp', services: ['commands', 'host'] },
+            locale: 'zh-CN',
+            services,
+            dispose: () => undefined,
+          }}
+        />,
+      );
+    });
+    await flush();
+    await flush();
+
+    await act(async () => {
+      changeTextarea(container.querySelector<HTMLTextAreaElement>('.cmp-ta')!, 'persist shared draft');
+    });
+    await flush();
+    await act(async () => {
+      container.querySelector<HTMLElement>('[data-testid="composer-add-image-button"]')?.click();
+    });
+    await flush();
+    await act(async () => {
+      document.body.querySelector<HTMLElement>('[data-testid="attach-upload-option"]')?.click();
+    });
+    await flush();
+
+    expect(container.querySelector<HTMLTextAreaElement>('.cmp-ta')?.value).toBe('persist shared draft');
+    expect(container.querySelectorAll('.att-thumb')).toHaveLength(1);
+
+    await act(async () => {
+      container.querySelector<HTMLButtonElement>('[data-testid="main-providers-button"]')?.click();
+    });
+    await flush();
+    await act(async () => {
+      container.querySelector<HTMLButtonElement>('[data-testid="providers-back-button"]')?.click();
+    });
+    await flush();
+
+    expect(container.querySelector<HTMLTextAreaElement>('.cmp-ta')?.value).toBe('persist shared draft');
+    expect(container.querySelectorAll('.att-thumb')).toHaveLength(1);
   });
 
   it('renders app content in English when host locale is English', async () => {
@@ -731,6 +788,155 @@ describe('AppShell', () => {
     await flush();
 
     expect(iconSelectValue(container, '[data-testid="global-output-size-selector"]')).toContain('4K');
+  });
+
+  it('uses the shared composer operation when global settings evaluates output-size availability', async () => {
+    const { services } = createFakeServices({
+      profiles: [{
+        ...fakeProfile,
+        config: {
+          ...fakeProfile.config,
+          defaultModel: 'image-edit-1k',
+        },
+      }, fakeOptimizerProfile],
+    });
+    vi.mocked(services.commands.listProfileModels).mockResolvedValue({
+      ok: true as const,
+      value: [{
+        id: 'image-edit-1k',
+        supportStatus: 'selectable',
+        capabilities: {
+          operations: {
+            textToImage: { support: 'supported', sizePresets: ['1k', '2k', '4k'] },
+            imageEdit: { support: 'supported', sizePresets: ['1k'] },
+          },
+        },
+      }],
+    });
+    const container = document.createElement('div');
+    document.body.appendChild(container);
+    root = createRoot(container);
+
+    await act(async () => {
+      root!.render(
+        <AppShell
+          host={{
+            kind: 'photoshop-uxp',
+            app: { stage: 'uxp-first-shell', host: 'photoshop-uxp', services: ['commands', 'host'] },
+            locale: 'zh-CN',
+            services,
+            dispose: () => undefined,
+          }}
+        />,
+      );
+    });
+    await flush();
+    await flush();
+
+    await act(async () => {
+      container.querySelector<HTMLElement>('[data-testid="composer-add-image-button"]')?.click();
+    });
+    await flush();
+    await act(async () => {
+      document.body.querySelector<HTMLElement>('[data-testid="attach-upload-option"]')?.click();
+    });
+    await flush();
+    await flush();
+
+    await act(async () => {
+      container.querySelector<HTMLButtonElement>('[data-testid="main-providers-button"]')?.click();
+    });
+    await flush();
+    await act(async () => {
+      container.querySelector<HTMLElement>('[data-testid="global-generation-settings-row"]')?.click();
+    });
+    await flush();
+    await flush();
+
+    await act(async () => {
+      container.querySelector<HTMLElement>('[data-testid="global-output-size-selector"]')?.click();
+    });
+    await flush();
+    await act(async () => {
+      document.body.querySelector<HTMLElement>('[data-testid="global-output-size-selector-option-4k"]')?.click();
+    });
+    await flush();
+
+    expect(container.querySelector('[data-testid="toast"]')?.textContent).toContain('4K 不可用');
+    expect(iconSelectValue(container, '[data-testid="global-output-size-selector"]')).toContain('1K');
+  });
+
+  it('writes output-size auto-fallback back into global settings after shared draft context switches operation', async () => {
+    const { services } = createFakeServices({
+      generationSettings: {
+        outputSizePreset: '4k',
+      },
+      profiles: [{
+        ...fakeProfile,
+        config: {
+          ...fakeProfile.config,
+          defaultModel: 'image-edit-1k',
+        },
+      }, fakeOptimizerProfile],
+    });
+    vi.mocked(services.commands.listProfileModels).mockResolvedValue({
+      ok: true as const,
+      value: [{
+        id: 'image-edit-1k',
+        supportStatus: 'selectable',
+        capabilities: {
+          operations: {
+            textToImage: { support: 'supported', sizePresets: ['1k', '2k', '4k'] },
+            imageEdit: { support: 'supported', sizePresets: ['1k'] },
+          },
+        },
+      }],
+    });
+    const container = document.createElement('div');
+    document.body.appendChild(container);
+    root = createRoot(container);
+
+    await act(async () => {
+      root!.render(
+        <AppShell
+          host={{
+            kind: 'photoshop-uxp',
+            app: { stage: 'uxp-first-shell', host: 'photoshop-uxp', services: ['commands', 'host'] },
+            locale: 'zh-CN',
+            services,
+            dispose: () => undefined,
+          }}
+        />,
+      );
+    });
+    await flush();
+    await flush();
+
+    expect(iconSelectValue(container, '[data-testid="composer-output-size-selector"]')).toContain('4K');
+
+    await act(async () => {
+      container.querySelector<HTMLElement>('[data-testid="composer-add-image-button"]')?.click();
+    });
+    await flush();
+    await act(async () => {
+      document.body.querySelector<HTMLElement>('[data-testid="attach-upload-option"]')?.click();
+    });
+    await flush();
+    await flush();
+
+    expect(iconSelectValue(container, '[data-testid="composer-output-size-selector"]')).toContain('1K');
+
+    await act(async () => {
+      container.querySelector<HTMLButtonElement>('[data-testid="main-providers-button"]')?.click();
+    });
+    await flush();
+    await act(async () => {
+      container.querySelector<HTMLElement>('[data-testid="global-generation-settings-row"]')?.click();
+    });
+    await flush();
+    await flush();
+
+    expect(iconSelectValue(container, '[data-testid="global-output-size-selector"]')).toContain('1K');
   });
 
   it('updates main-page model after settings saves a new custom default model', async () => {

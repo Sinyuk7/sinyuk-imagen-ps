@@ -15,12 +15,13 @@ import { TextSelect } from '../components/text-select';
 import { Icon } from '../components/icons';
 import { IconButton } from '../primitives/icon-button';
 import { useI18n } from '../i18n/i18n-context';
-import { canSelectOutputSize, OUTPUT_SIZE_PRESETS, outputSizeLabel } from '../output-size';
+import { canSelectOutputSize, OUTPUT_SIZE_PRESETS, outputSizeLabel, type OutputSizeSelectionContext } from '../output-size';
 
 interface GlobalGenerationSettingsPageProps {
   readonly settings: AppGenerationSettings;
   readonly loading: boolean;
   readonly error: string | null;
+  readonly outputSizeContext: OutputSizeSelectionContext;
   readonly onSave: (settings: AppGenerationSettings) => Promise<void>;
   readonly onNav: (view: string) => void;
 }
@@ -67,6 +68,7 @@ export function GlobalGenerationSettingsPage({
   settings,
   loading,
   error,
+  outputSizeContext,
   onSave,
   onNav,
 }: GlobalGenerationSettingsPageProps) {
@@ -108,8 +110,6 @@ export function GlobalGenerationSettingsPage({
       setCopiedKey((current) => (current === key ? null : current));
     }, 1200);
   };
-  const outputSizeContext = { kind: 'no-composer-context' } as const;
-
   const selectOutputSize = (value: AppOutputSizePreset) => {
     const result = canSelectOutputSize(outputSizeContext, value, t);
     if (!result.ok) {
