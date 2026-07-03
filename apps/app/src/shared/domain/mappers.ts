@@ -245,7 +245,8 @@ export function formatCompactMetric(value: string | undefined): string | undefin
       continue;
     }
     const scaled = parsed / unit.threshold;
-    const decimals = Math.abs(scaled) >= 100 ? 0 : 1;
+    const scaledAbsolute = Math.abs(scaled);
+    const decimals = scaledAbsolute >= 100 ? 1 : scaledAbsolute >= 10 ? 2 : 3;
     return `${trimTrailingZeros(scaled.toFixed(decimals))}${unit.suffix}`;
   }
   return normalized;

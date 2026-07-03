@@ -365,18 +365,6 @@ export const COMPOSER_CSS = `
   text-overflow:ellipsis;
   white-space:nowrap;
 }
-.cmp-select-option-description{
-  display:block;
-  min-width:0;
-  margin-top:1px;
-  overflow:hidden;
-  text-overflow:ellipsis;
-  white-space:nowrap;
-  color:var(--app-color-text-muted);
-  font-family:var(--app-font-family-base);
-  font-size:10px;
-  line-height:13px;
-}
 .cmp-select-option-badges{
   display:flex;
   flex:0 0 auto;

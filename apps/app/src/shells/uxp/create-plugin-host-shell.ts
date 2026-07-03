@@ -25,7 +25,7 @@ import { createUxpStorageAdmin } from '../../adapters/uxp/uxp-job-history-adapte
 import { createUxpActiveImageProfileStore } from '../../adapters/uxp/uxp-active-image-profile-store';
 import { createUxpProviderProfileRepository } from '../../adapters/uxp/uxp-provider-profile-repository';
 import { createUxpSecretStorageAdapter } from '../../adapters/uxp/uxp-secret-storage-adapter';
-import { createInMemoryGenerationSettingsStore } from '../../adapters/uxp/in-memory-host-storage';
+import { createUxpGenerationSettingsStore } from '../../adapters/uxp/uxp-generation-settings-store';
 import { cleanupUxpLogs, createUxpLogSink, writeUxpUiCheckpoint, writeUxpUiFailure } from '../../adapters/uxp/uxp-log-sink';
 import { createMemoryThumbnailStore } from '../../shared/image/thumbnail-store';
 import { createTaskResourceResolver } from '../../shared/image/task-resource-resolver';
@@ -98,7 +98,7 @@ export function createPluginHostShell(): PluginHostShell {
     const taskStore = createUxpTaskStore(uxpModules);
     const assetStore = createUxpAssetStore(uxpModules);
     const storageAdmin = createUxpStorageAdmin(uxpModules);
-    const generationSettings = createInMemoryGenerationSettingsStore();
+    const generationSettings = createUxpGenerationSettingsStore(uxpModules);
     const activeImageProfile = createUxpActiveImageProfileStore(uxpModules);
 
     logger.info('panel.adapters.initialized', {

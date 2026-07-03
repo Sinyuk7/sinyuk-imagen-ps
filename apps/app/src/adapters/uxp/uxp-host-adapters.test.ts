@@ -4,6 +4,7 @@ import { decodeLogRecords, type LogRecord } from '@imagen-ps/foundation';
 import { createUxpAssetStore, createUxpJobHistoryStore, createUxpTaskStore } from './uxp-job-history-adapter';
 import { createUxpLogSink } from './uxp-log-sink';
 import { createUxpActiveImageProfileStore } from './uxp-active-image-profile-store';
+import { createUxpGenerationSettingsStore } from './uxp-generation-settings-store';
 import { createUxpProviderProfileRepository } from './uxp-provider-profile-repository';
 import { createUxpSecretStorageAdapter } from './uxp-secret-storage-adapter';
 import type { UxpModules } from './uxp-api';
@@ -233,6 +234,53 @@ describe('fake UXP host adapters', () => {
     const file = dataFolder.files['active-image-profile.json'] as MutableFakeFile | undefined;
     expect(file).toBeDefined();
     expect(JSON.parse(String(await file?.read()))).toEqual({ activeImageProfileId: 'profile-1' });
+  });
+
+  it('在 data folder JSON 中持久化 generation settings', async () => {
+    const dataFolder = createFakeDataFolder();
+    const modules: UxpModules = {
+      uxp: {
+        storage: {
+          localFileSystem: {
+            formats: { utf8: 'utf8' },
+            async getDataFolder() {
+              return dataFolder.folder;
+            },
+          },
+        },
+      },
+    };
+
+    const store = createUxpGenerationSettingsStore(modules);
+    expect(await store.load()).toEqual({
+      outputSizePreset: '2k',
+      outputFormat: 'png',
+      aspectRatio: 'auto',
+      providerInputSizePreset: '1k',
+    });
+
+    await store.save({
+      outputSizePreset: '4k',
+      outputFormat: 'webp',
+      aspectRatio: '16:9',
+      providerInputSizePreset: '2k',
+    });
+
+    expect(await store.load()).toEqual({
+      outputSizePreset: '4k',
+      outputFormat: 'webp',
+      aspectRatio: '16:9',
+      providerInputSizePreset: '2k',
+    });
+
+    const file = dataFolder.files['generation-settings.json'] as MutableFakeFile | undefined;
+    expect(file).toBeDefined();
+    expect(JSON.parse(String(await file?.read()))).toEqual({
+      outputSizePreset: '4k',
+      outputFormat: 'webp',
+      aspectRatio: '16:9',
+      providerInputSizePreset: '2k',
+    });
   });
 
   it('profile repository 写入细粒度 flight recorder checkpoint 且不包含 secret/path', async () => {

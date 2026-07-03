@@ -59,6 +59,7 @@ export function ComposerSelect(props: ComposerSelectProps) {
     options,
     selectedId,
     onSelect,
+    isOptionSelectable,
     testId,
     triggerId,
     containerClassName,
@@ -230,6 +231,7 @@ export function ComposerSelect(props: ComposerSelectProps) {
                 options={options}
                 selectedId={selectedId}
                 onSelect={selectValue}
+                isOptionSelectable={isOptionSelectable}
                 onClose={closeAndReturnFocus}
                 onClick={handleMenuClick}
                 portaled={portalRoot !== null}

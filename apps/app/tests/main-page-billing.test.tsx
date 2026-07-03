@@ -101,12 +101,43 @@ describe('MainPage contract — billing', () => {
     await renderMainPage(container, services);
 
     const billingSummary = container.querySelector<HTMLElement>('[data-testid="main-billing-summary"]');
-    expect(billingSummary?.textContent).toContain('2.2M quota');
+    expect(billingSummary?.textContent).toContain('2.227M quota');
     expect(billingSummary?.textContent).not.toContain('2227206 quota');
-    expect(billingSummary?.querySelector('.cmp-balance-pill-primary')?.textContent).toBe('2.2M');
+    expect(billingSummary?.querySelector('.cmp-balance-pill-primary')?.textContent).toBe('2.227M');
     expect(billingSummary?.querySelector('.cmp-balance-pill-unit')?.textContent).toBe(' quota');
     expect(billingSummary?.querySelector('.cmp-balance-pill-primary')?.className).toContain('cmp-balance-pill-primary-accent');
     expect(billingSummary?.querySelector('.cmp-balance-pill-label')).toBeNull();
+  });
+
+  it('keeps quota summaries sensitive inside the same million bucket', async () => {
+    const container = document.createElement('div');
+    document.body.appendChild(container);
+    const services = createFakeServices();
+    services.spies.getProfileBillingState.mockResolvedValue({
+      ok: true as const,
+      value: {
+        refreshState: 'idle',
+        balance: {
+          profileId: 'mock-profile',
+          providerId: 'mock',
+          checkedAt: Date.now(),
+          snapshot: {
+            primary: {
+              kind: 'quota',
+              remaining: '1398224',
+              unit: 'quota',
+            },
+          },
+        },
+      },
+    });
+
+    await renderMainPage(container, services);
+
+    const billingSummary = container.querySelector<HTMLElement>('[data-testid="main-billing-summary"]');
+    expect(billingSummary?.textContent).toContain('1.398M quota');
+    expect(billingSummary?.textContent).not.toContain('1.4M quota');
+    expect(billingSummary?.querySelector('.cmp-balance-pill-primary')?.textContent).toBe('1.398M');
   });
 
   it('attaches observed balance change to the completed round without a positive toast', async () => {

@@ -147,6 +147,7 @@ export interface AppMessages {
     readonly errorActionChooseSupportedSize: string;
     readonly errorActionChooseCompatibleModel: string;
     readonly errorActionReplaceImage: string;
+    readonly errorActionCopyDetails: string;
     readonly errorActionFillComposer: string;
   };
   readonly history: {
@@ -251,6 +252,7 @@ export interface AppMessages {
     readonly outputGroup: string;
     readonly inputGroup: string;
     readonly outputSize: string;
+    readonly outputSizeRequiresMainComposerContext: string;
     readonly outputFormat: string;
     readonly aspectRatio: string;
     readonly providerInputSizePreset: string;
@@ -282,6 +284,7 @@ export interface AppMessages {
     readonly promptOptimized: string;
     readonly promptOptimizeNoChanges: string;
     readonly promptOptimizeFailed: string;
+    readonly errorDetailsCopied: string;
     readonly billingRefreshFailed: string;
   };
   readonly conversation: {
@@ -444,6 +447,7 @@ const EN_MESSAGES: AppMessages = {
     errorActionChooseSupportedSize: 'Choose supported size',
     errorActionChooseCompatibleModel: 'Choose compatible model',
     errorActionReplaceImage: 'Replace image',
+    errorActionCopyDetails: 'Copy details',
     errorActionFillComposer: 'Fill composer',
   },
   history: {
@@ -548,6 +552,7 @@ const EN_MESSAGES: AppMessages = {
     outputGroup: 'Output',
     inputGroup: 'Input',
     outputSize: 'Output size',
+    outputSizeRequiresMainComposerContext: 'Open the main composer to change output size.',
     outputFormat: 'Output format',
     aspectRatio: 'Aspect ratio',
     providerInputSizePreset: 'Provider input size',
@@ -580,6 +585,7 @@ const EN_MESSAGES: AppMessages = {
     promptOptimized: 'Prompt optimized',
     promptOptimizeNoChanges: 'No changes were suggested',
     promptOptimizeFailed: 'Prompt optimization failed',
+    errorDetailsCopied: 'Error details copied',
     billingRefreshFailed: 'Balance refresh failed',
   },
   conversation: {
@@ -742,6 +748,7 @@ const ZH_CN_MESSAGES: AppMessages = {
     errorActionChooseSupportedSize: '选择支持尺寸',
     errorActionChooseCompatibleModel: '选择兼容模型',
     errorActionReplaceImage: '替换图片',
+    errorActionCopyDetails: '复制详情',
     errorActionFillComposer: '填入输入框',
   },
   history: {
@@ -846,6 +853,7 @@ const ZH_CN_MESSAGES: AppMessages = {
     outputGroup: '输出',
     inputGroup: '输入',
     outputSize: '输出尺寸',
+    outputSizeRequiresMainComposerContext: '请先回到主编辑区，再修改输出尺寸。',
     outputFormat: '输出格式',
     aspectRatio: '宽高比',
     providerInputSizePreset: 'Provider 输入尺寸',
@@ -877,6 +885,7 @@ const ZH_CN_MESSAGES: AppMessages = {
     promptOptimized: '提示词已优化',
     promptOptimizeNoChanges: '没有建议的修改',
     promptOptimizeFailed: '提示词优化失败',
+    errorDetailsCopied: '错误详情已复制',
     billingRefreshFailed: '余额刷新失败',
   },
   conversation: {

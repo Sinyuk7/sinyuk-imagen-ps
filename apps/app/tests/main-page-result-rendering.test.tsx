@@ -286,6 +286,53 @@ describe('MainPage contract — result rendering', () => {
     expect(container.querySelector<HTMLElement>('[data-testid^="error-primary-action-button-"]')?.textContent).toContain('打开 Provider 设置');
   });
 
+  it('uses copy details as the primary action for unknown errors and keeps fill composer as a secondary action', async () => {
+    const container = document.createElement('div');
+    document.body.appendChild(container);
+    const writeText = vi.fn(async () => undefined);
+    Object.defineProperty(navigator, 'clipboard', {
+      configurable: true,
+      value: { writeText },
+    });
+    const services = createFakeServices();
+    services.spies.submitJob.mockResolvedValue({
+      ok: true as const,
+      value: {
+        id: 'job-failed-unknown',
+        status: 'failed',
+        input: {},
+        output: undefined,
+        error: {
+          category: 'provider',
+          message: 'provider: expected io.Reader for image edits mode, got *ali.AliImageRequest (request id: 20260704005518866266746fBZYb0GG)',
+        },
+        createdAt: '2026-06-15T00:00:00.000Z',
+        updatedAt: '2026-06-15T00:00:01.000Z',
+      },
+    });
+    await renderMainPage(container, services);
+
+    await sendPrompt(container, 'failed unknown request');
+
+    expect(container.querySelector('.err-category')?.textContent).toContain('未知');
+    expect(container.querySelector<HTMLElement>('[data-testid^="error-primary-action-button-"]')?.textContent).toContain('复制详情');
+    expect(container.querySelectorAll<HTMLElement>('[data-testid^="error-fill-composer-button-"]')).toHaveLength(1);
+
+    await act(async () => {
+      container.querySelector<HTMLElement>('[data-testid^="error-primary-action-button-"]')!.click();
+    });
+
+    expect(writeText).toHaveBeenCalledWith(
+      [
+        'Provider: Mock Profile',
+        'Category: 未知',
+        'Message: expected io.Reader for image edits mode, got *ali.AliImageRequest',
+        'Detail: provider: expected io.Reader for image edits mode, got *ali.AliImageRequest (request id: 20260704005518866266746fBZYb0GG)',
+        'Request ID: 20260704005518866266746fBZYb0GG',
+      ].join('\n'),
+    );
+  });
+
   it('failed-round Retry fills the composer without submitting or switching settings', async () => {
     const container = document.createElement('div');
     document.body.appendChild(container);
@@ -309,6 +356,8 @@ describe('MainPage contract — result rendering', () => {
 
     await sendPrompt(container, 'draft from failed round');
     expect(services.spies.submitJob).toHaveBeenCalledTimes(1);
+    expect(container.querySelector<HTMLElement>('[data-testid^="error-primary-action-button-"]')?.textContent).toContain('填入输入框');
+    expect(container.querySelector('[data-testid^="error-fill-composer-button-"]')).toBeNull();
 
     await act(async () => {
       container.querySelector<HTMLElement>('[data-testid^="error-primary-action-button-"]')!.click();

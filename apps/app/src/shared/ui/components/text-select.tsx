@@ -10,6 +10,7 @@ export interface TextSelectProps {
   readonly options: readonly ComposerSelectOption[];
   readonly selectedId: string;
   readonly onSelect: (id: string) => void;
+  readonly isOptionSelectable?: (id: string) => boolean;
   readonly testId?: string;
   readonly triggerId?: string;
   readonly containerClassName?: string;

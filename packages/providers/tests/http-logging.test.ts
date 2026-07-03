@@ -115,4 +115,71 @@ describe('image endpoint HTTP logging', () => {
     expect(init?.body).toBe(JSON.stringify({ prompt: 'test' }));
     fetchSpy.mockRestore();
   });
+
+  it('logs multipart request and response summaries without leaking payload values', async () => {
+    const sink = createMemorySink();
+    const logger = createLogger({
+      sink,
+      context: { surface: 'test', package: 'application', component: 'runtime' },
+      traceId: 'tr_http_summary',
+    });
+    const fetchSpy = vi.spyOn(globalThis, 'fetch').mockResolvedValueOnce(
+      new Response(JSON.stringify({ data: [{ url: 'https://example.com/out.png' }] }), {
+        status: 200,
+        headers: { 'Content-Type': 'application/json' },
+      }),
+    );
+    const body = new FormData();
+    body.append('prompt', 'make it blue');
+    body.append('image[]', new Blob([new Uint8Array([1, 2, 3])], { type: 'image/png' }), 'input.png');
+
+    await httpRequest(
+      {
+        url: 'https://api.example.com/v1/images/edits',
+        method: 'POST',
+        headers: {
+          Authorization: 'Bearer test-secret',
+          Accept: 'application/json',
+          'Content-Type': 'text/plain',
+        },
+        body,
+      },
+      { maxRetries: 0, baseDelayMs: 0, factor: 1 },
+      undefined,
+      logger,
+    );
+
+    const requestSummary = sink.records.find((record) => record.event === 'transport.request_summary');
+    expect(requestSummary?.attrs).toMatchObject({
+      method: 'POST',
+      targetHost: 'api.example.com',
+      targetPath: '/v1/images/edits',
+      requestContentTypeMode: 'multipart-auto',
+      removedExplicitContentType: true,
+      bodyKind: 'multipart',
+      bodyConstructorName: 'FormData',
+      bodyFieldNames: ['prompt', 'image[]'],
+      bodyTextFieldNames: ['prompt'],
+      bodyFileFieldNames: ['image[]'],
+      bodyFileFieldCounts: { 'image[]': 1 },
+    });
+
+    const responseSummary = sink.records.find((record) => record.event === 'transport.response_summary');
+    expect(responseSummary?.attrs).toMatchObject({
+      statusCode: 200,
+      ok: true,
+      targetHost: 'api.example.com',
+      targetPath: '/v1/images/edits',
+      responseContentType: 'application/json',
+      parsedResponseKind: 'json',
+      responseBodyKind: 'object',
+      responseBodyTopLevelKeys: ['data'],
+    });
+
+    const serialized = JSON.stringify(sink.records);
+    expect(serialized).not.toContain('make it blue');
+    expect(serialized).not.toContain('test-secret');
+    expect(serialized).not.toContain('input.png');
+    fetchSpy.mockRestore();
+  });
 });

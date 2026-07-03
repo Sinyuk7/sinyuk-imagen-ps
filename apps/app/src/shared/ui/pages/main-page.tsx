@@ -50,6 +50,7 @@ import {
 } from '../composer-readiness';
 import { classifyRoundError, type ErrorPrimaryAction } from '../error-action';
 import type { BalanceChange, ExactTaskCost } from '@imagen-ps/application';
+import { canSelectOutputSize, OUTPUT_SIZE_PRESETS, outputSizeLabel } from '../output-size';
 
 function isImeCompositionKey(event: React.KeyboardEvent): boolean {
   const nativeEvent = event.nativeEvent as KeyboardEvent & { readonly isComposing?: boolean };
@@ -98,8 +99,6 @@ interface FlatLayer {
   readonly layer: LayerInfo;
   readonly depth: number;
 }
-
-const OUTPUT_SIZE_OPTIONS: readonly AppOutputSizePreset[] = ['512', '1k', '2k', '4k'];
 
 function flattenLayers(layers: readonly LayerInfo[], depth = 0): FlatLayer[] {
   return layers.flatMap((layer) => [
@@ -194,10 +193,6 @@ function operationForAttachments(attachments: readonly ConversationAttachment[])
   return attachments.length > 0 ? 'image-edit' : 'text-to-image';
 }
 
-function outputSizeLabel(size: AppOutputSizePreset): string {
-  return size === '512' ? '512' : size.toUpperCase();
-}
-
 function firstSupportedSize(model: ProviderModelInfo | undefined, operation: ComposerOperation): AppOutputSizePreset | null {
   const presets = supportedSizePresetsForOperation(model, operation);
   return presets === 'unknown' ? null : presets[0] ?? null;
@@ -288,6 +283,8 @@ function primaryActionLabel(t: ReturnType<typeof useI18n>['messages'], action: E
       return t.main.errorActionChooseCompatibleModel;
     case 'replace-image':
       return t.main.errorActionReplaceImage;
+    case 'copy-error-details':
+      return t.main.errorActionCopyDetails;
     case 'fill-composer-from-failed-round':
       return t.main.errorActionFillComposer;
   }
@@ -460,16 +457,11 @@ export function MainPage({
     [uniqueModels],
   );
   const outputSizeOptions = useMemo(
-    () => OUTPUT_SIZE_OPTIONS.map((size) => {
-      const support = modelSupportsOutputSize(selectedModelInfo, currentOperation, size);
-      return {
-        id: size,
-        label: outputSizeLabel(size),
-        disabled: support === 'unsupported',
-        ...(support === 'unsupported' ? { description: t.main.outputSizeUnsupportedForModel } : {}),
-      };
-    }),
-    [currentOperation, selectedModelInfo, t.main.outputSizeUnsupportedForModel],
+    () => OUTPUT_SIZE_PRESETS.map((size) => ({
+      id: size,
+      label: outputSizeLabel(size),
+    })),
+    [],
   );
   const currentPromptValue = () => taRef.current?.value ?? input;
   const optimizerReady = Boolean(promptOptimizerProfile?.enabled);
@@ -502,6 +494,15 @@ export function MainPage({
   const optimizeButtonLabel = showUndo ? t.main.promptOptimizeUndo : t.main.promptOptimize;
   const responseTextKey = (roundId: string) => `response:${roundId}`;
   const pendingBillingProfileIdRef = useRef<string | null>(null);
+  const placeResetTimersRef = useRef<Record<string, number>>({});
+  const outputSizeContext = useMemo(
+    () => ({
+      kind: 'composer' as const,
+      model: selectedModelInfo,
+      operation: currentOperation,
+    }),
+    [currentOperation, selectedModelInfo],
+  );
   const isAtBottom = useCallback(() => {
     const el = convRef.current;
     if (!el) return true;
@@ -511,6 +512,13 @@ export function MainPage({
   useEffect(() => {
     attachmentsRef.current = attachments;
   }, [attachments]);
+
+  useEffect(() => () => {
+    for (const timer of Object.values(placeResetTimersRef.current)) {
+      window.clearTimeout(timer);
+    }
+    placeResetTimersRef.current = {};
+  }, []);
 
   useEffect(() => {
     const support = modelSupportsOutputSize(selectedModelInfo, currentOperation, generationSettings.outputSizePreset);
@@ -777,6 +785,21 @@ export function MainPage({
     setCopied((current) => ({ ...current, [key]: true }));
     window.setTimeout(() => setCopied((current) => ({ ...current, [key]: false })), 1500);
   };
+
+  const handleCopyErrorDetails = useCallback((
+    round: ConversationRound,
+    failure: ReturnType<typeof classifyRoundError>,
+  ) => {
+    const lines = [
+      `Provider: ${round.providerName}`,
+      `Category: ${t.main.errorCategoryLabel[failure.category] ?? t.main.errorCategoryLabel.unknown}`,
+      `Message: ${failure.message}`,
+      ...(failure.detail ? [`Detail: ${failure.detail}`] : []),
+      ...(failure.requestId ? [`Request ID: ${failure.requestId}`] : []),
+    ];
+    navigator.clipboard?.writeText(lines.join('\n')).catch(() => undefined);
+    show(t.toast.errorDetailsCopied, 'info', { key: `error-details-copy:${round.id}` });
+  }, [show, t.main.errorCategoryLabel, t.toast.errorDetailsCopied]);
 
   const responseFoldRef = (roundId: string) => (element: HTMLDivElement | null) => {
     if (element) {
@@ -1084,8 +1107,13 @@ export function MainPage({
       setPlaceStatus((current) => ({ ...current, [round.id]: 'placed' }));
       setHighlightKey(`place:${round.id}:${Date.now()}`);
       show(t.toast.placedOnCanvas, 'positive', { key: `place-success:${round.id}` });
-      window.setTimeout(() => {
+      const pendingTimer = placeResetTimersRef.current[round.id];
+      if (pendingTimer !== undefined) {
+        window.clearTimeout(pendingTimer);
+      }
+      placeResetTimersRef.current[round.id] = window.setTimeout(() => {
         setPlaceStatus((current) => ({ ...current, [round.id]: 'idle' }));
+        delete placeResetTimersRef.current[round.id];
       }, MOTION_DURATION.statusReset);
     } catch (error) {
       setPlaceStatus((current) => ({ ...current, [round.id]: 'idle' }));
@@ -1113,6 +1141,15 @@ export function MainPage({
     } catch (error) {
       show(error instanceof Error ? error.message : String(error), 'negative', { key: `download-error:${round.id}` });
     }
+  };
+
+  const selectOutputSize = async (nextSize: AppOutputSizePreset) => {
+    const result = canSelectOutputSize(outputSizeContext, nextSize, t);
+    if (!result.ok) {
+      show(result.reason, 'warning', { key: `output-size-rejected:${nextSize}` });
+      return;
+    }
+    await onChangeOutputSizePreset(result.nextSize);
   };
 
   return (
@@ -1272,11 +1309,15 @@ export function MainPage({
                           removeAllAttachments();
                           setAttachOpen(true);
                           return;
+                        case 'copy-error-details':
+                          handleCopyErrorDetails(round, failure);
+                          return;
                         case 'fill-composer-from-failed-round':
                           fillComposerFromFailedRound(round);
                           return;
                       }
                     };
+                    const showFillComposerSecondary = failure.primaryAction !== 'fill-composer-from-failed-round';
                     return (
                       <div className="err-card">
                         <div className="err-top">
@@ -1316,14 +1357,16 @@ export function MainPage({
                           >
                             {primaryActionLabel(t, failure.primaryAction)}
                           </button>
-                          <button
-                            data-testid={`error-fill-composer-button-${round.id}`}
-                            className="err-retry err-retry-secondary"
-                            disabled={conversation.running}
-                            onClick={() => fillComposerFromFailedRound(round)}
-                          >
-                            {t.main.errorActionFillComposer}
-                          </button>
+                          {showFillComposerSecondary ? (
+                            <button
+                              data-testid={`error-fill-composer-button-${round.id}`}
+                              className="err-retry err-retry-secondary"
+                              disabled={conversation.running}
+                              onClick={() => fillComposerFromFailedRound(round)}
+                            >
+                              {t.main.errorActionFillComposer}
+                            </button>
+                          ) : null}
                         </div>
                       </div>
                     );
@@ -1841,10 +1884,11 @@ export function MainPage({
                   setOpenMenu(open ? 'output-size' : null);
                 }}
                 options={outputSizeOptions}
+                isOptionSelectable={(value) => canSelectOutputSize(outputSizeContext, value as AppOutputSizePreset, t).ok}
                 selectedId={generationSettings.outputSizePreset}
                 onSelect={(value) => {
                   setSizeUserSelected(true);
-                  void onChangeOutputSizePreset(value as AppOutputSizePreset);
+                  void selectOutputSize(value as AppOutputSizePreset);
                 }}
                 icon="image-auto-mode"
               />

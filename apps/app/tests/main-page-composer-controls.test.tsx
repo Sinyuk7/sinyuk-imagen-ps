@@ -372,11 +372,16 @@ describe('MainPage contract — composer controls', () => {
     });
     await flush();
 
-    expect(document.body.querySelector<HTMLButtonElement>('[data-testid="composer-output-size-selector-option-1k"]')?.disabled).toBe(false);
-    expect(document.body.querySelector<HTMLButtonElement>('[data-testid="composer-output-size-selector-option-2k"]')?.disabled).toBe(true);
-    expect(document.body.querySelector<HTMLButtonElement>('[data-testid="composer-output-size-selector-option-4k"]')?.textContent).toContain('当前模型不可用');
+    expect(document.body.querySelector<HTMLButtonElement>('[data-testid="composer-output-size-selector-option-1k"]')?.textContent).toContain('1K');
+    expect(document.body.querySelector<HTMLButtonElement>('[data-testid="composer-output-size-selector-option-2k"]')?.textContent).toBe('2K');
+    await act(async () => {
+      document.body.querySelector<HTMLButtonElement>('[data-testid="composer-output-size-selector-option-4k"]')?.click();
+    });
+    await flush();
+
+    expect(iconSelectValue(container, '[data-testid="composer-output-size-selector"]')).toContain('1K');
+    expect(container.querySelector('[data-testid="toast"]')?.textContent).toContain('4K 不可用');
     expect(container.querySelector('[data-testid="composer-size-feedback"]')).toBeNull();
-    expect(container.querySelector('[data-testid="toast"]')?.textContent).toContain('2K 不可用；已改为 1K');
   });
 
   it('主输入区 provider 与 model 选择不包含 Prompt Optimizer', async () => {

@@ -24,6 +24,9 @@ interface ProviderValidationError extends Error {
   details?: Record<string, unknown>;
 }
 
+type EditBodyMode = 'json-ref' | 'multipart-inline';
+type MockImageAsset = NonNullable<MockProviderRequest['images']>[number];
+
 function createValidationError(message: string, details?: Record<string, unknown>): ProviderValidationError {
   const err = new Error(message) as ProviderValidationError;
   err.details = details;
@@ -43,6 +46,48 @@ function shouldUseMultipartEditBody(request: MockProviderRequest): boolean {
     return false;
   }
   return (request.images ?? []).some(hasInlineAssetData) || hasInlineAssetData(request.maskImage);
+}
+
+function summarizeAssetReferenceKind(asset: MockImageAsset | MockProviderRequest['maskImage']): string {
+  if (asset === undefined) {
+    return 'missing';
+  }
+  if (typeof asset.data === 'string' || asset.data instanceof Uint8Array) {
+    return 'inline-data';
+  }
+  if (typeof asset.fileId === 'string' && asset.fileId.length > 0) {
+    return 'fileId';
+  }
+  if (typeof asset.url === 'string' && asset.url.length > 0) {
+    return 'url';
+  }
+  if (asset.storedRef !== undefined) {
+    return `storedRef:${asset.storedRef.kind}`;
+  }
+  return 'unknown';
+}
+
+function logEditRequestSummary(
+  logger: Logger | undefined,
+  request: MockProviderRequest,
+  bodyMode: EditBodyMode,
+  defaultModel: string | undefined,
+): void {
+  if (request.operation !== 'image_edit') {
+    return;
+  }
+
+  logger?.info('provider.image_endpoint.edit_request_summary', {
+    bodyMode,
+    model:
+      typeof request.providerOptions?.model === 'string'
+        ? (request.providerOptions.model as string)
+        : (defaultModel ?? 'gpt-image-2'),
+    imageCount: request.images?.length ?? 0,
+    imageReferenceKinds: (request.images ?? []).map((asset) => summarizeAssetReferenceKind(asset)),
+    maskReferenceKind: summarizeAssetReferenceKind(request.maskImage),
+    hasProviderOptions: request.providerOptions !== undefined,
+  });
 }
 
 /**
@@ -104,10 +149,19 @@ export function createImageEndpointProvider(): Provider<ImageEndpointProviderCon
         throw createValidationError(`Unsupported image endpoint provider operation: "${request.operation}".`);
       }
 
+      const editBodyMode: EditBodyMode | undefined =
+        request.operation === 'image_edit'
+          ? (shouldUseMultipartEditBody(request) ? 'multipart-inline' : 'json-ref')
+          : undefined;
+
+      if (editBodyMode !== undefined) {
+        logEditRequestSummary(args.logger, request, editBodyMode, config.defaultModel);
+      }
+
       const body =
         request.operation === 'text_to_image'
           ? buildRequestBody(request, config.defaultModel)
-          : shouldUseMultipartEditBody(request)
+          : editBodyMode === 'multipart-inline'
             ? buildEditMultipartBody(request, config.defaultModel)
             : buildEditRequestBody(request, config.defaultModel);
 

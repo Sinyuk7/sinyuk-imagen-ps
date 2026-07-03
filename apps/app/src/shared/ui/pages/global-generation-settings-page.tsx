@@ -9,11 +9,13 @@ import type {
 } from '../../ports/app-generation-settings';
 import { useAppPathInfo } from '../hooks/use-app-path-info';
 import { StatusNotice } from '../components/status-notice';
+import { useToast } from '../components/toast-host';
 import { Button, FieldLabel, HelpText } from '../primitives/native-controls';
 import { TextSelect } from '../components/text-select';
 import { Icon } from '../components/icons';
 import { IconButton } from '../primitives/icon-button';
 import { useI18n } from '../i18n/i18n-context';
+import { canSelectOutputSize, OUTPUT_SIZE_PRESETS, outputSizeLabel } from '../output-size';
 
 interface GlobalGenerationSettingsPageProps {
   readonly settings: AppGenerationSettings;
@@ -25,12 +27,10 @@ interface GlobalGenerationSettingsPageProps {
 
 type MenuId = 'size' | 'format' | 'aspect' | 'provider-input-size' | null;
 
-const SIZE_OPTIONS: ReadonlyArray<{ readonly id: AppOutputSizePreset; readonly label: string }> = [
-  { id: '512', label: '512' },
-  { id: '1k', label: '1K' },
-  { id: '2k', label: '2K' },
-  { id: '4k', label: '4K' },
-];
+const SIZE_OPTIONS: ReadonlyArray<{ readonly id: AppOutputSizePreset; readonly label: string }> = OUTPUT_SIZE_PRESETS.map((size) => ({
+  id: size,
+  label: outputSizeLabel(size),
+}));
 
 const FORMAT_OPTIONS: ReadonlyArray<{ readonly id: AppOutputFormat; readonly label: string }> = [
   { id: 'png', label: 'PNG' },
@@ -72,6 +72,7 @@ export function GlobalGenerationSettingsPage({
 }: GlobalGenerationSettingsPageProps) {
   const services = useAppServices();
   const { messages: t } = useI18n();
+  const { show } = useToast();
   const pathInfo = useAppPathInfo(services);
   const [draft, setDraft] = useState<AppGenerationSettings>(settings);
   const [saving, setSaving] = useState(false);
@@ -106,6 +107,16 @@ export function GlobalGenerationSettingsPage({
     window.setTimeout(() => {
       setCopiedKey((current) => (current === key ? null : current));
     }, 1200);
+  };
+  const outputSizeContext = { kind: 'no-composer-context' } as const;
+
+  const selectOutputSize = (value: AppOutputSizePreset) => {
+    const result = canSelectOutputSize(outputSizeContext, value, t);
+    if (!result.ok) {
+      show(result.reason, 'warning', { key: `global-output-size-rejected:${value}` });
+      return;
+    }
+    updateDraft({ outputSizePreset: result.nextSize });
   };
 
   return (
@@ -145,8 +156,9 @@ export function GlobalGenerationSettingsPage({
                   open={openMenu === 'size'}
                   onOpenChange={(open) => setOpenMenu(open ? 'size' : null)}
                   options={SIZE_OPTIONS}
+                  isOptionSelectable={(value) => canSelectOutputSize(outputSizeContext, value as AppOutputSizePreset, t).ok}
                   selectedId={draft.outputSizePreset}
-                  onSelect={(value) => updateDraft({ outputSizePreset: value as AppOutputSizePreset })}
+                  onSelect={(value) => selectOutputSize(value as AppOutputSizePreset)}
                 />
               </div>
               <div className="field">

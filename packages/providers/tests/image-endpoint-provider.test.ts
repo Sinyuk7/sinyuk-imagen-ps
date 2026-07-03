@@ -1,4 +1,5 @@
 import { describe, expect, it, vi } from 'vitest';
+import { createLogger, createMemorySink } from '@imagen-ps/foundation';
 import {
   createImageEndpointProvider,
   imageEndpointDescriptor,
@@ -395,12 +396,13 @@ describe('image-endpoint provider', () => {
   });
 
   it('invokes generation endpoint through fetch', async () => {
-    const fetchSpy = vi.spyOn(globalThis, 'fetch').mockResolvedValue(
-      new Response(JSON.stringify({ data: [{ url: 'https://example.com/out.png' }] }), {
+    const fetchSpy = vi.spyOn(globalThis, 'fetch').mockImplementation(async () => new Response(
+      JSON.stringify({ data: [{ url: 'https://example.com/out.png' }] }),
+      {
         status: 200,
         headers: { 'Content-Type': 'application/json' },
-      }),
-    );
+      },
+    ));
     const provider = createImageEndpointProvider();
     const config = provider.validateConfig({
       providerId: 'image-endpoint',
@@ -430,12 +432,13 @@ describe('image-endpoint provider', () => {
   });
 
   it('invokes edit endpoint through multipart fetch for Uint8Array input', async () => {
-    const fetchSpy = vi.spyOn(globalThis, 'fetch').mockResolvedValue(
-      new Response(JSON.stringify({ data: [{ url: 'https://example.com/out.png' }] }), {
+    const fetchSpy = vi.spyOn(globalThis, 'fetch').mockImplementation(async () => new Response(
+      JSON.stringify({ data: [{ url: 'https://example.com/out.png' }] }),
+      {
         status: 200,
         headers: { 'Content-Type': 'application/json' },
-      }),
-    );
+      },
+    ));
     const provider = createImageEndpointProvider();
     const config = provider.validateConfig({
       providerId: 'image-endpoint',
@@ -475,6 +478,78 @@ describe('image-endpoint provider', () => {
     }));
     expect(init?.headers).not.toHaveProperty('Content-Type');
     expect(init?.headers).not.toHaveProperty('content-type');
+    fetchSpy.mockRestore();
+  });
+
+  it('logs edit request body selection without leaking image payloads', async () => {
+    const sink = createMemorySink();
+    const logger = createLogger({
+      sink,
+      context: { surface: 'test', package: 'application', component: 'runtime' },
+      traceId: 'tr_image_endpoint_logs',
+    });
+    const fetchSpy = vi.spyOn(globalThis, 'fetch').mockImplementation(async () => ({
+      ok: true,
+      status: 200,
+      statusText: 'OK',
+      headers: new Headers({ 'Content-Type': 'application/json' }),
+      json: async () => ({ data: [{ url: 'https://example.com/out.png' }] }),
+      text: async () => JSON.stringify({ data: [{ url: 'https://example.com/out.png' }] }),
+    } as Response));
+    const provider = createImageEndpointProvider();
+    const config = provider.validateConfig({
+      providerId: 'image-endpoint',
+      displayName: 'Image Endpoint',
+      family: 'image-endpoint',
+      connection: {
+        selectionMode: 'manual',
+        failoverEnabled: false,
+        preferredEndpointId: 'primary',
+        endpoints: [{ id: 'primary', url: 'https://api.example.com', enabled: true }],
+      },
+      apiKey: 'test-key',
+      defaultModel: 'gpt-image-2',
+    });
+
+    await provider.invoke({
+      config,
+      logger,
+      request: provider.validateRequest({
+        operation: 'image_edit',
+        prompt: 'url edit',
+        images: [{ type: 'image', url: 'https://example.com/input.png' }],
+        providerOptions: { model: 'qwen-image-2.0-2026-03-03' },
+      }),
+    });
+
+    await provider.invoke({
+      config,
+      logger,
+      request: provider.validateRequest({
+        operation: 'image_edit',
+        prompt: 'inline edit',
+        images: [{ type: 'image', data: 'iVBORw0KGgo=', mimeType: 'image/png' }],
+        providerOptions: { model: 'qwen-image-2.0-2026-03-03' },
+      }),
+    });
+
+    const summaries = sink.records.filter((record) => record.event === 'provider.image_endpoint.edit_request_summary');
+    expect(summaries).toHaveLength(2);
+    expect(summaries[0]?.attrs).toMatchObject({
+      bodyMode: 'json-ref',
+      model: 'qwen-image-2.0-2026-03-03',
+      imageCount: 1,
+      imageReferenceKinds: ['url'],
+      maskReferenceKind: 'missing',
+    });
+    expect(summaries[1]?.attrs).toMatchObject({
+      bodyMode: 'multipart-inline',
+      model: 'qwen-image-2.0-2026-03-03',
+      imageCount: 1,
+      imageReferenceKinds: ['inline-data'],
+      maskReferenceKind: 'missing',
+    });
+    expect(JSON.stringify(sink.records)).not.toContain('iVBORw0KGgo=');
     fetchSpy.mockRestore();
   });
 });

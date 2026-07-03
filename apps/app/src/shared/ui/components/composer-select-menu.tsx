@@ -15,6 +15,7 @@ interface ComposerSelectMenuProps {
   readonly options: readonly ComposerSelectOption[];
   readonly selectedId: string;
   readonly onSelect: (id: string) => void;
+  readonly isOptionSelectable?: (id: string) => boolean;
   readonly onClose: () => void;
   readonly onClick: (event: MouseEvent<HTMLElement>) => void;
   readonly portaled?: boolean;
@@ -33,6 +34,7 @@ export function ComposerSelectMenu({
   options,
   selectedId,
   onSelect,
+  isOptionSelectable,
   onClose,
   onClick,
   portaled = false,
@@ -122,32 +124,27 @@ export function ComposerSelectMenu({
         >
           {options.map((option) => {
             const selected = option.id === selectedId;
+            const selectable = isOptionSelectable ? isOptionSelectable(option.id) : true;
             return (
               <button
                 key={option.id}
                 type="button"
                 data-testid={testId ? `${testId}-option-${option.id}` : undefined}
                 data-value={option.id}
-                className={`cmp-select-option${selected ? ' selected' : ''}${option.disabled ? ' disabled' : ''}`}
+                className={`cmp-select-option${selected ? ' selected' : ''}${!selectable ? ' disabled' : ''}`}
                 role="option"
                 aria-selected={selected}
-                aria-disabled={option.disabled ? true : undefined}
-                disabled={option.disabled}
-                title={option.description}
+                aria-disabled={!selectable ? true : undefined}
                 onMouseDown={handlePressStart}
                 onPointerDown={handlePressStart}
                 onClick={(event) => {
                   event.stopPropagation();
-                  if (option.disabled) {
-                    return;
-                  }
                   onSelect(option.id);
                 }}
               >
                 {option.icon && <Icon name={option.icon} size={14} className="cmp-select-option-icon" />}
                 <span className="cmp-select-option-body">
                   <span className="cmp-select-option-label">{option.label}</span>
-                  {option.description ? <span className="cmp-select-option-description">{option.description}</span> : null}
                 </span>
                 {option.badges?.length ? (
                   <span className="cmp-select-option-badges">

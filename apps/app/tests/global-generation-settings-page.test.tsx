@@ -141,6 +141,54 @@ describe('GlobalGenerationSettingsPage', () => {
     });
   });
 
+  it('blocks output size changes without composer context and shows a toast', async () => {
+    const { services } = createFakeServices();
+    const container = document.createElement('div');
+    document.body.appendChild(container);
+    root = createRoot(container);
+    const onSave = vi.fn(async () => undefined);
+
+    await act(async () => {
+      root!.render(
+        <TestAppProviders services={services}>
+          <GlobalGenerationSettingsPage
+            settings={{
+              outputSizePreset: '2k',
+              outputFormat: 'png',
+              aspectRatio: 'auto',
+              providerInputSizePreset: '2k',
+            }}
+            loading={false}
+            error={null}
+            onSave={onSave}
+            onNav={vi.fn()}
+          />
+        </TestAppProviders>,
+      );
+    });
+
+    await act(async () => {
+      container.querySelector<HTMLElement>('[data-testid="global-output-size-selector"]')!.click();
+    });
+    await act(async () => {
+      document.body.querySelector<HTMLElement>('[data-testid="global-output-size-selector-option-4k"]')!.click();
+    });
+
+    expect(container.querySelector('[data-testid="toast"]')?.textContent).toContain('请先回到主编辑区');
+    expect(container.querySelector<HTMLElement>('[data-testid="global-output-size-selector"]')?.getAttribute('aria-label')).toContain('2K');
+
+    await act(async () => {
+      container.querySelector<HTMLButtonElement>('[data-testid="global-settings-save-button"]')!.click();
+    });
+
+    expect(onSave).toHaveBeenCalledWith({
+      outputSizePreset: '2k',
+      outputFormat: 'png',
+      aspectRatio: 'auto',
+      providerInputSizePreset: '2k',
+    });
+  });
+
   it('saves the provider input size preset label from the selector', async () => {
     const { services } = createFakeServices();
     const container = document.createElement('div');

@@ -210,8 +210,8 @@ describe('SettingsDetailPage contract — billing', () => {
     });
     await flush();
 
-    expect(container.textContent).toContain('2.2M quota');
-    expect(container.textContent).toContain('12.9M quota');
+    expect(container.textContent).toContain('2.227M quota');
+    expect(container.textContent).toContain('12.88M quota');
     expect(container.textContent).not.toContain('2227206 quota');
     expect(container.textContent).not.toContain('12882761 quota');
   });

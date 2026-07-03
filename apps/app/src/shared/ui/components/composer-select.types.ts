@@ -4,7 +4,6 @@ export interface ComposerSelectOption {
   readonly id: string;
   readonly label: string;
   readonly icon?: IconName;
-  readonly disabled?: boolean;
   readonly description?: string;
   readonly badges?: readonly string[];
 }
@@ -26,6 +25,8 @@ interface ComposerSelectPropsBase {
   readonly selectedId: string;
   /** 选择变化回调。 */
   readonly onSelect: (id: string) => void;
+  /** 选项是否允许选择；返回 false 时仍保持可点击，交由 onSelect 处理 toast 等反馈。 */
+  readonly isOptionSelectable?: (id: string) => boolean;
   /** 数据测试 ID 前缀。 */
   readonly testId?: string;
   /** 触发按钮 id，用于外部 label 关联。 */

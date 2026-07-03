@@ -26,7 +26,12 @@ export function TestAppProviders({
 }) {
   return (
     <TestI18nProvider locale={locale}>
-      <AppServicesProvider services={services}>{children}</AppServicesProvider>
+      <ToastProvider>
+        <AppServicesProvider services={services}>
+          {children}
+          <ToastHost />
+        </AppServicesProvider>
+      </ToastProvider>
     </TestI18nProvider>
   );
 }

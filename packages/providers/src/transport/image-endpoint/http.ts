@@ -39,6 +39,8 @@ export interface HttpResponse {
   readonly data: unknown;
 }
 
+type ParsedResponseKind = 'json' | 'text' | 'text-json-fallback';
+
 interface TimeoutSignalHandle {
   readonly signal: AbortSignal;
   dispose(): void;
@@ -122,7 +124,118 @@ function stripMultipartContentType(headers: Record<string, string> | undefined):
   return Object.keys(next).length > 0 ? next : undefined;
 }
 
-async function fetchOnce(args: HttpRequest, signal?: AbortSignal): Promise<HttpResponse> {
+function constructorNameOf(value: unknown): string | undefined {
+  if (typeof value !== 'object' || value === null) {
+    return undefined;
+  }
+  const ctor = value.constructor;
+  return typeof ctor?.name === 'string' && ctor.name.length > 0 ? ctor.name : undefined;
+}
+
+function summarizeRequestBody(body: unknown): Record<string, unknown> {
+  if (body === undefined) {
+    return { bodyKind: 'none' };
+  }
+
+  if (typeof FormData !== 'undefined' && body instanceof FormData) {
+    const fieldNames: string[] = [];
+    const textFieldNames = new Set<string>();
+    const fileFieldNames = new Set<string>();
+    const fileFieldCounts = new Map<string, number>();
+
+    for (const [key, value] of body.entries()) {
+      fieldNames.push(key);
+      if (typeof value === 'string') {
+        textFieldNames.add(key);
+        continue;
+      }
+      fileFieldNames.add(key);
+      fileFieldCounts.set(key, (fileFieldCounts.get(key) ?? 0) + 1);
+    }
+
+    return {
+      bodyKind: 'multipart',
+      bodyConstructorName: constructorNameOf(body),
+      bodyFieldNames: Array.from(new Set(fieldNames)),
+      bodyTextFieldNames: Array.from(textFieldNames),
+      bodyFileFieldNames: Array.from(fileFieldNames),
+      bodyFileFieldCounts: Object.fromEntries(fileFieldCounts),
+    };
+  }
+
+  if (Array.isArray(body)) {
+    return {
+      bodyKind: 'json-array',
+      bodyConstructorName: constructorNameOf(body),
+      bodyArrayLength: body.length,
+    };
+  }
+
+  if (typeof body === 'object' && body !== null) {
+    return {
+      bodyKind: 'json-object',
+      bodyConstructorName: constructorNameOf(body),
+      bodyTopLevelKeys: Object.keys(body as Record<string, unknown>),
+    };
+  }
+
+  if (typeof body === 'string') {
+    return {
+      bodyKind: 'text',
+      bodyLength: body.length,
+    };
+  }
+
+  return {
+    bodyKind: typeof body,
+    bodyConstructorName: constructorNameOf(body),
+  };
+}
+
+function summarizeResponseBody(data: unknown): Record<string, unknown> {
+  if (Array.isArray(data)) {
+    return {
+      responseBodyKind: 'array',
+      responseBodyArrayLength: data.length,
+    };
+  }
+
+  if (typeof data === 'object' && data !== null) {
+    return {
+      responseBodyKind: 'object',
+      responseBodyTopLevelKeys: Object.keys(data as Record<string, unknown>),
+    };
+  }
+
+  if (typeof data === 'string') {
+    return {
+      responseBodyKind: 'text',
+      responseTextLength: data.length,
+    };
+  }
+
+  if (data === null) {
+    return { responseBodyKind: 'null' };
+  }
+
+  return { responseBodyKind: typeof data };
+}
+
+function parseUrlSummary(url: string): Record<string, unknown> {
+  try {
+    const parsed = new URL(url);
+    return {
+      targetHost: parsed.host,
+      targetPath: parsed.pathname,
+    };
+  } catch {
+    return {
+      targetUrl: url,
+    };
+  }
+}
+
+async function fetchOnce(args: HttpRequest, signal?: AbortSignal, logger?: Logger): Promise<HttpResponse> {
   const { url, method, headers, body, timeoutMs } = args;
 
   const timeoutSignal = createTimeoutSignal(timeoutMs);
@@ -132,12 +245,23 @@ async function fetchOnce(args: HttpRequest, signal?: AbortSignal): Promise<HttpR
   try {
     const isMultipart = typeof FormData !== 'undefined' && body instanceof FormData;
     const mergedHeaders = mergeHeaders(headers);
+    const hadExplicitContentType =
+      mergedHeaders !== undefined && Object.keys(mergedHeaders).some((key) => key.toLowerCase() === 'content-type');
     const requestHeaders = isMultipart
       ? stripMultipartContentType(mergedHeaders)
       : {
           'Content-Type': 'application/json',
           ...(mergedHeaders ?? {}),
         };
+    logger?.info('transport.request_summary', {
+      method,
+      timeoutMs,
+      headerKeys: Object.keys(requestHeaders ?? {}),
+      requestContentTypeMode: isMultipart ? 'multipart-auto' : body !== undefined ? 'application/json' : 'none',
+      removedExplicitContentType: isMultipart && hadExplicitContentType,
+      ...parseUrlSummary(url),
+      ...summarizeRequestBody(body),
+    });
     const init: RequestInit = {
       method,
       headers: requestHeaders,
@@ -155,17 +279,30 @@ async function fetchOnce(args: HttpRequest, signal?: AbortSignal): Promise<HttpR
     const response = await fetch(url, init);
 
     let data: unknown;
+    let parsedResponseKind: ParsedResponseKind;
     const contentType = response.headers.get('content-type') ?? '';
 
     if (contentType.includes('application/json')) {
       try {
         data = await response.json();
+        parsedResponseKind = 'json';
       } catch {
         data = await response.text();
+        parsedResponseKind = 'text-json-fallback';
       }
     } else {
       data = await response.text();
+      parsedResponseKind = 'text';
     }
+
+    logger?.info('transport.response_summary', {
+      statusCode: response.status,
+      ok: response.ok,
+      responseContentType: contentType || 'unknown',
+      parsedResponseKind,
+      ...parseUrlSummary(url),
+      ...summarizeResponseBody(data),
+    });
 
     if (!response.ok) {
       const message =
@@ -243,7 +380,7 @@ export async function httpRequest(
 
   try {
     const response = await withRetry(
-      () => fetchOnce(request, signal),
+      () => fetchOnce(request, signal, transportLogger),
       policy,
       signal,
       (diagnostic) => {

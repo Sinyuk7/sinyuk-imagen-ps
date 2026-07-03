@@ -12,6 +12,7 @@ export type ErrorPrimaryAction =
   | 'choose-supported-size'
   | 'choose-compatible-model'
   | 'replace-image'
+  | 'copy-error-details'
   | 'fill-composer-from-failed-round';
 
 export interface ClassifiedRoundError {
@@ -40,6 +41,10 @@ function normalizeProviderPrefix(message: string): string {
   return message.replace(/^(?:provider\s*[:：]\s*)+/i, '').trim();
 }
 
+function normalizeDetailMessage(message: string): string {
+  return message.replace(/^(?:provider\s*[:：]\s*){2,}/i, 'provider: ').trim();
+}
+
 function classify(message: string): Pick<ClassifiedRoundError, 'category' | 'primaryAction'> {
   const lower = message.toLowerCase();
   if (/\bauth(?:entication|orization)?\b|unauthorized|forbidden|api key|invalid key|token|令牌|401|403/.test(lower)) {
@@ -60,7 +65,7 @@ function classify(message: string): Pick<ClassifiedRoundError, 'category' | 'pri
   if (/temporarily unavailable|try again|timeout|timed out|network|rate limit|429|502|503|504/.test(lower)) {
     return { category: 'provider-temporarily-unavailable', primaryAction: 'fill-composer-from-failed-round' };
   }
-  return { category: 'unknown', primaryAction: 'fill-composer-from-failed-round' };
+  return { category: 'unknown', primaryAction: 'copy-error-details' };
 }
 
 /** 将失败 round 文案折叠为可行动分类，原始 detail 留给次级区域。 */
@@ -73,7 +78,7 @@ export function classifyRoundError(errorMessage: string | undefined): Classified
   return {
     ...action,
     message: cleaned || fallback,
-    ...(cleaned !== fallback ? { detail: fallback } : {}),
+    ...(cleaned !== fallback ? { detail: normalizeDetailMessage(fallback) } : {}),
     ...(requestId ? { requestId } : {}),
   };
 }
