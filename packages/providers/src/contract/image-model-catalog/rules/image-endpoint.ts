@@ -8,6 +8,7 @@ export const IMAGE_ENDPOINT_MODEL_CAPABILITIES = Object.freeze([
       ids: ['gpt-image-2', 'chatgpt-image-latest'],
     },
     displayName: 'GPT Image 2',
+    brand: 'openai',
     selection: {
       visibleInPicker: true,
       allowAsDefault: true,
@@ -21,6 +22,7 @@ export const IMAGE_ENDPOINT_MODEL_CAPABILITIES = Object.freeze([
       ids: ['gpt-image-1'],
     },
     displayName: 'GPT Image 1',
+    brand: 'openai',
     selection: {
       visibleInPicker: true,
       allowAsDefault: true,
@@ -39,6 +41,7 @@ export const IMAGE_ENDPOINT_MODEL_CAPABILITIES = Object.freeze([
       ids: ['dall-e-3'],
     },
     displayName: 'DALL-E 3',
+    brand: 'openai',
     selection: {
       visibleInPicker: true,
       allowAsDefault: true,
@@ -58,6 +61,7 @@ export const IMAGE_ENDPOINT_MODEL_CAPABILITIES = Object.freeze([
       prefixes: ['grok-imagine-image-pro', 'grok-imagine-image-quality'],
     },
     displayName: 'Grok Pro',
+    brand: 'xai',
     selection: {
       visibleInPicker: true,
       allowAsDefault: true,
@@ -72,6 +76,7 @@ export const IMAGE_ENDPOINT_MODEL_CAPABILITIES = Object.freeze([
       prefixes: ['grok-imagine-image'],
     },
     displayName: 'Grok',
+    brand: 'xai',
     selection: {
       visibleInPicker: true,
       allowAsDefault: true,
@@ -86,6 +91,7 @@ export const IMAGE_ENDPOINT_MODEL_CAPABILITIES = Object.freeze([
       prefixes: ['doubao-seedream-5-0-260128'],
     },
     displayName: 'Doubao Seedream 5.0 Lite',
+    brand: 'doubao',
     selection: {
       visibleInPicker: true,
       allowAsDefault: true,
@@ -100,6 +106,7 @@ export const IMAGE_ENDPOINT_MODEL_CAPABILITIES = Object.freeze([
       prefixes: ['qwen-image-2.0-2026-03-03'],
     },
     displayName: 'Qwen Image 2.0',
+    brand: 'qwen',
     selection: {
       visibleInPicker: true,
       allowAsDefault: true,

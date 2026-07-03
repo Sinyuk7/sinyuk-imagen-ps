@@ -14,6 +14,7 @@ import type {
   ProviderProfileTestResult,
   TaskRecord,
 } from '@imagen-ps/application';
+import { resolveModelBrand } from '@imagen-ps/application';
 import type { AppServices } from '../src/app-services/app-services';
 import type { CommandsPort } from '../src/app-services/commands-port';
 import { PHOTOSHOP_UXP_RUNTIME_CAPABILITIES, type HostBridge } from '../src/app-services/host-bridge';
@@ -391,6 +392,7 @@ export function createFakeServices(options?: {
     listTaskRecords: vi.fn(async () => taskRecords),
     listProviders: vi.fn(() => [fakeProvider]),
     describeProvider: vi.fn(() => fakeProvider),
+    resolveModelBrand,
     listProviderProfiles: vi.fn(async () => ({ ok: true as const, value: profiles })),
     getProviderProfile,
     saveProviderProfile,

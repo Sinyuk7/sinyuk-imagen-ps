@@ -14,6 +14,8 @@ export { subscribeJobEvents } from './subscribe-job-events.js';
 
 export { listProviders } from './list-providers.js';
 export { describeProvider } from './describe-provider.js';
+export { resolveModelBrand } from './resolve-model-brand.js';
+export type { ResolveModelBrandInput } from './resolve-model-brand.js';
 export {
   deleteProviderProfile,
   getProviderProfile,
@@ -98,6 +100,7 @@ export type {
   ProviderConfigResolver,
   ProviderDescriptor,
   ProviderFamily,
+  ModelBrand,
   ProviderModelInfo,
   ProviderProfile,
   ProviderProfileConfig,

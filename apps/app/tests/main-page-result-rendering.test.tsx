@@ -54,7 +54,7 @@ describe('MainPage contract — result rendering', () => {
     expect(providerIdentity.textContent).toContain('mock-image-v1');
     expect(providerIdentityHost.querySelector('.prov-identity-icon-shell')).not.toBeNull();
     expect(providerIdentityHost.querySelector('.prov-identity-icon-svg')).not.toBeNull();
-    expect(providerIdentityHost.querySelector('[data-model-avatar-icon="debug-mock"]')).not.toBeNull();
+    expect(providerIdentityHost.querySelector('[data-model-avatar-icon="default"]')).not.toBeNull();
     const previewCount = container.querySelector<HTMLElement>('[data-testid^="result-preview-count-"]')!;
     const roundId = previewCount.dataset.testid?.replace('result-preview-count-', '') ?? '';
     expect(previewCount.textContent).toContain('1 / 2');

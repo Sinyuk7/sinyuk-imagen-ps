@@ -15,6 +15,21 @@ export type ImageOperation = Extract<ProviderOperation, 'text_to_image' | 'image
 export type ImageSizePreset = NonNullable<ProviderOutputOptions['sizePreset']>;
 export type ImageAspectRatio = 'auto' | 'source' | '1:1' | '16:9' | '9:16';
 
+/**
+ * 模型品牌标识，由 catalog 规则声明，供上层（经 application 命令）映射为 UI 图标。
+ *
+ * brand 是模型身份属性（与 `displayName`/`ruleId` 同性质），不是 UI 资产；
+ * SVG 与图标渲染归属 `apps/app`。`google-gemini` 与 `google-other` 区分 gemini
+ * 系与非 gemini 系 google 模型，分别映射不同图标。
+ */
+export type ModelBrand =
+  | 'openai'
+  | 'google-gemini'
+  | 'google-other'
+  | 'xai'
+  | 'qwen'
+  | 'doubao';
+
 export interface ModelMatcherPattern {
   readonly source: string;
   readonly flags?: string;
@@ -71,6 +86,11 @@ export interface ImageModelCapability {
   readonly discovery?: {
     readonly requireRemotePresence?: boolean;
   };
+  /**
+   * 模型品牌；picker-visible 非 default 规则必填。default/fallback 规则留空，
+   * 解析时 brand 为 `undefined`，上层回落到默认图标。
+   */
+  readonly brand?: ModelBrand;
 }
 
 export interface ResolvedImageModelRule {
@@ -753,6 +773,9 @@ export function validateImageModelCatalog(
   for (const capability of capabilities) {
     if (capability.selection.visibleInPicker && (capability.match.ids?.[0]?.trim() ?? '').length === 0) {
       errors.push(`Rule "${capability.ruleId}" is picker-visible but has no canonical id.`);
+    }
+    if (capability.selection.visibleInPicker && capability.brand === undefined) {
+      errors.push(`Rule "${capability.ruleId}" is picker-visible but has no brand.`);
     }
     if (capability.variants === undefined && capability.constraintStrategy === undefined) {
       errors.push(`Rule "${capability.ruleId}" is missing variants or constraintStrategy.`);

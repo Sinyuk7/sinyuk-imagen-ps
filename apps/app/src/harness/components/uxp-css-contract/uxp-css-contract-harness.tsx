@@ -1343,9 +1343,8 @@ function ComposerConversationBoard({
           <div className="prov-card prov-card-text-only">
             <div className="prov-top">
               <ProviderIdentity
+                iconName="gpt"
                 providerName="OpenAI"
-                providerId="openai"
-                modelId="gpt-image-1"
                 modelLabel="gpt-image-1"
               />
               <div className="prov-status">

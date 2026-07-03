@@ -21,6 +21,7 @@ export type {
   ImageOutputConstraintStrategy,
   ImageOutputVariant,
   ImageSizePreset,
+  ModelBrand,
   ModelOperationCapability,
   ModelMatcher,
   ModelMatcherPattern,

@@ -1,27 +1,24 @@
 import type { SyntheticEvent } from 'react';
 import { ModelAvatarIcon } from './model-avatar-icon';
+import type { ModelAvatarIconName } from './generated/model-avatar-icons';
 import { OverlayControlShell } from './overlay-controls';
-import { resolveModelAvatarIcon } from './model-avatar-rules';
 
 interface ProviderIdentityProps {
+  readonly iconName: ModelAvatarIconName;
   readonly providerName: string;
-  readonly providerId?: string;
-  readonly modelId?: string;
   readonly modelLabel?: string;
   readonly disabled?: boolean;
   readonly onClick?: (event: SyntheticEvent<HTMLDivElement>) => void;
 }
 
 export function ProviderIdentity({
+  iconName,
   providerName,
-  providerId,
-  modelId,
   modelLabel,
   disabled = false,
   onClick,
 }: ProviderIdentityProps) {
   const interactive = !disabled && typeof onClick === 'function';
-  const iconName = resolveModelAvatarIcon({ modelId, providerId, providerName });
 
   return (
     <div

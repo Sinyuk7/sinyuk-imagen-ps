@@ -17,6 +17,7 @@ import { Icon } from '../components/icons';
 import { IconSelect } from '../components/icon-select';
 import { UxpTextArea } from '../components/uxp-form-controls';
 import { ProviderIdentity } from '../components/provider-identity';
+import { resolveModelAvatarIconSlug } from '../components/brand-to-icon';
 import { useToast } from '../components/toast-host';
 import {
   MotionActivityDot,
@@ -1335,9 +1336,8 @@ export function MainPage({
                   <div className="prov-card">
                     <div className="prov-top">
                       <ProviderIdentity
+                        iconName={resolveModelAvatarIconSlug({ services, providerId: round.providerId, modelId: round.modelId })}
                         providerName={round.providerName}
-                        providerId={round.providerId}
-                        modelId={round.modelId}
                         modelLabel={round.modelId}
                         disabled={!onEditProfile || !round.profileId}
                         onClick={(event) => {
@@ -1385,9 +1385,8 @@ export function MainPage({
                   <div className={`prov-card${hasImages ? ` prov-card-media media-${mediaShapeFromSize(round.outputSize)}` : ' prov-card-text-only'}`}>
                     <div className="prov-top">
                       <ProviderIdentity
+                        iconName={resolveModelAvatarIconSlug({ services, providerId: round.providerId, modelId: round.modelId })}
                         providerName={round.providerName}
-                        providerId={round.providerId}
-                        modelId={round.modelId}
                         modelLabel={providerModelLabel}
                         disabled={!onEditProfile || !round.profileId}
                         onClick={(event) => {

@@ -17,7 +17,7 @@ import type {
 } from '@imagen-ps/providers';
 
 // Re-export provider types for commands layer consumers
-export type { ProviderDescriptor, ProviderConfig, ProviderFamily, ProviderModelInfo } from '@imagen-ps/providers';
+export type { ProviderDescriptor, ProviderConfig, ProviderFamily, ProviderModelInfo, ModelBrand } from '@imagen-ps/providers';
 export type { BalanceChange, ExactTaskCost, ProviderBalanceSnapshot } from '@imagen-ps/providers';
 export type {
   Asset,
