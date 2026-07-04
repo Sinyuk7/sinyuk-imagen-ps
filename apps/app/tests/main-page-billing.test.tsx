@@ -72,7 +72,7 @@ describe('MainPage contract — billing', () => {
     expect(billingSummary?.querySelector('.cmp-balance-pill-primary')?.className).toContain('cmp-balance-pill-primary-accent');
     expect(billingSummary?.querySelector('.cmp-balance-pill-label')).toBeNull();
     expect(billingSummary?.getAttribute('title')).toContain('12.50 USD');
-    expect(billingSummary?.closest('.cmp-action-left')?.firstElementChild).toBe(billingSummary);
+    expect(billingSummary?.closest('.cmp-action-left')?.querySelector('[data-testid="composer-prompt-optimize-button"]')).not.toBeNull();
   });
 
   it('compacts quota summaries in the main header', async () => {

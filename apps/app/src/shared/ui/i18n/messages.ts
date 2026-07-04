@@ -100,6 +100,7 @@ export interface AppMessages {
     readonly billingObservedChange: string;
     readonly billingLastCost: string;
     readonly billingLastChange: string;
+    readonly promptOptimizePlaceholder: string;
     readonly layerKindSmartObject: string;
     readonly layerKindPixel: string;
     readonly layerKindText: string;
@@ -396,6 +397,7 @@ const EN_MESSAGES: AppMessages = {
     billingObservedChange: 'Observed balance change',
     billingLastCost: 'Last exact cost',
     billingLastChange: 'Last balance change',
+    promptOptimizePlaceholder: 'Not available yet',
     layerKindSmartObject: 'Smart Object',
     layerKindPixel: 'Pixel',
     layerKindText: 'Text',
@@ -701,6 +703,7 @@ const ZH_CN_MESSAGES: AppMessages = {
     billingObservedChange: '检测到的余额变化',
     billingLastCost: '上次精确费用',
     billingLastChange: '上次余额变化',
+    promptOptimizePlaceholder: '暂未开放',
     layerKindSmartObject: '智能对象',
     layerKindPixel: '像素图层',
     layerKindText: '文字图层',

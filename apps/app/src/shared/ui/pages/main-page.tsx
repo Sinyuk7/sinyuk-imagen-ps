@@ -1672,6 +1672,21 @@ export function MainPage({
             </div>
             <div className="cmp-action-row" data-testid="composer-action-row">
               <div className="cmp-action-left">
+                <MotionButtonSurface>
+                  <IconButton
+                    data-testid="composer-prompt-optimize-button"
+                    className="cmp-opt-icon-button"
+                    quiet
+                    icon={<Icon name="magic-wand" size={13} className="cmp-opt-icon" />}
+                    tooltip={t.main.promptOptimizePlaceholder}
+                    placement="top"
+                    iconSize={13}
+                    disabled
+                    onClick={(event) => {
+                      event.stopPropagation();
+                    }}
+                  />
+                </MotionButtonSurface>
                 <div
                   className="cmp-balance-pill"
                   data-testid="main-billing-summary"
