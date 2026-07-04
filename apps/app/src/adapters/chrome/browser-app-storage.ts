@@ -9,6 +9,7 @@ import type {
 } from '@imagen-ps/application';
 import { createMemoryActiveImageProfileStore, type ActiveImageProfileStore } from '../../shared/ports/active-image-profile';
 import { createMemoryGenerationSettingsStore, type AppGenerationSettingsStore } from '../../shared/ports/app-generation-settings';
+import { createMemoryPromptSettingsStore, type PromptSettingsStore } from '../../shared/ports/prompt-settings';
 
 /**
  * Slice 0 的浏览器内存 adapter 只用于证明 application command facade 可在
@@ -20,6 +21,7 @@ export function createChromeFeasibilityStorage(): {
   readonly history: JobHistoryStore;
   readonly assets: AssetStore;
   readonly generationSettings: AppGenerationSettingsStore;
+  readonly promptSettings: PromptSettingsStore;
   readonly activeImageProfile: ActiveImageProfileStore;
 } {
   const profiles = new Map<string, ProviderProfile>();
@@ -90,6 +92,7 @@ export function createChromeFeasibilityStorage(): {
       },
     },
     generationSettings: createMemoryGenerationSettingsStore(),
+    promptSettings: createMemoryPromptSettingsStore(),
     activeImageProfile: createMemoryActiveImageProfileStore(),
   };
 }

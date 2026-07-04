@@ -47,7 +47,7 @@ describe('SettingsPage UXP compatibility', () => {
     expect(container.querySelector('.tt')).toBeNull();
     expect(container.querySelector('.tt-wrap')).toBeNull();
     expect(container.querySelector('sp-tooltip')).toBeNull();
-    expect(container.querySelector('.hdr-title')?.textContent).toMatch(/^(Providers|服务商)$/);
+    expect(container.querySelector('.hdr-title')?.textContent).toMatch(/^(Configuration|配置)$/);
   });
 
   it('renders provider rows with prototype-inspired layout and explicit readiness', async () => {
@@ -96,12 +96,13 @@ describe('SettingsPage UXP compatibility', () => {
     expect(getComputedStyle(row).height).not.toBe('64px');
   });
 
-  it('renders a global generation settings entry before provider profiles', async () => {
+  it('renders fixed configuration rows before provider profiles', async () => {
     const { services } = createFakeServices();
     const container = document.createElement('div');
     document.body.appendChild(container);
     root = createRoot(container);
     const onOpenGlobalGeneration = vi.fn();
+    const onOpenPromptSettings = vi.fn();
 
     await act(async () => {
       root!.render(
@@ -120,17 +121,27 @@ describe('SettingsPage UXP compatibility', () => {
               providerInputSizePreset: '2k',
             }}
             onOpenGlobalGeneration={onOpenGlobalGeneration}
+            onOpenPromptSettings={onOpenPromptSettings}
           />
         </TestAppProviders>,
       );
     });
 
-    const row = container.querySelector<HTMLElement>('[data-testid="global-generation-settings-row"]')!;
+    const configRows = Array.from(container.querySelectorAll<HTMLElement>('.settings-provider-row'));
+    expect(configRows[0]?.dataset.testid).toBe('global-generation-settings-row');
+    expect(configRows[1]?.dataset.testid).toBe('prompt-settings-row');
+    const row = configRows[0]!;
     expect(row.textContent).toContain('生成设置');
     expect(row.textContent).toContain('2K');
+    expect(configRows[1]?.textContent).toContain('提示词设置');
+    expect(configRows[1]?.querySelector('[data-icon-name="pencil"]')).not.toBeNull();
     await act(async () => {
       row.click();
     });
     expect(onOpenGlobalGeneration).toHaveBeenCalledTimes(1);
+    await act(async () => {
+      configRows[1]!.click();
+    });
+    expect(onOpenPromptSettings).toHaveBeenCalledTimes(1);
   });
 });

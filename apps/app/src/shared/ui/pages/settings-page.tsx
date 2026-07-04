@@ -16,6 +16,7 @@ interface SettingsPageProps {
   readonly onOpenProfile: (profileId: string) => void;
   readonly generationSettings?: AppGenerationSettings;
   readonly onOpenGlobalGeneration?: () => void;
+  readonly onOpenPromptSettings?: () => void;
 }
 
 function initials(name: string): string {
@@ -116,6 +117,7 @@ export function SettingsPage({
   onOpenProfile,
   generationSettings,
   onOpenGlobalGeneration,
+  onOpenPromptSettings,
 }: SettingsPageProps) {
   const { messages: t } = useI18n();
   const rows = profiles.map(profileToProviderRow);
@@ -136,7 +138,7 @@ export function SettingsPage({
           tooltip={t.common.back}
           onClick={() => onNav('main')}
         />
-        <div className="hdr-title">{t.common.providers}</div>
+        <div className="hdr-title">{t.settings.configuration}</div>
         <IconButton
           data-testid="providers-refresh-button"
           className="hdr-btn"
@@ -186,6 +188,32 @@ export function SettingsPage({
             <div className="prov-trail"><Icon name="chevron-right" /></div>
           </div>
         </div>
+        <div
+          data-testid="prompt-settings-row"
+          className="prov-row settings-provider-row is-special"
+          role="button"
+          tabIndex={0}
+          onClick={() => onOpenPromptSettings?.()}
+          onKeyDown={(event) => onRowKeyDown(event, () => onOpenPromptSettings?.())}
+        >
+          <div className="prov-leading">
+            <div className="prov-ico" style={{ background: 'var(--app-color-informative-subtle)', color: 'var(--app-color-informative)' }}>
+              <Icon name="pencil" size={14} />
+            </div>
+          </div>
+          <div className="prov-content">
+            <div className="prov-title-row">
+              <span className="prov-name">{t.settings.promptSettings}</span>
+            </div>
+            <div className="prov-meta-row">
+              <span className="prov-family">{t.settings.promptOptimization} · {t.settings.promptPresets}</span>
+            </div>
+          </div>
+          <div className="prov-end">
+            <div className="prov-trail"><Icon name="chevron-right" /></div>
+          </div>
+        </div>
+        <div className="sec-lbl">{t.settings.providerProfiles}</div>
         {loading && <div style={{ padding: 16, color: 'var(--app-color-text-muted)', fontSize: 12 }}>{t.settings.loading}</div>}
         {error && <div style={{ padding: 16, color: 'var(--app-color-negative)', fontSize: 12 }}>{error}</div>}
         {!loading && rows.length === 0 && (

@@ -25,6 +25,7 @@ import { createStaticAppPathInfoPort } from '../src/shared/ports/app-path-info';
 import type { DiagnosticsPort } from '../src/shared/ports/diagnostics-port';
 import { createMemoryActiveImageProfileStore } from '../src/shared/ports/active-image-profile';
 import { createMemoryGenerationSettingsStore, type AppGenerationSettings } from '../src/shared/ports/app-generation-settings';
+import { createMemoryPromptSettingsStore, type PromptSettings } from '../src/shared/ports/prompt-settings';
 
 export const fakeAsset: Asset = {
   type: 'image',
@@ -209,6 +210,7 @@ function savedProfile(input: ProviderProfileInput): ProviderProfile {
     profileId: input.profileId,
     apiFormat: input.apiFormat ?? fakeProfile.apiFormat,
     displayName: input.displayName ?? fakeProfile.displayName,
+    ...(input.systemInstruction && input.systemInstruction.trim().length > 0 ? { systemInstruction: input.systemInstruction } : {}),
     enabled: input.enabled ?? fakeProfile.enabled,
     config: {
       ...fakeProfile.config,
@@ -221,6 +223,7 @@ function savedProfile(input: ProviderProfileInput): ProviderProfile {
 export function createFakeServices(options?: {
   readonly profiles?: readonly ProviderProfile[];
   readonly generationSettings?: Partial<AppGenerationSettings>;
+  readonly promptSettings?: PromptSettings | null;
   readonly activeImageProfileId?: string | null;
 }): {
   readonly services: AppServices;
@@ -440,6 +443,7 @@ export function createFakeServices(options?: {
       commands,
       host,
       generationSettings: createMemoryGenerationSettingsStore(options?.generationSettings),
+      promptSettings: createMemoryPromptSettingsStore(options?.promptSettings),
       activeImageProfile: createMemoryActiveImageProfileStore(options?.activeImageProfileId),
       pathInfo: createStaticAppPathInfoPort({
         logPath: '/fake/data/logs/2026-07-02/imagen.jsonl',

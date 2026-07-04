@@ -3,6 +3,7 @@ import { Icon } from './icons';
 import { useI18n } from '../i18n/i18n-context';
 import { TextField, FieldLabel, HelpText, Checkbox } from '../primitives/native-controls';
 import { IconButton } from '../primitives/icon-button';
+import { UxpTextArea } from './uxp-form-controls';
 import {
   createProviderEndpointDraft,
   sanitizeProviderDisplayName,
@@ -21,6 +22,8 @@ interface ProviderProfileEditorProps {
   readonly onAliasValue: (value: string) => void;
   readonly aliasError?: string | null;
   readonly aliasPlaceholder?: string;
+  readonly systemInstructionValue: string;
+  readonly onSystemInstructionValue: (value: string) => void;
   readonly apiFormatLabel?: string;
   readonly apiFormatDetail?: string | null;
   readonly apiFormatTone?: 'neutral' | 'positive' | 'negative' | 'warning';
@@ -116,6 +119,8 @@ export function ProviderProfileEditor({
   onAliasValue,
   aliasError = null,
   aliasPlaceholder,
+  systemInstructionValue,
+  onSystemInstructionValue,
   apiFormatLabel,
   apiFormatDetail = null,
   apiFormatTone = 'neutral',
@@ -208,6 +213,19 @@ export function ProviderProfileEditor({
               {aliasError}
             </HelpText>
           ) : null}
+        </div>
+
+        <div className="field field-textarea">
+          <FieldLabel htmlFor="provider-system-instructions-input">{t.settings.systemInstructions}</FieldLabel>
+          <UxpTextArea
+            data-testid="provider-system-instructions-input"
+            id="provider-system-instructions-input"
+            className="field-textarea-input"
+            value={systemInstructionValue}
+            disabled={disabled}
+            onValue={onSystemInstructionValue}
+          />
+          <HelpText className="field-hint">{t.settings.systemInstructionsHint}</HelpText>
         </div>
 
         <div className="field">

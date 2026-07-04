@@ -134,6 +134,7 @@ export interface ProviderProfile {
   readonly profileId: string;
   readonly apiFormat: ApiFormat;
   readonly displayName: string;
+  readonly systemInstruction?: string;
   readonly enabled: boolean;
   readonly config: ProviderProfileConfig;
   readonly secretRefs?: Readonly<Record<string, string>>;
@@ -158,6 +159,7 @@ export interface ProviderProfileInput {
   readonly profileId: string;
   readonly apiFormat?: ApiFormat;
   readonly displayName?: string;
+  readonly systemInstruction?: string;
   readonly enabled?: boolean;
   readonly config?: ProviderProfileConfig;
   readonly secretRefs?: Readonly<Record<string, string>>;

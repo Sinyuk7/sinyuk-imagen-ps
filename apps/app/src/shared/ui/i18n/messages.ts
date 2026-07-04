@@ -158,6 +158,8 @@ export interface AppMessages {
   };
   readonly settings: {
     readonly configured: string;
+    readonly configuration: string;
+    readonly providerProfiles: string;
     readonly loading: string;
     readonly noProviderProfile: string;
     readonly config: string;
@@ -258,6 +260,33 @@ export interface AppMessages {
     readonly configValidNoModels: string;
     readonly configValidProviderNoModels: string;
     readonly globalGeneration: string;
+    readonly promptSettings: string;
+    readonly promptOptimization: string;
+    readonly optimizerProfile: string;
+    readonly none: string;
+    readonly optimizationTemplate: string;
+    readonly templateValid: string;
+    readonly templateInvalidReason: string;
+    readonly optimizationActive: string;
+    readonly optimizationNoProfile: string;
+    readonly optimizationInvalidTemplate: string;
+    readonly optimizationMissingProfile: string;
+    readonly promptPresets: string;
+    readonly selectedPreset: string;
+    readonly presetNone: string;
+    readonly addPreset: string;
+    readonly editPreset: string;
+    readonly presetName: string;
+    readonly presetMode: string;
+    readonly presetModePrepend: string;
+    readonly presetModeAppend: string;
+    readonly presetModeReplace: string;
+    readonly presetContent: string;
+    readonly presetContentValid: string;
+    readonly presetReplaceInvalid: string;
+    readonly selectProfileToEnable: string;
+    readonly systemInstructions: string;
+    readonly systemInstructionsHint: string;
     readonly outputGroup: string;
     readonly inputGroup: string;
     readonly outputSize: string;
@@ -464,6 +493,8 @@ const EN_MESSAGES: AppMessages = {
   },
   settings: {
     configured: 'Configured',
+    configuration: 'Configuration',
+    providerProfiles: 'Provider Profiles',
     loading: 'Loading…',
     noProviderProfile: 'No provider profiles',
     config: 'Configuration',
@@ -564,6 +595,33 @@ const EN_MESSAGES: AppMessages = {
     configValidNoModels: 'Configuration valid; no model list is available.',
     configValidProviderNoModels: 'Configuration valid; no available models were returned.',
     globalGeneration: 'Generation settings',
+    promptSettings: 'Prompt Settings',
+    promptOptimization: 'Prompt Optimization',
+    optimizerProfile: 'Profile',
+    none: 'None',
+    optimizationTemplate: 'Template',
+    templateValid: 'Valid template: exactly one {prompt}.',
+    templateInvalidReason: 'Invalid template: use exactly one lowercase {prompt}.',
+    optimizationActive: 'Active: profile selected and template is valid.',
+    optimizationNoProfile: 'Inactive: select a profile to enable.',
+    optimizationInvalidTemplate: 'Inactive: fix the template placeholder.',
+    optimizationMissingProfile: 'Inactive: saved profile is missing.',
+    promptPresets: 'Prompt Presets',
+    selectedPreset: 'Selected preset',
+    presetNone: 'None',
+    addPreset: 'Add preset',
+    editPreset: 'Edit preset',
+    presetName: 'Name',
+    presetMode: 'Mode',
+    presetModePrepend: 'Prepend',
+    presetModeAppend: 'Append',
+    presetModeReplace: 'Replace',
+    presetContent: 'Content',
+    presetContentValid: 'Valid content.',
+    presetReplaceInvalid: 'Replace mode requires exactly one lowercase {prompt}.',
+    selectProfileToEnable: 'Select a profile to enable.',
+    systemInstructions: '系统指令',
+    systemInstructionsHint: '可选的模型语气与风格指令。',
     outputGroup: 'Output',
     inputGroup: 'Input',
     outputSize: 'Output size',
@@ -770,6 +828,8 @@ const ZH_CN_MESSAGES: AppMessages = {
   },
   settings: {
     configured: '已配置',
+    configuration: '配置',
+    providerProfiles: 'Provider 配置',
     loading: '加载中…',
     noProviderProfile: '暂无 Provider 配置',
     config: '配置',
@@ -870,6 +930,33 @@ const ZH_CN_MESSAGES: AppMessages = {
     configValidNoModels: '配置有效；未提供模型列表。',
     configValidProviderNoModels: '配置有效；服务端未返回可用模型。',
     globalGeneration: '生成设置',
+    promptSettings: '提示词设置',
+    promptOptimization: '提示词优化',
+    optimizerProfile: '配置',
+    none: '无',
+    optimizationTemplate: '模板',
+    templateValid: '模板有效：恰好包含一个 {prompt}。',
+    templateInvalidReason: '模板无效：必须恰好包含一个小写 {prompt}。',
+    optimizationActive: '已启用：已选择配置，且模板有效。',
+    optimizationNoProfile: '未启用：选择配置后启用。',
+    optimizationInvalidTemplate: '未启用：请修正模板占位符。',
+    optimizationMissingProfile: '未启用：已保存的配置不存在。',
+    promptPresets: '提示词预设',
+    selectedPreset: '当前预设',
+    presetNone: '无',
+    addPreset: '添加预设',
+    editPreset: '编辑预设',
+    presetName: '名称',
+    presetMode: '模式',
+    presetModePrepend: '前置',
+    presetModeAppend: '后置',
+    presetModeReplace: '替换',
+    presetContent: '内容',
+    presetContentValid: '内容有效。',
+    presetReplaceInvalid: '替换模式必须恰好包含一个小写 {prompt}。',
+    selectProfileToEnable: '选择配置后启用。',
+    systemInstructions: 'System instructions',
+    systemInstructionsHint: 'Optional tone and style instructions for the model',
     outputGroup: '输出',
     inputGroup: '输入',
     outputSize: '输出尺寸',

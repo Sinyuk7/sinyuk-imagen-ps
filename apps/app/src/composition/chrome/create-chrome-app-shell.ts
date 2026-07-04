@@ -105,6 +105,7 @@ export function createChromeAppShell(options?: ChromeAppShellOptions): AppShellH
       commands: testHarness?.wrapCommands(commands) ?? commands,
       host,
       generationSettings: storage.generationSettings,
+      promptSettings: storage.promptSettings,
       activeImageProfile: storage.activeImageProfile,
       pathInfo: CHROME_PATH_INFO,
       thumbnails: createMemoryThumbnailStore({ resolveStoredRef: storage.assets.resolve }),
