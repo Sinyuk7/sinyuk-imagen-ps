@@ -108,13 +108,6 @@ function replaceQueueToast(
   return queue.map((item, index) => (index === targetIndex ? { ...nextToast, order: item.order } : item));
 }
 
-function defaultDismissible(tone: ToastVariant, durationMs: number | null): boolean {
-  if (durationMs == null || durationMs <= 0) {
-    return true;
-  }
-  return tone === 'warning' || tone === 'negative';
-}
-
 function createManagedToast(
   message: string,
   tone: ToastVariant,
@@ -132,7 +125,7 @@ function createManagedToast(
       durationMs,
       role,
       ariaLive,
-      dismissible: options?.dismissible ?? defaultDismissible(tone, durationMs ?? null),
+      dismissible: options?.dismissible ?? true,
     },
     durationMs ?? null,
   );

@@ -19,15 +19,20 @@ describe('theme source CSS', () => {
   });
 
   it('renders every toast tone as a muted solid semantic surface', () => {
-    expect(PANEL_CSS).toContain('border:1px solid var(--toast-border-current)');
-    expect(PANEL_CSS).toContain('.ui-toast[data-variant="positive"]{ --toast-bg-current:var(--toast-bg-positive); --toast-border-current:var(--toast-border-positive); --toast-icon-current:var(--toast-icon-positive); }');
-    expect(PANEL_CSS).toContain('.ui-toast[data-variant="negative"]{ --toast-bg-current:var(--toast-bg-negative); --toast-border-current:var(--toast-border-negative); --toast-icon-current:var(--toast-icon-negative); }');
-    expect(PANEL_CSS).toContain('.ui-toast[data-variant="warning"]{ --toast-bg-current:var(--toast-bg-warning); --toast-border-current:var(--toast-border-warning); --toast-icon-current:var(--toast-icon-warning); }');
-    expect(PANEL_CSS).toContain('.ui-toast[data-variant="info"]{ --toast-bg-current:var(--toast-bg-info); --toast-border-current:var(--toast-border-info); --toast-icon-current:var(--toast-icon-info); }');
-    expect(PANEL_CSS).toContain('.ui-toast[data-variant="neutral"]{ --toast-bg-current:var(--toast-bg-neutral); --toast-border-current:var(--toast-border-neutral); --toast-icon-current:var(--toast-icon-neutral); }');
+    expect(PANEL_CSS).toContain('padding-top:0; padding-right:0; padding-bottom:0; padding-left:var(--toast-padding-x); border:none; border-radius:var(--toast-radius);');
+    expect(PANEL_CSS).toContain('.ui-toast[data-variant="positive"]{ --toast-bg-current:var(--toast-bg-positive); --toast-icon-current:var(--toast-icon-positive); }');
+    expect(PANEL_CSS).toContain('.ui-toast[data-variant="negative"]{ --toast-bg-current:var(--toast-bg-negative); --toast-icon-current:var(--toast-icon-negative); }');
+    expect(PANEL_CSS).toContain('.ui-toast[data-variant="warning"]{ --toast-bg-current:var(--toast-bg-warning); --toast-icon-current:var(--toast-icon-warning); }');
+    expect(PANEL_CSS).toContain('.ui-toast[data-variant="info"]{ --toast-bg-current:var(--toast-bg-info); --toast-icon-current:var(--toast-icon-info); }');
+    expect(PANEL_CSS).toContain('.ui-toast[data-variant="neutral"]{ --toast-bg-current:var(--toast-bg-neutral); --toast-icon-current:var(--toast-icon-neutral); }');
+    expect(PANEL_CSS).toContain('.ui-toast-content{');
+    expect(PANEL_CSS).toContain('.ui-toast-message-wrap{');
     expect(PANEL_CSS).toContain('.ui-toast-icon{');
+    expect(PANEL_CSS).toContain('.ui-toast[data-text-size="sm"] .ui-toast-message{');
+    expect(PANEL_CSS).toContain('.ui-toast[data-text-size="xs"] .ui-toast-message{');
+    expect(PANEL_CSS).toContain('border-left:1px solid color-mix(in srgb, var(--toast-fg-secondary) 24%, transparent);');
     expect(PANEL_CSS).toContain('color:var(--toast-icon-current);');
-    expect(PANEL_CSS).toContain('font-weight:500;');
+    expect(PANEL_CSS).toContain('font-weight:600;');
   });
 
   it('uses the generated theme module instead of legacy hand-written theme modules', () => {

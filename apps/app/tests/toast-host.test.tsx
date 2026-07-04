@@ -26,7 +26,6 @@ function ToastHarness({ onRetry }: { readonly onRetry: () => void }) {
         onClick={() => toast.show('Could not connect', 'negative', {
           key: 'retry-toast',
           durationMs: null,
-          dismissible: true,
           action: {
             label: 'Retry',
             onAction: onRetry,
@@ -119,6 +118,7 @@ describe('ToastHost', () => {
     expect(toast?.textContent).toContain('Could not connect');
     expect(toast?.getAttribute('role')).toBe('status');
     expect(toast?.getAttribute('aria-live')).toBe('polite');
+    expect(container.querySelector('[aria-label="Dismiss"]')).not.toBeNull();
   });
 
   it('keeps only two queued toasts and drains them by priority', async () => {
@@ -181,10 +181,64 @@ describe('ToastHost', () => {
     });
     await flush();
 
+    expect(container.querySelector('[aria-label="Dismiss"]')).not.toBeNull();
+
     await act(async () => {
       Array.from(container.querySelectorAll<HTMLButtonElement>('button')).find((button) => button.textContent === 'Retry')!.click();
     });
 
     expect(retrySpy).toHaveBeenCalledTimes(1);
+  });
+
+  it('shrinks long toast text through discrete size steps and keeps the full message in title when truncated', async () => {
+    const clientWidthDescriptor = Object.getOwnPropertyDescriptor(HTMLElement.prototype, 'clientWidth');
+    const scrollWidthDescriptor = Object.getOwnPropertyDescriptor(HTMLElement.prototype, 'scrollWidth');
+
+    Object.defineProperty(HTMLElement.prototype, 'clientWidth', {
+      configurable: true,
+      get() {
+        if (this instanceof HTMLElement && this.classList.contains('ui-toast-message')) {
+          return 84;
+        }
+        return clientWidthDescriptor?.get ? clientWidthDescriptor.get.call(this) : 0;
+      },
+    });
+    Object.defineProperty(HTMLElement.prototype, 'scrollWidth', {
+      configurable: true,
+      get() {
+        if (this instanceof HTMLElement && this.classList.contains('ui-toast-message')) {
+          const size = this.closest<HTMLElement>('[data-testid="toast"]')?.dataset.textSize;
+          if (size === 'sm') return 104;
+          if (size === 'xs') return 92;
+          return 128;
+        }
+        return scrollWidthDescriptor?.get ? scrollWidthDescriptor.get.call(this) : 0;
+      },
+    });
+
+    try {
+      const { container } = await renderHarness();
+
+      await act(async () => {
+        container.querySelector<HTMLElement>('[data-testid="show-dedupe-a"]')!.click();
+      });
+      await flush();
+
+      const toast = container.querySelector<HTMLElement>('[data-testid="toast"]');
+      const message = container.querySelector<HTMLElement>('.ui-toast-message');
+      expect(toast?.dataset.textSize).toBe('xs');
+      expect(message?.getAttribute('title')).toBe('First sync');
+    } finally {
+      if (clientWidthDescriptor) {
+        Object.defineProperty(HTMLElement.prototype, 'clientWidth', clientWidthDescriptor);
+      } else {
+        delete (HTMLElement.prototype as Partial<HTMLElement>).clientWidth;
+      }
+      if (scrollWidthDescriptor) {
+        Object.defineProperty(HTMLElement.prototype, 'scrollWidth', scrollWidthDescriptor);
+      } else {
+        delete (HTMLElement.prototype as Partial<HTMLElement>).scrollWidth;
+      }
+    }
   });
 });

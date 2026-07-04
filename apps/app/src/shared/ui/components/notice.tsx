@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { Icon, type IconName } from './icons';
 import { IconButton } from '../primitives/icon-button';
 import { ActionButton } from '../primitives/native-controls';
@@ -53,6 +53,8 @@ interface NoticeViewProps {
   readonly onPause?: () => void;
   readonly onResume?: () => void;
 }
+
+type ToastTextSize = 'md' | 'sm' | 'xs';
 
 async function copyText(text: string): Promise<boolean> {
   if (typeof navigator !== 'undefined' && typeof navigator.clipboard?.writeText === 'function') {
@@ -200,15 +202,89 @@ export function useNotice({ defaultDurationMs = null }: UseNoticeOptions = {}): 
 export function NoticeView({ notice, kind, onClear, motionState, onPause, onResume }: NoticeViewProps) {
   const [copied, setCopied] = useState(false);
   const ref = useRef<HTMLDivElement | null>(null);
+  const messageRef = useRef<HTMLSpanElement | null>(null);
   const copyResetTimerRef = useRef<number | null>(null);
+  const resizeFrameRef = useRef<number | null>(null);
+  const [toastTextSize, setToastTextSize] = useState<ToastTextSize>('md');
+  const [toastMessageTruncated, setToastMessageTruncated] = useState(false);
 
   useEffect(() => {
     return () => {
       if (copyResetTimerRef.current != null) {
         window.clearTimeout(copyResetTimerRef.current);
       }
+      if (resizeFrameRef.current != null && typeof window !== 'undefined') {
+        window.cancelAnimationFrame(resizeFrameRef.current);
+      }
     };
   }, []);
+
+  const measureToastText = useCallback(() => {
+    if (kind !== 'toast') {
+      return;
+    }
+    const host = ref.current;
+    const message = messageRef.current;
+    if (!host || !message) {
+      return;
+    }
+
+    const overflowsAt = (size: ToastTextSize): boolean => {
+      host.dataset.textSize = size;
+      return message.scrollWidth > message.clientWidth + 1;
+    };
+
+    let nextSize: ToastTextSize = 'md';
+    let truncated = false;
+    if (overflowsAt('md')) {
+      nextSize = 'sm';
+      if (overflowsAt('sm')) {
+        nextSize = 'xs';
+        truncated = overflowsAt('xs');
+      }
+    }
+
+    setToastTextSize((current) => (current === nextSize ? current : nextSize));
+    setToastMessageTruncated((current) => (current === truncated ? current : truncated));
+  }, [kind]);
+
+  useLayoutEffect(() => {
+    if (kind !== 'toast') {
+      setToastTextSize('md');
+      setToastMessageTruncated(false);
+      return;
+    }
+
+    measureToastText();
+    const host = ref.current;
+    if (!host || typeof ResizeObserver === 'undefined') {
+      return;
+    }
+
+    const scheduleMeasure = () => {
+      if (resizeFrameRef.current != null) {
+        window.cancelAnimationFrame(resizeFrameRef.current);
+      }
+      resizeFrameRef.current = window.requestAnimationFrame(() => {
+        resizeFrameRef.current = null;
+        measureToastText();
+      });
+    };
+
+    const observer = new ResizeObserver(() => {
+      scheduleMeasure();
+    });
+    observer.observe(host);
+
+    return () => {
+      observer.disconnect();
+      if (resizeFrameRef.current != null) {
+        window.cancelAnimationFrame(resizeFrameRef.current);
+        resizeFrameRef.current = null;
+      }
+      delete host.dataset.textSize;
+    };
+  }, [kind, measureToastText, notice.action?.label, notice.message]);
 
   const handleCopy = async () => {
     try {
@@ -242,6 +318,7 @@ export function NoticeView({ notice, kind, onClear, motionState, onPause, onResu
         className="ui-toast"
         data-variant={notice.tone}
         data-tone={notice.tone}
+        data-text-size={toastTextSize}
         {...(motionState ? { 'data-motion-state': motionState } : {})}
         tabIndex={-1}
         aria-live={notice.ariaLive}
@@ -262,18 +339,28 @@ export function NoticeView({ notice, kind, onClear, motionState, onPause, onResu
             <Icon name={notice.icon} size={16} />
           </span>
         ) : null}
-        <span className="ui-toast-message">{notice.message}</span>
-        {notice.action ? (
-          <ActionButton
-            className="ui-toast-action"
-            quiet
-            aria-label={notice.action.ariaLabel ?? notice.action.label}
-            onClick={() => void notice.action?.onAction()}
-          >
-            {notice.action.label}
-          </ActionButton>
-        ) : null}
-        {notice.dismissible && typeof onClear === 'function' ? (
+        <div className="ui-toast-content">
+          <span className="ui-toast-message-wrap">
+            <span
+              className="ui-toast-message"
+              ref={messageRef}
+              title={toastMessageTruncated ? notice.message : undefined}
+            >
+              {notice.message}
+            </span>
+          </span>
+          {notice.action ? (
+            <ActionButton
+              className="ui-toast-action"
+              quiet
+              aria-label={notice.action.ariaLabel ?? notice.action.label}
+              onClick={() => void notice.action?.onAction()}
+            >
+              {notice.action.label}
+            </ActionButton>
+          ) : null}
+        </div>
+        {typeof onClear === 'function' ? (
           <IconButton
             className="ui-toast-close"
             hostClassName="ui-toast-close-host"

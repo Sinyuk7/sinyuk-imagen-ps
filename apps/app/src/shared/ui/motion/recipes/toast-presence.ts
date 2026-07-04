@@ -13,7 +13,7 @@ export function toastPresenceRecipe(
   return slideFadeRecipe(element, {
     enter: input.enter,
     direction: 'down',
-    distancePx: MOTION_TRANSLATE.small,
+    distancePx: MOTION_TRANSLATE.micro,
     durationMs: input.enter ? MOTION_DURATION.enter : MOTION_DURATION.exit,
     channel: 'presence',
     preference: input.preference,
