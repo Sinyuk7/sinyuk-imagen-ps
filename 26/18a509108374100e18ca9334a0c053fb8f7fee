@@ -1,0 +1,96 @@
+apps/app/src/shared/ui/motion/recipes/inline-notice-presence.ts
+  s_f03b9fe1aa27e4::t_83e72e20b24b66 1-22
+apps/app/src/shared/ui/motion/recipes/recipe-utils.ts
+  s_f03b9fe1aa27e4::t_83e72e20b24b66 68
+apps/app/src/shared/ui/motion/motion-tokens.ts
+  s_f03b9fe1aa27e4::t_83e72e20b24b66 6-9,11-16
+apps/app/src/shared/ui/i18n/messages.ts
+  s_7d00aac348b2b3::t_fbce7f504a3342 872,874-878,880,882-883,885-890
+docs/ENGINEERING_CONTEXT.md
+  s_7d00aac348b2b3::t_263a51494ba2bb 129-131
+apps/app/src/shared/ui/motion/recipes/content-crossfade.ts
+  s_f03b9fe1aa27e4::t_83e72e20b24b66 17
+apps/app/src/shared/ui/components/notice.tsx
+  s_f03b9fe1aa27e4::t_2441cc6a5f436d 5,382-425
+  s_f03b9fe1aa27e4::t_3d1c407e601ba4 381
+apps/app/src/shared/ui/motion/react/use-motion-presence.ts
+  s_f03b9fe1aa27e4::t_83e72e20b24b66 3-4,28-29
+  s_f03b9fe1aa27e4::t_3fe41ad536af92 45-48,52
+apps/app/src/shared/ui/components/motion-ui.tsx
+  s_f03b9fe1aa27e4::t_2441cc6a5f436d 119,128-134
+  s_f03b9fe1aa27e4::t_b9819b0cdaa321 10,40
+  s_f03b9fe1aa27e4::t_3fe41ad536af92 23,39
+apps/app/src/composition/chrome/chrome-feasibility-runtime.ts
+  s_7d00aac348b2b3::t_a5d5709bcbcdfb 31,74-94,96-97,131,141-142,146-147,150-151,156,163
+  s_7d00aac348b2b3::t_4bfe8277ebc1e9 46
+packages/providers/tests/image-endpoint-transport-request.test.ts
+  s_7d00aac348b2b3::t_6772b1c36533bb 51,92
+packages/application/src/runtime.test.ts
+  s_7d00aac348b2b3::t_9b852b58e6281d 154
+apps/app/src/adapters/uxp/uxp-provider-profile-repository.ts
+  s_7d00aac348b2b3::t_1a36c1a3b72c7a 23-29,44-70,72-82,84,116,119-120,122-128
+apps/app/src/shared/ui/motion/recipes/page-crossfade.ts
+  s_f03b9fe1aa27e4::t_83e72e20b24b66 2-3,14-17
+apps/app/src/adapters/uxp/uxp-host-adapters.test.ts
+  s_7d00aac348b2b3::t_4e584fcfb3e371 167-189,210-223,225,228,239-257,259-260,262-267,358,360,364,393
+apps/app/tests/mappers.test.ts
+  s_7d00aac348b2b3::t_4338330b81a3d6 2,53-65
+  s_7d00aac348b2b3::t_8e3e09bc418e6b 66
+apps/app/tests/main-page-placement-writeback.test.tsx
+  s_f03b9fe1aa27e4::t_c1ffc5abe24f9f 3,67
+apps/app/src/shared/ui/motion/recipes/activity-pulse.ts
+  s_f03b9fe1aa27e4::t_83e72e20b24b66 35
+apps/app/AGENTS.md
+  s_f03b9fe1aa27e4::t_f05b6257552e9e 72-98
+apps/app/src/shared/domain/mappers.ts
+  s_7d00aac348b2b3::t_8ee917ec6706ab 225-231,233-235
+apps/app/src/shared/ui/motion/recipes/icon-crossfade.ts
+  s_f03b9fe1aa27e4::t_83e72e20b24b66 17
+apps/app/src/shared/ui/motion/motion-controller.ts
+  s_f03b9fe1aa27e4::t_83e72e20b24b66 10
+packages/providers/src/contract/api-format.ts
+  s_7d00aac348b2b3::t_8c9a8e8d417d07 73
+apps/app/src/shared/ui/motion/recipes/surface-highlight.ts
+  s_f03b9fe1aa27e4::t_83e72e20b24b66 32
+packages/providers/tests/api-format-contract.test.ts
+  s_7d00aac348b2b3::t_e1d1b25b050682 123,125-126
+  s_7d00aac348b2b3::t_b4f7f97fb4bf88 6,122,124,127-131
+  s_7d00aac348b2b3::t_28b0df02cfb51c 132
+packages/providers/tests/image-endpoint-provider.test.ts
+  s_7d00aac348b2b3::t_7f8167a2c2c7f0 467,502
+  s_7d00aac348b2b3::t_6772b1c36533bb 48,438
+apps/app/tests/chrome-feasibility.test.ts
+  s_7d00aac348b2b3::t_fa923a1d427f60 16
+apps/app/src/shared/ui/pages/main-page.tsx
+  s_f03b9fe1aa27e4::t_7bee5f3f5fb6f3 1671-1672,1674-1695,1701-1723,1840-1844
+  s_f03b9fe1aa27e4::t_2441cc6a5f436d 42,1093
+  s_f03b9fe1aa27e4::t_b51e6f7779eb51 1673
+apps/app/src/shared/ui/motion/recipes/fade.ts
+  s_f03b9fe1aa27e4::t_83e72e20b24b66 18
+apps/app/src/shared/ui/motion/index.ts
+  s_f03b9fe1aa27e4::t_83e72e20b24b66 8,28
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.10",
+  "base_commit_sha": "2618a509108374100e18ca9334a0c053fb8f7fee",
+  "prompts": {},
+  "sessions": {
+    "s_7d00aac348b2b3": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "019f2c24-480c-76a3-9c06-7b0e16a1c9b5",
+        "model": "gpt-5.5"
+      },
+      "human_author": "Sinyuk <80998062@qq.com>"
+    },
+    "s_f03b9fe1aa27e4": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "019f2ca3-de27-7fe1-8ec8-22f6f63e8570",
+        "model": "gpt-5.4"
+      },
+      "human_author": "Sinyuk <80998062@qq.com>"
+    }
+  }
+}
