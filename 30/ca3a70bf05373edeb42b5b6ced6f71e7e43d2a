@@ -1,0 +1,32 @@
+apps/app/src/shared/ui/pages/settings-detail-page.tsx
+  s_4cfb886f35fbb0::t_5084431686939f 1
+  s_4cfb886f35fbb0::t_499dd335844531 3,249-252,254-277,330,456-469,576,599-607,618,625,628,650-651,654,658,663
+  s_4cfb886f35fbb0::t_15d55fcdfb3458 776-779,1079-1081
+  s_4cfb886f35fbb0::t_dbd422ed784226 15,21,24
+apps/app/tests/settings-add-page.test.tsx
+  s_4cfb886f35fbb0::t_790ef6ae22107d 367-428
+apps/app/src/shared/ui/hooks/use-provider-settings.ts
+  s_4cfb886f35fbb0::t_1b8f28f9c7ff81 5,11,84-320
+  s_4cfb886f35fbb0::t_510b55e4188582 321
+apps/app/src/shared/ui/pages/settings-add-page.tsx
+  s_4cfb886f35fbb0::t_65e5887c51ad34 2,14,16,20,26
+  s_4cfb886f35fbb0::t_b07847ff34863b 610-612,627-639,655,696-708
+  s_4cfb886f35fbb0::t_d4699355e9ab4d 326,332,337-344,346-350,365
+  s_4cfb886f35fbb0::t_49bdf47abda26e 168,198-221,223
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.10",
+  "base_commit_sha": "30ca3a70bf05373edeb42b5b6ced6f71e7e43d2a",
+  "prompts": {},
+  "sessions": {
+    "s_4cfb886f35fbb0": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "019f2cfb-132c-75e3-b6da-c4cdb101be51",
+        "model": "gpt-5.4"
+      },
+      "human_author": "Sinyuk <80998062@qq.com>"
+    }
+  }
+}
