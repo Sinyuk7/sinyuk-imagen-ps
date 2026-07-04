@@ -14,6 +14,16 @@ function errorMessage(error: unknown, fallback: string): string {
   return error instanceof Error ? error.message : fallback;
 }
 
+function isValidationFailure(error: unknown): boolean {
+  if (!(error instanceof Error)) {
+    return false;
+  }
+  if (error.name === 'ProviderValidationError') {
+    return true;
+  }
+  return error.message.includes('Provider implementation for apiFormat "') && error.message.includes('" not found.');
+}
+
 function draftProfileFromContext(
   existing: ProviderProfile | undefined,
   input: RefreshDraftProfileModelsInput,
@@ -81,7 +91,7 @@ export async function refreshDraftProfileModels(
   } catch (error) {
     span.fail(error);
     const message = errorMessage(error, 'Model discovery failed for draft profile.');
-    if (message.includes('validation failed')) {
+    if (isValidationFailure(error)) {
       return {
         ok: false,
         error: createValidationError(message, {

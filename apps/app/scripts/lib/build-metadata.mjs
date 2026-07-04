@@ -9,7 +9,7 @@
 import { execSync } from 'node:child_process';
 import { readFileSync, writeFileSync } from 'node:fs';
 
-/** @typedef {{name:string,version:string,buildId:string,commit:string,channel:string,dirty?:boolean,builtAt?:string}} BuildInfo */
+/** @typedef {{name:string,version:string,buildId:string,commit:string,channel:string,dirty:boolean,builtAt?:string}} BuildInfo */
 
 export const CHANNEL = 'production';
 export const PRODUCT_NAME = 'Imagen PS';
@@ -89,8 +89,8 @@ export function buildBuildInfo({ manifestPath, repoRoot, sourceDateEpoch }) {
     buildId,
     commit: git.commit,
     channel: CHANNEL,
+    dirty: git.dirty,
   };
-  if (git.dirty) info.dirty = true;
   if (builtAt) info.builtAt = builtAt;
   return info;
 }

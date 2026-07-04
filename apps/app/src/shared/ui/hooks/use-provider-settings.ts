@@ -155,17 +155,7 @@ export interface ProviderDraftModelCatalogOptions {
     | { readonly ok: true; readonly value: readonly ProviderModelInfo[] }
     | { readonly ok: false; readonly error: { readonly category: string; readonly message: string } }
   >;
-  readonly probeDraft: (
-    currentResolvedEndpointId?: string,
-  ) => Promise<
-    | { readonly ok: true; readonly value: MeasureProfileEndpointsResult }
-    | { readonly ok: false; readonly error: { readonly category: string; readonly message: string } }
-  >;
 }
-
-export type ProviderDraftModelCatalogRefreshResult =
-  | { readonly kind: 'probe'; readonly value: MeasureProfileEndpointsResult }
-  | { readonly kind: 'persisted'; readonly value: readonly ProviderModelInfo[] };
 
 export interface ProviderDraftModelCatalogState {
   readonly models: readonly ProviderModelInfo[];
@@ -178,7 +168,7 @@ export interface ProviderDraftModelCatalogState {
   readonly stale: boolean;
   readonly measurementResults: readonly EndpointMeasurementResult[];
   readonly resolvedEndpointId?: string;
-  readonly refresh: () => Promise<ProviderDraftModelCatalogRefreshResult>;
+  readonly refresh: () => Promise<readonly ProviderModelInfo[]>;
   readonly invalidate: () => void;
   readonly clearProofs: () => void;
   readonly applyProbeResult: (result: MeasureProfileEndpointsResult) => void;
@@ -199,7 +189,6 @@ export function useProviderDraftModelCatalog(
     isDraftDirty,
     resetKey,
     refreshDraftModels,
-    probeDraft,
   } = options;
   const persisted = useProfileModels(services, persistedProfileId, persistedRevisionKey);
   const [draftModels, setDraftModels] = useState<readonly ProviderModelInfo[] | null>(null);
@@ -268,7 +257,7 @@ export function useProviderDraftModelCatalog(
     }
   }, []);
 
-  const refresh = useCallback(async (): Promise<ProviderDraftModelCatalogRefreshResult> => {
+  const refresh = useCallback(async (): Promise<readonly ProviderModelInfo[]> => {
     if (!discoverySupported) {
       throw new Error('Model discovery unsupported.');
     }
@@ -282,18 +271,17 @@ export function useProviderDraftModelCatalog(
         setDraftModels(result.value);
         setStale(false);
         clearProofs();
-        return { kind: 'persisted', value: result.value };
+        return result.value;
       }
       const value = await persisted.refresh();
       setDraftModels(null);
       setStale(false);
       clearProofs();
-      return { kind: 'persisted', value };
+      return value;
     } finally {
       setRefreshBusy(false);
     }
   }, [
-    applyProbeResult,
     canRefreshPersistedModelCache,
     clearProofs,
     discoverySupported,
@@ -301,8 +289,6 @@ export function useProviderDraftModelCatalog(
     persisted,
     persistedProfileId,
     refreshDraftModels,
-    probeDraft,
-    resolvedEndpointId,
   ]);
 
   return {

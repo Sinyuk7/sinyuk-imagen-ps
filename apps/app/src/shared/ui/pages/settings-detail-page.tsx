@@ -469,10 +469,6 @@ export function SettingsDetailPage({ onNav, profileId, onProfilesChanged, onSave
     isDraftDirty: draftDirty,
     resetKey: detail.profile ? `${detail.profile.profileId}:${detail.profile.updatedAt}` : 'detail:none',
     refreshDraftModels: async () => services.commands.refreshDraftProfileModels(buildDraftCommandInput()),
-    probeDraft: async (currentResolvedEndpointId) => services.commands.measureProfileEndpoints({
-      ...buildDraftCommandInput(),
-      currentResolvedEndpointId,
-    }),
   });
 
   const testCurrentDraftConnection = async () => services.commands.testProviderProfileConnection(buildDraftCommandInput());

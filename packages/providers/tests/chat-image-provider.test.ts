@@ -531,6 +531,60 @@ describe('chat-image provider', () => {
     fetchSpy.mockRestore();
   });
 
+  it('maps timeout failures during chat endpoint reachability probe', async () => {
+    const fetchSpy = vi.spyOn(globalThis, 'fetch').mockRejectedValue(Object.assign(new Error('Request timed out.'), {
+      name: 'TimeoutError',
+    }));
+    const provider = createChatImageProvider();
+    const config = provider.validateConfig({
+      providerId: 'chat-image',
+      displayName: 'Chat Image',
+      family: 'chat-image',
+      connection: {
+        selectionMode: 'manual',
+        selectedEndpointId: 'primary',
+        endpoints: [{ id: 'primary', url: 'https://openrouter.ai/api/v1', enabled: true }],
+      },
+      apiKey: 'test-key',
+    });
+
+    const result = await provider.measureEndpoints?.(config, { timeoutMs: 25 });
+
+    expect(result?.results[0]).toMatchObject({
+      endpointId: 'primary',
+      reachable: false,
+      failureKind: 'timeout',
+      errorMessage: 'Request timed out.',
+    });
+    fetchSpy.mockRestore();
+  });
+
+  it('maps network failures during chat endpoint reachability probe', async () => {
+    const fetchSpy = vi.spyOn(globalThis, 'fetch').mockRejectedValue(new Error('socket hang up'));
+    const provider = createChatImageProvider();
+    const config = provider.validateConfig({
+      providerId: 'chat-image',
+      displayName: 'Chat Image',
+      family: 'chat-image',
+      connection: {
+        selectionMode: 'manual',
+        selectedEndpointId: 'primary',
+        endpoints: [{ id: 'primary', url: 'https://openrouter.ai/api/v1', enabled: true }],
+      },
+      apiKey: 'test-key',
+    });
+
+    const result = await provider.measureEndpoints?.(config);
+
+    expect(result?.results[0]).toMatchObject({
+      endpointId: 'primary',
+      reachable: false,
+      failureKind: 'connect',
+      errorMessage: 'socket hang up',
+    });
+    fetchSpy.mockRestore();
+  });
+
   it('resolves prefixed Gemini 3 chat model ids onto the curated local rules', () => {
     const resolved = resolveImageModelRule({
       providerId: 'chat-image',

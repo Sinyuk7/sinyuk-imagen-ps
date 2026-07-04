@@ -15,6 +15,7 @@ import type { Logger } from '@imagen-ps/foundation';
 import { imageEndpointDescriptor } from './descriptor.js';
 import { imageEndpointConfigSchema, type ImageEndpointProviderConfig } from './config-schema.js';
 import { mockRequestSchema, type MockProviderRequest } from '../mock/request-schema.js';
+import { probeEndpointReachability } from '../../transport/endpoint-probe.js';
 import { httpRequest } from '../../transport/image-endpoint/http.js';
 import {
   createAttemptLedger,
@@ -143,65 +144,6 @@ function normalizeMeasurementFailure(
       return { endpointId, checkedAt, reachable: false, latencyMs, failureKind: classifyMeasurementFailure(message), errorMessage: message };
     default:
       return { endpointId, checkedAt, reachable: false, latencyMs, failureKind: 'unknown', ...(httpStatus !== undefined ? { httpStatus } : {}), errorMessage: message };
-  }
-}
-
-async function probeEndpointReachability(
-  endpoint: ImageEndpointProviderConfig['connection']['endpoints'][number],
-  signal?: AbortSignal,
-  timeoutMs?: number,
-): Promise<{ readonly status: number }> {
-  const controller = typeof AbortController !== 'undefined' ? new AbortController() : undefined;
-  const abort = (reason?: unknown) => {
-    if (!controller) {
-      return;
-    }
-    try {
-      controller.abort(reason);
-    } catch {
-      controller.abort();
-    }
-  };
-  const onAbort = () => abort(signal?.reason);
-  if (signal) {
-    if (signal.aborted) {
-      abort(signal.reason);
-    } else {
-      signal.addEventListener('abort', onAbort, { once: true });
-    }
-  }
-  const timer = controller && timeoutMs !== undefined
-    ? setTimeout(() => {
-      const error = new Error('Request timed out.');
-      error.name = 'TimeoutError';
-      abort(error);
-    }, timeoutMs)
-    : undefined;
-  const mergedSignal = controller?.signal ?? signal;
-  try {
-    const response = await fetch(endpoint.url, {
-      method: 'HEAD',
-      ...(mergedSignal ? { signal: mergedSignal } : {}),
-    });
-    return { status: response.status };
-  } catch (error) {
-    const reason = error instanceof Error ? error : new Error(String(error));
-    if (reason.name === 'AbortError' || reason.name === 'TimeoutError') {
-      const timeout = new Error('Request timed out.') as Error & { kind?: string };
-      timeout.name = 'TimeoutError';
-      timeout.kind = 'timeout';
-      throw timeout;
-    }
-    const network = new Error(reason.message) as Error & { kind?: string };
-    network.kind = 'network_error';
-    throw network;
-  } finally {
-    if (signal) {
-      signal.removeEventListener?.('abort', onAbort);
-    }
-    if (timer !== undefined) {
-      clearTimeout(timer);
-    }
   }
 }
 
@@ -537,7 +479,10 @@ export function createImageEndpointProvider(): Provider<ImageEndpointProviderCon
         async (endpoint): Promise<ProviderEndpointMeasurement> => {
           const startedAt = perfNow();
           try {
-            const response = await probeEndpointReachability(endpoint, options.signal, options.timeoutMs ?? config.timeoutMs);
+            const response = await probeEndpointReachability(endpoint, {
+              signal: options.signal,
+              timeoutMs: options.timeoutMs ?? config.timeoutMs,
+            });
             return {
               endpointId: endpoint.id,
               checkedAt: Date.now(),

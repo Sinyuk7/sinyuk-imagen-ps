@@ -83,13 +83,14 @@ describe('build-metadata', () => {
       expect(info.channel).toBe(CHANNEL);
       expect(info.buildId).toContain('0.4.2+');
       expect(typeof info.commit).toBe('string');
+      expect(typeof info.dirty).toBe('boolean');
     });
 
     it('marks dirty state when git working tree is dirty', () => {
       const manifestPath = join(tmp, 'manifest.json');
       writeFileSync(manifestPath, JSON.stringify({ version: '1.0.0' }));
       const info = buildBuildInfo({ manifestPath, repoRoot: process.cwd(), sourceDateEpoch: undefined });
-      // 当前测试运行时 git 状态可能 dirty（测试文件本身是未提交改动）
+      // 当前测试运行时 git 状态可能为 clean 或 dirty，但字段必须稳定存在。
       expect(typeof info.dirty).toBe('boolean');
       if (info.dirty) expect(info.dirty).toBe(true);
     });

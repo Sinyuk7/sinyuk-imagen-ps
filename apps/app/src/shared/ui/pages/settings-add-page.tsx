@@ -208,10 +208,6 @@ export function SettingsAddPage({ onNav, profiles, onProfileSaved }: SettingsAdd
     refreshDraftModels: async () => services.commands.refreshDraftProfileModels(
       buildDraftCommandInput(connectionRef.current, billingRef.current),
     ),
-    probeDraft: async (currentResolvedEndpointId) => services.commands.measureProfileEndpoints({
-      ...buildDraftCommandInput(connectionRef.current, billingRef.current),
-      currentResolvedEndpointId,
-    }),
   });
 
   const modelOptions = modelCatalog.options;

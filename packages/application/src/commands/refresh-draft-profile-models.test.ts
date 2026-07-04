@@ -164,4 +164,59 @@ describe('refreshDraftProfileModels', () => {
       expect(result.error.message).toContain('draft discovery failed');
     }
   });
+
+  it('returns validation error when draft config validation fails', async () => {
+    _resetForTesting();
+    setProviderProfileRepository(createRepository([]));
+
+    const registry = createProviderRegistry();
+    const provider: Provider<ProviderConfig, ProviderRequest> = {
+      id: 'image-endpoint',
+      family: 'image-endpoint',
+      describe() {
+        return {
+          id: 'image-endpoint',
+          family: 'image-endpoint',
+          apiFormat: 'openai-images',
+          displayName: 'Image Endpoint',
+          operations: ['text_to_image', 'image_edit'],
+          invokeMode: 'sync',
+        };
+      },
+      validateConfig() {
+        const error = new Error('invalid provider config');
+        error.name = 'ProviderValidationError';
+        throw error;
+      },
+      validateRequest(input) {
+        return input as ProviderRequest;
+      },
+      async invoke() {
+        throw new Error('invoke not used');
+      },
+      async discoverModels() {
+        return [];
+      },
+    };
+    registry.register(provider);
+    _setRuntimeInstanceForTesting({ providerRegistry: registry } as never);
+
+    const result = await refreshDraftProfileModels({
+      apiFormat: 'openai-images',
+      displayName: 'Draft',
+      config: {
+        connection: {
+          selectionMode: 'manual',
+          selectedEndpointId: 'primary',
+          endpoints: [{ id: 'primary', url: 'https://broken.example.com', enabled: true }],
+        },
+      },
+    });
+
+    expect(result.ok).toBe(false);
+    if (!result.ok) {
+      expect(result.error.category).toBe('validation');
+      expect(result.error.message).toBe('invalid provider config');
+    }
+  });
 });

@@ -526,6 +526,60 @@ describe('image-endpoint provider', () => {
     fetchSpy.mockRestore();
   });
 
+  it('maps timeout failures during endpoint reachability probe', async () => {
+    const fetchSpy = vi.spyOn(globalThis, 'fetch').mockRejectedValue(Object.assign(new Error('Request timed out.'), {
+      name: 'TimeoutError',
+    }));
+    const provider = createImageEndpointProvider();
+    const config = provider.validateConfig({
+      providerId: 'image-endpoint',
+      displayName: 'Image Endpoint',
+      family: 'image-endpoint',
+      connection: {
+        selectionMode: 'manual',
+        selectedEndpointId: 'primary',
+        endpoints: [{ id: 'primary', url: 'https://api.example.com/v1', enabled: true }],
+      },
+      apiKey: 'test-key',
+    });
+
+    const result = await provider.measureEndpoints?.(config, { timeoutMs: 25 });
+
+    expect(result?.results[0]).toMatchObject({
+      endpointId: 'primary',
+      reachable: false,
+      failureKind: 'timeout',
+      errorMessage: 'Request timed out.',
+    });
+    fetchSpy.mockRestore();
+  });
+
+  it('maps DNS-like network failures during endpoint reachability probe', async () => {
+    const fetchSpy = vi.spyOn(globalThis, 'fetch').mockRejectedValue(new Error('getaddrinfo ENOTFOUND api.example.com'));
+    const provider = createImageEndpointProvider();
+    const config = provider.validateConfig({
+      providerId: 'image-endpoint',
+      displayName: 'Image Endpoint',
+      family: 'image-endpoint',
+      connection: {
+        selectionMode: 'manual',
+        selectedEndpointId: 'primary',
+        endpoints: [{ id: 'primary', url: 'https://api.example.com/v1', enabled: true }],
+      },
+      apiKey: 'test-key',
+    });
+
+    const result = await provider.measureEndpoints?.(config);
+
+    expect(result?.results[0]).toMatchObject({
+      endpointId: 'primary',
+      reachable: false,
+      failureKind: 'dns',
+      errorMessage: 'getaddrinfo ENOTFOUND api.example.com',
+    });
+    fetchSpy.mockRestore();
+  });
+
   it('invokes generation endpoint through fetch', async () => {
     const fetchSpy = vi.spyOn(globalThis, 'fetch').mockImplementation(async () => new Response(
       JSON.stringify({ data: [{ url: 'https://example.com/out.png' }] }),
