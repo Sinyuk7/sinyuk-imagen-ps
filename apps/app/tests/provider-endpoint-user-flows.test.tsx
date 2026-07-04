@@ -106,19 +106,19 @@ function secretSeed(entries: Readonly<Record<string, string>>): readonly StoredR
 function profileConnection(url: string, options?: {
   readonly id?: string;
   readonly selectionMode?: 'manual' | 'auto';
-  readonly failoverEnabled?: boolean;
+  readonly selectedEndpointId?: string;
   readonly extraEndpoints?: readonly Array<{ readonly id: string; readonly url: string; readonly enabled: boolean }>;
   readonly defaultModel?: string;
 }): ProviderProfile['config'] {
   const id = options?.id ?? 'primary';
+  const selectionMode = options?.selectionMode ?? 'manual';
   return {
     providerId: 'image-endpoint',
     displayName: 'Image Endpoint',
     family: 'image-endpoint',
     connection: {
-      selectionMode: options?.selectionMode ?? 'manual',
-      failoverEnabled: options?.failoverEnabled ?? false,
-      ...(options?.selectionMode === 'auto' ? {} : { preferredEndpointId: id }),
+      selectionMode,
+      ...(selectionMode === 'auto' ? {} : { selectedEndpointId: options?.selectedEndpointId ?? id }),
       endpoints: [
         { id, url, enabled: true },
         ...(options?.extraEndpoints ?? []),
@@ -307,7 +307,6 @@ function setInputValue(input: HTMLInputElement | HTMLTextAreaElement, value: str
   const setter = Object.getOwnPropertyDescriptor(prototype, 'value')?.set;
   setter?.call(input, value);
   input.dispatchEvent(new KeyboardEvent('keyup', { bubbles: true, key: 'x' }));
-  input.dispatchEvent(new FocusEvent('blur', { bubbles: true }));
 }
 
 function buttonByText(container: HTMLElement, text: string): HTMLButtonElement {
@@ -388,19 +387,11 @@ afterEach(async () => {
 });
 
 describe('provider endpoint user flows', () => {
-  it('creates multi-endpoint profile, probes draft endpoints, saves, reloads, and generates successfully', async () => {
+  it('creates a provider profile, enables auto selection, saves, reloads, and generates successfully', async () => {
     const endpoints = {
       nodeA: {
         baseUrl: 'https://node-a.example.com',
         steps: [modelsResponse(['gpt-image-2']), generatedImageResponse('https://cdn.example.com/node-a.png')],
-      },
-      nodeB: {
-        baseUrl: 'https://node-b.example.com',
-        steps: [modelsResponse(['gpt-image-2'])],
-      },
-      nodeC: {
-        baseUrl: 'https://node-c.example.com',
-        steps: [{ kind: 'response', status: 503, data: { error: { message: 'Unavailable' } } }],
       },
     } satisfies Readonly<Record<string, ScriptedEndpoint>>;
     activeFixture = await createFlowFixture({ endpoints });
@@ -422,30 +413,11 @@ describe('provider endpoint user flows', () => {
     await flush();
     expect(elementByTestId<HTMLInputElement>(container, 'provider-endpoint-url-0').value).toBe('https://node-a.example.com/v1');
     await act(async () => {
-      elementByTestId<HTMLElement>(container, 'provider-endpoint-add').click();
-    });
-    await flush();
-    await act(async () => {
-      setInputValue(elementByTestId(container, 'provider-endpoint-url-1'), 'https://node-b.example.com/v1');
-    });
-    await flush();
-    expect(elementByTestId<HTMLInputElement>(container, 'provider-endpoint-url-1').value).toBe('https://node-b.example.com/v1');
-    await act(async () => {
-      elementByTestId<HTMLElement>(container, 'provider-endpoint-add').click();
-    });
-    await flush();
-    await act(async () => {
-      setInputValue(elementByTestId(container, 'provider-endpoint-url-2'), 'https://node-c.example.com/v1');
-    });
-    await flush();
-    expect(elementByTestId<HTMLInputElement>(container, 'provider-endpoint-url-2').value).toBe('https://node-c.example.com/v1');
-    await act(async () => {
       setInputValue(elementByTestId(container, 'provider-api-key-input'), 'sk-test');
     });
     await flush();
     await act(async () => {
       elementByTestId<HTMLElement>(container, 'provider-selection-mode-auto').click();
-      elementByTestId<HTMLElement>(container, 'provider-failover-enabled').click();
     });
     await flush();
     await act(async () => {
@@ -456,14 +428,10 @@ describe('provider endpoint user flows', () => {
       setInputValue(elementByTestId(container, 'provider-default-model-input'), 'gpt-image-2');
     });
     await flush();
-    await act(async () => {
-      buttonByTestId(container, 'provider-test-button').click();
-    });
     await flush(6);
 
-    expect(container.textContent).toContain('Connected');
-    expect(container.querySelectorAll('[data-testid^="provider-endpoint-suggested-badge-"]')).toHaveLength(1);
-    expect(activeFixture.requestedUrls().filter((url) => url.includes('/v1/models'))).toHaveLength(3);
+    expect(activeFixture.requestedUrls().filter((url) => url.includes('/v1/models'))).toHaveLength(1);
+    expect(container.textContent).toContain('Auto Select is managing endpoint choice');
 
     await act(async () => {
       buttonByTestId(container, 'provider-save-button').click();
@@ -473,12 +441,10 @@ describe('provider endpoint user flows', () => {
     const savedProfiles = await activeFixture.persistedProfiles();
     const saved = savedProfiles.find((profile) => profile.displayName === 'Multi Endpoint');
     expect(saved).toBeDefined();
-    expect((saved?.config.connection as { endpoints: unknown[] }).endpoints).toHaveLength(3);
+    expect((saved?.config.connection as { endpoints: unknown[] }).endpoints).toHaveLength(1);
 
     await flush(4);
     expect(elementByTestId<HTMLInputElement>(container, 'provider-endpoint-url-0').value).toBe('https://node-a.example.com/v1');
-    expect(elementByTestId<HTMLInputElement>(container, 'provider-endpoint-url-1').value).toBe('https://node-b.example.com/v1');
-    expect(elementByTestId<HTMLInputElement>(container, 'provider-endpoint-url-2').value).toBe('https://node-c.example.com/v1');
 
     await act(async () => {
       buttonByTestId(container, 'provider-detail-back-button').click();
@@ -504,7 +470,7 @@ describe('provider endpoint user flows', () => {
       profileId: 'profile-failover',
       displayName: 'Failover Profile',
       config: profileConnection('https://node-a.example.com/v1', {
-        failoverEnabled: true,
+        selectionMode: 'auto',
         extraEndpoints: [
           { id: 'secondary', url: 'https://node-b.example.com/v1', enabled: true },
           { id: 'tertiary', url: 'https://node-c.example.com/v1', enabled: true },
@@ -561,7 +527,7 @@ describe('provider endpoint user flows', () => {
       profileId: 'profile-auth-stop',
       displayName: 'Auth Stop Profile',
       config: profileConnection('https://node-a.example.com/v1', {
-        failoverEnabled: true,
+        selectionMode: 'auto',
         extraEndpoints: [{ id: 'secondary', url: 'https://node-b.example.com/v1', enabled: true }],
         defaultModel: 'gpt-image-2',
       }),
@@ -600,7 +566,7 @@ describe('provider endpoint user flows', () => {
     expect(tasks[0]?.status).toBe('failed');
     expect(container.textContent).toContain('Unauthorized');
     const persisted = (await activeFixture.persistedProfiles()).find((item) => item.profileId === 'profile-auth-stop');
-    expect((persisted?.config.connection as { preferredEndpointId?: string }).preferredEndpointId).toBe('primary');
+    expect((persisted?.config.connection as { selectedEndpointId?: string }).selectedEndpointId).toBeUndefined();
   });
 
   it('keeps one failed task when all endpoints fail within bounded attempts', async () => {
@@ -609,7 +575,7 @@ describe('provider endpoint user flows', () => {
       displayName: 'All Fail Profile',
       config: profileConnection('https://node-a.example.com/v1', {
         id: 'fail-primary',
-        failoverEnabled: true,
+        selectionMode: 'auto',
         extraEndpoints: [
           { id: 'fail-secondary', url: 'https://node-b.example.com/v1', enabled: true },
           { id: 'fail-tertiary', url: 'https://node-c.example.com/v1', enabled: true },

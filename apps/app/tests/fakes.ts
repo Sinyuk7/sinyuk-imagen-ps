@@ -3,14 +3,15 @@ import type {
   Asset,
   BalanceChange,
   DurableJobRecord,
-  EndpointProbeResult,
+  EndpointMeasurementResult,
   ExactTaskCost,
   Job,
+  MeasureProfileEndpointsResult,
   ProfileBillingState,
   ProviderDescriptor,
   ProviderProfile,
   ProviderProfileInput,
-  ProbeProfileEndpointsInput,
+  ProviderProfileConnectionTestResult,
   ProviderProfileTestResult,
   TaskRecord,
 } from '@imagen-ps/application';
@@ -79,8 +80,7 @@ export const fakeProfile: ProviderProfile = {
     family: 'image-endpoint',
     connection: {
       selectionMode: 'manual',
-      failoverEnabled: false,
-      preferredEndpointId: 'primary',
+      selectedEndpointId: 'primary',
       endpoints: [
         {
           id: 'primary',
@@ -109,8 +109,7 @@ export const fakeOptimizerProfile: ProviderProfile = {
     family: 'prompt-optimize',
     connection: {
       selectionMode: 'manual',
-      failoverEnabled: false,
-      preferredEndpointId: 'primary',
+      selectedEndpointId: 'primary',
       endpoints: [
         {
           id: 'primary',
@@ -243,7 +242,8 @@ export function createFakeServices(options?: {
     readonly saveProviderProfile: ReturnType<typeof vi.fn>;
     readonly deleteProviderProfile: ReturnType<typeof vi.fn>;
     readonly testProviderProfile: ReturnType<typeof vi.fn>;
-    readonly probeProfileEndpoints: ReturnType<typeof vi.fn>;
+    readonly testProviderProfileConnection: ReturnType<typeof vi.fn>;
+    readonly measureProfileEndpoints: ReturnType<typeof vi.fn>;
     readonly refreshProfileBalance: ReturnType<typeof vi.fn>;
     readonly getProfileBillingState: ReturnType<typeof vi.fn>;
     readonly listProfileModels: ReturnType<typeof vi.fn>;
@@ -298,23 +298,34 @@ export function createFakeServices(options?: {
       connectivity: { reachable: true, modelCount: 1, models: [{ id: 'mock-image-v1' }] },
     } satisfies ProviderProfileTestResult,
   }));
-  const probeProfileEndpoints = vi.fn(async (input: ProbeProfileEndpointsInput) => ({
+  const testProviderProfileConnection = vi.fn(async () => ({
+    ok: true as const,
+    value: {
+      supported: true,
+      reachable: true,
+      modelCount: 1,
+      models: [{ id: 'mock-image-v1' }],
+    } satisfies ProviderProfileConnectionTestResult,
+  }));
+  const measureProfileEndpoints = vi.fn(async (
+    input: Parameters<CommandsPort['measureProfileEndpoints']>[0],
+  ): Promise<{ ok: true; value: MeasureProfileEndpointsResult }> => ({
     ok: true as const,
     value: {
       results: [
         {
           endpointId: 'primary',
-          status: 'healthy',
+          status: 'success',
           checkedAt: Date.now(),
           latencyMs: 12,
           modelCount: 1,
           models: [{ id: 'mock-image-v1' }],
-        } satisfies EndpointProbeResult,
+        } satisfies EndpointMeasurementResult,
       ],
       models: [{ id: 'mock-image-v1' }],
       ...((
         (input.config.connection as { readonly selectionMode?: string } | undefined)?.selectionMode === 'auto'
-      ) ? { suggestedEndpointId: 'primary' } : {}),
+      ) ? { resolvedEndpointId: 'primary' } : {}),
     },
   }));
   let billingState: ProfileBillingState = { refreshState: 'idle' };
@@ -398,7 +409,8 @@ export function createFakeServices(options?: {
     saveProviderProfile,
     deleteProviderProfile,
     testProviderProfile,
-    probeProfileEndpoints,
+    testProviderProfileConnection,
+    measureProfileEndpoints,
     refreshProfileBalance,
     getProfileBillingState,
     listProfileModels,
@@ -470,10 +482,11 @@ export function createFakeServices(options?: {
       saveProviderProfile,
       deleteProviderProfile,
       testProviderProfile,
-    probeProfileEndpoints,
-    refreshProfileBalance,
-    getProfileBillingState,
-    listProfileModels,
+      testProviderProfileConnection,
+      measureProfileEndpoints,
+      refreshProfileBalance,
+      getProfileBillingState,
+      listProfileModels,
       refreshProfileModels,
       ensurePromptOptimizerProfile,
       optimizePrompt,

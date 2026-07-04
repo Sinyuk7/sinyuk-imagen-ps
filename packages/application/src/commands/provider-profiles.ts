@@ -462,7 +462,30 @@ export async function testProviderProfile(
 
     // Layer 2：connect
     if (options.connect === true || options.generate === true) {
-      if (typeof provider.discoverModels !== 'function') {
+      if (typeof provider.testConnection === 'function') {
+        const tested = await provider.testConnection(resolved.providerConfig);
+        if (tested.supported === false) {
+          result.connectivity = {
+            reachable: false,
+            errorMessage: tested.message ?? `Provider implementation "${profile.providerId}" does not support connection testing.`,
+          };
+        } else if (tested.reachable !== true) {
+          result.connectivity = {
+            reachable: false,
+            errorMessage: tested.message ?? `Connection test failed for profile "${profileId}".`,
+          };
+        } else {
+          const connectivityModels = connectivityModelsForProfile(profile, tested.models ?? []);
+          const selectableCount = tested.modelCount ?? connectivityModels.filter(
+            (model) => model.supportStatus === undefined || model.supportStatus === 'selectable',
+          ).length;
+          result.connectivity = {
+            reachable: true,
+            modelCount: selectableCount,
+            models: connectivityModels,
+          };
+        }
+      } else if (typeof provider.discoverModels !== 'function') {
         result.connectivity = {
           reachable: false,
           errorMessage: `Provider implementation "${profile.providerId}" does not support model discovery.`,

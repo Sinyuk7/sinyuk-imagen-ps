@@ -193,8 +193,7 @@ describe('fake UXP host adapters', () => {
         family: 'image-endpoint',
         connection: {
           selectionMode: 'manual',
-          failoverEnabled: false,
-          preferredEndpointId: 'primary',
+          selectedEndpointId: 'primary',
           endpoints: [{ id: 'primary', url: 'https://mock.local', enabled: true }],
         },
       },
@@ -307,8 +306,7 @@ describe('fake UXP host adapters', () => {
         family: 'image-endpoint',
         connection: {
           selectionMode: 'manual',
-          failoverEnabled: false,
-          preferredEndpointId: 'primary',
+          selectedEndpointId: 'primary',
           endpoints: [{ id: 'primary', url: 'https://mock.local', enabled: true }],
         },
         notes: '/Users/sinyuk/should-not-enter-flight-recorder',

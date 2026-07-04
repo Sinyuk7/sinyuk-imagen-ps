@@ -22,8 +22,7 @@ describe('chat-image provider', () => {
       family: 'chat-image',
       connection: {
         selectionMode: 'manual',
-        failoverEnabled: false,
-        preferredEndpointId: 'primary',
+        selectedEndpointId: 'primary',
         endpoints: [{ id: 'primary', url: 'https://openrouter.ai/api/v1', enabled: true }],
       },
       apiKey: 'test-key',
@@ -434,8 +433,7 @@ describe('chat-image provider', () => {
       family: 'chat-image',
       connection: {
         selectionMode: 'manual',
-        failoverEnabled: false,
-        preferredEndpointId: 'primary',
+        selectedEndpointId: 'primary',
         endpoints: [{ id: 'primary', url: 'https://openrouter.ai/api/v1', enabled: true }],
       },
       apiKey: 'test-key',
@@ -479,8 +477,7 @@ describe('chat-image provider', () => {
       family: 'chat-image',
       connection: {
         selectionMode: 'manual',
-        failoverEnabled: false,
-        preferredEndpointId: 'primary',
+        selectedEndpointId: 'primary',
         endpoints: [{ id: 'primary', url: 'https://openrouter.ai/api/v1', enabled: true }],
       },
       apiKey: 'test-key',
@@ -515,8 +512,7 @@ describe('chat-image provider', () => {
       family: 'chat-image',
       connection: {
         selectionMode: 'manual',
-        failoverEnabled: false,
-        preferredEndpointId: 'primary',
+        selectedEndpointId: 'primary',
         endpoints: [{ id: 'primary', url: 'https://openrouter.ai/api/v1', enabled: true }],
       },
       apiKey: 'test-key',
@@ -562,8 +558,7 @@ describe('chat-image provider', () => {
       family: 'chat-image',
       connection: {
         selectionMode: 'manual',
-        failoverEnabled: false,
-        preferredEndpointId: 'primary',
+        selectedEndpointId: 'primary',
         endpoints: [{ id: 'primary', url: 'https://openrouter.ai/api/v1', enabled: true }],
       },
       apiKey: 'test-key',
@@ -636,8 +631,7 @@ describe('chat-image provider', () => {
       family: 'chat-image',
       connection: {
         selectionMode: 'manual',
-        failoverEnabled: false,
-        preferredEndpointId: 'primary',
+        selectedEndpointId: 'primary',
         endpoints: [{ id: 'primary', url: 'https://openrouter.ai/api/v1', enabled: true }],
       },
       apiKey: 'test-key',

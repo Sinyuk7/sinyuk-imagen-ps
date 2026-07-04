@@ -198,13 +198,19 @@ export interface AppMessages {
     readonly alias: string;
     readonly baseUrlHint: string;
     readonly requestAddresses: string;
-    readonly endpointLabel: (index: number) => string;
-    readonly endpointPreferred: string;
-    readonly endpointSuggested: string;
+    readonly endpointCurrent: string;
     readonly endpointEnabled: string;
     readonly addEndpoint: string;
     readonly autoSelect: string;
-    readonly failoverEnabled: string;
+    readonly speedTest: string;
+    readonly testingSpeed: string;
+    readonly endpointMeasurementUnsupported: string;
+    readonly providerConnectionUnsupported: string;
+    readonly autoSelectManaged: string;
+    readonly allEndpointsUnavailable: string;
+    readonly endpointFailed: string;
+    readonly endpointTimeout: string;
+    readonly endpointDns: string;
     readonly defaultModel: string;
     readonly customModelId: string;
     readonly selectedModel: string;
@@ -499,13 +505,19 @@ const EN_MESSAGES: AppMessages = {
     alias: 'Alias',
     baseUrlHint: 'If this provider does not auto-complete endpoint paths, enter the full API base URL such as https://example.com/v1',
     requestAddresses: 'Request addresses',
-    endpointLabel: (index) => `Endpoint ${index}`,
-    endpointPreferred: 'Preferred',
-    endpointSuggested: 'Suggested',
+    endpointCurrent: 'Current',
     endpointEnabled: 'Enabled',
     addEndpoint: 'Add endpoint',
     autoSelect: 'Auto Select',
-    failoverEnabled: 'Fail over when unavailable',
+    speedTest: 'Speed test',
+    testingSpeed: 'Testing speed...',
+    endpointMeasurementUnsupported: 'Endpoint speed test is unavailable for this provider.',
+    providerConnectionUnsupported: 'Connection test is unavailable for this provider.',
+    autoSelectManaged: 'Auto Select is managing endpoint choice.',
+    allEndpointsUnavailable: 'All endpoints are unavailable. Check network or add a new endpoint.',
+    endpointFailed: 'Failed',
+    endpointTimeout: 'Timeout',
+    endpointDns: 'DNS failed',
     defaultModel: 'Default model',
     customModelId: 'Custom model id',
     selectedModel: 'Selected model',
@@ -801,13 +813,19 @@ const ZH_CN_MESSAGES: AppMessages = {
     alias: '别名',
     baseUrlHint: '如果该 Provider 不会自动补全端点路径，请填写完整 API 基础地址，例如 https://example.com/v1',
     requestAddresses: '请求地址',
-    endpointLabel: (index) => `端点 ${index}`,
-    endpointPreferred: '首选',
-    endpointSuggested: '建议',
+    endpointCurrent: '当前',
     endpointEnabled: '启用',
     addEndpoint: '添加端点',
     autoSelect: '自动选择',
-    failoverEnabled: '不可用时切换',
+    speedTest: '测速',
+    testingSpeed: '测速中...',
+    endpointMeasurementUnsupported: '当前 provider 不支持端点测速。',
+    providerConnectionUnsupported: '当前 provider 不支持连接测试。',
+    autoSelectManaged: '当前由自动选择管理端点。',
+    allEndpointsUnavailable: '所有端点都不可用。请检查网络或添加新端点。',
+    endpointFailed: '失败',
+    endpointTimeout: '超时',
+    endpointDns: 'DNS 失败',
     defaultModel: '默认模型',
     customModelId: '自定义 model id',
     selectedModel: '当前模型',

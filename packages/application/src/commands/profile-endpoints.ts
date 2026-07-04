@@ -5,80 +5,27 @@ import {
   reconcileDiscoveredCatalogModels,
   type ProviderModelInfo,
 } from '@imagen-ps/providers';
-import { getProviderProfileRepository, getRuntime, getSecretStorageAdapter, getRuntimeLogger } from '../runtime.js';
+import { getRuntimeLogger } from '../runtime.js';
 import type {
   CommandResult,
-  EndpointProbeFailureKind,
-  EndpointProbeResult,
-  ProbeProfileEndpointsInput,
-  ProbeProfileEndpointsResult,
-  ProviderProfile,
-  ProviderProfileConfig,
-  ProviderProfileConfigValue,
+  EndpointMeasurementResult,
+  MeasureProfileEndpointsInput,
+  MeasureProfileEndpointsResult,
 } from './types.js';
-import { resolveSecretValue } from './secret-utils.js';
-
-type EndpointConfigRecord = {
-  readonly id: string;
-  readonly url: string;
-  readonly enabled: boolean;
-};
+import { resolveDraftProviderContext } from './draft-provider-config.js';
 
 type ResolvedConnection = {
   readonly selectionMode: 'manual' | 'auto';
-  readonly failoverEnabled: boolean;
-  readonly preferredEndpointId?: string;
-  readonly endpoints: readonly EndpointConfigRecord[];
+  readonly selectedEndpointId?: string;
+  readonly endpoints: readonly {
+    readonly id: string;
+    readonly url: string;
+    readonly enabled: boolean;
+  }[];
 };
 
 function errorMessage(error: unknown, fallback: string): string {
   return error instanceof Error ? error.message : fallback;
-}
-
-function createAbortError(): JobErrorLike {
-  return {
-    category: 'validation',
-    message: 'Endpoint probe was cancelled.',
-  };
-}
-
-interface JobErrorLike {
-  readonly category: string;
-  readonly message: string;
-}
-
-function mergeDraftConfig(
-  existing: ProviderProfileConfig | undefined,
-  incoming: ProviderProfileConfig,
-): ProviderProfileConfig {
-  return {
-    ...(existing ?? {}),
-    ...incoming,
-  } as Record<string, ProviderProfileConfigValue>;
-}
-
-async function resolveDraftSecrets(
-  existing: ProviderProfile | undefined,
-  input: ProbeProfileEndpointsInput,
-): Promise<Record<string, string>> {
-  const refs = { ...(existing?.secretRefs ?? {}), ...(input.secretRefs ?? {}) };
-  const incomingSecretNames = new Set(Object.keys(input.secretValues ?? {}));
-  for (const name of input.removedSecretNames ?? []) {
-    if (!incomingSecretNames.has(name)) {
-      delete refs[name];
-    }
-  }
-  const resolved: Record<string, string> = {};
-  for (const [name, ref] of Object.entries(refs)) {
-    const value = await getSecretStorageAdapter().getSecret(ref);
-    if (value !== undefined) {
-      resolved[name] = resolveSecretValue(value);
-    }
-  }
-  for (const [name, value] of Object.entries(input.secretValues ?? {})) {
-    resolved[name] = resolveSecretValue(value);
-  }
-  return resolved;
 }
 
 function extractConnection(config: unknown): ResolvedConnection {
@@ -86,109 +33,10 @@ function extractConnection(config: unknown): ResolvedConnection {
   if (typeof connection !== 'object' || connection === null || Array.isArray(connection)) {
     throw new Error('Provider config did not resolve a canonical connection.');
   }
-  const record = connection as {
-    readonly selectionMode: 'manual' | 'auto';
-    readonly failoverEnabled: boolean;
-    readonly preferredEndpointId?: string;
-    readonly endpoints: readonly EndpointConfigRecord[];
-  };
-  return record;
+  return connection as ResolvedConnection;
 }
 
-function perfNow(): number {
-  return typeof performance !== 'undefined' && typeof performance.now === 'function'
-    ? performance.now()
-    : Date.now();
-}
-
-function classifyNetworkFailure(message: string): EndpointProbeFailureKind {
-  const lower = message.toLowerCase();
-  if (lower.includes('enotfound') || lower.includes('eai_again') || lower.includes('dns')) {
-    return 'dns';
-  }
-  return 'connect';
-}
-
-function normalizeProbeFailure(
-  endpointId: string,
-  checkedAt: number,
-  latencyMs: number,
-  error: unknown,
-): EndpointProbeResult {
-  const details = error as { readonly kind?: string; readonly statusCode?: number; readonly message?: string };
-  const message = errorMessage(error, 'Endpoint probe failed.');
-  const statusCode = typeof details.statusCode === 'number' ? details.statusCode : undefined;
-  switch (details.kind) {
-    case 'auth_failed':
-      return {
-        endpointId,
-        status: 'incompatible',
-        latencyMs,
-        checkedAt,
-        failureKind: 'auth',
-        ...(statusCode !== undefined ? { httpStatus: statusCode } : {}),
-        errorMessage: message,
-      };
-    case 'rate_limited':
-      return {
-        endpointId,
-        status: 'degraded',
-        latencyMs,
-        checkedAt,
-        failureKind: 'rate-limit',
-        ...(statusCode !== undefined ? { httpStatus: statusCode } : {}),
-        errorMessage: message,
-      };
-    case 'invalid_response':
-      return {
-        endpointId,
-        status: 'incompatible',
-        latencyMs,
-        checkedAt,
-        failureKind: 'invalid-response',
-        ...(statusCode !== undefined ? { httpStatus: statusCode } : {}),
-        errorMessage: message,
-      };
-    case 'upstream_unavailable':
-      return {
-        endpointId,
-        status: 'degraded',
-        latencyMs,
-        checkedAt,
-        ...(statusCode !== undefined ? { httpStatus: statusCode } : {}),
-        errorMessage: message,
-      };
-    case 'timeout':
-      return {
-        endpointId,
-        status: 'unreachable',
-        latencyMs,
-        checkedAt,
-        failureKind: 'timeout',
-        errorMessage: message,
-      };
-    case 'network_error':
-      return {
-        endpointId,
-        status: 'unreachable',
-        latencyMs,
-        checkedAt,
-        failureKind: classifyNetworkFailure(message),
-        errorMessage: message,
-      };
-    default:
-      return {
-        endpointId,
-        status: 'incompatible',
-        latencyMs,
-        checkedAt,
-        ...(statusCode !== undefined ? { httpStatus: statusCode } : {}),
-        errorMessage: message,
-      };
-  }
-}
-
-function normalizeProbeModels(
+function normalizeMeasuredModels(
   providerId: string,
   models: readonly ProviderModelInfo[],
 ): readonly ProviderModelInfo[] {
@@ -201,11 +49,11 @@ function normalizeProbeModels(
   });
 }
 
-function aggregateProbeModels(results: readonly EndpointProbeResult[]): readonly ProviderModelInfo[] {
+function aggregateMeasuredModels(results: readonly EndpointMeasurementResult[]): readonly ProviderModelInfo[] {
   const seen = new Set<string>();
   const models: ProviderModelInfo[] = [];
   for (const result of results) {
-    if (result.status !== 'healthy') {
+    if (result.status !== 'success') {
       continue;
     }
     for (const model of result.models ?? []) {
@@ -219,80 +67,61 @@ function aggregateProbeModels(results: readonly EndpointProbeResult[]): readonly
   return models;
 }
 
-function withCancellationAndTimeout<T>(
-  task: Promise<T>,
-  signal: AbortSignal | undefined,
-  timeoutMs: number | undefined,
-): Promise<T> {
-  return new Promise<T>((resolve, reject) => {
-    let timer: ReturnType<typeof setTimeout> | undefined;
-    let settled = false;
-
-    const cleanup = () => {
-      if (timer !== undefined) {
-        clearTimeout(timer);
-        timer = undefined;
-      }
-      signal?.removeEventListener('abort', onAbort);
-    };
-
-    const finish = (fn: () => void) => {
-      if (settled) {
-        return;
-      }
-      settled = true;
-      cleanup();
-      fn();
-    };
-
-    const onAbort = () => finish(() => reject(createAbortError()));
-
-    if (signal?.aborted) {
-      onAbort();
-      return;
-    }
-
-    if (signal) {
-      signal.addEventListener('abort', onAbort, { once: true });
-    }
-
-    if (typeof timeoutMs === 'number' && timeoutMs > 0) {
-      timer = setTimeout(() => finish(() => reject(new Error('Endpoint probe timed out.'))), timeoutMs);
-    }
-
-    task.then(
-      (value) => finish(() => resolve(value)),
-      (error) => finish(() => reject(error)),
-    );
-  });
+function resolveAutoEndpointId(
+  connection: ResolvedConnection,
+  results: readonly EndpointMeasurementResult[],
+  currentResolvedEndpointId: string | undefined,
+): string | undefined {
+  if (connection.selectionMode !== 'auto') {
+    return undefined;
+  }
+  const successful = results.filter((result) => result.status === 'success');
+  if (successful.length === 0) {
+    return undefined;
+  }
+  const bestLatency = Math.min(...successful.map((result) => result.latencyMs ?? Number.POSITIVE_INFINITY));
+  const winners = successful.filter((result) => (result.latencyMs ?? Number.POSITIVE_INFINITY) === bestLatency);
+  if (currentResolvedEndpointId && winners.some((result) => result.endpointId === currentResolvedEndpointId)) {
+    return currentResolvedEndpointId;
+  }
+  const winnerIds = new Set(winners.map((result) => result.endpointId));
+  return connection.endpoints.find((endpoint) => winnerIds.has(endpoint.id))?.id;
 }
 
-async function mapConcurrent<TInput, TOutput>(
-  inputs: readonly TInput[],
-  maxConcurrency: number,
-  worker: (input: TInput, index: number) => Promise<TOutput>,
-): Promise<readonly TOutput[]> {
-  const results = new Array<TOutput>(inputs.length);
-  let nextIndex = 0;
-  const workerCount = Math.max(1, Math.min(maxConcurrency, inputs.length));
-
-  await Promise.all(Array.from({ length: workerCount }, async () => {
-    while (nextIndex < inputs.length) {
-      const currentIndex = nextIndex;
-      nextIndex += 1;
-      results[currentIndex] = await worker(inputs[currentIndex]!, currentIndex);
-    }
-  }));
-
-  return results;
+function normalizeMeasurementResult(
+  providerId: string,
+  result: {
+    readonly endpointId: string;
+    readonly reachable: boolean;
+    readonly checkedAt: number;
+    readonly latencyMs?: number;
+    readonly models?: readonly ProviderModelInfo[];
+    readonly failureKind?: string;
+    readonly httpStatus?: number;
+    readonly errorMessage?: string;
+  },
+): EndpointMeasurementResult {
+  const models = result.reachable
+    ? normalizeMeasuredModels(providerId, result.models ?? [])
+    : undefined;
+  return {
+    endpointId: result.endpointId,
+    status: result.reachable ? 'success' : 'failed',
+    checkedAt: result.checkedAt,
+    ...(result.latencyMs !== undefined ? { latencyMs: result.latencyMs } : {}),
+    ...(models ? { models, modelCount: models.length } : {}),
+    ...(result.failureKind ? { failureKind: result.failureKind as EndpointMeasurementResult['failureKind'] } : {}),
+    ...(typeof result.httpStatus === 'number' ? { httpStatus: result.httpStatus } : {}),
+    ...(result.errorMessage ? { errorMessage: result.errorMessage } : {}),
+  };
 }
 
 /**
- * 对 draft-aware endpoint 集合执行安全 probe，不持久化 profile 变更。
+ * 对 draft-aware endpoint 集合执行逐 endpoint 测速，不持久化 profile 变更。
  */
-export async function probeProfileEndpoints(
-  input: ProbeProfileEndpointsInput,
-): Promise<CommandResult<ProbeProfileEndpointsResult>> {
+export async function measureProfileEndpoints(
+  input: MeasureProfileEndpointsInput,
+): Promise<CommandResult<MeasureProfileEndpointsResult>> {
   const logger = getRuntimeLogger().child({
     trace_id: generateTraceId(),
     package: 'application',
@@ -300,143 +129,69 @@ export async function probeProfileEndpoints(
     profile_id: input.profileId ?? 'draft',
     provider_id: input.providerId,
   });
-  const span = logger.startSpan('command.profile.endpoints.probe');
+  const span = logger.startSpan('command.profile.endpoints.measure');
 
   try {
-    if (input.signal?.aborted) {
-      throw createAbortError();
-    }
-
-    const existing = input.profileId ? await getProviderProfileRepository().get(input.profileId) : undefined;
-    const provider = getRuntime().providerRegistry.get(input.providerId);
-    if (!provider) {
-      span.fail({ message: `Provider implementation "${input.providerId}" not found.` });
-      return {
-        ok: false,
-        error: createValidationError(`Provider implementation "${input.providerId}" not found.`, {
-          providerId: input.providerId,
-        }),
-      };
-    }
-
-    const resolvedSecrets = await resolveDraftSecrets(existing, input);
-    const mergedConfig = mergeDraftConfig(existing?.config, input.config);
-    const displayName = input.displayName ?? existing?.displayName ?? provider.describe().displayName;
-    const providerConfig = provider.validateConfig({
-      providerId: input.providerId,
-      displayName,
-      family: provider.family,
-      ...mergedConfig,
-      ...resolvedSecrets,
-    });
-
+    const { provider, providerConfig } = await resolveDraftProviderContext(input);
     const connection = extractConnection(providerConfig);
     const enabledEndpoints = connection.endpoints.filter((endpoint) => endpoint.enabled);
     if (enabledEndpoints.length === 0) {
-      span.fail({ message: 'Endpoint probe requires at least one enabled endpoint.' });
+      span.fail({ message: 'Endpoint measurement requires at least one enabled endpoint.' });
       return {
         ok: false,
-        error: createValidationError('Endpoint probe requires at least one enabled endpoint.', {}),
+        error: createValidationError('Endpoint measurement requires at least one enabled endpoint.', {}),
       };
     }
 
-    if (typeof provider.discoverModels !== 'function') {
-      const checkedAt = Date.now();
-      const results = enabledEndpoints.map((endpoint) => ({
-        endpointId: endpoint.id,
-        status: 'unsupported' as const,
-        checkedAt,
-        failureKind: 'unsupported-probe' as const,
-        errorMessage: `Provider implementation "${input.providerId}" does not support a safe endpoint probe.`,
-      }));
-      span.finish({ count: results.length, supported: false });
-      return { ok: true, value: { results } };
+    if (provider.describe().connectivity?.endpointMeasurement === 'unsupported' || typeof provider.measureEndpoints !== 'function') {
+      span.finish({ count: enabledEndpoints.length, supported: false });
+      return {
+        ok: true,
+        value: {
+          supported: false,
+          results: [],
+          message: `Provider implementation "${input.providerId}" does not support endpoint measurement.`,
+        },
+      };
     }
 
-    const results = await mapConcurrent(
-      enabledEndpoints,
-      input.maxConcurrency ?? 2,
-      async (endpoint) => {
-        if (input.signal?.aborted) {
-          throw createAbortError();
-        }
-        const startedAt = perfNow();
-        const checkedAt = Date.now();
-        const endpointConfig = {
-          ...providerConfig,
-          ...(typeof input.timeoutMs === 'number' ? { timeoutMs: input.timeoutMs } : {}),
-          connection: {
-            selectionMode: 'manual' as const,
-            failoverEnabled: false,
-            preferredEndpointId: endpoint.id,
-            endpoints: [endpoint],
-          },
-        };
+    const measured = await provider.measureEndpoints(providerConfig as never, {
+      signal: input.signal,
+      timeoutMs: input.timeoutMs,
+      maxConcurrency: input.maxConcurrency,
+      logger: logger.child({
+        package: 'providers',
+        component: 'provider',
+        provider_id: input.providerId,
+      }),
+    });
 
-        try {
-          const discoveredModels = await withCancellationAndTimeout(
-            provider.discoverModels!(endpointConfig as never),
-            input.signal,
-            input.timeoutMs,
-          );
-          const models = normalizeProbeModels(input.providerId, discoveredModels);
-          return {
-            endpointId: endpoint.id,
-            status: 'healthy' as const,
-            latencyMs: Math.max(1, Math.round(perfNow() - startedAt)),
-            checkedAt,
-            modelCount: models.length,
-            models,
-          } satisfies EndpointProbeResult;
-        } catch (error) {
-          if ((error as JobErrorLike).category === 'validation' && (error as JobErrorLike).message === createAbortError().message) {
-            throw error;
-          }
-          const timeoutProbeError =
-            error instanceof Error && error.message === 'Endpoint probe timed out.'
-              ? { kind: 'timeout', message: error.message }
-              : error;
-          return normalizeProbeFailure(
-            endpoint.id,
-            checkedAt,
-            Math.max(1, Math.round(perfNow() - startedAt)),
-            timeoutProbeError,
-          );
-        }
-      },
-    );
-
-    const suggestedEndpointId =
-      connection.selectionMode === 'auto'
-        ? [...results]
-            .filter((result) => result.status === 'healthy')
-            .sort((left, right) => (left.latencyMs ?? Number.POSITIVE_INFINITY) - (right.latencyMs ?? Number.POSITIVE_INFINITY))[0]
-            ?.endpointId
-        : undefined;
-    const models = aggregateProbeModels(results);
+    const results = measured.results.map((result) => normalizeMeasurementResult(input.providerId, result));
+    const models = aggregateMeasuredModels(results);
+    const resolvedEndpointId = resolveAutoEndpointId(connection, results, input.currentResolvedEndpointId);
 
     span.finish({
       count: results.length,
-      healthyCount: results.filter((result) => result.status === 'healthy').length,
+      successCount: results.filter((result) => result.status === 'success').length,
       modelCount: models.length,
-      ...(suggestedEndpointId ? { suggestedEndpointId } : {}),
+      supported: measured.supported,
+      ...(resolvedEndpointId ? { resolvedEndpointId } : {}),
     });
     return {
       ok: true,
       value: {
+        supported: measured.supported,
         results,
-        models,
-        ...(suggestedEndpointId ? { suggestedEndpointId } : {}),
+        ...(models.length > 0 ? { models } : {}),
+        ...(resolvedEndpointId ? { resolvedEndpointId } : {}),
+        ...(measured.message ? { message: measured.message } : {}),
       },
     };
   } catch (error) {
     span.fail(error);
-    if ((error as JobErrorLike).category === 'validation' && (error as JobErrorLike).message === createAbortError().message) {
-      return { ok: false, error: createValidationError(createAbortError().message, {}) };
-    }
     return {
       ok: false,
-      error: createProviderError(errorMessage(error, 'Endpoint probe failed.'), {
+      error: createProviderError(errorMessage(error, 'Endpoint measurement failed.'), {
         providerId: input.providerId,
         profileId: input.profileId,
       }),

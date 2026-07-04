@@ -7,4 +7,8 @@ export const promptOptimizeDescriptor: ProviderDescriptor = {
   displayName: 'Prompt Optimizer',
   operations: ['prompt_optimize'],
   invokeMode: 'sync',
+  connectivity: {
+    endpointMeasurement: 'unsupported',
+    connectionTest: 'unsupported',
+  },
 };

@@ -6,9 +6,7 @@ import { httpRequest } from '../src/transport/image-endpoint/http.js';
 import { createCountingFetch } from './counting-transport.js';
 
 const twoEndpointConnection = {
-  selectionMode: 'manual' as const,
-  failoverEnabled: true,
-  preferredEndpointId: 'primary',
+  selectionMode: 'auto' as const,
   endpoints: [
     { id: 'primary', url: 'https://primary.example.com', enabled: true },
     { id: 'secondary', url: 'https://secondary.example.com', enabled: true },
@@ -35,8 +33,7 @@ describe('current attempt-sequence characterization', () => {
       family: 'image-endpoint',
       connection: {
         selectionMode: 'manual',
-        failoverEnabled: false,
-        preferredEndpointId: 'primary',
+        selectedEndpointId: 'primary',
         endpoints: [{ id: 'primary', url: 'https://api.example.com', enabled: true }],
       },
       apiKey: 'test-key',

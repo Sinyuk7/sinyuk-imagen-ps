@@ -74,8 +74,7 @@ export async function ensurePromptOptimizerProfile(): Promise<CommandResult<Prov
         family: 'prompt-optimize',
         connection: {
           selectionMode: 'manual',
-          failoverEnabled: false,
-          preferredEndpointId: 'primary',
+          selectedEndpointId: 'primary',
           endpoints: [{
             id: 'primary',
             url: 'https://openrouter.ai/api/v1',

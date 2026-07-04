@@ -22,4 +22,8 @@ export const mockDescriptor: ProviderDescriptor = {
   billing: {
     supportedModes: ['none'],
   },
+  connectivity: {
+    endpointMeasurement: 'unsupported',
+    connectionTest: 'unsupported',
+  },
 };

@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { StatusNotice } from './status-notice';
 import { Icon } from './icons';
 import { useI18n } from '../i18n/i18n-context';
-import { TextField, FieldLabel, HelpText, Checkbox, Radio } from '../primitives/native-controls';
+import { TextField, FieldLabel, HelpText, Checkbox } from '../primitives/native-controls';
 import { IconButton } from '../primitives/icon-button';
 import type { NoticeState } from './notice';
 import {
@@ -13,7 +13,7 @@ import {
   type ProviderConnectionDraft,
   type ProviderEndpointDraft,
 } from '../hooks/use-provider-settings';
-import type { EndpointProbeResult } from '@imagen-ps/application';
+import type { EndpointMeasurementResult } from '@imagen-ps/application';
 
 type ProviderConnectionUpdater = (connection: ProviderConnectionDraft) => ProviderConnectionDraft;
 
@@ -27,8 +27,12 @@ interface ProviderProfileEditorProps {
   readonly onConnectionChange: (updater: ProviderConnectionUpdater) => void;
   readonly baseUrlPlaceholder?: string;
   readonly endpointErrors?: ReadonlyMap<string, string>;
-  readonly probeResults?: ReadonlyMap<string, EndpointProbeResult>;
-  readonly suggestedEndpointId?: string;
+  readonly measurementResults?: ReadonlyMap<string, EndpointMeasurementResult>;
+  readonly resolvedEndpointId?: string;
+  readonly measurementBusy?: boolean;
+  readonly measurementSupported?: boolean;
+  readonly onMeasure?: () => void;
+  readonly measurementNotice?: NoticeState | null;
   readonly apiKeyValue: string;
   readonly onApiKeyValue: (value: string) => void;
   readonly apiKeyPlaceholder: string;
@@ -50,10 +54,10 @@ function removeEndpoint(
   return {
     ...connection,
     endpoints,
-    preferredEndpointId:
-      connection.preferredEndpointId === endpointId
+    selectedEndpointId:
+      connection.selectedEndpointId === endpointId
         ? endpoints.find((endpoint) => endpoint.enabled)?.id
-        : connection.preferredEndpointId,
+        : connection.selectedEndpointId,
   };
 }
 
@@ -65,14 +69,14 @@ function updateEndpoint(
   const endpoints = connection.endpoints.map((endpoint) => (
     endpoint.id === endpointId ? updater(endpoint) : endpoint
   ));
-  const preferredStillEnabled = endpoints.some((endpoint) => endpoint.id === connection.preferredEndpointId && endpoint.enabled);
+  const selectedStillEnabled = endpoints.some((endpoint) => endpoint.id === connection.selectedEndpointId && endpoint.enabled);
   return {
     ...connection,
     endpoints,
-    preferredEndpointId:
+    selectedEndpointId:
       connection.selectionMode === 'manual'
-        ? preferredStillEnabled
-          ? connection.preferredEndpointId
+        ? selectedStillEnabled
+          ? connection.selectedEndpointId
           : endpoints.find((endpoint) => endpoint.enabled)?.id
         : undefined,
   };
@@ -89,6 +93,31 @@ function renderStatusNotice(notice: NoticeState) {
   return <StatusNotice {...props} />;
 }
 
+function isMinimallyValidUrl(value: string): boolean {
+  try {
+    const url = new URL(value);
+    return url.protocol === 'http:' || url.protocol === 'https:';
+  } catch {
+    return false;
+  }
+}
+
+function summarizeLatency(result: EndpointMeasurementResult | undefined, messages: ReturnType<typeof useI18n>['messages']): string | null {
+  if (!result) {
+    return null;
+  }
+  if (result.status === 'success') {
+    return typeof result.latencyMs === 'number' ? `${result.latencyMs}ms` : 'OK';
+  }
+  if (result.failureKind === 'timeout') {
+    return messages.settings.endpointTimeout;
+  }
+  if (result.failureKind === 'dns') {
+    return messages.settings.endpointDns;
+  }
+  return messages.settings.endpointFailed;
+}
+
 export function ProviderProfileEditor({
   connectionTitle,
   aliasValue,
@@ -99,8 +128,12 @@ export function ProviderProfileEditor({
   onConnectionChange,
   baseUrlPlaceholder,
   endpointErrors,
-  probeResults,
-  suggestedEndpointId,
+  measurementResults,
+  resolvedEndpointId,
+  measurementBusy = false,
+  measurementSupported = true,
+  onMeasure,
+  measurementNotice = null,
   apiKeyValue,
   onApiKeyValue,
   apiKeyPlaceholder,
@@ -115,19 +148,43 @@ export function ProviderProfileEditor({
 }: ProviderProfileEditorProps) {
   const { messages: t } = useI18n();
   const [apiKeyEditing, setApiKeyEditing] = useState(false);
-  const [preferredRadioName] = useState(() => (
-    typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function'
-      ? `provider-preferred-endpoint-${crypto.randomUUID()}`
-      : `provider-preferred-endpoint-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`
-  ));
+  const [hoveredEndpointId, setHoveredEndpointId] = useState<string | null>(null);
+  const [draftEndpointVisible, setDraftEndpointVisible] = useState(false);
+  const [draftEndpointUrl, setDraftEndpointUrl] = useState('');
+  const [draftEndpointError, setDraftEndpointError] = useState<string | null>(null);
   const multiEndpoint = connection.endpoints.length > 1;
 
   useEffect(() => {
     setApiKeyEditing(!apiKeySaved || apiKeyValue.length > 0);
-  }, [apiKeySaved]);
+  }, [apiKeySaved, apiKeyValue.length]);
 
   const startApiKeyEdit = () => {
     setApiKeyEditing(true);
+  };
+
+  const commitDraftEndpoint = () => {
+    const value = sanitizeProviderEndpointUrl(draftEndpointUrl);
+    if (!value) {
+      setDraftEndpointUrl('');
+      setDraftEndpointError(null);
+      setDraftEndpointVisible(false);
+      return;
+    }
+    if (!isMinimallyValidUrl(value)) {
+      setDraftEndpointError(t.settings.baseUrlHint);
+      return;
+    }
+    if (connection.endpoints.some((endpoint) => endpoint.url === value)) {
+      setDraftEndpointError(t.settings.duplicateEndpointUrl);
+      return;
+    }
+    onConnectionChange((current) => ({
+      ...current,
+      endpoints: [...current.endpoints, createProviderEndpointDraft(value)],
+    }));
+    setDraftEndpointUrl('');
+    setDraftEndpointError(null);
+    setDraftEndpointVisible(false);
   };
 
   const apiKeyInputVisible = apiKeyEditing || apiKeyRemovalPending || !apiKeySaved;
@@ -155,64 +212,100 @@ export function ProviderProfileEditor({
             </HelpText>
           ) : null}
         </div>
+
         <div className="field">
           <div className="settings-subsection-header">
             <div className="section-title settings-subsection-heading">{t.settings.requestAddresses}</div>
-            <IconButton
-              data-testid="provider-endpoint-add"
-              className="settings-icon-button"
-              compactSquare
-              icon={<Icon name="add" size={16} />}
-              tooltip={t.settings.addEndpoint}
-              aria-label={t.settings.addEndpoint}
-              disabled={disabled}
-              onClick={() => onConnectionChange((current) => ({
-                ...current,
-                endpoints: [
-                  ...current.endpoints,
-                  createProviderEndpointDraft(),
-                ],
-              }))}
-            />
+            <div className="settings-field-header-actions">
+              {measurementSupported !== false ? (
+                <IconButton
+                  data-testid="provider-speed-test-button"
+                  className="settings-icon-button"
+                  compactSquare
+                  icon={measurementBusy ? <Icon name="spinner" size={16} className="spin" /> : <Icon name="network" size={16} />}
+                  tooltip={measurementBusy ? t.settings.testingSpeed : t.settings.speedTest}
+                  aria-label={measurementBusy ? t.settings.testingSpeed : t.settings.speedTest}
+                  disabled={disabled || measurementBusy}
+                  onClick={() => onMeasure?.()}
+                />
+              ) : null}
+              <IconButton
+                data-testid="provider-endpoint-add"
+                className="settings-icon-button"
+                compactSquare
+                icon={<Icon name="add" size={16} />}
+                tooltip={t.settings.addEndpoint}
+                aria-label={t.settings.addEndpoint}
+                disabled={disabled}
+                onClick={() => {
+                  setDraftEndpointVisible(true);
+                  setDraftEndpointUrl('');
+                  setDraftEndpointError(null);
+                }}
+              />
+            </div>
           </div>
+
           <div className="field provider-endpoint-list">
             {connection.endpoints.map((endpoint, index) => {
-              const probe = probeResults?.get(endpoint.id);
+              const measurement = measurementResults?.get(endpoint.id);
               const endpointError = endpointErrors?.get(endpoint.id);
-              const isPreferred = connection.preferredEndpointId === endpoint.id;
-              const isSuggested = suggestedEndpointId === endpoint.id;
+              const isCurrent = connection.selectionMode === 'manual'
+                ? connection.selectedEndpointId === endpoint.id
+                : resolvedEndpointId === endpoint.id;
               const canDelete = multiEndpoint;
+              const showDelete = hoveredEndpointId === endpoint.id && canDelete && !measurementBusy;
+              const statusSummary = summarizeLatency(measurement, t);
               return (
                 <div
                   key={endpoint.id}
                   data-testid={`provider-endpoint-row-${index}`}
-                  className={`provider-endpoint-row${index > 0 ? ' provider-endpoint-row-spaced' : ''}`}
+                  className={`provider-endpoint-row${isCurrent ? ' provider-endpoint-row-current' : ''}${index > 0 ? ' provider-endpoint-row-spaced' : ''}${connection.selectionMode === 'auto' ? ' provider-endpoint-row-auto' : ''}`}
+                  onMouseEnter={() => setHoveredEndpointId(endpoint.id)}
+                  onMouseLeave={() => setHoveredEndpointId((current) => (current === endpoint.id ? null : current))}
+                  onClick={(event) => {
+                    if (connection.selectionMode !== 'manual' || disabled) {
+                      return;
+                    }
+                    const target = event.target as HTMLElement;
+                    if (target.closest('input,button,label')) {
+                      return;
+                    }
+                    onConnectionChange((current) => ({ ...current, selectedEndpointId: endpoint.id }));
+                  }}
                 >
                   <div className="provider-endpoint-header">
                     <div className="provider-endpoint-title-row">
-                      {isPreferred ? (
+                      {isCurrent ? (
                         <span
-                          data-testid={`provider-endpoint-preferred-dot-${index}`}
+                          data-testid={`provider-endpoint-current-dot-${index}`}
                           className="provider-endpoint-preferred-dot"
                           role="img"
-                          aria-label={t.settings.endpointPreferred}
-                          title={t.settings.endpointPreferred}
+                          aria-label={t.settings.endpointCurrent}
+                          title={t.settings.endpointCurrent}
                         />
                       ) : null}
-                      <span className="provider-endpoint-label">{t.settings.endpointLabel(index + 1)}</span>
-                      {isSuggested ? <span data-testid={`provider-endpoint-suggested-badge-${index}`} className="provider-endpoint-meta">{t.settings.endpointSuggested}</span> : null}
-                      {probe ? <span className="provider-endpoint-meta">{probe.status}</span> : null}
+                      {isCurrent ? <span className="provider-endpoint-meta provider-endpoint-meta-current">{t.settings.endpointCurrent}</span> : null}
+                      {showDelete ? (
+                        <IconButton
+                          data-testid={`provider-endpoint-remove-${index}`}
+                          className="settings-icon-button danger provider-endpoint-remove"
+                          compactSquare
+                          icon={<Icon name="trash" size={16} />}
+                          tooltip={t.common.delete}
+                          aria-label={t.common.delete}
+                          disabled={disabled || !canDelete}
+                          onClick={() => onConnectionChange((current) => removeEndpoint(current, endpoint.id))}
+                        />
+                      ) : statusSummary ? (
+                        <span
+                          className={`provider-endpoint-meta${measurement?.status === 'failed' ? ' provider-endpoint-meta-failed' : ''}`}
+                          title={measurement?.errorMessage ?? statusSummary}
+                        >
+                          {statusSummary}
+                        </span>
+                      ) : null}
                     </div>
-                    <IconButton
-                      data-testid={`provider-endpoint-remove-${index}`}
-                      className="settings-icon-button danger"
-                      compactSquare
-                      icon={<Icon name="trash" size={16} />}
-                      tooltip={t.common.delete}
-                      aria-label={t.common.delete}
-                      disabled={disabled || !canDelete}
-                      onClick={() => onConnectionChange((current) => removeEndpoint(current, endpoint.id))}
-                    />
                   </div>
                   <TextField
                     className="field-input mono ui-field-control provider-endpoint-input"
@@ -237,57 +330,58 @@ export function ProviderProfileEditor({
                     >
                       {t.settings.endpointEnabled}
                     </Checkbox>
-                    {multiEndpoint && (
-                      <Radio
-                        data-testid={`provider-endpoint-preferred-${index}`}
-                        name={preferredRadioName}
-                        checked={isPreferred}
-                        disabled={disabled || connection.selectionMode !== 'manual' || !endpoint.enabled}
-                        onChecked={(checked) => {
-                          if (!checked) {
-                            return;
-                          }
-                          onConnectionChange((current) => ({
-                            ...current,
-                            preferredEndpointId: endpoint.id,
-                          }));
-                        }}
-                      >
-                        {t.settings.endpointPreferred}
-                      </Radio>
-                    )}
                   </div>
                 </div>
               );
             })}
+
+            {draftEndpointVisible ? (
+              <div className="provider-endpoint-row provider-endpoint-row-draft">
+                <TextField
+                  className="field-input mono ui-field-control provider-endpoint-input"
+                  data-testid={`provider-endpoint-url-${connection.endpoints.length}`}
+                  id="provider-endpoint-url-draft"
+                  placeholder={baseUrlPlaceholder ?? t.settings.baseUrlHint}
+                  value={draftEndpointUrl}
+                  disabled={disabled}
+                  onValue={(value) => {
+                    setDraftEndpointUrl(sanitizeProviderEndpointUrl(value));
+                    setDraftEndpointError(null);
+                  }}
+                  onBlur={commitDraftEndpoint}
+                />
+                {draftEndpointError ? (
+                  <HelpText data-testid="provider-endpoint-error-draft" className="field-hint" variant="negative">
+                    {draftEndpointError}
+                  </HelpText>
+                ) : null}
+              </div>
+            ) : null}
           </div>
         </div>
-        {multiEndpoint && (
-          <div className="field provider-connection-options">
-            <Checkbox
-              data-testid="provider-selection-mode-auto"
-              className="provider-connection-option"
-              checked={connection.selectionMode === 'auto'}
-              disabled={disabled}
-              onChecked={(checked) => onConnectionChange((current) => ({
-                ...current,
-                selectionMode: checked ? 'auto' : 'manual',
-                preferredEndpointId: checked ? undefined : current.preferredEndpointId ?? current.endpoints.find((endpoint) => endpoint.enabled)?.id,
-              }))}
-            >
-              {t.settings.autoSelect}
-            </Checkbox>
-            <Checkbox
-              data-testid="provider-failover-enabled"
-              className="provider-connection-option"
-              checked={connection.failoverEnabled}
-              disabled={disabled}
-              onChecked={(checked) => onConnectionChange((current) => ({ ...current, failoverEnabled: checked }))}
-            >
-              {t.settings.failoverEnabled}
-            </Checkbox>
-          </div>
-        )}
+
+        <div className="field provider-connection-options">
+          <Checkbox
+            data-testid="provider-selection-mode-auto"
+            className="provider-connection-option"
+            checked={connection.selectionMode === 'auto'}
+            disabled={disabled}
+            onChecked={(checked) => onConnectionChange((current) => ({
+              ...current,
+              selectionMode: checked ? 'auto' : 'manual',
+              selectedEndpointId: checked ? undefined : current.selectedEndpointId ?? current.endpoints.find((endpoint) => endpoint.enabled)?.id,
+            }))}
+          >
+            {t.settings.autoSelect}
+          </Checkbox>
+          {connection.selectionMode === 'auto' ? (
+            <HelpText className="field-hint">{t.settings.autoSelectManaged}</HelpText>
+          ) : null}
+        </div>
+
+        {measurementNotice ? renderStatusNotice(measurementNotice) : null}
+        {connectionStatus ? renderStatusNotice(connectionStatus) : null}
+
         <div className="field">
           <div className="settings-field-header">
             <FieldLabel htmlFor="provider-api-key-input">API Key</FieldLabel>
@@ -354,7 +448,6 @@ export function ProviderProfileEditor({
             </HelpText>
           ) : null}
         </div>
-        {connectionStatus ? renderStatusNotice(connectionStatus) : null}
       </div>
     </div>
   );

@@ -114,10 +114,13 @@ surface apps -> application/session -> core-engine + providers
 
 ## Submission And Retry Contract
 
-- Provider profiles persist canonical `connection` config instead of a single endpoint field.
-  `selectionMode` and `failoverEnabled` are independent profile semantics;
-  `preferredEndpointId` persists only for manual mode, while auto-mode probe
-  ranking stays session-only.
+- Provider profiles persist canonical `connection` config instead of a single
+  endpoint field. Persisted endpoint-selection state is `selectionMode`,
+  `selectedEndpointId` (manual mode only), and the endpoint list; provider
+  failover is derived from `selectionMode === 'auto'`, and runtime-only
+  `resolvedEndpointId` stays session-scoped instead of mutating saved profile
+  config. Provider-level connection testing and endpoint measurement are
+  separate commands and provider seams.
 - Session-level in-flight registry (`packages/application/src/session/session.ts`): `inFlightRetry` deduplicates by failed-job `jobId`; `inFlightSubmit` deduplicates by `__clientRoundId`. Locks release on all settle paths including `{ok:true,value:failedJob}`.
 - UI ref gates (`submitInFlightRef`, `retryInFlightRef`) cover same-tick double-click windows. Error-retry and regenerate buttons are disabled while `conversation.running`.
 - Provider transport ownership summary lives in `packages/providers/ARCHITECTURE.md`.

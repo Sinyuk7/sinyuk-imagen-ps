@@ -47,8 +47,7 @@ describe('image endpoint transport request characterization', () => {
       family: 'image-endpoint',
       connection: {
         selectionMode: 'manual',
-        failoverEnabled: false,
-        preferredEndpointId: 'primary',
+        selectedEndpointId: 'primary',
         endpoints: [{ id: 'primary', url: 'https://api.example.com', enabled: true }],
       },
       apiKey: 'test-key',
@@ -89,8 +88,7 @@ describe('image endpoint transport request characterization', () => {
       family: 'image-endpoint',
       connection: {
         selectionMode: 'manual',
-        failoverEnabled: false,
-        preferredEndpointId: 'primary',
+        selectedEndpointId: 'primary',
         endpoints: [{ id: 'primary', url: 'https://api.example.com', enabled: true }],
       },
       apiKey: 'test-key',

@@ -42,8 +42,7 @@ function baseConfig() {
     family: 'image-endpoint' as const,
     connection: {
       selectionMode: 'manual' as const,
-      failoverEnabled: false,
-      preferredEndpointId: 'primary',
+      selectedEndpointId: 'primary',
       endpoints: [{ id: 'primary', url: 'https://api.example.com/', enabled: true }],
     },
     apiKey: 'sk-test',

@@ -20,4 +20,8 @@ export const imageEndpointDescriptor: ProviderDescriptor = {
     supportedModes: ['none', 'new-api'],
     defaultMode: 'new-api',
   },
+  connectivity: {
+    endpointMeasurement: 'supported',
+    connectionTest: 'supported',
+  },
 };

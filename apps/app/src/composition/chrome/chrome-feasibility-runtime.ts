@@ -103,8 +103,7 @@ export async function runChromeFeasibilityRuntime(options?: {
       family: 'image-endpoint',
       connection: {
         selectionMode: 'manual',
-        failoverEnabled: false,
-        preferredEndpointId: 'primary',
+        selectedEndpointId: 'primary',
         endpoints: [{ id: 'primary', url: 'https://mock.local', enabled: true }],
       },
       defaultModel: 'mock-image-v1',

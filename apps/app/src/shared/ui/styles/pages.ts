@@ -419,10 +419,23 @@ export const PAGES_CSS = `
 }
 .provider-endpoint-row{
   display:block;
-  padding-top:4px;
-  padding-right:0;
-  padding-bottom:4px;
-  padding-left:0;
+  padding-top:8px;
+  padding-right:10px;
+  padding-bottom:8px;
+  padding-left:10px;
+  border:1px solid var(--app-color-border-default);
+  border-radius:12px;
+  background:var(--app-color-surface-raised);
+}
+.provider-endpoint-row-current{
+  border-color:var(--app-color-accent-default);
+  background:var(--app-color-accent-soft);
+}
+.provider-endpoint-row-auto{
+  cursor:default;
+}
+.provider-endpoint-row-draft{
+  margin-top:8px;
 }
 .provider-endpoint-header{
   display:flex;
@@ -457,6 +470,12 @@ export const PAGES_CSS = `
   font-size:11px;
   line-height:16px;
   color:var(--app-color-text-muted);
+}
+.provider-endpoint-meta-current{
+  color:var(--app-color-accent-default);
+}
+.provider-endpoint-meta-failed{
+  color:var(--app-color-negative);
 }
 .provider-endpoint-remove{
   width:28px;

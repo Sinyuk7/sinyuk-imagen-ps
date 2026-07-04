@@ -1,4 +1,13 @@
-import type { ImageEditCodec, Provider, ProviderDescriptor, ProviderInvokeArgs } from '../../contract/provider.js';
+import type {
+  ImageEditCodec,
+  Provider,
+  ProviderConnectionTestResult,
+  ProviderDescriptor,
+  ProviderEndpointMeasurement,
+  ProviderEndpointMeasurementOptions,
+  ProviderEndpointMeasurementResult,
+  ProviderInvokeArgs,
+} from '../../contract/provider.js';
 import type { ProviderBalanceSnapshot } from '../../contract/billing.js';
 import type { ProviderInvokeResult } from '../../contract/result.js';
 import type { ProviderModelInfo } from '../../contract/model.js';
@@ -29,6 +38,7 @@ import {
   rememberSuccessfulImageEditCodec,
   resolveImageEditCodec,
 } from '../../transport/image-endpoint/wire-compatibility.js';
+import { providerConnectionAllowsFailover } from '../../contract/config.js';
 
 /** Provider 层可映射的结构化验证错误。 */
 interface ProviderValidationError extends Error {
@@ -92,8 +102,118 @@ function logEditRequestSummary(
   });
 }
 
-function enabledEndpointCount(config: ImageEndpointProviderConfig): number {
-  return config.connection.endpoints.filter((endpoint) => endpoint.enabled).length;
+function perfNow(): number {
+  return typeof performance !== 'undefined' && typeof performance.now === 'function'
+    ? performance.now()
+    : Date.now();
+}
+
+function classifyMeasurementFailure(message: string): ProviderEndpointMeasurement['failureKind'] {
+  const lower = message.toLowerCase();
+  if (lower.includes('enotfound') || lower.includes('eai_again') || lower.includes('dns')) {
+    return 'dns';
+  }
+  return 'connect';
+}
+
+function normalizeMeasurementFailure(
+  endpointId: string,
+  latencyMs: number,
+  error: unknown,
+): ProviderEndpointMeasurement {
+  const details = error as { readonly kind?: string; readonly statusCode?: number; readonly message?: string };
+  const message = error instanceof Error ? error.message : 'Endpoint measurement failed.';
+  const checkedAt = Date.now();
+  const httpStatus = typeof details.statusCode === 'number' ? details.statusCode : undefined;
+  switch (details.kind) {
+    case 'auth_failed':
+      return { endpointId, checkedAt, reachable: false, latencyMs, failureKind: 'auth', ...(httpStatus !== undefined ? { httpStatus } : {}), errorMessage: message };
+    case 'rate_limited':
+      return { endpointId, checkedAt, reachable: false, latencyMs, failureKind: 'rate-limit', ...(httpStatus !== undefined ? { httpStatus } : {}), errorMessage: message };
+    case 'invalid_response':
+      return { endpointId, checkedAt, reachable: false, latencyMs, failureKind: 'invalid-response', ...(httpStatus !== undefined ? { httpStatus } : {}), errorMessage: message };
+    case 'timeout':
+      return { endpointId, checkedAt, reachable: false, latencyMs, failureKind: 'timeout', errorMessage: message };
+    case 'network_error':
+      return { endpointId, checkedAt, reachable: false, latencyMs, failureKind: classifyMeasurementFailure(message), errorMessage: message };
+    default:
+      return { endpointId, checkedAt, reachable: false, latencyMs, failureKind: 'unknown', ...(httpStatus !== undefined ? { httpStatus } : {}), errorMessage: message };
+  }
+}
+
+async function discoverModelsAtEndpoint(
+  config: ImageEndpointProviderConfig,
+  endpoint: ImageEndpointProviderConfig['connection']['endpoints'][number],
+  logger?: Logger,
+  signal?: AbortSignal,
+  timeoutMs?: number,
+): Promise<readonly ProviderModelInfo[]> {
+  const response = await httpRequest(
+    {
+      url: new URL('/v1/models', endpoint.url).toString(),
+      method: 'GET',
+      headers: {
+        Authorization: `Bearer ${config.apiKey}`,
+        ...(config.extraHeaders ?? {}),
+      },
+      timeoutMs: timeoutMs ?? config.timeoutMs,
+    },
+    { maxRetries: 0, baseDelayMs: 0, factor: 1 },
+    signal,
+    logger,
+  );
+
+  return normalizeDiscoveredModelsResponse(response.response.data, endpoint.id, logger);
+}
+
+function normalizeDiscoveredModelsResponse(
+  payload: unknown,
+  endpointId: string,
+  logger?: Logger,
+): readonly ProviderModelInfo[] {
+  const inspected = inspectModelsResponse(payload);
+  logger?.info('provider.image_endpoint.discover_models.analysis', {
+    endpointId,
+    rawCount: inspected.rawIds.length,
+    rawIds: inspected.rawIds,
+    catalogMatchedCount: inspected.catalogMatchedIds.length,
+    catalogMatchedIds: inspected.catalogMatchedIds,
+    reconciledCount: inspected.reconciledModels.length,
+    reconciledIds: inspected.reconciledModels.map((model) => model.id),
+  });
+
+  if (inspected.reconciledModels.length > 0) {
+    return inspected.reconciledModels;
+  }
+
+  const fallbackModels = listLocalCatalogModels('image-endpoint').map((model) => ({
+    ...model,
+    remotelyAvailable: false,
+  }));
+  logger?.info('provider.image_endpoint.discover_models.fallback_local_catalog', {
+    endpointId,
+    fallbackCount: fallbackModels.length,
+    fallbackIds: fallbackModels.map((model) => model.id),
+  });
+  return fallbackModels;
+}
+
+async function mapWithConcurrency<TInput, TOutput>(
+  items: readonly TInput[],
+  concurrency: number,
+  worker: (item: TInput) => Promise<TOutput>,
+): Promise<readonly TOutput[]> {
+  const limit = Math.max(1, Math.min(concurrency, items.length || 1));
+  const results: TOutput[] = new Array(items.length);
+  let nextIndex = 0;
+  await Promise.all(Array.from({ length: limit }, async () => {
+    while (nextIndex < items.length) {
+      const current = nextIndex;
+      nextIndex += 1;
+      results[current] = await worker(items[current]!);
+    }
+  }));
+  return results;
 }
 
 function compatibleImageEditCodecs(request: MockProviderRequest): readonly ImageEditCodec[] {
@@ -235,7 +355,7 @@ export function createImageEndpointProvider(): Provider<ImageEndpointProviderCon
         const codecs = compatibleImageEditCodecs(request);
         const plan = resolveAttemptPlan({
           endpoints,
-          failoverEnabled: config.connection.failoverEnabled && enabledEndpointCount(config) > 1,
+          failoverEnabled: providerConnectionAllowsFailover(config.connection),
           compatibleCodecs: codecs,
         });
         const budget = deriveDispatchBudget(plan, paidRetry.policy);
@@ -364,32 +484,64 @@ export function createImageEndpointProvider(): Provider<ImageEndpointProviderCon
           logger,
         ),
       });
+      return normalizeDiscoveredModelsResponse(execution.value.response.data, execution.selectedEndpointId, logger);
+    },
 
-      const inspected = inspectModelsResponse(execution.value.response.data);
-      logger?.info('provider.image_endpoint.discover_models.analysis', {
-        selectedEndpointId: execution.selectedEndpointId,
-        rawCount: inspected.rawIds.length,
-        rawIds: inspected.rawIds,
-        catalogMatchedCount: inspected.catalogMatchedIds.length,
-        catalogMatchedIds: inspected.catalogMatchedIds,
-        reconciledCount: inspected.reconciledModels.length,
-        reconciledIds: inspected.reconciledModels.map((model) => model.id),
-      });
+    async measureEndpoints(
+      config: ImageEndpointProviderConfig,
+      options: ProviderEndpointMeasurementOptions = {},
+    ): Promise<ProviderEndpointMeasurementResult> {
+      const endpoints = config.connection.endpoints.filter((endpoint) => endpoint.enabled);
+      const results = await mapWithConcurrency(
+        endpoints,
+        options.maxConcurrency ?? 3,
+        async (endpoint): Promise<ProviderEndpointMeasurement> => {
+          const startedAt = perfNow();
+          try {
+            const models = await discoverModelsAtEndpoint(
+              config,
+              endpoint,
+              options.logger,
+              options.signal,
+              options.timeoutMs,
+            );
+            return {
+              endpointId: endpoint.id,
+              checkedAt: Date.now(),
+              reachable: true,
+              latencyMs: Math.max(0, Math.round(perfNow() - startedAt)),
+              models,
+            };
+          } catch (error) {
+            return normalizeMeasurementFailure(endpoint.id, Math.max(0, Math.round(perfNow() - startedAt)), error);
+          }
+        },
+      );
+      return { supported: true, results };
+    },
 
-      if (inspected.reconciledModels.length > 0) {
-        return inspected.reconciledModels;
+    async testConnection(
+      config: ImageEndpointProviderConfig,
+      logger?: Logger,
+    ): Promise<ProviderConnectionTestResult> {
+      try {
+        const models = await this.discoverModels!(config, logger);
+        const selectableCount = models.filter(
+          (model) => model.supportStatus === undefined || model.supportStatus === 'selectable',
+        ).length;
+        return {
+          supported: true,
+          reachable: true,
+          modelCount: selectableCount,
+          models,
+        };
+      } catch (error) {
+        return {
+          supported: true,
+          reachable: false,
+          message: error instanceof Error ? error.message : 'Connection test failed.',
+        };
       }
-
-      const fallbackModels = listLocalCatalogModels('image-endpoint').map((model) => ({
-        ...model,
-        remotelyAvailable: false,
-      }));
-      logger?.info('provider.image_endpoint.discover_models.fallback_local_catalog', {
-        selectedEndpointId: execution.selectedEndpointId,
-        fallbackCount: fallbackModels.length,
-        fallbackIds: fallbackModels.map((model) => model.id),
-      });
-      return fallbackModels;
     },
 
     async queryBalance(config: ImageEndpointProviderConfig, input): Promise<ProviderBalanceSnapshot> {

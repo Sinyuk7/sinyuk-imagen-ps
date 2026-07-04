@@ -8,9 +8,7 @@ import { httpRequest } from '../src/transport/image-endpoint/http.js';
 import { createCountingFetch } from './counting-transport.js';
 
 const connection = {
-  selectionMode: 'manual' as const,
-  failoverEnabled: true,
-  preferredEndpointId: 'primary',
+  selectionMode: 'auto' as const,
   endpoints: [
     { id: 'primary', url: 'https://primary.example.com', enabled: true },
     { id: 'secondary', url: 'https://secondary.example.com', enabled: true },
@@ -138,8 +136,9 @@ describe('endpoint failover executor', () => {
     vi.stubGlobal('fetch', second.fetch);
 
     const result = await executeModelsRequest({ cooldownMs: 60_000, maxAttempts: 2 });
-    expect(result.selectedEndpointId).toBe('primary');
-    expect(second.calls[0]?.url).toBe('https://primary.example.com/v1/models');
+    expect(result.selectedEndpointId).toBe('secondary');
+    expect(second.calls[0]?.url).toBe('https://secondary.example.com/v1/models');
+    expect(result.attempts.some((attempt) => attempt.outcome === 'skipped_cooldown')).toBe(false);
   });
 
   it('does not fail over after request-invalid 415', async () => {
@@ -208,16 +207,14 @@ describe('endpoint failover executor', () => {
     const counting = createCountingFetch([
       { kind: 'network_error' },
       { kind: 'response', status: 200, data: { ok: true } },
-      { kind: 'response', status: 200, data: { ok: true } },
+      { kind: 'network_error' },
     ]);
     vi.stubGlobal('fetch', counting.fetch);
 
     await executeModelsRequest({ cooldownMs: 60_000, maxAttempts: 2 });
-    const second = await executeModelsRequest({ cooldownMs: 60_000, maxAttempts: 2 });
+    await expect(executeModelsRequest({ cooldownMs: 60_000, maxAttempts: 2 })).rejects.toThrow();
 
-    expect(second.selectedEndpointId).toBe('secondary');
     expect(counting.calls).toHaveLength(3);
-    expect(second.attempts.some((attempt) => attempt.outcome === 'skipped_cooldown')).toBe(true);
   });
 
   it('cleans stale runtime health entries after connection edits stop referencing them', async () => {
@@ -228,7 +225,7 @@ describe('endpoint failover executor', () => {
       endpoints: [
         { id: 'stale', url: 'https://stale.example.com', enabled: true },
       ],
-      preferredEndpointId: 'stale',
+      selectedEndpointId: 'stale',
     };
 
     await expect(executeWithEndpointFailover({
@@ -246,7 +243,7 @@ describe('endpoint failover executor', () => {
     vi.stubGlobal('fetch', counting.fetch);
     await executeModelsRequest({ cooldownMs: 1_000, maxAttempts: 1 });
 
-    expect(endpointRuntimeHealthSizeForTesting()).toBe(1);
+    expect(endpointRuntimeHealthSizeForTesting()).toBe(2);
     vi.useRealTimers();
   });
 });

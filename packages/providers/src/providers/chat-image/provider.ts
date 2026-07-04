@@ -1,4 +1,12 @@
-import type { Provider, ProviderDescriptor, ProviderInvokeArgs } from '../../contract/provider.js';
+import type {
+  Provider,
+  ProviderConnectionTestResult,
+  ProviderDescriptor,
+  ProviderEndpointMeasurement,
+  ProviderEndpointMeasurementOptions,
+  ProviderEndpointMeasurementResult,
+  ProviderInvokeArgs,
+} from '../../contract/provider.js';
 import type { ProviderBalanceSnapshot } from '../../contract/billing.js';
 import type { ProviderInvokeResult } from '../../contract/result.js';
 import type { ProviderModelInfo } from '../../contract/model.js';
@@ -48,6 +56,90 @@ function expectedMimeTypeForOutputFormat(outputFormat: string | undefined): stri
     return 'image/webp';
   }
   return undefined;
+}
+
+function perfNow(): number {
+  return typeof performance !== 'undefined' && typeof performance.now === 'function'
+    ? performance.now()
+    : Date.now();
+}
+
+function classifyMeasurementFailure(message: string): ProviderEndpointMeasurement['failureKind'] {
+  const lower = message.toLowerCase();
+  if (lower.includes('enotfound') || lower.includes('eai_again') || lower.includes('dns')) {
+    return 'dns';
+  }
+  return 'connect';
+}
+
+function normalizeMeasurementFailure(
+  endpointId: string,
+  latencyMs: number,
+  error: unknown,
+): ProviderEndpointMeasurement {
+  const details = error as { readonly kind?: string; readonly statusCode?: number };
+  const message = error instanceof Error ? error.message : 'Endpoint measurement failed.';
+  const httpStatus = typeof details.statusCode === 'number' ? details.statusCode : undefined;
+  switch (details.kind) {
+    case 'auth_failed':
+      return { endpointId, checkedAt: Date.now(), reachable: false, latencyMs, failureKind: 'auth', ...(httpStatus !== undefined ? { httpStatus } : {}), errorMessage: message };
+    case 'rate_limited':
+      return { endpointId, checkedAt: Date.now(), reachable: false, latencyMs, failureKind: 'rate-limit', ...(httpStatus !== undefined ? { httpStatus } : {}), errorMessage: message };
+    case 'invalid_response':
+      return { endpointId, checkedAt: Date.now(), reachable: false, latencyMs, failureKind: 'invalid-response', ...(httpStatus !== undefined ? { httpStatus } : {}), errorMessage: message };
+    case 'timeout':
+      return { endpointId, checkedAt: Date.now(), reachable: false, latencyMs, failureKind: 'timeout', errorMessage: message };
+    case 'network_error':
+      return { endpointId, checkedAt: Date.now(), reachable: false, latencyMs, failureKind: classifyMeasurementFailure(message), errorMessage: message };
+    default:
+      return { endpointId, checkedAt: Date.now(), reachable: false, latencyMs, failureKind: 'unknown', ...(httpStatus !== undefined ? { httpStatus } : {}), errorMessage: message };
+  }
+}
+
+async function discoverModelsAtEndpoint(
+  config: ChatImageProviderConfig,
+  endpoint: ChatImageProviderConfig['connection']['endpoints'][number],
+  signal?: AbortSignal,
+  timeoutMs?: number,
+): Promise<readonly ProviderModelInfo[]> {
+  const response = await httpRequest(
+    {
+      url: endpointUrl(endpoint.url, 'models'),
+      method: 'GET',
+      headers: {
+        Authorization: `Bearer ${config.apiKey}`,
+        ...(config.extraHeaders ?? {}),
+      },
+      timeoutMs: timeoutMs ?? config.timeoutMs,
+    },
+    { maxRetries: 0, baseDelayMs: 0, factor: 1 },
+    signal,
+    undefined,
+  );
+
+  const discovered = parseChatImageModelsResponse(response.response.data);
+  return discovered.length > 0 ? discovered : listLocalCatalogModels('chat-image').map((model) => ({
+    ...model,
+    remotelyAvailable: false,
+  }));
+}
+
+async function mapWithConcurrency<TInput, TOutput>(
+  items: readonly TInput[],
+  concurrency: number,
+  worker: (item: TInput) => Promise<TOutput>,
+): Promise<readonly TOutput[]> {
+  const limit = Math.max(1, Math.min(concurrency, items.length || 1));
+  const results: TOutput[] = new Array(items.length);
+  let nextIndex = 0;
+  await Promise.all(Array.from({ length: limit }, async () => {
+    while (nextIndex < items.length) {
+      const current = nextIndex;
+      nextIndex += 1;
+      results[current] = await worker(items[current]!);
+    }
+  }));
+  return results;
 }
 
 export function createChatImageProvider(): Provider<ChatImageProviderConfig, MockProviderRequest> {
@@ -250,12 +342,61 @@ export function createChatImageProvider(): Provider<ChatImageProviderConfig, Moc
           undefined,
         ),
       });
-
       const discovered = parseChatImageModelsResponse(execution.value.response.data);
       return discovered.length > 0 ? discovered : listLocalCatalogModels('chat-image').map((model) => ({
         ...model,
         remotelyAvailable: false,
       }));
+    },
+
+    async measureEndpoints(
+      config: ChatImageProviderConfig,
+      options: ProviderEndpointMeasurementOptions = {},
+    ): Promise<ProviderEndpointMeasurementResult> {
+      const endpoints = config.connection.endpoints.filter((endpoint) => endpoint.enabled);
+      const results = await mapWithConcurrency(
+        endpoints,
+        options.maxConcurrency ?? 3,
+        async (endpoint): Promise<ProviderEndpointMeasurement> => {
+          const startedAt = perfNow();
+          try {
+            const models = await discoverModelsAtEndpoint(config, endpoint, options.signal, options.timeoutMs);
+            return {
+              endpointId: endpoint.id,
+              checkedAt: Date.now(),
+              reachable: true,
+              latencyMs: Math.max(0, Math.round(perfNow() - startedAt)),
+              models,
+            };
+          } catch (error) {
+            return normalizeMeasurementFailure(endpoint.id, Math.max(0, Math.round(perfNow() - startedAt)), error);
+          }
+        },
+      );
+      return { supported: true, results };
+    },
+
+    async testConnection(
+      config: ChatImageProviderConfig,
+    ): Promise<ProviderConnectionTestResult> {
+      try {
+        const models = await this.discoverModels!(config);
+        const selectableCount = models.filter(
+          (model) => model.supportStatus === undefined || model.supportStatus === 'selectable',
+        ).length;
+        return {
+          supported: true,
+          reachable: true,
+          modelCount: selectableCount,
+          models,
+        };
+      } catch (error) {
+        return {
+          supported: true,
+          reachable: false,
+          message: error instanceof Error ? error.message : 'Connection test failed.',
+        };
+      }
     },
 
     async queryBalance(config: ChatImageProviderConfig, input): Promise<ProviderBalanceSnapshot> {

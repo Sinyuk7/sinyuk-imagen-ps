@@ -25,7 +25,7 @@ describe('SettingsDetailPage contract — prompt optimizer', () => {
     expect(spies.saveProviderProfile).not.toHaveBeenCalled();
     expect(spies.validatePromptOptimizerProfile).not.toHaveBeenCalled();
     expect(spies.testProviderProfile).not.toHaveBeenCalled();
-    expect(spies.probeProfileEndpoints).toHaveBeenCalledWith(
+    expect(spies.testProviderProfileConnection).toHaveBeenCalledWith(
       expect.objectContaining({
         profileId: '__prompt-optimizer__',
         providerId: 'prompt-optimize',

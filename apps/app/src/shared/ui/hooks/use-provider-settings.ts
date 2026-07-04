@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type {
-  EndpointProbeResult,
+  EndpointMeasurementResult,
   ProviderDescriptor,
   ProviderModelInfo,
   ProviderProfile,
@@ -298,8 +298,7 @@ export interface ProviderEndpointDraft {
 
 export interface ProviderConnectionDraft {
   readonly selectionMode: 'manual' | 'auto';
-  readonly failoverEnabled: boolean;
-  readonly preferredEndpointId?: string;
+  readonly selectedEndpointId?: string;
   readonly endpoints: readonly ProviderEndpointDraft[];
 }
 
@@ -365,17 +364,15 @@ export function normalizeProviderConnectionDraft(
   if (cleanedDraft.selectionMode === 'auto') {
     return {
       selectionMode: 'auto',
-      failoverEnabled: cleanedDraft.failoverEnabled,
       endpoints,
     };
   }
-  const preferredEndpointId = endpoints.some((endpoint) => endpoint.id === cleanedDraft.preferredEndpointId && endpoint.enabled)
-    ? cleanedDraft.preferredEndpointId
+  const selectedEndpointId = endpoints.some((endpoint) => endpoint.id === cleanedDraft.selectedEndpointId && endpoint.enabled)
+    ? cleanedDraft.selectedEndpointId
     : nextPreferredEndpointId(endpoints);
   return {
     selectionMode: 'manual',
-    failoverEnabled: cleanedDraft.failoverEnabled,
-    ...(preferredEndpointId ? { preferredEndpointId } : {}),
+    ...(selectedEndpointId ? { selectedEndpointId } : {}),
     endpoints,
   };
 }
@@ -386,8 +383,7 @@ export function readProviderConnectionDraft(profile: ProviderProfile | null): Pr
   if (typeof connection === 'object' && connection !== null && !Array.isArray(connection)) {
     const record = connection as {
       readonly selectionMode?: 'manual' | 'auto';
-      readonly failoverEnabled?: boolean;
-      readonly preferredEndpointId?: string;
+      readonly selectedEndpointId?: string;
       readonly endpoints?: readonly ProviderEndpointDraft[];
     };
     const endpoints = Array.isArray(record.endpoints)
@@ -401,21 +397,19 @@ export function readProviderConnectionDraft(profile: ProviderProfile | null): Pr
       : [];
     return normalizeProviderConnectionDraft({
       selectionMode: record.selectionMode === 'auto' ? 'auto' : 'manual',
-      failoverEnabled: record.failoverEnabled === true,
-      preferredEndpointId: record.preferredEndpointId,
+      selectedEndpointId: typeof record.selectedEndpointId === 'string' ? record.selectedEndpointId : undefined,
       endpoints,
     });
   }
   return normalizeProviderConnectionDraft({
     selectionMode: 'manual',
-    failoverEnabled: false,
     endpoints: [createProviderEndpointDraft()],
   });
 }
 
 export function connectionProbeResultById(
-  results: readonly EndpointProbeResult[] | undefined,
-): ReadonlyMap<string, EndpointProbeResult> {
+  results: readonly EndpointMeasurementResult[] | undefined,
+): ReadonlyMap<string, EndpointMeasurementResult> {
   return new Map((results ?? []).map((result) => [result.endpointId, result] as const));
 }
 
@@ -518,8 +512,7 @@ export function providerConfigFromForm(
     family,
     connection: {
       selectionMode: normalizedConnection.selectionMode,
-      failoverEnabled: normalizedConnection.failoverEnabled,
-      ...(normalizedConnection.preferredEndpointId ? { preferredEndpointId: normalizedConnection.preferredEndpointId } : {}),
+      ...(normalizedConnection.selectedEndpointId ? { selectedEndpointId: normalizedConnection.selectedEndpointId } : {}),
       endpoints: normalizedConnection.endpoints.map((endpoint) => ({
         id: endpoint.id,
         url: endpoint.url,

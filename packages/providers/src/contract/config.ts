@@ -28,11 +28,8 @@ export interface ProviderConnectionConfig {
   /** endpoint 排序来源。 */
   readonly selectionMode: ProviderEndpointSelectionMode;
 
-  /** 是否允许在 endpoint 之间切换。 */
-  readonly failoverEnabled: boolean;
-
-  /** manual 模式下的首选 endpoint。 */
-  readonly preferredEndpointId?: string;
+  /** manual 模式下的当前选中 endpoint。 */
+  readonly selectedEndpointId?: string;
 
   /** 当前 profile 的 endpoint 集合。 */
   readonly endpoints: readonly ProviderEndpointConfig[];
@@ -85,8 +82,7 @@ export function canonicalizeProviderEndpointUrl(input: string): string {
 
 type ConnectionInput = {
   readonly selectionMode?: unknown;
-  readonly failoverEnabled?: unknown;
-  readonly preferredEndpointId?: unknown;
+  readonly selectedEndpointId?: unknown;
   readonly endpoints?: unknown;
 };
 
@@ -102,7 +98,6 @@ export function normalizeProviderConnection(input: {
 
   const connection = input.connection as ConnectionInput;
   const selectionMode = connection.selectionMode === 'auto' ? 'auto' : 'manual';
-  const failoverEnabled = connection.failoverEnabled === true;
   if (!Array.isArray(connection.endpoints) || connection.endpoints.length === 0) {
     throw new Error('Provider connection requires at least one endpoint.');
   }
@@ -137,37 +132,45 @@ export function normalizeProviderConnection(input: {
     throw new Error('Provider connection requires at least one enabled endpoint.');
   }
 
-  const preferredEndpointId =
-    typeof connection.preferredEndpointId === 'string' && connection.preferredEndpointId.trim().length > 0
-      ? connection.preferredEndpointId.trim()
-      : undefined;
+  const selectedEndpointId = typeof connection.selectedEndpointId === 'string' && connection.selectedEndpointId.trim().length > 0
+    ? connection.selectedEndpointId.trim()
+    : undefined;
 
   if (selectionMode === 'manual') {
-    if (!preferredEndpointId) {
-      throw new Error('Manual endpoint selection requires preferredEndpointId.');
+    if (!selectedEndpointId) {
+      throw new Error('Manual endpoint selection requires selectedEndpointId.');
     }
-    if (!enabledEndpoints.some((endpoint) => endpoint.id === preferredEndpointId)) {
-      throw new Error(`Manual endpoint selection requires preferredEndpointId "${preferredEndpointId}" to reference an enabled endpoint.`);
+    if (!enabledEndpoints.some((endpoint) => endpoint.id === selectedEndpointId)) {
+      throw new Error(`Manual endpoint selection requires selectedEndpointId "${selectedEndpointId}" to reference an enabled endpoint.`);
     }
   }
 
   return {
     selectionMode,
-    failoverEnabled,
-    ...(preferredEndpointId ? { preferredEndpointId } : {}),
+    ...(selectionMode === 'manual' && selectedEndpointId ? { selectedEndpointId } : {}),
     endpoints,
   };
+}
+
+/** 当前连接是否由系统自动选择 endpoint。 */
+export function providerConnectionUsesAutomaticSelection(connection: ProviderConnectionConfig): boolean {
+  return connection.selectionMode === 'auto';
+}
+
+/** 当前连接是否允许在 endpoint 之间自动切换。 */
+export function providerConnectionAllowsFailover(connection: ProviderConnectionConfig): boolean {
+  return providerConnectionUsesAutomaticSelection(connection) && connection.endpoints.filter((endpoint) => endpoint.enabled).length > 1;
 }
 
 /** 解析本次 provider 调用的首选 endpoint。 */
 export function getPrimaryProviderEndpoint(connection: ProviderConnectionConfig): ProviderEndpointConfig {
   const enabledEndpoints = connection.endpoints.filter((endpoint) => endpoint.enabled);
   if (connection.selectionMode === 'manual') {
-    const preferred = enabledEndpoints.find((endpoint) => endpoint.id === connection.preferredEndpointId);
-    if (!preferred) {
-      throw new Error('Manual endpoint selection requires a valid enabled preferred endpoint.');
+    const selected = enabledEndpoints.find((endpoint) => endpoint.id === connection.selectedEndpointId);
+    if (!selected) {
+      throw new Error('Manual endpoint selection requires a valid enabled selected endpoint.');
     }
-    return preferred;
+    return selected;
   }
   return enabledEndpoints[0]!;
 }

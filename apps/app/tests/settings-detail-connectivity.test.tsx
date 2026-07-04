@@ -1,16 +1,41 @@
 import { act } from 'react';
-import { afterEach, describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import {
   changeInput,
   cleanupSettingsDetailRoot,
   flush,
   queryByTestId,
   renderDetail,
+  renderDetailWithRoot,
 } from './settings-detail-harness';
+import { createFakeServices, fakeProfile } from './fakes';
 
 afterEach(async () => {
   await cleanupSettingsDetailRoot();
 });
+
+async function renderDetailWithSecondaryEndpoint(container: HTMLElement) {
+  const services = createFakeServices({
+    profiles: [
+      {
+        ...fakeProfile,
+        config: {
+          ...fakeProfile.config,
+          connection: {
+            selectionMode: 'manual' as const,
+            selectedEndpointId: 'primary',
+            endpoints: [
+              { id: 'primary', url: 'https://mock.local', enabled: true },
+              { id: 'secondary', url: 'https://mock-secondary.local', enabled: true },
+            ],
+          },
+        },
+      },
+    ],
+  });
+  await renderDetailWithRoot(container, services, 'mock-profile', vi.fn(), vi.fn(async () => undefined));
+  return services;
+}
 
 describe('SettingsDetailPage contract — connectivity', () => {
   it('tests provider profile and refreshes models through profile commands', async () => {
@@ -24,7 +49,7 @@ describe('SettingsDetailPage contract — connectivity', () => {
     await flush();
 
     expect(spies.saveProviderProfile).not.toHaveBeenCalled();
-    expect(spies.probeProfileEndpoints).toHaveBeenCalledWith(
+    expect(spies.testProviderProfileConnection).toHaveBeenCalledWith(
       expect.objectContaining({
         profileId: 'mock-profile',
         providerId: 'mock',
@@ -57,7 +82,7 @@ describe('SettingsDetailPage contract — connectivity', () => {
     expect(spies.saveProviderProfile).not.toHaveBeenCalled();
     expect(onProfilesChanged).not.toHaveBeenCalled();
     expect(spies.refreshProfileModels).not.toHaveBeenCalled();
-    expect(spies.probeProfileEndpoints).toHaveBeenCalledWith(
+    expect(spies.measureProfileEndpoints).toHaveBeenCalledWith(
       expect.objectContaining({
         profileId: 'mock-profile',
         config: expect.objectContaining({
@@ -95,15 +120,12 @@ describe('SettingsDetailPage contract — connectivity', () => {
     const container = document.createElement('div');
     document.body.appendChild(container);
     const { spies } = await renderDetail(container);
-    spies.probeProfileEndpoints.mockResolvedValueOnce({
+    spies.testProviderProfileConnection.mockResolvedValueOnce({
       ok: true,
-        value: {
-          results: [{
-            endpointId: 'primary',
-            status: 'unreachable',
-            checkedAt: Date.now(),
-            errorMessage: "Cannot read properties of undefined (reading 'addEventListener')",
-          }],
+      value: {
+        supported: true,
+        reachable: false,
+        message: "Cannot read properties of undefined (reading 'addEventListener')",
       },
     });
 
@@ -123,8 +145,8 @@ describe('SettingsDetailPage contract — connectivity', () => {
     const container = document.createElement('div');
     document.body.appendChild(container);
     const { spies } = await renderDetail(container);
-    let resolveTest: ((value: Awaited<ReturnType<typeof spies.probeProfileEndpoints>>) => void) | undefined;
-    spies.probeProfileEndpoints.mockImplementationOnce(
+    let resolveTest: ((value: Awaited<ReturnType<typeof spies.testProviderProfileConnection>>) => void) | undefined;
+    spies.testProviderProfileConnection.mockImplementationOnce(
       () =>
         new Promise((resolve) => {
           resolveTest = resolve;
@@ -142,12 +164,9 @@ describe('SettingsDetailPage contract — connectivity', () => {
       resolveTest?.({
         ok: true,
         value: {
-          results: [{
-            endpointId: 'primary',
-            status: 'healthy',
-            checkedAt: Date.now(),
-            modelCount: 1,
-          }],
+          supported: true,
+          reachable: true,
+          modelCount: 1,
         },
       });
     });
@@ -157,83 +176,55 @@ describe('SettingsDetailPage contract — connectivity', () => {
     expect(container.textContent).toContain('连接成功');
   });
 
-  it('marks the suggested endpoint after auto-mode probe without changing persisted preference', async () => {
+  it('switches to auto without persisting config', async () => {
     const container = document.createElement('div');
     document.body.appendChild(container);
-    const { spies } = await renderDetail(container);
-
-    await act(async () => {
-      queryByTestId(container, 'provider-endpoint-add').click();
-    });
-    const secondInput = queryByTestId(container, 'provider-endpoint-url-1') as HTMLInputElement;
-    const secondEndpointId = secondInput.id.replace('provider-endpoint-url-', '');
-    spies.probeProfileEndpoints.mockResolvedValueOnce({
-      ok: true,
-      value: {
-        results: [
-          { endpointId: 'primary', status: 'healthy', checkedAt: Date.now(), latencyMs: 20, modelCount: 1 },
-          { endpointId: secondEndpointId, status: 'healthy', checkedAt: Date.now(), latencyMs: 5, modelCount: 1 },
-        ],
-        suggestedEndpointId: secondEndpointId,
-      },
-    });
-    await act(async () => {
-      changeInput(secondInput, 'https://mock-secondary.local');
-    });
+    const { spies } = await renderDetailWithSecondaryEndpoint(container);
     await act(async () => {
       queryByTestId(container, 'provider-selection-mode-auto').click();
     });
-    await act(async () => {
-      queryByTestId(container, 'provider-test-button').click();
-    });
+    await flush();
     await flush();
 
-    expect(container.querySelector('[data-testid="provider-endpoint-suggested-badge-1"]')?.textContent ?? '').toMatch(/建议|Suggested/);
+    expect((queryByTestId(container, 'provider-selection-mode-auto') as HTMLInputElement).checked).toBe(true);
+    expect(container.textContent).toMatch(/当前由自动选择管理端点|Auto Select is managing endpoint choice/);
     expect(spies.saveProviderProfile).not.toHaveBeenCalled();
   });
 
-  it('keeps preferred endpoint radio selection singular across rapid clicks', async () => {
+  it('keeps current endpoint selection singular across rapid clicks', async () => {
     const container = document.createElement('div');
     document.body.appendChild(container);
-    const { spies } = await renderDetail(container);
-
+    const { spies } = await renderDetailWithSecondaryEndpoint(container);
     await act(async () => {
-      queryByTestId(container, 'provider-endpoint-add').click();
-    });
-    const secondInput = queryByTestId(container, 'provider-endpoint-url-1') as HTMLInputElement;
-
-    await act(async () => {
-      changeInput(secondInput, 'https://mock-secondary.local');
-      queryByTestId(container, 'provider-endpoint-preferred-1').click();
-      queryByTestId(container, 'provider-endpoint-preferred-0').click();
-      queryByTestId(container, 'provider-endpoint-preferred-1').click();
+      queryByTestId(container, 'provider-endpoint-row-1').click();
+      queryByTestId(container, 'provider-endpoint-row-0').click();
+      queryByTestId(container, 'provider-endpoint-row-1').click();
     });
     await flush();
 
-    const checkedPreferred = Array.from(container.querySelectorAll<HTMLInputElement>('input[type="radio"][data-testid^="provider-endpoint-preferred-"]')).filter((input) => input.checked);
-    expect(checkedPreferred).toHaveLength(1);
-    expect(checkedPreferred[0]?.dataset.testid).toBe('provider-endpoint-preferred-1');
-    expect(container.querySelectorAll('[data-testid^="provider-endpoint-preferred-dot-"]')).toHaveLength(1);
+    expect(container.querySelectorAll('[data-testid^="provider-endpoint-current-dot-"]')).toHaveLength(1);
+    expect(container.querySelector('[data-testid="provider-endpoint-current-dot-1"]')).not.toBeNull();
 
     await act(async () => {
-      queryByTestId(container, 'provider-save-button').click();
+      container.querySelector<HTMLButtonElement>('.btn-save')!.click();
     });
+    await flush();
 
     const savedConnection = spies.saveProviderProfile.mock.calls[0]?.[0].config.connection as {
-      readonly preferredEndpointId?: string;
+      readonly selectedEndpointId?: string;
       readonly endpoints: readonly { readonly id: string; readonly url: string }[];
     };
     const secondEndpoint = savedConnection.endpoints.find((endpoint) => endpoint.url === 'https://mock-secondary.local');
     expect(secondEndpoint).toBeDefined();
-    expect(savedConnection.preferredEndpointId).toBe(secondEndpoint?.id);
+    expect(savedConnection.selectedEndpointId).toBe(secondEndpoint?.id);
   });
 
-  it('disables draft controls while a connection test is pending', async () => {
+  it('keeps draft inputs editable while a connection test is pending', async () => {
     const container = document.createElement('div');
     document.body.appendChild(container);
     const { spies } = await renderDetail(container);
-    let resolveTest: ((value: Awaited<ReturnType<typeof spies.probeProfileEndpoints>>) => void) | undefined;
-    spies.probeProfileEndpoints.mockImplementationOnce(
+    let resolveTest: ((value: Awaited<ReturnType<typeof spies.testProviderProfileConnection>>) => void) | undefined;
+    spies.testProviderProfileConnection.mockImplementationOnce(
       () =>
         new Promise((resolve) => {
           resolveTest = resolve;
@@ -244,21 +235,26 @@ describe('SettingsDetailPage contract — connectivity', () => {
       queryByTestId(container, 'provider-test-button').click();
       await Promise.resolve();
     });
+    await flush();
 
-    expect((queryByTestId(container, 'provider-endpoint-url-0') as HTMLInputElement).disabled).toBe(true);
-    expect((queryByTestId(container, 'provider-alias-input') as HTMLInputElement).disabled).toBe(true);
+    expect((queryByTestId(container, 'provider-endpoint-url-0') as HTMLInputElement).disabled).toBe(false);
+    expect((queryByTestId(container, 'provider-alias-input') as HTMLInputElement).disabled).toBe(false);
+    expect(queryByTestId(container, 'provider-test-button').disabled).toBe(true);
 
     await act(async () => {
       resolveTest?.({
         ok: true,
         value: {
-          results: [{ endpointId: 'primary', status: 'healthy', checkedAt: Date.now(), modelCount: 1 }],
+          supported: true,
+          reachable: true,
+          modelCount: 1,
         },
       });
     });
     await flush();
 
     expect((queryByTestId(container, 'provider-endpoint-url-0') as HTMLInputElement).disabled).toBe(false);
+    expect(queryByTestId(container, 'provider-test-button').disabled).toBe(false);
   });
 
   it('renders the test button as a compact icon with nearby test result meta', async () => {

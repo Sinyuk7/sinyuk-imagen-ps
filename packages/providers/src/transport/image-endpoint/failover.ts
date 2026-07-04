@@ -1,6 +1,10 @@
 import type { ProviderDiagnostic } from '../../contract/diagnostics.js';
+import {
+  providerConnectionAllowsFailover,
+  type ProviderConnectionConfig,
+  type ProviderEndpointConfig,
+} from '../../contract/config.js';
 import type { ImageEditCodec } from '../../contract/provider.js';
-import type { ProviderConnectionConfig, ProviderEndpointConfig } from '../../contract/config.js';
 import type { Logger } from '@imagen-ps/foundation';
 import type { RetryOptions, RetryPolicy } from './retry.js';
 import type { ProviderInvokeError } from './error-map.js';
@@ -121,8 +125,7 @@ export function endpointRuntimeHealthSizeForTesting(): number {
 function connectionFingerprint(connection: ProviderConnectionConfig): string {
   return JSON.stringify({
     selectionMode: connection.selectionMode,
-    failoverEnabled: connection.failoverEnabled,
-    preferredEndpointId: connection.preferredEndpointId,
+    selectedEndpointId: connection.selectedEndpointId,
     endpoints: connection.endpoints.map((endpoint) => ({
       id: endpoint.id,
       url: endpoint.url,
@@ -225,9 +228,9 @@ class DispatchAttemptLedger implements AttemptLedger {
 function endpointOrder(connection: ProviderConnectionConfig): readonly ProviderEndpointConfig[] {
   const enabled = connection.endpoints.filter((endpoint) => endpoint.enabled);
   if (connection.selectionMode === 'manual') {
-    const preferred = enabled.find((endpoint) => endpoint.id === connection.preferredEndpointId);
-    const rest = enabled.filter((endpoint) => endpoint.id !== connection.preferredEndpointId);
-    return preferred ? [preferred, ...rest] : enabled;
+    const selected = enabled.find((endpoint) => endpoint.id === connection.selectedEndpointId);
+    const rest = enabled.filter((endpoint) => endpoint.id !== connection.selectedEndpointId);
+    return selected ? [selected, ...rest] : enabled;
   }
 
   return [...enabled].sort((left, right) => {
@@ -528,7 +531,11 @@ export async function executeWithEndpointFailover<T>(
   const attempts: EndpointAttemptRecord[] = [];
   const cooldownMs = options.cooldownMs ?? 30_000;
   const orderedEndpoints = endpointOrder(options.connection);
-  const candidates = options.failoverEnabled === false ? orderedEndpoints.slice(0, 1) : orderedEndpoints;
+  const candidates = options.failoverEnabled === false
+    ? orderedEndpoints.slice(0, 1)
+    : providerConnectionAllowsFailover(options.connection)
+      ? orderedEndpoints
+      : orderedEndpoints.slice(0, 1);
   const maxAttempts = Math.max(1, options.maxAttempts ?? candidates.length);
   const startedAt = currentTime();
   let lastError: unknown;
@@ -603,7 +610,7 @@ export async function executeWithEndpointFailover<T>(
         };
       } catch (error) {
         const record = error as { readonly kind?: string; readonly statusCode?: number };
-        const failoverEnabled = options.failoverEnabled ?? options.connection.failoverEnabled;
+        const failoverEnabled = options.failoverEnabled ?? providerConnectionAllowsFailover(options.connection);
         const retryable = shouldRetryCurrentEndpoint(error, endpointAttempt, options.retryPolicy, options.retryOptions);
         const failover = shouldFailover(error, failoverEnabled);
         lastError = error;

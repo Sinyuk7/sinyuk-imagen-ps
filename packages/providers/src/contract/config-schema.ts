@@ -9,8 +9,7 @@ const providerEndpointSchema = z.object({
 
 export const providerConnectionCollectionSchema = z.object({
   selectionMode: z.enum(['manual', 'auto']).optional(),
-  failoverEnabled: z.boolean().optional(),
-  preferredEndpointId: z.string().min(1).optional(),
+  selectedEndpointId: z.string().min(1).optional(),
   endpoints: z.array(providerEndpointSchema).min(1),
 }).transform((value, ctx) => {
   try {

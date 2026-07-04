@@ -22,8 +22,7 @@ describe('gemini-generate-content provider', () => {
       family: 'gemini-generate-content',
       connection: {
         selectionMode: 'manual',
-        failoverEnabled: false,
-        preferredEndpointId: 'primary',
+        selectedEndpointId: 'primary',
         endpoints: [{ id: 'primary', url: 'https://generativelanguage.googleapis.com', enabled: true }],
       },
       apiKey: 'test-key',
@@ -50,8 +49,7 @@ describe('gemini-generate-content provider', () => {
       family: 'gemini-generate-content',
       connection: {
         selectionMode: 'manual',
-        failoverEnabled: false,
-        preferredEndpointId: 'primary',
+        selectedEndpointId: 'primary',
         endpoints: [{ id: 'primary', url: 'https://api.n1n.ai/v1beta', enabled: true }],
       },
       apiKey: 'test-key',
@@ -65,8 +63,7 @@ describe('gemini-generate-content provider', () => {
       family: 'gemini-generate-content',
       connection: {
         selectionMode: 'manual',
-        failoverEnabled: false,
-        preferredEndpointId: 'primary',
+        selectedEndpointId: 'primary',
         endpoints: [{ id: 'primary', url: 'https://api.n1n.ai', enabled: true }],
       },
       apiKey: 'test-key',
@@ -210,8 +207,7 @@ describe('gemini-generate-content provider', () => {
       family: 'gemini-generate-content',
       connection: {
         selectionMode: 'manual',
-        failoverEnabled: false,
-        preferredEndpointId: 'primary',
+        selectedEndpointId: 'primary',
         endpoints: [{ id: 'primary', url: 'https://generativelanguage.googleapis.com', enabled: true }],
       },
       apiKey: 'test-key',
@@ -279,8 +275,7 @@ describe('gemini-generate-content provider', () => {
       family: 'gemini-generate-content',
       connection: {
         selectionMode: 'manual',
-        failoverEnabled: false,
-        preferredEndpointId: 'primary',
+        selectedEndpointId: 'primary',
         endpoints: [{ id: 'primary', url: 'https://api.n1n.ai/gateway', enabled: true }],
       },
       apiKey: 'test-key',

@@ -62,8 +62,7 @@ const optimizerProfile: ProviderProfile = {
     family: 'prompt-optimize',
     connection: {
       selectionMode: 'manual',
-      failoverEnabled: false,
-      preferredEndpointId: 'primary',
+      selectedEndpointId: 'primary',
       endpoints: [{ id: 'primary', url: 'https://openrouter.ai/api/v1', enabled: true }],
     },
     defaultModel: 'gpt-4o-mini',

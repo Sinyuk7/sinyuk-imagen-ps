@@ -44,8 +44,7 @@ describe('image-endpoint provider', () => {
       family: 'image-endpoint',
       connection: {
         selectionMode: 'manual',
-        failoverEnabled: false,
-        preferredEndpointId: 'primary',
+        selectedEndpointId: 'primary',
         endpoints: [{ id: 'primary', url: 'https://api.example.com', enabled: true }],
       },
       apiKey: 'test-key',
@@ -435,8 +434,7 @@ describe('image-endpoint provider', () => {
       family: 'image-endpoint',
       connection: {
         selectionMode: 'manual',
-        failoverEnabled: false,
-        preferredEndpointId: 'primary',
+        selectedEndpointId: 'primary',
         endpoints: [{ id: 'primary', url: 'https://api.example.com', enabled: true }],
       },
       apiKey: 'test-key',
@@ -465,8 +463,7 @@ describe('image-endpoint provider', () => {
       family: 'image-endpoint',
       connection: {
         selectionMode: 'manual',
-        failoverEnabled: false,
-        preferredEndpointId: 'primary',
+        selectedEndpointId: 'primary',
         endpoints: [{ id: 'primary', url: 'https://api.example.com', enabled: true }],
       },
       apiKey: 'test-key',
@@ -501,8 +498,7 @@ describe('image-endpoint provider', () => {
       family: 'image-endpoint',
       connection: {
         selectionMode: 'manual',
-        failoverEnabled: false,
-        preferredEndpointId: 'primary',
+        selectedEndpointId: 'primary',
         endpoints: [{ id: 'primary', url: 'https://api.example.com', enabled: true }],
       },
       apiKey: 'test-key',
@@ -550,8 +546,7 @@ describe('image-endpoint provider', () => {
       family: 'image-endpoint',
       connection: {
         selectionMode: 'manual',
-        failoverEnabled: false,
-        preferredEndpointId: 'primary',
+        selectedEndpointId: 'primary',
         endpoints: [{ id: 'primary', url: 'https://api.example.com', enabled: true }],
       },
       apiKey: 'test-key',
@@ -588,8 +583,7 @@ describe('image-endpoint provider', () => {
       family: 'image-endpoint',
       connection: {
         selectionMode: 'manual',
-        failoverEnabled: false,
-        preferredEndpointId: 'primary',
+        selectedEndpointId: 'primary',
         endpoints: [{ id: 'primary', url: 'https://api.example.com', enabled: true }],
       },
       apiKey: 'test-key',
@@ -626,9 +620,7 @@ describe('image-endpoint provider', () => {
       displayName: 'Image Endpoint',
       family: 'image-endpoint',
       connection: {
-        selectionMode: 'manual',
-        failoverEnabled: true,
-        preferredEndpointId: 'primary',
+        selectionMode: 'auto',
         endpoints: [
           { id: 'primary', url: 'https://api.example.com', enabled: true },
           { id: 'secondary', url: 'https://api-2.example.com', enabled: true },
@@ -682,8 +674,7 @@ describe('image-endpoint provider', () => {
       family: 'image-endpoint',
       connection: {
         selectionMode: 'manual',
-        failoverEnabled: false,
-        preferredEndpointId: 'primary',
+        selectedEndpointId: 'primary',
         endpoints: [{ id: 'primary', url: 'https://api.example.com', enabled: true }],
       },
       apiKey: 'test-key',

@@ -205,8 +205,7 @@ describe('SettingsAddPage', () => {
                   family: 'image-endpoint',
                   connection: {
                     selectionMode: 'manual',
-                    failoverEnabled: false,
-                    preferredEndpointId: 'primary',
+                    selectedEndpointId: 'primary',
                     endpoints: [{ id: 'primary', url: 'https://mock.local', enabled: true }],
                   },
                 },
@@ -374,13 +373,13 @@ describe('SettingsAddPage', () => {
       container.querySelector<HTMLButtonElement>('.btn-save')!.click();
     });
 
-    const testedProfileId = spies.probeProfileEndpoints.mock.calls[0]?.[0].profileId;
+    const testedProfileId = spies.testProviderProfileConnection.mock.calls[0]?.[0].profileId;
     const savedProfileId = spies.saveProviderProfile.mock.calls.at(-1)?.[0].profileId;
     expect(testedProfileId).toMatch(/^profile-/);
     expect(savedProfileId).toBe(testedProfileId);
   });
 
-  it('adds endpoint rows and saves auto/manual plus failover config shape', async () => {
+  it('saves auto selection config shape on the add page', async () => {
     const { services, spies } = createFakeServices();
     const container = document.createElement('div');
     document.body.appendChild(container);
@@ -402,35 +401,27 @@ describe('SettingsAddPage', () => {
       changeInput(queryByTestId(container, 'provider-endpoint-url-0'), 'https://mock-a.local');
     });
     await act(async () => {
-      queryByTestId(container, 'provider-endpoint-add').click();
-    });
-    await act(async () => {
-      changeInput(queryByTestId(container, 'provider-endpoint-url-1'), 'https://mock-b.local');
-    });
-    await act(async () => {
       queryByTestId(container, 'provider-selection-mode-auto').click();
-      queryByTestId(container, 'provider-failover-enabled').click();
     });
 
     await act(async () => {
       container.querySelector<HTMLButtonElement>('.btn-save')!.click();
+    });
+    await act(async () => {
+      await Promise.resolve();
     });
 
     expect(spies.saveProviderProfile).toHaveBeenCalledWith(expect.objectContaining({
       config: expect.objectContaining({
         connection: expect.objectContaining({
           selectionMode: 'auto',
-          failoverEnabled: true,
-          endpoints: expect.arrayContaining([
-            expect.objectContaining({ url: 'https://mock-a.local' }),
-            expect.objectContaining({ url: 'https://mock-b.local' }),
-          ]),
+          endpoints: [expect.objectContaining({ url: 'https://mock-a.local' })],
         }),
       }),
     }));
   });
 
-  it('preserves same-frame endpoint edits and preferred selection on add page', async () => {
+  it('saves the default manual current selection on add page', async () => {
     const { services, spies } = createFakeServices();
     const container = document.createElement('div');
     document.body.appendChild(container);
@@ -448,28 +439,28 @@ describe('SettingsAddPage', () => {
       container.querySelector<HTMLElement>('[data-testid="provider-type-mock"]')!.click();
     });
     await act(async () => {
-      queryByTestId(container, 'provider-endpoint-add').click();
-    });
-
-    await act(async () => {
-      changeInput(queryByTestId(container, 'provider-endpoint-url-1'), 'https://mock-b.local');
-      queryByTestId(container, 'provider-endpoint-preferred-1').click();
+      changeInput(queryByTestId(container, 'provider-endpoint-url-0'), 'https://mock-b.local');
     });
     await act(async () => {
       container.querySelector<HTMLButtonElement>('.btn-save')!.click();
     });
+    await act(async () => {
+      await Promise.resolve();
+    });
 
     const savedConnection = spies.saveProviderProfile.mock.calls[0]?.[0].config.connection as {
-      readonly preferredEndpointId?: string;
+      readonly selectedEndpointId?: string;
       readonly endpoints: readonly { readonly id: string; readonly url: string }[];
     };
-    const secondEndpoint = savedConnection.endpoints.find((endpoint) => endpoint.url === 'https://mock-b.local');
-    expect(secondEndpoint).toBeDefined();
-    expect(savedConnection.preferredEndpointId).toBe(secondEndpoint?.id);
-    expect(Array.from(container.querySelectorAll<HTMLInputElement>('input[type="radio"][data-testid^="provider-endpoint-preferred-"]')).filter((input) => input.checked)).toHaveLength(1);
+    expect(savedConnection.endpoints).toEqual([
+      expect.objectContaining({ id: 'primary', url: 'https://mock-b.local' }),
+    ]);
+    expect(savedConnection.selectedEndpointId).toBe('primary');
+    expect(container.querySelectorAll('[data-testid^="provider-endpoint-current-dot-"]')).toHaveLength(1);
+    expect(container.querySelector('[data-testid="provider-endpoint-current-dot-0"]')).not.toBeNull();
   });
 
-  it('keeps the add footer to test and save actions only', async () => {
+  it('keeps cancel as a content-width secondary action beside the primary save action', async () => {
     const { services } = createFakeServices();
     const container = document.createElement('div');
     document.body.appendChild(container);
@@ -489,8 +480,13 @@ describe('SettingsAddPage', () => {
 
     const footer = container.querySelector('.settings-add-footer');
     expect(footer?.querySelector('[data-testid="provider-test-button"]')).toBeTruthy();
-    expect(footer?.querySelector('[data-testid="provider-save-button"]')?.textContent).toMatch(/^(Save|保存)$/);
-    expect(footer?.querySelector('.btn-cancel')).toBeNull();
+    expect(footer?.querySelector('[data-testid="provider-save-button"]')?.textContent).toMatch(/^(Save Provider|保存 Provider)$/);
+    const cancel = Array.from(container.querySelectorAll<HTMLButtonElement>('button')).find((item) =>
+      item.textContent?.includes('取消') || item.textContent?.includes('Cancel'),
+    );
+    expect(cancel).toBeTruthy();
+    expect(cancel?.className).toContain('btn-cancel');
+    expect(cancel?.className).not.toContain('ui-button-block');
   });
 
   it('uses the form-style model selector trigger on the add page', async () => {

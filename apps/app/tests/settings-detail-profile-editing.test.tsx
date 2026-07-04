@@ -47,16 +47,15 @@ describe('SettingsDetailPage contract — profile editing', () => {
         enabled: true,
         config: expect.objectContaining({
           defaultModel: 'mock-image-v2',
-          connection: {
+          connection: expect.objectContaining({
             selectionMode: 'manual',
-            failoverEnabled: false,
-            preferredEndpointId: 'primary',
+            selectedEndpointId: 'primary',
             endpoints: [{
               id: 'primary',
               url: 'https://mock.changed',
               enabled: true,
             }],
-          },
+          }),
         }),
       }),
     );
@@ -80,13 +79,13 @@ describe('SettingsDetailPage contract — profile editing', () => {
     expect(onNav).toHaveBeenCalledWith('settings');
   });
 
-  it('marks the preferred endpoint with a semantic dot instead of a preferred text badge', async () => {
+  it('marks the current endpoint with a semantic dot instead of a text badge', async () => {
     const container = document.createElement('div');
     document.body.appendChild(container);
     await renderDetail(container);
 
-    expect(container.querySelector('[data-testid="provider-endpoint-preferred-dot-0"]')).not.toBeNull();
-    expect(container.querySelector('[data-testid="provider-endpoint-preferred-badge-0"]')).toBeNull();
+    expect(container.querySelector('[data-testid="provider-endpoint-current-dot-0"]')).not.toBeNull();
+    expect(container.querySelector('.provider-endpoint-meta-current')?.textContent).toMatch(/当前|Current/);
   });
 
   it('renders delete as a header action without danger-zone copy', async () => {
@@ -129,8 +128,7 @@ describe('SettingsDetailPage contract — profile editing', () => {
         displayName: 'Profile B',
         connection: {
           selectionMode: 'manual' as const,
-          failoverEnabled: false,
-          preferredEndpointId: 'primary',
+          selectedEndpointId: 'primary',
           endpoints: [{ id: 'primary', url: 'https://profile-b.local', enabled: true }],
         },
       },

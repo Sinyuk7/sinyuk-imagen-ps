@@ -141,9 +141,7 @@ describe('httpRequest idempotency-key passthrough across retries', () => {
     const idempotencyKey = 'imagen-shared-key';
     await executeWithEndpointFailover({
       connection: {
-        selectionMode: 'manual',
-        failoverEnabled: true,
-        preferredEndpointId: 'primary',
+        selectionMode: 'auto',
         endpoints: [
           { id: 'primary', url: 'https://primary.example.com', enabled: true },
           { id: 'secondary', url: 'https://secondary.example.com', enabled: true },

@@ -27,7 +27,8 @@ export {
   listProfileModels,
   refreshProfileModels,
 } from './profile-models.js';
-export { probeProfileEndpoints } from './profile-endpoints.js';
+export { measureProfileEndpoints } from './profile-endpoints.js';
+export { testProviderProfileConnection } from './profile-connection-test.js';
 export {
   getProfileBillingState,
   invalidateProfileBillingState,
@@ -66,14 +67,15 @@ export type {
   JobStatus,
   JobHistoryStore,
   ProviderProfileTestResult,
-  EndpointProbeFailureKind,
-  EndpointProbeResult,
+  ProviderProfileConnectionTestResult,
+  EndpointMeasurementFailureKind,
+  EndpointMeasurementResult,
   ExactTaskCost,
   BalanceChange,
+  MeasureProfileEndpointsInput,
+  MeasureProfileEndpointsResult,
   ProfileBalanceResult,
   ProfileBillingState,
-  ProbeProfileEndpointsInput,
-  ProbeProfileEndpointsResult,
   RefreshProfileBalanceInput,
   RefreshProfileBalanceResult,
   Rect,
@@ -91,6 +93,7 @@ export type {
   TaskResourceRef,
   TaskStatus,
   TaskStore,
+  TestProviderProfileConnectionInput,
   TestProviderProfileOptions,
   Unsubscribe,
 } from './types.js';

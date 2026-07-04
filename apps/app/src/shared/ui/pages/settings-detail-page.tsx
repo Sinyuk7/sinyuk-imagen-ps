@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import type { EndpointProbeResult, ProviderModelInfo, ProviderProfile, ProviderProfileConfig, ProviderProfileConfigValue } from '@imagen-ps/application';
+import type { EndpointMeasurementResult, ProviderModelInfo, ProviderProfile, ProviderProfileConfig, ProviderProfileConfigValue } from '@imagen-ps/application';
 import { useAppServices } from '../../ports/app-services-context';
 import {
   billingFieldError,
@@ -27,7 +27,9 @@ import { UxpTextArea } from '../components/uxp-form-controls';
 import { useI18n } from '../i18n/i18n-context';
 import { Button, FieldLabel, TextField, Checkbox } from '../primitives/native-controls';
 import { IconButton } from '../primitives/icon-button';
-import { statusFromEndpointProbeResult } from '../provider-status';
+import {
+  statusFromProviderConnectionTestResult,
+} from '../provider-status';
 import { TextSelect } from '../components/text-select';
 import { useProfileBilling } from '../hooks/use-profile-billing';
 import { formatBalanceChange, formatBillingPrimary, formatExactTaskCost } from '../../domain/mappers';
@@ -207,20 +209,25 @@ export function SettingsDetailPage({ onNav, profileId, onProfilesChanged, onSave
   const [showKey, setShowKey] = useState(false);
   const [testMeta, setTestMeta] = useState<string | null>(null);
   const [testStatus, setTestStatus] = useState<{ readonly tone: 'neutral' | 'positive' | 'negative'; readonly message: string }>({ tone: 'neutral', message: t.settings.testNotTested });
-  const [busy, setBusy] = useState(false);
+  const [saveBusy, setSaveBusy] = useState(false);
+  const [measurementBusy, setMeasurementBusy] = useState(false);
+  const [connectionTestBusy, setConnectionTestBusy] = useState(false);
   const [modelMenuOpen, setModelMenuOpen] = useState(false);
   const [modelMode, setModelMode] = useState<'list' | 'custom'>('list');
-  const [probeResults, setProbeResults] = useState<readonly EndpointProbeResult[]>([]);
-  const [suggestedEndpointId, setSuggestedEndpointId] = useState<string | undefined>();
+  const [measurementResults, setMeasurementResults] = useState<readonly EndpointMeasurementResult[]>([]);
+  const [resolvedEndpointId, setResolvedEndpointId] = useState<string | undefined>();
   const lastLoadedProfileIdRef = useRef<string | null>(null);
   const modelModeTouchedRef = useRef(false);
   const connectionRef = useRef(connection);
   const billingDraftRef = useRef(billingDraft);
   const draftRevisionRef = useRef(0);
-  const busyRef = useRef(false);
+  const saveBusyRef = useRef(false);
+  const measurementBusyRef = useRef(false);
+  const connectionTestBusyRef = useRef(false);
   const saveNotice = useNotice({ defaultDurationMs: null });
   const isOptimizerProfile = detail.profile?.providerId === 'prompt-optimize';
   const billing = useProfileBilling(services, profileId);
+  const busy = saveBusy;
 
   const invalidateDraftProofs = () => {
     draftRevisionRef.current += 1;
@@ -229,8 +236,8 @@ export function SettingsDetailPage({ onNav, profileId, onProfilesChanged, onSave
     if (models.models.length > 0) {
       setModelsStale(true);
     }
-    setProbeResults([]);
-    setSuggestedEndpointId(undefined);
+    setMeasurementResults([]);
+    setResolvedEndpointId(undefined);
   };
 
   const updateApiKey = (value: string) => {
@@ -250,10 +257,20 @@ export function SettingsDetailPage({ onNav, profileId, onProfilesChanged, onSave
   };
 
   const updateConnectionDraft = (updater: ConnectionUpdater) => {
+    const previous = connectionRef.current;
     const nextConnection = normalizeProviderConnectionDraft(updater(connectionRef.current));
     connectionRef.current = nextConnection;
     setConnection(nextConnection);
     invalidateDraftProofs();
+    if (
+      previous.selectionMode !== 'auto' &&
+      nextConnection.selectionMode === 'auto' &&
+      detail.profile &&
+      providerDescriptor?.connectivity?.endpointMeasurement !== 'unsupported' &&
+      nextConnection.endpoints.some((endpoint) => endpoint.enabled && endpoint.url.trim())
+    ) {
+      void refreshModels();
+    }
   };
 
   useEffect(() => {
@@ -278,8 +295,8 @@ export function SettingsDetailPage({ onNav, profileId, onProfilesChanged, onSave
     setAliasError(null);
     setModelsStale(false);
     setModelMenuOpen(false);
-    setProbeResults([]);
-    setSuggestedEndpointId(undefined);
+    setMeasurementResults([]);
+    setResolvedEndpointId(undefined);
     setTestStatus({ tone: 'neutral', message: t.settings.testNotTested });
     setTestMeta(null);
  }, [detail.profile]);
@@ -347,7 +364,7 @@ export function SettingsDetailPage({ onNav, profileId, onProfilesChanged, onSave
     });
   };
 
-  const probeCurrentDraft = async () => {
+  const buildDraftCommandInput = () => {
     if (!detail.profile) {
       throw new Error('No provider profile selected.');
     }
@@ -357,7 +374,7 @@ export function SettingsDetailPage({ onNav, profileId, onProfilesChanged, onSave
       ...(apiKeyRemovalPending ? ['apiKey'] : []),
       ...(billingAccessTokenRemovalPending ? ['billingAccessToken'] : []),
     ];
-    return services.commands.probeProfileEndpoints({
+    return {
       profileId: detail.profile.profileId,
       providerId: detail.profile.providerId,
       displayName: sanitizeProviderDisplayName(displayName) || detail.profile.displayName,
@@ -382,16 +399,23 @@ export function SettingsDetailPage({ onNav, profileId, onProfilesChanged, onSave
             },
           }
         : {}),
-    });
+    };
   };
 
+  const probeCurrentDraft = async () => services.commands.measureProfileEndpoints({
+    ...buildDraftCommandInput(),
+    currentResolvedEndpointId: resolvedEndpointId,
+  });
+
+  const testCurrentDraftConnection = async () => services.commands.testProviderProfileConnection(buildDraftCommandInput());
+
   const save = async () => {
-    if (busyRef.current) {
+    if (saveBusyRef.current) {
       return;
     }
-    busyRef.current = true;
+    saveBusyRef.current = true;
     await services.diagnostics?.checkpoint('uxp.ui.settings_detail.save.entered', { profileId });
-    setBusy(true);
+    setSaveBusy(true);
     await services.diagnostics?.checkpoint('uxp.ui.settings_detail.save.busy_set', { busy: true, profileId });
     saveNotice.clear();
     setAliasError(null);
@@ -457,8 +481,8 @@ export function SettingsDetailPage({ onNav, profileId, onProfilesChanged, onSave
       saveNotice.show(message, 'negative', { durationMs: null, copyable: true });
     } finally {
       await services.diagnostics?.checkpoint('uxp.ui.settings_detail.save.before_busy_clear', { profileId });
-      busyRef.current = false;
-      setBusy(false);
+      saveBusyRef.current = false;
+      setSaveBusy(false);
       await services.diagnostics?.checkpoint('uxp.ui.settings_detail.save.after_busy_clear', { profileId });
     }
   };
@@ -479,51 +503,45 @@ export function SettingsDetailPage({ onNav, profileId, onProfilesChanged, onSave
   }, [busy, detail.profile, saveNotice.notice, testStatus, t.settings.testNotTested, services.diagnostics]);
 
   const test = async () => {
-    if (busyRef.current) {
+    if (connectionTestBusyRef.current) {
       return;
     }
-    busyRef.current = true;
+    connectionTestBusyRef.current = true;
     const startedAt = performance.now();
-    const revision = draftRevisionRef.current;
-    setBusy(true);
+    setConnectionTestBusy(true);
     setTestStatus({ tone: 'neutral', message: t.settings.testingConnection });
     setTestMeta(null);
     try {
-      const result = await probeCurrentDraft();
+      const result = await testCurrentDraftConnection();
       if (!result.ok) {
         throw new Error(`${result.error.category}: ${result.error.message}`);
       }
-      if (draftRevisionRef.current === revision) {
-        setProbeResults(result.value.results);
-        setSuggestedEndpointId(result.value.suggestedEndpointId);
-        if (result.value.models) {
-          models.replace(result.value.models);
-          setModelsStale(false);
-        }
-        const status = statusFromEndpointProbeResult(result.value, t);
-        setTestStatus({ tone: status.tone === 'positive' || status.tone === 'negative' ? status.tone : 'neutral', message: status.message });
-        setTestMeta(`${formatElapsedMs(startedAt)}`);
+      if (result.value.models) {
+        models.replace(result.value.models);
+        setModelsStale(false);
       }
+      const status = statusFromProviderConnectionTestResult(result.value, t);
+      setTestStatus({ tone: status.tone === 'positive' || status.tone === 'negative' ? status.tone : 'neutral', message: status.message });
+      setTestMeta(`${formatElapsedMs(startedAt)}`);
     } catch (error) {
-      if (draftRevisionRef.current === revision) {
-        const detail = error instanceof Error ? error.message : String(error);
-        setTestStatus({ tone: 'negative', message: `${t.settings.connectionFailed}: ${detail}` });
-        setTestMeta(`${formatElapsedMs(startedAt)}`);
-      }
+      const detail = error instanceof Error ? error.message : String(error);
+      setTestStatus({ tone: 'negative', message: `${t.settings.connectionFailed}: ${detail}` });
+      setTestMeta(`${formatElapsedMs(startedAt)}`);
     } finally {
-      busyRef.current = false;
-      setBusy(false);
+      connectionTestBusyRef.current = false;
+      setConnectionTestBusy(false);
     }
   };
 
   const refreshModels = async () => {
-    if (busyRef.current) {
+    if (measurementBusyRef.current) {
       return;
     }
-    busyRef.current = true;
+    measurementBusyRef.current = true;
     const revision = draftRevisionRef.current;
     setTestStatus({ tone: 'neutral', message: t.settings.testNotTested });
     setTestMeta(null);
+    setMeasurementBusy(true);
     try {
       if (detail.profile && hasDraftChanges(
         detail.profile,
@@ -544,8 +562,8 @@ export function SettingsDetailPage({ onNav, profileId, onProfilesChanged, onSave
           throw new Error(`${result.error.category}: ${result.error.message}`);
         }
         if (draftRevisionRef.current === revision) {
-          setProbeResults(result.value.results);
-          setSuggestedEndpointId(result.value.suggestedEndpointId);
+          setMeasurementResults(result.value.results);
+          setResolvedEndpointId(result.value.resolvedEndpointId);
           const refreshed = result.value.models ?? [];
           models.replace(refreshed);
           setModelsStale(false);
@@ -557,7 +575,8 @@ export function SettingsDetailPage({ onNav, profileId, onProfilesChanged, onSave
     } catch {
       // errors flow into models.error and are rendered by modelListNotice
     } finally {
-      busyRef.current = false;
+      measurementBusyRef.current = false;
+      setMeasurementBusy(false);
     }
   };
 
@@ -583,11 +602,11 @@ export function SettingsDetailPage({ onNav, profileId, onProfilesChanged, onSave
   }, [detail.profile, modelOptions]);
 
   const remove = async () => {
-    if (busyRef.current) {
+    if (saveBusyRef.current) {
       return;
     }
-    busyRef.current = true;
-    setBusy(true);
+    saveBusyRef.current = true;
+    setSaveBusy(true);
     saveNotice.clear();
     try {
       await detail.remove();
@@ -596,8 +615,8 @@ export function SettingsDetailPage({ onNav, profileId, onProfilesChanged, onSave
     } catch (error) {
       saveNotice.show(error instanceof Error ? error.message : String(error), 'negative', { durationMs: null, copyable: true });
     } finally {
-      busyRef.current = false;
-      setBusy(false);
+      saveBusyRef.current = false;
+      setSaveBusy(false);
     }
   };
 
@@ -607,6 +626,8 @@ export function SettingsDetailPage({ onNav, profileId, onProfilesChanged, onSave
   const selectedModelInfo = models.models.find((model) => model.id === defaultModel);
   const selectedModelStatus = modelStatusMessage(selectedModelInfo, t);
   const providerDescriptor = detail.profile ? services.commands.describeProvider(detail.profile.providerId) : undefined;
+  const measurementSupported = providerDescriptor?.connectivity?.endpointMeasurement !== 'unsupported';
+  const connectionTestSupported = providerDescriptor?.connectivity?.connectionTest !== 'unsupported';
   const endpointErrors = duplicateEndpointErrors(connection, t.settings.duplicateEndpointUrl);
   const effectiveBillingDraft = billingDraftForSave(billingDraft, billingAccessTokenRemovalPending);
   const billingValidation = billingFieldError(effectiveBillingDraft, providerDescriptor);
@@ -969,14 +990,18 @@ export function SettingsDetailPage({ onNav, profileId, onProfilesChanged, onSave
               connection={connection}
               onConnectionChange={updateConnectionDraft}
               endpointErrors={endpointErrors}
-              probeResults={connectionProbeResultById(probeResults)}
-              suggestedEndpointId={suggestedEndpointId}
+              measurementResults={connectionProbeResultById(measurementResults)}
+              resolvedEndpointId={resolvedEndpointId}
+              measurementBusy={measurementBusy}
+              measurementSupported={measurementSupported}
+              onMeasure={() => void refreshModels()}
               apiKeyValue={apiKey}
               onApiKeyValue={updateApiKey}
               apiKeyPlaceholder="sk-..."
               showKey={showKey}
               onShowKeyChange={setShowKey}
               connectionStatus={saveNotice.notice}
+              measurementNotice={null}
               apiKeySaved={Boolean(detail.profile.secretRefs?.apiKey) && !apiKeyRemovalPending}
               apiKeySavedHint={detail.profile.secretRefs?.apiKey ? t.settings.savedSecretPlaceholder : null}
               apiKeyRemovalPending={apiKeyRemovalPending}
@@ -1001,10 +1026,10 @@ export function SettingsDetailPage({ onNav, profileId, onProfilesChanged, onSave
               data-testid="provider-test-button"
               className="settings-icon-button"
               compactSquare
-              disabled={busy}
-              icon={busy ? <Icon name="spinner" size={16} className="spin" /> : <Icon name="network" size={16} />}
-              tooltip={busy ? t.settings.testingConnection : t.settings.testConnection}
-              aria-label={busy ? t.settings.testingConnection : t.settings.testConnection}
+              disabled={busy || connectionTestBusy || !connectionTestSupported}
+              icon={connectionTestBusy ? <Icon name="spinner" size={16} className="spin" /> : <Icon name="network" size={16} />}
+              tooltip={!connectionTestSupported ? t.settings.providerConnectionUnsupported : connectionTestBusy ? t.settings.testingConnection : t.settings.testConnection}
+              aria-label={!connectionTestSupported ? t.settings.providerConnectionUnsupported : connectionTestBusy ? t.settings.testingConnection : t.settings.testConnection}
               onClick={() => void test()}
             />
             {renderTestStatus()}

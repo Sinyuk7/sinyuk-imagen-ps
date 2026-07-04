@@ -67,8 +67,7 @@ function imageEndpointProfile(overrides?: Partial<ProviderProfile>): ProviderPro
       family: 'image-endpoint',
       connection: {
         selectionMode: 'manual',
-        failoverEnabled: false,
-        preferredEndpointId: 'primary',
+        selectedEndpointId: 'primary',
         endpoints: [{ id: 'primary', url: 'https://example.com', enabled: true }],
       },
       defaultModel: 'gpt-image-2',
@@ -170,8 +169,7 @@ describe('profile model commands', () => {
         family: 'image-endpoint',
         connection: {
           selectionMode: 'manual',
-          failoverEnabled: false,
-          preferredEndpointId: 'primary',
+          selectedEndpointId: 'primary',
           endpoints: [{ id: 'primary', url: 'https://example.com', enabled: true }],
         },
         defaultModel: 'custom-image-model',
@@ -224,8 +222,7 @@ describe('profile model commands', () => {
           family: 'image-endpoint',
           connection: {
             selectionMode: 'manual',
-            failoverEnabled: false,
-            preferredEndpointId: 'primary',
+            selectedEndpointId: 'primary',
             endpoints: [{ id: 'primary', url: 'https://example.com', enabled: true }],
           },
           defaultModel: 'dall-e-3',

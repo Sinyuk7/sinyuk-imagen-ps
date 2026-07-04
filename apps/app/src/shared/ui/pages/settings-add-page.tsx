@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import type { EndpointProbeResult, ProviderDescriptor, ProviderProfile } from '@imagen-ps/application';
+import type { EndpointMeasurementResult, ProviderDescriptor, ProviderProfile } from '@imagen-ps/application';
 import { useAppServices } from '../../ports/app-services-context';
 import {
   billingFieldError,
@@ -25,7 +25,10 @@ import { useI18n } from '../i18n/i18n-context';
 import type { AppMessages } from '../i18n/messages';
 import { Button, Checkbox, TextField } from '../primitives/native-controls';
 import { IconButton } from '../primitives/icon-button';
-import { statusFromEndpointProbeResult } from '../provider-status';
+import {
+  statusFromEndpointMeasurementResult,
+  statusFromProviderConnectionTestResult,
+} from '../provider-status';
 
 interface SettingsAddPageProps {
   readonly onNav: (view: string) => void;
@@ -50,8 +53,7 @@ function defaultBaseUrl(providerId: string): string {
 function defaultConnection(providerId: string): ProviderConnectionDraft {
   return normalizeProviderConnectionDraft({
     selectionMode: 'manual',
-    failoverEnabled: false,
-    preferredEndpointId: 'primary',
+    selectedEndpointId: 'primary',
     endpoints: [{
       id: 'primary',
       url: defaultBaseUrl(providerId),
@@ -138,17 +140,24 @@ export function SettingsAddPage({ onNav, profiles, onProfileSaved }: SettingsAdd
   const [modelMode, setModelMode] = useState<'list' | 'custom'>('list');
   const [modelMenuOpen, setModelMenuOpen] = useState(false);
   const [showKey, setShowKey] = useState(false);
-  const [busy, setBusy] = useState(false);
-  const [probeResults, setProbeResults] = useState<readonly EndpointProbeResult[]>([]);
-  const [suggestedEndpointId, setSuggestedEndpointId] = useState<string | undefined>();
+  const [saveBusy, setSaveBusy] = useState(false);
+  const [measurementBusy, setMeasurementBusy] = useState(false);
+  const [connectionTestBusy, setConnectionTestBusy] = useState(false);
+  const [measurementResults, setMeasurementResults] = useState<readonly EndpointMeasurementResult[]>([]);
+  const [resolvedEndpointId, setResolvedEndpointId] = useState<string | undefined>();
   const modelModeTouchedRef = useRef(false);
   const nameTouchedRef = useRef(false);
   const connectionRef = useRef(connection);
   const billingRef = useRef(billing);
   const draftRevisionRef = useRef(0);
-  const busyRef = useRef(false);
-  const statusNotice = useNotice({ defaultDurationMs: null });
+  const saveBusyRef = useRef(false);
+  const measurementBusyRef = useRef(false);
+  const connectionTestBusyRef = useRef(false);
+  const measurementNotice = useNotice({ defaultDurationMs: null });
+  const connectionNotice = useNotice({ defaultDurationMs: null });
   const selected = useMemo(() => providers.find((provider) => provider.id === providerId), [providerId, providers]);
+  const measurementSupported = selected?.connectivity?.endpointMeasurement !== 'unsupported';
+  const connectionTestSupported = selected?.connectivity?.connectionTest !== 'unsupported';
   const modelOptions = useMemo(
     () => (selected?.defaultModels ?? []).map((model) => ({
       id: model.id,
@@ -161,7 +170,7 @@ export function SettingsAddPage({ onNav, profiles, onProfileSaved }: SettingsAdd
     ? t.settings.duplicateDisplayName(normalizedName)
     : null;
   const endpointErrors = duplicateEndpointErrors(connection, t.settings.duplicateEndpointUrl);
-  const saveDisabled = busy || Boolean(aliasError) || endpointErrors.size > 0;
+  const saveDisabled = saveBusy || Boolean(aliasError) || endpointErrors.size > 0;
   const useProviderOnSave = profiles.length === 0;
 
   useEffect(() => {
@@ -192,14 +201,94 @@ export function SettingsAddPage({ onNav, profiles, onProfileSaved }: SettingsAdd
 
   const invalidateDraftProofs = () => {
     draftRevisionRef.current += 1;
-    if (probeResults.length > 0 || statusNotice.notice) {
-      statusNotice.show(t.settings.changesNotTested, 'warning', { durationMs: null, copyable: false });
+    if (measurementResults.length > 0 || connectionNotice.notice || measurementNotice.notice) {
+      measurementNotice.show(t.settings.changesNotTested, 'warning', { durationMs: null, copyable: false });
     }
-    setProbeResults([]);
-    setSuggestedEndpointId(undefined);
+    connectionNotice.clear();
+    setMeasurementResults([]);
+    setResolvedEndpointId(undefined);
+  };
+
+  const buildDraftCommandInput = (
+    nextConnection: ProviderConnectionDraft = connectionRef.current,
+    nextBilling: ProviderBillingDraft = billingRef.current,
+  ) => {
+    if (!selected) {
+      throw new Error(t.settings.selectProviderType);
+    }
+    const displayName = sanitizeProviderDisplayName(name) || nextAlias(selected.displayName, profiles);
+    const validation = billingFieldError(nextBilling, selected);
+    if (validation === 'user-id') {
+      throw new Error(t.settings.billingValidationUserId);
+    }
+    if (validation === 'token') {
+      throw new Error(t.settings.billingValidationAccessToken);
+    }
+    return {
+      profileId,
+      providerId: selected.id,
+      displayName,
+      config: providerConfigFromForm(selected.id, displayName, selected.family, nextConnection, defaultModel, nextBilling),
+      ...(sanitizeProviderSecretValue(apiKey) ? { secretValues: { apiKey: sanitizeProviderSecretValue(apiKey) } } : {}),
+    };
+  };
+
+  const handleMeasure = async (nextConnection: ProviderConnectionDraft = connectionRef.current) => {
+    if (measurementBusyRef.current || !selected) {
+      return;
+    }
+    measurementBusyRef.current = true;
+    const revision = draftRevisionRef.current;
+    setMeasurementBusy(true);
+    measurementNotice.clear();
+    try {
+      const result = await services.commands.measureProfileEndpoints({
+        ...buildDraftCommandInput(nextConnection, billingRef.current),
+        currentResolvedEndpointId: resolvedEndpointId,
+      });
+      if (!result.ok) {
+        throw new Error(`${result.error.category}: ${result.error.message}`);
+      }
+      if (draftRevisionRef.current === revision) {
+        setMeasurementResults(result.value.results);
+        setResolvedEndpointId(result.value.resolvedEndpointId);
+        const status = statusFromEndpointMeasurementResult(result.value, t);
+        measurementNotice.show(status.message, status.tone, status);
+      }
+    } catch (error) {
+      if (draftRevisionRef.current === revision) {
+        measurementNotice.show(error instanceof Error ? error.message : String(error), 'negative', { durationMs: null, copyable: true });
+      }
+    } finally {
+      measurementBusyRef.current = false;
+      setMeasurementBusy(false);
+    }
+  };
+
+  const handleTestConnection = async () => {
+    if (connectionTestBusyRef.current || !selected) {
+      return;
+    }
+    connectionTestBusyRef.current = true;
+    setConnectionTestBusy(true);
+    connectionNotice.clear();
+    try {
+      const result = await services.commands.testProviderProfileConnection(buildDraftCommandInput());
+      if (!result.ok) {
+        throw new Error(`${result.error.category}: ${result.error.message}`);
+      }
+      const status = statusFromProviderConnectionTestResult(result.value, t);
+      connectionNotice.show(status.message, status.tone, status);
+    } catch (error) {
+      connectionNotice.show(error instanceof Error ? error.message : String(error), 'negative', { durationMs: null, copyable: true });
+    } finally {
+      connectionTestBusyRef.current = false;
+      setConnectionTestBusy(false);
+    }
   };
 
   const applyConnectionChange = (updater: ConnectionUpdater) => {
+    const previous = connectionRef.current;
     const normalizedConnection = normalizeProviderConnectionDraft(updater(connectionRef.current));
     connectionRef.current = normalizedConnection;
     setConnection(normalizedConnection);
@@ -210,6 +299,14 @@ export function SettingsAddPage({ onNav, profiles, onProfileSaved }: SettingsAdd
       }
     }
     invalidateDraftProofs();
+    if (
+      previous.selectionMode !== 'auto' &&
+      normalizedConnection.selectionMode === 'auto' &&
+      selected?.connectivity?.endpointMeasurement !== 'unsupported' &&
+      normalizedConnection.endpoints.some((endpoint) => endpoint.enabled && endpoint.url.trim())
+    ) {
+      void handleMeasure(normalizedConnection);
+    }
   };
 
   const applyBillingChange = (updater: BillingUpdater) => {
@@ -253,66 +350,20 @@ export function SettingsAddPage({ onNav, profiles, onProfileSaved }: SettingsAdd
   };
 
   const handleSave = async () => {
-    if (busyRef.current) {
+    if (saveBusyRef.current) {
       return;
     }
-    busyRef.current = true;
-    setBusy(true);
-    statusNotice.clear();
+    saveBusyRef.current = true;
+    setSaveBusy(true);
+    connectionNotice.clear();
     try {
       const profileId = await saveProfile();
       await onProfileSaved(profileId, { useProvider: useProviderOnSave });
     } catch (error) {
-      statusNotice.show(error instanceof Error ? error.message : String(error), 'negative', { durationMs: null, copyable: true });
+      connectionNotice.show(error instanceof Error ? error.message : String(error), 'negative', { durationMs: null, copyable: true });
     } finally {
-      busyRef.current = false;
-      setBusy(false);
-    }
-  };
-
-  const handleTest = async () => {
-    if (busyRef.current) {
-      return;
-    }
-    busyRef.current = true;
-    const revision = draftRevisionRef.current;
-    setBusy(true);
-    statusNotice.clear();
-    try {
-      if (!selected) {
-        throw new Error(t.settings.selectProviderType);
-      }
-      const displayName = sanitizeProviderDisplayName(name) || nextAlias(selected.displayName, profiles);
-      const validation = billingFieldError(billing, selected);
-      if (validation === 'user-id') {
-        throw new Error(t.settings.billingValidationUserId);
-      }
-      if (validation === 'token') {
-        throw new Error(t.settings.billingValidationAccessToken);
-      }
-      const result = await services.commands.probeProfileEndpoints({
-        profileId,
-        providerId: selected.id,
-        displayName,
-        config: providerConfigFromForm(selected.id, displayName, selected.family, connection, defaultModel, billing),
-        ...(sanitizeProviderSecretValue(apiKey) ? { secretValues: { apiKey: sanitizeProviderSecretValue(apiKey) } } : {}),
-      });
-      if (!result.ok) {
-        throw new Error(`${result.error.category}: ${result.error.message}`);
-      }
-      if (draftRevisionRef.current === revision) {
-        setProbeResults(result.value.results);
-        setSuggestedEndpointId(result.value.suggestedEndpointId);
-        const status = statusFromEndpointProbeResult(result.value, t);
-        statusNotice.show(status.message, status.tone, status);
-      }
-    } catch (error) {
-      if (draftRevisionRef.current === revision) {
-        statusNotice.show(error instanceof Error ? error.message : String(error), 'negative', { durationMs: null, copyable: true });
-      }
-    } finally {
-      busyRef.current = false;
-      setBusy(false);
+      saveBusyRef.current = false;
+      setSaveBusy(false);
     }
   };
 
@@ -357,8 +408,10 @@ export function SettingsAddPage({ onNav, profiles, onProfileSaved }: SettingsAdd
                       setBilling(nextBilling);
                       setBillingModeMenuOpen(false);
                       setModelMenuOpen(false);
-                      setProbeResults([]);
-                      setSuggestedEndpointId(undefined);
+                      measurementNotice.clear();
+                      connectionNotice.clear();
+                      setMeasurementResults([]);
+                      setResolvedEndpointId(undefined);
                       draftRevisionRef.current += 1;
                       setStep(2);
                     }}
@@ -396,8 +449,12 @@ export function SettingsAddPage({ onNav, profiles, onProfileSaved }: SettingsAdd
               onConnectionChange={applyConnectionChange}
               baseUrlPlaceholder="https://api.example.com"
               endpointErrors={endpointErrors}
-              probeResults={connectionProbeResultById(probeResults)}
-              suggestedEndpointId={suggestedEndpointId}
+              measurementResults={connectionProbeResultById(measurementResults)}
+              resolvedEndpointId={resolvedEndpointId}
+              measurementBusy={measurementBusy}
+              measurementSupported={measurementSupported}
+              onMeasure={() => void handleMeasure()}
+              measurementNotice={measurementNotice.notice}
               apiKeyValue={apiKey}
               onApiKeyValue={(value) => {
                 setApiKey(sanitizeProviderSecretValue(value));
@@ -407,7 +464,7 @@ export function SettingsAddPage({ onNav, profiles, onProfileSaved }: SettingsAdd
               showKey={showKey}
               onShowKeyChange={setShowKey}
               apiKeySaved={false}
-              disabled={busy}
+              disabled={saveBusy}
             />
           <div className="section">
             <div className="section-title settings-section-heading">{t.settings.defaultModel}</div>
@@ -416,7 +473,7 @@ export function SettingsAddPage({ onNav, profiles, onProfileSaved }: SettingsAdd
                 <TextSelect
                   label={t.settings.defaultModel}
                   value={modelOptions.find((option) => option.id === defaultModel)?.label ?? t.settings.chooseFromList}
-                  disabled={busy}
+                  disabled={saveBusy}
                   open={modelMenuOpen}
                   onOpenChange={setModelMenuOpen}
                   options={modelOptions}
@@ -440,11 +497,12 @@ export function SettingsAddPage({ onNav, profiles, onProfileSaved }: SettingsAdd
                   className="field-input mono ui-field-control"
                   placeholder={selected?.defaultModels?.[0]?.id ?? 'gpt-image-2'}
                   value={defaultModel}
-                  disabled={busy}
+                  disabled={saveBusy}
                   onValue={(value) => {
                     modelModeTouchedRef.current = true;
                     setModelMode('custom');
                     setDefaultModel(value);
+                    invalidateDraftProofs();
                   }}
                 />
               )}
@@ -457,6 +515,7 @@ export function SettingsAddPage({ onNav, profiles, onProfileSaved }: SettingsAdd
                       modelModeTouchedRef.current = true;
                       setModelMode(checked ? 'custom' : 'list');
                       setModelMenuOpen(false);
+                      invalidateDraftProofs();
                     }}
                   >
                     {t.settings.useCustomModelId}
@@ -473,7 +532,7 @@ export function SettingsAddPage({ onNav, profiles, onProfileSaved }: SettingsAdd
               billingModeOptions={billingModeOptions(selected)}
               modeMenuOpen={billingModeMenuOpen}
               onModeMenuOpenChange={setBillingModeMenuOpen}
-              disabled={busy}
+              disabled={saveBusy}
               accessTokenPlaceholder="sk-..."
             />
           </div>
@@ -488,23 +547,30 @@ export function SettingsAddPage({ onNav, profiles, onProfileSaved }: SettingsAdd
                 data-testid="provider-test-button"
                 className="settings-icon-button"
                 compactSquare
-                disabled={busy}
-                icon={busy ? <Icon name="spinner" size={16} className="spin" /> : <Icon name="network" size={16} />}
-                tooltip={busy ? t.settings.testingConnection : t.settings.testConnection}
-                aria-label={busy ? t.settings.testingConnection : t.settings.testConnection}
-                onClick={() => void handleTest()}
+                disabled={saveBusy || connectionTestBusy || !connectionTestSupported}
+                icon={connectionTestBusy ? <Icon name="spinner" size={16} className="spin" /> : <Icon name="network" size={16} />}
+                tooltip={!connectionTestSupported ? t.settings.providerConnectionUnsupported : connectionTestBusy ? t.settings.testingConnection : t.settings.testConnection}
+                aria-label={!connectionTestSupported ? t.settings.providerConnectionUnsupported : connectionTestBusy ? t.settings.testingConnection : t.settings.testConnection}
+                onClick={() => void handleTestConnection()}
               />
-              {statusNotice.notice ? (
+              {connectionNotice.notice ? (
                 <StatusNotice
-                  tone={statusNotice.notice.tone}
-                  message={statusNotice.notice.message}
-                  detail={'detail' in statusNotice.notice ? statusNotice.notice.detail : null}
-                  detailCopyable={'detailCopyable' in statusNotice.notice ? statusNotice.notice.detailCopyable : false}
+                  tone={connectionNotice.notice.tone}
+                  message={connectionNotice.notice.message}
+                  detail={'detail' in connectionNotice.notice ? connectionNotice.notice.detail : null}
+                  detailCopyable={'detailCopyable' in connectionNotice.notice ? connectionNotice.notice.detailCopyable : false}
                 />
               ) : null}
             </div>
             <div className="settings-detail-footer-save-group settings-add-footer-save-group">
-              <Button data-testid="provider-save-button" className="btn-save" variant="accent" disabled={saveDisabled} onClick={() => void handleSave()}>{busy ? t.settings.saving : t.common.save}</Button>
+              <Button data-testid="provider-save-button" className="btn-save" variant="accent" disabled={saveDisabled} onClick={() => void handleSave()}>{saveBusy ? t.settings.saving : t.settings.saveProvider}</Button>
+              <Button
+                className="btn-cancel"
+                variant="secondary"
+                onClick={() => onNav('settings')}
+              >
+                {t.common.cancel}
+              </Button>
             </div>
           </div>
         </footer>

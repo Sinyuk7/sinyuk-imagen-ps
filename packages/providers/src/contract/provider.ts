@@ -67,6 +67,18 @@ export interface ProviderDescriptor {
 
   /** provider-specific billing capability declaration（OPTIONAL）。 */
   readonly billing?: ProviderBillingCapability;
+
+  /** 设置页连通性能力声明（OPTIONAL）。 */
+  readonly connectivity?: ProviderSettingsConnectivityCapability;
+}
+
+/** 设置页连通性能力声明。 */
+export interface ProviderSettingsConnectivityCapability {
+  /** 是否支持逐 endpoint 测速。 */
+  readonly endpointMeasurement?: 'supported' | 'unsupported';
+
+  /** 是否支持 provider 级连接测试。 */
+  readonly connectionTest?: 'supported' | 'unsupported';
 }
 
 /**
@@ -153,6 +165,89 @@ export interface ProviderInvokeArgs<TConfig, TRequest> {
   readonly logger?: Logger;
 }
 
+/** endpoint 测速失败分类。 */
+export type ProviderEndpointMeasurementFailureKind =
+  | 'dns'
+  | 'connect'
+  | 'timeout'
+  | 'auth'
+  | 'rate-limit'
+  | 'invalid-response'
+  | 'unsupported'
+  | 'unknown';
+
+/** 单个 endpoint 的测速结果。 */
+export interface ProviderEndpointMeasurement {
+  /** 被测 endpoint 标识。 */
+  readonly endpointId: string;
+
+  /** 测速完成时间。 */
+  readonly checkedAt: number;
+
+  /** 是否测通。 */
+  readonly reachable: boolean;
+
+  /** 成功或失败前的耗时。 */
+  readonly latencyMs?: number;
+
+  /** provider 可安全返回的模型候选。 */
+  readonly models?: readonly ProviderModelInfo[];
+
+  /** 失败分类。 */
+  readonly failureKind?: ProviderEndpointMeasurementFailureKind;
+
+  /** 安全错误摘要。 */
+  readonly errorMessage?: string;
+
+  /** 可选 HTTP 状态码。 */
+  readonly httpStatus?: number;
+}
+
+/** endpoint 测速调用选项。 */
+export interface ProviderEndpointMeasurementOptions {
+  /** 可选取消信号。 */
+  readonly signal?: AbortSignal;
+
+  /** 可选单 endpoint 超时。 */
+  readonly timeoutMs?: number;
+
+  /** 可选并发度。 */
+  readonly maxConcurrency?: number;
+
+  /** 可选 Logger。 */
+  readonly logger?: Logger;
+}
+
+/** endpoint 测速返回值。 */
+export interface ProviderEndpointMeasurementResult {
+  /** provider 是否支持测速。 */
+  readonly supported: boolean;
+
+  /** 测速结果列表。 */
+  readonly results: readonly ProviderEndpointMeasurement[];
+
+  /** 不支持或整体失败时的安全提示。 */
+  readonly message?: string;
+}
+
+/** provider 级连通性测试结果。 */
+export interface ProviderConnectionTestResult {
+  /** provider 是否支持连接测试。 */
+  readonly supported: boolean;
+
+  /** 支持时是否连通。 */
+  readonly reachable?: boolean;
+
+  /** provider 级摘要消息。 */
+  readonly message?: string;
+
+  /** 可选模型数。 */
+  readonly modelCount?: number;
+
+  /** 可选模型列表。 */
+  readonly models?: readonly ProviderModelInfo[];
+}
+
 /** provider 实例需要遵循的最小公开契约。 */
 export interface Provider<TConfig = ProviderConfig, TRequest = CanonicalImageJobRequest> {
   /** 当前 provider 的稳定标识符。 */
@@ -198,6 +293,22 @@ export interface Provider<TConfig = ProviderConfig, TRequest = CanonicalImageJob
    * SHALL 按 `refreshProfileModels` 失败语义处理。
    */
   discoverModels?(config: TConfig, logger?: Logger): Promise<readonly ProviderModelInfo[]>;
+
+  /**
+   * Implementation 的 endpoint 测速能力（OPTIONAL）。
+   *
+   * 用于设置页逐个 endpoint 的非持久化测速。返回值必须是安全摘要，不得泄露
+   * secret-bearing config、原始 header 或敏感 payload。
+   */
+  measureEndpoints?(config: TConfig, options?: ProviderEndpointMeasurementOptions): Promise<ProviderEndpointMeasurementResult>;
+
+  /**
+   * Implementation 的 provider 级连接测试能力（OPTIONAL）。
+   *
+   * 与 endpoint 测速分离；调用方据此渲染页脚 `Test connection` 状态，而不是
+   * 复用逐 endpoint 的测速语义。
+   */
+  testConnection?(config: TConfig, logger?: Logger): Promise<ProviderConnectionTestResult>;
 
   /**
    * Provider-specific billing query（OPTIONAL）。

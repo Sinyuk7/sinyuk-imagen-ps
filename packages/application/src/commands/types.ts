@@ -255,31 +255,30 @@ export interface ProviderProfileTestResult {
   };
 }
 
-export type EndpointProbeStatus = 'healthy' | 'degraded' | 'unsupported' | 'unreachable' | 'incompatible';
-
-export type EndpointProbeFailureKind =
+export type EndpointMeasurementFailureKind =
   | 'dns'
   | 'connect'
   | 'timeout'
   | 'auth'
   | 'rate-limit'
   | 'invalid-response'
-  | 'unsupported-probe';
+  | 'unsupported'
+  | 'unknown';
 
-export interface EndpointProbeResult {
+export interface EndpointMeasurementResult {
   readonly endpointId: string;
-  readonly status: EndpointProbeStatus;
+  readonly status: 'success' | 'failed';
   readonly latencyMs?: number;
   readonly checkedAt: number;
-  readonly failureKind?: EndpointProbeFailureKind;
+  readonly failureKind?: EndpointMeasurementFailureKind;
   readonly httpStatus?: number;
   readonly modelCount?: number;
-  /** 本次草稿 probe 在该 endpoint 上发现的模型；失败或不支持时省略。 */
+  /** 本次草稿测速在该 endpoint 上发现的模型；失败时省略。 */
   readonly models?: readonly ProviderModelInfo[];
   readonly errorMessage?: string;
 }
 
-export interface ProbeProfileEndpointsInput {
+export interface MeasureProfileEndpointsInput {
   readonly profileId?: string;
   readonly providerId: string;
   readonly displayName?: string;
@@ -288,9 +287,29 @@ export interface ProbeProfileEndpointsInput {
   readonly secretValues?: Readonly<Record<string, string>>;
   /** 测试草稿时排除这些已保存 secret。 */
   readonly removedSecretNames?: readonly string[];
+  /** Auto 模式下稳定 tie-breaker 的当前 resolved endpoint。 */
+  readonly currentResolvedEndpointId?: string;
   readonly signal?: AbortSignal;
   readonly timeoutMs?: number;
   readonly maxConcurrency?: number;
+}
+
+export interface ProviderProfileConnectionTestResult {
+  readonly supported: boolean;
+  readonly reachable?: boolean;
+  readonly modelCount?: number;
+  readonly models?: readonly ProviderModelInfo[];
+  readonly message?: string;
+}
+
+export interface TestProviderProfileConnectionInput {
+  readonly profileId?: string;
+  readonly providerId: string;
+  readonly displayName?: string;
+  readonly config: ProviderProfileConfig;
+  readonly secretRefs?: Readonly<Record<string, string>>;
+  readonly secretValues?: Readonly<Record<string, string>>;
+  readonly removedSecretNames?: readonly string[];
 }
 
 export interface ProfileBalanceResult {
@@ -316,9 +335,11 @@ export interface RefreshProfileBalanceResult extends ProfileBalanceResult {
   readonly state: ProfileBillingState;
 }
 
-export interface ProbeProfileEndpointsResult {
-  readonly results: readonly EndpointProbeResult[];
-  /** 汇总所有 healthy endpoint 的去重模型候选，不持久化。 */
+export interface MeasureProfileEndpointsResult {
+  readonly supported: boolean;
+  readonly results: readonly EndpointMeasurementResult[];
+  /** 汇总所有测速成功 endpoint 的去重模型候选，不持久化。 */
   readonly models?: readonly ProviderModelInfo[];
-  readonly suggestedEndpointId?: string;
+  readonly resolvedEndpointId?: string;
+  readonly message?: string;
 }

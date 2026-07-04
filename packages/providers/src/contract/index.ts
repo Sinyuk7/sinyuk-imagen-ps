@@ -17,6 +17,8 @@ export {
   canonicalizeProviderEndpointUrl,
   getPrimaryProviderEndpoint,
   normalizeProviderConnection,
+  providerConnectionAllowsFailover,
+  providerConnectionUsesAutomaticSelection,
 } from './config.js';
 export type {
   ImageAspectRatio,
@@ -77,10 +79,16 @@ export type {
   ChatImageRequestCodec,
   ImageEditCodec,
   Provider,
+  ProviderConnectionTestResult,
   ProviderDescriptor,
   ProviderDispatchBridge,
   ProviderDispatchBridgeArgs,
+  ProviderEndpointMeasurement,
+  ProviderEndpointMeasurementFailureKind,
+  ProviderEndpointMeasurementOptions,
+  ProviderEndpointMeasurementResult,
   ProviderInvokeArgs,
   ProviderResponseCodec,
+  ProviderSettingsConnectivityCapability,
   ProviderWireCapability,
 } from './provider.js';

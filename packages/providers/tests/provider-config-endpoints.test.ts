@@ -15,8 +15,7 @@ describe('provider endpoint config canonicalization', () => {
       family: 'image-endpoint',
       connection: {
         selectionMode: 'manual',
-        failoverEnabled: false,
-        preferredEndpointId: 'primary',
+        selectedEndpointId: 'primary',
         endpoints: [{
           id: 'primary',
           url: 'https://API.EXAMPLE.COM/',
@@ -28,8 +27,7 @@ describe('provider endpoint config canonicalization', () => {
 
     expect(config.connection).toEqual({
       selectionMode: 'manual',
-      failoverEnabled: false,
-      preferredEndpointId: 'primary',
+      selectedEndpointId: 'primary',
       endpoints: [{
         id: 'primary',
         url: 'https://api.example.com/',
@@ -56,7 +54,6 @@ describe('provider endpoint config canonicalization', () => {
       family: 'chat-image',
       connection: {
         selectionMode: 'auto',
-        failoverEnabled: true,
         endpoints: [
           { id: 'a', url: 'https://api.example.com/v1', enabled: true },
           { id: 'b', url: 'https://api.example.com/anthropic', enabled: false },
@@ -66,7 +63,6 @@ describe('provider endpoint config canonicalization', () => {
     });
 
     expect(config.connection.endpoints.map((endpoint) => endpoint.id)).toEqual(['a', 'b']);
-    expect(config.connection.failoverEnabled).toBe(true);
   });
 
   it('rejects duplicate endpoint ids', () => {
@@ -77,8 +73,7 @@ describe('provider endpoint config canonicalization', () => {
       family: 'image-endpoint',
       connection: {
         selectionMode: 'manual',
-        failoverEnabled: false,
-        preferredEndpointId: 'a',
+        selectedEndpointId: 'a',
         endpoints: [
           { id: 'a', url: 'https://api-a.example.com/', enabled: true },
           { id: 'a', url: 'https://api-b.example.com/', enabled: true },
@@ -96,8 +91,7 @@ describe('provider endpoint config canonicalization', () => {
       family: 'image-endpoint',
       connection: {
         selectionMode: 'manual',
-        failoverEnabled: false,
-        preferredEndpointId: 'a',
+        selectedEndpointId: 'a',
         endpoints: [
           { id: 'a', url: 'https://api.example.com/', enabled: true },
           { id: 'b', url: 'https://API.EXAMPLE.COM', enabled: true },
@@ -107,7 +101,7 @@ describe('provider endpoint config canonicalization', () => {
     })).toThrow('duplicate endpoint URL');
   });
 
-  it('rejects invalid preferred endpoint in manual mode', () => {
+  it('rejects invalid selected endpoint in manual mode', () => {
     const provider = createPromptOptimizeProvider();
     expect(() => provider.validateConfig({
       providerId: 'prompt-optimize',
@@ -115,16 +109,15 @@ describe('provider endpoint config canonicalization', () => {
       family: 'prompt-optimize',
       connection: {
         selectionMode: 'manual',
-        failoverEnabled: false,
-        preferredEndpointId: 'missing',
+        selectedEndpointId: 'missing',
         endpoints: [{ id: 'a', url: 'https://openrouter.ai/api/v1', enabled: true }],
       },
       apiKey: 'test-key',
       instruction: 'Rewrite.',
-    })).toThrow('preferredEndpointId');
+    })).toThrow('selectedEndpointId');
   });
 
-  it('rejects manual mode without enabled preferred endpoint', () => {
+  it('rejects manual mode without enabled selected endpoint', () => {
     const provider = createPromptOptimizeProvider();
     expect(() => provider.validateConfig({
       providerId: 'prompt-optimize',
@@ -132,8 +125,7 @@ describe('provider endpoint config canonicalization', () => {
       family: 'prompt-optimize',
       connection: {
         selectionMode: 'manual',
-        failoverEnabled: false,
-        preferredEndpointId: 'a',
+        selectedEndpointId: 'a',
         endpoints: [
           { id: 'a', url: 'https://openrouter.ai/api/v1', enabled: false },
           { id: 'b', url: 'https://openrouter.ai/api/anthropic', enabled: true },
@@ -141,7 +133,7 @@ describe('provider endpoint config canonicalization', () => {
       },
       apiKey: 'test-key',
       instruction: 'Rewrite.',
-    })).toThrow('preferredEndpointId');
+    })).toThrow('selectedEndpointId');
   });
 
   it('keeps canonical connection idempotent across repeated validation', () => {
@@ -152,8 +144,7 @@ describe('provider endpoint config canonicalization', () => {
       family: 'chat-image' as const,
       connection: {
         selectionMode: 'manual' as const,
-        failoverEnabled: true,
-        preferredEndpointId: 'primary',
+        selectedEndpointId: 'primary',
         endpoints: [
           { id: 'primary', url: 'https://openrouter.ai/api/v1/', enabled: true },
           { id: 'backup', url: 'https://openrouter.ai/api/anthropic/', enabled: false },
@@ -176,8 +167,7 @@ describe('provider endpoint config canonicalization', () => {
       family: 'gemini-generate-content',
       connection: {
         selectionMode: 'manual',
-        failoverEnabled: false,
-        preferredEndpointId: 'primary',
+        selectedEndpointId: 'primary',
         endpoints: [{ id: 'primary', url: 'https://api.n1n.ai/gateway', enabled: true }],
       },
       apiKey: 'test-key',
@@ -199,8 +189,7 @@ describe('provider endpoint config canonicalization', () => {
       family: 'gemini-generate-content',
       connection: {
         selectionMode: 'manual',
-        failoverEnabled: false,
-        preferredEndpointId: 'primary',
+        selectedEndpointId: 'primary',
         endpoints: [{ id: 'primary', url: 'https://api.n1n.ai/v1beta', enabled: true }],
       },
       apiKey: 'test-key',
@@ -214,8 +203,7 @@ describe('provider endpoint config canonicalization', () => {
       family: 'gemini-generate-content',
       connection: {
         selectionMode: 'manual',
-        failoverEnabled: false,
-        preferredEndpointId: 'primary',
+        selectedEndpointId: 'primary',
         endpoints: [{ id: 'primary', url: 'https://api.n1n.ai', enabled: true }],
       },
       apiKey: 'test-key',

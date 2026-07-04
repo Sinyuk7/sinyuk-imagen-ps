@@ -827,8 +827,7 @@ export function getRuntime(): ExtendedRuntime {
       family: mockProvider.family,
       connection: {
         selectionMode: 'manual',
-        failoverEnabled: false,
-        preferredEndpointId: 'primary',
+        selectedEndpointId: 'primary',
         endpoints: [{ id: 'primary', url: 'https://mock.local', enabled: true }],
       },
       apiKey: 'mock-key',

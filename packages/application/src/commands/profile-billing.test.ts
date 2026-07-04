@@ -56,8 +56,7 @@ function billingProfile(): ProviderProfile {
       family: 'image-endpoint',
       connection: {
         selectionMode: 'manual',
-        failoverEnabled: false,
-        preferredEndpointId: 'primary',
+        selectedEndpointId: 'primary',
         endpoints: [{ id: 'primary', url: 'https://example.com', enabled: true }],
       },
       billing: {

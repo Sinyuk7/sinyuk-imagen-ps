@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { _resetForTesting, setProviderProfileRepository, setSecretStorageAdapter } from '../runtime.js';
 import type { ProviderProfile, ProviderProfileRepository, SecretStorageAdapter } from './types.js';
-import { probeProfileEndpoints } from './profile-endpoints.js';
+import { measureProfileEndpoints } from './profile-endpoints.js';
 
 function createProfileRepository(profiles: ProviderProfile[] = []): {
   readonly repository: ProviderProfileRepository;
@@ -50,7 +50,7 @@ afterEach(() => {
 });
 
 describe('profile endpoint commands', () => {
-  it('probes draft endpoints and returns per-endpoint statuses with runtime suggestion in auto mode', async () => {
+  it('measures draft endpoints and returns per-endpoint statuses with runtime resolution in auto mode', async () => {
     _resetForTesting();
     setSecretStorageAdapter(createSecretStorage());
     setProviderProfileRepository(createProfileRepository().repository);
@@ -68,14 +68,13 @@ describe('profile endpoint commands', () => {
       });
     });
 
-    const result = await probeProfileEndpoints({
+    const result = await measureProfileEndpoints({
       providerId: 'image-endpoint',
       displayName: 'Draft Endpoint',
       config: {
         family: 'image-endpoint',
         connection: {
           selectionMode: 'auto',
-          failoverEnabled: true,
           endpoints: [
             { id: 'fast', url: 'https://fast.example.com', enabled: true },
             { id: 'slow', url: 'https://slow.example.com', enabled: true },
@@ -91,27 +90,26 @@ describe('profile endpoint commands', () => {
       return;
     }
     expect(result.value.results).toHaveLength(2);
-    expect(result.value.results[0]).toMatchObject({ endpointId: 'fast', status: 'healthy', modelCount: 1 });
+    expect(result.value.results[0]).toMatchObject({ endpointId: 'fast', status: 'success', modelCount: 1 });
     expect(result.value.results[0]?.models?.map((model) => model.id)).toEqual(['gpt-image-2']);
     expect(result.value.models?.map((model) => model.id)).toEqual(['gpt-image-2']);
-    expect(result.value.results[1]).toMatchObject({ endpointId: 'slow', status: 'degraded' });
-    expect(result.value.suggestedEndpointId).toBe('fast');
+    expect(result.value.results[1]).toMatchObject({ endpointId: 'slow', status: 'failed' });
+    expect(result.value.resolvedEndpointId).toBe('fast');
     expect(fetchSpy).toHaveBeenCalledTimes(2);
   });
 
-  it('returns unsupported for providers without safe discovery probe', async () => {
+  it('returns unsupported when the provider does not expose endpoint measurement', async () => {
     _resetForTesting();
     setSecretStorageAdapter(createSecretStorage());
     setProviderProfileRepository(createProfileRepository().repository);
 
-    const result = await probeProfileEndpoints({
+    const result = await measureProfileEndpoints({
       providerId: 'mock',
       displayName: 'Mock',
       config: {
         family: 'image-endpoint',
         connection: {
           selectionMode: 'auto',
-          failoverEnabled: false,
           endpoints: [{ id: 'mock-endpoint', url: 'https://mock.local', enabled: true }],
         },
       },
@@ -122,15 +120,12 @@ describe('profile endpoint commands', () => {
     if (!result.ok) {
       return;
     }
-    expect(result.value.results).toEqual([expect.objectContaining({
-      endpointId: 'mock-endpoint',
-      status: 'unsupported',
-      failureKind: 'unsupported-probe',
-    })]);
-    expect(result.value.suggestedEndpointId).toBeUndefined();
+    expect(result.value.supported).toBe(false);
+    expect(result.value.results).toEqual([]);
+    expect(result.value.resolvedEndpointId).toBeUndefined();
   });
 
-  it('does not mutate persisted models cache while probing an existing profile', async () => {
+  it('does not mutate persisted models cache while measuring an existing profile', async () => {
     _resetForTesting();
     const profile: ProviderProfile = {
       profileId: 'profile-a',
@@ -143,8 +138,7 @@ describe('profile endpoint commands', () => {
         family: 'image-endpoint',
         connection: {
           selectionMode: 'manual',
-          failoverEnabled: false,
-          preferredEndpointId: 'saved',
+          selectedEndpointId: 'saved',
           endpoints: [{ id: 'saved', url: 'https://saved.example.com', enabled: true }],
         },
       },
@@ -163,14 +157,13 @@ describe('profile endpoint commands', () => {
       }),
     );
 
-    const result = await probeProfileEndpoints({
+    const result = await measureProfileEndpoints({
       profileId: 'profile-a',
       providerId: 'image-endpoint',
       config: {
         connection: {
           selectionMode: 'manual',
-          failoverEnabled: false,
-          preferredEndpointId: 'saved',
+          selectedEndpointId: 'saved',
           endpoints: [{ id: 'saved', url: 'https://saved.example.com', enabled: true }],
         },
       },
@@ -184,7 +177,7 @@ describe('profile endpoint commands', () => {
     }
   });
 
-  it('excludes explicitly removed saved secrets from draft probe resolution', async () => {
+  it('excludes explicitly removed saved secrets from draft measurement resolution', async () => {
     _resetForTesting();
     const profile: ProviderProfile = {
       profileId: 'profile-a',
@@ -197,8 +190,7 @@ describe('profile endpoint commands', () => {
         family: 'image-endpoint',
         connection: {
           selectionMode: 'manual',
-          failoverEnabled: false,
-          preferredEndpointId: 'saved',
+          selectedEndpointId: 'saved',
           endpoints: [{ id: 'saved', url: 'https://saved.example.com', enabled: true }],
         },
       },
@@ -209,15 +201,14 @@ describe('profile endpoint commands', () => {
     setProviderProfileRepository(createProfileRepository([profile]).repository);
     setSecretStorageAdapter(createSecretStorage({ 'secret:profile-a:apiKey': 'test-key' }));
 
-    const result = await probeProfileEndpoints({
+    const result = await measureProfileEndpoints({
       profileId: 'profile-a',
       providerId: 'image-endpoint',
       removedSecretNames: ['apiKey'],
       config: {
         connection: {
           selectionMode: 'manual',
-          failoverEnabled: false,
-          preferredEndpointId: 'saved',
+          selectedEndpointId: 'saved',
           endpoints: [{ id: 'saved', url: 'https://saved.example.com', enabled: true }],
         },
       },
@@ -229,7 +220,7 @@ describe('profile endpoint commands', () => {
     }
   });
 
-  it('keeps manual mode probe results from inventing an auto suggestion', async () => {
+  it('keeps manual mode measurements from inventing an auto resolution', async () => {
     _resetForTesting();
     setSecretStorageAdapter(createSecretStorage());
     setProviderProfileRepository(createProfileRepository().repository);
@@ -240,15 +231,14 @@ describe('profile endpoint commands', () => {
       }),
     );
 
-    const result = await probeProfileEndpoints({
+    const result = await measureProfileEndpoints({
       providerId: 'image-endpoint',
       displayName: 'Manual Endpoint',
       config: {
         family: 'image-endpoint',
         connection: {
           selectionMode: 'manual',
-          failoverEnabled: false,
-          preferredEndpointId: 'primary',
+          selectedEndpointId: 'primary',
           endpoints: [{ id: 'primary', url: 'https://manual.example.com', enabled: true }],
         },
       },
@@ -259,7 +249,7 @@ describe('profile endpoint commands', () => {
     if (!result.ok) {
       return;
     }
-    expect(result.value.results[0]).toMatchObject({ endpointId: 'primary', status: 'healthy' });
-    expect(result.value.suggestedEndpointId).toBeUndefined();
+    expect(result.value.results[0]).toMatchObject({ endpointId: 'primary', status: 'success' });
+    expect(result.value.resolvedEndpointId).toBeUndefined();
   });
 });

@@ -14,4 +14,8 @@ export const geminiGenerateContentDescriptor: ProviderDescriptor = {
       responseCodecs: ['json'],
     },
   },
+  connectivity: {
+    endpointMeasurement: 'unsupported',
+    connectionTest: 'unsupported',
+  },
 };

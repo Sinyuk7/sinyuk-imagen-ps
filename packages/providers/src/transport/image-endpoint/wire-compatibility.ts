@@ -25,8 +25,7 @@ export interface ImageEditCompatibilityFingerprint {
   readonly model: string;
   readonly connection: {
     readonly selectionMode: ImageEndpointProviderConfig['connection']['selectionMode'];
-    readonly failoverEnabled: boolean;
-    readonly preferredEndpointId?: string;
+    readonly selectedEndpointId?: string;
     readonly endpoints: readonly {
       readonly id: string;
       readonly url: string;
@@ -264,8 +263,7 @@ export function createImageEditCompatibilityFingerprint(args: {
     model: resolveModel(args.request, args.config.defaultModel),
     connection: {
       selectionMode: args.config.connection.selectionMode,
-      failoverEnabled: args.config.connection.failoverEnabled,
-      ...(args.config.connection.preferredEndpointId ? { preferredEndpointId: args.config.connection.preferredEndpointId } : {}),
+      ...(args.config.connection.selectedEndpointId ? { selectedEndpointId: args.config.connection.selectedEndpointId } : {}),
       endpoints: args.config.connection.endpoints.map((endpoint) => ({
         id: endpoint.id,
         url: endpoint.url,
