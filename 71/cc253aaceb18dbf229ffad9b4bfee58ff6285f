@@ -1,0 +1,61 @@
+apps/app/src/shared/ui/styles/pages.ts
+  s_cd5c6ac55490ef::t_7480d6bc78f154 14-21
+packages/application/src/commands/task-history.ts
+  s_db844f4b210048::t_ae70ccd4b88509 17,26,30-50,53,58
+apps/app/tests/history-view-model.test.ts
+  s_db844f4b210048::t_cf51f51232fbb0 1-75
+apps/app/src/shared/ports/commands-port.ts
+  s_db844f4b210048::t_f558ae11da5b41 12,42
+packages/application/src/runtime.test.ts
+  s_db844f4b210048::t_cbacf92bcb8751 13,353,370-374,379,382-404
+apps/app/src/shared/ui/pages/history-view-model.ts
+  s_db844f4b210048::t_db586e349f2a8b 1-220,223
+  s_db844f4b210048::t_b3ac7ba1225859 221-222
+apps/app/src/shared/ui/pages/history-page.tsx
+  s_db844f4b210048::t_b8b1997f7eae22 2,10-16,19-22,40,44,47-55,57-70,73,80,84-85,94-109,114-118,120-132,134-143,146-148,163,178,182,190-191,197-198,203-209,211-212,216,229,257,267,285-286,289-290,292-293,309,311-313,317,321,326-327,329-349,351-352,363-364,418-420,422-424,426-447,449-501
+apps/app/src/shared/ui/app-shell.tsx
+  s_db844f4b210048::t_0180a6dfb1a00c 240,271-275,280-284
+  s_db844f4b210048::t_60a617541d67e6 276-279,285
+  s_7d00aac348b2b3::t_679c933210a183 286
+apps/app/tests/fakes.ts
+  s_db844f4b210048::t_93ef899035caa4 255,358,406,498
+apps/app/tests/app-shell.test.tsx
+  s_db844f4b210048::t_05efe2846c7779 107-132
+apps/app/tests/history-page.test.tsx
+  s_db844f4b210048::t_6d3bbc1a9cd1e3 105,107,109,116,121,136,189,215,271,287-290,308,352-400
+  s_db844f4b210048::t_c1076104359810 240
+packages/application/src/commands/index.ts
+  s_db844f4b210048::t_fdb9345a2d72da 42
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.10",
+  "base_commit_sha": "71cc253aaceb18dbf229ffad9b4bfee58ff6285f",
+  "prompts": {},
+  "sessions": {
+    "s_7d00aac348b2b3": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "019f2c24-480c-76a3-9c06-7b0e16a1c9b5",
+        "model": "gpt-5.5"
+      },
+      "human_author": "Sinyuk <80998062@qq.com>"
+    },
+    "s_cd5c6ac55490ef": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "019f2c9e-4683-74e3-9501-6c98acefad71",
+        "model": "gpt-5.4"
+      },
+      "human_author": "Sinyuk <80998062@qq.com>"
+    },
+    "s_db844f4b210048": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "019f2c5a-6420-7a82-9bb8-e4d8b3924df8",
+        "model": "gpt-5.4"
+      },
+      "human_author": "Sinyuk <80998062@qq.com>"
+    }
+  }
+}
