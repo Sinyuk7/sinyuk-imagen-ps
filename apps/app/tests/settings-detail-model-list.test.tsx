@@ -57,7 +57,7 @@ describe('SettingsDetailPage contract — model list', () => {
     await renderDetailWithRoot(container, services, 'mock-profile', noopNav(), noopProfilesChanged());
 
     const noticeHost = queryByTestId(container, 'provider-model-list-notice');
-    expect(noticeHost.textContent).toContain('模型列表不可用');
+    expect(noticeHost.textContent).toContain('模型列表加载失败');
     expect(noticeHost.textContent).toContain('Provider implementation "mock" returned malformed discovery payload');
     expect(container.querySelectorAll('[data-testid="provider-model-list-notice"]')).toHaveLength(1);
   });
@@ -83,7 +83,7 @@ describe('SettingsDetailPage contract — model list', () => {
     });
     await renderDetailWithRoot(container, services, 'mock-profile', noopNav(), noopProfilesChanged());
 
-    expect(queryByTestId(container, 'provider-model-status-notice').textContent).toContain('已保存模型当前未被发现');
+    expect(queryByTestId(container, 'provider-model-status-notice').textContent).toContain('未发现已保存的模型');
   });
 
   it('shows an explicit status for a custom unchecked model', async () => {
@@ -104,6 +104,6 @@ describe('SettingsDetailPage contract — model list', () => {
     });
     await renderDetailWithRoot(container, services, 'mock-profile', noopNav(), noopProfilesChanged());
 
-    expect(queryByTestId(container, 'provider-model-status-notice').textContent).toContain('自定义 model id 未校验');
+    expect(queryByTestId(container, 'provider-model-status-notice').textContent).toContain('自定义模型尚未验证');
   });
 });

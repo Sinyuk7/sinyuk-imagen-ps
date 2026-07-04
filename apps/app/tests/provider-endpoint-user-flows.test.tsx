@@ -431,7 +431,7 @@ describe('provider endpoint user flows', () => {
     await flush(6);
 
     expect(activeFixture.requestedUrls().filter((url) => url.includes('/v1/models'))).toHaveLength(1);
-    expect(container.textContent).toContain('Auto Select is managing endpoint choice');
+    expect(container.textContent).toContain('Endpoint selected automatically');
 
     await act(async () => {
       buttonByTestId(container, 'provider-save-button').click();

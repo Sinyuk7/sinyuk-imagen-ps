@@ -238,7 +238,7 @@ async function smokeScenario({ page, url, capture }) {
   await expectVisibleText(page, 'No provider profile');
   await expectVisibleText(page, 'No model');
   await expectVisibleText(page, 'Current session');
-  await expectVisibleText(page, 'Where should we start?');
+  await expectVisibleText(page, 'What shall we create today? ✨');
   await expectVisibleText(page, 'Create an illustration of a girl with pink hair');
   await expectVisibleText(page, 'Transform this image into a hand-drawn illustration');
   await expectVisibleText(page, 'Generate a full-body portrait from the given image');

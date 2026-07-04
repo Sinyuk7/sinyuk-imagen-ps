@@ -357,7 +357,7 @@ describe('MainPage contract — composer controls', () => {
     const option = document.body.querySelector<HTMLButtonElement>('[data-testid="main-model-selector-option-dall-e-3"]')!;
     expect(option.disabled).toBe(false);
     expect(option.textContent).toContain('DALL-E 3');
-    expect(option.textContent).not.toContain('当前 profile 不可用');
+    expect(option.textContent).not.toContain('此模型在当前配置中不可用');
     expect(option.textContent).not.toContain('saved');
 
     await act(async () => {
@@ -367,7 +367,7 @@ describe('MainPage contract — composer controls', () => {
 
     expect(iconSelectValue(container, '[data-testid="main-model-selector"]')).toContain('gpt-image-2');
     expect(iconSelectValue(container, '[data-testid="main-model-selector"]')).not.toContain('dall-e-3');
-    expect(container.querySelector('[data-testid="toast"]')?.textContent).toContain('当前 profile 不可用');
+    expect(container.querySelector('[data-testid="toast"]')?.textContent).toContain('此模型在当前配置中不可用');
   });
 
   it('derives output-size options from the selected model and blocks unsupported size', async () => {
@@ -410,7 +410,7 @@ describe('MainPage contract — composer controls', () => {
     await flush();
 
     expect(iconSelectValue(container, '[data-testid="composer-output-size-selector"]')).toContain('1K');
-    expect(container.querySelector('[data-testid="toast"]')?.textContent).toContain('4K 不可用');
+    expect(container.querySelector('[data-testid="toast"]')?.textContent).toContain('此模型不支持 4K');
     expect(container.querySelector('[data-testid="composer-size-feedback"]')).toBeNull();
   });
 
@@ -722,8 +722,8 @@ describe('MainPage contract — composer controls', () => {
     const send = container.querySelector<HTMLElement>('[data-testid="composer-send-button"]')!;
     expect(findIconInHost(send, '[data-icon-name="spinner"]')).not.toBeNull();
     expect(findIconInHost(send, '[data-icon="icon-spinner"]')).not.toBeNull();
-    expect(send.getAttribute('aria-label')).toBe('生成任务运行中');
-    expect(send.getAttribute('title')).toBe('生成任务运行中');
+    expect(send.getAttribute('aria-label')).toBe('正在生成');
+    expect(send.getAttribute('title')).toBe('正在生成');
   });
 
   it('prompt optimization 调用 optimizePrompt 并回填结果', async () => {

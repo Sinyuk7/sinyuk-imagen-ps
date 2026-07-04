@@ -187,7 +187,7 @@ describe('SettingsDetailPage contract — connectivity', () => {
     await flush();
 
     expect((queryByTestId(container, 'provider-selection-mode-auto') as HTMLInputElement).checked).toBe(true);
-    expect(container.textContent).toMatch(/当前由自动选择管理端点|Auto Select is managing endpoint choice/);
+    expect(container.textContent).toMatch(/端点由系统自动选择|Endpoint selected automatically/);
     expect(spies.saveProviderProfile).not.toHaveBeenCalled();
   });
 

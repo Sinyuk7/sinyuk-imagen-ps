@@ -46,7 +46,7 @@ describe('SettingsDetailPage contract — prompt optimizer', () => {
     expect(textarea?.getAttribute('rows')).toBe('5');
     expect(textarea?.className).toContain('field-textarea-input');
     expect(container.textContent).toContain('提示词行为');
-    expect(container.textContent).toContain('Instruction');
+    expect(container.textContent).toContain('系统指令');
   });
 
   it('keeps a single default-model trigger and a separate custom model field for Prompt Optimizer', async () => {
@@ -60,6 +60,6 @@ describe('SettingsDetailPage contract — prompt optimizer', () => {
     expect(textInput).toHaveLength(0);
     expect(selector[0]?.getAttribute('aria-haspopup')).toBe('listbox');
     expect(container.textContent).toContain('gpt-4o-mini');
-    expect(container.textContent).toContain('使用自定义 model id');
+    expect(container.textContent).toContain('使用自定义模型 ID');
   });
 });

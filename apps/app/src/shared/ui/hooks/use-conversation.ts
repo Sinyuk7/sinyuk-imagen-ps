@@ -87,7 +87,7 @@ export interface ConversationMessages {
   readonly jobFailed: string;
 }
 
-const DEFAULT_CONVERSATION_MESSAGES: ConversationMessages = { jobFailed: 'Job failed.' };
+const DEFAULT_CONVERSATION_MESSAGES: ConversationMessages = { jobFailed: 'Task failed.' };
 
 function nowTime(): string {
   const now = new Date();

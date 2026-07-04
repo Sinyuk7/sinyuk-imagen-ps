@@ -417,7 +417,7 @@ describe('AppShell', () => {
     await flush();
 
     expect(container.textContent).toContain('Current session');
-    expect(container.textContent).toContain('Where should we start?');
+    expect(container.textContent).toContain('What shall we create today? ✨');
     expect(document.documentElement.lang).toBe('en');
   });
 
@@ -860,7 +860,7 @@ describe('AppShell', () => {
     });
     await flush();
 
-    expect(container.querySelector('[data-testid="toast"]')?.textContent).toContain('4K 不可用');
+    expect(container.querySelector('[data-testid="toast"]')?.textContent).toContain('此模型不支持 4K');
     expect(iconSelectValue(container, '[data-testid="global-output-size-selector"]')).toContain('1K');
   });
 

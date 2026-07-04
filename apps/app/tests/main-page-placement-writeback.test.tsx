@@ -80,8 +80,8 @@ describe('MainPage contract — placement & writeback', () => {
     await sendPrompt(container, 'make unbound image');
 
     const placeButton = container.querySelector<HTMLButtonElement>('[data-testid^="result-place-button-"]')!;
-    expect(placeButton.textContent).toContain('置入 Active Document');
-    expect(placeButton.title).toContain('当前活动的 Photoshop 文档');
+    expect(placeButton.textContent).toContain('置入当前文档');
+    expect(placeButton.title).toContain('当前 Photoshop 文档');
   });
 
   it('multiple-document placement conflict disables Place without choosing active document', async () => {
@@ -134,7 +134,7 @@ describe('MainPage contract — placement & writeback', () => {
 
     const send = container.querySelector<HTMLButtonElement>('[data-testid="composer-send-button"]')!;
     expect(send.disabled).toBe(true);
-    expect(container.querySelector('[data-testid="composer-readiness-status"]')?.textContent).toContain('请先解决置入冲突');
+    expect(container.querySelector('[data-testid="composer-readiness-status"]')?.textContent).toContain('先解决置入冲突');
     await act(async () => {
       send.click();
     });

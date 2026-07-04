@@ -197,7 +197,7 @@ describe('GlobalGenerationSettingsPage', () => {
       document.body.querySelector<HTMLElement>('[data-testid="global-output-size-selector-option-4k"]')!.click();
     });
 
-    expect(container.querySelector('[data-testid="toast"]')?.textContent).toContain('4K 不可用');
+    expect(container.querySelector('[data-testid="toast"]')?.textContent).toContain('此模型不支持 4K');
     expect(container.querySelector<HTMLElement>('[data-testid="global-output-size-selector"]')?.getAttribute('aria-label')).toContain('2K');
 
     await act(async () => {
@@ -365,6 +365,6 @@ describe('GlobalGenerationSettingsPage', () => {
 
     expect(container.querySelector('[data-testid="global-settings-error-notice"] .status-notice.error')).not.toBeNull();
     const storageHint = container.querySelectorAll('.generation-settings-section-hint')[1];
-    expect(storageHint?.textContent ?? '').toMatch(/输出位置|runtime paths|当前 runtime 路径/);
+    expect(storageHint?.textContent ?? '').toContain('运行路径与生成图片保存位置。');
   });
 });

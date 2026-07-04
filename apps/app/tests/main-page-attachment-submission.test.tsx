@@ -168,7 +168,7 @@ describe('MainPage contract — attachment & submission', () => {
 
     const option = container.querySelector<HTMLElement>('[data-testid="attach-upload-option"]');
     expect(option?.textContent).toContain('PNG / JPG / WebP');
-    expect(option?.textContent).toContain('部分尺寸用 Capture / Layer');
+    expect(option?.textContent).toContain('尺寸不支持时，请改用“捕获”或“图层”。');
   });
 
   it('layer attachment 只能经 HostBridge 读取，并提交 provider-edit', async () => {
@@ -398,7 +398,7 @@ describe('MainPage contract — attachment & submission', () => {
     await flush();
 
     expect(container.querySelector('[data-testid="toast"]')?.textContent).toContain(
-      '这张图片尺寸当前不支持从电脑上传。请用 Capture / Layer，或先缩放后再上传。',
+      '当前不支持此图片尺寸，请先缩放，或改用“捕获”或“图层”。',
     );
   });
 

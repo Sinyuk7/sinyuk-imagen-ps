@@ -169,7 +169,7 @@ describe('MainPage contract — billing', () => {
     await flush();
     await flush();
 
-    expect(container.querySelector('[data-testid^="round-billing-meta-"]')?.textContent).toContain('Observed balance change: -0.5 USD');
+    expect(container.querySelector('[data-testid^="round-billing-meta-"]')?.textContent).toContain('检测到的余额变化: -0.5 USD');
     expect(container.querySelector('[data-testid="toast"]')?.textContent ?? '').not.toContain('-0.5 USD');
   });
 
@@ -202,8 +202,8 @@ describe('MainPage contract — billing', () => {
     await flush();
     await flush();
 
-    expect(container.querySelector('[data-testid^="round-billing-meta-"]')?.textContent).toContain('Cost: 0.08 CNY');
-    expect(container.querySelector('[data-testid^="round-billing-meta-"]')?.textContent).not.toContain('Observed balance change');
+    expect(container.querySelector('[data-testid^="round-billing-meta-"]')?.textContent).toContain('费用: 0.08 CNY');
+    expect(container.querySelector('[data-testid^="round-billing-meta-"]')?.textContent).not.toContain('检测到的余额变化');
   });
 
   it('attaches billing observation to the submitted round when an older completed round has no meta', async () => {
@@ -270,6 +270,6 @@ describe('MainPage contract — billing', () => {
       round.textContent?.includes('new billing round'),
     );
     expect(oldRound?.querySelector('[data-testid^="round-billing-meta-"]')).toBeNull();
-    expect(newRound?.querySelector('[data-testid^="round-billing-meta-"]')?.textContent).toContain('Cost: 0.12 USD');
+    expect(newRound?.querySelector('[data-testid^="round-billing-meta-"]')?.textContent).toContain('费用: 0.12 USD');
   });
 });

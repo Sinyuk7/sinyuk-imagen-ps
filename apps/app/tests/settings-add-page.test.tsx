@@ -84,7 +84,7 @@ describe('SettingsAddPage', () => {
 
     expect(container.textContent).toContain('/v1/images/*');
     expect(container.textContent).toContain('/v1/chat/completions');
-    expect(container.textContent).toMatch(/本地测试用|Local test provider/);
+    expect(container.textContent).toMatch(/本地测试 Provider|Local test provider/);
 
     const rows = Array.from(container.querySelectorAll<HTMLElement>('.provider-type-row'));
     expect(rows.map((row) => row.dataset.testid)).toEqual([

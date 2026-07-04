@@ -42,6 +42,6 @@ describe('Chrome shared UI shell', () => {
     expect(host.services.host.capabilities.runtime).toBe('chrome-browser');
     expect(await host.services.host.listLayers()).toHaveLength(10);
     expect(container.textContent).toContain('Current session');
-    expect(container.textContent).toContain('Where should we start?');
+    expect(container.textContent).toContain('What shall we create today? ✨');
   });
 });

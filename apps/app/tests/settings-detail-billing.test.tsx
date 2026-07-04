@@ -20,7 +20,7 @@ describe('SettingsDetailPage contract — billing', () => {
     document.body.appendChild(container);
     const { spies } = await renderDetail(container);
 
-    expect(container.textContent).toContain('Billing');
+    expect(container.textContent).toContain('余额与计费');
     expect(container.textContent).toContain('当前余额');
     expect(container.textContent).toContain('12.50 USD');
     expect(container.querySelector('[data-testid="provider-billing-mode-selector"]')).toBeNull();
