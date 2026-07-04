@@ -1,0 +1,100 @@
+apps/app/src/shared/ui/pages/settings-detail-page.tsx
+  s_9e26006ec5dcff::t_1534dad4c5bf7e 855-856
+  s_9e26006ec5dcff::t_a976e1a8a34997 139,167,223,266,341,393,431
+apps/app/src/shared/ui/hooks/use-prompt-settings.ts
+  s_9e26006ec5dcff::t_5ce501c44198d1 95,97-100,103,182-183,186-187,189-190,192,195-196,198-199,201,203-204,209,212-213,215,217,221
+  s_9e26006ec5dcff::t_b04af26b63d89b 1-94,96,101-102,104-131,133-142,154-181,184-185,188,191,193-194,197,200,202,205-208,210-211,214,216,218-220,222-240
+  s_9e26006ec5dcff::t_cd84b0fce828cb 143-153
+  s_9e26006ec5dcff::t_8ef6d039a76e73 132
+apps/app/src/shared/ui/pages/settings-page.tsx
+  s_9e26006ec5dcff::t_d680e3de60482a 19,120,141,191-216
+apps/app/src/shells/uxp/uxp-panel-runtime.test.tsx
+  s_9e26006ec5dcff::t_5e7f9d876fc17b 49
+apps/app/src/adapters/chrome/indexed-db-storage.ts
+  s_9e26006ec5dcff::t_282d328594e746 15,37,191,312-319
+  s_9e26006ec5dcff::t_921c37e5e0fb21 320
+apps/app/src/shells/uxp/create-plugin-host-shell.ts
+  s_9e26006ec5dcff::t_7f9373e28e6420 29,103,157
+apps/app/tests/settings-detail-profile-editing.test.tsx
+  s_9e26006ec5dcff::t_8e1c9b9fbe71a6 25
+  s_9e26006ec5dcff::t_72550c01a929a8 215-217,242-244
+  s_9e26006ec5dcff::t_be6995d7ecdba3 22-24,26-27,208-214,218-241,245-256
+  s_9e26006ec5dcff::t_4290ea2abfbb83 257
+apps/app/src/shared/ui/pages/prompt-settings-page.tsx
+  s_9e26006ec5dcff::t_d8cf6b9e441e37 1-9,11-13,15-148,150-154,156-158,160-279
+  s_9e26006ec5dcff::t_0cc2d1626c40f3 14,149,155,159
+  s_9e26006ec5dcff::t_3317eb94f369fa 10
+apps/app/tests/fakes.ts
+  s_9e26006ec5dcff::t_66a42d4d8f8520 213
+  s_9e26006ec5dcff::t_a85b8e48fc6288 28,226,446
+apps/app/src/adapters/uxp/uxp-prompt-settings-store.ts
+  s_9e26006ec5dcff::t_e639b4367c429f 1-77
+apps/app/tests/settings-add-page.test.tsx
+  s_9e26006ec5dcff::t_93ba6d6cea3a4b 162-163
+  s_9e26006ec5dcff::t_8e32628d6a25a3 33
+  s_9e26006ec5dcff::t_8751a5419f217c 30-32,34-35,126,138,146-161
+  s_9e26006ec5dcff::t_99303bc1fd30b6 164-165
+apps/app/tests/chrome-adapter.test.ts
+  s_9e26006ec5dcff::t_b5e1c36f02dc4d 134-166
+  s_9e26006ec5dcff::t_02f264542c9bde 132-133
+apps/app/tests/use-prompt-settings.test.tsx
+  s_9e26006ec5dcff::t_4f76300d6e0aab 1-180
+apps/app/tests/prompt-settings-page.test.tsx
+  s_9e26006ec5dcff::t_c685c616496738 1-116
+apps/app/src/shared/ports/prompt-settings.ts
+  s_9e26006ec5dcff::t_c77673cbb37795 1-115
+apps/app/tests/settings-page.test.tsx
+  s_9e26006ec5dcff::t_8ceb57d51c2168 50,99,105,124,130-133,136,142-145
+  s_9e26006ec5dcff::t_711e5ba30bb7eb 137
+apps/app/tests/prompt-settings-store.test.ts
+  s_9e26006ec5dcff::t_b0ffc973038420 1-61
+apps/app/tests/app-shell.test.tsx
+  s_9e26006ec5dcff::t_0cec55d1618517 277
+apps/app/src/adapters/uxp/uxp-host-adapters.test.ts
+  s_9e26006ec5dcff::t_1aff134e0fdc32 8
+  s_9e26006ec5dcff::t_b2227268de171e 344-385
+packages/application/src/commands/provider-profiles.test.ts
+  s_9e26006ec5dcff::t_c41e2d9ab0317e 334-436
+apps/app/src/shared/ports/app-services.ts
+  s_9e26006ec5dcff::t_1db1e7e03f24c1 5,20
+apps/app/src/shared/ui/pages/settings-add-page.tsx
+  s_9e26006ec5dcff::t_673da9958189f2 151,321,440,502-503
+apps/app/src/shared/ui/app-shell.tsx
+  s_9e26006ec5dcff::t_dccd4577e0912a 12,21-22,43,210,232,464-465,533-565
+apps/app/src/composition/chrome/create-chrome-app-shell.ts
+  s_9e26006ec5dcff::t_c5c37f88863e39 108
+apps/app/src/shared/ui/pages/prompt-preset-detail-page.tsx
+  s_9e26006ec5dcff::t_502b6a04db3841 10,107,113
+  s_9e26006ec5dcff::t_d1c1ca72ad4863 1-3,5-9,11-106,108-112,114-139
+  s_9e26006ec5dcff::t_87151097a5514b 4
+apps/app/src/shared/ui/components/provider-profile-editor.tsx
+  s_9e26006ec5dcff::t_8ef0a4a3cf210d 6,220,226
+  s_9e26006ec5dcff::t_5b5f3f03cee98c 25-26,122-123,218-219,221-225,227-228
+  s_9e26006ec5dcff::t_50e921bae708b1 229-230
+packages/application/src/commands/types.ts
+  s_9e26006ec5dcff::t_3def190c87a063 137,162
+apps/app/src/adapters/chrome/browser-app-storage.ts
+  s_9e26006ec5dcff::t_592b84516af0ab 12,24,95
+apps/app/src/shared/ui/i18n/messages.ts
+  s_9e26006ec5dcff::t_006524d6bfc4c8 623-624
+  s_9e26006ec5dcff::t_107e11c0432f48 161-162,263-289,496-497,598-622,831-832,933-959
+packages/application/src/commands/provider-profiles.ts
+  s_9e26006ec5dcff::t_7c1ab0efd33abd 111-117,310,324
+  s_9e26006ec5dcff::t_b6fa3a1cc4d26a 104-110
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.10",
+  "base_commit_sha": "e72632078171cb07b7025169fac059e74dd707c8",
+  "prompts": {},
+  "sessions": {
+    "s_9e26006ec5dcff": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "019f2dfc-9af4-77a2-9927-8c47f73d940f",
+        "model": "gpt-5.5"
+      },
+      "human_author": "Sinyuk <80998062@qq.com>"
+    }
+  }
+}
