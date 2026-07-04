@@ -1,0 +1,23 @@
+apps/app/tests/main-page-result-rendering.test.tsx
+  s_bdd5957ed5724d::t_ded72a51be2595 56
+apps/app/src/shared/ui/components/provider-identity.tsx
+  s_bdd5957ed5724d::t_ded72a51be2595 11-15,23,47-48
+apps/app/src/shared/ui/styles/conversation.ts
+  s_bdd5957ed5724d::t_ded72a51be2595 116-127
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.10",
+  "base_commit_sha": "ce0fc9bd70d7f8bac4a7e50284321ffaf51b5821",
+  "prompts": {},
+  "sessions": {
+    "s_bdd5957ed5724d": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "019f2d5b-bc4e-7751-88e8-7e93a145ae31",
+        "model": "gpt-5.4"
+      },
+      "human_author": "Sinyuk <80998062@qq.com>"
+    }
+  }
+}
