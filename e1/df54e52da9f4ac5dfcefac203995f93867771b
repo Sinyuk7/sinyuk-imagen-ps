@@ -1,0 +1,187 @@
+apps/app/src/composition/chrome/chrome-feasibility-runtime.ts
+  s_b7ea537f904386::t_66e088c4c7f35c 106
+packages/application/src/commands/profile-connection-test.ts
+  s_b7ea537f904386::t_7f36b105f4fd88 1-110
+apps/app/tests/main-page-composer-controls.test.tsx
+  s_b7ea537f904386::t_faf2ee3cc2e81b 435,457,495,513
+apps/app/src/shared/ui/i18n/messages.ts
+  s_b7ea537f904386::t_495de288d8ad06 201,205-213,508,512-520,816,820-828
+packages/providers/tests/chat-image-provider.test.ts
+  s_b7ea537f904386::t_faf2ee3cc2e81b 25,436,480,515,561,634
+packages/application/src/commands/prompt-optimize.ts
+  s_b7ea537f904386::t_9902179730159e 77
+packages/providers/src/providers/chat-image/provider.ts
+  s_b7ea537f904386::t_d96be7b3ca987d 1-9,61-144,352-400
+  s_b7ea537f904386::t_b758784f5381bc 401
+packages/providers/src/transport/image-endpoint/failover.ts
+  s_b7ea537f904386::t_aa606aab7121ae 2-6,128,231-233,534-538,613
+apps/app/tests/fakes.ts
+  s_b7ea537f904386::t_e69bf910ae475f 310-312
+  s_b7ea537f904386::t_8aaf17ba737ea0 6,323
+  s_b7ea537f904386::t_455de42c3df9e0 9,14,83,112,245-246,301-309,318,328,412-413,485-489
+packages/application/src/commands/provider-profiles.ts
+  s_b7ea537f904386::t_46fc47c5db0ff7 465-488
+packages/providers/src/index.ts
+  s_b7ea537f904386::t_1eca671828bad1 43,45-48,84-85
+  s_b7ea537f904386::t_5b8afc39f37a6f 72
+packages/providers/src/contract/config.ts
+  s_b7ea537f904386::t_faf2ee3cc2e81b 85,136
+  s_b7ea537f904386::t_c0621eded8bfca 31-32,140-141,143-144,150,155-164,169-171,173
+  s_b7ea537f904386::t_f3ec3831d5e551 135
+  s_b7ea537f904386::t_8483661a778745 137
+apps/app/tests/settings-detail-optimizer.test.tsx
+  s_b7ea537f904386::t_25d3181d881e90 28
+apps/app/tests/app-shell.test.tsx
+  s_b7ea537f904386::t_faf2ee3cc2e81b 501,522
+apps/app/tests/chrome-adapter.test.ts
+  s_b7ea537f904386::t_faf2ee3cc2e81b 21
+packages/application/src/commands/prompt-optimize.test.ts
+  s_b7ea537f904386::t_faf2ee3cc2e81b 65
+packages/providers/tests/provider-config-endpoints.test.ts
+  s_b7ea537f904386::t_faf2ee3cc2e81b 18,30,76,94,104,112,117,120,128,136,147,170,192,206
+packages/providers/src/providers/prompt-optimize/descriptor.ts
+  s_b7ea537f904386::t_1532236964408a 10-13
+packages/providers/src/providers/mock/descriptor.ts
+  s_b7ea537f904386::t_1532236964408a 25-28
+apps/app/src/shared/ui/pages/settings-detail-page.tsx
+  s_b7ea537f904386::t_8756970a0a4f04 995-997,1004,1029-1032
+  s_b7ea537f904386::t_c59e295e7f5a74 230
+  s_b7ea537f904386::t_59770bb194761e 605,608-609,618-619
+  s_b7ea537f904386::t_b4ebd6f8817d31 239-240,298-299
+  s_b7ea537f904386::t_eb19fe64d296d6 269
+  s_b7ea537f904386::t_646748d3775779 367,377,402,405-406,408-411,413,416,418,484-485,506,509,511,515,519-521,523-525,527-529,531-532,537,540,544,578-579
+  s_b7ea537f904386::t_72690ec583a226 2,30-32,212-214,224-226
+  s_b7ea537f904386::t_2e668fff840611 260,265-268,270-273
+  s_b7ea537f904386::t_d55abb7d9af52d 629-630
+  s_b7ea537f904386::t_5b19adaa5aae77 407
+  s_b7ea537f904386::t_21aa1aab296f6e 993-994
+  s_b7ea537f904386::t_5db3055fbdc4be 217-218,565-566
+apps/app/tests/settings-add-page.test.tsx
+  s_b7ea537f904386::t_c20d9500d370bd 410-412,448
+  s_b7ea537f904386::t_83320930cb96a0 208,376,452,459
+  s_b7ea537f904386::t_b66b6616d1e64f 382,418,424,442,455-458,460
+  s_b7ea537f904386::t_02db965be0167f 445
+packages/providers/tests/image-endpoint-wire-compatibility.test.ts
+  s_b7ea537f904386::t_faf2ee3cc2e81b 45
+packages/providers/tests/mock-provider.test.ts
+  s_b7ea537f904386::t_faf2ee3cc2e81b 65,93,117,153
+packages/application/src/commands/draft-provider-config.ts
+  s_b7ea537f904386::t_fb1bb8d5584c6f 1-69
+packages/application/src/commands/profile-endpoints.ts
+  s_b7ea537f904386::t_db7f846ef09d99 186
+  s_b7ea537f904386::t_7b91114e9e7f11 8,11-13,15,19-24,36,39,52,56,70-88,91-116,120,122-124,132,135,139,142,146-155,158-167,169-171,175,177-178,183,185,187,194
+apps/app/src/shared/ui/components/provider-profile-editor.tsx
+  s_b7ea537f904386::t_1c1519f3ecec93 251,255
+  s_b7ea537f904386::t_ec38669ab8b77e 152,170,187,241,338-359
+  s_b7ea537f904386::t_eb19fe64d296d6 105,258
+  s_b7ea537f904386::t_7e9b4d2d9fb27e 5,16,30-35,57-58,60,72,76,78-79,96-104,106-120,131-136,151,153-154,159,165-169,171-186,188-189,215,219-240,242-246,248,253-254,257,263-275,279,281,284-298,300-306,337,362-384
+packages/application/src/commands/index.ts
+  s_b7ea537f904386::t_54fdec78433a9e 31,70-72,75-76,96
+  s_b7ea537f904386::t_a6cc51f733ee0b 30
+apps/app/src/shared/ui/pages/settings-add-page.tsx
+  s_b7ea537f904386::t_1a60f85762161b 411-414
+  s_b7ea537f904386::t_adfdcba449012b 159-160
+  s_b7ea537f904386::t_22e6a5a93297f5 204-286,291,302-309,353,356-358,363,365-366
+  s_b7ea537f904386::t_123ea5215f6df4 452-457,467,476,500,505,518,535,550-554,556,558-561,566
+  s_b7ea537f904386::t_2794bdab5303d4 2,28-31,56,143-147,153-157,173
+packages/application/src/commands/profile-billing.test.ts
+  s_b7ea537f904386::t_faf2ee3cc2e81b 59
+packages/providers/src/contract/config-schema.ts
+  s_b7ea537f904386::t_bf80558de05462 12
+packages/providers/src/transport/image-endpoint/wire-compatibility.ts
+  s_b7ea537f904386::t_4c597901f9bc69 28,266
+packages/application/src/commands/provider-profiles.test.ts
+  s_b7ea537f904386::t_faf2ee3cc2e81b 78,169
+packages/providers/tests/image-endpoint-provider.test.ts
+  s_b7ea537f904386::t_faf2ee3cc2e81b 47,437,466,501,549,586,677
+  s_b7ea537f904386::t_5c535bbc4b92e4 623
+packages/providers/src/providers/gemini-generate-content/descriptor.ts
+  s_b7ea537f904386::t_1532236964408a 17-20
+packages/application/src/commands/types.ts
+  s_b7ea537f904386::t_b9b9bf22f022a8 258,265-266,268,270,273,276,281,290-291,297-314,338-341,343-344
+apps/app/src/shared/ui/styles/pages.ts
+  s_b7ea537f904386::t_303e764deb0dc8 422-438,474-479
+packages/providers/src/providers/image-endpoint/provider.ts
+  s_b7ea537f904386::t_f692800de2e509 487
+  s_b7ea537f904386::t_f2b1ed8018db92 1-10,41
+  s_b7ea537f904386::t_999d10c347ce82 166-173,194
+  s_b7ea537f904386::t_cb0877f8acce10 105-165,175,177-193,195-216,488,490-521,523-543
+  s_b7ea537f904386::t_9e8cdcaa132779 174,176
+packages/application/src/commands/profile-endpoints.test.ts
+  s_b7ea537f904386::t_faf2ee3cc2e81b 141,160,166,180,193,204,211,223,234,241
+  s_b7ea537f904386::t_6f81f078cef256 4,53,71,93,96-97,101,106,123-125,128,252-253
+docs/ENGINEERING_CONTEXT.md
+  s_b7ea537f904386::t_640780794222bf 117-123
+packages/providers/tests/gemini-generate-content-provider.test.ts
+  s_b7ea537f904386::t_faf2ee3cc2e81b 25,52,66,210,278
+packages/providers/tests/prompt-optimize-provider.test.ts
+  s_b7ea537f904386::t_faf2ee3cc2e81b 17
+apps/app/src/shared/ui/hooks/use-provider-settings.ts
+  s_b7ea537f904386::t_65d6f236ec978e 301,370-371,375,386,515
+  s_b7ea537f904386::t_d9b00faa6a11b6 3,400,411-412
+apps/app/tests/settings-detail-profile-editing.test.tsx
+  s_b7ea537f904386::t_e9e6b59c462e1a 50,52,58,82,87-88,131
+packages/providers/src/bridge/create-dispatch-adapter.test.ts
+  s_b7ea537f904386::t_faf2ee3cc2e81b 35
+packages/providers/src/providers/image-endpoint/descriptor.ts
+  s_b7ea537f904386::t_1532236964408a 23-26
+packages/providers/src/providers/chat-image/descriptor.ts
+  s_b7ea537f904386::t_1532236964408a 23-26
+packages/providers/src/contract/provider.ts
+  s_b7ea537f904386::t_82772f0843edc3 70-81
+  s_b7ea537f904386::t_28a2ab588f5e29 168-250,297-311
+  s_b7ea537f904386::t_1597268a1f5d7a 312
+apps/app/src/composition/chrome/chrome-test-harness.ts
+  s_b7ea537f904386::t_66e088c4c7f35c 118
+apps/app/tests/provider-endpoint-user-flows.test.tsx
+  s_b7ea537f904386::t_149ee416c33cc6 473,530,569,578
+  s_b7ea537f904386::t_7b8a92151c0024 109,114,120-121
+  s_b7ea537f904386::t_146f89d97e9f91 390,433-434,444
+packages/application/src/runtime.ts
+  s_b7ea537f904386::t_9902179730159e 830
+apps/app/src/shared/ui/provider-status.ts
+  s_b7ea537f904386::t_f5cd76daf5368b 1-5,38-39,42-51,57-58,62-66,68-72,78,81-93
+apps/app/tests/settings-detail-connectivity.test.tsx
+  s_b7ea537f904386::t_e29382d7a9d34b 211
+  s_b7ea537f904386::t_2624b2bf472cab 222,240-242,248-250,257
+  s_b7ea537f904386::t_73064883a5791d 179,189
+  s_b7ea537f904386::t_0acd138acc4e63 186,238
+  s_b7ea537f904386::t_abd486d91ddafc 190
+  s_b7ea537f904386::t_655fc3ad576f84 2,9,11,17-39,182,197,199-201,205-206,209
+  s_b7ea537f904386::t_33b2b3e56d0560 52,85,123,125-128,148-149,167-169,194,214,219,226-227
+apps/app/src/shared/ports/commands-port.ts
+  s_b7ea537f904386::t_0a1994591434ef 20-21,49-50
+packages/application/src/commands/profile-models.test.ts
+  s_b7ea537f904386::t_faf2ee3cc2e81b 70,172,225
+packages/application/src/runtime.test.ts
+  s_b7ea537f904386::t_faf2ee3cc2e81b 140,403,461
+apps/app/tests/settings-detail-billing.test.tsx
+  s_b7ea537f904386::t_faf2ee3cc2e81b 59,120
+packages/providers/src/contract/index.ts
+  s_b7ea537f904386::t_178240842d9cf7 20-21,82,86-89
+  s_b7ea537f904386::t_9d1d900e71df6b 92
+packages/providers/tests/retry-endpoint-failover.test.ts
+  s_b7ea537f904386::t_fa15ec526fcaf6 139-141,210,215,246
+  s_b7ea537f904386::t_faf2ee3cc2e81b 228
+  s_b7ea537f904386::t_43f0b16212aa4a 11
+apps/app/src/adapters/uxp/uxp-host-adapters.test.ts
+  s_b7ea537f904386::t_e4ffa01ca8efe8 196,309
+packages/providers/tests/paid-retry.test.ts
+  s_b7ea537f904386::t_658a21d5f7b1ca 144
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.10",
+  "base_commit_sha": "e1df54e52da9f4ac5dfcefac203995f93867771b",
+  "prompts": {},
+  "sessions": {
+    "s_b7ea537f904386": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "019f2b6a-03f5-7442-9178-cdafdf8ea8ca",
+        "model": "gpt-5.4"
+      },
+      "human_author": "Sinyuk <80998062@qq.com>"
+    }
+  }
+}
