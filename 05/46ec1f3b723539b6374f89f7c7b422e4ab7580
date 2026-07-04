@@ -1,0 +1,105 @@
+apps/app/src/shared/ui/components/composer-select.tsx
+  s_1690a63c2f9799::t_846ca84954bfe2 65,187,206
+apps/app/src/shared/ui/pages/settings-detail-page.tsx
+  s_1690a63c2f9799::t_b59f5e8db377ad 681
+  s_1690a63c2f9799::t_2c9ce02075e4aa 916-920
+  s_1690a63c2f9799::t_30cd194e136cfa 796-801
+packages/providers/tests/gemini-generate-content-provider.test.ts
+  s_57a5f29fb8f91e::t_1ed6c587852daf 10,176-204,282-399,451-490
+  s_57a5f29fb8f91e::t_9f62061952ed1d 491
+apps/app/src/shared/ui/pages/global-generation-settings-page.tsx
+  s_1690a63c2f9799::t_a15466cbd662ab 288,313
+apps/app/tests/settings-detail-model-list.test.tsx
+  s_1690a63c2f9799::t_7e805074706fbe 109-113,115-124,126-133
+  s_1690a63c2f9799::t_4df83d7a3c1046 114,125
+apps/app/src/shared/ui/styles/generated/theme-css.ts
+  s_1690a63c2f9799::t_edc6932fb96971 81-100,240-259,365-384,514-533,662-681,785-804
+apps/app/src/shared/ui/components/select-trigger-button.types.ts
+  s_1690a63c2f9799::t_846ca84954bfe2 10
+apps/app/src/shared/ui/components/notice.tsx
+  s_1690a63c2f9799::t_c5557efb21aad7 10,22,101,121,125,296-300,420-442
+apps/app/src/shared/ui/components/icon-select-trigger-button.tsx
+  s_1690a63c2f9799::t_846ca84954bfe2 16,40
+apps/app/src/shared/ui/pages/settings-add-page.tsx
+  s_1690a63c2f9799::t_e2cb98d8143172 566,568-576
+apps/app/tests/settings-add-page.test.tsx
+  s_1690a63c2f9799::t_7e805074706fbe 457-492
+AGENTS.md
+  s_1690a63c2f9799::t_e45819af31fabb 15
+apps/app/tests/status-notice.test.tsx
+  s_1690a63c2f9799::t_7e805074706fbe 1-63
+apps/app/src/shared/ui/components/provider-settings-sections.tsx
+  s_1690a63c2f9799::t_424d85da5b317f 8,31-36,41,208,218,247,256,269,275-284,292
+packages/providers/src/transport/gemini-generate-content/models.ts
+  s_57a5f29fb8f91e::t_1ed6c587852daf 1-65
+apps/app/tests/prompt-settings-page.test.tsx
+  s_9e26006ec5dcff::t_ba6fa0d096314f 33,64,71-75,79-80,83,85-87,89,91-92
+packages/application/src/commands/provider-profiles.test.ts
+  s_57a5f29fb8f91e::t_1ed6c587852daf 173,179-190,204,214-216
+apps/app/src/shared/ui/components/text-select.tsx
+  s_1690a63c2f9799::t_846ca84954bfe2 16
+packages/providers/src/providers/gemini-generate-content/provider.ts
+  s_57a5f29fb8f91e::t_1ed6c587852daf 1-9,11-12,16,23,26,48-112,207-287
+packages/application/src/commands/profile-endpoints.test.ts
+  s_57a5f29fb8f91e::t_1ed6c587852daf 94,98,115-121
+apps/app/src/shared/ui/components/field-help.tsx
+  s_1690a63c2f9799::t_846ca84954bfe2 1-41
+apps/app/src/shared/ui/components/status-notice.tsx
+  s_1690a63c2f9799::t_2f6317bc5aed33 1-8,11,17-19,23-32,37-39,42,47-51
+apps/app/scripts/generate-theme-css.mjs
+  s_1690a63c2f9799::t_e78ca9f9143beb 270-289
+apps/app/tests/theme-source.test.ts
+  s_1690a63c2f9799::t_7e805074706fbe 15-16,38-42
+apps/app/src/shared/ui/components/text-select-trigger-button.tsx
+  s_1690a63c2f9799::t_846ca84954bfe2 12,35
+docs/loops/2026-07-05-status-notice-contract.md
+  s_1690a63c2f9799::t_e9f2382eacd377 151,163-165
+  s_1690a63c2f9799::t_e45819af31fabb 1
+  s_1690a63c2f9799::t_d4e333da14b9cd 33,35,54,82-90,112,116,127,129-130,139,157-162,166-172,197-200,203,234-238,254-255,266,281
+apps/app/src/shared/ui/components/composer-select.types.ts
+  s_1690a63c2f9799::t_846ca84954bfe2 34-35
+apps/app/src/shared/ui/i18n/messages.ts
+  s_9e26006ec5dcff::t_9330e667b607de 605,941
+  s_1690a63c2f9799::t_e78ca9f9143beb 225,561,897
+apps/app/src/shared/ui/pages/prompt-settings-page.tsx
+  s_9e26006ec5dcff::t_0e471d78d181ca 90,133,174,181-183,185-186,188-223,225-229
+packages/providers/src/providers/gemini-generate-content/descriptor.ts
+  s_57a5f29fb8f91e::t_1ed6c587852daf 24-25
+apps/app/src/shared/ui/styles/pages.ts
+  s_9e26006ec5dcff::t_f676b4610c8d52 513-608
+  s_1690a63c2f9799::t_e78ca9f9143beb 965-968,971-1014,1017,1020,1026,1045-1073,1075
+apps/app/tests/settings-add-page-gemini-import.test.tsx
+  s_1690a63c2f9799::t_4df83d7a3c1046 84
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.10",
+  "base_commit_sha": "0546ec1f3b723539b6374f89f7c7b422e4ab7580",
+  "prompts": {},
+  "sessions": {
+    "s_1690a63c2f9799": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "019f2dfe-e152-7ab0-bbc8-e4ad90010ce3",
+        "model": "gpt-5.4"
+      },
+      "human_author": "Sinyuk <80998062@qq.com>"
+    },
+    "s_57a5f29fb8f91e": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "019f2e13-3eaf-7c82-932a-1c6b0725d3eb",
+        "model": "gpt-5.4"
+      },
+      "human_author": "Sinyuk <80998062@qq.com>"
+    },
+    "s_9e26006ec5dcff": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "019f2dfc-9af4-77a2-9927-8c47f73d940f",
+        "model": "gpt-5.5"
+      },
+      "human_author": "Sinyuk <80998062@qq.com>"
+    }
+  }
+}
