@@ -1,0 +1,78 @@
+apps/app/tests/provider-endpoint-import-alias.test.tsx
+  s_01e28da1453add::t_2843a8cb210489 8,37,86
+  s_01e28da1453add::t_b4f0525fc9b6b1 1-7,9-36,38-85,87-88
+docs/loops/2026-07-05-status-notice-contract.md
+  s_1690a63c2f9799::t_5241469a3b18c4 1-252
+apps/app/tests/fakes.ts
+  s_01e28da1453add::t_24439daf292753 126
+  s_9e26006ec5dcff::t_56cfa18e496226 111
+apps/app/src/shared/ui/pages/settings-add-page.tsx
+  s_01e28da1453add::t_9b5b7b6ee9f186 40,178,183-196,198-214,217,220-223,225-226,229-241,248-255,350,405-417
+  s_01e28da1453add::t_47d045cf790a15 2,197,265,351-404,443
+apps/app/src/shared/ui/hooks/use-profile-billing.ts
+  s_01e28da1453add::t_e71f1b01213217 24,31,50,53,80,83,113
+apps/app/src/shared/ui/pages/settings-detail-page.tsx
+  s_01e28da1453add::t_1df2ed5b7e70d5 50,288-303,305,311-324
+  s_01e28da1453add::t_5dca425d81e7ae 15,233-236,906
+packages/providers/src/contract/billing.ts
+  s_01e28da1453add::t_7e4babf1a0947c 70
+apps/app/src/shared/ui/hooks/provider-endpoint-import.ts
+  s_01e28da1453add::t_53fd739e4654a5 80,82,107,140
+  s_01e28da1453add::t_dc2b9a9a77c669 1-79,81,83-106,108-139,141-188
+apps/app/src/shared/ui/i18n/messages.ts
+  s_01e28da1453add::t_3cac9fc8a53b61 516,822
+  s_01e28da1453add::t_5dca425d81e7ae 528,834
+apps/app/tests/settings-add-page-gemini-import.test.tsx
+  s_01e28da1453add::t_b4f0525fc9b6b1 82
+  s_01e28da1453add::t_9a000adf8d8566 8,37,85
+  s_01e28da1453add::t_24439daf292753 1-7,9-36,38-81,83,86-87
+  s_01e28da1453add::t_7e137ae0ebe0f5 84
+packages/providers/src/contract/provider.ts
+  s_01e28da1453add::t_7e4babf1a0947c 8
+packages/providers/src/providers/chat-image/descriptor.ts
+  s_01e28da1453add::t_e71f1b01213217 23
+packages/providers/src/providers/image-endpoint/descriptor.ts
+  s_01e28da1453add::t_e71f1b01213217 23
+apps/app/src/shared/ui/hooks/use-provider-settings.ts
+  s_01e28da1453add::t_e71f1b01213217 89-102,104-106,108-113,119,145-149
+  s_01e28da1453add::t_66216f2e3a3fa1 103
+  s_01e28da1453add::t_39e64714115e3e 107
+apps/app/src/shared/ui/pages/main-page.tsx
+  s_01e28da1453add::t_5dca425d81e7ae 16,385,424-425
+packages/providers/src/providers/gemini-generate-content/descriptor.ts
+  s_01e28da1453add::t_e71f1b01213217 18-22
+apps/app/tests/settings-detail-model-list.test.tsx
+  s_01e28da1453add::t_668fcd56acbddc 107
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.10",
+  "base_commit_sha": "cc5b7cd23d40ae7fa7e83e65307762d698bdf413",
+  "prompts": {},
+  "sessions": {
+    "s_01e28da1453add": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "019f2de8-b149-7490-95bd-0bf929fa3037",
+        "model": "gpt-5.4"
+      },
+      "human_author": "Sinyuk <80998062@qq.com>"
+    },
+    "s_1690a63c2f9799": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "019f2dfe-e152-7ab0-bbc8-e4ad90010ce3",
+        "model": "gpt-5.4"
+      },
+      "human_author": "Sinyuk <80998062@qq.com>"
+    },
+    "s_9e26006ec5dcff": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "019f2dfc-9af4-77a2-9927-8c47f73d940f",
+        "model": "gpt-5.5"
+      },
+      "human_author": "Sinyuk <80998062@qq.com>"
+    }
+  }
+}
