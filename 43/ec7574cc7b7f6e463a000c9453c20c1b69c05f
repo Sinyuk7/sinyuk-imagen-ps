@@ -1,0 +1,51 @@
+docs/loops/2026-07-04-provider-settings-upsert-draft-unification.md
+  s_71cb426bf7c317::t_9c329380e529e6 1-291
+apps/app/src/shared/ui/hooks/use-generation-settings.ts
+  s_934d4cc9b6e9ca::t_648330bc6ea9ec 1,9-10,15,24-27,32-34,36,40-41,47-82,85-86,89-92,99
+  s_934d4cc9b6e9ca::t_49f29175268857 88,93
+docs/loops/2026-07-04-provider-probe-contract.md
+  s_d88d8246e51236::t_26ee7db76f3db5 1-17,19-22,24-48,50,52,54-58,90-93,97-107,109-113,115-120,122-130,134,136-139,141-147,150-155,157-166,169-207,209-228
+  s_d88d8246e51236::t_c3c5384cab0d94 18,23,49,51,53,59-89,94,108,114,121,131-133,135,140,148-149,156,167-168,208
+  s_d88d8246e51236::t_2e9c171112f826 95-96
+apps/app/tests/global-generation-settings-page.test.tsx
+  s_934d4cc9b6e9ca::t_9c97b660b88170 76,156-160,162,167,210
+  s_934d4cc9b6e9ca::t_a4301d9fd952b2 145,155,192,232,282,325,335-336,357,367
+apps/app/src/shared/ui/pages/global-generation-settings-page.tsx
+  s_934d4cc9b6e9ca::t_a21c8b90a63f20 1,10,14,25,73,85-86,106,109-130,163-164,169,181-182,186-187,198-199,203-204,219-220,224-225,300-308
+apps/app/tests/use-generation-settings.test.tsx
+  s_934d4cc9b6e9ca::t_cf46cefb3debff 1-102
+apps/app/src/shared/ui/app-shell.tsx
+  s_934d4cc9b6e9ca::t_27a6b961cb6196 539
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.10",
+  "base_commit_sha": "43ec7574cc7b7f6e463a000c9453c20c1b69c05f",
+  "prompts": {},
+  "sessions": {
+    "s_71cb426bf7c317": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "019f2cc7-274d-7603-adaa-4aa7d12864d6",
+        "model": "gpt-5.4"
+      },
+      "human_author": "Sinyuk <80998062@qq.com>"
+    },
+    "s_934d4cc9b6e9ca": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "019f2ce7-e65e-7df3-9ed2-ba35ae384158",
+        "model": "gpt-5.4"
+      },
+      "human_author": "Sinyuk <80998062@qq.com>"
+    },
+    "s_d88d8246e51236": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "019f2cca-cfd0-7740-9484-8e763d14a24d",
+        "model": "gpt-5.4"
+      },
+      "human_author": "Sinyuk <80998062@qq.com>"
+    }
+  }
+}
