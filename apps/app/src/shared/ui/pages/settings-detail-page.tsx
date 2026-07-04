@@ -678,10 +678,8 @@ export function SettingsDetailPage({ onNav, profileId, onProfilesChanged, onSave
         tone: 'warning' as const,
         message: t.settings.modelListFailed,
         detail: modelCatalog.error,
-        detailCopyable: true,
+        copyText: modelCatalog.error,
       }
-    : !modelDiscoverySupported
-      ? { tone: 'info' as const, message: t.settings.modelDiscoveryUnsupported }
     : modelCatalog.stale
       ? { tone: 'warning' as const, message: t.settings.modelListStale }
     : modelOptions.length === 0
@@ -795,7 +793,12 @@ export function SettingsDetailPage({ onNav, profileId, onProfilesChanged, onSave
             ) : null}
             {billing.billing?.refreshState === 'error' && (
               <div className="billing-error">
-                <StatusNotice tone="warning" message={t.settings.billingErrorStale} detail={billing.error} detailCopyable />
+                <StatusNotice
+                  tone="warning"
+                  message={t.settings.billingErrorStale}
+                  detail={billing.error}
+                  copyText={billing.error ?? t.settings.billingErrorStale}
+                />
               </div>
             )}
             {formatExactTaskCost(billing.billing?.lastExactTaskCost) && (
@@ -910,6 +913,11 @@ export function SettingsDetailPage({ onNav, profileId, onProfilesChanged, onSave
               defaultModel={defaultModel}
               customPlaceholder={t.settings.customModelId}
               triggerValue={modelTriggerValue}
+              modelFieldHelp={!modelDiscoverySupported ? {
+                id: 'provider-model-discovery-help',
+                testId: 'provider-model-discovery-help',
+                message: t.settings.modelDiscoveryFieldHelp,
+              } : null}
               listNotice={modelListNotice}
               modelStatusNotice={selectedModelStatus ? {
                 tone: 'info',

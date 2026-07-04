@@ -39,9 +39,6 @@ function onRowKeyDown(event: KeyboardEvent<HTMLDivElement>, action: () => void):
 }
 
 function activationMessage(state: PromptOptimizationActivationState, t: ReturnType<typeof useI18n>['messages']): string {
-  if (state === 'active') {
-    return t.settings.optimizationActive;
-  }
   if (state === 'invalid-template') {
     return t.settings.optimizationInvalidTemplate;
   }
@@ -78,31 +75,23 @@ export function PromptSettingsPage({
 }: PromptSettingsPageProps) {
   const { messages: t } = useI18n();
   const [profileMenuOpen, setProfileMenuOpen] = useState(false);
-  const [presetMenuOpen, setPresetMenuOpen] = useState(false);
   const profileOptions = useMemo(() => [
     { id: 'none', label: t.settings.none },
     ...profiles.map((profile) => ({ id: profile.profileId, label: profile.displayName })),
   ], [profiles, t.settings.none]);
-  const presetOptions = useMemo(() => [
-    { id: 'none', label: t.settings.presetNone },
-    ...settings.presets.items.map((preset) => ({ id: preset.id, label: preset.name || t.settings.editPreset })),
-  ], [settings.presets.items, t.settings.editPreset, t.settings.presetNone]);
   const selectedProfileLabel = settings.optimization.profileId
     ? profileOptions.find((option) => option.id === settings.optimization.profileId)?.label ?? t.settings.optimizationMissingProfile
     : t.settings.none;
-  const selectedPresetLabel = settings.presets.selectedId
-    ? presetOptions.find((option) => option.id === settings.presets.selectedId)?.label ?? t.settings.presetNone
-    : t.settings.presetNone;
   const saveStatus = saveState === 'saving'
     ? t.settings.saving
     : saveState === 'saved'
       ? t.settings.saved
       : error;
+  const activationHint = activationState === 'active' ? null : activationMessage(activationState, t);
 
   return (
     <div className="page page-enter settings-page" onClick={() => {
       setProfileMenuOpen(false);
-      setPresetMenuOpen(false);
     }}>
       <header className="hdr">
         <IconButton
@@ -119,7 +108,6 @@ export function PromptSettingsPage({
       <div className="scroll">
         <div className="settings-detail-layout scroll-footer-pad generation-settings-layout">
           <section className="section generation-settings-section">
-            <div className="section-title settings-section-heading">{t.settings.promptOptimization}</div>
             <div className="field">
               <FieldLabel htmlFor="prompt-optimizer-profile-trigger">{t.settings.optimizerProfile}</FieldLabel>
               <TextSelect
@@ -142,7 +130,7 @@ export function PromptSettingsPage({
                   },
                 })}
               />
-              <HelpText className="field-hint">{activationMessage(activationState, t)}</HelpText>
+              {activationHint ? <HelpText className="field-hint">{activationHint}</HelpText> : null}
             </div>
             <div className="field field-textarea">
               <FieldLabel htmlFor="prompt-optimization-template">{t.settings.optimizationTemplate}</FieldLabel>
@@ -183,76 +171,62 @@ export function PromptSettingsPage({
                 onClick={() => onOpenPreset(null)}
               />
             </div>
-            <div className="field">
-              <FieldLabel htmlFor="prompt-preset-selector-trigger">{t.settings.selectedPreset}</FieldLabel>
-              <TextSelect
-                testId="prompt-preset-selector"
-                triggerId="prompt-preset-selector-trigger"
-                containerClassName="cmp-select settings-select"
-                menuClassName="cmp-select-menu cmp-select-menu-compact"
-                label={t.settings.selectedPreset}
-                value={selectedPresetLabel}
-                disabled={loading}
-                open={presetMenuOpen}
-                onOpenChange={setPresetMenuOpen}
-                options={presetOptions}
-                selectedId={settings.presets.selectedId ?? 'none'}
-                onSelect={(value) => void onSelectPreset(value === 'none' ? null : value)}
-              />
-            </div>
-            <div className="field provider-endpoint-list">
+            <div className="field prompt-preset-list" role="listbox" aria-label={t.settings.promptPresets}>
               {presetViews.map((view) => {
                 const valid = view.contentValid;
                 return (
                   <div
                     key={view.preset.id}
                     data-testid={`prompt-preset-row-${view.preset.id}`}
-                    className={`provider-endpoint-row${view.selected ? ' provider-endpoint-row-current' : ''}`}
-                    role="button"
+                    className={`prompt-preset-row${view.selected ? ' is-selected' : ''}${valid ? '' : ' is-invalid'}`}
+                    role="option"
+                    aria-selected={view.selected}
                     tabIndex={0}
-                    onClick={() => onOpenPreset(view.preset.id)}
-                    onKeyDown={(event) => onRowKeyDown(event, () => onOpenPreset(view.preset.id))}
+                    onClick={() => void onSelectPreset(view.preset.id)}
+                    onKeyDown={(event) => onRowKeyDown(event, () => void onSelectPreset(view.preset.id))}
                   >
-                    <div className="provider-endpoint-header">
-                      <div className="provider-endpoint-title-row">
-                        {view.selected ? (
-                          <span className="provider-endpoint-preferred-dot" aria-label={t.settings.selectedPreset} />
-                        ) : null}
-                        <span className="provider-endpoint-meta provider-endpoint-meta-current">
-                          {view.preset.name || t.settings.editPreset}
-                        </span>
-                        <span className={`provider-endpoint-meta${valid ? '' : ' provider-endpoint-meta-failed'}`}>
-                          {presetModeLabel(view.preset.mode, t)}
-                        </span>
-                        <IconButton
-                          data-testid={`prompt-preset-edit-${view.preset.id}`}
-                          className="settings-icon-button"
-                          compactSquare
-                          icon={<Icon name="pencil" size={16} />}
-                          tooltip={t.settings.editPreset}
-                          aria-label={t.settings.editPreset}
-                          onClick={(event) => {
-                            event.stopPropagation();
-                            onOpenPreset(view.preset.id);
-                          }}
-                        />
-                        <IconButton
-                          data-testid={`prompt-preset-delete-${view.preset.id}`}
-                          className="settings-icon-button danger"
-                          compactSquare
-                          icon={<Icon name="trash" size={16} />}
-                          tooltip={t.common.delete}
-                          aria-label={t.common.delete}
-                          onClick={(event) => {
-                            event.stopPropagation();
-                            void onDeletePreset(view.preset.id);
-                          }}
-                        />
-                      </div>
+                    <div className="prompt-preset-row-main">
+                      <span
+                        className="prompt-preset-radio"
+                        aria-hidden="true"
+                        data-selected={view.selected ? 'true' : 'false'}
+                      />
+                      <span className="prompt-preset-name">{view.preset.name || t.settings.editPreset}</span>
+                      <span className={`prompt-preset-mode${valid ? '' : ' is-invalid'}`}>
+                        {presetModeLabel(view.preset.mode, t)}
+                      </span>
+                      <IconButton
+                        data-testid={`prompt-preset-edit-${view.preset.id}`}
+                        className="settings-icon-button prompt-preset-action"
+                        compactSquare
+                        quiet
+                        icon={<Icon name="pencil" size={16} />}
+                        tooltip={t.settings.editPreset}
+                        aria-label={t.settings.editPreset}
+                        onClick={(event) => {
+                          event.stopPropagation();
+                          onOpenPreset(view.preset.id);
+                        }}
+                      />
+                      <IconButton
+                        data-testid={`prompt-preset-delete-${view.preset.id}`}
+                        className="settings-icon-button prompt-preset-action danger"
+                        compactSquare
+                        quiet
+                        icon={<Icon name="trash" size={16} />}
+                        tooltip={t.common.delete}
+                        aria-label={t.common.delete}
+                        onClick={(event) => {
+                          event.stopPropagation();
+                          void onDeletePreset(view.preset.id);
+                        }}
+                      />
                     </div>
-                    <HelpText className="field-hint" variant={valid ? undefined : 'negative'}>
-                      {valid ? t.settings.presetContentValid : t.settings.presetReplaceInvalid}
-                    </HelpText>
+                    {valid ? null : (
+                      <HelpText className="prompt-preset-error" variant="negative">
+                        {t.settings.presetReplaceInvalid}
+                      </HelpText>
+                    )}
                   </div>
                 );
               })}

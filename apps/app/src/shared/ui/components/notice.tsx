@@ -7,6 +7,7 @@ import { MotionPresenceView } from './motion-ui';
 export type NoticeTone = 'positive' | 'negative' | 'warning' | 'info' | 'neutral';
 export type NoticeRole = 'status' | 'alert';
 export type NoticeAriaLive = 'polite' | 'assertive';
+export type NoticeAnnouncement = 'none' | 'polite' | 'assertive';
 
 export interface NoticeAction {
   readonly label: string;
@@ -18,6 +19,7 @@ export interface NoticeOptions {
   readonly dismissible?: boolean;
   readonly copyable?: boolean;
   readonly detailCopyable?: boolean;
+  readonly copyText?: string | null;
   readonly durationMs?: number | null;
   readonly role?: NoticeRole;
   readonly ariaLive?: NoticeAriaLive;
@@ -96,7 +98,7 @@ function defaultAriaLive(tone: NoticeTone): NoticeAriaLive {
   return tone === 'negative' ? 'assertive' : 'polite';
 }
 
-function defaultIcon(tone: NoticeTone): IconName | null {
+export function defaultNoticeIcon(tone: NoticeTone): IconName | null {
   if (tone === 'positive') return 'check';
   if (tone === 'negative') return 'error';
   if (tone === 'warning') return 'warning';
@@ -116,10 +118,11 @@ export function createNoticeState(
     dismissible: options?.dismissible ?? false,
     copyable: options?.copyable ?? false,
     detailCopyable: options?.detailCopyable ?? false,
+    copyText: options?.copyText ?? null,
     durationMs: options?.durationMs ?? defaultDurationMs,
     role: options?.role ?? defaultRole(tone),
     ariaLive: options?.ariaLive ?? defaultAriaLive(tone),
-    icon: options?.icon === undefined ? defaultIcon(tone) : options.icon,
+    icon: options?.icon === undefined ? defaultNoticeIcon(tone) : options.icon,
     detail: options?.detail,
     action: options?.action ?? null,
     key: options?.key,
@@ -290,7 +293,11 @@ export function NoticeView({ notice, kind, onClear, motionState, onPause, onResu
   const handleCopy = async () => {
     try {
       onPause?.();
-      const payload = notice.detail ? `${notice.message}\n\n${notice.detail}` : notice.message;
+      const payload = notice.copyText;
+      if (!payload) {
+        onResume?.();
+        return;
+      }
       const ok = await copyText(payload);
       if (!ok) {
         onResume?.();
@@ -410,15 +417,29 @@ export function NoticeView({ notice, kind, onClear, motionState, onPause, onResu
             <div className="status-message">{notice.message}</div>
             {notice.detail ? <pre className="status-detail">{notice.detail}</pre> : null}
           </div>
-          {notice.copyable || notice.detailCopyable ? (
-            <IconButton
-              className={`status-copy${copied ? ' cp' : ''}`}
-              quiet
-              icon={<Icon name={copied ? 'check' : 'copy'} />}
-              tooltip="Copy status message"
-              aria-label="Copy status message"
-              onClick={() => void handleCopy()}
-            />
+          {notice.copyText || notice.action ? (
+            <div className="status-actions">
+              {notice.action ? (
+                <ActionButton
+                  className="status-action"
+                  quiet
+                  aria-label={notice.action.ariaLabel ?? notice.action.label}
+                  onClick={() => void notice.action?.onAction()}
+                >
+                  {notice.action.label}
+                </ActionButton>
+              ) : null}
+              {notice.copyText ? (
+                <IconButton
+                  className={`status-copy${copied ? ' cp' : ''}`}
+                  quiet
+                  icon={<Icon name={copied ? 'check' : 'copy'} />}
+                  tooltip="Copy status details"
+                  aria-label="Copy status details"
+                  onClick={() => void handleCopy()}
+                />
+              ) : null}
+            </div>
           ) : null}
         </div>
       )}

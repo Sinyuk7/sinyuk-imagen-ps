@@ -13,6 +13,7 @@ export interface TextSelectProps {
   readonly isOptionSelectable?: (id: string) => boolean;
   readonly testId?: string;
   readonly triggerId?: string;
+  readonly ariaDescribedBy?: string;
   readonly containerClassName?: string;
   readonly menuClassName?: string;
 }

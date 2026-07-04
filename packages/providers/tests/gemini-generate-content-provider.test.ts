@@ -7,6 +7,7 @@ import {
   buildGeminiGenerateContentRequest,
   normalizeGeminiGenerateContentModelId,
 } from '../src/transport/gemini-generate-content/build-request.js';
+import { parseGeminiGenerateContentModelsResponse } from '../src/transport/gemini-generate-content/models.js';
 import { parseGeminiGenerateContentResponse } from '../src/transport/gemini-generate-content/parse-response.js';
 import { listLocalCatalogModels, resolveImageModelRule } from '../src/contract/image-model-capability.js';
 
@@ -172,6 +173,35 @@ describe('gemini-generate-content provider', () => {
     ]));
   });
 
+  it('parses native Gemini model discovery payloads by filtering generateContent models and stripping prefixes', () => {
+    const models = parseGeminiGenerateContentModelsResponse({
+      models: [
+        {
+          name: 'models/gemini-3.1-flash-image',
+          displayName: 'Gemini 3.1 Flash Image',
+          supportedGenerationMethods: ['generateContent', 'countTokens'],
+        },
+        {
+          name: 'models/gemini-3-pro-image',
+          supportedGenerationMethods: ['generateContent'],
+        },
+        {
+          name: 'models/text-embedding-004',
+          supportedGenerationMethods: ['embedContent'],
+        },
+        {
+          name: 'models/gemini-2.5-flash',
+          supportedGenerationMethods: ['generateContent'],
+        },
+      ],
+    });
+
+    expect(models.map((model) => model.id)).toEqual([
+      'gemini-3.1-flash-image',
+      'gemini-3-pro-image',
+    ]);
+  });
+
   it('invokes official endpoints with x-goog-api-key auth and response-format-image bodies', async () => {
     const fetchSpy = vi.spyOn(globalThis, 'fetch').mockResolvedValue(
       new Response(
@@ -249,6 +279,124 @@ describe('gemini-generate-content provider', () => {
     fetchSpy.mockRestore();
   });
 
+  it('discovers Gemini models from the native /models endpoint and reuses x-goog-api-key auth', async () => {
+    const fetchSpy = vi.spyOn(globalThis, 'fetch').mockResolvedValue(
+      new Response(
+        JSON.stringify({
+          models: [
+            {
+              name: 'models/gemini-3.1-flash-image',
+              displayName: 'Gemini 3.1 Flash Image',
+              supportedGenerationMethods: ['generateContent'],
+            },
+            {
+              name: 'models/gemini-3.1-flash-lite-image',
+              supportedGenerationMethods: ['generateContent', 'countTokens'],
+            },
+            {
+              name: 'models/text-embedding-004',
+              supportedGenerationMethods: ['embedContent'],
+            },
+          ],
+        }),
+        {
+          status: 200,
+          headers: { 'Content-Type': 'application/json' },
+        },
+      ),
+    );
+    const provider = createGeminiGenerateContentProvider();
+    const config = provider.validateConfig({
+      providerId: 'gemini-generate-content',
+      displayName: 'Gemini Generate Content',
+      family: 'gemini-generate-content',
+      connection: {
+        selectionMode: 'manual',
+        selectedEndpointId: 'primary',
+        endpoints: [{ id: 'primary', url: 'https://generativelanguage.googleapis.com/v1beta', enabled: true }],
+      },
+      apiKey: 'test-key',
+    });
+
+    const models = await provider.discoverModels?.(config);
+
+    expect(models?.map((model) => model.id)).toEqual([
+      'gemini-3.1-flash-image',
+      'gemini-3.1-flash-lite-image',
+    ]);
+    expect(String(fetchSpy.mock.calls[0]?.[0])).toBe('https://generativelanguage.googleapis.com/v1beta/models');
+    expect((fetchSpy.mock.calls[0]?.[1] as RequestInit | undefined)?.headers).toMatchObject({
+      'Content-Type': 'application/json',
+      'x-goog-api-key': 'test-key',
+    });
+    fetchSpy.mockRestore();
+  });
+
+  it('falls back to the local Gemini catalog when discovery returns no curated generateContent models', async () => {
+    const fetchSpy = vi.spyOn(globalThis, 'fetch').mockResolvedValue(
+      new Response(
+        JSON.stringify({
+          models: [
+            { name: 'models/text-embedding-004', supportedGenerationMethods: ['embedContent'] },
+            { name: 'models/gemini-2.5-flash', supportedGenerationMethods: ['generateContent'] },
+          ],
+        }),
+        {
+          status: 200,
+          headers: { 'Content-Type': 'application/json' },
+        },
+      ),
+    );
+    const provider = createGeminiGenerateContentProvider();
+    const config = provider.validateConfig({
+      providerId: 'gemini-generate-content',
+      displayName: 'Gemini Generate Content',
+      family: 'gemini-generate-content',
+      connection: {
+        selectionMode: 'manual',
+        selectedEndpointId: 'primary',
+        endpoints: [{ id: 'primary', url: 'https://generativelanguage.googleapis.com/v1beta', enabled: true }],
+      },
+      apiKey: 'test-key',
+    });
+
+    const models = await provider.discoverModels?.(config);
+
+    expect(models).toEqual(listLocalCatalogModels('gemini-generate-content').map((model) => ({
+      ...model,
+      remotelyAvailable: false,
+    })));
+    fetchSpy.mockRestore();
+  });
+
+  it('measures Gemini endpoint reachability with HEAD base URL and no auth header', async () => {
+    const fetchSpy = vi.spyOn(globalThis, 'fetch').mockResolvedValue(new Response(null, { status: 401 }));
+    const provider = createGeminiGenerateContentProvider();
+    const config = provider.validateConfig({
+      providerId: 'gemini-generate-content',
+      displayName: 'Gemini Generate Content',
+      family: 'gemini-generate-content',
+      connection: {
+        selectionMode: 'manual',
+        selectedEndpointId: 'primary',
+        endpoints: [{ id: 'primary', url: 'https://generativelanguage.googleapis.com/v1beta', enabled: true }],
+      },
+      apiKey: 'test-key',
+    });
+
+    const result = await provider.measureEndpoints?.(config);
+
+    expect(result?.results[0]).toMatchObject({
+      endpointId: 'primary',
+      reachable: true,
+      httpStatus: 401,
+    });
+    expect(String(fetchSpy.mock.calls[0]?.[0])).toBe('https://generativelanguage.googleapis.com/v1beta');
+    expect((fetchSpy.mock.calls[0]?.[1] as RequestInit | undefined)?.method).toBe('HEAD');
+    expect((fetchSpy.mock.calls[0]?.[1] as RequestInit | undefined)?.headers).toBeUndefined();
+    fetchSpy.mockRestore();
+  });
+
   it('invokes v1beta gateways with bearer auth when configured', async () => {
     const fetchSpy = vi.spyOn(globalThis, 'fetch').mockResolvedValue(
       new Response(
@@ -296,6 +444,47 @@ describe('gemini-generate-content provider', () => {
     expect(init?.headers).toMatchObject({
       'Content-Type': 'application/json',
       Authorization: 'Bearer test-key',
+    });
+    fetchSpy.mockRestore();
+  });
+
+  it('reports successful Gemini connection tests using discovered model counts', async () => {
+    const fetchSpy = vi.spyOn(globalThis, 'fetch').mockResolvedValue(
+      new Response(
+        JSON.stringify({
+          models: [
+            {
+              name: 'models/gemini-3.1-flash-image',
+              supportedGenerationMethods: ['generateContent'],
+            },
+          ],
+        }),
+        {
+          status: 200,
+          headers: { 'Content-Type': 'application/json' },
+        },
+      ),
+    );
+    const provider = createGeminiGenerateContentProvider();
+    const config = provider.validateConfig({
+      providerId: 'gemini-generate-content',
+      displayName: 'Gemini Generate Content',
+      family: 'gemini-generate-content',
+      connection: {
+        selectionMode: 'manual',
+        selectedEndpointId: 'primary',
+        endpoints: [{ id: 'primary', url: 'https://generativelanguage.googleapis.com/v1beta', enabled: true }],
+      },
+      apiKey: 'test-key',
+    });
+
+    const result = await provider.testConnection?.(config);
+
+    expect(result).toMatchObject({
+      supported: true,
+      reachable: true,
+      modelCount: 1,
+      models: [{ id: 'gemini-3.1-flash-image' }],
     });
     fetchSpy.mockRestore();
   });

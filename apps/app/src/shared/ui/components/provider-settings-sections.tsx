@@ -5,6 +5,7 @@ import { Button, Checkbox, FieldLabel, HelpText, TextField } from '../primitives
 import { IconButton } from '../primitives/icon-button';
 import { TextSelect } from './text-select';
 import { Icon } from './icons';
+import { FieldHelp } from './field-help';
 import { StatusNotice } from './status-notice';
 import type { ApiPathDraft } from '../hooks/use-provider-settings';
 
@@ -27,11 +28,17 @@ interface ProviderDefaultModelSectionProps {
   readonly defaultModel: string;
   readonly customPlaceholder: string;
   readonly triggerValue: string;
+  readonly modelFieldHelp?: {
+    readonly id: string;
+    readonly message: string;
+    readonly tone?: 'neutral' | 'negative';
+    readonly testId?: string;
+  } | null;
   readonly listNotice?: {
     readonly tone: 'info' | 'warning';
     readonly message: string;
     readonly detail?: string | null;
-    readonly detailCopyable?: boolean;
+    readonly copyText?: string | null;
   } | null;
   readonly modelStatusNotice?: {
     readonly tone: 'info' | 'warning';
@@ -198,6 +205,7 @@ export function ProviderDefaultModelSection({
   defaultModel,
   customPlaceholder,
   triggerValue,
+  modelFieldHelp = null,
   listNotice = null,
   modelStatusNotice = null,
   onRefresh,
@@ -207,6 +215,7 @@ export function ProviderDefaultModelSection({
   onDefaultModelInput,
 }: ProviderDefaultModelSectionProps) {
   const { messages: t } = useI18n();
+  const describedBy = modelFieldHelp?.id;
   return (
     <div className="section">
       <div className="settings-section-header">
@@ -235,6 +244,7 @@ export function ProviderDefaultModelSection({
             onSelect={onDefaultModelSelect}
             testId="provider-default-model-selector"
             triggerId="provider-default-model-selector"
+            ariaDescribedBy={describedBy}
             containerClassName="cmp-select cmp-select-model provider-model-select"
             menuClassName="cmp-select-menu cmp-select-menu-model"
           />
@@ -243,6 +253,7 @@ export function ProviderDefaultModelSection({
             data-testid="provider-default-model-input"
             id="provider-default-model-input"
             aria-label={t.settings.defaultModel}
+            aria-describedby={describedBy}
             className="field-input mono ui-field-control"
             placeholder={customPlaceholder}
             value={defaultModel}
@@ -255,11 +266,22 @@ export function ProviderDefaultModelSection({
             data-testid="provider-use-custom-model-checkbox"
             checked={modelMode === 'custom'}
             disabled={disabled}
+            aria-describedby={describedBy}
             onChecked={(checked) => onModelModeChange(checked ? 'custom' : 'list')}
           >
             {t.settings.useCustomModelId}
           </Checkbox>
         </div>
+        {modelFieldHelp ? (
+          <FieldHelp
+            id={modelFieldHelp.id}
+            tone={modelFieldHelp.tone}
+            className="provider-model-field-help"
+            testId={modelFieldHelp.testId}
+          >
+            {modelFieldHelp.message}
+          </FieldHelp>
+        ) : null}
       </div>
       {listNotice ? (
         <div data-testid="provider-model-list-notice">
@@ -267,7 +289,7 @@ export function ProviderDefaultModelSection({
             tone={listNotice.tone}
             message={listNotice.message}
             detail={listNotice.detail ?? null}
-            detailCopyable={listNotice.detailCopyable ?? false}
+            copyText={listNotice.copyText ?? null}
           />
         </div>
       ) : null}

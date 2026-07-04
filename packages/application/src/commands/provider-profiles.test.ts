@@ -170,12 +170,24 @@ describe('provider profile alias contract', () => {
     expect(secrets.has('secret:provider-profile:profile-b:apiKey')).toBe(false);
   });
 
-  it('returns connectivity error details when connection testing is unavailable', async () => {
+  it('returns Gemini connectivity model details from native discovery', async () => {
     _resetForTesting();
     const { repository } = createProfileRepository();
     const { adapter } = createSecretStorage();
     setProviderProfileRepository(repository);
     setSecretStorageAdapter(adapter);
+    vi.stubGlobal('fetch', async () => new Response(JSON.stringify({
+      models: [
+        {
+          name: 'models/gemini-3.1-flash-image',
+          displayName: 'Gemini 3.1 Flash Image',
+          supportedGenerationMethods: ['generateContent'],
+        },
+      ],
+    }), {
+      status: 200,
+      headers: { 'Content-Type': 'application/json' },
+    }));
 
     const saved = await saveProviderProfile({
       profileId: 'profile-a',
@@ -189,7 +201,7 @@ describe('provider profile alias contract', () => {
           endpoints: [{ id: 'primary', url: 'https://gemini.local/v1beta', enabled: true }],
         },
         authMode: 'none',
-        defaultModel: 'gemini-2.5-flash-image',
+        defaultModel: 'gemini-3.1-flash-image',
       },
     });
     expect(saved.ok).toBe(true);
@@ -199,8 +211,9 @@ describe('provider profile alias contract', () => {
     expect(result.ok).toBe(true);
     if (result.ok) {
       expect(result.value.connectivity).toMatchObject({
-        reachable: false,
-        errorMessage: 'Provider implementation for apiFormat "gemini-generate-content" does not support model discovery.',
+        reachable: true,
+        modelCount: 1,
+        models: [{ id: 'gemini-3.1-flash-image' }],
       });
     }
   });

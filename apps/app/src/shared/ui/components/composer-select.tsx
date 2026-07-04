@@ -62,6 +62,7 @@ export function ComposerSelect(props: ComposerSelectProps) {
     isOptionSelectable,
     testId,
     triggerId,
+    ariaDescribedBy,
     containerClassName,
     menuClassName,
   } = props;
@@ -183,6 +184,7 @@ export function ComposerSelect(props: ComposerSelectProps) {
           open={open}
           testId={testId}
           triggerId={triggerId}
+          ariaDescribedBy={ariaDescribedBy}
           menuId={menuId}
           icon={props.leadingIcon}
           hostRef={hostRef}
@@ -201,6 +203,7 @@ export function ComposerSelect(props: ComposerSelectProps) {
           open={open}
           testId={testId}
           triggerId={triggerId}
+          ariaDescribedBy={ariaDescribedBy}
           menuId={menuId}
           hostRef={hostRef}
           chipRef={chipRef}

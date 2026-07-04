@@ -454,6 +454,42 @@ describe('SettingsAddPage', () => {
     expect(queryByTestId(container, 'provider-model-list-notice').textContent).toContain('模型列表可能与未保存的修改不一致');
   });
 
+  it('renders the model discovery limitation as FieldHelp on the add page', async () => {
+    const { services, spies } = createFakeServices();
+    const unsupportedProvider: ProviderDescriptor = {
+      id: 'mock',
+      family: 'image-endpoint',
+      apiFormat: 'openai-images',
+      displayName: 'Mock Provider',
+      operations: ['text_to_image', 'image_edit'],
+      invokeMode: 'sync',
+      defaultModels: [{ id: 'mock-image-v1' }],
+      connectivity: {
+        endpointMeasurement: 'unsupported',
+      },
+    };
+    spies.listProviders.mockReturnValue([unsupportedProvider]);
+    spies.describeProvider.mockReturnValue(unsupportedProvider);
+    const container = document.createElement('div');
+    document.body.appendChild(container);
+    root = createRoot(container);
+
+    await act(async () => {
+      root!.render(
+        <TestAppProviders services={services}>
+          <SettingsAddPage onNav={() => undefined} profiles={[]} onProfileSaved={async () => undefined} />
+        </TestAppProviders>,
+      );
+    });
+
+    await detectOpenAiImages(container);
+
+    const help = queryByTestId(container, 'provider-model-discovery-help');
+    expect(help.textContent).toContain('请选择预设模型，或填写自定义模型 ID');
+    expect(queryByTestId(container, 'provider-use-custom-model-checkbox').getAttribute('aria-describedby')).toBe('provider-model-discovery-help');
+    expect(container.querySelector('[data-testid="provider-model-list-notice"]')).toBeNull();
+  });
+
   it('refreshes draft models through the draft refresh command without probing endpoints', async () => {
     const { services, spies } = createFakeServices();
     const container = document.createElement('div');

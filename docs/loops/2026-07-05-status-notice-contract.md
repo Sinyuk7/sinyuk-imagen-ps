@@ -1,4 +1,4 @@
-Status: draft
+Status: active
 Authority: current user request; root `AGENTS.md` still declares Active Loop: none
 Owner: `apps/app` shared UI settings surface
 Created: 2026-07-05
@@ -30,9 +30,9 @@ Split stable field guidance from dynamic inline status in `apps/app`, then land 
 
 Observable outcome:
 
-- stable capability/help copy no longer depends on `StatusNotice`;
+- stable capability/help copy no longer depends on `StatusNotice` and instead uses a field-associated `FieldHelp`;
 - `StatusNotice` only owns dynamic inline status semantics;
-- inline notice defaults restore icon / role / `aria-live` behavior instead of silently omitting them;
+- inline notice defaults restore icon behavior but do not infer announcement semantics from tone;
 - inline notice visuals use generated app semantic notice tokens instead of ad hoc border + `color-mix(...)`;
 - current settings pages keep working under mock-only tests.
 
@@ -51,7 +51,7 @@ Allowed:
 
 - `apps/app/src/shared/ui/components/notice.tsx`
 - `apps/app/src/shared/ui/components/status-notice.tsx`
-- new shared UI component files under `apps/app/src/shared/ui/components/` for field help / field hint if needed
+- `apps/app/src/shared/ui/components/field-help.tsx` if needed
 - `apps/app/src/shared/ui/components/provider-settings-sections.tsx`
 - `apps/app/src/shared/ui/pages/settings-detail-page.tsx`
 - `apps/app/src/shared/ui/pages/settings-add-page.tsx`
@@ -79,6 +79,15 @@ Forbidden:
 - `apps/app/src/shared/ui/pages` and `provider-status.ts`: own usage classification for current settings flows.
 - Toast remains owned by existing shared toast primitives; this Loop must not collapse toast and inline status back into one product shape.
 
+## Usage classification
+
+- stable capability, requirement, or control-group explanation -> `FieldHelp`
+- field-level validation associated with one control or control group -> `FieldHelp` with `negative` tone
+- dynamic page-local result produced by an operation -> `StatusNotice`
+- transient global operation confirmation -> existing `Toast`
+- blocking form errors remain visible and must not auto-dismiss
+- the current model-discovery limitation copy in provider settings is explicitly a `FieldHelp`, not a `StatusNotice`
+
 ## Baseline
 
 Before implementation, run:
@@ -100,11 +109,11 @@ Current repository status note:
 
 ## Slices
 
-### 1. Usage classification and field-help split
+### 1. Usage classification and FieldHelp split
 
 Goal:
 
-- classify current `StatusNotice` usages into `FieldHint`-style stable guidance vs dynamic inline status, and move the stable settings guidance path to a lighter component contract.
+- classify current `StatusNotice` usages using the rules above, and move the stable settings guidance path to a lighter `FieldHelp` contract.
 
 Allowed scope:
 
@@ -115,8 +124,10 @@ Allowed scope:
 
 Required outcomes:
 
-- define a narrow field-help component or equivalent pattern for stable control-group guidance;
+- define a narrow `FieldHelp` component or equivalent pattern for stable control-group guidance;
 - move the model-discovery / capability-limitation messaging away from `StatusNotice`;
+- `FieldHelp` is visually lighter than `StatusNotice`: no background block, no status-banner container treatment, text-first with optional small icon only;
+- `FieldHelp` exposes a stable `id` so the owning field or field group can reference it via `aria-describedby`;
 - keep dynamic warnings/errors on `StatusNotice`.
 
 Validation:
@@ -125,7 +136,7 @@ Validation:
 
 Stop rule:
 
-- stop if a usage cannot be classified without product-direction ambiguity, and produce a Decision Packet listing each candidate semantic (`FieldHint` / `StatusNotice` / `Toast`) with evidence.
+- stop if a new usage outside the explicit rules cannot be classified without product-direction ambiguity, and produce a Decision Packet listing each candidate semantic (`FieldHelp` / `StatusNotice` / `Toast`) with evidence.
 
 ### 2. StatusNotice contract cleanup
 
@@ -137,15 +148,28 @@ Allowed scope:
 
 - `apps/app/src/shared/ui/components/notice.tsx`
 - `apps/app/src/shared/ui/components/status-notice.tsx`
+- `apps/app/src/shared/ui/provider-status.ts`
 - direct call sites in Scope
 - focused tests
 
 Required outcomes:
 
-- restore default icon / role / `aria-live` behavior for inline notices;
-- remove or narrow props that are misleading for inline usage, especially auto-dismiss semantics;
-- split copy behavior so message/detail actions are explicit if both are needed;
-- keep UXP-safe inline layout for multiline content and trailing actions.
+- default icon is derived from tone unless explicitly overridden;
+- announcement semantics are independent from tone and default to none;
+- prefer one explicit announcement contract such as `announcement?: 'none' | 'polite' | 'assertive'`; do not expose contradictory inline combinations of `role` and `ariaLive`;
+- remove inline auto-dismiss and duration props from inline notice usage;
+- replace ambiguous `copyable` / `detailCopyable` props with one optional explicit `copyText`;
+- render at most one copy action and one product action;
+- presentation mappings used by inline notices must not expose or consume `durationMs`;
+- existing toast mappings and toast duration behavior remain unchanged;
+- split helpers only if the current shared mapping cannot preserve that boundary clearly;
+- preserve existing toast behavior unchanged;
+- notice root uses flex layout without a fixed height;
+- multiline alignment is top-aligned, not vertically centered; keep icon/content/actions aligned with `flex-start`, not `center`;
+- content column uses `min-width: 0`;
+- message/detail allow normal wrapping and breaking of long URLs or IDs;
+- trailing actions do not shrink;
+- narrow layout may wrap actions below content without truncating the message.
 
 Validation:
 
@@ -170,9 +194,13 @@ Allowed scope:
 
 Required outcomes:
 
-- introduce generated app semantic notice tokens for background / foreground / icon by tone;
+- introduce generated app semantic notice tokens for at least background / foreground / icon / border by tone;
+- generated tokens must be the only source of tone-specific inline notice colors;
+- enforce a solid subtle background for dynamic inline status banners and remove component-level border drawing; do not reintroduce border-heavy banner styling;
+- if a border token exists for compatibility, it must not lead to visible banner-style outlines by default;
 - remove inline notice dependence on ad hoc `color-mix(...)` surfaces where tokenized values should exist;
 - keep toast on `--toast-*` and avoid accidental toast style regressions;
+- `pages.ts` must not retain inline notice `color-mix(...)` or tone-specific hard-coded color values;
 - stay within the documented UXP CSS contract.
 
 Validation:
@@ -203,7 +231,11 @@ Validation:
 
 Manual-only:
 
-- optional human visual spot-check in Chrome harness or UXP after implementation, but not required proof for this Loop
+- required human observation in Chrome harness after implementation:
+  - inspect affected settings surfaces at approximately `220`, `280`, `320`, and `480` px container widths;
+  - cover one-line, multiline, long URL/model ID, detail, copy action, and dismiss action states;
+  - record observations in the completion report;
+  - Photoshop/UDT observation remains optional extra evidence, not required proof
 
 Stop rule:
 
@@ -219,7 +251,8 @@ Stop rule:
 - final:
   - `pnpm validate`
 - manual-only:
-  - optional Chrome/UXP visual spot-check of affected settings pages; cite only as human observation, not as automated proof
+  - required Chrome harness visual observation at `220`, `280`, `320`, and `480` px container widths for one-line, multiline, long token/URL, copy, and dismiss states; cite as human observation, not automated proof
+  - optional UXP/Photoshop spot-check as extra evidence only
 - live-provider:
   - none
 
@@ -230,6 +263,7 @@ Stop rule:
 - inline notice backward compatibility conflicts with removing misleading props;
 - a requested layout/animation pattern would violate the UXP CSS or motion contract;
 - baseline or final failures prevent attributing changes to the touched `apps/app` surface.
+- the current shared `provider-status.ts` mapping cannot stop leaking toast-only semantics such as `durationMs` into inline notice usage without a clearer split.
 
 ## Completion report
 
@@ -244,6 +278,7 @@ Stop rule:
 - Risk:
 - Follow-up:
 - Memory note candidate:
+- Human observation:
 - Decision Packet, if blocked:
 
 ## Memory note candidate

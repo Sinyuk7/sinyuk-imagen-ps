@@ -222,6 +222,7 @@ export interface AppMessages {
     readonly changesNotTested: string;
     readonly modelListStale: string;
     readonly modelDiscoveryUnsupported: string;
+    readonly modelDiscoveryFieldHelp: string;
     readonly apiProfile: string;
     readonly apiFormat: string;
     readonly apiFormatAuto: string;
@@ -557,6 +558,7 @@ const EN_MESSAGES: AppMessages = {
     changesNotTested: 'Untested changes',
     modelListStale: 'Model list may not match unsaved changes.',
     modelDiscoveryUnsupported: 'Remote model discovery is not available for this API format yet.',
+    modelDiscoveryFieldHelp: 'Model discovery is not available for this API format. Choose a preset model or enter a custom model ID.',
     apiProfile: 'API Profile',
     apiFormat: 'API Format',
     apiFormatAuto: 'Auto Detect',
@@ -600,7 +602,7 @@ const EN_MESSAGES: AppMessages = {
     optimizerProfile: 'Profile',
     none: 'None',
     optimizationTemplate: 'Template',
-    templateValid: 'Valid template: exactly one {prompt}.',
+    templateValid: 'Use {prompt} exactly once.',
     templateInvalidReason: 'Invalid template: use exactly one lowercase {prompt}.',
     optimizationActive: 'Active: profile selected and template is valid.',
     optimizationNoProfile: 'Inactive: select a profile to enable.',
@@ -892,6 +894,7 @@ const ZH_CN_MESSAGES: AppMessages = {
     changesNotTested: '修改尚未测试',
     modelListStale: '模型列表可能与未保存的修改不一致。',
     modelDiscoveryUnsupported: '当前 API 格式暂不支持远端模型发现。',
+    modelDiscoveryFieldHelp: '当前 API 格式不支持模型发现。请选择预设模型，或填写自定义模型 ID。',
     apiProfile: 'API 配置',
     apiFormat: 'API 格式',
     apiFormatAuto: '自动检测',
@@ -935,7 +938,7 @@ const ZH_CN_MESSAGES: AppMessages = {
     optimizerProfile: '配置',
     none: '无',
     optimizationTemplate: '模板',
-    templateValid: '模板有效：恰好包含一个 {prompt}。',
+    templateValid: '恰好使用一次 {prompt}。',
     templateInvalidReason: '模板无效：必须恰好包含一个小写 {prompt}。',
     optimizationActive: '已启用：已选择配置，且模板有效。',
     optimizationNoProfile: '未启用：选择配置后启用。',

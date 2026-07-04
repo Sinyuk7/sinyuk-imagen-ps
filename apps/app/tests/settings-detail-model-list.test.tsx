@@ -106,4 +106,29 @@ describe('SettingsDetailPage contract — model list', () => {
 
     expect(queryByTestId(container, 'provider-model-status-notice').textContent).toContain('当前将按原样发送已配置模型 ID，但可用性尚未验证。');
   });
+
+  it('renders the model discovery limitation as FieldHelp and associates it with the controls', async () => {
+    const container = document.createElement('div');
+    document.body.appendChild(container);
+    const services = createFakeServices();
+    services.spies.listProviders.mockReturnValue([{
+      id: 'mock',
+      family: 'image-endpoint',
+      apiFormat: 'openai-images',
+      displayName: 'Mock Provider',
+      operations: ['text_to_image', 'image_edit'],
+      invokeMode: 'sync',
+      defaultModels: [{ id: 'mock-image-v1' }],
+      connectivity: {
+        endpointMeasurement: 'unsupported',
+      },
+    }]);
+    await renderDetailWithRoot(container, services, 'mock-profile', noopNav(), noopProfilesChanged());
+
+    const help = queryByTestId(container, 'provider-model-discovery-help');
+    expect(help.textContent).toContain('请选择预设模型，或填写自定义模型 ID');
+    expect(queryByTestId(container, 'provider-default-model-selector').getAttribute('aria-describedby')).toBe('provider-model-discovery-help');
+    expect(queryByTestId(container, 'provider-use-custom-model-checkbox').getAttribute('aria-describedby')).toBe('provider-model-discovery-help');
+    expect(container.querySelector('[data-testid="provider-model-list-notice"]')).toBeNull();
+  });
 });

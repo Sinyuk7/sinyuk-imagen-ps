@@ -9,6 +9,7 @@ export function TextSelectTriggerButton({
   open,
   testId,
   triggerId,
+  ariaDescribedBy,
   menuId,
   hostRef,
   chipRef,
@@ -31,6 +32,7 @@ export function TextSelectTriggerButton({
       className={className}
       data-testid={testId}
       aria-label={`${label}: ${value}`}
+      aria-describedby={ariaDescribedBy}
       aria-haspopup="listbox"
       aria-expanded={open}
       aria-controls={open ? menuId : undefined}

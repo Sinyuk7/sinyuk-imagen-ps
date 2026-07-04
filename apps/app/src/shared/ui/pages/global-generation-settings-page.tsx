@@ -285,7 +285,7 @@ export function GlobalGenerationSettingsPage({
                   tone={pathInfo.error ? 'warning' : 'info'}
                   message={pathInfo.loading ? t.common.loading : pathInfo.error ?? t.settings.pathInfoUnavailable}
                   detail={pathInfo.error}
-                  detailCopyable={Boolean(pathInfo.error)}
+                  copyText={pathInfo.error ?? null}
                 />
               </div>
             )}
@@ -310,7 +310,7 @@ export function GlobalGenerationSettingsPage({
           {error && (
             <section className="section generation-settings-section generation-settings-secondary-section">
               <div data-testid="global-settings-error-notice">
-                <StatusNotice tone="negative" message={error} detailCopyable copyable />
+                <StatusNotice tone="negative" message={error} copyText={error} />
               </div>
             </section>
           )}

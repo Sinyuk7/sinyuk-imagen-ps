@@ -31,6 +31,8 @@ interface ComposerSelectPropsBase {
   readonly testId?: string;
   /** 触发按钮 id，用于外部 label 关联。 */
   readonly triggerId?: string;
+  /** 关联的帮助说明 id，用于 `aria-describedby`。 */
+  readonly ariaDescribedBy?: string;
   /** 触发器 + 菜单容器类名，用于窄面板里的局部宽度约束。 */
   readonly containerClassName?: string;
   /**

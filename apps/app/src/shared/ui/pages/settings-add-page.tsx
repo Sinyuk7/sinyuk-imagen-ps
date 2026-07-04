@@ -563,10 +563,17 @@ export function SettingsAddPage({ onNav, profiles, onProfileSaved }: SettingsAdd
             defaultModel={defaultModel}
             customPlaceholder={selected?.defaultModels?.[0]?.id ?? 'gpt-image-2'}
             triggerValue={modelOptions.find((option) => option.id === defaultModel)?.label ?? t.settings.chooseFromList}
-            listNotice={
+            modelFieldHelp={
               !measurementSupported
-                ? { tone: 'info', message: t.settings.modelDiscoveryUnsupported }
-                : modelCatalog.stale
+                ? {
+                    id: 'provider-model-discovery-help',
+                    testId: 'provider-model-discovery-help',
+                    message: t.settings.modelDiscoveryFieldHelp,
+                  }
+                : null
+            }
+            listNotice={
+              modelCatalog.stale
                   ? { tone: 'warning', message: t.settings.modelListStale }
                   : modelOptions.length === 0
                     ? { tone: 'info', message: t.settings.modelListEmpty }

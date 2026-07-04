@@ -91,10 +91,11 @@ describe('profile endpoint commands', () => {
     expect((fetchSpy.mock.calls[0]?.[1] as RequestInit | undefined)?.headers).toBeUndefined();
   });
 
-  it('returns unsupported when the provider does not expose endpoint measurement', async () => {
+  it('measures Gemini draft endpoints through the shared reachability probe', async () => {
     _resetForTesting();
     setSecretStorageAdapter(createSecretStorage());
     setProviderProfileRepository(createProfileRepository().repository);
+    const fetchSpy = vi.spyOn(globalThis, 'fetch').mockResolvedValue(new Response(null, { status: 204 }));
 
     const result = await measureProfileEndpoints({
       apiFormat: 'gemini-generate-content',
@@ -111,9 +112,13 @@ describe('profile endpoint commands', () => {
     if (!result.ok) {
       return;
     }
-    expect(result.value.supported).toBe(false);
-    expect(result.value.results).toEqual([]);
-    expect(result.value.resolvedEndpointId).toBeUndefined();
+    expect(result.value.supported).toBe(true);
+    expect(result.value.results).toMatchObject([
+      { endpointId: 'gemini-endpoint', status: 'success', httpStatus: 204 },
+    ]);
+    expect(result.value.resolvedEndpointId).toBe('gemini-endpoint');
+    expect(String(fetchSpy.mock.calls[0]?.[0])).toBe('https://gemini.local/v1beta');
+    expect(fetchSpy.mock.calls[0]?.[1]).toMatchObject({ method: 'HEAD' });
   });
 
   it('does not mutate persisted models cache while measuring an existing profile', async () => {

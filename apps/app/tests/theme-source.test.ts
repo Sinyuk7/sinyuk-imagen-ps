@@ -12,6 +12,8 @@ describe('theme source CSS', () => {
     expect(PANEL_CSS).toContain('.panel[data-app-theme="light"]');
     expect(PANEL_CSS).toContain('--app-color-notice:var(--md-extended-color-yellow-color)');
     expect(PANEL_CSS).toContain('--app-color-positive:var(--md-extended-color-green-color)');
+    expect(PANEL_CSS).toContain('--app-notice-info-background:var(--app-color-informative-subtle)');
+    expect(PANEL_CSS).toContain('--app-notice-negative-icon:var(--app-color-negative)');
     expect(PANEL_CSS).toContain('--toast-bg-positive:#303C33');
     expect(PANEL_CSS).toContain('--toast-bg-positive:#E4ECE2');
     expect(PANEL_CSS).toContain('--toast-icon-info:#ACC7FF');
@@ -33,6 +35,11 @@ describe('theme source CSS', () => {
     expect(PANEL_CSS).toContain('border-left:1px solid color-mix(in srgb, var(--toast-fg-secondary) 24%, transparent);');
     expect(PANEL_CSS).toContain('color:var(--toast-icon-current);');
     expect(PANEL_CSS).toContain('font-weight:600;');
+    expect(PANEL_CSS).toContain('.status-notice{');
+    expect(PANEL_CSS).toContain('--status-notice-background:var(--app-notice-neutral-background);');
+    expect(PANEL_CSS).not.toContain('.status-notice.info{ border-color:color-mix');
+    expect(PANEL_CSS).not.toContain('.status-notice.warning{ border-color:color-mix');
+    expect(PANEL_CSS).not.toContain('.status-notice.error{ border-color:color-mix');
   });
 
   it('uses the generated theme module instead of legacy hand-written theme modules', () => {

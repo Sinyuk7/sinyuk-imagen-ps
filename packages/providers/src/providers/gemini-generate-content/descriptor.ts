@@ -21,7 +21,7 @@ export const geminiGenerateContentDescriptor: ProviderDescriptor = {
     query: 'unsupported',
   },
   connectivity: {
-    endpointMeasurement: 'unsupported',
-    connectionTest: 'unsupported',
+    endpointMeasurement: 'supported',
+    connectionTest: 'supported',
   },
 };

@@ -30,6 +30,7 @@ describe('PromptSettingsPage', () => {
     const { services } = createFakeServices();
     const onSelectPreset = vi.fn(async () => undefined);
     const onOpenPreset = vi.fn();
+    const onDeletePreset = vi.fn(async () => undefined);
     const container = document.createElement('div');
     document.body.appendChild(container);
     root = createRoot(container);
@@ -60,26 +61,35 @@ describe('PromptSettingsPage', () => {
             }]}
             onSave={async () => undefined}
             onSelectPreset={onSelectPreset}
-            onDeletePreset={async () => undefined}
+            onDeletePreset={onDeletePreset}
             onOpenPreset={onOpenPreset}
           />
         </TestAppProviders>,
       );
     });
 
+    expect(container.textContent).not.toContain('提示词优化');
+    expect(container.textContent).not.toContain('当前预设');
+    expect(container.textContent).not.toContain('内容有效');
+    expect(container.querySelector('[data-testid="prompt-preset-selector"]')).toBeNull();
+
     await act(async () => {
       queryByTestId(container, 'prompt-preset-row-preset-a').click();
     });
-    expect(onOpenPreset).toHaveBeenCalledWith('preset-a');
-    expect(onSelectPreset).not.toHaveBeenCalled();
+    expect(onSelectPreset).toHaveBeenCalledWith('preset-a');
+    expect(onOpenPreset).not.toHaveBeenCalled();
 
     await act(async () => {
-      queryByTestId(container, 'prompt-preset-selector').click();
+      queryByTestId(container, 'prompt-preset-edit-preset-a').click();
     });
+    expect(onOpenPreset).toHaveBeenCalledWith('preset-a');
+    expect(onSelectPreset).toHaveBeenCalledTimes(1);
+
     await act(async () => {
-      queryByTestId(document.body, 'prompt-preset-selector-option-preset-a').click();
+      queryByTestId(container, 'prompt-preset-delete-preset-a').click();
     });
-    expect(onSelectPreset).toHaveBeenCalledWith('preset-a');
+    expect(onDeletePreset).toHaveBeenCalledWith('preset-a');
+    expect(onSelectPreset).toHaveBeenCalledTimes(1);
   });
 
   it('shows invalid reasons as text and allows saving invalid preset detail', async () => {
