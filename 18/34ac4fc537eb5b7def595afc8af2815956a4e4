@@ -1,0 +1,19 @@
+docs/loops/2026-07-04-endpoint-probe-separation.md
+  s_d88d8246e51236::t_cb628b36e384d4 3,18-54,58-64,69-85,90-92,94,97-98,102-105,107-151,158,160-162,164-167,169,174,176-179,181-185,187,192,194-195,197-199,201,206,208-210,212,214,223,227,229,233-236,256
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.10",
+  "base_commit_sha": "1834ac4fc537eb5b7def595afc8af2815956a4e4",
+  "prompts": {},
+  "sessions": {
+    "s_d88d8246e51236": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "019f2cca-cfd0-7740-9484-8e763d14a24d",
+        "model": "gpt-5.4"
+      },
+      "human_author": "Sinyuk <80998062@qq.com>"
+    }
+  }
+}
