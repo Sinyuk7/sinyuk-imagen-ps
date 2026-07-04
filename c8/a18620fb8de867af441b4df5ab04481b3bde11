@@ -7,6 +7,14 @@ apps/app/tests/settings-add-page.test.tsx
   "base_commit_sha": "c8a18620fb8de867af441b4df5ab04481b3bde11",
   "prompts": {},
   "sessions": {
+    "s_4cfb886f35fbb0": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "019f2cfb-132c-75e3-b6da-c4cdb101be51",
+        "model": "gpt-5.4"
+      },
+      "human_author": "Sinyuk <80998062@qq.com>"
+    },
     "s_79d14e8e523fa8": {
       "agent_id": {
         "tool": "codex",
