@@ -1,0 +1,122 @@
+packages/providers/tests/image-endpoint-request-contract.test.ts
+  s_66de880b413d16::t_4a0f1b0cbe894d 3,18-19,39,47-50,80-81,101,115-117,120-121,140,143,145,147-150
+  s_66de880b413d16::t_c6b8f95d47f137 63,74
+  s_66de880b413d16::t_6c74b9ca83179f 1-2,4-17,20-38,40-46,51-62,64-73,75-79,82-100,102-114,118-119,122-139,141-142,144,146,151-152
+packages/providers/tests/image-endpoint-provider.test.ts
+  s_66de880b413d16::t_92d26fd1e70671 610,652-658
+packages/providers/tests/image-endpoint-wire-compatibility.test.ts
+  s_66de880b413d16::t_4a0f1b0cbe894d 80,98,120
+  s_66de880b413d16::t_881697494060cc 6,125-143
+  s_66de880b413d16::t_2ce0b826c663a0 144-145
+packages/providers/tests/fixtures/image-endpoint-response/error-envelope.json
+  s_66de880b413d16::t_6c74b9ca83179f 1-5
+packages/providers/src/registry/index.ts
+  s_66de880b413d16::t_881697494060cc 3-4
+packages/providers/TESTING.md
+  s_66de880b413d16::t_881697494060cc 1-28
+docs/adr/provider-attempt-and-replay-safety.md
+  s_66de880b413d16::t_663926ad972037 1,3-5,9,11,13,16,20,22-23,26-27,30,35,44,47,49-54,56-59,62-68,71,73-75
+packages/providers/src/transport/image-endpoint/request-shape-classifier.ts
+  s_66de880b413d16::t_807cb1202a9fa3 1-9,53-85,114-125,163-199,201-207,248,261-264,266-273,275,285-298
+docs/adr/provider-failure-and-recovery-disposition.md
+  s_66de880b413d16::t_663926ad972037 1-70
+packages/providers/tests/retry.test.ts
+  s_66de880b413d16::t_92d26fd1e70671 90,92-95,97-105,205,207-210,212-220,223,225-228,230-238,269-271,274,276,278,281,283
+packages/providers/tests/fixtures/image-endpoint-response/success-url.json
+  s_66de880b413d16::t_6c74b9ca83179f 1-9
+packages/providers/src/index.ts
+  s_66de880b413d16::t_881697494060cc 92-93
+packages/providers/src/transport/image-endpoint/retry.ts
+  s_66de880b413d16::t_807cb1202a9fa3 27-37,80-85,156,159,242,257-260
+  s_66de880b413d16::t_7da8a8678ebe5b 148
+packages/providers/src/transport/image-endpoint/build-request.ts
+  s_66de880b413d16::t_e946dfc3f280e2 22,25-28,133-156,268-275,445,451-511,519-524,530-531,558-562,570,579-580,611-626,633,647-648,668-678,684,687-723
+packages/providers/tests/fixtures/image-endpoint-response/empty-data.json
+  s_66de880b413d16::t_6c74b9ca83179f 1-3
+packages/providers/src/transport/image-endpoint/codec-json-reference.ts
+  s_66de880b413d16::t_e946dfc3f280e2 1-13
+packages/providers/tests/attempt-sequence.test.ts
+  s_66de880b413d16::t_6c74b9ca83179f 1-2,4-81,83-115,121-172,174-179,196,198-218,220-225,242,244-245,247-252,279,281-282
+  s_66de880b413d16::t_86f289880fc652 3,180-182,190,254-278
+  s_66de880b413d16::t_92d26fd1e70671 82,116-120,173,183-189,191-195,197,219,226-241,243,246,253,280
+packages/providers/tests/fixtures/image-endpoint-response/missing-data.json
+  s_66de880b413d16::t_6c74b9ca83179f 1-4
+packages/providers/tests/image-endpoint-transport-request.test.ts
+  s_66de880b413d16::t_6c74b9ca83179f 1-127
+docs/loops/2026-07-04-uxp-formdata-wire-probe.md
+  s_66de880b413d16::t_881697494060cc 1-69
+scripts/policy/docs.mjs
+  s_66de880b413d16::t_e73a8456ee4c5e 7-8,17-18
+packages/providers/tests/request-shape-classifier.test.ts
+  s_66de880b413d16::t_92d26fd1e70671 24-27,40-43,57-60,74-77,94-97
+packages/providers/src/transport/image-endpoint/codec-multipart-bracket.ts
+  s_66de880b413d16::t_e946dfc3f280e2 1-14
+packages/providers/src/registry/builtins.ts
+  s_66de880b413d16::t_7da8a8678ebe5b 2
+  s_66de880b413d16::t_881697494060cc 9-21,23,31-33
+  s_66de880b413d16::t_a63e1c79f45f8f 22
+packages/providers/tests/multipart-wire-harness.ts
+  s_66de880b413d16::t_6c74b9ca83179f 1-121
+docs/ENGINEERING_CONTEXT.md
+  s_66de880b413d16::t_a4691a14d10b27 27
+  s_66de880b413d16::t_e73a8456ee4c5e 123-127
+packages/providers/src/transport/image-endpoint/http.ts
+  s_66de880b413d16::t_807cb1202a9fa3 11,50-53,243-251,259,397-400
+packages/providers/src/transport/image-endpoint/error-map.ts
+  s_66de880b413d16::t_807cb1202a9fa3 20-49,60-62,71,84-86,97-103,123-126,132-140,144-152,156-164,167-207,211-219,223-231,234-241,251-257,261-267,270-276
+packages/providers/tests/image-endpoint-response-fixture.test.ts
+  s_66de880b413d16::t_6c74b9ca83179f 1-76
+packages/providers/src/transport/image-endpoint/failover.ts
+  s_66de880b413d16::t_7da8a8678ebe5b 412-415,422,429
+  s_66de880b413d16::t_807cb1202a9fa3 2,6,8,46-109,182-224,250-411,416-421,423-428,430-437
+  s_66de880b413d16::t_c79726c5ec2134 438
+packages/providers/tests/paid-retry.test.ts
+  s_66de880b413d16::t_92d26fd1e70671 86,88
+packages/providers/src/transport/image-endpoint/codec-multipart-plain.ts
+  s_66de880b413d16::t_e946dfc3f280e2 1-14
+packages/providers/tests/registry-exports.test.ts
+  s_66de880b413d16::t_881697494060cc 3-4,12,15,19,47-97
+packages/providers/src/providers/image-endpoint/provider.ts
+  s_66de880b413d16::t_807cb1202a9fa3 10-16,19,27-28,70,81,99-103,228,234-253,257-260,264-271,273,275-289,297,302
+  s_66de880b413d16::t_7d7c693a0c3a24 254-256
+  s_66de880b413d16::t_f3f77e63037640 261-263
+  s_66de880b413d16::t_7854fecd5ac6f3 272
+  s_66de880b413d16::t_30ae29921aad08 274
+  s_66de880b413d16::t_1fb26319a6ced7 290-292
+  s_66de880b413d16::t_5f35bf31ae5291 295-296
+  s_b7ea537f904386::t_baacd6512c75be 306,327
+AGENTS.md
+  s_66de880b413d16::t_a4691a14d10b27 15
+packages/providers/ARCHITECTURE.md
+  s_66de880b413d16::t_881697494060cc 1-39
+packages/providers/tests/multipart-wire-capture.test.ts
+  s_66de880b413d16::t_6c74b9ca83179f 1-76
+packages/providers/tests/fixtures/image-endpoint-response/success-b64-json.json
+  s_66de880b413d16::t_6c74b9ca83179f 1-9
+packages/providers/src/transport/image-endpoint/wire-compatibility.ts
+  s_66de880b413d16::t_b65aaa4f5acda6 4-5,10,16,325,340,363-372
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.10",
+  "base_commit_sha": "dcbc09d3a9ed4677bb09487cf4d107977fb10106",
+  "prompts": {},
+  "sessions": {
+    "s_66de880b413d16": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "019f2b6c-6dd7-7120-a717-5169a9fab5e6",
+        "model": "gpt-5.4"
+      },
+      "human_author": "Sinyuk <80998062@qq.com>"
+    },
+    "s_b7ea537f904386": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "019f2b6a-03f5-7442-9178-cdafdf8ea8ca",
+        "model": "unknown"
+      },
+      "human_author": "Sinyuk <80998062@qq.com>"
+    }
+  }
+}
