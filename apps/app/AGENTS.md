@@ -201,8 +201,16 @@ src/
 pnpm --filter @imagen-ps/app build
 pnpm --filter @imagen-ps/app build:uxp    # writes dist/ for UXP Developer Tool
 pnpm --filter @imagen-ps/app build:chrome # writes dist/web/ for browser smoke
+pnpm --filter @imagen-ps/app build:production  # writes release/uxp-production/ staging + verifies
+pnpm --filter @imagen-ps/app verify:production  # re-runs verifier on existing staging
+pnpm --filter @imagen-ps/app ccx:pre           # pre-package verification before UDT Package
+pnpm --filter @imagen-ps/app ccx:post <file>   # post-package .ccx inspection + SHA-256
+pnpm --filter @imagen-ps/app ccx:checklist     # print packaged-build Photoshop smoke checklist
 pnpm --filter @imagen-ps/app test
 ```
+
+Production build, artifact contract, `.ccx` packaging, and release gate details
+live in `docs/RELEASE.md`. `pnpm release:verify` is the repo-level release gate.
 
 ### Chrome development server
 

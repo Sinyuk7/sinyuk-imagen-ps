@@ -20,6 +20,17 @@ This repo uses current-state, harness-first loop engineering.
 - Keep broad context in [docs/ENGINEERING_CONTEXT.md](docs/ENGINEERING_CONTEXT.md), not here.
 - `pnpm check:policy` owns mechanical policy checks: package boundaries, current-state wording in high-authority docs, and portable path references.
 
+## Release Gate
+
+The production artifact contract and release runbook live in [`docs/RELEASE.md`](docs/RELEASE.md). Key points:
+
+- `pnpm --filter @imagen-ps/app build:production` produces the allowlisted, verified staging directory at `apps/app/release/uxp-production/`.
+- `pnpm --filter @imagen-ps/app verify:production` re-runs the artifact verifier on the existing staging directory.
+- `pnpm release:verify` is the repo-level release gate. It runs `pnpm validate`, the production build, artifact verification, license verification, and build-metadata/version-consistency checks.
+- `pnpm release:verify` defaults to rejecting a dirty git working tree; use `--allow-dirty` only for local rehearsal.
+- Adobe `.ccx` packaging is a manual UDT boundary. Use `ccx:pre` before UDT Package and `ccx:post <ccx-path>` after UDT Package to validate the archive and write the `.sha256` sidecar.
+- `apps/app/AGENTS.md` owns app-level build/dev commands and UXP-specific constraints.
+
 ## Writeback
 
 - Before finishing non-trivial work, decide whether the turn produced reusable knowledge.

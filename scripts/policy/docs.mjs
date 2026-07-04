@@ -8,6 +8,7 @@ const highAuthorityDocs = [
   'docs/adr/provider-failure-and-recovery-disposition.md',
   'docs/ENGINEERING_CONTEXT.md',
   'docs/TESTING.md',
+  'docs/RELEASE.md',
   'docs/agent/LOOP.md',
   'apps/app/AGENTS.md',
   'packages/AGENTS.md',

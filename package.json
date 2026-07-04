@@ -15,6 +15,7 @@
     "validate": "pnpm build && pnpm test && pnpm check:policy",
     "test:release": "node scripts/run-release-tests.mjs",
     "validate:release": "pnpm validate && pnpm test:release",
+    "release:verify": "node scripts/release-verify.mjs",
     "clean": "turbo run clean"
   },
   "devDependencies": {

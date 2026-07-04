@@ -3,6 +3,7 @@ node_modules/
 
 # Build outputs
 dist/
+release/
 *.tsbuildinfo
 
 # TypeScript emit artifacts leaked into src/ (should only be in dist/)

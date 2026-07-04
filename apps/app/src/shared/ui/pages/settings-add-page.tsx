@@ -504,14 +504,7 @@ export function SettingsAddPage({ onNav, profiles, onProfileSaved }: SettingsAdd
               ) : null}
             </div>
             <div className="settings-detail-footer-save-group settings-add-footer-save-group">
-              <Button data-testid="provider-save-button" className="btn-save" variant="accent" disabled={saveDisabled} onClick={() => void handleSave()}>{busy ? t.settings.saving : t.settings.saveProvider}</Button>
-              <Button
-                className="btn-cancel"
-                variant="secondary"
-                onClick={() => onNav('settings')}
-              >
-                {t.common.cancel}
-              </Button>
+              <Button data-testid="provider-save-button" className="btn-save" variant="accent" disabled={saveDisabled} onClick={() => void handleSave()}>{busy ? t.settings.saving : t.common.save}</Button>
             </div>
           </div>
         </footer>

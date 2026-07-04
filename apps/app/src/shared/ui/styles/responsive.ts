@@ -89,19 +89,19 @@ export const RESPONSIVE_CSS = `
 .panel[data-panel-height-mode="short"] .settings-page .scroll-footer-pad{ padding-bottom:96px; }
 
 .panel[data-panel-width-mode="compact"] .settings-add-footer .settings-detail-footer-inner{
-  flex-wrap:wrap;
+  flex-wrap:nowrap;
 }
 .panel[data-panel-width-mode="compact"] .settings-add-footer .settings-detail-footer-actions,
 .panel[data-panel-width-mode="compact"] .settings-add-footer .settings-add-footer-save-group{
-  width:100%;
+  width:auto;
 }
 .panel[data-panel-width-mode="compact"] .settings-add-footer .settings-add-footer-save-group{
-  justify-content:flex-start;
-  margin-top:10px;
+  justify-content:flex-end;
+  margin-top:0;
 }
 .panel[data-panel-width-mode="compact"] .settings-add-footer .btn-save{
-  flex:1 1 auto;
-  min-width:0;
+  flex:0 0 auto;
+  min-width:72px;
 }
 
 .cmp-select-output-size .cmp-chip-value-icon{ max-width:none; }

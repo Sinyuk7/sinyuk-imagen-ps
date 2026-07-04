@@ -791,12 +791,32 @@ export const PAGES_CSS = `
 }
 .settings-add-footer .settings-detail-footer-inner{
   align-items:flex-start;
+  flex-wrap:nowrap;
 }
 .settings-add-footer .settings-detail-footer-inner > *{
   margin-right:0;
 }
 .settings-add-footer .settings-detail-footer-actions{
   flex:1 1 auto;
+  flex-wrap:nowrap;
+}
+.settings-add-footer .settings-detail-footer-actions .status-notice{
+  flex:1 1 auto;
+  min-width:0;
+  overflow:hidden;
+}
+.settings-add-footer .settings-detail-footer-actions .status-body{
+  min-width:0;
+  overflow:hidden;
+}
+.settings-add-footer .settings-detail-footer-actions .status-message{
+  overflow:hidden;
+  text-overflow:ellipsis;
+  white-space:nowrap;
+  word-break:normal;
+}
+.settings-add-footer .settings-add-footer-save-group{
+  margin-left:10px;
 }
 .settings-detail-footer-save-group{
   display:flex;
@@ -1043,15 +1063,15 @@ export const PAGES_CSS = `
     margin-bottom:0;
   }
   .settings-add-footer .settings-detail-footer-inner{
-    flex-wrap:wrap;
+    flex-wrap:nowrap;
   }
   .settings-add-footer .settings-detail-footer-actions,
   .settings-add-footer .settings-add-footer-save-group{
-    width:100%;
+    width:auto;
   }
   .settings-add-footer .settings-add-footer-save-group{
-    justify-content:flex-start;
-    margin-top:10px;
+    justify-content:flex-end;
+    margin-top:0;
   }
   .generation-settings-footer .btn-save{
     flex:1 1 100%;

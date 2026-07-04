@@ -469,7 +469,7 @@ describe('SettingsAddPage', () => {
     expect(Array.from(container.querySelectorAll<HTMLInputElement>('input[type="radio"][data-testid^="provider-endpoint-preferred-"]')).filter((input) => input.checked)).toHaveLength(1);
   });
 
-  it('keeps cancel as a content-width secondary action beside the primary save action', async () => {
+  it('keeps the add footer to test and save actions only', async () => {
     const { services } = createFakeServices();
     const container = document.createElement('div');
     document.body.appendChild(container);
@@ -487,12 +487,10 @@ describe('SettingsAddPage', () => {
       container.querySelector<HTMLElement>('[data-testid="provider-type-mock"]')!.click();
     });
 
-    const cancel = Array.from(container.querySelectorAll<HTMLButtonElement>('button')).find((item) =>
-      item.textContent?.includes('取消') || item.textContent?.includes('Cancel'),
-    );
-    expect(cancel).toBeTruthy();
-    expect(cancel?.className).toContain('btn-cancel');
-    expect(cancel?.className).not.toContain('ui-button-block');
+    const footer = container.querySelector('.settings-add-footer');
+    expect(footer?.querySelector('[data-testid="provider-test-button"]')).toBeTruthy();
+    expect(footer?.querySelector('[data-testid="provider-save-button"]')?.textContent).toMatch(/^(Save|保存)$/);
+    expect(footer?.querySelector('.btn-cancel')).toBeNull();
   });
 
   it('uses the form-style model selector trigger on the add page', async () => {

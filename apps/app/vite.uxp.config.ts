@@ -10,7 +10,7 @@ import { appViteBaseConfig } from './vite.base.config';
  * modulePreload 关闭时不被使用，因此在 renderChunk 阶段把 `import.meta.url`
  * 替换为空串，彻底消除 `import.meta`，避免重新出现启动问题。
  */
-function uxpImportMetaCompatPlugin(): Plugin {
+export function uxpImportMetaCompatPlugin(): Plugin {
   return {
     name: 'imagen-ps-uxp-import-meta-compat',
     renderChunk(code) {
@@ -299,7 +299,7 @@ const UXP_BOOTSTRAP_LOGGER_SCRIPT = String.raw`(function () {
  * zero-dependency bootstrap logger before the bundle so syntax/load failures are
  * still visible in `PluginData/logs/YYYY-MM-DD/imagen.jsonl`.
  */
-function uxpClassicHtmlBootstrapPlugin(): Plugin {
+export function uxpClassicHtmlBootstrapPlugin(): Plugin {
   return {
     name: 'imagen-ps-uxp-classic-html-bootstrap',
     writeBundle(options) {
