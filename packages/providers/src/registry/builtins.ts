@@ -2,6 +2,7 @@ import type { ProviderRegistry } from './provider-registry.js';
 import { createMockProvider } from '../providers/mock/provider.js';
 import { createImageEndpointProvider } from '../providers/image-endpoint/provider.js';
 import { createChatImageProvider } from '../providers/chat-image/provider.js';
+import { createGeminiGenerateContentProvider } from '../providers/gemini-generate-content/provider.js';
 import { createPromptOptimizeProvider } from '../providers/prompt-optimize/provider.js';
 
 /**
@@ -13,5 +14,6 @@ export function registerBuiltins(registry: ProviderRegistry): void {
   registry.register(createMockProvider());
   registry.register(createImageEndpointProvider());
   registry.register(createChatImageProvider());
+  registry.register(createGeminiGenerateContentProvider());
   registry.register(createPromptOptimizeProvider());
 }

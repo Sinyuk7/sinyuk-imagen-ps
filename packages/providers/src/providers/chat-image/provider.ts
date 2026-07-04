@@ -8,8 +8,8 @@ import { chatImageDescriptor } from './descriptor.js';
 import { httpRequest } from '../../transport/image-endpoint/http.js';
 import { executeWithEndpointFailover } from '../../transport/image-endpoint/failover.js';
 import { resolvePaidRetryConfig, resolveIdempotencyHeader } from '../../transport/image-endpoint/paid-retry.js';
-import { buildChatImageRequestBody } from '../../transport/chat-image/build-request.js';
-import { parseChatImageResponse, type ParsedChatImageResponse } from '../../transport/chat-image/parse-response.js';
+import { resolveChatImageWireCodec } from '../../transport/chat-image/request-codec.js';
+import type { ParsedChatImageResponse } from '../../transport/chat-image/parse-response.js';
 import { parseChatImageModelsResponse } from '../../transport/chat-image/models.js';
 import { listLocalCatalogModels } from '../../contract/image-model-capability.js';
 import { fetchProviderBalanceJson, parseNewApiBalanceResponse } from '../../transport/billing/query-balance.js';
@@ -96,10 +96,20 @@ export function createChatImageProvider(): Provider<ChatImageProviderConfig, Moc
         component: 'provider',
         provider_id: chatImageDescriptor.id,
       });
-      const body = buildChatImageRequestBody(request, config.defaultModel);
+      const requestCodec = resolveChatImageWireCodec(chatImageDescriptor);
+      const builtRequest = requestCodec.buildRequest(request, { defaultModel: config.defaultModel });
+      const { body } = builtRequest;
       const imageConfig = recordField(body.image_config);
       const requestedOutputFormat = stringField(request.output?.outputFormat);
+      for (const diagnostic of builtRequest.diagnostics ?? []) {
+        providerLogger?.warn('provider.chat_image.request_option_ignored', {
+          requestCodec: requestCodec.id,
+          diagnosticCode: diagnostic.code,
+          ...(diagnostic.details ?? {}),
+        });
+      }
       providerLogger?.info('provider.chat_image.request_summary', {
+        requestCodec: requestCodec.id,
         operation: request.operation,
         model: body.model,
         endpointCount: config.connection.endpoints.filter((candidate) => candidate.enabled).length,
@@ -124,14 +134,14 @@ export function createChatImageProvider(): Provider<ChatImageProviderConfig, Moc
         retryOptions: { retryability: 'paid', idempotencySupported: paidRetry.idempotencySupported },
         execute: async (candidate, candidateSignal) => httpRequest(
           {
-            url: endpointUrl(candidate.url, 'chat/completions'),
-            method: 'POST',
+            url: endpointUrl(candidate.url, builtRequest.path),
+            method: builtRequest.method,
             headers: {
               Authorization: `Bearer ${config.apiKey}`,
               ...(config.extraHeaders ?? {}),
               ...(idempotencyHeader ?? {}),
             },
-            body,
+            body: builtRequest.body,
             timeoutMs: config.timeoutMs,
           },
           { ...paidRetry.policy, maxRetries: 0 },
@@ -143,9 +153,10 @@ export function createChatImageProvider(): Provider<ChatImageProviderConfig, Moc
 
       let parsed: ParsedChatImageResponse;
       try {
-        parsed = parseChatImageResponse(execution.value.response.data);
+        parsed = requestCodec.parseExecutionResponse(execution.value.response.data);
       } catch (error) {
         providerLogger?.error('provider.chat_image.response_parse_fail', {
+          requestCodec: requestCodec.id,
           model: body.model,
           requestedOutputFormat,
           selectedEndpointId: execution.selectedEndpointId,
@@ -154,6 +165,7 @@ export function createChatImageProvider(): Provider<ChatImageProviderConfig, Moc
       }
 
       providerLogger?.info('provider.chat_image.response_summary', {
+        requestCodec: requestCodec.id,
         model: body.model,
         selectedEndpointId: execution.selectedEndpointId,
         assetCount: parsed.assets.length,
@@ -170,6 +182,7 @@ export function createChatImageProvider(): Provider<ChatImageProviderConfig, Moc
         actualMimeTypes.some((mimeType) => mimeType !== expectedMimeType)
       ) {
         providerLogger?.warn('provider.chat_image.response_format_mismatch', {
+          requestCodec: requestCodec.id,
           model: body.model,
           requestedOutputFormat,
           expectedMimeType,
@@ -196,7 +209,12 @@ export function createChatImageProvider(): Provider<ChatImageProviderConfig, Moc
           attempts: execution.attempts,
         },
       };
-      const diagnostics = [...execution.diagnostics, ...execution.value.diagnostics, ...(parsed.diagnostics ?? [])];
+      const diagnostics = [
+        ...(builtRequest.diagnostics ?? []),
+        ...execution.diagnostics,
+        ...execution.value.diagnostics,
+        ...(parsed.diagnostics ?? []),
+      ];
       if (diagnostics.length > 0) {
         result.diagnostics = diagnostics;
       }

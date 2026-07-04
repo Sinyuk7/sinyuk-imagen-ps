@@ -1,5 +1,10 @@
 import { describe, expect, it } from 'vitest';
-import { createChatImageProvider, createImageEndpointProvider, createPromptOptimizeProvider } from '../src/index.js';
+import {
+  createChatImageProvider,
+  createGeminiGenerateContentProvider,
+  createImageEndpointProvider,
+  createPromptOptimizeProvider,
+} from '../src/index.js';
 
 describe('provider endpoint config canonicalization', () => {
   it('accepts canonical connection config and normalizes endpoint urls', () => {
@@ -161,5 +166,60 @@ describe('provider endpoint config canonicalization', () => {
     const second = provider.validateConfig(first);
 
     expect(second).toEqual(first);
+  });
+
+  it('accepts Gemini Generate Content config with explicit auth/api-version ownership', () => {
+    const provider = createGeminiGenerateContentProvider();
+    const config = provider.validateConfig({
+      providerId: 'gemini-generate-content',
+      displayName: 'Gemini Generate Content',
+      family: 'gemini-generate-content',
+      connection: {
+        selectionMode: 'manual',
+        failoverEnabled: false,
+        preferredEndpointId: 'primary',
+        endpoints: [{ id: 'primary', url: 'https://api.n1n.ai/gateway', enabled: true }],
+      },
+      apiKey: 'test-key',
+      authMode: 'bearer',
+      apiVersion: 'v1beta',
+    });
+
+    expect(config.authMode).toBe('bearer');
+    expect(config.apiVersion).toBe('v1beta');
+    expect(config.connection.endpoints[0]?.url).toBe('https://api.n1n.ai/gateway');
+  });
+
+  it('rejects Gemini Generate Content endpoints that already encode the API version or auth header', () => {
+    const provider = createGeminiGenerateContentProvider();
+
+    expect(() => provider.validateConfig({
+      providerId: 'gemini-generate-content',
+      displayName: 'Gemini Generate Content',
+      family: 'gemini-generate-content',
+      connection: {
+        selectionMode: 'manual',
+        failoverEnabled: false,
+        preferredEndpointId: 'primary',
+        endpoints: [{ id: 'primary', url: 'https://api.n1n.ai/v1beta', enabled: true }],
+      },
+      apiKey: 'test-key',
+      authMode: 'bearer',
+      apiVersion: 'v1beta',
+    })).toThrow('versionless');
+
+    expect(() => provider.validateConfig({
+      providerId: 'gemini-generate-content',
+      displayName: 'Gemini Generate Content',
+      family: 'gemini-generate-content',
+      connection: {
+        selectionMode: 'manual',
+        failoverEnabled: false,
+        preferredEndpointId: 'primary',
+        endpoints: [{ id: 'primary', url: 'https://api.n1n.ai', enabled: true }],
+      },
+      apiKey: 'test-key',
+      extraHeaders: { 'x-goog-api-key': 'override' },
+    })).toThrow('provider-owned');
   });
 });

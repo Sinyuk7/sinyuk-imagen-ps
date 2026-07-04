@@ -10,7 +10,7 @@ import type {
 import type { ProviderOutputOptions } from './request.js';
 import { IMAGE_MODEL_CAPABILITIES } from './image-model-catalog/catalog.js';
 
-export type ImageCatalogProviderId = 'image-endpoint' | 'chat-image';
+export type ImageCatalogProviderId = 'image-endpoint' | 'chat-image' | 'gemini-generate-content';
 export type ImageOperation = Extract<ProviderOperation, 'text_to_image' | 'image_edit'>;
 export type ImageSizePreset = NonNullable<ProviderOutputOptions['sizePreset']>;
 export type ImageAspectRatio = 'auto' | 'source' | '1:1' | '16:9' | '9:16';
@@ -315,7 +315,7 @@ function assertSingleCapability(
 }
 
 export function providerUsesImageModelCatalog(providerId: string): providerId is ImageCatalogProviderId {
-  return providerId === 'image-endpoint' || providerId === 'chat-image';
+  return providerId === 'image-endpoint' || providerId === 'chat-image' || providerId === 'gemini-generate-content';
 }
 
 function sizePresetsForOperation(
@@ -790,7 +790,7 @@ export function validateImageModelCatalog(
     }
   }
 
-  for (const providerId of ['image-endpoint', 'chat-image'] as const satisfies readonly ImageCatalogProviderId[]) {
+  for (const providerId of ['image-endpoint', 'chat-image', 'gemini-generate-content'] as const satisfies readonly ImageCatalogProviderId[]) {
     const capabilitiesForProvider = capabilities.filter((capability) => capabilityAppliesToProvider(capability, providerId));
     const exactIds = new Map<string, string>();
     const aliases = new Map<string, string>();

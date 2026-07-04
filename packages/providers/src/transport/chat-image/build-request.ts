@@ -1,5 +1,6 @@
 import type { Asset } from '@imagen-ps/core-engine';
 import type { CanonicalImageJobRequest, ProviderOutputOptions } from '../../contract/request.js';
+import type { ProviderDiagnostic } from '../../contract/diagnostics.js';
 import { resolveImageModelOutput } from '../../contract/image-model-capability.js';
 
 export interface ChatImageContentText {
@@ -41,7 +42,12 @@ class BuildChatImageRequestError extends Error {
   }
 }
 
-const SURFACED_HANDLED_KEYS: readonly string[] = [
+export interface ChatImageRequestBuildResult {
+  readonly body: ChatImageCompletionBody;
+  readonly diagnostics: readonly ProviderDiagnostic[];
+}
+
+const RESERVED_PROVIDER_OPTION_KEYS: readonly string[] = [
   'model',
   'messages',
   'modalities',
@@ -55,6 +61,9 @@ const SURFACED_HANDLED_KEYS: readonly string[] = [
   'moderation',
   'input_fidelity',
 ];
+
+const RESERVED_PROVIDER_OPTION_KEY_SET = new Set<string>(RESERVED_PROVIDER_OPTION_KEYS);
+const ALLOWED_PASSTHROUGH_PROVIDER_OPTION_KEYS = new Set<string>(['user']);
 
 function resolveModel(request: CanonicalImageJobRequest, defaultModel?: string): string {
   return typeof request.providerOptions?.model === 'string'
@@ -153,37 +162,87 @@ function outputToImageConfig(
   return Object.keys(imageConfig).length > 0 ? imageConfig : undefined;
 }
 
+function createIgnoredProviderOptionDiagnostic(
+  key: string,
+  reason: 'invalid-type' | 'not-allowlisted' | 'reserved',
+  details?: Readonly<Record<string, unknown>>,
+): ProviderDiagnostic {
+  return {
+    code: 'chat-image.request.provider-option-ignored',
+    message: `Ignored chat-image provider option "${key}" because it is ${reason}.`,
+    level: 'warning',
+    details: {
+      key,
+      reason,
+      ...(details ?? {}),
+    },
+  };
+}
+
+function pushDiagnostic(
+  diagnostics: ProviderDiagnostic[],
+  key: string,
+  reason: 'invalid-type' | 'not-allowlisted' | 'reserved',
+  details?: Readonly<Record<string, unknown>>,
+): void {
+  diagnostics.push(createIgnoredProviderOptionDiagnostic(key, reason, details));
+}
+
 function applyProviderOptions(
   body: Record<string, unknown>,
   providerOptions: Readonly<Record<string, unknown>> | undefined,
+  diagnostics: ProviderDiagnostic[],
 ): void {
   if (!providerOptions) {
     return;
   }
-
-  const handledKeys = new Set<string>(SURFACED_HANDLED_KEYS);
   for (const [key, value] of Object.entries(providerOptions)) {
-    if (!handledKeys.has(key) && value !== undefined) {
-      body[key] = value;
+    if (value === undefined || key === 'model' || key === 'modalities' || key === 'image_config') {
+      continue;
+    }
+    if (RESERVED_PROVIDER_OPTION_KEY_SET.has(key)) {
+      pushDiagnostic(diagnostics, key, 'reserved');
+      continue;
+    }
+    if (!ALLOWED_PASSTHROUGH_PROVIDER_OPTION_KEYS.has(key)) {
+      pushDiagnostic(diagnostics, key, 'not-allowlisted');
+      continue;
+    }
+    if (key === 'user') {
+      if (typeof value === 'string') {
+        body.user = value;
+      } else {
+        pushDiagnostic(diagnostics, key, 'invalid-type', { expectedType: 'string' });
+      }
     }
   }
 }
 
-function resolveModalities(providerOptions: Readonly<Record<string, unknown>> | undefined): readonly string[] {
-  const raw = providerOptions?.modalities;
-  if (Array.isArray(raw) && raw.every((item) => typeof item === 'string')) {
-    return raw;
+function resolveModalities(
+  providerOptions: Readonly<Record<string, unknown>> | undefined,
+  diagnostics: ProviderDiagnostic[],
+): readonly string[] {
+  if (providerOptions?.modalities !== undefined) {
+    pushDiagnostic(diagnostics, 'modalities', 'reserved');
   }
   return ['image'];
 }
 
-function resolveImageConfig(request: CanonicalImageJobRequest, modelId: string): Record<string, unknown> | undefined {
+function resolveImageConfig(
+  request: CanonicalImageJobRequest,
+  modelId: string,
+  diagnostics: ProviderDiagnostic[],
+): Record<string, unknown> | undefined {
   const fromOutput = outputToImageConfig(request.output, modelId, request.operation);
   const raw = request.providerOptions?.image_config;
-  const fromOptions =
-    typeof raw === 'object' && raw !== null && !Array.isArray(raw) ? (raw as Record<string, unknown>) : undefined;
-  const merged = { ...(fromOutput ?? {}), ...(fromOptions ?? {}) };
-  return Object.keys(merged).length > 0 ? merged : undefined;
+  if (raw !== undefined) {
+    const ignoredPaths =
+      typeof raw === 'object' && raw !== null && !Array.isArray(raw)
+        ? Object.keys(raw as Record<string, unknown>).map((key) => `image_config.${key}`)
+        : [];
+    pushDiagnostic(diagnostics, 'image_config', 'reserved', { ignoredPaths });
+  }
+  return fromOutput;
 }
 
 function buildMessageContent(request: CanonicalImageJobRequest): ChatImageMessage['content'] {
@@ -213,23 +272,34 @@ export function buildChatImageRequestBody(
   request: CanonicalImageJobRequest,
   defaultModel?: string,
 ): ChatImageCompletionBody {
+  return buildChatImageRequest(request, defaultModel).body;
+}
+
+export function buildChatImageRequest(
+  request: CanonicalImageJobRequest,
+  defaultModel?: string,
+): ChatImageRequestBuildResult {
   const model = resolveModel(request, defaultModel);
+  const diagnostics: ProviderDiagnostic[] = [];
   const body: Record<string, unknown> = {
     model,
     messages: [{ role: 'user', content: buildMessageContent(request) }],
-    modalities: resolveModalities(request.providerOptions),
+    modalities: resolveModalities(request.providerOptions, diagnostics),
   };
 
   if (request.output?.count !== undefined) {
     body.n = request.output.count;
   }
 
-  const imageConfig = resolveImageConfig(request, model);
+  const imageConfig = resolveImageConfig(request, model, diagnostics);
   if (imageConfig !== undefined) {
     body.image_config = imageConfig;
   }
 
-  applyProviderOptions(body, request.providerOptions);
+  applyProviderOptions(body, request.providerOptions, diagnostics);
 
-  return body as ChatImageCompletionBody;
+  return {
+    body: body as ChatImageCompletionBody,
+    diagnostics,
+  };
 }

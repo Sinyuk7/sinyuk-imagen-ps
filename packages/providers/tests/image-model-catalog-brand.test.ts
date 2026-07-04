@@ -22,6 +22,9 @@ const EXPECTED: ReadonlyArray<{
   { providerId: 'chat-image', ruleId: 'chat-image-gemini-3-pro-image', brand: 'google-gemini' },
   { providerId: 'chat-image', ruleId: 'chat-image-gemini-3.1-flash-image', brand: 'google-gemini' },
   { providerId: 'chat-image', ruleId: 'chat-image-openai-gpt-image-2', brand: 'openai' },
+  { providerId: 'gemini-generate-content', ruleId: 'gemini-generate-content-gemini-3.1-flash-image', brand: 'google-gemini' },
+  { providerId: 'gemini-generate-content', ruleId: 'gemini-generate-content-gemini-3-pro-image', brand: 'google-gemini' },
+  { providerId: 'gemini-generate-content', ruleId: 'gemini-generate-content-gemini-3.1-flash-lite-image', brand: 'google-gemini' },
 ];
 
 function modelIdForRule(providerId: ImageCatalogProviderId, ruleId: string): string {
@@ -62,5 +65,12 @@ describe('image model catalog brand coverage', () => {
     });
     expect(chatImageFallback.matchKind).toBe('default');
     expect(chatImageFallback.capability.brand).toBeUndefined();
+
+    const geminiFallback = resolveImageModelRule({
+      providerId: 'gemini-generate-content',
+      modelId: 'unknown-custom-model',
+    });
+    expect(geminiFallback.matchKind).toBe('default');
+    expect(geminiFallback.capability.brand).toBeUndefined();
   });
 });

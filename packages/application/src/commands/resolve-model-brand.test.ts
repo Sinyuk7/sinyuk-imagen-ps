@@ -15,9 +15,15 @@ describe('resolveModelBrand', () => {
     expect(resolveModelBrand({ providerId: 'chat-image', modelId: 'openai/gpt-image-2' })).toBe('openai');
   });
 
+  it('returns the catalog brand for gemini-generate-content curated models', () => {
+    expect(resolveModelBrand({ providerId: 'gemini-generate-content', modelId: 'gemini-3.1-flash-image' })).toBe('google-gemini');
+    expect(resolveModelBrand({ providerId: 'gemini-generate-content', modelId: 'gemini-3.1-flash-lite-image' })).toBe('google-gemini');
+  });
+
   it('returns undefined for unknown models that hit the fallback rule', () => {
     expect(resolveModelBrand({ providerId: 'image-endpoint', modelId: 'some-custom-model' })).toBeUndefined();
     expect(resolveModelBrand({ providerId: 'chat-image', modelId: 'some-custom-model' })).toBeUndefined();
+    expect(resolveModelBrand({ providerId: 'gemini-generate-content', modelId: 'some-custom-model' })).toBeUndefined();
   });
 
   it('returns undefined for non-catalog providers', () => {

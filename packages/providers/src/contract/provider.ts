@@ -106,6 +106,9 @@ export interface ProviderTransportCapability {
 /** Image edit 请求体方言。 */
 export type ImageEditCodec = 'multipart-bracket' | 'multipart-plain' | 'json-reference';
 
+/** Chat image 执行请求 codec。 */
+export type ChatImageRequestCodec = 'chat-completions-image-legacy';
+
 /** 当前 provider 响应解析 codec。 */
 export type ProviderResponseCodec = 'json';
 
@@ -116,6 +119,12 @@ export interface ProviderWireCapability {
 
   /** provider 声明的 image-edit 默认尝试顺序。 */
   readonly defaultEditCodecOrder?: readonly ImageEditCodec[];
+
+  /** provider 声明支持的 chat-image 请求 codec。 */
+  readonly supportedImageRequestCodecs?: readonly ChatImageRequestCodec[];
+
+  /** provider 声明的 chat-image 默认请求 codec。 */
+  readonly defaultImageRequestCodec?: ChatImageRequestCodec;
 
   /** provider 声明的响应 codec。 */
   readonly responseCodecs?: readonly ProviderResponseCodec[];

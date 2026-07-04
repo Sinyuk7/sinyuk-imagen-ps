@@ -32,6 +32,12 @@ surface apps -> application/session -> core-engine + providers
   local image-model capability catalog and resolver; remote `discoverModels()`
   answers are only an availability filter over that local catalog, not the
   authoritative picker source.
+- `gemini-generate-content` is a distinct provider family and local catalog
+  namespace inside `packages/providers`. The same `modelId` may coexist across
+  provider families such as `chat-image` and `gemini-generate-content`;
+  catalog identity and capability rules key by `providerId + modelId`, while
+  remote discovery remains optional availability filtering rather than the
+  catalog authority.
 - Model avatar icons follow catalog brand identity as the single source.
   `packages/providers` declares `ModelBrand` on `ImageModelCapability`;
   `packages/application` exposes the sync `resolveModelBrand` command over
@@ -128,6 +134,12 @@ surface apps -> application/session -> core-engine + providers
   default order, while runtime resolution, compatibility fingerprinting, and
   process-local success cache stay inside provider transport rather than
   leaking into `packages/application` or `apps/app`.
+- `packages/providers` also owns execution request-codec declarations under
+  `descriptor.transport.wire`. `chat-image` declares an explicit
+  `chat-completions-image-legacy` request codec, and codec-owned wire fields,
+  path selection, and semantic response parsing must not be constructed by
+  `packages/application` or overwritten through broad `providerOptions`
+  passthrough.
 - Provider billing refresh keeps its own runtime-only per-profile cooldown in
   `packages/application/src/commands/profile-billing.ts`. A 429 balance-query
   failure opens a local cooldown immediately, while repeated auth-style balance

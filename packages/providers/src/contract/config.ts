@@ -226,6 +226,45 @@ export interface ChatImageProviderConfig {
   readonly timeoutMs?: number;
 }
 
+/** Gemini Generate Content provider instance 的鉴权模式。 */
+export type GeminiGenerateContentAuthMode = 'x-goog-api-key' | 'bearer';
+
+/** Gemini Generate Content provider instance 的 API 版本。 */
+export type GeminiGenerateContentApiVersion = 'v1' | 'v1beta';
+
+/** Gemini Generate Content provider instance 的配置形状。 */
+export interface GeminiGenerateContentProviderConfig {
+  /** Provider instance 的稳定标识符。 */
+  readonly providerId: string;
+
+  /** 用于 UI / 日志展示的可读名称。 */
+  readonly displayName: string;
+
+  /** 当前 provider family。 */
+  readonly family: ProviderFamily;
+
+  /** Gemini-compatible relay / proxy / gateway 的连接集合。 */
+  readonly connection: ProviderConnectionConfig;
+
+  /** Gemini Generate Content 使用的鉴权 secret。 */
+  readonly apiKey: string;
+
+  /** Provider instance 使用的显式鉴权模式。 */
+  readonly authMode: GeminiGenerateContentAuthMode;
+
+  /** Provider instance 使用的显式 API 版本。 */
+  readonly apiVersion: GeminiGenerateContentApiVersion;
+
+  /** 缺省 model target。 */
+  readonly defaultModel?: string;
+
+  /** 兼容非标准 gateway 所需的附加 headers。 */
+  readonly extraHeaders?: Readonly<Record<string, string>>;
+
+  /** 单次 invoke 的默认超时。 */
+  readonly timeoutMs?: number;
+}
+
 /** Prompt optimization provider instance 的配置形状。 */
 export interface PromptOptimizeProviderConfig {
   /** Provider instance 的稳定标识符。 */
@@ -277,4 +316,5 @@ export interface BillingEnabledProviderConfig {
 export type ProviderConfig =
   | (ImageEndpointProviderConfig & BillingEnabledProviderConfig)
   | (ChatImageProviderConfig & BillingEnabledProviderConfig)
+  | GeminiGenerateContentProviderConfig
   | PromptOptimizeProviderConfig;

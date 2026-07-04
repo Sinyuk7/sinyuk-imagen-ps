@@ -2,6 +2,9 @@ export type { ProviderFamily, ProviderOperation } from './capability.js';
 export type {
   BillingEnabledProviderConfig,
   ChatImageProviderConfig,
+  GeminiGenerateContentApiVersion,
+  GeminiGenerateContentAuthMode,
+  GeminiGenerateContentProviderConfig,
   ImageEndpointProviderConfig,
   ProviderBillingMode,
   ProviderConnectionConfig,
@@ -71,6 +74,7 @@ export type {
   SupportEvidence,
 } from './model.js';
 export type {
+  ChatImageRequestCodec,
   ImageEditCodec,
   Provider,
   ProviderDescriptor,

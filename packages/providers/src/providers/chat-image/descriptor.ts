@@ -11,6 +11,8 @@ export const chatImageDescriptor: ProviderDescriptor = {
   defaultModels: listLocalCatalogModels('chat-image'),
   transport: {
     wire: {
+      supportedImageRequestCodecs: ['chat-completions-image-legacy'],
+      defaultImageRequestCodec: 'chat-completions-image-legacy',
       responseCodecs: ['json'],
     },
   },

@@ -12,6 +12,9 @@ export type {
   AssetRef,
   CanonicalImageJobRequest,
   ChatImageProviderConfig,
+  GeminiGenerateContentApiVersion,
+  GeminiGenerateContentAuthMode,
+  GeminiGenerateContentProviderConfig,
   ExactTaskCost,
   ImageAspectRatio,
   ImageCatalogProviderId,
@@ -62,6 +65,7 @@ export type {
   ProviderRequest,
   ProviderResponseCodec,
   ProviderWireCapability,
+  ChatImageRequestCodec,
   ImageEditCodec,
   ResolvedImageModelOutput,
   ResolvedImageModelRule,
@@ -101,6 +105,13 @@ export {
 
 // Chat image provider
 export { chatImageConfigSchema, createChatImageProvider, chatImageDescriptor } from './providers/chat-image/index.js';
+
+// Gemini Generate Content provider
+export {
+  geminiGenerateContentConfigSchema,
+  createGeminiGenerateContentProvider,
+  geminiGenerateContentDescriptor,
+} from './providers/gemini-generate-content/index.js';
 
 // Prompt optimize provider
 export {

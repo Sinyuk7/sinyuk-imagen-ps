@@ -242,7 +242,13 @@ describe('Chrome adapter contracts', () => {
 
   it('runs the Chrome provider command path with mock provider state and simulator layers', async () => {
     const result = await runChromeFeasibilityRuntime({ backend: createMemoryIndexedDbBackend() });
-    expect(result.providerIds).toEqual(['chat-image', 'image-endpoint', 'mock', 'prompt-optimize']);
+    expect(result.providerIds).toEqual([
+      'chat-image',
+      'gemini-generate-content',
+      'image-endpoint',
+      'mock',
+      'prompt-optimize',
+    ]);
     expect(result.generatedAssetCount).toBe(1);
     expect(result.simulatorLayerCount).toBe(10);
   });

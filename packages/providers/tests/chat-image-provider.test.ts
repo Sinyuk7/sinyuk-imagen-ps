@@ -2,9 +2,10 @@ import { describe, expect, it, vi } from 'vitest';
 import { createLogger, createMemorySink } from '@imagen-ps/foundation';
 import { createChatImageProvider, chatImageDescriptor } from '../src/providers/chat-image/index.js';
 import { resolveImageModelRule } from '../src/contract/image-model-capability.js';
-import { buildChatImageRequestBody } from '../src/transport/chat-image/build-request.js';
+import { buildChatImageRequest, buildChatImageRequestBody } from '../src/transport/chat-image/build-request.js';
 import { parseChatImageModelsResponse } from '../src/transport/chat-image/models.js';
 import { parseChatImageResponse } from '../src/transport/chat-image/parse-response.js';
+import { resolveChatImageWireCodec } from '../src/transport/chat-image/request-codec.js';
 
 const tinyPngBase64 = 'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+aF9sAAAAASUVORK5CYII=';
 const tinyPngDataUrl = `data:image/png;base64,${tinyPngBase64}`;
@@ -32,7 +33,29 @@ describe('chat-image provider', () => {
     expect(provider.family).toBe('chat-image');
     expect(provider.describe()).toEqual(chatImageDescriptor);
     expect(provider.describe().operations).toEqual(['text_to_image', 'image_edit']);
+    expect(provider.describe().transport?.wire?.supportedImageRequestCodecs).toEqual(['chat-completions-image-legacy']);
+    expect(provider.describe().transport?.wire?.defaultImageRequestCodec).toBe('chat-completions-image-legacy');
     expect(config.family).toBe('chat-image');
+  });
+
+  it('resolves the explicit legacy chat-image request codec from the descriptor', () => {
+    const codec = resolveChatImageWireCodec(chatImageDescriptor);
+
+    expect(codec.id).toBe('chat-completions-image-legacy');
+    expect(codec.buildRequest(
+      {
+        operation: 'text_to_image',
+        prompt: 'legacy request',
+      },
+      { defaultModel: 'google/gemini-2.5-flash-image-preview' },
+    )).toMatchObject({
+      method: 'POST',
+      path: '/chat/completions',
+      body: {
+        model: 'google/gemini-2.5-flash-image-preview',
+        modalities: ['image'],
+      },
+    });
   });
 
   it('builds text-to-image chat completion body', () => {
@@ -136,6 +159,62 @@ describe('chat-image provider', () => {
       type: 'image_url',
       image_url: { url: 'data:image/png;base64,AQID' },
     });
+  });
+
+  it('keeps canonical image_config ownership and reports ignored provider options', () => {
+    const built = buildChatImageRequest(
+      {
+        operation: 'text_to_image',
+        prompt: 'preserve canonical semantics',
+        output: {
+          count: 1,
+          aspectRatio: '1:1',
+          outputFormat: 'png',
+        },
+        providerOptions: {
+          image_config: { aspect_ratio: '9:16', quality: 'low' },
+          modalities: ['text'],
+          unsupported_flag: true,
+          user: 'trace-user',
+        },
+      },
+      'google/gemini-2.5-flash-image-preview',
+    );
+
+    expect(built.body).toMatchObject({
+      model: 'google/gemini-2.5-flash-image-preview',
+      modalities: ['image'],
+      user: 'trace-user',
+      image_config: {
+        aspect_ratio: '1:1',
+        output_format: 'png',
+      },
+    });
+    expect(built.body.image_config).not.toHaveProperty('quality');
+    expect(built.diagnostics).toEqual([
+      expect.objectContaining({
+        code: 'chat-image.request.provider-option-ignored',
+        details: expect.objectContaining({
+          key: 'modalities',
+          reason: 'reserved',
+        }),
+      }),
+      expect.objectContaining({
+        code: 'chat-image.request.provider-option-ignored',
+        details: expect.objectContaining({
+          key: 'image_config',
+          reason: 'reserved',
+          ignoredPaths: ['image_config.aspect_ratio', 'image_config.quality'],
+        }),
+      }),
+      expect.objectContaining({
+        code: 'chat-image.request.provider-option-ignored',
+        details: expect.objectContaining({
+          key: 'unsupported_flag',
+          reason: 'not-allowlisted',
+        }),
+      }),
+    ]);
   });
 
   it('normalizes OpenRouter-style image response', () => {
@@ -501,12 +580,14 @@ describe('chat-image provider', () => {
 
     const requestSummary = sink.records.find((record) => record.event === 'provider.chat_image.request_summary');
     expect(requestSummary?.attrs).toMatchObject({
+      requestCodec: 'chat-completions-image-legacy',
       requestedOutputFormat: 'png',
       wireImageConfigOutputFormat: 'png',
       model: 'gemini-3.1-flash-image',
     });
     const responseSummary = sink.records.find((record) => record.event === 'provider.chat_image.response_summary');
     expect(responseSummary?.attrs).toMatchObject({
+      requestCodec: 'chat-completions-image-legacy',
       assetCount: 1,
       assetMimeTypes: ['image/jpeg'],
       assetNames: ['generated-1.jpg'],
@@ -518,6 +599,7 @@ describe('chat-image provider', () => {
     expect(mismatch).toMatchObject({
       level: 'warn',
       attrs: expect.objectContaining({
+        requestCodec: 'chat-completions-image-legacy',
         requestedOutputFormat: 'png',
         expectedMimeType: 'image/png',
         actualMimeTypes: ['image/jpeg'],
@@ -526,6 +608,87 @@ describe('chat-image provider', () => {
     expect(sink.records.some((record) => record.event === 'transport.request.start')).toBe(true);
     expect(JSON.stringify(sink.records)).not.toContain('data:image');
     expect(JSON.stringify(sink.records)).not.toContain(tinyJpegBase64);
+    fetchSpy.mockRestore();
+  });
+
+  it('logs ignored reserved provider options during invoke without leaking raw image data', async () => {
+    const sink = createMemorySink();
+    const logger = createLogger({
+      sink,
+      context: { surface: 'test', package: 'application', component: 'runtime' },
+      traceId: 'tr_chat_image_reserved_options',
+    });
+    const fetchSpy = vi.spyOn(globalThis, 'fetch').mockResolvedValue(
+      new Response(
+        JSON.stringify({
+          choices: [{ message: { content: 'done', images: [{ image_url: { url: 'https://example.com/out.png' } }] } }],
+        }),
+        {
+          status: 200,
+          headers: { 'Content-Type': 'application/json' },
+        },
+      ),
+    );
+    const provider = createChatImageProvider();
+    const config = provider.validateConfig({
+      providerId: 'chat-image',
+      displayName: 'Chat Image',
+      family: 'chat-image',
+      connection: {
+        selectionMode: 'manual',
+        failoverEnabled: false,
+        preferredEndpointId: 'primary',
+        endpoints: [{ id: 'primary', url: 'https://openrouter.ai/api/v1', enabled: true }],
+      },
+      apiKey: 'test-key',
+      defaultModel: 'google/gemini-2.5-flash-image-preview',
+    });
+
+    const result = await provider.invoke({
+      config,
+      logger,
+      request: provider.validateRequest({
+        operation: 'text_to_image',
+        prompt: 'test',
+        output: { count: 1, aspectRatio: '1:1' },
+        providerOptions: {
+          image_config: { aspect_ratio: '9:16' },
+          unsupported_flag: true,
+        },
+      }),
+    });
+
+    expect(result.diagnostics).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          code: 'chat-image.request.provider-option-ignored',
+          details: expect.objectContaining({
+            key: 'image_config',
+            ignoredPaths: ['image_config.aspect_ratio'],
+          }),
+        }),
+      ]),
+    );
+    expect(sink.records.filter((record) => record.event === 'provider.chat_image.request_option_ignored')).toEqual([
+      expect.objectContaining({
+        level: 'warn',
+        attrs: expect.objectContaining({
+          requestCodec: 'chat-completions-image-legacy',
+          key: 'image_config',
+          reason: 'reserved',
+        }),
+      }),
+      expect.objectContaining({
+        level: 'warn',
+        attrs: expect.objectContaining({
+          requestCodec: 'chat-completions-image-legacy',
+          key: 'unsupported_flag',
+          reason: 'not-allowlisted',
+        }),
+      }),
+    ]);
+    expect(String(fetchSpy.mock.calls[0]?.[0])).toBe('https://openrouter.ai/api/v1/chat/completions');
+    expect(JSON.stringify(sink.records)).not.toContain(tinyPngBase64);
     fetchSpy.mockRestore();
   });
 });
