@@ -24,7 +24,7 @@ surface apps -> application/session -> core-engine + providers
 
 ## Current State
 
-- Active loop authority is declared only in root `AGENTS.md`. No active loop is currently declared.
+- Active loop authority is declared only in root `AGENTS.md`.
 - `packages/application` is the shared application/session package.
 - `apps/app` and `packages/providers` are stable boundaries unless a loop slice explicitly allows changes.
 - `apps/app` is a dual-runtime surface: one shared UXP-safe React UI consumed by a Photoshop UXP shell and a Chrome browser shell. See `apps/app/AGENTS.md`.
@@ -120,26 +120,11 @@ surface apps -> application/session -> core-engine + providers
   ranking stays session-only.
 - Session-level in-flight registry (`packages/application/src/session/session.ts`): `inFlightRetry` deduplicates by failed-job `jobId`; `inFlightSubmit` deduplicates by `__clientRoundId`. Locks release on all settle paths including `{ok:true,value:failedJob}`.
 - UI ref gates (`submitInFlightRef`, `retryInFlightRef`) cover same-tick double-click windows. Error-retry and regenerate buttons are disabled while `conversation.running`.
-- Shared provider failover executor owns endpoint ordering, same-endpoint retry,
-  cross-endpoint failover, cooldown skip, global attempt budget, and attempt
-  diagnostics. `paid` mode (default for image-endpoint/chat-image) retries only
-  429 on the same endpoint without idempotency and fails over on 503/502/504/
-  `network_error` within the logical-request budget. Upstream 400/422
-  request-invalid failures never trigger retry, failover, or cooldown.
-  `timeout` is never replayed across endpoints. `broad` mode (default for
-  discovery) still permits safe endpoint failover for non-paid probes.
-- `packages/providers` owns image-edit wire compatibility under
-  `descriptor.transport.wire`. `image-endpoint` declares supported request
-  codecs (`multipart-bracket`, `multipart-plain`, `json-reference`) plus
-  default order, while runtime resolution, compatibility fingerprinting, and
-  process-local success cache stay inside provider transport rather than
-  leaking into `packages/application` or `apps/app`.
-- `packages/providers` also owns execution request-codec declarations under
-  `descriptor.transport.wire`. `chat-image` declares an explicit
-  `chat-completions-image-legacy` request codec, and codec-owned wire fields,
-  path selection, and semantic response parsing must not be constructed by
-  `packages/application` or overwritten through broad `providerOptions`
-  passthrough.
+- Provider transport ownership summary lives in `packages/providers/ARCHITECTURE.md`.
+  Use that doc for request codec boundaries, replay safety, `RecoveryDisposition`,
+  `decideNextAction`, `AttemptPlan`, `DispatchBudget`, and `AttemptLedger`.
+- Provider transport harness guidance lives in `packages/providers/TESTING.md`.
+  Node multipart capture does not prove Photoshop/UXP host serialization.
 - Provider billing refresh keeps its own runtime-only per-profile cooldown in
   `packages/application/src/commands/profile-billing.ts`. A 429 balance-query
   failure opens a local cooldown immediately, while repeated auth-style balance

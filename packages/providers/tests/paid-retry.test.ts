@@ -83,10 +83,9 @@ describe('resolveIdempotencyHeader', () => {
 });
 
 describe('httpRequest idempotency-key passthrough across retries', () => {
-  it('sends the same Idempotency-Key on every attempt when idempotency is supported', async () => {
-    // 第 1 次 network_error（模糊失败），第 2 次成功；paid + idempotencySupported → 重试。
+  it('sends the same Idempotency-Key on every 429 retry attempt when idempotency is supported', async () => {
     const counting = createCountingFetch([
-      { kind: 'network_error' },
+      { kind: 'response', status: 429, headers: { 'retry-after': '0' }, data: { error: { message: 'Slow down' } } },
       { kind: 'response', status: 200, data: { ok: true } },
     ]);
     vi.stubGlobal('fetch', counting.fetch);

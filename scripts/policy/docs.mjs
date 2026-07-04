@@ -4,6 +4,8 @@ const highAuthorityDocs = [
   'AGENTS.md',
   'README.md',
   'CLA.md',
+  'docs/adr/provider-attempt-and-replay-safety.md',
+  'docs/adr/provider-failure-and-recovery-disposition.md',
   'docs/ENGINEERING_CONTEXT.md',
   'docs/TESTING.md',
   'docs/agent/LOOP.md',
@@ -12,6 +14,8 @@ const highAuthorityDocs = [
   'packages/application/AGENTS.md',
   'packages/core-engine/AGENTS.md',
   'packages/providers/AGENTS.md',
+  'packages/providers/ARCHITECTURE.md',
+  'packages/providers/TESTING.md',
   'packages/foundation/AGENTS.md',
 ];
 

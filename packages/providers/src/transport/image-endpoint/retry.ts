@@ -24,6 +24,17 @@ import type { ProviderInvokeError } from './error-map.js';
 import type { Logger } from '@imagen-ps/foundation';
 import { canListenToAbort } from '../../shared/abort-signal.js';
 
+export type DispatchAttemptKind = 'initial' | 'retry' | 'codec-fallback' | 'endpoint-failover';
+
+export interface RetryAttemptContext {
+  readonly attemptIndex: number;
+  readonly kind: DispatchAttemptKind;
+}
+
+interface AttemptLedgerLike {
+  consume(kind: DispatchAttemptKind): void;
+}
+
 export interface RetryPolicy {
   /** 最大重试次数（默认 3）。 */
   readonly maxRetries: number;
@@ -66,6 +77,12 @@ export interface RetryOptions {
    * 502/504/`network_error` 这类模糊失败恢复重试（因 `Idempotency-Key` 使重试安全）。
    */
   readonly idempotencySupported?: boolean;
+
+  /** 第一次 HTTP dispatch 的归因类别。 */
+  readonly initialAttemptKind?: Exclude<DispatchAttemptKind, 'retry'>;
+
+  /** 可选的统一 dispatch 账本。 */
+  readonly attemptLedger?: AttemptLedgerLike;
 }
 
 export function retryAfterMs(error: unknown): number | undefined {
@@ -128,7 +145,7 @@ function shouldRetryBroad(error: unknown): boolean {
  * - 502 / 504：仅当 `idempotencySupported` 时重试（gateway/ upstream 模糊失败）。
  * - 其它：不重试。
  */
-export function classifyPaidRetry(error: unknown, idempotencySupported: boolean): boolean {
+export function classifyPaidRetry(error: unknown, _idempotencySupported: boolean): boolean {
   const kind = extractKind(error);
   if (kind === 'timeout') {
     return false;
@@ -136,15 +153,11 @@ export function classifyPaidRetry(error: unknown, idempotencySupported: boolean)
   const statusCode = extractStatusCode(error);
 
   if (kind === 'network_error') {
-    return idempotencySupported;
+    return false;
   }
 
-  if (statusCode === 429 || statusCode === 503) {
+  if (statusCode === 429) {
     return true;
-  }
-
-  if (statusCode === 502 || statusCode === 504) {
-    return idempotencySupported;
   }
 
   return false;
@@ -226,7 +239,7 @@ function createAbortError(message: string): Error {
  * @returns operation 的结果
  */
 export async function withRetry<T>(
-  operation: () => Promise<T>,
+  operation: (context: RetryAttemptContext) => Promise<T>,
   policy: RetryPolicy = defaultRetryPolicy,
   signal?: AbortSignal,
   onRetry?: (diagnostic: ProviderDiagnostic) => void,
@@ -241,7 +254,10 @@ export async function withRetry<T>(
     }
 
     try {
-      return await operation();
+      return await operation({
+        attemptIndex: attempt + 1,
+        kind: attempt === 0 ? (opts?.initialAttemptKind ?? 'initial') : 'retry',
+      });
     } catch (error) {
       const shouldRetryThisAttempt = shouldRetry(error, opts);
 

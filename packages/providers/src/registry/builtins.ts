@@ -1,9 +1,25 @@
 import type { ProviderRegistry } from './provider-registry.js';
+import type { Provider } from '../contract/provider.js';
 import { createMockProvider } from '../providers/mock/provider.js';
 import { createImageEndpointProvider } from '../providers/image-endpoint/provider.js';
 import { createChatImageProvider } from '../providers/chat-image/provider.js';
 import { createGeminiGenerateContentProvider } from '../providers/gemini-generate-content/provider.js';
 import { createPromptOptimizeProvider } from '../providers/prompt-optimize/provider.js';
+
+/** 内置 provider id 的编译期穷举集合。 */
+export type BuiltinProviderId =
+  | 'image-endpoint'
+  | 'chat-image'
+  | 'gemini-generate-content'
+  | 'prompt-optimize';
+
+/** 内置 provider factory 映射；仅覆盖 repo 维护的真实 builtin。 */
+export const builtins = {
+  'image-endpoint': createImageEndpointProvider,
+  'chat-image': createChatImageProvider,
+  'gemini-generate-content': createGeminiGenerateContentProvider,
+  'prompt-optimize': createPromptOptimizeProvider,
+} satisfies Record<BuiltinProviderId, () => Provider<unknown, unknown>>;
 
 /**
  * 将内置 provider 注册到给定的 registry。
@@ -12,8 +28,7 @@ import { createPromptOptimizeProvider } from '../providers/prompt-optimize/provi
  */
 export function registerBuiltins(registry: ProviderRegistry): void {
   registry.register(createMockProvider());
-  registry.register(createImageEndpointProvider());
-  registry.register(createChatImageProvider());
-  registry.register(createGeminiGenerateContentProvider());
-  registry.register(createPromptOptimizeProvider());
+  for (const createProvider of Object.values(builtins)) {
+    registry.register(createProvider());
+  }
 }

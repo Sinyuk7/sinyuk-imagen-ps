@@ -1,4 +1,12 @@
-import type { ProviderInvokeError } from './error-map.js';
+import type { ImageEditCodec } from '../../contract/provider.js';
+import type { ProviderInvokeError, RecoveryEvidence } from './error-map.js';
+
+export interface RequestWireSignature {
+  readonly bodyKind: 'multipart' | 'json';
+  readonly contentTypeKind: 'multipart/form-data' | 'application/json';
+  readonly imageFieldMode?: 'image' | 'image[]';
+  readonly imageReferenceMode?: 'binary' | 'reference';
+}
 
 export interface ImageEditRequestShapeRejection {
   readonly eligible: boolean;
@@ -42,6 +50,39 @@ const SHAPE_DENY_TERMS = [
   'permission',
 ] as const;
 
+const REQUEST_WIRE_SIGNATURES: Record<ImageEditCodec, RequestWireSignature> = {
+  'multipart-bracket': {
+    bodyKind: 'multipart',
+    contentTypeKind: 'multipart/form-data',
+    imageFieldMode: 'image[]',
+    imageReferenceMode: 'binary',
+  },
+  'multipart-plain': {
+    bodyKind: 'multipart',
+    contentTypeKind: 'multipart/form-data',
+    imageFieldMode: 'image',
+    imageReferenceMode: 'binary',
+  },
+  'json-reference': {
+    bodyKind: 'json',
+    contentTypeKind: 'application/json',
+    imageReferenceMode: 'reference',
+  },
+};
+
+const EXACT_BODY_PATTERN_RULES = [
+  {
+    ruleId: 'image-field-multipart-bracket',
+    pattern: /expected file field image\[\] in multipart\/form-data body/i,
+    implicatedDimension: 'image_field' as const,
+  },
+  {
+    ruleId: 'expected-io-reader',
+    pattern: /expected io\.reader/i,
+    implicatedDimension: 'body_kind' as const,
+  },
+] as const;
+
 function normalizeText(value: string): string {
   return value.toLowerCase();
 }
@@ -68,6 +109,18 @@ function containsTerm(text: string, term: string): boolean {
 
 function collectMatchedTerms(text: string, terms: readonly string[]): readonly string[] {
   return terms.filter((term) => containsTerm(text, term));
+}
+
+function findExactBodyPatternRule(text: string): {
+  readonly ruleId: string;
+  readonly implicatedDimension: 'body_kind' | 'content_type' | 'image_field' | 'image_reference';
+} | null {
+  for (const rule of EXACT_BODY_PATTERN_RULES) {
+    if (rule.pattern.test(text)) {
+      return rule;
+    }
+  }
+  return null;
 }
 
 function collectAcceptedWorkSignals(value: unknown, path = ''): string[] {
@@ -107,8 +160,51 @@ function collectAcceptedWorkSignals(value: unknown, path = ''): string[] {
   return [];
 }
 
+function signatureChangesRejectedDimension(args: {
+  readonly currentSignature: RequestWireSignature;
+  readonly alternateSignature: RequestWireSignature;
+  readonly implicatedDimension: 'body_kind' | 'content_type' | 'image_field' | 'image_reference' | 'unknown';
+}): boolean {
+  const { currentSignature, alternateSignature, implicatedDimension } = args;
+  if (implicatedDimension === 'body_kind') {
+    return currentSignature.bodyKind !== alternateSignature.bodyKind;
+  }
+  if (implicatedDimension === 'content_type') {
+    return currentSignature.contentTypeKind !== alternateSignature.contentTypeKind;
+  }
+  if (implicatedDimension === 'image_field') {
+    return currentSignature.imageFieldMode !== alternateSignature.imageFieldMode;
+  }
+  if (implicatedDimension === 'image_reference') {
+    return currentSignature.imageReferenceMode !== alternateSignature.imageReferenceMode;
+  }
+  return (
+    currentSignature.bodyKind !== alternateSignature.bodyKind ||
+    currentSignature.contentTypeKind !== alternateSignature.contentTypeKind ||
+    currentSignature.imageFieldMode !== alternateSignature.imageFieldMode ||
+    currentSignature.imageReferenceMode !== alternateSignature.imageReferenceMode
+  );
+}
+
+function evidenceWithRule(
+  evidence: readonly RecoveryEvidence[] | undefined,
+  ruleId: string,
+): boolean {
+  return evidence?.some((entry) => entry.source === 'body_pattern' && entry.ruleId === ruleId) ?? false;
+}
+
+export function requestWireSignatureForCodec(codec: ImageEditCodec): RequestWireSignature {
+  return REQUEST_WIRE_SIGNATURES[codec];
+}
+
 /** 判断 `request_invalid` 是否是安全的 request-shape 拒绝。 */
-export function classifyImageEditRequestShapeRejection(error: unknown): ImageEditRequestShapeRejection {
+export function classifyImageEditRequestShapeRejection(
+  error: unknown,
+  options?: {
+    readonly currentCodec?: ImageEditCodec;
+    readonly alternateCodec?: ImageEditCodec;
+  },
+): ImageEditRequestShapeRejection {
   if (
     typeof error !== 'object' ||
     error === null ||
@@ -149,6 +245,7 @@ export function classifyImageEditRequestShapeRejection(error: unknown): ImageEdi
   }
 
   const textEvidence = collectTextEvidence(providerError);
+  const exactRule = findExactBodyPatternRule(textEvidence);
   const matchedDenyTerms = collectMatchedTerms(textEvidence, SHAPE_DENY_TERMS);
   if (matchedDenyTerms.length > 0) {
     return {
@@ -161,9 +258,21 @@ export function classifyImageEditRequestShapeRejection(error: unknown): ImageEdi
     };
   }
 
+  const currentSignature = options?.currentCodec ? requestWireSignatureForCodec(options.currentCodec) : undefined;
+  const alternateSignature = options?.alternateCodec ? requestWireSignatureForCodec(options.alternateCodec) : undefined;
+  const recovery = providerError.recovery;
+
   if (statusCode === 415) {
+    const implicatedDimension = recovery?.wireRejection?.implicatedDimension ?? 'unknown';
+    const eligible = currentSignature !== undefined &&
+      alternateSignature !== undefined &&
+      signatureChangesRejectedDimension({
+        currentSignature,
+        alternateSignature,
+        implicatedDimension,
+      });
     return {
-      eligible: true,
+      eligible,
       reason: 'http_415',
       statusCode,
       matchedAllowTerms: [],
@@ -173,7 +282,20 @@ export function classifyImageEditRequestShapeRejection(error: unknown): ImageEdi
   }
 
   const matchedAllowTerms = collectMatchedTerms(textEvidence, SHAPE_ALLOW_TERMS);
-  if (matchedAllowTerms.length === 0) {
+  if (
+    exactRule === null ||
+    currentSignature === undefined ||
+    alternateSignature === undefined ||
+    !signatureChangesRejectedDimension({
+      currentSignature,
+      alternateSignature,
+      implicatedDimension: exactRule.implicatedDimension,
+    }) ||
+    (
+      !evidenceWithRule(recovery?.evidence, exactRule.ruleId) &&
+      !matchedAllowTerms.some((term) => containsTerm(textEvidence, term))
+    )
+  ) {
     return {
       eligible: false,
       reason: 'missing_allowlist_evidence',

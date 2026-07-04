@@ -89,8 +89,8 @@ export {
 } from './contract/index.js';
 
 // Registry
-export type { ProviderRegistry, RegistryError } from './registry/index.js';
-export { createProviderRegistry, registerBuiltins } from './registry/index.js';
+export type { BuiltinProviderId, ProviderRegistry, RegistryError } from './registry/index.js';
+export { builtins, createProviderRegistry, registerBuiltins } from './registry/index.js';
 
 // Mock provider
 export type { MockProviderConfig, MockProviderOptions, MockProviderRequest } from './providers/mock/index.js';

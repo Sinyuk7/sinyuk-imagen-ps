@@ -7,10 +7,16 @@ import { imageEndpointDescriptor } from './descriptor.js';
 import { imageEndpointConfigSchema, type ImageEndpointProviderConfig } from './config-schema.js';
 import { mockRequestSchema, type MockProviderRequest } from '../mock/request-schema.js';
 import { httpRequest } from '../../transport/image-endpoint/http.js';
-import { executeWithEndpointFailover } from '../../transport/image-endpoint/failover.js';
+import {
+  createAttemptLedger,
+  deriveDispatchBudget,
+  executeAttemptPlan,
+  executeWithEndpointFailover,
+  resolveAttemptPlan,
+} from '../../transport/image-endpoint/failover.js';
 import { resolvePaidRetryConfig, resolveIdempotencyHeader } from '../../transport/image-endpoint/paid-retry.js';
 import {
-  buildImageEditRequestBody,
+  buildImageEditHttpRequest,
   buildRequestBody,
 } from '../../transport/image-endpoint/build-request.js';
 import { parseResponse } from '../../transport/image-endpoint/parse-response.js';
@@ -18,11 +24,11 @@ import { inspectModelsResponse } from '../../transport/image-endpoint/models.js'
 import { listLocalCatalogModels } from '../../contract/image-model-capability.js';
 import { fetchProviderBalanceJson, parseNewApiBalanceResponse } from '../../transport/billing/query-balance.js';
 import {
+  evictIfMatches,
+  isImageEditCodecCompatible,
   rememberSuccessfulImageEditCodec,
-  resolveAlternateImageEditCodec,
   resolveImageEditCodec,
 } from '../../transport/image-endpoint/wire-compatibility.js';
-import { classifyImageEditRequestShapeRejection } from '../../transport/image-endpoint/request-shape-classifier.js';
 
 /** Provider 层可映射的结构化验证错误。 */
 interface ProviderValidationError extends Error {
@@ -61,7 +67,7 @@ function logEditRequestSummary(
   logger: Logger | undefined,
   request: MockProviderRequest,
   resolvedCodec: {
-    readonly codec: string;
+    readonly codec: { readonly id: string };
     readonly source: string;
     readonly cacheKey: string;
   },
@@ -72,7 +78,7 @@ function logEditRequestSummary(
   }
 
   logger?.info('provider.image_endpoint.edit_request_summary', {
-    codec: resolvedCodec.codec,
+    codec: resolvedCodec.codec.id,
     source: resolvedCodec.source,
     compatibilityKey: resolvedCodec.cacheKey,
     model:
@@ -88,6 +94,11 @@ function logEditRequestSummary(
 
 function enabledEndpointCount(config: ImageEndpointProviderConfig): number {
   return config.connection.endpoints.filter((endpoint) => endpoint.enabled).length;
+}
+
+function compatibleImageEditCodecs(request: MockProviderRequest): readonly ImageEditCodec[] {
+  const declaredOrder = imageEndpointDescriptor.transport?.wire?.defaultEditCodecOrder ?? [];
+  return declaredOrder.filter((codec) => isImageEditCodecCompatible(request, codec));
 }
 
 function logEditCodecFallbackDecision(
@@ -214,59 +225,85 @@ export function createImageEndpointProvider(): Provider<ImageEndpointProviderCon
       let execution;
       let parsed;
       let successfulEditCodec = resolvedEditCodec?.codec;
+      let requestDiagnostics: ProviderInvokeResult['diagnostics'] = [];
 
       if (request.operation === 'text_to_image') {
         execution = await executeRequest(body);
         parsed = parseResponse(execution.value.response.data);
       } else {
-        const initialBody = buildImageEditRequestBody(request, resolvedEditCodec!.codec, config.defaultModel);
-        try {
-          execution = await executeRequest(initialBody);
-          parsed = parseResponse(execution.value.response.data);
-        } catch (error) {
-          const rejection = classifyImageEditRequestShapeRejection(error);
-          const alternateCodec = resolveAlternateImageEditCodec({
-            descriptor: imageEndpointDescriptor,
-            request,
-            currentCodec: resolvedEditCodec!.codec,
-          });
-          const fallbackDisabledBecauseMultipleEndpoints =
-            config.connection.failoverEnabled && enabledEndpointCount(config) > 1;
-
-          if (alternateCodec === undefined || !rejection.eligible) {
-            throw error;
+        const endpoints = config.connection.endpoints.filter((endpointConfig) => endpointConfig.enabled);
+        const codecs = compatibleImageEditCodecs(request);
+        const plan = resolveAttemptPlan({
+          endpoints,
+          failoverEnabled: config.connection.failoverEnabled && enabledEndpointCount(config) > 1,
+          compatibleCodecs: codecs,
+        });
+        const budget = deriveDispatchBudget(plan, paidRetry.policy);
+        const ledger = createAttemptLedger(budget);
+        execution = await executeAttemptPlan({
+          plan,
+          budget,
+          ledger,
+          capability: {
+            idempotencySupported: paidRetry.idempotencySupported,
+            idempotencyScope: paidRetry.idempotencySupported ? 'shared-domain' : 'unknown',
+          },
+          retryPolicy: paidRetry.policy,
+          logger: args.logger,
+          execute: async (candidate) => {
+            successfulEditCodec = resolvedEditCodec?.codec.id === candidate.codecId
+              ? resolvedEditCodec.codec
+              : successfulEditCodec;
+            const endpointConfig = endpoints.find((entry) => entry.id === candidate.endpointId);
+            if (!endpointConfig) {
+              throw createValidationError(`Unknown endpoint candidate: "${candidate.endpointId}".`);
+            }
+            const builtRequest = buildImageEditHttpRequest(request, candidate.codecId, config.defaultModel);
+            successfulEditCodec = builtRequest.codec;
+            requestDiagnostics = builtRequest.diagnostics;
+            const response = await httpRequest(
+              {
+                url: new URL(endpoint, endpointConfig.url).toString(),
+                method: 'POST',
+                headers: {
+                  Authorization: `Bearer ${config.apiKey}`,
+                  ...(config.extraHeaders ?? {}),
+                  ...(idempotencyHeader ?? {}),
+                  ...(builtRequest.headers ?? {}),
+                },
+                body: builtRequest.body,
+                timeoutMs: config.timeoutMs,
+              },
+              paidRetry.policy,
+              signal,
+              args.logger,
+              {
+                retryability: 'paid',
+                idempotencySupported: paidRetry.idempotencySupported,
+                initialAttemptKind: candidate.reason,
+                attemptLedger: ledger,
+              },
+            );
+            return response;
+          },
+        });
+        if (plan.mode === 'codec-fallback' && successfulEditCodec?.id !== resolvedEditCodec?.codec.id) {
+          if (resolvedEditCodec?.source === 'cache') {
+            evictIfMatches(resolvedEditCodec.cacheKey, resolvedEditCodec.codec.id);
           }
-
-          if (fallbackDisabledBecauseMultipleEndpoints) {
-            logEditCodecFallbackDecision(args.logger, {
-              initialCodec: resolvedEditCodec!.codec,
-              fallbackCodec: alternateCodec.codec,
-              fallbackReason: rejection.reason,
-              fallbackAttemptCount: 1,
-              fallbackDisabledBecauseMultipleEndpoints: true,
-              statusCode: rejection.statusCode,
-            });
-            throw error;
-          }
-
           logEditCodecFallbackDecision(args.logger, {
-            initialCodec: resolvedEditCodec!.codec,
-            fallbackCodec: alternateCodec.codec,
-            fallbackReason: rejection.reason,
+            initialCodec: resolvedEditCodec!.codec.id,
+            fallbackCodec: successfulEditCodec!.id,
+            fallbackReason: 'http_415',
             fallbackAttemptCount: 1,
             fallbackDisabledBecauseMultipleEndpoints: false,
-            statusCode: rejection.statusCode,
           });
-          execution = await executeRequest(
-            buildImageEditRequestBody(request, alternateCodec.codec, config.defaultModel),
-          );
-          parsed = parseResponse(execution.value.response.data);
-          successfulEditCodec = alternateCodec.codec;
         }
+        parsed = parseResponse(execution.value.response.data);
       }
 
       if (resolvedEditCodec !== undefined && successfulEditCodec !== undefined) {
-        rememberSuccessfulImageEditCodec(resolvedEditCodec.cacheKey, successfulEditCodec);
+        rememberSuccessfulImageEditCodec(resolvedEditCodec.cacheKey, successfulEditCodec.id);
       }
 
       // 契约：无值的可选字段 **省略**（不写 `undefined`），
@@ -287,7 +324,7 @@ export function createImageEndpointProvider(): Provider<ImageEndpointProviderCon
           attempts: execution.attempts,
         },
       };
-      const diagnostics = [...execution.diagnostics, ...execution.value.diagnostics];
+      const diagnostics = [...requestDiagnostics, ...execution.diagnostics, ...execution.value.diagnostics];
       if (diagnostics.length > 0) {
         result.diagnostics = diagnostics;
       }

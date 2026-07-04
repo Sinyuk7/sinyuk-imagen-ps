@@ -19,8 +19,13 @@
 
 import type { Asset } from '@imagen-ps/core-engine';
 import type { CanonicalImageJobRequest, ProviderOutputOptions } from '../../contract/request.js';
+import type { ProviderDiagnostic } from '../../contract/diagnostics.js';
 import type { ImageEditCodec } from '../../contract/provider.js';
 import { resolveImageModelOutput, type ImageCatalogProviderId } from '../../contract/image-model-capability.js';
+import { jsonReferenceCodec } from './codec-json-reference.js';
+import { multipartBracketCodec } from './codec-multipart-bracket.js';
+import { multipartPlainCodec } from './codec-multipart-plain.js';
+import type { RequestWireSignature } from './request-shape-classifier.js';
 
 /**
  * Image endpoint images/generations 的请求 body。
@@ -123,6 +128,30 @@ export interface OpenAIImageEditBody {
 
   /** 其他透传字段。 */
   [key: string]: unknown;
+}
+
+export type ProviderHttpBody = Record<string, unknown> | FormData | Uint8Array | string;
+
+export interface ImageEditRequestCodecContext {
+  readonly model: string;
+  readonly providerOptions?: Readonly<Record<string, unknown>>;
+  buildJsonBody(): OpenAIImageEditBody;
+  buildMultipartBody(codec: Extract<ImageEditCodec, 'multipart-bracket' | 'multipart-plain'>): FormData;
+}
+
+export interface ImageEditRequestCodec {
+  readonly id: ImageEditCodec;
+  readonly wireSignature: RequestWireSignature;
+  readonly reservedProviderOptionPaths: readonly string[];
+  buildBody(request: CanonicalImageJobRequest, context: ImageEditRequestCodecContext): ProviderHttpBody;
+  buildHeaders?(context: ImageEditRequestCodecContext): Readonly<Record<string, string>>;
+}
+
+export interface BuiltImageEditRequest {
+  readonly codec: ImageEditRequestCodec;
+  readonly body: ProviderHttpBody;
+  readonly headers: Readonly<Record<string, string>>;
+  readonly diagnostics: readonly ProviderDiagnostic[];
 }
 
 /** build-request 层抛出的结构化校验错误。 */
@@ -235,6 +264,14 @@ const SURFACED_HANDLED_KEYS: readonly string[] = [
   'moderation',
   'input_fidelity',
 ];
+
+const EDIT_ALLOWED_PROVIDER_OPTION_KEYS: readonly string[] = ['user'];
+const GENERATION_ALLOWED_PROVIDER_OPTION_KEYS: readonly string[] = ['user'];
+const IMAGE_EDIT_CODECS = {
+  'multipart-bracket': multipartBracketCodec,
+  'multipart-plain': multipartPlainCodec,
+  'json-reference': jsonReferenceCodec,
+} satisfies Record<ImageEditCodec, ImageEditRequestCodec>;
 
 /**
  * 将 Asset 映射为 images/edits API 的引用对象。
@@ -399,18 +436,77 @@ function applyOutputToBody(
 function applyProviderOptions(
   body: Record<string, unknown>,
   providerOptions: Readonly<Record<string, unknown>> | undefined,
-  extraHandledKeys: readonly string[] = [],
 ): void {
   if (!providerOptions) {
     return;
   }
 
-  const handledKeys = new Set<string>([...SURFACED_HANDLED_KEYS, ...extraHandledKeys]);
   for (const [key, value] of Object.entries(providerOptions)) {
-    if (!handledKeys.has(key) && value !== undefined) {
+    if (value !== undefined) {
       body[key] = value;
     }
   }
+}
+
+function createProviderOptionDiagnostic(
+  code: string,
+  message: string,
+  details: Readonly<Record<string, unknown>>,
+): ProviderDiagnostic {
+  return {
+    code,
+    message,
+    level: 'info',
+    details,
+  };
+}
+
+function sanitizeProviderOptions(args: {
+  readonly providerOptions: Readonly<Record<string, unknown>> | undefined;
+  readonly allowedKeys: readonly string[];
+  readonly reservedKeys: readonly string[];
+  readonly ignoredAliasKeys?: readonly string[];
+}): {
+  readonly providerOptions?: Readonly<Record<string, unknown>>;
+  readonly diagnostics: readonly ProviderDiagnostic[];
+} {
+  if (!args.providerOptions) {
+    return { diagnostics: [] };
+  }
+
+  const allowed = new Set(args.allowedKeys);
+  const reserved = new Set([...SURFACED_HANDLED_KEYS, ...args.reservedKeys]);
+  const ignoredAliases = new Set(args.ignoredAliasKeys ?? []);
+  const next: Record<string, unknown> = {};
+  const diagnostics: ProviderDiagnostic[] = [];
+
+  for (const [key, value] of Object.entries(args.providerOptions)) {
+    if (value === undefined || ignoredAliases.has(key)) {
+      continue;
+    }
+    if (reserved.has(key)) {
+      diagnostics.push(createProviderOptionDiagnostic(
+        'provider_options.reserved_ignored',
+        `Ignored reserved providerOptions key "${key}".`,
+        { key },
+      ));
+      continue;
+    }
+    if (!allowed.has(key)) {
+      diagnostics.push(createProviderOptionDiagnostic(
+        'provider_options.unknown_ignored',
+        `Ignored unknown providerOptions key "${key}".`,
+        { key },
+      ));
+      continue;
+    }
+    next[key] = value;
+  }
+
+  return {
+    ...(Object.keys(next).length > 0 ? { providerOptions: next } : {}),
+    diagnostics,
+  };
 }
 
 /**
@@ -420,10 +516,18 @@ function applyProviderOptions(
  * @param defaultModel provider config 中的默认 model
  */
 export function buildRequestBody(request: CanonicalImageJobRequest, defaultModel?: string): OpenAIImageGenerationBody {
+  const sanitized = sanitizeProviderOptions({
+    providerOptions: request.providerOptions,
+    allowedKeys: GENERATION_ALLOWED_PROVIDER_OPTION_KEYS,
+    reservedKeys: ['response_format'],
+    ignoredAliasKeys: ['image_response_format'],
+  });
   const body: OpenAIImageGenerationBody = {
     model: resolveModel(request, defaultModel),
     prompt: request.prompt,
   };
+
+  applyProviderOptions(body, sanitized.providerOptions);
 
   applyOutputToBody(body, request.output, {
     includeInputFidelity: false,
@@ -442,12 +546,6 @@ export function buildRequestBody(request: CanonicalImageJobRequest, defaultModel
       typeof responseFormatOverride === 'string' ? (responseFormatOverride as 'url' | 'b64_json') : 'url';
   }
 
-  applyProviderOptions(
-    body,
-    request.providerOptions,
-    isGptImageModel || disablesResponseFormat ? ['image_response_format'] : ['image_response_format'],
-  );
-
   return body;
 }
 
@@ -457,7 +555,11 @@ export function buildRequestBody(request: CanonicalImageJobRequest, defaultModel
  * @param request 已校验的 canonical request
  * @param defaultModel provider config 中的默认 model
  */
-export function buildEditRequestBody(request: CanonicalImageJobRequest, defaultModel?: string): OpenAIImageEditBody {
+function buildEditRequestBodyInternal(
+  request: CanonicalImageJobRequest,
+  model: string,
+  providerOptions: Readonly<Record<string, unknown>> | undefined,
+): OpenAIImageEditBody {
   if (request.images === undefined || request.images.length === 0) {
     throw new BuildRequestError('Image endpoint edit request requires at least one input image.');
   }
@@ -465,7 +567,7 @@ export function buildEditRequestBody(request: CanonicalImageJobRequest, defaultM
   const images = request.images.map((asset) => assetToImageRef(asset));
 
   const body: OpenAIImageEditBody = {
-    model: resolveModel(request, defaultModel),
+    model,
     prompt: request.prompt,
     images,
   };
@@ -474,13 +576,13 @@ export function buildEditRequestBody(request: CanonicalImageJobRequest, defaultM
     body.mask = assetToMaskRef(request.maskImage);
   }
 
+  applyProviderOptions(body, providerOptions);
+
   applyOutputToBody(body, request.output, {
     includeInputFidelity: true,
     operation: request.operation,
     providerId: 'image-endpoint',
   });
-
-  applyProviderOptions(body, request.providerOptions, ['image_response_format']);
 
   return body;
 }
@@ -507,12 +609,28 @@ export function buildEditMultipartBodyForCodec(
   codec: Extract<ImageEditCodec, 'multipart-bracket' | 'multipart-plain'>,
   defaultModel?: string,
 ): FormData {
+  const model = resolveModel(request, defaultModel);
+  const sanitized = sanitizeProviderOptions({
+    providerOptions: request.providerOptions,
+    allowedKeys: EDIT_ALLOWED_PROVIDER_OPTION_KEYS,
+    reservedKeys: [...IMAGE_EDIT_CODECS[codec].reservedProviderOptionPaths],
+    ignoredAliasKeys: ['image_response_format'],
+  });
+  return buildEditMultipartBodyForCodecInternal(request, codec, model, sanitized.providerOptions);
+}
+
+function buildEditMultipartBodyForCodecInternal(
+  request: CanonicalImageJobRequest,
+  codec: Extract<ImageEditCodec, 'multipart-bracket' | 'multipart-plain'>,
+  model: string,
+  providerOptions: Readonly<Record<string, unknown>> | undefined,
+): FormData {
   if (request.images === undefined || request.images.length === 0) {
     throw new BuildRequestError('Image endpoint edit request requires at least one input image.');
   }
 
   const body: OpenAIImageEditBody = {
-    model: resolveModel(request, defaultModel),
+    model,
     prompt: request.prompt,
     images: [],
   };
@@ -526,13 +644,13 @@ export function buildEditMultipartBodyForCodec(
     }
   }
 
+  applyProviderOptions(body, providerOptions);
+
   applyOutputToBody(body, request.output, {
     includeInputFidelity: true,
     operation: request.operation,
     providerId: 'image-endpoint',
   });
-
-  applyProviderOptions(body, request.providerOptions, ['image_response_format']);
   const form = new FormData();
 
   appendMultipartBodyFields(form, body);
@@ -547,16 +665,60 @@ export function buildEditMultipartBodyForCodec(
   return form;
 }
 
+export function buildEditRequestBody(request: CanonicalImageJobRequest, defaultModel?: string): OpenAIImageEditBody {
+  const model = resolveModel(request, defaultModel);
+  const sanitized = sanitizeProviderOptions({
+    providerOptions: request.providerOptions,
+    allowedKeys: EDIT_ALLOWED_PROVIDER_OPTION_KEYS,
+    reservedKeys: [...IMAGE_EDIT_CODECS['json-reference'].reservedProviderOptionPaths],
+    ignoredAliasKeys: ['image_response_format'],
+  });
+  return buildEditRequestBodyInternal(request, model, sanitized.providerOptions);
+}
+
 /**
  * 按显式 codec 构造 image endpoint images/edits 请求体。
  */
 export function buildImageEditRequestBody(
   request: CanonicalImageJobRequest,
-  codec: ImageEditCodec,
+  codec: ImageEditCodec | ImageEditRequestCodec,
   defaultModel?: string,
 ): OpenAIImageEditBody | FormData {
-  if (codec === 'json-reference') {
-    return buildEditRequestBody(request, defaultModel);
-  }
-  return buildEditMultipartBodyForCodec(request, codec, defaultModel);
+  return buildImageEditHttpRequest(request, codec, defaultModel).body as OpenAIImageEditBody | FormData;
+}
+
+export function resolveImageEditRequestCodecById(codec: ImageEditCodec): ImageEditRequestCodec {
+  return IMAGE_EDIT_CODECS[codec];
+}
+
+export function buildImageEditHttpRequest(
+  request: CanonicalImageJobRequest,
+  codecOrId: ImageEditCodec | ImageEditRequestCodec,
+  defaultModel?: string,
+): BuiltImageEditRequest {
+  const codec = typeof codecOrId === 'string' ? resolveImageEditRequestCodecById(codecOrId) : codecOrId;
+  const model = resolveModel(request, defaultModel);
+  const sanitized = sanitizeProviderOptions({
+    providerOptions: request.providerOptions,
+    allowedKeys: EDIT_ALLOWED_PROVIDER_OPTION_KEYS,
+    reservedKeys: [...codec.reservedProviderOptionPaths],
+    ignoredAliasKeys: ['image_response_format'],
+  });
+  const context: ImageEditRequestCodecContext = {
+    model,
+    providerOptions: sanitized.providerOptions,
+    buildJsonBody: () => buildEditRequestBodyInternal(request, model, sanitized.providerOptions),
+    buildMultipartBody: (multipartCodec) => buildEditMultipartBodyForCodecInternal(
+      request,
+      multipartCodec,
+      model,
+      sanitized.providerOptions,
+    ),
+  };
+  return {
+    codec,
+    body: codec.buildBody(request, context),
+    headers: codec.buildHeaders?.(context) ?? {},
+    diagnostics: sanitized.diagnostics,
+  };
 }

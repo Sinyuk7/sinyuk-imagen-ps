@@ -607,7 +607,7 @@ describe('image-endpoint provider', () => {
     expect(counting.calls).toHaveLength(1);
   });
 
-  it('disables codec fallback on multi-endpoint failover configs and logs that decision', async () => {
+  it('suppresses unsafe multi-endpoint recovery on 415 and logs that decision', async () => {
     const sink = createMemorySink();
     const logger = createLogger({
       sink,
@@ -649,15 +649,13 @@ describe('image-endpoint provider', () => {
     })).rejects.toThrow('Unsupported Media Type');
 
     expect(counting.calls).toHaveLength(1);
-    const fallbackLogs = sink.records.filter((record) => record.event === 'provider.image_endpoint.edit_codec_fallback');
-    expect(fallbackLogs).toHaveLength(1);
-    expect(fallbackLogs[0]?.level).toBe('warn');
-    expect(fallbackLogs[0]?.attrs).toMatchObject({
-      initialCodec: 'multipart-bracket',
-      fallbackCodec: 'json-reference',
-      fallbackReason: 'http_415',
-      fallbackAttemptCount: 1,
-      fallbackDisabledBecauseMultipleEndpoints: true,
+    const suppressionLogs = sink.records.filter((record) => record.event === 'image-edit.recovery_suppressed');
+    expect(suppressionLogs).toHaveLength(1);
+    expect(suppressionLogs[0]?.level).toBe('warn');
+    expect(suppressionLogs[0]?.attrs).toMatchObject({
+      endpointId: 'primary',
+      codecId: 'multipart-bracket',
+      reason: 'no_recovery_path',
       statusCode: 415,
     });
   });

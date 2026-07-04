@@ -3,6 +3,7 @@ import type { ProviderDescriptor } from '../src/contract/provider.js';
 import {
   createImageEditCompatibilityFingerprint,
   digestImageEditCompatibilityFingerprint,
+  evictIfMatches,
   imageEditCompatibilityTesting,
   isImageEditCodecCompatible,
   rememberSuccessfulImageEditCodec,
@@ -76,7 +77,7 @@ describe('image endpoint wire compatibility', () => {
     });
 
     expect(resolution).toMatchObject({
-      codec: 'json-reference',
+      codec: expect.objectContaining({ id: 'json-reference' }),
       source: 'descriptor-default',
     });
   });
@@ -94,7 +95,7 @@ describe('image endpoint wire compatibility', () => {
     });
 
     expect(resolution).toMatchObject({
-      codec: 'multipart-bracket',
+      codec: expect.objectContaining({ id: 'multipart-bracket' }),
       source: 'legacy-default',
     });
   });
@@ -116,9 +117,30 @@ describe('image endpoint wire compatibility', () => {
     const second = resolveImageEditCodec(args);
 
     expect(second).toMatchObject({
-      codec: 'multipart-plain',
+      codec: expect.objectContaining({ id: 'multipart-plain' }),
       source: 'cache',
     });
+  });
+
+  it('evicts a cached codec only when the failed codec still matches the cache entry', () => {
+    const args = {
+      descriptor: descriptorWithWire,
+      config: baseConfig(),
+      targetPath: '/v1/images/edits',
+      request: {
+        operation: 'image_edit' as const,
+        prompt: 'edit',
+        images: [{ type: 'image', data: 'iVBORw0KGgo=', mimeType: 'image/png' }],
+      },
+    };
+    const resolution = resolveImageEditCodec(args);
+    rememberSuccessfulImageEditCodec(resolution.cacheKey, 'multipart-plain');
+
+    evictIfMatches(resolution.cacheKey, 'multipart-bracket');
+    expect(resolveImageEditCodec(args).source).toBe('cache');
+
+    evictIfMatches(resolution.cacheKey, 'multipart-plain');
+    expect(resolveImageEditCodec(args).source).toBe('descriptor-default');
   });
 
   it('treats request-shape changes as a different cache key', () => {

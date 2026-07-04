@@ -87,24 +87,22 @@ describe('image endpoint retry — paid mode (no idempotency)', () => {
     expect(attempts).toBe(2);
   });
 
-  it('retries 503 (service-unavailable, provably not processed)', async () => {
+  it('does NOT retry 503 (execution state unknown under replay-safety policy)', async () => {
     let attempts = 0;
-    const result = await withRetry(
-      async () => {
-        attempts += 1;
-        if (attempts === 1) {
+    await expect(
+      withRetry(
+        async () => {
+          attempts += 1;
           throw errorWithKind('upstream_unavailable', 503);
-        }
-        return 'ok';
-      },
-      fastPolicy,
-      undefined,
-      undefined,
-      undefined,
-      paidOpts,
-    );
-    expect(result).toBe('ok');
-    expect(attempts).toBe(2);
+        },
+        fastPolicy,
+        undefined,
+        undefined,
+        undefined,
+        paidOpts,
+      ),
+    ).rejects.toThrow();
+    expect(attempts).toBe(1);
   });
 
   it('does NOT retry 502 (ambiguous gateway) — double-charge guard', async () => {
@@ -204,44 +202,40 @@ describe('image endpoint retry — paid mode WITH idempotency support', () => {
   const paidIdemOpts = { retryability: 'paid' as const, idempotencySupported: true };
   const fastPolicy = { maxRetries: 3, baseDelayMs: 0, factor: 1 };
 
-  it('retries network_error when idempotency is supported', async () => {
+  it('does NOT retry network_error even when idempotency is supported', async () => {
     let attempts = 0;
-    const result = await withRetry(
-      async () => {
-        attempts += 1;
-        if (attempts === 1) {
+    await expect(
+      withRetry(
+        async () => {
+          attempts += 1;
           throw errorWithKind('network_error');
-        }
-        return 'ok';
-      },
-      fastPolicy,
-      undefined,
-      undefined,
-      undefined,
-      paidIdemOpts,
-    );
-    expect(result).toBe('ok');
-    expect(attempts).toBe(2);
+        },
+        fastPolicy,
+        undefined,
+        undefined,
+        undefined,
+        paidIdemOpts,
+      ),
+    ).rejects.toThrow();
+    expect(attempts).toBe(1);
   });
 
-  it('retries 502 when idempotency is supported', async () => {
+  it('does NOT retry 502 even when idempotency is supported', async () => {
     let attempts = 0;
-    const result = await withRetry(
-      async () => {
-        attempts += 1;
-        if (attempts === 1) {
+    await expect(
+      withRetry(
+        async () => {
+          attempts += 1;
           throw errorWithKind('upstream_unavailable', 502);
-        }
-        return 'ok';
-      },
-      fastPolicy,
-      undefined,
-      undefined,
-      undefined,
-      paidIdemOpts,
-    );
-    expect(result).toBe('ok');
-    expect(attempts).toBe(2);
+        },
+        fastPolicy,
+        undefined,
+        undefined,
+        undefined,
+        paidIdemOpts,
+      ),
+    ).rejects.toThrow();
+    expect(attempts).toBe(1);
   });
 
   it('still does NOT retry timeout even with idempotency', async () => {
@@ -272,21 +266,21 @@ describe('classifyPaidRetry (pure)', () => {
     expect(classifyPaidRetry(errorWithKind('rate_limited', 429), yes)).toBe(true);
   });
 
-  it('retries 503 regardless of idempotency', () => {
-    expect(classifyPaidRetry(errorWithKind('upstream_unavailable', 503), no)).toBe(true);
-    expect(classifyPaidRetry(errorWithKind('upstream_unavailable', 503), yes)).toBe(true);
+  it('does NOT retry 503 regardless of idempotency', () => {
+    expect(classifyPaidRetry(errorWithKind('upstream_unavailable', 503), no)).toBe(false);
+    expect(classifyPaidRetry(errorWithKind('upstream_unavailable', 503), yes)).toBe(false);
   });
 
-  it('502/504 retry only with idempotency', () => {
+  it('502/504 do NOT retry under replay-safety policy', () => {
     expect(classifyPaidRetry(errorWithKind('upstream_unavailable', 502), no)).toBe(false);
-    expect(classifyPaidRetry(errorWithKind('upstream_unavailable', 502), yes)).toBe(true);
+    expect(classifyPaidRetry(errorWithKind('upstream_unavailable', 502), yes)).toBe(false);
     expect(classifyPaidRetry(errorWithKind('upstream_unavailable', 504), no)).toBe(false);
-    expect(classifyPaidRetry(errorWithKind('upstream_unavailable', 504), yes)).toBe(true);
+    expect(classifyPaidRetry(errorWithKind('upstream_unavailable', 504), yes)).toBe(false);
   });
 
-  it('network_error retries only with idempotency', () => {
+  it('network_error does NOT retry regardless of idempotency', () => {
     expect(classifyPaidRetry(errorWithKind('network_error'), no)).toBe(false);
-    expect(classifyPaidRetry(errorWithKind('network_error'), yes)).toBe(true);
+    expect(classifyPaidRetry(errorWithKind('network_error'), yes)).toBe(false);
   });
 
   it('timeout never retries', () => {

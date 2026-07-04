@@ -1,17 +1,19 @@
 import type { ImageEditCodec, ProviderDescriptor } from '../../contract/provider.js';
 import type { CanonicalImageJobRequest } from '../../contract/request.js';
 import type { ImageEndpointProviderConfig } from '../../providers/image-endpoint/config-schema.js';
+import type { ImageEditRequestCodec } from './build-request.js';
+import { resolveImageEditRequestCodecById } from './build-request.js';
 
 export type ImageEditCodecResolutionSource = 'cache' | 'descriptor-default' | 'legacy-default';
 
 export interface ImageEditCodecResolution {
-  readonly codec: ImageEditCodec;
+  readonly codec: ImageEditRequestCodec;
   readonly source: ImageEditCodecResolutionSource;
   readonly cacheKey: string;
 }
 
 export interface AlternateImageEditCodecResolution {
-  readonly codec: ImageEditCodec;
+  readonly codec: ImageEditRequestCodec;
   readonly source: 'descriptor-default' | 'legacy-default';
 }
 
@@ -320,7 +322,7 @@ export function resolveImageEditCodec(args: {
   const cachedCodec = readCachedCodec(cacheKey);
   if (cachedCodec !== undefined && isImageEditCodecCompatible(args.request, cachedCodec)) {
     return {
-      codec: cachedCodec,
+      codec: resolveImageEditRequestCodecById(cachedCodec),
       source: 'cache',
       cacheKey,
     };
@@ -335,7 +337,7 @@ export function resolveImageEditCodec(args: {
   });
 
   return {
-    codec: compatibleCodec ?? 'json-reference',
+    codec: resolveImageEditRequestCodecById(compatibleCodec ?? 'json-reference'),
     source: candidates.source,
     cacheKey,
   };
@@ -358,7 +360,16 @@ export function resolveAlternateImageEditCodec(args: {
     return isImageEditCodecCompatible(args.request, codec);
   });
 
-  return alternate !== undefined ? { codec: alternate, source: candidates.source } : undefined;
+  return alternate !== undefined
+    ? { codec: resolveImageEditRequestCodecById(alternate), source: candidates.source }
+    : undefined;
+}
+
+export function evictIfMatches(cacheKey: string, failedCodecId: ImageEditCodec): void {
+  const current = imageEditCodecCache.get(cacheKey);
+  if (current?.codec === failedCodecId) {
+    imageEditCodecCache.delete(cacheKey);
+  }
 }
 
 /** 测试辅助：清空 image-edit codec success cache。 */

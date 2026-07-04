@@ -21,7 +21,10 @@ describe('image endpoint request-shape classifier', () => {
     const result = classifyImageEditRequestShapeRejection(requestInvalidError({
       statusCode: 415,
       message: 'Unsupported Media Type',
-    }));
+    }), {
+      currentCodec: 'multipart-bracket',
+      alternateCodec: 'json-reference',
+    });
 
     expect(result).toMatchObject({
       eligible: true,
@@ -34,7 +37,10 @@ describe('image endpoint request-shape classifier', () => {
     const result = classifyImageEditRequestShapeRejection(requestInvalidError({
       statusCode: 400,
       message: 'Expected file field image[] in multipart/form-data body.',
-    }));
+    }), {
+      currentCodec: 'multipart-plain',
+      alternateCodec: 'multipart-bracket',
+    });
 
     expect(result).toMatchObject({
       eligible: true,
@@ -48,7 +54,10 @@ describe('image endpoint request-shape classifier', () => {
     const result = classifyImageEditRequestShapeRejection(requestInvalidError({
       statusCode: 400,
       message: 'Invalid model and size combination.',
-    }));
+    }), {
+      currentCodec: 'multipart-bracket',
+      alternateCodec: 'json-reference',
+    });
 
     expect(result).toMatchObject({
       eligible: false,
@@ -62,7 +71,10 @@ describe('image endpoint request-shape classifier', () => {
     const result = classifyImageEditRequestShapeRejection(requestInvalidError({
       statusCode: 422,
       message: 'Validation failed.',
-    }));
+    }), {
+      currentCodec: 'multipart-bracket',
+      alternateCodec: 'json-reference',
+    });
 
     expect(result).toMatchObject({
       eligible: false,
@@ -79,7 +91,10 @@ describe('image endpoint request-shape classifier', () => {
         task_id: 'task_123',
         status: 'queued',
       },
-    }));
+    }), {
+      currentCodec: 'multipart-bracket',
+      alternateCodec: 'json-reference',
+    });
 
     expect(result).toMatchObject({
       eligible: false,

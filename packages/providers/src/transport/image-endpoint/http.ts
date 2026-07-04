@@ -8,6 +8,7 @@ import type { ProviderDiagnostic } from '../../contract/diagnostics.js';
 import { mapHttpError, mapNetworkError } from './error-map.js';
 import { withRetry, defaultRetryPolicy } from './retry.js';
 import type { RetryPolicy, RetryOptions } from './retry.js';
+import type { DispatchAttemptKind } from './retry.js';
 import type { Logger } from '@imagen-ps/foundation';
 import { canListenToAbort } from '../../shared/abort-signal.js';
 
@@ -44,6 +45,10 @@ type ParsedResponseKind = 'json' | 'text' | 'text-json-fallback';
 interface TimeoutSignalHandle {
   readonly signal: AbortSignal;
   dispose(): void;
+}
+
+interface AttemptLedgerLike {
+  consume(kind: DispatchAttemptKind): void;
 }
 
 function createTimeoutSignal(timeoutMs: number | undefined): TimeoutSignalHandle | undefined {
@@ -235,7 +240,15 @@ function parseUrlSummary(url: string): Record<string, unknown> {
   }
 }
 
-async function fetchOnce(args: HttpRequest, signal?: AbortSignal, logger?: Logger): Promise<HttpResponse> {
+async function fetchOnce(
+  args: HttpRequest,
+  signal?: AbortSignal,
+  logger?: Logger,
+  dispatch?: {
+    readonly attemptLedger?: AttemptLedgerLike;
+    readonly kind: DispatchAttemptKind;
+  },
+): Promise<HttpResponse> {
   const { url, method, headers, body, timeoutMs } = args;
 
   const timeoutSignal = createTimeoutSignal(timeoutMs);
@@ -243,6 +256,7 @@ async function fetchOnce(args: HttpRequest, signal?: AbortSignal, logger?: Logge
   const fetchSignal = canListenToAbort(mergedSignal) ? mergedSignal : undefined;
 
   try {
+    dispatch?.attemptLedger?.consume(dispatch.kind);
     const isMultipart = typeof FormData !== 'undefined' && body instanceof FormData;
     const mergedHeaders = mergeHeaders(headers);
     const hadExplicitContentType =
@@ -380,7 +394,10 @@ export async function httpRequest(
 
   try {
     const response = await withRetry(
-      () => fetchOnce(request, signal, transportLogger),
+      (attempt) => fetchOnce(request, signal, transportLogger, {
+        attemptLedger: opts?.attemptLedger,
+        kind: attempt.kind,
+      }),
       policy,
       signal,
       (diagnostic) => {
