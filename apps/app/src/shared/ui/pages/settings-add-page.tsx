@@ -166,7 +166,7 @@ export function SettingsAddPage({ onNav, profiles, onProfileSaved }: SettingsAdd
   const saveBusyRef = useRef(false);
   const connectionTestBusyRef = useRef(false);
   const selected = useMemo(() => descriptorForApiFormat(providers, apiFormat), [apiFormat, providers]);
-  const capabilities = providerProfileUpsertCapabilities(null, { isOptimizerProfile: false });
+  const capabilities = providerProfileUpsertCapabilities(null);
   const measurementSupported = Boolean(selected && selected.connectivity?.endpointMeasurement !== 'unsupported');
   const connectionTestSupported = Boolean(selected && selected.connectivity?.connectionTest !== 'unsupported');
   const normalizedName = sanitizeProviderDisplayName(name);

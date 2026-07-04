@@ -51,10 +51,7 @@ export function useProviderProfiles(services: AppServices): ProviderProfilesStat
 }
 
 export function useProviderCatalog(services: AppServices): readonly ProviderDescriptor[] {
-  return useMemo(
-    () => services.commands.listProviders().filter((provider) => provider.id !== 'prompt-optimize'),
-    [services],
-  );
+  return useMemo(() => services.commands.listProviders(), [services]);
 }
 
 export function apiFormatLabel(apiFormat: ApiFormat | null | undefined): string {
@@ -87,23 +84,15 @@ export interface ProviderProfileUpsertCapabilities {
   readonly canRemoveSavedBillingToken: boolean;
   readonly canRefreshPersistedModelCache: boolean;
   readonly canReadBillingState: boolean;
-  readonly canShowPromptOptimizerInstruction: boolean;
 }
 
-export function providerProfileUpsertCapabilities(
-  profile: ProviderProfile | null,
-  options?: {
-    readonly isOptimizerProfile?: boolean;
-  },
-): ProviderProfileUpsertCapabilities {
-  const isOptimizerProfile = options?.isOptimizerProfile === true;
+export function providerProfileUpsertCapabilities(profile: ProviderProfile | null): ProviderProfileUpsertCapabilities {
   return {
-    canDeleteProfile: Boolean(profile) && !isOptimizerProfile,
+    canDeleteProfile: Boolean(profile),
     canRemoveSavedApiKey: Boolean(profile?.secretRefs?.apiKey),
     canRemoveSavedBillingToken: Boolean(profile?.secretRefs?.billingAccessToken),
     canRefreshPersistedModelCache: Boolean(profile),
-    canReadBillingState: Boolean(profile) && !isOptimizerProfile,
-    canShowPromptOptimizerInstruction: isOptimizerProfile,
+    canReadBillingState: Boolean(profile),
   };
 }
 
@@ -839,7 +828,6 @@ export function providerConfigFromForm(
   defaultModel: string,
   paths: ApiPathDraft,
   billing?: ProviderBillingDraft,
-  instruction?: string,
 ): ProviderProfileConfig {
   const normalizedConnection = normalizeProviderConnectionDraft(connection);
   const normalizedBilling = billing
@@ -880,9 +868,6 @@ export function providerConfigFromForm(
           : '',
       };
     }
-  }
-  if (instruction && instruction.trim()) {
-    config.instruction = instruction.trim();
   }
   if (apiFormat === 'gemini-generate-content') {
     config.authMode = paths.authMode;

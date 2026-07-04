@@ -2,7 +2,7 @@ import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, typ
 import { AppServicesProvider } from '../ports/app-services-context';
 import type { AppServices } from '../ports/app-services';
 import type { LayerInfo } from '../ports/host-port';
-import { PROMPT_OPTIMIZER_PROFILE_ID, type ProviderModelInfo, type ProviderProfile } from '@imagen-ps/application';
+import type { ProviderModelInfo, ProviderProfile } from '@imagen-ps/application';
 import type { SupportedLocale } from '../domain/locale';
 import type { PluginAppModel } from '../domain/plugin-app-model';
 import { useConversation } from './hooks/use-conversation';
@@ -209,11 +209,7 @@ function AppShellContent({ host }: AppShellProps) {
   const [restoreFailedRoundId, setRestoreFailedRoundId] = useState<string | null>(null);
   const profilesState = useProviderProfiles(services);
   const imageProfiles = useMemo(
-    () => profilesState.profiles.filter((profile) => profile.profileId !== PROMPT_OPTIMIZER_PROFILE_ID),
-    [profilesState.profiles],
-  );
-  const promptOptimizerProfile = useMemo(
-    () => profilesState.profiles.find((profile) => profile.profileId === PROMPT_OPTIMIZER_PROFILE_ID) ?? null,
+    () => profilesState.profiles.filter((profile): profile is ProviderProfile => Boolean(profile?.profileId)),
     [profilesState.profiles],
   );
   const selectedProfile = useMemo(
@@ -294,15 +290,6 @@ function AppShellContent({ host }: AppShellProps) {
     const fallbackProfileId = imageProfiles[0]?.profileId ?? null;
     void selectImageProfile(fallbackProfileId);
   }, [activeImageProfileHydrated, imageProfiles, selectImageProfile, selectedImageProfileId]);
-
-  useEffect(() => {
-    void services.commands.ensurePromptOptimizerProfile().then((result) => {
-      if (result.ok) {
-        void profilesState.reload();
-      }
-    });
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [services]);
 
   useEffect(() => {
     const available = imageModels;
@@ -420,7 +407,6 @@ function AppShellContent({ host }: AppShellProps) {
           conversation={conversation}
           highlightedRoundId={highlightedRoundId}
           onEditProfile={onEditProfile}
-          promptOptimizerProfile={promptOptimizerProfile}
           composerDraft={composerDraft}
           outputSizeContext={outputSizeContext}
           generationSettings={generationSettings.settings}
@@ -469,11 +455,6 @@ function AppShellContent({ host }: AppShellProps) {
             setSelectedSettingsProfileId(profileId);
             setView('settings-detail');
           }}
-          promptOptimizerProfile={promptOptimizerProfile}
-          onOpenPromptOptimizer={() => {
-            setSelectedSettingsProfileId(PROMPT_OPTIMIZER_PROFILE_ID);
-            setView('settings-detail');
-          }}
           onOpenGlobalGeneration={() => setView('global-generation-settings')}
           />
         </MotionPageFrame>
@@ -513,7 +494,7 @@ function AppShellContent({ host }: AppShellProps) {
               await services.diagnostics?.checkpoint('uxp.ui.app_shell.profiles_changed.after_reload', { profileId });
               await services.diagnostics?.checkpoint('uxp.ui.app_shell.profiles_changed.before_select_profile', { profileId });
               setSelectedSettingsProfileId(profileId);
-              if (profileId && profileId !== PROMPT_OPTIMIZER_PROFILE_ID) {
+              if (profileId) {
                 await selectImageProfile(profileId);
                 const profileResult = await services.commands.getProviderProfile(profileId);
                 if (profileResult.ok) {

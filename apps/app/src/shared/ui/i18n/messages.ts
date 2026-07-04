@@ -100,13 +100,6 @@ export interface AppMessages {
     readonly billingObservedChange: string;
     readonly billingLastCost: string;
     readonly billingLastChange: string;
-    readonly promptOptimize: string;
-    readonly promptRefine: string;
-    readonly promptOptimizePlaceholder: string;
-    readonly promptOptimizeUndo: string;
-    readonly promptOptimizing: string;
-    readonly promptOptimizeNoProfile: string;
-    readonly promptOptimizeEmpty: string;
     readonly layerKindSmartObject: string;
     readonly layerKindPixel: string;
     readonly layerKindText: string;
@@ -127,7 +120,6 @@ export interface AppMessages {
     readonly readinessSizeUnsupported: string;
     readonly readinessPlacementConflict: string;
     readonly readinessEnterPrompt: string;
-    readonly readinessOptimizingPrompt: string;
     readonly modelReasonNotRemotelyAvailable: string;
     readonly modelReasonAuthFailed: string;
     readonly modelReasonProfileMisconfigured: string;
@@ -168,7 +160,6 @@ export interface AppMessages {
     readonly loading: string;
     readonly noProviderProfile: string;
     readonly config: string;
-    readonly promptBehavior: string;
     readonly billing: string;
     readonly billingMode: string;
     readonly billingModeHint: string;
@@ -189,8 +180,6 @@ export interface AppMessages {
     readonly billingNotSupported: string;
     readonly billingValidationUserId: string;
     readonly billingValidationAccessToken: string;
-    readonly instruction: string;
-    readonly instructionPlaceholder: string;
     readonly alias: string;
     readonly baseUrlHint: string;
     readonly requestAddresses: string;
@@ -300,9 +289,6 @@ export interface AppMessages {
     readonly newSessionStarted: string;
     readonly waitForRunningTask: string;
     readonly historyNotInCurrentSession: string;
-    readonly promptOptimized: string;
-    readonly promptOptimizeNoChanges: string;
-    readonly promptOptimizeFailed: string;
     readonly errorDetailsCopied: string;
     readonly billingRefreshFailed: string;
   };
@@ -410,13 +396,6 @@ const EN_MESSAGES: AppMessages = {
     billingObservedChange: 'Observed balance change',
     billingLastCost: 'Last exact cost',
     billingLastChange: 'Last balance change',
-    promptOptimize: 'Optimize prompt',
-    promptRefine: 'Refine',
-    promptOptimizePlaceholder: 'Not available yet',
-    promptOptimizeUndo: 'Undo',
-    promptOptimizing: 'Optimizing…',
-    promptOptimizeNoProfile: 'Configure Prompt Optimizer first',
-    promptOptimizeEmpty: 'Enter a prompt first',
     layerKindSmartObject: 'Smart Object',
     layerKindPixel: 'Pixel',
     layerKindText: 'Text',
@@ -437,7 +416,6 @@ const EN_MESSAGES: AppMessages = {
     readinessSizeUnsupported: 'Current size is not supported by this model',
     readinessPlacementConflict: 'Resolve placement conflict',
     readinessEnterPrompt: 'Enter a prompt',
-    readinessOptimizingPrompt: 'Optimizing prompt',
     modelReasonNotRemotelyAvailable: 'Unavailable for this profile',
     modelReasonAuthFailed: 'Provider authentication failed',
     modelReasonProfileMisconfigured: 'Profile is incomplete',
@@ -487,7 +465,6 @@ const EN_MESSAGES: AppMessages = {
     loading: 'Loading…',
     noProviderProfile: 'No provider profiles',
     config: 'Configuration',
-    promptBehavior: 'Prompt behavior',
     billing: 'Billing',
     billingMode: 'Billing mode',
     billingModeHint: 'Balance query stays optional and separate from generation availability.',
@@ -508,8 +485,6 @@ const EN_MESSAGES: AppMessages = {
     billingNotSupported: 'This provider preset does not expose a billing adapter yet.',
     billingValidationUserId: 'Billing user ID must be an integer.',
     billingValidationAccessToken: 'An access token is required for New API billing.',
-    instruction: 'System instruction',
-    instructionPlaceholder: 'System instruction for prompt optimization',
     alias: 'Alias',
     baseUrlHint: 'If this provider does not auto-complete endpoint paths, enter the full API base URL such as https://example.com/v1',
     requestAddresses: 'Endpoints',
@@ -619,9 +594,6 @@ const EN_MESSAGES: AppMessages = {
     newSessionStarted: 'New session started ✨',
     waitForRunningTask: 'Wait for the running task to finish',
     historyNotInCurrentSession: 'This task is not in the current session',
-    promptOptimized: 'Prompt optimized ✨',
-    promptOptimizeNoChanges: 'No changes needed ( •̀ ω •́ )✧',
-    promptOptimizeFailed: 'Prompt optimization failed',
     errorDetailsCopied: 'Error details copied',
     billingRefreshFailed: 'Balance refresh failed',
   },
@@ -729,13 +701,6 @@ const ZH_CN_MESSAGES: AppMessages = {
     billingObservedChange: '检测到的余额变化',
     billingLastCost: '上次精确费用',
     billingLastChange: '上次余额变化',
-    promptOptimize: '优化提示词',
-    promptRefine: '优化',
-    promptOptimizePlaceholder: '暂未开放',
-    promptOptimizeUndo: '撤销',
-    promptOptimizing: '正在优化提示词…',
-    promptOptimizeNoProfile: '请先配置 Prompt Optimizer',
-    promptOptimizeEmpty: '请先输入提示词',
     layerKindSmartObject: '智能对象',
     layerKindPixel: '像素图层',
     layerKindText: '文字图层',
@@ -756,7 +721,6 @@ const ZH_CN_MESSAGES: AppMessages = {
     readinessSizeUnsupported: '当前尺寸不受支持',
     readinessPlacementConflict: '先解决置入冲突',
     readinessEnterPrompt: '请输入提示词',
-    readinessOptimizingPrompt: '正在优化提示词',
     modelReasonNotRemotelyAvailable: '此模型在当前配置中不可用',
     modelReasonAuthFailed: 'Provider 认证失败',
     modelReasonProfileMisconfigured: 'Provider 配置不完整',
@@ -806,7 +770,6 @@ const ZH_CN_MESSAGES: AppMessages = {
     loading: '加载中…',
     noProviderProfile: '暂无 Provider 配置',
     config: '配置',
-    promptBehavior: '提示词行为',
     billing: '余额与计费',
     billingMode: '计费模式',
     billingModeHint: '余额查询为可选项，不影响生成。',
@@ -827,8 +790,6 @@ const ZH_CN_MESSAGES: AppMessages = {
     billingNotSupported: '当前 Provider 暂不支持余额查询。',
     billingValidationUserId: '用户 ID 必须为整数。',
     billingValidationAccessToken: 'New API 余额查询需要 Access Token。',
-    instruction: '系统指令',
-    instructionPlaceholder: '用于优化提示词的系统指令',
     alias: '别名',
     baseUrlHint: '如果该 Provider 不会自动补全端点路径，请填写完整 API 基础地址，例如 https://example.com/v1',
     requestAddresses: '端点',
@@ -938,9 +899,6 @@ const ZH_CN_MESSAGES: AppMessages = {
     newSessionStarted: '新会话已开启 ✨',
     waitForRunningTask: '请等待当前任务完成',
     historyNotInCurrentSession: '该任务属于其他会话',
-    promptOptimized: '提示词优化完成 ✨',
-    promptOptimizeNoChanges: '当前提示词无需修改 ( •̀ ω •́ )✧',
-    promptOptimizeFailed: '提示词优化失败',
     errorDetailsCopied: '错误详情已复制',
     billingRefreshFailed: '余额刷新失败',
   },

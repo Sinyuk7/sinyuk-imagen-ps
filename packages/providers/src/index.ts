@@ -55,8 +55,6 @@ export type {
   ProviderEndpointMeasurementOptions,
   ProviderEndpointMeasurementResult,
   ProviderEndpointSelectionMode,
-  PromptOptimizeProviderConfig,
-  PromptOptimizeRequest,
   Provider,
   ProviderConfig,
   ProviderDescriptor,
@@ -137,15 +135,6 @@ export {
   createGeminiGenerateContentProvider,
   geminiGenerateContentDescriptor,
 } from './providers/gemini-generate-content/index.js';
-
-// Prompt optimize provider
-export {
-  promptOptimizeConfigSchema,
-  createPromptOptimizeProvider,
-  promptOptimizeDescriptor,
-  DEFAULT_OPTIMIZER_INSTRUCTION,
-} from './providers/prompt-optimize/index.js';
-export { parsePromptOptimizeResponse } from './providers/prompt-optimize/parse-response.js';
 
 // Bridge adapter
 export { createDispatchAdapter } from './bridge/index.js';

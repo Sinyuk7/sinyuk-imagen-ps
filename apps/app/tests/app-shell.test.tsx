@@ -2,7 +2,7 @@ import { act } from 'react';
 import { createRoot, type Root } from 'react-dom/client';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { AppShell } from '../src/shared/ui/app-shell';
-import { createFakeServices, fakeOptimizerProfile, fakeProfile } from './fakes';
+import { createFakeServices, fakeProfile } from './fakes';
 import type { Job } from '@imagen-ps/application';
 import type { UxpFlightRecorder } from '../src/host/uxp-log-sink';
 import { NON_UXP_RUNTIME_CAPABILITIES } from '../src/shared/ports/host-port';
@@ -145,7 +145,6 @@ describe('AppShell', () => {
           displayName: 'Saved Profile',
           updatedAt: '2026-06-15T00:00:01.000Z',
         },
-        fakeOptimizerProfile,
       ],
       activeImageProfileId: 'saved-profile',
     });
@@ -188,7 +187,6 @@ describe('AppShell', () => {
           displayName: 'Second Profile',
           updatedAt: '2026-06-15T00:00:01.000Z',
         },
-        fakeOptimizerProfile,
       ],
     });
     const container = document.createElement('div');
@@ -514,99 +512,6 @@ describe('AppShell', () => {
     expect(JSON.stringify(records)).not.toContain('secret:provider-profile');
   });
 
-  it('keeps Prompt Optimizer selected in settings detail instead of falling back to the first image profile', async () => {
-    const { services, spies } = createFakeServices();
-    spies.listProfileModels.mockImplementation(async (profileId: string) => ({
-      ok: true as const,
-      value: profileId === '__prompt-optimizer__'
-        ? [{ id: 'gpt-4o-mini' }, { id: 'gpt-4.1-mini' }]
-        : [{ id: 'mock-image-v1' }],
-    }));
-    spies.getProviderProfile.mockImplementation(async (profileId: string) => ({
-      ok: true as const,
-      value: profileId === '__prompt-optimizer__'
-        ? {
-            profileId: '__prompt-optimizer__',
-            providerId: 'prompt-optimize',
-            displayName: 'Prompt Optimizer',
-            enabled: false,
-            config: {
-              providerId: 'prompt-optimize',
-              displayName: 'Prompt Optimizer',
-              family: 'prompt-optimize',
-              connection: {
-                selectionMode: 'manual',
-                selectedEndpointId: 'primary',
-                endpoints: [{ id: 'primary', url: 'https://openrouter.ai/api/v1', enabled: true }],
-              },
-              defaultModel: 'gpt-4o-mini',
-              instruction: 'Rewrite the prompt.',
-              testPrompt: 'test',
-            },
-            createdAt: '2026-06-15T00:00:00.000Z',
-            updatedAt: '2026-06-15T00:00:00.000Z',
-          }
-        : {
-            profileId: 'mock-profile',
-            providerId: 'mock',
-            displayName: 'Mock Profile',
-            enabled: true,
-            config: {
-              providerId: 'mock',
-              displayName: 'Mock Profile',
-              family: 'image-endpoint',
-              connection: {
-                selectionMode: 'manual',
-                selectedEndpointId: 'primary',
-                endpoints: [{ id: 'primary', url: 'https://mock.local', enabled: true }],
-              },
-              defaultModel: 'mock-image-v1',
-            },
-            secretRefs: {
-              apiKey: 'secret:provider-profile:mock-profile:apiKey',
-            },
-            createdAt: '2026-06-15T00:00:00.000Z',
-            updatedAt: '2026-06-15T00:00:00.000Z',
-          },
-    }));
-    const container = document.createElement('div');
-    document.body.appendChild(container);
-    root = createRoot(container);
-
-    await act(async () => {
-      root!.render(
-        <AppShell
-          host={{
-            kind: 'photoshop-uxp',
-            app: { stage: 'uxp-first-shell', host: 'photoshop-uxp', services: ['commands', 'host'] },
-            locale: 'en',
-            services,
-            dispose: () => undefined,
-          }}
-        />,
-      );
-    });
-    await flush();
-    await flush();
-
-    await act(async () => {
-      container.querySelector<HTMLButtonElement>('[data-testid="main-providers-button"]')?.click();
-    });
-    await flush();
-    await act(async () => {
-      container.querySelector<HTMLElement>('[data-testid="provider-row-__prompt-optimizer__"]')?.click();
-    });
-    await flush();
-    await flush();
-
-    expect(container.textContent).toContain('Prompt Optimizer');
-    expect(container.querySelector<HTMLInputElement>('[data-testid="provider-endpoint-url-0"]')?.value).toBe('https://openrouter.ai/api/v1');
-    const modelSelector = container.querySelector<HTMLElement>('[data-testid="provider-default-model-selector"]');
-    expect(modelSelector).not.toBeNull();
-    expect(iconSelectValue(container, '[data-testid="provider-default-model-selector"]')).toContain('gpt-4o-mini');
-    expect(container.querySelector<HTMLTextAreaElement>('[data-testid="provider-instruction-input"]')?.value).toBe('Rewrite the prompt.');
-  });
-
   it('reports history placement unavailable when the runtime cannot place assets', async () => {
     const { services, spies } = createFakeServices();
     const chromeLikeServices = {
@@ -834,7 +739,7 @@ describe('AppShell', () => {
           ...fakeProfile.config,
           defaultModel: 'image-edit-1k',
         },
-      }, fakeOptimizerProfile],
+      }],
     });
     vi.mocked(services.commands.listProfileModels).mockResolvedValue({
       ok: true as const,
@@ -913,7 +818,7 @@ describe('AppShell', () => {
           ...fakeProfile.config,
           defaultModel: 'image-edit-1k',
         },
-      }, fakeOptimizerProfile],
+      }],
     });
     vi.mocked(services.commands.listProfileModels).mockResolvedValue({
       ok: true as const,

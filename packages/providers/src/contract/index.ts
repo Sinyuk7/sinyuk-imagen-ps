@@ -31,7 +31,6 @@ export type {
   ProviderConnectionConfig,
   ProviderEndpointConfig,
   ProviderEndpointSelectionMode,
-  PromptOptimizeProviderConfig,
   ProviderConfig,
 } from './config.js';
 export {
@@ -68,7 +67,7 @@ export {
   summarizeImageModelCapabilities,
   validateImageModelCatalog,
 } from './image-model-capability.js';
-export type { AssetRef, CanonicalImageJobRequest, PromptOptimizeRequest, ProviderOutputOptions, ProviderRequest } from './request.js';
+export type { AssetRef, CanonicalImageJobRequest, ProviderOutputOptions, ProviderRequest } from './request.js';
 export type { ProviderDiagnostic, ProviderDiagnosticLevel, ProviderDiagnostics } from './diagnostics.js';
 export type {
   BalanceChange,

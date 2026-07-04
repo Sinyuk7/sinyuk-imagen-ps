@@ -246,7 +246,6 @@ describe('Chrome adapter contracts', () => {
       'gemini-generate-content',
       'image-endpoint',
       'mock',
-      'prompt-optimize',
     ]);
     expect(result.generatedAssetCount).toBe(1);
     expect(result.simulatorLayerCount).toBe(10);

@@ -14,8 +14,6 @@ interface SettingsPageProps {
   readonly error: string | null;
   readonly onReload: () => Promise<void>;
   readonly onOpenProfile: (profileId: string) => void;
-  readonly promptOptimizerProfile?: ProviderProfile | null;
-  readonly onOpenPromptOptimizer?: () => void;
   readonly generationSettings?: AppGenerationSettings;
   readonly onOpenGlobalGeneration?: () => void;
 }
@@ -116,14 +114,11 @@ export function SettingsPage({
   error,
   onReload,
   onOpenProfile,
-  promptOptimizerProfile,
-  onOpenPromptOptimizer,
   generationSettings,
   onOpenGlobalGeneration,
 }: SettingsPageProps) {
   const { messages: t } = useI18n();
   const rows = profiles.map(profileToProviderRow);
-  const optimizerRow = promptOptimizerProfile ? profileToProviderRow(promptOptimizerProfile) : null;
   const labels = {
     ready: t.common.ready,
     needsSetup: t.common.needsSetup,
@@ -193,16 +188,8 @@ export function SettingsPage({
         </div>
         {loading && <div style={{ padding: 16, color: 'var(--app-color-text-muted)', fontSize: 12 }}>{t.settings.loading}</div>}
         {error && <div style={{ padding: 16, color: 'var(--app-color-negative)', fontSize: 12 }}>{error}</div>}
-        {!loading && rows.length === 0 && !optimizerRow && (
+        {!loading && rows.length === 0 && (
           <div style={{ padding: 16, color: 'var(--app-color-text-muted)', fontSize: 12 }}>{t.settings.noProviderProfile}</div>
-        )}
-        {optimizerRow && (
-          <ProviderListItem
-            row={optimizerRow}
-            special
-            labels={labels}
-            onOpen={() => onOpenPromptOptimizer?.()}
-          />
         )}
         {rows.map((row) => (
           <ProviderListItem

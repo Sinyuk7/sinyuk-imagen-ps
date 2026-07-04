@@ -101,41 +101,6 @@ describe('provider endpoint config canonicalization', () => {
     })).toThrow('duplicate endpoint URL');
   });
 
-  it('rejects invalid selected endpoint in manual mode', () => {
-    const provider = createPromptOptimizeProvider();
-    expect(() => provider.validateConfig({
-      providerId: 'prompt-optimize',
-      displayName: 'Prompt Optimizer',
-      family: 'prompt-optimize',
-      connection: {
-        selectionMode: 'manual',
-        selectedEndpointId: 'missing',
-        endpoints: [{ id: 'a', url: 'https://openrouter.ai/api/v1', enabled: true }],
-      },
-      apiKey: 'test-key',
-      instruction: 'Rewrite.',
-    })).toThrow('selectedEndpointId');
-  });
-
-  it('rejects manual mode without enabled selected endpoint', () => {
-    const provider = createPromptOptimizeProvider();
-    expect(() => provider.validateConfig({
-      providerId: 'prompt-optimize',
-      displayName: 'Prompt Optimizer',
-      family: 'prompt-optimize',
-      connection: {
-        selectionMode: 'manual',
-        selectedEndpointId: 'a',
-        endpoints: [
-          { id: 'a', url: 'https://openrouter.ai/api/v1', enabled: false },
-          { id: 'b', url: 'https://openrouter.ai/api/anthropic', enabled: true },
-        ],
-      },
-      apiKey: 'test-key',
-      instruction: 'Rewrite.',
-    })).toThrow('selectedEndpointId');
-  });
-
   it('keeps canonical connection idempotent across repeated validation', () => {
     const provider = createChatImageProvider();
     const input = {

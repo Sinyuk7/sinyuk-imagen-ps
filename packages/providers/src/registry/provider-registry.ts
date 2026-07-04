@@ -4,8 +4,6 @@ import type { ApiFormat, Provider, ProviderConfig, ProviderDescriptor, ProviderR
  * Provider registry 接口。
  *
  * 纯内存路由表，不持有 runtime state、config 持久化或 lifecycle。
- * 接受所有 provider family 的 request 联合，使 prompt-optimize 等文本 provider
- * 能与 image provider 共存。
  */
 export interface ProviderRegistry {
   /** 注册一个 provider 实例。 */

@@ -43,8 +43,8 @@ surface apps -> application/session -> core-engine + providers
   `packages/application` exposes the sync `resolveModelBrand` command over
   `resolveImageModelRule`; `apps/app` owns the `brand → icon slug` map and SVG
   assets. The UI never imports `@imagen-ps/providers` and never re-derives
-  model identity via substring matching; non-catalog providers (mock,
-  prompt-optimize) and unknown models fall back to the default icon. Static
+  model identity via substring matching; non-catalog providers (mock) and
+  unknown models fall back to the default icon. Static
   visual harnesses pass `iconName` directly without runtime resolution.
 - Product history is task-oriented. `TaskRecord` is the durable user-task
   history contract; `DurableJobRecord` remains execution/job compatibility

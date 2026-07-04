@@ -1,5 +1,4 @@
 import { useEffect, useRef, useState } from 'react';
-import { PROMPT_OPTIMIZER_PROFILE_ID } from '@imagen-ps/application';
 import type { ProviderModelInfo, ProviderProfile, ProviderProfileConfig, ProviderProfileConfigValue } from '@imagen-ps/application';
 import { useAppServices } from '../../ports/app-services-context';
 import {
@@ -39,9 +38,7 @@ import {
 } from '../components/provider-settings-sections';
 import { StatusNotice } from '../components/status-notice';
 import { useToast } from '../components/toast-host';
-import { UxpTextArea } from '../components/uxp-form-controls';
 import { useI18n } from '../i18n/i18n-context';
-import { FieldLabel } from '../primitives/native-controls';
 import { IconButton } from '../primitives/icon-button';
 import {
   statusFromEndpointMeasurementResult,
@@ -139,12 +136,10 @@ function hasDraftChanges(
     readonly defaultModel: string;
     readonly paths: ApiPathDraft;
     readonly billing: ProviderBillingDraft;
-    readonly instruction: string;
     readonly apiKey: string;
     readonly apiKeyRemovalPending: boolean;
     readonly billingAccessTokenRemovalPending: boolean;
   },
-  isOptimizerProfile: boolean,
 ): boolean {
   if (
     draft.apiKey.trim().length > 0 ||
@@ -164,7 +159,6 @@ function hasDraftChanges(
       draft.defaultModel,
       draft.paths,
       draft.billing,
-      isOptimizerProfile ? draft.instruction : undefined,
     ),
   );
   return (
@@ -231,7 +225,6 @@ export function SettingsDetailPage({ onNav, profileId, onProfilesChanged, onSave
   const [billingModeMenuOpen, setBillingModeMenuOpen] = useState(false);
   const [authModeMenuOpen, setAuthModeMenuOpen] = useState(false);
   const [billingExpanded, setBillingExpanded] = useState(false);
-  const [instruction, setInstruction] = useState('');
   const [apiKey, setApiKey] = useState('');
   const [apiKeyRemovalPending, setApiKeyRemovalPending] = useState(false);
   const [billingAccessTokenRemovalPending, setBillingAccessTokenRemovalPending] = useState(false);
@@ -247,11 +240,10 @@ export function SettingsDetailPage({ onNav, profileId, onProfilesChanged, onSave
   const billingDraftRef = useRef(billingDraft);
   const saveBusyRef = useRef(false);
   const connectionTestBusyRef = useRef(false);
-  const isOptimizerProfile = detail.profile?.profileId === PROMPT_OPTIMIZER_PROFILE_ID;
   const billing = useProfileBilling(services, profileId);
   const busy = saveBusy;
   const providerDescriptor = detail.profile ? descriptorForApiFormat(providers, detail.profile.apiFormat) : undefined;
-  const capabilities = providerProfileUpsertCapabilities(detail.profile, { isOptimizerProfile });
+  const capabilities = providerProfileUpsertCapabilities(detail.profile);
   const measurementSupported = Boolean(providerDescriptor && providerDescriptor.connectivity?.endpointMeasurement !== 'unsupported');
   const connectionTestSupported = Boolean(providerDescriptor && providerDescriptor.connectivity?.connectionTest !== 'unsupported');
   const modelDiscoverySupported = measurementSupported;
@@ -268,12 +260,10 @@ export function SettingsDetailPage({ onNav, profileId, onProfilesChanged, onSave
           defaultModel,
           paths,
           billing: billingDraft,
-          instruction,
           apiKey,
           apiKeyRemovalPending,
           billingAccessTokenRemovalPending,
         },
-        isOptimizerProfile,
       )
     : false;
 
@@ -354,7 +344,6 @@ export function SettingsDetailPage({ onNav, profileId, onProfilesChanged, onSave
     setBillingDraft(nextBillingDraft);
     setBillingModeMenuOpen(false);
     setBillingExpanded(false);
-    setInstruction(readProviderConfigString(detail.profile, 'instruction'));
     setApiKey('');
     setApiKeyRemovalPending(false);
     setBillingAccessTokenRemovalPending(false);
@@ -406,7 +395,6 @@ export function SettingsDetailPage({ onNav, profileId, onProfilesChanged, onSave
           defaultModel,
           paths,
           effectiveBillingDraft,
-          isOptimizerProfile ? instruction : undefined,
         ),
       ),
       ...(removedSecretNames.length > 0 ? { removedSecretNames } : {}),
@@ -443,7 +431,6 @@ export function SettingsDetailPage({ onNav, profileId, onProfilesChanged, onSave
           defaultModel,
           paths,
           effectiveBillingDraft,
-          isOptimizerProfile ? instruction : undefined,
         ),
       ),
       ...(removedSecretNames.length > 0 ? { removedSecretNames } : {}),
@@ -690,9 +677,6 @@ export function SettingsDetailPage({ onNav, profileId, onProfilesChanged, onSave
   };
 
   const renderBillingSection = () => {
-    if (isOptimizerProfile) {
-      return null;
-    }
     const balance = formatBillingPrimary(billing.billing);
     const checkedAt = billing.billing?.balance?.checkedAt;
     const isConfigured = Boolean(balance) || billingDraft.mode !== 'none' || Boolean(billing.billing?.balance);
@@ -813,33 +797,6 @@ export function SettingsDetailPage({ onNav, profileId, onProfilesChanged, onSave
     );
   };
 
-  const renderPromptBehaviorSection = () => {
-    if (!isOptimizerProfile) {
-      return null;
-    }
-    return (
-      <div className="section">
-        <div className="section-title settings-section-heading">{t.settings.promptBehavior}</div>
-        <div className="field field-textarea">
-          <FieldLabel htmlFor="provider-instruction-input">{t.settings.instruction}</FieldLabel>
-          <UxpTextArea
-            data-testid="provider-instruction-input"
-            id="provider-instruction-input"
-            className="field-input field-textarea-input mono"
-            rows={5}
-            value={instruction}
-            onValue={(value) => {
-              setInstruction(value);
-              invalidateDraftProofs();
-            }}
-            disabled={busy}
-            placeholder={t.settings.instructionPlaceholder}
-          />
-        </div>
-      </div>
-    );
-  };
-
   if (!profileId) {
     return (
       <div className="page page-enter">
@@ -861,7 +818,7 @@ export function SettingsDetailPage({ onNav, profileId, onProfilesChanged, onSave
           </div>
         )}
         onBack={() => onNav('settings')}
-        rightSlot={!isOptimizerProfile ? (
+        rightSlot={(
           <IconButton
             data-testid="provider-delete-button"
             className="hdr-btn"
@@ -872,7 +829,7 @@ export function SettingsDetailPage({ onNav, profileId, onProfilesChanged, onSave
             disabled={busy || !detail.profile}
             onClick={() => void remove()}
           />
-        ) : undefined}
+        )}
       />
 
       <div className="scroll scroll-footer-pad scroll-footer-pad-detail">
@@ -961,7 +918,6 @@ export function SettingsDetailPage({ onNav, profileId, onProfilesChanged, onSave
                 invalidateDraftProofs();
               }}
             />
-            {renderPromptBehaviorSection()}
             {renderBillingSection()}
           </>
         )}

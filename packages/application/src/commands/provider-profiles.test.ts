@@ -4,7 +4,7 @@ import {
   setProviderProfileRepository,
   setSecretStorageAdapter,
 } from '../runtime.js';
-import { saveProviderProfile, testProviderProfile } from './provider-profiles.js';
+import { listProviderProfiles, saveProviderProfile, testProviderProfile } from './provider-profiles.js';
 import type { ProviderProfile, ProviderProfileInput, ProviderProfileRepository, SecretStorageAdapter } from './types.js';
 
 function createProfileRepository(): {
@@ -103,6 +103,50 @@ describe('provider profile alias contract', () => {
         ((profile.config.connection as { readonly endpoints?: Array<{ readonly url?: string }> } | undefined)?.endpoints?.[0]?.url),
       ),
     ).toEqual(['https://mock.local/', 'https://mock.local/']);
+  });
+
+  it('filters and deletes legacy prompt optimizer profiles during list', async () => {
+    _resetForTesting();
+    const { repository, profiles } = createProfileRepository();
+    const { adapter, secrets } = createSecretStorage();
+    setProviderProfileRepository(repository);
+    setSecretStorageAdapter(adapter);
+
+    profiles.push(
+      {
+        profileId: '__prompt-optimizer__',
+        apiFormat: 'openai-chat-completions',
+        displayName: 'Prompt Optimizer',
+        enabled: false,
+        config: {
+          defaultModel: 'gpt-4o-mini',
+        },
+        secretRefs: {
+          apiKey: 'secret:provider-profile:__prompt-optimizer__:apiKey',
+        },
+        createdAt: '2026-06-15T00:00:00.000Z',
+        updatedAt: '2026-06-15T00:00:00.000Z',
+      },
+      {
+        profileId: 'profile-ok',
+        apiFormat: 'openai-images',
+        displayName: 'Image Relay',
+        enabled: true,
+        config: {},
+        createdAt: '2026-06-15T00:00:00.000Z',
+        updatedAt: '2026-06-15T00:00:00.000Z',
+      },
+    );
+    secrets.set('secret:provider-profile:__prompt-optimizer__:apiKey', 'legacy-key');
+
+    const result = await listProviderProfiles();
+
+    expect(result.ok).toBe(true);
+    if (result.ok) {
+      expect(result.value.map((profile) => profile.profileId)).toEqual(['profile-ok']);
+    }
+    expect(profiles.map((profile) => profile.profileId)).toEqual(['profile-ok']);
+    expect(secrets.has('secret:provider-profile:__prompt-optimizer__:apiKey')).toBe(false);
   });
 
   it('rejects duplicate aliases without changing existing profile or secrets', async () => {

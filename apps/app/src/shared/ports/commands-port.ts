@@ -26,9 +26,6 @@ export interface CommandsPort {
   readonly getProfileBillingState: typeof commands.getProfileBillingState;
   readonly listProfileModels: typeof commands.listProfileModels;
   readonly refreshProfileModels: typeof commands.refreshProfileModels;
-  readonly ensurePromptOptimizerProfile: typeof commands.ensurePromptOptimizerProfile;
-  readonly optimizePrompt: typeof commands.optimizePrompt;
-  readonly validatePromptOptimizerProfile: typeof commands.validatePromptOptimizerProfile;
 }
 
 export function createCommandsAdapter(): CommandsPort {
@@ -58,8 +55,5 @@ export function createCommandsAdapter(): CommandsPort {
     getProfileBillingState: commands.getProfileBillingState,
     listProfileModels: commands.listProfileModels,
     refreshProfileModels: commands.refreshProfileModels,
-    ensurePromptOptimizerProfile: commands.ensurePromptOptimizerProfile,
-    optimizePrompt: commands.optimizePrompt,
-    validatePromptOptimizerProfile: commands.validatePromptOptimizerProfile,
   };
 }

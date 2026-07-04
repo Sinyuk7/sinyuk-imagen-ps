@@ -22,7 +22,7 @@ export interface ResolveModelBrandInput {
 /**
  * 解析 `{apiFormat, modelId}` 对应的模型品牌。
  *
- * 非 catalog provider（如 `mock`、`prompt-optimize`）直接返回 `undefined`；
+ * 非 catalog provider（如 `mock`）直接返回 `undefined`；
  * 命中 curated 规则返回 `capability.brand`；命中 default/fallback 规则时
  * `brand` 为 `undefined`。
  */

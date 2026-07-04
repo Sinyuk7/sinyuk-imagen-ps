@@ -3,7 +3,7 @@ import type { ProviderModelInfo, ProviderProfile } from '@imagen-ps/application'
 import { useAppServices } from '../../ports/app-services-context';
 import type { HostPort, LayerInfo } from '../../ports/host-port';
 import { suggestedGeneratedImageFileName } from '../../domain/asset-file';
-import { assetToPreviewUrl, commandErrorToMessage } from '../../domain/mappers';
+import { assetToPreviewUrl } from '../../domain/mappers';
 import { formatBalanceChange, formatBillingPrimary, formatBillingPrimaryParts, formatExactTaskCost } from '../../domain/mappers';
 import type {
   ConversationAttachment,
@@ -77,7 +77,6 @@ interface MainPageProps {
   readonly conversation: ConversationController;
   readonly highlightedRoundId?: string | null;
   readonly onEditProfile?: (profileId: string) => void;
-  readonly promptOptimizerProfile?: ProviderProfile | null;
   readonly composerDraft: ComposerDraftController;
   readonly outputSizeContext: OutputSizeSelectionContext;
   readonly generationSettings: AppGenerationSettings;
@@ -85,11 +84,6 @@ interface MainPageProps {
   readonly restoreFailedRoundId?: string | null;
   readonly onFailedRoundRestored?: (roundId: string) => void;
 }
-
-type OptimizeState =
-  | { status: 'idle' }
-  | { status: 'optimizing'; source: string }
-  | { status: 'optimized'; source: string; result: string };
 
 type PlaceStatus = 'idle' | 'placing' | 'placed';
 
@@ -228,8 +222,6 @@ function readinessMessage(t: ReturnType<typeof useI18n>['messages'], state: Comp
       return t.main.readinessPlacementConflict;
     case 'enter-prompt':
       return t.main.readinessEnterPrompt;
-    case 'optimizing-prompt':
-      return t.main.readinessOptimizingPrompt;
   }
 }
 
@@ -374,7 +366,6 @@ export function MainPage({
   conversation,
   highlightedRoundId,
   onEditProfile,
-  promptOptimizerProfile,
   composerDraft,
   outputSizeContext,
   generationSettings,
@@ -399,7 +390,6 @@ export function MainPage({
   const [overflowingResponses, setOverflowingResponses] = useState<Record<string, boolean>>({});
   const [highlightKey, setHighlightKey] = useState<string | null>(null);
   const [scrolledAway, setScrolledAway] = useState(false);
-  const [optimizeState, setOptimizeState] = useState<OptimizeState>({ status: 'idle' });
   const convRef = useRef<HTMLDivElement>(null);
   const taRef = useRef<HTMLTextAreaElement>(null);
   const responseFoldRefs = useRef<Map<string, HTMLDivElement>>(new Map());
@@ -434,10 +424,7 @@ export function MainPage({
   const billingPrimaryHasNumericEmphasis = billingPrimaryParts ? /\d/.test(billingPrimaryParts.primary) : false;
   const billingSummaryText = formatBillingPrimary(billing.billing) ?? t.main.billingUnknown;
   const billingSummaryTitle = `${t.main.billingSummary}: ${billingSummaryText}`;
-  const selectableProfiles = useMemo(
-    () => profiles.filter((profile) => profile.profileId !== '__prompt-optimizer__'),
-    [profiles],
-  );
+  const selectableProfiles = profiles;
   const selectedModelLabel = selectedModelId || (modelsLoading ? t.main.modelLoading : t.main.modelUnselected);
   const selectedModelInfo = uniqueModels.find((model) => model.id === selectedModelId);
   const currentOperation = composerDraft.operation;
@@ -465,10 +452,6 @@ export function MainPage({
     }
     taRef.current?.blur();
   }, [composerDraft, input]);
-  const optimizerReady = Boolean(promptOptimizerProfile?.enabled);
-  const optimizing = optimizeState.status === 'optimizing';
-  const showUndo = optimizeState.status === 'optimized' && input === optimizeState.result;
-  const canOptimize = optimizerReady && input.trim().length > 0 && !optimizing;
   const handleOpenComposerMenu = useCallback((menu: 'model' | 'output-size', open: boolean) => {
     setProfileMenuOpen(false);
     if (open) {
@@ -492,7 +475,6 @@ export function MainPage({
     outputSizePreset: generationSettings.outputSizePreset,
     placementIntent,
     prompt: input,
-    optimizing,
   });
   const readinessText = readinessMessage(t, readiness.state);
   const canSend = readiness.canSend;
@@ -500,7 +482,6 @@ export function MainPage({
   const imageInputDisabled = imageInputSupport === 'unsupported';
   const imageInputDisabledReason = t.main.imageInputDisabledForModel;
   const canCapture = !conversation.running && !captureInFlight && !imageInputDisabled;
-  const optimizeButtonLabel = showUndo ? t.main.promptOptimizeUndo : t.main.promptOptimize;
   const responseTextKey = (roundId: string) => `response:${roundId}`;
   const pendingBillingProfileIdRef = useRef<string | null>(null);
   const placeResetTimersRef = useRef<Record<string, number>>({});
@@ -980,50 +961,6 @@ export function MainPage({
     });
   };
 
-  const handleOptimize = async () => {
-    if (optimizing) {
-      return;
-    }
-    if (!optimizerReady) {
-      show(t.main.promptOptimizeNoProfile, 'info', { key: 'optimize-profile-missing' });
-      return;
-    }
-    const prompt = currentPromptValue().trim();
-    if (prompt.length === 0) {
-      show(t.main.promptOptimizeEmpty, 'info', { key: 'optimize-empty' });
-      return;
-    }
-    setOptimizeState({ status: 'optimizing', source: prompt });
-    try {
-      const result = await services.commands.optimizePrompt({ prompt });
-      if (result.ok) {
-        const optimized = result.value;
-        if (optimized.trim() === prompt.trim()) {
-          setOptimizeState({ status: 'idle' });
-          show(t.toast.promptOptimizeNoChanges, 'neutral', { key: 'optimize-unchanged', icon: 'message' });
-          return;
-        }
-        composerDraft.setInput(optimized);
-        setOptimizeState({ status: 'optimized', source: prompt, result: optimized });
-        setHighlightKey(`optimize:${Date.now()}`);
-        show(t.toast.promptOptimized, 'positive', { key: 'optimize-success' });
-      } else {
-        setOptimizeState({ status: 'idle' });
-        show(commandErrorToMessage(result.error), 'negative', { key: 'optimize-error' });
-      }
-    } catch (error) {
-      setOptimizeState({ status: 'idle' });
-      show(error instanceof Error ? error.message : t.toast.promptOptimizeFailed, 'negative', { key: 'optimize-error' });
-    }
-  };
-
-  const handleUndoOptimize = () => {
-    if (optimizeState.status === 'optimized') {
-      composerDraft.setInput(optimizeState.source);
-      setOptimizeState({ status: 'idle' });
-    }
-  };
-
   useEffect(() => {
     if (!billing.error) {
       return;
@@ -1059,12 +996,6 @@ export function MainPage({
       void observeBillingForSubmittedRound(observedRoundId);
     }
   }, [conversation.rounds, observeBillingForSubmittedRound, roundBillingMeta]);
-
-  useEffect(() => {
-    if (optimizeState.status === 'optimized' && input !== optimizeState.result) {
-      setOptimizeState({ status: 'idle' });
-    }
-  }, [input, optimizeState]);
 
   const placeAsset = async (round: ConversationRound, previewIndex = 0) => {
     if (round.placementIntent.kind === 'unbound' && round.placementIntent.reason === 'multiple-documents') {
@@ -1720,7 +1651,6 @@ export function MainPage({
               </MotionPresenceView>
             )}
             <div className="cmp-body">
-              <MotionHighlight activeKey={highlightKey?.startsWith('optimize:') ? highlightKey : null} />
               <div className="cmp-ta-shell">
                 <UxpTextArea
                   data-testid="composer-textarea"
@@ -1737,36 +1667,11 @@ export function MainPage({
                       void handleSend();
                     }
                   }}
-                  disabled={optimizing}
                 />
               </div>
             </div>
             <div className="cmp-action-row" data-testid="composer-action-row">
               <div className="cmp-action-left">
-                <MotionButtonSurface>
-                  <IconButton
-                    data-testid="composer-prompt-optimize-button"
-                    className="cmp-opt-icon-button"
-                    quiet
-                    icon={optimizing
-                      ? <MotionActivityIcon className="cmp-opt-icon"><Icon name="spinner" size={13} /></MotionActivityIcon>
-                      : showUndo
-                        ? <Icon name="refresh" size={13} className="cmp-opt-icon" />
-                        : <Icon name="magic-wand" size={13} className="cmp-opt-icon" />}
-                    tooltip={optimizeButtonLabel}
-                    placement="top"
-                    iconSize={13}
-                    disabled={showUndo ? false : !canOptimize}
-                    onClick={(event) => {
-                      event.stopPropagation();
-                      if (showUndo) {
-                        handleUndoOptimize();
-                      } else {
-                        void handleOptimize();
-                      }
-                    }}
-                  />
-                </MotionButtonSurface>
                 <div
                   className="cmp-balance-pill"
                   data-testid="main-billing-summary"
@@ -1827,7 +1732,7 @@ export function MainPage({
                       aria-label={readinessText}
                       placement="top"
                       iconSize={13}
-                      disabled={!canSend || optimizing}
+                      disabled={!canSend}
                       onClick={() => void handleSend()}
                     />
                   </MotionButtonSurface>

@@ -98,34 +98,6 @@ export const fakeProfile: ProviderProfile = {
   updatedAt: '2026-06-15T00:00:00.000Z',
 };
 
-export const fakeOptimizerProfile: ProviderProfile = {
-  profileId: '__prompt-optimizer__',
-  apiFormat: 'openai-chat-completions',
-  displayName: 'Prompt Optimizer',
-  enabled: false,
-  config: {
-    apiFormat: 'openai-chat-completions',
-    displayName: 'Prompt Optimizer',
-    connection: {
-      selectionMode: 'manual',
-      selectedEndpointId: 'primary',
-      endpoints: [
-        {
-          id: 'primary',
-          url: 'https://openrouter.ai/api/v1',
-          enabled: true,
-        },
-      ],
-    },
-    paths: { invoke: '/chat/completions' },
-    defaultModel: 'gpt-4o-mini',
-    instruction: 'Rewrite the prompt.',
-    testPrompt: 'test',
-  },
-  createdAt: '2026-06-15T00:00:00.000Z',
-  updatedAt: '2026-06-15T00:00:00.000Z',
-};
-
 export const fakeProvider: ProviderDescriptor = {
   id: 'mock',
   family: 'image-endpoint',
@@ -271,9 +243,6 @@ export function createFakeServices(options?: {
     readonly getProfileBillingState: ReturnType<typeof vi.fn>;
     readonly listProfileModels: ReturnType<typeof vi.fn>;
     readonly refreshProfileModels: ReturnType<typeof vi.fn>;
-    readonly ensurePromptOptimizerProfile: ReturnType<typeof vi.fn>;
-    readonly optimizePrompt: ReturnType<typeof vi.fn>;
-    readonly validatePromptOptimizerProfile: ReturnType<typeof vi.fn>;
     readonly listTaskRecords: ReturnType<typeof vi.fn>;
     readonly reconcileStaleRunningTaskRecords: ReturnType<typeof vi.fn>;
     readonly listLayers: ReturnType<typeof vi.fn>;
@@ -285,7 +254,7 @@ export function createFakeServices(options?: {
     readonly resolveTaskResource: ReturnType<typeof vi.fn>;
   };
 } {
-  let profiles: readonly ProviderProfile[] = options?.profiles ?? [fakeProfile, fakeOptimizerProfile];
+  let profiles: readonly ProviderProfile[] = options?.profiles ?? [fakeProfile];
 
   const submitJob = vi.fn(async (input: Parameters<CommandsPort['submitJob']>[0]) => ({
     ok: true as const,
@@ -372,9 +341,6 @@ export function createFakeServices(options?: {
   });
   const listProfileModels = vi.fn(async () => ({ ok: true as const, value: [{ id: 'mock-image-v1' }] }));
   const refreshProfileModels = vi.fn(async () => ({ ok: true as const, value: [{ id: 'mock-image-v2' }] }));
-  const ensurePromptOptimizerProfile = vi.fn(async () => ({ ok: true as const, value: fakeOptimizerProfile }));
-  const optimizePrompt = vi.fn(async () => ({ ok: true as const, value: 'optimized prompt' }));
-  const validatePromptOptimizerProfile = vi.fn(async () => ({ ok: true as const, value: 'optimized test prompt' }));
   const reconcileStaleRunningTaskRecords = vi.fn(async () => []);
   const listLayers = vi.fn(async () => [{ id: 1, name: 'Layer 1', kind: 'pixel', visible: true }]);
   const pickImageFile = vi.fn(async () => fakeHostImage);
@@ -440,9 +406,6 @@ export function createFakeServices(options?: {
     getProfileBillingState,
     listProfileModels,
     refreshProfileModels,
-    ensurePromptOptimizerProfile,
-    optimizePrompt,
-    validatePromptOptimizerProfile,
   };
 
   const host: HostBridge = {
@@ -515,9 +478,6 @@ export function createFakeServices(options?: {
       getProfileBillingState,
       listProfileModels,
       refreshProfileModels,
-      ensurePromptOptimizerProfile,
-      optimizePrompt,
-      validatePromptOptimizerProfile,
       listTaskRecords: commands.listTaskRecords as ReturnType<typeof vi.fn>,
       reconcileStaleRunningTaskRecords,
       listLayers,

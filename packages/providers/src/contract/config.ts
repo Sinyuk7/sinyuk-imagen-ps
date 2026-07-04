@@ -249,39 +249,6 @@ export interface GeminiGenerateContentProviderConfig {
   readonly timeoutMs?: number;
 }
 
-/** Prompt optimization provider instance 的配置形状。 */
-export interface PromptOptimizeProviderConfig {
-  /** Provider instance 的稳定标识符。 */
-  readonly providerId: string;
-
-  /** 用于 UI / 日志展示的可读名称。 */
-  readonly displayName: string;
-
-  /** 当前 provider family。 */
-  readonly family: ProviderFamily;
-
-  /** Chat-compatible relay / proxy / gateway 的连接集合。 */
-  readonly connection: ProviderConnectionConfig;
-
-  /** Provider instance 使用的 API key。 */
-  readonly apiKey: string;
-
-  /** 缺省 model target。 */
-  readonly defaultModel?: string;
-
-  /** 优化提示词时注入 system message 的指令文本，必填。 */
-  readonly instruction: string;
-
-  /** 验证连通性时使用的测试 prompt，缺省为 `'test'`。 */
-  readonly testPrompt?: string;
-
-  /** 兼容非标准 relay 鉴权或路由所需的附加 headers。 */
-  readonly extraHeaders?: Readonly<Record<string, string>>;
-
-  /** 单次 invoke 的默认超时。 */
-  readonly timeoutMs?: number;
-}
-
 export type ProviderBillingMode =
   | { readonly mode: 'none' }
   | { readonly mode: 'official' }
@@ -300,5 +267,4 @@ export interface BillingEnabledProviderConfig {
 export type ProviderConfig =
   | (ImageEndpointProviderConfig & BillingEnabledProviderConfig)
   | (ChatImageProviderConfig & BillingEnabledProviderConfig)
-  | GeminiGenerateContentProviderConfig
-  | PromptOptimizeProviderConfig;
+  | GeminiGenerateContentProviderConfig;

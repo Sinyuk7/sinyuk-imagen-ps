@@ -19,8 +19,7 @@ export type ComposerReadinessState =
   | 'model-does-not-support-text-to-image'
   | 'size-unsupported'
   | 'resolve-placement-conflict'
-  | 'enter-prompt'
-  | 'optimizing-prompt';
+  | 'enter-prompt';
 
 export interface ComposerReadinessInput {
   readonly running: boolean;
@@ -37,7 +36,6 @@ export interface ComposerReadinessInput {
   readonly outputSizePreset: AppOutputSizePreset;
   readonly placementIntent: PlacementIntent;
   readonly prompt: string;
-  readonly optimizing: boolean;
 }
 
 export interface ComposerReadiness {
@@ -140,9 +138,6 @@ export function deriveComposerReadiness(input: ComposerReadinessInput): Composer
   }
   if (input.prompt.trim().length === 0) {
     return { state: 'enter-prompt', canSend: false };
-  }
-  if (input.optimizing) {
-    return { state: 'optimizing-prompt', canSend: false };
   }
   return { state: 'ready', canSend: true };
 }

@@ -44,14 +44,6 @@ export { getJobHistoryRecord, listJobHistoryRecords } from './job-history.js';
 export { getTaskRecord, listTaskRecords, putTaskRecord, reconcileStaleRunningTaskRecords } from './task-history.js';
 export { resolveSecretValue } from './secret-utils.js';
 export { assertTaskRecord, decodeTaskRecord, sanitizeTaskEvidenceUrl } from '@imagen-ps/core-engine';
-export {
-  PROMPT_OPTIMIZER_PROFILE_ID,
-  ensurePromptOptimizerProfile,
-  optimizePrompt,
-  validatePromptOptimizerProfile,
-} from './prompt-optimize.js';
-export type { OptimizePromptInput } from './prompt-optimize.js';
-
 export type {
   CommandResult,
   ApiFormat,

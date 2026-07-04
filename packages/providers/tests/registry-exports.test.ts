@@ -7,13 +7,11 @@ import {
   createGeminiGenerateContentProvider,
   createImageEndpointProvider,
   createMockProvider,
-  createPromptOptimizeProvider,
   createProviderRegistry,
   listLocalCatalogModels,
   imageEndpointDescriptor,
   geminiGenerateContentDescriptor,
   providerUsesImageModelCatalog,
-  promptOptimizeDescriptor,
   registerBuiltins,
 } from '../src/index.js';
 import type { ProviderFamily } from '../src/index.js';
@@ -24,14 +22,12 @@ describe('provider registry and exports', () => {
     expect(createChatImageProvider().id).toBe('chat-image');
     expect(createGeminiGenerateContentProvider().id).toBe('gemini-generate-content');
     expect(createMockProvider().id).toBe('mock');
-    expect(createPromptOptimizeProvider().id).toBe('prompt-optimize');
     expect(imageEndpointDescriptor.id).toBe('image-endpoint');
     expect(chatImageDescriptor.id).toBe('chat-image');
     expect(geminiGenerateContentDescriptor.id).toBe('gemini-generate-content');
-    expect(promptOptimizeDescriptor.id).toBe('prompt-optimize');
   });
 
-  it('registers mock, image-endpoint, chat-image, gemini-generate-content, and prompt-optimize builtins', () => {
+  it('registers mock, image-endpoint, chat-image, and gemini-generate-content builtins', () => {
     const registry = createProviderRegistry();
 
     registerBuiltins(registry);
@@ -41,7 +37,6 @@ describe('provider registry and exports', () => {
       'image-endpoint',
       'chat-image',
       'gemini-generate-content',
-      'prompt-optimize',
     ]);
   });
 
@@ -50,14 +45,12 @@ describe('provider registry and exports', () => {
       'image-endpoint',
       'chat-image',
       'gemini-generate-content',
-      'prompt-optimize',
     ];
 
     expect(Object.keys(builtins)).toEqual(builtinIds);
     expect(builtins['image-endpoint']().id).toBe(createImageEndpointProvider().id);
     expect(builtins['chat-image']().id).toBe(createChatImageProvider().id);
     expect(builtins['gemini-generate-content']().id).toBe(createGeminiGenerateContentProvider().id);
-    expect(builtins['prompt-optimize']().id).toBe(createPromptOptimizeProvider().id);
   });
 
   it('keeps provider-family coverage independent from builtin ids', () => {
@@ -65,14 +58,12 @@ describe('provider registry and exports', () => {
       imageEndpointDescriptor,
       chatImageDescriptor,
       geminiGenerateContentDescriptor,
-      promptOptimizeDescriptor,
     ];
     const families = new Set(descriptors.map((descriptor) => descriptor.family));
     const expectedFamilies: readonly ProviderFamily[] = [
       'image-endpoint',
       'chat-image',
       'gemini-generate-content',
-      'prompt-optimize',
     ];
 
     expect([...families].sort()).toEqual([...expectedFamilies].sort());
@@ -83,7 +74,6 @@ describe('provider registry and exports', () => {
       createImageEndpointProvider(),
       createChatImageProvider(),
       createGeminiGenerateContentProvider(),
-      createPromptOptimizeProvider(),
     ].filter((provider) => providerUsesImageModelCatalog(provider.id));
 
     expect(catalogProviders.map((provider) => provider.id)).toEqual([

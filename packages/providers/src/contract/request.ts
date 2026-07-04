@@ -75,17 +75,5 @@ export interface CanonicalImageJobRequest {
   readonly providerOptions?: Readonly<Record<string, unknown>>;
 }
 
-/** Prompt optimize provider 的文本优化请求。 */
-export interface PromptOptimizeRequest {
-  /** 固定为 prompt_optimize。 */
-  readonly operation: Extract<ProviderOperation, 'prompt_optimize'>;
-
-  /** 用户输入的待优化 prompt。 */
-  readonly prompt: string;
-
-  /** 受控的 provider-specific 透传空间；runtime 可注入 defaultModel 等。 */
-  readonly providerOptions?: Readonly<Record<string, unknown>>;
-}
-
 /** 当前阶段稳定公开的 provider request 联合。 */
-export type ProviderRequest = CanonicalImageJobRequest | PromptOptimizeRequest;
+export type ProviderRequest = CanonicalImageJobRequest;

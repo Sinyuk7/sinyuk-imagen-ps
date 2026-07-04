@@ -17,7 +17,6 @@ import type {
   TestProviderProfileOptions,
 } from './types.js';
 import { resolveSecretValue } from './secret-utils.js';
-import { PROMPT_OPTIMIZER_PROFILE_ID, savePromptOptimizerProfile } from './prompt-optimize.js';
 import type { ProviderProfileConfigValue } from './types.js';
 import {
   catalogProviderIdForApiFormat,
@@ -42,6 +41,13 @@ function createSecretRef(profileId: string, secretName: string): string {
 
 function sanitizeProfile(profile: ProviderProfile): ProviderProfile {
   return { ...profile };
+}
+
+function isLegacyPromptOptimizerProfile(profile: ProviderProfile): boolean {
+  const legacyApiFormat = (profile as { readonly apiFormat?: unknown }).apiFormat;
+  return profile.profileId === '__prompt-optimizer__'
+    || legacyApiFormat === 'prompt-optimize'
+    || profile.displayName === 'Prompt Optimizer';
 }
 
 function stripSecretConfigFields(
@@ -127,9 +133,19 @@ export async function listProviderProfiles(): Promise<CommandResult<readonly Pro
   const logger = getRuntimeLogger().child({ trace_id: generateTraceId(), package: 'application', component: 'command' });
   const span = logger.startSpan('command.profile.list');
   try {
-    const profiles = await getProviderProfileRepository().list();
-    span.finish({ count: profiles.length });
-    return { ok: true, value: profiles.map(sanitizeProfile) };
+    const repository = getProviderProfileRepository();
+    const profiles = await repository.list();
+    const legacyProfiles = profiles.filter(isLegacyPromptOptimizerProfile);
+    if (legacyProfiles.length > 0) {
+      await Promise.allSettled(legacyProfiles.map((profile) => repository.delete(profile.profileId)));
+      await Promise.allSettled(
+        legacyProfiles.flatMap((profile) => Object.values(profile.secretRefs ?? {}).map((ref) => getSecretStorageAdapter().deleteSecret(ref))),
+      );
+      legacyProfiles.forEach((profile) => invalidateProfileBillingState(profile.profileId));
+    }
+    const visibleProfiles = profiles.filter((profile) => !isLegacyPromptOptimizerProfile(profile));
+    span.finish({ count: visibleProfiles.length, cleanedLegacyCount: legacyProfiles.length });
+    return { ok: true, value: visibleProfiles.map(sanitizeProfile) };
   } catch (error) {
     span.fail(error);
     return { ok: false, error: createRuntimeError(errorMessage(error, 'Failed to list provider profiles.'), {}) };
@@ -188,9 +204,6 @@ export async function saveProviderProfile(input: ProviderProfileInput): Promise<
     };
   }
 
-  if (input.profileId === PROMPT_OPTIMIZER_PROFILE_ID) {
-    return savePromptOptimizerProfile(input);
-  }
   const existing = await getProviderProfileRepository().get(input.profileId);
 
   const mergedConfigForApiFormat = mergeProfileConfig(existing?.config, input.config) as ProviderProfileConfig;
@@ -368,13 +381,6 @@ export async function deleteProviderProfile(
   });
   const span = logger.startSpan('command.profile.delete');
   const repository = getProviderProfileRepository();
-  if (profileId === PROMPT_OPTIMIZER_PROFILE_ID) {
-    span.fail({ message: `Prompt Optimizer profile "${profileId}" cannot be deleted.` });
-    return {
-      ok: false,
-      error: createValidationError(`Prompt Optimizer profile "${profileId}" cannot be deleted.`, { profileId }),
-    };
-  }
   const profile = await repository.get(profileId);
   if (!profile) {
     span.fail({ message: `Provider profile "${profileId}" not found.` });

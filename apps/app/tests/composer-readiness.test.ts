@@ -38,7 +38,6 @@ const base = {
   outputSizePreset: '2k' as const,
   placementIntent: { kind: 'unbound' as const, reason: 'no-photoshop-capture' as const },
   prompt: 'make image',
-  optimizing: false,
 };
 
 describe('composer readiness', () => {

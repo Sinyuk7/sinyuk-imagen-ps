@@ -1,6 +1,6 @@
 import { act } from 'react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { fakeHostImage, fakeOptimizerProfile, fakeProviderInputAsset, fakeProfile, createFakeServices } from './fakes';
+import { fakeHostImage, fakeProviderInputAsset, fakeProfile, createFakeServices } from './fakes';
 import { changeTextarea, clickText, cleanupMainPageRoot, findIconInHost, flush, renderMainPage, sendPrompt } from './main-page-harness';
 
 afterEach(async () => {
@@ -252,7 +252,7 @@ describe('MainPage contract — attachment & submission', () => {
           ...fakeProfile.config,
           defaultModel: 'dall-e-3',
         },
-      }, fakeOptimizerProfile],
+      }],
     });
     services.spies.listProfileModels.mockResolvedValue({
       ok: true as const,
@@ -417,7 +417,6 @@ describe('MainPage contract — attachment & submission', () => {
             ...fakeProfile.config,
           },
         },
-        fakeOptimizerProfile,
       ],
     });
     services.services.host.pickImageFile = vi.fn(async () => ({

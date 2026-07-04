@@ -2,7 +2,7 @@ import { act } from 'react';
 import { createRoot, type Root } from 'react-dom/client';
 import { vi } from 'vitest';
 import { SettingsDetailPage } from '../src/shared/ui/pages/settings-detail-page';
-import { fakeOptimizerProfile, createFakeServices } from './fakes';
+import { createFakeServices } from './fakes';
 import { TestAppProviders } from './render-helpers';
 import type { UxpFlightRecorder } from '../src/host/uxp-log-sink';
 
@@ -52,33 +52,6 @@ export async function renderDetail(container: HTMLElement, onProfilesChanged = v
         <SettingsDetailPage
           onNav={vi.fn()}
           profileId="mock-profile"
-          onProfilesChanged={onProfilesChanged}
-        />
-      </TestAppProviders>,
-    );
-  });
-  await flush();
-  await flush();
-  return { ...services, onProfilesChanged };
-}
-
-export async function renderOptimizerDetail(container: HTMLElement, onProfilesChanged = vi.fn(async () => undefined)) {
-  const services = createFakeServices();
-  services.spies.getProviderProfile.mockResolvedValue({
-    ok: true as const,
-    value: fakeOptimizerProfile,
-  });
-  services.spies.listProfileModels.mockResolvedValue({
-    ok: true as const,
-    value: [{ id: 'gpt-4o-mini' }, { id: 'gpt-4.1-mini' }],
-  });
-  root = createRoot(container);
-  await act(async () => {
-    root!.render(
-      <TestAppProviders services={services.services}>
-        <SettingsDetailPage
-          onNav={vi.fn()}
-          profileId="__prompt-optimizer__"
           onProfilesChanged={onProfilesChanged}
         />
       </TestAppProviders>,
