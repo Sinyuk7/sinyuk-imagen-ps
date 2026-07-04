@@ -1,0 +1,38 @@
+apps/app/src/shared/ui/pages/main-page.tsx
+  s_f5c40d97cba1fb::t_751ae8cfd84c34 1675-1689
+docs/loops/2026-07-05-prompt-settings.md
+  s_6b1279a478b5c2::t_b9022948d86027 126-134,201-203,254,301-302,304-310,339-344,384-386,397,399-400,428
+  s_6b1279a478b5c2::t_1ea85317d492f7 173
+  s_6b1279a478b5c2::t_8837bb0e2f7891 1-31,34-38,40-42,44-73,75-84,86-100,102-104,106,115-125,135-136,138-142,164-168,171,174,176,190-197,209-217,219-221,223,240-244,255-275,284-285,288-300,303,311-324,326,328-338,345-347,349-383,387-396,398,401-427
+  s_6b1279a478b5c2::t_94bb4f9b91dbb8 32-33,39,43,74,85,101,105,107-114,137,143-163,169-170,172,175,177-189,198-200,204-208,218,222,224-239,245-253,276-283,286-287,325,327,348
+apps/app/src/shared/ui/i18n/messages.ts
+  s_f5c40d97cba1fb::t_751ae8cfd84c34 103,400,706
+apps/app/tests/main-page-billing.test.tsx
+  s_f5c40d97cba1fb::t_751ae8cfd84c34 75
+apps/app/tests/main-page-composer-controls.test.tsx
+  s_f5c40d97cba1fb::t_751ae8cfd84c34 500,515-516,524,527,546,549,560-561,638
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.10",
+  "base_commit_sha": "f2ef5a41581194bfe8a46090911c708234f1ad7c",
+  "prompts": {},
+  "sessions": {
+    "s_6b1279a478b5c2": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "019f2dc1-9f46-79b2-9fca-1aeca72ed21d",
+        "model": "gpt-5.5"
+      },
+      "human_author": "Sinyuk <80998062@qq.com>"
+    },
+    "s_f5c40d97cba1fb": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "019f2d61-76ae-7f70-b214-8ebd3cf35051",
+        "model": "gpt-5.4"
+      },
+      "human_author": "Sinyuk <80998062@qq.com>"
+    }
+  }
+}
