@@ -1,0 +1,81 @@
+packages/application/src/commands/resolve-model-brand.test.ts
+  s_1a8fa207c0d8c8::t_af2fc305d10603 18-22,26
+packages/providers/src/transport/chat-image/build-request.ts
+  s_1a8fa207c0d8c8::t_cb2e09af0fd7dc 3,45-50,65-67,165-190,194,200-216,221-226,231-235,238-245,275-281,283,287,294,299,301-304
+packages/providers/tests/image-model-catalog-brand.test.ts
+  s_1a8fa207c0d8c8::t_af2fc305d10603 25-27,68-74
+packages/providers/src/contract/image-model-catalog/rules/gemini-generate-content.ts
+  s_1a8fa207c0d8c8::t_c5f3d560285f2e 1-64
+packages/providers/src/transport/chat-image/legacy-codec.ts
+  s_1a8fa207c0d8c8::t_cb2e09af0fd7dc 1-22
+packages/providers/src/transport/gemini-generate-content/parse-response.ts
+  s_1a8fa207c0d8c8::t_47592285dd9911 1-338
+packages/providers/src/registry/builtins.ts
+  s_1a8fa207c0d8c8::t_c5f3d560285f2e 5,17
+packages/providers/src/contract/capability.ts
+  s_1a8fa207c0d8c8::t_e069b3eb960c42 8
+packages/providers/tests/registry-exports.test.ts
+  s_1a8fa207c0d8c8::t_af2fc305d10603 5,11,20,25,29,38
+packages/providers/src/contract/provider.ts
+  s_1a8fa207c0d8c8::t_8b3ee1734f2780 109-111,123-127
+  s_1a8fa207c0d8c8::t_2ab58df9ca2925 128
+packages/providers/src/providers/gemini-generate-content/index.ts
+  s_1a8fa207c0d8c8::t_715f12fb3a5571 1-6
+packages/providers/tests/chat-image-provider.test.ts
+  s_1a8fa207c0d8c8::t_62b1c3717dd0fa 5,8,36-37,41-60,164-219,583,590,602,613-691,693
+  s_1a8fa207c0d8c8::t_0e78b36dae71f9 692
+packages/providers/src/providers/gemini-generate-content/descriptor.ts
+  s_1a8fa207c0d8c8::t_715f12fb3a5571 1-17
+packages/providers/src/index.ts
+  s_1a8fa207c0d8c8::t_b2c523002b748d 15-17,109-114
+  s_1a8fa207c0d8c8::t_8b3ee1734f2780 68
+  s_1a8fa207c0d8c8::t_49764c63d5fc47 115
+packages/providers/src/contract/index.ts
+  s_1a8fa207c0d8c8::t_b2c523002b748d 5-7
+  s_1a8fa207c0d8c8::t_8b3ee1734f2780 77
+packages/providers/src/providers/gemini-generate-content/provider.ts
+  s_1a8fa207c0d8c8::t_47592285dd9911 1-130
+packages/providers/src/transport/gemini-generate-content/build-request.ts
+  s_1a8fa207c0d8c8::t_cc778b43dfd347 10-12,17-19,24,33-35,37-44,47-49
+  s_1a8fa207c0d8c8::t_47592285dd9911 1-9,13-16,20-23,25-32,36,45-46,50-428
+apps/app/tests/chrome-adapter.test.ts
+  s_1a8fa207c0d8c8::t_a88995e591c241 245-251
+packages/providers/src/transport/chat-image/request-codec.ts
+  s_1a8fa207c0d8c8::t_cb2e09af0fd7dc 1-66
+docs/ENGINEERING_CONTEXT.md
+  s_1a8fa207c0d8c8::t_154db26d8a54cb 35-40,137-142
+packages/providers/src/providers/gemini-generate-content/config-schema.ts
+  s_1a8fa207c0d8c8::t_715f12fb3a5571 1-56
+packages/providers/src/contract/image-model-catalog/catalog.ts
+  s_1a8fa207c0d8c8::t_c5f3d560285f2e 3,9
+packages/providers/src/contract/image-model-capability.ts
+  s_1a8fa207c0d8c8::t_c5f3d560285f2e 13,318,793
+packages/providers/src/providers/chat-image/descriptor.ts
+  s_1a8fa207c0d8c8::t_8b3ee1734f2780 14-15
+packages/providers/tests/gemini-generate-content-provider.test.ts
+  s_1a8fa207c0d8c8::t_af2fc305d10603 1-321
+packages/providers/src/providers/chat-image/provider.ts
+  s_1a8fa207c0d8c8::t_cb2e09af0fd7dc 11-12,99-101,104-110,112,137-138,144,156,159,168,185,212-217
+packages/providers/tests/provider-config-endpoints.test.ts
+  s_1a8fa207c0d8c8::t_af2fc305d10603 2-7,170-224
+packages/providers/src/contract/image-model-catalog/strategies.ts
+  s_1a8fa207c0d8c8::t_c5f3d560285f2e 50-93
+packages/providers/src/contract/config.ts
+  s_1a8fa207c0d8c8::t_e069b3eb960c42 229-267,319
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.10",
+  "base_commit_sha": "6720e21c49791a72ba7a0912f524ad44867ce5c7",
+  "prompts": {},
+  "sessions": {
+    "s_1a8fa207c0d8c8": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "019f29a7-f125-74a3-942a-d5a9a295b47e",
+        "model": "gpt-5.4"
+      },
+      "human_author": "Sinyuk <80998062@qq.com>"
+    }
+  }
+}
