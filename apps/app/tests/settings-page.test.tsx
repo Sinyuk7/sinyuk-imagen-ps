@@ -47,6 +47,7 @@ describe('SettingsPage UXP compatibility', () => {
     expect(container.querySelector('.tt')).toBeNull();
     expect(container.querySelector('.tt-wrap')).toBeNull();
     expect(container.querySelector('sp-tooltip')).toBeNull();
+    expect(container.querySelector('.hdr-title')?.textContent).toMatch(/^(Providers|服务商)$/);
   });
 
   it('renders provider rows with prototype-inspired layout and explicit readiness', async () => {

@@ -235,4 +235,35 @@ describe('SettingsDetailPage contract — profile editing', () => {
       removedSecretNames: ['apiKey'],
     }));
   });
+
+  it('uses the unified Save label on the detail page', async () => {
+    const container = document.createElement('div');
+    document.body.appendChild(container);
+    await renderDetail(container);
+
+    await act(async () => {
+      changeInput(queryByTestId(container, 'provider-alias-input'), 'Dirty Mock');
+    });
+    await flush();
+
+    const saveButton = container.querySelector<HTMLButtonElement>('[data-testid="provider-save-button"]');
+    expect(saveButton?.textContent).toMatch(/^(Save|保存)$/);
+    expect(container.textContent).not.toContain('Save changes');
+    expect(container.textContent).not.toContain('保存修改');
+  });
+
+  it('keeps Save visible but disabled when the detail form is clean', async () => {
+    const container = document.createElement('div');
+    document.body.appendChild(container);
+    await renderDetail(container);
+    await flush();
+
+    const saveButton = queryByTestId(container, 'provider-save-button') as HTMLButtonElement;
+    expect(saveButton.textContent).toMatch(/^(Save|保存)$/);
+    expect(saveButton.disabled).toBe(true);
+    expect(container.textContent).not.toContain('Save changes');
+    expect(container.textContent).not.toContain('保存修改');
+    expect(container.textContent).not.toContain('Saved');
+    expect(container.textContent).not.toContain('已保存');
+  });
 });

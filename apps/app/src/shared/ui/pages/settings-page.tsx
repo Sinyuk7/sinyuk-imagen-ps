@@ -141,7 +141,7 @@ export function SettingsPage({
           tooltip={t.common.back}
           onClick={() => onNav('main')}
         />
-        <div className="hdr-title">Providers</div>
+        <div className="hdr-title">{t.common.providers}</div>
         <IconButton
           data-testid="providers-refresh-button"
           className="hdr-btn"

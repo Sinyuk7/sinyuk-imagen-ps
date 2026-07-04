@@ -55,7 +55,7 @@ describe('SettingsDetailPage contract — connectivity', () => {
         apiFormat: 'openai-images',
       }),
     );
-    expect(container.textContent).toContain('连接成功');
+    expect(container.querySelector('[data-testid="toast"]')?.textContent).toContain('连接成功');
 
     await act(async () => {
       queryByTestId(container, 'provider-refresh-models-button').click();
@@ -107,13 +107,14 @@ describe('SettingsDetailPage contract — connectivity', () => {
       queryByTestId(container, 'provider-test-button').click();
     });
     await flush();
-    expect(container.textContent).toContain('连接成功');
+    expect(container.querySelector('[data-testid="toast"]')?.textContent).toContain('连接成功');
 
     await act(async () => {
       changeInput(queryByTestId(container, 'provider-endpoint-url-0'), 'https://mock.changed');
     });
 
-    expect(container.textContent).toContain('修改尚未测试');
+    expect(container.querySelector('.settings-detail-footer-actions .status-notice')).toBeNull();
+    expect(container.querySelector('.settings-detail-footer-actions .test-status')).toBeNull();
   });
 
   it('shows copyable connection errors instead of a saved status while testing', async () => {
@@ -134,11 +135,8 @@ describe('SettingsDetailPage contract — connectivity', () => {
     });
     await flush();
 
-    expect(container.textContent).toContain("连接失败: Cannot read properties of undefined (reading 'addEventListener')");
-    const notice = container.querySelector('.status-notice.error');
-    expect(notice).not.toBeNull();
-    expect(notice?.textContent).toContain("Cannot read properties of undefined (reading 'addEventListener')");
-    expect(notice?.querySelector('.status-copy')).not.toBeNull();
+    const toast = container.querySelector('[data-testid="toast"]');
+    expect(toast?.textContent).toContain("连接失败: Cannot read properties of undefined (reading 'addEventListener')");
   });
 
   it('keeps the test button disabled until the connection test finishes', async () => {
@@ -173,7 +171,21 @@ describe('SettingsDetailPage contract — connectivity', () => {
     await flush();
 
     expect(Boolean(queryByTestId(container, 'provider-test-button').disabled)).toBe(false);
-    expect(container.textContent).toContain('连接成功');
+    expect(container.querySelector('[data-testid="toast"]')?.textContent).toContain('连接成功');
+  });
+
+  it('does not render inline test-result status in the footer', async () => {
+    const container = document.createElement('div');
+    document.body.appendChild(container);
+    await renderDetail(container);
+
+    await act(async () => {
+      queryByTestId(container, 'provider-test-button').click();
+    });
+    await flush();
+
+    expect(container.querySelector('.settings-detail-footer-actions .status-notice')).toBeNull();
+    expect(container.querySelector('.settings-detail-footer-actions .test-status')).toBeNull();
   });
 
   it('switches to auto without persisting config', async () => {
@@ -272,8 +284,9 @@ describe('SettingsDetailPage contract — connectivity', () => {
     });
     await flush();
 
-    expect(container.textContent).toContain('连接成功');
-    expect(container.textContent).toMatch(/\d+ ms/);
+    expect(container.querySelector('[data-testid="toast"]')?.textContent).toContain('连接成功');
+    expect(container.querySelector('.settings-detail-footer-actions .status-notice')).toBeNull();
+    expect(container.querySelector('.settings-detail-footer-actions .test-status')).toBeNull();
   });
 
   it('keeps refresh model list as a compact inline action', async () => {

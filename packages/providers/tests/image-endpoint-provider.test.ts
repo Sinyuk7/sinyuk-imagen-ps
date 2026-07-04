@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { createLogger, createMemorySink } from '@imagen-ps/foundation';
 import {
   createImageEndpointProvider,
@@ -36,6 +36,11 @@ describe('image-endpoint provider', () => {
     resetImageEditCompatibilityCacheForTesting();
   });
 
+  afterEach(() => {
+    vi.restoreAllMocks();
+    vi.unstubAllGlobals();
+  });
+
   it('exposes image endpoint descriptor and validates config', () => {
     const provider = createImageEndpointProvider();
     const config = provider.validateConfig({
@@ -54,6 +59,50 @@ describe('image-endpoint provider', () => {
     expect(provider.family).toBe('image-endpoint');
     expect(provider.describe()).toEqual(imageEndpointDescriptor);
     expect(config.family).toBe('image-endpoint');
+  });
+
+  it('queries new-api balance from origin root instead of inheriting invoke base path', async () => {
+    const provider = createImageEndpointProvider();
+    const config = provider.validateConfig({
+      providerId: 'image-endpoint',
+      displayName: 'Image Endpoint',
+      family: 'image-endpoint',
+      connection: {
+        selectionMode: 'manual',
+        selectedEndpointId: 'primary',
+        endpoints: [{ id: 'primary', url: 'https://api.n1n.ai/v1', enabled: true }],
+      },
+      apiKey: 'test-key',
+      billing: {
+        mode: 'new-api',
+        userId: '322072',
+        accessTokenSecretRef: 'billing-token',
+      },
+    });
+    const fetchSpy = vi.fn(async (input: RequestInfo | URL) => {
+      expect(String(input)).toBe('https://api.n1n.ai/api/user/self');
+      return new Response(JSON.stringify({
+        success: true,
+        data: {
+          quota: 42,
+        },
+      }), {
+        status: 200,
+        headers: { 'content-type': 'application/json' },
+      });
+    });
+    vi.stubGlobal('fetch', fetchSpy);
+
+    const snapshot = await provider.queryBalance?.(config, {});
+
+    expect(fetchSpy).toHaveBeenCalledTimes(1);
+    expect(snapshot).toEqual({
+      primary: {
+        kind: 'quota',
+        remaining: '42',
+        unit: 'quota',
+      },
+    });
   });
 
   it('builds generation body for /v1/images/generations', () => {

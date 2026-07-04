@@ -251,7 +251,6 @@ export interface AppMessages {
     readonly duplicateDisplayName: (name: string) => string;
     readonly duplicateEndpointUrl: string;
     readonly saveProvider: string;
-    readonly saveChanges: string;
     readonly savedButton: string;
     readonly showApiKey: string;
     readonly hideApiKey: string;
@@ -263,8 +262,8 @@ export interface AppMessages {
     readonly testNotTested: string;
     readonly testResultPrefix: string;
     readonly saved: string;
-    readonly retrySave: string;
     readonly testSuccess: string;
+    readonly speedTestSuccess: string;
     readonly connectionFailed: string;
     readonly configValidNoModels: string;
     readonly configValidProviderNoModels: string;
@@ -570,8 +569,7 @@ const EN_MESSAGES: AppMessages = {
     authModeFixedBearer: 'Auth mode: Bearer',
     duplicateDisplayName: (name) => `A Provider named "${name}" already exists.`,
     duplicateEndpointUrl: 'This endpoint already exists in this profile.',
-    saveProvider: 'Save provider',
-    saveChanges: 'Save changes',
+    saveProvider: 'Save',
     savedButton: 'Saved',
     showApiKey: 'Show API Key',
     hideApiKey: 'Hide API Key',
@@ -583,8 +581,8 @@ const EN_MESSAGES: AppMessages = {
     testNotTested: 'Not tested',
     testResultPrefix: 'Last test',
     saved: 'Saved',
-    retrySave: 'Retry save',
     testSuccess: 'Connected',
+    speedTestSuccess: 'Speed test complete',
     connectionFailed: 'Connection failed',
     configValidNoModels: 'Configuration valid; no model list is available.',
     configValidProviderNoModels: 'Configuration valid; no available models were returned.',
@@ -890,8 +888,7 @@ const ZH_CN_MESSAGES: AppMessages = {
     authModeFixedBearer: '认证模式：Bearer',
     duplicateDisplayName: (name) => `已存在名为“${name}”的 Provider。`,
     duplicateEndpointUrl: '当前配置中已存在此端点。',
-    saveProvider: '保存 Provider',
-    saveChanges: '保存修改',
+    saveProvider: '保存',
     savedButton: '已保存',
     showApiKey: '显示 API Key',
     hideApiKey: '隐藏 API Key',
@@ -903,8 +900,8 @@ const ZH_CN_MESSAGES: AppMessages = {
     testNotTested: '未测试',
     testResultPrefix: '上次测试',
     saved: '已保存',
-    retrySave: '重试保存',
     testSuccess: '连接成功',
+    speedTestSuccess: '测速完成',
     connectionFailed: '连接失败',
     configValidNoModels: '配置有效；未提供模型列表。',
     configValidProviderNoModels: '配置有效；服务端未返回可用模型。',

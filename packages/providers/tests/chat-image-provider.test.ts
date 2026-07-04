@@ -1,4 +1,4 @@
-import { describe, expect, it, vi } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import { createLogger, createMemorySink } from '@imagen-ps/foundation';
 import { createChatImageProvider, chatImageDescriptor } from '../src/providers/chat-image/index.js';
 import { resolveImageModelRule } from '../src/contract/image-model-capability.js';
@@ -14,6 +14,11 @@ const tinyJpegDataUrl = `data:image/jpeg;base64,${tinyJpegBase64}`;
 const inlineUnavailable = '[Image unavailable]';
 
 describe('chat-image provider', () => {
+  afterEach(() => {
+    vi.restoreAllMocks();
+    vi.unstubAllGlobals();
+  });
+
   it('exposes chat image descriptor and validates config', () => {
     const provider = createChatImageProvider();
     const config = provider.validateConfig({
@@ -54,6 +59,57 @@ describe('chat-image provider', () => {
         model: 'google/gemini-2.5-flash-image-preview',
         modalities: ['image'],
       },
+    });
+  });
+
+  it('queries new-api balance from origin root instead of inheriting invoke base path', async () => {
+    const provider = createChatImageProvider();
+    const config = provider.validateConfig({
+      providerId: 'chat-image',
+      displayName: 'Chat Image',
+      family: 'chat-image',
+      connection: {
+        selectionMode: 'manual',
+        selectedEndpointId: 'primary',
+        endpoints: [{ id: 'primary', url: 'https://api.n1n.ai/v1', enabled: true }],
+      },
+      apiKey: 'test-key',
+      billing: {
+        mode: 'new-api',
+        userId: '322072',
+        accessTokenSecretRef: 'billing-token',
+      },
+    });
+    const fetchSpy = vi.fn(async (input: RequestInfo | URL) => {
+      expect(String(input)).toBe('https://api.n1n.ai/api/user/self');
+      return new Response(JSON.stringify({
+        success: true,
+        data: {
+          quota: 500000,
+          used_quota: 120000,
+        },
+      }), {
+        status: 200,
+        headers: { 'content-type': 'application/json' },
+      });
+    });
+    vi.stubGlobal('fetch', fetchSpy);
+
+    const snapshot = await provider.queryBalance?.(config, {});
+
+    expect(fetchSpy).toHaveBeenCalledTimes(1);
+    expect(snapshot).toEqual({
+      primary: {
+        kind: 'quota',
+        remaining: '500000',
+        unit: 'quota',
+      },
+      details: [{
+        kind: 'quota',
+        label: 'Used quota',
+        value: '120000',
+        unit: 'quota',
+      }],
     });
   });
 

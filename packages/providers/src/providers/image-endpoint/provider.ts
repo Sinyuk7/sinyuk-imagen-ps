@@ -31,7 +31,11 @@ import {
 import { parseResponse } from '../../transport/image-endpoint/parse-response.js';
 import { inspectModelsResponse } from '../../transport/image-endpoint/models.js';
 import { listLocalCatalogModels } from '../../contract/image-model-capability.js';
-import { fetchProviderBalanceJson, parseNewApiBalanceResponse } from '../../transport/billing/query-balance.js';
+import {
+  fetchProviderBalanceJson,
+  parseNewApiBalanceResponse,
+  resolveRootBillingUrl,
+} from '../../transport/billing/query-balance.js';
 import {
   evictIfMatches,
   isImageEditCodecCompatible,
@@ -560,7 +564,7 @@ export function createImageEndpointProvider(): Provider<ImageEndpointProviderCon
           throw createValidationError('New API balance mode requires profile billing config.');
         }
         const json = await fetchProviderBalanceJson({
-          url: assembleApiUrl(endpoint.url, '/api/user/self'),
+          url: resolveRootBillingUrl(endpoint.url, '/api/user/self'),
           headers: {
             Authorization: `Bearer ${billing.accessTokenSecretRef}`,
             'New-Api-User': billing.userId,

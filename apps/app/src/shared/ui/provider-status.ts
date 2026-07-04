@@ -94,5 +94,5 @@ export function statusFromEndpointMeasurementResult(
   if (healthy.length === 0) {
     return { tone: 'warning', durationMs: null, dismissible: false, copyable: false, message: messages.settings.configValidProviderNoModels };
   }
-  return { tone: 'positive', durationMs: 2200, dismissible: false, copyable: false, message: messages.settings.testSuccess };
+  return { tone: 'positive', durationMs: 2200, dismissible: false, copyable: false, message: messages.settings.speedTestSuccess };
 }

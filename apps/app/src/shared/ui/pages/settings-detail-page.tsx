@@ -27,15 +27,16 @@ import {
   type ProviderConnectionDraft,
 } from '../hooks/use-provider-settings';
 import { Icon } from '../components/icons';
-import { useNotice } from '../components/notice';
 import { ProviderBillingSettings } from '../components/provider-billing-settings';
 import { ProviderProfileEditor } from '../components/provider-profile-editor';
 import { StatusNotice } from '../components/status-notice';
+import { useToast } from '../components/toast-host';
 import { UxpTextArea } from '../components/uxp-form-controls';
 import { useI18n } from '../i18n/i18n-context';
 import { Button, FieldLabel, HelpText, TextField, Checkbox } from '../primitives/native-controls';
 import { IconButton } from '../primitives/icon-button';
 import {
+  statusFromEndpointMeasurementResult,
   statusFromProviderConnectionTestResult,
 } from '../provider-status';
 import { TextSelect } from '../components/text-select';
@@ -51,10 +52,6 @@ interface SettingsDetailPageProps {
 
 type ConnectionUpdater = (connection: ProviderConnectionDraft) => ProviderConnectionDraft;
 type BillingUpdater = (billing: ProviderBillingDraft) => ProviderBillingDraft;
-
-function formatElapsedMs(startedAt: number): string {
-  return `${Math.max(1, Math.round(performance.now() - startedAt))} ms`;
-}
 
 function profileFormCheckpointAttrs(
   profile: ProviderProfile | null,
@@ -219,6 +216,7 @@ export function SettingsDetailPage({ onNav, profileId, onProfilesChanged, onSave
   const providers = useProviderCatalog(services);
   const detail = useProfileDetail(services, profileId);
   const models = useProfileModels(services, profileId);
+  const { show } = useToast();
   const [displayName, setDisplayName] = useState('');
   const [connection, setConnection] = useState<ProviderConnectionDraft>(readProviderConnectionDraft(null));
   const [defaultModel, setDefaultModel] = useState('');
@@ -234,8 +232,6 @@ export function SettingsDetailPage({ onNav, profileId, onProfilesChanged, onSave
   const [aliasError, setAliasError] = useState<string | null>(null);
   const [modelsStale, setModelsStale] = useState(false);
   const [showKey, setShowKey] = useState(false);
-  const [testMeta, setTestMeta] = useState<string | null>(null);
-  const [testStatus, setTestStatus] = useState<{ readonly tone: 'neutral' | 'positive' | 'negative'; readonly message: string }>({ tone: 'neutral', message: t.settings.testNotTested });
   const [saveBusy, setSaveBusy] = useState(false);
   const [measurementBusy, setMeasurementBusy] = useState(false);
   const [connectionTestBusy, setConnectionTestBusy] = useState(false);
@@ -251,7 +247,6 @@ export function SettingsDetailPage({ onNav, profileId, onProfilesChanged, onSave
   const saveBusyRef = useRef(false);
   const measurementBusyRef = useRef(false);
   const connectionTestBusyRef = useRef(false);
-  const saveNotice = useNotice({ defaultDurationMs: null });
   const isOptimizerProfile = detail.profile?.profileId === PROMPT_OPTIMIZER_PROFILE_ID;
   const billing = useProfileBilling(services, profileId);
   const busy = saveBusy;
@@ -259,8 +254,6 @@ export function SettingsDetailPage({ onNav, profileId, onProfilesChanged, onSave
 
   const invalidateDraftProofs = () => {
     draftRevisionRef.current += 1;
-    setTestStatus({ tone: 'neutral', message: t.settings.changesNotTested });
-    setTestMeta(null);
     if (models.models.length > 0) {
       setModelsStale(true);
     }
@@ -295,7 +288,7 @@ export function SettingsDetailPage({ onNav, profileId, onProfilesChanged, onSave
       const classification = services.commands.classifyEndpoint(changedEndpoint.url);
       if (classification.status !== 'unsupported') {
         if (classification.apiFormat !== detail.profile.apiFormat) {
-          saveNotice.show(
+          show(
             t.settings.apiFormatConflict(apiFormatLabel(detail.profile.apiFormat), apiFormatLabel(classification.apiFormat)),
             'negative',
             { durationMs: null, copyable: false },
@@ -351,8 +344,6 @@ export function SettingsDetailPage({ onNav, profileId, onProfilesChanged, onSave
     setModelMenuOpen(false);
     setMeasurementResults([]);
     setResolvedEndpointId(undefined);
-    setTestStatus({ tone: 'neutral', message: t.settings.testNotTested });
-    setTestMeta(null);
  }, [detail.profile]);
 
   useEffect(() => {
@@ -361,9 +352,6 @@ export function SettingsDetailPage({ onNav, profileId, onProfilesChanged, onSave
       return;
     }
     lastLoadedProfileIdRef.current = nextProfileId;
-    saveNotice.clear();
-    setTestMeta(null);
-    setTestStatus({ tone: 'neutral', message: t.settings.testNotTested });
   }, [detail.profile?.profileId]);
 
   useEffect(() => {
@@ -469,7 +457,6 @@ export function SettingsDetailPage({ onNav, profileId, onProfilesChanged, onSave
     await services.diagnostics?.checkpoint('uxp.ui.settings_detail.save.entered', { profileId });
     setSaveBusy(true);
     await services.diagnostics?.checkpoint('uxp.ui.settings_detail.save.busy_set', { busy: true, profileId });
-    saveNotice.clear();
     setAliasError(null);
     await services.diagnostics?.checkpoint('uxp.ui.settings_detail.save.status_cleared', { profileId });
     try {
@@ -529,7 +516,7 @@ export function SettingsDetailPage({ onNav, profileId, onProfilesChanged, onSave
       if (message.includes('displayName')) {
         setAliasError(t.settings.duplicateDisplayName(sanitizeProviderDisplayName(displayName)));
       }
-      saveNotice.show(message, 'negative', { durationMs: null, copyable: true });
+      show(message, 'negative', { key: 'settings-detail-save-error', durationMs: null, copyable: true });
     } finally {
       await services.diagnostics?.checkpoint('uxp.ui.settings_detail.save.before_busy_clear', { profileId });
       saveBusyRef.current = false;
@@ -546,22 +533,19 @@ export function SettingsDetailPage({ onNav, profileId, onProfilesChanged, onSave
       profileId: detail.profile.profileId,
       apiFormat: detail.profile.apiFormat,
       busy,
-        hasStatus: saveNotice.notice !== null || testStatus.message !== t.settings.testNotTested,
+      hasStatus: false,
       }, {
         profile_id: detail.profile.profileId,
         api_format: detail.profile.apiFormat,
       });
-  }, [busy, detail.profile, saveNotice.notice, testStatus, t.settings.testNotTested, services.diagnostics]);
+  }, [busy, detail.profile, services.diagnostics]);
 
   const test = async () => {
     if (connectionTestBusyRef.current) {
       return;
     }
     connectionTestBusyRef.current = true;
-    const startedAt = performance.now();
     setConnectionTestBusy(true);
-    setTestStatus({ tone: 'neutral', message: t.settings.testingConnection });
-    setTestMeta(null);
     try {
       const result = await testCurrentDraftConnection();
       if (!result.ok) {
@@ -572,12 +556,19 @@ export function SettingsDetailPage({ onNav, profileId, onProfilesChanged, onSave
         setModelsStale(false);
       }
       const status = statusFromProviderConnectionTestResult(result.value, t);
-      setTestStatus({ tone: status.tone === 'positive' || status.tone === 'negative' ? status.tone : 'neutral', message: status.message });
-      setTestMeta(`${formatElapsedMs(startedAt)}`);
+      show(status.message, status.tone, {
+        key: 'settings-detail-connection-test',
+        durationMs: status.durationMs,
+        dismissible: status.dismissible,
+        copyable: status.copyable,
+      });
     } catch (error) {
       const detail = error instanceof Error ? error.message : String(error);
-      setTestStatus({ tone: 'negative', message: `${t.settings.connectionFailed}: ${detail}` });
-      setTestMeta(`${formatElapsedMs(startedAt)}`);
+      show(`${t.settings.connectionFailed}: ${detail}`, 'negative', {
+        key: 'settings-detail-connection-test-error',
+        durationMs: null,
+        copyable: true,
+      });
     } finally {
       connectionTestBusyRef.current = false;
       setConnectionTestBusy(false);
@@ -590,8 +581,6 @@ export function SettingsDetailPage({ onNav, profileId, onProfilesChanged, onSave
     }
     measurementBusyRef.current = true;
     const revision = draftRevisionRef.current;
-    setTestStatus({ tone: 'neutral', message: t.settings.testNotTested });
-    setTestMeta(null);
     setMeasurementBusy(true);
     try {
       if (detail.profile && hasDraftChanges(
@@ -619,13 +608,24 @@ export function SettingsDetailPage({ onNav, profileId, onProfilesChanged, onSave
           const refreshed = result.value.models ?? [];
           models.replace(refreshed);
           setModelsStale(false);
+          const status = statusFromEndpointMeasurementResult(result.value, t);
+          show(status.message, status.tone, {
+            key: 'settings-detail-endpoint-probe',
+            durationMs: status.durationMs,
+            dismissible: status.dismissible,
+            copyable: status.copyable,
+          });
         }
         return;
       }
       await models.refresh();
       setModelsStale(false);
-    } catch {
-      // errors flow into models.error and are rendered by modelListNotice
+    } catch (error) {
+      show(error instanceof Error ? error.message : String(error), 'negative', {
+        key: 'settings-detail-endpoint-probe-error',
+        durationMs: null,
+        copyable: true,
+      });
     } finally {
       measurementBusyRef.current = false;
       setMeasurementBusy(false);
@@ -659,13 +659,12 @@ export function SettingsDetailPage({ onNav, profileId, onProfilesChanged, onSave
     }
     saveBusyRef.current = true;
     setSaveBusy(true);
-    saveNotice.clear();
     try {
       await detail.remove();
       await onProfilesChanged(null);
       onNav('settings');
     } catch (error) {
-      saveNotice.show(error instanceof Error ? error.message : String(error), 'negative', { durationMs: null, copyable: true });
+      show(error instanceof Error ? error.message : String(error), 'negative', { key: 'settings-detail-delete-error', durationMs: null, copyable: true });
     } finally {
       saveBusyRef.current = false;
       setSaveBusy(false);
@@ -700,7 +699,7 @@ export function SettingsDetailPage({ onNav, profileId, onProfilesChanged, onSave
         isOptimizerProfile,
       )
     : false;
-  const saveDisabled = busy || !detail.profile || endpointErrors.size > 0 || Boolean(aliasError);
+  const saveDisabled = busy || !detail.profile || !draftDirty || endpointErrors.size > 0 || Boolean(aliasError);
   const modelListNotice = models.error
     ? {
         tone: 'warning' as const,
@@ -715,28 +714,6 @@ export function SettingsDetailPage({ onNav, profileId, onProfilesChanged, onSave
     : modelOptions.length === 0
       ? { tone: 'info' as const, message: t.settings.modelListEmpty }
       : null;
-
-  const renderTestStatus = () => {
-    if (testStatus.tone === 'negative') {
-      return (
-        <StatusNotice
-          tone="negative"
-          message={testStatus.message}
-          detail={testMeta}
-          detailCopyable
-        />
-      );
-    }
-    if (testStatus.message === t.settings.testNotTested && !testMeta) {
-      return <span className="test-status test-status-neutral">{testStatus.message}</span>;
-    }
-    return (
-      <span className={`test-status test-status-${testStatus.tone}`}>
-        {testStatus.message}
-        {testMeta ? ` · ${testMeta}` : null}
-      </span>
-    );
-  };
 
   const updatePath = (next: Partial<ApiPathDraft>) => {
     setPaths((current) => ({ ...current, ...next }));
@@ -1090,7 +1067,7 @@ export function SettingsDetailPage({ onNav, profileId, onProfilesChanged, onSave
             tooltip={t.common.back}
             onClick={() => onNav('settings')}
           />
-          <div className="hdr-title">Provider</div>
+          <div className="hdr-title">{t.common.provider}</div>
           <div style={{ width: 32 }} />
         </header>
         <div className="scroll">
@@ -1112,7 +1089,7 @@ export function SettingsDetailPage({ onNav, profileId, onProfilesChanged, onSave
           onClick={() => onNav('settings')}
         />
         <div className="page-header-meta">
-          <div className="hdr-title page-header-title">{detail.profile?.displayName ?? 'Provider'}</div>
+          <div className="hdr-title page-header-title">{detail.profile?.displayName ?? t.common.provider}</div>
         </div>
         {!isOptimizerProfile && (
           <IconButton
@@ -1158,8 +1135,6 @@ export function SettingsDetailPage({ onNav, profileId, onProfilesChanged, onSave
               apiKeyPlaceholder="sk-..."
               showKey={showKey}
               onShowKeyChange={setShowKey}
-              connectionStatus={saveNotice.notice}
-              measurementNotice={null}
               apiKeySaved={Boolean(detail.profile.secretRefs?.apiKey) && !apiKeyRemovalPending}
               apiKeySavedHint={detail.profile.secretRefs?.apiKey ? t.settings.savedSecretPlaceholder : null}
               apiKeyRemovalPending={apiKeyRemovalPending}
@@ -1190,20 +1165,16 @@ export function SettingsDetailPage({ onNav, profileId, onProfilesChanged, onSave
               aria-label={!connectionTestSupported ? t.settings.providerConnectionUnsupported : connectionTestBusy ? t.settings.testingConnection : t.settings.testConnection}
               onClick={() => void test()}
             />
-            {renderTestStatus()}
           </div>
-          {saveNotice.notice?.tone === 'negative' ? (
-            <Button data-testid="provider-save-button" className="btn-save" variant="accent" disabled={busy} onClick={() => void save()}>{t.settings.retrySave}</Button>
-          ) : busy ? (
-            <span className="save-status save-status-busy">{t.settings.saving}</span>
-          ) : draftDirty ? (
-            <Button data-testid="provider-save-button" className="btn-save" variant="accent" disabled={saveDisabled} onClick={() => void save()}>{t.settings.saveChanges}</Button>
-          ) : (
-            <span className="save-status save-status-saved">
-              <Icon name="check" size={14} />
-              {t.settings.saved}
-            </span>
-          )}
+          <Button
+            data-testid="provider-save-button"
+            className="btn-save"
+            variant="accent"
+            disabled={saveDisabled}
+            onClick={() => void save()}
+          >
+            {busy ? t.settings.saving : t.common.save}
+          </Button>
         </div>
       </footer>
     </div>

@@ -488,8 +488,9 @@ function AppShellContent({ host }: AppShellProps) {
             if (options.useProvider) {
               await selectImageProfile(profileId);
             }
+            show(options.message, 'positive', { key: 'settings-add-provider-saved' });
             setSelectedSettingsProfileId(profileId);
-            setView('settings-detail');
+            setView('settings');
           }}
           />
         </MotionPageFrame>

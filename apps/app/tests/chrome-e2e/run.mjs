@@ -336,10 +336,11 @@ async function addProviderSaveScenario({ page, url, capture }) {
     await expectVisibleText(page, 'API Key');
     await expectNoVisibleSecret(page);
   });
-  await clickControl(page.getByTestId('provider-save-button'), 'Save provider button');
-  await checkpoint(page, capture, '04-provider-detail-after-save.png', async () => {
+  await clickControl(page.getByTestId('provider-save-button'), 'Save button');
+  await checkpoint(page, capture, '04-provider-list-after-save.png', async () => {
+    await expectVisibleText(page, 'Providers');
+    await expectVisibleText(page, 'Saved');
     await expectVisibleText(page, 'Mock Profile E2E');
-    await expectSavedSecretPlaceholder(page);
     await expectNoVisibleSecret(page);
   });
   await assertNoBrokenImages(page);
@@ -378,8 +379,9 @@ async function providerListAndEditScenario({ page, url, capture }) {
     await expectSavedSecretPlaceholder(page);
     await expectNoVisibleSecret(page);
   });
-  await clickControl(page.getByTestId('provider-save-button'), 'Save changes button');
-  await checkpoint(page, capture, '09-provider-detail-saved.png', async () => {
+  await clickControl(page.getByTestId('provider-save-button'), 'Save button');
+  await checkpoint(page, capture, '09-provider-list-saved.png', async () => {
+    await expectVisibleText(page, 'Providers');
     await expectVisibleText(page, 'Saved');
     await expectVisibleText(page, 'Mock Profile Renamed');
     await expectNoVisibleSecret(page);
@@ -407,6 +409,7 @@ async function providerDetailActionsScenario({ page, url, capture }) {
     const button = document.querySelector('[data-testid="provider-refresh-models-button"]');
     return button instanceof HTMLButtonElement && !button.disabled;
   }, undefined, { timeout: 5000 });
+  await page.getByText(/Speed test complete|测速完成/).first().waitFor({ state: 'visible', timeout: 5000 });
   await clickControl(page.getByTestId('provider-delete-button'), 'Delete provider button');
   await checkpoint(page, capture, '12-settings-after-delete.png', async () => {
     await expectVisibleText(page, 'Providers');
@@ -650,7 +653,7 @@ async function persistenceSmokeScenario({ page, origin, capture }) {
   const url = `${origin}/index.html?testHarness=1&storage=indexed-db&db=${encodeURIComponent(dbName)}&resetStorage=1&scenario=seeded-document`;
   await openAddProviderProfile(page, url);
   await fillMockProviderDraft(page, 'Mock Persisted E2E');
-  await clickControl(page.getByTestId('provider-save-button'), 'Save provider button');
+  await clickControl(page.getByTestId('provider-save-button'), 'Save button');
   await expectVisibleText(page, 'Mock Persisted E2E');
   await page.goto(normalizeAppUrl(`${origin}/index.html?testHarness=1&storage=indexed-db&db=${encodeURIComponent(dbName)}&scenario=seeded-document`), { waitUntil: 'networkidle' });
   await page.locator('#root[data-runtime="chrome"][data-status="ok"]').waitFor({ timeout: 10000 });

@@ -8,6 +8,13 @@ interface QueryBalanceRequest {
   readonly signal?: AbortSignal;
 }
 
+/**
+ * 余额接口固定挂在站点根路径时，按 origin 解析 endpoint，避免误继承 `/v1` 之类的 invoke base path。
+ */
+export function resolveRootBillingUrl(endpointUrl: string, billingPath: string): string {
+  return new URL(billingPath, endpointUrl).toString();
+}
+
 function createHttpError(status: number, bodyText: string): Error & { readonly statusCode: number } {
   const message = bodyText.trim().length > 0
     ? `Billing query failed with HTTP ${status}: ${bodyText.trim()}`

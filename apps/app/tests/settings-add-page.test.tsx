@@ -219,7 +219,7 @@ describe('SettingsAddPage', () => {
     await detectOpenAiImages(container);
 
     const nameInput = Array.from(container.querySelectorAll<HTMLElement & { value?: string }>('input'))[0];
-    expect(nameInput.value).toBe('mock.local 2');
+    expect(nameInput.value).toBe('mock');
   });
 
   it('auto-generates the alias from endpoint host until the user edits the alias', async () => {
@@ -240,7 +240,7 @@ describe('SettingsAddPage', () => {
     await act(async () => {
       changeInput(queryByTestId(container, 'provider-endpoint-url-0'), ' https://api.n1n.ai/v1\n');
     });
-    expect((queryByTestId(container, 'provider-alias-input') as HTMLInputElement).value).toBe('n1n.ai');
+    expect((queryByTestId(container, 'provider-alias-input') as HTMLInputElement).value).toBe('n1n');
     expect((queryByTestId(container, 'provider-endpoint-url-0') as HTMLInputElement).value).toBe('https://api.n1n.ai/v1');
 
     await act(async () => {
@@ -275,7 +275,7 @@ describe('SettingsAddPage', () => {
       container.querySelector<HTMLButtonElement>('.btn-save')!.click();
     });
 
-    expect(onProfileSaved).toHaveBeenCalledWith(expect.stringMatching(/^profile-/), { useProvider: false });
+    expect(onProfileSaved).toHaveBeenCalledWith(expect.stringMatching(/^profile-/), expect.objectContaining({ useProvider: false }));
   });
 
   it('auto-uses the first saved provider when no provider exists yet', async () => {
@@ -299,7 +299,7 @@ describe('SettingsAddPage', () => {
       container.querySelector<HTMLButtonElement>('.btn-save')!.click();
     });
 
-    expect(onProfileSaved).toHaveBeenCalledWith(expect.stringMatching(/^profile-/), { useProvider: true });
+    expect(onProfileSaved).toHaveBeenCalledWith(expect.stringMatching(/^profile-/), expect.objectContaining({ useProvider: true }));
   });
 
   it('uses a plain header title and removes unexplained step text on the config screen', async () => {
@@ -441,7 +441,7 @@ describe('SettingsAddPage', () => {
     expect(container.querySelector('[data-testid="provider-endpoint-current-dot-0"]')).not.toBeNull();
   });
 
-  it('keeps cancel as a content-width secondary action beside the primary save action', async () => {
+  it('uses a single save action in the add-page footer', async () => {
     const { services } = createFakeServices();
     const container = document.createElement('div');
     document.body.appendChild(container);
@@ -459,13 +459,32 @@ describe('SettingsAddPage', () => {
 
     const footer = container.querySelector('.settings-add-footer');
     expect(footer?.querySelector('[data-testid="provider-test-button"]')).toBeTruthy();
-    expect(footer?.querySelector('[data-testid="provider-save-button"]')?.textContent).toMatch(/^(Save Provider|保存 Provider)$/);
+    expect(footer?.querySelector('[data-testid="provider-save-button"]')?.textContent).toMatch(/^(Save|保存)$/);
     const cancel = Array.from(container.querySelectorAll<HTMLButtonElement>('button')).find((item) =>
       item.textContent?.includes('取消') || item.textContent?.includes('Cancel'),
     );
-    expect(cancel).toBeTruthy();
-    expect(cancel?.className).toContain('btn-cancel');
-    expect(cancel?.className).not.toContain('ui-button-block');
+    expect(cancel).toBeFalsy();
+  });
+
+  it('keeps full IP addresses as alias suggestions', async () => {
+    const { services } = createFakeServices();
+    const container = document.createElement('div');
+    document.body.appendChild(container);
+    root = createRoot(container);
+
+    await act(async () => {
+      root!.render(
+        <TestAppProviders services={services}>
+          <SettingsAddPage onNav={() => undefined} profiles={[]} onProfileSaved={async () => undefined} />
+        </TestAppProviders>,
+      );
+    });
+
+    await act(async () => {
+      changeInput(queryByTestId(container, 'provider-endpoint-detect-input'), 'https://123.45.67.89/v1/chat/completions');
+    });
+
+    expect((queryByTestId(container, 'provider-alias-input') as HTMLInputElement).value).toBe('123.45.67.89');
   });
 
   it('uses the form-style model selector trigger on the add page', async () => {

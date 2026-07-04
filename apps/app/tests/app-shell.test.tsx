@@ -276,6 +276,8 @@ describe('AppShell', () => {
       apiFormat: 'openai-images',
       displayName: 'Second Mock',
     }));
+    expect(container.textContent).toContain('Providers');
+    expect(container.querySelector('[data-testid="toast"]')?.textContent).toContain('Saved');
     expect(await services.activeImageProfile.load()).toBe('mock-profile');
   });
 
@@ -1058,11 +1060,7 @@ describe('AppShell', () => {
         defaultModel: 'gpt-image3',
       }),
     }));
-
-    await act(async () => {
-      container.querySelector<HTMLButtonElement>('[data-testid="provider-detail-back-button"]')?.click();
-    });
-    await flush();
+    expect(container.querySelector('[data-testid="toast"]')?.textContent).toContain('Saved');
     await act(async () => {
       container.querySelector<HTMLButtonElement>('[data-testid="providers-back-button"]')?.click();
     });

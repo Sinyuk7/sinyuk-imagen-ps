@@ -21,12 +21,10 @@ import {
   type ProviderConnectionDraft,
 } from '../hooks/use-provider-settings';
 import { Icon } from '../components/icons';
-import { MotionContent } from '../components/motion-ui';
 import { ProviderBillingSettings } from '../components/provider-billing-settings';
 import { TextSelect } from '../components/text-select';
-import { useNotice } from '../components/notice';
+import { useToast } from '../components/toast-host';
 import { ProviderProfileEditor } from '../components/provider-profile-editor';
-import { StatusNotice } from '../components/status-notice';
 import { useI18n } from '../i18n/i18n-context';
 import { Button, Checkbox, FieldLabel, HelpText, TextField } from '../primitives/native-controls';
 import { IconButton } from '../primitives/icon-button';
@@ -38,7 +36,7 @@ import {
 interface SettingsAddPageProps {
   readonly onNav: (view: string) => void;
   readonly profiles: readonly ProviderProfile[];
-  readonly onProfileSaved: (profileId: string, options: { readonly useProvider: boolean }) => Promise<void>;
+  readonly onProfileSaved: (profileId: string, options: { readonly useProvider: boolean; readonly message: string }) => Promise<void>;
 }
 
 type ConnectionUpdater = (connection: ProviderConnectionDraft) => ProviderConnectionDraft;
@@ -79,8 +77,21 @@ function nextAlias(baseName: string, profiles: readonly ProviderProfile[]): stri
 function aliasFromEndpointUrl(value: string): string | null {
   try {
     const url = new URL(value);
-    const host = url.hostname.replace(/^(www|api)\./, '');
-    return host || null;
+    const host = url.hostname.trim().toLowerCase().replace(/\.+$/, '');
+    if (!host) {
+      return null;
+    }
+    if (/^\d{1,3}(?:\.\d{1,3}){3}$/.test(host)) {
+      return host;
+    }
+    const labels = host.split('.').filter(Boolean);
+    for (const label of labels) {
+      if (label === 'www' || label === 'api') {
+        continue;
+      }
+      return label;
+    }
+    return labels[0] ?? null;
   } catch {
     return null;
   }
@@ -124,6 +135,7 @@ function replaceEndpointUrl(
 export function SettingsAddPage({ onNav, profiles, onProfileSaved }: SettingsAddPageProps) {
   const services = useAppServices();
   const { messages: t } = useI18n();
+  const { show } = useToast();
   const providers = useProviderCatalog(services);
   const [profileId] = useState(createProfileId);
   const [apiFormat, setApiFormat] = useState<ApiFormat | null>(null);
@@ -153,8 +165,6 @@ export function SettingsAddPage({ onNav, profiles, onProfileSaved }: SettingsAdd
   const saveBusyRef = useRef(false);
   const measurementBusyRef = useRef(false);
   const connectionTestBusyRef = useRef(false);
-  const measurementNotice = useNotice({ defaultDurationMs: null });
-  const connectionNotice = useNotice({ defaultDurationMs: null });
   const selected = useMemo(() => descriptorForApiFormat(providers, apiFormat), [apiFormat, providers]);
   const measurementSupported = Boolean(selected && selected.connectivity?.endpointMeasurement !== 'unsupported');
   const connectionTestSupported = Boolean(selected && selected.connectivity?.connectionTest !== 'unsupported');
@@ -201,10 +211,6 @@ export function SettingsAddPage({ onNav, profiles, onProfileSaved }: SettingsAdd
 
   const invalidateDraftProofs = () => {
     draftRevisionRef.current += 1;
-    if (measurementResults.length > 0 || connectionNotice.notice || measurementNotice.notice) {
-      measurementNotice.show(t.settings.changesNotTested, 'warning', { durationMs: null, copyable: false });
-    }
-    connectionNotice.clear();
     setMeasurementResults([]);
     setResolvedEndpointId(undefined);
   };
@@ -315,7 +321,6 @@ export function SettingsAddPage({ onNav, profiles, onProfileSaved }: SettingsAdd
     measurementBusyRef.current = true;
     const revision = draftRevisionRef.current;
     setMeasurementBusy(true);
-    measurementNotice.clear();
     try {
       const result = await services.commands.measureProfileEndpoints({
         ...buildDraftCommandInput(nextConnection, billingRef.current),
@@ -328,11 +333,20 @@ export function SettingsAddPage({ onNav, profiles, onProfileSaved }: SettingsAdd
         setMeasurementResults(result.value.results);
         setResolvedEndpointId(result.value.resolvedEndpointId);
         const status = statusFromEndpointMeasurementResult(result.value, t);
-        measurementNotice.show(status.message, status.tone, status);
+        show(status.message, status.tone, {
+          key: 'settings-add-endpoint-probe',
+          durationMs: status.durationMs,
+          dismissible: status.dismissible,
+          copyable: status.copyable,
+        });
       }
     } catch (error) {
       if (draftRevisionRef.current === revision) {
-        measurementNotice.show(error instanceof Error ? error.message : String(error), 'negative', { durationMs: null, copyable: true });
+        show(error instanceof Error ? error.message : String(error), 'negative', {
+          key: 'settings-add-endpoint-probe-error',
+          durationMs: null,
+          copyable: true,
+        });
       }
     } finally {
       measurementBusyRef.current = false;
@@ -346,16 +360,24 @@ export function SettingsAddPage({ onNav, profiles, onProfileSaved }: SettingsAdd
     }
     connectionTestBusyRef.current = true;
     setConnectionTestBusy(true);
-    connectionNotice.clear();
     try {
       const result = await services.commands.testProviderProfileConnection(buildDraftCommandInput());
       if (!result.ok) {
         throw new Error(`${result.error.category}: ${result.error.message}`);
       }
       const status = statusFromProviderConnectionTestResult(result.value, t);
-      connectionNotice.show(status.message, status.tone, status);
+      show(status.message, status.tone, {
+        key: 'settings-add-connection-test',
+        durationMs: status.durationMs,
+        dismissible: status.dismissible,
+        copyable: status.copyable,
+      });
     } catch (error) {
-      connectionNotice.show(error instanceof Error ? error.message : String(error), 'negative', { durationMs: null, copyable: true });
+      show(error instanceof Error ? error.message : String(error), 'negative', {
+        key: 'settings-add-connection-test-error',
+        durationMs: null,
+        copyable: true,
+      });
     } finally {
       connectionTestBusyRef.current = false;
       setConnectionTestBusy(false);
@@ -438,12 +460,15 @@ export function SettingsAddPage({ onNav, profiles, onProfileSaved }: SettingsAdd
     }
     saveBusyRef.current = true;
     setSaveBusy(true);
-    connectionNotice.clear();
     try {
       const profileId = await saveProfile();
-      await onProfileSaved(profileId, { useProvider: useProviderOnSave });
+      await onProfileSaved(profileId, { useProvider: useProviderOnSave, message: t.settings.saved });
     } catch (error) {
-      connectionNotice.show(error instanceof Error ? error.message : String(error), 'negative', { durationMs: null, copyable: true });
+      show(error instanceof Error ? error.message : String(error), 'negative', {
+        key: 'settings-add-save-error',
+        durationMs: null,
+        copyable: true,
+      });
     } finally {
       saveBusyRef.current = false;
       setSaveBusy(false);
@@ -565,44 +590,41 @@ export function SettingsAddPage({ onNav, profiles, onProfileSaved }: SettingsAdd
       </header>
 
       <div className="scroll scroll-footer-pad">
-        <MotionContent watch={apiFormat ?? 'auto'}>
-            <ProviderProfileEditor
-              connectionTitle={t.settings.config}
-              aliasValue={name}
-              onAliasValue={(value) => {
-                nameTouchedRef.current = true;
-                setName(value);
-              }}
-              aliasError={aliasError}
-              aliasPlaceholder={apiFormat ? apiFormatLabel(apiFormat) : t.settings.apiProfile}
-              apiFormatLabel={apiFormatLabel(apiFormat)}
-              apiFormatTone={apiFormatFeedback?.tone ?? (apiFormat ? 'positive' : 'neutral')}
-              apiFormatDetail={apiFormatFeedback?.message ?? (!apiFormat ? t.settings.apiFormatNeedsPath : null)}
-              detectInputValue={detectionValue}
-              onDetectInputValue={applyDetectionInput}
-              pathSettings={renderPathSettings()}
-              connection={connection}
-              onConnectionChange={applyConnectionChange}
-              baseUrlPlaceholder="https://api.example.com"
-              endpointErrors={endpointErrors}
-              measurementResults={connectionProbeResultById(measurementResults)}
-              resolvedEndpointId={resolvedEndpointId}
-              measurementBusy={measurementBusy}
-              measurementSupported={measurementSupported}
-              onMeasure={() => void handleMeasure()}
-              measurementNotice={measurementNotice.notice}
-              apiKeyValue={apiKey}
-              onApiKeyValue={(value) => {
-                setApiKey(sanitizeProviderSecretValue(value));
-                invalidateDraftProofs();
-              }}
-              apiKeyPlaceholder="sk-..."
-              showKey={showKey}
-              onShowKeyChange={setShowKey}
-              apiKeySaved={false}
-              disabled={saveBusy}
-            />
-        </MotionContent>
+        <ProviderProfileEditor
+          connectionTitle={t.settings.config}
+          aliasValue={name}
+          onAliasValue={(value) => {
+            nameTouchedRef.current = true;
+            setName(value);
+          }}
+          aliasError={aliasError}
+          aliasPlaceholder={apiFormat ? apiFormatLabel(apiFormat) : t.settings.apiProfile}
+          apiFormatLabel={apiFormatLabel(apiFormat)}
+          apiFormatTone={apiFormatFeedback?.tone ?? (apiFormat ? 'positive' : 'neutral')}
+          apiFormatDetail={apiFormatFeedback?.message ?? (!apiFormat ? t.settings.apiFormatNeedsPath : null)}
+          detectInputValue={detectionValue}
+          onDetectInputValue={applyDetectionInput}
+          pathSettings={renderPathSettings()}
+          connection={connection}
+          onConnectionChange={applyConnectionChange}
+          baseUrlPlaceholder="https://api.example.com"
+          endpointErrors={endpointErrors}
+          measurementResults={connectionProbeResultById(measurementResults)}
+          resolvedEndpointId={resolvedEndpointId}
+          measurementBusy={measurementBusy}
+          measurementSupported={measurementSupported}
+          onMeasure={() => void handleMeasure()}
+          apiKeyValue={apiKey}
+          onApiKeyValue={(value) => {
+            setApiKey(sanitizeProviderSecretValue(value));
+            invalidateDraftProofs();
+          }}
+          apiKeyPlaceholder="sk-..."
+          showKey={showKey}
+          onShowKeyChange={setShowKey}
+          apiKeySaved={false}
+          disabled={saveBusy}
+        />
           <div className="section">
             <div className="section-title settings-section-heading">{t.settings.defaultModel}</div>
             <div className="field">
@@ -688,24 +710,9 @@ export function SettingsAddPage({ onNav, profiles, onProfileSaved }: SettingsAdd
                 aria-label={!connectionTestSupported ? t.settings.providerConnectionUnsupported : connectionTestBusy ? t.settings.testingConnection : t.settings.testConnection}
                 onClick={() => void handleTestConnection()}
               />
-              {connectionNotice.notice ? (
-                <StatusNotice
-                  tone={connectionNotice.notice.tone}
-                  message={connectionNotice.notice.message}
-                  detail={'detail' in connectionNotice.notice ? connectionNotice.notice.detail : null}
-                  detailCopyable={'detailCopyable' in connectionNotice.notice ? connectionNotice.notice.detailCopyable : false}
-                />
-              ) : null}
             </div>
             <div className="settings-detail-footer-save-group settings-add-footer-save-group">
-              <Button data-testid="provider-save-button" className="btn-save" variant="accent" disabled={saveDisabled} onClick={() => void handleSave()}>{saveBusy ? t.settings.saving : t.settings.saveProvider}</Button>
-              <Button
-                className="btn-cancel"
-                variant="secondary"
-                onClick={() => onNav('settings')}
-              >
-                {t.common.cancel}
-              </Button>
+              <Button data-testid="provider-save-button" className="btn-save" variant="accent" disabled={saveDisabled} onClick={() => void handleSave()}>{saveBusy ? t.settings.saving : t.common.save}</Button>
             </div>
           </div>
       </footer>

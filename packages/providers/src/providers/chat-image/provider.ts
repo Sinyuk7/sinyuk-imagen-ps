@@ -20,7 +20,11 @@ import { resolveChatImageWireCodec } from '../../transport/chat-image/request-co
 import type { ParsedChatImageResponse } from '../../transport/chat-image/parse-response.js';
 import { parseChatImageModelsResponse } from '../../transport/chat-image/models.js';
 import { listLocalCatalogModels } from '../../contract/image-model-capability.js';
-import { fetchProviderBalanceJson, parseNewApiBalanceResponse } from '../../transport/billing/query-balance.js';
+import {
+  fetchProviderBalanceJson,
+  parseNewApiBalanceResponse,
+  resolveRootBillingUrl,
+} from '../../transport/billing/query-balance.js';
 import { assembleApiUrl } from '../../contract/api-format.js';
 
 interface ProviderValidationError extends Error {
@@ -411,7 +415,7 @@ export function createChatImageProvider(): Provider<ChatImageProviderConfig, Moc
           throw createValidationError('New API balance mode requires profile billing config.');
         }
         const json = await fetchProviderBalanceJson({
-          url: assembleApiUrl(endpoint.url, '/api/user/self'),
+          url: resolveRootBillingUrl(endpoint.url, '/api/user/self'),
           headers: {
             Authorization: `Bearer ${billing.accessTokenSecretRef}`,
             'New-Api-User': billing.userId,

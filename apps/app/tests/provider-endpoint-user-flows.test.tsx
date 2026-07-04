@@ -438,19 +438,11 @@ describe('provider endpoint user flows', () => {
     const saved = savedProfiles.find((profile) => profile.displayName === 'Multi Endpoint');
     expect(saved).toBeDefined();
     expect((saved?.config.connection as { endpoints: unknown[] }).endpoints).toHaveLength(1);
-
-    await flush(4);
-    expect(elementByTestId<HTMLInputElement>(container, 'provider-endpoint-url-0').value).toBe('https://node-a.example.com/v1');
-
-    await act(async () => {
-      buttonByTestId(container, 'provider-detail-back-button').click();
-    });
-    await flush();
+    expect(container.textContent).toContain('Multi Endpoint');
     await act(async () => {
       buttonByTestId(container, 'providers-back-button').click();
     });
     await flush(4);
-    expect(container.textContent).toContain('Multi Endpoint');
     await sendPrompt(container, 'generate using best endpoint');
 
     expect(activeFixture.requestedUrls().filter((url) => url.includes('/v1/images/generations'))).toEqual([
@@ -516,6 +508,34 @@ describe('provider endpoint user flows', () => {
     expect(tasks[0]?.status).toBe('completed');
     expect(container.querySelectorAll('[data-round-id]')).toHaveLength(1);
     expect(container.querySelectorAll('.err-card')).toHaveLength(0);
+  });
+
+  it('shows a toast after endpoint speed test and keeps endpoint latency visible', async () => {
+    activeFixture = await createFlowFixture({
+      endpoints: {
+        nodeA: {
+          baseUrl: 'https://node-a.example.com',
+          steps: [modelsResponse(['gpt-image-2'])],
+        },
+      },
+    });
+    const { container } = activeFixture;
+
+    await openSettings(container);
+    await openAddProvider(container);
+    await act(async () => {
+      setInputValue(elementByTestId(container, 'provider-endpoint-detect-input'), 'https://node-a.example.com/v1/images/generations');
+      setInputValue(elementByTestId(container, 'provider-api-key-input'), 'sk-test');
+    });
+    await flush();
+
+    await act(async () => {
+      buttonByTestId(container, 'provider-speed-test-button').click();
+    });
+    await flush(6);
+
+    expect(container.querySelector('[data-testid="toast"]')?.textContent).toMatch(/Speed test complete|测速完成/);
+    expect(container.textContent).toMatch(/ms|OK/);
   });
 
   it('stops immediately on non-failover auth error and leaves other endpoints untouched', async () => {

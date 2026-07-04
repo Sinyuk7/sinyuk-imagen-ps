@@ -1,10 +1,8 @@
 import { useEffect, useState, type ReactNode } from 'react';
-import { StatusNotice } from './status-notice';
 import { Icon } from './icons';
 import { useI18n } from '../i18n/i18n-context';
 import { TextField, FieldLabel, HelpText, Checkbox } from '../primitives/native-controls';
 import { IconButton } from '../primitives/icon-button';
-import type { NoticeState } from './notice';
 import {
   createProviderEndpointDraft,
   sanitizeProviderDisplayName,
@@ -39,13 +37,11 @@ interface ProviderProfileEditorProps {
   readonly measurementBusy?: boolean;
   readonly measurementSupported?: boolean;
   readonly onMeasure?: () => void;
-  readonly measurementNotice?: NoticeState | null;
   readonly apiKeyValue: string;
   readonly onApiKeyValue: (value: string) => void;
   readonly apiKeyPlaceholder: string;
   readonly showKey: boolean;
   readonly onShowKeyChange: (shown: boolean) => void;
-  readonly connectionStatus?: NoticeState | null;
   readonly apiKeySaved?: boolean;
   readonly apiKeySavedHint?: string | null;
   readonly apiKeyRemovalPending?: boolean;
@@ -87,17 +83,6 @@ function updateEndpoint(
           : endpoints.find((endpoint) => endpoint.enabled)?.id
         : undefined,
   };
-}
-
-function renderStatusNotice(notice: NoticeState) {
-  const {
-    key: _key,
-    action: _action,
-    priority: _priority,
-    urgent: _urgent,
-    ...props
-  } = notice;
-  return <StatusNotice {...props} />;
 }
 
 function isMinimallyValidUrl(value: string): boolean {
@@ -147,13 +132,11 @@ export function ProviderProfileEditor({
   measurementBusy = false,
   measurementSupported = true,
   onMeasure,
-  measurementNotice = null,
   apiKeyValue,
   onApiKeyValue,
   apiKeyPlaceholder,
   showKey,
   onShowKeyChange,
-  connectionStatus = null,
   apiKeySaved = false,
   apiKeySavedHint = null,
   apiKeyRemovalPending = false,
@@ -428,9 +411,6 @@ export function ProviderProfileEditor({
             <HelpText className="field-hint">{t.settings.autoSelectManaged}</HelpText>
           ) : null}
         </div>
-
-        {measurementNotice ? renderStatusNotice(measurementNotice) : null}
-        {connectionStatus ? renderStatusNotice(connectionStatus) : null}
 
         {pathSettings}
 
