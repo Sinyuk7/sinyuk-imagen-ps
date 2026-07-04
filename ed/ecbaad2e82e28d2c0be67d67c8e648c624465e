@@ -1,0 +1,37 @@
+packages/application/src/commands/refresh-draft-profile-models.ts
+  s_a1db469ed198f2::t_f9c92a04700ace 17-26,94
+packages/providers/src/providers/image-endpoint/provider.ts
+  s_a1db469ed198f2::t_f9c92a04700ace 18,482-485
+packages/providers/tests/image-endpoint-provider.test.ts
+  s_a1db469ed198f2::t_c6c8133936cd92 529-582
+packages/providers/src/transport/endpoint-probe.ts
+  s_a1db469ed198f2::t_f9c92a04700ace 1-64
+packages/providers/tests/chat-image-provider.test.ts
+  s_a1db469ed198f2::t_c6c8133936cd92 534-587
+packages/providers/src/providers/chat-image/provider.ts
+  s_a1db469ed198f2::t_f9c92a04700ace 16,337-340
+apps/app/tests/build-metadata.test.ts
+  s_a1db469ed198f2::t_3af10be864a639 86,93
+apps/app/src/shared/ui/hooks/use-provider-settings.ts
+  s_a1db469ed198f2::t_f9c92a04700ace 171,260,274,280
+apps/app/scripts/lib/build-metadata.mjs
+  s_a1db469ed198f2::t_f9c92a04700ace 12,92
+packages/application/src/commands/refresh-draft-profile-models.test.ts
+  s_a1db469ed198f2::t_c6c8133936cd92 167-221
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.10",
+  "base_commit_sha": "edecbaad2e82e28d2c0be67d67c8e648c624465e",
+  "prompts": {},
+  "sessions": {
+    "s_a1db469ed198f2": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "019f2d28-77fa-7861-8232-54d40e3c48ff",
+        "model": "gpt-5.4"
+      },
+      "human_author": "Sinyuk <80998062@qq.com>"
+    }
+  }
+}
