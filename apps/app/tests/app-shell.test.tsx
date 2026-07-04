@@ -104,6 +104,32 @@ describe('AppShell', () => {
     expect(document.documentElement.lang).toBe('zh-CN');
   });
 
+  it('reconciles stale running durable tasks once on startup', async () => {
+    const { services, spies } = createFakeServices();
+    const container = document.createElement('div');
+    document.body.appendChild(container);
+    root = createRoot(container);
+
+    await act(async () => {
+      root!.render(
+        <AppShell
+          host={{
+            kind: 'photoshop-uxp',
+            app: { stage: 'uxp-first-shell', host: 'photoshop-uxp', services: ['commands', 'host'] },
+            locale: 'zh-CN',
+            services,
+            dispose: () => undefined,
+          }}
+        />,
+      );
+    });
+    await flush();
+    await flush();
+
+    expect(spies.reconcileStaleRunningTaskRecords).toHaveBeenCalledTimes(1);
+    expect(spies.reconcileStaleRunningTaskRecords).toHaveBeenCalledWith([]);
+  });
+
   it('restores a persisted active image profile on startup instead of defaulting to the first profile', async () => {
     const { services } = createFakeServices({
       profiles: [

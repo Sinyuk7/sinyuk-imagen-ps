@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import type { ResolvedTaskResource, TaskOutput, TaskRecord } from '@imagen-ps/application';
+import type { ResolvedTaskResource, TaskRecord } from '@imagen-ps/application';
 import type { TaskResourceResolverPort } from '../../ports/app-services';
 import type { ConversationRound, RoundStatus } from '../hooks/use-conversation';
 import { Icon } from '../components/icons';
@@ -7,8 +7,19 @@ import { ActionButton } from '../primitives/native-controls';
 import { IconButton } from '../primitives/icon-button';
 import { useToast } from '../components/toast-host';
 import { useI18n } from '../i18n/i18n-context';
+import {
+  deriveHistoryItems,
+  filterHistoryItems,
+  type HistoryFilter,
+  type HistoryItemViewModel,
+  type PreviewSnapshot,
+} from './history-view-model';
 
 const STATUS_COLOR: Record<RoundStatus, string> = { ok: 'var(--app-color-positive)', running: 'var(--app-color-notice)', err: 'var(--app-color-negative)' };
+const PREVIEW_QUEUE_CONCURRENCY = 2;
+const PREVIEW_ROOT_MARGIN = '250px 0px';
+const MAX_RESOLVED_PREVIEWS = 12;
+const NO_PREVIEW_LOAD = Symbol('no-preview-load');
 
 interface HistoryPageProps {
   readonly onNav: (view: string) => void;
@@ -25,103 +36,53 @@ interface HistoryPageProps {
   readonly onMiss?: () => void;
 }
 
-type HistoryFilter = 'all' | RoundStatus;
-
-interface HistoryItem {
-  readonly id: string;
-  readonly prompt: string;
-  readonly status: RoundStatus;
-  readonly providerName: string;
-  readonly time: string;
-  readonly previewUrl?: string;
-  readonly retryRoundId?: string;
-  readonly output?: TaskOutput;
-  readonly taskRecord?: TaskRecord;
-  readonly resourceState?: ResolvedTaskResource['availability'];
-}
-
-function statusFromRecord(record: TaskRecord): RoundStatus {
-  if (record.status === 'completed') {
-    return 'ok';
-  }
-  if (record.status === 'failed' || record.status === 'interrupted') {
-    return 'err';
-  }
-  return 'running';
-}
-
-function providerFromRecord(record: TaskRecord, fallback: string): string {
-  return record.execution?.profileName ?? record.execution?.providerName ?? record.execution?.profileId ?? record.execution?.providerId ?? fallback;
-}
-
-function timeFromIso(value: string): string {
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) {
-    return value;
-  }
-  return `${date.getHours()}:${String(date.getMinutes()).padStart(2, '0')}`;
-}
-
-function itemFromRecord(
-  record: TaskRecord,
-  noPrompt: string,
-  unknownProvider: string,
-  previewUrl: string | undefined,
-  resourceState: ResolvedTaskResource['availability'] | undefined,
-): HistoryItem {
-  const output = record.outputs[0];
-  return {
-    id: record.taskId,
-    prompt: record.prompt.length > 0 ? record.prompt : noPrompt,
-    status: statusFromRecord(record),
-    providerName: providerFromRecord(record, unknownProvider),
-    time: timeFromIso(record.updatedAt),
-    ...(previewUrl ? { previewUrl } : {}),
-    ...(output ? { output } : {}),
-    taskRecord: record,
-    ...(resourceState ? { resourceState } : {}),
-  };
-}
-
-function outputItemId(record: TaskRecord, output: TaskOutput): string {
-  return record.outputs.length <= 1 ? record.taskId : `${record.taskId}:${output.outputId}`;
-}
-
-function itemFromRound(round: ConversationRound): HistoryItem {
-  return {
-    id: round.id,
-    prompt: round.prompt,
-    status: round.status,
-    providerName: round.providerName,
-    time: round.time,
-    ...(round.previews[0]?.url ? { previewUrl: round.previews[0].url } : {}),
-    ...(round.status === 'err' ? { retryRoundId: round.id } : {}),
-  };
-}
-
 interface PreviewState {
-  readonly status: 'idle' | 'queued' | 'loading' | 'ready' | 'error';
+  readonly status: 'queued' | 'loading' | 'ready' | 'error';
   readonly availability?: ResolvedTaskResource['availability'];
   readonly url?: string;
   readonly dispose?: () => void;
+  readonly resolvedAt?: number;
 }
 
-const PREVIEW_QUEUE_CONCURRENCY = 2;
-const PREVIEW_ROOT_MARGIN = '250px 0px';
+function previewSnapshotFromState(state: PreviewState | undefined): PreviewSnapshot | undefined {
+  if (!state) {
+    return undefined;
+  }
+  return {
+    ...(state.url ? { url: state.url } : {}),
+    ...(state.availability ? { availability: state.availability } : {}),
+  };
+}
 
-export function HistoryPage({ onNav, rounds, records, loading, error, onReload, onRetry, taskResources, onDownloadTaskOutput, onPlaceTaskOutput, onLocateRound, onMiss }: HistoryPageProps) {
+export function HistoryPage({
+  onNav,
+  rounds,
+  records,
+  loading,
+  error,
+  onReload,
+  onRetry,
+  taskResources,
+  onDownloadTaskOutput,
+  onPlaceTaskOutput,
+  onLocateRound,
+  onMiss,
+}: HistoryPageProps) {
   const { messages: t } = useI18n();
   const { show } = useToast();
-  const [filter, setFilter] = useState<'all' | RoundStatus>('all');
+  const [filter, setFilter] = useState<HistoryFilter>('all');
   const [previews, setPreviews] = useState<Record<string, PreviewState>>({});
   const scrollRef = useRef<HTMLDivElement | null>(null);
   const previewTargetsRef = useRef(new Map<string, HTMLElement>());
   const queueRef = useRef<string[]>([]);
   const queuedRef = useRef(new Set<string>());
   const loadingRef = useRef(new Set<string>());
+  const visibleRef = useRef(new Set<string>());
   const aliveIdsRef = useRef(new Set<string>());
   const observerRef = useRef<IntersectionObserver | null>(null);
   const previewsRef = useRef<Record<string, PreviewState>>({});
+  const generationRef = useRef(0);
+  const mountedRef = useRef(true);
   const filters: readonly [HistoryFilter, string][] = [
     ['all', t.status.all],
     ['ok', t.status.done],
@@ -130,29 +91,61 @@ export function HistoryPage({ onNav, rounds, records, loading, error, onReload, 
   ];
   const statusLabel: Record<RoundStatus, string> = { ok: t.status.done, running: t.status.running, err: t.status.failed };
 
+  const canDownload = onDownloadTaskOutput !== undefined;
+  const canPlace = onPlaceTaskOutput !== undefined;
+  const previewResources = useMemo(() => records
+    .filter((record) => record.status === 'completed')
+    .flatMap((record) => {
+      const output = record.outputs[0];
+      if (!output || output.asset.ref.kind === 'url') {
+        return [];
+      }
+      return [{ id: record.taskId, resource: output.asset }];
+    }), [records]);
+  const previewResourceMap = useMemo(
+    () => new Map(previewResources.map((item) => [item.id, item.resource])),
+    [previewResources],
+  );
+
   const releasePreview = useCallback((state: PreviewState | undefined) => {
     state?.dispose?.();
   }, []);
 
-  const outputPreviewCandidates = useMemo(() => records.flatMap((record) => {
-    if (record.status !== 'completed') {
-      return [];
+  const evictResolvedPreviews = useCallback((current: Record<string, PreviewState>): Record<string, PreviewState> => {
+    const resolved = Object.entries(current)
+      .filter(([, state]) => state.status === 'ready' && state.resolvedAt !== undefined);
+    if (resolved.length <= MAX_RESOLVED_PREVIEWS) {
+      return current;
     }
-    return record.outputs
-      .filter((output) => output.asset.ref.kind !== 'url')
-      .map((output) => ({
-      id: outputItemId(record, output),
-      resource: output.asset,
-      }));
-  }), [records]);
-
-  const outputPreviewMap = useMemo(
-    () => new Map(outputPreviewCandidates.map((item) => [item.id, item.resource])),
-    [outputPreviewCandidates],
-  );
+    const next = { ...current };
+    const evictable = resolved
+      .filter(([id]) => !visibleRef.current.has(id))
+      .sort((left, right) => (left[1].resolvedAt ?? 0) - (right[1].resolvedAt ?? 0));
+    for (const [id] of evictable) {
+      if (Object.values(next).filter((state) => state.status === 'ready').length <= MAX_RESOLVED_PREVIEWS) {
+        break;
+      }
+      releasePreview(next[id]);
+      delete next[id];
+    }
+    return next;
+  }, [releasePreview]);
 
   useEffect(() => {
-    aliveIdsRef.current = new Set(outputPreviewCandidates.map((item) => item.id));
+    previewsRef.current = previews;
+  }, [previews]);
+
+  useEffect(() => {
+    mountedRef.current = true;
+    return () => {
+      mountedRef.current = false;
+    };
+  }, []);
+
+  useEffect(() => {
+    generationRef.current += 1;
+    aliveIdsRef.current = new Set(previewResources.map((item) => item.id));
+    visibleRef.current = new Set([...visibleRef.current].filter((id) => aliveIdsRef.current.has(id)));
     queueRef.current = queueRef.current.filter((id) => aliveIdsRef.current.has(id));
     queuedRef.current = new Set([...queuedRef.current].filter((id) => aliveIdsRef.current.has(id)));
     loadingRef.current = new Set([...loadingRef.current].filter((id) => aliveIdsRef.current.has(id)));
@@ -167,11 +160,7 @@ export function HistoryPage({ onNav, rounds, records, loading, error, onReload, 
       }
       return next;
     });
-  }, [outputPreviewCandidates, releasePreview]);
-
-  useEffect(() => {
-    previewsRef.current = previews;
-  }, [previews]);
+  }, [previewResources, releasePreview]);
 
   const drainPreviewQueue = useCallback(() => {
     if (!taskResources) {
@@ -186,10 +175,11 @@ export function HistoryPage({ onNav, rounds, records, loading, error, onReload, 
       if (loadingRef.current.has(nextId) || !aliveIdsRef.current.has(nextId)) {
         continue;
       }
-      const resource = outputPreviewMap.get(nextId);
+      const resource = previewResourceMap.get(nextId);
       if (!resource) {
         continue;
       }
+      const generation = generationRef.current;
       loadingRef.current.add(nextId);
       setPreviews((current) => ({
         ...current,
@@ -197,34 +187,33 @@ export function HistoryPage({ onNav, rounds, records, loading, error, onReload, 
       }));
       void taskResources.resolve(resource)
         .then((resolved) => {
-          if (!aliveIdsRef.current.has(nextId)) {
+          const stale = !mountedRef.current || generation !== generationRef.current || !aliveIdsRef.current.has(nextId);
+          if (stale) {
             resolved.preview?.dispose?.();
             return;
           }
           setPreviews((current) => {
             releasePreview(current[nextId]);
-            if (resolved.preview?.url) {
-              return {
-                ...current,
-                [nextId]: {
+            const nextState: PreviewState = resolved.preview?.url
+              ? {
                   status: 'ready',
                   availability: resolved.availability,
                   url: resolved.preview.url,
                   dispose: resolved.preview.dispose,
-                },
-              };
-            }
-            return {
+                  resolvedAt: Date.now(),
+                }
+              : {
+                  status: 'error',
+                  availability: resolved.availability,
+                };
+            return evictResolvedPreviews({
               ...current,
-              [nextId]: {
-                status: 'error',
-                availability: resolved.availability,
-              },
-            };
+              [nextId]: nextState,
+            });
           });
         })
         .catch(() => {
-          if (!aliveIdsRef.current.has(nextId)) {
+          if (!mountedRef.current || generation !== generationRef.current || !aliveIdsRef.current.has(nextId)) {
             return;
           }
           setPreviews((current) => ({
@@ -237,7 +226,7 @@ export function HistoryPage({ onNav, rounds, records, loading, error, onReload, 
           drainPreviewQueue();
         });
     }
-  }, [outputPreviewMap, releasePreview, taskResources]);
+  }, [evictResolvedPreviews, previewResourceMap, releasePreview, taskResources]);
 
   const enqueuePreview = useCallback((id: string, priority: 'background' | 'foreground' = 'background') => {
     if (!taskResources || !aliveIdsRef.current.has(id)) {
@@ -265,6 +254,7 @@ export function HistoryPage({ onNav, rounds, records, loading, error, onReload, 
 
   useEffect(() => {
     return () => {
+      generationRef.current += 1;
       observerRef.current?.disconnect();
       observerRef.current = null;
       for (const state of Object.values(previewsRef.current)) {
@@ -274,6 +264,7 @@ export function HistoryPage({ onNav, rounds, records, loading, error, onReload, 
       queueRef.current = [];
       queuedRef.current.clear();
       loadingRef.current.clear();
+      visibleRef.current.clear();
       aliveIdsRef.current.clear();
     };
   }, [releasePreview]);
@@ -283,11 +274,6 @@ export function HistoryPage({ onNav, rounds, records, loading, error, onReload, 
       return undefined;
     }
     if (typeof IntersectionObserver !== 'function') {
-      outputPreviewCandidates.forEach((item) => {
-        if (item.resource.ref.kind !== 'url') {
-          enqueuePreview(item.id);
-        }
-      });
       return undefined;
     }
     const root = scrollRef.current;
@@ -296,12 +282,15 @@ export function HistoryPage({ onNav, rounds, records, loading, error, onReload, 
     }
     const observer = new IntersectionObserver((entries) => {
       for (const entry of entries) {
-        if (!entry.isIntersecting) {
+        const id = (entry.target as HTMLElement).dataset.previewId;
+        if (!id) {
           continue;
         }
-        const id = (entry.target as HTMLElement).dataset.previewId;
-        if (id) {
+        if (entry.isIntersecting) {
+          visibleRef.current.add(id);
           enqueuePreview(id);
+        } else {
+          visibleRef.current.delete(id);
         }
       }
     }, {
@@ -317,30 +306,50 @@ export function HistoryPage({ onNav, rounds, records, loading, error, onReload, 
       observer.disconnect();
       observerRef.current = null;
     };
-  }, [enqueuePreview, outputPreviewCandidates, taskResources]);
+  }, [enqueuePreview, taskResources]);
 
-  const bindPreviewTarget = useCallback((id: string | undefined) => (element: HTMLDivElement | null) => {
-    const current = previewTargetsRef.current.get(id ?? '');
+  const bindPreviewTarget = useCallback((id: string | typeof NO_PREVIEW_LOAD) => (element: HTMLDivElement | null) => {
+    const key = id === NO_PREVIEW_LOAD ? '' : id;
+    const current = previewTargetsRef.current.get(key);
     if (current && observerRef.current) {
       observerRef.current.unobserve(current);
     }
-    if (!id) {
+    if (!key) {
       return;
     }
     if (element) {
-      previewTargetsRef.current.set(id, element);
+      previewTargetsRef.current.set(key, element);
       if (observerRef.current) {
         observerRef.current.observe(element);
-      } else if (!taskResources) {
-        enqueuePreview(id);
       }
     } else {
-      previewTargetsRef.current.delete(id);
+      previewTargetsRef.current.delete(key);
+      visibleRef.current.delete(key);
     }
-  }, [enqueuePreview, taskResources]);
+  }, []);
 
-  const onDownload = useCallback(async (item: HistoryItem) => {
-    if (!item.output || !item.taskRecord || !onDownloadTaskOutput) {
+  const previewSnapshots = useMemo(
+    () => Object.fromEntries(Object.entries(previews).map(([id, state]) => [id, previewSnapshotFromState(state)])),
+    [previews],
+  );
+
+  const items = useMemo(() => deriveHistoryItems({
+    durableRecords: records,
+    activeRounds: rounds,
+    previews: previewSnapshots,
+    canDownload,
+    canPlace,
+    noPrompt: t.history.noPrompt,
+    unknownProvider: t.history.unknownProvider,
+  }), [canDownload, canPlace, previewSnapshots, records, rounds, t.history.noPrompt, t.history.unknownProvider]);
+
+  const filtered = useMemo(
+    () => filterHistoryItems(items, filter),
+    [filter, items],
+  );
+
+  const onDownload = useCallback(async (item: HistoryItemViewModel) => {
+    if (item.actions.download !== 'enabled' || !item.output || !item.taskRecord || !onDownloadTaskOutput) {
       show(t.history.resourceUnavailable, 'info', { key: 'history-output-unavailable' });
       return;
     }
@@ -351,8 +360,8 @@ export function HistoryPage({ onNav, rounds, records, loading, error, onReload, 
     }
   }, [onDownloadTaskOutput, show, t.history.resourceUnavailable]);
 
-  const onPlace = useCallback(async (item: HistoryItem) => {
-    if (!item.output || !item.taskRecord || !onPlaceTaskOutput) {
+  const onPlace = useCallback(async (item: HistoryItemViewModel) => {
+    if (item.actions.place !== 'enabled' || !item.output || !item.taskRecord || !onPlaceTaskOutput) {
       show(t.history.resourceUnavailable, 'info', { key: 'history-output-unavailable' });
       return;
     }
@@ -362,34 +371,6 @@ export function HistoryPage({ onNav, rounds, records, loading, error, onReload, 
       show(placeError instanceof Error ? placeError.message : String(placeError), 'negative', { key: 'history-place-error' });
     }
   }, [onPlaceTaskOutput, show, t.history.resourceUnavailable]);
-
-  const items = useMemo(() => {
-    const durable = records.flatMap((record) => {
-      const firstOutput = record.outputs[0];
-      const firstPreview = firstOutput
-        ? (firstOutput.asset.ref.kind === 'url'
-          ? { url: firstOutput.asset.ref.ref, availability: 'remote-only' as const }
-          : previews[outputItemId(record, firstOutput)])
-        : undefined;
-      const firstItem = itemFromRecord(record, t.history.noPrompt, t.history.unknownProvider, firstPreview?.url, firstPreview?.availability);
-      if (record.outputs.length <= 1) {
-        return [firstItem];
-      }
-      return record.outputs.map((output) => ({
-        ...firstItem,
-        id: outputItemId(record, output),
-        previewUrl: output.asset.ref.kind === 'url' ? output.asset.ref.ref : previews[outputItemId(record, output)]?.url,
-        resourceState: output.asset.ref.kind === 'url' ? 'remote-only' : previews[outputItemId(record, output)]?.availability,
-        output,
-      }));
-    });
-    const active = rounds.filter((round) => round.status === 'running' || round.status === 'err').map(itemFromRound);
-    return [...active, ...durable];
-  }, [previews, records, rounds, t.history.noPrompt, t.history.unknownProvider]);
-  const filtered = useMemo(
-    () => (filter === 'all' ? items : items.filter((item) => item.status === filter)),
-    [filter, items],
-  );
 
   return (
     <div className="page page-enter">
@@ -434,88 +415,92 @@ export function HistoryPage({ onNav, rounds, records, loading, error, onReload, 
           : filtered.map((item) => {
             const retryRoundId = item.retryRoundId;
             const previewState = previews[item.id];
+            const previewTargetId = item.output && item.output.asset.ref.kind !== 'url' && taskResources && typeof IntersectionObserver === 'function'
+              ? item.id
+              : NO_PREVIEW_LOAD;
             return (
-            <div key={item.id} data-testid={`history-row-${item.id}`} className="task-row" onClick={() => {
-              if (item.output && item.output.asset.ref.kind !== 'url') {
-                enqueuePreview(item.id, 'foreground');
-              }
-              const isCurrent = rounds.some((round) => round.id === item.id);
-              if (isCurrent) {
-                onLocateRound?.(item.id);
-              } else {
-                show(t.toast.historyNotInCurrentSession, 'info', { key: 'history-session-miss' });
-                onMiss?.();
-              }
-            }}>
-              <div
-                className="task-thumb"
-                ref={bindPreviewTarget(item.output && item.output.asset.ref.kind !== 'url' ? item.id : undefined)}
-                data-preview-id={item.output && item.output.asset.ref.kind !== 'url' ? item.id : undefined}
-              >
-                {item.previewUrl
-                  ? <img src={item.previewUrl} style={{ width: '100%', height: '100%', objectFit: 'cover', borderRadius: 'inherit' }} alt="" />
-                  : item.status === 'running'
-                    ? <Icon name="spinner" size={14} className="spin" />
-                    : item.status === 'err'
-                      ? <Icon name="error" size={14} />
-                      : previewState?.status === 'loading' || previewState?.status === 'queued'
-                        ? <Icon name="spinner" size={14} className="spin" />
-                        : <div style={{ width: '100%', height: '100%', background: 'var(--app-color-background-layer-2)', borderRadius: 'inherit' }} />
+              <div key={item.id} data-testid={`history-row-${item.id}`} className="task-row" onClick={() => {
+                if (item.output && item.output.asset.ref.kind !== 'url') {
+                  enqueuePreview(item.id, 'foreground');
                 }
-              </div>
-              <div className="task-info">
-                <div className="task-prompt">{item.prompt}</div>
-                <div className="task-meta">
-                  <span style={{ fontFamily: 'var(--app-font-family-mono)', fontSize: 10, color: 'var(--app-color-text-muted)' }}>{item.providerName}</span>
-                  <span className="task-meta-dot">·</span>
-                  <span style={{ fontFamily: 'var(--app-font-family-mono)', fontSize: 10, color: 'var(--app-color-text-muted)' }}>{item.time}</span>
+                if (item.canLocate) {
+                  onLocateRound?.(item.taskId);
+                } else {
+                  show(t.toast.historyNotInCurrentSession, 'info', { key: 'history-session-miss' });
+                  onMiss?.();
+                }
+              }}>
+                <div
+                  className="task-thumb"
+                  ref={bindPreviewTarget(previewTargetId)}
+                  data-preview-id={previewTargetId === NO_PREVIEW_LOAD ? undefined : previewTargetId}
+                >
+                  {item.previewUrl
+                    ? <img src={item.previewUrl} style={{ width: '100%', height: '100%', objectFit: 'cover', borderRadius: 'inherit' }} alt="" />
+                    : item.status === 'running'
+                      ? <Icon name="spinner" size={14} className="spin" />
+                      : item.status === 'err'
+                        ? <Icon name="error" size={14} />
+                        : previewState?.status === 'loading' || previewState?.status === 'queued'
+                          ? <Icon name="spinner" size={14} className="spin" />
+                          : <div style={{ width: '100%', height: '100%', background: 'var(--app-color-background-layer-2)', borderRadius: 'inherit' }} />
+                  }
                 </div>
-                <div className="status-inline" style={{ marginTop: 1 }}>
-                  <span className={`sdot ${item.status === 'running' ? 'run' : item.status}`} />
-                  <span style={{ color: STATUS_COLOR[item.status], fontSize: 10 }}>{statusLabel[item.status]}</span>
-                  {retryRoundId && (
-                    <button
-                      data-testid={`history-retry-button-${retryRoundId}`}
-                      className="row-retry"
-                      onClick={(event) => {
-                        event.stopPropagation();
-                        void onRetry(retryRoundId);
-                      }}
-                    >
-                      {t.history.retry}
-                    </button>
-                  )}
-                  {item.output && (
-                    <>
-                    <IconButton
-                      data-testid={`history-download-button-${item.id}`}
-                      className="row-icon-action"
-                      quiet
-                      icon={<Icon name="download" size={12} />}
-                      tooltip={t.history.download}
-                      iconSize={12}
-                      onClick={(event) => {
-                        event.stopPropagation();
-                        void onDownload(item);
-                      }}
-                    />
-                    <IconButton
-                      data-testid={`history-place-button-${item.id}`}
-                      className="row-icon-action"
-                      quiet
-                      icon={<Icon name="place-ps" size={12} />}
-                      tooltip={t.history.place}
-                      iconSize={12}
-                      onClick={(event) => {
-                        event.stopPropagation();
-                        void onPlace(item);
-                      }}
-                    />
-                    </>
-                  )}
+                <div className="task-info">
+                  <div className="task-prompt">{item.promptPreview}</div>
+                  <div className="task-meta">
+                    <span style={{ fontFamily: 'var(--app-font-family-mono)', fontSize: 10, color: 'var(--app-color-text-muted)' }}>{item.providerLabel}</span>
+                    <span className="task-meta-dot">·</span>
+                    <span style={{ fontFamily: 'var(--app-font-family-mono)', fontSize: 10, color: 'var(--app-color-text-muted)' }}>{item.displayTime}</span>
+                  </div>
+                  <div className="status-inline" style={{ marginTop: 1 }}>
+                    <span className={`sdot ${item.status === 'running' ? 'run' : item.status}`} />
+                    <span style={{ color: STATUS_COLOR[item.status], fontSize: 10 }}>{statusLabel[item.status]}</span>
+                    {retryRoundId && item.actions.retry === 'enabled' && (
+                      <button
+                        data-testid={`history-retry-button-${retryRoundId}`}
+                        className="row-retry"
+                        onClick={(event) => {
+                          event.stopPropagation();
+                          void onRetry(retryRoundId);
+                        }}
+                      >
+                        {t.history.retry}
+                      </button>
+                    )}
+                    {item.output && (
+                      <>
+                        <IconButton
+                          data-testid={`history-download-button-${item.id}`}
+                          className="row-icon-action"
+                          quiet
+                          disabled={item.actions.download !== 'enabled'}
+                          icon={<Icon name="download" size={12} />}
+                          tooltip={t.history.download}
+                          iconSize={12}
+                          onClick={(event) => {
+                            event.stopPropagation();
+                            void onDownload(item);
+                          }}
+                        />
+                        <IconButton
+                          data-testid={`history-place-button-${item.id}`}
+                          className="row-icon-action"
+                          quiet
+                          disabled={item.actions.place !== 'enabled'}
+                          icon={<Icon name="place-ps" size={12} />}
+                          tooltip={t.history.place}
+                          iconSize={12}
+                          onClick={(event) => {
+                            event.stopPropagation();
+                            void onPlace(item);
+                          }}
+                        />
+                      </>
+                    )}
+                  </div>
                 </div>
               </div>
-            </div>
             );
           })
         }

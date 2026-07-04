@@ -252,6 +252,7 @@ export function createFakeServices(options?: {
     readonly optimizePrompt: ReturnType<typeof vi.fn>;
     readonly validatePromptOptimizerProfile: ReturnType<typeof vi.fn>;
     readonly listTaskRecords: ReturnType<typeof vi.fn>;
+    readonly reconcileStaleRunningTaskRecords: ReturnType<typeof vi.fn>;
     readonly listLayers: ReturnType<typeof vi.fn>;
     readonly pickImageFile: ReturnType<typeof vi.fn>;
     readonly captureActiveImage: ReturnType<typeof vi.fn>;
@@ -354,6 +355,7 @@ export function createFakeServices(options?: {
   const ensurePromptOptimizerProfile = vi.fn(async () => ({ ok: true as const, value: fakeOptimizerProfile }));
   const optimizePrompt = vi.fn(async () => ({ ok: true as const, value: 'optimized prompt' }));
   const validatePromptOptimizerProfile = vi.fn(async () => ({ ok: true as const, value: 'optimized test prompt' }));
+  const reconcileStaleRunningTaskRecords = vi.fn(async () => []);
   const listLayers = vi.fn(async () => [{ id: 1, name: 'Layer 1', kind: 'pixel', visible: true }]);
   const pickImageFile = vi.fn(async () => fakeHostImage);
   const captureActiveImage = vi.fn(async () => ({
@@ -401,6 +403,7 @@ export function createFakeServices(options?: {
     putTaskRecord,
     getTaskRecord: vi.fn(async (taskId: string) => taskRecords.find((record) => record.taskId === taskId)),
     listTaskRecords: vi.fn(async () => taskRecords),
+    reconcileStaleRunningTaskRecords,
     listProviders: vi.fn(() => [fakeProvider]),
     describeProvider: vi.fn(() => fakeProvider),
     resolveModelBrand,
@@ -492,6 +495,7 @@ export function createFakeServices(options?: {
       optimizePrompt,
       validatePromptOptimizerProfile,
       listTaskRecords: commands.listTaskRecords as ReturnType<typeof vi.fn>,
+      reconcileStaleRunningTaskRecords,
       listLayers,
       pickImageFile,
       captureActiveImage,

@@ -237,6 +237,7 @@ function AppShellContent({ host }: AppShellProps) {
   const { layers, layersError, layersLoading, reloadLayers } = useHostLayers(host);
   const { show } = useToast();
   const previousRoundStatusRef = useRef<Record<string, 'running' | 'ok' | 'err'>>({});
+  const reconciledHistoryRef = useRef(false);
   const outputSizeContext = useMemo<OutputSizeSelectionContext>(
     () => ({
       kind: 'composer',
@@ -266,6 +267,22 @@ function AppShellContent({ host }: AppShellProps) {
       cancelled = true;
     };
   }, [services.activeImageProfile]);
+
+  useEffect(() => {
+    if (reconciledHistoryRef.current) {
+      return;
+    }
+    reconciledHistoryRef.current = true;
+    const activeTaskIds = imagenSession.snapshot.jobs
+      .filter((job) => job.status !== 'completed' && job.status !== 'failed')
+      .map((job) => job.id);
+    void services.commands.reconcileStaleRunningTaskRecords(activeTaskIds)
+      .then((updated) => {
+        if (updated.length > 0) {
+          void reloadHistory();
+        }
+      });
+  }, [imagenSession.snapshot.jobs, reloadHistory, services.commands]);
 
   useEffect(() => {
     if (!activeImageProfileHydrated) {

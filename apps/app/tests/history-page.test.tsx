@@ -102,21 +102,23 @@ describe('HistoryPage', () => {
     expect(container.textContent).toContain('完成');
   });
 
-  it('merges durable records with running rounds from current session', async () => {
+  it('merges durable records with running rounds from current session by task id', async () => {
     const runningRound: ConversationRound = {
-      id: 'round-running',
+      id: fakeTaskRecord.taskId,
       time: '9:30',
+      createdAt: fakeTaskRecord.createdAt,
       prompt: 'running prompt',
       status: 'running',
       providerName: 'Mock Profile',
       elapsedSeconds: 2,
       previews: [],
       attachments: [],
+      placementIntent: { kind: 'unbound', reason: 'no-photoshop-capture' },
     };
 
     const container = await renderHistory({ rounds: [runningRound], records: [fakeTaskRecord] });
 
-    expect(container.textContent).toContain('running prompt');
+    expect(container.querySelectorAll('[data-testid^="history-row-"]')).toHaveLength(1);
     expect(container.textContent).toContain('history prompt');
     expect(container.textContent).toContain('运行中');
   });
@@ -131,6 +133,7 @@ describe('HistoryPage', () => {
       elapsedSeconds: 2,
       previews: [],
       attachments: [],
+      placementIntent: { kind: 'unbound', reason: 'no-photoshop-capture' },
     };
     const failedRecord: TaskRecord = {
       ...fakeTaskRecord,
@@ -183,6 +186,7 @@ describe('HistoryPage', () => {
       jobId: 'job-failed',
       previews: [{ asset: fakeAsset, url: 'data:image/png;base64,ZmFrZS1pbWFnZQ==', label: 'result.png' }],
       attachments: [],
+      placementIntent: { kind: 'unbound', reason: 'no-photoshop-capture' },
     };
 
     const container = await renderHistory({ rounds: [failedRound], records: [], onRetry });
@@ -208,6 +212,7 @@ describe('HistoryPage', () => {
       elapsedSeconds: 2,
       previews: [],
       attachments: [],
+      placementIntent: { kind: 'unbound', reason: 'no-photoshop-capture' },
     };
 
     const container = await renderHistory({ rounds: [runningRound], records: [], onLocateRound, onMiss });
@@ -232,7 +237,7 @@ describe('HistoryPage', () => {
 
     expect(onLocateRound).not.toHaveBeenCalled();
     expect(onMiss).toHaveBeenCalled();
-    expect(container.querySelector('[data-testid="toast"]')?.textContent).toContain('该任务不在当前会话中');
+    expect(container.querySelector('[data-testid="toast"]')?.textContent).toContain('该任务属于其他会话');
   });
 
   it('routes durable task downloads through the supplied task action', async () => {
@@ -263,49 +268,7 @@ describe('HistoryPage', () => {
     expect(onDownloadTaskOutput).toHaveBeenCalledWith(fakeTaskRecord, 'task-history-1:output:0');
   });
 
-  it('preserves stable durable output order across history rows', async () => {
-    (globalThis as { IntersectionObserver?: typeof IntersectionObserver }).IntersectionObserver =
-      FakeIntersectionObserver as unknown as typeof IntersectionObserver;
-    const record: TaskRecord = {
-      ...fakeTaskRecord,
-      outputs: [
-        fakeTaskRecord.outputs[0]!,
-        {
-          ...fakeTaskRecord.outputs[0]!,
-          outputId: 'task-history-1:output:1',
-          index: 1,
-          asset: { ref: { kind: 'hostObject', ref: 'history-asset-2', name: 'history-2.png', mimeType: 'image/png' } },
-        },
-      ],
-    };
-    const resolver: TaskResourceResolverPort = {
-      resolve: vi.fn(async (resource) => ({
-        resource,
-        availability: 'available',
-        bytes: new Uint8Array([1, 2, 3]).buffer,
-        preview: { url: `blob:${resource.ref.ref}` },
-      })),
-    };
-
-    const container = await renderHistory({ records: [record], taskResources: resolver });
-    await act(async () => {
-      const thumbs = Array.from(container.querySelectorAll('.task-thumb'));
-      observers[0]?.trigger(thumbs[0]!);
-      observers[0]?.trigger(thumbs[1]!);
-      await Promise.resolve();
-    });
-
-    expect(Array.from(container.querySelectorAll('[data-testid^="history-row-"]')).map((row) => row.getAttribute('data-testid'))).toEqual([
-      'history-row-task-history-1:task-history-1:output:0',
-      'history-row-task-history-1:task-history-1:output:1',
-    ]);
-    expect(Array.from(container.querySelectorAll<HTMLImageElement>('img')).map((image) => image.src)).toEqual([
-      'blob:history-asset-1',
-      'blob:history-asset-2',
-    ]);
-  });
-
-  it('keeps unavailable durable resources visible without a valid download', async () => {
+  it('disables unavailable durable resource actions', async () => {
     (globalThis as { IntersectionObserver?: typeof IntersectionObserver }).IntersectionObserver =
       FakeIntersectionObserver as unknown as typeof IntersectionObserver;
     const resolver: TaskResourceResolverPort = {
@@ -321,11 +284,10 @@ describe('HistoryPage', () => {
       await Promise.resolve();
     });
 
-    expect(container.querySelector('[data-testid="history-row-task-history-1"]')).not.toBeNull();
-    await act(async () => {
-      container.querySelector<HTMLButtonElement>('[data-testid="history-download-button-task-history-1"]')!.click();
-    });
-    expect(container.textContent).toContain('资源不可用');
+    const download = container.querySelector<HTMLButtonElement>('[data-testid="history-download-button-task-history-1"]');
+    const place = container.querySelector<HTMLButtonElement>('[data-testid="history-place-button-task-history-1"]');
+    expect(download?.disabled).toBe(true);
+    expect(place?.disabled).toBe(true);
   });
 
   it('keeps remote-only URL outputs visible and unavailable for download', async () => {
@@ -343,10 +305,7 @@ describe('HistoryPage', () => {
     });
 
     expect(container.querySelector<HTMLImageElement>('img')?.src).toBe('https://example.test/output.png');
-    await act(async () => {
-      container.querySelector<HTMLButtonElement>('[data-testid="history-download-button-task-history-1"]')!.click();
-    });
-    expect(container.textContent).toContain('资源不可用');
+    expect(container.querySelector<HTMLButtonElement>('[data-testid="history-download-button-task-history-1"]')?.disabled).toBe(true);
   });
 
   it('routes durable task placement through the supplied task action', async () => {
@@ -389,5 +348,54 @@ describe('HistoryPage', () => {
 
     expect(resolver.resolve).not.toHaveBeenCalled();
     expect(container.querySelector<HTMLImageElement>('img')).toBeNull();
+  });
+
+  it('does not eagerly resolve all previews when IntersectionObserver is unavailable', async () => {
+    const resolver: TaskResourceResolverPort = {
+      resolve: vi.fn(async () => ({
+        resource: fakeTaskRecord.outputs[0]!.asset,
+        availability: 'available',
+        bytes: new Uint8Array([1, 2, 3]).buffer,
+        preview: { url: 'blob:history-preview' },
+      })),
+    };
+
+    await renderHistory({ records: [fakeTaskRecord], taskResources: resolver });
+
+    expect(resolver.resolve).not.toHaveBeenCalled();
+  });
+
+  it('releases late preview results after unmount', async () => {
+    (globalThis as { IntersectionObserver?: typeof IntersectionObserver }).IntersectionObserver =
+      FakeIntersectionObserver as unknown as typeof IntersectionObserver;
+    const dispose = vi.fn();
+    let resolvePreview: ((value: Awaited<ReturnType<TaskResourceResolverPort['resolve']>>) => void) | undefined;
+    const resolver: TaskResourceResolverPort = {
+      resolve: vi.fn(() => new Promise((resolve) => {
+        resolvePreview = resolve;
+      })),
+    };
+
+    const container = await renderHistory({ records: [fakeTaskRecord], taskResources: resolver });
+    await act(async () => {
+      observers[0]?.trigger(container.querySelector('[data-testid="history-row-task-history-1"] .task-thumb')!);
+      await Promise.resolve();
+    });
+    await act(async () => {
+      root?.unmount();
+    });
+    root = undefined;
+
+    await act(async () => {
+      resolvePreview?.({
+        resource: fakeTaskRecord.outputs[0]!.asset,
+        availability: 'available',
+        bytes: new Uint8Array([1, 2, 3]).buffer,
+        preview: { url: 'blob:late-preview', dispose },
+      });
+      await Promise.resolve();
+    });
+
+    expect(dispose).toHaveBeenCalled();
   });
 });

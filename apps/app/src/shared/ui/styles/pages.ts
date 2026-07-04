@@ -11,6 +11,14 @@ export const PAGES_CSS = `
 .task-prompt{ font-size:12px; line-height:16px; color:var(--app-color-text-primary); overflow:hidden; display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; }
 .task-meta{ display:flex; align-items:center; flex-wrap:wrap; min-width:0; margin-top:3px; }
 .task-meta-dot{ margin-top:0; margin-right:8px; margin-bottom:0; margin-left:8px; color:var(--app-color-border-strong); }
+.status-inline .row-retry{
+  min-height:20px;
+  padding:0 7px;
+  border-radius:7px;
+  font-size:9px;
+  line-height:12px;
+  font-weight:600;
+}
 	.row-icon-action{ margin-left:6px; width:24px; height:24px; min-width:24px; min-height:0; padding:0; display:flex; align-items:center; justify-content:center; color:var(--app-color-text-muted); border:none; background:transparent; }
 	.row-icon-action:first-of-type{ margin-left:auto; }
 .row-icon-action:hover{ color:var(--app-color-text-primary); background:var(--app-color-hover-overlay); }

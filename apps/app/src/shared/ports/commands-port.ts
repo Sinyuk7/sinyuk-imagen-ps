@@ -9,6 +9,7 @@ export interface CommandsPort {
   readonly putTaskRecord: typeof commands.putTaskRecord;
   readonly getTaskRecord: typeof commands.getTaskRecord;
   readonly listTaskRecords: typeof commands.listTaskRecords;
+  readonly reconcileStaleRunningTaskRecords: typeof commands.reconcileStaleRunningTaskRecords;
   readonly listProviders: typeof commands.listProviders;
   readonly describeProvider: typeof commands.describeProvider;
   readonly resolveModelBrand: typeof commands.resolveModelBrand;
@@ -38,6 +39,7 @@ export function createCommandsAdapter(): CommandsPort {
     putTaskRecord: commands.putTaskRecord,
     getTaskRecord: commands.getTaskRecord,
     listTaskRecords: commands.listTaskRecords,
+    reconcileStaleRunningTaskRecords: commands.reconcileStaleRunningTaskRecords,
     listProviders: commands.listProviders,
     describeProvider: commands.describeProvider,
     resolveModelBrand: commands.resolveModelBrand,

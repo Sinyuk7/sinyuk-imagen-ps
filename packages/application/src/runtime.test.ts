@@ -10,7 +10,7 @@ import {
 } from './runtime.js';
 import { retryJob } from './commands/retry-job.js';
 import { submitJob } from './commands/submit-job.js';
-import { getTaskRecord, listTaskRecords } from './commands/task-history.js';
+import { getTaskRecord, listTaskRecords, reconcileStaleRunningTaskRecords } from './commands/task-history.js';
 import type {
   DurableJobRecord,
   JobHistoryStore,
@@ -350,7 +350,7 @@ describe('profile dispatch runtime', () => {
     expect(JSON.stringify(tasks[0])).not.toContain('mock-key');
   });
 
-  it('projects stale running task records as interrupted after restart', async () => {
+  it('reconciles stale running task records as interrupted without mutating read semantics', async () => {
     _resetForTesting();
     const tasks: TaskRecord[] = [{
       schemaVersion: 1,
@@ -368,13 +368,40 @@ describe('profile dispatch runtime', () => {
 
     await expect(getTaskRecord('running-task')).resolves.toMatchObject({
       taskId: 'running-task',
+      status: 'running',
+    });
+    await expect(listTaskRecords({ status: 'running' })).resolves.toMatchObject([{ taskId: 'running-task' }]);
+    await expect(reconcileStaleRunningTaskRecords([])).resolves.toMatchObject([{
+      taskId: 'running-task',
       status: 'interrupted',
       error: { category: 'interrupted', message: 'App restarted before completion.' },
       outputs: [],
-    });
+    }]);
     await expect(listTaskRecords({ status: 'running' })).resolves.toEqual([]);
     await expect(listTaskRecords({ status: 'interrupted' })).resolves.toMatchObject([{ taskId: 'running-task' }]);
-    expect(tasks[0].status).toBe('running');
+  });
+
+  it('keeps active running tasks untouched during stale-running reconciliation', async () => {
+    _resetForTesting();
+    const tasks: TaskRecord[] = [{
+      schemaVersion: 1,
+      taskId: 'active-task',
+      status: 'running',
+      operation: 'text-to-image',
+      prompt: 'still active',
+      attachments: [],
+      outputs: [],
+      placement: { kind: 'unbound', reason: 'no-photoshop-source' },
+      createdAt: '2026-06-15T00:00:00.000Z',
+      updatedAt: '2026-06-15T00:00:00.000Z',
+    }];
+    setTaskStore(createTaskStore(tasks));
+
+    await expect(reconcileStaleRunningTaskRecords(['active-task'])).resolves.toEqual([]);
+    await expect(getTaskRecord('active-task')).resolves.toMatchObject({
+      taskId: 'active-task',
+      status: 'running',
+    });
   });
 
   it('keeps input image bytes out of durable history while resolving hostObject refs for provider dispatch', async () => {

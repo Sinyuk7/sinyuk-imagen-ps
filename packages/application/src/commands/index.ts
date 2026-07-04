@@ -39,7 +39,7 @@ export {
 
 export { retryJob } from './retry-job.js';
 export { getJobHistoryRecord, listJobHistoryRecords } from './job-history.js';
-export { getTaskRecord, listTaskRecords, putTaskRecord } from './task-history.js';
+export { getTaskRecord, listTaskRecords, putTaskRecord, reconcileStaleRunningTaskRecords } from './task-history.js';
 export { resolveSecretValue } from './secret-utils.js';
 export { assertTaskRecord, decodeTaskRecord, sanitizeTaskEvidenceUrl } from '@imagen-ps/core-engine';
 export {
