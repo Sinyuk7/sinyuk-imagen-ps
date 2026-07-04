@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import type { MotionHandle, MotionPreference, MotionRecipe } from '../motion-types';
-import { getSharedMotionController } from '../motion-controller';
+import { MotionController } from '../motion-controller';
+import { getSharedMotionRuntime } from '../motion-runtime';
 
 export type UseMotionPresenceRecipe = (
   element: HTMLElement | null,
@@ -24,6 +25,8 @@ export function useMotionPresence(
   const [state, setState] = useState<'entering' | 'entered' | 'exiting'>(visible ? 'entered' : 'exiting');
   const elementRef = useRef<HTMLElement | null>(null);
   const handleRef = useRef<MotionHandle | null>(null);
+  const controllerRef = useRef<MotionController | null>(null);
+  controllerRef.current ??= new MotionController(getSharedMotionRuntime());
 
   useEffect(() => {
     if (visible) {
@@ -39,10 +42,14 @@ export function useMotionPresence(
     if (!present) {
       return undefined;
     }
+    const controller = controllerRef.current;
+    if (!controller) {
+      return undefined;
+    }
     handleRef.current?.stop();
     const enter = visible;
     setState(enter ? 'entering' : 'exiting');
-    handleRef.current = getSharedMotionController().play(createRecipe(elementRef.current, {
+    handleRef.current = controller.play(createRecipe(elementRef.current, {
       enter,
       preference: input.preference,
       onComplete: () => {

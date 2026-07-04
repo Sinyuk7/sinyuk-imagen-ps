@@ -14,7 +14,7 @@ export function iconCrossfadeRecipe(
   return fadeRecipe(element, {
     from: input.show ? MOTION_OPACITY.hidden : MOTION_OPACITY.visible,
     to: input.show ? MOTION_OPACITY.visible : MOTION_OPACITY.hidden,
-    durationMs: input.durationMs ?? MOTION_DURATION.direct,
+    durationMs: input.durationMs ?? MOTION_DURATION.stateFast,
     channel: 'state',
     preference: input.preference,
     onComplete: input.onComplete,

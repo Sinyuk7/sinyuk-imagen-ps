@@ -126,7 +126,9 @@ surface apps -> application/session -> core-engine + providers
   API-format path details live in `config.paths`. UI endpoint paste helpers may
   classify full URLs and paths for feedback, but save/test/measure commands
   revalidate the final API-format config. Persisted profiles do not use legacy
-  `providerId` or `family` concepts.
+  `providerId` or `family` concepts. This is an intentional current-state
+  schema break: old persisted profile records without canonical `apiFormat` are
+  rejected rather than migrated.
 - Session-level in-flight registry (`packages/application/src/session/session.ts`): `inFlightRetry` deduplicates by failed-job `jobId`; `inFlightSubmit` deduplicates by `__clientRoundId`. Locks release on all settle paths including `{ok:true,value:failedJob}`.
 - UI ref gates (`submitInFlightRef`, `retryInFlightRef`) cover same-tick double-click windows. Error-retry and regenerate buttons are disabled while `conversation.running`.
 - Provider transport ownership summary lives in `packages/providers/ARCHITECTURE.md`.

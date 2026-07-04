@@ -7,6 +7,7 @@ import {
   fadeRecipe,
   floatingControlPresenceRecipe,
   imageRevealRecipe,
+  inlineNoticePresenceRecipe,
   pageCrossfadeRecipe,
   popoverPresenceRecipe,
   surfaceHighlightRecipe,
@@ -19,7 +20,7 @@ import {
 
 interface MotionPresenceViewProps {
   readonly visible: boolean;
-  readonly kind: 'popover' | 'toast' | 'floating' | 'attachment';
+  readonly kind: 'popover' | 'toast' | 'floating' | 'attachment' | 'inline-notice';
   readonly onExitComplete?: () => void;
   readonly children: (input: { ref: (element: HTMLElement | null) => void; state: string }) => ReactNode;
 }
@@ -35,6 +36,8 @@ function recipeForKind(kind: MotionPresenceViewProps['kind']): (
       return floatingControlPresenceRecipe;
     case 'attachment':
       return attachmentPresenceRecipe;
+    case 'inline-notice':
+      return inlineNoticePresenceRecipe;
     case 'popover':
       return popoverPresenceRecipe;
   }
@@ -113,6 +116,7 @@ export function MotionImage({
 }) {
   const controller = useMotionController();
   const ref = useRef<HTMLImageElement | null>(null);
+  const revealedSrcRef = useRef<string | null>(null);
 
   return (
     <img
@@ -121,7 +125,13 @@ export function MotionImage({
       className={className}
       alt={alt}
       style={style}
-      onLoad={() => controller.play(imageRevealRecipe(ref.current))}
+      onLoad={() => {
+        if (revealedSrcRef.current === src) {
+          return;
+        }
+        revealedSrcRef.current = src;
+        controller.play(imageRevealRecipe(ref.current));
+      }}
     />
   );
 }

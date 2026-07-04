@@ -32,7 +32,7 @@ export function activityPulseRecipe(
         channel: 'ambient',
         state: { opacity: minOpacity },
         to: { opacity: maxOpacity },
-        durationMs: input.durationMs ?? MOTION_DURATION.pulse,
+        durationMs: input.durationMs ?? MOTION_DURATION.pulseLeg,
         easing: MOTION_EASING.linear,
         repeat: Infinity,
         yoyo: true,

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { assetToPreviewUrl } from '../src/app-services/mappers';
+import { assetToPreviewUrl, profileToProviderRow } from '../src/app-services/mappers';
 
 const VALID_TRANSPARENT_PNG = new Uint8Array([
   0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a,
@@ -49,5 +49,19 @@ describe('app service mappers', () => {
         mimeType: 'image/png',
       }),
     ).toBe('');
+  });
+
+  it('formats unknown runtime API formats as raw values instead of a known label', () => {
+    const row = profileToProviderRow({
+      profileId: 'future-profile',
+      apiFormat: 'future-format',
+      displayName: 'Future Profile',
+      enabled: true,
+      config: {},
+      createdAt: '2026-07-04T00:00:00.000Z',
+      updatedAt: '2026-07-04T00:00:00.000Z',
+    } as never);
+
+    expect(row.apiFormatLabel).toBe('future-format');
   });
 });

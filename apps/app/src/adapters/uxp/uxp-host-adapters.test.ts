@@ -164,6 +164,29 @@ function sampleTask(overrides: Partial<TaskRecord> = {}): TaskRecord {
   };
 }
 
+function sampleProviderProfile(overrides: Partial<ProviderProfile> = {}): ProviderProfile {
+  return {
+    profileId: 'profile-1',
+    apiFormat: 'openai-images',
+    displayName: 'Mock Profile',
+    enabled: true,
+    config: {
+      apiFormat: 'openai-images',
+      displayName: 'Mock Profile',
+      connection: {
+        selectionMode: 'manual',
+        selectedEndpointId: 'primary',
+        endpoints: [{ id: 'primary', url: 'https://mock.local', enabled: true }],
+      },
+      paths: { generation: '/images/generations', edit: '/images/edits' },
+      defaultModel: 'mock-image-v1',
+    },
+    createdAt: '2026-06-15T00:00:00.000Z',
+    updatedAt: '2026-06-15T00:00:01.000Z',
+    ...overrides,
+  };
+}
+
 describe('fake UXP host adapters', () => {
   afterEach(() => {
     delete globalThis.__IMAGEN_PS_DIAGNOSTIC_SKIP_SECURE_STORAGE_GET__;
@@ -184,12 +207,25 @@ describe('fake UXP host adapters', () => {
       },
     };
     const repo = createUxpProviderProfileRepository(modules);
-    const profile: ProviderProfile = {
-      profileId: 'profile-1',
+    const profile = sampleProviderProfile();
+
+    await repo.save(profile);
+    expect(await repo.list()).toEqual([profile]);
+    expect(await repo.get('profile-1')).toEqual(profile);
+
+    await repo.delete('profile-1');
+    expect(await repo.list()).toEqual([]);
+  });
+
+  it('读取 provider profile 时拒绝旧 providerId/family 持久 schema', async () => {
+    const canonical = sampleProviderProfile({ profileId: 'profile-canonical' });
+    const legacyProfile = {
+      profileId: 'profile-legacy',
       providerId: 'mock',
-      displayName: 'Mock Profile',
+      displayName: 'Legacy Profile',
       enabled: true,
       config: {
+        providerId: 'mock',
         family: 'image-endpoint',
         connection: {
           selectionMode: 'manual',
@@ -200,13 +236,35 @@ describe('fake UXP host adapters', () => {
       createdAt: '2026-06-15T00:00:00.000Z',
       updatedAt: '2026-06-15T00:00:01.000Z',
     };
+    const dataFolder = createFakeDataFolder({
+      'provider-profiles.json': new MutableFakeFile(
+        'provider-profiles.json',
+        JSON.stringify({ profiles: [legacyProfile, canonical] }),
+      ),
+    });
+    const modules: UxpModules = {
+      uxp: {
+        storage: {
+          localFileSystem: {
+            formats: { utf8: 'utf8' },
+            async getDataFolder() {
+              return dataFolder.folder;
+            },
+          },
+        },
+      },
+    };
+    const repo = createUxpProviderProfileRepository(modules);
 
-    await repo.save(profile);
-    expect(await repo.list()).toEqual([profile]);
-    expect(await repo.get('profile-1')).toEqual(profile);
+    expect(await repo.list()).toEqual([canonical]);
+    expect(await repo.get('profile-legacy')).toBeUndefined();
 
-    await repo.delete('profile-1');
-    expect(await repo.list()).toEqual([]);
+    const logsFolder = await dataFolder.folder.getEntry('logs') as FakeFolder;
+    const dateFolder = await logsFolder.getEntry(new Date().toISOString().slice(0, 10)) as FakeFolder;
+    const logFile = await dateFolder.getEntry('imagen.jsonl') as MutableFakeFile;
+    const logText = String(await logFile.read());
+    expect(logText).toContain('uxp.profile_repository.read.rejected_legacy_profiles');
+    expect(logText).toContain('profile-legacy');
   });
 
   it('在 data folder JSON 中持久化 active image profile', async () => {
@@ -297,24 +355,13 @@ describe('fake UXP host adapters', () => {
       },
     };
     const repo = createUxpProviderProfileRepository(modules);
-    const profile: ProviderProfile = {
-      profileId: 'profile-1',
-      providerId: 'mock',
-      displayName: 'Mock Profile',
-      enabled: true,
+    const profile = sampleProviderProfile({
       config: {
-        family: 'image-endpoint',
-        connection: {
-          selectionMode: 'manual',
-          selectedEndpointId: 'primary',
-          endpoints: [{ id: 'primary', url: 'https://mock.local', enabled: true }],
-        },
+        ...sampleProviderProfile().config,
         notes: '/Users/sinyuk/should-not-enter-flight-recorder',
       },
       secretRefs: { apiKey: 'secret:provider-profile:profile-1:apiKey' },
-      createdAt: '2026-06-15T00:00:00.000Z',
-      updatedAt: '2026-06-15T00:00:01.000Z',
-    };
+    });
 
     await repo.save(profile);
 
@@ -343,15 +390,7 @@ describe('fake UXP host adapters', () => {
 
   it('UXP storage 不可用时 profile repository 回退到 in-memory 实现', async () => {
     const repo = createUxpProviderProfileRepository({});
-    const profile: ProviderProfile = {
-      profileId: 'profile-1',
-      providerId: 'mock',
-      displayName: 'Mock Profile',
-      enabled: true,
-      config: {},
-      createdAt: '2026-06-15T00:00:00.000Z',
-      updatedAt: '2026-06-15T00:00:01.000Z',
-    };
+    const profile = sampleProviderProfile({ config: {} });
 
     await repo.save(profile);
     expect(await repo.get('profile-1')).toEqual(profile);

@@ -2,6 +2,7 @@ import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react
 import { Icon, type IconName } from './icons';
 import { IconButton } from '../primitives/icon-button';
 import { ActionButton } from '../primitives/native-controls';
+import { MotionPresenceView } from './motion-ui';
 
 export type NoticeTone = 'positive' | 'negative' | 'warning' | 'info' | 'neutral';
 export type NoticeRole = 'status' | 'alert';
@@ -377,42 +378,50 @@ export function NoticeView({ notice, kind, onClear, motionState, onPause, onResu
   }
 
   return (
-    <div
-      ref={ref}
-      className={`status-notice ${inlineToneClass(notice.tone)}`}
-      data-tone={notice.tone}
-      aria-live={notice.ariaLive}
-      aria-atomic="true"
-      role={notice.role}
-      onMouseEnter={onPause}
-      onMouseLeave={onResume}
-      onFocusCapture={onPause}
-      onBlurCapture={(event) => {
-        const next = event.relatedTarget;
-        if (!(next instanceof Node) || !ref.current?.contains(next)) {
-          onResume?.();
-        }
-      }}
-    >
-      {notice.icon ? (
-        <span className="status-icon" aria-hidden="true">
-          <Icon name={notice.icon} size={14} />
-        </span>
-      ) : null}
-      <div className="status-body">
-        <div className="status-message">{notice.message}</div>
-        {notice.detail ? <pre className="status-detail">{notice.detail}</pre> : null}
-      </div>
-      {notice.copyable || notice.detailCopyable ? (
-        <IconButton
-          className={`status-copy${copied ? ' cp' : ''}`}
-          quiet
-          icon={<Icon name={copied ? 'check' : 'copy'} />}
-          tooltip="Copy status message"
-          aria-label="Copy status message"
-          onClick={() => void handleCopy()}
-        />
-      ) : null}
-    </div>
+    <MotionPresenceView visible kind="inline-notice">
+      {({ ref: motionRef, state }) => (
+        <div
+          ref={(element) => {
+            ref.current = element;
+            motionRef(element);
+          }}
+          className={`status-notice ${inlineToneClass(notice.tone)}`}
+          data-tone={notice.tone}
+          data-motion-state={state}
+          aria-live={notice.ariaLive}
+          aria-atomic="true"
+          role={notice.role}
+          onMouseEnter={onPause}
+          onMouseLeave={onResume}
+          onFocusCapture={onPause}
+          onBlurCapture={(event) => {
+            const next = event.relatedTarget;
+            if (!(next instanceof Node) || !ref.current?.contains(next)) {
+              onResume?.();
+            }
+          }}
+        >
+          {notice.icon ? (
+            <span className="status-icon" aria-hidden="true">
+              <Icon name={notice.icon} size={14} />
+            </span>
+          ) : null}
+          <div className="status-body">
+            <div className="status-message">{notice.message}</div>
+            {notice.detail ? <pre className="status-detail">{notice.detail}</pre> : null}
+          </div>
+          {notice.copyable || notice.detailCopyable ? (
+            <IconButton
+              className={`status-copy${copied ? ' cp' : ''}`}
+              quiet
+              icon={<Icon name={copied ? 'check' : 'copy'} />}
+              tooltip="Copy status message"
+              aria-label="Copy status message"
+              onClick={() => void handleCopy()}
+            />
+          ) : null}
+        </div>
+      )}
+    </MotionPresenceView>
   );
 }

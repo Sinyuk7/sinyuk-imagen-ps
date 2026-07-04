@@ -39,7 +39,7 @@ import {
   type AppGenerationSettings,
   type AppOutputSizePreset,
 } from '../../ports/app-generation-settings';
-import { MOTION_DURATION } from '../motion';
+import { MOTION_FEEDBACK_DWELL } from '../motion';
 import {
   deriveComposerReadiness,
   modelSupportsImageInput,
@@ -1090,7 +1090,7 @@ export function MainPage({
       placeResetTimersRef.current[round.id] = window.setTimeout(() => {
         setPlaceStatus((current) => ({ ...current, [round.id]: 'idle' }));
         delete placeResetTimersRef.current[round.id];
-      }, MOTION_DURATION.statusReset);
+      }, MOTION_FEEDBACK_DWELL.success);
     } catch (error) {
       setPlaceStatus((current) => ({ ...current, [round.id]: 'idle' }));
       show(error instanceof Error ? error.message : t.toast.placeFailed, 'negative', { key: `place-error:${round.id}` });
@@ -1668,47 +1668,59 @@ export function MainPage({
                   }}
                 />
                 {attachments.map((attachment) => (
-                  <div key={attachment.id} className="att-thumb">
-                    <MotionHighlight activeKey={highlightKey === `attachment:${attachment.id}` ? highlightKey : null} />
-                    {attachment.previewUrl
-                      ? <img src={attachment.previewUrl} style={{ width: '100%', height: '100%', objectFit: 'cover' }} alt={attachment.name} />
-                      : <div style={{ width: '100%', height: '100%', background: 'var(--app-color-background-layer-1)' }} />
-                    }
-                    <IconButton
-                      data-testid={`attachment-remove-button-${attachment.id}`}
-                      className="att-rm"
-                      hostClassName="att-rm-host"
-                      quiet
-                      icon={<Icon name="close" size={10} />}
-                      tooltip={`Remove ${attachment.name}`}
-                      placement="top"
-                      onClick={() => removeAttachment(attachment.id)}
-                    />
-                  </div>
+                  <MotionPresenceView
+                    key={attachment.id}
+                    visible
+                    kind="attachment"
+                  >
+                    {({ ref, state }) => (
+                      <div ref={ref} className="att-thumb" data-motion-state={state}>
+                        <MotionHighlight activeKey={highlightKey === `attachment:${attachment.id}` ? highlightKey : null} />
+                        {attachment.previewUrl
+                          ? <img src={attachment.previewUrl} style={{ width: '100%', height: '100%', objectFit: 'cover' }} alt={attachment.name} />
+                          : <div style={{ width: '100%', height: '100%', background: 'var(--app-color-background-layer-1)' }} />
+                        }
+                        <IconButton
+                          data-testid={`attachment-remove-button-${attachment.id}`}
+                          className="att-rm"
+                          hostClassName="att-rm-host"
+                          quiet
+                          icon={<Icon name="close" size={10} />}
+                          tooltip={`Remove ${attachment.name}`}
+                          placement="top"
+                          onClick={() => removeAttachment(attachment.id)}
+                        />
+                      </div>
+                    )}
+                  </MotionPresenceView>
                 ))}
               </div>
           </div>
           <div className="cmp-core">
             {attachments.length > 0 && imageInputDisabled && (
-              <div className="cmp-conflict" data-testid="composer-image-input-conflict">
-                {t.main.imageInputConflict}
-                <div className="cmp-conflict-actions">
-                  <button
-                    type="button"
-                    className="cmp-conflict-action"
-                    onClick={() => {
-                      setOpenMenu('model');
-                      setAttachOpen(false);
-                      setLayerOpen(false);
-                    }}
-                  >
-                    {t.main.chooseCompatibleModel}
-                  </button>
-                  <button type="button" className="cmp-conflict-action" onClick={removeAllAttachments}>
-                    {t.main.removeImages}
-                  </button>
-                </div>
-              </div>
+              <MotionPresenceView visible kind="inline-notice">
+                {({ ref, state }) => (
+                  <div ref={ref} className="cmp-conflict" data-testid="composer-image-input-conflict" data-motion-state={state}>
+                    {t.main.imageInputConflict}
+                    <div className="cmp-conflict-actions">
+                      <button
+                        type="button"
+                        className="cmp-conflict-action"
+                        onClick={() => {
+                          setOpenMenu('model');
+                          setAttachOpen(false);
+                          setLayerOpen(false);
+                        }}
+                      >
+                        {t.main.chooseCompatibleModel}
+                      </button>
+                      <button type="button" className="cmp-conflict-action" onClick={removeAllAttachments}>
+                        {t.main.removeImages}
+                      </button>
+                    </div>
+                  </div>
+                )}
+              </MotionPresenceView>
             )}
             <div className="cmp-body">
               <MotionHighlight activeKey={highlightKey?.startsWith('optimize:') ? highlightKey : null} />
@@ -1825,9 +1837,11 @@ export function MainPage({
                 </div>
               </div>
             </div>
-            <div className="cmp-readiness" data-testid="composer-readiness-status" data-state={readiness.state}>
-              {readinessText}
-            </div>
+            <MotionContent watch={readiness.state}>
+              <div className="cmp-readiness" data-testid="composer-readiness-status" data-state={readiness.state}>
+                {readinessText}
+              </div>
+            </MotionContent>
           </div>
           <div className="cmp-toolbar" data-testid="composer-toolbar">
             <div className="cmp-toolbar-left">

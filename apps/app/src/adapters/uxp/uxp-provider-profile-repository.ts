@@ -20,6 +20,13 @@ interface UxpLocalFileSystem {
   getDataFolder(): Promise<UxpFolder>;
 }
 
+interface ParsedProfileRecords {
+  readonly profiles: Map<string, ProviderProfile>;
+  readonly rejectedProfileIds: readonly string[];
+}
+
+const API_FORMATS = new Set(['openai-images', 'openai-chat-completions', 'gemini-generate-content']);
+
 function localFileSystemFrom(modules: UxpModules): UxpLocalFileSystem | undefined {
   const storage = modules.uxp?.storage as { readonly localFileSystem?: UxpLocalFileSystem } | undefined;
   return storage?.localFileSystem;
@@ -34,12 +41,47 @@ async function getOrCreateJsonFile(fs: UxpLocalFileSystem, name: string): Promis
   }
 }
 
-function parseProfiles(raw: string): Map<string, ProviderProfile> {
-  if (raw.trim().length === 0) {
-    return new Map();
+function profileIdOf(value: unknown): string | undefined {
+  if (typeof value !== 'object' || value === null || Array.isArray(value)) {
+    return undefined;
   }
-  const parsed = JSON.parse(raw) as { readonly profiles?: readonly ProviderProfile[] };
-  return new Map((parsed.profiles ?? []).map((profile) => [profile.profileId, profile]));
+  const profileId = (value as { readonly profileId?: unknown }).profileId;
+  return typeof profileId === 'string' && profileId.length > 0 ? profileId : undefined;
+}
+
+function isProviderProfileRecord(value: unknown): value is ProviderProfile {
+  if (typeof value !== 'object' || value === null || Array.isArray(value)) {
+    return false;
+  }
+  const record = value as Partial<ProviderProfile> & { readonly apiFormat?: unknown; readonly config?: unknown };
+  return (
+    typeof record.profileId === 'string' &&
+    API_FORMATS.has(String(record.apiFormat)) &&
+    typeof record.displayName === 'string' &&
+    typeof record.enabled === 'boolean' &&
+    typeof record.config === 'object' &&
+    record.config !== null &&
+    !Array.isArray(record.config) &&
+    typeof record.createdAt === 'string' &&
+    typeof record.updatedAt === 'string'
+  );
+}
+
+function parseProfiles(raw: string): ParsedProfileRecords {
+  if (raw.trim().length === 0) {
+    return { profiles: new Map(), rejectedProfileIds: [] };
+  }
+  const parsed = JSON.parse(raw) as { readonly profiles?: readonly unknown[] };
+  const profiles = new Map<string, ProviderProfile>();
+  const rejectedProfileIds: string[] = [];
+  for (const profile of parsed.profiles ?? []) {
+    if (isProviderProfileRecord(profile)) {
+      profiles.set(profile.profileId, profile);
+    } else {
+      rejectedProfileIds.push(profileIdOf(profile) ?? '<unknown>');
+    }
+  }
+  return { profiles, rejectedProfileIds };
 }
 
 function profileAttrs(profile: ProviderProfile): Record<string, unknown> {
@@ -71,12 +113,19 @@ export function createUxpProviderProfileRepository(modules: UxpModules): Provide
         fileName,
         byteLength: String(raw).length,
       });
-      const profiles = parseProfiles(String(raw));
+      const parsed = parseProfiles(String(raw));
       await flightRecorder.checkpoint('uxp.profile_repository.read.parsed', {
         fileName,
-        profileCount: profiles.size,
+        profileCount: parsed.profiles.size,
+        rejectedProfileCount: parsed.rejectedProfileIds.length,
       });
-      return profiles;
+      if (parsed.rejectedProfileIds.length > 0) {
+        await flightRecorder.checkpoint('uxp.profile_repository.read.rejected_legacy_profiles', {
+          fileName,
+          profileIds: parsed.rejectedProfileIds,
+        });
+      }
+      return parsed.profiles;
     } catch (error) {
       await flightRecorder.fail('uxp.profile_repository.read.failed', error, { fileName });
       return new Map();

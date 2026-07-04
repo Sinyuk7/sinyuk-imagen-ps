@@ -70,7 +70,7 @@ const API_FORMAT_TO_IMPLEMENTATION = {
 } as const satisfies Record<ApiFormat, ProviderImplementationId>;
 
 const DEFAULT_PATHS = {
-  'openai-images': { generation: '/v1/images/generations', edit: '/v1/images/edits' },
+  'openai-images': { generation: '/images/generations', edit: '/images/edits' },
   'openai-chat-completions': { invoke: '/chat/completions' },
   'gemini-generate-content': { invokeTemplate: '/models/{model}:generateContent' },
 } as const satisfies Record<ApiFormat, ApiFormatPaths>;

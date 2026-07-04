@@ -3,6 +3,7 @@ import {
   assembleApiUrl,
   canonicalizeProviderBaseUrl,
   classifyEndpoint,
+  defaultPathsForApiFormat,
   implementationIdForApiFormat,
   normalizeApiFormatPaths,
 } from '../src/index.js';
@@ -117,5 +118,16 @@ describe('API format URL safety', () => {
     expect(implementationIdForApiFormat('openai-images')).toBe('image-endpoint');
     expect(implementationIdForApiFormat('openai-chat-completions')).toBe('chat-image');
     expect(implementationIdForApiFormat('gemini-generate-content')).toBe('gemini-generate-content');
+  });
+
+  it('keeps default paths as protocol suffixes without base URL version prefixes', () => {
+    expect(defaultPathsForApiFormat('openai-images')).toEqual({
+      generation: '/images/generations',
+      edit: '/images/edits',
+    });
+    expect(defaultPathsForApiFormat('openai-chat-completions')).toEqual({ invoke: '/chat/completions' });
+    expect(defaultPathsForApiFormat('gemini-generate-content')).toEqual({
+      invokeTemplate: '/models/{model}:generateContent',
+    });
   });
 });

@@ -7,6 +7,7 @@ export class MotionController {
   constructor(readonly runtime: MotionRuntime = getSharedMotionRuntime()) {}
 
   play(recipe: MotionRecipe): MotionHandle {
+    this.stop(recipe.channel);
     const handle = recipe.run(this.runtime);
     this.track(handle);
     return handle;

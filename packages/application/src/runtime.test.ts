@@ -151,7 +151,7 @@ describe('profile dispatch runtime', () => {
           connection: {
             selectionMode: 'manual',
             selectedEndpointId: 'primary',
-            endpoints: [{ id: 'primary', url: 'https://mock.local', enabled: true }],
+            endpoints: [{ id: 'primary', url: 'https://mock.local/v1', enabled: true }],
           },
           defaultModel: 'gpt-image-2',
         },

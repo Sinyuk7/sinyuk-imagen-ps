@@ -69,6 +69,33 @@ Translate UI actions, status labels, empty states, placeholders, toasts, and too
 
 Motion ownership must not move into `packages/application`, `packages/core-engine`, or `packages/providers`. A single visual node should have one motion owner per CSS property.
 
+Current shared timing intent:
+
+- `direct`: press / immediate action feedback
+- `stateFast`: icon or badge state change
+- `content`: local content replacement
+- `page`: page-level view transition
+- `reveal`: media or result reveal
+- `highlight`: one-shot attention guidance
+- `pulseLeg`: one-way ambient pulse leg
+- `MOTION_FEEDBACK_DWELL.success`: success-state hold time, not an animation duration
+
+Reduced motion must resolve by writing the final visual state immediately and skipping tween scheduling entirely.
+
+Product motion should stay narrowly scoped to:
+
+- causal feedback after user action;
+- state continuity for the same task or surface;
+- spatial continuity for insertion, reveal, and navigation;
+- one-shot attention guidance for newly changed regions.
+
+Keep these interactions instant unless a concrete UX need says otherwise:
+
+- global hover / focus styling;
+- long-list stagger;
+- list refreshes that only mirror data sync;
+- large-layout expand/collapse driven by height/width tween.
+
 ## Shared UI Theme Source
 
 Shared UI theme colors are generated from the six Material Design 3 CSS files

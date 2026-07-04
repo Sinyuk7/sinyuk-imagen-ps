@@ -29,7 +29,7 @@ export function surfaceHighlightRecipe(
         channel: 'highlight',
         state: { opacity: 0.26 },
         to: { opacity: MOTION_OPACITY.hidden },
-        durationMs: MOTION_DURATION.reveal,
+        durationMs: MOTION_DURATION.highlight,
         easing: MOTION_EASING.exit,
         onUpdate: (state) => setElementOpacity(element, state.opacity),
         onComplete: input.onComplete,

@@ -3,13 +3,17 @@ import { Easing } from '@tweenjs/tween.js';
 export const MOTION_DURATION = {
   direct: 90,
   enter: 130,
-  exit: 110,
-  state: 180,
-  business: 210,
+  exit: 100,
+  stateFast: 120,
+  content: 170,
+  page: 180,
   reveal: 220,
-  pulse: 820,
-  reduce: 1,
-  statusReset: 900,
+  highlight: 220,
+  pulseLeg: 820,
+} as const;
+
+export const MOTION_FEEDBACK_DWELL = {
+  success: 900,
 } as const;
 
 export const MOTION_EASING = {

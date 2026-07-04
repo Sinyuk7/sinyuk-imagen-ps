@@ -48,7 +48,7 @@ describe('image endpoint transport request characterization', () => {
       connection: {
         selectionMode: 'manual',
         selectedEndpointId: 'primary',
-        endpoints: [{ id: 'primary', url: 'https://api.example.com', enabled: true }],
+        endpoints: [{ id: 'primary', url: 'https://api.example.com/v1', enabled: true }],
       },
       apiKey: 'test-key',
       extraHeaders: {
@@ -89,7 +89,7 @@ describe('image endpoint transport request characterization', () => {
       connection: {
         selectionMode: 'manual',
         selectedEndpointId: 'primary',
-        endpoints: [{ id: 'primary', url: 'https://api.example.com', enabled: true }],
+        endpoints: [{ id: 'primary', url: 'https://api.example.com/v1', enabled: true }],
       },
       apiKey: 'test-key',
       extraHeaders: {

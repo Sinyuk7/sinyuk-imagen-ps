@@ -13,6 +13,7 @@ describe('Chrome feasibility runtime', () => {
     expect(result.providerIds).toContain('mock');
     expect(result.providerIds).toContain('image-endpoint');
     expect(result.providerIds).toContain('chat-image');
+    expect(result.profileDispatchProfileId).toBe('chrome-feasibility-mock');
     expect(result.generatedAssetCount).toBe(1);
   });
 

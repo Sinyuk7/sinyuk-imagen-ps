@@ -45,7 +45,7 @@ describe('image-endpoint provider', () => {
       connection: {
         selectionMode: 'manual',
         selectedEndpointId: 'primary',
-        endpoints: [{ id: 'primary', url: 'https://api.example.com', enabled: true }],
+        endpoints: [{ id: 'primary', url: 'https://api.example.com/v1', enabled: true }],
       },
       apiKey: 'test-key',
     });
@@ -435,7 +435,7 @@ describe('image-endpoint provider', () => {
       connection: {
         selectionMode: 'manual',
         selectedEndpointId: 'primary',
-        endpoints: [{ id: 'primary', url: 'https://api.example.com', enabled: true }],
+        endpoints: [{ id: 'primary', url: 'https://api.example.com/v1', enabled: true }],
       },
       apiKey: 'test-key',
     });
@@ -464,7 +464,7 @@ describe('image-endpoint provider', () => {
       connection: {
         selectionMode: 'manual',
         selectedEndpointId: 'primary',
-        endpoints: [{ id: 'primary', url: 'https://api.example.com', enabled: true }],
+        endpoints: [{ id: 'primary', url: 'https://api.example.com/v1', enabled: true }],
       },
       apiKey: 'test-key',
       defaultModel: 'dall-e-3',
@@ -499,7 +499,7 @@ describe('image-endpoint provider', () => {
       connection: {
         selectionMode: 'manual',
         selectedEndpointId: 'primary',
-        endpoints: [{ id: 'primary', url: 'https://api.example.com', enabled: true }],
+        endpoints: [{ id: 'primary', url: 'https://api.example.com/v1', enabled: true }],
       },
       apiKey: 'test-key',
       defaultModel: 'gpt-image-2',

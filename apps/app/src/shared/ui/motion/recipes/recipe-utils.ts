@@ -65,7 +65,7 @@ export function tweenElementOpacityRecipe(
         channel,
         state: { opacity: from },
         to: { opacity: to },
-        durationMs: options.durationMs ?? MOTION_DURATION.state,
+        durationMs: options.durationMs ?? MOTION_DURATION.content,
         easing: to >= from ? MOTION_EASING.enter : MOTION_EASING.exit,
         onUpdate: (state) => setElementOpacity(element, state.opacity),
         onComplete: options.onComplete,

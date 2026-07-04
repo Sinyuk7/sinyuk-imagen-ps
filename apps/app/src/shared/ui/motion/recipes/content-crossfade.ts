@@ -14,7 +14,7 @@ export function contentCrossfadeRecipe(
   return fadeRecipe(element, {
     from: visible ? MOTION_OPACITY.hidden : MOTION_OPACITY.visible,
     to: visible ? MOTION_OPACITY.visible : MOTION_OPACITY.hidden,
-    durationMs: MOTION_DURATION.state,
+    durationMs: MOTION_DURATION.content,
     channel: 'state',
     preference: input.preference,
     onComplete: input.onComplete,

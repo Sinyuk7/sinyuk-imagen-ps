@@ -15,7 +15,7 @@ export function fadeRecipe(
 ): MotionRecipe {
   return tweenElementOpacityRecipe(element, input.from, input.to, {
     channel: input.channel ?? 'state',
-    durationMs: input.durationMs ?? MOTION_DURATION.state,
+    durationMs: input.durationMs ?? MOTION_DURATION.content,
     preference: input.preference,
     onComplete: input.onComplete,
   });

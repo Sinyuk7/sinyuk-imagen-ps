@@ -1,6 +1,6 @@
 import { act } from 'react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { MOTION_DURATION } from '../src/shared/ui/motion';
+import { MOTION_FEEDBACK_DWELL } from '../src/shared/ui/motion';
 import { fakeHostImage, fakeOutputAsset, createFakeServices } from './fakes';
 import { changeTextarea, clickText, cleanupMainPageRoot, flush, renderMainPage, sendPrompt } from './main-page-harness';
 
@@ -64,7 +64,7 @@ describe('MainPage contract — placement & writeback', () => {
       expect(placeButton.dataset.placeStatus).toBe('placed');
 
       await act(async () => {
-        vi.advanceTimersByTime(MOTION_DURATION.statusReset);
+        vi.advanceTimersByTime(MOTION_FEEDBACK_DWELL.success);
       });
       expect(placeButton.dataset.placeStatus).toBe('idle');
     } finally {

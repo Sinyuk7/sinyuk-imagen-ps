@@ -222,13 +222,17 @@ export function profileToProviderRow(profile: ProviderProfile): ProviderRowVM {
 }
 
 function formatApiFormat(apiFormat: ApiFormat): string {
-  if (apiFormat === 'openai-images') {
-    return 'OpenAI Images';
+  switch (apiFormat) {
+    case 'openai-images':
+      return 'OpenAI Images';
+    case 'openai-chat-completions':
+      return 'OpenAI Chat Completions';
+    case 'gemini-generate-content':
+      return 'Gemini GenerateContent';
   }
-  if (apiFormat === 'openai-chat-completions') {
-    return 'OpenAI Chat Completions';
-  }
-  return 'Gemini GenerateContent';
+
+  const exhaustive: never = apiFormat;
+  return exhaustive;
 }
 
 function trimTrailingZeros(value: string): string {

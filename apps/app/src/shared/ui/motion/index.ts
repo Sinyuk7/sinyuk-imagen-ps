@@ -5,7 +5,7 @@ export { MotionPresence } from './motion-presence';
 export { MotionRuntime, getSharedMotionRuntime, StaticMotionHandle } from './motion-runtime';
 export { shouldReduceMotion, resolveMotionPreference } from './motion-preference';
 export { applyMotionTransform, validateMotionTransform } from './motion-transform-guard';
-export { MOTION_DURATION, MOTION_EASING, MOTION_OPACITY, MOTION_SCALE, MOTION_TRANSLATE } from './motion-tokens';
+export { MOTION_DURATION, MOTION_EASING, MOTION_FEEDBACK_DWELL, MOTION_OPACITY, MOTION_SCALE, MOTION_TRANSLATE } from './motion-tokens';
 export type {
   MotionChannel,
   MotionClock,
@@ -25,6 +25,7 @@ export { fadeRecipe } from './recipes/fade';
 export { floatingControlPresenceRecipe } from './recipes/floating-control-presence';
 export { iconCrossfadeRecipe } from './recipes/icon-crossfade';
 export { imageRevealRecipe } from './recipes/image-reveal';
+export { inlineNoticePresenceRecipe } from './recipes/inline-notice-presence';
 export { pageCrossfadeRecipe } from './recipes/page-crossfade';
 export { popoverPresenceRecipe } from './recipes/popover-presence';
 export { rotateLoopRecipe } from './recipes/rotate-loop';

@@ -28,6 +28,7 @@ export interface ChromeFeasibilityResult {
   readonly runtime: 'chrome';
   readonly providerCount: number;
   readonly providerIds: readonly string[];
+  readonly profileDispatchProfileId: string;
   readonly generatedAssetCount: number;
   readonly simulatorLayerCount: number;
   readonly capabilityMatrix: readonly ChromeProviderCapabilityRow[];
@@ -42,7 +43,7 @@ export const CHROME_PROVIDER_CAPABILITY_MATRIX: readonly ChromeProviderCapabilit
     streamingSupport: 'not-used',
     imageInputSupport: 'text_to_image and image_edit are supported with synthetic assets',
     directBrowserSupport: 'supported',
-    notes: 'Default Chrome feasibility and CI path uses this provider family.',
+    notes: 'Default Chrome feasibility and CI path uses this mock implementation.',
   },
   {
     family: 'image-endpoint',
@@ -70,9 +71,30 @@ function providerIds(providers: readonly ProviderDescriptor[]): readonly string[
   return providers.map((provider) => provider.id).sort();
 }
 
+const CHROME_FEASIBILITY_RESULT_PNG_BASE64 = 'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR4nGNgYGBgAAAABQABpfZFQAAAAABJRU5ErkJggg==';
+
+function requestUrl(input: RequestInfo | URL): string {
+  return typeof input === 'string' || input instanceof URL ? input.toString() : input.url;
+}
+
+function createChromeFeasibilityFetch(originalFetch: typeof fetch): typeof fetch {
+  return async (input, init) => {
+    const url = new URL(requestUrl(input));
+    if (url.hostname === 'mock.local') {
+      return new Response(JSON.stringify({
+        data: [{ b64_json: CHROME_FEASIBILITY_RESULT_PNG_BASE64 }],
+      }), {
+        status: 200,
+        headers: { 'content-type': 'application/json' },
+      });
+    }
+    return originalFetch(input, init);
+  };
+}
+
 /**
- * 最小 Chrome composition：只装配 browser-safe app adapters 并执行 mock provider
- * command path，用于在大规模文件移动前冻结浏览器可行性判断。
+ * 最小 Chrome composition：装配 browser-safe app adapters 并执行 profile dispatch
+ * smoke，用于冻结浏览器可行性判断。
  */
 export async function runChromeFeasibilityRuntime(options?: {
   readonly backend?: ChromeKeyValueBackend;
@@ -106,7 +128,7 @@ export async function runChromeFeasibilityRuntime(options?: {
         endpoints: [{ id: 'primary', url: 'https://mock.local', enabled: true }],
       },
       paths: { generation: '/images/generations', edit: '/images/edits' },
-      defaultModel: 'mock-image-v1',
+      defaultModel: 'gpt-image-1',
     },
     secretValues: {
       apiKey: 'mock-key',
@@ -116,23 +138,29 @@ export async function runChromeFeasibilityRuntime(options?: {
     throw new Error(profile.error.message);
   }
 
+  const originalFetch = globalThis.fetch;
+  globalThis.fetch = createChromeFeasibilityFetch(originalFetch);
   const job = await submitJob({
     workflow: 'provider-generate',
     input: {
-      provider: 'mock',
-      prompt: 'Chrome feasibility mock provider smoke',
+      profileId: profile.value.profileId,
+      prompt: 'Chrome feasibility profile dispatch smoke',
       output: { count: 1 },
     },
+  }).finally(() => {
+    globalThis.fetch = originalFetch;
   });
   if (!job.ok) {
     throw new Error(job.error.message);
   }
+  const profileDispatchProfileId = typeof job.value.input.profileId === 'string' ? job.value.input.profileId : '';
 
   const image = job.value.output?.image as { assets?: readonly unknown[] } | undefined;
   return {
     runtime: 'chrome',
     providerCount: providers.length,
     providerIds: providerIds(providers),
+    profileDispatchProfileId,
     generatedAssetCount: image?.assets?.length ?? 0,
     simulatorLayerCount: (await host.listLayers()).length,
     capabilityMatrix: CHROME_PROVIDER_CAPABILITY_MATRIX,
