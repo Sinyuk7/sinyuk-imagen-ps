@@ -364,6 +364,68 @@ describe('SettingsAddPage', () => {
     expect(savedProfileId).toBe(testedProfileId);
   });
 
+  it('uses discovered draft models for the add-page selector after connection test', async () => {
+    const { services, spies } = createFakeServices();
+    spies.testProviderProfileConnection.mockResolvedValueOnce({
+      ok: true,
+      value: {
+        supported: true,
+        reachable: true,
+        modelCount: 2,
+        models: [{ id: 'draft-model-a' }, { id: 'draft-model-b' }],
+      },
+    });
+    const container = document.createElement('div');
+    document.body.appendChild(container);
+    root = createRoot(container);
+
+    await act(async () => {
+      root!.render(
+        <TestAppProviders services={services}>
+          <SettingsAddPage onNav={() => undefined} profiles={[]} onProfileSaved={async () => undefined} />
+        </TestAppProviders>,
+      );
+    });
+
+    await detectOpenAiImages(container);
+
+    await act(async () => {
+      queryByTestId(container, 'provider-test-button').click();
+    });
+
+    await act(async () => {
+      queryByTestId(container, 'provider-default-model-selector').click();
+    });
+
+    expect(container.querySelector('[data-testid="provider-default-model-selector-option-draft-model-a"]')).not.toBeNull();
+    expect(container.querySelector('[data-testid="provider-default-model-selector-option-draft-model-b"]')).not.toBeNull();
+  });
+
+  it('marks add-page discovered model list stale after unsaved draft changes', async () => {
+    const { services } = createFakeServices();
+    const container = document.createElement('div');
+    document.body.appendChild(container);
+    root = createRoot(container);
+
+    await act(async () => {
+      root!.render(
+        <TestAppProviders services={services}>
+          <SettingsAddPage onNav={() => undefined} profiles={[]} onProfileSaved={async () => undefined} />
+        </TestAppProviders>,
+      );
+    });
+
+    await detectOpenAiImages(container);
+    await act(async () => {
+      queryByTestId(container, 'provider-test-button').click();
+    });
+    await act(async () => {
+      changeInput(queryByTestId(container, 'provider-endpoint-url-0'), 'https://mock.changed');
+    });
+
+    expect(queryByTestId(container, 'provider-model-list-notice').textContent).toContain('模型列表可能与未保存的修改不一致');
+  });
+
   it('saves auto selection config shape on the add page', async () => {
     const { services, spies } = createFakeServices();
     const container = document.createElement('div');

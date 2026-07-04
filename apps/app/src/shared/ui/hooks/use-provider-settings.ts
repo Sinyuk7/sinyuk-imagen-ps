@@ -2,11 +2,13 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type {
   ApiFormat,
   EndpointMeasurementResult,
+  MeasureProfileEndpointsResult,
   ProviderDescriptor,
   ProviderModelInfo,
   ProviderProfile,
   ProviderProfileConfig,
   ProviderProfileConfigValue,
+  ProviderProfileConnectionTestResult,
   ProviderProfileInput,
   ProviderProfileTestResult,
 } from '@imagen-ps/application';
@@ -77,6 +79,244 @@ export function descriptorForApiFormat(
   }
   return providers.find((provider) => provider.apiFormat === apiFormat && provider.id !== 'mock')
     ?? providers.find((provider) => provider.apiFormat === apiFormat);
+}
+
+export interface ProviderProfileUpsertCapabilities {
+  readonly canDeleteProfile: boolean;
+  readonly canRemoveSavedApiKey: boolean;
+  readonly canRemoveSavedBillingToken: boolean;
+  readonly canRefreshPersistedModelCache: boolean;
+  readonly canReadBillingState: boolean;
+  readonly canShowPromptOptimizerInstruction: boolean;
+}
+
+export function providerProfileUpsertCapabilities(
+  profile: ProviderProfile | null,
+  options?: {
+    readonly isOptimizerProfile?: boolean;
+  },
+): ProviderProfileUpsertCapabilities {
+  const isOptimizerProfile = options?.isOptimizerProfile === true;
+  return {
+    canDeleteProfile: Boolean(profile) && !isOptimizerProfile,
+    canRemoveSavedApiKey: Boolean(profile?.secretRefs?.apiKey),
+    canRemoveSavedBillingToken: Boolean(profile?.secretRefs?.billingAccessToken),
+    canRefreshPersistedModelCache: Boolean(profile),
+    canReadBillingState: Boolean(profile) && !isOptimizerProfile,
+    canShowPromptOptimizerInstruction: isOptimizerProfile,
+  };
+}
+
+function mergeConfiguredModelCandidate(
+  models: readonly ProviderModelInfo[],
+  configuredModel: string,
+): readonly ProviderModelInfo[] {
+  const normalizedConfigured = configuredModel.trim();
+  if (!normalizedConfigured || models.some((model) => model.id === normalizedConfigured)) {
+    return models;
+  }
+  return [{ id: normalizedConfigured, supportStatus: 'custom-unchecked' }, ...models];
+}
+
+export function resolveProviderModelMode(
+  configuredModel: string,
+  models: readonly ProviderModelInfo[],
+): 'list' | 'custom' {
+  const normalizedConfigured = configuredModel.trim();
+  if (models.length === 0) {
+    return 'custom';
+  }
+  if (!normalizedConfigured) {
+    return 'list';
+  }
+  return models.some((model) => model.id === normalizedConfigured) ? 'list' : 'custom';
+}
+
+export function providerModelOptions(
+  models: readonly ProviderModelInfo[],
+): readonly { readonly id: string; readonly label: string }[] {
+  return models.map((model) => ({
+    id: model.id,
+    label: model.displayName ?? model.id,
+  }));
+}
+
+export interface ProviderDraftModelCatalogOptions {
+  readonly services: AppServices;
+  readonly persistedProfileId: string | null;
+  readonly persistedRevisionKey?: string;
+  readonly configuredDefaultModel: string;
+  readonly descriptorDefaultModels?: readonly ProviderModelInfo[];
+  readonly discoverySupported: boolean;
+  readonly canRefreshPersistedModelCache: boolean;
+  readonly isDraftDirty: boolean;
+  readonly resetKey: string;
+  readonly probeDraft: (
+    currentResolvedEndpointId?: string,
+  ) => Promise<
+    | { readonly ok: true; readonly value: MeasureProfileEndpointsResult }
+    | { readonly ok: false; readonly error: { readonly category: string; readonly message: string } }
+  >;
+}
+
+export type ProviderDraftModelCatalogRefreshResult =
+  | { readonly kind: 'probe'; readonly value: MeasureProfileEndpointsResult }
+  | { readonly kind: 'persisted'; readonly value: readonly ProviderModelInfo[] };
+
+export interface ProviderDraftModelCatalogState {
+  readonly models: readonly ProviderModelInfo[];
+  readonly options: readonly { readonly id: string; readonly label: string }[];
+  readonly selectedModelInfo: ProviderModelInfo | undefined;
+  readonly persistedLoading: boolean;
+  readonly refreshBusy: boolean;
+  readonly loading: boolean;
+  readonly error: string | null;
+  readonly stale: boolean;
+  readonly measurementResults: readonly EndpointMeasurementResult[];
+  readonly resolvedEndpointId?: string;
+  readonly refresh: () => Promise<ProviderDraftModelCatalogRefreshResult>;
+  readonly invalidate: () => void;
+  readonly clearProofs: () => void;
+  readonly applyProbeResult: (result: MeasureProfileEndpointsResult) => void;
+  readonly applyConnectionTestResult: (result: ProviderProfileConnectionTestResult) => void;
+}
+
+export function useProviderDraftModelCatalog(
+  options: ProviderDraftModelCatalogOptions,
+): ProviderDraftModelCatalogState {
+  const {
+    services,
+    persistedProfileId,
+    persistedRevisionKey,
+    configuredDefaultModel,
+    descriptorDefaultModels = [],
+    discoverySupported,
+    canRefreshPersistedModelCache,
+    isDraftDirty,
+    resetKey,
+    probeDraft,
+  } = options;
+  const persisted = useProfileModels(services, persistedProfileId, persistedRevisionKey);
+  const [draftModels, setDraftModels] = useState<readonly ProviderModelInfo[] | null>(null);
+  const [stale, setStale] = useState(false);
+  const [measurementResults, setMeasurementResults] = useState<readonly EndpointMeasurementResult[]>([]);
+  const [resolvedEndpointId, setResolvedEndpointId] = useState<string | undefined>();
+  const [refreshBusy, setRefreshBusy] = useState(false);
+
+  useEffect(() => {
+    setDraftModels(null);
+    setStale(false);
+    setMeasurementResults([]);
+    setResolvedEndpointId(undefined);
+    setRefreshBusy(false);
+  }, [resetKey]);
+
+  const fallbackModels = useMemo(
+    () => descriptorDefaultModels.map((model) => ({
+      ...model,
+      supportStatus: model.supportStatus ?? 'selectable',
+    })),
+    [descriptorDefaultModels],
+  );
+
+  const models = useMemo(() => {
+    if (draftModels) {
+      return mergeConfiguredModelCandidate(draftModels, configuredDefaultModel);
+    }
+    if (persisted.models.length > 0) {
+      return mergeConfiguredModelCandidate(persisted.models, configuredDefaultModel);
+    }
+    return mergeConfiguredModelCandidate(fallbackModels, configuredDefaultModel);
+  }, [configuredDefaultModel, draftModels, fallbackModels, persisted.models]);
+
+  const optionsList = useMemo(() => providerModelOptions(models), [models]);
+  const selectedModelInfo = useMemo(
+    () => models.find((model) => model.id === configuredDefaultModel.trim()),
+    [configuredDefaultModel, models],
+  );
+
+  const clearProofs = useCallback(() => {
+    setMeasurementResults([]);
+    setResolvedEndpointId(undefined);
+  }, []);
+
+  const invalidate = useCallback(() => {
+    clearProofs();
+    if (!discoverySupported) {
+      return;
+    }
+    if (draftModels || persisted.models.length > 0) {
+      setStale(true);
+    }
+  }, [clearProofs, discoverySupported, draftModels, persisted.models.length]);
+
+  const applyProbeResult = useCallback((result: MeasureProfileEndpointsResult) => {
+    setMeasurementResults(result.results);
+    setResolvedEndpointId(result.resolvedEndpointId);
+    if (result.models) {
+      setDraftModels(result.models);
+    }
+    setStale(false);
+  }, []);
+
+  const applyConnectionTestResult = useCallback((result: ProviderProfileConnectionTestResult) => {
+    if (result.models) {
+      setDraftModels(result.models);
+      setStale(false);
+    }
+  }, []);
+
+  const refresh = useCallback(async (): Promise<ProviderDraftModelCatalogRefreshResult> => {
+    if (!discoverySupported) {
+      throw new Error('Model discovery unsupported.');
+    }
+    setRefreshBusy(true);
+    try {
+      if (!persistedProfileId || isDraftDirty || !canRefreshPersistedModelCache) {
+        const result = await probeDraft(resolvedEndpointId);
+        if (!result.ok) {
+          throw new Error(commandMessage(result.error));
+        }
+        applyProbeResult(result.value);
+        return { kind: 'probe', value: result.value };
+      }
+      const value = await persisted.refresh();
+      setDraftModels(null);
+      setStale(false);
+      clearProofs();
+      return { kind: 'persisted', value };
+    } finally {
+      setRefreshBusy(false);
+    }
+  }, [
+    applyProbeResult,
+    canRefreshPersistedModelCache,
+    clearProofs,
+    discoverySupported,
+    isDraftDirty,
+    persisted,
+    persistedProfileId,
+    probeDraft,
+    resolvedEndpointId,
+  ]);
+
+  return {
+    models,
+    options: optionsList,
+    selectedModelInfo,
+    persistedLoading: persisted.loading,
+    refreshBusy,
+    loading: persisted.loading || refreshBusy,
+    error: persisted.error,
+    stale,
+    measurementResults,
+    resolvedEndpointId,
+    refresh,
+    invalidate,
+    clearProofs,
+    applyProbeResult,
+    applyConnectionTestResult,
+  };
 }
 
 export interface ProfileModelsState {

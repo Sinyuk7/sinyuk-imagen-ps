@@ -1,6 +1,6 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { PROMPT_OPTIMIZER_PROFILE_ID } from '@imagen-ps/application';
-import type { EndpointMeasurementResult, ProviderModelInfo, ProviderProfile, ProviderProfileConfig, ProviderProfileConfigValue } from '@imagen-ps/application';
+import type { ProviderModelInfo, ProviderProfile, ProviderProfileConfig, ProviderProfileConfigValue } from '@imagen-ps/application';
 import { useAppServices } from '../../ports/app-services-context';
 import {
   apiFormatLabel,
@@ -12,15 +12,17 @@ import {
   formatBillingDetail,
   mergeApiPathDraft,
   normalizeProviderConnectionDraft,
+  providerProfileUpsertCapabilities,
   providerConfigFromForm,
   readApiPathDraft,
   readProviderBillingDraft,
   readProviderConfigString,
   readProviderConnectionDraft,
+  resolveProviderModelMode,
   sanitizeProviderDisplayName,
   sanitizeProviderSecretValue,
+  useProviderDraftModelCatalog,
   useProfileDetail,
-  useProfileModels,
   useProviderCatalog,
   type ApiPathDraft,
   type ProviderBillingDraft,
@@ -215,7 +217,6 @@ export function SettingsDetailPage({ onNav, profileId, onProfilesChanged, onSave
   const { messages: t } = useI18n();
   const providers = useProviderCatalog(services);
   const detail = useProfileDetail(services, profileId);
-  const models = useProfileModels(services, profileId);
   const { show } = useToast();
   const [displayName, setDisplayName] = useState('');
   const [connection, setConnection] = useState<ProviderConnectionDraft>(readProviderConnectionDraft(null));
@@ -230,36 +231,50 @@ export function SettingsDetailPage({ onNav, profileId, onProfilesChanged, onSave
   const [apiKeyRemovalPending, setApiKeyRemovalPending] = useState(false);
   const [billingAccessTokenRemovalPending, setBillingAccessTokenRemovalPending] = useState(false);
   const [aliasError, setAliasError] = useState<string | null>(null);
-  const [modelsStale, setModelsStale] = useState(false);
   const [showKey, setShowKey] = useState(false);
   const [saveBusy, setSaveBusy] = useState(false);
-  const [measurementBusy, setMeasurementBusy] = useState(false);
   const [connectionTestBusy, setConnectionTestBusy] = useState(false);
   const [modelMenuOpen, setModelMenuOpen] = useState(false);
   const [modelMode, setModelMode] = useState<'list' | 'custom'>('list');
-  const [measurementResults, setMeasurementResults] = useState<readonly EndpointMeasurementResult[]>([]);
-  const [resolvedEndpointId, setResolvedEndpointId] = useState<string | undefined>();
   const lastLoadedProfileIdRef = useRef<string | null>(null);
   const modelModeTouchedRef = useRef(false);
   const connectionRef = useRef(connection);
   const billingDraftRef = useRef(billingDraft);
-  const draftRevisionRef = useRef(0);
   const saveBusyRef = useRef(false);
-  const measurementBusyRef = useRef(false);
   const connectionTestBusyRef = useRef(false);
   const isOptimizerProfile = detail.profile?.profileId === PROMPT_OPTIMIZER_PROFILE_ID;
   const billing = useProfileBilling(services, profileId);
   const busy = saveBusy;
   const providerDescriptor = detail.profile ? descriptorForApiFormat(providers, detail.profile.apiFormat) : undefined;
+  const capabilities = providerProfileUpsertCapabilities(detail.profile, { isOptimizerProfile });
+  const measurementSupported = Boolean(providerDescriptor && providerDescriptor.connectivity?.endpointMeasurement !== 'unsupported');
+  const connectionTestSupported = Boolean(providerDescriptor && providerDescriptor.connectivity?.connectionTest !== 'unsupported');
+  const modelDiscoverySupported = measurementSupported;
 
-  const invalidateDraftProofs = () => {
-    draftRevisionRef.current += 1;
-    if (models.models.length > 0) {
-      setModelsStale(true);
-    }
-    setMeasurementResults([]);
-    setResolvedEndpointId(undefined);
-  };
+  const effectiveBillingDraft = billingDraftForSave(billingDraft, billingAccessTokenRemovalPending);
+  const billingValidation = billingFieldError(effectiveBillingDraft, providerDescriptor);
+  const endpointErrors = duplicateEndpointErrors(connection, t.settings.duplicateEndpointUrl);
+  const draftDirty = detail.profile
+    ? hasDraftChanges(
+        detail.profile,
+        {
+          displayName,
+          connection,
+          defaultModel,
+          paths,
+          billing: billingDraft,
+          instruction,
+          apiKey,
+          apiKeyRemovalPending,
+          billingAccessTokenRemovalPending,
+        },
+        isOptimizerProfile,
+      )
+    : false;
+
+  function invalidateDraftProofs() {
+    modelCatalog.invalidate();
+  }
 
   const updateApiKey = (value: string) => {
     setApiKey(sanitizeProviderSecretValue(value));
@@ -312,7 +327,7 @@ export function SettingsDetailPage({ onNav, profileId, onProfilesChanged, onSave
       previous.selectionMode !== 'auto' &&
       nextConnection.selectionMode === 'auto' &&
       detail.profile &&
-      providerDescriptor?.connectivity?.endpointMeasurement !== 'unsupported' &&
+      measurementSupported &&
       nextConnection.endpoints.some((endpoint) => endpoint.enabled && endpoint.url.trim())
     ) {
       void refreshModels();
@@ -323,7 +338,6 @@ export function SettingsDetailPage({ onNav, profileId, onProfilesChanged, onSave
     if (!detail.profile) {
       return;
     }
-    draftRevisionRef.current += 1;
     setDisplayName(detail.profile.displayName);
     const nextConnection = readProviderConnectionDraft(detail.profile);
     connectionRef.current = nextConnection;
@@ -340,10 +354,7 @@ export function SettingsDetailPage({ onNav, profileId, onProfilesChanged, onSave
     setApiKeyRemovalPending(false);
     setBillingAccessTokenRemovalPending(false);
     setAliasError(null);
-    setModelsStale(false);
     setModelMenuOpen(false);
-    setMeasurementResults([]);
-    setResolvedEndpointId(undefined);
  }, [detail.profile]);
 
   useEffect(() => {
@@ -442,9 +453,20 @@ export function SettingsDetailPage({ onNav, profileId, onProfilesChanged, onSave
     };
   };
 
-  const probeCurrentDraft = async () => services.commands.measureProfileEndpoints({
-    ...buildDraftCommandInput(),
-    currentResolvedEndpointId: resolvedEndpointId,
+  const modelCatalog = useProviderDraftModelCatalog({
+    services,
+    persistedProfileId: detail.profile?.profileId ?? null,
+    persistedRevisionKey: detail.profile ? `${detail.profile.updatedAt}:${readProviderConfigString(detail.profile, 'defaultModel')}` : '',
+    configuredDefaultModel: defaultModel,
+    descriptorDefaultModels: providerDescriptor?.defaultModels,
+    discoverySupported: modelDiscoverySupported,
+    canRefreshPersistedModelCache: capabilities.canRefreshPersistedModelCache,
+    isDraftDirty: draftDirty,
+    resetKey: detail.profile ? `${detail.profile.profileId}:${detail.profile.updatedAt}` : 'detail:none',
+    probeDraft: async (currentResolvedEndpointId) => services.commands.measureProfileEndpoints({
+      ...buildDraftCommandInput(),
+      currentResolvedEndpointId,
+    }),
   });
 
   const testCurrentDraftConnection = async () => services.commands.testProviderProfileConnection(buildDraftCommandInput());
@@ -551,10 +573,7 @@ export function SettingsDetailPage({ onNav, profileId, onProfilesChanged, onSave
       if (!result.ok) {
         throw new Error(`${result.error.category}: ${result.error.message}`);
       }
-      if (result.value.models) {
-        models.replace(result.value.models);
-        setModelsStale(false);
-      }
+      modelCatalog.applyConnectionTestResult(result.value);
       const status = statusFromProviderConnectionTestResult(result.value, t);
       show(status.message, status.tone, {
         key: 'settings-detail-connection-test',
@@ -576,82 +595,37 @@ export function SettingsDetailPage({ onNav, profileId, onProfilesChanged, onSave
   };
 
   const refreshModels = async () => {
-    if (measurementBusyRef.current) {
-      return;
-    }
-    measurementBusyRef.current = true;
-    const revision = draftRevisionRef.current;
-    setMeasurementBusy(true);
     try {
-      if (detail.profile && hasDraftChanges(
-        detail.profile,
-        {
-          displayName,
-          connection,
-          defaultModel,
-          paths,
-          billing: billingDraft,
-          instruction,
-          apiKey,
-          apiKeyRemovalPending,
-          billingAccessTokenRemovalPending,
-        },
-        isOptimizerProfile,
-      )) {
-        const result = await probeCurrentDraft();
-        if (!result.ok) {
-          throw new Error(`${result.error.category}: ${result.error.message}`);
-        }
-        if (draftRevisionRef.current === revision) {
-          setMeasurementResults(result.value.results);
-          setResolvedEndpointId(result.value.resolvedEndpointId);
-          const refreshed = result.value.models ?? [];
-          models.replace(refreshed);
-          setModelsStale(false);
-          const status = statusFromEndpointMeasurementResult(result.value, t);
-          show(status.message, status.tone, {
-            key: 'settings-detail-endpoint-probe',
-            durationMs: status.durationMs,
-            dismissible: status.dismissible,
-            copyable: status.copyable,
-          });
-        }
-        return;
+      const result = await modelCatalog.refresh();
+      if (result.kind === 'probe') {
+        const status = statusFromEndpointMeasurementResult(result.value, t);
+        show(status.message, status.tone, {
+          key: 'settings-detail-endpoint-probe',
+          durationMs: status.durationMs,
+          dismissible: status.dismissible,
+          copyable: status.copyable,
+        });
       }
-      await models.refresh();
-      setModelsStale(false);
     } catch (error) {
       show(error instanceof Error ? error.message : String(error), 'negative', {
         key: 'settings-detail-endpoint-probe-error',
         durationMs: null,
         copyable: true,
       });
-    } finally {
-      measurementBusyRef.current = false;
-      setMeasurementBusy(false);
     }
   };
 
-  const modelOptions = useMemo(
-    () => models.models.map((model) => ({
-      id: model.id,
-      label: model.displayName ?? model.id,
-    })),
-    [models.models],
-  );
+  const modelOptions = modelCatalog.options;
 
   useEffect(() => {
     if (!detail.profile) {
       return;
     }
-    const currentModel = readProviderConfigString(detail.profile, 'defaultModel').trim();
-    const hasOptions = modelOptions.length > 0;
-    const hasMatch = modelOptions.some((option) => option.id === currentModel);
     if (!modelModeTouchedRef.current) {
-      setModelMode(hasOptions && (currentModel.length === 0 || hasMatch) ? 'list' : 'custom');
+      setModelMode(resolveProviderModelMode(defaultModel, modelCatalog.models));
       setModelMenuOpen(false);
     }
-  }, [detail.profile, modelOptions]);
+  }, [defaultModel, detail.profile, modelCatalog.models]);
 
   const remove = async () => {
     if (saveBusyRef.current) {
@@ -673,43 +647,20 @@ export function SettingsDetailPage({ onNav, profileId, onProfilesChanged, onSave
 
   const modelSelectionLabel = modelOptions.find((option) => option.id === defaultModel)?.label ?? defaultModel.trim();
   const modelTriggerValue = modelSelectionLabel || t.settings.chooseFromList;
-  const modelSelectDisabled = busy || models.loading || modelOptions.length === 0;
-  const selectedModelInfo = models.models.find((model) => model.id === defaultModel);
+  const modelSelectDisabled = busy || modelCatalog.loading || modelOptions.length === 0;
+  const selectedModelInfo = modelCatalog.selectedModelInfo;
   const selectedModelStatus = modelStatusMessage(selectedModelInfo, t);
-  const measurementSupported = Boolean(providerDescriptor && providerDescriptor.connectivity?.endpointMeasurement !== 'unsupported');
-  const connectionTestSupported = Boolean(providerDescriptor && providerDescriptor.connectivity?.connectionTest !== 'unsupported');
-  const modelDiscoverySupported = measurementSupported;
-  const endpointErrors = duplicateEndpointErrors(connection, t.settings.duplicateEndpointUrl);
-  const effectiveBillingDraft = billingDraftForSave(billingDraft, billingAccessTokenRemovalPending);
-  const billingValidation = billingFieldError(effectiveBillingDraft, providerDescriptor);
-  const draftDirty = detail.profile
-    ? hasDraftChanges(
-        detail.profile,
-        {
-          displayName,
-          connection,
-          defaultModel,
-          paths,
-          billing: billingDraft,
-          instruction,
-          apiKey,
-          apiKeyRemovalPending,
-          billingAccessTokenRemovalPending,
-        },
-        isOptimizerProfile,
-      )
-    : false;
   const saveDisabled = busy || !detail.profile || !draftDirty || endpointErrors.size > 0 || Boolean(aliasError);
-  const modelListNotice = models.error
+  const modelListNotice = modelCatalog.error
     ? {
         tone: 'warning' as const,
         message: t.settings.modelListFailed,
-        detail: models.error,
+        detail: modelCatalog.error,
         detailCopyable: true,
       }
     : !modelDiscoverySupported
       ? { tone: 'info' as const, message: t.settings.modelDiscoveryUnsupported }
-    : modelsStale
+    : modelCatalog.stale
       ? { tone: 'warning' as const, message: t.settings.modelListStale }
     : modelOptions.length === 0
       ? { tone: 'info' as const, message: t.settings.modelListEmpty }
@@ -822,10 +773,10 @@ export function SettingsDetailPage({ onNav, profileId, onProfilesChanged, onSave
           data-testid="provider-refresh-models-button"
           className="settings-icon-button"
           compactSquare
-          disabled={models.loading || busy || !modelDiscoverySupported}
-          icon={<Icon name="refresh" size={16} className={models.loading ? 'spin' : undefined} />}
-          tooltip={!modelDiscoverySupported ? t.settings.modelDiscoveryUnsupported : models.loading ? t.settings.refreshingModels : t.settings.refreshModels}
-          aria-label={!modelDiscoverySupported ? t.settings.modelDiscoveryUnsupported : models.loading ? t.settings.refreshingModels : t.settings.refreshModels}
+          disabled={modelCatalog.loading || busy || !modelDiscoverySupported}
+          icon={<Icon name="refresh" size={16} className={modelCatalog.loading ? 'spin' : undefined} />}
+          tooltip={!modelDiscoverySupported ? t.settings.modelDiscoveryUnsupported : modelCatalog.loading ? t.settings.refreshingModels : t.settings.refreshModels}
+          aria-label={!modelDiscoverySupported ? t.settings.modelDiscoveryUnsupported : modelCatalog.loading ? t.settings.refreshingModels : t.settings.refreshModels}
           onClick={() => void refreshModels()}
         />
       </div>
@@ -1125,9 +1076,9 @@ export function SettingsDetailPage({ onNav, profileId, onProfilesChanged, onSave
               connection={connection}
               onConnectionChange={updateConnectionDraft}
               endpointErrors={endpointErrors}
-              measurementResults={connectionProbeResultById(measurementResults)}
-              resolvedEndpointId={resolvedEndpointId}
-              measurementBusy={measurementBusy}
+              measurementResults={connectionProbeResultById(modelCatalog.measurementResults)}
+              resolvedEndpointId={modelCatalog.resolvedEndpointId}
+              measurementBusy={modelCatalog.refreshBusy}
               measurementSupported={measurementSupported}
               onMeasure={() => void refreshModels()}
               apiKeyValue={apiKey}

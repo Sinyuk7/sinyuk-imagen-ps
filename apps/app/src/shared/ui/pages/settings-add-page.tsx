@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import type { ApiFormat, EndpointClassification, EndpointMeasurementResult, ProviderProfile } from '@imagen-ps/application';
+import type { ApiFormat, EndpointClassification, ProviderModelInfo, ProviderProfile } from '@imagen-ps/application';
 import { useAppServices } from '../../ports/app-services-context';
 import {
   apiFormatLabel,
@@ -11,15 +11,19 @@ import {
   descriptorForApiFormat,
   mergeApiPathDraft,
   normalizeProviderConnectionDraft,
+  providerProfileUpsertCapabilities,
   providerConfigFromForm,
+  resolveProviderModelMode,
   sanitizeProviderDisplayName,
   sanitizeProviderEndpointUrl,
   sanitizeProviderSecretValue,
+  useProviderDraftModelCatalog,
   useProviderCatalog,
   type ApiPathDraft,
   type ProviderBillingDraft,
   type ProviderConnectionDraft,
 } from '../hooks/use-provider-settings';
+import { StatusNotice } from '../components/status-notice';
 import { Icon } from '../components/icons';
 import { ProviderBillingSettings } from '../components/provider-billing-settings';
 import { TextSelect } from '../components/text-select';
@@ -153,28 +157,17 @@ export function SettingsAddPage({ onNav, profiles, onProfileSaved }: SettingsAdd
   const [modelMenuOpen, setModelMenuOpen] = useState(false);
   const [showKey, setShowKey] = useState(false);
   const [saveBusy, setSaveBusy] = useState(false);
-  const [measurementBusy, setMeasurementBusy] = useState(false);
   const [connectionTestBusy, setConnectionTestBusy] = useState(false);
-  const [measurementResults, setMeasurementResults] = useState<readonly EndpointMeasurementResult[]>([]);
-  const [resolvedEndpointId, setResolvedEndpointId] = useState<string | undefined>();
   const modelModeTouchedRef = useRef(false);
   const nameTouchedRef = useRef(false);
   const connectionRef = useRef(connection);
   const billingRef = useRef(billing);
-  const draftRevisionRef = useRef(0);
   const saveBusyRef = useRef(false);
-  const measurementBusyRef = useRef(false);
   const connectionTestBusyRef = useRef(false);
   const selected = useMemo(() => descriptorForApiFormat(providers, apiFormat), [apiFormat, providers]);
+  const capabilities = providerProfileUpsertCapabilities(null, { isOptimizerProfile: false });
   const measurementSupported = Boolean(selected && selected.connectivity?.endpointMeasurement !== 'unsupported');
   const connectionTestSupported = Boolean(selected && selected.connectivity?.connectionTest !== 'unsupported');
-  const modelOptions = useMemo(
-    () => (selected?.defaultModels ?? []).map((model) => ({
-      id: model.id,
-      label: model.displayName ?? model.id,
-    })),
-    [selected],
-  );
   const normalizedName = sanitizeProviderDisplayName(name);
   const aliasError = normalizedName && profiles.some((profile) => profile.displayName.trim() === normalizedName)
     ? t.settings.duplicateDisplayName(normalizedName)
@@ -186,13 +179,6 @@ export function SettingsAddPage({ onNav, profiles, onProfileSaved }: SettingsAdd
   useEffect(() => {
     modelModeTouchedRef.current = false;
   }, [apiFormat]);
-
-  useEffect(() => {
-    if (modelModeTouchedRef.current) {
-      return;
-    }
-    setModelMode(modelOptions.length > 0 ? 'list' : 'custom');
-  }, [modelOptions]);
 
   useEffect(() => {
     const nextBilling = defaultBillingDraft(selected);
@@ -209,10 +195,32 @@ export function SettingsAddPage({ onNav, profiles, onProfileSaved }: SettingsAdd
     billingRef.current = billing;
   }, [billing]);
 
+  const modelCatalog = useProviderDraftModelCatalog({
+    services,
+    persistedProfileId: null,
+    configuredDefaultModel: defaultModel,
+    descriptorDefaultModels: selected?.defaultModels as readonly ProviderModelInfo[] | undefined,
+    discoverySupported: measurementSupported,
+    canRefreshPersistedModelCache: capabilities.canRefreshPersistedModelCache,
+    isDraftDirty: Boolean(apiFormat),
+    resetKey: `${apiFormat ?? 'none'}:${profileId}`,
+    probeDraft: async (currentResolvedEndpointId) => services.commands.measureProfileEndpoints({
+      ...buildDraftCommandInput(connectionRef.current, billingRef.current),
+      currentResolvedEndpointId,
+    }),
+  });
+
+  const modelOptions = modelCatalog.options;
+
+  useEffect(() => {
+    if (modelModeTouchedRef.current) {
+      return;
+    }
+    setModelMode(resolveProviderModelMode(defaultModel, modelCatalog.models));
+  }, [defaultModel, modelCatalog.models]);
+
   const invalidateDraftProofs = () => {
-    draftRevisionRef.current += 1;
-    setMeasurementResults([]);
-    setResolvedEndpointId(undefined);
+    modelCatalog.invalidate();
   };
 
   const applyClassification = (
@@ -315,42 +323,31 @@ export function SettingsAddPage({ onNav, profiles, onProfileSaved }: SettingsAdd
   };
 
   const handleMeasure = async (nextConnection: ProviderConnectionDraft = connectionRef.current) => {
-    if (measurementBusyRef.current || !apiFormat) {
+    if (!apiFormat) {
       return;
     }
-    measurementBusyRef.current = true;
-    const revision = draftRevisionRef.current;
-    setMeasurementBusy(true);
     try {
       const result = await services.commands.measureProfileEndpoints({
         ...buildDraftCommandInput(nextConnection, billingRef.current),
-        currentResolvedEndpointId: resolvedEndpointId,
+        currentResolvedEndpointId: modelCatalog.resolvedEndpointId,
       });
       if (!result.ok) {
         throw new Error(`${result.error.category}: ${result.error.message}`);
       }
-      if (draftRevisionRef.current === revision) {
-        setMeasurementResults(result.value.results);
-        setResolvedEndpointId(result.value.resolvedEndpointId);
-        const status = statusFromEndpointMeasurementResult(result.value, t);
-        show(status.message, status.tone, {
-          key: 'settings-add-endpoint-probe',
-          durationMs: status.durationMs,
-          dismissible: status.dismissible,
-          copyable: status.copyable,
-        });
-      }
+      modelCatalog.applyProbeResult(result.value);
+      const status = statusFromEndpointMeasurementResult(result.value, t);
+      show(status.message, status.tone, {
+        key: 'settings-add-endpoint-probe',
+        durationMs: status.durationMs,
+        dismissible: status.dismissible,
+        copyable: status.copyable,
+      });
     } catch (error) {
-      if (draftRevisionRef.current === revision) {
-        show(error instanceof Error ? error.message : String(error), 'negative', {
-          key: 'settings-add-endpoint-probe-error',
-          durationMs: null,
-          copyable: true,
-        });
-      }
-    } finally {
-      measurementBusyRef.current = false;
-      setMeasurementBusy(false);
+      show(error instanceof Error ? error.message : String(error), 'negative', {
+        key: 'settings-add-endpoint-probe-error',
+        durationMs: null,
+        copyable: true,
+      });
     }
   };
 
@@ -365,6 +362,7 @@ export function SettingsAddPage({ onNav, profiles, onProfileSaved }: SettingsAdd
       if (!result.ok) {
         throw new Error(`${result.error.category}: ${result.error.message}`);
       }
+      modelCatalog.applyConnectionTestResult(result.value);
       const status = statusFromProviderConnectionTestResult(result.value, t);
       show(status.message, status.tone, {
         key: 'settings-add-connection-test',
@@ -609,9 +607,9 @@ export function SettingsAddPage({ onNav, profiles, onProfileSaved }: SettingsAdd
           onConnectionChange={applyConnectionChange}
           baseUrlPlaceholder="https://api.example.com"
           endpointErrors={endpointErrors}
-          measurementResults={connectionProbeResultById(measurementResults)}
-          resolvedEndpointId={resolvedEndpointId}
-          measurementBusy={measurementBusy}
+          measurementResults={connectionProbeResultById(modelCatalog.measurementResults)}
+          resolvedEndpointId={modelCatalog.resolvedEndpointId}
+          measurementBusy={modelCatalog.refreshBusy}
           measurementSupported={measurementSupported}
           onMeasure={() => void handleMeasure()}
           apiKeyValue={apiKey}
@@ -626,7 +624,19 @@ export function SettingsAddPage({ onNav, profiles, onProfileSaved }: SettingsAdd
           disabled={saveBusy}
         />
           <div className="section">
-            <div className="section-title settings-section-heading">{t.settings.defaultModel}</div>
+            <div className="settings-section-header">
+              <div className="section-title settings-section-heading">{t.settings.defaultModel}</div>
+              <IconButton
+                data-testid="provider-refresh-models-button"
+                className="settings-icon-button"
+                compactSquare
+                disabled={modelCatalog.loading || saveBusy || !measurementSupported}
+                icon={<Icon name="refresh" size={16} className={modelCatalog.loading ? 'spin' : undefined} />}
+                tooltip={!measurementSupported ? t.settings.modelDiscoveryUnsupported : modelCatalog.loading ? t.settings.refreshingModels : t.settings.refreshModels}
+                aria-label={!measurementSupported ? t.settings.modelDiscoveryUnsupported : modelCatalog.loading ? t.settings.refreshingModels : t.settings.refreshModels}
+                onClick={() => void handleMeasure()}
+              />
+            </div>
             <div className="field">
               {modelMode === 'list' && modelOptions.length > 0 ? (
                 <TextSelect
@@ -642,6 +652,7 @@ export function SettingsAddPage({ onNav, profiles, onProfileSaved }: SettingsAdd
                     setDefaultModel(id);
                     setModelMode('list');
                     setModelMenuOpen(false);
+                    invalidateDraftProofs();
                   }}
                   testId="provider-default-model-selector"
                   triggerId="provider-default-model-selector"
@@ -682,6 +693,19 @@ export function SettingsAddPage({ onNav, profiles, onProfileSaved }: SettingsAdd
                 </div>
               )}
             </div>
+            {!measurementSupported ? (
+              <div data-testid="provider-model-list-notice">
+                <StatusNotice tone="info" message={t.settings.modelDiscoveryUnsupported} />
+              </div>
+            ) : modelCatalog.stale ? (
+              <div data-testid="provider-model-list-notice">
+                <StatusNotice tone="warning" message={t.settings.modelListStale} />
+              </div>
+            ) : modelOptions.length === 0 ? (
+              <div data-testid="provider-model-list-notice">
+                <StatusNotice tone="info" message={t.settings.modelListEmpty} />
+              </div>
+            ) : null}
           </div>
           <div className="section">
             <div className="section-title settings-section-heading">{t.settings.billing}</div>
