@@ -101,6 +101,20 @@ function normalizeAlias(displayName: string): string {
   return displayName.trim();
 }
 
+function normalizeSystemInstruction(value: string | undefined): string | undefined {
+  if (value === undefined || value.trim().length === 0) {
+    return undefined;
+  }
+  return value;
+}
+
+function resolveSystemInstruction(input: ProviderProfileInput, existing: ProviderProfile | undefined): string | undefined {
+  if (Object.prototype.hasOwnProperty.call(input, 'systemInstruction')) {
+    return normalizeSystemInstruction(input.systemInstruction);
+  }
+  return normalizeSystemInstruction(existing?.systemInstruction);
+}
+
 function configuredDefaultModel(profile: ProviderProfile): string {
   const value = profile.config.defaultModel;
   return typeof value === 'string' ? value.trim() : '';
@@ -293,6 +307,7 @@ export async function saveProviderProfile(input: ProviderProfileInput): Promise<
 
     const nextEnabled = input.enabled ?? existing?.enabled ?? true;
     const displayName = nextDisplayName;
+    const systemInstruction = resolveSystemInstruction(input, existing);
     const mergedConfig = normalizeProfileApiConfig(
       apiFormat,
       sanitizeBillingConfig(mergeProfileConfig(existing?.config, input.config), secretRefs) as ProviderProfileConfig,
@@ -306,6 +321,7 @@ export async function saveProviderProfile(input: ProviderProfileInput): Promise<
       profileId: input.profileId,
       apiFormat,
       displayName,
+      ...(systemInstruction ? { systemInstruction } : {}),
       enabled: nextEnabled,
       config: nextConfig,
       ...(Object.keys(secretRefs).length > 0 ? { secretRefs } : {}),

@@ -12,6 +12,7 @@ import type {
 } from '@imagen-ps/application';
 import type { ActiveImageProfileStore } from '../../shared/ports/active-image-profile';
 import { DEFAULT_APP_GENERATION_SETTINGS, normalizeAppGenerationSettings, type AppGenerationSettings, type AppGenerationSettingsStore } from '../../shared/ports/app-generation-settings';
+import { normalizePromptSettings, type PromptSettings, type PromptSettingsStore } from '../../shared/ports/prompt-settings';
 
 export type ChromeStoreName = 'profiles' | 'secrets' | 'history' | 'tasks' | 'assets' | 'appSettings';
 
@@ -33,6 +34,7 @@ const CHROME_DB_NAME = 'imagen-ps-chrome-runtime';
 const CHROME_DB_VERSION = 3;
 const CHROME_STORES: readonly ChromeStoreName[] = ['profiles', 'secrets', 'history', 'tasks', 'assets', 'appSettings'];
 const GENERATION_SETTINGS_KEY = 'generation';
+const PROMPT_SETTINGS_KEY = 'prompt';
 const ACTIVE_IMAGE_PROFILE_KEY = 'activeImageProfile';
 
 function requestResult<T>(request: IDBRequest<T>): Promise<T> {
@@ -186,6 +188,7 @@ export function createChromeIndexedDbStorage(options?: { readonly backend?: Chro
   readonly tasks: TaskStore;
   readonly assets: AssetStore;
   readonly generationSettings: AppGenerationSettingsStore;
+  readonly promptSettings: PromptSettingsStore;
   readonly activeImageProfile: ActiveImageProfileStore;
 } {
   const backend = options?.backend ?? createBrowserIndexedDbBackend();
@@ -304,6 +307,15 @@ export function createChromeIndexedDbStorage(options?: { readonly backend?: Chro
       },
       async save(settings): Promise<void> {
         await backend.put('appSettings', GENERATION_SETTINGS_KEY, normalizeAppGenerationSettings(settings));
+      },
+    },
+    promptSettings: {
+      async load(): Promise<PromptSettings | null> {
+        const stored = await backend.get<PromptSettings>('appSettings', PROMPT_SETTINGS_KEY);
+        return stored === undefined ? null : normalizePromptSettings(stored);
+      },
+      async save(settings): Promise<void> {
+        await backend.put('appSettings', PROMPT_SETTINGS_KEY, normalizePromptSettings(settings));
       },
     },
     activeImageProfile: {

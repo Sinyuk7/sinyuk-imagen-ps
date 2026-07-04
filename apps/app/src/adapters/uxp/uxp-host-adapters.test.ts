@@ -5,6 +5,7 @@ import { createUxpAssetStore, createUxpJobHistoryStore, createUxpTaskStore } fro
 import { createUxpLogSink } from './uxp-log-sink';
 import { createUxpActiveImageProfileStore } from './uxp-active-image-profile-store';
 import { createUxpGenerationSettingsStore } from './uxp-generation-settings-store';
+import { createUxpPromptSettingsStore } from './uxp-prompt-settings-store';
 import { createUxpProviderProfileRepository } from './uxp-provider-profile-repository';
 import { createUxpSecretStorageAdapter } from './uxp-secret-storage-adapter';
 import type { UxpModules } from './uxp-api';
@@ -337,6 +338,48 @@ describe('fake UXP host adapters', () => {
       outputFormat: 'webp',
       aspectRatio: '16:9',
       providerInputSizePreset: '2k',
+    });
+  });
+
+  it('在 data folder JSON 中区分缺失 prompt settings root 与空 preset 列表', async () => {
+    const dataFolder = createFakeDataFolder();
+    const modules: UxpModules = {
+      uxp: {
+        storage: {
+          localFileSystem: {
+            formats: { utf8: 'utf8' },
+            async getDataFolder() {
+              return dataFolder.folder;
+            },
+          },
+        },
+      },
+    };
+
+    const store = createUxpPromptSettingsStore(modules);
+    expect(await store.load()).toBeNull();
+    expect(dataFolder.files['prompt-settings.json']).toBeUndefined();
+
+    await store.save({
+      optimization: {
+        profileId: null,
+        template: '{prompt}',
+      },
+      presets: {
+        selectedId: null,
+        items: [],
+      },
+    });
+
+    expect(await store.load()).toEqual({
+      optimization: {
+        profileId: null,
+        template: '{prompt}',
+      },
+      presets: {
+        selectedId: null,
+        items: [],
+      },
     });
   });
 

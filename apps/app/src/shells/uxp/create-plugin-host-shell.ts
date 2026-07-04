@@ -26,6 +26,7 @@ import { createUxpActiveImageProfileStore } from '../../adapters/uxp/uxp-active-
 import { createUxpProviderProfileRepository } from '../../adapters/uxp/uxp-provider-profile-repository';
 import { createUxpSecretStorageAdapter } from '../../adapters/uxp/uxp-secret-storage-adapter';
 import { createUxpGenerationSettingsStore } from '../../adapters/uxp/uxp-generation-settings-store';
+import { createUxpPromptSettingsStore } from '../../adapters/uxp/uxp-prompt-settings-store';
 import { cleanupUxpLogs, createUxpLogSink, writeUxpUiCheckpoint, writeUxpUiFailure } from '../../adapters/uxp/uxp-log-sink';
 import { createMemoryThumbnailStore } from '../../shared/image/thumbnail-store';
 import { createTaskResourceResolver } from '../../shared/image/task-resource-resolver';
@@ -99,6 +100,7 @@ export function createPluginHostShell(): PluginHostShell {
     const assetStore = createUxpAssetStore(uxpModules);
     const storageAdmin = createUxpStorageAdmin(uxpModules);
     const generationSettings = createUxpGenerationSettingsStore(uxpModules);
+    const promptSettings = createUxpPromptSettingsStore(uxpModules);
     const activeImageProfile = createUxpActiveImageProfileStore(uxpModules);
 
     logger.info('panel.adapters.initialized', {
@@ -152,6 +154,7 @@ export function createPluginHostShell(): PluginHostShell {
         commands: createCommandsAdapter(),
         host: hostBridge,
         generationSettings,
+        promptSettings,
         activeImageProfile,
         pathInfo: {
           getPathInfo: async () => resolveUxpPathInfo(uxpModules),

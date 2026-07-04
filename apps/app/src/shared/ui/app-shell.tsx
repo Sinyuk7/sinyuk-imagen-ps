@@ -9,6 +9,7 @@ import { useConversation } from './hooks/use-conversation';
 import { useComposerDraft } from './hooks/use-composer-draft';
 import { useImagenSession } from './hooks/use-imagen-session';
 import { useGenerationSettings } from './hooks/use-generation-settings';
+import { usePromptSettings } from './hooks/use-prompt-settings';
 import { useJobHistory } from './hooks/use-job-history';
 import { useProfileModels, useProviderProfiles } from './hooks/use-provider-settings';
 import { MainPage } from './pages/main-page';
@@ -17,6 +18,8 @@ import { SettingsPage } from './pages/settings-page';
 import { SettingsAddPage } from './pages/settings-add-page';
 import { SettingsDetailPage } from './pages/settings-detail-page';
 import { GlobalGenerationSettingsPage } from './pages/global-generation-settings-page';
+import { PromptSettingsPage } from './pages/prompt-settings-page';
+import { PromptPresetDetailPage } from './pages/prompt-preset-detail-page';
 import { ToastHost, ToastProvider, useToast } from './components/toast-host';
 import { PopupLayerProvider, PopupLayerRoot } from './components/popup-layer';
 import { I18nProvider, useI18n } from './i18n/i18n-context';
@@ -37,7 +40,7 @@ export interface AppShellProps {
   readonly host: AppShellHost;
 }
 
-type View = 'main' | 'history' | 'settings' | 'settings-add' | 'settings-detail' | 'global-generation-settings';
+type View = 'main' | 'history' | 'settings' | 'settings-add' | 'settings-detail' | 'global-generation-settings' | 'prompt-settings' | 'prompt-preset-detail';
 type AppTheme = 'dark' | 'light';
 type AppThemeOverride = AppTheme | undefined;
 type PanelWidthMode = 'compact' | 'regular' | 'wide';
@@ -204,6 +207,7 @@ function AppShellContent({ host }: AppShellProps) {
   const [selectedImageProfileId, setSelectedImageProfileId] = useState<string | null>(null);
   const [activeImageProfileHydrated, setActiveImageProfileHydrated] = useState(false);
   const [selectedSettingsProfileId, setSelectedSettingsProfileId] = useState<string | null>(null);
+  const [selectedPromptPresetId, setSelectedPromptPresetId] = useState<string | null>(null);
   const [selectedModelId, setSelectedModelId] = useState('');
   const [highlightedRoundId, setHighlightedRoundId] = useState<string | null>(null);
   const [restoreFailedRoundId, setRestoreFailedRoundId] = useState<string | null>(null);
@@ -225,6 +229,7 @@ function AppShellContent({ host }: AppShellProps) {
     [modelsState.models, selectedProfile],
   );
   const generationSettings = useGenerationSettings(services);
+  const promptSettings = usePromptSettings(services);
   const imagenSession = useImagenSession(services);
   const conversation = useConversation(services, imagenSession, generationSettings.settings, t.conversation);
   const composerDraft = useComposerDraft();
@@ -456,6 +461,8 @@ function AppShellContent({ host }: AppShellProps) {
             setView('settings-detail');
           }}
           onOpenGlobalGeneration={() => setView('global-generation-settings')}
+          onOpenPromptSettings={() => setView('prompt-settings')}
+          generationSettings={generationSettings.settings}
           />
         </MotionPageFrame>
       )}
@@ -520,6 +527,39 @@ function AppShellContent({ host }: AppShellProps) {
           saveState={generationSettings.saveState}
           outputSizeContext={outputSizeContext}
           onSave={generationSettings.save}
+          />
+        </MotionPageFrame>
+      )}
+      {view === 'prompt-settings' && (
+        <MotionPageFrame watch={view}>
+          <PromptSettingsPage
+          onNav={onNav}
+          settings={promptSettings.settings}
+          profiles={promptSettings.profiles}
+          loading={promptSettings.loading}
+          error={promptSettings.error}
+          saveState={promptSettings.saveState}
+          templateValid={promptSettings.templateValid}
+          activationState={promptSettings.activationState}
+          presetViews={promptSettings.presetViews}
+          onSave={promptSettings.save}
+          onSelectPreset={promptSettings.selectPreset}
+          onDeletePreset={promptSettings.deletePreset}
+          onOpenPreset={(presetId) => {
+            setSelectedPromptPresetId(presetId);
+            setView('prompt-preset-detail');
+          }}
+          />
+        </MotionPageFrame>
+      )}
+      {view === 'prompt-preset-detail' && (
+        <MotionPageFrame watch={view}>
+          <PromptPresetDetailPage
+          onNav={onNav}
+          preset={selectedPromptPresetId
+            ? promptSettings.settings.presets.items.find((preset) => preset.id === selectedPromptPresetId) ?? null
+            : null}
+          onSave={promptSettings.upsertPreset}
           />
         </MotionPageFrame>
       )}

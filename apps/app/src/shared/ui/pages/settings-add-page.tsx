@@ -100,6 +100,7 @@ export function SettingsAddPage({ onNav, profiles, onProfileSaved }: SettingsAdd
   const [detectionValue, setDetectionValue] = useState('');
   const [apiFormatFeedback, setApiFormatFeedback] = useState<{ readonly tone: 'neutral' | 'positive' | 'negative' | 'warning'; readonly message: string } | null>(null);
   const [name, setName] = useState('');
+  const [systemInstruction, setSystemInstruction] = useState('');
   const [connection, setConnection] = useState<ProviderConnectionDraft>(defaultConnection());
   const [apiKey, setApiKey] = useState('');
   const [defaultModel, setDefaultModel] = useState('');
@@ -274,6 +275,7 @@ export function SettingsAddPage({ onNav, profiles, onProfileSaved }: SettingsAdd
       profileId,
       apiFormat,
       displayName,
+      systemInstruction,
       config: providerConfigFromForm(apiFormat, displayName, nextConnection, defaultModel, paths, nextBilling),
       ...(sanitizeProviderSecretValue(apiKey) ? { secretValues: { apiKey: sanitizeProviderSecretValue(apiKey) } } : {}),
     };
@@ -452,6 +454,7 @@ export function SettingsAddPage({ onNav, profiles, onProfileSaved }: SettingsAdd
       profileId,
       apiFormat,
       displayName,
+      systemInstruction,
       enabled: true,
       config: providerConfigFromForm(apiFormat, displayName, connection, defaultModel, paths, billing),
       ...((sanitizeProviderSecretValue(apiKey) || sanitizeProviderSecretValue(billing.accessToken))
@@ -513,6 +516,8 @@ export function SettingsAddPage({ onNav, profiles, onProfileSaved }: SettingsAdd
           }}
           aliasError={aliasError}
           aliasPlaceholder={apiFormat ? apiFormatLabel(apiFormat) : t.settings.apiProfile}
+          systemInstructionValue={systemInstruction}
+          onSystemInstructionValue={setSystemInstruction}
           apiFormatLabel={apiFormatLabel(apiFormat)}
           apiFormatTone={apiFormatFeedback?.tone ?? (apiFormat ? 'positive' : 'neutral')}
           apiFormatDetail={apiFormatFeedback?.message ?? (!apiFormat ? t.settings.apiFormatNeedsPath : null)}

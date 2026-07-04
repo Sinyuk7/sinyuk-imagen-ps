@@ -27,6 +27,12 @@ function changeInput(input: HTMLElement & { value?: string }, value: string): vo
   input.dispatchEvent(new KeyboardEvent('keyup', { bubbles: true, key: 'x' }));
 }
 
+function changeTextarea(input: HTMLElement & { value?: string }, value: string): void {
+  const setter = Object.getOwnPropertyDescriptor(HTMLTextAreaElement.prototype, 'value')?.set;
+  setter?.call(input, value);
+  input.dispatchEvent(new KeyboardEvent('keyup', { bubbles: true, key: 'x' }));
+}
+
 function queryByTestId(container: HTMLElement, testId: string): HTMLElement & { value?: string } {
   const element = container.querySelector<HTMLElement & { value?: string }>(`[data-testid="${testId}"]`);
   if (!element) {
@@ -117,6 +123,7 @@ describe('SettingsAddPage', () => {
     await act(async () => {
       changeInput(queryByTestId(container, 'provider-default-model-input'), 'mock-image-v1');
       changeInput(queryByTestId(container, 'provider-api-key-input'), 'secret-key');
+      changeTextarea(queryByTestId(container, 'provider-system-instructions-input'), 'Use a crisp editorial tone.\nKeep color natural.');
     });
 
     await act(async () => {
@@ -128,11 +135,32 @@ describe('SettingsAddPage', () => {
         profileId: expect.stringMatching(/^profile-/),
         apiFormat: 'openai-images',
         displayName: 'Local Mock',
+        systemInstruction: 'Use a crisp editorial tone.\nKeep color natural.',
         secretValues: { apiKey: 'secret-key' },
       }),
     );
     expect(spies.saveProviderProfile.mock.calls[0]?.[0]).not.toHaveProperty('apiKey');
     expect(spies.saveProviderProfile.mock.calls[0]?.[0]).not.toHaveProperty('providerId');
+  });
+
+  it('renders the shared system instructions textarea on add profile', async () => {
+    const { services } = createFakeServices();
+    const container = document.createElement('div');
+    document.body.appendChild(container);
+    root = createRoot(container);
+
+    await act(async () => {
+      root!.render(
+        <TestAppProviders services={services}>
+          <SettingsAddPage onNav={() => undefined} profiles={[]} onProfileSaved={async () => undefined} />
+        </TestAppProviders>,
+      );
+    });
+
+    const field = queryByTestId(container, 'provider-system-instructions-input');
+    expect(field.tagName).toBe('TEXTAREA');
+    expect(container.textContent).toMatch(/System instructions|系统指令/);
+    expect(container.textContent).toMatch(/Optional tone and style instructions for the model|模型语气与风格指令/);
   });
 
   it('reveals new-api billing fields when that mode is selected', async () => {

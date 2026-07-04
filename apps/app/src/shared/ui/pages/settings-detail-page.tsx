@@ -138,6 +138,7 @@ function hasDraftChanges(
     readonly defaultModel: string;
     readonly paths: ApiPathDraft;
     readonly billing: ProviderBillingDraft;
+    readonly systemInstruction: string;
     readonly apiKey: string;
     readonly apiKeyRemovalPending: boolean;
     readonly billingAccessTokenRemovalPending: boolean;
@@ -165,6 +166,7 @@ function hasDraftChanges(
   );
   return (
     nextDisplayName !== profile.displayName ||
+    draft.systemInstruction !== (profile.systemInstruction ?? '') ||
     normalizeConfigForDraftCompare(nextConfig) !== normalizeConfigForDraftCompare(profile.config)
   );
 }
@@ -207,6 +209,7 @@ export function SettingsDetailPage({ onNav, profileId, onProfilesChanged, onSave
   const detail = useProfileDetail(services, profileId);
   const { show } = useToast();
   const [displayName, setDisplayName] = useState('');
+  const [systemInstruction, setSystemInstruction] = useState('');
   const [connection, setConnection] = useState<ProviderConnectionDraft>(readProviderConnectionDraft(null));
   const [defaultModel, setDefaultModel] = useState('');
   const [paths, setPaths] = useState<ApiPathDraft>(defaultApiPathDraft(null));
@@ -250,6 +253,7 @@ export function SettingsDetailPage({ onNav, profileId, onProfilesChanged, onSave
           defaultModel,
           paths,
           billing: billingDraft,
+          systemInstruction,
           apiKey,
           apiKeyRemovalPending,
           billingAccessTokenRemovalPending,
@@ -344,6 +348,7 @@ export function SettingsDetailPage({ onNav, profileId, onProfilesChanged, onSave
       return;
     }
     setDisplayName(detail.profile.displayName);
+    setSystemInstruction(detail.profile.systemInstruction ?? '');
     const nextConnection = readProviderConnectionDraft(detail.profile);
     connectionRef.current = nextConnection;
     setConnection(nextConnection);
@@ -395,6 +400,7 @@ export function SettingsDetailPage({ onNav, profileId, onProfilesChanged, onSave
       profileId: detail.profile.profileId,
       apiFormat: detail.profile.apiFormat,
       displayName: sanitizeProviderDisplayName(displayName) || detail.profile.displayName,
+      systemInstruction,
       enabled: detail.profile.enabled,
       config: mergeProfileConfigForSave(
         detail.profile,
@@ -432,6 +438,7 @@ export function SettingsDetailPage({ onNav, profileId, onProfilesChanged, onSave
       profileId: detail.profile.profileId,
       apiFormat: detail.profile.apiFormat,
       displayName: sanitizeProviderDisplayName(displayName) || detail.profile.displayName,
+      systemInstruction,
       config: mergeProfileConfigForSave(
         detail.profile,
         providerConfigFromForm(
@@ -855,6 +862,8 @@ export function SettingsDetailPage({ onNav, profileId, onProfilesChanged, onSave
                 setAliasError(null);
               }}
               aliasError={aliasError}
+              systemInstructionValue={systemInstruction}
+              onSystemInstructionValue={setSystemInstruction}
               apiFormatLabel={apiFormatLabel(detail.profile.apiFormat)}
               apiFormatTone="positive"
               apiFormatDetail={t.settings.apiFormatDetected(apiFormatLabel(detail.profile.apiFormat))}

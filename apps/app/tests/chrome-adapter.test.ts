@@ -131,6 +131,41 @@ describe('Chrome adapter contracts', () => {
     expect(await storage.profiles.list()).toEqual([]);
   });
 
+  it('persists prompt settings as a distinct nullable root record', async () => {
+    const storage = createChromeIndexedDbStorage({ backend: createMemoryIndexedDbBackend() });
+
+    expect(await storage.promptSettings.load()).toBeNull();
+
+    await storage.promptSettings.save({
+      optimization: {
+        profileId: 'optimizer-profile',
+        template: 'rewrite {prompt}',
+      },
+      presets: {
+        selectedId: null,
+        items: [],
+      },
+    });
+
+    expect(await storage.promptSettings.load()).toEqual({
+      optimization: {
+        profileId: 'optimizer-profile',
+        template: 'rewrite {prompt}',
+      },
+      presets: {
+        selectedId: null,
+        items: [],
+      },
+    });
+    expect(await storage.generationSettings.load()).toEqual({
+      outputSizePreset: '2k',
+      outputFormat: 'png',
+      aspectRatio: 'auto',
+      providerInputSizePreset: '1k',
+    });
+    expect(await storage.profiles.list()).toEqual([]);
+  });
+
   it('continues asset refs after restart instead of reusing chrome-idb-asset keys', async () => {
     const backend = createMemoryIndexedDbBackend();
     const firstStorage = createChromeIndexedDbStorage({ backend });

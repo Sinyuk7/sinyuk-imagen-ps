@@ -19,6 +19,12 @@ afterEach(async () => {
   await cleanupSettingsDetailRoot();
 });
 
+function changeTextarea(input: HTMLElement & { value?: string }, value: string): void {
+  const setter = Object.getOwnPropertyDescriptor(HTMLTextAreaElement.prototype, 'value')?.set;
+  setter?.call(input, value);
+  input.dispatchEvent(new KeyboardEvent('keyup', { bubbles: true, key: 'x' }));
+}
+
 describe('SettingsDetailPage contract — profile editing', () => {
   it('saves edited provider profile through profile commands', async () => {
     const container = document.createElement('div');
@@ -197,6 +203,56 @@ describe('SettingsDetailPage contract — profile editing', () => {
     expect(input).toBeDefined();
     expect(input).not.toHaveProperty('secretValues');
     expect(input).not.toHaveProperty('apiKey');
+  });
+
+  it('renders and persists shared system instructions on edit profile', async () => {
+    const container = document.createElement('div');
+    document.body.appendChild(container);
+    const profile = {
+      ...fakeProfile,
+      systemInstruction: 'Existing instruction',
+    };
+    const services = createFakeServices({ profiles: [profile] });
+    await renderDetailWithRoot(container, services, 'mock-profile', vi.fn(), vi.fn(async () => undefined));
+    const { spies } = services;
+
+    const field = queryByTestId(container, 'provider-system-instructions-input') as HTMLTextAreaElement;
+    expect(field.tagName).toBe('TEXTAREA');
+    expect(field.value).toBe('Existing instruction');
+
+    await act(async () => {
+      changeTextarea(field, 'New instruction\nwith line');
+    });
+    await act(async () => {
+      queryByTestId(container, 'provider-save-button').click();
+    });
+
+    expect(spies.saveProviderProfile).toHaveBeenCalledWith(expect.objectContaining({
+      systemInstruction: 'New instruction\nwith line',
+    }));
+  });
+
+  it('passes an empty systemInstruction when edit clears the textarea', async () => {
+    const container = document.createElement('div');
+    document.body.appendChild(container);
+    const profile = {
+      ...fakeProfile,
+      systemInstruction: 'Existing instruction',
+    };
+    const services = createFakeServices({ profiles: [profile] });
+    await renderDetailWithRoot(container, services, 'mock-profile', vi.fn(), vi.fn(async () => undefined));
+    const { spies } = services;
+
+    await act(async () => {
+      changeTextarea(queryByTestId(container, 'provider-system-instructions-input'), '');
+    });
+    await act(async () => {
+      queryByTestId(container, 'provider-save-button').click();
+    });
+
+    expect(spies.saveProviderProfile).toHaveBeenCalledWith(expect.objectContaining({
+      systemInstruction: '',
+    }));
   });
 
   it('shows explicit saved api key edit and remove actions', async () => {

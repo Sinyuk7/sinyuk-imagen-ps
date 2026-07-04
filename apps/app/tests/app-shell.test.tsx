@@ -274,7 +274,7 @@ describe('AppShell', () => {
       apiFormat: 'openai-images',
       displayName: 'Second Mock',
     }));
-    expect(container.textContent).toContain('Providers');
+    expect(container.textContent).toContain('Configuration');
     expect(container.querySelector('[data-testid="toast"]')?.textContent).toContain('Saved');
     expect(await services.activeImageProfile.load()).toBe('mock-profile');
   });

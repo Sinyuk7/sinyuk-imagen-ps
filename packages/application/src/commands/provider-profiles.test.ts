@@ -331,4 +331,107 @@ describe('provider profile alias contract', () => {
     expect(secrets.get('secret:provider-profile:profile-remove:apiKey')).toBe('key-a');
     expect(secrets.has('secret:provider-profile:profile-remove:billingAccessToken')).toBe(false);
   });
+
+  it('round-trips top-level systemInstruction without moving it into provider config', async () => {
+    _resetForTesting();
+    const { repository, profiles } = createProfileRepository();
+    const { adapter } = createSecretStorage();
+    setProviderProfileRepository(repository);
+    setSecretStorageAdapter(adapter);
+
+    const saved = await saveProviderProfile({
+      ...mockProfileInput('profile-system', 'System Mock', 'mock-image-v1', 'key-system'),
+      systemInstruction: '  keep leading spaces\nand trailing spaces  ',
+    });
+
+    expect(saved.ok).toBe(true);
+    if (saved.ok) {
+      expect(saved.value.systemInstruction).toBe('  keep leading spaces\nand trailing spaces  ');
+      expect(saved.value.config).not.toHaveProperty('systemInstruction');
+    }
+
+    const listed = await listProviderProfiles();
+    expect(listed.ok).toBe(true);
+    if (listed.ok) {
+      expect(listed.value[0]?.systemInstruction).toBe('  keep leading spaces\nand trailing spaces  ');
+      expect(listed.value[0]?.config).not.toHaveProperty('systemInstruction');
+    }
+    expect(profiles[0]?.systemInstruction).toBe('  keep leading spaces\nand trailing spaces  ');
+  });
+
+  it('updates and clears systemInstruction while preserving unrelated profile fields', async () => {
+    _resetForTesting();
+    const { repository, profiles } = createProfileRepository();
+    const { adapter } = createSecretStorage();
+    setProviderProfileRepository(repository);
+    setSecretStorageAdapter(adapter);
+
+    const base = await saveProviderProfile({
+      ...mockProfileInput('profile-edit-system', 'Edit System Mock', 'mock-image-v1', 'key-edit'),
+      systemInstruction: 'first',
+    });
+    expect(base.ok).toBe(true);
+    profiles[0] = {
+      ...profiles[0]!,
+      models: [{ id: 'cached-model', displayName: 'Cached Model' }],
+    };
+    const beforeConfig = profiles[0]!.config;
+    const beforeSecretRefs = profiles[0]!.secretRefs;
+    const beforeModels = profiles[0]!.models;
+
+    const updated = await saveProviderProfile({
+      profileId: 'profile-edit-system',
+      apiFormat: 'openai-images',
+      displayName: 'Edit System Mock',
+      systemInstruction: 'second\nline',
+      config: {},
+    });
+    expect(updated.ok).toBe(true);
+    if (updated.ok) {
+      expect(updated.value.systemInstruction).toBe('second\nline');
+      expect(updated.value.config).toEqual(beforeConfig);
+      expect(updated.value.secretRefs).toEqual(beforeSecretRefs);
+      expect(updated.value.models).toEqual(beforeModels);
+    }
+
+    const cleared = await saveProviderProfile({
+      profileId: 'profile-edit-system',
+      apiFormat: 'openai-images',
+      displayName: 'Edit System Mock',
+      systemInstruction: '   \n\t  ',
+      config: {},
+    });
+    expect(cleared.ok).toBe(true);
+    if (cleared.ok) {
+      expect(cleared.value.systemInstruction).toBeUndefined();
+      expect(cleared.value.config).toEqual(beforeConfig);
+      expect(cleared.value.secretRefs).toEqual(beforeSecretRefs);
+      expect(cleared.value.models).toEqual(beforeModels);
+    }
+  });
+
+  it('reads legacy profiles without systemInstruction normally', async () => {
+    _resetForTesting();
+    const { repository, profiles } = createProfileRepository();
+    const { adapter } = createSecretStorage();
+    setProviderProfileRepository(repository);
+    setSecretStorageAdapter(adapter);
+
+    profiles.push({
+      profileId: 'legacy-profile',
+      apiFormat: 'openai-images',
+      displayName: 'Legacy Profile',
+      enabled: true,
+      config: {},
+      createdAt: '2026-06-15T00:00:00.000Z',
+      updatedAt: '2026-06-15T00:00:00.000Z',
+    });
+
+    const listed = await listProviderProfiles();
+    expect(listed.ok).toBe(true);
+    if (listed.ok) {
+      expect(listed.value[0]).toMatchObject({ profileId: 'legacy-profile', displayName: 'Legacy Profile' });
+      expect(listed.value[0]?.systemInstruction).toBeUndefined();
+    }
+  });
 });
