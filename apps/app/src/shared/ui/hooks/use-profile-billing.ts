@@ -21,13 +21,14 @@ function billingStateKey(state: ProfileBillingState | null | undefined): string 
 export function useProfileBilling(
   services: AppServices,
   profileId: string | null,
+  enabled = true,
 ): ProfileBillingViewState {
   const [billing, setBilling] = useState<ProfileBillingState | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const refresh = useCallback(async () => {
-    if (!profileId) {
+    if (!profileId || !enabled) {
       setBilling(null);
       setError(null);
       setLoading(false);
@@ -46,10 +47,10 @@ export function useProfileBilling(
       }
     }
     setLoading(false);
-  }, [profileId, services]);
+  }, [enabled, profileId, services]);
 
   const observeAsyncRefresh = useCallback(async (): Promise<ProfileBillingState | null> => {
-    if (!profileId) {
+    if (!profileId || !enabled) {
       return null;
     }
     const baselineKey = billingStateKey(billing);
@@ -76,10 +77,10 @@ export function useProfileBilling(
       }
     }
     return initialState;
-  }, [billing, profileId, services]);
+  }, [billing, enabled, profileId, services]);
 
   useEffect(() => {
-    if (!profileId) {
+    if (!profileId || !enabled) {
       setBilling(null);
       setError(null);
       setLoading(false);
@@ -109,7 +110,7 @@ export function useProfileBilling(
     return () => {
       disposed = true;
     };
-  }, [profileId, refresh, services]);
+  }, [enabled, profileId, refresh, services]);
 
   return { billing, loading, error, refresh, observeAsyncRefresh };
 }

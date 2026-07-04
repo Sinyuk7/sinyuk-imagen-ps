@@ -104,6 +104,6 @@ describe('SettingsDetailPage contract — model list', () => {
     });
     await renderDetailWithRoot(container, services, 'mock-profile', noopNav(), noopProfilesChanged());
 
-    expect(queryByTestId(container, 'provider-model-status-notice').textContent).toContain('自定义模型尚未验证');
+    expect(queryByTestId(container, 'provider-model-status-notice').textContent).toContain('当前将按原样发送已配置模型 ID，但可用性尚未验证。');
   });
 });

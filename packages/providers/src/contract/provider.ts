@@ -5,6 +5,7 @@ import type { ApiFormat } from './api-format.js';
 import type {
   ExactTaskCost,
   ProviderBalanceQueryInput,
+  ProviderBillingCapability,
   ProviderBalanceSnapshot,
 } from './billing.js';
 import type { ProviderConfig } from './config.js';
@@ -144,14 +145,6 @@ export interface ProviderWireCapability {
 
   /** provider 声明的响应 codec。 */
   readonly responseCodecs?: readonly ProviderResponseCodec[];
-}
-
-export interface ProviderBillingCapability {
-  /** 支持的余额查询模式。 */
-  readonly supportedModes: readonly ('none' | 'official' | 'new-api')[];
-
-  /** 已知 preset 的缺省模式。 */
-  readonly defaultMode?: 'official' | 'new-api' | 'none';
 }
 
 /** `invoke()` 的调用参数。 */

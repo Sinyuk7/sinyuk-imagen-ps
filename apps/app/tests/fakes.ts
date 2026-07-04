@@ -108,6 +108,7 @@ export const fakeProvider: ProviderDescriptor = {
   defaultModels: [{ id: 'mock-image-v1' }],
   billing: {
     supportedModes: ['none'],
+    query: 'supported',
   },
 };
 
@@ -122,6 +123,7 @@ export const fakeChatProvider: ProviderDescriptor = {
   billing: {
     supportedModes: ['none', 'new-api'],
     defaultMode: 'new-api',
+    query: 'mode-dependent',
   },
   connectivity: {
     endpointMeasurement: 'supported',

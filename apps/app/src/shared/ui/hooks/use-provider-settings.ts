@@ -86,13 +86,37 @@ export interface ProviderProfileUpsertCapabilities {
   readonly canReadBillingState: boolean;
 }
 
-export function providerProfileUpsertCapabilities(profile: ProviderProfile | null): ProviderProfileUpsertCapabilities {
+export function providerSupportsBalanceQuery(
+  descriptor: ProviderDescriptor | null | undefined,
+  profile: ProviderProfile | null,
+): boolean {
+  const query = descriptor?.billing?.query;
+  if (query === 'supported') {
+    return true;
+  }
+  if (query === 'unsupported' || !profile) {
+    return false;
+  }
+  if (query === 'mode-dependent') {
+    const billing = profile.config.billing;
+    if (!billing || typeof billing !== 'object' || Array.isArray(billing)) {
+      return descriptor?.billing?.defaultMode !== 'none';
+    }
+    return (billing as { readonly mode?: unknown }).mode !== 'none';
+  }
+  return true;
+}
+
+export function providerProfileUpsertCapabilities(
+  profile: ProviderProfile | null,
+  descriptor?: ProviderDescriptor | null,
+): ProviderProfileUpsertCapabilities {
   return {
     canDeleteProfile: Boolean(profile),
     canRemoveSavedApiKey: Boolean(profile?.secretRefs?.apiKey),
     canRemoveSavedBillingToken: Boolean(profile?.secretRefs?.billingAccessToken),
     canRefreshPersistedModelCache: Boolean(profile),
-    canReadBillingState: Boolean(profile),
+    canReadBillingState: providerSupportsBalanceQuery(descriptor, profile),
   };
 }
 
@@ -118,7 +142,11 @@ export function resolveProviderModelMode(
   if (!normalizedConfigured) {
     return 'list';
   }
-  return models.some((model) => model.id === normalizedConfigured) ? 'list' : 'custom';
+  const selected = models.find((model) => model.id === normalizedConfigured);
+  if (!selected) {
+    return 'custom';
+  }
+  return selected.supportStatus === 'custom-unchecked' ? 'custom' : 'list';
 }
 
 export function providerModelOptions(

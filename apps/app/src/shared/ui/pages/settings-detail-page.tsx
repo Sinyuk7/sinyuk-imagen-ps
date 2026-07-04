@@ -12,6 +12,7 @@ import {
   mergeApiPathDraft,
   normalizeProviderConnectionDraft,
   providerProfileUpsertCapabilities,
+  providerSupportsBalanceQuery,
   providerConfigFromForm,
   readApiPathDraft,
   readProviderBillingDraft,
@@ -46,6 +47,7 @@ import {
 } from '../provider-status';
 import { useProfileBilling } from '../hooks/use-profile-billing';
 import { formatBalanceChange, formatBillingPrimary, formatExactTaskCost } from '../../domain/mappers';
+import { importProviderEndpointInput } from '../hooks/provider-endpoint-import';
 
 interface SettingsDetailPageProps {
   readonly onNav: (view: string) => void;
@@ -189,19 +191,6 @@ function duplicateEndpointErrors(
   return errors;
 }
 
-function replaceEndpointUrl(
-  connection: ProviderConnectionDraft,
-  endpointId: string,
-  url: string,
-): ProviderConnectionDraft {
-  return {
-    ...connection,
-    endpoints: connection.endpoints.map((endpoint) => (
-      endpoint.id === endpointId ? { ...endpoint, url } : endpoint
-    )),
-  };
-}
-
 function billingDraftForSave(
   billing: ProviderBillingDraft,
   removeAccessToken: boolean,
@@ -240,10 +229,11 @@ export function SettingsDetailPage({ onNav, profileId, onProfilesChanged, onSave
   const billingDraftRef = useRef(billingDraft);
   const saveBusyRef = useRef(false);
   const connectionTestBusyRef = useRef(false);
-  const billing = useProfileBilling(services, profileId);
-  const busy = saveBusy;
   const providerDescriptor = detail.profile ? descriptorForApiFormat(providers, detail.profile.apiFormat) : undefined;
-  const capabilities = providerProfileUpsertCapabilities(detail.profile);
+  const billingSupported = providerSupportsBalanceQuery(providerDescriptor, detail.profile);
+  const billing = useProfileBilling(services, profileId, billingSupported);
+  const busy = saveBusy;
+  const capabilities = providerProfileUpsertCapabilities(detail.profile, providerDescriptor);
   const measurementSupported = Boolean(providerDescriptor && providerDescriptor.connectivity?.endpointMeasurement !== 'unsupported');
   const connectionTestSupported = Boolean(providerDescriptor && providerDescriptor.connectivity?.connectionTest !== 'unsupported');
   const modelDiscoverySupported = measurementSupported;
@@ -295,23 +285,43 @@ export function SettingsDetailPage({ onNav, profileId, onProfilesChanged, onSave
       return previousEndpoint && previousEndpoint.url !== endpoint.url;
     });
     if (changedEndpoint && detail.profile) {
-      const classification = services.commands.classifyEndpoint(changedEndpoint.url);
-      if (classification.status !== 'unsupported') {
-        if (classification.apiFormat !== detail.profile.apiFormat) {
+      const imported = importProviderEndpointInput({
+        rawValue: changedEndpoint.url,
+        apiFormat: detail.profile.apiFormat,
+        currentPaths: paths,
+        currentConnection: nextConnection,
+        endpointId: changedEndpoint.id,
+        previousConnection: previous,
+        profiles: [],
+        nameTouched: true,
+        defaultModel,
+        defaultPathsForApiFormat: defaultApiPathDraft,
+        mergeApiPathDraft,
+        classifyEndpoint: services.commands.classifyEndpoint,
+      });
+      if (imported.classification.status !== 'unsupported') {
+        if (imported.classification.apiFormat !== detail.profile.apiFormat) {
           show(
-            t.settings.apiFormatConflict(apiFormatLabel(detail.profile.apiFormat), apiFormatLabel(classification.apiFormat)),
+            t.settings.apiFormatConflict(apiFormatLabel(detail.profile.apiFormat), apiFormatLabel(imported.classification.apiFormat)),
             'negative',
             { durationMs: null, copyable: false },
           );
           nextConnection = previous;
         } else {
-          setPaths((current) => mergeApiPathDraft(current, classification.paths, classification.apiFormat));
-          if (classification.source === 'full-url' && classification.baseUrl) {
-            nextConnection = replaceEndpointUrl(nextConnection, changedEndpoint.id, classification.baseUrl);
-          } else if (classification.source === 'path') {
-            const previousUrl = previous.endpoints.find((endpoint) => endpoint.id === changedEndpoint.id)?.url ?? '';
-            nextConnection = replaceEndpointUrl(nextConnection, changedEndpoint.id, previousUrl);
-          }
+          setPaths(imported.nextPaths);
+          nextConnection = imported.nextConnection;
+          void services.diagnostics?.checkpoint('uxp.ui.settings_detail.endpoint_import', {
+            apiFormat: detail.profile.apiFormat,
+            aliasApplied: imported.diagnostics.aliasApplied,
+            aliasCandidate: imported.diagnostics.aliasCandidate ?? null,
+            aliasSkippedReason: imported.diagnostics.aliasSkippedReason ?? null,
+            importedModel: imported.diagnostics.importedModel ?? null,
+            classificationStatus: imported.classification.status,
+            classificationSource: imported.classification.source,
+          }, {
+            profile_id: detail.profile.profileId,
+            api_format: detail.profile.apiFormat,
+          });
         }
       }
     }
@@ -893,7 +903,7 @@ export function SettingsDetailPage({ onNav, profileId, onProfilesChanged, onSave
               triggerValue={modelTriggerValue}
               listNotice={modelListNotice}
               modelStatusNotice={selectedModelStatus ? {
-                tone: selectedModelInfo?.supportStatus === 'custom-unchecked' ? 'warning' : 'info',
+                tone: 'info',
                 message: selectedModelStatus,
               } : null}
               onRefresh={() => void refreshModels()}

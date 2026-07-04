@@ -13,6 +13,7 @@ import type {
 import { derivePlacementIntent } from '../hooks/use-conversation';
 import type { ComposerDraftController } from '../hooks/use-composer-draft';
 import { useProfileBilling } from '../hooks/use-profile-billing';
+import { descriptorForApiFormat, providerSupportsBalanceQuery, useProviderCatalog } from '../hooks/use-provider-settings';
 import { useLayerThumbnail } from '../hooks/use-layer-thumbnail';
 import { Icon } from '../components/icons';
 import { IconSelect } from '../components/icon-select';
@@ -381,6 +382,7 @@ export function MainPage({
   const [layerOpen, setLayerOpen] = useState(false);
   const [captureInFlight, setCaptureInFlight] = useState(false);
   const { show } = useToast();
+  const providers = useProviderCatalog(services);
   const [copied, setCopied] = useState<Record<string, boolean>>({});
   const [selectedPreviewIndexes, setSelectedPreviewIndexes] = useState<Record<string, number>>({});
   const [placeStatus, setPlaceStatus] = useState<Record<string, PlaceStatus>>({});
@@ -419,7 +421,8 @@ export function MainPage({
       default: return kind ? kind.charAt(0).toUpperCase() + kind.slice(1) : t.main.layerKindDefault;
     }
   }
-  const billing = useProfileBilling(services, selectedProfileId);
+  const selectedDescriptor = selectedProfile ? descriptorForApiFormat(providers, selectedProfile.apiFormat) : undefined;
+  const billing = useProfileBilling(services, selectedProfileId, providerSupportsBalanceQuery(selectedDescriptor, selectedProfile ?? null));
   const billingPrimaryParts = formatBillingPrimaryParts(billing.billing);
   const billingPrimaryHasNumericEmphasis = billingPrimaryParts ? /\d/.test(billingPrimaryParts.primary) : false;
   const billingSummaryText = formatBillingPrimary(billing.billing) ?? t.main.billingUnknown;

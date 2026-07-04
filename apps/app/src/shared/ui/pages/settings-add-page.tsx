@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import type { ApiFormat, EndpointClassification, ProviderModelInfo, ProviderProfile } from '@imagen-ps/application';
+import type { ApiFormat, ProviderModelInfo, ProviderProfile } from '@imagen-ps/application';
 import { useAppServices } from '../../ports/app-services-context';
 import {
   apiFormatLabel,
@@ -37,6 +37,7 @@ import {
   statusFromEndpointMeasurementResult,
   statusFromProviderConnectionTestResult,
 } from '../provider-status';
+import { importDetectionFallbackMessage, importProviderEndpointInput } from '../hooks/provider-endpoint-import';
 
 interface SettingsAddPageProps {
   readonly onNav: (view: string) => void;
@@ -66,42 +67,6 @@ function defaultConnection(): ProviderConnectionDraft {
   });
 }
 
-function nextAlias(baseName: string, profiles: readonly ProviderProfile[]): string {
-  const used = new Set(profiles.map((profile) => profile.displayName.trim()));
-  if (!used.has(baseName)) {
-    return baseName;
-  }
-  for (let index = 2; ; index += 1) {
-    const candidate = `${baseName} ${index}`;
-    if (!used.has(candidate)) {
-      return candidate;
-    }
-  }
-}
-
-function aliasFromEndpointUrl(value: string): string | null {
-  try {
-    const url = new URL(value);
-    const host = url.hostname.trim().toLowerCase().replace(/\.+$/, '');
-    if (!host) {
-      return null;
-    }
-    if (/^\d{1,3}(?:\.\d{1,3}){3}$/.test(host)) {
-      return host;
-    }
-    const labels = host.split('.').filter(Boolean);
-    for (const label of labels) {
-      if (label === 'www' || label === 'api') {
-        continue;
-      }
-      return label;
-    }
-    return labels[0] ?? null;
-  } catch {
-    return null;
-  }
-}
-
 function duplicateEndpointErrors(
   connection: ProviderConnectionDraft,
   message: string,
@@ -122,19 +87,6 @@ function duplicateEndpointErrors(
     seen.set(key, endpoint.id);
   }
   return errors;
-}
-
-function replaceEndpointUrl(
-  connection: ProviderConnectionDraft,
-  endpointId: string,
-  url: string,
-): ProviderConnectionDraft {
-  return {
-    ...connection,
-    endpoints: connection.endpoints.map((endpoint) => (
-      endpoint.id === endpointId ? { ...endpoint, url } : endpoint
-    )),
-  };
 }
 
 export function SettingsAddPage({ onNav, profiles, onProfileSaved }: SettingsAddPageProps) {
@@ -223,79 +175,84 @@ export function SettingsAddPage({ onNav, profiles, onProfileSaved }: SettingsAdd
     modelCatalog.invalidate();
   };
 
-  const applyClassification = (
-    classification: EndpointClassification,
+  const applyImportedEndpoint = async (
     rawValue: string,
     nextConnection: ProviderConnectionDraft,
     endpointId?: string,
     previousConnection?: ProviderConnectionDraft,
-  ): ProviderConnectionDraft => {
-    if (classification.status === 'unsupported') {
-      const trimmed = rawValue.trim();
-      if (/^https?:\/\//i.test(trimmed) && !apiFormat) {
-        setApiFormatFeedback({ tone: 'warning', message: t.settings.apiFormatNeedsPath });
-      } else if (trimmed.length > 0 && !apiFormat) {
-        setApiFormatFeedback({ tone: 'negative', message: t.settings.apiFormatUnsupported });
-      }
+  ): Promise<ProviderConnectionDraft> => {
+    const imported = importProviderEndpointInput({
+      rawValue,
+      apiFormat,
+      currentPaths: paths,
+      currentConnection: nextConnection,
+      endpointId,
+      previousConnection,
+      profiles,
+      nameTouched: nameTouchedRef.current,
+      defaultModel,
+      defaultPathsForApiFormat: defaultApiPathDraft,
+      mergeApiPathDraft,
+      classifyEndpoint: services.commands.classifyEndpoint,
+      normalizeBaseUrlIntoConnection: true,
+    });
+    const feedback = importDetectionFallbackMessage({
+      classification: imported.classification,
+      rawValue,
+      currentApiFormat: apiFormat,
+      messages: {
+        apiFormatNeedsPath: t.settings.apiFormatNeedsPath,
+        apiFormatUnsupported: t.settings.apiFormatUnsupported,
+        apiFormatDetected: t.settings.apiFormatDetected,
+        apiFormatIncomplete: t.settings.apiFormatIncomplete,
+        apiFormatConflict: t.settings.apiFormatConflict,
+      },
+    });
+    if (feedback) {
+      setApiFormatFeedback(feedback);
+    }
+    if (imported.classification.status === 'unsupported') {
       return nextConnection;
     }
-
-    if (apiFormat && apiFormat !== classification.apiFormat) {
-      setApiFormatFeedback({
-        tone: 'negative',
-        message: t.settings.apiFormatConflict(apiFormatLabel(apiFormat), apiFormatLabel(classification.apiFormat)),
-      });
+    if (apiFormat && imported.classification.apiFormat !== apiFormat) {
       return previousConnection ?? nextConnection;
     }
-
-    setApiFormat(classification.apiFormat);
-    setPaths((current) => mergeApiPathDraft(
-      apiFormat ? current : defaultApiPathDraft(classification.apiFormat),
-      classification.paths,
-      classification.apiFormat,
-    ));
-    if (classification.status === 'supported') {
-      setApiFormatFeedback({ tone: 'positive', message: t.settings.apiFormatDetected(apiFormatLabel(classification.apiFormat)) });
-    } else {
-      setApiFormatFeedback({ tone: 'warning', message: t.settings.apiFormatIncomplete(apiFormatLabel(classification.apiFormat)) });
+    setApiFormat(imported.nextApiFormat);
+    setPaths(imported.nextPaths);
+    if (imported.suggestedAlias) {
+      setName(imported.suggestedAlias);
     }
-    if (classification.status === 'supported' && classification.extractedModel && !modelModeTouchedRef.current && !defaultModel.trim()) {
-      setDefaultModel(classification.extractedModel);
+    if (imported.importedModel && !modelModeTouchedRef.current && !defaultModel.trim()) {
+      setDefaultModel(imported.importedModel);
       setModelMode('custom');
     }
-    if (!endpointId) {
-      return nextConnection;
-    }
-    if (classification.source === 'full-url' && classification.baseUrl) {
-      if (!nameTouchedRef.current) {
-        const generatedAlias = aliasFromEndpointUrl(classification.baseUrl);
-        if (generatedAlias) {
-          setName(nextAlias(generatedAlias, profiles));
-        }
-      }
-      return replaceEndpointUrl(nextConnection, endpointId, classification.baseUrl);
-    }
-    if (classification.source === 'path') {
-      const previousUrl = previousConnection?.endpoints.find((endpoint) => endpoint.id === endpointId)?.url ?? '';
-      return replaceEndpointUrl(nextConnection, endpointId, previousUrl);
-    }
-    return nextConnection;
+    await services.diagnostics?.checkpoint('uxp.ui.settings_add.endpoint_import', {
+      apiFormatBefore: apiFormat,
+      apiFormatAfter: imported.nextApiFormat,
+      aliasApplied: imported.diagnostics.aliasApplied,
+      aliasCandidate: imported.diagnostics.aliasCandidate ?? null,
+      aliasSkippedReason: imported.diagnostics.aliasSkippedReason ?? null,
+      importedModel: imported.diagnostics.importedModel ?? null,
+      classificationStatus: imported.classification.status,
+      classificationSource: imported.classification.source,
+    }, {
+      ...(imported.nextApiFormat ? { api_format: imported.nextApiFormat } : {}),
+    });
+    return imported.nextConnection;
   };
 
   const applyDetectionInput = (value: string) => {
     const sanitized = sanitizeProviderEndpointUrl(value);
     setDetectionValue(sanitized);
     const primaryEndpoint = connectionRef.current.endpoints[0];
-    const classification = services.commands.classifyEndpoint(sanitized);
-    const nextConnection = classification.status !== 'unsupported' && classification.source === 'full-url' && classification.baseUrl && primaryEndpoint
-      ? replaceEndpointUrl(connectionRef.current, primaryEndpoint.id, classification.baseUrl)
-      : connectionRef.current;
-    const applied = primaryEndpoint
-      ? applyClassification(classification, sanitized, nextConnection, primaryEndpoint.id, connectionRef.current)
-      : nextConnection;
-    connectionRef.current = applied;
-    setConnection(applied);
-    invalidateDraftProofs();
+    void (async () => {
+      const applied = primaryEndpoint
+        ? await applyImportedEndpoint(sanitized, connectionRef.current, primaryEndpoint.id, connectionRef.current)
+        : connectionRef.current;
+      connectionRef.current = applied;
+      setConnection(applied);
+      invalidateDraftProofs();
+    })();
   };
 
   const buildDraftCommandInput = (
@@ -305,7 +262,7 @@ export function SettingsAddPage({ onNav, profiles, onProfileSaved }: SettingsAdd
     if (!apiFormat) {
       throw new Error(t.settings.apiFormatRequired);
     }
-    const displayName = sanitizeProviderDisplayName(name) || nextAlias(apiFormatLabel(apiFormat), profiles);
+    const displayName = sanitizeProviderDisplayName(name) || apiFormatLabel(apiFormat);
     const validation = billingFieldError(nextBilling, selected);
     if (validation === 'user-id') {
       throw new Error(t.settings.billingValidationUserId);
@@ -390,17 +347,77 @@ export function SettingsAddPage({ onNav, profiles, onProfileSaved }: SettingsAdd
       return previousEndpoint && previousEndpoint.url !== endpoint.url;
     });
     if (changedEndpoint) {
-      const classification = services.commands.classifyEndpoint(changedEndpoint.url);
-      normalizedConnection = applyClassification(classification, changedEndpoint.url, normalizedConnection, changedEndpoint.id, previous);
+      void (async () => {
+        const imported = importProviderEndpointInput({
+          rawValue: changedEndpoint.url,
+          apiFormat,
+          currentPaths: paths,
+          currentConnection: normalizedConnection,
+          endpointId: changedEndpoint.id,
+          previousConnection: previous,
+          profiles,
+          nameTouched: nameTouchedRef.current,
+          defaultModel,
+          defaultPathsForApiFormat: defaultApiPathDraft,
+          mergeApiPathDraft,
+          classifyEndpoint: services.commands.classifyEndpoint,
+          normalizeBaseUrlIntoConnection: false,
+        });
+        const feedback = importDetectionFallbackMessage({
+          classification: imported.classification,
+          rawValue: changedEndpoint.url,
+          currentApiFormat: apiFormat,
+          messages: {
+            apiFormatNeedsPath: t.settings.apiFormatNeedsPath,
+            apiFormatUnsupported: t.settings.apiFormatUnsupported,
+            apiFormatDetected: t.settings.apiFormatDetected,
+            apiFormatIncomplete: t.settings.apiFormatIncomplete,
+            apiFormatConflict: t.settings.apiFormatConflict,
+          },
+        });
+        if (feedback) {
+          setApiFormatFeedback(feedback);
+        }
+        if (imported.classification.status !== 'unsupported' && (!apiFormat || imported.classification.apiFormat === apiFormat)) {
+          setApiFormat(imported.nextApiFormat);
+          setPaths(imported.nextPaths);
+          if (imported.suggestedAlias) {
+            setName(imported.suggestedAlias);
+          }
+          if (imported.importedModel && !modelModeTouchedRef.current && !defaultModel.trim()) {
+            setDefaultModel(imported.importedModel);
+            setModelMode('custom');
+          }
+          await services.diagnostics?.checkpoint('uxp.ui.settings_add.endpoint_import', {
+            apiFormatBefore: apiFormat,
+            apiFormatAfter: imported.nextApiFormat,
+            aliasApplied: imported.diagnostics.aliasApplied,
+            aliasCandidate: imported.diagnostics.aliasCandidate ?? null,
+            aliasSkippedReason: imported.diagnostics.aliasSkippedReason ?? null,
+            importedModel: imported.diagnostics.importedModel ?? null,
+            classificationStatus: imported.classification.status,
+            classificationSource: imported.classification.source,
+          }, {
+            ...(imported.nextApiFormat ? { api_format: imported.nextApiFormat } : {}),
+          });
+        }
+        const applied = normalizedConnection;
+        connectionRef.current = applied;
+        setConnection(applied);
+        invalidateDraftProofs();
+        if (
+          previous.selectionMode !== 'auto' &&
+          applied.selectionMode === 'auto' &&
+          selected?.connectivity?.endpointMeasurement !== 'unsupported' &&
+          applied.endpoints.some((endpoint) => endpoint.enabled && endpoint.url.trim())
+        ) {
+          void handleMeasure(applied);
+        }
+      })();
+      return;
     }
     connectionRef.current = normalizedConnection;
     setConnection(normalizedConnection);
-    if (!nameTouchedRef.current) {
-      const generatedAlias = aliasFromEndpointUrl(normalizedConnection.endpoints.find((endpoint) => endpoint.url.trim())?.url ?? '');
-      if (generatedAlias) {
-        setName(nextAlias(generatedAlias, profiles));
-      }
-    }
     invalidateDraftProofs();
     if (
       previous.selectionMode !== 'auto' &&
@@ -423,7 +440,7 @@ export function SettingsAddPage({ onNav, profiles, onProfileSaved }: SettingsAdd
     if (!apiFormat) {
       throw new Error(t.settings.apiFormatRequired);
     }
-    const displayName = sanitizeProviderDisplayName(name) || nextAlias(apiFormatLabel(apiFormat), profiles);
+    const displayName = sanitizeProviderDisplayName(name) || apiFormatLabel(apiFormat);
     const validation = billingFieldError(billing, selected);
     if (validation === 'user-id') {
       throw new Error(t.settings.billingValidationUserId);

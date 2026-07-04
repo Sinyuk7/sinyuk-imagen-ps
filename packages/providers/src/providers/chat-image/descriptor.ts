@@ -20,6 +20,7 @@ export const chatImageDescriptor: ProviderDescriptor = {
   billing: {
     supportedModes: ['none', 'new-api'],
     defaultMode: 'new-api',
+    query: 'mode-dependent',
   },
   connectivity: {
     endpointMeasurement: 'supported',

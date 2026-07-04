@@ -15,6 +15,11 @@ export const geminiGenerateContentDescriptor: ProviderDescriptor = {
       responseCodecs: ['json'],
     },
   },
+  billing: {
+    supportedModes: ['none'],
+    defaultMode: 'none',
+    query: 'unsupported',
+  },
   connectivity: {
     endpointMeasurement: 'unsupported',
     connectionTest: 'unsupported',

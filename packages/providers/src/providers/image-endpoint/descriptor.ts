@@ -20,6 +20,7 @@ export const imageEndpointDescriptor: ProviderDescriptor = {
   billing: {
     supportedModes: ['none', 'new-api'],
     defaultMode: 'new-api',
+    query: 'mode-dependent',
   },
   connectivity: {
     endpointMeasurement: 'supported',

@@ -67,4 +67,5 @@ export type ProviderBillingMode =
 export interface ProviderBillingCapability {
   readonly supportedModes: readonly ProviderBillingMode['mode'][];
   readonly defaultMode?: ProviderBillingMode['mode'];
+  readonly query?: 'supported' | 'unsupported' | 'mode-dependent';
 }
