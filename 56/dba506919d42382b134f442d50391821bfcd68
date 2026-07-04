@@ -1,0 +1,79 @@
+packages/application/src/commands/profile-endpoints.ts
+  s_a1db469ed198f2::t_d60ea153a297ed 127
+packages/providers/src/transport/image-endpoint/http.ts
+  s_a1db469ed198f2::t_a03c859f456a75 20
+apps/app/src/shared/ui/pages/settings-add-page.tsx
+  s_a1db469ed198f2::t_37c60ec1f05681 208-210,557
+packages/providers/src/providers/chat-image/provider.ts
+  s_a1db469ed198f2::t_da52f60cb65da2 105-133,135-156
+  s_a1db469ed198f2::t_de15964b573021 100,104,134,395,401
+apps/app/src/shared/ui/i18n/messages.ts
+  s_a1db469ed198f2::t_775521179747d7 520-522,585,839-841,904
+apps/app/tests/settings-detail-profile-editing.test.tsx
+  s_a1db469ed198f2::t_4c3cc3becaca33 269-301
+packages/application/src/commands/profile-endpoints.test.ts
+  s_a1db469ed198f2::t_0b0c490e2a72cc 60,63,86-87,142,206,227-254
+  s_a1db469ed198f2::t_be3c2e9467cbb5 59
+  s_a1db469ed198f2::t_ca91c1bc08dc93 62
+  s_a1db469ed198f2::t_451ade2cc514c2 90-91
+  s_a1db469ed198f2::t_e548a1dfad0441 255
+packages/application/src/commands/refresh-draft-profile-models.test.ts
+  s_a1db469ed198f2::t_f4756ea155c824 1
+  s_a1db469ed198f2::t_9bfddd7e83f5f8 25-28,51-52,100-108,110
+  s_a1db469ed198f2::t_1d2db2fa413b13 2-24,29-50,53-99,109,111-167
+packages/providers/tests/image-endpoint-provider.test.ts
+  s_a1db469ed198f2::t_e27f574dd53298 500-528
+packages/application/src/commands/index.ts
+  s_a1db469ed198f2::t_5e8e02a18cba86 31,81
+packages/application/src/commands/profile-models.ts
+  s_a1db469ed198f2::t_0ff3f2c2267df0 34,56,115,126-138,280
+packages/application/src/commands/draft-provider-config.ts
+  s_a1db469ed198f2::t_5b53d6f3b3c66a 7,17
+apps/app/src/shared/ports/commands-port.ts
+  s_a1db469ed198f2::t_0f45fdac8f149a 24,56
+packages/providers/src/providers/image-endpoint/provider.ts
+  s_a1db469ed198f2::t_33aa4568164f88 155-172,177,199-201
+  s_a1db469ed198f2::t_34945a744c2e06 149,153,183,540,546
+  s_a1db469ed198f2::t_e0772f1ec6f35c 154,173-176,178-182,184-198,202-205
+apps/app/src/composition/chrome/chrome-test-harness.ts
+  s_a1db469ed198f2::t_4cb4b04e09b01d 443-449
+apps/app/src/shared/ui/pages/settings-detail-page.tsx
+  s_a1db469ed198f2::t_b6c229255e555d 338
+  s_a1db469ed198f2::t_c813d2755a977f 471,603,605-610,612-619,629-640,915
+apps/app/tests/settings-add-page.test.tsx
+  s_a1db469ed198f2::t_1b120f924889fd 429-461
+packages/providers/tests/chat-image-provider.test.ts
+  s_a1db469ed198f2::t_fe9195ace5a416 506-533
+apps/app/tests/fakes.ts
+  s_a1db469ed198f2::t_69d3c652fa0b27 269,351,438,513
+apps/app/tests/provider-endpoint-user-flows.test.tsx
+  s_a1db469ed198f2::t_5e37aaf75d835c 540-541
+  s_a1db469ed198f2::t_3cd6ad8f264803 429,518,537,539
+packages/application/src/commands/provider-profiles.test.ts
+  s_a1db469ed198f2::t_9e8cd38ce6aca3 189
+packages/application/src/commands/types.ts
+  s_a1db469ed198f2::t_5a0649202da05e 341-349
+  s_a1db469ed198f2::t_1f261778522edc 350
+apps/app/tests/settings-detail-connectivity.test.tsx
+  s_a1db469ed198f2::t_46d45ce084b776 85,99,205
+apps/app/src/shared/ui/hooks/use-provider-settings.ts
+  s_a1db469ed198f2::t_1d803225aad366 154-157,201,278,282-285,303
+packages/application/src/commands/refresh-draft-profile-models.ts
+  s_a1db469ed198f2::t_27a2d2a920f627 1-101
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.10",
+  "base_commit_sha": "56dba506919d42382b134f442d50391821bfcd68",
+  "prompts": {},
+  "sessions": {
+    "s_a1db469ed198f2": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "019f2d28-77fa-7861-8232-54d40e3c48ff",
+        "model": "gpt-5.4"
+      },
+      "human_author": "Sinyuk <80998062@qq.com>"
+    }
+  }
+}
