@@ -1,0 +1,69 @@
+apps/app/tests/settings-detail-harness.tsx
+  s_f5c40d97cba1fb::t_01f83cf1eacc38 5
+packages/application/src/commands/resolve-model-brand.ts
+  s_f5c40d97cba1fb::t_aeeb3727fa7dd2 25
+apps/app/tests/fakes.ts
+  s_f5c40d97cba1fb::t_01f83cf1eacc38 257
+apps/app/tests/main-page-billing.test.tsx
+  s_f5c40d97cba1fb::t_4778486e357a21 75
+packages/application/src/commands/provider-profiles.test.ts
+  s_f5c40d97cba1fb::t_036aa612ed52e1 7,108-149
+  s_f5c40d97cba1fb::t_39116c66decc85 150-151
+apps/app/tests/main-page-composer-controls.test.tsx
+  s_f5c40d97cba1fb::t_4778486e357a21 500,515-516,525,546,557
+  s_f5c40d97cba1fb::t_fa89be13f9943f 3,114,271,341,383,417,456,497
+apps/app/src/shared/ui/pages/main-page.tsx
+  s_f5c40d97cba1fb::t_aeeb3727fa7dd2 427
+  s_f5c40d97cba1fb::t_34063cc8daa9b8 6,1735
+apps/app/src/shared/ui/composer-readiness.ts
+  s_f5c40d97cba1fb::t_34063cc8daa9b8 22
+docs/ENGINEERING_CONTEXT.md
+  s_f5c40d97cba1fb::t_e318aae88cd01f 46-47
+packages/application/src/commands/provider-profiles.ts
+  s_f5c40d97cba1fb::t_036aa612ed52e1 46,48,50-52,136-148
+  s_f5c40d97cba1fb::t_2818c3d6682f3e 47,49
+packages/providers/src/contract/index.ts
+  s_f5c40d97cba1fb::t_7d1d910f13f6d5 70
+apps/app/tests/main-page-attachment-submission.test.tsx
+  s_f5c40d97cba1fb::t_fa89be13f9943f 3,255
+packages/providers/src/contract/capability.ts
+  s_f5c40d97cba1fb::t_a3b42890be4159 8,11
+apps/app/src/shared/ui/hooks/use-provider-settings.ts
+  s_f5c40d97cba1fb::t_aeeb3727fa7dd2 54
+  s_f5c40d97cba1fb::t_cde3104053a833 89,91,95
+packages/providers/tests/registry-exports.test.ts
+  s_f5c40d97cba1fb::t_037c2d91f88f2f 30
+packages/providers/src/registry/builtins.ts
+  s_f5c40d97cba1fb::t_a3b42890be4159 12
+apps/app/src/shared/ui/app-shell.tsx
+  s_f5c40d97cba1fb::t_e238fc41ec4a70 212
+  s_f5c40d97cba1fb::t_905266d3871db1 5,497
+apps/app/src/shared/ui/pages/settings-page.tsx
+  s_f5c40d97cba1fb::t_905266d3871db1 191
+apps/app/tests/app-shell.test.tsx
+  s_f5c40d97cba1fb::t_fa89be13f9943f 5,742,821
+packages/providers/src/contract/config.ts
+  s_f5c40d97cba1fb::t_7d1d910f13f6d5 270
+packages/providers/src/contract/request.ts
+  s_f5c40d97cba1fb::t_7d1d910f13f6d5 79
+apps/app/src/shared/ui/pages/settings-add-page.tsx
+  s_f5c40d97cba1fb::t_777a513686c6ea 169
+apps/app/src/shared/ui/pages/settings-detail-page.tsx
+  s_f5c40d97cba1fb::t_098e599e0ab1b1 246,821,832
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.10",
+  "base_commit_sha": "e126f0b144e34f0107c2ab11a0f400938cb2d623",
+  "prompts": {},
+  "sessions": {
+    "s_f5c40d97cba1fb": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "019f2d61-76ae-7f70-b214-8ebd3cf35051",
+        "model": "gpt-5.4"
+      },
+      "human_author": "Sinyuk <80998062@qq.com>"
+    }
+  }
+}
