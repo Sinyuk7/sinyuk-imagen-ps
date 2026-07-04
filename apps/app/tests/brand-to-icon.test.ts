@@ -41,28 +41,28 @@ describe('brandToIconSlug', () => {
 });
 
 describe('resolveModelAvatarIconSlug', () => {
-  it('returns default when providerId or modelId is missing', () => {
+  it('returns default when apiFormat or modelId is missing', () => {
     const services = servicesWith('openai');
     expect(resolveModelAvatarIconSlug({ services })).toBe('default');
-    expect(resolveModelAvatarIconSlug({ services, providerId: 'image-endpoint' })).toBe('default');
+    expect(resolveModelAvatarIconSlug({ services, apiFormat: 'openai-images' })).toBe('default');
     expect(resolveModelAvatarIconSlug({ services, modelId: 'gpt-image-1' })).toBe('default');
   });
 
   it('maps the resolved brand to an icon slug', () => {
-    expect(resolveModelAvatarIconSlug({ services: servicesWith('openai'), providerId: 'image-endpoint', modelId: 'gpt-image-1' })).toBe('gpt');
-    expect(resolveModelAvatarIconSlug({ services: servicesWith('doubao'), providerId: 'image-endpoint', modelId: 'doubao-seedream-5-0-260128' })).toBe('doubao');
-    expect(resolveModelAvatarIconSlug({ services: servicesWith('google-gemini'), providerId: 'chat-image', modelId: 'gemini-3-pro-image' })).toBe('nano-banana');
-    expect(resolveModelAvatarIconSlug({ services: servicesWith(undefined), providerId: 'mock', modelId: 'mock-image-v1' })).toBe('default');
+    expect(resolveModelAvatarIconSlug({ services: servicesWith('openai'), apiFormat: 'openai-images', modelId: 'gpt-image-1' })).toBe('gpt');
+    expect(resolveModelAvatarIconSlug({ services: servicesWith('doubao'), apiFormat: 'openai-images', modelId: 'doubao-seedream-5-0-260128' })).toBe('doubao');
+    expect(resolveModelAvatarIconSlug({ services: servicesWith('google-gemini'), apiFormat: 'openai-chat-completions', modelId: 'gemini-3-pro-image' })).toBe('nano-banana');
+    expect(resolveModelAvatarIconSlug({ services: servicesWith(undefined), apiFormat: 'openai-images', modelId: 'mock-image-v1' })).toBe('default');
   });
 
   it('resolves real catalog models end-to-end via the application command', () => {
     const services: AppServices = {
       commands: { resolveModelBrand },
     } as unknown as AppServices;
-    expect(resolveModelAvatarIconSlug({ services, providerId: 'image-endpoint', modelId: 'gpt-image-1' })).toBe('gpt');
-    expect(resolveModelAvatarIconSlug({ services, providerId: 'image-endpoint', modelId: 'doubao-seedream-5-0-260128' })).toBe('doubao');
-    expect(resolveModelAvatarIconSlug({ services, providerId: 'chat-image', modelId: 'gemini-3-pro-image' })).toBe('nano-banana');
-    expect(resolveModelAvatarIconSlug({ services, providerId: 'mock', modelId: 'mock-image-v1' })).toBe('default');
-    expect(resolveModelAvatarIconSlug({ services, providerId: 'image-endpoint', modelId: 'unknown-custom' })).toBe('default');
+    expect(resolveModelAvatarIconSlug({ services, apiFormat: 'openai-images', modelId: 'gpt-image-1' })).toBe('gpt');
+    expect(resolveModelAvatarIconSlug({ services, apiFormat: 'openai-images', modelId: 'doubao-seedream-5-0-260128' })).toBe('doubao');
+    expect(resolveModelAvatarIconSlug({ services, apiFormat: 'openai-chat-completions', modelId: 'gemini-3-pro-image' })).toBe('nano-banana');
+    expect(resolveModelAvatarIconSlug({ services, apiFormat: 'openai-images', modelId: 'mock-image-v1' })).toBe('default');
+    expect(resolveModelAvatarIconSlug({ services, apiFormat: 'openai-images', modelId: 'unknown-custom' })).toBe('default');
   });
 });

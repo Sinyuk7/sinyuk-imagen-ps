@@ -42,7 +42,7 @@ describe('SettingsDetailPage contract — profile editing', () => {
     expect(services.spies.saveProviderProfile).toHaveBeenCalledWith(
       expect.objectContaining({
         profileId: 'mock-profile',
-        providerId: 'mock',
+        apiFormat: 'openai-images',
         displayName: 'Renamed Mock',
         enabled: true,
         config: expect.objectContaining({

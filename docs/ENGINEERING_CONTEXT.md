@@ -32,12 +32,12 @@ surface apps -> application/session -> core-engine + providers
   local image-model capability catalog and resolver; remote `discoverModels()`
   answers are only an availability filter over that local catalog, not the
   authoritative picker source.
-- `gemini-generate-content` is a distinct provider family and local catalog
+- `gemini-generate-content` is a distinct API format and local catalog
   namespace inside `packages/providers`. The same `modelId` may coexist across
-  provider families such as `chat-image` and `gemini-generate-content`;
-  catalog identity and capability rules key by `providerId + modelId`, while
-  remote discovery remains optional availability filtering rather than the
-  catalog authority.
+  API formats such as `openai-chat-completions` and
+  `gemini-generate-content`; catalog internals may still key by implementation
+  ID plus `modelId`, while profile persistence and UI state key by canonical
+  `apiFormat`.
 - Model avatar icons follow catalog brand identity as the single source.
   `packages/providers` declares `ModelBrand` on `ImageModelCapability`;
   `packages/application` exposes the sync `resolveModelBrand` command over
@@ -121,6 +121,12 @@ surface apps -> application/session -> core-engine + providers
   `resolvedEndpointId` stays session-scoped instead of mutating saved profile
   config. Provider-level connection testing and endpoint measurement are
   separate commands and provider seams.
+- User-facing provider profiles are API profiles. Persisted profiles store the
+  canonical `apiFormat`; `connection.endpoints[].url` stores base URL nodes only;
+  API-format path details live in `config.paths`. UI endpoint paste helpers may
+  classify full URLs and paths for feedback, but save/test/measure commands
+  revalidate the final API-format config. Persisted profiles do not use legacy
+  `providerId` or `family` concepts.
 - Session-level in-flight registry (`packages/application/src/session/session.ts`): `inFlightRetry` deduplicates by failed-job `jobId`; `inFlightSubmit` deduplicates by `__clientRoundId`. Locks release on all settle paths including `{ok:true,value:failedJob}`.
 - UI ref gates (`submitInFlightRef`, `retryInFlightRef`) cover same-tick double-click windows. Error-retry and regenerate buttons are disabled while `conversation.running`.
 - Provider transport ownership summary lives in `packages/providers/ARCHITECTURE.md`.
@@ -138,7 +144,7 @@ surface apps -> application/session -> core-engine + providers
 ## Current Limitations
 
 - Default validation is mock-only and reproducible. It does not prove real Photoshop / UXP host behavior, real provider transport, CORS behavior, or live credential flows.
-- Chrome real-provider execution is conditional on browser-compatible transport and provider CORS policy; only the `mock` family is repo-side default.
+- Chrome real-provider execution is conditional on browser-compatible transport and provider CORS policy; only the `mock` implementation is repo-side default.
 - UXP host behavior (panel load/reload, layer/mask read, file picker, `placeEvent`, persistence across Photoshop restart) remains manual-only evidence. When host inspection is possible, the default debug/probe surface is `node scripts/uxp-debug/uxp-debug.mjs`; do not treat ad hoc DevTools-only steps as the repo default workflow.
 - Restart/reopen history placement through real Photoshop remains manual-only evidence. Mock tests and Chrome E2E can prove contract behavior, but not real Photoshop document identity after app or host restart.
 - UXP first-frame geometry: Spectrum controls can establish custom element definitions and shadow trees but still report collapsed `0x0` first-frame geometry. This is a Photoshop UXP layout instability, not a missing-registration or late-CSS issue. Future RCA should verify host geometry before trying style-only fixes.

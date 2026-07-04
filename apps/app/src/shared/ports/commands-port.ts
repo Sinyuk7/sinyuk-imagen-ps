@@ -11,6 +11,7 @@ export interface CommandsPort {
   readonly listTaskRecords: typeof commands.listTaskRecords;
   readonly listProviders: typeof commands.listProviders;
   readonly describeProvider: typeof commands.describeProvider;
+  readonly classifyEndpoint: typeof commands.classifyEndpoint;
   readonly resolveModelBrand: typeof commands.resolveModelBrand;
   readonly listProviderProfiles: typeof commands.listProviderProfiles;
   readonly getProviderProfile: typeof commands.getProviderProfile;
@@ -40,6 +41,7 @@ export function createCommandsAdapter(): CommandsPort {
     listTaskRecords: commands.listTaskRecords,
     listProviders: commands.listProviders,
     describeProvider: commands.describeProvider,
+    classifyEndpoint: commands.classifyEndpoint,
     resolveModelBrand: commands.resolveModelBrand,
     listProviderProfiles: commands.listProviderProfiles,
     getProviderProfile: commands.getProviderProfile,

@@ -14,6 +14,7 @@ export { subscribeJobEvents } from './subscribe-job-events.js';
 
 export { listProviders } from './list-providers.js';
 export { describeProvider } from './describe-provider.js';
+export { classifyEndpoint } from './classify-endpoint.js';
 export { resolveModelBrand } from './resolve-model-brand.js';
 export type { ResolveModelBrandInput } from './resolve-model-brand.js';
 export {
@@ -52,6 +53,7 @@ export type { OptimizePromptInput } from './prompt-optimize.js';
 
 export type {
   CommandResult,
+  ApiFormat,
   DeleteProviderProfileOptions,
   AssetStore,
   RetryJobInput,
@@ -70,6 +72,7 @@ export type {
   ProviderProfileConnectionTestResult,
   EndpointMeasurementFailureKind,
   EndpointMeasurementResult,
+  EndpointClassification,
   ExactTaskCost,
   BalanceChange,
   MeasureProfileEndpointsInput,
@@ -102,7 +105,6 @@ export type {
   ProviderConfig,
   ProviderConfigResolver,
   ProviderDescriptor,
-  ProviderFamily,
   ModelBrand,
   ProviderModelInfo,
   ProviderProfile,

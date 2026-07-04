@@ -15,7 +15,7 @@ import type {
   ProviderProfileTestResult,
   TaskRecord,
 } from '@imagen-ps/application';
-import { resolveModelBrand } from '@imagen-ps/application';
+import { classifyEndpoint, resolveModelBrand } from '@imagen-ps/application';
 import type { AppServices } from '../src/app-services/app-services';
 import type { CommandsPort } from '../src/app-services/commands-port';
 import { PHOTOSHOP_UXP_RUNTIME_CAPABILITIES, type HostBridge } from '../src/app-services/host-bridge';
@@ -71,13 +71,12 @@ export const fakeHostImage = createHostImageAsset(fakeProviderInputAsset, {
 
 export const fakeProfile: ProviderProfile = {
   profileId: 'mock-profile',
-  providerId: 'mock',
+  apiFormat: 'openai-images',
   displayName: 'Mock Profile',
   enabled: true,
   config: {
-    providerId: 'mock',
+    apiFormat: 'openai-images',
     displayName: 'Mock Profile',
-    family: 'image-endpoint',
     connection: {
       selectionMode: 'manual',
       selectedEndpointId: 'primary',
@@ -89,6 +88,7 @@ export const fakeProfile: ProviderProfile = {
         },
       ],
     },
+    paths: { generation: '/images/generations', edit: '/images/edits' },
     defaultModel: 'mock-image-v1',
   },
   secretRefs: {
@@ -100,13 +100,12 @@ export const fakeProfile: ProviderProfile = {
 
 export const fakeOptimizerProfile: ProviderProfile = {
   profileId: '__prompt-optimizer__',
-  providerId: 'prompt-optimize',
+  apiFormat: 'openai-chat-completions',
   displayName: 'Prompt Optimizer',
   enabled: false,
   config: {
-    providerId: 'prompt-optimize',
+    apiFormat: 'openai-chat-completions',
     displayName: 'Prompt Optimizer',
-    family: 'prompt-optimize',
     connection: {
       selectionMode: 'manual',
       selectedEndpointId: 'primary',
@@ -118,6 +117,7 @@ export const fakeOptimizerProfile: ProviderProfile = {
         },
       ],
     },
+    paths: { invoke: '/chat/completions' },
     defaultModel: 'gpt-4o-mini',
     instruction: 'Rewrite the prompt.',
     testPrompt: 'test',
@@ -129,12 +129,31 @@ export const fakeOptimizerProfile: ProviderProfile = {
 export const fakeProvider: ProviderDescriptor = {
   id: 'mock',
   family: 'image-endpoint',
+  apiFormat: 'openai-images',
   displayName: 'Mock Provider',
   operations: ['text_to_image', 'image_edit'],
   invokeMode: 'sync',
   defaultModels: [{ id: 'mock-image-v1' }],
   billing: {
     supportedModes: ['none'],
+  },
+};
+
+export const fakeChatProvider: ProviderDescriptor = {
+  id: 'chat-image',
+  family: 'chat-image',
+  apiFormat: 'openai-chat-completions',
+  displayName: 'Chat Image',
+  operations: ['text_to_image', 'image_edit'],
+  invokeMode: 'sync',
+  defaultModels: [{ id: 'gpt-4o-image' }],
+  billing: {
+    supportedModes: ['none', 'new-api'],
+    defaultMode: 'new-api',
+  },
+  connectivity: {
+    endpointMeasurement: 'supported',
+    connectionTest: 'supported',
   },
 };
 
@@ -216,7 +235,7 @@ function savedProfile(input: ProviderProfileInput): ProviderProfile {
   return {
     ...fakeProfile,
     profileId: input.profileId,
-    providerId: input.providerId ?? fakeProfile.providerId,
+    apiFormat: input.apiFormat ?? fakeProfile.apiFormat,
     displayName: input.displayName ?? fakeProfile.displayName,
     enabled: input.enabled ?? fakeProfile.enabled,
     config: {
@@ -235,6 +254,9 @@ export function createFakeServices(options?: {
   readonly services: AppServices;
   readonly spies: {
     readonly submitJob: ReturnType<typeof vi.fn>;
+    readonly listProviders: ReturnType<typeof vi.fn>;
+    readonly describeProvider: ReturnType<typeof vi.fn>;
+    readonly classifyEndpoint: ReturnType<typeof vi.fn>;
     readonly putTaskRecord: ReturnType<typeof vi.fn>;
     readonly subscribeJobEvents: ReturnType<typeof vi.fn>;
     readonly listJobHistoryRecords: ReturnType<typeof vi.fn>;
@@ -292,8 +314,7 @@ export function createFakeServices(options?: {
     ok: true as const,
     value: {
       profileId,
-      providerId: 'mock',
-      family: 'image-endpoint',
+      apiFormat: 'openai-images',
       valid: true,
       connectivity: { reachable: true, modelCount: 1, models: [{ id: 'mock-image-v1' }] },
     } satisfies ProviderProfileTestResult,
@@ -336,7 +357,7 @@ export function createFakeServices(options?: {
       refreshState: 'idle',
       balance: {
         profileId,
-        providerId: 'mock',
+        apiFormat: 'openai-images',
         checkedAt: Date.now(),
         snapshot: {
           primary: {
@@ -401,8 +422,9 @@ export function createFakeServices(options?: {
     putTaskRecord,
     getTaskRecord: vi.fn(async (taskId: string) => taskRecords.find((record) => record.taskId === taskId)),
     listTaskRecords: vi.fn(async () => taskRecords),
-    listProviders: vi.fn(() => [fakeProvider]),
+    listProviders: vi.fn(() => [fakeProvider, fakeChatProvider]),
     describeProvider: vi.fn(() => fakeProvider),
+    classifyEndpoint: vi.fn(classifyEndpoint),
     resolveModelBrand,
     listProviderProfiles: vi.fn(async () => ({ ok: true as const, value: profiles })),
     getProviderProfile,
@@ -475,6 +497,7 @@ export function createFakeServices(options?: {
       submitJob,
       listProviders: commands.listProviders as ReturnType<typeof vi.fn>,
       describeProvider: commands.describeProvider as ReturnType<typeof vi.fn>,
+      classifyEndpoint: commands.classifyEndpoint as ReturnType<typeof vi.fn>,
       putTaskRecord,
       subscribeJobEvents,
       listJobHistoryRecords,

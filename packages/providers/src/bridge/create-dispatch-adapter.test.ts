@@ -30,11 +30,13 @@ describe('createDispatchAdapter', () => {
         providerId: 'mock-provider',
         displayName: 'Mock Provider',
         family: 'image-endpoint',
+        apiFormat: 'openai-images',
         connection: {
           selectionMode: 'manual',
           selectedEndpointId: 'primary',
           endpoints: [{ id: 'primary', url: 'https://mock.local', enabled: true }],
         },
+        paths: { generation: '/images/generations', edit: '/images/edits' },
         apiKey: 'mock-key',
       },
     });

@@ -5,6 +5,7 @@ import { listLocalCatalogModels } from '../../contract/image-model-capability.js
 export const chatImageDescriptor: ProviderDescriptor = {
   id: 'chat-image',
   family: 'chat-image',
+  apiFormat: 'openai-chat-completions',
   displayName: 'Chat Image',
   operations: ['text_to_image', 'image_edit'],
   invokeMode: 'sync',

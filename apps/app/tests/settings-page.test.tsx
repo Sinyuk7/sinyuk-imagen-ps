@@ -63,14 +63,13 @@ describe('SettingsPage UXP compatibility', () => {
             profiles={[
               {
                 profileId: 'long-profile',
-                providerId: 'mock',
+                apiFormat: 'openai-images',
                 displayName: 'Very Long Provider Display Name That Needs Room To Wrap',
                 enabled: true,
                 config: {
-                  providerId: 'mock',
+                  apiFormat: 'openai-images',
                   displayName: 'Mock Provider',
-                  family: 'image-endpoint',
-                  baseUrl: 'https://mock.local',
+                  paths: { generation: '/images/generations', edit: '/images/edits' },
                   defaultModel: 'very-long-model-name-that-should-not-own-the-primary-row',
                 },
                 secretRefs: {},
@@ -89,7 +88,7 @@ describe('SettingsPage UXP compatibility', () => {
 
     const row = container.querySelector<HTMLElement>('[data-testid="provider-row-long-profile"]')!;
     expect(row.querySelector('.prov-primary-status')).toBeNull();
-    expect(row.querySelector('.prov-content .prov-family')?.textContent).toContain('image-endpoint');
+    expect(row.querySelector('.prov-content .prov-family')?.textContent).toContain('OpenAI Images');
     expect(row.querySelector('.prov-content .prov-model')?.textContent).toContain('very-long-model-name');
     expect(row.querySelector('.prov-readiness .prov-status-text')?.textContent).toContain('就绪');
     expect(row.querySelector('.prov-trail')).not.toBeNull();

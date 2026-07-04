@@ -39,6 +39,7 @@ import {
   resolveImageEditCodec,
 } from '../../transport/image-endpoint/wire-compatibility.js';
 import { providerConnectionAllowsFailover } from '../../contract/config.js';
+import { assembleApiUrl } from '../../contract/api-format.js';
 
 /** Provider 层可映射的结构化验证错误。 */
 interface ProviderValidationError extends Error {
@@ -150,7 +151,7 @@ async function discoverModelsAtEndpoint(
 ): Promise<readonly ProviderModelInfo[]> {
   const response = await httpRequest(
     {
-      url: new URL('/v1/models', endpoint.url).toString(),
+      url: assembleApiUrl(endpoint.url, '/models'),
       method: 'GET',
       headers: {
         Authorization: `Bearer ${config.apiKey}`,
@@ -285,9 +286,9 @@ export function createImageEndpointProvider(): Provider<ImageEndpointProviderCon
 
       const endpoint =
         request.operation === 'text_to_image'
-          ? '/v1/images/generations'
+          ? config.paths.generation
           : request.operation === 'image_edit'
-            ? '/v1/images/edits'
+            ? config.paths.edit
             : undefined;
 
       if (endpoint === undefined) {
@@ -325,7 +326,7 @@ export function createImageEndpointProvider(): Provider<ImageEndpointProviderCon
         retryOptions: { retryability: 'paid', idempotencySupported: paidRetry.idempotencySupported },
         execute: async (candidate, candidateSignal) => httpRequest(
           {
-            url: new URL(endpoint, candidate.url).toString(),
+            url: assembleApiUrl(candidate.url, endpoint),
             method: 'POST',
             headers: {
               Authorization: `Bearer ${config.apiKey}`,
@@ -383,7 +384,7 @@ export function createImageEndpointProvider(): Provider<ImageEndpointProviderCon
             requestDiagnostics = builtRequest.diagnostics;
             const response = await httpRequest(
               {
-                url: new URL(endpoint, endpointConfig.url).toString(),
+                url: assembleApiUrl(endpointConfig.url, endpoint),
                 method: 'POST',
                 headers: {
                   Authorization: `Bearer ${config.apiKey}`,
@@ -471,7 +472,7 @@ export function createImageEndpointProvider(): Provider<ImageEndpointProviderCon
         retryOptions: { retryability: 'broad' },
         execute: async (candidate) => httpRequest(
           {
-            url: new URL('/v1/models', candidate.url).toString(),
+            url: assembleApiUrl(candidate.url, '/models'),
             method: 'GET',
             headers: {
               Authorization: `Bearer ${config.apiKey}`,
@@ -559,7 +560,7 @@ export function createImageEndpointProvider(): Provider<ImageEndpointProviderCon
           throw createValidationError('New API balance mode requires profile billing config.');
         }
         const json = await fetchProviderBalanceJson({
-          url: new URL('/api/user/self', endpoint.url).toString(),
+          url: assembleApiUrl(endpoint.url, '/api/user/self'),
           headers: {
             Authorization: `Bearer ${billing.accessTokenSecretRef}`,
             'New-Api-User': billing.userId,

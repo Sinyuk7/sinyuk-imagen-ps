@@ -12,12 +12,13 @@ import {
   parsePromptOptimizeResponse,
 } from '@imagen-ps/providers';
 import {
-  getProviderConfigResolver,
-  getProviderProfileRepository,
   getRuntime,
   getRuntimeLogger,
+  getProviderProfileRepository,
+  getSecretStorageAdapter,
 } from '../runtime.js';
-import type { CommandResult, ProviderProfile } from './types.js';
+import type { CommandResult, ProviderProfile, ProviderProfileConfig, ProviderProfileInput } from './types.js';
+import { resolveSecretValue } from './secret-utils.js';
 
 /** 系统内置、唯一、不可删除的 Prompt Optimizer Profile ID。 */
 export const PROMPT_OPTIMIZER_PROFILE_ID = '__prompt-optimizer__';
@@ -32,12 +33,150 @@ const DEFAULT_TEST_PROMPT = 'test';
 
 let optimizeInFlight: Promise<unknown> | null = null;
 
+interface PromptOptimizerSettings {
+  readonly enabled: boolean;
+  readonly displayName: string;
+  readonly connection: {
+    readonly selectionMode: 'manual';
+    readonly selectedEndpointId: string;
+    readonly endpoints: readonly { readonly id: string; readonly url: string; readonly enabled: boolean }[];
+  };
+  readonly defaultModel: string;
+  readonly instruction: string;
+  readonly testPrompt: string;
+  readonly secretRefs?: Readonly<Record<string, string>>;
+  readonly createdAt: string;
+  readonly updatedAt: string;
+}
+
 function errorMessage(error: unknown, fallback: string): string {
   return error instanceof Error ? error.message : fallback;
 }
 
-function isOptimizerProfile(profile: ProviderProfile): boolean {
-  return profile.providerId === 'prompt-optimize';
+function defaultPromptOptimizerSettings(): PromptOptimizerSettings {
+  const now = new Date().toISOString();
+  return {
+    enabled: false,
+    displayName: 'Prompt Optimizer',
+    connection: {
+      selectionMode: 'manual',
+      selectedEndpointId: 'primary',
+      endpoints: [{
+        id: 'primary',
+        url: 'https://openrouter.ai/api/v1',
+        enabled: true,
+      }],
+    },
+    defaultModel: '',
+    instruction: DEFAULT_OPTIMIZER_INSTRUCTION,
+    testPrompt: DEFAULT_TEST_PROMPT,
+    createdAt: now,
+    updatedAt: now,
+  };
+}
+
+function profileFromPromptOptimizerSettings(settings: PromptOptimizerSettings): ProviderProfile {
+  return {
+    profileId: PROMPT_OPTIMIZER_PROFILE_ID,
+    apiFormat: 'openai-chat-completions',
+    displayName: settings.displayName,
+    enabled: settings.enabled,
+    config: {
+      apiFormat: 'openai-chat-completions',
+      displayName: settings.displayName,
+      connection: settings.connection,
+      paths: { invoke: '/chat/completions' },
+      defaultModel: settings.defaultModel,
+      instruction: settings.instruction,
+      testPrompt: settings.testPrompt,
+    },
+    ...(settings.secretRefs ? { secretRefs: settings.secretRefs } : {}),
+    createdAt: settings.createdAt,
+    updatedAt: settings.updatedAt,
+  };
+}
+
+function settingsFromPromptOptimizerProfile(profile: ProviderProfile): PromptOptimizerSettings {
+  const config = profile.config as ProviderProfileConfig;
+  const connection = typeof config.connection === 'object' && config.connection !== null && !Array.isArray(config.connection)
+    ? config.connection as PromptOptimizerSettings['connection']
+    : defaultPromptOptimizerSettings().connection;
+  const defaultSettings = defaultPromptOptimizerSettings();
+  return {
+    enabled: profile.enabled,
+    displayName: profile.displayName,
+    connection,
+    defaultModel: typeof config.defaultModel === 'string' ? config.defaultModel : '',
+    instruction: typeof config.instruction === 'string' && config.instruction.trim().length > 0
+      ? config.instruction
+      : DEFAULT_OPTIMIZER_INSTRUCTION,
+    testPrompt: typeof config.testPrompt === 'string' && config.testPrompt.trim().length > 0
+      ? config.testPrompt
+      : DEFAULT_TEST_PROMPT,
+    ...(profile.secretRefs ? { secretRefs: profile.secretRefs } : {}),
+    createdAt: profile.createdAt ?? defaultSettings.createdAt,
+    updatedAt: profile.updatedAt ?? defaultSettings.updatedAt,
+  };
+}
+
+async function loadPromptOptimizerSettings(): Promise<PromptOptimizerSettings | undefined> {
+  const profile = await getProviderProfileRepository().get(PROMPT_OPTIMIZER_PROFILE_ID);
+  return profile ? settingsFromPromptOptimizerProfile(profile) : undefined;
+}
+
+async function savePromptOptimizerSettings(settings: PromptOptimizerSettings): Promise<ProviderProfile> {
+  const profile = profileFromPromptOptimizerSettings(settings);
+  await getProviderProfileRepository().save(profile);
+  return profile;
+}
+
+function mergePromptOptimizerSettings(
+  existing: PromptOptimizerSettings,
+  input: ProviderProfileInput,
+): PromptOptimizerSettings {
+  const config = input.config ?? {};
+  const connection = typeof config.connection === 'object' && config.connection !== null && !Array.isArray(config.connection)
+    ? config.connection as PromptOptimizerSettings['connection']
+    : existing.connection;
+  const now = new Date().toISOString();
+  return {
+    ...existing,
+    enabled: input.enabled ?? existing.enabled,
+    displayName: input.displayName ?? existing.displayName,
+    connection,
+    defaultModel: typeof config.defaultModel === 'string' ? config.defaultModel : existing.defaultModel,
+    instruction: typeof config.instruction === 'string' && config.instruction.trim().length > 0
+      ? config.instruction
+      : existing.instruction,
+    testPrompt: typeof config.testPrompt === 'string' && config.testPrompt.trim().length > 0
+      ? config.testPrompt
+      : existing.testPrompt,
+    secretRefs: input.secretRefs ?? existing.secretRefs,
+    updatedAt: now,
+  };
+}
+
+async function resolvePromptOptimizerConfig(settings: PromptOptimizerSettings): Promise<unknown> {
+  const provider = getRuntime().providerRegistry.get('prompt-optimize');
+  if (!provider) {
+    throw new Error('Prompt Optimizer provider implementation not found.');
+  }
+  const rawKey = settings.secretRefs?.apiKey
+    ? await getSecretStorageAdapter().getSecret(settings.secretRefs.apiKey)
+    : undefined;
+  if (rawKey === undefined) {
+    throw new Error('Prompt Optimizer apiKey secret is missing.');
+  }
+  return provider.validateConfig({
+    providerId: 'prompt-optimize',
+    displayName: settings.displayName,
+    family: 'prompt-optimize',
+    connection: settings.connection,
+    apiKey: resolveSecretValue(rawKey),
+    defaultModel: settings.defaultModel,
+    instruction: settings.instruction,
+    testPrompt: settings.testPrompt,
+  });
 }
 
 /**
@@ -55,41 +194,14 @@ export async function ensurePromptOptimizerProfile(): Promise<CommandResult<Prov
   const span = logger.startSpan('command.prompt_optimizer.ensure');
 
   try {
-    const repository = getProviderProfileRepository();
-    const existing = await repository.get(PROMPT_OPTIMIZER_PROFILE_ID);
+    const existing = await loadPromptOptimizerSettings();
     if (existing) {
       span.finish({ created: false });
-      return { ok: true, value: existing };
+      return { ok: true, value: profileFromPromptOptimizerSettings(existing) };
     }
 
-    const now = new Date().toISOString();
-    const profile: ProviderProfile = {
-      profileId: PROMPT_OPTIMIZER_PROFILE_ID,
-      providerId: 'prompt-optimize',
-      displayName: 'Prompt Optimizer',
-      enabled: false,
-      config: {
-        providerId: 'prompt-optimize',
-        displayName: 'Prompt Optimizer',
-        family: 'prompt-optimize',
-        connection: {
-          selectionMode: 'manual',
-          selectedEndpointId: 'primary',
-          endpoints: [{
-            id: 'primary',
-            url: 'https://openrouter.ai/api/v1',
-            enabled: true,
-          }],
-        },
-        defaultModel: '',
-        instruction: DEFAULT_OPTIMIZER_INSTRUCTION,
-        testPrompt: DEFAULT_TEST_PROMPT,
-      },
-      createdAt: now,
-      updatedAt: now,
-    };
-
-    await repository.save(profile);
+    const settings = defaultPromptOptimizerSettings();
+    const profile = await savePromptOptimizerSettings(settings);
     span.finish({ created: true });
     return { ok: true, value: profile };
   } catch (error) {
@@ -132,9 +244,8 @@ export async function optimizePrompt(input: OptimizePromptInput): Promise<Comman
   }
 
   try {
-    const repository = getProviderProfileRepository();
-    const profile = await repository.get(PROMPT_OPTIMIZER_PROFILE_ID);
-    if (!profile) {
+    const settings = await loadPromptOptimizerSettings();
+    if (!settings) {
       span.fail({ message: 'Prompt Optimizer profile not found.' });
       return {
         ok: false,
@@ -143,17 +254,7 @@ export async function optimizePrompt(input: OptimizePromptInput): Promise<Comman
         }),
       };
     }
-    if (!isOptimizerProfile(profile)) {
-      span.fail({ message: `Profile "${PROMPT_OPTIMIZER_PROFILE_ID}" is not a prompt-optimize profile.` });
-      return {
-        ok: false,
-        error: createValidationError(`Profile "${PROMPT_OPTIMIZER_PROFILE_ID}" is not a prompt-optimize profile.`, {
-          profileId: PROMPT_OPTIMIZER_PROFILE_ID,
-          providerId: profile.providerId,
-        }),
-      };
-    }
-    if (!profile.enabled) {
+    if (!settings.enabled) {
       span.fail({ message: 'Prompt Optimizer profile is not enabled. Validate it in Settings first.' });
       return {
         ok: false,
@@ -163,13 +264,13 @@ export async function optimizePrompt(input: OptimizePromptInput): Promise<Comman
       };
     }
 
-    const dispatchPromise = getRuntime().dispatcher.dispatch({
-      provider: 'profile',
-      params: {
-        profileId: PROMPT_OPTIMIZER_PROFILE_ID,
-        request: { operation: 'prompt_optimize', prompt },
-      },
-    });
+    const provider = getRuntime().providerRegistry.get('prompt-optimize');
+    if (!provider) {
+      throw new Error('Prompt Optimizer provider implementation not found.');
+    }
+    const config = await resolvePromptOptimizerConfig(settings);
+    const request = provider.validateRequest({ operation: 'prompt_optimize', prompt });
+    const dispatchPromise = provider.invoke({ config: config as never, request: request as never });
     optimizeInFlight = dispatchPromise;
 
     const result = (await dispatchPromise) as { raw?: unknown } | undefined;
@@ -228,39 +329,25 @@ export async function validatePromptOptimizerProfile(
   }
 
   try {
-    const repository = getProviderProfileRepository();
-    const profile = await repository.get(profileId);
-    if (!profile) {
+    const settings = await loadPromptOptimizerSettings();
+    if (!settings) {
       span.fail({ message: `Provider profile "${profileId}" not found.` });
       return {
         ok: false,
         error: createValidationError(`Provider profile "${profileId}" not found.`, { profileId }),
       };
     }
-    if (!isOptimizerProfile(profile)) {
-      span.fail({ message: `Profile "${profileId}" is not a prompt-optimize profile.` });
-      return {
-        ok: false,
-        error: createValidationError(`Profile "${profileId}" is not a prompt-optimize profile.`, {
-          profileId,
-          providerId: profile.providerId,
-        }),
-      };
+    const provider = getRuntime().providerRegistry.get('prompt-optimize');
+    if (!provider) {
+      throw new Error('Prompt Optimizer provider implementation not found.');
     }
-
-    const resolved = await getProviderConfigResolver().resolve(profileId);
-    const config = resolved.providerConfig as { testPrompt?: string };
+    const config = await resolvePromptOptimizerConfig(settings) as { testPrompt?: string };
     const testPrompt = typeof config.testPrompt === 'string' && config.testPrompt.trim().length > 0
       ? config.testPrompt.trim()
       : DEFAULT_TEST_PROMPT;
 
-    const result = (await getRuntime().dispatcher.dispatch({
-      provider: 'profile',
-      params: {
-        profileId,
-        request: { operation: 'prompt_optimize', prompt: testPrompt },
-      },
-    })) as { raw?: unknown } | undefined;
+    const request = provider.validateRequest({ operation: 'prompt_optimize', prompt: testPrompt });
+    const result = await provider.invoke({ config: config as never, request: request as never }) as { raw?: unknown } | undefined;
 
     const optimized = parsePromptOptimizeResponse(result?.raw).trim();
     if (optimized.length === 0) {
@@ -271,13 +358,11 @@ export async function validatePromptOptimizerProfile(
       };
     }
 
-    const now = new Date().toISOString();
-    const nextProfile: ProviderProfile = {
-      ...profile,
+    await savePromptOptimizerSettings({
+      ...settings,
       enabled: true,
-      updatedAt: now,
-    };
-    await repository.save(nextProfile);
+      updatedAt: new Date().toISOString(),
+    });
 
     span.finish({ validated: true });
     return { ok: true, value: optimized };
@@ -289,6 +374,54 @@ export async function validatePromptOptimizerProfile(
         `Prompt Optimizer validation failed for profile "${profileId}": ${errorMessage(error, 'unknown error')}`,
         {
         profileId,
+      }),
+    };
+  }
+}
+
+/** 保存内置 Prompt Optimizer 的 canonical API profile 形状。 */
+export async function savePromptOptimizerProfile(input: ProviderProfileInput): Promise<CommandResult<ProviderProfile>> {
+  if (input.profileId !== PROMPT_OPTIMIZER_PROFILE_ID) {
+    return {
+      ok: false,
+      error: createValidationError(`Profile "${input.profileId}" is not the reserved Prompt Optimizer profile.`, {
+        profileId: input.profileId,
+      }),
+    };
+  }
+  if (input.apiFormat !== undefined && input.apiFormat !== 'openai-chat-completions') {
+    return {
+      ok: false,
+      error: createValidationError('Prompt Optimizer profile requires apiFormat "openai-chat-completions".', {
+        profileId: input.profileId,
+        apiFormat: input.apiFormat,
+      }),
+    };
+  }
+  try {
+    const existing = await loadPromptOptimizerSettings() ?? defaultPromptOptimizerSettings();
+    const secretRefs = { ...(existing.secretRefs ?? {}), ...(input.secretRefs ?? {}) };
+    const incomingSecretNames = new Set(Object.keys(input.secretValues ?? {}));
+    for (const name of input.removedSecretNames ?? []) {
+      if (!incomingSecretNames.has(name)) {
+        delete secretRefs[name];
+      }
+    }
+    for (const [name, value] of Object.entries(input.secretValues ?? {})) {
+      const ref = secretRefs[name] ?? `secret:provider-profile:${PROMPT_OPTIMIZER_PROFILE_ID}:${name}`;
+      await getSecretStorageAdapter().setSecret(ref, value);
+      secretRefs[name] = ref;
+    }
+    const settings = mergePromptOptimizerSettings(existing, {
+      ...input,
+      secretRefs,
+    });
+    return { ok: true, value: await savePromptOptimizerSettings(settings) };
+  } catch (error) {
+    return {
+      ok: false,
+      error: createValidationError(errorMessage(error, 'Failed to save Prompt Optimizer profile.'), {
+        profileId: input.profileId,
       }),
     };
   }

@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, type ReactNode } from 'react';
 import { StatusNotice } from './status-notice';
 import { Icon } from './icons';
 import { useI18n } from '../i18n/i18n-context';
@@ -23,6 +23,13 @@ interface ProviderProfileEditorProps {
   readonly onAliasValue: (value: string) => void;
   readonly aliasError?: string | null;
   readonly aliasPlaceholder?: string;
+  readonly apiFormatLabel?: string;
+  readonly apiFormatDetail?: string | null;
+  readonly apiFormatTone?: 'neutral' | 'positive' | 'negative' | 'warning';
+  readonly detectInputValue?: string;
+  readonly onDetectInputValue?: (value: string) => void;
+  readonly detectInputPlaceholder?: string;
+  readonly pathSettings?: ReactNode;
   readonly connection: ProviderConnectionDraft;
   readonly onConnectionChange: (updater: ProviderConnectionUpdater) => void;
   readonly baseUrlPlaceholder?: string;
@@ -124,6 +131,13 @@ export function ProviderProfileEditor({
   onAliasValue,
   aliasError = null,
   aliasPlaceholder,
+  apiFormatLabel,
+  apiFormatDetail = null,
+  apiFormatTone = 'neutral',
+  detectInputValue,
+  onDetectInputValue,
+  detectInputPlaceholder,
+  pathSettings,
   connection,
   onConnectionChange,
   baseUrlPlaceholder,
@@ -212,6 +226,42 @@ export function ProviderProfileEditor({
             </HelpText>
           ) : null}
         </div>
+
+        <div className="field">
+          <FieldLabel htmlFor="provider-api-format-status">{t.settings.apiFormat}</FieldLabel>
+          <div
+            data-testid="provider-api-format-status"
+            id="provider-api-format-status"
+            className={`test-status test-status-${apiFormatTone === 'positive' ? 'positive' : apiFormatTone === 'negative' ? 'negative' : 'neutral'}`}
+          >
+            {apiFormatLabel ?? t.settings.apiFormatAuto}
+          </div>
+          {apiFormatDetail ? (
+            <HelpText
+              data-testid="provider-api-format-detail"
+              className="field-hint"
+              variant={apiFormatTone === 'negative' ? 'negative' : undefined}
+            >
+              {apiFormatDetail}
+            </HelpText>
+          ) : null}
+        </div>
+
+        {onDetectInputValue ? (
+          <div className="field">
+            <FieldLabel htmlFor="provider-endpoint-detect-input">{t.settings.endpointOrPath}</FieldLabel>
+            <TextField
+              data-testid="provider-endpoint-detect-input"
+              id="provider-endpoint-detect-input"
+              className="field-input mono ui-field-control"
+              placeholder={detectInputPlaceholder ?? 'https://api.example.com/v1/chat/completions'}
+              value={detectInputValue ?? ''}
+              disabled={disabled}
+              onValue={onDetectInputValue}
+            />
+            <HelpText className="field-hint">{t.settings.endpointOrPathHint}</HelpText>
+          </div>
+        ) : null}
 
         <div className="field">
           <div className="settings-subsection-header">
@@ -381,6 +431,8 @@ export function ProviderProfileEditor({
 
         {measurementNotice ? renderStatusNotice(measurementNotice) : null}
         {connectionStatus ? renderStatusNotice(connectionStatus) : null}
+
+        {pathSettings}
 
         <div className="field">
           <div className="settings-field-header">

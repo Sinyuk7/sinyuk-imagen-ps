@@ -52,7 +52,7 @@ describe('SettingsDetailPage contract — connectivity', () => {
     expect(spies.testProviderProfileConnection).toHaveBeenCalledWith(
       expect.objectContaining({
         profileId: 'mock-profile',
-        providerId: 'mock',
+        apiFormat: 'openai-images',
       }),
     );
     expect(container.textContent).toContain('连接成功');

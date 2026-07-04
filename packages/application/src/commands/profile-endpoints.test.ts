@@ -69,11 +69,9 @@ describe('profile endpoint commands', () => {
     });
 
     const result = await measureProfileEndpoints({
-      providerId: 'image-endpoint',
+      apiFormat: 'openai-images',
       displayName: 'Draft Endpoint',
-      config: {
-        family: 'image-endpoint',
-        connection: {
+      config: {        connection: {
           selectionMode: 'auto',
           endpoints: [
             { id: 'fast', url: 'https://fast.example.com', enabled: true },
@@ -104,13 +102,11 @@ describe('profile endpoint commands', () => {
     setProviderProfileRepository(createProfileRepository().repository);
 
     const result = await measureProfileEndpoints({
-      providerId: 'mock',
-      displayName: 'Mock',
-      config: {
-        family: 'image-endpoint',
-        connection: {
+      apiFormat: 'gemini-generate-content',
+      displayName: 'Gemini',
+      config: {        connection: {
           selectionMode: 'auto',
-          endpoints: [{ id: 'mock-endpoint', url: 'https://mock.local', enabled: true }],
+          endpoints: [{ id: 'gemini-endpoint', url: 'https://gemini.local/v1beta', enabled: true }],
         },
       },
       secretValues: { apiKey: 'test-key' },
@@ -129,14 +125,12 @@ describe('profile endpoint commands', () => {
     _resetForTesting();
     const profile: ProviderProfile = {
       profileId: 'profile-a',
-      providerId: 'image-endpoint',
+      apiFormat: 'openai-images',
       displayName: 'Saved Endpoint',
       enabled: true,
       config: {
-        providerId: 'image-endpoint',
-        displayName: 'Saved Endpoint',
-        family: 'image-endpoint',
-        connection: {
+        apiFormat: 'openai-images',
+        displayName: 'Saved Endpoint',        connection: {
           selectionMode: 'manual',
           selectedEndpointId: 'saved',
           endpoints: [{ id: 'saved', url: 'https://saved.example.com', enabled: true }],
@@ -159,7 +153,7 @@ describe('profile endpoint commands', () => {
 
     const result = await measureProfileEndpoints({
       profileId: 'profile-a',
-      providerId: 'image-endpoint',
+      apiFormat: 'openai-images',
       config: {
         connection: {
           selectionMode: 'manual',
@@ -181,14 +175,12 @@ describe('profile endpoint commands', () => {
     _resetForTesting();
     const profile: ProviderProfile = {
       profileId: 'profile-a',
-      providerId: 'image-endpoint',
+      apiFormat: 'openai-images',
       displayName: 'Saved Endpoint',
       enabled: true,
       config: {
-        providerId: 'image-endpoint',
-        displayName: 'Saved Endpoint',
-        family: 'image-endpoint',
-        connection: {
+        apiFormat: 'openai-images',
+        displayName: 'Saved Endpoint',        connection: {
           selectionMode: 'manual',
           selectedEndpointId: 'saved',
           endpoints: [{ id: 'saved', url: 'https://saved.example.com', enabled: true }],
@@ -203,7 +195,7 @@ describe('profile endpoint commands', () => {
 
     const result = await measureProfileEndpoints({
       profileId: 'profile-a',
-      providerId: 'image-endpoint',
+      apiFormat: 'openai-images',
       removedSecretNames: ['apiKey'],
       config: {
         connection: {
@@ -232,11 +224,9 @@ describe('profile endpoint commands', () => {
     );
 
     const result = await measureProfileEndpoints({
-      providerId: 'image-endpoint',
+      apiFormat: 'openai-images',
       displayName: 'Manual Endpoint',
-      config: {
-        family: 'image-endpoint',
-        connection: {
+      config: {        connection: {
           selectionMode: 'manual',
           selectedEndpointId: 'primary',
           endpoints: [{ id: 'primary', url: 'https://manual.example.com', enabled: true }],

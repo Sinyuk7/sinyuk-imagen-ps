@@ -1,5 +1,5 @@
 import { type KeyboardEvent } from 'react';
-import type { ProviderProfile } from '@imagen-ps/application';
+import type { ApiFormat, ProviderProfile } from '@imagen-ps/application';
 import type { AppGenerationSettings } from '../../ports/app-generation-settings';
 import { profileToProviderRow } from '../../domain/mappers';
 import { Icon } from '../components/icons';
@@ -31,10 +31,10 @@ function initials(name: string): string {
 
 interface ProviderListRow {
   readonly profileId: string;
-  readonly providerId: string;
+  readonly apiFormat: ApiFormat;
   readonly displayName: string;
   readonly enabled: boolean;
-  readonly family: string;
+  readonly apiFormatLabel: string;
   readonly defaultModel?: string;
 }
 
@@ -92,9 +92,9 @@ function ProviderListItem({
             <span className="prov-name">{row.displayName}</span>
           </div>
           <div className="prov-meta-row">
-            <span className="prov-family">{row.family}</span>
+            <span className="prov-family">{row.apiFormatLabel}</span>
             <span className="prov-meta-sep" aria-hidden="true">•</span>
-            <span className="prov-model">{row.defaultModel ?? row.providerId}</span>
+            <span className="prov-model">{row.defaultModel ?? row.apiFormat}</span>
           </div>
         </div>
         <div className="prov-end">

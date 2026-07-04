@@ -32,7 +32,8 @@ describe('gemini-generate-content provider', () => {
     expect(provider.family).toBe('gemini-generate-content');
     expect(provider.describe()).toEqual(geminiGenerateContentDescriptor);
     expect(config.authMode).toBe('x-goog-api-key');
-    expect(config.apiVersion).toBe('v1');
+    expect(config.apiFormat).toBe('gemini-generate-content');
+    expect(config.paths).toEqual({ invokeTemplate: '/models/{model}:generateContent' });
     expect(provider.describe().defaultModels?.map((model) => model.id)).toEqual([
       'gemini-3.1-flash-image',
       'gemini-3-pro-image',
@@ -40,10 +41,10 @@ describe('gemini-generate-content provider', () => {
     ]);
   });
 
-  it('rejects version-owned endpoints and auth header overrides', () => {
+  it('accepts version-owned base URLs and rejects auth header overrides', () => {
     const provider = createGeminiGenerateContentProvider();
 
-    expect(() => provider.validateConfig({
+    const config = provider.validateConfig({
       providerId: 'gemini-generate-content',
       displayName: 'Gemini Generate Content',
       family: 'gemini-generate-content',
@@ -54,8 +55,9 @@ describe('gemini-generate-content provider', () => {
       },
       apiKey: 'test-key',
       authMode: 'bearer',
-      apiVersion: 'v1beta',
-    })).toThrow('versionless');
+    });
+
+    expect(config.connection.endpoints[0]?.url).toBe('https://api.n1n.ai/v1beta');
 
     expect(() => provider.validateConfig({
       providerId: 'gemini-generate-content',
@@ -78,7 +80,6 @@ describe('gemini-generate-content provider', () => {
         prompt: 'make an image',
         providerOptions: { model: 'gemini-3.1-flash-image' },
       },
-      apiVersion: 'v1',
     });
     const prefixed = buildGeminiGenerateContentRequest({
       request: {
@@ -86,12 +87,11 @@ describe('gemini-generate-content provider', () => {
         prompt: 'make an image',
         providerOptions: { model: 'models/gemini-3.1-flash-image' },
       },
-      apiVersion: 'v1',
     });
 
     expect(normalizeGeminiGenerateContentModelId('models/gemini-3.1-flash-image')).toBe('gemini-3.1-flash-image');
-    expect(plain.path).toBe('/v1/models/gemini-3.1-flash-image:generateContent');
-    expect(prefixed.path).toBe('/v1/models/gemini-3.1-flash-image:generateContent');
+    expect(plain.path).toBe('/models/gemini-3.1-flash-image:generateContent');
+    expect(prefixed.path).toBe('/models/gemini-3.1-flash-image:generateContent');
   });
 
   it('builds Gemini-native edit requests with contents parts and one response-format revision', () => {
@@ -107,7 +107,6 @@ describe('gemini-generate-content provider', () => {
         },
       },
       defaultModel: 'models/gemini-3.1-flash-image',
-      apiVersion: 'v1',
     });
 
     expect(built.wireRevision).toBe('response-format-image');
@@ -208,7 +207,7 @@ describe('gemini-generate-content provider', () => {
       connection: {
         selectionMode: 'manual',
         selectedEndpointId: 'primary',
-        endpoints: [{ id: 'primary', url: 'https://generativelanguage.googleapis.com', enabled: true }],
+        endpoints: [{ id: 'primary', url: 'https://generativelanguage.googleapis.com/v1', enabled: true }],
       },
       apiKey: 'test-key',
       defaultModel: 'models/gemini-3.1-flash-image',
@@ -276,11 +275,10 @@ describe('gemini-generate-content provider', () => {
       connection: {
         selectionMode: 'manual',
         selectedEndpointId: 'primary',
-        endpoints: [{ id: 'primary', url: 'https://api.n1n.ai/gateway', enabled: true }],
+        endpoints: [{ id: 'primary', url: 'https://api.n1n.ai/gateway/v1beta', enabled: true }],
       },
       apiKey: 'test-key',
       authMode: 'bearer',
-      apiVersion: 'v1beta',
     });
 
     await provider.invoke({

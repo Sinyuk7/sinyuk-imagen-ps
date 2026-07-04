@@ -24,6 +24,7 @@ import {
   createDispatchAdapter,
   createProviderRegistry,
   registerBuiltins,
+  type ApiFormat,
   type ProviderRegistry,
   type ProviderOperation,
 } from '@imagen-ps/providers';
@@ -40,12 +41,13 @@ import type {
   TaskStore,
 } from './commands/types.js';
 import { resolveSecretValue } from './commands/secret-utils.js';
+import { providerImplementationIdForApiFormat } from './commands/api-format-profile.js';
 import { builtinWorkflows } from './requests/index.js';
 
 /** 扩展的 Runtime 类型，暴露 provider registry 只读访问 */
 export interface ExtendedRuntime extends Runtime {
   /** Provider registry 只读访问（与 Runtime.registry 的 WorkflowRegistry 不同） */
-  readonly providerRegistry: Pick<ProviderRegistry, 'list' | 'get'>;
+  readonly providerRegistry: Pick<ProviderRegistry, 'list' | 'get' | 'getByApiFormat'>;
 }
 
 let instance: ExtendedRuntime | null = null;
@@ -169,10 +171,11 @@ function createDefaultProviderConfigResolver(): ProviderConfigResolver {
         throw new Error(`Provider profile not found: ${profileId}`);
       }
 
-      const provider = getRuntime().providerRegistry.get(profile.providerId);
+      const provider = getRuntime().providerRegistry.getByApiFormat(profile.apiFormat);
       if (!provider) {
-        throw new Error(`Provider implementation not found: ${profile.providerId}`);
+        throw new Error(`Provider implementation not found for apiFormat: ${profile.apiFormat}`);
       }
+      const implementationId = providerImplementationIdForApiFormat(profile.apiFormat);
 
       const resolvedSecrets: Record<string, string> = {};
       for (const [name, ref] of Object.entries(profile.secretRefs ?? {})) {
@@ -186,8 +189,9 @@ function createDefaultProviderConfigResolver(): ProviderConfigResolver {
       const resolvedBilling = await resolveBillingSecretConfig(profile.config, profile.secretRefs);
 
       const providerConfig = provider.validateConfig({
-        providerId: profile.providerId,
+        providerId: implementationId,
         displayName: profile.displayName,
+        apiFormat: profile.apiFormat,
         family: provider.family,
         ...profile.config,
         ...resolvedBilling,
@@ -196,7 +200,8 @@ function createDefaultProviderConfigResolver(): ProviderConfigResolver {
 
       return {
         profileId,
-        family: provider.family,
+        apiFormat: profile.apiFormat,
+        implementationId,
         providerConfig,
       };
     },
@@ -419,7 +424,7 @@ async function executionSnapshotFromJobInput(input: Record<string, unknown>): Pr
   return {
     ...(profileId !== undefined ? { profileId } : {}),
     ...(profile?.displayName !== undefined ? { profileName: profile.displayName } : {}),
-    ...(profile?.providerId !== undefined ? { providerId: profile.providerId } : {}),
+    ...(profile?.apiFormat !== undefined ? { apiFormat: profile.apiFormat } : {}),
     ...(modelId !== undefined ? { modelId } : {}),
     ...(output
       ? {
@@ -775,9 +780,13 @@ function createProfileAwareDispatchAdapter(logger?: Logger): ReturnType<typeof c
 
       const { providerConfig } = await getProviderConfigResolver().resolve(profileId);
       throwIfAborted(context?.signal);
-      const provider = getRuntime().providerRegistry.get(providerConfig.providerId);
+      const apiFormat = (providerConfig as { readonly apiFormat?: unknown }).apiFormat;
+      if (typeof apiFormat !== 'string') {
+        throw new Error('Resolved provider config requires apiFormat.');
+      }
+      const provider = getRuntime().providerRegistry.getByApiFormat(apiFormat as never);
       if (!provider) {
-        throw new Error(`Provider implementation not found: ${providerConfig.providerId}`);
+        throw new Error(`Provider implementation not found for apiFormat: ${apiFormat}`);
       }
 
       // Capability guard：在 dispatch 到 provider.invoke 前，用 descriptor.operations
@@ -825,6 +834,7 @@ export function getRuntime(): ExtendedRuntime {
       providerId: 'mock',
       displayName: 'Mock Provider',
       family: mockProvider.family,
+      apiFormat: 'openai-images',
       connection: {
         selectionMode: 'manual',
         selectedEndpointId: 'primary',
@@ -851,6 +861,7 @@ export function getRuntime(): ExtendedRuntime {
       providerRegistry: {
         list: () => registryInstance!.list(),
         get: (id: string) => registryInstance!.get(id),
+        getByApiFormat: (apiFormat: ApiFormat) => registryInstance!.getByApiFormat(apiFormat),
       },
     }) as ExtendedRuntime;
   }

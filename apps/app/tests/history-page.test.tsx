@@ -232,7 +232,7 @@ describe('HistoryPage', () => {
 
     expect(onLocateRound).not.toHaveBeenCalled();
     expect(onMiss).toHaveBeenCalled();
-    expect(container.querySelector('[data-testid="toast"]')?.textContent).toContain('该任务不在当前会话中');
+    expect(container.querySelector('[data-testid="toast"]')?.textContent).toContain('该任务属于其他会话');
   });
 
   it('routes durable task downloads through the supplied task action', async () => {

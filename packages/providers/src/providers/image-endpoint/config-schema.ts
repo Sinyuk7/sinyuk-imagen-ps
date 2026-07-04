@@ -1,5 +1,7 @@
 import { z } from 'zod';
 import { providerConnectionCollectionSchema } from '../../contract/config-schema.js';
+import { normalizeApiFormatPaths } from '../../contract/api-format.js';
+import type { OpenAiImagesPaths } from '../../contract/api-format.js';
 
 const providerBillingSchema = z.union([
   z.object({ mode: z.literal('none') }),
@@ -20,7 +22,19 @@ export const imageEndpointConfigSchema = z.object({
   providerId: z.string().min(1),
   displayName: z.string().min(1),
   family: z.literal('image-endpoint'),
+  apiFormat: z.literal('openai-images').default('openai-images'),
   connection: providerConnectionCollectionSchema,
+  paths: z.unknown().optional().transform((value, ctx) => {
+    try {
+      return normalizeApiFormatPaths('openai-images', value) as OpenAiImagesPaths;
+    } catch (error) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: error instanceof Error ? error.message : 'Invalid OpenAI Images paths.',
+      });
+      return z.NEVER;
+    }
+  }),
   apiKey: z.string().min(1),
   defaultModel: z.string().optional(),
   billing: providerBillingSchema,

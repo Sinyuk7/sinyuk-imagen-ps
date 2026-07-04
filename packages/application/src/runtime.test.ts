@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import { createLogger, createMemorySink } from '@imagen-ps/foundation';
 import {
   _resetForTesting,
@@ -123,24 +123,37 @@ function createAssetStore(seed?: { readonly ref: StoredAssetRef; readonly bytes:
   };
 }
 
+function mockOpenAiImagesFetch(assertRequest?: (input: unknown, init: RequestInit | undefined) => void) {
+  return vi.spyOn(globalThis, 'fetch').mockImplementation(async (input, init) => {
+    assertRequest?.(input, init);
+    return new Response(JSON.stringify({ data: [{ b64_json: 'iVBORw0KGgo=' }], output_format: 'png' }), {
+      status: 200,
+      headers: { 'Content-Type': 'application/json' },
+    });
+  });
+}
+
+afterEach(() => {
+  vi.restoreAllMocks();
+});
+
 describe('profile dispatch runtime', () => {
   it('does not spread unresolved providerOptions placeholders into model options', async () => {
     _resetForTesting();
     setProviderProfileRepository(
       createProfileRepository({
         profileId: 'mock-profile',
-        providerId: 'mock',
+        apiFormat: 'openai-images',
         displayName: 'Mock Profile',
         config: {
-          providerId: 'mock',
+          apiFormat: 'openai-images',
           displayName: 'Mock Profile',
-          family: 'image-endpoint',
           connection: {
             selectionMode: 'manual',
             selectedEndpointId: 'primary',
             endpoints: [{ id: 'primary', url: 'https://mock.local', enabled: true }],
           },
-          defaultModel: 'mock-image-v1',
+          defaultModel: 'gpt-image-2',
         },
         secretRefs: { apiKey: 'secret:mock' },
         enabled: true,
@@ -149,6 +162,13 @@ describe('profile dispatch runtime', () => {
       }),
     );
     setSecretStorageAdapter(createSecretStorage());
+    const fetchSpy = mockOpenAiImagesFetch((input, init) => {
+      expect(String(input)).toBe('https://mock.local/v1/images/edits');
+      expect(init?.body).toBeInstanceOf(FormData);
+      if (init?.body instanceof FormData) {
+        expect(init.body.get('model')).toBe('gpt-image-2');
+      }
+    });
 
     const result = await submitJob({
       workflow: 'provider-edit' as never,
@@ -163,11 +183,10 @@ describe('profile dispatch runtime', () => {
     if (!result.ok) {
       return;
     }
-    const image = result.value.output?.image as { text?: string; raw?: { model?: unknown } };
-    expect(image.raw?.model).toBe('mock-image-v1');
-    expect(image.text).toContain('[operation=image_edit] [model=mock-image-v1]');
-    expect(image.text).toContain('[prompt=make the...]');
-    expect(image.text).toContain('[images=1] [mask=no] [assets=1]');
+    expect(fetchSpy).toHaveBeenCalledTimes(1);
+    const image = result.value.output?.image as { assets?: Array<{ data?: unknown; storedRef?: unknown }> };
+    expect(image.assets?.[0]?.data).toBeUndefined();
+    expect(image.assets?.[0]?.storedRef).toMatchObject({ kind: 'hostObject', mimeType: 'image/png' });
   });
 
   it('flushes terminal jobs to injected durable history without raw secret values', async () => {
@@ -392,18 +411,17 @@ describe('profile dispatch runtime', () => {
     setProviderProfileRepository(
       createProfileRepository({
         profileId: 'mock-profile',
-        providerId: 'mock',
+        apiFormat: 'openai-images',
         displayName: 'Mock Profile',
         config: {
-          providerId: 'mock',
+          apiFormat: 'openai-images',
           displayName: 'Mock Profile',
-          family: 'image-endpoint',
           connection: {
             selectionMode: 'manual',
             selectedEndpointId: 'primary',
             endpoints: [{ id: 'primary', url: 'https://mock.local', enabled: true }],
           },
-          defaultModel: 'mock-image-v1',
+          defaultModel: 'gpt-image-2',
         },
         secretRefs: { apiKey: 'secret:mock' },
         enabled: true,
@@ -412,6 +430,7 @@ describe('profile dispatch runtime', () => {
       }),
     );
     setSecretStorageAdapter(createSecretStorage());
+    mockOpenAiImagesFetch();
 
     const result = await submitJob({
       workflow: 'provider-edit',
@@ -432,7 +451,7 @@ describe('profile dispatch runtime', () => {
     const outputAssets = (result.value.output?.image as { assets?: Array<{ data?: unknown; storedRef?: unknown }> })?.assets ?? [];
     expect(outputAssets[0]?.data).toBeUndefined();
     expect(outputAssets[0]?.storedRef).toMatchObject({ kind: 'hostObject', mimeType: 'image/png' });
-    expect(JSON.stringify(result.value.output)).not.toContain('"data"');
+    expect(JSON.stringify(records[0])).not.toContain('"data"');
   });
 
   it('honors aborted submit signals before resolving provider input refs', async () => {
@@ -450,18 +469,17 @@ describe('profile dispatch runtime', () => {
     setProviderProfileRepository(
       createProfileRepository({
         profileId: 'mock-profile',
-        providerId: 'mock',
+        apiFormat: 'openai-images',
         displayName: 'Mock Profile',
         config: {
-          providerId: 'mock',
+          apiFormat: 'openai-images',
           displayName: 'Mock Profile',
-          family: 'image-endpoint',
           connection: {
             selectionMode: 'manual',
             selectedEndpointId: 'primary',
             endpoints: [{ id: 'primary', url: 'https://mock.local', enabled: true }],
           },
-          defaultModel: 'mock-image-v1',
+          defaultModel: 'gpt-image-2',
         },
         secretRefs: { apiKey: 'secret:mock' },
         enabled: true,

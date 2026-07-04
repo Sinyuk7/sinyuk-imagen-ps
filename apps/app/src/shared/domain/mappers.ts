@@ -1,4 +1,4 @@
-import type { Asset, Job, JobError, ProviderProfile } from '@imagen-ps/application';
+import type { ApiFormat, Asset, Job, JobError, ProviderProfile } from '@imagen-ps/application';
 import type { ProfileBillingState } from '@imagen-ps/application';
 import { ensurePlaceableImagePayload } from './image-payload-preflight';
 
@@ -10,10 +10,10 @@ export interface AssetPreview {
 
 export interface ProviderRowVM {
   readonly profileId: string;
-  readonly providerId: string;
+  readonly apiFormat: ApiFormat;
   readonly displayName: string;
   readonly enabled: boolean;
-  readonly family: string;
+  readonly apiFormatLabel: string;
   readonly defaultModel?: string;
 }
 
@@ -213,12 +213,22 @@ export function profileToProviderRow(profile: ProviderProfile): ProviderRowVM {
   const defaultModel = profile.config.defaultModel;
   return {
     profileId: profile.profileId,
-    providerId: profile.providerId,
+    apiFormat: profile.apiFormat,
     displayName: profile.displayName,
     enabled: profile.enabled,
-    family: String(profile.config.family ?? profile.providerId),
+    apiFormatLabel: formatApiFormat(profile.apiFormat),
     ...(typeof defaultModel === 'string' && defaultModel.length > 0 ? { defaultModel } : {}),
   };
+}
+
+function formatApiFormat(apiFormat: ApiFormat): string {
+  if (apiFormat === 'openai-images') {
+    return 'OpenAI Images';
+  }
+  if (apiFormat === 'openai-chat-completions') {
+    return 'OpenAI Chat Completions';
+  }
+  return 'Gemini GenerateContent';
 }
 
 function trimTrailingZeros(value: string): string {

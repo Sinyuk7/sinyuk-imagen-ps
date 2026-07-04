@@ -53,14 +53,12 @@ function createProfileRepository(profiles: ProviderProfile[]): ProviderProfileRe
 
 const optimizerProfile: ProviderProfile = {
   profileId: PROMPT_OPTIMIZER_PROFILE_ID,
-  providerId: 'prompt-optimize',
+  apiFormat: 'openai-chat-completions',
   displayName: 'Prompt Optimizer',
   enabled: true,
   config: {
-    providerId: 'prompt-optimize',
-    displayName: 'Prompt Optimizer',
-    family: 'prompt-optimize',
-    connection: {
+    apiFormat: 'openai-chat-completions',
+    displayName: 'Prompt Optimizer',    connection: {
       selectionMode: 'manual',
       selectedEndpointId: 'primary',
       endpoints: [{ id: 'primary', url: 'https://openrouter.ai/api/v1', enabled: true }],
@@ -95,7 +93,8 @@ describe('prompt-optimize commands', () => {
       return;
     }
     expect(result.value.profileId).toBe(PROMPT_OPTIMIZER_PROFILE_ID);
-    expect(result.value.providerId).toBe('prompt-optimize');
+    expect(result.value.apiFormat).toBe('openai-chat-completions');
+    expect('providerId' in result.value).toBe(false);
     expect(result.value.enabled).toBe(false);
     expect(result.value.config.instruction).toBeTruthy();
   });
@@ -223,14 +222,14 @@ describe('prompt-optimize commands', () => {
     expect(result.ok).toBe(false);
   });
 
-  it('rejects saving reserved profile with wrong providerId', async () => {
+  it('rejects saving reserved profile with the wrong apiFormat', async () => {
     _resetForTesting();
     setProviderProfileRepository(createProfileRepository([optimizerProfile]));
     setSecretStorageAdapter(createSecretStorage());
 
     const result = await saveProviderProfile({
       profileId: PROMPT_OPTIMIZER_PROFILE_ID,
-      providerId: 'mock',
+      apiFormat: 'openai-images',
       displayName: 'Prompt Optimizer',
       enabled: true,
       config: optimizerProfile.config,

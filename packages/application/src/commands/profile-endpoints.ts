@@ -13,6 +13,7 @@ import type {
   MeasureProfileEndpointsResult,
 } from './types.js';
 import { resolveDraftProviderContext } from './draft-provider-config.js';
+import { catalogProviderIdForApiFormat } from './api-format-profile.js';
 
 type ResolvedConnection = {
   readonly selectionMode: 'manual' | 'auto';
@@ -37,9 +38,10 @@ function extractConnection(config: unknown): ResolvedConnection {
 }
 
 function normalizeMeasuredModels(
-  providerId: string,
+  apiFormat: Parameters<typeof catalogProviderIdForApiFormat>[0],
   models: readonly ProviderModelInfo[],
 ): readonly ProviderModelInfo[] {
+  const providerId = catalogProviderIdForApiFormat(apiFormat);
   if (!providerUsesImageModelCatalog(providerId)) {
     return models;
   }
@@ -89,7 +91,7 @@ function resolveAutoEndpointId(
 }
 
 function normalizeMeasurementResult(
-  providerId: string,
+  apiFormat: Parameters<typeof catalogProviderIdForApiFormat>[0],
   result: {
     readonly endpointId: string;
     readonly reachable: boolean;
@@ -102,7 +104,7 @@ function normalizeMeasurementResult(
   },
 ): EndpointMeasurementResult {
   const models = result.reachable
-    ? normalizeMeasuredModels(providerId, result.models ?? [])
+    ? normalizeMeasuredModels(apiFormat, result.models ?? [])
     : undefined;
   return {
     endpointId: result.endpointId,
@@ -127,12 +129,12 @@ export async function measureProfileEndpoints(
     package: 'application',
     component: 'command',
     profile_id: input.profileId ?? 'draft',
-    provider_id: input.providerId,
+    ...(input.apiFormat ? { apiFormat: input.apiFormat } : {}),
   });
   const span = logger.startSpan('command.profile.endpoints.measure');
 
   try {
-    const { provider, providerConfig } = await resolveDraftProviderContext(input);
+    const { provider, providerConfig, apiFormat } = await resolveDraftProviderContext(input);
     const connection = extractConnection(providerConfig);
     const enabledEndpoints = connection.endpoints.filter((endpoint) => endpoint.enabled);
     if (enabledEndpoints.length === 0) {
@@ -150,7 +152,7 @@ export async function measureProfileEndpoints(
         value: {
           supported: false,
           results: [],
-          message: `Provider implementation "${input.providerId}" does not support endpoint measurement.`,
+          message: `Provider implementation for apiFormat "${apiFormat}" does not support endpoint measurement.`,
         },
       };
     }
@@ -162,11 +164,11 @@ export async function measureProfileEndpoints(
       logger: logger.child({
         package: 'providers',
         component: 'provider',
-        provider_id: input.providerId,
+        provider_id: provider.id,
       }),
     });
 
-    const results = measured.results.map((result) => normalizeMeasurementResult(input.providerId, result));
+    const results = measured.results.map((result) => normalizeMeasurementResult(apiFormat, result));
     const models = aggregateMeasuredModels(results);
     const resolvedEndpointId = resolveAutoEndpointId(connection, results, input.currentResolvedEndpointId);
 
@@ -192,7 +194,7 @@ export async function measureProfileEndpoints(
     return {
       ok: false,
       error: createProviderError(errorMessage(error, 'Endpoint measurement failed.'), {
-        providerId: input.providerId,
+        apiFormat: input.apiFormat,
         profileId: input.profileId,
       }),
     };

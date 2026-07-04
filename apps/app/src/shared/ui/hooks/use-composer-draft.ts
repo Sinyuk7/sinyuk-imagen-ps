@@ -28,7 +28,7 @@ export interface ComposerDraftController {
   addAttachment(attachment: ConversationAttachment): void;
   removeAttachment(attachmentId: string): void;
   clearAttachments(): void;
-  reset(): void;
+  reset(options?: { readonly releaseAttachments?: boolean }): void;
 }
 
 /**
@@ -82,10 +82,14 @@ export function useComposerDraft(): ComposerDraftController {
     });
   }, []);
 
-  const reset = useCallback(() => {
+  const reset = useCallback((options?: { readonly releaseAttachments?: boolean }) => {
+    const shouldRelease = options?.releaseAttachments !== false;
     setInput('');
     setAttachments((current) => {
-      releaseAttachments(current);
+      if (shouldRelease) {
+        releaseAttachments(current);
+      }
+      attachmentsRef.current = [];
       return [];
     });
   }, []);

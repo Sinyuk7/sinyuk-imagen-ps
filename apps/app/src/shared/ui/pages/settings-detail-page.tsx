@@ -1,13 +1,19 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
+import { PROMPT_OPTIMIZER_PROFILE_ID } from '@imagen-ps/application';
 import type { EndpointMeasurementResult, ProviderModelInfo, ProviderProfile, ProviderProfileConfig, ProviderProfileConfigValue } from '@imagen-ps/application';
 import { useAppServices } from '../../ports/app-services-context';
 import {
+  apiFormatLabel,
   billingFieldError,
   billingModeOptions,
   connectionProbeResultById,
+  defaultApiPathDraft,
+  descriptorForApiFormat,
   formatBillingDetail,
+  mergeApiPathDraft,
   normalizeProviderConnectionDraft,
   providerConfigFromForm,
+  readApiPathDraft,
   readProviderBillingDraft,
   readProviderConfigString,
   readProviderConnectionDraft,
@@ -15,6 +21,8 @@ import {
   sanitizeProviderSecretValue,
   useProfileDetail,
   useProfileModels,
+  useProviderCatalog,
+  type ApiPathDraft,
   type ProviderBillingDraft,
   type ProviderConnectionDraft,
 } from '../hooks/use-provider-settings';
@@ -25,7 +33,7 @@ import { ProviderProfileEditor } from '../components/provider-profile-editor';
 import { StatusNotice } from '../components/status-notice';
 import { UxpTextArea } from '../components/uxp-form-controls';
 import { useI18n } from '../i18n/i18n-context';
-import { Button, FieldLabel, TextField, Checkbox } from '../primitives/native-controls';
+import { Button, FieldLabel, HelpText, TextField, Checkbox } from '../primitives/native-controls';
 import { IconButton } from '../primitives/icon-button';
 import {
   statusFromProviderConnectionTestResult,
@@ -58,7 +66,7 @@ function profileFormCheckpointAttrs(
 ): Record<string, unknown> {
   return {
     profileId: profile?.profileId ?? null,
-    providerId: profile?.providerId ?? null,
+    apiFormat: profile?.apiFormat ?? null,
     configKeyCount: profile ? Object.keys(profile.config).length : 0,
     hasDirtyCredential: form.apiKey.trim().length > 0,
     hasDirtyBillingCredential: (form.billingAccessToken ?? '').trim().length > 0,
@@ -70,10 +78,13 @@ function mergeProfileConfigForSave(
   profile: ProviderProfile,
   nextConfig: ProviderProfileConfig,
 ): ProviderProfileConfig {
-  return {
+  const merged = {
     ...profile.config,
     ...nextConfig,
   } as Record<string, ProviderProfileConfigValue>;
+  delete merged.providerId;
+  delete merged.family;
+  return merged;
 }
 
 function stableSerialize(value: unknown): string {
@@ -122,6 +133,7 @@ function hasDraftChanges(
     readonly displayName: string;
     readonly connection: ProviderConnectionDraft;
     readonly defaultModel: string;
+    readonly paths: ApiPathDraft;
     readonly billing: ProviderBillingDraft;
     readonly instruction: string;
     readonly apiKey: string;
@@ -138,16 +150,15 @@ function hasDraftChanges(
   ) {
     return true;
   }
-  const family = String(profile.config.family ?? profile.providerId);
   const nextDisplayName = sanitizeProviderDisplayName(draft.displayName) || profile.displayName;
   const nextConfig = mergeProfileConfigForSave(
     profile,
     providerConfigFromForm(
-      profile.providerId,
+      profile.apiFormat,
       nextDisplayName,
-      family,
       draft.connection,
       draft.defaultModel,
+      draft.paths,
       draft.billing,
       isOptimizerProfile ? draft.instruction : undefined,
     ),
@@ -180,6 +191,19 @@ function duplicateEndpointErrors(
   return errors;
 }
 
+function replaceEndpointUrl(
+  connection: ProviderConnectionDraft,
+  endpointId: string,
+  url: string,
+): ProviderConnectionDraft {
+  return {
+    ...connection,
+    endpoints: connection.endpoints.map((endpoint) => (
+      endpoint.id === endpointId ? { ...endpoint, url } : endpoint
+    )),
+  };
+}
+
 function billingDraftForSave(
   billing: ProviderBillingDraft,
   removeAccessToken: boolean,
@@ -192,13 +216,16 @@ function billingDraftForSave(
 export function SettingsDetailPage({ onNav, profileId, onProfilesChanged, onSaved }: SettingsDetailPageProps) {
   const services = useAppServices();
   const { messages: t } = useI18n();
+  const providers = useProviderCatalog(services);
   const detail = useProfileDetail(services, profileId);
   const models = useProfileModels(services, profileId);
   const [displayName, setDisplayName] = useState('');
   const [connection, setConnection] = useState<ProviderConnectionDraft>(readProviderConnectionDraft(null));
   const [defaultModel, setDefaultModel] = useState('');
+  const [paths, setPaths] = useState<ApiPathDraft>(defaultApiPathDraft(null));
   const [billingDraft, setBillingDraft] = useState<ProviderBillingDraft>(readProviderBillingDraft(null));
   const [billingModeMenuOpen, setBillingModeMenuOpen] = useState(false);
+  const [authModeMenuOpen, setAuthModeMenuOpen] = useState(false);
   const [billingExpanded, setBillingExpanded] = useState(false);
   const [instruction, setInstruction] = useState('');
   const [apiKey, setApiKey] = useState('');
@@ -225,9 +252,10 @@ export function SettingsDetailPage({ onNav, profileId, onProfilesChanged, onSave
   const measurementBusyRef = useRef(false);
   const connectionTestBusyRef = useRef(false);
   const saveNotice = useNotice({ defaultDurationMs: null });
-  const isOptimizerProfile = detail.profile?.providerId === 'prompt-optimize';
+  const isOptimizerProfile = detail.profile?.profileId === PROMPT_OPTIMIZER_PROFILE_ID;
   const billing = useProfileBilling(services, profileId);
   const busy = saveBusy;
+  const providerDescriptor = detail.profile ? descriptorForApiFormat(providers, detail.profile.apiFormat) : undefined;
 
   const invalidateDraftProofs = () => {
     draftRevisionRef.current += 1;
@@ -258,7 +286,32 @@ export function SettingsDetailPage({ onNav, profileId, onProfilesChanged, onSave
 
   const updateConnectionDraft = (updater: ConnectionUpdater) => {
     const previous = connectionRef.current;
-    const nextConnection = normalizeProviderConnectionDraft(updater(connectionRef.current));
+    let nextConnection = normalizeProviderConnectionDraft(updater(connectionRef.current));
+    const changedEndpoint = nextConnection.endpoints.find((endpoint) => {
+      const previousEndpoint = previous.endpoints.find((item) => item.id === endpoint.id);
+      return previousEndpoint && previousEndpoint.url !== endpoint.url;
+    });
+    if (changedEndpoint && detail.profile) {
+      const classification = services.commands.classifyEndpoint(changedEndpoint.url);
+      if (classification.status !== 'unsupported') {
+        if (classification.apiFormat !== detail.profile.apiFormat) {
+          saveNotice.show(
+            t.settings.apiFormatConflict(apiFormatLabel(detail.profile.apiFormat), apiFormatLabel(classification.apiFormat)),
+            'negative',
+            { durationMs: null, copyable: false },
+          );
+          nextConnection = previous;
+        } else {
+          setPaths((current) => mergeApiPathDraft(current, classification.paths, classification.apiFormat));
+          if (classification.source === 'full-url' && classification.baseUrl) {
+            nextConnection = replaceEndpointUrl(nextConnection, changedEndpoint.id, classification.baseUrl);
+          } else if (classification.source === 'path') {
+            const previousUrl = previous.endpoints.find((endpoint) => endpoint.id === changedEndpoint.id)?.url ?? '';
+            nextConnection = replaceEndpointUrl(nextConnection, changedEndpoint.id, previousUrl);
+          }
+        }
+      }
+    }
     connectionRef.current = nextConnection;
     setConnection(nextConnection);
     invalidateDraftProofs();
@@ -282,6 +335,7 @@ export function SettingsDetailPage({ onNav, profileId, onProfilesChanged, onSave
     const nextConnection = readProviderConnectionDraft(detail.profile);
     connectionRef.current = nextConnection;
     setConnection(nextConnection);
+    setPaths(readApiPathDraft(detail.profile));
     setDefaultModel(readProviderConfigString(detail.profile, 'defaultModel'));
     const nextBillingDraft = readProviderBillingDraft(detail.profile);
     billingDraftRef.current = nextBillingDraft;
@@ -321,13 +375,12 @@ export function SettingsDetailPage({ onNav, profileId, onProfilesChanged, onSave
       await services.diagnostics?.checkpoint('uxp.ui.settings_detail.persist.no_profile', { profileId });
       return null;
     }
-    const family = String(detail.profile.config.family ?? detail.profile.providerId);
     await services.diagnostics?.checkpoint(
       'uxp.ui.settings_detail.persist.input_prepared',
       profileFormCheckpointAttrs(detail.profile, { apiKey, defaultModel, billingAccessToken: billingDraft.accessToken }),
       {
         profile_id: detail.profile.profileId,
-        provider_id: detail.profile.providerId,
+        api_format: detail.profile.apiFormat,
       },
     );
     const effectiveBillingDraft = billingDraftForSave(billingDraft, billingAccessTokenRemovalPending);
@@ -337,17 +390,17 @@ export function SettingsDetailPage({ onNav, profileId, onProfilesChanged, onSave
     ];
     return detail.save({
       profileId: detail.profile.profileId,
-      providerId: detail.profile.providerId,
+      apiFormat: detail.profile.apiFormat,
       displayName: sanitizeProviderDisplayName(displayName) || detail.profile.displayName,
       enabled: detail.profile.enabled,
       config: mergeProfileConfigForSave(
         detail.profile,
         providerConfigFromForm(
-          detail.profile.providerId,
+          detail.profile.apiFormat,
           sanitizeProviderDisplayName(displayName) || detail.profile.displayName,
-          family,
           connection,
           defaultModel,
+          paths,
           effectiveBillingDraft,
           isOptimizerProfile ? instruction : undefined,
         ),
@@ -368,7 +421,6 @@ export function SettingsDetailPage({ onNav, profileId, onProfilesChanged, onSave
     if (!detail.profile) {
       throw new Error('No provider profile selected.');
     }
-    const family = String(detail.profile.config.family ?? detail.profile.providerId);
     const effectiveBillingDraft = billingDraftForSave(billingDraft, billingAccessTokenRemovalPending);
     const removedSecretNames = [
       ...(apiKeyRemovalPending ? ['apiKey'] : []),
@@ -376,16 +428,16 @@ export function SettingsDetailPage({ onNav, profileId, onProfilesChanged, onSave
     ];
     return {
       profileId: detail.profile.profileId,
-      providerId: detail.profile.providerId,
+      apiFormat: detail.profile.apiFormat,
       displayName: sanitizeProviderDisplayName(displayName) || detail.profile.displayName,
       config: mergeProfileConfigForSave(
         detail.profile,
         providerConfigFromForm(
-          detail.profile.providerId,
+          detail.profile.apiFormat,
           sanitizeProviderDisplayName(displayName) || detail.profile.displayName,
-          family,
           connection,
           defaultModel,
+          paths,
           effectiveBillingDraft,
           isOptimizerProfile ? instruction : undefined,
         ),
@@ -421,7 +473,6 @@ export function SettingsDetailPage({ onNav, profileId, onProfilesChanged, onSave
     setAliasError(null);
     await services.diagnostics?.checkpoint('uxp.ui.settings_detail.save.status_cleared', { profileId });
     try {
-      const providerDescriptor = detail.profile ? services.commands.describeProvider(detail.profile.providerId) : undefined;
       const effectiveBillingDraft = billingDraftForSave(billingDraft, billingAccessTokenRemovalPending);
       const validation = billingFieldError(effectiveBillingDraft, providerDescriptor);
       if (validation === 'user-id') {
@@ -434,40 +485,40 @@ export function SettingsDetailPage({ onNav, profileId, onProfilesChanged, onSave
       const profile = await persistProfile();
       await services.diagnostics?.checkpoint('uxp.ui.settings_detail.save.after_persist', {
         profileId: profile?.profileId ?? null,
-        providerId: profile?.providerId ?? null,
+        apiFormat: profile?.apiFormat ?? null,
         hasProfile: profile !== null,
       }, {
-        ...(profile ? { profile_id: profile.profileId, provider_id: profile.providerId } : {}),
+        ...(profile ? { profile_id: profile.profileId, api_format: profile.apiFormat } : {}),
       });
       if (profile) {
         await services.diagnostics?.checkpoint('uxp.ui.settings_detail.save.before_success_feedback', {
           profileId: profile.profileId,
-          providerId: profile.providerId,
+          apiFormat: profile.apiFormat,
         }, {
           profile_id: profile.profileId,
-          provider_id: profile.providerId,
+          api_format: profile.apiFormat,
         });
         await services.diagnostics?.checkpoint('uxp.ui.settings_detail.save.after_success_feedback', {
           profileId: profile.profileId,
-          providerId: profile.providerId,
+          apiFormat: profile.apiFormat,
         }, {
           profile_id: profile.profileId,
-          provider_id: profile.providerId,
+          api_format: profile.apiFormat,
         });
         await services.diagnostics?.checkpoint('uxp.ui.settings_detail.save.before_profiles_changed', {
           profileId: profile.profileId,
-          providerId: profile.providerId,
+          apiFormat: profile.apiFormat,
         }, {
           profile_id: profile.profileId,
-          provider_id: profile.providerId,
+          api_format: profile.apiFormat,
         });
         await onProfilesChanged(profile.profileId);
         await services.diagnostics?.checkpoint('uxp.ui.settings_detail.save.after_profiles_changed', {
           profileId: profile.profileId,
-          providerId: profile.providerId,
+          apiFormat: profile.apiFormat,
         }, {
           profile_id: profile.profileId,
-          provider_id: profile.providerId,
+          api_format: profile.apiFormat,
         });
         onSaved?.(t.settings.saved);
         onNav('settings');
@@ -493,12 +544,12 @@ export function SettingsDetailPage({ onNav, profileId, onProfilesChanged, onSave
     }
     void services.diagnostics?.checkpoint('uxp.ui.settings_detail.render.ready', {
       profileId: detail.profile.profileId,
-      providerId: detail.profile.providerId,
+      apiFormat: detail.profile.apiFormat,
       busy,
         hasStatus: saveNotice.notice !== null || testStatus.message !== t.settings.testNotTested,
       }, {
         profile_id: detail.profile.profileId,
-        provider_id: detail.profile.providerId,
+        api_format: detail.profile.apiFormat,
       });
   }, [busy, detail.profile, saveNotice.notice, testStatus, t.settings.testNotTested, services.diagnostics]);
 
@@ -549,6 +600,7 @@ export function SettingsDetailPage({ onNav, profileId, onProfilesChanged, onSave
           displayName,
           connection,
           defaultModel,
+          paths,
           billing: billingDraft,
           instruction,
           apiKey,
@@ -625,9 +677,9 @@ export function SettingsDetailPage({ onNav, profileId, onProfilesChanged, onSave
   const modelSelectDisabled = busy || models.loading || modelOptions.length === 0;
   const selectedModelInfo = models.models.find((model) => model.id === defaultModel);
   const selectedModelStatus = modelStatusMessage(selectedModelInfo, t);
-  const providerDescriptor = detail.profile ? services.commands.describeProvider(detail.profile.providerId) : undefined;
-  const measurementSupported = providerDescriptor?.connectivity?.endpointMeasurement !== 'unsupported';
-  const connectionTestSupported = providerDescriptor?.connectivity?.connectionTest !== 'unsupported';
+  const measurementSupported = Boolean(providerDescriptor && providerDescriptor.connectivity?.endpointMeasurement !== 'unsupported');
+  const connectionTestSupported = Boolean(providerDescriptor && providerDescriptor.connectivity?.connectionTest !== 'unsupported');
+  const modelDiscoverySupported = measurementSupported;
   const endpointErrors = duplicateEndpointErrors(connection, t.settings.duplicateEndpointUrl);
   const effectiveBillingDraft = billingDraftForSave(billingDraft, billingAccessTokenRemovalPending);
   const billingValidation = billingFieldError(effectiveBillingDraft, providerDescriptor);
@@ -638,6 +690,7 @@ export function SettingsDetailPage({ onNav, profileId, onProfilesChanged, onSave
           displayName,
           connection,
           defaultModel,
+          paths,
           billing: billingDraft,
           instruction,
           apiKey,
@@ -655,6 +708,8 @@ export function SettingsDetailPage({ onNav, profileId, onProfilesChanged, onSave
         detail: models.error,
         detailCopyable: true,
       }
+    : !modelDiscoverySupported
+      ? { tone: 'info' as const, message: t.settings.modelDiscoveryUnsupported }
     : modelsStale
       ? { tone: 'warning' as const, message: t.settings.modelListStale }
     : modelOptions.length === 0
@@ -683,6 +738,105 @@ export function SettingsDetailPage({ onNav, profileId, onProfilesChanged, onSave
     );
   };
 
+  const updatePath = (next: Partial<ApiPathDraft>) => {
+    setPaths((current) => ({ ...current, ...next }));
+    invalidateDraftProofs();
+  };
+
+  const renderPathSettings = () => {
+    if (!detail.profile) {
+      return null;
+    }
+    const authOptions = [
+      { id: 'x-goog-api-key', label: 'x-goog-api-key' },
+      { id: 'bearer', label: 'Bearer' },
+      { id: 'none', label: 'None' },
+    ];
+    return (
+      <div className="section">
+        <div className="section-title settings-section-heading">{t.settings.advancedSettings}</div>
+        {detail.profile.apiFormat === 'openai-images' ? (
+          <>
+            <div className="field">
+              <FieldLabel htmlFor="provider-generation-path-input">{t.settings.generationPath}</FieldLabel>
+              <TextField
+                data-testid="provider-generation-path-input"
+                id="provider-generation-path-input"
+                className="field-input mono ui-field-control"
+                value={paths.generation}
+                disabled={busy}
+                onValue={(value) => updatePath({ generation: value })}
+              />
+            </div>
+            <div className="field">
+              <FieldLabel htmlFor="provider-edit-path-input">{t.settings.editPath}</FieldLabel>
+              <TextField
+                data-testid="provider-edit-path-input"
+                id="provider-edit-path-input"
+                className="field-input mono ui-field-control"
+                value={paths.edit}
+                disabled={busy}
+                onValue={(value) => updatePath({ edit: value })}
+              />
+            </div>
+            <HelpText className="field-hint">{t.settings.authModeFixedBearer}</HelpText>
+          </>
+        ) : null}
+        {detail.profile.apiFormat === 'openai-chat-completions' ? (
+          <>
+            <div className="field">
+              <FieldLabel htmlFor="provider-invoke-path-input">{t.settings.invokePath}</FieldLabel>
+              <TextField
+                data-testid="provider-invoke-path-input"
+                id="provider-invoke-path-input"
+                className="field-input mono ui-field-control"
+                value={paths.invoke}
+                disabled={busy}
+                onValue={(value) => updatePath({ invoke: value })}
+              />
+            </div>
+            <HelpText className="field-hint">{t.settings.authModeFixedBearer}</HelpText>
+          </>
+        ) : null}
+        {detail.profile.apiFormat === 'gemini-generate-content' ? (
+          <>
+            <div className="field">
+              <FieldLabel htmlFor="provider-invoke-template-input">{t.settings.invokePathTemplate}</FieldLabel>
+              <TextField
+                data-testid="provider-invoke-template-input"
+                id="provider-invoke-template-input"
+                className="field-input mono ui-field-control"
+                value={paths.invokeTemplate}
+                disabled={busy}
+                onValue={(value) => updatePath({ invokeTemplate: value })}
+              />
+            </div>
+            <div className="field">
+              <FieldLabel htmlFor="provider-auth-mode-selector">{t.settings.authMode}</FieldLabel>
+              <TextSelect
+                label={t.settings.authMode}
+                value={authOptions.find((option) => option.id === paths.authMode)?.label ?? paths.authMode}
+                disabled={busy}
+                open={authModeMenuOpen}
+                onOpenChange={setAuthModeMenuOpen}
+                options={authOptions}
+                selectedId={paths.authMode}
+                onSelect={(id) => {
+                  updatePath({ authMode: id as ApiPathDraft['authMode'] });
+                  setAuthModeMenuOpen(false);
+                }}
+                testId="provider-auth-mode-selector"
+                triggerId="provider-auth-mode-selector"
+                containerClassName="cmp-select cmp-select-model provider-model-select"
+                menuClassName="cmp-select-menu cmp-select-menu-model"
+              />
+            </div>
+          </>
+        ) : null}
+      </div>
+    );
+  };
+
   const renderDefaultModelSection = () => (
     <div className="section">
       <div className="settings-section-header">
@@ -691,10 +845,10 @@ export function SettingsDetailPage({ onNav, profileId, onProfilesChanged, onSave
           data-testid="provider-refresh-models-button"
           className="settings-icon-button"
           compactSquare
-          disabled={models.loading || busy}
+          disabled={models.loading || busy || !modelDiscoverySupported}
           icon={<Icon name="refresh" size={16} className={models.loading ? 'spin' : undefined} />}
-          tooltip={models.loading ? t.settings.refreshingModels : t.settings.refreshModels}
-          aria-label={models.loading ? t.settings.refreshingModels : t.settings.refreshModels}
+          tooltip={!modelDiscoverySupported ? t.settings.modelDiscoveryUnsupported : models.loading ? t.settings.refreshingModels : t.settings.refreshModels}
+          aria-label={!modelDiscoverySupported ? t.settings.modelDiscoveryUnsupported : models.loading ? t.settings.refreshingModels : t.settings.refreshModels}
           onClick={() => void refreshModels()}
         />
       </div>
@@ -987,6 +1141,10 @@ export function SettingsDetailPage({ onNav, profileId, onProfilesChanged, onSave
                 setAliasError(null);
               }}
               aliasError={aliasError}
+              apiFormatLabel={apiFormatLabel(detail.profile.apiFormat)}
+              apiFormatTone="positive"
+              apiFormatDetail={t.settings.apiFormatDetected(apiFormatLabel(detail.profile.apiFormat))}
+              pathSettings={renderPathSettings()}
               connection={connection}
               onConnectionChange={updateConnectionDraft}
               endpointErrors={endpointErrors}

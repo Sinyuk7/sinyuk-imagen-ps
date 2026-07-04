@@ -1,10 +1,17 @@
 import type { ProviderFamily } from './capability.js';
+import type {
+  AuthMode,
+  GeminiGenerateContentPaths,
+  OpenAiChatCompletionsPaths,
+  OpenAiImagesPaths,
+} from './api-format.js';
+import { canonicalizeProviderBaseUrl } from './api-format.js';
 
 /**
  * Provider config 契约。
  *
  * 当前阶段以“可接入实例”而不是“厂商品牌”建模。
- * `connection.endpoints[].url` 可以指向 relay、proxy 或 gateway；
+ * `connection.endpoints[].url` 是 relay、proxy 或 gateway base URL；
  * `apiKey` 默认按 Bearer 风格理解，非标准鉴权通过 `extraHeaders` 扩展；
  * `defaultModel` 只提供默认路由，不替代请求时的 model target。
  */
@@ -35,49 +42,11 @@ export interface ProviderConnectionConfig {
   readonly endpoints: readonly ProviderEndpointConfig[];
 }
 
-function defaultPortForScheme(protocol: string): string | undefined {
-  if (protocol === 'http:') {
-    return '80';
-  }
-  if (protocol === 'https:') {
-    return '443';
-  }
-  return undefined;
-}
-
 /**
- * 规范化 endpoint URL。
- *
- * 规则：
- * - trim 首尾空白；
- * - scheme / hostname 转小写；
- * - 保留 path 与 query；
- * - path 为空时补 `/`；
- * - path 非根路径时去掉尾随 `/`；
- * - 禁止 fragment；
- * - 禁止内嵌用户名密码。
+ * 规范化 endpoint base URL。
  */
 export function canonicalizeProviderEndpointUrl(input: string): string {
-  const trimmed = input.trim();
-  const url = new URL(trimmed);
-  if (url.hash.length > 0) {
-    throw new Error('Endpoint URL must not include fragments.');
-  }
-  if (url.username.length > 0 || url.password.length > 0) {
-    throw new Error('Endpoint URL must not include embedded credentials.');
-  }
-  url.protocol = url.protocol.toLowerCase();
-  url.hostname = url.hostname.toLowerCase();
-  if (url.port === defaultPortForScheme(url.protocol)) {
-    url.port = '';
-  }
-  if (url.pathname.length === 0) {
-    url.pathname = '/';
-  }
-  if (url.pathname !== '/' && url.pathname.endsWith('/')) {
-    url.pathname = url.pathname.replace(/\/+$/, '');
-  }
-  return url.toString();
+  return canonicalizeProviderBaseUrl(input);
 }
 
 type ConnectionInput = {
@@ -186,8 +155,14 @@ export interface ImageEndpointProviderConfig {
   /** 当前 provider family。 */
   readonly family: ProviderFamily;
 
+  /** 当前 profile 使用的 API format。 */
+  readonly apiFormat: 'openai-images';
+
   /** Images endpoint relay / proxy / gateway 的连接集合。 */
   readonly connection: ProviderConnectionConfig;
+
+  /** OpenAI Images API path 配置。 */
+  readonly paths: OpenAiImagesPaths;
 
   /** Provider instance 使用的 API key。 */
   readonly apiKey: string;
@@ -213,8 +188,14 @@ export interface ChatImageProviderConfig {
   /** 当前 provider family。 */
   readonly family: ProviderFamily;
 
+  /** 当前 profile 使用的 API format。 */
+  readonly apiFormat: 'openai-chat-completions';
+
   /** Chat-compatible relay / proxy / gateway 的连接集合。 */
   readonly connection: ProviderConnectionConfig;
+
+  /** Chat Completions API path 配置。 */
+  readonly paths: OpenAiChatCompletionsPaths;
 
   /** Provider instance 使用的 API key。 */
   readonly apiKey: string;
@@ -230,10 +211,7 @@ export interface ChatImageProviderConfig {
 }
 
 /** Gemini Generate Content provider instance 的鉴权模式。 */
-export type GeminiGenerateContentAuthMode = 'x-goog-api-key' | 'bearer';
-
-/** Gemini Generate Content provider instance 的 API 版本。 */
-export type GeminiGenerateContentApiVersion = 'v1' | 'v1beta';
+export type GeminiGenerateContentAuthMode = Extract<AuthMode, 'x-goog-api-key' | 'bearer' | 'none'>;
 
 /** Gemini Generate Content provider instance 的配置形状。 */
 export interface GeminiGenerateContentProviderConfig {
@@ -246,17 +224,20 @@ export interface GeminiGenerateContentProviderConfig {
   /** 当前 provider family。 */
   readonly family: ProviderFamily;
 
+  /** 当前 profile 使用的 API format。 */
+  readonly apiFormat: 'gemini-generate-content';
+
   /** Gemini-compatible relay / proxy / gateway 的连接集合。 */
   readonly connection: ProviderConnectionConfig;
 
+  /** Gemini GenerateContent API path template 配置。 */
+  readonly paths: GeminiGenerateContentPaths;
+
   /** Gemini Generate Content 使用的鉴权 secret。 */
-  readonly apiKey: string;
+  readonly apiKey?: string;
 
   /** Provider instance 使用的显式鉴权模式。 */
   readonly authMode: GeminiGenerateContentAuthMode;
-
-  /** Provider instance 使用的显式 API 版本。 */
-  readonly apiVersion: GeminiGenerateContentApiVersion;
 
   /** 缺省 model target。 */
   readonly defaultModel?: string;

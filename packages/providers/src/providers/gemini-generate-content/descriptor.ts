@@ -5,6 +5,7 @@ import { listLocalCatalogModels } from '../../contract/image-model-capability.js
 export const geminiGenerateContentDescriptor: ProviderDescriptor = {
   id: 'gemini-generate-content',
   family: 'gemini-generate-content',
+  apiFormat: 'gemini-generate-content',
   displayName: 'Gemini Generate Content',
   operations: ['text_to_image', 'image_edit'],
   invokeMode: 'sync',
