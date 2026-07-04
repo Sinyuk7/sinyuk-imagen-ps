@@ -141,7 +141,6 @@ export function SettingsAddPage({ onNav, profiles, onProfileSaved }: SettingsAdd
   const [busy, setBusy] = useState(false);
   const [probeResults, setProbeResults] = useState<readonly EndpointProbeResult[]>([]);
   const [suggestedEndpointId, setSuggestedEndpointId] = useState<string | undefined>();
-  const [useProviderAfterSaving, setUseProviderAfterSaving] = useState(profiles.length === 0);
   const modelModeTouchedRef = useRef(false);
   const nameTouchedRef = useRef(false);
   const connectionRef = useRef(connection);
@@ -163,6 +162,7 @@ export function SettingsAddPage({ onNav, profiles, onProfileSaved }: SettingsAdd
     : null;
   const endpointErrors = duplicateEndpointErrors(connection, t.settings.duplicateEndpointUrl);
   const saveDisabled = busy || Boolean(aliasError) || endpointErrors.size > 0;
+  const useProviderOnSave = profiles.length === 0;
 
   useEffect(() => {
     modelModeTouchedRef.current = false;
@@ -261,7 +261,7 @@ export function SettingsAddPage({ onNav, profiles, onProfileSaved }: SettingsAdd
     statusNotice.clear();
     try {
       const profileId = await saveProfile();
-      await onProfileSaved(profileId, { useProvider: useProviderAfterSaving });
+      await onProfileSaved(profileId, { useProvider: useProviderOnSave });
     } catch (error) {
       statusNotice.show(error instanceof Error ? error.message : String(error), 'negative', { durationMs: null, copyable: true });
     } finally {
@@ -360,7 +360,6 @@ export function SettingsAddPage({ onNav, profiles, onProfileSaved }: SettingsAdd
                       setProbeResults([]);
                       setSuggestedEndpointId(undefined);
                       draftRevisionRef.current += 1;
-                      setUseProviderAfterSaving(profiles.length === 0);
                       setStep(2);
                     }}
                   >
@@ -482,8 +481,8 @@ export function SettingsAddPage({ onNav, profiles, onProfileSaved }: SettingsAdd
       </div>
 
       {step === 2 && (
-        <footer className="det-footer">
-          <div className="settings-detail-footer-inner">
+        <footer className="det-footer settings-add-footer">
+          <div className="settings-detail-footer-inner settings-add-footer-inner">
             <div className="settings-detail-footer-actions">
               <IconButton
                 data-testid="provider-test-button"
@@ -504,15 +503,7 @@ export function SettingsAddPage({ onNav, profiles, onProfileSaved }: SettingsAdd
                 />
               ) : null}
             </div>
-            <div className="settings-detail-footer-save-group">
-              <Checkbox
-                data-testid="provider-use-after-saving"
-                checked={useProviderAfterSaving}
-                disabled={busy}
-                onChecked={setUseProviderAfterSaving}
-              >
-                {t.settings.useProviderAfterSaving}
-              </Checkbox>
+            <div className="settings-detail-footer-save-group settings-add-footer-save-group">
               <Button data-testid="provider-save-button" className="btn-save" variant="accent" disabled={saveDisabled} onClick={() => void handleSave()}>{busy ? t.settings.saving : t.settings.saveProvider}</Button>
               <Button
                 className="btn-cancel"

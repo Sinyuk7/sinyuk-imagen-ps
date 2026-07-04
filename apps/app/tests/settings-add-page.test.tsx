@@ -261,7 +261,7 @@ describe('SettingsAddPage', () => {
     expect((queryByTestId(container, 'provider-alias-input') as HTMLInputElement).value).toBe('Manual Name');
   });
 
-  it('does not opt into using a new provider by default when another provider already exists', async () => {
+  it('does not auto-use a new provider when another provider already exists', async () => {
     const { services } = createFakeServices();
     const onProfileSaved = vi.fn(async () => undefined);
     const container = document.createElement('div');
@@ -279,13 +279,39 @@ describe('SettingsAddPage', () => {
     await act(async () => {
       container.querySelector<HTMLElement>('[data-testid="provider-type-mock"]')!.click();
     });
-    expect((queryByTestId(container, 'provider-use-after-saving') as HTMLInputElement).checked).toBe(false);
+    expect(container.querySelector('[data-testid="provider-use-after-saving"]')).toBeNull();
 
     await act(async () => {
       container.querySelector<HTMLButtonElement>('.btn-save')!.click();
     });
 
     expect(onProfileSaved).toHaveBeenCalledWith(expect.stringMatching(/^profile-/), { useProvider: false });
+  });
+
+  it('auto-uses the first saved provider when no provider exists yet', async () => {
+    const { services } = createFakeServices();
+    const onProfileSaved = vi.fn(async () => undefined);
+    const container = document.createElement('div');
+    document.body.appendChild(container);
+    root = createRoot(container);
+
+    await act(async () => {
+      root!.render(
+        <TestAppProviders services={services}>
+          <SettingsAddPage onNav={() => undefined} profiles={[]} onProfileSaved={onProfileSaved} />
+        </TestAppProviders>,
+      );
+    });
+
+    await act(async () => {
+      container.querySelector<HTMLElement>('[data-testid="provider-type-mock"]')!.click();
+    });
+
+    await act(async () => {
+      container.querySelector<HTMLButtonElement>('.btn-save')!.click();
+    });
+
+    expect(onProfileSaved).toHaveBeenCalledWith(expect.stringMatching(/^profile-/), { useProvider: true });
   });
 
   it('uses a plain header title and removes unexplained step text on the config screen', async () => {

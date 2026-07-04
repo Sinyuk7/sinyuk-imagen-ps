@@ -88,5 +88,21 @@ export const RESPONSIVE_CSS = `
 .panel[data-panel-height-mode="short"] .settings-page .det-footer{ padding:8px 12px; }
 .panel[data-panel-height-mode="short"] .settings-page .scroll-footer-pad{ padding-bottom:96px; }
 
+.panel[data-panel-width-mode="compact"] .settings-add-footer .settings-detail-footer-inner{
+  flex-wrap:wrap;
+}
+.panel[data-panel-width-mode="compact"] .settings-add-footer .settings-detail-footer-actions,
+.panel[data-panel-width-mode="compact"] .settings-add-footer .settings-add-footer-save-group{
+  width:100%;
+}
+.panel[data-panel-width-mode="compact"] .settings-add-footer .settings-add-footer-save-group{
+  justify-content:flex-start;
+  margin-top:10px;
+}
+.panel[data-panel-width-mode="compact"] .settings-add-footer .btn-save{
+  flex:1 1 auto;
+  min-width:0;
+}
+
 .cmp-select-output-size .cmp-chip-value-icon{ max-width:none; }
 `;

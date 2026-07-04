@@ -229,7 +229,6 @@ export interface AppMessages {
     readonly modelListStale: string;
     readonly duplicateDisplayName: (name: string) => string;
     readonly duplicateEndpointUrl: string;
-    readonly useProviderAfterSaving: string;
     readonly saveProvider: string;
     readonly saveChanges: string;
     readonly savedButton: string;
@@ -531,7 +530,6 @@ const EN_MESSAGES: AppMessages = {
     modelListStale: 'Model list may be outdated for the current draft.',
     duplicateDisplayName: (name) => `A provider named "${name}" already exists.`,
     duplicateEndpointUrl: 'This endpoint is already used in this profile.',
-    useProviderAfterSaving: 'Use this provider after saving',
     saveProvider: 'Save Provider',
     saveChanges: 'Save changes',
     savedButton: 'Saved',
@@ -834,7 +832,6 @@ const ZH_CN_MESSAGES: AppMessages = {
     modelListStale: '模型列表可能不匹配当前草稿。',
     duplicateDisplayName: (name) => `已存在名为“${name}”的 provider。`,
     duplicateEndpointUrl: '当前 profile 中已有这个 endpoint。',
-    useProviderAfterSaving: '保存后立即使用该 provider',
     saveProvider: '保存 Provider',
     saveChanges: '保存修改',
     savedButton: '已保存',

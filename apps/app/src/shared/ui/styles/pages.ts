@@ -789,6 +789,15 @@ export const PAGES_CSS = `
   font-size:11px;
   line-height:15px;
 }
+.settings-add-footer .settings-detail-footer-inner{
+  align-items:flex-start;
+}
+.settings-add-footer .settings-detail-footer-inner > *{
+  margin-right:0;
+}
+.settings-add-footer .settings-detail-footer-actions{
+  flex:1 1 auto;
+}
 .settings-detail-footer-save-group{
   display:flex;
   align-items:center;
@@ -1032,6 +1041,17 @@ export const PAGES_CSS = `
     flex-basis:100%;
     margin-right:0;
     margin-bottom:0;
+  }
+  .settings-add-footer .settings-detail-footer-inner{
+    flex-wrap:wrap;
+  }
+  .settings-add-footer .settings-detail-footer-actions,
+  .settings-add-footer .settings-add-footer-save-group{
+    width:100%;
+  }
+  .settings-add-footer .settings-add-footer-save-group{
+    justify-content:flex-start;
+    margin-top:10px;
   }
   .generation-settings-footer .btn-save{
     flex:1 1 100%;

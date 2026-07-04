@@ -8,40 +8,42 @@ description: Convert a new repository requirement or multi-step change into a bo
 Create a bounded Loop plan grounded in this repository's current state.
 
 Use this skill when the task is a new requirement, refactor, or multi-step
-change that still needs scope definition. If the task is a final-test defect,
-Photoshop UXP runtime issue, Chrome-vs-UXP divergence, or confirmed bug with
-symptom, expected behavior, and reproduction evidence, recommend
-`uxp-issue-rca` instead. Do not auto-switch into that skill unless the user
-explicitly asks for it.
+change that still needs scope definition. Keep planning short and execution-
+oriented. If the task is a final-test defect, Photoshop UXP runtime issue,
+Chrome-vs-UXP divergence, or confirmed bug with symptom, expected behavior, and
+reproduction evidence, recommend `uxp-issue-rca` instead. Do not auto-switch
+into that skill unless the user explicitly asks for it.
 
 ## Procedure
 
 1. Read current authority first:
    - `AGENTS.md`
+   - active Loop named by root `AGENTS.md`, if present
    - `docs/agent/LOOP.md`
-   - `docs/ENGINEERING_CONTEXT.md`
    - `docs/TESTING.md`
    - relevant package `AGENTS.md`
+   - `docs/ENGINEERING_CONTEXT.md` only if needed for boundary or terminology
 2. Search project records before non-trivial work:
    ```sh
    rg -n "<module|symptom|error|decision>" docs/loops AGENTS.md README.md docs/ENGINEERING_CONTEXT.md docs/TESTING.md
    ```
-3. Classify docs before using them:
-   - current authority;
-   - completed Loop record;
-   - design / historical reference;
-   - manual-only workflow.
+3. Reuse the active Loop when it already covers the request. Draft a new Loop
+   only when the current active Loop does not cover the work.
 4. Convert the requirement into:
    - Goal;
    - Non-goals;
    - allowed / forbidden scope;
    - owner boundary;
    - baseline;
-   - slices;
+   - slices (`1-10`, each bounded and executable);
    - validation categories;
    - Decision Packet triggers;
    - memory note candidate rule.
-5. Format Loop docs with status/authority/owner metadata, goal/non-goals, scope, slices, and validation categories.
+5. Format the Loop doc to satisfy `docs/agent/LOOP.md` required metadata and
+   required sections. Keep each section short. Prefer direct bullets over
+   narrative.
+6. If the user already authorized execution, end with a Loop doc ready for
+   `bounded-loop-executor`. Do not implement product changes in this skill.
 
 ## Repository Boundaries
 
@@ -65,3 +67,5 @@ Produce a Decision Packet (A/B/C choice with evidence and recommendation) instea
 
 Return a Loop plan or Loop doc draft. Do not implement product features while
 using this skill unless the user explicitly authorizes execution after the plan.
+Treat the Loop file as temporary execution state that will be deleted after
+completion per `docs/agent/LOOP.md`.

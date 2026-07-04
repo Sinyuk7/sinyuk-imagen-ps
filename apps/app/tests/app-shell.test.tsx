@@ -232,7 +232,7 @@ describe('AppShell', () => {
       container.querySelector<HTMLElement>('[data-testid="provider-type-mock"]')?.click();
     });
     await flush();
-    expect(container.querySelector<HTMLInputElement>('[data-testid="provider-use-after-saving"]')?.checked).toBe(false);
+    expect(container.querySelector('[data-testid="provider-use-after-saving"]')).toBeNull();
 
     await act(async () => {
       container.querySelector<HTMLButtonElement>('[data-testid="provider-save-button"]')?.click();
