@@ -194,9 +194,6 @@ export interface ProviderEndpointMeasurement {
   /** 成功或失败前的耗时。 */
   readonly latencyMs?: number;
 
-  /** provider 可安全返回的模型候选。 */
-  readonly models?: readonly ProviderModelInfo[];
-
   /** 失败分类。 */
   readonly failureKind?: ProviderEndpointMeasurementFailureKind;
 

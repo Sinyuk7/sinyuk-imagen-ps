@@ -266,4 +266,37 @@ describe('SettingsDetailPage contract — profile editing', () => {
     expect(container.textContent).not.toContain('Saved');
     expect(container.textContent).not.toContain('已保存');
   });
+
+  it('allows saving a custom manual model after draft model refresh fails', async () => {
+    const container = document.createElement('div');
+    document.body.appendChild(container);
+    const { spies } = await renderDetail(container);
+    spies.refreshDraftProfileModels.mockResolvedValueOnce({
+      ok: false,
+      error: {
+        category: 'provider',
+        message: 'Model discovery failed for draft profile.',
+      },
+    });
+
+    await act(async () => {
+      queryByTestId(container, 'provider-use-custom-model-checkbox').click();
+    });
+    await act(async () => {
+      changeInput(queryByTestId(container, 'provider-default-model-input'), 'custom-model-x');
+      queryByTestId(container, 'provider-refresh-models-button').click();
+    });
+    await flush();
+
+    await act(async () => {
+      queryByTestId(container, 'provider-save-button').click();
+    });
+    await flush();
+
+    expect(spies.saveProviderProfile).toHaveBeenCalledWith(expect.objectContaining({
+      config: expect.objectContaining({
+        defaultModel: 'custom-model-x',
+      }),
+    }));
+  });
 });

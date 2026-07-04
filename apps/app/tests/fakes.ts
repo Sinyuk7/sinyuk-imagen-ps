@@ -266,6 +266,7 @@ export function createFakeServices(options?: {
     readonly testProviderProfile: ReturnType<typeof vi.fn>;
     readonly testProviderProfileConnection: ReturnType<typeof vi.fn>;
     readonly measureProfileEndpoints: ReturnType<typeof vi.fn>;
+    readonly refreshDraftProfileModels: ReturnType<typeof vi.fn>;
     readonly refreshProfileBalance: ReturnType<typeof vi.fn>;
     readonly getProfileBillingState: ReturnType<typeof vi.fn>;
     readonly listProfileModels: ReturnType<typeof vi.fn>;
@@ -340,16 +341,14 @@ export function createFakeServices(options?: {
           status: 'success',
           checkedAt: Date.now(),
           latencyMs: 12,
-          modelCount: 1,
-          models: [{ id: 'mock-image-v1' }],
         } satisfies EndpointMeasurementResult,
       ],
-      models: [{ id: 'mock-image-v1' }],
       ...((
         (input.config.connection as { readonly selectionMode?: string } | undefined)?.selectionMode === 'auto'
       ) ? { resolvedEndpointId: 'primary' } : {}),
     },
   }));
+  const refreshDraftProfileModels = vi.fn(async () => ({ ok: true as const, value: [{ id: 'mock-image-v2' }] }));
   let billingState: ProfileBillingState = { refreshState: 'idle' };
   const getProfileBillingState = vi.fn(async () => ({ ok: true as const, value: billingState }));
   const refreshProfileBalance = vi.fn(async ({ profileId }: { profileId: string }) => {
@@ -436,6 +435,7 @@ export function createFakeServices(options?: {
     testProviderProfile,
     testProviderProfileConnection,
     measureProfileEndpoints,
+    refreshDraftProfileModels,
     refreshProfileBalance,
     getProfileBillingState,
     listProfileModels,
@@ -510,6 +510,7 @@ export function createFakeServices(options?: {
       testProviderProfile,
       testProviderProfileConnection,
       measureProfileEndpoints,
+      refreshDraftProfileModels,
       refreshProfileBalance,
       getProfileBillingState,
       listProfileModels,

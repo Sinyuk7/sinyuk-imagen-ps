@@ -426,6 +426,39 @@ describe('SettingsAddPage', () => {
     expect(queryByTestId(container, 'provider-model-list-notice').textContent).toContain('模型列表可能与未保存的修改不一致');
   });
 
+  it('refreshes draft models through the draft refresh command without probing endpoints', async () => {
+    const { services, spies } = createFakeServices();
+    const container = document.createElement('div');
+    document.body.appendChild(container);
+    root = createRoot(container);
+
+    await act(async () => {
+      root!.render(
+        <TestAppProviders services={services}>
+          <SettingsAddPage onNav={() => undefined} profiles={[]} onProfileSaved={async () => undefined} />
+        </TestAppProviders>,
+      );
+    });
+
+    await detectOpenAiImages(container);
+    await act(async () => {
+      changeInput(queryByTestId(container, 'provider-endpoint-url-0'), 'https://mock.changed');
+      queryByTestId(container, 'provider-refresh-models-button').click();
+    });
+    await act(async () => {
+      await Promise.resolve();
+    });
+
+    expect(spies.refreshDraftProfileModels).toHaveBeenCalledWith(expect.objectContaining({
+      config: expect.objectContaining({
+        connection: expect.objectContaining({
+          endpoints: [expect.objectContaining({ url: 'https://mock.changed' })],
+        }),
+      }),
+    }));
+    expect(spies.measureProfileEndpoints).not.toHaveBeenCalled();
+  });
+
   it('saves auto selection config shape on the add page', async () => {
     const { services, spies } = createFakeServices();
     const container = document.createElement('div');

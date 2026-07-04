@@ -31,7 +31,7 @@ function errorMessage(error: unknown, fallback: string): string {
   return error instanceof Error ? error.message : fallback;
 }
 
-function mergeConfiguredDefaultModel(
+export function mergeConfiguredDefaultModel(
   models: readonly ProviderModelInfo[],
   profile: ProviderProfile,
 ): readonly ProviderModelInfo[] {
@@ -53,7 +53,7 @@ function mergeConfiguredDefaultModel(
   return [{ id: configured, displayName: configured }, ...models];
 }
 
-function reconcileCachedCatalogModels(profile: ProviderProfile): readonly ProviderModelInfo[] {
+export function reconcileCachedCatalogModels(profile: ProviderProfile): readonly ProviderModelInfo[] {
   const catalogProviderId = catalogProviderIdForApiFormat(profile.apiFormat);
   if (!providerUsesImageModelCatalog(catalogProviderId)) {
     return profile.models ?? [];
@@ -112,7 +112,7 @@ function resolvedBaseModels(
   };
 }
 
-function resolvedModelsForProfile(
+export function resolvedModelsForProfile(
   profile: ProviderProfile,
   descriptorDefaults: readonly ProviderModelInfo[],
 ): { readonly models: readonly ProviderModelInfo[]; readonly source: 'profile.cache' | 'provider.defaults' | 'none' } {
@@ -121,6 +121,19 @@ function resolvedModelsForProfile(
     models: mergeConfiguredDefaultModel(base.models, profile),
     source: base.source,
   };
+}
+
+export function reconcilePersistedDiscoveredModels(
+  apiFormat: ProviderProfile['apiFormat'],
+  models: readonly ProviderModelInfo[],
+): readonly ProviderModelInfo[] {
+  const catalogProviderId = catalogProviderIdForApiFormat(apiFormat);
+  return providerUsesImageModelCatalog(catalogProviderId)
+    ? reconcileDiscoveredCatalogModels({
+      providerId: catalogProviderId,
+      discoveredModels: models,
+    })
+    : models;
 }
 
 /**
@@ -264,13 +277,7 @@ export async function refreshProfileModels(profileId: string): Promise<CommandRe
     };
   }
 
-  const catalogProviderId = catalogProviderIdForApiFormat(profile.apiFormat);
-  const persistedModels = providerUsesImageModelCatalog(catalogProviderId)
-    ? reconcileDiscoveredCatalogModels({
-      providerId: catalogProviderId,
-      discoveredModels: models,
-    })
-    : models;
+  const persistedModels = reconcilePersistedDiscoveredModels(profile.apiFormat, models);
 
   const updated: ProviderProfile = {
     ...profile,

@@ -503,6 +503,34 @@ describe('chat-image provider', () => {
     fetchSpy.mockRestore();
   });
 
+  it('measures chat endpoint reachability with HEAD base URL and treats HTTP responses as reachable', async () => {
+    const fetchSpy = vi.spyOn(globalThis, 'fetch').mockResolvedValue(new Response(null, { status: 503 }));
+    const provider = createChatImageProvider();
+    const config = provider.validateConfig({
+      providerId: 'chat-image',
+      displayName: 'Chat Image',
+      family: 'chat-image',
+      connection: {
+        selectionMode: 'manual',
+        selectedEndpointId: 'primary',
+        endpoints: [{ id: 'primary', url: 'https://openrouter.ai/api/v1', enabled: true }],
+      },
+      apiKey: 'test-key',
+    });
+
+    const result = await provider.measureEndpoints?.(config);
+
+    expect(result?.results[0]).toMatchObject({
+      endpointId: 'primary',
+      reachable: true,
+      httpStatus: 503,
+    });
+    expect(String(fetchSpy.mock.calls[0]?.[0])).toBe('https://openrouter.ai/api/v1');
+    expect((fetchSpy.mock.calls[0]?.[1] as RequestInit | undefined)?.method).toBe('HEAD');
+    expect((fetchSpy.mock.calls[0]?.[1] as RequestInit | undefined)?.headers).toBeUndefined();
+    fetchSpy.mockRestore();
+  });
+
   it('resolves prefixed Gemini 3 chat model ids onto the curated local rules', () => {
     const resolved = resolveImageModelRule({
       providerId: 'chat-image',

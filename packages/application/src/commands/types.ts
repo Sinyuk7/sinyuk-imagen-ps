@@ -272,9 +272,6 @@ export interface EndpointMeasurementResult {
   readonly checkedAt: number;
   readonly failureKind?: EndpointMeasurementFailureKind;
   readonly httpStatus?: number;
-  readonly modelCount?: number;
-  /** 本次草稿测速在该 endpoint 上发现的模型；失败时省略。 */
-  readonly models?: readonly ProviderModelInfo[];
   readonly errorMessage?: string;
 }
 
@@ -338,8 +335,16 @@ export interface RefreshProfileBalanceResult extends ProfileBalanceResult {
 export interface MeasureProfileEndpointsResult {
   readonly supported: boolean;
   readonly results: readonly EndpointMeasurementResult[];
-  /** 汇总所有测速成功 endpoint 的去重模型候选，不持久化。 */
-  readonly models?: readonly ProviderModelInfo[];
   readonly resolvedEndpointId?: string;
   readonly message?: string;
+}
+
+export interface RefreshDraftProfileModelsInput {
+  readonly profileId?: string;
+  readonly apiFormat?: ApiFormat;
+  readonly displayName?: string;
+  readonly config: ProviderProfileConfig;
+  readonly secretRefs?: Readonly<Record<string, string>>;
+  readonly secretValues?: Readonly<Record<string, string>>;
+  readonly removedSecretNames?: readonly string[];
 }

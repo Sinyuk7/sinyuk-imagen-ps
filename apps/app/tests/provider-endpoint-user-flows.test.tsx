@@ -426,7 +426,7 @@ describe('provider endpoint user flows', () => {
     await flush();
     await flush(6);
 
-    expect(activeFixture.requestedUrls().filter((url) => url.includes('/v1/models'))).toHaveLength(1);
+    expect(activeFixture.requestedUrls().filter((url) => url === 'https://node-a.example.com/v1')).toHaveLength(1);
     expect(container.textContent).toContain('Endpoint selected automatically');
 
     await act(async () => {
@@ -515,7 +515,7 @@ describe('provider endpoint user flows', () => {
       endpoints: {
         nodeA: {
           baseUrl: 'https://node-a.example.com',
-          steps: [modelsResponse(['gpt-image-2'])],
+          steps: [{ kind: 'response', status: 200 }],
         },
       },
     });
@@ -534,8 +534,11 @@ describe('provider endpoint user flows', () => {
     });
     await flush(6);
 
-    expect(container.querySelector('[data-testid="toast"]')?.textContent).toMatch(/Speed test complete|测速完成/);
+    expect(container.querySelector('[data-testid="toast"]')?.textContent).toMatch(/Endpoint response time checked|已检查端点响应时间/);
     expect(container.textContent).toMatch(/ms|OK/);
+    expect(activeFixture.requestedUrls()).toContain('https://node-a.example.com/v1');
+    expect(activeFixture.counting.calls[0]?.method).toBe('HEAD');
+    expect(activeFixture.counting.calls[0]?.headers).toEqual({});
   });
 
   it('stops immediately on non-failover auth error and leaves other endpoints untouched', async () => {

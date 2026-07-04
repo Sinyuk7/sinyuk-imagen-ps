@@ -21,6 +21,7 @@ export interface CommandsPort {
   readonly testProviderProfile: typeof commands.testProviderProfile;
   readonly testProviderProfileConnection: typeof commands.testProviderProfileConnection;
   readonly measureProfileEndpoints: typeof commands.measureProfileEndpoints;
+  readonly refreshDraftProfileModels: typeof commands.refreshDraftProfileModels;
   readonly refreshProfileBalance: typeof commands.refreshProfileBalance;
   readonly getProfileBillingState: typeof commands.getProfileBillingState;
   readonly listProfileModels: typeof commands.listProfileModels;
@@ -52,6 +53,7 @@ export function createCommandsAdapter(): CommandsPort {
     testProviderProfile: commands.testProviderProfile,
     testProviderProfileConnection: commands.testProviderProfileConnection,
     measureProfileEndpoints: commands.measureProfileEndpoints,
+    refreshDraftProfileModels: commands.refreshDraftProfileModels,
     refreshProfileBalance: commands.refreshProfileBalance,
     getProfileBillingState: commands.getProfileBillingState,
     listProfileModels: commands.listProfileModels,

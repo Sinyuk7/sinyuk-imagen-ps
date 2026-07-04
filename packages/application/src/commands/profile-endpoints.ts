@@ -1,10 +1,5 @@
 import { createProviderError, createValidationError } from '@imagen-ps/core-engine';
 import { generateTraceId } from '@imagen-ps/foundation';
-import {
-  providerUsesImageModelCatalog,
-  reconcileDiscoveredCatalogModels,
-  type ProviderModelInfo,
-} from '@imagen-ps/providers';
 import { getRuntimeLogger } from '../runtime.js';
 import type {
   CommandResult,
@@ -13,7 +8,6 @@ import type {
   MeasureProfileEndpointsResult,
 } from './types.js';
 import { resolveDraftProviderContext } from './draft-provider-config.js';
-import { catalogProviderIdForApiFormat } from './api-format-profile.js';
 
 type ResolvedConnection = {
   readonly selectionMode: 'manual' | 'auto';
@@ -35,38 +29,6 @@ function extractConnection(config: unknown): ResolvedConnection {
     throw new Error('Provider config did not resolve a canonical connection.');
   }
   return connection as ResolvedConnection;
-}
-
-function normalizeMeasuredModels(
-  apiFormat: Parameters<typeof catalogProviderIdForApiFormat>[0],
-  models: readonly ProviderModelInfo[],
-): readonly ProviderModelInfo[] {
-  const providerId = catalogProviderIdForApiFormat(apiFormat);
-  if (!providerUsesImageModelCatalog(providerId)) {
-    return models;
-  }
-  return reconcileDiscoveredCatalogModels({
-    providerId,
-    discoveredModels: models,
-  });
-}
-
-function aggregateMeasuredModels(results: readonly EndpointMeasurementResult[]): readonly ProviderModelInfo[] {
-  const seen = new Set<string>();
-  const models: ProviderModelInfo[] = [];
-  for (const result of results) {
-    if (result.status !== 'success') {
-      continue;
-    }
-    for (const model of result.models ?? []) {
-      if (seen.has(model.id)) {
-        continue;
-      }
-      seen.add(model.id);
-      models.push(model);
-    }
-  }
-  return models;
 }
 
 function resolveAutoEndpointId(
@@ -91,27 +53,21 @@ function resolveAutoEndpointId(
 }
 
 function normalizeMeasurementResult(
-  apiFormat: Parameters<typeof catalogProviderIdForApiFormat>[0],
   result: {
     readonly endpointId: string;
     readonly reachable: boolean;
     readonly checkedAt: number;
     readonly latencyMs?: number;
-    readonly models?: readonly ProviderModelInfo[];
     readonly failureKind?: string;
     readonly httpStatus?: number;
     readonly errorMessage?: string;
   },
 ): EndpointMeasurementResult {
-  const models = result.reachable
-    ? normalizeMeasuredModels(apiFormat, result.models ?? [])
-    : undefined;
   return {
     endpointId: result.endpointId,
     status: result.reachable ? 'success' : 'failed',
     checkedAt: result.checkedAt,
     ...(result.latencyMs !== undefined ? { latencyMs: result.latencyMs } : {}),
-    ...(models ? { models, modelCount: models.length } : {}),
     ...(result.failureKind ? { failureKind: result.failureKind as EndpointMeasurementResult['failureKind'] } : {}),
     ...(typeof result.httpStatus === 'number' ? { httpStatus: result.httpStatus } : {}),
     ...(result.errorMessage ? { errorMessage: result.errorMessage } : {}),
@@ -168,14 +124,12 @@ export async function measureProfileEndpoints(
       }),
     });
 
-    const results = measured.results.map((result) => normalizeMeasurementResult(apiFormat, result));
-    const models = aggregateMeasuredModels(results);
+    const results = measured.results.map((result) => normalizeMeasurementResult(result));
     const resolvedEndpointId = resolveAutoEndpointId(connection, results, input.currentResolvedEndpointId);
 
     span.finish({
       count: results.length,
       successCount: results.filter((result) => result.status === 'success').length,
-      modelCount: models.length,
       supported: measured.supported,
       ...(resolvedEndpointId ? { resolvedEndpointId } : {}),
     });
@@ -184,7 +138,6 @@ export async function measureProfileEndpoints(
       value: {
         supported: measured.supported,
         results,
-        ...(models.length > 0 ? { models } : {}),
         ...(resolvedEndpointId ? { resolvedEndpointId } : {}),
         ...(measured.message ? { message: measured.message } : {}),
       },

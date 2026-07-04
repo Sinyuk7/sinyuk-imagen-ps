@@ -151,6 +151,10 @@ export interface ProviderDraftModelCatalogOptions {
   readonly canRefreshPersistedModelCache: boolean;
   readonly isDraftDirty: boolean;
   readonly resetKey: string;
+  readonly refreshDraftModels: () => Promise<
+    | { readonly ok: true; readonly value: readonly ProviderModelInfo[] }
+    | { readonly ok: false; readonly error: { readonly category: string; readonly message: string } }
+  >;
   readonly probeDraft: (
     currentResolvedEndpointId?: string,
   ) => Promise<
@@ -194,6 +198,7 @@ export function useProviderDraftModelCatalog(
     canRefreshPersistedModelCache,
     isDraftDirty,
     resetKey,
+    refreshDraftModels,
     probeDraft,
   } = options;
   const persisted = useProfileModels(services, persistedProfileId, persistedRevisionKey);
@@ -253,9 +258,6 @@ export function useProviderDraftModelCatalog(
   const applyProbeResult = useCallback((result: MeasureProfileEndpointsResult) => {
     setMeasurementResults(result.results);
     setResolvedEndpointId(result.resolvedEndpointId);
-    if (result.models) {
-      setDraftModels(result.models);
-    }
     setStale(false);
   }, []);
 
@@ -273,12 +275,14 @@ export function useProviderDraftModelCatalog(
     setRefreshBusy(true);
     try {
       if (!persistedProfileId || isDraftDirty || !canRefreshPersistedModelCache) {
-        const result = await probeDraft(resolvedEndpointId);
+        const result = await refreshDraftModels();
         if (!result.ok) {
           throw new Error(commandMessage(result.error));
         }
-        applyProbeResult(result.value);
-        return { kind: 'probe', value: result.value };
+        setDraftModels(result.value);
+        setStale(false);
+        clearProofs();
+        return { kind: 'persisted', value: result.value };
       }
       const value = await persisted.refresh();
       setDraftModels(null);
@@ -296,6 +300,7 @@ export function useProviderDraftModelCatalog(
     isDraftDirty,
     persisted,
     persistedProfileId,
+    refreshDraftModels,
     probeDraft,
     resolvedEndpointId,
   ]);

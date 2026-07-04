@@ -186,7 +186,7 @@ describe('provider profile alias contract', () => {
     expect(saved.ok).toBe(true);
 
     vi.stubGlobal('fetch', async () => new Response(JSON.stringify({
-      data: [{ id: 'openai/gpt-image-2', architecture: { output_modalities: ['image'] } }],
+      data: [{ id: 'openai/gpt-image-2', architecture: { output_modalities: ['image', 'text'] } }],
     }), {
       status: 200,
       headers: { 'Content-Type': 'application/json' },

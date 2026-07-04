@@ -56,16 +56,11 @@ describe('profile endpoint commands', () => {
     setProviderProfileRepository(createProfileRepository().repository);
     const fetchSpy = vi.spyOn(globalThis, 'fetch').mockImplementation(async (input) => {
       const url = String(input);
-      if (url.startsWith('https://fast.example.com/')) {
-        return new Response(JSON.stringify({ object: 'list', data: [{ id: 'gpt-image-2' }, { id: 'gpt-4.1' }] }), {
-          status: 200,
-          headers: { 'Content-Type': 'application/json' },
-        });
+      if (url.startsWith('https://fast.example.com')) {
+        return new Response(null, { status: 200 });
       }
-      return new Response(JSON.stringify({ error: { message: 'Unavailable' } }), {
-        status: 503,
-        headers: { 'Content-Type': 'application/json' },
-      });
+      await new Promise((resolve) => setTimeout(resolve, 5));
+      return new Response(null, { status: 503 });
     });
 
     const result = await measureProfileEndpoints({
@@ -88,12 +83,12 @@ describe('profile endpoint commands', () => {
       return;
     }
     expect(result.value.results).toHaveLength(2);
-    expect(result.value.results[0]).toMatchObject({ endpointId: 'fast', status: 'success', modelCount: 1 });
-    expect(result.value.results[0]?.models?.map((model) => model.id)).toEqual(['gpt-image-2']);
-    expect(result.value.models?.map((model) => model.id)).toEqual(['gpt-image-2']);
-    expect(result.value.results[1]).toMatchObject({ endpointId: 'slow', status: 'failed' });
+    expect(result.value.results[0]).toMatchObject({ endpointId: 'fast', status: 'success', httpStatus: 200 });
+    expect(result.value.results[1]).toMatchObject({ endpointId: 'slow', status: 'success', httpStatus: 503 });
     expect(result.value.resolvedEndpointId).toBe('fast');
     expect(fetchSpy).toHaveBeenCalledTimes(2);
+    expect(fetchSpy.mock.calls[0]?.[1]).toMatchObject({ method: 'HEAD' });
+    expect((fetchSpy.mock.calls[0]?.[1] as RequestInit | undefined)?.headers).toBeUndefined();
   });
 
   it('returns unsupported when the provider does not expose endpoint measurement', async () => {
@@ -144,12 +139,7 @@ describe('profile endpoint commands', () => {
     const { repository, saveSpy } = createProfileRepository([profile]);
     setProviderProfileRepository(repository);
     setSecretStorageAdapter(createSecretStorage({ 'secret:profile-a:apiKey': 'test-key' }));
-    vi.spyOn(globalThis, 'fetch').mockResolvedValue(
-      new Response(JSON.stringify({ object: 'list', data: [{ id: 'gpt-image-2' }] }), {
-        status: 200,
-        headers: { 'Content-Type': 'application/json' },
-      }),
-    );
+    vi.spyOn(globalThis, 'fetch').mockResolvedValue(new Response(null, { status: 200 }));
 
     const result = await measureProfileEndpoints({
       profileId: 'profile-a',
@@ -166,9 +156,6 @@ describe('profile endpoint commands', () => {
     expect(result.ok).toBe(true);
     expect(saveSpy).not.toHaveBeenCalled();
     expect(profile.models).toEqual([{ id: 'cached-model' }]);
-    if (result.ok) {
-      expect(result.value.models?.map((model) => model.id)).toEqual(['gpt-image-2']);
-    }
   });
 
   it('excludes explicitly removed saved secrets from draft measurement resolution', async () => {
@@ -216,12 +203,7 @@ describe('profile endpoint commands', () => {
     _resetForTesting();
     setSecretStorageAdapter(createSecretStorage());
     setProviderProfileRepository(createProfileRepository().repository);
-    vi.spyOn(globalThis, 'fetch').mockResolvedValue(
-      new Response(JSON.stringify({ object: 'list', data: [{ id: 'gpt-image-2' }] }), {
-        status: 200,
-        headers: { 'Content-Type': 'application/json' },
-      }),
-    );
+    vi.spyOn(globalThis, 'fetch').mockResolvedValue(new Response(null, { status: 200 }));
 
     const result = await measureProfileEndpoints({
       apiFormat: 'openai-images',
@@ -241,5 +223,34 @@ describe('profile endpoint commands', () => {
     }
     expect(result.value.results[0]).toMatchObject({ endpointId: 'primary', status: 'success' });
     expect(result.value.resolvedEndpointId).toBeUndefined();
+  });
+
+  it('reports network errors as unreachable without inventing provider semantics', async () => {
+    _resetForTesting();
+    setSecretStorageAdapter(createSecretStorage());
+    setProviderProfileRepository(createProfileRepository().repository);
+    vi.spyOn(globalThis, 'fetch').mockRejectedValue(new TypeError('Failed to fetch'));
+
+    const result = await measureProfileEndpoints({
+      apiFormat: 'openai-images',
+      displayName: 'Broken Endpoint',
+      config: {
+        connection: {
+          selectionMode: 'manual',
+          selectedEndpointId: 'primary',
+          endpoints: [{ id: 'primary', url: 'https://broken.example.com', enabled: true }],
+        },
+      },
+      secretValues: { apiKey: 'test-key' },
+    });
+
+    expect(result.ok).toBe(true);
+    if (result.ok) {
+      expect(result.value.results[0]).toMatchObject({
+        endpointId: 'primary',
+        status: 'failed',
+        failureKind: 'connect',
+      });
+    }
   });
 });

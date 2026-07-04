@@ -497,6 +497,35 @@ describe('image-endpoint provider', () => {
     fetchSpy.mockRestore();
   });
 
+  it('measures endpoint reachability with HEAD base URL and no auth header', async () => {
+    const fetchSpy = vi.spyOn(globalThis, 'fetch').mockResolvedValue(new Response(null, { status: 401 }));
+    const provider = createImageEndpointProvider();
+    const config = provider.validateConfig({
+      providerId: 'image-endpoint',
+      displayName: 'Image Endpoint',
+      family: 'image-endpoint',
+      connection: {
+        selectionMode: 'manual',
+        selectedEndpointId: 'primary',
+        endpoints: [{ id: 'primary', url: 'https://api.example.com/v1', enabled: true }],
+      },
+      apiKey: 'test-key',
+      extraHeaders: { 'X-Provider-Test': '1' },
+    });
+
+    const result = await provider.measureEndpoints?.(config);
+
+    expect(result?.results[0]).toMatchObject({
+      endpointId: 'primary',
+      reachable: true,
+      httpStatus: 401,
+    });
+    expect(String(fetchSpy.mock.calls[0]?.[0])).toBe('https://api.example.com/v1');
+    expect((fetchSpy.mock.calls[0]?.[1] as RequestInit | undefined)?.method).toBe('HEAD');
+    expect((fetchSpy.mock.calls[0]?.[1] as RequestInit | undefined)?.headers).toBeUndefined();
+    fetchSpy.mockRestore();
+  });
+
   it('invokes generation endpoint through fetch', async () => {
     const fetchSpy = vi.spyOn(globalThis, 'fetch').mockImplementation(async () => new Response(
       JSON.stringify({ data: [{ url: 'https://example.com/out.png' }] }),

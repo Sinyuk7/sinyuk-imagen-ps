@@ -28,6 +28,7 @@ export {
   listProfileModels,
   refreshProfileModels,
 } from './profile-models.js';
+export { refreshDraftProfileModels } from './refresh-draft-profile-models.js';
 export { measureProfileEndpoints } from './profile-endpoints.js';
 export { testProviderProfileConnection } from './profile-connection-test.js';
 export {
@@ -77,6 +78,7 @@ export type {
   BalanceChange,
   MeasureProfileEndpointsInput,
   MeasureProfileEndpointsResult,
+  RefreshDraftProfileModelsInput,
   ProfileBalanceResult,
   ProfileBillingState,
   RefreshProfileBalanceInput,

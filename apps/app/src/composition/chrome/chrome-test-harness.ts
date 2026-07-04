@@ -440,6 +440,13 @@ export function createChromeTestHarnessRuntime(config: ChromeTestHarnessConfig):
           }
           return commands.refreshProfileModels(profileId);
         },
+        async refreshDraftProfileModels(input) {
+          if (input.apiFormat === 'openai-images' && hasMockLocalEndpoint(input.config)) {
+            await delay(100);
+            return { ok: true, value: MOCK_MODELS };
+          }
+          return commands.refreshDraftProfileModels(input);
+        },
       };
     },
     install(storage) {

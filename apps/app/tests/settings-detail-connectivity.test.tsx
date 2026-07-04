@@ -82,7 +82,7 @@ describe('SettingsDetailPage contract — connectivity', () => {
     expect(spies.saveProviderProfile).not.toHaveBeenCalled();
     expect(onProfilesChanged).not.toHaveBeenCalled();
     expect(spies.refreshProfileModels).not.toHaveBeenCalled();
-    expect(spies.measureProfileEndpoints).toHaveBeenCalledWith(
+    expect(spies.refreshDraftProfileModels).toHaveBeenCalledWith(
       expect.objectContaining({
         profileId: 'mock-profile',
         config: expect.objectContaining({
@@ -96,6 +96,7 @@ describe('SettingsDetailPage contract — connectivity', () => {
         }),
       }),
     );
+    expect(spies.measureProfileEndpoints).not.toHaveBeenCalled();
   });
 
   it('marks connection proof stale when a tested draft changes', async () => {
@@ -201,6 +202,7 @@ describe('SettingsDetailPage contract — connectivity', () => {
     expect((queryByTestId(container, 'provider-selection-mode-auto') as HTMLInputElement).checked).toBe(true);
     expect(container.textContent).toMatch(/端点由系统自动选择|Endpoint selected automatically/);
     expect(spies.saveProviderProfile).not.toHaveBeenCalled();
+    expect(spies.measureProfileEndpoints).toHaveBeenCalled();
   });
 
   it('keeps current endpoint selection singular across rapid clicks', async () => {

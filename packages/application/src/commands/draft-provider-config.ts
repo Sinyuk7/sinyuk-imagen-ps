@@ -4,6 +4,7 @@ import type {
   ProviderProfile,
   ProviderProfileConfig,
   ProviderProfileConfigValue,
+  RefreshDraftProfileModelsInput,
   TestProviderProfileConnectionInput,
 } from './types.js';
 import { resolveSecretValue } from './secret-utils.js';
@@ -13,7 +14,7 @@ import {
   resolveProfileApiFormat,
 } from './api-format-profile.js';
 
-type DraftCommandInput = MeasureProfileEndpointsInput | TestProviderProfileConnectionInput;
+type DraftCommandInput = MeasureProfileEndpointsInput | TestProviderProfileConnectionInput | RefreshDraftProfileModelsInput;
 
 function mergeDraftConfig(
   existing: ProviderProfileConfig | undefined,

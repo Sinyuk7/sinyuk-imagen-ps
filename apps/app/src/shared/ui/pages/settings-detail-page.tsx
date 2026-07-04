@@ -335,7 +335,7 @@ export function SettingsDetailPage({ onNav, profileId, onProfilesChanged, onSave
       measurementSupported &&
       nextConnection.endpoints.some((endpoint) => endpoint.enabled && endpoint.url.trim())
     ) {
-      void refreshModels();
+      void probeEndpoints();
     }
   };
 
@@ -468,6 +468,7 @@ export function SettingsDetailPage({ onNav, profileId, onProfilesChanged, onSave
     canRefreshPersistedModelCache: capabilities.canRefreshPersistedModelCache,
     isDraftDirty: draftDirty,
     resetKey: detail.profile ? `${detail.profile.profileId}:${detail.profile.updatedAt}` : 'detail:none',
+    refreshDraftModels: async () => services.commands.refreshDraftProfileModels(buildDraftCommandInput()),
     probeDraft: async (currentResolvedEndpointId) => services.commands.measureProfileEndpoints({
       ...buildDraftCommandInput(),
       currentResolvedEndpointId,
@@ -599,21 +600,38 @@ export function SettingsDetailPage({ onNav, profileId, onProfilesChanged, onSave
     }
   };
 
-  const refreshModels = async () => {
+  const probeEndpoints = async () => {
     try {
-      const result = await modelCatalog.refresh();
-      if (result.kind === 'probe') {
-        const status = statusFromEndpointMeasurementResult(result.value, t);
-        show(status.message, status.tone, {
-          key: 'settings-detail-endpoint-probe',
-          durationMs: status.durationMs,
-          dismissible: status.dismissible,
-          copyable: status.copyable,
-        });
+      const result = await services.commands.measureProfileEndpoints({
+        ...buildDraftCommandInput(),
+        currentResolvedEndpointId: modelCatalog.resolvedEndpointId,
+      });
+      if (!result.ok) {
+        throw new Error(`${result.error.category}: ${result.error.message}`);
       }
+      modelCatalog.applyProbeResult(result.value);
+      const status = statusFromEndpointMeasurementResult(result.value, t);
+      show(status.message, status.tone, {
+        key: 'settings-detail-endpoint-probe',
+        durationMs: status.durationMs,
+        dismissible: status.dismissible,
+        copyable: status.copyable,
+      });
     } catch (error) {
       show(error instanceof Error ? error.message : String(error), 'negative', {
         key: 'settings-detail-endpoint-probe-error',
+        durationMs: null,
+        copyable: true,
+      });
+    }
+  };
+
+  const refreshModels = async () => {
+    try {
+      await modelCatalog.refresh();
+    } catch (error) {
+      show(error instanceof Error ? error.message : String(error), 'negative', {
+        key: 'settings-detail-model-refresh-error',
         durationMs: null,
         copyable: true,
       });
@@ -894,7 +912,7 @@ export function SettingsDetailPage({ onNav, profileId, onProfilesChanged, onSave
               resolvedEndpointId={modelCatalog.resolvedEndpointId}
               measurementBusy={modelCatalog.refreshBusy}
               measurementSupported={measurementSupported}
-              onMeasure={() => void refreshModels()}
+              onMeasure={() => void probeEndpoints()}
               apiKeyValue={apiKey}
               onApiKeyValue={updateApiKey}
               apiKeyPlaceholder="sk-..."

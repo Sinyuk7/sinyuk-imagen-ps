@@ -17,7 +17,7 @@ export interface HttpRequest {
   readonly url: string;
 
   /** HTTP method。 */
-  readonly method: 'GET' | 'POST';
+  readonly method: 'GET' | 'POST' | 'HEAD';
 
   /** 请求 headers。 */
   readonly headers?: Readonly<Record<string, string>>;

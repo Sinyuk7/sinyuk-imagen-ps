@@ -205,6 +205,9 @@ export function SettingsAddPage({ onNav, profiles, onProfileSaved }: SettingsAdd
     canRefreshPersistedModelCache: capabilities.canRefreshPersistedModelCache,
     isDraftDirty: Boolean(apiFormat),
     resetKey: `${apiFormat ?? 'none'}:${profileId}`,
+    refreshDraftModels: async () => services.commands.refreshDraftProfileModels(
+      buildDraftCommandInput(connectionRef.current, billingRef.current),
+    ),
     probeDraft: async (currentResolvedEndpointId) => services.commands.measureProfileEndpoints({
       ...buildDraftCommandInput(connectionRef.current, billingRef.current),
       currentResolvedEndpointId,
@@ -551,7 +554,7 @@ export function SettingsAddPage({ onNav, profiles, onProfileSaved }: SettingsAdd
                     ? { tone: 'info', message: t.settings.modelListEmpty }
                     : null
             }
-            onRefresh={() => void handleMeasure()}
+            onRefresh={() => void modelCatalog.refresh()}
             onModelMenuOpenChange={setModelMenuOpen}
             onModelModeChange={(mode) => {
               modelModeTouchedRef.current = true;
