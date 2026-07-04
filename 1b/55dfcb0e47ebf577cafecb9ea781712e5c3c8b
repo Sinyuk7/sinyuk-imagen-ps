@@ -1,0 +1,93 @@
+apps/app/src/shared/ui/provider-status.ts
+  s_26624d5f9761d6::t_6f598ddd7190b8 97
+apps/app/src/shared/ui/app-shell.tsx
+  s_26624d5f9761d6::t_f307f2d6ceec46 491,493
+packages/providers/src/transport/billing/query-balance.ts
+  s_c06d749bb8759a::t_21abef89f9d672 11-17
+apps/app/tests/settings-detail-connectivity.test.tsx
+  s_26624d5f9761d6::t_2f51600cb92f60 177-188
+  s_26624d5f9761d6::t_a047627de3f50b 58,110,138-139,174
+  s_26624d5f9761d6::t_c6fc4b5d6d8585 116-117,287-289
+  s_26624d5f9761d6::t_ef1b92929d5418 175-176
+packages/providers/src/providers/image-endpoint/provider.ts
+  s_c06d749bb8759a::t_d04a44e2d1f4da 35-38,567
+  s_c06d749bb8759a::t_63740027904683 34
+packages/providers/tests/chat-image-provider.test.ts
+  s_c06d749bb8759a::t_f2b7305df0fc8a 1,17-21
+  s_c06d749bb8759a::t_8a4e7aa3b70914 65-115
+apps/app/src/shared/ui/i18n/messages.ts
+  s_26624d5f9761d6::t_557d4b3bc622d1 572,891
+  s_26624d5f9761d6::t_4fe501bb10c74b 266,585,904
+apps/app/src/shared/ui/pages/settings-page.tsx
+  s_26624d5f9761d6::t_3aca1d96284128 144
+apps/app/tests/app-shell.test.tsx
+  s_26624d5f9761d6::t_9c0cc26d192087 1063
+  s_26624d5f9761d6::t_63c9d45ba52889 279-280
+packages/providers/src/providers/chat-image/provider.ts
+  s_c06d749bb8759a::t_97b5056b80e0b3 23-27,418
+apps/app/tests/provider-endpoint-user-flows.test.tsx
+  s_26624d5f9761d6::t_181c13f3616a1c 528
+  s_26624d5f9761d6::t_9f28029b0bf867 513-527,529-536,538-540
+  s_26624d5f9761d6::t_0d28957ecd4576 537
+  s_71cb426bf7c317::t_4b565e1bd80157 441
+packages/providers/tests/image-endpoint-provider.test.ts
+  s_c06d749bb8759a::t_f2e09e1e51f47d 42,64-107
+  s_c06d749bb8759a::t_ccb9f8880cebbd 1,39-41
+  s_c06d749bb8759a::t_24400d3ea51ce2 43
+apps/app/src/shared/ui/pages/settings-detail-page.tsx
+  s_26624d5f9761d6::t_3aca1d96284128 1070,1092,1169-1177
+  s_26624d5f9761d6::t_73fe78c2355bfe 702
+  s_26624d5f9761d6::t_b341a63072d7a9 33,219,291,519,536,541,559-564,567-571,612-617,623-628,667
+  s_26624d5f9761d6::t_192127ca9e4ce5 39,611
+apps/app/tests/settings-page.test.tsx
+  s_26624d5f9761d6::t_cb69552cbdc39d 50
+apps/app/src/shared/ui/pages/settings-add-page.tsx
+  s_26624d5f9761d6::t_b3213d74f71b0b 593-627
+  s_26624d5f9761d6::t_3aca1d96284128 715
+  s_26624d5f9761d6::t_84f81744799ffd 336-341,345-349,369-374,376-380,465,467-471
+  s_26624d5f9761d6::t_360bf5f5b9fd12 26,39
+  s_26624d5f9761d6::t_992c9e98169554 138
+  s_26624d5f9761d6::t_7bceab48f03cfa 80-94
+apps/app/tests/settings-detail-profile-editing.test.tsx
+  s_26624d5f9761d6::t_fc42bdbf5fc218 243-247
+  s_26624d5f9761d6::t_47483b5cffaaa1 238-242,248-252
+  s_26624d5f9761d6::t_cb69552cbdc39d 253-268
+apps/app/tests/settings-add-page.test.tsx
+  s_26624d5f9761d6::t_2f57fd55d05f99 222
+  s_26624d5f9761d6::t_64e2f44385b861 243,278,302,444,462,466-487
+apps/app/tests/chrome-e2e/run.mjs
+  s_26624d5f9761d6::t_cb69552cbdc39d 339-342,382-384,656
+  s_26624d5f9761d6::t_58eca77c4773f9 412
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.10",
+  "base_commit_sha": "1b55dfcb0e47ebf577cafecb9ea781712e5c3c8b",
+  "prompts": {},
+  "sessions": {
+    "s_26624d5f9761d6": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "019f2cb4-b242-74c0-bb72-6f552984ef9e",
+        "model": "gpt-5.4"
+      },
+      "human_author": "Sinyuk <80998062@qq.com>"
+    },
+    "s_71cb426bf7c317": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "019f2cc7-274d-7603-adaa-4aa7d12864d6",
+        "model": "unknown"
+      },
+      "human_author": "Sinyuk <80998062@qq.com>"
+    },
+    "s_c06d749bb8759a": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "019f2cc3-b2c5-7af1-832c-a8ac16410b1e",
+        "model": "gpt-5.4"
+      },
+      "human_author": "Sinyuk <80998062@qq.com>"
+    }
+  }
+}
