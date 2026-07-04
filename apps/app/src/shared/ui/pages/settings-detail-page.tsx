@@ -31,17 +31,22 @@ import {
 import { Icon } from '../components/icons';
 import { ProviderBillingSettings } from '../components/provider-billing-settings';
 import { ProviderProfileEditor } from '../components/provider-profile-editor';
+import {
+  ProviderAdvancedPathSection,
+  ProviderDefaultModelSection,
+  ProviderSettingsFooter,
+  ProviderSettingsPageHeader,
+} from '../components/provider-settings-sections';
 import { StatusNotice } from '../components/status-notice';
 import { useToast } from '../components/toast-host';
 import { UxpTextArea } from '../components/uxp-form-controls';
 import { useI18n } from '../i18n/i18n-context';
-import { Button, FieldLabel, HelpText, TextField, Checkbox } from '../primitives/native-controls';
+import { FieldLabel } from '../primitives/native-controls';
 import { IconButton } from '../primitives/icon-button';
 import {
   statusFromEndpointMeasurementResult,
   statusFromProviderConnectionTestResult,
 } from '../provider-status';
-import { TextSelect } from '../components/text-select';
 import { useProfileBilling } from '../hooks/use-profile-billing';
 import { formatBalanceChange, formatBillingPrimary, formatExactTaskCost } from '../../domain/mappers';
 
@@ -647,7 +652,6 @@ export function SettingsDetailPage({ onNav, profileId, onProfilesChanged, onSave
 
   const modelSelectionLabel = modelOptions.find((option) => option.id === defaultModel)?.label ?? defaultModel.trim();
   const modelTriggerValue = modelSelectionLabel || t.settings.chooseFromList;
-  const modelSelectDisabled = busy || modelCatalog.loading || modelOptions.length === 0;
   const selectedModelInfo = modelCatalog.selectedModelInfo;
   const selectedModelStatus = modelStatusMessage(selectedModelInfo, t);
   const saveDisabled = busy || !detail.profile || !draftDirty || endpointErrors.size > 0 || Boolean(aliasError);
@@ -670,191 +674,6 @@ export function SettingsDetailPage({ onNav, profileId, onProfilesChanged, onSave
     setPaths((current) => ({ ...current, ...next }));
     invalidateDraftProofs();
   };
-
-  const renderPathSettings = () => {
-    if (!detail.profile) {
-      return null;
-    }
-    const authOptions = [
-      { id: 'x-goog-api-key', label: 'x-goog-api-key' },
-      { id: 'bearer', label: 'Bearer' },
-      { id: 'none', label: 'None' },
-    ];
-    return (
-      <div className="section">
-        <div className="section-title settings-section-heading">{t.settings.advancedSettings}</div>
-        {detail.profile.apiFormat === 'openai-images' ? (
-          <>
-            <div className="field">
-              <FieldLabel htmlFor="provider-generation-path-input">{t.settings.generationPath}</FieldLabel>
-              <TextField
-                data-testid="provider-generation-path-input"
-                id="provider-generation-path-input"
-                className="field-input mono ui-field-control"
-                value={paths.generation}
-                disabled={busy}
-                onValue={(value) => updatePath({ generation: value })}
-              />
-            </div>
-            <div className="field">
-              <FieldLabel htmlFor="provider-edit-path-input">{t.settings.editPath}</FieldLabel>
-              <TextField
-                data-testid="provider-edit-path-input"
-                id="provider-edit-path-input"
-                className="field-input mono ui-field-control"
-                value={paths.edit}
-                disabled={busy}
-                onValue={(value) => updatePath({ edit: value })}
-              />
-            </div>
-            <HelpText className="field-hint">{t.settings.authModeFixedBearer}</HelpText>
-          </>
-        ) : null}
-        {detail.profile.apiFormat === 'openai-chat-completions' ? (
-          <>
-            <div className="field">
-              <FieldLabel htmlFor="provider-invoke-path-input">{t.settings.invokePath}</FieldLabel>
-              <TextField
-                data-testid="provider-invoke-path-input"
-                id="provider-invoke-path-input"
-                className="field-input mono ui-field-control"
-                value={paths.invoke}
-                disabled={busy}
-                onValue={(value) => updatePath({ invoke: value })}
-              />
-            </div>
-            <HelpText className="field-hint">{t.settings.authModeFixedBearer}</HelpText>
-          </>
-        ) : null}
-        {detail.profile.apiFormat === 'gemini-generate-content' ? (
-          <>
-            <div className="field">
-              <FieldLabel htmlFor="provider-invoke-template-input">{t.settings.invokePathTemplate}</FieldLabel>
-              <TextField
-                data-testid="provider-invoke-template-input"
-                id="provider-invoke-template-input"
-                className="field-input mono ui-field-control"
-                value={paths.invokeTemplate}
-                disabled={busy}
-                onValue={(value) => updatePath({ invokeTemplate: value })}
-              />
-            </div>
-            <div className="field">
-              <FieldLabel htmlFor="provider-auth-mode-selector">{t.settings.authMode}</FieldLabel>
-              <TextSelect
-                label={t.settings.authMode}
-                value={authOptions.find((option) => option.id === paths.authMode)?.label ?? paths.authMode}
-                disabled={busy}
-                open={authModeMenuOpen}
-                onOpenChange={setAuthModeMenuOpen}
-                options={authOptions}
-                selectedId={paths.authMode}
-                onSelect={(id) => {
-                  updatePath({ authMode: id as ApiPathDraft['authMode'] });
-                  setAuthModeMenuOpen(false);
-                }}
-                testId="provider-auth-mode-selector"
-                triggerId="provider-auth-mode-selector"
-                containerClassName="cmp-select cmp-select-model provider-model-select"
-                menuClassName="cmp-select-menu cmp-select-menu-model"
-              />
-            </div>
-          </>
-        ) : null}
-      </div>
-    );
-  };
-
-  const renderDefaultModelSection = () => (
-    <div className="section">
-      <div className="settings-section-header">
-        <div className="section-title settings-section-heading">{t.settings.defaultModel}</div>
-        <IconButton
-          data-testid="provider-refresh-models-button"
-          className="settings-icon-button"
-          compactSquare
-          disabled={modelCatalog.loading || busy || !modelDiscoverySupported}
-          icon={<Icon name="refresh" size={16} className={modelCatalog.loading ? 'spin' : undefined} />}
-          tooltip={!modelDiscoverySupported ? t.settings.modelDiscoveryUnsupported : modelCatalog.loading ? t.settings.refreshingModels : t.settings.refreshModels}
-          aria-label={!modelDiscoverySupported ? t.settings.modelDiscoveryUnsupported : modelCatalog.loading ? t.settings.refreshingModels : t.settings.refreshModels}
-          onClick={() => void refreshModels()}
-        />
-      </div>
-      <div className="field">
-        {modelMode === 'list' && modelOptions.length > 0 ? (
-          <TextSelect
-            label={t.settings.defaultModel}
-            value={modelTriggerValue}
-            disabled={modelSelectDisabled}
-            open={modelMenuOpen}
-            onOpenChange={setModelMenuOpen}
-            options={modelOptions}
-            selectedId={defaultModel}
-            onSelect={(id) => {
-              modelModeTouchedRef.current = true;
-              setDefaultModel(id);
-              setModelMode('list');
-              setModelMenuOpen(false);
-              invalidateDraftProofs();
-            }}
-            testId="provider-default-model-selector"
-            triggerId="provider-default-model-selector"
-            containerClassName="cmp-select cmp-select-model provider-model-select"
-            menuClassName="cmp-select-menu cmp-select-menu-model"
-          />
-        ) : (
-          <TextField
-            data-testid="provider-default-model-input"
-            id="provider-default-model-input"
-            aria-label={t.settings.defaultModel}
-            className="field-input mono ui-field-control"
-            placeholder={t.settings.customModelId}
-            value={defaultModel}
-            disabled={busy}
-            onValue={(value) => {
-              modelModeTouchedRef.current = true;
-              setModelMode('custom');
-              setDefaultModel(value);
-              invalidateDraftProofs();
-            }}
-          />
-        )}
-        <div className="provider-model-mode-row">
-          <Checkbox
-            data-testid="provider-use-custom-model-checkbox"
-            checked={modelMode === 'custom'}
-            disabled={busy}
-            onChecked={(checked) => {
-              modelModeTouchedRef.current = true;
-              setModelMode(checked ? 'custom' : 'list');
-              setModelMenuOpen(false);
-              invalidateDraftProofs();
-            }}
-          >
-            {t.settings.useCustomModelId}
-          </Checkbox>
-        </div>
-      </div>
-      {modelListNotice && (
-        <div data-testid="provider-model-list-notice">
-          <StatusNotice
-            tone={modelListNotice.tone}
-            message={modelListNotice.message}
-            detail={'detail' in modelListNotice ? modelListNotice.detail : null}
-            detailCopyable={'detailCopyable' in modelListNotice ? modelListNotice.detailCopyable : false}
-          />
-        </div>
-      )}
-      {selectedModelStatus && (
-        <div data-testid="provider-model-status-notice">
-          <StatusNotice
-            tone={selectedModelInfo?.supportStatus === 'custom-unchecked' ? 'warning' : 'info'}
-            message={selectedModelStatus}
-          />
-        </div>
-      )}
-    </div>
-  );
 
   const renderBillingSection = () => {
     if (isOptimizerProfile) {
@@ -1010,17 +829,7 @@ export function SettingsDetailPage({ onNav, profileId, onProfilesChanged, onSave
   if (!profileId) {
     return (
       <div className="page page-enter">
-        <header className="hdr">
-          <IconButton
-            className="hdr-btn"
-            quiet
-            icon={<Icon name="chevron-left" />}
-            tooltip={t.common.back}
-            onClick={() => onNav('settings')}
-          />
-          <div className="hdr-title">{t.common.provider}</div>
-          <div style={{ width: 32 }} />
-        </header>
+        <ProviderSettingsPageHeader title={t.common.provider} onBack={() => onNav('settings')} />
         <div className="scroll">
           <div style={{ padding: 16, color: 'var(--app-color-text-muted)', fontSize: 12 }}>{t.settings.noProfileSelected}</div>
         </div>
@@ -1030,19 +839,15 @@ export function SettingsDetailPage({ onNav, profileId, onProfilesChanged, onSave
 
   return (
     <div className="page page-enter settings-page">
-      <header className="hdr">
-        <IconButton
-          data-testid="provider-detail-back-button"
-          className="hdr-btn"
-          quiet
-          icon={<Icon name="chevron-left" />}
-          tooltip={t.common.back}
-          onClick={() => onNav('settings')}
-        />
-        <div className="page-header-meta">
-          <div className="hdr-title page-header-title">{detail.profile?.displayName ?? t.common.provider}</div>
-        </div>
-        {!isOptimizerProfile && (
+      <ProviderSettingsPageHeader
+        backButtonTestId="provider-detail-back-button"
+        title={(
+          <div className="page-header-meta">
+            <div className="hdr-title page-header-title">{detail.profile?.displayName ?? t.common.provider}</div>
+          </div>
+        )}
+        onBack={() => onNav('settings')}
+        rightSlot={!isOptimizerProfile ? (
           <IconButton
             data-testid="provider-delete-button"
             className="hdr-btn"
@@ -1053,8 +858,8 @@ export function SettingsDetailPage({ onNav, profileId, onProfilesChanged, onSave
             disabled={busy || !detail.profile}
             onClick={() => void remove()}
           />
-        )}
-      </header>
+        ) : undefined}
+      />
 
       <div className="scroll scroll-footer-pad scroll-footer-pad-detail">
         {detail.loading && <div style={{ padding: 16, color: 'var(--app-color-text-muted)', fontSize: 12 }}>{t.settings.loading}</div>}
@@ -1072,7 +877,16 @@ export function SettingsDetailPage({ onNav, profileId, onProfilesChanged, onSave
               apiFormatLabel={apiFormatLabel(detail.profile.apiFormat)}
               apiFormatTone="positive"
               apiFormatDetail={t.settings.apiFormatDetected(apiFormatLabel(detail.profile.apiFormat))}
-              pathSettings={renderPathSettings()}
+              pathSettings={(
+                <ProviderAdvancedPathSection
+                  apiFormat={detail.profile.apiFormat}
+                  paths={paths}
+                  authModeMenuOpen={authModeMenuOpen}
+                  disabled={busy}
+                  onAuthModeMenuOpenChange={setAuthModeMenuOpen}
+                  onPathChange={updatePath}
+                />
+              )}
               connection={connection}
               onConnectionChange={updateConnectionDraft}
               endpointErrors={endpointErrors}
@@ -1096,38 +910,57 @@ export function SettingsDetailPage({ onNav, profileId, onProfilesChanged, onSave
               }}
               disabled={busy}
             />
-            {renderDefaultModelSection()}
+            <ProviderDefaultModelSection
+              disabled={busy}
+              loading={modelCatalog.loading}
+              discoverySupported={modelDiscoverySupported}
+              modelMode={modelMode}
+              modelMenuOpen={modelMenuOpen}
+              modelOptions={modelOptions}
+              defaultModel={defaultModel}
+              customPlaceholder={t.settings.customModelId}
+              triggerValue={modelTriggerValue}
+              listNotice={modelListNotice}
+              modelStatusNotice={selectedModelStatus ? {
+                tone: selectedModelInfo?.supportStatus === 'custom-unchecked' ? 'warning' : 'info',
+                message: selectedModelStatus,
+              } : null}
+              onRefresh={() => void refreshModels()}
+              onModelMenuOpenChange={setModelMenuOpen}
+              onModelModeChange={(mode) => {
+                modelModeTouchedRef.current = true;
+                setModelMode(mode);
+                setModelMenuOpen(false);
+                invalidateDraftProofs();
+              }}
+              onDefaultModelSelect={(id) => {
+                modelModeTouchedRef.current = true;
+                setDefaultModel(id);
+                setModelMode('list');
+                setModelMenuOpen(false);
+                invalidateDraftProofs();
+              }}
+              onDefaultModelInput={(value) => {
+                modelModeTouchedRef.current = true;
+                setModelMode('custom');
+                setDefaultModel(value);
+                invalidateDraftProofs();
+              }}
+            />
             {renderPromptBehaviorSection()}
             {renderBillingSection()}
           </>
         )}
       </div>
 
-      <footer className="det-footer">
-        <div className="settings-detail-footer-inner">
-          <div className="settings-detail-footer-actions">
-            <IconButton
-              data-testid="provider-test-button"
-              className="settings-icon-button"
-              compactSquare
-              disabled={busy || connectionTestBusy || !connectionTestSupported}
-              icon={connectionTestBusy ? <Icon name="spinner" size={16} className="spin" /> : <Icon name="network" size={16} />}
-              tooltip={!connectionTestSupported ? t.settings.providerConnectionUnsupported : connectionTestBusy ? t.settings.testingConnection : t.settings.testConnection}
-              aria-label={!connectionTestSupported ? t.settings.providerConnectionUnsupported : connectionTestBusy ? t.settings.testingConnection : t.settings.testConnection}
-              onClick={() => void test()}
-            />
-          </div>
-          <Button
-            data-testid="provider-save-button"
-            className="btn-save"
-            variant="accent"
-            disabled={saveDisabled}
-            onClick={() => void save()}
-          >
-            {busy ? t.settings.saving : t.common.save}
-          </Button>
-        </div>
-      </footer>
+      <ProviderSettingsFooter
+        testBusy={connectionTestBusy}
+        saveBusy={busy}
+        testSupported={connectionTestSupported}
+        saveDisabled={saveDisabled}
+        onTest={() => void test()}
+        onSave={() => void save()}
+      />
     </div>
   );
 }

@@ -23,15 +23,16 @@ import {
   type ProviderBillingDraft,
   type ProviderConnectionDraft,
 } from '../hooks/use-provider-settings';
-import { StatusNotice } from '../components/status-notice';
-import { Icon } from '../components/icons';
 import { ProviderBillingSettings } from '../components/provider-billing-settings';
-import { TextSelect } from '../components/text-select';
+import {
+  ProviderAdvancedPathSection,
+  ProviderDefaultModelSection,
+  ProviderSettingsFooter,
+  ProviderSettingsPageHeader,
+} from '../components/provider-settings-sections';
 import { useToast } from '../components/toast-host';
 import { ProviderProfileEditor } from '../components/provider-profile-editor';
 import { useI18n } from '../i18n/i18n-context';
-import { Button, Checkbox, FieldLabel, HelpText, TextField } from '../primitives/native-controls';
-import { IconButton } from '../primitives/icon-button';
 import {
   statusFromEndpointMeasurementResult,
   statusFromProviderConnectionTestResult,
@@ -478,114 +479,13 @@ export function SettingsAddPage({ onNav, profiles, onProfileSaved }: SettingsAdd
     invalidateDraftProofs();
   };
 
-  const renderPathSettings = () => {
-    if (!apiFormat) {
-      return null;
-    }
-    const authOptions = [
-      { id: 'x-goog-api-key', label: 'x-goog-api-key' },
-      { id: 'bearer', label: 'Bearer' },
-      { id: 'none', label: 'None' },
-    ];
-    return (
-      <div className="section">
-        <div className="section-title settings-section-heading">{t.settings.advancedSettings}</div>
-        {apiFormat === 'openai-images' ? (
-          <>
-            <div className="field">
-              <FieldLabel htmlFor="provider-generation-path-input">{t.settings.generationPath}</FieldLabel>
-              <TextField
-                data-testid="provider-generation-path-input"
-                id="provider-generation-path-input"
-                className="field-input mono ui-field-control"
-                value={paths.generation}
-                disabled={saveBusy}
-                onValue={(value) => updatePath({ generation: value })}
-              />
-            </div>
-            <div className="field">
-              <FieldLabel htmlFor="provider-edit-path-input">{t.settings.editPath}</FieldLabel>
-              <TextField
-                data-testid="provider-edit-path-input"
-                id="provider-edit-path-input"
-                className="field-input mono ui-field-control"
-                value={paths.edit}
-                disabled={saveBusy}
-                onValue={(value) => updatePath({ edit: value })}
-              />
-            </div>
-            <HelpText className="field-hint">{t.settings.authModeFixedBearer}</HelpText>
-          </>
-        ) : null}
-        {apiFormat === 'openai-chat-completions' ? (
-          <>
-            <div className="field">
-              <FieldLabel htmlFor="provider-invoke-path-input">{t.settings.invokePath}</FieldLabel>
-              <TextField
-                data-testid="provider-invoke-path-input"
-                id="provider-invoke-path-input"
-                className="field-input mono ui-field-control"
-                value={paths.invoke}
-                disabled={saveBusy}
-                onValue={(value) => updatePath({ invoke: value })}
-              />
-            </div>
-            <HelpText className="field-hint">{t.settings.authModeFixedBearer}</HelpText>
-          </>
-        ) : null}
-        {apiFormat === 'gemini-generate-content' ? (
-          <>
-            <div className="field">
-              <FieldLabel htmlFor="provider-invoke-template-input">{t.settings.invokePathTemplate}</FieldLabel>
-              <TextField
-                data-testid="provider-invoke-template-input"
-                id="provider-invoke-template-input"
-                className="field-input mono ui-field-control"
-                value={paths.invokeTemplate}
-                disabled={saveBusy}
-                onValue={(value) => updatePath({ invokeTemplate: value })}
-              />
-            </div>
-            <div className="field">
-              <FieldLabel htmlFor="provider-auth-mode-selector">{t.settings.authMode}</FieldLabel>
-              <TextSelect
-                label={t.settings.authMode}
-                value={authOptions.find((option) => option.id === paths.authMode)?.label ?? paths.authMode}
-                disabled={saveBusy}
-                open={authModeMenuOpen}
-                onOpenChange={setAuthModeMenuOpen}
-                options={authOptions}
-                selectedId={paths.authMode}
-                onSelect={(id) => {
-                  updatePath({ authMode: id as ApiPathDraft['authMode'] });
-                  setAuthModeMenuOpen(false);
-                }}
-                testId="provider-auth-mode-selector"
-                triggerId="provider-auth-mode-selector"
-                containerClassName="cmp-select cmp-select-model provider-model-select"
-                menuClassName="cmp-select-menu cmp-select-menu-model"
-              />
-            </div>
-          </>
-        ) : null}
-      </div>
-    );
-  };
-
   return (
     <div className="page page-enter settings-page">
-      <header className="hdr">
-        <IconButton
-          data-testid="add-provider-back-button"
-          className="hdr-btn"
-          quiet
-          icon={<Icon name="chevron-left" />}
-          tooltip={t.common.back}
-          onClick={() => onNav('settings')}
-        />
-        <div className="hdr-title">{t.common.addProvider}</div>
-        <div style={{ width: 32 }} />
-      </header>
+      <ProviderSettingsPageHeader
+        backButtonTestId="add-provider-back-button"
+        title={t.common.addProvider}
+        onBack={() => onNav('settings')}
+      />
 
       <div className="scroll scroll-footer-pad">
         <ProviderProfileEditor
@@ -602,7 +502,16 @@ export function SettingsAddPage({ onNav, profiles, onProfileSaved }: SettingsAdd
           apiFormatDetail={apiFormatFeedback?.message ?? (!apiFormat ? t.settings.apiFormatNeedsPath : null)}
           detectInputValue={detectionValue}
           onDetectInputValue={applyDetectionInput}
-          pathSettings={renderPathSettings()}
+          pathSettings={(
+            <ProviderAdvancedPathSection
+              apiFormat={apiFormat}
+              paths={paths}
+              authModeMenuOpen={authModeMenuOpen}
+              disabled={saveBusy}
+              onAuthModeMenuOpenChange={setAuthModeMenuOpen}
+              onPathChange={updatePath}
+            />
+          )}
           connection={connection}
           onConnectionChange={applyConnectionChange}
           baseUrlPlaceholder="https://api.example.com"
@@ -623,90 +532,47 @@ export function SettingsAddPage({ onNav, profiles, onProfileSaved }: SettingsAdd
           apiKeySaved={false}
           disabled={saveBusy}
         />
-          <div className="section">
-            <div className="settings-section-header">
-              <div className="section-title settings-section-heading">{t.settings.defaultModel}</div>
-              <IconButton
-                data-testid="provider-refresh-models-button"
-                className="settings-icon-button"
-                compactSquare
-                disabled={modelCatalog.loading || saveBusy || !measurementSupported}
-                icon={<Icon name="refresh" size={16} className={modelCatalog.loading ? 'spin' : undefined} />}
-                tooltip={!measurementSupported ? t.settings.modelDiscoveryUnsupported : modelCatalog.loading ? t.settings.refreshingModels : t.settings.refreshModels}
-                aria-label={!measurementSupported ? t.settings.modelDiscoveryUnsupported : modelCatalog.loading ? t.settings.refreshingModels : t.settings.refreshModels}
-                onClick={() => void handleMeasure()}
-              />
-            </div>
-            <div className="field">
-              {modelMode === 'list' && modelOptions.length > 0 ? (
-                <TextSelect
-                  label={t.settings.defaultModel}
-                  value={modelOptions.find((option) => option.id === defaultModel)?.label ?? t.settings.chooseFromList}
-                  disabled={saveBusy}
-                  open={modelMenuOpen}
-                  onOpenChange={setModelMenuOpen}
-                  options={modelOptions}
-                  selectedId={defaultModel}
-                  onSelect={(id) => {
-                    modelModeTouchedRef.current = true;
-                    setDefaultModel(id);
-                    setModelMode('list');
-                    setModelMenuOpen(false);
-                    invalidateDraftProofs();
-                  }}
-                  testId="provider-default-model-selector"
-                  triggerId="provider-default-model-selector"
-                  containerClassName="cmp-select cmp-select-model provider-model-select"
-                  menuClassName="cmp-select-menu cmp-select-menu-model"
-                />
-              ) : (
-                <TextField
-                  data-testid="provider-default-model-input"
-                  id="provider-default-model-input"
-                  aria-label={t.settings.defaultModel}
-                  className="field-input mono ui-field-control"
-                  placeholder={selected?.defaultModels?.[0]?.id ?? 'gpt-image-2'}
-                  value={defaultModel}
-                  disabled={saveBusy}
-                  onValue={(value) => {
-                    modelModeTouchedRef.current = true;
-                    setModelMode('custom');
-                    setDefaultModel(value);
-                    invalidateDraftProofs();
-                  }}
-                />
-              )}
-              {modelOptions.length > 0 && (
-                <div className="provider-model-mode-row">
-                  <Checkbox
-                    data-testid="provider-use-custom-model-checkbox"
-                    checked={modelMode === 'custom'}
-                    onChecked={(checked) => {
-                      modelModeTouchedRef.current = true;
-                      setModelMode(checked ? 'custom' : 'list');
-                      setModelMenuOpen(false);
-                      invalidateDraftProofs();
-                    }}
-                  >
-                    {t.settings.useCustomModelId}
-                  </Checkbox>
-                </div>
-              )}
-            </div>
-            {!measurementSupported ? (
-              <div data-testid="provider-model-list-notice">
-                <StatusNotice tone="info" message={t.settings.modelDiscoveryUnsupported} />
-              </div>
-            ) : modelCatalog.stale ? (
-              <div data-testid="provider-model-list-notice">
-                <StatusNotice tone="warning" message={t.settings.modelListStale} />
-              </div>
-            ) : modelOptions.length === 0 ? (
-              <div data-testid="provider-model-list-notice">
-                <StatusNotice tone="info" message={t.settings.modelListEmpty} />
-              </div>
-            ) : null}
-          </div>
+          <ProviderDefaultModelSection
+            disabled={saveBusy}
+            loading={modelCatalog.loading}
+            discoverySupported={measurementSupported}
+            modelMode={modelMode}
+            modelMenuOpen={modelMenuOpen}
+            modelOptions={modelOptions}
+            defaultModel={defaultModel}
+            customPlaceholder={selected?.defaultModels?.[0]?.id ?? 'gpt-image-2'}
+            triggerValue={modelOptions.find((option) => option.id === defaultModel)?.label ?? t.settings.chooseFromList}
+            listNotice={
+              !measurementSupported
+                ? { tone: 'info', message: t.settings.modelDiscoveryUnsupported }
+                : modelCatalog.stale
+                  ? { tone: 'warning', message: t.settings.modelListStale }
+                  : modelOptions.length === 0
+                    ? { tone: 'info', message: t.settings.modelListEmpty }
+                    : null
+            }
+            onRefresh={() => void handleMeasure()}
+            onModelMenuOpenChange={setModelMenuOpen}
+            onModelModeChange={(mode) => {
+              modelModeTouchedRef.current = true;
+              setModelMode(mode);
+              setModelMenuOpen(false);
+              invalidateDraftProofs();
+            }}
+            onDefaultModelSelect={(id) => {
+              modelModeTouchedRef.current = true;
+              setDefaultModel(id);
+              setModelMode('list');
+              setModelMenuOpen(false);
+              invalidateDraftProofs();
+            }}
+            onDefaultModelInput={(value) => {
+              modelModeTouchedRef.current = true;
+              setModelMode('custom');
+              setDefaultModel(value);
+              invalidateDraftProofs();
+            }}
+          />
           <div className="section">
             <div className="section-title settings-section-heading">{t.settings.billing}</div>
             <ProviderBillingSettings
@@ -721,25 +587,17 @@ export function SettingsAddPage({ onNav, profiles, onProfileSaved }: SettingsAdd
           </div>
       </div>
 
-      <footer className="det-footer settings-add-footer">
-          <div className="settings-detail-footer-inner settings-add-footer-inner">
-            <div className="settings-detail-footer-actions">
-              <IconButton
-                data-testid="provider-test-button"
-                className="settings-icon-button"
-                compactSquare
-                disabled={saveBusy || connectionTestBusy || !connectionTestSupported}
-                icon={connectionTestBusy ? <Icon name="spinner" size={16} className="spin" /> : <Icon name="network" size={16} />}
-                tooltip={!connectionTestSupported ? t.settings.providerConnectionUnsupported : connectionTestBusy ? t.settings.testingConnection : t.settings.testConnection}
-                aria-label={!connectionTestSupported ? t.settings.providerConnectionUnsupported : connectionTestBusy ? t.settings.testingConnection : t.settings.testConnection}
-                onClick={() => void handleTestConnection()}
-              />
-            </div>
-            <div className="settings-detail-footer-save-group settings-add-footer-save-group">
-              <Button data-testid="provider-save-button" className="btn-save" variant="accent" disabled={saveDisabled} onClick={() => void handleSave()}>{saveBusy ? t.settings.saving : t.common.save}</Button>
-            </div>
-          </div>
-      </footer>
+      <ProviderSettingsFooter
+        footerClassName="det-footer settings-add-footer"
+        innerClassName="settings-detail-footer-inner settings-add-footer-inner"
+        saveGroupClassName="settings-detail-footer-save-group settings-add-footer-save-group"
+        testBusy={connectionTestBusy}
+        saveBusy={saveBusy}
+        testSupported={connectionTestSupported}
+        saveDisabled={saveDisabled}
+        onTest={() => void handleTestConnection()}
+        onSave={() => void handleSave()}
+      />
     </div>
   );
 }
