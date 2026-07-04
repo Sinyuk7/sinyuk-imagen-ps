@@ -28,7 +28,7 @@ describe('SettingsDetailPage contract — prompt optimizer', () => {
     expect(spies.testProviderProfileConnection).toHaveBeenCalledWith(
       expect.objectContaining({
         profileId: '__prompt-optimizer__',
-        providerId: 'prompt-optimize',
+        apiFormat: 'openai-chat-completions',
       }),
     );
     expect(onProfilesChanged).not.toHaveBeenCalled();

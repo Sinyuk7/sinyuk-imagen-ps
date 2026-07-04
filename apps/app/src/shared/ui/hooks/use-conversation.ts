@@ -1,8 +1,9 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import type { JobError, JobSessionSnapshot } from '@imagen-ps/application';
+import type { ApiFormat, JobError, JobSessionSnapshot } from '@imagen-ps/application';
 import type { AppServices } from '../../ports/app-services';
 import {
   commandErrorToMessage,
+  assetToPreview,
   outputAssets,
   outputMetadata,
   outputText,
@@ -39,6 +40,7 @@ export interface ConversationRound {
   readonly prompt: string;
   readonly status: RoundStatus;
   readonly providerName: string;
+  readonly apiFormat?: ApiFormat;
   readonly providerId?: string;
   readonly elapsedSeconds: number;
   readonly elapsedLabel?: string;
@@ -61,6 +63,7 @@ export interface SubmitConversationInput {
   readonly prompt: string;
   readonly profileId: string;
   readonly providerId?: string;
+  readonly apiFormat?: ApiFormat;
   readonly providerName: string;
   readonly modelId?: string;
   readonly attachments?: readonly ConversationAttachment[];
@@ -122,19 +125,7 @@ function thumbnailStoreFrom(services: AppServices): ThumbnailStore {
 }
 
 function pendingPreviews(assets: readonly Asset[]): readonly AssetPreview[] {
-  return assets.map((asset, index) => ({
-    asset: {
-      type: asset.type,
-      ...(asset.name ? { name: asset.name } : {}),
-      ...(asset.mimeType ? { mimeType: asset.mimeType } : {}),
-      ...(asset.url ? { url: asset.url } : {}),
-      ...(asset.data !== undefined ? { data: asset.data } : {}),
-      ...(asset.fileId ? { fileId: asset.fileId } : {}),
-      ...(asset.storedRef ? { storedRef: asset.storedRef } : {}),
-    },
-    url: '',
-    label: asset.name ?? `Asset ${index + 1}`,
-  }));
+  return assets.map(assetToPreview);
 }
 
 function previewAssetSourceKey(asset: Asset, index: number): string {
@@ -505,6 +496,7 @@ export function useConversation(
           prompt,
           status: 'running',
           providerName: input.providerName,
+          ...(input.apiFormat ? { apiFormat: input.apiFormat } : {}),
           ...(input.providerId ? { providerId: input.providerId } : {}),
           profileId: input.profileId,
           ...(input.modelId ? { modelId: input.modelId } : {}),
@@ -612,6 +604,7 @@ export function useConversation(
             operation: round.attachments.length > 0 ? 'image-edit' : 'text-to-image',
             prompt: round.prompt,
             profileId: round.profileId,
+            ...(round.apiFormat ? { apiFormat: round.apiFormat } : {}),
             ...(round.providerId ? { providerId: round.providerId } : {}),
             providerName: round.providerName,
             ...(round.modelId ? { modelId: round.modelId } : {}),

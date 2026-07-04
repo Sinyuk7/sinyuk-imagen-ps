@@ -1,4 +1,4 @@
-import type { Provider, ProviderConfig, ProviderDescriptor, ProviderRequest } from '../contract/index.js';
+import type { ApiFormat, Provider, ProviderConfig, ProviderDescriptor, ProviderRequest } from '../contract/index.js';
 
 /**
  * Provider registry 接口。
@@ -13,6 +13,9 @@ export interface ProviderRegistry {
 
   /** 按 id 获取 provider 实例。 */
   get(providerId: string): Provider<ProviderConfig, ProviderRequest> | undefined;
+
+  /** 按 API format 获取 provider 实例。 */
+  getByApiFormat(apiFormat: ApiFormat): Provider<ProviderConfig, ProviderRequest> | undefined;
 
   /** 列出所有已注册 provider 的 descriptor。 */
   list(): ProviderDescriptor[];
@@ -54,6 +57,11 @@ export function createProviderRegistry(): ProviderRegistry {
 
     get(providerId: string): Provider | undefined {
       return providers.get(providerId);
+    },
+
+    getByApiFormat(apiFormat: ApiFormat): Provider | undefined {
+      const matches = Array.from(providers.values()).filter((provider) => provider.describe().apiFormat === apiFormat);
+      return matches.find((provider) => provider.id !== 'mock') ?? matches[0];
     },
 
     list(): ProviderDescriptor[] {

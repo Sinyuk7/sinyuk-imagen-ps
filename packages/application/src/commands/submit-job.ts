@@ -102,13 +102,11 @@ export async function noteExactTaskCost(job: Job, profileId: string): Promise<vo
     return;
   }
   const image = job.output?.image as { raw?: unknown } | undefined;
-  const providerId = typeof job.input.provider === 'string' && job.input.provider !== 'profile'
-    ? job.input.provider
-    : (await getProviderProfileRepository().get(profileId))?.providerId;
-  if (!providerId) {
+  const profile = await getProviderProfileRepository().get(profileId);
+  if (!profile) {
     return;
   }
-  const provider = getRuntime().providerRegistry.get(providerId);
+  const provider = getRuntime().providerRegistry.getByApiFormat(profile.apiFormat);
   if (!provider || typeof provider.extractTaskCost !== 'function') {
     return;
   }

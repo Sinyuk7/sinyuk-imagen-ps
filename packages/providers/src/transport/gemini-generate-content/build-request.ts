@@ -397,7 +397,6 @@ function buildParts(request: CanonicalImageJobRequest): readonly GeminiGenerateC
 export function buildGeminiGenerateContentRequest(args: {
   readonly request: CanonicalImageJobRequest;
   readonly defaultModel?: string;
-  readonly apiVersion: 'v1' | 'v1beta';
 }): GeminiGenerateContentBuiltRequest {
   const diagnostics: ProviderDiagnostic[] = [];
   applyProviderOptions(args.request.providerOptions, diagnostics);
@@ -420,7 +419,7 @@ export function buildGeminiGenerateContentRequest(args: {
 
   return {
     model,
-    path: `/${args.apiVersion}/models/${encodeURIComponent(model)}:generateContent`,
+    path: `/models/${encodeURIComponent(model)}:generateContent`,
     body,
     diagnostics,
     wireRevision,

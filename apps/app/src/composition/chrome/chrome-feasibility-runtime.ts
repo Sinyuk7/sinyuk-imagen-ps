@@ -94,18 +94,18 @@ export async function runChromeFeasibilityRuntime(options?: {
   const providers = listProviders();
   const profile = await saveProviderProfile({
     profileId: 'chrome-feasibility-mock',
-    providerId: 'mock',
+    apiFormat: 'openai-images',
     displayName: 'Chrome Feasibility Mock',
     enabled: true,
     config: {
-      providerId: 'mock',
+      apiFormat: 'openai-images',
       displayName: 'Chrome Feasibility Mock',
-      family: 'image-endpoint',
       connection: {
         selectionMode: 'manual',
         selectedEndpointId: 'primary',
         endpoints: [{ id: 'primary', url: 'https://mock.local', enabled: true }],
       },
+      paths: { generation: '/images/generations', edit: '/images/edits' },
       defaultModel: 'mock-image-v1',
     },
     secretValues: {
@@ -119,7 +119,7 @@ export async function runChromeFeasibilityRuntime(options?: {
   const job = await submitJob({
     workflow: 'provider-generate',
     input: {
-      profileId: profile.value.profileId,
+      provider: 'mock',
       prompt: 'Chrome feasibility mock provider smoke',
       output: { count: 1 },
     },

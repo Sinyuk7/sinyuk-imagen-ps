@@ -159,7 +159,7 @@ describe('provider endpoint config canonicalization', () => {
     expect(second).toEqual(first);
   });
 
-  it('accepts Gemini Generate Content config with explicit auth/api-version ownership', () => {
+  it('accepts Gemini Generate Content config with auth and versioned base URL ownership', () => {
     const provider = createGeminiGenerateContentProvider();
     const config = provider.validateConfig({
       providerId: 'gemini-generate-content',
@@ -168,19 +168,18 @@ describe('provider endpoint config canonicalization', () => {
       connection: {
         selectionMode: 'manual',
         selectedEndpointId: 'primary',
-        endpoints: [{ id: 'primary', url: 'https://api.n1n.ai/gateway', enabled: true }],
+        endpoints: [{ id: 'primary', url: 'https://api.n1n.ai/gateway/v1beta', enabled: true }],
       },
       apiKey: 'test-key',
       authMode: 'bearer',
-      apiVersion: 'v1beta',
     });
 
     expect(config.authMode).toBe('bearer');
-    expect(config.apiVersion).toBe('v1beta');
-    expect(config.connection.endpoints[0]?.url).toBe('https://api.n1n.ai/gateway');
+    expect(config.paths).toEqual({ invokeTemplate: '/models/{model}:generateContent' });
+    expect(config.connection.endpoints[0]?.url).toBe('https://api.n1n.ai/gateway/v1beta');
   });
 
-  it('rejects Gemini Generate Content endpoints that already encode the API version or auth header', () => {
+  it('rejects query-bearing base URLs and Gemini auth header overrides', () => {
     const provider = createGeminiGenerateContentProvider();
 
     expect(() => provider.validateConfig({
@@ -190,12 +189,11 @@ describe('provider endpoint config canonicalization', () => {
       connection: {
         selectionMode: 'manual',
         selectedEndpointId: 'primary',
-        endpoints: [{ id: 'primary', url: 'https://api.n1n.ai/v1beta', enabled: true }],
+        endpoints: [{ id: 'primary', url: 'https://api.n1n.ai/v1beta?key=value', enabled: true }],
       },
       apiKey: 'test-key',
       authMode: 'bearer',
-      apiVersion: 'v1beta',
-    })).toThrow('versionless');
+    })).toThrow('query');
 
     expect(() => provider.validateConfig({
       providerId: 'gemini-generate-content',

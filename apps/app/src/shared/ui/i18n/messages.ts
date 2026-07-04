@@ -167,11 +167,6 @@ export interface AppMessages {
     readonly configured: string;
     readonly loading: string;
     readonly noProviderProfile: string;
-    readonly chooseType: string;
-    readonly providerTypeGuide: string;
-    readonly providerTypeHintImageEndpoint: string;
-    readonly providerTypeHintChatImage: string;
-    readonly providerTypeHintMock: string;
     readonly config: string;
     readonly promptBehavior: string;
     readonly billing: string;
@@ -234,6 +229,25 @@ export interface AppMessages {
     readonly secretRemovalPending: string;
     readonly changesNotTested: string;
     readonly modelListStale: string;
+    readonly modelDiscoveryUnsupported: string;
+    readonly apiProfile: string;
+    readonly apiFormat: string;
+    readonly apiFormatAuto: string;
+    readonly apiFormatRequired: string;
+    readonly apiFormatNeedsPath: string;
+    readonly apiFormatUnsupported: string;
+    readonly apiFormatDetected: (label: string) => string;
+    readonly apiFormatIncomplete: (label: string) => string;
+    readonly apiFormatConflict: (current: string, next: string) => string;
+    readonly endpointOrPath: string;
+    readonly endpointOrPathHint: string;
+    readonly advancedSettings: string;
+    readonly generationPath: string;
+    readonly editPath: string;
+    readonly invokePath: string;
+    readonly invokePathTemplate: string;
+    readonly authMode: string;
+    readonly authModeFixedBearer: string;
     readonly duplicateDisplayName: (name: string) => string;
     readonly duplicateEndpointUrl: string;
     readonly saveProvider: string;
@@ -254,7 +268,6 @@ export interface AppMessages {
     readonly connectionFailed: string;
     readonly configValidNoModels: string;
     readonly configValidProviderNoModels: string;
-    readonly selectProviderType: string;
     readonly globalGeneration: string;
     readonly outputGroup: string;
     readonly inputGroup: string;
@@ -474,11 +487,6 @@ const EN_MESSAGES: AppMessages = {
     configured: 'Configured',
     loading: 'Loading…',
     noProviderProfile: 'No provider profiles',
-    chooseType: 'Choose provider type',
-    providerTypeGuide: 'Choose by the API path in your provider docs: /v1/images/* uses Image Endpoint; /v1/chat/completions uses Chat Image.',
-    providerTypeHintImageEndpoint: 'For /v1/images/generations, /v1/images/edits, and similar image endpoints.',
-    providerTypeHintChatImage: 'For compatible image models called through /v1/chat/completions.',
-    providerTypeHintMock: 'Local test provider. No API Key or external service required.',
     config: 'Configuration',
     promptBehavior: 'Prompt behavior',
     billing: 'Billing',
@@ -494,7 +502,7 @@ const EN_MESSAGES: AppMessages = {
     billingCheckedAt: 'Last checked',
     billingErrorStale: 'Latest refresh failed. Showing the last available balance.',
     billingUserId: 'New API user ID',
-    billingUserIdHint: 'Use the integer user ID required by the panel family.',
+    billingUserIdHint: 'Use the integer user ID required by the billing panel.',
     billingAccessToken: 'Billing access token',
     billingAccessTokenHint: 'Stored securely and used only to query the balance.',
     billingAccessTokenSavedHint: 'Saved securely. Enter a new token to replace it, or remove it explicitly.',
@@ -541,6 +549,25 @@ const EN_MESSAGES: AppMessages = {
     secretRemovalPending: 'Will be removed after saving.',
     changesNotTested: 'Untested changes',
     modelListStale: 'Model list may not match unsaved changes.',
+    modelDiscoveryUnsupported: 'Model discovery is not available for this API format.',
+    apiProfile: 'API Profile',
+    apiFormat: 'API Format',
+    apiFormatAuto: 'Auto Detect',
+    apiFormatRequired: 'Paste a supported full endpoint URL or path before saving.',
+    apiFormatNeedsPath: 'API format not detected yet. Paste a supported full endpoint URL or path.',
+    apiFormatUnsupported: 'Unsupported API format. Use OpenAI Images, OpenAI Chat Completions, or Gemini GenerateContent.',
+    apiFormatDetected: (label) => `Detected ${label}.`,
+    apiFormatIncomplete: (label) => `${label} detected, but required path settings are incomplete.`,
+    apiFormatConflict: (current, next) => `This URL looks like ${next}. Create a separate profile instead of mixing it with ${current}.`,
+    endpointOrPath: 'Endpoint URL or Path',
+    endpointOrPathHint: 'Paste a full endpoint URL to split Base URL and path, or paste a path to update advanced settings.',
+    advancedSettings: 'Advanced settings',
+    generationPath: 'Generation Path',
+    editPath: 'Edit Path',
+    invokePath: 'Invoke Path',
+    invokePathTemplate: 'Invoke Path Template',
+    authMode: 'Auth mode',
+    authModeFixedBearer: 'Auth mode: Bearer',
     duplicateDisplayName: (name) => `A Provider named "${name}" already exists.`,
     duplicateEndpointUrl: 'This endpoint already exists in this profile.',
     saveProvider: 'Save provider',
@@ -561,7 +588,6 @@ const EN_MESSAGES: AppMessages = {
     connectionFailed: 'Connection failed',
     configValidNoModels: 'Configuration valid; no model list is available.',
     configValidProviderNoModels: 'Configuration valid; no available models were returned.',
-    selectProviderType: 'Choose a provider type',
     globalGeneration: 'Generation settings',
     outputGroup: 'Output',
     inputGroup: 'Input',
@@ -781,11 +807,6 @@ const ZH_CN_MESSAGES: AppMessages = {
     configured: '已配置',
     loading: '加载中…',
     noProviderProfile: '暂无 Provider 配置',
-    chooseType: '选择 Provider 类型',
-    providerTypeGuide: '根据服务商文档里的接口路径选择：/v1/images/* 选 Image Endpoint；/v1/chat/completions 选 Chat Image。',
-    providerTypeHintImageEndpoint: '适合 /v1/images/generations、/v1/images/edits 等图片接口。',
-    providerTypeHintChatImage: '适合通过 /v1/chat/completions 调用图片模型的兼容接口。',
-    providerTypeHintMock: '本地测试 Provider，无需 API Key，也不会连接真实服务。',
     config: '配置',
     promptBehavior: '提示词行为',
     billing: '余额与计费',
@@ -801,7 +822,7 @@ const ZH_CN_MESSAGES: AppMessages = {
     billingCheckedAt: '上次检查',
     billingErrorStale: '刷新失败，已显示上次可用余额。',
     billingUserId: 'New API 用户 ID',
-    billingUserIdHint: '填写面板要求的整数用户 ID。',
+    billingUserIdHint: '填写计费面板要求的整数用户 ID。',
     billingAccessToken: '计费 Access Token',
     billingAccessTokenHint: '将安全保存，仅用于查询余额。',
     billingAccessTokenSavedHint: '已安全保存；输入新 Token 可替换，或点击“移除”。',
@@ -848,6 +869,25 @@ const ZH_CN_MESSAGES: AppMessages = {
     secretRemovalPending: '保存后移除。',
     changesNotTested: '修改尚未测试',
     modelListStale: '模型列表可能与未保存的修改不一致。',
+    modelDiscoveryUnsupported: '当前 API format 不支持模型发现。',
+    apiProfile: 'API 配置',
+    apiFormat: 'API Format',
+    apiFormatAuto: 'Auto Detect',
+    apiFormatRequired: '保存前请粘贴受支持的完整端点 URL 或 path。',
+    apiFormatNeedsPath: '尚未检测到 API format。请粘贴受支持的完整端点 URL 或 path。',
+    apiFormatUnsupported: '暂不支持此 API format。请使用 OpenAI Images、OpenAI Chat Completions 或 Gemini GenerateContent。',
+    apiFormatDetected: (label) => `已检测到 ${label}。`,
+    apiFormatIncomplete: (label) => `已检测到 ${label}，但必填 path 设置还不完整。`,
+    apiFormatConflict: (current, next) => `此 URL 看起来是 ${next}。请为它新建配置，不要和 ${current} 混用。`,
+    endpointOrPath: '端点 URL 或 Path',
+    endpointOrPathHint: '粘贴完整端点 URL 会自动拆分 Base URL 和 path；粘贴 path 只更新高级设置。',
+    advancedSettings: '高级设置',
+    generationPath: 'Generation Path',
+    editPath: 'Edit Path',
+    invokePath: 'Invoke Path',
+    invokePathTemplate: 'Invoke Path Template',
+    authMode: 'Auth mode',
+    authModeFixedBearer: 'Auth mode: Bearer',
     duplicateDisplayName: (name) => `已存在名为“${name}”的 Provider。`,
     duplicateEndpointUrl: '当前配置中已存在此端点。',
     saveProvider: '保存 Provider',
@@ -868,7 +908,6 @@ const ZH_CN_MESSAGES: AppMessages = {
     connectionFailed: '连接失败',
     configValidNoModels: '配置有效；未提供模型列表。',
     configValidProviderNoModels: '配置有效；服务端未返回可用模型。',
-    selectProviderType: '选择 Provider 类型',
     globalGeneration: '生成设置',
     outputGroup: '输出',
     inputGroup: '输入',

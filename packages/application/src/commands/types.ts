@@ -7,17 +7,17 @@
 import type { DurableJobRecord, JobError, JobEvent, JobInput, JobStatus, StoredAssetRef, TaskRecord, TaskStatus } from '@imagen-ps/core-engine';
 import type { Logger } from '@imagen-ps/foundation';
 import type {
+  ApiFormat,
   BalanceChange,
   ExactTaskCost,
   ProviderBalanceSnapshot,
   ProviderDescriptor as _ProviderDescriptor,
   ProviderConfig as _ProviderConfig,
-  ProviderFamily,
   ProviderModelInfo,
 } from '@imagen-ps/providers';
 
 // Re-export provider types for commands layer consumers
-export type { ProviderDescriptor, ProviderConfig, ProviderFamily, ProviderModelInfo, ModelBrand } from '@imagen-ps/providers';
+export type { ApiFormat, EndpointClassification, ProviderDescriptor, ProviderConfig, ProviderModelInfo, ModelBrand } from '@imagen-ps/providers';
 export type { BalanceChange, ExactTaskCost, ProviderBalanceSnapshot } from '@imagen-ps/providers';
 export type {
   Asset,
@@ -112,7 +112,7 @@ export type ProviderProfileConfigValue =
   | { readonly [key: string]: ProviderProfileConfigValue };
 
 /**
- * Non-secret family-specific provider profile config.
+ * Non-secret API-format-specific provider profile config.
  *
  * This object MAY include values such as connection, defaultModel, timeoutMs,
  * and extraHeaders. It MUST NOT include secret values such as
@@ -132,7 +132,7 @@ export type ProviderProfileConfig = Readonly<Record<string, ProviderProfileConfi
  */
 export interface ProviderProfile {
   readonly profileId: string;
-  readonly providerId: string;
+  readonly apiFormat: ApiFormat;
   readonly displayName: string;
   readonly enabled: boolean;
   readonly config: ProviderProfileConfig;
@@ -156,7 +156,7 @@ export interface ProviderProfile {
  */
 export interface ProviderProfileInput {
   readonly profileId: string;
-  readonly providerId?: string;
+  readonly apiFormat?: ApiFormat;
   readonly displayName?: string;
   readonly enabled?: boolean;
   readonly config?: ProviderProfileConfig;
@@ -212,7 +212,8 @@ export interface SecretResolver {
 /** Runtime config resolved for a single dispatch/validation scope. */
 export interface ResolvedProviderConfig {
   readonly profileId: string;
-  readonly family: ProviderFamily;
+  readonly apiFormat: ApiFormat;
+  readonly implementationId: string;
   readonly providerConfig: ProviderConfig;
 }
 
@@ -235,8 +236,7 @@ export interface TestProviderProfileOptions {
 
 export interface ProviderProfileTestResult {
   readonly profileId: string;
-  readonly providerId: string;
-  readonly family: ProviderFamily;
+  readonly apiFormat: ApiFormat;
   readonly valid: true;
   /** Layer 2：connect 测试结果，仅在 options.connect 时存在。 */
   readonly connectivity?: {
@@ -280,7 +280,7 @@ export interface EndpointMeasurementResult {
 
 export interface MeasureProfileEndpointsInput {
   readonly profileId?: string;
-  readonly providerId: string;
+  readonly apiFormat?: ApiFormat;
   readonly displayName?: string;
   readonly config: ProviderProfileConfig;
   readonly secretRefs?: Readonly<Record<string, string>>;
@@ -304,7 +304,7 @@ export interface ProviderProfileConnectionTestResult {
 
 export interface TestProviderProfileConnectionInput {
   readonly profileId?: string;
-  readonly providerId: string;
+  readonly apiFormat?: ApiFormat;
   readonly displayName?: string;
   readonly config: ProviderProfileConfig;
   readonly secretRefs?: Readonly<Record<string, string>>;
@@ -313,7 +313,7 @@ export interface TestProviderProfileConnectionInput {
 }
 
 export interface ProfileBalanceResult {
-  readonly providerId: string;
+  readonly apiFormat: ApiFormat;
   readonly profileId: string;
   readonly checkedAt: number;
   readonly snapshot: ProviderBalanceSnapshot;

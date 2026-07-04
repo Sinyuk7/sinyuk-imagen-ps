@@ -62,7 +62,7 @@ function stableSerialize(value: unknown): string {
 
 function billingConfigFingerprint(config: Record<string, unknown>): string {
   const pick = {
-    providerId: config.providerId,
+    apiFormat: config.apiFormat,
     connection: config.connection,
     billing: config.billing,
   };
@@ -80,13 +80,13 @@ function cloneBillingState(entry: ProfileBillingState): ProfileBillingState {
 
 function createProfileBalanceResult(
   profileId: string,
-  providerId: string,
+  apiFormat: ProfileBalanceResult['apiFormat'],
   checkedAt: number,
   snapshot: ProviderBalanceSnapshot,
 ): ProfileBalanceResult {
   return {
     profileId,
-    providerId,
+    apiFormat,
     checkedAt,
     snapshot,
   };
@@ -254,17 +254,17 @@ async function performBalanceRefresh(
     throw createValidationError(`Provider profile "${input.profileId}" not found.`, { profileId: input.profileId });
   }
 
-  const provider = getRuntime().providerRegistry.get(profile.providerId);
+  const provider = getRuntime().providerRegistry.getByApiFormat(profile.apiFormat);
   if (!provider) {
-    throw createValidationError(`Provider implementation "${profile.providerId}" not found.`, {
+    throw createValidationError(`Provider implementation for apiFormat "${profile.apiFormat}" not found.`, {
       profileId: input.profileId,
-      providerId: profile.providerId,
+      apiFormat: profile.apiFormat,
     });
   }
   if (typeof provider.queryBalance !== 'function') {
-    throw createValidationError(`Provider implementation "${profile.providerId}" does not support balance query.`, {
+    throw createValidationError(`Provider implementation for apiFormat "${profile.apiFormat}" does not support balance query.`, {
       profileId: input.profileId,
-      providerId: profile.providerId,
+      apiFormat: profile.apiFormat,
     });
   }
 
@@ -273,7 +273,7 @@ async function performBalanceRefresh(
   const snapshot = await provider.queryBalance(resolved.providerConfig as never, {
     ...(input.signal ? { signal: input.signal } : {}),
   });
-  const nextBalance = createProfileBalanceResult(input.profileId, profile.providerId, checkedAt, snapshot);
+  const nextBalance = createProfileBalanceResult(input.profileId, profile.apiFormat, checkedAt, snapshot);
   const fingerprint = billingConfigFingerprint(profile.config as Record<string, unknown>);
   const previousState = getOrCreateBillingEntry(input.profileId, fingerprint).state;
   const nextState: ProfileBillingState = {
@@ -288,7 +288,7 @@ async function performBalanceRefresh(
   };
   setBillingEntry(input.profileId, { fingerprint, state: nextState });
   return {
-    providerId: profile.providerId,
+    apiFormat: profile.apiFormat,
     profileId: input.profileId,
     checkedAt,
     snapshot,

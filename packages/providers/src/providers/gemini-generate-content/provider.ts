@@ -10,6 +10,7 @@ import {
   buildGeminiGenerateContentRequest,
 } from '../../transport/gemini-generate-content/build-request.js';
 import { parseGeminiGenerateContentResponse } from '../../transport/gemini-generate-content/parse-response.js';
+import { assembleApiUrl } from '../../contract/api-format.js';
 
 interface ProviderValidationError extends Error {
   details?: Record<string, unknown>;
@@ -22,14 +23,13 @@ function createValidationError(message: string, details?: Record<string, unknown
   return err;
 }
 
-function endpointUrl(endpointRoot: string, path: string): string {
-  return new URL(path.replace(/^\//, ''), endpointRoot.endsWith('/') ? endpointRoot : `${endpointRoot}/`).toString();
-}
-
 function buildAuthHeaders(config: GeminiGenerateContentProviderConfig): Readonly<Record<string, string>> {
+  if (config.authMode === 'none') {
+    return {};
+  }
   return config.authMode === 'x-goog-api-key'
-    ? { 'x-goog-api-key': config.apiKey }
-    : { Authorization: `Bearer ${config.apiKey}` };
+    ? { 'x-goog-api-key': config.apiKey ?? '' }
+    : { Authorization: `Bearer ${config.apiKey ?? ''}` };
 }
 
 export function createGeminiGenerateContentProvider(): Provider<GeminiGenerateContentProviderConfig, MockProviderRequest> {
@@ -76,8 +76,8 @@ export function createGeminiGenerateContentProvider(): Provider<GeminiGenerateCo
       const builtRequest = buildGeminiGenerateContentRequest({
         request,
         defaultModel: config.defaultModel,
-        apiVersion: config.apiVersion,
       });
+      const path = config.paths.invokeTemplate.replace('{model}', encodeURIComponent(builtRequest.model));
 
       const paidRetry = resolvePaidRetryConfig(geminiGenerateContentDescriptor);
       const idempotencyHeader = resolveIdempotencyHeader(paidRetry, request as unknown as Record<string, unknown>);
@@ -89,7 +89,7 @@ export function createGeminiGenerateContentProvider(): Provider<GeminiGenerateCo
         retryOptions: { retryability: 'paid', idempotencySupported: paidRetry.idempotencySupported },
         execute: async (candidate, candidateSignal) => httpRequest(
           {
-            url: endpointUrl(candidate.url, builtRequest.path),
+            url: assembleApiUrl(candidate.url, path),
             method: 'POST',
             headers: {
               ...buildAuthHeaders(config),

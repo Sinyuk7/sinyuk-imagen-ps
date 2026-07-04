@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type {
+  ApiFormat,
   EndpointMeasurementResult,
   ProviderDescriptor,
   ProviderModelInfo,
@@ -52,6 +53,30 @@ export function useProviderCatalog(services: AppServices): readonly ProviderDesc
     () => services.commands.listProviders().filter((provider) => provider.id !== 'prompt-optimize'),
     [services],
   );
+}
+
+export function apiFormatLabel(apiFormat: ApiFormat | null | undefined): string {
+  if (apiFormat === 'openai-images') {
+    return 'OpenAI Images';
+  }
+  if (apiFormat === 'openai-chat-completions') {
+    return 'OpenAI Chat Completions';
+  }
+  if (apiFormat === 'gemini-generate-content') {
+    return 'Gemini GenerateContent';
+  }
+  return 'Auto Detect';
+}
+
+export function descriptorForApiFormat(
+  providers: readonly ProviderDescriptor[],
+  apiFormat: ApiFormat | null | undefined,
+): ProviderDescriptor | undefined {
+  if (!apiFormat) {
+    return undefined;
+  }
+  return providers.find((provider) => provider.apiFormat === apiFormat && provider.id !== 'mock')
+    ?? providers.find((provider) => provider.apiFormat === apiFormat);
 }
 
 export interface ProfileModelsState {
@@ -193,13 +218,13 @@ export function useProfileDetail(services: AppServices, profileId: string | null
     async (input: ProviderProfileInput): Promise<ProviderProfile> => {
       await services.diagnostics?.checkpoint('uxp.ui.profile_detail.save.before_command', {
         profileId: input.profileId,
-        providerId: input.providerId ?? null,
+        apiFormat: input.apiFormat ?? null,
         enabled: input.enabled ?? null,
         hasSecretValues: Object.keys(input.secretValues ?? {}).length > 0,
         configKeyCount: Object.keys(input.config ?? {}).length,
       }, {
         profile_id: input.profileId,
-        ...(input.providerId ? { provider_id: input.providerId } : {}),
+        ...(input.apiFormat ? { api_format: input.apiFormat } : {}),
       });
       const result = await services.commands.saveProviderProfile(input);
       await services.diagnostics?.checkpoint('uxp.ui.profile_detail.save.after_command', {
@@ -207,7 +232,7 @@ export function useProfileDetail(services: AppServices, profileId: string | null
         ok: result.ok,
       }, {
         profile_id: input.profileId,
-        ...(result.ok ? { provider_id: result.value.providerId } : {}),
+        ...(result.ok ? { api_format: result.value.apiFormat } : {}),
       });
       if (!result.ok) {
         const message = commandMessage(result.error);
@@ -222,26 +247,26 @@ export function useProfileDetail(services: AppServices, profileId: string | null
       }
       await services.diagnostics?.checkpoint('uxp.ui.profile_detail.save.before_set_profile', {
         profileId: result.value.profileId,
-        providerId: result.value.providerId,
+        apiFormat: result.value.apiFormat,
       }, {
         profile_id: result.value.profileId,
-        provider_id: result.value.providerId,
+        api_format: result.value.apiFormat,
       });
       setProfile(result.value);
       await services.diagnostics?.checkpoint('uxp.ui.profile_detail.save.after_set_profile', {
         profileId: result.value.profileId,
-        providerId: result.value.providerId,
+        apiFormat: result.value.apiFormat,
       }, {
         profile_id: result.value.profileId,
-        provider_id: result.value.providerId,
+        api_format: result.value.apiFormat,
       });
       setError(null);
       await services.diagnostics?.checkpoint('uxp.ui.profile_detail.save.error_cleared', {
         profileId: result.value.profileId,
-        providerId: result.value.providerId,
+        apiFormat: result.value.apiFormat,
       }, {
         profile_id: result.value.profileId,
-        provider_id: result.value.providerId,
+        api_format: result.value.apiFormat,
       });
       return result.value;
     },
@@ -303,6 +328,15 @@ export interface ProviderConnectionDraft {
 }
 
 export type BillingModeDraft = 'none' | 'official' | 'new-api';
+export type AuthModeDraft = 'bearer' | 'x-goog-api-key' | 'none';
+
+export interface ApiPathDraft {
+  readonly generation: string;
+  readonly edit: string;
+  readonly invoke: string;
+  readonly invokeTemplate: string;
+  readonly authMode: AuthModeDraft;
+}
 
 export interface ProviderBillingDraft {
   readonly mode: BillingModeDraft;
@@ -332,6 +366,84 @@ export function sanitizeProviderEndpointUrl(value: string): string {
 
 export function sanitizeProviderSecretValue(value: string): string {
   return value.trim();
+}
+
+export function defaultApiPathDraft(apiFormat: ApiFormat | null | undefined): ApiPathDraft {
+  if (apiFormat === 'openai-images') {
+    return {
+      generation: '/images/generations',
+      edit: '/images/edits',
+      invoke: '/chat/completions',
+      invokeTemplate: '/models/{model}:generateContent',
+      authMode: 'bearer',
+    };
+  }
+  if (apiFormat === 'gemini-generate-content') {
+    return {
+      generation: '/images/generations',
+      edit: '/images/edits',
+      invoke: '/chat/completions',
+      invokeTemplate: '/models/{model}:generateContent',
+      authMode: 'x-goog-api-key',
+    };
+  }
+  return {
+    generation: '/images/generations',
+    edit: '/images/edits',
+    invoke: '/chat/completions',
+    invokeTemplate: '/models/{model}:generateContent',
+    authMode: 'bearer',
+  };
+}
+
+function readPathRecord(profile: ProviderProfile | null): Record<string, unknown> {
+  const paths = profile?.config.paths;
+  return typeof paths === 'object' && paths !== null && !Array.isArray(paths)
+    ? paths as Record<string, unknown>
+    : {};
+}
+
+export function readApiPathDraft(profile: ProviderProfile | null): ApiPathDraft {
+  const defaults = defaultApiPathDraft(profile?.apiFormat);
+  const paths = readPathRecord(profile);
+  const authMode = profile?.config.authMode;
+  return {
+    generation: typeof paths.generation === 'string' ? paths.generation : defaults.generation,
+    edit: typeof paths.edit === 'string' ? paths.edit : defaults.edit,
+    invoke: typeof paths.invoke === 'string' ? paths.invoke : defaults.invoke,
+    invokeTemplate: typeof paths.invokeTemplate === 'string' ? paths.invokeTemplate : defaults.invokeTemplate,
+    authMode: authMode === 'bearer' || authMode === 'x-goog-api-key' || authMode === 'none' ? authMode : defaults.authMode,
+  };
+}
+
+export function mergeApiPathDraft(
+  draft: ApiPathDraft,
+  paths: unknown,
+  apiFormat: ApiFormat,
+): ApiPathDraft {
+  const record = typeof paths === 'object' && paths !== null && !Array.isArray(paths)
+    ? paths as Record<string, unknown>
+    : {};
+  return {
+    ...draft,
+    ...(apiFormat === 'openai-images' && typeof record.generation === 'string' ? { generation: record.generation } : {}),
+    ...(apiFormat === 'openai-images' && typeof record.edit === 'string' ? { edit: record.edit } : {}),
+    ...(apiFormat === 'openai-chat-completions' && typeof record.invoke === 'string' ? { invoke: record.invoke } : {}),
+    ...(apiFormat === 'gemini-generate-content' && typeof record.invokeTemplate === 'string' ? { invokeTemplate: record.invokeTemplate } : {}),
+  };
+}
+
+export function pathConfigFromDraft(apiFormat: ApiFormat, draft: ApiPathDraft): ProviderProfileConfigValue {
+  if (apiFormat === 'openai-images') {
+    return {
+      generation: draft.generation.trim(),
+      ...(draft.edit.trim() ? { edit: draft.edit.trim() } : {}),
+    };
+  }
+  if (apiFormat === 'openai-chat-completions') {
+    return { invoke: draft.invoke.trim() };
+  }
+  return { invokeTemplate: draft.invokeTemplate.trim() };
 }
 
 export function sanitizeProviderConnectionDraft(
@@ -490,11 +602,11 @@ export function defaultBillingDraft(provider: ProviderDescriptor | undefined): P
 }
 
 export function providerConfigFromForm(
-  providerId: string,
+  apiFormat: ApiFormat,
   displayName: string,
-  family: string,
   connection: ProviderConnectionDraft,
   defaultModel: string,
+  paths: ApiPathDraft,
   billing?: ProviderBillingDraft,
   instruction?: string,
 ): ProviderProfileConfig {
@@ -507,9 +619,9 @@ export function providerConfigFromForm(
       }
     : undefined;
   const config: Record<string, ProviderProfileConfigValue> = {
-    providerId,
+    apiFormat,
     displayName: sanitizeProviderDisplayName(displayName),
-    family,
+    paths: pathConfigFromDraft(apiFormat, paths),
     connection: {
       selectionMode: normalizedConnection.selectionMode,
       ...(normalizedConnection.selectedEndpointId ? { selectedEndpointId: normalizedConnection.selectedEndpointId } : {}),
@@ -540,6 +652,9 @@ export function providerConfigFromForm(
   }
   if (instruction && instruction.trim()) {
     config.instruction = instruction.trim();
+  }
+  if (apiFormat === 'gemini-generate-content') {
+    config.authMode = paths.authMode;
   }
   return config;
 }

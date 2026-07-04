@@ -5,6 +5,7 @@ import { listLocalCatalogModels } from '../../contract/image-model-capability.js
 export const imageEndpointDescriptor: ProviderDescriptor = {
   id: 'image-endpoint',
   family: 'image-endpoint',
+  apiFormat: 'openai-images',
   displayName: 'Image Endpoint',
   operations: ['text_to_image', 'image_edit'],
   invokeMode: 'sync',

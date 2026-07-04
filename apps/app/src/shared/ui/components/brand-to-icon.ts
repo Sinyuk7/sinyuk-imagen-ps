@@ -4,7 +4,7 @@
  * 品牌身份由 `@imagen-ps/application` 的 `resolveModelBrand` 命令从 providers
  * catalog 解析；本模块只负责 brand → icon slug 的纯映射与 default 回落。
  */
-import type { ModelBrand } from '@imagen-ps/application';
+import type { ApiFormat, ModelBrand } from '@imagen-ps/application';
 import type { AppServices } from '../../ports/app-services';
 import type { ModelAvatarIconName } from './generated/model-avatar-icons';
 
@@ -24,18 +24,18 @@ export function brandToIconSlug(brand: ModelBrand | undefined): ModelAvatarIconN
 }
 
 /**
- * 经 application 命令解析 `{providerId, modelId}` 的品牌并映射为图标 slug。
+ * 经 application 命令解析 `{apiFormat, modelId}` 的品牌并映射为图标 slug。
  * 非 catalog provider、未命中 curated 规则、或字段缺失时回落到 `default`。
  */
 export function resolveModelAvatarIconSlug(args: {
   readonly services: AppServices;
-  readonly providerId?: string;
+  readonly apiFormat?: ApiFormat;
   readonly modelId?: string;
 }): ModelAvatarIconName {
-  const { services, providerId, modelId } = args;
-  if (!providerId || !modelId) {
+  const { services, apiFormat, modelId } = args;
+  if (!apiFormat || !modelId) {
     return 'default';
   }
-  const brand = services.commands.resolveModelBrand({ providerId, modelId });
+  const brand = services.commands.resolveModelBrand({ apiFormat, modelId });
   return brandToIconSlug(brand);
 }

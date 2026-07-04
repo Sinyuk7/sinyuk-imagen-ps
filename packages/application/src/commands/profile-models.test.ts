@@ -39,14 +39,12 @@ function repositoryEntry(repository: ProviderProfileRepository, profileId: strin
 function mockProfile(overrides?: Partial<ProviderProfile>): ProviderProfile {
   return {
     profileId: 'mock-profile',
-    providerId: 'mock',
+    apiFormat: 'openai-images',
     displayName: 'Mock Profile',
     enabled: true,
     config: {
-      providerId: 'mock',
-      displayName: 'Mock Profile',
-      family: 'image-endpoint',
-      baseURL: 'https://mock.local',
+      apiFormat: 'openai-images',
+      displayName: 'Mock Profile',      baseURL: 'https://mock.local',
       defaultModel: 'mock-image-v1',
     },
     createdAt: '2026-06-15T00:00:00.000Z',
@@ -58,14 +56,12 @@ function mockProfile(overrides?: Partial<ProviderProfile>): ProviderProfile {
 function imageEndpointProfile(overrides?: Partial<ProviderProfile>): ProviderProfile {
   return {
     profileId: 'image-endpoint-profile',
-    providerId: 'image-endpoint',
+    apiFormat: 'openai-images',
     displayName: 'Image Endpoint Profile',
     enabled: true,
     config: {
-      providerId: 'image-endpoint',
-      displayName: 'Image Endpoint Profile',
-      family: 'image-endpoint',
-      connection: {
+      apiFormat: 'openai-images',
+      displayName: 'Image Endpoint Profile',      connection: {
         selectionMode: 'manual',
         selectedEndpointId: 'primary',
         endpoints: [{ id: 'primary', url: 'https://example.com', enabled: true }],
@@ -84,10 +80,8 @@ describe('profile model commands', () => {
     setProviderProfileRepository(createRepository([
       mockProfile({
         config: {
-          providerId: 'mock',
-          displayName: 'Mock Profile',
-          family: 'image-endpoint',
-          baseURL: 'https://mock.local',
+          apiFormat: 'openai-images',
+          displayName: 'Mock Profile',          baseURL: 'https://mock.local',
           defaultModel: 'gpt-image2',
         },
       }),
@@ -97,7 +91,7 @@ describe('profile model commands', () => {
 
     expect(result.ok).toBe(true);
     if (result.ok) {
-      expect(result.value.map((model) => model.id)).toEqual(['gpt-image2', 'mock-image-v1']);
+      expect(result.value.map((model) => model.id)).toEqual(['gpt-image2', ...IMAGE_ENDPOINT_CATALOG_IDS]);
     }
   });
 
@@ -107,10 +101,8 @@ describe('profile model commands', () => {
       mockProfile({
         models: [{ id: 'gpt-image2' }, { id: 'mock-image-v1' }],
         config: {
-          providerId: 'mock',
-          displayName: 'Mock Profile',
-          family: 'image-endpoint',
-          baseURL: 'https://mock.local',
+          apiFormat: 'openai-images',
+          displayName: 'Mock Profile',          baseURL: 'https://mock.local',
           defaultModel: 'gpt-image2',
         },
       }),
@@ -120,7 +112,7 @@ describe('profile model commands', () => {
 
     expect(result.ok).toBe(true);
     if (result.ok) {
-      expect(result.value.map((model) => model.id)).toEqual(['gpt-image2', 'mock-image-v1']);
+      expect(result.value.map((model) => model.id)).toEqual(['gpt-image2', ...IMAGE_ENDPOINT_CATALOG_IDS]);
     }
   });
 
@@ -129,10 +121,8 @@ describe('profile model commands', () => {
     setProviderProfileRepository(createRepository([
       mockProfile({
         config: {
-          providerId: 'mock',
-          displayName: 'Mock Profile',
-          family: 'image-endpoint',
-          baseURL: 'https://mock.local',
+          apiFormat: 'openai-images',
+          displayName: 'Mock Profile',          baseURL: 'https://mock.local',
           defaultModel: '   ',
         },
       }),
@@ -142,7 +132,7 @@ describe('profile model commands', () => {
 
     expect(result.ok).toBe(true);
     if (result.ok) {
-      expect(result.value.map((model) => model.id)).toEqual(['mock-image-v1']);
+      expect(result.value.map((model) => model.id)).toEqual(IMAGE_ENDPOINT_CATALOG_IDS);
     }
   });
 
@@ -164,10 +154,8 @@ describe('profile model commands', () => {
     setProviderProfileRepository(createRepository([imageEndpointProfile({
       models: [{ id: 'gpt-image-1' }],
       config: {
-        providerId: 'image-endpoint',
-        displayName: 'Image Endpoint Profile',
-        family: 'image-endpoint',
-        connection: {
+        apiFormat: 'openai-images',
+        displayName: 'Image Endpoint Profile',        connection: {
           selectionMode: 'manual',
           selectedEndpointId: 'primary',
           endpoints: [{ id: 'primary', url: 'https://example.com', enabled: true }],
@@ -217,10 +205,8 @@ describe('profile model commands', () => {
       imageEndpointProfile({
         models: [{ id: 'gpt-image-2', supportStatus: 'selectable' }],
         config: {
-          providerId: 'image-endpoint',
-          displayName: 'Image Endpoint Profile',
-          family: 'image-endpoint',
-          connection: {
+          apiFormat: 'openai-images',
+          displayName: 'Image Endpoint Profile',          connection: {
             selectionMode: 'manual',
             selectedEndpointId: 'primary',
             endpoints: [{ id: 'primary', url: 'https://example.com', enabled: true }],
@@ -292,6 +278,7 @@ describe('profile model commands', () => {
         return {
           id: 'image-endpoint',
           family: 'image-endpoint',
+          apiFormat: 'openai-images',
           displayName: 'Image Endpoint',
           operations: ['text_to_image', 'image_edit'],
           invokeMode: 'sync',
@@ -350,6 +337,7 @@ describe('profile model commands', () => {
         return {
           id: 'image-endpoint',
           family: 'image-endpoint',
+          apiFormat: 'openai-images',
           displayName: 'Image Endpoint',
           operations: ['text_to_image', 'image_edit'],
           invokeMode: 'sync',

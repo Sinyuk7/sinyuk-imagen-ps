@@ -225,7 +225,7 @@ describe('AppShell', () => {
   });
 
   it('does not switch the active image provider after adding another provider unless opted in', async () => {
-    const { services } = createFakeServices({ activeImageProfileId: 'mock-profile' });
+    const { services, spies } = createFakeServices({ activeImageProfileId: 'mock-profile' });
     const container = document.createElement('div');
     document.body.appendChild(container);
     root = createRoot(container);
@@ -254,8 +254,14 @@ describe('AppShell', () => {
       container.querySelector<HTMLButtonElement>('[data-testid="providers-add-button"]')?.click();
     });
     await flush();
+    expect(container.querySelector('[data-testid="provider-type-mock"]')).toBeNull();
     await act(async () => {
-      container.querySelector<HTMLElement>('[data-testid="provider-type-mock"]')?.click();
+      changeInput(
+        container.querySelector<HTMLInputElement>('[data-testid="provider-endpoint-detect-input"]')!,
+        'https://mock.local/images/generations',
+      );
+      changeInput(container.querySelector<HTMLInputElement>('[data-testid="provider-alias-input"]')!, 'Second Mock');
+      changeInput(container.querySelector<HTMLInputElement>('[data-testid="provider-api-key-input"]')!, 'mock-key');
     });
     await flush();
     expect(container.querySelector('[data-testid="provider-use-after-saving"]')).toBeNull();
@@ -266,6 +272,10 @@ describe('AppShell', () => {
     await flush();
     await flush();
 
+    expect(spies.saveProviderProfile).toHaveBeenCalledWith(expect.objectContaining({
+      apiFormat: 'openai-images',
+      displayName: 'Second Mock',
+    }));
     expect(await services.activeImageProfile.load()).toBe('mock-profile');
   });
 

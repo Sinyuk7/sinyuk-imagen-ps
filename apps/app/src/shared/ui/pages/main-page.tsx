@@ -961,13 +961,13 @@ export function MainPage({
       }
       return;
     }
-    composerDraft.reset();
+    composerDraft.reset({ releaseAttachments: false });
     pendingBillingProfileIdRef.current = selectedProfile.profileId;
     await conversation.submit({
       operation: attachments.length > 0 ? 'image-edit' : 'text-to-image',
       prompt,
       profileId: selectedProfile.profileId,
-      providerId: selectedProfile.providerId,
+      apiFormat: selectedProfile.apiFormat,
       providerName: selectedProfile.displayName,
       ...(selectedModelId ? { modelId: selectedModelId } : {}),
       attachments,
@@ -1355,7 +1355,7 @@ export function MainPage({
                   <div className="prov-card">
                     <div className="prov-top">
                       <ProviderIdentity
-                        iconName={resolveModelAvatarIconSlug({ services, providerId: round.providerId, modelId: round.modelId })}
+                        iconName={resolveModelAvatarIconSlug({ services, apiFormat: round.apiFormat, modelId: round.modelId })}
                         providerName={round.providerName}
                         modelLabel={round.modelId}
                         disabled={!onEditProfile || !round.profileId}
@@ -1404,7 +1404,7 @@ export function MainPage({
                   <div className={`prov-card${hasImages ? ` prov-card-media media-${mediaShapeFromSize(round.outputSize)}` : ' prov-card-text-only'}`}>
                     <div className="prov-top">
                       <ProviderIdentity
-                        iconName={resolveModelAvatarIconSlug({ services, providerId: round.providerId, modelId: round.modelId })}
+                        iconName={resolveModelAvatarIconSlug({ services, apiFormat: round.apiFormat, modelId: round.modelId })}
                         providerName={round.providerName}
                         modelLabel={providerModelLabel}
                         disabled={!onEditProfile || !round.profileId}

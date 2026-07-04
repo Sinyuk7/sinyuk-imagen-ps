@@ -1,8 +1,29 @@
 export type { ProviderFamily, ProviderOperation } from './capability.js';
 export type {
+  ApiFormat,
+  ApiFormatPaths,
+  AuthMode,
+  EndpointClassification,
+  EndpointClassificationReason,
+  EndpointClassificationSource,
+  GeminiGenerateContentPaths,
+  OpenAiChatCompletionsPaths,
+  OpenAiImagesPaths,
+  ProviderImplementationId,
+} from './api-format.js';
+export {
+  apiFormatForImplementationId,
+  assembleApiUrl,
+  canonicalizeProviderBaseUrl,
+  classifyEndpoint,
+  defaultPathsForApiFormat,
+  implementationIdForApiFormat,
+  normalizeApiFormatPaths,
+  normalizeApiPath,
+} from './api-format.js';
+export type {
   BillingEnabledProviderConfig,
   ChatImageProviderConfig,
-  GeminiGenerateContentApiVersion,
   GeminiGenerateContentAuthMode,
   GeminiGenerateContentProviderConfig,
   ImageEndpointProviderConfig,

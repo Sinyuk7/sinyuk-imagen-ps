@@ -227,7 +227,7 @@ describe('MainPage contract — result rendering', () => {
     const response = container.querySelector<HTMLElement>('[data-testid^="result-response-text-"]')!;
     expect(response.textContent).toContain('line one\nline two');
     expect(response.textContent).toContain('[operation=text_to_image] [model=mock-image-v1]');
-    expect(response.textContent).toContain('[app.output=size=2k format=png aspect=auto providerInputSize=1k]');
+    expect(response.textContent).not.toContain('[app.output=');
     expect(container.querySelector('.prov-response-details')).toBeNull();
     const responseBox = response.closest<HTMLElement>('.prov-response')!;
     expect(responseBox.dataset.expanded).toBeUndefined();
@@ -237,7 +237,7 @@ describe('MainPage contract — result rendering', () => {
       container.querySelector<HTMLElement>('[data-testid^="result-response-copy-button-"]')!.click();
     });
     expect(writeText).toHaveBeenCalledWith(expect.stringContaining('line one\nline two'));
-    expect(writeText).toHaveBeenCalledWith(expect.stringContaining('[app.output=size=2k format=png aspect=auto providerInputSize=1k]'));
+    expect(writeText).not.toHaveBeenCalledWith(expect.stringContaining('[app.output='));
   });
 
   it('renders failed rounds as a structured error card and copies only the request id', async () => {
@@ -314,7 +314,7 @@ describe('MainPage contract — result rendering', () => {
 
     await sendPrompt(container, 'failed unknown request');
 
-    expect(container.querySelector('.err-category')?.textContent).toContain('中转不兼容');
+    expect(container.querySelector('.err-category')?.textContent).toContain('中转协议不兼容');
     expect(container.querySelector<HTMLElement>('[data-testid^="error-primary-action-button-"]')?.textContent).toContain('打开 Provider 设置');
     expect(container.querySelectorAll<HTMLElement>('[data-testid^="error-fill-composer-button-"]')).toHaveLength(1);
 
@@ -442,7 +442,7 @@ describe('MainPage contract — result rendering', () => {
 
     const response = container.querySelector<HTMLElement>('[data-testid^="result-response-text-"]')!;
     expect(response.textContent).toContain('[operation=text_to_image] [model=mock-image-v1] [prompt=debug on...]');
-    expect(response.textContent).toContain('[app.model=mock-image-v1]');
+    expect(response.textContent).not.toContain('[app.model=');
     expect(container.querySelector('.prov-response-details')).toBeNull();
     expect(container.querySelector<HTMLElement>('[data-testid^="result-preview-"]')?.className).toContain('media-tall');
   });

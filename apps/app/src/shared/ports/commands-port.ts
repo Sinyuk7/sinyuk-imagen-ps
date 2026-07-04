@@ -12,6 +12,7 @@ export interface CommandsPort {
   readonly reconcileStaleRunningTaskRecords: typeof commands.reconcileStaleRunningTaskRecords;
   readonly listProviders: typeof commands.listProviders;
   readonly describeProvider: typeof commands.describeProvider;
+  readonly classifyEndpoint: typeof commands.classifyEndpoint;
   readonly resolveModelBrand: typeof commands.resolveModelBrand;
   readonly listProviderProfiles: typeof commands.listProviderProfiles;
   readonly getProviderProfile: typeof commands.getProviderProfile;
@@ -42,6 +43,7 @@ export function createCommandsAdapter(): CommandsPort {
     reconcileStaleRunningTaskRecords: commands.reconcileStaleRunningTaskRecords,
     listProviders: commands.listProviders,
     describeProvider: commands.describeProvider,
+    classifyEndpoint: commands.classifyEndpoint,
     resolveModelBrand: commands.resolveModelBrand,
     listProviderProfiles: commands.listProviderProfiles,
     getProviderProfile: commands.getProviderProfile,

@@ -7,6 +7,11 @@ import type {
   TestProviderProfileConnectionInput,
 } from './types.js';
 import { resolveSecretValue } from './secret-utils.js';
+import {
+  normalizeProfileApiConfig,
+  providerImplementationIdForApiFormat,
+  resolveProfileApiFormat,
+} from './api-format-profile.js';
 
 type DraftCommandInput = MeasureProfileEndpointsInput | TestProviderProfileConnectionInput;
 
@@ -49,21 +54,32 @@ export async function resolveDraftProviderContext(input: DraftCommandInput): Pro
   readonly displayName: string;
   readonly provider: NonNullable<ReturnType<ReturnType<typeof getRuntime>['providerRegistry']['get']>>;
   readonly providerConfig: unknown;
+  readonly apiFormat: ProviderProfile['apiFormat'];
+  readonly implementationId: string;
 }> {
   const existing = input.profileId ? await getProviderProfileRepository().get(input.profileId) : undefined;
-  const provider = getRuntime().providerRegistry.get(input.providerId);
+  const mergedConfig = mergeDraftConfig(existing?.config, input.config);
+  const apiFormat = resolveProfileApiFormat({
+    profileId: input.profileId ?? 'draft',
+    existing,
+    incomingApiFormat: input.apiFormat,
+    config: mergedConfig,
+  });
+  const implementationId = providerImplementationIdForApiFormat(apiFormat);
+  const provider = getRuntime().providerRegistry.getByApiFormat(apiFormat);
   if (!provider) {
-    throw new Error(`Provider implementation "${input.providerId}" not found.`);
+    throw new Error(`Provider implementation for apiFormat "${apiFormat}" not found.`);
   }
   const resolvedSecrets = await resolveDraftSecrets(existing, input);
-  const mergedConfig = mergeDraftConfig(existing?.config, input.config);
   const displayName = input.displayName ?? existing?.displayName ?? provider.describe().displayName;
+  const normalizedConfig = normalizeProfileApiConfig(apiFormat, mergedConfig);
   const providerConfig = provider.validateConfig({
-    providerId: input.providerId,
+    providerId: implementationId,
     displayName,
+    apiFormat,
     family: provider.family,
-    ...mergedConfig,
+    ...normalizedConfig,
     ...resolvedSecrets,
   });
-  return { existing, displayName, provider, providerConfig };
+  return { existing, displayName, provider, providerConfig, apiFormat, implementationId };
 }

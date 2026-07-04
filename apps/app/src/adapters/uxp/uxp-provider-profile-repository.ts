@@ -45,7 +45,7 @@ function parseProfiles(raw: string): Map<string, ProviderProfile> {
 function profileAttrs(profile: ProviderProfile): Record<string, unknown> {
   return {
     profileId: profile.profileId,
-    providerId: profile.providerId,
+    apiFormat: profile.apiFormat,
     credentialRefCount: Object.keys(profile.secretRefs ?? {}).length,
     configKeyCount: Object.keys(profile.config).length,
   };
@@ -115,14 +115,12 @@ export function createUxpProviderProfileRepository(modules: UxpModules): Provide
     async save(profile: ProviderProfile): Promise<void> {
       await flightRecorder.checkpoint('uxp.profile_repository.save.start', profileAttrs(profile), {
         profile_id: profile.profileId,
-        provider_id: profile.providerId,
       });
       const profiles = await readAll();
       profiles.set(profile.profileId, profile);
       await writeAll(profiles);
       await flightRecorder.checkpoint('uxp.profile_repository.save.ok', profileAttrs(profile), {
         profile_id: profile.profileId,
-        provider_id: profile.providerId,
       });
     },
     async delete(profileId: string): Promise<void> {

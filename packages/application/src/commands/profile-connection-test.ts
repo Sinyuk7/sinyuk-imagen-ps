@@ -12,18 +12,20 @@ import type {
   TestProviderProfileConnectionInput,
 } from './types.js';
 import { resolveDraftProviderContext } from './draft-provider-config.js';
+import { catalogProviderIdForApiFormat } from './api-format-profile.js';
 
 function errorMessage(error: unknown, fallback: string): string {
   return error instanceof Error ? error.message : fallback;
 }
 
 function normalizeModels(
-  providerId: string,
+  apiFormat: Parameters<typeof catalogProviderIdForApiFormat>[0],
   models: readonly ProviderModelInfo[] | undefined,
 ): readonly ProviderModelInfo[] | undefined {
   if (!models) {
     return undefined;
   }
+  const providerId = catalogProviderIdForApiFormat(apiFormat);
   if (!providerUsesImageModelCatalog(providerId)) {
     return models;
   }
@@ -44,12 +46,12 @@ export async function testProviderProfileConnection(
     package: 'application',
     component: 'command',
     profile_id: input.profileId ?? 'draft',
-    provider_id: input.providerId,
+    ...(input.apiFormat ? { apiFormat: input.apiFormat } : {}),
   });
   const span = logger.startSpan('command.profile.connection_test');
 
   try {
-    const { provider, providerConfig } = await resolveDraftProviderContext(input);
+    const { provider, providerConfig, apiFormat } = await resolveDraftProviderContext(input);
 
     if (provider.describe().connectivity?.connectionTest === 'unsupported' || typeof provider.testConnection !== 'function') {
       span.finish({ supported: false });
@@ -57,7 +59,7 @@ export async function testProviderProfileConnection(
         ok: true,
         value: {
           supported: false,
-          message: `Provider implementation "${input.providerId}" does not support connection testing.`,
+          message: `Provider implementation for apiFormat "${apiFormat}" does not support connection testing.`,
         },
       };
     }
@@ -67,10 +69,10 @@ export async function testProviderProfileConnection(
       logger.child({
         package: 'providers',
         component: 'provider',
-        provider_id: input.providerId,
+        provider_id: provider.id,
       }),
     );
-    const models = normalizeModels(input.providerId, tested.models);
+    const models = normalizeModels(apiFormat, tested.models);
     const selectableCount = tested.modelCount ?? models?.filter(
       (model) => model.supportStatus === undefined || model.supportStatus === 'selectable',
     ).length;
@@ -96,13 +98,13 @@ export async function testProviderProfileConnection(
     if (message.includes('Provider implementation "') && message.includes('" not found.')) {
       return {
         ok: false,
-        error: createValidationError(message, { providerId: input.providerId }),
+        error: createValidationError(message, { apiFormat: input.apiFormat }),
       };
     }
     return {
       ok: false,
       error: createProviderError(message, {
-        providerId: input.providerId,
+        apiFormat: input.apiFormat,
         profileId: input.profileId,
       }),
     };

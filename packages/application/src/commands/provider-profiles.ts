@@ -11,13 +11,20 @@ import type {
   CommandResult,
   DeleteProviderProfileOptions,
   ProviderProfile,
+  ProviderProfileConfig,
   ProviderProfileInput,
   ProviderProfileTestResult,
   TestProviderProfileOptions,
 } from './types.js';
 import { resolveSecretValue } from './secret-utils.js';
-import { PROMPT_OPTIMIZER_PROFILE_ID } from './prompt-optimize.js';
+import { PROMPT_OPTIMIZER_PROFILE_ID, savePromptOptimizerProfile } from './prompt-optimize.js';
 import type { ProviderProfileConfigValue } from './types.js';
+import {
+  catalogProviderIdForApiFormat,
+  normalizeProfileApiConfig,
+  providerImplementationIdForApiFormat,
+  resolveProfileApiFormat,
+} from './api-format-profile.js';
 import {
   describeConfiguredCatalogModel,
   providerUsesImageModelCatalog,
@@ -42,6 +49,8 @@ function stripSecretConfigFields(
   secretRefs: Readonly<Record<string, string>> | undefined,
 ): Record<string, ProviderProfileConfigValue> {
   const next = { ...config };
+  delete next.providerId;
+  delete next.family;
   for (const name of Object.keys(secretRefs ?? {})) {
     delete next[name];
   }
@@ -99,12 +108,13 @@ function connectivityModelsForProfile(
   if (configured.length === 0 || models.some((model) => model.id === configured)) {
     return models;
   }
-  if (!providerUsesImageModelCatalog(profile.providerId)) {
+  const catalogProviderId = catalogProviderIdForApiFormat(profile.apiFormat);
+  if (!providerUsesImageModelCatalog(catalogProviderId)) {
     return [{ id: configured, displayName: configured }, ...models];
   }
   return [
     describeConfiguredCatalogModel({
-      providerId: profile.providerId,
+      providerId: catalogProviderId,
       modelId: configured,
       discoveredModels: models,
     }),
@@ -159,7 +169,7 @@ export async function getProviderProfile(profileId: string): Promise<CommandResu
  * INPUT: ProviderProfileInput，包含非敏感 config、可选 secretRefs、可选 write-only secretValues。
  * OUTPUT: 保存后的 ProviderProfile，不包含 secret values。
  * SIDE EFFECT: 写入 secret storage 与 provider profile repository。
- * FAILURE: provider 不存在、family mismatch、secret 写入、provider validation 或 repository save 失败时返回 CommandResult error，并尽力删除本次新写入的 secrets。
+ * FAILURE: apiFormat 不支持、secret 写入、provider validation 或 repository save 失败时返回 CommandResult error，并尽力删除本次新写入的 secrets。
  */
 export async function saveProviderProfile(input: ProviderProfileInput): Promise<CommandResult<ProviderProfile>> {
   const logger = getRuntimeLogger().child({
@@ -178,48 +188,37 @@ export async function saveProviderProfile(input: ProviderProfileInput): Promise<
     };
   }
 
-  const runtime = getRuntime();
+  if (input.profileId === PROMPT_OPTIMIZER_PROFILE_ID) {
+    return savePromptOptimizerProfile(input);
+  }
   const existing = await getProviderProfileRepository().get(input.profileId);
-  const providerId = input.providerId ?? existing?.providerId;
-  if (!providerId) {
-    span.fail({ message: `Provider profile "${input.profileId}" requires providerId.` });
-    return {
-      ok: false,
-      error: createValidationError(`Provider profile "${input.profileId}" requires providerId.`, {
-        profileId: input.profileId,
-      }),
-    };
-  }
 
-  const provider = runtime.providerRegistry.get(providerId);
+  const mergedConfigForApiFormat = mergeProfileConfig(existing?.config, input.config) as ProviderProfileConfig;
+  const apiFormat = resolveProfileApiFormat({
+    profileId: input.profileId,
+    existing,
+    incomingApiFormat: input.apiFormat,
+    config: mergedConfigForApiFormat,
+  });
+  const implementationId = providerImplementationIdForApiFormat(apiFormat);
+  const provider = getRuntime().providerRegistry.getByApiFormat(apiFormat);
   if (!provider) {
-    span.fail({ message: `Provider implementation "${providerId}" not found.` });
+    span.fail({ message: `Provider implementation for apiFormat "${apiFormat}" not found.` });
     return {
       ok: false,
-      error: createValidationError(`Provider implementation "${providerId}" not found.`, { providerId }),
+      error: createValidationError(`Provider implementation for apiFormat "${apiFormat}" not found.`, { apiFormat }),
     };
   }
 
-  if (input.profileId === PROMPT_OPTIMIZER_PROFILE_ID && providerId !== 'prompt-optimize') {
-    span.fail({ message: `Prompt Optimizer profile must use provider "prompt-optimize".` });
-    return {
-      ok: false,
-      error: createValidationError(`Prompt Optimizer profile must use provider "prompt-optimize".`, {
-        profileId: input.profileId,
-        providerId,
-      }),
-    };
-  }
-
-  if (existing && existing.providerId !== providerId) {
+  if (existing && existing.apiFormat !== apiFormat) {
     span.fail({
-      message: `Provider profile "${input.profileId}" already uses provider "${existing.providerId}" and cannot be saved as provider "${providerId}".`,
+      message: `Provider profile "${input.profileId}" already uses apiFormat "${existing.apiFormat}" and cannot be saved as apiFormat "${apiFormat}".`,
     });
     return {
       ok: false,
       error: createValidationError(
-        `Provider profile "${input.profileId}" already uses provider "${existing.providerId}" and cannot be saved as provider "${providerId}". Delete it first or use a different profileId.`,
-        { profileId: input.profileId, existingProviderId: existing.providerId, providerId },
+        `Provider profile "${input.profileId}" already uses apiFormat "${existing.apiFormat}" and cannot be saved as apiFormat "${apiFormat}". Delete it first or use a different profileId.`,
+        { profileId: input.profileId, existingApiFormat: existing.apiFormat, apiFormat },
       ),
     };
   }
@@ -281,16 +280,18 @@ export async function saveProviderProfile(input: ProviderProfileInput): Promise<
 
     const nextEnabled = input.enabled ?? existing?.enabled ?? true;
     const displayName = nextDisplayName;
-    const mergedConfig = sanitizeBillingConfig(mergeProfileConfig(existing?.config, input.config), secretRefs);
+    const mergedConfig = normalizeProfileApiConfig(
+      apiFormat,
+      sanitizeBillingConfig(mergeProfileConfig(existing?.config, input.config), secretRefs) as ProviderProfileConfig,
+    );
     const nextConfig = {
       ...mergedConfig,
-      providerId,
       displayName,
-      family: provider.family,
+      apiFormat,
     };
     const profile: ProviderProfile = {
       profileId: input.profileId,
-      providerId,
+      apiFormat,
       displayName,
       enabled: nextEnabled,
       config: nextConfig,
@@ -312,8 +313,9 @@ export async function saveProviderProfile(input: ProviderProfileInput): Promise<
     }
 
     const validatedConfig = provider.validateConfig({
-      providerId: profile.providerId,
+      providerId: implementationId,
       displayName: profile.displayName,
+      apiFormat,
       family: provider.family,
       ...profile.config,
       ...resolvedSecrets,
@@ -332,7 +334,7 @@ export async function saveProviderProfile(input: ProviderProfileInput): Promise<
     await getProviderProfileRepository().save(persistedProfile);
     await Promise.allSettled(Array.from(removedSecretRefs, (ref) => secretStorage.deleteSecret(ref)));
     invalidateProfileBillingState(persistedProfile.profileId);
-    span.finish({ providerId: profile.providerId, displayName: profile.displayName });
+    span.finish({ apiFormat: profile.apiFormat, displayName: profile.displayName });
     return { ok: true, value: sanitizeProfile(persistedProfile) };
   } catch (error) {
     await Promise.allSettled(
@@ -347,7 +349,7 @@ export async function saveProviderProfile(input: ProviderProfileInput): Promise<
       ok: false,
       error: createValidationError(errorMessage(error, `Invalid provider profile "${input.profileId}".`), {
         profileId: input.profileId,
-        providerId,
+        apiFormat,
       }),
     };
   }
@@ -390,7 +392,7 @@ export async function deleteProviderProfile(
       );
     }
     invalidateProfileBillingState(profileId);
-    span.finish({ providerId: profile.providerId, retainSecrets: options.retainSecrets === true });
+    span.finish({ apiFormat: profile.apiFormat, retainSecrets: options.retainSecrets === true });
     return { ok: true, value: undefined };
   } catch (error) {
     span.fail(error);
@@ -434,29 +436,27 @@ export async function testProviderProfile(
       };
     }
 
-    const provider = getRuntime().providerRegistry.get(profile.providerId);
+    const provider = getRuntime().providerRegistry.getByApiFormat(profile.apiFormat);
     if (!provider) {
-      span.fail({ message: `Provider implementation "${profile.providerId}" not found.` });
+      span.fail({ message: `Provider implementation for apiFormat "${profile.apiFormat}" not found.` });
       return {
         ok: false,
-        error: createValidationError(`Provider implementation "${profile.providerId}" not found.`, {
+        error: createValidationError(`Provider implementation for apiFormat "${profile.apiFormat}" not found.`, {
           profileId,
-          providerId: profile.providerId,
+          apiFormat: profile.apiFormat,
         }),
       };
     }
 
     const result: {
       profileId: string;
-      providerId: string;
-      family: ProviderProfileTestResult['family'];
+      apiFormat: ProviderProfileTestResult['apiFormat'];
       valid: true;
       connectivity?: ProviderProfileTestResult['connectivity'];
       smokeTest?: ProviderProfileTestResult['smokeTest'];
     } = {
       profileId,
-      providerId: profile.providerId,
-      family: resolved.family,
+      apiFormat: resolved.apiFormat,
       valid: true,
     };
 
@@ -467,7 +467,7 @@ export async function testProviderProfile(
         if (tested.supported === false) {
           result.connectivity = {
             reachable: false,
-            errorMessage: tested.message ?? `Provider implementation "${profile.providerId}" does not support connection testing.`,
+            errorMessage: tested.message ?? `Provider implementation for apiFormat "${profile.apiFormat}" does not support connection testing.`,
           };
         } else if (tested.reachable !== true) {
           result.connectivity = {
@@ -488,7 +488,7 @@ export async function testProviderProfile(
       } else if (typeof provider.discoverModels !== 'function') {
         result.connectivity = {
           reachable: false,
-          errorMessage: `Provider implementation "${profile.providerId}" does not support model discovery.`,
+          errorMessage: `Provider implementation for apiFormat "${profile.apiFormat}" does not support model discovery.`,
         };
       } else {
         try {
@@ -536,8 +536,7 @@ export async function testProviderProfile(
     }
 
     span.finish({
-      providerId: result.providerId,
-      family: result.family,
+      apiFormat: result.apiFormat,
       ...(result.connectivity ? { reachable: result.connectivity.reachable } : {}),
       ...(result.connectivity?.errorMessage ? { connectivityError: result.connectivity.errorMessage } : {}),
       ...(result.smokeTest ? { smokePassed: result.smokeTest.passed } : {}),

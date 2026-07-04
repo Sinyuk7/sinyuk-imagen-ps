@@ -50,6 +50,7 @@ function createCountingProvider(): { readonly provider: Provider; readonly state
   const descriptor: ProviderDescriptor = {
     id: 'counting',
     family: 'image-endpoint',
+    apiFormat: 'openai-images',
     displayName: 'Counting',
     operations: ['text_to_image'],
     invokeMode: 'sync',

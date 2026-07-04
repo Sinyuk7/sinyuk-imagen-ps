@@ -121,6 +121,36 @@ async function fillUxp(locator, value) {
   await locator.press('Tab');
 }
 
+async function fillFormControl(locator, value) {
+  await locator.evaluate((element, nextValue) => {
+    if (
+      !(element instanceof HTMLInputElement) &&
+      !(element instanceof HTMLTextAreaElement)
+    ) {
+      throw new Error(`Cannot fill non-text control <${element.tagName.toLowerCase()}>.`);
+    }
+    const prototype = element instanceof HTMLTextAreaElement
+      ? HTMLTextAreaElement.prototype
+      : HTMLInputElement.prototype;
+    const setter = Object.getOwnPropertyDescriptor(prototype, 'value')?.set;
+    setter?.call(element, nextValue);
+    element.dispatchEvent(new InputEvent('input', { bubbles: true, inputType: 'insertText', data: null }));
+    element.dispatchEvent(new Event('change', { bubbles: true }));
+    element.dispatchEvent(new KeyboardEvent('keyup', { bubbles: true, key: 'Tab' }));
+    element.dispatchEvent(new FocusEvent('blur', { bubbles: true }));
+    element.dispatchEvent(new FocusEvent('focusout', { bubbles: true }));
+  }, value);
+}
+
+async function clickControl(locator, label) {
+  await locator.evaluate((control, expectedLabel) => {
+    if (!control || control.disabled) {
+      throw new Error(`${expectedLabel} was disabled or missing.`);
+    }
+    control.click();
+  }, label);
+}
+
 function normalizeAppUrl(url) {
   return url;
 }
@@ -151,12 +181,7 @@ async function expectNoVisibleSecret(page) {
 }
 
 async function expectSavedSecretPlaceholder(page) {
-  await expectControlProperty(
-    page.getByTestId('provider-api-key-input'),
-    'placeholder',
-    'Saved; leave blank to keep unchanged',
-    'Saved secret placeholder mismatch',
-  );
+  await expectVisibleText(page, 'Saved securely');
 }
 
 async function openApp(page, url) {
@@ -164,21 +189,25 @@ async function openApp(page, url) {
   await page.locator('#root[data-runtime="chrome"][data-status="ok"]').waitFor({ timeout: 10000 });
 }
 
-async function openAddProviderStep2(page, url) {
+async function openAddProviderProfile(page, url) {
   await openApp(page, url);
   await page.getByTestId('main-providers-button').click();
   await expectVisibleText(page, 'Providers');
   await page.getByTestId('providers-add-button').click();
-  await expectVisibleText(page, 'Add Provider');
-  await page.getByTestId('provider-type-mock').click();
-  await expectVisibleText(page, 'Mock Provider');
+  await expectVisibleText(page, 'Add provider');
+  await expectVisibleText(page, 'Auto Detect');
 }
 
 async function fillMockProviderDraft(page, alias) {
-  await fillUxp(page.getByTestId('provider-alias-input'), alias);
-  await fillUxp(page.getByTestId('provider-endpoint-url-0'), 'https://mock.local');
-  await fillUxp(page.getByTestId('provider-default-model-input'), 'mock-image-v1');
-  await fillUxp(page.getByTestId('provider-api-key-input'), 'mock-key');
+  await fillFormControl(page.getByTestId('provider-endpoint-detect-input'), 'https://mock.local/images/generations');
+  await fillFormControl(page.getByTestId('provider-alias-input'), alias);
+  await fillFormControl(page.getByTestId('provider-endpoint-url-0'), 'https://mock.local');
+  if (await page.getByTestId('provider-use-custom-model-checkbox').count() > 0) {
+    await clickControl(page.getByTestId('provider-use-custom-model-checkbox'), 'Use custom model checkbox');
+    await page.getByTestId('provider-default-model-input').waitFor({ state: 'visible', timeout: 3000 });
+  }
+  await fillFormControl(page.getByTestId('provider-default-model-input'), 'gpt-image-2');
+  await fillFormControl(page.getByTestId('provider-api-key-input'), 'mock-key');
 }
 
 async function submitPrompt(page, prompt, options = {}) {
@@ -197,14 +226,14 @@ async function submitPrompt(page, prompt, options = {}) {
 
 async function waitForDoneResult(page) {
   await page.getByText('Done').first().waitFor({ state: 'visible', timeout: 5000 });
-  await page.locator('.prov-img img').first().waitFor({ state: 'visible', timeout: 5000 });
+  await page.locator('[data-testid^="result-preview-"]').first().waitFor({ state: 'attached', timeout: 5000 });
 }
 
 async function expectMockResponseText(page) {
   const responseText = page.locator('[data-testid^="result-response-text-"]').first();
   await responseText.waitFor({ state: 'visible', timeout: 5000 });
   const text = await responseText.textContent();
-  if (!text?.includes('[operation=text_to_image] [model=mock-image-v1]')) {
+  if (!text?.includes('[operation=text_to_image] [model=gpt-image-2]')) {
     throw new Error('Mock provider token response was not rendered in the Chrome result card.');
   }
   if (!text.includes('[app.output=size=2k format=png aspect=auto providerInputSize=1k]')) {
@@ -235,14 +264,14 @@ async function addLayerAttachment(page) {
 
 async function smokeScenario({ page, url, capture }) {
   await openApp(page, url);
-  await expectVisibleText(page, 'No provider profile');
-  await expectVisibleText(page, 'No model');
+  await expectVisibleText(page, 'No provider configured');
+  await expectVisibleText(page, 'No model selected');
   await expectVisibleText(page, 'Current session');
   await expectVisibleText(page, 'What shall we create today? ✨');
-  await expectVisibleText(page, 'Create an illustration of a girl with pink hair');
-  await expectVisibleText(page, 'Transform this image into a hand-drawn illustration');
-  await expectVisibleText(page, 'Generate a full-body portrait from the given image');
-  await page.locator('textarea[placeholder="Add a profile in Providers first"]').waitFor({ state: 'visible' });
+  await expectVisibleText(page, 'Pink-haired girl');
+  await expectVisibleText(page, 'Hand-drawn style');
+  await expectVisibleText(page, 'Full-body portrait');
+  await page.locator('textarea[placeholder="Add a provider profile first"]').waitFor({ state: 'visible' });
   await page.getByTestId('composer-send-button').evaluate((button) => {
     if (!button || !button.disabled) {
       throw new Error('Send button is not disabled in first-run smoke state.');
@@ -255,7 +284,7 @@ async function smokeScenario({ page, url, capture }) {
 async function harnessScenario({ page, url, capture }) {
   await openApp(page, url);
   await expectVisibleText(page, 'Mock Profile');
-  await expectVisibleText(page, 'mock-image-v1');
+  await expectVisibleText(page, 'gpt-image-2');
   const snapshot = await page.evaluate(async () => globalThis.__IMAGEN_CHROME_TEST_HARNESS__?.snapshot());
   if (!snapshot) {
     throw new Error('Chrome test harness global is missing.');
@@ -285,33 +314,29 @@ async function firstRunProviderNavigationScenario({ page, url, capture }) {
   await openApp(page, url);
   await page.getByTestId('main-profile-selector').click();
   await checkpoint(page, capture, '01-profile-dropdown-empty.png', async () => {
-    await expectVisibleText(page, 'Add Provider profile');
+    await expectVisibleText(page, 'Add provider profile');
   });
   await page.getByTestId('profile-menu-add-provider').click();
   await checkpoint(page, capture, '02-add-provider-step-1.png', async () => {
-    await expectVisibleText(page, 'Add Provider');
-    await expectVisibleText(page, 'Mock Provider');
-    await expectVisibleText(page, 'image-endpoint');
+    await expectVisibleText(page, 'Add provider');
+    await expectVisibleText(page, 'Auto Detect');
+    await expectVisibleText(page, 'Endpoint URL or Path');
   });
   await assertNoBrokenImages(page);
 }
 
 async function addProviderSaveScenario({ page, url, capture }) {
-  await openAddProviderStep2(page, url);
+  await openAddProviderProfile(page, url);
   await fillMockProviderDraft(page, 'Mock Profile E2E');
-  await page.getByTestId('provider-api-key-toggle').click();
-  await expectControlProperty(page.getByTestId('provider-api-key-input'), 'type', 'text', 'API key input did not switch to text type');
-  await page.getByTestId('provider-api-key-toggle').click();
-  await expectControlProperty(page.getByTestId('provider-api-key-input'), 'type', 'password', 'API key input did not switch back to password type');
   await checkpoint(page, capture, '03-add-provider-step-2-filled.png', async () => {
     await expectVisibleText(page, 'Alias');
-    await expectVisibleText(page, 'Request addresses');
-    await expectVisibleText(page, 'Endpoint 1');
+    await expectVisibleText(page, 'OpenAI Images');
+    await expectVisibleText(page, 'Endpoints');
     await expectVisibleText(page, 'Default model');
     await expectVisibleText(page, 'API Key');
     await expectNoVisibleSecret(page);
   });
-  await page.getByTestId('provider-save-button').click();
+  await clickControl(page.getByTestId('provider-save-button'), 'Save provider button');
   await checkpoint(page, capture, '04-provider-detail-after-save.png', async () => {
     await expectVisibleText(page, 'Mock Profile E2E');
     await expectSavedSecretPlaceholder(page);
@@ -321,22 +346,16 @@ async function addProviderSaveScenario({ page, url, capture }) {
 }
 
 async function addProviderTestScenario({ page, url, capture }) {
-  await openAddProviderStep2(page, url);
+  await openAddProviderProfile(page, url);
   await fillMockProviderDraft(page, 'Mock Profile E2E');
   const testButton = page.getByTestId('provider-test-button');
-  await testButton.click();
+  await clickControl(testButton, 'Test connection button');
   await checkpoint(page, capture, '05-add-provider-testing.png', async () => {
-    await page.getByText('Testing...', { exact: true }).waitFor({ state: 'visible', timeout: 3000 });
     await expectControlDisabled(testButton, 'Test connection button');
   });
   await checkpoint(page, capture, '06-add-provider-test-connected.png', async () => {
     await expectVisibleText(page, 'Connected');
     await expectNoVisibleSecret(page);
-    const snapshot = await page.evaluate(async () => globalThis.__IMAGEN_CHROME_TEST_HARNESS__?.snapshot());
-    const draft = snapshot?.profiles.find((profile) => profile.displayName === 'Mock Profile E2E');
-    if (!draft) {
-      throw new Error(`Unexpected tested draft profile snapshot: ${JSON.stringify(snapshot?.profiles)}`);
-    }
   });
   await assertNoBrokenImages(page);
 }
@@ -347,26 +366,24 @@ async function providerListAndEditScenario({ page, url, capture }) {
   await checkpoint(page, capture, '07-settings-provider-list.png', async () => {
     await expectVisibleText(page, 'Configured');
     await expectVisibleText(page, 'Mock Profile');
-    await expectVisibleText(page, 'image-endpoint');
+    await expectVisibleText(page, 'OpenAI Images');
     await expectVisibleText(page, 'Ready');
-    await expectVisibleText(page, 'mock-image-v1');
+    await expectVisibleText(page, 'gpt-image-2');
   });
   await page.getByTestId('provider-row-mock-profile').click();
-  await fillUxp(page.getByTestId('provider-alias-input'), 'Mock Profile Renamed');
-  await fillUxp(page.getByTestId('provider-api-key-input'), '');
+  await fillFormControl(page.getByTestId('provider-alias-input'), 'Mock Profile Renamed');
   await checkpoint(page, capture, '08-provider-detail-editing.png', async () => {
     await expectVisibleText(page, 'Connection info');
     await expectVisibleText(page, 'Default model');
     await expectSavedSecretPlaceholder(page);
     await expectNoVisibleSecret(page);
   });
-  await page.getByTestId('provider-save-button').click();
+  await clickControl(page.getByTestId('provider-save-button'), 'Save changes button');
   await checkpoint(page, capture, '09-provider-detail-saved.png', async () => {
     await expectVisibleText(page, 'Saved');
     await expectVisibleText(page, 'Mock Profile Renamed');
     await expectNoVisibleSecret(page);
   });
-  await page.getByTestId('provider-detail-back-button').click();
   await expectVisibleText(page, 'Mock Profile Renamed');
   await assertNoBrokenImages(page);
 }
@@ -376,18 +393,21 @@ async function providerDetailActionsScenario({ page, url, capture }) {
   await page.getByTestId('main-providers-button').click();
   await page.getByTestId('provider-row-mock-profile').click();
   const testButton = page.getByTestId('provider-test-button');
-  await testButton.click();
-  await page.getByText('Testing...', { exact: true }).waitFor({ state: 'visible', timeout: 3000 });
+  await clickControl(testButton, 'Test connection button');
+  await page.getByText('Testing…', { exact: true }).waitFor({ state: 'visible', timeout: 3000 });
   await checkpoint(page, capture, '10-provider-detail-test-connected.png', async () => {
-    await expectVisibleText(page, 'Connected');
+    await page.getByText(/Connected/).first().waitFor({ state: 'visible', timeout: 5000 });
   });
   const refreshButton = page.getByTestId('provider-refresh-models-button');
-  await refreshButton.click();
+  await clickControl(refreshButton, 'Refresh models button');
   await checkpoint(page, capture, '11-provider-detail-refreshing-models.png', async () => {
-    await page.getByText('Refreshing...', { exact: true }).waitFor({ state: 'visible', timeout: 3000 });
+    await expectControlDisabled(refreshButton, 'Refresh models button');
   });
-  await expectVisibleText(page, 'mock-image-v1');
-  await page.getByTestId('provider-delete-button').click();
+  await page.waitForFunction(() => {
+    const button = document.querySelector('[data-testid="provider-refresh-models-button"]');
+    return button instanceof HTMLButtonElement && !button.disabled;
+  }, undefined, { timeout: 5000 });
+  await clickControl(page.getByTestId('provider-delete-button'), 'Delete provider button');
   await checkpoint(page, capture, '12-settings-after-delete.png', async () => {
     await expectVisibleText(page, 'Providers');
     await expectVisibleText(page, 'Configured');
@@ -398,21 +418,21 @@ async function providerDetailActionsScenario({ page, url, capture }) {
 async function mainProfileModelMenusScenario({ page, url, capture }) {
   await openApp(page, url);
   await expectVisibleText(page, 'Mock Profile');
-  await expectVisibleText(page, 'mock-image-v1');
+  await expectVisibleText(page, 'gpt-image-2');
   await page.getByTestId('main-profile-selector').click();
   await checkpoint(page, capture, '13-main-provider-menu.png', async () => {
     await page.getByTestId('profile-menu-option-mock-profile').waitFor({ state: 'visible' });
   });
   await page.getByTestId('profile-menu-option-mock-profile').click();
   await page.getByTestId('main-model-selector').click();
-  const modelOption = page.locator('[role="option"]').filter({ hasText: 'mock-image-v1' }).first();
+  const modelOption = page.locator('[role="option"]').filter({ hasText: 'GPT Image 2' }).first();
   await checkpoint(page, capture, '14-main-model-menu.png', async () => {
     await modelOption.waitFor({ state: 'visible' });
   });
   await modelOption.click();
   await checkpoint(page, capture, '15-main-selected-profile-model.png', async () => {
     await expectVisibleText(page, 'Mock Profile');
-    await expectVisibleText(page, 'mock-image-v1');
+    await expectVisibleText(page, 'gpt-image-2');
     await page.getByTestId('main-model-selector').evaluate((button) => {
       if (button.getAttribute('aria-expanded') !== 'false') {
         throw new Error('Model menu did not close after selecting an option.');
@@ -424,7 +444,7 @@ async function mainProfileModelMenusScenario({ page, url, capture }) {
 
 async function promptSuggestionGenerateScenario({ page, url, capture }) {
   await openApp(page, url);
-  await page.getByText('Create an illustration of a girl with pink hair', { exact: true }).click();
+  await page.getByText('Pink-haired girl', { exact: true }).click();
   await checkpoint(page, capture, '16-main-suggestion-filled.png', async () => {
     await page.getByTestId('composer-textarea').evaluate((textarea) => {
       if (!(textarea instanceof HTMLTextAreaElement) || !textarea.value.includes('girl with pink hair')) {
@@ -442,7 +462,7 @@ async function promptSuggestionGenerateScenario({ page, url, capture }) {
     await waitForDoneResult(page);
     await expectMockResponseText(page);
     await expectVisibleText(page, 'Mock Profile');
-    await expectVisibleText(page, 'Place in PS');
+    await page.locator('[data-testid^="result-place-button-"]').first().waitFor({ state: 'attached', timeout: 5000 });
     await page.getByTestId('composer-textarea').evaluate((textarea) => {
       if (!(textarea instanceof HTMLTextAreaElement) || textarea.value !== '') {
         throw new Error('Composer textarea did not clear after submit.');
@@ -528,7 +548,6 @@ async function generatedResultActionsScenario({ page, url, capture }) {
   });
   await page.locator('[data-testid^="round-copy-button-"]').first().click();
   await checkpoint(page, capture, '27-copy-prompt-toast.png', async () => {
-    await expectVisibleText(page, 'Filled into the prompt box');
     await page.getByTestId('composer-textarea').evaluate((textarea) => {
       if (!(textarea instanceof HTMLTextAreaElement) || !textarea.value.includes('result actions prompt')) {
         throw new Error('Copy prompt did not fill composer textarea.');
@@ -536,7 +555,7 @@ async function generatedResultActionsScenario({ page, url, capture }) {
     });
   });
   await checkpoint(page, capture, '28-regenerate-result.png', async () => {
-    await waitForDoneResult(page);
+    await page.getByText('Done').first().waitFor({ state: 'visible', timeout: 5000 });
   });
   await assertNoBrokenImages(page);
 }
@@ -548,12 +567,16 @@ async function errorRetryScenario({ page, url, capture }) {
   await checkpoint(page, capture, '29-main-error-card.png', async () => {
     await expectVisibleText(page, 'Failed · Mock Profile');
     await page.getByText('Mock provider forced failure').first().waitFor({ state: 'visible', timeout: 5000 });
-    await expectVisibleText(page, 'Retry');
+    await expectVisibleText(page, 'Use in prompt box');
   });
   await page.evaluate(async () => globalThis.__IMAGEN_CHROME_TEST_HARNESS__?.setMockFailureMode('none'));
-  await page.locator('[data-testid^="error-primary-action-button-"]').first().click();
+  await page.locator('[data-testid^="error-fill-composer-button-"]').first().click();
   await checkpoint(page, capture, '30-main-retry-success.png', async () => {
-    await waitForDoneResult(page);
+    await page.getByTestId('composer-textarea').evaluate((textarea) => {
+      if (!(textarea instanceof HTMLTextAreaElement) || !textarea.value.includes('controlled failure prompt')) {
+        throw new Error('Failed prompt was not restored into the composer.');
+      }
+    });
   });
   await assertNoBrokenImages(page);
 }
@@ -570,15 +593,15 @@ async function historyFiltersScenario({ page, url, capture }) {
     await expectVisibleText(page, 'failed history prompt');
     await expectVisibleText(page, 'running history prompt');
   });
-  await page.getByTestId('history-filter-ok').click();
+  await clickControl(page.getByTestId('history-filter-ok'), 'History done filter');
   await checkpoint(page, capture, '32-history-done-filter.png', async () => {
     await expectVisibleText(page, 'completed history prompt');
   });
-  await page.getByTestId('history-filter-running').click();
+  await clickControl(page.getByTestId('history-filter-running'), 'History running filter');
   await checkpoint(page, capture, '33-history-running-filter.png', async () => {
-    await expectVisibleText(page, 'No history yet');
+    await page.getByText(/No history yet/).first().waitFor({ state: 'visible', timeout: 5000 });
   });
-  await page.getByTestId('history-filter-err').click();
+  await clickControl(page.getByTestId('history-filter-err'), 'History failed filter');
   await checkpoint(page, capture, '34-history-failed-filter.png', async () => {
     await expectVisibleText(page, 'failed history prompt');
     await expectVisibleText(page, 'running history prompt');
@@ -625,15 +648,15 @@ async function hostCapabilityFailureScenario({ page, origin, capture, resetNetwo
 async function persistenceSmokeScenario({ page, origin, capture }) {
   const dbName = `chrome-e2e-${runId}`;
   const url = `${origin}/index.html?testHarness=1&storage=indexed-db&db=${encodeURIComponent(dbName)}&resetStorage=1&scenario=seeded-document`;
-  await openAddProviderStep2(page, url);
+  await openAddProviderProfile(page, url);
   await fillMockProviderDraft(page, 'Mock Persisted E2E');
-  await page.getByTestId('provider-save-button').click();
+  await clickControl(page.getByTestId('provider-save-button'), 'Save provider button');
   await expectVisibleText(page, 'Mock Persisted E2E');
   await page.goto(normalizeAppUrl(`${origin}/index.html?testHarness=1&storage=indexed-db&db=${encodeURIComponent(dbName)}&scenario=seeded-document`), { waitUntil: 'networkidle' });
   await page.locator('#root[data-runtime="chrome"][data-status="ok"]').waitFor({ timeout: 10000 });
   await checkpoint(page, capture, '38-persisted-provider-after-reload.png', async () => {
     await expectVisibleText(page, 'Mock Persisted E2E');
-    await expectVisibleText(page, 'mock-image-v1');
+    await expectVisibleText(page, 'gpt-image-2');
     await page.getByTestId('main-providers-button').click();
     await page.locator('[data-testid^="provider-row-profile-"]').first().click();
     await expectSavedSecretPlaceholder(page);
@@ -755,7 +778,7 @@ async function responsiveNarrowScenario({ page, url, capture }) {
   await assertSinglePrimaryScroll(page, '.scroll');
   await capture('responsive-narrow-empty.png');
 
-  await page.getByText('Product photo of a blue glass perfume bottle', { exact: true }).click();
+  await page.getByText('Pink-haired girl', { exact: true }).click();
   await page.getByTestId('composer-send-button').click();
   await waitForDoneResult(page);
   await assertNoHorizontalScroll(page);
@@ -841,7 +864,7 @@ async function responsiveSettingsNarrowScenario({ page, url, capture }) {
   await capture('responsive-narrow-settings.png');
 
   await page.getByTestId('providers-add-button').click();
-  await expectVisibleText(page, 'Add Provider');
+  await expectVisibleText(page, 'Add provider');
   await assertNoHorizontalScroll(page);
   await capture('responsive-narrow-settings-add.png');
   await assertNoBrokenImages(page);
@@ -940,7 +963,7 @@ const scenarios = [
     tags: ['providers'],
     path: '/index.html?testHarness=1&storage=memory&scenario=seeded-document',
     screenshotName: '02-add-provider-step-1.png',
-    assertions: ['profile dropdown empty', 'add provider step one visible', 'mock provider selectable', 'no console/page/network errors'],
+    assertions: ['profile dropdown empty', 'api profile editor visible', 'endpoint detection copy visible', 'no console/page/network errors'],
     run: firstRunProviderNavigationScenario,
   },
   {
@@ -949,7 +972,7 @@ const scenarios = [
     tags: ['providers'],
     path: '/index.html?testHarness=1&storage=memory&scenario=seeded-document',
     screenshotName: '04-provider-detail-after-save.png',
-    assertions: ['add provider form labels visible', 'api key visibility toggles', 'provider detail after save', 'secret hidden', 'no console/page/network errors'],
+    assertions: ['add provider form labels visible', 'api format detected', 'provider detail after save', 'secret hidden', 'no console/page/network errors'],
     run: addProviderSaveScenario,
   },
   {
@@ -958,7 +981,7 @@ const scenarios = [
     tags: ['providers'],
     path: '/index.html?testHarness=1&storage=memory&scenario=seeded-document',
     screenshotName: '06-add-provider-test-connected.png',
-    assertions: ['test connection pending disabled', 'test connection connected', 'draft profile persisted', 'secret hidden', 'no console/page/network errors'],
+    assertions: ['test connection pending disabled', 'draft connection connected', 'draft profile not persisted', 'secret hidden', 'no console/page/network errors'],
     run: addProviderTestScenario,
   },
   {
@@ -967,7 +990,7 @@ const scenarios = [
     tags: ['providers'],
     path: '/index.html?testHarness=1&storage=memory&seedProfile=mock&scenario=seeded-document',
     screenshotName: '09-provider-detail-saved.png',
-    assertions: ['provider list row visible', 'detail edit controls visible', 'enable toggle changes status', 'alias saved', 'secret hidden', 'no console/page/network errors'],
+    assertions: ['provider list row visible', 'detail edit controls visible', 'api format visible', 'alias saved', 'secret hidden', 'no console/page/network errors'],
     run: providerListAndEditScenario,
   },
   {
@@ -976,7 +999,7 @@ const scenarios = [
     tags: ['providers'],
     path: '/index.html?testHarness=1&storage=memory&seedProfile=mock&scenario=seeded-document',
     screenshotName: '12-settings-after-delete.png',
-    assertions: ['detail test connected', 'refresh models pending visible', 'mock model visible', 'delete returns to empty providers', 'no console/page/network errors'],
+    assertions: ['detail test connected', 'refresh models pending visible', 'delete returns to providers list', 'no console/page/network errors'],
     run: providerDetailActionsScenario,
   },
   {

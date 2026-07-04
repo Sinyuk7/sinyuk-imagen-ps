@@ -1,8 +1,11 @@
 import type {
+  Asset,
   DurableJobRecord,
+  Job,
   ProviderModelInfo,
   ProviderProfile,
   ProviderProfileConfig,
+  ProviderProfileConnectionTestResult,
   ProviderProfileTestResult,
   TaskRecord,
 } from '@imagen-ps/application';
@@ -64,7 +67,10 @@ interface ChromeTestHarnessApi {
 const MOCK_PROFILE_ID = 'mock-profile';
 const MOCK_SECRET_REF = `secret:provider-profile:${MOCK_PROFILE_ID}:apiKey`;
 const FIXED_NOW = '2026-06-25T00:00:00.000Z';
-const MOCK_MODELS: readonly ProviderModelInfo[] = [{ id: 'mock-image-v1' }];
+const MOCK_MODEL_ID = 'gpt-image-2';
+const MOCK_MODELS: readonly ProviderModelInfo[] = [{ id: MOCK_MODEL_ID, displayName: 'GPT Image 2' }];
+const MOCK_RESULT_PNG_BASE64 = 'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR4nGNgYGBgAAAABQABpfZFQAAAAABJRU5ErkJggg==';
+let mockJobSequence = 0;
 
 function parseScenario(value: string | null): PhotoshopSimulatorScenarioId {
   const allowed: readonly PhotoshopSimulatorScenarioId[] = [
@@ -110,20 +116,20 @@ export function chromeTestHarnessConfigFromUrl(url: URL): ChromeTestHarnessConfi
 function mockProfile(options?: { readonly failMode?: ChromeTestMockFailureMode; readonly displayName?: string }): ProviderProfile {
   const displayName = options?.displayName ?? 'Mock Profile';
   const config: ProviderProfileConfig = {
-    providerId: 'mock',
+    apiFormat: 'openai-images',
     displayName,
-    family: 'image-endpoint',
     connection: {
       selectionMode: 'manual',
       selectedEndpointId: 'primary',
       endpoints: [{ id: 'primary', url: 'https://mock.local', enabled: true }],
     },
-    defaultModel: 'mock-image-v1',
+    paths: { generation: '/images/generations', edit: '/images/edits' },
+    defaultModel: MOCK_MODEL_ID,
     ...(options?.failMode === 'always' ? { failMode: { type: 'always' } } : {}),
   };
   return {
     profileId: MOCK_PROFILE_ID,
-    providerId: 'mock',
+    apiFormat: 'openai-images',
     displayName,
     enabled: true,
     config,
@@ -272,8 +278,7 @@ async function seedHistory(storage: ChromeRuntimeStorage): Promise<void> {
 function mockProfileTestResult(profile: ProviderProfile): ProviderProfileTestResult {
   return {
     profileId: profile.profileId,
-    providerId: profile.providerId,
-    family: 'image-endpoint',
+    apiFormat: profile.apiFormat,
     valid: true,
     connectivity: {
       reachable: true,
@@ -281,6 +286,95 @@ function mockProfileTestResult(profile: ProviderProfile): ProviderProfileTestRes
       models: MOCK_MODELS,
     },
   };
+}
+
+function mockProfileConnectionTestResult(): ProviderProfileConnectionTestResult {
+  return {
+    supported: true,
+    reachable: true,
+    modelCount: MOCK_MODELS.length,
+    models: MOCK_MODELS,
+  };
+}
+
+function mockOutputAsset(): Asset {
+  const binary = atob(MOCK_RESULT_PNG_BASE64);
+  const bytes = new Uint8Array(binary.length);
+  for (let index = 0; index < binary.length; index += 1) {
+    bytes[index] = binary.charCodeAt(index);
+  }
+  return {
+    type: 'image',
+    name: 'chrome-e2e-result.png',
+    mimeType: 'image/png',
+    data: bytes,
+    url: `data:image/png;base64,${MOCK_RESULT_PNG_BASE64}`,
+  };
+}
+
+function mockJobForSubmit(input: { readonly workflow: string; readonly input: Record<string, unknown> }, profile: ProviderProfile): Job {
+  mockJobSequence += 1;
+  const now = new Date().toISOString();
+  const model = typeof input.input.providerOptions === 'object' && input.input.providerOptions !== null
+    ? (input.input.providerOptions as { readonly model?: unknown }).model
+    : undefined;
+  const modelId = typeof model === 'string' ? model : MOCK_MODEL_ID;
+  if ((profile.config.failMode as { readonly type?: unknown } | undefined)?.type === 'always') {
+    return {
+      id: `chrome-e2e-mock-failed-${mockJobSequence}`,
+      status: 'failed',
+      input: input.input,
+      output: undefined,
+      error: { category: 'provider', message: 'Mock provider forced failure' },
+      createdAt: now,
+      updatedAt: now,
+    };
+  }
+  const operation = input.workflow === 'provider-edit' ? 'image_edit' : 'text_to_image';
+  return {
+    id: `chrome-e2e-mock-${mockJobSequence}`,
+    status: 'completed',
+    input: input.input,
+    output: {
+      image: {
+        assets: [mockOutputAsset()],
+        text: [
+          `[operation=${operation}]`,
+          `[model=${modelId}]`,
+          `[prompt=${String(input.input.prompt ?? '')}]`,
+          '[app.output=size=2k format=png aspect=auto providerInputSize=1k]',
+          '[images=0]',
+          '[mask=no]',
+          '[assets=1]',
+        ].join(' '),
+        metadata: {
+          size: '1024x1024',
+          outputFormat: 'png',
+        },
+      },
+    },
+    error: undefined,
+    createdAt: now,
+    updatedAt: now,
+  };
+}
+
+function hasMockLocalEndpoint(config: ProviderProfileConfig | undefined): boolean {
+  const connection = config?.connection;
+  if (typeof connection !== 'object' || connection === null || Array.isArray(connection)) {
+    return false;
+  }
+  const endpoints = (connection as { readonly endpoints?: unknown }).endpoints;
+  if (!Array.isArray(endpoints)) {
+    return false;
+  }
+  return endpoints.some((endpoint) => {
+    if (typeof endpoint !== 'object' || endpoint === null || Array.isArray(endpoint)) {
+      return false;
+    }
+    const url = (endpoint as { readonly url?: unknown }).url;
+    return typeof url === 'string' && url.replace(/\/+$/, '') === 'https://mock.local';
+  });
 }
 
 function delay(ms: number): Promise<void> {
@@ -308,17 +402,39 @@ export function createChromeTestHarnessRuntime(config: ChromeTestHarnessConfig):
     wrapCommands(commands) {
       return {
         ...commands,
+        async submitJob(input) {
+          const profileId = typeof input.input.profileId === 'string'
+            ? input.input.profileId
+            : typeof input.input.providerProfileId === 'string'
+              ? input.input.providerProfileId
+              : undefined;
+          if (profileId === MOCK_PROFILE_ID) {
+            const profile = await commands.getProviderProfile(profileId);
+            if (profile.ok) {
+              await delay(100);
+              return { ok: true, value: mockJobForSubmit(input, profile.value) };
+            }
+          }
+          return commands.submitJob(input);
+        },
         async testProviderProfile(profileId, options) {
           const profile = await commands.getProviderProfile(profileId);
-          if (profile.ok && profile.value.providerId === 'mock') {
+          if (profile.ok && profile.value.profileId === MOCK_PROFILE_ID) {
             await delay(100);
             return { ok: true, value: mockProfileTestResult(profile.value) };
           }
           return commands.testProviderProfile(profileId, options);
         },
+        async testProviderProfileConnection(input) {
+          if (input.apiFormat === 'openai-images' && hasMockLocalEndpoint(input.config)) {
+            await delay(100);
+            return { ok: true, value: mockProfileConnectionTestResult() };
+          }
+          return commands.testProviderProfileConnection(input);
+        },
         async refreshProfileModels(profileId) {
           const profile = await commands.getProviderProfile(profileId);
-          if (profile.ok && profile.value.providerId === 'mock') {
+          if (profile.ok && profile.value.profileId === MOCK_PROFILE_ID) {
             await delay(100);
             return { ok: true, value: MOCK_MODELS };
           }

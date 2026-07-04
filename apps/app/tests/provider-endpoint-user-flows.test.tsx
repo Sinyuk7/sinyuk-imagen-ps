@@ -113,9 +113,8 @@ function profileConnection(url: string, options?: {
   const id = options?.id ?? 'primary';
   const selectionMode = options?.selectionMode ?? 'manual';
   return {
-    providerId: 'image-endpoint',
+    apiFormat: 'openai-images',
     displayName: 'Image Endpoint',
-    family: 'image-endpoint',
     connection: {
       selectionMode,
       ...(selectionMode === 'auto' ? {} : { selectedEndpointId: options?.selectedEndpointId ?? id }),
@@ -124,6 +123,7 @@ function profileConnection(url: string, options?: {
         ...(options?.extraEndpoints ?? []),
       ],
     },
+    paths: { generation: '/images/generations', edit: '/images/edits' },
     defaultModel: options?.defaultModel ?? 'gpt-image-2',
   };
 }
@@ -137,7 +137,7 @@ function storedImageEndpointProfile(input: {
 }): ProviderProfile {
   return {
     profileId: input.profileId,
-    providerId: 'image-endpoint',
+    apiFormat: 'openai-images',
     displayName: input.displayName,
     enabled: true,
     config: input.config,
@@ -400,15 +400,11 @@ describe('provider endpoint user flows', () => {
     await openSettings(container);
     await openAddProvider(container);
     await act(async () => {
-      elementByTestId<HTMLElement>(container, 'provider-type-image-endpoint').click();
-    });
-    await flush();
-    await act(async () => {
       setInputValue(elementByTestId(container, 'provider-alias-input'), 'Multi Endpoint');
     });
     await flush();
     await act(async () => {
-      setInputValue(elementByTestId(container, 'provider-endpoint-url-0'), 'https://node-a.example.com/v1');
+      setInputValue(elementByTestId(container, 'provider-endpoint-detect-input'), 'https://node-a.example.com/v1/images/generations');
     });
     await flush();
     expect(elementByTestId<HTMLInputElement>(container, 'provider-endpoint-url-0').value).toBe('https://node-a.example.com/v1');

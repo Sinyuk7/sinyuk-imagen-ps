@@ -5,7 +5,7 @@ import {
   setSecretStorageAdapter,
 } from '../runtime.js';
 import { saveProviderProfile, testProviderProfile } from './provider-profiles.js';
-import type { ProviderProfile, ProviderProfileRepository, SecretStorageAdapter } from './types.js';
+import type { ProviderProfile, ProviderProfileInput, ProviderProfileRepository, SecretStorageAdapter } from './types.js';
 
 function createProfileRepository(): {
   readonly repository: ProviderProfileRepository;
@@ -64,15 +64,13 @@ afterEach(() => {
   vi.unstubAllGlobals();
 });
 
-function mockProfileInput(profileId: string, displayName: string, model: string, apiKey: string) {
+function mockProfileInput(profileId: string, displayName: string, model: string, apiKey: string): ProviderProfileInput {
   return {
     profileId,
-    providerId: 'mock',
+    apiFormat: 'openai-images',
     displayName,
     config: {
-      providerId: 'mock',
-      family: 'image-endpoint',
-      displayName,
+      apiFormat: 'openai-images',      displayName,
       connection: {
         selectionMode: 'manual',
         selectedEndpointId: 'primary',
@@ -128,14 +126,28 @@ describe('provider profile alias contract', () => {
     expect(secrets.has('secret:provider-profile:profile-b:apiKey')).toBe(false);
   });
 
-  it('returns connectivity error details when discovery is unavailable', async () => {
+  it('returns connectivity error details when connection testing is unavailable', async () => {
     _resetForTesting();
     const { repository } = createProfileRepository();
     const { adapter } = createSecretStorage();
     setProviderProfileRepository(repository);
     setSecretStorageAdapter(adapter);
 
-    const saved = await saveProviderProfile(mockProfileInput('profile-a', 'Mock Endpoint', 'mock-image-v1', 'key-a'));
+    const saved = await saveProviderProfile({
+      profileId: 'profile-a',
+      apiFormat: 'gemini-generate-content',
+      displayName: 'Gemini Endpoint',
+      config: {
+        displayName: 'Gemini Endpoint',
+        connection: {
+          selectionMode: 'manual',
+          selectedEndpointId: 'primary',
+          endpoints: [{ id: 'primary', url: 'https://gemini.local/v1beta', enabled: true }],
+        },
+        authMode: 'none',
+        defaultModel: 'gemini-2.5-flash-image',
+      },
+    });
     expect(saved.ok).toBe(true);
 
     const result = await testProviderProfile('profile-a', { connect: true });
@@ -144,7 +156,7 @@ describe('provider profile alias contract', () => {
     if (result.ok) {
       expect(result.value.connectivity).toMatchObject({
         reachable: false,
-        errorMessage: 'Provider implementation "mock" does not support model discovery.',
+        errorMessage: 'Provider implementation for apiFormat "gemini-generate-content" does not support model discovery.',
       });
     }
   });
@@ -158,12 +170,10 @@ describe('provider profile alias contract', () => {
 
     const saved = await saveProviderProfile({
       profileId: 'profile-image',
-      providerId: 'chat-image',
+      apiFormat: 'openai-chat-completions',
       displayName: 'Chat Image',
       config: {
-        providerId: 'chat-image',
-        family: 'chat-image',
-        displayName: 'Chat Image',
+        apiFormat: 'openai-chat-completions',        displayName: 'Chat Image',
         connection: {
           selectionMode: 'manual',
           selectedEndpointId: 'primary',

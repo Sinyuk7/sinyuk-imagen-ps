@@ -1,6 +1,7 @@
 import type { ProviderDispatchAdapter } from '@imagen-ps/core-engine';
 import type { Logger } from '@imagen-ps/foundation';
 import type { ProviderFamily, ProviderOperation } from './capability.js';
+import type { ApiFormat } from './api-format.js';
 import type {
   ExactTaskCost,
   ProviderBalanceQueryInput,
@@ -34,6 +35,9 @@ export interface ProviderDescriptor {
 
   /** 当前 provider family。仅作分类/展示标签（如 profile UI 分组），不参与调用、校验或兜底。 */
   readonly family: ProviderFamily;
+
+  /** 用户/profile 面向的 canonical API format。 */
+  readonly apiFormat?: ApiFormat;
 
   /** 展示名称。 */
   readonly displayName: string;

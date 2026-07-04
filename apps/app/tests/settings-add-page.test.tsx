@@ -45,8 +45,14 @@ async function switchToCustomModel(container: HTMLElement): Promise<void> {
   });
 }
 
+async function detectOpenAiImages(container: HTMLElement, url = 'https://mock.local/images/generations'): Promise<void> {
+  await act(async () => {
+    changeInput(queryByTestId(container, 'provider-endpoint-detect-input'), url);
+  });
+}
+
 describe('SettingsAddPage', () => {
-  it('explains provider type selection by API path and keeps mock last as test-only', async () => {
+  it('starts on the unified API profile editor with auto-detection guidance', async () => {
     const { services, spies } = createFakeServices();
     const imageEndpointProvider: ProviderDescriptor = {
       id: 'image-endpoint',
@@ -82,16 +88,9 @@ describe('SettingsAddPage', () => {
       );
     });
 
-    expect(container.textContent).toContain('/v1/images/*');
-    expect(container.textContent).toContain('/v1/chat/completions');
-    expect(container.textContent).toMatch(/本地测试 Provider|Local test provider/);
-
-    const rows = Array.from(container.querySelectorAll<HTMLElement>('.provider-type-row'));
-    expect(rows.map((row) => row.dataset.testid)).toEqual([
-      'provider-type-image-endpoint',
-      'provider-type-chat-image',
-      'provider-type-mock',
-    ]);
+    expect(container.querySelector('[data-testid="provider-endpoint-detect-input"]')).not.toBeNull();
+    expect(container.querySelector('[data-testid="provider-api-format-status"]')?.textContent).toContain('Auto Detect');
+    expect(container.querySelectorAll<HTMLElement>('.provider-type-row')).toHaveLength(0);
   });
 
   it('saves provider profile through profile commands with write-only secretValues', async () => {
@@ -108,9 +107,7 @@ describe('SettingsAddPage', () => {
       );
     });
 
-    await act(async () => {
-      container.querySelector<HTMLElement>('[data-testid="provider-type-mock"]')!.click();
-    });
+    await detectOpenAiImages(container);
 
     await act(async () => {
       changeInput(queryByTestId(container, 'provider-alias-input'), 'Local Mock');
@@ -129,12 +126,13 @@ describe('SettingsAddPage', () => {
     expect(spies.saveProviderProfile).toHaveBeenCalledWith(
       expect.objectContaining({
         profileId: expect.stringMatching(/^profile-/),
-        providerId: 'mock',
+        apiFormat: 'openai-images',
         displayName: 'Local Mock',
         secretValues: { apiKey: 'secret-key' },
       }),
     );
     expect(spies.saveProviderProfile.mock.calls[0]?.[0]).not.toHaveProperty('apiKey');
+    expect(spies.saveProviderProfile.mock.calls[0]?.[0]).not.toHaveProperty('providerId');
   });
 
   it('reveals new-api billing fields when that mode is selected', async () => {
@@ -142,6 +140,7 @@ describe('SettingsAddPage', () => {
     const newApiProvider: ProviderDescriptor = {
       id: 'mock',
       family: 'image-endpoint',
+      apiFormat: 'openai-images',
       displayName: 'Mock Provider',
       operations: ['text_to_image', 'image_edit'],
       invokeMode: 'sync',
@@ -165,9 +164,7 @@ describe('SettingsAddPage', () => {
       );
     });
 
-    await act(async () => {
-      container.querySelector<HTMLElement>('[data-testid="provider-type-mock"]')!.click();
-    });
+    await detectOpenAiImages(container);
     await act(async () => {
       queryByTestId(container, 'provider-billing-mode-selector').click();
     });
@@ -196,13 +193,13 @@ describe('SettingsAddPage', () => {
             profiles={[
               {
                 profileId: 'profile-1',
-                providerId: 'mock',
-                displayName: 'Mock Provider',
+                apiFormat: 'openai-images',
+                displayName: 'mock.local',
                 enabled: true,
                 config: {
-                  providerId: 'mock',
-                  displayName: 'Mock Provider',
-                  family: 'image-endpoint',
+                  apiFormat: 'openai-images',
+                  displayName: 'mock.local',
+                  paths: { generation: '/images/generations', edit: '/images/edits' },
                   connection: {
                     selectionMode: 'manual',
                     selectedEndpointId: 'primary',
@@ -219,12 +216,10 @@ describe('SettingsAddPage', () => {
       );
     });
 
-    await act(async () => {
-      container.querySelector<HTMLElement>('[data-testid="provider-type-mock"]')!.click();
-    });
+    await detectOpenAiImages(container);
 
     const nameInput = Array.from(container.querySelectorAll<HTMLElement & { value?: string }>('input'))[0];
-    expect(nameInput.value).toBe('Mock Provider 2');
+    expect(nameInput.value).toBe('mock.local 2');
   });
 
   it('auto-generates the alias from endpoint host until the user edits the alias', async () => {
@@ -241,9 +236,7 @@ describe('SettingsAddPage', () => {
       );
     });
 
-    await act(async () => {
-      container.querySelector<HTMLElement>('[data-testid="provider-type-mock"]')!.click();
-    });
+    await detectOpenAiImages(container, 'https://api.n1n.ai/v1/images/generations');
     await act(async () => {
       changeInput(queryByTestId(container, 'provider-endpoint-url-0'), ' https://api.n1n.ai/v1\n');
     });
@@ -275,9 +268,7 @@ describe('SettingsAddPage', () => {
       );
     });
 
-    await act(async () => {
-      container.querySelector<HTMLElement>('[data-testid="provider-type-mock"]')!.click();
-    });
+    await detectOpenAiImages(container);
     expect(container.querySelector('[data-testid="provider-use-after-saving"]')).toBeNull();
 
     await act(async () => {
@@ -302,9 +293,7 @@ describe('SettingsAddPage', () => {
       );
     });
 
-    await act(async () => {
-      container.querySelector<HTMLElement>('[data-testid="provider-type-mock"]')!.click();
-    });
+    await detectOpenAiImages(container);
 
     await act(async () => {
       container.querySelector<HTMLButtonElement>('.btn-save')!.click();
@@ -329,12 +318,10 @@ describe('SettingsAddPage', () => {
 
     expect(container.querySelector('.hdr-center')).toBeNull();
 
-    await act(async () => {
-      container.querySelector<HTMLElement>('[data-testid="provider-type-mock"]')!.click();
-    });
+    await detectOpenAiImages(container);
 
     expect(container.querySelector('.hdr-center')).toBeNull();
-    expect(container.querySelector('.hdr-title')?.textContent).toContain('Mock Provider');
+    expect(container.querySelector('.hdr-title')?.textContent).toMatch(/添加 Provider|Add Provider/);
     expect(container.textContent).not.toContain('2 / 2');
   });
 
@@ -352,9 +339,7 @@ describe('SettingsAddPage', () => {
       );
     });
 
-    await act(async () => {
-      container.querySelector<HTMLElement>('[data-testid="provider-type-mock"]')!.click();
-    });
+    await detectOpenAiImages(container);
 
     await act(async () => {
       changeInput(queryByTestId(container, 'provider-alias-input'), 'Test Then Save');
@@ -393,9 +378,7 @@ describe('SettingsAddPage', () => {
       );
     });
 
-    await act(async () => {
-      container.querySelector<HTMLElement>('[data-testid="provider-type-mock"]')!.click();
-    });
+    await detectOpenAiImages(container);
 
     await act(async () => {
       changeInput(queryByTestId(container, 'provider-endpoint-url-0'), 'https://mock-a.local');
@@ -435,9 +418,7 @@ describe('SettingsAddPage', () => {
       );
     });
 
-    await act(async () => {
-      container.querySelector<HTMLElement>('[data-testid="provider-type-mock"]')!.click();
-    });
+    await detectOpenAiImages(container);
     await act(async () => {
       changeInput(queryByTestId(container, 'provider-endpoint-url-0'), 'https://mock-b.local');
     });
@@ -474,9 +455,7 @@ describe('SettingsAddPage', () => {
       );
     });
 
-    await act(async () => {
-      container.querySelector<HTMLElement>('[data-testid="provider-type-mock"]')!.click();
-    });
+    await detectOpenAiImages(container);
 
     const footer = container.querySelector('.settings-add-footer');
     expect(footer?.querySelector('[data-testid="provider-test-button"]')).toBeTruthy();
@@ -503,9 +482,7 @@ describe('SettingsAddPage', () => {
       );
     });
 
-    await act(async () => {
-      container.querySelector<HTMLElement>('[data-testid="provider-type-mock"]')!.click();
-    });
+    await detectOpenAiImages(container);
 
     const selector = queryByTestId(container, 'provider-default-model-selector');
     expect(selector.className).toContain('cmp-chip');

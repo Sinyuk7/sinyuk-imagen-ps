@@ -47,14 +47,12 @@ function createSecretStorage(secrets: Record<string, string>): SecretStorageAdap
 function billingProfile(): ProviderProfile {
   return {
     profileId: 'billing-profile',
-    providerId: 'billing-mock',
+    apiFormat: 'openai-images',
     displayName: 'Billing Mock',
     enabled: true,
     config: {
-      providerId: 'billing-mock',
-      displayName: 'Billing Mock',
-      family: 'image-endpoint',
-      connection: {
+      apiFormat: 'openai-images',
+      displayName: 'Billing Mock',      connection: {
         selectionMode: 'manual',
         selectedEndpointId: 'primary',
         endpoints: [{ id: 'primary', url: 'https://example.com', enabled: true }],
@@ -89,6 +87,7 @@ function setBillingProvider(queryBalance: Provider<ProviderConfig, ProviderReque
       return {
         id: 'billing-mock',
         family: 'image-endpoint',
+        apiFormat: 'openai-images',
         displayName: 'Billing Mock',
         operations: ['text_to_image'],
         invokeMode: 'sync',

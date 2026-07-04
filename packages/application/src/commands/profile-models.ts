@@ -25,6 +25,7 @@ import {
   reconcileDiscoveredCatalogModels,
   type ProviderModelInfo,
 } from '@imagen-ps/providers';
+import { catalogProviderIdForApiFormat } from './api-format-profile.js';
 
 function errorMessage(error: unknown, fallback: string): string {
   return error instanceof Error ? error.message : fallback;
@@ -34,14 +35,15 @@ function mergeConfiguredDefaultModel(
   models: readonly ProviderModelInfo[],
   profile: ProviderProfile,
 ): readonly ProviderModelInfo[] {
+  const catalogProviderId = catalogProviderIdForApiFormat(profile.apiFormat);
   const configured = typeof profile.config.defaultModel === 'string' ? profile.config.defaultModel.trim() : '';
   if (configured.length === 0 || models.some((model) => model.id === configured)) {
     return models;
   }
-  if (providerUsesImageModelCatalog(profile.providerId)) {
+  if (providerUsesImageModelCatalog(catalogProviderId)) {
     return [
       describeConfiguredCatalogModel({
-        providerId: profile.providerId,
+        providerId: catalogProviderId,
         modelId: configured,
         discoveredModels: profile.models,
       }),
@@ -52,20 +54,21 @@ function mergeConfiguredDefaultModel(
 }
 
 function reconcileCachedCatalogModels(profile: ProviderProfile): readonly ProviderModelInfo[] {
-  if (!providerUsesImageModelCatalog(profile.providerId)) {
+  const catalogProviderId = catalogProviderIdForApiFormat(profile.apiFormat);
+  if (!providerUsesImageModelCatalog(catalogProviderId)) {
     return profile.models ?? [];
   }
 
   const discoveredModels = reconcileDiscoveredCatalogModels({
-    providerId: profile.providerId,
+    providerId: catalogProviderId,
     discoveredModels: profile.models ?? [],
   });
   if ((profile.models ?? []).length === 0) {
-    return listLocalCatalogModels(profile.providerId);
+    return listLocalCatalogModels(catalogProviderId);
   }
 
   const remotelyAvailableRuleIds = new Set(discoveredModels.map((model) => model.ruleId));
-  return listLocalCatalogModels(profile.providerId).map((model) => ({
+  return listLocalCatalogModels(catalogProviderId).map((model) => ({
     ...model,
     remotelyAvailable: remotelyAvailableRuleIds.has(model.ruleId),
   }));
@@ -75,7 +78,8 @@ function resolvedBaseModels(
   profile: ProviderProfile,
   descriptorDefaults: readonly ProviderModelInfo[],
 ): { readonly models: readonly ProviderModelInfo[]; readonly source: 'profile.cache' | 'provider.defaults' | 'none' } {
-  if (providerUsesImageModelCatalog(profile.providerId)) {
+  const catalogProviderId = catalogProviderIdForApiFormat(profile.apiFormat);
+  if (providerUsesImageModelCatalog(catalogProviderId)) {
     if (profile.models && profile.models.length > 0) {
       return {
         models: reconcileCachedCatalogModels(profile),
@@ -83,7 +87,7 @@ function resolvedBaseModels(
       };
     }
     return {
-      models: listLocalCatalogModels(profile.providerId),
+      models: listLocalCatalogModels(catalogProviderId),
       source: 'provider.defaults',
     };
   }
@@ -126,7 +130,7 @@ function resolvedModelsForProfile(
  * INPUT: profileId。
  * OUTPUT: 按 fallback chain 解析后的 `readonly ProviderModelInfo[]`。
  * SIDE EFFECT: 无（不发起网络、不写入持久化）。
- * FAILURE: profile 不存在 / providerId 未注册 → validation error。
+ * FAILURE: profile 不存在 / apiFormat 未注册 → validation error。
  */
 export async function listProfileModels(profileId: string): Promise<CommandResult<readonly ProviderModelInfo[]>> {
   const logger = getRuntimeLogger().child({
@@ -145,14 +149,14 @@ export async function listProfileModels(profileId: string): Promise<CommandResul
       error: createValidationError(`Provider profile "${profileId}" not found.`, { profileId }),
     };
   }
-  const provider = getRuntime().providerRegistry.get(profile.providerId);
+  const provider = getRuntime().providerRegistry.getByApiFormat(profile.apiFormat);
   if (!provider) {
-    span.fail({ message: `Provider implementation "${profile.providerId}" not found for profile "${profileId}".` });
+    span.fail({ message: `Provider implementation for apiFormat "${profile.apiFormat}" not found for profile "${profileId}".` });
     return {
       ok: false,
       error: createValidationError(
-        `Provider implementation "${profile.providerId}" not found for profile "${profileId}".`,
-        { profileId, providerId: profile.providerId },
+        `Provider implementation for apiFormat "${profile.apiFormat}" not found for profile "${profileId}".`,
+        { profileId, apiFormat: profile.apiFormat },
       ),
     };
   }
@@ -214,25 +218,25 @@ export async function refreshProfileModels(profileId: string): Promise<CommandRe
     };
   }
 
-  const provider = getRuntime().providerRegistry.get(profile.providerId);
+  const provider = getRuntime().providerRegistry.getByApiFormat(profile.apiFormat);
   if (!provider) {
-    span.fail({ message: `Provider implementation "${profile.providerId}" not found for profile "${profileId}".` });
+    span.fail({ message: `Provider implementation for apiFormat "${profile.apiFormat}" not found for profile "${profileId}".` });
     return {
       ok: false,
       error: createValidationError(
-        `Provider implementation "${profile.providerId}" not found for profile "${profileId}".`,
-        { profileId, providerId: profile.providerId },
+        `Provider implementation for apiFormat "${profile.apiFormat}" not found for profile "${profileId}".`,
+        { profileId, apiFormat: profile.apiFormat },
       ),
     };
   }
 
   if (typeof provider.discoverModels !== 'function') {
-    span.fail({ message: `Provider implementation "${profile.providerId}" does not support model discovery.` });
+    span.fail({ message: `Provider implementation for apiFormat "${profile.apiFormat}" does not support model discovery.` });
     return {
       ok: false,
       error: createValidationError(
-        `Provider implementation "${profile.providerId}" does not support model discovery.`,
-        { profileId, providerId: profile.providerId },
+        `Provider implementation for apiFormat "${profile.apiFormat}" does not support model discovery.`,
+        { profileId, apiFormat: profile.apiFormat },
       ),
     };
   }
@@ -244,7 +248,7 @@ export async function refreshProfileModels(profileId: string): Promise<CommandRe
       logger.child({
         package: 'providers',
         component: 'provider',
-        provider_id: profile.providerId,
+        provider_id: provider.id,
       }),
     );
   } catch (error) {
@@ -255,14 +259,15 @@ export async function refreshProfileModels(profileId: string): Promise<CommandRe
       ok: false,
       error: createProviderError(errorMessage(error, `Model discovery failed for profile "${profileId}".`), {
         profileId,
-        providerId: profile.providerId,
+        apiFormat: profile.apiFormat,
       }),
     };
   }
 
-  const persistedModels = providerUsesImageModelCatalog(profile.providerId)
+  const catalogProviderId = catalogProviderIdForApiFormat(profile.apiFormat);
+  const persistedModels = providerUsesImageModelCatalog(catalogProviderId)
     ? reconcileDiscoveredCatalogModels({
-      providerId: profile.providerId,
+      providerId: catalogProviderId,
       discoveredModels: models,
     })
     : models;
@@ -280,7 +285,7 @@ export async function refreshProfileModels(profileId: string): Promise<CommandRe
       ok: false,
       error: createProviderError(
         errorMessage(error, `Failed to persist refreshed models for profile "${profileId}".`),
-        { profileId, providerId: profile.providerId },
+        { profileId, apiFormat: profile.apiFormat },
       ),
     };
   }
