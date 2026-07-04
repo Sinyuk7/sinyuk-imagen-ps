@@ -61,6 +61,7 @@ apps/app/tests/settings-add-page.test.tsx
   s_b7ea537f904386::t_83320930cb96a0 208,376,452,459
   s_b7ea537f904386::t_b66b6616d1e64f 382,418,424,442,455-458,460
   s_b7ea537f904386::t_02db965be0167f 445
+  s_b7ea537f904386::t_1b001488881bc0 463,483-489
 packages/providers/tests/image-endpoint-wire-compatibility.test.ts
   s_b7ea537f904386::t_faf2ee3cc2e81b 45
 packages/providers/tests/mock-provider.test.ts
@@ -84,6 +85,7 @@ apps/app/src/shared/ui/pages/settings-add-page.tsx
   s_b7ea537f904386::t_22e6a5a93297f5 204-286,291,302-309,353,356-358,363,365-366
   s_b7ea537f904386::t_123ea5215f6df4 452-457,467,476,500,505,518,535,550-554,556,558-561,566
   s_b7ea537f904386::t_2794bdab5303d4 2,28-31,56,143-147,153-157,173
+  s_b7ea537f904386::t_bfc275fd679376 567-573
 packages/application/src/commands/profile-billing.test.ts
   s_b7ea537f904386::t_faf2ee3cc2e81b 59
 packages/providers/src/contract/config-schema.ts
@@ -107,6 +109,7 @@ packages/providers/src/providers/image-endpoint/provider.ts
   s_b7ea537f904386::t_999d10c347ce82 166-173,194
   s_b7ea537f904386::t_cb0877f8acce10 105-165,175,177-193,195-216,488,490-521,523-543
   s_b7ea537f904386::t_9e8cdcaa132779 174,176
+  s_b7ea537f904386::t_6d034a7ca1f7c3 358
 packages/application/src/commands/profile-endpoints.test.ts
   s_b7ea537f904386::t_faf2ee3cc2e81b 141,160,166,180,193,204,211,223,234,241
   s_b7ea537f904386::t_6f81f078cef256 4,53,71,93,96-97,101,106,123-125,128,252-253
@@ -168,6 +171,10 @@ apps/app/src/adapters/uxp/uxp-host-adapters.test.ts
   s_b7ea537f904386::t_e4ffa01ca8efe8 196,309
 packages/providers/tests/paid-retry.test.ts
   s_b7ea537f904386::t_658a21d5f7b1ca 144
+packages/providers/tests/attempt-sequence.test.ts
+  s_b7ea537f904386::t_f7eda982c76e6a 9,36
+packages/providers/tests/image-endpoint-transport-request.test.ts
+  s_b7ea537f904386::t_f7eda982c76e6a 50,91
 ---
 {
   "schema_version": "authorship/3.0.0",
