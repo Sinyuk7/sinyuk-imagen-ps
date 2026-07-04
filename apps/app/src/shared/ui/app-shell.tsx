@@ -536,6 +536,7 @@ function AppShellContent({ host }: AppShellProps) {
           settings={generationSettings.settings}
           loading={generationSettings.loading}
           error={generationSettings.error}
+          saveState={generationSettings.saveState}
           outputSizeContext={outputSizeContext}
           onSave={generationSettings.save}
           />

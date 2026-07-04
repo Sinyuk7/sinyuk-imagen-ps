@@ -73,6 +73,7 @@ describe('GlobalGenerationSettingsPage', () => {
             }}
             loading={false}
             error={null}
+            saveState="idle"
             outputSizeContext={textComposerContext}
             onSave={vi.fn(async () => undefined)}
             onNav={vi.fn()}
@@ -141,6 +142,7 @@ describe('GlobalGenerationSettingsPage', () => {
             }}
             loading={false}
             error={null}
+            saveState="idle"
             outputSizeContext={textComposerContext}
             onSave={onSave}
             onNav={vi.fn()}
@@ -150,14 +152,19 @@ describe('GlobalGenerationSettingsPage', () => {
     });
 
     expect(container.textContent).not.toContain('provider response text');
-    expect(container.querySelector('.settings-page .btn-save')).not.toBeNull();
+    expect(container.querySelector('.settings-page .btn-save')).toBeNull();
+    expect(onSave).not.toHaveBeenCalled();
+
     await act(async () => {
-      container.querySelector<HTMLButtonElement>('[data-testid="global-settings-save-button"]')!.click();
+      container.querySelector<HTMLElement>('[data-testid="global-output-format-selector"]')!.click();
+    });
+    await act(async () => {
+      container.querySelector<HTMLElement>('[data-testid="global-output-format-selector-option-jpeg"]')!.click();
     });
 
     expect(onSave).toHaveBeenCalledWith({
       outputSizePreset: '2k',
-      outputFormat: 'png',
+      outputFormat: 'jpeg',
       aspectRatio: 'auto',
       providerInputSizePreset: '2k',
     });
@@ -182,6 +189,7 @@ describe('GlobalGenerationSettingsPage', () => {
             }}
             loading={false}
             error={null}
+            saveState="idle"
             outputSizeContext={imageEditOnly1kContext}
             onSave={onSave}
             onNav={vi.fn()}
@@ -199,17 +207,7 @@ describe('GlobalGenerationSettingsPage', () => {
 
     expect(container.querySelector('[data-testid="toast"]')?.textContent).toContain('此模型不支持 4K');
     expect(container.querySelector<HTMLElement>('[data-testid="global-output-size-selector"]')?.getAttribute('aria-label')).toContain('2K');
-
-    await act(async () => {
-      container.querySelector<HTMLButtonElement>('[data-testid="global-settings-save-button"]')!.click();
-    });
-
-    expect(onSave).toHaveBeenCalledWith({
-      outputSizePreset: '2k',
-      outputFormat: 'png',
-      aspectRatio: 'auto',
-      providerInputSizePreset: '2k',
-    });
+    expect(onSave).not.toHaveBeenCalled();
   });
 
   it('saves the provider input size preset label from the selector', async () => {
@@ -231,6 +229,7 @@ describe('GlobalGenerationSettingsPage', () => {
             }}
             loading={false}
             error={null}
+            saveState="idle"
             outputSizeContext={textComposerContext}
             onSave={onSave}
             onNav={vi.fn()}
@@ -246,9 +245,6 @@ describe('GlobalGenerationSettingsPage', () => {
     });
     await act(async () => {
       container.querySelector<HTMLElement>('[data-testid="provider-input-size-selector-option-4k"]')!.click();
-    });
-    await act(async () => {
-      container.querySelector<HTMLButtonElement>('[data-testid="global-settings-save-button"]')!.click();
     });
 
     expect(onSave).toHaveBeenCalledWith({
@@ -283,6 +279,7 @@ describe('GlobalGenerationSettingsPage', () => {
             }}
             loading={false}
             error={null}
+            saveState="idle"
             outputSizeContext={textComposerContext}
             onSave={vi.fn(async () => undefined)}
             onNav={vi.fn()}
@@ -325,6 +322,7 @@ describe('GlobalGenerationSettingsPage', () => {
             }}
             loading={false}
             error={null}
+            saveState="saved"
             outputSizeContext={textComposerContext}
             onSave={vi.fn(async () => undefined)}
             onNav={vi.fn()}
@@ -334,7 +332,8 @@ describe('GlobalGenerationSettingsPage', () => {
     });
 
     expect(container.querySelector('[data-testid="global-settings-footer-statement"]')?.textContent).toContain('Imagen PS');
-    expect(container.querySelector('.generation-settings-footer')).not.toBeNull();
+    expect(container.querySelector('.generation-settings-footer')).toBeNull();
+    expect(container.querySelector('[data-testid="global-settings-save-status"]')?.textContent).toContain('已保存');
   });
 
   it('renders storage and error states as settings notices instead of raw text blocks', async () => {
@@ -355,6 +354,7 @@ describe('GlobalGenerationSettingsPage', () => {
             }}
             loading={false}
             error="save failed"
+            saveState="error"
             outputSizeContext={textComposerContext}
             onSave={vi.fn(async () => undefined)}
             onNav={vi.fn()}
@@ -364,6 +364,7 @@ describe('GlobalGenerationSettingsPage', () => {
     });
 
     expect(container.querySelector('[data-testid="global-settings-error-notice"] .status-notice.error')).not.toBeNull();
+    expect(container.querySelector('[data-testid="global-settings-save-status"]')?.textContent).toContain('save failed');
     const storageHint = container.querySelectorAll('.generation-settings-section-hint')[1];
     expect(storageHint?.textContent ?? '').toContain('运行路径与生成图片保存位置。');
   });

@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import { useAppServices } from '../../ports/app-services-context';
 import type {
   AppAspectRatio,
@@ -7,10 +7,11 @@ import type {
   AppOutputFormat,
   AppOutputSizePreset,
 } from '../../ports/app-generation-settings';
+import type { GenerationSettingsSaveState } from '../hooks/use-generation-settings';
 import { useAppPathInfo } from '../hooks/use-app-path-info';
 import { StatusNotice } from '../components/status-notice';
 import { useToast } from '../components/toast-host';
-import { Button, FieldLabel, HelpText } from '../primitives/native-controls';
+import { FieldLabel, HelpText } from '../primitives/native-controls';
 import { TextSelect } from '../components/text-select';
 import { Icon } from '../components/icons';
 import { IconButton } from '../primitives/icon-button';
@@ -21,6 +22,7 @@ interface GlobalGenerationSettingsPageProps {
   readonly settings: AppGenerationSettings;
   readonly loading: boolean;
   readonly error: string | null;
+  readonly saveState: GenerationSettingsSaveState;
   readonly outputSizeContext: OutputSizeSelectionContext;
   readonly onSave: (settings: AppGenerationSettings) => Promise<void>;
   readonly onNav: (view: string) => void;
@@ -68,6 +70,7 @@ export function GlobalGenerationSettingsPage({
   settings,
   loading,
   error,
+  saveState,
   outputSizeContext,
   onSave,
   onNav,
@@ -76,27 +79,11 @@ export function GlobalGenerationSettingsPage({
   const { messages: t } = useI18n();
   const { show } = useToast();
   const pathInfo = useAppPathInfo(services);
-  const [draft, setDraft] = useState<AppGenerationSettings>(settings);
-  const [saving, setSaving] = useState(false);
   const [openMenu, setOpenMenu] = useState<MenuId>(null);
   const [copiedKey, setCopiedKey] = useState<string | null>(null);
 
-  const updateDraft = (next: Partial<AppGenerationSettings>) => {
-    setDraft((current) => ({ ...current, ...next }));
-  };
-
-  useEffect(() => {
-    setDraft(settings);
-  }, [settings]);
-
-  const save = async () => {
-    setSaving(true);
-    try {
-      await onSave(draft);
-      setDraft(draft);
-    } finally {
-      setSaving(false);
-    }
+  const updateSettings = (next: Partial<AppGenerationSettings>) => {
+    void onSave({ ...settings, ...next });
   };
 
   const copyPath = async (key: string, value: string) => {
@@ -116,8 +103,30 @@ export function GlobalGenerationSettingsPage({
       show(result.reason, 'warning', { key: `global-output-size-rejected:${value}` });
       return;
     }
-    updateDraft({ outputSizePreset: result.nextSize });
+    updateSettings({ outputSizePreset: result.nextSize });
   };
+
+  const saveStatusIcon = saveState === 'saving'
+    ? <Icon name="spinner" size={14} className="spin" />
+    : saveState === 'saved'
+      ? <Icon name="check" size={14} />
+      : saveState === 'error'
+        ? <Icon name="error" size={14} />
+        : null;
+  const saveStatusLabel = saveState === 'saving'
+    ? t.settings.saving
+    : saveState === 'saved'
+      ? t.settings.saved
+      : saveState === 'error'
+        ? error
+        : null;
+  const saveStatusClassName = saveState === 'saving'
+    ? 'save-status save-status-busy'
+    : saveState === 'saved'
+      ? 'save-status save-status-saved'
+      : saveState === 'error'
+        ? 'save-status'
+        : null;
 
   return (
     <div className="page page-enter settings-page" onClick={() => setOpenMenu(null)}>
@@ -151,13 +160,13 @@ export function GlobalGenerationSettingsPage({
                   containerClassName="cmp-select settings-select"
                   menuClassName="cmp-select-menu cmp-select-menu-compact"
                   label={t.settings.outputSize}
-                  value={labelFor(SIZE_OPTIONS, draft.outputSizePreset)}
-                  disabled={loading || saving}
+                  value={labelFor(SIZE_OPTIONS, settings.outputSizePreset)}
+                  disabled={loading}
                   open={openMenu === 'size'}
                   onOpenChange={(open) => setOpenMenu(open ? 'size' : null)}
                   options={SIZE_OPTIONS}
                   isOptionSelectable={(value) => canSelectOutputSize(outputSizeContext, value as AppOutputSizePreset, t).ok}
-                  selectedId={draft.outputSizePreset}
+                  selectedId={settings.outputSizePreset}
                   onSelect={(value) => selectOutputSize(value as AppOutputSizePreset)}
                 />
               </div>
@@ -169,13 +178,13 @@ export function GlobalGenerationSettingsPage({
                   containerClassName="cmp-select settings-select"
                   menuClassName="cmp-select-menu cmp-select-menu-compact"
                   label={t.settings.outputFormat}
-                  value={labelFor(FORMAT_OPTIONS, draft.outputFormat)}
-                  disabled={loading || saving}
+                  value={labelFor(FORMAT_OPTIONS, settings.outputFormat)}
+                  disabled={loading}
                   open={openMenu === 'format'}
                   onOpenChange={(open) => setOpenMenu(open ? 'format' : null)}
                   options={FORMAT_OPTIONS}
-                  selectedId={draft.outputFormat}
-                  onSelect={(value) => updateDraft({ outputFormat: value as AppOutputFormat })}
+                  selectedId={settings.outputFormat}
+                  onSelect={(value) => updateSettings({ outputFormat: value as AppOutputFormat })}
                 />
               </div>
               <div className="field">
@@ -186,13 +195,13 @@ export function GlobalGenerationSettingsPage({
                   containerClassName="cmp-select settings-select"
                   menuClassName="cmp-select-menu cmp-select-menu-compact"
                   label={t.settings.aspectRatio}
-                  value={labelFor(ASPECT_OPTIONS, draft.aspectRatio)}
-                  disabled={loading || saving}
+                  value={labelFor(ASPECT_OPTIONS, settings.aspectRatio)}
+                  disabled={loading}
                   open={openMenu === 'aspect'}
                   onOpenChange={(open) => setOpenMenu(open ? 'aspect' : null)}
                   options={ASPECT_OPTIONS}
-                  selectedId={draft.aspectRatio}
-                  onSelect={(value) => updateDraft({ aspectRatio: value as AppAspectRatio })}
+                  selectedId={settings.aspectRatio}
+                  onSelect={(value) => updateSettings({ aspectRatio: value as AppAspectRatio })}
                 />
               </div>
             </div>
@@ -207,13 +216,13 @@ export function GlobalGenerationSettingsPage({
                 containerClassName="cmp-select settings-select"
                 menuClassName="cmp-select-menu cmp-select-menu-compact"
                 label={t.settings.providerInputSizePreset}
-                value={labelFor(PROVIDER_INPUT_SIZE_OPTIONS, draft.providerInputSizePreset)}
-                disabled={loading || saving}
+                value={labelFor(PROVIDER_INPUT_SIZE_OPTIONS, settings.providerInputSizePreset)}
+                disabled={loading}
                 open={openMenu === 'provider-input-size'}
                 onOpenChange={(open) => setOpenMenu(open ? 'provider-input-size' : null)}
                 options={PROVIDER_INPUT_SIZE_OPTIONS}
-                selectedId={draft.providerInputSizePreset}
-                onSelect={(value) => updateDraft({ providerInputSizePreset: value as AppProviderInputSizePreset })}
+                selectedId={settings.providerInputSizePreset}
+                onSelect={(value) => updateSettings({ providerInputSizePreset: value as AppProviderInputSizePreset })}
               />
               <HelpText className="field-hint">{t.settings.providerInputSizePresetHint}</HelpText>
             </div>
@@ -288,6 +297,15 @@ export function GlobalGenerationSettingsPage({
             >
               {t.settings.footerStatement}
             </div>
+            {saveStatusClassName && saveStatusLabel ? (
+              <div
+                data-testid="global-settings-save-status"
+                className={saveStatusClassName}
+              >
+                {saveStatusIcon}
+                <span>{saveStatusLabel}</span>
+              </div>
+            ) : null}
           </section>
           {error && (
             <section className="section generation-settings-section generation-settings-secondary-section">
@@ -298,13 +316,6 @@ export function GlobalGenerationSettingsPage({
           )}
         </div>
       </div>
-      <footer className="det-footer">
-        <div className="settings-detail-footer-inner generation-settings-footer">
-          <Button data-testid="global-settings-save-button" className="btn-save" variant="accent" disabled={saving} onClick={() => void save()}>
-            {saving ? t.settings.saving : t.common.save}
-          </Button>
-        </div>
-      </footer>
     </div>
   );
 }
