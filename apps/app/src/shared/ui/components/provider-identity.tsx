@@ -1,24 +1,26 @@
 import type { SyntheticEvent } from 'react';
-import { ModelAvatarIcon } from './model-avatar-icon';
-import type { ModelAvatarIconName } from './generated/model-avatar-icons';
 import { OverlayControlShell } from './overlay-controls';
 
 interface ProviderIdentityProps {
-  readonly iconName: ModelAvatarIconName;
   readonly providerName: string;
   readonly modelLabel?: string;
   readonly disabled?: boolean;
   readonly onClick?: (event: SyntheticEvent<HTMLDivElement>) => void;
 }
 
+function providerInitial(providerName: string): string {
+  const normalized = providerName.trim();
+  return normalized ? normalized[0]!.toUpperCase() : '?';
+}
+
 export function ProviderIdentity({
-  iconName,
   providerName,
   modelLabel,
   disabled = false,
   onClick,
 }: ProviderIdentityProps) {
   const interactive = !disabled && typeof onClick === 'function';
+  const initial = providerInitial(providerName);
 
   return (
     <div
@@ -42,8 +44,8 @@ export function ProviderIdentity({
         overlayClassName="prov-identity-overlay"
         disabled={disabled}
         overlay={(
-          <span className="prov-identity-icon-shell">
-            <ModelAvatarIcon name={iconName} size={16} className="prov-identity-icon-svg" />
+          <span className="prov-identity-icon-shell" aria-hidden="true">
+            <span className="prov-identity-icon-text">{initial}</span>
           </span>
         )}
       >

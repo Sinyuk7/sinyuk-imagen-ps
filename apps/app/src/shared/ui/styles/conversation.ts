@@ -113,6 +113,18 @@ export const CONVERSATION_CSS = `
   display:block; width:16px; height:16px;
   color:inherit;
 }
+.prov-identity-icon-text{
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
+  width:16px;
+  height:16px;
+  font-family:var(--app-font-family-base);
+  font-size:10px;
+  font-weight:600;
+  line-height:1;
+  color:inherit;
+}
 .prov-identity-icon.err{ background:var(--app-color-negative-subtle); color:var(--app-color-negative); }
 .prov-identity-button{
   display:flex; align-items:flex-start; justify-content:flex-start; min-width:0; flex:0 1 auto; width:auto; max-width:100%;
