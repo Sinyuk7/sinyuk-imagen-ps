@@ -1,0 +1,27 @@
+apps/app/src/shared/ui/components/provider-settings-sections.tsx
+  s_4cfb886f35fbb0::t_eee831afb08cd6 2
+  s_4cfb886f35fbb0::t_e3787d5cbff1d0 3-56,87-324
+  s_4cfb886f35fbb0::t_e16159b970359d 1,57-86
+apps/app/src/shared/ui/pages/settings-detail-page.tsx
+  s_4cfb886f35fbb0::t_d31d68166b595f 34-37,39,44,880-889,913-949,956-963
+  s_4cfb886f35fbb0::t_e16159b970359d 38,832,842-850,861-862
+apps/app/src/shared/ui/pages/settings-add-page.tsx
+  s_4cfb886f35fbb0::t_e16159b970359d 31,484-488
+  s_4cfb886f35fbb0::t_58c8ac2e8e17b7 27-30,32,505-514,535-575,590-600
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.10",
+  "base_commit_sha": "79be1f36fa818e38a7e6ac30b37c9b4dfcbfeb2e",
+  "prompts": {},
+  "sessions": {
+    "s_4cfb886f35fbb0": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "019f2cfb-132c-75e3-b6da-c4cdb101be51",
+        "model": "gpt-5.4"
+      },
+      "human_author": "Sinyuk <80998062@qq.com>"
+    }
+  }
+}
