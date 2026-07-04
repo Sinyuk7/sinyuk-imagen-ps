@@ -1,0 +1,17 @@
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.10",
+  "base_commit_sha": "3571f4fae96583e1cc889250f909c0b21d6db4f6",
+  "prompts": {},
+  "sessions": {
+    "s_a1db469ed198f2": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "019f2d28-77fa-7861-8232-54d40e3c48ff",
+        "model": "gpt-5.4"
+      },
+      "human_author": "Sinyuk <80998062@qq.com>"
+    }
+  }
+}
