@@ -1,0 +1,95 @@
+apps/app/src/shared/ui/components/provider-settings-sections.tsx
+  s_f19b00339d31ef::t_cf3824437d1d92 4,227-241
+apps/app/src/shared/ui/hooks/use-provider-settings.ts
+  s_f19b00339d31ef::t_02c6f61841a6c9 206,209,211-212
+apps/app/src/shared/ui/i18n/messages.ts
+  s_f19b00339d31ef::t_40c10fa8601208 536-537,551,867-868,882
+packages/application/src/commands/profile-models.test.ts
+  s_f19b00339d31ef::t_db413e3d9e173b 78,92,99,114,165,192-194
+  s_f19b00339d31ef::t_bcd237a7fa9d07 93-95,115-117
+apps/app/tests/settings-detail-diagnostics.test.tsx
+  s_f19b00339d31ef::t_220a5c72090ea3 33,67
+  s_f19b00339d31ef::t_b84f81e735edeb 10,63
+apps/app/tests/settings-add-page.test.tsx
+  s_f19b00339d31ef::t_ce6ac0eb3ed517 44,46-49,121,374,485-486
+apps/app/tests/settings-detail-harness.tsx
+  s_f19b00339d31ef::t_898ebce83d2795 89,91-94
+apps/app/tests/provider-endpoint-user-flows.test.tsx
+  s_f19b00339d31ef::t_842f8e77078f98 420,424
+apps/app/tests/app-shell.test.tsx
+  s_f19b00339d31ef::t_5379c388becbbf 883,944,948,960,969
+packages/application/src/runtime.ts
+  s_f19b00339d31ef::t_d8c7258385b05c 192
+  s_f19b00339d31ef::t_99bbdbb48de20b 43,191
+packages/providers/src/contract/model.ts
+  s_f19b00339d31ef::t_6bc6201de9e851 10-11,17
+packages/application/src/commands/provider-profiles.test.ts
+  s_f19b00339d31ef::t_de8c8f26bc8f5e 326,337
+  s_f19b00339d31ef::t_a8d5a52710c4dd 163,221,257-258
+  s_f19b00339d31ef::t_7e01ab07eca29f 95,159,270,303,356,383
+packages/application/src/commands/refresh-draft-profile-models.test.ts
+  s_f19b00339d31ef::t_ab70465b74f057 114,164-165
+apps/app/src/shared/ui/app-shell.tsx
+  s_f19b00339d31ef::t_70b5d3ba33faaa 193
+  s_f19b00339d31ef::t_b75f01fbde9644 223-224
+packages/application/src/commands/draft-provider-config.ts
+  s_f19b00339d31ef::t_a6114e50fec82d 16,78-84
+packages/providers/src/providers/gemini-generate-content/provider.ts
+  s_c30fb82c19c7d9::t_e8725c71ff909d 113-122,163-168,173-198,223,235-247,293-306
+packages/providers/tests/gemini-generate-content-provider.test.ts
+  s_c30fb82c19c7d9::t_7118427836dd98 349-350,352-375,377-386,388-406
+  s_c30fb82c19c7d9::t_4f84f3aace45cd 2,300-348,351,376,387,407-408,554-653
+  s_c30fb82c19c7d9::t_8bb7aa6b96bab0 654
+packages/application/src/commands/refresh-draft-profile-models.ts
+  s_f19b00339d31ef::t_a730a4a0b09ca3 14-20
+  s_f19b00339d31ef::t_86613fbed17878 24-31
+packages/providers/src/contract/image-model-capability.ts
+  s_f19b00339d31ef::t_e4a12a8cef28f9 169-172
+apps/app/tests/settings-detail-model-list.test.tsx
+  s_f19b00339d31ef::t_58df10faee8b44 19,108
+apps/app/tests/settings-add-page-gemini-import.test.tsx
+  s_f19b00339d31ef::t_799d3ed4306180 83
+  s_f19b00339d31ef::t_f92c11d55657bc 36,81
+packages/application/src/commands/provider-profiles.ts
+  s_f19b00339d31ef::t_ce5b7c9d6d233c 30-36
+  s_f19b00339d31ef::t_072c5474198513 344
+  s_f19b00339d31ef::t_9e06597d6970c5 27,270,290-296,483,501
+apps/app/tests/chrome-e2e/run.mjs
+  s_f19b00339d31ef::t_62608d08da53ff 205-206
+apps/app/tests/settings-detail-profile-editing.test.tsx
+  s_f19b00339d31ef::t_4082549ca01e67 40,52
+  s_f19b00339d31ef::t_d2600299e2f8e4 15
+  s_f19b00339d31ef::t_d3d4da85bd5592 324,341-343
+packages/application/src/commands/default-model-validation.ts
+  s_f19b00339d31ef::t_3913cb4e3b4e61 14-21,23-24,27-28,35,38-39,41,72,98
+  s_f19b00339d31ef::t_6f17d6f3d88fd0 65
+  s_f19b00339d31ef::t_e3b59e855164b8 1-13,22,25-26,29-34,36-37,40,42-64,66-71,73-89,91-97,99-109
+  s_f19b00339d31ef::t_336c14c28fc329 90
+packages/application/src/commands/profile-models.ts
+  s_f19b00339d31ef::t_c0d47357dbdff7 31-32,34-35,37,158-171,291-304
+  s_f19b00339d31ef::t_8025b5a6464f48 28,103
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.10",
+  "base_commit_sha": "ff6acab271d164a191d76d3aee51d0c4b3be77a1",
+  "prompts": {},
+  "sessions": {
+    "s_c30fb82c19c7d9": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "019f3064-0bb7-7f02-aa74-9ab40a86e861",
+        "model": "gpt-5.4"
+      },
+      "human_author": "Sinyuk <80998062@qq.com>"
+    },
+    "s_f19b00339d31ef": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "019f30bc-e814-7610-ad87-247e73d798a1",
+        "model": "gpt-5.4"
+      },
+      "human_author": "Sinyuk <80998062@qq.com>"
+    }
+  }
+}
