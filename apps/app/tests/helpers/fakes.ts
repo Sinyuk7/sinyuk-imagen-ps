@@ -569,6 +569,7 @@ function savedProfile(input: ProviderProfileInput, existing: ProviderProfile | u
 export function createFakeServices(options?: {
   readonly profiles?: readonly ProviderProfile[];
   readonly userModelConfigs?: readonly UserModelConfig[];
+  readonly officialModelConfigPresets?: readonly OfficialModelPreset[];
   readonly generationSettings?: Partial<AppGenerationSettings>;
   readonly promptSettings?: PromptSettings | null;
   readonly activeImageProfileId?: string | null;
@@ -614,6 +615,7 @@ export function createFakeServices(options?: {
   };
 } {
   let profiles: readonly ProviderProfile[] = options?.profiles ?? [fakeProfile];
+  const officialModelConfigPresets = options?.officialModelConfigPresets ?? fakeOfficialModelConfigPresets;
   const modelGenerationPreferences = createMemoryModelGenerationPreferenceRepository();
   setModelGenerationPreferenceRepository(modelGenerationPreferences);
 
@@ -704,9 +706,11 @@ export function createFakeServices(options?: {
     ok: true as const,
     value: apiFormat ? userModelConfigs.filter((config) => config.apiFormat === apiFormat) : userModelConfigs,
   }));
-  const listOfficialModelConfigPresets = vi.fn(async () => ({
+  const listOfficialModelConfigPresets = vi.fn(async (apiFormat?: UserModelConfig['apiFormat']) => ({
     ok: true as const,
-    value: fakeOfficialModelConfigPresets,
+    value: apiFormat
+      ? officialModelConfigPresets.filter((preset) => preset.apiFormat === apiFormat)
+      : officialModelConfigPresets,
   }));
   const listRequestStrategiesForApiFormat = vi.fn(async () => ({
     ok: true as const,
@@ -720,7 +724,7 @@ export function createFakeServices(options?: {
   const saveModelGenerationPreferenceSpy = vi.fn(saveModelGenerationPreference);
   const deleteModelGenerationPreferenceSpy = vi.fn(deleteModelGenerationPreference);
   const saveUserModelConfig = vi.fn(async (input: SaveUserModelConfigInput) => {
-    const preset = fakeOfficialModelConfigPresets.find((item) => item.modelId === input.baseModelId);
+    const preset = officialModelConfigPresets.find((item) => item.apiFormat === input.apiFormat && item.modelId === input.baseModelId);
     const next = {
       ...input,
       modelId: input.modelId.trim(),
