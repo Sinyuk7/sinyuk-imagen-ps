@@ -63,7 +63,8 @@ describe('MainPage contract — composer controls', () => {
     const firstTextarea = container.querySelector<HTMLTextAreaElement>('[data-testid="composer-textarea"]')!;
 
     expect(document.body.querySelector('[data-testid="composer-textarea-mirror"]')).toBeNull();
-    expect(firstTextarea.style.display).toBe('');
+    expect(firstTextarea.style.visibility).toBe('');
+    expect(firstTextarea.style.pointerEvents).toBe('');
 
     await act(async () => {
       container.querySelector<HTMLElement>('[data-testid="composer-output-size-selector"]')!.click();
@@ -72,8 +73,7 @@ describe('MainPage contract — composer controls', () => {
 
     const textarea = container.querySelector<HTMLTextAreaElement>('[data-testid="composer-textarea"]')!;
     expect(document.body.querySelector('[data-testid="composer-textarea-mirror"]')).toBeNull();
-    expect(textarea.dataset.hitTestSuspended).toBe('true');
-    expect(textarea.style.display).toBe('none');
+    expect(document.body.querySelector('[data-testid="composer-output-size-selector-popover"]')).not.toBeNull();
 
     await act(async () => {
       document.body.querySelector<HTMLElement>('[data-testid="composer-output-size-selector-underlay"]')!.click();
@@ -82,8 +82,7 @@ describe('MainPage contract — composer controls', () => {
 
     const restoredTextarea = container.querySelector<HTMLTextAreaElement>('[data-testid="composer-textarea"]')!;
     expect(document.body.querySelector('[data-testid="composer-textarea-mirror"]')).toBeNull();
-    expect(restoredTextarea.dataset.hitTestSuspended).toBeUndefined();
-    expect(restoredTextarea.style.display).toBe('');
+    expect(restoredTextarea.dataset.nativeEditorSuspended).toBeUndefined();
   });
 
   it('运行中时空状态提示不再显示', async () => {

@@ -782,31 +782,58 @@ export const PAGES_CSS = `
   margin-left:0;
 }
 .field-textarea{ display:block; }
-.field-textarea-input{ margin-top:6px;
+.field-textarea-shell{
+  margin-top:6px;
   width:100%;
   min-height:112px;
-  padding:10px 12px;
   border:1px solid var(--app-color-border-default);
   border-radius:var(--app-radius-small);
   background:var(--app-color-background-layer-2);
+  box-sizing:border-box;
+}
+.field-textarea-shell[data-focused="true"]{
+  outline:2px solid var(--app-color-focus-ring);
+  outline-offset:0;
+  border-color:var(--app-color-focus-ring);
+}
+.field-textarea-shell[data-invalid="true"]{
+  border-color:var(--app-color-negative-default);
+}
+.field-textarea-shell[data-disabled="true"]{
+  opacity:.72;
+}
+.field-textarea-shell[data-native-editor-suspended="true"]{
+  background:color-mix(in srgb, var(--app-color-background-layer-2) 88%, transparent);
+}
+.field-textarea-input,
+.field-textarea-native{
+  width:100%;
+  min-height:110px;
+  padding:10px 12px;
+  border:none;
+  border-radius:inherit;
+  background:transparent;
   color:var(--app-color-text-primary);
   font-family:var(--app-font-family-mono);
   font-size:12px;
   line-height:18px;
   resize:vertical;
   box-sizing:border-box;
+  outline:none;
+  appearance:none;
+  -webkit-appearance:none;
 }
-.field-textarea-input::placeholder{ color:var(--app-color-text-muted); }
-.field-textarea-input:focus{
-  outline:2px solid var(--app-color-focus-ring);
-  outline-offset:0;
-  border-color:var(--app-color-focus-ring);
-}
+.field-textarea-input::placeholder,
+.field-textarea-native::placeholder{ color:var(--app-color-text-muted); }
 .provider-system-instructions-field{
   margin-top:14px;
 }
-.provider-system-instructions-field .field-textarea-input{
+.provider-system-instructions-field .field-textarea-shell{
   min-height:72px;
+}
+.provider-system-instructions-field .field-textarea-input,
+.provider-system-instructions-field .field-textarea-native{
+  min-height:70px;
 }
 .field-hint{ margin-top:4px; color:var(--app-color-text-muted); }
 .field-input-affordance{

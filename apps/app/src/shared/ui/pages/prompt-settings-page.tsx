@@ -11,7 +11,7 @@ import { FieldLabel, HelpText } from '../primitives/native-controls';
 import { TextSelect } from '../components/text-select';
 import { Icon } from '../components/icons';
 import { IconButton } from '../primitives/icon-button';
-import { UxpTextArea } from '../components/uxp-form-controls';
+import { UxpTextAreaField } from '../components/uxp-form-controls';
 import { useI18n } from '../i18n/i18n-context';
 
 interface PromptSettingsPageProps {
@@ -134,12 +134,13 @@ export function PromptSettingsPage({
             </div>
             <div className="field field-textarea">
               <FieldLabel htmlFor="prompt-optimization-template">{t.settings.optimizationTemplate}</FieldLabel>
-              <UxpTextArea
+              <UxpTextAreaField
                 data-testid="prompt-optimization-template"
                 id="prompt-optimization-template"
                 className="field-textarea-input"
                 value={settings.optimization.template}
                 disabled={loading}
+                nativeEditorSuspended={profileMenuOpen}
                 onValue={(value) => void onSave({
                   ...settings,
                   optimization: {
@@ -147,14 +148,17 @@ export function PromptSettingsPage({
                     template: value,
                   },
                 })}
+                hint={(
+                  <HelpText
+                    data-testid="prompt-optimization-template-status"
+                    className="field-hint"
+                    variant={templateValid ? undefined : 'negative'}
+                  >
+                    {templateValid ? t.settings.templateValid : t.settings.templateInvalidReason}
+                  </HelpText>
+                )}
+                invalid={!templateValid}
               />
-              <HelpText
-                data-testid="prompt-optimization-template-status"
-                className="field-hint"
-                variant={templateValid ? undefined : 'negative'}
-              >
-                {templateValid ? t.settings.templateValid : t.settings.templateInvalidReason}
-              </HelpText>
             </div>
           </section>
 

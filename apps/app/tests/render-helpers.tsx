@@ -3,6 +3,7 @@ import type { AppServices } from '../src/app-services/app-services';
 import type { SupportedLocale } from '../src/shared/locale';
 import { I18nProvider } from '../src/shared/ui/i18n/i18n-context';
 import { ToastHost, ToastProvider } from '../src/shared/ui/components/toast-host';
+import { PopupLayerProvider, PopupLayerRoot } from '../src/shared/ui/components/popup-layer';
 import type { ReactNode } from 'react';
 
 export function TestI18nProvider({
@@ -27,10 +28,13 @@ export function TestAppProviders({
   return (
     <TestI18nProvider locale={locale}>
       <ToastProvider>
-        <AppServicesProvider services={services}>
-          {children}
-          <ToastHost />
-        </AppServicesProvider>
+        <PopupLayerProvider>
+          <AppServicesProvider services={services}>
+            {children}
+            <ToastHost />
+            <PopupLayerRoot />
+          </AppServicesProvider>
+        </PopupLayerProvider>
       </ToastProvider>
     </TestI18nProvider>
   );

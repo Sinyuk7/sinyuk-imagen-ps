@@ -7,7 +7,7 @@ import { TextSelect } from '../components/text-select';
 import { Icon } from '../components/icons';
 import { IconButton } from '../primitives/icon-button';
 import { ProviderSettingsPageHeader } from '../components/provider-settings-sections';
-import { UxpTextArea } from '../components/uxp-form-controls';
+import { UxpTextAreaField } from '../components/uxp-form-controls';
 import { useI18n } from '../i18n/i18n-context';
 
 interface PromptPresetDetailPageProps {
@@ -104,21 +104,25 @@ export function PromptPresetDetailPage({ preset, onSave, onNav }: PromptPresetDe
             </div>
             <div className="field field-textarea">
               <FieldLabel htmlFor="prompt-preset-content">{t.settings.presetContent}</FieldLabel>
-              <UxpTextArea
+              <UxpTextAreaField
                 data-testid="prompt-preset-content"
                 id="prompt-preset-content"
                 className="field-textarea-input"
                 value={draft.content}
                 disabled={saveBusy}
+                nativeEditorSuspended={modeMenuOpen}
                 onValue={(value) => setDraft((current) => ({ ...current, content: value }))}
+                hint={(
+                  <HelpText
+                    data-testid="prompt-preset-content-status"
+                    className="field-hint"
+                    variant={contentValid ? undefined : 'negative'}
+                  >
+                    {contentValid ? t.settings.presetContentValid : t.settings.presetReplaceInvalid}
+                  </HelpText>
+                )}
+                invalid={!contentValid}
               />
-              <HelpText
-                data-testid="prompt-preset-content-status"
-                className="field-hint"
-                variant={contentValid ? undefined : 'negative'}
-              >
-                {contentValid ? t.settings.presetContentValid : t.settings.presetReplaceInvalid}
-              </HelpText>
             </div>
           </section>
         </div>

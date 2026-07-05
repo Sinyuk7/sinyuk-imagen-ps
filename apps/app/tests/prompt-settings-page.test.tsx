@@ -124,4 +124,35 @@ describe('PromptSettingsPage', () => {
       content: '{Prompt}',
     }));
   });
+
+  it('keeps a visible textarea shell while preset mode menu suspension is active', async () => {
+    const { services } = createFakeServices();
+    const container = document.createElement('div');
+    document.body.appendChild(container);
+    root = createRoot(container);
+
+    await act(async () => {
+      root!.render(
+        <TestAppProviders services={services}>
+          <PromptPresetDetailPage
+            onNav={() => undefined}
+            preset={{ id: 'preset-shell', name: 'Shell', mode: 'append', content: 'content' }}
+            onSave={async () => undefined}
+          />
+        </TestAppProviders>,
+      );
+    });
+
+    await act(async () => {
+      queryByTestId(container, 'prompt-preset-mode-selector').click();
+    });
+
+    const shell = container.querySelector<HTMLElement>('.field-textarea-shell');
+    const textarea = queryByTestId(container, 'prompt-preset-content') as HTMLTextAreaElement;
+    expect(shell).not.toBeNull();
+    expect(document.body.querySelector('[data-testid="prompt-preset-mode-selector-popover"]')).not.toBeNull();
+    expect(shell?.dataset.nativeEditorSuspended).toBe('true');
+    expect(textarea.dataset.nativeEditorSuspended).toBe('true');
+    expect(textarea.style.display).toBe('none');
+  });
 });

@@ -1,7 +1,7 @@
 import { act } from 'react';
 import { createRoot, type Root } from 'react-dom/client';
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { UxpTextArea } from '../src/shared/ui/components/uxp-form-controls';
+import { UxpTextArea, UxpTextAreaField } from '../src/shared/ui/components/uxp-form-controls';
 
 let root: Root | undefined;
 
@@ -28,7 +28,8 @@ async function advanceTimersByTime(ms: number): Promise<void> {
   });
 }
 
-describe('UXP textarea seam', () => {
+
+describe('UXP native text editor occlusion seam', () => {
   it('syncs textarea before submit key handling', async () => {
     const onValue = vi.fn();
     const onKeyDown = vi.fn();
@@ -156,7 +157,7 @@ describe('UXP textarea seam', () => {
     }
   });
 
-  it('suspends native textarea hit-testing and blurs while an overlapping popup is open', async () => {
+  it('suspends native text editor hit-testing and blurs while an overlapping popup is open', async () => {
     const container = document.createElement('div');
     document.body.appendChild(container);
     root = createRoot(container);
@@ -170,13 +171,37 @@ describe('UXP textarea seam', () => {
     expect(document.activeElement).toBe(firstTextarea);
 
     await act(async () => {
-      root!.render(<UxpTextArea value="hello" onValue={() => undefined} uxpPopupOverlapWorkaround data-testid="textarea" />);
+      root!.render(<UxpTextArea value="hello" onValue={() => undefined} nativeEditorSuspended data-testid="textarea" />);
     });
 
     const textarea = container.querySelector<HTMLTextAreaElement>('textarea')!;
-    expect(container.querySelector('[data-testid="textarea-mirror"]')).toBeNull();
-    expect(textarea.dataset.hitTestSuspended).toBe('true');
+    expect(textarea.dataset.nativeEditorSuspended).toBe('true');
     expect(textarea.style.display).toBe('none');
+    expect(textarea.style.pointerEvents).toBe('none');
     expect(document.activeElement).not.toBe(firstTextarea);
+  });
+
+  it('keeps the stable settings shell visible while the native editor is suspended', async () => {
+    const container = document.createElement('div');
+    document.body.appendChild(container);
+    root = createRoot(container);
+
+    await act(async () => {
+      root!.render(
+        <UxpTextAreaField
+          value="hello"
+          onValue={() => undefined}
+          nativeEditorSuspended
+          data-testid="settings-textarea"
+        />,
+      );
+    });
+
+    const shell = container.querySelector<HTMLElement>('.field-textarea-shell');
+    const textarea = container.querySelector<HTMLTextAreaElement>('textarea');
+    expect(shell).not.toBeNull();
+    expect(shell?.dataset.nativeEditorSuspended).toBe('true');
+    expect(textarea?.dataset.nativeEditorSuspended).toBe('true');
+    expect(textarea?.style.display).toBe('none');
   });
 });

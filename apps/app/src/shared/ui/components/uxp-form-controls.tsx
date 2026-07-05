@@ -1,13 +1,17 @@
 import {
   useCallback,
   useEffect,
+  useId,
+  useState,
   useRef,
   type ClipboardEvent,
   type FocusEvent,
   type KeyboardEvent,
+  type ReactNode,
   type RefObject,
   type TextareaHTMLAttributes,
 } from 'react';
+import { usePopupLayer } from './popup-layer';
 
 type UxpTextAreaProps = Omit<
   TextareaHTMLAttributes<HTMLTextAreaElement>,
@@ -18,10 +22,17 @@ type UxpTextAreaProps = Omit<
   readonly onValue: (value: string) => void;
   /**
    * Photoshop UXP 下，原生 textarea 与 portaled popup 重叠时可能继续抢占命中。
-   * 打开相关浮层时启用这个 workaround，临时隐藏原生控件，关闭后再恢复显示。
+   * 打开相关浮层时挂起 native text editor layer，关闭后再恢复显示。
    */
-  readonly uxpPopupOverlapWorkaround?: boolean;
+  readonly nativeEditorSuspended?: boolean;
   readonly 'data-testid'?: string;
+};
+
+type UxpTextAreaFieldProps = UxpTextAreaProps & {
+  readonly shellClassName?: string;
+  readonly shellVariant?: 'settings';
+  readonly hint?: ReactNode;
+  readonly invalid?: boolean;
 };
 
 type ClipboardReader = {
@@ -96,7 +107,7 @@ export function UxpTextArea({
   value,
   onValue,
   onKeyDown,
-  uxpPopupOverlapWorkaround = false,
+  nativeEditorSuspended = false,
   style,
   className,
   placeholder,
@@ -108,6 +119,10 @@ export function UxpTextArea({
 }: UxpTextAreaProps) {
   const textAreaRef = useRef<HTMLTextAreaElement>(null);
   const pasteFallbackRequestRef = useRef(0);
+  const popupLayer = usePopupLayer();
+  const fallbackEditorId = useId();
+  const editorId = id ?? dataTestId ?? fallbackEditorId;
+  const editorSuspended = nativeEditorSuspended || (popupLayer?.isNativeEditorSuspended(editorId) ?? false);
 
   const bindRef = (element: HTMLTextAreaElement | null): void => {
     textAreaRef.current = element;
@@ -123,14 +138,21 @@ export function UxpTextArea({
   }, [value]);
 
   useEffect(() => {
+    popupLayer?.setNativeEditorElement(editorId, textAreaRef.current);
+    return () => {
+      popupLayer?.setNativeEditorElement(editorId, null);
+    };
+  }, [editorId, popupLayer]);
+
+  useEffect(() => {
     const textarea = textAreaRef.current;
-    if (!textarea || !uxpPopupOverlapWorkaround) {
+    if (!textarea || !editorSuspended) {
       return;
     }
     if (document.activeElement === textarea) {
       textarea.blur();
     }
-  }, [uxpPopupOverlapWorkaround]);
+  }, [editorSuspended]);
 
   const sync = useCallback(
     (target?: HTMLTextAreaElement | null) => {
@@ -197,12 +219,13 @@ export function UxpTextArea({
       placeholder={placeholder}
       defaultValue={value}
       data-uxp-textarea-native="true"
-      data-hit-test-suspended={uxpPopupOverlapWorkaround ? 'true' : undefined}
+      data-native-editor-suspended={editorSuspended ? 'true' : undefined}
       style={{
         ...style,
-        ...(uxpPopupOverlapWorkaround
+        ...(editorSuspended
           ? {
               display: 'none',
+              pointerEvents: 'none',
             }
           : null),
       }}
@@ -222,5 +245,63 @@ export function UxpTextArea({
 
   return (
     nativeTextArea
+  );
+}
+
+/**
+ * 为 settings 类多行输入提供稳定视觉外壳；native editor layer 只负责输入。
+ */
+export function UxpTextAreaField({
+  shellClassName,
+  shellVariant = 'settings',
+  className,
+  disabled,
+  nativeEditorSuspended = false,
+  hint,
+  invalid = false,
+  onFocus,
+  onBlur,
+  ...props
+}: UxpTextAreaFieldProps) {
+  const [focused, setFocused] = useState(false);
+  const popupLayer = usePopupLayer();
+  const fallbackEditorId = useId();
+  const editorId = props.id ?? props['data-testid'] ?? fallbackEditorId;
+  const editorSuspended = nativeEditorSuspended || (popupLayer?.isNativeEditorSuspended(editorId) ?? false);
+  const shellClasses = [
+    shellVariant === 'settings' ? 'field-textarea-shell' : '',
+    shellClassName ?? '',
+  ].filter(Boolean).join(' ');
+  const nativeClassName = [
+    shellVariant === 'settings' ? 'field-textarea-native' : '',
+    className ?? '',
+  ].filter(Boolean).join(' ');
+
+  return (
+    <>
+      <div
+        className={shellClasses}
+        data-focused={focused ? 'true' : undefined}
+        data-disabled={disabled ? 'true' : undefined}
+        data-invalid={invalid ? 'true' : undefined}
+        data-native-editor-suspended={editorSuspended ? 'true' : undefined}
+      >
+        <UxpTextArea
+          {...props}
+          className={nativeClassName}
+          disabled={disabled}
+          nativeEditorSuspended={editorSuspended}
+          onFocus={(event) => {
+            setFocused(true);
+            onFocus?.(event);
+          }}
+          onBlur={(event) => {
+            setFocused(false);
+            onBlur?.(event);
+          }}
+        />
+      </div>
+      {hint}
+    </>
   );
 }

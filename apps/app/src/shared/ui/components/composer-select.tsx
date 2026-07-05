@@ -136,11 +136,13 @@ export function ComposerSelect(props: ComposerSelectProps) {
   useEffect(() => {
     if (!open) {
       popupLayer?.releaseActivePopup(popupId);
+      popupLayer?.setOccludingOverlayElement(popupId, null);
       return undefined;
     }
     popupLayer?.requestActivePopup(popupId);
     return () => {
       popupLayer?.releaseActivePopup(popupId);
+      popupLayer?.setOccludingOverlayElement(popupId, null);
     };
   }, [open, popupId, popupLayer]);
 
@@ -216,6 +218,9 @@ export function ComposerSelect(props: ComposerSelectProps) {
       )}
       <MotionPresenceView visible={open} kind="popover">
         {({ ref, state }) => {
+          const bindOverlayRef = (element: HTMLDivElement | null) => {
+            popupLayer?.setOccludingOverlayElement(popupId, element);
+          };
           const menu = (
             <>
               {portalRoot ? (
@@ -226,6 +231,7 @@ export function ComposerSelect(props: ComposerSelectProps) {
                 menuId={menuId}
                 testId={testId}
                 visible={open}
+                overlayRef={bindOverlayRef}
                 menuRef={menuRef}
                 motionRef={ref}
                 motionState={state}

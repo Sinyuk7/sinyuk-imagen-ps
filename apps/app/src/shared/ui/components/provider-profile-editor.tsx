@@ -3,7 +3,7 @@ import { Icon } from './icons';
 import { useI18n } from '../i18n/i18n-context';
 import { TextField, FieldLabel, HelpText, Checkbox } from '../primitives/native-controls';
 import { IconButton } from '../primitives/icon-button';
-import { UxpTextArea } from './uxp-form-controls';
+import { UxpTextAreaField } from './uxp-form-controls';
 import {
   createProviderEndpointDraft,
   sanitizeProviderDisplayName,
@@ -488,15 +488,15 @@ export function ProviderProfileEditor({
 
         <div className="field field-textarea provider-system-instructions-field">
           <FieldLabel htmlFor="provider-system-instructions-input">{t.settings.systemInstructions}</FieldLabel>
-          <UxpTextArea
+          <UxpTextAreaField
             data-testid="provider-system-instructions-input"
             id="provider-system-instructions-input"
             className="field-textarea-input"
             value={systemInstructionValue}
             disabled={disabled}
             onValue={onSystemInstructionValue}
+            hint={<HelpText className="field-hint">{t.settings.systemInstructionsHint}</HelpText>}
           />
-          <HelpText className="field-hint">{t.settings.systemInstructionsHint}</HelpText>
         </div>
       </div>
     </div>

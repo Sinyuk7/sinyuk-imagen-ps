@@ -1660,7 +1660,7 @@ export function MainPage({
                   rows={2}
                   value={input}
                   onValue={composerDraft.setInput}
-                  uxpPopupOverlapWorkaround={composerTextAreaNeedsUxpPopupOverlapWorkaround}
+                  nativeEditorSuspended={composerTextAreaNeedsUxpPopupOverlapWorkaround}
                   onKeyDown={(event) => {
                     if (event.key === 'Enter' && !event.shiftKey && !isImeCompositionKey(event)) {
                       event.preventDefault();

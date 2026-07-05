@@ -7,6 +7,7 @@ interface ComposerSelectMenuProps {
   readonly menuId: string;
   readonly testId?: string;
   readonly visible: boolean;
+  readonly overlayRef?: (element: HTMLDivElement | null) => void;
   readonly menuRef: RefObject<HTMLDivElement | null>;
   readonly motionRef?: (element: HTMLElement | null) => void;
   readonly motionState?: string;
@@ -26,6 +27,7 @@ export function ComposerSelectMenu({
   menuId,
   testId,
   visible,
+  overlayRef,
   menuRef,
   motionRef,
   motionState,
@@ -88,6 +90,7 @@ export function ComposerSelectMenu({
 
   return (
     <div
+      ref={overlayRef}
       data-testid={testId ? `${testId}-popover` : undefined}
       className={placementClass}
       data-motion-state={motionState}
