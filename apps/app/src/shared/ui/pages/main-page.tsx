@@ -1,5 +1,5 @@
 import { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import type { ProviderModelInfo, ProviderProfile } from '@imagen-ps/application';
+import type { ProviderProfile } from '@imagen-ps/application';
 import { useAppServices } from '../../ports/app-services-context';
 import type { HostPort, LayerInfo } from '../../ports/host-port';
 import { suggestedGeneratedImageFileName } from '../../domain/asset-file';
@@ -52,6 +52,7 @@ import {
 import { classifyRoundError, type ErrorPrimaryAction } from '../error-action';
 import type { BalanceChange, ExactTaskCost } from '@imagen-ps/application';
 import { canSelectOutputSize, OUTPUT_SIZE_PRESETS, outputSizeLabel, type OutputSizeSelectionContext } from '../output-size';
+import type { UiModelInfo } from '../model-info';
 
 function isImeCompositionKey(event: React.KeyboardEvent): boolean {
   const nativeEvent = event.nativeEvent as KeyboardEvent & { readonly isComposing?: boolean };
@@ -66,7 +67,7 @@ interface MainPageProps {
   readonly selectedProfile: ProviderProfile | undefined;
   readonly selectedProfileId: string | null;
   readonly onSelectProfile: (profileId: string | null) => void;
-  readonly models: readonly ProviderModelInfo[];
+  readonly models: readonly UiModelInfo[];
   readonly modelsLoading: boolean;
   readonly modelsError: string | null;
   readonly selectedModelId: string;
@@ -168,7 +169,7 @@ function requestIdCopyKey(roundId: string): string {
   return `error-request:${roundId}`;
 }
 
-function dedupeById(models: readonly ProviderModelInfo[]): readonly ProviderModelInfo[] {
+function dedupeById(models: readonly UiModelInfo[]): readonly UiModelInfo[] {
   const seen = new Set<string>();
   return models.filter((model) => {
     if (seen.has(model.id)) {
@@ -179,14 +180,14 @@ function dedupeById(models: readonly ProviderModelInfo[]): readonly ProviderMode
   });
 }
 
-function modelIsSelectable(model: ProviderModelInfo | undefined): boolean {
+function modelIsSelectable(model: UiModelInfo | undefined): boolean {
   if (!model) {
     return false;
   }
-  return model.supportStatus === undefined || model.supportStatus === 'selectable';
+  return model.configured === true && model.selected === true;
 }
 
-function firstSupportedSize(model: ProviderModelInfo | undefined, operation: ComposerOperation): AppOutputSizePreset | null {
+function firstSupportedSize(model: UiModelInfo | undefined, operation: ComposerOperation): AppOutputSizePreset | null {
   const presets = supportedSizePresetsForOperation(model, operation);
   return presets === 'unknown' ? null : presets[0] ?? null;
 }
@@ -226,25 +227,12 @@ function readinessMessage(t: ReturnType<typeof useI18n>['messages'], state: Comp
   }
 }
 
-function modelAvailabilityReason(model: ProviderModelInfo | undefined, t: ReturnType<typeof useI18n>['messages']): string | null {
-  const reason = model?.availability?.reason;
-  if (model?.supportStatus === 'saved-undiscovered' || reason === 'not-remotely-available') {
-    return t.main.modelReasonNotRemotelyAvailable;
-  }
-  if (reason === 'auth-failed') {
-    return t.main.modelReasonAuthFailed;
-  }
-  if (reason === 'profile-misconfigured') {
-    return t.main.modelReasonProfileMisconfigured;
-  }
-  if (reason === 'model-discovery-failed') {
-    return t.main.modelReasonDiscoveryFailed;
-  }
+function modelAvailabilityReason(_model: UiModelInfo | undefined, _t: ReturnType<typeof useI18n>['messages']): string | null {
   return null;
 }
 
 function modelCapabilityReason(
-  model: ProviderModelInfo | undefined,
+  model: UiModelInfo | undefined,
   operation: ComposerOperation,
   outputSizePreset: AppOutputSizePreset,
   t: ReturnType<typeof useI18n>['messages'],

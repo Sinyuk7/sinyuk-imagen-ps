@@ -11,6 +11,7 @@ import {
 import { parseGeminiGenerateContentModelsResponse } from '../src/transport/gemini-generate-content/models.js';
 import { parseGeminiGenerateContentResponse } from '../src/transport/gemini-generate-content/parse-response.js';
 import { listLocalCatalogModels, resolveImageModelRule } from '../src/contract/image-model-capability.js';
+import { geminiGenerateContentModel } from './model-execution.js';
 
 const tinyPngBase64 = 'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+aF9sAAAAASUVORK5CYII=';
 const tinyJpegBase64 = '/9j/2Q==';
@@ -80,14 +81,14 @@ describe('gemini-generate-content provider', () => {
       request: {
         operation: 'text_to_image',
         prompt: 'make an image',
-        providerOptions: { model: 'gemini-3.1-flash-image' },
+        model: { modelId: 'gemini-3.1-flash-image', apiFormat: 'gemini-generate-content', requestStrategyId: 'gemini-generate-content-response-format-image' },
       },
     });
     const prefixed = buildGeminiGenerateContentRequest({
       request: {
         operation: 'text_to_image',
         prompt: 'make an image',
-        providerOptions: { model: 'models/gemini-3.1-flash-image' },
+        model: { modelId: 'models/gemini-3.1-flash-image', apiFormat: 'gemini-generate-content', requestStrategyId: 'gemini-generate-content-response-format-image' },
       },
     });
 
@@ -107,8 +108,8 @@ describe('gemini-generate-content provider', () => {
           sizePreset: '2k',
           aspectRatio: '16:9',
         },
+        model: geminiGenerateContentModel('models/gemini-3.1-flash-image'),
       },
-      defaultModel: 'models/gemini-3.1-flash-image',
     });
 
     expect(built.wireRevision).toBe('response-format-image');
@@ -201,10 +202,11 @@ describe('gemini-generate-content provider', () => {
     expect(parsed.models.map((model) => model.id)).toEqual([
       'gemini-3.1-flash-image',
       'gemini-3-pro-image',
+      'gemini-2.5-flash',
     ]);
   });
 
-  it('falls back to a narrow OpenAI-like model list only after native parse fails', () => {
+  it('falls back to an OpenAI-like model fact list only after native parse fails', () => {
     const parsed = parseGeminiGenerateContentModelsResponse({
       data: [
         { id: 'models/gemini-3.1-flash-image' },
@@ -217,6 +219,7 @@ describe('gemini-generate-content provider', () => {
     expect(parsed.models.map((model) => model.id)).toEqual([
       'gemini-3.1-flash-image',
       'gemini-3-pro-image',
+      'gpt-image-1',
     ]);
   });
 
@@ -267,6 +270,7 @@ describe('gemini-generate-content provider', () => {
         operation: 'text_to_image',
         prompt: 'test',
         output: { count: 1, sizePreset: '2k', aspectRatio: '16:9' },
+        model: geminiGenerateContentModel('models/gemini-3.1-flash-image'),
       }),
     });
 
@@ -343,7 +347,8 @@ describe('gemini-generate-content provider', () => {
       operation: 'text_to_image',
       prompt: 'test',
       output: { count: 1, sizePreset: '2k', aspectRatio: '1:1', outputFormat: 'png' },
-      providerOptions: { model: 'gemini-3.1-flash-image', unsupportedFlag: 'ignored' },
+      model: { modelId: 'gemini-3.1-flash-image', apiFormat: 'gemini-generate-content', requestStrategyId: 'gemini-generate-content-response-format-image' },
+        providerOptions: { unsupportedFlag: 'ignored' },
     });
 
     try {
@@ -459,7 +464,7 @@ describe('gemini-generate-content provider', () => {
     fetchSpy.mockRestore();
   });
 
-  it('falls back to the local Gemini catalog when discovery returns no curated generateContent models', async () => {
+  it('returns remote generateContent facts without local catalog fallback', async () => {
     const fetchSpy = vi.spyOn(globalThis, 'fetch').mockResolvedValue(
       new Response(
         JSON.stringify({
@@ -489,10 +494,7 @@ describe('gemini-generate-content provider', () => {
 
     const models = await provider.discoverModels?.(config);
 
-    expect(models).toEqual(listLocalCatalogModels('gemini-generate-content').map((model) => ({
-      ...model,
-      remotelyAvailable: false,
-    })));
+    expect(models).toEqual([{ id: 'gemini-2.5-flash' }]);
     fetchSpy.mockRestore();
   });
 
@@ -599,8 +601,6 @@ describe('gemini-generate-content provider', () => {
         sourceFormat: 'gemini-native',
         parsedModelCount: 1,
         returnedModelCount: 1,
-        fallbackLocalCatalogUsed: false,
-        remoteSelectableCount: 1,
         modelIds: ['gemini-3.1-flash-image'],
       });
       fetchSpy.mockRestore();
@@ -629,24 +629,15 @@ describe('gemini-generate-content provider', () => {
 
       const models = await provider.discoverModels?.(config, logger);
 
-      expect(models).toEqual(listLocalCatalogModels('gemini-generate-content').map((model) => ({
-        ...model,
-        remotelyAvailable: false,
-      })));
+      expect(models).toEqual([]);
       const summary = sink.records.find((record) => record.event === 'provider.gemini_generate_content.discover_models.summary');
       expect(summary?.attrs).toMatchObject({
         selectedEndpointId: 'primary',
         targetPath: '/models',
         sourceFormat: 'gemini-native',
         parsedModelCount: 0,
-        returnedModelCount: 3,
-        fallbackLocalCatalogUsed: true,
-        remoteSelectableCount: 3,
-        modelIds: [
-          'gemini-3.1-flash-image',
-          'gemini-3-pro-image',
-          'gemini-3.1-flash-lite-image',
-        ],
+        returnedModelCount: 0,
+        modelIds: [],
       });
       fetchSpy.mockRestore();
     }
@@ -717,7 +708,7 @@ describe('gemini-generate-content provider', () => {
       request: provider.validateRequest({
         operation: 'text_to_image',
         prompt: 'test',
-        providerOptions: { model: 'models/gemini-3-pro-image' },
+        model: { modelId: 'models/gemini-3-pro-image', apiFormat: 'gemini-generate-content', requestStrategyId: 'gemini-generate-content-response-format-image' },
         output: { sizePreset: '4k' },
       }),
     });

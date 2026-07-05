@@ -47,7 +47,7 @@ describe('resolvePaidRetryConfig', () => {
 
 describe('buildIdempotencyKey', () => {
   it('is stable for identical canonical requests', () => {
-    const request = { operation: 'text_to_image', prompt: 'a cat', providerOptions: { model: 'gpt-image-1' } };
+    const request = { operation: 'text_to_image', prompt: 'a cat', model: { modelId: 'gpt-image-1', apiFormat: 'openai-images', requestStrategyId: 'image-endpoint-variant' } };
     expect(buildIdempotencyKey(request)).toBe(buildIdempotencyKey({ ...request }));
   });
 

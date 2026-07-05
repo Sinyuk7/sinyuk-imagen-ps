@@ -3,24 +3,14 @@ import { deriveComposerReadiness } from '../src/shared/ui/composer-readiness';
 
 const textOnlyModel = {
   id: 'dall-e-3',
-  supportStatus: 'selectable',
-  capabilities: {
-    operations: {
-      textToImage: { support: 'supported', sizePresets: ['1k', '2k'] },
-      imageEdit: { support: 'unsupported', sizePresets: [], reason: 'operation-unsupported' },
-    },
-  },
+  configured: true,
+  selected: true,
 } as const;
 
 const readyModel = {
   id: 'gpt-image-2',
-  supportStatus: 'selectable',
-  capabilities: {
-    operations: {
-      textToImage: { support: 'supported', sizePresets: ['512', '1k', '2k', '4k'] },
-      imageEdit: { support: 'supported', sizePresets: ['512', '1k', '2k', '4k'] },
-    },
-  },
+  configured: true,
+  selected: true,
 } as const;
 
 const base = {
@@ -48,7 +38,7 @@ describe('composer readiness', () => {
     });
   });
 
-  it('keeps capability blockers ahead of prompt emptiness', () => {
+  it('does not infer operation blockers from profile model list items', () => {
     expect(deriveComposerReadiness({
       ...base,
       selectedModelId: 'dall-e-3',
@@ -56,12 +46,12 @@ describe('composer readiness', () => {
       operation: 'image-edit',
       prompt: '',
     })).toEqual({
-      state: 'model-does-not-support-image-edit',
+      state: 'enter-prompt',
       canSend: false,
     });
   });
 
-  it('keeps size conflicts ahead of prompt emptiness', () => {
+  it('does not infer size blockers from profile model list items', () => {
     expect(deriveComposerReadiness({
       ...base,
       selectedModelId: 'dall-e-3',
@@ -69,7 +59,7 @@ describe('composer readiness', () => {
       outputSizePreset: '4k',
       prompt: '',
     })).toEqual({
-      state: 'size-unsupported',
+      state: 'enter-prompt',
       canSend: false,
     });
   });

@@ -6,6 +6,7 @@ import { buildChatImageRequest, buildChatImageRequestBody } from '../src/transpo
 import { parseChatImageModelsResponse } from '../src/transport/chat-image/models.js';
 import { parseChatImageResponse } from '../src/transport/chat-image/parse-response.js';
 import { resolveChatImageWireCodec } from '../src/transport/chat-image/request-codec.js';
+import { chatImageModel } from './model-execution.js';
 
 const tinyPngBase64 = 'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+aF9sAAAAASUVORK5CYII=';
 const tinyPngDataUrl = `data:image/png;base64,${tinyPngBase64}`;
@@ -50,8 +51,9 @@ describe('chat-image provider', () => {
       {
         operation: 'text_to_image',
         prompt: 'legacy request',
+        model: chatImageModel('google/gemini-2.5-flash-image-preview'),
       },
-      { defaultModel: 'google/gemini-2.5-flash-image-preview' },
+      {},
     )).toMatchObject({
       method: 'POST',
       path: '/chat/completions',
@@ -119,8 +121,8 @@ describe('chat-image provider', () => {
         operation: 'text_to_image',
         prompt: 'a red square',
         output: { count: 1, width: 1024, height: 1024 },
+        model: chatImageModel('google/gemini-2.5-flash-image-preview'),
       },
-      'google/gemini-2.5-flash-image-preview',
     );
 
     expect(body).toMatchObject({
@@ -143,8 +145,8 @@ describe('chat-image provider', () => {
           aspectRatio: '9:16',
           outputFormat: 'png',
         },
+        model: chatImageModel('google/gemini-2.5-flash-image-preview'),
       },
-      'google/gemini-2.5-flash-image-preview',
     );
 
     expect(body).toMatchObject({
@@ -170,8 +172,8 @@ describe('chat-image provider', () => {
           aspectRatio: 'source',
           outputFormat: 'png',
         },
+        model: chatImageModel('google/gemini-2.5-flash-image-preview'),
       },
-      'google/gemini-2.5-flash-image-preview',
     );
 
     expect(body.image_config).toMatchObject({
@@ -188,8 +190,8 @@ describe('chat-image provider', () => {
         prompt: 'make it blue',
         images: [{ type: 'image', data: 'abc', mimeType: 'image/png' }],
         maskImage: { type: 'image', url: 'https://example.com/mask.png' },
+        model: chatImageModel('google/gemini-2.5-flash-image-preview'),
       },
-      'google/gemini-2.5-flash-image-preview',
     );
 
     expect(body.messages[0].content).toEqual([
@@ -206,8 +208,8 @@ describe('chat-image provider', () => {
         operation: 'image_edit',
         prompt: 'use bytes',
         images: [{ type: 'image', data: new Uint8Array([1, 2, 3]), mimeType: 'image/png' }],
+        model: chatImageModel('google/gemini-2.5-flash-image-preview'),
       },
-      'google/gemini-2.5-flash-image-preview',
     );
 
     expect(body.messages[0].content).toContainEqual({
@@ -232,8 +234,8 @@ describe('chat-image provider', () => {
           unsupported_flag: true,
           user: 'trace-user',
         },
+        model: chatImageModel('google/gemini-2.5-flash-image-preview'),
       },
-      'google/gemini-2.5-flash-image-preview',
     );
 
     expect(built.body).toMatchObject({
@@ -468,10 +470,12 @@ describe('chat-image provider', () => {
         ],
       }).map((model) => model.id),
     ).toEqual([
+      'openai/gpt-4.1',
       'google/gemini-2.5-flash-image-preview',
-      'gemini-3-pro-image',
+      'google/gemini-3-pro-image',
       'gemini-3.1-flash-image',
       'openai/gpt-image-2',
+      'banana-preview-v2',
     ]);
   });
 
@@ -498,7 +502,7 @@ describe('chat-image provider', () => {
 
     const models = await provider.discoverModels?.(config);
 
-    expect(models?.map((model) => model.id)).toEqual(['gemini-3-pro-image']);
+    expect(models?.map((model) => model.id)).toEqual(['google/gemini-3-pro-image']);
     expect(String(fetchSpy.mock.calls[0]?.[0])).toBe('https://openrouter.ai/api/v1/models');
     fetchSpy.mockRestore();
   });
@@ -621,7 +625,11 @@ describe('chat-image provider', () => {
       apiKey: 'test-key',
       defaultModel: 'google/gemini-2.5-flash-image-preview',
     });
-    const request = provider.validateRequest({ operation: 'text_to_image', prompt: 'test' });
+    const request = provider.validateRequest({
+      operation: 'text_to_image',
+      prompt: 'test',
+      model: chatImageModel('google/gemini-2.5-flash-image-preview'),
+    });
 
     const result = await provider.invoke({ config, request });
 
@@ -660,6 +668,7 @@ describe('chat-image provider', () => {
       operation: 'text_to_image',
       prompt: 'test',
       output: { count: 1 },
+      model: chatImageModel('google/gemini-2.5-flash-image-preview'),
     });
 
     const result = await provider.invoke({ config, request });
@@ -706,7 +715,7 @@ describe('chat-image provider', () => {
       operation: 'text_to_image',
       prompt: 'test',
       output: { count: 1, outputFormat: 'png' },
-      providerOptions: { model: 'gemini-3.1-flash-image' },
+      model: chatImageModel('gemini-3.1-flash-image'),
     });
 
     await provider.invoke({ config, request, logger });
@@ -787,6 +796,7 @@ describe('chat-image provider', () => {
           image_config: { aspect_ratio: '9:16' },
           unsupported_flag: true,
         },
+        model: chatImageModel('google/gemini-2.5-flash-image-preview'),
       }),
     });
 

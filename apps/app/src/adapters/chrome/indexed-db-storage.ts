@@ -3,18 +3,22 @@ import type {
   AssetStore,
   DurableJobRecord,
   JobHistoryStore,
+  ModelDiscoveryCache,
+  ModelDiscoveryCacheRepository,
   ProviderProfile,
   ProviderProfileRepository,
   SecretStorageAdapter,
   StoredAssetRef,
   TaskRecord,
   TaskStore,
+  UserModelConfig,
+  UserModelConfigRepository,
 } from '@imagen-ps/application';
 import type { ActiveImageProfileStore } from '../../shared/ports/active-image-profile';
 import { DEFAULT_APP_GENERATION_SETTINGS, normalizeAppGenerationSettings, type AppGenerationSettings, type AppGenerationSettingsStore } from '../../shared/ports/app-generation-settings';
 import { normalizePromptSettings, type PromptSettings, type PromptSettingsStore } from '../../shared/ports/prompt-settings';
 
-export type ChromeStoreName = 'profiles' | 'secrets' | 'history' | 'tasks' | 'assets' | 'appSettings';
+export type ChromeStoreName = 'profiles' | 'secrets' | 'history' | 'tasks' | 'assets' | 'appSettings' | 'modelDiscovery' | 'userModelConfigs';
 
 export interface ChromeKeyValueBackend {
   get<T>(store: ChromeStoreName, key: string): Promise<T | undefined>;
@@ -31,8 +35,8 @@ interface ChromeStoredRecord<T> {
 }
 
 const CHROME_DB_NAME = 'imagen-ps-chrome-runtime';
-const CHROME_DB_VERSION = 3;
-const CHROME_STORES: readonly ChromeStoreName[] = ['profiles', 'secrets', 'history', 'tasks', 'assets', 'appSettings'];
+const CHROME_DB_VERSION = 4;
+const CHROME_STORES: readonly ChromeStoreName[] = ['profiles', 'secrets', 'history', 'tasks', 'assets', 'appSettings', 'modelDiscovery', 'userModelConfigs'];
 const GENERATION_SETTINGS_KEY = 'generation';
 const PROMPT_SETTINGS_KEY = 'prompt';
 const ACTIVE_IMAGE_PROFILE_KEY = 'activeImageProfile';
@@ -124,6 +128,8 @@ export function createMemoryIndexedDbBackend(options?: {
     tasks: new Map(),
     assets: new Map(),
     appSettings: new Map(),
+    modelDiscovery: new Map(),
+    userModelConfigs: new Map(),
   };
   for (const [store, records] of Object.entries(options?.initial ?? {}) as Array<[
     ChromeStoreName,
@@ -187,6 +193,8 @@ export function createChromeIndexedDbStorage(options?: { readonly backend?: Chro
   readonly history: JobHistoryStore;
   readonly tasks: TaskStore;
   readonly assets: AssetStore;
+  readonly modelDiscovery: ModelDiscoveryCacheRepository;
+  readonly userModelConfigs: UserModelConfigRepository;
   readonly generationSettings: AppGenerationSettingsStore;
   readonly promptSettings: PromptSettingsStore;
   readonly activeImageProfile: ActiveImageProfileStore;
@@ -297,6 +305,32 @@ export function createChromeIndexedDbStorage(options?: { readonly backend?: Chro
       },
       async delete(ref): Promise<void> {
         await backend.delete('assets', ref.ref);
+      },
+    },
+    modelDiscovery: {
+      async get(profileId): Promise<ModelDiscoveryCache | undefined> {
+        return backend.get<ModelDiscoveryCache>('modelDiscovery', profileId);
+      },
+      async put(cache): Promise<void> {
+        await backend.put('modelDiscovery', cache.profileId, cache);
+      },
+      async delete(profileId): Promise<void> {
+        await backend.delete('modelDiscovery', profileId);
+      },
+    },
+    userModelConfigs: {
+      async list(apiFormat): Promise<readonly UserModelConfig[]> {
+        const configs = await backend.list<UserModelConfig>('userModelConfigs');
+        return apiFormat === undefined ? configs : configs.filter((config) => config.apiFormat === apiFormat);
+      },
+      async get(apiFormat, modelId): Promise<UserModelConfig | undefined> {
+        return backend.get<UserModelConfig>('userModelConfigs', `${apiFormat}:${modelId}`);
+      },
+      async save(config): Promise<void> {
+        await backend.put('userModelConfigs', `${config.apiFormat}:${config.modelId}`, config);
+      },
+      async delete(apiFormat, modelId): Promise<void> {
+        await backend.delete('userModelConfigs', `${apiFormat}:${modelId}`);
       },
     },
     generationSettings: {

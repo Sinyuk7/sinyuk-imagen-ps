@@ -54,6 +54,16 @@ function createProfileId(): string {
   return `profile-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`;
 }
 
+function selectedModelInput(defaultModel: string): {
+  readonly selectedModelIds?: readonly string[];
+  readonly defaultModelId?: string;
+} {
+  const modelId = defaultModel.trim();
+  return modelId.length > 0
+    ? { selectedModelIds: [modelId], defaultModelId: modelId }
+    : {};
+}
+
 function defaultConnection(): ProviderConnectionDraft {
   return normalizeProviderConnectionDraft({
     selectionMode: 'manual',
@@ -258,6 +268,7 @@ export function SettingsAddPage({ onNav, profiles, onProfileSaved }: SettingsAdd
       displayName,
       systemInstruction,
       config: providerConfigFromForm(apiFormat, displayName, nextConnection, defaultModel, paths, nextBilling),
+      ...selectedModelInput(defaultModel),
       ...(sanitizeProviderSecretValue(apiKey) ? { secretValues: { apiKey: sanitizeProviderSecretValue(apiKey) } } : {}),
     };
   };
@@ -434,6 +445,7 @@ export function SettingsAddPage({ onNav, profiles, onProfileSaved }: SettingsAdd
       systemInstruction,
       enabled: true,
       config: providerConfigFromForm(apiFormat, displayName, connection, defaultModel, paths, billing),
+      ...selectedModelInput(defaultModel),
       ...((sanitizeProviderSecretValue(apiKey) || sanitizeProviderSecretValue(billing.accessToken))
         ? {
             secretValues: {

@@ -13,7 +13,6 @@ import {
   providerImplementationIdForApiFormat,
   resolveProfileApiFormat,
 } from './api-format-profile.js';
-import { assertSupportedDraftDefaultModel } from './default-model-validation.js';
 
 type DraftCommandInput = MeasureProfileEndpointsInput | TestProviderProfileConnectionInput | RefreshDraftProfileModelsInput;
 
@@ -75,13 +74,6 @@ export async function resolveDraftProviderContext(input: DraftCommandInput): Pro
   const resolvedSecrets = await resolveDraftSecrets(existing, input);
   const displayName = input.displayName ?? existing?.displayName ?? provider.describe().displayName;
   const normalizedConfig = normalizeProfileApiConfig(apiFormat, mergedConfig);
-  assertSupportedDraftDefaultModel({
-    profileId: input.profileId ?? 'draft',
-    apiFormat,
-    config: normalizedConfig,
-    descriptor: provider.describe(),
-    models: existing?.models,
-  });
   const providerConfig = provider.validateConfig({
     providerId: implementationId,
     displayName,

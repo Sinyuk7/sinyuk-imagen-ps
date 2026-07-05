@@ -2,7 +2,7 @@ import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, typ
 import { AppServicesProvider } from '../ports/app-services-context';
 import type { AppServices } from '../ports/app-services';
 import type { LayerInfo } from '../ports/host-port';
-import type { ProviderModelInfo, ProviderProfile } from '@imagen-ps/application';
+import type { ProviderProfile } from '@imagen-ps/application';
 import type { SupportedLocale } from '../domain/locale';
 import type { PluginAppModel } from '../domain/plugin-app-model';
 import { useConversation } from './hooks/use-conversation';
@@ -28,6 +28,7 @@ import { placeTaskOutputOnCanvas, saveTaskOutputToFile } from '../domain/task-ac
 import type { TaskRecord } from '@imagen-ps/application';
 import { MotionPageFrame } from './components/motion-ui';
 import type { OutputSizeSelectionContext } from './output-size';
+import { mainSelectableModels, type UiModelInfo } from './model-info';
 
 export interface AppShellHost {
   readonly app: PluginAppModel;
@@ -183,14 +184,13 @@ function useHostLayers(host: AppShellHost): {
 }
 
 function defaultModelFor(profile: ProviderProfile | undefined): string {
-  const configured = profile?.config.defaultModel;
-  return typeof configured === 'string' ? configured : '';
+  return profile?.defaultModelId ?? '';
 }
 
 function mergeConfiguredDefaultModel(
-  models: readonly ProviderModelInfo[],
-): readonly ProviderModelInfo[] {
-  return models;
+  models: readonly UiModelInfo[],
+): readonly UiModelInfo[] {
+  return mainSelectableModels(models);
 }
 
 function AppShellContent({ host }: AppShellProps) {
@@ -298,8 +298,9 @@ function AppShellContent({ host }: AppShellProps) {
       return;
     }
     const configured = defaultModelFor(selectedProfile);
-    const selectable = available.find((model) => model.supportStatus === undefined || model.supportStatus === 'selectable');
-    const next = configured || selectable?.id || available[0]?.id || '';
+    const next = available.some((model) => model.id === configured)
+      ? configured
+      : available[0]?.id ?? '';
     setSelectedModelId(next);
   }, [imageModels, selectedProfile, selectedModelId]);
 

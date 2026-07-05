@@ -9,7 +9,7 @@ import type {
 } from '../../contract/provider.js';
 import type { ProviderBalanceSnapshot } from '../../contract/billing.js';
 import type { ProviderInvokeResult } from '../../contract/result.js';
-import type { ProviderModelInfo } from '../../contract/model.js';
+import type { DiscoveredModel } from '../../contract/model.js';
 import { mockRequestSchema, type MockProviderRequest } from '../mock/request-schema.js';
 import { chatImageConfigSchema, type ChatImageProviderConfig } from './config-schema.js';
 import { chatImageDescriptor } from './descriptor.js';
@@ -20,7 +20,6 @@ import { resolvePaidRetryConfig, resolveIdempotencyHeader } from '../../transpor
 import { resolveChatImageWireCodec } from '../../transport/chat-image/request-codec.js';
 import type { ParsedChatImageResponse } from '../../transport/chat-image/parse-response.js';
 import { parseChatImageModelsResponse } from '../../transport/chat-image/models.js';
-import { listLocalCatalogModels } from '../../contract/image-model-capability.js';
 import {
   fetchProviderBalanceJson,
   parseNewApiBalanceResponse,
@@ -163,7 +162,7 @@ export function createChatImageProvider(): Provider<ChatImageProviderConfig, Moc
         provider_id: chatImageDescriptor.id,
       });
       const requestCodec = resolveChatImageWireCodec(chatImageDescriptor);
-      const builtRequest = requestCodec.buildRequest(request, { defaultModel: config.defaultModel });
+      const builtRequest = requestCodec.buildRequest(request, {});
       const { body } = builtRequest;
       const imageConfig = recordField(body.image_config);
       const requestedOutputFormat = stringField(request.output?.outputFormat);
@@ -296,7 +295,7 @@ export function createChatImageProvider(): Provider<ChatImageProviderConfig, Moc
       return result;
     },
 
-    async discoverModels(config: ChatImageProviderConfig): Promise<readonly ProviderModelInfo[]> {
+    async discoverModels(config: ChatImageProviderConfig): Promise<readonly DiscoveredModel[]> {
       const execution = await executeWithEndpointFailover({
         connection: config.connection,
         retryPolicy: { maxRetries: 0, baseDelayMs: 0, factor: 1 },
@@ -316,11 +315,7 @@ export function createChatImageProvider(): Provider<ChatImageProviderConfig, Moc
           undefined,
         ),
       });
-      const discovered = parseChatImageModelsResponse(execution.value.response.data);
-      return discovered.length > 0 ? discovered : listLocalCatalogModels('chat-image').map((model) => ({
-        ...model,
-        remotelyAvailable: false,
-      }));
+      return parseChatImageModelsResponse(execution.value.response.data);
     },
 
     async measureEndpoints(
@@ -358,13 +353,10 @@ export function createChatImageProvider(): Provider<ChatImageProviderConfig, Moc
     ): Promise<ProviderConnectionTestResult> {
       try {
         const models = await this.discoverModels!(config);
-        const selectableCount = models.filter(
-          (model) => model.supportStatus === undefined || model.supportStatus === 'selectable',
-        ).length;
         return {
           supported: true,
           reachable: true,
-          modelCount: selectableCount,
+          modelCount: models.length,
           models,
         };
       } catch (error) {

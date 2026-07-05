@@ -9,7 +9,7 @@ import type {
   ProviderBalanceSnapshot,
 } from './billing.js';
 import type { ProviderConfig } from './config.js';
-import type { ProviderModelInfo } from './model.js';
+import type { DiscoveredModel, ProviderModelInfo } from './model.js';
 import type { CanonicalImageJobRequest, ProviderRequest } from './request.js';
 import type { ProviderInvokeResult } from './result.js';
 
@@ -239,7 +239,7 @@ export interface ProviderConnectionTestResult {
   readonly modelCount?: number;
 
   /** 可选模型列表。 */
-  readonly models?: readonly ProviderModelInfo[];
+  readonly models?: readonly DiscoveredModel[];
 }
 
 /** provider 实例需要遵循的最小公开契约。 */
@@ -286,7 +286,7 @@ export interface Provider<TConfig = ProviderConfig, TRequest = CanonicalImageJob
    * 并返回 validation error。实现可能抛错以表示 discovery 失败，调用方
    * SHALL 按 `refreshProfileModels` 失败语义处理。
    */
-  discoverModels?(config: TConfig, logger?: Logger): Promise<readonly ProviderModelInfo[]>;
+  discoverModels?(config: TConfig, logger?: Logger): Promise<readonly DiscoveredModel[]>;
 
   /**
    * Implementation 的 endpoint 测速能力（OPTIONAL）。

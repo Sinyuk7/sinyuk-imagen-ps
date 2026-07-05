@@ -1,4 +1,5 @@
 import type { Asset } from '@imagen-ps/core-engine';
+import type { ApiFormat } from './api-format.js';
 import type { ProviderOperation } from './capability.js';
 
 /**
@@ -54,6 +55,18 @@ export interface ProviderOutputOptions {
   readonly inputFidelity?: 'high' | 'low';
 }
 
+/** Provider builder 已解析的模型执行配置。 */
+export interface ProviderModelExecution {
+  /** 实际发送给上游的 wire model ID。 */
+  readonly modelId: string;
+
+  /** 当前 API format；builder 用它校验策略归属。 */
+  readonly apiFormat: ApiFormat;
+
+  /** Provider-owned 请求构造策略 ID。 */
+  readonly requestStrategyId: string;
+}
+
 /** 当前阶段稳定公开的 canonical image request。 */
 export interface CanonicalImageJobRequest {
   /** 当前请求是 text_to_image 还是 image_edit。 */
@@ -70,6 +83,9 @@ export interface CanonicalImageJobRequest {
 
   /** 期望输出。 */
   readonly output?: ProviderOutputOptions;
+
+  /** Application 已解析的模型执行配置。 */
+  readonly model?: ProviderModelExecution;
 
   /** 受控的 provider-specific 透传空间。 */
   readonly providerOptions?: Readonly<Record<string, unknown>>;

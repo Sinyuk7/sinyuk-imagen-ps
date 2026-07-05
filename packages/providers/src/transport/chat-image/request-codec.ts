@@ -6,10 +6,7 @@ import type { ParsedChatImageResponse } from './parse-response.js';
 import { chatCompletionsImageLegacyCodec } from './legacy-codec.js';
 
 /** Chat image codec 的构建上下文。 */
-export interface ChatImageCodecContext {
-  /** provider config 中声明的默认 model。 */
-  readonly defaultModel?: string;
-}
+export interface ChatImageCodecContext {}
 
 /** Chat image codec 构造出的完整执行请求。 */
 export interface BuiltChatImageRequest {

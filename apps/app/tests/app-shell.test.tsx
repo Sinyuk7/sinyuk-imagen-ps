@@ -2,7 +2,7 @@ import { act } from 'react';
 import { createRoot, type Root } from 'react-dom/client';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { AppShell } from '../src/shared/ui/app-shell';
-import { createFakeServices, fakeProfile } from './fakes';
+import { createFakeServices, fakeProfile, profileModelItem } from './fakes';
 import type { Job } from '@imagen-ps/application';
 import type { UxpFlightRecorder } from '../src/host/uxp-log-sink';
 import { NON_UXP_RUNTIME_CAPABILITIES } from '../src/shared/ports/host-port';
@@ -731,28 +731,17 @@ describe('AppShell', () => {
     expect(iconSelectValue(container, '[data-testid="global-output-size-selector"]')).toContain('4K');
   });
 
-  it('uses the shared composer operation when global settings evaluates output-size availability', async () => {
+  it('does not apply local output-size capability limits from profile model items', async () => {
     const { services } = createFakeServices({
       profiles: [{
         ...fakeProfile,
-        config: {
-          ...fakeProfile.config,
-          defaultModel: 'image-edit-1k',
-        },
+        selectedModelIds: ['image-edit-1k'],
+        defaultModelId: 'image-edit-1k',
       }],
     });
     vi.mocked(services.commands.listProfileModels).mockResolvedValue({
       ok: true as const,
-      value: [{
-        id: 'image-edit-1k',
-        supportStatus: 'selectable',
-        capabilities: {
-          operations: {
-            textToImage: { support: 'supported', sizePresets: ['1k', '2k', '4k'] },
-            imageEdit: { support: 'supported', sizePresets: ['1k'] },
-          },
-        },
-      }],
+      value: [profileModelItem('image-edit-1k', { default: true })],
     });
     const container = document.createElement('div');
     document.body.appendChild(container);
@@ -803,35 +792,24 @@ describe('AppShell', () => {
     });
     await flush();
 
-    expect(container.querySelector('[data-testid="toast"]')?.textContent).toContain('此模型不支持 4K');
-    expect(iconSelectValue(container, '[data-testid="global-output-size-selector"]')).toContain('1K');
+    expect(container.querySelector('[data-testid="toast"]')?.textContent).not.toContain('此模型不支持 4K');
+    expect(iconSelectValue(container, '[data-testid="global-output-size-selector"]')).toContain('4K');
   });
 
-  it('writes output-size auto-fallback back into global settings after shared draft context switches operation', async () => {
+  it('keeps output-size selection when shared draft context switches operation without local model limits', async () => {
     const { services } = createFakeServices({
       generationSettings: {
         outputSizePreset: '4k',
       },
       profiles: [{
         ...fakeProfile,
-        config: {
-          ...fakeProfile.config,
-          defaultModel: 'image-edit-1k',
-        },
+        selectedModelIds: ['image-edit-1k'],
+        defaultModelId: 'image-edit-1k',
       }],
     });
     vi.mocked(services.commands.listProfileModels).mockResolvedValue({
       ok: true as const,
-      value: [{
-        id: 'image-edit-1k',
-        supportStatus: 'selectable',
-        capabilities: {
-          operations: {
-            textToImage: { support: 'supported', sizePresets: ['1k', '2k', '4k'] },
-            imageEdit: { support: 'supported', sizePresets: ['1k'] },
-          },
-        },
-      }],
+      value: [profileModelItem('image-edit-1k', { default: true })],
     });
     const container = document.createElement('div');
     document.body.appendChild(container);
@@ -865,7 +843,7 @@ describe('AppShell', () => {
     await flush();
     await flush();
 
-    expect(iconSelectValue(container, '[data-testid="composer-output-size-selector"]')).toContain('1K');
+    expect(iconSelectValue(container, '[data-testid="composer-output-size-selector"]')).toContain('4K');
 
     await act(async () => {
       container.querySelector<HTMLButtonElement>('[data-testid="main-providers-button"]')?.click();
@@ -877,36 +855,32 @@ describe('AppShell', () => {
     await flush();
     await flush();
 
-    expect(iconSelectValue(container, '[data-testid="global-output-size-selector"]')).toContain('1K');
+    expect(iconSelectValue(container, '[data-testid="global-output-size-selector"]')).toContain('4K');
   });
 
   it('updates main-page model after settings saves a new supported default model', async () => {
     const { services, spies } = createFakeServices({
       profiles: [{
+        ...fakeProfile,
         profileId: 'mock-profile',
-        providerId: 'mock',
         displayName: 'Mock Profile',
         enabled: true,
         config: {
-          providerId: 'mock',
-          displayName: 'Mock Profile',
-          family: 'image-endpoint',
-          baseURL: 'https://mock.local',
-          defaultModel: 'gpt-image2',
+          ...fakeProfile.config,
         },
-        secretRefs: {
-          apiKey: 'secret:provider-profile:mock-profile:apiKey',
-        },
+        selectedModelIds: ['gpt-image2', 'mock-image-v1'],
+        defaultModelId: 'gpt-image2',
         createdAt: '2026-06-15T00:00:00.000Z',
         updatedAt: '2026-06-15T00:00:00.000Z',
       }],
     });
     spies.listProfileModels.mockImplementation(async () => {
       const profiles = await services.commands.listProviderProfiles();
-      const defaultModel = profiles.ok ? String(profiles.value[0]?.config.defaultModel ?? '') : '';
+      const defaultModel = profiles.ok ? String(profiles.value[0]?.defaultModelId ?? '') : '';
+      const ids = Array.from(new Set([defaultModel, 'mock-image-v1'].filter((id) => id.length > 0)));
       return {
         ok: true as const,
-        value: defaultModel ? [{ id: defaultModel }, { id: 'mock-image-v1' }] : [{ id: 'mock-image-v1' }],
+        value: ids.map((id) => profileModelItem(id, { default: id === defaultModel })),
       };
     });
     const container = document.createElement('div');
@@ -944,10 +918,12 @@ describe('AppShell', () => {
       container.querySelector<HTMLElement>('[data-testid="provider-default-model-selector"]')?.click();
     });
     await flush();
+    expect(document.body.querySelector('[data-testid="provider-default-model-selector-option-mock-image-v1"]')).not.toBeNull();
     await act(async () => {
       document.body.querySelector<HTMLElement>('[data-testid="provider-default-model-selector-option-mock-image-v1"]')?.click();
     });
     await flush();
+    expect(container.querySelector<HTMLButtonElement>('[data-testid="provider-save-button"]')?.disabled).toBe(false);
 
     await act(async () => {
       container.querySelector<HTMLButtonElement>('[data-testid="provider-save-button"]')?.click();
@@ -956,9 +932,8 @@ describe('AppShell', () => {
     await flush();
 
     expect(spies.saveProviderProfile).toHaveBeenCalledWith(expect.objectContaining({
-      config: expect.objectContaining({
-        defaultModel: 'mock-image-v1',
-      }),
+      selectedModelIds: ['mock-image-v1'],
+      defaultModelId: 'mock-image-v1',
     }));
     expect(container.querySelector('[data-testid="toast"]')?.textContent).toContain('Saved');
     await act(async () => {
@@ -970,7 +945,7 @@ describe('AppShell', () => {
   });
 
   it('ignores stale profile model responses after switching profiles', async () => {
-    type ListProfileModelsResult = { readonly ok: true; readonly value: readonly { readonly id: string }[] };
+    type ListProfileModelsResult = { readonly ok: true; readonly value: readonly ReturnType<typeof profileModelItem>[] };
     const slowFirstProfileModels = deferred<ListProfileModelsResult>();
     const { services, spies } = createFakeServices({
       profiles: [
@@ -984,10 +959,8 @@ describe('AppShell', () => {
           ...fakeProfile,
           profileId: 'profile-b',
           displayName: 'Provider B',
-          config: {
-            ...fakeProfile.config,
-            defaultModel: 'model-b',
-          },
+          selectedModelIds: ['model-b'],
+          defaultModelId: 'model-b',
           updatedAt: '2026-06-15T00:00:01.000Z',
         },
       ],
@@ -997,7 +970,7 @@ describe('AppShell', () => {
       if (profileId === 'profile-a') {
         return slowFirstProfileModels.promise;
       }
-      return { ok: true as const, value: [{ id: 'model-b' }] };
+      return { ok: true as const, value: [profileModelItem('model-b', { default: true })] };
     });
     const container = document.createElement('div');
     document.body.appendChild(container);
@@ -1032,7 +1005,7 @@ describe('AppShell', () => {
     expect(iconSelectValue(container, '[data-testid="main-model-selector"]')).toContain('model-b');
 
     await act(async () => {
-      slowFirstProfileModels.resolve({ ok: true as const, value: [{ id: 'model-a' }] });
+      slowFirstProfileModels.resolve({ ok: true as const, value: [profileModelItem('model-a', { default: true })] });
       await Promise.resolve();
     });
     await flush();

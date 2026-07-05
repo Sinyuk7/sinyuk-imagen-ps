@@ -133,8 +133,13 @@ function storedImageEndpointProfile(input: {
   readonly displayName: string;
   readonly config: ProviderProfile['config'];
   readonly secretRef?: string;
-  readonly models?: readonly Array<{ readonly id: string }>;
+  readonly selectedModelIds?: readonly string[];
+  readonly defaultModelId?: string;
 }): ProviderProfile {
+  const defaultModel = input.defaultModelId
+    ?? (typeof input.config.defaultModel === 'string' ? input.config.defaultModel : undefined)
+    ?? 'gpt-image-2';
+  const selectedModelIds = input.selectedModelIds ?? [defaultModel];
   return {
     profileId: input.profileId,
     apiFormat: 'openai-images',
@@ -142,7 +147,8 @@ function storedImageEndpointProfile(input: {
     enabled: true,
     config: input.config,
     ...(input.secretRef ? { secretRefs: { apiKey: input.secretRef } } : {}),
-    ...(input.models ? { models: input.models } : {}),
+    selectedModelIds,
+    defaultModelId: defaultModel,
     createdAt: '2026-07-02T00:00:00.000Z',
     updatedAt: '2026-07-02T00:00:00.000Z',
   };

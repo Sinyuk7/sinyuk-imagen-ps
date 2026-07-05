@@ -11,6 +11,7 @@ import {
   resolveImageEditCodec,
   serializeImageEditCompatibilityFingerprint,
 } from '../src/transport/image-endpoint/wire-compatibility.js';
+import { imageEndpointModel } from './model-execution.js';
 
 const descriptorWithWire: ProviderDescriptor = {
   id: 'image-endpoint',
@@ -72,6 +73,7 @@ describe('image endpoint wire compatibility', () => {
         operation: 'image_edit',
         prompt: 'edit',
         images: [{ type: 'image', url: 'https://example.com/input.png' }],
+        model: imageEndpointModel('gpt-image-2'),
       },
     });
 
@@ -90,6 +92,7 @@ describe('image endpoint wire compatibility', () => {
         operation: 'image_edit',
         prompt: 'edit',
         images: [{ type: 'image', data: 'iVBORw0KGgo=', mimeType: 'image/png' }],
+        model: imageEndpointModel('gpt-image-2'),
       },
     });
 
@@ -108,6 +111,7 @@ describe('image endpoint wire compatibility', () => {
         operation: 'image_edit' as const,
         prompt: 'edit',
         images: [{ type: 'image', data: 'iVBORw0KGgo=', mimeType: 'image/png' }],
+        model: imageEndpointModel('gpt-image-2'),
       },
     };
     const first = resolveImageEditCodec(args);
@@ -130,6 +134,7 @@ describe('image endpoint wire compatibility', () => {
         operation: 'image_edit' as const,
         prompt: 'edit',
         images: [{ type: 'image', data: 'iVBORw0KGgo=', mimeType: 'image/png' }],
+        model: imageEndpointModel('gpt-image-2'),
       },
     };
     const resolution = resolveImageEditCodec(args);
@@ -154,6 +159,7 @@ describe('image endpoint wire compatibility', () => {
         operation: 'image_edit',
         prompt: 'edit',
         images: [{ type: 'image', url: 'https://example.com/input.png' }],
+        model: imageEndpointModel('gpt-image-2'),
       },
     });
     const inlineResolution = resolveImageEditCodec({
@@ -162,6 +168,7 @@ describe('image endpoint wire compatibility', () => {
         operation: 'image_edit',
         prompt: 'edit',
         images: [{ type: 'image', data: 'iVBORw0KGgo=', mimeType: 'image/png' }],
+        model: imageEndpointModel('gpt-image-2'),
       },
     });
 
@@ -179,6 +186,7 @@ describe('image endpoint wire compatibility', () => {
         operation: 'image_edit' as const,
         prompt: 'edit',
         images: [{ type: 'image', data: 'iVBORw0KGgo=', mimeType: 'image/png' }],
+        model: imageEndpointModel('gpt-image-2'),
       },
     };
 
@@ -196,15 +204,13 @@ describe('image endpoint wire compatibility', () => {
     for (let index = 0; index < imageEditCompatibilityTesting.cacheMaxEntries; index += 1) {
       const resolution = resolveImageEditCodec({
         descriptor: descriptorWithWire,
-        config: {
-          ...config,
-          defaultModel: `gpt-image-${index}`,
-        },
+        config,
         targetPath: '/v1/images/edits',
         request: {
           operation: 'image_edit',
           prompt: `edit-${index}`,
           images: [{ type: 'image', data: 'iVBORw0KGgo=', mimeType: 'image/png' }],
+          model: imageEndpointModel(`gpt-image-${index}`),
         },
       });
       rememberSuccessfulImageEditCodec(resolution.cacheKey, 'multipart-bracket');
@@ -212,15 +218,13 @@ describe('image endpoint wire compatibility', () => {
 
     const newestArgs = {
       descriptor: descriptorWithWire,
-      config: {
-        ...config,
-        defaultModel: `gpt-image-${imageEditCompatibilityTesting.cacheMaxEntries}`,
-      },
+      config,
       targetPath: '/v1/images/edits',
       request: {
         operation: 'image_edit' as const,
         prompt: `edit-${imageEditCompatibilityTesting.cacheMaxEntries}`,
         images: [{ type: 'image', data: 'iVBORw0KGgo=', mimeType: 'image/png' }],
+        model: imageEndpointModel(`gpt-image-${imageEditCompatibilityTesting.cacheMaxEntries}`),
       },
     };
     const newestResolution = resolveImageEditCodec(newestArgs);
@@ -228,15 +232,13 @@ describe('image endpoint wire compatibility', () => {
 
     const oldestResolution = resolveImageEditCodec({
       descriptor: descriptorWithWire,
-      config: {
-        ...config,
-        defaultModel: 'gpt-image-0',
-      },
+      config,
       targetPath: '/v1/images/edits',
       request: {
         operation: 'image_edit',
         prompt: 'edit-0',
         images: [{ type: 'image', data: 'iVBORw0KGgo=', mimeType: 'image/png' }],
+        model: imageEndpointModel('gpt-image-0'),
       },
     });
     const latestResolution = resolveImageEditCodec(newestArgs);
@@ -254,6 +256,7 @@ describe('image endpoint wire compatibility', () => {
         operation: 'image_edit',
         prompt: 'edit',
         images: [{ type: 'image', url: 'https://example.com/input.png' }],
+        model: imageEndpointModel('gpt-image-2'),
       },
     });
     const serialized = serializeImageEditCompatibilityFingerprint(fingerprint);

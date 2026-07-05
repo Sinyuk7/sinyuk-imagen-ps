@@ -25,6 +25,7 @@ import {
   createProviderRegistry,
   registerBuiltins,
   type ApiFormat,
+  type ProviderModelExecution,
   type ProviderRegistry,
   type ProviderOperation,
 } from '@imagen-ps/providers';
@@ -33,14 +34,18 @@ import { createLogger, createNullLogger } from '@imagen-ps/foundation';
 import type {
   AssetStore,
   JobHistoryStore,
+  ModelDiscoveryCache,
+  ModelDiscoveryCacheRepository,
   ProviderConfigResolver,
   ProviderProfile,
   ProviderProfileRepository,
   ResolvedProviderConfig,
   SecretStorageAdapter,
   TaskStore,
+  UserModelConfig,
+  UserModelConfigRepository,
 } from './commands/types.js';
-import { assertSupportedProfileDefaultModel } from './commands/default-model-validation.js';
+import { resolveConfiguredModel, toProviderModelExecution } from './commands/model-config-resolution.js';
 import { resolveSecretValue } from './commands/secret-utils.js';
 import { providerImplementationIdForApiFormat } from './commands/api-format-profile.js';
 import { builtinWorkflows } from './requests/index.js';
@@ -54,6 +59,8 @@ export interface ExtendedRuntime extends Runtime {
 let instance: ExtendedRuntime | null = null;
 let registryInstance: ProviderRegistry | null = null;
 let providerProfileRepositoryInstance: ProviderProfileRepository | null = null;
+let modelDiscoveryCacheRepositoryInstance: ModelDiscoveryCacheRepository | null = null;
+let userModelConfigRepositoryInstance: UserModelConfigRepository | null = null;
 let secretStorageAdapterInstance: SecretStorageAdapter | null = null;
 let providerConfigResolverInstance: ProviderConfigResolver | null = null;
 let jobHistoryStoreInstance: JobHistoryStore | null = null;
@@ -75,6 +82,44 @@ function createInMemoryProviderProfileRepository(): ProviderProfileRepository {
     },
     async delete(profileId: string): Promise<void> {
       store.delete(profileId);
+    },
+  };
+}
+
+function createInMemoryModelDiscoveryCacheRepository(): ModelDiscoveryCacheRepository {
+  const store = new Map<string, ModelDiscoveryCache>();
+  return {
+    async get(profileId) {
+      return store.get(profileId);
+    },
+    async put(cache) {
+      store.set(cache.profileId, cache);
+    },
+    async delete(profileId) {
+      store.delete(profileId);
+    },
+  };
+}
+
+function userModelConfigKey(apiFormat: string, modelId: string): string {
+  return `${apiFormat}:${modelId}`;
+}
+
+function createInMemoryUserModelConfigRepository(): UserModelConfigRepository {
+  const store = new Map<string, UserModelConfig>();
+  return {
+    async list(apiFormat) {
+      const configs = Array.from(store.values()).filter((config): config is NonNullable<typeof config> => config !== undefined);
+      return apiFormat === undefined ? configs : configs.filter((config) => config.apiFormat === apiFormat);
+    },
+    async get(apiFormat, modelId) {
+      return store.get(userModelConfigKey(apiFormat, modelId));
+    },
+    async save(config) {
+      store.set(userModelConfigKey(config.apiFormat, config.modelId), config);
+    },
+    async delete(apiFormat, modelId) {
+      store.delete(userModelConfigKey(apiFormat, modelId));
     },
   };
 }
@@ -188,8 +233,6 @@ function createDefaultProviderConfigResolver(): ProviderConfigResolver {
       }
 
       const resolvedBilling = await resolveBillingSecretConfig(profile.config, profile.secretRefs);
-      const descriptorDefaults = provider.describe().defaultModels ?? [];
-      assertSupportedProfileDefaultModel({ profile, descriptor: provider.describe(), descriptorDefaults });
 
       const providerConfig = provider.validateConfig({
         providerId: implementationId,
@@ -419,8 +462,13 @@ async function executionSnapshotFromJobInput(input: Record<string, unknown>): Pr
     : typeof input.providerProfileId === 'string'
       ? input.providerProfileId
       : undefined;
+  const requestModel = isPlainRecord(input.model) ? input.model : undefined;
   const providerOptions = isPlainRecord(input.providerOptions) ? input.providerOptions : undefined;
-  const modelId = typeof providerOptions?.model === 'string' ? providerOptions.model : undefined;
+  const modelId = typeof requestModel?.modelId === 'string'
+    ? requestModel.modelId
+    : typeof providerOptions?.model === 'string'
+      ? providerOptions.model
+      : undefined;
   const output = isPlainRecord(input.output) ? input.output : undefined;
   const profile = profileId ? await getProviderProfileRepository().get(profileId) : undefined;
 
@@ -696,45 +744,72 @@ async function resolveStoredAssetsForDispatch(params: Record<string, unknown>, s
   return hasRequestKey ? { ...params, request: nextRequest } : { ...params, ...nextRequest };
 }
 
-/**
- * 将 defaultModel 注入到 params 中的 providerOptions.model（不 mutate 原对象）。
- * 仅在 providerOptions.model 缺失时注入。
- */
-function injectDefaultModel(params: Record<string, unknown>, defaultModel: string): Record<string, unknown> {
-  const { requestObj, hasRequestKey } = locateRequestInParams(params);
-
-  const existingOptions = isPlainRecord(requestObj.providerOptions) ? requestObj.providerOptions : {};
-
-  const sanitizedOptions =
-    defaultModel.startsWith('gpt-image') || defaultModel === 'chatgpt-image-latest'
-      ? Object.fromEntries(
-          Object.entries(existingOptions).filter(
-            ([key]) => key !== 'response_format' && key !== 'image_response_format',
-          ),
-        )
-      : existingOptions;
-
-  // 如果 providerOptions.model 已存在（job input explicit），不覆盖
-  if (sanitizedOptions.model !== undefined && sanitizedOptions.model !== null) {
-    if (sanitizedOptions === existingOptions) {
-      return params;
-    }
-    if (hasRequestKey) {
-      return { ...params, request: { ...requestObj, providerOptions: sanitizedOptions } };
-    }
-    return { ...params, providerOptions: sanitizedOptions };
+function explicitModelIdFromRequest(requestObj: Record<string, unknown>): string | undefined {
+  const model = requestObj.model;
+  if (isPlainRecord(model) && typeof model.modelId === 'string' && model.modelId.length > 0) {
+    return model.modelId;
   }
+  const providerOptions = isPlainRecord(requestObj.providerOptions) ? requestObj.providerOptions : undefined;
+  return typeof providerOptions?.model === 'string' && providerOptions.model.length > 0
+    ? providerOptions.model
+    : undefined;
+}
 
-  const mergedOptions = { ...sanitizedOptions, model: defaultModel };
+function providerFallbackModelId(providerConfig: unknown): string | undefined {
+  if (!isPlainRecord(providerConfig)) {
+    return undefined;
+  }
+  const value = providerConfig.defaultModel;
+  return typeof value === 'string' && value.length > 0 ? value : undefined;
+}
+
+function stripProviderOptionsModel(providerOptions: unknown): Readonly<Record<string, unknown>> | undefined {
+  if (!isPlainRecord(providerOptions)) {
+    return undefined;
+  }
+  const { model: _model, ...rest } = providerOptions;
+  return Object.keys(rest).length > 0 ? rest : undefined;
+}
+
+function injectResolvedModel(params: Record<string, unknown>, model: ProviderModelExecution): Record<string, unknown> {
+  const { requestObj, hasRequestKey } = locateRequestInParams(params);
+  const providerOptions = stripProviderOptionsModel(requestObj.providerOptions);
+  const newRequest = {
+    ...requestObj,
+    model,
+    ...(providerOptions !== undefined ? { providerOptions } : {}),
+  };
+  if (providerOptions === undefined) {
+    delete (newRequest as Record<string, unknown>).providerOptions;
+  }
 
   if (hasRequestKey) {
-    // 结构 (a)：params.request 是 request 对象
-    const newRequest = { ...requestObj, providerOptions: mergedOptions };
     return { ...params, request: newRequest };
   }
+  return { ...params, ...newRequest };
+}
 
-  // 结构 (b)：整个 params 即 request
-  return { ...params, providerOptions: mergedOptions };
+async function resolveModelParamsForDispatch(args: {
+  readonly params: Record<string, unknown>;
+  readonly profile: ProviderProfile;
+  readonly providerConfig: unknown;
+}): Promise<Record<string, unknown>> {
+  const { requestObj } = locateRequestInParams(args.params);
+  const explicitModelId = explicitModelIdFromRequest(requestObj);
+  const selectedModelId = explicitModelId ?? args.profile.defaultModelId ?? providerFallbackModelId(args.providerConfig);
+  if (typeof selectedModelId !== 'string' || selectedModelId.length === 0) {
+    throw new Error(`Provider profile "${args.profile.profileId}" has no selected model for dispatch.`);
+  }
+  if (!args.profile.selectedModelIds.includes(selectedModelId)) {
+    throw new Error(`Provider profile "${args.profile.profileId}" model "${selectedModelId}" is not selected.`);
+  }
+  const resolved = await resolveConfiguredModel({
+    profileId: args.profile.profileId,
+    apiFormat: args.profile.apiFormat,
+    modelId: selectedModelId,
+    userModelConfigRepository: getUserModelConfigRepository(),
+  });
+  return injectResolvedModel(args.params, toProviderModelExecution(resolved));
 }
 
 /**
@@ -781,6 +856,10 @@ function createProfileAwareDispatchAdapter(logger?: Logger): ReturnType<typeof c
         throw new Error('Provider profile dispatch requires a non-empty providerProfileId or profileId.');
       }
 
+      const profile = await getProviderProfileRepository().get(profileId);
+      if (!profile) {
+        throw new Error(`Provider profile not found: ${profileId}`);
+      }
       const { providerConfig } = await getProviderConfigResolver().resolve(profileId);
       throwIfAborted(context?.signal);
       const apiFormat = (providerConfig as { readonly apiFormat?: unknown }).apiFormat;
@@ -807,10 +886,11 @@ function createProfileAwareDispatchAdapter(logger?: Logger): ReturnType<typeof c
         }
       }
 
-      // Inject profile defaultModel into providerOptions (three-tier priority: tier 2)
-      const defaultModel = (providerConfig as unknown as Record<string, unknown>).defaultModel;
-      const modelResolvedParams =
-        typeof defaultModel === 'string' && defaultModel.length > 0 ? injectDefaultModel(params, defaultModel) : params;
+      const modelResolvedParams = await resolveModelParamsForDispatch({
+        params,
+        profile,
+        providerConfig,
+      });
       const resolvedParams = await resolveStoredAssetsForDispatch(modelResolvedParams, context?.signal);
 
       const adapter = createDispatchAdapter({ provider, config: providerConfig, logger: dispatchLogger });
@@ -882,6 +962,28 @@ export function getProviderProfileRepository(): ProviderProfileRepository {
 /** 设置 provider profile repository，允许 CLI / UI 注入自定义实现 */
 export function setProviderProfileRepository(repository: ProviderProfileRepository): void {
   providerProfileRepositoryInstance = repository;
+}
+
+export function getModelDiscoveryCacheRepository(): ModelDiscoveryCacheRepository {
+  if (modelDiscoveryCacheRepositoryInstance === null) {
+    modelDiscoveryCacheRepositoryInstance = createInMemoryModelDiscoveryCacheRepository();
+  }
+  return modelDiscoveryCacheRepositoryInstance;
+}
+
+export function setModelDiscoveryCacheRepository(repository: ModelDiscoveryCacheRepository): void {
+  modelDiscoveryCacheRepositoryInstance = repository;
+}
+
+export function getUserModelConfigRepository(): UserModelConfigRepository {
+  if (userModelConfigRepositoryInstance === null) {
+    userModelConfigRepositoryInstance = createInMemoryUserModelConfigRepository();
+  }
+  return userModelConfigRepositoryInstance;
+}
+
+export function setUserModelConfigRepository(repository: UserModelConfigRepository): void {
+  userModelConfigRepositoryInstance = repository;
 }
 
 /** 获取当前 secret storage adapter */
@@ -971,6 +1073,8 @@ export function _resetForTesting(): void {
   instance = null;
   registryInstance = null;
   providerProfileRepositoryInstance = null;
+  modelDiscoveryCacheRepositoryInstance = null;
+  userModelConfigRepositoryInstance = null;
   secretStorageAdapterInstance = null;
   providerConfigResolverInstance = null;
   jobHistoryStoreInstance = null;

@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { httpRequest } from '../src/transport/image-endpoint/http.js';
 import { buildEditMultipartBodyForCodec } from '../src/transport/image-endpoint/build-request.js';
 import { parseMultipartBody, withCapturedRequest } from './multipart-wire-harness.js';
+import { imageEndpointModel } from './model-execution.js';
 
 describe('multipart wire capture characterization (Node FormData only)', () => {
   it('captures multipart boundary and normalized parts via a local Node HTTP server', async () => {
@@ -19,9 +20,9 @@ describe('multipart wire capture characterization (Node FormData only)', () => {
             count: 2,
             outputFormat: 'png',
           },
+          model: imageEndpointModel('gpt-image-2'),
         },
         'multipart-bracket',
-        'gpt-image-2',
       );
 
       await httpRequest({

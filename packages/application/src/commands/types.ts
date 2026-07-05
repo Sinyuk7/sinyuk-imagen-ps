@@ -9,15 +9,16 @@ import type { Logger } from '@imagen-ps/foundation';
 import type {
   ApiFormat,
   BalanceChange,
+  DiscoveredModel,
   ExactTaskCost,
+  ModelOutputConfig,
   ProviderBalanceSnapshot,
   ProviderDescriptor as _ProviderDescriptor,
   ProviderConfig as _ProviderConfig,
-  ProviderModelInfo,
 } from '@imagen-ps/providers';
 
 // Re-export provider types for commands layer consumers
-export type { ApiFormat, EndpointClassification, ProviderDescriptor, ProviderConfig, ProviderModelInfo, ModelBrand } from '@imagen-ps/providers';
+export type { ApiFormat, DiscoveredModel, EndpointClassification, ProviderDescriptor, ProviderConfig, ProviderModelInfo, ModelBrand, ModelOutputConfig, OfficialModelPreset, ProviderModelExecution } from '@imagen-ps/providers';
 export type { BalanceChange, ExactTaskCost, ProviderBalanceSnapshot } from '@imagen-ps/providers';
 export type {
   Asset,
@@ -125,10 +126,8 @@ export type ProviderProfileConfig = Readonly<Record<string, ProviderProfileConfi
 /**
  * Sanitized persisted provider profile. Returned commands MUST NOT include secret values.
  *
- * `models` 字段唯一来源是 `refreshProfileModels` 写入的「当前运行时可选模型交集」缓存：
- * `saveProviderProfile` 不会接受用户传入的 `models`、不会擦除现有缓存；
- * dispatch 路径与 `model-selection` 三级优先级 MUST NOT 读取该字段；
- * 它仅供 `listProfileModels`、connectivity 状态、与 surface-side picker 渲染使用。
+ * Profile 模型选择由 `selectedModelIds/defaultModelId` 表达。远端
+ * discovery 事实存放在独立 `ModelDiscoveryCacheRepository`。
  */
 export interface ProviderProfile {
   readonly profileId: string;
@@ -138,7 +137,8 @@ export interface ProviderProfile {
   readonly enabled: boolean;
   readonly config: ProviderProfileConfig;
   readonly secretRefs?: Readonly<Record<string, string>>;
-  readonly models?: readonly ProviderModelInfo[];
+  readonly selectedModelIds: readonly string[];
+  readonly defaultModelId?: string;
   readonly createdAt: string;
   readonly updatedAt: string;
 }
@@ -152,8 +152,8 @@ export interface ProviderProfile {
  * secretValues are write-only command input. They are persisted through
  * SecretStorageAdapter and must never be returned by profile-facing commands.
  *
- * NOTE: 本类型 MUST NOT 声明 `models` 字段。`profile.models` 的唯一来源是
- * `refreshProfileModels` 的 discovery 缓存，输入路径不接受用户提供 model 列表。
+ * NOTE: 本类型 MUST NOT 声明 discovery cache 字段。远端发现事实由
+ * `refreshProfileModels` 写入 `ModelDiscoveryCacheRepository`。
  */
 export interface ProviderProfileInput {
   readonly profileId: string;
@@ -164,6 +164,8 @@ export interface ProviderProfileInput {
   readonly config?: ProviderProfileConfig;
   readonly secretRefs?: Readonly<Record<string, string>>;
   readonly secretValues?: Readonly<Record<string, string>>;
+  readonly selectedModelIds?: readonly string[];
+  readonly defaultModelId?: string;
   /** 显式移除已保存 secret；未列出的空输入继续表示保留原 secret。 */
   readonly removedSecretNames?: readonly string[];
 }
@@ -174,6 +176,44 @@ export interface ProviderProfileRepository {
   get(profileId: string): Promise<ProviderProfile | undefined>;
   save(profile: ProviderProfile): Promise<void>;
   delete(profileId: string): Promise<void>;
+}
+
+/** 单个 profile 的远端 discovery cache。 */
+export interface ModelDiscoveryCache {
+  readonly profileId: string;
+  readonly modelIds: readonly string[];
+  readonly refreshedAt: string;
+}
+
+/** Host-injected repository for remote discovery facts. */
+export interface ModelDiscoveryCacheRepository {
+  get(profileId: string): Promise<ModelDiscoveryCache | undefined>;
+  put(cache: ModelDiscoveryCache): Promise<void>;
+  delete(profileId: string): Promise<void>;
+}
+
+export interface UserModelConfig {
+  readonly apiFormat: ApiFormat;
+  readonly modelId: string;
+  readonly requestStrategyId: string;
+  readonly output: ModelOutputConfig;
+}
+
+/** Host-injected repository for user-owned model configs. */
+export interface UserModelConfigRepository {
+  list(apiFormat?: ApiFormat): Promise<readonly UserModelConfig[]>;
+  get(apiFormat: ApiFormat, modelId: string): Promise<UserModelConfig | undefined>;
+  save(config: UserModelConfig): Promise<void>;
+  delete(apiFormat: ApiFormat, modelId: string): Promise<void>;
+}
+
+export interface ProfileModelItem {
+  readonly modelId: string;
+  readonly discovered: boolean;
+  readonly configured: boolean;
+  readonly selected: boolean;
+  readonly default: boolean;
+  readonly configSource?: 'user' | 'catalog';
 }
 
 /** Host-injected storage for secret values. Implementations must not log values. */
@@ -245,7 +285,7 @@ export interface ProviderProfileTestResult {
     readonly reachable: boolean;
     /** 当前本地 catalog 与 runtime discovery 的可选交集数量。 */
     readonly modelCount?: number;
-    readonly models?: readonly ProviderModelInfo[];
+    readonly models?: readonly DiscoveredModel[];
     /** 连通性失败时的安全错误摘要，不包含 resolved secret-bearing config。 */
     readonly errorMessage?: string;
   };
@@ -297,7 +337,7 @@ export interface ProviderProfileConnectionTestResult {
   readonly supported: boolean;
   readonly reachable?: boolean;
   readonly modelCount?: number;
-  readonly models?: readonly ProviderModelInfo[];
+  readonly models?: readonly DiscoveredModel[];
   readonly message?: string;
 }
 
@@ -349,4 +389,6 @@ export interface RefreshDraftProfileModelsInput {
   readonly secretRefs?: Readonly<Record<string, string>>;
   readonly secretValues?: Readonly<Record<string, string>>;
   readonly removedSecretNames?: readonly string[];
+  readonly selectedModelIds?: readonly string[];
+  readonly defaultModelId?: string;
 }

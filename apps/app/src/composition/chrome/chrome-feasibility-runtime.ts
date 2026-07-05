@@ -3,9 +3,11 @@ import {
   saveProviderProfile,
   setAssetStore,
   setJobHistoryStore,
+  setModelDiscoveryCacheRepository,
   setProviderProfileRepository,
   setSecretStorageAdapter,
   setTaskStore,
+  setUserModelConfigRepository,
   submitJob,
   type ProviderDescriptor,
 } from '@imagen-ps/application';
@@ -112,6 +114,8 @@ export async function runChromeFeasibilityRuntime(options?: {
   setJobHistoryStore(storage.history);
   setTaskStore(storage.tasks);
   setAssetStore(storage.assets);
+  setModelDiscoveryCacheRepository(storage.modelDiscovery);
+  setUserModelConfigRepository(storage.userModelConfigs);
 
   const providers = listProviders();
   const profile = await saveProviderProfile({
@@ -133,6 +137,8 @@ export async function runChromeFeasibilityRuntime(options?: {
     secretValues: {
       apiKey: 'mock-key',
     },
+    selectedModelIds: ['gpt-image-1'],
+    defaultModelId: 'gpt-image-1',
   });
   if (!profile.ok) {
     throw new Error(profile.error.message);

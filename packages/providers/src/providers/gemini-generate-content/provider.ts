@@ -8,7 +8,7 @@ import type {
   ProviderInvokeArgs,
 } from '../../contract/provider.js';
 import type { ProviderInvokeResult } from '../../contract/result.js';
-import type { ProviderModelInfo } from '../../contract/model.js';
+import type { DiscoveredModel } from '../../contract/model.js';
 import type { Logger } from '@imagen-ps/foundation';
 import { mockRequestSchema, type MockProviderRequest } from '../mock/request-schema.js';
 import { geminiGenerateContentConfigSchema, type GeminiGenerateContentProviderConfig } from './config-schema.js';
@@ -23,7 +23,6 @@ import {
 import { parseGeminiGenerateContentModelsResponse } from '../../transport/gemini-generate-content/models.js';
 import { parseGeminiGenerateContentResponse } from '../../transport/gemini-generate-content/parse-response.js';
 import { assembleApiUrl } from '../../contract/api-format.js';
-import { listLocalCatalogModels } from '../../contract/image-model-capability.js';
 
 interface ProviderValidationError extends Error {
   details?: Record<string, unknown>;
@@ -101,15 +100,6 @@ async function mapWithConcurrency<TInput, TOutput>(
   return results;
 }
 
-function normalizeDiscoveredModels(models: readonly ProviderModelInfo[]): readonly ProviderModelInfo[] {
-  return models.length > 0
-    ? models
-    : listLocalCatalogModels('gemini-generate-content').map((model) => ({
-      ...model,
-      remotelyAvailable: false,
-    }));
-}
-
 function recordField(value: unknown): Record<string, unknown> | undefined {
   return typeof value === 'object' && value !== null && !Array.isArray(value)
     ? value as Record<string, unknown>
@@ -166,10 +156,7 @@ export function createGeminiGenerateContentProvider(): Provider<GeminiGenerateCo
         component: 'provider',
         provider_id: geminiGenerateContentDescriptor.id,
       });
-      const builtRequest = buildGeminiGenerateContentRequest({
-        request,
-        defaultModel: config.defaultModel,
-      });
+      const builtRequest = buildGeminiGenerateContentRequest({ request });
       const responseFormatImage = recordField(recordField(builtRequest.body.generationConfig.responseFormat)?.image);
       const legacyImageConfig = recordField(builtRequest.body.generationConfig.imageConfig);
       for (const diagnostic of builtRequest.diagnostics) {
@@ -262,7 +249,7 @@ export function createGeminiGenerateContentProvider(): Provider<GeminiGenerateCo
     async discoverModels(
       config: GeminiGenerateContentProviderConfig,
       logger?: Logger,
-    ): Promise<readonly ProviderModelInfo[]> {
+    ): Promise<readonly DiscoveredModel[]> {
       const execution = await executeWithEndpointFailover({
         connection: config.connection,
         logger,
@@ -290,20 +277,15 @@ export function createGeminiGenerateContentProvider(): Provider<GeminiGenerateCo
           targetPath: '/models',
         });
       }
-      const normalized = normalizeDiscoveredModels(parsed.models);
       logger?.info('provider.gemini_generate_content.discover_models.summary', {
         selectedEndpointId: execution.selectedEndpointId,
         targetPath: '/models',
         sourceFormat: parsed.sourceFormat,
         parsedModelCount: parsed.models.length,
-        returnedModelCount: normalized.length,
-        fallbackLocalCatalogUsed: parsed.models.length === 0,
-        remoteSelectableCount: normalized.filter(
-          (model) => model.supportStatus === undefined || model.supportStatus === 'selectable',
-        ).length,
-        modelIds: normalized.map((model) => model.id),
+        returnedModelCount: parsed.models.length,
+        modelIds: parsed.models.map((model) => model.id),
       });
-      return normalized;
+      return parsed.models;
     },
 
     async measureEndpoints(
@@ -342,13 +324,10 @@ export function createGeminiGenerateContentProvider(): Provider<GeminiGenerateCo
     ): Promise<ProviderConnectionTestResult> {
       try {
         const models = await this.discoverModels!(config, logger);
-        const selectableCount = models.filter(
-          (model) => model.supportStatus === undefined || model.supportStatus === 'selectable',
-        ).length;
         return {
           supported: true,
           reachable: true,
-          modelCount: selectableCount,
+          modelCount: models.length,
           models,
         };
       } catch (error) {

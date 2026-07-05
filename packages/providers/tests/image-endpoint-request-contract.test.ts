@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import {
   buildImageEditHttpRequest,
 } from '../src/transport/image-endpoint/build-request.js';
+import { imageEndpointModel } from './model-execution.js';
 
 function fileSummary(entry: FormDataEntryValue | null): { type: string; name?: string } | null {
   if (!(entry instanceof Blob)) {
@@ -32,9 +33,9 @@ describe('image endpoint request contract characterization', () => {
         providerOptions: {
           custom_flag: 'kept',
         },
+        model: imageEndpointModel('gpt-image-2'),
       },
       'multipart-bracket',
-      'gpt-image-2',
     );
     const body = built.body as FormData;
 
@@ -68,9 +69,9 @@ describe('image endpoint request contract characterization', () => {
           { type: 'image', data: 'aGVsbG8=', mimeType: 'image/png' },
           { type: 'image', data: 'd29ybGQ=', mimeType: 'image/jpeg' },
         ],
+        model: imageEndpointModel('gpt-image-2'),
       },
       'multipart-plain',
-      'gpt-image-2',
     ).body as FormData;
 
     expect(body.getAll('image')).toHaveLength(2);
@@ -94,9 +95,9 @@ describe('image endpoint request contract characterization', () => {
         providerOptions: {
           custom_flag: true,
         },
+        model: imageEndpointModel('gpt-image-2'),
       },
       'json-reference',
-      'gpt-image-2',
     );
     const body = built.body;
 
@@ -133,9 +134,9 @@ describe('image endpoint request contract characterization', () => {
           image_response_format: 'b64_json',
           custom_flag: 'kept',
         },
+        model: imageEndpointModel('gpt-image-2'),
       },
       'multipart-bracket',
-      'gpt-image-2',
     );
     const body = built.body as FormData;
 

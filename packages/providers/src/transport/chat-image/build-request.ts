@@ -1,7 +1,7 @@
 import type { Asset } from '@imagen-ps/core-engine';
 import type { CanonicalImageJobRequest, ProviderOutputOptions } from '../../contract/request.js';
 import type { ProviderDiagnostic } from '../../contract/diagnostics.js';
-import { resolveImageModelOutput } from '../../contract/image-model-capability.js';
+import { assertProviderModelExecution, resolveImageModelOutput } from '../../contract/image-model-capability.js';
 
 export interface ChatImageContentText {
   readonly type: 'text';
@@ -65,10 +65,11 @@ const RESERVED_PROVIDER_OPTION_KEYS: readonly string[] = [
 const RESERVED_PROVIDER_OPTION_KEY_SET = new Set<string>(RESERVED_PROVIDER_OPTION_KEYS);
 const ALLOWED_PASSTHROUGH_PROVIDER_OPTION_KEYS = new Set<string>(['user']);
 
-function resolveModel(request: CanonicalImageJobRequest, defaultModel?: string): string {
-  return typeof request.providerOptions?.model === 'string'
-    ? (request.providerOptions.model as string)
-    : (defaultModel ?? 'google/gemini-2.5-flash-image-preview');
+function resolveModel(request: CanonicalImageJobRequest): string {
+  return assertProviderModelExecution({
+    execution: request.model,
+    apiFormat: 'openai-chat-completions',
+  }).modelId;
 }
 
 function assetToImageUrl(asset: Asset): string {
@@ -270,16 +271,14 @@ function buildMessageContent(request: CanonicalImageJobRequest): ChatImageMessag
 
 export function buildChatImageRequestBody(
   request: CanonicalImageJobRequest,
-  defaultModel?: string,
 ): ChatImageCompletionBody {
-  return buildChatImageRequest(request, defaultModel).body;
+  return buildChatImageRequest(request).body;
 }
 
 export function buildChatImageRequest(
   request: CanonicalImageJobRequest,
-  defaultModel?: string,
 ): ChatImageRequestBuildResult {
-  const model = resolveModel(request, defaultModel);
+  const model = resolveModel(request);
   const diagnostics: ProviderDiagnostic[] = [];
   const body: Record<string, unknown> = {
     model,

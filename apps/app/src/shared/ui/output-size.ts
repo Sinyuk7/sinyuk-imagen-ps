@@ -1,14 +1,14 @@
-import type { ProviderModelInfo } from '@imagen-ps/application';
 import { modelSupportsOutputSize, type ComposerOperation } from './composer-readiness';
 import type { AppMessages } from './i18n/messages';
 import type { AppOutputSizePreset } from '../ports/app-generation-settings';
+import type { UiModelInfo } from './model-info';
 
 export const OUTPUT_SIZE_PRESETS: readonly AppOutputSizePreset[] = ['512', '1k', '2k', '4k'];
 
 export type OutputSizeSelectionContext =
   | {
       readonly kind: 'composer';
-      readonly model: ProviderModelInfo | undefined;
+      readonly model: UiModelInfo | undefined;
       readonly operation: ComposerOperation;
     }
   | {

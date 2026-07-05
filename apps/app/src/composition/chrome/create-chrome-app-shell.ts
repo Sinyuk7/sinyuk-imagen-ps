@@ -1,9 +1,11 @@
 import {
   setAssetStore,
   setJobHistoryStore,
+  setModelDiscoveryCacheRepository,
   setProviderProfileRepository,
   setSecretStorageAdapter,
   setTaskStore,
+  setUserModelConfigRepository,
 } from '@imagen-ps/application';
 import { createCommandsAdapter } from '../../shared/ports/commands-port';
 import type { AppShellHost } from '../../shared/ui/app-shell';
@@ -76,6 +78,8 @@ export function createChromeAppShell(options?: ChromeAppShellOptions): AppShellH
   setJobHistoryStore(storage.history);
   setTaskStore(storage.tasks);
   setAssetStore(storage.assets);
+  setModelDiscoveryCacheRepository(storage.modelDiscovery);
+  setUserModelConfigRepository(storage.userModelConfigs);
 
   const simulator = createPhotoshopSimulator(storage.assets, options?.scenario ?? testHarness?.scenario ?? 'seeded-document');
   const host = createChromeHostPort({

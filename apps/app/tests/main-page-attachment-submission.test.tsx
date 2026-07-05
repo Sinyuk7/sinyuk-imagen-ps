@@ -1,6 +1,6 @@
 import { act } from 'react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { fakeHostImage, fakeProviderInputAsset, fakeProfile, createFakeServices } from './fakes';
+import { fakeHostImage, fakeProviderInputAsset, fakeProfile, createFakeServices, profileModelItem } from './fakes';
 import { changeTextarea, clickText, cleanupMainPageRoot, findIconInHost, flush, renderMainPage, sendPrompt } from './main-page-harness';
 
 afterEach(async () => {
@@ -242,47 +242,42 @@ describe('MainPage contract — attachment & submission', () => {
     }));
   });
 
-  it('disables image entry points when the current model cannot edit images', async () => {
+  it('keeps image entry points enabled for configured models without local capability metadata', async () => {
     const container = document.createElement('div');
     document.body.appendChild(container);
     const services = createFakeServices({
       profiles: [{
         ...fakeProfile,
-        config: {
-          ...fakeProfile.config,
-          defaultModel: 'dall-e-3',
-        },
+        selectedModelIds: ['dall-e-3'],
+        defaultModelId: 'dall-e-3',
       }],
     });
     services.spies.listProfileModels.mockResolvedValue({
       ok: true as const,
-      value: [{
-        id: 'dall-e-3',
-        supportStatus: 'selectable',
-        capabilities: {
-          operations: {
-            textToImage: { support: 'supported', sizePresets: ['1k', '2k'] },
-            imageEdit: { support: 'unsupported', sizePresets: [], reason: 'operation-unsupported' },
-          },
-        },
-      }],
+      value: [profileModelItem('dall-e-3', { default: true })],
     });
     await renderMainPage(container, services);
 
     const add = container.querySelector<HTMLButtonElement>('[data-testid="composer-add-image-button"]')!;
     const capture = container.querySelector<HTMLButtonElement>('[data-testid="composer-capture-button"]')!;
-    expect(add.disabled).toBe(true);
-    expect(capture.disabled).toBe(true);
-    expect(add.getAttribute('title')).toContain('当前模型不支持图片输入');
+    expect(add.disabled).toBe(false);
+    expect(capture.disabled).toBe(false);
 
     await act(async () => {
       add.click();
+    });
+    await flush();
+    await act(async () => {
+      document.body.querySelector<HTMLElement>('[data-testid="attach-upload-option"]')?.click();
+    });
+    await flush();
+    await act(async () => {
       capture.click();
     });
     await flush();
 
-    expect(services.spies.pickImageFile).not.toHaveBeenCalled();
-    expect(services.spies.captureActiveImage).not.toHaveBeenCalled();
+    expect(services.spies.pickImageFile).toHaveBeenCalledTimes(1);
+    expect(services.spies.captureActiveImage).toHaveBeenCalledTimes(1);
   });
 
   it('uses global generation settings for output payload and provider input resize', async () => {

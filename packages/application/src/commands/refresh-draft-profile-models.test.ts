@@ -44,7 +44,8 @@ describe('refreshDraftProfileModels', () => {
         },
         defaultModel: 'gpt-image-2',
       },
-      models: [{ id: 'cached-model' }],
+      selectedModelIds: ['gpt-image-2'],
+      defaultModelId: 'gpt-image-2',
       createdAt: '2026-06-15T00:00:00.000Z',
       updatedAt: '2026-06-15T00:00:00.000Z',
     };
@@ -97,7 +98,7 @@ describe('refreshDraftProfileModels', () => {
 
     expect(result.ok).toBe(true);
     if (result.ok) {
-      expect(result.value.map((model) => model.id)).toEqual([
+      expect(result.value.map((model) => model.modelId)).toEqual([
         'gpt-image-2',
         'gpt-image-1',
         'dall-e-3',
@@ -108,10 +109,11 @@ describe('refreshDraftProfileModels', () => {
       ]);
     }
     const persisted = await getProfile(repository, 'profile-a');
-    expect(persisted?.models).toEqual([{ id: 'cached-model' }]);
+    expect(persisted?.selectedModelIds).toEqual(['gpt-image-2']);
+    expect(persisted?.defaultModelId).toBe('gpt-image-2');
   });
 
-  it('rejects unsupported draft default models before discovery runs', async () => {
+  it('ignores draft config.defaultModel and reports discovery failures directly', async () => {
     _resetForTesting();
     setProviderProfileRepository(createRepository([]));
 
@@ -161,8 +163,8 @@ describe('refreshDraftProfileModels', () => {
 
     expect(result.ok).toBe(false);
     if (!result.ok) {
-      expect(result.error.category).toBe('validation');
-      expect(result.error.message).toContain('defaultModel "custom-model-x" is not supported');
+      expect(result.error.category).toBe('provider');
+      expect(result.error.message).toContain('draft discovery failed');
     }
   });
 

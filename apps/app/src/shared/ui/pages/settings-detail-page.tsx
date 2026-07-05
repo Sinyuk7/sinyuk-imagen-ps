@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import type { ProviderModelInfo, ProviderProfile, ProviderProfileConfig, ProviderProfileConfigValue } from '@imagen-ps/application';
+import type { ProviderProfile, ProviderProfileConfig, ProviderProfileConfigValue } from '@imagen-ps/application';
 import { useAppServices } from '../../ports/app-services-context';
 import {
   apiFormatLabel,
@@ -16,7 +16,6 @@ import {
   providerConfigFromForm,
   readApiPathDraft,
   readProviderBillingDraft,
-  readProviderConfigString,
   readProviderConnectionDraft,
   sanitizeProviderDisplayName,
   sanitizeProviderSecretValue,
@@ -38,6 +37,7 @@ import {
 } from '../components/provider-settings-sections';
 import { StatusNotice } from '../components/status-notice';
 import { useToast } from '../components/toast-host';
+import type { UiModelInfo } from '../model-info';
 import { useI18n } from '../i18n/i18n-context';
 import { IconButton } from '../primitives/icon-button';
 import {
@@ -116,14 +116,24 @@ function normalizeConfigForDraftCompare(config: ProviderProfileConfig): string {
   return stableSerialize(normalized);
 }
 
-function modelStatusMessage(model: ProviderModelInfo | undefined, messages: ReturnType<typeof useI18n>['messages']): string | null {
+function modelStatusMessage(model: UiModelInfo | undefined, messages: ReturnType<typeof useI18n>['messages']): string | null {
   if (!model) {
     return null;
   }
-  if (model.supportStatus === 'saved-undiscovered') {
+  if (model.selected === true && model.discovered === false) {
     return messages.settings.modelSavedUndiscovered;
   }
   return null;
+}
+
+function selectedModelInput(defaultModel: string): {
+  readonly selectedModelIds?: readonly string[];
+  readonly defaultModelId?: string;
+} {
+  const modelId = defaultModel.trim();
+  return modelId.length > 0
+    ? { selectedModelIds: [modelId], defaultModelId: modelId }
+    : {};
 }
 
 function hasDraftChanges(
@@ -163,6 +173,7 @@ function hasDraftChanges(
   return (
     nextDisplayName !== profile.displayName ||
     draft.systemInstruction !== (profile.systemInstruction ?? '') ||
+    draft.defaultModel.trim() !== (profile.defaultModelId ?? '') ||
     normalizeConfigForDraftCompare(nextConfig) !== normalizeConfigForDraftCompare(profile.config)
   );
 }
@@ -347,7 +358,7 @@ export function SettingsDetailPage({ onNav, profileId, onProfilesChanged, onSave
     connectionRef.current = nextConnection;
     setConnection(nextConnection);
     setPaths(readApiPathDraft(detail.profile));
-    setDefaultModel(readProviderConfigString(detail.profile, 'defaultModel'));
+    setDefaultModel(detail.profile.defaultModelId ?? '');
     const nextBillingDraft = readProviderBillingDraft(detail.profile);
     billingDraftRef.current = nextBillingDraft;
     setBillingDraft(nextBillingDraft);
@@ -403,6 +414,7 @@ export function SettingsDetailPage({ onNav, profileId, onProfilesChanged, onSave
           effectiveBillingDraft,
         ),
       ),
+      ...selectedModelInput(defaultModel),
       ...(removedSecretNames.length > 0 ? { removedSecretNames } : {}),
       ...((apiKey.trim() || effectiveBillingDraft.accessToken.trim())
         ? {
@@ -440,6 +452,7 @@ export function SettingsDetailPage({ onNav, profileId, onProfilesChanged, onSave
           effectiveBillingDraft,
         ),
       ),
+      ...selectedModelInput(defaultModel),
       ...(removedSecretNames.length > 0 ? { removedSecretNames } : {}),
       ...((apiKey.trim() || effectiveBillingDraft.accessToken.trim())
         ? {
@@ -455,7 +468,7 @@ export function SettingsDetailPage({ onNav, profileId, onProfilesChanged, onSave
   const modelCatalog = useProviderDraftModelCatalog({
     services,
     persistedProfileId: detail.profile?.profileId ?? null,
-    persistedRevisionKey: detail.profile ? `${detail.profile.updatedAt}:${readProviderConfigString(detail.profile, 'defaultModel')}` : '',
+    persistedRevisionKey: detail.profile ? `${detail.profile.updatedAt}:${detail.profile.defaultModelId ?? ''}` : '',
     configuredDefaultModel: defaultModel,
     descriptorDefaultModels: providerDescriptor?.defaultModels,
     discoverySupported: modelDiscoverySupported,

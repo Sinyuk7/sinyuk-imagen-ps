@@ -20,6 +20,7 @@ import { inspectModelsResponse, parseModelsResponse } from '../src/transport/ima
 import { parseResponse } from '../src/transport/image-endpoint/parse-response.js';
 import { resetImageEditCompatibilityCacheForTesting } from '../src/transport/image-endpoint/wire-compatibility.js';
 import { createCountingFetch } from './counting-transport.js';
+import { imageEndpointModel } from './model-execution.js';
 
 function expectFormDataFile(
   value: FormDataEntryValue | null,
@@ -111,8 +112,8 @@ describe('image-endpoint provider', () => {
         operation: 'text_to_image',
         prompt: 'a red square',
         output: { count: 2, width: 1024, height: 1024, quality: 'low' },
+        model: imageEndpointModel('dall-e-3', 'image-endpoint-variant'),
       },
-      'dall-e-3',
     );
 
     expect(body).toMatchObject({
@@ -136,8 +137,8 @@ describe('image-endpoint provider', () => {
           aspectRatio: '16:9',
           outputFormat: 'png',
         },
+        model: imageEndpointModel('gpt-image-2'),
       },
-      'gpt-image-2',
     );
 
     expect(body).toMatchObject({
@@ -158,8 +159,8 @@ describe('image-endpoint provider', () => {
         prompt: 'make it blue',
         images: [{ type: 'image', url: 'https://example.com/input.png' }],
         maskImage: { type: 'image', url: 'https://example.com/mask.png' },
+        model: imageEndpointModel('gpt-image-2'),
       },
-      'gpt-image-2',
     );
 
     expect(body).toMatchObject({
@@ -182,8 +183,8 @@ describe('image-endpoint provider', () => {
           aspectRatio: 'auto',
           outputFormat: 'png',
         },
+        model: imageEndpointModel('gpt-image-2'),
       },
-      'gpt-image-2',
     );
 
     expect(body).toMatchObject({
@@ -200,8 +201,8 @@ describe('image-endpoint provider', () => {
         operation: 'image_edit',
         prompt: 'make it blue',
         images: [{ type: 'image', data: 'iVBORw0KGgo=', mimeType: 'image/png' }],
+        model: imageEndpointModel('gpt-image-2'),
       },
-      'gpt-image-2',
     );
 
     expect(body).toBeInstanceOf(FormData);
@@ -224,8 +225,8 @@ describe('image-endpoint provider', () => {
         ],
         maskImage: { type: 'image', data: new Uint8Array([9, 10, 11]), mimeType: 'image/png', name: 'mask.png' },
         output: { count: 2, outputFormat: 'png' },
+        model: imageEndpointModel('gpt-image-2'),
       },
-      'gpt-image-2',
     );
 
     expect(body).toBeInstanceOf(FormData);
@@ -249,9 +250,9 @@ describe('image-endpoint provider', () => {
           { type: 'image', data: 'iVBORw0KGgo=', mimeType: 'image/png' },
           { type: 'image', data: 'aGVsbG8=', mimeType: 'image/png' },
         ],
+        model: imageEndpointModel('gpt-image-2'),
       },
       'multipart-plain',
-      'gpt-image-2',
     );
 
     expect(body.getAll('image')).toHaveLength(2);
@@ -264,18 +265,18 @@ describe('image-endpoint provider', () => {
         operation: 'image_edit',
         prompt: 'json edit',
         images: [{ type: 'image', url: 'https://example.com/input.png' }],
+        model: imageEndpointModel('gpt-image-2'),
       },
       'json-reference',
-      'gpt-image-2',
     );
     const multipartBody = buildImageEditRequestBody(
       {
         operation: 'image_edit',
         prompt: 'multipart edit',
         images: [{ type: 'image', data: 'iVBORw0KGgo=', mimeType: 'image/png' }],
+        model: imageEndpointModel('gpt-image-2'),
       },
       'multipart-bracket',
-      'gpt-image-2',
     );
 
     expect(jsonBody).not.toBeInstanceOf(FormData);
@@ -324,15 +325,17 @@ describe('image-endpoint provider', () => {
       }).map((model) => model.id),
     ).toEqual([
       'gpt-image-2',
+      'gpt-4.1',
       'dall-e-3',
       'grok-imagine-image-pro',
       'grok-imagine-image',
       'doubao-seedream-5-0-260128',
       'qwen-image-2.0-2026-03-03',
+      'unsupported-image-x',
     ]);
   });
 
-  it('inspects model discovery payloads using only local catalog rules', () => {
+  it('inspects model discovery payloads as raw remote facts', () => {
     const inspected = inspectModelsResponse({
       object: 'list',
       data: [
@@ -355,16 +358,13 @@ describe('image-endpoint provider', () => {
       'gpt-image-1',
       'qwen-image-2.0-2026-03-03',
     ]);
-    expect(inspected.catalogMatchedIds).toEqual([
+    expect(inspected.models.map((model) => model.id)).toEqual([
+      'gpt-image-1-mini',
+      'gpt-image-1-2025-04-15',
       'dall-e-3',
       'gpt-image-2',
+      'gpt-image-1.5',
       'gpt-image-1',
-      'qwen-image-2.0-2026-03-03',
-    ]);
-    expect(inspected.reconciledModels.map((model) => model.id)).toEqual([
-      'gpt-image-2',
-      'gpt-image-1',
-      'dall-e-3',
       'qwen-image-2.0-2026-03-03',
     ]);
   });
@@ -453,8 +453,8 @@ describe('image-endpoint provider', () => {
         operation: 'text_to_image',
         prompt: 'unsupported square',
         output: { sizePreset: '2k', aspectRatio: 'auto' },
+        model: imageEndpointModel('gpt-image-1', 'image-endpoint-variant'),
       },
-      'gpt-image-1',
     )).toThrow(/does not support preset "2k" with aspect ratio "auto"/);
   });
 
@@ -464,8 +464,8 @@ describe('image-endpoint provider', () => {
         operation: 'text_to_image',
         prompt: 'unsupported square',
         output: { sizePreset: '2k', aspectRatio: 'auto' },
+        model: imageEndpointModel('dall-e-3', 'image-endpoint-variant'),
       },
-      'dall-e-3',
     )).toThrow(/does not support preset "2k" with aspect ratio "auto"/);
   });
 
@@ -601,7 +601,11 @@ describe('image-endpoint provider', () => {
       apiKey: 'test-key',
       defaultModel: 'dall-e-3',
     });
-    const request = provider.validateRequest({ operation: 'text_to_image', prompt: 'test' });
+    const request = provider.validateRequest({
+      operation: 'text_to_image',
+      prompt: 'test',
+      model: imageEndpointModel('dall-e-3', 'image-endpoint-variant'),
+    });
 
     const result = await provider.invoke({ config, request });
 
@@ -646,6 +650,7 @@ describe('image-endpoint provider', () => {
       operation: 'image_edit',
       prompt: 'test edit',
       images: [{ type: 'image', data: new Uint8Array([1, 2, 3, 4]), mimeType: 'image/png', name: 'input.png' }],
+      model: imageEndpointModel('gpt-image-2'),
     });
 
     const result = await provider.invoke({ config, request });
@@ -691,6 +696,7 @@ describe('image-endpoint provider', () => {
         operation: 'image_edit',
         prompt: 'fallback edit',
         images: [{ type: 'image', data: 'iVBORw0KGgo=', mimeType: 'image/png' }],
+        model: imageEndpointModel('gpt-image-2'),
       }),
     });
 
@@ -728,6 +734,7 @@ describe('image-endpoint provider', () => {
         operation: 'image_edit',
         prompt: 'no fallback edit',
         images: [{ type: 'image', data: 'iVBORw0KGgo=', mimeType: 'image/png' }],
+        model: imageEndpointModel('gpt-image-2'),
       }),
     })).rejects.toThrow('Internal Server Error');
     expect(counting.calls).toHaveLength(1);
@@ -769,6 +776,7 @@ describe('image-endpoint provider', () => {
         operation: 'image_edit',
         prompt: 'multi endpoint edit',
         images: [{ type: 'image', data: 'iVBORw0KGgo=', mimeType: 'image/png' }],
+        model: imageEndpointModel('gpt-image-2'),
       }),
     })).rejects.toThrow('Unsupported Media Type');
 
@@ -820,7 +828,7 @@ describe('image-endpoint provider', () => {
         operation: 'image_edit',
         prompt: 'url edit',
         images: [{ type: 'image', url: 'https://example.com/input.png' }],
-        providerOptions: { model: 'qwen-image-2.0-2026-03-03' },
+        model: imageEndpointModel('qwen-image-2.0-2026-03-03'),
       }),
     });
 
@@ -831,7 +839,7 @@ describe('image-endpoint provider', () => {
         operation: 'image_edit',
         prompt: 'inline edit',
         images: [{ type: 'image', data: 'iVBORw0KGgo=', mimeType: 'image/png' }],
-        providerOptions: { model: 'qwen-image-2.0-2026-03-03' },
+        model: imageEndpointModel('qwen-image-2.0-2026-03-03'),
       }),
     });
 

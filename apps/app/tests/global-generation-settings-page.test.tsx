@@ -17,12 +17,8 @@ const imageEditOnly1kContext = {
   kind: 'composer',
   model: {
     id: 'image-edit-only-1k',
-    capabilities: {
-      operations: {
-        textToImage: { support: 'supported', sizePresets: ['1k', '2k', '4k'] },
-        imageEdit: { support: 'supported', sizePresets: ['1k'] },
-      },
-    },
+    configured: true,
+    selected: true,
   },
   operation: 'image-edit',
 } as const;
@@ -170,7 +166,7 @@ describe('GlobalGenerationSettingsPage', () => {
     });
   });
 
-  it('blocks output size changes when the shared composer context marks them unsupported', async () => {
+  it('saves output size changes when model config does not expose local size limits', async () => {
     const { services } = createFakeServices();
     const container = document.createElement('div');
     document.body.appendChild(container);
@@ -205,9 +201,13 @@ describe('GlobalGenerationSettingsPage', () => {
       document.body.querySelector<HTMLElement>('[data-testid="global-output-size-selector-option-4k"]')!.click();
     });
 
-    expect(container.querySelector('[data-testid="toast"]')?.textContent).toContain('此模型不支持 4K');
-    expect(container.querySelector<HTMLElement>('[data-testid="global-output-size-selector"]')?.getAttribute('aria-label')).toContain('2K');
-    expect(onSave).not.toHaveBeenCalled();
+    expect(container.querySelector('[data-testid="toast"]')?.textContent ?? '').not.toContain('此模型不支持 4K');
+    expect(onSave).toHaveBeenCalledWith({
+      outputSizePreset: '4k',
+      outputFormat: 'png',
+      aspectRatio: 'auto',
+      providerInputSizePreset: '2k',
+    });
   });
 
   it('saves the provider input size preset label from the selector', async () => {

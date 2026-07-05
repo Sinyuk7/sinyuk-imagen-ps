@@ -1,8 +1,21 @@
 import { describe, expect, it } from 'vitest';
-import { _resetForTesting, _setRuntimeInstanceForTesting, setProviderProfileRepository } from '../runtime.js';
+import {
+  _resetForTesting,
+  _setRuntimeInstanceForTesting,
+  setModelDiscoveryCacheRepository,
+  setProviderProfileRepository,
+  setUserModelConfigRepository,
+} from '../runtime.js';
 import { createProviderRegistry, type Provider, type ProviderConfig, type ProviderRequest } from '@imagen-ps/providers';
 import { listProfileModels, refreshProfileModels } from './profile-models.js';
-import type { ProviderProfile, ProviderProfileRepository } from './types.js';
+import type {
+  ModelDiscoveryCache,
+  ModelDiscoveryCacheRepository,
+  ProviderProfile,
+  ProviderProfileRepository,
+  UserModelConfig,
+  UserModelConfigRepository,
+} from './types.js';
 
 const IMAGE_ENDPOINT_CATALOG_IDS = [
   'gpt-image-2',
@@ -14,7 +27,7 @@ const IMAGE_ENDPOINT_CATALOG_IDS = [
   'qwen-image-2.0-2026-03-03',
 ] as const;
 
-function createRepository(profiles: readonly ProviderProfile[]): ProviderProfileRepository {
+function createProfileRepository(profiles: readonly ProviderProfile[]): ProviderProfileRepository {
   const store = new Map(profiles.map((profile) => [profile.profileId, profile]));
   return {
     async list() {
@@ -32,24 +45,43 @@ function createRepository(profiles: readonly ProviderProfile[]): ProviderProfile
   };
 }
 
-function repositoryEntry(repository: ProviderProfileRepository, profileId: string): Promise<ProviderProfile | undefined> {
-  return repository.get(profileId);
+function createDiscoveryRepository(initial: readonly ModelDiscoveryCache[] = []): {
+  readonly repository: ModelDiscoveryCacheRepository;
+  readonly store: Map<string, ModelDiscoveryCache>;
+} {
+  const store = new Map(initial.map((cache) => [cache.profileId, cache]));
+  return {
+    store,
+    repository: {
+      async get(profileId) {
+        return store.get(profileId);
+      },
+      async put(cache) {
+        store.set(cache.profileId, cache);
+      },
+      async delete(profileId) {
+        store.delete(profileId);
+      },
+    },
+  };
 }
 
-function mockProfile(overrides?: Partial<ProviderProfile>): ProviderProfile {
+function createUserModelConfigRepository(configs: readonly UserModelConfig[] = []): UserModelConfigRepository {
+  const store = new Map(configs.map((config) => [`${config.apiFormat}:${config.modelId}`, config]));
   return {
-    profileId: 'mock-profile',
-    apiFormat: 'openai-images',
-    displayName: 'Mock Profile',
-    enabled: true,
-    config: {
-      apiFormat: 'openai-images',
-      displayName: 'Mock Profile',      baseURL: 'https://mock.local',
-      defaultModel: 'mock-image-v1',
+    async list(apiFormat) {
+      const values = Array.from(store.values());
+      return apiFormat === undefined ? values : values.filter((config) => config.apiFormat === apiFormat);
     },
-    createdAt: '2026-06-15T00:00:00.000Z',
-    updatedAt: '2026-06-15T00:00:00.000Z',
-    ...overrides,
+    async get(apiFormat, modelId) {
+      return store.get(`${apiFormat}:${modelId}`);
+    },
+    async save(config) {
+      store.set(`${config.apiFormat}:${config.modelId}`, config);
+    },
+    async delete(apiFormat, modelId) {
+      store.delete(`${apiFormat}:${modelId}`);
+    },
   };
 }
 
@@ -61,323 +93,182 @@ function imageEndpointProfile(overrides?: Partial<ProviderProfile>): ProviderPro
     enabled: true,
     config: {
       apiFormat: 'openai-images',
-      displayName: 'Image Endpoint Profile',      connection: {
+      displayName: 'Image Endpoint Profile',
+      connection: {
         selectionMode: 'manual',
         selectedEndpointId: 'primary',
         endpoints: [{ id: 'primary', url: 'https://example.com', enabled: true }],
       },
       defaultModel: 'gpt-image-2',
     },
+    selectedModelIds: ['gpt-image-2'],
+    defaultModelId: 'gpt-image-2',
     createdAt: '2026-06-15T00:00:00.000Z',
     updatedAt: '2026-06-15T00:00:00.000Z',
     ...overrides,
   };
 }
 
-describe('profile model commands', () => {
-  it('rejects unsupported config.defaultModel values', async () => {
-    _resetForTesting();
-    setProviderProfileRepository(createRepository([
-      mockProfile({
-        config: {
-          apiFormat: 'openai-images',
-          displayName: 'Mock Profile',          baseURL: 'https://mock.local',
-          defaultModel: 'gpt-image2',
-        },
-      }),
-    ]));
-
-    const result = await listProfileModels('mock-profile');
-
-    expect(result.ok).toBe(false);
-    if (!result.ok) {
-      expect(result.error.category).toBe('validation');
-      expect(result.error.message).toContain('defaultModel "gpt-image2" is not supported');
-    }
-  });
-
-  it('rejects unsupported config.defaultModel even when discovery cache contains it', async () => {
-    _resetForTesting();
-    setProviderProfileRepository(createRepository([
-      mockProfile({
-        models: [{ id: 'gpt-image2' }, { id: 'mock-image-v1' }],
-        config: {
-          apiFormat: 'openai-images',
-          displayName: 'Mock Profile',          baseURL: 'https://mock.local',
-          defaultModel: 'gpt-image2',
-        },
-      }),
-    ]));
-
-    const result = await listProfileModels('mock-profile');
-
-    expect(result.ok).toBe(false);
-    if (!result.ok) {
-      expect(result.error.category).toBe('validation');
-      expect(result.error.message).toContain('defaultModel "gpt-image2" is not supported');
-    }
-  });
-
-  it('does not inject an empty config.defaultModel into listed candidates', async () => {
-    _resetForTesting();
-    setProviderProfileRepository(createRepository([
-      mockProfile({
-        config: {
-          apiFormat: 'openai-images',
-          displayName: 'Mock Profile',          baseURL: 'https://mock.local',
-          defaultModel: '   ',
-        },
-      }),
-    ]));
-
-    const result = await listProfileModels('mock-profile');
-
-    expect(result.ok).toBe(true);
-    if (result.ok) {
-      expect(result.value.map((model) => model.id)).toEqual(IMAGE_ENDPOINT_CATALOG_IDS);
-    }
-  });
-
-  it('uses the local catalog as the authoritative default list for image-endpoint providers', async () => {
-    _resetForTesting();
-    setProviderProfileRepository(createRepository([imageEndpointProfile()]));
-
-    const result = await listProfileModels('image-endpoint-profile');
-
-    expect(result.ok).toBe(true);
-    if (result.ok) {
-      expect(result.value.map((model) => model.id)).toEqual(IMAGE_ENDPOINT_CATALOG_IDS);
-      expect(result.value.every((model) => model.supportStatus === 'selectable')).toBe(true);
-    }
-  });
-
-  it('adds separate availability and catalog capability summaries to image-endpoint model candidates', async () => {
-    _resetForTesting();
-    setProviderProfileRepository(createRepository([imageEndpointProfile({
-      models: [{ id: 'gpt-image-1' }],
-      config: {
+function registerImageEndpointProvider(discoverModels: Provider<ProviderConfig, ProviderRequest>['discoverModels']): void {
+  const registry = createProviderRegistry();
+  const provider: Provider<ProviderConfig, ProviderRequest> = {
+    id: 'image-endpoint',
+    family: 'image-endpoint',
+    describe() {
+      return {
+        id: 'image-endpoint',
+        family: 'image-endpoint',
         apiFormat: 'openai-images',
-        displayName: 'Image Endpoint Profile',        connection: {
-          selectionMode: 'manual',
-          selectedEndpointId: 'primary',
-          endpoints: [{ id: 'primary', url: 'https://example.com', enabled: true }],
-        },
-        defaultModel: 'gpt-image-1',
-      },
-    })]));
+        displayName: 'Image Endpoint',
+        operations: ['text_to_image', 'image_edit'],
+        invokeMode: 'sync',
+      };
+    },
+    validateConfig(input) {
+      return input as ProviderConfig;
+    },
+    validateRequest(input) {
+      return input as ProviderRequest;
+    },
+    async invoke() {
+      throw new Error('invoke not used in this test');
+    },
+    discoverModels,
+  };
+  registry.register(provider);
+  _setRuntimeInstanceForTesting({ providerRegistry: registry } as never);
+}
 
-    const result = await listProfileModels('image-endpoint-profile');
-
-    expect(result.ok).toBe(true);
-    if (result.ok) {
-      expect(result.value.find((model) => model.id === 'gpt-image-1')).toMatchObject({
-        availability: { status: 'selectable' },
-        capabilities: {
-          operations: {
-            textToImage: { support: 'supported', sizePresets: ['1k', '2k'] },
-            imageEdit: { support: 'unsupported', sizePresets: [], reason: 'operation-unsupported' },
-          },
-        },
-      });
-      expect(result.value.find((model) => model.id === 'dall-e-3')).toMatchObject({
-        availability: { status: 'selectable' },
-        remotelyAvailable: false,
-        capabilities: {
-          operations: {
-            textToImage: { support: 'supported', sizePresets: ['1k', '2k'] },
-            imageEdit: { support: 'unsupported', sizePresets: [], reason: 'operation-unsupported' },
-          },
-        },
-      });
-      expect(result.value.find((model) => model.id === 'gpt-image-1')).toMatchObject({
-        availability: { status: 'selectable' },
-        remotelyAvailable: true,
-      });
-    }
-  });
-
-  it('keeps configured local catalog defaults selectable even when discovery cache does not report them', async () => {
+describe('profile model commands', () => {
+  it('lists local profile models from cache, user config, official catalog, and selection state', async () => {
     _resetForTesting();
-    setProviderProfileRepository(createRepository([
+    setProviderProfileRepository(createProfileRepository([
       imageEndpointProfile({
-        models: [{ id: 'gpt-image-2', supportStatus: 'selectable' }],
-        config: {
-          apiFormat: 'openai-images',
-          displayName: 'Image Endpoint Profile',          connection: {
-            selectionMode: 'manual',
-            selectedEndpointId: 'primary',
-            endpoints: [{ id: 'primary', url: 'https://example.com', enabled: true }],
-          },
-          defaultModel: 'dall-e-3',
-        },
+        selectedModelIds: ['gpt-image-2', 'custom-user-model', 'orphan-selected-model'],
+        defaultModelId: 'custom-user-model',
       }),
+    ]));
+    setModelDiscoveryCacheRepository(createDiscoveryRepository([
+      {
+        profileId: 'image-endpoint-profile',
+        modelIds: ['gpt-image-2', 'unknown-remote-model'],
+        refreshedAt: '2026-07-05T00:00:00.000Z',
+      },
+    ]).repository);
+    setUserModelConfigRepository(createUserModelConfigRepository([
+      {
+        apiFormat: 'openai-images',
+        modelId: 'custom-user-model',
+        requestStrategyId: 'image-endpoint-default',
+        output: { aspectRatios: ['1:1'], sizes: ['1k'], outputFormats: ['png'] },
+      },
     ]));
 
     const result = await listProfileModels('image-endpoint-profile');
 
     expect(result.ok).toBe(true);
     if (result.ok) {
-      expect(result.value.find((model) => model.id === 'dall-e-3')).toMatchObject({
-        id: 'dall-e-3',
-        supportStatus: 'selectable',
-        remotelyAvailable: false,
+      expect(result.value.map((model) => model.modelId)).toEqual([
+        'gpt-image-2',
+        'unknown-remote-model',
+        'custom-user-model',
+        'gpt-image-1',
+        'dall-e-3',
+        'grok-imagine-image-pro',
+        'grok-imagine-image',
+        'doubao-seedream-5-0-260128',
+        'qwen-image-2.0-2026-03-03',
+      ]);
+      expect(result.value.some((model) => model.modelId === 'orphan-selected-model')).toBe(false);
+      expect(result.value.find((model) => model.modelId === 'gpt-image-2')).toMatchObject({
+        discovered: true,
+        configured: true,
+        selected: true,
+        default: false,
+        configSource: 'catalog',
+      });
+      expect(result.value.find((model) => model.modelId === 'unknown-remote-model')).toMatchObject({
+        discovered: true,
+        configured: false,
+        selected: false,
+        default: false,
+      });
+      expect(result.value.find((model) => model.modelId === 'custom-user-model')).toMatchObject({
+        discovered: false,
+        configured: true,
+        selected: true,
+        default: true,
+        configSource: 'user',
       });
     }
   });
 
-  it('reconciles stale image-endpoint cache against the current catalog before returning picker models', async () => {
+  it('returns the official catalog immediately when no discovery cache exists', async () => {
     _resetForTesting();
-    setProviderProfileRepository(createRepository([
-      imageEndpointProfile({
-        models: [
-          { id: 'gemini-2.5-flash-image', displayName: 'Gemini 2.5 Flash Image' },
-          { id: 'gemini-3-pro-image', displayName: 'Gemini 3 Pro Image' },
-          { id: 'gpt-image-2', displayName: 'GPT Image 2' },
-          { id: 'gpt-image-1-2025-04-15', displayName: 'GPT Image 1 2025 04 15' },
-          { id: 'gpt-image-1', displayName: 'GPT Image 1' },
-          { id: 'gemini-3.1-flash-lite-image', displayName: 'Gemini 3.1 Flash Lite Image' },
-          { id: 'gpt-image-1-mini', displayName: 'GPT Image 1 Mini' },
-          { id: 'dall-e-3', displayName: 'DALL-E 3' },
-          { id: 'grok-imagine-image-quality', displayName: 'Grok Quality' },
-          { id: 'grok-imagine-image', displayName: 'Grok' },
-          { id: 'doubao-seedream-5-0-260128', displayName: 'Doubao Seedream 5.0 Lite' },
-          { id: 'qwen-image-2.0-2026-03-03', displayName: 'Qwen Image 2.0' },
-          { id: 'gemini-3.1-flash-image', displayName: 'Gemini 3.1 Flash Image' },
-          { id: 'gemini-3.1-flash-image-preview', displayName: 'Gemini 3.1 Flash Image Preview' },
-          { id: 'gpt-image-1.5', displayName: 'GPT Image 1.5' },
-          { id: 'gemini-3-pro-image-preview', displayName: 'Gemini 3 Pro Image Preview' },
-        ],
-      }),
-    ]));
+    setProviderProfileRepository(createProfileRepository([imageEndpointProfile()]));
 
     const result = await listProfileModels('image-endpoint-profile');
 
     expect(result.ok).toBe(true);
     if (result.ok) {
-      expect(result.value.map((model) => model.id)).toEqual(IMAGE_ENDPOINT_CATALOG_IDS);
-      expect(result.value.every((model) => model.supportStatus === 'selectable')).toBe(true);
-      expect(result.value.find((model) => model.id === 'gpt-image-2')).toMatchObject({ remotelyAvailable: true });
-      expect(result.value.find((model) => model.id === 'grok-imagine-image-pro')).toMatchObject({ remotelyAvailable: true });
-      expect(result.value.find((model) => model.id === 'gpt-image-1')).toMatchObject({ remotelyAvailable: true });
+      expect(result.value.map((model) => model.modelId)).toEqual(IMAGE_ENDPOINT_CATALOG_IDS);
+      expect(result.value[0]).toMatchObject({
+        modelId: 'gpt-image-2',
+        discovered: false,
+        configured: true,
+        selected: true,
+        default: true,
+        configSource: 'catalog',
+      });
     }
   });
 
-  it('persists reconciled catalog models after refresh succeeds for image-endpoint profiles', async () => {
+  it('refreshes remote discovery into the discovery cache without mutating the profile', async () => {
     _resetForTesting();
-    const repository = createRepository([imageEndpointProfile()]);
-    setProviderProfileRepository(repository);
-
-    const registry = createProviderRegistry();
-    const refreshingProvider: Provider<ProviderConfig, ProviderRequest> = {
-      id: 'image-endpoint',
-      family: 'image-endpoint',
-      describe() {
-        return {
-          id: 'image-endpoint',
-          family: 'image-endpoint',
-          apiFormat: 'openai-images',
-          displayName: 'Image Endpoint',
-          operations: ['text_to_image', 'image_edit'],
-          invokeMode: 'sync',
-        };
-      },
-      validateConfig(input) {
-        return input as ProviderConfig;
-      },
-      validateRequest(input) {
-        return input as ProviderRequest;
-      },
-      async invoke() {
-        throw new Error('invoke not used in this test');
-      },
-      async discoverModels() {
-        return [
-          { id: 'gemini-2.5-flash-image', displayName: 'Gemini 2.5 Flash Image' },
-          { id: 'gpt-image-2', displayName: 'GPT Image 2' },
-          { id: 'gpt-image-1', displayName: 'GPT Image 1' },
-          { id: 'dall-e-3', displayName: 'DALL-E 3' },
-          { id: 'grok-imagine-image-pro', displayName: 'Grok Pro' },
-          { id: 'grok-imagine-image', displayName: 'Grok' },
-          { id: 'doubao-seedream-5-0-260128', displayName: 'Doubao Seedream 5.0 Lite' },
-          { id: 'qwen-image-2.0-2026-03-03', displayName: 'Qwen Image 2.0' },
-          { id: 'gpt-image-1-mini', displayName: 'GPT Image 1 Mini' },
-        ];
-      },
-      async queryBalance() {
-        throw new Error('queryBalance not used in this test');
-      },
-    };
-    registry.register(refreshingProvider);
-    _setRuntimeInstanceForTesting({ providerRegistry: registry } as never);
+    const profile = imageEndpointProfile();
+    setProviderProfileRepository(createProfileRepository([profile]));
+    const { repository, store } = createDiscoveryRepository();
+    setModelDiscoveryCacheRepository(repository);
+    registerImageEndpointProvider(async () => [
+      { id: 'gpt-image-2' },
+      { id: 'custom-remote-model' },
+      { id: 'custom-remote-model' },
+      { id: '   ' },
+    ]);
 
     const result = await refreshProfileModels('image-endpoint-profile');
 
     expect(result.ok).toBe(true);
     if (result.ok) {
-      expect(result.value.map((model) => model.id)).toEqual(IMAGE_ENDPOINT_CATALOG_IDS);
+      expect(result.value).toEqual([{ id: 'gpt-image-2' }, { id: 'custom-remote-model' }]);
     }
-
-    const persisted = await repositoryEntry(repository, 'image-endpoint-profile');
-    expect(persisted?.models?.map((model) => model.id)).toEqual(IMAGE_ENDPOINT_CATALOG_IDS);
+    expect(store.get('image-endpoint-profile')?.modelIds).toEqual(['gpt-image-2', 'custom-remote-model']);
+    expect(profile.selectedModelIds).toEqual(['gpt-image-2']);
+    expect(profile.defaultModelId).toBe('gpt-image-2');
   });
 
-  it('returns the authoritative local catalog after refresh while persisting only discovered availability', async () => {
+  it('keeps the last successful discovery cache when refresh fails', async () => {
     _resetForTesting();
-    const repository = createRepository([imageEndpointProfile()]);
-    setProviderProfileRepository(repository);
-
-    const registry = createProviderRegistry();
-    const refreshingProvider: Provider<ProviderConfig, ProviderRequest> = {
-      id: 'image-endpoint',
-      family: 'image-endpoint',
-      describe() {
-        return {
-          id: 'image-endpoint',
-          family: 'image-endpoint',
-          apiFormat: 'openai-images',
-          displayName: 'Image Endpoint',
-          operations: ['text_to_image', 'image_edit'],
-          invokeMode: 'sync',
-        };
+    setProviderProfileRepository(createProfileRepository([imageEndpointProfile()]));
+    const { repository, store } = createDiscoveryRepository([
+      {
+        profileId: 'image-endpoint-profile',
+        modelIds: ['cached-model'],
+        refreshedAt: '2026-07-04T00:00:00.000Z',
       },
-      validateConfig(input) {
-        return input as ProviderConfig;
-      },
-      validateRequest(input) {
-        return input as ProviderRequest;
-      },
-      async invoke() {
-        throw new Error('invoke not used in this test');
-      },
-      async discoverModels() {
-        return [
-          { id: 'gpt-image-2', displayName: 'GPT Image 2' },
-          { id: 'gpt-image-1', displayName: 'GPT Image 1' },
-          { id: 'dall-e-3', displayName: 'DALL-E 3' },
-          { id: 'gpt-image-1-mini', displayName: 'GPT Image 1 Mini' },
-        ];
-      },
-      async queryBalance() {
-        throw new Error('queryBalance not used in this test');
-      },
-    };
-    registry.register(refreshingProvider);
-    _setRuntimeInstanceForTesting({ providerRegistry: registry } as never);
+    ]);
+    setModelDiscoveryCacheRepository(repository);
+    registerImageEndpointProvider(async () => {
+      throw new Error('upstream unavailable');
+    });
 
     const result = await refreshProfileModels('image-endpoint-profile');
 
-    expect(result.ok).toBe(true);
-    if (result.ok) {
-      expect(result.value.map((model) => model.id)).toEqual(IMAGE_ENDPOINT_CATALOG_IDS);
-      expect(result.value.find((model) => model.id === 'gpt-image-2')).toMatchObject({ remotelyAvailable: true });
-      expect(result.value.find((model) => model.id === 'gpt-image-1')).toMatchObject({ remotelyAvailable: true });
-      expect(result.value.find((model) => model.id === 'dall-e-3')).toMatchObject({ remotelyAvailable: true });
-      expect(result.value.find((model) => model.id === 'grok-imagine-image-pro')).toMatchObject({ remotelyAvailable: false });
-      expect(result.value.find((model) => model.id === 'qwen-image-2.0-2026-03-03')).toMatchObject({ remotelyAvailable: false });
-      expect(result.value.every((model) => model.supportStatus === 'selectable')).toBe(true);
+    expect(result.ok).toBe(false);
+    if (!result.ok) {
+      expect(result.error.category).toBe('provider');
+      expect(result.error.message).toContain('upstream unavailable');
     }
-
-    const persisted = await repositoryEntry(repository, 'image-endpoint-profile');
-    expect(persisted?.models?.map((model) => model.id)).toEqual(['gpt-image-2', 'gpt-image-1', 'dall-e-3']);
+    expect(store.get('image-endpoint-profile')?.modelIds).toEqual(['cached-model']);
   });
 });

@@ -1,31 +1,28 @@
 /**
  * Profile model commands.
  *
- * 本模块在不动 dispatch / secret 边界的前提下，提供与 provider profile
- * 的 model 候选相关的 surface-agnostic 命令：
- *
- * - `listProfileModels(profileId)`：catalog provider 始终以本地 catalog 为
- *   picker 来源，`profile.models` 仅作为 remotelyAvailable 的缓存；其他
- *   provider 仍按 `profile.models` → `descriptor.defaultModels` → `[]`
- *   回退，不做任何网络调用。
- * - `refreshProfileModels(profileId)`：调用 implementation 的
- *   `discoverModels(config)`；catalog provider 成功时只更新 discovery cache，
- *   返回值仍是本地 catalog + availability metadata；失败时不擦除已有缓存、
- *   不持久化任何失败状态。
+ * `refreshProfileModels()` owns remote discovery and writes a profile-scoped
+ * discovery cache. `listProfileModels()` is local-only reconciliation over the
+ * cache, user model configs, official catalog, and profile selection state.
  */
 
 import { createProviderError, createValidationError } from '@imagen-ps/core-engine';
 import { generateTraceId } from '@imagen-ps/foundation';
-import { getProviderConfigResolver, getProviderProfileRepository, getRuntime, getRuntimeLogger } from '../runtime.js';
-import type { CommandResult, ProviderProfile } from './types.js';
 import {
-  listLocalCatalogModels,
+  getModelDiscoveryCacheRepository,
+  getProviderConfigResolver,
+  getProviderProfileRepository,
+  getRuntime,
+  getRuntimeLogger,
+  getUserModelConfigRepository,
+} from '../runtime.js';
+import type { CommandResult, ProfileModelItem, ProviderProfile, UserModelConfig } from './types.js';
+import {
+  listOfficialModelPresets,
   providerUsesImageModelCatalog,
-  reconcileDiscoveredCatalogModels,
-  type ProviderModelInfo,
+  type DiscoveredModel,
 } from '@imagen-ps/providers';
 import { catalogProviderIdForApiFormat } from './api-format-profile.js';
-import { assertSupportedProfileDefaultModel } from './default-model-validation.js';
 
 function errorMessage(error: unknown, fallback: string): string {
   if (error instanceof Error) {
@@ -37,95 +34,62 @@ function errorMessage(error: unknown, fallback: string): string {
   return fallback;
 }
 
-export function reconcileCachedCatalogModels(profile: ProviderProfile): readonly ProviderModelInfo[] {
+function uniqueModelIds(ids: readonly string[]): readonly string[] {
+  const seen = new Set<string>();
+  const result: string[] = [];
+  for (const id of ids) {
+    const modelId = id.trim();
+    if (modelId.length === 0 || seen.has(modelId)) {
+      continue;
+    }
+    seen.add(modelId);
+    result.push(modelId);
+  }
+  return result;
+}
+
+function officialCatalogIds(profile: Pick<ProviderProfile, 'apiFormat'>): ReadonlySet<string> {
   const catalogProviderId = catalogProviderIdForApiFormat(profile.apiFormat);
   if (!providerUsesImageModelCatalog(catalogProviderId)) {
-    return profile.models ?? [];
+    return new Set();
   }
+  return new Set(listOfficialModelPresets(profile.apiFormat).map((model) => model.modelId));
+}
 
-  const discoveredModels = reconcileDiscoveredCatalogModels({
-    providerId: catalogProviderId,
-    discoveredModels: profile.models ?? [],
+export function reconcileProfileModels(args: {
+  readonly discoveredModelIds: readonly string[];
+  readonly userModelConfigs: readonly UserModelConfig[];
+  readonly officialCatalogModelIds: ReadonlySet<string>;
+  readonly selectedModelIds: readonly string[];
+  readonly defaultModelId?: string;
+}): readonly ProfileModelItem[] {
+  const discoveredIds = new Set(uniqueModelIds(args.discoveredModelIds));
+  const userConfigIds = new Set(args.userModelConfigs.map((config) => config.modelId));
+  const selectedIds = new Set(uniqueModelIds(args.selectedModelIds));
+  const candidateIds = uniqueModelIds([
+    ...discoveredIds,
+    ...userConfigIds,
+    ...args.officialCatalogModelIds,
+  ]);
+
+  return candidateIds.map((modelId) => {
+    const userConfigured = userConfigIds.has(modelId);
+    const catalogConfigured = args.officialCatalogModelIds.has(modelId);
+    return {
+      modelId,
+      discovered: discoveredIds.has(modelId),
+      configured: userConfigured || catalogConfigured,
+      selected: selectedIds.has(modelId),
+      default: args.defaultModelId === modelId,
+      ...(userConfigured ? { configSource: 'user' as const } : catalogConfigured ? { configSource: 'catalog' as const } : {}),
+    };
   });
-  if ((profile.models ?? []).length === 0) {
-    return listLocalCatalogModels(catalogProviderId);
-  }
-
-  const remotelyAvailableRuleIds = new Set(discoveredModels.map((model) => model.ruleId));
-  return listLocalCatalogModels(catalogProviderId).map((model) => ({
-    ...model,
-    remotelyAvailable: remotelyAvailableRuleIds.has(model.ruleId),
-  }));
-}
-
-function resolvedBaseModels(
-  profile: ProviderProfile,
-  descriptorDefaults: readonly ProviderModelInfo[],
-): { readonly models: readonly ProviderModelInfo[]; readonly source: 'profile.cache' | 'provider.defaults' | 'none' } {
-  const catalogProviderId = catalogProviderIdForApiFormat(profile.apiFormat);
-  if (providerUsesImageModelCatalog(catalogProviderId)) {
-    if (profile.models && profile.models.length > 0) {
-      return {
-        models: reconcileCachedCatalogModels(profile),
-        source: 'profile.cache',
-      };
-    }
-    return {
-      models: listLocalCatalogModels(catalogProviderId),
-      source: 'provider.defaults',
-    };
-  }
-
-  if (profile.models && profile.models.length > 0) {
-    return {
-      models: profile.models,
-      source: 'profile.cache',
-    };
-  }
-
-  if (descriptorDefaults.length > 0) {
-    return {
-      models: descriptorDefaults,
-      source: 'provider.defaults',
-    };
-  }
-
-  return {
-    models: [],
-    source: 'none',
-  };
-}
-
-export function resolvedModelsForProfile(
-  profile: ProviderProfile,
-  descriptorDefaults: readonly ProviderModelInfo[],
-): { readonly models: readonly ProviderModelInfo[]; readonly source: 'profile.cache' | 'provider.defaults' | 'none' } {
-  return resolvedBaseModels(profile, descriptorDefaults);
-}
-
-export function reconcilePersistedDiscoveredModels(
-  apiFormat: ProviderProfile['apiFormat'],
-  models: readonly ProviderModelInfo[],
-): readonly ProviderModelInfo[] {
-  const catalogProviderId = catalogProviderIdForApiFormat(apiFormat);
-  return providerUsesImageModelCatalog(catalogProviderId)
-    ? reconcileDiscoveredCatalogModels({
-      providerId: catalogProviderId,
-      discoveredModels: models,
-    })
-    : models;
 }
 
 /**
- * 列出 provider profile 的 model 候选清单。
- *
- * INTENT: 提供 surface-agnostic 的 model 候选获取通路。
- * INPUT: profileId。
- * OUTPUT: 按 fallback chain 解析后的 `readonly ProviderModelInfo[]`。
- * SIDE EFFECT: 无（不发起网络、不写入持久化）。
- * FAILURE: profile 不存在 / apiFormat 未注册 → validation error。
+ * 列出 provider profile 的模型项。纯本地读取，不发起网络请求。
  */
-export async function listProfileModels(profileId: string): Promise<CommandResult<readonly ProviderModelInfo[]>> {
+export async function listProfileModels(profileId: string): Promise<CommandResult<readonly ProfileModelItem[]>> {
   const logger = getRuntimeLogger().child({
     trace_id: generateTraceId(),
     package: 'application',
@@ -154,41 +118,27 @@ export async function listProfileModels(profileId: string): Promise<CommandResul
     };
   }
 
-  const descriptorDefaults = provider.describe().defaultModels ?? [];
-  let resolved;
-  try {
-    assertSupportedProfileDefaultModel({ profile, descriptor: provider.describe(), descriptorDefaults });
-    resolved = resolvedModelsForProfile(profile, descriptorDefaults);
-  } catch (error) {
-    span.fail(error);
-    return {
-      ok: false,
-      error: createValidationError(errorMessage(error, `Provider profile "${profileId}" validation failed.`), {
-        profileId,
-        apiFormat: profile.apiFormat,
-      }),
-    };
-  }
-  span.finish({
-    source: resolved.source,
-    count: resolved.models.length,
+  const cache = await getModelDiscoveryCacheRepository().get(profileId);
+  const userConfigs = await getUserModelConfigRepository().list(profile.apiFormat);
+  const items = reconcileProfileModels({
+    discoveredModelIds: cache?.modelIds ?? [],
+    userModelConfigs: userConfigs,
+    officialCatalogModelIds: officialCatalogIds(profile),
+    selectedModelIds: profile.selectedModelIds,
+    defaultModelId: profile.defaultModelId,
   });
-  return { ok: true, value: resolved.models };
+  span.finish({
+    count: items.length,
+    discoveredCount: cache?.modelIds.length ?? 0,
+    selectedCount: profile.selectedModelIds.length,
+  });
+  return { ok: true, value: items };
 }
 
 /**
- * 触发一次 model discovery 并把结果写入 `profile.models` 缓存。
- *
- * INTENT: 让用户主动触发 implementation 的 discovery，并在成功时刷新缓存。
- * INPUT: profileId。
- * OUTPUT: 成功时返回新 model 列表（含空数组）。
- * SIDE EFFECT: 仅在成功时写 repository；失败时 `profile.models` 维持原值。
- * FAILURE:
- *   - profile 不存在 / config resolve 失败 / implementation 未实现 discoverModels
- *     → validation error（不修改 profile）。
- *   - discoverModels 抛错 → provider error（不修改 profile）。
+ * 触发一次 model discovery 并把远端事实写入独立 discovery cache。
  */
-export async function refreshProfileModels(profileId: string): Promise<CommandResult<readonly ProviderModelInfo[]>> {
+export async function refreshProfileModels(profileId: string): Promise<CommandResult<readonly DiscoveredModel[]>> {
   const logger = getRuntimeLogger().child({
     trace_id: generateTraceId(),
     package: 'application',
@@ -197,8 +147,7 @@ export async function refreshProfileModels(profileId: string): Promise<CommandRe
   });
   const span = logger.startSpan('command.model.refresh');
 
-  const repository = getProviderProfileRepository();
-  const profile = await repository.get(profileId);
+  const profile = await getProviderProfileRepository().get(profileId);
   if (!profile) {
     span.fail({ message: `Provider profile "${profileId}" not found.` });
     return {
@@ -244,7 +193,7 @@ export async function refreshProfileModels(profileId: string): Promise<CommandRe
     };
   }
 
-  let models: readonly ProviderModelInfo[];
+  let models: readonly DiscoveredModel[];
   try {
     models = await provider.discoverModels(
       providerConfig as never,
@@ -255,8 +204,6 @@ export async function refreshProfileModels(profileId: string): Promise<CommandRe
       }),
     );
   } catch (error) {
-    // Sanitize secret leakage: only forward `Error.message`, never raw error or
-    // resolved config; the provider implementation owns "no secret in messages".
     span.fail(error);
     return {
       ok: false,
@@ -267,15 +214,13 @@ export async function refreshProfileModels(profileId: string): Promise<CommandRe
     };
   }
 
-  const persistedModels = reconcilePersistedDiscoveredModels(profile.apiFormat, models);
-
-  const updated: ProviderProfile = {
-    ...profile,
-    models: persistedModels,
-    updatedAt: new Date().toISOString(),
-  };
+  const modelIds = uniqueModelIds(models.map((model) => model.id));
   try {
-    await repository.save(updated);
+    await getModelDiscoveryCacheRepository().put({
+      profileId,
+      modelIds,
+      refreshedAt: new Date().toISOString(),
+    });
   } catch (error) {
     span.fail(error);
     return {
@@ -287,24 +232,8 @@ export async function refreshProfileModels(profileId: string): Promise<CommandRe
     };
   }
 
-  const descriptorDefaults = provider.describe().defaultModels ?? [];
-  let resolved;
-  try {
-    assertSupportedProfileDefaultModel({ profile: updated, descriptor: provider.describe(), descriptorDefaults });
-    resolved = resolvedModelsForProfile(updated, descriptorDefaults);
-  } catch (error) {
-    span.fail(error);
-    return {
-      ok: false,
-      error: createValidationError(errorMessage(error, `Provider profile "${profileId}" validation failed.`), {
-        profileId,
-        apiFormat: profile.apiFormat,
-      }),
-    };
-  }
   span.finish({
-    persistedCount: persistedModels.length,
-    returnedCount: resolved.models.length,
+    persistedCount: modelIds.length,
   });
-  return { ok: true, value: resolved.models };
+  return { ok: true, value: modelIds.map((id) => ({ id })) };
 }

@@ -10,7 +10,7 @@ import type {
 } from '../../contract/provider.js';
 import type { ProviderBalanceSnapshot } from '../../contract/billing.js';
 import type { ProviderInvokeResult } from '../../contract/result.js';
-import type { ProviderModelInfo } from '../../contract/model.js';
+import type { DiscoveredModel } from '../../contract/model.js';
 import type { Logger } from '@imagen-ps/foundation';
 import { imageEndpointDescriptor } from './descriptor.js';
 import { imageEndpointConfigSchema, type ImageEndpointProviderConfig } from './config-schema.js';
@@ -31,7 +31,6 @@ import {
 } from '../../transport/image-endpoint/build-request.js';
 import { parseResponse } from '../../transport/image-endpoint/parse-response.js';
 import { inspectModelsResponse } from '../../transport/image-endpoint/models.js';
-import { listLocalCatalogModels } from '../../contract/image-model-capability.js';
 import {
   fetchProviderBalanceJson,
   parseNewApiBalanceResponse,
@@ -87,7 +86,6 @@ function logEditRequestSummary(
     readonly source: string;
     readonly cacheKey: string;
   },
-  defaultModel: string | undefined,
 ): void {
   if (request.operation !== 'image_edit') {
     return;
@@ -97,10 +95,7 @@ function logEditRequestSummary(
     codec: resolvedCodec.codec.id,
     source: resolvedCodec.source,
     compatibilityKey: resolvedCodec.cacheKey,
-    model:
-      typeof request.providerOptions?.model === 'string'
-        ? (request.providerOptions.model as string)
-        : (defaultModel ?? 'gpt-image-2'),
+    model: request.model?.modelId,
     imageCount: request.images?.length ?? 0,
     imageReferenceKinds: (request.images ?? []).map((asset) => summarizeAssetReferenceKind(asset)),
     maskReferenceKind: summarizeAssetReferenceKind(request.maskImage),
@@ -151,32 +146,17 @@ function normalizeDiscoveredModelsResponse(
   payload: unknown,
   endpointId: string,
   logger?: Logger,
-): readonly ProviderModelInfo[] {
+): readonly DiscoveredModel[] {
   const inspected = inspectModelsResponse(payload);
   logger?.info('provider.image_endpoint.discover_models.analysis', {
     endpointId,
     rawCount: inspected.rawIds.length,
     rawIds: inspected.rawIds,
-    catalogMatchedCount: inspected.catalogMatchedIds.length,
-    catalogMatchedIds: inspected.catalogMatchedIds,
-    reconciledCount: inspected.reconciledModels.length,
-    reconciledIds: inspected.reconciledModels.map((model) => model.id),
+    discoveredCount: inspected.models.length,
+    discoveredIds: inspected.models.map((model) => model.id),
   });
 
-  if (inspected.reconciledModels.length > 0) {
-    return inspected.reconciledModels;
-  }
-
-  const fallbackModels = listLocalCatalogModels('image-endpoint').map((model) => ({
-    ...model,
-    remotelyAvailable: false,
-  }));
-  logger?.info('provider.image_endpoint.discover_models.fallback_local_catalog', {
-    endpointId,
-    fallbackCount: fallbackModels.length,
-    fallbackIds: fallbackModels.map((model) => model.id),
-  });
-  return fallbackModels;
+  return inspected.models;
 }
 
 async function mapWithConcurrency<TInput, TOutput>(
@@ -286,12 +266,12 @@ export function createImageEndpointProvider(): Provider<ImageEndpointProviderCon
           : undefined;
 
       if (resolvedEditCodec !== undefined) {
-        logEditRequestSummary(args.logger, request, resolvedEditCodec, config.defaultModel);
+        logEditRequestSummary(args.logger, request, resolvedEditCodec);
       }
 
       const body =
         request.operation === 'text_to_image'
-          ? buildRequestBody(request, config.defaultModel)
+          ? buildRequestBody(request)
           : undefined;
 
       // 付费生成请求：按 provider 能力解析保守重试策略与可选 idempotency key。
@@ -359,7 +339,7 @@ export function createImageEndpointProvider(): Provider<ImageEndpointProviderCon
             if (!endpointConfig) {
               throw createValidationError(`Unknown endpoint candidate: "${candidate.endpointId}".`);
             }
-            const builtRequest = buildImageEditHttpRequest(request, candidate.codecId, config.defaultModel);
+            const builtRequest = buildImageEditHttpRequest(request, candidate.codecId);
             successfulEditCodec = builtRequest.codec;
             requestDiagnostics = builtRequest.diagnostics;
             const response = await httpRequest(
@@ -444,7 +424,7 @@ export function createImageEndpointProvider(): Provider<ImageEndpointProviderCon
     async discoverModels(
       config: ImageEndpointProviderConfig,
       logger?: Logger,
-    ): Promise<readonly ProviderModelInfo[]> {
+    ): Promise<readonly DiscoveredModel[]> {
       const execution = await executeWithEndpointFailover({
         connection: config.connection,
         logger,
@@ -504,13 +484,10 @@ export function createImageEndpointProvider(): Provider<ImageEndpointProviderCon
     ): Promise<ProviderConnectionTestResult> {
       try {
         const models = await this.discoverModels!(config, logger);
-        const selectableCount = models.filter(
-          (model) => model.supportStatus === undefined || model.supportStatus === 'selectable',
-        ).length;
         return {
           supported: true,
           reachable: true,
-          modelCount: selectableCount,
+          modelCount: models.length,
           models,
         };
       } catch (error) {

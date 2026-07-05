@@ -1,7 +1,11 @@
 import type { Asset } from '@imagen-ps/core-engine';
 import type { ProviderDiagnostic } from '../../contract/diagnostics.js';
 import type { CanonicalImageJobRequest, ProviderOutputOptions } from '../../contract/request.js';
-import { resolveImageModelOutput } from '../../contract/image-model-capability.js';
+import {
+  assertProviderModelExecution,
+  getRequestStrategy,
+  resolveImageModelOutput,
+} from '../../contract/image-model-capability.js';
 
 /** Gemini Generate Content provider-local 输出 revision。 */
 export type GeminiGenerateContentWireRevision = 'response-format-image' | 'image-config-legacy';
@@ -71,7 +75,6 @@ class BuildGeminiGenerateContentRequestError extends Error {
   }
 }
 
-const DEFAULT_MODEL = 'gemini-3.1-flash-image';
 const DEFAULT_WIRE_REVISION: GeminiGenerateContentWireRevision = 'response-format-image';
 const MAX_REFERENCE_IMAGES = 14;
 const ALLOWED_PROVIDER_OPTION_KEYS = new Set(['model']);
@@ -167,10 +170,25 @@ export function normalizeGeminiGenerateContentModelId(modelId: string): string {
   return normalizeGeminiModelId(modelId);
 }
 
-function resolveModel(request: CanonicalImageJobRequest, defaultModel?: string): string {
-  return typeof request.providerOptions?.model === 'string'
-    ? normalizeGeminiModelId(String(request.providerOptions.model))
-    : normalizeGeminiModelId(defaultModel ?? DEFAULT_MODEL);
+function resolveModel(request: CanonicalImageJobRequest): string {
+  return normalizeGeminiModelId(assertProviderModelExecution({
+    execution: request.model,
+    apiFormat: 'gemini-generate-content',
+  }).modelId);
+}
+
+function resolveWireRevision(request: CanonicalImageJobRequest): GeminiGenerateContentWireRevision {
+  if (request.model === undefined) {
+    return DEFAULT_WIRE_REVISION;
+  }
+  const execution = assertProviderModelExecution({
+    execution: request.model,
+    apiFormat: 'gemini-generate-content',
+  });
+  const strategy = getRequestStrategy(execution.requestStrategyId);
+  return strategy?.wireRevisionId === 'image-config-legacy'
+    ? 'image-config-legacy'
+    : 'response-format-image';
 }
 
 function mapAspectRatioForResponseFormat(
@@ -396,12 +414,11 @@ function buildParts(request: CanonicalImageJobRequest): readonly GeminiGenerateC
 
 export function buildGeminiGenerateContentRequest(args: {
   readonly request: CanonicalImageJobRequest;
-  readonly defaultModel?: string;
 }): GeminiGenerateContentBuiltRequest {
   const diagnostics: ProviderDiagnostic[] = [];
   applyProviderOptions(args.request.providerOptions, diagnostics);
-  const model = resolveModel(args.request, args.defaultModel);
-  const wireRevision = DEFAULT_WIRE_REVISION;
+  const model = resolveModel(args.request);
+  const wireRevision = resolveWireRevision(args.request);
   const body: GeminiGenerateContentRequestBody = {
     contents: [
       {

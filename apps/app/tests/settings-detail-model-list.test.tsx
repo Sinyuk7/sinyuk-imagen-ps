@@ -1,6 +1,6 @@
 import { act } from 'react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { fakeProfile, createFakeServices } from './fakes';
+import { fakeProfile, createFakeServices, profileModelItem } from './fakes';
 import {
   cleanupSettingsDetailRoot,
   flush,
@@ -22,15 +22,13 @@ describe('SettingsDetailPage contract — model list', () => {
     const services = createFakeServices({
       profiles: [{
         ...fakeProfile,
-        config: {
-          ...fakeProfile.config,
-          defaultModel: 'gpt-image2',
-        },
+        selectedModelIds: ['gpt-image2', 'mock-image-v1'],
+        defaultModelId: 'gpt-image2',
       }],
     });
     services.spies.listProfileModels.mockResolvedValue({
       ok: true as const,
-      value: [{ id: 'gpt-image2' }, { id: 'mock-image-v1' }],
+      value: [profileModelItem('gpt-image2', { default: true }), profileModelItem('mock-image-v1')],
     });
     await renderDetailWithRoot(container, services, 'mock-profile', noopNav(), noopProfilesChanged());
 
@@ -68,17 +66,15 @@ describe('SettingsDetailPage contract — model list', () => {
     const services = createFakeServices({
       profiles: [{
         ...fakeProfile,
-        config: {
-          ...fakeProfile.config,
-          defaultModel: 'dall-e-3',
-        },
+        selectedModelIds: ['dall-e-3'],
+        defaultModelId: 'dall-e-3',
       }],
     });
     services.spies.listProfileModels.mockResolvedValue({
       ok: true as const,
       value: [
-        { id: 'dall-e-3', supportStatus: 'saved-undiscovered' },
-        { id: 'gpt-image-2', supportStatus: 'selectable' },
+        profileModelItem('dall-e-3', { discovered: false, default: true }),
+        profileModelItem('gpt-image-2', { selected: false }),
       ],
     });
     await renderDetailWithRoot(container, services, 'mock-profile', noopNav(), noopProfilesChanged());

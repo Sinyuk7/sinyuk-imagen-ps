@@ -8,6 +8,7 @@ import type {
   Job,
   MeasureProfileEndpointsResult,
   ProfileBillingState,
+  ProfileModelItem,
   ProviderDescriptor,
   ProviderProfile,
   ProviderProfileInput,
@@ -90,11 +91,12 @@ export const fakeProfile: ProviderProfile = {
       ],
     },
     paths: { generation: '/images/generations', edit: '/images/edits' },
-    defaultModel: 'mock-image-v1',
   },
   secretRefs: {
     apiKey: 'secret:provider-profile:mock-profile:apiKey',
   },
+  selectedModelIds: ['mock-image-v1'],
+  defaultModelId: 'mock-image-v1',
   createdAt: '2026-06-15T00:00:00.000Z',
   updatedAt: '2026-06-15T00:00:00.000Z',
 };
@@ -206,18 +208,55 @@ function completedJob(input: Record<string, unknown>): Job {
   };
 }
 
-function savedProfile(input: ProviderProfileInput): ProviderProfile {
+const fakeProfileModelItems: readonly ProfileModelItem[] = [{
+  modelId: 'mock-image-v1',
+  discovered: true,
+  configured: true,
+  selected: true,
+  default: true,
+  configSource: 'catalog',
+}];
+
+const fakeDraftProfileModelItems: readonly ProfileModelItem[] = [{
+  modelId: 'mock-image-v2',
+  discovered: true,
+  configured: true,
+  selected: false,
+  default: false,
+  configSource: 'catalog',
+}];
+
+export function profileModelItem(
+  modelId: string,
+  overrides: Partial<ProfileModelItem> = {},
+): ProfileModelItem {
+  return {
+    modelId,
+    discovered: true,
+    configured: true,
+    selected: true,
+    default: false,
+    configSource: 'catalog',
+    ...overrides,
+  };
+}
+
+function savedProfile(input: ProviderProfileInput, existing: ProviderProfile | undefined): ProviderProfile {
+  const selectedModelIds = input.selectedModelIds ?? existing?.selectedModelIds ?? fakeProfile.selectedModelIds;
+  const defaultModelId = input.defaultModelId ?? existing?.defaultModelId ?? fakeProfile.defaultModelId;
   return {
     ...fakeProfile,
     profileId: input.profileId,
-    apiFormat: input.apiFormat ?? fakeProfile.apiFormat,
-    displayName: input.displayName ?? fakeProfile.displayName,
+    apiFormat: input.apiFormat ?? existing?.apiFormat ?? fakeProfile.apiFormat,
+    displayName: input.displayName ?? existing?.displayName ?? fakeProfile.displayName,
     ...(input.systemInstruction && input.systemInstruction.trim().length > 0 ? { systemInstruction: input.systemInstruction } : {}),
-    enabled: input.enabled ?? fakeProfile.enabled,
+    enabled: input.enabled ?? existing?.enabled ?? fakeProfile.enabled,
     config: {
-      ...fakeProfile.config,
+      ...(existing?.config ?? fakeProfile.config),
       ...(input.config ?? {}),
     },
+    selectedModelIds,
+    ...(defaultModelId !== undefined && defaultModelId.length > 0 ? { defaultModelId } : {}),
     updatedAt: '2026-06-15T00:00:02.000Z',
   };
 }
@@ -278,7 +317,8 @@ export function createFakeServices(options?: {
   const listJobHistoryRecords = vi.fn(async () => [fakeDurableRecord]);
   const getProviderProfile = vi.fn(async () => ({ ok: true as const, value: profiles[0] ?? fakeProfile }));
   const saveProviderProfile = vi.fn(async (input: ProviderProfileInput) => {
-    const next = savedProfile(input);
+    const existing = profiles.find((profile) => profile.profileId === input.profileId);
+    const next = savedProfile(input, existing);
     const index = profiles.findIndex((profile) => profile.profileId === next.profileId);
     profiles = index >= 0
       ? profiles.map((profile) => (profile.profileId === next.profileId ? next : profile))
@@ -322,7 +362,7 @@ export function createFakeServices(options?: {
       ) ? { resolvedEndpointId: 'primary' } : {}),
     },
   }));
-  const refreshDraftProfileModels = vi.fn(async () => ({ ok: true as const, value: [{ id: 'mock-image-v2' }] }));
+  const refreshDraftProfileModels = vi.fn(async () => ({ ok: true as const, value: fakeDraftProfileModelItems }));
   let billingState: ProfileBillingState = { refreshState: 'idle' };
   const getProfileBillingState = vi.fn(async () => ({ ok: true as const, value: billingState }));
   const refreshProfileBalance = vi.fn(async ({ profileId }: { profileId: string }) => {
@@ -344,7 +384,7 @@ export function createFakeServices(options?: {
     };
     return { ok: true as const, value: { ...billingState.balance!, state: billingState } };
   });
-  const listProfileModels = vi.fn(async () => ({ ok: true as const, value: [{ id: 'mock-image-v1' }] }));
+  const listProfileModels = vi.fn(async () => ({ ok: true as const, value: fakeProfileModelItems }));
   const refreshProfileModels = vi.fn(async () => ({ ok: true as const, value: [{ id: 'mock-image-v2' }] }));
   const reconcileStaleRunningTaskRecords = vi.fn(async () => []);
   const listLayers = vi.fn(async () => [{ id: 1, name: 'Layer 1', kind: 'pixel', visible: true }]);

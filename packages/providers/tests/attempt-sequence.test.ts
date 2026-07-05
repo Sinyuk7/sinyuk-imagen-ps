@@ -4,6 +4,7 @@ import { createImageEndpointProvider, imageEndpointDescriptor } from '../src/pro
 import { executeWithEndpointFailover, resetEndpointRuntimeHealthForTesting } from '../src/transport/image-endpoint/failover.js';
 import { httpRequest } from '../src/transport/image-endpoint/http.js';
 import { createCountingFetch } from './counting-transport.js';
+import { imageEndpointModel } from './model-execution.js';
 
 const twoEndpointConnection = {
   selectionMode: 'auto' as const,
@@ -46,6 +47,7 @@ describe('current attempt-sequence characterization', () => {
         operation: 'image_edit',
         prompt: 'fallback edit',
         images: [{ type: 'image', data: 'aGVsbG8=', mimeType: 'image/png' }],
+        model: imageEndpointModel('gpt-image-2'),
       }),
     });
 
@@ -106,6 +108,7 @@ describe('current attempt-sequence characterization', () => {
         operation: 'image_edit',
         prompt: 'multi endpoint edit',
         images: [{ type: 'image', data: 'aGVsbG8=', mimeType: 'image/png' }],
+        model: imageEndpointModel('gpt-image-2'),
       }),
     })).rejects.toThrow('Unsupported Media Type');
 
@@ -188,6 +191,7 @@ describe('current attempt-sequence characterization', () => {
         operation: 'image_edit',
         prompt: 'characterize paid failover',
         images: [{ type: 'image', data: 'aGVsbG8=', mimeType: 'image/png' }],
+        model: imageEndpointModel('gpt-image-2'),
       }),
     })).rejects.toThrow(message);
 
@@ -234,6 +238,7 @@ describe('current attempt-sequence characterization', () => {
         operation: 'image_edit',
         prompt: 'network-error-no-idem',
         images: [{ type: 'image', data: 'aGVsbG8=', mimeType: 'image/png' }],
+        model: imageEndpointModel('gpt-image-2'),
       }),
     })).rejects.toThrow();
 
@@ -268,6 +273,7 @@ describe('current attempt-sequence characterization', () => {
           operation: 'image_edit',
           prompt: 'network-error-idem',
           images: [{ type: 'image', data: 'aGVsbG8=', mimeType: 'image/png' }],
+          model: imageEndpointModel('gpt-image-2'),
         }),
       })).rejects.toThrow();
     } finally {

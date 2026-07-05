@@ -121,7 +121,7 @@ describe('profile endpoint commands', () => {
     expect(fetchSpy.mock.calls[0]?.[1]).toMatchObject({ method: 'HEAD' });
   });
 
-  it('does not mutate persisted models cache while measuring an existing profile', async () => {
+  it('does not mutate persisted model selection while measuring an existing profile', async () => {
     _resetForTesting();
     const profile: ProviderProfile = {
       profileId: 'profile-a',
@@ -137,7 +137,8 @@ describe('profile endpoint commands', () => {
         },
       },
       secretRefs: { apiKey: 'secret:profile-a:apiKey' },
-      models: [{ id: 'cached-model' }],
+      selectedModelIds: ['saved-model'],
+      defaultModelId: 'saved-model',
       createdAt: '2026-07-02T00:00:00.000Z',
       updatedAt: '2026-07-02T00:00:00.000Z',
     };
@@ -160,7 +161,8 @@ describe('profile endpoint commands', () => {
 
     expect(result.ok).toBe(true);
     expect(saveSpy).not.toHaveBeenCalled();
-    expect(profile.models).toEqual([{ id: 'cached-model' }]);
+    expect(profile.selectedModelIds).toEqual(['saved-model']);
+    expect(profile.defaultModelId).toBe('saved-model');
   });
 
   it('excludes explicitly removed saved secrets from draft measurement resolution', async () => {
@@ -179,6 +181,7 @@ describe('profile endpoint commands', () => {
         },
       },
       secretRefs: { apiKey: 'secret:profile-a:apiKey' },
+      selectedModelIds: [],
       createdAt: '2026-07-02T00:00:00.000Z',
       updatedAt: '2026-07-02T00:00:00.000Z',
     };

@@ -49,7 +49,6 @@ describe('SettingsDetailPage contract — profile editing', () => {
         displayName: 'Renamed Mock',
         enabled: true,
         config: expect.objectContaining({
-          defaultModel: 'mock-image-v1',
           connection: expect.objectContaining({
             selectionMode: 'manual',
             selectedEndpointId: 'primary',
@@ -60,6 +59,8 @@ describe('SettingsDetailPage contract — profile editing', () => {
             }],
           }),
         }),
+        selectedModelIds: ['mock-image-v1'],
+        defaultModelId: 'mock-image-v1',
       }),
     );
     expect(onNav).toHaveBeenCalledWith('settings');

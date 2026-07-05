@@ -37,6 +37,16 @@ const coerceOptionalObject = (val: unknown): unknown =>
 
 const coerceOptionalArray = (val: unknown): unknown => (Array.isArray(val) ? val : undefined);
 
+const providerModelExecutionSchema = z.object({
+  modelId: z.string().min(1),
+  apiFormat: z.union([
+    z.literal('openai-images'),
+    z.literal('openai-chat-completions'),
+    z.literal('gemini-generate-content'),
+  ]),
+  requestStrategyId: z.string().min(1),
+});
+
 export const mockRequestSchema = z.object({
   operation: z.union([z.literal('text_to_image'), z.literal('image_edit')]),
   prompt: z.string().min(1),
@@ -62,6 +72,7 @@ export const mockRequestSchema = z.object({
       })
       .optional(),
   ),
+  model: z.preprocess(coerceOptionalObject, providerModelExecutionSchema.optional()),
   providerOptions: z.preprocess(coerceOptionalObject, z.record(z.string(), z.unknown()).optional()),
 });
 

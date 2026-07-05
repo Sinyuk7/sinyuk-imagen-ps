@@ -98,8 +98,11 @@ export type {
 export type {
   ProviderConfig,
   ProviderConfigResolver,
+  ModelDiscoveryCache,
+  ModelDiscoveryCacheRepository,
   ProviderDescriptor,
   ModelBrand,
+  ProfileModelItem,
   ProviderModelInfo,
   ProviderProfile,
   ProviderProfileConfig,
@@ -109,16 +112,22 @@ export type {
   ResolvedProviderConfig,
   SecretResolver,
   SecretStorageAdapter,
+  UserModelConfig,
+  UserModelConfigRepository,
 } from './types.js';
 
 // Adapter injection（暴露给 UI / host adapters 注入自定义实现）
 export {
   getAssetStore,
+  getModelDiscoveryCacheRepository,
+  getUserModelConfigRepository,
   setAssetStore,
   setJobHistoryStore,
+  setModelDiscoveryCacheRepository,
   setProviderConfigResolver,
   setProviderProfileRepository,
   setSecretStorageAdapter,
+  setUserModelConfigRepository,
   setTaskStore,
   configureRuntimeLogging,
   getRuntimeLogger,
