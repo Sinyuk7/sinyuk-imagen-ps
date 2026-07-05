@@ -7,6 +7,7 @@ This repo uses current-state, harness-first loop engineering.
 - Current-state first: zero users, zero production data, no legacy contract to preserve.
 - Loop shape: objective, scope, ownership boundary, harness, acceptance gate, stop rule, writeback target.
 - Harness before live/manual validation: contract tests, fake adapters, smoke harnesses, fixtures, boundary checks, reproducible commands.
+- Fake structure must follow stable boundaries. See `docs/TESTING.md` for fake, stub, fixture, builder, spy, and `createTestHarness()` rules.
 - Stop and re-scope when a slice needs unauthorized cross-boundary ownership changes.
 
 

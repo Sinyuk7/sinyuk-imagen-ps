@@ -366,6 +366,58 @@ Growth whitelist:
 - `apps/app/tests/adapters/uxp/cases`
 - `apps/app/tests/release/cases/artifact-rule-cases`
 
+## Fake And Harness Rule
+
+Fake structure must follow stable ownership boundaries, not convenience
+aggregation.
+
+- Do not create a single global `fake.ts` that carries repository-wide test
+  dependencies.
+- Split reusable fakes by stable Port, Repository, Provider Family, or Host
+  Adapter boundary.
+- If a test only needs a simple return value or one-shot behavior, keep it as a
+  local test stub instead of promoting it into `*.fake.ts`.
+- Create `xxx.fake.ts` only when an interface needs reusable stateful behavior
+  across multiple tests.
+- Keep Fixtures, Builders, Spies, error injection, and scenario assembly out of
+  Fake modules. They are separate test concerns and should live in separate
+  helpers.
+- A thin `createTestHarness()` composition entry is allowed, but it may only
+  assemble independent fakes and test helpers. It must not reimplement business
+  logic or become a second app runtime.
+- Any Fake over roughly 300 lines must be reviewed for mixed responsibilities.
+- Any Fake over 500 lines should be split by boundary unless there is a
+  documented, boundary-preserving reason not to.
+
+Preferred pattern:
+
+```txt
+tests/
+  <owner>/
+    ports/
+      commands-port.fake.ts
+    repositories/
+      user-model-config.fake.ts
+    adapters/
+      uxp-host.fake.ts
+    fixtures/
+      provider-profile.fixture.ts
+    builders/
+      task-record.builder.ts
+    spies/
+      diagnostics.spy.ts
+    harness/
+      create-test-harness.ts
+```
+
+Review prompts for any reusable fake:
+
+- What stable boundary does this Fake own?
+- Could this behavior stay as a local stub in one test file?
+- Is stateful behavior mixed with fixtures, builders, or assertions?
+- Is the harness composing seams, or hiding business logic?
+- Has file size become a signal that multiple boundaries were merged?
+
 ## Deletion Rule
 
 When a module stabilizes, delete development-time test sprawl.
