@@ -16,6 +16,29 @@ afterEach(async () => {
 });
 
 describe('SettingsDetailPage contract — model list', () => {
+  it('shows only saved model configurations in the profile model list', async () => {
+    const container = document.createElement('div');
+    document.body.appendChild(container);
+    const services = createFakeServices({
+      profiles: [{
+        ...fakeProfile,
+        selectedModelIds: ['saved-user-model', 'gpt-image-2'],
+        defaultModelId: 'saved-user-model',
+      }],
+    });
+    services.spies.listProfileModels.mockResolvedValue({
+      ok: true as const,
+      value: [
+        profileModelItem('saved-user-model', { default: true, configSource: 'user' }),
+        profileModelItem('gpt-image-2', { selected: false, default: false, configSource: 'catalog' }),
+      ],
+    });
+    await renderDetailWithRoot(container, services, 'mock-profile', noopNav(), noopProfilesChanged());
+
+    expect(container.querySelector('[data-testid="provider-model-row-saved-user-model"]')).not.toBeNull();
+    expect(container.querySelector('[data-testid="provider-model-row-gpt-image-2"]')).toBeNull();
+  });
+
   it('renders supported saved models in the selectable model list', async () => {
     const container = document.createElement('div');
     document.body.appendChild(container);
@@ -28,7 +51,10 @@ describe('SettingsDetailPage contract — model list', () => {
     });
     services.spies.listProfileModels.mockResolvedValue({
       ok: true as const,
-      value: [profileModelItem('gpt-image2', { default: true }), profileModelItem('mock-image-v1')],
+      value: [
+        profileModelItem('gpt-image2', { default: true, configSource: 'user' }),
+        profileModelItem('mock-image-v1', { configSource: 'user' }),
+      ],
     });
     await renderDetailWithRoot(container, services, 'mock-profile', noopNav(), noopProfilesChanged());
 
@@ -73,7 +99,7 @@ describe('SettingsDetailPage contract — model list', () => {
     services.spies.listProfileModels.mockResolvedValue({
       ok: true as const,
       value: [
-        profileModelItem('dall-e-3', { discovered: false, default: true }),
+        profileModelItem('dall-e-3', { discovered: false, default: true, configSource: 'user' }),
         profileModelItem('gpt-image-2', { selected: false }),
       ],
     });

@@ -54,8 +54,10 @@ interface SettingsDetailPageProps {
   readonly onProfilesChanged: (profileId: string | null) => Promise<void>;
   readonly onSaved?: (message: string) => void;
   readonly onOpenModelConfiguration?: (input: {
+    readonly source: 'profile-detail';
+    readonly profileId: string;
     readonly apiFormat: ProviderProfile['apiFormat'];
-    readonly modelId: string;
+    readonly modelId?: string | null;
   }) => void;
 }
 
@@ -145,6 +147,41 @@ function selectedModelIdsInput(models: readonly UiModelInfo[], defaultModel: str
     selectedModelIds,
     ...(selectedModelIds.includes(normalizedDefault) ? { defaultModelId: normalizedDefault } : {}),
   };
+}
+
+function profileCanCreateModelConfig(profile: ProviderProfile | null): boolean {
+  if (!profile) {
+    return false;
+  }
+  const connection = profile.config.connection;
+  if (!connection || typeof connection !== 'object' || Array.isArray(connection)) {
+    return false;
+  }
+  const endpoints = (connection as { readonly endpoints?: readonly { readonly url?: string; readonly enabled?: boolean }[] }).endpoints;
+  if (!Array.isArray(endpoints) || endpoints.length === 0) {
+    return false;
+  }
+  return endpoints.some((endpoint) => endpoint.enabled !== false && typeof endpoint.url === 'string' && endpoint.url.trim().length > 0);
+}
+
+function sameUiModelList(left: readonly UiModelInfo[], right: readonly UiModelInfo[]): boolean {
+  if (left === right) {
+    return true;
+  }
+  if (left.length !== right.length) {
+    return false;
+  }
+  return left.every((model, index) => {
+    const next = right[index];
+    return next !== undefined
+      && model.id === next.id
+      && model.displayName === next.displayName
+      && model.discovered === next.discovered
+      && model.configured === next.configured
+      && model.selected === next.selected
+      && model.default === next.default
+      && model.configSource === next.configSource;
+  });
 }
 
 function selectedModelIdsDraftInput(args: {
@@ -535,7 +572,7 @@ export function SettingsDetailPage({ onNav, profileId, onProfilesChanged, onSave
   });
 
   useEffect(() => {
-    setProfileModels(modelCatalog.models);
+    setProfileModels((current) => sameUiModelList(current, modelCatalog.models) ? current : modelCatalog.models);
   }, [modelCatalog.models]);
 
   const testCurrentDraftConnection = async () => services.commands.testProviderProfileConnection(buildDraftCommandInput());
@@ -701,13 +738,17 @@ export function SettingsDetailPage({ onNav, profileId, onProfilesChanged, onSave
     }
   };
 
-  const modelOptions = modelCatalog.options;
-  const selectedConfiguredModelOptions = profileModels
+  const selectableProfileModels = profileModels.filter((model) => model.configSource === 'user');
+  const selectedConfiguredModelOptions = selectableProfileModels
     .filter((model) => model.selected === true && model.configured === true)
     .map((model) => ({
       id: model.id,
       label: model.displayName ?? model.id,
     }));
+  const visibleDefaultModelId = selectableProfileModels.some((model) => model.id === defaultModel)
+    ? defaultModel
+    : '';
+  const selectedVisibleModelInfo = selectableProfileModels.find((model) => model.id === visibleDefaultModelId);
 
   const remove = async () => {
     if (saveBusyRef.current) {
@@ -727,10 +768,9 @@ export function SettingsDetailPage({ onNav, profileId, onProfilesChanged, onSave
     }
   };
 
-  const modelSelectionLabel = modelOptions.find((option) => option.id === defaultModel)?.label ?? defaultModel.trim();
+  const modelSelectionLabel = selectedConfiguredModelOptions.find((option) => option.id === visibleDefaultModelId)?.label ?? '';
   const modelTriggerValue = modelSelectionLabel || t.settings.chooseFromList;
-  const selectedModelInfo = modelCatalog.selectedModelInfo;
-  const selectedModelStatus = modelStatusMessage(selectedModelInfo, t);
+  const selectedModelStatus = modelStatusMessage(selectedVisibleModelInfo, t);
   const saveDisabled = busy || !detail.profile || !draftDirty || endpointErrors.size > 0 || Boolean(aliasError);
   const modelListNotice = modelCatalog.error
     ? {
@@ -741,8 +781,6 @@ export function SettingsDetailPage({ onNav, profileId, onProfilesChanged, onSave
       }
     : modelCatalog.stale
       ? { tone: 'warning' as const, message: t.settings.modelListStale }
-    : modelOptions.length === 0
-      ? { tone: 'info' as const, message: t.settings.modelListEmpty }
       : null;
 
   const updatePath = (next: Partial<ApiPathDraft>) => {
@@ -966,10 +1004,11 @@ export function SettingsDetailPage({ onNav, profileId, onProfilesChanged, onSave
               disabled={busy}
               loading={modelCatalog.loading}
               discoverySupported={modelDiscoverySupported}
+              canCreateModelConfig={profileCanCreateModelConfig(detail.profile)}
               modelMenuOpen={modelMenuOpen}
-              profileModels={profileModels}
+              profileModels={selectableProfileModels}
               modelOptions={selectedConfiguredModelOptions}
-              defaultModel={defaultModel}
+              defaultModel={visibleDefaultModelId}
               triggerValue={modelTriggerValue}
               modelFieldHelp={!modelDiscoverySupported ? {
                 id: 'provider-model-discovery-help',
@@ -980,12 +1019,14 @@ export function SettingsDetailPage({ onNav, profileId, onProfilesChanged, onSave
               modelStatusNotice={selectedModelStatus ? {
                 tone: 'info',
                 message: selectedModelStatus,
-                actionLabel: selectedModelInfo?.configured === false ? t.settings.modelConfigConfigureModel : t.settings.modelConfigEditModel,
+                actionLabel: selectedVisibleModelInfo?.configured === false ? t.settings.modelConfigConfigureModel : t.settings.modelConfigEditModel,
                 onAction: () => {
-                  if (detail.profile && selectedModelInfo) {
+                  if (detail.profile && selectedVisibleModelInfo) {
                     onOpenModelConfiguration?.({
+                      source: 'profile-detail',
+                      profileId: detail.profile.profileId,
                       apiFormat: detail.profile.apiFormat,
-                      modelId: selectedModelInfo.id,
+                      modelId: selectedVisibleModelInfo.id,
                     });
                   }
                 },
@@ -1023,6 +1064,8 @@ export function SettingsDetailPage({ onNav, profileId, onProfilesChanged, onSave
                   return;
                 }
                 onOpenModelConfiguration?.({
+                  source: 'profile-detail',
+                  profileId: detail.profile.profileId,
                   apiFormat: detail.profile.apiFormat,
                   modelId: model.id,
                 });
@@ -1032,8 +1075,21 @@ export function SettingsDetailPage({ onNav, profileId, onProfilesChanged, onSave
                   return;
                 }
                 onOpenModelConfiguration?.({
+                  source: 'profile-detail',
+                  profileId: detail.profile.profileId,
                   apiFormat: detail.profile.apiFormat,
                   modelId: model.id,
+                });
+              }}
+              onCreateModelConfig={() => {
+                if (!detail.profile) {
+                  return;
+                }
+                onOpenModelConfiguration?.({
+                  source: 'profile-detail',
+                  profileId: detail.profile.profileId,
+                  apiFormat: detail.profile.apiFormat,
+                  modelId: null,
                 });
               }}
               onRefresh={() => void refreshModels()}

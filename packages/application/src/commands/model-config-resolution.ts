@@ -7,7 +7,7 @@ import {
   type ImageOutputMatrix,
   type ProviderModelExecution,
 } from '@imagen-ps/providers';
-import type { ProviderProfile, UserModelConfig, UserModelConfigRepository } from './types.js';
+import type { ProviderProfile, UserModelConfigRepository } from './types.js';
 import { catalogProviderIdForApiFormat } from './api-format-profile.js';
 
 export interface ResolvedModelConfig {

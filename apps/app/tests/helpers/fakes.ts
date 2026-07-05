@@ -23,6 +23,7 @@ import type {
 } from '@imagen-ps/application';
 import {
   classifyEndpoint,
+  deleteUserModelConfig,
   deleteModelGenerationPreference,
   getModelGenerationSettings,
   resolveModelBrand,
@@ -307,6 +308,38 @@ const fakeImageEditMatrix: ImageOutputMatrix = {
   })),
 };
 
+const fakeSplitImageEditMatrix: ImageOutputMatrix = {
+  operation: 'image_edit',
+  imageSizes: [
+    { id: 'auto', label: 'Auto' },
+    { id: '1k', label: '1K' },
+  ],
+  ratios: [
+    { id: 'source', label: 'Source' },
+    { id: '1:1', label: '1:1' },
+  ],
+  outputFormats: [
+    { id: 'png', label: 'PNG' },
+  ],
+  defaultCellId: 'image_edit:auto:source:png',
+  cells: [
+    {
+      id: 'image_edit:auto:source:png',
+      imageSize: 'auto',
+      ratio: 'source',
+      outputFormat: 'png',
+      requestOutput: { kind: 'image-endpoint', size: 'auto', outputFormat: 'png' },
+    },
+    {
+      id: 'image_edit:1k:1:1:png',
+      imageSize: '1k',
+      ratio: '1:1',
+      outputFormat: 'png',
+      requestOutput: { kind: 'image-endpoint', size: '1024x1024', outputFormat: 'png' },
+    },
+  ],
+};
+
 const fakeUserModelConfigs: readonly UserModelConfig[] = [
   'gpt-image-2',
   'mock-image-v1',
@@ -320,7 +353,21 @@ const fakeUserModelConfigs: readonly UserModelConfig[] = [
   modelId,
   baseModelId: 'gpt-image-2',
   requestStrategyId: 'image-endpoint-default',
-  outputMatrix: [fakeTextToImageMatrix, fakeImageEditMatrix],
+  outputMatrix: modelId === 'gpt-image-2'
+    ? [{
+      ...fakeTextToImageMatrix,
+      ratios: fakeTextToImageMatrix.ratios,
+      outputFormats: fakeTextToImageMatrix.outputFormats,
+      imageSizes: fakeTextToImageMatrix.imageSizes,
+      cells: fakeTextToImageMatrix.cells.filter((cell) => cell.id !== 'text_to_image:2k:16:9:png'),
+    }, {
+      ...fakeImageEditMatrix,
+      ratios: fakeImageEditMatrix.ratios,
+      outputFormats: fakeImageEditMatrix.outputFormats,
+      imageSizes: fakeImageEditMatrix.imageSizes,
+      cells: fakeImageEditMatrix.cells,
+    }]
+    : [fakeTextToImageMatrix, fakeImageEditMatrix],
 }));
 
 const fakeOfficialModelConfigPresets: readonly OfficialModelPreset[] = [{
@@ -334,6 +381,18 @@ const fakeOfficialModelConfigPresets: readonly OfficialModelPreset[] = [{
     sizes: ['auto', '1k', '2k', '4k'],
     outputFormats: ['png', 'webp'],
     matrices: [fakeTextToImageMatrix, fakeImageEditMatrix],
+  },
+}, {
+  apiFormat: 'openai-images',
+  modelId: 'gpt-image-2-split',
+  displayName: 'GPT Image 2 Split',
+  requestStrategyId: 'image-endpoint-default',
+  outputMatrix: [fakeTextToImageMatrix, fakeSplitImageEditMatrix],
+  output: {
+    aspectRatios: ['auto', '1:1', '16:9', 'source'],
+    sizes: ['auto', '1k', '2k', '4k'],
+    outputFormats: ['png', 'webp'],
+    matrices: [fakeTextToImageMatrix, fakeSplitImageEditMatrix],
   },
 }];
 
@@ -409,6 +468,7 @@ export function createFakeServices(options?: {
     readonly listRequestStrategiesForApiFormat: ReturnType<typeof vi.fn>;
     readonly getUserModelConfig: ReturnType<typeof vi.fn>;
     readonly saveUserModelConfig: ReturnType<typeof vi.fn>;
+    readonly deleteUserModelConfig: ReturnType<typeof vi.fn>;
     readonly getModelGenerationSettings: ReturnType<typeof vi.fn>;
     readonly saveModelGenerationPreference: ReturnType<typeof vi.fn>;
     readonly deleteModelGenerationPreference: ReturnType<typeof vi.fn>;
@@ -550,6 +610,10 @@ export function createFakeServices(options?: {
     ];
     return { ok: true as const, value: next };
   });
+  const deleteUserModelConfig = vi.fn(async (apiFormat: UserModelConfig['apiFormat'], modelId: string) => {
+    userModelConfigs = userModelConfigs.filter((config) => !(config.apiFormat === apiFormat && config.modelId === modelId));
+    return { ok: true as const, value: undefined };
+  });
   const refreshProfileBalance = vi.fn(async ({ profileId }: { profileId: string }) => {
     billingState = {
       ...billingState,
@@ -639,6 +703,7 @@ export function createFakeServices(options?: {
     listRequestStrategiesForApiFormat,
     getUserModelConfig,
     saveUserModelConfig,
+    deleteUserModelConfig,
     getModelGenerationSettings: getModelGenerationSettingsSpy,
     saveModelGenerationPreference: saveModelGenerationPreferenceSpy,
     deleteModelGenerationPreference: deleteModelGenerationPreferenceSpy,
@@ -721,6 +786,7 @@ export function createFakeServices(options?: {
       listRequestStrategiesForApiFormat,
       getUserModelConfig,
       saveUserModelConfig,
+      deleteUserModelConfig,
       getModelGenerationSettings: getModelGenerationSettingsSpy,
       saveModelGenerationPreference: saveModelGenerationPreferenceSpy,
       deleteModelGenerationPreference: deleteModelGenerationPreferenceSpy,

@@ -24,6 +24,7 @@ interface ProviderDefaultModelSectionProps {
   readonly disabled: boolean;
   readonly loading: boolean;
   readonly discoverySupported: boolean;
+  readonly canCreateModelConfig?: boolean;
   readonly modelMenuOpen: boolean;
   readonly profileModels?: readonly UiModelInfo[];
   readonly modelOptions: readonly { readonly id: string; readonly label: string }[];
@@ -50,6 +51,7 @@ interface ProviderDefaultModelSectionProps {
   readonly onToggleModelSelected?: (id: string, selected: boolean) => void;
   readonly onEditModelConfig?: (model: UiModelInfo) => void;
   readonly onConfigureModel?: (model: UiModelInfo) => void;
+  readonly onCreateModelConfig?: () => void;
   readonly onRefresh: () => void;
   readonly onModelMenuOpenChange: (open: boolean) => void;
   readonly onDefaultModelSelect: (id: string) => void;
@@ -203,6 +205,7 @@ export function ProviderDefaultModelSection({
   disabled,
   loading,
   discoverySupported,
+  canCreateModelConfig = false,
   modelMenuOpen,
   profileModels = [],
   modelOptions,
@@ -214,6 +217,7 @@ export function ProviderDefaultModelSection({
   onToggleModelSelected,
   onEditModelConfig,
   onConfigureModel,
+  onCreateModelConfig,
   onRefresh,
   onModelMenuOpenChange,
   onDefaultModelSelect,
@@ -224,16 +228,30 @@ export function ProviderDefaultModelSection({
     <div className="section">
       <div className="settings-section-header">
         <div className="section-title settings-section-heading">{t.settings.defaultModel}</div>
-        <IconButton
-          data-testid="provider-refresh-models-button"
-          className="settings-icon-button"
-          compactSquare
-          disabled={loading || disabled || !discoverySupported}
-          icon={<Icon name="refresh" size={16} className={loading ? 'spin' : undefined} />}
-          tooltip={!discoverySupported ? t.settings.modelDiscoveryUnsupported : loading ? t.settings.refreshingModels : t.settings.refreshModels}
-          aria-label={!discoverySupported ? t.settings.modelDiscoveryUnsupported : loading ? t.settings.refreshingModels : t.settings.refreshModels}
-          onClick={onRefresh}
-        />
+        <div className="settings-section-header-actions">
+          <IconButton
+            data-testid="provider-refresh-models-button"
+            className="settings-icon-button"
+            compactSquare
+            disabled={loading || disabled || !discoverySupported}
+            icon={<Icon name="refresh" size={16} className={loading ? 'spin' : undefined} />}
+            tooltip={!discoverySupported ? t.settings.modelDiscoveryUnsupported : loading ? t.settings.refreshingModels : t.settings.refreshModels}
+            aria-label={!discoverySupported ? t.settings.modelDiscoveryUnsupported : loading ? t.settings.refreshingModels : t.settings.refreshModels}
+            onClick={onRefresh}
+          />
+          {canCreateModelConfig ? (
+            <IconButton
+              data-testid="provider-add-model-config-button"
+              className="settings-icon-button"
+              compactSquare
+              disabled={disabled}
+              icon={<Icon name="add" size={16} />}
+              tooltip={t.settings.createModelConfiguration}
+              aria-label={t.settings.createModelConfiguration}
+              onClick={onCreateModelConfig}
+            />
+          ) : null}
+        </div>
       </div>
       <div className="field">
         <TextSelect
@@ -281,7 +299,6 @@ export function ProviderDefaultModelSection({
             {profileModels.map((model) => {
               const configured = model.configured === true;
               const selected = model.selected === true;
-              const isDefault = model.default === true;
               const actionLabel = configured ? t.settings.modelConfigEditModel : t.settings.modelConfigConfigureModel;
               return (
                 <div
@@ -294,18 +311,14 @@ export function ProviderDefaultModelSection({
                       data-testid={`provider-model-checkbox-${model.id}`}
                       checked={selected}
                       disabled={disabled || !configured}
-                      className="model-config-checkbox provider-model-checkbox"
+                      className={`model-config-checkbox provider-model-checkbox${model.default === true ? ' is-default' : ''}`}
                       onChecked={(checked) => onToggleModelSelected?.(model.id, checked)}
                     >
                       {modelDisplayName(model)}
                     </Checkbox>
                     <span className="prompt-preset-mode">
-                      {configured
-                        ? (model.configSource === 'catalog' ? t.settings.modelConfigCatalogSource : t.settings.modelConfigUserSource)
-                        : t.settings.modelConfigUnconfigured}
+                      {configured ? t.settings.modelConfigUserSource : t.settings.modelConfigUnconfigured}
                     </span>
-                    {selected ? <span className="model-config-inline-tag">{t.settings.modelConfigSelectedTag}</span> : null}
-                    {isDefault ? <span className="model-config-inline-tag">{t.settings.modelConfigDefaultTag}</span> : null}
                     <IconButton
                       data-testid={`provider-model-configure-${model.id}`}
                       className="settings-icon-button prompt-preset-action"

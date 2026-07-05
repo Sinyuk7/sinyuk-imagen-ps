@@ -214,6 +214,8 @@ function AppShellContent({ host }: AppShellProps) {
   const [selectedSettingsProfileId, setSelectedSettingsProfileId] = useState<string | null>(null);
   const [selectedPromptPresetId, setSelectedPromptPresetId] = useState<string | null>(null);
   const [modelConfigurationEditorSeed, setModelConfigurationEditorSeed] = useState<{
+    readonly source?: 'settings-list' | 'profile-detail';
+    readonly profileId?: string | null;
     readonly apiFormat?: ProviderProfile['apiFormat'] | null;
     readonly modelId?: string | null;
   } | null>(null);
@@ -464,7 +466,7 @@ function AppShellContent({ host }: AppShellProps) {
           onOpenGlobalGeneration={() => setView('global-generation-settings')}
           onOpenPromptSettings={() => setView('prompt-settings')}
           onOpenModelConfiguration={() => {
-            setModelConfigurationEditorSeed(null);
+            setModelConfigurationEditorSeed({ source: 'settings-list' });
             setView('model-configuration');
           }}
           generationSettings={generationSettings.settings}
@@ -497,6 +499,7 @@ function AppShellContent({ host }: AppShellProps) {
           onSaved={(message) => show(message, 'positive', { key: 'settings-provider-saved' })}
           onOpenModelConfiguration={(input) => {
             setModelConfigurationEditorSeed(input);
+            setSelectedSettingsProfileId(input.profileId);
             setView('model-configuration');
           }}
           onProfilesChanged={async (profileId) => {
@@ -544,16 +547,24 @@ function AppShellContent({ host }: AppShellProps) {
         <MotionPageFrame watch={view}>
           <ModelConfigurationPage
           onNav={onNav}
-          onSaved={async ({ apiFormat, modelId }) => {
-            if (selectedSettingsProfileId) {
-              const profileResult = await services.commands.getProviderProfile(selectedSettingsProfileId);
+          onBack={() => {
+            if (modelConfigurationEditorSeed?.source === 'profile-detail') {
+              setView('settings-detail');
+              return;
+            }
+            setView('settings');
+          }}
+          onSaved={async ({ apiFormat }) => {
+            if (modelConfigurationEditorSeed?.source === 'profile-detail' && modelConfigurationEditorSeed.profileId) {
+              const profileResult = await services.commands.getProviderProfile(modelConfigurationEditorSeed.profileId);
               if (profileResult.ok && profileResult.value.apiFormat === apiFormat) {
-                setModelConfigurationEditorSeed({ apiFormat, modelId });
+                setSelectedSettingsProfileId(modelConfigurationEditorSeed.profileId);
+                setModelConfigurationEditorSeed(null);
                 setView('settings-detail');
                 return;
               }
             }
-            setModelConfigurationEditorSeed({ apiFormat, modelId });
+            setModelConfigurationEditorSeed(null);
           }}
           initialEditorState={modelConfigurationEditorSeed}
           />

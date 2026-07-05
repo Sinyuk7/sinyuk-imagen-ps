@@ -9,16 +9,6 @@ This repo uses current-state, harness-first loop engineering.
 - Harness before live/manual validation: contract tests, fake adapters, smoke harnesses, fixtures, boundary checks, reproducible commands.
 - Stop and re-scope when a slice needs unauthorized cross-boundary ownership changes.
 
-## Entrypoints
-
-- The only authoritative active-loop entrypoint is root `AGENTS.md`.
-- Active Loop: none.
-- The permanent documentation set is exactly the `scripts/policy/docs.mjs` `highAuthorityDocs` list. No permanent doc may exist outside it; amending the list is part of the change that introduces a new permanent doc. `docs/dev-memory/` is read-only historical reference, not current authority.
-- Before non-trivial fixes or architecture changes, search current authority first, then historical records:
-  `rg -n "<module|symptom|error|decision>" AGENTS.md README.md docs/ENGINEERING_CONTEXT.md docs/TESTING.md docs/loops`
-- Use [docs/agent/LOOP.md](docs/agent/LOOP.md) for the Loop collaboration contract and `.agents/skills/` for repository-specific agent workflows.
-- Keep broad context in [docs/ENGINEERING_CONTEXT.md](docs/ENGINEERING_CONTEXT.md), not here.
-- `pnpm check:policy` owns mechanical policy checks: package boundaries, current-state wording in high-authority docs, and portable path references.
 
 ## Release Gate
 

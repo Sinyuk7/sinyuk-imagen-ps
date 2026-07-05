@@ -988,7 +988,7 @@ describe('AppShell', () => {
       const ids = Array.from(new Set([defaultModel, 'mock-image-v1'].filter((id) => id.length > 0)));
       return {
         ok: true as const,
-        value: ids.map((id) => profileModelItem(id, { default: id === defaultModel })),
+        value: ids.map((id) => profileModelItem(id, { default: id === defaultModel, configSource: 'user' })),
       };
     });
     const container = document.createElement('div');
@@ -1026,6 +1026,7 @@ describe('AppShell', () => {
       container.querySelector<HTMLElement>('[data-testid="provider-default-model-selector"]')?.click();
     });
     await flush();
+    expect(document.body.querySelector('[data-testid="provider-default-model-selector-option-gpt-image2"]')).not.toBeNull();
     expect(document.body.querySelector('[data-testid="provider-default-model-selector-option-mock-image-v1"]')).not.toBeNull();
     await act(async () => {
       document.body.querySelector<HTMLElement>('[data-testid="provider-default-model-selector-option-mock-image-v1"]')?.click();
@@ -1116,16 +1117,19 @@ describe('AppShell', () => {
     await flush();
     await flush();
 
-    expect(container.querySelector('[data-testid="provider-model-checkbox-discovered-unconfigured"]')).not.toBeNull();
-    expect(container.querySelector<HTMLInputElement>('[data-testid="provider-model-checkbox-discovered-unconfigured"]')?.checked).toBe(false);
+    expect(container.querySelector('[data-testid="provider-model-checkbox-discovered-unconfigured"]')).toBeNull();
+    expect(container.querySelector('[data-testid="provider-add-model-config-button"]')).not.toBeNull();
 
     await act(async () => {
-      container.querySelector<HTMLButtonElement>('[data-testid="provider-model-configure-discovered-unconfigured"]')?.click();
+      container.querySelector<HTMLButtonElement>('[data-testid="provider-add-model-config-button"]')?.click();
     });
     await flush();
     await flush();
 
-    expect((container.querySelector('[data-testid="model-config-model-id"]') as HTMLInputElement | null)?.value).toBe('discovered-unconfigured');
+    await act(async () => {
+      changeInput(container.querySelector<HTMLInputElement>('[data-testid="model-config-model-id"]')!, 'discovered-unconfigured');
+    });
+    await flush();
 
     await act(async () => {
       container.querySelector<HTMLButtonElement>('[data-testid="model-config-save-button"]')?.click();
@@ -1149,8 +1153,90 @@ describe('AppShell', () => {
       container.querySelector<HTMLElement>('[data-testid="provider-default-model-selector"]')?.click();
     });
     await flush();
-    expect(document.body.querySelector('[data-testid="provider-default-model-selector-option-gpt-image-2"]')).not.toBeNull();
+    expect(document.body.querySelector('[data-testid="provider-default-model-selector-option-gpt-image-2"]')).toBeNull();
     expect(document.body.querySelector('[data-testid="provider-default-model-selector-option-discovered-unconfigured"]')).toBeNull();
+  });
+
+  it('creates a model config from profile detail and returns to the same profile with the new item visible', async () => {
+    const { services, spies } = createFakeServices({
+      profiles: [{
+        ...fakeProfile,
+        profileId: 'mock-profile',
+        displayName: 'Mock Profile',
+        selectedModelIds: [],
+        defaultModelId: '',
+      }],
+    });
+    spies.listProfileModels.mockImplementation(async () => {
+      const savedConfigs = await services.commands.listUserModelConfigs('openai-images');
+      const configured = savedConfigs.ok ? savedConfigs.value : [];
+      return {
+        ok: true as const,
+        value: configured
+          .filter((config) => config.modelId === 'new-profile-model')
+          .map((config) => profileModelItem(config.modelId, {
+            selected: false,
+            default: false,
+            configSource: 'user',
+          })),
+      };
+    });
+    const container = document.createElement('div');
+    document.body.appendChild(container);
+    root = createRoot(container);
+
+    await act(async () => {
+      root!.render(
+        <AppShell
+          host={{
+            kind: 'photoshop-uxp',
+            app: { stage: 'uxp-first-shell', host: 'photoshop-uxp', services: ['commands', 'host'] },
+            locale: 'en',
+            services,
+            dispose: () => undefined,
+          }}
+        />,
+      );
+    });
+    await flush();
+    await flush();
+
+    await act(async () => {
+      container.querySelector<HTMLButtonElement>('[data-testid="main-providers-button"]')?.click();
+    });
+    await flush();
+    await act(async () => {
+      container.querySelector<HTMLElement>('[data-testid="provider-row-mock-profile"]')?.click();
+    });
+    await flush();
+    await flush();
+
+    expect(container.querySelector('[data-testid="provider-model-row-new-profile-model"]')).toBeNull();
+
+    await act(async () => {
+      container.querySelector<HTMLButtonElement>('[data-testid="provider-add-model-config-button"]')?.click();
+    });
+    await flush();
+    await flush();
+
+    await act(async () => {
+      changeInput(container.querySelector<HTMLInputElement>('[data-testid="model-config-model-id"]')!, 'new-profile-model');
+    });
+    await flush();
+
+    await act(async () => {
+      container.querySelector<HTMLButtonElement>('[data-testid="model-config-save-button"]')?.click();
+    });
+    await flush();
+    await flush();
+    await flush();
+
+    expect(spies.saveUserModelConfig).toHaveBeenCalledWith(expect.objectContaining({
+      apiFormat: 'openai-images',
+      modelId: 'new-profile-model',
+    }));
+    expect(container.querySelector('[data-testid="provider-detail-back-button"]')).not.toBeNull();
+    expect(container.querySelector('[data-testid="provider-model-row-new-profile-model"]')).not.toBeNull();
   });
 
   it('ignores stale profile model responses after switching profiles', async () => {

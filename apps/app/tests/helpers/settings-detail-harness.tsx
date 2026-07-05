@@ -53,6 +53,7 @@ export async function renderDetail(container: HTMLElement, onProfilesChanged = v
           onNav={vi.fn()}
           profileId="mock-profile"
           onProfilesChanged={onProfilesChanged}
+          onOpenModelConfiguration={vi.fn()}
         />
       </TestAppProviders>,
     );
@@ -118,6 +119,7 @@ export async function renderDetailWithRoot(
           onNav={onNav}
           profileId={profileId}
           onProfilesChanged={onProfilesChanged}
+          onOpenModelConfiguration={vi.fn()}
         />
       </TestAppProviders>,
     );

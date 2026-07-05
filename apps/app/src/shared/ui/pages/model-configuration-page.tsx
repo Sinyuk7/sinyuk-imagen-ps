@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import type {
   ApiFormat,
-  ImageOutputMatrix,
+  ImageAspectRatio,
   OfficialModelPreset,
   SaveUserModelConfigInput,
   UserModelConfig,
@@ -12,80 +12,32 @@ import { Icon } from '../components/icons';
 import { StatusNotice } from '../components/status-notice';
 import { TextSelect } from '../components/text-select';
 import { useI18n } from '../i18n/i18n-context';
-import { Button, Checkbox, FieldLabel, HelpText, TextField } from '../primitives/native-controls';
+import { Button, FieldLabel, HelpText, TextField } from '../primitives/native-controls';
 import { IconButton } from '../primitives/icon-button';
+import {
+  applyDimensionSelectionToMatrix,
+  buildOutputCapabilityEditorState,
+  fullSelectionForModule,
+  hasSparseCombinationSet,
+  type MatrixDimensionSelection,
+  type OutputCapabilityModule,
+  validCombinationCount,
+} from './model-configuration-page.helpers';
 
 interface ModelConfigurationPageProps {
   readonly onNav: (view: string) => void;
   readonly onSaved?: (result: { readonly apiFormat: ApiFormat; readonly modelId: string }) => void;
+  readonly onBack?: () => void;
   readonly initialEditorState?: {
     readonly apiFormat?: ApiFormat | null;
     readonly modelId?: string | null;
   } | null;
 }
 
-interface MatrixCellOption {
-  readonly id: string;
-  readonly label: string;
-}
-
-interface MultiSelectFieldProps {
-  readonly title: string;
-  readonly values: readonly MatrixCellOption[];
-  readonly selected: readonly string[];
-  readonly disabled?: boolean;
-  readonly emptyMessage: string;
-  readonly onToggle: (value: string, checked: boolean) => void;
-}
-
-function MultiSelectField({
-  title,
-  values,
-  selected,
-  disabled,
-  emptyMessage,
-  onToggle,
-}: MultiSelectFieldProps) {
-  if (values.length === 0) {
-    return <HelpText className="field-hint">{emptyMessage}</HelpText>;
-  }
-
-  return (
-    <div className="field">
-      <div className="settings-subsection-heading">{title}</div>
-      <div className="model-config-multi-list">
-        {values.map((value) => (
-          <Checkbox
-            key={value.id}
-            checked={selected.includes(value.id)}
-            disabled={disabled}
-            className="model-config-checkbox"
-            onChecked={(checked) => onToggle(value.id, checked)}
-          >
-            {value.label}
-          </Checkbox>
-        ))}
-      </div>
-    </div>
-  );
-}
+type DimensionKind = 'imageSizes' | 'ratios' | 'outputFormats';
 
 function commandMessage(error: { readonly category: string; readonly message: string }): string {
   return `${error.category}: ${error.message}`;
-}
-
-function uniqueStrings(values: readonly string[]): readonly string[] {
-  const seen = new Set<string>();
-  const result: string[] = [];
-  for (const value of values) {
-    const normalized = value.trim();
-    if (normalized.length === 0 || seen.has(normalized)) {
-      continue;
-    }
-    seen.add(normalized);
-    result.push(normalized);
-  }
-  return result;
 }
 
 function sourceLabel(config: UserModelConfig, presets: readonly OfficialModelPreset[], t: ReturnType<typeof useI18n>['messages']): string {
@@ -93,39 +45,263 @@ function sourceLabel(config: UserModelConfig, presets: readonly OfficialModelPre
   return preset ? `${t.settings.modelConfigCatalogSource} · ${preset.displayName}` : t.settings.modelConfigUserSource;
 }
 
-function allCellIds(preset: OfficialModelPreset | undefined): readonly string[] {
-  return preset?.outputMatrix.flatMap((matrix) => matrix.cells.map((cell) => cell.id)) ?? [];
+function toggleOrderedValue<T extends string>(
+  current: readonly T[],
+  orderedOptions: readonly T[],
+  value: T,
+  checked: boolean,
+): readonly T[] {
+  if (checked) {
+    return orderedOptions.filter((option) => option === value || current.includes(option));
+  }
+  return current.filter((item) => item !== value);
 }
 
-function configCellIds(config: UserModelConfig | null | undefined): readonly string[] {
-  return config?.outputMatrix.flatMap((matrix) => matrix.cells.map((cell) => cell.id)) ?? [];
+function operationLabel(operation: OutputCapabilityModule['operations'][number], t: ReturnType<typeof useI18n>['messages']): string {
+  return operation === 'text_to_image' ? t.settings.modelConfigOperationTextToImage : t.settings.modelConfigOperationEditImage;
 }
 
-function matrixCellOptions(preset: OfficialModelPreset | undefined): readonly MatrixCellOption[] {
-  return preset?.outputMatrix.flatMap((matrix) =>
-    matrix.cells.map((cell) => ({
-      id: cell.id,
-      label: `${matrix.operation} · ${cell.imageSize.toUpperCase()} · ${cell.ratio} · ${cell.outputFormat.toUpperCase()}`,
-    })),
-  ) ?? [];
+function ratioVisualClass(ratio: ImageAspectRatio): string {
+  switch (ratio) {
+    case 'auto':
+    case 'source':
+      return 'is-text';
+    case '1:1':
+      return 'is-square';
+    case '16:9':
+      return 'is-wide';
+    case '9:16':
+      return 'is-tall';
+    default:
+      return 'is-generic';
+  }
 }
 
-function subsetMatrix(matrix: ImageOutputMatrix, selectedCellIds: ReadonlySet<string>): ImageOutputMatrix {
-  const cells = matrix.cells.filter((cell) => selectedCellIds.has(cell.id));
-  const imageSizeIds = new Set(cells.map((cell) => cell.imageSize));
-  const ratioIds = new Set(cells.map((cell) => cell.ratio));
-  const outputFormatIds = new Set(cells.map((cell) => cell.outputFormat));
-  return {
-    operation: matrix.operation,
-    imageSizes: matrix.imageSizes.filter((option) => imageSizeIds.has(option.id)),
-    ratios: matrix.ratios.filter((option) => ratioIds.has(option.id)),
-    outputFormats: matrix.outputFormats.filter((option) => outputFormatIds.has(option.id)),
-    defaultCellId: cells.some((cell) => cell.id === matrix.defaultCellId) ? matrix.defaultCellId : cells[0]?.id ?? matrix.defaultCellId,
-    cells,
-  };
+function ratioLabel(ratio: ImageAspectRatio, t: ReturnType<typeof useI18n>['messages']): string {
+  if (ratio === 'auto') {
+    return t.settings.modelConfigRatioAuto;
+  }
+  if (ratio === 'source') {
+    return t.settings.modelConfigRatioSource;
+  }
+  return ratio;
 }
 
-export function ModelConfigurationPage({ onNav, onSaved, initialEditorState = null }: ModelConfigurationPageProps) {
+function selectionSummary(_module: OutputCapabilityModule, selection: MatrixDimensionSelection, t: ReturnType<typeof useI18n>['messages']): string {
+  return t.settings.modelConfigModuleSummary(
+    selection.outputFormats.length,
+    selection.ratios.length,
+    selection.imageSizes.length,
+  );
+}
+
+function fieldSelectionError(selection: MatrixDimensionSelection, t: ReturnType<typeof useI18n>['messages']): string | null {
+  if (selection.outputFormats.length === 0) {
+    return t.settings.modelConfigValidationOutputFormat;
+  }
+  if (selection.ratios.length === 0) {
+    return t.settings.modelConfigValidationAspectRatio;
+  }
+  if (selection.imageSizes.length === 0) {
+    return t.settings.modelConfigValidationResolution;
+  }
+  return null;
+}
+
+function CapabilityChipGroup({
+  title,
+  items,
+  selected,
+  disabled,
+  testIdPrefix,
+  onToggle,
+}: {
+  readonly title: string;
+  readonly items: readonly { readonly id: string; readonly label: string }[];
+  readonly selected: readonly string[];
+  readonly disabled?: boolean;
+  readonly testIdPrefix: string;
+  readonly onToggle: (id: string, checked: boolean) => void;
+}) {
+  const firstItemId = items[0]?.id ?? `${testIdPrefix}-empty`;
+  return (
+    <div className="field">
+      <FieldLabel htmlFor={`${testIdPrefix}-${firstItemId}`}>{title}</FieldLabel>
+      <div className="model-config-chip-list">
+        {items.map((item) => {
+          const checked = selected.includes(item.id);
+          return (
+            <button
+              key={item.id}
+              type="button"
+              id={`${testIdPrefix}-${item.id}`}
+              data-testid={`${testIdPrefix}-${item.id}`}
+              className={`model-config-chip${checked ? ' is-selected' : ''}`}
+              aria-pressed={checked}
+              disabled={disabled}
+              onClick={() => onToggle(item.id, !checked)}
+            >
+              {checked ? <Icon name="check" size={12} /> : null}
+              <span>{item.label}</span>
+            </button>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+function RatioTileGroup({
+  title,
+  items,
+  selected,
+  disabled,
+  testIdPrefix,
+  onToggle,
+  t,
+}: {
+  readonly title: string;
+  readonly items: readonly { readonly id: ImageAspectRatio; readonly label: string }[];
+  readonly selected: readonly ImageAspectRatio[];
+  readonly disabled?: boolean;
+  readonly testIdPrefix: string;
+  readonly onToggle: (id: ImageAspectRatio, checked: boolean) => void;
+  readonly t: ReturnType<typeof useI18n>['messages'];
+}) {
+  const textItems = items.filter((item) => item.id === 'auto' || item.id === 'source');
+  const graphicItems = items.filter((item) => item.id !== 'auto' && item.id !== 'source');
+  const firstItemId = items[0]?.id ?? 'empty';
+
+  return (
+    <div className="field">
+      <FieldLabel htmlFor={`${testIdPrefix}-${firstItemId}`}>{title}</FieldLabel>
+      {textItems.length > 0 ? (
+        <div className="model-config-chip-list model-config-chip-list-ratio-text">
+          {textItems.map((item) => {
+            const checked = selected.includes(item.id);
+            return (
+              <button
+                key={item.id}
+                type="button"
+                id={`${testIdPrefix}-${item.id}`}
+                data-testid={`${testIdPrefix}-${item.id}`}
+                className={`model-config-chip${checked ? ' is-selected' : ''}`}
+                aria-pressed={checked}
+                disabled={disabled}
+                onClick={() => onToggle(item.id, !checked)}
+              >
+                {checked ? <Icon name="check" size={12} /> : null}
+                <span>{ratioLabel(item.id, t)}</span>
+              </button>
+            );
+          })}
+        </div>
+      ) : null}
+      <div className="model-config-ratio-grid">
+        {graphicItems.map((item) => {
+          const checked = selected.includes(item.id);
+          return (
+            <button
+              key={item.id}
+              type="button"
+              id={`${testIdPrefix}-${item.id}`}
+              data-testid={`${testIdPrefix}-${item.id}`}
+              className={`model-config-ratio-tile${checked ? ' is-selected' : ''}`}
+              aria-pressed={checked}
+              disabled={disabled}
+              onClick={() => onToggle(item.id, !checked)}
+            >
+              <span className={`model-config-ratio-visual ${ratioVisualClass(item.id)}`} aria-hidden="true" />
+              <span className="model-config-ratio-label">{item.label}</span>
+              {checked ? (
+                <span className="model-config-ratio-check" aria-hidden="true">
+                  <Icon name="check" size={12} />
+                </span>
+              ) : null}
+            </button>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+function CapabilitySection({
+  module,
+  selection,
+  disabled,
+  validationMessage,
+  normalizationRequired,
+  t,
+  onToggle,
+}: {
+  readonly module: OutputCapabilityModule;
+  readonly selection: MatrixDimensionSelection;
+  readonly disabled?: boolean;
+  readonly validationMessage: string | null;
+  readonly normalizationRequired: boolean;
+  readonly t: ReturnType<typeof useI18n>['messages'];
+  readonly onToggle: (dimension: DimensionKind, id: string, checked: boolean) => void;
+}) {
+  const primaryMatrix = module.matrices[0]!;
+  const combinationCount = validCombinationCount(primaryMatrix, selection);
+  const sparse = hasSparseCombinationSet(primaryMatrix, selection);
+
+  return (
+    <section className="section generation-settings-section">
+      <div className="model-config-capability-section-header">
+        <div className="model-config-capability-section-copy">
+          <div className="section-title">{module.shared ? t.settings.modelConfigOutputCapabilities : operationLabel(module.operations[0]!, t)}</div>
+          <HelpText className="field-hint">{selectionSummary(module, selection, t)}</HelpText>
+        </div>
+        {module.shared ? (
+          <span className="model-config-capability-badge">{t.settings.modelConfigSharedScope}</span>
+        ) : null}
+      </div>
+
+      <CapabilityChipGroup
+        title={t.settings.modelConfigOutputFormat}
+        items={module.outputFormats.map((item) => ({ id: item.id, label: item.label.toUpperCase() }))}
+        selected={selection.outputFormats}
+        disabled={disabled}
+        testIdPrefix={`model-config-${module.id}-format`}
+        onToggle={(id, checked) => onToggle('outputFormats', id, checked)}
+      />
+
+      <RatioTileGroup
+        title={t.settings.modelConfigAspectRatio}
+        items={module.ratios.map((item) => ({ id: item.id, label: item.label }))}
+        selected={selection.ratios}
+        disabled={disabled}
+        testIdPrefix={`model-config-${module.id}-ratio`}
+        onToggle={(id, checked) => onToggle('ratios', id, checked)}
+        t={t}
+      />
+
+      <CapabilityChipGroup
+        title={t.settings.modelConfigResolution}
+        items={module.imageSizes.map((item) => ({ id: item.id, label: item.label }))}
+        selected={selection.imageSizes}
+        disabled={disabled}
+        testIdPrefix={`model-config-${module.id}-size`}
+        onToggle={(id, checked) => onToggle('imageSizes', id, checked)}
+      />
+
+      {normalizationRequired ? (
+        <StatusNotice tone="warning" message={t.settings.modelConfigNormalizationWarning} />
+      ) : null}
+      <HelpText className="field-hint model-config-combination-summary">
+        {t.settings.modelConfigValidCombinations(combinationCount)}
+      </HelpText>
+      {sparse ? (
+        <HelpText className="field-hint model-config-combination-summary">{t.settings.modelConfigSparseCombinationHint}</HelpText>
+      ) : null}
+      {validationMessage ? <StatusNotice tone="warning" message={validationMessage} /> : null}
+    </section>
+  );
+}
+
+export function ModelConfigurationPage({ onNav, onSaved, onBack, initialEditorState = null }: ModelConfigurationPageProps) {
   const services = useAppServices();
   const { messages: t } = useI18n();
   const [configs, setConfigs] = useState<readonly UserModelConfig[]>([]);
@@ -140,7 +316,8 @@ export function ModelConfigurationPage({ onNav, onSaved, initialEditorState = nu
   const [modelId, setModelId] = useState('');
   const [baseModelId, setBaseModelId] = useState('');
   const [requestStrategyId, setRequestStrategyId] = useState('');
-  const [selectedCellIds, setSelectedCellIds] = useState<readonly string[]>([]);
+  const [moduleSelections, setModuleSelections] = useState<Readonly<Record<string, MatrixDimensionSelection>>>({});
+  const [normalizationRequiredModuleIds, setNormalizationRequiredModuleIds] = useState<readonly string[]>([]);
   const [editingKey, setEditingKey] = useState<string | null>(null);
 
   const loadApiFormatData = async (nextApiFormat: ApiFormat) => {
@@ -178,6 +355,41 @@ export function ModelConfigurationPage({ onNav, onSaved, initialEditorState = nu
     });
   }, []);
 
+  const presetOptions = useMemo(
+    () => presets.map((preset) => ({
+      id: preset.modelId,
+      label: `${preset.displayName} · ${preset.modelId}`,
+    })),
+    [presets],
+  );
+
+  const apiFormatOptions = useMemo(
+    () => [
+      { id: 'openai-images', label: 'OpenAI Images' },
+      { id: 'openai-chat-completions', label: 'OpenAI Chat Completions' },
+      { id: 'gemini-generate-content', label: 'Gemini GenerateContent' },
+    ],
+    [],
+  );
+
+  const selectedPreset = presets.find((preset) => preset.modelId === baseModelId);
+  const editingExisting = editingKey !== null;
+  const capabilityState = useMemo(
+    () => (selectedPreset ? buildOutputCapabilityEditorState(selectedPreset) : null),
+    [selectedPreset],
+  );
+
+  const resetEditorSelections = (preset: OfficialModelPreset | undefined, config?: UserModelConfig | null) => {
+    if (!preset) {
+      setModuleSelections({});
+      setNormalizationRequiredModuleIds([]);
+      return;
+    }
+    const nextState = buildOutputCapabilityEditorState(preset, config);
+    setModuleSelections(nextState.selections);
+    setNormalizationRequiredModuleIds(nextState.normalizationRequiredModuleIds);
+  };
+
   useEffect(() => {
     const nextApiFormat = initialEditorState?.apiFormat;
     const nextModelId = initialEditorState?.modelId?.trim();
@@ -202,7 +414,7 @@ export function ModelConfigurationPage({ onNav, onSaved, initialEditorState = nu
         setModelId(nextModelId ?? preset?.modelId ?? '');
         setBaseModelId(preset?.modelId ?? '');
         setRequestStrategyId(preset?.requestStrategyId ?? '');
-        setSelectedCellIds(config ? configCellIds(config) : allCellIds(preset));
+        resetEditorSelections(preset, config);
         setEditingKey(nextModelId ? `${resolvedApiFormat}:${nextModelId}` : null);
         setEditorOpen(true);
       } catch (nextError) {
@@ -211,24 +423,18 @@ export function ModelConfigurationPage({ onNav, onSaved, initialEditorState = nu
     })();
   }, [initialEditorState]);
 
-  const presetOptions = useMemo(
-    () => presets.map((preset) => ({
-      id: preset.modelId,
-      label: `${preset.displayName} · ${preset.modelId}`,
-    })),
-    [presets],
-  );
-  const apiFormatOptions = useMemo(
-    () => [
-      { id: 'openai-images', label: 'OpenAI Images' },
-      { id: 'openai-chat-completions', label: 'OpenAI Chat Completions' },
-      { id: 'gemini-generate-content', label: 'Gemini GenerateContent' },
-    ],
-    [],
-  );
+  const moduleValidationMessages = useMemo(() => {
+    if (!selectedPreset) {
+      return {};
+    }
+    return Object.fromEntries(
+      (buildOutputCapabilityEditorState(selectedPreset).modules).map((module) => {
+        const selection = moduleSelections[module.id] ?? fullSelectionForModule(module);
+        return [module.id, fieldSelectionError(selection, t)];
+      }),
+    ) as Readonly<Record<string, string | null>>;
+  }, [moduleSelections, selectedPreset, t]);
 
-  const selectedPreset = presets.find((preset) => preset.modelId === baseModelId);
-  const cellOptions = useMemo(() => matrixCellOptions(selectedPreset), [selectedPreset]);
   const validationMessage = useMemo(() => {
     if (!apiFormat) {
       return t.settings.modelConfigValidationApiFormat;
@@ -242,18 +448,18 @@ export function ModelConfigurationPage({ onNav, onSaved, initialEditorState = nu
     if (requestStrategyId.trim().length === 0) {
       return t.settings.modelConfigValidationStrategy;
     }
-    for (const matrix of selectedPreset.outputMatrix) {
-      if (!matrix.cells.some((cell) => selectedCellIds.includes(cell.id))) {
-        return t.settings.modelConfigValidationMatrixCells;
+    for (const moduleMessage of Object.values(moduleValidationMessages)) {
+      if (moduleMessage) {
+        return moduleMessage;
       }
     }
     return null;
-  }, [apiFormat, modelId, requestStrategyId, selectedCellIds, selectedPreset, t.settings]);
+  }, [apiFormat, modelId, moduleValidationMessages, requestStrategyId, selectedPreset, t]);
 
-  const applyPreset = (preset: OfficialModelPreset | undefined, nextModelId?: string) => {
+  const applyPreset = (preset: OfficialModelPreset | undefined, nextModelId?: string, config?: UserModelConfig | null) => {
     setBaseModelId(preset?.modelId ?? '');
     setRequestStrategyId(preset?.requestStrategyId ?? '');
-    setSelectedCellIds(allCellIds(preset));
+    resetEditorSelections(preset, config);
     if (nextModelId !== undefined) {
       setModelId(nextModelId);
     }
@@ -281,7 +487,7 @@ export function ModelConfigurationPage({ onNav, onSaved, initialEditorState = nu
       setModelId(config.modelId);
       setBaseModelId(preset?.modelId ?? config.baseModelId);
       setRequestStrategyId(preset?.requestStrategyId ?? config.requestStrategyId);
-      setSelectedCellIds(configCellIds(config));
+      resetEditorSelections(preset, config);
       setEditingKey(`${config.apiFormat}:${config.modelId}`);
       setEditorOpen(true);
       setError(null);
@@ -290,8 +496,24 @@ export function ModelConfigurationPage({ onNav, onSaved, initialEditorState = nu
     }
   };
 
-  const toggleCell = (value: string, checked: boolean) => {
-    setSelectedCellIds((current) => checked ? uniqueStrings([...current, value]) : current.filter((item) => item !== value));
+  const toggleModuleSelection = (module: OutputCapabilityModule, dimension: DimensionKind, id: string, checked: boolean) => {
+    setModuleSelections((current) => {
+      const selection = current[module.id] ?? fullSelectionForModule(module);
+      const orderedIds = module[dimension].map((option) => option.id) as readonly string[];
+      const nextSelection = {
+        ...selection,
+        [dimension]: toggleOrderedValue(
+          selection[dimension] as readonly string[],
+          orderedIds,
+          id,
+          checked,
+        ),
+      } satisfies MatrixDimensionSelection;
+      return {
+        ...current,
+        [module.id]: nextSelection,
+      };
+    });
   };
 
   const save = async () => {
@@ -302,15 +524,25 @@ export function ModelConfigurationPage({ onNav, onSaved, initialEditorState = nu
     if (!selectedPreset) {
       return;
     }
+    const editorState = buildOutputCapabilityEditorState(selectedPreset);
     setSaveBusy(true);
     try {
-      const selected = new Set(selectedCellIds);
+      const outputMatrix = selectedPreset.outputMatrix.map((matrix) => {
+        const module = editorState.modules.find((candidate) => candidate.operations.includes(matrix.operation));
+        const selection = moduleSelections[module?.id ?? ''] ?? (module ? fullSelectionForModule(module) : {
+          imageSizes: matrix.imageSizes.map((option) => option.id),
+          ratios: matrix.ratios.map((option) => option.id),
+          outputFormats: matrix.outputFormats.map((option) => option.id),
+        });
+        return applyDimensionSelectionToMatrix(matrix, selection);
+      });
+
       const result = await services.commands.saveUserModelConfig({
         apiFormat,
         modelId,
         baseModelId: selectedPreset.modelId,
         requestStrategyId: selectedPreset.requestStrategyId,
-        outputMatrix: selectedPreset.outputMatrix.map((matrix) => subsetMatrix(matrix, selected)),
+        outputMatrix,
       } satisfies SaveUserModelConfigInput);
       if (!result.ok) {
         throw new Error(commandMessage(result.error));
@@ -334,9 +566,21 @@ export function ModelConfigurationPage({ onNav, onSaved, initialEditorState = nu
     }}>
       <ProviderSettingsPageHeader
         backButtonTestId="model-configuration-back-button"
-        title={t.settings.modelConfiguration}
-        onBack={() => onNav('settings')}
-        rightSlot={(
+        title={editorOpen ? (editingExisting ? t.settings.editModelConfiguration : t.settings.createModelConfiguration) : t.settings.modelConfiguration}
+        onBack={() => {
+          if (editorOpen) {
+            setEditorOpen(false);
+            setEditingKey(null);
+            setError(null);
+            return;
+          }
+          if (onBack) {
+            onBack();
+            return;
+          }
+          onNav('settings');
+        }}
+        rightSlot={!editorOpen ? (
           <IconButton
             data-testid="model-configuration-add-button"
             className="hdr-btn"
@@ -345,7 +589,7 @@ export function ModelConfigurationPage({ onNav, onSaved, initialEditorState = nu
             tooltip={t.settings.createModelConfiguration}
             onClick={() => void openCreateEditor()}
           />
-        )}
+        ) : undefined}
       />
       <div className="scroll scroll-footer-pad">
         {!editorOpen ? (
@@ -473,25 +717,23 @@ export function ModelConfigurationPage({ onNav, onSaved, initialEditorState = nu
               </div>
             </section>
 
-            <section className="section generation-settings-section">
-              <MultiSelectField
-                title={t.settings.modelConfigMatrixCells}
-                values={cellOptions}
-                selected={selectedCellIds}
-                disabled={saveBusy}
-                emptyMessage={t.settings.modelConfigSelectAtLeastOne}
-                onToggle={toggleCell}
-              />
-            </section>
+            {selectedPreset && capabilityState
+              ? capabilityState.modules.map((module) => (
+                <CapabilitySection
+                  key={module.id}
+                  module={module}
+                  selection={moduleSelections[module.id] ?? fullSelectionForModule(module)}
+                  disabled={saveBusy}
+                  validationMessage={moduleValidationMessages[module.id] ?? null}
+                  normalizationRequired={normalizationRequiredModuleIds.includes(module.id)}
+                  t={t}
+                  onToggle={(dimension, id, checked) => toggleModuleSelection(module, dimension, id, checked)}
+                />
+              ))
+              : null}
 
             <section className="section generation-settings-section generation-settings-secondary-section">
               <HelpText className="field-hint">{t.settings.modelConfigurationSaveHint}</HelpText>
-              {editingKey ? (
-                <HelpText className="field-hint">{editingKey}</HelpText>
-              ) : null}
-              {validationMessage ? (
-                <StatusNotice tone="warning" message={validationMessage} />
-              ) : null}
               {error ? (
                 <StatusNotice tone="warning" message={error} copyText={error} />
               ) : null}
@@ -502,20 +744,7 @@ export function ModelConfigurationPage({ onNav, onSaved, initialEditorState = nu
       {editorOpen ? (
         <footer className="det-footer">
           <div className="settings-detail-footer-inner">
-            <div className="settings-detail-footer-actions">
-              <Button
-                data-testid="model-config-cancel-button"
-                className="btn-save"
-                disabled={saveBusy}
-                onClick={() => {
-                  setEditorOpen(false);
-                  setEditingKey(null);
-                  setError(null);
-                }}
-              >
-                {t.common.cancel}
-              </Button>
-            </div>
+            <div className="settings-detail-footer-actions" />
             <div className="settings-detail-footer-save-group">
               <Button
                 data-testid="model-config-save-button"

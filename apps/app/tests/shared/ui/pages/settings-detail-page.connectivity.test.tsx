@@ -300,4 +300,38 @@ describe('SettingsDetailPage contract — connectivity', () => {
     expect(refresh.className).toContain('settings-icon-button');
     expect(refresh.className).not.toContain('ui-button-block');
   });
+
+  it('shows add model config beside refresh only when the profile has enough connection info', async () => {
+    const container = document.createElement('div');
+    document.body.appendChild(container);
+    await renderDetail(container);
+
+    const refresh = queryByTestId(container, 'provider-refresh-models-button');
+    const add = queryByTestId(container, 'provider-add-model-config-button');
+    expect(refresh.className).toContain('settings-icon-button');
+    expect(add.className).toContain('settings-icon-button');
+    expect(refresh.getAttribute('aria-label')).toMatch(/刷新模型|Refresh models/);
+    expect(add.getAttribute('aria-label')).toMatch(/新建模型配置|Create model config/);
+  });
+
+  it('hides add model config when the profile has no usable endpoint yet', async () => {
+    const container = document.createElement('div');
+    document.body.appendChild(container);
+    const services = createFakeServices({
+      profiles: [{
+        ...fakeProfile,
+        config: {
+          ...fakeProfile.config,
+          connection: {
+            selectionMode: 'manual' as const,
+            selectedEndpointId: 'primary',
+            endpoints: [{ id: 'primary', url: '', enabled: true }],
+          },
+        },
+      }],
+    });
+    await renderDetailWithRoot(container, services, 'mock-profile', vi.fn(), vi.fn(async () => undefined));
+
+    expect(container.querySelector('[data-testid="provider-add-model-config-button"]')).toBeNull();
+  });
 });

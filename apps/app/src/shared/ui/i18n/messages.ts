@@ -269,6 +269,22 @@ export interface AppMessages {
     readonly modelConfigModelId: string;
     readonly modelConfigRequestStrategy: string;
     readonly modelConfigMatrixCells: string;
+    readonly modelConfigOutputCapabilities: string;
+    readonly modelConfigSharedScope: string;
+    readonly modelConfigOutputFormat: string;
+    readonly modelConfigAspectRatio: string;
+    readonly modelConfigResolution: string;
+    readonly modelConfigOperationTextToImage: string;
+    readonly modelConfigOperationEditImage: string;
+    readonly modelConfigRatioAuto: string;
+    readonly modelConfigRatioSource: string;
+    readonly modelConfigNormalizationWarning: string;
+    readonly modelConfigSparseCombinationHint: string;
+    readonly modelConfigValidationOutputFormat: string;
+    readonly modelConfigValidationAspectRatio: string;
+    readonly modelConfigValidationResolution: string;
+    readonly modelConfigModuleSummary: (formats: number, ratios: number, resolutions: number) => string;
+    readonly modelConfigValidCombinations: (count: number) => string;
     readonly modelConfigSelection: string;
     readonly modelConfigProfileList: string;
     readonly modelConfigUnconfigured: string;
@@ -620,7 +636,7 @@ const EN_MESSAGES: AppMessages = {
     promptSettings: 'Prompt Settings',
     modelConfiguration: 'Model Configuration',
     modelConfigurationEmpty: 'No saved model configurations yet.',
-    modelConfigurationHint: 'Save reusable model configs here. Profiles can select them later.',
+    modelConfigurationHint: 'Create reusable model configurations here, then assign them from a profile when needed.',
     modelConfigurationSaveHint: 'Saving a model config does not select it for any profile.',
     createModelConfiguration: 'Create model config',
     editModelConfiguration: 'Edit model config',
@@ -629,12 +645,28 @@ const EN_MESSAGES: AppMessages = {
     modelConfigModelId: 'Model ID',
     modelConfigRequestStrategy: 'Request strategy',
     modelConfigMatrixCells: 'Output matrix cells',
+    modelConfigOutputCapabilities: 'Output capabilities',
+    modelConfigSharedScope: 'Text + Edit',
+    modelConfigOutputFormat: 'Output format',
+    modelConfigAspectRatio: 'Aspect ratio',
+    modelConfigResolution: 'Resolution',
+    modelConfigOperationTextToImage: 'Text to Image',
+    modelConfigOperationEditImage: 'Edit Image',
+    modelConfigRatioAuto: 'Auto',
+    modelConfigRatioSource: 'Source',
+    modelConfigNormalizationWarning: 'This config uses legacy per-combination selections. Saving will normalize it to shared format, ratio, and resolution rules.',
+    modelConfigSparseCombinationHint: 'Some selected values are not available in every combination.',
+    modelConfigValidationOutputFormat: 'Keep at least one output format.',
+    modelConfigValidationAspectRatio: 'Keep at least one aspect ratio.',
+    modelConfigValidationResolution: 'Keep at least one resolution.',
+    modelConfigModuleSummary: (formats, ratios, resolutions) => `${formats} formats · ${ratios} ratios · ${resolutions} resolutions`,
+    modelConfigValidCombinations: (count) => `${count} valid output combinations`,
     modelConfigSelection: 'Profile selection',
     modelConfigProfileList: 'Profile models',
     modelConfigUnconfigured: 'Needs configuration before selection.',
     modelConfigConfigured: 'Saved model config.',
     modelConfigCatalogSource: 'Catalog preset',
-    modelConfigUserSource: 'Saved config',
+    modelConfigUserSource: 'Saved model configuration',
     modelConfigSelectAtLeastOne: 'Select at least one value.',
     modelConfigValidationApiFormat: 'Choose an API format.',
     modelConfigValidationModelId: 'Model ID is required.',
@@ -645,7 +677,7 @@ const EN_MESSAGES: AppMessages = {
     modelConfigEditModel: 'Edit config',
     modelConfigSelectedTag: 'Selected',
     modelConfigDefaultTag: 'Default',
-    modelConfigSelectedEmpty: 'No models selected for this profile.',
+    modelConfigSelectedEmpty: 'No saved model configurations in this profile yet.',
     promptOptimization: 'Prompt Optimization',
     optimizerProfile: 'Profile',
     none: 'None',
@@ -980,7 +1012,7 @@ const ZH_CN_MESSAGES: AppMessages = {
     promptSettings: '提示词设置',
     modelConfiguration: '模型配置',
     modelConfigurationEmpty: '还没有已保存的模型配置。',
-    modelConfigurationHint: '在这里保存可复用的模型配置，之后再由 Profile 显式选择。',
+    modelConfigurationHint: '在这里创建可复用的模型配置，需要时再到 Profile 里把它加入并选中。',
     modelConfigurationSaveHint: '保存模型配置后，不会自动为任何 Profile 选中它。',
     createModelConfiguration: '新建模型配置',
     editModelConfiguration: '编辑模型配置',
@@ -989,12 +1021,28 @@ const ZH_CN_MESSAGES: AppMessages = {
     modelConfigModelId: '模型 ID',
     modelConfigRequestStrategy: '请求策略',
     modelConfigMatrixCells: '输出矩阵单元',
+    modelConfigOutputCapabilities: '输出能力',
+    modelConfigSharedScope: '文生图 + 编辑',
+    modelConfigOutputFormat: '输出格式',
+    modelConfigAspectRatio: '宽高比',
+    modelConfigResolution: '分辨率',
+    modelConfigOperationTextToImage: '文生图',
+    modelConfigOperationEditImage: '编辑图片',
+    modelConfigRatioAuto: 'Auto',
+    modelConfigRatioSource: 'Source',
+    modelConfigNormalizationWarning: '当前配置使用旧的逐组合选择。保存后会统一规范为共享的格式、宽高比和分辨率规则。',
+    modelConfigSparseCombinationHint: '部分已选值并不能在所有组合里同时使用。',
+    modelConfigValidationOutputFormat: '至少保留一种输出格式。',
+    modelConfigValidationAspectRatio: '至少保留一种宽高比。',
+    modelConfigValidationResolution: '至少保留一种分辨率。',
+    modelConfigModuleSummary: (formats, ratios, resolutions) => `${formats} 种格式 · ${ratios} 种宽高比 · ${resolutions} 种分辨率`,
+    modelConfigValidCombinations: (count) => `${count} 个有效输出组合`,
     modelConfigSelection: 'Profile 选择状态',
     modelConfigProfileList: 'Profile 模型列表',
     modelConfigUnconfigured: '需要先完成配置，才能加入选择列表。',
     modelConfigConfigured: '已保存模型配置。',
     modelConfigCatalogSource: 'Catalog 预设',
-    modelConfigUserSource: '已保存配置',
+    modelConfigUserSource: '已保存模型配置',
     modelConfigSelectAtLeastOne: '至少选择一项。',
     modelConfigValidationApiFormat: '请选择 API 格式。',
     modelConfigValidationModelId: '模型 ID 不能为空。',
@@ -1005,7 +1053,7 @@ const ZH_CN_MESSAGES: AppMessages = {
     modelConfigEditModel: '编辑配置',
     modelConfigSelectedTag: '已选中',
     modelConfigDefaultTag: '默认',
-    modelConfigSelectedEmpty: '当前 Profile 还没有选中任何模型。',
+    modelConfigSelectedEmpty: '当前 Profile 里还没有已保存的模型配置。',
     promptOptimization: '提示词优化',
     optimizerProfile: '配置',
     none: '无',
