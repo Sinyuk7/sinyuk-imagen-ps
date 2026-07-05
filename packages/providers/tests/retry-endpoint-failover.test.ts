@@ -3,8 +3,8 @@ import {
   endpointRuntimeHealthSizeForTesting,
   executeWithEndpointFailover,
   resetEndpointRuntimeHealthForTesting,
-} from '../src/transport/image-endpoint/failover.js';
-import { httpRequest } from '../src/transport/image-endpoint/http.js';
+} from './../src/transport/image-endpoint/failover.js';
+import { httpRequest } from './../src/transport/image-endpoint/http.js';
 import { createCountingFetch } from './counting-transport.js';
 
 const connection = {

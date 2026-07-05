@@ -19,6 +19,10 @@ UXP Developer Tool, provider credentials, or external network access.
 ## Standard Commands
 
 ```bash
+pnpm test:changed
+pnpm test:app
+pnpm test:providers
+pnpm test:uxp
 pnpm validate
 pnpm build
 pnpm test
@@ -32,6 +36,14 @@ runs build, default tests, and policy checks.
 
 `pnpm test` uses the Turbo pipeline and includes the stable mock-only tests for
 foundation, core-engine, providers, application, and app surfaces.
+
+Focused development entrypoints:
+
+- `pnpm test:changed`: runs tests for changed workspace packages, falling back to
+  `pnpm test` when no changed package files are detected.
+- `pnpm test:app`: runs the `@imagen-ps/app` deterministic development suite.
+- `pnpm test:providers`: runs the `@imagen-ps/providers` deterministic contract suite.
+- `pnpm test:uxp`: runs only the app fake-UXP adapter and shell suite.
 
 `pnpm check:policy` is the local architecture and documentation policy gate. It
 checks package import boundaries, high-authority documentation wording,
@@ -90,6 +102,10 @@ pnpm --filter @imagen-ps/app build
 pnpm --filter @imagen-ps/app build:uxp
 pnpm --filter @imagen-ps/app build:chrome
 pnpm --filter @imagen-ps/app test
+pnpm --filter @imagen-ps/app test:ui
+pnpm --filter @imagen-ps/app test:uxp
+pnpm --filter @imagen-ps/app test:chrome
+pnpm --filter @imagen-ps/app test:release
 pnpm --filter @imagen-ps/app test:chrome-e2e
 ```
 
@@ -189,17 +205,32 @@ Developer Tool, external network access, or paid APIs.
 
 ## Test Organization Rules
 
-Development tests are split by functional domain and user link, not by a fixed
-line budget. Each file name says what it covers and which level it belongs to.
+Development tests are organized first by production-code ownership, then by test
+type. App tests mirror `apps/app/src/` under `apps/app/tests/`, and package
+tests mirror their owning package/module.
 
-- One file covers one functional domain or one coherent user link. Long files
-  that mixed attachment, rendering, billing, and composer concerns were split.
-- A complete main-link test that only makes sense end-to-end stays as one case;
-  only unrelated scenarios are moved out.
-- Shared render/fake helpers live under `apps/app/tests/*-harness.ts(x)` next to
-  the tests that use them. They are not test files (no `.test.` segment) so
-  vitest never runs them, and they stay out of `tsconfig.build.json` (`include:
-  ["src"]`).
+- `apps/app/tests/shared/**` mirrors `apps/app/src/shared/**`.
+- `apps/app/tests/adapters/**` mirrors `apps/app/src/adapters/**`.
+- `apps/app/tests/composition/**` mirrors `apps/app/src/composition/**`.
+- `apps/app/tests/shells/**` mirrors `apps/app/src/shells/**`.
+- `apps/app/tests/harness/**` is reserved for app-owned local harness surfaces.
+- `apps/app/tests/release/**` is reserved for production-build, artifact, bundle,
+  and packaging checks that must not run under default `pnpm test`.
+- Shared render/fake helpers live under `apps/app/tests/helpers/`. They are not
+  test files (no `.test.` segment) so vitest never runs them.
+- `packages/<name>/tests/**` mirrors the owning provider/application module when
+  that package keeps tests outside `src/`. Example:
+  `packages/providers/tests/transport/image-endpoint/**`,
+  `packages/providers/tests/providers/image-endpoint/**`,
+  `packages/providers/tests/contract/**`.
+
+Within an owner directory:
+
+- One file covers one stable module contract or one coherent user link.
+- Split by durable capability when a page/module has multiple distinct risk
+  surfaces.
+- Do not split by temporary bug title, provider sample, or implementation seam
+  when the underlying behavior is the same contract.
 - Fixtures are named by business meaning, not `data1`/`mock2`.
 - `*.release.test.ts(x)` files live under `<package>/tests/release/` and are the
   only files that may touch real network. They are excluded from every

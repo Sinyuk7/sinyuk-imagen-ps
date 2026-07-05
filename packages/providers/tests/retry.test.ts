@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest';
-import { withRetry, classifyPaidRetry } from '../src/transport/image-endpoint/retry.js';
+import { withRetry, classifyPaidRetry } from './../src/transport/image-endpoint/retry.js';
 
 function errorWithKind(kind: string, statusCode?: number): Error {
   const error = new Error(`${kind}`) as Error & { kind: string; statusCode?: number };

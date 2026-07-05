@@ -1,4 +1,4 @@
-import type { ProviderModelExecution } from '../src/contract/index.js';
+import type { ProviderModelExecution } from './../src/contract/index.js';
 
 type ImageEndpointStrategyId = 'image-endpoint-default' | 'image-endpoint-variant';
 type GeminiGenerateContentStrategyId =

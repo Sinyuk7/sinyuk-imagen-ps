@@ -1,8 +1,8 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { createLogger, createMemorySink } from '@imagen-ps/foundation';
-import { createImageEndpointProvider, imageEndpointDescriptor } from '../src/providers/image-endpoint/index.js';
-import { executeWithEndpointFailover, resetEndpointRuntimeHealthForTesting } from '../src/transport/image-endpoint/failover.js';
-import { httpRequest } from '../src/transport/image-endpoint/http.js';
+import { createImageEndpointProvider, imageEndpointDescriptor } from './../src/providers/image-endpoint/index.js';
+import { executeWithEndpointFailover, resetEndpointRuntimeHealthForTesting } from './../src/transport/image-endpoint/failover.js';
+import { httpRequest } from './../src/transport/image-endpoint/http.js';
 import { createCountingFetch } from './counting-transport.js';
 import { imageEndpointModel } from './model-execution.js';
 

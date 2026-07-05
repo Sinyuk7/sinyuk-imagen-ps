@@ -1,10 +1,10 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { buildIdempotencyKey, resolvePaidRetryConfig, resolveIdempotencyHeader } from '../src/transport/image-endpoint/paid-retry.js';
-import { defaultPaidRetryPolicy } from '../src/transport/image-endpoint/retry.js';
-import { httpRequest } from '../src/transport/image-endpoint/http.js';
-import { executeWithEndpointFailover, resetEndpointRuntimeHealthForTesting } from '../src/transport/image-endpoint/failover.js';
+import { buildIdempotencyKey, resolvePaidRetryConfig, resolveIdempotencyHeader } from './../src/transport/image-endpoint/paid-retry.js';
+import { defaultPaidRetryPolicy } from './../src/transport/image-endpoint/retry.js';
+import { httpRequest } from './../src/transport/image-endpoint/http.js';
+import { executeWithEndpointFailover, resetEndpointRuntimeHealthForTesting } from './../src/transport/image-endpoint/failover.js';
 import { createCountingFetch } from './counting-transport.js';
-import type { ProviderDescriptor } from '../src/contract/provider.js';
+import type { ProviderDescriptor } from './../src/contract/provider.js';
 
 const baseDescriptor: ProviderDescriptor = {
   id: 'test-provider',

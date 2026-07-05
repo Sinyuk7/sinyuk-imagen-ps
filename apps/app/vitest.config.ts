@@ -11,9 +11,6 @@ export default defineConfig({
     include: [
       'tests/**/*.test.ts',
       'tests/**/*.test.tsx',
-      'src/host/**/*.test.ts',
-      'src/adapters/uxp/**/*.test.ts',
-      'src/shells/uxp/**/*.test.tsx',
     ],
     exclude: [
       ...configDefaults.exclude,

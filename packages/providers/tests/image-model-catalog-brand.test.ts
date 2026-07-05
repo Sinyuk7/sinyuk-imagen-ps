@@ -4,8 +4,8 @@ import {
   listLocalCatalogModels,
   resolveImageModelRule,
   validateImageModelCatalog,
-} from '../src/contract/image-model-capability.js';
-import type { ImageCatalogProviderId, ModelBrand } from '../src/contract/image-model-capability.js';
+} from './../src/contract/image-model-capability.js';
+import type { ImageCatalogProviderId, ModelBrand } from './../src/contract/image-model-capability.js';
 
 const EXPECTED: ReadonlyArray<{
   readonly providerId: ImageCatalogProviderId;

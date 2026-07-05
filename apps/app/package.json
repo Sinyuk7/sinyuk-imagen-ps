@@ -25,6 +25,10 @@
     "theme:check": "node scripts/generate-theme-css.mjs --check",
     "test": "node ../../scripts/with-exclusive-lock.mjs --lock heavy-tasks --label app-test -- pnpm run test:inner",
     "test:inner": "pnpm run theme:check && vitest run",
+    "test:ui": "pnpm run theme:check && vitest run tests/shared/ui tests/harness/components",
+    "test:uxp": "pnpm run theme:check && vitest run tests/adapters/uxp tests/shells/uxp",
+    "test:chrome": "pnpm run theme:check && vitest run tests/adapters/chrome tests/composition/chrome",
+    "test:release": "vitest run --config vitest.release.config.ts --no-cache",
     "test:chrome-e2e": "node tests/chrome-e2e/run.mjs",
     "clean": "rm -rf dist"
   },

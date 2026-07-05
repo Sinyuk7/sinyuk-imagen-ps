@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
 import { createLogger, createMemorySink } from '@imagen-ps/foundation';
-import { httpRequest } from '../src/transport/image-endpoint/http.js';
+import { httpRequest } from './../src/transport/image-endpoint/http.js';
 
 describe('image endpoint HTTP logging', () => {
   it('logs retry events with transport context', async () => {

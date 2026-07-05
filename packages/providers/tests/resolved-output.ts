@@ -5,8 +5,8 @@ import {
   type ImageOperation,
   type ImageOutputFormat,
   type ImageOutputImageSize,
-} from '../src/contract/index.js';
-import type { ProviderOutputOptions, ProviderResolvedOutput } from '../src/contract/request.js';
+} from './../src/contract/index.js';
+import type { ProviderOutputOptions, ProviderResolvedOutput } from './../src/contract/request.js';
 
 export function resolvedOutputFor(args: {
   readonly providerId: ImageCatalogProviderId;
