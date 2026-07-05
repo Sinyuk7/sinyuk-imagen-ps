@@ -9,27 +9,28 @@ This repo uses current-state, harness-first loop engineering.
 - Harness before live/manual validation: contract tests, fake adapters, smoke harnesses, fixtures, boundary checks, reproducible commands.
 - Fake structure must follow stable boundaries. See `docs/TESTING.md` for fake, stub, fixture, builder, spy, and `createTestHarness()` rules.
 - Stop and re-scope when a slice needs unauthorized cross-boundary ownership changes.
+- Root `AGENTS.md` owns repo-level operating rules. `apps/app/AGENTS.md` owns app-surface, placement, and UXP-specific constraints.
 
+## Adobe Photoshop UXP Research
+
+- Search the local official Adobe documentation mirrors before relying on memory:
+  - `.local/share/uxp-photoshop`
+  - `.local/share/uxp`
+  - `.local/share/uxp-photoshop-plugin-samples`
+  - `~/Documents/github/monorepo`
 
 ## Release Gate
 
-The production artifact contract and release runbook live in [`docs/RELEASE.md`](docs/RELEASE.md). Key points:
-
-- `pnpm --filter @imagen-ps/app build:production` produces the allowlisted, verified staging directory at `apps/app/release/uxp-production/`.
-- `pnpm --filter @imagen-ps/app verify:production` re-runs the artifact verifier on the existing staging directory.
-- `pnpm release:verify` is the repo-level release gate. It runs `pnpm validate`, the production build, artifact verification, license verification, and build-metadata/version-consistency checks.
-- `pnpm release:verify` defaults to rejecting a dirty git working tree; use `--allow-dirty` only for local rehearsal.
-- Adobe `.ccx` packaging is a manual UDT boundary. Use `ccx:pre` before UDT Package and `ccx:post <ccx-path>` after UDT Package to validate the archive and write the `.sha256` sidecar.
-- `apps/app/AGENTS.md` owns app-level build/dev commands and UXP-specific constraints.
+- The production artifact contract and release runbook live in [`docs/RELEASE.md`](docs/RELEASE.md).
+- `pnpm release:verify` is the repo-level release gate.
+- Adobe `.ccx` packaging is a manual UDT boundary. Use `ccx:pre` before UDT Package and `ccx:post <ccx-path>` after packaging validation.
 
 ## Writeback
 
-- Before finishing non-trivial work, decide whether the turn produced reusable knowledge.
-- Write stable, reusable engineering knowledge into the canonical doc it belongs to: `README.md`, `docs/ENGINEERING_CONTEXT.md`, `docs/TESTING.md`, or the matching module `AGENTS.md`. Do not park durable facts in `docs/dev-memory/`; it is read-only historical reference, not a permanent knowledge store.
-- Do not store completed plans, execution logs, task process, raw logs, full investigation transcripts, or one-off implementation details anywhere. If a fact is not canonical, it does not belong in maintained docs.
-- Do not create new `docs/dev-memory/` records. Existing records are reduced over time by promoting still-needed facts into canonical docs and deleting the rest.
+- Before finishing non-trivial work, decide whether the turn produced reusable knowledge and write stable facts into the canonical doc they belong to: `README.md`, `docs/ENGINEERING_CONTEXT.md`, `docs/TESTING.md`, or the matching module `AGENTS.md`.
+- Do not park durable facts in `docs/dev-memory/`; it is read-only historical reference, not a permanent knowledge store. Do not create new `docs/dev-memory/` records.
+- Do not store non-canonical material in maintained docs: completed plans, execution logs, task process, raw logs, full investigation transcripts, one-off implementation details, build output, generated artifacts, secrets, or provider keys.
 - Ask before writing user/local/profile/cross-project habits to agent memory.
-- Never store secrets, raw logs, build output, generated artifacts, or provider keys.
 
 ## Language And API
 

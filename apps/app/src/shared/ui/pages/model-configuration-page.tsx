@@ -63,20 +63,56 @@ function operationLabel(operation: OutputCapabilityModule['operations'][number],
   return operation === 'text_to_image' ? t.settings.modelConfigOperationTextToImage : t.settings.modelConfigOperationEditImage;
 }
 
-function ratioVisualClass(ratio: ImageAspectRatio): string {
-  switch (ratio) {
-    case 'auto':
-    case 'source':
-      return 'is-text';
-    case '1:1':
-      return 'is-square';
-    case '16:9':
-      return 'is-wide';
-    case '9:16':
-      return 'is-tall';
-    default:
-      return 'is-generic';
+function parseAspectRatio(ratio: ImageAspectRatio): { readonly width: number; readonly height: number } | null {
+  const [rawWidth, rawHeight] = ratio.split(':');
+  if (!rawWidth || !rawHeight) {
+    return null;
   }
+  const width = Number(rawWidth);
+  const height = Number(rawHeight);
+  if (!Number.isFinite(width) || !Number.isFinite(height) || width <= 0 || height <= 0) {
+    return null;
+  }
+  return { width, height };
+}
+
+function ratioPreviewFrame(ratio: ImageAspectRatio): {
+  readonly x: number;
+  readonly y: number;
+  readonly width: number;
+  readonly height: number;
+} {
+  const parsed = parseAspectRatio(ratio);
+  if (!parsed) {
+    return { x: 5, y: 4, width: 14, height: 8 };
+  }
+  const maxWidth = 20;
+  const maxHeight = 12;
+  const minWidth = 6;
+  const minHeight = 4;
+  const aspect = parsed.width / parsed.height;
+
+  let previewWidth = maxWidth;
+  let previewHeight = previewWidth / aspect;
+  if (previewHeight > maxHeight) {
+    previewHeight = maxHeight;
+    previewWidth = previewHeight * aspect;
+  }
+  if (previewHeight < minHeight) {
+    previewHeight = minHeight;
+    previewWidth = Math.min(maxWidth, previewHeight * aspect);
+  }
+  if (previewWidth < minWidth) {
+    previewWidth = minWidth;
+    previewHeight = Math.min(maxHeight, previewWidth / aspect);
+  }
+
+  return {
+    x: (24 - previewWidth) / 2,
+    y: (16 - previewHeight) / 2,
+    width: previewWidth,
+    height: previewHeight,
+  };
 }
 
 function ratioLabel(ratio: ImageAspectRatio, t: ReturnType<typeof useI18n>['messages']): string {
@@ -87,6 +123,25 @@ function ratioLabel(ratio: ImageAspectRatio, t: ReturnType<typeof useI18n>['mess
     return t.settings.modelConfigRatioSource;
   }
   return ratio;
+}
+
+function RatioPreview({ ratio }: { readonly ratio: ImageAspectRatio }) {
+  const frame = ratioPreviewFrame(ratio);
+  return (
+    <span className="model-config-ratio-preview" aria-hidden="true">
+      <svg className="model-config-ratio-preview-svg" viewBox="0 0 24 16">
+        <rect
+          x={frame.x}
+          y={frame.y}
+          width={frame.width}
+          height={frame.height}
+          rx="2"
+          ry="2"
+          className="model-config-ratio-preview-rect"
+        />
+      </svg>
+    </span>
+  );
 }
 
 function selectionSummary(_module: OutputCapabilityModule, selection: MatrixDimensionSelection, t: ReturnType<typeof useI18n>['messages']): string {
@@ -200,7 +255,7 @@ function CapabilityChipGroup({
               disabled={disabled}
               onClick={() => onToggle(item.id, !checked)}
             >
-              {checked ? <Icon name="check" size={12} /> : null}
+              {checked ? <span className="model-config-chip-check" aria-hidden="true" /> : null}
               <span>{item.label}</span>
             </button>
           );
@@ -249,7 +304,7 @@ function RatioTileGroup({
                 disabled={disabled}
                 onClick={() => onToggle(item.id, !checked)}
               >
-                {checked ? <Icon name="check" size={12} /> : null}
+                {checked ? <span className="model-config-chip-check" aria-hidden="true" /> : null}
                 <span>{ratioLabel(item.id, t)}</span>
               </button>
             );
@@ -270,13 +325,9 @@ function RatioTileGroup({
               disabled={disabled}
               onClick={() => onToggle(item.id, !checked)}
             >
-              <span className={`model-config-ratio-visual ${ratioVisualClass(item.id)}`} aria-hidden="true" />
+              <RatioPreview ratio={item.id} />
               <span className="model-config-ratio-label">{item.label}</span>
-              {checked ? (
-                <span className="model-config-ratio-check" aria-hidden="true">
-                  <Icon name="check" size={12} />
-                </span>
-              ) : null}
+              {checked ? <span className="model-config-ratio-check" aria-hidden="true" /> : null}
             </button>
           );
         })}
