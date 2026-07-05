@@ -56,6 +56,10 @@ function isImeCompositionKey(event: React.KeyboardEvent): boolean {
   return nativeEvent.isComposing === true || nativeEvent.keyCode === 229;
 }
 
+function optionLabel<T extends string>(options: ReadonlyArray<{ readonly id: T; readonly label: string }>, id: T): string {
+  return options.find((option) => option.id === id)?.label ?? id.toUpperCase();
+}
+
 interface MainPageProps {
   readonly onNav: (view: string) => void;
   readonly profiles: readonly ProviderProfile[];
@@ -893,10 +897,10 @@ export function MainPage({
       providerName: selectedProfile.displayName,
       ...(selectedModelId ? { modelId: selectedModelId } : {}),
       attachments,
-      ...(modelGenerationSettings.requestOutput ? {
+      ...(modelGenerationSettings.outputSelection ? {
         output: {
           count: 1,
-          requestOutput: modelGenerationSettings.requestOutput,
+          selection: modelGenerationSettings.outputSelection,
         },
       } : {}),
       providerInputSizePreset: generationSettings.providerInputSizePreset,
@@ -1737,7 +1741,7 @@ export function MainPage({
                 containerClassName="cmp-select cmp-select-output-size"
                 menuClassName="cmp-select-menu cmp-select-menu-compact"
                 label={t.main.outputSize}
-                value={selectedOutputSize.toUpperCase()}
+                value={optionLabel(outputSizeOptions, selectedOutputSize)}
                 disabled={conversation.running || outputSizeOptions.length === 0}
                 open={openMenu === 'output-size'}
                 onOpenChange={(open) => {
@@ -1750,30 +1754,32 @@ export function MainPage({
                 }}
                 icon="image-auto-mode"
               />
-              <IconSelect
-                testId="composer-output-ratio-selector"
-                containerClassName="cmp-select cmp-select-output-size"
-                menuClassName="cmp-select-menu cmp-select-menu-compact"
-                label={t.main.aspectRatio}
-                value={selectedOutputRatio.toUpperCase()}
-                disabled={conversation.running || outputRatioOptions.length === 0}
-                open={openMenu === 'output-ratio'}
-                onOpenChange={(open) => {
-                  handleOpenComposerMenu('output-ratio', open);
-                }}
-                options={outputRatioOptions}
-                selectedId={selectedOutputRatio}
-                onSelect={(value) => {
-                  void selectOutputRatio(value as ImageAspectRatio);
-                }}
-                icon="image-auto-mode"
-              />
+              {modelGenerationSettings.showRatio ? (
+                <IconSelect
+                  testId="composer-output-ratio-selector"
+                  containerClassName="cmp-select cmp-select-output-size"
+                  menuClassName="cmp-select-menu cmp-select-menu-compact"
+                  label={t.main.aspectRatio}
+                  value={optionLabel(outputRatioOptions, selectedOutputRatio)}
+                  disabled={conversation.running || outputRatioOptions.length === 0}
+                  open={openMenu === 'output-ratio'}
+                  onOpenChange={(open) => {
+                    handleOpenComposerMenu('output-ratio', open);
+                  }}
+                  options={outputRatioOptions}
+                  selectedId={selectedOutputRatio}
+                  onSelect={(value) => {
+                    void selectOutputRatio(value as ImageAspectRatio);
+                  }}
+                  icon="image-auto-mode"
+                />
+              ) : null}
               <IconSelect
                 testId="composer-output-format-selector"
                 containerClassName="cmp-select cmp-select-output-size"
                 menuClassName="cmp-select-menu cmp-select-menu-compact"
                 label={t.main.outputFormat}
-                value={selectedOutputFormat.toUpperCase()}
+                value={optionLabel(outputFormatOptions, selectedOutputFormat)}
                 disabled={conversation.running || outputFormatOptions.length === 0}
                 open={openMenu === 'output-format'}
                 onOpenChange={(open) => {

@@ -12,12 +12,13 @@ import type {
   DiscoveredModel,
   ExactTaskCost,
   ImageAspectRatio,
+  ImageOutputSelection,
   ImageOperation,
   ImageOutputFormat,
   ImageOutputImageSize,
   ImageOutputMatrix,
   ImageOutputMatrixCell,
-  ProviderResolvedOutput,
+  UserModelOutputExposure,
   ProviderBalanceSnapshot,
   ProviderDescriptor as _ProviderDescriptor,
   ProviderConfig as _ProviderConfig,
@@ -35,12 +36,15 @@ export type {
   ImageAspectRatio,
   ImageOperation,
   ImageOutputFormat,
+  ImageOutputSelection,
+  ImageOutputSizeOptionId,
   ImageOutputImageSize,
   ImageOutputMatrix,
   ImageOutputMatrixCell,
   OfficialModelPreset,
   ProviderModelExecution,
   ProviderResolvedOutput,
+  UserModelOutputExposure,
   RequestStrategy,
   RequestStrategyId,
 } from '@imagen-ps/providers';
@@ -225,19 +229,18 @@ export interface ModelGenerationPreferenceKey {
 }
 
 export interface ModelGenerationPreference extends ModelGenerationPreferenceKey {
-  readonly cellId: string;
-  readonly imageSize: ImageOutputImageSize;
-  readonly ratio: ImageAspectRatio;
-  readonly outputFormat: ImageOutputFormat;
+  readonly selection: ImageOutputSelection;
 }
 
 export type SaveModelGenerationPreferenceInput = ModelGenerationPreference;
 
 export interface ModelGenerationPreferenceSelection {
-  readonly cellId: string;
+  readonly selection: ImageOutputSelection;
+  readonly effectiveSelection: ImageOutputSelection;
   readonly imageSize: ImageOutputImageSize;
   readonly ratio: ImageAspectRatio;
   readonly outputFormat: ImageOutputFormat;
+  readonly normalized: boolean;
 }
 
 export interface ModelGenerationSettings {
@@ -246,7 +249,6 @@ export interface ModelGenerationSettings {
   readonly preference: ModelGenerationPreference | null;
   readonly selection: ModelGenerationPreferenceSelection;
   readonly cell: ImageOutputMatrixCell;
-  readonly requestOutput: ProviderResolvedOutput;
   readonly source: 'preference' | 'default';
 }
 
@@ -262,6 +264,8 @@ export interface UserModelConfig {
   readonly modelId: string;
   readonly baseModelId: string;
   readonly requestStrategyId: string;
+  readonly outputExposure: UserModelOutputExposure;
+  /** 由 `outputExposure` 派生的运行时投影；不是用户编辑的能力真相。 */
   readonly outputMatrix: readonly ImageOutputMatrix[];
 }
 
@@ -270,7 +274,7 @@ export interface SaveUserModelConfigInput {
   readonly modelId: string;
   readonly baseModelId: string;
   readonly requestStrategyId: string;
-  readonly outputMatrix: readonly ImageOutputMatrix[];
+  readonly outputExposure: UserModelOutputExposure;
 }
 
 /** Host-injected repository for user-owned model configs. */

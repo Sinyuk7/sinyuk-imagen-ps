@@ -153,7 +153,9 @@ export function GlobalGenerationSettingsPage({
             <div className="section-title settings-section-heading">{t.settings.outputGroup}</div>
             <div className="generation-settings-section-intro">
               <HelpText className="field-hint generation-settings-section-hint">
-                {t.settings.outputSize} / {t.settings.outputFormat} / {t.settings.aspectRatio}
+                {modelGenerationSettings.showRatio
+                  ? `${t.settings.outputSize} / ${t.settings.aspectRatio} / ${t.settings.outputFormat}`
+                  : `${t.settings.outputSize} / ${t.settings.outputFormat}`}
               </HelpText>
             </div>
             <div className="generation-settings-grid">
@@ -191,23 +193,25 @@ export function GlobalGenerationSettingsPage({
                   onSelect={(value) => selectOutputFormat(value as ImageOutputFormat)}
                 />
               </div>
-              <div className="field">
-                <FieldLabel htmlFor="global-aspect-ratio-trigger">{t.settings.aspectRatio}</FieldLabel>
-                <TextSelect
-                  testId="global-aspect-ratio-selector"
-                  triggerId="global-aspect-ratio-trigger"
-                  containerClassName="cmp-select settings-select"
-                  menuClassName="cmp-select-menu cmp-select-menu-compact"
-                  label={t.settings.aspectRatio}
-                  value={outputSelection ? labelFor(modelGenerationSettings.ratioOptions, outputSelection.ratio) : t.settings.loading}
-                  disabled={outputDisabled}
-                  open={openMenu === 'aspect'}
-                  onOpenChange={(open) => setOpenMenu(open ? 'aspect' : null)}
-                  options={modelGenerationSettings.ratioOptions}
-                  selectedId={outputSelection?.ratio ?? ''}
-                  onSelect={(value) => selectRatio(value as ImageAspectRatio)}
-                />
-              </div>
+              {modelGenerationSettings.showRatio ? (
+                <div className="field">
+                  <FieldLabel htmlFor="global-aspect-ratio-trigger">{t.settings.aspectRatio}</FieldLabel>
+                  <TextSelect
+                    testId="global-aspect-ratio-selector"
+                    triggerId="global-aspect-ratio-trigger"
+                    containerClassName="cmp-select settings-select"
+                    menuClassName="cmp-select-menu cmp-select-menu-compact"
+                    label={t.settings.aspectRatio}
+                    value={outputSelection ? labelFor(modelGenerationSettings.ratioOptions, outputSelection.ratio) : t.settings.loading}
+                    disabled={outputDisabled}
+                    open={openMenu === 'aspect'}
+                    onOpenChange={(open) => setOpenMenu(open ? 'aspect' : null)}
+                    options={modelGenerationSettings.ratioOptions}
+                    selectedId={outputSelection?.ratio ?? ''}
+                    onSelect={(value) => selectRatio(value as ImageAspectRatio)}
+                  />
+                </div>
+              ) : null}
             </div>
             {outputStatusMessage ? (
               <div data-testid="global-output-settings-status">
@@ -233,7 +237,7 @@ export function GlobalGenerationSettingsPage({
                 selectedId={settings.providerInputSizePreset}
                 onSelect={(value) => updateSettings({ providerInputSizePreset: value as AppProviderInputSizePreset })}
               />
-              <HelpText className="field-hint">{t.settings.providerInputSizePresetHint}</HelpText>
+              <HelpText className="field-hint">{`${t.settings.providerInputSizePresetHint} ${t.settings.useInputSizeNormalizedHint}`}</HelpText>
             </div>
           </section>
           <section className="section generation-settings-section generation-settings-secondary-section">

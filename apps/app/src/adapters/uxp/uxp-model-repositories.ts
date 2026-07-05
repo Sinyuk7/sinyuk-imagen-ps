@@ -76,9 +76,25 @@ function isUserModelConfig(value: unknown): value is UserModelConfig {
     typeof value.modelId === 'string' &&
     typeof value.baseModelId === 'string' &&
     typeof value.requestStrategyId === 'string' &&
+    isOutputExposure(value.outputExposure) &&
     Array.isArray(value.outputMatrix) &&
     value.outputMatrix.length > 0 &&
     value.outputMatrix.every(isImageOutputMatrix);
+}
+
+function isOutputExposure(value: unknown): boolean {
+  if (!isPlainRecord(value)) {
+    return false;
+  }
+  if (value.kind === 'flexible-pixels') {
+    return Array.isArray(value.sizePresetIds) &&
+      Array.isArray(value.outputFormats) &&
+      typeof value.allowInputDerivedExactSize === 'boolean';
+  }
+  return value.kind === 'ratio-resolution' &&
+    Array.isArray(value.aspectRatios) &&
+    Array.isArray(value.resolutions) &&
+    Array.isArray(value.outputFormats);
 }
 
 function isMatrixOperation(value: unknown): value is ImageOutputMatrix['operation'] {
@@ -102,7 +118,7 @@ function isImageOutputMatrix(value: unknown): value is ImageOutputMatrix {
       cell.imageSize !== '512' &&
       typeof cell.ratio === 'string' &&
       typeof cell.outputFormat === 'string' &&
-      isPlainRecord(cell.requestOutput),
+      isOutputSelection(cell.selection),
     );
 }
 
@@ -110,16 +126,17 @@ function isImageOperation(value: unknown): value is ModelGenerationPreference['o
   return value === 'text_to_image' || value === 'image_edit';
 }
 
-function isImageSize(value: unknown): value is ModelGenerationPreference['imageSize'] {
-  return value === 'auto' || value === '1k' || value === '2k' || value === '4k';
-}
-
-function isImageRatio(value: unknown): value is ModelGenerationPreference['ratio'] {
-  return value === 'auto' || value === 'source' || value === '1:1' || value === '16:9' || value === '9:16';
-}
-
-function isOutputFormat(value: unknown): value is ModelGenerationPreference['outputFormat'] {
-  return value === 'png' || value === 'jpeg' || value === 'webp';
+function isOutputSelection(value: unknown): boolean {
+  if (!isPlainRecord(value) || !isPlainRecord(value.geometry)) {
+    return false;
+  }
+  return typeof value.outputFormat === 'string' &&
+    (
+      value.geometry.kind === 'provider-default' ||
+      value.geometry.kind === 'input-derived' ||
+      value.geometry.kind === 'pixels' ||
+      value.geometry.kind === 'ratio-resolution'
+    );
 }
 
 function isModelGenerationPreference(value: unknown): value is ModelGenerationPreference {
@@ -132,10 +149,7 @@ function isModelGenerationPreference(value: unknown): value is ModelGenerationPr
     isApiFormat(record.apiFormat) &&
     typeof record.modelId === 'string' &&
     isImageOperation(record.operation) &&
-    typeof record.cellId === 'string' &&
-    isImageSize(record.imageSize) &&
-    isImageRatio(record.ratio) &&
-    isOutputFormat(record.outputFormat);
+    isOutputSelection(record.selection);
 }
 
 async function readJsonArray<T>(

@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import type { ApiFormat, JobError, JobSessionSnapshot, ProviderResolvedOutput } from '@imagen-ps/application';
+import type { ApiFormat, ImageOutputSelection, JobError, JobSessionSnapshot } from '@imagen-ps/application';
 import type { AppServices } from '../../ports/app-services';
 import {
   commandErrorToMessage,
@@ -73,7 +73,7 @@ export interface SubmitConversationInput {
 
 export interface AppGenerationSettingsOutput {
   readonly count: 1;
-  readonly requestOutput: ProviderResolvedOutput;
+  readonly selection: ImageOutputSelection;
 }
 
 export interface ConversationController {
@@ -273,7 +273,7 @@ function composeMockAppContext(round: ConversationRound): string {
   const output = round.output;
   return [
     `app.model=${round.modelId ?? 'default'}`,
-    `app.output=${output?.requestOutput?.kind ?? 'default'} providerInputSize=${round.providerInputSizePreset ?? 'default'}`,
+    `app.output=${output?.selection.geometry.kind ?? 'default'} providerInputSize=${round.providerInputSizePreset ?? 'default'}`,
     `app.attachments=${attachmentSummary(round.attachments)}`,
     ...placementSummary(round.placementIntent),
   ].map(contextToken).join(' ');
@@ -303,6 +303,21 @@ function assetForJobInput(image: HostImageAsset): Asset {
     ...(name ? { name } : {}),
     ...(mimeType ? { mimeType } : {}),
     storedRef,
+  };
+}
+
+function normalizedInputContextForAttachments(attachments: readonly ConversationAttachment[]): {
+  readonly primaryEditInput?: { readonly width: number; readonly height: number };
+} | undefined {
+  const primary = attachments[0]?.image.resource.derivatives.providerInput;
+  if (primary?.kind !== 'ready' || primary.width === undefined || primary.height === undefined) {
+    return undefined;
+  }
+  return {
+    primaryEditInput: {
+      width: primary.width,
+      height: primary.height,
+    },
   };
 }
 
@@ -523,12 +538,16 @@ export function useConversation(
             input.operation === 'image-edit'
               ? attachments.map((attachment) => assetForJobInput(attachment.image))
               : undefined;
+          const inputContext = input.operation === 'image-edit'
+            ? normalizedInputContextForAttachments(attachments)
+            : undefined;
           const jobInput = {
             __clientRoundId: roundId,
             __clientTaskId: roundId,
             profileId: input.profileId,
             prompt,
             ...(output ? { output } : {}),
+            ...(inputContext ? { inputContext } : {}),
             ...(providerOptions ? { providerOptions } : {}),
             ...(providerInputAssets ? { images: providerInputAssets } : {}),
           };

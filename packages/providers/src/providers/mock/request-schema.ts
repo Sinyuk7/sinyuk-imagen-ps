@@ -47,22 +47,26 @@ const providerModelExecutionSchema = z.object({
   requestStrategyId: z.string().min(1),
 });
 
-const providerResolvedOutputSchema = z.discriminatedUnion('kind', [
-  z.object({
-    kind: z.literal('image-endpoint'),
-    size: z.string().optional(),
-    outputFormat: z.union([z.literal('png'), z.literal('jpeg'), z.literal('webp')]).optional(),
-  }),
-  z.object({
-    kind: z.literal('chat-image'),
-    imageConfig: z.record(z.string(), z.unknown()).optional(),
-  }),
-  z.object({
-    kind: z.literal('gemini-generate-content'),
-    responseFormatImage: z.record(z.string(), z.unknown()).optional(),
-    imageConfig: z.record(z.string(), z.unknown()).optional(),
-  }),
-]);
+const imageOutputSelectionSchema = z.object({
+  geometry: z.discriminatedUnion('kind', [
+    z.object({ kind: z.literal('provider-default') }),
+    z.object({ kind: z.literal('pixels'), width: z.number().int().positive(), height: z.number().int().positive() }),
+    z.object({
+      kind: z.literal('ratio-resolution'),
+      aspectRatio: z.union([z.literal('1:1'), z.literal('16:9'), z.literal('9:16')]),
+      resolution: z.union([z.literal('1k'), z.literal('2k'), z.literal('4k')]),
+    }),
+    z.object({ kind: z.literal('input-derived'), mode: z.literal('exact-size') }),
+  ]),
+  outputFormat: z.union([z.literal('png'), z.literal('jpeg'), z.literal('webp')]),
+});
+
+const normalizedInputContextSchema = z.object({
+  primaryEditInput: z.object({
+    width: z.number().int().positive(),
+    height: z.number().int().positive(),
+  }).optional(),
+});
 
 export const mockRequestSchema = z.object({
   operation: z.union([z.literal('text_to_image'), z.literal('image_edit')]),
@@ -74,7 +78,7 @@ export const mockRequestSchema = z.object({
     z
       .object({
         count: z.number().int().positive().optional(),
-        requestOutput: providerResolvedOutputSchema.optional(),
+        selection: imageOutputSelectionSchema.optional(),
         width: z.number().int().positive().optional(),
         height: z.number().int().positive().optional(),
         sizePreset: z.union([z.literal('512'), z.literal('1k'), z.literal('2k'), z.literal('4k')]).optional(),
@@ -91,6 +95,7 @@ export const mockRequestSchema = z.object({
       .optional(),
   ),
   model: z.preprocess(coerceOptionalObject, providerModelExecutionSchema.optional()),
+  inputContext: z.preprocess(coerceOptionalObject, normalizedInputContextSchema.optional()),
   providerOptions: z.preprocess(coerceOptionalObject, z.record(z.string(), z.unknown()).optional()),
 });
 

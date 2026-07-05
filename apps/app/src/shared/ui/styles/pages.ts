@@ -180,55 +180,6 @@ export const PAGES_CSS = `
   color:var(--app-color-negative);
   background:color-mix(in srgb, var(--app-color-negative) 10%, var(--app-color-hover-overlay));
 }
-.billing-header{
-  display:flex;
-  align-items:center;
-  justify-content:space-between;
-  width:100%;
-  margin-top:0;
-  margin-right:0;
-  margin-bottom:0;
-  margin-left:0;
-  padding-top:6px;
-  padding-right:0;
-  padding-bottom:6px;
-  padding-left:0;
-  border:none;
-  background:transparent;
-  color:var(--app-color-text-primary);
-  font-family:var(--app-font-family-base);
-  font-size:12px;
-  font-weight:400;
-  line-height:16px;
-  text-align:left;
-  cursor:pointer;
-}
-.billing-header:hover .billing-header-summary{
-  color:var(--app-color-text-primary);
-}
-.billing-header-summary{
-  flex:1;
-  min-width:0;
-  font-size:12px;
-  line-height:16px;
-  color:var(--app-color-text-secondary);
-  white-space:nowrap;
-  overflow:hidden;
-  text-overflow:ellipsis;
-}
-.billing-header-chevron{
-  flex-shrink:0;
-  color:var(--app-color-text-muted);
-}
-.billing-section-expanded{
-  padding-top:8px;
-}
-.billing-empty-hint{
-  margin-bottom:10px;
-  font-size:11px;
-  line-height:15px;
-  color:var(--app-color-text-muted);
-}
 .billing-error{
   margin-top:10px;
 }
@@ -237,6 +188,22 @@ export const PAGES_CSS = `
   font-size:11px;
   line-height:15px;
   color:var(--app-color-text-muted);
+}
+.billing-inline-heading{
+  align-items:center;
+  margin-bottom:10px;
+}
+.billing-inline-heading .section-title{
+  margin-bottom:0;
+}
+.billing-inline-summary{
+  flex:1 1 auto;
+  min-width:0;
+  margin-left:12px;
+  font-size:12px;
+  line-height:16px;
+  color:var(--app-color-text-secondary);
+  text-align:right;
 }
 .test-status{
   display:inline-flex;
@@ -629,21 +596,26 @@ export const PAGES_CSS = `
 }
 .provider-api-format-row{
   align-items:center;
+  justify-content:flex-start;
   margin-bottom:4px;
+  min-width:0;
 }
 .provider-api-format-row .section-title{
+  flex:0 0 auto;
   margin-bottom:0;
+  margin-right:12px;
 }
 .provider-api-format-inline{
-  flex:0 0 auto;
+  flex:1 1 auto;
+  min-width:0;
   margin-top:0;
   margin-right:0;
   margin-bottom:0;
-  margin-left:12px;
-  text-align:right;
-}
-.provider-api-format-hint{
-  margin-bottom:10px;
+  margin-left:0;
+  overflow:hidden;
+  text-overflow:ellipsis;
+  white-space:nowrap;
+  text-align:left;
 }
 .provider-embedded-section{
   display:block;

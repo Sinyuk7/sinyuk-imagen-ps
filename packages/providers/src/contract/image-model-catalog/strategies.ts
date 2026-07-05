@@ -3,12 +3,11 @@ import type {
   ImageSizePreset,
 } from '../image-model-capability.js';
 
-const IMAGE_SIZE_PRESETS: readonly ImageSizePreset[] = ['512', '1k', '2k', '4k'];
+const IMAGE_SIZE_PRESETS: readonly ImageSizePreset[] = ['1k', '2k', '4k'];
 
 export const IMAGE_ENDPOINT_DEFAULT_STRATEGY = Object.freeze({
   kind: 'pixel-side',
   sideByPreset: {
-    '512': 512,
     '1k': 1024,
     '2k': 1536,
     '4k': 1536,
@@ -29,7 +28,6 @@ export const IMAGE_ENDPOINT_DEFAULT_STRATEGY = Object.freeze({
 export const CHAT_IMAGE_DEFAULT_STRATEGY = Object.freeze({
   kind: 'chat-image-label',
   labelByPreset: {
-    '512': '512',
     '1k': '1K',
     '2k': '2K',
     '4k': '2K',
@@ -51,7 +49,6 @@ export const CHAT_IMAGE_DEFAULT_STRATEGY = Object.freeze({
 export const GEMINI_GENERATE_CONTENT_DEFAULT_STRATEGY = Object.freeze({
   kind: 'chat-image-label',
   labelByPreset: {
-    '512': '512',
     '1k': '1K',
     '2k': '2K',
     '4k': '4K',
@@ -73,7 +70,6 @@ export const GEMINI_GENERATE_CONTENT_DEFAULT_STRATEGY = Object.freeze({
 export const GEMINI_GENERATE_CONTENT_LITE_IMAGE_STRATEGY = Object.freeze({
   kind: 'chat-image-label',
   labelByPreset: {
-    '512': '512',
     '1k': '1K',
     '2k': '2K',
     '4k': '4K',

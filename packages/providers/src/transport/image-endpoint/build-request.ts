@@ -4,7 +4,7 @@
  * 字段映射参考 OpenAI Images API（create-image / create-image-edit）快照：
  *
  * - `request.output.count` → body `n`
- * - `request.output.requestOutput` → body `size` / `output_format`
+ * - `request.output.selection` + normalized input context → body `size` / `output_format`
  * - `request.output.background` → body `background`
  * - `request.output.quality` → body `quality`
  * - `request.output.outputFormat` → body `output_format`
@@ -23,6 +23,7 @@ import type { ProviderDiagnostic } from '../../contract/diagnostics.js';
 import type { ImageEditCodec } from '../../contract/provider.js';
 import {
   assertProviderModelExecution,
+  resolveProviderResolvedOutput,
   type ImageCatalogProviderId,
 } from '../../contract/image-model-capability.js';
 import { jsonReferenceCodec } from './codec-json-reference.js';
@@ -193,23 +194,25 @@ function mapQuality(
 }
 
 function resolveRequestOutput(
+  request: CanonicalImageJobRequest,
   output: ProviderOutputOptions,
   providerId: ImageCatalogProviderId,
 ): ImageEndpointRequestOutput {
-  const requestOutput = output.requestOutput;
-  if (requestOutput === undefined) {
+  const model = resolveModel(request);
+  const resolvedOutput = resolveProviderResolvedOutput({
+    providerId,
+    modelId: model,
+    operation: request.operation,
+    output,
+    inputContext: request.inputContext,
+  });
+  if (resolvedOutput.kind !== 'image-endpoint') {
     throw new BuildRequestError(
-      `Image endpoint output requires resolved requestOutput for provider "${providerId}".`,
-      { providerId },
+      `Image endpoint output received incompatible resolved output kind "${resolvedOutput.kind}".`,
+      { providerId, expected: 'image-endpoint', actual: resolvedOutput.kind },
     );
   }
-  if (requestOutput.kind !== 'image-endpoint') {
-    throw new BuildRequestError(
-      `Image endpoint output received incompatible requestOutput kind "${requestOutput.kind}".`,
-      { providerId, expected: 'image-endpoint', actual: requestOutput.kind },
-    );
-  }
-  return requestOutput;
+  return resolvedOutput;
 }
 
 /** 已被 `request.output` 或 transport 层显式处理、禁止通过 providerOptions 覆盖的 body 字段。 */
@@ -335,6 +338,7 @@ function imageFieldNameForCodec(codec: Extract<ImageEditCodec, 'multipart-bracke
 /** 将 `request.output` 的 surface 字段映射到 HTTP body。 */
 function applyOutputToBody(
   body: Record<string, unknown>,
+  request: CanonicalImageJobRequest,
   output: ProviderOutputOptions | undefined,
   options: {
     readonly includeInputFidelity: boolean;
@@ -350,9 +354,9 @@ function applyOutputToBody(
     body.n = output.count;
   }
 
-  const requestOutput = resolveRequestOutput(output, options.providerId);
-  if (requestOutput.size !== undefined) {
-    body.size = requestOutput.size;
+  const resolvedOutput = resolveRequestOutput(request, output, options.providerId);
+  if (resolvedOutput.size !== undefined) {
+    body.size = resolvedOutput.size;
   }
 
   if (output.background !== undefined) {
@@ -363,8 +367,8 @@ function applyOutputToBody(
     body.quality = mapQuality(String(body.model ?? ''), output.quality);
   }
 
-  if (requestOutput.outputFormat !== undefined) {
-    body.output_format = requestOutput.outputFormat;
+  if (resolvedOutput.outputFormat !== undefined) {
+    body.output_format = resolvedOutput.outputFormat;
   }
 
   if (output.outputCompression !== undefined) {
@@ -476,7 +480,7 @@ export function buildRequestBody(request: CanonicalImageJobRequest): OpenAIImage
 
   applyProviderOptions(body, sanitized.providerOptions);
 
-  applyOutputToBody(body, request.output, {
+  applyOutputToBody(body, request, request.output, {
     includeInputFidelity: false,
     operation: request.operation,
     providerId: 'image-endpoint',
@@ -524,7 +528,7 @@ function buildEditRequestBodyInternal(
 
   applyProviderOptions(body, providerOptions);
 
-  applyOutputToBody(body, request.output, {
+  applyOutputToBody(body, request, request.output, {
     includeInputFidelity: true,
     operation: request.operation,
     providerId: 'image-endpoint',
@@ -590,7 +594,7 @@ function buildEditMultipartBodyForCodecInternal(
 
   applyProviderOptions(body, providerOptions);
 
-  applyOutputToBody(body, request.output, {
+  applyOutputToBody(body, request, request.output, {
     includeInputFidelity: true,
     operation: request.operation,
     providerId: 'image-endpoint',

@@ -301,7 +301,6 @@ export function SettingsDetailPage({ onNav, profileId, onProfilesChanged, onSave
   const [billingDraft, setBillingDraft] = useState<ProviderBillingDraft>(readProviderBillingDraft(null));
   const [billingModeMenuOpen, setBillingModeMenuOpen] = useState(false);
   const [authModeMenuOpen, setAuthModeMenuOpen] = useState(false);
-  const [billingExpanded, setBillingExpanded] = useState(false);
   const [apiKey, setApiKey] = useState('');
   const [apiKeyRemovalPending, setApiKeyRemovalPending] = useState(false);
   const [billingAccessTokenRemovalPending, setBillingAccessTokenRemovalPending] = useState(false);
@@ -443,7 +442,6 @@ export function SettingsDetailPage({ onNav, profileId, onProfilesChanged, onSave
     billingDraftRef.current = nextBillingDraft;
     setBillingDraft(nextBillingDraft);
     setBillingModeMenuOpen(false);
-    setBillingExpanded(false);
     setApiKey('');
     setApiKeyRemovalPending(false);
     setBillingAccessTokenRemovalPending(false);
@@ -792,122 +790,74 @@ export function SettingsDetailPage({ onNav, profileId, onProfilesChanged, onSave
     const balance = formatBillingPrimary(billing.billing);
     const checkedAt = billing.billing?.balance?.checkedAt;
     const isConfigured = Boolean(balance) || billingDraft.mode !== 'none' || Boolean(billing.billing?.balance);
-    const summaryParts = [t.settings.billing];
-    if (balance) {
-      summaryParts.push(`${t.settings.billingBalanceLabel} ${balance}`);
-    }
-    if (checkedAt) {
-      summaryParts.push(`${t.settings.billingCheckedAt} ${new Date(checkedAt).toLocaleString()}`);
-    }
-    if (!isConfigured) {
-      summaryParts.push(t.settings.billingDisabled);
-    }
-    const summaryText = summaryParts.join(' · ');
+    const billingHint = !isConfigured
+      ? t.settings.billingDisabled
+      : balance
+        ? `${t.settings.billingBalanceLabel} ${balance}`
+        : t.settings.billingModeHint;
 
     return (
-      <div className="section">
-        <div
-          role="button"
-          tabIndex={0}
-          data-testid="provider-billing-header"
-          className="billing-header"
-          onClick={() => setBillingExpanded((value) => !value)}
-          onKeyDown={(event) => {
-            if (event.key === 'Enter' || event.key === ' ') {
-              event.preventDefault();
-              setBillingExpanded((value) => !value);
-            }
-          }}
-        >
-          <span className="billing-header-summary">{summaryText}</span>
-          <span className="settings-section-header-actions">
-            {isConfigured && (
-              <IconButton
-                data-testid="provider-billing-refresh-button"
-                className="settings-icon-button"
-                compactSquare
-                disabled={billing.loading || busy}
-                icon={<Icon name="refresh" size={16} className={billing.billing?.refreshState === 'refreshing' ? 'spin' : undefined} />}
-                tooltip={billing.loading ? t.settings.billingRefreshing : t.settings.billingRefresh}
-                aria-label={billing.loading ? t.settings.billingRefreshing : t.settings.billingRefresh}
-                onClick={(event) => {
-                  event.stopPropagation();
-                  void billing.refresh();
-                }}
-              />
-            )}
-            <IconButton
-              data-testid="provider-billing-expand-button"
-              className="settings-icon-button"
-              compactSquare
-              icon={<Icon name={billingExpanded ? 'chevron-down' : 'chevron-right'} size={16} />}
-              tooltip={billingExpanded ? t.settings.billingCollapse : t.settings.billingExpand}
-              aria-label={billingExpanded ? t.settings.billingCollapse : t.settings.billingExpand}
-              onClick={(event) => {
-                event.stopPropagation();
-                setBillingExpanded((value) => !value);
-              }}
-            />
-          </span>
+      <div className="provider-embedded-section">
+        <div className="settings-inline-heading-row billing-inline-heading">
+          <div className="section-title settings-section-heading">{t.settings.billing}</div>
+          <div className="billing-inline-summary">{billingHint}</div>
         </div>
-        {billingExpanded && (
-          <div className="billing-section billing-section-expanded">
-            {!isConfigured && (
-              <div className="billing-empty-hint">{t.settings.billingModeHint}</div>
-            )}
-            <ProviderBillingSettings
-              billing={effectiveBillingDraft}
-              onBillingChange={updateBillingDraft}
-              billingModeOptions={billingModeOptions(providerDescriptor)}
-              modeMenuOpen={billingModeMenuOpen}
-              onModeMenuOpenChange={setBillingModeMenuOpen}
-              disabled={busy}
-              accessTokenPlaceholder="sk-..."
-              accessTokenSavedMeta={billingDraft.hasSavedAccessToken && !billingAccessTokenRemovalPending ? t.settings.savedSecretPlaceholder : null}
-              accessTokenRemovalPending={billingAccessTokenRemovalPending}
-              onAccessTokenRemove={() => {
-                const nextBillingDraft = { ...billingDraftRef.current, accessToken: '', hasSavedAccessToken: false };
-                billingDraftRef.current = nextBillingDraft;
-                setBillingDraft(nextBillingDraft);
-                setBillingAccessTokenRemovalPending(true);
-                invalidateDraftProofs();
-              }}
-              userIdError={billingValidation === 'user-id' ? t.settings.billingValidationUserId : null}
-              accessTokenError={billingValidation === 'token' ? t.settings.billingValidationAccessToken : null}
+        <ProviderBillingSettings
+          billing={effectiveBillingDraft}
+          onBillingChange={updateBillingDraft}
+          billingModeOptions={billingModeOptions(providerDescriptor)}
+          modeMenuOpen={billingModeMenuOpen}
+          onModeMenuOpenChange={setBillingModeMenuOpen}
+          disabled={busy}
+          accessTokenPlaceholder="sk-..."
+          accessTokenSavedMeta={billingDraft.hasSavedAccessToken && !billingAccessTokenRemovalPending ? t.settings.savedSecretPlaceholder : null}
+          accessTokenRemovalPending={billingAccessTokenRemovalPending}
+          onAccessTokenRemove={() => {
+            const nextBillingDraft = { ...billingDraftRef.current, accessToken: '', hasSavedAccessToken: false };
+            billingDraftRef.current = nextBillingDraft;
+            setBillingDraft(nextBillingDraft);
+            setBillingAccessTokenRemovalPending(true);
+            invalidateDraftProofs();
+          }}
+          userIdError={billingValidation === 'user-id' ? t.settings.billingValidationUserId : null}
+          accessTokenError={billingValidation === 'token' ? t.settings.billingValidationAccessToken : null}
+        />
+        {billing.billing?.balance?.snapshot.details?.length ? (
+          <div className="billing-detail-list">
+            <div className="billing-detail-title">{t.settings.billingDetails}</div>
+            {billing.billing.balance.snapshot.details.map((billingDetail, index) => (
+              <div
+                key={`${billingDetail.kind}:${index}`}
+                className={`billing-detail-item${index > 0 ? ' billing-detail-item-spaced' : ''}`}
+              >
+                {formatBillingDetail(billingDetail)}
+              </div>
+            ))}
+          </div>
+        ) : null}
+        {billing.billing?.refreshState === 'error' && (
+          <div className="billing-error">
+            <StatusNotice
+              tone="warning"
+              message={t.settings.billingErrorStale}
+              detail={billing.error}
+              copyText={billing.error ?? t.settings.billingErrorStale}
             />
-            {billing.billing?.balance?.snapshot.details?.length ? (
-              <div className="billing-detail-list">
-                <div className="billing-detail-title">{t.settings.billingDetails}</div>
-                {billing.billing.balance.snapshot.details.map((billingDetail, index) => (
-                  <div
-                    key={`${billingDetail.kind}:${index}`}
-                    className={`billing-detail-item${index > 0 ? ' billing-detail-item-spaced' : ''}`}
-                  >
-                    {formatBillingDetail(billingDetail)}
-                  </div>
-                ))}
-              </div>
-            ) : null}
-            {billing.billing?.refreshState === 'error' && (
-              <div className="billing-error">
-                <StatusNotice
-                  tone="warning"
-                  message={t.settings.billingErrorStale}
-                  detail={billing.error}
-                  copyText={billing.error ?? t.settings.billingErrorStale}
-                />
-              </div>
-            )}
-            {formatExactTaskCost(billing.billing?.lastExactTaskCost) && (
-              <div className="billing-last-cost">
-                {t.main.billingLastCost}: {formatExactTaskCost(billing.billing?.lastExactTaskCost)}
-              </div>
-            )}
-            {!formatExactTaskCost(billing.billing?.lastExactTaskCost) && formatBalanceChange(billing.billing?.lastBalanceChange) && (
-              <div className="billing-last-cost">
-                {t.main.billingLastChange}: {formatBalanceChange(billing.billing?.lastBalanceChange)}
-              </div>
-            )}
+          </div>
+        )}
+        {checkedAt ? (
+          <div className="billing-last-cost">
+            {t.settings.billingCheckedAt}: {new Date(checkedAt).toLocaleString()}
+          </div>
+        ) : null}
+        {formatExactTaskCost(billing.billing?.lastExactTaskCost) && (
+          <div className="billing-last-cost">
+            {t.main.billingLastCost}: {formatExactTaskCost(billing.billing?.lastExactTaskCost)}
+          </div>
+        )}
+        {!formatExactTaskCost(billing.billing?.lastExactTaskCost) && formatBalanceChange(billing.billing?.lastBalanceChange) && (
+          <div className="billing-last-cost">
+            {t.main.billingLastChange}: {formatBalanceChange(billing.billing?.lastBalanceChange)}
           </div>
         )}
       </div>

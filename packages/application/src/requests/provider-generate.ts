@@ -11,6 +11,7 @@ const generateStep = Object.freeze({
       operation: 'text_to_image',
       prompt: '${prompt}',
       output: '${output}',
+      inputContext: '${inputContext}',
       providerOptions: '${providerOptions}',
     }),
   }),

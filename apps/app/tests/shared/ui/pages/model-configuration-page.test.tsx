@@ -54,7 +54,9 @@ describe('ModelConfigurationPage', () => {
 
     expect(container.textContent).toContain('Output capabilities');
     expect(container.textContent).toContain('Text + Edit');
-    expect(container.textContent).not.toContain('Text to Image3 formats');
+    expect(container.textContent).toContain('Use Input Size');
+    expect(container.textContent).not.toContain('Aspect ratio');
+    expect(container.textContent).not.toContain('Text to Image');
   });
 
   it('shows separate text and edit sections when preset operations differ', async () => {
@@ -85,7 +87,7 @@ describe('ModelConfigurationPage', () => {
     });
     await flush();
     await act(async () => {
-      document.body.querySelector<HTMLElement>('[data-testid="model-config-preset-selector-option-gpt-image-2-split"]')?.click();
+      document.body.querySelector<HTMLElement>('[data-testid="model-config-preset-selector-option-gemini-image-split"]')?.click();
     });
     await flush();
     await flush();
@@ -94,7 +96,7 @@ describe('ModelConfigurationPage', () => {
     expect(container.textContent).toContain('Edit Image');
   });
 
-  it('filters all matching sparse cells when one ratio is deselected', async () => {
+  it('saves ratio-resolution exposure when one ratio is deselected', async () => {
     const { services, spies } = createFakeServices();
     const container = document.createElement('div');
     document.body.appendChild(container);
@@ -118,12 +120,22 @@ describe('ModelConfigurationPage', () => {
     await flush();
 
     await act(async () => {
+      document.body.querySelector<HTMLElement>('[data-testid="model-config-preset-selector"]')?.click();
+    });
+    await flush();
+    await act(async () => {
+      document.body.querySelector<HTMLElement>('[data-testid="model-config-preset-selector-option-gemini-image-split"]')?.click();
+    });
+    await flush();
+    await flush();
+
+    await act(async () => {
       changeInput(container.querySelector<HTMLInputElement>('[data-testid="model-config-model-id"]')!, 'filtered-model');
     });
     await flush();
 
     await act(async () => {
-      container.querySelector<HTMLButtonElement>('[data-testid="model-config-shared-ratio-16:9"]')?.click();
+      container.querySelector<HTMLButtonElement>('[data-testid="model-config-text_to_image-ratio-16:9"]')?.click();
     });
     await flush();
 
@@ -135,8 +147,9 @@ describe('ModelConfigurationPage', () => {
 
     expect(spies.saveUserModelConfig).toHaveBeenCalled();
     const input = spies.saveUserModelConfig.mock.calls.at(-1)?.[0];
-    expect(input.outputMatrix[0].cells.some((cell: { ratio: string }) => cell.ratio === '16:9')).toBe(false);
-    expect(input.outputMatrix[1].cells.some((cell: { ratio: string }) => cell.ratio === '16:9')).toBe(false);
+    expect(input.outputExposure.kind).toBe('ratio-resolution');
+    expect(input.outputExposure.kind === 'ratio-resolution' ? input.outputExposure.aspectRatios : []).not.toContain('16:9');
+    expect('outputMatrix' in input).toBe(false);
   });
 
   it('shows a normalization warning for legacy hole subsets', async () => {

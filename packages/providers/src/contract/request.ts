@@ -1,6 +1,7 @@
 import type { Asset } from '@imagen-ps/core-engine';
 import type { ApiFormat } from './api-format.js';
 import type { ProviderOperation } from './capability.js';
+import type { ImageOutputSelection } from './image-output-contract.js';
 
 /**
  * Provider request 契约。
@@ -37,6 +38,18 @@ export type ProviderResolvedOutput =
   | ChatImageRequestOutput
   | GeminiGenerateContentRequestOutput;
 
+/** 归一化后的编辑输入几何上下文。 */
+export interface NormalizedImageInputGeometry {
+  readonly width: number;
+  readonly height: number;
+}
+
+/** Provider builder 解析 output selection 时需要的输入上下文。 */
+export interface NormalizedImageInputContext {
+  /** 多图编辑首轮固定使用第一张输入图。 */
+  readonly primaryEditInput?: NormalizedImageInputGeometry;
+}
+
 /** 输出偏好信息。
  *
  * 字段集合与 OpenAI Images API（create-image / create-image-edit）的 body parameters 对齐：
@@ -50,8 +63,8 @@ export interface ProviderOutputOptions {
   /** 期望输出张数；transport 层映射为上游 `n`。 */
   readonly count?: number;
 
-  /** Application/catalog 已解析、transport 可直接序列化的输出字段。 */
-  readonly requestOutput?: ProviderResolvedOutput;
+  /** Canonical 用户输出选择；builder 在运行时映射为 provider payload。 */
+  readonly selection?: ImageOutputSelection;
 
   /** 期望输出宽度。 */
   readonly width?: number;
@@ -112,6 +125,9 @@ export interface CanonicalImageJobRequest {
 
   /** 期望输出。 */
   readonly output?: ProviderOutputOptions;
+
+  /** 已归一化输入上下文，供 `Use Input Size` 等 output 选择复用。 */
+  readonly inputContext?: NormalizedImageInputContext;
 
   /** Application 已解析的模型执行配置。 */
   readonly model?: ProviderModelExecution;

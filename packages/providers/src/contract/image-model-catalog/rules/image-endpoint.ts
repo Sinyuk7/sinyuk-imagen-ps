@@ -1,5 +1,10 @@
 import type { ImageModelCapability } from '../../image-model-capability.js';
-import { gptImageEndpointMatrix } from '../output-matrix.js';
+import {
+  GPT_IMAGE_OUTPUT_CAPABILITY,
+  GPT_OUTPUT_EXPOSURE,
+  OPENAI_EDIT_INPUT_CAPABILITY,
+  gptImageEndpointMatrix,
+} from '../output-matrix.js';
 
 export const IMAGE_ENDPOINT_MODEL_CAPABILITIES = Object.freeze([
   {
@@ -14,6 +19,9 @@ export const IMAGE_ENDPOINT_MODEL_CAPABILITIES = Object.freeze([
       allowAsDefault: true,
     },
     appliesToProviders: ['image-endpoint'],
+    outputCapability: GPT_IMAGE_OUTPUT_CAPABILITY,
+    outputExposure: GPT_OUTPUT_EXPOSURE,
+    editInput: OPENAI_EDIT_INPUT_CAPABILITY,
     outputMatrix: [
       gptImageEndpointMatrix('text_to_image'),
       gptImageEndpointMatrix('image_edit'),

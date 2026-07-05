@@ -1,42 +1,117 @@
-import type { ProviderOperation } from './capability.js';
 import { apiFormatForImplementationId, type ApiFormat } from './api-format.js';
+import type {
+  EffectiveImageOutputSelection,
+  ImageAspectRatio,
+  ImageOperation,
+  ImageOutputFormat,
+  ImageOutputImageSize,
+  ImageOutputOption,
+  ImageOutputSelection,
+  ImageOutputSizeOptionId,
+  PixelDimensions,
+} from './image-output-contract.js';
 import type {
   ModelOperationCapability,
   ProviderModelCapabilities,
   ProviderModelInfo,
   ProviderModelMatchKind,
 } from './model.js';
-import type { ProviderModelExecution, ProviderOutputOptions, ProviderResolvedOutput } from './request.js';
+import type { NormalizedImageInputContext, ProviderModelExecution, ProviderOutputOptions, ProviderResolvedOutput } from './request.js';
 import { IMAGE_MODEL_CAPABILITIES } from './image-model-catalog/catalog.js';
 
+export type {
+  EffectiveImageOutputSelection,
+  ImageAspectRatio,
+  ImageOperation,
+  ImageOutputFormat,
+  ImageOutputGeometrySelection,
+  ImageOutputImageSize,
+  ImageOutputOption,
+  ImageOutputSelection,
+  ImageOutputSizeOptionId,
+  PixelDimensions,
+} from './image-output-contract.js';
+
 export type ImageCatalogProviderId = 'image-endpoint' | 'chat-image' | 'gemini-generate-content';
-export type ImageOperation = Extract<ProviderOperation, 'text_to_image' | 'image_edit'>;
-export type ImageSizePreset = NonNullable<ProviderOutputOptions['sizePreset']>;
-/** catalog 输出矩阵暴露给 UI 的图片尺寸选项。 */
-export type ImageOutputImageSize = 'auto' | Exclude<ImageSizePreset, '512'>;
-export type ImageAspectRatio = 'auto' | 'source' | '1:1' | '16:9' | '9:16';
-export type ImageOutputFormat = NonNullable<ProviderOutputOptions['outputFormat']>;
+export type ImageSizePreset = Exclude<ImageOutputSizeOptionId, 'auto' | 'use-input-size'>;
 /** catalog 输出矩阵 cell 的稳定标识。 */
 export type ImageOutputCellId = string;
 
-/** catalog 输出矩阵中的有序 UI 选项。 */
-export interface ImageOutputOption<T extends string = string> {
-  readonly id: T;
-  readonly label: string;
+/** flexible-pixels 真能力约束。 */
+export interface FlexiblePixelsGeometryCapability {
+  readonly kind: 'flexible-pixels';
+  readonly defaultGeometry: { readonly kind: 'provider-default' };
+  readonly constraints: {
+    readonly minPixels: number;
+    readonly maxPixels: number;
+    readonly maxSide: number;
+    readonly multipleOf: number;
+    readonly maxAspectRatio: number;
+  };
+  readonly recommendedPresets: readonly {
+    readonly id: ImageSizePreset;
+    readonly pixels: PixelDimensions;
+  }[];
+  readonly editDerived?: {
+    readonly exactSize: true;
+  };
 }
 
-/** catalog 输出矩阵中的单个可执行输出组合。 */
-export interface ImageOutputMatrixCell {
-  readonly id: ImageOutputCellId;
-  readonly imageSize: ImageOutputImageSize;
-  readonly ratio: ImageAspectRatio;
-  readonly outputFormat: ImageOutputFormat;
-  readonly requestOutput: ProviderResolvedOutput;
+/** ratio-resolution 原生几何能力。 */
+export interface RatioResolutionGeometryCapability {
+  readonly kind: 'ratio-resolution';
+  readonly defaultGeometry: { readonly kind: 'provider-default' };
+  readonly aspectRatios: readonly Exclude<ImageAspectRatio, 'auto' | 'source'>[];
+  readonly resolutions: readonly ImageSizePreset[];
 }
 
-/** 单个模型操作的输出能力矩阵。 */
-export interface ImageOutputMatrix {
+/** 输出几何真能力 discriminated union。 */
+export type GeometryCapability = FlexiblePixelsGeometryCapability | RatioResolutionGeometryCapability;
+
+/** edit 输入能力事实。 */
+export interface EditInputCapability {
+  readonly inputFormats: readonly string[];
+  readonly maxImages: number;
+  readonly maxBytesPerImage?: number;
+  readonly mask?: {
+    readonly kind: 'alpha-image';
+    readonly target: 'first-input';
+    readonly formats: readonly string[];
+    readonly maxBytes: number;
+    readonly requiresSameDimensions: boolean;
+  };
+}
+
+/** Provider-owned image output 能力真相。 */
+export interface ImageOutputCapability {
+  readonly geometry: GeometryCapability;
+  readonly outputFormats: readonly ImageOutputFormat[];
+  readonly defaultSelection: ImageOutputSelection;
+}
+
+/** 产品暴露入口限制。 */
+export type UserModelOutputExposure =
+  | {
+      readonly kind: 'flexible-pixels';
+      readonly sizePresetIds: readonly ImageOutputSizeOptionId[];
+      readonly outputFormats: readonly ImageOutputFormat[];
+      readonly allowInputDerivedExactSize: boolean;
+    }
+  | {
+      readonly kind: 'ratio-resolution';
+      readonly aspectRatios: readonly Exclude<ImageAspectRatio, 'auto' | 'source'>[];
+      readonly resolutions: readonly ImageSizePreset[];
+      readonly outputFormats: readonly ImageOutputFormat[];
+    };
+
+/** UI archetype 由 capability kind 派生。 */
+export type ImageOutputUiArchetype = 'size-format' | 'size-aspect-ratio-format';
+
+/** 用户选择 projection，供 app 渲染固定 archetype。 */
+export interface ImageOutputUiModel {
   readonly operation: ImageOperation;
+  readonly archetype: ImageOutputUiArchetype;
+  readonly geometryKind: GeometryCapability['kind'];
   readonly imageSizes: readonly ImageOutputOption<ImageOutputImageSize>[];
   readonly ratios: readonly ImageOutputOption<ImageAspectRatio>[];
   readonly outputFormats: readonly ImageOutputOption<ImageOutputFormat>[];
@@ -44,8 +119,20 @@ export interface ImageOutputMatrix {
   readonly cells: readonly ImageOutputMatrixCell[];
 }
 
+/** catalog projection 中的单个 canonical selection 入口。 */
+export interface ImageOutputMatrixCell {
+  readonly id: ImageOutputCellId;
+  readonly imageSize: ImageOutputImageSize;
+  readonly ratio: ImageAspectRatio;
+  readonly outputFormat: ImageOutputFormat;
+  readonly selection: ImageOutputSelection;
+}
+
+/** @deprecated 保留名称供 app 迁移；语义已是 capability projection，不含 provider wire payload。 */
+export type ImageOutputMatrix = ImageOutputUiModel;
+
 function isMatrixSizePreset(value: ImageOutputImageSize): value is Exclude<ImageSizePreset, '512'> {
-  return value !== 'auto';
+  return value !== 'auto' && value !== 'use-input-size';
 }
 
 export type RequestStrategyId =
@@ -74,6 +161,8 @@ export interface OfficialModelPreset {
   readonly modelId: string;
   readonly displayName: string;
   readonly requestStrategyId: RequestStrategyId;
+  readonly outputCapability: ImageOutputCapability;
+  readonly outputExposure: UserModelOutputExposure;
   readonly outputMatrix: readonly ImageOutputMatrix[];
   readonly output: ModelOutputConfig;
 }
@@ -175,7 +264,10 @@ export interface ImageModelCapability {
     readonly allowAsDefault?: boolean;
   };
   readonly appliesToProviders?: readonly ImageCatalogProviderId[];
+  readonly outputCapability?: ImageOutputCapability;
+  readonly outputExposure?: UserModelOutputExposure;
   readonly outputMatrix?: readonly ImageOutputMatrix[];
+  readonly editInput?: EditInputCapability;
   readonly variants?: readonly ImageOutputVariant[];
   readonly constraintStrategy?: ImageOutputConstraintStrategy;
   readonly discovery?: {
@@ -198,7 +290,8 @@ export interface ResolvedImageModelRule {
 export interface ResolvedImageModelOutput {
   readonly rule: ResolvedImageModelRule;
   readonly cell?: ImageOutputMatrixCell;
-  readonly requestOutput?: ProviderResolvedOutput;
+  readonly selection?: ImageOutputSelection;
+  readonly resolvedOutput?: ProviderResolvedOutput;
   readonly wireSize?: string;
   readonly wireAspectRatio?: Exclude<ImageAspectRatio, 'auto' | 'source'>;
 }
@@ -312,11 +405,18 @@ function buildOfficialModelPreset(
   capability: ImageModelCapability,
 ): OfficialModelPreset {
   const output = outputConfigForCapability(capability);
+  if (capability.outputCapability === undefined || capability.outputExposure === undefined) {
+    throw new ImageModelContractError(`Image model rule "${capability.ruleId}" requires outputCapability and outputExposure.`, {
+      ruleId: capability.ruleId,
+    });
+  }
   return {
     apiFormat: apiFormatForImplementationId(providerId),
     modelId: canonicalModelIdForCapability(capability),
     displayName: capability.displayName,
     requestStrategyId: requestStrategyIdForCapability(providerId, capability),
+    outputCapability: capability.outputCapability,
+    outputExposure: capability.outputExposure,
     outputMatrix: capability.outputMatrix ?? [],
     output,
   };
@@ -746,34 +846,294 @@ function resolveVariantOutput(args: {
   };
 }
 
-function requestOutputKindForProvider(providerId: ImageCatalogProviderId): ProviderResolvedOutput['kind'] {
-  switch (providerId) {
-    case 'image-endpoint':
-      return 'image-endpoint';
-    case 'chat-image':
-      return 'chat-image';
-    case 'gemini-generate-content':
-      return 'gemini-generate-content';
+function assertOutputFormatSupported(args: {
+  readonly rule: ResolvedImageModelRule;
+  readonly outputFormat: ImageOutputFormat;
+}): void {
+  const formats = args.rule.capability.outputCapability?.outputFormats ?? [];
+  if (!formats.includes(args.outputFormat)) {
+    throw new ImageModelContractError(
+      `Model "${args.rule.concreteModelId}" does not support output format "${args.outputFormat}".`,
+      { modelId: args.rule.concreteModelId, ruleId: args.rule.ruleId, outputFormat: args.outputFormat },
+    );
   }
 }
 
-function assertRequestOutputKind(args: {
-  readonly providerId: ImageCatalogProviderId;
+function effectiveSelectionForOperation(args: {
+  readonly selection: ImageOutputSelection;
+  readonly operation: ImageOperation;
+}): EffectiveImageOutputSelection {
+  if (args.selection.geometry.kind === 'input-derived' && args.operation === 'text_to_image') {
+    return {
+      storedSelection: args.selection,
+      effectiveSelection: {
+        geometry: { kind: 'provider-default' },
+        outputFormat: args.selection.outputFormat,
+      },
+      visibleSizeId: 'auto',
+      normalized: true,
+    };
+  }
+  return {
+    storedSelection: args.selection,
+    effectiveSelection: args.selection,
+    visibleSizeId: sizeIdForSelection(args.selection),
+    normalized: false,
+  };
+}
+
+function sizeIdForSelection(selection: ImageOutputSelection): ImageOutputSizeOptionId {
+  switch (selection.geometry.kind) {
+    case 'provider-default':
+      return 'auto';
+    case 'input-derived':
+      return 'use-input-size';
+    case 'ratio-resolution':
+      return selection.geometry.resolution;
+    case 'pixels':
+      if (selection.geometry.width >= 3840 || selection.geometry.height >= 3840) {
+        return '4k';
+      }
+      if (selection.geometry.width >= 2048 || selection.geometry.height >= 2048) {
+        return '2k';
+      }
+      return '1k';
+  }
+}
+
+function validateFlexiblePixels(args: {
   readonly rule: ResolvedImageModelRule;
-  readonly requestOutput: ProviderResolvedOutput;
+  readonly width: number;
+  readonly height: number;
 }): void {
-  const expected = requestOutputKindForProvider(args.providerId);
-  if (args.requestOutput.kind !== expected) {
+  const geometry = args.rule.capability.outputCapability?.geometry;
+  if (geometry?.kind !== 'flexible-pixels') {
+    throw new ImageModelContractError(`Model "${args.rule.concreteModelId}" does not support pixel geometry.`, {
+      modelId: args.rule.concreteModelId,
+      ruleId: args.rule.ruleId,
+    });
+  }
+  const { width, height } = args;
+  const pixels = width * height;
+  const aspect = Math.max(width / height, height / width);
+  const invalid =
+    !Number.isInteger(width) ||
+    !Number.isInteger(height) ||
+    width <= 0 ||
+    height <= 0 ||
+    width % geometry.constraints.multipleOf !== 0 ||
+    height % geometry.constraints.multipleOf !== 0 ||
+    Math.max(width, height) > geometry.constraints.maxSide ||
+    pixels < geometry.constraints.minPixels ||
+    pixels > geometry.constraints.maxPixels ||
+    aspect > geometry.constraints.maxAspectRatio;
+  if (invalid) {
     throw new ImageModelContractError(
-      `Model "${args.rule.concreteModelId}" resolved output kind "${args.requestOutput.kind}" is not valid for provider "${args.providerId}".`,
+      `Model "${args.rule.concreteModelId}" cannot resolve exact output size "${width}x${height}".`,
       {
         modelId: args.rule.concreteModelId,
         ruleId: args.rule.ruleId,
-        providerId: args.providerId,
-        expected,
-        actual: args.requestOutput.kind,
+        width,
+        height,
+        constraints: geometry.constraints,
       },
     );
+  }
+}
+
+function exactSizeFromInput(args: {
+  readonly rule: ResolvedImageModelRule;
+  readonly inputContext?: NormalizedImageInputContext;
+}): PixelDimensions {
+  const primary = args.inputContext?.primaryEditInput;
+  if (primary === undefined) {
+    throw new ImageModelContractError(
+      `Model "${args.rule.concreteModelId}" requires normalized primary edit input geometry for Use Input Size.`,
+      { modelId: args.rule.concreteModelId, ruleId: args.rule.ruleId },
+    );
+  }
+  validateFlexiblePixels({ rule: args.rule, width: primary.width, height: primary.height });
+  return primary;
+}
+
+function assertRatioResolutionSupported(args: {
+  readonly rule: ResolvedImageModelRule;
+  readonly aspectRatio: Exclude<ImageAspectRatio, 'auto' | 'source'>;
+  readonly resolution: ImageSizePreset;
+}): void {
+  const geometry = args.rule.capability.outputCapability?.geometry;
+  if (geometry?.kind !== 'ratio-resolution') {
+    throw new ImageModelContractError(`Model "${args.rule.concreteModelId}" does not support ratio-resolution geometry.`, {
+      modelId: args.rule.concreteModelId,
+      ruleId: args.rule.ruleId,
+    });
+  }
+  if (!geometry.aspectRatios.includes(args.aspectRatio) || !geometry.resolutions.includes(args.resolution)) {
+    throw new ImageModelContractError(
+      `Model "${args.rule.concreteModelId}" does not support ratio-resolution "${args.resolution}/${args.aspectRatio}".`,
+      {
+        modelId: args.rule.concreteModelId,
+        ruleId: args.rule.ruleId,
+        aspectRatio: args.aspectRatio,
+        resolution: args.resolution,
+      },
+    );
+  }
+}
+
+function responseFormatAspectRatio(ratio: Exclude<ImageAspectRatio, 'auto' | 'source'>): string {
+  switch (ratio) {
+    case '1:1':
+      return 'ASPECT_RATIO_ONE_BY_ONE';
+    case '16:9':
+      return 'ASPECT_RATIO_SIXTEEN_NINE';
+    case '9:16':
+      return 'ASPECT_RATIO_NINE_SIXTEEN';
+  }
+}
+
+function responseFormatImageSize(size: ImageSizePreset): string {
+  switch (size) {
+    case '1k':
+      return 'IMAGE_SIZE_ONE_K';
+    case '2k':
+      return 'IMAGE_SIZE_TWO_K';
+    case '4k':
+      return 'IMAGE_SIZE_FOUR_K';
+  }
+}
+
+function imageConfigSize(size: ImageSizePreset): string {
+  switch (size) {
+    case '1k':
+      return '1K';
+    case '2k':
+      return '2K';
+    case '4k':
+      return '4K';
+  }
+}
+
+function geminiMimeFields(outputFormat: ImageOutputFormat): Readonly<Record<string, unknown>> {
+  return outputFormat === 'jpeg' ? { mimeType: 'IMAGE_JPEG' } : {};
+}
+
+function selectionForOutput(rule: ResolvedImageModelRule, output: ProviderOutputOptions | undefined): ImageOutputSelection {
+  const selection = output?.selection ?? rule.capability.outputCapability?.defaultSelection;
+  if (selection === undefined) {
+    throw new ImageModelContractError(`Model "${rule.concreteModelId}" has no default output selection.`, {
+      modelId: rule.concreteModelId,
+      ruleId: rule.ruleId,
+    });
+  }
+  return selection;
+}
+
+function buildResolvedOutputFromSelection(args: {
+  readonly providerId: ImageCatalogProviderId;
+  readonly rule: ResolvedImageModelRule;
+  readonly operation: ImageOperation;
+  readonly selection: ImageOutputSelection;
+  readonly inputContext?: NormalizedImageInputContext;
+}): ProviderResolvedOutput {
+  const projection = effectiveSelectionForOperation({
+    selection: args.selection,
+    operation: args.operation,
+  });
+  const selection = projection.effectiveSelection;
+  assertOutputFormatSupported({ rule: args.rule, outputFormat: selection.outputFormat });
+
+  if (args.providerId === 'image-endpoint') {
+    switch (selection.geometry.kind) {
+      case 'provider-default':
+        return { kind: 'image-endpoint', size: 'auto', outputFormat: selection.outputFormat };
+      case 'pixels':
+        validateFlexiblePixels({ rule: args.rule, width: selection.geometry.width, height: selection.geometry.height });
+        return { kind: 'image-endpoint', size: `${selection.geometry.width}x${selection.geometry.height}`, outputFormat: selection.outputFormat };
+      case 'input-derived': {
+        const size = exactSizeFromInput({ rule: args.rule, inputContext: args.inputContext });
+        return { kind: 'image-endpoint', size: `${size.width}x${size.height}`, outputFormat: selection.outputFormat };
+      }
+      case 'ratio-resolution':
+        throw new ImageModelContractError('Image endpoint builder cannot consume ratio-resolution selection.', {
+          modelId: args.rule.concreteModelId,
+          ruleId: args.rule.ruleId,
+        });
+    }
+  }
+
+  if (args.providerId === 'chat-image') {
+    switch (selection.geometry.kind) {
+      case 'provider-default':
+        return { kind: 'chat-image', imageConfig: { output_format: selection.outputFormat } };
+      case 'pixels':
+        validateFlexiblePixels({ rule: args.rule, width: selection.geometry.width, height: selection.geometry.height });
+        return {
+          kind: 'chat-image',
+          imageConfig: {
+            size: `${selection.geometry.width}x${selection.geometry.height}`,
+            output_format: selection.outputFormat,
+          },
+        };
+      case 'input-derived': {
+        const size = exactSizeFromInput({ rule: args.rule, inputContext: args.inputContext });
+        return {
+          kind: 'chat-image',
+          imageConfig: {
+            size: `${size.width}x${size.height}`,
+            output_format: selection.outputFormat,
+          },
+        };
+      }
+      case 'ratio-resolution':
+        assertRatioResolutionSupported({
+          rule: args.rule,
+          aspectRatio: selection.geometry.aspectRatio,
+          resolution: selection.geometry.resolution,
+        });
+        return {
+          kind: 'chat-image',
+          imageConfig: {
+            size: imageConfigSize(selection.geometry.resolution),
+            aspect_ratio: selection.geometry.aspectRatio,
+            output_format: selection.outputFormat,
+          },
+        };
+    }
+  }
+
+  switch (selection.geometry.kind) {
+    case 'provider-default':
+      return {
+        kind: 'gemini-generate-content',
+        responseFormatImage: geminiMimeFields(selection.outputFormat),
+        imageConfig: {},
+      };
+    case 'ratio-resolution':
+      assertRatioResolutionSupported({
+        rule: args.rule,
+        aspectRatio: selection.geometry.aspectRatio,
+        resolution: selection.geometry.resolution,
+      });
+      return {
+        kind: 'gemini-generate-content',
+        responseFormatImage: {
+          imageSize: responseFormatImageSize(selection.geometry.resolution),
+          aspectRatio: responseFormatAspectRatio(selection.geometry.aspectRatio),
+          ...geminiMimeFields(selection.outputFormat),
+        },
+        imageConfig: {
+          imageSize: imageConfigSize(selection.geometry.resolution),
+          aspectRatio: selection.geometry.aspectRatio,
+        },
+      };
+    case 'pixels':
+    case 'input-derived':
+      throw new ImageModelContractError('Gemini builder cannot consume pixel or input-derived output selection.', {
+        modelId: args.rule.concreteModelId,
+        ruleId: args.rule.ruleId,
+        geometryKind: selection.geometry.kind,
+      });
   }
 }
 
@@ -782,29 +1142,22 @@ function resolveMatrixOutput(args: {
   readonly rule: ResolvedImageModelRule;
   readonly operation: ImageOperation;
   readonly output?: ProviderOutputOptions;
+  readonly inputContext?: NormalizedImageInputContext;
 }): ResolvedImageModelOutput | undefined {
   const matrix = outputMatrixForOperation(args.rule, args.operation);
   if (matrix === undefined) {
     return undefined;
   }
 
-  if (args.output?.requestOutput !== undefined) {
-    assertRequestOutputKind({
-      providerId: args.providerId,
-      rule: args.rule,
-      requestOutput: args.output.requestOutput,
-    });
-    const cell = matrix.cells.find((candidate) => candidate.requestOutput === args.output?.requestOutput);
-    return {
-      rule: args.rule,
-      ...(cell ? { cell } : {}),
-      requestOutput: args.output.requestOutput,
-    };
-  }
-
-  const imageSize = args.output?.sizePreset ?? 'auto';
-  const ratio = (args.output?.aspectRatio ?? 'auto') as ImageAspectRatio;
-  const outputFormat = args.output?.outputFormat ?? matrix.cells.find((cell) => cell.id === matrix.defaultCellId)?.outputFormat ?? matrix.outputFormats[0]?.id;
+  const selected = selectionForOutput(args.rule, args.output);
+  const effective = effectiveSelectionForOperation({ selection: selected, operation: args.operation });
+  const imageSize = effective.visibleSizeId;
+  const ratio = effective.effectiveSelection.geometry.kind === 'ratio-resolution'
+    ? effective.effectiveSelection.geometry.aspectRatio
+    : effective.effectiveSelection.geometry.kind === 'input-derived'
+      ? 'source'
+      : 'auto';
+  const outputFormat = effective.effectiveSelection.outputFormat;
   const cell = matrix.cells.find(
     (candidate) =>
       candidate.imageSize === imageSize &&
@@ -824,15 +1177,18 @@ function resolveMatrixOutput(args: {
       },
     );
   }
-  assertRequestOutputKind({
+  const resolvedOutput = buildResolvedOutputFromSelection({
     providerId: args.providerId,
     rule: args.rule,
-    requestOutput: cell.requestOutput,
+    operation: args.operation,
+    selection: selected,
+    inputContext: args.inputContext,
   });
   return {
     rule: args.rule,
     cell,
-    requestOutput: cell.requestOutput,
+    selection: selected,
+    resolvedOutput,
   };
 }
 
@@ -914,6 +1270,7 @@ export function resolveImageModelOutput(args: {
   readonly modelId: string;
   readonly operation: ImageOperation;
   readonly output?: ProviderOutputOptions;
+  readonly inputContext?: NormalizedImageInputContext;
 }): ResolvedImageModelOutput {
   const rule = resolveImageModelRule({
     providerId: args.providerId,
@@ -926,12 +1283,13 @@ export function resolveImageModelOutput(args: {
     rule,
     operation: args.operation,
     output: args.output,
+    inputContext: args.inputContext,
   });
   if (matrixOutput !== undefined) {
     return matrixOutput;
   }
 
-  const preset = args.output?.sizePreset;
+  const preset = args.output?.sizePreset === '512' ? undefined : args.output?.sizePreset;
   if (preset === undefined) {
     return { rule };
   }
@@ -950,6 +1308,29 @@ export function resolveImageModelOutput(args: {
     operation: args.operation,
     preset,
     aspectRatio,
+  });
+}
+
+/** Builder 用 canonical selection + normalized input context 解析 provider payload。 */
+export function resolveProviderResolvedOutput(args: {
+  readonly providerId: ImageCatalogProviderId;
+  readonly modelId: string;
+  readonly operation: ImageOperation;
+  readonly output?: ProviderOutputOptions;
+  readonly inputContext?: NormalizedImageInputContext;
+}): ProviderResolvedOutput {
+  const rule = resolveImageModelRule({
+    providerId: args.providerId,
+    modelId: args.modelId,
+  });
+  assertOperationSupported(rule, args.operation);
+  const selection = selectionForOutput(rule, args.output);
+  return buildResolvedOutputFromSelection({
+    providerId: args.providerId,
+    rule,
+    operation: args.operation,
+    selection,
+    inputContext: args.inputContext,
   });
 }
 
@@ -1026,8 +1407,14 @@ export function validateImageModelCatalog(
     if (capability.ruleId.endsWith('-default')) {
       errors.push(`Rule "${capability.ruleId}" is a hidden default fallback rule.`);
     }
+    if (capability.outputCapability === undefined) {
+      errors.push(`Rule "${capability.ruleId}" is missing outputCapability.`);
+    }
+    if (capability.outputExposure === undefined) {
+      errors.push(`Rule "${capability.ruleId}" is missing outputExposure.`);
+    }
     if (capability.outputMatrix === undefined && capability.variants === undefined && capability.constraintStrategy === undefined) {
-      errors.push(`Rule "${capability.ruleId}" is missing outputMatrix, variants, or constraintStrategy.`);
+      errors.push(`Rule "${capability.ruleId}" is missing output projection.`);
     }
     validateOutputMatrices(capability, errors);
     const variantKeys = new Set<string>();
@@ -1080,6 +1467,14 @@ export function validateImageModelCatalog(
 function validateOutputMatrices(capability: ImageModelCapability, errors: string[]): void {
   const operations = new Set<ImageOperation>();
   for (const matrix of capability.outputMatrix ?? []) {
+    const geometryKind = capability.outputCapability?.geometry.kind;
+    const expectedArchetype = geometryKind === 'flexible-pixels' ? 'size-format' : 'size-aspect-ratio-format';
+    if (geometryKind !== undefined && matrix.geometryKind !== geometryKind) {
+      errors.push(`Rule "${capability.ruleId}" matrix "${matrix.operation}" geometryKind must match outputCapability geometry.`);
+    }
+    if (geometryKind !== undefined && matrix.archetype !== expectedArchetype) {
+      errors.push(`Rule "${capability.ruleId}" matrix "${matrix.operation}" archetype must match outputCapability geometry.`);
+    }
     if (operations.has(matrix.operation)) {
       errors.push(`Rule "${capability.ruleId}" contains duplicate output matrix for operation "${matrix.operation}".`);
     }
@@ -1109,18 +1504,14 @@ function validateOutputMatrices(capability: ImageModelCapability, errors: string
       if (cell.imageSize === ('512' as ImageOutputImageSize)) {
         errors.push(`Rule "${capability.ruleId}" cell "${cell.id}" exposes legacy imageSize "512".`);
       }
-      if (JSON.stringify(cell.requestOutput).includes('IMAGE_SIZE_FIVE_TWELVE')) {
-        errors.push(`Rule "${capability.ruleId}" cell "${cell.id}" uses legacy Gemini image size "IMAGE_SIZE_FIVE_TWELVE".`);
-      }
       if (!ratios.has(cell.ratio)) {
         errors.push(`Rule "${capability.ruleId}" cell "${cell.id}" references missing ratio option "${cell.ratio}".`);
       }
       if (!outputFormats.has(cell.outputFormat)) {
         errors.push(`Rule "${capability.ruleId}" cell "${cell.id}" references missing outputFormat option "${cell.outputFormat}".`);
       }
-      const providerId = capability.appliesToProviders?.[0];
-      if (providerId !== undefined && cell.requestOutput.kind !== requestOutputKindForProvider(providerId)) {
-        errors.push(`Rule "${capability.ruleId}" cell "${cell.id}" has requestOutput kind "${cell.requestOutput.kind}" for provider "${providerId}".`);
+      if (cell.selection.outputFormat !== cell.outputFormat) {
+        errors.push(`Rule "${capability.ruleId}" cell "${cell.id}" outputFormat must match canonical selection.`);
       }
     }
 

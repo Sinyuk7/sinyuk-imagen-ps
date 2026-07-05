@@ -6,6 +6,7 @@ import {
   type ApiFormat,
   type ImageOutputMatrix,
   type ProviderModelExecution,
+  type UserModelOutputExposure,
 } from '@imagen-ps/providers';
 import type { ProviderProfile, UserModelConfigRepository } from './types.js';
 import { catalogProviderIdForApiFormat } from './api-format-profile.js';
@@ -14,6 +15,7 @@ export interface ResolvedModelConfig {
   readonly apiFormat: ApiFormat;
   readonly modelId: string;
   readonly requestStrategyId: string;
+  readonly outputExposure: UserModelOutputExposure;
   readonly outputMatrix: readonly ImageOutputMatrix[];
   readonly source: 'user' | 'catalog';
 }
@@ -60,6 +62,7 @@ export async function resolveConfiguredModel(args: {
       apiFormat: userConfig.apiFormat,
       modelId: userConfig.modelId,
       requestStrategyId: userConfig.requestStrategyId,
+      outputExposure: userConfig.outputExposure,
       outputMatrix: userConfig.outputMatrix,
       source: 'user',
     };
@@ -84,6 +87,7 @@ export async function resolveConfiguredModel(args: {
       apiFormat: preset.apiFormat,
       modelId: preset.modelId,
       requestStrategyId: preset.requestStrategyId,
+      outputExposure: preset.outputExposure,
       outputMatrix: preset.outputMatrix,
       source: 'catalog',
     };

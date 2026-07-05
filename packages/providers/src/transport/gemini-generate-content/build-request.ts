@@ -4,6 +4,7 @@ import type { CanonicalImageJobRequest, GeminiGenerateContentRequestOutput, Prov
 import {
   assertProviderModelExecution,
   getRequestStrategy,
+  resolveProviderResolvedOutput,
 } from '../../contract/image-model-capability.js';
 
 /** Gemini Generate Content provider-local 输出 revision。 */
@@ -280,24 +281,25 @@ function copyResolvedRecord(value: Readonly<Record<string, unknown>> | undefined
   return value === undefined ? {} : { ...value };
 }
 
-function resolveRequestOutput(output: ProviderOutputOptions | undefined): GeminiGenerateContentRequestOutput | undefined {
+function resolveRequestOutput(request: CanonicalImageJobRequest, output: ProviderOutputOptions | undefined): GeminiGenerateContentRequestOutput | undefined {
   if (output === undefined) {
     return undefined;
   }
-  const requestOutput = output.requestOutput;
-  if (requestOutput === undefined) {
+  const model = resolveModel(request);
+  const resolvedOutput = resolveProviderResolvedOutput({
+    providerId: 'gemini-generate-content',
+    modelId: model,
+    operation: request.operation,
+    output,
+    inputContext: request.inputContext,
+  });
+  if (resolvedOutput.kind !== 'gemini-generate-content') {
     throw new BuildGeminiGenerateContentRequestError(
-      'Gemini Generate Content output requires resolved requestOutput.',
-      { expected: 'gemini-generate-content' },
+      `Gemini Generate Content output received incompatible resolved output kind "${resolvedOutput.kind}".`,
+      { expected: 'gemini-generate-content', actual: resolvedOutput.kind },
     );
   }
-  if (requestOutput.kind !== 'gemini-generate-content') {
-    throw new BuildGeminiGenerateContentRequestError(
-      `Gemini Generate Content output received incompatible requestOutput kind "${requestOutput.kind}".`,
-      { expected: 'gemini-generate-content', actual: requestOutput.kind },
-    );
-  }
-  return requestOutput;
+  return resolvedOutput;
 }
 
 function buildGenerationConfig(args: {
@@ -317,9 +319,9 @@ function buildGenerationConfig(args: {
     generationConfig.candidateCount = output.count;
   }
 
-  const requestOutput = resolveRequestOutput(output);
-  const responseFormatImage = copyResolvedRecord(requestOutput?.responseFormatImage) as NonNullable<GeminiGenerateContentRequestBody['generationConfig']['responseFormat']>['image'];
-  const legacyImageConfig = copyResolvedRecord(requestOutput?.imageConfig) as NonNullable<GeminiGenerateContentRequestBody['generationConfig']['imageConfig']>;
+  const resolvedOutput = resolveRequestOutput(request, output);
+  const responseFormatImage = copyResolvedRecord(resolvedOutput?.responseFormatImage) as NonNullable<GeminiGenerateContentRequestBody['generationConfig']['responseFormat']>['image'];
+  const legacyImageConfig = copyResolvedRecord(resolvedOutput?.imageConfig) as NonNullable<GeminiGenerateContentRequestBody['generationConfig']['imageConfig']>;
 
   if (wireRevision === 'response-format-image') {
     generationConfig.responseFormat = { image: responseFormatImage };

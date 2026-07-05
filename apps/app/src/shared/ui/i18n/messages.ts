@@ -273,7 +273,7 @@ export interface AppMessages {
     readonly modelConfigSharedScope: string;
     readonly modelConfigOutputFormat: string;
     readonly modelConfigAspectRatio: string;
-    readonly modelConfigResolution: string;
+    readonly modelConfigOutputSize: string;
     readonly modelConfigOperationTextToImage: string;
     readonly modelConfigOperationEditImage: string;
     readonly modelConfigRatioAuto: string;
@@ -284,6 +284,7 @@ export interface AppMessages {
     readonly modelConfigValidationAspectRatio: string;
     readonly modelConfigValidationResolution: string;
     readonly modelConfigModuleSummary: (formats: number, ratios: number, resolutions: number) => string;
+    readonly modelConfigSizeFormatSummary: (formats: number, sizes: number) => string;
     readonly modelConfigValidCombinations: (count: number) => string;
     readonly modelConfigSelection: string;
     readonly modelConfigProfileList: string;
@@ -336,6 +337,7 @@ export interface AppMessages {
     readonly aspectRatio: string;
     readonly providerInputSizePreset: string;
     readonly providerInputSizePresetHint: string;
+    readonly useInputSizeNormalizedHint: string;
     readonly storageGroup: string;
     readonly storageGroupHint: string;
     readonly logPath: string;
@@ -649,7 +651,7 @@ const EN_MESSAGES: AppMessages = {
     modelConfigSharedScope: 'Text + Edit',
     modelConfigOutputFormat: 'Output format',
     modelConfigAspectRatio: 'Aspect ratio',
-    modelConfigResolution: 'Resolution',
+    modelConfigOutputSize: 'Output size',
     modelConfigOperationTextToImage: 'Text to Image',
     modelConfigOperationEditImage: 'Edit Image',
     modelConfigRatioAuto: 'Auto',
@@ -660,6 +662,7 @@ const EN_MESSAGES: AppMessages = {
     modelConfigValidationAspectRatio: 'Keep at least one aspect ratio.',
     modelConfigValidationResolution: 'Keep at least one resolution.',
     modelConfigModuleSummary: (formats, ratios, resolutions) => `${formats} formats · ${ratios} ratios · ${resolutions} resolutions`,
+    modelConfigSizeFormatSummary: (formats, sizes) => `${formats} formats · ${sizes} sizes`,
     modelConfigValidCombinations: (count) => `${count} valid output combinations`,
     modelConfigSelection: 'Profile selection',
     modelConfigProfileList: 'Profile models',
@@ -672,7 +675,7 @@ const EN_MESSAGES: AppMessages = {
     modelConfigValidationModelId: 'Model ID is required.',
     modelConfigValidationPreset: 'Choose an official preset.',
     modelConfigValidationStrategy: 'Choose a valid request strategy.',
-    modelConfigValidationMatrixCells: 'Keep at least one output matrix cell for each operation.',
+    modelConfigValidationMatrixCells: 'Keep at least one output entry for each operation.',
     modelConfigConfigureModel: 'Configure model',
     modelConfigEditModel: 'Edit config',
     modelConfigSelectedTag: 'Selected',
@@ -712,6 +715,7 @@ const EN_MESSAGES: AppMessages = {
     aspectRatio: 'Aspect ratio',
     providerInputSizePreset: 'Input image size',
     providerInputSizePresetHint: 'Reference and captured images are resized locally before image-edit requests while preserving aspect ratio.',
+    useInputSizeNormalizedHint: 'Use Input Size follows the normalized first input size.',
     storageGroup: 'Storage',
     storageGroupHint: 'Runtime paths and generated-image output location.',
     logPath: 'Current log path',
@@ -1025,7 +1029,7 @@ const ZH_CN_MESSAGES: AppMessages = {
     modelConfigSharedScope: '文生图 + 编辑',
     modelConfigOutputFormat: '输出格式',
     modelConfigAspectRatio: '宽高比',
-    modelConfigResolution: '分辨率',
+    modelConfigOutputSize: '输出尺寸',
     modelConfigOperationTextToImage: '文生图',
     modelConfigOperationEditImage: '编辑图片',
     modelConfigRatioAuto: 'Auto',
@@ -1036,6 +1040,7 @@ const ZH_CN_MESSAGES: AppMessages = {
     modelConfigValidationAspectRatio: '至少保留一种宽高比。',
     modelConfigValidationResolution: '至少保留一种分辨率。',
     modelConfigModuleSummary: (formats, ratios, resolutions) => `${formats} 种格式 · ${ratios} 种宽高比 · ${resolutions} 种分辨率`,
+    modelConfigSizeFormatSummary: (formats, sizes) => `${formats} 种格式 · ${sizes} 种尺寸`,
     modelConfigValidCombinations: (count) => `${count} 个有效输出组合`,
     modelConfigSelection: 'Profile 选择状态',
     modelConfigProfileList: 'Profile 模型列表',
@@ -1088,6 +1093,7 @@ const ZH_CN_MESSAGES: AppMessages = {
     aspectRatio: '宽高比',
     providerInputSizePreset: '输入图片尺寸',
     providerInputSizePresetHint: '参考图与捕获图会在发送编辑请求前本地缩放，并保持宽高比。',
+    useInputSizeNormalizedHint: 'Use Input Size 使用归一化后的第一张输入图尺寸。',
     storageGroup: '存储',
     storageGroupHint: '运行路径与生成图片保存位置。',
     logPath: '当前日志路径',

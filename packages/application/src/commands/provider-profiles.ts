@@ -563,7 +563,7 @@ export async function testProviderProfile(
             operation: 'text_to_image',
             prompt: 'test',
             model: toProviderModelExecution(resolvedModel),
-            output: { count: 1, requestOutput: generationSettings.requestOutput },
+            output: { count: 1, selection: generationSettings.selection.effectiveSelection },
           });
           const invokeResult = await provider.invoke({ config: resolved.providerConfig, request });
           const modelUsed = resolvedModel.modelId;

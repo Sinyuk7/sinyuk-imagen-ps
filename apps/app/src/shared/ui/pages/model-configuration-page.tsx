@@ -5,6 +5,7 @@ import type {
   OfficialModelPreset,
   SaveUserModelConfigInput,
   UserModelConfig,
+  UserModelOutputExposure,
 } from '@imagen-ps/application';
 import { useAppServices } from '../../ports/app-services-context';
 import { ProviderSettingsPageHeader } from '../components/provider-settings-sections';
@@ -15,7 +16,6 @@ import { useI18n } from '../i18n/i18n-context';
 import { Button, FieldLabel, HelpText, TextField } from '../primitives/native-controls';
 import { IconButton } from '../primitives/icon-button';
 import {
-  applyDimensionSelectionToMatrix,
   buildOutputCapabilityEditorState,
   fullSelectionForModule,
   hasSparseCombinationSet,
@@ -88,6 +88,12 @@ function ratioLabel(ratio: ImageAspectRatio, t: ReturnType<typeof useI18n>['mess
 }
 
 function selectionSummary(_module: OutputCapabilityModule, selection: MatrixDimensionSelection, t: ReturnType<typeof useI18n>['messages']): string {
+  if (_module.archetype === 'size-format') {
+    return t.settings.modelConfigSizeFormatSummary(
+      selection.outputFormats.length,
+      selection.imageSizes.length,
+    );
+  }
   return t.settings.modelConfigModuleSummary(
     selection.outputFormats.length,
     selection.ratios.length,
@@ -106,6 +112,57 @@ function fieldSelectionError(selection: MatrixDimensionSelection, t: ReturnType<
     return t.settings.modelConfigValidationResolution;
   }
   return null;
+}
+
+function exposureFromModules(
+  preset: OfficialModelPreset,
+  modules: readonly OutputCapabilityModule[],
+  selections: Readonly<Record<string, MatrixDimensionSelection>>,
+): UserModelOutputExposure {
+  if (preset.outputExposure.kind === 'flexible-pixels') {
+    const selectedSizes = new Set<string>();
+    const selectedFormats = new Set<string>();
+    for (const module of modules) {
+      const selection = selections[module.id] ?? fullSelectionForModule(module);
+      for (const size of selection.imageSizes) {
+        selectedSizes.add(size);
+      }
+      for (const format of selection.outputFormats) {
+        selectedFormats.add(format);
+      }
+    }
+    return {
+      kind: 'flexible-pixels',
+      sizePresetIds: preset.outputExposure.sizePresetIds.filter((id) => selectedSizes.has(id)),
+      outputFormats: preset.outputExposure.outputFormats.filter((format) => selectedFormats.has(format)),
+      allowInputDerivedExactSize: selectedSizes.has('use-input-size') && preset.outputExposure.allowInputDerivedExactSize,
+    };
+  }
+  const selectedRatios = new Set<string>();
+  const selectedResolutions = new Set<string>();
+  const selectedFormats = new Set<string>();
+  for (const module of modules) {
+    const selection = selections[module.id] ?? fullSelectionForModule(module);
+    for (const ratio of selection.ratios) {
+      if (ratio !== 'auto' && ratio !== 'source') {
+        selectedRatios.add(ratio);
+      }
+    }
+    for (const size of selection.imageSizes) {
+      if (size !== 'auto' && size !== 'use-input-size') {
+        selectedResolutions.add(size);
+      }
+    }
+    for (const format of selection.outputFormats) {
+      selectedFormats.add(format);
+    }
+  }
+  return {
+    kind: 'ratio-resolution',
+    aspectRatios: preset.outputExposure.aspectRatios.filter((ratio) => selectedRatios.has(ratio)),
+    resolutions: preset.outputExposure.resolutions.filter((resolution) => selectedResolutions.has(resolution)),
+    outputFormats: preset.outputExposure.outputFormats.filter((format) => selectedFormats.has(format)),
+  };
 }
 
 function CapabilityChipGroup({
@@ -268,18 +325,20 @@ function CapabilitySection({
         onToggle={(id, checked) => onToggle('outputFormats', id, checked)}
       />
 
-      <RatioTileGroup
-        title={t.settings.modelConfigAspectRatio}
-        items={module.ratios.map((item) => ({ id: item.id, label: item.label }))}
-        selected={selection.ratios}
-        disabled={disabled}
-        testIdPrefix={`model-config-${module.id}-ratio`}
-        onToggle={(id, checked) => onToggle('ratios', id, checked)}
-        t={t}
-      />
+      {module.archetype === 'size-aspect-ratio-format' ? (
+        <RatioTileGroup
+          title={t.settings.modelConfigAspectRatio}
+          items={module.ratios.map((item) => ({ id: item.id, label: item.label }))}
+          selected={selection.ratios}
+          disabled={disabled}
+          testIdPrefix={`model-config-${module.id}-ratio`}
+          onToggle={(id, checked) => onToggle('ratios', id, checked)}
+          t={t}
+        />
+      ) : null}
 
       <CapabilityChipGroup
-        title={t.settings.modelConfigResolution}
+        title={t.settings.modelConfigOutputSize}
         items={module.imageSizes.map((item) => ({ id: item.id, label: item.label }))}
         selected={selection.imageSizes}
         disabled={disabled}
@@ -527,22 +586,14 @@ export function ModelConfigurationPage({ onNav, onSaved, onBack, initialEditorSt
     const editorState = buildOutputCapabilityEditorState(selectedPreset);
     setSaveBusy(true);
     try {
-      const outputMatrix = selectedPreset.outputMatrix.map((matrix) => {
-        const module = editorState.modules.find((candidate) => candidate.operations.includes(matrix.operation));
-        const selection = moduleSelections[module?.id ?? ''] ?? (module ? fullSelectionForModule(module) : {
-          imageSizes: matrix.imageSizes.map((option) => option.id),
-          ratios: matrix.ratios.map((option) => option.id),
-          outputFormats: matrix.outputFormats.map((option) => option.id),
-        });
-        return applyDimensionSelectionToMatrix(matrix, selection);
-      });
+      const outputExposure = exposureFromModules(selectedPreset, editorState.modules, moduleSelections);
 
       const result = await services.commands.saveUserModelConfig({
         apiFormat,
         modelId,
         baseModelId: selectedPreset.modelId,
         requestStrategyId: selectedPreset.requestStrategyId,
-        outputMatrix,
+        outputExposure,
       } satisfies SaveUserModelConfigInput);
       if (!result.ok) {
         throw new Error(commandMessage(result.error));

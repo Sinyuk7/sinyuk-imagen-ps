@@ -5,9 +5,9 @@ import type {
   ImageOutputFormat,
   ImageOutputImageSize,
   ImageOutputMatrixCell,
+  ImageOutputSelection,
   ModelGenerationPreferenceSelection,
   ModelGenerationSettings,
-  ProviderResolvedOutput,
 } from '@imagen-ps/application';
 import type { AppServices } from '../../ports/app-services';
 import type { ComposerOperation } from '../composer-readiness';
@@ -36,7 +36,9 @@ export interface ModelGenerationSettingsController {
   readonly ratioOptions: readonly ModelGenerationSelectionOption<ImageAspectRatio>[];
   readonly outputFormatOptions: readonly ModelGenerationSelectionOption<ImageOutputFormat>[];
   readonly selection: ModelGenerationPreferenceSelection | null;
-  readonly requestOutput: ProviderResolvedOutput | null;
+  readonly outputSelection: ImageOutputSelection | null;
+  readonly archetype: ModelGenerationSettings['matrix']['archetype'] | null;
+  readonly showRatio: boolean;
   readonly ready: boolean;
   readonly validationMessage: string | null;
   readonly saveSelection: (selection: ModelGenerationPreferenceSelection) => Promise<boolean>;
@@ -129,6 +131,17 @@ function findNearestCell(
   return settings.cell;
 }
 
+function selectionFromCell(cell: ImageOutputMatrixCell): ModelGenerationPreferenceSelection {
+  return {
+    selection: cell.selection,
+    effectiveSelection: cell.selection,
+    imageSize: cell.imageSize,
+    ratio: cell.ratio,
+    outputFormat: cell.outputFormat,
+    normalized: false,
+  };
+}
+
 export function useModelGenerationSettings(
   services: AppServices,
   context: ModelGenerationSettingsContext,
@@ -210,28 +223,22 @@ export function useModelGenerationSettings(
       return false;
     }
     const cell = findNearestCell(settings, nextSelection);
-    const normalizedSelection = {
-      cellId: cell.id,
-      imageSize: cell.imageSize,
-      ratio: cell.ratio,
-      outputFormat: cell.outputFormat,
-    };
+    const normalizedSelection = selectionFromCell(cell);
     const optimistic: ModelGenerationSettings = {
       ...settings,
       preference: {
         ...key,
-        ...normalizedSelection,
+        selection: normalizedSelection.selection,
       },
       selection: normalizedSelection,
       cell,
-      requestOutput: cell.requestOutput,
       source: 'preference',
     };
     setSettings(optimistic);
     setSaveState('saving');
     const result = await services.commands.saveModelGenerationPreference({
       ...key,
-      ...normalizedSelection,
+      selection: normalizedSelection.selection,
     });
     if (result.ok) {
       setSaveState('saved');
@@ -252,10 +259,12 @@ export function useModelGenerationSettings(
       candidates.find((cell) => cell.ratio === selection.ratio) ??
       candidates[0];
     return next ? saveSelection({
-      cellId: next.id,
+      selection: next.selection,
+      effectiveSelection: next.selection,
       imageSize: next.imageSize,
       ratio: next.ratio,
       outputFormat: next.outputFormat,
+      normalized: false,
     }) : false;
   }, [saveSelection, selection, settings]);
 
@@ -266,10 +275,12 @@ export function useModelGenerationSettings(
     const candidates = settings.matrix.cells.filter((cell) => cell.imageSize === selection.imageSize && cell.ratio === ratio);
     const next = candidates.find((cell) => cell.outputFormat === selection.outputFormat) ?? candidates[0];
     return next ? saveSelection({
-      cellId: next.id,
+      selection: next.selection,
+      effectiveSelection: next.selection,
       imageSize: next.imageSize,
       ratio: next.ratio,
       outputFormat: next.outputFormat,
+      normalized: false,
     }) : false;
   }, [saveSelection, selection, settings]);
 
@@ -284,10 +295,12 @@ export function useModelGenerationSettings(
         cell.outputFormat === outputFormat,
     );
     return next ? saveSelection({
-      cellId: next.id,
+      selection: next.selection,
+      effectiveSelection: next.selection,
       imageSize: next.imageSize,
       ratio: next.ratio,
       outputFormat: next.outputFormat,
+      normalized: false,
     }) : false;
   }, [saveSelection, selection, settings]);
 
@@ -302,10 +315,10 @@ export function useModelGenerationSettings(
       return null;
     }
     if (!settings) {
-      return 'Selected model has no executable output matrix.';
+      return 'Selected model has no executable output configuration.';
     }
     if (!firstOption(imageSizeOptions) || !firstOption(ratioOptions) || !firstOption(outputFormatOptions)) {
-      return 'Selected model has no executable output matrix.';
+      return 'Selected model has no executable output configuration.';
     }
     return null;
   }, [error, imageSizeOptions, key, loading, outputFormatOptions, ratioOptions, settings]);
@@ -320,7 +333,9 @@ export function useModelGenerationSettings(
     ratioOptions,
     outputFormatOptions,
     selection,
-    requestOutput: settings?.requestOutput ?? null,
+    outputSelection: settings?.selection.effectiveSelection ?? null,
+    archetype: settings?.matrix.archetype ?? null,
+    showRatio: settings?.matrix.archetype === 'size-aspect-ratio-format',
     ready: settings !== null && validationMessage === null,
     validationMessage,
     saveSelection,

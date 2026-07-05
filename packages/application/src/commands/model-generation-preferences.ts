@@ -24,10 +24,7 @@ function preferenceFromInput(input: SaveModelGenerationPreferenceInput): ModelGe
   const key = assertModelGenerationPreferenceKey(input);
   return {
     ...key,
-    cellId: input.cellId.trim(),
-    imageSize: input.imageSize,
-    ratio: input.ratio,
-    outputFormat: input.outputFormat,
+    selection: input.selection,
   };
 }
 
@@ -61,7 +58,7 @@ export async function getModelGenerationSettings(
     const preference = await getModelGenerationPreferenceRepository().get(key);
     const userConfig = await resolveUserModelConfigForPreferenceKey(key, getUserModelConfigRepository());
     const value = resolveModelGenerationSettingsValue({ key, preference, userConfig });
-    span.finish({ source: value.source, cellId: value.selection.cellId });
+    span.finish({ source: value.source, outputFormat: value.selection.outputFormat, geometryKind: value.selection.effectiveSelection.geometry.kind });
     return { ok: true, value };
   } catch (error) {
     span.fail(error);
@@ -84,15 +81,15 @@ export async function saveModelGenerationPreference(
     const preference = preferenceFromInput(input);
     const userConfig = await resolveUserModelConfigForPreferenceKey(preference, getUserModelConfigRepository());
     const matrix = matrixForModelGenerationPreferenceKey(preference, userConfig);
-    const cell = findMatrixCell(matrix, preference);
+    const cell = findMatrixCell(matrix, preference.selection);
     if (cell === undefined) {
       throw createValidationError(
-        `Model "${preference.modelId}" output selection "${preference.cellId}" is not valid for "${preference.operation}".`,
+        `Model "${preference.modelId}" output selection is not valid for "${preference.operation}".`,
         { ...preference },
       );
     }
     await getModelGenerationPreferenceRepository().save(preference);
-    span.finish({ cellId: preference.cellId });
+    span.finish({ outputFormat: preference.selection.outputFormat, geometryKind: preference.selection.geometry.kind });
     return { ok: true, value: preference };
   } catch (error) {
     span.fail(error);

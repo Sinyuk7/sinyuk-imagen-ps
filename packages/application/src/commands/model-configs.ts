@@ -33,9 +33,9 @@ function commandError(error: unknown): ReturnType<typeof createValidationError> 
 }
 
 function assertNoOldAggregateOutput(input: SaveUserModelConfigInput): void {
-  const raw = input as unknown as { readonly output?: unknown };
-  if (raw.output !== undefined) {
-    throw createValidationError('User model config output must use preset outputMatrix subset, not old aggregate output.', {
+  const raw = input as unknown as { readonly output?: unknown; readonly outputMatrix?: unknown };
+  if (raw.output !== undefined || raw.outputMatrix !== undefined) {
+    throw createValidationError('User model config output must use exposure rules, not old aggregate output or authored outputMatrix.', {
       apiFormat: input.apiFormat,
       modelId: input.modelId,
     });
@@ -66,7 +66,7 @@ function cloneCell(cell: ImageOutputMatrixCell): ImageOutputMatrixCell {
     imageSize: cell.imageSize,
     ratio: cell.ratio,
     outputFormat: cell.outputFormat,
-    requestOutput: cell.requestOutput,
+    selection: cell.selection,
   };
 }
 
@@ -76,6 +76,8 @@ function cloneMatrix(matrix: ImageOutputMatrix, cells: readonly ImageOutputMatri
   const outputFormatIds = new Set(cells.map((cell) => cell.outputFormat));
   return {
     operation: matrix.operation,
+    archetype: matrix.archetype,
+    geometryKind: matrix.geometryKind,
     imageSizes: matrix.imageSizes.filter((option) => imageSizeIds.has(option.id)),
     ratios: matrix.ratios.filter((option) => ratioIds.has(option.id)),
     outputFormats: matrix.outputFormats.filter((option) => outputFormatIds.has(option.id)),
@@ -84,76 +86,113 @@ function cloneMatrix(matrix: ImageOutputMatrix, cells: readonly ImageOutputMatri
   };
 }
 
-function validateMatrixSubset(args: {
-  readonly input: SaveUserModelConfigInput;
-  readonly preset: OfficialModelPreset;
-}): readonly ImageOutputMatrix[] {
-  const { input, preset } = args;
-  if (input.outputMatrix.length === 0) {
-    throw createValidationError(`Model "${input.modelId}" outputMatrix must not be empty.`, {
-      apiFormat: input.apiFormat,
-      modelId: input.modelId,
-      baseModelId: input.baseModelId,
-    });
+function cellMatchesExposure(
+  cell: ImageOutputMatrixCell,
+  exposure: SaveUserModelConfigInput['outputExposure'],
+): boolean {
+  if (exposure.kind === 'flexible-pixels') {
+    if (!exposure.outputFormats.includes(cell.outputFormat)) {
+      return false;
+    }
+    if (cell.selection.geometry.kind === 'input-derived') {
+      return exposure.allowInputDerivedExactSize && exposure.sizePresetIds.includes('use-input-size');
+    }
+    return exposure.sizePresetIds.includes(cell.imageSize);
   }
 
-  const seenOperations = new Set<string>();
-  return input.outputMatrix.map((matrix) => {
-    if (seenOperations.has(matrix.operation)) {
-      throw createValidationError(`Model "${input.modelId}" outputMatrix has duplicate operation "${matrix.operation}".`, {
-        apiFormat: input.apiFormat,
-        modelId: input.modelId,
-        operation: matrix.operation,
+  if (!exposure.outputFormats.includes(cell.outputFormat)) {
+    return false;
+  }
+  if (cell.selection.geometry.kind === 'provider-default') {
+    return true;
+  }
+  if (cell.selection.geometry.kind !== 'ratio-resolution') {
+    return false;
+  }
+  return (
+    exposure.aspectRatios.includes(cell.selection.geometry.aspectRatio) &&
+    exposure.resolutions.includes(cell.selection.geometry.resolution)
+  );
+}
+
+function deriveOutputMatrixFromExposure(args: {
+  readonly modelId: string;
+  readonly preset: OfficialModelPreset;
+  readonly exposure: SaveUserModelConfigInput['outputExposure'];
+}): readonly ImageOutputMatrix[] {
+  return args.preset.outputMatrix.map((presetMatrix) => {
+    const selectedCells = presetMatrix.cells.filter((cell) => cellMatchesExposure(cell, args.exposure));
+    if (selectedCells.length === 0) {
+      throw createValidationError(`Model "${args.modelId}" output operation "${presetMatrix.operation}" must keep at least one exposed entry.`, {
+        apiFormat: args.preset.apiFormat,
+        modelId: args.modelId,
+        baseModelId: args.preset.modelId,
+        operation: presetMatrix.operation,
       });
     }
-    seenOperations.add(matrix.operation);
-
-    const presetMatrix = preset.outputMatrix.find((candidate) => candidate.operation === matrix.operation);
-    if (presetMatrix === undefined) {
-      throw createValidationError(
-        `Model "${input.modelId}" cannot add output matrix operation "${matrix.operation}" not present in preset "${preset.modelId}".`,
-        { apiFormat: input.apiFormat, modelId: input.modelId, baseModelId: preset.modelId, operation: matrix.operation },
-      );
-    }
-    if (matrix.cells.length === 0) {
-      throw createValidationError(`Model "${input.modelId}" outputMatrix "${matrix.operation}" must keep at least one cell.`, {
-        apiFormat: input.apiFormat,
-        modelId: input.modelId,
-        operation: matrix.operation,
-      });
-    }
-
-    const presetCells = new Map(presetMatrix.cells.map((cell) => [cell.id, cell] as const));
-    const selectedCells: ImageOutputMatrixCell[] = [];
-    const seenCellIds = new Set<string>();
-    for (const cell of matrix.cells) {
-      if (seenCellIds.has(cell.id)) {
-        continue;
-      }
-      const presetCell = presetCells.get(cell.id);
-      if (presetCell === undefined) {
-        throw createValidationError(
-          `Model "${input.modelId}" cannot add unsupported output matrix cell "${cell.id}".`,
-          { apiFormat: input.apiFormat, modelId: input.modelId, baseModelId: preset.modelId, operation: matrix.operation, cellId: cell.id },
-        );
-      }
-      if (
-        cell.imageSize !== presetCell.imageSize ||
-        cell.ratio !== presetCell.ratio ||
-        cell.outputFormat !== presetCell.outputFormat ||
-        JSON.stringify(cell.requestOutput) !== JSON.stringify(presetCell.requestOutput)
-      ) {
-        throw createValidationError(
-          `Model "${input.modelId}" cannot change preset output matrix cell "${cell.id}".`,
-          { apiFormat: input.apiFormat, modelId: input.modelId, baseModelId: preset.modelId, operation: matrix.operation, cellId: cell.id },
-        );
-      }
-      seenCellIds.add(cell.id);
-      selectedCells.push(presetCell);
-    }
-
     return cloneMatrix(presetMatrix, selectedCells);
   });
+}
+
+function validateExposure(args: {
+  readonly input: SaveUserModelConfigInput;
+  readonly preset: OfficialModelPreset;
+}): SaveUserModelConfigInput['outputExposure'] {
+  const { input, preset } = args;
+  const exposure = input.outputExposure;
+  if (exposure.kind !== preset.outputExposure.kind) {
+    throw createValidationError(
+      `Model "${input.modelId}" output exposure kind must match preset "${preset.modelId}".`,
+      { apiFormat: input.apiFormat, modelId: input.modelId, baseModelId: preset.modelId, exposureKind: exposure.kind },
+    );
+  }
+  if (exposure.kind === 'flexible-pixels' && preset.outputExposure.kind === 'flexible-pixels') {
+    const presetSizes = new Set(preset.outputExposure.sizePresetIds);
+    const presetFormats = new Set(preset.outputExposure.outputFormats);
+    for (const id of exposure.sizePresetIds) {
+      if (!presetSizes.has(id)) {
+        throw createValidationError(`Model "${input.modelId}" cannot expose unsupported output size "${id}".`, { id });
+      }
+    }
+    for (const format of exposure.outputFormats) {
+      if (!presetFormats.has(format)) {
+        throw createValidationError(`Model "${input.modelId}" cannot expose unsupported output format "${format}".`, { format });
+      }
+    }
+    return {
+      kind: 'flexible-pixels',
+      sizePresetIds: preset.outputExposure.sizePresetIds.filter((id) => exposure.sizePresetIds.includes(id)),
+      outputFormats: preset.outputExposure.outputFormats.filter((format) => exposure.outputFormats.includes(format)),
+      allowInputDerivedExactSize: Boolean(exposure.allowInputDerivedExactSize && preset.outputExposure.allowInputDerivedExactSize),
+    };
+  }
+  if (exposure.kind === 'ratio-resolution' && preset.outputExposure.kind === 'ratio-resolution') {
+    const presetRatios = new Set(preset.outputExposure.aspectRatios);
+    const presetResolutions = new Set(preset.outputExposure.resolutions);
+    const presetFormats = new Set(preset.outputExposure.outputFormats);
+    for (const ratio of exposure.aspectRatios) {
+      if (!presetRatios.has(ratio)) {
+        throw createValidationError(`Model "${input.modelId}" cannot expose unsupported aspect ratio "${ratio}".`, { ratio });
+      }
+    }
+    for (const resolution of exposure.resolutions) {
+      if (!presetResolutions.has(resolution)) {
+        throw createValidationError(`Model "${input.modelId}" cannot expose unsupported resolution "${resolution}".`, { resolution });
+      }
+    }
+    for (const format of exposure.outputFormats) {
+      if (!presetFormats.has(format)) {
+        throw createValidationError(`Model "${input.modelId}" cannot expose unsupported output format "${format}".`, { format });
+      }
+    }
+    return {
+      kind: 'ratio-resolution',
+      aspectRatios: preset.outputExposure.aspectRatios.filter((ratio) => exposure.aspectRatios.includes(ratio)),
+      resolutions: preset.outputExposure.resolutions.filter((resolution) => exposure.resolutions.includes(resolution)),
+      outputFormats: preset.outputExposure.outputFormats.filter((format) => exposure.outputFormats.includes(format)),
+    };
+  }
+  return exposure;
 }
 
 /**
@@ -237,6 +276,35 @@ export async function getUserModelConfig(
 }
 
 /**
+ * 删除单个 user model config。
+ */
+export async function deleteUserModelConfig(
+  apiFormat: ApiFormat,
+  modelId: string,
+): Promise<CommandResult<null>> {
+  const normalizedModelId = modelId.trim();
+  const logger = getRuntimeLogger().child({
+    trace_id: generateTraceId(),
+    package: 'application',
+    component: 'command',
+    ...(apiFormat ? { apiFormat } : {}),
+  });
+  const span = logger.startSpan('command.model_config.delete');
+
+  if (normalizedModelId.length === 0) {
+    span.fail({ message: 'Model config requires modelId.' });
+    return {
+      ok: false,
+      error: createValidationError('Model config requires modelId.', { apiFormat, modelId }),
+    };
+  }
+
+  await getUserModelConfigRepository().delete(apiFormat, normalizedModelId);
+  span.finish({ modelId: normalizedModelId });
+  return { ok: true, value: null };
+}
+
+/**
  * 保存 user model config；只写 repository，不自动修改任何 profile 的 selected/default。
  */
 export async function saveUserModelConfig(input: SaveUserModelConfigInput): Promise<CommandResult<UserModelConfig>> {
@@ -291,7 +359,7 @@ export async function saveUserModelConfig(input: SaveUserModelConfigInput): Prom
       modelId: normalizedModelId,
       requestStrategyId: input.requestStrategyId,
     });
-    const outputMatrix = validateMatrixSubset({
+    const outputExposure = validateExposure({
       input: {
         ...input,
         modelId: normalizedModelId,
@@ -299,11 +367,17 @@ export async function saveUserModelConfig(input: SaveUserModelConfigInput): Prom
       },
       preset,
     });
+    const outputMatrix = deriveOutputMatrixFromExposure({
+      modelId: normalizedModelId,
+      preset,
+      exposure: outputExposure,
+    });
     const config: UserModelConfig = {
       apiFormat: input.apiFormat,
       modelId: normalizedModelId,
       baseModelId: normalizedBaseModelId,
       requestStrategyId: strategy.id,
+      outputExposure,
       outputMatrix,
     };
     await getUserModelConfigRepository().save(config);

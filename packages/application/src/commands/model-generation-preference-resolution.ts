@@ -3,8 +3,11 @@ import {
   getOfficialModelPreset,
   type ApiFormat,
   type ImageCatalogProviderId,
+  type ImageAspectRatio,
+  type ImageOutputImageSize,
   type ImageOutputMatrix,
   type ImageOutputMatrixCell,
+  type ImageOutputSelection,
 } from '@imagen-ps/providers';
 import { catalogProviderIdForApiFormat } from './api-format-profile.js';
 import type {
@@ -51,7 +54,7 @@ export function matrixForModelGenerationPreferenceKey(
   const matrix = matrixSource?.find((candidate) => candidate.operation === key.operation);
   if (matrix === undefined) {
     throw createValidationError(
-      `Model "${key.modelId}" has no executable output matrix for "${key.operation}".`,
+      `Model "${key.modelId}" has no executable output configuration for "${key.operation}".`,
       { ...key },
     );
   }
@@ -59,11 +62,71 @@ export function matrixForModelGenerationPreferenceKey(
 }
 
 export function selectionFromMatrixCell(cell: ImageOutputMatrixCell): ModelGenerationPreferenceSelection {
+  return projectSelectionToUi(cell.selection, cell.selection);
+}
+
+function sizeIdForSelection(selection: ImageOutputSelection): ImageOutputImageSize {
+  switch (selection.geometry.kind) {
+    case 'provider-default':
+      return 'auto';
+    case 'input-derived':
+      return 'use-input-size';
+    case 'ratio-resolution':
+      return selection.geometry.resolution;
+    case 'pixels':
+      if (selection.geometry.width >= 3840 || selection.geometry.height >= 3840) {
+        return '4k';
+      }
+      if (selection.geometry.width >= 2048 || selection.geometry.height >= 2048) {
+        return '2k';
+      }
+      return '1k';
+  }
+}
+
+function ratioForSelection(selection: ImageOutputSelection): ImageAspectRatio {
+  switch (selection.geometry.kind) {
+    case 'ratio-resolution':
+      return selection.geometry.aspectRatio;
+    case 'input-derived':
+      return 'source';
+    case 'provider-default':
+    case 'pixels':
+      return 'auto';
+  }
+}
+
+function effectiveSelectionForOperation(
+  selection: ImageOutputSelection,
+  operation: ModelGenerationPreferenceKey['operation'],
+): { readonly effectiveSelection: ImageOutputSelection; readonly normalized: boolean } {
+  if (selection.geometry.kind === 'input-derived' && operation === 'text_to_image') {
+    return {
+      effectiveSelection: {
+        geometry: { kind: 'provider-default' },
+        outputFormat: selection.outputFormat,
+      },
+      normalized: true,
+    };
+  }
   return {
-    cellId: cell.id,
-    imageSize: cell.imageSize,
-    ratio: cell.ratio,
-    outputFormat: cell.outputFormat,
+    effectiveSelection: selection,
+    normalized: false,
+  };
+}
+
+function projectSelectionToUi(
+  storedSelection: ImageOutputSelection,
+  effectiveSelection: ImageOutputSelection,
+  normalized = false,
+): ModelGenerationPreferenceSelection {
+  return {
+    selection: storedSelection,
+    effectiveSelection,
+    imageSize: sizeIdForSelection(effectiveSelection),
+    ratio: ratioForSelection(effectiveSelection),
+    outputFormat: effectiveSelection.outputFormat,
+    normalized,
   };
 }
 
@@ -71,7 +134,7 @@ function defaultCell(matrix: ImageOutputMatrix, key: ModelGenerationPreferenceKe
   const cell = matrix.cells.find((candidate) => candidate.id === matrix.defaultCellId);
   if (cell === undefined) {
     throw createValidationError(
-      `Model "${key.modelId}" output matrix defaultCellId "${matrix.defaultCellId}" is invalid.`,
+      `Model "${key.modelId}" output configuration default entry "${matrix.defaultCellId}" is invalid.`,
       { ...key },
     );
   }
@@ -80,14 +143,16 @@ function defaultCell(matrix: ImageOutputMatrix, key: ModelGenerationPreferenceKe
 
 export function findMatrixCell(
   matrix: ImageOutputMatrix,
-  selection: ModelGenerationPreferenceSelection,
+  selection: ImageOutputSelection,
 ): ImageOutputMatrixCell | undefined {
+  const imageSize = sizeIdForSelection(selection);
+  const ratio = ratioForSelection(selection);
+  const outputFormat = selection.outputFormat;
   return matrix.cells.find(
     (cell) =>
-      cell.id === selection.cellId &&
-      cell.imageSize === selection.imageSize &&
-      cell.ratio === selection.ratio &&
-      cell.outputFormat === selection.outputFormat,
+      cell.imageSize === imageSize &&
+      cell.ratio === ratio &&
+      cell.outputFormat === outputFormat,
   );
 }
 
@@ -98,10 +163,14 @@ export function resolveModelGenerationSettingsValue(args: {
 }): ModelGenerationSettings {
   const key = assertModelGenerationPreferenceKey(args.key);
   const matrix = matrixForModelGenerationPreferenceKey(key, args.userConfig);
-  const preferredCell = args.preference === undefined ? undefined : findMatrixCell(matrix, args.preference);
+  const preferredProjection = args.preference === undefined
+    ? undefined
+    : effectiveSelectionForOperation(args.preference.selection, key.operation);
+  const preferredCell = preferredProjection === undefined ? undefined : findMatrixCell(matrix, preferredProjection.effectiveSelection);
   const cell = preferredCell ?? defaultCell(matrix, key);
-  const selection = selectionFromMatrixCell(cell);
-  const requestOutput = cell.requestOutput;
+  const storedSelection = args.preference?.selection ?? cell.selection;
+  const effective = effectiveSelectionForOperation(storedSelection, key.operation);
+  const selection = projectSelectionToUi(storedSelection, effective.effectiveSelection, effective.normalized);
 
   return {
     key,
@@ -109,7 +178,6 @@ export function resolveModelGenerationSettingsValue(args: {
     preference: args.preference ?? null,
     selection,
     cell,
-    requestOutput,
     source: preferredCell === undefined ? 'default' : 'preference',
   };
 }

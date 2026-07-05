@@ -1,7 +1,7 @@
 import type { Asset } from '@imagen-ps/core-engine';
 import type { CanonicalImageJobRequest, ChatImageRequestOutput, ProviderOutputOptions } from '../../contract/request.js';
 import type { ProviderDiagnostic } from '../../contract/diagnostics.js';
-import { assertProviderModelExecution } from '../../contract/image-model-capability.js';
+import { assertProviderModelExecution, resolveProviderResolvedOutput } from '../../contract/image-model-capability.js';
 
 export interface ChatImageContentText {
   readonly type: 'text';
@@ -98,30 +98,33 @@ function bytesToBase64(bytes: Uint8Array): string {
   return btoa(binary);
 }
 
-function resolveRequestOutput(output: ProviderOutputOptions): ChatImageRequestOutput {
-  const requestOutput = output.requestOutput;
-  if (requestOutput === undefined) {
-    throw new BuildChatImageRequestError('Chat image output requires resolved requestOutput.', {
-      expected: 'chat-image',
-    });
-  }
-  if (requestOutput.kind !== 'chat-image') {
+function resolveRequestOutput(request: CanonicalImageJobRequest, output: ProviderOutputOptions): ChatImageRequestOutput {
+  const model = resolveModel(request);
+  const resolvedOutput = resolveProviderResolvedOutput({
+    providerId: 'chat-image',
+    modelId: model,
+    operation: request.operation,
+    output,
+    inputContext: request.inputContext,
+  });
+  if (resolvedOutput.kind !== 'chat-image') {
     throw new BuildChatImageRequestError(
-      `Chat image output received incompatible requestOutput kind "${requestOutput.kind}".`,
-      { expected: 'chat-image', actual: requestOutput.kind },
+      `Chat image output received incompatible resolved output kind "${resolvedOutput.kind}".`,
+      { expected: 'chat-image', actual: resolvedOutput.kind },
     );
   }
-  return requestOutput;
+  return resolvedOutput;
 }
 
 function resolvedImageConfigFromOutput(
+  request: CanonicalImageJobRequest,
   output: ProviderOutputOptions | undefined,
 ): Record<string, unknown> | undefined {
   if (output === undefined) {
     return undefined;
   }
 
-  const imageConfig = resolveRequestOutput(output).imageConfig;
+  const imageConfig = resolveRequestOutput(request, output).imageConfig;
   return imageConfig !== undefined && Object.keys(imageConfig).length > 0
     ? { ...imageConfig }
     : undefined;
@@ -197,7 +200,7 @@ function resolveImageConfig(
   request: CanonicalImageJobRequest,
   diagnostics: ProviderDiagnostic[],
 ): Record<string, unknown> | undefined {
-  const fromOutput = resolvedImageConfigFromOutput(request.output);
+  const fromOutput = resolvedImageConfigFromOutput(request, request.output);
   const raw = request.providerOptions?.image_config;
   if (raw !== undefined) {
     const ignoredPaths =

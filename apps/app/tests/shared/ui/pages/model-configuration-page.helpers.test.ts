@@ -9,6 +9,8 @@ import {
 
 const textToImageMatrix: ImageOutputMatrix = {
   operation: 'text_to_image',
+  archetype: 'size-aspect-ratio-format',
+  geometryKind: 'ratio-resolution',
   imageSizes: [
     { id: 'auto', label: 'Auto' },
     { id: '1k', label: '1K' },
@@ -30,21 +32,21 @@ const textToImageMatrix: ImageOutputMatrix = {
       imageSize: 'auto',
       ratio: 'auto',
       outputFormat: 'png',
-      requestOutput: { kind: 'image-endpoint', size: 'auto', outputFormat: 'png' },
+      selection: { geometry: { kind: 'provider-default' }, outputFormat: 'png' },
     },
     {
       id: 'text:1k:1:1:png',
       imageSize: '1k',
       ratio: '1:1',
       outputFormat: 'png',
-      requestOutput: { kind: 'image-endpoint', size: '1024x1024', outputFormat: 'png' },
+      selection: { geometry: { kind: 'ratio-resolution', resolution: '1k', aspectRatio: '1:1' }, outputFormat: 'png' },
     },
     {
       id: 'text:2k:16:9:webp',
       imageSize: '2k',
       ratio: '16:9',
       outputFormat: 'webp',
-      requestOutput: { kind: 'image-endpoint', size: '2048x1152', outputFormat: 'webp' },
+      selection: { geometry: { kind: 'ratio-resolution', resolution: '2k', aspectRatio: '16:9' }, outputFormat: 'webp' },
     },
   ],
 };
@@ -61,6 +63,8 @@ const imageEditSame: ImageOutputMatrix = {
 
 const imageEditDifferent: ImageOutputMatrix = {
   operation: 'image_edit',
+  archetype: 'size-aspect-ratio-format',
+  geometryKind: 'ratio-resolution',
   imageSizes: [
     { id: 'auto', label: 'Auto' },
     { id: '1k', label: '1K' },
@@ -79,14 +83,14 @@ const imageEditDifferent: ImageOutputMatrix = {
       imageSize: 'auto',
       ratio: 'source',
       outputFormat: 'png',
-      requestOutput: { kind: 'image-endpoint', size: 'auto', outputFormat: 'png' },
+      selection: { geometry: { kind: 'provider-default' }, outputFormat: 'png' },
     },
     {
       id: 'edit:1k:1:1:png',
       imageSize: '1k',
       ratio: '1:1',
       outputFormat: 'png',
-      requestOutput: { kind: 'image-endpoint', size: '1024x1024', outputFormat: 'png' },
+      selection: { geometry: { kind: 'ratio-resolution', resolution: '1k', aspectRatio: '1:1' }, outputFormat: 'png' },
     },
   ],
 };
@@ -97,6 +101,22 @@ function preset(matrices: readonly ImageOutputMatrix[]): OfficialModelPreset {
     modelId: 'test-model',
     displayName: 'Test Model',
     requestStrategyId: 'image-endpoint-default',
+    outputCapability: {
+      geometry: {
+        kind: 'ratio-resolution',
+        defaultGeometry: { kind: 'provider-default' },
+        aspectRatios: ['1:1', '16:9'],
+        resolutions: ['1k', '2k'],
+      },
+      outputFormats: ['png', 'webp'],
+      defaultSelection: { geometry: { kind: 'provider-default' }, outputFormat: 'png' },
+    },
+    outputExposure: {
+      kind: 'ratio-resolution',
+      aspectRatios: ['1:1', '16:9'],
+      resolutions: ['1k', '2k'],
+      outputFormats: ['png', 'webp'],
+    },
     outputMatrix: matrices,
     output: {
       aspectRatios: [],
@@ -145,6 +165,12 @@ describe('model-configuration-page helpers', () => {
       modelId: 'legacy-model',
       baseModelId: 'test-model',
       requestStrategyId: 'image-endpoint-default',
+      outputExposure: {
+        kind: 'ratio-resolution',
+        aspectRatios: ['1:1', '16:9'],
+        resolutions: ['1k', '2k'],
+        outputFormats: ['png', 'webp'],
+      },
       outputMatrix: [{
         ...textToImageMatrix,
         cells: [

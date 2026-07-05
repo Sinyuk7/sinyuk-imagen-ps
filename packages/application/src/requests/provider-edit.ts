@@ -13,6 +13,7 @@ const editStep = Object.freeze({
       images: '${images}',
       maskImage: '${maskImage}',
       output: '${output}',
+      inputContext: '${inputContext}',
       providerOptions: '${providerOptions}',
     }),
   }),

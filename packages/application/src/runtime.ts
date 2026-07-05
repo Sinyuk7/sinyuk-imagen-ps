@@ -852,7 +852,7 @@ async function resolveModelParamsForDispatch(args: {
     modelId: selectedModelId,
     userModelConfigRepository: getUserModelConfigRepository(),
   });
-  const requestOutput = resolveModelGenerationSettingsValue({
+  const generationSettings = resolveModelGenerationSettingsValue({
     key: {
       profileId: args.profile.profileId,
       apiFormat: args.profile.apiFormat,
@@ -871,10 +871,7 @@ async function resolveModelParamsForDispatch(args: {
     params: args.params,
     model: toProviderModelExecution(resolved),
     output: {
-      sizePreset: requestOutput.selection.imageSize === 'auto' ? undefined : requestOutput.selection.imageSize,
-      aspectRatio: requestOutput.selection.ratio,
-      outputFormat: requestOutput.selection.outputFormat,
-      requestOutput: requestOutput.requestOutput,
+      selection: generationSettings.selection.effectiveSelection,
     },
   });
 }

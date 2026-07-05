@@ -29,6 +29,7 @@ export {
   refreshProfileModels,
 } from './profile-models.js';
 export {
+  deleteUserModelConfig,
   getUserModelConfig,
   listOfficialModelConfigPresets,
   listRequestStrategiesForApiFormat,
@@ -83,6 +84,8 @@ export type {
   ImageAspectRatio,
   ImageOutputFormat,
   ImageOutputImageSize,
+  ImageOutputSelection,
+  ImageOutputSizeOptionId,
   ImageOutputMatrix,
   ImageOutputMatrixCell,
   OfficialModelPreset,
@@ -97,6 +100,7 @@ export type {
   ProfileBalanceResult,
   ProfileBillingState,
   ProviderResolvedOutput,
+  UserModelOutputExposure,
   RefreshProfileBalanceInput,
   RefreshProfileBalanceResult,
   RequestStrategy,

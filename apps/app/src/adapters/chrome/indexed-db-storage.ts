@@ -57,6 +57,34 @@ function isImageOperation(value: unknown): value is ImageOutputMatrix['operation
   return value === 'text_to_image' || value === 'image_edit';
 }
 
+function isOutputSelection(value: unknown): boolean {
+  if (!isPlainRecord(value) || !isPlainRecord(value.geometry)) {
+    return false;
+  }
+  return typeof value.outputFormat === 'string' &&
+    (
+      value.geometry.kind === 'provider-default' ||
+      value.geometry.kind === 'input-derived' ||
+      value.geometry.kind === 'pixels' ||
+      value.geometry.kind === 'ratio-resolution'
+    );
+}
+
+function isOutputExposure(value: unknown): boolean {
+  if (!isPlainRecord(value)) {
+    return false;
+  }
+  if (value.kind === 'flexible-pixels') {
+    return Array.isArray(value.sizePresetIds) &&
+      Array.isArray(value.outputFormats) &&
+      typeof value.allowInputDerivedExactSize === 'boolean';
+  }
+  return value.kind === 'ratio-resolution' &&
+    Array.isArray(value.aspectRatios) &&
+    Array.isArray(value.resolutions) &&
+    Array.isArray(value.outputFormats);
+}
+
 function isImageOutputMatrix(value: unknown): value is ImageOutputMatrix {
   if (!isPlainRecord(value) || !isImageOperation(value.operation)) {
     return false;
@@ -74,7 +102,7 @@ function isImageOutputMatrix(value: unknown): value is ImageOutputMatrix {
       cell.imageSize !== '512' &&
       typeof cell.ratio === 'string' &&
       typeof cell.outputFormat === 'string' &&
-      isPlainRecord(cell.requestOutput),
+      isOutputSelection(cell.selection),
     );
 }
 
@@ -87,6 +115,7 @@ function isUserModelConfig(value: unknown): value is UserModelConfig {
     typeof value.modelId === 'string' &&
     typeof value.baseModelId === 'string' &&
     typeof value.requestStrategyId === 'string' &&
+    isOutputExposure(value.outputExposure) &&
     Array.isArray(value.outputMatrix) &&
     value.outputMatrix.length > 0 &&
     value.outputMatrix.every(isImageOutputMatrix);

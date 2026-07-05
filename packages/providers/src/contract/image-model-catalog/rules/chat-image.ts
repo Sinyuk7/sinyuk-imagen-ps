@@ -1,5 +1,14 @@
 import type { ImageModelCapability } from '../../image-model-capability.js';
-import { chatImageMatrix } from '../output-matrix.js';
+import {
+  GEMINI_EDIT_INPUT_CAPABILITY,
+  GEMINI_RESPONSE_OUTPUT_CAPABILITY,
+  GEMINI_RESPONSE_OUTPUT_EXPOSURE,
+  GPT_IMAGE_OUTPUT_CAPABILITY,
+  GPT_OUTPUT_EXPOSURE,
+  OPENAI_EDIT_INPUT_CAPABILITY,
+  chatGptImageMatrix,
+  chatImageMatrix,
+} from '../output-matrix.js';
 
 export const CHAT_IMAGE_MODEL_CAPABILITIES = Object.freeze([
   {
@@ -15,6 +24,9 @@ export const CHAT_IMAGE_MODEL_CAPABILITIES = Object.freeze([
       allowAsDefault: true,
     },
     appliesToProviders: ['chat-image'],
+    outputCapability: GEMINI_RESPONSE_OUTPUT_CAPABILITY,
+    outputExposure: GEMINI_RESPONSE_OUTPUT_EXPOSURE,
+    editInput: GEMINI_EDIT_INPUT_CAPABILITY,
     outputMatrix: [
       chatImageMatrix('text_to_image'),
       chatImageMatrix('image_edit'),
@@ -33,6 +45,9 @@ export const CHAT_IMAGE_MODEL_CAPABILITIES = Object.freeze([
       allowAsDefault: true,
     },
     appliesToProviders: ['chat-image'],
+    outputCapability: GEMINI_RESPONSE_OUTPUT_CAPABILITY,
+    outputExposure: GEMINI_RESPONSE_OUTPUT_EXPOSURE,
+    editInput: GEMINI_EDIT_INPUT_CAPABILITY,
     outputMatrix: [
       chatImageMatrix('text_to_image'),
       chatImageMatrix('image_edit'),
@@ -51,6 +66,9 @@ export const CHAT_IMAGE_MODEL_CAPABILITIES = Object.freeze([
       allowAsDefault: true,
     },
     appliesToProviders: ['chat-image'],
+    outputCapability: GEMINI_RESPONSE_OUTPUT_CAPABILITY,
+    outputExposure: GEMINI_RESPONSE_OUTPUT_EXPOSURE,
+    editInput: GEMINI_EDIT_INPUT_CAPABILITY,
     outputMatrix: [
       chatImageMatrix('text_to_image'),
       chatImageMatrix('image_edit'),
@@ -68,9 +86,12 @@ export const CHAT_IMAGE_MODEL_CAPABILITIES = Object.freeze([
       allowAsDefault: true,
     },
     appliesToProviders: ['chat-image'],
+    outputCapability: GPT_IMAGE_OUTPUT_CAPABILITY,
+    outputExposure: GPT_OUTPUT_EXPOSURE,
+    editInput: OPENAI_EDIT_INPUT_CAPABILITY,
     outputMatrix: [
-      chatImageMatrix('text_to_image'),
-      chatImageMatrix('image_edit'),
+      chatGptImageMatrix('text_to_image'),
+      chatGptImageMatrix('image_edit'),
     ],
   },
 ] as const satisfies readonly ImageModelCapability[]);
