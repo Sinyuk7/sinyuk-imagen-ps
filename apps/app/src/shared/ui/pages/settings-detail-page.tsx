@@ -955,7 +955,6 @@ export function SettingsDetailPage({ onNav, profileId, onProfilesChanged, onSave
         {detail.profile && (
           <>
             <ProviderProfileEditor
-              connectionTitle={t.settings.connectionInfo}
               aliasValue={displayName}
               onAliasValue={(value) => {
                 setDisplayName(value);
@@ -965,18 +964,8 @@ export function SettingsDetailPage({ onNav, profileId, onProfilesChanged, onSave
               systemInstructionValue={systemInstruction}
               onSystemInstructionValue={setSystemInstruction}
               apiFormatLabel={apiFormatLabel(detail.profile.apiFormat)}
+              apiFormatStatus={apiFormatLabel(detail.profile.apiFormat)}
               apiFormatTone="positive"
-              apiFormatDetail={t.settings.apiFormatDetected(apiFormatLabel(detail.profile.apiFormat))}
-              pathSettings={(
-                <ProviderAdvancedPathSection
-                  apiFormat={detail.profile.apiFormat}
-                  paths={paths}
-                  authModeMenuOpen={authModeMenuOpen}
-                  disabled={busy}
-                  onAuthModeMenuOpenChange={setAuthModeMenuOpen}
-                  onPathChange={updatePath}
-                />
-              )}
               connection={connection}
               onConnectionChange={updateConnectionDraft}
               endpointErrors={endpointErrors}
@@ -985,127 +974,135 @@ export function SettingsDetailPage({ onNav, profileId, onProfilesChanged, onSave
               measurementBusy={modelCatalog.refreshBusy}
               measurementSupported={measurementSupported}
               onMeasure={() => void probeEndpoints()}
+              defaultModelSection={(
+                <ProviderDefaultModelSection
+                  wrapInSection={false}
+                  disabled={busy}
+                  loading={modelCatalog.loading}
+                  discoverySupported={modelDiscoverySupported}
+                  canCreateModelConfig={profileCanCreateModelConfig(detail.profile)}
+                  modelMenuOpen={modelMenuOpen}
+                  profileModels={selectableProfileModels}
+                  modelOptions={selectedConfiguredModelOptions}
+                  defaultModel={visibleDefaultModelId}
+                  triggerValue={modelTriggerValue}
+                  modelFieldHelp={!modelDiscoverySupported ? {
+                    id: 'provider-model-discovery-help',
+                    testId: 'provider-model-discovery-help',
+                    message: t.settings.modelDiscoveryFieldHelp,
+                  } : null}
+                  listNotice={modelListNotice}
+                  modelStatusNotice={selectedModelStatus ? {
+                    tone: 'info',
+                    message: selectedModelStatus,
+                    actionLabel: selectedVisibleModelInfo?.configured === false ? t.settings.modelConfigConfigureModel : t.settings.modelConfigEditModel,
+                    onAction: () => {
+                      if (detail.profile && selectedVisibleModelInfo) {
+                        onOpenModelConfiguration?.({
+                          source: 'profile-detail',
+                          profileId: detail.profile.profileId,
+                          apiFormat: detail.profile.apiFormat,
+                          modelId: selectedVisibleModelInfo.id,
+                        });
+                      }
+                    },
+                  } : null}
+                  onToggleModelSelected={(id, selected) => {
+                    setModelSelectionTouched(true);
+                    setProfileModels((current) => {
+                      const next = current.map((model) => {
+                        if (model.id !== id) {
+                          return model;
+                        }
+                        if (model.configured !== true) {
+                          return model;
+                        }
+                        return {
+                          ...model,
+                          selected,
+                          default: selected ? model.default : false,
+                        };
+                      });
+                      const activeDefault = next.find((model) => model.default === true && model.selected === true);
+                      const fallbackDefault = next.find((model) => model.selected === true);
+                      const resolvedDefault = activeDefault ?? fallbackDefault;
+                      const normalized = next.map((model) => ({
+                        ...model,
+                        default: resolvedDefault ? model.id === resolvedDefault.id : false,
+                      }));
+                      setDefaultModel(resolvedDefault?.id ?? '');
+                      invalidateDraftProofs();
+                      return normalized;
+                    });
+                  }}
+                  onEditModelConfig={(model) => {
+                    if (!detail.profile) {
+                      return;
+                    }
+                    onOpenModelConfiguration?.({
+                      source: 'profile-detail',
+                      profileId: detail.profile.profileId,
+                      apiFormat: detail.profile.apiFormat,
+                      modelId: model.id,
+                    });
+                  }}
+                  onConfigureModel={(model) => {
+                    if (!detail.profile) {
+                      return;
+                    }
+                    onOpenModelConfiguration?.({
+                      source: 'profile-detail',
+                      profileId: detail.profile.profileId,
+                      apiFormat: detail.profile.apiFormat,
+                      modelId: model.id,
+                    });
+                  }}
+                  onCreateModelConfig={() => {
+                    if (!detail.profile) {
+                      return;
+                    }
+                    onOpenModelConfiguration?.({
+                      source: 'profile-detail',
+                      profileId: detail.profile.profileId,
+                      apiFormat: detail.profile.apiFormat,
+                      modelId: null,
+                    });
+                  }}
+                  onRefresh={() => void refreshModels()}
+                  onModelMenuOpenChange={setModelMenuOpen}
+                  onDefaultModelSelect={(id) => {
+                    setModelSelectionTouched(true);
+                    setDefaultModel(id);
+                    setProfileModels((current) => current.map((model) => ({
+                      ...model,
+                      ...(model.id === id && model.configured === true ? { selected: true, default: true } : { default: false }),
+                    })));
+                    setModelMenuOpen(false);
+                    invalidateDraftProofs();
+                  }}
+                />
+              )}
+              balanceSection={renderBillingSection()}
               apiKeyValue={apiKey}
               onApiKeyValue={updateApiKey}
               apiKeyPlaceholder="sk-..."
               showKey={showKey}
               onShowKeyChange={setShowKey}
               apiKeySaved={Boolean(detail.profile.secretRefs?.apiKey) && !apiKeyRemovalPending}
-              apiKeySavedHint={detail.profile.secretRefs?.apiKey ? t.settings.savedSecretPlaceholder : null}
               apiKeyRemovalPending={apiKeyRemovalPending}
-              onApiKeyRemove={() => {
-                setApiKey('');
-                setApiKeyRemovalPending(true);
-                invalidateDraftProofs();
-              }}
+              pathSettings={(
+                <ProviderAdvancedPathSection
+                  wrapInSection={false}
+                  apiFormat={detail.profile.apiFormat}
+                  paths={paths}
+                  authModeMenuOpen={authModeMenuOpen}
+                  disabled={busy}
+                  onAuthModeMenuOpenChange={setAuthModeMenuOpen}
+                  onPathChange={updatePath}
+                />
+              )}
               disabled={busy}
             />
-            <ProviderDefaultModelSection
-              disabled={busy}
-              loading={modelCatalog.loading}
-              discoverySupported={modelDiscoverySupported}
-              canCreateModelConfig={profileCanCreateModelConfig(detail.profile)}
-              modelMenuOpen={modelMenuOpen}
-              profileModels={selectableProfileModels}
-              modelOptions={selectedConfiguredModelOptions}
-              defaultModel={visibleDefaultModelId}
-              triggerValue={modelTriggerValue}
-              modelFieldHelp={!modelDiscoverySupported ? {
-                id: 'provider-model-discovery-help',
-                testId: 'provider-model-discovery-help',
-                message: t.settings.modelDiscoveryFieldHelp,
-              } : null}
-              listNotice={modelListNotice}
-              modelStatusNotice={selectedModelStatus ? {
-                tone: 'info',
-                message: selectedModelStatus,
-                actionLabel: selectedVisibleModelInfo?.configured === false ? t.settings.modelConfigConfigureModel : t.settings.modelConfigEditModel,
-                onAction: () => {
-                  if (detail.profile && selectedVisibleModelInfo) {
-                    onOpenModelConfiguration?.({
-                      source: 'profile-detail',
-                      profileId: detail.profile.profileId,
-                      apiFormat: detail.profile.apiFormat,
-                      modelId: selectedVisibleModelInfo.id,
-                    });
-                  }
-                },
-              } : null}
-              onToggleModelSelected={(id, selected) => {
-                setModelSelectionTouched(true);
-                setProfileModels((current) => {
-                  const next = current.map((model) => {
-                    if (model.id !== id) {
-                      return model;
-                    }
-                    if (model.configured !== true) {
-                      return model;
-                    }
-                    return {
-                      ...model,
-                      selected,
-                      default: selected ? model.default : false,
-                    };
-                  });
-                  const activeDefault = next.find((model) => model.default === true && model.selected === true);
-                  const fallbackDefault = next.find((model) => model.selected === true);
-                  const resolvedDefault = activeDefault ?? fallbackDefault;
-                  const normalized = next.map((model) => ({
-                    ...model,
-                    default: resolvedDefault ? model.id === resolvedDefault.id : false,
-                  }));
-                  setDefaultModel(resolvedDefault?.id ?? '');
-                  invalidateDraftProofs();
-                  return normalized;
-                });
-              }}
-              onEditModelConfig={(model) => {
-                if (!detail.profile) {
-                  return;
-                }
-                onOpenModelConfiguration?.({
-                  source: 'profile-detail',
-                  profileId: detail.profile.profileId,
-                  apiFormat: detail.profile.apiFormat,
-                  modelId: model.id,
-                });
-              }}
-              onConfigureModel={(model) => {
-                if (!detail.profile) {
-                  return;
-                }
-                onOpenModelConfiguration?.({
-                  source: 'profile-detail',
-                  profileId: detail.profile.profileId,
-                  apiFormat: detail.profile.apiFormat,
-                  modelId: model.id,
-                });
-              }}
-              onCreateModelConfig={() => {
-                if (!detail.profile) {
-                  return;
-                }
-                onOpenModelConfiguration?.({
-                  source: 'profile-detail',
-                  profileId: detail.profile.profileId,
-                  apiFormat: detail.profile.apiFormat,
-                  modelId: null,
-                });
-              }}
-              onRefresh={() => void refreshModels()}
-              onModelMenuOpenChange={setModelMenuOpen}
-              onDefaultModelSelect={(id) => {
-                setModelSelectionTouched(true);
-                setDefaultModel(id);
-                setProfileModels((current) => current.map((model) => ({
-                  ...model,
-                  ...(model.id === id && model.configured === true ? { selected: true, default: true } : { default: false }),
-                })));
-                setModelMenuOpen(false);
-                invalidateDraftProofs();
-              }}
-            />
-            {renderBillingSection()}
           </>
         )}
       </div>

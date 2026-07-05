@@ -627,6 +627,33 @@ export const PAGES_CSS = `
   width:auto;
   min-width:0;
 }
+.provider-api-format-row{
+  align-items:center;
+  margin-bottom:4px;
+}
+.provider-api-format-row .section-title{
+  margin-bottom:0;
+}
+.provider-api-format-inline{
+  flex:0 0 auto;
+  margin-top:0;
+  margin-right:0;
+  margin-bottom:0;
+  margin-left:12px;
+  text-align:right;
+}
+.provider-api-format-hint{
+  margin-bottom:10px;
+}
+.provider-embedded-section{
+  display:block;
+}
+.provider-embedded-section + .provider-embedded-section{
+  margin-top:12px;
+}
+.provider-endpoint-detect-field{
+  margin-top:2px;
+}
 .provider-model-mode-row{
   display:flex;
   align-items:flex-start;

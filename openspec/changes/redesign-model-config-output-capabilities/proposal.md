@@ -1,3 +1,6 @@
+> Superseded by `unify-image-output-capability-schema`.
+> This change assumes matrix-oriented output capability editing and should no longer be used as the implementation basis.
+
 ## Why
 
 当前 `ModelConfigurationPage` 将 `outputMatrix.cells` 直接平铺为 checkbox 列表，用户看到的是底层矩阵组合，而不是可理解的模型能力维度。这使得“取消 `16:9`”或“取消 `PNG`”只能删除若干具体 cell，无法表达“对当前 operation 下所有兼容分辨率统一生效”的真实产品语义。

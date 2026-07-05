@@ -6,11 +6,12 @@ import { createChromeAppShell } from '../../composition/chrome/create-chrome-app
 import { chromeTestHarnessConfigFromUrl } from '../../composition/chrome/chrome-test-harness';
 import { ComposerSelectHarnessPage } from '../../harness/components/composer-select';
 import { MotionPrototypeHarnessPage } from '../../harness/components/motion-prototype';
+import { PopupLayerOverlapHarnessPage } from '../../harness/components/popup-layer-overlap';
 import { UxpCssContractHarnessPage } from '../../harness/components/uxp-css-contract';
 
-function resolveChromeHarness(url: URL): 'composer-select' | 'motion-prototype' | 'uxp-css-contract' | null {
+function resolveChromeHarness(url: URL): 'composer-select' | 'motion-prototype' | 'popup-layer-overlap' | 'uxp-css-contract' | null {
   const harness = url.searchParams.get('harness');
-  if (harness === 'composer-select' || harness === 'motion-prototype' || harness === 'uxp-css-contract') {
+  if (harness === 'composer-select' || harness === 'motion-prototype' || harness === 'popup-layer-overlap' || harness === 'uxp-css-contract') {
     return harness;
   }
   return null;
@@ -44,6 +45,9 @@ try {
     globalThis.__IMAGEN_CHROME_RUNTIME__ = undefined;
   } else if (harness === 'motion-prototype') {
     root.render(<AppErrorBoundary runtime="chrome"><MotionPrototypeHarnessPage /></AppErrorBoundary>);
+    globalThis.__IMAGEN_CHROME_RUNTIME__ = undefined;
+  } else if (harness === 'popup-layer-overlap') {
+    root.render(<AppErrorBoundary runtime="chrome"><PopupLayerOverlapHarnessPage /></AppErrorBoundary>);
     globalThis.__IMAGEN_CHROME_RUNTIME__ = undefined;
   } else if (harness === 'uxp-css-contract') {
     root.render(<AppErrorBoundary runtime="chrome"><UxpCssContractHarnessPage /></AppErrorBoundary>);

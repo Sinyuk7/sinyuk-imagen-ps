@@ -16,6 +16,7 @@ interface ProviderAdvancedPathSectionProps {
   readonly paths: ApiPathDraft;
   readonly authModeMenuOpen: boolean;
   readonly disabled: boolean;
+  readonly wrapInSection?: boolean;
   readonly onAuthModeMenuOpenChange: (open: boolean) => void;
   readonly onPathChange: (next: Partial<ApiPathDraft>) => void;
 }
@@ -25,6 +26,7 @@ interface ProviderDefaultModelSectionProps {
   readonly loading: boolean;
   readonly discoverySupported: boolean;
   readonly canCreateModelConfig?: boolean;
+  readonly wrapInSection?: boolean;
   readonly modelMenuOpen: boolean;
   readonly profileModels?: readonly UiModelInfo[];
   readonly modelOptions: readonly { readonly id: string; readonly label: string }[];
@@ -104,6 +106,7 @@ export function ProviderAdvancedPathSection({
   paths,
   authModeMenuOpen,
   disabled,
+  wrapInSection = true,
   onAuthModeMenuOpenChange,
   onPathChange,
 }: ProviderAdvancedPathSectionProps) {
@@ -116,8 +119,8 @@ export function ProviderAdvancedPathSection({
     { id: 'bearer', label: 'Bearer' },
     { id: 'none', label: 'None' },
   ];
-  return (
-    <div className="section">
+  const content = (
+    <>
       <div className="section-title settings-section-heading">{t.settings.advancedSettings}</div>
       {apiFormat === 'openai-images' ? (
         <>
@@ -197,8 +200,9 @@ export function ProviderAdvancedPathSection({
           </div>
         </>
       ) : null}
-    </div>
+    </>
   );
+  return wrapInSection ? <div className="section">{content}</div> : <div className="provider-embedded-section">{content}</div>;
 }
 
 export function ProviderDefaultModelSection({
@@ -206,6 +210,7 @@ export function ProviderDefaultModelSection({
   loading,
   discoverySupported,
   canCreateModelConfig = false,
+  wrapInSection = true,
   modelMenuOpen,
   profileModels = [],
   modelOptions,
@@ -224,8 +229,8 @@ export function ProviderDefaultModelSection({
 }: ProviderDefaultModelSectionProps) {
   const { messages: t } = useI18n();
   const describedBy = modelFieldHelp?.id;
-  return (
-    <div className="section">
+  const content = (
+    <>
       <div className="settings-section-header">
         <div className="section-title settings-section-heading">{t.settings.defaultModel}</div>
         <div className="settings-section-header-actions">
@@ -356,8 +361,9 @@ export function ProviderDefaultModelSection({
           />
         </div>
       ) : null}
-    </div>
+    </>
   );
+  return wrapInSection ? <div className="section">{content}</div> : <div className="provider-embedded-section">{content}</div>;
 }
 
 export function ProviderSettingsFooter({

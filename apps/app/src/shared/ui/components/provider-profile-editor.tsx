@@ -1,4 +1,4 @@
-import { useEffect, useState, type ReactNode } from 'react';
+import { useState, type ReactNode } from 'react';
 import { Icon } from './icons';
 import { useI18n } from '../i18n/i18n-context';
 import { TextField, FieldLabel, HelpText, Checkbox } from '../primitives/native-controls';
@@ -17,7 +17,6 @@ import type { EndpointMeasurementResult } from '@imagen-ps/application';
 type ProviderConnectionUpdater = (connection: ProviderConnectionDraft) => ProviderConnectionDraft;
 
 interface ProviderProfileEditorProps {
-  readonly connectionTitle: string;
   readonly aliasValue: string;
   readonly onAliasValue: (value: string) => void;
   readonly aliasError?: string | null;
@@ -25,12 +24,12 @@ interface ProviderProfileEditorProps {
   readonly systemInstructionValue: string;
   readonly onSystemInstructionValue: (value: string) => void;
   readonly apiFormatLabel?: string;
-  readonly apiFormatDetail?: string | null;
+  readonly apiFormatStatus?: string | null;
+  readonly apiFormatHint?: string | null;
   readonly apiFormatTone?: 'neutral' | 'positive' | 'negative' | 'warning';
   readonly detectInputValue?: string;
   readonly onDetectInputValue?: (value: string) => void;
   readonly detectInputPlaceholder?: string;
-  readonly pathSettings?: ReactNode;
   readonly connection: ProviderConnectionDraft;
   readonly onConnectionChange: (updater: ProviderConnectionUpdater) => void;
   readonly baseUrlPlaceholder?: string;
@@ -40,16 +39,30 @@ interface ProviderProfileEditorProps {
   readonly measurementBusy?: boolean;
   readonly measurementSupported?: boolean;
   readonly onMeasure?: () => void;
+  readonly defaultModelSection?: ReactNode;
+  readonly balanceSection?: ReactNode;
   readonly apiKeyValue: string;
   readonly onApiKeyValue: (value: string) => void;
   readonly apiKeyPlaceholder: string;
   readonly showKey: boolean;
   readonly onShowKeyChange: (shown: boolean) => void;
   readonly apiKeySaved?: boolean;
-  readonly apiKeySavedHint?: string | null;
   readonly apiKeyRemovalPending?: boolean;
-  readonly onApiKeyRemove?: () => void;
+  readonly pathSettings?: ReactNode;
   readonly disabled?: boolean;
+}
+
+interface SecretFieldProps {
+  readonly label: string;
+  readonly inputId: string;
+  readonly testIdPrefix: string;
+  readonly value: string;
+  readonly placeholder: string;
+  readonly showValue: boolean;
+  readonly onValue: (value: string) => void;
+  readonly onShowValueChange: (shown: boolean) => void;
+  readonly disabled?: boolean;
+  readonly removalPending?: boolean;
 }
 
 function removeEndpoint(
@@ -113,8 +126,53 @@ function summarizeLatency(result: EndpointMeasurementResult | undefined, message
   return messages.settings.endpointFailed;
 }
 
+function SecretField({
+  label,
+  inputId,
+  testIdPrefix,
+  value,
+  placeholder,
+  showValue,
+  onValue,
+  onShowValueChange,
+  disabled = false,
+  removalPending = false,
+}: SecretFieldProps) {
+  const { messages: t } = useI18n();
+  return (
+    <div className="field">
+      <FieldLabel htmlFor={inputId}>{label}</FieldLabel>
+      <div className="field-input-affordance">
+        <TextField
+          data-testid={`${testIdPrefix}-input`}
+          id={inputId}
+          type={showValue ? 'text' : 'password'}
+          className="field-input mono ui-field-control field-input-embedded"
+          placeholder={placeholder}
+          value={value}
+          disabled={disabled}
+          onValue={onValue}
+        />
+        <IconButton
+          data-testid={`${testIdPrefix}-toggle`}
+          className="field-input-action"
+          compactSquare
+          icon={<Icon name={showValue ? 'eye-off' : 'eye'} size={14} />}
+          tooltip={showValue ? t.settings.hideApiKey : t.settings.showApiKey}
+          aria-label={showValue ? t.settings.hideApiKey : t.settings.showApiKey}
+          onClick={() => onShowValueChange(!showValue)}
+        />
+      </div>
+      {removalPending ? (
+        <HelpText data-testid={`${testIdPrefix}-removal-pending`} className="field-hint" variant="negative">
+          {t.settings.secretRemovalPending}
+        </HelpText>
+      ) : null}
+    </div>
+  );
+}
+
 export function ProviderProfileEditor({
-  connectionTitle,
   aliasValue,
   onAliasValue,
   aliasError = null,
@@ -122,12 +180,12 @@ export function ProviderProfileEditor({
   systemInstructionValue,
   onSystemInstructionValue,
   apiFormatLabel,
-  apiFormatDetail = null,
+  apiFormatStatus = null,
+  apiFormatHint = null,
   apiFormatTone = 'neutral',
   detectInputValue,
   onDetectInputValue,
   detectInputPlaceholder,
-  pathSettings,
   connection,
   onConnectionChange,
   baseUrlPlaceholder,
@@ -137,32 +195,25 @@ export function ProviderProfileEditor({
   measurementBusy = false,
   measurementSupported = true,
   onMeasure,
+  defaultModelSection,
+  balanceSection,
   apiKeyValue,
   onApiKeyValue,
   apiKeyPlaceholder,
   showKey,
   onShowKeyChange,
   apiKeySaved = false,
-  apiKeySavedHint = null,
   apiKeyRemovalPending = false,
-  onApiKeyRemove,
+  pathSettings,
   disabled = false,
 }: ProviderProfileEditorProps) {
   const { messages: t } = useI18n();
-  const [apiKeyEditing, setApiKeyEditing] = useState(false);
   const [hoveredEndpointId, setHoveredEndpointId] = useState<string | null>(null);
   const [draftEndpointVisible, setDraftEndpointVisible] = useState(false);
   const [draftEndpointUrl, setDraftEndpointUrl] = useState('');
   const [draftEndpointError, setDraftEndpointError] = useState<string | null>(null);
   const multiEndpoint = connection.endpoints.length > 1;
-
-  useEffect(() => {
-    setApiKeyEditing(!apiKeySaved || apiKeyValue.length > 0);
-  }, [apiKeySaved, apiKeyValue.length]);
-
-  const startApiKeyEdit = () => {
-    setApiKeyEditing(true);
-  };
+  const apiFormatInlineValue = apiFormatStatus ?? apiFormatHint ?? apiFormatLabel ?? t.settings.apiFormatAuto;
 
   const commitDraftEndpoint = () => {
     const value = sanitizeProviderEndpointUrl(draftEndpointUrl);
@@ -189,67 +240,32 @@ export function ProviderProfileEditor({
     setDraftEndpointVisible(false);
   };
 
-  const apiKeyInputVisible = apiKeyEditing || apiKeyRemovalPending || !apiKeySaved;
-  const showApiKeyToggle = apiKeyInputVisible && apiKeyValue.length > 0;
-
   return (
     <div className="settings-detail-layout">
       <div className="section">
-        <div className="section-title settings-section-heading">{connectionTitle}</div>
-        <div className="field">
-          <FieldLabel htmlFor="provider-alias-input">{t.settings.alias}</FieldLabel>
-          <TextField
-            data-testid="provider-alias-input"
-            id="provider-alias-input"
-            className="field-input ui-field-control"
-            placeholder={aliasPlaceholder}
-            value={aliasValue}
-            disabled={disabled}
-            onValue={onAliasValue}
-            onBlur={() => onAliasValue(sanitizeProviderDisplayName(aliasValue))}
-          />
-          {aliasError ? (
-            <HelpText data-testid="provider-alias-error" className="field-hint" variant="negative">
-              {aliasError}
-            </HelpText>
-          ) : null}
-        </div>
-
-        <div className="field">
-          <FieldLabel htmlFor="provider-api-format-status">{t.settings.apiFormat}</FieldLabel>
+        <div className="settings-inline-heading-row provider-api-format-row">
+          <div className="section-title settings-section-heading">{t.settings.apiFormat}</div>
           <div
             data-testid="provider-api-format-status"
             id="provider-api-format-status"
-            className={`test-status test-status-${apiFormatTone === 'positive' ? 'positive' : apiFormatTone === 'negative' ? 'negative' : 'neutral'}`}
+            className={`test-status provider-api-format-inline test-status-${apiFormatTone === 'positive' ? 'positive' : apiFormatTone === 'negative' ? 'negative' : 'neutral'}`}
           >
-            {apiFormatLabel ?? t.settings.apiFormatAuto}
+            {apiFormatInlineValue}
           </div>
-          {apiFormatDetail ? (
-            <HelpText
-              data-testid="provider-api-format-detail"
-              className="field-hint"
-              variant={apiFormatTone === 'negative' ? 'negative' : undefined}
-            >
-              {apiFormatDetail}
-            </HelpText>
-          ) : null}
         </div>
 
-        {onDetectInputValue ? (
-          <div className="field">
-            <FieldLabel htmlFor="provider-endpoint-detect-input">{t.settings.endpointOrPath}</FieldLabel>
-            <TextField
-              data-testid="provider-endpoint-detect-input"
-              id="provider-endpoint-detect-input"
-              className="field-input mono ui-field-control"
-              placeholder={detectInputPlaceholder ?? 'https://api.example.com/v1/chat/completions'}
-              value={detectInputValue ?? ''}
-              disabled={disabled}
-              onValue={onDetectInputValue}
-            />
-            <HelpText className="field-hint">{t.settings.endpointOrPathHint}</HelpText>
-          </div>
-        ) : null}
+        <SecretField
+          label="API Key"
+          inputId="provider-api-key-input"
+          testIdPrefix="provider-api-key"
+          value={apiKeyValue}
+          placeholder={apiKeySaved ? t.settings.apiKeyReplacePlaceholder : apiKeyPlaceholder}
+          showValue={showKey}
+          onValue={(value) => onApiKeyValue(sanitizeProviderSecretValue(value))}
+          onShowValueChange={onShowKeyChange}
+          disabled={disabled}
+          removalPending={apiKeyRemovalPending}
+        />
 
         <div className="field">
           <div className="settings-subsection-header">
@@ -283,6 +299,22 @@ export function ProviderProfileEditor({
               />
             </div>
           </div>
+
+          {onDetectInputValue ? (
+            <div className="field provider-endpoint-detect-field">
+              <FieldLabel htmlFor="provider-endpoint-detect-input">{t.settings.endpointOrPath}</FieldLabel>
+              <TextField
+                data-testid="provider-endpoint-detect-input"
+                id="provider-endpoint-detect-input"
+                className="field-input mono ui-field-control"
+                placeholder={detectInputPlaceholder ?? 'https://api.example.com/v1/chat/completions'}
+                value={detectInputValue ?? ''}
+                disabled={disabled}
+                onValue={onDetectInputValue}
+              />
+              <HelpText className="field-hint">{t.settings.endpointOrPathHint}</HelpText>
+            </div>
+          ) : null}
 
           <div className="field provider-endpoint-list">
             {connection.endpoints.map((endpoint, index) => {
@@ -396,95 +428,30 @@ export function ProviderProfileEditor({
               </div>
             ) : null}
           </div>
-        </div>
 
-        <div className="field provider-connection-options">
-          <Checkbox
-            data-testid="provider-selection-mode-auto"
-            className="provider-connection-option"
-            checked={connection.selectionMode === 'auto'}
-            disabled={disabled}
-            onChecked={(checked) => onConnectionChange((current) => ({
-              ...current,
-              selectionMode: checked ? 'auto' : 'manual',
-              selectedEndpointId: checked ? undefined : current.selectedEndpointId ?? current.endpoints.find((endpoint) => endpoint.enabled)?.id,
-            }))}
-          >
-            {t.settings.autoSelect}
-          </Checkbox>
-          {connection.selectionMode === 'auto' ? (
-            <HelpText className="field-hint">{t.settings.autoSelectManaged}</HelpText>
-          ) : null}
+          <div className="field provider-connection-options">
+            <Checkbox
+              data-testid="provider-selection-mode-auto"
+              className="provider-connection-option"
+              checked={connection.selectionMode === 'auto'}
+              disabled={disabled}
+              onChecked={(checked) => onConnectionChange((current) => ({
+                ...current,
+                selectionMode: checked ? 'auto' : 'manual',
+                selectedEndpointId: checked ? undefined : current.selectedEndpointId ?? current.endpoints.find((endpoint) => endpoint.enabled)?.id,
+              }))}
+            >
+              {t.settings.autoSelect}
+            </Checkbox>
+            {connection.selectionMode === 'auto' ? (
+              <HelpText className="field-hint">{t.settings.autoSelectManaged}</HelpText>
+            ) : null}
+          </div>
         </div>
 
         {pathSettings}
 
-        <div className="field">
-          <div className="settings-field-header">
-            <FieldLabel htmlFor="provider-api-key-input">API Key</FieldLabel>
-            <div className="settings-field-header-actions">
-              {apiKeySaved && !apiKeyRemovalPending ? (
-                <span data-testid="provider-api-key-saved-meta" className="settings-secret-meta-inline">
-                  {apiKeySavedHint}
-                </span>
-              ) : null}
-              {!apiKeyInputVisible && apiKeySaved ? (
-                <IconButton
-                  data-testid="provider-api-key-edit"
-                  className="settings-icon-button"
-                  compactSquare
-                  icon={<Icon name="pencil" size={16} />}
-                  tooltip={t.settings.editApiKey}
-                  aria-label={t.settings.editApiKey}
-                  disabled={disabled}
-                  onClick={startApiKeyEdit}
-                />
-              ) : null}
-              {apiKeySaved ? (
-                <IconButton
-                  data-testid="provider-api-key-remove"
-                  className="settings-icon-button danger"
-                  compactSquare
-                  icon={<Icon name="trash" size={16} />}
-                  tooltip={t.settings.removeSecret}
-                  aria-label={t.settings.removeSecret}
-                  disabled={disabled}
-                  onClick={() => onApiKeyRemove?.()}
-                />
-              ) : null}
-            </div>
-          </div>
-          {apiKeyInputVisible ? (
-            <div className="field-input-affordance">
-              <TextField
-                data-testid="provider-api-key-input"
-                id="provider-api-key-input"
-                type={showKey ? 'text' : 'password'}
-                className="field-input mono ui-field-control field-input-embedded"
-                placeholder={apiKeySaved ? t.settings.apiKeyReplacePlaceholder : apiKeyPlaceholder}
-                value={apiKeyValue}
-                disabled={disabled}
-                onValue={(value) => onApiKeyValue(sanitizeProviderSecretValue(value))}
-              />
-              {showApiKeyToggle ? (
-                <IconButton
-                  data-testid="provider-api-key-toggle"
-                  className="field-input-action"
-                  compactSquare
-                  icon={<Icon name={showKey ? 'eye-off' : 'eye'} size={14} />}
-                  tooltip={showKey ? t.settings.hideApiKey : t.settings.showApiKey}
-                  aria-label={showKey ? t.settings.hideApiKey : t.settings.showApiKey}
-                  onClick={() => onShowKeyChange(!showKey)}
-                />
-              ) : null}
-            </div>
-          ) : null}
-          {apiKeyRemovalPending ? (
-            <HelpText data-testid="provider-api-key-removal-pending" className="field-hint" variant="negative">
-              {t.settings.secretRemovalPending}
-            </HelpText>
-          ) : null}
-        </div>
+        {defaultModelSection}
 
         <div className="field field-textarea provider-system-instructions-field">
           <FieldLabel htmlFor="provider-system-instructions-input">{t.settings.systemInstructions}</FieldLabel>
@@ -498,6 +465,27 @@ export function ProviderProfileEditor({
             hint={<HelpText className="field-hint">{t.settings.systemInstructionsHint}</HelpText>}
           />
         </div>
+
+        <div className="field">
+          <FieldLabel htmlFor="provider-alias-input">{t.settings.alias}</FieldLabel>
+          <TextField
+            data-testid="provider-alias-input"
+            id="provider-alias-input"
+            className="field-input ui-field-control"
+            placeholder={aliasPlaceholder}
+            value={aliasValue}
+            disabled={disabled}
+            onValue={onAliasValue}
+            onBlur={() => onAliasValue(sanitizeProviderDisplayName(aliasValue))}
+          />
+          {aliasError ? (
+            <HelpText data-testid="provider-alias-error" className="field-hint" variant="negative">
+              {aliasError}
+            </HelpText>
+          ) : null}
+        </div>
+
+        {balanceSection}
       </div>
     </div>
   );

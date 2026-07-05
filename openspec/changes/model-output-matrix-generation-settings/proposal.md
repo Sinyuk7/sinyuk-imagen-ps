@@ -1,3 +1,6 @@
+> Superseded by `unify-image-output-capability-schema`.
+> This change assumes fixed `imageSize + ratio + outputFormat` matrix truth and should no longer be used as the implementation basis.
+
 ## Why
 
 当前 `Generation Settings` 是全局 app 偏好，UI 选择的 `outputSizePreset`、`aspectRatio`、`outputFormat` 会在 provider transport 中继续被推导或降级，导致“界面所选”不等于“实际发送”。本变更将模型输出参数收敛为 catalog 单一数据源，让 MainPage 与 Settings 页展示、保存、发送同一份当前模型参数。

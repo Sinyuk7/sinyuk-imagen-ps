@@ -497,7 +497,6 @@ export function SettingsAddPage({ onNav, profiles, onProfileSaved }: SettingsAdd
 
       <div className="scroll scroll-footer-pad">
         <ProviderProfileEditor
-          connectionTitle={t.settings.config}
           aliasValue={name}
           onAliasValue={(value) => {
             nameTouchedRef.current = true;
@@ -508,20 +507,11 @@ export function SettingsAddPage({ onNav, profiles, onProfileSaved }: SettingsAdd
           systemInstructionValue={systemInstruction}
           onSystemInstructionValue={setSystemInstruction}
           apiFormatLabel={apiFormatLabel(apiFormat)}
-          apiFormatTone={apiFormatFeedback?.tone ?? (apiFormat ? 'positive' : 'neutral')}
-          apiFormatDetail={apiFormatFeedback?.message ?? (!apiFormat ? t.settings.apiFormatNeedsPath : null)}
+          apiFormatStatus={apiFormat ? apiFormatLabel(apiFormat) : null}
+          apiFormatHint={apiFormatFeedback?.message ?? (!apiFormat ? t.settings.apiFormatNeedsPath : null)}
+          apiFormatTone={apiFormat ? 'positive' : (apiFormatFeedback?.tone ?? 'neutral')}
           detectInputValue={detectionValue}
           onDetectInputValue={applyDetectionInput}
-          pathSettings={(
-            <ProviderAdvancedPathSection
-              apiFormat={apiFormat}
-              paths={paths}
-              authModeMenuOpen={authModeMenuOpen}
-              disabled={saveBusy}
-              onAuthModeMenuOpenChange={setAuthModeMenuOpen}
-              onPathChange={updatePath}
-            />
-          )}
           connection={connection}
           onConnectionChange={applyConnectionChange}
           baseUrlPlaceholder="https://api.example.com"
@@ -531,6 +521,55 @@ export function SettingsAddPage({ onNav, profiles, onProfileSaved }: SettingsAdd
           measurementBusy={modelCatalog.refreshBusy}
           measurementSupported={measurementSupported}
           onMeasure={() => void handleMeasure()}
+          defaultModelSection={(
+            <ProviderDefaultModelSection
+              wrapInSection={false}
+              disabled={saveBusy}
+              loading={modelCatalog.loading}
+              discoverySupported={measurementSupported}
+              modelMenuOpen={modelMenuOpen}
+              modelOptions={modelOptions}
+              defaultModel={defaultModel}
+              triggerValue={modelOptions.find((option) => option.id === defaultModel)?.label ?? t.settings.chooseFromList}
+              modelFieldHelp={
+                !measurementSupported
+                  ? {
+                      id: 'provider-model-discovery-help',
+                      testId: 'provider-model-discovery-help',
+                      message: t.settings.modelDiscoveryFieldHelp,
+                    }
+                  : null
+              }
+              listNotice={
+                modelCatalog.stale
+                  ? { tone: 'warning', message: t.settings.modelListStale }
+                  : modelOptions.length === 0
+                    ? { tone: 'info', message: t.settings.modelListEmpty }
+                    : null
+              }
+              onRefresh={() => void modelCatalog.refresh()}
+              onModelMenuOpenChange={setModelMenuOpen}
+              onDefaultModelSelect={(id) => {
+                setDefaultModel(id);
+                setModelMenuOpen(false);
+                invalidateDraftProofs();
+              }}
+            />
+          )}
+          balanceSection={(
+            <div className="provider-embedded-section">
+              <div className="section-title settings-section-heading">{t.settings.billing}</div>
+              <ProviderBillingSettings
+                billing={billing}
+                onBillingChange={applyBillingChange}
+                billingModeOptions={billingModeOptions(selected)}
+                modeMenuOpen={billingModeMenuOpen}
+                onModeMenuOpenChange={setBillingModeMenuOpen}
+                disabled={saveBusy}
+                accessTokenPlaceholder="sk-..."
+              />
+            </div>
+          )}
           apiKeyValue={apiKey}
           onApiKeyValue={(value) => {
             setApiKey(sanitizeProviderSecretValue(value));
@@ -540,52 +579,19 @@ export function SettingsAddPage({ onNav, profiles, onProfileSaved }: SettingsAdd
           showKey={showKey}
           onShowKeyChange={setShowKey}
           apiKeySaved={false}
+          pathSettings={(
+            <ProviderAdvancedPathSection
+              wrapInSection={false}
+              apiFormat={apiFormat}
+              paths={paths}
+              authModeMenuOpen={authModeMenuOpen}
+              disabled={saveBusy}
+              onAuthModeMenuOpenChange={setAuthModeMenuOpen}
+              onPathChange={updatePath}
+            />
+          )}
           disabled={saveBusy}
         />
-          <ProviderDefaultModelSection
-            disabled={saveBusy}
-            loading={modelCatalog.loading}
-            discoverySupported={measurementSupported}
-            modelMenuOpen={modelMenuOpen}
-            modelOptions={modelOptions}
-            defaultModel={defaultModel}
-            triggerValue={modelOptions.find((option) => option.id === defaultModel)?.label ?? t.settings.chooseFromList}
-            modelFieldHelp={
-              !measurementSupported
-                ? {
-                    id: 'provider-model-discovery-help',
-                    testId: 'provider-model-discovery-help',
-                    message: t.settings.modelDiscoveryFieldHelp,
-                  }
-                : null
-            }
-            listNotice={
-              modelCatalog.stale
-                  ? { tone: 'warning', message: t.settings.modelListStale }
-                  : modelOptions.length === 0
-                    ? { tone: 'info', message: t.settings.modelListEmpty }
-                    : null
-            }
-            onRefresh={() => void modelCatalog.refresh()}
-            onModelMenuOpenChange={setModelMenuOpen}
-            onDefaultModelSelect={(id) => {
-              setDefaultModel(id);
-              setModelMenuOpen(false);
-              invalidateDraftProofs();
-            }}
-          />
-          <div className="section">
-            <div className="section-title settings-section-heading">{t.settings.billing}</div>
-            <ProviderBillingSettings
-              billing={billing}
-              onBillingChange={applyBillingChange}
-              billingModeOptions={billingModeOptions(selected)}
-              modeMenuOpen={billingModeMenuOpen}
-              onModeMenuOpenChange={setBillingModeMenuOpen}
-              disabled={saveBusy}
-              accessTokenPlaceholder="sk-..."
-            />
-          </div>
       </div>
 
       <ProviderSettingsFooter
