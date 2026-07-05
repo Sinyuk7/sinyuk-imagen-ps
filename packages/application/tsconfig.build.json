@@ -3,7 +3,8 @@
   "compilerOptions": {
     "declaration": true,
     "declarationMap": true,
-    "noEmit": false
+    "noEmit": false,
+    "lib": ["ES2022", "DOM"]
   },
   "include": ["src"]
 }

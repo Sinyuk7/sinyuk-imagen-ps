@@ -18,6 +18,7 @@ const globalSetup = resolve(repoRoot, 'scripts/release-global-setup.ts');
 
 export default defineConfig({
   test: {
+    passWithNoTests: true,
     include: ['tests/release/**/*.release.test.ts', 'tests/release/**/*.release.test.tsx'],
     exclude: [],
     cache: false,

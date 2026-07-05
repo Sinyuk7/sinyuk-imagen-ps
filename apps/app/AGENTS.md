@@ -65,7 +65,7 @@ Translate UI actions, status labels, empty states, placeholders, toasts, and too
 
 `apps/app` owns the shared UI motion system, driven by `@tweenjs/tween.js` through `apps/app/src/shared/ui/motion/`. The system is opacity-first. Transform is allowed only through the motion layer writing DOM `style.transform`; the transform guard accepts only `translateX`, `translateY`, `scale`, `scaleX`, and `scaleY`. It rejects rotate, skew, matrix, perspective, `translate3d`, and `scale3d`.
 
-`apps/app/public/manifest.json` declares `featureFlags.CSSNextSupport: true`, required before using UXP transform support. CSS transitions, CSS animations, keyframes, and CSS `transform:` remain banned outside the motion layer. `apps/app/tests/shared/ui/uxp-css-compat.test.ts` is the mechanical guard.
+`apps/app/public/manifest.json` declares `featureFlags.CSSNextSupport: true`, required before using UXP transform support. CSS transitions, CSS animations, keyframes, and CSS `transform:` remain banned outside the motion layer. The long-term mechanical guard belongs in the app's small permanent UI/UXP contract suite, not in a growing per-bug file set.
 
 Motion ownership must not move into `packages/application`, `packages/core-engine`, or `packages/providers`. A single visual node should have one motion owner per CSS property.
 
@@ -207,7 +207,7 @@ Shared UI and local UI harness CSS in `apps/app` must stay inside the Adobe-docu
 Mechanical enforcement:
 
 - `pnpm check:policy` scans `apps/app/src/shared/ui` and `apps/app/src/harness` for UXP CSS contract violations.
-- `pnpm --filter @imagen-ps/app test` includes `tests/shared/ui/uxp-css-compat.test.ts`, which rechecks the same contract in the app harness.
+- App test coverage for this contract should live in the app's small permanent UI/UXP contract suite rather than file-per-bug harness tests.
 
 ## Current Structure
 
