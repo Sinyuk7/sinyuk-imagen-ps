@@ -1,16 +1,13 @@
 import type { ReactNode } from 'react';
 import type { ApiFormat } from '@imagen-ps/application';
 import { useI18n } from '../i18n/i18n-context';
-import { Button, Checkbox, FieldLabel, HelpText, TextField } from '../primitives/native-controls';
+import { Button, FieldLabel, HelpText, TextField } from '../primitives/native-controls';
 import { IconButton } from '../primitives/icon-button';
 import { TextSelect } from './text-select';
 import { Icon } from './icons';
 import { FieldHelp } from './field-help';
 import { StatusNotice } from './status-notice';
 import type { ApiPathDraft } from '../hooks/use-provider-settings';
-import type { UiModelInfo } from '../model-info';
-import { modelDisplayName } from '../model-info';
-
 interface ProviderAdvancedPathSectionProps {
   readonly apiFormat: ApiFormat | null;
   readonly paths: ApiPathDraft;
@@ -24,11 +21,9 @@ interface ProviderAdvancedPathSectionProps {
 interface ProviderDefaultModelSectionProps {
   readonly disabled: boolean;
   readonly loading: boolean;
-  readonly discoverySupported: boolean;
   readonly canCreateModelConfig?: boolean;
   readonly wrapInSection?: boolean;
   readonly modelMenuOpen: boolean;
-  readonly profileModels?: readonly UiModelInfo[];
   readonly modelOptions: readonly { readonly id: string; readonly label: string }[];
   readonly defaultModel: string;
   readonly triggerValue: string;
@@ -38,23 +33,14 @@ interface ProviderDefaultModelSectionProps {
     readonly tone?: 'neutral' | 'negative';
     readonly testId?: string;
   } | null;
-  readonly listNotice?: {
+  readonly emptyStateNotice?: {
     readonly tone: 'info' | 'warning';
     readonly message: string;
     readonly detail?: string | null;
-    readonly copyText?: string | null;
-  } | null;
-  readonly modelStatusNotice?: {
-    readonly tone: 'info' | 'warning';
-    readonly message: string;
     readonly actionLabel?: string;
     readonly onAction?: () => void;
   } | null;
-  readonly onToggleModelSelected?: (id: string, selected: boolean) => void;
-  readonly onEditModelConfig?: (model: UiModelInfo) => void;
-  readonly onConfigureModel?: (model: UiModelInfo) => void;
   readonly onCreateModelConfig?: () => void;
-  readonly onRefresh: () => void;
   readonly onModelMenuOpenChange: (open: boolean) => void;
   readonly onDefaultModelSelect: (id: string) => void;
 }
@@ -208,22 +194,15 @@ export function ProviderAdvancedPathSection({
 export function ProviderDefaultModelSection({
   disabled,
   loading,
-  discoverySupported,
   canCreateModelConfig = false,
   wrapInSection = true,
   modelMenuOpen,
-  profileModels = [],
   modelOptions,
   defaultModel,
   triggerValue,
   modelFieldHelp = null,
-  listNotice = null,
-  modelStatusNotice = null,
-  onToggleModelSelected,
-  onEditModelConfig,
-  onConfigureModel,
+  emptyStateNotice = null,
   onCreateModelConfig,
-  onRefresh,
   onModelMenuOpenChange,
   onDefaultModelSelect,
 }: ProviderDefaultModelSectionProps) {
@@ -232,18 +211,8 @@ export function ProviderDefaultModelSection({
   const content = (
     <>
       <div className="settings-section-header">
-        <div className="section-title settings-section-heading">{t.settings.defaultModel}</div>
+        <div className="section-title settings-section-heading">{t.settings.selectedModel}</div>
         <div className="settings-section-header-actions">
-          <IconButton
-            data-testid="provider-refresh-models-button"
-            className="settings-icon-button"
-            compactSquare
-            disabled={loading || disabled || !discoverySupported}
-            icon={<Icon name="refresh" size={16} className={loading ? 'spin' : undefined} />}
-            tooltip={!discoverySupported ? t.settings.modelDiscoveryUnsupported : loading ? t.settings.refreshingModels : t.settings.refreshModels}
-            aria-label={!discoverySupported ? t.settings.modelDiscoveryUnsupported : loading ? t.settings.refreshingModels : t.settings.refreshModels}
-            onClick={onRefresh}
-          />
           {canCreateModelConfig ? (
             <IconButton
               data-testid="provider-add-model-config-button"
@@ -260,7 +229,7 @@ export function ProviderDefaultModelSection({
       </div>
       <div className="field">
         <TextSelect
-          label={t.settings.defaultModel}
+          label={t.settings.selectedModel}
           value={triggerValue}
           disabled={disabled || loading || modelOptions.length === 0}
           open={modelMenuOpen}
@@ -285,77 +254,16 @@ export function ProviderDefaultModelSection({
           </FieldHelp>
         ) : null}
       </div>
-      {listNotice ? (
-        <div data-testid="provider-model-list-notice">
+      {emptyStateNotice ? (
+        <div data-testid="provider-model-empty-notice">
           <StatusNotice
-            tone={listNotice.tone}
-            message={listNotice.message}
-            detail={listNotice.detail ?? null}
-            copyText={listNotice.copyText ?? null}
-          />
-        </div>
-      ) : null}
-      <div className="field">
-        <div className="settings-subsection-heading">{t.settings.modelConfigProfileList}</div>
-        {profileModels.length === 0 ? (
-          <HelpText className="field-hint">{t.settings.modelConfigSelectedEmpty}</HelpText>
-        ) : (
-          <div className="model-config-list provider-model-config-list">
-            {profileModels.map((model) => {
-              const configured = model.configured === true;
-              const selected = model.selected === true;
-              const actionLabel = configured ? t.settings.modelConfigEditModel : t.settings.modelConfigConfigureModel;
-              return (
-                <div
-                  key={model.id}
-                  data-testid={`provider-model-row-${model.id}`}
-                  className={`prompt-preset-row model-config-row provider-model-row${selected ? ' is-selected' : ''}${configured ? '' : ' is-invalid'}`}
-                >
-                  <div className="prompt-preset-row-main model-config-row-main provider-model-row-main">
-                    <Checkbox
-                      data-testid={`provider-model-checkbox-${model.id}`}
-                      checked={selected}
-                      disabled={disabled || !configured}
-                      className={`model-config-checkbox provider-model-checkbox${model.default === true ? ' is-default' : ''}`}
-                      onChecked={(checked) => onToggleModelSelected?.(model.id, checked)}
-                    >
-                      {modelDisplayName(model)}
-                    </Checkbox>
-                    <span className="prompt-preset-mode">
-                      {configured ? t.settings.modelConfigUserSource : t.settings.modelConfigUnconfigured}
-                    </span>
-                    <IconButton
-                      data-testid={`provider-model-configure-${model.id}`}
-                      className="settings-icon-button prompt-preset-action"
-                      compactSquare
-                      quiet
-                      icon={<Icon name={configured ? 'pencil' : 'algorithm'} size={16} />}
-                      tooltip={actionLabel}
-                      aria-label={actionLabel}
-                      onClick={() => {
-                        if (configured) {
-                          onEditModelConfig?.(model);
-                          return;
-                        }
-                        onConfigureModel?.(model);
-                      }}
-                    />
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-        )}
-      </div>
-      {modelStatusNotice ? (
-        <div data-testid="provider-model-status-notice">
-          <StatusNotice
-            tone={modelStatusNotice.tone}
-            message={modelStatusNotice.message}
-            action={modelStatusNotice.actionLabel && modelStatusNotice.onAction
+            tone={emptyStateNotice.tone}
+            message={emptyStateNotice.message}
+            detail={emptyStateNotice.detail ?? null}
+            action={emptyStateNotice.actionLabel && emptyStateNotice.onAction
               ? {
-                  label: modelStatusNotice.actionLabel,
-                  onAction: modelStatusNotice.onAction,
+                  label: emptyStateNotice.actionLabel,
+                  onAction: emptyStateNotice.onAction,
                 }
               : null}
           />

@@ -152,6 +152,10 @@ function mergeDiscoveredModelsWithKnownState(
 }
 
 export interface ProviderDraftModelCatalogOptions {
+  /**
+   * @deprecated Settings/Profile UI 已不再走 discovery 主路径；该 hook 仅留给
+   * 旧链路和过渡代码，新增 UI 不应继续依赖。
+   */
   readonly services: AppServices;
   readonly persistedProfileId: string | null;
   readonly persistedRevisionKey?: string;
@@ -176,7 +180,6 @@ export interface ProviderDraftModelCatalogState {
   readonly refreshBusy: boolean;
   readonly loading: boolean;
   readonly error: string | null;
-  readonly stale: boolean;
   readonly measurementResults: readonly EndpointMeasurementResult[];
   readonly resolvedEndpointId?: string;
   readonly refresh: () => Promise<readonly UiModelInfo[]>;
@@ -203,14 +206,12 @@ export function useProviderDraftModelCatalog(
   } = options;
   const persisted = useProfileModels(services, persistedProfileId, persistedRevisionKey);
   const [draftModels, setDraftModels] = useState<readonly UiModelInfo[] | null>(null);
-  const [stale, setStale] = useState(false);
   const [measurementResults, setMeasurementResults] = useState<readonly EndpointMeasurementResult[]>([]);
   const [resolvedEndpointId, setResolvedEndpointId] = useState<string | undefined>();
   const [refreshBusy, setRefreshBusy] = useState(false);
 
   useEffect(() => {
     setDraftModels(null);
-    setStale(false);
     setMeasurementResults([]);
     setResolvedEndpointId(undefined);
     setRefreshBusy(false);
@@ -244,18 +245,11 @@ export function useProviderDraftModelCatalog(
 
   const invalidate = useCallback(() => {
     clearProofs();
-    if (!discoverySupported) {
-      return;
-    }
-    if (draftModels || persisted.models.length > 0) {
-      setStale(true);
-    }
-  }, [clearProofs, discoverySupported, draftModels, persisted.models.length]);
+  }, [clearProofs]);
 
   const applyProbeResult = useCallback((result: MeasureProfileEndpointsResult) => {
     setMeasurementResults(result.results);
     setResolvedEndpointId(result.resolvedEndpointId);
-    setStale(false);
   }, []);
 
   const applyConnectionTestResult = useCallback((result: ProviderProfileConnectionTestResult) => {
@@ -266,7 +260,6 @@ export function useProviderDraftModelCatalog(
         current ?? (persisted.models.length > 0 ? persisted.models : fallbackModels),
         configuredDefaultModel,
       ));
-      setStale(false);
     }
   }, [configuredDefaultModel, fallbackModels, persisted.models]);
 
@@ -283,13 +276,11 @@ export function useProviderDraftModelCatalog(
         }
         const value = result.value.map(modelInfoFromProfileItem);
         setDraftModels(value);
-        setStale(false);
         clearProofs();
         return value;
       }
       const value = await persisted.refresh();
       setDraftModels(null);
-      setStale(false);
       clearProofs();
       return value;
     } finally {
@@ -314,7 +305,6 @@ export function useProviderDraftModelCatalog(
     refreshBusy,
     loading: persisted.loading || refreshBusy,
     error: persisted.error,
-    stale,
     measurementResults,
     resolvedEndpointId,
     refresh,

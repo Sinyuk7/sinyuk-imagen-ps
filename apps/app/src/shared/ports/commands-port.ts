@@ -21,6 +21,7 @@ export interface CommandsPort {
   readonly testProviderProfile: typeof commands.testProviderProfile;
   readonly testProviderProfileConnection: typeof commands.testProviderProfileConnection;
   readonly measureProfileEndpoints: typeof commands.measureProfileEndpoints;
+  /** @deprecated Settings/Profile UI 已退出主路径；仅保留给底层兼容链路。 */
   readonly refreshDraftProfileModels: typeof commands.refreshDraftProfileModels;
   readonly refreshProfileBalance: typeof commands.refreshProfileBalance;
   readonly getProfileBillingState: typeof commands.getProfileBillingState;
@@ -34,6 +35,7 @@ export interface CommandsPort {
   readonly saveModelGenerationPreference: typeof commands.saveModelGenerationPreference;
   readonly deleteModelGenerationPreference: typeof commands.deleteModelGenerationPreference;
   readonly listProfileModels: typeof commands.listProfileModels;
+  /** @deprecated Settings/Profile UI 已退出主路径；仅保留给底层兼容链路。 */
   readonly refreshProfileModels: typeof commands.refreshProfileModels;
 }
 

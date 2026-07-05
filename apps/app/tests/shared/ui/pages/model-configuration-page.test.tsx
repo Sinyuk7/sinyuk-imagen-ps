@@ -175,4 +175,30 @@ describe('ModelConfigurationPage', () => {
 
     expect(container.textContent).toContain('Saving will normalize it to shared format, ratio, and resolution rules.');
   });
+
+  it('prefills create flow from profile-originated apiFormat without auto-filling model id', async () => {
+    const { services } = createFakeServices();
+    const container = document.createElement('div');
+    document.body.appendChild(container);
+    root = createRoot(container);
+
+    await act(async () => {
+      root!.render(
+        <TestAppProviders services={services} locale="en">
+          <div className="panel">
+            <ModelConfigurationPage
+              onNav={() => undefined}
+              initialEditorState={{ source: 'profile-add', apiFormat: 'openai-chat-completions', modelId: null }}
+            />
+          </div>
+        </TestAppProviders>,
+      );
+    });
+    await flush();
+    await flush();
+
+    const modelIdInput = container.querySelector<HTMLInputElement>('[data-testid="model-config-model-id"]');
+    expect(container.querySelector('[data-testid="model-config-save-button"]')).not.toBeNull();
+    expect(modelIdInput?.value ?? '').toBe('');
+  });
 });

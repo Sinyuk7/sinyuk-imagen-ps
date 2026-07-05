@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import type { ApiFormat, ProviderModelInfo, ProviderProfile } from '@imagen-ps/application';
+import type { ApiFormat, ProviderProfile, UserModelConfig } from '@imagen-ps/application';
 import { useAppServices } from '../../ports/app-services-context';
 import {
   apiFormatLabel,
@@ -11,12 +11,10 @@ import {
   descriptorForApiFormat,
   mergeApiPathDraft,
   normalizeProviderConnectionDraft,
-  providerProfileUpsertCapabilities,
   providerConfigFromForm,
   sanitizeProviderDisplayName,
   sanitizeProviderEndpointUrl,
   sanitizeProviderSecretValue,
-  useProviderDraftModelCatalog,
   useProviderCatalog,
   type ApiPathDraft,
   type ProviderBillingDraft,
@@ -42,6 +40,11 @@ interface SettingsAddPageProps {
   readonly onNav: (view: string) => void;
   readonly profiles: readonly ProviderProfile[];
   readonly onProfileSaved: (profileId: string, options: { readonly useProvider: boolean; readonly message: string }) => Promise<void>;
+  readonly onOpenModelConfiguration?: (input: {
+    readonly source: 'profile-add';
+    readonly apiFormat: ProviderProfile['apiFormat'];
+    readonly modelId?: string | null;
+  }) => void;
 }
 
 type ConnectionUpdater = (connection: ProviderConnectionDraft) => ProviderConnectionDraft;
@@ -98,7 +101,7 @@ function duplicateEndpointErrors(
   return errors;
 }
 
-export function SettingsAddPage({ onNav, profiles, onProfileSaved }: SettingsAddPageProps) {
+export function SettingsAddPage({ onNav, profiles, onProfileSaved, onOpenModelConfiguration }: SettingsAddPageProps) {
   const services = useAppServices();
   const { messages: t } = useI18n();
   const { show } = useToast();
@@ -120,13 +123,15 @@ export function SettingsAddPage({ onNav, profiles, onProfileSaved }: SettingsAdd
   const [showKey, setShowKey] = useState(false);
   const [saveBusy, setSaveBusy] = useState(false);
   const [connectionTestBusy, setConnectionTestBusy] = useState(false);
+  const [modelOptions, setModelOptions] = useState<readonly { readonly id: string; readonly label: string }[]>([]);
+  const [modelOptionsLoading, setModelOptionsLoading] = useState(false);
+  const [modelOptionsError, setModelOptionsError] = useState<string | null>(null);
   const nameTouchedRef = useRef(false);
   const connectionRef = useRef(connection);
   const billingRef = useRef(billing);
   const saveBusyRef = useRef(false);
   const connectionTestBusyRef = useRef(false);
   const selected = useMemo(() => descriptorForApiFormat(providers, apiFormat), [apiFormat, providers]);
-  const capabilities = providerProfileUpsertCapabilities(null);
   const measurementSupported = Boolean(selected && selected.connectivity?.endpointMeasurement !== 'unsupported');
   const connectionTestSupported = Boolean(selected && selected.connectivity?.connectionTest !== 'unsupported');
   const normalizedName = sanitizeProviderDisplayName(name);
@@ -152,24 +157,53 @@ export function SettingsAddPage({ onNav, profiles, onProfileSaved }: SettingsAdd
     billingRef.current = billing;
   }, [billing]);
 
-  const modelCatalog = useProviderDraftModelCatalog({
-    services,
-    persistedProfileId: null,
-    configuredDefaultModel: defaultModel,
-    descriptorDefaultModels: selected?.defaultModels as readonly ProviderModelInfo[] | undefined,
-    discoverySupported: measurementSupported,
-    canRefreshPersistedModelCache: capabilities.canRefreshPersistedModelCache,
-    isDraftDirty: Boolean(apiFormat),
-    resetKey: `${apiFormat ?? 'none'}:${profileId}`,
-    refreshDraftModels: async () => services.commands.refreshDraftProfileModels(
-      buildDraftCommandInput(connectionRef.current, billingRef.current),
-    ),
-  });
+  const invalidateDraftProofs = () => undefined;
 
-  const modelOptions = modelCatalog.options;
-  const invalidateDraftProofs = () => {
-    modelCatalog.invalidate();
-  };
+  useEffect(() => {
+    if (!apiFormat) {
+      setModelOptions([]);
+      setModelOptionsLoading(false);
+      setModelOptionsError(null);
+      return;
+    }
+    let cancelled = false;
+    setModelOptionsLoading(true);
+    void services.commands.listUserModelConfigs(apiFormat)
+      .then((result: Awaited<ReturnType<typeof services.commands.listUserModelConfigs>>) => {
+        if (cancelled) {
+          return;
+        }
+        if (!result.ok) {
+          setModelOptions([]);
+          setModelOptionsError(`${result.error.category}: ${result.error.message}`);
+          return;
+        }
+        const nextOptions = result.value.map((config: UserModelConfig) => ({
+          id: config.modelId,
+          label: config.modelId,
+        }));
+        setModelOptions(nextOptions);
+        setModelOptionsError(null);
+        if (defaultModel && !nextOptions.some((option) => option.id === defaultModel)) {
+          setDefaultModel('');
+        }
+      })
+      .catch((error: unknown) => {
+        if (cancelled) {
+          return;
+        }
+        setModelOptions([]);
+        setModelOptionsError(error instanceof Error ? error.message : String(error));
+      })
+      .finally(() => {
+        if (!cancelled) {
+          setModelOptionsLoading(false);
+        }
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [apiFormat, defaultModel, services.commands]);
 
   const applyImportedEndpoint = async (
     rawValue: string,
@@ -280,12 +314,10 @@ export function SettingsAddPage({ onNav, profiles, onProfileSaved }: SettingsAdd
     try {
       const result = await services.commands.measureProfileEndpoints({
         ...buildDraftCommandInput(nextConnection, billingRef.current),
-        currentResolvedEndpointId: modelCatalog.resolvedEndpointId,
       });
       if (!result.ok) {
         throw new Error(`${result.error.category}: ${result.error.message}`);
       }
-      modelCatalog.applyProbeResult(result.value);
       const status = statusFromEndpointMeasurementResult(result.value, t);
       show(status.message, status.tone, {
         key: 'settings-add-endpoint-probe',
@@ -313,7 +345,6 @@ export function SettingsAddPage({ onNav, profiles, onProfileSaved }: SettingsAdd
       if (!result.ok) {
         throw new Error(`${result.error.category}: ${result.error.message}`);
       }
-      modelCatalog.applyConnectionTestResult(result.value);
       const status = statusFromProviderConnectionTestResult(result.value, t);
       show(status.message, status.tone, {
         key: 'settings-add-connection-test',
@@ -516,38 +547,48 @@ export function SettingsAddPage({ onNav, profiles, onProfileSaved }: SettingsAdd
           onConnectionChange={applyConnectionChange}
           baseUrlPlaceholder="https://api.example.com"
           endpointErrors={endpointErrors}
-          measurementResults={connectionProbeResultById(modelCatalog.measurementResults)}
-          resolvedEndpointId={modelCatalog.resolvedEndpointId}
-          measurementBusy={modelCatalog.refreshBusy}
+          measurementResults={connectionProbeResultById([])}
+          measurementBusy={false}
           measurementSupported={measurementSupported}
           onMeasure={() => void handleMeasure()}
           defaultModelSection={(
             <ProviderDefaultModelSection
               wrapInSection={false}
               disabled={saveBusy}
-              loading={modelCatalog.loading}
-              discoverySupported={measurementSupported}
+              loading={modelOptionsLoading}
+              canCreateModelConfig={Boolean(apiFormat)}
               modelMenuOpen={modelMenuOpen}
               modelOptions={modelOptions}
               defaultModel={defaultModel}
               triggerValue={modelOptions.find((option) => option.id === defaultModel)?.label ?? t.settings.chooseFromList}
-              modelFieldHelp={
-                !measurementSupported
+              modelFieldHelp={null}
+              emptyStateNotice={
+                modelOptions.length === 0 && apiFormat
                   ? {
-                      id: 'provider-model-discovery-help',
-                      testId: 'provider-model-discovery-help',
-                      message: t.settings.modelDiscoveryFieldHelp,
+                      tone: modelOptionsError ? 'warning' as const : 'info' as const,
+                      message: modelOptionsError ? t.settings.modelListFailed : t.settings.modelSelectionEmpty,
+                      detail: modelOptionsError ?? t.settings.modelSelectionCreateFirst,
+                      actionLabel: t.settings.createModelConfiguration,
+                      onAction: () => {
+                        onOpenModelConfiguration?.({
+                          source: 'profile-add',
+                          apiFormat,
+                          modelId: null,
+                        });
+                      },
                     }
                   : null
               }
-              listNotice={
-                modelCatalog.stale
-                  ? { tone: 'warning', message: t.settings.modelListStale }
-                  : modelOptions.length === 0
-                    ? { tone: 'info', message: t.settings.modelListEmpty }
-                    : null
-              }
-              onRefresh={() => void modelCatalog.refresh()}
+              onCreateModelConfig={() => {
+                if (!apiFormat) {
+                  return;
+                }
+                onOpenModelConfiguration?.({
+                  source: 'profile-add',
+                  apiFormat,
+                  modelId: null,
+                });
+              }}
               onModelMenuOpenChange={setModelMenuOpen}
               onDefaultModelSelect={(id) => {
                 setDefaultModel(id);

@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import type { ProviderProfile, ProviderProfileConfig, ProviderProfileConfigValue } from '@imagen-ps/application';
+import type { ProviderProfile, ProviderProfileConfig, ProviderProfileConfigValue, UserModelConfig } from '@imagen-ps/application';
 import { useAppServices } from '../../ports/app-services-context';
 import {
   apiFormatLabel,
@@ -11,7 +11,6 @@ import {
   formatBillingDetail,
   mergeApiPathDraft,
   normalizeProviderConnectionDraft,
-  providerProfileUpsertCapabilities,
   providerSupportsBalanceQuery,
   providerConfigFromForm,
   readApiPathDraft,
@@ -19,7 +18,6 @@ import {
   readProviderConnectionDraft,
   sanitizeProviderDisplayName,
   sanitizeProviderSecretValue,
-  useProviderDraftModelCatalog,
   useProfileDetail,
   useProviderCatalog,
   type ApiPathDraft,
@@ -37,7 +35,6 @@ import {
 } from '../components/provider-settings-sections';
 import { StatusNotice } from '../components/status-notice';
 import { useToast } from '../components/toast-host';
-import type { UiModelInfo } from '../model-info';
 import { useI18n } from '../i18n/i18n-context';
 import { IconButton } from '../primitives/icon-button';
 import {
@@ -122,33 +119,6 @@ function normalizeConfigForDraftCompare(config: ProviderProfileConfig): string {
   return stableSerialize(normalized);
 }
 
-function modelStatusMessage(model: UiModelInfo | undefined, messages: ReturnType<typeof useI18n>['messages']): string | null {
-  if (!model) {
-    return null;
-  }
-  if (model.selected === true && model.configured === false) {
-    return messages.settings.modelSelectableOnly;
-  }
-  if (model.selected === true && model.discovered === false) {
-    return messages.settings.modelSavedUndiscovered;
-  }
-  return null;
-}
-
-function selectedModelIdsInput(models: readonly UiModelInfo[], defaultModel: string): {
-  readonly selectedModelIds: readonly string[];
-  readonly defaultModelId?: string;
-} {
-  const selectedModelIds = models
-    .filter((model) => model.selected === true && model.configured === true)
-    .map((model) => model.id);
-  const normalizedDefault = defaultModel.trim();
-  return {
-    selectedModelIds,
-    ...(selectedModelIds.includes(normalizedDefault) ? { defaultModelId: normalizedDefault } : {}),
-  };
-}
-
 function profileCanCreateModelConfig(profile: ProviderProfile | null): boolean {
   if (!profile) {
     return false;
@@ -162,42 +132,6 @@ function profileCanCreateModelConfig(profile: ProviderProfile | null): boolean {
     return false;
   }
   return endpoints.some((endpoint) => endpoint.enabled !== false && typeof endpoint.url === 'string' && endpoint.url.trim().length > 0);
-}
-
-function sameUiModelList(left: readonly UiModelInfo[], right: readonly UiModelInfo[]): boolean {
-  if (left === right) {
-    return true;
-  }
-  if (left.length !== right.length) {
-    return false;
-  }
-  return left.every((model, index) => {
-    const next = right[index];
-    return next !== undefined
-      && model.id === next.id
-      && model.displayName === next.displayName
-      && model.discovered === next.discovered
-      && model.configured === next.configured
-      && model.selected === next.selected
-      && model.default === next.default
-      && model.configSource === next.configSource;
-  });
-}
-
-function selectedModelIdsDraftInput(args: {
-  readonly profileModels: readonly UiModelInfo[];
-  readonly defaultModel: string;
-  readonly persistedResolved: boolean;
-  readonly selectionTouched: boolean;
-  readonly existingSelectedModelIds: readonly string[];
-}): {
-  readonly selectedModelIds: readonly string[];
-  readonly defaultModelId?: string;
-} {
-  if (!args.persistedResolved && !args.selectionTouched) {
-    return selectedModelInput(args.defaultModel, args.existingSelectedModelIds);
-  }
-  return selectedModelIdsInput(args.profileModels, args.defaultModel);
 }
 
 function selectedModelInput(defaultModel: string, existingSelectedModelIds: readonly string[]): {
@@ -309,8 +243,9 @@ export function SettingsDetailPage({ onNav, profileId, onProfilesChanged, onSave
   const [saveBusy, setSaveBusy] = useState(false);
   const [connectionTestBusy, setConnectionTestBusy] = useState(false);
   const [modelMenuOpen, setModelMenuOpen] = useState(false);
-  const [profileModels, setProfileModels] = useState<readonly UiModelInfo[]>([]);
-  const [modelSelectionTouched, setModelSelectionTouched] = useState(false);
+  const [userModelOptions, setUserModelOptions] = useState<readonly { readonly id: string; readonly label: string }[]>([]);
+  const [modelOptionsLoading, setModelOptionsLoading] = useState(false);
+  const [modelOptionsError, setModelOptionsError] = useState<string | null>(null);
   const lastLoadedProfileIdRef = useRef<string | null>(null);
   const connectionRef = useRef(connection);
   const billingDraftRef = useRef(billingDraft);
@@ -320,10 +255,8 @@ export function SettingsDetailPage({ onNav, profileId, onProfilesChanged, onSave
   const billingSupported = providerSupportsBalanceQuery(providerDescriptor, detail.profile);
   const billing = useProfileBilling(services, profileId, billingSupported);
   const busy = saveBusy;
-  const capabilities = providerProfileUpsertCapabilities(detail.profile, providerDescriptor);
   const measurementSupported = Boolean(providerDescriptor && providerDescriptor.connectivity?.endpointMeasurement !== 'unsupported');
   const connectionTestSupported = Boolean(providerDescriptor && providerDescriptor.connectivity?.connectionTest !== 'unsupported');
-  const modelDiscoverySupported = measurementSupported;
 
   const effectiveBillingDraft = billingDraftForSave(billingDraft, billingAccessTokenRemovalPending);
   const billingValidation = billingFieldError(effectiveBillingDraft, providerDescriptor);
@@ -346,7 +279,7 @@ export function SettingsDetailPage({ onNav, profileId, onProfilesChanged, onSave
     : false;
 
   function invalidateDraftProofs() {
-    modelCatalog.invalidate();
+    return;
   }
 
   const updateApiKey = (value: string) => {
@@ -447,7 +380,6 @@ export function SettingsDetailPage({ onNav, profileId, onProfilesChanged, onSave
     setBillingAccessTokenRemovalPending(false);
     setAliasError(null);
     setModelMenuOpen(false);
-    setModelSelectionTouched(false);
   }, [detail.profile]);
 
   useEffect(() => {
@@ -457,6 +389,52 @@ export function SettingsDetailPage({ onNav, profileId, onProfilesChanged, onSave
     }
     lastLoadedProfileIdRef.current = nextProfileId;
   }, [detail.profile?.profileId]);
+
+  useEffect(() => {
+    if (!detail.profile) {
+      setUserModelOptions([]);
+      setModelOptionsLoading(false);
+      setModelOptionsError(null);
+      return;
+    }
+    let cancelled = false;
+    setModelOptionsLoading(true);
+    void services.commands.listUserModelConfigs(detail.profile.apiFormat)
+      .then((result: Awaited<ReturnType<typeof services.commands.listUserModelConfigs>>) => {
+        if (cancelled) {
+          return;
+        }
+        if (!result.ok) {
+          setUserModelOptions([]);
+          setModelOptionsError(`${result.error.category}: ${result.error.message}`);
+          return;
+        }
+        const nextOptions = result.value.map((config: UserModelConfig) => ({
+          id: config.modelId,
+          label: config.modelId,
+        }));
+        setUserModelOptions(nextOptions);
+        setModelOptionsError(null);
+        if (defaultModel && !nextOptions.some((option) => option.id === defaultModel)) {
+          setDefaultModel('');
+        }
+      })
+      .catch((error: unknown) => {
+        if (cancelled) {
+          return;
+        }
+        setUserModelOptions([]);
+        setModelOptionsError(error instanceof Error ? error.message : String(error));
+      })
+      .finally(() => {
+        if (!cancelled) {
+          setModelOptionsLoading(false);
+        }
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [defaultModel, detail.profile, services.commands]);
 
   const persistProfile = async (): Promise<ProviderProfile | null> => {
     if (!detail.profile) {
@@ -493,13 +471,7 @@ export function SettingsDetailPage({ onNav, profileId, onProfilesChanged, onSave
           effectiveBillingDraft,
         ),
       ),
-      ...selectedModelIdsDraftInput({
-        profileModels,
-        defaultModel,
-        persistedResolved: modelCatalog.persistedResolved,
-        selectionTouched: modelSelectionTouched,
-        existingSelectedModelIds: detail.profile.selectedModelIds,
-      }),
+      ...selectedModelInput(defaultModel, detail.profile.selectedModelIds),
       ...(removedSecretNames.length > 0 ? { removedSecretNames } : {}),
       ...((apiKey.trim() || effectiveBillingDraft.accessToken.trim())
         ? {
@@ -537,13 +509,7 @@ export function SettingsDetailPage({ onNav, profileId, onProfilesChanged, onSave
           effectiveBillingDraft,
         ),
       ),
-      ...selectedModelIdsDraftInput({
-        profileModels,
-        defaultModel,
-        persistedResolved: modelCatalog.persistedResolved,
-        selectionTouched: modelSelectionTouched,
-        existingSelectedModelIds: detail.profile.selectedModelIds,
-      }),
+      ...selectedModelInput(defaultModel, detail.profile.selectedModelIds),
       ...(removedSecretNames.length > 0 ? { removedSecretNames } : {}),
       ...((apiKey.trim() || effectiveBillingDraft.accessToken.trim())
         ? {
@@ -555,23 +521,6 @@ export function SettingsDetailPage({ onNav, profileId, onProfilesChanged, onSave
         : {}),
     };
   };
-
-  const modelCatalog = useProviderDraftModelCatalog({
-    services,
-    persistedProfileId: detail.profile?.profileId ?? null,
-    persistedRevisionKey: detail.profile ? `${detail.profile.updatedAt}:${detail.profile.defaultModelId ?? ''}` : '',
-    configuredDefaultModel: defaultModel,
-    descriptorDefaultModels: providerDescriptor?.defaultModels,
-    discoverySupported: modelDiscoverySupported,
-    canRefreshPersistedModelCache: capabilities.canRefreshPersistedModelCache,
-    isDraftDirty: draftDirty,
-    resetKey: detail.profile ? `${detail.profile.profileId}:${detail.profile.updatedAt}` : 'detail:none',
-    refreshDraftModels: async () => services.commands.refreshDraftProfileModels(buildDraftCommandInput()),
-  });
-
-  useEffect(() => {
-    setProfileModels((current) => sameUiModelList(current, modelCatalog.models) ? current : modelCatalog.models);
-  }, [modelCatalog.models]);
 
   const testCurrentDraftConnection = async () => services.commands.testProviderProfileConnection(buildDraftCommandInput());
 
@@ -677,7 +626,6 @@ export function SettingsDetailPage({ onNav, profileId, onProfilesChanged, onSave
       if (!result.ok) {
         throw new Error(`${result.error.category}: ${result.error.message}`);
       }
-      modelCatalog.applyConnectionTestResult(result.value);
       const status = statusFromProviderConnectionTestResult(result.value, t);
       show(status.message, status.tone, {
         key: 'settings-detail-connection-test',
@@ -700,14 +648,10 @@ export function SettingsDetailPage({ onNav, profileId, onProfilesChanged, onSave
 
   const probeEndpoints = async () => {
     try {
-      const result = await services.commands.measureProfileEndpoints({
-        ...buildDraftCommandInput(),
-        currentResolvedEndpointId: modelCatalog.resolvedEndpointId,
-      });
+      const result = await services.commands.measureProfileEndpoints(buildDraftCommandInput());
       if (!result.ok) {
         throw new Error(`${result.error.category}: ${result.error.message}`);
       }
-      modelCatalog.applyProbeResult(result.value);
       const status = statusFromEndpointMeasurementResult(result.value, t);
       show(status.message, status.tone, {
         key: 'settings-detail-endpoint-probe',
@@ -724,29 +668,9 @@ export function SettingsDetailPage({ onNav, profileId, onProfilesChanged, onSave
     }
   };
 
-  const refreshModels = async () => {
-    try {
-      await modelCatalog.refresh();
-    } catch (error) {
-      show(error instanceof Error ? error.message : String(error), 'negative', {
-        key: 'settings-detail-model-refresh-error',
-        durationMs: null,
-        copyable: true,
-      });
-    }
-  };
-
-  const selectableProfileModels = profileModels.filter((model) => model.configSource === 'user');
-  const selectedConfiguredModelOptions = selectableProfileModels
-    .filter((model) => model.selected === true && model.configured === true)
-    .map((model) => ({
-      id: model.id,
-      label: model.displayName ?? model.id,
-    }));
-  const visibleDefaultModelId = selectableProfileModels.some((model) => model.id === defaultModel)
+  const visibleDefaultModelId = userModelOptions.some((model) => model.id === defaultModel)
     ? defaultModel
     : '';
-  const selectedVisibleModelInfo = selectableProfileModels.find((model) => model.id === visibleDefaultModelId);
 
   const remove = async () => {
     if (saveBusyRef.current) {
@@ -766,20 +690,25 @@ export function SettingsDetailPage({ onNav, profileId, onProfilesChanged, onSave
     }
   };
 
-  const modelSelectionLabel = selectedConfiguredModelOptions.find((option) => option.id === visibleDefaultModelId)?.label ?? '';
+  const modelSelectionLabel = userModelOptions.find((option) => option.id === visibleDefaultModelId)?.label ?? '';
   const modelTriggerValue = modelSelectionLabel || t.settings.chooseFromList;
-  const selectedModelStatus = modelStatusMessage(selectedVisibleModelInfo, t);
   const saveDisabled = busy || !detail.profile || !draftDirty || endpointErrors.size > 0 || Boolean(aliasError);
-  const modelListNotice = modelCatalog.error
+  const modelEmptyState = detail.profile && userModelOptions.length === 0
     ? {
-        tone: 'warning' as const,
-        message: t.settings.modelListFailed,
-        detail: modelCatalog.error,
-        copyText: modelCatalog.error,
+        tone: modelOptionsError ? 'warning' as const : 'info' as const,
+        message: modelOptionsError ? t.settings.modelListFailed : t.settings.modelSelectionEmpty,
+        detail: modelOptionsError ?? t.settings.modelSelectionCreateFirst,
+        actionLabel: t.settings.createModelConfiguration,
+        onAction: () => {
+          onOpenModelConfiguration?.({
+            source: 'profile-detail',
+            profileId: detail.profile!.profileId,
+            apiFormat: detail.profile!.apiFormat,
+            modelId: null,
+          });
+        },
       }
-    : modelCatalog.stale
-      ? { tone: 'warning' as const, message: t.settings.modelListStale }
-      : null;
+    : null;
 
   const updatePath = (next: Partial<ApiPathDraft>) => {
     setPaths((current) => ({ ...current, ...next }));
@@ -919,94 +848,22 @@ export function SettingsDetailPage({ onNav, profileId, onProfilesChanged, onSave
               connection={connection}
               onConnectionChange={updateConnectionDraft}
               endpointErrors={endpointErrors}
-              measurementResults={connectionProbeResultById(modelCatalog.measurementResults)}
-              resolvedEndpointId={modelCatalog.resolvedEndpointId}
-              measurementBusy={modelCatalog.refreshBusy}
+              measurementResults={connectionProbeResultById([])}
+              measurementBusy={false}
               measurementSupported={measurementSupported}
               onMeasure={() => void probeEndpoints()}
               defaultModelSection={(
                 <ProviderDefaultModelSection
                   wrapInSection={false}
                   disabled={busy}
-                  loading={modelCatalog.loading}
-                  discoverySupported={modelDiscoverySupported}
+                  loading={modelOptionsLoading}
                   canCreateModelConfig={profileCanCreateModelConfig(detail.profile)}
                   modelMenuOpen={modelMenuOpen}
-                  profileModels={selectableProfileModels}
-                  modelOptions={selectedConfiguredModelOptions}
+                  modelOptions={userModelOptions}
                   defaultModel={visibleDefaultModelId}
                   triggerValue={modelTriggerValue}
-                  modelFieldHelp={!modelDiscoverySupported ? {
-                    id: 'provider-model-discovery-help',
-                    testId: 'provider-model-discovery-help',
-                    message: t.settings.modelDiscoveryFieldHelp,
-                  } : null}
-                  listNotice={modelListNotice}
-                  modelStatusNotice={selectedModelStatus ? {
-                    tone: 'info',
-                    message: selectedModelStatus,
-                    actionLabel: selectedVisibleModelInfo?.configured === false ? t.settings.modelConfigConfigureModel : t.settings.modelConfigEditModel,
-                    onAction: () => {
-                      if (detail.profile && selectedVisibleModelInfo) {
-                        onOpenModelConfiguration?.({
-                          source: 'profile-detail',
-                          profileId: detail.profile.profileId,
-                          apiFormat: detail.profile.apiFormat,
-                          modelId: selectedVisibleModelInfo.id,
-                        });
-                      }
-                    },
-                  } : null}
-                  onToggleModelSelected={(id, selected) => {
-                    setModelSelectionTouched(true);
-                    setProfileModels((current) => {
-                      const next = current.map((model) => {
-                        if (model.id !== id) {
-                          return model;
-                        }
-                        if (model.configured !== true) {
-                          return model;
-                        }
-                        return {
-                          ...model,
-                          selected,
-                          default: selected ? model.default : false,
-                        };
-                      });
-                      const activeDefault = next.find((model) => model.default === true && model.selected === true);
-                      const fallbackDefault = next.find((model) => model.selected === true);
-                      const resolvedDefault = activeDefault ?? fallbackDefault;
-                      const normalized = next.map((model) => ({
-                        ...model,
-                        default: resolvedDefault ? model.id === resolvedDefault.id : false,
-                      }));
-                      setDefaultModel(resolvedDefault?.id ?? '');
-                      invalidateDraftProofs();
-                      return normalized;
-                    });
-                  }}
-                  onEditModelConfig={(model) => {
-                    if (!detail.profile) {
-                      return;
-                    }
-                    onOpenModelConfiguration?.({
-                      source: 'profile-detail',
-                      profileId: detail.profile.profileId,
-                      apiFormat: detail.profile.apiFormat,
-                      modelId: model.id,
-                    });
-                  }}
-                  onConfigureModel={(model) => {
-                    if (!detail.profile) {
-                      return;
-                    }
-                    onOpenModelConfiguration?.({
-                      source: 'profile-detail',
-                      profileId: detail.profile.profileId,
-                      apiFormat: detail.profile.apiFormat,
-                      modelId: model.id,
-                    });
-                  }}
+                  modelFieldHelp={null}
+                  emptyStateNotice={modelEmptyState}
                   onCreateModelConfig={() => {
                     if (!detail.profile) {
                       return;
@@ -1018,15 +875,9 @@ export function SettingsDetailPage({ onNav, profileId, onProfilesChanged, onSave
                       modelId: null,
                     });
                   }}
-                  onRefresh={() => void refreshModels()}
                   onModelMenuOpenChange={setModelMenuOpen}
                   onDefaultModelSelect={(id) => {
-                    setModelSelectionTouched(true);
                     setDefaultModel(id);
-                    setProfileModels((current) => current.map((model) => ({
-                      ...model,
-                      ...(model.id === id && model.configured === true ? { selected: true, default: true } : { default: false }),
-                    })));
                     setModelMenuOpen(false);
                     invalidateDraftProofs();
                   }}

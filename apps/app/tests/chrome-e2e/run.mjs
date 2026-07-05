@@ -397,16 +397,6 @@ async function providerDetailActionsScenario({ page, url, capture }) {
   await checkpoint(page, capture, '10-provider-detail-test-connected.png', async () => {
     await page.getByText(/Connected/).first().waitFor({ state: 'visible', timeout: 5000 });
   });
-  const refreshButton = page.getByTestId('provider-refresh-models-button');
-  await clickControl(refreshButton, 'Refresh models button');
-  await checkpoint(page, capture, '11-provider-detail-refreshing-models.png', async () => {
-    await expectControlDisabled(refreshButton, 'Refresh models button');
-  });
-  await page.waitForFunction(() => {
-    const button = document.querySelector('[data-testid="provider-refresh-models-button"]');
-    return button instanceof HTMLButtonElement && !button.disabled;
-  }, undefined, { timeout: 5000 });
-  await page.getByText(/Speed test complete|测速完成/).first().waitFor({ state: 'visible', timeout: 5000 });
   await clickControl(page.getByTestId('provider-delete-button'), 'Delete provider button');
   await checkpoint(page, capture, '12-settings-after-delete.png', async () => {
     await expectVisibleText(page, 'Providers');

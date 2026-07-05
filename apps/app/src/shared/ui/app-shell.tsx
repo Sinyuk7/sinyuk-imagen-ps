@@ -214,7 +214,7 @@ function AppShellContent({ host }: AppShellProps) {
   const [selectedSettingsProfileId, setSelectedSettingsProfileId] = useState<string | null>(null);
   const [selectedPromptPresetId, setSelectedPromptPresetId] = useState<string | null>(null);
   const [modelConfigurationEditorSeed, setModelConfigurationEditorSeed] = useState<{
-    readonly source?: 'settings-list' | 'profile-detail';
+    readonly source?: 'settings-list' | 'profile-add' | 'profile-detail';
     readonly profileId?: string | null;
     readonly apiFormat?: ProviderProfile['apiFormat'] | null;
     readonly modelId?: string | null;
@@ -479,6 +479,10 @@ function AppShellContent({ host }: AppShellProps) {
           <SettingsAddPage
           onNav={onNav}
           profiles={imageProfiles}
+          onOpenModelConfiguration={(input) => {
+            setModelConfigurationEditorSeed(input);
+            setView('model-configuration');
+          }}
           onProfileSaved={async (profileId, options) => {
             await profilesState.reload();
             if (options.useProvider) {
@@ -552,6 +556,10 @@ function AppShellContent({ host }: AppShellProps) {
               setView('settings-detail');
               return;
             }
+            if (modelConfigurationEditorSeed?.source === 'profile-add') {
+              setView('settings-add');
+              return;
+            }
             setView('settings');
           }}
           onSaved={async ({ apiFormat }) => {
@@ -563,6 +571,11 @@ function AppShellContent({ host }: AppShellProps) {
                 setView('settings-detail');
                 return;
               }
+            }
+            if (modelConfigurationEditorSeed?.source === 'profile-add' && modelConfigurationEditorSeed.apiFormat === apiFormat) {
+              setModelConfigurationEditorSeed(null);
+              setView('settings-add');
+              return;
             }
             setModelConfigurationEditorSeed(null);
           }}

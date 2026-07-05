@@ -29,6 +29,8 @@ interface ModelConfigurationPageProps {
   readonly onSaved?: (result: { readonly apiFormat: ApiFormat; readonly modelId: string }) => void;
   readonly onBack?: () => void;
   readonly initialEditorState?: {
+    readonly source?: 'settings-list' | 'profile-add' | 'profile-detail';
+    readonly profileId?: string | null;
     readonly apiFormat?: ApiFormat | null;
     readonly modelId?: string | null;
   } | null;
@@ -452,7 +454,7 @@ export function ModelConfigurationPage({ onNav, onSaved, onBack, initialEditorSt
   useEffect(() => {
     const nextApiFormat = initialEditorState?.apiFormat;
     const nextModelId = initialEditorState?.modelId?.trim();
-    if (!nextApiFormat && !nextModelId) {
+    if (!nextApiFormat && !nextModelId && !initialEditorState?.source) {
       return;
     }
     void (async () => {
@@ -470,11 +472,11 @@ export function ModelConfigurationPage({ onNav, onSaved, onBack, initialEditorSt
         const preset = config
           ? nextPresets.find((item) => item.modelId === config.baseModelId)
           : nextPresets.find((item) => item.modelId === nextModelId) ?? nextPresets[0];
-        setModelId(nextModelId ?? preset?.modelId ?? '');
+        setModelId(config?.modelId ?? nextModelId ?? '');
         setBaseModelId(preset?.modelId ?? '');
         setRequestStrategyId(preset?.requestStrategyId ?? '');
         resetEditorSelections(preset, config);
-        setEditingKey(nextModelId ? `${resolvedApiFormat}:${nextModelId}` : null);
+        setEditingKey(config ? `${resolvedApiFormat}:${config.modelId}` : null);
         setEditorOpen(true);
       } catch (nextError) {
         setError(nextError instanceof Error ? nextError.message : String(nextError));
@@ -526,8 +528,9 @@ export function ModelConfigurationPage({ onNav, onSaved, onBack, initialEditorSt
 
   const openCreateEditor = async () => {
     try {
-      setApiFormat('openai-images');
-      const { presets: nextPresets } = await loadApiFormatData('openai-images');
+      const nextApiFormat = initialEditorState?.apiFormat ?? 'openai-images';
+      setApiFormat(nextApiFormat);
+      const { presets: nextPresets } = await loadApiFormatData(nextApiFormat);
       const firstPreset = nextPresets[0];
       applyPreset(firstPreset, firstPreset?.modelId ?? '');
       setEditingKey(null);

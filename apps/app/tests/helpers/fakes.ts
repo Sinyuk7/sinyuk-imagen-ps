@@ -568,6 +568,7 @@ function savedProfile(input: ProviderProfileInput, existing: ProviderProfile | u
 
 export function createFakeServices(options?: {
   readonly profiles?: readonly ProviderProfile[];
+  readonly userModelConfigs?: readonly UserModelConfig[];
   readonly generationSettings?: Partial<AppGenerationSettings>;
   readonly promptSettings?: PromptSettings | null;
   readonly activeImageProfileId?: string | null;
@@ -681,7 +682,7 @@ export function createFakeServices(options?: {
   const refreshDraftProfileModels = vi.fn(async () => ({ ok: true as const, value: fakeDraftProfileModelItems }));
   let billingState: ProfileBillingState = { refreshState: 'idle' };
   const getProfileBillingState = vi.fn(async () => ({ ok: true as const, value: billingState }));
-  let userModelConfigs: readonly UserModelConfig[] = fakeUserModelConfigs;
+  let userModelConfigs: readonly UserModelConfig[] = options?.userModelConfigs ?? fakeUserModelConfigs;
   setUserModelConfigRepository({
     async list(apiFormat) {
       return apiFormat ? userModelConfigs.filter((config) => config.apiFormat === apiFormat) : userModelConfigs;

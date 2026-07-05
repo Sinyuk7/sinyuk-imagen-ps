@@ -202,6 +202,8 @@ export interface AppMessages {
     readonly defaultModel: string;
     readonly selectedModel: string;
     readonly chooseFromList: string;
+    readonly modelSelectionEmpty: string;
+    readonly modelSelectionCreateFirst: string;
     readonly chooseFromListHint: string;
     readonly modelListEmpty: string;
     readonly modelListFailed: string;
@@ -216,7 +218,6 @@ export interface AppMessages {
     readonly removeSecret: string;
     readonly secretRemovalPending: string;
     readonly changesNotTested: string;
-    readonly modelListStale: string;
     readonly modelDiscoveryUnsupported: string;
     readonly modelDiscoveryFieldHelp: string;
     readonly apiProfile: string;
@@ -580,6 +581,8 @@ const EN_MESSAGES: AppMessages = {
     defaultModel: 'Default model',
     selectedModel: 'Selected model',
     chooseFromList: 'Choose from list',
+    modelSelectionEmpty: 'No saved model configurations are available for this profile yet.',
+    modelSelectionCreateFirst: 'Create a model config first, then come back here to select it for this profile.',
     chooseFromListHint: 'Switch back to the discovered model list.',
     modelListEmpty: 'No models found. Refresh and try again.',
     modelListFailed: 'Couldn’t load models. Retry to fetch the supported list.',
@@ -594,7 +597,6 @@ const EN_MESSAGES: AppMessages = {
     removeSecret: 'Remove',
     secretRemovalPending: 'Will be removed after saving.',
     changesNotTested: 'Untested changes',
-    modelListStale: 'Model list may not match unsaved changes.',
     modelDiscoveryUnsupported: 'Remote model discovery is not available for this API format yet.',
     modelDiscoveryFieldHelp: 'Model discovery is not available for this API format. Choose a supported preset model.',
     apiProfile: 'API Profile',
@@ -958,6 +960,8 @@ const ZH_CN_MESSAGES: AppMessages = {
     defaultModel: '默认模型',
     selectedModel: '当前模型',
     chooseFromList: '从列表选择',
+    modelSelectionEmpty: '当前 Profile 还没有可选的已保存模型配置。',
+    modelSelectionCreateFirst: '先去创建一个模型配置，再回到这里为这个 Profile 选择。',
     chooseFromListHint: '切回已发现的模型列表。',
     modelListEmpty: '未发现模型，请刷新后重试。',
     modelListFailed: '模型列表加载失败，请重试以重新获取支持的模型列表。',
@@ -972,7 +976,6 @@ const ZH_CN_MESSAGES: AppMessages = {
     removeSecret: '移除',
     secretRemovalPending: '保存后移除。',
     changesNotTested: '修改尚未测试',
-    modelListStale: '模型列表可能与未保存的修改不一致。',
     modelDiscoveryUnsupported: '当前 API 格式暂不支持远端模型发现。',
     modelDiscoveryFieldHelp: '当前 API 格式不支持模型发现。请选择受支持的预设模型。',
     apiProfile: 'API 配置',
