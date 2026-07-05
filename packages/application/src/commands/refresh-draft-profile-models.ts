@@ -1,14 +1,18 @@
 import { createProviderError, createValidationError } from '@imagen-ps/core-engine';
 import { generateTraceId } from '@imagen-ps/foundation';
-import { getRuntimeLogger } from '../runtime.js';
+import { getRuntimeLogger, getUserModelConfigRepository } from '../runtime.js';
 import type {
   CommandResult,
-  ProviderProfile,
-  ProviderModelInfo,
+  ProfileModelItem,
   RefreshDraftProfileModelsInput,
 } from './types.js';
 import { resolveDraftProviderContext } from './draft-provider-config.js';
-import { reconcilePersistedDiscoveredModels, resolvedModelsForProfile } from './profile-models.js';
+import { catalogProviderIdForApiFormat } from './api-format-profile.js';
+import {
+  listLocalCatalogModels,
+  providerUsesImageModelCatalog,
+} from '@imagen-ps/providers';
+import { reconcileProfileModels } from './profile-models.js';
 
 function errorMessage(error: unknown, fallback: string): string {
   if (error instanceof Error) {
@@ -38,26 +42,12 @@ function isValidationFailure(error: unknown): boolean {
   return error.message.includes('Provider implementation for apiFormat "') && error.message.includes('" not found.');
 }
 
-function draftProfileFromContext(
-  existing: ProviderProfile | undefined,
-  input: RefreshDraftProfileModelsInput,
-  models: readonly ProviderModelInfo[],
-): ProviderProfile {
-  const displayName = input.displayName ?? existing?.displayName ?? 'Draft Profile';
-  return {
-    profileId: input.profileId ?? 'draft',
-    apiFormat: input.apiFormat ?? existing?.apiFormat ?? 'openai-images',
-    displayName,
-    enabled: existing?.enabled ?? true,
-    config: {
-      ...(existing?.config ?? {}),
-      ...input.config,
-    },
-    ...(existing?.secretRefs ? { secretRefs: existing.secretRefs } : {}),
-    models,
-    createdAt: existing?.createdAt ?? new Date(0).toISOString(),
-    updatedAt: existing?.updatedAt ?? new Date(0).toISOString(),
-  };
+function officialCatalogIds(apiFormat: Parameters<typeof catalogProviderIdForApiFormat>[0]): ReadonlySet<string> {
+  const catalogProviderId = catalogProviderIdForApiFormat(apiFormat);
+  if (!providerUsesImageModelCatalog(catalogProviderId)) {
+    return new Set();
+  }
+  return new Set(listLocalCatalogModels(catalogProviderId).map((model) => model.id));
 }
 
 /**
@@ -65,7 +55,7 @@ function draftProfileFromContext(
  */
 export async function refreshDraftProfileModels(
   input: RefreshDraftProfileModelsInput,
-): Promise<CommandResult<readonly ProviderModelInfo[]>> {
+): Promise<CommandResult<readonly ProfileModelItem[]>> {
   const logger = getRuntimeLogger().child({
     trace_id: generateTraceId(),
     package: 'application',
@@ -96,12 +86,17 @@ export async function refreshDraftProfileModels(
         provider_id: provider.id,
       }),
     );
-    const reconciled = reconcilePersistedDiscoveredModels(apiFormat, discovered);
-    const draftProfile = draftProfileFromContext(existing, { ...input, apiFormat }, reconciled);
-    const descriptorDefaults = provider.describe().defaultModels ?? [];
-    const resolved = resolvedModelsForProfile(draftProfile, descriptorDefaults);
-    span.finish({ discoveredCount: discovered.length, returnedCount: resolved.models.length });
-    return { ok: true, value: resolved.models };
+    const selectedModelIds = input.selectedModelIds ?? existing?.selectedModelIds ?? [];
+    const userConfigs = await getUserModelConfigRepository().list(apiFormat);
+    const items = reconcileProfileModels({
+      discoveredModelIds: discovered.map((model) => model.id),
+      userModelConfigs: userConfigs,
+      officialCatalogModelIds: officialCatalogIds(apiFormat),
+      selectedModelIds,
+      defaultModelId: input.defaultModelId ?? existing?.defaultModelId,
+    });
+    span.finish({ discoveredCount: discovered.length, returnedCount: items.length });
+    return { ok: true, value: items };
   } catch (error) {
     span.fail(error);
     const message = errorMessage(error, 'Model discovery failed for draft profile.');

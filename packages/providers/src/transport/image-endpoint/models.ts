@@ -2,12 +2,10 @@
  * OpenAI `/v1/models` 端点的 wire format 类型与解析。
  *
  * 本模块仅在 transport 层内部使用，不暴露给 contract 层。
- * 所有 provider 的 `discoverModels()` 统一返回 contract 层的通用类型
- * `ProviderModelInfo`，本模块负责将 OpenAI wire format 映射到该通用类型。
+ * 本模块只解析远端返回的 model ID 事实，不与本地 catalog 做交集过滤。
  */
 
-import type { ProviderModelInfo } from '../../contract/model.js';
-import { reconcileDiscoveredCatalogModels, resolveImageModelRule } from '../../contract/image-model-capability.js';
+import type { DiscoveredModel } from '../../contract/model.js';
 import { mapInvalidResponseError } from './error-map.js';
 
 /**
@@ -43,10 +41,8 @@ export interface OpenAIModelsResponse {
 export interface ParsedImageModelsResponse {
   /** `/v1/models` 原始响应里的全部字符串 model id。 */
   readonly rawIds: readonly string[];
-  /** 命中当前 picker-visible catalog rule 的原始 id。 */
-  readonly catalogMatchedIds: readonly string[];
-  /** reconcile 后返回给上层的最终模型列表。 */
-  readonly reconciledModels: readonly ProviderModelInfo[];
+  /** 去重后返回给上层的远端 model facts。 */
+  readonly models: readonly DiscoveredModel[];
 }
 
 /**
@@ -83,8 +79,8 @@ function parseImageModelsPayload(raw: unknown): ParsedImageModelsResponse {
   }
 
   const rawIds: string[] = [];
-  const catalogMatchedIds: string[] = [];
-  const models: ProviderModelInfo[] = [];
+  const models: DiscoveredModel[] = [];
+  const seen = new Set<string>();
 
   for (const item of response.data) {
     if (typeof item !== 'object' || item === null) {
@@ -97,30 +93,17 @@ function parseImageModelsPayload(raw: unknown): ParsedImageModelsResponse {
     }
 
     rawIds.push(model.id);
-
-    const resolved = resolveImageModelRule({
-      providerId: 'image-endpoint',
-      modelId: model.id,
-    });
-    if (resolved.matchKind === 'default' || !resolved.capability.selection.visibleInPicker) {
+    const normalizedId = model.id.trim();
+    if (normalizedId.length === 0 || seen.has(normalizedId)) {
       continue;
     }
-
-    catalogMatchedIds.push(model.id);
-
-    models.push({
-      id: model.id,
-      displayName: formatDisplayName(model.id),
-    });
+    seen.add(normalizedId);
+    models.push({ id: normalizedId });
   }
 
   return {
     rawIds,
-    catalogMatchedIds,
-    reconciledModels: reconcileDiscoveredCatalogModels({
-      providerId: 'image-endpoint',
-      discoveredModels: models,
-    }),
+    models,
   };
 }
 
@@ -129,13 +112,12 @@ export function inspectModelsResponse(raw: unknown): ParsedImageModelsResponse {
 }
 
 /**
- * 解析上游 `/v1/models` 响应，过滤出 image generation 模型并映射为
- * `ProviderModelInfo[]`。
+ * 解析上游 `/v1/models` 响应并返回远端 model facts。
  *
  * @param raw 原始响应数据（`httpRequest` 返回的 `response.data`）
- * @returns 过滤后的 `ProviderModelInfo[]`；无匹配时返回 `[]`
+ * @returns 去重后的 `DiscoveredModel[]`；无匹配时返回 `[]`
  * @throws `ProviderInvokeError { kind: 'invalid_response' }` 当响应结构无效时
  */
-export function parseModelsResponse(raw: unknown): readonly ProviderModelInfo[] {
-  return parseImageModelsPayload(raw).reconciledModels;
+export function parseModelsResponse(raw: unknown): readonly DiscoveredModel[] {
+  return parseImageModelsPayload(raw).models;
 }

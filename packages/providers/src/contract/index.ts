@@ -60,7 +60,6 @@ export {
   isSupportedImageModelOutput,
   listLocalCatalogModels,
   providerUsesImageModelCatalog,
-  reconcileDiscoveredCatalogModels,
   resolveImageModelOutput,
   resolveImageModelRule,
   summarizeImageModelCapabilities,
@@ -84,14 +83,12 @@ export type {
   ProviderInvokeUsage,
 } from './result.js';
 export type {
+  DiscoveredModel,
   ModelOperationCapability,
-  ProviderModelAvailability,
-  ProviderModelAvailabilityReason,
   ProviderModelCapabilities,
   ProviderModelCapabilityReason,
   ProviderModelInfo,
   ProviderModelMatchKind,
-  ProviderModelSupportStatus,
   SupportEvidence,
 } from './model.js';
 export type {

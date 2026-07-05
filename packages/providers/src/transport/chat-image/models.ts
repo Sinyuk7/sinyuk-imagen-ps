@@ -1,13 +1,11 @@
-import type { ProviderModelInfo } from '../../contract/model.js';
-import { reconcileDiscoveredCatalogModels, resolveImageModelRule } from '../../contract/image-model-capability.js';
-import { formatDisplayName } from '../image-endpoint/models.js';
+import type { DiscoveredModel } from '../../contract/model.js';
 import { mapInvalidResponseError } from '../image-endpoint/error-map.js';
 
 interface ChatImageModelsResponse {
   readonly data?: readonly unknown[];
 }
 
-export function parseChatImageModelsResponse(raw: unknown): readonly ProviderModelInfo[] {
+export function parseChatImageModelsResponse(raw: unknown): readonly DiscoveredModel[] {
   if (typeof raw !== 'object' || raw === null) {
     throw mapInvalidResponseError('Chat image models response is not a JSON object.', { raw });
   }
@@ -17,7 +15,8 @@ export function parseChatImageModelsResponse(raw: unknown): readonly ProviderMod
     throw mapInvalidResponseError('Chat image models response "data" is not an array.', { raw });
   }
 
-  const models: ProviderModelInfo[] = [];
+  const models: DiscoveredModel[] = [];
+  const seen = new Set<string>();
   for (const item of response.data) {
     if (typeof item !== 'object' || item === null) {
       continue;
@@ -27,22 +26,13 @@ export function parseChatImageModelsResponse(raw: unknown): readonly ProviderMod
       continue;
     }
 
-    const resolved = resolveImageModelRule({
-      providerId: 'chat-image',
-      modelId: model.id,
-    });
-    if (resolved.matchKind === 'default' || !resolved.capability.selection.visibleInPicker) {
+    const normalizedId = model.id.trim();
+    if (normalizedId.length === 0 || seen.has(normalizedId)) {
       continue;
     }
-
-    models.push({
-      id: model.id,
-      displayName: typeof model.name === 'string' ? model.name : formatDisplayName(model.id),
-    });
+    seen.add(normalizedId);
+    models.push({ id: normalizedId });
   }
 
-  return reconcileDiscoveredCatalogModels({
-    providerId: 'chat-image',
-    discoveredModels: models,
-  });
+  return models;
 }

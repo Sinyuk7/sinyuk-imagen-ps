@@ -80,7 +80,6 @@ export async function resolveDraftProviderContext(input: DraftCommandInput): Pro
     apiFormat,
     config: normalizedConfig,
     descriptor: provider.describe(),
-    models: existing?.models,
   });
   const providerConfig = provider.validateConfig({
     providerId: implementationId,

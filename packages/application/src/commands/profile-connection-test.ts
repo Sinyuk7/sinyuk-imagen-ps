@@ -1,10 +1,5 @@
 import { createProviderError, createValidationError } from '@imagen-ps/core-engine';
 import { generateTraceId } from '@imagen-ps/foundation';
-import {
-  providerUsesImageModelCatalog,
-  reconcileDiscoveredCatalogModels,
-  type ProviderModelInfo,
-} from '@imagen-ps/providers';
 import { getRuntimeLogger } from '../runtime.js';
 import type {
   CommandResult,
@@ -12,27 +7,9 @@ import type {
   TestProviderProfileConnectionInput,
 } from './types.js';
 import { resolveDraftProviderContext } from './draft-provider-config.js';
-import { catalogProviderIdForApiFormat } from './api-format-profile.js';
 
 function errorMessage(error: unknown, fallback: string): string {
   return error instanceof Error ? error.message : fallback;
-}
-
-function normalizeModels(
-  apiFormat: Parameters<typeof catalogProviderIdForApiFormat>[0],
-  models: readonly ProviderModelInfo[] | undefined,
-): readonly ProviderModelInfo[] | undefined {
-  if (!models) {
-    return undefined;
-  }
-  const providerId = catalogProviderIdForApiFormat(apiFormat);
-  if (!providerUsesImageModelCatalog(providerId)) {
-    return models;
-  }
-  return reconcileDiscoveredCatalogModels({
-    providerId,
-    discoveredModels: models,
-  });
 }
 
 /**
@@ -72,22 +49,20 @@ export async function testProviderProfileConnection(
         provider_id: provider.id,
       }),
     );
-    const models = normalizeModels(apiFormat, tested.models);
-    const selectableCount = tested.modelCount ?? models?.filter(
-      (model) => model.supportStatus === undefined || model.supportStatus === 'selectable',
-    ).length;
+    const models = tested.models;
+    const modelCount = tested.modelCount ?? models?.length;
 
     span.finish({
       supported: tested.supported,
       reachable: tested.reachable,
-      ...(selectableCount !== undefined ? { modelCount: selectableCount } : {}),
+      ...(modelCount !== undefined ? { modelCount } : {}),
     });
     return {
       ok: true,
       value: {
         supported: tested.supported,
         ...(tested.reachable !== undefined ? { reachable: tested.reachable } : {}),
-        ...(selectableCount !== undefined ? { modelCount: selectableCount } : {}),
+        ...(modelCount !== undefined ? { modelCount } : {}),
         ...(models ? { models } : {}),
         ...(tested.message ? { message: tested.message } : {}),
       },

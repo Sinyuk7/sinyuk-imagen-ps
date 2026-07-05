@@ -33,12 +33,16 @@ import { createLogger, createNullLogger } from '@imagen-ps/foundation';
 import type {
   AssetStore,
   JobHistoryStore,
+  ModelDiscoveryCache,
+  ModelDiscoveryCacheRepository,
   ProviderConfigResolver,
   ProviderProfile,
   ProviderProfileRepository,
   ResolvedProviderConfig,
   SecretStorageAdapter,
   TaskStore,
+  UserModelConfig,
+  UserModelConfigRepository,
 } from './commands/types.js';
 import { assertSupportedProfileDefaultModel } from './commands/default-model-validation.js';
 import { resolveSecretValue } from './commands/secret-utils.js';
@@ -54,6 +58,8 @@ export interface ExtendedRuntime extends Runtime {
 let instance: ExtendedRuntime | null = null;
 let registryInstance: ProviderRegistry | null = null;
 let providerProfileRepositoryInstance: ProviderProfileRepository | null = null;
+let modelDiscoveryCacheRepositoryInstance: ModelDiscoveryCacheRepository | null = null;
+let userModelConfigRepositoryInstance: UserModelConfigRepository | null = null;
 let secretStorageAdapterInstance: SecretStorageAdapter | null = null;
 let providerConfigResolverInstance: ProviderConfigResolver | null = null;
 let jobHistoryStoreInstance: JobHistoryStore | null = null;
@@ -75,6 +81,44 @@ function createInMemoryProviderProfileRepository(): ProviderProfileRepository {
     },
     async delete(profileId: string): Promise<void> {
       store.delete(profileId);
+    },
+  };
+}
+
+function createInMemoryModelDiscoveryCacheRepository(): ModelDiscoveryCacheRepository {
+  const store = new Map<string, ModelDiscoveryCache>();
+  return {
+    async get(profileId) {
+      return store.get(profileId);
+    },
+    async put(cache) {
+      store.set(cache.profileId, cache);
+    },
+    async delete(profileId) {
+      store.delete(profileId);
+    },
+  };
+}
+
+function userModelConfigKey(apiFormat: string, modelId: string): string {
+  return `${apiFormat}:${modelId}`;
+}
+
+function createInMemoryUserModelConfigRepository(): UserModelConfigRepository {
+  const store = new Map<string, UserModelConfig>();
+  return {
+    async list(apiFormat) {
+      const configs = Array.from(store.values()).filter((config): config is NonNullable<typeof config> => config !== undefined);
+      return apiFormat === undefined ? configs : configs.filter((config) => config.apiFormat === apiFormat);
+    },
+    async get(apiFormat, modelId) {
+      return store.get(userModelConfigKey(apiFormat, modelId));
+    },
+    async save(config) {
+      store.set(userModelConfigKey(config.apiFormat, config.modelId), config);
+    },
+    async delete(apiFormat, modelId) {
+      store.delete(userModelConfigKey(apiFormat, modelId));
     },
   };
 }
@@ -882,6 +926,28 @@ export function getProviderProfileRepository(): ProviderProfileRepository {
 /** 设置 provider profile repository，允许 CLI / UI 注入自定义实现 */
 export function setProviderProfileRepository(repository: ProviderProfileRepository): void {
   providerProfileRepositoryInstance = repository;
+}
+
+export function getModelDiscoveryCacheRepository(): ModelDiscoveryCacheRepository {
+  if (modelDiscoveryCacheRepositoryInstance === null) {
+    modelDiscoveryCacheRepositoryInstance = createInMemoryModelDiscoveryCacheRepository();
+  }
+  return modelDiscoveryCacheRepositoryInstance;
+}
+
+export function setModelDiscoveryCacheRepository(repository: ModelDiscoveryCacheRepository): void {
+  modelDiscoveryCacheRepositoryInstance = repository;
+}
+
+export function getUserModelConfigRepository(): UserModelConfigRepository {
+  if (userModelConfigRepositoryInstance === null) {
+    userModelConfigRepositoryInstance = createInMemoryUserModelConfigRepository();
+  }
+  return userModelConfigRepositoryInstance;
+}
+
+export function setUserModelConfigRepository(repository: UserModelConfigRepository): void {
+  userModelConfigRepositoryInstance = repository;
 }
 
 /** 获取当前 secret storage adapter */

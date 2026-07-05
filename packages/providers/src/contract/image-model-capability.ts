@@ -1,11 +1,9 @@
 import type { ProviderOperation } from './capability.js';
 import type {
   ModelOperationCapability,
-  ProviderModelAvailabilityReason,
   ProviderModelCapabilities,
   ProviderModelInfo,
   ProviderModelMatchKind,
-  ProviderModelSupportStatus,
 } from './model.js';
 import type { ProviderOutputOptions } from './request.js';
 import { IMAGE_MODEL_CAPABILITIES } from './image-model-catalog/catalog.js';
@@ -161,59 +159,14 @@ function canonicalModelIdForCapability(capability: ImageModelCapability): string
   return canonical;
 }
 
-function supportStatusForConfiguredModel(args: {
-  readonly locallySupported: boolean;
-  readonly remotelyAvailable: boolean;
-}): ProviderModelSupportStatus {
-  if (!args.locallySupported) {
-    throw new ImageModelContractError('Configured model must be locally supported.', {
-      locallySupported: args.locallySupported,
-      remotelyAvailable: args.remotelyAvailable,
-    });
-  }
-  return args.remotelyAvailable ? 'selectable' : 'saved-undiscovered';
-}
-
-function availabilityReasonForStatus(status: ProviderModelSupportStatus): ProviderModelAvailabilityReason | undefined {
-  switch (status) {
-    case 'saved-undiscovered':
-      return 'not-remotely-available';
-    case 'selectable':
-    default:
-      return undefined;
-  }
-}
-
 function buildProviderModelInfo(
   capability: ImageModelCapability,
-  overrides?: Partial<ProviderModelInfo>,
+  overrides?: Pick<ProviderModelInfo, 'id' | 'displayName'>,
 ): ProviderModelInfo {
   const id = overrides?.id ?? canonicalModelIdForCapability(capability);
-  const locallySupported = overrides?.locallySupported ?? true;
-  const remotelyAvailable = overrides?.remotelyAvailable;
-  const supportStatus = overrides?.supportStatus ??
-    supportStatusForConfiguredModel({
-      locallySupported,
-      remotelyAvailable: remotelyAvailable ?? capability.discovery?.requireRemotePresence !== true,
-    });
-  const availabilityReason = availabilityReasonForStatus(supportStatus);
   return {
     id,
     displayName: overrides?.displayName ?? capability.displayName,
-    ruleId: overrides?.ruleId ?? capability.ruleId,
-    matchKind: overrides?.matchKind,
-    pickerVisible: overrides?.pickerVisible ?? capability.selection.visibleInPicker,
-    locallySupported,
-    ...(remotelyAvailable !== undefined ? { remotelyAvailable } : {}),
-    supportStatus,
-    availability: overrides?.availability ?? {
-      status: supportStatus,
-      ...(availabilityReason !== undefined ? { reason: availabilityReason } : {}),
-    },
-    capabilities: overrides?.capabilities ?? summarizeCapabilityForRule({
-      capability,
-      matchKind: overrides?.matchKind,
-    }),
   };
 }
 
@@ -503,41 +456,8 @@ export function resolveImageModelRule(args: {
 
 export function listLocalCatalogModels(providerId: ImageCatalogProviderId): readonly ProviderModelInfo[] {
   return visibleCapabilitiesForProvider(providerId, IMAGE_MODEL_CAPABILITIES).map((capability) =>
-    buildProviderModelInfo(capability, {
-      matchKind: 'exact',
-      supportStatus: 'selectable',
-    }),
+    buildProviderModelInfo(capability),
   );
-}
-
-export function reconcileDiscoveredCatalogModels(args: {
-  readonly providerId: ImageCatalogProviderId;
-  readonly discoveredModels: readonly ProviderModelInfo[];
-}): readonly ProviderModelInfo[] {
-  const discoveredRuleIds = new Set<string>();
-  for (const model of args.discoveredModels) {
-    const resolved = resolveImageModelRule({
-      providerId: args.providerId,
-      modelId: model.id,
-    });
-    if (
-      resolved.matchKind !== 'default' &&
-      resolved.capability.selection.visibleInPicker &&
-      resolved.capability.discovery?.requireRemotePresence !== false
-    ) {
-      discoveredRuleIds.add(resolved.ruleId);
-    }
-  }
-
-  return visibleCapabilitiesForProvider(args.providerId, IMAGE_MODEL_CAPABILITIES)
-    .filter((capability) => discoveredRuleIds.has(capability.ruleId))
-    .map((capability) =>
-      buildProviderModelInfo(capability, {
-        matchKind: 'exact',
-        remotelyAvailable: true,
-        supportStatus: 'selectable',
-      }),
-    );
 }
 
 function resolveVariantOutput(args: {

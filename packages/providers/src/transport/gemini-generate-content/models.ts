@@ -1,8 +1,6 @@
-import type { ProviderModelInfo } from '../../contract/model.js';
-import { reconcileDiscoveredCatalogModels, resolveImageModelRule } from '../../contract/image-model-capability.js';
+import type { DiscoveredModel } from '../../contract/model.js';
 import { mapInvalidResponseError } from '../image-endpoint/error-map.js';
 import type { ProviderInvokeError } from '../image-endpoint/error-map.js';
-import { formatDisplayName } from '../image-endpoint/models.js';
 import { normalizeGeminiGenerateContentModelId } from './build-request.js';
 
 interface GeminiGenerateContentModel {
@@ -25,7 +23,7 @@ interface OpenAiLikeModelsResponse {
 }
 
 export interface ParsedGeminiGenerateContentModelsResponse {
-  readonly models: readonly ProviderModelInfo[];
+  readonly models: readonly DiscoveredModel[];
   readonly sourceFormat: 'gemini-native' | 'openai-like-fallback';
 }
 
@@ -33,14 +31,7 @@ function supportsGenerateContent(methods: unknown): boolean {
   return Array.isArray(methods) && methods.some((method) => method === 'generateContent');
 }
 
-function reconcileGeminiDiscoveredModels(models: readonly ProviderModelInfo[]): readonly ProviderModelInfo[] {
-  return reconcileDiscoveredCatalogModels({
-    providerId: 'gemini-generate-content',
-    discoveredModels: models,
-  });
-}
-
-function parseNativeGeminiModelsResponse(raw: unknown): readonly ProviderModelInfo[] {
+function parseNativeGeminiModelsResponse(raw: unknown): readonly DiscoveredModel[] {
   if (typeof raw !== 'object' || raw === null) {
     throw mapInvalidResponseError('Gemini Generate Content models response is not a JSON object.', { raw });
   }
@@ -50,7 +41,8 @@ function parseNativeGeminiModelsResponse(raw: unknown): readonly ProviderModelIn
     throw mapInvalidResponseError('Gemini Generate Content models response missing "models" array.', { raw });
   }
 
-  const models: ProviderModelInfo[] = [];
+  const models: DiscoveredModel[] = [];
+  const seen = new Set<string>();
   for (const item of response.models) {
     if (typeof item !== 'object' || item === null) {
       continue;
@@ -63,27 +55,17 @@ function parseNativeGeminiModelsResponse(raw: unknown): readonly ProviderModelIn
     }
 
     const normalizedId = normalizeGeminiGenerateContentModelId(item.name);
-    const resolved = resolveImageModelRule({
-      providerId: 'gemini-generate-content',
-      modelId: normalizedId,
-    });
-    if (resolved.matchKind === 'default' || !resolved.capability.selection.visibleInPicker) {
+    if (normalizedId.length === 0 || seen.has(normalizedId)) {
       continue;
     }
-
-    models.push({
-      id: normalizedId,
-      displayName:
-        typeof item.displayName === 'string' && item.displayName.length > 0
-          ? item.displayName
-          : formatDisplayName(normalizedId),
-    });
+    seen.add(normalizedId);
+    models.push({ id: normalizedId });
   }
 
-  return reconcileGeminiDiscoveredModels(models);
+  return models;
 }
 
-function parseOpenAiLikeModelsResponse(raw: unknown): readonly ProviderModelInfo[] {
+function parseOpenAiLikeModelsResponse(raw: unknown): readonly DiscoveredModel[] {
   if (typeof raw !== 'object' || raw === null) {
     throw mapInvalidResponseError('Gemini Generate Content OpenAI-like models response is not a JSON object.', { raw });
   }
@@ -93,7 +75,8 @@ function parseOpenAiLikeModelsResponse(raw: unknown): readonly ProviderModelInfo
     throw mapInvalidResponseError('Gemini Generate Content OpenAI-like models response missing "data" array.', { raw });
   }
 
-  const models: ProviderModelInfo[] = [];
+  const models: DiscoveredModel[] = [];
+  const seen = new Set<string>();
   for (const item of response.data) {
     if (typeof item !== 'object' || item === null) {
       continue;
@@ -109,21 +92,14 @@ function parseOpenAiLikeModelsResponse(raw: unknown): readonly ProviderModelInfo
     }
 
     const normalizedId = normalizeGeminiGenerateContentModelId(rawId);
-    const resolved = resolveImageModelRule({
-      providerId: 'gemini-generate-content',
-      modelId: normalizedId,
-    });
-    if (resolved.matchKind === 'default' || !resolved.capability.selection.visibleInPicker) {
+    if (normalizedId.length === 0 || seen.has(normalizedId)) {
       continue;
     }
-
-    models.push({
-      id: normalizedId,
-      displayName: formatDisplayName(normalizedId),
-    });
+    seen.add(normalizedId);
+    models.push({ id: normalizedId });
   }
 
-  return reconcileGeminiDiscoveredModels(models);
+  return models;
 }
 
 function isInvalidResponseError(error: unknown): error is ProviderInvokeError {

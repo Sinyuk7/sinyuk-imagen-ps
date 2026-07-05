@@ -116,6 +116,30 @@ function resolveSystemInstruction(input: ProviderProfileInput, existing: Provide
   return normalizeSystemInstruction(existing?.systemInstruction);
 }
 
+function normalizeModelIds(values: readonly string[] | undefined): readonly string[] {
+  const seen = new Set<string>();
+  const modelIds: string[] = [];
+  for (const value of values ?? []) {
+    const modelId = value.trim();
+    if (modelId.length === 0 || seen.has(modelId)) {
+      continue;
+    }
+    seen.add(modelId);
+    modelIds.push(modelId);
+  }
+  return modelIds;
+}
+
+function defaultModelIdForProfile(input: ProviderProfileInput, existing: ProviderProfile | undefined, selectedModelIds: readonly string[]): string | undefined {
+  const explicit = input.defaultModelId?.trim();
+  const inherited = existing?.defaultModelId?.trim();
+  const candidate = explicit && explicit.length > 0 ? explicit : inherited;
+  if (!candidate) {
+    return selectedModelIds[0];
+  }
+  return selectedModelIds.includes(candidate) ? candidate : selectedModelIds[0];
+}
+
 /** 列出已保存的 provider profiles，不返回 secret values。 */
 export async function listProviderProfiles(): Promise<CommandResult<readonly ProviderProfile[]>> {
   const logger = getRuntimeLogger().child({ trace_id: generateTraceId(), package: 'application', component: 'command' });
@@ -292,13 +316,14 @@ export async function saveProviderProfile(input: ProviderProfileInput): Promise<
       apiFormat,
       config: mergedConfig,
       descriptor: provider.describe(),
-      models: existing?.models,
     });
     const nextConfig = {
       ...mergedConfig,
       displayName,
       apiFormat,
     };
+    const selectedModelIds = normalizeModelIds(input.selectedModelIds ?? existing?.selectedModelIds);
+    const defaultModelId = defaultModelIdForProfile(input, existing, selectedModelIds);
     const profile: ProviderProfile = {
       profileId: input.profileId,
       apiFormat,
@@ -307,9 +332,8 @@ export async function saveProviderProfile(input: ProviderProfileInput): Promise<
       enabled: nextEnabled,
       config: nextConfig,
       ...(Object.keys(secretRefs).length > 0 ? { secretRefs } : {}),
-      // `models` 字段不接受 input 提供（ProviderProfileInput 已删除该字段）；
-      // 保留 existing.models 透传，确保 discovery 缓存不被 save 路径擦除。
-      ...(existing?.models ? { models: existing.models } : {}),
+      selectedModelIds,
+      ...(defaultModelId !== undefined ? { defaultModelId } : {}),
       createdAt: existing?.createdAt ?? now,
       updatedAt: now,
     };
@@ -481,12 +505,10 @@ export async function testProviderProfile(
           };
         } else {
           const connectivityModels = tested.models ?? [];
-          const selectableCount = tested.modelCount ?? connectivityModels.filter(
-            (model) => model.supportStatus === undefined || model.supportStatus === 'selectable',
-          ).length;
+          const modelCount = tested.modelCount ?? connectivityModels.length;
           result.connectivity = {
             reachable: true,
-            modelCount: selectableCount,
+            modelCount,
             models: connectivityModels,
           };
         }
@@ -499,12 +521,9 @@ export async function testProviderProfile(
         try {
           const models = await provider.discoverModels(resolved.providerConfig);
           const connectivityModels = models;
-          const selectableCount = connectivityModels.filter(
-            (model) => model.supportStatus === undefined || model.supportStatus === 'selectable',
-          ).length;
           result.connectivity = {
             reachable: true,
-            modelCount: selectableCount,
+            modelCount: connectivityModels.length,
             models: connectivityModels,
           };
         } catch (error) {
