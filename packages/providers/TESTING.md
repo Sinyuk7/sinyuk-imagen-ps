@@ -5,22 +5,47 @@ Scope: `packages/providers`
 Non-goals: live provider proof, real Photoshop/UXP host proof
 Last verified: 2026-07-04
 
-## Request Harnesses
+## Permanent Test Shape
 
-- `image-endpoint-request-contract.test.ts` records codec-owned body shape, reserved field handling, and ignored provider option diagnostics.
-- `image-endpoint-transport-request.test.ts` records final URL/header/body behavior after provider + transport assembly.
-- `multipart-wire-capture.test.ts` captures real Node `FormData` bytes against a local echo server and normalizes part metadata.
+`packages/providers` is one of the few allowed growth areas, but growth must
+stay inside family-local case directories rather than file-count sprawl.
 
-## Response Harnesses
+Keep permanent suites organized by stable boundary:
 
-- `image-endpoint-response-fixture.test.ts` uses desensitized fixtures for `data[].url`, `data[].b64_json`, empty/missing data, and error envelopes.
-- Malformed JSON behavior is characterized at the `httpRequest` layer separately from semantic response parsing.
+- provider contract
+- transport contract
+- provider registry / descriptor contract
+- compatibility and historical edge cases
+- release live-provider smoke
 
-## Recovery Harnesses
+Preferred shape:
 
-- `attempt-sequence.test.ts` records image-endpoint edit attempt order and recovery suppression.
-- `retry*.test.ts` and `paid-retry.test.ts` cover generic transport retry and shared failover executor behavior.
-- `request-shape-classifier.test.ts` covers structured codec-fallback eligibility.
+```txt
+tests/
+  contract/
+    provider.contract.test.ts
+  transport/
+    transport.contract.test.ts
+  families/
+    <family>/
+      provider.compat.test.ts
+      cases/
+        ...
+  release/
+    provider-smoke.release.test.ts
+    release-env.ts
+```
+
+Rules:
+
+- New compatibility and historical bug coverage goes into
+  `tests/families/*/cases`.
+- Do not keep adding one-off files per provider quirk, retry branch, or codec
+  edge case.
+- Request shape, response parsing, failover, retry, and malformed payload cases
+  should grow mainly as parameter rows.
+- A new test file is justified only when it protects a different stable
+  boundary or a different test level.
 
 ## UXP Boundary
 

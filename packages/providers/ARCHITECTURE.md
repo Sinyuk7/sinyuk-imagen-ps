@@ -36,4 +36,6 @@ Last verified: 2026-07-04
 1. Add the provider factory and descriptor.
 2. Update `builtins` exhaustiveness and public exports.
 3. Confirm `ApiFormat` coverage and catalog ownership boundaries.
-4. Add request/response/attempt-sequence coverage under `packages/providers/tests/`.
+4. Add or extend provider boundary coverage under `packages/providers/tests/`.
+   Prefer expanding the owning contract/compat suite or Case Bank instead of
+   creating a new narrow test file.

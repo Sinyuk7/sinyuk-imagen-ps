@@ -7,6 +7,7 @@ export default defineConfig({
     __IMAGEN_PS_DEV__: 'true',
   },
   test: {
+    passWithNoTests: true,
     environment: 'happy-dom',
     include: [
       'tests/**/*.test.ts',

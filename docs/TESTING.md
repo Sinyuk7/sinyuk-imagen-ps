@@ -1,8 +1,8 @@
 # Testing
 
-This document is the repository testing entrypoint. Historical Loop records,
-archived research notes, and handoff-style documents are not current validation
-authority.
+This document is the repository testing authority. The goal is not maximum test
+count. The goal is a stable test structure whose file count does not grow
+linearly with bug count.
 
 ## First-Time Setup
 
@@ -34,7 +34,7 @@ pnpm validate:release
 `pnpm validate` is the default final gate for non-trivial repository work. It
 runs build, default tests, and policy checks.
 
-`pnpm test` uses the Turbo pipeline and includes the stable mock-only tests for
+`pnpm test` uses the Turbo pipeline and includes the stable mock-only suites for
 foundation, core-engine, providers, application, and app surfaces.
 
 Focused development entrypoints:
@@ -42,7 +42,7 @@ Focused development entrypoints:
 - `pnpm test:changed`: runs tests for changed workspace packages, falling back to
   `pnpm test` when no changed package files are detected.
 - `pnpm test:app`: runs the `@imagen-ps/app` deterministic development suite.
-- `pnpm test:providers`: runs the `@imagen-ps/providers` deterministic contract suite.
+- `pnpm test:providers`: runs the `@imagen-ps/providers` deterministic provider suite.
 - `pnpm test:uxp`: runs only the app fake-UXP adapter and shell suite.
 
 `pnpm check:policy` is the local architecture and documentation policy gate. It
@@ -51,15 +51,26 @@ portable path references, and the shared UXP CSS contract for `apps/app`
 shared UI plus local UI harnesses. It does not access the network, credentials,
 or paid provider APIs.
 
-Repository pull requests also run a GitHub Actions `cla` gate for external
-contributors. Non-member pull requests must either pass the repository
-CLA Assistant check derived from `CLA.md`, or carry a maintainer applied
-`cla:exempt` label.
+## Zero-Test Contract
+
+The repository must tolerate an empty development suite during restructuring.
+
+- `vitest` configs must set `passWithNoTests: true`.
+- Focused test commands that pass explicit paths must also pass
+  `--passWithNoTests`.
+- `pnpm test`, filtered package tests, and `pnpm validate` must stay runnable
+  when a package currently has zero discovered development test files.
+- Release tests are also allowed to be temporarily empty. `pnpm test:release`
+  must print a clear skip message and exit successfully when no
+  `*.release.test.ts(x)` files exist.
+
+Zero-test tolerance is a harness property only. It is not evidence that the
+repository is sufficiently validated.
 
 ## Test Levels
 
 The repository has two isolated test levels. They never share discovery rules,
-so the default development gate cannot accidentally run real interface tests.
+so the default development gate cannot accidentally run real-interface tests.
 
 ### Development tests — `pnpm test` / `pnpm validate`
 
@@ -70,6 +81,7 @@ so the default development gate cannot accidentally run real interface tests.
   effect on these commands.
 - Every package `vitest.config.ts` excludes `**/*.release.test.ts(x)`, so
   release live files are structurally invisible to the development suite.
+- Zero discovered tests are allowed while the suite is being rebuilt.
 
 ### Release tests — `pnpm test:release` / `pnpm validate:release`
 
@@ -83,10 +95,9 @@ so the default development gate cannot accidentally run real interface tests.
   vitest config re-checks it in `globalSetup` plus every test must call
   `assertReleaseMode()`. Direct `vitest --config vitest.release.config.ts`
   invocation fails immediately when the flag is absent.
-- Fail-closed: missing `.test.env`, missing required variable, or zero
-  discovered `*.release.test.*` files all fail the command with a clear message.
-  Errors list variable names only; they never print keys, Authorization
-  headers, or any secret value.
+- Fail-closed on missing `.test.env` or missing required variables.
+- Empty release suites are allowed during restructuring; the runner prints a
+  skip message and exits successfully.
 - `pnpm test:release` may incur real provider API cost.
 
 Which tests may touch the real network: only `*.release.test.ts(x)` files under
@@ -112,27 +123,22 @@ pnpm --filter @imagen-ps/app test:chrome-e2e
 Filtered tests are not a clean-checkout baseline. Build the touched packages
 first when in doubt.
 
-Provider catalog / request-contract work may additionally cite the deterministic
-catalog harness after `packages/providers` has been built:
+Provider catalog work may additionally cite the deterministic catalog harness
+after `packages/providers` has been built:
 
 ```bash
 node packages/providers/scripts/check-image-model-catalog.mjs
 ```
 
-This script reads the shared image-model rule module from `dist/`, prints the
-effective selectable models per provider family, and fails on catalog
-inconsistencies. It is per-slice evidence only; `pnpm validate` remains the
-final gate.
-
-Placement-only app work may additionally cite the standalone mock harness:
+Placement-only app work may additionally cite the standalone harness:
 
 ```bash
 node apps/app/scripts/verify-placement-core.mjs
 ```
 
-This script isolates round derivation, durable replay, and host target fallback
-for Photoshop placement semantics. It is per-slice evidence only; `pnpm validate`
-remains the final gate.
+This script is retained as a stable entrypoint, but it may be a no-op when the
+placement suite is temporarily absent. It is per-slice evidence only;
+`pnpm validate` remains the default final gate.
 
 `pnpm --filter @imagen-ps/app test:chrome-e2e` is an opt-in Chrome browser E2E
 gate for the app Chrome build. It builds `dist/web/`, serves it locally, runs
@@ -142,28 +148,252 @@ ignored local artifacts under `apps/app/tests/chrome-e2e/screenshots/`. It is
 repo-side browser evidence only; it does not prove real Photoshop / UXP host
 behavior or live provider behavior.
 
-### Chrome E2E Seed API
+## Coverage Philosophy
 
-Chrome-only seed state is enabled with `?testHarness=1`. The normal Chrome shell
-still renders the shared `AppShell`; the query swaps deterministic browser
-adapters and preloads test state.
+The testing system must not chase “every feature has a test”. It must protect
+stable boundaries with a small number of durable suites.
 
-Supported query controls:
+The permanent goals are:
 
-- `storage=memory|indexed-db`: isolated in-memory state for most specs, or real IndexedDB for persistence smoke.
-- `db=<name>`: optional IndexedDB database name for isolated runs.
-- `resetStorage=1`: clear the selected IndexedDB database before seeding.
-- `seedProfile=mock`: seed `mock-profile` with default model `mock-image-v1` and non-secret test key.
-- `seedHistory=1`: seed completed, failed, and stale running task/history records.
-- `scenario=<id>`: select a deterministic Photoshop simulator scenario.
-- `filePicker=image|cancel`: return a generated PNG file or simulate cancel.
-- `mockFailure=always|none`: preload the mock provider failure mode.
-- `harness=composer-select`: render the manual ComposerSelect responsive harness instead.
-- `harness=uxp-css-contract`: render the UXP CSS contract review board for manual Chrome/Photoshop visual comparison.
+- Every stable boundary has one durable contract.
+- Every core user flow has only a small number of scenarios.
+- Complex compatibility inputs live in module-local Case Banks.
+- Ordinary bug fixes add a case, not a new suite.
+- UI tests stay minimal.
+- Provider growth, application race coverage, UXP host coverage, and release
+  rules may grow mostly as data, not as file count.
+- Stable modules should compress to `1–3` authoritative test files.
+- Real Photoshop and real Provider proof stay outside default CI.
 
-When enabled, the page exposes `globalThis.__IMAGEN_CHROME_TEST_HARNESS__` for
-scenario-local controls: `resetStorage`, `seedMockProfile`, `seedHistory`,
-`setFilePickerMode`, `setMockFailureMode`, `setScenario`, and `snapshot`.
+The primary governance metric is not total test count. It is whether test files
+grow linearly with bug count. If bugs mostly add rows to a Case Bank instead of
+new files, the structure is healthy.
+
+## Rule 5: Only Four Growth Areas
+
+Only four Case Bank areas may grow materially over time:
+
+- `providers/families/*/cases`
+- `application/tests/cases/session-race-cases`
+- `adapters/uxp/cases`
+- `release/cases/artifact-rule-cases`
+
+Every other area should stay small and mostly stable. If test count keeps
+growing outside these four areas, treat it as architecture leakage rather than
+as healthy coverage growth.
+
+This rule is especially strict for UI tests. Rapid UI test growth usually means:
+
+- business rules live in the wrong layer
+- pages own too much logic
+- adapter contracts are unclear
+- provider normalization is incomplete
+
+## Permanent Test Structure
+
+Tests are organized around stable module boundaries, not around individual source
+files and not around individual historical bugs.
+
+### `packages/core-engine`
+
+Keep only a small permanent contract surface:
+
+- task lifecycle
+- runner behavior
+- store / event invariants
+
+Target end state:
+
+- `src/contract.test.ts`
+- `src/scenario.test.ts`
+- optional `src/compat.test.ts`
+
+Do not keep separate permanent files for each internal helper, each data type,
+or each bug-shaped regression. New edge behavior belongs in the existing
+contract/scenario/compat suite.
+
+### `packages/application`
+
+Organize tests by use case, not by implementation file:
+
+- Session
+- Profile and Model Resolution
+- History
+- Request / submission orchestration
+- race / dedupe behavior when needed
+
+Target end state:
+
+- `src/session.contract.test.ts`
+- `src/use-cases.scenario.test.ts`
+- optional `src/race.compat.test.ts`
+
+Do not create a separate test file for each command module. Command-specific
+inputs belong in shared use-case suites or Case Banks.
+
+### `packages/providers`
+
+This is one of the few allowed growth areas, but growth must happen inside
+family-local Case Banks rather than through file-count sprawl.
+
+Permanent areas:
+
+- provider contract
+- request / response normalization
+- transport / retry / failover
+- registry / descriptor coverage
+- release live-provider smoke
+
+Recommended permanent directories:
+
+```txt
+packages/providers/tests/
+  contract/
+    provider.contract.test.ts
+  transport/
+    transport.contract.test.ts
+  families/
+    <family>/
+      provider.compat.test.ts
+      cases/
+        ...
+  release/
+    provider-smoke.release.test.ts
+    release-env.ts
+```
+
+New compatibility behavior and historical bug coverage must go into
+`providers/families/*/cases`. Do not keep adding narrow one-off files for each
+provider quirk.
+
+### `apps/app`
+
+UI and host tests must stay intentionally small.
+
+Permanent areas:
+
+- key page-level user flows
+- a very small set of complex component contracts
+- UXP adapter boundary
+- Chrome adapter boundary
+- host race / timing behavior when it cannot live lower in the stack
+- release artifact / packaging rules
+
+Recommended permanent directories:
+
+```txt
+apps/app/tests/
+  shared/
+    image.contract.test.ts
+    domain/
+      asset.contract.test.ts
+  ui/
+    flows.scenario.test.tsx
+    components.contract.test.tsx
+  adapters/
+    uxp.contract.test.ts
+    chrome.contract.test.ts
+    cases/
+      ...
+  integration/
+    core-flows.scenario.test.tsx
+  release/
+    artifact.release.test.ts
+    cases/
+      artifact-rule-cases/
+        ...
+```
+
+Rules:
+
+- App-owned pure seams with long-lived contracts may keep a very small shared
+  contract layer, such as image planning/caching and asset resolution.
+- UI only keeps main page, settings/history, and other top-level critical user
+  chains.
+- Do not test ordinary presentational components, DOM shape snapshots, repeated
+  business-rule copies, or implementation details already owned by lower
+  layers.
+- UXP host compatibility growth is allowed only under `adapters/uxp/cases`.
+- Release artifact compatibility growth is allowed only under
+  `release/cases/artifact-rule-cases`.
+- UI should not have an open-ended Case Bank.
+
+### `packages/foundation`
+
+Keep only durable utility contracts:
+
+- log / span contract
+- redaction contract
+- serialization / schema contract if still boundary-relevant
+
+Target end state:
+
+- `src/contract.test.ts`
+- optional `src/compat.test.ts`
+
+## Case Bank Rule
+
+Case Banks are the default home for accumulating bug coverage.
+
+- Only the four Rule 5 areas may grow substantially over time.
+- A Case Bank stores parameterized inputs, expected outputs, and short semantic
+  labels.
+- A bug fix normally adds one case row to the existing Case Bank.
+- A new suite is justified only when it protects a different stable boundary or
+  a different test level.
+
+Preferred pattern:
+
+```txt
+<owner>/
+  *.contract.test.ts
+  *.scenario.test.ts
+  *.compat.test.ts
+  cases/
+    ...
+```
+
+Suggested meanings:
+
+- `contract`: permanent shape, ownership, invariants, public boundary
+- `scenario`: end-to-end behavior inside one owner boundary
+- `compat`: parameterized edge inputs, regressions, tricky historical cases
+
+Growth whitelist:
+
+- `packages/providers/tests/families/*/cases`
+- `packages/application/tests/cases/session-race-cases`
+- `apps/app/tests/adapters/uxp/cases`
+- `apps/app/tests/release/cases/artifact-rule-cases`
+
+## Deletion Rule
+
+When a module stabilizes, delete development-time test sprawl.
+
+Delete these once their coverage has been absorbed into an authoritative suite:
+
+- temporary exploratory tests
+- private helper tests
+- one-bug one-file regressions
+- repeated assertions already covered by a stronger boundary contract
+- duplicate UI tests for rules already enforced in lower layers
+
+The end state is not “many small files with local history”. The end state is
+“a few authoritative files per stable boundary”.
+
+## Integration And Smoke Boundary
+
+Integration remains small:
+
+- only a few cross-module core flows
+- no default-CI dependence on real Photoshop
+- no default-CI dependence on real Provider traffic
+
+Real-world proof is separate:
+
+- real Photoshop smoke is manual/host-side and never part of default CI
+- real Provider smoke lives only in release suites
+- release artifact checks live in `tests/release/`
 
 ## Loop Validation Categories
 
@@ -172,9 +402,9 @@ Loop documents must classify validation commands before citing them.
 | Category | Use | Current command or workflow | Notes |
 |---|---|---|---|
 | quick | Cheap mechanical checks during planning or small documentation slices. | `pnpm check:policy` | Does not prove behavior correctness. |
-| per-slice | Focused checks for the touched owner boundary. | Filtered package build/test commands above. | Requires the related package build state to be valid. |
+| per-slice | Focused checks for the touched owner boundary. | Filtered package build/test commands above. | Zero tests may still pass; cite what was actually covered. |
 | final | Default closeout for non-trivial completed work. | `pnpm validate` | Aligns with the default CI gate. |
-| release | Pre-release real-interface verification. | `pnpm validate:release` | Loads `.test.env`; may incur real API cost; never cached; fail-closed on missing env or empty suite. |
+| release | Pre-release real-interface verification. | `pnpm validate:release` | Loads `.test.env`; may incur real API cost; never cached; empty suite currently skips. |
 | manual-only | Human-observed host behavior. | UXP Developer Tool + Photoshop smoke checklist. | Fake UXP tests and Vite build do not prove real Photoshop host IO. |
 
 `pnpm lint` is not a supported Loop gate today. The root `package.json` has a
@@ -182,84 +412,30 @@ Loop documents must classify validation commands before citing them.
 Do not cite `pnpm lint` as quick, per-slice, or final validation unless this
 document is updated after package-level lint support is added.
 
-## Default Coverage
+## Adding Or Rebuilding Tests
 
-Default tests are mock-only and reproducible:
+When reintroducing tests into an empty area:
 
-- `packages/foundation`: host-agnostic logging, redaction, and sink contracts.
-- `packages/core-engine`: job facts, lifecycle, store, events, runner, and
-  dispatch boundary.
-- `packages/providers`: config validation, canonical request handling,
-  transport builders, response parsing, diagnostics, provider descriptors, and
-  endpoint failover harness coverage for retry/fallback/cooldown/global-budget
-  behavior.
-- `packages/application`: command/session facade, profile/model coordination,
-  request mapping, runtime assembly, logging wiring, and session-scoped billing
-  refresh cooldown behavior for 429 and repeated auth-style failures.
-- `apps/app`: shared React-to-application seam, UXP and Chrome port adapters,
-  Chrome IndexedDB-style storage boundary, deterministic Photoshop simulator,
-  history/settings flows, and Photoshop bridge call mapping through fakes.
+1. Identify the stable boundary first.
+2. Create at most `1–3` authoritative files for that boundary.
+3. Add a local Case Bank if compatibility inputs will grow.
+4. Put historical bug coverage into the Case Bank or compat suite.
+5. Do not start by mirroring every source file with a test file.
 
-These tests must not use real provider credentials, real Photoshop, UXP
-Developer Tool, external network access, or paid APIs.
-
-## Test Organization Rules
-
-Development tests are organized first by production-code ownership, then by test
-type. App tests mirror `apps/app/src/` under `apps/app/tests/`, and package
-tests mirror their owning package/module.
-
-- `apps/app/tests/shared/**` mirrors `apps/app/src/shared/**`.
-- `apps/app/tests/adapters/**` mirrors `apps/app/src/adapters/**`.
-- `apps/app/tests/composition/**` mirrors `apps/app/src/composition/**`.
-- `apps/app/tests/shells/**` mirrors `apps/app/src/shells/**`.
-- `apps/app/tests/harness/**` is reserved for app-owned local harness surfaces.
-- `apps/app/tests/release/**` is reserved for production-build, artifact, bundle,
-  and packaging checks that must not run under default `pnpm test`.
-- Shared render/fake helpers live under `apps/app/tests/helpers/`. They are not
-  test files (no `.test.` segment) so vitest never runs them.
-- `packages/<name>/tests/**` mirrors the owning provider/application module when
-  that package keeps tests outside `src/`. Example:
-  `packages/providers/tests/transport/image-endpoint/**`,
-  `packages/providers/tests/providers/image-endpoint/**`,
-  `packages/providers/tests/contract/**`.
-
-Within an owner directory:
-
-- One file covers one stable module contract or one coherent user link.
-- Split by durable capability when a page/module has multiple distinct risk
-  surfaces.
-- Do not split by temporary bug title, provider sample, or implementation seam
-  when the underlying behavior is the same contract.
-- Fixtures are named by business meaning, not `data1`/`mock2`.
-- `*.release.test.ts(x)` files live under `<package>/tests/release/` and are the
-  only files that may touch real network. They are excluded from every
-  development vitest config.
-
-## Adding Release Tests
-
-The framework is ready but no real release tests are registered yet; until at
-least one is added, `pnpm test:release` fails with "Release suite is empty".
+When adding release tests:
 
 1. Put the file at `<package>/tests/release/<name>.release.test.ts(x)`.
 2. If the package does not yet have `vitest.release.config.ts`, copy it from
-   `packages/providers/vitest.release.config.ts`. The config only includes
-   `tests/release/**/*.release.test.*` and disables cache.
+   `packages/providers/vitest.release.config.ts`.
 3. Declare and verify credentials at the top of the test:
    ```ts
    import { assertReleaseMode, requireReleaseEnv } from '<package>/tests/release/release-env';
    assertReleaseMode();
    requireReleaseEnv(['IMAGEN_SMOKE_N1N_API_KEY', 'IMAGEN_SMOKE_N1N_BASE_URL', 'IMAGEN_SMOKE_N1N_MODEL']);
    ```
-   If the package needs a release-env helper, copy `packages/providers/tests/release/release-env.ts`.
-4. Add any new required variable to `.test.env.example` — the release runner
-   derives required variables from that file, so it becomes mandatory
-   automatically. Never put real keys in the example.
-5. The test never prints secrets. Use redaction helpers from
-   `@imagen-ps/foundation` for any logged payload.
-6. Run `pnpm test:release`. The runner loads `.test.env`, validates required
-   variables, discovers the file, and runs vitest with `--no-cache` so the real
-   call is never replayed from cache.
+4. Add any new required variable to `.test.env.example`.
+5. Never log secrets.
+6. Run `pnpm test:release`.
 
 ## Manual And Live Smoke
 
@@ -326,21 +502,14 @@ Real provider live verification belongs to the release level
 Default CI and default Loop validation include only stable, mock-only,
 reproducible checks. Release tests are not part of default CI.
 
-Maintainer CLA operation is:
-
-1. Ask the external contributor to open the CLA signing issue template from the same GitHub account as the PR.
-2. Ensure CLA Assistant is installed and pointed at the canonical text in `CLA.md`.
-3. Let the bot collect assent and report pass/fail on the pull request.
-4. Use `cla:exempt` only for truly exempt changes such as typo-only docs or mechanical metadata edits.
-
 Keep these out of default `pnpm test`:
 
-- live provider smoke;
-- real Photoshop / UXP host smoke;
-- URL-only asset download branches unless mocked;
-- large input / ARG_MAX stress;
-- timeout or delay stress;
-- repeated or concurrent writes to one `--out` directory;
-- concurrent writes to one config directory;
+- live provider smoke
+- real Photoshop / UXP host smoke
+- URL-only asset download branches unless mocked
+- large input / ARG_MAX stress
+- timeout or delay stress
+- repeated or concurrent writes to one `--out` directory
+- concurrent writes to one config directory
 - any scenario requiring human keys, proxy configuration, external network, or
-  paid provider traffic.
+  paid provider traffic
