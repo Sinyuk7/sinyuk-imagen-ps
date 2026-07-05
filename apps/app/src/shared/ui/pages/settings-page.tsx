@@ -1,6 +1,7 @@
 import { type KeyboardEvent } from 'react';
 import type { ApiFormat, ProviderProfile } from '@imagen-ps/application';
 import type { AppGenerationSettings } from '../../ports/app-generation-settings';
+import type { ModelGenerationSettingsController } from '../hooks/use-model-generation-settings';
 import { profileToProviderRow } from '../../domain/mappers';
 import { Icon } from '../components/icons';
 import { MotionContent } from '../components/motion-ui';
@@ -15,6 +16,7 @@ interface SettingsPageProps {
   readonly onReload: () => Promise<void>;
   readonly onOpenProfile: (profileId: string) => void;
   readonly generationSettings?: AppGenerationSettings;
+  readonly modelGenerationSettings?: ModelGenerationSettingsController;
   readonly onOpenGlobalGeneration?: () => void;
   readonly onOpenPromptSettings?: () => void;
   readonly onOpenModelConfiguration?: () => void;
@@ -117,6 +119,7 @@ export function SettingsPage({
   onReload,
   onOpenProfile,
   generationSettings,
+  modelGenerationSettings,
   onOpenGlobalGeneration,
   onOpenPromptSettings,
   onOpenModelConfiguration,
@@ -180,9 +183,11 @@ export function SettingsPage({
             </div>
             <div className="prov-meta-row">
               <span className="prov-family">
-                {generationSettings
-                  ? `${generationSettings.outputSizePreset.toUpperCase()} · ${generationSettings.outputFormat.toUpperCase()} · ${generationSettings.aspectRatio}`
-                  : t.settings.loading}
+                {modelGenerationSettings?.selection
+                  ? `${modelGenerationSettings.selection.imageSize.toUpperCase()} · ${modelGenerationSettings.selection.outputFormat.toUpperCase()} · ${modelGenerationSettings.selection.ratio}`
+                  : generationSettings
+                    ? generationSettings.providerInputSizePreset.toUpperCase()
+                    : t.settings.loading}
               </span>
             </div>
           </div>

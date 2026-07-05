@@ -18,7 +18,10 @@
 ## Capabilities
 
 ### New Capabilities
-- `model-output-matrix-generation-settings`: 定义官方 catalog 输出参数矩阵、模型级 generation preference、MainPage/Settings 共享参数选择，以及 Send 使用 exact resolved output 的行为。
+- `provider-model-output-matrix`: 定义官方 catalog 输出参数矩阵、fail-closed 执行白名单、exact `requestOutput` 解析，以及 provider transport 只序列化 resolved output 的行为。
+- `model-generation-preferences`: 定义按 `profileId + apiFormat + modelId + operation` 保存 generation preference、invalid preference fallback、旧全局输出设置 clean break。
+- `generation-settings-ui`: 定义 MainPage output controls、GlobalGenerationSettingsPage、共享 controller，以及两页选择与 Send resolved output 的同步行为。
+- `user-model-output-subsets`: 定义 `UserModelConfig` 基于 official preset matrix 做非空子集收窄、ModelConfigurationPage 派生编辑、旧聚合 output schema 拒绝。
 
 ### Modified Capabilities
 - 无。

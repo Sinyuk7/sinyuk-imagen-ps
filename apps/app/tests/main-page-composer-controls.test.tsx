@@ -106,7 +106,7 @@ describe('MainPage contract — composer controls', () => {
     const services = createFakeServices({
       profiles: [{
         ...fakeProfile,
-        selectedModelIds: ['mock-image-v1', 'mock-image-v2'],
+        selectedModelIds: ['mock-image-v1', 'gpt-image-2'],
         defaultModelId: 'mock-image-v1',
       }],
     });
@@ -114,7 +114,7 @@ describe('MainPage contract — composer controls', () => {
       ok: true as const,
       value: [
         profileModelItem('mock-image-v1', { default: true }),
-        profileModelItem('mock-image-v2'),
+        profileModelItem('gpt-image-2'),
       ],
     });
     await renderMainPage(container, services);
@@ -124,20 +124,19 @@ describe('MainPage contract — composer controls', () => {
     });
     await flush();
     await act(async () => {
-      document.body.querySelector<HTMLElement>('[data-testid="main-model-selector-option-mock-image-v2"]')!.click();
+      document.body.querySelector<HTMLElement>('[data-testid="main-model-selector-option-gpt-image-2"]')!.click();
     });
     await flush();
+    await flush();
 
-    await act(async () => {
-      container.querySelector<HTMLElement>('[data-testid="composer-capture-button"]')!.click();
-    });
+    await flush();
     await flush();
     await sendPrompt(container, 'generate with selected model');
 
     expect(services.spies.submitJob).toHaveBeenCalledWith(
       expect.objectContaining({
         input: expect.objectContaining({
-          providerOptions: { model: 'mock-image-v2' },
+          providerOptions: { model: 'gpt-image-2' },
         }),
       }),
     );
@@ -311,15 +310,19 @@ describe('MainPage contract — composer controls', () => {
     const services = createFakeServices({
       profiles: [{
         ...fakeProfile,
-        selectedModelIds: ['dall-e-3'],
-        defaultModelId: 'dall-e-3',
+        selectedModelIds: ['gpt-image-2'],
+        defaultModelId: 'gpt-image-2',
       }],
     });
     services.spies.listProfileModels.mockResolvedValue({
       ok: true as const,
-      value: [profileModelItem('dall-e-3', { default: true })],
+      value: [profileModelItem('gpt-image-2', { default: true })],
     });
     await renderMainPage(container, services);
+    for (let index = 0; index < 6; index += 1) {
+      await flush();
+    }
+    expect(Boolean(container.querySelector<HTMLButtonElement>('[data-testid="composer-output-size-selector"]')?.disabled)).toBe(false);
 
     await act(async () => {
       container.querySelector<HTMLElement>('[data-testid="composer-output-size-selector"]')!.click();
@@ -448,7 +451,7 @@ describe('MainPage contract — composer controls', () => {
     expect(right!.querySelector('[data-testid="composer-prompt-optimize-button"]')).toBeNull();
   });
 
-  it('Composer 参数工具栏保持 Model 左侧、Size 右侧，不承载 optimizer', async () => {
+  it('Composer 参数工具栏保持 Model 左侧、输出 matrix 控件右侧，不承载 optimizer', async () => {
     const container = document.createElement('div');
     document.body.appendChild(container);
     await renderMainPage(container);
@@ -463,10 +466,12 @@ describe('MainPage contract — composer controls', () => {
     expect(toolbarRightStyle.overflow).toBe('visible');
 
     const modelSelector = toolbar.querySelector<HTMLElement>('[data-testid="main-model-selector"]')!;
-    expect(iconSelectValue(toolbar, '[data-testid="main-model-selector"]')).toContain('mock-image-v1');
+    expect(iconSelectValue(toolbar, '[data-testid="main-model-selector"]')).toContain('gpt-image-2');
     expect(modelSelector.closest('.ui-overlay-icon-host')?.querySelector('[data-icon-name="algorithm"]')).not.toBeNull();
     expect(toolbar.querySelector('[data-testid="composer-capture-button"]')).toBeNull();
-    expect(iconSelectValue(toolbar, '[data-testid="composer-output-size-selector"]')).toContain('2K');
+    expect(iconSelectValue(toolbar, '[data-testid="composer-output-size-selector"]')).toContain('AUTO');
+    expect(toolbar.querySelector('[data-testid="composer-output-ratio-selector"]')).not.toBeNull();
+    expect(toolbar.querySelector('[data-testid="composer-output-format-selector"]')).not.toBeNull();
     expect(toolbar.querySelector('[data-testid="composer-prompt-optimize-button"]')).toBeNull();
   });
 

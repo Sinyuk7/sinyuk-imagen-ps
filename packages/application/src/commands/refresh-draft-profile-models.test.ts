@@ -101,11 +101,6 @@ describe('refreshDraftProfileModels', () => {
       expect(result.value.map((model) => model.modelId)).toEqual([
         'gpt-image-2',
         'gpt-image-1',
-        'dall-e-3',
-        'grok-imagine-image-pro',
-        'grok-imagine-image',
-        'doubao-seedream-5-0-260128',
-        'qwen-image-2.0-2026-03-03',
       ]);
     }
     const persisted = await getProfile(repository, 'profile-a');

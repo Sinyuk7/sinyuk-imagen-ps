@@ -26,6 +26,7 @@ import {
 } from './api-format-profile.js';
 import { invalidateProfileBillingState } from './profile-billing.js';
 import { assertProfileModelSelectionIsConfigured, resolveConfiguredModel, toProviderModelExecution } from './model-config-resolution.js';
+import { resolveModelGenerationSettingsValue } from './model-generation-preference-resolution.js';
 
 function errorMessage(error: unknown, fallback: string): string {
   if (error instanceof Error) {
@@ -549,11 +550,20 @@ export async function testProviderProfile(
             modelId: profile.defaultModelId ?? profile.selectedModelIds[0] ?? '',
             userModelConfigRepository: getUserModelConfigRepository(),
           });
+          const generationSettings = resolveModelGenerationSettingsValue({
+            key: {
+              profileId: profile.profileId,
+              apiFormat: profile.apiFormat,
+              modelId: resolvedModel.modelId,
+              operation: 'text_to_image',
+            },
+            userConfig: resolvedModel.source === 'user' ? resolvedModel : undefined,
+          });
           const request = provider.validateRequest({
             operation: 'text_to_image',
             prompt: 'test',
             model: toProviderModelExecution(resolvedModel),
-            output: { count: 1 },
+            output: { count: 1, requestOutput: generationSettings.requestOutput },
           });
           const invokeResult = await provider.invoke({ config: resolved.providerConfig, request });
           const modelUsed = resolvedModel.modelId;

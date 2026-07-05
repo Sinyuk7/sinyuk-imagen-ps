@@ -6,14 +6,47 @@ import type {
   ProviderModelInfo,
   ProviderModelMatchKind,
 } from './model.js';
-import type { ProviderModelExecution, ProviderOutputOptions } from './request.js';
+import type { ProviderModelExecution, ProviderOutputOptions, ProviderResolvedOutput } from './request.js';
 import { IMAGE_MODEL_CAPABILITIES } from './image-model-catalog/catalog.js';
 
 export type ImageCatalogProviderId = 'image-endpoint' | 'chat-image' | 'gemini-generate-content';
 export type ImageOperation = Extract<ProviderOperation, 'text_to_image' | 'image_edit'>;
 export type ImageSizePreset = NonNullable<ProviderOutputOptions['sizePreset']>;
+/** catalog 输出矩阵暴露给 UI 的图片尺寸选项。 */
+export type ImageOutputImageSize = 'auto' | Exclude<ImageSizePreset, '512'>;
 export type ImageAspectRatio = 'auto' | 'source' | '1:1' | '16:9' | '9:16';
 export type ImageOutputFormat = NonNullable<ProviderOutputOptions['outputFormat']>;
+/** catalog 输出矩阵 cell 的稳定标识。 */
+export type ImageOutputCellId = string;
+
+/** catalog 输出矩阵中的有序 UI 选项。 */
+export interface ImageOutputOption<T extends string = string> {
+  readonly id: T;
+  readonly label: string;
+}
+
+/** catalog 输出矩阵中的单个可执行输出组合。 */
+export interface ImageOutputMatrixCell {
+  readonly id: ImageOutputCellId;
+  readonly imageSize: ImageOutputImageSize;
+  readonly ratio: ImageAspectRatio;
+  readonly outputFormat: ImageOutputFormat;
+  readonly requestOutput: ProviderResolvedOutput;
+}
+
+/** 单个模型操作的输出能力矩阵。 */
+export interface ImageOutputMatrix {
+  readonly operation: ImageOperation;
+  readonly imageSizes: readonly ImageOutputOption<ImageOutputImageSize>[];
+  readonly ratios: readonly ImageOutputOption<ImageAspectRatio>[];
+  readonly outputFormats: readonly ImageOutputOption<ImageOutputFormat>[];
+  readonly defaultCellId: ImageOutputCellId;
+  readonly cells: readonly ImageOutputMatrixCell[];
+}
+
+function isMatrixSizePreset(value: ImageOutputImageSize): value is Exclude<ImageSizePreset, '512'> {
+  return value !== 'auto';
+}
 
 export type RequestStrategyId =
   | 'image-endpoint-default'
@@ -33,6 +66,7 @@ export interface ModelOutputConfig {
   readonly aspectRatios: readonly string[];
   readonly sizes: readonly string[];
   readonly outputFormats: readonly string[];
+  readonly matrices?: readonly ImageOutputMatrix[];
 }
 
 export interface OfficialModelPreset {
@@ -40,6 +74,7 @@ export interface OfficialModelPreset {
   readonly modelId: string;
   readonly displayName: string;
   readonly requestStrategyId: RequestStrategyId;
+  readonly outputMatrix: readonly ImageOutputMatrix[];
   readonly output: ModelOutputConfig;
 }
 
@@ -140,6 +175,7 @@ export interface ImageModelCapability {
     readonly allowAsDefault?: boolean;
   };
   readonly appliesToProviders?: readonly ImageCatalogProviderId[];
+  readonly outputMatrix?: readonly ImageOutputMatrix[];
   readonly variants?: readonly ImageOutputVariant[];
   readonly constraintStrategy?: ImageOutputConstraintStrategy;
   readonly discovery?: {
@@ -161,6 +197,8 @@ export interface ResolvedImageModelRule {
 
 export interface ResolvedImageModelOutput {
   readonly rule: ResolvedImageModelRule;
+  readonly cell?: ImageOutputMatrixCell;
+  readonly requestOutput?: ProviderResolvedOutput;
   readonly wireSize?: string;
   readonly wireAspectRatio?: Exclude<ImageAspectRatio, 'auto' | 'source'>;
 }
@@ -196,18 +234,11 @@ function visibleCapabilitiesForProvider(
   );
 }
 
-function defaultCapabilityForProvider(
-  providerId: ImageCatalogProviderId,
-  capabilities: readonly ImageModelCapability[],
-): ImageModelCapability {
-  const defaultCapability = capabilities.find(
-    (capability) =>
-      capability.ruleId.endsWith('-default') && capabilityAppliesToProvider(capability, providerId),
+function noMatchError(providerId: ImageCatalogProviderId, modelId: string): ImageModelContractError {
+  return new ImageModelContractError(
+    `Image model catalog has no explicit rule for "${modelId}" on provider "${providerId}".`,
+    { providerId, modelId, matchKind: 'none' },
   );
-  if (!defaultCapability) {
-    throw new ImageModelContractError(`Provider "${providerId}" is missing a default image model rule.`);
-  }
-  return defaultCapability;
 }
 
 function canonicalModelIdForCapability(capability: ImageModelCapability): string {
@@ -229,7 +260,7 @@ function requestStrategyIdForCapability(
   }
   switch (providerId) {
     case 'image-endpoint':
-      return capability.variants !== undefined ? 'image-endpoint-variant' : 'image-endpoint-default';
+      return 'image-endpoint-default';
     case 'chat-image':
       return 'chat-image-default';
     case 'gemini-generate-content':
@@ -238,6 +269,14 @@ function requestStrategyIdForCapability(
 }
 
 function outputConfigForCapability(capability: ImageModelCapability): ModelOutputConfig {
+  if (capability.outputMatrix !== undefined) {
+    return {
+      aspectRatios: Array.from(new Set(capability.outputMatrix.flatMap((matrix) => matrix.ratios.map((option) => option.id)))),
+      sizes: Array.from(new Set(capability.outputMatrix.flatMap((matrix) => matrix.imageSizes.map((option) => option.id)))),
+      outputFormats: Array.from(new Set(capability.outputMatrix.flatMap((matrix) => matrix.outputFormats.map((option) => option.id)))),
+      matrices: capability.outputMatrix,
+    };
+  }
   if (capability.variants !== undefined) {
     return {
       aspectRatios: Array.from(new Set(capability.variants.map((variant) => variant.aspectRatio))),
@@ -260,16 +299,26 @@ function outputConfigForCapability(capability: ImageModelCapability): ModelOutpu
   };
 }
 
+function outputMatricesForCapability(capability: ImageModelCapability): readonly ImageOutputMatrix[] {
+  return capability.outputMatrix ?? [];
+}
+
+function outputMatrixForOperation(rule: ResolvedImageModelRule, operation: ImageOperation): ImageOutputMatrix | undefined {
+  return outputMatricesForCapability(rule.capability).find((matrix) => matrix.operation === operation);
+}
+
 function buildOfficialModelPreset(
   providerId: ImageCatalogProviderId,
   capability: ImageModelCapability,
 ): OfficialModelPreset {
+  const output = outputConfigForCapability(capability);
   return {
     apiFormat: apiFormatForImplementationId(providerId),
     modelId: canonicalModelIdForCapability(capability),
     displayName: capability.displayName,
     requestStrategyId: requestStrategyIdForCapability(providerId, capability),
-    output: outputConfigForCapability(capability),
+    outputMatrix: capability.outputMatrix ?? [],
+    output,
   };
 }
 
@@ -295,6 +344,9 @@ function assertOperationSupported(
   rule: ResolvedImageModelRule,
   operation: ImageOperation,
 ): void {
+  if (rule.capability.outputMatrix?.some((matrix) => matrix.operation === operation)) {
+    return;
+  }
   if (rule.capability.variants?.some((variant) => variant.operation === operation)) {
     return;
   }
@@ -390,6 +442,12 @@ function sizePresetsForOperation(
   capability: ImageModelCapability,
   operation: ImageOperation,
 ): readonly ImageSizePreset[] | 'unknown' {
+  const matrix = capability.outputMatrix?.find((candidate) => candidate.operation === operation);
+  if (matrix !== undefined) {
+    return Array.from(
+      new Set(matrix.cells.map((cell) => cell.imageSize).filter(isMatrixSizePreset)),
+    );
+  }
   if (capability.variants !== undefined) {
     return Array.from(
       new Set(
@@ -465,18 +523,37 @@ export function summarizeImageModelCapabilities(args: {
   readonly providerId: ImageCatalogProviderId;
   readonly modelId: string;
 }): ProviderModelCapabilities {
-  const resolved = resolveImageModelRule(args);
+  const resolved = tryResolveImageModelRule(args);
+  if (resolved === undefined) {
+    return {
+      operations: {
+        textToImage: {
+          support: 'unknown',
+          sizePresets: 'unknown',
+          reason: 'not-in-local-catalog',
+        },
+        imageEdit: {
+          support: 'unknown',
+          sizePresets: 'unknown',
+          reason: 'not-in-local-catalog',
+        },
+      },
+      inputImages: {
+        mask: 'unknown',
+      },
+    };
+  }
   return summarizeCapabilityForRule({
     capability: resolved.capability,
     matchKind: resolved.matchKind,
   });
 }
 
-export function resolveImageModelRule(args: {
+export function tryResolveImageModelRule(args: {
   readonly providerId: ImageCatalogProviderId;
   readonly modelId: string;
   readonly capabilities?: readonly ImageModelCapability[];
-}): ResolvedImageModelRule {
+}): ResolvedImageModelRule | undefined {
   const modelId = args.modelId.trim();
   const capabilities = args.capabilities ?? IMAGE_MODEL_CAPABILITIES;
 
@@ -559,13 +636,27 @@ export function resolveImageModelRule(args: {
     };
   }
 
-  const fallback = defaultCapabilityForProvider(args.providerId, capabilities);
-  return {
-    ruleId: fallback.ruleId,
-    concreteModelId: modelId,
-    capability: fallback,
-    matchKind: 'default',
-  };
+  return undefined;
+}
+
+export function resolveImageModelRule(args: {
+  readonly providerId: ImageCatalogProviderId;
+  readonly modelId: string;
+  readonly capabilities?: readonly ImageModelCapability[];
+}): ResolvedImageModelRule {
+  const resolved = tryResolveImageModelRule(args);
+  if (resolved === undefined) {
+    throw noMatchError(args.providerId, args.modelId.trim());
+  }
+  return resolved;
+}
+
+export function hasExplicitImageModelRule(args: {
+  readonly providerId: ImageCatalogProviderId;
+  readonly modelId: string;
+  readonly capabilities?: readonly ImageModelCapability[];
+}): boolean {
+  return tryResolveImageModelRule(args) !== undefined;
 }
 
 export function listLocalCatalogModels(providerId: ImageCatalogProviderId): readonly ProviderModelInfo[] {
@@ -655,6 +746,96 @@ function resolveVariantOutput(args: {
   };
 }
 
+function requestOutputKindForProvider(providerId: ImageCatalogProviderId): ProviderResolvedOutput['kind'] {
+  switch (providerId) {
+    case 'image-endpoint':
+      return 'image-endpoint';
+    case 'chat-image':
+      return 'chat-image';
+    case 'gemini-generate-content':
+      return 'gemini-generate-content';
+  }
+}
+
+function assertRequestOutputKind(args: {
+  readonly providerId: ImageCatalogProviderId;
+  readonly rule: ResolvedImageModelRule;
+  readonly requestOutput: ProviderResolvedOutput;
+}): void {
+  const expected = requestOutputKindForProvider(args.providerId);
+  if (args.requestOutput.kind !== expected) {
+    throw new ImageModelContractError(
+      `Model "${args.rule.concreteModelId}" resolved output kind "${args.requestOutput.kind}" is not valid for provider "${args.providerId}".`,
+      {
+        modelId: args.rule.concreteModelId,
+        ruleId: args.rule.ruleId,
+        providerId: args.providerId,
+        expected,
+        actual: args.requestOutput.kind,
+      },
+    );
+  }
+}
+
+function resolveMatrixOutput(args: {
+  readonly providerId: ImageCatalogProviderId;
+  readonly rule: ResolvedImageModelRule;
+  readonly operation: ImageOperation;
+  readonly output?: ProviderOutputOptions;
+}): ResolvedImageModelOutput | undefined {
+  const matrix = outputMatrixForOperation(args.rule, args.operation);
+  if (matrix === undefined) {
+    return undefined;
+  }
+
+  if (args.output?.requestOutput !== undefined) {
+    assertRequestOutputKind({
+      providerId: args.providerId,
+      rule: args.rule,
+      requestOutput: args.output.requestOutput,
+    });
+    const cell = matrix.cells.find((candidate) => candidate.requestOutput === args.output?.requestOutput);
+    return {
+      rule: args.rule,
+      ...(cell ? { cell } : {}),
+      requestOutput: args.output.requestOutput,
+    };
+  }
+
+  const imageSize = args.output?.sizePreset ?? 'auto';
+  const ratio = (args.output?.aspectRatio ?? 'auto') as ImageAspectRatio;
+  const outputFormat = args.output?.outputFormat ?? matrix.cells.find((cell) => cell.id === matrix.defaultCellId)?.outputFormat ?? matrix.outputFormats[0]?.id;
+  const cell = matrix.cells.find(
+    (candidate) =>
+      candidate.imageSize === imageSize &&
+      candidate.ratio === ratio &&
+      candidate.outputFormat === outputFormat,
+  );
+  if (cell === undefined) {
+    throw new ImageModelContractError(
+      `Model "${args.rule.concreteModelId}" does not support output selection "${imageSize}/${ratio}/${outputFormat}" for "${args.operation}".`,
+      {
+        modelId: args.rule.concreteModelId,
+        ruleId: args.rule.ruleId,
+        operation: args.operation,
+        imageSize,
+        ratio,
+        outputFormat,
+      },
+    );
+  }
+  assertRequestOutputKind({
+    providerId: args.providerId,
+    rule: args.rule,
+    requestOutput: cell.requestOutput,
+  });
+  return {
+    rule: args.rule,
+    cell,
+    requestOutput: cell.requestOutput,
+  };
+}
+
 function ratioSize(side: number, aspectRatio: ImageAspectRatio): string {
   switch (aspectRatio) {
     case '16:9':
@@ -740,6 +921,16 @@ export function resolveImageModelOutput(args: {
   });
   assertOperationSupported(rule, args.operation);
 
+  const matrixOutput = resolveMatrixOutput({
+    providerId: args.providerId,
+    rule,
+    operation: args.operation,
+    output: args.output,
+  });
+  if (matrixOutput !== undefined) {
+    return matrixOutput;
+  }
+
   const preset = args.output?.sizePreset;
   if (preset === undefined) {
     return { rule };
@@ -787,6 +978,17 @@ export function getSupportedImageOutputSizePresets(args: {
     modelId: args.modelId,
   });
   const aspectRatio = (args.aspectRatio ?? 'auto') as ImageAspectRatio;
+  const matrix = outputMatrixForOperation(rule, args.operation);
+  if (matrix !== undefined) {
+    return Array.from(
+      new Set(
+        matrix.cells
+          .filter((cell) => cell.ratio === aspectRatio)
+          .map((cell) => cell.imageSize)
+          .filter(isMatrixSizePreset),
+      ),
+    );
+  }
 
   if (rule.capability.variants !== undefined) {
     return Array.from(
@@ -821,9 +1023,13 @@ export function validateImageModelCatalog(
     if (capability.selection.visibleInPicker && capability.brand === undefined) {
       errors.push(`Rule "${capability.ruleId}" is picker-visible but has no brand.`);
     }
-    if (capability.variants === undefined && capability.constraintStrategy === undefined) {
-      errors.push(`Rule "${capability.ruleId}" is missing variants or constraintStrategy.`);
+    if (capability.ruleId.endsWith('-default')) {
+      errors.push(`Rule "${capability.ruleId}" is a hidden default fallback rule.`);
     }
+    if (capability.outputMatrix === undefined && capability.variants === undefined && capability.constraintStrategy === undefined) {
+      errors.push(`Rule "${capability.ruleId}" is missing outputMatrix, variants, or constraintStrategy.`);
+    }
+    validateOutputMatrices(capability, errors);
     const variantKeys = new Set<string>();
     for (const variant of capability.variants ?? []) {
       const key = `${variant.operation}:${variant.preset}:${variant.aspectRatio}`;
@@ -869,4 +1075,72 @@ export function validateImageModelCatalog(
   }
 
   return errors;
+}
+
+function validateOutputMatrices(capability: ImageModelCapability, errors: string[]): void {
+  const operations = new Set<ImageOperation>();
+  for (const matrix of capability.outputMatrix ?? []) {
+    if (operations.has(matrix.operation)) {
+      errors.push(`Rule "${capability.ruleId}" contains duplicate output matrix for operation "${matrix.operation}".`);
+    }
+    operations.add(matrix.operation);
+
+    const imageSizes = new Set(matrix.imageSizes.map((option) => option.id));
+    const ratios = new Set(matrix.ratios.map((option) => option.id));
+    const outputFormats = new Set(matrix.outputFormats.map((option) => option.id));
+    const cellIds = new Set<string>();
+    let defaultCount = 0;
+
+    if (imageSizes.has('512' as ImageOutputImageSize)) {
+      errors.push(`Rule "${capability.ruleId}" matrix "${matrix.operation}" exposes legacy imageSize option "512".`);
+    }
+
+    for (const cell of matrix.cells) {
+      if (cellIds.has(cell.id)) {
+        errors.push(`Rule "${capability.ruleId}" matrix "${matrix.operation}" contains duplicate cell "${cell.id}".`);
+      }
+      cellIds.add(cell.id);
+      if (cell.id === matrix.defaultCellId) {
+        defaultCount += 1;
+      }
+      if (!imageSizes.has(cell.imageSize)) {
+        errors.push(`Rule "${capability.ruleId}" cell "${cell.id}" references missing imageSize option "${cell.imageSize}".`);
+      }
+      if (cell.imageSize === ('512' as ImageOutputImageSize)) {
+        errors.push(`Rule "${capability.ruleId}" cell "${cell.id}" exposes legacy imageSize "512".`);
+      }
+      if (JSON.stringify(cell.requestOutput).includes('IMAGE_SIZE_FIVE_TWELVE')) {
+        errors.push(`Rule "${capability.ruleId}" cell "${cell.id}" uses legacy Gemini image size "IMAGE_SIZE_FIVE_TWELVE".`);
+      }
+      if (!ratios.has(cell.ratio)) {
+        errors.push(`Rule "${capability.ruleId}" cell "${cell.id}" references missing ratio option "${cell.ratio}".`);
+      }
+      if (!outputFormats.has(cell.outputFormat)) {
+        errors.push(`Rule "${capability.ruleId}" cell "${cell.id}" references missing outputFormat option "${cell.outputFormat}".`);
+      }
+      const providerId = capability.appliesToProviders?.[0];
+      if (providerId !== undefined && cell.requestOutput.kind !== requestOutputKindForProvider(providerId)) {
+        errors.push(`Rule "${capability.ruleId}" cell "${cell.id}" has requestOutput kind "${cell.requestOutput.kind}" for provider "${providerId}".`);
+      }
+    }
+
+    if (defaultCount !== 1) {
+      errors.push(`Rule "${capability.ruleId}" matrix "${matrix.operation}" defaultCellId "${matrix.defaultCellId}" must reference exactly one cell.`);
+    }
+    for (const option of imageSizes) {
+      if (!matrix.cells.some((cell) => cell.imageSize === option)) {
+        errors.push(`Rule "${capability.ruleId}" matrix "${matrix.operation}" imageSize option "${option}" is unused.`);
+      }
+    }
+    for (const option of ratios) {
+      if (!matrix.cells.some((cell) => cell.ratio === option)) {
+        errors.push(`Rule "${capability.ruleId}" matrix "${matrix.operation}" ratio option "${option}" is unused.`);
+      }
+    }
+    for (const option of outputFormats) {
+      if (!matrix.cells.some((cell) => cell.outputFormat === option)) {
+        errors.push(`Rule "${capability.ruleId}" matrix "${matrix.operation}" outputFormat option "${option}" is unused.`);
+      }
+    }
+  }
 }

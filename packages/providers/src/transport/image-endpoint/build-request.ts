@@ -4,7 +4,7 @@
  * 字段映射参考 OpenAI Images API（create-image / create-image-edit）快照：
  *
  * - `request.output.count` → body `n`
- * - `request.output.sizePreset / aspectRatio` → body `size`
+ * - `request.output.requestOutput` → body `size` / `output_format`
  * - `request.output.background` → body `background`
  * - `request.output.quality` → body `quality`
  * - `request.output.outputFormat` → body `output_format`
@@ -18,12 +18,11 @@
  */
 
 import type { Asset } from '@imagen-ps/core-engine';
-import type { CanonicalImageJobRequest, ProviderOutputOptions } from '../../contract/request.js';
+import type { CanonicalImageJobRequest, ImageEndpointRequestOutput, ProviderOutputOptions } from '../../contract/request.js';
 import type { ProviderDiagnostic } from '../../contract/diagnostics.js';
 import type { ImageEditCodec } from '../../contract/provider.js';
 import {
   assertProviderModelExecution,
-  resolveImageModelOutput,
   type ImageCatalogProviderId,
 } from '../../contract/image-model-capability.js';
 import { jsonReferenceCodec } from './codec-json-reference.js';
@@ -171,69 +170,6 @@ class BuildRequestError extends Error {
   }
 }
 
-/**
- * 从 width 与 height 推断 image endpoint size 字符串。
- *
- * 支持常见尺寸；若无法匹配则返回 undefined，让上游决定默认值。
- */
-function inferSize(width: number | undefined, height: number | undefined): string | undefined {
-  if (width === undefined || height === undefined) {
-    return undefined;
-  }
-
-  const sizeMap: Record<string, string> = {
-    '256x256': '256x256',
-    '512x512': '512x512',
-    '1024x1024': '1024x1024',
-    '1792x1024': '1792x1024',
-    '1024x1792': '1024x1792',
-    '1536x1024': '1536x1024',
-    '1024x1536': '1024x1536',
-  };
-
-  const key = `${width}x${height}`;
-  return sizeMap[key];
-}
-
-function sizeFromPreset(preset: NonNullable<ProviderOutputOptions['sizePreset']>): 512 | 1024 | 1536 {
-  switch (preset) {
-    case '512':
-      return 512;
-    case '1k':
-      return 1024;
-    case '2k':
-    case '4k':
-      return 1536;
-  }
-}
-
-function concreteSizeFromOutput(
-  output: ProviderOutputOptions,
-  options: { readonly operation: CanonicalImageJobRequest['operation'] },
-): string | undefined {
-  if (output.sizePreset === undefined) {
-    return inferSize(output.width, output.height);
-  }
-
-  if (options.operation === 'image_edit' && (output.aspectRatio === 'auto' || output.aspectRatio === 'source')) {
-    return undefined;
-  }
-
-  const side = sizeFromPreset(output.sizePreset);
-  switch (output.aspectRatio) {
-    case '16:9':
-      return `${side}x${Math.round(side * 9 / 16)}`;
-    case '9:16':
-      return `${Math.round(side * 9 / 16)}x${side}`;
-    case '1:1':
-    case 'source':
-    case 'auto':
-    case undefined:
-    default:
-      return `${side}x${side}`;
-  }
-}
-
 /** 从 Application 解析后的 request.model 取得 wire model。 */
 function resolveModel(request: CanonicalImageJobRequest): string {
   return assertProviderModelExecution({
@@ -254,6 +190,26 @@ function mapQuality(
   quality: NonNullable<ProviderOutputOptions['quality']>,
 ): NonNullable<OpenAIImageGenerationBody['quality']> {
   return model === 'dall-e-3' && quality === 'high' ? 'high' : quality;
+}
+
+function resolveRequestOutput(
+  output: ProviderOutputOptions,
+  providerId: ImageCatalogProviderId,
+): ImageEndpointRequestOutput {
+  const requestOutput = output.requestOutput;
+  if (requestOutput === undefined) {
+    throw new BuildRequestError(
+      `Image endpoint output requires resolved requestOutput for provider "${providerId}".`,
+      { providerId },
+    );
+  }
+  if (requestOutput.kind !== 'image-endpoint') {
+    throw new BuildRequestError(
+      `Image endpoint output received incompatible requestOutput kind "${requestOutput.kind}".`,
+      { providerId, expected: 'image-endpoint', actual: requestOutput.kind },
+    );
+  }
+  return requestOutput;
 }
 
 /** 已被 `request.output` 或 transport 层显式处理、禁止通过 providerOptions 覆盖的 body 字段。 */
@@ -394,22 +350,9 @@ function applyOutputToBody(
     body.n = output.count;
   }
 
-  if (output.sizePreset !== undefined) {
-    const resolvedOutput = resolveImageModelOutput({
-      providerId: options.providerId,
-      modelId: String(body.model ?? ''),
-      operation: options.operation,
-      output,
-    });
-
-    if (resolvedOutput.wireSize !== undefined) {
-      body.size = resolvedOutput.wireSize;
-    }
-  } else {
-    const semanticSize = concreteSizeFromOutput(output, { operation: options.operation });
-    if (semanticSize !== undefined) {
-      body.size = semanticSize;
-    }
+  const requestOutput = resolveRequestOutput(output, options.providerId);
+  if (requestOutput.size !== undefined) {
+    body.size = requestOutput.size;
   }
 
   if (output.background !== undefined) {
@@ -420,8 +363,8 @@ function applyOutputToBody(
     body.quality = mapQuality(String(body.model ?? ''), output.quality);
   }
 
-  if (output.outputFormat !== undefined) {
-    body.output_format = output.outputFormat;
+  if (requestOutput.outputFormat !== undefined) {
+    body.output_format = requestOutput.outputFormat;
   }
 
   if (output.outputCompression !== undefined) {

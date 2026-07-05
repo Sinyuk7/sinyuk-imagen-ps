@@ -1,10 +1,14 @@
 import type {
+  ImageOutputMatrix,
   ModelDiscoveryCache,
   ModelDiscoveryCacheRepository,
+  ModelGenerationPreference,
+  ModelGenerationPreferenceRepository,
   UserModelConfig,
   UserModelConfigRepository,
 } from '@imagen-ps/application';
 import {
+  createInMemoryModelGenerationPreferenceRepository,
   createInMemoryModelDiscoveryCacheRepository,
   createInMemoryUserModelConfigRepository,
 } from './in-memory-host-storage';
@@ -49,6 +53,10 @@ function isStringArray(value: unknown): value is readonly string[] {
   return Array.isArray(value) && value.every((item) => typeof item === 'string');
 }
 
+function isPlainRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null && !Array.isArray(value);
+}
+
 function isModelDiscoveryCache(value: unknown): value is ModelDiscoveryCache {
   if (typeof value !== 'object' || value === null || Array.isArray(value)) {
     return false;
@@ -60,20 +68,74 @@ function isModelDiscoveryCache(value: unknown): value is ModelDiscoveryCache {
 }
 
 function isUserModelConfig(value: unknown): value is UserModelConfig {
+  if (!isPlainRecord(value)) {
+    return false;
+  }
+  return value.output === undefined &&
+    isApiFormat(value.apiFormat) &&
+    typeof value.modelId === 'string' &&
+    typeof value.baseModelId === 'string' &&
+    typeof value.requestStrategyId === 'string' &&
+    Array.isArray(value.outputMatrix) &&
+    value.outputMatrix.length > 0 &&
+    value.outputMatrix.every(isImageOutputMatrix);
+}
+
+function isMatrixOperation(value: unknown): value is ImageOutputMatrix['operation'] {
+  return value === 'text_to_image' || value === 'image_edit';
+}
+
+function isImageOutputMatrix(value: unknown): value is ImageOutputMatrix {
+  if (!isPlainRecord(value) || !isMatrixOperation(value.operation)) {
+    return false;
+  }
+  return Array.isArray(value.imageSizes) &&
+    Array.isArray(value.ratios) &&
+    Array.isArray(value.outputFormats) &&
+    typeof value.defaultCellId === 'string' &&
+    Array.isArray(value.cells) &&
+    value.cells.length > 0 &&
+    value.cells.every((cell) =>
+      isPlainRecord(cell) &&
+      typeof cell.id === 'string' &&
+      typeof cell.imageSize === 'string' &&
+      cell.imageSize !== '512' &&
+      typeof cell.ratio === 'string' &&
+      typeof cell.outputFormat === 'string' &&
+      isPlainRecord(cell.requestOutput),
+    );
+}
+
+function isImageOperation(value: unknown): value is ModelGenerationPreference['operation'] {
+  return value === 'text_to_image' || value === 'image_edit';
+}
+
+function isImageSize(value: unknown): value is ModelGenerationPreference['imageSize'] {
+  return value === 'auto' || value === '1k' || value === '2k' || value === '4k';
+}
+
+function isImageRatio(value: unknown): value is ModelGenerationPreference['ratio'] {
+  return value === 'auto' || value === 'source' || value === '1:1' || value === '16:9' || value === '9:16';
+}
+
+function isOutputFormat(value: unknown): value is ModelGenerationPreference['outputFormat'] {
+  return value === 'png' || value === 'jpeg' || value === 'webp';
+}
+
+function isModelGenerationPreference(value: unknown): value is ModelGenerationPreference {
   if (typeof value !== 'object' || value === null || Array.isArray(value)) {
     return false;
   }
-  const record = value as Partial<UserModelConfig>;
-  const output = record.output;
-  return isApiFormat(record.apiFormat) &&
+  const record = value as Partial<ModelGenerationPreference> & { readonly requestOutput?: unknown };
+  return record.requestOutput === undefined &&
+    typeof record.profileId === 'string' &&
+    isApiFormat(record.apiFormat) &&
     typeof record.modelId === 'string' &&
-    typeof record.requestStrategyId === 'string' &&
-    typeof output === 'object' &&
-    output !== null &&
-    !Array.isArray(output) &&
-    isStringArray(output.aspectRatios) &&
-    isStringArray(output.sizes) &&
-    isStringArray(output.outputFormats);
+    isImageOperation(record.operation) &&
+    typeof record.cellId === 'string' &&
+    isImageSize(record.imageSize) &&
+    isImageRatio(record.ratio) &&
+    isOutputFormat(record.outputFormat);
 }
 
 async function readJsonArray<T>(
@@ -144,6 +206,10 @@ function userModelConfigKey(config: Pick<UserModelConfig, 'apiFormat' | 'modelId
   return `${config.apiFormat}:${config.modelId}`;
 }
 
+function modelGenerationPreferenceKey(config: Pick<ModelGenerationPreference, 'profileId' | 'apiFormat' | 'modelId' | 'operation'>): string {
+  return `${config.profileId}:${config.apiFormat}:${config.modelId}:${config.operation}`;
+}
+
 export function createUxpUserModelConfigRepository(modules: UxpModules): UserModelConfigRepository {
   const fs = localFileSystemFrom(modules);
   if (!fs) {
@@ -178,6 +244,40 @@ export function createUxpUserModelConfigRepository(modules: UxpModules): UserMod
       const configs = await readAll();
       configs.delete(`${apiFormat}:${modelId}`);
       await writeAll(configs);
+    },
+  };
+}
+
+export function createUxpModelGenerationPreferenceRepository(modules: UxpModules): ModelGenerationPreferenceRepository {
+  const fs = localFileSystemFrom(modules);
+  if (!fs) {
+    return createInMemoryModelGenerationPreferenceRepository();
+  }
+  const localFileSystem = fs;
+  const fileName = 'model-generation-preferences.json';
+  const key = 'preferences';
+
+  async function readAll(): Promise<Map<string, ModelGenerationPreference>> {
+    return new Map((await readJsonArray(localFileSystem, fileName, key, isModelGenerationPreference)).map((preference) => [modelGenerationPreferenceKey(preference), preference]));
+  }
+
+  async function writeAll(preferences: Map<string, ModelGenerationPreference>): Promise<void> {
+    await writeJsonArray(localFileSystem, fileName, key, Array.from(preferences.values()));
+  }
+
+  return {
+    async get(preferenceKey) {
+      return (await readAll()).get(modelGenerationPreferenceKey(preferenceKey));
+    },
+    async save(preference) {
+      const preferences = await readAll();
+      preferences.set(modelGenerationPreferenceKey(preference), preference);
+      await writeAll(preferences);
+    },
+    async delete(preferenceKey) {
+      const preferences = await readAll();
+      preferences.delete(modelGenerationPreferenceKey(preferenceKey));
+      await writeAll(preferences);
     },
   };
 }

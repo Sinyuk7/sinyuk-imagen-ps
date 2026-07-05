@@ -6,7 +6,7 @@ import {
   setProviderProfileRepository,
   setUserModelConfigRepository,
 } from '../runtime.js';
-import { createProviderRegistry, type Provider, type ProviderConfig, type ProviderRequest } from '@imagen-ps/providers';
+import { createProviderRegistry, listOfficialModelPresets, type Provider, type ProviderConfig, type ProviderRequest } from '@imagen-ps/providers';
 import { listProfileModels, refreshProfileModels } from './profile-models.js';
 import type {
   ModelDiscoveryCache,
@@ -19,13 +19,11 @@ import type {
 
 const IMAGE_ENDPOINT_CATALOG_IDS = [
   'gpt-image-2',
-  'gpt-image-1',
-  'dall-e-3',
-  'grok-imagine-image-pro',
-  'grok-imagine-image',
-  'doubao-seedream-5-0-260128',
-  'qwen-image-2.0-2026-03-03',
 ] as const;
+
+function gptOutputMatrix() {
+  return listOfficialModelPresets('openai-images').find((preset) => preset.modelId === 'gpt-image-2')!.outputMatrix;
+}
 
 function createProfileRepository(profiles: readonly ProviderProfile[]): ProviderProfileRepository {
   const store = new Map(profiles.map((profile) => [profile.profileId, profile]));
@@ -159,8 +157,9 @@ describe('profile model commands', () => {
       {
         apiFormat: 'openai-images',
         modelId: 'custom-user-model',
+        baseModelId: 'gpt-image-2',
         requestStrategyId: 'image-endpoint-default',
-        output: { aspectRatios: ['1:1'], sizes: ['1k'], outputFormats: ['png'] },
+        outputMatrix: gptOutputMatrix(),
       },
     ]));
 
@@ -172,12 +171,6 @@ describe('profile model commands', () => {
         'gpt-image-2',
         'unknown-remote-model',
         'custom-user-model',
-        'gpt-image-1',
-        'dall-e-3',
-        'grok-imagine-image-pro',
-        'grok-imagine-image',
-        'doubao-seedream-5-0-260128',
-        'qwen-image-2.0-2026-03-03',
       ]);
       expect(result.value.some((model) => model.modelId === 'orphan-selected-model')).toBe(false);
       expect(result.value.find((model) => model.modelId === 'gpt-image-2')).toMatchObject({

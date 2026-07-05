@@ -10,7 +10,7 @@ import {
   type ApiFormat,
   type ModelBrand,
   providerUsesImageModelCatalog,
-  resolveImageModelRule,
+  tryResolveImageModelRule,
 } from '@imagen-ps/providers';
 import { catalogProviderIdForApiFormat } from './api-format-profile.js';
 
@@ -23,8 +23,7 @@ export interface ResolveModelBrandInput {
  * 解析 `{apiFormat, modelId}` 对应的模型品牌。
  *
  * 非 catalog provider（如 `mock`）直接返回 `undefined`；
- * 命中 curated 规则返回 `capability.brand`；命中 default/fallback 规则时
- * `brand` 为 `undefined`。
+ * 命中 curated 规则返回 `capability.brand`；未命中时返回 `undefined`。
  */
 export function resolveModelBrand(input: ResolveModelBrandInput): ModelBrand | undefined {
   const { apiFormat, modelId } = input;
@@ -32,5 +31,5 @@ export function resolveModelBrand(input: ResolveModelBrandInput): ModelBrand | u
   if (!providerUsesImageModelCatalog(providerId)) {
     return undefined;
   }
-  return resolveImageModelRule({ providerId, modelId }).capability.brand;
+  return tryResolveImageModelRule({ providerId, modelId })?.capability.brand;
 }

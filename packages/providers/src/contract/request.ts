@@ -11,6 +11,32 @@ import type { ProviderOperation } from './capability.js';
 /** 与 `core-engine` `Asset` 等价的 provider asset 引用。 */
 export type AssetRef = Asset;
 
+/** OpenAI Images API 已解析的输出字段。 */
+export interface ImageEndpointRequestOutput {
+  readonly kind: 'image-endpoint';
+  readonly size?: string;
+  readonly outputFormat?: 'png' | 'jpeg' | 'webp';
+}
+
+/** OpenAI Chat Completions image_config 已解析输出字段。 */
+export interface ChatImageRequestOutput {
+  readonly kind: 'chat-image';
+  readonly imageConfig?: Readonly<Record<string, unknown>>;
+}
+
+/** Gemini Generate Content 已解析输出字段。 */
+export interface GeminiGenerateContentRequestOutput {
+  readonly kind: 'gemini-generate-content';
+  readonly responseFormatImage?: Readonly<Record<string, unknown>>;
+  readonly imageConfig?: Readonly<Record<string, unknown>>;
+}
+
+/** Provider transport 可直接序列化的已解析输出字段。 */
+export type ProviderResolvedOutput =
+  | ImageEndpointRequestOutput
+  | ChatImageRequestOutput
+  | GeminiGenerateContentRequestOutput;
+
 /** 输出偏好信息。
  *
  * 字段集合与 OpenAI Images API（create-image / create-image-edit）的 body parameters 对齐：
@@ -23,6 +49,9 @@ export type AssetRef = Asset;
 export interface ProviderOutputOptions {
   /** 期望输出张数；transport 层映射为上游 `n`。 */
   readonly count?: number;
+
+  /** Application/catalog 已解析、transport 可直接序列化的输出字段。 */
+  readonly requestOutput?: ProviderResolvedOutput;
 
   /** 期望输出宽度。 */
   readonly width?: number;

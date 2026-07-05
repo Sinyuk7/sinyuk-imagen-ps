@@ -12,6 +12,7 @@ import { parseGeminiGenerateContentModelsResponse } from '../src/transport/gemin
 import { parseGeminiGenerateContentResponse } from '../src/transport/gemini-generate-content/parse-response.js';
 import { listLocalCatalogModels, resolveImageModelRule } from '../src/contract/image-model-capability.js';
 import { geminiGenerateContentModel } from './model-execution.js';
+import { outputWithResolvedRequest } from './resolved-output.js';
 
 const tinyPngBase64 = 'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+aF9sAAAAASUVORK5CYII=';
 const tinyJpegBase64 = '/9j/2Q==';
@@ -103,11 +104,15 @@ describe('gemini-generate-content provider', () => {
         operation: 'image_edit',
         prompt: 'replace the sky',
         images: [{ type: 'image', data: 'abc', mimeType: 'image/png' }],
-        output: {
-          count: 1,
-          sizePreset: '2k',
-          aspectRatio: '16:9',
-        },
+        output: outputWithResolvedRequest({
+          providerId: 'gemini-generate-content',
+          modelId: 'gemini-3.1-flash-image',
+          operation: 'image_edit',
+          imageSize: '2k',
+          ratio: '16:9',
+          outputFormat: 'png',
+          output: { count: 1 },
+        }),
         model: geminiGenerateContentModel('models/gemini-3.1-flash-image'),
       },
     });
@@ -128,6 +133,33 @@ describe('gemini-generate-content provider', () => {
       },
     });
     expect(built.body.generationConfig).not.toHaveProperty('imageConfig');
+  });
+
+  it('rejects Gemini output that has no resolved requestOutput', () => {
+    expect(() => buildGeminiGenerateContentRequest({
+      request: {
+        operation: 'text_to_image',
+        prompt: 'missing resolved output',
+        output: { count: 1, sizePreset: '2k', aspectRatio: '16:9' },
+        model: geminiGenerateContentModel('models/gemini-3.1-flash-image'),
+      },
+    })).toThrow(/requires resolved requestOutput/);
+  });
+
+  it('rejects Gemini output with an incompatible resolved kind', () => {
+    expect(() => buildGeminiGenerateContentRequest({
+      request: {
+        operation: 'text_to_image',
+        prompt: 'wrong resolved output',
+        output: {
+          requestOutput: {
+            kind: 'image-endpoint',
+            size: '1024x1024',
+          },
+        },
+        model: geminiGenerateContentModel('models/gemini-3.1-flash-image'),
+      },
+    })).toThrow(/incompatible requestOutput kind "image-endpoint"/);
   });
 
   it('parses Gemini thought images by preferring final assets and falling back to the last thought image', () => {
@@ -269,7 +301,15 @@ describe('gemini-generate-content provider', () => {
       request: provider.validateRequest({
         operation: 'text_to_image',
         prompt: 'test',
-        output: { count: 1, sizePreset: '2k', aspectRatio: '16:9' },
+        output: outputWithResolvedRequest({
+          providerId: 'gemini-generate-content',
+          modelId: 'gemini-3.1-flash-image',
+          operation: 'text_to_image',
+          imageSize: '2k',
+          ratio: '16:9',
+          outputFormat: 'png',
+          output: { count: 1 },
+        }),
         model: geminiGenerateContentModel('models/gemini-3.1-flash-image'),
       }),
     });
@@ -346,7 +386,15 @@ describe('gemini-generate-content provider', () => {
     const request = provider.validateRequest({
       operation: 'text_to_image',
       prompt: 'test',
-      output: { count: 1, sizePreset: '2k', aspectRatio: '1:1', outputFormat: 'png' },
+      output: outputWithResolvedRequest({
+        providerId: 'gemini-generate-content',
+        modelId: 'gemini-3.1-flash-image',
+        operation: 'text_to_image',
+        imageSize: '2k',
+        ratio: '1:1',
+        outputFormat: 'png',
+        output: { count: 1 },
+      }),
       model: { modelId: 'gemini-3.1-flash-image', apiFormat: 'gemini-generate-content', requestStrategyId: 'gemini-generate-content-response-format-image' },
         providerOptions: { unsupportedFlag: 'ignored' },
     });
@@ -709,7 +757,14 @@ describe('gemini-generate-content provider', () => {
         operation: 'text_to_image',
         prompt: 'test',
         model: { modelId: 'models/gemini-3-pro-image', apiFormat: 'gemini-generate-content', requestStrategyId: 'gemini-generate-content-response-format-image' },
-        output: { sizePreset: '4k' },
+        output: outputWithResolvedRequest({
+          providerId: 'gemini-generate-content',
+          modelId: 'gemini-3-pro-image',
+          operation: 'text_to_image',
+          imageSize: '4k',
+          ratio: '1:1',
+          outputFormat: 'png',
+        }),
       }),
     });
 

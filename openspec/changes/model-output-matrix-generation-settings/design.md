@@ -4,6 +4,27 @@
 
 本变更把“模型支持什么输出参数”提升为 provider catalog 的一等数据。`apps/app` 仍提供统一的 `imageSize`、`ratio`、`outputFormat` 控件，但每个选项组合由 catalog cell 解析为 exact `requestOutput`。`providerInputSizePreset` 保持 app-local，因为它描述输入图片预处理，不是 provider 输出参数。
 
+规格按能力拆分：
+
+```text
+provider-model-output-matrix
+  catalog allowlist + output matrix + exact requestOutput
+        │
+        ▼
+model-generation-preferences
+  profile/apiFormat/model/operation scoped saved selection
+        │
+        ▼
+generation-settings-ui
+  MainPage + GlobalGenerationSettingsPage shared controller
+        │
+        ▼
+Submit exact resolved output
+
+user-model-output-subsets
+  ModelConfigurationPage narrows official preset matrix
+```
+
 ## Goals / Non-Goals
 
 **Goals:**
@@ -31,6 +52,8 @@
 原因：本变更的核心是“单一数据源”和“所见即所发”。default fallback 会让未知模型绕过 matrix，使 UI 和 Send 重新依赖猜测。
 
 替代方案：保留 fallback 只用于 discovery 展示。放弃该方案，因为它容易被执行路径误用，并且会继续污染 `configured`/`selectable` 状态。
+
+实现验收要机械化：`resolveImageModelRule` 这类 resolver 必须能表达 no-match，不能把未知模型映射到 `image-endpoint-default`、`chat-image-default`、`gemini-generate-content-default`。测试应断言 executable catalog 中没有 `*-default` rule，并提供类似 `hasExplicitRule(apiFormat, modelId)` 的断言覆盖 unknown model。
 
 ### Decision: 0 用户阶段使用 clean break
 
@@ -65,6 +88,22 @@ Gemini 类模型的 `imageSize` 是真实 provider 字段，cell 解析为 Gemin
 
 替代方案：UI 直接展示全部 pixel size。放弃该方案，因为 GPT ratio + 规格组合过多，会让 Settings 与 MainPage 变得难用。
 
+512 输出尺寸不进入新 matrix。新 UI 维度只保留 `auto`、`1K`、`2K`、`4K`，并删除 Gemini `IMAGE_SIZE_FIVE_TWELVE` 等 512-specific request output 常量。
+
+Transport builder 的旧推导逻辑必须删除，不只是旁路。`image-endpoint/build-request.ts` 中的 size preset 推导、`chat-image/build-request.ts` 中的 `outputToImageConfig` 类映射、`gemini-generate-content/build-request.ts` 中从旧 output 推导 generation config 的路径，都应被 exact `requestOutput` 序列化替代；缺失或非法 resolved output 应 fail validation。
+
+### Decision: Matrix contract 独立于页面
+
+`provider-model-output-matrix` 只声明底层可执行模型和 exact output contract，不包含 MainPage、Settings 或 `ModelConfigurationPage` 页面行为。页面只消费 application 暴露的 matrix DTO。
+
+原因：matrix 是 provider/application contract；页面是用户入口。如果混在一个 capability 里，provider transport、storage、两页 UI 和用户模型配置会互相牵制，任务难以按包验证。
+
+### Decision: Preference contract 独立于 UI 页面
+
+`model-generation-preferences` 只拥有保存 key、saved selection、invalid fallback 和旧 global output clean break。MainPage 与 Settings 如何展示这些状态归属 `generation-settings-ui`。
+
+原因：偏好存储需要被 application/storage 测试独立覆盖；UI 页面同步需要 app tests 覆盖。
+
 ### Decision: `outputFormat` 进入同一 matrix
 
 `outputFormat` 不是全局固定选项。每个模型/API format 必须声明真实支持的 format，UI 只能展示 catalog 声明项，Send 只能发送已选择项。
@@ -88,6 +127,23 @@ profileId + apiFormat + modelId + operation + imageSize + ratio + outputFormat
 Send 时用当前 catalog 重新解析为 `requestOutput`。
 
 原因：catalog 更新后可以重新校验偏好；保存 wire 值会把旧模型参数永久固化。
+
+Repository contract 最少需要表达：
+
+```text
+ModelGenerationPreference {
+  profileId
+  apiFormat
+  modelId
+  operation
+  cellId
+  imageSize
+  ratio
+  outputFormat
+}
+```
+
+`profileId + apiFormat + modelId + operation` 是查找 key；`cellId + UI selection` 是 saved value。storage 不保存 pixel `size`、Gemini `imageSize/aspectRatio` 或 `image_config` 等 wire 字段。
 
 ### Decision: Public command 暴露模型 output settings
 
@@ -114,11 +170,15 @@ user model config
   allowedFormats ⊆ preset.formats
 ```
 
+该能力单独归属 `user-model-output-subsets`，因为它的主要用户入口是 `ModelConfigurationPage`，并且它改变的是用户模型配置 schema，而不是 generation preference schema。
+
 ### Decision: Settings 页跟随当前 profile/model
 
 `GlobalGenerationSettingsPage` 不再是全局页面状态。它读取 AppShell 当前 selected profile、selected model 与 composer operation，并使用同一 shared controller 解析 settings。切换 profile 或 model 后，Settings 页必须显示新上下文对应的 preference；在 Settings 页内选择任意 `imageSize`、`ratio`、`outputFormat` 后，MainPage 和 Send 使用的 resolved output 必须同步改变。
 
 原因：用户心智是“当前模型的参数展开项”，不是 app-wide global preference。
+
+现有 `docs/ENGINEERING_CONTEXT.md` 已要求 MainPage 与 GlobalGenerationSettingsPage 从 shared composer draft 解析 operation，Settings 不得回退到 page-local 或 synthetic `no-composer-context`。本变更必须删除该遗留分支；缺少真实 composer context 时显示 validation state，而不是构造假上下文。
 
 ## Risks / Trade-offs
 

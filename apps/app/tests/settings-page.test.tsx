@@ -117,9 +117,6 @@ describe('SettingsPage UXP compatibility', () => {
             onReload={async () => undefined}
             onOpenProfile={vi.fn()}
             generationSettings={{
-              outputSizePreset: '2k',
-              outputFormat: 'png',
-              aspectRatio: 'auto',
               providerInputSizePreset: '2k',
             }}
             onOpenGlobalGeneration={onOpenGlobalGeneration}

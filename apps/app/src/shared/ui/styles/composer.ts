@@ -253,7 +253,7 @@ export const COMPOSER_CSS = `
 }
 .cmp-select-output-size{
   flex:0 1 auto;
-  min-width:86px;
+  min-width:64px;
 }
 .cmp-select-output-size{
   margin-top:0;
@@ -364,6 +364,9 @@ export const COMPOSER_CSS = `
   overflow:hidden;
   text-overflow:ellipsis;
   white-space:nowrap;
+}
+.cmp-toolbar-right .cmp-select-output-size:last-child{
+  margin-right:0;
 }
 .cmp-select-option-badges{
   display:flex;

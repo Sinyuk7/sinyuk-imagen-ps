@@ -1,13 +1,29 @@
 import { describe, expect, it } from 'vitest';
 import { _resetForTesting, setUserModelConfigRepository } from '../runtime.js';
 import {
-  getUserModelConfig,
   listOfficialModelConfigPresets,
+  getUserModelConfig,
   listRequestStrategiesForApiFormat,
   listUserModelConfigs,
   saveUserModelConfig,
 } from './model-configs.js';
-import type { UserModelConfig, UserModelConfigRepository } from './types.js';
+import type { ImageOutputMatrix, UserModelConfig, UserModelConfigRepository } from './types.js';
+
+async function gptMatrixSubset(): Promise<readonly ImageOutputMatrix[]> {
+  const result = await listOfficialModelConfigPresets('openai-images');
+  if (!result.ok) {
+    throw new Error(result.error.message);
+  }
+  const matrix = result.value.find((preset) => preset.modelId === 'gpt-image-2')!.outputMatrix;
+  return matrix.map((item) => ({
+    ...item,
+    cells: item.cells.slice(0, 1),
+    imageSizes: item.imageSizes.filter((option) => option.id === item.cells[0]!.imageSize),
+    ratios: item.ratios.filter((option) => option.id === item.cells[0]!.ratio),
+    outputFormats: item.outputFormats.filter((option) => option.id === item.cells[0]!.outputFormat),
+    defaultCellId: item.cells[0]!.id,
+  }));
+}
 
 function createUserModelConfigRepository(configs: readonly UserModelConfig[] = []): UserModelConfigRepository {
   const store = new Map(configs.map((config) => [`${config.apiFormat}:${config.modelId}`, config]));
@@ -31,18 +47,21 @@ function createUserModelConfigRepository(configs: readonly UserModelConfig[] = [
 describe('model config commands', () => {
   it('lists saved user model configs filtered by apiFormat', async () => {
     _resetForTesting();
+    const outputMatrix = await gptMatrixSubset();
     setUserModelConfigRepository(createUserModelConfigRepository([
       {
         apiFormat: 'openai-images',
         modelId: 'user-model-a',
+        baseModelId: 'gpt-image-2',
         requestStrategyId: 'image-endpoint-default',
-        output: { aspectRatios: ['1:1'], sizes: ['1k'], outputFormats: ['png'] },
+        outputMatrix,
       },
       {
         apiFormat: 'gemini-generate-content',
         modelId: 'user-model-b',
+        baseModelId: 'gemini-3.1-flash-image',
         requestStrategyId: 'gemini-generate-content-response-format-image',
-        output: { aspectRatios: ['auto'], sizes: ['auto'], outputFormats: ['auto'] },
+        outputMatrix,
       },
     ]));
 
@@ -74,12 +93,14 @@ describe('model config commands', () => {
 
   it('reads a saved config by apiFormat and modelId', async () => {
     _resetForTesting();
+    const outputMatrix = await gptMatrixSubset();
     setUserModelConfigRepository(createUserModelConfigRepository([
       {
         apiFormat: 'openai-images',
         modelId: 'user-model-a',
+        baseModelId: 'gpt-image-2',
         requestStrategyId: 'image-endpoint-default',
-        output: { aspectRatios: ['1:1'], sizes: ['1k'], outputFormats: ['png'] },
+        outputMatrix,
       },
     ]));
 
@@ -107,19 +128,17 @@ describe('model config commands', () => {
     }
   });
 
-  it('saves a config after validating strategy and non-empty output sets', async () => {
+  it('saves a preset-derived non-empty output matrix subset', async () => {
     _resetForTesting();
     setUserModelConfigRepository(createUserModelConfigRepository());
+    const outputMatrix = await gptMatrixSubset();
 
     const result = await saveUserModelConfig({
       apiFormat: 'openai-images',
       modelId: ' custom-user-model ',
+      baseModelId: 'gpt-image-2',
       requestStrategyId: 'image-endpoint-default',
-      output: {
-        aspectRatios: ['1:1', '1:1', '16:9'],
-        sizes: ['1k', '1k', '2k'],
-        outputFormats: ['png', 'png', 'webp'],
-      },
+      outputMatrix,
     });
 
     expect(result.ok).toBe(true);
@@ -127,12 +146,9 @@ describe('model config commands', () => {
       expect(result.value).toEqual({
         apiFormat: 'openai-images',
         modelId: 'custom-user-model',
+        baseModelId: 'gpt-image-2',
         requestStrategyId: 'image-endpoint-default',
-        output: {
-          aspectRatios: ['1:1', '16:9'],
-          sizes: ['1k', '2k'],
-          outputFormats: ['png', 'webp'],
-        },
+        outputMatrix,
       });
     }
 
@@ -150,18 +166,15 @@ describe('model config commands', () => {
     const result = await saveUserModelConfig({
       apiFormat: 'openai-images',
       modelId: 'user-model-a',
+      baseModelId: 'gpt-image-2',
       requestStrategyId: 'unknown-strategy',
-      output: {
-        aspectRatios: ['1:1'],
-        sizes: ['1k'],
-        outputFormats: ['png'],
-      },
+      outputMatrix: await gptMatrixSubset(),
     });
 
     expect(result.ok).toBe(false);
     if (!result.ok) {
       expect(result.error.category).toBe('validation');
-      expect(result.error.message).toContain('Unknown requestStrategyId');
+      expect(result.error.message).toContain('must match official preset');
     }
   });
 
@@ -172,40 +185,54 @@ describe('model config commands', () => {
     const result = await saveUserModelConfig({
       apiFormat: 'openai-images',
       modelId: 'user-model-a',
+      baseModelId: 'gpt-image-2',
       requestStrategyId: 'gemini-generate-content-response-format-image',
-      output: {
-        aspectRatios: ['1:1'],
-        sizes: ['1k'],
-        outputFormats: ['png'],
-      },
+      outputMatrix: await gptMatrixSubset(),
     });
 
     expect(result.ok).toBe(false);
     if (!result.ok) {
       expect(result.error.category).toBe('validation');
-      expect(result.error.message).toContain('is not valid for apiFormat');
+      expect(result.error.message).toContain('must match official preset');
     }
   });
 
-  it('rejects empty output sets', async () => {
+  it('rejects empty output matrix subsets', async () => {
     _resetForTesting();
     setUserModelConfigRepository(createUserModelConfigRepository());
 
     const result = await saveUserModelConfig({
       apiFormat: 'openai-images',
       modelId: 'user-model-a',
+      baseModelId: 'gpt-image-2',
       requestStrategyId: 'image-endpoint-default',
-      output: {
-        aspectRatios: [],
-        sizes: ['1k'],
-        outputFormats: ['png'],
-      },
+      outputMatrix: [],
     });
 
     expect(result.ok).toBe(false);
     if (!result.ok) {
       expect(result.error.category).toBe('validation');
-      expect(result.error.message).toContain('output.aspectRatios must not be empty');
+      expect(result.error.message).toContain('outputMatrix must not be empty');
+    }
+  });
+
+  it('rejects old aggregate output schema', async () => {
+    _resetForTesting();
+    setUserModelConfigRepository(createUserModelConfigRepository());
+
+    const result = await saveUserModelConfig({
+      apiFormat: 'openai-images',
+      modelId: 'user-model-a',
+      baseModelId: 'gpt-image-2',
+      requestStrategyId: 'image-endpoint-default',
+      outputMatrix: await gptMatrixSubset(),
+      output: { aspectRatios: ['1:1'], sizes: ['1k'], outputFormats: ['png'] },
+    } as never);
+
+    expect(result.ok).toBe(false);
+    if (!result.ok) {
+      expect(result.error.category).toBe('validation');
+      expect(result.error.message).toContain('old aggregate output');
     }
   });
 });

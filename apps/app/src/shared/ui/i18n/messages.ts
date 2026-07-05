@@ -92,6 +92,7 @@ export interface AppMessages {
     readonly aspectRatioAuto: string;
     readonly aspectRatioSquare: string;
     readonly outputSize: string;
+    readonly outputFormat: string;
     readonly outputSizeUnsupportedForModel: string;
     readonly outputSizeAutoChanged: (from: string, to: string) => string;
     readonly billingSummary: string;
@@ -264,13 +265,10 @@ export interface AppMessages {
     readonly createModelConfiguration: string;
     readonly editModelConfiguration: string;
     readonly modelConfigPreset: string;
-    readonly modelConfigPresetCustom: string;
     readonly modelConfigApiFormat: string;
     readonly modelConfigModelId: string;
     readonly modelConfigRequestStrategy: string;
-    readonly modelConfigAspectRatios: string;
-    readonly modelConfigSizes: string;
-    readonly modelConfigOutputFormats: string;
+    readonly modelConfigMatrixCells: string;
     readonly modelConfigSelection: string;
     readonly modelConfigProfileList: string;
     readonly modelConfigUnconfigured: string;
@@ -280,10 +278,9 @@ export interface AppMessages {
     readonly modelConfigSelectAtLeastOne: string;
     readonly modelConfigValidationApiFormat: string;
     readonly modelConfigValidationModelId: string;
+    readonly modelConfigValidationPreset: string;
     readonly modelConfigValidationStrategy: string;
-    readonly modelConfigValidationAspectRatios: string;
-    readonly modelConfigValidationSizes: string;
-    readonly modelConfigValidationOutputFormats: string;
+    readonly modelConfigValidationMatrixCells: string;
     readonly modelConfigConfigureModel: string;
     readonly modelConfigEditModel: string;
     readonly modelConfigSelectedTag: string;
@@ -446,6 +443,7 @@ const EN_MESSAGES: AppMessages = {
     aspectRatioAuto: 'Auto',
     aspectRatioSquare: '1:1',
     outputSize: 'Size',
+    outputFormat: 'Format',
     outputSizeUnsupportedForModel: 'Unavailable for this model',
     outputSizeAutoChanged: (from, to) => `${from} is unavailable; changed to ${to}`,
     billingSummary: 'Balance',
@@ -627,13 +625,10 @@ const EN_MESSAGES: AppMessages = {
     createModelConfiguration: 'Create model config',
     editModelConfiguration: 'Edit model config',
     modelConfigPreset: 'Preset',
-    modelConfigPresetCustom: 'Custom',
     modelConfigApiFormat: 'API format',
     modelConfigModelId: 'Model ID',
     modelConfigRequestStrategy: 'Request strategy',
-    modelConfigAspectRatios: 'Aspect ratios',
-    modelConfigSizes: 'Sizes',
-    modelConfigOutputFormats: 'Output formats',
+    modelConfigMatrixCells: 'Output matrix cells',
     modelConfigSelection: 'Profile selection',
     modelConfigProfileList: 'Profile models',
     modelConfigUnconfigured: 'Needs configuration before selection.',
@@ -643,10 +638,9 @@ const EN_MESSAGES: AppMessages = {
     modelConfigSelectAtLeastOne: 'Select at least one value.',
     modelConfigValidationApiFormat: 'Choose an API format.',
     modelConfigValidationModelId: 'Model ID is required.',
+    modelConfigValidationPreset: 'Choose an official preset.',
     modelConfigValidationStrategy: 'Choose a valid request strategy.',
-    modelConfigValidationAspectRatios: 'Choose at least one aspect ratio.',
-    modelConfigValidationSizes: 'Choose at least one size.',
-    modelConfigValidationOutputFormats: 'Choose at least one output format.',
+    modelConfigValidationMatrixCells: 'Keep at least one output matrix cell for each operation.',
     modelConfigConfigureModel: 'Configure model',
     modelConfigEditModel: 'Edit config',
     modelConfigSelectedTag: 'Selected',
@@ -809,6 +803,7 @@ const ZH_CN_MESSAGES: AppMessages = {
     aspectRatioAuto: '自动',
     aspectRatioSquare: '1:1',
     outputSize: '尺寸',
+    outputFormat: '格式',
     outputSizeUnsupportedForModel: '该模型不支持此尺寸',
     outputSizeAutoChanged: (from, to) => `${from} 不可用；已改为 ${to}`,
     billingSummary: '余额',
@@ -990,13 +985,10 @@ const ZH_CN_MESSAGES: AppMessages = {
     createModelConfiguration: '新建模型配置',
     editModelConfiguration: '编辑模型配置',
     modelConfigPreset: '预设',
-    modelConfigPresetCustom: '自定义',
     modelConfigApiFormat: 'API 格式',
     modelConfigModelId: '模型 ID',
     modelConfigRequestStrategy: '请求策略',
-    modelConfigAspectRatios: '宽高比',
-    modelConfigSizes: '尺寸',
-    modelConfigOutputFormats: '输出格式',
+    modelConfigMatrixCells: '输出矩阵单元',
     modelConfigSelection: 'Profile 选择状态',
     modelConfigProfileList: 'Profile 模型列表',
     modelConfigUnconfigured: '需要先完成配置，才能加入选择列表。',
@@ -1006,10 +998,9 @@ const ZH_CN_MESSAGES: AppMessages = {
     modelConfigSelectAtLeastOne: '至少选择一项。',
     modelConfigValidationApiFormat: '请选择 API 格式。',
     modelConfigValidationModelId: '模型 ID 不能为空。',
+    modelConfigValidationPreset: '请选择官方预设。',
     modelConfigValidationStrategy: '请选择有效的请求策略。',
-    modelConfigValidationAspectRatios: '请至少选择一个宽高比。',
-    modelConfigValidationSizes: '请至少选择一个尺寸。',
-    modelConfigValidationOutputFormats: '请至少选择一个输出格式。',
+    modelConfigValidationMatrixCells: '每个 operation 至少保留一个输出矩阵单元。',
     modelConfigConfigureModel: '配置模型',
     modelConfigEditModel: '编辑配置',
     modelConfigSelectedTag: '已选中',

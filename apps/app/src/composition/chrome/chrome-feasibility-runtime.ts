@@ -132,13 +132,13 @@ export async function runChromeFeasibilityRuntime(options?: {
         endpoints: [{ id: 'primary', url: 'https://mock.local', enabled: true }],
       },
       paths: { generation: '/images/generations', edit: '/images/edits' },
-      defaultModel: 'gpt-image-1',
+      defaultModel: 'gpt-image-2',
     },
     secretValues: {
       apiKey: 'mock-key',
     },
-    selectedModelIds: ['gpt-image-1'],
-    defaultModelId: 'gpt-image-1',
+    selectedModelIds: ['gpt-image-2'],
+    defaultModelId: 'gpt-image-2',
   });
   if (!profile.ok) {
     throw new Error(profile.error.message);

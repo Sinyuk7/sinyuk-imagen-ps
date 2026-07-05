@@ -5,6 +5,9 @@ import type {
   JobHistoryStore,
   ModelDiscoveryCache,
   ModelDiscoveryCacheRepository,
+  ModelGenerationPreference,
+  ModelGenerationPreferenceKey,
+  ModelGenerationPreferenceRepository,
   ProviderProfile,
   ProviderProfileRepository,
   SecretStorageAdapter,
@@ -57,6 +60,10 @@ function userModelConfigKey(apiFormat: string, modelId: string): string {
   return `${apiFormat}:${modelId}`;
 }
 
+function modelGenerationPreferenceKey(key: ModelGenerationPreferenceKey): string {
+  return `${key.profileId}:${key.apiFormat}:${key.modelId}:${key.operation}`;
+}
+
 export function createInMemoryUserModelConfigRepository(): UserModelConfigRepository {
   const configs = new Map<string, UserModelConfig>();
   return {
@@ -72,6 +79,21 @@ export function createInMemoryUserModelConfigRepository(): UserModelConfigReposi
     },
     async delete(apiFormat, modelId): Promise<void> {
       configs.delete(userModelConfigKey(apiFormat, modelId));
+    },
+  };
+}
+
+export function createInMemoryModelGenerationPreferenceRepository(): ModelGenerationPreferenceRepository {
+  const preferences = new Map<string, ModelGenerationPreference>();
+  return {
+    async get(key): Promise<ModelGenerationPreference | undefined> {
+      return preferences.get(modelGenerationPreferenceKey(key));
+    },
+    async save(preference): Promise<void> {
+      preferences.set(modelGenerationPreferenceKey(preference), preference);
+    },
+    async delete(key): Promise<void> {
+      preferences.delete(modelGenerationPreferenceKey(key));
     },
   };
 }

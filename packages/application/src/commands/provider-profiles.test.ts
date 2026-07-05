@@ -324,7 +324,7 @@ describe('provider profile alias contract', () => {
     const kept = await saveProviderProfile({
       profileId: 'profile-remove',
       config: {
-        defaultModel: 'gpt-image-1',
+        defaultModel: 'chatgpt-image-latest',
       },
     });
     expect(kept.ok).toBe(true);
@@ -335,7 +335,7 @@ describe('provider profile alias contract', () => {
       profileId: 'profile-remove',
       removedSecretNames: ['billingAccessToken'],
       config: {
-        defaultModel: 'dall-e-3',
+        defaultModel: 'gpt-image-2',
         billing: { mode: 'none' },
       },
     });
@@ -387,8 +387,8 @@ describe('provider profile alias contract', () => {
     expect(base.ok).toBe(true);
     profiles[0] = {
       ...profiles[0]!,
-      selectedModelIds: ['gpt-image-1'],
-      defaultModelId: 'gpt-image-1',
+      selectedModelIds: ['gpt-image-2'],
+      defaultModelId: 'gpt-image-2',
     };
     const beforeConfig = profiles[0]!.config;
     const beforeSecretRefs = profiles[0]!.secretRefs;
@@ -444,7 +444,7 @@ describe('provider profile alias contract', () => {
     expect(saved.ok).toBe(false);
     if (!saved.ok) {
       expect(saved.error.category).toBe('validation');
-      expect(saved.error.message).toContain('model "unknown-selected-model" is not configured');
+      expect(saved.error.message).toContain('no explicit rule');
     }
   });
 

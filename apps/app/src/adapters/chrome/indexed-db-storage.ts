@@ -2,9 +2,12 @@ import { assertTaskRecord, decodeTaskRecord } from '@imagen-ps/application';
 import type {
   AssetStore,
   DurableJobRecord,
+  ImageOutputMatrix,
   JobHistoryStore,
   ModelDiscoveryCache,
   ModelDiscoveryCacheRepository,
+  ModelGenerationPreference,
+  ModelGenerationPreferenceRepository,
   ProviderProfile,
   ProviderProfileRepository,
   SecretStorageAdapter,
@@ -16,9 +19,10 @@ import type {
 } from '@imagen-ps/application';
 import type { ActiveImageProfileStore } from '../../shared/ports/active-image-profile';
 import { DEFAULT_APP_GENERATION_SETTINGS, normalizeAppGenerationSettings, type AppGenerationSettings, type AppGenerationSettingsStore } from '../../shared/ports/app-generation-settings';
+import { modelGenerationPreferenceKey } from '../../shared/ports/model-generation-preferences';
 import { normalizePromptSettings, type PromptSettings, type PromptSettingsStore } from '../../shared/ports/prompt-settings';
 
-export type ChromeStoreName = 'profiles' | 'secrets' | 'history' | 'tasks' | 'assets' | 'appSettings' | 'modelDiscovery' | 'userModelConfigs';
+export type ChromeStoreName = 'profiles' | 'secrets' | 'history' | 'tasks' | 'assets' | 'appSettings' | 'modelDiscovery' | 'userModelConfigs' | 'modelGenerationPreferences';
 
 export interface ChromeKeyValueBackend {
   get<T>(store: ChromeStoreName, key: string): Promise<T | undefined>;
@@ -35,11 +39,58 @@ interface ChromeStoredRecord<T> {
 }
 
 const CHROME_DB_NAME = 'imagen-ps-chrome-runtime';
-const CHROME_DB_VERSION = 4;
-const CHROME_STORES: readonly ChromeStoreName[] = ['profiles', 'secrets', 'history', 'tasks', 'assets', 'appSettings', 'modelDiscovery', 'userModelConfigs'];
+const CHROME_DB_VERSION = 5;
+const CHROME_STORES: readonly ChromeStoreName[] = ['profiles', 'secrets', 'history', 'tasks', 'assets', 'appSettings', 'modelDiscovery', 'userModelConfigs', 'modelGenerationPreferences'];
 const GENERATION_SETTINGS_KEY = 'generation';
 const PROMPT_SETTINGS_KEY = 'prompt';
 const ACTIVE_IMAGE_PROFILE_KEY = 'activeImageProfile';
+
+function isPlainRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null && !Array.isArray(value);
+}
+
+function isApiFormat(value: unknown): value is UserModelConfig['apiFormat'] {
+  return value === 'openai-images' || value === 'openai-chat-completions' || value === 'gemini-generate-content';
+}
+
+function isImageOperation(value: unknown): value is ImageOutputMatrix['operation'] {
+  return value === 'text_to_image' || value === 'image_edit';
+}
+
+function isImageOutputMatrix(value: unknown): value is ImageOutputMatrix {
+  if (!isPlainRecord(value) || !isImageOperation(value.operation)) {
+    return false;
+  }
+  return Array.isArray(value.imageSizes) &&
+    Array.isArray(value.ratios) &&
+    Array.isArray(value.outputFormats) &&
+    typeof value.defaultCellId === 'string' &&
+    Array.isArray(value.cells) &&
+    value.cells.length > 0 &&
+    value.cells.every((cell) =>
+      isPlainRecord(cell) &&
+      typeof cell.id === 'string' &&
+      typeof cell.imageSize === 'string' &&
+      cell.imageSize !== '512' &&
+      typeof cell.ratio === 'string' &&
+      typeof cell.outputFormat === 'string' &&
+      isPlainRecord(cell.requestOutput),
+    );
+}
+
+function isUserModelConfig(value: unknown): value is UserModelConfig {
+  if (!isPlainRecord(value)) {
+    return false;
+  }
+  return value.output === undefined &&
+    isApiFormat(value.apiFormat) &&
+    typeof value.modelId === 'string' &&
+    typeof value.baseModelId === 'string' &&
+    typeof value.requestStrategyId === 'string' &&
+    Array.isArray(value.outputMatrix) &&
+    value.outputMatrix.length > 0 &&
+    value.outputMatrix.every(isImageOutputMatrix);
+}
 
 function requestResult<T>(request: IDBRequest<T>): Promise<T> {
   return new Promise((resolve, reject) => {
@@ -130,6 +181,7 @@ export function createMemoryIndexedDbBackend(options?: {
     appSettings: new Map(),
     modelDiscovery: new Map(),
     userModelConfigs: new Map(),
+    modelGenerationPreferences: new Map(),
   };
   for (const [store, records] of Object.entries(options?.initial ?? {}) as Array<[
     ChromeStoreName,
@@ -195,6 +247,7 @@ export function createChromeIndexedDbStorage(options?: { readonly backend?: Chro
   readonly assets: AssetStore;
   readonly modelDiscovery: ModelDiscoveryCacheRepository;
   readonly userModelConfigs: UserModelConfigRepository;
+  readonly modelGenerationPreferences: ModelGenerationPreferenceRepository;
   readonly generationSettings: AppGenerationSettingsStore;
   readonly promptSettings: PromptSettingsStore;
   readonly activeImageProfile: ActiveImageProfileStore;
@@ -320,17 +373,32 @@ export function createChromeIndexedDbStorage(options?: { readonly backend?: Chro
     },
     userModelConfigs: {
       async list(apiFormat): Promise<readonly UserModelConfig[]> {
-        const configs = await backend.list<UserModelConfig>('userModelConfigs');
+        const configs = (await backend.list<unknown>('userModelConfigs')).filter(isUserModelConfig);
         return apiFormat === undefined ? configs : configs.filter((config) => config.apiFormat === apiFormat);
       },
       async get(apiFormat, modelId): Promise<UserModelConfig | undefined> {
-        return backend.get<UserModelConfig>('userModelConfigs', `${apiFormat}:${modelId}`);
+        const config = await backend.get<unknown>('userModelConfigs', `${apiFormat}:${modelId}`);
+        return isUserModelConfig(config) ? config : undefined;
       },
       async save(config): Promise<void> {
+        if (!isUserModelConfig(config)) {
+          throw new Error('Invalid user model config schema.');
+        }
         await backend.put('userModelConfigs', `${config.apiFormat}:${config.modelId}`, config);
       },
       async delete(apiFormat, modelId): Promise<void> {
         await backend.delete('userModelConfigs', `${apiFormat}:${modelId}`);
+      },
+    },
+    modelGenerationPreferences: {
+      async get(key): Promise<ModelGenerationPreference | undefined> {
+        return backend.get<ModelGenerationPreference>('modelGenerationPreferences', modelGenerationPreferenceKey(key));
+      },
+      async save(preference): Promise<void> {
+        await backend.put('modelGenerationPreferences', modelGenerationPreferenceKey(preference), preference);
+      },
+      async delete(key): Promise<void> {
+        await backend.delete('modelGenerationPreferences', modelGenerationPreferenceKey(key));
       },
     },
     generationSettings: {

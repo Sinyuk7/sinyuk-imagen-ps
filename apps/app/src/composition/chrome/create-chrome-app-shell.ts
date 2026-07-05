@@ -2,6 +2,7 @@ import {
   setAssetStore,
   setJobHistoryStore,
   setModelDiscoveryCacheRepository,
+  setModelGenerationPreferenceRepository,
   setProviderProfileRepository,
   setSecretStorageAdapter,
   setTaskStore,
@@ -80,6 +81,7 @@ export function createChromeAppShell(options?: ChromeAppShellOptions): AppShellH
   setAssetStore(storage.assets);
   setModelDiscoveryCacheRepository(storage.modelDiscovery);
   setUserModelConfigRepository(storage.userModelConfigs);
+  setModelGenerationPreferenceRepository(storage.modelGenerationPreferences);
 
   const simulator = createPhotoshopSimulator(storage.assets, options?.scenario ?? testHarness?.scenario ?? 'seeded-document');
   const host = createChromeHostPort({
@@ -109,6 +111,7 @@ export function createChromeAppShell(options?: ChromeAppShellOptions): AppShellH
       commands: testHarness?.wrapCommands(commands) ?? commands,
       host,
       generationSettings: storage.generationSettings,
+      modelGenerationPreferences: storage.modelGenerationPreferences,
       promptSettings: storage.promptSettings,
       activeImageProfile: storage.activeImageProfile,
       pathInfo: CHROME_PATH_INFO,

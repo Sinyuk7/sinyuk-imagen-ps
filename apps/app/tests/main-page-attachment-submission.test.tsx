@@ -26,9 +26,7 @@ describe('MainPage contract — attachment & submission', () => {
         profileId: 'mock-profile',
         output: {
           count: 1,
-          sizePreset: '2k',
-          outputFormat: 'png',
-          aspectRatio: 'auto',
+          requestOutput: { kind: 'image-endpoint', size: 'auto', outputFormat: 'png' },
         },
       }),
     }));
@@ -280,14 +278,11 @@ describe('MainPage contract — attachment & submission', () => {
     expect(services.spies.captureActiveImage).toHaveBeenCalledTimes(1);
   });
 
-  it('uses global generation settings for output payload and provider input resize', async () => {
+  it('uses resolved model output and app-local provider input resize', async () => {
     const container = document.createElement('div');
     document.body.appendChild(container);
     const services = createFakeServices({
       generationSettings: {
-        outputSizePreset: '4k',
-        outputFormat: 'webp',
-        aspectRatio: '16:9',
         providerInputSizePreset: '1k',
       },
     });
@@ -304,9 +299,7 @@ describe('MainPage contract — attachment & submission', () => {
       input: expect.objectContaining({
         output: {
           count: 1,
-          sizePreset: '4k',
-          outputFormat: 'webp',
-          aspectRatio: '16:9',
+          requestOutput: { kind: 'image-endpoint', size: 'auto', outputFormat: 'png' },
         },
       }),
     }));

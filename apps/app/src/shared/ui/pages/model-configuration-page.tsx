@@ -1,8 +1,8 @@
 import { useEffect, useMemo, useState } from 'react';
 import type {
   ApiFormat,
+  ImageOutputMatrix,
   OfficialModelPreset,
-  RequestStrategy,
   SaveUserModelConfigInput,
   UserModelConfig,
 } from '@imagen-ps/application';
@@ -24,16 +24,19 @@ interface ModelConfigurationPageProps {
   } | null;
 }
 
+interface MatrixCellOption {
+  readonly id: string;
+  readonly label: string;
+}
+
 interface MultiSelectFieldProps {
   readonly title: string;
-  readonly values: readonly string[];
+  readonly values: readonly MatrixCellOption[];
   readonly selected: readonly string[];
   readonly disabled?: boolean;
   readonly emptyMessage: string;
   readonly onToggle: (value: string, checked: boolean) => void;
 }
-
-const CUSTOM_PRESET_ID = '__custom__';
 
 function MultiSelectField({
   title,
@@ -53,13 +56,13 @@ function MultiSelectField({
       <div className="model-config-multi-list">
         {values.map((value) => (
           <Checkbox
-            key={value}
-            checked={selected.includes(value)}
+            key={value.id}
+            checked={selected.includes(value.id)}
             disabled={disabled}
             className="model-config-checkbox"
-            onChecked={(checked) => onToggle(value, checked)}
+            onChecked={(checked) => onToggle(value.id, checked)}
           >
-            {value}
+            {value.label}
           </Checkbox>
         ))}
       </div>
@@ -86,29 +89,40 @@ function uniqueStrings(values: readonly string[]): readonly string[] {
 }
 
 function sourceLabel(config: UserModelConfig, presets: readonly OfficialModelPreset[], t: ReturnType<typeof useI18n>['messages']): string {
-  return presets.some((preset) => preset.apiFormat === config.apiFormat && preset.modelId === config.modelId)
-    ? t.settings.modelConfigCatalogSource
-    : t.settings.modelConfigUserSource;
+  const preset = presets.find((item) => item.apiFormat === config.apiFormat && item.modelId === config.baseModelId);
+  return preset ? `${t.settings.modelConfigCatalogSource} · ${preset.displayName}` : t.settings.modelConfigUserSource;
 }
 
-function presetMatchesConfig(
-  preset: OfficialModelPreset | undefined,
-  config: {
-    readonly requestStrategyId: string;
-    readonly aspectRatios: readonly string[];
-    readonly sizes: readonly string[];
-    readonly outputFormats: readonly string[];
-  },
-): boolean {
-  if (!preset) {
-    return false;
-  }
-  return (
-    preset.requestStrategyId === config.requestStrategyId &&
-    preset.output.aspectRatios.join('\u0000') === config.aspectRatios.join('\u0000') &&
-    preset.output.sizes.join('\u0000') === config.sizes.join('\u0000') &&
-    preset.output.outputFormats.join('\u0000') === config.outputFormats.join('\u0000')
-  );
+function allCellIds(preset: OfficialModelPreset | undefined): readonly string[] {
+  return preset?.outputMatrix.flatMap((matrix) => matrix.cells.map((cell) => cell.id)) ?? [];
+}
+
+function configCellIds(config: UserModelConfig | null | undefined): readonly string[] {
+  return config?.outputMatrix.flatMap((matrix) => matrix.cells.map((cell) => cell.id)) ?? [];
+}
+
+function matrixCellOptions(preset: OfficialModelPreset | undefined): readonly MatrixCellOption[] {
+  return preset?.outputMatrix.flatMap((matrix) =>
+    matrix.cells.map((cell) => ({
+      id: cell.id,
+      label: `${matrix.operation} · ${cell.imageSize.toUpperCase()} · ${cell.ratio} · ${cell.outputFormat.toUpperCase()}`,
+    })),
+  ) ?? [];
+}
+
+function subsetMatrix(matrix: ImageOutputMatrix, selectedCellIds: ReadonlySet<string>): ImageOutputMatrix {
+  const cells = matrix.cells.filter((cell) => selectedCellIds.has(cell.id));
+  const imageSizeIds = new Set(cells.map((cell) => cell.imageSize));
+  const ratioIds = new Set(cells.map((cell) => cell.ratio));
+  const outputFormatIds = new Set(cells.map((cell) => cell.outputFormat));
+  return {
+    operation: matrix.operation,
+    imageSizes: matrix.imageSizes.filter((option) => imageSizeIds.has(option.id)),
+    ratios: matrix.ratios.filter((option) => ratioIds.has(option.id)),
+    outputFormats: matrix.outputFormats.filter((option) => outputFormatIds.has(option.id)),
+    defaultCellId: cells.some((cell) => cell.id === matrix.defaultCellId) ? matrix.defaultCellId : cells[0]?.id ?? matrix.defaultCellId,
+    cells,
+  };
 }
 
 export function ModelConfigurationPage({ onNav, onSaved, initialEditorState = null }: ModelConfigurationPageProps) {
@@ -116,38 +130,27 @@ export function ModelConfigurationPage({ onNav, onSaved, initialEditorState = nu
   const { messages: t } = useI18n();
   const [configs, setConfigs] = useState<readonly UserModelConfig[]>([]);
   const [presets, setPresets] = useState<readonly OfficialModelPreset[]>([]);
-  const [strategies, setStrategies] = useState<readonly RequestStrategy[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [editorOpen, setEditorOpen] = useState(false);
   const [apiFormatMenuOpen, setApiFormatMenuOpen] = useState(false);
   const [presetMenuOpen, setPresetMenuOpen] = useState(false);
-  const [strategyMenuOpen, setStrategyMenuOpen] = useState(false);
   const [saveBusy, setSaveBusy] = useState(false);
   const [apiFormat, setApiFormat] = useState<ApiFormat>('openai-images');
   const [modelId, setModelId] = useState('');
+  const [baseModelId, setBaseModelId] = useState('');
   const [requestStrategyId, setRequestStrategyId] = useState('');
-  const [aspectRatios, setAspectRatios] = useState<readonly string[]>([]);
-  const [sizes, setSizes] = useState<readonly string[]>([]);
-  const [outputFormats, setOutputFormats] = useState<readonly string[]>([]);
+  const [selectedCellIds, setSelectedCellIds] = useState<readonly string[]>([]);
   const [editingKey, setEditingKey] = useState<string | null>(null);
 
   const loadApiFormatData = async (nextApiFormat: ApiFormat) => {
-    const [presetResult, strategyResult] = await Promise.all([
-      services.commands.listOfficialModelConfigPresets(nextApiFormat),
-      services.commands.listRequestStrategiesForApiFormat(nextApiFormat),
-    ]);
+    const presetResult = await services.commands.listOfficialModelConfigPresets(nextApiFormat);
     if (!presetResult.ok) {
       throw new Error(commandMessage(presetResult.error));
     }
-    if (!strategyResult.ok) {
-      throw new Error(commandMessage(strategyResult.error));
-    }
     setPresets(presetResult.value);
-    setStrategies(strategyResult.value);
     return {
       presets: presetResult.value,
-      strategies: strategyResult.value,
     };
   };
 
@@ -185,22 +188,22 @@ export function ModelConfigurationPage({ onNav, onSaved, initialEditorState = nu
       try {
         const resolvedApiFormat = nextApiFormat ?? apiFormat;
         setApiFormat(resolvedApiFormat);
-        const { presets: nextPresets, strategies: nextStrategies } = await loadApiFormatData(resolvedApiFormat);
-        if (nextModelId) {
-          const configResult = await services.commands.getUserModelConfig(resolvedApiFormat, nextModelId);
-          if (!configResult.ok) {
-            throw new Error(commandMessage(configResult.error));
-          }
-          const preset = nextPresets.find((item) => item.modelId === nextModelId);
-          const template = preset ?? nextPresets[0] ?? null;
-          const config = configResult.value ?? template ?? null;
-          setModelId(nextModelId);
-          setRequestStrategyId(config?.requestStrategyId ?? nextStrategies[0]?.id ?? '');
-          setAspectRatios(config?.output.aspectRatios ?? []);
-          setSizes(config?.output.sizes ?? []);
-          setOutputFormats(config?.output.outputFormats ?? []);
-          setEditingKey(`${resolvedApiFormat}:${nextModelId}`);
+        const { presets: nextPresets } = await loadApiFormatData(resolvedApiFormat);
+        const configResult = nextModelId
+          ? await services.commands.getUserModelConfig(resolvedApiFormat, nextModelId)
+          : { ok: true as const, value: null };
+        if (!configResult.ok) {
+          throw new Error(commandMessage(configResult.error));
         }
+        const config = configResult.value;
+        const preset = config
+          ? nextPresets.find((item) => item.modelId === config.baseModelId)
+          : nextPresets.find((item) => item.modelId === nextModelId) ?? nextPresets[0];
+        setModelId(nextModelId ?? preset?.modelId ?? '');
+        setBaseModelId(preset?.modelId ?? '');
+        setRequestStrategyId(preset?.requestStrategyId ?? '');
+        setSelectedCellIds(config ? configCellIds(config) : allCellIds(preset));
+        setEditingKey(nextModelId ? `${resolvedApiFormat}:${nextModelId}` : null);
         setEditorOpen(true);
       } catch (nextError) {
         setError(nextError instanceof Error ? nextError.message : String(nextError));
@@ -209,14 +212,11 @@ export function ModelConfigurationPage({ onNav, onSaved, initialEditorState = nu
   }, [initialEditorState]);
 
   const presetOptions = useMemo(
-    () => [
-      { id: CUSTOM_PRESET_ID, label: t.settings.modelConfigPresetCustom },
-      ...presets.map((preset) => ({
-        id: preset.modelId,
-        label: `${preset.displayName} · ${preset.modelId}`,
-      })),
-    ],
-    [presets, t.settings.modelConfigPresetCustom],
+    () => presets.map((preset) => ({
+      id: preset.modelId,
+      label: `${preset.displayName} · ${preset.modelId}`,
+    })),
+    [presets],
   );
   const apiFormatOptions = useMemo(
     () => [
@@ -226,17 +226,9 @@ export function ModelConfigurationPage({ onNav, onSaved, initialEditorState = nu
     ],
     [],
   );
-  const strategyOptions = useMemo(
-    () => strategies.map((strategy) => ({ id: strategy.id, label: strategy.id })),
-    [strategies],
-  );
 
-  const selectedPreset = presets.find((preset) => presetMatchesConfig(preset, {
-    requestStrategyId,
-    aspectRatios,
-    sizes,
-    outputFormats,
-  }));
+  const selectedPreset = presets.find((preset) => preset.modelId === baseModelId);
+  const cellOptions = useMemo(() => matrixCellOptions(selectedPreset), [selectedPreset]);
   const validationMessage = useMemo(() => {
     if (!apiFormat) {
       return t.settings.modelConfigValidationApiFormat;
@@ -244,31 +236,35 @@ export function ModelConfigurationPage({ onNav, onSaved, initialEditorState = nu
     if (modelId.trim().length === 0) {
       return t.settings.modelConfigValidationModelId;
     }
+    if (!selectedPreset) {
+      return t.settings.modelConfigValidationPreset;
+    }
     if (requestStrategyId.trim().length === 0) {
       return t.settings.modelConfigValidationStrategy;
     }
-    if (aspectRatios.length === 0) {
-      return t.settings.modelConfigValidationAspectRatios;
-    }
-    if (sizes.length === 0) {
-      return t.settings.modelConfigValidationSizes;
-    }
-    if (outputFormats.length === 0) {
-      return t.settings.modelConfigValidationOutputFormats;
+    for (const matrix of selectedPreset.outputMatrix) {
+      if (!matrix.cells.some((cell) => selectedCellIds.includes(cell.id))) {
+        return t.settings.modelConfigValidationMatrixCells;
+      }
     }
     return null;
-  }, [apiFormat, aspectRatios.length, modelId, outputFormats.length, requestStrategyId, sizes.length, t.settings]);
+  }, [apiFormat, modelId, requestStrategyId, selectedCellIds, selectedPreset, t.settings]);
+
+  const applyPreset = (preset: OfficialModelPreset | undefined, nextModelId?: string) => {
+    setBaseModelId(preset?.modelId ?? '');
+    setRequestStrategyId(preset?.requestStrategyId ?? '');
+    setSelectedCellIds(allCellIds(preset));
+    if (nextModelId !== undefined) {
+      setModelId(nextModelId);
+    }
+  };
 
   const openCreateEditor = async () => {
     try {
       setApiFormat('openai-images');
-      const { presets: nextPresets, strategies: nextStrategies } = await loadApiFormatData('openai-images');
+      const { presets: nextPresets } = await loadApiFormatData('openai-images');
       const firstPreset = nextPresets[0];
-      setModelId(firstPreset?.modelId ?? '');
-      setRequestStrategyId(firstPreset?.requestStrategyId ?? nextStrategies[0]?.id ?? '');
-      setAspectRatios(firstPreset?.output.aspectRatios ?? []);
-      setSizes(firstPreset?.output.sizes ?? []);
-      setOutputFormats(firstPreset?.output.outputFormats ?? []);
+      applyPreset(firstPreset, firstPreset?.modelId ?? '');
       setEditingKey(null);
       setEditorOpen(true);
       setError(null);
@@ -280,12 +276,12 @@ export function ModelConfigurationPage({ onNav, onSaved, initialEditorState = nu
   const openEditEditor = async (config: UserModelConfig) => {
     try {
       setApiFormat(config.apiFormat);
-      await loadApiFormatData(config.apiFormat);
+      const { presets: nextPresets } = await loadApiFormatData(config.apiFormat);
+      const preset = nextPresets.find((item) => item.modelId === config.baseModelId);
       setModelId(config.modelId);
-      setRequestStrategyId(config.requestStrategyId);
-      setAspectRatios(config.output.aspectRatios);
-      setSizes(config.output.sizes);
-      setOutputFormats(config.output.outputFormats);
+      setBaseModelId(preset?.modelId ?? config.baseModelId);
+      setRequestStrategyId(preset?.requestStrategyId ?? config.requestStrategyId);
+      setSelectedCellIds(configCellIds(config));
       setEditingKey(`${config.apiFormat}:${config.modelId}`);
       setEditorOpen(true);
       setError(null);
@@ -294,13 +290,8 @@ export function ModelConfigurationPage({ onNav, onSaved, initialEditorState = nu
     }
   };
 
-  const toggleInList = (
-    current: readonly string[],
-    value: string,
-    checked: boolean,
-    setter: (values: readonly string[]) => void,
-  ) => {
-    setter(checked ? uniqueStrings([...current, value]) : current.filter((item) => item !== value));
+  const toggleCell = (value: string, checked: boolean) => {
+    setSelectedCellIds((current) => checked ? uniqueStrings([...current, value]) : current.filter((item) => item !== value));
   };
 
   const save = async () => {
@@ -308,17 +299,18 @@ export function ModelConfigurationPage({ onNav, onSaved, initialEditorState = nu
       setError(validationMessage);
       return;
     }
+    if (!selectedPreset) {
+      return;
+    }
     setSaveBusy(true);
     try {
+      const selected = new Set(selectedCellIds);
       const result = await services.commands.saveUserModelConfig({
         apiFormat,
         modelId,
-        requestStrategyId,
-        output: {
-          aspectRatios,
-          sizes,
-          outputFormats,
-        },
+        baseModelId: selectedPreset.modelId,
+        requestStrategyId: selectedPreset.requestStrategyId,
+        outputMatrix: selectedPreset.outputMatrix.map((matrix) => subsetMatrix(matrix, selected)),
       } satisfies SaveUserModelConfigInput);
       if (!result.ok) {
         throw new Error(commandMessage(result.error));
@@ -339,7 +331,6 @@ export function ModelConfigurationPage({ onNav, onSaved, initialEditorState = nu
     <div className="page page-enter settings-page" onClick={() => {
       setApiFormatMenuOpen(false);
       setPresetMenuOpen(false);
-      setStrategyMenuOpen(false);
     }}>
       <ProviderSettingsPageHeader
         backButtonTestId="model-configuration-back-button"
@@ -398,7 +389,7 @@ export function ModelConfigurationPage({ onNav, onSaved, initialEditorState = nu
                       />
                     </div>
                     <HelpText className="field-hint">
-                      {config.apiFormat} · {config.requestStrategyId}
+                      {config.apiFormat} · {config.baseModelId} · {config.requestStrategyId}
                     </HelpText>
                   </div>
                 ))}
@@ -426,13 +417,9 @@ export function ModelConfigurationPage({ onNav, onSaved, initialEditorState = nu
                     const nextApiFormat = value as ApiFormat;
                     void (async () => {
                       setApiFormat(nextApiFormat);
-                      const { presets: nextPresets, strategies: nextStrategies } = await loadApiFormatData(nextApiFormat);
+                      const { presets: nextPresets } = await loadApiFormatData(nextApiFormat);
                       const firstPreset = nextPresets[0];
-                      setModelId((current) => current.trim() || firstPreset?.modelId || '');
-                      setRequestStrategyId(firstPreset?.requestStrategyId ?? nextStrategies[0]?.id ?? '');
-                      setAspectRatios(firstPreset?.output.aspectRatios ?? []);
-                      setSizes(firstPreset?.output.sizes ?? []);
-                      setOutputFormats(firstPreset?.output.outputFormats ?? []);
+                      applyPreset(firstPreset, modelId.trim() || firstPreset?.modelId || '');
                     })().catch((nextError) => {
                       setError(nextError instanceof Error ? nextError.message : String(nextError));
                     });
@@ -449,25 +436,15 @@ export function ModelConfigurationPage({ onNav, onSaved, initialEditorState = nu
                   label={t.settings.modelConfigPreset}
                   value={selectedPreset
                     ? `${selectedPreset.displayName} · ${selectedPreset.modelId}`
-                    : t.settings.modelConfigPresetCustom}
+                    : t.settings.modelConfigValidationPreset}
                   disabled={saveBusy}
                   open={presetMenuOpen}
                   onOpenChange={setPresetMenuOpen}
                   options={presetOptions}
-                  selectedId={selectedPreset?.modelId ?? CUSTOM_PRESET_ID}
+                  selectedId={selectedPreset?.modelId ?? ''}
                   onSelect={(value) => {
-                    if (value === CUSTOM_PRESET_ID) {
-                      setPresetMenuOpen(false);
-                      return;
-                    }
                     const preset = presets.find((item) => item.modelId === value);
-                    if (!preset) {
-                      return;
-                    }
-                    setRequestStrategyId(preset.requestStrategyId);
-                    setAspectRatios(preset.output.aspectRatios);
-                    setSizes(preset.output.sizes);
-                    setOutputFormats(preset.output.outputFormats);
+                    applyPreset(preset);
                     setPresetMenuOpen(false);
                   }}
                 />
@@ -484,51 +461,26 @@ export function ModelConfigurationPage({ onNav, onSaved, initialEditorState = nu
                 />
               </div>
               <div className="field">
-                <FieldLabel htmlFor="model-config-strategy-trigger">{t.settings.modelConfigRequestStrategy}</FieldLabel>
-                <TextSelect
-                  testId="model-config-strategy-selector"
-                  triggerId="model-config-strategy-trigger"
-                  containerClassName="cmp-select settings-select"
-                  menuClassName="cmp-select-menu cmp-select-menu-model"
-                  label={t.settings.modelConfigRequestStrategy}
-                  value={requestStrategyId || t.settings.modelConfigValidationStrategy}
-                  disabled={saveBusy}
-                  open={strategyMenuOpen}
-                  onOpenChange={setStrategyMenuOpen}
-                  options={strategyOptions}
-                  selectedId={requestStrategyId}
-                  onSelect={(value) => {
-                    setRequestStrategyId(value);
-                    setStrategyMenuOpen(false);
-                  }}
+                <FieldLabel htmlFor="model-config-request-strategy">{t.settings.modelConfigRequestStrategy}</FieldLabel>
+                <TextField
+                  data-testid="model-config-strategy"
+                  id="model-config-request-strategy"
+                  className="field-input mono ui-field-control"
+                  value={requestStrategyId}
+                  disabled
+                  onValue={() => undefined}
                 />
               </div>
             </section>
 
             <section className="section generation-settings-section">
               <MultiSelectField
-                title={t.settings.modelConfigAspectRatios}
-                values={uniqueStrings(selectedPreset?.output.aspectRatios ?? aspectRatios)}
-                selected={aspectRatios}
+                title={t.settings.modelConfigMatrixCells}
+                values={cellOptions}
+                selected={selectedCellIds}
                 disabled={saveBusy}
                 emptyMessage={t.settings.modelConfigSelectAtLeastOne}
-                onToggle={(value, checked) => toggleInList(aspectRatios, value, checked, setAspectRatios)}
-              />
-              <MultiSelectField
-                title={t.settings.modelConfigSizes}
-                values={uniqueStrings(selectedPreset?.output.sizes ?? sizes)}
-                selected={sizes}
-                disabled={saveBusy}
-                emptyMessage={t.settings.modelConfigSelectAtLeastOne}
-                onToggle={(value, checked) => toggleInList(sizes, value, checked, setSizes)}
-              />
-              <MultiSelectField
-                title={t.settings.modelConfigOutputFormats}
-                values={uniqueStrings(selectedPreset?.output.outputFormats ?? outputFormats)}
-                selected={outputFormats}
-                disabled={saveBusy}
-                emptyMessage={t.settings.modelConfigSelectAtLeastOne}
-                onToggle={(value, checked) => toggleInList(outputFormats, value, checked, setOutputFormats)}
+                onToggle={toggleCell}
               />
             </section>
 

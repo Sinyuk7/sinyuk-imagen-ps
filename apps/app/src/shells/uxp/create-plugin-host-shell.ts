@@ -2,6 +2,7 @@ import {
   setAssetStore,
   setJobHistoryStore,
   setModelDiscoveryCacheRepository,
+  setModelGenerationPreferenceRepository,
   setProviderProfileRepository,
   setSecretStorageAdapter,
   setTaskStore,
@@ -27,7 +28,11 @@ import { createUxpStorageAdmin } from '../../adapters/uxp/uxp-job-history-adapte
 import { createUxpActiveImageProfileStore } from '../../adapters/uxp/uxp-active-image-profile-store';
 import { createUxpProviderProfileRepository } from '../../adapters/uxp/uxp-provider-profile-repository';
 import { createUxpSecretStorageAdapter } from '../../adapters/uxp/uxp-secret-storage-adapter';
-import { createUxpModelDiscoveryCacheRepository, createUxpUserModelConfigRepository } from '../../adapters/uxp/uxp-model-repositories';
+import {
+  createUxpModelDiscoveryCacheRepository,
+  createUxpModelGenerationPreferenceRepository,
+  createUxpUserModelConfigRepository,
+} from '../../adapters/uxp/uxp-model-repositories';
 import { createUxpGenerationSettingsStore } from '../../adapters/uxp/uxp-generation-settings-store';
 import { createUxpPromptSettingsStore } from '../../adapters/uxp/uxp-prompt-settings-store';
 import { cleanupUxpLogs, createUxpLogSink, writeUxpUiCheckpoint, writeUxpUiFailure } from '../../adapters/uxp/uxp-log-sink';
@@ -103,6 +108,7 @@ export function createPluginHostShell(): PluginHostShell {
     const assetStore = createUxpAssetStore(uxpModules);
     const modelDiscoveryCacheRepository = createUxpModelDiscoveryCacheRepository(uxpModules);
     const userModelConfigRepository = createUxpUserModelConfigRepository(uxpModules);
+    const modelGenerationPreferenceRepository = createUxpModelGenerationPreferenceRepository(uxpModules);
     const storageAdmin = createUxpStorageAdmin(uxpModules);
     const generationSettings = createUxpGenerationSettingsStore(uxpModules);
     const promptSettings = createUxpPromptSettingsStore(uxpModules);
@@ -123,6 +129,7 @@ export function createPluginHostShell(): PluginHostShell {
     setAssetStore(assetStore);
     setModelDiscoveryCacheRepository(modelDiscoveryCacheRepository);
     setUserModelConfigRepository(userModelConfigRepository);
+    setModelGenerationPreferenceRepository(modelGenerationPreferenceRepository);
 
     const hostLogger = logger.child({ component: 'host' });
     const retentionPolicy = defaultTaskLinkedRetentionPolicy();
@@ -161,6 +168,7 @@ export function createPluginHostShell(): PluginHostShell {
         commands: createCommandsAdapter(),
         host: hostBridge,
         generationSettings,
+        modelGenerationPreferences: modelGenerationPreferenceRepository,
         promptSettings,
         activeImageProfile,
         pathInfo: {

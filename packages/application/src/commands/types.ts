@@ -11,7 +11,13 @@ import type {
   BalanceChange,
   DiscoveredModel,
   ExactTaskCost,
-  ModelOutputConfig,
+  ImageAspectRatio,
+  ImageOperation,
+  ImageOutputFormat,
+  ImageOutputImageSize,
+  ImageOutputMatrix,
+  ImageOutputMatrixCell,
+  ProviderResolvedOutput,
   ProviderBalanceSnapshot,
   ProviderDescriptor as _ProviderDescriptor,
   ProviderConfig as _ProviderConfig,
@@ -26,9 +32,15 @@ export type {
   ProviderConfig,
   ProviderModelInfo,
   ModelBrand,
-  ModelOutputConfig,
+  ImageAspectRatio,
+  ImageOperation,
+  ImageOutputFormat,
+  ImageOutputImageSize,
+  ImageOutputMatrix,
+  ImageOutputMatrixCell,
   OfficialModelPreset,
   ProviderModelExecution,
+  ProviderResolvedOutput,
   RequestStrategy,
   RequestStrategyId,
 } from '@imagen-ps/providers';
@@ -205,18 +217,60 @@ export interface ModelDiscoveryCacheRepository {
   delete(profileId: string): Promise<void>;
 }
 
+export interface ModelGenerationPreferenceKey {
+  readonly profileId: string;
+  readonly apiFormat: ApiFormat;
+  readonly modelId: string;
+  readonly operation: ImageOperation;
+}
+
+export interface ModelGenerationPreference extends ModelGenerationPreferenceKey {
+  readonly cellId: string;
+  readonly imageSize: ImageOutputImageSize;
+  readonly ratio: ImageAspectRatio;
+  readonly outputFormat: ImageOutputFormat;
+}
+
+export type SaveModelGenerationPreferenceInput = ModelGenerationPreference;
+
+export interface ModelGenerationPreferenceSelection {
+  readonly cellId: string;
+  readonly imageSize: ImageOutputImageSize;
+  readonly ratio: ImageAspectRatio;
+  readonly outputFormat: ImageOutputFormat;
+}
+
+export interface ModelGenerationSettings {
+  readonly key: ModelGenerationPreferenceKey;
+  readonly matrix: ImageOutputMatrix;
+  readonly preference: ModelGenerationPreference | null;
+  readonly selection: ModelGenerationPreferenceSelection;
+  readonly cell: ImageOutputMatrixCell;
+  readonly requestOutput: ProviderResolvedOutput;
+  readonly source: 'preference' | 'default';
+}
+
+/** Host-injected repository for model-scoped generation output preferences. */
+export interface ModelGenerationPreferenceRepository {
+  get(key: ModelGenerationPreferenceKey): Promise<ModelGenerationPreference | undefined>;
+  save(preference: ModelGenerationPreference): Promise<void>;
+  delete(key: ModelGenerationPreferenceKey): Promise<void>;
+}
+
 export interface UserModelConfig {
   readonly apiFormat: ApiFormat;
   readonly modelId: string;
+  readonly baseModelId: string;
   readonly requestStrategyId: string;
-  readonly output: ModelOutputConfig;
+  readonly outputMatrix: readonly ImageOutputMatrix[];
 }
 
 export interface SaveUserModelConfigInput {
   readonly apiFormat: ApiFormat;
   readonly modelId: string;
+  readonly baseModelId: string;
   readonly requestStrategyId: string;
-  readonly output: ModelOutputConfig;
+  readonly outputMatrix: readonly ImageOutputMatrix[];
 }
 
 /** Host-injected repository for user-owned model configs. */

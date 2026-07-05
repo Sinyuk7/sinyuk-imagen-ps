@@ -45,7 +45,13 @@ export type {
   ImageCatalogProviderId,
   ImageModelCapability,
   ImageOperation,
+  ImageOutputCellId,
   ImageOutputConstraintStrategy,
+  ImageOutputFormat,
+  ImageOutputImageSize,
+  ImageOutputMatrix,
+  ImageOutputMatrixCell,
+  ImageOutputOption,
   ImageOutputVariant,
   ImageSizePreset,
   ModelOutputConfig,
@@ -64,6 +70,7 @@ export {
   getOfficialModelPreset,
   getRequestStrategy,
   getSupportedImageOutputSizePresets,
+  hasExplicitImageModelRule,
   isSupportedImageModelOutput,
   listLocalCatalogModels,
   listOfficialModelPresets,
@@ -72,9 +79,20 @@ export {
   resolveImageModelOutput,
   resolveImageModelRule,
   summarizeImageModelCapabilities,
+  tryResolveImageModelRule,
   validateImageModelCatalog,
 } from './image-model-capability.js';
-export type { AssetRef, CanonicalImageJobRequest, ProviderModelExecution, ProviderOutputOptions, ProviderRequest } from './request.js';
+export type {
+  AssetRef,
+  CanonicalImageJobRequest,
+  ChatImageRequestOutput,
+  GeminiGenerateContentRequestOutput,
+  ImageEndpointRequestOutput,
+  ProviderModelExecution,
+  ProviderOutputOptions,
+  ProviderRequest,
+  ProviderResolvedOutput,
+} from './request.js';
 export type { ProviderDiagnostic, ProviderDiagnosticLevel, ProviderDiagnostics } from './diagnostics.js';
 export type {
   BalanceChange,

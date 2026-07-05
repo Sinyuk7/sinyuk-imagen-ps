@@ -47,6 +47,23 @@ const providerModelExecutionSchema = z.object({
   requestStrategyId: z.string().min(1),
 });
 
+const providerResolvedOutputSchema = z.discriminatedUnion('kind', [
+  z.object({
+    kind: z.literal('image-endpoint'),
+    size: z.string().optional(),
+    outputFormat: z.union([z.literal('png'), z.literal('jpeg'), z.literal('webp')]).optional(),
+  }),
+  z.object({
+    kind: z.literal('chat-image'),
+    imageConfig: z.record(z.string(), z.unknown()).optional(),
+  }),
+  z.object({
+    kind: z.literal('gemini-generate-content'),
+    responseFormatImage: z.record(z.string(), z.unknown()).optional(),
+    imageConfig: z.record(z.string(), z.unknown()).optional(),
+  }),
+]);
+
 export const mockRequestSchema = z.object({
   operation: z.union([z.literal('text_to_image'), z.literal('image_edit')]),
   prompt: z.string().min(1),
@@ -57,6 +74,7 @@ export const mockRequestSchema = z.object({
     z
       .object({
         count: z.number().int().positive().optional(),
+        requestOutput: providerResolvedOutputSchema.optional(),
         width: z.number().int().positive().optional(),
         height: z.number().int().positive().optional(),
         sizePreset: z.union([z.literal('512'), z.literal('1k'), z.literal('2k'), z.literal('4k')]).optional(),

@@ -4,6 +4,7 @@ import {
   resolveImageModelRule,
   getRequestStrategy,
   type ApiFormat,
+  type ImageOutputMatrix,
   type ProviderModelExecution,
 } from '@imagen-ps/providers';
 import type { ProviderProfile, UserModelConfig, UserModelConfigRepository } from './types.js';
@@ -13,7 +14,7 @@ export interface ResolvedModelConfig {
   readonly apiFormat: ApiFormat;
   readonly modelId: string;
   readonly requestStrategyId: string;
-  readonly output: UserModelConfig['output'];
+  readonly outputMatrix: readonly ImageOutputMatrix[];
   readonly source: 'user' | 'catalog';
 }
 
@@ -48,26 +49,27 @@ export async function resolveConfiguredModel(args: {
   readonly userModelConfigRepository: Pick<UserModelConfigRepository, 'get'>;
 }): Promise<ResolvedModelConfig> {
   const normalizedModelId = args.modelId.trim();
-  const resolvedRule = resolveImageModelRule({
-    providerId: catalogProviderIdForApiFormat(args.apiFormat),
-    modelId: normalizedModelId,
-  });
-  const canonicalModelId = resolvedRule.concreteModelId;
-  const userConfig = await args.userModelConfigRepository.get(args.apiFormat, canonicalModelId);
+  const userConfig = await args.userModelConfigRepository.get(args.apiFormat, normalizedModelId);
   if (userConfig !== undefined) {
     assertStrategyMatchesApiFormat({
       apiFormat: args.apiFormat,
-      modelId: canonicalModelId,
+      modelId: normalizedModelId,
       requestStrategyId: userConfig.requestStrategyId,
     });
     return {
       apiFormat: userConfig.apiFormat,
       modelId: userConfig.modelId,
       requestStrategyId: userConfig.requestStrategyId,
-      output: userConfig.output,
+      outputMatrix: userConfig.outputMatrix,
       source: 'user',
     };
   }
+
+  const resolvedRule = resolveImageModelRule({
+    providerId: catalogProviderIdForApiFormat(args.apiFormat),
+    modelId: normalizedModelId,
+  });
+  const canonicalModelId = resolvedRule.concreteModelId;
 
   const officialPreset = getOfficialModelPreset(args.apiFormat, args.modelId);
   const canonicalPreset = canonicalModelId === normalizedModelId ? officialPreset : getOfficialModelPreset(args.apiFormat, canonicalModelId);
@@ -82,7 +84,7 @@ export async function resolveConfiguredModel(args: {
       apiFormat: preset.apiFormat,
       modelId: preset.modelId,
       requestStrategyId: preset.requestStrategyId,
-      output: preset.output,
+      outputMatrix: preset.outputMatrix,
       source: 'catalog',
     };
   }

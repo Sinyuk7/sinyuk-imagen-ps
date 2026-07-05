@@ -1,10 +1,9 @@
 import type { Asset } from '@imagen-ps/core-engine';
 import type { ProviderDiagnostic } from '../../contract/diagnostics.js';
-import type { CanonicalImageJobRequest, ProviderOutputOptions } from '../../contract/request.js';
+import type { CanonicalImageJobRequest, GeminiGenerateContentRequestOutput, ProviderOutputOptions } from '../../contract/request.js';
 import {
   assertProviderModelExecution,
   getRequestStrategy,
-  resolveImageModelOutput,
 } from '../../contract/image-model-capability.js';
 
 /** Gemini Generate Content provider-local 输出 revision。 */
@@ -41,16 +40,16 @@ export interface GeminiGenerateContentRequestBody {
   generationConfig: {
     responseModalities: readonly ('TEXT' | 'IMAGE')[];
     candidateCount?: number;
-    responseFormat?: {
-      image: {
-        aspectRatio?: 'ASPECT_RATIO_ONE_BY_ONE' | 'ASPECT_RATIO_NINE_SIXTEEN' | 'ASPECT_RATIO_SIXTEEN_NINE';
-        imageSize?: 'IMAGE_SIZE_FIVE_TWELVE' | 'IMAGE_SIZE_ONE_K' | 'IMAGE_SIZE_TWO_K' | 'IMAGE_SIZE_FOUR_K';
+      responseFormat?: {
+        image: {
+          aspectRatio?: 'ASPECT_RATIO_ONE_BY_ONE' | 'ASPECT_RATIO_NINE_SIXTEEN' | 'ASPECT_RATIO_SIXTEEN_NINE';
+        imageSize?: 'IMAGE_SIZE_ONE_K' | 'IMAGE_SIZE_TWO_K' | 'IMAGE_SIZE_FOUR_K';
         mimeType?: 'IMAGE_JPEG';
       };
     };
     imageConfig?: {
       aspectRatio?: '1:1' | '9:16' | '16:9';
-      imageSize?: '512' | '1K' | '2K' | '4K';
+      imageSize?: '1K' | '2K' | '4K';
     };
   };
 }
@@ -191,51 +190,6 @@ function resolveWireRevision(request: CanonicalImageJobRequest): GeminiGenerateC
     : 'response-format-image';
 }
 
-function mapAspectRatioForResponseFormat(
-  value: ProviderOutputOptions['aspectRatio'],
-): 'ASPECT_RATIO_ONE_BY_ONE' | 'ASPECT_RATIO_NINE_SIXTEEN' | 'ASPECT_RATIO_SIXTEEN_NINE' | undefined {
-  switch (value) {
-    case '1:1':
-      return 'ASPECT_RATIO_ONE_BY_ONE';
-    case '9:16':
-      return 'ASPECT_RATIO_NINE_SIXTEEN';
-    case '16:9':
-      return 'ASPECT_RATIO_SIXTEEN_NINE';
-    default:
-      return undefined;
-  }
-}
-
-function mapImageSizeForResponseFormat(
-  value: NonNullable<ProviderOutputOptions['sizePreset']>,
-): 'IMAGE_SIZE_FIVE_TWELVE' | 'IMAGE_SIZE_ONE_K' | 'IMAGE_SIZE_TWO_K' | 'IMAGE_SIZE_FOUR_K' {
-  switch (value) {
-    case '512':
-      return 'IMAGE_SIZE_FIVE_TWELVE';
-    case '1k':
-      return 'IMAGE_SIZE_ONE_K';
-    case '2k':
-      return 'IMAGE_SIZE_TWO_K';
-    case '4k':
-      return 'IMAGE_SIZE_FOUR_K';
-  }
-}
-
-function mapImageSizeForLegacyConfig(
-  value: NonNullable<ProviderOutputOptions['sizePreset']>,
-): '512' | '1K' | '2K' | '4K' {
-  switch (value) {
-    case '512':
-      return '512';
-    case '1k':
-      return '1K';
-    case '2k':
-      return '2K';
-    case '4k':
-      return '4K';
-  }
-}
-
 function createDiagnostic(
   code: string,
   message: string,
@@ -322,13 +276,36 @@ function applyUnsupportedOutputDiagnostics(
   }
 }
 
+function copyResolvedRecord(value: Readonly<Record<string, unknown>> | undefined): Record<string, unknown> {
+  return value === undefined ? {} : { ...value };
+}
+
+function resolveRequestOutput(output: ProviderOutputOptions | undefined): GeminiGenerateContentRequestOutput | undefined {
+  if (output === undefined) {
+    return undefined;
+  }
+  const requestOutput = output.requestOutput;
+  if (requestOutput === undefined) {
+    throw new BuildGeminiGenerateContentRequestError(
+      'Gemini Generate Content output requires resolved requestOutput.',
+      { expected: 'gemini-generate-content' },
+    );
+  }
+  if (requestOutput.kind !== 'gemini-generate-content') {
+    throw new BuildGeminiGenerateContentRequestError(
+      `Gemini Generate Content output received incompatible requestOutput kind "${requestOutput.kind}".`,
+      { expected: 'gemini-generate-content', actual: requestOutput.kind },
+    );
+  }
+  return requestOutput;
+}
+
 function buildGenerationConfig(args: {
   readonly request: CanonicalImageJobRequest;
-  readonly modelId: string;
   readonly wireRevision: GeminiGenerateContentWireRevision;
   readonly diagnostics: ProviderDiagnostic[];
 }): GeminiGenerateContentRequestBody['generationConfig'] {
-  const { request, modelId, wireRevision, diagnostics } = args;
+  const { request, wireRevision, diagnostics } = args;
   const output = request.output;
   applyUnsupportedOutputDiagnostics(output, diagnostics);
 
@@ -340,42 +317,9 @@ function buildGenerationConfig(args: {
     generationConfig.candidateCount = output.count;
   }
 
-  const responseFormatImage: NonNullable<GeminiGenerateContentRequestBody['generationConfig']['responseFormat']>['image'] = {};
-  const legacyImageConfig: NonNullable<GeminiGenerateContentRequestBody['generationConfig']['imageConfig']> = {};
-
-  if (output?.sizePreset !== undefined) {
-    const resolved = resolveImageModelOutput({
-      providerId: 'gemini-generate-content',
-      modelId,
-      operation: request.operation,
-      output,
-    });
-    if (wireRevision === 'response-format-image') {
-      responseFormatImage.imageSize = mapImageSizeForResponseFormat(output.sizePreset);
-    } else if (resolved.wireSize !== undefined) {
-      legacyImageConfig.imageSize = mapImageSizeForLegacyConfig(output.sizePreset);
-    }
-    if (resolved.wireAspectRatio !== undefined) {
-      if (wireRevision === 'response-format-image') {
-        responseFormatImage.aspectRatio = mapAspectRatioForResponseFormat(resolved.wireAspectRatio);
-      } else {
-        legacyImageConfig.aspectRatio = resolved.wireAspectRatio;
-      }
-    }
-  } else if (output?.aspectRatio !== undefined && output.aspectRatio !== 'auto' && output.aspectRatio !== 'source') {
-    const aspectRatio = mapAspectRatioForResponseFormat(output.aspectRatio);
-    if (aspectRatio === undefined) {
-      pushIgnoredOutputOptionDiagnostic(diagnostics, 'aspectRatio', { requested: output.aspectRatio });
-    } else if (wireRevision === 'response-format-image') {
-      responseFormatImage.aspectRatio = aspectRatio;
-    } else {
-      legacyImageConfig.aspectRatio = output.aspectRatio as '1:1' | '9:16' | '16:9';
-    }
-  }
-
-  if (output?.outputFormat === 'jpeg') {
-    responseFormatImage.mimeType = 'IMAGE_JPEG';
-  }
+  const requestOutput = resolveRequestOutput(output);
+  const responseFormatImage = copyResolvedRecord(requestOutput?.responseFormatImage) as NonNullable<GeminiGenerateContentRequestBody['generationConfig']['responseFormat']>['image'];
+  const legacyImageConfig = copyResolvedRecord(requestOutput?.imageConfig) as NonNullable<GeminiGenerateContentRequestBody['generationConfig']['imageConfig']>;
 
   if (wireRevision === 'response-format-image') {
     generationConfig.responseFormat = { image: responseFormatImage };
@@ -428,7 +372,6 @@ export function buildGeminiGenerateContentRequest(args: {
     ],
     generationConfig: buildGenerationConfig({
       request: args.request,
-      modelId: model,
       wireRevision,
       diagnostics,
     }),

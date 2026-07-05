@@ -7,6 +7,7 @@ import { parseChatImageModelsResponse } from '../src/transport/chat-image/models
 import { parseChatImageResponse } from '../src/transport/chat-image/parse-response.js';
 import { resolveChatImageWireCodec } from '../src/transport/chat-image/request-codec.js';
 import { chatImageModel } from './model-execution.js';
+import { outputWithResolvedRequest } from './resolved-output.js';
 
 const tinyPngBase64 = 'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+aF9sAAAAASUVORK5CYII=';
 const tinyPngDataUrl = `data:image/png;base64,${tinyPngBase64}`;
@@ -120,7 +121,15 @@ describe('chat-image provider', () => {
       {
         operation: 'text_to_image',
         prompt: 'a red square',
-        output: { count: 1, width: 1024, height: 1024 },
+        output: outputWithResolvedRequest({
+          providerId: 'chat-image',
+          modelId: 'google/gemini-2.5-flash-image-preview',
+          operation: 'text_to_image',
+          imageSize: '1k',
+          ratio: '1:1',
+          outputFormat: 'png',
+          output: { count: 1 },
+        }),
         model: chatImageModel('google/gemini-2.5-flash-image-preview'),
       },
     );
@@ -130,21 +139,24 @@ describe('chat-image provider', () => {
       messages: [{ role: 'user', content: 'a red square' }],
       modalities: ['image'],
       n: 1,
-      image_config: { size: '1024x1024' },
+      image_config: { size: '1K', aspect_ratio: '1:1', output_format: 'png' },
     });
   });
 
-  it('maps semantic output settings to chat image_config and downgrades 4K provider-side', () => {
+  it('serializes resolved chat image_config without provider-side downgrades', () => {
     const body = buildChatImageRequestBody(
       {
         operation: 'text_to_image',
         prompt: 'a portrait',
-        output: {
-          count: 1,
-          sizePreset: '4k',
-          aspectRatio: '9:16',
+        output: outputWithResolvedRequest({
+          providerId: 'chat-image',
+          modelId: 'google/gemini-2.5-flash-image-preview',
+          operation: 'text_to_image',
+          imageSize: '4k',
+          ratio: '9:16',
           outputFormat: 'png',
-        },
+          output: { count: 1 },
+        }),
         model: chatImageModel('google/gemini-2.5-flash-image-preview'),
       },
     );
@@ -152,7 +164,7 @@ describe('chat-image provider', () => {
     expect(body).toMatchObject({
       n: 1,
       image_config: {
-        size: '2K',
+        size: '4K',
         aspect_ratio: '9:16',
         output_format: 'png',
       },
@@ -166,18 +178,20 @@ describe('chat-image provider', () => {
         operation: 'image_edit',
         prompt: 'preserve source ratio',
         images: [{ type: 'image', data: 'abc', mimeType: 'image/png' }],
-        output: {
-          count: 1,
-          sizePreset: '2k',
-          aspectRatio: 'source',
+        output: outputWithResolvedRequest({
+          providerId: 'chat-image',
+          modelId: 'google/gemini-2.5-flash-image-preview',
+          operation: 'image_edit',
+          imageSize: 'auto',
+          ratio: 'source',
           outputFormat: 'png',
-        },
+          output: { count: 1 },
+        }),
         model: chatImageModel('google/gemini-2.5-flash-image-preview'),
       },
     );
 
     expect(body.image_config).toMatchObject({
-      size: '2K',
       output_format: 'png',
     });
     expect(body.image_config).not.toHaveProperty('aspect_ratio');
@@ -223,11 +237,15 @@ describe('chat-image provider', () => {
       {
         operation: 'text_to_image',
         prompt: 'preserve canonical semantics',
-        output: {
-          count: 1,
-          aspectRatio: '1:1',
+        output: outputWithResolvedRequest({
+          providerId: 'chat-image',
+          modelId: 'google/gemini-2.5-flash-image-preview',
+          operation: 'text_to_image',
+          imageSize: '1k',
+          ratio: '1:1',
           outputFormat: 'png',
-        },
+          output: { count: 1 },
+        }),
         providerOptions: {
           image_config: { aspect_ratio: '9:16', quality: 'low' },
           modalities: ['text'],
@@ -243,6 +261,7 @@ describe('chat-image provider', () => {
       modalities: ['image'],
       user: 'trace-user',
       image_config: {
+        size: '1K',
         aspect_ratio: '1:1',
         output_format: 'png',
       },
@@ -272,6 +291,29 @@ describe('chat-image provider', () => {
         }),
       }),
     ]);
+  });
+
+  it('rejects chat-image output that has no resolved requestOutput', () => {
+    expect(() => buildChatImageRequestBody({
+      operation: 'text_to_image',
+      prompt: 'missing resolved output',
+      output: { count: 1, sizePreset: '1k', aspectRatio: '1:1' },
+      model: chatImageModel('google/gemini-2.5-flash-image-preview'),
+    })).toThrow(/requires resolved requestOutput/);
+  });
+
+  it('rejects chat-image output with an incompatible resolved kind', () => {
+    expect(() => buildChatImageRequestBody({
+      operation: 'text_to_image',
+      prompt: 'wrong resolved output',
+      output: {
+        requestOutput: {
+          kind: 'image-endpoint',
+          size: '1024x1024',
+        },
+      },
+      model: chatImageModel('google/gemini-2.5-flash-image-preview'),
+    })).toThrow(/incompatible requestOutput kind "image-endpoint"/);
   });
 
   it('normalizes OpenRouter-style image response', () => {
@@ -667,7 +709,15 @@ describe('chat-image provider', () => {
     const request = provider.validateRequest({
       operation: 'text_to_image',
       prompt: 'test',
-      output: { count: 1 },
+      output: outputWithResolvedRequest({
+        providerId: 'chat-image',
+        modelId: 'google/gemini-2.5-flash-image-preview',
+        operation: 'text_to_image',
+        imageSize: 'auto',
+        ratio: 'auto',
+        outputFormat: 'png',
+        output: { count: 1 },
+      }),
       model: chatImageModel('google/gemini-2.5-flash-image-preview'),
     });
 
@@ -714,7 +764,15 @@ describe('chat-image provider', () => {
     const request = provider.validateRequest({
       operation: 'text_to_image',
       prompt: 'test',
-      output: { count: 1, outputFormat: 'png' },
+      output: outputWithResolvedRequest({
+        providerId: 'chat-image',
+        modelId: 'gemini-3.1-flash-image',
+        operation: 'text_to_image',
+        imageSize: 'auto',
+        ratio: 'auto',
+        outputFormat: 'png',
+        output: { count: 1 },
+      }),
       model: chatImageModel('gemini-3.1-flash-image'),
     });
 
@@ -791,7 +849,15 @@ describe('chat-image provider', () => {
       request: provider.validateRequest({
         operation: 'text_to_image',
         prompt: 'test',
-        output: { count: 1, aspectRatio: '1:1' },
+        output: outputWithResolvedRequest({
+          providerId: 'chat-image',
+          modelId: 'google/gemini-2.5-flash-image-preview',
+          operation: 'text_to_image',
+          imageSize: '1k',
+          ratio: '1:1',
+          outputFormat: 'png',
+          output: { count: 1 },
+        }),
         providerOptions: {
           image_config: { aspect_ratio: '9:16' },
           unsupported_flag: true,

@@ -429,7 +429,6 @@ describe('ComposerSelect', () => {
           open: true,
           onOpenChange: () => undefined,
           options: [
-            { id: '512', label: '512' },
             { id: '1k', label: '1K' },
             { id: '2k', label: '2K' },
             { id: '4k', label: '4K' },
@@ -445,7 +444,7 @@ describe('ComposerSelect', () => {
     await flush();
 
     const options = Array.from(container.querySelectorAll<HTMLElement>('[data-testid^="compact-select-option-"]'));
-    expect(options).toHaveLength(4);
+    expect(options).toHaveLength(3);
     for (let index = 0; index < options.length - 1; index += 1) {
       expect(options[index + 1]!.offsetTop).toBe(options[index]!.offsetTop + options[index]!.offsetHeight);
     }

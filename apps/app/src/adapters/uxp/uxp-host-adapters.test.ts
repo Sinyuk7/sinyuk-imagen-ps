@@ -313,32 +313,20 @@ describe('fake UXP host adapters', () => {
 
     const store = createUxpGenerationSettingsStore(modules);
     expect(await store.load()).toEqual({
-      outputSizePreset: '2k',
-      outputFormat: 'png',
-      aspectRatio: 'auto',
       providerInputSizePreset: '1k',
     });
 
     await store.save({
-      outputSizePreset: '4k',
-      outputFormat: 'webp',
-      aspectRatio: '16:9',
       providerInputSizePreset: '2k',
     });
 
     expect(await store.load()).toEqual({
-      outputSizePreset: '4k',
-      outputFormat: 'webp',
-      aspectRatio: '16:9',
       providerInputSizePreset: '2k',
     });
 
     const file = dataFolder.files['generation-settings.json'] as MutableFakeFile | undefined;
     expect(file).toBeDefined();
     expect(JSON.parse(String(await file?.read()))).toEqual({
-      outputSizePreset: '4k',
-      outputFormat: 'webp',
-      aspectRatio: '16:9',
       providerInputSizePreset: '2k',
     });
   });

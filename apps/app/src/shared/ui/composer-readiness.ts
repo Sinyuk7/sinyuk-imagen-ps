@@ -1,4 +1,3 @@
-import type { AppOutputSizePreset } from '../ports/app-generation-settings';
 import type { PlacementIntent } from '../domain/photoshop-placement';
 import type { UiModelInfo } from './model-info';
 
@@ -33,7 +32,8 @@ export interface ComposerReadinessInput {
   readonly attachmentPreparing: boolean;
   readonly attachmentFailed: boolean;
   readonly operation: ComposerOperation;
-  readonly outputSizePreset: AppOutputSizePreset;
+  readonly outputSettingsLoading: boolean;
+  readonly hasOutputMatrix: boolean;
   readonly placementIntent: PlacementIntent;
   readonly prompt: string;
 }
@@ -57,27 +57,8 @@ export function modelSupportsOperation(
   return 'unknown';
 }
 
-export function supportedSizePresetsForOperation(
-  _model: UiModelInfo | undefined,
-  _operation: ComposerOperation,
-): readonly AppOutputSizePreset[] | 'unknown' {
-  return 'unknown';
-}
-
 export function modelSupportsImageInput(model: UiModelInfo | undefined): 'supported' | 'unsupported' | 'unknown' {
   return modelSupportsOperation(model, 'image-edit');
-}
-
-export function modelSupportsOutputSize(
-  model: UiModelInfo | undefined,
-  operation: ComposerOperation,
-  outputSizePreset: AppOutputSizePreset,
-): 'supported' | 'unsupported' | 'unknown' {
-  const presets = supportedSizePresetsForOperation(model, operation);
-  if (presets === 'unknown') {
-    return 'unknown';
-  }
-  return presets.includes(outputSizePreset) ? 'supported' : 'unsupported';
 }
 
 /** 按产品定义的单一阻塞优先级推导 composer readiness。 */
@@ -112,6 +93,12 @@ export function deriveComposerReadiness(input: ComposerReadinessInput): Composer
   if (input.attachmentFailed) {
     return { state: 'attachment-failed', canSend: false };
   }
+  if (input.prompt.trim().length === 0) {
+    return { state: 'enter-prompt', canSend: false };
+  }
+  if (input.outputSettingsLoading) {
+    return { state: 'loading-models', canSend: false };
+  }
 
   const operationSupport = modelSupportsOperation(input.selectedModel, input.operation);
   if (operationSupport === 'unsupported') {
@@ -123,14 +110,11 @@ export function deriveComposerReadiness(input: ComposerReadinessInput): Composer
     };
   }
 
-  if (modelSupportsOutputSize(input.selectedModel, input.operation, input.outputSizePreset) === 'unsupported') {
+  if (!input.hasOutputMatrix) {
     return { state: 'size-unsupported', canSend: false };
   }
   if (input.placementIntent.kind === 'unbound' && input.placementIntent.reason === 'multiple-documents') {
     return { state: 'resolve-placement-conflict', canSend: false };
-  }
-  if (input.prompt.trim().length === 0) {
-    return { state: 'enter-prompt', canSend: false };
   }
   return { state: 'ready', canSend: true };
 }

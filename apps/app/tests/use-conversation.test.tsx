@@ -194,12 +194,6 @@ describe('useConversation', () => {
         __clientTaskId: expect.any(String),
         profileId: 'mock-profile',
         prompt: 'make an image',
-        output: {
-          count: 1,
-          sizePreset: '2k',
-          outputFormat: 'png',
-          aspectRatio: 'auto',
-        },
         providerOptions: { model: 'mock-image-v1' },
       }),
       signal: expect.any(AbortSignal),
@@ -237,13 +231,20 @@ describe('useConversation', () => {
         providerId: 'mock',
         providerName: 'Mock Profile',
         modelId: 'mock-image-v1',
-        output: { count: 1, sizePreset: '4k', outputFormat: 'webp', aspectRatio: '16:9' },
+        output: {
+          count: 1,
+          requestOutput: {
+            kind: 'image-endpoint',
+            size: '3840x2160',
+            outputFormat: 'webp',
+          },
+        },
         providerInputSizePreset: '1k',
       });
     });
 
     expect(getController().rounds[0]?.responseText).toContain('[operation=text_to_image] [model=mock-image-v1]');
-    expect(getController().rounds[0]?.responseText).toContain('[app.output=size=4k format=webp aspect=16:9 providerInputSize=1k]');
+    expect(getController().rounds[0]?.responseText).toContain('[app.output=image-endpoint providerInputSize=1k]');
     expect(getController().rounds[0]?.responseText).toContain('[app.attachments=0]');
     expect(getController().rounds[0]?.responseText).toContain('[app.placement=unbound]');
   });

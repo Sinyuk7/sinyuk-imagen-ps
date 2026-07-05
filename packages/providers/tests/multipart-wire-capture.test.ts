@@ -3,6 +3,7 @@ import { httpRequest } from '../src/transport/image-endpoint/http.js';
 import { buildEditMultipartBodyForCodec } from '../src/transport/image-endpoint/build-request.js';
 import { parseMultipartBody, withCapturedRequest } from './multipart-wire-harness.js';
 import { imageEndpointModel } from './model-execution.js';
+import { outputWithResolvedRequest } from './resolved-output.js';
 
 describe('multipart wire capture characterization (Node FormData only)', () => {
   it('captures multipart boundary and normalized parts via a local Node HTTP server', async () => {
@@ -16,10 +17,15 @@ describe('multipart wire capture characterization (Node FormData only)', () => {
             { type: 'image', data: 'd29ybGQ=', mimeType: 'image/jpeg', name: 'second.jpg' },
           ],
           maskImage: { type: 'image', data: 'bWFzaw==', mimeType: 'image/png', name: 'mask.png' },
-          output: {
-            count: 2,
+          output: outputWithResolvedRequest({
+            providerId: 'image-endpoint',
+            modelId: 'gpt-image-2',
+            operation: 'image_edit',
+            imageSize: 'auto',
+            ratio: 'auto',
             outputFormat: 'png',
-          },
+            output: { count: 2 },
+          }),
           model: imageEndpointModel('gpt-image-2'),
         },
         'multipart-bracket',
@@ -43,35 +49,36 @@ describe('multipart wire capture characterization (Node FormData only)', () => {
         'model',
         'prompt',
         'n',
+        'size',
         'output_format',
         'image[]',
         'image[]',
         'mask',
       ]);
-      expect(parsed.parts[4]).toMatchObject({
+      expect(parsed.parts[5]).toMatchObject({
         name: 'image[]',
         filename: 'first.png',
         mimeType: 'image/png',
         size: 5,
-        order: 4,
+        order: 5,
       });
-      expect(parsed.parts[5]).toMatchObject({
+      expect(parsed.parts[6]).toMatchObject({
         name: 'image[]',
         filename: 'second.jpg',
         mimeType: 'image/jpeg',
         size: 5,
-        order: 5,
+        order: 6,
       });
-      expect(parsed.parts[6]).toMatchObject({
+      expect(parsed.parts[7]).toMatchObject({
         name: 'mask',
         filename: 'mask.png',
         mimeType: 'image/png',
         size: 4,
-        order: 6,
+        order: 7,
       });
-      expect(parsed.parts[4]?.sha256).toHaveLength(64);
       expect(parsed.parts[5]?.sha256).toHaveLength(64);
       expect(parsed.parts[6]?.sha256).toHaveLength(64);
+      expect(parsed.parts[7]?.sha256).toHaveLength(64);
     });
   });
 });

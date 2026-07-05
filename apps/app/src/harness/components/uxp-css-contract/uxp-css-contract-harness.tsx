@@ -1316,7 +1316,6 @@ function ModelSelectorSpecimen() {
             open={openMenu === 'size'}
             onOpenChange={(open) => setOpenMenu(open ? 'size' : null)}
             options={[
-              { id: '512', label: '512' },
               { id: '1k', label: '1K' },
               { id: '2k', label: '2K' },
             ]}

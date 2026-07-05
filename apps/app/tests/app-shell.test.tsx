@@ -100,7 +100,7 @@ describe('AppShell', () => {
     await flush();
 
     expect(container.textContent).toContain('Mock Profile');
-    expect(container.textContent).toContain('mock-image-v1');
+    expect(container.textContent).toContain('gpt-image-2');
     expect(document.documentElement.lang).toBe('zh-CN');
   });
 
@@ -689,7 +689,7 @@ describe('AppShell', () => {
     expect(container.querySelector<HTMLDivElement>('.panel')?.getAttribute('data-app-theme')).toBe('light');
   });
 
-  it('writes main-page output size changes back into global generation settings', async () => {
+  it('writes main-page output size changes into model-scoped generation settings', async () => {
     const { services } = createFakeServices();
     const container = document.createElement('div');
     document.body.appendChild(container);
@@ -802,16 +802,33 @@ describe('AppShell', () => {
     expect(iconSelectValue(container, '[data-testid="global-output-size-selector"]')).toContain('4K');
   });
 
-  it('keeps output-size selection when shared draft context switches operation without local model limits', async () => {
+  it('keeps output-size preference when shared draft context switches operation without local model limits', async () => {
     const { services } = createFakeServices({
-      generationSettings: {
-        outputSizePreset: '4k',
-      },
       profiles: [{
         ...fakeProfile,
         selectedModelIds: ['image-edit-1k'],
         defaultModelId: 'image-edit-1k',
       }],
+    });
+    await services.modelGenerationPreferences.save({
+      profileId: 'mock-profile',
+      apiFormat: 'openai-images',
+      modelId: 'image-edit-1k',
+      operation: 'text_to_image',
+      cellId: 'text_to_image:4k:16:9:webp',
+      imageSize: '4k',
+      ratio: '16:9',
+      outputFormat: 'webp',
+    });
+    await services.modelGenerationPreferences.save({
+      profileId: 'mock-profile',
+      apiFormat: 'openai-images',
+      modelId: 'image-edit-1k',
+      operation: 'image_edit',
+      cellId: 'image_edit:4k:16:9:webp',
+      imageSize: '4k',
+      ratio: '16:9',
+      outputFormat: 'webp',
     });
     vi.mocked(services.commands.listProfileModels).mockResolvedValue({
       ok: true as const,
@@ -862,6 +879,91 @@ describe('AppShell', () => {
     await flush();
 
     expect(iconSelectValue(container, '[data-testid="global-output-size-selector"]')).toContain('4K');
+  });
+
+  it('uses Settings-selected resolved matrix output on the next MainPage Send', async () => {
+    const { services, spies } = createFakeServices();
+    const container = document.createElement('div');
+    document.body.appendChild(container);
+    root = createRoot(container);
+
+    await act(async () => {
+      root!.render(
+        <AppShell
+          host={{
+            kind: 'photoshop-uxp',
+            app: { stage: 'uxp-first-shell', host: 'photoshop-uxp', services: ['commands', 'host'] },
+            locale: 'en',
+            services,
+            dispose: () => undefined,
+          }}
+        />,
+      );
+    });
+    await flush();
+    await flush();
+
+    await act(async () => {
+      container.querySelector<HTMLButtonElement>('[data-testid="main-providers-button"]')?.click();
+    });
+    await flush();
+    await act(async () => {
+      container.querySelector<HTMLElement>('[data-testid="global-generation-settings-row"]')?.click();
+    });
+    await flush();
+    await flush();
+
+    await act(async () => {
+      container.querySelector<HTMLElement>('[data-testid="global-output-size-selector"]')?.click();
+    });
+    await flush();
+    await act(async () => {
+      document.body.querySelector<HTMLElement>('[data-testid="global-output-size-selector-option-4k"]')?.click();
+    });
+    await flush();
+    await act(async () => {
+      container.querySelector<HTMLElement>('[data-testid="global-aspect-ratio-selector"]')?.click();
+    });
+    await flush();
+    await act(async () => {
+      document.body.querySelector<HTMLElement>('[data-testid="global-aspect-ratio-selector-option-16:9"]')?.click();
+    });
+    await flush();
+    await act(async () => {
+      container.querySelector<HTMLElement>('[data-testid="global-output-format-selector"]')?.click();
+    });
+    await flush();
+    await act(async () => {
+      document.body.querySelector<HTMLElement>('[data-testid="global-output-format-selector-option-webp"]')?.click();
+    });
+    await flush();
+
+    await act(async () => {
+      container.querySelector<HTMLElement>('[data-testid="global-settings-back-button"]')?.click();
+    });
+    await flush();
+    await act(async () => {
+      container.querySelector<HTMLElement>('[data-testid="providers-back-button"]')?.click();
+    });
+    await flush();
+    await act(async () => {
+      changeTextarea(container.querySelector<HTMLTextAreaElement>('.cmp-ta')!, 'send selected settings');
+    });
+    await flush();
+    await act(async () => {
+      container.querySelector<HTMLElement>('[data-testid="composer-send-button"]')?.click();
+    });
+    await flush();
+
+    expect(spies.submitJob).toHaveBeenCalledWith(expect.objectContaining({
+      input: expect.objectContaining({
+        prompt: 'send selected settings',
+        output: {
+          count: 1,
+          requestOutput: { kind: 'image-endpoint', size: '3840x2160', outputFormat: 'webp' },
+        },
+      }),
+    }));
   });
 
   it('updates main-page model after settings saves a new supported default model', async () => {
@@ -1026,14 +1128,6 @@ describe('AppShell', () => {
     expect((container.querySelector('[data-testid="model-config-model-id"]') as HTMLInputElement | null)?.value).toBe('discovered-unconfigured');
 
     await act(async () => {
-      container.querySelector<HTMLElement>('[data-testid="model-config-preset-selector"]')?.click();
-    });
-    await flush();
-    await act(async () => {
-      document.body.querySelector<HTMLElement>('[data-testid="model-config-preset-selector-option-__custom__"]')?.click();
-    });
-    await flush();
-    await act(async () => {
       container.querySelector<HTMLButtonElement>('[data-testid="model-config-save-button"]')?.click();
     });
     await flush();
@@ -1043,6 +1137,8 @@ describe('AppShell', () => {
     expect(spies.saveUserModelConfig).toHaveBeenCalledWith(expect.objectContaining({
       apiFormat: 'openai-images',
       modelId: 'discovered-unconfigured',
+      baseModelId: 'gpt-image-2',
+      requestStrategyId: 'image-endpoint-default',
     }));
     expect(spies.saveProviderProfile).not.toHaveBeenCalled();
 

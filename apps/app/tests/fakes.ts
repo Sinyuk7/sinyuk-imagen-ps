@@ -5,6 +5,7 @@ import type {
   DurableJobRecord,
   EndpointMeasurementResult,
   ExactTaskCost,
+  ImageOutputMatrix,
   Job,
   MeasureProfileEndpointsResult,
   OfficialModelPreset,
@@ -16,10 +17,19 @@ import type {
   ProviderProfileConnectionTestResult,
   ProviderProfileTestResult,
   RequestStrategy,
+  SaveUserModelConfigInput,
   TaskRecord,
   UserModelConfig,
 } from '@imagen-ps/application';
-import { classifyEndpoint, resolveModelBrand } from '@imagen-ps/application';
+import {
+  classifyEndpoint,
+  deleteModelGenerationPreference,
+  getModelGenerationSettings,
+  resolveModelBrand,
+  saveModelGenerationPreference,
+  setModelGenerationPreferenceRepository,
+  setUserModelConfigRepository,
+} from '@imagen-ps/application';
 import type { AppServices } from '../src/app-services/app-services';
 import type { CommandsPort } from '../src/app-services/commands-port';
 import { PHOTOSHOP_UXP_RUNTIME_CAPABILITIES, type HostBridge } from '../src/app-services/host-bridge';
@@ -29,6 +39,7 @@ import { createStaticAppPathInfoPort } from '../src/shared/ports/app-path-info';
 import type { DiagnosticsPort } from '../src/shared/ports/diagnostics-port';
 import { createMemoryActiveImageProfileStore } from '../src/shared/ports/active-image-profile';
 import { createMemoryGenerationSettingsStore, type AppGenerationSettings } from '../src/shared/ports/app-generation-settings';
+import { createMemoryModelGenerationPreferenceRepository } from '../src/shared/ports/model-generation-preferences';
 import { createMemoryPromptSettingsStore, type PromptSettings } from '../src/shared/ports/prompt-settings';
 
 export const fakeAsset: Asset = {
@@ -98,8 +109,8 @@ export const fakeProfile: ProviderProfile = {
   secretRefs: {
     apiKey: 'secret:provider-profile:mock-profile:apiKey',
   },
-  selectedModelIds: ['mock-image-v1'],
-  defaultModelId: 'mock-image-v1',
+  selectedModelIds: ['gpt-image-2'],
+  defaultModelId: 'gpt-image-2',
   createdAt: '2026-06-15T00:00:00.000Z',
   updatedAt: '2026-06-15T00:00:00.000Z',
 };
@@ -111,7 +122,7 @@ export const fakeProvider: ProviderDescriptor = {
   displayName: 'Mock Provider',
   operations: ['text_to_image', 'image_edit'],
   invokeMode: 'sync',
-  defaultModels: [{ id: 'mock-image-v1' }],
+  defaultModels: [{ id: 'gpt-image-2' }],
   billing: {
     supportedModes: ['none'],
     query: 'supported',
@@ -192,7 +203,7 @@ function completedJob(input: Record<string, unknown>): Job {
         assets: [fakeOutputAsset],
         text: [
           '[operation=text_to_image]',
-          '[model=mock-image-v1]',
+          '[model=gpt-image-2]',
           `[prompt=${String(input.prompt ?? 'make an image')}]`,
           '[output=size=2k format=png aspect=auto providerInputSize=1k]',
           '[images=0]',
@@ -212,7 +223,7 @@ function completedJob(input: Record<string, unknown>): Job {
 }
 
 const fakeProfileModelItems: readonly ProfileModelItem[] = [{
-  modelId: 'mock-image-v1',
+  modelId: 'gpt-image-2',
   discovered: true,
   configured: true,
   selected: true,
@@ -221,7 +232,7 @@ const fakeProfileModelItems: readonly ProfileModelItem[] = [{
 }];
 
 const fakeDraftProfileModelItems: readonly ProfileModelItem[] = [{
-  modelId: 'mock-image-v2',
+  modelId: 'gpt-image-2-preview',
   discovered: true,
   configured: true,
   selected: false,
@@ -229,26 +240,100 @@ const fakeDraftProfileModelItems: readonly ProfileModelItem[] = [{
   configSource: 'catalog',
 }];
 
-const fakeUserModelConfigs: readonly UserModelConfig[] = [{
+const fakeTextToImageMatrix: ImageOutputMatrix = {
+  operation: 'text_to_image',
+  imageSizes: [
+    { id: 'auto', label: 'Auto' },
+    { id: '1k', label: '1K' },
+    { id: '2k', label: '2K' },
+    { id: '4k', label: '4K' },
+  ],
+  ratios: [
+    { id: 'auto', label: 'Auto' },
+    { id: '1:1', label: '1:1' },
+    { id: '16:9', label: '16:9' },
+  ],
+  outputFormats: [
+    { id: 'png', label: 'PNG' },
+    { id: 'webp', label: 'WebP' },
+  ],
+  defaultCellId: 'text_to_image:auto:auto:png',
+  cells: [
+    {
+      id: 'text_to_image:auto:auto:png',
+      imageSize: 'auto',
+      ratio: 'auto',
+      outputFormat: 'png',
+      requestOutput: { kind: 'image-endpoint', size: 'auto', outputFormat: 'png' },
+    },
+    {
+      id: 'text_to_image:1k:1:1:png',
+      imageSize: '1k',
+      ratio: '1:1',
+      outputFormat: 'png',
+      requestOutput: { kind: 'image-endpoint', size: '1024x1024', outputFormat: 'png' },
+    },
+    {
+      id: 'text_to_image:2k:1:1:png',
+      imageSize: '2k',
+      ratio: '1:1',
+      outputFormat: 'png',
+      requestOutput: { kind: 'image-endpoint', size: '2048x2048', outputFormat: 'png' },
+    },
+    {
+      id: 'text_to_image:2k:16:9:png',
+      imageSize: '2k',
+      ratio: '16:9',
+      outputFormat: 'png',
+      requestOutput: { kind: 'image-endpoint', size: '2048x1152', outputFormat: 'png' },
+    },
+    {
+      id: 'text_to_image:4k:16:9:webp',
+      imageSize: '4k',
+      ratio: '16:9',
+      outputFormat: 'webp',
+      requestOutput: { kind: 'image-endpoint', size: '3840x2160', outputFormat: 'webp' },
+    },
+  ],
+};
+
+const fakeImageEditMatrix: ImageOutputMatrix = {
+  ...fakeTextToImageMatrix,
+  operation: 'image_edit',
+  defaultCellId: 'image_edit:auto:auto:png',
+  cells: fakeTextToImageMatrix.cells.map((cell) => ({
+    ...cell,
+    id: cell.id.replace('text_to_image:', 'image_edit:'),
+  })),
+};
+
+const fakeUserModelConfigs: readonly UserModelConfig[] = [
+  'gpt-image-2',
+  'mock-image-v1',
+  'mock-image-v2',
+  'gpt-image2',
+  'image-edit-1k',
+  'dall-e-3',
+  'model-b',
+].map((modelId) => ({
   apiFormat: 'openai-images',
-  modelId: 'mock-image-v1',
+  modelId,
+  baseModelId: 'gpt-image-2',
   requestStrategyId: 'image-endpoint-default',
-  output: {
-    aspectRatios: ['1:1'],
-    sizes: ['1k'],
-    outputFormats: ['png'],
-  },
-}];
+  outputMatrix: [fakeTextToImageMatrix, fakeImageEditMatrix],
+}));
 
 const fakeOfficialModelConfigPresets: readonly OfficialModelPreset[] = [{
   apiFormat: 'openai-images',
-  modelId: 'mock-image-v1',
-  displayName: 'Mock Image v1',
+  modelId: 'gpt-image-2',
+  displayName: 'GPT Image 2',
   requestStrategyId: 'image-endpoint-default',
+  outputMatrix: [fakeTextToImageMatrix, fakeImageEditMatrix],
   output: {
-    aspectRatios: ['1:1'],
-    sizes: ['1k'],
-    outputFormats: ['png'],
+    aspectRatios: ['auto', '1:1', '16:9'],
+    sizes: ['auto', '1k', '2k', '4k'],
+    outputFormats: ['png', 'webp'],
+    matrices: [fakeTextToImageMatrix, fakeImageEditMatrix],
   },
 }];
 
@@ -324,6 +409,9 @@ export function createFakeServices(options?: {
     readonly listRequestStrategiesForApiFormat: ReturnType<typeof vi.fn>;
     readonly getUserModelConfig: ReturnType<typeof vi.fn>;
     readonly saveUserModelConfig: ReturnType<typeof vi.fn>;
+    readonly getModelGenerationSettings: ReturnType<typeof vi.fn>;
+    readonly saveModelGenerationPreference: ReturnType<typeof vi.fn>;
+    readonly deleteModelGenerationPreference: ReturnType<typeof vi.fn>;
     readonly listProfileModels: ReturnType<typeof vi.fn>;
     readonly refreshProfileModels: ReturnType<typeof vi.fn>;
     readonly listTaskRecords: ReturnType<typeof vi.fn>;
@@ -338,6 +426,8 @@ export function createFakeServices(options?: {
   };
 } {
   let profiles: readonly ProviderProfile[] = options?.profiles ?? [fakeProfile];
+  const modelGenerationPreferences = createMemoryModelGenerationPreferenceRepository();
+  setModelGenerationPreferenceRepository(modelGenerationPreferences);
 
   const submitJob = vi.fn(async (input: Parameters<CommandsPort['submitJob']>[0]) => ({
     ok: true as const,
@@ -371,7 +461,7 @@ export function createFakeServices(options?: {
       profileId,
       apiFormat: 'openai-images',
       valid: true,
-      connectivity: { reachable: true, modelCount: 1, models: [{ id: 'mock-image-v1' }] },
+      connectivity: { reachable: true, modelCount: 1, models: [{ id: 'gpt-image-2' }] },
     } satisfies ProviderProfileTestResult,
   }));
   const testProviderProfileConnection = vi.fn(async () => ({
@@ -380,7 +470,7 @@ export function createFakeServices(options?: {
       supported: true,
       reachable: true,
       modelCount: 1,
-      models: [{ id: 'mock-image-v1' }],
+      models: [{ id: 'gpt-image-2' }],
     } satisfies ProviderProfileConnectionTestResult,
   }));
   const measureProfileEndpoints = vi.fn(async (
@@ -405,6 +495,23 @@ export function createFakeServices(options?: {
   let billingState: ProfileBillingState = { refreshState: 'idle' };
   const getProfileBillingState = vi.fn(async () => ({ ok: true as const, value: billingState }));
   let userModelConfigs: readonly UserModelConfig[] = fakeUserModelConfigs;
+  setUserModelConfigRepository({
+    async list(apiFormat) {
+      return apiFormat ? userModelConfigs.filter((config) => config.apiFormat === apiFormat) : userModelConfigs;
+    },
+    async get(apiFormat, modelId) {
+      return userModelConfigs.find((config) => config.apiFormat === apiFormat && config.modelId === modelId);
+    },
+    async save(config) {
+      userModelConfigs = [
+        ...userModelConfigs.filter((item) => !(item.apiFormat === config.apiFormat && item.modelId === config.modelId)),
+        config,
+      ];
+    },
+    async delete(apiFormat, modelId) {
+      userModelConfigs = userModelConfigs.filter((config) => !(config.apiFormat === apiFormat && config.modelId === modelId));
+    },
+  });
   const listUserModelConfigs = vi.fn(async (apiFormat?: UserModelConfig['apiFormat']) => ({
     ok: true as const,
     value: apiFormat ? userModelConfigs.filter((config) => config.apiFormat === apiFormat) : userModelConfigs,
@@ -421,15 +528,21 @@ export function createFakeServices(options?: {
     ok: true as const,
     value: userModelConfigs.find((config) => config.apiFormat === apiFormat && config.modelId === modelId) ?? null,
   }));
-  const saveUserModelConfig = vi.fn(async (input: UserModelConfig) => {
+  const getModelGenerationSettingsSpy = vi.fn(getModelGenerationSettings);
+  const saveModelGenerationPreferenceSpy = vi.fn(saveModelGenerationPreference);
+  const deleteModelGenerationPreferenceSpy = vi.fn(deleteModelGenerationPreference);
+  const saveUserModelConfig = vi.fn(async (input: SaveUserModelConfigInput) => {
     const next = {
       ...input,
       modelId: input.modelId.trim(),
-      output: {
-        aspectRatios: [...input.output.aspectRatios],
-        sizes: [...input.output.sizes],
-        outputFormats: [...input.output.outputFormats],
-      },
+      baseModelId: input.baseModelId.trim(),
+      outputMatrix: input.outputMatrix.map((matrix) => ({
+        ...matrix,
+        imageSizes: [...matrix.imageSizes],
+        ratios: [...matrix.ratios],
+        outputFormats: [...matrix.outputFormats],
+        cells: [...matrix.cells],
+      })),
     } satisfies UserModelConfig;
     userModelConfigs = [
       ...userModelConfigs.filter((config) => !(config.apiFormat === next.apiFormat && config.modelId === next.modelId)),
@@ -457,7 +570,7 @@ export function createFakeServices(options?: {
     return { ok: true as const, value: { ...billingState.balance!, state: billingState } };
   });
   const listProfileModels = vi.fn(async () => ({ ok: true as const, value: fakeProfileModelItems }));
-  const refreshProfileModels = vi.fn(async () => ({ ok: true as const, value: [{ id: 'mock-image-v2' }] }));
+  const refreshProfileModels = vi.fn(async () => ({ ok: true as const, value: [{ id: 'gpt-image-2-preview' }] }));
   const reconcileStaleRunningTaskRecords = vi.fn(async () => []);
   const listLayers = vi.fn(async () => [{ id: 1, name: 'Layer 1', kind: 'pixel', visible: true }]);
   const pickImageFile = vi.fn(async () => fakeHostImage);
@@ -526,6 +639,9 @@ export function createFakeServices(options?: {
     listRequestStrategiesForApiFormat,
     getUserModelConfig,
     saveUserModelConfig,
+    getModelGenerationSettings: getModelGenerationSettingsSpy,
+    saveModelGenerationPreference: saveModelGenerationPreferenceSpy,
+    deleteModelGenerationPreference: deleteModelGenerationPreferenceSpy,
     listProfileModels,
     refreshProfileModels,
   };
@@ -562,6 +678,7 @@ export function createFakeServices(options?: {
       commands,
       host,
       generationSettings: createMemoryGenerationSettingsStore(options?.generationSettings),
+      modelGenerationPreferences,
       promptSettings: createMemoryPromptSettingsStore(options?.promptSettings),
       activeImageProfile: createMemoryActiveImageProfileStore(options?.activeImageProfileId),
       pathInfo: createStaticAppPathInfoPort({
@@ -604,6 +721,9 @@ export function createFakeServices(options?: {
       listRequestStrategiesForApiFormat,
       getUserModelConfig,
       saveUserModelConfig,
+      getModelGenerationSettings: getModelGenerationSettingsSpy,
+      saveModelGenerationPreference: saveModelGenerationPreferenceSpy,
+      deleteModelGenerationPreference: deleteModelGenerationPreferenceSpy,
       listProfileModels,
       refreshProfileModels,
       listTaskRecords: commands.listTaskRecords as ReturnType<typeof vi.fn>,

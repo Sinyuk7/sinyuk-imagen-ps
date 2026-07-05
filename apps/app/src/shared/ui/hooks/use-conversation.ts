@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import type { ApiFormat, JobError, JobSessionSnapshot } from '@imagen-ps/application';
+import type { ApiFormat, JobError, JobSessionSnapshot, ProviderResolvedOutput } from '@imagen-ps/application';
 import type { AppServices } from '../../ports/app-services';
 import {
   commandErrorToMessage,
@@ -20,7 +20,7 @@ import {
 } from '../../domain/photoshop-placement';
 import type { Asset } from '@imagen-ps/application';
 import { createRunningTaskRecord } from '../../domain/task-snapshot';
-import type { AppGenerationSettings, AppProviderInputSizePreset } from '../../ports/app-generation-settings';
+import type { AppProviderInputSizePreset } from '../../ports/app-generation-settings';
 
 export interface ConversationAttachment {
   readonly id: string;
@@ -73,9 +73,7 @@ export interface SubmitConversationInput {
 
 export interface AppGenerationSettingsOutput {
   readonly count: 1;
-  readonly sizePreset: AppGenerationSettings['outputSizePreset'];
-  readonly outputFormat: AppGenerationSettings['outputFormat'];
-  readonly aspectRatio: AppGenerationSettings['aspectRatio'];
+  readonly requestOutput: ProviderResolvedOutput;
 }
 
 export interface ConversationController {
@@ -275,7 +273,7 @@ function composeMockAppContext(round: ConversationRound): string {
   const output = round.output;
   return [
     `app.model=${round.modelId ?? 'default'}`,
-    `app.output=size=${output?.sizePreset ?? 'default'} format=${output?.outputFormat ?? 'default'} aspect=${output?.aspectRatio ?? 'default'} providerInputSize=${round.providerInputSizePreset ?? 'default'}`,
+    `app.output=${output?.requestOutput?.kind ?? 'default'} providerInputSize=${round.providerInputSizePreset ?? 'default'}`,
     `app.attachments=${attachmentSummary(round.attachments)}`,
     ...placementSummary(round.placementIntent),
   ].map(contextToken).join(' ');
@@ -326,7 +324,7 @@ export function derivePlacementIntent(attachments: readonly ConversationAttachme
 export function useConversation(
   services: AppServices,
   sessionBinding: ImagenSessionBinding,
-  defaultOutput?: AppGenerationSettings,
+  defaultOutput?: { readonly providerInputSizePreset?: AppProviderInputSizePreset },
   messages: ConversationMessages | AppMessages['conversation'] = DEFAULT_CONVERSATION_MESSAGES,
 ): ConversationController {
   const [rounds, setRounds] = useState<readonly ConversationRound[]>([]);
@@ -482,12 +480,7 @@ export function useConversation(
         const attachments = input.attachments ?? [];
         const placementIntent = derivePlacementIntent(attachments);
         const createdAt = new Date().toISOString();
-        const output = input.output ?? {
-          count: 1,
-          sizePreset: defaultOutput?.outputSizePreset ?? '2k',
-          outputFormat: defaultOutput?.outputFormat ?? 'png',
-          aspectRatio: defaultOutput?.aspectRatio ?? 'auto',
-        };
+        const output = input.output;
         const providerInputSizePreset = input.providerInputSizePreset ?? defaultOutput?.providerInputSizePreset;
         const round: ConversationRound = {
           id: roundId,
@@ -535,7 +528,7 @@ export function useConversation(
             __clientTaskId: roundId,
             profileId: input.profileId,
             prompt,
-            output,
+            ...(output ? { output } : {}),
             ...(providerOptions ? { providerOptions } : {}),
             ...(providerInputAssets ? { images: providerInputAssets } : {}),
           };

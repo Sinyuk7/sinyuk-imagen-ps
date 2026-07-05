@@ -1,8 +1,5 @@
 import type { ImageModelCapability } from '../../image-model-capability.js';
-import {
-  GEMINI_GENERATE_CONTENT_DEFAULT_STRATEGY,
-  GEMINI_GENERATE_CONTENT_LITE_IMAGE_STRATEGY,
-} from '../strategies.js';
+import { geminiImageConfigMatrix, geminiResponseFormatMatrix } from '../output-matrix.js';
 
 export const GEMINI_GENERATE_CONTENT_MODEL_CAPABILITIES = Object.freeze([
   {
@@ -18,7 +15,10 @@ export const GEMINI_GENERATE_CONTENT_MODEL_CAPABILITIES = Object.freeze([
       allowAsDefault: true,
     },
     appliesToProviders: ['gemini-generate-content'],
-    constraintStrategy: GEMINI_GENERATE_CONTENT_DEFAULT_STRATEGY,
+    outputMatrix: [
+      geminiResponseFormatMatrix('text_to_image'),
+      geminiResponseFormatMatrix('image_edit'),
+    ],
   },
   {
     ruleId: 'gemini-generate-content-gemini-3-pro-image',
@@ -33,7 +33,10 @@ export const GEMINI_GENERATE_CONTENT_MODEL_CAPABILITIES = Object.freeze([
       allowAsDefault: true,
     },
     appliesToProviders: ['gemini-generate-content'],
-    constraintStrategy: GEMINI_GENERATE_CONTENT_DEFAULT_STRATEGY,
+    outputMatrix: [
+      geminiResponseFormatMatrix('text_to_image'),
+      geminiResponseFormatMatrix('image_edit'),
+    ],
   },
   {
     ruleId: 'gemini-generate-content-gemini-3.1-flash-lite-image',
@@ -49,17 +52,9 @@ export const GEMINI_GENERATE_CONTENT_MODEL_CAPABILITIES = Object.freeze([
     },
     appliesToProviders: ['gemini-generate-content'],
     requestStrategyId: 'gemini-generate-content-image-config-legacy',
-    constraintStrategy: GEMINI_GENERATE_CONTENT_LITE_IMAGE_STRATEGY,
-  },
-  {
-    ruleId: 'gemini-generate-content-default',
-    match: {},
-    displayName: 'Default Gemini Generate Content Rule',
-    selection: {
-      visibleInPicker: false,
-      allowAsDefault: true,
-    },
-    appliesToProviders: ['gemini-generate-content'],
-    constraintStrategy: GEMINI_GENERATE_CONTENT_DEFAULT_STRATEGY,
+    outputMatrix: [
+      geminiImageConfigMatrix('text_to_image', ['1k']),
+      geminiImageConfigMatrix('image_edit', ['1k']),
+    ],
   },
 ] as const satisfies readonly ImageModelCapability[]);

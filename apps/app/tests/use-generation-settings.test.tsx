@@ -18,7 +18,7 @@ afterEach(async () => {
 });
 
 describe('useGenerationSettings', () => {
-  it('serializes realtime saves and persists the latest requested global settings', async () => {
+  it('serializes realtime saves and persists the latest requested app-local input settings', async () => {
     const { services } = createFakeServices();
     const container = document.createElement('div');
     document.body.appendChild(container);
@@ -47,7 +47,7 @@ describe('useGenerationSettings', () => {
             onClick={() => {
               void state.save({
                 ...state.settings,
-                outputFormat: 'jpeg',
+                providerInputSizePreset: '2k',
               });
             }}
           />
@@ -56,11 +56,11 @@ describe('useGenerationSettings', () => {
             onClick={() => {
               void state.save({
                 ...state.settings,
-                outputFormat: 'webp',
+                providerInputSizePreset: '4k',
               });
             }}
           />
-          <div data-testid="settings-output-format">{state.settings.outputFormat}</div>
+          <div data-testid="settings-provider-input-size">{state.settings.providerInputSizePreset}</div>
           <div data-testid="save-state">{state.saveState}</div>
           <div data-testid="save-error">{state.error ?? ''}</div>
         </div>
@@ -75,7 +75,7 @@ describe('useGenerationSettings', () => {
       );
     });
 
-    expect(container.querySelector('[data-testid="settings-output-format"]')?.textContent).toBe('png');
+    expect(container.querySelector('[data-testid="settings-provider-input-size"]')?.textContent).toBe('1k');
 
     await act(async () => {
       container.querySelector<HTMLButtonElement>('[data-testid="save-jpeg"]')!.click();
@@ -84,10 +84,10 @@ describe('useGenerationSettings', () => {
       container.querySelector<HTMLButtonElement>('[data-testid="save-webp"]')!.click();
     });
 
-    expect(container.querySelector('[data-testid="settings-output-format"]')?.textContent).toBe('webp');
+    expect(container.querySelector('[data-testid="settings-provider-input-size"]')?.textContent).toBe('4k');
     expect(container.querySelector('[data-testid="save-state"]')?.textContent).toBe('saving');
     expect(saveSpy).toHaveBeenCalledTimes(1);
-    expect(persisted[0]?.outputFormat).toBe('jpeg');
+    expect(persisted[0]?.providerInputSizePreset).toBe('2k');
 
     await act(async () => {
       resolveFirstSave?.();
@@ -95,8 +95,8 @@ describe('useGenerationSettings', () => {
     });
 
     expect(saveSpy).toHaveBeenCalledTimes(2);
-    expect(persisted[1]?.outputFormat).toBe('webp');
-    expect(container.querySelector('[data-testid="settings-output-format"]')?.textContent).toBe('webp');
+    expect(persisted[1]?.providerInputSizePreset).toBe('4k');
+    expect(container.querySelector('[data-testid="settings-provider-input-size"]')?.textContent).toBe('4k');
     expect(container.querySelector('[data-testid="save-error"]')?.textContent).toBe('');
   });
 });

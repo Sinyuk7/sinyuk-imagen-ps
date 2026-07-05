@@ -1,4 +1,4 @@
----
+<!-- ---
 name: bounded-loop-executor
 description: Execute an approved repository Loop slice within its stated scope. Use when a Loop or user-approved slice already defines goal, owner boundary, allowed files, forbidden files, validation commands, stop rules, and reporting requirements.
 ---
@@ -83,4 +83,4 @@ Allowed types are:
 - `decision`
 - `workflow`
 - `bug`
-- `manual-host-result`
+- `manual-host-result` -->

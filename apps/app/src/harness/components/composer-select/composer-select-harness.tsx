@@ -904,7 +904,6 @@ function ComposerReplica({
                 open={open === 'main-size'}
                 onOpenChange={(next) => onOpenChange(next ? 'main-size' : null)}
                 options={[
-                  { id: '512', label: '512' },
                   { id: '1k', label: '1K' },
                   { id: '2k', label: '2K' },
                   { id: '4k', label: '4K' },

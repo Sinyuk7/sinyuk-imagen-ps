@@ -9,6 +9,7 @@ import { useConversation } from './hooks/use-conversation';
 import { useComposerDraft } from './hooks/use-composer-draft';
 import { useImagenSession } from './hooks/use-imagen-session';
 import { useGenerationSettings } from './hooks/use-generation-settings';
+import { useModelGenerationSettings } from './hooks/use-model-generation-settings';
 import { usePromptSettings } from './hooks/use-prompt-settings';
 import { useJobHistory } from './hooks/use-job-history';
 import { useProfileModels, useProviderProfiles } from './hooks/use-provider-settings';
@@ -28,7 +29,6 @@ import { ensurePanelCss } from './panel-bootstrap';
 import { placeTaskOutputOnCanvas, saveTaskOutputToFile } from '../domain/task-actions';
 import type { TaskRecord } from '@imagen-ps/application';
 import { MotionPageFrame } from './components/motion-ui';
-import type { OutputSizeSelectionContext } from './output-size';
 import { mainSelectableModels, type UiModelInfo } from './model-info';
 
 export interface AppShellHost {
@@ -242,21 +242,18 @@ function AppShellContent({ host }: AppShellProps) {
   const imagenSession = useImagenSession(services);
   const conversation = useConversation(services, imagenSession, generationSettings.settings, t.conversation);
   const composerDraft = useComposerDraft();
+  const modelGenerationSettings = useModelGenerationSettings(services, {
+    profileId: selectedImageProfileId,
+    apiFormat: selectedProfile?.apiFormat ?? null,
+    modelId: selectedModelId,
+    operation: composerDraft.operation,
+  });
   const history = useJobHistory(services);
   const { records: historyRecords, loading: historyLoading, error: historyError, reload: reloadHistory } = history;
   const { layers, layersError, layersLoading, reloadLayers } = useHostLayers(host);
   const { show } = useToast();
   const previousRoundStatusRef = useRef<Record<string, 'running' | 'ok' | 'err'>>({});
   const reconciledHistoryRef = useRef(false);
-  const outputSizeContext = useMemo<OutputSizeSelectionContext>(
-    () => ({
-      kind: 'composer',
-      model: imageModels.find((model) => model.id === selectedModelId),
-      operation: composerDraft.operation,
-    }),
-    [composerDraft.operation, imageModels, selectedModelId],
-  );
-
   usePanelResponsiveAttributes(panelRef);
 
   const selectImageProfile = useCallback(async (profileId: string | null) => {
@@ -423,14 +420,8 @@ function AppShellContent({ host }: AppShellProps) {
           highlightedRoundId={highlightedRoundId}
           onEditProfile={onEditProfile}
           composerDraft={composerDraft}
-          outputSizeContext={outputSizeContext}
           generationSettings={generationSettings.settings}
-          onChangeOutputSizePreset={async (outputSizePreset) => {
-            await generationSettings.save({
-              ...generationSettings.settings,
-              outputSizePreset,
-            });
-          }}
+          modelGenerationSettings={modelGenerationSettings}
           restoreFailedRoundId={restoreFailedRoundId}
           onFailedRoundRestored={(roundId) => {
             if (restoreFailedRoundId === roundId) {
@@ -477,6 +468,7 @@ function AppShellContent({ host }: AppShellProps) {
             setView('model-configuration');
           }}
           generationSettings={generationSettings.settings}
+          modelGenerationSettings={modelGenerationSettings}
           />
         </MotionPageFrame>
       )}
@@ -543,7 +535,7 @@ function AppShellContent({ host }: AppShellProps) {
           loading={generationSettings.loading}
           error={generationSettings.error}
           saveState={generationSettings.saveState}
-          outputSizeContext={outputSizeContext}
+          modelGenerationSettings={modelGenerationSettings}
           onSave={generationSettings.save}
           />
         </MotionPageFrame>

@@ -92,23 +92,14 @@ describe('Chrome adapter contracts', () => {
     const storage = createChromeIndexedDbStorage({ backend: createMemoryIndexedDbBackend() });
 
     expect(await storage.generationSettings.load()).toEqual({
-      outputSizePreset: '2k',
-      outputFormat: 'png',
-      aspectRatio: 'auto',
       providerInputSizePreset: '1k',
     });
 
     await storage.generationSettings.save({
-      outputSizePreset: '4k',
-      outputFormat: 'webp',
-      aspectRatio: '9:16',
       providerInputSizePreset: '1k',
     });
 
     expect(await storage.generationSettings.load()).toEqual({
-      outputSizePreset: '4k',
-      outputFormat: 'webp',
-      aspectRatio: '9:16',
       providerInputSizePreset: '1k',
     });
     expect(await storage.profiles.list()).toEqual([]);
@@ -123,9 +114,6 @@ describe('Chrome adapter contracts', () => {
 
     expect(await storage.activeImageProfile.load()).toBe('chrome-profile');
     expect(await storage.generationSettings.load()).toEqual({
-      outputSizePreset: '2k',
-      outputFormat: 'png',
-      aspectRatio: 'auto',
       providerInputSizePreset: '1k',
     });
     expect(await storage.profiles.list()).toEqual([]);
@@ -158,9 +146,6 @@ describe('Chrome adapter contracts', () => {
       },
     });
     expect(await storage.generationSettings.load()).toEqual({
-      outputSizePreset: '2k',
-      outputFormat: 'png',
-      aspectRatio: 'auto',
       providerInputSizePreset: '1k',
     });
     expect(await storage.profiles.list()).toEqual([]);

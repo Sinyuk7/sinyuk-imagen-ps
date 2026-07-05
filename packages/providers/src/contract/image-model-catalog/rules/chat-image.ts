@@ -1,5 +1,5 @@
 import type { ImageModelCapability } from '../../image-model-capability.js';
-import { CHAT_IMAGE_DEFAULT_STRATEGY } from '../strategies.js';
+import { chatImageMatrix } from '../output-matrix.js';
 
 export const CHAT_IMAGE_MODEL_CAPABILITIES = Object.freeze([
   {
@@ -15,7 +15,10 @@ export const CHAT_IMAGE_MODEL_CAPABILITIES = Object.freeze([
       allowAsDefault: true,
     },
     appliesToProviders: ['chat-image'],
-    constraintStrategy: CHAT_IMAGE_DEFAULT_STRATEGY,
+    outputMatrix: [
+      chatImageMatrix('text_to_image'),
+      chatImageMatrix('image_edit'),
+    ],
   },
   {
     ruleId: 'chat-image-gemini-3-pro-image',
@@ -30,7 +33,10 @@ export const CHAT_IMAGE_MODEL_CAPABILITIES = Object.freeze([
       allowAsDefault: true,
     },
     appliesToProviders: ['chat-image'],
-    constraintStrategy: CHAT_IMAGE_DEFAULT_STRATEGY,
+    outputMatrix: [
+      chatImageMatrix('text_to_image'),
+      chatImageMatrix('image_edit'),
+    ],
   },
   {
     ruleId: 'chat-image-gemini-3.1-flash-image',
@@ -45,7 +51,10 @@ export const CHAT_IMAGE_MODEL_CAPABILITIES = Object.freeze([
       allowAsDefault: true,
     },
     appliesToProviders: ['chat-image'],
-    constraintStrategy: CHAT_IMAGE_DEFAULT_STRATEGY,
+    outputMatrix: [
+      chatImageMatrix('text_to_image'),
+      chatImageMatrix('image_edit'),
+    ],
   },
   {
     ruleId: 'chat-image-openai-gpt-image-2',
@@ -59,17 +68,9 @@ export const CHAT_IMAGE_MODEL_CAPABILITIES = Object.freeze([
       allowAsDefault: true,
     },
     appliesToProviders: ['chat-image'],
-    constraintStrategy: CHAT_IMAGE_DEFAULT_STRATEGY,
-  },
-  {
-    ruleId: 'chat-image-default',
-    match: {},
-    displayName: 'Default Chat Image Rule',
-    selection: {
-      visibleInPicker: false,
-      allowAsDefault: true,
-    },
-    appliesToProviders: ['chat-image'],
-    constraintStrategy: CHAT_IMAGE_DEFAULT_STRATEGY,
+    outputMatrix: [
+      chatImageMatrix('text_to_image'),
+      chatImageMatrix('image_edit'),
+    ],
   },
 ] as const satisfies readonly ImageModelCapability[]);

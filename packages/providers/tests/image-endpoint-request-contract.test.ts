@@ -3,6 +3,7 @@ import {
   buildImageEditHttpRequest,
 } from '../src/transport/image-endpoint/build-request.js';
 import { imageEndpointModel } from './model-execution.js';
+import { outputWithResolvedRequest } from './resolved-output.js';
 
 function fileSummary(entry: FormDataEntryValue | null): { type: string; name?: string } | null {
   if (!(entry instanceof Blob)) {
@@ -23,13 +24,15 @@ describe('image endpoint request contract characterization', () => {
         prompt: 'make it blue',
         images: [{ type: 'image', data: 'aGVsbG8=', mimeType: 'image/png', name: 'input.png' }],
         maskImage: { type: 'image', data: 'd29ybGQ=', mimeType: 'image/png', name: 'mask.png' },
-        output: {
-          count: 2,
-          sizePreset: '1k',
-          aspectRatio: '1:1',
+        output: outputWithResolvedRequest({
+          providerId: 'image-endpoint',
+          modelId: 'gpt-image-2',
+          operation: 'image_edit',
+          imageSize: '1k',
+          ratio: '1:1',
           outputFormat: 'png',
-          quality: 'medium',
-        },
+          output: { count: 2, quality: 'medium' },
+        }),
         providerOptions: {
           custom_flag: 'kept',
         },
@@ -88,10 +91,15 @@ describe('image endpoint request contract characterization', () => {
           { type: 'image', fileId: 'file_123' },
         ],
         maskImage: { type: 'image', data: 'aGVsbG8=', mimeType: 'image/png' },
-        output: {
-          inputFidelity: 'high',
+        output: outputWithResolvedRequest({
+          providerId: 'image-endpoint',
+          modelId: 'gpt-image-2',
+          operation: 'image_edit',
+          imageSize: 'auto',
+          ratio: 'auto',
           outputFormat: 'webp',
-        },
+          output: { inputFidelity: 'high' },
+        }),
         providerOptions: {
           custom_flag: true,
         },
@@ -110,6 +118,7 @@ describe('image endpoint request contract characterization', () => {
         { file_id: 'file_123' },
       ],
       mask: { image_url: 'data:image/png;base64,aGVsbG8=' },
+      size: 'auto',
       input_fidelity: 'high',
       output_format: 'webp',
     });
@@ -124,10 +133,14 @@ describe('image endpoint request contract characterization', () => {
         operation: 'image_edit',
         prompt: 'providerOptions passthrough',
         images: [{ type: 'image', data: 'aGVsbG8=', mimeType: 'image/png' }],
-        output: {
-          sizePreset: '1k',
-          aspectRatio: '1:1',
-        },
+        output: outputWithResolvedRequest({
+          providerId: 'image-endpoint',
+          modelId: 'gpt-image-2',
+          operation: 'image_edit',
+          imageSize: '1k',
+          ratio: '1:1',
+          outputFormat: 'png',
+        }),
         providerOptions: {
           image: 'text-field-collision',
           size: '999x999',

@@ -37,22 +37,19 @@ import type { ProviderInputSizePolicy } from '../../image/resize';
 import {
   providerInputSizePresetToMaxSide,
   type AppGenerationSettings,
-  type AppOutputSizePreset,
 } from '../../ports/app-generation-settings';
 import { MOTION_FEEDBACK_DWELL } from '../motion';
 import {
   deriveComposerReadiness,
   modelSupportsImageInput,
   modelSupportsOperation,
-  modelSupportsOutputSize,
-  supportedSizePresetsForOperation,
   type ComposerOperation,
   type ComposerReadinessState,
 } from '../composer-readiness';
 import { classifyRoundError, type ErrorPrimaryAction } from '../error-action';
-import type { BalanceChange, ExactTaskCost } from '@imagen-ps/application';
-import { canSelectOutputSize, OUTPUT_SIZE_PRESETS, outputSizeLabel, type OutputSizeSelectionContext } from '../output-size';
+import type { BalanceChange, ExactTaskCost, ImageAspectRatio, ImageOutputFormat, ImageOutputImageSize } from '@imagen-ps/application';
 import type { UiModelInfo } from '../model-info';
+import type { ModelGenerationSettingsController } from '../hooks/use-model-generation-settings';
 
 function isImeCompositionKey(event: React.KeyboardEvent): boolean {
   const nativeEvent = event.nativeEvent as KeyboardEvent & { readonly isComposing?: boolean };
@@ -80,9 +77,8 @@ interface MainPageProps {
   readonly highlightedRoundId?: string | null;
   readonly onEditProfile?: (profileId: string) => void;
   readonly composerDraft: ComposerDraftController;
-  readonly outputSizeContext: OutputSizeSelectionContext;
   readonly generationSettings: AppGenerationSettings;
-  readonly onChangeOutputSizePreset: (sizePreset: AppOutputSizePreset) => Promise<void>;
+  readonly modelGenerationSettings: ModelGenerationSettingsController;
   readonly restoreFailedRoundId?: string | null;
   readonly onFailedRoundRestored?: (roundId: string) => void;
 }
@@ -187,11 +183,6 @@ function modelIsSelectable(model: UiModelInfo | undefined): boolean {
   return model.configured === true && model.selected === true;
 }
 
-function firstSupportedSize(model: UiModelInfo | undefined, operation: ComposerOperation): AppOutputSizePreset | null {
-  const presets = supportedSizePresetsForOperation(model, operation);
-  return presets === 'unknown' ? null : presets[0] ?? null;
-}
-
 function readinessMessage(t: ReturnType<typeof useI18n>['messages'], state: ComposerReadinessState): string {
   switch (state) {
     case 'ready':
@@ -234,7 +225,6 @@ function modelAvailabilityReason(_model: UiModelInfo | undefined, _t: ReturnType
 function modelCapabilityReason(
   model: UiModelInfo | undefined,
   operation: ComposerOperation,
-  outputSizePreset: AppOutputSizePreset,
   t: ReturnType<typeof useI18n>['messages'],
 ): string | null {
   const operationSupport = modelSupportsOperation(model, operation);
@@ -242,9 +232,6 @@ function modelCapabilityReason(
     return operation === 'image-edit'
       ? t.main.modelReasonNoImageEdit
       : t.main.modelReasonNoTextToImage;
-  }
-  if (modelSupportsOutputSize(model, operation, outputSizePreset) === 'unsupported') {
-    return t.main.modelReasonSizeUnsupported(outputSizeLabel(outputSizePreset));
   }
   return null;
 }
@@ -353,16 +340,15 @@ export function MainPage({
   highlightedRoundId,
   onEditProfile,
   composerDraft,
-  outputSizeContext,
   generationSettings,
-  onChangeOutputSizePreset,
+  modelGenerationSettings,
   restoreFailedRoundId,
   onFailedRoundRestored,
 }: MainPageProps) {
   const services = useAppServices();
   const { messages: t } = useI18n();
   const [profileMenuOpen, setProfileMenuOpen] = useState(false);
-  const [openMenu, setOpenMenu] = useState<'model' | 'output-size' | null>(null);
+  const [openMenu, setOpenMenu] = useState<'model' | 'output-size' | 'output-ratio' | 'output-format' | null>(null);
   const [attachOpen, setAttachOpen] = useState(false);
   const [layerOpen, setLayerOpen] = useState(false);
   const [captureInFlight, setCaptureInFlight] = useState(false);
@@ -372,7 +358,6 @@ export function MainPage({
   const [selectedPreviewIndexes, setSelectedPreviewIndexes] = useState<Record<string, number>>({});
   const [placeStatus, setPlaceStatus] = useState<Record<string, PlaceStatus>>({});
   const [roundBillingMeta, setRoundBillingMeta] = useState<Record<string, RoundBillingMeta>>({});
-  const [sizeUserSelected, setSizeUserSelected] = useState(false);
   const [expandedResponses, setExpandedResponses] = useState<Record<string, boolean>>({});
   const [overflowingResponses, setOverflowingResponses] = useState<Record<string, boolean>>({});
   const [highlightKey, setHighlightKey] = useState<string | null>(null);
@@ -382,7 +367,6 @@ export function MainPage({
   const responseFoldRefs = useRef<Map<string, HTMLDivElement>>(new Map());
   const responseTextRefs = useRef<Map<string, HTMLDivElement>>(new Map());
   const previousRoundStatusRef = useRef<Record<string, ConversationRound['status']>>({});
-  const lastSizeAutoScopeRef = useRef<string>('');
   const flatLayers = useMemo(() => flattenLayers(layers), [layers]);
   const uniqueModels = useMemo(() => dedupeById(models), [models]);
   const { input, attachments } = composerDraft;
@@ -425,12 +409,20 @@ export function MainPage({
     [uniqueModels],
   );
   const outputSizeOptions = useMemo(
-    () => OUTPUT_SIZE_PRESETS.map((size) => ({
-      id: size,
-      label: outputSizeLabel(size),
-    })),
-    [],
+    () => modelGenerationSettings.imageSizeOptions,
+    [modelGenerationSettings.imageSizeOptions],
   );
+  const outputRatioOptions = useMemo(
+    () => modelGenerationSettings.ratioOptions,
+    [modelGenerationSettings.ratioOptions],
+  );
+  const outputFormatOptions = useMemo(
+    () => modelGenerationSettings.outputFormatOptions,
+    [modelGenerationSettings.outputFormatOptions],
+  );
+  const selectedOutputSize = modelGenerationSettings.selection?.imageSize ?? 'auto';
+  const selectedOutputRatio = modelGenerationSettings.selection?.ratio ?? 'auto';
+  const selectedOutputFormat = modelGenerationSettings.selection?.outputFormat ?? 'png';
   const currentPromptValue = () => taRef.current?.value ?? input;
   const composerTextAreaNeedsUxpPopupOverlapWorkaround = openMenu !== null;
   const syncComposerInputBeforeMenuOpen = useCallback(() => {
@@ -440,7 +432,7 @@ export function MainPage({
     }
     taRef.current?.blur();
   }, [composerDraft, input]);
-  const handleOpenComposerMenu = useCallback((menu: 'model' | 'output-size', open: boolean) => {
+  const handleOpenComposerMenu = useCallback((menu: 'model' | 'output-size' | 'output-ratio' | 'output-format', open: boolean) => {
     setProfileMenuOpen(false);
     if (open) {
       syncComposerInputBeforeMenuOpen();
@@ -460,7 +452,8 @@ export function MainPage({
     attachmentPreparing: captureInFlight,
     attachmentFailed: false,
     operation: currentOperation,
-    outputSizePreset: generationSettings.outputSizePreset,
+    outputSettingsLoading: modelGenerationSettings.loading,
+    hasOutputMatrix: modelGenerationSettings.ready,
     placementIntent,
     prompt: input,
   });
@@ -485,36 +478,6 @@ export function MainPage({
     }
     placeResetTimersRef.current = {};
   }, []);
-
-  useEffect(() => {
-    const support = modelSupportsOutputSize(selectedModelInfo, currentOperation, generationSettings.outputSizePreset);
-    if (support !== 'unsupported') {
-      return;
-    }
-    const fallback = firstSupportedSize(selectedModelInfo, currentOperation);
-    if (!fallback) {
-      return;
-    }
-    if (sizeUserSelected && supportedSizePresetsForOperation(selectedModelInfo, currentOperation) !== 'unknown') {
-      return;
-    }
-    if (fallback === generationSettings.outputSizePreset) {
-      return;
-    }
-    const from = outputSizeLabel(generationSettings.outputSizePreset);
-    const to = outputSizeLabel(fallback);
-    void onChangeOutputSizePreset(fallback).then(() => {
-      show(t.main.outputSizeAutoChanged(from, to), 'info', { key: 'output-size-auto-changed' });
-    });
-  }, [
-    currentOperation,
-    generationSettings.outputSizePreset,
-    onChangeOutputSizePreset,
-    selectedModelInfo,
-    show,
-    sizeUserSelected,
-    t.main,
-  ]);
 
   const observeBillingForSubmittedRound = useCallback(async (roundId: string) => {
     const observed = await billing.observeAsyncRefresh();
@@ -662,7 +625,7 @@ export function MainPage({
   const handleSelectModel = useCallback((modelId: string) => {
     const model = uniqueModels.find((item) => item.id === modelId);
     const availabilityReason = modelAvailabilityReason(model, t);
-    const capabilityReason = modelCapabilityReason(model, currentOperation, generationSettings.outputSizePreset, t);
+    const capabilityReason = modelCapabilityReason(model, currentOperation, t);
     if (!modelIsSelectable(model) || capabilityReason !== null) {
       show(availabilityReason ?? capabilityReason ?? t.main.readinessModelUnavailable, 'warning', {
         key: `model-select-unavailable:${modelId}`,
@@ -670,7 +633,7 @@ export function MainPage({
       return;
     }
     onSelectModel(modelId);
-  }, [currentOperation, generationSettings.outputSizePreset, onSelectModel, show, t, uniqueModels]);
+  }, [currentOperation, onSelectModel, show, t, uniqueModels]);
 
   const restoreRound = (round: ConversationRound) => {
     composerDraft.setInput(round.prompt);
@@ -700,15 +663,6 @@ export function MainPage({
     fillComposerFromFailedRound(round);
     onFailedRoundRestored?.(round.id);
   }, [conversation.rounds, fillComposerFromFailedRound, onFailedRoundRestored, restoreFailedRoundId]);
-
-  useEffect(() => {
-    const scope = `${selectedModelId}:${currentOperation}`;
-    if (lastSizeAutoScopeRef.current === scope) {
-      return;
-    }
-    lastSizeAutoScopeRef.current = scope;
-    setSizeUserSelected(false);
-  }, [currentOperation, selectedModelId]);
 
   const removeAllAttachments = () => {
     composerDraft.clearAttachments();
@@ -939,12 +893,12 @@ export function MainPage({
       providerName: selectedProfile.displayName,
       ...(selectedModelId ? { modelId: selectedModelId } : {}),
       attachments,
-      output: {
-        count: 1,
-        sizePreset: generationSettings.outputSizePreset,
-        outputFormat: generationSettings.outputFormat,
-        aspectRatio: generationSettings.aspectRatio,
-      },
+      ...(modelGenerationSettings.requestOutput ? {
+        output: {
+          count: 1,
+          requestOutput: modelGenerationSettings.requestOutput,
+        },
+      } : {}),
       providerInputSizePreset: generationSettings.providerInputSizePreset,
     });
   };
@@ -1037,13 +991,23 @@ export function MainPage({
     }
   };
 
-  const selectOutputSize = async (nextSize: AppOutputSizePreset) => {
-    const result = canSelectOutputSize(outputSizeContext, nextSize, t);
-    if (!result.ok) {
-      show(result.reason, 'warning', { key: `output-size-rejected:${nextSize}` });
-      return;
+  const selectOutputSize = async (nextSize: ImageOutputImageSize) => {
+    const saved = await modelGenerationSettings.selectImageSize(nextSize);
+    if (!saved && modelGenerationSettings.validationMessage) {
+      show(modelGenerationSettings.validationMessage, 'warning', { key: `output-size-rejected:${nextSize}` });
     }
-    await onChangeOutputSizePreset(result.nextSize);
+  };
+  const selectOutputRatio = async (nextRatio: ImageAspectRatio) => {
+    const saved = await modelGenerationSettings.selectRatio(nextRatio);
+    if (!saved && modelGenerationSettings.validationMessage) {
+      show(modelGenerationSettings.validationMessage, 'warning', { key: `output-ratio-rejected:${nextRatio}` });
+    }
+  };
+  const selectOutputFormat = async (nextFormat: ImageOutputFormat) => {
+    const saved = await modelGenerationSettings.selectOutputFormat(nextFormat);
+    if (!saved && modelGenerationSettings.validationMessage) {
+      show(modelGenerationSettings.validationMessage, 'warning', { key: `output-format-rejected:${nextFormat}` });
+    }
   };
 
   return (
@@ -1773,18 +1737,52 @@ export function MainPage({
                 containerClassName="cmp-select cmp-select-output-size"
                 menuClassName="cmp-select-menu cmp-select-menu-compact"
                 label={t.main.outputSize}
-                value={generationSettings.outputSizePreset.toUpperCase()}
-                disabled={conversation.running}
+                value={selectedOutputSize.toUpperCase()}
+                disabled={conversation.running || outputSizeOptions.length === 0}
                 open={openMenu === 'output-size'}
                 onOpenChange={(open) => {
                   handleOpenComposerMenu('output-size', open);
                 }}
                 options={outputSizeOptions}
-                isOptionSelectable={(value) => canSelectOutputSize(outputSizeContext, value as AppOutputSizePreset, t).ok}
-                selectedId={generationSettings.outputSizePreset}
+                selectedId={selectedOutputSize}
                 onSelect={(value) => {
-                  setSizeUserSelected(true);
-                  void selectOutputSize(value as AppOutputSizePreset);
+                  void selectOutputSize(value as ImageOutputImageSize);
+                }}
+                icon="image-auto-mode"
+              />
+              <IconSelect
+                testId="composer-output-ratio-selector"
+                containerClassName="cmp-select cmp-select-output-size"
+                menuClassName="cmp-select-menu cmp-select-menu-compact"
+                label={t.main.aspectRatio}
+                value={selectedOutputRatio.toUpperCase()}
+                disabled={conversation.running || outputRatioOptions.length === 0}
+                open={openMenu === 'output-ratio'}
+                onOpenChange={(open) => {
+                  handleOpenComposerMenu('output-ratio', open);
+                }}
+                options={outputRatioOptions}
+                selectedId={selectedOutputRatio}
+                onSelect={(value) => {
+                  void selectOutputRatio(value as ImageAspectRatio);
+                }}
+                icon="image-auto-mode"
+              />
+              <IconSelect
+                testId="composer-output-format-selector"
+                containerClassName="cmp-select cmp-select-output-size"
+                menuClassName="cmp-select-menu cmp-select-menu-compact"
+                label={t.main.outputFormat}
+                value={selectedOutputFormat.toUpperCase()}
+                disabled={conversation.running || outputFormatOptions.length === 0}
+                open={openMenu === 'output-format'}
+                onOpenChange={(open) => {
+                  handleOpenComposerMenu('output-format', open);
+                }}
+                options={outputFormatOptions}
+                selectedId={selectedOutputFormat}
+                onSelect={(value) => {
+                  void selectOutputFormat(value as ImageOutputFormat);
                 }}
                 icon="image-auto-mode"
               />

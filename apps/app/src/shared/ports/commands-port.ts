@@ -29,6 +29,9 @@ export interface CommandsPort {
   readonly listRequestStrategiesForApiFormat: typeof commands.listRequestStrategiesForApiFormat;
   readonly getUserModelConfig: typeof commands.getUserModelConfig;
   readonly saveUserModelConfig: typeof commands.saveUserModelConfig;
+  readonly getModelGenerationSettings: typeof commands.getModelGenerationSettings;
+  readonly saveModelGenerationPreference: typeof commands.saveModelGenerationPreference;
+  readonly deleteModelGenerationPreference: typeof commands.deleteModelGenerationPreference;
   readonly listProfileModels: typeof commands.listProfileModels;
   readonly refreshProfileModels: typeof commands.refreshProfileModels;
 }
@@ -63,6 +66,9 @@ export function createCommandsAdapter(): CommandsPort {
     listRequestStrategiesForApiFormat: commands.listRequestStrategiesForApiFormat,
     getUserModelConfig: commands.getUserModelConfig,
     saveUserModelConfig: commands.saveUserModelConfig,
+    getModelGenerationSettings: commands.getModelGenerationSettings,
+    saveModelGenerationPreference: commands.saveModelGenerationPreference,
+    deleteModelGenerationPreference: commands.deleteModelGenerationPreference,
     listProfileModels: commands.listProfileModels,
     refreshProfileModels: commands.refreshProfileModels,
   };

@@ -1,4 +1,4 @@
----
+<!-- ---
 name: requirement-to-loop-planner
 description: Convert a new repository requirement or multi-step change into a bounded Loop plan before implementation. Use when work is not already a final-test defect RCA or confirmed bug fix and needs goal/scope/ownership/harness/stop-rule planning, including architecture changes, provider behavior, Photoshop UXP workflow changes, or refactors with unclear boundaries.
 ---
@@ -73,4 +73,4 @@ Return a Loop plan or Loop doc draft using English structure words and Chinese
 content. Do not implement product features while using this skill unless the
 user explicitly authorizes execution after the plan. Treat the Loop file as
 temporary execution state that will be deleted after completion per
-`docs/agent/LOOP.md`.
+`docs/agent/LOOP.md`. -->

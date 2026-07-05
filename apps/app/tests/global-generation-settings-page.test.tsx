@@ -2,26 +2,53 @@ import { act } from 'react';
 import { createRoot, type Root } from 'react-dom/client';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { GlobalGenerationSettingsPage } from '../src/shared/ui/pages/global-generation-settings-page';
+import type { ModelGenerationSettingsController } from '../src/shared/ui/hooks/use-model-generation-settings';
 import { TestAppProviders } from './render-helpers';
 import { createFakeServices } from './fakes';
 
 let root: Root | undefined;
 
-const textComposerContext = {
-  kind: 'composer',
-  model: undefined,
-  operation: 'text-to-image',
-} as const;
-
-const imageEditOnly1kContext = {
-  kind: 'composer',
-  model: {
-    id: 'image-edit-only-1k',
-    configured: true,
-    selected: true,
-  },
-  operation: 'image-edit',
-} as const;
+function createModelGenerationSettingsController(overrides: Partial<ModelGenerationSettingsController> = {}): ModelGenerationSettingsController {
+  const selection = {
+    cellId: 'text_to_image:auto:auto:png',
+    imageSize: 'auto',
+    ratio: 'auto',
+    outputFormat: 'png',
+  } as const;
+  return {
+    context: {
+      profileId: 'mock-profile',
+      apiFormat: 'openai-images',
+      modelId: 'gpt-image-2',
+      operation: 'text-to-image',
+    },
+    settings: null,
+    loading: false,
+    error: null,
+    saveState: 'idle',
+    imageSizeOptions: [
+      { id: 'auto', label: 'Auto' },
+      { id: '1k', label: '1K' },
+      { id: '2k', label: '2K' },
+      { id: '4k', label: '4K' },
+    ],
+    ratioOptions: [{ id: 'auto', label: 'Auto' }],
+    outputFormatOptions: [
+      { id: 'png', label: 'PNG' },
+      { id: 'jpeg', label: 'JPEG' },
+    ],
+    selection,
+    requestOutput: { kind: 'image-endpoint', size: 'auto', outputFormat: 'png' },
+    ready: true,
+    validationMessage: null,
+    saveSelection: vi.fn(async () => true),
+    selectImageSize: vi.fn(async () => true),
+    selectRatio: vi.fn(async () => true),
+    selectOutputFormat: vi.fn(async () => true),
+    reload: vi.fn(async () => undefined),
+    ...overrides,
+  };
+}
 
 afterEach(async () => {
   if (root) {
@@ -62,15 +89,12 @@ describe('GlobalGenerationSettingsPage', () => {
         <TestAppProviders services={services}>
           <GlobalGenerationSettingsPage
             settings={{
-              outputSizePreset: '2k',
-              outputFormat: 'png',
-              aspectRatio: 'auto',
               providerInputSizePreset: '2k',
             }}
             loading={false}
             error={null}
             saveState="idle"
-            outputSizeContext={textComposerContext}
+            modelGenerationSettings={createModelGenerationSettingsController()}
             onSave={vi.fn(async () => undefined)}
             onNav={vi.fn()}
           />
@@ -125,21 +149,19 @@ describe('GlobalGenerationSettingsPage', () => {
     document.body.appendChild(container);
     root = createRoot(container);
     const onSave = vi.fn(async () => undefined);
+    const modelGenerationSettings = createModelGenerationSettingsController();
 
     await act(async () => {
       root!.render(
         <TestAppProviders services={services}>
           <GlobalGenerationSettingsPage
             settings={{
-              outputSizePreset: '2k',
-              outputFormat: 'png',
-              aspectRatio: 'auto',
               providerInputSizePreset: '2k',
             }}
             loading={false}
             error={null}
             saveState="idle"
-            outputSizeContext={textComposerContext}
+            modelGenerationSettings={modelGenerationSettings}
             onSave={onSave}
             onNav={vi.fn()}
           />
@@ -158,12 +180,8 @@ describe('GlobalGenerationSettingsPage', () => {
       container.querySelector<HTMLElement>('[data-testid="global-output-format-selector-option-jpeg"]')!.click();
     });
 
-    expect(onSave).toHaveBeenCalledWith({
-      outputSizePreset: '2k',
-      outputFormat: 'jpeg',
-      aspectRatio: 'auto',
-      providerInputSizePreset: '2k',
-    });
+    expect(onSave).not.toHaveBeenCalled();
+    expect(modelGenerationSettings.selectOutputFormat).toHaveBeenCalledWith('jpeg');
   });
 
   it('saves output size changes when model config does not expose local size limits', async () => {
@@ -172,21 +190,19 @@ describe('GlobalGenerationSettingsPage', () => {
     document.body.appendChild(container);
     root = createRoot(container);
     const onSave = vi.fn(async () => undefined);
+    const modelGenerationSettings = createModelGenerationSettingsController();
 
     await act(async () => {
       root!.render(
         <TestAppProviders services={services}>
           <GlobalGenerationSettingsPage
             settings={{
-              outputSizePreset: '2k',
-              outputFormat: 'png',
-              aspectRatio: 'auto',
               providerInputSizePreset: '2k',
             }}
             loading={false}
             error={null}
             saveState="idle"
-            outputSizeContext={imageEditOnly1kContext}
+            modelGenerationSettings={modelGenerationSettings}
             onSave={onSave}
             onNav={vi.fn()}
           />
@@ -202,12 +218,8 @@ describe('GlobalGenerationSettingsPage', () => {
     });
 
     expect(container.querySelector('[data-testid="toast"]')?.textContent ?? '').not.toContain('此模型不支持 4K');
-    expect(onSave).toHaveBeenCalledWith({
-      outputSizePreset: '4k',
-      outputFormat: 'png',
-      aspectRatio: 'auto',
-      providerInputSizePreset: '2k',
-    });
+    expect(onSave).not.toHaveBeenCalled();
+    expect(modelGenerationSettings.selectImageSize).toHaveBeenCalledWith('4k');
   });
 
   it('saves the provider input size preset label from the selector', async () => {
@@ -222,15 +234,12 @@ describe('GlobalGenerationSettingsPage', () => {
         <TestAppProviders services={services}>
           <GlobalGenerationSettingsPage
             settings={{
-              outputSizePreset: '2k',
-              outputFormat: 'png',
-              aspectRatio: 'auto',
               providerInputSizePreset: '1k',
             }}
             loading={false}
             error={null}
             saveState="idle"
-            outputSizeContext={textComposerContext}
+            modelGenerationSettings={createModelGenerationSettingsController()}
             onSave={onSave}
             onNav={vi.fn()}
           />
@@ -248,9 +257,6 @@ describe('GlobalGenerationSettingsPage', () => {
     });
 
     expect(onSave).toHaveBeenCalledWith({
-      outputSizePreset: '2k',
-      outputFormat: 'png',
-      aspectRatio: 'auto',
       providerInputSizePreset: '4k',
     });
   });
@@ -272,15 +278,12 @@ describe('GlobalGenerationSettingsPage', () => {
         <TestAppProviders services={services}>
           <GlobalGenerationSettingsPage
             settings={{
-              outputSizePreset: '2k',
-              outputFormat: 'png',
-              aspectRatio: 'auto',
               providerInputSizePreset: '1k',
             }}
             loading={false}
             error={null}
             saveState="idle"
-            outputSizeContext={textComposerContext}
+            modelGenerationSettings={createModelGenerationSettingsController()}
             onSave={vi.fn(async () => undefined)}
             onNav={vi.fn()}
           />
@@ -315,15 +318,12 @@ describe('GlobalGenerationSettingsPage', () => {
         <TestAppProviders services={services}>
           <GlobalGenerationSettingsPage
             settings={{
-              outputSizePreset: '2k',
-              outputFormat: 'png',
-              aspectRatio: 'auto',
               providerInputSizePreset: '1k',
             }}
             loading={false}
             error={null}
             saveState="saved"
-            outputSizeContext={textComposerContext}
+            modelGenerationSettings={createModelGenerationSettingsController()}
             onSave={vi.fn(async () => undefined)}
             onNav={vi.fn()}
           />
@@ -347,15 +347,12 @@ describe('GlobalGenerationSettingsPage', () => {
         <TestAppProviders services={services}>
           <GlobalGenerationSettingsPage
             settings={{
-              outputSizePreset: '2k',
-              outputFormat: 'png',
-              aspectRatio: 'auto',
               providerInputSizePreset: '1k',
             }}
             loading={false}
             error="save failed"
             saveState="error"
-            outputSizeContext={textComposerContext}
+            modelGenerationSettings={createModelGenerationSettingsController()}
             onSave={vi.fn(async () => undefined)}
             onNav={vi.fn()}
           />

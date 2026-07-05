@@ -2,6 +2,7 @@ import type { CommandsPort } from './commands-port';
 import type { DiagnosticsPort } from './diagnostics-port';
 import type { HostBridge } from './host-port';
 import type { AppGenerationSettingsStore } from './app-generation-settings';
+import type { AppModelGenerationPreferenceRepository } from './model-generation-preferences';
 import type { PromptSettingsStore } from './prompt-settings';
 import type { ActiveImageProfileStore } from './active-image-profile';
 import type { AppPathInfoPort } from './app-path-info';
@@ -17,6 +18,7 @@ export interface AppServices {
   readonly commands: CommandsPort;
   readonly host: HostBridge;
   readonly generationSettings: AppGenerationSettingsStore;
+  readonly modelGenerationPreferences: AppModelGenerationPreferenceRepository;
   readonly promptSettings: PromptSettingsStore;
   readonly activeImageProfile: ActiveImageProfileStore;
   readonly pathInfo?: AppPathInfoPort;

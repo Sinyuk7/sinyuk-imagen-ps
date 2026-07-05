@@ -210,7 +210,7 @@ describe('profile dispatch runtime', () => {
         },
         secretRefs: { apiKey: 'secret:mock' },
         enabled: true,
-        selectedModelIds: ['gpt-image-2', 'gpt-image-1'],
+        selectedModelIds: ['gpt-image-2', 'chatgpt-image-latest'],
         defaultModelId: 'gpt-image-2',
         createdAt: '2026-06-15T00:00:00.000Z',
         updatedAt: '2026-06-15T00:00:00.000Z',
@@ -219,8 +219,15 @@ describe('profile dispatch runtime', () => {
     setSecretStorageAdapter(createSecretStorage());
     mockOpenAiImagesFetch((_input, init) => {
       expect(init?.body).toBeTypeOf('string');
-      const body = JSON.parse(String(init?.body)) as { readonly model?: string; readonly providerOptions?: unknown };
-      expect(body.model).toBe('gpt-image-1');
+      const body = JSON.parse(String(init?.body)) as {
+        readonly model?: string;
+        readonly size?: string;
+        readonly output_format?: string;
+        readonly providerOptions?: unknown;
+      };
+      expect(body.model).toBe('chatgpt-image-latest');
+      expect(body.size).toBe('auto');
+      expect(body.output_format).toBe('png');
     });
 
     const result = await submitJob({
@@ -228,7 +235,7 @@ describe('profile dispatch runtime', () => {
       input: {
         profileId: 'mock-profile',
         prompt: 'draw a square',
-        providerOptions: { model: 'gpt-image-1' },
+        providerOptions: { model: 'chatgpt-image-latest' },
       },
     });
 

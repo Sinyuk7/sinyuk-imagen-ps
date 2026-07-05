@@ -36,6 +36,9 @@ import type {
   JobHistoryStore,
   ModelDiscoveryCache,
   ModelDiscoveryCacheRepository,
+  ModelGenerationPreference,
+  ModelGenerationPreferenceKey,
+  ModelGenerationPreferenceRepository,
   ProviderConfigResolver,
   ProviderProfile,
   ProviderProfileRepository,
@@ -46,6 +49,7 @@ import type {
   UserModelConfigRepository,
 } from './commands/types.js';
 import { resolveConfiguredModel, toProviderModelExecution } from './commands/model-config-resolution.js';
+import { resolveModelGenerationSettingsValue } from './commands/model-generation-preference-resolution.js';
 import { resolveSecretValue } from './commands/secret-utils.js';
 import { providerImplementationIdForApiFormat } from './commands/api-format-profile.js';
 import { builtinWorkflows } from './requests/index.js';
@@ -61,6 +65,7 @@ let registryInstance: ProviderRegistry | null = null;
 let providerProfileRepositoryInstance: ProviderProfileRepository | null = null;
 let modelDiscoveryCacheRepositoryInstance: ModelDiscoveryCacheRepository | null = null;
 let userModelConfigRepositoryInstance: UserModelConfigRepository | null = null;
+let modelGenerationPreferenceRepositoryInstance: ModelGenerationPreferenceRepository | null = null;
 let secretStorageAdapterInstance: SecretStorageAdapter | null = null;
 let providerConfigResolverInstance: ProviderConfigResolver | null = null;
 let jobHistoryStoreInstance: JobHistoryStore | null = null;
@@ -105,6 +110,10 @@ function userModelConfigKey(apiFormat: string, modelId: string): string {
   return `${apiFormat}:${modelId}`;
 }
 
+function modelGenerationPreferenceKey(key: ModelGenerationPreferenceKey): string {
+  return `${key.profileId}:${key.apiFormat}:${key.modelId}:${key.operation}`;
+}
+
 function createInMemoryUserModelConfigRepository(): UserModelConfigRepository {
   const store = new Map<string, UserModelConfig>();
   return {
@@ -120,6 +129,21 @@ function createInMemoryUserModelConfigRepository(): UserModelConfigRepository {
     },
     async delete(apiFormat, modelId) {
       store.delete(userModelConfigKey(apiFormat, modelId));
+    },
+  };
+}
+
+function createInMemoryModelGenerationPreferenceRepository(): ModelGenerationPreferenceRepository {
+  const store = new Map<string, ModelGenerationPreference>();
+  return {
+    async get(key) {
+      return store.get(modelGenerationPreferenceKey(key));
+    },
+    async save(preference) {
+      store.set(modelGenerationPreferenceKey(preference), preference);
+    },
+    async delete(key) {
+      store.delete(modelGenerationPreferenceKey(key));
     },
   };
 }
@@ -771,12 +795,22 @@ function stripProviderOptionsModel(providerOptions: unknown): Readonly<Record<st
   return Object.keys(rest).length > 0 ? rest : undefined;
 }
 
-function injectResolvedModel(params: Record<string, unknown>, model: ProviderModelExecution): Record<string, unknown> {
+function injectResolvedModelAndOutput(args: {
+  readonly params: Record<string, unknown>;
+  readonly model: ProviderModelExecution;
+  readonly output: Readonly<Record<string, unknown>>;
+}): Record<string, unknown> {
+  const { params, model } = args;
   const { requestObj, hasRequestKey } = locateRequestInParams(params);
   const providerOptions = stripProviderOptionsModel(requestObj.providerOptions);
+  const currentOutput = isPlainRecord(requestObj.output) ? requestObj.output : {};
   const newRequest = {
     ...requestObj,
     model,
+    output: {
+      ...currentOutput,
+      ...args.output,
+    },
     ...(providerOptions !== undefined ? { providerOptions } : {}),
   };
   if (providerOptions === undefined) {
@@ -787,6 +821,10 @@ function injectResolvedModel(params: Record<string, unknown>, model: ProviderMod
     return { ...params, request: newRequest };
   }
   return { ...params, ...newRequest };
+}
+
+function operationFromRequest(requestObj: Readonly<Record<string, unknown>>): ProviderOperation {
+  return requestObj.operation === 'image_edit' ? 'image_edit' : 'text_to_image';
 }
 
 async function resolveModelParamsForDispatch(args: {
@@ -814,7 +852,31 @@ async function resolveModelParamsForDispatch(args: {
     modelId: selectedModelId,
     userModelConfigRepository: getUserModelConfigRepository(),
   });
-  return injectResolvedModel(args.params, toProviderModelExecution(resolved));
+  const requestOutput = resolveModelGenerationSettingsValue({
+    key: {
+      profileId: args.profile.profileId,
+      apiFormat: args.profile.apiFormat,
+      modelId: resolved.modelId,
+      operation: operationFromRequest(requestObj),
+    },
+    preference: await getModelGenerationPreferenceRepository().get({
+      profileId: args.profile.profileId,
+      apiFormat: args.profile.apiFormat,
+      modelId: resolved.modelId,
+      operation: operationFromRequest(requestObj),
+    }),
+    userConfig: resolved.source === 'user' ? resolved : undefined,
+  });
+  return injectResolvedModelAndOutput({
+    params: args.params,
+    model: toProviderModelExecution(resolved),
+    output: {
+      sizePreset: requestOutput.selection.imageSize === 'auto' ? undefined : requestOutput.selection.imageSize,
+      aspectRatio: requestOutput.selection.ratio,
+      outputFormat: requestOutput.selection.outputFormat,
+      requestOutput: requestOutput.requestOutput,
+    },
+  });
 }
 
 /**
@@ -991,6 +1053,17 @@ export function setUserModelConfigRepository(repository: UserModelConfigReposito
   userModelConfigRepositoryInstance = repository;
 }
 
+export function getModelGenerationPreferenceRepository(): ModelGenerationPreferenceRepository {
+  if (modelGenerationPreferenceRepositoryInstance === null) {
+    modelGenerationPreferenceRepositoryInstance = createInMemoryModelGenerationPreferenceRepository();
+  }
+  return modelGenerationPreferenceRepositoryInstance;
+}
+
+export function setModelGenerationPreferenceRepository(repository: ModelGenerationPreferenceRepository): void {
+  modelGenerationPreferenceRepositoryInstance = repository;
+}
+
 /** 获取当前 secret storage adapter */
 export function getSecretStorageAdapter(): SecretStorageAdapter {
   if (secretStorageAdapterInstance === null) {
@@ -1080,6 +1153,7 @@ export function _resetForTesting(): void {
   providerProfileRepositoryInstance = null;
   modelDiscoveryCacheRepositoryInstance = null;
   userModelConfigRepositoryInstance = null;
+  modelGenerationPreferenceRepositoryInstance = null;
   secretStorageAdapterInstance = null;
   providerConfigResolverInstance = null;
   jobHistoryStoreInstance = null;

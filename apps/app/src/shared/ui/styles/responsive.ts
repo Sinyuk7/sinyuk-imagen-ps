@@ -15,7 +15,7 @@ export const RESPONSIVE_CSS = `
 .panel[data-panel-width-mode="compact"] .cmp-send{ width:30px; height:30px; }
 .panel[data-panel-width-mode="compact"] .cmp-select-model{ flex:1 1 auto; min-width:0; }
 .panel[data-panel-width-mode="compact"] .cmp-capture{ width:28px; height:28px; }
-.panel[data-panel-width-mode="compact"] .cmp-select-output-size{ flex:0 0 auto; min-width:76px; margin-top:0; margin-right:4px; margin-bottom:0; margin-left:0; }
+.panel[data-panel-width-mode="compact"] .cmp-select-output-size{ flex:0 0 auto; min-width:52px; margin-top:0; margin-right:3px; margin-bottom:0; margin-left:0; }
 .panel[data-panel-width-mode="compact"] .cmp-chip-icon,
 .panel[data-panel-width-mode="compact"] .cmp-chip-text{ padding:2px 6px; font-size:9px; }
 .panel[data-panel-width-mode="compact"] .cmp-select-model .cmp-chip-icon{
@@ -25,7 +25,7 @@ export const RESPONSIVE_CSS = `
   padding-left:36px;
 }
 .panel[data-panel-width-mode="compact"] .cmp-select-output-size .cmp-chip-leading-icon{ display:none !important; }
-.panel[data-panel-width-mode="compact"] .cmp-select-output-size .cmp-chip-value-icon{ max-width:48px; }
+.panel[data-panel-width-mode="compact"] .cmp-select-output-size .cmp-chip-value-icon{ max-width:40px; }
 .panel[data-panel-width-mode="compact"] .generation-settings-grid{ flex-direction:column; flex-wrap:nowrap; }
 .panel[data-panel-width-mode="compact"] .generation-settings-grid .field{ margin-right:0; margin-bottom:8px; flex:1 1 auto; }
 .panel[data-panel-width-mode="compact"] .generation-settings-grid .field:last-child{ margin-bottom:0; }

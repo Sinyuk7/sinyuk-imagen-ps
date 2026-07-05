@@ -35,6 +35,11 @@ export {
   listUserModelConfigs,
   saveUserModelConfig,
 } from './model-configs.js';
+export {
+  deleteModelGenerationPreference,
+  getModelGenerationSettings,
+  saveModelGenerationPreference,
+} from './model-generation-preferences.js';
 export { refreshDraftProfileModels } from './refresh-draft-profile-models.js';
 export { measureProfileEndpoints } from './profile-endpoints.js';
 export { testProviderProfileConnection } from './profile-connection-test.js';
@@ -75,12 +80,23 @@ export type {
   EndpointClassification,
   ExactTaskCost,
   BalanceChange,
+  ImageAspectRatio,
+  ImageOutputFormat,
+  ImageOutputImageSize,
+  ImageOutputMatrix,
+  ImageOutputMatrixCell,
   OfficialModelPreset,
+  ModelGenerationPreference,
+  ModelGenerationPreferenceKey,
+  ModelGenerationPreferenceRepository,
+  ModelGenerationPreferenceSelection,
+  ModelGenerationSettings,
   MeasureProfileEndpointsInput,
   MeasureProfileEndpointsResult,
   RefreshDraftProfileModelsInput,
   ProfileBalanceResult,
   ProfileBillingState,
+  ProviderResolvedOutput,
   RefreshProfileBalanceInput,
   RefreshProfileBalanceResult,
   RequestStrategy,
@@ -121,6 +137,7 @@ export type {
   ProviderProfileRepository,
   ResolvedProviderConfig,
   SaveUserModelConfigInput,
+  SaveModelGenerationPreferenceInput,
   SecretResolver,
   SecretStorageAdapter,
   UserModelConfig,
@@ -131,10 +148,12 @@ export type {
 export {
   getAssetStore,
   getModelDiscoveryCacheRepository,
+  getModelGenerationPreferenceRepository,
   getUserModelConfigRepository,
   setAssetStore,
   setJobHistoryStore,
   setModelDiscoveryCacheRepository,
+  setModelGenerationPreferenceRepository,
   setProviderConfigResolver,
   setProviderProfileRepository,
   setSecretStorageAdapter,

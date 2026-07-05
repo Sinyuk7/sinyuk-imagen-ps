@@ -1,7 +1,7 @@
 import type { Asset } from '@imagen-ps/core-engine';
-import type { CanonicalImageJobRequest, ProviderOutputOptions } from '../../contract/request.js';
+import type { CanonicalImageJobRequest, ChatImageRequestOutput, ProviderOutputOptions } from '../../contract/request.js';
 import type { ProviderDiagnostic } from '../../contract/diagnostics.js';
-import { assertProviderModelExecution, resolveImageModelOutput } from '../../contract/image-model-capability.js';
+import { assertProviderModelExecution } from '../../contract/image-model-capability.js';
 
 export interface ChatImageContentText {
   readonly type: 'text';
@@ -98,69 +98,33 @@ function bytesToBase64(bytes: Uint8Array): string {
   return btoa(binary);
 }
 
-function inferSize(width: number | undefined, height: number | undefined): string | undefined {
-  return width !== undefined && height !== undefined ? `${width}x${height}` : undefined;
+function resolveRequestOutput(output: ProviderOutputOptions): ChatImageRequestOutput {
+  const requestOutput = output.requestOutput;
+  if (requestOutput === undefined) {
+    throw new BuildChatImageRequestError('Chat image output requires resolved requestOutput.', {
+      expected: 'chat-image',
+    });
+  }
+  if (requestOutput.kind !== 'chat-image') {
+    throw new BuildChatImageRequestError(
+      `Chat image output received incompatible requestOutput kind "${requestOutput.kind}".`,
+      { expected: 'chat-image', actual: requestOutput.kind },
+    );
+  }
+  return requestOutput;
 }
 
-function sizeFromPreset(preset: NonNullable<ProviderOutputOptions['sizePreset']>): '512' | '1K' | '2K' {
-  return preset === '512' ? '512' : preset === '1k' ? '1K' : '2K';
-}
-
-function outputToImageConfig(
+function resolvedImageConfigFromOutput(
   output: ProviderOutputOptions | undefined,
-  modelId: string,
-  operation: CanonicalImageJobRequest['operation'],
 ): Record<string, unknown> | undefined {
   if (output === undefined) {
     return undefined;
   }
 
-  const imageConfig: Record<string, unknown> = {};
-  const resolvedOutput =
-    output.sizePreset !== undefined
-      ? resolveImageModelOutput({
-        providerId: 'chat-image',
-        modelId,
-        operation,
-        output,
-      })
-      : undefined;
-  const size = resolvedOutput?.wireSize ?? (output.sizePreset !== undefined ? sizeFromPreset(output.sizePreset) : inferSize(output.width, output.height));
-
-  if (size !== undefined) {
-    imageConfig.size = size;
-  }
-  const wireAspectRatio = resolvedOutput?.wireAspectRatio;
-  if (wireAspectRatio !== undefined) {
-    imageConfig.aspect_ratio = wireAspectRatio;
-  } else if (
-    output.aspectRatio !== undefined &&
-    output.aspectRatio !== 'auto' &&
-    output.aspectRatio !== 'source' &&
-    output.sizePreset === undefined
-  ) {
-    imageConfig.aspect_ratio = output.aspectRatio;
-  }
-  if (output.quality !== undefined) {
-    imageConfig.quality = output.quality;
-  }
-  if (output.background !== undefined) {
-    imageConfig.background = output.background;
-  }
-  if (output.outputFormat !== undefined) {
-    imageConfig.output_format = output.outputFormat;
-  }
-  if (output.outputCompression !== undefined) {
-    imageConfig.output_compression = output.outputCompression;
-  }
-  if (output.moderation !== undefined) {
-    imageConfig.moderation = output.moderation;
-  }
-  if (output.inputFidelity !== undefined) {
-    imageConfig.input_fidelity = output.inputFidelity;
-  }
-
-  return Object.keys(imageConfig).length > 0 ? imageConfig : undefined;
+  const imageConfig = resolveRequestOutput(output).imageConfig;
+  return imageConfig !== undefined && Object.keys(imageConfig).length > 0
+    ? { ...imageConfig }
+    : undefined;
 }
 
 function createIgnoredProviderOptionDiagnostic(
@@ -231,10 +195,9 @@ function resolveModalities(
 
 function resolveImageConfig(
   request: CanonicalImageJobRequest,
-  modelId: string,
   diagnostics: ProviderDiagnostic[],
 ): Record<string, unknown> | undefined {
-  const fromOutput = outputToImageConfig(request.output, modelId, request.operation);
+  const fromOutput = resolvedImageConfigFromOutput(request.output);
   const raw = request.providerOptions?.image_config;
   if (raw !== undefined) {
     const ignoredPaths =
@@ -290,7 +253,7 @@ export function buildChatImageRequest(
     body.n = request.output.count;
   }
 
-  const imageConfig = resolveImageConfig(request, model, diagnostics);
+  const imageConfig = resolveImageConfig(request, diagnostics);
   if (imageConfig !== undefined) {
     body.image_config = imageConfig;
   }

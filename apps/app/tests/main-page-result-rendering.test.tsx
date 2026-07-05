@@ -51,7 +51,7 @@ describe('MainPage contract — result rendering', () => {
     const providerIdentity = container.querySelector<HTMLElement>('.prov-top .prov-identity')!;
     const providerIdentityHost = providerIdentity.querySelector<HTMLElement>('.prov-identity-host')!;
     expect(providerIdentity.textContent).toContain('Mock Profile');
-    expect(providerIdentity.textContent).toContain('mock-image-v1');
+    expect(providerIdentity.textContent).toContain('gpt-image-2');
     expect(providerIdentityHost.querySelector('.prov-identity-icon-shell')).not.toBeNull();
     expect(providerIdentityHost.querySelector('.prov-identity-icon-text')?.textContent).toBe('M');
     const previewCount = container.querySelector<HTMLElement>('[data-testid^="result-preview-count-"]')!;
@@ -208,7 +208,7 @@ describe('MainPage contract — result rendering', () => {
             text: [
               'line one',
               'line two',
-              '[operation=text_to_image] [model=mock-image-v1]',
+              '[operation=text_to_image] [model=gpt-image-2]',
               '[prompt=image te...]',
             ].join('\n'),
             metadata: { size: '1024x1024', outputFormat: 'png' },
@@ -225,7 +225,7 @@ describe('MainPage contract — result rendering', () => {
 
     const response = container.querySelector<HTMLElement>('[data-testid^="result-response-text-"]')!;
     expect(response.textContent).toContain('line one\nline two');
-    expect(response.textContent).toContain('[operation=text_to_image] [model=mock-image-v1]');
+    expect(response.textContent).toContain('[operation=text_to_image] [model=gpt-image-2]');
     expect(response.textContent).not.toContain('[app.output=');
     expect(container.querySelector('.prov-response-details')).toBeNull();
     const responseBox = response.closest<HTMLElement>('.prov-response')!;
@@ -426,7 +426,7 @@ describe('MainPage contract — result rendering', () => {
         output: {
           image: {
             assets: [fakeOutputAsset],
-            text: '[operation=text_to_image] [model=mock-image-v1] [prompt=debug on...]',
+            text: '[operation=text_to_image] [model=gpt-image-2] [prompt=debug on...]',
             metadata: { size: '1024x2048', outputFormat: 'png' },
           },
         },
@@ -440,7 +440,7 @@ describe('MainPage contract — result rendering', () => {
     await sendPrompt(container, 'debug only');
 
     const response = container.querySelector<HTMLElement>('[data-testid^="result-response-text-"]')!;
-    expect(response.textContent).toContain('[operation=text_to_image] [model=mock-image-v1] [prompt=debug on...]');
+    expect(response.textContent).toContain('[operation=text_to_image] [model=gpt-image-2] [prompt=debug on...]');
     expect(response.textContent).not.toContain('[app.model=');
     expect(container.querySelector('.prov-response-details')).toBeNull();
     expect(container.querySelector<HTMLElement>('[data-testid^="result-preview-"]')?.className).toContain('media-tall');

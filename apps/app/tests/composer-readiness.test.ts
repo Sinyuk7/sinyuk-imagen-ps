@@ -25,7 +25,8 @@ const base = {
   attachmentPreparing: false,
   attachmentFailed: false,
   operation: 'text-to-image' as const,
-  outputSizePreset: '2k' as const,
+  outputSettingsLoading: false,
+  hasOutputMatrix: true,
   placementIntent: { kind: 'unbound' as const, reason: 'no-photoshop-capture' as const },
   prompt: 'make image',
 };
@@ -56,7 +57,7 @@ describe('composer readiness', () => {
       ...base,
       selectedModelId: 'dall-e-3',
       selectedModel: textOnlyModel,
-      outputSizePreset: '4k',
+      hasOutputMatrix: true,
       prompt: '',
     })).toEqual({
       state: 'enter-prompt',

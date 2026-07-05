@@ -1,13 +1,12 @@
 import { useState } from 'react';
+import type { ImageAspectRatio, ImageOutputFormat, ImageOutputImageSize } from '@imagen-ps/application';
 import { useAppServices } from '../../ports/app-services-context';
 import type {
-  AppAspectRatio,
   AppGenerationSettings,
   AppProviderInputSizePreset,
-  AppOutputFormat,
-  AppOutputSizePreset,
 } from '../../ports/app-generation-settings';
 import type { GenerationSettingsSaveState } from '../hooks/use-generation-settings';
+import type { ModelGenerationSettingsController } from '../hooks/use-model-generation-settings';
 import { useAppPathInfo } from '../hooks/use-app-path-info';
 import { StatusNotice } from '../components/status-notice';
 import { useToast } from '../components/toast-host';
@@ -16,37 +15,18 @@ import { TextSelect } from '../components/text-select';
 import { Icon } from '../components/icons';
 import { IconButton } from '../primitives/icon-button';
 import { useI18n } from '../i18n/i18n-context';
-import { canSelectOutputSize, OUTPUT_SIZE_PRESETS, outputSizeLabel, type OutputSizeSelectionContext } from '../output-size';
 
 interface GlobalGenerationSettingsPageProps {
   readonly settings: AppGenerationSettings;
   readonly loading: boolean;
   readonly error: string | null;
   readonly saveState: GenerationSettingsSaveState;
-  readonly outputSizeContext: OutputSizeSelectionContext;
+  readonly modelGenerationSettings: ModelGenerationSettingsController;
   readonly onSave: (settings: AppGenerationSettings) => Promise<void>;
   readonly onNav: (view: string) => void;
 }
 
 type MenuId = 'size' | 'format' | 'aspect' | 'provider-input-size' | null;
-
-const SIZE_OPTIONS: ReadonlyArray<{ readonly id: AppOutputSizePreset; readonly label: string }> = OUTPUT_SIZE_PRESETS.map((size) => ({
-  id: size,
-  label: outputSizeLabel(size),
-}));
-
-const FORMAT_OPTIONS: ReadonlyArray<{ readonly id: AppOutputFormat; readonly label: string }> = [
-  { id: 'png', label: 'PNG' },
-  { id: 'jpeg', label: 'JPEG' },
-  { id: 'webp', label: 'WebP' },
-];
-
-const ASPECT_OPTIONS: ReadonlyArray<{ readonly id: AppAspectRatio; readonly label: string }> = [
-  { id: 'auto', label: 'Auto' },
-  { id: '1:1', label: '1:1' },
-  { id: '16:9', label: '16:9' },
-  { id: '9:16', label: '9:16' },
-];
 
 const PROVIDER_INPUT_SIZE_OPTIONS: ReadonlyArray<{ readonly id: AppProviderInputSizePreset; readonly label: string }> = [
   { id: '1k', label: '1K' },
@@ -71,7 +51,7 @@ export function GlobalGenerationSettingsPage({
   loading,
   error,
   saveState,
-  outputSizeContext,
+  modelGenerationSettings,
   onSave,
   onNav,
 }: GlobalGenerationSettingsPageProps) {
@@ -97,34 +77,59 @@ export function GlobalGenerationSettingsPage({
       setCopiedKey((current) => (current === key ? null : current));
     }, 1200);
   };
-  const selectOutputSize = (value: AppOutputSizePreset) => {
-    const result = canSelectOutputSize(outputSizeContext, value, t);
-    if (!result.ok) {
-      show(result.reason, 'warning', { key: `global-output-size-rejected:${value}` });
-      return;
-    }
-    updateSettings({ outputSizePreset: result.nextSize });
+  const selectOutputSize = (value: ImageOutputImageSize) => {
+    void modelGenerationSettings.selectImageSize(value).then((saved) => {
+      if (!saved && modelGenerationSettings.validationMessage) {
+        show(modelGenerationSettings.validationMessage, 'warning', { key: `global-output-size-rejected:${value}` });
+      }
+    });
   };
 
-  const saveStatusIcon = saveState === 'saving'
+  const selectRatio = (value: ImageAspectRatio) => {
+    void modelGenerationSettings.selectRatio(value).then((saved) => {
+      if (!saved && modelGenerationSettings.validationMessage) {
+        show(modelGenerationSettings.validationMessage, 'warning', { key: `global-ratio-rejected:${value}` });
+      }
+    });
+  };
+
+  const selectOutputFormat = (value: ImageOutputFormat) => {
+    void modelGenerationSettings.selectOutputFormat(value).then((saved) => {
+      if (!saved && modelGenerationSettings.validationMessage) {
+        show(modelGenerationSettings.validationMessage, 'warning', { key: `global-format-rejected:${value}` });
+      }
+    });
+  };
+
+  const outputSelection = modelGenerationSettings.selection;
+  const outputLoading = modelGenerationSettings.loading;
+  const outputDisabled = outputLoading || outputSelection === null || !modelGenerationSettings.ready;
+  const outputStatusMessage = outputLoading
+    ? t.common.loading
+    : modelGenerationSettings.validationMessage;
+
+  const outputSaveState = modelGenerationSettings.saveState;
+  const combinedSaveState = outputSaveState === 'saving' ? 'saving' : saveState;
+  const combinedError = outputSaveState === 'error' ? modelGenerationSettings.error ?? error : error;
+  const combinedSaveStatusIcon = combinedSaveState === 'saving'
     ? <Icon name="spinner" size={14} className="spin" />
-    : saveState === 'saved'
+    : combinedSaveState === 'saved'
       ? <Icon name="check" size={14} />
-      : saveState === 'error'
+      : combinedSaveState === 'error'
         ? <Icon name="error" size={14} />
         : null;
-  const saveStatusLabel = saveState === 'saving'
+  const combinedSaveStatusLabel = combinedSaveState === 'saving'
     ? t.settings.saving
-    : saveState === 'saved'
+    : combinedSaveState === 'saved'
       ? t.settings.saved
-      : saveState === 'error'
-        ? error
+      : combinedSaveState === 'error'
+        ? combinedError
         : null;
-  const saveStatusClassName = saveState === 'saving'
+  const combinedSaveStatusClassName = combinedSaveState === 'saving'
     ? 'save-status save-status-busy'
-    : saveState === 'saved'
+    : combinedSaveState === 'saved'
       ? 'save-status save-status-saved'
-      : saveState === 'error'
+      : combinedSaveState === 'error'
         ? 'save-status'
         : null;
 
@@ -160,14 +165,13 @@ export function GlobalGenerationSettingsPage({
                   containerClassName="cmp-select settings-select"
                   menuClassName="cmp-select-menu cmp-select-menu-compact"
                   label={t.settings.outputSize}
-                  value={labelFor(SIZE_OPTIONS, settings.outputSizePreset)}
-                  disabled={loading}
+                  value={outputSelection ? labelFor(modelGenerationSettings.imageSizeOptions, outputSelection.imageSize) : t.settings.loading}
+                  disabled={outputDisabled}
                   open={openMenu === 'size'}
                   onOpenChange={(open) => setOpenMenu(open ? 'size' : null)}
-                  options={SIZE_OPTIONS}
-                  isOptionSelectable={(value) => canSelectOutputSize(outputSizeContext, value as AppOutputSizePreset, t).ok}
-                  selectedId={settings.outputSizePreset}
-                  onSelect={(value) => selectOutputSize(value as AppOutputSizePreset)}
+                  options={modelGenerationSettings.imageSizeOptions}
+                  selectedId={outputSelection?.imageSize ?? ''}
+                  onSelect={(value) => selectOutputSize(value as ImageOutputImageSize)}
                 />
               </div>
               <div className="field">
@@ -178,13 +182,13 @@ export function GlobalGenerationSettingsPage({
                   containerClassName="cmp-select settings-select"
                   menuClassName="cmp-select-menu cmp-select-menu-compact"
                   label={t.settings.outputFormat}
-                  value={labelFor(FORMAT_OPTIONS, settings.outputFormat)}
-                  disabled={loading}
+                  value={outputSelection ? labelFor(modelGenerationSettings.outputFormatOptions, outputSelection.outputFormat) : t.settings.loading}
+                  disabled={outputDisabled}
                   open={openMenu === 'format'}
                   onOpenChange={(open) => setOpenMenu(open ? 'format' : null)}
-                  options={FORMAT_OPTIONS}
-                  selectedId={settings.outputFormat}
-                  onSelect={(value) => updateSettings({ outputFormat: value as AppOutputFormat })}
+                  options={modelGenerationSettings.outputFormatOptions}
+                  selectedId={outputSelection?.outputFormat ?? ''}
+                  onSelect={(value) => selectOutputFormat(value as ImageOutputFormat)}
                 />
               </div>
               <div className="field">
@@ -195,16 +199,21 @@ export function GlobalGenerationSettingsPage({
                   containerClassName="cmp-select settings-select"
                   menuClassName="cmp-select-menu cmp-select-menu-compact"
                   label={t.settings.aspectRatio}
-                  value={labelFor(ASPECT_OPTIONS, settings.aspectRatio)}
-                  disabled={loading}
+                  value={outputSelection ? labelFor(modelGenerationSettings.ratioOptions, outputSelection.ratio) : t.settings.loading}
+                  disabled={outputDisabled}
                   open={openMenu === 'aspect'}
                   onOpenChange={(open) => setOpenMenu(open ? 'aspect' : null)}
-                  options={ASPECT_OPTIONS}
-                  selectedId={settings.aspectRatio}
-                  onSelect={(value) => updateSettings({ aspectRatio: value as AppAspectRatio })}
+                  options={modelGenerationSettings.ratioOptions}
+                  selectedId={outputSelection?.ratio ?? ''}
+                  onSelect={(value) => selectRatio(value as ImageAspectRatio)}
                 />
               </div>
             </div>
+            {outputStatusMessage ? (
+              <div data-testid="global-output-settings-status">
+                <StatusNotice tone={modelGenerationSettings.error ? 'warning' : 'info'} message={outputStatusMessage} copyText={modelGenerationSettings.error} />
+              </div>
+            ) : null}
           </section>
           <section className="section generation-settings-section">
             <div className="section-title settings-section-heading">{t.settings.inputGroup}</div>
@@ -297,20 +306,20 @@ export function GlobalGenerationSettingsPage({
             >
               {t.settings.footerStatement}
             </div>
-            {saveStatusClassName && saveStatusLabel ? (
+            {combinedSaveStatusClassName && combinedSaveStatusLabel ? (
               <div
                 data-testid="global-settings-save-status"
-                className={saveStatusClassName}
+                className={combinedSaveStatusClassName}
               >
-                {saveStatusIcon}
-                <span>{saveStatusLabel}</span>
+                {combinedSaveStatusIcon}
+                <span>{combinedSaveStatusLabel}</span>
               </div>
             ) : null}
           </section>
-          {error && (
+          {combinedError && (
             <section className="section generation-settings-section generation-settings-secondary-section">
               <div data-testid="global-settings-error-notice">
-                <StatusNotice tone="negative" message={error} copyText={error} />
+                <StatusNotice tone="negative" message={combinedError} copyText={combinedError} />
               </div>
             </section>
           )}

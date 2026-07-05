@@ -21,6 +21,7 @@ import { parseResponse } from '../src/transport/image-endpoint/parse-response.js
 import { resetImageEditCompatibilityCacheForTesting } from '../src/transport/image-endpoint/wire-compatibility.js';
 import { createCountingFetch } from './counting-transport.js';
 import { imageEndpointModel } from './model-execution.js';
+import { outputWithResolvedRequest } from './resolved-output.js';
 
 function expectFormDataFile(
   value: FormDataEntryValue | null,
@@ -111,19 +112,28 @@ describe('image-endpoint provider', () => {
       {
         operation: 'text_to_image',
         prompt: 'a red square',
-        output: { count: 2, width: 1024, height: 1024, quality: 'low' },
-        model: imageEndpointModel('dall-e-3', 'image-endpoint-variant'),
+        output: outputWithResolvedRequest({
+          providerId: 'image-endpoint',
+          modelId: 'gpt-image-2',
+          operation: 'text_to_image',
+          imageSize: '1k',
+          ratio: '1:1',
+          outputFormat: 'png',
+          output: { count: 2, quality: 'low' },
+        }),
+        model: imageEndpointModel('gpt-image-2'),
       },
     );
 
     expect(body).toMatchObject({
-      model: 'dall-e-3',
+      model: 'gpt-image-2',
       prompt: 'a red square',
       n: 2,
       size: '1024x1024',
       quality: 'low',
-      response_format: 'url',
+      output_format: 'png',
     });
+    expect(body).not.toHaveProperty('response_format');
   });
 
   it('maps semantic output settings to provider-owned image endpoint size and format', () => {
@@ -131,12 +141,15 @@ describe('image-endpoint provider', () => {
       {
         operation: 'text_to_image',
         prompt: 'a wide image',
-        output: {
-          count: 1,
-          sizePreset: '4k',
-          aspectRatio: '16:9',
+        output: outputWithResolvedRequest({
+          providerId: 'image-endpoint',
+          modelId: 'gpt-image-2',
+          operation: 'text_to_image',
+          imageSize: '4k',
+          ratio: '16:9',
           outputFormat: 'png',
-        },
+          output: { count: 1 },
+        }),
         model: imageEndpointModel('gpt-image-2'),
       },
     );
@@ -145,7 +158,7 @@ describe('image-endpoint provider', () => {
       model: 'gpt-image-2',
       prompt: 'a wide image',
       n: 1,
-      size: '1536x864',
+      size: '3840x2160',
       output_format: 'png',
     });
     expect(body).not.toHaveProperty('aspect_ratio');
@@ -177,21 +190,24 @@ describe('image-endpoint provider', () => {
         operation: 'image_edit',
         prompt: 'preserve source ratio',
         images: [{ type: 'image', url: 'https://example.com/input.png' }],
-        output: {
-          count: 1,
-          sizePreset: '2k',
-          aspectRatio: 'auto',
+        output: outputWithResolvedRequest({
+          providerId: 'image-endpoint',
+          modelId: 'gpt-image-2',
+          operation: 'image_edit',
+          imageSize: 'auto',
+          ratio: 'auto',
           outputFormat: 'png',
-        },
+          output: { count: 1 },
+        }),
         model: imageEndpointModel('gpt-image-2'),
       },
     );
 
     expect(body).toMatchObject({
       n: 1,
+      size: 'auto',
       output_format: 'png',
     });
-    expect(body).not.toHaveProperty('size');
     expect(body).not.toHaveProperty('aspect_ratio');
   });
 
@@ -224,7 +240,15 @@ describe('image-endpoint provider', () => {
           { type: 'image', data: new Uint8Array([5, 6, 7, 8]), mimeType: 'image/jpeg', name: 'second.jpg' },
         ],
         maskImage: { type: 'image', data: new Uint8Array([9, 10, 11]), mimeType: 'image/png', name: 'mask.png' },
-        output: { count: 2, outputFormat: 'png' },
+        output: outputWithResolvedRequest({
+          providerId: 'image-endpoint',
+          modelId: 'gpt-image-2',
+          operation: 'image_edit',
+          imageSize: 'auto',
+          ratio: 'auto',
+          outputFormat: 'png',
+          output: { count: 2 },
+        }),
         model: imageEndpointModel('gpt-image-2'),
       },
     );
@@ -233,6 +257,7 @@ describe('image-endpoint provider', () => {
     expect(body.get('model')).toBe('gpt-image-2');
     expect(body.get('prompt')).toBe('make it blue');
     expect(body.get('n')).toBe('2');
+    expect(body.get('size')).toBe('auto');
     expect(body.get('output_format')).toBe('png');
     const images = body.getAll('image[]');
     expect(images).toHaveLength(2);
@@ -384,48 +409,33 @@ describe('image-endpoint provider', () => {
     expect(resolved.matchKind).toBe('exact');
   });
 
-  it('maps grok quality ids onto the pro catalog rule', () => {
-    const resolved = resolveImageModelRule({
-      providerId: 'image-endpoint',
-      modelId: 'grok-imagine-image-quality',
-    });
-
-    expect(resolved.ruleId).toBe('image-endpoint-grok-imagine-image-pro');
-    expect(resolved.concreteModelId).toBe('grok-imagine-image-quality');
-    expect(resolved.matchKind).toBe('exact');
+  it('does not expose removed image-endpoint catalog presets as executable rules', () => {
+    for (const modelId of [
+      'gpt-image-1',
+      'dall-e-3',
+      'grok-imagine-image-quality',
+      'doubao-seedream-5-0-260128',
+      'qwen-image-2.0-2026-03-03',
+    ]) {
+      expect(() => resolveImageModelRule({ providerId: 'image-endpoint', modelId })).toThrow(/no explicit rule/);
+    }
   });
 
-  it('summarizes gpt-image-1 text-to-image and image-edit capability separately from availability', () => {
+  it('summarizes removed image-endpoint presets as not in local catalog', () => {
     const summary = summarizeImageModelCapabilities({
       providerId: 'image-endpoint',
       modelId: 'gpt-image-1',
     });
 
     expect(summary.operations.textToImage).toMatchObject({
-      support: 'supported',
-      sizePresets: ['1k', '2k'],
+      support: 'unknown',
+      sizePresets: 'unknown',
+      reason: 'not-in-local-catalog',
     });
     expect(summary.operations.imageEdit).toMatchObject({
-      support: 'unsupported',
-      sizePresets: [],
-      reason: 'operation-unsupported',
-    });
-  });
-
-  it('summarizes dall-e-3 as text-to-image only with its own size limits', () => {
-    const summary = summarizeImageModelCapabilities({
-      providerId: 'image-endpoint',
-      modelId: 'dall-e-3',
-    });
-
-    expect(summary.operations.textToImage).toMatchObject({
-      support: 'supported',
-      sizePresets: ['1k', '2k'],
-    });
-    expect(summary.operations.imageEdit).toMatchObject({
-      support: 'unsupported',
-      sizePresets: [],
-      reason: 'operation-unsupported',
+      support: 'unknown',
+      sizePresets: 'unknown',
+      reason: 'not-in-local-catalog',
     });
   });
 
@@ -447,26 +457,31 @@ describe('image-endpoint provider', () => {
     });
   });
 
-  it('rejects unsupported gpt-image-1 semantic output locally before transport', () => {
+  it('rejects image-endpoint output that has no resolved requestOutput', () => {
     expect(() => buildRequestBody(
       {
         operation: 'text_to_image',
-        prompt: 'unsupported square',
+        prompt: 'missing resolved output',
         output: { sizePreset: '2k', aspectRatio: 'auto' },
-        model: imageEndpointModel('gpt-image-1', 'image-endpoint-variant'),
+        model: imageEndpointModel('gpt-image-2'),
       },
-    )).toThrow(/does not support preset "2k" with aspect ratio "auto"/);
+    )).toThrow(/requires resolved requestOutput/);
   });
 
-  it('rejects unsupported dall-e-3 semantic output locally before transport', () => {
+  it('rejects image-endpoint output with an incompatible resolved kind', () => {
     expect(() => buildRequestBody(
       {
         operation: 'text_to_image',
-        prompt: 'unsupported square',
-        output: { sizePreset: '2k', aspectRatio: 'auto' },
-        model: imageEndpointModel('dall-e-3', 'image-endpoint-variant'),
+        prompt: 'wrong resolved output',
+        output: {
+          requestOutput: {
+            kind: 'chat-image',
+            imageConfig: { size: '1K' },
+          },
+        },
+        model: imageEndpointModel('gpt-image-2'),
       },
-    )).toThrow(/does not support preset "2k" with aspect ratio "auto"/);
+    )).toThrow(/incompatible requestOutput kind "chat-image"/);
   });
 
   it('omits undefined AbortSignal from fetch options for UXP compatibility', async () => {
