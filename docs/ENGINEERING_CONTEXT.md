@@ -73,6 +73,45 @@ surface apps -> application/session -> core-engine + providers
   preserved frame evidence may still place as `exact-frame`; degraded evidence
   must place as `document-only`.
 
+## App Surface UI Contracts
+
+- UI localization is `apps/app`-owned. `createPluginHostShell()` reads UXP
+  `host.uiLocale`, normalizes it to `en` or `zh-CN` through
+  `apps/app/src/shared/locale.ts`, and passes the result to `AppShell`. Typed
+  messages and the React provider live under `apps/app/src/shared/ui/i18n/`.
+  `packages/application`, `packages/core-engine`, and `packages/providers`
+  must not own UI copy or locale state. Translate UI actions, status labels,
+  empty states, placeholders, toasts, and tooltips; keep provider/profile/model
+  identifiers, `API Key`, `Base URL`, user prompts, and provider/runtime raw
+  error messages untranslated.
+- `apps/app` owns the shared motion layer via `@tweenjs/tween.js` under
+  `apps/app/src/shared/ui/motion/`. Motion is opacity-first. Transform is
+  allowed only through the motion layer writing DOM `style.transform`, and the
+  transform guard allows only `translateX`, `translateY`, `scale`, `scaleX`,
+  and `scaleY`. Direct CSS transitions, CSS animations, keyframes, and CSS
+  `transform:` remain banned outside that layer. Reduced motion resolves by
+  writing the final visual state immediately and skipping tween scheduling.
+- Shared theme generation is `apps/app`-owned. The six source CSS files under
+  `apps/app/src/shared/ui/styles/theme-source/` are the authoritative Material
+  token source. Generated output is `apps/app/src/shared/ui/styles/generated/theme-css.ts`;
+  do not edit it by hand. Build/dev generation runs before bundling, and
+  `pnpm check:policy` fails when the source shape is invalid or generated theme
+  output is stale.
+- Toast is a shared app-surface primitive, not page-local state. Global toast
+  state lives behind `ToastProvider` / `useToast()` / `ToastHost`; page-level
+  `useNotice()` remains for inline and persistent notices only. Toast styling
+  must consume generated `--toast-*` theme tokens rather than direct positive
+  or negative full-surface fills.
+- Anchored panel popups must use the shared `PopupLayerProvider` /
+  `PopupLayerRoot` as the panel-level coordinate root. Placement converts
+  viewport rects to popup-root-local coordinates (`anchorRect - popupRootRect`)
+  and must not mix viewport positioning with another container's absolute
+  coordinates. Positioning and hit-test shells must not use CSS transforms; if
+  a popup animates, apply motion only to an inner visual node. Open popups must
+  coalesce resize, scroll, and `ResizeObserver` invalidations through
+  `requestAnimationFrame`, avoid state updates when placement is unchanged, and
+  disconnect listeners on close.
+
 ## Logging Contract
 
 `@imagen-ps/foundation` owns the host-agnostic log record model, context/span helpers, redaction, and sink interfaces. Other packages and surfaces depend on foundation; foundation depends on no workspace package.
