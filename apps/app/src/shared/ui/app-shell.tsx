@@ -18,6 +18,7 @@ import { SettingsPage } from './pages/settings-page';
 import { SettingsAddPage } from './pages/settings-add-page';
 import { SettingsDetailPage } from './pages/settings-detail-page';
 import { GlobalGenerationSettingsPage } from './pages/global-generation-settings-page';
+import { ModelConfigurationPage } from './pages/model-configuration-page';
 import { PromptSettingsPage } from './pages/prompt-settings-page';
 import { PromptPresetDetailPage } from './pages/prompt-preset-detail-page';
 import { ToastHost, ToastProvider, useToast } from './components/toast-host';
@@ -41,7 +42,16 @@ export interface AppShellProps {
   readonly host: AppShellHost;
 }
 
-type View = 'main' | 'history' | 'settings' | 'settings-add' | 'settings-detail' | 'global-generation-settings' | 'prompt-settings' | 'prompt-preset-detail';
+type View =
+  | 'main'
+  | 'history'
+  | 'settings'
+  | 'settings-add'
+  | 'settings-detail'
+  | 'global-generation-settings'
+  | 'model-configuration'
+  | 'prompt-settings'
+  | 'prompt-preset-detail';
 type AppTheme = 'dark' | 'light';
 type AppThemeOverride = AppTheme | undefined;
 type PanelWidthMode = 'compact' | 'regular' | 'wide';
@@ -203,6 +213,10 @@ function AppShellContent({ host }: AppShellProps) {
   const [activeImageProfileHydrated, setActiveImageProfileHydrated] = useState(false);
   const [selectedSettingsProfileId, setSelectedSettingsProfileId] = useState<string | null>(null);
   const [selectedPromptPresetId, setSelectedPromptPresetId] = useState<string | null>(null);
+  const [modelConfigurationEditorSeed, setModelConfigurationEditorSeed] = useState<{
+    readonly apiFormat?: ProviderProfile['apiFormat'] | null;
+    readonly modelId?: string | null;
+  } | null>(null);
   const [selectedModelId, setSelectedModelId] = useState('');
   const [highlightedRoundId, setHighlightedRoundId] = useState<string | null>(null);
   const [restoreFailedRoundId, setRestoreFailedRoundId] = useState<string | null>(null);
@@ -458,6 +472,10 @@ function AppShellContent({ host }: AppShellProps) {
           }}
           onOpenGlobalGeneration={() => setView('global-generation-settings')}
           onOpenPromptSettings={() => setView('prompt-settings')}
+          onOpenModelConfiguration={() => {
+            setModelConfigurationEditorSeed(null);
+            setView('model-configuration');
+          }}
           generationSettings={generationSettings.settings}
           />
         </MotionPageFrame>
@@ -485,6 +503,10 @@ function AppShellContent({ host }: AppShellProps) {
           onNav={onNav}
           profileId={selectedSettingsProfileId}
           onSaved={(message) => show(message, 'positive', { key: 'settings-provider-saved' })}
+          onOpenModelConfiguration={(input) => {
+            setModelConfigurationEditorSeed(input);
+            setView('model-configuration');
+          }}
           onProfilesChanged={async (profileId) => {
             await services.diagnostics?.checkpoint('uxp.ui.app_shell.profiles_changed.entered', {
               profileId,
@@ -523,6 +545,25 @@ function AppShellContent({ host }: AppShellProps) {
           saveState={generationSettings.saveState}
           outputSizeContext={outputSizeContext}
           onSave={generationSettings.save}
+          />
+        </MotionPageFrame>
+      )}
+      {view === 'model-configuration' && (
+        <MotionPageFrame watch={view}>
+          <ModelConfigurationPage
+          onNav={onNav}
+          onSaved={async ({ apiFormat, modelId }) => {
+            if (selectedSettingsProfileId) {
+              const profileResult = await services.commands.getProviderProfile(selectedSettingsProfileId);
+              if (profileResult.ok && profileResult.value.apiFormat === apiFormat) {
+                setModelConfigurationEditorSeed({ apiFormat, modelId });
+                setView('settings-detail');
+                return;
+              }
+            }
+            setModelConfigurationEditorSeed({ apiFormat, modelId });
+          }}
+          initialEditorState={modelConfigurationEditorSeed}
           />
         </MotionPageFrame>
       )}

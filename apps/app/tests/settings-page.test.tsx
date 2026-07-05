@@ -104,6 +104,7 @@ describe('SettingsPage UXP compatibility', () => {
     root = createRoot(container);
     const onOpenGlobalGeneration = vi.fn();
     const onOpenPromptSettings = vi.fn();
+    const onOpenModelConfiguration = vi.fn();
 
     await act(async () => {
       root!.render(
@@ -123,6 +124,7 @@ describe('SettingsPage UXP compatibility', () => {
             }}
             onOpenGlobalGeneration={onOpenGlobalGeneration}
             onOpenPromptSettings={onOpenPromptSettings}
+            onOpenModelConfiguration={onOpenModelConfiguration}
           />
         </TestAppProviders>,
       );
@@ -131,6 +133,7 @@ describe('SettingsPage UXP compatibility', () => {
     const configRows = Array.from(container.querySelectorAll<HTMLElement>('.settings-provider-row'));
     expect(configRows[0]?.dataset.testid).toBe('global-generation-settings-row');
     expect(configRows[1]?.dataset.testid).toBe('prompt-settings-row');
+    expect(configRows[2]?.dataset.testid).toBe('model-configuration-row');
     const row = configRows[0]!;
     expect(row.textContent).toContain('生成设置');
     expect(row.textContent).toContain('2K');
@@ -144,5 +147,9 @@ describe('SettingsPage UXP compatibility', () => {
       configRows[1]!.click();
     });
     expect(onOpenPromptSettings).toHaveBeenCalledTimes(1);
+    await act(async () => {
+      configRows[2]!.click();
+    });
+    expect(onOpenModelConfiguration).toHaveBeenCalledTimes(1);
   });
 });

@@ -1,0 +1,32 @@
+schema: spec-driven
+
+# Project context (optional)
+# This is shown to AI when creating artifacts.
+# Add your tech stack, conventions, style guides, domain knowledge, etc.
+# Example:
+#   context: |
+#     Tech stack: TypeScript, React, Node.js
+#     We use conventional commits
+#     Domain: e-commerce platform
+context: |
+  当前项目采用 current-state、harness-first 的 Loop 工程方式，变更前优先参考 AGENTS.md、README.md、docs/ENGINEERING_CONTEXT.md、docs/TESTING.md 与 docs/loops。
+
+# Per-artifact rules (optional)
+# Add custom rules for specific artifacts.
+# Example:
+#   rules:
+#     proposal:
+#       - Keep proposals under 500 words
+#       - Always include a "Non-goals" section
+#     tasks:
+#       - Break tasks into chunks of max 2 hours
+rules:
+  proposal:
+    - 所有文档内容必须使用中文书写。
+    - 所有术语、API 名称、包名、命令、标识符必须使用英文原文。
+  spec:
+    - 所有文档内容必须使用中文书写。
+    - 所有术语、API 名称、包名、命令、标识符必须使用英文原文。
+  tasks:
+    - 所有文档内容必须使用中文书写。
+    - 所有术语、API 名称、包名、命令、标识符必须使用英文原文。

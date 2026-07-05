@@ -7,6 +7,7 @@ import type {
   ExactTaskCost,
   Job,
   MeasureProfileEndpointsResult,
+  OfficialModelPreset,
   ProfileBillingState,
   ProfileModelItem,
   ProviderDescriptor,
@@ -14,7 +15,9 @@ import type {
   ProviderProfileInput,
   ProviderProfileConnectionTestResult,
   ProviderProfileTestResult,
+  RequestStrategy,
   TaskRecord,
+  UserModelConfig,
 } from '@imagen-ps/application';
 import { classifyEndpoint, resolveModelBrand } from '@imagen-ps/application';
 import type { AppServices } from '../src/app-services/app-services';
@@ -226,6 +229,35 @@ const fakeDraftProfileModelItems: readonly ProfileModelItem[] = [{
   configSource: 'catalog',
 }];
 
+const fakeUserModelConfigs: readonly UserModelConfig[] = [{
+  apiFormat: 'openai-images',
+  modelId: 'mock-image-v1',
+  requestStrategyId: 'image-endpoint-default',
+  output: {
+    aspectRatios: ['1:1'],
+    sizes: ['1k'],
+    outputFormats: ['png'],
+  },
+}];
+
+const fakeOfficialModelConfigPresets: readonly OfficialModelPreset[] = [{
+  apiFormat: 'openai-images',
+  modelId: 'mock-image-v1',
+  displayName: 'Mock Image v1',
+  requestStrategyId: 'image-endpoint-default',
+  output: {
+    aspectRatios: ['1:1'],
+    sizes: ['1k'],
+    outputFormats: ['png'],
+  },
+}];
+
+const fakeRequestStrategies: readonly RequestStrategy[] = [{
+  id: 'image-endpoint-default',
+  apiFormat: 'openai-images',
+  outputCodecId: 'image-endpoint',
+}];
+
 export function profileModelItem(
   modelId: string,
   overrides: Partial<ProfileModelItem> = {},
@@ -287,6 +319,11 @@ export function createFakeServices(options?: {
     readonly refreshDraftProfileModels: ReturnType<typeof vi.fn>;
     readonly refreshProfileBalance: ReturnType<typeof vi.fn>;
     readonly getProfileBillingState: ReturnType<typeof vi.fn>;
+    readonly listUserModelConfigs: ReturnType<typeof vi.fn>;
+    readonly listOfficialModelConfigPresets: ReturnType<typeof vi.fn>;
+    readonly listRequestStrategiesForApiFormat: ReturnType<typeof vi.fn>;
+    readonly getUserModelConfig: ReturnType<typeof vi.fn>;
+    readonly saveUserModelConfig: ReturnType<typeof vi.fn>;
     readonly listProfileModels: ReturnType<typeof vi.fn>;
     readonly refreshProfileModels: ReturnType<typeof vi.fn>;
     readonly listTaskRecords: ReturnType<typeof vi.fn>;
@@ -367,6 +404,39 @@ export function createFakeServices(options?: {
   const refreshDraftProfileModels = vi.fn(async () => ({ ok: true as const, value: fakeDraftProfileModelItems }));
   let billingState: ProfileBillingState = { refreshState: 'idle' };
   const getProfileBillingState = vi.fn(async () => ({ ok: true as const, value: billingState }));
+  let userModelConfigs: readonly UserModelConfig[] = fakeUserModelConfigs;
+  const listUserModelConfigs = vi.fn(async (apiFormat?: UserModelConfig['apiFormat']) => ({
+    ok: true as const,
+    value: apiFormat ? userModelConfigs.filter((config) => config.apiFormat === apiFormat) : userModelConfigs,
+  }));
+  const listOfficialModelConfigPresets = vi.fn(async () => ({
+    ok: true as const,
+    value: fakeOfficialModelConfigPresets,
+  }));
+  const listRequestStrategiesForApiFormat = vi.fn(async () => ({
+    ok: true as const,
+    value: fakeRequestStrategies,
+  }));
+  const getUserModelConfig = vi.fn(async (apiFormat: UserModelConfig['apiFormat'], modelId: string) => ({
+    ok: true as const,
+    value: userModelConfigs.find((config) => config.apiFormat === apiFormat && config.modelId === modelId) ?? null,
+  }));
+  const saveUserModelConfig = vi.fn(async (input: UserModelConfig) => {
+    const next = {
+      ...input,
+      modelId: input.modelId.trim(),
+      output: {
+        aspectRatios: [...input.output.aspectRatios],
+        sizes: [...input.output.sizes],
+        outputFormats: [...input.output.outputFormats],
+      },
+    } satisfies UserModelConfig;
+    userModelConfigs = [
+      ...userModelConfigs.filter((config) => !(config.apiFormat === next.apiFormat && config.modelId === next.modelId)),
+      next,
+    ];
+    return { ok: true as const, value: next };
+  });
   const refreshProfileBalance = vi.fn(async ({ profileId }: { profileId: string }) => {
     billingState = {
       ...billingState,
@@ -451,6 +521,11 @@ export function createFakeServices(options?: {
     refreshDraftProfileModels,
     refreshProfileBalance,
     getProfileBillingState,
+    listUserModelConfigs,
+    listOfficialModelConfigPresets,
+    listRequestStrategiesForApiFormat,
+    getUserModelConfig,
+    saveUserModelConfig,
     listProfileModels,
     refreshProfileModels,
   };
@@ -524,6 +599,11 @@ export function createFakeServices(options?: {
       refreshDraftProfileModels,
       refreshProfileBalance,
       getProfileBillingState,
+      listUserModelConfigs,
+      listOfficialModelConfigPresets,
+      listRequestStrategiesForApiFormat,
+      getUserModelConfig,
+      saveUserModelConfig,
       listProfileModels,
       refreshProfileModels,
       listTaskRecords: commands.listTaskRecords as ReturnType<typeof vi.fn>,

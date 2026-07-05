@@ -1,13 +1,15 @@
 import type { ReactNode } from 'react';
 import type { ApiFormat } from '@imagen-ps/application';
 import { useI18n } from '../i18n/i18n-context';
-import { Button, FieldLabel, HelpText, TextField } from '../primitives/native-controls';
+import { Button, Checkbox, FieldLabel, HelpText, TextField } from '../primitives/native-controls';
 import { IconButton } from '../primitives/icon-button';
 import { TextSelect } from './text-select';
 import { Icon } from './icons';
 import { FieldHelp } from './field-help';
 import { StatusNotice } from './status-notice';
 import type { ApiPathDraft } from '../hooks/use-provider-settings';
+import type { UiModelInfo } from '../model-info';
+import { modelDisplayName } from '../model-info';
 
 interface ProviderAdvancedPathSectionProps {
   readonly apiFormat: ApiFormat | null;
@@ -23,6 +25,7 @@ interface ProviderDefaultModelSectionProps {
   readonly loading: boolean;
   readonly discoverySupported: boolean;
   readonly modelMenuOpen: boolean;
+  readonly profileModels?: readonly UiModelInfo[];
   readonly modelOptions: readonly { readonly id: string; readonly label: string }[];
   readonly defaultModel: string;
   readonly triggerValue: string;
@@ -41,7 +44,12 @@ interface ProviderDefaultModelSectionProps {
   readonly modelStatusNotice?: {
     readonly tone: 'info' | 'warning';
     readonly message: string;
+    readonly actionLabel?: string;
+    readonly onAction?: () => void;
   } | null;
+  readonly onToggleModelSelected?: (id: string, selected: boolean) => void;
+  readonly onEditModelConfig?: (model: UiModelInfo) => void;
+  readonly onConfigureModel?: (model: UiModelInfo) => void;
   readonly onRefresh: () => void;
   readonly onModelMenuOpenChange: (open: boolean) => void;
   readonly onDefaultModelSelect: (id: string) => void;
@@ -196,12 +204,16 @@ export function ProviderDefaultModelSection({
   loading,
   discoverySupported,
   modelMenuOpen,
+  profileModels = [],
   modelOptions,
   defaultModel,
   triggerValue,
   modelFieldHelp = null,
   listNotice = null,
   modelStatusNotice = null,
+  onToggleModelSelected,
+  onEditModelConfig,
+  onConfigureModel,
   onRefresh,
   onModelMenuOpenChange,
   onDefaultModelSelect,
@@ -260,9 +272,75 @@ export function ProviderDefaultModelSection({
           />
         </div>
       ) : null}
+      <div className="field">
+        <div className="settings-subsection-heading">{t.settings.modelConfigProfileList}</div>
+        {profileModels.length === 0 ? (
+          <HelpText className="field-hint">{t.settings.modelConfigSelectedEmpty}</HelpText>
+        ) : (
+          <div className="model-config-list provider-model-config-list">
+            {profileModels.map((model) => {
+              const configured = model.configured === true;
+              const selected = model.selected === true;
+              const isDefault = model.default === true;
+              const actionLabel = configured ? t.settings.modelConfigEditModel : t.settings.modelConfigConfigureModel;
+              return (
+                <div
+                  key={model.id}
+                  data-testid={`provider-model-row-${model.id}`}
+                  className={`prompt-preset-row model-config-row provider-model-row${selected ? ' is-selected' : ''}${configured ? '' : ' is-invalid'}`}
+                >
+                  <div className="prompt-preset-row-main model-config-row-main provider-model-row-main">
+                    <Checkbox
+                      data-testid={`provider-model-checkbox-${model.id}`}
+                      checked={selected}
+                      disabled={disabled || !configured}
+                      className="model-config-checkbox provider-model-checkbox"
+                      onChecked={(checked) => onToggleModelSelected?.(model.id, checked)}
+                    >
+                      {modelDisplayName(model)}
+                    </Checkbox>
+                    <span className="prompt-preset-mode">
+                      {configured
+                        ? (model.configSource === 'catalog' ? t.settings.modelConfigCatalogSource : t.settings.modelConfigUserSource)
+                        : t.settings.modelConfigUnconfigured}
+                    </span>
+                    {selected ? <span className="model-config-inline-tag">{t.settings.modelConfigSelectedTag}</span> : null}
+                    {isDefault ? <span className="model-config-inline-tag">{t.settings.modelConfigDefaultTag}</span> : null}
+                    <IconButton
+                      data-testid={`provider-model-configure-${model.id}`}
+                      className="settings-icon-button prompt-preset-action"
+                      compactSquare
+                      quiet
+                      icon={<Icon name={configured ? 'pencil' : 'algorithm'} size={16} />}
+                      tooltip={actionLabel}
+                      aria-label={actionLabel}
+                      onClick={() => {
+                        if (configured) {
+                          onEditModelConfig?.(model);
+                          return;
+                        }
+                        onConfigureModel?.(model);
+                      }}
+                    />
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        )}
+      </div>
       {modelStatusNotice ? (
         <div data-testid="provider-model-status-notice">
-          <StatusNotice tone={modelStatusNotice.tone} message={modelStatusNotice.message} />
+          <StatusNotice
+            tone={modelStatusNotice.tone}
+            message={modelStatusNotice.message}
+            action={modelStatusNotice.actionLabel && modelStatusNotice.onAction
+              ? {
+                  label: modelStatusNotice.actionLabel,
+                  onAction: modelStatusNotice.onAction,
+                }
+              : null}
+          />
         </div>
       ) : null}
     </div>

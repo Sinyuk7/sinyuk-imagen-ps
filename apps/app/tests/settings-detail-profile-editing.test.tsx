@@ -66,6 +66,46 @@ describe('SettingsDetailPage contract — profile editing', () => {
     expect(onNav).toHaveBeenCalledWith('settings');
   });
 
+  it('keeps persisted selected models when model list has not resolved before save', async () => {
+    const container = document.createElement('div');
+    document.body.appendChild(container);
+    const onNav = vi.fn();
+    const services = createFakeServices({
+      profiles: [{
+        ...fakeProfile,
+        selectedModelIds: ['gpt-image2', 'mock-image-v1'],
+        defaultModelId: 'gpt-image2',
+      }],
+    });
+    let resolveListProfileModels: ((value: Awaited<ReturnType<typeof services.spies.listProfileModels>>) => void) | undefined;
+    services.spies.listProfileModels.mockImplementation(() => new Promise((resolve) => {
+      resolveListProfileModels = resolve;
+    }));
+    await renderDetailWithRoot(container, services, 'mock-profile', onNav, vi.fn(async () => undefined));
+
+    await act(async () => {
+      changeInput(queryByTestId(container, 'provider-alias-input'), 'Renamed Mock');
+    });
+    await act(async () => {
+      container.querySelector<HTMLButtonElement>('.btn-save')!.click();
+    });
+
+    expect(services.spies.saveProviderProfile).toHaveBeenCalledWith(expect.objectContaining({
+      selectedModelIds: ['gpt-image2', 'mock-image-v1'],
+      defaultModelId: 'gpt-image2',
+    }));
+
+    await act(async () => {
+      resolveListProfileModels?.({
+        ok: true as const,
+        value: [
+          profileModelItem('gpt-image2', { selected: true, default: true }),
+          profileModelItem('mock-image-v1', { selected: true, default: false }),
+        ],
+      });
+    });
+  });
+
   it('deletes provider profile through profile commands', async () => {
     const container = document.createElement('div');
     document.body.appendChild(container);

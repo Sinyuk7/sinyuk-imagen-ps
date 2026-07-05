@@ -24,6 +24,11 @@ export interface CommandsPort {
   readonly refreshDraftProfileModels: typeof commands.refreshDraftProfileModels;
   readonly refreshProfileBalance: typeof commands.refreshProfileBalance;
   readonly getProfileBillingState: typeof commands.getProfileBillingState;
+  readonly listUserModelConfigs: typeof commands.listUserModelConfigs;
+  readonly listOfficialModelConfigPresets: typeof commands.listOfficialModelConfigPresets;
+  readonly listRequestStrategiesForApiFormat: typeof commands.listRequestStrategiesForApiFormat;
+  readonly getUserModelConfig: typeof commands.getUserModelConfig;
+  readonly saveUserModelConfig: typeof commands.saveUserModelConfig;
   readonly listProfileModels: typeof commands.listProfileModels;
   readonly refreshProfileModels: typeof commands.refreshProfileModels;
 }
@@ -53,6 +58,11 @@ export function createCommandsAdapter(): CommandsPort {
     refreshDraftProfileModels: commands.refreshDraftProfileModels,
     refreshProfileBalance: commands.refreshProfileBalance,
     getProfileBillingState: commands.getProfileBillingState,
+    listUserModelConfigs: commands.listUserModelConfigs,
+    listOfficialModelConfigPresets: commands.listOfficialModelConfigPresets,
+    listRequestStrategiesForApiFormat: commands.listRequestStrategiesForApiFormat,
+    getUserModelConfig: commands.getUserModelConfig,
+    saveUserModelConfig: commands.saveUserModelConfig,
     listProfileModels: commands.listProfileModels,
     refreshProfileModels: commands.refreshProfileModels,
   };

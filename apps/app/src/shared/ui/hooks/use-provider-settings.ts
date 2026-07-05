@@ -171,6 +171,7 @@ export interface ProviderDraftModelCatalogState {
   readonly models: readonly UiModelInfo[];
   readonly options: readonly { readonly id: string; readonly label: string }[];
   readonly selectedModelInfo: UiModelInfo | undefined;
+  readonly persistedResolved: boolean;
   readonly persistedLoading: boolean;
   readonly refreshBusy: boolean;
   readonly loading: boolean;
@@ -308,6 +309,7 @@ export function useProviderDraftModelCatalog(
     models,
     options: optionsList,
     selectedModelInfo,
+    persistedResolved: persisted.resolved,
     persistedLoading: persisted.loading,
     refreshBusy,
     loading: persisted.loading || refreshBusy,
@@ -327,6 +329,7 @@ export interface ProfileModelsState {
   readonly models: readonly UiModelInfo[];
   readonly loading: boolean;
   readonly error: string | null;
+  readonly resolved: boolean;
   readonly reload: () => Promise<void>;
   readonly refresh: () => Promise<readonly UiModelInfo[]>;
   readonly replace: (models: readonly UiModelInfo[]) => void;
@@ -340,7 +343,12 @@ export function useProfileModels(
   const [models, setModels] = useState<readonly UiModelInfo[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [resolved, setResolved] = useState(false);
   const sequenceRef = useRef(0);
+
+  useEffect(() => {
+    setResolved(false);
+  }, [profileId]);
 
   const reload = useCallback(async () => {
     const sequence = sequenceRef.current + 1;
@@ -349,6 +357,7 @@ export function useProfileModels(
       setModels([]);
       setError(null);
       setLoading(false);
+      setResolved(true);
       return;
     }
     setLoading(true);
@@ -373,6 +382,7 @@ export function useProfileModels(
     } finally {
       if (sequenceRef.current === sequence) {
         setLoading(false);
+        setResolved(true);
       }
     }
   }, [profileId, revisionKey, services]);
@@ -381,6 +391,7 @@ export function useProfileModels(
     const sequence = sequenceRef.current + 1;
     sequenceRef.current = sequence;
     if (!profileId) {
+      setResolved(true);
       return [];
     }
     setLoading(true);
@@ -407,6 +418,7 @@ export function useProfileModels(
     } finally {
       if (sequenceRef.current === sequence) {
         setLoading(false);
+        setResolved(true);
       }
     }
   }, [profileId, services]);
@@ -416,13 +428,14 @@ export function useProfileModels(
     setModels(nextModels);
     setError(null);
     setLoading(false);
+    setResolved(true);
   }, []);
 
   useEffect(() => {
     void reload();
   }, [reload]);
 
-  return { models, loading, error, reload, refresh, replace };
+  return { models, loading, error, resolved, reload, refresh, replace };
 }
 
 export interface ProfileDetailState {

@@ -17,6 +17,7 @@ interface SettingsPageProps {
   readonly generationSettings?: AppGenerationSettings;
   readonly onOpenGlobalGeneration?: () => void;
   readonly onOpenPromptSettings?: () => void;
+  readonly onOpenModelConfiguration?: () => void;
 }
 
 function initials(name: string): string {
@@ -118,6 +119,7 @@ export function SettingsPage({
   generationSettings,
   onOpenGlobalGeneration,
   onOpenPromptSettings,
+  onOpenModelConfiguration,
 }: SettingsPageProps) {
   const { messages: t } = useI18n();
   const rows = profiles.map(profileToProviderRow);
@@ -207,6 +209,31 @@ export function SettingsPage({
             </div>
             <div className="prov-meta-row">
               <span className="prov-family">{t.settings.promptOptimization} · {t.settings.promptPresets}</span>
+            </div>
+          </div>
+          <div className="prov-end">
+            <div className="prov-trail"><Icon name="chevron-right" /></div>
+          </div>
+        </div>
+        <div
+          data-testid="model-configuration-row"
+          className="prov-row settings-provider-row is-special"
+          role="button"
+          tabIndex={0}
+          onClick={() => onOpenModelConfiguration?.()}
+          onKeyDown={(event) => onRowKeyDown(event, () => onOpenModelConfiguration?.())}
+        >
+          <div className="prov-leading">
+            <div className="prov-ico" style={{ background: 'var(--app-color-positive-subtle)', color: 'var(--app-color-positive)' }}>
+              <Icon name="algorithm" size={14} />
+            </div>
+          </div>
+          <div className="prov-content">
+            <div className="prov-title-row">
+              <span className="prov-name">{t.settings.modelConfiguration}</span>
+            </div>
+            <div className="prov-meta-row">
+              <span className="prov-family">{t.settings.modelConfigurationHint}</span>
             </div>
           </div>
           <div className="prov-end">

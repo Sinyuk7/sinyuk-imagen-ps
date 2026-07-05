@@ -18,7 +18,20 @@ import type {
 } from '@imagen-ps/providers';
 
 // Re-export provider types for commands layer consumers
-export type { ApiFormat, DiscoveredModel, EndpointClassification, ProviderDescriptor, ProviderConfig, ProviderModelInfo, ModelBrand, ModelOutputConfig, OfficialModelPreset, ProviderModelExecution } from '@imagen-ps/providers';
+export type {
+  ApiFormat,
+  DiscoveredModel,
+  EndpointClassification,
+  ProviderDescriptor,
+  ProviderConfig,
+  ProviderModelInfo,
+  ModelBrand,
+  ModelOutputConfig,
+  OfficialModelPreset,
+  ProviderModelExecution,
+  RequestStrategy,
+  RequestStrategyId,
+} from '@imagen-ps/providers';
 export type { BalanceChange, ExactTaskCost, ProviderBalanceSnapshot } from '@imagen-ps/providers';
 export type {
   Asset,
@@ -193,6 +206,13 @@ export interface ModelDiscoveryCacheRepository {
 }
 
 export interface UserModelConfig {
+  readonly apiFormat: ApiFormat;
+  readonly modelId: string;
+  readonly requestStrategyId: string;
+  readonly output: ModelOutputConfig;
+}
+
+export interface SaveUserModelConfigInput {
   readonly apiFormat: ApiFormat;
   readonly modelId: string;
   readonly requestStrategyId: string;

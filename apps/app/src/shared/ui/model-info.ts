@@ -31,6 +31,10 @@ export function modelInfoFromDescriptor(model: ProviderModelInfo): UiModelInfo {
   };
 }
 
+export function modelDisplayName(model: UiModelInfo): string {
+  return model.displayName ?? model.id;
+}
+
 export function mainSelectableModels(models: readonly UiModelInfo[]): readonly UiModelInfo[] {
   return models.filter((model) => model.selected === true && model.configured === true);
 }

@@ -28,6 +28,13 @@ export {
   listProfileModels,
   refreshProfileModels,
 } from './profile-models.js';
+export {
+  getUserModelConfig,
+  listOfficialModelConfigPresets,
+  listRequestStrategiesForApiFormat,
+  listUserModelConfigs,
+  saveUserModelConfig,
+} from './model-configs.js';
 export { refreshDraftProfileModels } from './refresh-draft-profile-models.js';
 export { measureProfileEndpoints } from './profile-endpoints.js';
 export { testProviderProfileConnection } from './profile-connection-test.js';
@@ -68,6 +75,7 @@ export type {
   EndpointClassification,
   ExactTaskCost,
   BalanceChange,
+  OfficialModelPreset,
   MeasureProfileEndpointsInput,
   MeasureProfileEndpointsResult,
   RefreshDraftProfileModelsInput,
@@ -75,6 +83,8 @@ export type {
   ProfileBillingState,
   RefreshProfileBalanceInput,
   RefreshProfileBalanceResult,
+  RequestStrategy,
+  RequestStrategyId,
   Rect,
   ResolvedPreview,
   ResolvedTaskResource,
@@ -110,6 +120,7 @@ export type {
   ProviderProfileInput,
   ProviderProfileRepository,
   ResolvedProviderConfig,
+  SaveUserModelConfigInput,
   SecretResolver,
   SecretStorageAdapter,
   UserModelConfig,

@@ -257,6 +257,38 @@ export interface AppMessages {
     readonly configValidProviderNoModels: string;
     readonly globalGeneration: string;
     readonly promptSettings: string;
+    readonly modelConfiguration: string;
+    readonly modelConfigurationEmpty: string;
+    readonly modelConfigurationHint: string;
+    readonly modelConfigurationSaveHint: string;
+    readonly createModelConfiguration: string;
+    readonly editModelConfiguration: string;
+    readonly modelConfigPreset: string;
+    readonly modelConfigPresetCustom: string;
+    readonly modelConfigApiFormat: string;
+    readonly modelConfigModelId: string;
+    readonly modelConfigRequestStrategy: string;
+    readonly modelConfigAspectRatios: string;
+    readonly modelConfigSizes: string;
+    readonly modelConfigOutputFormats: string;
+    readonly modelConfigSelection: string;
+    readonly modelConfigProfileList: string;
+    readonly modelConfigUnconfigured: string;
+    readonly modelConfigConfigured: string;
+    readonly modelConfigCatalogSource: string;
+    readonly modelConfigUserSource: string;
+    readonly modelConfigSelectAtLeastOne: string;
+    readonly modelConfigValidationApiFormat: string;
+    readonly modelConfigValidationModelId: string;
+    readonly modelConfigValidationStrategy: string;
+    readonly modelConfigValidationAspectRatios: string;
+    readonly modelConfigValidationSizes: string;
+    readonly modelConfigValidationOutputFormats: string;
+    readonly modelConfigConfigureModel: string;
+    readonly modelConfigEditModel: string;
+    readonly modelConfigSelectedTag: string;
+    readonly modelConfigDefaultTag: string;
+    readonly modelConfigSelectedEmpty: string;
     readonly promptOptimization: string;
     readonly optimizerProfile: string;
     readonly none: string;
@@ -588,6 +620,38 @@ const EN_MESSAGES: AppMessages = {
     configValidProviderNoModels: 'Configuration valid; no available models were returned.',
     globalGeneration: 'Generation settings',
     promptSettings: 'Prompt Settings',
+    modelConfiguration: 'Model Configuration',
+    modelConfigurationEmpty: 'No saved model configurations yet.',
+    modelConfigurationHint: 'Save reusable model configs here. Profiles can select them later.',
+    modelConfigurationSaveHint: 'Saving a model config does not select it for any profile.',
+    createModelConfiguration: 'Create model config',
+    editModelConfiguration: 'Edit model config',
+    modelConfigPreset: 'Preset',
+    modelConfigPresetCustom: 'Custom',
+    modelConfigApiFormat: 'API format',
+    modelConfigModelId: 'Model ID',
+    modelConfigRequestStrategy: 'Request strategy',
+    modelConfigAspectRatios: 'Aspect ratios',
+    modelConfigSizes: 'Sizes',
+    modelConfigOutputFormats: 'Output formats',
+    modelConfigSelection: 'Profile selection',
+    modelConfigProfileList: 'Profile models',
+    modelConfigUnconfigured: 'Needs configuration before selection.',
+    modelConfigConfigured: 'Saved model config.',
+    modelConfigCatalogSource: 'Catalog preset',
+    modelConfigUserSource: 'Saved config',
+    modelConfigSelectAtLeastOne: 'Select at least one value.',
+    modelConfigValidationApiFormat: 'Choose an API format.',
+    modelConfigValidationModelId: 'Model ID is required.',
+    modelConfigValidationStrategy: 'Choose a valid request strategy.',
+    modelConfigValidationAspectRatios: 'Choose at least one aspect ratio.',
+    modelConfigValidationSizes: 'Choose at least one size.',
+    modelConfigValidationOutputFormats: 'Choose at least one output format.',
+    modelConfigConfigureModel: 'Configure model',
+    modelConfigEditModel: 'Edit config',
+    modelConfigSelectedTag: 'Selected',
+    modelConfigDefaultTag: 'Default',
+    modelConfigSelectedEmpty: 'No models selected for this profile.',
     promptOptimization: 'Prompt Optimization',
     optimizerProfile: 'Profile',
     none: 'None',
@@ -919,6 +983,38 @@ const ZH_CN_MESSAGES: AppMessages = {
     configValidProviderNoModels: '配置有效；服务端未返回可用模型。',
     globalGeneration: '生成设置',
     promptSettings: '提示词设置',
+    modelConfiguration: '模型配置',
+    modelConfigurationEmpty: '还没有已保存的模型配置。',
+    modelConfigurationHint: '在这里保存可复用的模型配置，之后再由 Profile 显式选择。',
+    modelConfigurationSaveHint: '保存模型配置后，不会自动为任何 Profile 选中它。',
+    createModelConfiguration: '新建模型配置',
+    editModelConfiguration: '编辑模型配置',
+    modelConfigPreset: '预设',
+    modelConfigPresetCustom: '自定义',
+    modelConfigApiFormat: 'API 格式',
+    modelConfigModelId: '模型 ID',
+    modelConfigRequestStrategy: '请求策略',
+    modelConfigAspectRatios: '宽高比',
+    modelConfigSizes: '尺寸',
+    modelConfigOutputFormats: '输出格式',
+    modelConfigSelection: 'Profile 选择状态',
+    modelConfigProfileList: 'Profile 模型列表',
+    modelConfigUnconfigured: '需要先完成配置，才能加入选择列表。',
+    modelConfigConfigured: '已保存模型配置。',
+    modelConfigCatalogSource: 'Catalog 预设',
+    modelConfigUserSource: '已保存配置',
+    modelConfigSelectAtLeastOne: '至少选择一项。',
+    modelConfigValidationApiFormat: '请选择 API 格式。',
+    modelConfigValidationModelId: '模型 ID 不能为空。',
+    modelConfigValidationStrategy: '请选择有效的请求策略。',
+    modelConfigValidationAspectRatios: '请至少选择一个宽高比。',
+    modelConfigValidationSizes: '请至少选择一个尺寸。',
+    modelConfigValidationOutputFormats: '请至少选择一个输出格式。',
+    modelConfigConfigureModel: '配置模型',
+    modelConfigEditModel: '编辑配置',
+    modelConfigSelectedTag: '已选中',
+    modelConfigDefaultTag: '默认',
+    modelConfigSelectedEmpty: '当前 Profile 还没有选中任何模型。',
     promptOptimization: '提示词优化',
     optimizerProfile: '配置',
     none: '无',

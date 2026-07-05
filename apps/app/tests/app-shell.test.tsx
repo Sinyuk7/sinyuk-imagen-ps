@@ -950,6 +950,113 @@ describe('AppShell', () => {
     expect(iconSelectValue(container, '[data-testid="main-model-selector"]')).toContain('mock-image-v1');
   });
 
+  it('configures an unconfigured profile model without auto-selecting it', async () => {
+    const { services, spies } = createFakeServices({
+      profiles: [{
+        ...fakeProfile,
+        profileId: 'mock-profile',
+        displayName: 'Mock Profile',
+        selectedModelIds: ['gpt-image-2'],
+        defaultModelId: 'gpt-image-2',
+      }],
+    });
+    spies.listProfileModels.mockImplementation(async () => {
+      const savedConfigs = await services.commands.listUserModelConfigs('openai-images');
+      const configured = new Set((savedConfigs.ok ? savedConfigs.value : []).map((config) => config.modelId));
+      return {
+        ok: true as const,
+        value: [
+          profileModelItem('gpt-image-2', {
+            selected: true,
+            default: true,
+            configured: true,
+            configSource: 'catalog',
+          }),
+          profileModelItem('discovered-unconfigured', {
+            selected: false,
+            default: false,
+            configured: configured.has('discovered-unconfigured'),
+            discovered: true,
+            configSource: configured.has('discovered-unconfigured') ? 'user' : undefined,
+          }),
+        ],
+      };
+    });
+    const container = document.createElement('div');
+    document.body.appendChild(container);
+    root = createRoot(container);
+
+    await act(async () => {
+      root!.render(
+        <AppShell
+          host={{
+            kind: 'photoshop-uxp',
+            app: { stage: 'uxp-first-shell', host: 'photoshop-uxp', services: ['commands', 'host'] },
+            locale: 'en',
+            services,
+            dispose: () => undefined,
+          }}
+        />,
+      );
+    });
+    await flush();
+    await flush();
+
+    expect(iconSelectValue(container, '[data-testid="main-model-selector"]')).toContain('gpt-image-2');
+
+    await act(async () => {
+      container.querySelector<HTMLButtonElement>('[data-testid="main-providers-button"]')?.click();
+    });
+    await flush();
+    await act(async () => {
+      container.querySelector<HTMLElement>('[data-testid="provider-row-mock-profile"]')?.click();
+    });
+    await flush();
+    await flush();
+
+    expect(container.querySelector('[data-testid="provider-model-checkbox-discovered-unconfigured"]')).not.toBeNull();
+    expect(container.querySelector<HTMLInputElement>('[data-testid="provider-model-checkbox-discovered-unconfigured"]')?.checked).toBe(false);
+
+    await act(async () => {
+      container.querySelector<HTMLButtonElement>('[data-testid="provider-model-configure-discovered-unconfigured"]')?.click();
+    });
+    await flush();
+    await flush();
+
+    expect((container.querySelector('[data-testid="model-config-model-id"]') as HTMLInputElement | null)?.value).toBe('discovered-unconfigured');
+
+    await act(async () => {
+      container.querySelector<HTMLElement>('[data-testid="model-config-preset-selector"]')?.click();
+    });
+    await flush();
+    await act(async () => {
+      document.body.querySelector<HTMLElement>('[data-testid="model-config-preset-selector-option-__custom__"]')?.click();
+    });
+    await flush();
+    await act(async () => {
+      container.querySelector<HTMLButtonElement>('[data-testid="model-config-save-button"]')?.click();
+    });
+    await flush();
+    await flush();
+    await flush();
+
+    expect(spies.saveUserModelConfig).toHaveBeenCalledWith(expect.objectContaining({
+      apiFormat: 'openai-images',
+      modelId: 'discovered-unconfigured',
+    }));
+    expect(spies.saveProviderProfile).not.toHaveBeenCalled();
+
+    expect(container.querySelector('[data-testid="provider-model-checkbox-discovered-unconfigured"]')).not.toBeNull();
+    expect(container.querySelector<HTMLInputElement>('[data-testid="provider-model-checkbox-discovered-unconfigured"]')?.checked).toBe(false);
+
+    await act(async () => {
+      container.querySelector<HTMLElement>('[data-testid="provider-default-model-selector"]')?.click();
+    });
+    await flush();
+    expect(document.body.querySelector('[data-testid="provider-default-model-selector-option-gpt-image-2"]')).not.toBeNull();
+    expect(document.body.querySelector('[data-testid="provider-default-model-selector-option-discovered-unconfigured"]')).toBeNull();
+  });
+
   it('ignores stale profile model responses after switching profiles', async () => {
     type ListProfileModelsResult = { readonly ok: true; readonly value: readonly ReturnType<typeof profileModelItem>[] };
     const slowFirstProfileModels = deferred<ListProfileModelsResult>();
