@@ -120,20 +120,27 @@ function modelStatusMessage(model: UiModelInfo | undefined, messages: ReturnType
   if (!model) {
     return null;
   }
+  if (model.selected === true && model.configured === false) {
+    return messages.settings.modelSelectableOnly;
+  }
   if (model.selected === true && model.discovered === false) {
     return messages.settings.modelSavedUndiscovered;
   }
   return null;
 }
 
-function selectedModelInput(defaultModel: string): {
-  readonly selectedModelIds?: readonly string[];
+function selectedModelInput(defaultModel: string, existingSelectedModelIds: readonly string[]): {
+  readonly selectedModelIds: readonly string[];
   readonly defaultModelId?: string;
 } {
   const modelId = defaultModel.trim();
-  return modelId.length > 0
-    ? { selectedModelIds: [modelId], defaultModelId: modelId }
-    : {};
+  if (modelId.length === 0) {
+    return { selectedModelIds: [] };
+  }
+  const selectedModelIds = existingSelectedModelIds.includes(modelId)
+    ? existingSelectedModelIds
+    : [modelId, ...existingSelectedModelIds.filter((id) => id !== modelId)];
+  return { selectedModelIds, defaultModelId: modelId };
 }
 
 function hasDraftChanges(
@@ -414,7 +421,7 @@ export function SettingsDetailPage({ onNav, profileId, onProfilesChanged, onSave
           effectiveBillingDraft,
         ),
       ),
-      ...selectedModelInput(defaultModel),
+      ...selectedModelInput(defaultModel, detail.profile.selectedModelIds),
       ...(removedSecretNames.length > 0 ? { removedSecretNames } : {}),
       ...((apiKey.trim() || effectiveBillingDraft.accessToken.trim())
         ? {
@@ -452,7 +459,7 @@ export function SettingsDetailPage({ onNav, profileId, onProfilesChanged, onSave
           effectiveBillingDraft,
         ),
       ),
-      ...selectedModelInput(defaultModel),
+      ...selectedModelInput(defaultModel, detail.profile.selectedModelIds),
       ...(removedSecretNames.length > 0 ? { removedSecretNames } : {}),
       ...((apiKey.trim() || effectiveBillingDraft.accessToken.trim())
         ? {

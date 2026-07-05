@@ -13,7 +13,7 @@ export interface UiModelInfo {
 export function modelInfoFromProfileItem(item: ProfileModelItem): UiModelInfo {
   return {
     id: item.modelId,
-    displayName: item.modelId,
+    displayName: item.displayName ?? item.modelId,
     discovered: item.discovered,
     configured: item.configured,
     selected: item.selected,

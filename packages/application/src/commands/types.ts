@@ -209,6 +209,7 @@ export interface UserModelConfigRepository {
 
 export interface ProfileModelItem {
   readonly modelId: string;
+  readonly displayName?: string;
   readonly discovered: boolean;
   readonly configured: boolean;
   readonly selected: boolean;

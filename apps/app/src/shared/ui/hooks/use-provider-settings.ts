@@ -131,6 +131,26 @@ export function providerModelOptions(
   }));
 }
 
+function mergeDiscoveredModelsWithKnownState(
+  discovered: readonly { readonly id: string }[],
+  knownModels: readonly UiModelInfo[],
+  configuredDefaultModel: string,
+): readonly UiModelInfo[] {
+  const knownById = new Map(knownModels.map((model) => [model.id, model] as const));
+  return discovered.map((model) => {
+    const known = knownById.get(model.id);
+    return {
+      id: model.id,
+      displayName: known?.displayName ?? model.id,
+      configured: known?.configured ?? false,
+      selected: known?.selected ?? false,
+      default: known?.default ?? model.id === configuredDefaultModel.trim(),
+      configSource: known?.configSource,
+      discovered: true,
+    };
+  });
+}
+
 export interface ProviderDraftModelCatalogOptions {
   readonly services: AppServices;
   readonly persistedProfileId: string | null;
@@ -238,17 +258,16 @@ export function useProviderDraftModelCatalog(
   }, []);
 
   const applyConnectionTestResult = useCallback((result: ProviderProfileConnectionTestResult) => {
-    if (result.models) {
-      setDraftModels(result.models.map((model) => ({
-        id: model.id,
-        displayName: model.id,
-        configured: false,
-        selected: false,
-        discovered: true,
-      })));
+    const discoveredModels = result.models;
+    if (discoveredModels) {
+      setDraftModels((current) => mergeDiscoveredModelsWithKnownState(
+        discoveredModels,
+        current ?? (persisted.models.length > 0 ? persisted.models : fallbackModels),
+        configuredDefaultModel,
+      ));
       setStale(false);
     }
-  }, []);
+  }, [configuredDefaultModel, fallbackModels, persisted.models]);
 
   const refresh = useCallback(async (): Promise<readonly UiModelInfo[]> => {
     if (!discoverySupported) {
@@ -368,7 +387,7 @@ export function useProfileModels(
     try {
       const result = await services.commands.refreshProfileModels(profileId);
       if (sequenceRef.current !== sequence) {
-        return result.ok ? result.value : [];
+        return [];
       }
       if (result.ok) {
         const listed = await services.commands.listProfileModels(profileId);

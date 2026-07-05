@@ -938,7 +938,7 @@ describe('AppShell', () => {
     await flush();
 
     expect(spies.saveProviderProfile).toHaveBeenCalledWith(expect.objectContaining({
-      selectedModelIds: ['mock-image-v1'],
+      selectedModelIds: ['gpt-image2', 'mock-image-v1'],
       defaultModelId: 'mock-image-v1',
     }));
     expect(container.querySelector('[data-testid="toast"]')?.textContent).toContain('Saved');

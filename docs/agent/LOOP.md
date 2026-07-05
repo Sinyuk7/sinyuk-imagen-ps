@@ -52,6 +52,15 @@ Required sections:
 - `Completion report`: fields the executing agent must report.
 - `Memory note candidate`: whether durable project memory should be proposed.
 
+Loop document language rules:
+
+- keep section headers, metadata keys, and structural terms in English exactly
+  as named by this contract;
+- write the plan and report content in Chinese by default;
+- simple words and terms may stay in English;
+- do not localize or add bilingual labels such as `目标：` or
+  `## Context docs（上下文文档）`.
+
 Forbidden content:
 
 - product roadmap ranking;
@@ -73,6 +82,17 @@ When a Loop reaches `completed`, merge its durable outcomes into authoritative
 docs and delete the file. `docs/loops/`
 holds only the current active Loop or is empty. Status and authority metadata,
 not the filename, decide whether a Loop is active.
+
+## Execution Checkout
+
+Prefer a Git linked worktree when available, but it is not required.
+
+Execution in the main worktree or on `main` is allowed when the current user
+turn explicitly agrees to run there. Do not block execution only because the
+checkout is the main worktree or `main` after that approval.
+
+The checkout should still be clean enough for safe attribution, validation, and
+final staging.
 
 ## Goal And Slice Rules
 
@@ -146,6 +166,10 @@ After executing a Loop slice, report:
 - Follow-up:
 - Memory note candidate:
 - Decision Packet, if blocked:
+
+Use the exact field labels above. Keep the labels in English and write the
+report content in Chinese by default. Do not localize the labels or add
+bilingual forms.
 
 `Memory note candidate` must be `no` or `yes: <type>`, where `<type>` is one of:
 

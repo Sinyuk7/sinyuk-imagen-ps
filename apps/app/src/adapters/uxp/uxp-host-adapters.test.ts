@@ -182,6 +182,8 @@ function sampleProviderProfile(overrides: Partial<ProviderProfile> = {}): Provid
       paths: { generation: '/images/generations', edit: '/images/edits' },
       defaultModel: 'mock-image-v1',
     },
+    selectedModelIds: ['mock-image-v1'],
+    defaultModelId: 'mock-image-v1',
     createdAt: '2026-06-15T00:00:00.000Z',
     updatedAt: '2026-06-15T00:00:01.000Z',
     ...overrides,

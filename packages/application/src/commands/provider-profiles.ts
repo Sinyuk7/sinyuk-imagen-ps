@@ -25,7 +25,7 @@ import {
   resolveProfileApiFormat,
 } from './api-format-profile.js';
 import { invalidateProfileBillingState } from './profile-billing.js';
-import { assertProfileModelSelectionIsConfigured } from './model-config-resolution.js';
+import { assertProfileModelSelectionIsConfigured, resolveConfiguredModel, toProviderModelExecution } from './model-config-resolution.js';
 
 function errorMessage(error: unknown, fallback: string): string {
   if (error instanceof Error) {
@@ -132,10 +132,16 @@ function normalizeModelIds(values: readonly string[] | undefined): readonly stri
   return modelIds;
 }
 
+function legacyDefaultModelId(config: Readonly<Record<string, unknown>> | undefined): string | undefined {
+  const value = config?.defaultModel;
+  return typeof value === 'string' && value.trim().length > 0 ? value.trim() : undefined;
+}
+
 function defaultModelIdForProfile(input: ProviderProfileInput, existing: ProviderProfile | undefined, selectedModelIds: readonly string[]): string | undefined {
   const explicit = input.defaultModelId?.trim();
   const inherited = existing?.defaultModelId?.trim();
-  const candidate = explicit && explicit.length > 0 ? explicit : inherited;
+  const legacy = legacyDefaultModelId(input.config) ?? legacyDefaultModelId(existing?.config);
+  const candidate = explicit && explicit.length > 0 ? explicit : inherited ?? legacy;
   if (!candidate) {
     return selectedModelIds[0];
   }
@@ -316,7 +322,9 @@ export async function saveProviderProfile(input: ProviderProfileInput): Promise<
       displayName,
       apiFormat,
     };
-    const selectedModelIds = normalizeModelIds(input.selectedModelIds ?? existing?.selectedModelIds);
+    const selectedModelIds = normalizeModelIds(
+      input.selectedModelIds ?? existing?.selectedModelIds ?? (legacyDefaultModelId(input.config) ? [legacyDefaultModelId(input.config)!] : undefined),
+    );
     const defaultModelId = defaultModelIdForProfile(input, existing, selectedModelIds);
     const profile: ProviderProfile = {
       profileId: input.profileId,
@@ -535,13 +543,20 @@ export async function testProviderProfile(
         result.smokeTest = { passed: false };
       } else {
         try {
+          const resolvedModel = await resolveConfiguredModel({
+            profileId: profile.profileId,
+            apiFormat: profile.apiFormat,
+            modelId: profile.defaultModelId ?? profile.selectedModelIds[0] ?? '',
+            userModelConfigRepository: getUserModelConfigRepository(),
+          });
           const request = provider.validateRequest({
             operation: 'text_to_image',
             prompt: 'test',
+            model: toProviderModelExecution(resolvedModel),
             output: { count: 1 },
           });
           const invokeResult = await provider.invoke({ config: resolved.providerConfig, request });
-          const modelUsed = (resolved.providerConfig as unknown as Record<string, unknown>).defaultModel;
+          const modelUsed = resolvedModel.modelId;
           result.smokeTest = {
             passed: invokeResult.assets.length > 0,
             assetCount: invokeResult.assets.length,

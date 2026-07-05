@@ -242,7 +242,9 @@ export function profileModelItem(
 }
 
 function savedProfile(input: ProviderProfileInput, existing: ProviderProfile | undefined): ProviderProfile {
-  const selectedModelIds = input.selectedModelIds ?? existing?.selectedModelIds ?? fakeProfile.selectedModelIds;
+  const selectedModelIds = input.selectedModelIds !== undefined
+    ? input.selectedModelIds
+    : existing?.selectedModelIds ?? fakeProfile.selectedModelIds;
   const defaultModelId = input.defaultModelId ?? existing?.defaultModelId ?? fakeProfile.defaultModelId;
   return {
     ...fakeProfile,

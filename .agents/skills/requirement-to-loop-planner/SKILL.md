@@ -40,7 +40,11 @@ into that skill unless the user explicitly asks for it.
    - Decision Packet triggers;
    - memory note candidate rule.
 5. Format the Loop doc to satisfy `docs/agent/LOOP.md` required metadata and
-   required sections. Keep each section short. Prefer direct bullets over
+   required sections. Keep section headers, metadata keys, and structural terms
+   in English exactly as the Loop contract names them, but write the plan
+   content in Chinese. Simple terms may stay in English. Do not add bilingual
+   labels such as `## Context Docs（上下文文档）` or `目标：`; use `## Context docs`
+   and `Goal` directly. Keep each section short. Prefer direct bullets over
    narrative.
 6. If the user already authorized execution, end with a Loop doc ready for
    `bounded-loop-executor`. Do not implement product changes in this skill.
@@ -65,7 +69,8 @@ Produce a Decision Packet (A/B/C choice with evidence and recommendation) instea
 
 ## Output
 
-Return a Loop plan or Loop doc draft. Do not implement product features while
-using this skill unless the user explicitly authorizes execution after the plan.
-Treat the Loop file as temporary execution state that will be deleted after
-completion per `docs/agent/LOOP.md`.
+Return a Loop plan or Loop doc draft using English structure words and Chinese
+content. Do not implement product features while using this skill unless the
+user explicitly authorizes execution after the plan. Treat the Loop file as
+temporary execution state that will be deleted after completion per
+`docs/agent/LOOP.md`.

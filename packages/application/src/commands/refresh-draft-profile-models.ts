@@ -9,7 +9,7 @@ import type {
 import { resolveDraftProviderContext } from './draft-provider-config.js';
 import { catalogProviderIdForApiFormat } from './api-format-profile.js';
 import {
-  listLocalCatalogModels,
+  listOfficialModelPresets,
   providerUsesImageModelCatalog,
 } from '@imagen-ps/providers';
 import { reconcileProfileModels } from './profile-models.js';
@@ -47,7 +47,11 @@ function officialCatalogIds(apiFormat: Parameters<typeof catalogProviderIdForApi
   if (!providerUsesImageModelCatalog(catalogProviderId)) {
     return new Set();
   }
-  return new Set(listLocalCatalogModels(catalogProviderId).map((model) => model.id));
+  return new Set(listOfficialModelPresets(apiFormat).map((model) => model.modelId));
+}
+
+function officialCatalogDisplayNames(apiFormat: Parameters<typeof catalogProviderIdForApiFormat>[0]): ReadonlyMap<string, string> {
+  return new Map(listOfficialModelPresets(apiFormat).map((model) => [model.modelId, model.displayName] as const));
 }
 
 /**
@@ -92,6 +96,7 @@ export async function refreshDraftProfileModels(
       discoveredModelIds: discovered.map((model) => model.id),
       userModelConfigs: userConfigs,
       officialCatalogModelIds: officialCatalogIds(apiFormat),
+      officialCatalogDisplayNames: officialCatalogDisplayNames(apiFormat),
       selectedModelIds,
       defaultModelId: input.defaultModelId ?? existing?.defaultModelId,
     });

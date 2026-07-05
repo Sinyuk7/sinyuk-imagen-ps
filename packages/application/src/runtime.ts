@@ -798,10 +798,15 @@ async function resolveModelParamsForDispatch(args: {
   const explicitModelId = explicitModelIdFromRequest(requestObj);
   const selectedModelId = explicitModelId ?? args.profile.defaultModelId ?? providerFallbackModelId(args.providerConfig);
   if (typeof selectedModelId !== 'string' || selectedModelId.length === 0) {
-    throw new Error(`Provider profile "${args.profile.profileId}" has no selected model for dispatch.`);
+    throw createValidationError(`Provider profile "${args.profile.profileId}" has no selected model for dispatch.`, {
+      profileId: args.profile.profileId,
+    });
   }
   if (!args.profile.selectedModelIds.includes(selectedModelId)) {
-    throw new Error(`Provider profile "${args.profile.profileId}" model "${selectedModelId}" is not selected.`);
+    throw createValidationError(`Provider profile "${args.profile.profileId}" model "${selectedModelId}" is not selected.`, {
+      profileId: args.profile.profileId,
+      modelId: selectedModelId,
+    });
   }
   const resolved = await resolveConfiguredModel({
     profileId: args.profile.profileId,

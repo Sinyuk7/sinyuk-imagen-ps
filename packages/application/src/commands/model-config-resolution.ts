@@ -1,11 +1,13 @@
 import { createValidationError } from '@imagen-ps/core-engine';
 import {
   getOfficialModelPreset,
+  resolveImageModelRule,
   getRequestStrategy,
   type ApiFormat,
   type ProviderModelExecution,
 } from '@imagen-ps/providers';
 import type { ProviderProfile, UserModelConfig, UserModelConfigRepository } from './types.js';
+import { catalogProviderIdForApiFormat } from './api-format-profile.js';
 
 export interface ResolvedModelConfig {
   readonly apiFormat: ApiFormat;
@@ -45,11 +47,17 @@ export async function resolveConfiguredModel(args: {
   readonly modelId: string;
   readonly userModelConfigRepository: Pick<UserModelConfigRepository, 'get'>;
 }): Promise<ResolvedModelConfig> {
-  const userConfig = await args.userModelConfigRepository.get(args.apiFormat, args.modelId);
+  const normalizedModelId = args.modelId.trim();
+  const resolvedRule = resolveImageModelRule({
+    providerId: catalogProviderIdForApiFormat(args.apiFormat),
+    modelId: normalizedModelId,
+  });
+  const canonicalModelId = resolvedRule.concreteModelId;
+  const userConfig = await args.userModelConfigRepository.get(args.apiFormat, canonicalModelId);
   if (userConfig !== undefined) {
     assertStrategyMatchesApiFormat({
       apiFormat: args.apiFormat,
-      modelId: args.modelId,
+      modelId: canonicalModelId,
       requestStrategyId: userConfig.requestStrategyId,
     });
     return {
@@ -62,17 +70,19 @@ export async function resolveConfiguredModel(args: {
   }
 
   const officialPreset = getOfficialModelPreset(args.apiFormat, args.modelId);
-  if (officialPreset !== undefined) {
+  const canonicalPreset = canonicalModelId === normalizedModelId ? officialPreset : getOfficialModelPreset(args.apiFormat, canonicalModelId);
+  const preset = officialPreset ?? canonicalPreset;
+  if (preset !== undefined) {
     assertStrategyMatchesApiFormat({
       apiFormat: args.apiFormat,
-      modelId: args.modelId,
-      requestStrategyId: officialPreset.requestStrategyId,
+      modelId: preset.modelId,
+      requestStrategyId: preset.requestStrategyId,
     });
     return {
-      apiFormat: officialPreset.apiFormat,
-      modelId: officialPreset.modelId,
-      requestStrategyId: officialPreset.requestStrategyId,
-      output: officialPreset.output,
+      apiFormat: preset.apiFormat,
+      modelId: preset.modelId,
+      requestStrategyId: preset.requestStrategyId,
+      output: preset.output,
       source: 'catalog',
     };
   }

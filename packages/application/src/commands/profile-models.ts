@@ -56,10 +56,15 @@ function officialCatalogIds(profile: Pick<ProviderProfile, 'apiFormat'>): Readon
   return new Set(listOfficialModelPresets(profile.apiFormat).map((model) => model.modelId));
 }
 
+function officialCatalogDisplayNames(profile: Pick<ProviderProfile, 'apiFormat'>): ReadonlyMap<string, string> {
+  return new Map(listOfficialModelPresets(profile.apiFormat).map((model) => [model.modelId, model.displayName] as const));
+}
+
 export function reconcileProfileModels(args: {
   readonly discoveredModelIds: readonly string[];
   readonly userModelConfigs: readonly UserModelConfig[];
   readonly officialCatalogModelIds: ReadonlySet<string>;
+  readonly officialCatalogDisplayNames?: ReadonlyMap<string, string>;
   readonly selectedModelIds: readonly string[];
   readonly defaultModelId?: string;
 }): readonly ProfileModelItem[] {
@@ -77,6 +82,7 @@ export function reconcileProfileModels(args: {
     const catalogConfigured = args.officialCatalogModelIds.has(modelId);
     return {
       modelId,
+      ...(args.officialCatalogDisplayNames?.get(modelId) ? { displayName: args.officialCatalogDisplayNames.get(modelId) } : {}),
       discovered: discoveredIds.has(modelId),
       configured: userConfigured || catalogConfigured,
       selected: selectedIds.has(modelId),
@@ -124,6 +130,7 @@ export async function listProfileModels(profileId: string): Promise<CommandResul
     discoveredModelIds: cache?.modelIds ?? [],
     userModelConfigs: userConfigs,
     officialCatalogModelIds: officialCatalogIds(profile),
+    officialCatalogDisplayNames: officialCatalogDisplayNames(profile),
     selectedModelIds: profile.selectedModelIds,
     defaultModelId: profile.defaultModelId,
   });

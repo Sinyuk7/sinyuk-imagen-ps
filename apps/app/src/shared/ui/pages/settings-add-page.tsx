@@ -55,13 +55,13 @@ function createProfileId(): string {
 }
 
 function selectedModelInput(defaultModel: string): {
-  readonly selectedModelIds?: readonly string[];
+  readonly selectedModelIds: readonly string[];
   readonly defaultModelId?: string;
 } {
   const modelId = defaultModel.trim();
   return modelId.length > 0
     ? { selectedModelIds: [modelId], defaultModelId: modelId }
-    : {};
+    : { selectedModelIds: [] };
 }
 
 function defaultConnection(): ProviderConnectionDraft {

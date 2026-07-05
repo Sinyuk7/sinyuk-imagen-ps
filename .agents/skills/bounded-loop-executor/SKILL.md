@@ -11,10 +11,14 @@ Execute one approved slice without expanding ownership or product scope.
 
 1. Read the active Loop or user-approved slice and `docs/agent/LOOP.md`.
 2. Run a fast preflight only once:
-   - current checkout must be a Git linked worktree, not the main worktree;
-   - the worktree should start clean enough for `git add -A` at the end;
+   - prefer a Git linked worktree when available, but do not require it;
+   - if the current checkout is the main worktree or `main`, execution is
+     allowed only when the current user turn explicitly agrees to run there;
+   - once the user explicitly agrees, do not stop only because execution is in
+     the main worktree or on `main`;
+   - the checkout should start clean enough for safe attribution and `git add -A`
+     at the end;
    - ignore missing or ignored `.codegraph/` state;
-   - if not in a linked worktree, stop and tell the user to create one.
 3. Update root `AGENTS.md` so `Active Loop` points at the Loop being executed.
    If `AGENTS.md` has conflicting edits around that field, stop and report the
    conflict.
@@ -37,7 +41,7 @@ Execute one approved slice without expanding ownership or product scope.
 10. On successful completion:
    - write any durable facts back to canonical authority docs when needed;
    - delete the completed Loop file per `docs/agent/LOOP.md`;
-   - stage all current worktree changes with `git add -A`;
+   - stage all current checkout changes with `git add -A`;
    - generate a commit message via `caveman-commit`;
    - commit the result.
 11. Report with the execution report contract from `docs/agent/LOOP.md`, kept
