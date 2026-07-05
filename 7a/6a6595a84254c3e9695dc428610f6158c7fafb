@@ -1,0 +1,57 @@
+packages/providers/tests/gemini-generate-content-provider.test.ts
+  s_57a5f29fb8f91e::t_cc0c98c53469d3 177,199-216,389-440
+  s_9e26006ec5dcff::t_8e3a4d752f6bb9 441-443
+packages/providers/src/transport/gemini-generate-content/models.ts
+  s_57a5f29fb8f91e::t_cc0c98c53469d3 4,18-31,36-43,83-150
+apps/app/src/shared/ui/styles/pages.ts
+  s_9e26006ec5dcff::t_0281069028599d 805-810
+apps/app/tests/prompt-settings-page.test.tsx
+  s_9e26006ec5dcff::t_7c6271968b51da 115
+apps/app/tests/settings-detail-profile-editing.test.tsx
+  s_9e26006ec5dcff::t_22e2ffdcc7a258 222
+apps/app/src/shared/ui/pages/prompt-preset-detail-page.tsx
+  s_9e26006ec5dcff::t_2088d4554dfd45 4,9,126-134
+apps/app/src/shared/ui/components/provider-profile-editor.tsx
+  s_9e26006ec5dcff::t_2a2604b0e73d44 488-499
+  s_9e26006ec5dcff::t_d2602afecc7460 500
+apps/app/src/shared/ui/i18n/messages.ts
+  s_9e26006ec5dcff::t_81a2656c340594 625-626,961-962
+AGENTS.md
+  s_1690a63c2f9799::t_4f0286dd594593 15
+packages/providers/src/providers/gemini-generate-content/provider.ts
+  s_57a5f29fb8f91e::t_cc0c98c53469d3 232-239
+docs/loops/2026-07-05-status-notice-contract.md
+  s_1690a63c2f9799::t_4f0286dd594593 1-2,270-282
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.10",
+  "base_commit_sha": "7a6a6595a84254c3e9695dc428610f6158c7fafb",
+  "prompts": {},
+  "sessions": {
+    "s_1690a63c2f9799": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "019f2dfe-e152-7ab0-bbc8-e4ad90010ce3",
+        "model": "gpt-5.4"
+      },
+      "human_author": "Sinyuk <80998062@qq.com>"
+    },
+    "s_57a5f29fb8f91e": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "019f2e13-3eaf-7c82-932a-1c6b0725d3eb",
+        "model": "gpt-5.4"
+      },
+      "human_author": "Sinyuk <80998062@qq.com>"
+    },
+    "s_9e26006ec5dcff": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "019f2dfc-9af4-77a2-9927-8c47f73d940f",
+        "model": "gpt-5.5"
+      },
+      "human_author": "Sinyuk <80998062@qq.com>"
+    }
+  }
+}
