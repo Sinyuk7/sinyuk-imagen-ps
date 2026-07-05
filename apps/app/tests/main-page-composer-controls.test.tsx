@@ -1,6 +1,6 @@
 import { act } from 'react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { fakeProfile, createFakeServices } from './fakes';
+import { fakeProfile, createFakeServices, profileModelItem } from './fakes';
 import { changeTextarea, clickText, cleanupMainPageRoot, findIconInHost, flush, renderMainPage, sendPrompt } from './main-page-harness';
 
 afterEach(async () => {
@@ -106,17 +106,15 @@ describe('MainPage contract — composer controls', () => {
     const services = createFakeServices({
       profiles: [{
         ...fakeProfile,
-        config: {
-          ...fakeProfile.config,
-          defaultModel: 'gpt-image-2',
-        },
+        selectedModelIds: ['mock-image-v1', 'mock-image-v2'],
+        defaultModelId: 'mock-image-v1',
       }],
     });
     services.spies.listProfileModels.mockResolvedValue({
       ok: true as const,
       value: [
-        { id: 'mock-image-v1' },
-        { id: 'mock-image-v2' },
+        profileModelItem('mock-image-v1', { default: true }),
+        profileModelItem('mock-image-v2'),
       ],
     });
     await renderMainPage(container, services);
@@ -151,15 +149,13 @@ describe('MainPage contract — composer controls', () => {
     const services = createFakeServices({
       profiles: [{
         ...fakeProfile,
-        config: {
-          ...fakeProfile.config,
-          defaultModel: 'gpt-image2',
-        },
+        selectedModelIds: ['gpt-image2', 'mock-image-v1'],
+        defaultModelId: 'gpt-image2',
       }],
     });
     services.spies.listProfileModels.mockResolvedValue({
       ok: true as const,
-      value: [{ id: 'gpt-image2' }, { id: 'mock-image-v1' }],
+      value: [profileModelItem('gpt-image2', { default: true }), profileModelItem('mock-image-v1')],
     });
     await renderMainPage(container, services);
 
@@ -178,15 +174,13 @@ describe('MainPage contract — composer controls', () => {
     const services = createFakeServices({
       profiles: [{
         ...fakeProfile,
-        config: {
-          ...fakeProfile.config,
-          defaultModel: 'mock-image-v1',
-        },
+        selectedModelIds: ['gpt-image2', 'mock-image-v1'],
+        defaultModelId: 'mock-image-v1',
       }],
     });
     services.spies.listProfileModels.mockResolvedValue({
       ok: true as const,
-      value: [{ id: 'gpt-image2' }, { id: 'mock-image-v1' }],
+      value: [profileModelItem('gpt-image2'), profileModelItem('mock-image-v1', { default: true })],
     });
     await renderMainPage(container, services);
 
@@ -214,15 +208,13 @@ describe('MainPage contract — composer controls', () => {
     const services = createFakeServices({
       profiles: [{
         ...fakeProfile,
-        config: {
-          ...fakeProfile.config,
-          defaultModel: 'dall-e-3',
-        },
+        selectedModelIds: ['dall-e-3'],
+        defaultModelId: 'dall-e-3',
       }],
     });
     services.spies.listProfileModels.mockResolvedValue({
       ok: true as const,
-      value: [{ id: 'dall-e-3', supportStatus: 'saved-undiscovered' }],
+      value: [profileModelItem('dall-e-3', { configured: false, default: true, configSource: undefined })],
     });
     await renderMainPage(container, services);
 
@@ -257,93 +249,21 @@ describe('MainPage contract — composer controls', () => {
     expect(container.querySelector('[data-testid="composer-readiness-status"]')?.textContent).toContain('就绪');
   });
 
-  it('keeps incompatible model options visually clean and blocks selection with a toast', async () => {
+  it('keeps unconfigured discovered models out of the main selector', async () => {
     const container = document.createElement('div');
     document.body.appendChild(container);
     const services = createFakeServices({
       profiles: [{
         ...fakeProfile,
-        config: {
-          ...fakeProfile.config,
-          defaultModel: 'gpt-image-2',
-        },
+        selectedModelIds: ['gpt-image-2', 'dall-e-3'],
+        defaultModelId: 'gpt-image-2',
       }],
     });
     services.spies.listProfileModels.mockResolvedValue({
       ok: true as const,
       value: [
-        {
-          id: 'gpt-image-2',
-          supportStatus: 'selectable',
-          capabilities: {
-            operations: {
-              textToImage: { support: 'supported', sizePresets: ['1k', '2k'] },
-              imageEdit: { support: 'supported', sizePresets: ['1k', '2k'] },
-            },
-          },
-        },
-        {
-          id: 'dall-e-3',
-          supportStatus: 'selectable',
-          capabilities: {
-            operations: {
-              textToImage: { support: 'supported', sizePresets: ['1k', '2k'] },
-              imageEdit: { support: 'unsupported', sizePresets: [], reason: 'operation-unsupported' },
-            },
-          },
-        },
-      ],
-    });
-    await renderMainPage(container, services);
-
-    await act(async () => {
-      container.querySelector<HTMLElement>('[data-testid="composer-add-image-button"]')!.click();
-    });
-    await flush();
-    await act(async () => {
-      clickText(container, '.attach-opt', '从电脑上传');
-    });
-    await flush();
-    await act(async () => {
-      container.querySelector<HTMLElement>('[data-testid="main-model-selector"]')!.click();
-    });
-    await flush();
-
-    const option = document.body.querySelector<HTMLButtonElement>('[data-testid="main-model-selector-option-dall-e-3"]')!;
-    expect(option).not.toBeNull();
-    expect(option.disabled).toBe(false);
-    expect(option.textContent).toContain('dall-e-3');
-    expect(option.textContent).not.toContain('不支持图片输入');
-    expect(option.textContent).not.toContain('文生图');
-    expect(option.textContent).not.toContain('编辑');
-
-    await act(async () => {
-      option.click();
-    });
-    await flush();
-
-    expect(iconSelectValue(container, '[data-testid="main-model-selector"]')).toContain('gpt-image-2');
-    expect(iconSelectValue(container, '[data-testid="main-model-selector"]')).not.toContain('dall-e-3');
-    expect(container.querySelector('[data-testid="toast"]')?.textContent).toContain('不支持图片输入');
-  });
-
-  it('blocks unavailable model selection with an availability toast', async () => {
-    const container = document.createElement('div');
-    document.body.appendChild(container);
-    const services = createFakeServices({
-      profiles: [{
-        ...fakeProfile,
-        config: {
-          ...fakeProfile.config,
-          defaultModel: 'gpt-image-2',
-        },
-      }],
-    });
-    services.spies.listProfileModels.mockResolvedValue({
-      ok: true as const,
-      value: [
-        { id: 'gpt-image-2', displayName: 'GPT Image 2', supportStatus: 'selectable' },
-        { id: 'dall-e-3', displayName: 'DALL-E 3', supportStatus: 'saved-undiscovered' },
+        profileModelItem('gpt-image-2', { default: true }),
+        profileModelItem('dall-e-3', { configured: false, configSource: undefined }),
       ],
     });
     await renderMainPage(container, services);
@@ -353,46 +273,51 @@ describe('MainPage contract — composer controls', () => {
     });
     await flush();
 
-    const option = document.body.querySelector<HTMLButtonElement>('[data-testid="main-model-selector-option-dall-e-3"]')!;
-    expect(option.disabled).toBe(false);
-    expect(option.textContent).toContain('DALL-E 3');
-    expect(option.textContent).not.toContain('此模型在当前配置中不可用');
-    expect(option.textContent).not.toContain('saved');
-
-    await act(async () => {
-      option.click();
-    });
-    await flush();
-
-    expect(iconSelectValue(container, '[data-testid="main-model-selector"]')).toContain('gpt-image-2');
-    expect(iconSelectValue(container, '[data-testid="main-model-selector"]')).not.toContain('dall-e-3');
-    expect(container.querySelector('[data-testid="toast"]')?.textContent).toContain('此模型在当前配置中不可用');
+    expect(document.body.querySelector('[data-testid="main-model-selector-option-gpt-image-2"]')).not.toBeNull();
+    expect(document.body.querySelector('[data-testid="main-model-selector-option-dall-e-3"]')).toBeNull();
   });
 
-  it('derives output-size options from the selected model and blocks unsupported size', async () => {
+  it('keeps unselected configured models out of the main selector', async () => {
     const container = document.createElement('div');
     document.body.appendChild(container);
     const services = createFakeServices({
       profiles: [{
         ...fakeProfile,
-        config: {
-          ...fakeProfile.config,
-          defaultModel: 'dall-e-3',
-        },
+        selectedModelIds: ['gpt-image-2'],
+        defaultModelId: 'gpt-image-2',
       }],
     });
     services.spies.listProfileModels.mockResolvedValue({
       ok: true as const,
-      value: [{
-        id: 'dall-e-3',
-        supportStatus: 'selectable',
-        capabilities: {
-          operations: {
-            textToImage: { support: 'supported', sizePresets: ['1k'] },
-            imageEdit: { support: 'unsupported', sizePresets: [], reason: 'operation-unsupported' },
-          },
-        },
+      value: [
+        profileModelItem('gpt-image-2', { default: true }),
+        profileModelItem('dall-e-3', { selected: false }),
+      ],
+    });
+    await renderMainPage(container, services);
+
+    await act(async () => {
+      container.querySelector<HTMLElement>('[data-testid="main-model-selector"]')!.click();
+    });
+    await flush();
+
+    expect(document.body.querySelector('[data-testid="main-model-selector-option-gpt-image-2"]')).not.toBeNull();
+    expect(document.body.querySelector('[data-testid="main-model-selector-option-dall-e-3"]')).toBeNull();
+  });
+
+  it('does not block output-size selection from profile model list capability metadata', async () => {
+    const container = document.createElement('div');
+    document.body.appendChild(container);
+    const services = createFakeServices({
+      profiles: [{
+        ...fakeProfile,
+        selectedModelIds: ['dall-e-3'],
+        defaultModelId: 'dall-e-3',
       }],
+    });
+    services.spies.listProfileModels.mockResolvedValue({
+      ok: true as const,
+      value: [profileModelItem('dall-e-3', { default: true })],
     });
     await renderMainPage(container, services);
 
@@ -408,8 +333,8 @@ describe('MainPage contract — composer controls', () => {
     });
     await flush();
 
-    expect(iconSelectValue(container, '[data-testid="composer-output-size-selector"]')).toContain('1K');
-    expect(container.querySelector('[data-testid="toast"]')?.textContent).toContain('此模型不支持 4K');
+    expect(iconSelectValue(container, '[data-testid="composer-output-size-selector"]')).toContain('4K');
+    expect(container.querySelector('[data-testid="toast"]')?.textContent ?? '').not.toContain('此模型不支持 4K');
     expect(container.querySelector('[data-testid="composer-size-feedback"]')).toBeNull();
   });
 

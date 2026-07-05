@@ -11,13 +11,14 @@ import type {
   BalanceChange,
   DiscoveredModel,
   ExactTaskCost,
+  ModelOutputConfig,
   ProviderBalanceSnapshot,
   ProviderDescriptor as _ProviderDescriptor,
   ProviderConfig as _ProviderConfig,
 } from '@imagen-ps/providers';
 
 // Re-export provider types for commands layer consumers
-export type { ApiFormat, DiscoveredModel, EndpointClassification, ProviderDescriptor, ProviderConfig, ProviderModelInfo, ModelBrand } from '@imagen-ps/providers';
+export type { ApiFormat, DiscoveredModel, EndpointClassification, ProviderDescriptor, ProviderConfig, ProviderModelInfo, ModelBrand, ModelOutputConfig, OfficialModelPreset, ProviderModelExecution } from '@imagen-ps/providers';
 export type { BalanceChange, ExactTaskCost, ProviderBalanceSnapshot } from '@imagen-ps/providers';
 export type {
   Asset,
@@ -195,11 +196,7 @@ export interface UserModelConfig {
   readonly apiFormat: ApiFormat;
   readonly modelId: string;
   readonly requestStrategyId: string;
-  readonly output: {
-    readonly aspectRatios: readonly string[];
-    readonly sizes: readonly string[];
-    readonly outputFormats: readonly string[];
-  };
+  readonly output: ModelOutputConfig;
 }
 
 /** Host-injected repository for user-owned model configs. */

@@ -18,7 +18,7 @@ import {
 } from '../runtime.js';
 import type { CommandResult, ProfileModelItem, ProviderProfile, UserModelConfig } from './types.js';
 import {
-  listLocalCatalogModels,
+  listOfficialModelPresets,
   providerUsesImageModelCatalog,
   type DiscoveredModel,
 } from '@imagen-ps/providers';
@@ -53,7 +53,7 @@ function officialCatalogIds(profile: Pick<ProviderProfile, 'apiFormat'>): Readon
   if (!providerUsesImageModelCatalog(catalogProviderId)) {
     return new Set();
   }
-  return new Set(listLocalCatalogModels(catalogProviderId).map((model) => model.id));
+  return new Set(listOfficialModelPresets(profile.apiFormat).map((model) => model.modelId));
 }
 
 export function reconcileProfileModels(args: {
@@ -69,7 +69,7 @@ export function reconcileProfileModels(args: {
   const candidateIds = uniqueModelIds([
     ...discoveredIds,
     ...userConfigIds,
-    ...selectedIds,
+    ...args.officialCatalogModelIds,
   ]);
 
   return candidateIds.map((modelId) => {

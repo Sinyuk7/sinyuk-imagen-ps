@@ -3,6 +3,7 @@ import type {
   ApiFormat,
   EndpointMeasurementResult,
   MeasureProfileEndpointsResult,
+  ProfileModelItem,
   ProviderDescriptor,
   ProviderModelInfo,
   ProviderProfile,
@@ -14,6 +15,7 @@ import type {
 } from '@imagen-ps/application';
 import type { AppServices } from '../../ports/app-services';
 import { formatCompactMetric } from '../../domain/mappers';
+import { modelInfoFromDescriptor, modelInfoFromProfileItem, type UiModelInfo } from '../model-info';
 
 export interface ProviderProfilesState {
   readonly profiles: readonly ProviderProfile[];
@@ -121,7 +123,7 @@ export function providerProfileUpsertCapabilities(
 }
 
 export function providerModelOptions(
-  models: readonly ProviderModelInfo[],
+  models: readonly UiModelInfo[],
 ): readonly { readonly id: string; readonly label: string }[] {
   return models.map((model) => ({
     id: model.id,
@@ -140,15 +142,15 @@ export interface ProviderDraftModelCatalogOptions {
   readonly isDraftDirty: boolean;
   readonly resetKey: string;
   readonly refreshDraftModels: () => Promise<
-    | { readonly ok: true; readonly value: readonly ProviderModelInfo[] }
+    | { readonly ok: true; readonly value: readonly ProfileModelItem[] }
     | { readonly ok: false; readonly error: { readonly category: string; readonly message: string } }
   >;
 }
 
 export interface ProviderDraftModelCatalogState {
-  readonly models: readonly ProviderModelInfo[];
+  readonly models: readonly UiModelInfo[];
   readonly options: readonly { readonly id: string; readonly label: string }[];
-  readonly selectedModelInfo: ProviderModelInfo | undefined;
+  readonly selectedModelInfo: UiModelInfo | undefined;
   readonly persistedLoading: boolean;
   readonly refreshBusy: boolean;
   readonly loading: boolean;
@@ -156,7 +158,7 @@ export interface ProviderDraftModelCatalogState {
   readonly stale: boolean;
   readonly measurementResults: readonly EndpointMeasurementResult[];
   readonly resolvedEndpointId?: string;
-  readonly refresh: () => Promise<readonly ProviderModelInfo[]>;
+  readonly refresh: () => Promise<readonly UiModelInfo[]>;
   readonly invalidate: () => void;
   readonly clearProofs: () => void;
   readonly applyProbeResult: (result: MeasureProfileEndpointsResult) => void;
@@ -179,7 +181,7 @@ export function useProviderDraftModelCatalog(
     refreshDraftModels,
   } = options;
   const persisted = useProfileModels(services, persistedProfileId, persistedRevisionKey);
-  const [draftModels, setDraftModels] = useState<readonly ProviderModelInfo[] | null>(null);
+  const [draftModels, setDraftModels] = useState<readonly UiModelInfo[] | null>(null);
   const [stale, setStale] = useState(false);
   const [measurementResults, setMeasurementResults] = useState<readonly EndpointMeasurementResult[]>([]);
   const [resolvedEndpointId, setResolvedEndpointId] = useState<string | undefined>();
@@ -194,10 +196,7 @@ export function useProviderDraftModelCatalog(
   }, [resetKey]);
 
   const fallbackModels = useMemo(
-    () => descriptorDefaultModels.map((model) => ({
-      ...model,
-      supportStatus: model.supportStatus ?? 'selectable',
-    })),
+    () => descriptorDefaultModels.map(modelInfoFromDescriptor),
     [descriptorDefaultModels],
   );
 
@@ -240,12 +239,18 @@ export function useProviderDraftModelCatalog(
 
   const applyConnectionTestResult = useCallback((result: ProviderProfileConnectionTestResult) => {
     if (result.models) {
-      setDraftModels(result.models);
+      setDraftModels(result.models.map((model) => ({
+        id: model.id,
+        displayName: model.id,
+        configured: false,
+        selected: false,
+        discovered: true,
+      })));
       setStale(false);
     }
   }, []);
 
-  const refresh = useCallback(async (): Promise<readonly ProviderModelInfo[]> => {
+  const refresh = useCallback(async (): Promise<readonly UiModelInfo[]> => {
     if (!discoverySupported) {
       throw new Error('Model discovery unsupported.');
     }
@@ -256,10 +261,11 @@ export function useProviderDraftModelCatalog(
         if (!result.ok) {
           throw new Error(commandMessage(result.error));
         }
-        setDraftModels(result.value);
+        const value = result.value.map(modelInfoFromProfileItem);
+        setDraftModels(value);
         setStale(false);
         clearProofs();
-        return result.value;
+        return value;
       }
       const value = await persisted.refresh();
       setDraftModels(null);
@@ -299,12 +305,12 @@ export function useProviderDraftModelCatalog(
 }
 
 export interface ProfileModelsState {
-  readonly models: readonly ProviderModelInfo[];
+  readonly models: readonly UiModelInfo[];
   readonly loading: boolean;
   readonly error: string | null;
   readonly reload: () => Promise<void>;
-  readonly refresh: () => Promise<readonly ProviderModelInfo[]>;
-  readonly replace: (models: readonly ProviderModelInfo[]) => void;
+  readonly refresh: () => Promise<readonly UiModelInfo[]>;
+  readonly replace: (models: readonly UiModelInfo[]) => void;
 }
 
 export function useProfileModels(
@@ -312,7 +318,7 @@ export function useProfileModels(
   profileId: string | null,
   revisionKey?: string,
 ): ProfileModelsState {
-  const [models, setModels] = useState<readonly ProviderModelInfo[]>([]);
+  const [models, setModels] = useState<readonly UiModelInfo[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const sequenceRef = useRef(0);
@@ -333,7 +339,7 @@ export function useProfileModels(
         return;
       }
       if (result.ok) {
-        setModels(result.value);
+        setModels(result.value.map(modelInfoFromProfileItem));
         setError(null);
       } else {
         setModels([]);
@@ -352,7 +358,7 @@ export function useProfileModels(
     }
   }, [profileId, revisionKey, services]);
 
-  const refresh = useCallback(async (): Promise<readonly ProviderModelInfo[]> => {
+  const refresh = useCallback(async (): Promise<readonly UiModelInfo[]> => {
     const sequence = sequenceRef.current + 1;
     sequenceRef.current = sequence;
     if (!profileId) {
@@ -365,9 +371,16 @@ export function useProfileModels(
         return result.ok ? result.value : [];
       }
       if (result.ok) {
-        setModels(result.value);
+        const listed = await services.commands.listProfileModels(profileId);
+        if (!listed.ok) {
+          const message = commandMessage(listed.error);
+          setError(message);
+          throw new Error(message);
+        }
+        const value = listed.value.map(modelInfoFromProfileItem);
+        setModels(value);
         setError(null);
-        return result.value;
+        return value;
       }
       const message = commandMessage(result.error);
       setError(message);
@@ -379,7 +392,7 @@ export function useProfileModels(
     }
   }, [profileId, services]);
 
-  const replace = useCallback((nextModels: readonly ProviderModelInfo[]) => {
+  const replace = useCallback((nextModels: readonly UiModelInfo[]) => {
     sequenceRef.current += 1;
     setModels(nextModels);
     setError(null);
@@ -824,7 +837,7 @@ export function providerConfigFromForm(
   apiFormat: ApiFormat,
   displayName: string,
   connection: ProviderConnectionDraft,
-  defaultModel: string,
+  _defaultModel: string,
   paths: ApiPathDraft,
   billing?: ProviderBillingDraft,
 ): ProviderProfileConfig {
@@ -850,9 +863,6 @@ export function providerConfigFromForm(
       })),
     },
   };
-  if (defaultModel.trim()) {
-    config.defaultModel = defaultModel.trim();
-  }
   if (normalizedBilling) {
     if (normalizedBilling.mode === 'none') {
       config.billing = { mode: 'none' };

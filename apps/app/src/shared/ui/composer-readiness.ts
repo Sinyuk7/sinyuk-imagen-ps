@@ -1,6 +1,6 @@
-import type { ProviderModelInfo } from '@imagen-ps/application';
 import type { AppOutputSizePreset } from '../ports/app-generation-settings';
 import type { PlacementIntent } from '../domain/photoshop-placement';
+import type { UiModelInfo } from './model-info';
 
 export type ComposerOperation = 'text-to-image' | 'image-edit';
 
@@ -29,7 +29,7 @@ export interface ComposerReadinessInput {
   readonly modelsLoading: boolean;
   readonly modelsError: string | null;
   readonly selectedModelId: string;
-  readonly selectedModel: ProviderModelInfo | undefined;
+  readonly selectedModel: UiModelInfo | undefined;
   readonly attachmentPreparing: boolean;
   readonly attachmentFailed: boolean;
   readonly operation: ComposerOperation;
@@ -43,40 +43,33 @@ export interface ComposerReadiness {
   readonly canSend: boolean;
 }
 
-function modelIsSelectable(model: ProviderModelInfo | undefined): boolean {
+function modelIsSelectable(model: UiModelInfo | undefined): boolean {
   if (!model) {
     return false;
   }
-  return model.supportStatus === undefined || model.supportStatus === 'selectable';
-}
-
-function operationCapability(model: ProviderModelInfo | undefined, operation: ComposerOperation) {
-  return operation === 'image-edit'
-    ? model?.capabilities?.operations.imageEdit
-    : model?.capabilities?.operations.textToImage;
+  return model.configured === true;
 }
 
 export function modelSupportsOperation(
-  model: ProviderModelInfo | undefined,
-  operation: ComposerOperation,
+  _model: UiModelInfo | undefined,
+  _operation: ComposerOperation,
 ): 'supported' | 'unsupported' | 'unknown' {
-  return operationCapability(model, operation)?.support ?? 'unknown';
+  return 'unknown';
 }
 
 export function supportedSizePresetsForOperation(
-  model: ProviderModelInfo | undefined,
-  operation: ComposerOperation,
+  _model: UiModelInfo | undefined,
+  _operation: ComposerOperation,
 ): readonly AppOutputSizePreset[] | 'unknown' {
-  const presets = operationCapability(model, operation)?.sizePresets;
-  return presets === undefined ? 'unknown' : presets;
+  return 'unknown';
 }
 
-export function modelSupportsImageInput(model: ProviderModelInfo | undefined): 'supported' | 'unsupported' | 'unknown' {
+export function modelSupportsImageInput(model: UiModelInfo | undefined): 'supported' | 'unsupported' | 'unknown' {
   return modelSupportsOperation(model, 'image-edit');
 }
 
 export function modelSupportsOutputSize(
-  model: ProviderModelInfo | undefined,
+  model: UiModelInfo | undefined,
   operation: ComposerOperation,
   outputSizePreset: AppOutputSizePreset,
 ): 'supported' | 'unsupported' | 'unknown' {

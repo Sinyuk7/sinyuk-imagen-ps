@@ -21,7 +21,11 @@ import type { Asset } from '@imagen-ps/core-engine';
 import type { CanonicalImageJobRequest, ProviderOutputOptions } from '../../contract/request.js';
 import type { ProviderDiagnostic } from '../../contract/diagnostics.js';
 import type { ImageEditCodec } from '../../contract/provider.js';
-import { resolveImageModelOutput, type ImageCatalogProviderId } from '../../contract/image-model-capability.js';
+import {
+  assertProviderModelExecution,
+  resolveImageModelOutput,
+  type ImageCatalogProviderId,
+} from '../../contract/image-model-capability.js';
 import { jsonReferenceCodec } from './codec-json-reference.js';
 import { multipartBracketCodec } from './codec-multipart-bracket.js';
 import { multipartPlainCodec } from './codec-multipart-plain.js';
@@ -230,11 +234,12 @@ function concreteSizeFromOutput(
   }
 }
 
-/** 从 request 与 config 解析有效 model。 */
-function resolveModel(request: CanonicalImageJobRequest, defaultModel?: string): string {
-  return typeof request.providerOptions?.model === 'string'
-    ? (request.providerOptions.model as string)
-    : (defaultModel ?? 'gpt-image-2');
+/** 从 Application 解析后的 request.model 取得 wire model。 */
+function resolveModel(request: CanonicalImageJobRequest): string {
+  return assertProviderModelExecution({
+    execution: request.model,
+    apiFormat: 'openai-images',
+  }).modelId;
 }
 
 /**
@@ -513,9 +518,8 @@ function sanitizeProviderOptions(args: {
  * 构造 image endpoint images/generations HTTP request body。
  *
  * @param request 已校验的 canonical request
- * @param defaultModel provider config 中的默认 model
  */
-export function buildRequestBody(request: CanonicalImageJobRequest, defaultModel?: string): OpenAIImageGenerationBody {
+export function buildRequestBody(request: CanonicalImageJobRequest): OpenAIImageGenerationBody {
   const sanitized = sanitizeProviderOptions({
     providerOptions: request.providerOptions,
     allowedKeys: GENERATION_ALLOWED_PROVIDER_OPTION_KEYS,
@@ -523,7 +527,7 @@ export function buildRequestBody(request: CanonicalImageJobRequest, defaultModel
     ignoredAliasKeys: ['image_response_format'],
   });
   const body: OpenAIImageGenerationBody = {
-    model: resolveModel(request, defaultModel),
+    model: resolveModel(request),
     prompt: request.prompt,
   };
 
@@ -553,7 +557,6 @@ export function buildRequestBody(request: CanonicalImageJobRequest, defaultModel
  * 构造 image endpoint images/edits HTTP request body。
  *
  * @param request 已校验的 canonical request
- * @param defaultModel provider config 中的默认 model
  */
 function buildEditRequestBodyInternal(
   request: CanonicalImageJobRequest,
@@ -596,9 +599,8 @@ function buildEditRequestBodyInternal(
  */
 export function buildEditMultipartBody(
   request: CanonicalImageJobRequest,
-  defaultModel?: string,
 ): FormData {
-  return buildEditMultipartBodyForCodec(request, 'multipart-bracket', defaultModel);
+  return buildEditMultipartBodyForCodec(request, 'multipart-bracket');
 }
 
 /**
@@ -607,9 +609,8 @@ export function buildEditMultipartBody(
 export function buildEditMultipartBodyForCodec(
   request: CanonicalImageJobRequest,
   codec: Extract<ImageEditCodec, 'multipart-bracket' | 'multipart-plain'>,
-  defaultModel?: string,
 ): FormData {
-  const model = resolveModel(request, defaultModel);
+  const model = resolveModel(request);
   const sanitized = sanitizeProviderOptions({
     providerOptions: request.providerOptions,
     allowedKeys: EDIT_ALLOWED_PROVIDER_OPTION_KEYS,
@@ -665,8 +666,8 @@ function buildEditMultipartBodyForCodecInternal(
   return form;
 }
 
-export function buildEditRequestBody(request: CanonicalImageJobRequest, defaultModel?: string): OpenAIImageEditBody {
-  const model = resolveModel(request, defaultModel);
+export function buildEditRequestBody(request: CanonicalImageJobRequest): OpenAIImageEditBody {
+  const model = resolveModel(request);
   const sanitized = sanitizeProviderOptions({
     providerOptions: request.providerOptions,
     allowedKeys: EDIT_ALLOWED_PROVIDER_OPTION_KEYS,
@@ -682,9 +683,8 @@ export function buildEditRequestBody(request: CanonicalImageJobRequest, defaultM
 export function buildImageEditRequestBody(
   request: CanonicalImageJobRequest,
   codec: ImageEditCodec | ImageEditRequestCodec,
-  defaultModel?: string,
 ): OpenAIImageEditBody | FormData {
-  return buildImageEditHttpRequest(request, codec, defaultModel).body as OpenAIImageEditBody | FormData;
+  return buildImageEditHttpRequest(request, codec).body as OpenAIImageEditBody | FormData;
 }
 
 export function resolveImageEditRequestCodecById(codec: ImageEditCodec): ImageEditRequestCodec {
@@ -694,10 +694,9 @@ export function resolveImageEditRequestCodecById(codec: ImageEditCodec): ImageEd
 export function buildImageEditHttpRequest(
   request: CanonicalImageJobRequest,
   codecOrId: ImageEditCodec | ImageEditRequestCodec,
-  defaultModel?: string,
 ): BuiltImageEditRequest {
   const codec = typeof codecOrId === 'string' ? resolveImageEditRequestCodecById(codecOrId) : codecOrId;
-  const model = resolveModel(request, defaultModel);
+  const model = resolveModel(request);
   const sanitized = sanitizeProviderOptions({
     providerOptions: request.providerOptions,
     allowedKeys: EDIT_ALLOWED_PROVIDER_OPTION_KEYS,

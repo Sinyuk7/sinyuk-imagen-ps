@@ -41,7 +41,7 @@ export type ProviderModelCapabilityReason =
   | 'unknown';
 
 export interface ProviderModelInfo {
-  /** model 的稳定标识，等同于 provider 调用时 `request.providerOptions.model` 的值。 */
+  /** model 的稳定标识，等同于 provider 调用时的 wire model ID。 */
   readonly id: string;
 
   /** 可选的静态展示名，来自 provider descriptor 或官方 catalog。 */

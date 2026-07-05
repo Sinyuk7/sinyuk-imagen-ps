@@ -2,6 +2,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import {
   createImageEndpointProvider,
 } from '../src/providers/image-endpoint/index.js';
+import { imageEndpointModel } from './model-execution.js';
 
 interface TransportCapture {
   readonly url: string;
@@ -63,6 +64,7 @@ describe('image endpoint transport request characterization', () => {
       request: provider.validateRequest({
         operation: 'text_to_image',
         prompt: 'transport generation',
+        model: imageEndpointModel('dall-e-3', 'image-endpoint-variant'),
       }),
     });
 
@@ -106,6 +108,7 @@ describe('image endpoint transport request characterization', () => {
         operation: 'image_edit',
         prompt: 'transport edit',
         images: [{ type: 'image', data: 'aGVsbG8=', mimeType: 'image/png', name: 'input.png' }],
+        model: imageEndpointModel('gpt-image-2'),
       }),
     });
 

@@ -3,12 +3,16 @@ import type {
   AssetStore,
   DurableJobRecord,
   JobHistoryStore,
+  ModelDiscoveryCache,
+  ModelDiscoveryCacheRepository,
   ProviderProfile,
   ProviderProfileRepository,
   SecretStorageAdapter,
   StoredAssetRef,
   TaskRecord,
   TaskStore,
+  UserModelConfig,
+  UserModelConfigRepository,
 } from '@imagen-ps/application';
 import { createMemoryActiveImageProfileStore } from '../../shared/ports/active-image-profile';
 import { createMemoryGenerationSettingsStore } from '../../shared/ports/app-generation-settings';
@@ -30,6 +34,44 @@ export function createInMemoryProviderProfileRepository(): ProviderProfileReposi
     },
     async delete(profileId: string): Promise<void> {
       profiles.delete(profileId);
+    },
+  };
+}
+
+export function createInMemoryModelDiscoveryCacheRepository(): ModelDiscoveryCacheRepository {
+  const caches = new Map<string, ModelDiscoveryCache>();
+  return {
+    async get(profileId: string): Promise<ModelDiscoveryCache | undefined> {
+      return caches.get(profileId);
+    },
+    async put(cache: ModelDiscoveryCache): Promise<void> {
+      caches.set(cache.profileId, cache);
+    },
+    async delete(profileId: string): Promise<void> {
+      caches.delete(profileId);
+    },
+  };
+}
+
+function userModelConfigKey(apiFormat: string, modelId: string): string {
+  return `${apiFormat}:${modelId}`;
+}
+
+export function createInMemoryUserModelConfigRepository(): UserModelConfigRepository {
+  const configs = new Map<string, UserModelConfig>();
+  return {
+    async list(apiFormat): Promise<readonly UserModelConfig[]> {
+      const values = Array.from(configs.values());
+      return apiFormat === undefined ? values : values.filter((config) => config.apiFormat === apiFormat);
+    },
+    async get(apiFormat, modelId): Promise<UserModelConfig | undefined> {
+      return configs.get(userModelConfigKey(apiFormat, modelId));
+    },
+    async save(config): Promise<void> {
+      configs.set(userModelConfigKey(config.apiFormat, config.modelId), config);
+    },
+    async delete(apiFormat, modelId): Promise<void> {
+      configs.delete(userModelConfigKey(apiFormat, modelId));
     },
   };
 }

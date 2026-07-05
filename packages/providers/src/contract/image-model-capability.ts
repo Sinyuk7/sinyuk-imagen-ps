@@ -1,17 +1,77 @@
 import type { ProviderOperation } from './capability.js';
+import { apiFormatForImplementationId, type ApiFormat } from './api-format.js';
 import type {
   ModelOperationCapability,
   ProviderModelCapabilities,
   ProviderModelInfo,
   ProviderModelMatchKind,
 } from './model.js';
-import type { ProviderOutputOptions } from './request.js';
+import type { ProviderModelExecution, ProviderOutputOptions } from './request.js';
 import { IMAGE_MODEL_CAPABILITIES } from './image-model-catalog/catalog.js';
 
 export type ImageCatalogProviderId = 'image-endpoint' | 'chat-image' | 'gemini-generate-content';
 export type ImageOperation = Extract<ProviderOperation, 'text_to_image' | 'image_edit'>;
 export type ImageSizePreset = NonNullable<ProviderOutputOptions['sizePreset']>;
 export type ImageAspectRatio = 'auto' | 'source' | '1:1' | '16:9' | '9:16';
+export type ImageOutputFormat = NonNullable<ProviderOutputOptions['outputFormat']>;
+
+export type RequestStrategyId =
+  | 'image-endpoint-default'
+  | 'image-endpoint-variant'
+  | 'chat-image-default'
+  | 'gemini-generate-content-response-format-image'
+  | 'gemini-generate-content-image-config-legacy';
+
+export interface RequestStrategy {
+  readonly id: RequestStrategyId;
+  readonly apiFormat: ApiFormat;
+  readonly outputCodecId: 'image-endpoint' | 'chat-image-label' | 'gemini-response-format-image' | 'gemini-image-config-legacy';
+  readonly wireRevisionId?: string;
+}
+
+export interface ModelOutputConfig {
+  readonly aspectRatios: readonly string[];
+  readonly sizes: readonly string[];
+  readonly outputFormats: readonly string[];
+}
+
+export interface OfficialModelPreset {
+  readonly apiFormat: ApiFormat;
+  readonly modelId: string;
+  readonly displayName: string;
+  readonly requestStrategyId: RequestStrategyId;
+  readonly output: ModelOutputConfig;
+}
+
+const REQUEST_STRATEGIES = Object.freeze([
+  {
+    id: 'image-endpoint-default',
+    apiFormat: 'openai-images',
+    outputCodecId: 'image-endpoint',
+  },
+  {
+    id: 'image-endpoint-variant',
+    apiFormat: 'openai-images',
+    outputCodecId: 'image-endpoint',
+  },
+  {
+    id: 'chat-image-default',
+    apiFormat: 'openai-chat-completions',
+    outputCodecId: 'chat-image-label',
+  },
+  {
+    id: 'gemini-generate-content-response-format-image',
+    apiFormat: 'gemini-generate-content',
+    outputCodecId: 'gemini-response-format-image',
+    wireRevisionId: 'response-format-image',
+  },
+  {
+    id: 'gemini-generate-content-image-config-legacy',
+    apiFormat: 'gemini-generate-content',
+    outputCodecId: 'gemini-image-config-legacy',
+    wireRevisionId: 'image-config-legacy',
+  },
+] as const satisfies readonly RequestStrategy[]);
 
 /**
  * 模型品牌标识，由 catalog 规则声明，供上层（经 application 命令）映射为 UI 图标。
@@ -74,6 +134,7 @@ export interface ImageModelCapability {
   readonly ruleId: string;
   readonly match: ModelMatcher;
   readonly displayName: string;
+  readonly requestStrategyId?: RequestStrategyId;
   readonly selection: {
     readonly visibleInPicker: boolean;
     readonly allowAsDefault?: boolean;
@@ -157,6 +218,59 @@ function canonicalModelIdForCapability(capability: ImageModelCapability): string
     });
   }
   return canonical;
+}
+
+function requestStrategyIdForCapability(
+  providerId: ImageCatalogProviderId,
+  capability: ImageModelCapability,
+): RequestStrategyId {
+  if (capability.requestStrategyId !== undefined) {
+    return capability.requestStrategyId;
+  }
+  switch (providerId) {
+    case 'image-endpoint':
+      return capability.variants !== undefined ? 'image-endpoint-variant' : 'image-endpoint-default';
+    case 'chat-image':
+      return 'chat-image-default';
+    case 'gemini-generate-content':
+      return 'gemini-generate-content-response-format-image';
+  }
+}
+
+function outputConfigForCapability(capability: ImageModelCapability): ModelOutputConfig {
+  if (capability.variants !== undefined) {
+    return {
+      aspectRatios: Array.from(new Set(capability.variants.map((variant) => variant.aspectRatio))),
+      sizes: Array.from(new Set(capability.variants.map((variant) => variant.preset))),
+      outputFormats: ['auto', 'png', 'jpeg', 'webp'],
+    };
+  }
+  if (capability.constraintStrategy !== undefined) {
+    const support = Object.values(capability.constraintStrategy.operations);
+    return {
+      aspectRatios: Array.from(new Set(support.flatMap((entry) => entry.aspectRatios))),
+      sizes: Array.from(new Set(support.flatMap((entry) => entry.presets))),
+      outputFormats: ['auto', 'png', 'jpeg', 'webp'],
+    };
+  }
+  return {
+    aspectRatios: ['auto'],
+    sizes: ['auto'],
+    outputFormats: ['auto'],
+  };
+}
+
+function buildOfficialModelPreset(
+  providerId: ImageCatalogProviderId,
+  capability: ImageModelCapability,
+): OfficialModelPreset {
+  return {
+    apiFormat: apiFormatForImplementationId(providerId),
+    modelId: canonicalModelIdForCapability(capability),
+    displayName: capability.displayName,
+    requestStrategyId: requestStrategyIdForCapability(providerId, capability),
+    output: outputConfigForCapability(capability),
+  };
 }
 
 function buildProviderModelInfo(
@@ -458,6 +572,57 @@ export function listLocalCatalogModels(providerId: ImageCatalogProviderId): read
   return visibleCapabilitiesForProvider(providerId, IMAGE_MODEL_CAPABILITIES).map((capability) =>
     buildProviderModelInfo(capability),
   );
+}
+
+export function listOfficialModelPresets(apiFormat?: ApiFormat): readonly OfficialModelPreset[] {
+  const presets = (['image-endpoint', 'chat-image', 'gemini-generate-content'] as const satisfies readonly ImageCatalogProviderId[])
+    .flatMap((providerId) =>
+      visibleCapabilitiesForProvider(providerId, IMAGE_MODEL_CAPABILITIES).map((capability) =>
+        buildOfficialModelPreset(providerId, capability),
+      ),
+    );
+  return apiFormat === undefined ? presets : presets.filter((preset) => preset.apiFormat === apiFormat);
+}
+
+export function getOfficialModelPreset(apiFormat: ApiFormat, modelId: string): OfficialModelPreset | undefined {
+  return listOfficialModelPresets(apiFormat).find((preset) => preset.modelId === modelId);
+}
+
+export function listRequestStrategies(apiFormat?: ApiFormat): readonly RequestStrategy[] {
+  return apiFormat === undefined
+    ? REQUEST_STRATEGIES
+    : REQUEST_STRATEGIES.filter((strategy) => strategy.apiFormat === apiFormat);
+}
+
+export function getRequestStrategy(requestStrategyId: string): RequestStrategy | undefined {
+  return REQUEST_STRATEGIES.find((strategy) => strategy.id === requestStrategyId);
+}
+
+export function assertProviderModelExecution(args: {
+  readonly execution: ProviderModelExecution | undefined;
+  readonly apiFormat: ApiFormat;
+}): ProviderModelExecution {
+  if (args.execution === undefined) {
+    throw new ImageModelContractError('Provider request requires resolved model execution.');
+  }
+  const strategy = getRequestStrategy(args.execution.requestStrategyId);
+  if (strategy === undefined) {
+    throw new ImageModelContractError(`Unknown requestStrategyId "${args.execution.requestStrategyId}".`, {
+      requestStrategyId: args.execution.requestStrategyId,
+    });
+  }
+  if (strategy.apiFormat !== args.apiFormat || args.execution.apiFormat !== args.apiFormat) {
+    throw new ImageModelContractError(
+      `requestStrategyId "${args.execution.requestStrategyId}" is not valid for apiFormat "${args.apiFormat}".`,
+      {
+        requestStrategyId: args.execution.requestStrategyId,
+        strategyApiFormat: strategy.apiFormat,
+        executionApiFormat: args.execution.apiFormat,
+        apiFormat: args.apiFormat,
+      },
+    );
+  }
+  return args.execution;
 }
 
 function resolveVariantOutput(args: {

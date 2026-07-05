@@ -86,7 +86,6 @@ function logEditRequestSummary(
     readonly source: string;
     readonly cacheKey: string;
   },
-  defaultModel: string | undefined,
 ): void {
   if (request.operation !== 'image_edit') {
     return;
@@ -96,10 +95,7 @@ function logEditRequestSummary(
     codec: resolvedCodec.codec.id,
     source: resolvedCodec.source,
     compatibilityKey: resolvedCodec.cacheKey,
-    model:
-      typeof request.providerOptions?.model === 'string'
-        ? (request.providerOptions.model as string)
-        : (defaultModel ?? 'gpt-image-2'),
+    model: request.model?.modelId,
     imageCount: request.images?.length ?? 0,
     imageReferenceKinds: (request.images ?? []).map((asset) => summarizeAssetReferenceKind(asset)),
     maskReferenceKind: summarizeAssetReferenceKind(request.maskImage),
@@ -270,12 +266,12 @@ export function createImageEndpointProvider(): Provider<ImageEndpointProviderCon
           : undefined;
 
       if (resolvedEditCodec !== undefined) {
-        logEditRequestSummary(args.logger, request, resolvedEditCodec, config.defaultModel);
+        logEditRequestSummary(args.logger, request, resolvedEditCodec);
       }
 
       const body =
         request.operation === 'text_to_image'
-          ? buildRequestBody(request, config.defaultModel)
+          ? buildRequestBody(request)
           : undefined;
 
       // 付费生成请求：按 provider 能力解析保守重试策略与可选 idempotency key。
@@ -343,7 +339,7 @@ export function createImageEndpointProvider(): Provider<ImageEndpointProviderCon
             if (!endpointConfig) {
               throw createValidationError(`Unknown endpoint candidate: "${candidate.endpointId}".`);
             }
-            const builtRequest = buildImageEditHttpRequest(request, candidate.codecId, config.defaultModel);
+            const builtRequest = buildImageEditHttpRequest(request, candidate.codecId);
             successfulEditCodec = builtRequest.codec;
             requestDiagnostics = builtRequest.diagnostics;
             const response = await httpRequest(

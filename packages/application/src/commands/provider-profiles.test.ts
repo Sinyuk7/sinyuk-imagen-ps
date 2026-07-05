@@ -124,6 +124,7 @@ describe('provider profile alias contract', () => {
         secretRefs: {
           apiKey: 'secret:provider-profile:__prompt-optimizer__:apiKey',
         },
+        selectedModelIds: [],
         createdAt: '2026-06-15T00:00:00.000Z',
         updatedAt: '2026-06-15T00:00:00.000Z',
       },
@@ -133,6 +134,7 @@ describe('provider profile alias contract', () => {
         displayName: 'Image Relay',
         enabled: true,
         config: {},
+        selectedModelIds: [],
         createdAt: '2026-06-15T00:00:00.000Z',
         updatedAt: '2026-06-15T00:00:00.000Z',
       },
@@ -218,7 +220,7 @@ describe('provider profile alias contract', () => {
     }
   });
 
-  it('reports only selectable discovered models in connectivity count', async () => {
+  it('reports discovered models in connectivity count', async () => {
     _resetForTesting();
     const { repository } = createProfileRepository();
     const { adapter } = createSecretStorage();
@@ -255,7 +257,6 @@ describe('provider profile alias contract', () => {
       expect(result.value.connectivity?.modelCount).toBe(1);
       expect(result.value.connectivity?.models?.[0]).toMatchObject({
         id: 'openai/gpt-image-2',
-        supportStatus: 'selectable',
       });
     }
   });
@@ -386,11 +387,13 @@ describe('provider profile alias contract', () => {
     expect(base.ok).toBe(true);
     profiles[0] = {
       ...profiles[0]!,
-      models: [{ id: 'cached-model', displayName: 'Cached Model' }],
+      selectedModelIds: ['gpt-image-1'],
+      defaultModelId: 'gpt-image-1',
     };
     const beforeConfig = profiles[0]!.config;
     const beforeSecretRefs = profiles[0]!.secretRefs;
-    const beforeModels = profiles[0]!.models;
+    const beforeSelectedModelIds = profiles[0]!.selectedModelIds;
+    const beforeDefaultModelId = profiles[0]!.defaultModelId;
 
     const updated = await saveProviderProfile({
       profileId: 'profile-edit-system',
@@ -404,7 +407,8 @@ describe('provider profile alias contract', () => {
       expect(updated.value.systemInstruction).toBe('second\nline');
       expect(updated.value.config).toEqual(beforeConfig);
       expect(updated.value.secretRefs).toEqual(beforeSecretRefs);
-      expect(updated.value.models).toEqual(beforeModels);
+      expect(updated.value.selectedModelIds).toEqual(beforeSelectedModelIds);
+      expect(updated.value.defaultModelId).toEqual(beforeDefaultModelId);
     }
 
     const cleared = await saveProviderProfile({
@@ -419,7 +423,28 @@ describe('provider profile alias contract', () => {
       expect(cleared.value.systemInstruction).toBeUndefined();
       expect(cleared.value.config).toEqual(beforeConfig);
       expect(cleared.value.secretRefs).toEqual(beforeSecretRefs);
-      expect(cleared.value.models).toEqual(beforeModels);
+      expect(cleared.value.selectedModelIds).toEqual(beforeSelectedModelIds);
+      expect(cleared.value.defaultModelId).toEqual(beforeDefaultModelId);
+    }
+  });
+
+  it('rejects selected models that have no user config or official preset', async () => {
+    _resetForTesting();
+    const { repository } = createProfileRepository();
+    const { adapter } = createSecretStorage();
+    setProviderProfileRepository(repository);
+    setSecretStorageAdapter(adapter);
+
+    const saved = await saveProviderProfile({
+      ...mockProfileInput('profile-unconfigured', 'Unconfigured Model', 'gpt-image-2', 'key-unconfigured'),
+      selectedModelIds: ['unknown-selected-model'],
+      defaultModelId: 'unknown-selected-model',
+    });
+
+    expect(saved.ok).toBe(false);
+    if (!saved.ok) {
+      expect(saved.error.category).toBe('validation');
+      expect(saved.error.message).toContain('model "unknown-selected-model" is not configured');
     }
   });
 
@@ -436,6 +461,7 @@ describe('provider profile alias contract', () => {
       displayName: 'Legacy Profile',
       enabled: true,
       config: {},
+      selectedModelIds: [],
       createdAt: '2026-06-15T00:00:00.000Z',
       updatedAt: '2026-06-15T00:00:00.000Z',
     });

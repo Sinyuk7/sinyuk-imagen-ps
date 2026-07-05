@@ -50,14 +50,21 @@ describe('UXP CSS contract harness', () => {
 
   it('updates panel width and height modes from ResizeObserver geometry', async () => {
     const originalResizeObserver = globalThis.ResizeObserver;
-    let resizeCallback: ResizeObserverCallback | undefined;
+    const observerByTarget = new Map<Element, { readonly callback: ResizeObserverCallback }>();
     const observe = vi.fn();
     const disconnect = vi.fn();
     globalThis.ResizeObserver = class ResizeObserver {
+      readonly callback: ResizeObserverCallback;
+
       constructor(callback: ResizeObserverCallback) {
-        resizeCallback = callback;
+        this.callback = callback;
       }
-      observe = observe;
+
+      observe = (target: Element) => {
+        observe(target);
+        observerByTarget.set(target, this);
+      }
+
       disconnect = disconnect;
     } as typeof ResizeObserver;
 
@@ -77,8 +84,10 @@ describe('UXP CSS contract harness', () => {
       const panel = container.querySelector<HTMLElement>('[data-testid="uxp-css-contract-panel"]');
       expect(panel).not.toBeNull();
       expect(observe).toHaveBeenCalledWith(panel);
+      const panelObserver = observerByTarget.get(panel!);
+      expect(panelObserver).toBeDefined();
 
-      resizeCallback?.(
+      panelObserver?.callback(
         [{
           target: panel!,
           contentRect: { width: 300, height: 420 } as DOMRectReadOnly,
@@ -88,7 +97,7 @@ describe('UXP CSS contract harness', () => {
       expect(panel?.getAttribute('data-panel-width-mode')).toBe('compact');
       expect(panel?.getAttribute('data-panel-height-mode')).toBe('short');
 
-      resizeCallback?.(
+      panelObserver?.callback(
         [{
           target: panel!,
           contentRect: { width: 600, height: 800 } as DOMRectReadOnly,

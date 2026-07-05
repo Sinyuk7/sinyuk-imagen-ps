@@ -157,6 +157,8 @@ describe('profile dispatch runtime', () => {
         },
         secretRefs: { apiKey: 'secret:mock' },
         enabled: true,
+        selectedModelIds: ['gpt-image-2'],
+        defaultModelId: 'gpt-image-2',
         createdAt: '2026-06-15T00:00:00.000Z',
         updatedAt: '2026-06-15T00:00:00.000Z',
       }),
@@ -187,6 +189,50 @@ describe('profile dispatch runtime', () => {
     const image = result.value.output?.image as { assets?: Array<{ data?: unknown; storedRef?: unknown }> };
     expect(image.assets?.[0]?.data).toBeUndefined();
     expect(image.assets?.[0]?.storedRef).toMatchObject({ kind: 'hostObject', mimeType: 'image/png' });
+  });
+
+  it('resolves explicit providerOptions.model into canonical request.model before provider dispatch', async () => {
+    _resetForTesting();
+    setProviderProfileRepository(
+      createProfileRepository({
+        profileId: 'mock-profile',
+        apiFormat: 'openai-images',
+        displayName: 'Mock Profile',
+        config: {
+          apiFormat: 'openai-images',
+          displayName: 'Mock Profile',
+          connection: {
+            selectionMode: 'manual',
+            selectedEndpointId: 'primary',
+            endpoints: [{ id: 'primary', url: 'https://mock.local/v1', enabled: true }],
+          },
+          defaultModel: 'gpt-image-2',
+        },
+        secretRefs: { apiKey: 'secret:mock' },
+        enabled: true,
+        selectedModelIds: ['gpt-image-2', 'gpt-image-1'],
+        defaultModelId: 'gpt-image-2',
+        createdAt: '2026-06-15T00:00:00.000Z',
+        updatedAt: '2026-06-15T00:00:00.000Z',
+      }),
+    );
+    setSecretStorageAdapter(createSecretStorage());
+    mockOpenAiImagesFetch((_input, init) => {
+      expect(init?.body).toBeTypeOf('string');
+      const body = JSON.parse(String(init?.body)) as { readonly model?: string; readonly providerOptions?: unknown };
+      expect(body.model).toBe('gpt-image-1');
+    });
+
+    const result = await submitJob({
+      workflow: 'provider-generate',
+      input: {
+        profileId: 'mock-profile',
+        prompt: 'draw a square',
+        providerOptions: { model: 'gpt-image-1' },
+      },
+    });
+
+    expect(result.ok).toBe(true);
   });
 
   it('flushes terminal jobs to injected durable history without raw secret values', async () => {
@@ -452,6 +498,8 @@ describe('profile dispatch runtime', () => {
         },
         secretRefs: { apiKey: 'secret:mock' },
         enabled: true,
+        selectedModelIds: ['gpt-image-2'],
+        defaultModelId: 'gpt-image-2',
         createdAt: '2026-06-15T00:00:00.000Z',
         updatedAt: '2026-06-15T00:00:00.000Z',
       }),
@@ -510,6 +558,8 @@ describe('profile dispatch runtime', () => {
         },
         secretRefs: { apiKey: 'secret:mock' },
         enabled: true,
+        selectedModelIds: ['gpt-image-2'],
+        defaultModelId: 'gpt-image-2',
         createdAt: '2026-06-15T00:00:00.000Z',
         updatedAt: '2026-06-15T00:00:00.000Z',
       }),

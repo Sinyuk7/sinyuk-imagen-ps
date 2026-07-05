@@ -28,10 +28,18 @@ surface apps -> application/session -> core-engine + providers
 - `packages/application` is the shared application/session package.
 - `apps/app` and `packages/providers` are stable boundaries unless a loop slice explicitly allows changes.
 - `apps/app` is a dual-runtime surface: one shared UXP-safe React UI consumed by a Photoshop UXP shell and a Chrome browser shell. See `apps/app/AGENTS.md`.
-- Image-model selection is repo-owned. `packages/providers` owns the shared
-  local image-model capability catalog and resolver; remote `discoverModels()`
-  answers are only an availability filter over that local catalog, not the
-  authoritative picker source.
+- Image-model discovery and execution are split by boundary. `packages/providers`
+  discovery returns only remote model facts, preserving unknown IDs. Official
+  model presets live in the provider catalog as `(apiFormat, modelId)` templates
+  with `requestStrategyId` and output constraints. `packages/application` owns
+  profile-local reconciliation over discovery cache, user model configs,
+  official presets, and profile `selectedModelIds/defaultModelId`.
+- Model execution is resolved before provider dispatch. The application picks
+  the explicit request model, then `defaultModelId`, then provider fallback,
+  resolves it through user config before official preset, and injects
+  `request.model`. Production provider request builders consume `request.model`
+  and `requestStrategyId`; they must not infer execution config from model ID
+  alone or from `providerOptions.model`.
 - `gemini-generate-content` is a distinct API format and local catalog
   namespace inside `packages/providers`. The same `modelId` may coexist across
   API formats such as `openai-chat-completions` and

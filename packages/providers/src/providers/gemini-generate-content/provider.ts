@@ -156,10 +156,7 @@ export function createGeminiGenerateContentProvider(): Provider<GeminiGenerateCo
         component: 'provider',
         provider_id: geminiGenerateContentDescriptor.id,
       });
-      const builtRequest = buildGeminiGenerateContentRequest({
-        request,
-        defaultModel: config.defaultModel,
-      });
+      const builtRequest = buildGeminiGenerateContentRequest({ request });
       const responseFormatImage = recordField(recordField(builtRequest.body.generationConfig.responseFormat)?.image);
       const legacyImageConfig = recordField(builtRequest.body.generationConfig.imageConfig);
       for (const diagnostic of builtRequest.diagnostics) {

@@ -1,6 +1,7 @@
 import type { ImageEditCodec, ProviderDescriptor } from '../../contract/provider.js';
 import type { CanonicalImageJobRequest } from '../../contract/request.js';
 import type { ImageEndpointProviderConfig } from '../../providers/image-endpoint/config-schema.js';
+import { assertProviderModelExecution } from '../../contract/image-model-capability.js';
 import type { ImageEditRequestCodec } from './build-request.js';
 import { resolveImageEditRequestCodecById } from './build-request.js';
 
@@ -133,10 +134,11 @@ function summarizeImageReferenceKinds(
   return kinds[0] === 'unknown' ? 'mixed' : (kinds[0] as 'inline-data' | 'url' | 'fileId');
 }
 
-function resolveModel(request: CanonicalImageJobRequest, defaultModel?: string): string {
-  return typeof request.providerOptions?.model === 'string'
-    ? String(request.providerOptions.model)
-    : (defaultModel ?? 'gpt-image-2');
+function resolveModel(request: CanonicalImageJobRequest): string {
+  return assertProviderModelExecution({
+    execution: request.model,
+    apiFormat: 'openai-images',
+  }).modelId;
 }
 
 function normalizeExtraHeaders(extraHeaders: ImageEndpointProviderConfig['extraHeaders']): {
@@ -260,7 +262,7 @@ export function createImageEditCompatibilityFingerprint(args: {
     providerFamily: args.descriptor.family,
     operation: args.request.operation,
     targetPath: args.targetPath,
-    model: resolveModel(args.request, args.config.defaultModel),
+    model: resolveModel(args.request),
     connection: {
       selectionMode: args.config.connection.selectionMode,
       ...(args.config.connection.selectedEndpointId ? { selectedEndpointId: args.config.connection.selectedEndpointId } : {}),

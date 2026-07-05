@@ -2,6 +2,7 @@ import type {
   Asset,
   DurableJobRecord,
   Job,
+  ProfileModelItem,
   ProviderModelInfo,
   ProviderProfile,
   ProviderProfileConfig,
@@ -28,6 +29,7 @@ interface ChromeRuntimeStorage {
   readonly secrets: { setSecret(key: string, value: string): Promise<void> };
   readonly history: { put(record: DurableJobRecord): Promise<void>; list(): Promise<readonly DurableJobRecord[]> };
   readonly tasks: { put(record: TaskRecord): Promise<void> };
+  readonly modelDiscovery: { put(cache: { readonly profileId: string; readonly modelIds: readonly string[]; readonly refreshedAt: string }): Promise<void> };
 }
 
 export interface ChromeTestHarnessConfig {
@@ -69,6 +71,15 @@ const MOCK_SECRET_REF = `secret:provider-profile:${MOCK_PROFILE_ID}:apiKey`;
 const FIXED_NOW = '2026-06-25T00:00:00.000Z';
 const MOCK_MODEL_ID = 'gpt-image-2';
 const MOCK_MODELS: readonly ProviderModelInfo[] = [{ id: MOCK_MODEL_ID, displayName: 'GPT Image 2' }];
+const MOCK_DISCOVERED_MODELS = [{ id: MOCK_MODEL_ID }] as const;
+const MOCK_PROFILE_MODELS: readonly ProfileModelItem[] = [{
+  modelId: MOCK_MODEL_ID,
+  discovered: true,
+  configured: true,
+  selected: true,
+  default: true,
+  configSource: 'catalog',
+}];
 const MOCK_RESULT_PNG_BASE64 = 'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR4nGNgYGBgAAAABQABpfZFQAAAAABJRU5ErkJggg==';
 let mockJobSequence = 0;
 
@@ -134,6 +145,8 @@ function mockProfile(options?: { readonly failMode?: ChromeTestMockFailureMode; 
     enabled: true,
     config,
     secretRefs: { apiKey: MOCK_SECRET_REF },
+    selectedModelIds: [MOCK_MODEL_ID],
+    defaultModelId: MOCK_MODEL_ID,
     createdAt: FIXED_NOW,
     updatedAt: FIXED_NOW,
   };
@@ -233,6 +246,16 @@ function initialRecords(config: ChromeTestHarnessConfig): Partial<Record<ChromeS
     secrets: config.seedProfile ? [{ key: MOCK_SECRET_REF, value: 'mock-key' }] : [],
     history: config.seedHistory ? seededHistoryRecords().map((record) => ({ key: record.jobId, value: record })) : [],
     tasks: config.seedHistory ? seededTaskRecords().map((record) => ({ key: record.taskId, value: record })) : [],
+    modelDiscovery: config.seedProfile
+      ? [{
+          key: MOCK_PROFILE_ID,
+          value: {
+            profileId: MOCK_PROFILE_ID,
+            modelIds: MOCK_DISCOVERED_MODELS.map((model) => model.id),
+            refreshedAt: FIXED_NOW,
+          },
+        }]
+      : [],
   };
 }
 
@@ -266,6 +289,11 @@ async function generatedImageFile(): Promise<File> {
 async function seedMockProfile(storage: ChromeRuntimeStorage, options?: { readonly failMode?: ChromeTestMockFailureMode; readonly displayName?: string }): Promise<void> {
   await storage.secrets.setSecret(MOCK_SECRET_REF, 'mock-key');
   await storage.profiles.save(mockProfile(options));
+  await storage.modelDiscovery.put({
+    profileId: MOCK_PROFILE_ID,
+    modelIds: MOCK_DISCOVERED_MODELS.map((model) => model.id),
+    refreshedAt: FIXED_NOW,
+  });
 }
 
 async function seedHistory(storage: ChromeRuntimeStorage): Promise<void> {
@@ -386,6 +414,7 @@ function delay(ms: number): Promise<void> {
  */
 export function createChromeTestHarnessRuntime(config: ChromeTestHarnessConfig): ChromeTestHarnessRuntime {
   let filePickerMode = config.filePickerMode;
+  let installedStorage: ChromeRuntimeStorage | undefined;
   const backend = config.storageMode === 'indexed-db'
     ? createBrowserIndexedDbBackend({ databaseName: config.databaseName })
     : createMemoryIndexedDbBackend({ initial: initialRecords(config) });
@@ -436,20 +465,26 @@ export function createChromeTestHarnessRuntime(config: ChromeTestHarnessConfig):
           const profile = await commands.getProviderProfile(profileId);
           if (profile.ok && profile.value.profileId === MOCK_PROFILE_ID) {
             await delay(100);
-            return { ok: true, value: MOCK_MODELS };
+            await installedStorage?.modelDiscovery.put({
+              profileId,
+              modelIds: MOCK_DISCOVERED_MODELS.map((model) => model.id),
+              refreshedAt: new Date().toISOString(),
+            });
+            return { ok: true, value: MOCK_DISCOVERED_MODELS };
           }
           return commands.refreshProfileModels(profileId);
         },
         async refreshDraftProfileModels(input) {
           if (input.apiFormat === 'openai-images' && hasMockLocalEndpoint(input.config)) {
             await delay(100);
-            return { ok: true, value: MOCK_MODELS };
+            return { ok: true, value: MOCK_PROFILE_MODELS };
           }
           return commands.refreshDraftProfileModels(input);
         },
       };
     },
     install(storage) {
+      installedStorage = storage;
       const api: ChromeTestHarnessApi = {
         async resetStorage() {
           await backend.clear?.();

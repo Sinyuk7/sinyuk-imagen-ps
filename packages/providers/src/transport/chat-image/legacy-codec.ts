@@ -6,8 +6,8 @@ import { parseChatImageResponse } from './parse-response.js';
 export const chatCompletionsImageLegacyCodec: ChatImageWireCodec = {
   id: 'chat-completions-image-legacy',
 
-  buildRequest(request, context) {
-    const built = buildChatImageRequest(request, context.defaultModel);
+  buildRequest(request) {
+    const built = buildChatImageRequest(request);
     return {
       method: 'POST',
       path: '/chat/completions',

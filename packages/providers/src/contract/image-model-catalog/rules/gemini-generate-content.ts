@@ -48,6 +48,7 @@ export const GEMINI_GENERATE_CONTENT_MODEL_CAPABILITIES = Object.freeze([
       allowAsDefault: true,
     },
     appliesToProviders: ['gemini-generate-content'],
+    requestStrategyId: 'gemini-generate-content-image-config-legacy',
     constraintStrategy: GEMINI_GENERATE_CONTENT_LITE_IMAGE_STRATEGY,
   },
   {

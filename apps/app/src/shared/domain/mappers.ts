@@ -210,14 +210,13 @@ export function outputText(output: unknown): string | undefined {
 }
 
 export function profileToProviderRow(profile: ProviderProfile): ProviderRowVM {
-  const defaultModel = profile.config.defaultModel;
   return {
     profileId: profile.profileId,
     apiFormat: profile.apiFormat,
     displayName: profile.displayName,
     enabled: profile.enabled,
     apiFormatLabel: formatApiFormat(profile.apiFormat),
-    ...(typeof defaultModel === 'string' && defaultModel.length > 0 ? { defaultModel } : {}),
+    ...(profile.defaultModelId !== undefined && profile.defaultModelId.length > 0 ? { defaultModel: profile.defaultModelId } : {}),
   };
 }
 

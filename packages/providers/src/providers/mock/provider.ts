@@ -125,12 +125,10 @@ export function createMockProvider(
       const { config, request, signal } = args;
       const delayMs = config.delayMs ?? 0;
 
-      // Model selection: three-tier fallback chain
-      // (`request.providerOptions.model` → `config.defaultModel` → 硬编码默认值)。
+      // Model selection: resolved request model → provider fallback → hard default.
       // 注意：descriptor.defaultModels 仅供 listProfileModels
       // 等 model-discovery 命令使用，**不**参与此处 effective model 解析。
-      const effectiveModel =
-        (request.providerOptions?.model as string | undefined) ?? config.defaultModel ?? 'mock-image-v1';
+      const effectiveModel = request.model?.modelId ?? config.defaultModel ?? 'mock-image-v1';
 
       return new Promise((resolve, reject) => {
         const activeSignal = signal;

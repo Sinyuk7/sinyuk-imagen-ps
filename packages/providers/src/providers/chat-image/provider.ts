@@ -162,7 +162,7 @@ export function createChatImageProvider(): Provider<ChatImageProviderConfig, Moc
         provider_id: chatImageDescriptor.id,
       });
       const requestCodec = resolveChatImageWireCodec(chatImageDescriptor);
-      const builtRequest = requestCodec.buildRequest(request, { defaultModel: config.defaultModel });
+      const builtRequest = requestCodec.buildRequest(request, {});
       const { body } = builtRequest;
       const imageConfig = recordField(body.image_config);
       const requestedOutputFormat = stringField(request.output?.outputFormat);

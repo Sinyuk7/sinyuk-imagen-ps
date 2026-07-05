@@ -48,24 +48,33 @@ export type {
   ImageOutputConstraintStrategy,
   ImageOutputVariant,
   ImageSizePreset,
+  ModelOutputConfig,
   ModelBrand,
   ModelMatcher,
   ModelMatcherPattern,
+  OfficialModelPreset,
+  RequestStrategy,
+  RequestStrategyId,
   ResolvedImageModelOutput,
   ResolvedImageModelRule,
 } from './image-model-capability.js';
 export {
   ImageModelContractError,
+  assertProviderModelExecution,
+  getOfficialModelPreset,
+  getRequestStrategy,
   getSupportedImageOutputSizePresets,
   isSupportedImageModelOutput,
   listLocalCatalogModels,
+  listOfficialModelPresets,
+  listRequestStrategies,
   providerUsesImageModelCatalog,
   resolveImageModelOutput,
   resolveImageModelRule,
   summarizeImageModelCapabilities,
   validateImageModelCatalog,
 } from './image-model-capability.js';
-export type { AssetRef, CanonicalImageJobRequest, ProviderOutputOptions, ProviderRequest } from './request.js';
+export type { AssetRef, CanonicalImageJobRequest, ProviderModelExecution, ProviderOutputOptions, ProviderRequest } from './request.js';
 export type { ProviderDiagnostic, ProviderDiagnosticLevel, ProviderDiagnostics } from './diagnostics.js';
 export type {
   BalanceChange,

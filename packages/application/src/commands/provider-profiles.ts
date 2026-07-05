@@ -6,6 +6,7 @@ import {
   getRuntime,
   getSecretStorageAdapter,
   getRuntimeLogger,
+  getUserModelConfigRepository,
 } from '../runtime.js';
 import type {
   CommandResult,
@@ -24,7 +25,7 @@ import {
   resolveProfileApiFormat,
 } from './api-format-profile.js';
 import { invalidateProfileBillingState } from './profile-billing.js';
-import { assertSupportedDraftDefaultModel, assertSupportedProfileDefaultModel } from './default-model-validation.js';
+import { assertProfileModelSelectionIsConfigured } from './model-config-resolution.js';
 
 function errorMessage(error: unknown, fallback: string): string {
   if (error instanceof Error) {
@@ -58,6 +59,7 @@ function stripSecretConfigFields(
   const next = { ...config };
   delete next.providerId;
   delete next.family;
+  delete next.defaultModel;
   for (const name of Object.keys(secretRefs ?? {})) {
     delete next[name];
   }
@@ -291,8 +293,6 @@ export async function saveProviderProfile(input: ProviderProfileInput): Promise<
     }
   }
   const writtenSecrets = new Map<string, string | undefined>();
-  const descriptorDefaults = provider.describe().defaultModels ?? [];
-
   try {
     const secretStorage = getSecretStorageAdapter();
     for (const [name, value] of Object.entries(input.secretValues ?? {})) {
@@ -311,12 +311,6 @@ export async function saveProviderProfile(input: ProviderProfileInput): Promise<
       apiFormat,
       sanitizeBillingConfig(mergeProfileConfig(existing?.config, input.config), secretRefs) as ProviderProfileConfig,
     );
-    assertSupportedDraftDefaultModel({
-      profileId: input.profileId,
-      apiFormat,
-      config: mergedConfig,
-      descriptor: provider.describe(),
-    });
     const nextConfig = {
       ...mergedConfig,
       displayName,
@@ -365,7 +359,7 @@ export async function saveProviderProfile(input: ProviderProfileInput): Promise<
       ...profile,
       config: persistedConfig,
     };
-    assertSupportedProfileDefaultModel({ profile: persistedProfile, descriptor: provider.describe(), descriptorDefaults });
+    await assertProfileModelSelectionIsConfigured(persistedProfile, getUserModelConfigRepository());
 
     await getProviderProfileRepository().save(persistedProfile);
     await Promise.allSettled(Array.from(removedSecretRefs, (ref) => secretStorage.deleteSecret(ref)));

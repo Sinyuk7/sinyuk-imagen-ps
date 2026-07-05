@@ -1,9 +1,11 @@
 import {
   setAssetStore,
   setJobHistoryStore,
+  setModelDiscoveryCacheRepository,
   setProviderProfileRepository,
   setSecretStorageAdapter,
   setTaskStore,
+  setUserModelConfigRepository,
   configureRuntimeLogging,
   getRuntimeLogger,
 } from '@imagen-ps/application';
@@ -25,6 +27,7 @@ import { createUxpStorageAdmin } from '../../adapters/uxp/uxp-job-history-adapte
 import { createUxpActiveImageProfileStore } from '../../adapters/uxp/uxp-active-image-profile-store';
 import { createUxpProviderProfileRepository } from '../../adapters/uxp/uxp-provider-profile-repository';
 import { createUxpSecretStorageAdapter } from '../../adapters/uxp/uxp-secret-storage-adapter';
+import { createUxpModelDiscoveryCacheRepository, createUxpUserModelConfigRepository } from '../../adapters/uxp/uxp-model-repositories';
 import { createUxpGenerationSettingsStore } from '../../adapters/uxp/uxp-generation-settings-store';
 import { createUxpPromptSettingsStore } from '../../adapters/uxp/uxp-prompt-settings-store';
 import { cleanupUxpLogs, createUxpLogSink, writeUxpUiCheckpoint, writeUxpUiFailure } from '../../adapters/uxp/uxp-log-sink';
@@ -98,6 +101,8 @@ export function createPluginHostShell(): PluginHostShell {
     const jobHistoryStore = createUxpJobHistoryStore(uxpModules);
     const taskStore = createUxpTaskStore(uxpModules);
     const assetStore = createUxpAssetStore(uxpModules);
+    const modelDiscoveryCacheRepository = createUxpModelDiscoveryCacheRepository(uxpModules);
+    const userModelConfigRepository = createUxpUserModelConfigRepository(uxpModules);
     const storageAdmin = createUxpStorageAdmin(uxpModules);
     const generationSettings = createUxpGenerationSettingsStore(uxpModules);
     const promptSettings = createUxpPromptSettingsStore(uxpModules);
@@ -116,6 +121,8 @@ export function createPluginHostShell(): PluginHostShell {
     setJobHistoryStore(jobHistoryStore);
     setTaskStore(taskStore);
     setAssetStore(assetStore);
+    setModelDiscoveryCacheRepository(modelDiscoveryCacheRepository);
+    setUserModelConfigRepository(userModelConfigRepository);
 
     const hostLogger = logger.child({ component: 'host' });
     const retentionPolicy = defaultTaskLinkedRetentionPolicy();
