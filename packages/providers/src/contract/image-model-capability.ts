@@ -131,7 +131,7 @@ export interface ImageOutputMatrixCell {
 /** @deprecated 保留名称供 app 迁移；语义已是 capability projection，不含 provider wire payload。 */
 export type ImageOutputMatrix = ImageOutputUiModel;
 
-function isMatrixSizePreset(value: ImageOutputImageSize): value is Exclude<ImageSizePreset, '512'> {
+function isMatrixSizePreset(value: ImageOutputImageSize): value is ImageSizePreset {
   return value !== 'auto' && value !== 'use-input-size';
 }
 
@@ -139,13 +139,12 @@ export type RequestStrategyId =
   | 'image-endpoint-default'
   | 'image-endpoint-variant'
   | 'chat-image-default'
-  | 'gemini-generate-content-response-format-image'
-  | 'gemini-generate-content-image-config-legacy';
+  | 'gemini-generate-content-image-config';
 
 export interface RequestStrategy {
   readonly id: RequestStrategyId;
   readonly apiFormat: ApiFormat;
-  readonly outputCodecId: 'image-endpoint' | 'chat-image-label' | 'gemini-response-format-image' | 'gemini-image-config-legacy';
+  readonly outputCodecId: 'image-endpoint' | 'chat-image-label' | 'gemini-image-config';
   readonly wireRevisionId?: string;
 }
 
@@ -184,16 +183,10 @@ const REQUEST_STRATEGIES = Object.freeze([
     outputCodecId: 'chat-image-label',
   },
   {
-    id: 'gemini-generate-content-response-format-image',
+    id: 'gemini-generate-content-image-config',
     apiFormat: 'gemini-generate-content',
-    outputCodecId: 'gemini-response-format-image',
-    wireRevisionId: 'response-format-image',
-  },
-  {
-    id: 'gemini-generate-content-image-config-legacy',
-    apiFormat: 'gemini-generate-content',
-    outputCodecId: 'gemini-image-config-legacy',
-    wireRevisionId: 'image-config-legacy',
+    outputCodecId: 'gemini-image-config',
+    wireRevisionId: 'image-config',
   },
 ] as const satisfies readonly RequestStrategy[]);
 
@@ -225,35 +218,6 @@ export interface ModelMatcher {
   readonly patterns?: readonly ModelMatcherPattern[];
 }
 
-export interface ImageOutputVariant {
-  readonly operation: ImageOperation;
-  readonly preset: ImageSizePreset;
-  readonly aspectRatio: ImageAspectRatio;
-  readonly wireSize?: string;
-  readonly useProviderAuto?: boolean;
-}
-
-interface ConstraintOperationSupport {
-  readonly presets: readonly ImageSizePreset[];
-  readonly aspectRatios: readonly ImageAspectRatio[];
-  readonly omitSizeForAspectRatios?: readonly ImageAspectRatio[];
-  readonly omitAspectRatioForAspectRatios?: readonly ImageAspectRatio[];
-}
-
-interface PixelSideConstraintStrategy {
-  readonly kind: 'pixel-side';
-  readonly sideByPreset: Readonly<Record<ImageSizePreset, number>>;
-  readonly operations: Readonly<Record<ImageOperation, ConstraintOperationSupport>>;
-}
-
-interface ChatImageLabelConstraintStrategy {
-  readonly kind: 'chat-image-label';
-  readonly labelByPreset: Readonly<Record<ImageSizePreset, string>>;
-  readonly operations: Readonly<Record<ImageOperation, ConstraintOperationSupport>>;
-}
-
-export type ImageOutputConstraintStrategy = PixelSideConstraintStrategy | ChatImageLabelConstraintStrategy;
-
 export interface ImageModelCapability {
   readonly ruleId: string;
   readonly match: ModelMatcher;
@@ -268,8 +232,6 @@ export interface ImageModelCapability {
   readonly outputExposure?: UserModelOutputExposure;
   readonly outputMatrix?: readonly ImageOutputMatrix[];
   readonly editInput?: EditInputCapability;
-  readonly variants?: readonly ImageOutputVariant[];
-  readonly constraintStrategy?: ImageOutputConstraintStrategy;
   readonly discovery?: {
     readonly requireRemotePresence?: boolean;
   };
@@ -292,8 +254,6 @@ export interface ResolvedImageModelOutput {
   readonly cell?: ImageOutputMatrixCell;
   readonly selection?: ImageOutputSelection;
   readonly resolvedOutput?: ProviderResolvedOutput;
-  readonly wireSize?: string;
-  readonly wireAspectRatio?: Exclude<ImageAspectRatio, 'auto' | 'source'>;
 }
 
 export class ImageModelContractError extends Error {
@@ -357,7 +317,7 @@ function requestStrategyIdForCapability(
     case 'chat-image':
       return 'chat-image-default';
     case 'gemini-generate-content':
-      return 'gemini-generate-content-response-format-image';
+      return 'gemini-generate-content-image-config';
   }
 }
 
@@ -368,21 +328,6 @@ function outputConfigForCapability(capability: ImageModelCapability): ModelOutpu
       sizes: Array.from(new Set(capability.outputMatrix.flatMap((matrix) => matrix.imageSizes.map((option) => option.id)))),
       outputFormats: Array.from(new Set(capability.outputMatrix.flatMap((matrix) => matrix.outputFormats.map((option) => option.id)))),
       matrices: capability.outputMatrix,
-    };
-  }
-  if (capability.variants !== undefined) {
-    return {
-      aspectRatios: Array.from(new Set(capability.variants.map((variant) => variant.aspectRatio))),
-      sizes: Array.from(new Set(capability.variants.map((variant) => variant.preset))),
-      outputFormats: ['auto', 'png', 'jpeg', 'webp'],
-    };
-  }
-  if (capability.constraintStrategy !== undefined) {
-    const support = Object.values(capability.constraintStrategy.operations);
-    return {
-      aspectRatios: Array.from(new Set(support.flatMap((entry) => entry.aspectRatios))),
-      sizes: Array.from(new Set(support.flatMap((entry) => entry.presets))),
-      outputFormats: ['auto', 'png', 'jpeg', 'webp'],
     };
   }
   return {
@@ -433,24 +378,11 @@ function buildProviderModelInfo(
   };
 }
 
-function operationSupportFromStrategy(
-  strategy: ImageOutputConstraintStrategy,
-  operation: ImageOperation,
-): ConstraintOperationSupport {
-  return strategy.operations[operation];
-}
-
 function assertOperationSupported(
   rule: ResolvedImageModelRule,
   operation: ImageOperation,
 ): void {
   if (rule.capability.outputMatrix?.some((matrix) => matrix.operation === operation)) {
-    return;
-  }
-  if (rule.capability.variants?.some((variant) => variant.operation === operation)) {
-    return;
-  }
-  if (rule.capability.constraintStrategy !== undefined) {
     return;
   }
   throw new ImageModelContractError(
@@ -548,21 +480,7 @@ function sizePresetsForOperation(
       new Set(matrix.cells.map((cell) => cell.imageSize).filter(isMatrixSizePreset)),
     );
   }
-  if (capability.variants !== undefined) {
-    return Array.from(
-      new Set(
-        capability.variants
-          .filter((variant) => variant.operation === operation)
-          .map((variant) => variant.preset),
-      ),
-    );
-  }
-
-  if (capability.constraintStrategy === undefined) {
-    return 'unknown';
-  }
-
-  return operationSupportFromStrategy(capability.constraintStrategy, operation).presets;
+  return 'unknown';
 }
 
 function operationCapability(
@@ -816,36 +734,6 @@ export function assertProviderModelExecution(args: {
   return args.execution;
 }
 
-function resolveVariantOutput(args: {
-  readonly rule: ResolvedImageModelRule;
-  readonly operation: ImageOperation;
-  readonly preset: ImageSizePreset;
-  readonly aspectRatio: ImageAspectRatio;
-}): ResolvedImageModelOutput {
-  const variant = args.rule.capability.variants?.find(
-    (candidate) =>
-      candidate.operation === args.operation &&
-      candidate.preset === args.preset &&
-      candidate.aspectRatio === args.aspectRatio,
-  );
-  if (!variant) {
-    throw new ImageModelContractError(
-      `Model "${args.rule.concreteModelId}" does not support preset "${args.preset}" with aspect ratio "${args.aspectRatio}" for "${args.operation}".`,
-      {
-        modelId: args.rule.concreteModelId,
-        ruleId: args.rule.ruleId,
-        operation: args.operation,
-        preset: args.preset,
-        aspectRatio: args.aspectRatio,
-      },
-    );
-  }
-  return {
-    rule: args.rule,
-    ...(variant.wireSize !== undefined ? { wireSize: variant.wireSize } : {}),
-  };
-}
-
 function assertOutputFormatSupported(args: {
   readonly rule: ResolvedImageModelRule;
   readonly outputFormat: ImageOutputFormat;
@@ -981,30 +869,10 @@ function assertRatioResolutionSupported(args: {
   }
 }
 
-function responseFormatAspectRatio(ratio: Exclude<ImageAspectRatio, 'auto' | 'source'>): string {
-  switch (ratio) {
-    case '1:1':
-      return 'ASPECT_RATIO_ONE_BY_ONE';
-    case '16:9':
-      return 'ASPECT_RATIO_SIXTEEN_NINE';
-    case '9:16':
-      return 'ASPECT_RATIO_NINE_SIXTEEN';
-  }
-}
-
-function responseFormatImageSize(size: ImageSizePreset): string {
-  switch (size) {
-    case '1k':
-      return 'IMAGE_SIZE_ONE_K';
-    case '2k':
-      return 'IMAGE_SIZE_TWO_K';
-    case '4k':
-      return 'IMAGE_SIZE_FOUR_K';
-  }
-}
-
 function imageConfigSize(size: ImageSizePreset): string {
   switch (size) {
+    case '512':
+      return '512';
     case '1k':
       return '1K';
     case '2k':
@@ -1012,10 +880,6 @@ function imageConfigSize(size: ImageSizePreset): string {
     case '4k':
       return '4K';
   }
-}
-
-function geminiMimeFields(outputFormat: ImageOutputFormat): Readonly<Record<string, unknown>> {
-  return outputFormat === 'jpeg' ? { mimeType: 'IMAGE_JPEG' } : {};
 }
 
 function selectionForOutput(rule: ResolvedImageModelRule, output: ProviderOutputOptions | undefined): ImageOutputSelection {
@@ -1106,7 +970,6 @@ function buildResolvedOutputFromSelection(args: {
     case 'provider-default':
       return {
         kind: 'gemini-generate-content',
-        responseFormatImage: geminiMimeFields(selection.outputFormat),
         imageConfig: {},
       };
     case 'ratio-resolution':
@@ -1117,11 +980,6 @@ function buildResolvedOutputFromSelection(args: {
       });
       return {
         kind: 'gemini-generate-content',
-        responseFormatImage: {
-          imageSize: responseFormatImageSize(selection.geometry.resolution),
-          aspectRatio: responseFormatAspectRatio(selection.geometry.aspectRatio),
-          ...geminiMimeFields(selection.outputFormat),
-        },
         imageConfig: {
           imageSize: imageConfigSize(selection.geometry.resolution),
           aspectRatio: selection.geometry.aspectRatio,
@@ -1192,79 +1050,6 @@ function resolveMatrixOutput(args: {
   };
 }
 
-function ratioSize(side: number, aspectRatio: ImageAspectRatio): string {
-  switch (aspectRatio) {
-    case '16:9':
-      return `${side}x${Math.round(side * 9 / 16)}`;
-    case '9:16':
-      return `${Math.round(side * 9 / 16)}x${side}`;
-    case 'auto':
-    case 'source':
-    case '1:1':
-    default:
-      return `${side}x${side}`;
-  }
-}
-
-function resolveConstraintOutput(args: {
-  readonly rule: ResolvedImageModelRule;
-  readonly operation: ImageOperation;
-  readonly preset: ImageSizePreset;
-  readonly aspectRatio: ImageAspectRatio;
-}): ResolvedImageModelOutput {
-  const strategy = args.rule.capability.constraintStrategy;
-  if (!strategy) {
-    throw new ImageModelContractError(
-      `Model "${args.rule.concreteModelId}" is missing a constraint strategy.`,
-      {
-        modelId: args.rule.concreteModelId,
-        ruleId: args.rule.ruleId,
-      },
-    );
-  }
-
-  const support = operationSupportFromStrategy(strategy, args.operation);
-  if (!support.presets.includes(args.preset)) {
-    throw new ImageModelContractError(
-      `Model "${args.rule.concreteModelId}" does not support preset "${args.preset}" for "${args.operation}".`,
-      {
-        modelId: args.rule.concreteModelId,
-        ruleId: args.rule.ruleId,
-        operation: args.operation,
-        preset: args.preset,
-      },
-    );
-  }
-  if (!support.aspectRatios.includes(args.aspectRatio)) {
-    throw new ImageModelContractError(
-      `Model "${args.rule.concreteModelId}" does not support aspect ratio "${args.aspectRatio}" for "${args.operation}".`,
-      {
-        modelId: args.rule.concreteModelId,
-        ruleId: args.rule.ruleId,
-        operation: args.operation,
-        aspectRatio: args.aspectRatio,
-      },
-    );
-  }
-
-  if (strategy.kind === 'pixel-side') {
-    const omitSize = support.omitSizeForAspectRatios?.includes(args.aspectRatio) === true;
-    return {
-      rule: args.rule,
-      ...(omitSize ? {} : { wireSize: ratioSize(strategy.sideByPreset[args.preset], args.aspectRatio) }),
-    };
-  }
-
-  const omitAspectRatio = support.omitAspectRatioForAspectRatios?.includes(args.aspectRatio) === true;
-  return {
-    rule: args.rule,
-    wireSize: strategy.labelByPreset[args.preset],
-    ...(omitAspectRatio || args.aspectRatio === 'auto' || args.aspectRatio === 'source'
-      ? {}
-      : { wireAspectRatio: args.aspectRatio }),
-  };
-}
-
 export function resolveImageModelOutput(args: {
   readonly providerId: ImageCatalogProviderId;
   readonly modelId: string;
@@ -1289,26 +1074,7 @@ export function resolveImageModelOutput(args: {
     return matrixOutput;
   }
 
-  const preset = args.output?.sizePreset === '512' ? undefined : args.output?.sizePreset;
-  if (preset === undefined) {
-    return { rule };
-  }
-
-  const aspectRatio = (args.output?.aspectRatio ?? 'auto') as ImageAspectRatio;
-  if (rule.capability.variants !== undefined) {
-    return resolveVariantOutput({
-      rule,
-      operation: args.operation,
-      preset,
-      aspectRatio,
-    });
-  }
-  return resolveConstraintOutput({
-    rule,
-    operation: args.operation,
-    preset,
-    aspectRatio,
-  });
+  return { rule };
 }
 
 /** Builder 用 canonical selection + normalized input context 解析 provider payload。 */
@@ -1371,25 +1137,7 @@ export function getSupportedImageOutputSizePresets(args: {
     );
   }
 
-  if (rule.capability.variants !== undefined) {
-    return Array.from(
-      new Set(
-        rule.capability.variants
-          .filter(
-            (variant) =>
-              variant.operation === args.operation && variant.aspectRatio === aspectRatio,
-          )
-          .map((variant) => variant.preset),
-      ),
-    );
-  }
-
-  const strategy = rule.capability.constraintStrategy;
-  if (!strategy) {
-    return [];
-  }
-  const support = operationSupportFromStrategy(strategy, args.operation);
-  return support.aspectRatios.includes(aspectRatio) ? support.presets : [];
+  return [];
 }
 
 export function validateImageModelCatalog(
@@ -1413,18 +1161,10 @@ export function validateImageModelCatalog(
     if (capability.outputExposure === undefined) {
       errors.push(`Rule "${capability.ruleId}" is missing outputExposure.`);
     }
-    if (capability.outputMatrix === undefined && capability.variants === undefined && capability.constraintStrategy === undefined) {
+    if (capability.outputMatrix === undefined) {
       errors.push(`Rule "${capability.ruleId}" is missing output projection.`);
     }
     validateOutputMatrices(capability, errors);
-    const variantKeys = new Set<string>();
-    for (const variant of capability.variants ?? []) {
-      const key = `${variant.operation}:${variant.preset}:${variant.aspectRatio}`;
-      if (variantKeys.has(key)) {
-        errors.push(`Rule "${capability.ruleId}" contains duplicate variant "${key}".`);
-      }
-      variantKeys.add(key);
-    }
   }
 
   for (const providerId of ['image-endpoint', 'chat-image', 'gemini-generate-content'] as const satisfies readonly ImageCatalogProviderId[]) {
@@ -1486,10 +1226,6 @@ function validateOutputMatrices(capability: ImageModelCapability, errors: string
     const cellIds = new Set<string>();
     let defaultCount = 0;
 
-    if (imageSizes.has('512' as ImageOutputImageSize)) {
-      errors.push(`Rule "${capability.ruleId}" matrix "${matrix.operation}" exposes legacy imageSize option "512".`);
-    }
-
     for (const cell of matrix.cells) {
       if (cellIds.has(cell.id)) {
         errors.push(`Rule "${capability.ruleId}" matrix "${matrix.operation}" contains duplicate cell "${cell.id}".`);
@@ -1500,9 +1236,6 @@ function validateOutputMatrices(capability: ImageModelCapability, errors: string
       }
       if (!imageSizes.has(cell.imageSize)) {
         errors.push(`Rule "${capability.ruleId}" cell "${cell.id}" references missing imageSize option "${cell.imageSize}".`);
-      }
-      if (cell.imageSize === ('512' as ImageOutputImageSize)) {
-        errors.push(`Rule "${capability.ruleId}" cell "${cell.id}" exposes legacy imageSize "512".`);
       }
       if (!ratios.has(cell.ratio)) {
         errors.push(`Rule "${capability.ruleId}" cell "${cell.id}" references missing ratio option "${cell.ratio}".`);

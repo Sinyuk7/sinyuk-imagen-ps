@@ -30,14 +30,34 @@ describe('image output capability contract', () => {
 
     expect(preset?.outputCapability.geometry).toMatchObject({
       kind: 'ratio-resolution',
-      aspectRatios: ['1:1', '16:9', '9:16'],
-      resolutions: ['1k', '2k', '4k'],
+      aspectRatios: ['1:1', '1:4', '1:8', '2:3', '3:2', '3:4', '4:1', '4:3', '4:5', '5:4', '8:1', '9:16', '16:9', '21:9'],
+      resolutions: ['512', '1k', '2k', '4k'],
     });
     expect(preset?.outputExposure).toMatchObject({
       kind: 'ratio-resolution',
-      aspectRatios: ['1:1', '16:9', '9:16'],
-      resolutions: ['1k', '2k', '4k'],
+      aspectRatios: ['1:1', '1:4', '1:8', '2:3', '3:2', '3:4', '4:1', '4:3', '4:5', '5:4', '8:1', '9:16', '16:9', '21:9'],
+      resolutions: ['512', '1k', '2k', '4k'],
     });
+  });
+
+  it('keeps Gemini image model dimensions model-specific', () => {
+    const pro = getOfficialModelPreset('gemini-generate-content', 'gemini-3-pro-image');
+    const lite = getOfficialModelPreset('gemini-generate-content', 'gemini-3.1-flash-lite-image');
+
+    expect(pro?.outputCapability.geometry.kind === 'ratio-resolution'
+      ? pro.outputCapability.geometry.aspectRatios
+      : []).toEqual(['1:1', '2:3', '3:2', '3:4', '4:3', '4:5', '5:4', '9:16', '16:9', '21:9']);
+    expect(pro?.outputCapability.geometry.kind === 'ratio-resolution'
+      ? pro.outputCapability.geometry.resolutions
+      : []).toEqual(['1k', '2k', '4k']);
+    expect(lite?.outputCapability.geometry.kind === 'ratio-resolution'
+      ? lite.outputCapability.geometry.resolutions
+      : []).toEqual(['1k']);
+    expect(lite?.outputMatrix.every((matrix) =>
+      matrix.cells.every((cell) =>
+        cell.selection.geometry.kind !== 'ratio-resolution' || cell.selection.geometry.resolution === '1k',
+      ),
+    )).toBe(true);
   });
 
   it('maps Use Input Size through normalized primary edit input geometry', () => {
@@ -111,22 +131,17 @@ describe('image output capability contract', () => {
         selection: {
           geometry: {
             kind: 'ratio-resolution',
-            resolution: '2k',
-            aspectRatio: '16:9',
+            resolution: '512',
+            aspectRatio: '1:8',
           },
-          outputFormat: 'jpeg',
+          outputFormat: 'png',
         },
       },
     })).toEqual({
       kind: 'gemini-generate-content',
-      responseFormatImage: {
-        imageSize: 'IMAGE_SIZE_TWO_K',
-        aspectRatio: 'ASPECT_RATIO_SIXTEEN_NINE',
-        mimeType: 'IMAGE_JPEG',
-      },
       imageConfig: {
-        imageSize: '2K',
-        aspectRatio: '16:9',
+        imageSize: '512',
+        aspectRatio: '1:8',
       },
     });
   });

@@ -5,13 +5,29 @@ export type ImageOperation = 'text_to_image' | 'image_edit';
 export type ImageOutputFormat = 'png' | 'jpeg' | 'webp';
 
 /** UI 暴露的输出尺寸入口标识。 */
-export type ImageOutputSizeOptionId = 'auto' | 'use-input-size' | '1k' | '2k' | '4k';
+export type ImageOutputSizeOptionId = 'auto' | 'use-input-size' | '512' | '1k' | '2k' | '4k';
 
 /** 兼容旧 consumer 的尺寸入口类型名。 */
 export type ImageOutputImageSize = ImageOutputSizeOptionId;
 
 /** 原生比例维度。 */
-export type ImageAspectRatio = 'auto' | 'source' | '1:1' | '16:9' | '9:16';
+export type ImageAspectRatio =
+  | 'auto'
+  | 'source'
+  | '1:1'
+  | '1:4'
+  | '1:8'
+  | '2:3'
+  | '3:2'
+  | '3:4'
+  | '4:1'
+  | '4:3'
+  | '4:5'
+  | '5:4'
+  | '8:1'
+  | '9:16'
+  | '16:9'
+  | '21:9';
 
 /** 像素尺寸。 */
 export interface PixelDimensions {

@@ -34,7 +34,7 @@ export interface OutputCapabilityEditorState {
   readonly normalizationRequiredModuleIds: readonly string[];
 }
 
-const RATIO_ORDER = ['auto', 'source', '21:9', '16:9', '3:2', '4:3', '5:4', '1:1', '4:5', '3:4', '2:3', '9:16'] as const;
+const RATIO_ORDER = ['auto', 'source', '8:1', '4:1', '21:9', '16:9', '3:2', '4:3', '5:4', '1:1', '4:5', '3:4', '2:3', '9:16', '1:4', '1:8'] as const;
 
 function idsEqual(values: readonly string[], other: readonly string[]): boolean {
   return values.length === other.length && values.every((value, index) => value === other[index]);

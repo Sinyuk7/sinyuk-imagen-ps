@@ -47,14 +47,38 @@ const providerModelExecutionSchema = z.object({
   requestStrategyId: z.string().min(1),
 });
 
+const imageAspectRatioSchema = z.union([
+  z.literal('1:1'),
+  z.literal('1:4'),
+  z.literal('1:8'),
+  z.literal('2:3'),
+  z.literal('3:2'),
+  z.literal('3:4'),
+  z.literal('4:1'),
+  z.literal('4:3'),
+  z.literal('4:5'),
+  z.literal('5:4'),
+  z.literal('8:1'),
+  z.literal('9:16'),
+  z.literal('16:9'),
+  z.literal('21:9'),
+]);
+
+const imageResolutionSchema = z.union([
+  z.literal('512'),
+  z.literal('1k'),
+  z.literal('2k'),
+  z.literal('4k'),
+]);
+
 const imageOutputSelectionSchema = z.object({
   geometry: z.discriminatedUnion('kind', [
     z.object({ kind: z.literal('provider-default') }),
     z.object({ kind: z.literal('pixels'), width: z.number().int().positive(), height: z.number().int().positive() }),
     z.object({
       kind: z.literal('ratio-resolution'),
-      aspectRatio: z.union([z.literal('1:1'), z.literal('16:9'), z.literal('9:16')]),
-      resolution: z.union([z.literal('1k'), z.literal('2k'), z.literal('4k')]),
+      aspectRatio: imageAspectRatioSchema,
+      resolution: imageResolutionSchema,
     }),
     z.object({ kind: z.literal('input-derived'), mode: z.literal('exact-size') }),
   ]),
@@ -81,7 +105,7 @@ export const mockRequestSchema = z.object({
         selection: imageOutputSelectionSchema.optional(),
         width: z.number().int().positive().optional(),
         height: z.number().int().positive().optional(),
-        sizePreset: z.union([z.literal('512'), z.literal('1k'), z.literal('2k'), z.literal('4k')]).optional(),
+        sizePreset: imageResolutionSchema.optional(),
         aspectRatio: z.string().optional(),
         background: z.union([z.literal('auto'), z.literal('transparent'), z.literal('opaque')]).optional(),
         quality: z

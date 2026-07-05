@@ -46,7 +46,7 @@ describe('model configs', () => {
       apiFormat: 'gemini-generate-content',
       modelId: 'limited-gemini',
       baseModelId: 'gemini-3.1-flash-image',
-      requestStrategyId: 'gemini-generate-content-response-format-image',
+      requestStrategyId: 'gemini-generate-content-image-config',
       outputExposure: {
         kind: 'ratio-resolution',
         aspectRatios: ['1:1'],

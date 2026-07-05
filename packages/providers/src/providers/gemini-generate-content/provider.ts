@@ -157,8 +157,7 @@ export function createGeminiGenerateContentProvider(): Provider<GeminiGenerateCo
         provider_id: geminiGenerateContentDescriptor.id,
       });
       const builtRequest = buildGeminiGenerateContentRequest({ request });
-      const responseFormatImage = recordField(recordField(builtRequest.body.generationConfig.responseFormat)?.image);
-      const legacyImageConfig = recordField(builtRequest.body.generationConfig.imageConfig);
+      const imageConfig = recordField(builtRequest.body.generationConfig.imageConfig);
       for (const diagnostic of builtRequest.diagnostics) {
         providerLogger?.warn('provider.gemini_generate_content.request_option_ignored', {
           diagnosticCode: diagnostic.code,
@@ -177,11 +176,8 @@ export function createGeminiGenerateContentProvider(): Provider<GeminiGenerateCo
         requestedOutputFormat: request.output?.outputFormat,
         requestedSizePreset: request.output?.sizePreset,
         requestedAspectRatio: request.output?.aspectRatio,
-        wireResponseFormatImageSize: stringField(responseFormatImage?.imageSize),
-        wireResponseFormatAspectRatio: stringField(responseFormatImage?.aspectRatio),
-        wireResponseFormatMimeType: stringField(responseFormatImage?.mimeType),
-        wireLegacyImageConfigSize: stringField(legacyImageConfig?.imageSize),
-        wireLegacyImageConfigAspectRatio: stringField(legacyImageConfig?.aspectRatio),
+        wireImageConfigSize: stringField(imageConfig?.imageSize),
+        wireImageConfigAspectRatio: stringField(imageConfig?.aspectRatio),
       });
       const path = config.paths.invokeTemplate.replace('{model}', encodeURIComponent(builtRequest.model));
 

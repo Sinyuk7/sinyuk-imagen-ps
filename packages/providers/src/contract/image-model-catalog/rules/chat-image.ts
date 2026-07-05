@@ -1,14 +1,15 @@
 import type { ImageModelCapability } from '../../image-model-capability.js';
 import {
-  GEMINI_EDIT_INPUT_CAPABILITY,
-  GEMINI_RESPONSE_OUTPUT_CAPABILITY,
-  GEMINI_RESPONSE_OUTPUT_EXPOSURE,
+  CHAT_IMAGE_GEMINI_OUTPUT_CAPABILITY,
+  CHAT_IMAGE_GEMINI_OUTPUT_EXPOSURE,
+  chatGeminiImageMatrix,
+} from '../matrix/chat-image-gemini-compat.js';
+import { GEMINI_EDIT_INPUT_CAPABILITY, OPENAI_EDIT_INPUT_CAPABILITY } from '../matrix/edit-input-capabilities.js';
+import {
   GPT_IMAGE_OUTPUT_CAPABILITY,
   GPT_OUTPUT_EXPOSURE,
-  OPENAI_EDIT_INPUT_CAPABILITY,
   chatGptImageMatrix,
-  chatImageMatrix,
-} from '../output-matrix.js';
+} from '../matrix/openai-gpt-image-2.js';
 
 export const CHAT_IMAGE_MODEL_CAPABILITIES = Object.freeze([
   {
@@ -24,12 +25,12 @@ export const CHAT_IMAGE_MODEL_CAPABILITIES = Object.freeze([
       allowAsDefault: true,
     },
     appliesToProviders: ['chat-image'],
-    outputCapability: GEMINI_RESPONSE_OUTPUT_CAPABILITY,
-    outputExposure: GEMINI_RESPONSE_OUTPUT_EXPOSURE,
+    outputCapability: CHAT_IMAGE_GEMINI_OUTPUT_CAPABILITY,
+    outputExposure: CHAT_IMAGE_GEMINI_OUTPUT_EXPOSURE,
     editInput: GEMINI_EDIT_INPUT_CAPABILITY,
     outputMatrix: [
-      chatImageMatrix('text_to_image'),
-      chatImageMatrix('image_edit'),
+      chatGeminiImageMatrix('text_to_image'),
+      chatGeminiImageMatrix('image_edit'),
     ],
   },
   {
@@ -45,12 +46,12 @@ export const CHAT_IMAGE_MODEL_CAPABILITIES = Object.freeze([
       allowAsDefault: true,
     },
     appliesToProviders: ['chat-image'],
-    outputCapability: GEMINI_RESPONSE_OUTPUT_CAPABILITY,
-    outputExposure: GEMINI_RESPONSE_OUTPUT_EXPOSURE,
+    outputCapability: CHAT_IMAGE_GEMINI_OUTPUT_CAPABILITY,
+    outputExposure: CHAT_IMAGE_GEMINI_OUTPUT_EXPOSURE,
     editInput: GEMINI_EDIT_INPUT_CAPABILITY,
     outputMatrix: [
-      chatImageMatrix('text_to_image'),
-      chatImageMatrix('image_edit'),
+      chatGeminiImageMatrix('text_to_image'),
+      chatGeminiImageMatrix('image_edit'),
     ],
   },
   {
@@ -66,12 +67,12 @@ export const CHAT_IMAGE_MODEL_CAPABILITIES = Object.freeze([
       allowAsDefault: true,
     },
     appliesToProviders: ['chat-image'],
-    outputCapability: GEMINI_RESPONSE_OUTPUT_CAPABILITY,
-    outputExposure: GEMINI_RESPONSE_OUTPUT_EXPOSURE,
+    outputCapability: CHAT_IMAGE_GEMINI_OUTPUT_CAPABILITY,
+    outputExposure: CHAT_IMAGE_GEMINI_OUTPUT_EXPOSURE,
     editInput: GEMINI_EDIT_INPUT_CAPABILITY,
     outputMatrix: [
-      chatImageMatrix('text_to_image'),
-      chatImageMatrix('image_edit'),
+      chatGeminiImageMatrix('text_to_image'),
+      chatGeminiImageMatrix('image_edit'),
     ],
   },
   {

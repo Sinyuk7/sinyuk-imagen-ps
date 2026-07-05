@@ -1,9 +1,7 @@
 import type { ProviderModelExecution } from './../src/contract/index.js';
 
 type ImageEndpointStrategyId = 'image-endpoint-default' | 'image-endpoint-variant';
-type GeminiGenerateContentStrategyId =
-  | 'gemini-generate-content-response-format-image'
-  | 'gemini-generate-content-image-config-legacy';
+type GeminiGenerateContentStrategyId = 'gemini-generate-content-image-config';
 
 export function imageEndpointModel(
   modelId: string,
@@ -26,7 +24,7 @@ export function chatImageModel(modelId: string): ProviderModelExecution {
 
 export function geminiGenerateContentModel(
   modelId: string,
-  requestStrategyId: GeminiGenerateContentStrategyId = 'gemini-generate-content-response-format-image',
+  requestStrategyId: GeminiGenerateContentStrategyId = 'gemini-generate-content-image-config',
 ): ProviderModelExecution {
   return {
     modelId,

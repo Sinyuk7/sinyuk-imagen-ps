@@ -3,12 +3,11 @@ import type { ProviderDiagnostic } from '../../contract/diagnostics.js';
 import type { CanonicalImageJobRequest, GeminiGenerateContentRequestOutput, ProviderOutputOptions } from '../../contract/request.js';
 import {
   assertProviderModelExecution,
-  getRequestStrategy,
   resolveProviderResolvedOutput,
 } from '../../contract/image-model-capability.js';
 
 /** Gemini Generate Content provider-local 输出 revision。 */
-export type GeminiGenerateContentWireRevision = 'response-format-image' | 'image-config-legacy';
+export type GeminiGenerateContentWireRevision = 'image-config';
 
 export interface GeminiGenerateContentInlineDataPart {
   inlineData: {
@@ -41,16 +40,9 @@ export interface GeminiGenerateContentRequestBody {
   generationConfig: {
     responseModalities: readonly ('TEXT' | 'IMAGE')[];
     candidateCount?: number;
-      responseFormat?: {
-        image: {
-          aspectRatio?: 'ASPECT_RATIO_ONE_BY_ONE' | 'ASPECT_RATIO_NINE_SIXTEEN' | 'ASPECT_RATIO_SIXTEEN_NINE';
-        imageSize?: 'IMAGE_SIZE_ONE_K' | 'IMAGE_SIZE_TWO_K' | 'IMAGE_SIZE_FOUR_K';
-        mimeType?: 'IMAGE_JPEG';
-      };
-    };
     imageConfig?: {
-      aspectRatio?: '1:1' | '9:16' | '16:9';
-      imageSize?: '1K' | '2K' | '4K';
+      aspectRatio?: string;
+      imageSize?: '512' | '1K' | '2K' | '4K';
     };
   };
 }
@@ -75,7 +67,7 @@ class BuildGeminiGenerateContentRequestError extends Error {
   }
 }
 
-const DEFAULT_WIRE_REVISION: GeminiGenerateContentWireRevision = 'response-format-image';
+const DEFAULT_WIRE_REVISION: GeminiGenerateContentWireRevision = 'image-config';
 const MAX_REFERENCE_IMAGES = 14;
 const ALLOWED_PROVIDER_OPTION_KEYS = new Set(['model']);
 
@@ -181,14 +173,11 @@ function resolveWireRevision(request: CanonicalImageJobRequest): GeminiGenerateC
   if (request.model === undefined) {
     return DEFAULT_WIRE_REVISION;
   }
-  const execution = assertProviderModelExecution({
+  assertProviderModelExecution({
     execution: request.model,
     apiFormat: 'gemini-generate-content',
   });
-  const strategy = getRequestStrategy(execution.requestStrategyId);
-  return strategy?.wireRevisionId === 'image-config-legacy'
-    ? 'image-config-legacy'
-    : 'response-format-image';
+  return 'image-config';
 }
 
 function createDiagnostic(
@@ -307,7 +296,7 @@ function buildGenerationConfig(args: {
   readonly wireRevision: GeminiGenerateContentWireRevision;
   readonly diagnostics: ProviderDiagnostic[];
 }): GeminiGenerateContentRequestBody['generationConfig'] {
-  const { request, wireRevision, diagnostics } = args;
+  const { request, diagnostics } = args;
   const output = request.output;
   applyUnsupportedOutputDiagnostics(output, diagnostics);
 
@@ -320,14 +309,8 @@ function buildGenerationConfig(args: {
   }
 
   const resolvedOutput = resolveRequestOutput(request, output);
-  const responseFormatImage = copyResolvedRecord(resolvedOutput?.responseFormatImage) as NonNullable<GeminiGenerateContentRequestBody['generationConfig']['responseFormat']>['image'];
-  const legacyImageConfig = copyResolvedRecord(resolvedOutput?.imageConfig) as NonNullable<GeminiGenerateContentRequestBody['generationConfig']['imageConfig']>;
-
-  if (wireRevision === 'response-format-image') {
-    generationConfig.responseFormat = { image: responseFormatImage };
-  } else {
-    generationConfig.imageConfig = legacyImageConfig;
-  }
+  const imageConfig = copyResolvedRecord(resolvedOutput?.imageConfig) as NonNullable<GeminiGenerateContentRequestBody['generationConfig']['imageConfig']>;
+  generationConfig.imageConfig = imageConfig;
 
   return generationConfig;
 }

@@ -1,10 +1,10 @@
 import type { ImageModelCapability } from '../../image-model-capability.js';
+import { OPENAI_EDIT_INPUT_CAPABILITY } from '../matrix/edit-input-capabilities.js';
 import {
   GPT_IMAGE_OUTPUT_CAPABILITY,
   GPT_OUTPUT_EXPOSURE,
-  OPENAI_EDIT_INPUT_CAPABILITY,
   gptImageEndpointMatrix,
-} from '../output-matrix.js';
+} from '../matrix/openai-gpt-image-2.js';
 
 export const IMAGE_ENDPOINT_MODEL_CAPABILITIES = Object.freeze([
   {

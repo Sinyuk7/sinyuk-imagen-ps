@@ -28,7 +28,6 @@ export interface ChatImageRequestOutput {
 /** Gemini Generate Content 已解析输出字段。 */
 export interface GeminiGenerateContentRequestOutput {
   readonly kind: 'gemini-generate-content';
-  readonly responseFormatImage?: Readonly<Record<string, unknown>>;
   readonly imageConfig?: Readonly<Record<string, unknown>>;
 }
 
