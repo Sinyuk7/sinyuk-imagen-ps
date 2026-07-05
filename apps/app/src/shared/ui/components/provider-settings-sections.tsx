@@ -1,7 +1,7 @@
 import type { ReactNode } from 'react';
 import type { ApiFormat } from '@imagen-ps/application';
 import { useI18n } from '../i18n/i18n-context';
-import { Button, Checkbox, FieldLabel, HelpText, TextField } from '../primitives/native-controls';
+import { Button, FieldLabel, HelpText, TextField } from '../primitives/native-controls';
 import { IconButton } from '../primitives/icon-button';
 import { TextSelect } from './text-select';
 import { Icon } from './icons';
@@ -22,11 +22,9 @@ interface ProviderDefaultModelSectionProps {
   readonly disabled: boolean;
   readonly loading: boolean;
   readonly discoverySupported: boolean;
-  readonly modelMode: 'list' | 'custom';
   readonly modelMenuOpen: boolean;
   readonly modelOptions: readonly { readonly id: string; readonly label: string }[];
   readonly defaultModel: string;
-  readonly customPlaceholder: string;
   readonly triggerValue: string;
   readonly modelFieldHelp?: {
     readonly id: string;
@@ -46,9 +44,7 @@ interface ProviderDefaultModelSectionProps {
   } | null;
   readonly onRefresh: () => void;
   readonly onModelMenuOpenChange: (open: boolean) => void;
-  readonly onModelModeChange: (mode: 'list' | 'custom') => void;
   readonly onDefaultModelSelect: (id: string) => void;
-  readonly onDefaultModelInput: (value: string) => void;
 }
 
 interface ProviderSettingsFooterProps {
@@ -199,20 +195,16 @@ export function ProviderDefaultModelSection({
   disabled,
   loading,
   discoverySupported,
-  modelMode,
   modelMenuOpen,
   modelOptions,
   defaultModel,
-  customPlaceholder,
   triggerValue,
   modelFieldHelp = null,
   listNotice = null,
   modelStatusNotice = null,
   onRefresh,
   onModelMenuOpenChange,
-  onModelModeChange,
   onDefaultModelSelect,
-  onDefaultModelInput,
 }: ProviderDefaultModelSectionProps) {
   const { messages: t } = useI18n();
   const describedBy = modelFieldHelp?.id;
@@ -232,46 +224,21 @@ export function ProviderDefaultModelSection({
         />
       </div>
       <div className="field">
-        {modelMode === 'list' && modelOptions.length > 0 ? (
-          <TextSelect
-            label={t.settings.defaultModel}
-            value={triggerValue}
-            disabled={disabled || loading || modelOptions.length === 0}
-            open={modelMenuOpen}
-            onOpenChange={onModelMenuOpenChange}
-            options={modelOptions}
-            selectedId={defaultModel}
-            onSelect={onDefaultModelSelect}
-            testId="provider-default-model-selector"
-            triggerId="provider-default-model-selector"
-            ariaDescribedBy={describedBy}
-            containerClassName="cmp-select cmp-select-model provider-model-select"
-            menuClassName="cmp-select-menu cmp-select-menu-model"
-          />
-        ) : (
-          <TextField
-            data-testid="provider-default-model-input"
-            id="provider-default-model-input"
-            aria-label={t.settings.defaultModel}
-            aria-describedby={describedBy}
-            className="field-input mono ui-field-control"
-            placeholder={customPlaceholder}
-            value={defaultModel}
-            disabled={disabled}
-            onValue={onDefaultModelInput}
-          />
-        )}
-        <div className="provider-model-mode-row">
-          <Checkbox
-            data-testid="provider-use-custom-model-checkbox"
-            checked={modelMode === 'custom'}
-            disabled={disabled}
-            aria-describedby={describedBy}
-            onChecked={(checked) => onModelModeChange(checked ? 'custom' : 'list')}
-          >
-            {t.settings.useCustomModelId}
-          </Checkbox>
-        </div>
+        <TextSelect
+          label={t.settings.defaultModel}
+          value={triggerValue}
+          disabled={disabled || loading || modelOptions.length === 0}
+          open={modelMenuOpen}
+          onOpenChange={onModelMenuOpenChange}
+          options={modelOptions}
+          selectedId={defaultModel}
+          onSelect={onDefaultModelSelect}
+          testId="provider-default-model-selector"
+          triggerId="provider-default-model-selector"
+          ariaDescribedBy={describedBy}
+          containerClassName="cmp-select cmp-select-model provider-model-select"
+          menuClassName="cmp-select-menu cmp-select-menu-model"
+        />
         {modelFieldHelp ? (
           <FieldHelp
             id={modelFieldHelp.id}

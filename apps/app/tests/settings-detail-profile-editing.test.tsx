@@ -12,7 +12,7 @@ import {
   queryByTestId,
   renderDetail,
   renderDetailWithRoot,
-  switchToCustomModel,
+  selectDefaultModel,
 } from './settings-detail-harness';
 
 afterEach(async () => {
@@ -37,10 +37,7 @@ describe('SettingsDetailPage contract — profile editing', () => {
       changeInput(queryByTestId(container, 'provider-alias-input'), 'Renamed Mock');
       changeInput(queryByTestId(container, 'provider-endpoint-url-0'), 'https://mock.changed');
     });
-    await switchToCustomModel(container);
-    await act(async () => {
-      changeInput(queryByTestId(container, 'provider-default-model-input'), 'mock-image-v2');
-    });
+    await selectDefaultModel(container, 'mock-image-v1');
     await act(async () => {
       container.querySelector<HTMLButtonElement>('.btn-save')!.click();
     });
@@ -52,7 +49,7 @@ describe('SettingsDetailPage contract — profile editing', () => {
         displayName: 'Renamed Mock',
         enabled: true,
         config: expect.objectContaining({
-          defaultModel: 'mock-image-v2',
+          defaultModel: 'mock-image-v1',
           connection: expect.objectContaining({
             selectionMode: 'manual',
             selectedEndpointId: 'primary',
@@ -324,7 +321,7 @@ describe('SettingsDetailPage contract — profile editing', () => {
     expect(container.textContent).not.toContain('已保存');
   });
 
-  it('allows saving a custom manual model after draft model refresh fails', async () => {
+  it('keeps the detail form clean after draft model refresh fails without local changes', async () => {
     const container = document.createElement('div');
     document.body.appendChild(container);
     const { spies } = await renderDetail(container);
@@ -337,23 +334,12 @@ describe('SettingsDetailPage contract — profile editing', () => {
     });
 
     await act(async () => {
-      queryByTestId(container, 'provider-use-custom-model-checkbox').click();
-    });
-    await act(async () => {
-      changeInput(queryByTestId(container, 'provider-default-model-input'), 'custom-model-x');
       queryByTestId(container, 'provider-refresh-models-button').click();
     });
     await flush();
 
-    await act(async () => {
-      queryByTestId(container, 'provider-save-button').click();
-    });
-    await flush();
-
-    expect(spies.saveProviderProfile).toHaveBeenCalledWith(expect.objectContaining({
-      config: expect.objectContaining({
-        defaultModel: 'custom-model-x',
-      }),
-    }));
+    const saveButton = queryByTestId(container, 'provider-save-button') as HTMLButtonElement;
+    expect(saveButton.disabled).toBe(true);
+    expect(spies.saveProviderProfile).not.toHaveBeenCalled();
   });
 });

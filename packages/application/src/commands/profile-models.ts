@@ -19,38 +19,22 @@ import { generateTraceId } from '@imagen-ps/foundation';
 import { getProviderConfigResolver, getProviderProfileRepository, getRuntime, getRuntimeLogger } from '../runtime.js';
 import type { CommandResult, ProviderProfile } from './types.js';
 import {
-  describeConfiguredCatalogModel,
   listLocalCatalogModels,
   providerUsesImageModelCatalog,
   reconcileDiscoveredCatalogModels,
   type ProviderModelInfo,
 } from '@imagen-ps/providers';
 import { catalogProviderIdForApiFormat } from './api-format-profile.js';
+import { assertSupportedProfileDefaultModel } from './default-model-validation.js';
 
 function errorMessage(error: unknown, fallback: string): string {
-  return error instanceof Error ? error.message : fallback;
-}
-
-export function mergeConfiguredDefaultModel(
-  models: readonly ProviderModelInfo[],
-  profile: ProviderProfile,
-): readonly ProviderModelInfo[] {
-  const catalogProviderId = catalogProviderIdForApiFormat(profile.apiFormat);
-  const configured = typeof profile.config.defaultModel === 'string' ? profile.config.defaultModel.trim() : '';
-  if (configured.length === 0 || models.some((model) => model.id === configured)) {
-    return models;
+  if (error instanceof Error) {
+    return error.message;
   }
-  if (providerUsesImageModelCatalog(catalogProviderId)) {
-    return [
-      describeConfiguredCatalogModel({
-        providerId: catalogProviderId,
-        modelId: configured,
-        discoveredModels: profile.models,
-      }),
-      ...models,
-    ];
+  if (typeof error === 'object' && error !== null && typeof (error as { readonly message?: unknown }).message === 'string') {
+    return (error as { readonly message: string }).message;
   }
-  return [{ id: configured, displayName: configured }, ...models];
+  return fallback;
 }
 
 export function reconcileCachedCatalogModels(profile: ProviderProfile): readonly ProviderModelInfo[] {
@@ -116,11 +100,7 @@ export function resolvedModelsForProfile(
   profile: ProviderProfile,
   descriptorDefaults: readonly ProviderModelInfo[],
 ): { readonly models: readonly ProviderModelInfo[]; readonly source: 'profile.cache' | 'provider.defaults' | 'none' } {
-  const base = resolvedBaseModels(profile, descriptorDefaults);
-  return {
-    models: mergeConfiguredDefaultModel(base.models, profile),
-    source: base.source,
-  };
+  return resolvedBaseModels(profile, descriptorDefaults);
 }
 
 export function reconcilePersistedDiscoveredModels(
@@ -174,11 +154,21 @@ export async function listProfileModels(profileId: string): Promise<CommandResul
     };
   }
 
-  // Candidate chain: profile.models → descriptor.defaultModels → []，然后把
-  // 当前 config.defaultModel 作为 surface-side 当前值并入返回结果（仅按 id
-  // 去重，不写回 discovery cache）。
   const descriptorDefaults = provider.describe().defaultModels ?? [];
-  const resolved = resolvedModelsForProfile(profile, descriptorDefaults);
+  let resolved;
+  try {
+    assertSupportedProfileDefaultModel({ profile, descriptor: provider.describe(), descriptorDefaults });
+    resolved = resolvedModelsForProfile(profile, descriptorDefaults);
+  } catch (error) {
+    span.fail(error);
+    return {
+      ok: false,
+      error: createValidationError(errorMessage(error, `Provider profile "${profileId}" validation failed.`), {
+        profileId,
+        apiFormat: profile.apiFormat,
+      }),
+    };
+  }
   span.finish({
     source: resolved.source,
     count: resolved.models.length,
@@ -298,7 +288,20 @@ export async function refreshProfileModels(profileId: string): Promise<CommandRe
   }
 
   const descriptorDefaults = provider.describe().defaultModels ?? [];
-  const resolved = resolvedModelsForProfile(updated, descriptorDefaults);
+  let resolved;
+  try {
+    assertSupportedProfileDefaultModel({ profile: updated, descriptor: provider.describe(), descriptorDefaults });
+    resolved = resolvedModelsForProfile(updated, descriptorDefaults);
+  } catch (error) {
+    span.fail(error);
+    return {
+      ok: false,
+      error: createValidationError(errorMessage(error, `Provider profile "${profileId}" validation failed.`), {
+        profileId,
+        apiFormat: profile.apiFormat,
+      }),
+    };
+  }
   span.finish({
     persistedCount: persistedModels.length,
     returnedCount: resolved.models.length,

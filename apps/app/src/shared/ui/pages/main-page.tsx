@@ -240,9 +240,6 @@ function modelAvailabilityReason(model: ProviderModelInfo | undefined, t: Return
   if (reason === 'model-discovery-failed') {
     return t.main.modelReasonDiscoveryFailed;
   }
-  if (model?.supportStatus === 'custom-unchecked' || reason === 'unknown') {
-    return t.main.modelReasonCustomUnchecked;
-  }
   return null;
 }
 

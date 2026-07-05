@@ -125,7 +125,6 @@ export interface AppMessages {
     readonly modelReasonAuthFailed: string;
     readonly modelReasonProfileMisconfigured: string;
     readonly modelReasonDiscoveryFailed: string;
-    readonly modelReasonCustomUnchecked: string;
     readonly modelReasonNoImageEdit: string;
     readonly modelReasonNoTextToImage: string;
     readonly modelReasonSizeUnsupported: (size: string) => string;
@@ -200,16 +199,12 @@ export interface AppMessages {
     readonly endpointTimeout: string;
     readonly endpointDns: string;
     readonly defaultModel: string;
-    readonly customModelId: string;
     readonly selectedModel: string;
     readonly chooseFromList: string;
     readonly chooseFromListHint: string;
-    readonly useCustomModelId: string;
-    readonly customModelHint: string;
     readonly modelListEmpty: string;
     readonly modelListFailed: string;
     readonly modelSavedUndiscovered: string;
-    readonly modelCustomUnchecked: string;
     readonly modelSelectableOnly: string;
     readonly connectionInfo: string;
     readonly noProfileSelected: string;
@@ -452,7 +447,6 @@ const EN_MESSAGES: AppMessages = {
     modelReasonAuthFailed: 'Provider authentication failed',
     modelReasonProfileMisconfigured: 'Profile is incomplete',
     modelReasonDiscoveryFailed: 'Model list failed to load',
-    modelReasonCustomUnchecked: 'Custom model is not verified',
     modelReasonNoImageEdit: 'Does not support image input',
     modelReasonNoTextToImage: 'Does not support text-to-image',
     modelReasonSizeUnsupported: (size) => `${size} is unavailable`,
@@ -536,16 +530,12 @@ const EN_MESSAGES: AppMessages = {
     endpointTimeout: 'Timeout',
     endpointDns: 'DNS error',
     defaultModel: 'Default model',
-    customModelId: 'Custom model ID',
     selectedModel: 'Selected model',
     chooseFromList: 'Choose from list',
     chooseFromListHint: 'Switch back to the discovered model list.',
-    useCustomModelId: 'Use custom model ID',
-    customModelHint: 'Use a custom model ID when the model is not listed.',
-    modelListEmpty: 'No models found. Refresh or enter a custom model ID.',
-    modelListFailed: 'Couldn’t load models. Retry or enter a custom model ID.',
+    modelListEmpty: 'No models found. Refresh and try again.',
+    modelListFailed: 'Couldn’t load models. Retry to fetch the supported list.',
     modelSavedUndiscovered: 'Saved model not found',
-    modelCustomUnchecked: 'Configured model ID will be sent as-is. Availability is not verified yet.',
     modelSelectableOnly: 'Only supported models in the current list can be used.',
     connectionInfo: 'Connection info',
     noProfileSelected: 'No provider profile selected',
@@ -558,7 +548,7 @@ const EN_MESSAGES: AppMessages = {
     changesNotTested: 'Untested changes',
     modelListStale: 'Model list may not match unsaved changes.',
     modelDiscoveryUnsupported: 'Remote model discovery is not available for this API format yet.',
-    modelDiscoveryFieldHelp: 'Model discovery is not available for this API format. Choose a preset model or enter a custom model ID.',
+    modelDiscoveryFieldHelp: 'Model discovery is not available for this API format. Choose a supported preset model.',
     apiProfile: 'API Profile',
     apiFormat: 'API Format',
     apiFormatAuto: 'Auto Detect',
@@ -788,7 +778,6 @@ const ZH_CN_MESSAGES: AppMessages = {
     modelReasonAuthFailed: 'Provider 认证失败',
     modelReasonProfileMisconfigured: 'Provider 配置不完整',
     modelReasonDiscoveryFailed: '模型列表获取失败',
-    modelReasonCustomUnchecked: '自定义模型尚未验证',
     modelReasonNoImageEdit: '不支持图片输入',
     modelReasonNoTextToImage: '不支持文生图',
     modelReasonSizeUnsupported: (size) => `此模型不支持 ${size}`,
@@ -872,16 +861,12 @@ const ZH_CN_MESSAGES: AppMessages = {
     endpointTimeout: '超时',
     endpointDns: 'DNS 解析失败',
     defaultModel: '默认模型',
-    customModelId: '自定义模型 ID',
     selectedModel: '当前模型',
     chooseFromList: '从列表选择',
     chooseFromListHint: '切回已发现的模型列表。',
-    useCustomModelId: '使用自定义模型 ID',
-    customModelHint: '模型不在列表中时，可填写自定义模型 ID。',
-    modelListEmpty: '未发现模型，请刷新或填写自定义模型 ID。',
-    modelListFailed: '模型列表加载失败，请重试或填写自定义模型 ID。',
+    modelListEmpty: '未发现模型，请刷新后重试。',
+    modelListFailed: '模型列表加载失败，请重试以重新获取支持的模型列表。',
     modelSavedUndiscovered: '未发现已保存的模型',
-    modelCustomUnchecked: '当前将按原样发送已配置模型 ID，但可用性尚未验证。',
     modelSelectableOnly: '仅可使用当前列表中已支持的模型。',
     connectionInfo: '连接信息',
     noProfileSelected: '未选择 Provider 配置',
@@ -894,7 +879,7 @@ const ZH_CN_MESSAGES: AppMessages = {
     changesNotTested: '修改尚未测试',
     modelListStale: '模型列表可能与未保存的修改不一致。',
     modelDiscoveryUnsupported: '当前 API 格式暂不支持远端模型发现。',
-    modelDiscoveryFieldHelp: '当前 API 格式不支持模型发现。请选择预设模型，或填写自定义模型 ID。',
+    modelDiscoveryFieldHelp: '当前 API 格式不支持模型发现。请选择受支持的预设模型。',
     apiProfile: 'API 配置',
     apiFormat: 'API 格式',
     apiFormatAuto: '自动检测',

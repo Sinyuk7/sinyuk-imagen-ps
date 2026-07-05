@@ -86,13 +86,12 @@ export function buttonByText(container: HTMLElement, text: string): HTMLElement 
   return button;
 }
 
-export async function switchToCustomModel(container: HTMLElement): Promise<void> {
+export async function selectDefaultModel(container: HTMLElement, modelId: string): Promise<void> {
   await act(async () => {
-    const checkbox = container.querySelector<HTMLInputElement>('input[data-testid="provider-use-custom-model-checkbox"]');
-    if (!checkbox) {
-      throw new Error('找不到自定义 model id checkbox');
-    }
-    checkbox.click();
+    queryByTestId(container, 'provider-default-model-selector').click();
+  });
+  await act(async () => {
+    queryByTestId(container, `provider-default-model-selector-option-${modelId}`).click();
   });
   await flush();
 }

@@ -1,4 +1,5 @@
 import { describe, expect, it, vi } from 'vitest';
+import { createLogger, createMemorySink } from '@imagen-ps/foundation';
 import {
   createGeminiGenerateContentProvider,
   geminiGenerateContentDescriptor,
@@ -296,6 +297,115 @@ describe('gemini-generate-content provider', () => {
     fetchSpy.mockRestore();
   });
 
+  it('logs Gemini request summaries, ignored request diagnostics, and response summaries without leaking image data', async () => {
+    const sink = createMemorySink();
+    const logger = createLogger({
+      sink,
+      context: { surface: 'test', package: 'application', component: 'runtime' },
+      traceId: 'tr_gemini_logs',
+    });
+    const fetchSpy = vi.spyOn(globalThis, 'fetch').mockResolvedValue(
+      new Response(
+        JSON.stringify({
+          candidates: [
+            {
+              content: {
+                parts: [{ inlineData: { mimeType: 'image/png', data: tinyPngBase64 } }],
+              },
+            },
+          ],
+          usageMetadata: {
+            promptTokenCount: 1,
+            candidatesTokenCount: 2,
+            totalTokenCount: 3,
+          },
+        }),
+        {
+          status: 200,
+          headers: { 'Content-Type': 'application/json' },
+        },
+      ),
+    );
+    const provider = createGeminiGenerateContentProvider();
+    const config = provider.validateConfig({
+      providerId: 'gemini-generate-content',
+      displayName: 'Gemini Generate Content',
+      family: 'gemini-generate-content',
+      connection: {
+        selectionMode: 'manual',
+        selectedEndpointId: 'primary',
+        endpoints: [{ id: 'primary', url: 'https://generativelanguage.googleapis.com/v1', enabled: true }],
+      },
+      apiKey: 'test-key',
+      defaultModel: 'models/gemini-3.1-flash-image',
+    });
+    const request = provider.validateRequest({
+      operation: 'text_to_image',
+      prompt: 'test',
+      output: { count: 1, sizePreset: '2k', aspectRatio: '1:1', outputFormat: 'png' },
+      providerOptions: { model: 'gemini-3.1-flash-image', unsupportedFlag: 'ignored' },
+    });
+
+    try {
+      await provider.invoke({ config, request, logger });
+
+      const requestSummary = sink.records.find((record) => record.event === 'provider.gemini_generate_content.request_summary');
+      expect(requestSummary?.attrs).toMatchObject({
+        operation: 'text_to_image',
+        model: 'gemini-3.1-flash-image',
+        wireRevision: 'response-format-image',
+        requestedOutputFormat: 'png',
+        requestedSizePreset: '2k',
+        requestedAspectRatio: '1:1',
+        wireResponseFormatImageSize: 'IMAGE_SIZE_TWO_K',
+        wireResponseFormatAspectRatio: 'ASPECT_RATIO_ONE_BY_ONE',
+      });
+      const ignoredDiagnostics = sink.records.filter(
+        (record) => record.event === 'provider.gemini_generate_content.request_option_ignored',
+      );
+      expect(ignoredDiagnostics).toEqual(expect.arrayContaining([
+        expect.objectContaining({
+          level: 'warn',
+          attrs: expect.objectContaining({
+            diagnosticCode: 'gemini-generate-content.request.provider-option-ignored',
+            key: 'unsupportedFlag',
+            reason: 'not-allowlisted',
+            model: 'gemini-3.1-flash-image',
+            wireRevision: 'response-format-image',
+          }),
+        }),
+        expect.objectContaining({
+          level: 'warn',
+          attrs: expect.objectContaining({
+            diagnosticCode: 'gemini-generate-content.request.output-option-ignored',
+            key: 'outputFormat',
+            requested: 'png',
+            supported: ['jpeg'],
+            model: 'gemini-3.1-flash-image',
+            wireRevision: 'response-format-image',
+          }),
+        }),
+      ]));
+      const responseSummary = sink.records.find((record) => record.event === 'provider.gemini_generate_content.response_summary');
+      expect(responseSummary?.attrs).toMatchObject({
+        model: 'gemini-3.1-flash-image',
+        wireRevision: 'response-format-image',
+        selectedEndpointId: 'primary',
+        assetCount: 1,
+        assetMimeTypes: ['image/png'],
+        assetNames: ['generated-1.png'],
+        textPresent: false,
+        usageInputTokens: '[REDACTED]',
+        usageOutputTokens: '[REDACTED]',
+        usageTotalTokens: '[REDACTED]',
+      });
+      expect(sink.records.some((record) => record.event === 'transport.request.start')).toBe(true);
+      expect(JSON.stringify(sink.records)).not.toContain(tinyPngBase64);
+    } finally {
+      fetchSpy.mockRestore();
+    }
+  });
+
   it('discovers Gemini models from the native /models endpoint and reuses x-goog-api-key auth', async () => {
     const fetchSpy = vi.spyOn(globalThis, 'fetch').mockResolvedValue(
       new Response(
@@ -439,6 +549,107 @@ describe('gemini-generate-content provider', () => {
       }),
     );
     fetchSpy.mockRestore();
+  });
+
+  it('logs discovery summaries for native and fallback model discovery results', async () => {
+    const provider = createGeminiGenerateContentProvider();
+    const config = provider.validateConfig({
+      providerId: 'gemini-generate-content',
+      displayName: 'Gemini Generate Content',
+      family: 'gemini-generate-content',
+      connection: {
+        selectionMode: 'manual',
+        selectedEndpointId: 'primary',
+        endpoints: [{ id: 'primary', url: 'https://gateway.example.com/v1beta', enabled: true }],
+      },
+      apiKey: 'test-key',
+    });
+
+    {
+      const sink = createMemorySink();
+      const logger = createLogger({
+        sink,
+        context: { surface: 'test', package: 'application', component: 'runtime' },
+        traceId: 'tr_gemini_discovery_native',
+      });
+      const fetchSpy = vi.spyOn(globalThis, 'fetch').mockResolvedValueOnce(
+        new Response(
+          JSON.stringify({
+            models: [
+              {
+                name: 'models/gemini-3.1-flash-image',
+                supportedGenerationMethods: ['generateContent'],
+              },
+            ],
+          }),
+          {
+            status: 200,
+            headers: { 'Content-Type': 'application/json' },
+          },
+        ),
+      );
+
+      const models = await provider.discoverModels?.(config, logger);
+
+      expect(models?.map((model) => model.id)).toEqual(['gemini-3.1-flash-image']);
+      const summary = sink.records.find((record) => record.event === 'provider.gemini_generate_content.discover_models.summary');
+      expect(summary?.attrs).toMatchObject({
+        selectedEndpointId: 'primary',
+        targetPath: '/models',
+        sourceFormat: 'gemini-native',
+        parsedModelCount: 1,
+        returnedModelCount: 1,
+        fallbackLocalCatalogUsed: false,
+        remoteSelectableCount: 1,
+        modelIds: ['gemini-3.1-flash-image'],
+      });
+      fetchSpy.mockRestore();
+    }
+
+    {
+      const sink = createMemorySink();
+      const logger = createLogger({
+        sink,
+        context: { surface: 'test', package: 'application', component: 'runtime' },
+        traceId: 'tr_gemini_discovery_fallback',
+      });
+      const fetchSpy = vi.spyOn(globalThis, 'fetch').mockResolvedValueOnce(
+        new Response(
+          JSON.stringify({
+            models: [
+              { name: 'models/text-embedding-004', supportedGenerationMethods: ['embedContent'] },
+            ],
+          }),
+          {
+            status: 200,
+            headers: { 'Content-Type': 'application/json' },
+          },
+        ),
+      );
+
+      const models = await provider.discoverModels?.(config, logger);
+
+      expect(models).toEqual(listLocalCatalogModels('gemini-generate-content').map((model) => ({
+        ...model,
+        remotelyAvailable: false,
+      })));
+      const summary = sink.records.find((record) => record.event === 'provider.gemini_generate_content.discover_models.summary');
+      expect(summary?.attrs).toMatchObject({
+        selectedEndpointId: 'primary',
+        targetPath: '/models',
+        sourceFormat: 'gemini-native',
+        parsedModelCount: 0,
+        returnedModelCount: 3,
+        fallbackLocalCatalogUsed: true,
+        remoteSelectableCount: 3,
+        modelIds: [
+          'gemini-3.1-flash-image',
+          'gemini-3-pro-image',
+          'gemini-3.1-flash-lite-image',
+        ],
+      });
+      fetchSpy.mockRestore();
+    }
   });
 
   it('measures Gemini endpoint reachability with HEAD base URL and no auth header', async () => {

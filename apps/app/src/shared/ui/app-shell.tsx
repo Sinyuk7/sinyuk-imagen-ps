@@ -189,13 +189,8 @@ function defaultModelFor(profile: ProviderProfile | undefined): string {
 
 function mergeConfiguredDefaultModel(
   models: readonly ProviderModelInfo[],
-  profile: ProviderProfile | undefined,
 ): readonly ProviderModelInfo[] {
-  const configured = defaultModelFor(profile);
-  if (!configured || models.some((model) => model.id === configured)) {
-    return models;
-  }
-  return [{ id: configured, supportStatus: 'custom-unchecked' }, ...models];
+  return models;
 }
 
 function AppShellContent({ host }: AppShellProps) {
@@ -225,8 +220,8 @@ function AppShellContent({ host }: AppShellProps) {
     : '';
   const modelsState = useProfileModels(services, selectedImageProfileId, selectedProfileModelsRevision);
   const imageModels = useMemo(
-    () => mergeConfiguredDefaultModel(modelsState.models, selectedProfile),
-    [modelsState.models, selectedProfile],
+    () => mergeConfiguredDefaultModel(modelsState.models),
+    [modelsState.models],
   );
   const generationSettings = useGenerationSettings(services);
   const promptSettings = usePromptSettings(services);

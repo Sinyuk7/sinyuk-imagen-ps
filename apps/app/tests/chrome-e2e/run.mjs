@@ -202,11 +202,8 @@ async function fillMockProviderDraft(page, alias) {
   await fillFormControl(page.getByTestId('provider-endpoint-detect-input'), 'https://mock.local/images/generations');
   await fillFormControl(page.getByTestId('provider-alias-input'), alias);
   await fillFormControl(page.getByTestId('provider-endpoint-url-0'), 'https://mock.local');
-  if (await page.getByTestId('provider-use-custom-model-checkbox').count() > 0) {
-    await clickControl(page.getByTestId('provider-use-custom-model-checkbox'), 'Use custom model checkbox');
-    await page.getByTestId('provider-default-model-input').waitFor({ state: 'visible', timeout: 3000 });
-  }
-  await fillFormControl(page.getByTestId('provider-default-model-input'), 'gpt-image-2');
+  await page.getByTestId('provider-default-model-selector').click();
+  await page.getByTestId('provider-default-model-selector-option-gpt-image-2').click();
   await fillFormControl(page.getByTestId('provider-api-key-input'), 'mock-key');
 }
 

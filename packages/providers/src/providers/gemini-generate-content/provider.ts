@@ -110,6 +110,16 @@ function normalizeDiscoveredModels(models: readonly ProviderModelInfo[]): readon
     }));
 }
 
+function recordField(value: unknown): Record<string, unknown> | undefined {
+  return typeof value === 'object' && value !== null && !Array.isArray(value)
+    ? value as Record<string, unknown>
+    : undefined;
+}
+
+function stringField(value: unknown): string | undefined {
+  return typeof value === 'string' && value.length > 0 ? value : undefined;
+}
+
 export function createGeminiGenerateContentProvider(): Provider<GeminiGenerateContentProviderConfig, MockProviderRequest> {
   return {
     id: geminiGenerateContentDescriptor.id,
@@ -150,10 +160,41 @@ export function createGeminiGenerateContentProvider(): Provider<GeminiGenerateCo
     },
 
     async invoke(args: ProviderInvokeArgs<GeminiGenerateContentProviderConfig, MockProviderRequest>): Promise<ProviderInvokeResult> {
-      const { config, request, signal } = args;
+      const { config, request, signal, logger } = args;
+      const providerLogger = logger?.child({
+        package: 'providers',
+        component: 'provider',
+        provider_id: geminiGenerateContentDescriptor.id,
+      });
       const builtRequest = buildGeminiGenerateContentRequest({
         request,
         defaultModel: config.defaultModel,
+      });
+      const responseFormatImage = recordField(recordField(builtRequest.body.generationConfig.responseFormat)?.image);
+      const legacyImageConfig = recordField(builtRequest.body.generationConfig.imageConfig);
+      for (const diagnostic of builtRequest.diagnostics) {
+        providerLogger?.warn('provider.gemini_generate_content.request_option_ignored', {
+          diagnosticCode: diagnostic.code,
+          model: builtRequest.model,
+          wireRevision: builtRequest.wireRevision,
+          ...(diagnostic.details ?? {}),
+        });
+      }
+      providerLogger?.info('provider.gemini_generate_content.request_summary', {
+        operation: request.operation,
+        model: builtRequest.model,
+        wireRevision: builtRequest.wireRevision,
+        endpointCount: config.connection.endpoints.filter((candidate) => candidate.enabled).length,
+        inputImageCount: request.images?.length ?? 0,
+        hasMaskImage: request.maskImage !== undefined,
+        requestedOutputFormat: request.output?.outputFormat,
+        requestedSizePreset: request.output?.sizePreset,
+        requestedAspectRatio: request.output?.aspectRatio,
+        wireResponseFormatImageSize: stringField(responseFormatImage?.imageSize),
+        wireResponseFormatAspectRatio: stringField(responseFormatImage?.aspectRatio),
+        wireResponseFormatMimeType: stringField(responseFormatImage?.mimeType),
+        wireLegacyImageConfigSize: stringField(legacyImageConfig?.imageSize),
+        wireLegacyImageConfigAspectRatio: stringField(legacyImageConfig?.aspectRatio),
       });
       const path = config.paths.invokeTemplate.replace('{model}', encodeURIComponent(builtRequest.model));
 
@@ -179,7 +220,7 @@ export function createGeminiGenerateContentProvider(): Provider<GeminiGenerateCo
           },
           { ...paidRetry.policy, maxRetries: 0 },
           candidateSignal,
-          args.logger,
+          providerLogger,
           { retryability: 'paid', idempotencySupported: paidRetry.idempotencySupported },
         ),
       });
@@ -191,6 +232,19 @@ export function createGeminiGenerateContentProvider(): Provider<GeminiGenerateCo
         ...execution.value.diagnostics,
         ...(parsed.diagnostics ?? []),
       ];
+      providerLogger?.info('provider.gemini_generate_content.response_summary', {
+        model: builtRequest.model,
+        wireRevision: builtRequest.wireRevision,
+        selectedEndpointId: execution.selectedEndpointId,
+        assetCount: parsed.assets.length,
+        assetMimeTypes: parsed.assets.map((asset) => asset.mimeType ?? 'unknown'),
+        assetNames: parsed.assets.map((asset) => asset.name ?? 'unnamed'),
+        textPresent: parsed.text !== undefined,
+        usageInputTokens: parsed.usage?.inputTokens,
+        usageOutputTokens: parsed.usage?.outputTokens,
+        usageTotalTokens: parsed.usage?.totalTokens,
+        diagnosticCodes: diagnostics.map((diagnostic) => diagnostic.code),
+      });
 
       return {
         assets: parsed.assets,
@@ -236,7 +290,20 @@ export function createGeminiGenerateContentProvider(): Provider<GeminiGenerateCo
           targetPath: '/models',
         });
       }
-      return normalizeDiscoveredModels(parsed.models);
+      const normalized = normalizeDiscoveredModels(parsed.models);
+      logger?.info('provider.gemini_generate_content.discover_models.summary', {
+        selectedEndpointId: execution.selectedEndpointId,
+        targetPath: '/models',
+        sourceFormat: parsed.sourceFormat,
+        parsedModelCount: parsed.models.length,
+        returnedModelCount: normalized.length,
+        fallbackLocalCatalogUsed: parsed.models.length === 0,
+        remoteSelectableCount: normalized.filter(
+          (model) => model.supportStatus === undefined || model.supportStatus === 'selectable',
+        ).length,
+        modelIds: normalized.map((model) => model.id),
+      });
+      return normalized;
     },
 
     async measureEndpoints(

@@ -166,7 +166,10 @@ function supportStatusForConfiguredModel(args: {
   readonly remotelyAvailable: boolean;
 }): ProviderModelSupportStatus {
   if (!args.locallySupported) {
-    return 'custom-unchecked';
+    throw new ImageModelContractError('Configured model must be locally supported.', {
+      locallySupported: args.locallySupported,
+      remotelyAvailable: args.remotelyAvailable,
+    });
   }
   return args.remotelyAvailable ? 'selectable' : 'saved-undiscovered';
 }
@@ -175,8 +178,6 @@ function availabilityReasonForStatus(status: ProviderModelSupportStatus): Provid
   switch (status) {
     case 'saved-undiscovered':
       return 'not-remotely-available';
-    case 'custom-unchecked':
-      return 'unknown';
     case 'selectable':
     default:
       return undefined;
@@ -537,48 +538,6 @@ export function reconcileDiscoveredCatalogModels(args: {
         supportStatus: 'selectable',
       }),
     );
-}
-
-export function describeConfiguredCatalogModel(args: {
-  readonly providerId: ImageCatalogProviderId;
-  readonly modelId: string;
-  readonly discoveredModels?: readonly ProviderModelInfo[];
-}): ProviderModelInfo {
-  const modelId = args.modelId.trim();
-  const resolved = resolveImageModelRule({
-    providerId: args.providerId,
-    modelId,
-  });
-  const discoveredRuleIds = new Set(
-    (args.discoveredModels ?? []).map((model) => model.ruleId ?? resolveImageModelRule({
-      providerId: args.providerId,
-      modelId: model.id,
-    }).ruleId),
-  );
-  const remotelyAvailable = discoveredRuleIds.has(resolved.ruleId);
-
-  if (resolved.matchKind === 'default') {
-    return buildProviderModelInfo(resolved.capability, {
-      id: modelId,
-      displayName: modelId,
-      matchKind: resolved.matchKind,
-      pickerVisible: false,
-      locallySupported: false,
-      remotelyAvailable,
-      supportStatus: 'custom-unchecked',
-    });
-  }
-
-  return buildProviderModelInfo(resolved.capability, {
-    id: modelId,
-    matchKind: resolved.matchKind,
-    pickerVisible: remotelyAvailable && modelId === canonicalModelIdForCapability(resolved.capability),
-    remotelyAvailable,
-    supportStatus: supportStatusForConfiguredModel({
-      locallySupported: true,
-      remotelyAvailable,
-    }),
-  });
 }
 
 function resolveVariantOutput(args: {

@@ -75,7 +75,7 @@ function imageEndpointProfile(overrides?: Partial<ProviderProfile>): ProviderPro
 }
 
 describe('profile model commands', () => {
-  it('merges config.defaultModel into listed candidates when it is absent', async () => {
+  it('rejects unsupported config.defaultModel values', async () => {
     _resetForTesting();
     setProviderProfileRepository(createRepository([
       mockProfile({
@@ -89,13 +89,14 @@ describe('profile model commands', () => {
 
     const result = await listProfileModels('mock-profile');
 
-    expect(result.ok).toBe(true);
-    if (result.ok) {
-      expect(result.value.map((model) => model.id)).toEqual(['gpt-image2', ...IMAGE_ENDPOINT_CATALOG_IDS]);
+    expect(result.ok).toBe(false);
+    if (!result.ok) {
+      expect(result.error.category).toBe('validation');
+      expect(result.error.message).toContain('defaultModel "gpt-image2" is not supported');
     }
   });
 
-  it('dedupes config.defaultModel when it already exists in discovery candidates', async () => {
+  it('rejects unsupported config.defaultModel even when discovery cache contains it', async () => {
     _resetForTesting();
     setProviderProfileRepository(createRepository([
       mockProfile({
@@ -110,9 +111,10 @@ describe('profile model commands', () => {
 
     const result = await listProfileModels('mock-profile');
 
-    expect(result.ok).toBe(true);
-    if (result.ok) {
-      expect(result.value.map((model) => model.id)).toEqual(['gpt-image2', ...IMAGE_ENDPOINT_CATALOG_IDS]);
+    expect(result.ok).toBe(false);
+    if (!result.ok) {
+      expect(result.error.category).toBe('validation');
+      expect(result.error.message).toContain('defaultModel "gpt-image2" is not supported');
     }
   });
 
@@ -160,7 +162,7 @@ describe('profile model commands', () => {
           selectedEndpointId: 'primary',
           endpoints: [{ id: 'primary', url: 'https://example.com', enabled: true }],
         },
-        defaultModel: 'custom-image-model',
+        defaultModel: 'gpt-image-1',
       },
     })]));
 
@@ -187,14 +189,9 @@ describe('profile model commands', () => {
           },
         },
       });
-      expect(result.value.find((model) => model.id === 'custom-image-model')).toMatchObject({
-        availability: { status: 'custom-unchecked', reason: 'unknown' },
-        capabilities: {
-          operations: {
-            textToImage: { support: 'unknown', sizePresets: 'unknown', reason: 'not-in-local-catalog' },
-            imageEdit: { support: 'unknown', sizePresets: 'unknown', reason: 'not-in-local-catalog' },
-          },
-        },
+      expect(result.value.find((model) => model.id === 'gpt-image-1')).toMatchObject({
+        availability: { status: 'selectable' },
+        remotelyAvailable: true,
       });
     }
   });

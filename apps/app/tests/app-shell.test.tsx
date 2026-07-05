@@ -880,7 +880,7 @@ describe('AppShell', () => {
     expect(iconSelectValue(container, '[data-testid="global-output-size-selector"]')).toContain('1K');
   });
 
-  it('updates main-page model after settings saves a new custom default model', async () => {
+  it('updates main-page model after settings saves a new supported default model', async () => {
     const { services, spies } = createFakeServices({
       profiles: [{
         profileId: 'mock-profile',
@@ -941,16 +941,11 @@ describe('AppShell', () => {
     await flush();
     await flush();
     await act(async () => {
-      container.querySelector<HTMLInputElement>('input[data-testid="provider-use-custom-model-checkbox"]')?.click();
+      container.querySelector<HTMLElement>('[data-testid="provider-default-model-selector"]')?.click();
     });
     await flush();
-
-    const modelInput = container.querySelector<HTMLInputElement>('[data-testid="provider-default-model-input"]');
-    expect(modelInput).not.toBeNull();
     await act(async () => {
-      if (modelInput) {
-        changeInput(modelInput, 'gpt-image3');
-      }
+      document.body.querySelector<HTMLElement>('[data-testid="provider-default-model-selector-option-mock-image-v1"]')?.click();
     });
     await flush();
 
@@ -962,7 +957,7 @@ describe('AppShell', () => {
 
     expect(spies.saveProviderProfile).toHaveBeenCalledWith(expect.objectContaining({
       config: expect.objectContaining({
-        defaultModel: 'gpt-image3',
+        defaultModel: 'mock-image-v1',
       }),
     }));
     expect(container.querySelector('[data-testid="toast"]')?.textContent).toContain('Saved');
@@ -971,7 +966,7 @@ describe('AppShell', () => {
     });
     await flush();
 
-    expect(iconSelectValue(container, '[data-testid="main-model-selector"]')).toContain('gpt-image3');
+    expect(iconSelectValue(container, '[data-testid="main-model-selector"]')).toContain('mock-image-v1');
   });
 
   it('ignores stale profile model responses after switching profiles', async () => {

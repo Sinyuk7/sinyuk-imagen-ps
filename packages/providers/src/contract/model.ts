@@ -7,14 +7,14 @@
  * - `ProviderProfile.models` 的持久化形态（refresh 写入的 discovery 缓存）
  *
  * 若 provider 接入了 repo-owned model capability catalog，可在候选上附带
- * 轻量状态字段，供 application / app surface 渲染「可选 / 已保存但未发现 /
- * 自定义未校验」语义；重型 capability 与 wire mapping 仍由独立 contract
+ * 轻量状态字段，供 application / app surface 渲染「可选 / 已保存但未发现」
+ * 语义；重型 capability 与 wire mapping 仍由独立 contract
  * 模块承载，不挂在本类型里。
  */
 export type ProviderModelMatchKind = 'exact' | 'alias' | 'prefix' | 'pattern' | 'default';
 
 /** model 在当前产品语义下的选择状态。 */
-export type ProviderModelSupportStatus = 'selectable' | 'saved-undiscovered' | 'custom-unchecked';
+export type ProviderModelSupportStatus = 'selectable' | 'saved-undiscovered';
 
 /** catalog 证据强度，避免把未知能力误写成不支持。 */
 export type SupportEvidence = 'supported' | 'unsupported' | 'unknown';

@@ -19,20 +19,21 @@ import type {
 import { resolveSecretValue } from './secret-utils.js';
 import type { ProviderProfileConfigValue } from './types.js';
 import {
-  catalogProviderIdForApiFormat,
   normalizeProfileApiConfig,
   providerImplementationIdForApiFormat,
   resolveProfileApiFormat,
 } from './api-format-profile.js';
-import {
-  describeConfiguredCatalogModel,
-  providerUsesImageModelCatalog,
-  type ProviderModelInfo,
-} from '@imagen-ps/providers';
 import { invalidateProfileBillingState } from './profile-billing.js';
+import { assertSupportedDraftDefaultModel, assertSupportedProfileDefaultModel } from './default-model-validation.js';
 
 function errorMessage(error: unknown, fallback: string): string {
-  return error instanceof Error ? error.message : fallback;
+  if (error instanceof Error) {
+    return error.message;
+  }
+  if (typeof error === 'object' && error !== null && typeof (error as { readonly message?: unknown }).message === 'string') {
+    return (error as { readonly message: string }).message;
+  }
+  return fallback;
 }
 
 function createSecretRef(profileId: string, secretName: string): string {
@@ -113,33 +114,6 @@ function resolveSystemInstruction(input: ProviderProfileInput, existing: Provide
     return normalizeSystemInstruction(input.systemInstruction);
   }
   return normalizeSystemInstruction(existing?.systemInstruction);
-}
-
-function configuredDefaultModel(profile: ProviderProfile): string {
-  const value = profile.config.defaultModel;
-  return typeof value === 'string' ? value.trim() : '';
-}
-
-function connectivityModelsForProfile(
-  profile: ProviderProfile,
-  models: readonly ProviderModelInfo[],
-): readonly ProviderModelInfo[] {
-  const configured = configuredDefaultModel(profile);
-  if (configured.length === 0 || models.some((model) => model.id === configured)) {
-    return models;
-  }
-  const catalogProviderId = catalogProviderIdForApiFormat(profile.apiFormat);
-  if (!providerUsesImageModelCatalog(catalogProviderId)) {
-    return [{ id: configured, displayName: configured }, ...models];
-  }
-  return [
-    describeConfiguredCatalogModel({
-      providerId: catalogProviderId,
-      modelId: configured,
-      discoveredModels: models,
-    }),
-    ...models,
-  ];
 }
 
 /** 列出已保存的 provider profiles，不返回 secret values。 */
@@ -293,6 +267,7 @@ export async function saveProviderProfile(input: ProviderProfileInput): Promise<
     }
   }
   const writtenSecrets = new Map<string, string | undefined>();
+  const descriptorDefaults = provider.describe().defaultModels ?? [];
 
   try {
     const secretStorage = getSecretStorageAdapter();
@@ -312,6 +287,13 @@ export async function saveProviderProfile(input: ProviderProfileInput): Promise<
       apiFormat,
       sanitizeBillingConfig(mergeProfileConfig(existing?.config, input.config), secretRefs) as ProviderProfileConfig,
     );
+    assertSupportedDraftDefaultModel({
+      profileId: input.profileId,
+      apiFormat,
+      config: mergedConfig,
+      descriptor: provider.describe(),
+      models: existing?.models,
+    });
     const nextConfig = {
       ...mergedConfig,
       displayName,
@@ -359,6 +341,7 @@ export async function saveProviderProfile(input: ProviderProfileInput): Promise<
       ...profile,
       config: persistedConfig,
     };
+    assertSupportedProfileDefaultModel({ profile: persistedProfile, descriptor: provider.describe(), descriptorDefaults });
 
     await getProviderProfileRepository().save(persistedProfile);
     await Promise.allSettled(Array.from(removedSecretRefs, (ref) => secretStorage.deleteSecret(ref)));
@@ -497,7 +480,7 @@ export async function testProviderProfile(
             errorMessage: tested.message ?? `Connection test failed for profile "${profileId}".`,
           };
         } else {
-          const connectivityModels = connectivityModelsForProfile(profile, tested.models ?? []);
+          const connectivityModels = tested.models ?? [];
           const selectableCount = tested.modelCount ?? connectivityModels.filter(
             (model) => model.supportStatus === undefined || model.supportStatus === 'selectable',
           ).length;
@@ -515,7 +498,7 @@ export async function testProviderProfile(
       } else {
         try {
           const models = await provider.discoverModels(resolved.providerConfig);
-          const connectivityModels = connectivityModelsForProfile(profile, models);
+          const connectivityModels = models;
           const selectableCount = connectivityModels.filter(
             (model) => model.supportStatus === undefined || model.supportStatus === 'selectable',
           ).length;

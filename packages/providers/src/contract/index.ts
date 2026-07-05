@@ -56,7 +56,6 @@ export type {
 } from './image-model-capability.js';
 export {
   ImageModelContractError,
-  describeConfiguredCatalogModel,
   getSupportedImageOutputSizePresets,
   isSupportedImageModelOutput,
   listLocalCatalogModels,

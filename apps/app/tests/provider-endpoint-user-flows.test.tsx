@@ -417,11 +417,11 @@ describe('provider endpoint user flows', () => {
     });
     await flush();
     await act(async () => {
-      container.querySelector<HTMLInputElement>('input[data-testid="provider-use-custom-model-checkbox"]')?.click();
+      elementByTestId<HTMLElement>(container, 'provider-default-model-selector').click();
     });
     await flush();
     await act(async () => {
-      setInputValue(elementByTestId(container, 'provider-default-model-input'), 'gpt-image-2');
+      elementByTestId<HTMLElement>(container, 'provider-default-model-selector-option-gpt-image-2').click();
     });
     await flush();
     await flush(6);

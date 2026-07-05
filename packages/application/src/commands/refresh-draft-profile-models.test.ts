@@ -111,7 +111,7 @@ describe('refreshDraftProfileModels', () => {
     expect(persisted?.models).toEqual([{ id: 'cached-model' }]);
   });
 
-  it('surfaces discovery failure without changing save semantics', async () => {
+  it('rejects unsupported draft default models before discovery runs', async () => {
     _resetForTesting();
     setProviderProfileRepository(createRepository([]));
 
@@ -161,7 +161,8 @@ describe('refreshDraftProfileModels', () => {
 
     expect(result.ok).toBe(false);
     if (!result.ok) {
-      expect(result.error.message).toContain('draft discovery failed');
+      expect(result.error.category).toBe('validation');
+      expect(result.error.message).toContain('defaultModel "custom-model-x" is not supported');
     }
   });
 

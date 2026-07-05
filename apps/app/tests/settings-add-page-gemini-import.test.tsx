@@ -33,7 +33,7 @@ function byTestId<T extends HTMLElement>(container: HTMLElement, testId: string)
 }
 
 describe('SettingsAddPage gemini URL import', () => {
-  it('imports extracted gemini model as custom input instead of treating it as a list selection', async () => {
+  it('does not auto-apply an extracted model id when it is outside the supported list', async () => {
     const records = installFlightRecorder();
     const { services, spies } = createFakeServices();
     const geminiProvider: ProviderDescriptor = {
@@ -78,10 +78,9 @@ describe('SettingsAddPage gemini URL import', () => {
       );
     });
 
-    expect((byTestId<HTMLInputElement>(container, 'provider-default-model-input')).value).toBe('nano-banana-fast');
+    expect(byTestId<HTMLElement>(container, 'provider-default-model-selector').textContent).not.toContain('nano-banana-fast');
     expect((byTestId<HTMLInputElement>(container, 'provider-alias-input')).value).toBe('grsai');
-    expect(container.querySelector('[data-testid="provider-default-model-selector"]')).toBeNull();
-    expect(byTestId<HTMLElement>(container, 'provider-model-discovery-help').textContent).toContain('当前 API 格式不支持模型发现。请选择预设模型，或填写自定义模型 ID。');
+    expect(byTestId<HTMLElement>(container, 'provider-model-discovery-help').textContent).toContain('请选择受支持的预设模型');
     expect(JSON.stringify(records)).toContain('uxp.ui.settings_add.endpoint_import');
   });
 });

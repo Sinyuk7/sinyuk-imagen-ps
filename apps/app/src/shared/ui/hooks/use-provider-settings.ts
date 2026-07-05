@@ -120,35 +120,6 @@ export function providerProfileUpsertCapabilities(
   };
 }
 
-function mergeConfiguredModelCandidate(
-  models: readonly ProviderModelInfo[],
-  configuredModel: string,
-): readonly ProviderModelInfo[] {
-  const normalizedConfigured = configuredModel.trim();
-  if (!normalizedConfigured || models.some((model) => model.id === normalizedConfigured)) {
-    return models;
-  }
-  return [{ id: normalizedConfigured, supportStatus: 'custom-unchecked' }, ...models];
-}
-
-export function resolveProviderModelMode(
-  configuredModel: string,
-  models: readonly ProviderModelInfo[],
-): 'list' | 'custom' {
-  const normalizedConfigured = configuredModel.trim();
-  if (models.length === 0) {
-    return 'custom';
-  }
-  if (!normalizedConfigured) {
-    return 'list';
-  }
-  const selected = models.find((model) => model.id === normalizedConfigured);
-  if (!selected) {
-    return 'custom';
-  }
-  return selected.supportStatus === 'custom-unchecked' ? 'custom' : 'list';
-}
-
 export function providerModelOptions(
   models: readonly ProviderModelInfo[],
 ): readonly { readonly id: string; readonly label: string }[] {
@@ -232,13 +203,13 @@ export function useProviderDraftModelCatalog(
 
   const models = useMemo(() => {
     if (draftModels) {
-      return mergeConfiguredModelCandidate(draftModels, configuredDefaultModel);
+      return draftModels;
     }
     if (persisted.models.length > 0) {
-      return mergeConfiguredModelCandidate(persisted.models, configuredDefaultModel);
+      return persisted.models;
     }
-    return mergeConfiguredModelCandidate(fallbackModels, configuredDefaultModel);
-  }, [configuredDefaultModel, draftModels, fallbackModels, persisted.models]);
+    return fallbackModels;
+  }, [draftModels, fallbackModels, persisted.models]);
 
   const optionsList = useMemo(() => providerModelOptions(models), [models]);
   const selectedModelInfo = useMemo(

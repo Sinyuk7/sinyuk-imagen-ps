@@ -7,7 +7,7 @@ import {
   installFlightRecorder,
   queryByTestId,
   renderDetail,
-  switchToCustomModel,
+  selectDefaultModel,
 } from './settings-detail-harness';
 
 afterEach(async () => {
@@ -30,10 +30,7 @@ describe('SettingsDetailPage contract — diagnostics', () => {
     await act(async () => {
       changeInput(queryByTestId(container, 'provider-api-key-input'), 'sk_live_secret_should_not_log');
     });
-    await switchToCustomModel(container);
-    await act(async () => {
-      changeInput(queryByTestId(container, 'provider-default-model-input'), 'mock-image-v2-secret-name');
-    });
+    await selectDefaultModel(container, 'mock-image-v1');
     await act(async () => {
       container.querySelector<HTMLButtonElement>('.btn-save')!.click();
     });
@@ -63,11 +60,11 @@ describe('SettingsDetailPage contract — diagnostics', () => {
 
     const text = JSON.stringify(records);
     expect(text).toContain('"hasDirtyCredential":true');
-    expect(text).toContain('"modelIdLength":25');
+    expect(text).toContain('"modelIdLength":13');
     expect(text).not.toContain('Sensitive Alias Should Not Log');
     expect(text).not.toContain('https://secret.example.local');
     expect(text).not.toContain('sk_live_secret_should_not_log');
-    expect(text).not.toContain('mock-image-v2-secret-name');
+    expect(text).not.toContain('mock-image-v1');
     expect(text).not.toContain('secret:provider-profile');
   });
 

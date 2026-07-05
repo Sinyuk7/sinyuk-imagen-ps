@@ -18,7 +18,6 @@ import {
   readProviderBillingDraft,
   readProviderConfigString,
   readProviderConnectionDraft,
-  resolveProviderModelMode,
   sanitizeProviderDisplayName,
   sanitizeProviderSecretValue,
   useProviderDraftModelCatalog,
@@ -124,9 +123,6 @@ function modelStatusMessage(model: ProviderModelInfo | undefined, messages: Retu
   if (model.supportStatus === 'saved-undiscovered') {
     return messages.settings.modelSavedUndiscovered;
   }
-  if (model.supportStatus === 'custom-unchecked') {
-    return messages.settings.modelCustomUnchecked;
-  }
   return null;
 }
 
@@ -225,9 +221,7 @@ export function SettingsDetailPage({ onNav, profileId, onProfilesChanged, onSave
   const [saveBusy, setSaveBusy] = useState(false);
   const [connectionTestBusy, setConnectionTestBusy] = useState(false);
   const [modelMenuOpen, setModelMenuOpen] = useState(false);
-  const [modelMode, setModelMode] = useState<'list' | 'custom'>('list');
   const lastLoadedProfileIdRef = useRef<string | null>(null);
-  const modelModeTouchedRef = useRef(false);
   const connectionRef = useRef(connection);
   const billingDraftRef = useRef(billingDraft);
   const saveBusyRef = useRef(false);
@@ -372,10 +366,6 @@ export function SettingsDetailPage({ onNav, profileId, onProfilesChanged, onSave
       return;
     }
     lastLoadedProfileIdRef.current = nextProfileId;
-  }, [detail.profile?.profileId]);
-
-  useEffect(() => {
-    modelModeTouchedRef.current = false;
   }, [detail.profile?.profileId]);
 
   const persistProfile = async (): Promise<ProviderProfile | null> => {
@@ -640,16 +630,6 @@ export function SettingsDetailPage({ onNav, profileId, onProfilesChanged, onSave
 
   const modelOptions = modelCatalog.options;
 
-  useEffect(() => {
-    if (!detail.profile) {
-      return;
-    }
-    if (!modelModeTouchedRef.current) {
-      setModelMode(resolveProviderModelMode(defaultModel, modelCatalog.models));
-      setModelMenuOpen(false);
-    }
-  }, [defaultModel, detail.profile, modelCatalog.models]);
-
   const remove = async () => {
     if (saveBusyRef.current) {
       return;
@@ -907,11 +887,9 @@ export function SettingsDetailPage({ onNav, profileId, onProfilesChanged, onSave
               disabled={busy}
               loading={modelCatalog.loading}
               discoverySupported={modelDiscoverySupported}
-              modelMode={modelMode}
               modelMenuOpen={modelMenuOpen}
               modelOptions={modelOptions}
               defaultModel={defaultModel}
-              customPlaceholder={t.settings.customModelId}
               triggerValue={modelTriggerValue}
               modelFieldHelp={!modelDiscoverySupported ? {
                 id: 'provider-model-discovery-help',
@@ -925,23 +903,9 @@ export function SettingsDetailPage({ onNav, profileId, onProfilesChanged, onSave
               } : null}
               onRefresh={() => void refreshModels()}
               onModelMenuOpenChange={setModelMenuOpen}
-              onModelModeChange={(mode) => {
-                modelModeTouchedRef.current = true;
-                setModelMode(mode);
-                setModelMenuOpen(false);
-                invalidateDraftProofs();
-              }}
               onDefaultModelSelect={(id) => {
-                modelModeTouchedRef.current = true;
                 setDefaultModel(id);
-                setModelMode('list');
                 setModelMenuOpen(false);
-                invalidateDraftProofs();
-              }}
-              onDefaultModelInput={(value) => {
-                modelModeTouchedRef.current = true;
-                setModelMode('custom');
-                setDefaultModel(value);
                 invalidateDraftProofs();
               }}
             />

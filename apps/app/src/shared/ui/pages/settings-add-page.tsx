@@ -13,7 +13,6 @@ import {
   normalizeProviderConnectionDraft,
   providerProfileUpsertCapabilities,
   providerConfigFromForm,
-  resolveProviderModelMode,
   sanitizeProviderDisplayName,
   sanitizeProviderEndpointUrl,
   sanitizeProviderSecretValue,
@@ -107,12 +106,10 @@ export function SettingsAddPage({ onNav, profiles, onProfileSaved }: SettingsAdd
   const [billing, setBilling] = useState<ProviderBillingDraft>(defaultBillingDraft(undefined));
   const [billingModeMenuOpen, setBillingModeMenuOpen] = useState(false);
   const [authModeMenuOpen, setAuthModeMenuOpen] = useState(false);
-  const [modelMode, setModelMode] = useState<'list' | 'custom'>('list');
   const [modelMenuOpen, setModelMenuOpen] = useState(false);
   const [showKey, setShowKey] = useState(false);
   const [saveBusy, setSaveBusy] = useState(false);
   const [connectionTestBusy, setConnectionTestBusy] = useState(false);
-  const modelModeTouchedRef = useRef(false);
   const nameTouchedRef = useRef(false);
   const connectionRef = useRef(connection);
   const billingRef = useRef(billing);
@@ -129,10 +126,6 @@ export function SettingsAddPage({ onNav, profiles, onProfileSaved }: SettingsAdd
   const endpointErrors = duplicateEndpointErrors(connection, t.settings.duplicateEndpointUrl);
   const saveDisabled = saveBusy || !apiFormat || Boolean(aliasError) || endpointErrors.size > 0;
   const useProviderOnSave = profiles.length === 0;
-
-  useEffect(() => {
-    modelModeTouchedRef.current = false;
-  }, [apiFormat]);
 
   useEffect(() => {
     const nextBilling = defaultBillingDraft(selected);
@@ -164,14 +157,6 @@ export function SettingsAddPage({ onNav, profiles, onProfileSaved }: SettingsAdd
   });
 
   const modelOptions = modelCatalog.options;
-
-  useEffect(() => {
-    if (modelModeTouchedRef.current) {
-      return;
-    }
-    setModelMode(resolveProviderModelMode(defaultModel, modelCatalog.models));
-  }, [defaultModel, modelCatalog.models]);
-
   const invalidateDraftProofs = () => {
     modelCatalog.invalidate();
   };
@@ -222,10 +207,6 @@ export function SettingsAddPage({ onNav, profiles, onProfileSaved }: SettingsAdd
     setPaths(imported.nextPaths);
     if (imported.suggestedAlias) {
       setName(imported.suggestedAlias);
-    }
-    if (imported.importedModel && !modelModeTouchedRef.current && !defaultModel.trim()) {
-      setDefaultModel(imported.importedModel);
-      setModelMode('custom');
     }
     await services.diagnostics?.checkpoint('uxp.ui.settings_add.endpoint_import', {
       apiFormatBefore: apiFormat,
@@ -385,10 +366,6 @@ export function SettingsAddPage({ onNav, profiles, onProfileSaved }: SettingsAdd
           setPaths(imported.nextPaths);
           if (imported.suggestedAlias) {
             setName(imported.suggestedAlias);
-          }
-          if (imported.importedModel && !modelModeTouchedRef.current && !defaultModel.trim()) {
-            setDefaultModel(imported.importedModel);
-            setModelMode('custom');
           }
           await services.diagnostics?.checkpoint('uxp.ui.settings_add.endpoint_import', {
             apiFormatBefore: apiFormat,
@@ -557,11 +534,9 @@ export function SettingsAddPage({ onNav, profiles, onProfileSaved }: SettingsAdd
             disabled={saveBusy}
             loading={modelCatalog.loading}
             discoverySupported={measurementSupported}
-            modelMode={modelMode}
             modelMenuOpen={modelMenuOpen}
             modelOptions={modelOptions}
             defaultModel={defaultModel}
-            customPlaceholder={selected?.defaultModels?.[0]?.id ?? 'gpt-image-2'}
             triggerValue={modelOptions.find((option) => option.id === defaultModel)?.label ?? t.settings.chooseFromList}
             modelFieldHelp={
               !measurementSupported
@@ -581,23 +556,9 @@ export function SettingsAddPage({ onNav, profiles, onProfileSaved }: SettingsAdd
             }
             onRefresh={() => void modelCatalog.refresh()}
             onModelMenuOpenChange={setModelMenuOpen}
-            onModelModeChange={(mode) => {
-              modelModeTouchedRef.current = true;
-              setModelMode(mode);
-              setModelMenuOpen(false);
-              invalidateDraftProofs();
-            }}
             onDefaultModelSelect={(id) => {
-              modelModeTouchedRef.current = true;
               setDefaultModel(id);
-              setModelMode('list');
               setModelMenuOpen(false);
-              invalidateDraftProofs();
-            }}
-            onDefaultModelInput={(value) => {
-              modelModeTouchedRef.current = true;
-              setModelMode('custom');
-              setDefaultModel(value);
               invalidateDraftProofs();
             }}
           />

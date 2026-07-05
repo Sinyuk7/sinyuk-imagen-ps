@@ -99,7 +99,6 @@ export {
   providerConnectionAllowsFailover,
   providerConnectionUsesAutomaticSelection,
   ImageModelContractError,
-  describeConfiguredCatalogModel,
   getSupportedImageOutputSizePresets,
   isSupportedImageModelOutput,
   listLocalCatalogModels,

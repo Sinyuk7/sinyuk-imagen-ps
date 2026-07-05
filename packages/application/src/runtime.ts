@@ -40,6 +40,7 @@ import type {
   SecretStorageAdapter,
   TaskStore,
 } from './commands/types.js';
+import { assertSupportedProfileDefaultModel } from './commands/default-model-validation.js';
 import { resolveSecretValue } from './commands/secret-utils.js';
 import { providerImplementationIdForApiFormat } from './commands/api-format-profile.js';
 import { builtinWorkflows } from './requests/index.js';
@@ -187,6 +188,8 @@ function createDefaultProviderConfigResolver(): ProviderConfigResolver {
       }
 
       const resolvedBilling = await resolveBillingSecretConfig(profile.config, profile.secretRefs);
+      const descriptorDefaults = provider.describe().defaultModels ?? [];
+      assertSupportedProfileDefaultModel({ profile, descriptor: provider.describe(), descriptorDefaults });
 
       const providerConfig = provider.validateConfig({
         providerId: implementationId,

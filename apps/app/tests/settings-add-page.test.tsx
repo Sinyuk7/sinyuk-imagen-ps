@@ -41,13 +41,12 @@ function queryByTestId(container: HTMLElement, testId: string): HTMLElement & { 
   return element;
 }
 
-async function switchToCustomModel(container: HTMLElement): Promise<void> {
+async function selectDefaultModel(container: HTMLElement, modelId: string): Promise<void> {
   await act(async () => {
-    const checkbox = container.querySelector<HTMLInputElement>('input[data-testid="provider-use-custom-model-checkbox"]');
-    if (!checkbox) {
-      throw new Error('找不到自定义 model id checkbox');
-    }
-    checkbox.click();
+    queryByTestId(container, 'provider-default-model-selector').click();
+  });
+  await act(async () => {
+    queryByTestId(container, `provider-default-model-selector-option-${modelId}`).click();
   });
 }
 
@@ -119,9 +118,8 @@ describe('SettingsAddPage', () => {
       changeInput(queryByTestId(container, 'provider-alias-input'), 'Local Mock');
       changeInput(queryByTestId(container, 'provider-endpoint-url-0'), 'https://mock.local');
     });
-    await switchToCustomModel(container);
+    await selectDefaultModel(container, 'mock-image-v1');
     await act(async () => {
-      changeInput(queryByTestId(container, 'provider-default-model-input'), 'mock-image-v1');
       changeInput(queryByTestId(container, 'provider-api-key-input'), 'secret-key');
       changeTextarea(queryByTestId(container, 'provider-system-instructions-input'), 'Use a crisp editorial tone.\nKeep color natural.');
     });
@@ -373,9 +371,8 @@ describe('SettingsAddPage', () => {
       changeInput(queryByTestId(container, 'provider-alias-input'), 'Test Then Save');
       changeInput(queryByTestId(container, 'provider-endpoint-url-0'), 'https://mock.local');
     });
-    await switchToCustomModel(container);
+    await selectDefaultModel(container, 'mock-image-v1');
     await act(async () => {
-      changeInput(queryByTestId(container, 'provider-default-model-input'), 'mock-image-v1');
       changeInput(queryByTestId(container, 'provider-api-key-input'), 'secret-key');
     });
 
@@ -485,8 +482,8 @@ describe('SettingsAddPage', () => {
     await detectOpenAiImages(container);
 
     const help = queryByTestId(container, 'provider-model-discovery-help');
-    expect(help.textContent).toContain('请选择预设模型，或填写自定义模型 ID');
-    expect(queryByTestId(container, 'provider-use-custom-model-checkbox').getAttribute('aria-describedby')).toBe('provider-model-discovery-help');
+    expect(help.textContent).toContain('请选择受支持的预设模型');
+    expect(queryByTestId(container, 'provider-default-model-selector').getAttribute('aria-describedby')).toBe('provider-model-discovery-help');
     expect(container.querySelector('[data-testid="provider-model-list-notice"]')).toBeNull();
   });
 

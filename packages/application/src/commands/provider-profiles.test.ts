@@ -92,7 +92,7 @@ describe('provider profile alias contract', () => {
     setProviderProfileRepository(repository);
     setSecretStorageAdapter(adapter);
 
-    const first = await saveProviderProfile(mockProfileInput('profile-a', 'Nano Banana', 'nano-banana', 'key-a'));
+    const first = await saveProviderProfile(mockProfileInput('profile-a', 'Nano Banana', 'gpt-image-2', 'key-a'));
     const second = await saveProviderProfile(mockProfileInput('profile-b', 'GPT Image 2', 'gpt-image-2', 'key-b'));
 
     expect(first.ok).toBe(true);
@@ -156,11 +156,11 @@ describe('provider profile alias contract', () => {
     setProviderProfileRepository(repository);
     setSecretStorageAdapter(adapter);
 
-    const first = await saveProviderProfile(mockProfileInput('profile-a', 'Relay A', 'model-a', 'key-a'));
+    const first = await saveProviderProfile(mockProfileInput('profile-a', 'Relay A', 'gpt-image-2', 'key-a'));
     expect(first.ok).toBe(true);
     const before = JSON.stringify(profiles);
 
-    const duplicate = await saveProviderProfile(mockProfileInput('profile-b', 'Relay A', 'model-b', 'key-b'));
+    const duplicate = await saveProviderProfile(mockProfileInput('profile-b', 'Relay A', 'mock-image-v2', 'key-b'));
 
     expect(duplicate.ok).toBe(false);
     if (!duplicate.ok) {
@@ -218,7 +218,7 @@ describe('provider profile alias contract', () => {
     }
   });
 
-  it('reports only selectable discovered models in connectivity count and keeps the saved default visible', async () => {
+  it('reports only selectable discovered models in connectivity count', async () => {
     _resetForTesting();
     const { repository } = createProfileRepository();
     const { adapter } = createSecretStorage();
@@ -254,8 +254,8 @@ describe('provider profile alias contract', () => {
     if (result.ok) {
       expect(result.value.connectivity?.modelCount).toBe(1);
       expect(result.value.connectivity?.models?.[0]).toMatchObject({
-        id: 'google/gemini-2.5-flash-image-preview',
-        supportStatus: 'saved-undiscovered',
+        id: 'openai/gpt-image-2',
+        supportStatus: 'selectable',
       });
     }
   });
@@ -267,7 +267,7 @@ describe('provider profile alias contract', () => {
     setProviderProfileRepository(repository);
     setSecretStorageAdapter(adapter);
 
-    const base = mockProfileInput('profile-c', 'Billing Mock', 'mock-image-v1', 'key-c');
+    const base = mockProfileInput('profile-c', 'Billing Mock', 'gpt-image-2', 'key-c');
     const saved = await saveProviderProfile({
       ...base,
       config: {
@@ -300,7 +300,7 @@ describe('provider profile alias contract', () => {
     setProviderProfileRepository(repository);
     setSecretStorageAdapter(adapter);
 
-    const base = mockProfileInput('profile-remove', 'Remove Secret', 'mock-image-v1', 'key-a');
+    const base = mockProfileInput('profile-remove', 'Remove Secret', 'gpt-image-2', 'key-a');
     const saved = await saveProviderProfile({
       ...base,
       config: {
@@ -323,7 +323,7 @@ describe('provider profile alias contract', () => {
     const kept = await saveProviderProfile({
       profileId: 'profile-remove',
       config: {
-        defaultModel: 'mock-image-v2',
+        defaultModel: 'gpt-image-1',
       },
     });
     expect(kept.ok).toBe(true);
@@ -334,7 +334,7 @@ describe('provider profile alias contract', () => {
       profileId: 'profile-remove',
       removedSecretNames: ['billingAccessToken'],
       config: {
-        defaultModel: 'mock-image-v3',
+        defaultModel: 'dall-e-3',
         billing: { mode: 'none' },
       },
     });
@@ -353,7 +353,7 @@ describe('provider profile alias contract', () => {
     setSecretStorageAdapter(adapter);
 
     const saved = await saveProviderProfile({
-      ...mockProfileInput('profile-system', 'System Mock', 'mock-image-v1', 'key-system'),
+      ...mockProfileInput('profile-system', 'System Mock', 'gpt-image-2', 'key-system'),
       systemInstruction: '  keep leading spaces\nand trailing spaces  ',
     });
 
@@ -380,7 +380,7 @@ describe('provider profile alias contract', () => {
     setSecretStorageAdapter(adapter);
 
     const base = await saveProviderProfile({
-      ...mockProfileInput('profile-edit-system', 'Edit System Mock', 'mock-image-v1', 'key-edit'),
+      ...mockProfileInput('profile-edit-system', 'Edit System Mock', 'gpt-image-2', 'key-edit'),
       systemInstruction: 'first',
     });
     expect(base.ok).toBe(true);

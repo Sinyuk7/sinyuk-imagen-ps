@@ -11,10 +11,24 @@ import { resolveDraftProviderContext } from './draft-provider-config.js';
 import { reconcilePersistedDiscoveredModels, resolvedModelsForProfile } from './profile-models.js';
 
 function errorMessage(error: unknown, fallback: string): string {
-  return error instanceof Error ? error.message : fallback;
+  if (error instanceof Error) {
+    return error.message;
+  }
+  if (typeof error === 'object' && error !== null && typeof (error as { readonly message?: unknown }).message === 'string') {
+    return (error as { readonly message: string }).message;
+  }
+  return fallback;
 }
 
 function isValidationFailure(error: unknown): boolean {
+  if (
+    typeof error === 'object' &&
+    error !== null &&
+    typeof (error as { readonly category?: unknown }).category === 'string' &&
+    (error as { readonly category: string }).category === 'validation'
+  ) {
+    return true;
+  }
   if (!(error instanceof Error)) {
     return false;
   }
