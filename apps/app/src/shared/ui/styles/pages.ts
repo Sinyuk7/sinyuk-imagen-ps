@@ -802,6 +802,12 @@ export const PAGES_CSS = `
   outline-offset:0;
   border-color:var(--app-color-focus-ring);
 }
+.provider-system-instructions-field{
+  margin-top:14px;
+}
+.provider-system-instructions-field .field-textarea-input{
+  min-height:72px;
+}
 .field-hint{ margin-top:4px; color:var(--app-color-text-muted); }
 .field-input-affordance{
   display:flex;

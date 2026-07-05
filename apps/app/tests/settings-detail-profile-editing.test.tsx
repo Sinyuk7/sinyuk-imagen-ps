@@ -219,6 +219,7 @@ describe('SettingsDetailPage contract — profile editing', () => {
     const field = queryByTestId(container, 'provider-system-instructions-input') as HTMLTextAreaElement;
     expect(field.tagName).toBe('TEXTAREA');
     expect(field.value).toBe('Existing instruction');
+    expect(Boolean(queryByTestId(container, 'provider-api-key-edit').compareDocumentPosition(field) & Node.DOCUMENT_POSITION_FOLLOWING)).toBe(true);
 
     await act(async () => {
       changeTextarea(field, 'New instruction\nwith line');

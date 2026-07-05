@@ -112,6 +112,7 @@ describe('PromptSettingsPage', () => {
     });
 
     expect(queryByTestId(container, 'prompt-preset-content-status').textContent).toContain('必须恰好包含一个小写 {prompt}');
+    expect(container.querySelector('[data-testid="provider-test-button"]')).toBeNull();
     const saveButton = queryByTestId(container, 'provider-save-button') as HTMLButtonElement;
     expect(saveButton.disabled).toBe(false);
     await act(async () => {

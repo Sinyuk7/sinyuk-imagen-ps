@@ -1,12 +1,12 @@
 import { useEffect, useMemo, useState } from 'react';
 import type { PromptPreset, PromptPresetMode } from '../../ports/prompt-settings';
 import { createPromptPresetDraft, hasExactlyOnePromptPlaceholder } from '../hooks/use-prompt-settings';
-import { FieldLabel, HelpText } from '../primitives/native-controls';
+import { Button, FieldLabel, HelpText } from '../primitives/native-controls';
 import { TextField } from '../primitives/native-controls';
 import { TextSelect } from '../components/text-select';
 import { Icon } from '../components/icons';
 import { IconButton } from '../primitives/icon-button';
-import { ProviderSettingsFooter, ProviderSettingsPageHeader } from '../components/provider-settings-sections';
+import { ProviderSettingsPageHeader } from '../components/provider-settings-sections';
 import { UxpTextArea } from '../components/uxp-form-controls';
 import { useI18n } from '../i18n/i18n-context';
 
@@ -123,17 +123,15 @@ export function PromptPresetDetailPage({ preset, onSave, onNav }: PromptPresetDe
           </section>
         </div>
       </div>
-      <ProviderSettingsFooter
-        footerClassName="det-footer"
-        innerClassName="settings-detail-footer-inner"
-        saveGroupClassName="settings-detail-footer-save-group"
-        testBusy={false}
-        saveBusy={saveBusy}
-        testSupported={false}
-        saveDisabled={false}
-        onTest={() => undefined}
-        onSave={() => void save()}
-      />
+      <footer className="det-footer">
+        <div className="settings-detail-footer-inner">
+          <div className="settings-detail-footer-save-group">
+            <Button data-testid="provider-save-button" className="btn-save" variant="accent" disabled={saveBusy} onClick={() => void save()}>
+              {saveBusy ? t.settings.saving : t.common.save}
+            </Button>
+          </div>
+        </div>
+      </footer>
     </div>
   );
 }

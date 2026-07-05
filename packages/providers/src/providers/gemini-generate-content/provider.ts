@@ -229,7 +229,14 @@ export function createGeminiGenerateContentProvider(): Provider<GeminiGenerateCo
           logger,
         ),
       });
-      return normalizeDiscoveredModels(parseGeminiGenerateContentModelsResponse(execution.value.response.data));
+      const parsed = parseGeminiGenerateContentModelsResponse(execution.value.response.data);
+      if (parsed.sourceFormat === 'openai-like-fallback') {
+        logger?.warn('provider.gemini_generate_content.discover_models.non_native_payload', {
+          selectedEndpointId: execution.selectedEndpointId,
+          targetPath: '/models',
+        });
+      }
+      return normalizeDiscoveredModels(parsed.models);
     },
 
     async measureEndpoints(

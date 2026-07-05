@@ -174,7 +174,7 @@ describe('gemini-generate-content provider', () => {
   });
 
   it('parses native Gemini model discovery payloads by filtering generateContent models and stripping prefixes', () => {
-    const models = parseGeminiGenerateContentModelsResponse({
+    const parsed = parseGeminiGenerateContentModelsResponse({
       models: [
         {
           name: 'models/gemini-3.1-flash-image',
@@ -196,7 +196,24 @@ describe('gemini-generate-content provider', () => {
       ],
     });
 
-    expect(models.map((model) => model.id)).toEqual([
+    expect(parsed.sourceFormat).toBe('gemini-native');
+    expect(parsed.models.map((model) => model.id)).toEqual([
+      'gemini-3.1-flash-image',
+      'gemini-3-pro-image',
+    ]);
+  });
+
+  it('falls back to a narrow OpenAI-like model list only after native parse fails', () => {
+    const parsed = parseGeminiGenerateContentModelsResponse({
+      data: [
+        { id: 'models/gemini-3.1-flash-image' },
+        { id: 'gemini-3-pro-image' },
+        { id: 'gpt-image-1' },
+      ],
+    });
+
+    expect(parsed.sourceFormat).toBe('openai-like-fallback');
+    expect(parsed.models.map((model) => model.id)).toEqual([
       'gemini-3.1-flash-image',
       'gemini-3-pro-image',
     ]);
@@ -366,6 +383,61 @@ describe('gemini-generate-content provider', () => {
       ...model,
       remotelyAvailable: false,
     })));
+    fetchSpy.mockRestore();
+  });
+
+  it('accepts OpenAI-like discovery payloads only as a fallback and logs a warning', async () => {
+    const fetchSpy = vi.spyOn(globalThis, 'fetch').mockResolvedValue(
+      new Response(
+        JSON.stringify({
+          data: [
+            { id: 'models/gemini-3.1-flash-image' },
+            { id: 'gemini-3.1-flash-lite-image' },
+          ],
+        }),
+        {
+          status: 200,
+          headers: { 'Content-Type': 'application/json' },
+        },
+      ),
+    );
+    const loggerWarn = vi.fn();
+    const logger = {
+      warn: loggerWarn,
+      info: vi.fn(),
+      debug: vi.fn(),
+      error: vi.fn(),
+      log: vi.fn(),
+      startSpan: vi.fn(),
+      child: vi.fn(),
+      context: {},
+    } as any;
+    const provider = createGeminiGenerateContentProvider();
+    const config = provider.validateConfig({
+      providerId: 'gemini-generate-content',
+      displayName: 'Gemini Generate Content',
+      family: 'gemini-generate-content',
+      connection: {
+        selectionMode: 'manual',
+        selectedEndpointId: 'primary',
+        endpoints: [{ id: 'primary', url: 'https://gateway.example.com/v1beta', enabled: true }],
+      },
+      apiKey: 'test-key',
+    });
+
+    const models = await provider.discoverModels?.(config, logger);
+
+    expect(models?.map((model) => model.id)).toEqual([
+      'gemini-3.1-flash-image',
+      'gemini-3.1-flash-lite-image',
+    ]);
+    expect(loggerWarn).toHaveBeenCalledWith(
+      'provider.gemini_generate_content.discover_models.non_native_payload',
+      expect.objectContaining({
+        selectedEndpointId: 'primary',
+        targetPath: '/models',
+      }),
+    );
     fetchSpy.mockRestore();
   });
 

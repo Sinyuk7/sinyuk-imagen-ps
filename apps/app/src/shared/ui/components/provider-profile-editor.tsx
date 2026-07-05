@@ -215,19 +215,6 @@ export function ProviderProfileEditor({
           ) : null}
         </div>
 
-        <div className="field field-textarea">
-          <FieldLabel htmlFor="provider-system-instructions-input">{t.settings.systemInstructions}</FieldLabel>
-          <UxpTextArea
-            data-testid="provider-system-instructions-input"
-            id="provider-system-instructions-input"
-            className="field-textarea-input"
-            value={systemInstructionValue}
-            disabled={disabled}
-            onValue={onSystemInstructionValue}
-          />
-          <HelpText className="field-hint">{t.settings.systemInstructionsHint}</HelpText>
-        </div>
-
         <div className="field">
           <FieldLabel htmlFor="provider-api-format-status">{t.settings.apiFormat}</FieldLabel>
           <div
@@ -497,6 +484,19 @@ export function ProviderProfileEditor({
               {t.settings.secretRemovalPending}
             </HelpText>
           ) : null}
+        </div>
+
+        <div className="field field-textarea provider-system-instructions-field">
+          <FieldLabel htmlFor="provider-system-instructions-input">{t.settings.systemInstructions}</FieldLabel>
+          <UxpTextArea
+            data-testid="provider-system-instructions-input"
+            id="provider-system-instructions-input"
+            className="field-textarea-input"
+            value={systemInstructionValue}
+            disabled={disabled}
+            onValue={onSystemInstructionValue}
+          />
+          <HelpText className="field-hint">{t.settings.systemInstructionsHint}</HelpText>
         </div>
       </div>
     </div>

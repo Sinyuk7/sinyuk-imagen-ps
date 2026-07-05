@@ -1,5 +1,5 @@
-Status: active
-Authority: current user request; root `AGENTS.md` still declares Active Loop: none
+Status: completed
+Authority: current user request; completed after user-confirmed manual verification
 Owner: `apps/app` shared UI settings surface
 Created: 2026-07-05
 
@@ -267,19 +267,19 @@ Stop rule:
 
 ## Completion report
 
-- Goal executed:
-- Files inspected:
-- Files changed:
-- Commands run:
-- Result:
-- Behavior changed:
-- Validation evidence:
-- Boundary evidence:
-- Risk:
-- Follow-up:
-- Memory note candidate:
-- Human observation:
-- Decision Packet, if blocked:
+- Goal executed: split stable settings guidance into `FieldHelp`, reset `StatusNotice` inline contract, and move inline notice visuals onto generated semantic notice tokens.
+- Files inspected: `AGENTS.md`, `apps/app/AGENTS.md`, `apps/app/src/shared/ui/components/notice.tsx`, `apps/app/src/shared/ui/components/status-notice.tsx`, `apps/app/src/shared/ui/components/provider-settings-sections.tsx`, `apps/app/src/shared/ui/pages/settings-add-page.tsx`, `apps/app/src/shared/ui/pages/settings-detail-page.tsx`, `apps/app/src/shared/ui/pages/global-generation-settings-page.tsx`, `apps/app/src/shared/ui/styles/pages.ts`, `apps/app/scripts/generate-theme-css.mjs`, focused `apps/app/tests/**`.
+- Files changed: `AGENTS.md`; this Loop file; `apps/app/src/shared/ui/components/field-help.tsx`; `apps/app/src/shared/ui/components/notice.tsx`; `apps/app/src/shared/ui/components/status-notice.tsx`; `apps/app/src/shared/ui/components/provider-settings-sections.tsx`; `apps/app/src/shared/ui/components/composer-select.tsx`; `apps/app/src/shared/ui/components/composer-select.types.ts`; `apps/app/src/shared/ui/components/select-trigger-button.types.ts`; `apps/app/src/shared/ui/components/text-select.tsx`; `apps/app/src/shared/ui/components/text-select-trigger-button.tsx`; `apps/app/src/shared/ui/components/icon-select-trigger-button.tsx`; `apps/app/src/shared/ui/pages/settings-add-page.tsx`; `apps/app/src/shared/ui/pages/settings-detail-page.tsx`; `apps/app/src/shared/ui/pages/global-generation-settings-page.tsx`; `apps/app/src/shared/ui/i18n/messages.ts`; `apps/app/src/shared/ui/styles/pages.ts`; `apps/app/scripts/generate-theme-css.mjs`; `apps/app/src/shared/ui/styles/generated/theme-css.ts`; focused `apps/app/tests/`.
+- Commands run: `pnpm check:policy`; `pnpm --filter @imagen-ps/app exec vitest run tests/settings-detail-model-list.test.tsx tests/settings-add-page-gemini-import.test.tsx tests/settings-add-page.test.tsx tests/status-notice.test.tsx tests/theme-source.test.ts`; `pnpm --filter @imagen-ps/app test`; `pnpm validate`; local Chrome/static harness observation support commands.
+- Result: completed.
+- Behavior changed: stable capability/help copy now renders through `FieldHelp` with `aria-describedby`; inline `StatusNotice` defaults icon-by-tone but no longer infers live announcement from tone; inline notice copy is explicit via `copyText`; settings notices use generated notice tokens with subtle solid backgrounds and no visible banner border.
+- Validation evidence: focused `@imagen-ps/app` tests passed; full `pnpm --filter @imagen-ps/app test` passed; final `pnpm validate` passed, including policy checks.
+- Boundary evidence: work stayed inside `apps/app` shared UI/theme/test scope plus root loop bookkeeping; toast behavior remained on existing toast primitives and `--toast-*` tokens; no `packages/**` ownership change was required for this slice.
+- Risk: manual visual verification relied on local harness states plus user confirmation rather than Photoshop-host observation; unrelated dirty worktree changes remain outside this Loop.
+- Follow-up: none required for this slice.
+- Memory note candidate: yes: `decision` — `apps/app` shared UI distinguishes `FieldHelp` for stable control guidance, `StatusNotice` for dynamic inline status, and `Toast` for transient global feedback.
+- Human observation: user confirmed manual testing passed; local harness checks also confirmed narrow-width `FieldHelp` wrapping and inline notice detail/copy states during implementation.
+- Decision Packet, if blocked: none.
 
 ## Memory note candidate
 
