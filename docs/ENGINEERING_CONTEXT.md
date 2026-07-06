@@ -102,6 +102,15 @@ surface apps -> application/session -> core-engine + providers
   `useNotice()` remains for inline and persistent notices only. Toast styling
   must consume generated `--toast-*` theme tokens rather than direct positive
   or negative full-surface fills.
+- App settings/list surfaces currently allow only two row patterns. Use
+  `SettingsListRow` for single-action navigation rows with row-level click and
+  no redundant secondary edit button; use `prompt-preset-row` for selectable
+  management rows that combine selection state with auxiliary edit/delete
+  actions. Keep summaries in `SettingsListRow` as one secondary sans line, and
+  drive `prompt-preset-row` selection from one shared `isSelected` state across
+  indicator, fill, radio, and ARIA. Do not introduce a third list-row visual
+  system in `apps/app` unless the existing two patterns cannot express the
+  product need.
 - Anchored panel popups must use the shared `PopupLayerProvider` /
   `PopupLayerRoot` as the panel-level coordinate root. Placement converts
   viewport rects to popup-root-local coordinates (`anchorRect - popupRootRect`)

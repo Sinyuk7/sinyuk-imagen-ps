@@ -23,7 +23,7 @@ export const GEMINI_GENERATE_CONTENT_MODEL_CAPABILITIES = Object.freeze([
       ids: ['gemini-3.1-flash-image', 'models/gemini-3.1-flash-image'],
       prefixes: ['gemini-3.1-flash-image', 'models/gemini-3.1-flash-image'],
     },
-    displayName: 'Gemini 3.1 Flash Image',
+    displayName: 'Nano Banana 2',
     brand: 'google-gemini',
     selection: {
       visibleInPicker: true,
@@ -45,7 +45,7 @@ export const GEMINI_GENERATE_CONTENT_MODEL_CAPABILITIES = Object.freeze([
       ids: ['gemini-3-pro-image', 'models/gemini-3-pro-image'],
       prefixes: ['gemini-3-pro-image', 'models/gemini-3-pro-image'],
     },
-    displayName: 'Gemini 3 Pro Image',
+    displayName: 'Nano Banana Pro',
     brand: 'google-gemini',
     selection: {
       visibleInPicker: true,
@@ -67,7 +67,7 @@ export const GEMINI_GENERATE_CONTENT_MODEL_CAPABILITIES = Object.freeze([
       ids: ['gemini-3.1-flash-lite-image', 'models/gemini-3.1-flash-lite-image'],
       prefixes: ['gemini-3.1-flash-lite-image', 'models/gemini-3.1-flash-lite-image'],
     },
-    displayName: 'Gemini 3.1 Flash Lite Image',
+    displayName: 'Nano Banana Lite',
     brand: 'google-gemini',
     selection: {
       visibleInPicker: true,

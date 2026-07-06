@@ -32,8 +32,7 @@ export const RESPONSIVE_CSS = `
 .panel[data-panel-width-mode="compact"] .billing-settings-form{ padding:12px; }
 .panel[data-panel-width-mode="compact"] .billing-summary-card{ padding:12px; }
 .panel[data-panel-width-mode="compact"] .billing-summary-value{ font-size:16px; line-height:20px; }
-  .panel[data-panel-width-mode="compact"] .prov-row{ padding:9px 12px; }
-  .panel[data-panel-width-mode="compact"] .settings-provider-row{ margin-left:4px; margin-right:4px; }
+  .panel[data-panel-width-mode="compact"] .prov-row{ padding:8px 12px; }
   .panel[data-panel-width-mode="compact"] .prov-leading{ margin-right:9px; }
   .panel[data-panel-width-mode="compact"] .prov-ico{ width:32px; height:32px; }
   .panel[data-panel-width-mode="compact"] .prov-title-row{ align-items:flex-start; flex-wrap:wrap; }
@@ -87,6 +86,7 @@ export const RESPONSIVE_CSS = `
 .panel[data-panel-height-mode="short"] .settings-page .test-area{ padding:12px; }
 .panel[data-panel-height-mode="short"] .settings-page .det-footer{ padding:8px 12px; }
 .panel[data-panel-height-mode="short"] .settings-page .scroll-footer-pad{ padding-bottom:96px; }
+.panel[data-panel-height-mode="short"] .settings-page .scroll-footer-pad-detail{ padding-bottom:16px; }
 
 .panel[data-panel-width-mode="compact"] .settings-add-footer .settings-detail-footer-inner{
   flex-wrap:nowrap;

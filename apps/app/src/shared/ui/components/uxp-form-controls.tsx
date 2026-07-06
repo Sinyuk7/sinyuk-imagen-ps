@@ -6,14 +6,12 @@ import {
   useRef,
   type ClipboardEvent,
   type FocusEvent,
-  type InputHTMLAttributes,
   type KeyboardEvent,
   type ReactNode,
   type RefObject,
   type TextareaHTMLAttributes,
 } from 'react';
 import { usePopupLayer } from './popup-layer';
-import { TextField } from '../primitives/native-controls';
 
 type UxpTextAreaProps = Omit<
   TextareaHTMLAttributes<HTMLTextAreaElement>,
@@ -33,26 +31,6 @@ type UxpTextAreaProps = Omit<
 type UxpTextAreaFieldProps = UxpTextAreaProps & {
   readonly shellClassName?: string;
   readonly shellVariant?: 'settings';
-  readonly hint?: ReactNode;
-  readonly invalid?: boolean;
-};
-
-type NativeTextFieldType = 'text' | 'password' | 'url' | 'search';
-
-type UxpTextFieldProps = Omit<
-  InputHTMLAttributes<HTMLInputElement>,
-  'defaultValue' | 'onChange' | 'onInput' | 'value' | 'type'
-> & {
-  readonly controlRef?: RefObject<HTMLInputElement | null>;
-  readonly value: string;
-  readonly onValue: (value: string) => void;
-  readonly type?: NativeTextFieldType;
-  readonly nativeEditorSuspended?: boolean;
-  readonly 'data-testid'?: string;
-};
-
-type UxpTextFieldFieldProps = UxpTextFieldProps & {
-  readonly shellClassName?: string;
   readonly hint?: ReactNode;
   readonly invalid?: boolean;
 };
@@ -116,84 +94,6 @@ function insertTextAtSelection(target: HTMLTextAreaElement, text: string, start:
   const caret = start + text.length;
   target.selectionStart = caret;
   target.selectionEnd = caret;
-}
-
-export function UxpTextField({
-  controlRef,
-  value,
-  onValue,
-  nativeEditorSuspended = false,
-  style,
-  className,
-  id,
-  title,
-  type = 'text',
-  disabled,
-  placeholder,
-  onBlur,
-  onKeyUp,
-  onFocus,
-  'data-testid': dataTestId,
-  ...props
-}: UxpTextFieldProps) {
-  const inputRef = useRef<HTMLInputElement>(null);
-  const popupLayer = usePopupLayer();
-  const fallbackEditorId = useId();
-  const editorId = id ?? dataTestId ?? fallbackEditorId;
-  const editorSuspended = nativeEditorSuspended || (popupLayer?.isNativeEditorSuspended(editorId) ?? false);
-
-  const bindRef = (element: HTMLInputElement | null): void => {
-    inputRef.current = element;
-    if (controlRef) {
-      (controlRef as { current: HTMLInputElement | null }).current = element;
-    }
-  };
-
-  useEffect(() => {
-    popupLayer?.setNativeEditorElement(editorId, inputRef.current);
-    return () => {
-      popupLayer?.setNativeEditorElement(editorId, null);
-    };
-  }, [editorId, popupLayer]);
-
-  useEffect(() => {
-    const input = inputRef.current;
-    if (!input || !editorSuspended) {
-      return;
-    }
-    if (document.activeElement === input) {
-      input.blur();
-    }
-  }, [editorSuspended]);
-
-  return (
-    <TextField
-      {...props}
-      ref={bindRef}
-      id={id}
-      title={title}
-      type={type}
-      className={className}
-      data-testid={dataTestId}
-      value={value}
-      disabled={disabled}
-      placeholder={placeholder}
-      onValue={onValue}
-      data-native-editor-suspended={editorSuspended ? 'true' : undefined}
-      style={{
-        ...style,
-        ...(editorSuspended
-          ? {
-              display: 'none',
-              pointerEvents: 'none',
-            }
-          : null),
-      }}
-      onFocus={onFocus}
-      onKeyUp={onKeyUp}
-      onBlur={onBlur}
-    />
-  );
 }
 
 /**
@@ -389,63 +289,6 @@ export function UxpTextAreaField({
         <UxpTextArea
           {...props}
           className={nativeClassName}
-          disabled={disabled}
-          nativeEditorSuspended={editorSuspended}
-          onFocus={(event) => {
-            setFocused(true);
-            onFocus?.(event);
-          }}
-          onBlur={(event) => {
-            setFocused(false);
-            onBlur?.(event);
-          }}
-        />
-      </div>
-      {hint}
-    </>
-  );
-}
-
-export function UxpTextFieldField({
-  shellClassName,
-  className,
-  disabled,
-  nativeEditorSuspended = false,
-  hint,
-  invalid = false,
-  onFocus,
-  onBlur,
-  ...props
-}: UxpTextFieldFieldProps) {
-  const [focused, setFocused] = useState(false);
-  const popupLayer = usePopupLayer();
-  const fallbackEditorId = useId();
-  const editorId = props.id ?? props['data-testid'] ?? fallbackEditorId;
-  const editorSuspended = nativeEditorSuspended || (popupLayer?.isNativeEditorSuspended(editorId) ?? false);
-  const shellClasses = [
-    'field-input-affordance',
-    'field-input-shell',
-    shellClassName ?? '',
-  ].filter(Boolean).join(' ');
-  const inputClassName = [
-    'field-input',
-    'ui-field-control',
-    'field-input-embedded',
-    className ?? '',
-  ].filter(Boolean).join(' ');
-
-  return (
-    <>
-      <div
-        className={shellClasses}
-        data-focused={focused ? 'true' : undefined}
-        data-disabled={disabled ? 'true' : undefined}
-        data-invalid={invalid ? 'true' : undefined}
-        data-native-editor-suspended={editorSuspended ? 'true' : undefined}
-      >
-        <UxpTextField
-          {...props}
-          className={inputClassName}
           disabled={disabled}
           nativeEditorSuspended={editorSuspended}
           onFocus={(event) => {

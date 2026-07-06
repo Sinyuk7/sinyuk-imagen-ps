@@ -232,7 +232,7 @@ describe('ModelConfigurationPage', () => {
       {
         apiFormat: 'openai-images',
         modelId: 'saved-config',
-        baseModelId: 'gpt-image-2',
+        baseModelId: 'nano-banana-fast',
         requestStrategyId: 'image-endpoint-default',
         outputMatrix: [],
       },
@@ -241,6 +241,8 @@ describe('ModelConfigurationPage', () => {
     const container = await renderPage(services);
 
     expect(container.querySelector('[data-testid="model-config-edit-openai-images-saved-config"]')).toBeNull();
+    expect(container.querySelector('[data-testid="model-config-avatar-openai-images-saved-config"]')?.textContent).toBe('NB');
+    expect(container.textContent).toContain('nano-banana-fast');
 
     await act(async () => {
       container.querySelector<HTMLElement>('[data-testid="model-config-row-openai-images-saved-config"]')?.click();
@@ -249,6 +251,37 @@ describe('ModelConfigurationPage', () => {
     await flush();
 
     expect(container.querySelector<HTMLInputElement>('[data-testid="model-config-model-id"]')?.value).toBe('saved-config');
+  });
+
+  it('shows delete action for existing config and removes it', async () => {
+    const userModelConfigs: readonly UserModelConfig[] = [
+      {
+        apiFormat: 'openai-images',
+        modelId: 'saved-config',
+        baseModelId: 'gpt-image-2',
+        requestStrategyId: 'image-endpoint-default',
+        outputMatrix: [],
+      },
+    ];
+    const { services, spies } = createFakeServices({ userModelConfigs });
+    const container = await renderPage(services);
+
+    await act(async () => {
+      container.querySelector<HTMLElement>('[data-testid="model-config-row-openai-images-saved-config"]')?.click();
+    });
+    await flush();
+    await flush();
+
+    expect(container.querySelector('[data-testid="model-configuration-delete-button"]')).not.toBeNull();
+
+    await act(async () => {
+      container.querySelector<HTMLButtonElement>('[data-testid="model-configuration-delete-button"]')?.click();
+    });
+    await flush();
+    await flush();
+
+    expect(spies.deleteUserModelConfig).toHaveBeenCalledWith('openai-images', 'saved-config');
+    expect(container.querySelector('[data-testid="model-configuration-add-button"]')).not.toBeNull();
   });
 
   it('saves ratio-resolution exposure when one ratio is deselected', async () => {

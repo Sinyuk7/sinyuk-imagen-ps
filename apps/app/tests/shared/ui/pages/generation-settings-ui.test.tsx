@@ -101,7 +101,7 @@ describe('generation settings UI archetypes', () => {
     await openSelect(container, 'global-output-size-selector');
     expect(optionIds('global-output-size-selector')).toEqual(['auto', '1k', '2k', '4k']);
     expect(container.querySelector('[data-testid="global-settings-provider-input-size-hint"]')?.textContent)
-      .toContain('Use Input Size 使用归一化后的第一张输入图尺寸。');
+      .toContain('Use Input Size 会跟随首图。');
   });
 
   it('keeps main-page size and aspect ratio selection in sync with GlobalGenerationSettingsPage and submit payload', async () => {

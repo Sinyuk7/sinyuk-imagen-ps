@@ -13,33 +13,12 @@ import {
 
 export const CHAT_IMAGE_MODEL_CAPABILITIES = Object.freeze([
   {
-    ruleId: 'chat-image-gemini-flash-image-preview',
-    match: {
-      ids: ['google/gemini-2.5-flash-image-preview'],
-      prefixes: ['google/gemini-2.5-flash-image-preview'],
-    },
-    displayName: 'Gemini 2.5 Flash Image Preview',
-    brand: 'google-gemini',
-    selection: {
-      visibleInPicker: true,
-      allowAsDefault: true,
-    },
-    appliesToProviders: ['chat-image'],
-    outputCapability: CHAT_IMAGE_GEMINI_OUTPUT_CAPABILITY,
-    outputExposure: CHAT_IMAGE_GEMINI_OUTPUT_EXPOSURE,
-    editInput: GEMINI_EDIT_INPUT_CAPABILITY,
-    outputMatrix: [
-      chatGeminiImageMatrix('text_to_image'),
-      chatGeminiImageMatrix('image_edit'),
-    ],
-  },
-  {
     ruleId: 'chat-image-gemini-3-pro-image',
     match: {
       ids: ['gemini-3-pro-image', 'google/gemini-3-pro-image'],
       prefixes: ['gemini-3-pro-image', 'google/gemini-3-pro-image'],
     },
-    displayName: 'Gemini 3 Pro Image',
+    displayName: 'Nano Banana Pro',
     brand: 'google-gemini',
     selection: {
       visibleInPicker: true,
@@ -60,7 +39,7 @@ export const CHAT_IMAGE_MODEL_CAPABILITIES = Object.freeze([
       ids: ['gemini-3.1-flash-image', 'google/gemini-3.1-flash-image'],
       prefixes: ['gemini-3.1-flash-image', 'google/gemini-3.1-flash-image'],
     },
-    displayName: 'Gemini 3.1 Flash Image',
+    displayName: 'Nano Banana',
     brand: 'google-gemini',
     selection: {
       visibleInPicker: true,

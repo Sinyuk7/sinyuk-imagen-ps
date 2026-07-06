@@ -30,6 +30,16 @@ function initials(name: string): string {
     .join('') || 'P';
 }
 
+function apiFormatMetaLabel(apiFormat: ApiFormat): string {
+  if (apiFormat === 'openai-images') {
+    return 'OpenAI Images';
+  }
+  if (apiFormat === 'openai-chat-completions') {
+    return 'OpenAI Chat';
+  }
+  return 'Gemini GenerateContent';
+}
+
 interface ProviderListRow {
   readonly profileId: string;
   readonly apiFormat: ApiFormat;
@@ -71,17 +81,17 @@ function ProviderListItem({
         <div
           className="prov-ico"
           style={special
-            ? { background: 'var(--app-color-informative-subtle)', color: 'var(--app-color-informative)' }
-            : { background: 'var(--app-color-accent-subtle)', color: 'var(--app-color-accent-default)' }}
+            ? { background: 'var(--app-color-background-layer-2)', color: 'var(--app-color-informative)' }
+            : { background: 'var(--app-color-background-layer-2)', color: 'var(--app-color-accent-default)' }}
         >
           {special ? <Icon name="magic-wand" size={14} /> : initials(row.displayName)}
         </div>
       )}
       meta={(
         <>
-          <span className="prov-family">{row.apiFormatLabel}</span>
-          <span className="prov-meta-sep" aria-hidden="true">•</span>
           <span className="prov-model">{row.defaultModel ?? row.apiFormat}</span>
+          <span className="prov-meta-sep">·</span>
+          <span className="prov-family">{apiFormatMetaLabel(row.apiFormat)}</span>
         </>
       )}
       end={(
@@ -153,12 +163,12 @@ export function SettingsPage({
           title={t.settings.globalGeneration}
           special
           leading={(
-            <div className="prov-ico" style={{ background: 'var(--app-color-accent-subtle)', color: 'var(--app-color-accent-default)' }}>
+            <div className="prov-ico" style={{ background: 'var(--app-color-background-layer-2)', color: 'var(--app-color-accent-default)' }}>
               <Icon name="settings" size={14} />
             </div>
           )}
           meta={(
-            <span className="prov-family">
+            <span className="prov-summary-mono">
               {modelGenerationSettings?.selection
                 ? `${modelGenerationSettings.selection.imageSize.toUpperCase()} · ${modelGenerationSettings.selection.outputFormat.toUpperCase()} · ${modelGenerationSettings.selection.ratio}`
                 : generationSettings
@@ -173,11 +183,11 @@ export function SettingsPage({
           title={t.settings.promptSettings}
           special
           leading={(
-            <div className="prov-ico" style={{ background: 'var(--app-color-informative-subtle)', color: 'var(--app-color-informative)' }}>
+            <div className="prov-ico" style={{ background: 'var(--app-color-background-layer-2)', color: 'var(--app-color-informative)' }}>
               <Icon name="pencil" size={14} />
             </div>
           )}
-          meta={<span className="prov-family">{t.settings.promptOptimization} · {t.settings.promptPresets}</span>}
+          meta={<span className="prov-summary">{t.settings.promptSettingsSummary}</span>}
           onOpen={() => onOpenPromptSettings?.()}
         />
         <SettingsListRow
@@ -185,11 +195,11 @@ export function SettingsPage({
           title={t.settings.modelConfiguration}
           special
           leading={(
-            <div className="prov-ico" style={{ background: 'var(--app-color-positive-subtle)', color: 'var(--app-color-positive)' }}>
+            <div className="prov-ico" style={{ background: 'var(--app-color-background-layer-2)', color: 'var(--app-color-positive)' }}>
               <Icon name="algorithm" size={14} />
             </div>
           )}
-          meta={<span className="prov-family">{t.settings.modelConfigurationHint}</span>}
+          meta={<span className="prov-summary">{t.settings.modelConfigurationSummary}</span>}
           onOpen={() => onOpenModelConfiguration?.()}
         />
         <div className="sec-lbl">{t.settings.providerProfiles}</div>
@@ -206,9 +216,6 @@ export function SettingsPage({
             onOpen={() => onOpenProfile(row.profileId)}
           />
         ))}
-        <div className="footer-info">
-          <span style={{ fontFamily: 'var(--app-font-family-mono)', fontSize: 10, color: 'var(--app-color-text-muted)' }}>imagen-ps app</span>
-        </div>
       </div>
     </div>
   );

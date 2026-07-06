@@ -13,9 +13,8 @@ import { SettingsListRow } from '../components/settings-list-row';
 import { Icon } from '../components/icons';
 import { StatusNotice } from '../components/status-notice';
 import { TextSelect } from '../components/text-select';
-import { UxpTextFieldField } from '../components/uxp-form-controls';
 import { useI18n } from '../i18n/i18n-context';
-import { Button, FieldLabel, HelpText } from '../primitives/native-controls';
+import { Button, FieldLabel, HelpText, TextField } from '../primitives/native-controls';
 import { IconButton } from '../primitives/icon-button';
 import {
   buildOutputCapabilityEditorState,
@@ -39,14 +38,81 @@ interface ModelConfigurationPageProps {
 }
 
 type DimensionKind = 'imageSizes' | 'ratios' | 'outputFormats';
+type CapabilityTokenTone = 'numeric' | 'alpha';
+
+/**
+ * 当前页 capability / advanced 区域固定英文。
+ * 这里故意不复用通用 i18n，避免未来本地化改动把数码屏 token 区重新混成中英文。
+ */
+const MODEL_CONFIG_CAPABILITY_COPY = {
+  outputCapabilities: 'Output capabilities',
+  textToImage: 'Text to Image',
+  editImage: 'Edit Image',
+  sharedScope: 'Text + Edit',
+  outputFormat: 'Output format',
+  aspectRatio: 'Aspect ratio',
+  outputSize: 'Output size',
+  advancedSettings: 'Advanced settings',
+  requestStrategy: 'Request strategy',
+  managedByPreset: 'Managed by preset.',
+  ratioAuto: 'AUTO',
+  ratioSource: 'SRC',
+  useInputSize: 'INPUT',
+  sparseCombinationHint: 'Some options cannot be combined.',
+  validCombinations: (count: number) => `${count} valid combinations`,
+} as const;
 
 function commandMessage(error: { readonly category: string; readonly message: string }): string {
   return `${error.category}: ${error.message}`;
 }
 
-function sourceLabel(config: UserModelConfig, presets: readonly OfficialModelPreset[], t: ReturnType<typeof useI18n>['messages']): string {
-  const preset = presets.find((item) => item.apiFormat === config.apiFormat && item.modelId === config.baseModelId);
-  return preset ? `${t.settings.modelConfigCatalogSource} · ${preset.displayName}` : t.settings.modelConfigUserSource;
+function modelConfigKey(apiFormat: ApiFormat, modelId: string): string {
+  return `${apiFormat}:${modelId}`;
+}
+
+function parseModelConfigKey(key: string): { readonly apiFormat: ApiFormat; readonly modelId: string } | null {
+  const separator = key.indexOf(':');
+  if (separator <= 0 || separator >= key.length - 1) {
+    return null;
+  }
+  return {
+    apiFormat: key.slice(0, separator) as ApiFormat,
+    modelId: key.slice(separator + 1),
+  };
+}
+
+function apiFormatLabel(apiFormat: ApiFormat): string {
+  if (apiFormat === 'openai-images') {
+    return 'OpenAI Images';
+  }
+  if (apiFormat === 'openai-chat-completions') {
+    return 'OpenAI Chat';
+  }
+  return 'Gemini GenerateContent';
+}
+
+function configMetaLabel(config: UserModelConfig): string {
+  const formatLabel = apiFormatLabel(config.apiFormat);
+  if (config.baseModelId.trim().length === 0 || config.baseModelId === config.modelId) {
+    return formatLabel;
+  }
+  return `${config.baseModelId} · ${formatLabel}`;
+}
+
+function modelConfigAvatarLabel(baseModelId: string): string {
+  const trimmed = baseModelId.trim();
+  if (!trimmed) {
+    return 'MC';
+  }
+  const segments = trimmed
+    .split(/[^a-zA-Z0-9]+/)
+    .map((segment) => segment.trim())
+    .filter(Boolean);
+  if (segments.length >= 2) {
+    return `${segments[0][0]}${segments[1][0]}`.toUpperCase();
+  }
+  const compact = trimmed.replace(/[^a-zA-Z0-9]/g, '');
+  return compact.slice(0, 2).toUpperCase() || 'MC';
 }
 
 function toggleOrderedValue<T extends string>(
@@ -61,8 +127,10 @@ function toggleOrderedValue<T extends string>(
   return current.filter((item) => item !== value);
 }
 
-function operationLabel(operation: OutputCapabilityModule['operations'][number], t: ReturnType<typeof useI18n>['messages']): string {
-  return operation === 'text_to_image' ? t.settings.modelConfigOperationTextToImage : t.settings.modelConfigOperationEditImage;
+function operationLabel(operation: OutputCapabilityModule['operations'][number]): string {
+  return operation === 'text_to_image'
+    ? MODEL_CONFIG_CAPABILITY_COPY.textToImage
+    : MODEL_CONFIG_CAPABILITY_COPY.editImage;
 }
 
 function parseAspectRatio(ratio: ImageAspectRatio): { readonly width: number; readonly height: number } | null {
@@ -117,12 +185,33 @@ function ratioPreviewFrame(ratio: ImageAspectRatio): {
   };
 }
 
-function ratioLabel(ratio: ImageAspectRatio, t: ReturnType<typeof useI18n>['messages']): string {
+function capabilityTokenLabel(value: string, fallbackLabel: string): string {
+  if (value === 'auto') {
+    return MODEL_CONFIG_CAPABILITY_COPY.ratioAuto;
+  }
+  if (value === 'source') {
+    return MODEL_CONFIG_CAPABILITY_COPY.ratioSource;
+  }
+  if (value === 'use-input-size') {
+    return MODEL_CONFIG_CAPABILITY_COPY.useInputSize;
+  }
+  return fallbackLabel.toUpperCase();
+}
+
+function capabilityTokenTone(label: string): CapabilityTokenTone {
+  return /^[0-9:]+$/.test(label) ? 'numeric' : 'alpha';
+}
+
+function capabilityTokenClassName(label: string, baseClassName: string): string {
+  return `${baseClassName} model-config-digital-token model-config-digital-token-${capabilityTokenTone(label)}`;
+}
+
+function ratioLabel(ratio: ImageAspectRatio): string {
   if (ratio === 'auto') {
-    return t.settings.modelConfigRatioAuto;
+    return MODEL_CONFIG_CAPABILITY_COPY.ratioAuto;
   }
   if (ratio === 'source') {
-    return t.settings.modelConfigRatioSource;
+    return MODEL_CONFIG_CAPABILITY_COPY.ratioSource;
   }
   return ratio;
 }
@@ -173,6 +262,60 @@ function StrategyMetaField({
       <div className="section-title settings-subsection-heading">{label}</div>
       <div className="model-config-meta-value mono">{value}</div>
       <HelpText className="field-hint">{detail}</HelpText>
+    </div>
+  );
+}
+
+function ModelIdField({
+  id,
+  testId,
+  value,
+  disabled,
+  suspended,
+  onValue,
+}: {
+  readonly id: string;
+  readonly testId: string;
+  readonly value: string;
+  readonly disabled?: boolean;
+  readonly suspended: boolean;
+  readonly onValue: (value: string) => void;
+}) {
+  const [focused, setFocused] = useState(false);
+
+  useEffect(() => {
+    if (!suspended) {
+      return;
+    }
+    const input = document.getElementById(id);
+    if (input instanceof HTMLInputElement && document.activeElement === input) {
+      input.blur();
+    }
+  }, [id, suspended]);
+
+  return (
+    <div
+      className="field-input-affordance model-config-model-id-shell"
+      data-focused={focused ? 'true' : undefined}
+      data-disabled={disabled ? 'true' : undefined}
+      data-native-editor-suspended={suspended ? 'true' : undefined}
+    >
+      <TextField
+        data-testid={testId}
+        id={id}
+        className="field-input mono ui-field-control field-input-embedded"
+        value={value}
+        disabled={disabled}
+        style={suspended
+          ? {
+              display: 'none',
+              pointerEvents: 'none',
+            }
+          : undefined}
+        onFocus={() => setFocused(true)}
+        onBlur={() => setFocused(false)}
+        onValue={onValue}
+      />
     </div>
   );
 }
@@ -252,6 +395,7 @@ function CapabilityOptionGroup({
       <div className="model-config-option-list">
         {items.map((item) => {
           const checked = selected.includes(item.id);
+          const tokenLabel = capabilityTokenLabel(item.id, item.label);
           return (
             <button
               key={item.id}
@@ -259,14 +403,15 @@ function CapabilityOptionGroup({
               id={`${testIdPrefix}-${item.id}`}
               data-testid={`${testIdPrefix}-${item.id}`}
               className={`model-config-chip${checked ? ' is-selected' : ''}`}
-              aria-pressed={checked}
+              role="checkbox"
+              aria-checked={checked}
               disabled={disabled}
               onClick={() => onToggle(item.id, !checked)}
             >
               {renderItem ? renderItem(item, checked) : (
                 <>
                   {checked ? <span className="model-config-chip-check" aria-hidden="true" /> : null}
-                  <span>{item.label}</span>
+                  <span className={capabilityTokenClassName(tokenLabel, 'model-config-chip-label')}>{tokenLabel}</span>
                 </>
               )}
             </button>
@@ -284,7 +429,6 @@ function RatioTileGroup({
   disabled,
   testIdPrefix,
   onToggle,
-  t,
 }: {
   readonly title: string;
   readonly items: readonly { readonly id: ImageAspectRatio; readonly label: string }[];
@@ -292,7 +436,6 @@ function RatioTileGroup({
   readonly disabled?: boolean;
   readonly testIdPrefix: string;
   readonly onToggle: (id: ImageAspectRatio, checked: boolean) => void;
-  readonly t: ReturnType<typeof useI18n>['messages'];
 }) {
   const firstItemId = items[0]?.id ?? 'empty';
 
@@ -303,6 +446,7 @@ function RatioTileGroup({
         {items.map((item) => {
           const checked = selected.includes(item.id);
           const textOnly = item.id === 'auto' || item.id === 'source';
+          const tokenLabel = capabilityTokenLabel(item.id, item.label);
           return (
             <button
               key={item.id}
@@ -310,16 +454,17 @@ function RatioTileGroup({
               id={`${testIdPrefix}-${item.id}`}
               data-testid={`${testIdPrefix}-${item.id}`}
               className={`model-config-ratio-tile${checked ? ' is-selected' : ''}`}
-              aria-pressed={checked}
+              role="checkbox"
+              aria-checked={checked}
               disabled={disabled}
               onClick={() => onToggle(item.id, !checked)}
             >
               {textOnly ? (
-                <span className="model-config-ratio-tile-text">{ratioLabel(item.id, t)}</span>
+                <span className={capabilityTokenClassName(tokenLabel, 'model-config-ratio-tile-text')}>{ratioLabel(item.id)}</span>
               ) : (
                 <>
                   <RatioPreview ratio={item.id} />
-                  <span className="model-config-ratio-label">{item.label}</span>
+                  <span className={capabilityTokenClassName(tokenLabel, 'model-config-ratio-label')}>{tokenLabel}</span>
                 </>
               )}
               {checked ? <span className="model-config-ratio-check" aria-hidden="true" /> : null}
@@ -354,6 +499,7 @@ function SizeTileGroup({
       <div className="model-config-size-grid">
         {items.map((item) => {
           const checked = selected.includes(item.id);
+          const tokenLabel = capabilityTokenLabel(item.id, item.label);
           return (
             <button
               key={item.id}
@@ -361,11 +507,12 @@ function SizeTileGroup({
               id={`${testIdPrefix}-${item.id}`}
               data-testid={`${testIdPrefix}-${item.id}`}
               className={`model-config-size-tile${checked ? ' is-selected' : ''}`}
-              aria-pressed={checked}
+              role="checkbox"
+              aria-checked={checked}
               disabled={disabled}
               onClick={() => onToggle(item.id, !checked)}
             >
-              <span className="model-config-size-label">{item.label}</span>
+              <span className={capabilityTokenClassName(tokenLabel, 'model-config-size-label')}>{tokenLabel}</span>
               {checked ? <span className="model-config-ratio-check" aria-hidden="true" /> : null}
             </button>
           );
@@ -381,7 +528,6 @@ function CapabilitySection({
   disabled,
   validationMessage,
   normalizationRequired,
-  t,
   onToggle,
 }: {
   readonly module: OutputCapabilityModule;
@@ -389,13 +535,15 @@ function CapabilitySection({
   readonly disabled?: boolean;
   readonly validationMessage: string | null;
   readonly normalizationRequired: boolean;
-  readonly t: ReturnType<typeof useI18n>['messages'];
   readonly onToggle: (dimension: DimensionKind, id: string, checked: boolean) => void;
 }) {
   const primaryMatrix = module.matrices[0]!;
   const combinationCount = validCombinationCount(primaryMatrix, selection);
   const sparse = hasSparseCombinationSet(primaryMatrix, selection);
   const showSparseHint = sparse && normalizationRequired;
+  const combinationSummary = showSparseHint
+    ? `${MODEL_CONFIG_CAPABILITY_COPY.validCombinations(combinationCount)} · ${MODEL_CONFIG_CAPABILITY_COPY.sparseCombinationHint}`
+    : MODEL_CONFIG_CAPABILITY_COPY.validCombinations(combinationCount);
 
   return (
     <section className="section generation-settings-section">
@@ -405,7 +553,7 @@ function CapabilitySection({
             className="section-title"
             data-testid={`model-config-section-title-${module.id}`}
           >
-            {module.shared ? t.settings.modelConfigOutputCapabilities : operationLabel(module.operations[0]!, t)}
+            {module.shared ? MODEL_CONFIG_CAPABILITY_COPY.outputCapabilities : operationLabel(module.operations[0]!)}
           </div>
         </div>
         {module.shared ? (
@@ -413,13 +561,13 @@ function CapabilitySection({
             className="model-config-capability-meta"
             data-testid={`model-config-shared-scope-${module.id}`}
           >
-            {t.settings.modelConfigSharedScope}
+            {MODEL_CONFIG_CAPABILITY_COPY.sharedScope}
           </span>
         ) : null}
       </div>
 
       <CapabilityOptionGroup
-        title={t.settings.modelConfigOutputFormat}
+        title={MODEL_CONFIG_CAPABILITY_COPY.outputFormat}
         items={module.outputFormats.map((item) => ({ id: item.id, label: item.label.toUpperCase() }))}
         selected={selection.outputFormats}
         disabled={disabled}
@@ -429,18 +577,17 @@ function CapabilitySection({
 
       {module.archetype === 'size-aspect-ratio-format' ? (
         <RatioTileGroup
-          title={t.settings.modelConfigAspectRatio}
+          title={MODEL_CONFIG_CAPABILITY_COPY.aspectRatio}
           items={module.ratios.map((item) => ({ id: item.id, label: item.label }))}
           selected={selection.ratios}
           disabled={disabled}
           testIdPrefix={`model-config-${module.id}-ratio`}
           onToggle={(id, checked) => onToggle('ratios', id, checked)}
-          t={t}
         />
       ) : null}
 
       <SizeTileGroup
-        title={t.settings.modelConfigOutputSize}
+        title={MODEL_CONFIG_CAPABILITY_COPY.outputSize}
         items={module.imageSizes.map((item) => ({ id: item.id, label: item.label }))}
         selected={selection.imageSizes}
         disabled={disabled}
@@ -453,12 +600,9 @@ function CapabilitySection({
           <StatusNotice tone="warning" message={t.settings.modelConfigNormalizationWarning} />
         </div>
       ) : null}
-      <HelpText className="field-hint model-config-combination-summary">
-        {t.settings.modelConfigValidCombinations(combinationCount)}
+      <HelpText className="field-hint model-config-combination-summary mono">
+        {combinationSummary}
       </HelpText>
-      {showSparseHint ? (
-        <HelpText className="field-hint model-config-combination-summary">{t.settings.modelConfigSparseCombinationHint}</HelpText>
-      ) : null}
       {validationMessage ? <StatusNotice tone="warning" message={validationMessage} /> : null}
     </section>
   );
@@ -621,6 +765,7 @@ export function ModelConfigurationPage({ onNav, onSaved, onBack, initialEditorSt
     }
     return null;
   }, [apiFormat, modelId, moduleValidationMessages, requestStrategyId, selectedPreset, t]);
+  const modelIdSuspended = apiFormatMenuOpen || presetMenuOpen;
 
   const applyPreset = (preset: OfficialModelPreset | undefined, nextModelId?: string, config?: UserModelConfig | null) => {
     setBaseModelId(preset?.modelId ?? '');
@@ -656,7 +801,7 @@ export function ModelConfigurationPage({ onNav, onSaved, onBack, initialEditorSt
       setBaseModelId(preset?.modelId ?? config.baseModelId);
       setRequestStrategyId(preset?.requestStrategyId ?? config.requestStrategyId);
       resetEditorSelections(preset, config);
-      setEditingKey(`${config.apiFormat}:${config.modelId}`);
+      setEditingKey(modelConfigKey(config.apiFormat, config.modelId));
       setAdvancedOpen(false);
       setEditorOpen(true);
       setError(null);
@@ -720,6 +865,36 @@ export function ModelConfigurationPage({ onNav, onSaved, onBack, initialEditorSt
     }
   };
 
+  const remove = async () => {
+    if (!editingKey) {
+      return;
+    }
+    const editingTarget = parseModelConfigKey(editingKey);
+    if (!editingTarget) {
+      setError(`Invalid model config key: ${editingKey}`);
+      return;
+    }
+    setSaveBusy(true);
+    try {
+      const result = await services.commands.deleteUserModelConfig(editingTarget.apiFormat, editingTarget.modelId);
+      if (!result.ok) {
+        throw new Error(commandMessage(result.error));
+      }
+      setError(null);
+      setEditorOpen(false);
+      setEditingKey(null);
+      setAdvancedOpen(false);
+      await reloadConfigs();
+      if (isProfileOrigin) {
+        onBack?.();
+      }
+    } catch (nextError) {
+      setError(nextError instanceof Error ? nextError.message : String(nextError));
+    } finally {
+      setSaveBusy(false);
+    }
+  };
+
   return (
     <div className="page page-enter settings-page" onClick={() => {
       setApiFormatMenuOpen(false);
@@ -763,13 +938,27 @@ export function ModelConfigurationPage({ onNav, onSaved, onBack, initialEditorSt
             tooltip={t.settings.createModelConfiguration}
             onClick={() => void openCreateEditor()}
           />
+        ) : editingExisting ? (
+          <IconButton
+            data-testid="model-configuration-delete-button"
+            className="hdr-btn"
+            hostClassName="hdr-btn-danger"
+            quiet
+            icon={<Icon name="trash" />}
+            tooltip={t.common.delete}
+            disabled={saveBusy}
+            onClick={() => void remove()}
+          />
         ) : undefined}
       />
-      <div className="scroll scroll-footer-pad">
+      <div className={`scroll${editorOpen ? ' scroll-footer-pad-detail' : ''}`}>
         {!editorOpen ? (
-          <div className="settings-detail-layout">
+          <div className="settings-detail-layout settings-detail-layout-editor">
             <section className="section generation-settings-section">
-              <HelpText className="field-hint">{t.settings.modelConfigurationHint}</HelpText>
+              <div className="settings-inline-heading-row model-config-list-heading">
+                <div className="section-title settings-section-heading">{t.settings.modelConfiguration}</div>
+              </div>
+              <HelpText className="field-hint model-config-list-hint">{t.settings.modelConfigurationHint}</HelpText>
               {loading ? <HelpText className="field-hint">{t.common.loading}</HelpText> : null}
               {error ? <StatusNotice tone="warning" message={error} copyText={error} /> : null}
               {!loading && configs.length === 0 ? (
@@ -786,16 +975,12 @@ export function ModelConfigurationPage({ onNav, onSaved, onBack, initialEditorSt
                     testId={`model-config-row-${config.apiFormat}-${config.modelId}`}
                     title={config.modelId}
                     leading={(
-                      <div className="prov-ico" style={{ background: 'var(--app-color-accent-subtle)', color: 'var(--app-color-accent-default)' }}>
-                        <Icon name="algorithm" size={14} />
+                      <div className="prov-ico" style={{ background: 'var(--app-color-background-layer-2)', color: 'var(--app-color-accent-default)' }}>
+                        <span data-testid={`model-config-avatar-${config.apiFormat}-${config.modelId}`}>{modelConfigAvatarLabel(config.baseModelId)}</span>
                       </div>
                     )}
                     meta={(
-                      <>
-                        <span className="prov-family">{sourceLabel(config, presets, t)}</span>
-                        <span className="prov-meta-sep" aria-hidden="true">•</span>
-                        <span className="prov-model">{config.apiFormat}</span>
-                      </>
+                      <span className="prov-summary">{configMetaLabel(config)}</span>
                     )}
                     onOpen={() => void openEditEditor(config)}
                   />
@@ -858,12 +1043,12 @@ export function ModelConfigurationPage({ onNav, onSaved, onBack, initialEditorSt
               </div>
               <div className="field">
                 <FieldLabel htmlFor="model-config-model-id">{t.settings.modelConfigModelId}</FieldLabel>
-                <UxpTextFieldField
-                  data-testid="model-config-model-id"
+                <ModelIdField
                   id="model-config-model-id"
-                  className="mono"
+                  testId="model-config-model-id"
                   value={modelId}
                   disabled={saveBusy}
+                  suspended={modelIdSuspended}
                   onValue={setModelId}
                 />
               </div>
@@ -876,7 +1061,7 @@ export function ModelConfigurationPage({ onNav, onSaved, onBack, initialEditorSt
                 >
                   <span className="model-config-advanced-toggle-copy">
                     <span className="section-title settings-section-heading model-config-advanced-toggle-title">
-                      {t.settings.advancedSettings}
+                      {MODEL_CONFIG_CAPABILITY_COPY.advancedSettings}
                     </span>
                   </span>
                   <Icon
@@ -887,9 +1072,9 @@ export function ModelConfigurationPage({ onNav, onSaved, onBack, initialEditorSt
                 </button>
                 {advancedOpen ? (
                   <StrategyMetaField
-                    label={t.settings.modelConfigRequestStrategy}
+                    label={MODEL_CONFIG_CAPABILITY_COPY.requestStrategy}
                     value={requestStrategyId}
-                    detail={t.settings.modelConfigManagedByPreset}
+                    detail={MODEL_CONFIG_CAPABILITY_COPY.managedByPreset}
                   />
                 ) : null}
               </div>
@@ -904,25 +1089,23 @@ export function ModelConfigurationPage({ onNav, onSaved, onBack, initialEditorSt
                   disabled={saveBusy}
                   validationMessage={moduleValidationMessages[module.id] ?? null}
                   normalizationRequired={normalizationRequiredModuleIds.includes(module.id)}
-                  t={t}
                   onToggle={(dimension, id, checked) => toggleModuleSelection(module, dimension, id, checked)}
                 />
               ))
               : null}
 
-            <section className="section generation-settings-section generation-settings-secondary-section">
-              <HelpText className="field-hint">{t.settings.modelConfigurationSaveHint}</HelpText>
-              {error ? (
-                <StatusNotice tone="warning" message={error} copyText={error} />
-              ) : null}
-            </section>
           </div>
         )}
       </div>
       {editorOpen ? (
         <footer className="det-footer">
           <div className="settings-detail-footer-inner">
-            <div className="settings-detail-footer-actions" />
+            <div className="settings-detail-footer-actions">
+              <HelpText className="settings-detail-footer-help">{t.settings.modelConfigurationSaveHint}</HelpText>
+              {error ? (
+                <StatusNotice tone="warning" message={error} copyText={error} />
+              ) : null}
+            </div>
             <div className="settings-detail-footer-save-group">
               <Button
                 data-testid="model-config-save-button"

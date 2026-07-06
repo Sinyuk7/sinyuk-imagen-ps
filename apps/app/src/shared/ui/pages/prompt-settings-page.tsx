@@ -10,6 +10,7 @@ import { hasExactlyOnePromptPlaceholder } from '../hooks/use-prompt-settings';
 import { FieldLabel, HelpText } from '../primitives/native-controls';
 import { TextSelect } from '../components/text-select';
 import { Icon } from '../components/icons';
+import { MotionButtonSurface } from '../components/motion-ui';
 import { IconButton } from '../primitives/icon-button';
 import { UxpTextAreaField } from '../components/uxp-form-controls';
 import { useI18n } from '../i18n/i18n-context';
@@ -165,15 +166,17 @@ export function PromptSettingsPage({
           <section className="section generation-settings-section">
             <div className="settings-section-header">
               <div className="section-title settings-section-heading">{t.settings.promptPresets}</div>
-              <IconButton
-                data-testid="prompt-preset-add-button"
-                className="settings-icon-button"
-                compactSquare
-                icon={<Icon name="add" size={16} />}
-                tooltip={t.settings.addPreset}
-                aria-label={t.settings.addPreset}
-                onClick={() => onOpenPreset(null)}
-              />
+              <MotionButtonSurface>
+                <IconButton
+                  data-testid="prompt-preset-add-button"
+                  className="settings-icon-button"
+                  compactSquare
+                  icon={<Icon name="add" size={16} />}
+                  tooltip={t.settings.addPreset}
+                  aria-label={t.settings.addPreset}
+                  onClick={() => onOpenPreset(null)}
+                />
+              </MotionButtonSurface>
             </div>
             <div className="field prompt-preset-list" role="listbox" aria-label={t.settings.promptPresets}>
               {presetViews.map((view) => {
@@ -189,6 +192,11 @@ export function PromptSettingsPage({
                     onClick={() => void onSelectPreset(view.preset.id)}
                     onKeyDown={(event) => onRowKeyDown(event, () => void onSelectPreset(view.preset.id))}
                   >
+                    <span
+                      className="prompt-preset-indicator"
+                      aria-hidden="true"
+                      data-selected={view.selected ? 'true' : 'false'}
+                    />
                     <div className="prompt-preset-row-main">
                       <span
                         className="prompt-preset-radio"
@@ -199,32 +207,42 @@ export function PromptSettingsPage({
                       <span className={`prompt-preset-mode${valid ? '' : ' is-invalid'}`}>
                         {presetModeLabel(view.preset.mode, t)}
                       </span>
-                      <IconButton
-                        data-testid={`prompt-preset-edit-${view.preset.id}`}
-                        className="settings-icon-button prompt-preset-action"
-                        compactSquare
-                        quiet
-                        icon={<Icon name="pencil" size={16} />}
-                        tooltip={t.settings.editPreset}
-                        aria-label={t.settings.editPreset}
-                        onClick={(event) => {
-                          event.stopPropagation();
-                          onOpenPreset(view.preset.id);
-                        }}
-                      />
-                      <IconButton
-                        data-testid={`prompt-preset-delete-${view.preset.id}`}
-                        className="settings-icon-button prompt-preset-action danger"
-                        compactSquare
-                        quiet
-                        icon={<Icon name="trash" size={16} />}
-                        tooltip={t.common.delete}
-                        aria-label={t.common.delete}
-                        onClick={(event) => {
-                          event.stopPropagation();
-                          void onDeletePreset(view.preset.id);
-                        }}
-                      />
+                      <div className="prompt-preset-actions">
+                        <MotionButtonSurface>
+                          <IconButton
+                            data-testid={`prompt-preset-edit-${view.preset.id}`}
+                            className="settings-icon-button prompt-preset-action"
+                            hostClassName="prompt-preset-action-host"
+                            overlayClassName="prompt-preset-action-overlay"
+                            compactSquare
+                            quiet
+                            icon={<Icon name="pencil" size={15} />}
+                            tooltip={t.settings.editPreset}
+                            aria-label={t.settings.editPreset}
+                            onClick={(event) => {
+                              event.stopPropagation();
+                              onOpenPreset(view.preset.id);
+                            }}
+                          />
+                        </MotionButtonSurface>
+                        <MotionButtonSurface>
+                          <IconButton
+                            data-testid={`prompt-preset-delete-${view.preset.id}`}
+                            className="settings-icon-button prompt-preset-action danger"
+                            hostClassName="prompt-preset-action-host"
+                            overlayClassName="prompt-preset-action-overlay"
+                            compactSquare
+                            quiet
+                            icon={<Icon name="trash" size={15} />}
+                            tooltip={t.common.delete}
+                            aria-label={t.common.delete}
+                            onClick={(event) => {
+                              event.stopPropagation();
+                              void onDeletePreset(view.preset.id);
+                            }}
+                          />
+                        </MotionButtonSurface>
+                      </div>
                     </div>
                     {valid ? null : (
                       <HelpText className="prompt-preset-error" variant="negative">
