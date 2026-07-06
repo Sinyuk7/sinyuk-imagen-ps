@@ -1,10 +1,9 @@
-import { type KeyboardEvent } from 'react';
 import type { ApiFormat, ProviderProfile } from '@imagen-ps/application';
 import type { AppGenerationSettings } from '../../ports/app-generation-settings';
 import type { ModelGenerationSettingsController } from '../hooks/use-model-generation-settings';
 import { profileToProviderRow } from '../../domain/mappers';
 import { Icon } from '../components/icons';
-import { MotionContent } from '../components/motion-ui';
+import { SettingsListRow } from '../components/settings-list-row';
 import { IconButton } from '../primitives/icon-button';
 import { useI18n } from '../i18n/i18n-context';
 
@@ -51,14 +50,6 @@ interface ProviderListItemProps {
   };
 }
 
-function onRowKeyDown(event: KeyboardEvent<HTMLDivElement>, onOpen: () => void): void {
-  if (event.key !== 'Enter' && event.key !== ' ') {
-    return;
-  }
-  event.preventDefault();
-  onOpen();
-}
-
 function ProviderListItem({
   row,
   special = false,
@@ -70,44 +61,37 @@ function ProviderListItem({
   const readinessLabel = !hasDefaultModel ? labels.needsSetup : row.enabled ? labels.ready : labels.configured;
 
   return (
-    <MotionContent watch={`${row.profileId}:${row.enabled}:${row.defaultModel ?? ''}`}>
-      <div
-        data-testid={`provider-row-${row.profileId}`}
-        className={`prov-row settings-provider-row ${special ? 'is-special' : ''} ${row.enabled ? 'is-enabled' : 'is-disabled'}`}
-        role="button"
-        tabIndex={0}
-        onClick={onOpen}
-        onKeyDown={(event) => onRowKeyDown(event, onOpen)}
-      >
-        <div className="prov-leading">
-          <div
-            className="prov-ico"
-            style={special
-              ? { background: 'var(--app-color-informative-subtle)', color: 'var(--app-color-informative)' }
-              : { background: 'var(--app-color-accent-subtle)', color: 'var(--app-color-accent-default)' }}
-          >
-            {special ? <Icon name="magic-wand" size={14} /> : initials(row.displayName)}
-          </div>
+    <SettingsListRow
+      testId={`provider-row-${row.profileId}`}
+      watch={`${row.profileId}:${row.enabled}:${row.defaultModel ?? ''}`}
+      title={row.displayName}
+      special={special}
+      disabled={!row.enabled}
+      leading={(
+        <div
+          className="prov-ico"
+          style={special
+            ? { background: 'var(--app-color-informative-subtle)', color: 'var(--app-color-informative)' }
+            : { background: 'var(--app-color-accent-subtle)', color: 'var(--app-color-accent-default)' }}
+        >
+          {special ? <Icon name="magic-wand" size={14} /> : initials(row.displayName)}
         </div>
-        <div className="prov-content">
-          <div className="prov-title-row">
-            <span className="prov-name">{row.displayName}</span>
-          </div>
-          <div className="prov-meta-row">
-            <span className="prov-family">{row.apiFormatLabel}</span>
-            <span className="prov-meta-sep" aria-hidden="true">•</span>
-            <span className="prov-model">{row.defaultModel ?? row.apiFormat}</span>
-          </div>
+      )}
+      meta={(
+        <>
+          <span className="prov-family">{row.apiFormatLabel}</span>
+          <span className="prov-meta-sep" aria-hidden="true">•</span>
+          <span className="prov-model">{row.defaultModel ?? row.apiFormat}</span>
+        </>
+      )}
+      end={(
+        <div className={`prov-readiness ${readinessTone}`} aria-label={readinessLabel}>
+          <span className="prov-readiness-dot" aria-hidden="true" />
+          <span className="prov-status-text">{readinessLabel}</span>
         </div>
-        <div className="prov-end">
-          <div className={`prov-readiness ${readinessTone}`} aria-label={readinessLabel}>
-            <span className="prov-readiness-dot" aria-hidden="true" />
-            <span className="prov-status-text">{readinessLabel}</span>
-          </div>
-          <div className="prov-trail"><Icon name="chevron-right" /></div>
-        </div>
-      </div>
-    </MotionContent>
+      )}
+      onOpen={onOpen}
+    />
   );
 }
 
@@ -164,87 +148,50 @@ export function SettingsPage({
       </header>
       <div className="scroll">
         <div className="sec-lbl">{t.settings.configured}</div>
-        <div
-          data-testid="global-generation-settings-row"
-          className="prov-row settings-provider-row is-special"
-          role="button"
-          tabIndex={0}
-          onClick={() => onOpenGlobalGeneration?.()}
-          onKeyDown={(event) => onRowKeyDown(event, () => onOpenGlobalGeneration?.())}
-        >
-          <div className="prov-leading">
+        <SettingsListRow
+          testId="global-generation-settings-row"
+          title={t.settings.globalGeneration}
+          special
+          leading={(
             <div className="prov-ico" style={{ background: 'var(--app-color-accent-subtle)', color: 'var(--app-color-accent-default)' }}>
               <Icon name="settings" size={14} />
             </div>
-          </div>
-          <div className="prov-content">
-            <div className="prov-title-row">
-              <span className="prov-name">{t.settings.globalGeneration}</span>
-            </div>
-            <div className="prov-meta-row">
-              <span className="prov-family">
-                {modelGenerationSettings?.selection
-                  ? `${modelGenerationSettings.selection.imageSize.toUpperCase()} · ${modelGenerationSettings.selection.outputFormat.toUpperCase()} · ${modelGenerationSettings.selection.ratio}`
-                  : generationSettings
-                    ? generationSettings.providerInputSizePreset.toUpperCase()
-                    : t.settings.loading}
-              </span>
-            </div>
-          </div>
-          <div className="prov-end">
-            <div className="prov-trail"><Icon name="chevron-right" /></div>
-          </div>
-        </div>
-        <div
-          data-testid="prompt-settings-row"
-          className="prov-row settings-provider-row is-special"
-          role="button"
-          tabIndex={0}
-          onClick={() => onOpenPromptSettings?.()}
-          onKeyDown={(event) => onRowKeyDown(event, () => onOpenPromptSettings?.())}
-        >
-          <div className="prov-leading">
+          )}
+          meta={(
+            <span className="prov-family">
+              {modelGenerationSettings?.selection
+                ? `${modelGenerationSettings.selection.imageSize.toUpperCase()} · ${modelGenerationSettings.selection.outputFormat.toUpperCase()} · ${modelGenerationSettings.selection.ratio}`
+                : generationSettings
+                  ? generationSettings.providerInputSizePreset.toUpperCase()
+                  : t.settings.loading}
+            </span>
+          )}
+          onOpen={() => onOpenGlobalGeneration?.()}
+        />
+        <SettingsListRow
+          testId="prompt-settings-row"
+          title={t.settings.promptSettings}
+          special
+          leading={(
             <div className="prov-ico" style={{ background: 'var(--app-color-informative-subtle)', color: 'var(--app-color-informative)' }}>
               <Icon name="pencil" size={14} />
             </div>
-          </div>
-          <div className="prov-content">
-            <div className="prov-title-row">
-              <span className="prov-name">{t.settings.promptSettings}</span>
-            </div>
-            <div className="prov-meta-row">
-              <span className="prov-family">{t.settings.promptOptimization} · {t.settings.promptPresets}</span>
-            </div>
-          </div>
-          <div className="prov-end">
-            <div className="prov-trail"><Icon name="chevron-right" /></div>
-          </div>
-        </div>
-        <div
-          data-testid="model-configuration-row"
-          className="prov-row settings-provider-row is-special"
-          role="button"
-          tabIndex={0}
-          onClick={() => onOpenModelConfiguration?.()}
-          onKeyDown={(event) => onRowKeyDown(event, () => onOpenModelConfiguration?.())}
-        >
-          <div className="prov-leading">
+          )}
+          meta={<span className="prov-family">{t.settings.promptOptimization} · {t.settings.promptPresets}</span>}
+          onOpen={() => onOpenPromptSettings?.()}
+        />
+        <SettingsListRow
+          testId="model-configuration-row"
+          title={t.settings.modelConfiguration}
+          special
+          leading={(
             <div className="prov-ico" style={{ background: 'var(--app-color-positive-subtle)', color: 'var(--app-color-positive)' }}>
               <Icon name="algorithm" size={14} />
             </div>
-          </div>
-          <div className="prov-content">
-            <div className="prov-title-row">
-              <span className="prov-name">{t.settings.modelConfiguration}</span>
-            </div>
-            <div className="prov-meta-row">
-              <span className="prov-family">{t.settings.modelConfigurationHint}</span>
-            </div>
-          </div>
-          <div className="prov-end">
-            <div className="prov-trail"><Icon name="chevron-right" /></div>
-          </div>
-        </div>
+          )}
+          meta={<span className="prov-family">{t.settings.modelConfigurationHint}</span>}
+          onOpen={() => onOpenModelConfiguration?.()}
+        />
         <div className="sec-lbl">{t.settings.providerProfiles}</div>
         {loading && <div style={{ padding: 16, color: 'var(--app-color-text-muted)', fontSize: 12 }}>{t.settings.loading}</div>}
         {error && <div style={{ padding: 16, color: 'var(--app-color-negative)', fontSize: 12 }}>{error}</div>}

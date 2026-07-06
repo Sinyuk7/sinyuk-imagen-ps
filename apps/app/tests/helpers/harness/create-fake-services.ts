@@ -1,4 +1,4 @@
-import type { OfficialModelPreset, ProviderProfile, UserModelConfig } from '@imagen-ps/application';
+import type { OfficialModelPreset, ProfileModelItem, ProviderProfile, UserModelConfig } from '@imagen-ps/application';
 import { createMemoryActiveImageProfileStore } from '../../../src/shared/ports/active-image-profile';
 import type { DiagnosticsPort } from '../../../src/shared/ports/diagnostics-port';
 import { createMemoryGenerationSettingsStore, type AppGenerationSettings } from '../../../src/shared/ports/app-generation-settings';
@@ -11,6 +11,7 @@ export function createFakeServices(options?: {
   readonly profiles?: readonly ProviderProfile[];
   readonly userModelConfigs?: readonly UserModelConfig[];
   readonly officialModelConfigPresets?: readonly OfficialModelPreset[];
+  readonly profileModelItems?: readonly ProfileModelItem[];
   readonly generationSettings?: Partial<AppGenerationSettings>;
   readonly promptSettings?: PromptSettings | null;
   readonly activeImageProfileId?: string | null;
@@ -19,6 +20,7 @@ export function createFakeServices(options?: {
     profiles: options?.profiles,
     userModelConfigs: options?.userModelConfigs,
     officialModelConfigPresets: options?.officialModelConfigPresets,
+    profileModelItems: options?.profileModelItems,
   });
   const hostFake = createHostFake();
   const taskResourceHelper = createTaskResourceThumbnailHelper();

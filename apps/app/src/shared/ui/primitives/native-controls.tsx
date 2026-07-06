@@ -102,22 +102,26 @@ export const Button = forwardRef<HTMLButtonElement, ButtonProps>(function Button
   );
 });
 
-export function TextField({
-  value,
-  onValue,
-  type = 'text',
-  placeholder,
-  disabled,
-  className,
-  onKeyUp,
-  onBlur,
-  ...props
-}: TextFieldProps) {
+export const TextField = forwardRef<HTMLInputElement, TextFieldProps>(function TextField(
+  {
+    value,
+    onValue,
+    type = 'text',
+    placeholder,
+    disabled,
+    className,
+    onKeyUp,
+    onBlur,
+    ...props
+  },
+  ref,
+) {
   const sync = (next: string) => onValue(next);
 
   return (
     <input
       {...props}
+      ref={ref}
       className={classNames('ui-textfield', className)}
       value={value}
       type={type}
@@ -135,7 +139,7 @@ export function TextField({
       }}
     />
   );
-}
+});
 
 export function Checkbox({ checked, onChecked, disabled, children, className, ...props }: CheckboxProps) {
   return (

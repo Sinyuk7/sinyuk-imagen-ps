@@ -182,6 +182,7 @@ export function ComposerSelect(props: ComposerSelectProps) {
         <IconSelectTriggerButton
           label={label}
           value={value}
+          selectedId={selectedId}
           disabled={disabled}
           open={open}
           testId={testId}
@@ -201,6 +202,7 @@ export function ComposerSelect(props: ComposerSelectProps) {
         <TextSelectTriggerButton
           label={label}
           value={value}
+          selectedId={selectedId}
           disabled={disabled}
           open={open}
           testId={testId}

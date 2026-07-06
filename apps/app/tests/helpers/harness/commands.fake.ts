@@ -3,6 +3,7 @@ import type {
   EndpointMeasurementResult,
   MeasureProfileEndpointsResult,
   OfficialModelPreset,
+  ProfileModelItem,
   ProfileBillingState,
   ProviderProfile,
   ProviderProfileConnectionTestResult,
@@ -25,11 +26,13 @@ export function createCommandsFake(options?: {
   readonly profiles?: readonly ProviderProfile[];
   readonly userModelConfigs?: readonly Parameters<typeof createModelConfigRepositoryFake>[0]['userModelConfigs'];
   readonly officialModelConfigPresets?: readonly OfficialModelPreset[];
+  readonly profileModelItems?: readonly ProfileModelItem[];
 }) {
   let profiles: readonly ProviderProfile[] = options?.profiles ?? [fakeProfile];
   const modelConfig = createModelConfigRepositoryFake({
     userModelConfigs: options?.userModelConfigs,
     officialModelConfigPresets: options?.officialModelConfigPresets,
+    profileModelItems: options?.profileModelItems,
   });
 
   const submitJob = vi.fn(async (input: Parameters<CommandsPort['submitJob']>[0]) => ({

@@ -48,26 +48,10 @@ export function changeTextarea(textarea: HTMLTextAreaElement, value: string): vo
 
 export async function sendPrompt(container: HTMLElement, prompt: string): Promise<void> {
   await act(async () => {
-    changeTextarea(container.querySelector<HTMLTextAreaElement>('.cmp-ta')!, prompt);
+    changeTextarea(container.querySelector<HTMLTextAreaElement>('[data-testid="composer-textarea"]')!, prompt);
   });
   await act(async () => {
     container.querySelector<HTMLElement>('[data-testid="composer-send-button"]')!.click();
   });
   await flush();
-}
-
-export function clickText(container: HTMLElement, selector: string, text: string): void {
-  const root = container.ownerDocument?.body ?? container;
-  const element = Array.from(root.querySelectorAll<HTMLElement>(selector)).find((item) =>
-    item.textContent?.includes(text),
-  );
-  if (!element) {
-    throw new Error(`找不到包含文本的元素: ${text}`);
-  }
-  element.click();
-}
-
-export function findIconInHost(button: Element, selector: string): Element | null {
-  const host = button.closest('.ui-icon-button-host');
-  return host?.querySelector(selector) ?? null;
 }

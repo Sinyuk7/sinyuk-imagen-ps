@@ -318,6 +318,63 @@ Rules:
   `release/cases/artifact-rule-cases`.
 - UI should not have an open-ended Case Bank.
 
+## UI Selector And Helper Contract
+
+UI tests must use stable repo-owned selectors. Do not let tests or helpers
+infer UI structure from styling, copy, or incidental DOM shape.
+
+- All element lookup used to drive test behavior must go through stable
+  `data-testid`.
+- Do not locate elements by CSS class, tag name, DOM depth, sibling order, or
+  broad `textContent` search.
+- Do not use visible copy to find buttons, rows, menu items, or options unless
+  the test is explicitly proving copy rendering and no action depends on that
+  lookup.
+- If a test needs to interact with a control that does not expose a stable
+  `data-testid`, add one in the component first. Do not add helper fallback
+  logic that guesses by text or DOM shape.
+- Selector stability is part of the component contract for reusable controls.
+  Missing test ids are a component gap, not a test-helper problem.
+
+Required select contract for repo-owned selector components:
+
+- Trigger: `<testId>`
+- Popover: `<testId>-popover`
+- Menu root: `<testId>-menu`
+- Option: `<testId>-option-<option.id>`
+
+Rules for options:
+
+- Always select options by stable option id, not by visible label.
+- Prefer option ids such as `2k`, `16:9`, `webp`, or other canonical domain
+  ids.
+- When asserting available options, default to option-id presence/order, not
+  localized labels.
+- Only assert option labels when copy or localization is itself the contract
+  under test.
+
+Rules for helpers:
+
+- Helpers may do only three things: render, perform an explicit UI action, or
+  return raw observable state such as DOM nodes, attributes, or spy calls.
+- Helpers must not infer current business state, choose different action paths,
+  or hide fallback lookup chains for "whatever is currently on screen".
+- Helpers must not encode business assertions. They may return spy output; the
+  test must decide what that output means.
+- If a helper needs branching, the caller should pass the exact target id or
+  mode explicitly.
+- Broad helpers such as "click button containing text" or "find any option that
+  mentions model id" are not durable and should be deleted once a stable
+  selector exists.
+
+Structural assertions should also stay explicit:
+
+- Do not use whole-container `textContent` as a proxy for structural state when
+  a specific node, attribute, test id, or spy can express the same contract.
+- Broad text assertions are acceptable for copy contracts, warning messages,
+  and localization proofs, but not as the default way to prove navigation or
+  selection state.
+
 ### `packages/foundation`
 
 Keep only durable utility contracts:
@@ -429,6 +486,8 @@ Delete these once their coverage has been absorbed into an authoritative suite:
 - one-bug one-file regressions
 - repeated assertions already covered by a stronger boundary contract
 - duplicate UI tests for rules already enforced in lower layers
+- text-lookup and class-lookup helpers once stable `data-testid` contracts
+  replace them
 
 The end state is not “many small files with local history”. The end state is
 “a few authoritative files per stable boundary”.
@@ -438,14 +497,13 @@ The end state is not “many small files with local history”. The end state is
 Integration remains small:
 
 - only a few cross-module core flows
-- no default-CI dependence on real Photoshop
-- no default-CI dependence on real Provider traffic
+- default CI stays inside development-test rules above
 
-Real-world proof is separate:
+Real-world proof stays in the isolated release/manual levels defined above:
 
-- real Photoshop smoke is manual/host-side and never part of default CI
+- real Photoshop smoke is manual-only
 - real Provider smoke lives only in release suites
-- release artifact checks live in `tests/release/`
+- release artifact checks live only in `tests/release/`
 
 ## Loop Validation Categories
 

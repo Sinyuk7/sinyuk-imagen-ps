@@ -5,6 +5,7 @@ import type { SelectTriggerButtonCommonProps } from './select-trigger-button.typ
 export function TextSelectTriggerButton({
   label,
   value,
+  selectedId,
   disabled,
   open,
   testId,
@@ -31,6 +32,7 @@ export function TextSelectTriggerButton({
       overlayClassName="cmp-chip-overlay cmp-chip-overlay-text"
       className={className}
       data-testid={testId}
+      data-selected-id={selectedId}
       aria-label={`${label}: ${value}`}
       aria-describedby={ariaDescribedBy}
       aria-haspopup="listbox"

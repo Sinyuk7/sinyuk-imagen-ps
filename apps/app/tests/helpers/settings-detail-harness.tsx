@@ -77,33 +77,6 @@ export function installFlightRecorder(): Array<{ readonly event: string; readonl
   return records;
 }
 
-export function buttonByText(container: HTMLElement, text: string): HTMLElement & { disabled?: boolean } {
-  const button = Array.from(container.querySelectorAll<HTMLElement & { disabled?: boolean }>('button')).find((item) =>
-    item.textContent?.includes(text),
-  );
-  if (!button) {
-    throw new Error(`找不到按钮: ${text}`);
-  }
-  return button;
-}
-
-export async function selectDefaultModel(container: HTMLElement, modelId: string): Promise<void> {
-  await act(async () => {
-    queryByTestId(container, 'provider-default-model-selector').click();
-  });
-  await act(async () => {
-    const option = container.ownerDocument.body.querySelector<HTMLElement>(`[data-testid="provider-model-row-${modelId}"]`)
-      ?? container.ownerDocument.body.querySelector<HTMLElement>(`[data-testid="provider-model-checkbox-${modelId}"]`)
-      ?? Array.from(container.ownerDocument.body.querySelectorAll<HTMLElement>('[role="option"],button,label,div,span'))
-        .find((node) => node.textContent?.includes(modelId));
-    if (!option) {
-      throw new Error(`找不到默认模型选项: ${modelId}`);
-    }
-    option.click();
-  });
-  await flush();
-}
-
 export async function renderDetailWithRoot(
   container: HTMLElement,
   services: ReturnType<typeof createFakeServices>,

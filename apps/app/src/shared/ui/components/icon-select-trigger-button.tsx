@@ -9,6 +9,7 @@ interface IconSelectTriggerButtonProps extends SelectTriggerButtonCommonProps {
 export function IconSelectTriggerButton({
   label,
   value,
+  selectedId,
   disabled,
   open,
   testId,
@@ -36,6 +37,7 @@ export function IconSelectTriggerButton({
       overlayClassName="cmp-chip-overlay cmp-chip-overlay-icon"
       className={className}
       data-testid={testId}
+      data-selected-id={selectedId}
       aria-label={label}
       aria-describedby={ariaDescribedBy}
       aria-haspopup="listbox"

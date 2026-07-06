@@ -1,6 +1,7 @@
 import { vi } from 'vitest';
 import type {
   OfficialModelPreset,
+  ProfileModelItem,
   SaveUserModelConfigInput,
   UserModelConfig,
 } from '@imagen-ps/application';
@@ -24,6 +25,7 @@ import {
 export function createModelConfigRepositoryFake(options?: {
   readonly userModelConfigs?: readonly UserModelConfig[];
   readonly officialModelConfigPresets?: readonly OfficialModelPreset[];
+  readonly profileModelItems?: readonly ProfileModelItem[];
 }) {
   const modelGenerationPreferences = createMemoryModelGenerationPreferenceRepository();
   setModelGenerationPreferenceRepository(modelGenerationPreferences);
@@ -91,7 +93,8 @@ export function createModelConfigRepositoryFake(options?: {
     userModelConfigs = userModelConfigs.filter((config) => !(config.apiFormat === apiFormat && config.modelId === modelId));
     return { ok: true as const, value: undefined };
   });
-  const listProfileModels = vi.fn(async () => ({ ok: true as const, value: fakeProfileModelItems }));
+  const profileModelItems = options?.profileModelItems ?? fakeProfileModelItems;
+  const listProfileModels = vi.fn(async () => ({ ok: true as const, value: profileModelItems }));
   const refreshProfileModels = vi.fn(async () => ({ ok: true as const, value: [{ id: 'gpt-image-2-preview' }] }));
 
   return {

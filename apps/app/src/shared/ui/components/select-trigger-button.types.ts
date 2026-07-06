@@ -3,6 +3,7 @@ import type { KeyboardEvent, MouseEvent, RefObject } from 'react';
 export interface SelectTriggerButtonCommonProps {
   readonly label: string;
   readonly value: string;
+  readonly selectedId: string;
   readonly disabled?: boolean;
   readonly open: boolean;
   readonly testId?: string;

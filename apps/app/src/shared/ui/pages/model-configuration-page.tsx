@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useState, type ReactNode } from 'react';
 import type {
   ApiFormat,
   ImageAspectRatio,
@@ -9,11 +9,13 @@ import type {
 } from '@imagen-ps/application';
 import { useAppServices } from '../../ports/app-services-context';
 import { ProviderSettingsPageHeader } from '../components/provider-settings-sections';
+import { SettingsListRow } from '../components/settings-list-row';
 import { Icon } from '../components/icons';
 import { StatusNotice } from '../components/status-notice';
 import { TextSelect } from '../components/text-select';
+import { UxpTextFieldField } from '../components/uxp-form-controls';
 import { useI18n } from '../i18n/i18n-context';
-import { Button, FieldLabel, HelpText, TextField } from '../primitives/native-controls';
+import { Button, FieldLabel, HelpText } from '../primitives/native-controls';
 import { IconButton } from '../primitives/icon-button';
 import {
   buildOutputCapabilityEditorState,
@@ -144,20 +146,6 @@ function RatioPreview({ ratio }: { readonly ratio: ImageAspectRatio }) {
   );
 }
 
-function selectionSummary(_module: OutputCapabilityModule, selection: MatrixDimensionSelection, t: ReturnType<typeof useI18n>['messages']): string {
-  if (_module.archetype === 'size-format') {
-    return t.settings.modelConfigSizeFormatSummary(
-      selection.outputFormats.length,
-      selection.imageSizes.length,
-    );
-  }
-  return t.settings.modelConfigModuleSummary(
-    selection.outputFormats.length,
-    selection.ratios.length,
-    selection.imageSizes.length,
-  );
-}
-
 function fieldSelectionError(selection: MatrixDimensionSelection, t: ReturnType<typeof useI18n>['messages']): string | null {
   if (selection.outputFormats.length === 0) {
     return t.settings.modelConfigValidationOutputFormat;
@@ -169,6 +157,24 @@ function fieldSelectionError(selection: MatrixDimensionSelection, t: ReturnType<
     return t.settings.modelConfigValidationResolution;
   }
   return null;
+}
+
+function StrategyMetaField({
+  label,
+  value,
+  detail,
+}: {
+  readonly label: string;
+  readonly value: string;
+  readonly detail: string;
+}) {
+  return (
+    <div className="field">
+      <div className="section-title settings-subsection-heading">{label}</div>
+      <div className="model-config-meta-value mono">{value}</div>
+      <HelpText className="field-hint">{detail}</HelpText>
+    </div>
+  );
 }
 
 function exposureFromModules(
@@ -222,13 +228,14 @@ function exposureFromModules(
   };
 }
 
-function CapabilityChipGroup({
+function CapabilityOptionGroup({
   title,
   items,
   selected,
   disabled,
   testIdPrefix,
   onToggle,
+  renderItem,
 }: {
   readonly title: string;
   readonly items: readonly { readonly id: string; readonly label: string }[];
@@ -236,12 +243,13 @@ function CapabilityChipGroup({
   readonly disabled?: boolean;
   readonly testIdPrefix: string;
   readonly onToggle: (id: string, checked: boolean) => void;
+  readonly renderItem?: (item: { readonly id: string; readonly label: string }, checked: boolean) => ReactNode;
 }) {
   const firstItemId = items[0]?.id ?? `${testIdPrefix}-empty`;
   return (
     <div className="field">
       <FieldLabel htmlFor={`${testIdPrefix}-${firstItemId}`}>{title}</FieldLabel>
-      <div className="model-config-chip-list">
+      <div className="model-config-option-list">
         {items.map((item) => {
           const checked = selected.includes(item.id);
           return (
@@ -255,8 +263,12 @@ function CapabilityChipGroup({
               disabled={disabled}
               onClick={() => onToggle(item.id, !checked)}
             >
-              {checked ? <span className="model-config-chip-check" aria-hidden="true" /> : null}
-              <span>{item.label}</span>
+              {renderItem ? renderItem(item, checked) : (
+                <>
+                  {checked ? <span className="model-config-chip-check" aria-hidden="true" /> : null}
+                  <span>{item.label}</span>
+                </>
+              )}
             </button>
           );
         })}
@@ -282,38 +294,15 @@ function RatioTileGroup({
   readonly onToggle: (id: ImageAspectRatio, checked: boolean) => void;
   readonly t: ReturnType<typeof useI18n>['messages'];
 }) {
-  const textItems = items.filter((item) => item.id === 'auto' || item.id === 'source');
-  const graphicItems = items.filter((item) => item.id !== 'auto' && item.id !== 'source');
   const firstItemId = items[0]?.id ?? 'empty';
 
   return (
     <div className="field">
       <FieldLabel htmlFor={`${testIdPrefix}-${firstItemId}`}>{title}</FieldLabel>
-      {textItems.length > 0 ? (
-        <div className="model-config-chip-list model-config-chip-list-ratio-text">
-          {textItems.map((item) => {
-            const checked = selected.includes(item.id);
-            return (
-              <button
-                key={item.id}
-                type="button"
-                id={`${testIdPrefix}-${item.id}`}
-                data-testid={`${testIdPrefix}-${item.id}`}
-                className={`model-config-chip${checked ? ' is-selected' : ''}`}
-                aria-pressed={checked}
-                disabled={disabled}
-                onClick={() => onToggle(item.id, !checked)}
-              >
-                {checked ? <span className="model-config-chip-check" aria-hidden="true" /> : null}
-                <span>{ratioLabel(item.id, t)}</span>
-              </button>
-            );
-          })}
-        </div>
-      ) : null}
       <div className="model-config-ratio-grid">
-        {graphicItems.map((item) => {
+        {items.map((item) => {
           const checked = selected.includes(item.id);
+          const textOnly = item.id === 'auto' || item.id === 'source';
           return (
             <button
               key={item.id}
@@ -325,8 +314,58 @@ function RatioTileGroup({
               disabled={disabled}
               onClick={() => onToggle(item.id, !checked)}
             >
-              <RatioPreview ratio={item.id} />
-              <span className="model-config-ratio-label">{item.label}</span>
+              {textOnly ? (
+                <span className="model-config-ratio-tile-text">{ratioLabel(item.id, t)}</span>
+              ) : (
+                <>
+                  <RatioPreview ratio={item.id} />
+                  <span className="model-config-ratio-label">{item.label}</span>
+                </>
+              )}
+              {checked ? <span className="model-config-ratio-check" aria-hidden="true" /> : null}
+            </button>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+function SizeTileGroup({
+  title,
+  items,
+  selected,
+  disabled,
+  testIdPrefix,
+  onToggle,
+}: {
+  readonly title: string;
+  readonly items: readonly { readonly id: string; readonly label: string }[];
+  readonly selected: readonly string[];
+  readonly disabled?: boolean;
+  readonly testIdPrefix: string;
+  readonly onToggle: (id: string, checked: boolean) => void;
+}) {
+  const firstItemId = items[0]?.id ?? 'empty';
+
+  return (
+    <div className="field">
+      <FieldLabel htmlFor={`${testIdPrefix}-${firstItemId}`}>{title}</FieldLabel>
+      <div className="model-config-size-grid">
+        {items.map((item) => {
+          const checked = selected.includes(item.id);
+          return (
+            <button
+              key={item.id}
+              type="button"
+              id={`${testIdPrefix}-${item.id}`}
+              data-testid={`${testIdPrefix}-${item.id}`}
+              className={`model-config-size-tile${checked ? ' is-selected' : ''}`}
+              aria-pressed={checked}
+              disabled={disabled}
+              onClick={() => onToggle(item.id, !checked)}
+            >
+              <span className="model-config-size-label">{item.label}</span>
               {checked ? <span className="model-config-ratio-check" aria-hidden="true" /> : null}
             </button>
           );
@@ -356,20 +395,30 @@ function CapabilitySection({
   const primaryMatrix = module.matrices[0]!;
   const combinationCount = validCombinationCount(primaryMatrix, selection);
   const sparse = hasSparseCombinationSet(primaryMatrix, selection);
+  const showSparseHint = sparse && normalizationRequired;
 
   return (
     <section className="section generation-settings-section">
       <div className="model-config-capability-section-header">
         <div className="model-config-capability-section-copy">
-          <div className="section-title">{module.shared ? t.settings.modelConfigOutputCapabilities : operationLabel(module.operations[0]!, t)}</div>
-          <HelpText className="field-hint">{selectionSummary(module, selection, t)}</HelpText>
+          <div
+            className="section-title"
+            data-testid={`model-config-section-title-${module.id}`}
+          >
+            {module.shared ? t.settings.modelConfigOutputCapabilities : operationLabel(module.operations[0]!, t)}
+          </div>
         </div>
         {module.shared ? (
-          <span className="model-config-capability-badge">{t.settings.modelConfigSharedScope}</span>
+          <span
+            className="model-config-capability-meta"
+            data-testid={`model-config-shared-scope-${module.id}`}
+          >
+            {t.settings.modelConfigSharedScope}
+          </span>
         ) : null}
       </div>
 
-      <CapabilityChipGroup
+      <CapabilityOptionGroup
         title={t.settings.modelConfigOutputFormat}
         items={module.outputFormats.map((item) => ({ id: item.id, label: item.label.toUpperCase() }))}
         selected={selection.outputFormats}
@@ -390,7 +439,7 @@ function CapabilitySection({
         />
       ) : null}
 
-      <CapabilityChipGroup
+      <SizeTileGroup
         title={t.settings.modelConfigOutputSize}
         items={module.imageSizes.map((item) => ({ id: item.id, label: item.label }))}
         selected={selection.imageSizes}
@@ -400,12 +449,14 @@ function CapabilitySection({
       />
 
       {normalizationRequired ? (
-        <StatusNotice tone="warning" message={t.settings.modelConfigNormalizationWarning} />
+        <div data-testid={`model-config-normalization-warning-${module.id}`}>
+          <StatusNotice tone="warning" message={t.settings.modelConfigNormalizationWarning} />
+        </div>
       ) : null}
       <HelpText className="field-hint model-config-combination-summary">
         {t.settings.modelConfigValidCombinations(combinationCount)}
       </HelpText>
-      {sparse ? (
+      {showSparseHint ? (
         <HelpText className="field-hint model-config-combination-summary">{t.settings.modelConfigSparseCombinationHint}</HelpText>
       ) : null}
       {validationMessage ? <StatusNotice tone="warning" message={validationMessage} /> : null}
@@ -416,6 +467,7 @@ function CapabilitySection({
 export function ModelConfigurationPage({ onNav, onSaved, onBack, initialEditorState = null }: ModelConfigurationPageProps) {
   const services = useAppServices();
   const { messages: t } = useI18n();
+  const isProfileOrigin = initialEditorState?.source === 'profile-add' || initialEditorState?.source === 'profile-detail';
   const [configs, setConfigs] = useState<readonly UserModelConfig[]>([]);
   const [presets, setPresets] = useState<readonly OfficialModelPreset[]>([]);
   const [loading, setLoading] = useState(false);
@@ -424,6 +476,7 @@ export function ModelConfigurationPage({ onNav, onSaved, onBack, initialEditorSt
   const [apiFormatMenuOpen, setApiFormatMenuOpen] = useState(false);
   const [presetMenuOpen, setPresetMenuOpen] = useState(false);
   const [saveBusy, setSaveBusy] = useState(false);
+  const [advancedOpen, setAdvancedOpen] = useState(false);
   const [apiFormat, setApiFormat] = useState<ApiFormat>('openai-images');
   const [modelId, setModelId] = useState('');
   const [baseModelId, setBaseModelId] = useState('');
@@ -470,7 +523,7 @@ export function ModelConfigurationPage({ onNav, onSaved, onBack, initialEditorSt
   const presetOptions = useMemo(
     () => presets.map((preset) => ({
       id: preset.modelId,
-      label: `${preset.displayName} · ${preset.modelId}`,
+      label: preset.displayName,
     })),
     [presets],
   );
@@ -505,7 +558,7 @@ export function ModelConfigurationPage({ onNav, onSaved, onBack, initialEditorSt
   useEffect(() => {
     const nextApiFormat = initialEditorState?.apiFormat;
     const nextModelId = initialEditorState?.modelId?.trim();
-    if (!nextApiFormat && !nextModelId && !initialEditorState?.source) {
+    if (!nextModelId && !isProfileOrigin) {
       return;
     }
     void (async () => {
@@ -528,6 +581,7 @@ export function ModelConfigurationPage({ onNav, onSaved, onBack, initialEditorSt
         setRequestStrategyId(preset?.requestStrategyId ?? '');
         resetEditorSelections(preset, config);
         setEditingKey(config ? `${resolvedApiFormat}:${config.modelId}` : null);
+        setAdvancedOpen(false);
         setEditorOpen(true);
       } catch (nextError) {
         setError(nextError instanceof Error ? nextError.message : String(nextError));
@@ -585,6 +639,7 @@ export function ModelConfigurationPage({ onNav, onSaved, onBack, initialEditorSt
       const firstPreset = nextPresets[0];
       applyPreset(firstPreset, firstPreset?.modelId ?? '');
       setEditingKey(null);
+      setAdvancedOpen(false);
       setEditorOpen(true);
       setError(null);
     } catch (nextError) {
@@ -602,6 +657,7 @@ export function ModelConfigurationPage({ onNav, onSaved, onBack, initialEditorSt
       setRequestStrategyId(preset?.requestStrategyId ?? config.requestStrategyId);
       resetEditorSelections(preset, config);
       setEditingKey(`${config.apiFormat}:${config.modelId}`);
+      setAdvancedOpen(false);
       setEditorOpen(true);
       setError(null);
     } catch (nextError) {
@@ -671,11 +727,24 @@ export function ModelConfigurationPage({ onNav, onSaved, onBack, initialEditorSt
     }}>
       <ProviderSettingsPageHeader
         backButtonTestId="model-configuration-back-button"
-        title={editorOpen ? (editingExisting ? t.settings.editModelConfiguration : t.settings.createModelConfiguration) : t.settings.modelConfiguration}
+        title={(
+          <div className="hdr-title" data-testid="model-configuration-title">
+            {editorOpen ? (editingExisting ? t.settings.editModelConfiguration : t.settings.createModelConfiguration) : t.settings.modelConfiguration}
+          </div>
+        )}
         onBack={() => {
           if (editorOpen) {
+            if (isProfileOrigin) {
+              setEditorOpen(false);
+              setEditingKey(null);
+              setAdvancedOpen(false);
+              setError(null);
+              onBack?.();
+              return;
+            }
             setEditorOpen(false);
             setEditingKey(null);
+            setAdvancedOpen(false);
             setError(null);
             return;
           }
@@ -712,35 +781,24 @@ export function ModelConfigurationPage({ onNav, onSaved, onBack, initialEditorSt
               ) : null}
               <div className="model-config-list">
                 {configs.map((config) => (
-                  <div
+                  <SettingsListRow
                     key={`${config.apiFormat}:${config.modelId}`}
-                    data-testid={`model-config-row-${config.apiFormat}-${config.modelId}`}
-                    className="prompt-preset-row model-config-row"
-                    role="button"
-                    tabIndex={0}
-                    onClick={() => void openEditEditor(config)}
-                  >
-                    <div className="prompt-preset-row-main model-config-row-main">
-                      <span className="prompt-preset-name">{config.modelId}</span>
-                      <span className="prompt-preset-mode">{sourceLabel(config, presets, t)}</span>
-                      <IconButton
-                        data-testid={`model-config-edit-${config.apiFormat}-${config.modelId}`}
-                        className="settings-icon-button prompt-preset-action"
-                        compactSquare
-                        quiet
-                        icon={<Icon name="pencil" size={16} />}
-                        tooltip={t.settings.editModelConfiguration}
-                        aria-label={t.settings.editModelConfiguration}
-                        onClick={(event) => {
-                          event.stopPropagation();
-                          void openEditEditor(config);
-                        }}
-                      />
-                    </div>
-                    <HelpText className="field-hint">
-                      {config.apiFormat} · {config.baseModelId} · {config.requestStrategyId}
-                    </HelpText>
-                  </div>
+                    testId={`model-config-row-${config.apiFormat}-${config.modelId}`}
+                    title={config.modelId}
+                    leading={(
+                      <div className="prov-ico" style={{ background: 'var(--app-color-accent-subtle)', color: 'var(--app-color-accent-default)' }}>
+                        <Icon name="algorithm" size={14} />
+                      </div>
+                    )}
+                    meta={(
+                      <>
+                        <span className="prov-family">{sourceLabel(config, presets, t)}</span>
+                        <span className="prov-meta-sep" aria-hidden="true">•</span>
+                        <span className="prov-model">{config.apiFormat}</span>
+                      </>
+                    )}
+                    onOpen={() => void openEditEditor(config)}
+                  />
                 ))}
               </div>
             </section>
@@ -784,7 +842,7 @@ export function ModelConfigurationPage({ onNav, onSaved, onBack, initialEditorSt
                   menuClassName="cmp-select-menu cmp-select-menu-model"
                   label={t.settings.modelConfigPreset}
                   value={selectedPreset
-                    ? `${selectedPreset.displayName} · ${selectedPreset.modelId}`
+                    ? selectedPreset.displayName
                     : t.settings.modelConfigValidationPreset}
                   disabled={saveBusy}
                   open={presetMenuOpen}
@@ -800,25 +858,40 @@ export function ModelConfigurationPage({ onNav, onSaved, onBack, initialEditorSt
               </div>
               <div className="field">
                 <FieldLabel htmlFor="model-config-model-id">{t.settings.modelConfigModelId}</FieldLabel>
-                <TextField
+                <UxpTextFieldField
                   data-testid="model-config-model-id"
                   id="model-config-model-id"
-                  className="field-input mono ui-field-control"
+                  className="mono"
                   value={modelId}
                   disabled={saveBusy}
                   onValue={setModelId}
                 />
               </div>
-              <div className="field">
-                <FieldLabel htmlFor="model-config-request-strategy">{t.settings.modelConfigRequestStrategy}</FieldLabel>
-                <TextField
-                  data-testid="model-config-strategy"
-                  id="model-config-request-strategy"
-                  className="field-input mono ui-field-control"
-                  value={requestStrategyId}
-                  disabled
-                  onValue={() => undefined}
-                />
+              <div className={`provider-embedded-section model-config-advanced-section${advancedOpen ? ' is-open' : ''}`}>
+                <button
+                  type="button"
+                  className="model-config-advanced-toggle"
+                  aria-expanded={advancedOpen}
+                  onClick={() => setAdvancedOpen((current) => !current)}
+                >
+                  <span className="model-config-advanced-toggle-copy">
+                    <span className="section-title settings-section-heading model-config-advanced-toggle-title">
+                      {t.settings.advancedSettings}
+                    </span>
+                  </span>
+                  <Icon
+                    name={advancedOpen ? 'chevron-down' : 'chevron-right'}
+                    size={12}
+                    className="model-config-advanced-toggle-icon"
+                  />
+                </button>
+                {advancedOpen ? (
+                  <StrategyMetaField
+                    label={t.settings.modelConfigRequestStrategy}
+                    value={requestStrategyId}
+                    detail={t.settings.modelConfigManagedByPreset}
+                  />
+                ) : null}
               </div>
             </section>
 

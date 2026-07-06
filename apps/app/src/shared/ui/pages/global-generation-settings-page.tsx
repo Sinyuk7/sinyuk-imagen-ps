@@ -237,7 +237,12 @@ export function GlobalGenerationSettingsPage({
                 selectedId={settings.providerInputSizePreset}
                 onSelect={(value) => updateSettings({ providerInputSizePreset: value as AppProviderInputSizePreset })}
               />
-              <HelpText className="field-hint">{`${t.settings.providerInputSizePresetHint} ${t.settings.useInputSizeNormalizedHint}`}</HelpText>
+              <HelpText
+                className="field-hint"
+                data-testid="global-settings-provider-input-size-hint"
+              >
+                {`${t.settings.providerInputSizePresetHint} ${t.settings.useInputSizeNormalizedHint}`}
+              </HelpText>
             </div>
           </section>
           <section className="section generation-settings-section generation-settings-secondary-section">

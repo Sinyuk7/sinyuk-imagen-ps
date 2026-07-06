@@ -1,7 +1,7 @@
 import { act } from 'react';
 import { createRoot, type Root } from 'react-dom/client';
 import { afterEach, describe, expect, it } from 'vitest';
-import { listOfficialModelConfigPresets, type ApiFormat, type OfficialModelPreset } from '@imagen-ps/application';
+import { listOfficialModelConfigPresets, type ApiFormat, type OfficialModelPreset, type UserModelConfig } from '@imagen-ps/application';
 import { ModelConfigurationPage } from '../../../../src/shared/ui/pages/model-configuration-page';
 import {
   buildOutputCapabilityEditorState,
@@ -165,11 +165,11 @@ describe('ModelConfigurationPage', () => {
     await flush();
     await flush();
 
-    expect(container.textContent).toContain('Output capabilities');
-    expect(container.textContent).toContain('Text + Edit');
-    expect(container.textContent).toContain('Use Input Size');
-    expect(container.textContent).not.toContain('Aspect ratio');
-    expect(container.textContent).not.toContain('Text to Image');
+    expect(container.querySelector('[data-testid="model-config-section-title-shared"]')).not.toBeNull();
+    expect(container.querySelector('[data-testid="model-config-shared-scope-shared"]')).not.toBeNull();
+    expect(container.querySelector('[data-testid="model-config-shared-size-use-input-size"]')).not.toBeNull();
+    expect(container.querySelector('[data-testid="model-config-shared-ratio-auto"]')).toBeNull();
+    expect(container.querySelector('[data-testid="model-config-section-title-text_to_image"]')).toBeNull();
   });
 
   it('shows separate text and edit sections when preset operations differ', async () => {
@@ -205,8 +205,50 @@ describe('ModelConfigurationPage', () => {
     await flush();
     await flush();
 
-    expect(container.textContent).toContain('Text to Image');
-    expect(container.textContent).toContain('Edit Image');
+    expect(container.querySelector('[data-testid="model-config-section-title-text_to_image"]')).not.toBeNull();
+    expect(container.querySelector('[data-testid="model-config-section-title-image_edit"]')).not.toBeNull();
+    expect(container.querySelector('[data-testid="model-config-section-title-shared"]')).toBeNull();
+  });
+
+  it('returns from create editor to configuration list when opened from list page', async () => {
+    const { services } = createFakeServices();
+    const container = await renderPage(services);
+
+    await openCreateEditor(container);
+
+    expect(container.querySelector('[data-testid="model-config-model-id"]')).not.toBeNull();
+
+    await act(async () => {
+      container.querySelector<HTMLElement>('[data-testid="model-configuration-back-button"]')?.click();
+    });
+    await flush();
+
+    expect(container.querySelector('[data-testid="model-configuration-add-button"]')).not.toBeNull();
+    expect(container.querySelector('[data-testid="model-config-model-id"]')).toBeNull();
+  });
+
+  it('uses click-only settings row for saved configs without extra edit button', async () => {
+    const userModelConfigs: readonly UserModelConfig[] = [
+      {
+        apiFormat: 'openai-images',
+        modelId: 'saved-config',
+        baseModelId: 'gpt-image-2',
+        requestStrategyId: 'image-endpoint-default',
+        outputMatrix: [],
+      },
+    ];
+    const { services } = createFakeServices({ userModelConfigs });
+    const container = await renderPage(services);
+
+    expect(container.querySelector('[data-testid="model-config-edit-openai-images-saved-config"]')).toBeNull();
+
+    await act(async () => {
+      container.querySelector<HTMLElement>('[data-testid="model-config-row-openai-images-saved-config"]')?.click();
+    });
+    await flush();
+    await flush();
+
+    expect(container.querySelector<HTMLInputElement>('[data-testid="model-config-model-id"]')?.value).toBe('saved-config');
   });
 
   it('saves ratio-resolution exposure when one ratio is deselected', async () => {
@@ -286,7 +328,7 @@ describe('ModelConfigurationPage', () => {
     await flush();
     await flush();
 
-    expect(container.textContent).toContain('Saving will normalize it to shared format, ratio, and resolution rules.');
+    expect(container.querySelector('[data-testid="model-config-normalization-warning-shared"]')).not.toBeNull();
   });
 
   it('prefills create flow from profile-originated apiFormat without auto-filling model id', async () => {

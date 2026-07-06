@@ -14,7 +14,33 @@ function changeInput(input: HTMLInputElement, value: string): void {
   input.dispatchEvent(new KeyboardEvent('keyup', { bubbles: true, key: 'x' }));
 }
 
+function selectedId(container: HTMLElement, testId: string): string | null {
+  return container.querySelector<HTMLElement>(`[data-testid="${testId}"]`)?.getAttribute('data-selected-id') ?? null;
+}
+
 describe('AppShell profile model selection flow', () => {
+  it('opens model configuration list from settings page instead of create editor', async () => {
+    const container = document.createElement('div');
+    document.body.appendChild(container);
+    const services = createFakeServices({ userModelConfigs: [] });
+    await renderMainPage(container, services);
+
+    await act(async () => {
+      container.querySelector<HTMLElement>('[data-testid="main-providers-button"]')?.click();
+    });
+    await flush();
+
+    await act(async () => {
+      container.querySelector<HTMLElement>('[data-testid="model-configuration-row"]')?.click();
+    });
+    await flush();
+    await flush();
+
+    expect(container.querySelector('[data-testid="model-configuration-add-button"]')).not.toBeNull();
+    expect(container.querySelector('[data-testid="model-config-model-id"]')).toBeNull();
+    expect(container.querySelector('[data-testid="model-configuration-title"]')).not.toBeNull();
+  });
+
   it('shows add-page empty state and returns there after saving a profile-originated model config', async () => {
     const container = document.createElement('div');
     document.body.appendChild(container);
@@ -37,7 +63,7 @@ describe('AppShell profile model selection flow', () => {
     await flush();
     await flush();
 
-    expect(container.textContent).toContain('当前 Profile 还没有可选的已保存模型配置。');
+    expect(container.querySelector('[data-testid="provider-model-empty-notice"]')).not.toBeNull();
 
     await act(async () => {
       container.querySelector<HTMLElement>('[data-testid="provider-add-model-config-button"]')?.click();
@@ -61,7 +87,48 @@ describe('AppShell profile model selection flow', () => {
     expect(container.querySelector('[data-testid="provider-save-button"]')).not.toBeNull();
     expect(container.querySelector('[data-testid="provider-default-model-selector"]')).not.toBeNull();
     expect(services.spies.listUserModelConfigs).toHaveBeenCalledWith('openai-images');
-    expect(container.textContent).not.toContain('new-profile-add-model');
+    expect(selectedId(container, 'provider-default-model-selector')).toBe('');
+  });
+
+  it('returns to add page when backing out of profile-originated model config creation', async () => {
+    const container = document.createElement('div');
+    document.body.appendChild(container);
+    const services = createFakeServices({ userModelConfigs: [] });
+    await renderMainPage(container, services);
+
+    await act(async () => {
+      container.querySelector<HTMLElement>('[data-testid="main-providers-button"]')?.click();
+    });
+    await flush();
+
+    await act(async () => {
+      container.querySelector<HTMLElement>('[data-testid="providers-add-button"]')?.click();
+    });
+    await flush();
+
+    await act(async () => {
+      changeInput(container.querySelector<HTMLInputElement>('[data-testid="provider-endpoint-detect-input"]')!, 'https://api.openai.com/v1/images/generations');
+    });
+    await flush();
+    await flush();
+
+    await act(async () => {
+      container.querySelector<HTMLElement>('[data-testid="provider-add-model-config-button"]')?.click();
+    });
+    await flush();
+    await flush();
+
+    expect(container.querySelector('[data-testid="model-config-model-id"]')).not.toBeNull();
+
+    await act(async () => {
+      container.querySelector<HTMLElement>('[data-testid="model-configuration-back-button"]')?.click();
+    });
+    await flush();
+    await flush();
+
+    expect(container.querySelector('[data-testid="provider-save-button"]')).not.toBeNull();
+    expect(container.querySelector('[data-testid="provider-default-model-selector"]')).not.toBeNull();
+    expect(container.querySelector('[data-testid="model-config-model-id"]')).toBeNull();
   });
 
   it('detail selector uses only saved user model configs and returns after profile-originated save', async () => {
@@ -127,5 +194,43 @@ describe('AppShell profile model selection flow', () => {
 
     expect(container.querySelector('[data-testid="provider-default-model-selector"]')).not.toBeNull();
     expect(services.spies.listUserModelConfigs).toHaveBeenCalledWith('openai-images');
+  });
+
+  it('returns to detail page when backing out of profile-originated model config creation', async () => {
+    const container = document.createElement('div');
+    document.body.appendChild(container);
+    const services = createFakeServices({
+      profiles: [{ ...fakeProfile, defaultModelId: '', selectedModelIds: [] }],
+      userModelConfigs: [],
+    });
+    await renderMainPage(container, services);
+
+    await act(async () => {
+      container.querySelector<HTMLElement>('[data-testid="main-providers-button"]')?.click();
+    });
+    await flush();
+
+    await act(async () => {
+      container.querySelector<HTMLElement>(`[data-testid="provider-row-${fakeProfile.profileId}"]`)?.click();
+    });
+    await flush();
+    await flush();
+
+    await act(async () => {
+      container.querySelector<HTMLElement>('[data-testid="provider-add-model-config-button"]')?.click();
+    });
+    await flush();
+    await flush();
+
+    expect(container.querySelector('[data-testid="model-config-model-id"]')).not.toBeNull();
+
+    await act(async () => {
+      container.querySelector<HTMLElement>('[data-testid="model-configuration-back-button"]')?.click();
+    });
+    await flush();
+    await flush();
+
+    expect(container.querySelector('[data-testid="provider-default-model-selector"]')).not.toBeNull();
+    expect(container.querySelector('[data-testid="model-config-model-id"]')).toBeNull();
   });
 });

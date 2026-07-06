@@ -47,7 +47,7 @@ import {
   type ComposerReadinessState,
 } from '../composer-readiness';
 import { classifyRoundError, type ErrorPrimaryAction } from '../error-action';
-import type { BalanceChange, ExactTaskCost, ImageAspectRatio, ImageOutputFormat, ImageOutputImageSize } from '@imagen-ps/application';
+import type { BalanceChange, ExactTaskCost, ImageAspectRatio, ImageOutputImageSize } from '@imagen-ps/application';
 import type { UiModelInfo } from '../model-info';
 import type { ModelGenerationSettingsController } from '../hooks/use-model-generation-settings';
 
@@ -352,7 +352,7 @@ export function MainPage({
   const services = useAppServices();
   const { messages: t } = useI18n();
   const [profileMenuOpen, setProfileMenuOpen] = useState(false);
-  const [openMenu, setOpenMenu] = useState<'model' | 'output-size' | 'output-ratio' | 'output-format' | null>(null);
+  const [openMenu, setOpenMenu] = useState<'model' | 'output-size' | 'output-ratio' | null>(null);
   const [attachOpen, setAttachOpen] = useState(false);
   const [layerOpen, setLayerOpen] = useState(false);
   const [captureInFlight, setCaptureInFlight] = useState(false);
@@ -420,13 +420,8 @@ export function MainPage({
     () => modelGenerationSettings.ratioOptions,
     [modelGenerationSettings.ratioOptions],
   );
-  const outputFormatOptions = useMemo(
-    () => modelGenerationSettings.outputFormatOptions,
-    [modelGenerationSettings.outputFormatOptions],
-  );
   const selectedOutputSize = modelGenerationSettings.selection?.imageSize ?? 'auto';
   const selectedOutputRatio = modelGenerationSettings.selection?.ratio ?? 'auto';
-  const selectedOutputFormat = modelGenerationSettings.selection?.outputFormat ?? 'png';
   const currentPromptValue = () => taRef.current?.value ?? input;
   const composerTextAreaNeedsUxpPopupOverlapWorkaround = openMenu !== null;
   const syncComposerInputBeforeMenuOpen = useCallback(() => {
@@ -436,7 +431,7 @@ export function MainPage({
     }
     taRef.current?.blur();
   }, [composerDraft, input]);
-  const handleOpenComposerMenu = useCallback((menu: 'model' | 'output-size' | 'output-ratio' | 'output-format', open: boolean) => {
+  const handleOpenComposerMenu = useCallback((menu: 'model' | 'output-size' | 'output-ratio', open: boolean) => {
     setProfileMenuOpen(false);
     if (open) {
       syncComposerInputBeforeMenuOpen();
@@ -1007,13 +1002,6 @@ export function MainPage({
       show(modelGenerationSettings.validationMessage, 'warning', { key: `output-ratio-rejected:${nextRatio}` });
     }
   };
-  const selectOutputFormat = async (nextFormat: ImageOutputFormat) => {
-    const saved = await modelGenerationSettings.selectOutputFormat(nextFormat);
-    if (!saved && modelGenerationSettings.validationMessage) {
-      show(modelGenerationSettings.validationMessage, 'warning', { key: `output-format-rejected:${nextFormat}` });
-    }
-  };
-
   return (
     <div className="page" onClick={closeAll}>
       <header className="hdr">
@@ -1774,24 +1762,6 @@ export function MainPage({
                   icon="image-auto-mode"
                 />
               ) : null}
-              <IconSelect
-                testId="composer-output-format-selector"
-                containerClassName="cmp-select cmp-select-output-size"
-                menuClassName="cmp-select-menu cmp-select-menu-compact"
-                label={t.main.outputFormat}
-                value={optionLabel(outputFormatOptions, selectedOutputFormat)}
-                disabled={conversation.running || outputFormatOptions.length === 0}
-                open={openMenu === 'output-format'}
-                onOpenChange={(open) => {
-                  handleOpenComposerMenu('output-format', open);
-                }}
-                options={outputFormatOptions}
-                selectedId={selectedOutputFormat}
-                onSelect={(value) => {
-                  void selectOutputFormat(value as ImageOutputFormat);
-                }}
-                icon="image-auto-mode"
-              />
             </div>
           </div>
           </MotionDimSurface>

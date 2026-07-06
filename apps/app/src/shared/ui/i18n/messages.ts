@@ -269,6 +269,7 @@ export interface AppMessages {
     readonly modelConfigApiFormat: string;
     readonly modelConfigModelId: string;
     readonly modelConfigRequestStrategy: string;
+    readonly modelConfigManagedByPreset: string;
     readonly modelConfigMatrixCells: string;
     readonly modelConfigOutputCapabilities: string;
     readonly modelConfigSharedScope: string;
@@ -648,6 +649,7 @@ const EN_MESSAGES: AppMessages = {
     modelConfigApiFormat: 'API format',
     modelConfigModelId: 'Model ID',
     modelConfigRequestStrategy: 'Request strategy',
+    modelConfigManagedByPreset: 'Managed by preset.',
     modelConfigMatrixCells: 'Output matrix cells',
     modelConfigOutputCapabilities: 'Output capabilities',
     modelConfigSharedScope: 'Text + Edit',
@@ -1027,6 +1029,7 @@ const ZH_CN_MESSAGES: AppMessages = {
     modelConfigApiFormat: 'API 格式',
     modelConfigModelId: '模型 ID',
     modelConfigRequestStrategy: '请求策略',
+    modelConfigManagedByPreset: '由预设管理。',
     modelConfigMatrixCells: '输出矩阵单元',
     modelConfigOutputCapabilities: '输出能力',
     modelConfigSharedScope: '文生图 + 编辑',

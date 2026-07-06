@@ -466,7 +466,7 @@ function AppShellContent({ host }: AppShellProps) {
           onOpenGlobalGeneration={() => setView('global-generation-settings')}
           onOpenPromptSettings={() => setView('prompt-settings')}
           onOpenModelConfiguration={() => {
-            setModelConfigurationEditorSeed({ source: 'settings-list' });
+            setModelConfigurationEditorSeed(null);
             setView('model-configuration');
           }}
           generationSettings={generationSettings.settings}
