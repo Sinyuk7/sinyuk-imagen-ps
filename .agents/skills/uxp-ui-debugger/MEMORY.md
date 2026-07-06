@@ -13,6 +13,7 @@ Durable notes for confirmed UI/page debugging in the Imagen Photoshop UXP app. R
 - If a runtime probe cannot reproduce the user's symptom, stop and report the missing proof. Do not keep editing from a partially proven hypothesis.
 - If on-disk CSS already contains the expected fix but real UXP `inspect` still shows old computed values, treat the loaded bundle as stale first. Prove the hypothesis with temporary `style` mutations before making another source edit.
 - Do not treat `uxp-debug.mjs click <selector>` as proof for hit-test bugs. That command calls the selected element directly and can bypass the host's real coordinate hit-testing path.
+- If the main-page `Capture` action shows a host error toast but `task-history.json` does not get a new round record, treat it as a pre-task host capture failure first. Check `imagen.jsonl` for `hostbridge.get_layer_thumbnail.fail` and `hostbridge.capture_active_image.fail` before blaming UI dispatch, provider, or placement writeback.
 
 ## UXP Runtime Facts
 
@@ -23,6 +24,7 @@ Durable notes for confirmed UI/page debugging in the Imagen Photoshop UXP app. R
 - UXP hit-testing can target a non-button overlay host even when a full-size native button is visually present underneath. For overlay controls, verify the actual event target and bridge host clicks back to the real button path when needed.
 - In Photoshop UXP 9.3, `window.innerWidth` / `window.innerHeight` may be unavailable in panel code. Placement logic should use the panel/root rect as a viewport fallback before doing clamp math.
 - UXP can compute CSS function widths such as `width:min(...)` as shrink-to-content in harness layouts. Prefer plain `width` plus `max-width` for UXP-facing hit-test regions and edge-placement fixtures.
+- Photoshop capture failures can be document-local. If `Capture` fails in one document but succeeds in a new document, compare the document/layer attrs on `hostbridge.capture_active_image.fail` and use its `failedStage` field before blaming the shared UI or provider path.
 
 ## Reusable Probes
 

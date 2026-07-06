@@ -1157,6 +1157,9 @@ export function validateImageModelCatalog(
     if (capability.selection.visibleInPicker && (capability.match.ids?.[0]?.trim() ?? '').length === 0) {
       errors.push(`Rule "${capability.ruleId}" is picker-visible but has no canonical id.`);
     }
+    if (capability.displayName.trim().length === 0) {
+      errors.push(`Rule "${capability.ruleId}" has empty displayName.`);
+    }
     if (capability.selection.visibleInPicker && capability.brand === undefined) {
       errors.push(`Rule "${capability.ruleId}" is picker-visible but has no brand.`);
     }

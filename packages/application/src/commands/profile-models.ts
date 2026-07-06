@@ -60,6 +60,23 @@ function officialCatalogDisplayNames(profile: Pick<ProviderProfile, 'apiFormat'>
   return new Map(listOfficialModelPresets(profile.apiFormat).map((model) => [model.modelId, model.displayName] as const));
 }
 
+function resolvedProfileModelDisplayName(args: {
+  readonly modelId: string;
+  readonly userConfig?: UserModelConfig;
+  readonly officialCatalogDisplayNames?: ReadonlyMap<string, string>;
+}): string | undefined {
+  const direct = args.officialCatalogDisplayNames?.get(args.modelId);
+  if (typeof direct === 'string' && direct.trim().length > 0) {
+    return direct;
+  }
+  const baseModelId = args.userConfig?.baseModelId?.trim();
+  if (!baseModelId) {
+    return undefined;
+  }
+  const base = args.officialCatalogDisplayNames?.get(baseModelId);
+  return typeof base === 'string' && base.trim().length > 0 ? base : undefined;
+}
+
 export function reconcileProfileModels(args: {
   readonly discoveredModelIds: readonly string[];
   readonly userModelConfigs: readonly UserModelConfig[];
@@ -82,9 +99,14 @@ export function reconcileProfileModels(args: {
     const userConfig = userConfigsById.get(modelId);
     const userConfigured = userConfig !== undefined;
     const catalogConfigured = args.officialCatalogModelIds.has(modelId);
+    const displayName = resolvedProfileModelDisplayName({
+      modelId,
+      userConfig,
+      officialCatalogDisplayNames: args.officialCatalogDisplayNames,
+    });
     return {
       modelId,
-      ...(args.officialCatalogDisplayNames?.get(modelId) ? { displayName: args.officialCatalogDisplayNames.get(modelId) } : {}),
+      ...(displayName ? { displayName } : {}),
       ...(userConfig?.wireModelId ? { wireModelId: userConfig.wireModelId } : {}),
       discovered: discoveredIds.has(modelId),
       configured: userConfigured || catalogConfigured,

@@ -1,12 +1,69 @@
 import { describe, expect, it } from 'vitest';
+import { readdirSync, readFileSync } from 'node:fs';
+import { join, resolve } from 'node:path';
 import {
   getOfficialModelPreset,
   resolveProviderResolvedOutput,
   validateImageModelCatalog,
   type ImageOutputSelection,
 } from '../src/index.js';
+import { GEMINI_GENERATE_CONTENT_MODEL_CAPABILITIES } from '../src/contract/image-model-catalog/rules/gemini-generate-content.js';
+
+const REPO_ROOT = resolve(import.meta.dirname, '..', '..', '..');
+const SCAN_EXTENSIONS = new Set(['.ts', '.tsx', '.md', '.json']);
+const SCAN_SKIP_DIRS = new Set(['.git', 'node_modules', 'dist']);
+const BASE_NAME = ['Nano', 'Banana'].join(' ');
+const LITE_NAME = `${BASE_NAME} Lite`;
+const FORBIDDEN_MODEL_NAME_PATTERNS = [
+  new RegExp(`\\b${LITE_NAME}\\b`, 'g'),
+  new RegExp(`\\b${BASE_NAME}\\b(?! (?:2|2 Lite|Pro)\\b)`, 'g'),
+] as const;
+
+function walkFiles(root: string): string[] {
+  const entries = readdirSync(root, { withFileTypes: true });
+  const files: string[] = [];
+  for (const entry of entries) {
+    if (entry.isDirectory()) {
+      if (SCAN_SKIP_DIRS.has(entry.name)) {
+        continue;
+      }
+      files.push(...walkFiles(join(root, entry.name)));
+      continue;
+    }
+    if (!entry.isFile()) {
+      continue;
+    }
+    if (!Array.from(SCAN_EXTENSIONS).some((ext) => entry.name.endsWith(ext))) {
+      continue;
+    }
+    files.push(join(root, entry.name));
+  }
+  return files;
+}
+
+function findForbiddenModelNameHits(): string[] {
+  const hits: string[] = [];
+  for (const file of walkFiles(REPO_ROOT)) {
+    const content = readFileSync(file, 'utf8');
+    const lines = content.split('\n');
+    lines.forEach((line, index) => {
+      for (const pattern of FORBIDDEN_MODEL_NAME_PATTERNS) {
+        pattern.lastIndex = 0;
+        const match = pattern.exec(line);
+        if (match) {
+          hits.push(`${file}:${index + 1}:${match[0]}`);
+        }
+      }
+    });
+  }
+  return hits;
+}
 
 describe('image output capability contract', () => {
+  it('forbids legacy Gemini image display names anywhere in repo source', () => {
+    expect(findForbiddenModelNameHits()).toEqual([]);
+  });
+
   it('declares flexible pixel truth separately from recommended presets', () => {
     const preset = getOfficialModelPreset('openai-images', 'gpt-image-2');
 
@@ -148,5 +205,13 @@ describe('image output capability contract', () => {
 
   it('validates catalog selection projections', () => {
     expect(validateImageModelCatalog()).toEqual([]);
+  });
+
+  it('rejects blank catalog display names', () => {
+    const [first, ...rest] = GEMINI_GENERATE_CONTENT_MODEL_CAPABILITIES;
+    expect(validateImageModelCatalog([
+      { ...first, displayName: '   ' },
+      ...rest,
+    ])).toContain(`Rule "${first.ruleId}" has empty displayName.`);
   });
 });

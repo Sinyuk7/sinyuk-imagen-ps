@@ -288,8 +288,8 @@ describe('ModelConfigurationPage', () => {
 
     expect(container.querySelector('[data-testid="model-config-edit-openai-images-saved-config"]')).toBeNull();
     expect(container.querySelector('[data-testid="model-config-avatar-openai-images-saved-config"]')?.textContent).toBe('NB');
-    expect(container.textContent).toContain('nano-banana-fast');
-    expect(container.textContent).toContain('Request model: saved-config-vip');
+    expect(container.textContent).toContain('saved-config-vip');
+    expect(container.textContent).toContain('OpenAI Images');
 
     await act(async () => {
       container.querySelector<HTMLElement>('[data-testid="model-config-row-openai-images-saved-config"]')?.click();

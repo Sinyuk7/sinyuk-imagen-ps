@@ -414,6 +414,13 @@ export function MainPage({
     })),
     [uniqueModels],
   );
+  const visibleLabelForModelId = (modelId: string | undefined): string | undefined => {
+    if (!modelId) {
+      return undefined;
+    }
+    const model = uniqueModels.find((item) => item.id === modelId);
+    return model ? modelVisibleLabel(model) : modelId;
+  };
   const outputSizeOptions = useMemo(
     () => modelGenerationSettings.imageSizeOptions,
     [modelGenerationSettings.imageSizeOptions],
@@ -1232,7 +1239,7 @@ export function MainPage({
                     <div className="prov-top">
                       <ProviderIdentity
                         providerName={round.providerName}
-                        modelLabel={round.modelId}
+                        modelLabel={visibleLabelForModelId(round.modelId)}
                         disabled={!onEditProfile || !round.profileId}
                         onClick={(event) => {
                           event.stopPropagation();
@@ -1270,7 +1277,7 @@ export function MainPage({
                 const preview = round.previews[selectedPreviewIndex];
                 const hasMultiplePreviews = round.previews.length > 1;
                 const copyKey = responseTextKey(round.id);
-                const providerModelLabel = round.modelId || selectedModelLabel;
+                const providerModelLabel = visibleLabelForModelId(round.modelId) ?? selectedModelLabel;
                 const canGoPrev = selectedPreviewIndex > 0;
                 const canGoNext = selectedPreviewIndex < round.previews.length - 1;
                 const billingMeta = roundBillingMeta[round.id];

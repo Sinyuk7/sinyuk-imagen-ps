@@ -16,7 +16,7 @@ import type { AppServices } from '../../app-services/app-services';
 import { createStaticAppPathInfoPort } from '../../shared/ports/app-path-info';
 import type { DiagnosticsPort } from '../../shared/ports/diagnostics-port';
 import { createPluginAppModel, type PluginAppModel } from '../../shared/plugin-app-model';
-import { normalizeLocale, type SupportedLocale } from '../../shared/locale';
+import { resolveAppLocale, type SupportedLocale } from '../../shared/locale';
 import {
   createPhotoshopHostBridge,
   createPhotoshopHostModalRunner,
@@ -163,7 +163,7 @@ export function createPluginHostShell(): PluginHostShell {
     return {
       kind: 'photoshop-uxp',
       app: createPluginAppModel(),
-      locale: normalizeLocale(uxpModules.uxp?.host?.uiLocale),
+      locale: resolveAppLocale(uxpModules.uxp?.host?.uiLocale),
       services: {
         commands: createCommandsAdapter(),
         host: hostBridge,

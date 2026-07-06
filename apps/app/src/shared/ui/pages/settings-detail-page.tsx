@@ -44,6 +44,7 @@ import {
 import { useProfileBilling } from '../hooks/use-profile-billing';
 import { formatBalanceChange, formatBillingPrimary, formatExactTaskCost } from '../../domain/mappers';
 import { importProviderEndpointInput } from '../hooks/provider-endpoint-import';
+import { userModelConfigVisibleLabel } from '../model-info';
 
 interface SettingsDetailPageProps {
   readonly onNav: (view: string) => void;
@@ -399,8 +400,17 @@ export function SettingsDetailPage({ onNav, profileId, onProfilesChanged, onSave
     }
     let cancelled = false;
     setModelOptionsLoading(true);
-    void services.commands.listUserModelConfigs(detail.profile.apiFormat)
-      .then((result: Awaited<ReturnType<typeof services.commands.listUserModelConfigs>>) => {
+    void Promise.all([
+      services.commands.listUserModelConfigs(detail.profile.apiFormat),
+      services.commands.listOfficialModelConfigPresets(detail.profile.apiFormat),
+    ])
+      .then(([
+        result,
+        presetsResult,
+      ]: readonly [
+        Awaited<ReturnType<typeof services.commands.listUserModelConfigs>>,
+        Awaited<ReturnType<typeof services.commands.listOfficialModelConfigPresets>>,
+      ]) => {
         if (cancelled) {
           return;
         }
@@ -409,9 +419,17 @@ export function SettingsDetailPage({ onNav, profileId, onProfilesChanged, onSave
           setModelOptionsError(`${result.error.category}: ${result.error.message}`);
           return;
         }
+        if (!presetsResult.ok) {
+          setUserModelOptions([]);
+          setModelOptionsError(`${presetsResult.error.category}: ${presetsResult.error.message}`);
+          return;
+        }
+        const officialDisplayNames = new Map(
+          presetsResult.value.map((preset) => [preset.modelId, preset.displayName] as const),
+        );
         const nextOptions = result.value.map((config: UserModelConfig) => ({
           id: config.modelId,
-          label: config.wireModelId,
+          label: userModelConfigVisibleLabel(config, officialDisplayNames),
         }));
         setUserModelOptions(nextOptions);
         setModelOptionsError(null);
@@ -842,6 +860,7 @@ export function SettingsDetailPage({ onNav, profileId, onProfilesChanged, onSave
               aliasError={aliasError}
               systemInstructionValue={systemInstruction}
               onSystemInstructionValue={setSystemInstruction}
+              systemInstructionNativeEditorSuspended={modelMenuOpen}
               apiFormatLabel={apiFormatLabel(detail.profile.apiFormat)}
               apiFormatStatus={apiFormatLabel(detail.profile.apiFormat)}
               apiFormatTone="positive"

@@ -39,7 +39,7 @@ export const CHAT_IMAGE_MODEL_CAPABILITIES = Object.freeze([
       ids: ['gemini-3.1-flash-image', 'google/gemini-3.1-flash-image'],
       prefixes: ['gemini-3.1-flash-image', 'google/gemini-3.1-flash-image'],
     },
-    displayName: 'Nano Banana',
+    displayName: 'Nano Banana 2',
     brand: 'google-gemini',
     selection: {
       visibleInPicker: true,

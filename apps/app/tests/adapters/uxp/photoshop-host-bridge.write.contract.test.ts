@@ -11,7 +11,7 @@ import {
   pngWithSize,
   realJpegWithSize,
 } from '../../helpers/host-bridge-harness';
-import { createNullLogger as foundationNullLogger } from '@imagen-ps/foundation';
+import { createLogger, createMemorySink, createNullLogger as foundationNullLogger } from '@imagen-ps/foundation';
 
 describe('PhotoshopHostBridge write contract', () => {
   it('placeAssetOnCanvas generates temporary file/session token and calls placeEvent inside a modal', async () => {
@@ -161,6 +161,97 @@ describe('PhotoshopHostBridge write contract', () => {
 
     expect(spies.scalePlacedLayer).toHaveBeenCalledWith(400, 400);
     expect(spies.translatePlacedLayer).not.toHaveBeenCalled();
+  });
+
+  it('logs host placement normalization facts for unbound placement RCA', async () => {
+    const { modules } = createFakeModules({
+      activeLayerBounds: { _left: 0, _top: 0, _right: 128, _bottom: 96 },
+    });
+    const activeDocument = modules.photoshop?.app.activeDocument as { width?: number; height?: number; resolution?: number };
+    activeDocument.width = 4096;
+    activeDocument.height = 4096;
+    activeDocument.resolution = 300;
+    const sink = createMemorySink();
+    const logger = createLogger({
+      sink,
+      context: { surface: 'uxp', package: 'app', component: 'host' },
+    });
+    const bridge = createPhotoshopHostBridge(modules, {
+      assetStore: createInMemoryAssetStore(),
+      logger,
+    });
+
+    await bridge.placeAssetOnCanvas({
+      type: 'image',
+      name: 'generated.jpg',
+      data: realJpegWithSize(1024, 768),
+      mimeType: 'image/jpeg',
+    }, {
+      kind: 'unbound',
+      reason: 'no-photoshop-capture',
+    });
+
+    const successRecord = sink.records.find((record) => record.event === 'hostbridge.place_asset.ok');
+    expect(successRecord?.attrs).toMatchObject({
+      placement: 'unbound',
+      placementReason: 'no-photoshop-capture',
+      targetDocumentId: 42,
+      targetDocumentWidth: 4096,
+      targetDocumentHeight: 4096,
+      targetDocumentResolution: 300,
+      assetWidth: 1024,
+      assetHeight: 768,
+      placedLayerBoundsAfterPlaceWidth: 128,
+      placedLayerBoundsAfterPlaceHeight: 96,
+      normalizedTargetWidth: 1024,
+      normalizedTargetHeight: 768,
+      placedLayerBoundsAfterNormalizeWidth: 128,
+      placedLayerBoundsAfterNormalizeHeight: 96,
+    });
+  });
+
+  it('logs stable capture failure context for host RCA', async () => {
+    const { modules, spies } = createFakeModules({
+      selectionBounds: { left: 4, top: 6, right: 44, bottom: 54 },
+    });
+    spies.getPixels.mockRejectedValueOnce(new Error('Photoshop Error. Code: -32005. Message: Could not import the clipboard ^0.'));
+    const sink = createMemorySink();
+    const logger = createLogger({
+      sink,
+      context: { surface: 'uxp', package: 'app', component: 'host' },
+    });
+    const bridge = createPhotoshopHostBridge(modules, {
+      assetStore: createInMemoryAssetStore(),
+      logger,
+    });
+
+    await expect(bridge.captureActiveImage({ maxSide: 1024 })).rejects.toThrow('Could not import the clipboard');
+
+    const failureRecord = sink.records.find((record) => record.event === 'hostbridge.capture_active_image.fail');
+    expect(failureRecord?.attrs).toMatchObject({
+      documentId: 42,
+      documentWidth: 512,
+      documentHeight: 384,
+      activeLayerCount: 1,
+      layerId: 2,
+      layerName: 'Child',
+      layerKind: 'pixel',
+      sourceKind: 'selection',
+      captureRectLeft: 4,
+      captureRectTop: 6,
+      captureRectRight: 44,
+      captureRectBottom: 54,
+      captureSizeWidth: 40,
+      captureSizeHeight: 48,
+      thumbnailTargetWidth: 40,
+      thumbnailTargetHeight: 48,
+      providerInputTargetWidth: 855,
+      providerInputTargetHeight: 1026,
+      failedStage: 'prepare-thumbnail-preview',
+    });
+    expect(failureRecord?.error).toMatchObject({
+      message: 'Photoshop Error. Code: -32005. Message: Could not import the clipboard ^0.',
+    });
   });
 
   it('accepts document-only placement without transform and rejects incompatible exact-frame ratio before Photoshop write', async () => {

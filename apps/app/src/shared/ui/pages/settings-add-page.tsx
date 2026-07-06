@@ -35,6 +35,7 @@ import {
   statusFromProviderConnectionTestResult,
 } from '../provider-status';
 import { importDetectionFallbackMessage, importProviderEndpointInput } from '../hooks/provider-endpoint-import';
+import { userModelConfigVisibleLabel } from '../model-info';
 
 interface SettingsAddPageProps {
   readonly onNav: (view: string) => void;
@@ -168,8 +169,17 @@ export function SettingsAddPage({ onNav, profiles, onProfileSaved, onOpenModelCo
     }
     let cancelled = false;
     setModelOptionsLoading(true);
-    void services.commands.listUserModelConfigs(apiFormat)
-      .then((result: Awaited<ReturnType<typeof services.commands.listUserModelConfigs>>) => {
+    void Promise.all([
+      services.commands.listUserModelConfigs(apiFormat),
+      services.commands.listOfficialModelConfigPresets(apiFormat),
+    ])
+      .then(([
+        result,
+        presetsResult,
+      ]: readonly [
+        Awaited<ReturnType<typeof services.commands.listUserModelConfigs>>,
+        Awaited<ReturnType<typeof services.commands.listOfficialModelConfigPresets>>,
+      ]) => {
         if (cancelled) {
           return;
         }
@@ -178,9 +188,17 @@ export function SettingsAddPage({ onNav, profiles, onProfileSaved, onOpenModelCo
           setModelOptionsError(`${result.error.category}: ${result.error.message}`);
           return;
         }
+        if (!presetsResult.ok) {
+          setModelOptions([]);
+          setModelOptionsError(`${presetsResult.error.category}: ${presetsResult.error.message}`);
+          return;
+        }
+        const officialDisplayNames = new Map(
+          presetsResult.value.map((preset) => [preset.modelId, preset.displayName] as const),
+        );
         const nextOptions = result.value.map((config: UserModelConfig) => ({
           id: config.modelId,
-          label: config.modelId,
+          label: userModelConfigVisibleLabel(config, officialDisplayNames),
         }));
         setModelOptions(nextOptions);
         setModelOptionsError(null);
@@ -537,6 +555,7 @@ export function SettingsAddPage({ onNav, profiles, onProfileSaved, onOpenModelCo
           aliasPlaceholder={apiFormat ? apiFormatLabel(apiFormat) : t.settings.apiProfile}
           systemInstructionValue={systemInstruction}
           onSystemInstructionValue={setSystemInstruction}
+          systemInstructionNativeEditorSuspended={modelMenuOpen}
           apiFormatLabel={apiFormatLabel(apiFormat)}
           apiFormatStatus={apiFormat ? apiFormatLabel(apiFormat) : null}
           apiFormatHint={apiFormatFeedback?.message ?? (!apiFormat ? t.settings.apiFormatNeedsPath : null)}

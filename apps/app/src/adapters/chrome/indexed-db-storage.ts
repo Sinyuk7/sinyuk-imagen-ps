@@ -99,7 +99,6 @@ function isImageOutputMatrix(value: unknown): value is ImageOutputMatrix {
       isPlainRecord(cell) &&
       typeof cell.id === 'string' &&
       typeof cell.imageSize === 'string' &&
-      cell.imageSize !== '512' &&
       typeof cell.ratio === 'string' &&
       typeof cell.outputFormat === 'string' &&
       isOutputSelection(cell.selection),

@@ -1,4 +1,4 @@
-import type { ProfileModelItem, ProviderModelInfo } from '@imagen-ps/application';
+import type { ProfileModelItem, ProviderModelInfo, UserModelConfig } from '@imagen-ps/application';
 
 export interface UiModelInfo {
   readonly id: string;
@@ -14,7 +14,7 @@ export interface UiModelInfo {
 export function modelInfoFromProfileItem(item: ProfileModelItem): UiModelInfo {
   return {
     id: item.modelId,
-    displayName: item.displayName ?? item.modelId,
+    ...(item.displayName !== undefined ? { displayName: item.displayName } : {}),
     ...(item.wireModelId !== undefined ? { wireModelId: item.wireModelId } : {}),
     discovered: item.discovered,
     configured: item.configured,
@@ -35,14 +35,13 @@ export function modelInfoFromDescriptor(model: ProviderModelInfo): UiModelInfo {
 }
 
 export function modelVisibleLabel(model: Pick<UiModelInfo, 'id' | 'displayName' | 'wireModelId' | 'configSource'>): string {
-  if (
-    model.configSource === 'user' &&
-    typeof model.wireModelId === 'string' &&
-    model.wireModelId.trim().length > 0
-  ) {
+  if (typeof model.displayName === 'string' && model.displayName.trim().length > 0) {
+    return model.displayName;
+  }
+  if (typeof model.wireModelId === 'string' && model.wireModelId.trim().length > 0) {
     return model.wireModelId;
   }
-  return model.displayName ?? model.id;
+  return model.id;
 }
 
 export function modelDisplayName(model: UiModelInfo): string {
@@ -51,4 +50,18 @@ export function modelDisplayName(model: UiModelInfo): string {
 
 export function mainSelectableModels(models: readonly UiModelInfo[]): readonly UiModelInfo[] {
   return models.filter((model) => model.selected === true && model.configured === true);
+}
+
+export function userModelConfigVisibleLabel(
+  config: Pick<UserModelConfig, 'modelId' | 'wireModelId' | 'baseModelId'>,
+  officialDisplayNames?: ReadonlyMap<string, string>,
+): string {
+  const displayName = officialDisplayNames?.get(config.baseModelId.trim());
+  if (typeof displayName === 'string' && displayName.trim().length > 0) {
+    return displayName;
+  }
+  if (config.wireModelId.trim().length > 0) {
+    return config.wireModelId;
+  }
+  return config.modelId;
 }

@@ -24,6 +24,7 @@ import { createTaskResourceResolver } from '../../shared/image/task-resource-res
 import { createRetentionController } from '../../shared/retention/controller';
 import { defaultTaskLinkedRetentionPolicy, runTaskLinkedRetention } from '../../shared/retention/task-linked-retention';
 import { createChromeTestHarnessRuntime, type ChromeTestHarnessConfig } from './chrome-test-harness';
+import { resolveAppLocale } from '../../shared/locale';
 
 export interface ChromeAppShellOptions {
   readonly backend?: ChromeKeyValueBackend;
@@ -106,7 +107,7 @@ export function createChromeAppShell(options?: ChromeAppShellOptions): AppShellH
 
   return {
     app: createPluginAppModel('chrome-browser'),
-    locale: 'en',
+    locale: resolveAppLocale(globalThis.navigator?.language),
     services: {
       commands: testHarness?.wrapCommands(commands) ?? commands,
       host,

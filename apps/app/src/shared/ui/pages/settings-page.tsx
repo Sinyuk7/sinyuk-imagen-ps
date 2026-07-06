@@ -1,11 +1,14 @@
+import { useEffect, useMemo, useRef, useState } from 'react';
 import type { ApiFormat, ProviderProfile } from '@imagen-ps/application';
 import type { AppGenerationSettings } from '../../ports/app-generation-settings';
 import type { ModelGenerationSettingsController } from '../hooks/use-model-generation-settings';
 import { profileToProviderRow } from '../../domain/mappers';
+import { useAppServices } from '../../ports/app-services-context';
 import { Icon } from '../components/icons';
 import { SettingsListRow } from '../components/settings-list-row';
 import { IconButton } from '../primitives/icon-button';
 import { useI18n } from '../i18n/i18n-context';
+import { modelInfoFromProfileItem, modelVisibleLabel } from '../model-info';
 
 interface SettingsPageProps {
   readonly onNav: (view: string) => void;
@@ -47,6 +50,7 @@ interface ProviderListRow {
   readonly enabled: boolean;
   readonly apiFormatLabel: string;
   readonly defaultModel?: string;
+  readonly defaultModelLabel?: string;
 }
 
 interface ProviderListItemProps {
@@ -89,7 +93,7 @@ function ProviderListItem({
       )}
       meta={(
         <>
-          <span className="prov-model">{row.defaultModel ?? row.apiFormat}</span>
+          <span className="prov-model">{row.defaultModelLabel ?? row.defaultModel ?? row.apiFormat}</span>
           <span className="prov-meta-sep">·</span>
           <span className="prov-family">{apiFormatMetaLabel(row.apiFormat)}</span>
         </>
@@ -118,8 +122,56 @@ export function SettingsPage({
   onOpenPromptSettings,
   onOpenModelConfiguration,
 }: SettingsPageProps) {
+  const services = useAppServices();
   const { messages: t } = useI18n();
-  const rows = profiles.map(profileToProviderRow);
+  const [defaultModelLabels, setDefaultModelLabels] = useState<ReadonlyMap<string, string>>(new Map());
+  const sequenceRef = useRef(0);
+
+  useEffect(() => {
+    const sequence = sequenceRef.current + 1;
+    sequenceRef.current = sequence;
+    const profilesWithDefaultModel = profiles.filter(
+      (profile) => typeof profile.defaultModelId === 'string' && profile.defaultModelId.trim().length > 0,
+    );
+    if (profilesWithDefaultModel.length === 0) {
+      setDefaultModelLabels(new Map());
+      return;
+    }
+    void Promise.all(
+      profilesWithDefaultModel.map(async (profile) => {
+        const result = await services.commands.listProfileModels(profile.profileId);
+        if (!result.ok) {
+          return [profile.profileId, profile.defaultModelId ?? ''] as const;
+        }
+        const selected = result.value.find((item) => item.modelId === profile.defaultModelId);
+        if (!selected) {
+          return [profile.profileId, profile.defaultModelId ?? ''] as const;
+        }
+        return [profile.profileId, modelVisibleLabel(modelInfoFromProfileItem(selected))] as const;
+      }),
+    ).then((entries) => {
+      if (sequenceRef.current !== sequence) {
+        return;
+      }
+      setDefaultModelLabels(new Map(entries));
+    }).catch(() => {
+      if (sequenceRef.current !== sequence) {
+        return;
+      }
+      setDefaultModelLabels(new Map());
+    });
+  }, [profiles, services]);
+
+  const rows = useMemo(
+    () => profiles.map((profile) => {
+      const row = profileToProviderRow(profile);
+      return {
+        ...row,
+        ...(row.defaultModel ? { defaultModelLabel: defaultModelLabels.get(row.profileId) ?? row.defaultModel } : {}),
+      };
+    }),
+    [defaultModelLabels, profiles],
+  );
   const labels = {
     ready: t.common.ready,
     needsSetup: t.common.needsSetup,

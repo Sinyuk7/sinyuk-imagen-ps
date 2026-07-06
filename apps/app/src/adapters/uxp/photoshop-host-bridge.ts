@@ -72,6 +72,7 @@ interface PhotoshopDocument {
   readonly name?: string;
   readonly width?: number;
   readonly height?: number;
+  readonly resolution?: number;
   readonly layers?: readonly PhotoshopLayer[];
   readonly activeLayers?: readonly PhotoshopLayer[];
   readonly selection?: {
@@ -256,6 +257,34 @@ function normalizeRect(bounds: PhotoshopLayerBounds | undefined | null): Photosh
 
 function rectSize(rect: PhotoshopRect): { readonly width: number; readonly height: number } {
   return { width: rect.right - rect.left, height: rect.bottom - rect.top };
+}
+
+function rectLogAttrs(prefix: string, rect: PhotoshopRect | undefined): Record<string, number> {
+  if (!rect) {
+    return {};
+  }
+  return {
+    [`${prefix}Left`]: rect.left,
+    [`${prefix}Top`]: rect.top,
+    [`${prefix}Right`]: rect.right,
+    [`${prefix}Bottom`]: rect.bottom,
+    [`${prefix}Width`]: rect.right - rect.left,
+    [`${prefix}Height`]: rect.bottom - rect.top,
+  };
+}
+
+function sizeLogAttrs(prefix: string, size: { readonly width: number; readonly height: number } | undefined): Record<string, number> {
+  if (!size) {
+    return {};
+  }
+  return {
+    [`${prefix}Width`]: size.width,
+    [`${prefix}Height`]: size.height,
+  };
+}
+
+function currentPlacedLayerBounds(document: PhotoshopDocument): PhotoshopRect | undefined {
+  return normalizeRect(document.activeLayers?.[0]?.boundsNoEffects ?? document.activeLayers?.[0]?.bounds);
 }
 
 function findDocument(app: PhotoshopApp, documentId: number): PhotoshopDocument | undefined {
@@ -887,7 +916,7 @@ async function scalePlacedLayerToSize(
   placedLayer: PhotoshopLayer,
   targetSize: { readonly width: number; readonly height: number },
   context: 'exact-frame' | 'unbound',
-): Promise<PhotoshopRect> {
+): Promise<{ readonly beforeBounds: PhotoshopRect; readonly afterBounds: PhotoshopRect }> {
   if (!placedLayer.scale) {
     throw new Error(`Photoshop ${context} placement requires an active placed layer with scale().`);
   }
@@ -897,7 +926,10 @@ async function scalePlacedLayerToSize(
   }
   const currentSize = rectSize(currentBounds);
   await placedLayer.scale((targetSize.width / currentSize.width) * 100, (targetSize.height / currentSize.height) * 100);
-  return normalizeRect(placedLayer.boundsNoEffects ?? placedLayer.bounds) ?? currentBounds;
+  return {
+    beforeBounds: currentBounds,
+    afterBounds: normalizeRect(placedLayer.boundsNoEffects ?? placedLayer.bounds) ?? currentBounds,
+  };
 }
 
 async function rgbaToPngBytes(image: { readonly width: number; readonly height: number; readonly data: Uint8Array }): Promise<Uint8Array> {
@@ -1155,14 +1187,26 @@ function applySelectionAlpha(rgba: Uint8Array, alpha: Uint8Array): void {
   }
 }
 
-async function transformActivePlacedLayer(document: PhotoshopDocument, placementRect: PhotoshopRect): Promise<void> {
+async function transformActivePlacedLayer(document: PhotoshopDocument, placementRect: PhotoshopRect): Promise<{
+  readonly beforeScaleBounds: PhotoshopRect;
+  readonly afterScaleBounds: PhotoshopRect;
+  readonly targetRect: PhotoshopRect;
+  readonly afterTranslateBounds?: PhotoshopRect;
+}> {
   const placedLayer = document.activeLayers?.[0];
   if (!placedLayer?.scale || !placedLayer.translate) {
     throw new Error('Photoshop exact-frame placement requires an active placed layer with scale() and translate().');
   }
   const targetSize = rectSize(placementRect);
-  const scaledBounds = await scalePlacedLayerToSize(placedLayer, targetSize, 'exact-frame');
+  const scaled = await scalePlacedLayerToSize(placedLayer, targetSize, 'exact-frame');
+  const scaledBounds = scaled.afterBounds;
   await placedLayer.translate(placementRect.left - scaledBounds.left, placementRect.top - scaledBounds.top);
+  return {
+    beforeScaleBounds: scaled.beforeBounds,
+    afterScaleBounds: scaled.afterBounds,
+    targetRect: placementRect,
+    afterTranslateBounds: currentPlacedLayerBounds(document),
+  };
 }
 
 function fileExtensionFor(mimeType: string): string {
@@ -1213,13 +1257,26 @@ function fittedPlacementSize(
 async function normalizeUnboundPlacedLayerSize(
   document: PhotoshopDocument,
   assetSize: { readonly width: number; readonly height: number },
-): Promise<void> {
+): Promise<{
+  readonly boundsAfterPlace?: PhotoshopRect;
+  readonly normalizedTargetSize: { readonly width: number; readonly height: number };
+  readonly boundsAfterNormalize?: PhotoshopRect;
+}> {
   const placedLayer = document.activeLayers?.[0];
-  if (!placedLayer?.scale) {
-    return;
-  }
+  const boundsAfterPlace = currentPlacedLayerBounds(document);
   const targetSize = fittedPlacementSize(assetSize, documentSize(document, assetSize));
-  await scalePlacedLayerToSize(placedLayer, targetSize, 'unbound');
+  if (!placedLayer?.scale) {
+    return {
+      boundsAfterPlace,
+      normalizedTargetSize: targetSize,
+    };
+  }
+  const scaled = await scalePlacedLayerToSize(placedLayer, targetSize, 'unbound');
+  return {
+    boundsAfterPlace,
+    normalizedTargetSize: targetSize,
+    boundsAfterNormalize: scaled.afterBounds,
+  };
 }
 
 function layerPlacementFor(document: PhotoshopDocument, layer: PhotoshopLayer, bounds: PhotoshopRect) {
@@ -1417,12 +1474,23 @@ export function createPhotoshopHostBridge(modules: UxpModules, options?: CreateP
 
     async captureActiveImage(policy: ProviderInputSizePolicy): Promise<PhotoshopCaptureResult> {
       const span = logger.startSpan('hostbridge.capture_active_image');
+      const captureLogAttrs: Record<string, unknown> = {};
+      let failedStage = 'resolve-active-document';
       try {
         const activeDocument = app.activeDocument;
         if (!activeDocument?.id) {
           throw new Error('No active Photoshop document to capture.');
         }
+        Object.assign(captureLogAttrs, {
+          documentId: activeDocument.id,
+          ...(activeDocument.name !== undefined ? { documentName: activeDocument.name } : {}),
+          ...(activeDocument.width !== undefined ? { documentWidth: activeDocument.width } : {}),
+          ...(activeDocument.height !== undefined ? { documentHeight: activeDocument.height } : {}),
+          ...(activeDocument.resolution !== undefined ? { documentResolution: activeDocument.resolution } : {}),
+        });
         const activeLayers = activeDocument.activeLayers ?? [];
+        captureLogAttrs.activeLayerCount = activeLayers.length;
+        failedStage = 'resolve-active-layer';
         if (activeLayers.length !== 1) {
           throw new Error(`Capture requires exactly one selected Photoshop layer, got ${activeLayers.length}.`);
         }
@@ -1430,6 +1498,13 @@ export function createPhotoshopHostBridge(modules: UxpModules, options?: CreateP
         if (!layer) {
           throw new Error('No selected Photoshop layer to capture.');
         }
+        Object.assign(captureLogAttrs, {
+          layerId: layer.id,
+          ...(layer.name !== undefined ? { layerName: layer.name } : {}),
+          ...(layer.kind !== undefined ? { layerKind: String(layer.kind) } : {}),
+          ...(typeof layer.visible === 'boolean' ? { layerVisible: layer.visible } : {}),
+          ...(typeof layer.hasUserMask === 'boolean' ? { layerHasUserMask: layer.hasUserMask } : {}),
+        });
         const layerBounds = normalizeRect(layer.boundsNoEffects ?? layer.bounds);
         if (!layerBounds) {
           throw new Error(`Photoshop layer has no readable pixels: ${layer.name ?? layer.id}`);
@@ -1452,9 +1527,23 @@ export function createPhotoshopHostBridge(modules: UxpModules, options?: CreateP
           height: providerInputPlan.targetHeight,
         };
         const thumbnailSize = thumbnailTargetSize(captureSize);
+        Object.assign(captureLogAttrs, {
+          sourceKind: selectionBounds ? 'selection' : 'layer',
+          ...rectLogAttrs('layerBounds', layerBounds),
+          ...rectLogAttrs('selectionBounds', selectionBounds ?? undefined),
+          ...rectLogAttrs('captureRect', captureRect),
+          ...sizeLogAttrs('captureSize', captureSize),
+          ...sizeLogAttrs('thumbnailTarget', thumbnailSize),
+          ...sizeLogAttrs('providerInputTarget', targetSize),
+          providerInputMaxSide: providerInputPlan.maxSide,
+          providerInputMultiple: providerInputPlan.effectiveMultiple,
+          providerInputWasResized: providerInputPlan.wasResized,
+          providerInputWasUpscaled: providerInputPlan.wasUpscaled,
+        });
 
         const asset = await executeHostModal(
           async () => {
+            failedStage = 'prepare-thumbnail-preview';
             const thumbnailUrl = await createPhotoshopThumbnailUrl(
               imaging,
               {
@@ -1479,6 +1568,7 @@ export function createPhotoshopHostBridge(modules: UxpModules, options?: CreateP
                   }
                 : undefined,
             );
+            failedStage = 'read-capture-pixels';
             const pixelResult = await imaging.getPixels({
               documentID: documentId,
               layerID: layer.id,
@@ -1496,6 +1586,7 @@ export function createPhotoshopHostBridge(modules: UxpModules, options?: CreateP
             });
 
             if (selectionBounds !== null) {
+              failedStage = 'read-selection-mask';
               if (!imaging.getSelection) {
                 throw new Error('Photoshop selection capture is unavailable: imaging.getSelection is missing.');
               }
@@ -1513,8 +1604,10 @@ export function createPhotoshopHostBridge(modules: UxpModules, options?: CreateP
               applySelectionAlpha(rgba, alpha);
             }
 
+            failedStage = 'encode-capture-png';
             const png = await rgbaToPngBytes({ width: targetSize.width, height: targetSize.height, data: rgba });
             const name = `photoshop-${selectionBounds ? 'selection' : 'layer'}-${layer.id}.png`;
+            failedStage = 'store-capture-asset';
             return createStoredHostImageAsset(assetStore, png, {
               source: 'layer',
               name,
@@ -1528,11 +1621,7 @@ export function createPhotoshopHostBridge(modules: UxpModules, options?: CreateP
         );
 
         span.finish({
-          documentId,
-          layerId: layer.id,
-          width: captureSize.width,
-          height: captureSize.height,
-          sourceKind: selectionBounds ? 'selection' : 'layer',
+          ...captureLogAttrs,
         });
         return {
           image: asset,
@@ -1555,7 +1644,10 @@ export function createPhotoshopHostBridge(modules: UxpModules, options?: CreateP
           },
         };
       } catch (error) {
-        span.fail(error);
+        span.fail(error, {
+          ...captureLogAttrs,
+          failedStage,
+        });
         throw error;
       }
     },
@@ -1758,6 +1850,7 @@ export function createPhotoshopHostBridge(modules: UxpModules, options?: CreateP
         name: asset.name,
         mimeType: asset.mimeType,
         placement: placement.kind,
+        ...(placement.kind === 'unbound' ? { placementReason: placement.reason } : {}),
       });
       try {
         const { document: targetDocument, usedActiveDocumentFallback } = targetDocumentForPlacement(app, placement);
@@ -1773,10 +1866,26 @@ export function createPhotoshopHostBridge(modules: UxpModules, options?: CreateP
         const file = await folder.createFile(`imagen-ps-${Date.now()}.${fileExtensionFor(mimeType)}`, {
           overwrite: true,
         });
+        let placedAssetSize: { readonly width: number; readonly height: number } | undefined;
+        let exactFrameTelemetry:
+          | {
+              readonly beforeScaleBounds: PhotoshopRect;
+              readonly afterScaleBounds: PhotoshopRect;
+              readonly targetRect: PhotoshopRect;
+              readonly afterTranslateBounds?: PhotoshopRect;
+            }
+          | undefined;
+        let unboundTelemetry:
+          | {
+              readonly boundsAfterPlace?: PhotoshopRect;
+              readonly normalizedTargetSize: { readonly width: number; readonly height: number };
+              readonly boundsAfterNormalize?: PhotoshopRect;
+            }
+          | undefined;
         try {
           await file.write(data, { format: uxpBinaryFormat(formats) });
           const token = fs.createSessionToken(file);
-          const placedAssetSize = readImageSize(bytes, mimeType);
+          placedAssetSize = readImageSize(bytes, mimeType);
 
           await executeHostModal(
             async () => {
@@ -1794,9 +1903,9 @@ export function createPhotoshopHostBridge(modules: UxpModules, options?: CreateP
                 { synchronousExecution: false },
               );
               if (placement.kind === 'exact-frame' && !usedActiveDocumentFallback) {
-                await transformActivePlacedLayer(targetDocument, placement.placementRect);
+                exactFrameTelemetry = await transformActivePlacedLayer(targetDocument, placement.placementRect);
               } else if (placement.kind === 'unbound' && placement.reason === 'no-photoshop-capture' && placedAssetSize) {
-                await normalizeUnboundPlacedLayerSize(targetDocument, placedAssetSize);
+                unboundTelemetry = await normalizeUnboundPlacedLayerSize(targetDocument, placedAssetSize);
               }
             },
             { commandName: 'Place generated image' },
@@ -1804,7 +1913,33 @@ export function createPhotoshopHostBridge(modules: UxpModules, options?: CreateP
         } finally {
           await file.delete?.();
         }
-        span.finish({ name: asset.name, mimeType, placement: placement.kind });
+        span.finish({
+          name: asset.name,
+          mimeType,
+          placement: placement.kind,
+          ...(placement.kind === 'unbound' ? { placementReason: placement.reason } : {}),
+          ...(targetDocument.id !== undefined ? { targetDocumentId: targetDocument.id } : {}),
+          ...(targetDocument.width !== undefined ? { targetDocumentWidth: targetDocument.width } : {}),
+          ...(targetDocument.height !== undefined ? { targetDocumentHeight: targetDocument.height } : {}),
+          ...(targetDocument.resolution !== undefined ? { targetDocumentResolution: targetDocument.resolution } : {}),
+          ...(usedActiveDocumentFallback ? { usedActiveDocumentFallback } : {}),
+          ...sizeLogAttrs('asset', placedAssetSize),
+          ...(exactFrameTelemetry
+            ? {
+                ...rectLogAttrs('placedLayerBoundsBeforeTransform', exactFrameTelemetry.beforeScaleBounds),
+                ...rectLogAttrs('placedLayerBoundsAfterScale', exactFrameTelemetry.afterScaleBounds),
+                ...rectLogAttrs('placementTargetRect', exactFrameTelemetry.targetRect),
+                ...rectLogAttrs('placedLayerBoundsAfterTranslate', exactFrameTelemetry.afterTranslateBounds),
+              }
+            : {}),
+          ...(unboundTelemetry
+            ? {
+                ...rectLogAttrs('placedLayerBoundsAfterPlace', unboundTelemetry.boundsAfterPlace),
+                ...sizeLogAttrs('normalizedTarget', unboundTelemetry.normalizedTargetSize),
+                ...rectLogAttrs('placedLayerBoundsAfterNormalize', unboundTelemetry.boundsAfterNormalize),
+              }
+            : {}),
+        });
       } catch (error) {
         span.fail(error, { name: asset.name, mimeType: asset.mimeType, placement: placement.kind });
         throw error;

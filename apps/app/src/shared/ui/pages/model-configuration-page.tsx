@@ -16,6 +16,7 @@ import { TextSelect } from '../components/text-select';
 import { useI18n } from '../i18n/i18n-context';
 import { Button, FieldLabel, HelpText, TextField } from '../primitives/native-controls';
 import { IconButton } from '../primitives/icon-button';
+import { userModelConfigVisibleLabel } from '../model-info';
 import {
   buildOutputCapabilityEditorState,
   fullSelectionForModule,
@@ -68,21 +69,18 @@ function apiFormatLabel(apiFormat: ApiFormat): string {
   return 'Gemini GenerateContent';
 }
 
+const MODEL_CONFIG_API_FORMATS = [
+  'openai-images',
+  'openai-chat-completions',
+  'gemini-generate-content',
+] as const satisfies readonly ApiFormat[];
+
 function configMetaLabel(config: UserModelConfig): string {
-  const formatLabel = apiFormatLabel(config.apiFormat);
-  const meta: string[] = [];
-  if (config.wireModelId.trim().length > 0 && config.wireModelId !== config.modelId) {
-    meta.push(`__WIRE__${config.wireModelId}`);
-  }
-  if (config.baseModelId.trim().length > 0 && config.baseModelId !== config.modelId) {
-    meta.push(config.baseModelId);
-  }
-  meta.push(formatLabel);
-  return meta.join(' · ');
+  return apiFormatLabel(config.apiFormat);
 }
 
-function resolvedWireMetaLabel(config: UserModelConfig, t: ReturnType<typeof useI18n>['messages']): string {
-  return configMetaLabel(config).replace(`__WIRE__${config.wireModelId}`, t.settings.modelConfigWireModelMeta(config.wireModelId));
+function buildOfficialDisplayNames(presets: readonly OfficialModelPreset[]): ReadonlyMap<string, string> {
+  return new Map(presets.map((preset) => [preset.modelId, preset.displayName] as const));
 }
 
 function modelConfigAvatarLabel(baseModelId: string): string {
@@ -578,6 +576,7 @@ export function ModelConfigurationPage({ onNav, onSaved, onBack, initialEditorSt
   const { messages: t } = useI18n();
   const isProfileOrigin = initialEditorState?.source === 'profile-add' || initialEditorState?.source === 'profile-detail';
   const [configs, setConfigs] = useState<readonly UserModelConfig[]>([]);
+  const [officialDisplayNames, setOfficialDisplayNames] = useState<ReadonlyMap<string, string>>(new Map());
   const [presets, setPresets] = useState<readonly OfficialModelPreset[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -609,14 +608,23 @@ export function ModelConfigurationPage({ onNav, onSaved, onBack, initialEditorSt
   const reloadConfigs = async () => {
     setLoading(true);
     try {
-      const result = await services.commands.listUserModelConfigs();
+      const [result, presetResults] = await Promise.all([
+        services.commands.listUserModelConfigs(),
+        Promise.all(MODEL_CONFIG_API_FORMATS.map((format) => services.commands.listOfficialModelConfigPresets(format))),
+      ]);
       if (!result.ok) {
         throw new Error(commandMessage(result.error));
       }
+      const failedPresetResult = presetResults.find((presetResult) => !presetResult.ok);
+      if (failedPresetResult && !failedPresetResult.ok) {
+        throw new Error(commandMessage(failedPresetResult.error));
+      }
       setConfigs(result.value);
+      setOfficialDisplayNames(buildOfficialDisplayNames(presetResults.flatMap((presetResult) => presetResult.ok ? presetResult.value : [])));
       setError(null);
     } catch (nextError) {
       setConfigs([]);
+      setOfficialDisplayNames(new Map());
       setError(nextError instanceof Error ? nextError.message : String(nextError));
     } finally {
       setLoading(false);
@@ -953,14 +961,14 @@ export function ModelConfigurationPage({ onNav, onSaved, onBack, initialEditorSt
                   <SettingsListRow
                     key={`${config.apiFormat}:${config.modelId}`}
                     testId={`model-config-row-${config.apiFormat}-${config.modelId}`}
-                    title={config.modelId}
+                    title={userModelConfigVisibleLabel(config, officialDisplayNames)}
                     leading={(
                       <div className="prov-ico" style={{ background: 'var(--app-color-background-layer-2)', color: 'var(--app-color-accent-default)' }}>
                         <span data-testid={`model-config-avatar-${config.apiFormat}-${config.modelId}`}>{modelConfigAvatarLabel(config.baseModelId)}</span>
                       </div>
                     )}
                     meta={(
-                      <span className="prov-summary">{resolvedWireMetaLabel(config, t)}</span>
+                      <span className="prov-summary">{configMetaLabel(config)}</span>
                     )}
                     onOpen={() => void openEditEditor(config)}
                   />

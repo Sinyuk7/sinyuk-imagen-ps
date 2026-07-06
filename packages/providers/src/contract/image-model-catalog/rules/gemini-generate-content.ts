@@ -67,7 +67,7 @@ export const GEMINI_GENERATE_CONTENT_MODEL_CAPABILITIES = Object.freeze([
       ids: ['gemini-3.1-flash-lite-image', 'models/gemini-3.1-flash-lite-image'],
       prefixes: ['gemini-3.1-flash-lite-image', 'models/gemini-3.1-flash-lite-image'],
     },
-    displayName: 'Nano Banana Lite',
+    displayName: 'Nano Banana 2 Lite',
     brand: 'google-gemini',
     selection: {
       visibleInPicker: true,

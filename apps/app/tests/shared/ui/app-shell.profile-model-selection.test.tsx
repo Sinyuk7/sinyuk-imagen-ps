@@ -11,6 +11,32 @@ const simpleFlexibleExposure = {
   allowInputDerivedExactSize: false,
 };
 
+const providerModelConfigs: readonly UserModelConfig[] = [
+  {
+    apiFormat: 'openai-images',
+    modelId: 'user-only-model',
+    baseModelId: 'gpt-image-2',
+    wireModelId: 'user-only-model-vip',
+    requestStrategyId: 'image-endpoint-default',
+    outputExposure: simpleFlexibleExposure,
+    outputMatrix: [],
+  },
+  {
+    apiFormat: 'openai-chat-completions',
+    modelId: 'wrong-format-model',
+    baseModelId: 'gpt-4o-image',
+    wireModelId: 'wrong-format-model',
+    requestStrategyId: 'chat-image-default',
+    outputExposure: {
+      kind: 'ratio-resolution',
+      aspectRatios: ['1:1'],
+      resolutions: ['1k'],
+      outputFormats: ['png'],
+    },
+    outputMatrix: [],
+  },
+];
+
 afterEach(async () => {
   await cleanupMainPageRoot();
 });
@@ -26,6 +52,31 @@ function selectedId(container: HTMLElement, testId: string): string | null {
 }
 
 describe('AppShell profile model selection flow', () => {
+  it('settings page provider rows show readable default model labels', async () => {
+    const container = document.createElement('div');
+    document.body.appendChild(container);
+    const services = createFakeServices({
+      profiles: [fakeProfile],
+      profileModelItems: [
+        profileModelItem('gpt-image-2', {
+          displayName: 'GPT Image 2',
+          default: true,
+        }),
+      ],
+    });
+    await renderMainPage(container, services);
+
+    await act(async () => {
+      container.querySelector<HTMLElement>('[data-testid="main-providers-button"]')?.click();
+    });
+    await flush();
+    await flush();
+
+    const row = container.querySelector<HTMLElement>(`[data-testid="provider-row-${fakeProfile.profileId}"]`);
+    expect(row?.textContent).toContain('GPT Image 2');
+    expect(row?.textContent).not.toContain('gpt-image-2');
+  });
+
   it('opens model configuration list from settings page instead of create editor', async () => {
     const container = document.createElement('div');
     document.body.appendChild(container);
@@ -143,37 +194,51 @@ describe('AppShell profile model selection flow', () => {
     expect(container.querySelector('[data-testid="model-config-wire-model-id"]')).toBeNull();
   });
 
+  it('add page suspends system instruction editor while model menu is open', async () => {
+    const container = document.createElement('div');
+    document.body.appendChild(container);
+    const services = createFakeServices({ userModelConfigs: providerModelConfigs });
+    await renderMainPage(container, services);
+
+    await act(async () => {
+      container.querySelector<HTMLElement>('[data-testid="main-providers-button"]')?.click();
+    });
+    await flush();
+
+    await act(async () => {
+      container.querySelector<HTMLElement>('[data-testid="providers-add-button"]')?.click();
+    });
+    await flush();
+
+    await act(async () => {
+      changeInput(container.querySelector<HTMLInputElement>('[data-testid="provider-endpoint-detect-input"]')!, 'https://api.openai.com/v1/images/generations');
+    });
+    await flush();
+    await flush();
+
+    await act(async () => {
+      container.querySelector<HTMLElement>('[data-testid="provider-default-model-selector"]')?.click();
+    });
+    await flush();
+
+    expect(container.querySelector('[data-testid="provider-system-instructions-input"]')?.getAttribute('data-native-editor-suspended')).toBe('true');
+    expect(document.body.querySelector('[data-testid="provider-default-model-selector-option-user-only-model"]')).not.toBeNull();
+
+    await act(async () => {
+      document.body.querySelector<HTMLElement>('[data-testid="provider-default-model-selector-option-user-only-model"]')?.click();
+    });
+    await flush();
+
+    expect(selectedId(container, 'provider-default-model-selector')).toBe('user-only-model');
+    expect(container.querySelector('[data-testid="provider-system-instructions-input"]')?.getAttribute('data-native-editor-suspended')).toBeNull();
+  });
+
   it('detail selector uses only saved user model configs and returns after profile-originated save', async () => {
-    const userConfigs: readonly UserModelConfig[] = [
-      {
-        apiFormat: 'openai-images',
-        modelId: 'user-only-model',
-        baseModelId: 'gpt-image-2',
-        wireModelId: 'user-only-model-vip',
-        requestStrategyId: 'image-endpoint-default',
-        outputExposure: simpleFlexibleExposure,
-        outputMatrix: [],
-      },
-      {
-        apiFormat: 'openai-chat-completions',
-        modelId: 'wrong-format-model',
-        baseModelId: 'gpt-4o-image',
-        wireModelId: 'wrong-format-model',
-        requestStrategyId: 'chat-image-default',
-        outputExposure: {
-          kind: 'ratio-resolution',
-          aspectRatios: ['1:1'],
-          resolutions: ['1k'],
-          outputFormats: ['png'],
-        },
-        outputMatrix: [],
-      },
-    ];
     const container = document.createElement('div');
     document.body.appendChild(container);
     const services = createFakeServices({
       profiles: [{ ...fakeProfile, defaultModelId: '', selectedModelIds: [] }],
-      userModelConfigs: userConfigs,
+      userModelConfigs: providerModelConfigs,
     });
     await renderMainPage(container, services);
 
@@ -193,8 +258,9 @@ describe('AppShell profile model selection flow', () => {
     });
     await flush();
 
+    expect(container.querySelector('[data-testid="provider-system-instructions-input"]')?.getAttribute('data-native-editor-suspended')).toBe('true');
     expect(document.body.querySelector('[data-testid="provider-default-model-selector-option-user-only-model"]')).not.toBeNull();
-    expect(document.body.textContent).toContain('user-only-model-vip');
+    expect(document.body.textContent).toContain('GPT Image 2');
     expect(document.body.querySelector('[data-testid="provider-default-model-selector-option-wrong-format-model"]')).toBeNull();
 
     await act(async () => {
@@ -235,6 +301,7 @@ describe('AppShell profile model selection flow', () => {
       }],
       profileModelItems: [
         profileModelItem('gpt-image-2', {
+          displayName: 'GPT Image 2',
           configSource: 'user',
           wireModelId: 'gpt-image-2-vip',
           default: true,
@@ -254,7 +321,7 @@ describe('AppShell profile model selection flow', () => {
     });
     await flush();
 
-    expect(document.body.querySelector('[data-testid="main-model-selector-option-gpt-image-2"]')?.textContent).toContain('gpt-image-2-vip');
+    expect(document.body.querySelector('[data-testid="main-model-selector-option-gpt-image-2"]')?.textContent).toContain('GPT Image 2');
   });
 
   it('returns to detail page when backing out of profile-originated model config creation', async () => {

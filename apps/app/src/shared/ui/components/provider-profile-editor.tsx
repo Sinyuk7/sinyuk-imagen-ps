@@ -23,6 +23,7 @@ interface ProviderProfileEditorProps {
   readonly aliasPlaceholder?: string;
   readonly systemInstructionValue: string;
   readonly onSystemInstructionValue: (value: string) => void;
+  readonly systemInstructionNativeEditorSuspended?: boolean;
   readonly apiFormatLabel?: string;
   readonly apiFormatStatus?: string | null;
   readonly apiFormatHint?: string | null;
@@ -179,6 +180,7 @@ export function ProviderProfileEditor({
   aliasPlaceholder,
   systemInstructionValue,
   onSystemInstructionValue,
+  systemInstructionNativeEditorSuspended = false,
   apiFormatLabel,
   apiFormatStatus = null,
   apiFormatHint = null,
@@ -461,6 +463,7 @@ export function ProviderProfileEditor({
             className="field-textarea-input"
             value={systemInstructionValue}
             disabled={disabled}
+            nativeEditorSuspended={systemInstructionNativeEditorSuspended}
             onValue={onSystemInstructionValue}
             hint={<HelpText className="field-hint">{t.settings.systemInstructionsHint}</HelpText>}
           />
