@@ -13,7 +13,9 @@ import { catalogProviderIdForApiFormat } from './api-format-profile.js';
 
 export interface ResolvedModelConfig {
   readonly apiFormat: ApiFormat;
-  readonly modelId: string;
+  readonly configModelId: string;
+  readonly capabilityModelId: string;
+  readonly wireModelId: string;
   readonly requestStrategyId: string;
   readonly outputExposure: UserModelOutputExposure;
   readonly outputMatrix: readonly ImageOutputMatrix[];
@@ -60,7 +62,9 @@ export async function resolveConfiguredModel(args: {
     });
     return {
       apiFormat: userConfig.apiFormat,
-      modelId: userConfig.modelId,
+      configModelId: userConfig.modelId,
+      capabilityModelId: userConfig.baseModelId,
+      wireModelId: userConfig.wireModelId,
       requestStrategyId: userConfig.requestStrategyId,
       outputExposure: userConfig.outputExposure,
       outputMatrix: userConfig.outputMatrix,
@@ -70,7 +74,7 @@ export async function resolveConfiguredModel(args: {
 
   const resolvedRule = resolveImageModelRule({
     providerId: catalogProviderIdForApiFormat(args.apiFormat),
-    modelId: normalizedModelId,
+    capabilityModelId: normalizedModelId,
   });
   const canonicalModelId = resolvedRule.concreteModelId;
 
@@ -85,7 +89,9 @@ export async function resolveConfiguredModel(args: {
     });
     return {
       apiFormat: preset.apiFormat,
-      modelId: preset.modelId,
+      configModelId: preset.modelId,
+      capabilityModelId: preset.modelId,
+      wireModelId: preset.modelId,
       requestStrategyId: preset.requestStrategyId,
       outputExposure: preset.outputExposure,
       outputMatrix: preset.outputMatrix,
@@ -131,7 +137,7 @@ export async function assertProfileModelSelectionIsConfigured(
 export function toProviderModelExecution(config: ResolvedModelConfig): ProviderModelExecution {
   return {
     apiFormat: config.apiFormat,
-    modelId: config.modelId,
+    modelId: config.wireModelId,
     requestStrategyId: config.requestStrategyId,
   };
 }

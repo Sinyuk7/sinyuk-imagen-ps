@@ -75,6 +75,7 @@ function isUserModelConfig(value: unknown): value is UserModelConfig {
     isApiFormat(value.apiFormat) &&
     typeof value.modelId === 'string' &&
     typeof value.baseModelId === 'string' &&
+    typeof value.wireModelId === 'string' &&
     typeof value.requestStrategyId === 'string' &&
     isOutputExposure(value.outputExposure) &&
     Array.isArray(value.outputMatrix) &&

@@ -262,6 +262,7 @@ export interface UserModelConfig {
   readonly apiFormat: ApiFormat;
   readonly modelId: string;
   readonly baseModelId: string;
+  readonly wireModelId: string;
   readonly requestStrategyId: string;
   readonly outputExposure: UserModelOutputExposure;
   /** 由 `outputExposure` 派生的运行时投影；不是用户编辑的能力真相。 */
@@ -272,6 +273,7 @@ export interface SaveUserModelConfigInput {
   readonly apiFormat: ApiFormat;
   readonly modelId: string;
   readonly baseModelId: string;
+  readonly wireModelId: string;
   readonly requestStrategyId: string;
   readonly outputExposure: UserModelOutputExposure;
 }
@@ -287,6 +289,7 @@ export interface UserModelConfigRepository {
 export interface ProfileModelItem {
   readonly modelId: string;
   readonly displayName?: string;
+  readonly wireModelId?: string;
   readonly discovered: boolean;
   readonly configured: boolean;
   readonly selected: boolean;

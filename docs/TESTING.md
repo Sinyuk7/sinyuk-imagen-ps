@@ -140,6 +140,13 @@ This script is retained as a stable entrypoint, but it may be a no-op when the
 placement suite is temporarily absent. It is per-slice evidence only;
 `pnpm validate` remains the default final gate.
 
+When host writeback semantics change, keep the durable regression in
+`apps/app/tests/adapters/uxp/photoshop-host-bridge.write.contract.test.ts`.
+This includes `unbound` placement cases where Photoshop native `placeEvent`
+initial size depends on source metadata or host document scale; assert the repo
+policy on normalized placed bounds there instead of relying on Chrome-only
+evidence.
+
 `pnpm --filter @imagen-ps/app test:chrome-e2e` is an opt-in Chrome browser E2E
 gate for the app Chrome build. It builds `dist/web/`, serves it locally, runs
 Playwright Chromium at representative viewports (`390x720` default,

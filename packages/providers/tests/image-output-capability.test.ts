@@ -68,7 +68,7 @@ describe('image output capability contract', () => {
 
     expect(resolveProviderResolvedOutput({
       providerId: 'image-endpoint',
-      modelId: 'gpt-image-2',
+      capabilityModelId: 'gpt-image-2',
       operation: 'image_edit',
       output: { selection },
       inputContext: {
@@ -92,7 +92,7 @@ describe('image output capability contract', () => {
 
     expect(resolveProviderResolvedOutput({
       providerId: 'image-endpoint',
-      modelId: 'gpt-image-2',
+      capabilityModelId: 'gpt-image-2',
       operation: 'text_to_image',
       output: { selection },
     })).toEqual({
@@ -110,7 +110,7 @@ describe('image output capability contract', () => {
 
     expect(() => resolveProviderResolvedOutput({
       providerId: 'image-endpoint',
-      modelId: 'gpt-image-2',
+      capabilityModelId: 'gpt-image-2',
       operation: 'image_edit',
       output: { selection },
       inputContext: {
@@ -125,7 +125,7 @@ describe('image output capability contract', () => {
   it('maps Gemini ratio-resolution selection to native provider fields', () => {
     expect(resolveProviderResolvedOutput({
       providerId: 'gemini-generate-content',
-      modelId: 'gemini-3.1-flash-image',
+      capabilityModelId: 'gemini-3.1-flash-image',
       operation: 'text_to_image',
       output: {
         selection: {

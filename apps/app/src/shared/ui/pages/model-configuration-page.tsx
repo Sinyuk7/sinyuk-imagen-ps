@@ -70,10 +70,19 @@ function apiFormatLabel(apiFormat: ApiFormat): string {
 
 function configMetaLabel(config: UserModelConfig): string {
   const formatLabel = apiFormatLabel(config.apiFormat);
-  if (config.baseModelId.trim().length === 0 || config.baseModelId === config.modelId) {
-    return formatLabel;
+  const meta: string[] = [];
+  if (config.wireModelId.trim().length > 0 && config.wireModelId !== config.modelId) {
+    meta.push(`__WIRE__${config.wireModelId}`);
   }
-  return `${config.baseModelId} · ${formatLabel}`;
+  if (config.baseModelId.trim().length > 0 && config.baseModelId !== config.modelId) {
+    meta.push(config.baseModelId);
+  }
+  meta.push(formatLabel);
+  return meta.join(' · ');
+}
+
+function resolvedWireMetaLabel(config: UserModelConfig, t: ReturnType<typeof useI18n>['messages']): string {
+  return configMetaLabel(config).replace(`__WIRE__${config.wireModelId}`, t.settings.modelConfigWireModelMeta(config.wireModelId));
 }
 
 function modelConfigAvatarLabel(baseModelId: string): string {
@@ -579,6 +588,7 @@ export function ModelConfigurationPage({ onNav, onSaved, onBack, initialEditorSt
   const [advancedOpen, setAdvancedOpen] = useState(false);
   const [apiFormat, setApiFormat] = useState<ApiFormat>('openai-images');
   const [modelId, setModelId] = useState('');
+  const [wireModelId, setWireModelId] = useState('');
   const [baseModelId, setBaseModelId] = useState('');
   const [requestStrategyId, setRequestStrategyId] = useState('');
   const [moduleSelections, setModuleSelections] = useState<Readonly<Record<string, MatrixDimensionSelection>>>({});
@@ -676,10 +686,15 @@ export function ModelConfigurationPage({ onNav, onSaved, onBack, initialEditorSt
         const preset = config
           ? nextPresets.find((item) => item.modelId === config.baseModelId)
           : nextPresets.find((item) => item.modelId === nextModelId) ?? nextPresets[0];
-        setModelId(config?.modelId ?? nextModelId ?? '');
-        setBaseModelId(preset?.modelId ?? '');
-        setRequestStrategyId(preset?.requestStrategyId ?? '');
-        resetEditorSelections(preset, config);
+        if (config) {
+          setModelId(config.modelId);
+          setWireModelId(config.wireModelId);
+          setBaseModelId(preset?.modelId ?? config.baseModelId);
+          setRequestStrategyId(preset?.requestStrategyId ?? config.requestStrategyId);
+          resetEditorSelections(preset, config);
+        } else {
+          applyPreset(preset, 'create');
+        }
         setEditingKey(config ? `${resolvedApiFormat}:${config.modelId}` : null);
         setAdvancedOpen(false);
         setEditorOpen(true);
@@ -711,6 +726,9 @@ export function ModelConfigurationPage({ onNav, onSaved, onBack, initialEditorSt
     if (!selectedPreset) {
       return t.settings.modelConfigValidationPreset;
     }
+    if (wireModelId.trim().length === 0) {
+      return t.settings.modelConfigValidationModelId;
+    }
     if (requestStrategyId.trim().length === 0) {
       return t.settings.modelConfigValidationStrategy;
     }
@@ -720,16 +738,20 @@ export function ModelConfigurationPage({ onNav, onSaved, onBack, initialEditorSt
       }
     }
     return null;
-  }, [apiFormat, modelId, moduleValidationMessages, requestStrategyId, selectedPreset, t]);
+  }, [apiFormat, modelId, moduleValidationMessages, requestStrategyId, selectedPreset, t, wireModelId]);
   const modelIdSuspended = apiFormatMenuOpen || presetMenuOpen;
 
-  const applyPreset = (preset: OfficialModelPreset | undefined, nextModelId?: string, config?: UserModelConfig | null) => {
+  const applyPreset = (preset: OfficialModelPreset | undefined, mode: 'create' | 'edit', config?: UserModelConfig | null) => {
     setBaseModelId(preset?.modelId ?? '');
     setRequestStrategyId(preset?.requestStrategyId ?? '');
     resetEditorSelections(preset, config);
-    if (nextModelId !== undefined) {
+    if (mode === 'create') {
+      const nextModelId = preset?.modelId ?? '';
       setModelId(nextModelId);
+      setWireModelId(nextModelId);
+      return;
     }
+    setWireModelId(preset?.modelId ?? '');
   };
 
   const openCreateEditor = async () => {
@@ -738,7 +760,7 @@ export function ModelConfigurationPage({ onNav, onSaved, onBack, initialEditorSt
       setApiFormat(nextApiFormat);
       const { presets: nextPresets } = await loadApiFormatData(nextApiFormat);
       const firstPreset = nextPresets[0];
-      applyPreset(firstPreset, firstPreset?.modelId ?? '');
+      applyPreset(firstPreset, 'create');
       setEditingKey(null);
       setAdvancedOpen(false);
       setEditorOpen(true);
@@ -754,6 +776,7 @@ export function ModelConfigurationPage({ onNav, onSaved, onBack, initialEditorSt
       const { presets: nextPresets } = await loadApiFormatData(config.apiFormat);
       const preset = nextPresets.find((item) => item.modelId === config.baseModelId);
       setModelId(config.modelId);
+      setWireModelId(config.wireModelId);
       setBaseModelId(preset?.modelId ?? config.baseModelId);
       setRequestStrategyId(preset?.requestStrategyId ?? config.requestStrategyId);
       resetEditorSelections(preset, config);
@@ -803,6 +826,7 @@ export function ModelConfigurationPage({ onNav, onSaved, onBack, initialEditorSt
         apiFormat,
         modelId,
         baseModelId: selectedPreset.modelId,
+        wireModelId,
         requestStrategyId: selectedPreset.requestStrategyId,
         outputExposure,
       } satisfies SaveUserModelConfigInput);
@@ -936,7 +960,7 @@ export function ModelConfigurationPage({ onNav, onSaved, onBack, initialEditorSt
                       </div>
                     )}
                     meta={(
-                      <span className="prov-summary">{configMetaLabel(config)}</span>
+                      <span className="prov-summary">{resolvedWireMetaLabel(config, t)}</span>
                     )}
                     onOpen={() => void openEditEditor(config)}
                   />
@@ -956,7 +980,7 @@ export function ModelConfigurationPage({ onNav, onSaved, onBack, initialEditorSt
                   menuClassName="cmp-select-menu cmp-select-menu-compact"
                   label={t.settings.modelConfigApiFormat}
                   value={apiFormatOptions.find((option) => option.id === apiFormat)?.label ?? apiFormat}
-                  disabled={saveBusy}
+                  disabled={saveBusy || editingExisting}
                   open={apiFormatMenuOpen}
                   onOpenChange={setApiFormatMenuOpen}
                   options={apiFormatOptions}
@@ -967,7 +991,7 @@ export function ModelConfigurationPage({ onNav, onSaved, onBack, initialEditorSt
                       setApiFormat(nextApiFormat);
                       const { presets: nextPresets } = await loadApiFormatData(nextApiFormat);
                       const firstPreset = nextPresets[0];
-                      applyPreset(firstPreset, modelId.trim() || firstPreset?.modelId || '');
+                      applyPreset(firstPreset, editingExisting ? 'edit' : 'create');
                     })().catch((nextError) => {
                       setError(nextError instanceof Error ? nextError.message : String(nextError));
                     });
@@ -992,21 +1016,22 @@ export function ModelConfigurationPage({ onNav, onSaved, onBack, initialEditorSt
                   selectedId={selectedPreset?.modelId ?? ''}
                   onSelect={(value) => {
                     const preset = presets.find((item) => item.modelId === value);
-                    applyPreset(preset);
+                    applyPreset(preset, editingExisting ? 'edit' : 'create');
                     setPresetMenuOpen(false);
                   }}
                 />
               </div>
               <div className="field">
-                <FieldLabel htmlFor="model-config-model-id">{t.settings.modelConfigModelId}</FieldLabel>
+                <FieldLabel htmlFor="model-config-wire-model-id">{t.settings.modelConfigWireModelId}</FieldLabel>
                 <ModelIdField
-                  id="model-config-model-id"
-                  testId="model-config-model-id"
-                  value={modelId}
+                  id="model-config-wire-model-id"
+                  testId="model-config-wire-model-id"
+                  value={wireModelId}
                   disabled={saveBusy}
                   suspended={modelIdSuspended}
-                  onValue={setModelId}
+                  onValue={setWireModelId}
                 />
+                <HelpText className="field-hint">{t.settings.modelConfigWireModelIdHint}</HelpText>
               </div>
               <div className={`provider-embedded-section model-config-advanced-section${advancedOpen ? ' is-open' : ''}`}>
                 <button
@@ -1027,11 +1052,24 @@ export function ModelConfigurationPage({ onNav, onSaved, onBack, initialEditorSt
                   />
                 </button>
                 {advancedOpen ? (
-                  <StrategyMetaField
-                    label={t.settings.modelConfigRequestStrategy}
-                    value={requestStrategyId}
-                    detail={t.settings.modelConfigManagedByPreset}
-                  />
+                  <>
+                    <div className="field">
+                      <FieldLabel htmlFor="model-config-model-id">{t.settings.modelConfigModelId}</FieldLabel>
+                      <ModelIdField
+                        id="model-config-model-id"
+                        testId="model-config-model-id"
+                        value={modelId}
+                        disabled={saveBusy || editingExisting}
+                        suspended={modelIdSuspended}
+                        onValue={setModelId}
+                      />
+                    </div>
+                    <StrategyMetaField
+                      label={t.settings.modelConfigRequestStrategy}
+                      value={requestStrategyId}
+                      detail={t.settings.modelConfigManagedByPreset}
+                    />
+                  </>
                 ) : null}
               </div>
             </section>

@@ -16,7 +16,7 @@ if (errors.length > 0) {
     const models = listLocalCatalogModels(providerId);
     console.log(`${providerId}: ${models.map((model) => model.id).join(', ')}`);
     for (const model of models) {
-      const resolved = resolveImageModelRule({ providerId, modelId: model.id });
+      const resolved = resolveImageModelRule({ providerId, capabilityModelId: model.id });
       console.log(`  - ${model.id} -> ${resolved.ruleId} (${resolved.matchKind}) brand=${resolved.capability.brand ?? 'none'}`);
     }
   }

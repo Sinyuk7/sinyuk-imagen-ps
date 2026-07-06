@@ -48,7 +48,7 @@ import {
 } from '../composer-readiness';
 import { classifyRoundError, type ErrorPrimaryAction } from '../error-action';
 import type { BalanceChange, ExactTaskCost, ImageAspectRatio, ImageOutputImageSize } from '@imagen-ps/application';
-import type { UiModelInfo } from '../model-info';
+import { modelVisibleLabel, type UiModelInfo } from '../model-info';
 import type { ModelGenerationSettingsController } from '../hooks/use-model-generation-settings';
 
 function isImeCompositionKey(event: React.KeyboardEvent): boolean {
@@ -401,14 +401,16 @@ export function MainPage({
   const billingSummaryText = formatBillingPrimary(billing.billing) ?? t.main.billingUnknown;
   const billingSummaryTitle = `${t.main.billingSummary}: ${billingSummaryText}`;
   const selectableProfiles = profiles;
-  const selectedModelLabel = selectedModelId || (modelsLoading ? t.main.modelLoading : t.main.modelUnselected);
   const selectedModelInfo = uniqueModels.find((model) => model.id === selectedModelId);
+  const selectedModelLabel = selectedModelInfo
+    ? modelVisibleLabel(selectedModelInfo)
+    : (selectedModelId || (modelsLoading ? t.main.modelLoading : t.main.modelUnselected));
   const currentOperation = composerDraft.operation;
   const placementIntent = useMemo(() => derivePlacementIntent(attachments), [attachments]);
   const modelOptions = useMemo(
     () => uniqueModels.map((model) => ({
       id: model.id,
-      label: model.displayName ?? model.id,
+      label: modelVisibleLabel(model),
     })),
     [uniqueModels],
   );

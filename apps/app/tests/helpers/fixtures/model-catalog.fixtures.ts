@@ -200,6 +200,7 @@ export const fakeUserModelConfigs: readonly UserModelConfig[] = [
   apiFormat: 'openai-images',
   modelId,
   baseModelId: 'gpt-image-2',
+  wireModelId: modelId,
   requestStrategyId: 'image-endpoint-default',
   outputExposure: {
     kind: 'flexible-pixels',

@@ -131,6 +131,9 @@ export interface CanonicalImageJobRequest {
   /** Application 已解析的模型执行配置。 */
   readonly model?: ProviderModelExecution;
 
+  /** capability resolver 使用的官方 preset anchor。 */
+  readonly capabilityModelId?: string;
+
   /** 受控的 provider-specific 透传空间。 */
   readonly providerOptions?: Readonly<Record<string, unknown>>;
 }

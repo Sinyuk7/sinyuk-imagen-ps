@@ -1,8 +1,15 @@
 import { act } from 'react';
 import { afterEach, describe, expect, it } from 'vitest';
 import type { UserModelConfig } from '@imagen-ps/application';
-import { createFakeServices, fakeProfile } from '../../helpers/fakes';
+import { createFakeServices, fakeProfile, profileModelItem } from '../../helpers/fakes';
 import { cleanupMainPageRoot, flush, renderMainPage } from '../../helpers/main-page-harness';
+
+const simpleFlexibleExposure = {
+  kind: 'flexible-pixels' as const,
+  sizePresetIds: ['auto', '1k'],
+  outputFormats: ['png'],
+  allowInputDerivedExactSize: false,
+};
 
 afterEach(async () => {
   await cleanupMainPageRoot();
@@ -71,7 +78,12 @@ describe('AppShell profile model selection flow', () => {
     await flush();
     await flush();
 
-    expect(container.querySelector('[data-testid="model-config-model-id"]')).not.toBeNull();
+    expect(container.querySelector('[data-testid="model-config-wire-model-id"]')).not.toBeNull();
+
+    await act(async () => {
+      container.querySelector<HTMLButtonElement>('.model-config-advanced-toggle')?.click();
+    });
+    await flush();
 
     await act(async () => {
       changeInput(container.querySelector<HTMLInputElement>('[data-testid="model-config-model-id"]')!, 'new-profile-add-model');
@@ -118,7 +130,7 @@ describe('AppShell profile model selection flow', () => {
     await flush();
     await flush();
 
-    expect(container.querySelector('[data-testid="model-config-model-id"]')).not.toBeNull();
+    expect(container.querySelector('[data-testid="model-config-wire-model-id"]')).not.toBeNull();
 
     await act(async () => {
       container.querySelector<HTMLElement>('[data-testid="model-configuration-back-button"]')?.click();
@@ -128,7 +140,7 @@ describe('AppShell profile model selection flow', () => {
 
     expect(container.querySelector('[data-testid="provider-save-button"]')).not.toBeNull();
     expect(container.querySelector('[data-testid="provider-default-model-selector"]')).not.toBeNull();
-    expect(container.querySelector('[data-testid="model-config-model-id"]')).toBeNull();
+    expect(container.querySelector('[data-testid="model-config-wire-model-id"]')).toBeNull();
   });
 
   it('detail selector uses only saved user model configs and returns after profile-originated save', async () => {
@@ -137,14 +149,23 @@ describe('AppShell profile model selection flow', () => {
         apiFormat: 'openai-images',
         modelId: 'user-only-model',
         baseModelId: 'gpt-image-2',
+        wireModelId: 'user-only-model-vip',
         requestStrategyId: 'image-endpoint-default',
+        outputExposure: simpleFlexibleExposure,
         outputMatrix: [],
       },
       {
         apiFormat: 'openai-chat-completions',
         modelId: 'wrong-format-model',
         baseModelId: 'gpt-4o-image',
-        requestStrategyId: 'image-endpoint-default',
+        wireModelId: 'wrong-format-model',
+        requestStrategyId: 'chat-image-default',
+        outputExposure: {
+          kind: 'ratio-resolution',
+          aspectRatios: ['1:1'],
+          resolutions: ['1k'],
+          outputFormats: ['png'],
+        },
         outputMatrix: [],
       },
     ];
@@ -173,12 +194,18 @@ describe('AppShell profile model selection flow', () => {
     await flush();
 
     expect(document.body.querySelector('[data-testid="provider-default-model-selector-option-user-only-model"]')).not.toBeNull();
+    expect(document.body.textContent).toContain('user-only-model-vip');
     expect(document.body.querySelector('[data-testid="provider-default-model-selector-option-wrong-format-model"]')).toBeNull();
 
     await act(async () => {
       container.querySelector<HTMLElement>('[data-testid="provider-add-model-config-button"]')?.click();
     });
     await flush();
+    await flush();
+
+    await act(async () => {
+      container.querySelector<HTMLButtonElement>('.model-config-advanced-toggle')?.click();
+    });
     await flush();
 
     await act(async () => {
@@ -194,6 +221,40 @@ describe('AppShell profile model selection flow', () => {
 
     expect(container.querySelector('[data-testid="provider-default-model-selector"]')).not.toBeNull();
     expect(services.spies.listUserModelConfigs).toHaveBeenCalledWith('openai-images');
+  });
+
+  it('main selector shows wire model label but keeps model identity selected', async () => {
+    const container = document.createElement('div');
+    document.body.appendChild(container);
+    const services = createFakeServices({
+      activeImageProfileId: 'mock-profile',
+      profiles: [{
+        ...fakeProfile,
+        defaultModelId: 'gpt-image-2',
+        selectedModelIds: ['gpt-image-2'],
+      }],
+      profileModelItems: [
+        profileModelItem('gpt-image-2', {
+          configSource: 'user',
+          wireModelId: 'gpt-image-2-vip',
+          default: true,
+          selected: true,
+        }),
+      ],
+    });
+    await renderMainPage(container, services);
+    await flush();
+    await flush();
+
+    const trigger = container.querySelector<HTMLElement>('[data-testid="main-model-selector"]');
+    expect(trigger?.getAttribute('data-selected-id')).toBe('gpt-image-2');
+
+    await act(async () => {
+      trigger?.click();
+    });
+    await flush();
+
+    expect(document.body.querySelector('[data-testid="main-model-selector-option-gpt-image-2"]')?.textContent).toContain('gpt-image-2-vip');
   });
 
   it('returns to detail page when backing out of profile-originated model config creation', async () => {
@@ -222,7 +283,7 @@ describe('AppShell profile model selection flow', () => {
     await flush();
     await flush();
 
-    expect(container.querySelector('[data-testid="model-config-model-id"]')).not.toBeNull();
+    expect(container.querySelector('[data-testid="model-config-wire-model-id"]')).not.toBeNull();
 
     await act(async () => {
       container.querySelector<HTMLElement>('[data-testid="model-configuration-back-button"]')?.click();
@@ -231,6 +292,6 @@ describe('AppShell profile model selection flow', () => {
     await flush();
 
     expect(container.querySelector('[data-testid="provider-default-model-selector"]')).not.toBeNull();
-    expect(container.querySelector('[data-testid="model-config-model-id"]')).toBeNull();
+    expect(container.querySelector('[data-testid="model-config-wire-model-id"]')).toBeNull();
   });
 });

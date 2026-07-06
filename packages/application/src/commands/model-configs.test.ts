@@ -46,6 +46,7 @@ describe('model configs', () => {
       apiFormat: 'gemini-generate-content',
       modelId: 'limited-gemini',
       baseModelId: 'gemini-3.1-flash-image',
+      wireModelId: 'limited-gemini',
       requestStrategyId: 'gemini-generate-content-image-config',
       outputExposure: {
         kind: 'ratio-resolution',
@@ -80,6 +81,7 @@ describe('model configs', () => {
       apiFormat: 'openai-images',
       modelId: 'legacy-matrix-author',
       baseModelId: 'gpt-image-2',
+      wireModelId: 'legacy-matrix-author',
       requestStrategyId: 'image-endpoint-default',
       outputExposure: {
         kind: 'flexible-pixels',
@@ -92,5 +94,24 @@ describe('model configs', () => {
 
     expect(result.ok).toBe(false);
     expect(result.ok ? null : result.error.message).toContain('authored outputMatrix');
+  });
+
+  it('requires wireModelId', async () => {
+    const result = await saveUserModelConfig({
+      apiFormat: 'openai-images',
+      modelId: 'gpt-image-2',
+      baseModelId: 'gpt-image-2',
+      wireModelId: '   ',
+      requestStrategyId: 'image-endpoint-default',
+      outputExposure: {
+        kind: 'flexible-pixels',
+        sizePresetIds: ['auto', 'use-input-size', '1k'],
+        outputFormats: ['png'],
+        allowInputDerivedExactSize: true,
+      },
+    });
+
+    expect(result.ok).toBe(false);
+    expect(result.ok ? null : result.error.message).toContain('wireModelId');
   });
 });

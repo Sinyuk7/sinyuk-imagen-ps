@@ -69,7 +69,8 @@ export function reconcileProfileModels(args: {
   readonly defaultModelId?: string;
 }): readonly ProfileModelItem[] {
   const discoveredIds = new Set(uniqueModelIds(args.discoveredModelIds));
-  const userConfigIds = new Set(args.userModelConfigs.map((config) => config.modelId));
+  const userConfigsById = new Map(args.userModelConfigs.map((config) => [config.modelId, config] as const));
+  const userConfigIds = new Set(userConfigsById.keys());
   const selectedIds = new Set(uniqueModelIds(args.selectedModelIds));
   const candidateIds = uniqueModelIds([
     ...discoveredIds,
@@ -78,11 +79,13 @@ export function reconcileProfileModels(args: {
   ]);
 
   return candidateIds.map((modelId) => {
-    const userConfigured = userConfigIds.has(modelId);
+    const userConfig = userConfigsById.get(modelId);
+    const userConfigured = userConfig !== undefined;
     const catalogConfigured = args.officialCatalogModelIds.has(modelId);
     return {
       modelId,
       ...(args.officialCatalogDisplayNames?.get(modelId) ? { displayName: args.officialCatalogDisplayNames.get(modelId) } : {}),
+      ...(userConfig?.wireModelId ? { wireModelId: userConfig.wireModelId } : {}),
       discovered: discoveredIds.has(modelId),
       configured: userConfigured || catalogConfigured,
       selected: selectedIds.has(modelId),

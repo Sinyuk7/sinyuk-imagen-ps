@@ -198,10 +198,10 @@ function resolveRequestOutput(
   output: ProviderOutputOptions,
   providerId: ImageCatalogProviderId,
 ): ImageEndpointRequestOutput {
-  const model = resolveModel(request);
+  const capabilityModelId = request.capabilityModelId ?? resolveModel(request);
   const resolvedOutput = resolveProviderResolvedOutput({
     providerId,
-    modelId: model,
+    capabilityModelId,
     operation: request.operation,
     output,
     inputContext: request.inputContext,

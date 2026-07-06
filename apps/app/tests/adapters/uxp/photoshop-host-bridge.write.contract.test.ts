@@ -9,6 +9,7 @@ import {
   createInMemoryAssetStore,
   createPhotoshopHostBridge,
   pngWithSize,
+  realJpegWithSize,
 } from '../../helpers/host-bridge-harness';
 import { createNullLogger as foundationNullLogger } from '@imagen-ps/foundation';
 
@@ -117,6 +118,49 @@ describe('PhotoshopHostBridge write contract', () => {
     expect(spies.batchPlay).toHaveBeenCalledTimes(1);
     expect(spies.scalePlacedLayer).toHaveBeenCalledWith(200, 200);
     expect(spies.translatePlacedLayer).toHaveBeenCalledWith(10, 20);
+  });
+
+  it('normalizes unbound JPEG placement to intrinsic pixels on large canvases', async () => {
+    const { modules, spies } = createFakeModules({
+      activeLayerBounds: { _left: 0, _top: 0, _right: 128, _bottom: 96 },
+    });
+    const activeDocument = modules.photoshop?.app.activeDocument as { width?: number; height?: number };
+    activeDocument.width = 4096;
+    activeDocument.height = 4096;
+    const { bridge } = createBridge(modules);
+
+    await bridge.placeAssetOnCanvas({
+      type: 'image',
+      name: 'generated.jpg',
+      data: realJpegWithSize(1024, 768),
+      mimeType: 'image/jpeg',
+    }, {
+      kind: 'unbound',
+      reason: 'no-photoshop-capture',
+    });
+
+    expect(spies.scalePlacedLayer).toHaveBeenCalledWith(800, 800);
+    expect(spies.translatePlacedLayer).not.toHaveBeenCalled();
+  });
+
+  it('fits unbound placement back into the active document when intrinsic pixels exceed canvas', async () => {
+    const { modules, spies } = createFakeModules({
+      activeLayerBounds: { _left: 0, _top: 0, _right: 128, _bottom: 96 },
+    });
+    const { bridge } = createBridge(modules);
+
+    await bridge.placeAssetOnCanvas({
+      type: 'image',
+      name: 'generated.jpg',
+      data: realJpegWithSize(1024, 768),
+      mimeType: 'image/jpeg',
+    }, {
+      kind: 'unbound',
+      reason: 'no-photoshop-capture',
+    });
+
+    expect(spies.scalePlacedLayer).toHaveBeenCalledWith(400, 400);
+    expect(spies.translatePlacedLayer).not.toHaveBeenCalled();
   });
 
   it('accepts document-only placement without transform and rejects incompatible exact-frame ratio before Photoshop write', async () => {

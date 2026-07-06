@@ -883,6 +883,23 @@ function assertExactPlacementAspect(
   }
 }
 
+async function scalePlacedLayerToSize(
+  placedLayer: PhotoshopLayer,
+  targetSize: { readonly width: number; readonly height: number },
+  context: 'exact-frame' | 'unbound',
+): Promise<PhotoshopRect> {
+  if (!placedLayer.scale) {
+    throw new Error(`Photoshop ${context} placement requires an active placed layer with scale().`);
+  }
+  const currentBounds = normalizeRect(placedLayer.boundsNoEffects ?? placedLayer.bounds);
+  if (!currentBounds) {
+    throw new Error(`Photoshop ${context} placement could not read placed layer bounds.`);
+  }
+  const currentSize = rectSize(currentBounds);
+  await placedLayer.scale((targetSize.width / currentSize.width) * 100, (targetSize.height / currentSize.height) * 100);
+  return normalizeRect(placedLayer.boundsNoEffects ?? placedLayer.bounds) ?? currentBounds;
+}
+
 async function rgbaToPngBytes(image: { readonly width: number; readonly height: number; readonly data: Uint8Array }): Promise<Uint8Array> {
   const expected = image.width * image.height * 4;
   if (image.width <= 0 || image.height <= 0 || image.data.byteLength < expected) {
@@ -1143,14 +1160,8 @@ async function transformActivePlacedLayer(document: PhotoshopDocument, placement
   if (!placedLayer?.scale || !placedLayer.translate) {
     throw new Error('Photoshop exact-frame placement requires an active placed layer with scale() and translate().');
   }
-  const currentBounds = normalizeRect(placedLayer.boundsNoEffects ?? placedLayer.bounds);
-  if (!currentBounds) {
-    throw new Error('Photoshop exact-frame placement could not read placed layer bounds.');
-  }
-  const currentSize = rectSize(currentBounds);
   const targetSize = rectSize(placementRect);
-  await placedLayer.scale((targetSize.width / currentSize.width) * 100, (targetSize.height / currentSize.height) * 100);
-  const scaledBounds = normalizeRect(placedLayer.boundsNoEffects ?? placedLayer.bounds) ?? currentBounds;
+  const scaledBounds = await scalePlacedLayerToSize(placedLayer, targetSize, 'exact-frame');
   await placedLayer.translate(placementRect.left - scaledBounds.left, placementRect.top - scaledBounds.top);
 }
 
@@ -1186,6 +1197,29 @@ function documentSize(document: PhotoshopDocument, fallback: { readonly width: n
     width: document.width ?? fallback.width,
     height: document.height ?? fallback.height,
   };
+}
+
+function fittedPlacementSize(
+  sourceSize: { readonly width: number; readonly height: number },
+  bounds: { readonly width: number; readonly height: number },
+): { readonly width: number; readonly height: number } {
+  const scale = Math.min(1, bounds.width / sourceSize.width, bounds.height / sourceSize.height);
+  return {
+    width: sourceSize.width * scale,
+    height: sourceSize.height * scale,
+  };
+}
+
+async function normalizeUnboundPlacedLayerSize(
+  document: PhotoshopDocument,
+  assetSize: { readonly width: number; readonly height: number },
+): Promise<void> {
+  const placedLayer = document.activeLayers?.[0];
+  if (!placedLayer?.scale) {
+    return;
+  }
+  const targetSize = fittedPlacementSize(assetSize, documentSize(document, assetSize));
+  await scalePlacedLayerToSize(placedLayer, targetSize, 'unbound');
 }
 
 function layerPlacementFor(document: PhotoshopDocument, layer: PhotoshopLayer, bounds: PhotoshopRect) {
@@ -1742,6 +1776,7 @@ export function createPhotoshopHostBridge(modules: UxpModules, options?: CreateP
         try {
           await file.write(data, { format: uxpBinaryFormat(formats) });
           const token = fs.createSessionToken(file);
+          const placedAssetSize = readImageSize(bytes, mimeType);
 
           await executeHostModal(
             async () => {
@@ -1760,6 +1795,8 @@ export function createPhotoshopHostBridge(modules: UxpModules, options?: CreateP
               );
               if (placement.kind === 'exact-frame' && !usedActiveDocumentFallback) {
                 await transformActivePlacedLayer(targetDocument, placement.placementRect);
+              } else if (placement.kind === 'unbound' && placement.reason === 'no-photoshop-capture' && placedAssetSize) {
+                await normalizeUnboundPlacedLayerSize(targetDocument, placedAssetSize);
               }
             },
             { commandName: 'Place generated image' },

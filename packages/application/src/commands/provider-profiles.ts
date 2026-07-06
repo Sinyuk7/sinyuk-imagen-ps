@@ -526,7 +526,7 @@ export async function testProviderProfile(
             key: {
               profileId: profile.profileId,
               apiFormat: profile.apiFormat,
-              modelId: resolvedModel.modelId,
+              modelId: resolvedModel.configModelId,
               operation: 'text_to_image',
             },
             userConfig: resolvedModel.source === 'user' ? resolvedModel : undefined,
@@ -535,10 +535,11 @@ export async function testProviderProfile(
             operation: 'text_to_image',
             prompt: 'test',
             model: toProviderModelExecution(resolvedModel),
+            capabilityModelId: resolvedModel.capabilityModelId,
             output: { count: 1, selection: generationSettings.selection.effectiveSelection },
           });
           const invokeResult = await provider.invoke({ config: resolved.providerConfig, request });
-          const modelUsed = resolvedModel.modelId;
+          const modelUsed = resolvedModel.wireModelId;
           result.smokeTest = {
             passed: invokeResult.assets.length > 0,
             assetCount: invokeResult.assets.length,

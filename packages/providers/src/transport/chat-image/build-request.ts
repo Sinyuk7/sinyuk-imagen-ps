@@ -99,10 +99,10 @@ function bytesToBase64(bytes: Uint8Array): string {
 }
 
 function resolveRequestOutput(request: CanonicalImageJobRequest, output: ProviderOutputOptions): ChatImageRequestOutput {
-  const model = resolveModel(request);
+  const capabilityModelId = request.capabilityModelId ?? resolveModel(request);
   const resolvedOutput = resolveProviderResolvedOutput({
     providerId: 'chat-image',
-    modelId: model,
+    capabilityModelId,
     operation: request.operation,
     output,
     inputContext: request.inputContext,

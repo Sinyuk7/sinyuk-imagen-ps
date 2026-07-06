@@ -16,7 +16,7 @@ export const chatCompletionsImageLegacyCodec: ChatImageWireCodec = {
     };
   },
 
-  parseExecutionResponse(raw) {
-    return parseChatImageResponse(raw);
+  parseExecutionResponse(raw, request) {
+    return parseChatImageResponse(raw, request);
   },
 };

@@ -32,7 +32,7 @@ export interface ChatImageWireCodec {
   buildRequest(request: CanonicalImageJobRequest, context: ChatImageCodecContext): BuiltChatImageRequest;
 
   /** 解析执行响应。 */
-  parseExecutionResponse(raw: unknown): ParsedChatImageResponse;
+  parseExecutionResponse(raw: unknown, request: CanonicalImageJobRequest): ParsedChatImageResponse;
 }
 
 function normalizeCodecList(codecs: readonly string[] | undefined): readonly string[] {

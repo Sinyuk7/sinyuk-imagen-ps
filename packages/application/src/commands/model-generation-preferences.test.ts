@@ -1,4 +1,5 @@
 import { beforeEach, describe, expect, it } from 'vitest';
+import { getOfficialModelPreset } from '@imagen-ps/providers';
 import {
   deleteModelGenerationPreference,
   getModelGenerationSettings,
@@ -12,6 +13,7 @@ import type {
   ModelGenerationPreference,
   ModelGenerationPreferenceKey,
   ModelGenerationPreferenceRepository,
+  UserModelConfig,
   UserModelConfigRepository,
 } from './types.js';
 
@@ -38,6 +40,23 @@ function createEmptyUserConfigRepository(): UserModelConfigRepository {
     },
     async get() {
       return undefined;
+    },
+    async save() {
+      throw new Error('Unexpected user config save.');
+    },
+    async delete() {
+      throw new Error('Unexpected user config delete.');
+    },
+  };
+}
+
+function createUserConfigRepository(configs: readonly UserModelConfig[]): UserModelConfigRepository {
+  return {
+    async list(apiFormat) {
+      return apiFormat ? configs.filter((config) => config.apiFormat === apiFormat) : configs;
+    },
+    async get(apiFormat, modelId) {
+      return configs.find((config) => config.apiFormat === apiFormat && config.modelId === modelId);
     },
     async save() {
       throw new Error('Unexpected user config save.');
@@ -161,5 +180,51 @@ describe('model generation preferences', () => {
       operation: 'text_to_image',
     });
     expect(settings.ok ? settings.value.preference : null).toBeNull();
+  });
+
+  it('keeps preference identity stable when same config model changes wire route', async () => {
+    const firstConfig: UserModelConfig = {
+      outputMatrix: getOfficialModelPreset('openai-images', 'gpt-image-2')?.outputMatrix ?? [],
+      apiFormat: 'openai-images',
+      modelId: 'gpt-image-2',
+      baseModelId: 'gpt-image-2',
+      wireModelId: 'gpt-image-2-vip',
+      requestStrategyId: 'image-endpoint-default',
+      outputExposure: {
+        kind: 'flexible-pixels',
+        sizePresetIds: ['auto', '1k', '2k', '4k'],
+        outputFormats: ['png', 'webp'],
+        allowInputDerivedExactSize: true,
+      },
+    };
+
+    setUserModelConfigRepository(createUserConfigRepository([firstConfig]));
+    await saveModelGenerationPreference({
+      ...baseKey,
+      operation: 'text_to_image',
+      selection: {
+        geometry: { kind: 'pixels', width: 3840, height: 3840 },
+        outputFormat: 'webp',
+      },
+    });
+
+    setUserModelConfigRepository(createUserConfigRepository([{
+      ...firstConfig,
+      wireModelId: 'gpt-image-2-svip',
+    }]));
+
+    const settings = await getModelGenerationSettings({
+      ...baseKey,
+      operation: 'text_to_image',
+    });
+
+    expect(settings.ok).toBe(true);
+    expect(settings.ok ? settings.value.key.modelId : null).toBe('gpt-image-2');
+    expect(settings.ok ? settings.value.preference?.modelId : null).toBe('gpt-image-2');
+    expect(settings.ok ? settings.value.selection.selection : null).toEqual({
+      geometry: { kind: 'pixels', width: 3840, height: 3840 },
+      outputFormat: 'webp',
+    });
+    expect(settings.ok ? settings.value.source : null).toBe('preference');
   });
 });

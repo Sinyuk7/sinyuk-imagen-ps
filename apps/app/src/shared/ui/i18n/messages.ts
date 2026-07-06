@@ -269,6 +269,9 @@ export interface AppMessages {
     readonly modelConfigPreset: string;
     readonly modelConfigApiFormat: string;
     readonly modelConfigModelId: string;
+    readonly modelConfigWireModelId: string;
+    readonly modelConfigWireModelIdHint: string;
+    readonly modelConfigWireModelMeta: (modelId: string) => string;
     readonly modelConfigRequestStrategy: string;
     readonly modelConfigManagedByPreset: string;
     readonly modelConfigMatrixCells: string;
@@ -651,6 +654,9 @@ const EN_MESSAGES: AppMessages = {
     modelConfigPreset: 'Preset',
     modelConfigApiFormat: 'API format',
     modelConfigModelId: 'Model ID',
+    modelConfigWireModelId: 'Request model ID',
+    modelConfigWireModelIdHint: 'Only changes model sent to API. Does not change capability configuration.',
+    modelConfigWireModelMeta: (modelId) => `Request model: ${modelId}`,
     modelConfigRequestStrategy: 'Request strategy',
     modelConfigManagedByPreset: 'Managed by preset.',
     modelConfigMatrixCells: 'Output options',
@@ -1033,6 +1039,9 @@ const ZH_CN_MESSAGES: AppMessages = {
     modelConfigPreset: '预设',
     modelConfigApiFormat: 'API 格式',
     modelConfigModelId: '模型 ID',
+    modelConfigWireModelId: '请求模型 ID',
+    modelConfigWireModelIdHint: '仅修改发送给接口的模型，不改变能力配置。',
+    modelConfigWireModelMeta: (modelId) => `请求模型：${modelId}`,
     modelConfigRequestStrategy: '请求策略',
     modelConfigManagedByPreset: '由预设管理',
     modelConfigMatrixCells: '输出选项',

@@ -411,7 +411,7 @@ export function SettingsDetailPage({ onNav, profileId, onProfilesChanged, onSave
         }
         const nextOptions = result.value.map((config: UserModelConfig) => ({
           id: config.modelId,
-          label: config.modelId,
+          label: config.wireModelId,
         }));
         setUserModelOptions(nextOptions);
         setModelOptionsError(null);

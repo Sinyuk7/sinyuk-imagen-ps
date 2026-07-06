@@ -659,22 +659,30 @@ export function tryResolveImageModelRule(args: {
 
 export function resolveImageModelRule(args: {
   readonly providerId: ImageCatalogProviderId;
-  readonly modelId: string;
+  readonly capabilityModelId: string;
   readonly capabilities?: readonly ImageModelCapability[];
 }): ResolvedImageModelRule {
-  const resolved = tryResolveImageModelRule(args);
+  const resolved = tryResolveImageModelRule({
+    providerId: args.providerId,
+    modelId: args.capabilityModelId,
+    capabilities: args.capabilities,
+  });
   if (resolved === undefined) {
-    throw noMatchError(args.providerId, args.modelId.trim());
+    throw noMatchError(args.providerId, args.capabilityModelId.trim());
   }
   return resolved;
 }
 
 export function hasExplicitImageModelRule(args: {
   readonly providerId: ImageCatalogProviderId;
-  readonly modelId: string;
+  readonly capabilityModelId: string;
   readonly capabilities?: readonly ImageModelCapability[];
 }): boolean {
-  return tryResolveImageModelRule(args) !== undefined;
+  return tryResolveImageModelRule({
+    providerId: args.providerId,
+    modelId: args.capabilityModelId,
+    capabilities: args.capabilities,
+  }) !== undefined;
 }
 
 export function listLocalCatalogModels(providerId: ImageCatalogProviderId): readonly ProviderModelInfo[] {
@@ -1052,14 +1060,14 @@ function resolveMatrixOutput(args: {
 
 export function resolveImageModelOutput(args: {
   readonly providerId: ImageCatalogProviderId;
-  readonly modelId: string;
+  readonly capabilityModelId: string;
   readonly operation: ImageOperation;
   readonly output?: ProviderOutputOptions;
   readonly inputContext?: NormalizedImageInputContext;
 }): ResolvedImageModelOutput {
   const rule = resolveImageModelRule({
     providerId: args.providerId,
-    modelId: args.modelId,
+    capabilityModelId: args.capabilityModelId,
   });
   assertOperationSupported(rule, args.operation);
 
@@ -1080,14 +1088,14 @@ export function resolveImageModelOutput(args: {
 /** Builder 用 canonical selection + normalized input context 解析 provider payload。 */
 export function resolveProviderResolvedOutput(args: {
   readonly providerId: ImageCatalogProviderId;
-  readonly modelId: string;
+  readonly capabilityModelId: string;
   readonly operation: ImageOperation;
   readonly output?: ProviderOutputOptions;
   readonly inputContext?: NormalizedImageInputContext;
 }): ProviderResolvedOutput {
   const rule = resolveImageModelRule({
     providerId: args.providerId,
-    modelId: args.modelId,
+    capabilityModelId: args.capabilityModelId,
   });
   assertOperationSupported(rule, args.operation);
   const selection = selectionForOutput(rule, args.output);
@@ -1102,7 +1110,7 @@ export function resolveProviderResolvedOutput(args: {
 
 export function isSupportedImageModelOutput(args: {
   readonly providerId: ImageCatalogProviderId;
-  readonly modelId: string;
+  readonly capabilityModelId: string;
   readonly operation: ImageOperation;
   readonly output?: ProviderOutputOptions;
 }): boolean {
@@ -1116,13 +1124,13 @@ export function isSupportedImageModelOutput(args: {
 
 export function getSupportedImageOutputSizePresets(args: {
   readonly providerId: ImageCatalogProviderId;
-  readonly modelId: string;
+  readonly capabilityModelId: string;
   readonly operation: ImageOperation;
   readonly aspectRatio?: ProviderOutputOptions['aspectRatio'];
 }): readonly ImageSizePreset[] {
   const rule = resolveImageModelRule({
     providerId: args.providerId,
-    modelId: args.modelId,
+    capabilityModelId: args.capabilityModelId,
   });
   const aspectRatio = (args.aspectRatio ?? 'auto') as ImageAspectRatio;
   const matrix = outputMatrixForOperation(rule, args.operation);

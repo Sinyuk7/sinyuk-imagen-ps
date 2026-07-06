@@ -71,6 +71,7 @@ export const fakeChatProvider: ProviderDescriptor = {
 
 export const fakeProfileModelItems: readonly ProfileModelItem[] = [{
   modelId: 'gpt-image-2',
+  wireModelId: 'gpt-image-2',
   discovered: true,
   configured: true,
   selected: true,
@@ -80,6 +81,7 @@ export const fakeProfileModelItems: readonly ProfileModelItem[] = [{
 
 export const fakeDraftProfileModelItems: readonly ProfileModelItem[] = [{
   modelId: 'gpt-image-2-preview',
+  wireModelId: 'gpt-image-2-preview',
   discovered: true,
   configured: true,
   selected: false,
@@ -99,6 +101,7 @@ export function profileModelItem(
 ): ProfileModelItem {
   return {
     modelId,
+    wireModelId: modelId,
     discovered: true,
     configured: true,
     selected: true,

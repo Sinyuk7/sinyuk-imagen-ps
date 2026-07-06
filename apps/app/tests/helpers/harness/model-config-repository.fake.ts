@@ -54,9 +54,11 @@ export function createModelConfigRepositoryFake(options?: {
     ok: true as const,
     value: apiFormat ? userModelConfigs.filter((config) => config.apiFormat === apiFormat) : userModelConfigs,
   }));
-  const listOfficialModelConfigPresets = vi.fn(async () => ({
+  const listOfficialModelConfigPresets = vi.fn(async (apiFormat?: OfficialModelPreset['apiFormat']) => ({
     ok: true as const,
-    value: officialModelConfigPresets,
+    value: apiFormat
+      ? officialModelConfigPresets.filter((preset) => preset.apiFormat === apiFormat)
+      : officialModelConfigPresets,
   }));
   const listRequestStrategiesForApiFormat = vi.fn(async () => ({
     ok: true as const,
@@ -75,6 +77,7 @@ export function createModelConfigRepositoryFake(options?: {
       ...input,
       modelId: input.modelId.trim(),
       baseModelId: input.baseModelId.trim(),
+      wireModelId: input.wireModelId.trim(),
       outputMatrix: (preset?.outputMatrix ?? []).map((matrix) => ({
         ...matrix,
         imageSizes: [...matrix.imageSizes],

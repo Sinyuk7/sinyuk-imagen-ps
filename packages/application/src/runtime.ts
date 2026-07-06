@@ -798,6 +798,7 @@ function stripProviderOptionsModel(providerOptions: unknown): Readonly<Record<st
 function injectResolvedModelAndOutput(args: {
   readonly params: Record<string, unknown>;
   readonly model: ProviderModelExecution;
+  readonly capabilityModelId: string;
   readonly output: Readonly<Record<string, unknown>>;
 }): Record<string, unknown> {
   const { params, model } = args;
@@ -807,6 +808,7 @@ function injectResolvedModelAndOutput(args: {
   const newRequest = {
     ...requestObj,
     model,
+    capabilityModelId: args.capabilityModelId,
     output: {
       ...currentOutput,
       ...args.output,
@@ -856,13 +858,13 @@ async function resolveModelParamsForDispatch(args: {
     key: {
       profileId: args.profile.profileId,
       apiFormat: args.profile.apiFormat,
-      modelId: resolved.modelId,
+      modelId: resolved.configModelId,
       operation: operationFromRequest(requestObj),
     },
     preference: await getModelGenerationPreferenceRepository().get({
       profileId: args.profile.profileId,
       apiFormat: args.profile.apiFormat,
-      modelId: resolved.modelId,
+      modelId: resolved.configModelId,
       operation: operationFromRequest(requestObj),
     }),
     userConfig: resolved.source === 'user' ? resolved : undefined,
@@ -870,6 +872,7 @@ async function resolveModelParamsForDispatch(args: {
   return injectResolvedModelAndOutput({
     params: args.params,
     model: toProviderModelExecution(resolved),
+    capabilityModelId: resolved.capabilityModelId,
     output: {
       selection: generationSettings.selection.effectiveSelection,
     },
@@ -956,8 +959,34 @@ function createProfileAwareDispatchAdapter(logger?: Logger): ReturnType<typeof c
         providerConfig,
       });
       const resolvedParams = await resolveStoredAssetsForDispatch(modelResolvedParams, context?.signal);
+      const { requestObj: resolvedRequestObj } = locateRequestInParams(resolvedParams);
+      const requestModel = isPlainRecord(resolvedRequestObj.model) ? resolvedRequestObj.model : undefined;
+      const capabilityModelId = typeof resolvedRequestObj.capabilityModelId === 'string'
+        ? resolvedRequestObj.capabilityModelId
+        : undefined;
+      const wireModelId = typeof requestModel?.modelId === 'string' ? requestModel.modelId : undefined;
+      const selectedConfigModelId = explicitModelIdFromRequest(requestObj)
+        ?? profile.defaultModelId
+        ?? providerFallbackModelId(providerConfig);
 
-      const adapter = createDispatchAdapter({ provider, config: providerConfig, logger: dispatchLogger });
+      const adapterLogger = (dispatchLogger ?? getRuntimeLogger()).child({
+        profile_id: profile.profileId,
+        provider_id: provider.id,
+      });
+      adapterLogger.info('dispatch.provider.start', {
+        ...(typeof selectedConfigModelId === 'string' ? { configModelId: selectedConfigModelId } : {}),
+        ...(capabilityModelId ? { capabilityModelId } : {}),
+        ...(wireModelId ? { wireModelId } : {}),
+        ...(typeof requestModel?.requestStrategyId === 'string' ? { requestStrategyId: requestModel.requestStrategyId } : {}),
+        ...(typeof resolvedRequestObj.operation === 'string' ? { operation: resolvedRequestObj.operation } : {}),
+        apiFormat,
+      });
+
+      const adapter = createDispatchAdapter({
+        provider,
+        config: providerConfig,
+        logger: adapterLogger,
+      });
       return adapter.dispatch(resolvedParams, context);
     },
   };

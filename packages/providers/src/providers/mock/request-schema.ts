@@ -119,6 +119,7 @@ export const mockRequestSchema = z.object({
       .optional(),
   ),
   model: z.preprocess(coerceOptionalObject, providerModelExecutionSchema.optional()),
+  capabilityModelId: z.string().min(1).optional(),
   inputContext: z.preprocess(coerceOptionalObject, normalizedInputContextSchema.optional()),
   providerOptions: z.preprocess(coerceOptionalObject, z.record(z.string(), z.unknown()).optional()),
 });

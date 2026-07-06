@@ -139,6 +139,7 @@ export {
   resolveImageModelOutput,
   resolveImageModelRule,
   resolveProviderResolvedOutput,
+  getSupportedImageOutputSizePresets,
   summarizeImageModelCapabilities,
   tryResolveImageModelRule,
   validateImageModelCatalog,

@@ -274,10 +274,10 @@ function resolveRequestOutput(request: CanonicalImageJobRequest, output: Provide
   if (output === undefined) {
     return undefined;
   }
-  const model = resolveModel(request);
+  const capabilityModelId = request.capabilityModelId ?? resolveModel(request);
   const resolvedOutput = resolveProviderResolvedOutput({
     providerId: 'gemini-generate-content',
-    modelId: model,
+    capabilityModelId,
     operation: request.operation,
     output,
     inputContext: request.inputContext,

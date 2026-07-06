@@ -82,6 +82,7 @@ export {
   assertProviderModelExecution,
   getOfficialModelPreset,
   getRequestStrategy,
+  getSupportedImageOutputSizePresets,
   hasExplicitImageModelRule,
   isSupportedImageModelOutput,
   listLocalCatalogModels,

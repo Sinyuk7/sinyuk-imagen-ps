@@ -12,6 +12,13 @@ import { createFakeServices } from '../../../helpers/fakes';
 
 let root: Root | undefined;
 
+const simpleFlexibleExposure = {
+  kind: 'flexible-pixels' as const,
+  sizePresetIds: ['auto', '1k'],
+  outputFormats: ['png'],
+  allowInputDerivedExactSize: false,
+};
+
 afterEach(async () => {
   if (root) {
     await act(async () => {
@@ -90,7 +97,7 @@ function expectDimensionControls(
   const buttons = dimensionButtons(container, module, dimension);
   const ids = buttons.map((button) => button.dataset.testid?.slice(`model-config-${module.id}-${dimension}-`.length));
   expect([...ids].sort()).toEqual([...expectedIds].sort());
-  expect(buttons.every((button) => button.getAttribute('aria-pressed') === 'true')).toBe(true);
+  expect(buttons.every((button) => button.getAttribute('aria-checked') === 'true')).toBe(true);
 }
 
 async function officialPreset(apiFormat: ApiFormat, modelId: string): Promise<OfficialModelPreset> {
@@ -140,6 +147,43 @@ describe('ModelConfigurationPage', () => {
         }
       }
     }
+  });
+
+  it('keeps create identity and request model synced to current preset', async () => {
+    const { services } = createFakeServices();
+    const container = await renderPage(services);
+    await openCreateEditor(container);
+
+    await act(async () => {
+      container.querySelector<HTMLButtonElement>('.model-config-advanced-toggle')?.click();
+    });
+    await flush();
+    expect(container.querySelector<HTMLInputElement>('[data-testid="model-config-model-id"]')?.value).toBe('gpt-image-2');
+    expect(container.querySelector<HTMLInputElement>('[data-testid="model-config-wire-model-id"]')?.value).toBe('gpt-image-2');
+
+    await selectOption('model-config-preset-selector', 'gemini-image-split');
+    expect(container.querySelector<HTMLInputElement>('[data-testid="model-config-model-id"]')?.value).toBe('gemini-image-split');
+    expect(container.querySelector<HTMLInputElement>('[data-testid="model-config-wire-model-id"]')?.value).toBe('gemini-image-split');
+  });
+
+  it('keeps create identity and request model synced when switching api format', async () => {
+    const officialModelConfigPresets = await Promise.all([
+      officialPreset('openai-images', 'gpt-image-2'),
+      officialPreset('openai-chat-completions', 'openai/gpt-image-2'),
+      officialPreset('gemini-generate-content', 'gemini-3.1-flash-image'),
+    ]);
+    const { services } = createFakeServices({ officialModelConfigPresets });
+    const container = await renderPage(services);
+    await openCreateEditor(container);
+
+    await act(async () => {
+      container.querySelector<HTMLButtonElement>('.model-config-advanced-toggle')?.click();
+    });
+    await flush();
+
+    await selectOption('model-config-api-format-selector', 'gemini-generate-content');
+    expect(container.querySelector<HTMLInputElement>('[data-testid="model-config-model-id"]')?.value).toBe('gemini-3.1-flash-image');
+    expect(container.querySelector<HTMLInputElement>('[data-testid="model-config-wire-model-id"]')?.value).toBe('gemini-3.1-flash-image');
   });
 
   it('shows one shared output capabilities section when operations are equal', async () => {
@@ -216,7 +260,7 @@ describe('ModelConfigurationPage', () => {
 
     await openCreateEditor(container);
 
-    expect(container.querySelector('[data-testid="model-config-model-id"]')).not.toBeNull();
+    expect(container.querySelector('[data-testid="model-config-wire-model-id"]')).not.toBeNull();
 
     await act(async () => {
       container.querySelector<HTMLElement>('[data-testid="model-configuration-back-button"]')?.click();
@@ -224,7 +268,7 @@ describe('ModelConfigurationPage', () => {
     await flush();
 
     expect(container.querySelector('[data-testid="model-configuration-add-button"]')).not.toBeNull();
-    expect(container.querySelector('[data-testid="model-config-model-id"]')).toBeNull();
+    expect(container.querySelector('[data-testid="model-config-wire-model-id"]')).toBeNull();
   });
 
   it('uses click-only settings row for saved configs without extra edit button', async () => {
@@ -233,7 +277,9 @@ describe('ModelConfigurationPage', () => {
         apiFormat: 'openai-images',
         modelId: 'saved-config',
         baseModelId: 'nano-banana-fast',
+        wireModelId: 'saved-config-vip',
         requestStrategyId: 'image-endpoint-default',
+        outputExposure: simpleFlexibleExposure,
         outputMatrix: [],
       },
     ];
@@ -243,6 +289,7 @@ describe('ModelConfigurationPage', () => {
     expect(container.querySelector('[data-testid="model-config-edit-openai-images-saved-config"]')).toBeNull();
     expect(container.querySelector('[data-testid="model-config-avatar-openai-images-saved-config"]')?.textContent).toBe('NB');
     expect(container.textContent).toContain('nano-banana-fast');
+    expect(container.textContent).toContain('Request model: saved-config-vip');
 
     await act(async () => {
       container.querySelector<HTMLElement>('[data-testid="model-config-row-openai-images-saved-config"]')?.click();
@@ -250,7 +297,38 @@ describe('ModelConfigurationPage', () => {
     await flush();
     await flush();
 
+    await act(async () => {
+      container.querySelector<HTMLButtonElement>('.model-config-advanced-toggle')?.click();
+    });
+    await flush();
     expect(container.querySelector<HTMLInputElement>('[data-testid="model-config-model-id"]')?.value).toBe('saved-config');
+    expect(container.querySelector<HTMLInputElement>('[data-testid="model-config-wire-model-id"]')?.value).toBe('saved-config-vip');
+    expect(container.querySelector<HTMLInputElement>('[data-testid="model-config-model-id"]')?.disabled).toBe(true);
+    expect(container.querySelector<HTMLElement>('[data-testid="model-config-api-format-selector"]')?.hasAttribute('disabled')).toBe(true);
+  });
+
+  it('locks api format in edit mode', async () => {
+    const userModelConfigs: readonly UserModelConfig[] = [
+      {
+        apiFormat: 'openai-images',
+        modelId: 'saved-config',
+        baseModelId: 'gpt-image-2',
+        wireModelId: 'saved-config-vip',
+        requestStrategyId: 'image-endpoint-default',
+        outputExposure: simpleFlexibleExposure,
+        outputMatrix: [],
+      },
+    ];
+    const { services } = createFakeServices({ userModelConfigs });
+    const container = await renderPage(services);
+
+    await act(async () => {
+      container.querySelector<HTMLElement>('[data-testid="model-config-row-openai-images-saved-config"]')?.click();
+    });
+    await flush();
+    await flush();
+
+    expect(container.querySelector<HTMLElement>('[data-testid="model-config-api-format-selector"]')?.hasAttribute('disabled')).toBe(true);
   });
 
   it('shows delete action for existing config and removes it', async () => {
@@ -259,7 +337,9 @@ describe('ModelConfigurationPage', () => {
         apiFormat: 'openai-images',
         modelId: 'saved-config',
         baseModelId: 'gpt-image-2',
+        wireModelId: 'saved-config',
         requestStrategyId: 'image-endpoint-default',
+        outputExposure: simpleFlexibleExposure,
         outputMatrix: [],
       },
     ];
@@ -318,7 +398,17 @@ describe('ModelConfigurationPage', () => {
     await flush();
 
     await act(async () => {
+      container.querySelector<HTMLButtonElement>('.model-config-advanced-toggle')?.click();
+    });
+    await flush();
+
+    await act(async () => {
       changeInput(container.querySelector<HTMLInputElement>('[data-testid="model-config-model-id"]')!, 'filtered-model');
+    });
+    await flush();
+
+    await act(async () => {
+      changeInput(container.querySelector<HTMLInputElement>('[data-testid="model-config-wire-model-id"]')!, 'gemini-image-split-vip');
     });
     await flush();
 
@@ -337,6 +427,7 @@ describe('ModelConfigurationPage', () => {
     const input = spies.saveUserModelConfig.mock.calls.at(-1)?.[0];
     expect(input.outputExposure.kind).toBe('ratio-resolution');
     expect(input.outputExposure.kind === 'ratio-resolution' ? input.outputExposure.aspectRatios : []).not.toContain('16:9');
+    expect(input.wireModelId).toBe('gemini-image-split-vip');
     expect('outputMatrix' in input).toBe(false);
   });
 
@@ -364,8 +455,11 @@ describe('ModelConfigurationPage', () => {
     expect(container.querySelector('[data-testid="model-config-normalization-warning-shared"]')).not.toBeNull();
   });
 
-  it('prefills create flow from profile-originated apiFormat without auto-filling model id', async () => {
-    const { services } = createFakeServices();
+  it('prefills create flow from profile-originated apiFormat with current preset identity', async () => {
+    const officialModelConfigPresets = await Promise.all([
+      officialPreset('openai-chat-completions', 'openai/gpt-image-2'),
+    ]);
+    const { services } = createFakeServices({ officialModelConfigPresets });
     const container = document.createElement('div');
     document.body.appendChild(container);
     root = createRoot(container);
@@ -385,8 +479,15 @@ describe('ModelConfigurationPage', () => {
     await flush();
     await flush();
 
+    await act(async () => {
+      container.querySelector<HTMLButtonElement>('.model-config-advanced-toggle')?.click();
+    });
+    await flush();
+
     const modelIdInput = container.querySelector<HTMLInputElement>('[data-testid="model-config-model-id"]');
+    const wireModelIdInput = container.querySelector<HTMLInputElement>('[data-testid="model-config-wire-model-id"]');
     expect(container.querySelector('[data-testid="model-config-save-button"]')).not.toBeNull();
-    expect(modelIdInput?.value ?? '').toBe('');
+    expect(modelIdInput?.value ?? '').toBe('openai/gpt-image-2');
+    expect(wireModelIdInput?.value ?? '').toBe('openai/gpt-image-2');
   });
 });

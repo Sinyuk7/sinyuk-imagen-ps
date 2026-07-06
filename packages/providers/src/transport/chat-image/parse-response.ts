@@ -1,4 +1,6 @@
 import type { Asset } from '@imagen-ps/core-engine';
+import type { ImageOutputSelection } from '../../contract/image-output-contract.js';
+import type { CanonicalImageJobRequest } from '../../contract/request.js';
 import type { ProviderDiagnostic } from '../../contract/diagnostics.js';
 import type { ProviderInvokeUsage } from '../../contract/result.js';
 import { mapInvalidResponseError } from '../image-endpoint/error-map.js';
@@ -76,7 +78,29 @@ export interface ParsedChatImageAssetSummary {
   readonly referenceKind: ParsedChatImageAssetReferenceKind;
   readonly mimeType?: string;
   readonly name?: string;
+  readonly outputFacts?: ImageOutputFacts;
+  readonly contractViolations?: readonly OutputContractViolation[];
 }
+
+export interface ImageOutputFacts {
+  readonly width: number;
+  readonly height: number;
+  readonly mimeType: string;
+  readonly byteSize: number;
+}
+
+export type OutputContractViolation =
+  | {
+      readonly kind: 'aspect-ratio-mismatch';
+      readonly expected: Exclude<ImageOutputSelection['geometry'], { readonly kind: 'provider-default' } | { readonly kind: 'pixels' } | { readonly kind: 'input-derived' }>['aspectRatio'];
+      readonly actualWidth: number;
+      readonly actualHeight: number;
+    }
+  | {
+      readonly kind: 'output-format-mismatch';
+      readonly expected: string;
+      readonly actual: string;
+    };
 
 export interface ParsedChatImageResponse {
   readonly assets: readonly Asset[];
@@ -84,6 +108,7 @@ export interface ParsedChatImageResponse {
   readonly raw: unknown;
   readonly diagnostics?: readonly ProviderDiagnostic[];
   readonly assetSummaries?: readonly ParsedChatImageAssetSummary[];
+  readonly contractViolations?: readonly OutputContractViolation[];
   readonly created?: number;
   readonly usage?: ProviderInvokeUsage;
 }
@@ -244,9 +269,138 @@ function extensionFromMimeType(mimeType: string): string {
   }
 }
 
-function assetFromUrl(url: string, index: number): { readonly asset: Asset; readonly referenceKind: ParsedChatImageAssetReferenceKind } {
+function readUint16(bytes: Uint8Array, offset: number): number {
+  return (bytes[offset]! << 8) | bytes[offset + 1]!;
+}
+
+function readUint32(bytes: Uint8Array, offset: number): number {
+  return ((bytes[offset]! * 0x1000000) + ((bytes[offset + 1]! << 16) | (bytes[offset + 2]! << 8) | bytes[offset + 3]!)) >>> 0;
+}
+
+function readPngSize(bytes: Uint8Array): { readonly width: number; readonly height: number } | undefined {
+  if (bytes.byteLength < 24 || !bytesEqual(bytes, 0, PNG_SIGNATURE)) {
+    return undefined;
+  }
+  return { width: readUint32(bytes, 16), height: readUint32(bytes, 20) };
+}
+
+function readJpegSize(bytes: Uint8Array): { readonly width: number; readonly height: number } | undefined {
+  let offset = 2;
+  while (offset + 9 < bytes.byteLength) {
+    if (bytes[offset] !== 0xff) {
+      return undefined;
+    }
+    const marker = bytes[offset + 1]!;
+    const length = readUint16(bytes, offset + 2);
+    if (length < 2) {
+      return undefined;
+    }
+    if (marker >= 0xc0 && marker <= 0xcf && marker !== 0xc4 && marker !== 0xc8 && marker !== 0xcc) {
+      return { height: readUint16(bytes, offset + 5), width: readUint16(bytes, offset + 7) };
+    }
+    offset += 2 + length;
+  }
+  return undefined;
+}
+
+function readWebpSize(bytes: Uint8Array): { readonly width: number; readonly height: number } | undefined {
+  if (!bytesEqual(bytes, 0, WEBP_RIFF) || !bytesEqual(bytes, 8, WEBP_WEBP)) {
+    return undefined;
+  }
+  if (bytes.byteLength >= 30 && String.fromCharCode(...bytes.slice(12, 16)) === 'VP8X') {
+    return {
+      width: 1 + bytes[24]! + (bytes[25]! << 8) + (bytes[26]! << 16),
+      height: 1 + bytes[27]! + (bytes[28]! << 8) + (bytes[29]! << 16),
+    };
+  }
+  return undefined;
+}
+
+function inspectImageBytes(bytes: Uint8Array, mimeType: string): ImageOutputFacts {
+  const normalizedMimeType = mimeType.toLowerCase();
+  const size = normalizedMimeType.includes('png')
+    ? readPngSize(bytes)
+    : normalizedMimeType.includes('jpeg') || normalizedMimeType.includes('jpg')
+      ? readJpegSize(bytes)
+      : normalizedMimeType.includes('webp')
+        ? readWebpSize(bytes)
+        : undefined;
+  if (!size) {
+    throw new Error(`unsupported_image_dimensions:${mimeType}`);
+  }
+  return {
+    width: size.width,
+    height: size.height,
+    mimeType,
+    byteSize: bytes.byteLength,
+  };
+}
+
+function expectedMimeTypeForSelection(selection: ImageOutputSelection | undefined): string | undefined {
+  if (!selection) {
+    return undefined;
+  }
+  switch (selection.outputFormat) {
+    case 'png':
+      return 'image/png';
+    case 'jpeg':
+      return 'image/jpeg';
+    case 'webp':
+      return 'image/webp';
+  }
+}
+
+function aspectRatioMatches(expected: string, width: number, height: number): boolean {
+  const match = /^(\d+):(\d+)$/.exec(expected);
+  if (!match) {
+    return true;
+  }
+  const expectedWidth = Number(match[1]);
+  const expectedHeight = Number(match[2]);
+  if (!Number.isFinite(expectedWidth) || !Number.isFinite(expectedHeight) || expectedWidth <= 0 || expectedHeight <= 0) {
+    return true;
+  }
+  const expectedRatio = expectedWidth / expectedHeight;
+  const actualRatio = width / height;
+  return Math.abs(actualRatio - expectedRatio) <= 0.01;
+}
+
+function validateOutputContract(
+  selection: ImageOutputSelection | undefined,
+  facts: ImageOutputFacts,
+): readonly OutputContractViolation[] {
+  if (!selection) {
+    return [];
+  }
+  const violations: OutputContractViolation[] = [];
+  const expectedMimeType = expectedMimeTypeForSelection(selection);
+  if (expectedMimeType && facts.mimeType !== expectedMimeType) {
+    violations.push({
+      kind: 'output-format-mismatch',
+      expected: expectedMimeType,
+      actual: facts.mimeType,
+    });
+  }
+  if (selection.geometry.kind === 'ratio-resolution' && !aspectRatioMatches(selection.geometry.aspectRatio, facts.width, facts.height)) {
+    violations.push({
+      kind: 'aspect-ratio-mismatch',
+      expected: selection.geometry.aspectRatio,
+      actualWidth: facts.width,
+      actualHeight: facts.height,
+    });
+  }
+  return violations;
+}
+
+function assetFromUrl(url: string, index: number): {
+  readonly asset: Asset;
+  readonly referenceKind: ParsedChatImageAssetReferenceKind;
+  readonly outputFacts?: ImageOutputFacts;
+} {
   if (url.startsWith('data:')) {
     const parsed = parseDataUrl(url);
+    const bytes = decodeBase64(parsed.payload);
+    const outputFacts = inspectImageBytes(bytes, parsed.mimeType);
     return {
       asset: {
         type: 'image',
@@ -255,6 +409,7 @@ function assetFromUrl(url: string, index: number): { readonly asset: Asset; read
         mimeType: parsed.mimeType,
       },
       referenceKind: 'data-url',
+      outputFacts,
     };
   }
   const parsedUrl = new URL(url);
@@ -291,8 +446,10 @@ function tryMaterializeAsset(args: {
   readonly url: string;
   readonly alt: string;
   readonly source: ParsedChatImageAssetSource;
+  readonly outputSelection?: ImageOutputSelection;
   readonly assets: Asset[];
   readonly assetSummaries: ParsedChatImageAssetSummary[];
+  readonly contractViolations: OutputContractViolation[];
   readonly seenAssetKeys: Set<string>;
   readonly diagnostics: ProviderDiagnostic[];
 }): {
@@ -317,7 +474,8 @@ function tryMaterializeAsset(args: {
           : {}),
       };
     }
-    const { asset, referenceKind } = assetFromUrl(args.url, args.assets.length);
+    const { asset, referenceKind, outputFacts } = assetFromUrl(args.url, args.assets.length);
+    const assetViolations = outputFacts ? validateOutputContract(args.outputSelection, outputFacts) : [];
     args.seenAssetKeys.add(identityKey);
     args.assets.push(asset);
     args.assetSummaries.push({
@@ -325,7 +483,26 @@ function tryMaterializeAsset(args: {
       referenceKind,
       ...(asset.mimeType !== undefined ? { mimeType: asset.mimeType } : {}),
       ...(asset.name !== undefined ? { name: asset.name } : {}),
+      ...(outputFacts ? { outputFacts } : {}),
+      ...(assetViolations.length > 0 ? { contractViolations: assetViolations } : {}),
     });
+    if (assetViolations.length > 0) {
+      args.contractViolations.push(...assetViolations);
+      for (const violation of assetViolations) {
+        args.diagnostics.push(createDiagnostic(
+          `chat-image.response.${violation.kind}`,
+          violation.kind === 'aspect-ratio-mismatch'
+            ? `Chat image response aspect ratio "${violation.actualWidth}x${violation.actualHeight}" does not match requested "${violation.expected}".`
+            : `Chat image response mime type "${violation.actual}" does not match requested "${violation.expected}".`,
+          {
+            source: args.source,
+            assetName: asset.name,
+            ...violation,
+            ...(outputFacts ? { byteSize: outputFacts.byteSize } : {}),
+          },
+        ));
+      }
+    }
     return { consumed: true };
   } catch (error) {
     const reason = error instanceof Error ? error.message : String(error);
@@ -472,8 +649,10 @@ function parseInlineImageAt(text: string, start: number): ParsedInlineImage | un
 
 function processInlineText(
   text: string,
+  outputSelection: ImageOutputSelection | undefined,
   assets: Asset[],
   assetSummaries: ParsedChatImageAssetSummary[],
+  contractViolations: OutputContractViolation[],
   seenAssetKeys: Set<string>,
 ): ExtractedTextResult {
   const diagnostics: ProviderDiagnostic[] = [];
@@ -524,8 +703,10 @@ function processInlineText(
       url: parsedImage.url,
       alt: parsedImage.alt,
       source: 'content',
+      outputSelection,
       assets,
       assetSummaries,
+      contractViolations,
       seenAssetKeys,
       diagnostics,
     });
@@ -546,14 +727,16 @@ function processInlineText(
 
 function sanitizeContent(
   content: unknown,
+  outputSelection: ImageOutputSelection | undefined,
   assets: Asset[],
   assetSummaries: ParsedChatImageAssetSummary[],
+  contractViolations: OutputContractViolation[],
   seenAssetKeys: Set<string>,
 ): ChoiceProcessingResult {
   const diagnostics: ProviderDiagnostic[] = [];
   const textParts: string[] = [];
   if (typeof content === 'string') {
-    const processed = processInlineText(content, assets, assetSummaries, seenAssetKeys);
+    const processed = processInlineText(content, outputSelection, assets, assetSummaries, contractViolations, seenAssetKeys);
     diagnostics.push(...processed.diagnostics);
     if (processed.text !== undefined) {
       textParts.push(processed.text);
@@ -580,7 +763,7 @@ function sanitizeContent(
     }
     const text = (part as { readonly text?: unknown }).text;
     if (typeof text === 'string') {
-      const processed = processInlineText(text, assets, assetSummaries, seenAssetKeys);
+      const processed = processInlineText(text, outputSelection, assets, assetSummaries, contractViolations, seenAssetKeys);
       diagnostics.push(...processed.diagnostics);
       if (processed.text !== undefined) {
         textParts.push(processed.text);
@@ -613,8 +796,10 @@ function sanitizeContent(
 
 function sanitizeMessageImages(
   images: readonly ChatImageResponseImage[] | undefined,
+  outputSelection: ImageOutputSelection | undefined,
   assets: Asset[],
   assetSummaries: ParsedChatImageAssetSummary[],
+  contractViolations: OutputContractViolation[],
   seenAssetKeys: Set<string>,
 ): {
   readonly sanitizedImages: readonly ChatImageResponseImage[] | undefined;
@@ -631,8 +816,10 @@ function sanitizeMessageImages(
         url,
         alt: '',
         source: 'message-images',
+        outputSelection,
         assets,
         assetSummaries,
+        contractViolations,
         seenAssetKeys,
         diagnostics,
       });
@@ -647,7 +834,10 @@ function sanitizeMessageImages(
   return { sanitizedImages, diagnostics };
 }
 
-export function parseChatImageResponse(raw: unknown): ParsedChatImageResponse {
+export function parseChatImageResponse(
+  raw: unknown,
+  request?: Pick<CanonicalImageJobRequest, 'output'>,
+): ParsedChatImageResponse {
   if (typeof raw !== 'object' || raw === null) {
     throw mapInvalidResponseError('Chat image response is not a JSON object.', { raw });
   }
@@ -659,9 +849,11 @@ export function parseChatImageResponse(raw: unknown): ParsedChatImageResponse {
 
   const assets: Asset[] = [];
   const assetSummaries: ParsedChatImageAssetSummary[] = [];
+  const contractViolations: OutputContractViolation[] = [];
   const seenAssetKeys = new Set<string>();
   const textParts: string[] = [];
   const diagnostics: ProviderDiagnostic[] = [];
+  const outputSelection = request?.output?.selection;
   const sanitizedChoices = response.choices.map((choice) => {
     if (typeof choice !== 'object' || choice === null) {
       return choice;
@@ -673,9 +865,9 @@ export function parseChatImageResponse(raw: unknown): ParsedChatImageResponse {
     const {
       sanitizedImages,
       diagnostics: imageDiagnostics,
-    } = sanitizeMessageImages(message.images, assets, assetSummaries, seenAssetKeys);
+    } = sanitizeMessageImages(message.images, outputSelection, assets, assetSummaries, contractViolations, seenAssetKeys);
     diagnostics.push(...imageDiagnostics);
-    const contentResult = sanitizeContent(message.content, assets, assetSummaries, seenAssetKeys);
+    const contentResult = sanitizeContent(message.content, outputSelection, assets, assetSummaries, contractViolations, seenAssetKeys);
     diagnostics.push(...contentResult.diagnostics);
     textParts.push(...contentResult.textParts);
     return {
@@ -698,8 +890,10 @@ export function parseChatImageResponse(raw: unknown): ParsedChatImageResponse {
     text?: string;
     raw: unknown;
     diagnostics?: readonly ProviderDiagnostic[];
+    assetSummaries?: readonly ParsedChatImageAssetSummary[];
     created?: number;
     usage?: ProviderInvokeUsage;
+    contractViolations?: readonly OutputContractViolation[];
   } = {
     assets,
     raw: {
@@ -708,6 +902,7 @@ export function parseChatImageResponse(raw: unknown): ParsedChatImageResponse {
     },
     ...(diagnostics.length > 0 ? { diagnostics } : {}),
     ...(assetSummaries.length > 0 ? { assetSummaries } : {}),
+    ...(contractViolations.length > 0 ? { contractViolations } : {}),
   };
 
   if (text !== undefined) {

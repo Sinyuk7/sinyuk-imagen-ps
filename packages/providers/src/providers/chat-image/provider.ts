@@ -46,19 +46,6 @@ function recordField(value: unknown): Record<string, unknown> | undefined {
   return typeof value === 'object' && value !== null && !Array.isArray(value) ? value as Record<string, unknown> : undefined;
 }
 
-function expectedMimeTypeForOutputFormat(outputFormat: string | undefined): string | undefined {
-  if (outputFormat === 'png') {
-    return 'image/png';
-  }
-  if (outputFormat === 'jpeg') {
-    return 'image/jpeg';
-  }
-  if (outputFormat === 'webp') {
-    return 'image/webp';
-  }
-  return undefined;
-}
-
 function perfNow(): number {
   return typeof performance !== 'undefined' && typeof performance.now === 'function'
     ? performance.now()
@@ -218,7 +205,7 @@ export function createChatImageProvider(): Provider<ChatImageProviderConfig, Moc
 
       let parsed: ParsedChatImageResponse;
       try {
-        parsed = requestCodec.parseExecutionResponse(execution.value.response.data);
+        parsed = requestCodec.parseExecutionResponse(execution.value.response.data, request);
       } catch (error) {
         providerLogger?.error('provider.chat_image.response_parse_fail', {
           requestCodec: requestCodec.id,
@@ -239,21 +226,22 @@ export function createChatImageProvider(): Provider<ChatImageProviderConfig, Moc
         assetSources: parsed.assetSummaries?.map((item) => item.source) ?? [],
         assetReferenceKinds: parsed.assetSummaries?.map((item) => item.referenceKind) ?? [],
       });
-      const expectedMimeType = expectedMimeTypeForOutputFormat(requestedOutputFormat);
-      const actualMimeTypes = parsed.assetSummaries?.map((item) => item.mimeType).filter((item): item is string => item !== undefined) ?? [];
-      if (
-        expectedMimeType !== undefined &&
-        actualMimeTypes.length > 0 &&
-        actualMimeTypes.some((mimeType) => mimeType !== expectedMimeType)
-      ) {
-        providerLogger?.warn('provider.chat_image.response_format_mismatch', {
+      for (const violation of parsed.contractViolations ?? []) {
+        providerLogger?.warn('provider.chat_image.response_contract_violation', {
           requestCodec: requestCodec.id,
           model: body.model,
-          requestedOutputFormat,
-          expectedMimeType,
-          actualMimeTypes,
-          assetNames: parsed.assetSummaries?.map((item) => item.name ?? 'unnamed') ?? [],
-          assetSources: parsed.assetSummaries?.map((item) => item.source) ?? [],
+          violationKind: violation.kind,
+          ...violation,
+          assetFacts: parsed.assetSummaries
+            ?.filter((item) => item.contractViolations?.some((candidate) => candidate.kind === violation.kind))
+            .map((item) => ({
+              name: item.name ?? 'unnamed',
+              source: item.source,
+              mimeType: item.outputFacts?.mimeType ?? item.mimeType ?? 'unknown',
+              width: item.outputFacts?.width,
+              height: item.outputFacts?.height,
+              byteSize: item.outputFacts?.byteSize,
+            })) ?? [],
           selectedEndpointId: execution.selectedEndpointId,
         });
       }

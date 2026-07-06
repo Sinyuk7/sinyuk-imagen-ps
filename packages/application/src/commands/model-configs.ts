@@ -310,6 +310,7 @@ export async function deleteUserModelConfig(
 export async function saveUserModelConfig(input: SaveUserModelConfigInput): Promise<CommandResult<UserModelConfig>> {
   const normalizedModelId = input.modelId.trim();
   const normalizedBaseModelId = input.baseModelId.trim();
+  const normalizedWireModelId = input.wireModelId.trim();
   const logger = getRuntimeLogger().child({
     trace_id: generateTraceId(),
     package: 'application',
@@ -330,6 +331,17 @@ export async function saveUserModelConfig(input: SaveUserModelConfigInput): Prom
     return {
       ok: false,
       error: createValidationError('Model config requires baseModelId.', { apiFormat: input.apiFormat, modelId: normalizedModelId }),
+    };
+  }
+  if (normalizedWireModelId.length === 0) {
+    span.fail({ message: 'Model config requires wireModelId.' });
+    return {
+      ok: false,
+      error: createValidationError('Model config requires wireModelId.', {
+        apiFormat: input.apiFormat,
+        modelId: normalizedModelId,
+        wireModelId: input.wireModelId,
+      }),
     };
   }
 
@@ -364,6 +376,7 @@ export async function saveUserModelConfig(input: SaveUserModelConfigInput): Prom
         ...input,
         modelId: normalizedModelId,
         baseModelId: normalizedBaseModelId,
+        wireModelId: normalizedWireModelId,
       },
       preset,
     });
@@ -376,6 +389,7 @@ export async function saveUserModelConfig(input: SaveUserModelConfigInput): Prom
       apiFormat: input.apiFormat,
       modelId: normalizedModelId,
       baseModelId: normalizedBaseModelId,
+      wireModelId: normalizedWireModelId,
       requestStrategyId: strategy.id,
       outputExposure,
       outputMatrix,
