@@ -3,7 +3,6 @@ import type {
   DurableJobRecord,
   Job,
   ProfileModelItem,
-  ProviderModelInfo,
   ProviderProfile,
   ProviderProfileConfig,
   ProviderProfileConnectionTestResult,
@@ -70,7 +69,6 @@ const MOCK_PROFILE_ID = 'mock-profile';
 const MOCK_SECRET_REF = `secret:provider-profile:${MOCK_PROFILE_ID}:apiKey`;
 const FIXED_NOW = '2026-06-25T00:00:00.000Z';
 const MOCK_MODEL_ID = 'gpt-image-2';
-const MOCK_MODELS: readonly ProviderModelInfo[] = [{ id: MOCK_MODEL_ID, displayName: 'GPT Image 2' }];
 const MOCK_DISCOVERED_MODELS = [{ id: MOCK_MODEL_ID }] as const;
 const MOCK_PROFILE_MODELS: readonly ProfileModelItem[] = [{
   modelId: MOCK_MODEL_ID,
@@ -309,19 +307,14 @@ function mockProfileTestResult(profile: ProviderProfile): ProviderProfileTestRes
     apiFormat: profile.apiFormat,
     valid: true,
     connectivity: {
-      reachable: true,
-      modelCount: MOCK_MODELS.length,
-      models: MOCK_MODELS,
+      status: 'verified',
     },
   };
 }
 
 function mockProfileConnectionTestResult(): ProviderProfileConnectionTestResult {
   return {
-    supported: true,
-    reachable: true,
-    modelCount: MOCK_MODELS.length,
-    models: MOCK_MODELS,
+    status: 'verified',
   };
 }
 

@@ -225,21 +225,37 @@ export interface ProviderEndpointMeasurementResult {
 }
 
 /** provider 级连通性测试结果。 */
-export interface ProviderConnectionTestResult {
-  /** provider 是否支持连接测试。 */
-  readonly supported: boolean;
+export type ProviderSafeProbeStatus = 'verified' | 'partial' | 'failed';
 
-  /** 支持时是否连通。 */
-  readonly reachable?: boolean;
+export type ProviderSafeProbeReason =
+  | 'verified'
+  | 'safe_probe_unsupported'
+  | 'local_validation_failed'
+  | 'model_id_required'
+  | 'auth_rejected'
+  | 'service_rate_limited'
+  | 'service_unavailable'
+  | 'endpoint_unreachable'
+  | 'protocol_mismatch'
+  | 'unknown_failure';
+
+export interface ProviderSafeProbeContext {
+  /** application 层解析出的待验证 modelId。 */
+  readonly modelId?: string;
+}
+
+export interface ProviderSafeProbeResult {
+  /** 三态结果。 */
+  readonly status: ProviderSafeProbeStatus;
+
+  /** 归一化原因码。 */
+  readonly reason: ProviderSafeProbeReason;
 
   /** provider 级摘要消息。 */
   readonly message?: string;
 
-  /** 可选模型数。 */
-  readonly modelCount?: number;
-
-  /** 可选模型列表。 */
-  readonly models?: readonly DiscoveredModel[];
+  /** 可选 HTTP 状态码。 */
+  readonly httpStatus?: number;
 }
 
 /** provider 实例需要遵循的最小公开契约。 */
@@ -297,12 +313,12 @@ export interface Provider<TConfig = ProviderConfig, TRequest = CanonicalImageJob
   measureEndpoints?(config: TConfig, options?: ProviderEndpointMeasurementOptions): Promise<ProviderEndpointMeasurementResult>;
 
   /**
-   * Implementation 的 provider 级连接测试能力（OPTIONAL）。
+   * Implementation 的 provider 级无生成安全探针（OPTIONAL）。
    *
-   * 与 endpoint 测速分离；调用方据此渲染页脚 `Test connection` 状态，而不是
-   * 复用逐 endpoint 的测速语义。
+   * 该能力只负责命中 provider 自己最接近真实调用面的无副作用验证接口，
+   * 不负责 application 层的本地校验、状态文案或保存策略。
    */
-  testConnection?(config: TConfig, logger?: Logger): Promise<ProviderConnectionTestResult>;
+  safeProbe?(config: TConfig, context: ProviderSafeProbeContext, logger?: Logger): Promise<ProviderSafeProbeResult>;
 
   /**
    * Provider-specific billing query（OPTIONAL）。

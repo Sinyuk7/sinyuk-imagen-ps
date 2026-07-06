@@ -91,7 +91,7 @@ export function createModelConfigRepositoryFake(options?: {
   });
   const deleteUserModelConfigSpy = vi.fn(async (apiFormat: UserModelConfig['apiFormat'], modelId: string) => {
     userModelConfigs = userModelConfigs.filter((config) => !(config.apiFormat === apiFormat && config.modelId === modelId));
-    return { ok: true as const, value: undefined };
+    return { ok: true as const, value: null };
   });
   const profileModelItems = options?.profileModelItems ?? fakeProfileModelItems;
   const listProfileModels = vi.fn(async () => ({ ok: true as const, value: profileModelItems }));

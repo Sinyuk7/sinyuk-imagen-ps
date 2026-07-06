@@ -10,11 +10,13 @@ const testRoot = resolve(fileURLToPath(new URL('.', import.meta.url)));
 const appRoot = resolve(testRoot, '../..');
 const repoRoot = resolve(appRoot, '../..');
 const webRoot = resolve(appRoot, 'dist/web');
+const repoTestEnvPath = resolve(repoRoot, '.test.env');
 const defaultViewport = { width: 390, height: 720, deviceScaleFactor: 1 };
 const keepScreenshots = process.env.KEEP_SCREENSHOTS === '1';
 const runId = new Date().toISOString().replace(/[:.]/g, '-');
 const artifactRoot = resolve(testRoot, 'screenshots', runId);
 const failuresRoot = resolve(artifactRoot, 'failures');
+let liveGeminiFixture;
 
 function parseGrep(argv) {
   const index = argv.indexOf('--grep');
@@ -36,6 +38,97 @@ function sanitizeFailureReason(error) {
     ?.replace(/\\/g, '/')
     .replace(/"/g, "'")
     .slice(0, 240) ?? 'Scenario failed.';
+}
+
+function parseEnvFile(text) {
+  const out = {};
+  for (const rawLine of text.split(/\r?\n/)) {
+    const line = rawLine.trim();
+    if (!line || line.startsWith('#')) {
+      continue;
+    }
+    const eq = line.indexOf('=');
+    if (eq < 0) {
+      continue;
+    }
+    const key = line.slice(0, eq).trim();
+    if (!key) {
+      continue;
+    }
+    let value = line.slice(eq + 1).trim();
+    if (
+      (value.startsWith('"') && value.endsWith('"'))
+      || (value.startsWith("'") && value.endsWith("'"))
+    ) {
+      value = value.slice(1, -1);
+    }
+    out[key] = value;
+  }
+  return out;
+}
+
+async function readRepoTestEnv() {
+  if (!existsSync(repoTestEnvPath)) {
+    return {};
+  }
+  return parseEnvFile(await readFile(repoTestEnvPath, 'utf8'));
+}
+
+function parseGeminiGenerateContentEndpoint(endpointUrl) {
+  let parsed;
+  try {
+    parsed = new URL(endpointUrl);
+  } catch {
+    throw new Error(`Chrome live Gemini fixture requires a valid URL, got ${JSON.stringify(endpointUrl)}.`);
+  }
+  const matched = parsed.pathname.match(/^(.*)\/models\/([^/]+):generateContent\/?$/);
+  if (!matched) {
+    throw new Error(
+      `Chrome live Gemini fixture requires a Gemini generateContent endpoint like /models/{model}:generateContent, got ${parsed.pathname}.`,
+    );
+  }
+  const prefix = matched[1] ?? '';
+  const modelId = decodeURIComponent(matched[2] ?? '');
+  if (!modelId) {
+    throw new Error(`Chrome live Gemini fixture could not extract model id from ${endpointUrl}.`);
+  }
+  return {
+    endpointUrl,
+    baseUrl: `${parsed.origin}${prefix}`.replace(/\/+$/, ''),
+    modelId,
+    invokeTemplate: '/models/{model}:generateContent',
+    countTokensUrl: endpointUrl.replace(/:generateContent\/?$/, ':countTokens'),
+    legacyModelsUrl: `${parsed.origin}${prefix}/models`,
+  };
+}
+
+function loadLiveGeminiFixture(env) {
+  const endpointUrl = env.IMAGEN_CHROME_E2E_GRSAI_GEMINI_URL?.trim();
+  const apiKey = env.IMAGEN_CHROME_E2E_GRSAI_GEMINI_API_KEY?.trim();
+  if (!endpointUrl) {
+    throw new Error(`Missing IMAGEN_CHROME_E2E_GRSAI_GEMINI_URL in ${repoTestEnvPath}.`);
+  }
+  if (!apiKey) {
+    throw new Error(`Missing IMAGEN_CHROME_E2E_GRSAI_GEMINI_API_KEY in ${repoTestEnvPath}.`);
+  }
+  const authMode = env.IMAGEN_CHROME_E2E_GRSAI_GEMINI_AUTH_MODE?.trim() || 'x-goog-api-key';
+  if (authMode !== 'x-goog-api-key' && authMode !== 'bearer' && authMode !== 'none') {
+    throw new Error(`Unsupported IMAGEN_CHROME_E2E_GRSAI_GEMINI_AUTH_MODE=${JSON.stringify(authMode)}.`);
+  }
+  return {
+    profileId: 'chrome-e2e-live-grsai-gemini',
+    displayName: 'GrsAi Gemini Live',
+    apiKey,
+    authMode,
+    ...parseGeminiGenerateContentEndpoint(endpointUrl),
+  };
+}
+
+function requireLiveGeminiFixture() {
+  if (!liveGeminiFixture) {
+    throw new Error('Live Gemini fixture was not initialized.');
+  }
+  return liveGeminiFixture;
 }
 
 function relativeFromApp(path) {
@@ -196,6 +289,59 @@ async function openAddProviderProfile(page, url) {
   await page.getByTestId('providers-add-button').click();
   await expectVisibleText(page, 'Add provider');
   await expectVisibleText(page, 'Auto Detect');
+}
+
+async function seedLiveGeminiProfile(page) {
+  const fixture = requireLiveGeminiFixture();
+  const savedProfileId = await page.evaluate(async (input) => {
+    const runtime = globalThis.__IMAGEN_CHROME_RUNTIME__;
+    if (!runtime) {
+      throw new Error('Chrome runtime global is missing.');
+    }
+    const modelConfig = await runtime.host.services.commands.saveUserModelConfig({
+      apiFormat: 'gemini-generate-content',
+      modelId: input.modelId,
+      baseModelId: 'gemini-3.1-flash-image',
+      requestStrategyId: 'gemini-generate-content-image-config',
+      outputExposure: {
+        kind: 'ratio-resolution',
+        aspectRatios: ['1:1'],
+        resolutions: ['2k'],
+        outputFormats: ['png'],
+      },
+    });
+    if (!modelConfig.ok) {
+      throw new Error(`${modelConfig.error.category}: ${modelConfig.error.message}`);
+    }
+    const result = await runtime.host.services.commands.saveProviderProfile({
+      profileId: input.profileId,
+      apiFormat: 'gemini-generate-content',
+      displayName: input.displayName,
+      enabled: true,
+      config: {
+        apiFormat: 'gemini-generate-content',
+        displayName: input.displayName,
+        connection: {
+          selectionMode: 'manual',
+          selectedEndpointId: 'primary',
+          endpoints: [{ id: 'primary', url: input.baseUrl, enabled: true }],
+        },
+        paths: { invokeTemplate: input.invokeTemplate },
+        authMode: input.authMode,
+      },
+      selectedModelIds: [input.modelId],
+      defaultModelId: input.modelId,
+      secretValues: { apiKey: input.apiKey },
+    });
+    if (!result.ok) {
+      throw new Error(`${result.error.category}: ${result.error.message}`);
+    }
+    return result.value.profileId;
+  }, fixture);
+  if (savedProfileId !== fixture.profileId) {
+    throw new Error(`Unexpected live Gemini profile id: ${savedProfileId}`);
+  }
+  return fixture;
 }
 
 async function fillMockProviderDraft(page, alias) {
@@ -928,6 +1074,39 @@ async function themeDarkScenario({ page, url, capture }) {
   await assertNoBrokenImages(page);
 }
 
+async function liveGeminiConnectionStrategyScenario({ page, url, capture, resetNetworkEvidence, listRequests }) {
+  const fixture = requireLiveGeminiFixture();
+  await openApp(page, url);
+  await seedLiveGeminiProfile(page);
+  await openApp(page, url);
+  await page.getByTestId('main-providers-button').click();
+  const providerRow = page.getByTestId(`provider-row-${fixture.profileId}`);
+  await providerRow.waitFor({ state: 'visible', timeout: 10000 });
+  const testButton = page.getByTestId('provider-test-button');
+  await providerRow.click();
+  await testButton.waitFor({ state: 'visible', timeout: 10000 });
+  resetNetworkEvidence();
+  await clickControl(testButton, 'Test connection button');
+  await page.getByTestId('toast').waitFor({ state: 'visible', timeout: 20000 });
+  await testButton.evaluate((button) => {
+    if (button.disabled) {
+      throw new Error('Test connection button stayed disabled after live probe.');
+    }
+  });
+  const toastText = (await page.getByTestId('toast').innerText()).trim();
+  if (!toastText) {
+    throw new Error('Live Gemini probe did not surface any toast result.');
+  }
+  const requestLog = listRequests();
+  if (!requestLog.includes(`POST ${fixture.countTokensUrl}`)) {
+    throw new Error(`Live Gemini probe did not call countTokens. Requests: ${requestLog.join(' | ')}`);
+  }
+  if (requestLog.some((line) => line === `GET ${fixture.legacyModelsUrl}`)) {
+    throw new Error(`Live Gemini probe unexpectedly called legacy models.list endpoint ${fixture.legacyModelsUrl}.`);
+  }
+  await capture('live-gemini-connection-strategy.png');
+}
+
 const scenarios = [
   {
     id: '00-smoke-main-empty',
@@ -1192,6 +1371,15 @@ const scenarios = [
     assertions: ['panel has dark theme override', 'panel fills root', 'no horizontal scroll', 'no broken images', 'no console/page/network errors'],
     run: themeDarkScenario,
   },
+  {
+    id: 'live-provider-grsai-gemini-connection-strategy',
+    name: 'Live Gemini connection strategy uses safe probe',
+    tags: ['live-provider', 'providers'],
+    path: '/index.html',
+    screenshotName: 'live-gemini-connection-strategy.png',
+    assertions: ['fixture profile saved', 'UI test connection completed', 'safe probe used POST countTokens', 'legacy GET /models not used', 'toast surfaced result'],
+    run: liveGeminiConnectionStrategyScenario,
+  },
 ];
 
 function scenarioMatches(scenario, grep) {
@@ -1230,6 +1418,7 @@ async function runScenario(browser, server, scenario) {
   const consoleErrors = [];
   const pageErrors = [];
   const failedRequests = [];
+  const requestLog = [];
   const retainedScreenshots = [];
 
   page.on('console', (message) => {
@@ -1238,6 +1427,9 @@ async function runScenario(browser, server, scenario) {
     }
   });
   page.on('pageerror', (error) => pageErrors.push(error.message));
+  page.on('request', (request) => {
+    requestLog.push(`${request.method()} ${request.url()}`);
+  });
   page.on('requestfailed', (request) => {
     const url = request.url();
     if (url.startsWith(server.origin)) {
@@ -1266,7 +1458,9 @@ async function runScenario(browser, server, scenario) {
   };
   const resetNetworkEvidence = () => {
     failedRequests.length = 0;
+    requestLog.length = 0;
   };
+  const listRequests = () => [...requestLog];
   const capture = async (screenshotName) => {
     if (!keepScreenshots) {
       return;
@@ -1277,7 +1471,7 @@ async function runScenario(browser, server, scenario) {
   };
 
   try {
-    await scenario.run({ page, origin: server.origin, url, capture, resetNetworkEvidence });
+    await scenario.run({ page, origin: server.origin, url, capture, resetNetworkEvidence, listRequests });
     if (consoleErrors.length > 0) {
       throw new Error(`Console errors: ${consoleErrors.join(' | ')}`);
     }
@@ -1319,6 +1513,9 @@ async function main() {
   const selected = scenarios.filter((scenario) => scenarioMatches(scenario, grep));
   if (selected.length === 0) {
     throw new Error(`No Chrome E2E scenarios matched grep ${JSON.stringify(grep)}.`);
+  }
+  if (selected.some((scenario) => scenario.tags.includes('live-provider'))) {
+    liveGeminiFixture = loadLiveGeminiFixture(await readRepoTestEnv());
   }
 
   await rm(artifactRoot, { recursive: true, force: true });

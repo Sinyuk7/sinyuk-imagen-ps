@@ -1,5 +1,6 @@
 import { createProviderError, createValidationError } from '@imagen-ps/core-engine';
 import { generateTraceId } from '@imagen-ps/foundation';
+import type { ProviderSafeProbeResult } from '@imagen-ps/providers';
 import { getRuntimeLogger } from '../runtime.js';
 import type {
   CommandResult,
@@ -10,6 +11,39 @@ import { resolveDraftProviderContext } from './draft-provider-config.js';
 
 function errorMessage(error: unknown, fallback: string): string {
   return error instanceof Error ? error.message : fallback;
+}
+
+function resolvedModelId(input: {
+  readonly defaultModelId?: string;
+  readonly selectedModelIds: readonly string[];
+  readonly providerConfig: unknown;
+}): string | undefined {
+  const explicit = input.defaultModelId?.trim();
+  if (explicit) {
+    return explicit;
+  }
+  const selected = input.selectedModelIds.find((modelId) => modelId.trim().length > 0);
+  if (selected) {
+    return selected.trim();
+  }
+  if (typeof input.providerConfig === 'object' && input.providerConfig !== null && 'defaultModel' in input.providerConfig) {
+    const value = (input.providerConfig as { readonly defaultModel?: unknown }).defaultModel;
+    if (typeof value === 'string' && value.trim().length > 0) {
+      return value.trim();
+    }
+  }
+  return undefined;
+}
+
+function normalizeUnsupported(message: string): ProviderProfileConnectionTestResult {
+  return { status: 'partial', message };
+}
+
+function normalizeProbeResult(result: ProviderSafeProbeResult): ProviderProfileConnectionTestResult {
+  return {
+    status: result.status,
+    ...(result.message ? { message: result.message } : {}),
+  };
 }
 
 /**
@@ -28,44 +62,51 @@ export async function testProviderProfileConnection(
   const span = logger.startSpan('command.profile.connection_test');
 
   try {
-    const { provider, providerConfig, apiFormat } = await resolveDraftProviderContext(input);
+    const {
+      provider,
+      providerConfig,
+      apiFormat,
+      selectedModelIds,
+      defaultModelId,
+    } = await resolveDraftProviderContext(input);
 
-    if (provider.describe().connectivity?.connectionTest === 'unsupported' || typeof provider.testConnection !== 'function') {
-      span.finish({ supported: false });
+    if (provider.describe().connectivity?.connectionTest === 'unsupported') {
+      const message = `Provider implementation for apiFormat "${apiFormat}" does not support connection testing.`;
+      span.finish({ status: 'partial' });
       return {
         ok: true,
-        value: {
-          supported: false,
-          message: `Provider implementation for apiFormat "${apiFormat}" does not support connection testing.`,
-        },
+        value: normalizeUnsupported(message),
       };
     }
 
-    const tested = await provider.testConnection(
+    if (typeof provider.safeProbe !== 'function') {
+      const message = `Provider implementation for apiFormat "${apiFormat}" does not support safe non-generation verification.`;
+      span.finish({ status: 'partial' });
+      return {
+        ok: true,
+        value: normalizeUnsupported(message),
+      };
+    }
+
+    const tested = await provider.safeProbe(
       providerConfig as never,
+      {
+        modelId: resolvedModelId({ defaultModelId, selectedModelIds, providerConfig }),
+      },
       logger.child({
         package: 'providers',
         component: 'provider',
         provider_id: provider.id,
       }),
     );
-    const models = tested.models;
-    const modelCount = tested.modelCount ?? models?.length;
 
     span.finish({
-      supported: tested.supported,
-      reachable: tested.reachable,
-      ...(modelCount !== undefined ? { modelCount } : {}),
+      status: tested.status,
+      reason: tested.reason,
     });
     return {
       ok: true,
-      value: {
-        supported: tested.supported,
-        ...(tested.reachable !== undefined ? { reachable: tested.reachable } : {}),
-        ...(modelCount !== undefined ? { modelCount } : {}),
-        ...(models ? { models } : {}),
-        ...(tested.message ? { message: tested.message } : {}),
-      },
+      value: normalizeProbeResult(tested),
     };
   } catch (error) {
     const message = errorMessage(error, 'Provider connection test failed.');

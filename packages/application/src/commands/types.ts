@@ -9,7 +9,6 @@ import type { Logger } from '@imagen-ps/foundation';
 import type {
   ApiFormat,
   BalanceChange,
-  DiscoveredModel,
   ExactTaskCost,
   ImageAspectRatio,
   ImageOutputSelection,
@@ -349,11 +348,13 @@ export interface DeleteProviderProfileOptions {
 
 /** `testProviderProfile` 的分层开关。 */
 export interface TestProviderProfileOptions {
-  /** 调 discoverModels 测连通性（不花钱）。 */
+  /** 跑无生成连接验证（不花钱）。 */
   readonly connect?: boolean;
   /** 跑最小 text_to_image 烟雾测试（花钱，需 connect 成功）。 */
   readonly generate?: boolean;
 }
+
+export type ConnectionTestStatus = 'verified' | 'partial' | 'failed';
 
 export interface ProviderProfileTestResult {
   readonly profileId: string;
@@ -361,12 +362,9 @@ export interface ProviderProfileTestResult {
   readonly valid: true;
   /** Layer 2：connect 测试结果，仅在 options.connect 时存在。 */
   readonly connectivity?: {
-    readonly reachable: boolean;
-    /** 当前本地 catalog 与 runtime discovery 的可选交集数量。 */
-    readonly modelCount?: number;
-    readonly models?: readonly DiscoveredModel[];
-    /** 连通性失败时的安全错误摘要，不包含 resolved secret-bearing config。 */
-    readonly errorMessage?: string;
+    readonly status: ConnectionTestStatus;
+    /** 无生成连接验证的安全摘要。 */
+    readonly message?: string;
   };
   /** Layer 3：generate 烟雾测试结果，仅在 options.generate 且 connect 成功时存在。 */
   readonly smokeTest?: {
@@ -413,10 +411,7 @@ export interface MeasureProfileEndpointsInput {
 }
 
 export interface ProviderProfileConnectionTestResult {
-  readonly supported: boolean;
-  readonly reachable?: boolean;
-  readonly modelCount?: number;
-  readonly models?: readonly DiscoveredModel[];
+  readonly status: ConnectionTestStatus;
   readonly message?: string;
 }
 
@@ -428,6 +423,8 @@ export interface TestProviderProfileConnectionInput {
   readonly secretRefs?: Readonly<Record<string, string>>;
   readonly secretValues?: Readonly<Record<string, string>>;
   readonly removedSecretNames?: readonly string[];
+  readonly selectedModelIds?: readonly string[];
+  readonly defaultModelId?: string;
 }
 
 export interface ProfileBalanceResult {

@@ -441,8 +441,7 @@ export async function deleteProviderProfile(
  * 分层测试 provider profile，不返回 secret-bearing config。
  *
  * - Layer 1（默认）：config validation —— resolve config + profile lookup。
- * - Layer 2（options.connect）：调 `provider.discoverModels` 测连通性（不花钱）。
- *   discoverModels 抛错或未实现时 `connectivity.reachable = false`。
+ * - Layer 2（options.connect）：调 provider 无生成连接验证（不花钱）。
  * - Layer 3（options.generate）：仅在 connect 成功时，跑最小 text_to_image 烟雾测试（花钱）。
  */
 export async function testProviderProfile(
@@ -494,53 +493,26 @@ export async function testProviderProfile(
 
     // Layer 2：connect
     if (options.connect === true || options.generate === true) {
-      if (typeof provider.testConnection === 'function') {
-        const tested = await provider.testConnection(resolved.providerConfig);
-        if (tested.supported === false) {
-          result.connectivity = {
-            reachable: false,
-            errorMessage: tested.message ?? `Provider implementation for apiFormat "${profile.apiFormat}" does not support connection testing.`,
-          };
-        } else if (tested.reachable !== true) {
-          result.connectivity = {
-            reachable: false,
-            errorMessage: tested.message ?? `Connection test failed for profile "${profileId}".`,
-          };
-        } else {
-          const connectivityModels = tested.models ?? [];
-          const modelCount = tested.modelCount ?? connectivityModels.length;
-          result.connectivity = {
-            reachable: true,
-            modelCount,
-            models: connectivityModels,
-          };
-        }
-      } else if (typeof provider.discoverModels !== 'function') {
+      if (typeof provider.safeProbe === 'function') {
+        const tested = await provider.safeProbe(
+          resolved.providerConfig,
+          { modelId: profile.defaultModelId ?? profile.selectedModelIds[0] ?? undefined },
+        );
         result.connectivity = {
-          reachable: false,
-          errorMessage: `Provider implementation for apiFormat "${profile.apiFormat}" does not support model discovery.`,
+          status: tested.status,
+          ...(tested.message ? { message: tested.message } : {}),
         };
       } else {
-        try {
-          const models = await provider.discoverModels(resolved.providerConfig);
-          const connectivityModels = models;
-          result.connectivity = {
-            reachable: true,
-            modelCount: connectivityModels.length,
-            models: connectivityModels,
-          };
-        } catch (error) {
-          result.connectivity = {
-            reachable: false,
-            errorMessage: errorMessage(error, `Model discovery failed for profile "${profileId}".`),
-          };
-        }
+        result.connectivity = {
+          status: 'partial',
+          message: `Provider implementation for apiFormat "${profile.apiFormat}" does not support safe non-generation verification.`,
+        };
       }
     }
 
     // Layer 3：generate（需 connect 成功）
     if (options.generate === true) {
-      if (result.connectivity?.reachable !== true) {
+      if (result.connectivity?.status !== 'verified') {
         result.smokeTest = { passed: false };
       } else {
         try {
@@ -580,8 +552,8 @@ export async function testProviderProfile(
 
     span.finish({
       apiFormat: result.apiFormat,
-      ...(result.connectivity ? { reachable: result.connectivity.reachable } : {}),
-      ...(result.connectivity?.errorMessage ? { connectivityError: result.connectivity.errorMessage } : {}),
+      ...(result.connectivity ? { connectivityStatus: result.connectivity.status } : {}),
+      ...(result.connectivity?.message ? { connectivityMessage: result.connectivity.message } : {}),
       ...(result.smokeTest ? { smokePassed: result.smokeTest.passed } : {}),
     });
     return { ok: true, value: result };

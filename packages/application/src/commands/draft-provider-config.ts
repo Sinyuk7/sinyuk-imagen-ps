@@ -16,6 +16,14 @@ import {
 
 type DraftCommandInput = MeasureProfileEndpointsInput | TestProviderProfileConnectionInput | RefreshDraftProfileModelsInput;
 
+function selectedModelIdsFromInput(input: DraftCommandInput): readonly string[] | undefined {
+  return 'selectedModelIds' in input ? input.selectedModelIds : undefined;
+}
+
+function defaultModelIdFromInput(input: DraftCommandInput): string | undefined {
+  return 'defaultModelId' in input ? input.defaultModelId : undefined;
+}
+
 function mergeDraftConfig(
   existing: ProviderProfileConfig | undefined,
   incoming: ProviderProfileConfig,
@@ -57,6 +65,8 @@ export async function resolveDraftProviderContext(input: DraftCommandInput): Pro
   readonly providerConfig: unknown;
   readonly apiFormat: ProviderProfile['apiFormat'];
   readonly implementationId: string;
+  readonly selectedModelIds: readonly string[];
+  readonly defaultModelId?: string;
 }> {
   const existing = input.profileId ? await getProviderProfileRepository().get(input.profileId) : undefined;
   const mergedConfig = mergeDraftConfig(existing?.config, input.config);
@@ -82,5 +92,14 @@ export async function resolveDraftProviderContext(input: DraftCommandInput): Pro
     ...normalizedConfig,
     ...resolvedSecrets,
   });
-  return { existing, displayName, provider, providerConfig, apiFormat, implementationId };
+  return {
+    existing,
+    displayName,
+    provider,
+    providerConfig,
+    apiFormat,
+    implementationId,
+    selectedModelIds: selectedModelIdsFromInput(input) ?? existing?.selectedModelIds ?? [],
+    defaultModelId: defaultModelIdFromInput(input) ?? existing?.defaultModelId,
+  };
 }

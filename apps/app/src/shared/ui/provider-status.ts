@@ -15,21 +15,26 @@ export function statusFromProviderTestResult(
   result: ProviderProfileTestResult,
   messages: AppMessages,
 ): ProviderStatus {
-  if (result.connectivity?.reachable === false) {
+  if (result.connectivity?.status === 'failed') {
     return {
       tone: 'negative',
       copyable: true,
       durationMs: null,
       dismissible: false,
-      message: result.connectivity.errorMessage
-        ? `${messages.settings.connectionFailed}: ${result.connectivity.errorMessage}`
+      message: result.connectivity.message
+        ? `${messages.settings.connectionFailed}: ${result.connectivity.message}`
         : messages.settings.connectionFailed,
     };
   }
 
-  const modelCount = result.connectivity?.modelCount ?? result.connectivity?.models?.length;
-  if (modelCount === 0) {
-    return { tone: 'warning', durationMs: null, dismissible: false, copyable: false, message: messages.settings.configValidProviderNoModels };
+  if (result.connectivity?.status === 'partial') {
+    return {
+      tone: 'warning',
+      copyable: false,
+      durationMs: null,
+      dismissible: false,
+      message: result.connectivity.message ?? messages.settings.providerConnectionUnsupported,
+    };
   }
 
   return { tone: 'positive', durationMs: 2200, dismissible: false, copyable: false, message: messages.settings.testSuccess };
@@ -39,7 +44,7 @@ export function statusFromProviderConnectionTestResult(
   result: ProviderProfileConnectionTestResult,
   messages: AppMessages,
 ): ProviderStatus {
-  if (result.supported === false) {
+  if (result.status === 'partial') {
     return {
       tone: 'warning',
       copyable: false,
@@ -48,7 +53,7 @@ export function statusFromProviderConnectionTestResult(
       message: result.message ?? messages.settings.providerConnectionUnsupported,
     };
   }
-  if (result.reachable === false) {
+  if (result.status === 'failed') {
     return {
       tone: 'negative',
       copyable: true,
@@ -58,9 +63,6 @@ export function statusFromProviderConnectionTestResult(
         ? `${messages.settings.connectionFailed}: ${result.message}`
         : messages.settings.connectionFailed,
     };
-  }
-  if ((result.modelCount ?? result.models?.length ?? 0) === 0) {
-    return { tone: 'warning', durationMs: null, dismissible: false, copyable: false, message: messages.settings.configValidProviderNoModels };
   }
   return { tone: 'positive', durationMs: 2200, dismissible: false, copyable: false, message: messages.settings.testSuccess };
 }

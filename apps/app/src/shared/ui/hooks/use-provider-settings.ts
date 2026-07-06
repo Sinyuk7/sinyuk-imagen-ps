@@ -131,26 +131,6 @@ export function providerModelOptions(
   }));
 }
 
-function mergeDiscoveredModelsWithKnownState(
-  discovered: readonly { readonly id: string }[],
-  knownModels: readonly UiModelInfo[],
-  configuredDefaultModel: string,
-): readonly UiModelInfo[] {
-  const knownById = new Map(knownModels.map((model) => [model.id, model] as const));
-  return discovered.map((model) => {
-    const known = knownById.get(model.id);
-    return {
-      id: model.id,
-      displayName: known?.displayName ?? model.id,
-      configured: known?.configured ?? false,
-      selected: known?.selected ?? false,
-      default: known?.default ?? model.id === configuredDefaultModel.trim(),
-      configSource: known?.configSource,
-      discovered: true,
-    };
-  });
-}
-
 export interface ProviderDraftModelCatalogOptions {
   /**
    * @deprecated Settings/Profile UI 已不再走 discovery 主路径；该 hook 仅留给
@@ -253,15 +233,8 @@ export function useProviderDraftModelCatalog(
   }, []);
 
   const applyConnectionTestResult = useCallback((result: ProviderProfileConnectionTestResult) => {
-    const discoveredModels = result.models;
-    if (discoveredModels) {
-      setDraftModels((current) => mergeDiscoveredModelsWithKnownState(
-        discoveredModels,
-        current ?? (persisted.models.length > 0 ? persisted.models : fallbackModels),
-        configuredDefaultModel,
-      ));
-    }
-  }, [configuredDefaultModel, fallbackModels, persisted.models]);
+    void result;
+  }, []);
 
   const refresh = useCallback(async (): Promise<readonly UiModelInfo[]> => {
     if (!discoverySupported) {

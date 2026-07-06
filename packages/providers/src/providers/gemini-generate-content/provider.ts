@@ -1,11 +1,11 @@
 import type {
   Provider,
-  ProviderConnectionTestResult,
   ProviderDescriptor,
   ProviderEndpointMeasurement,
   ProviderEndpointMeasurementOptions,
   ProviderEndpointMeasurementResult,
   ProviderInvokeArgs,
+  ProviderSafeProbeResult,
 } from '../../contract/provider.js';
 import type { ProviderInvokeResult } from '../../contract/result.js';
 import type { DiscoveredModel } from '../../contract/model.js';
@@ -108,6 +108,50 @@ function recordField(value: unknown): Record<string, unknown> | undefined {
 
 function stringField(value: unknown): string | undefined {
   return typeof value === 'string' && value.length > 0 ? value : undefined;
+}
+
+function normalizeGeminiProbeFailure(error: unknown): ProviderSafeProbeResult {
+  const details = error as { readonly kind?: string; readonly statusCode?: number };
+  const message = error instanceof Error ? error.message : 'Connection test failed.';
+  const httpStatus = typeof details.statusCode === 'number' ? details.statusCode : undefined;
+  switch (details.kind) {
+    case 'auth_failed':
+      return { status: 'failed', reason: 'auth_rejected', message, ...(httpStatus !== undefined ? { httpStatus } : {}) };
+    case 'network_error':
+    case 'timeout':
+      return { status: 'failed', reason: 'endpoint_unreachable', message, ...(httpStatus !== undefined ? { httpStatus } : {}) };
+    case 'rate_limited':
+      return { status: 'partial', reason: 'service_rate_limited', message, ...(httpStatus !== undefined ? { httpStatus } : {}) };
+    case 'upstream_unavailable':
+      return { status: 'partial', reason: 'service_unavailable', message, ...(httpStatus !== undefined ? { httpStatus } : {}) };
+    case 'request_invalid':
+    case 'invalid_response':
+      return { status: 'failed', reason: 'protocol_mismatch', message, ...(httpStatus !== undefined ? { httpStatus } : {}) };
+    case 'unknown_provider_error':
+      if (httpStatus === 404 || httpStatus === 405 || httpStatus === 501) {
+        return { status: 'partial', reason: 'safe_probe_unsupported', message, httpStatus };
+      }
+      if (httpStatus === 500 || httpStatus === 503 || httpStatus === 504) {
+        return { status: 'partial', reason: 'service_unavailable', message, httpStatus };
+      }
+      return { status: 'failed', reason: 'unknown_failure', message, ...(httpStatus !== undefined ? { httpStatus } : {}) };
+    default:
+      return { status: 'failed', reason: 'unknown_failure', message, ...(httpStatus !== undefined ? { httpStatus } : {}) };
+  }
+}
+
+function countTokensRequestBody(): Readonly<{
+  readonly contents: readonly [{
+    readonly role: 'user';
+    readonly parts: readonly [{ readonly text: 'test' }];
+  }];
+}> {
+  return {
+    contents: [{
+      role: 'user',
+      parts: [{ text: 'test' }],
+    }],
+  };
 }
 
 export function createGeminiGenerateContentProvider(): Provider<GeminiGenerateContentProviderConfig, MockProviderRequest> {
@@ -314,24 +358,50 @@ export function createGeminiGenerateContentProvider(): Provider<GeminiGenerateCo
       return { supported: true, results };
     },
 
-    async testConnection(
+    async safeProbe(
       config: GeminiGenerateContentProviderConfig,
+      context,
       logger?: Logger,
-    ): Promise<ProviderConnectionTestResult> {
-      try {
-        const models = await this.discoverModels!(config, logger);
+    ): Promise<ProviderSafeProbeResult> {
+      const modelId = context.modelId?.trim() ?? config.defaultModel?.trim();
+      if (!modelId) {
         return {
-          supported: true,
-          reachable: true,
-          modelCount: models.length,
-          models,
+          status: 'failed',
+          reason: 'model_id_required',
+          message: 'Model ID is required for Gemini safe connection verification.',
+        };
+      }
+
+      try {
+        const path = `/models/${encodeURIComponent(modelId)}:countTokens`;
+        await executeWithEndpointFailover({
+          connection: config.connection,
+          logger,
+          retryPolicy: { maxRetries: 0, baseDelayMs: 0, factor: 1 },
+          retryOptions: { retryability: 'broad' },
+          execute: async (candidate) => httpRequest(
+            {
+              url: assembleApiUrl(candidate.url, path),
+              method: 'POST',
+              headers: {
+                ...buildAuthHeaders(config),
+                ...(config.extraHeaders ?? {}),
+              },
+              body: countTokensRequestBody(),
+              timeoutMs: config.timeoutMs,
+            },
+            { maxRetries: 0, baseDelayMs: 0, factor: 1 },
+            undefined,
+            logger,
+          ),
+        });
+        return {
+          status: 'verified',
+          reason: 'verified',
+          message: 'Connection verified without generation.',
         };
       } catch (error) {
-        return {
-          supported: true,
-          reachable: false,
-          message: error instanceof Error ? error.message : 'Connection test failed.',
-        };
+        return normalizeGeminiProbeFailure(error);
       }
     },
   };

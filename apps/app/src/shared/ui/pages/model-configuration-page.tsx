@@ -38,29 +38,6 @@ interface ModelConfigurationPageProps {
 }
 
 type DimensionKind = 'imageSizes' | 'ratios' | 'outputFormats';
-type CapabilityTokenTone = 'numeric' | 'alpha';
-
-/**
- * 当前页 capability / advanced 区域固定英文。
- * 这里故意不复用通用 i18n，避免未来本地化改动把数码屏 token 区重新混成中英文。
- */
-const MODEL_CONFIG_CAPABILITY_COPY = {
-  outputCapabilities: 'Output capabilities',
-  textToImage: 'Text to Image',
-  editImage: 'Edit Image',
-  sharedScope: 'Text + Edit',
-  outputFormat: 'Output format',
-  aspectRatio: 'Aspect ratio',
-  outputSize: 'Output size',
-  advancedSettings: 'Advanced settings',
-  requestStrategy: 'Request strategy',
-  managedByPreset: 'Managed by preset.',
-  ratioAuto: 'AUTO',
-  ratioSource: 'SRC',
-  useInputSize: 'INPUT',
-  sparseCombinationHint: 'Some options cannot be combined.',
-  validCombinations: (count: number) => `${count} valid combinations`,
-} as const;
 
 function commandMessage(error: { readonly category: string; readonly message: string }): string {
   return `${error.category}: ${error.message}`;
@@ -127,10 +104,8 @@ function toggleOrderedValue<T extends string>(
   return current.filter((item) => item !== value);
 }
 
-function operationLabel(operation: OutputCapabilityModule['operations'][number]): string {
-  return operation === 'text_to_image'
-    ? MODEL_CONFIG_CAPABILITY_COPY.textToImage
-    : MODEL_CONFIG_CAPABILITY_COPY.editImage;
+function operationLabel(operation: OutputCapabilityModule['operations'][number], t: ReturnType<typeof useI18n>['messages']): string {
+  return operation === 'text_to_image' ? t.settings.modelConfigOperationTextToImage : t.settings.modelConfigOperationEditImage;
 }
 
 function parseAspectRatio(ratio: ImageAspectRatio): { readonly width: number; readonly height: number } | null {
@@ -185,33 +160,12 @@ function ratioPreviewFrame(ratio: ImageAspectRatio): {
   };
 }
 
-function capabilityTokenLabel(value: string, fallbackLabel: string): string {
-  if (value === 'auto') {
-    return MODEL_CONFIG_CAPABILITY_COPY.ratioAuto;
-  }
-  if (value === 'source') {
-    return MODEL_CONFIG_CAPABILITY_COPY.ratioSource;
-  }
-  if (value === 'use-input-size') {
-    return MODEL_CONFIG_CAPABILITY_COPY.useInputSize;
-  }
-  return fallbackLabel.toUpperCase();
-}
-
-function capabilityTokenTone(label: string): CapabilityTokenTone {
-  return /^[0-9:]+$/.test(label) ? 'numeric' : 'alpha';
-}
-
-function capabilityTokenClassName(label: string, baseClassName: string): string {
-  return `${baseClassName} model-config-digital-token model-config-digital-token-${capabilityTokenTone(label)}`;
-}
-
-function ratioLabel(ratio: ImageAspectRatio): string {
+function ratioLabel(ratio: ImageAspectRatio, t: ReturnType<typeof useI18n>['messages']): string {
   if (ratio === 'auto') {
-    return MODEL_CONFIG_CAPABILITY_COPY.ratioAuto;
+    return t.settings.modelConfigRatioAuto;
   }
   if (ratio === 'source') {
-    return MODEL_CONFIG_CAPABILITY_COPY.ratioSource;
+    return t.settings.modelConfigRatioSource;
   }
   return ratio;
 }
@@ -395,7 +349,6 @@ function CapabilityOptionGroup({
       <div className="model-config-option-list">
         {items.map((item) => {
           const checked = selected.includes(item.id);
-          const tokenLabel = capabilityTokenLabel(item.id, item.label);
           return (
             <button
               key={item.id}
@@ -411,7 +364,7 @@ function CapabilityOptionGroup({
               {renderItem ? renderItem(item, checked) : (
                 <>
                   {checked ? <span className="model-config-chip-check" aria-hidden="true" /> : null}
-                  <span className={capabilityTokenClassName(tokenLabel, 'model-config-chip-label')}>{tokenLabel}</span>
+                  <span className="model-config-chip-label mono">{item.label}</span>
                 </>
               )}
             </button>
@@ -429,6 +382,7 @@ function RatioTileGroup({
   disabled,
   testIdPrefix,
   onToggle,
+  t,
 }: {
   readonly title: string;
   readonly items: readonly { readonly id: ImageAspectRatio; readonly label: string }[];
@@ -436,6 +390,7 @@ function RatioTileGroup({
   readonly disabled?: boolean;
   readonly testIdPrefix: string;
   readonly onToggle: (id: ImageAspectRatio, checked: boolean) => void;
+  readonly t: ReturnType<typeof useI18n>['messages'];
 }) {
   const firstItemId = items[0]?.id ?? 'empty';
 
@@ -446,7 +401,6 @@ function RatioTileGroup({
         {items.map((item) => {
           const checked = selected.includes(item.id);
           const textOnly = item.id === 'auto' || item.id === 'source';
-          const tokenLabel = capabilityTokenLabel(item.id, item.label);
           return (
             <button
               key={item.id}
@@ -460,11 +414,11 @@ function RatioTileGroup({
               onClick={() => onToggle(item.id, !checked)}
             >
               {textOnly ? (
-                <span className={capabilityTokenClassName(tokenLabel, 'model-config-ratio-tile-text')}>{ratioLabel(item.id)}</span>
+                <span className="model-config-ratio-tile-text">{ratioLabel(item.id, t)}</span>
               ) : (
                 <>
                   <RatioPreview ratio={item.id} />
-                  <span className={capabilityTokenClassName(tokenLabel, 'model-config-ratio-label')}>{tokenLabel}</span>
+                  <span className="model-config-ratio-label mono">{item.label}</span>
                 </>
               )}
               {checked ? <span className="model-config-ratio-check" aria-hidden="true" /> : null}
@@ -499,7 +453,6 @@ function SizeTileGroup({
       <div className="model-config-size-grid">
         {items.map((item) => {
           const checked = selected.includes(item.id);
-          const tokenLabel = capabilityTokenLabel(item.id, item.label);
           return (
             <button
               key={item.id}
@@ -512,7 +465,7 @@ function SizeTileGroup({
               disabled={disabled}
               onClick={() => onToggle(item.id, !checked)}
             >
-              <span className={capabilityTokenClassName(tokenLabel, 'model-config-size-label')}>{tokenLabel}</span>
+              <span className="model-config-size-label mono">{item.label}</span>
               {checked ? <span className="model-config-ratio-check" aria-hidden="true" /> : null}
             </button>
           );
@@ -528,6 +481,7 @@ function CapabilitySection({
   disabled,
   validationMessage,
   normalizationRequired,
+  t,
   onToggle,
 }: {
   readonly module: OutputCapabilityModule;
@@ -535,6 +489,7 @@ function CapabilitySection({
   readonly disabled?: boolean;
   readonly validationMessage: string | null;
   readonly normalizationRequired: boolean;
+  readonly t: ReturnType<typeof useI18n>['messages'];
   readonly onToggle: (dimension: DimensionKind, id: string, checked: boolean) => void;
 }) {
   const primaryMatrix = module.matrices[0]!;
@@ -542,8 +497,8 @@ function CapabilitySection({
   const sparse = hasSparseCombinationSet(primaryMatrix, selection);
   const showSparseHint = sparse && normalizationRequired;
   const combinationSummary = showSparseHint
-    ? `${MODEL_CONFIG_CAPABILITY_COPY.validCombinations(combinationCount)} · ${MODEL_CONFIG_CAPABILITY_COPY.sparseCombinationHint}`
-    : MODEL_CONFIG_CAPABILITY_COPY.validCombinations(combinationCount);
+    ? `${t.settings.modelConfigValidCombinations(combinationCount)} · ${t.settings.modelConfigSparseCombinationHint}`
+    : t.settings.modelConfigValidCombinations(combinationCount);
 
   return (
     <section className="section generation-settings-section">
@@ -553,7 +508,7 @@ function CapabilitySection({
             className="section-title"
             data-testid={`model-config-section-title-${module.id}`}
           >
-            {module.shared ? MODEL_CONFIG_CAPABILITY_COPY.outputCapabilities : operationLabel(module.operations[0]!)}
+            {module.shared ? t.settings.modelConfigOutputCapabilities : operationLabel(module.operations[0]!, t)}
           </div>
         </div>
         {module.shared ? (
@@ -561,13 +516,13 @@ function CapabilitySection({
             className="model-config-capability-meta"
             data-testid={`model-config-shared-scope-${module.id}`}
           >
-            {MODEL_CONFIG_CAPABILITY_COPY.sharedScope}
+            {t.settings.modelConfigSharedScope}
           </span>
         ) : null}
       </div>
 
       <CapabilityOptionGroup
-        title={MODEL_CONFIG_CAPABILITY_COPY.outputFormat}
+        title={t.settings.modelConfigOutputFormat}
         items={module.outputFormats.map((item) => ({ id: item.id, label: item.label.toUpperCase() }))}
         selected={selection.outputFormats}
         disabled={disabled}
@@ -577,17 +532,18 @@ function CapabilitySection({
 
       {module.archetype === 'size-aspect-ratio-format' ? (
         <RatioTileGroup
-          title={MODEL_CONFIG_CAPABILITY_COPY.aspectRatio}
+          title={t.settings.modelConfigAspectRatio}
           items={module.ratios.map((item) => ({ id: item.id, label: item.label }))}
           selected={selection.ratios}
           disabled={disabled}
           testIdPrefix={`model-config-${module.id}-ratio`}
           onToggle={(id, checked) => onToggle('ratios', id, checked)}
+          t={t}
         />
       ) : null}
 
       <SizeTileGroup
-        title={MODEL_CONFIG_CAPABILITY_COPY.outputSize}
+        title={t.settings.modelConfigOutputSize}
         items={module.imageSizes.map((item) => ({ id: item.id, label: item.label }))}
         selected={selection.imageSizes}
         disabled={disabled}
@@ -1061,7 +1017,7 @@ export function ModelConfigurationPage({ onNav, onSaved, onBack, initialEditorSt
                 >
                   <span className="model-config-advanced-toggle-copy">
                     <span className="section-title settings-section-heading model-config-advanced-toggle-title">
-                      {MODEL_CONFIG_CAPABILITY_COPY.advancedSettings}
+                      {t.settings.advancedSettings}
                     </span>
                   </span>
                   <Icon
@@ -1072,9 +1028,9 @@ export function ModelConfigurationPage({ onNav, onSaved, onBack, initialEditorSt
                 </button>
                 {advancedOpen ? (
                   <StrategyMetaField
-                    label={MODEL_CONFIG_CAPABILITY_COPY.requestStrategy}
+                    label={t.settings.modelConfigRequestStrategy}
                     value={requestStrategyId}
-                    detail={MODEL_CONFIG_CAPABILITY_COPY.managedByPreset}
+                    detail={t.settings.modelConfigManagedByPreset}
                   />
                 ) : null}
               </div>
@@ -1089,6 +1045,7 @@ export function ModelConfigurationPage({ onNav, onSaved, onBack, initialEditorSt
                   disabled={saveBusy}
                   validationMessage={moduleValidationMessages[module.id] ?? null}
                   normalizationRequired={normalizationRequiredModuleIds.includes(module.id)}
+                  t={t}
                   onToggle={(dimension, id, checked) => toggleModuleSelection(module, dimension, id, checked)}
                 />
               ))

@@ -1,12 +1,12 @@
 import type {
   ImageEditCodec,
   Provider,
-  ProviderConnectionTestResult,
   ProviderDescriptor,
   ProviderEndpointMeasurement,
   ProviderEndpointMeasurementOptions,
   ProviderEndpointMeasurementResult,
   ProviderInvokeArgs,
+  ProviderSafeProbeResult,
 } from '../../contract/provider.js';
 import type { ProviderBalanceSnapshot } from '../../contract/billing.js';
 import type { ProviderInvokeResult } from '../../contract/result.js';
@@ -478,25 +478,12 @@ export function createImageEndpointProvider(): Provider<ImageEndpointProviderCon
       return { supported: true, results };
     },
 
-    async testConnection(
-      config: ImageEndpointProviderConfig,
-      logger?: Logger,
-    ): Promise<ProviderConnectionTestResult> {
-      try {
-        const models = await this.discoverModels!(config, logger);
-        return {
-          supported: true,
-          reachable: true,
-          modelCount: models.length,
-          models,
-        };
-      } catch (error) {
-        return {
-          supported: true,
-          reachable: false,
-          message: error instanceof Error ? error.message : 'Connection test failed.',
-        };
-      }
+    async safeProbe(): Promise<ProviderSafeProbeResult> {
+      return {
+        status: 'partial',
+        reason: 'safe_probe_unsupported',
+        message: 'This provider does not yet support safe non-generation verification.',
+      };
     },
 
     async queryBalance(config: ImageEndpointProviderConfig, input): Promise<ProviderBalanceSnapshot> {

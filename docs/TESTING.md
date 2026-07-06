@@ -144,9 +144,21 @@ placement suite is temporarily absent. It is per-slice evidence only;
 gate for the app Chrome build. It builds `dist/web/`, serves it locally, runs
 Playwright Chromium at representative viewports (`390x720` default,
 `300x420`/`300x520`/`390x400`/`600x800` for responsive scenarios), and writes
-ignored local artifacts under `apps/app/tests/chrome-e2e/screenshots/`. It is
-repo-side browser evidence only; it does not prove real Photoshop / UXP host
-behavior or live provider behavior.
+ignored local artifacts under `apps/app/tests/chrome-e2e/screenshots/`.
+
+Default Chrome E2E scenarios stay mock-oriented and do not read `.test.env`.
+One explicit live-provider scenario may be selected with:
+
+```bash
+pnpm --filter @imagen-ps/app test:chrome-e2e -- --grep live-provider
+```
+
+That live scenario reads owner-local fixture values from repository-root
+`.test.env`, seeds a real provider profile in the browser runtime, and verifies
+that `Test connection` uses the safe no-generation probe path. It is still
+Chrome/browser evidence only: it does not prove real Photoshop / UXP host
+behavior, and it is not part of the default `pnpm test` / `pnpm validate`
+gate.
 
 ## Coverage Philosophy
 

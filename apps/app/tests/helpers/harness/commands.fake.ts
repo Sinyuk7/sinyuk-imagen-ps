@@ -24,7 +24,7 @@ import { createModelConfigRepositoryFake } from './model-config-repository.fake'
 
 export function createCommandsFake(options?: {
   readonly profiles?: readonly ProviderProfile[];
-  readonly userModelConfigs?: readonly Parameters<typeof createModelConfigRepositoryFake>[0]['userModelConfigs'];
+  readonly userModelConfigs?: readonly import('@imagen-ps/application').UserModelConfig[];
   readonly officialModelConfigPresets?: readonly OfficialModelPreset[];
   readonly profileModelItems?: readonly ProfileModelItem[];
 }) {
@@ -61,22 +61,19 @@ export function createCommandsFake(options?: {
     return { ok: true as const, value: next };
   });
   const deleteProviderProfile = vi.fn(async () => ({ ok: true as const, value: undefined }));
-  const testProviderProfile = vi.fn(async (profileId: string) => ({
+  const testProviderProfile = vi.fn(async (profileId: string, _options?: unknown) => ({
     ok: true as const,
     value: {
       profileId,
       apiFormat: 'openai-images',
       valid: true,
-      connectivity: { reachable: true, modelCount: 1, models: [{ id: 'gpt-image-2' }] },
+      connectivity: { status: 'verified' },
     } satisfies ProviderProfileTestResult,
   }));
   const testProviderProfileConnection = vi.fn(async () => ({
     ok: true as const,
     value: {
-      supported: true,
-      reachable: true,
-      modelCount: 1,
-      models: [{ id: 'gpt-image-2' }],
+      status: 'verified',
     } satisfies ProviderProfileConnectionTestResult,
   }));
   const measureProfileEndpoints = vi.fn(async (
@@ -84,6 +81,7 @@ export function createCommandsFake(options?: {
   ): Promise<{ ok: true; value: MeasureProfileEndpointsResult }> => ({
     ok: true as const,
     value: {
+      supported: true,
       results: [
         {
           endpointId: 'primary',
