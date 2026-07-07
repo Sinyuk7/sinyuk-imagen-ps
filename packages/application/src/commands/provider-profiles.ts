@@ -494,9 +494,18 @@ export async function testProviderProfile(
     // Layer 2：connect
     if (options.connect === true || options.generate === true) {
       if (typeof provider.safeProbe === 'function') {
+        const probeModelId = profile.defaultModelId ?? profile.selectedModelIds[0] ?? undefined;
+        const resolvedProbeModel = probeModelId
+          ? await resolveConfiguredModel({
+            profileId: profile.profileId,
+            apiFormat: profile.apiFormat,
+            modelId: probeModelId,
+            userModelConfigRepository: getUserModelConfigRepository(),
+          })
+          : undefined;
         const tested = await provider.safeProbe(
           resolved.providerConfig,
-          { modelId: profile.defaultModelId ?? profile.selectedModelIds[0] ?? undefined },
+          { modelId: resolvedProbeModel?.wireModelId },
         );
         result.connectivity = {
           status: tested.status,

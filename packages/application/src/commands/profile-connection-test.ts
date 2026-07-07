@@ -1,31 +1,34 @@
 import { createProviderError, createValidationError } from '@imagen-ps/core-engine';
 import { generateTraceId } from '@imagen-ps/foundation';
 import type { ProviderSafeProbeResult } from '@imagen-ps/providers';
-import { getRuntimeLogger } from '../runtime.js';
+import { getRuntimeLogger, getUserModelConfigRepository } from '../runtime.js';
 import type {
   CommandResult,
   ProviderProfileConnectionTestResult,
   TestProviderProfileConnectionInput,
 } from './types.js';
 import { resolveDraftProviderContext } from './draft-provider-config.js';
+import { resolveConfiguredModel } from './model-config-resolution.js';
 
 function errorMessage(error: unknown, fallback: string): string {
   return error instanceof Error ? error.message : fallback;
 }
 
-function resolvedModelId(input: {
+function configuredModelId(input: {
   readonly defaultModelId?: string;
   readonly selectedModelIds: readonly string[];
-  readonly providerConfig: unknown;
 }): string | undefined {
   const explicit = input.defaultModelId?.trim();
   if (explicit) {
     return explicit;
   }
   const selected = input.selectedModelIds.find((modelId) => modelId.trim().length > 0);
-  if (selected) {
-    return selected.trim();
-  }
+  return selected?.trim();
+}
+
+function legacyResolvedModelId(input: {
+  readonly providerConfig: unknown;
+}): string | undefined {
   if (typeof input.providerConfig === 'object' && input.providerConfig !== null && 'defaultModel' in input.providerConfig) {
     const value = (input.providerConfig as { readonly defaultModel?: unknown }).defaultModel;
     if (typeof value === 'string' && value.trim().length > 0) {
@@ -44,6 +47,13 @@ function normalizeProbeResult(result: ProviderSafeProbeResult): ProviderProfileC
     status: result.status,
     ...(result.message ? { message: result.message } : {}),
   };
+}
+
+function isValidationError(error: unknown): error is ReturnType<typeof createValidationError> {
+  return typeof error === 'object'
+    && error !== null
+    && (error as { readonly category?: unknown }).category === 'validation'
+    && typeof (error as { readonly message?: unknown }).message === 'string';
 }
 
 /**
@@ -88,10 +98,22 @@ export async function testProviderProfileConnection(
       };
     }
 
+    const modelId = configuredModelId({ defaultModelId, selectedModelIds });
+    const probeModelId = modelId
+      ? (
+        await resolveConfiguredModel({
+          profileId: input.profileId ?? 'draft',
+          apiFormat,
+          modelId,
+          userModelConfigRepository: getUserModelConfigRepository(),
+        })
+      ).wireModelId
+      : legacyResolvedModelId({ providerConfig });
+
     const tested = await provider.safeProbe(
       providerConfig as never,
       {
-        modelId: resolvedModelId({ defaultModelId, selectedModelIds, providerConfig }),
+        modelId: probeModelId,
       },
       logger.child({
         package: 'providers',
@@ -111,6 +133,12 @@ export async function testProviderProfileConnection(
   } catch (error) {
     const message = errorMessage(error, 'Provider connection test failed.');
     span.fail(error);
+    if (isValidationError(error)) {
+      return {
+        ok: false,
+        error,
+      };
+    }
     if (message.includes('Provider implementation "') && message.includes('" not found.')) {
       return {
         ok: false,
