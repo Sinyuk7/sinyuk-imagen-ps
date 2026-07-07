@@ -17,9 +17,9 @@
 - `selection preview` 不需要保留选区形状；
 - preview drift 接受“纯视觉 best-effort，不保证严格同帧”；
 - preview 虽可时间漂移，但不能身份漂移；后台任务必须固定 `Capture` 时的 `documentID`、`layerID / composite source`、`sourceBounds` 与 `targetSize`；
-- `@jsquash/png` 仅作为中等大图的阈值内候选 encoder，超过 `64 MiB RGBA` 阈值，或 `import / initialize / encode` 失败时必须回退当前自写 encoder，避免 UXP / WASM whole-buffer 路线带来过高 RSS 峰值；
-- `@jsquash/png` 是否更快必须以真实 UXP 中的 cold / warm encode、`encode + assetStore.put` 总耗时与输出 `PNG` 大小比较为准，不能在设计阶段预设其一定优于当前 encoder；
-- 必须补 production UXP smoke，因为 `.wasm` 能否被当前 Vite 构建正确加载是项目自己的集成风险。
+- 正式 `PNG` 编码必须保持 UXP-safe，不依赖 browser-only `ImageData` 或 WASM encoder contract；
+- stored-deflate 编码必须从 host bridge 抽出为独立模块，避免 Photoshop host IO 与 PNG byte serialization 继续耦合；
+- 必须保留 `encode + assetStore.put` timing，因为真实瓶颈由最终像素量和 stored-deflate 落盘字节数决定。
 
 ## Goals / Non-Goals
 
@@ -28,9 +28,9 @@
 - 让 `Capture` 主路径优先完成正式 `provider-input` 资产准备与落盘，不再被 preview 真图阻塞。
 - 让 `Send` 继续直接复用 `Capture` 时已经准备好的 `storedRef`，不引入发送时二次转码。
 - 将 preview 改为后台异步 JPEG thumbnail，并优先使用 Photoshop host `imaging.encodeImageData()` 路线，绕开 JS `RGBA -> PNG` 预览编码。
-- 为正式 `PNG` 编码引入阈值内候选 encoder：`@jsquash/png` 尝试处理 `targetWidth * targetHeight * 4 <= 64 * 1024 * 1024` 的输出；超过阈值或运行时失败时回退现有 encoder。
-- 用 contract tests 固化 preview、正式资产、阈值切换、失败回退与 `Send` 复用行为。
-- 增加结构化 timing 观测与真实 UXP harness 对比，验证 preview 解耦与候选 encoder 是否真实改善链路。
+- 将正式 `PNG` 编码固化为单一 stored-deflate encoder，并抽到独立 UXP adapter module。
+- 用 contract tests 固化 preview、正式资产、stored-deflate 输出与 `Send` 复用行为。
+- 增加结构化 timing 观测与真实 UXP harness 对比，验证 preview 解耦、正式编码与落盘成本。
 
 **Non-Goals:**
 
@@ -112,27 +112,26 @@ preview 明确采用 `JPEG`，不保留透明度，也不读取 `selection mask`
 
 - `opaque -> JPEG`、`alpha -> PNG`：发送链路复杂度上升，需补更多格式分支验证，不符合本次范围。
 
-### 4. 正式 `PNG` 编码采用阈值化候选路径与运行时失败回退
+### 4. 正式 `PNG` 编码采用 UXP-safe stored-deflate 路径
 
-正式 `provider-input` `PNG` 编码按最终输出尺寸选择 encoder：
+正式 `provider-input` `PNG` 编码统一使用 app-local stored-deflate encoder：
 
-- 当 `targetWidth * targetHeight * 4 <= 64 * 1024 * 1024` 时，尝试 `@jsquash/png`
-- 当其超过阈值时，回退现有自写 encoder + stored deflate
-- 当其未超过阈值，但 `@jsquash/png` 在 `import`、WASM initialize、或 encode 阶段失败时，也回退现有自写 encoder + stored deflate
+- 编码实现位于 `apps/app/src/adapters/uxp/png-encoder.ts`
+- host bridge 只负责 Photoshop pixel read、timing、asset store 落盘与日志字段
+- `providerInput.encoder` 固定记录为 `stored-deflate`
 
-阈值判断以最终输出 `targetSize` 为准，不以源图尺寸或单边像素为准。
+编码成本仍以最终输出 `targetSize` 为准，不以源图尺寸或单边像素为准。
 
 选择理由：
 
-- `64 MiB RGBA` 与 `4096 x 4096` 等价，首版是合理硬阈值；
-- 允许在中等大图场景里尝试更快 encoder，但不预设其一定胜出；
-- 超大图继续保留现有低风险路径，避免 `WASM whole-buffer` 内存峰值失控。
-- 运行时失败回退可把 `.wasm` 加载、bundling 或 UXP 环境差异控制为性能降级，而不是功能失败。
+- 真实 Photoshop UXP 环境缺少 browser `ImageData` constructor，WASM/browser encoder route 不是可靠 production contract；
+- stored-deflate 已在真实 UXP 中可用，风险集中在输出尺寸和落盘字节数；
+- 把 encoder 抽成模块后，后续若引入 UXP-compatible encoder，可以在一个边界内替换或扩展。
 
 备选方案：
 
-- 全量切到 `@jsquash/png`：对高像素图 RSS 风险过高。
-- 只按单边 `4096` 判断：会误伤如 `8192 x 2048` 这类同样落在 `64 MiB RGBA` 内的输出。
+- 接入 `@jsquash/png`：真实 UXP 缺少所需 `ImageData` contract，且 WASM init 曾引入 crash 风险。
+- 在 host bridge 内继续维护 PNG serialization：实现可工作，但与 Photoshop host IO 继续耦合。
 - 直接重写流式 `PNG` 编码器：价值高，但超出本次范围。
 
 ### 5. preview placeholder 仅保留在 UI / 会话态，不扩张 durable truth
@@ -203,14 +202,14 @@ preview 明确采用 `JPEG`，不保留透明度，也不读取 `selection mask`
 
 选择理由：
 
-- 否则无法证明 preview 解耦或阈值内候选 encoder 真正改善了链路；
-- 结构化 timing 比主观体感更适合作为后续是否提升阈值的依据。
+- 否则无法证明 preview 解耦或 stored-deflate 编码/落盘成本的真实瓶颈；
+- 结构化 timing 比主观体感更适合作为后续 sizing-policy 或 encoder 替换依据。
 
 ## Risks / Trade-offs
 
 - [后台 preview 仍会进入 Photoshop modal] → 将其从 `Capture` 主完成后异步触发，确保不阻塞正式发送资产 ready。
 - [preview 与正式发送图不严格同帧] → 明确将 preview 定义为视觉 best-effort，不作为 placement 或 send 语义来源，同时固定 capture-time identity，避免身份漂移。
-- [`@jsquash/png` 在 UXP 环境下存在峰值内存或 bundling 风险] → 使用 `64 MiB RGBA` 硬阈值；`import / initialize / encode` 任一失败立即回退现有 encoder，并补 production UXP smoke。
+- [stored-deflate 输出接近 RGBA 原始大小] → 结构化记录 `rgbaBytes`、`pngBytes`、`encodeMs`、`storeMs`，并把大图性能问题归到 provider input sizing policy。
 - [preview 改为 JPEG 后不再保留透明度] → 明确 preview 仅承担小图可视反馈，不承担像素真值表达。
 - [后台 preview 与立即 `Send` 争抢 host queue] → 不新建调度系统；先复用现有 queue、限制任务数量、丢弃 stale，并用真实 UXP timing 验证争抢成本。
 
@@ -218,7 +217,7 @@ preview 明确采用 `JPEG`，不保留透明度，也不读取 `selection mask`
 
 - 先引入 preview placeholder 与正式资产优先完成语义。
 - 再接入 capture-time identity 固定的后台 JPEG preview 派生。
-- 再接入 `@jsquash/png` 阈值内候选路径与运行时失败回退。
+- 再抽出 stored-deflate encoder module，并让正式 `PNG` 路径只依赖该模块。
 - 再补 production UXP smoke 与结构化 timing。
 - 最后补齐 contract tests，并以测试锁定 `Capture`/`Send`/preview 三条链。
 

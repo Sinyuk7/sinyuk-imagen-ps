@@ -210,10 +210,13 @@ export function printSmokeChecklist() {
   4. Verify manifest entrypoint renders.
   5. Verify static assets (icons) render with non-zero rect.
   6. Switch between core pages (Composer / Settings / History).
-  7. Read a Provider profile (mock profile if available) without paid API.
-  8. Execute one mock/minimal link that does not require a paid API.
-  9. Confirm production logs contain no debug noise (no React dev build markers).
- 10. Close and reopen the panel; confirm it reloads cleanly.
+  7. Enable host smoke handle: localStorage.setItem('imagenPsHostSmoke', '1'); reload panel.
+  8. Run: await globalThis.__IMAGEN_PS_HOST_SMOKE__.smokeJsquashPngEncoder()
+     Confirm it returns ok=true, width=2, height=1.
+  9. Read a Provider profile (mock profile if available) without paid API.
+ 10. Execute one mock/minimal link that does not require a paid API.
+ 11. Confirm production logs contain no debug noise (no React dev build markers).
+ 12. Close and reopen the panel; confirm it reloads cleanly.
 
   version=${info.version} buildId=${info.buildId}
 `);

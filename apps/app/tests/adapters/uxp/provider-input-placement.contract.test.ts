@@ -5,6 +5,7 @@ import { createPhotoshopHostBridge } from '../../../src/adapters/uxp/photoshop-h
 import type { UxpModules } from '../../../src/adapters/uxp/uxp-api';
 import { derivePlacementIntent, type ConversationAttachment } from '../../../src/shared/ui/hooks/use-conversation';
 import type { ImageSize, ProviderInputPlan } from '../../../src/shared/image/resize';
+import { createNullLogger } from '@imagen-ps/foundation';
 
 const VALID_TRANSPARENT_PNG = new Uint8Array([
   0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a,
@@ -177,7 +178,7 @@ async function runRoundTrip(source: ImageSize, maxSide: number): Promise<{
 }> {
   const { modules, spies } = createFakeModules(source);
   const assetStore = createInMemoryAssetStore();
-  const bridge = createPhotoshopHostBridge(modules, { assetStore });
+  const bridge = createPhotoshopHostBridge(modules, { assetStore, logger: createNullLogger() });
   const capture = await bridge.captureActiveImage({ maxSide });
   const providerInputPlan = capture.placement.providerInputPlan;
   if (!providerInputPlan) {

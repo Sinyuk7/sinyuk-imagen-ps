@@ -915,14 +915,29 @@ export function MainPage({
     setCaptureInFlight(true);
     try {
       const result = await services.host.captureActiveImage(providerInputPolicy(generationSettings));
+      const id = attachmentId('capture');
+      const previewGeneration = Date.now();
       addAttachment({
-        id: attachmentId('capture'),
+        id,
         type: 'photoshop-capture',
         name: result.image.asset.name ?? (result.sourceKind === 'selection' ? t.main.captureSelection : t.main.captureLayer),
         image: result.image,
         previewUrl: result.image.preview.url ?? assetToPreviewUrl(result.image.asset),
+        previewGeneration,
         photoshopPlacement: result.placement,
       });
+      if (result.previewTask) {
+        void result.previewTask()
+          .then((preview) => {
+            if (preview?.url) {
+              composerDraft.updateAttachmentPreview(id, previewGeneration, {
+                url: preview.url,
+                dispose: preview.dispose,
+              });
+            }
+          })
+          .catch(() => undefined);
+      }
       show(t.toast.captureAdded, 'positive', { key: 'attachment-capture-added' });
     } catch (error) {
       show(error instanceof Error ? error.message : t.toast.captureFailed, 'negative', { key: 'attachment-capture-error' });

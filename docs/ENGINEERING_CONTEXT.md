@@ -143,6 +143,7 @@ surface apps -> application/session -> core-engine + providers
 
 - In Photoshop UXP, local PNG/JPEG attachments prefer the app-local byte pipeline inside `apps/app` for preview and provider-input refs while source RGBA resizing fits the decode budget.
 - Oversized local-file provider-input resizing and provider-output thumbnails fall back to Photoshop host `imaging.getPixels(targetSize)` instead of decoding full-resolution pixels in JavaScript. Local WEBP remains an explicit host-native fallback until an app-local WEBP decode path is proven.
+- Photoshop capture provider input currently depends on `resolveProviderInputPlan()` to enforce the provider max side. For large exact-ratio or coprime dimensions, that planner can preserve the original dimensions even when `providerInputMaxSide` is `2048`, producing 100MB+ stored-deflate PNGs. Treat this as an open sizing-policy bug until the planner has a hard max-side contract and regression cases for large captures.
 
 - Provider requests must resolve image-edit inputs from `image.resource.derivatives.providerInput.storedRef`. They must not submit the original asset, thumbnail, inline `data`, or full preview URL. Retry reuses the storedRef already present in the original job input.
 - UI previews use the app `ThumbnailStore`. Long-lived round preview state must keep the original output `Asset` locator payload (`storedRef`, `url`, or inline `data`) alongside bounded thumbnail URLs so main-page place/download actions can still resolve the full-size returned image after preview generation.

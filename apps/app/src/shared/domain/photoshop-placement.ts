@@ -27,6 +27,7 @@ export interface PhotoshopCaptureResult {
   readonly image: import('./host-image-asset').HostImageAsset;
   readonly placement: PhotoshopCapturePlacement;
   readonly sourceKind: 'selection' | 'layer';
+  readonly previewTask?: () => Promise<import('./host-image-asset').HostImagePreviewHandle | undefined>;
 }
 
 export type PlacementEvidenceStrength = 'frame' | 'document' | 'none';

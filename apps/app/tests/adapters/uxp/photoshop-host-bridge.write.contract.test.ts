@@ -8,8 +8,10 @@ import {
   createHostModalRunner,
   createInMemoryAssetStore,
   createPhotoshopHostBridge,
+  decodePng,
   pngWithSize,
   realJpegWithSize,
+  resolveAssetBytes,
 } from '../../helpers/host-bridge-harness';
 import { createLogger, createMemorySink, createNullLogger as foundationNullLogger } from '@imagen-ps/foundation';
 
@@ -247,11 +249,51 @@ describe('PhotoshopHostBridge write contract', () => {
       thumbnailTargetHeight: 48,
       providerInputTargetWidth: 855,
       providerInputTargetHeight: 1026,
-      failedStage: 'prepare-thumbnail-preview',
+      failedStage: 'read-capture-pixels',
     });
     expect(failureRecord?.error).toMatchObject({
       message: 'Photoshop Error. Code: -32005. Message: Could not import the clipboard ^0.',
     });
+  });
+
+  it('stores capture provider input with the UXP-safe stored-deflate PNG encoder', async () => {
+    const { modules } = createFakeModules();
+    const sink = createMemorySink();
+    const logger = createLogger({
+      sink,
+      context: { surface: 'uxp', package: 'app', component: 'host' },
+    });
+    const assetStore = createInMemoryAssetStore();
+    const bridge = createPhotoshopHostBridge(modules, {
+      assetStore,
+      logger,
+    });
+
+    const capture = await bridge.captureActiveImage({ maxSide: 64 });
+    const bytes = await resolveAssetBytes(assetStore, capture.image.asset);
+    const decoded = decodePng(bytes);
+
+    expect(decoded.width).toBe(64);
+    expect(decoded.height).toBe(64);
+    expect(capture.image.resource.derivatives.providerInput).toMatchObject({
+      kind: 'ready',
+      width: 64,
+      height: 64,
+      mimeType: 'image/png',
+    });
+    const successRecord = sink.records.find((record) => record.event === 'hostbridge.capture_active_image.ok');
+    expect(successRecord?.attrs).toMatchObject({
+      'providerInput.encoder': 'stored-deflate',
+      'providerInput.rgbaBytes': 64 * 64 * 4,
+      'providerInput.getPixelsMs': expect.any(Number),
+      'providerInput.getDataMs': expect.any(Number),
+      'providerInput.transformMs': expect.any(Number),
+      'providerInput.encodeMs': expect.any(Number),
+      'providerInput.storeMs': expect.any(Number),
+      'providerInput.pngBytes': bytes.byteLength,
+      'capture.readyMs': expect.any(Number),
+    });
+    expect(successRecord?.attrs).not.toHaveProperty('providerInput.fallbackReason');
   });
 
   it('accepts document-only placement without transform and rejects incompatible exact-frame ratio before Photoshop write', async () => {

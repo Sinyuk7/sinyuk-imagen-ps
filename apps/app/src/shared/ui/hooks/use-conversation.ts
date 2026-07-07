@@ -28,6 +28,8 @@ export interface ConversationAttachment {
   readonly name: string;
   readonly image: HostImageAsset;
   readonly previewUrl: string;
+  readonly previewGeneration?: number;
+  readonly previewDispose?: () => void;
   readonly photoshopPlacement?: PhotoshopCapturePlacement;
 }
 
@@ -156,6 +158,7 @@ function previewWorkSignature(
 }
 
 function releaseAttachment(attachment: ConversationAttachment): void {
+  attachment.previewDispose?.();
   attachment.image.preview.dispose?.();
 }
 

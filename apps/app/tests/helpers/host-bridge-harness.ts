@@ -387,7 +387,7 @@ export function createFakeModules(options?: {
     imageData: createMaskImageData(request?.targetSize?.width, request?.targetSize?.height),
   }));
   const getLayerMask = vi.fn(async () => ({ imageData: createMaskImageData() }));
-  const encodeImageData = vi.fn(async () => 'unused-jpeg-base64');
+  const encodeImageData = vi.fn(async () => new Uint8Array([0xff, 0xd8, 0xff, 0xd9]));
   const getFileForOpening = vi.fn(async () => ({
     name: pickedFileName,
     read: vi.fn(async () => pickedFileData),
@@ -527,7 +527,7 @@ export function createFakeModules(options?: {
 export function createBridge(modules: UxpModules) {
   const assetStore = createInMemoryAssetStore();
   return {
-    bridge: createPhotoshopHostBridge(modules, { assetStore }),
+    bridge: createPhotoshopHostBridge(modules, { assetStore, logger: createNullLogger() }),
     assetStore,
   };
 }

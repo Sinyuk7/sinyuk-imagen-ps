@@ -120,6 +120,87 @@ describe('PhotoshopHostBridge read contract', () => {
     }));
   });
 
+  it('captures provider input before background JPEG preview is ready', async () => withObjectUrlMock(async ({ revoke }) => {
+    const { modules, spies } = createFakeModules();
+    const { bridge, assetStore } = createBridge(modules);
+
+    const capture = await bridge.captureActiveImage(providerPolicy);
+
+    expect(capture.image.preview.kind).toBe('none');
+    expect(capture.image.resource.derivatives.thumbnail).toBeUndefined();
+    expect(capture.image.resource.derivatives.providerInput).toMatchObject({
+      kind: 'ready',
+      role: 'provider-input',
+      width: 2048,
+      height: 2048,
+      mimeType: 'image/png',
+    });
+    expect((await resolveAssetBytes(assetStore, capture.image.asset)).slice(0, 8)).toEqual(VALID_TRANSPARENT_PNG.slice(0, 8));
+    expect(spies.encodeImageData).not.toHaveBeenCalled();
+
+    const preview = await capture.previewTask?.();
+
+    expect(preview).toMatchObject({
+      kind: 'object-url',
+      url: 'blob:thumb-1',
+    });
+    expect(spies.getPixels).toHaveBeenLastCalledWith({
+      documentID: 42,
+      layerID: 2,
+      sourceBounds: { left: 0, top: 0, right: 64, bottom: 64 },
+      targetSize: { width: 64, height: 64 },
+      colorSpace: 'RGB',
+      componentSize: 8,
+      applyAlpha: true,
+    });
+    expect(spies.encodeImageData).toHaveBeenCalledWith({
+      imageData: expect.any(Object),
+      base64: false,
+    });
+    preview?.dispose?.();
+    expect(revoke).toHaveBeenCalledWith('blob:thumb-1');
+  }));
+
+  it('does not use selection mask composition for background capture preview', async () => withObjectUrlMock(async () => {
+    const { modules, spies } = createFakeModules({
+      selectionBounds: { left: 4, top: 6, right: 44, bottom: 54 },
+    });
+    const { bridge } = createBridge(modules);
+
+    const capture = await bridge.captureActiveImage({ maxSide: 1024 });
+    expect(spies.getSelection).toHaveBeenCalledTimes(1);
+
+    await expect(capture.previewTask?.()).resolves.toBeDefined();
+
+    expect(spies.getSelection).toHaveBeenCalledTimes(1);
+    expect(spies.getPixels).toHaveBeenLastCalledWith({
+      documentID: 42,
+      layerID: 2,
+      sourceBounds: { left: 4, top: 6, right: 44, bottom: 54 },
+      targetSize: { width: 40, height: 48 },
+      colorSpace: 'RGB',
+      componentSize: 8,
+      applyAlpha: true,
+    });
+  }));
+
+  it('keeps placeholder when capture-bound preview source disappears', async () => {
+    const { modules, spies } = createFakeModules();
+    const { bridge } = createBridge(modules);
+
+    const capture = await bridge.captureActiveImage(providerPolicy);
+    (modules.photoshop!.app as { activeDocument?: unknown }).activeDocument = {
+      id: 99,
+      layers: [],
+      activeLayers: [],
+      selection: { bounds: null },
+    };
+
+    await expect(capture.previewTask?.()).resolves.toBeUndefined();
+
+    expect(spies.encodeImageData).not.toHaveBeenCalled();
+  });
+
   it('keeps local image ingestion on the app path when possible and rejects structurally unsafe picker assets', async () => {
     const tiny = createFakeModules({
       pickedFileName: 'tiny.png',

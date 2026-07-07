@@ -42,21 +42,17 @@
 - **THEN** system SHALL discard that preview result
 - **AND** system SHALL NOT overwrite the current attachment state with stale preview bytes
 
-### Requirement: Formal PNG encoding SHALL attempt thresholded candidate encoder with safe fallback
-系统 SHALL 继续将正式 `provider-input` 资产统一编码为 `PNG`。编码时 MUST 按最终输出 `targetSize` 选择 encoder：当 `targetWidth * targetHeight * 4 <= 64 * 1024 * 1024` 时尝试 `@jsquash/png`；超过该阈值，或 `@jsquash/png` 的 `import`、initialize、encode 任一阶段失败时，MUST 回退现有自写 encoder + stored deflate。无论使用哪条编码路径，正式输出尺寸 MUST 严格匹配 `providerInputPlan.targetWidth` 与 `providerInputPlan.targetHeight`，且候选 encoder 失败不得让 `Capture` 失败。
+### Requirement: Formal PNG encoding SHALL use UXP-safe stored deflate
+系统 SHALL 继续将正式 `provider-input` 资产统一编码为 `PNG`。编码时 MUST 使用 app-local stored-deflate encoder，不依赖 browser-only `ImageData`、WASM encoder 初始化或外部 runtime encoder。正式输出尺寸 MUST 严格匹配 `providerInputPlan.targetWidth` 与 `providerInputPlan.targetHeight`。
 
-#### Scenario: Threshold-sized output attempts candidate encoder
-- **WHEN** formal `provider-input` output RGBA byte size is less than or equal to `64 MiB`
-- **THEN** system SHALL attempt to encode the formal `PNG` with `@jsquash/png`
+#### Scenario: Formal output uses stored deflate
+- **WHEN** system encodes a formal `provider-input` PNG
+- **THEN** system SHALL use the app-local stored-deflate encoder
+- **AND** structured timing SHALL record `providerInput.encoder` as `stored-deflate`
 
-#### Scenario: Oversized output falls back to current encoder
-- **WHEN** formal `provider-input` output RGBA byte size is greater than `64 MiB`
-- **THEN** system SHALL use the existing self-managed `PNG` encoder with stored deflate
-
-#### Scenario: Candidate encoder failure falls back safely
-- **WHEN** formal `provider-input` output RGBA byte size is less than or equal to `64 MiB` and `@jsquash/png` fails during `import`, initialize, or encode
-- **THEN** system SHALL fall back to the existing self-managed `PNG` encoder with stored deflate
-- **AND** system SHALL still complete `Capture` successfully with a stored formal `PNG` asset
+#### Scenario: Browser or WASM encoder is not required
+- **WHEN** the real Photoshop UXP runtime lacks browser `ImageData` or WASM encoder support
+- **THEN** system SHALL still complete `Capture` successfully with a stored formal `PNG` asset
 
 #### Scenario: Formal asset preserves planned output size
 - **WHEN** system stores the formal `provider-input` asset for a completed `Capture`

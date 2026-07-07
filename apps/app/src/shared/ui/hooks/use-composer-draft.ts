@@ -3,6 +3,7 @@ import type { ComposerOperation } from '../composer-readiness';
 import type { ConversationAttachment } from './use-conversation';
 
 function releaseAttachment(attachment: ConversationAttachment): void {
+  attachment.previewDispose?.();
   attachment.image.preview.dispose?.();
 }
 
@@ -26,6 +27,11 @@ export interface ComposerDraftController {
   setInput(next: string): void;
   replaceAttachments(next: readonly ConversationAttachment[]): void;
   addAttachment(attachment: ConversationAttachment): void;
+  updateAttachmentPreview(
+    attachmentId: string,
+    previewGeneration: number,
+    preview: { readonly url: string; readonly dispose?: () => void },
+  ): void;
   removeAttachment(attachmentId: string): void;
   clearAttachments(): void;
   reset(options?: { readonly releaseAttachments?: boolean }): void;
@@ -63,6 +69,33 @@ export function useComposerDraft(): ComposerDraftController {
 
   const addAttachment = useCallback((attachment: ConversationAttachment) => {
     setAttachments((current) => [...current, attachment]);
+  }, []);
+
+  const updateAttachmentPreview = useCallback((
+    attachmentId: string,
+    previewGeneration: number,
+    preview: { readonly url: string; readonly dispose?: () => void },
+  ) => {
+    setAttachments((current) => {
+      let consumed = false;
+      const next = current.map((attachment) => {
+        if (attachment.id !== attachmentId || attachment.previewGeneration !== previewGeneration) {
+          return attachment;
+        }
+        consumed = true;
+        attachment.previewDispose?.();
+        return {
+          ...attachment,
+          previewUrl: preview.url,
+          previewDispose: preview.dispose,
+        };
+      });
+      if (!consumed) {
+        preview.dispose?.();
+        return current;
+      }
+      return next;
+    });
   }, []);
 
   const removeAttachment = useCallback((attachmentId: string) => {
@@ -103,6 +136,7 @@ export function useComposerDraft(): ComposerDraftController {
     setInput,
     replaceAttachments,
     addAttachment,
+    updateAttachmentPreview,
     removeAttachment,
     clearAttachments,
     reset,
