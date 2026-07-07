@@ -83,15 +83,10 @@ describe('PhotoshopHostBridge read contract', () => {
         },
         placementRect: { left: 0, top: 0, right: 64, bottom: 64 },
         providerInputPlan: expect.objectContaining({
-          sourceWidth: 64,
-          sourceHeight: 64,
-          targetWidth: 2048,
-          targetHeight: 2048,
-          fit: 'preserve-ratio',
-          maxSideBucket: 2048,
-          effectiveMultiple: 2,
-          maxSide: 2048,
-          wasUpscaled: true,
+          kind: 'passthrough',
+          sourceSize: { width: 64, height: 64 },
+          targetSize: { width: 64, height: 64 },
+          aspectRatioError: 0,
         }),
       },
     });
@@ -104,8 +99,8 @@ describe('PhotoshopHostBridge read contract', () => {
     expect(layerAsset.resource.derivatives.providerInput).toMatchObject({
       kind: 'ready',
       role: 'provider-input',
-      width: 2048,
-      height: 2048,
+      width: 64,
+      height: 64,
       mimeType: 'image/png',
     });
     expect(spies.getPixels).toHaveBeenNthCalledWith(1, expect.objectContaining({
@@ -116,7 +111,7 @@ describe('PhotoshopHostBridge read contract', () => {
     expect(spies.getPixels).toHaveBeenNthCalledWith(2, expect.objectContaining({
       documentID: 42,
       layerID: 2,
-      targetSize: { width: 2048, height: 2048 },
+      targetSize: { width: 64, height: 64 },
     }));
   });
 
@@ -131,8 +126,8 @@ describe('PhotoshopHostBridge read contract', () => {
     expect(capture.image.resource.derivatives.providerInput).toMatchObject({
       kind: 'ready',
       role: 'provider-input',
-      width: 2048,
-      height: 2048,
+      width: 64,
+      height: 64,
       mimeType: 'image/png',
     });
     expect((await resolveAssetBytes(assetStore, capture.image.asset)).slice(0, 8)).toEqual(VALID_TRANSPARENT_PNG.slice(0, 8));
@@ -199,6 +194,29 @@ describe('PhotoshopHostBridge read contract', () => {
     await expect(capture.previewTask?.()).resolves.toBeUndefined();
 
     expect(spies.encodeImageData).not.toHaveBeenCalled();
+  });
+
+  it('fails closed when Photoshop getPixels returns a size outside the requested targetSize', async () => {
+    const { modules } = createFakeModules({
+      pixelResultSize: { width: 63, height: 64 },
+    });
+    const { bridge } = createBridge(modules);
+
+    await expect(bridge.readLayerAsAsset(2, providerPolicy)).rejects.toThrow(
+      'Photoshop returned unexpected capture size: 63x64, expected 64x64.',
+    );
+  });
+
+  it('fails closed when Photoshop getSelection returns a size outside the requested targetSize', async () => {
+    const { modules } = createFakeModules({
+      selectionBounds: { left: 4, top: 6, right: 44, bottom: 54 },
+      selectionResultSize: { width: 39, height: 48 },
+    });
+    const { bridge } = createBridge(modules);
+
+    await expect(bridge.captureActiveImage({ maxSide: 1024 })).rejects.toThrow(
+      'Photoshop returned unexpected selection mask size: 39x48, expected 40x48.',
+    );
   });
 
   it('keeps local image ingestion on the app path when possible and rejects structurally unsafe picker assets', async () => {

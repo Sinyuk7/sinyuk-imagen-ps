@@ -324,7 +324,10 @@ function normalizedInputContextForAttachments(attachments: readonly Conversation
   };
 }
 
-export function derivePlacementIntent(attachments: readonly ConversationAttachment[]): PlacementIntent {
+export function derivePlacementIntent(
+  attachments: readonly ConversationAttachment[],
+  outputSelection?: ImageOutputSelection,
+): PlacementIntent {
   const captures = attachments.filter((attachment) => attachment.photoshopPlacement !== undefined);
   if (captures.length === 0) {
     return { kind: 'unbound', reason: 'no-photoshop-capture' };
@@ -336,7 +339,10 @@ export function derivePlacementIntent(attachments: readonly ConversationAttachme
   }
 
   const firstCapture = captures[0].photoshopPlacement!;
-  return placementIntentFromCapturePlacement(firstCapture);
+  const placement = placementIntentFromCapturePlacement(firstCapture);
+  return placement.kind === 'exact-frame' && outputSelection
+    ? { ...placement, outputSelection }
+    : placement;
 }
 
 export function useConversation(
@@ -496,9 +502,9 @@ export function useConversation(
       try {
         const roundId = createRoundId();
         const attachments = input.attachments ?? [];
-        const placementIntent = derivePlacementIntent(attachments);
-        const createdAt = new Date().toISOString();
         const output = input.output;
+        const placementIntent = derivePlacementIntent(attachments, output?.selection);
+        const createdAt = new Date().toISOString();
         const providerInputSizePreset = input.providerInputSizePreset ?? defaultOutput?.providerInputSizePreset;
         const round: ConversationRound = {
           id: roundId,

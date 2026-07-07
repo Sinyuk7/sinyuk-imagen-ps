@@ -34,6 +34,7 @@ import type {
 } from '../../shared/domain/photoshop-placement';
 import {
   matchPlacementIntent,
+  placementIntentForActualOutput,
   resolvePlacementTarget,
 } from '../../shared/domain/photoshop-placement';
 import { encodeRgbaPngStoredDeflate, type PngEncoderName } from './png-encoder';
@@ -692,27 +693,27 @@ async function createLocalFileProviderDerivativeFromBytes(
   meta: { readonly name: string; readonly mimeType: string },
 ): Promise<HostImageAsset> {
   const preview = await createAppLocalPreview(bytes, meta.mimeType);
-  if (!plan.wasResized) {
+  if (plan.kind === 'passthrough') {
     return createStoredHostImageAsset(assetStore, bytes, {
       source: 'file',
       name: meta.name,
       mimeType: meta.mimeType,
       preview,
-      width: plan.targetWidth,
-      height: plan.targetHeight,
+      width: plan.targetSize.width,
+      height: plan.targetSize.height,
     });
   }
   const normalized = await resizeLocalFileBytes(bytes, meta.mimeType, {
-    width: plan.targetWidth,
-    height: plan.targetHeight,
+    width: plan.targetSize.width,
+    height: plan.targetSize.height,
   });
   return createStoredHostImageAsset(assetStore, normalized, {
     source: 'file',
     name: meta.name.replace(/\.[^.]+$/, '') + '.png',
     mimeType: 'image/png',
     preview,
-    width: plan.targetWidth,
-    height: plan.targetHeight,
+    width: plan.targetSize.width,
+    height: plan.targetSize.height,
   });
 }
 
@@ -727,7 +728,7 @@ async function createLocalFileProviderDerivative(
 ): Promise<HostImageAsset> {
   if (
     mimeTypeSupportsAppLocalDerivative(meta.mimeType) &&
-    (!plan.wasResized || fitsAppLocalRgbaDecodeLimit({ width: plan.sourceWidth, height: plan.sourceHeight }))
+    (plan.kind === 'passthrough' || fitsAppLocalRgbaDecodeLimit(plan.sourceSize))
   ) {
     return createLocalFileProviderDerivativeFromBytes(assetStore, bytes, plan, meta);
   }
@@ -741,8 +742,8 @@ async function createLocalFileProviderDerivative(
     if (!tempDocument.id) {
       throw new Error('Photoshop did not return a document id for the selected local image.');
     }
-    const sourceRect = { left: 0, top: 0, right: plan.sourceWidth, bottom: plan.sourceHeight };
-    const thumbnailSize = thumbnailTargetSize({ width: plan.sourceWidth, height: plan.sourceHeight });
+    const sourceRect = { left: 0, top: 0, right: plan.sourceSize.width, bottom: plan.sourceSize.height };
+    const thumbnailSize = thumbnailTargetSize(plan.sourceSize);
     const preview = await createPhotoshopThumbnailUrl(
       imaging,
       {
@@ -758,21 +759,18 @@ async function createLocalFileProviderDerivative(
       },
     );
 
-    if (!plan.wasResized) {
+    if (plan.kind === 'passthrough') {
       return createStoredHostImageAsset(assetStore, bytes, {
         source: 'file',
         name: meta.name,
         mimeType: meta.mimeType,
         preview,
-        width: plan.targetWidth,
-        height: plan.targetHeight,
+        width: plan.targetSize.width,
+        height: plan.targetSize.height,
       });
     }
 
-    const targetSize = {
-      width: plan.targetWidth,
-      height: plan.targetHeight,
-    };
+    const targetSize = plan.targetSize;
     const result = await imaging.getPixels({
       documentID: tempDocument.id,
       targetSize,
@@ -958,27 +956,6 @@ async function createLayerThumbnailUrl(
   );
 }
 
-function assertExactPlacementAspect(
-  bytes: Uint8Array,
-  mimeType: string,
-  placementRect: PhotoshopRect,
-  maxError = 0.0005,
-): void {
-  const imageSize = readImageSize(bytes, mimeType);
-  if (!imageSize) {
-    return;
-  }
-  const frame = rectSize(placementRect);
-  const imageAspect = imageSize.width / imageSize.height;
-  const frameAspect = frame.width / frame.height;
-  const error = Math.abs(imageAspect - frameAspect) / Math.max(imageAspect, frameAspect);
-  if (error > maxError) {
-    throw new Error(
-      `Exact-frame placement requires matching aspect ratio: asset ${imageSize.width}x${imageSize.height}, frame ${frame.width}x${frame.height}.`,
-    );
-  }
-}
-
 async function scalePlacedLayerToSize(
   placedLayer: PhotoshopLayer,
   targetSize: { readonly width: number; readonly height: number },
@@ -1021,15 +998,23 @@ function imageDataSize(
   };
 }
 
+function assertRequestedTargetSize(
+  actualSize: { readonly width: number; readonly height: number },
+  targetSize: { readonly width: number; readonly height: number },
+  label: string,
+): void {
+  if (actualSize.width !== targetSize.width || actualSize.height !== targetSize.height) {
+    throw new Error(`Photoshop returned unexpected ${label} size: ${actualSize.width}x${actualSize.height}, expected ${targetSize.width}x${targetSize.height}.`);
+  }
+}
+
 function toTargetRect(
   frame: CaptureImageFrame,
   actualSize: { readonly width: number; readonly height: number },
   label: string,
 ): PhotoshopRect {
+  assertRequestedTargetSize(actualSize, frame.targetSize, label);
   if (!frame.sourceBounds) {
-    if (actualSize.width !== frame.targetSize.width || actualSize.height !== frame.targetSize.height) {
-      throw new Error(`Photoshop returned unexpected ${label} size: ${actualSize.width}x${actualSize.height}, expected ${frame.targetSize.width}x${frame.targetSize.height}.`);
-    }
     return { left: 0, top: 0, right: frame.targetSize.width, bottom: frame.targetSize.height };
   }
 
@@ -1511,9 +1496,10 @@ export function createPhotoshopHostBridge(modules: UxpModules, options?: CreateP
           name,
           mimeType,
           byteSize: bytes.byteLength,
-          providerInputWidth: providerInputPlan.targetWidth,
-          providerInputHeight: providerInputPlan.targetHeight,
-          providerInputWasResized: providerInputPlan.wasResized,
+          providerInputPlanKind: providerInputPlan.kind,
+          providerInputWidth: providerInputPlan.targetSize.width,
+          providerInputHeight: providerInputPlan.targetSize.height,
+          providerInputAspectRatioError: providerInputPlan.aspectRatioError,
         });
         return asset;
       } catch (error) {
@@ -1569,14 +1555,10 @@ export function createPhotoshopHostBridge(modules: UxpModules, options?: CreateP
           captureDownscaleMode: 'photoshop-target-size',
           placementScaleMode: 'smart-object-transform',
           sizePolicy: {
-            maxSide: providerInputPlan.maxSide,
-            multiple: providerInputPlan.multiple,
+            maxSide: policy.maxSide,
           },
         });
-        const targetSize = {
-          width: providerInputPlan.targetWidth,
-          height: providerInputPlan.targetHeight,
-        };
+        const targetSize = providerInputPlan.targetSize;
         const thumbnailSize = thumbnailTargetSize(captureSize);
         const sourceKind = selectionBounds ? 'selection' : 'layer';
         Object.assign(captureLogAttrs, {
@@ -1587,10 +1569,8 @@ export function createPhotoshopHostBridge(modules: UxpModules, options?: CreateP
           ...sizeLogAttrs('captureSize', captureSize),
           ...sizeLogAttrs('thumbnailTarget', thumbnailSize),
           ...sizeLogAttrs('providerInputTarget', targetSize),
-          providerInputMaxSide: providerInputPlan.maxSide,
-          providerInputMultiple: providerInputPlan.effectiveMultiple,
-          providerInputWasResized: providerInputPlan.wasResized,
-          providerInputWasUpscaled: providerInputPlan.wasUpscaled,
+          providerInputPlanKind: providerInputPlan.kind,
+          providerInputAspectRatioError: providerInputPlan.aspectRatioError,
         });
 
         let providerInputGetPixelsMs = 0;
@@ -1731,14 +1711,10 @@ export function createPhotoshopHostBridge(modules: UxpModules, options?: CreateP
           captureDownscaleMode: 'photoshop-target-size',
           placementScaleMode: 'smart-object-transform',
           sizePolicy: {
-            maxSide: providerInputPlan.maxSide,
-            multiple: providerInputPlan.multiple,
+            maxSide: policy.maxSide,
           },
         });
-        const targetSize = {
-          width: providerInputPlan.targetWidth,
-          height: providerInputPlan.targetHeight,
-        };
+        const targetSize = providerInputPlan.targetSize;
         const thumbnailSize = thumbnailTargetSize(sourceSize);
         const asset = await executeHostModal(
           async () => {
@@ -1914,20 +1890,18 @@ export function createPhotoshopHostBridge(modules: UxpModules, options?: CreateP
         ...(placement.kind === 'unbound' ? { placementReason: placement.reason } : {}),
       });
       try {
-        const { document: targetDocument, usedActiveDocumentFallback } = targetDocumentForPlacement(app, placement);
         const { data, mimeType } = await assetToArrayBuffer(asset, {
           resolveStoredRef: (ref) => assetStore.resolve(ref),
         });
         ensurePlaceableImagePayload(data, mimeType);
         const bytes = new Uint8Array(data);
-        if (placement.kind === 'exact-frame') {
-          assertExactPlacementAspect(bytes, mimeType, placement.placementRect);
-        }
+        const placedAssetSize = readImageSize(bytes, mimeType);
+        const resolvedPlacement = placementIntentForActualOutput(placement, placedAssetSize);
+        const { document: targetDocument, usedActiveDocumentFallback } = targetDocumentForPlacement(app, resolvedPlacement);
         const folder = await fs.getTemporaryFolder();
         const file = await folder.createFile(`imagen-ps-${Date.now()}.${fileExtensionFor(mimeType)}`, {
           overwrite: true,
         });
-        let placedAssetSize: { readonly width: number; readonly height: number } | undefined;
         let exactFrameTelemetry:
           | {
               readonly beforeScaleBounds: PhotoshopRect;
@@ -1946,7 +1920,6 @@ export function createPhotoshopHostBridge(modules: UxpModules, options?: CreateP
         try {
           await file.write(data, { format: uxpBinaryFormat(formats) });
           const token = fs.createSessionToken(file);
-          placedAssetSize = readImageSize(bytes, mimeType);
 
           await executeHostModal(
             async () => {
@@ -1963,9 +1936,9 @@ export function createPhotoshopHostBridge(modules: UxpModules, options?: CreateP
                 ],
                 { synchronousExecution: false },
               );
-              if (placement.kind === 'exact-frame' && !usedActiveDocumentFallback) {
-                exactFrameTelemetry = await transformActivePlacedLayer(targetDocument, placement.placementRect);
-              } else if (placement.kind === 'unbound' && placement.reason === 'no-photoshop-capture' && placedAssetSize) {
+              if (resolvedPlacement.kind === 'exact-frame' && !usedActiveDocumentFallback) {
+                exactFrameTelemetry = await transformActivePlacedLayer(targetDocument, resolvedPlacement.placementRect);
+              } else if (resolvedPlacement.kind === 'unbound' && resolvedPlacement.reason === 'no-photoshop-capture' && placedAssetSize) {
                 unboundTelemetry = await normalizeUnboundPlacedLayerSize(targetDocument, placedAssetSize);
               }
             },
@@ -1977,8 +1950,9 @@ export function createPhotoshopHostBridge(modules: UxpModules, options?: CreateP
         span.finish({
           name: asset.name,
           mimeType,
-          placement: placement.kind,
-          ...(placement.kind === 'unbound' ? { placementReason: placement.reason } : {}),
+          placement: resolvedPlacement.kind,
+          ...(placement.kind !== resolvedPlacement.kind ? { requestedPlacement: placement.kind } : {}),
+          ...(resolvedPlacement.kind === 'unbound' ? { placementReason: resolvedPlacement.reason } : {}),
           ...(targetDocument.id !== undefined ? { targetDocumentId: targetDocument.id } : {}),
           ...(targetDocument.width !== undefined ? { targetDocumentWidth: targetDocument.width } : {}),
           ...(targetDocument.height !== undefined ? { targetDocumentHeight: targetDocument.height } : {}),

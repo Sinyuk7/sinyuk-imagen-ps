@@ -1,3 +1,4 @@
+import type { ImageOutputSelection } from '@imagen-ps/application';
 import type { CaptureUploadPlan, ImageSize, PlacementScalePlan, ProviderInputPlan } from '../image/resize';
 
 export interface PhotoshopRect {
@@ -40,6 +41,8 @@ export interface ExactFramePlacementIntent {
   readonly documentSizeAtCapture: ImageSize;
   readonly documentName?: string;
   readonly placementRect: PhotoshopRect;
+  readonly providerInputTarget?: ImageSize;
+  readonly outputSelection?: ImageOutputSelection;
   readonly scalePlan?: PlacementScalePlan;
 }
 
@@ -139,7 +142,79 @@ export function placementIntentFromCapturePlacement(placement: PhotoshopCaptureP
     documentSizeAtCapture: placement.snapshot.documentSize,
     ...(placement.snapshot.documentName !== undefined ? { documentName: placement.snapshot.documentName } : {}),
     placementRect: placement.placementRect,
+    ...(placement.providerInputPlan ? { providerInputTarget: placement.providerInputPlan.targetSize } : {}),
   };
+}
+
+function documentOnlyPlacementFromExact(intent: ExactFramePlacementIntent): DocumentOnlyPlacementIntent {
+  return {
+    kind: 'document-only',
+    documentId: intent.documentId,
+    documentSizeAtCapture: intent.documentSizeAtCapture,
+    ...(intent.documentName !== undefined ? { documentName: intent.documentName } : {}),
+  };
+}
+
+function matchesExpectedSize(expected: ImageSize, actual: ImageSize): boolean {
+  return expected.width === actual.width && expected.height === actual.height;
+}
+
+function matchesAspectRatioIdentity(expected: Exclude<ImageOutputSelection['geometry'], { readonly kind: 'provider-default' } | { readonly kind: 'pixels' } | { readonly kind: 'input-derived' }>['aspectRatio'], actual: ImageSize): boolean {
+  const match = /^(\d+):(\d+)$/.exec(expected);
+  if (!match) {
+    return false;
+  }
+  const expectedWidth = BigInt(match[1] ?? '0');
+  const expectedHeight = BigInt(match[2] ?? '0');
+  return expectedWidth > 0n && expectedHeight > 0n && BigInt(actual.width) * expectedHeight === BigInt(actual.height) * expectedWidth;
+}
+
+function expectedOutputSizeFor(intent: ExactFramePlacementIntent): ImageSize | undefined {
+  const selection = intent.outputSelection;
+  if (!selection) {
+    return undefined;
+  }
+  if (selection.geometry.kind === 'pixels') {
+    return {
+      width: selection.geometry.width,
+      height: selection.geometry.height,
+    };
+  }
+  if (selection.geometry.kind === 'input-derived' && selection.geometry.mode === 'exact-size') {
+    return intent.providerInputTarget;
+  }
+  return undefined;
+}
+
+function hasMatchingSemanticIdentity(intent: ExactFramePlacementIntent, actualOutputSize: ImageSize): boolean {
+  const selection = intent.outputSelection;
+  return selection?.geometry.kind === 'ratio-resolution'
+    ? matchesAspectRatioIdentity(selection.geometry.aspectRatio, actualOutputSize)
+    : false;
+}
+
+/** 根据 request/output contract 与实际输出尺寸，决定 exact-frame 是否可保留。 */
+export function placementIntentForActualOutput(
+  intent: PlacementIntent,
+  actualOutputSize: ImageSize | undefined,
+): PlacementIntent {
+  if (intent.kind !== 'exact-frame') {
+    return intent;
+  }
+  if (!actualOutputSize) {
+    return documentOnlyPlacementFromExact(intent);
+  }
+
+  const expectedOutputSize = expectedOutputSizeFor(intent);
+  if (expectedOutputSize) {
+    return matchesExpectedSize(expectedOutputSize, actualOutputSize)
+      ? intent
+      : documentOnlyPlacementFromExact(intent);
+  }
+
+  return hasMatchingSemanticIdentity(intent, actualOutputSize)
+    ? intent
+    : documentOnlyPlacementFromExact(intent);
 }
 
 /** 判断当前 round intent 仍保留的 placement evidence 强度。 */

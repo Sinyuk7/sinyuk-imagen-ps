@@ -1,5 +1,9 @@
 import { describe, expect, it } from 'vitest';
-import { matchPlacementIntent, resolvePlacementTarget } from '../../../src/shared/domain/photoshop-placement';
+import {
+  matchPlacementIntent,
+  placementIntentForActualOutput,
+  resolvePlacementTarget,
+} from '../../../src/shared/domain/photoshop-placement';
 
 describe('photoshop placement contract', () => {
   it('matches the same document id and dimensions strongly', () => {
@@ -54,6 +58,59 @@ describe('photoshop placement contract', () => {
       targetDocumentId: 77,
       matchConfidence: 'active-document-fallback',
       evidenceStrength: 'frame',
+    });
+  });
+
+  it('keeps exact-frame when input-derived exact size matches the actual output geometry', () => {
+    expect(placementIntentForActualOutput(
+      {
+        kind: 'exact-frame',
+        documentId: 42,
+        documentSizeAtCapture: { width: 512, height: 384 },
+        placementRect: { left: 0, top: 0, right: 256, bottom: 128 },
+        providerInputTarget: { width: 2048, height: 769 },
+        outputSelection: {
+          geometry: { kind: 'input-derived', mode: 'exact-size' },
+          outputFormat: 'png',
+        },
+      },
+      { width: 2048, height: 769 },
+    )).toMatchObject({ kind: 'exact-frame' });
+  });
+
+  it('downgrades exact-frame when the expected output size is known but mismatched', () => {
+    expect(placementIntentForActualOutput(
+      {
+        kind: 'exact-frame',
+        documentId: 42,
+        documentSizeAtCapture: { width: 512, height: 384 },
+        placementRect: { left: 0, top: 0, right: 256, bottom: 128 },
+        outputSelection: {
+          geometry: { kind: 'pixels', width: 1024, height: 576 },
+          outputFormat: 'png',
+        },
+      },
+      { width: 1024, height: 577 },
+    )).toEqual({
+      kind: 'document-only',
+      documentId: 42,
+      documentSizeAtCapture: { width: 512, height: 384 },
+    });
+  });
+
+  it('downgrades exact-frame when output geometry is unknown or unverifiable', () => {
+    expect(placementIntentForActualOutput(
+      {
+        kind: 'exact-frame',
+        documentId: 42,
+        documentSizeAtCapture: { width: 512, height: 384 },
+        placementRect: { left: 0, top: 0, right: 256, bottom: 128 },
+      },
+      undefined,
+    )).toEqual({
+      kind: 'document-only',
+      documentId: 42,
+      documentSizeAtCapture: { width: 512, height: 384 },
     });
   });
 });

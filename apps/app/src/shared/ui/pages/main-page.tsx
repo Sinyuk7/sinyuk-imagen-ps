@@ -410,7 +410,10 @@ export function MainPage({
     ? modelVisibleLabel(selectedModelInfo)
     : (selectedModelId || (modelsLoading ? t.main.modelLoading : t.main.modelUnselected));
   const currentOperation = composerDraft.operation;
-  const placementIntent = useMemo(() => derivePlacementIntent(attachments), [attachments]);
+  const placementIntent = useMemo(
+    () => derivePlacementIntent(attachments, modelGenerationSettings.outputSelection ?? undefined),
+    [attachments, modelGenerationSettings.outputSelection],
+  );
   const modelOptions = useMemo(
     () => uniqueModels.map((model) => ({
       id: model.id,

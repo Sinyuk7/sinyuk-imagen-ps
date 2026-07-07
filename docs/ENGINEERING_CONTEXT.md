@@ -67,6 +67,12 @@ surface apps -> application/session -> core-engine + providers
   (`document + placementRect`) resolves to `exact-frame`; document-only
   evidence resolves to `document-only`; no surviving evidence resolves to
   `unbound`.
+- `exact-frame` writeback is still app/host-owned, but it is now guarded by
+  request/output geometry facts instead of a shared ratio-tolerance shortcut.
+  When request data yields one exact output size, returned pixels must match
+  it exactly; ratio-resolution semantics may keep `exact-frame` only when the
+  returned size preserves that discrete geometry identity; unknown or
+  unverifiable output geometry degrades to `document-only`.
 - Source-document strong match is always the first placement target path.
   When that fails, app/host may fall back once to the current active document.
   Weak reopen matches still do not auto-write. Under active-document fallback,
@@ -143,7 +149,15 @@ surface apps -> application/session -> core-engine + providers
 
 - In Photoshop UXP, local PNG/JPEG attachments prefer the app-local byte pipeline inside `apps/app` for preview and provider-input refs while source RGBA resizing fits the decode budget.
 - Oversized local-file provider-input resizing and provider-output thumbnails fall back to Photoshop host `imaging.getPixels(targetSize)` instead of decoding full-resolution pixels in JavaScript. Local WEBP remains an explicit host-native fallback until an app-local WEBP decode path is proven.
-- Photoshop capture provider input currently depends on `resolveProviderInputPlan()` to enforce the provider max side. For large exact-ratio or coprime dimensions, that planner can preserve the original dimensions even when `providerInputMaxSide` is `2048`, producing 100MB+ stored-deflate PNGs. Treat this as an open sizing-policy bug until the planner has a hard max-side contract and regression cases for large captures.
+- `resolveProviderInputPlan()` is the shared provider-input geometry contract:
+  `no-upscale`, integer `fit-inside`, hard `maxSide` ceiling. It returns only
+  `kind`, `sourceSize`, `targetSize`, and provenance-only
+  `aspectRatioError`; consumers must treat `targetSize` as the sole geometry
+  source of truth.
+- Photoshop host provider-input reads now request that exact `targetSize` for
+  both `imaging.getPixels()` and `imaging.getSelection()`, then fail closed if
+  Photoshop returns a different width or height before PNG encoding or asset
+  storage.
 
 - Provider requests must resolve image-edit inputs from `image.resource.derivatives.providerInput.storedRef`. They must not submit the original asset, thumbnail, inline `data`, or full preview URL. Retry reuses the storedRef already present in the original job input.
 - UI previews use the app `ThumbnailStore`. Long-lived round preview state must keep the original output `Asset` locator payload (`storedRef`, `url`, or inline `data`) alongside bounded thumbnail URLs so main-page place/download actions can still resolve the full-size returned image after preview generation.

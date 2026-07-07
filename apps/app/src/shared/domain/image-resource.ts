@@ -129,8 +129,8 @@ function providerInputFromHostImage(image: HostImageResourceInput): ImageDerivat
   return {
     kind: 'ready',
     role: 'provider-input',
-    ...(plan?.targetWidth ?? image.metadata.width ? { width: plan?.targetWidth ?? image.metadata.width } : {}),
-    ...(plan?.targetHeight ?? image.metadata.height ? { height: plan?.targetHeight ?? image.metadata.height } : {}),
+    ...(plan?.targetSize.width ?? image.metadata.width ? { width: plan?.targetSize.width ?? image.metadata.width } : {}),
+    ...(plan?.targetSize.height ?? image.metadata.height ? { height: plan?.targetSize.height ?? image.metadata.height } : {}),
     ...(storedRef.mimeType ?? image.asset.mimeType ?? image.metadata.mimeType
       ? { mimeType: storedRef.mimeType ?? image.asset.mimeType ?? image.metadata.mimeType }
       : {}),

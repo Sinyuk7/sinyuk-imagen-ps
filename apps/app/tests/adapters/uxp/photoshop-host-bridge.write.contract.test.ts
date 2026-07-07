@@ -115,6 +115,10 @@ describe('PhotoshopHostBridge write contract', () => {
       documentId: 42,
       documentSizeAtCapture: { width: 512, height: 384 },
       placementRect: { left: 10, top: 20, right: 138, bottom: 148 },
+      outputSelection: {
+        geometry: { kind: 'pixels', width: 1, height: 1 },
+        outputFormat: 'png',
+      },
     });
 
     expect(spies.batchPlay).toHaveBeenCalledTimes(1);
@@ -247,8 +251,8 @@ describe('PhotoshopHostBridge write contract', () => {
       captureSizeHeight: 48,
       thumbnailTargetWidth: 40,
       thumbnailTargetHeight: 48,
-      providerInputTargetWidth: 855,
-      providerInputTargetHeight: 1026,
+      providerInputTargetWidth: 40,
+      providerInputTargetHeight: 48,
       failedStage: 'read-capture-pixels',
     });
     expect(failureRecord?.error).toMatchObject({
@@ -296,7 +300,7 @@ describe('PhotoshopHostBridge write contract', () => {
     expect(successRecord?.attrs).not.toHaveProperty('providerInput.fallbackReason');
   });
 
-  it('accepts document-only placement without transform and rejects incompatible exact-frame ratio before Photoshop write', async () => {
+  it('accepts document-only placement without transform and downgrades unverifiable exact-frame output to document-only', async () => {
     const { modules, spies } = createFakeModules();
     const { bridge } = createBridge(modules);
 
@@ -314,7 +318,7 @@ describe('PhotoshopHostBridge write contract', () => {
     expect(spies.scalePlacedLayer).not.toHaveBeenCalled();
     expect(spies.translatePlacedLayer).not.toHaveBeenCalled();
 
-    await expect(bridge.placeAssetOnCanvas({
+    await bridge.placeAssetOnCanvas({
       type: 'image',
       name: 'generated.png',
       data: pngWithSize(1016, 946),
@@ -324,7 +328,26 @@ describe('PhotoshopHostBridge write contract', () => {
       documentId: 42,
       documentSizeAtCapture: { width: 512, height: 384 },
       placementRect: { left: 0, top: 0, right: 345, bottom: 321 },
-    })).rejects.toThrow('Exact-frame placement requires matching aspect ratio');
+    });
+
+    await bridge.placeAssetOnCanvas({
+      type: 'image',
+      name: 'generated.png',
+      data: pngWithSize(1016, 946),
+      mimeType: 'image/png',
+    }, {
+      kind: 'exact-frame',
+      documentId: 42,
+      documentSizeAtCapture: { width: 512, height: 384 },
+      placementRect: { left: 0, top: 0, right: 345, bottom: 321 },
+      outputSelection: {
+        geometry: { kind: 'pixels', width: 345, height: 321 },
+        outputFormat: 'png',
+      },
+    });
+
+    expect(spies.scalePlacedLayer).not.toHaveBeenCalled();
+    expect(spies.translatePlacedLayer).not.toHaveBeenCalled();
   });
 
   it('rejects ambiguous and weak reopened document matches before Photoshop write', async () => {

@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest';
-import type { Asset } from '@imagen-ps/application';
+import type { Asset, ImageOutputSelection } from '@imagen-ps/application';
 import { createInMemoryAssetStore } from '../../../src/adapters/uxp/in-memory-host-storage';
 import { createPhotoshopHostBridge } from '../../../src/adapters/uxp/photoshop-host-bridge';
 import type { UxpModules } from '../../../src/adapters/uxp/uxp-api';
@@ -56,14 +56,6 @@ function pngSize(bytes: Uint8Array): ImageSize {
     width: readUint32BE(bytes, 16),
     height: readUint32BE(bytes, 20),
   };
-}
-
-function sameRatio(a: ImageSize, b: ImageSize): boolean {
-  return BigInt(a.width) * BigInt(b.height) === BigInt(a.height) * BigInt(b.width);
-}
-
-function exactRatioMessage(a: ImageSize, b: ImageSize): string {
-  return `${a.width}x${a.height} must preserve ${b.width}x${b.height}`;
 }
 
 function arrayBufferFromBytes(bytes: Uint8Array): ArrayBuffer {
@@ -168,7 +160,14 @@ function createFakeModules(source: ImageSize): {
   };
 }
 
-async function runRoundTrip(source: ImageSize, maxSide: number): Promise<{
+async function runRoundTrip(
+  source: ImageSize,
+  maxSide: number,
+  options?: {
+    readonly outputSelection?: ImageOutputSelection;
+    readonly providerOutputSize?: ImageSize;
+  },
+): Promise<{
   readonly providerInputPlan: ProviderInputPlan;
   readonly placementKind: string;
   readonly providerOutputSize: ImageSize;
@@ -193,11 +192,8 @@ async function runRoundTrip(source: ImageSize, maxSide: number): Promise<{
     previewUrl: capture.image.preview.url ?? '',
     photoshopPlacement: capture.placement,
   };
-  const placement = derivePlacementIntent([attachment]);
-  const providerOutputSize = {
-    width: providerInputPlan.targetWidth,
-    height: providerInputPlan.targetHeight,
-  };
+  const placement = derivePlacementIntent([attachment], options?.outputSelection);
+  const providerOutputSize = options?.providerOutputSize ?? providerInputPlan.targetSize;
   const providerOutput: Asset = {
     type: 'image',
     name: 'provider-output.png',
@@ -227,19 +223,33 @@ describe('provider input placement contract', () => {
     { label: 'over-bucket reducible ratio', source: { width: 10000, height: 6000 }, maxSide: 2048 },
     { label: 'over-bucket coprime ratio', source: { width: 4096, height: 1537 }, maxSide: 2048 },
     { label: 'under-bucket non-square ratio', source: { width: 317, height: 113 }, maxSide: 1024 },
-  ])('preserves exact source ratio through mock edit writeback: $label', async ({ source, maxSide }) => {
-    const result = await runRoundTrip(source, maxSide);
-    const providerInputSize = {
-      width: result.providerInputPlan.targetWidth,
-      height: result.providerInputPlan.targetHeight,
-    };
+  ])('keeps exact-frame placement when provider output matches input-derived exact size: $label', async ({ source, maxSide }) => {
+    const result = await runRoundTrip(source, maxSide, {
+      outputSelection: {
+        geometry: { kind: 'input-derived', mode: 'exact-size' },
+        outputFormat: 'png',
+      },
+    });
 
-    expect(result.providerInputPlan.fit).toBe('preserve-ratio');
-    expect(sameRatio(providerInputSize, source), exactRatioMessage(providerInputSize, source)).toBe(true);
-    expect(sameRatio(result.providerOutputSize, source), exactRatioMessage(result.providerOutputSize, source)).toBe(true);
-    expect(sameRatio(result.tempWriteSize, source), exactRatioMessage(result.tempWriteSize, source)).toBe(true);
+    expect(result.providerOutputSize).toEqual(result.providerInputPlan.targetSize);
+    expect(result.tempWriteSize).toEqual(result.providerInputPlan.targetSize);
     expect(result.placementKind).toBe('exact-frame');
     expect(result.scalePlacedLayer).toHaveBeenCalledTimes(1);
     expect(result.translatePlacedLayer).toHaveBeenCalledTimes(1);
+  });
+
+  it('falls back to document-only when provider output misses input-derived exact size', async () => {
+    const result = await runRoundTrip({ width: 4096, height: 1537 }, 2048, {
+      outputSelection: {
+        geometry: { kind: 'input-derived', mode: 'exact-size' },
+        outputFormat: 'png',
+      },
+      providerOutputSize: { width: 2048, height: 770 },
+    });
+
+    expect(result.providerInputPlan.targetSize).toEqual({ width: 2048, height: 769 });
+    expect(result.providerOutputSize).toEqual({ width: 2048, height: 770 });
+    expect(result.scalePlacedLayer).not.toHaveBeenCalled();
+    expect(result.translatePlacedLayer).not.toHaveBeenCalled();
   });
 });

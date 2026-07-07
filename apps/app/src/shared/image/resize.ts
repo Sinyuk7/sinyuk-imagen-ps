@@ -16,8 +16,6 @@ export interface ModelSizePolicy {
 
 export interface ProviderInputSizePolicy {
   readonly maxSide: number;
-  readonly minSide?: number;
-  readonly multiple?: number;
 }
 
 export type CaptureDownscaleMode = 'photoshop-target-size' | 'app-area';
@@ -44,21 +42,10 @@ export interface ResolvedModelSize {
 }
 
 export interface ProviderInputPlan {
-  readonly sourceWidth: number;
-  readonly sourceHeight: number;
-  readonly targetWidth: number;
-  readonly targetHeight: number;
-  readonly scale: number;
-  readonly fit: 'preserve-ratio';
-  readonly maxSideBucket: number;
-  readonly preferredMultiple: number;
-  readonly effectiveMultiple: number;
-  readonly minSide: number;
-  readonly maxSide: number;
-  readonly multiple: number;
-  readonly wasResized: boolean;
-  readonly wasUpscaled: boolean;
-  readonly wasDownscaled: boolean;
+  readonly kind: 'passthrough' | 'resize';
+  readonly sourceSize: ImageSize;
+  readonly targetSize: ImageSize;
+  readonly aspectRatioError: number;
 }
 
 export const DEFAULT_MODEL_SIZE_POLICY = {
@@ -67,8 +54,6 @@ export const DEFAULT_MODEL_SIZE_POLICY = {
   maxAspectError: 0.0005,
   minLongSideUtilization: 0.9,
 } as const satisfies Required<ModelSizePolicy>;
-
-export const DEFAULT_PROVIDER_INPUT_MIN_SIDE = 1024;
 
 export const DEFAULT_IMAGE_RESIZE_STRATEGY = {
   captureDownscaleMode: 'photoshop-target-size',
@@ -135,17 +120,6 @@ function floorToMultiple(value: number, multiple: number): number {
 
 function aspectError(ratioX: number, ratioY: number): number {
   return Math.abs(ratioX - ratioY) / Math.max(ratioX, ratioY);
-}
-
-function greatestCommonDivisor(a: number, b: number): number {
-  let x = Math.abs(a);
-  let y = Math.abs(b);
-  while (y !== 0) {
-    const next = x % y;
-    x = y;
-    y = next;
-  }
-  return x || 1;
 }
 
 function createResolvedSize(
@@ -289,82 +263,52 @@ export function resolveModelSize(originalSize: ImageSize, options: ModelSizePoli
   return bestCandidate;
 }
 
+function assertProviderInputMaxSide(maxSide: number | undefined): asserts maxSide is number {
+  if (maxSide === undefined || !Number.isInteger(maxSide) || maxSide <= 0) {
+    throw new RangeError(`effectiveProviderMaxSide must be a positive integer, got ${maxSide}`);
+  }
+}
+
+export function sourceSatisfiesProviderInputPolicy(
+  sourceSize: ImageSize,
+  policy: ProviderInputSizePolicy,
+): boolean {
+  assertPositiveInteger('sourceSize.width', sourceSize.width);
+  assertPositiveInteger('sourceSize.height', sourceSize.height);
+  assertProviderInputMaxSide(policy.maxSide);
+  return sourceSize.width <= policy.maxSide && sourceSize.height <= policy.maxSide;
+}
+
 export function resolveProviderInputPlan(
   originalSize: ImageSize,
   policy: ProviderInputSizePolicy,
 ): ProviderInputPlan {
   assertPositiveInteger('originalSize.width', originalSize.width);
   assertPositiveInteger('originalSize.height', originalSize.height);
-  if (policy.maxSide === undefined || !Number.isInteger(policy.maxSide) || policy.maxSide <= 0) {
-    throw new RangeError(`effectiveProviderMaxSide must be a positive integer, got ${policy.maxSide}`);
-  }
-  const preferredMultiple = policy.multiple ?? DEFAULT_MODEL_SIZE_POLICY.multiple;
-  assertPositiveInteger('providerInputMultiple', preferredMultiple);
-  const ratioDivisor = greatestCommonDivisor(originalSize.width, originalSize.height);
-  const ratioWidth = originalSize.width / ratioDivisor;
-  const ratioHeight = originalSize.height / ratioDivisor;
-  const ratioLongSide = Math.max(ratioWidth, ratioHeight);
-  const targetScale = policy.maxSide / ratioLongSide;
+  assertProviderInputMaxSide(policy.maxSide);
 
-  const candidateFor = (effectiveMultiple: number): ProviderInputPlan | undefined => {
-    const dimensionsNeedScaleMultiple =
-      leastCommonMultiple(
-        effectiveMultiple / greatestCommonDivisor(ratioWidth, effectiveMultiple),
-        effectiveMultiple / greatestCommonDivisor(ratioHeight, effectiveMultiple),
-      );
-    const nearestScale = Math.max(dimensionsNeedScaleMultiple, Math.round(targetScale / dimensionsNeedScaleMultiple) * dimensionsNeedScaleMultiple);
-    const lowerScale = Math.max(dimensionsNeedScaleMultiple, nearestScale - dimensionsNeedScaleMultiple);
-    const upperScale = nearestScale + dimensionsNeedScaleMultiple;
-    const scaleFactor = [lowerScale, nearestScale, upperScale].sort((a, b) => {
-      const diff = Math.abs((ratioLongSide * a) - policy.maxSide) - Math.abs((ratioLongSide * b) - policy.maxSide);
-      return diff !== 0 ? diff : a - b;
-    })[0];
-    if (!Number.isInteger(scaleFactor) || scaleFactor <= 0) {
-      return undefined;
-    }
-    const targetWidth = ratioWidth * scaleFactor;
-    const targetHeight = ratioHeight * scaleFactor;
-    const scale = targetWidth / originalSize.width;
+  const sourceSize = { width: originalSize.width, height: originalSize.height };
+  if (sourceSatisfiesProviderInputPolicy(sourceSize, policy)) {
     return {
-      sourceWidth: originalSize.width,
-      sourceHeight: originalSize.height,
-      targetWidth,
-      targetHeight,
-      scale,
-      fit: 'preserve-ratio',
-      maxSideBucket: policy.maxSide,
-      preferredMultiple,
-      effectiveMultiple,
-      minSide: policy.minSide ?? 0,
-      maxSide: policy.maxSide,
-      multiple: effectiveMultiple,
-      wasResized: targetWidth !== originalSize.width || targetHeight !== originalSize.height,
-      wasUpscaled: scale > 1,
-      wasDownscaled: scale < 1,
+      kind: 'passthrough',
+      sourceSize,
+      targetSize: sourceSize,
+      aspectRatioError: 0,
     };
+  }
+
+  const scale = policy.maxSide / Math.max(sourceSize.width, sourceSize.height);
+  const targetSize = {
+    width: Math.min(sourceSize.width, policy.maxSide, Math.max(1, Math.round(sourceSize.width * scale))),
+    height: Math.min(sourceSize.height, policy.maxSide, Math.max(1, Math.round(sourceSize.height * scale))),
   };
 
-  const preferred = candidateFor(preferredMultiple);
-  const fallback = preferredMultiple === 1 ? preferred : candidateFor(1);
-  const planSource = [preferred, fallback]
-    .filter((candidate): candidate is ProviderInputPlan => candidate !== undefined)
-    .sort((a, b) => {
-      const aDistance = Math.abs(Math.max(a.targetWidth, a.targetHeight) - policy.maxSide);
-      const bDistance = Math.abs(Math.max(b.targetWidth, b.targetHeight) - policy.maxSide);
-      const distanceDiff = aDistance - bDistance;
-      if (distanceDiff !== 0) {
-        return distanceDiff;
-      }
-      return b.effectiveMultiple - a.effectiveMultiple;
-    })[0];
-  if (!planSource) {
-    throw new Error('No valid provider input target size found.');
-  }
-  return planSource;
-}
-
-function leastCommonMultiple(a: number, b: number): number {
-  return Math.abs(a * b) / greatestCommonDivisor(a, b);
+  return {
+    kind: 'resize',
+    sourceSize,
+    targetSize,
+    aspectRatioError: aspectError(targetSize.width / sourceSize.width, targetSize.height / sourceSize.height),
+  };
 }
 
 export function resolveCaptureUploadPlan(

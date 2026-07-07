@@ -319,6 +319,7 @@ export function createFakeModules(options?: {
   readonly pixelResultSourceBounds?: { readonly left: number; readonly top: number; readonly right: number; readonly bottom: number };
   readonly pixelResultLevel?: number;
   readonly pixelResultSize?: { readonly width: number; readonly height: number };
+  readonly selectionResultSize?: { readonly width: number; readonly height: number };
 }): {
   readonly modules: UxpModules;
   readonly spies: {
@@ -384,7 +385,10 @@ export function createFakeModules(options?: {
     ...(options?.pixelResultLevel !== undefined ? { level: options.pixelResultLevel } : {}),
   }));
   const getSelection = vi.fn(async (request?: { readonly targetSize?: { readonly width?: number; readonly height?: number } }) => ({
-    imageData: createMaskImageData(request?.targetSize?.width, request?.targetSize?.height),
+    imageData: createMaskImageData(
+      options?.selectionResultSize?.width ?? request?.targetSize?.width,
+      options?.selectionResultSize?.height ?? request?.targetSize?.height,
+    ),
   }));
   const getLayerMask = vi.fn(async () => ({ imageData: createMaskImageData() }));
   const encodeImageData = vi.fn(async () => new Uint8Array([0xff, 0xd8, 0xff, 0xd9]));

@@ -5,6 +5,7 @@ import {
   resolveCaptureUploadPlan,
   resolveModelSize,
   resolveProviderInputPlan,
+  sourceSatisfiesProviderInputPolicy,
   upscaleBilinear,
   type RgbaImage,
 } from '../../src/shared/image/resize';
@@ -89,68 +90,60 @@ describe('shared image contract', () => {
     expect(resolved.effectiveMultiple).toBe(1);
   });
 
-  it('resolves provider input downscale near the selected max side without ratio drift', () => {
+  it('resolves provider input with a hard ceiling and no upscale', () => {
     const square = resolveProviderInputPlan({ width: 4096, height: 4096 }, { maxSide: 2048 });
     expect(square).toMatchObject({
-      sourceWidth: 4096,
-      sourceHeight: 4096,
-      targetWidth: 2048,
-      targetHeight: 2048,
-      fit: 'preserve-ratio',
-      maxSideBucket: 2048,
-      preferredMultiple: 2,
-      effectiveMultiple: 2,
-      maxSide: 2048,
-      multiple: 2,
-      wasResized: true,
-      wasUpscaled: false,
-      wasDownscaled: true,
+      kind: 'resize',
+      sourceSize: { width: 4096, height: 4096 },
+      targetSize: { width: 2048, height: 2048 },
+      aspectRatioError: 0,
     });
 
     const wide = resolveProviderInputPlan({ width: 10000, height: 6000 }, { maxSide: 2048 });
-    expect(wide.targetWidth).toBe(2050);
-    expect(wide.targetHeight).toBe(1230);
-    expect(wide.targetWidth / wide.targetHeight).toBe(10000 / 6000);
-    expect(wide.wasDownscaled).toBe(true);
+    expect(wide).toMatchObject({
+      kind: 'resize',
+      sourceSize: { width: 10000, height: 6000 },
+      targetSize: { width: 2048, height: 1229 },
+    });
+    expect(wide.aspectRatioError).toBeGreaterThan(0);
+    expect(sourceSatisfiesProviderInputPolicy(wide.targetSize, { maxSide: 2048 })).toBe(true);
   });
 
-  it('treats provider input max side as a bucket target, not a short-side minimum', () => {
-    const plan = resolveProviderInputPlan({ width: 512, height: 512 }, { maxSide: 512 });
+  it('keeps small sources as passthrough without upscale', () => {
+    const plan = resolveProviderInputPlan({ width: 64, height: 64 }, { maxSide: 2048 });
 
     expect(plan).toMatchObject({
-      sourceWidth: 512,
-      sourceHeight: 512,
-      targetWidth: 512,
-      targetHeight: 512,
-      maxSideBucket: 512,
-      maxSide: 512,
-      wasResized: false,
-      wasUpscaled: false,
-      wasDownscaled: false,
+      kind: 'passthrough',
+      sourceSize: { width: 64, height: 64 },
+      targetSize: { width: 64, height: 64 },
+      aspectRatioError: 0,
     });
   });
 
   it('uses each provider max side as the only ceiling', () => {
-    expect(resolveProviderInputPlan({ width: 4096, height: 4096 }, { maxSide: 1024 }).targetWidth).toBe(1024);
-    expect(resolveProviderInputPlan({ width: 4096, height: 4096 }, { maxSide: 2048 }).targetWidth).toBe(2048);
-    expect(resolveProviderInputPlan({ width: 4096, height: 4096 }, { maxSide: 4096 }).targetWidth).toBe(4096);
+    expect(resolveProviderInputPlan({ width: 4096, height: 4096 }, { maxSide: 1024 }).targetSize.width).toBe(1024);
+    expect(resolveProviderInputPlan({ width: 4096, height: 4096 }, { maxSide: 2048 }).targetSize.width).toBe(2048);
+    expect(resolveProviderInputPlan({ width: 4096, height: 4096 }, { maxSide: 4096 }).targetSize.width).toBe(4096);
   });
 
-  it('preserves reduced source ratio and degrades the multiple before accepting drift', () => {
-    const plan = resolveProviderInputPlan({ width: 345, height: 321 }, { maxSide: 1024, multiple: 2 });
+  it('quantizes portrait sources inside the ceiling without exceeding maxSide', () => {
+    const plan = resolveProviderInputPlan({ width: 4096, height: 1537 }, { maxSide: 2048 });
 
     expect(plan).toMatchObject({
-      targetWidth: 1035,
-      targetHeight: 963,
-      fit: 'preserve-ratio',
-      maxSideBucket: 1024,
-      preferredMultiple: 2,
-      effectiveMultiple: 1,
-      multiple: 1,
+      kind: 'resize',
+      sourceSize: { width: 4096, height: 1537 },
+      targetSize: { width: 2048, height: 769 },
     });
-    expect(plan.targetWidth).not.toBe(1016);
-    expect(plan.targetHeight).not.toBe(946);
-    expect(plan.targetWidth / plan.targetHeight).toBe(345 / 321);
+    expect(plan.targetSize.width).toBeLessThanOrEqual(2048);
+    expect(plan.targetSize.height).toBeLessThanOrEqual(2048);
+    expect(plan.aspectRatioError).toBeGreaterThan(0);
+  });
+
+  it('resizes coprime near-square sources instead of passing them through', () => {
+    expect(resolveProviderInputPlan({ width: 4096, height: 4095 }, { maxSide: 2048 })).toMatchObject({
+      kind: 'resize',
+      targetSize: { width: 2048, height: 2048 },
+    });
   });
 
   it('rejects missing or invalid provider input max size before pixel reads', () => {

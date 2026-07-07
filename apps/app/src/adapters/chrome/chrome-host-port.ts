@@ -2,7 +2,11 @@ import type { Asset, AssetStore, StoredAssetRef } from '@imagen-ps/application';
 import { assetToArrayBuffer, suggestedAssetFileName } from '../../shared/domain/asset-file';
 import { createHostImageAsset, type HostImageAsset } from '../../shared/domain/host-image-asset';
 import type { PlacementIntent, PhotoshopCaptureResult } from '../../shared/domain/photoshop-placement';
-import { resolveProviderInputPlan, type ProviderInputSizePolicy } from '../../shared/image/resize';
+import {
+  resolveProviderInputPlan,
+  sourceSatisfiesProviderInputPolicy,
+  type ProviderInputSizePolicy,
+} from '../../shared/image/resize';
 import type { RuntimeImageUrl } from '../../shared/image/runtime-image-url';
 import { NON_UXP_RUNTIME_CAPABILITIES, type HostBridge, type LayerInfo } from '../../shared/ports/host-port';
 import type { PhotoshopSimulator } from '../../simulators/photoshop/simulator';
@@ -78,13 +82,14 @@ function ensureFileMatchesProviderInputPolicy(bytes: Uint8Array, mimeType: strin
   if (!size) {
     throw new Error(`Cannot inspect local image dimensions for provider input: ${mimeType}.`);
   }
-  const plan = resolveProviderInputPlan(size, policy);
-  if (plan.wasDownscaled) {
-    throw new Error(
-      `Local image requires provider input normalization from ${plan.sourceWidth}x${plan.sourceHeight} to ${plan.targetWidth}x${plan.targetHeight}, ` +
-        'but this runtime has no verified local file derivative path. Use Photoshop Capture or Choose Layer for normalized provider input.',
-    );
+  if (sourceSatisfiesProviderInputPolicy(size, policy)) {
+    return;
   }
+  const plan = resolveProviderInputPlan(size, policy);
+  throw new Error(
+    `Local image requires provider input normalization from ${plan.sourceSize.width}x${plan.sourceSize.height} to ${plan.targetSize.width}x${plan.targetSize.height}, ` +
+      'but this runtime has no verified local file derivative path. Use Photoshop Capture or Choose Layer for normalized provider input.',
+  );
 }
 
 function storedRefToAssetPayload(ref: StoredAssetRef): Asset {
