@@ -1,95 +1,330 @@
-# Photoshop Capture Host RCA
+# Photoshop UXP Capture Failure RCA
 
-## Scope
+## Purpose
 
-This note records a manual-only RCA for a real Photoshop UXP capture failure in
-`apps/app` `captureActiveImage()`. It is intentionally limited to stable host
-facts that were reproduced against a real Photoshop document and observed in the
-UXP log stream.
+This note documents a real-host Adobe Photoshop UXP capture failure that was
+reproduced manually against an existing PSD, investigated through staged host
+logging, and narrowed to Photoshop-side imaging behavior.
 
-## Symptom
+It is written for readers who do not know this repository. Photoshop terms come
+first. Repository-specific method names and log events appear only at the end.
 
-- The main-page `Capture` action fails for one specific Photoshop document while
-  the same action succeeds in a newly created document.
-- In the problematic document, every tested non-`Background` layer failed:
-  normal pixel layers, `Background copy`, selection-based captures, and smart
-  object layers.
-- Direct human selection of the real `Background` layer still succeeds in the
-  same document.
+## Executive Summary
 
-## Failure Boundary
+In one problematic Photoshop document, capture repeatedly failed when started
+from almost any non-Background layer, including regular pixel layers. The same
+capture flow worked in a newly created document, and manual capture from the
+real Background layer also worked in the problematic document.
 
-- The failure occurs before provider execution, job creation, or placement
-  replay logic.
-- The failing method is `apps/app/src/adapters/uxp/photoshop-host-bridge.ts`
-  `captureActiveImage()`.
-- The actual host error comes from Photoshop imaging reads:
+The failure was thrown by Photoshop during imaging reads, not by provider
+execution, placement, or downstream application logic.
 
-  `Photoshop Error. Code: -32005. Message: Could not update smart object files ^0.`
+The decisive error was:
 
-- The failure is not thumbnail-only. It also affects:
-  - layer pixel reads
-  - composite reads without `layerID`
-  - selection-based capture reads
+`Photoshop Error. Code: -32005. Message: Could not update smart object files ^0.`
+
+Despite that message, the issue was **not limited to Smart Objects**. It also
+reproduced on ordinary pixel layers.
+
+The final working mitigation was to stop reading pixels directly from the
+current document/layer context after failure, and instead read pixels through a
+temporary duplicate document path.
+
+## Host Context
+
+Observed during manual reproduction on a real Photoshop document:
+
+- Problem document: `DSC08453.psd`
+- Observed document id in logs: `59`
+- Resolution at reproduction time: `72 ppi`
+- Reproduction surface: Photoshop UXP plugin main-page `Capture` action
+
+Important comparison cases:
+
+- A newly created Photoshop document did **not** show the failure.
+- In the problematic PSD, manual capture from the real `Background` layer could
+  still succeed.
+
+## User-Visible Symptom
+
+From the panel, clicking `Capture` showed repeated failure prompts.
+
+Observed pattern:
+
+- Many different non-Background layers failed, not one single bad layer.
+- Failures reproduced multiple times in the same PSD.
+- Switching to another/new document made the feature work again.
+- The user later confirmed a strong asymmetry:
+  - `Background` could succeed
+  - other tested layers failed
+
+## What Actually Failed
+
+The failing operation was Photoshop pixel extraction through the UXP imaging
+API.
+
+This is the important boundary:
+
+- Failure happened before any model/provider request.
+- Failure happened before placement replay.
+- Failure happened before output handling.
+- Failure happened inside Photoshop-side pixel read paths.
+
+So this was **not**:
+
+- a provider bug
+- a task/job pipeline bug
+- a placement bug
+- a thumbnail UI-only bug
+
+## Exact Host Error
+
+Main reproduced host error:
+
+`Photoshop Error. Code: -32005. Message: Could not update smart object files ^0.`
+
+Earlier RCA probes also covered another Photoshop-side read failure string:
+
+`Photoshop Error. Code: -32005. Message: Could not import the clipboard ^0.`
+
+These messages were treated as Photoshop host-read failures, not as evidence
+that the application was using clipboard import or that only Smart Objects were
+involved.
+
+## Experiment Timeline
+
+### 1. Check whether this is one bad layer only
+
+Test:
+
+- Retry capture on multiple layers in the same PSD.
+
+Observed:
+
+- Failures were not isolated to one layer.
+- Multiple non-Background layers failed repeatedly.
+
+Conclusion:
+
+- Not a single corrupted layer.
+
+### 2. Check whether Smart Objects are the only failing layer type
+
+Test:
+
+- Retry capture on ordinary non-Smart-Object layers.
+
+Observed:
+
+- Regular pixel layers also failed.
+
+Conclusion:
+
+- Error string mentioned Smart Object update, but real failure class was
+  broader than Smart Objects.
+
+### 3. Check whether document resolution is the trigger
+
+Hypothesis:
+
+- The document might fail because it is `300 ppi`.
+
+Observed:
+
+- The document used in reproduction was actually `72 ppi`.
+
+Conclusion:
+
+- DPI / resolution was ruled out.
+
+### 4. Check whether this is a thumbnail-only problem
+
+Reason:
+
+- A common failure shape is "thumbnail read fails, full capture still works".
+
+Test:
+
+- Add logs to distinguish thumbnail generation from main capture pixel read.
+
+Observed:
+
+- Failure was not confined to preview/thumbnail generation.
+- Main capture pixel read could fail too.
+
+Conclusion:
+
+- Not only a preview or thumbnail problem.
+
+### 5. Check whether reading the document composite avoids the bad layer
+
+Test:
+
+- After layer-scoped pixel read failure, try another Photoshop imaging read
+  without a `layerID`, i.e. a composite read from the document.
+
+Observed:
+
+- Composite read could fail too in the problematic document.
+
+Conclusion:
+
+- Failure was not limited to the exact per-layer imaging call.
+- The broader document imaging state could already be bad.
+
+### 6. Check whether switching active layer to Background fixes it
+
+Test:
+
+- Temporarily switch the active layer to the real `Background`.
+- Retry composite capture.
+- Restore the original active layer.
+
+Observed:
+
+- Manual human selection of `Background` could succeed.
+- Script-driven switching to `Background` did **not** reliably restore pixel
+  reads.
+
+Conclusion:
+
+- "Just set active layer to Background in script" was not sufficient.
+- Photoshop's script-visible state was not equivalent to the manual UI state
+  transition performed by a human.
+
+### 7. Check whether soft layer assignment is the issue
+
+Test:
+
+- Do not rely only on `activeDocument.activeLayers = [...]`.
+- Use stronger Photoshop-native selection through `batchPlay select`.
+
+Observed:
+
+- Even with explicit Photoshop selection plus redraw, the failure still
+  reproduced.
+
+Conclusion:
+
+- Not just a soft JavaScript-side active-layer assignment problem.
+
+### 8. Check whether same-modal contamination explains the failure
+
+Hypothesis:
+
+- Maybe earlier failure poisoned only the current modal execution scope.
+
+Test:
+
+- After main failure, open a fresh modal execution.
+- Re-select `Background`.
+- Re-run the probe there.
+
+Observed:
+
+- The fresh modal probe could still fail with the same host error.
+
+Conclusion:
+
+- Not only a same-modal contamination problem.
+
+### 9. Check whether the issue is document-specific rather than globally broken
+
+Test:
+
+- Retry the same feature in a newly created Photoshop document.
+
+Observed:
+
+- Capture worked in the new document.
+
+Conclusion:
+
+- The Photoshop installation or plugin flow was not globally broken.
+- The failure depended on the state/content/history of the problematic PSD.
 
 ## What Was Ruled Out
 
-- DPI was not the cause. The problematic document was reproduced at `72 dpi`.
-- Smart objects were not the only cause. Regular pixel layers failed too.
-- A single corrupted layer was not the cause. Multiple non-`Background` layers
-  failed consistently.
-- Thumbnail generation was not the only failing path. Full capture reads failed
-  at the same time.
-- Soft layer switching was not the cause. Programmatic
-  `activeDocument.activeLayers = [backgroundLayer]` did not recover reads.
-- Lack of a real host selection was not the cause. A `batchPlay`-based
-  `select Background` probe still failed.
-- Same-modal contamination was not the full explanation. A second probe in a
-  fresh modal scope still failed with the same `-32005` error.
+By the end of investigation, these explanations were ruled out:
 
-## Probe Progress
+- one corrupted layer only
+- Smart Object layers only
+- document DPI / `300 ppi` suspicion
+- preview-only or thumbnail-only failure
+- simple `activeLayers` assignment issue
+- lack of Photoshop-native layer selection
+- same-modal-only contamination
+- provider/model/request pipeline issue
+- placement/writeback issue
 
-The host bridge gained staged RCA logging and a series of increasingly strong
-probes:
+## Best Current Explanation
 
-1. Added stable failure-stage logging for thumbnail, capture, selection, PNG
-   encode, and asset-store boundaries.
-2. Allowed preview failure fallback so body capture could continue far enough to
-   reveal the real failing stage.
-3. Added a composite probe without `layerID` after layer-read failure.
-4. Added a `Background` composite probe after programmatic layer switch.
-5. Replaced soft selection with `batchPlay` layer selection plus redraw.
-6. Added a second `Background` probe in a fresh modal scope after the main
-   capture failed.
+The strongest interpretation is:
 
-These probes established that all script-level recovery attempts still failed on
-the same document once capture started from a non-`Background` layer.
+- In this PSD, starting capture from many non-Background layers could push
+  Photoshop imaging reads into a bad document/layer state.
+- Once in that state, direct UXP imaging reads from the original document were
+  unreliable.
+- Manual Photoshop UI interaction with the real `Background` layer could still
+  succeed, but equivalent script-driven state changes could still fail.
 
-## Final Conclusion
+So the problem was best treated as a **Photoshop host imaging behavior tied to
+this document context**, not as an application-layer bug.
 
-For this problematic document, the failure is best treated as a Photoshop host
-imaging failure tied to the current document and active-layer context, not as an
-application, provider, task-history, placement, or preview-only bug.
+## Practical Product Direction
 
-More specifically:
+Because repeated direct reads in the same document context were not reliable,
+the best workaround direction was to stop insisting on "read pixels directly
+from current document + current layer context".
 
-- Starting capture from a non-`Background` layer can put Photoshop imaging reads
-  into a bad state for that document.
-- Script-level recovery through `batchPlay` background selection, redraw, and a
-  new modal probe was not enough to restore `imaging.getPixels()`.
-- Human manual selection of `Background` before capture still succeeds, which
-  means the script-visible host state does not fully reproduce the manual host
-  state transition.
+Safer workaround family:
 
-## Log Events To Check First
+- duplicate document
+- merged copy
+- flatten temporary document
+- read pixels from the temporary document
 
-When this class of issue reappears, inspect these events in
-`logs/YYYY-MM-DD/imagen.jsonl` first:
+This changes the capture source from "live problematic document state" to
+"fresh temporary document state", which is closer to a host-side isolation
+workaround than a retry.
+
+## Repository Mapping
+
+Only after the host conclusion was stable did the repository adopt an explicit
+fallback.
+
+Relevant application method:
+
+- `apps/app/src/adapters/uxp/photoshop-host-bridge.ts`
+- method: `captureActiveImage()`
+
+Current fallback behavior:
+
+1. Try direct layer-scoped pixel read.
+2. If that fails, record stable RCA logs.
+3. Fall back to:
+   - `document.duplicate(name, true)`
+   - `flatten()` when available, otherwise `mergeVisibleLayers()`
+   - composite `imaging.getPixels()` on the temporary document
+   - close temp document
+   - restore previous active document
+
+This fallback is a product workaround, not proof that Photoshop root cause was
+fully fixed.
+
+## Stable Log Events
+
+For future incidents of this class, inspect these events first:
 
 - `hostbridge.capture_active_image.preview_unavailable`
+- `hostbridge.capture_active_image.composite_probe.ok`
 - `hostbridge.capture_active_image.composite_probe.fail`
+- `hostbridge.capture_active_image.background_composite_probe.ok`
 - `hostbridge.capture_active_image.background_composite_probe.fail`
+- `hostbridge.capture_active_image.background_modal_probe.ok`
 - `hostbridge.capture_active_image.background_modal_probe.fail`
+- `hostbridge.capture_active_image.temp_document_fallback.ok`
+- `hostbridge.capture_active_image.temp_document_fallback.fail`
 - `hostbridge.capture_active_image.fail`
 
 Useful fields:
@@ -97,13 +332,25 @@ Useful fields:
 - `failedStage`
 - `sourceKind`
 - `layerId`
+- `documentId`
+- `documentResolution`
+- `previewFailureMessage`
 - `backgroundProbeSelectionMethod`
 - `backgroundProbeRedrawElapsedSeconds`
-- `previewFailureMessage`
+- `captureFallbackUsed`
 
-## Practical Next Step
+## Final Takeaway
 
-If a product workaround is required, prefer a host-side fallback that avoids
-direct capture from the problematic layer context, for example by moving through
-a temporary document or another host-native isolation path, instead of assuming
-that additional `imaging.getPixels()` retries will recover the same document.
+Do not over-read Photoshop's error text literally here.
+
+Even though Photoshop reported `Could not update smart object files`, the real
+observed incident was broader:
+
+- non-Background layers failed repeatedly
+- ordinary pixel layers were affected
+- a new document worked
+- manual `Background` interaction could work
+- script-driven reads in the original document context remained unreliable
+
+That is why the correct engineering response was not "retry harder" but "leave
+the bad document context and read through a temporary duplicate document path".
