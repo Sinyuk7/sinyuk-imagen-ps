@@ -362,12 +362,16 @@ export function MainPage({
   const [selectedPreviewIndexes, setSelectedPreviewIndexes] = useState<Record<string, number>>({});
   const [placeStatus, setPlaceStatus] = useState<Record<string, PlaceStatus>>({});
   const [roundBillingMeta, setRoundBillingMeta] = useState<Record<string, RoundBillingMeta>>({});
+  const [expandedPrompts, setExpandedPrompts] = useState<Record<string, boolean>>({});
+  const [overflowingPrompts, setOverflowingPrompts] = useState<Record<string, boolean>>({});
   const [expandedResponses, setExpandedResponses] = useState<Record<string, boolean>>({});
   const [overflowingResponses, setOverflowingResponses] = useState<Record<string, boolean>>({});
   const [highlightKey, setHighlightKey] = useState<string | null>(null);
   const [scrolledAway, setScrolledAway] = useState(false);
   const convRef = useRef<HTMLDivElement>(null);
   const taRef = useRef<HTMLTextAreaElement>(null);
+  const promptFoldRefs = useRef<Map<string, HTMLDivElement>>(new Map());
+  const promptTextRefs = useRef<Map<string, HTMLDivElement>>(new Map());
   const responseFoldRefs = useRef<Map<string, HTMLDivElement>>(new Map());
   const responseTextRefs = useRef<Map<string, HTMLDivElement>>(new Map());
   const previousRoundStatusRef = useRef<Record<string, ConversationRound['status']>>({});
@@ -539,6 +543,19 @@ export function MainPage({
       }
       return changed ? next : current;
     });
+    setExpandedPrompts((current) => {
+      let changed = false;
+      const liveRoundIds = new Set(conversation.rounds.map((round) => round.id));
+      const next: Record<string, boolean> = {};
+      for (const [roundId, expanded] of Object.entries(current)) {
+        if (liveRoundIds.has(roundId)) {
+          next[roundId] = expanded;
+        } else {
+          changed = true;
+        }
+      }
+      return changed ? next : current;
+    });
     setPlaceStatus((current) => {
       let changed = false;
       const liveRoundIds = new Set(conversation.rounds.map((round) => round.id));
@@ -562,6 +579,31 @@ export function MainPage({
         } else {
           changed = true;
         }
+      }
+      return changed ? next : current;
+    });
+  }, [conversation.rounds]);
+
+  const measurePromptOverflow = useCallback(() => {
+    setOverflowingPrompts((current) => {
+      let changed = false;
+      const next: Record<string, boolean> = {};
+      for (const round of conversation.rounds) {
+        const foldElement = promptFoldRefs.current.get(round.id);
+        const contentElement = promptTextRefs.current.get(round.id);
+        if (!foldElement || !contentElement) {
+          continue;
+        }
+        const lineHeight = Number.parseFloat(window.getComputedStyle(contentElement).lineHeight);
+        const foldedHeight = Number.isFinite(lineHeight) && lineHeight > 0 ? lineHeight * 3 : 54;
+        const overflowing = contentElement.scrollHeight > foldedHeight + 1 || contentElement.offsetHeight > foldElement.clientHeight + 1;
+        next[round.id] = overflowing;
+        if (current[round.id] !== overflowing) {
+          changed = true;
+        }
+      }
+      if (Object.keys(current).length !== Object.keys(next).length) {
+        changed = true;
       }
       return changed ? next : current;
     });
@@ -593,13 +635,18 @@ export function MainPage({
   }, [conversation.rounds]);
 
   useEffect(() => {
+    measurePromptOverflow();
     measureResponseOverflow();
-  }, [conversation.rounds, expandedResponses, measureResponseOverflow]);
+  }, [conversation.rounds, expandedPrompts, expandedResponses, measurePromptOverflow, measureResponseOverflow]);
 
   useEffect(() => {
+    window.addEventListener('resize', measurePromptOverflow);
     window.addEventListener('resize', measureResponseOverflow);
-    return () => window.removeEventListener('resize', measureResponseOverflow);
-  }, [measureResponseOverflow]);
+    return () => {
+      window.removeEventListener('resize', measurePromptOverflow);
+      window.removeEventListener('resize', measureResponseOverflow);
+    };
+  }, [measurePromptOverflow, measureResponseOverflow]);
 
   useEffect(() => {
     const el = convRef.current;
@@ -728,6 +775,22 @@ export function MainPage({
       responseTextRefs.current.set(roundId, element);
     } else {
       responseTextRefs.current.delete(roundId);
+    }
+  };
+
+  const promptFoldRef = (roundId: string) => (element: HTMLDivElement | null) => {
+    if (element) {
+      promptFoldRefs.current.set(roundId, element);
+    } else {
+      promptFoldRefs.current.delete(roundId);
+    }
+  };
+
+  const promptTextRef = (roundId: string) => (element: HTMLDivElement | null) => {
+    if (element) {
+      promptTextRefs.current.set(roundId, element);
+    } else {
+      promptTextRefs.current.delete(roundId);
     }
   };
 
@@ -1129,7 +1192,41 @@ export function MainPage({
                         ))}
                       </div>
                     )}
-                    <div className="user-prompt">{round.prompt}</div>
+                    <div
+                      className="user-prompt"
+                      data-testid={`user-prompt-shell-${round.id}`}
+                      data-expanded={expandedPrompts[round.id] ? 'true' : undefined}
+                      data-overflowing={overflowingPrompts[round.id] ? 'true' : undefined}
+                    >
+                      <div
+                        ref={promptFoldRef(round.id)}
+                        data-testid={`user-prompt-body-${round.id}`}
+                        className="user-prompt-body"
+                      >
+                        <div
+                          ref={promptTextRef(round.id)}
+                          data-testid={`user-prompt-text-${round.id}`}
+                          className="user-prompt-text"
+                        >
+                          {round.prompt}
+                        </div>
+                      </div>
+                      {overflowingPrompts[round.id] && (
+                        <div className="user-prompt-actions">
+                          <button
+                            type="button"
+                            data-testid={`user-prompt-toggle-${round.id}`}
+                            className="user-prompt-toggle"
+                            onClick={(event) => {
+                              event.stopPropagation();
+                              setExpandedPrompts((current) => ({ ...current, [round.id]: !current[round.id] }));
+                            }}
+                          >
+                            {expandedPrompts[round.id] ? `${t.main.collapsePrompt} ▴` : `${t.main.expandPrompt} ▾`}
+                          </button>
+                        </div>
+                      )}
+                    </div>
                   </div>
                   <div className="user-meta">
                     <span className="msg-time">{round.time}</span>

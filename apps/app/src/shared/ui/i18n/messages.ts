@@ -62,6 +62,8 @@ export interface AppMessages {
     readonly copyResponse: string;
     readonly requestId: string;
     readonly copyRequestId: string;
+    readonly expandPrompt: string;
+    readonly collapsePrompt: string;
     readonly expandResponse: string;
     readonly collapseResponse: string;
     readonly textResult: string;
@@ -438,6 +440,8 @@ const EN_MESSAGES: AppMessages = {
     copyResponse: 'Copy response',
     requestId: 'Request ID',
     copyRequestId: 'Copy request ID',
+    expandPrompt: 'Expand prompt',
+    collapsePrompt: 'Collapse prompt',
     expandResponse: 'Expand response',
     collapseResponse: 'Collapse response',
     textResult: 'Text result',
@@ -823,6 +827,8 @@ const ZH_CN_MESSAGES: AppMessages = {
     copyResponse: '复制结果',
     requestId: 'Request ID',
     copyRequestId: '复制请求 ID',
+    expandPrompt: '展开提示词',
+    collapsePrompt: '收起提示词',
     expandResponse: '展开响应',
     collapseResponse: '收起响应',
     textResult: '文本结果',

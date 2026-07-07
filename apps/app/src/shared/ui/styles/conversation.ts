@@ -45,17 +45,53 @@ export const CONVERSATION_CSS = `
   font-family:var(--app-font-family-mono); font-size:12px; font-weight:600; color:#fff;
 }
 .user-prompt{
-  font-size:13px; line-height:18px; color:var(--app-color-text-primary);
-  display:-webkit-box;
-  -webkit-box-orient:vertical;
-  -webkit-line-clamp:3;
+  min-width:0;
+}
+.user-prompt-body{
+  position:relative;
+  max-height:54px;
   overflow:hidden;
-  text-overflow:ellipsis;
+}
+.user-prompt[data-expanded="true"] .user-prompt-body{
+  max-height:none;
+  overflow:visible;
+}
+.user-prompt-text{
+  font-size:13px; line-height:18px; color:var(--app-color-text-primary);
   white-space:pre-wrap;
   overflow-wrap:anywhere;
   word-break:break-word;
   text-wrap:pretty;
 }
+.user-prompt-body::after{
+  content:"";
+  position:absolute;
+  right:0;
+  bottom:0;
+  left:0;
+  height:18px;
+  pointer-events:none;
+  background:linear-gradient(180deg, rgba(24,25,31,0), var(--app-color-background-elevated));
+  opacity:0;
+}
+.user-prompt[data-expanded="true"] .user-prompt-body::after{
+  display:none;
+}
+.user-prompt[data-overflowing="true"] .user-prompt-body::after{
+  opacity:1;
+}
+.user-prompt-actions{ display:flex; align-items:center; min-width:0; margin-top:5px; }
+.user-prompt-toggle{
+  padding:2px 0;
+  border:none;
+  background:transparent;
+  color:var(--app-color-text-muted);
+  font-family:var(--app-font-family-base);
+  font-size:11px;
+  line-height:15px;
+  cursor:pointer;
+}
+.user-prompt-toggle:hover{ color:var(--app-color-text-primary); }
 .user-meta{ display:flex; align-items:center; padding-right:2px; margin-top:6px; }
 .msg-time{ font-family:var(--app-font-family-mono); font-size:10px; color:var(--app-color-text-muted); }
 .copy-btn{
