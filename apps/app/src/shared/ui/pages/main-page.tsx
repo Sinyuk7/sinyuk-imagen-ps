@@ -51,7 +51,7 @@ import {
 } from '../composer-readiness';
 import { classifyRoundError, type ErrorPrimaryAction } from '../error-action';
 import type { ImageAspectRatio, ImageOutputImageSize, ImageOutputSelection } from '@imagen-ps/application';
-import { modelVisibleLabel, type UiModelInfo } from '../model-info';
+import { configurationInstanceLabel, type UiModelInfo } from '../model-info';
 import type { ModelGenerationSettingsController } from '../hooks/use-model-generation-settings';
 
 function isImeCompositionKey(event: React.KeyboardEvent): boolean {
@@ -497,7 +497,7 @@ export function MainPage({
   const selectableProfiles = profiles;
   const selectedModelInfo = uniqueModels.find((model) => model.id === selectedModelId);
   const selectedModelLabel = selectedModelInfo
-    ? modelVisibleLabel(selectedModelInfo)
+    ? configurationInstanceLabel(selectedModelInfo)
     : (selectedModelId || (modelsLoading ? t.main.modelLoading : t.main.modelUnselected));
   const currentOperation = composerDraft.operation;
   const placementIntent = useMemo(
@@ -507,7 +507,7 @@ export function MainPage({
   const modelOptions = useMemo(
     () => uniqueModels.map((model) => ({
       id: model.id,
-      label: modelVisibleLabel(model),
+      label: configurationInstanceLabel(model),
     })),
     [uniqueModels],
   );
@@ -516,7 +516,7 @@ export function MainPage({
       return undefined;
     }
     const model = uniqueModels.find((item) => item.id === modelId);
-    return model ? modelVisibleLabel(model) : modelId;
+    return model ? configurationInstanceLabel(model) : modelId;
   };
   const outputSizeOptions = useMemo(
     () => modelGenerationSettings.imageSizeOptions,

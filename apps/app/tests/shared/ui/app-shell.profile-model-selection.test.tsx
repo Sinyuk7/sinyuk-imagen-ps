@@ -87,6 +87,38 @@ describe('AppShell profile model selection flow', () => {
     expect(row?.textContent).not.toContain('gpt-image-2');
   });
 
+  it('settings page provider rows show saved config model ids for user-configured defaults', async () => {
+    const container = document.createElement('div');
+    document.body.appendChild(container);
+    const services = createReturningUserServices({
+      profiles: [{
+        ...fakeProfile,
+        defaultModelId: 'nano-banana-fast',
+        selectedModelIds: ['nano-banana-fast'],
+      }],
+      profileModelItems: [
+        profileModelItem('nano-banana-fast', {
+          displayName: 'Nano Banana 2 Lite',
+          wireModelId: 'nano-banana-fast-wire',
+          configSource: 'user',
+          default: true,
+        }),
+      ],
+    });
+    await renderMainPage(container, services);
+
+    await act(async () => {
+      container.querySelector<HTMLElement>('[data-testid="main-providers-button"]')?.click();
+    });
+    await flush();
+    await flush();
+
+    const row = container.querySelector<HTMLElement>(`[data-testid="provider-row-${fakeProfile.profileId}"]`);
+    expect(row?.textContent).toContain('nano-banana-fast');
+    expect(row?.textContent).not.toContain('Nano Banana 2 Lite');
+    expect(row?.textContent).not.toContain('nano-banana-fast-wire');
+  });
+
   it('opens model configuration list from settings page instead of create editor', async () => {
     const container = document.createElement('div');
     document.body.appendChild(container);
@@ -266,8 +298,11 @@ describe('AppShell profile model selection flow', () => {
     });
     await flush();
 
+    const userOption = document.body.querySelector<HTMLElement>('[data-testid="provider-default-model-selector-option-user-only-model"]');
     expect(container.querySelector('[data-testid="provider-system-instructions-input"]')?.getAttribute('data-native-editor-suspended')).toBe('true');
-    expect(document.body.querySelector('[data-testid="provider-default-model-selector-option-user-only-model"]')).not.toBeNull();
+    expect(userOption).not.toBeNull();
+    expect(userOption?.textContent).toContain('user-only-model');
+    expect(userOption?.textContent).not.toContain('user-only-model-vip');
 
     await act(async () => {
       document.body.querySelector<HTMLElement>('[data-testid="provider-default-model-selector-option-user-only-model"]')?.click();
@@ -303,9 +338,12 @@ describe('AppShell profile model selection flow', () => {
     });
     await flush();
 
+    const userOption = document.body.querySelector<HTMLElement>('[data-testid="provider-default-model-selector-option-user-only-model"]');
     expect(container.querySelector('[data-testid="provider-system-instructions-input"]')?.getAttribute('data-native-editor-suspended')).toBe('true');
-    expect(document.body.querySelector('[data-testid="provider-default-model-selector-option-user-only-model"]')).not.toBeNull();
-    expect(document.body.textContent).toContain('GPT Image 2');
+    expect(userOption).not.toBeNull();
+    expect(userOption?.textContent).toContain('user-only-model');
+    expect(userOption?.textContent).not.toContain('GPT Image 2');
+    expect(userOption?.textContent).not.toContain('user-only-model-vip');
     expect(document.body.querySelector('[data-testid="provider-default-model-selector-option-wrong-format-model"]')).toBeNull();
 
     await act(async () => {
@@ -334,18 +372,18 @@ describe('AppShell profile model selection flow', () => {
     expect(services.spies.listUserModelConfigs).toHaveBeenCalledWith('openai-images');
   });
 
-  it('main selector shows wire model label but keeps model identity selected', async () => {
+  it('main selector shows saved config modelId but keeps model identity selected', async () => {
     const container = document.createElement('div');
     document.body.appendChild(container);
     const services = createReturningUserServices({
       activeImageProfileId: 'mock-profile',
       profiles: [{
         ...fakeProfile,
-        defaultModelId: 'gpt-image-2',
-        selectedModelIds: ['gpt-image-2'],
+        defaultModelId: 'gpt-image-2-vip',
+        selectedModelIds: ['gpt-image-2-vip'],
       }],
       profileModelItems: [
-        profileModelItem('gpt-image-2', {
+        profileModelItem('gpt-image-2-vip', {
           displayName: 'GPT Image 2',
           configSource: 'user',
           wireModelId: 'gpt-image-2-vip',
@@ -359,14 +397,19 @@ describe('AppShell profile model selection flow', () => {
     await flush();
 
     const trigger = container.querySelector<HTMLElement>('[data-testid="main-model-selector"]');
-    expect(trigger?.getAttribute('data-selected-id')).toBe('gpt-image-2');
+    const triggerValue = trigger?.parentElement?.querySelector<HTMLElement>('.cmp-chip-overlay-value');
+    expect(trigger?.getAttribute('data-selected-id')).toBe('gpt-image-2-vip');
+    expect(triggerValue?.textContent).toContain('gpt-image-2-vip');
+    expect(triggerValue?.textContent).not.toContain('GPT Image 2');
 
     await act(async () => {
       trigger?.click();
     });
     await flush();
 
-    expect(document.body.querySelector('[data-testid="main-model-selector-option-gpt-image-2"]')?.textContent).toContain('GPT Image 2');
+    const option = document.body.querySelector<HTMLElement>('[data-testid="main-model-selector-option-gpt-image-2-vip"]');
+    expect(option?.textContent).toContain('gpt-image-2-vip');
+    expect(option?.textContent).not.toContain('GPT Image 2');
   });
 
   it('returns to detail page when backing out of profile-originated model config creation', async () => {

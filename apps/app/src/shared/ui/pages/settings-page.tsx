@@ -8,7 +8,7 @@ import { Icon } from '../components/icons';
 import { SettingsListRow } from '../components/settings-list-row';
 import { IconButton } from '../primitives/icon-button';
 import { useI18n } from '../i18n/i18n-context';
-import { modelInfoFromProfileItem, modelVisibleLabel } from '../model-info';
+import { configurationInstanceLabel, modelInfoFromProfileItem } from '../model-info';
 
 interface SettingsPageProps {
   readonly onNav: (view: string) => void;
@@ -147,7 +147,7 @@ export function SettingsPage({
         if (!selected) {
           return [profile.profileId, profile.defaultModelId ?? ''] as const;
         }
-        return [profile.profileId, modelVisibleLabel(modelInfoFromProfileItem(selected))] as const;
+        return [profile.profileId, configurationInstanceLabel(modelInfoFromProfileItem(selected))] as const;
       }),
     ).then((entries) => {
       if (sequenceRef.current !== sequence) {

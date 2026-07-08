@@ -46,7 +46,7 @@ import {
 import { useProfileBilling } from '../hooks/use-profile-billing';
 import { formatBalanceChange, formatBillingPrimary, formatExactTaskCost } from '../../domain/mappers';
 import { importProviderEndpointInput } from '../hooks/provider-endpoint-import';
-import { userModelConfigVisibleLabel } from '../model-info';
+import { userConfiguredModelLabel } from '../model-info';
 
 interface SettingsDetailPageProps {
   readonly onNav: (view: string) => void;
@@ -473,17 +473,8 @@ export function SettingsDetailPage({ onNav, onBack, profileId, onProfilesChanged
     }
     let cancelled = false;
     setModelOptionsLoading(true);
-    void Promise.all([
-      services.commands.listUserModelConfigs(detail.profile.apiFormat),
-      services.commands.listOfficialModelConfigPresets(detail.profile.apiFormat),
-    ])
-      .then(([
-        result,
-        presetsResult,
-      ]: readonly [
-        Awaited<ReturnType<typeof services.commands.listUserModelConfigs>>,
-        Awaited<ReturnType<typeof services.commands.listOfficialModelConfigPresets>>,
-      ]) => {
+    void services.commands.listUserModelConfigs(detail.profile.apiFormat)
+      .then((result: Awaited<ReturnType<typeof services.commands.listUserModelConfigs>>) => {
         if (cancelled) {
           return;
         }
@@ -492,17 +483,9 @@ export function SettingsDetailPage({ onNav, onBack, profileId, onProfilesChanged
           setModelOptionsError(`${result.error.category}: ${result.error.message}`);
           return;
         }
-        if (!presetsResult.ok) {
-          setUserModelOptions([]);
-          setModelOptionsError(`${presetsResult.error.category}: ${presetsResult.error.message}`);
-          return;
-        }
-        const officialDisplayNames = new Map(
-          presetsResult.value.map((preset) => [preset.modelId, preset.displayName] as const),
-        );
         const nextOptions = result.value.map((config: UserModelConfig) => ({
           id: config.modelId,
-          label: userModelConfigVisibleLabel(config, officialDisplayNames),
+          label: userConfiguredModelLabel(config),
         }));
         setUserModelOptions(nextOptions);
         setModelOptionsError(null);

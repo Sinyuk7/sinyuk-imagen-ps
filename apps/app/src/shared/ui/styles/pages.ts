@@ -77,6 +77,14 @@ export const PAGES_CSS = `
   color:var(--app-color-text-secondary);
   letter-spacing:0;
 }
+.model-config-meta-primary{
+  flex:0 1 auto;
+  max-width:100%;
+}
+.model-config-meta-secondary{
+  flex:1 1 auto;
+  min-width:0;
+}
 .prov-meta-sep{ flex-shrink:0; color:var(--app-color-border-strong); margin-right:4px; margin-left:4px; }
 .prov-summary{
   flex:1 1 auto;

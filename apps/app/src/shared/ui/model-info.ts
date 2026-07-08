@@ -29,12 +29,17 @@ export function modelInfoFromDescriptor(model: ProviderModelInfo): UiModelInfo {
     id: model.id,
     displayName: model.displayName,
     wireModelId: model.id,
+    configSource: 'catalog',
     configured: true,
     selected: true,
   };
 }
 
-export function modelVisibleLabel(model: Pick<UiModelInfo, 'id' | 'displayName' | 'wireModelId' | 'configSource'>): string {
+function firstNonEmpty(values: ReadonlyArray<string | undefined>): string | undefined {
+  return values.find((value) => typeof value === 'string' && value.trim().length > 0)?.trim();
+}
+
+export function capabilityPresetLabel(model: Pick<UiModelInfo, 'id' | 'displayName' | 'wireModelId'>): string {
   if (typeof model.displayName === 'string' && model.displayName.trim().length > 0) {
     return model.displayName;
   }
@@ -44,24 +49,45 @@ export function modelVisibleLabel(model: Pick<UiModelInfo, 'id' | 'displayName' 
   return model.id;
 }
 
+export function configurationInstanceLabel(model: Pick<UiModelInfo, 'id' | 'displayName' | 'wireModelId' | 'configSource'>): string {
+  if (model.configSource === 'user') {
+    return firstNonEmpty([model.id, model.wireModelId, model.displayName]) ?? model.id;
+  }
+  return capabilityPresetLabel(model);
+}
+
 export function modelDisplayName(model: UiModelInfo): string {
-  return modelVisibleLabel(model);
+  return capabilityPresetLabel(model);
 }
 
 export function mainSelectableModels(models: readonly UiModelInfo[]): readonly UiModelInfo[] {
   return models.filter((model) => model.selected === true && model.configured === true);
 }
 
-export function userModelConfigVisibleLabel(
+export interface ModelConfigListPresentation {
+  readonly title: string;
+  readonly metaPrimary: string;
+}
+
+export function modelConfigListPresentation(
   config: Pick<UserModelConfig, 'modelId' | 'wireModelId' | 'baseModelId'>,
   officialDisplayNames?: ReadonlyMap<string, string>,
-): string {
+): ModelConfigListPresentation {
   const displayName = officialDisplayNames?.get(config.baseModelId.trim());
-  if (typeof displayName === 'string' && displayName.trim().length > 0) {
-    return displayName;
-  }
-  if (config.wireModelId.trim().length > 0) {
-    return config.wireModelId;
-  }
-  return config.modelId;
+  const title = firstNonEmpty([
+    displayName,
+    config.baseModelId,
+    config.wireModelId,
+    config.modelId,
+  ]) ?? config.modelId;
+  return {
+    title,
+    metaPrimary: firstNonEmpty([config.modelId, config.wireModelId, title]) ?? title,
+  };
+}
+
+export function userConfiguredModelLabel(
+  config: Pick<UserModelConfig, 'modelId' | 'wireModelId' | 'baseModelId'>,
+): string {
+  return firstNonEmpty([config.modelId, config.wireModelId, config.baseModelId]) ?? config.modelId;
 }

@@ -37,7 +37,7 @@ import {
   statusFromProviderConnectionTestResult,
 } from '../provider-status';
 import { importDetectionFallbackMessage, importProviderEndpointInput } from '../hooks/provider-endpoint-import';
-import { userModelConfigVisibleLabel } from '../model-info';
+import { userConfiguredModelLabel } from '../model-info';
 
 interface SettingsAddPageProps {
   readonly onNav: (view: string) => void;
@@ -229,17 +229,8 @@ export function SettingsAddPage({ onNav, profiles, onProfileSaved, onOpenModelCo
     }
     let cancelled = false;
     setModelOptionsLoading(true);
-    void Promise.all([
-      services.commands.listUserModelConfigs(apiFormat),
-      services.commands.listOfficialModelConfigPresets(apiFormat),
-    ])
-      .then(([
-        result,
-        presetsResult,
-      ]: readonly [
-        Awaited<ReturnType<typeof services.commands.listUserModelConfigs>>,
-        Awaited<ReturnType<typeof services.commands.listOfficialModelConfigPresets>>,
-      ]) => {
+    void services.commands.listUserModelConfigs(apiFormat)
+      .then((result: Awaited<ReturnType<typeof services.commands.listUserModelConfigs>>) => {
         if (cancelled) {
           return;
         }
@@ -248,17 +239,9 @@ export function SettingsAddPage({ onNav, profiles, onProfileSaved, onOpenModelCo
           setModelOptionsError(`${result.error.category}: ${result.error.message}`);
           return;
         }
-        if (!presetsResult.ok) {
-          setModelOptions([]);
-          setModelOptionsError(`${presetsResult.error.category}: ${presetsResult.error.message}`);
-          return;
-        }
-        const officialDisplayNames = new Map(
-          presetsResult.value.map((preset) => [preset.modelId, preset.displayName] as const),
-        );
         const nextOptions = result.value.map((config: UserModelConfig) => ({
           id: config.modelId,
-          label: userModelConfigVisibleLabel(config, officialDisplayNames),
+          label: userConfiguredModelLabel(config),
         }));
         setModelOptions(nextOptions);
         setModelOptionsError(null);

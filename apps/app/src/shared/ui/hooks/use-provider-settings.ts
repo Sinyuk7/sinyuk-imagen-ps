@@ -15,7 +15,7 @@ import type {
 } from '@imagen-ps/application';
 import type { AppServices } from '../../ports/app-services';
 import { formatCompactMetric } from '../../domain/mappers';
-import { modelInfoFromDescriptor, modelInfoFromProfileItem, modelVisibleLabel, type UiModelInfo } from '../model-info';
+import { configurationInstanceLabel, modelInfoFromDescriptor, modelInfoFromProfileItem, type UiModelInfo } from '../model-info';
 
 export interface ProviderProfilesState {
   readonly profiles: readonly ProviderProfile[];
@@ -121,7 +121,7 @@ export function providerModelOptions(
 ): readonly { readonly id: string; readonly label: string }[] {
   return models.map((model) => ({
     id: model.id,
-    label: modelVisibleLabel(model),
+    label: configurationInstanceLabel(model),
   }));
 }
 

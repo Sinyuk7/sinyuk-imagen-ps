@@ -16,7 +16,7 @@ import { TextSelect } from '../components/text-select';
 import { useI18n } from '../i18n/i18n-context';
 import { Button, FieldLabel, HelpText, TextField } from '../primitives/native-controls';
 import { IconButton } from '../primitives/icon-button';
-import { userModelConfigVisibleLabel } from '../model-info';
+import { modelConfigListPresentation } from '../model-info';
 import {
   buildOutputCapabilityEditorState,
   fullSelectionForModule,
@@ -954,20 +954,24 @@ export function ModelConfigurationPage({ onNav, onSaved, onBack, initialEditorSt
               ) : null}
               <div className="model-config-list">
                 {configs.map((config) => {
-                  const visibleLabel = userModelConfigVisibleLabel(config, officialDisplayNames);
+                  const presentation = modelConfigListPresentation(config, officialDisplayNames);
                   const avatarLabel = modelConfigAvatarSourceLabel(config, officialDisplayNames);
                   return (
                     <SettingsListRow
                       key={`${config.apiFormat}:${config.modelId}`}
                       testId={`model-config-row-${config.apiFormat}-${config.modelId}`}
-                      title={visibleLabel}
+                      title={presentation.title}
                       leading={(
                         <div className="prov-ico" style={{ background: 'var(--app-color-background-layer-2)', color: 'var(--app-color-accent-default)' }}>
                           <span data-testid={`model-config-avatar-${config.apiFormat}-${config.modelId}`}>{modelConfigAvatarLabel(avatarLabel)}</span>
                         </div>
                       )}
                       meta={(
-                        <span className="prov-summary">{configMetaLabel(config)}</span>
+                        <>
+                          <span className="prov-model model-config-meta-primary">{presentation.metaPrimary}</span>
+                          <span className="prov-meta-sep" aria-hidden="true">·</span>
+                          <span className="prov-family model-config-meta-secondary">{configMetaLabel(config)}</span>
+                        </>
                       )}
                       onOpen={() => void openEditEditor(config)}
                     />

@@ -271,72 +271,16 @@ describe('ModelConfigurationPage', () => {
     expect(container.querySelector('[data-testid="model-config-wire-model-id"]')).toBeNull();
   });
 
-  it('uses click-only settings row for saved configs without extra edit button', async () => {
-    const userModelConfigs: readonly UserModelConfig[] = [
-      {
-        apiFormat: 'openai-images',
-        modelId: 'saved-config',
-        baseModelId: 'nano-banana-fast',
-        wireModelId: 'saved-config-vip',
-        requestStrategyId: 'image-endpoint-default',
-        outputExposure: simpleFlexibleExposure,
-        outputMatrix: [],
-      },
-    ];
-    const { services } = createFakeServices({ userModelConfigs });
-    const container = await renderPage(services);
-
-    expect(container.querySelector('[data-testid="model-config-edit-openai-images-saved-config"]')).toBeNull();
-    expect(container.querySelector('[data-testid="model-config-avatar-openai-images-saved-config"]')?.textContent).toBe('NB');
-    expect(container.textContent).toContain('saved-config-vip');
-    expect(container.textContent).toContain('OpenAI Images');
-
-    await act(async () => {
-      container.querySelector<HTMLElement>('[data-testid="model-config-row-openai-images-saved-config"]')?.click();
-    });
-    await flush();
-    await flush();
-
-    await act(async () => {
-      container.querySelector<HTMLButtonElement>('.model-config-advanced-toggle')?.click();
-    });
-    await flush();
-    expect(container.querySelector<HTMLInputElement>('[data-testid="model-config-model-id"]')?.value).toBe('saved-config');
-    expect(container.querySelector<HTMLInputElement>('[data-testid="model-config-wire-model-id"]')?.value).toBe('saved-config-vip');
-    expect(container.querySelector<HTMLInputElement>('[data-testid="model-config-model-id"]')?.disabled).toBe(true);
-    expect(container.querySelector<HTMLElement>('[data-testid="model-config-api-format-selector"]')?.hasAttribute('disabled')).toBe(true);
-  });
-
-  it('uses visible-label initials for default Nano Banana configs across providers', async () => {
+  it('uses preset title with modelId-first meta for saved configs without extra edit button', async () => {
     const officialModelConfigPresets = await Promise.all([
-      officialPreset('openai-chat-completions', 'gemini-3.1-flash-image'),
       officialPreset('gemini-generate-content', 'gemini-3.1-flash-lite-image'),
-      officialPreset('gemini-generate-content', 'gemini-3.1-flash-image'),
     ]);
     const userModelConfigs: readonly UserModelConfig[] = [
       {
-        apiFormat: 'openai-chat-completions',
-        modelId: 'chat-nano-banana-2',
-        baseModelId: 'gemini-3.1-flash-image',
-        wireModelId: 'google/gemini-3.1-flash-image',
-        requestStrategyId: 'chat-image-default',
-        outputExposure: simpleFlexibleExposure,
-        outputMatrix: [],
-      },
-      {
         apiFormat: 'gemini-generate-content',
-        modelId: 'gemini-nano-banana-2-lite',
+        modelId: 'nano-banana-fast',
         baseModelId: 'gemini-3.1-flash-lite-image',
-        wireModelId: 'models/gemini-3.1-flash-lite-image',
-        requestStrategyId: 'gemini-generate-content-image-config',
-        outputExposure: simpleFlexibleExposure,
-        outputMatrix: [],
-      },
-      {
-        apiFormat: 'gemini-generate-content',
-        modelId: 'gemini-nano-banana-2',
-        baseModelId: 'gemini-3.1-flash-image',
-        wireModelId: 'models/gemini-3.1-flash-image',
+        wireModelId: 'nano-banana-fast-vip',
         requestStrategyId: 'gemini-generate-content-image-config',
         outputExposure: simpleFlexibleExposure,
         outputMatrix: [],
@@ -345,11 +289,70 @@ describe('ModelConfigurationPage', () => {
     const { services } = createFakeServices({ userModelConfigs, officialModelConfigPresets });
     const container = await renderPage(services);
 
-    expect(container.querySelector('[data-testid="model-config-avatar-openai-chat-completions-chat-nano-banana-2"]')?.textContent).toBe('NB');
-    expect(container.querySelector('[data-testid="model-config-avatar-gemini-generate-content-gemini-nano-banana-2-lite"]')?.textContent).toBe('NB');
-    expect(container.querySelector('[data-testid="model-config-avatar-gemini-generate-content-gemini-nano-banana-2"]')?.textContent).toBe('NB');
-    expect(container.textContent).toContain('Nano Banana 2');
-    expect(container.textContent).toContain('Nano Banana 2 Lite');
+    const row = container.querySelector<HTMLElement>('[data-testid="model-config-row-gemini-generate-content-nano-banana-fast"]');
+    expect(container.querySelector('[data-testid="model-config-edit-gemini-generate-content-nano-banana-fast"]')).toBeNull();
+    expect(container.querySelector('[data-testid="model-config-avatar-gemini-generate-content-nano-banana-fast"]')?.textContent).toBe('NB');
+    expect(row?.textContent).toContain('Nano Banana 2 Lite');
+    expect(row?.textContent).toContain('nano-banana-fast');
+    expect(row?.textContent).toContain('Gemini GenerateContent');
+    expect(row?.textContent).not.toContain('nano-banana-fast-vip');
+
+    await act(async () => {
+      row?.click();
+    });
+    await flush();
+    await flush();
+
+    await act(async () => {
+      container.querySelector<HTMLButtonElement>('.model-config-advanced-toggle')?.click();
+    });
+    await flush();
+    expect(container.querySelector<HTMLInputElement>('[data-testid="model-config-model-id"]')?.value).toBe('nano-banana-fast');
+    expect(container.querySelector<HTMLInputElement>('[data-testid="model-config-wire-model-id"]')?.value).toBe('nano-banana-fast-vip');
+    expect(container.querySelector<HTMLInputElement>('[data-testid="model-config-model-id"]')?.disabled).toBe(true);
+    expect(container.querySelector<HTMLElement>('[data-testid="model-config-api-format-selector"]')?.hasAttribute('disabled')).toBe(true);
+  });
+
+  it('keeps same-preset configs distinguishable in model configuration list', async () => {
+    const officialModelConfigPresets = await Promise.all([
+      officialPreset('gemini-generate-content', 'gemini-3.1-flash-lite-image'),
+    ]);
+    const userModelConfigs: readonly UserModelConfig[] = [
+      {
+        apiFormat: 'gemini-generate-content',
+        modelId: 'nano-banana-fast',
+        baseModelId: 'gemini-3.1-flash-lite-image',
+        wireModelId: 'nano-banana-fast-wire',
+        requestStrategyId: 'gemini-generate-content-image-config',
+        outputExposure: simpleFlexibleExposure,
+        outputMatrix: [],
+      },
+      {
+        apiFormat: 'gemini-generate-content',
+        modelId: 'nano-banana-2-lite',
+        baseModelId: 'gemini-3.1-flash-lite-image',
+        wireModelId: 'nano-banana-2-lite-wire',
+        requestStrategyId: 'gemini-generate-content-image-config',
+        outputExposure: simpleFlexibleExposure,
+        outputMatrix: [],
+      },
+    ];
+    const { services } = createFakeServices({ userModelConfigs, officialModelConfigPresets });
+    const container = await renderPage(services);
+
+    const fastRow = container.querySelector<HTMLElement>('[data-testid="model-config-row-gemini-generate-content-nano-banana-fast"]');
+    const liteRow = container.querySelector<HTMLElement>('[data-testid="model-config-row-gemini-generate-content-nano-banana-2-lite"]');
+
+    expect(container.querySelector('[data-testid="model-config-avatar-gemini-generate-content-nano-banana-fast"]')?.textContent).toBe('NB');
+    expect(container.querySelector('[data-testid="model-config-avatar-gemini-generate-content-nano-banana-2-lite"]')?.textContent).toBe('NB');
+    expect(fastRow?.textContent).toContain('Nano Banana 2 Lite');
+    expect(fastRow?.textContent).toContain('nano-banana-fast');
+    expect(fastRow?.textContent).toContain('Gemini GenerateContent');
+    expect(fastRow?.textContent).not.toContain('nano-banana-fast-wire');
+    expect(liteRow?.textContent).toContain('Nano Banana 2 Lite');
+    expect(liteRow?.textContent).toContain('nano-banana-2-lite');
+    expect(liteRow?.textContent).toContain('Gemini GenerateContent');
+    expect(liteRow?.textContent).not.toContain('nano-banana-2-lite-wire');
   });
 
   it('locks api format in edit mode', async () => {
