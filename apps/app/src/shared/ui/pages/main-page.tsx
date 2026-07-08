@@ -4,7 +4,7 @@ import { useAppServices } from '../../ports/app-services-context';
 import type { HostPort, LayerInfo } from '../../ports/host-port';
 import { suggestedGeneratedImageFileName } from '../../domain/asset-file';
 import { assetToPreviewUrl } from '../../domain/mappers';
-import { formatBalanceChange, formatBillingPrimary, formatBillingPrimaryParts, formatExactTaskCost } from '../../domain/mappers';
+import { formatBillingPrimary, formatBillingPrimaryParts } from '../../domain/mappers';
 import type {
   ConversationAttachment,
   ConversationController,
@@ -13,6 +13,7 @@ import type {
 import { derivePlacementIntent } from '../hooks/use-conversation';
 import type { ComposerDraftController } from '../hooks/use-composer-draft';
 import { useProfileBilling } from '../hooks/use-profile-billing';
+import { useTaskBillingToast } from '../hooks/use-task-billing-toast';
 import { descriptorForApiFormat, providerSupportsBalanceQuery, useProviderCatalog } from '../hooks/use-provider-settings';
 import { useLayerThumbnail } from '../hooks/use-layer-thumbnail';
 import { Icon } from '../components/icons';
@@ -47,7 +48,7 @@ import {
   type ComposerReadinessState,
 } from '../composer-readiness';
 import { classifyRoundError, type ErrorPrimaryAction } from '../error-action';
-import type { BalanceChange, ExactTaskCost, ImageAspectRatio, ImageOutputImageSize, ImageOutputSelection } from '@imagen-ps/application';
+import type { ImageAspectRatio, ImageOutputImageSize, ImageOutputSelection } from '@imagen-ps/application';
 import { modelVisibleLabel, type UiModelInfo } from '../model-info';
 import type { ModelGenerationSettingsController } from '../hooks/use-model-generation-settings';
 
@@ -88,10 +89,6 @@ interface MainPageProps {
 }
 
 type PlaceStatus = 'idle' | 'placing' | 'placed';
-
-type RoundBillingMeta =
-  | { readonly kind: 'cost'; readonly cost: ExactTaskCost }
-  | { readonly kind: 'balance-change'; readonly change: BalanceChange };
 
 interface FlatLayer {
   readonly layer: LayerInfo;
@@ -398,7 +395,6 @@ export function MainPage({
   const [copied, setCopied] = useState<Record<string, boolean>>({});
   const [selectedPreviewIndexes, setSelectedPreviewIndexes] = useState<Record<string, number>>({});
   const [placeStatus, setPlaceStatus] = useState<Record<string, PlaceStatus>>({});
-  const [roundBillingMeta, setRoundBillingMeta] = useState<Record<string, RoundBillingMeta>>({});
   const [expandedPrompts, setExpandedPrompts] = useState<Record<string, boolean>>({});
   const [overflowingPrompts, setOverflowingPrompts] = useState<Record<string, boolean>>({});
   const [expandedResponses, setExpandedResponses] = useState<Record<string, boolean>>({});
@@ -411,7 +407,6 @@ export function MainPage({
   const promptTextRefs = useRef<Map<string, HTMLDivElement>>(new Map());
   const responseFoldRefs = useRef<Map<string, HTMLDivElement>>(new Map());
   const responseTextRefs = useRef<Map<string, HTMLDivElement>>(new Map());
-  const previousRoundStatusRef = useRef<Record<string, ConversationRound['status']>>({});
   const flatLayers = useMemo(() => flattenLayers(layers), [layers]);
   const uniqueModels = useMemo(() => dedupeById(models), [models]);
   const { input, attachments } = composerDraft;
@@ -516,8 +511,15 @@ export function MainPage({
   const imageInputDisabledReason = t.main.imageInputDisabledForModel;
   const canCapture = !conversation.running && !captureInFlight && !imageInputDisabled;
   const responseTextKey = (roundId: string) => `response:${roundId}`;
-  const pendingBillingProfileIdRef = useRef<string | null>(null);
   const placeResetTimersRef = useRef<Record<string, number>>({});
+  useTaskBillingToast({
+    services,
+    rounds: conversation.rounds,
+    profiles,
+    providers,
+    show,
+    messages: t,
+  });
   const isAtBottom = useCallback(() => {
     const el = convRef.current;
     if (!el) return true;
@@ -530,20 +532,6 @@ export function MainPage({
     }
     placeResetTimersRef.current = {};
   }, []);
-
-  const observeBillingForSubmittedRound = useCallback(async (roundId: string) => {
-    const observed = await billing.observeAsyncRefresh();
-    if (!observed) {
-      return;
-    }
-    if (observed.lastExactTaskCost) {
-      setRoundBillingMeta((current) => ({ ...current, [roundId]: { kind: 'cost', cost: observed.lastExactTaskCost! } }));
-      return;
-    }
-    if (observed.lastBalanceChange) {
-      setRoundBillingMeta((current) => ({ ...current, [roundId]: { kind: 'balance-change', change: observed.lastBalanceChange! } }));
-    }
-  }, [billing]);
 
   useEffect(() => {
     if (convRef.current && isAtBottom()) {
@@ -603,19 +591,6 @@ export function MainPage({
       for (const [roundId, status] of Object.entries(current)) {
         if (liveRoundIds.has(roundId)) {
           next[roundId] = status;
-        } else {
-          changed = true;
-        }
-      }
-      return changed ? next : current;
-    });
-    setRoundBillingMeta((current) => {
-      let changed = false;
-      const liveRoundIds = new Set(conversation.rounds.map((round) => round.id));
-      const next: Record<string, RoundBillingMeta> = {};
-      for (const [roundId, meta] of Object.entries(current)) {
-        if (liveRoundIds.has(roundId)) {
-          next[roundId] = meta;
         } else {
           changed = true;
         }
@@ -1010,7 +985,6 @@ export function MainPage({
       return;
     }
     composerDraft.reset({ releaseAttachments: false });
-    pendingBillingProfileIdRef.current = selectedProfile.profileId;
     await conversation.submit({
       operation: attachments.length > 0 ? 'image-edit' : 'text-to-image',
       prompt,
@@ -1033,37 +1007,11 @@ export function MainPage({
     if (!billing.error) {
       return;
     }
-    if (pendingBillingProfileIdRef.current !== null) {
-      return;
-    }
     if (billing.billing?.refreshState !== 'error') {
       return;
     }
     // Manual or passive refresh failure should stay isolated from generation success.
   }, [billing.billing?.refreshState, billing.error]);
-
-  useEffect(() => {
-    let observedRoundId: string | null = null;
-    const next: Record<string, ConversationRound['status']> = {};
-    for (const round of conversation.rounds) {
-      next[round.id] = round.status;
-      const previous = previousRoundStatusRef.current[round.id];
-      if (
-        pendingBillingProfileIdRef.current &&
-        (previous === 'running' || previous === undefined) &&
-        round.status === 'ok' &&
-        round.profileId === pendingBillingProfileIdRef.current &&
-        roundBillingMeta[round.id] === undefined
-      ) {
-        observedRoundId = round.id;
-      }
-    }
-    previousRoundStatusRef.current = next;
-    if (observedRoundId) {
-      pendingBillingProfileIdRef.current = null;
-      void observeBillingForSubmittedRound(observedRoundId);
-    }
-  }, [conversation.rounds, observeBillingForSubmittedRound, roundBillingMeta]);
 
   const placeAsset = async (round: ConversationRound, previewIndex = 0) => {
     if (round.placementIntent.kind === 'unbound' && round.placementIntent.reason === 'multiple-documents') {
@@ -1432,7 +1380,6 @@ export function MainPage({
                 const providerModelLabel = visibleLabelForModelId(round.modelId) ?? selectedModelLabel;
                 const canGoPrev = selectedPreviewIndex > 0;
                 const canGoNext = selectedPreviewIndex < round.previews.length - 1;
-                const billingMeta = roundBillingMeta[round.id];
                 const previewLayoutMode = previewLayoutModeForRound(round);
                 return (
                 <div className="msg-prov msg-prov-surface">
@@ -1577,24 +1524,8 @@ export function MainPage({
                         </div>
                       </div>
                     ) : null}
-                    {!hasImages && billingMeta ? (
-                      <div className="prov-actions prov-actions-text-meta">
-                        <span className="round-billing-meta" data-testid={`round-billing-meta-${round.id}`}>
-                          {billingMeta.kind === 'cost'
-                            ? `${t.main.billingCost}: ${formatExactTaskCost(billingMeta.cost)}`
-                            : `${t.main.billingObservedChange}: ${formatBalanceChange(billingMeta.change)}`}
-                        </span>
-                      </div>
-                    ) : null}
                     {hasImages && (
                       <div className="prov-actions">
-                        {billingMeta ? (
-                          <span className="round-billing-meta" data-testid={`round-billing-meta-${round.id}`}>
-                            {billingMeta.kind === 'cost'
-                              ? `${t.main.billingCost}: ${formatExactTaskCost(billingMeta.cost)}`
-                              : `${t.main.billingObservedChange}: ${formatBalanceChange(billingMeta.change)}`}
-                          </span>
-                        ) : null}
                         <IconButton
                           data-testid={`result-download-button-${round.id}`}
                           className="act-ico act-download"

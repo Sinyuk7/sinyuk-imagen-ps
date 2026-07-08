@@ -11,11 +11,6 @@ export interface ProfileBillingViewState {
   readonly loading: boolean;
   readonly error: string | null;
   readonly refresh: () => Promise<void>;
-  readonly observeAsyncRefresh: () => Promise<ProfileBillingState | null>;
-}
-
-function billingStateKey(state: ProfileBillingState | null | undefined): string {
-  return JSON.stringify(state ?? null);
 }
 
 export function useProfileBilling(
@@ -48,36 +43,6 @@ export function useProfileBilling(
     }
     setLoading(false);
   }, [enabled, profileId, services]);
-
-  const observeAsyncRefresh = useCallback(async (): Promise<ProfileBillingState | null> => {
-    if (!profileId || !enabled) {
-      return null;
-    }
-    const baselineKey = billingStateKey(billing);
-    const initial = await services.commands.getProfileBillingState(profileId);
-    const initialState = initial.ok ? initial.value : null;
-    let sawRefreshing = initialState?.refreshState === 'refreshing';
-    for (let attempt = 0; attempt < 12; attempt += 1) {
-      if (attempt > 0) {
-        await new Promise((resolve) => window.setTimeout(resolve, 120));
-      }
-      const result = await services.commands.getProfileBillingState(profileId);
-      if (!result.ok) {
-        setError(commandMessage(result.error));
-        continue;
-      }
-      setBilling(result.value);
-      setError(null);
-      if (result.value.refreshState === 'refreshing') {
-        sawRefreshing = true;
-        continue;
-      }
-      if (sawRefreshing || billingStateKey(result.value) !== baselineKey) {
-        return result.value;
-      }
-    }
-    return initialState;
-  }, [billing, enabled, profileId, services]);
 
   useEffect(() => {
     if (!profileId || !enabled) {
@@ -112,5 +77,5 @@ export function useProfileBilling(
     };
   }, [enabled, profileId, refresh, services]);
 
-  return { billing, loading, error, refresh, observeAsyncRefresh };
+  return { billing, loading, error, refresh };
 }

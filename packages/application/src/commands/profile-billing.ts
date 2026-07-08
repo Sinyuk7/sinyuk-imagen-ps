@@ -80,7 +80,9 @@ function cloneBillingState(entry: ProfileBillingState): ProfileBillingState {
   return {
     ...(entry.balance ? { balance: entry.balance } : {}),
     ...(entry.lastExactTaskCost ? { lastExactTaskCost: entry.lastExactTaskCost } : {}),
+    ...(entry.lastExactTaskCostObservedAt !== undefined ? { lastExactTaskCostObservedAt: entry.lastExactTaskCostObservedAt } : {}),
     ...(entry.lastBalanceChange ? { lastBalanceChange: entry.lastBalanceChange } : {}),
+    ...(entry.lastBalanceChangeObservedAt !== undefined ? { lastBalanceChangeObservedAt: entry.lastBalanceChangeObservedAt } : {}),
     refreshState: entry.refreshState,
   };
 }
@@ -318,14 +320,23 @@ async function performBalanceRefresh(
   const nextBalance = createProfileBalanceResult(input.profileId, profile.apiFormat, checkedAt, snapshot, result.protocolId);
   const fingerprint = billingConfigFingerprint(profile.config as Record<string, unknown>);
   const previousState = getOrCreateBillingEntry(input.profileId, fingerprint).state;
+  const nextBalanceChange = detectBalanceChange(previousState.balance?.snapshot, snapshot);
   const nextState: ProfileBillingState = {
     balance: nextBalance,
     refreshState: 'idle',
     ...(previousState.lastExactTaskCost ? { lastExactTaskCost: previousState.lastExactTaskCost } : {}),
-    ...(detectBalanceChange(previousState.balance?.snapshot, snapshot)
-      ? { lastBalanceChange: detectBalanceChange(previousState.balance?.snapshot, snapshot)! }
+    ...(previousState.lastExactTaskCostObservedAt !== undefined
+      ? { lastExactTaskCostObservedAt: previousState.lastExactTaskCostObservedAt }
+      : {}),
+    ...(nextBalanceChange
+      ? { lastBalanceChange: nextBalanceChange }
       : previousState.lastBalanceChange
         ? { lastBalanceChange: previousState.lastBalanceChange }
+        : {}),
+    ...(nextBalanceChange
+      ? { lastBalanceChangeObservedAt: checkedAt }
+      : previousState.lastBalanceChangeObservedAt !== undefined
+        ? { lastBalanceChangeObservedAt: previousState.lastBalanceChangeObservedAt }
         : {}),
   };
   setBillingEntry(input.profileId, { fingerprint, state: nextState });
@@ -499,6 +510,7 @@ export async function noteProfileTaskBilling(
   const nextState: ProfileBillingState = {
     ...current.state,
     ...(billing.exactTaskCost ? { lastExactTaskCost: billing.exactTaskCost } : {}),
+    ...(billing.exactTaskCost ? { lastExactTaskCostObservedAt: Date.now() } : {}),
   };
   setBillingEntry(profileId, { fingerprint, state: nextState });
   return { ok: true, value: cloneBillingState(nextState) };

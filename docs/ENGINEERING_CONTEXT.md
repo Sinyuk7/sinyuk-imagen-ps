@@ -219,6 +219,11 @@ surface apps -> application/session -> core-engine + providers
   failures open a local cooldown after a small consecutive-failure threshold.
   This throttle is session-scoped, does not persist to profiles, and does not
   change provider connectivity health semantics.
+- Task-level billing feedback is toast-only in `apps/app`. When terminal task
+  state exposes a fresh exact cost, UI shows it immediately; otherwise UI may
+  observe one profile-billing refresh window and surface a best-effort balance
+  delta toast. Missing or failed billing feedback must stay silent and must not
+  mutate message-card footer state, history state, or durable task schema.
 
 ## Current Limitations
 

@@ -442,7 +442,9 @@ export interface ProfileBalanceResult {
 export interface ProfileBillingState {
   readonly balance?: ProfileBalanceResult;
   readonly lastExactTaskCost?: ExactTaskCost;
+  readonly lastExactTaskCostObservedAt?: number;
   readonly lastBalanceChange?: BalanceChange;
+  readonly lastBalanceChangeObservedAt?: number;
   readonly refreshState: 'idle' | 'refreshing' | 'error';
 }
 

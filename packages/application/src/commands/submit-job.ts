@@ -6,8 +6,8 @@
 
 import type { Job, JobError } from '@imagen-ps/core-engine';
 import { createRuntimeError } from '@imagen-ps/core-engine';
-import { flushJobHistoryForTerminalJob, getProviderProfileRepository, getRuntime, getRuntimeLogger } from '../runtime.js';
-import { noteProfileTaskBilling, scheduleProfileBalanceRefresh } from './profile-billing.js';
+import { flushJobHistoryForTerminalJob, getRuntime, getRuntimeLogger } from '../runtime.js';
+import { runTerminalJobBillingFollowUp } from './terminal-job-billing.js';
 import type { CommandResult, SubmitJobInput } from './types.js';
 
 /**
@@ -97,29 +97,6 @@ export function profileIdFromInput(input: Record<string, unknown>): string | und
       : undefined;
 }
 
-export async function noteExactTaskCost(job: Job, profileId: string): Promise<void> {
-  if (job.status !== 'completed') {
-    return;
-  }
-  const image = job.output?.image as { raw?: unknown } | undefined;
-  const profile = await getProviderProfileRepository().get(profileId);
-  if (!profile) {
-    return;
-  }
-  const provider = getRuntime().providerRegistry.getByApiFormat(profile.apiFormat);
-  if (!provider || typeof provider.extractTaskCost !== 'function') {
-    return;
-  }
-  const exactTaskCost = provider.extractTaskCost({
-    assets: [],
-    ...(image?.raw !== undefined ? { raw: image.raw } : {}),
-  });
-  if (!exactTaskCost) {
-    return;
-  }
-  await noteProfileTaskBilling(profileId, { exactTaskCost });
-}
-
 export async function submitJob(input: SubmitJobInput): Promise<CommandResult<Job>> {
   const runtime = getRuntime();
   const profileId = profileIdFromInput(input.input);
@@ -148,8 +125,7 @@ export async function submitJob(input: SubmitJobInput): Promise<CommandResult<Jo
     });
     await flushJobHistoryForTerminalJob(job);
     if (profileId && (job.status === 'completed' || job.status === 'failed')) {
-      await noteExactTaskCost(job, profileId);
-      await scheduleProfileBalanceRefresh(profileId);
+      await runTerminalJobBillingFollowUp(job, profileId);
     }
     span.finish();
     return { ok: true, value: job };
