@@ -27,8 +27,8 @@ function ImageFallbackGlyph({ density }: { readonly density: ImagePreviewFallbac
       strokeLinejoin="round"
       aria-hidden="true"
     >
-      <rect x="4.5" y="5.5" width="15" height="13" rx="2.5" />
-      <path d="M7.5 15.5l3.2-3.4 2.4 2.2 2.8-3.3 2.1 4.5" />
+      <rect x="4.5" y="5.5" width="15" height="13" rx="2.5" fill="none" stroke="currentColor" />
+      <path d="M7.5 15.5l3.2-3.4 2.4 2.2 2.8-3.3 2.1 4.5" fill="none" stroke="currentColor" />
       <circle cx="9" cy="9.5" r="1" fill="currentColor" stroke="none" />
     </svg>
   );
