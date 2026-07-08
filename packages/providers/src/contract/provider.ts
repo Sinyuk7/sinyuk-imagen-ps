@@ -5,8 +5,8 @@ import type { ApiFormat } from './api-format.js';
 import type {
   ExactTaskCost,
   ProviderBalanceQueryInput,
+  ProviderBalanceQueryResult,
   ProviderBillingCapability,
-  ProviderBalanceSnapshot,
 } from './billing.js';
 import type { ProviderConfig } from './config.js';
 import type { DiscoveredModel, ProviderModelInfo } from './model.js';
@@ -325,7 +325,7 @@ export interface Provider<TConfig = ProviderConfig, TRequest = CanonicalImageJob
    *
    * 与 model invocation 兼容性分离；失败不得被调用方解释为 provider 不可生成。
    */
-  queryBalance?(config: TConfig, input: ProviderBalanceQueryInput): Promise<ProviderBalanceSnapshot>;
+  queryBalance?(config: TConfig, input: ProviderBalanceQueryInput): Promise<ProviderBalanceQueryResult>;
 
   /**
    * 从 provider invoke result 提取精确或部分精确的单次远端请求成本（OPTIONAL）。

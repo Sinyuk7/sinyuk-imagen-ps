@@ -21,7 +21,7 @@ export const mockDescriptor: ProviderDescriptor = {
   invokeMode: 'sync',
   defaultModels: [{ id: 'mock-image-v1' }],
   billing: {
-    supportedModes: ['none'],
+    query: 'unsupported',
   },
   connectivity: {
     endpointMeasurement: 'unsupported',

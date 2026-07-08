@@ -168,6 +168,8 @@ export interface AppMessages {
     readonly billing: string;
     readonly billingMode: string;
     readonly billingModeHint: string;
+    readonly billingUseCurrentApiKey: string;
+    readonly billingUseBillingToken: string;
     readonly billingDisabled: string;
     readonly billingRefresh: string;
     readonly billingRefreshing: string;
@@ -177,12 +179,16 @@ export interface AppMessages {
     readonly billingBalanceLabel: string;
     readonly billingCheckedAt: string;
     readonly billingErrorStale: string;
+    readonly billingPath: string;
+    readonly billingPathHint: string;
     readonly billingUserId: string;
     readonly billingUserIdHint: string;
     readonly billingAccessToken: string;
     readonly billingAccessTokenHint: string;
     readonly billingAccessTokenSavedHint: string;
     readonly billingNotSupported: string;
+    readonly billingValidationPath: string;
+    readonly billingValidationApiKey: string;
     readonly billingValidationUserId: string;
     readonly billingValidationAccessToken: string;
     readonly alias: string;
@@ -553,8 +559,10 @@ const EN_MESSAGES: AppMessages = {
     noProviderProfile: 'No profiles (´･ω･`)',
     config: 'Configuration',
     billing: 'Billing',
-    billingMode: 'Billing mode',
+    billingMode: 'Billing query',
     billingModeHint: 'Balance query stays optional and separate from generation availability.',
+    billingUseCurrentApiKey: 'Use current API key',
+    billingUseBillingToken: 'Use billing token',
     billingDisabled: 'Billing is not configured for this profile.',
     billingRefresh: 'Refresh balance',
     billingRefreshing: 'Refreshing balance…',
@@ -564,14 +572,18 @@ const EN_MESSAGES: AppMessages = {
     billingBalanceLabel: 'Current balance',
     billingCheckedAt: 'Last checked',
     billingErrorStale: 'Latest refresh failed. Showing the last available balance.',
-    billingUserId: 'New API user ID',
-    billingUserIdHint: 'Use the integer user ID required by the billing panel.',
-    billingAccessToken: 'Billing access token',
+    billingPath: 'Billing path',
+    billingPathHint: 'Use a root-relative path, for example /client/openapi/getCredits.',
+    billingUserId: 'User ID (optional)',
+    billingUserIdHint: 'Only needed by protocols that require a user identifier.',
+    billingAccessToken: 'Billing token',
     billingAccessTokenHint: 'Stored securely and used only to query the balance.',
     billingAccessTokenSavedHint: 'Token saved. Enter a new token or remove it.',
     billingNotSupported: 'This provider preset does not expose a billing adapter yet.',
-    billingValidationUserId: 'Billing user ID must be an integer.',
-    billingValidationAccessToken: 'An access token is required for New API billing.',
+    billingValidationPath: 'Billing path is required and must start with "/".',
+    billingValidationApiKey: 'Current API key mode requires a saved API key.',
+    billingValidationUserId: 'Billing user ID is invalid.',
+    billingValidationAccessToken: 'A billing token is required for token mode.',
     alias: 'Alias',
     baseUrlHint: 'Enter API base URL, e.g. https://example.com/v1',
     requestAddresses: 'Endpoints',
@@ -940,8 +952,10 @@ const ZH_CN_MESSAGES: AppMessages = {
     noProviderProfile: '暂无 Provider 配置 (´･ω･`)',
     config: '配置',
     billing: '余额与计费',
-    billingMode: '计费模式',
+    billingMode: '余额查询',
     billingModeHint: '余额查询不影响生成。',
+    billingUseCurrentApiKey: '使用当前 API Key',
+    billingUseBillingToken: '使用独立 Token',
     billingDisabled: '未启用余额查询。',
     billingRefresh: '刷新余额',
     billingRefreshing: '刷新中…',
@@ -951,14 +965,18 @@ const ZH_CN_MESSAGES: AppMessages = {
     billingBalanceLabel: '当前余额',
     billingCheckedAt: '上次检查',
     billingErrorStale: '刷新失败，已显示上次可用余额。',
-    billingUserId: 'New API 用户 ID',
-    billingUserIdHint: '填写计费面板要求的整数用户 ID。',
-    billingAccessToken: '计费 Access Token',
+    billingPath: '查询路径',
+    billingPathHint: '填写根路径，例如 /client/openapi/getCredits。',
+    billingUserId: '用户 ID（可选）',
+    billingUserIdHint: '仅在某些需要用户标识的协议下使用。',
+    billingAccessToken: '计费 Token',
     billingAccessTokenHint: '仅用于查询余额。',
     billingAccessTokenSavedHint: 'Token 已保存。可替换或移除。',
     billingNotSupported: '暂不支持余额查询。',
-    billingValidationUserId: '用户 ID 必须为整数。',
-    billingValidationAccessToken: 'New API 余额查询需要 Access Token。',
+    billingValidationPath: '查询路径必填，且必须以 / 开头。',
+    billingValidationApiKey: '当前 API Key 模式需要已保存或当前填写的 API Key。',
+    billingValidationUserId: '用户 ID 无效。',
+    billingValidationAccessToken: 'Token 模式需要计费 Token。',
     alias: '别名',
     baseUrlHint: '填写 API 基础地址，如 https://example.com/v1',
     requestAddresses: '端点',

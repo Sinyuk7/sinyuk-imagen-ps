@@ -1,5 +1,4 @@
 import type { Provider, ProviderDescriptor, ProviderInvokeArgs } from '../../contract/provider.js';
-import type { ProviderBalanceSnapshot } from '../../contract/billing.js';
 import type { ProviderInvokeResult } from '../../contract/result.js';
 import { mockDescriptor } from './descriptor.js';
 import { mockConfigSchema, type MockProviderConfig } from './config-schema.js';
@@ -225,16 +224,6 @@ export function createMockProvider(
           }
         }
       });
-    },
-
-    async queryBalance(): Promise<ProviderBalanceSnapshot> {
-      return {
-        primary: {
-          kind: 'money',
-          remaining: '12.50',
-          currency: 'USD',
-        },
-      };
     },
   };
 }

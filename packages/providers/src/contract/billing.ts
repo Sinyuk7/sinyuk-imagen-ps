@@ -55,17 +55,36 @@ export interface BalanceChange {
   readonly direction: 'decreased' | 'increased';
 }
 
-export type ProviderBillingMode =
-  | { readonly mode: 'none' }
-  | { readonly mode: 'official' }
+export const billingProtocolIds = [
+  'credits-api-key-json-v1',
+  'credits-token-json-v1',
+  'new-api-user-bearer-v1',
+] as const;
+
+export type BillingProtocolId = (typeof billingProtocolIds)[number];
+
+export type ProviderBillingSource = 'disabled' | 'profile-api-key' | 'billing-token';
+
+export type ProviderBillingConfig =
+  | { readonly source: 'disabled' }
   | {
-      readonly mode: 'new-api';
-      readonly userId: string;
-      readonly accessTokenSecretRef: string;
+      readonly source: 'profile-api-key';
+      readonly path: string;
+      readonly lastSuccessfulProtocolId?: BillingProtocolId;
+    }
+  | {
+      readonly source: 'billing-token';
+      readonly path: string;
+      readonly tokenSecretRef: string;
+      readonly userId?: string;
+      readonly lastSuccessfulProtocolId?: BillingProtocolId;
     };
 
+export interface ProviderBalanceQueryResult {
+  readonly snapshot: ProviderBalanceSnapshot;
+  readonly protocolId: BillingProtocolId;
+}
+
 export interface ProviderBillingCapability {
-  readonly supportedModes: readonly ProviderBillingMode['mode'][];
-  readonly defaultMode?: ProviderBillingMode['mode'];
-  readonly query?: 'supported' | 'unsupported' | 'mode-dependent';
+  readonly query?: 'supported' | 'unsupported';
 }

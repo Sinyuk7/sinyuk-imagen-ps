@@ -1,17 +1,7 @@
 import { z } from 'zod';
-import { providerConnectionCollectionSchema } from '../../contract/config-schema.js';
+import { providerBillingConfigSchema, providerConnectionCollectionSchema } from '../../contract/config-schema.js';
 import { normalizeApiFormatPaths } from '../../contract/api-format.js';
 import type { OpenAiImagesPaths } from '../../contract/api-format.js';
-
-const providerBillingSchema = z.union([
-  z.object({ mode: z.literal('none') }),
-  z.object({ mode: z.literal('official') }),
-  z.object({
-    mode: z.literal('new-api'),
-    userId: z.string().regex(/^\d+$/),
-    accessTokenSecretRef: z.string().min(1),
-  }),
-]).optional();
 
 /**
  * Mock provider config 的 Zod schema。
@@ -37,7 +27,7 @@ export const mockConfigSchema = z.object({
   }),
   apiKey: z.string().min(1),
   defaultModel: z.string().optional(),
-  billing: providerBillingSchema,
+  billing: providerBillingConfigSchema,
   extraHeaders: z.record(z.string(), z.string()).optional(),
   timeoutMs: z.number().int().positive().optional(),
 

@@ -287,26 +287,26 @@ async function resolveBillingSecretConfig(
     return {};
   }
   const record = billing as Record<string, unknown>;
-  if (record.mode !== 'new-api') {
+  if (record.source !== 'billing-token') {
     return {};
   }
-  const accessTokenSecretRef =
-    typeof record.accessTokenSecretRef === 'string' && record.accessTokenSecretRef.length > 0
-      ? record.accessTokenSecretRef
-      : typeof secretRefs?.billingAccessToken === 'string'
-        ? secretRefs.billingAccessToken
+  const tokenSecretRef =
+    typeof record.tokenSecretRef === 'string' && record.tokenSecretRef.length > 0
+      ? record.tokenSecretRef
+      : typeof secretRefs?.billingToken === 'string'
+        ? secretRefs.billingToken
         : undefined;
-  if (!accessTokenSecretRef) {
-    throw new Error('Provider billing config requires accessTokenSecretRef.');
+  if (!tokenSecretRef) {
+    throw new Error('Provider billing config requires tokenSecretRef.');
   }
-  const raw = await getSecretStorageAdapter().getSecret(accessTokenSecretRef);
+  const raw = await getSecretStorageAdapter().getSecret(tokenSecretRef);
   if (raw === undefined) {
-    throw new Error('Provider billing access token is missing.');
+    throw new Error('Provider billing token is missing.');
   }
   return {
     billing: {
       ...record,
-      accessTokenSecretRef: resolveSecretValue(raw),
+      tokenSecretRef: resolveSecretValue(raw),
     },
   };
 }

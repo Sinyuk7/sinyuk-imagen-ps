@@ -76,16 +76,16 @@ function sanitizeBillingConfig(
     return config;
   }
   const record = billing as Record<string, unknown>;
-  if (record.mode !== 'new-api') {
+  if (record.source !== 'billing-token') {
     return config;
   }
   return {
     ...config,
     billing: {
       ...record,
-      accessTokenSecretRef:
-        typeof secretRefs?.billingAccessToken === 'string' && secretRefs.billingAccessToken.length > 0
-          ? secretRefs.billingAccessToken
+      tokenSecretRef:
+        typeof secretRefs?.billingToken === 'string' && secretRefs.billingToken.length > 0
+          ? secretRefs.billingToken
           : undefined,
     },
   };

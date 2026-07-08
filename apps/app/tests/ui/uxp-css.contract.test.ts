@@ -198,6 +198,20 @@ describe('UXP panel CSS contract', () => {
     expect(unionSource).toContain('.round-item:last-child{ margin-bottom:0; border-bottom:none; }');
   });
 
+  it('caps chat history growth with dedicated content-width variables instead of wide-panel stretching', () => {
+    const unionSource = CSS_SOURCES.map((path) => readFileSync(path, 'utf8')).join('\n');
+    expect(unionSource).toContain('--chat-prompt-max-width:544px;');
+    expect(unionSource).toContain('--chat-result-max-width:688px;');
+    expect(unionSource).toContain('--chat-preview-max-width:560px;');
+    expect(unionSource).toContain('width:100%; max-width:var(--chat-result-max-width);');
+    expect(unionSource).toContain('width:100%; max-width:var(--chat-preview-max-width);');
+    expect(unionSource).toContain('--chat-preview-max-height:320px;');
+    expect(unionSource).toContain('margin-right:auto;');
+    expect(unionSource).toContain('margin-left:auto;');
+    expect(unionSource).toContain('.panel[data-panel-width-mode="compact"] .round-list{');
+    expect(unionSource).not.toContain('.panel[data-panel-width-mode="wide"] .img-result{ height:300px; max-height:440px; }');
+  });
+
   it('keeps React inline styles from bypassing the UXP-safe spacing rules', () => {
     const uiFiles = [...walkFiles(UI_ROOT), ...walkFiles(HARNESS_ROOT)].filter((filePath) => {
       const extension = filePath.slice(filePath.lastIndexOf('.'));

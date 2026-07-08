@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { providerConnectionCollectionSchema } from '../../contract/config-schema.js';
+import { providerBillingConfigSchema, providerConnectionCollectionSchema } from '../../contract/config-schema.js';
 import { normalizeApiFormatPaths } from '../../contract/api-format.js';
 import type { GeminiGenerateContentPaths } from '../../contract/api-format.js';
 
@@ -35,6 +35,7 @@ export const geminiGenerateContentConfigSchema = z.object({
   apiKey: z.string().optional(),
   authMode: z.enum(['x-goog-api-key', 'bearer', 'none']).default('x-goog-api-key'),
   defaultModel: z.string().optional(),
+  billing: providerBillingConfigSchema,
   extraHeaders: z.record(z.string(), z.string()).optional(),
   timeoutMs: z.number().int().positive().optional(),
 }).superRefine((value, ctx) => {
@@ -52,6 +53,14 @@ export const geminiGenerateContentConfigSchema = z.object({
       code: z.ZodIssueCode.custom,
       message: `Gemini Generate Content auth headers are provider-owned and must not be supplied through extraHeaders: ${overriddenHeaders.join(', ')}`,
       path: ['extraHeaders'],
+    });
+  }
+
+  if (value.billing?.source === 'profile-api-key' && (typeof value.apiKey !== 'string' || value.apiKey.length === 0)) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      message: 'Billing query with current API key requires apiKey.',
+      path: ['billing'],
     });
   }
 });

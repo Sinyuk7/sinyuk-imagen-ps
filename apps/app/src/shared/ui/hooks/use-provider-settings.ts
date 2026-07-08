@@ -92,21 +92,15 @@ export function providerSupportsBalanceQuery(
   descriptor: ProviderDescriptor | null | undefined,
   profile: ProviderProfile | null,
 ): boolean {
-  const query = descriptor?.billing?.query;
-  if (query === 'supported') {
-    return true;
-  }
-  if (query === 'unsupported' || !profile) {
+  if (descriptor?.billing?.query !== 'supported' || !profile) {
     return false;
   }
-  if (query === 'mode-dependent') {
-    const billing = profile.config.billing;
-    if (!billing || typeof billing !== 'object' || Array.isArray(billing)) {
-      return descriptor?.billing?.defaultMode !== 'none';
-    }
-    return (billing as { readonly mode?: unknown }).mode !== 'none';
+  const billing = profile.config.billing;
+  if (!billing || typeof billing !== 'object' || Array.isArray(billing)) {
+    return false;
   }
-  return true;
+  const source = (billing as { readonly source?: unknown }).source;
+  return source === 'profile-api-key' || source === 'billing-token';
 }
 
 export function providerProfileUpsertCapabilities(
@@ -116,7 +110,7 @@ export function providerProfileUpsertCapabilities(
   return {
     canDeleteProfile: Boolean(profile),
     canRemoveSavedApiKey: Boolean(profile?.secretRefs?.apiKey),
-    canRemoveSavedBillingToken: Boolean(profile?.secretRefs?.billingAccessToken),
+    canRemoveSavedBillingToken: Boolean(profile?.secretRefs?.billingToken),
     canRefreshPersistedModelCache: Boolean(profile),
     canReadBillingState: providerSupportsBalanceQuery(descriptor, profile),
   };
@@ -554,7 +548,7 @@ export interface ProviderConnectionDraft {
   readonly endpoints: readonly ProviderEndpointDraft[];
 }
 
-export type BillingModeDraft = 'none' | 'official' | 'new-api';
+export type BillingSourceDraft = 'disabled' | 'profile-api-key' | 'billing-token';
 export type AuthModeDraft = 'bearer' | 'x-goog-api-key' | 'none';
 
 export interface ApiPathDraft {
@@ -566,10 +560,12 @@ export interface ApiPathDraft {
 }
 
 export interface ProviderBillingDraft {
-  readonly mode: BillingModeDraft;
+  readonly source: BillingSourceDraft;
+  readonly path: string;
   readonly userId: string;
-  readonly accessToken: string;
-  readonly hasSavedAccessToken: boolean;
+  readonly token: string;
+  readonly hasSavedToken: boolean;
+  readonly lastSuccessfulProtocolId?: string;
 }
 
 function createEndpointId(): string {
@@ -592,6 +588,10 @@ export function sanitizeProviderEndpointUrl(value: string): string {
 }
 
 export function sanitizeProviderSecretValue(value: string): string {
+  return value.trim();
+}
+
+export function sanitizeBillingPath(value: string): string {
   return value.trim();
 }
 
@@ -760,71 +760,60 @@ export function readProviderBillingDraft(profile: ProviderProfile | null): Provi
   const billing = profile?.config.billing;
   if (typeof billing !== 'object' || billing === null || Array.isArray(billing)) {
     return {
-      mode: 'none',
+      source: 'disabled',
+      path: '',
       userId: '',
-      accessToken: '',
-      hasSavedAccessToken: false,
+      token: '',
+      hasSavedToken: false,
     };
   }
   const record = billing as {
-    readonly mode?: BillingModeDraft;
+    readonly source?: BillingSourceDraft;
+    readonly path?: string;
     readonly userId?: string;
-    readonly accessTokenSecretRef?: string;
+    readonly tokenSecretRef?: string;
+    readonly lastSuccessfulProtocolId?: string;
   };
   return {
-    mode: record.mode === 'official' || record.mode === 'new-api' ? record.mode : 'none',
+    source: record.source === 'profile-api-key' || record.source === 'billing-token' ? record.source : 'disabled',
+    path: typeof record.path === 'string' ? record.path : '',
     userId: typeof record.userId === 'string' ? record.userId : '',
-    accessToken: '',
-    hasSavedAccessToken:
-      record.mode === 'new-api' &&
-      typeof record.accessTokenSecretRef === 'string' &&
-      record.accessTokenSecretRef.length > 0,
+    token: '',
+    hasSavedToken:
+      record.source === 'billing-token' &&
+      typeof record.tokenSecretRef === 'string' &&
+      record.tokenSecretRef.length > 0,
+    ...(typeof record.lastSuccessfulProtocolId === 'string' ? { lastSuccessfulProtocolId: record.lastSuccessfulProtocolId } : {}),
   };
 }
 
-export function billingModeOptions(provider: ProviderDescriptor | undefined): readonly {
-  readonly id: BillingModeDraft;
+export function billingModeOptions(
+  provider: ProviderDescriptor | undefined,
+  labels?: {
+    readonly disabled?: string;
+    readonly profileApiKey?: string;
+    readonly billingToken?: string;
+  },
+): readonly {
+  readonly id: BillingSourceDraft;
   readonly label: string;
 }[] {
-  const supported = provider?.billing?.supportedModes ?? ['none'];
-  const options: { readonly id: BillingModeDraft; readonly label: string }[] = [];
-  for (const mode of supported) {
-    if (mode === 'none') {
-      options.push({ id: 'none', label: 'Disabled' });
-      continue;
-    }
-    if (mode === 'official') {
-      options.push({ id: 'official', label: 'Official' });
-      continue;
-    }
-    if (mode === 'new-api') {
-      options.push({ id: 'new-api', label: 'New API' });
-    }
-  }
-  return options;
+  void provider;
+  return [
+    { id: 'disabled', label: labels?.disabled ?? 'Disabled' },
+    { id: 'profile-api-key', label: labels?.profileApiKey ?? 'Use current API key' },
+    { id: 'billing-token', label: labels?.billingToken ?? 'Use billing token' },
+  ];
 }
 
 export function defaultBillingDraft(provider: ProviderDescriptor | undefined): ProviderBillingDraft {
-  const defaultMode = provider?.billing?.defaultMode;
-  const supported = new Set(provider?.billing?.supportedModes ?? ['none']);
-  const requiresExtraFields = defaultMode === 'new-api';
-  const mode: BillingModeDraft =
-    requiresExtraFields && supported.has('none')
-      ? 'none'
-      : defaultMode === 'official' || defaultMode === 'new-api' || defaultMode === 'none'
-      ? defaultMode
-      : supported.has('none')
-        ? 'none'
-        : supported.has('new-api')
-          ? 'new-api'
-          : supported.has('official')
-            ? 'official'
-            : 'none';
+  void provider;
   return {
-    mode,
+    source: 'disabled',
+    path: '',
     userId: '',
-    accessToken: '',
-    hasSavedAccessToken: false,
+    token: '',
+    hasSavedToken: false,
   };
 }
 
@@ -840,8 +829,9 @@ export function providerConfigFromForm(
   const normalizedBilling = billing
     ? {
         ...billing,
+        path: sanitizeBillingPath(billing.path),
         userId: sanitizeProviderSecretValue(billing.userId),
-        accessToken: sanitizeProviderSecretValue(billing.accessToken),
+        token: sanitizeProviderSecretValue(billing.token),
       }
     : undefined;
   const config: Record<string, ProviderProfileConfigValue> = {
@@ -859,17 +849,23 @@ export function providerConfigFromForm(
     },
   };
   if (normalizedBilling) {
-    if (normalizedBilling.mode === 'none') {
-      config.billing = { mode: 'none' };
-    } else if (normalizedBilling.mode === 'official') {
-      config.billing = { mode: 'official' };
+    if (normalizedBilling.source === 'disabled') {
+      config.billing = { source: 'disabled' };
+    } else if (normalizedBilling.source === 'profile-api-key') {
+      config.billing = {
+        source: 'profile-api-key',
+        path: normalizedBilling.path,
+        ...(normalizedBilling.lastSuccessfulProtocolId ? { lastSuccessfulProtocolId: normalizedBilling.lastSuccessfulProtocolId } : {}),
+      };
     } else {
       config.billing = {
-        mode: 'new-api',
-        userId: normalizedBilling.userId,
-        accessTokenSecretRef: normalizedBilling.hasSavedAccessToken || normalizedBilling.accessToken
-          ? 'secret:pending:billingAccessToken'
+        source: 'billing-token',
+        path: normalizedBilling.path,
+        ...(normalizedBilling.userId ? { userId: normalizedBilling.userId } : {}),
+        tokenSecretRef: normalizedBilling.hasSavedToken || normalizedBilling.token
+          ? 'secret:pending:billingToken'
           : '',
+        ...(normalizedBilling.lastSuccessfulProtocolId ? { lastSuccessfulProtocolId: normalizedBilling.lastSuccessfulProtocolId } : {}),
       };
     }
   }
@@ -880,33 +876,40 @@ export function providerConfigFromForm(
 }
 
 export function billingSecretValuesFromDraft(billing: ProviderBillingDraft): Readonly<Record<string, string>> | undefined {
-  if (billing.mode !== 'new-api') {
+  if (billing.source !== 'billing-token') {
     return undefined;
   }
-  const token = billing.accessToken.trim();
+  const token = billing.token.trim();
   if (!token) {
     return undefined;
   }
-  return { billingAccessToken: token };
+  return { billingToken: token };
 }
 
 export function billingFieldError(
   billing: ProviderBillingDraft,
   provider: ProviderDescriptor | undefined,
+  options?: {
+    readonly currentApiKey?: string;
+    readonly hasSavedApiKey?: boolean;
+  },
 ): string | null {
-  if (!provider?.billing) {
+  if (billing.source === 'disabled') {
     return null;
   }
-  if (!provider.billing.supportedModes.includes(billing.mode)) {
+  if (provider?.billing?.query === 'unsupported') {
     return 'unsupported';
   }
-  if (billing.mode !== 'new-api') {
-    return null;
+  if (!sanitizeBillingPath(billing.path)) {
+    return 'path';
   }
-  if (!/^\d+$/.test(billing.userId.trim())) {
-    return 'user-id';
+  if (billing.source === 'profile-api-key') {
+    if (options?.hasSavedApiKey || sanitizeProviderSecretValue(options?.currentApiKey ?? '')) {
+      return null;
+    }
+    return 'api-key';
   }
-  if (!billing.hasSavedAccessToken && billing.accessToken.trim().length === 0) {
+  if (!billing.hasSavedToken && billing.token.trim().length === 0) {
     return 'token';
   }
   return null;

@@ -4,7 +4,9 @@ import type {
 
 interface QueryBalanceRequest {
   readonly url: string;
+  readonly method: 'GET' | 'POST';
   readonly headers: Readonly<Record<string, string>>;
+  readonly body?: string;
   readonly signal?: AbortSignal;
 }
 
@@ -29,8 +31,9 @@ export async function fetchProviderBalanceJson(
   request: QueryBalanceRequest,
 ): Promise<unknown> {
   const response = await fetch(request.url, {
-    method: 'GET',
+    method: request.method,
     headers: request.headers,
+    ...(typeof request.body === 'string' ? { body: request.body } : {}),
     ...(request.signal ? { signal: request.signal } : {}),
   });
   const text = await response.text();
@@ -87,5 +90,26 @@ export function parseNewApiBalanceResponse(raw: unknown): ProviderBalanceSnapsho
       unit: 'quota',
     },
     ...(details ? { details } : {}),
+  };
+}
+
+export function parseCreditsBalanceResponse(raw: unknown): ProviderBalanceSnapshot {
+  if (!isRecord(raw)) {
+    throw new Error('Credits balance response is not a JSON object.');
+  }
+  if (typeof raw.code === 'number' && raw.code !== 0) {
+    throw new Error(typeof raw.msg === 'string' ? raw.msg : `Credits balance query failed with code ${raw.code}.`);
+  }
+  const data = isRecord(raw.data) ? raw.data : raw;
+  const remaining = parseDecimalString(data.credits);
+  if (remaining === undefined) {
+    throw new Error('Credits balance response missing "credits".');
+  }
+  return {
+    primary: {
+      kind: 'quota',
+      remaining,
+      unit: 'credits',
+    },
   };
 }

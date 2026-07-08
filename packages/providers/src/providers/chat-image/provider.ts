@@ -7,7 +7,6 @@ import type {
   ProviderInvokeArgs,
   ProviderSafeProbeResult,
 } from '../../contract/provider.js';
-import type { ProviderBalanceSnapshot } from '../../contract/billing.js';
 import type { ProviderInvokeResult } from '../../contract/result.js';
 import type { DiscoveredModel } from '../../contract/model.js';
 import { mockRequestSchema, type MockProviderRequest } from '../mock/request-schema.js';
@@ -20,11 +19,7 @@ import { resolvePaidRetryConfig, resolveIdempotencyHeader } from '../../transpor
 import { resolveChatImageWireCodec } from '../../transport/chat-image/request-codec.js';
 import type { ParsedChatImageResponse } from '../../transport/chat-image/parse-response.js';
 import { parseChatImageModelsResponse } from '../../transport/chat-image/models.js';
-import {
-  fetchProviderBalanceJson,
-  parseNewApiBalanceResponse,
-  resolveRootBillingUrl,
-} from '../../transport/billing/query-balance.js';
+import { executeBillingProtocolChain } from '../../transport/billing/protocol-registry.js';
 import { assembleApiUrl } from '../../contract/api-format.js';
 
 interface ProviderValidationError extends Error {
@@ -344,31 +339,21 @@ export function createChatImageProvider(): Provider<ChatImageProviderConfig, Moc
       };
     },
 
-    async queryBalance(config: ChatImageProviderConfig, input): Promise<ProviderBalanceSnapshot> {
-      const mode = config.billing?.mode ?? chatImageDescriptor.billing?.defaultMode;
-      if (mode === undefined || mode === 'none') {
-        throw createValidationError(`Provider implementation "${chatImageDescriptor.id}" does not support balance query for mode "none".`);
+    async queryBalance(config: ChatImageProviderConfig, input) {
+      const billing = config.billing;
+      if (!billing || billing.source === 'disabled') {
+        throw createValidationError(`Provider implementation "${chatImageDescriptor.id}" does not support balance query for disabled billing source.`);
       }
       const endpoint = config.connection.endpoints.find((candidate) => candidate.enabled) ?? config.connection.endpoints[0];
       if (!endpoint) {
         throw createValidationError('Balance query requires at least one endpoint.');
       }
-      if (mode === 'new-api') {
-        const billing = config.billing;
-        if (!billing || billing.mode !== 'new-api') {
-          throw createValidationError('New API balance mode requires profile billing config.');
-        }
-        const json = await fetchProviderBalanceJson({
-          url: resolveRootBillingUrl(endpoint.url, '/api/user/self'),
-          headers: {
-            Authorization: `Bearer ${billing.accessTokenSecretRef}`,
-            'New-Api-User': billing.userId,
-          },
-          ...(input.signal ? { signal: input.signal } : {}),
-        });
-        return parseNewApiBalanceResponse(json);
-      }
-      throw createValidationError('Official balance query is not implemented for generic chat-image providers yet.');
+      return executeBillingProtocolChain({
+        endpointUrl: endpoint.url,
+        billing,
+        apiKey: config.apiKey,
+        ...(input.signal ? { signal: input.signal } : {}),
+      });
     },
   };
 }

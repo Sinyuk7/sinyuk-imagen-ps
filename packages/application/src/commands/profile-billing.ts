@@ -1,6 +1,7 @@
 import { createProviderError, createValidationError } from '@imagen-ps/core-engine';
 import { generateTraceId } from '@imagen-ps/foundation';
 import type {
+  BillingProtocolId,
   BalanceChange,
   ExactTaskCost,
   ProviderBalanceSnapshot,
@@ -10,6 +11,7 @@ import type {
   CommandResult,
   ProfileBalanceResult,
   ProfileBillingState,
+  ProviderProfile,
   RefreshProfileBalanceInput,
   RefreshProfileBalanceResult,
 } from './types.js';
@@ -61,10 +63,15 @@ function stableSerialize(value: unknown): string {
 }
 
 function billingConfigFingerprint(config: Record<string, unknown>): string {
+  const billing = config.billing;
+  const normalizedBilling =
+    billing && typeof billing === 'object' && !Array.isArray(billing)
+      ? Object.fromEntries(Object.entries(billing).filter(([key]) => key !== 'lastSuccessfulProtocolId'))
+      : billing;
   const pick = {
     apiFormat: config.apiFormat,
     connection: config.connection,
-    billing: config.billing,
+    billing: normalizedBilling,
   };
   return stableSerialize(pick);
 }
@@ -83,13 +90,46 @@ function createProfileBalanceResult(
   apiFormat: ProfileBalanceResult['apiFormat'],
   checkedAt: number,
   snapshot: ProviderBalanceSnapshot,
+  protocolId?: BillingProtocolId,
 ): ProfileBalanceResult {
   return {
     profileId,
     apiFormat,
     checkedAt,
     snapshot,
+    ...(protocolId ? { protocolId } : {}),
   };
+}
+
+async function persistSuccessfulBillingProtocol(
+  profile: ProviderProfile | undefined,
+  protocolId: BillingProtocolId,
+  checkedAt: number,
+): Promise<void> {
+  if (!profile) {
+    return;
+  }
+  const billing = profile.config.billing;
+  if (typeof billing !== 'object' || billing === null || Array.isArray(billing)) {
+    return;
+  }
+  if ((billing as { readonly source?: unknown }).source === 'disabled') {
+    return;
+  }
+  if ((billing as { readonly lastSuccessfulProtocolId?: unknown }).lastSuccessfulProtocolId === protocolId) {
+    return;
+  }
+  await getProviderProfileRepository().save({
+    ...profile,
+    config: {
+      ...profile.config,
+      billing: {
+        ...(billing as Record<string, unknown>),
+        lastSuccessfulProtocolId: protocolId,
+      },
+    },
+    updatedAt: new Date(checkedAt).toISOString(),
+  });
 }
 
 function getOrCreateBillingEntry(profileId: string, fingerprint: string): BillingCacheEntry {
@@ -270,10 +310,12 @@ async function performBalanceRefresh(
 
   const resolved = await getProviderConfigResolver().resolve(input.profileId);
   const checkedAt = Date.now();
-  const snapshot = await provider.queryBalance(resolved.providerConfig as never, {
+  const result = await provider.queryBalance(resolved.providerConfig as never, {
     ...(input.signal ? { signal: input.signal } : {}),
   });
-  const nextBalance = createProfileBalanceResult(input.profileId, profile.apiFormat, checkedAt, snapshot);
+  await persistSuccessfulBillingProtocol(profile, result.protocolId, checkedAt);
+  const snapshot = result.snapshot;
+  const nextBalance = createProfileBalanceResult(input.profileId, profile.apiFormat, checkedAt, snapshot, result.protocolId);
   const fingerprint = billingConfigFingerprint(profile.config as Record<string, unknown>);
   const previousState = getOrCreateBillingEntry(input.profileId, fingerprint).state;
   const nextState: ProfileBillingState = {

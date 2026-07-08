@@ -249,22 +249,14 @@ export interface GeminiGenerateContentProviderConfig {
   readonly timeoutMs?: number;
 }
 
-export type ProviderBillingMode =
-  | { readonly mode: 'none' }
-  | { readonly mode: 'official' }
-  | {
-      readonly mode: 'new-api';
-      readonly userId: string;
-      readonly accessTokenSecretRef: string;
-    };
-
 export interface BillingEnabledProviderConfig {
   /** Provider profile 级 billing 配置。 */
-  readonly billing?: ProviderBillingMode;
+  readonly billing?: ProviderBillingConfig;
 }
 
 /** 当前阶段稳定公开的 provider config 联合。 */
 export type ProviderConfig =
   | (ImageEndpointProviderConfig & BillingEnabledProviderConfig)
   | (ChatImageProviderConfig & BillingEnabledProviderConfig)
-  | GeminiGenerateContentProviderConfig;
+  | (GeminiGenerateContentProviderConfig & BillingEnabledProviderConfig);
+import type { ProviderBillingConfig } from './billing.js';

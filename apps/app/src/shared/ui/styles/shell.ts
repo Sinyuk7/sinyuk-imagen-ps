@@ -47,5 +47,17 @@ export const SHELL_CSS = `
 .scroll{ overflow-y:auto; scrollbar-width:thin; scrollbar-color:var(--app-color-border-default) transparent; flex:1; min-width:0; min-height:0; }
 .scroll::-webkit-scrollbar{ width:3px; }
 .scroll::-webkit-scrollbar-thumb{ background:var(--app-color-border-default); border-radius:2px; }
-.round-list{ padding:12px 12px 12px; display:flex; flex-direction:column; min-width:0; min-height:100%; }
+.round-list{
+  /* 聊天历史默认服务 360/420 panel；wide 只做放宽。 */
+  --chat-prompt-inline-max:272px;
+  --chat-result-inline-max:320px;
+  --chat-preview-inline-max:288px;
+  --chat-preview-block-default:232px;
+  --chat-preview-block-landscape:208px;
+  --chat-preview-block-square:248px;
+  --chat-preview-block-portrait:296px;
+  --chat-preview-block-wide:168px;
+  --chat-preview-block-max:296px;
+  padding:12px 12px 12px; display:flex; flex-direction:column; min-width:0; min-height:100%;
+}
 `;

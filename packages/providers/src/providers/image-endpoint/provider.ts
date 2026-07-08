@@ -8,7 +8,6 @@ import type {
   ProviderInvokeArgs,
   ProviderSafeProbeResult,
 } from '../../contract/provider.js';
-import type { ProviderBalanceSnapshot } from '../../contract/billing.js';
 import type { ProviderInvokeResult } from '../../contract/result.js';
 import type { DiscoveredModel } from '../../contract/model.js';
 import type { Logger } from '@imagen-ps/foundation';
@@ -31,11 +30,7 @@ import {
 } from '../../transport/image-endpoint/build-request.js';
 import { parseResponse } from '../../transport/image-endpoint/parse-response.js';
 import { inspectModelsResponse } from '../../transport/image-endpoint/models.js';
-import {
-  fetchProviderBalanceJson,
-  parseNewApiBalanceResponse,
-  resolveRootBillingUrl,
-} from '../../transport/billing/query-balance.js';
+import { executeBillingProtocolChain } from '../../transport/billing/protocol-registry.js';
 import {
   evictIfMatches,
   isImageEditCodecCompatible,
@@ -486,31 +481,21 @@ export function createImageEndpointProvider(): Provider<ImageEndpointProviderCon
       };
     },
 
-    async queryBalance(config: ImageEndpointProviderConfig, input): Promise<ProviderBalanceSnapshot> {
-      const mode = config.billing?.mode ?? imageEndpointDescriptor.billing?.defaultMode;
-      if (mode === undefined || mode === 'none') {
-        throw createValidationError(`Provider implementation "${imageEndpointDescriptor.id}" does not support balance query for mode "none".`);
+    async queryBalance(config: ImageEndpointProviderConfig, input) {
+      const billing = config.billing;
+      if (!billing || billing.source === 'disabled') {
+        throw createValidationError(`Provider implementation "${imageEndpointDescriptor.id}" does not support balance query for disabled billing source.`);
       }
       const endpoint = config.connection.endpoints.find((candidate) => candidate.enabled) ?? config.connection.endpoints[0];
       if (!endpoint) {
         throw createValidationError('Balance query requires at least one endpoint.');
       }
-      if (mode === 'new-api') {
-        const billing = config.billing;
-        if (!billing || billing.mode !== 'new-api') {
-          throw createValidationError('New API balance mode requires profile billing config.');
-        }
-        const json = await fetchProviderBalanceJson({
-          url: resolveRootBillingUrl(endpoint.url, '/api/user/self'),
-          headers: {
-            Authorization: `Bearer ${billing.accessTokenSecretRef}`,
-            'New-Api-User': billing.userId,
-          },
-          ...(input.signal ? { signal: input.signal } : {}),
-        });
-        return parseNewApiBalanceResponse(json);
-      }
-      throw createValidationError('Official balance query is not implemented for generic image-endpoint providers yet.');
+      return executeBillingProtocolChain({
+        endpointUrl: endpoint.url,
+        billing,
+        apiKey: config.apiKey,
+        ...(input.signal ? { signal: input.signal } : {}),
+      });
     },
   };
 }

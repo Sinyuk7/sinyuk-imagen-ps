@@ -27,7 +27,6 @@ export type {
   GeminiGenerateContentAuthMode,
   GeminiGenerateContentProviderConfig,
   ImageEndpointProviderConfig,
-  ProviderBillingMode,
   ProviderConnectionConfig,
   ProviderEndpointConfig,
   ProviderEndpointSelectionMode,
@@ -112,8 +111,12 @@ export type {
 export type { ProviderDiagnostic, ProviderDiagnosticLevel, ProviderDiagnostics } from './diagnostics.js';
 export type {
   BalanceChange,
+  BillingProtocolId,
   ExactTaskCost,
   ProviderBalanceDetail,
+  ProviderBalanceQueryResult,
+  ProviderBillingConfig,
+  ProviderBillingSource,
   ProviderBalanceQueryInput,
   ProviderBalanceSnapshot,
   ProviderBalanceSummary,

@@ -8,6 +8,7 @@ import type { DurableJobRecord, JobError, JobEvent, JobInput, JobStatus, StoredA
 import type { Logger } from '@imagen-ps/foundation';
 import type {
   ApiFormat,
+  BillingProtocolId,
   BalanceChange,
   ExactTaskCost,
   ImageAspectRatio,
@@ -435,6 +436,7 @@ export interface ProfileBalanceResult {
   readonly profileId: string;
   readonly checkedAt: number;
   readonly snapshot: ProviderBalanceSnapshot;
+  readonly protocolId?: BillingProtocolId;
 }
 
 export interface ProfileBillingState {

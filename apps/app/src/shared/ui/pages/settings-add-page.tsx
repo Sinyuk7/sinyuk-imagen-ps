@@ -5,6 +5,7 @@ import {
   apiFormatLabel,
   billingFieldError,
   billingModeOptions,
+  billingSecretValuesFromDraft,
   connectionProbeResultById,
   defaultApiPathDraft,
   defaultBillingDraft,
@@ -307,13 +308,20 @@ export function SettingsAddPage({ onNav, profiles, onProfileSaved, onOpenModelCo
       throw new Error(t.settings.apiFormatRequired);
     }
     const displayName = sanitizeProviderDisplayName(name) || apiFormatLabel(apiFormat);
-    const validation = billingFieldError(nextBilling, selected);
-    if (validation === 'user-id') {
-      throw new Error(t.settings.billingValidationUserId);
+    const validation = billingFieldError(nextBilling, selected, { currentApiKey: apiKey, hasSavedApiKey: false });
+    if (validation === 'path') {
+      throw new Error(t.settings.billingValidationPath);
+    }
+    if (validation === 'api-key') {
+      throw new Error(t.settings.billingValidationApiKey);
     }
     if (validation === 'token') {
       throw new Error(t.settings.billingValidationAccessToken);
     }
+    if (validation === 'unsupported') {
+      throw new Error(t.settings.billingNotSupported);
+    }
+    const billingSecretValues = billingSecretValuesFromDraft(nextBilling);
     return {
       profileId,
       apiFormat,
@@ -321,7 +329,14 @@ export function SettingsAddPage({ onNav, profiles, onProfileSaved, onOpenModelCo
       systemInstruction,
       config: providerConfigFromForm(apiFormat, displayName, nextConnection, defaultModel, paths, nextBilling),
       ...selectedModelInput(defaultModel),
-      ...(sanitizeProviderSecretValue(apiKey) ? { secretValues: { apiKey: sanitizeProviderSecretValue(apiKey) } } : {}),
+      ...((sanitizeProviderSecretValue(apiKey) || billingSecretValues)
+        ? {
+            secretValues: {
+              ...(sanitizeProviderSecretValue(apiKey) ? { apiKey: sanitizeProviderSecretValue(apiKey) } : {}),
+              ...(billingSecretValues ?? {}),
+            },
+          }
+        : {}),
     };
   };
 
@@ -480,13 +495,20 @@ export function SettingsAddPage({ onNav, profiles, onProfileSaved, onOpenModelCo
       throw new Error(t.settings.apiFormatRequired);
     }
     const displayName = sanitizeProviderDisplayName(name) || apiFormatLabel(apiFormat);
-    const validation = billingFieldError(billing, selected);
-    if (validation === 'user-id') {
-      throw new Error(t.settings.billingValidationUserId);
+    const validation = billingFieldError(billing, selected, { currentApiKey: apiKey, hasSavedApiKey: false });
+    if (validation === 'path') {
+      throw new Error(t.settings.billingValidationPath);
+    }
+    if (validation === 'api-key') {
+      throw new Error(t.settings.billingValidationApiKey);
     }
     if (validation === 'token') {
       throw new Error(t.settings.billingValidationAccessToken);
     }
+    if (validation === 'unsupported') {
+      throw new Error(t.settings.billingNotSupported);
+    }
+    const billingSecretValues = billingSecretValuesFromDraft(billing);
     const result = await services.commands.saveProviderProfile({
       profileId,
       apiFormat,
@@ -495,11 +517,11 @@ export function SettingsAddPage({ onNav, profiles, onProfileSaved, onOpenModelCo
       enabled: true,
       config: providerConfigFromForm(apiFormat, displayName, connection, defaultModel, paths, billing),
       ...selectedModelInput(defaultModel),
-      ...((sanitizeProviderSecretValue(apiKey) || sanitizeProviderSecretValue(billing.accessToken))
+      ...((sanitizeProviderSecretValue(apiKey) || billingSecretValues)
         ? {
             secretValues: {
               ...(sanitizeProviderSecretValue(apiKey) ? { apiKey: sanitizeProviderSecretValue(apiKey) } : {}),
-              ...(sanitizeProviderSecretValue(billing.accessToken) ? { billingAccessToken: sanitizeProviderSecretValue(billing.accessToken) } : {}),
+              ...(billingSecretValues ?? {}),
             },
           }
         : {}),
@@ -622,11 +644,26 @@ export function SettingsAddPage({ onNav, profiles, onProfileSaved, onOpenModelCo
               <ProviderBillingSettings
                 billing={billing}
                 onBillingChange={applyBillingChange}
-                billingModeOptions={billingModeOptions(selected)}
+                billingModeOptions={billingModeOptions(selected, {
+                  disabled: t.common.disabled,
+                  profileApiKey: t.settings.billingUseCurrentApiKey,
+                  billingToken: t.settings.billingUseBillingToken,
+                })}
                 modeMenuOpen={billingModeMenuOpen}
                 onModeMenuOpenChange={setBillingModeMenuOpen}
                 disabled={saveBusy}
-                accessTokenPlaceholder="sk-..."
+                accessTokenPlaceholder="token"
+                sourceError={billingFieldError(billing, selected, { currentApiKey: apiKey, hasSavedApiKey: false }) === 'api-key'
+                  ? t.settings.billingValidationApiKey
+                  : billingFieldError(billing, selected, { currentApiKey: apiKey, hasSavedApiKey: false }) === 'unsupported'
+                    ? t.settings.billingNotSupported
+                    : null}
+                pathError={billingFieldError(billing, selected, { currentApiKey: apiKey, hasSavedApiKey: false }) === 'path'
+                  ? t.settings.billingValidationPath
+                  : null}
+                accessTokenError={billingFieldError(billing, selected, { currentApiKey: apiKey, hasSavedApiKey: false }) === 'token'
+                  ? t.settings.billingValidationAccessToken
+                  : null}
               />
             </div>
           )}

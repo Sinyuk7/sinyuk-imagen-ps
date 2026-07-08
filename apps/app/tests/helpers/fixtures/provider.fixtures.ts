@@ -45,8 +45,7 @@ export const fakeProvider: ProviderDescriptor = {
   invokeMode: 'sync',
   defaultModels: [{ id: 'gpt-image-2' }],
   billing: {
-    supportedModes: ['none'],
-    query: 'supported',
+    query: 'unsupported',
   },
 };
 
@@ -59,9 +58,7 @@ export const fakeChatProvider: ProviderDescriptor = {
   invokeMode: 'sync',
   defaultModels: [{ id: 'gpt-4o-image' }],
   billing: {
-    supportedModes: ['none', 'new-api'],
-    defaultMode: 'new-api',
-    query: 'mode-dependent',
+    query: 'supported',
   },
   connectivity: {
     endpointMeasurement: 'supported',

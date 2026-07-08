@@ -5,6 +5,7 @@ import {
   apiFormatLabel,
   billingFieldError,
   billingModeOptions,
+  billingSecretValuesFromDraft,
   connectionProbeResultById,
   defaultApiPathDraft,
   descriptorForApiFormat,
@@ -67,7 +68,9 @@ function profileFormCheckpointAttrs(
   form: {
     readonly apiKey: string;
     readonly defaultModel: string;
-    readonly billingAccessToken?: string;
+    readonly billingToken?: string;
+    readonly billingPath?: string;
+    readonly billingSource?: string;
   },
 ): Record<string, unknown> {
   return {
@@ -75,7 +78,9 @@ function profileFormCheckpointAttrs(
     apiFormat: profile?.apiFormat ?? null,
     configKeyCount: profile ? Object.keys(profile.config).length : 0,
     hasDirtyCredential: form.apiKey.trim().length > 0,
-    hasDirtyBillingCredential: (form.billingAccessToken ?? '').trim().length > 0,
+    hasDirtyBillingCredential: (form.billingToken ?? '').trim().length > 0,
+    billingPath: form.billingPath ?? null,
+    billingSource: form.billingSource ?? null,
     modelIdLength: form.defaultModel.trim().length,
   };
 }
@@ -109,13 +114,17 @@ function stableSerialize(value: unknown): string {
 function normalizeConfigForDraftCompare(config: ProviderProfileConfig): string {
   const normalized: Record<string, unknown> = { ...config };
   const billing = normalized.billing;
-  if (
-    typeof billing === 'object' &&
-    billing !== null &&
-    !Array.isArray(billing) &&
-    (billing as { readonly mode?: unknown }).mode === 'none'
-  ) {
-    delete normalized.billing;
+  if (typeof billing === 'object' && billing !== null && !Array.isArray(billing)) {
+    const record = { ...(billing as Record<string, unknown>) };
+    delete record.lastSuccessfulProtocolId;
+    if (record.source === 'disabled') {
+      delete normalized.billing;
+    } else {
+      if (typeof record.tokenSecretRef === 'string' && record.tokenSecretRef.length > 0) {
+        record.tokenSecretRef = '__billing_token_ref__';
+      }
+      normalized.billing = record;
+    }
   }
   return stableSerialize(normalized);
 }
@@ -165,7 +174,7 @@ function hasDraftChanges(
 ): boolean {
   if (
     draft.apiKey.trim().length > 0 ||
-    draft.billing.accessToken.trim().length > 0 ||
+    draft.billing.token.trim().length > 0 ||
     draft.apiKeyRemovalPending ||
     draft.billingAccessTokenRemovalPending
   ) {
@@ -218,7 +227,7 @@ function billingDraftForSave(
   removeAccessToken: boolean,
 ): ProviderBillingDraft {
   return removeAccessToken
-    ? { ...billing, accessToken: '', hasSavedAccessToken: false }
+    ? { ...billing, token: '', hasSavedToken: false }
     : billing;
 }
 
@@ -260,7 +269,10 @@ export function SettingsDetailPage({ onNav, profileId, onProfilesChanged, onSave
   const connectionTestSupported = Boolean(providerDescriptor && providerDescriptor.connectivity?.connectionTest !== 'unsupported');
 
   const effectiveBillingDraft = billingDraftForSave(billingDraft, billingAccessTokenRemovalPending);
-  const billingValidation = billingFieldError(effectiveBillingDraft, providerDescriptor);
+  const billingValidation = billingFieldError(effectiveBillingDraft, providerDescriptor, {
+    currentApiKey: apiKey,
+    hasSavedApiKey: Boolean(detail.profile?.secretRefs?.apiKey) && !apiKeyRemovalPending,
+  });
   const endpointErrors = duplicateEndpointErrors(connection, t.settings.duplicateEndpointUrl);
   const draftDirty = detail.profile
     ? hasDraftChanges(
@@ -293,7 +305,7 @@ export function SettingsDetailPage({ onNav, profileId, onProfilesChanged, onSave
     const nextBilling = updater(billingDraftRef.current);
     billingDraftRef.current = nextBilling;
     setBillingDraft(nextBilling);
-    if (nextBilling.accessToken.trim()) {
+    if (nextBilling.token.trim()) {
       setBillingAccessTokenRemovalPending(false);
     }
     invalidateDraftProofs();
@@ -459,18 +471,29 @@ export function SettingsDetailPage({ onNav, profileId, onProfilesChanged, onSave
       await services.diagnostics?.checkpoint('uxp.ui.settings_detail.persist.no_profile', { profileId });
       return null;
     }
+    // 保存时优先读 ref，避免输入框最后一次变更尚未完成重渲染时写回旧值。
+    const currentBillingDraft = billingDraftForSave(billingDraftRef.current, billingAccessTokenRemovalPending);
+    const currentConnection = connectionRef.current;
     await services.diagnostics?.checkpoint(
       'uxp.ui.settings_detail.persist.input_prepared',
-      profileFormCheckpointAttrs(detail.profile, { apiKey, defaultModel, billingAccessToken: billingDraft.accessToken }),
+      profileFormCheckpointAttrs(detail.profile, {
+        apiKey,
+        defaultModel,
+        billingToken: currentBillingDraft.token,
+        billingPath: currentBillingDraft.path,
+        billingSource: currentBillingDraft.source,
+      }),
       {
         profile_id: detail.profile.profileId,
         api_format: detail.profile.apiFormat,
       },
     );
-    const effectiveBillingDraft = billingDraftForSave(billingDraft, billingAccessTokenRemovalPending);
+    const billingSecretValues = billingSecretValuesFromDraft(currentBillingDraft);
+    const removeStoredBillingToken = Boolean(detail.profile.secretRefs?.billingToken) && currentBillingDraft.source !== 'billing-token';
     const removedSecretNames = [
       ...(apiKeyRemovalPending ? ['apiKey'] : []),
-      ...(billingAccessTokenRemovalPending ? ['billingAccessToken'] : []),
+      ...(removeStoredBillingToken ? ['billingToken'] : []),
+      ...(billingAccessTokenRemovalPending ? ['billingToken'] : []),
     ];
     return detail.save({
       profileId: detail.profile.profileId,
@@ -483,19 +506,19 @@ export function SettingsDetailPage({ onNav, profileId, onProfilesChanged, onSave
         providerConfigFromForm(
           detail.profile.apiFormat,
           sanitizeProviderDisplayName(displayName) || detail.profile.displayName,
-          connection,
+          currentConnection,
           defaultModel,
           paths,
-          effectiveBillingDraft,
+          currentBillingDraft,
         ),
       ),
       ...selectedModelInput(defaultModel, detail.profile.selectedModelIds),
       ...(removedSecretNames.length > 0 ? { removedSecretNames } : {}),
-      ...((apiKey.trim() || effectiveBillingDraft.accessToken.trim())
+      ...((apiKey.trim() || billingSecretValues)
         ? {
             secretValues: {
               ...(apiKey.trim() ? { apiKey: apiKey.trim() } : {}),
-              ...(effectiveBillingDraft.accessToken.trim() ? { billingAccessToken: effectiveBillingDraft.accessToken.trim() } : {}),
+              ...(billingSecretValues ?? {}),
             },
           }
         : {}),
@@ -506,10 +529,14 @@ export function SettingsDetailPage({ onNav, profileId, onProfilesChanged, onSave
     if (!detail.profile) {
       throw new Error('No provider profile selected.');
     }
-    const effectiveBillingDraft = billingDraftForSave(billingDraft, billingAccessTokenRemovalPending);
+    const currentBillingDraft = billingDraftForSave(billingDraftRef.current, billingAccessTokenRemovalPending);
+    const currentConnection = connectionRef.current;
+    const billingSecretValues = billingSecretValuesFromDraft(currentBillingDraft);
+    const removeStoredBillingToken = Boolean(detail.profile.secretRefs?.billingToken) && currentBillingDraft.source !== 'billing-token';
     const removedSecretNames = [
       ...(apiKeyRemovalPending ? ['apiKey'] : []),
-      ...(billingAccessTokenRemovalPending ? ['billingAccessToken'] : []),
+      ...(removeStoredBillingToken ? ['billingToken'] : []),
+      ...(billingAccessTokenRemovalPending ? ['billingToken'] : []),
     ];
     return {
       profileId: detail.profile.profileId,
@@ -521,19 +548,19 @@ export function SettingsDetailPage({ onNav, profileId, onProfilesChanged, onSave
         providerConfigFromForm(
           detail.profile.apiFormat,
           sanitizeProviderDisplayName(displayName) || detail.profile.displayName,
-          connection,
+          currentConnection,
           defaultModel,
           paths,
-          effectiveBillingDraft,
+          currentBillingDraft,
         ),
       ),
       ...selectedModelInput(defaultModel, detail.profile.selectedModelIds),
       ...(removedSecretNames.length > 0 ? { removedSecretNames } : {}),
-      ...((apiKey.trim() || effectiveBillingDraft.accessToken.trim())
+      ...((apiKey.trim() || billingSecretValues)
         ? {
             secretValues: {
               ...(apiKey.trim() ? { apiKey: apiKey.trim() } : {}),
-              ...(effectiveBillingDraft.accessToken.trim() ? { billingAccessToken: effectiveBillingDraft.accessToken.trim() } : {}),
+              ...(billingSecretValues ?? {}),
             },
           }
         : {}),
@@ -553,13 +580,22 @@ export function SettingsDetailPage({ onNav, profileId, onProfilesChanged, onSave
     setAliasError(null);
     await services.diagnostics?.checkpoint('uxp.ui.settings_detail.save.status_cleared', { profileId });
     try {
-      const effectiveBillingDraft = billingDraftForSave(billingDraft, billingAccessTokenRemovalPending);
-      const validation = billingFieldError(effectiveBillingDraft, providerDescriptor);
-      if (validation === 'user-id') {
-        throw new Error(t.settings.billingValidationUserId);
+      const currentBillingDraft = billingDraftForSave(billingDraftRef.current, billingAccessTokenRemovalPending);
+      const validation = billingFieldError(currentBillingDraft, providerDescriptor, {
+        currentApiKey: apiKey,
+        hasSavedApiKey: Boolean(detail.profile?.secretRefs?.apiKey) && !apiKeyRemovalPending,
+      });
+      if (validation === 'path') {
+        throw new Error(t.settings.billingValidationPath);
+      }
+      if (validation === 'api-key') {
+        throw new Error(t.settings.billingValidationApiKey);
       }
       if (validation === 'token') {
         throw new Error(t.settings.billingValidationAccessToken);
+      }
+      if (validation === 'unsupported') {
+        throw new Error(t.settings.billingNotSupported);
       }
       await services.diagnostics?.checkpoint('uxp.ui.settings_detail.save.before_persist', { profileId });
       const profile = await persistProfile();
@@ -736,7 +772,7 @@ export function SettingsDetailPage({ onNav, profileId, onProfilesChanged, onSave
   const renderBillingSection = () => {
     const balance = formatBillingPrimary(billing.billing);
     const checkedAt = billing.billing?.balance?.checkedAt;
-    const isConfigured = Boolean(balance) || billingDraft.mode !== 'none' || Boolean(billing.billing?.balance);
+    const isConfigured = Boolean(balance) || billingDraft.source !== 'disabled' || Boolean(billing.billing?.balance);
     const billingHint = !isConfigured
       ? t.settings.billingDisabled
       : balance
@@ -752,20 +788,30 @@ export function SettingsDetailPage({ onNav, profileId, onProfilesChanged, onSave
         <ProviderBillingSettings
           billing={effectiveBillingDraft}
           onBillingChange={updateBillingDraft}
-          billingModeOptions={billingModeOptions(providerDescriptor)}
+          billingModeOptions={billingModeOptions(providerDescriptor, {
+            disabled: t.common.disabled,
+            profileApiKey: t.settings.billingUseCurrentApiKey,
+            billingToken: t.settings.billingUseBillingToken,
+          })}
           modeMenuOpen={billingModeMenuOpen}
           onModeMenuOpenChange={setBillingModeMenuOpen}
           disabled={busy}
-          accessTokenPlaceholder="sk-..."
-          accessTokenSavedMeta={billingDraft.hasSavedAccessToken && !billingAccessTokenRemovalPending ? t.settings.savedSecretPlaceholder : null}
+          accessTokenPlaceholder="token"
+          accessTokenSavedMeta={billingDraft.hasSavedToken && !billingAccessTokenRemovalPending ? t.settings.savedSecretPlaceholder : null}
           accessTokenRemovalPending={billingAccessTokenRemovalPending}
           onAccessTokenRemove={() => {
-            const nextBillingDraft = { ...billingDraftRef.current, accessToken: '', hasSavedAccessToken: false };
+            const nextBillingDraft = { ...billingDraftRef.current, token: '', hasSavedToken: false };
             billingDraftRef.current = nextBillingDraft;
             setBillingDraft(nextBillingDraft);
             setBillingAccessTokenRemovalPending(true);
             invalidateDraftProofs();
           }}
+          sourceError={billingValidation === 'api-key'
+            ? t.settings.billingValidationApiKey
+            : billingValidation === 'unsupported'
+              ? t.settings.billingNotSupported
+              : null}
+          pathError={billingValidation === 'path' ? t.settings.billingValidationPath : null}
           userIdError={billingValidation === 'user-id' ? t.settings.billingValidationUserId : null}
           accessTokenError={billingValidation === 'token' ? t.settings.billingValidationAccessToken : null}
         />

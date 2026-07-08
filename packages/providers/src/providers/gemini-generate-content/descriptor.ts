@@ -16,9 +16,7 @@ export const geminiGenerateContentDescriptor: ProviderDescriptor = {
     },
   },
   billing: {
-    supportedModes: ['none'],
-    defaultMode: 'none',
-    query: 'unsupported',
+    query: 'supported',
   },
   connectivity: {
     endpointMeasurement: 'supported',

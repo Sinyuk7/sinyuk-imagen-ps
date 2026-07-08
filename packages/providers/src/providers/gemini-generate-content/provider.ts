@@ -23,6 +23,7 @@ import {
 import { parseGeminiGenerateContentModelsResponse } from '../../transport/gemini-generate-content/models.js';
 import { parseGeminiGenerateContentResponse } from '../../transport/gemini-generate-content/parse-response.js';
 import { assembleApiUrl } from '../../contract/api-format.js';
+import { executeBillingProtocolChain } from '../../transport/billing/protocol-registry.js';
 
 interface ProviderValidationError extends Error {
   details?: Record<string, unknown>;
@@ -403,6 +404,23 @@ export function createGeminiGenerateContentProvider(): Provider<GeminiGenerateCo
       } catch (error) {
         return normalizeGeminiProbeFailure(error);
       }
+    },
+
+    async queryBalance(config: GeminiGenerateContentProviderConfig, input) {
+      const billing = config.billing;
+      if (!billing || billing.source === 'disabled') {
+        throw createValidationError(`Provider implementation "${geminiGenerateContentDescriptor.id}" does not support balance query for disabled billing source.`);
+      }
+      const endpoint = config.connection.endpoints.find((candidate) => candidate.enabled) ?? config.connection.endpoints[0];
+      if (!endpoint) {
+        throw createValidationError('Balance query requires at least one endpoint.');
+      }
+      return executeBillingProtocolChain({
+        endpointUrl: endpoint.url,
+        billing,
+        apiKey: config.apiKey,
+        ...(input.signal ? { signal: input.signal } : {}),
+      });
     },
   };
 }

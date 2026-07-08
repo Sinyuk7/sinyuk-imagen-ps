@@ -47,7 +47,7 @@ import {
   type ComposerReadinessState,
 } from '../composer-readiness';
 import { classifyRoundError, type ErrorPrimaryAction } from '../error-action';
-import type { BalanceChange, ExactTaskCost, ImageAspectRatio, ImageOutputImageSize } from '@imagen-ps/application';
+import type { BalanceChange, ExactTaskCost, ImageAspectRatio, ImageOutputImageSize, ImageOutputSelection } from '@imagen-ps/application';
 import { modelVisibleLabel, type UiModelInfo } from '../model-info';
 import type { ModelGenerationSettingsController } from '../hooks/use-model-generation-settings';
 
@@ -294,22 +294,65 @@ function findRoundElement(container: HTMLElement, roundId: string): HTMLElement 
   return container.querySelector(`[data-round-id="${roundId}"]`);
 }
 
-function mediaShapeFromSize(size: string | undefined): 'portrait' | 'square' | 'landscape' | 'wide' | 'tall' | 'unknown' {
+type PreviewFrameShape = 'portrait' | 'square' | 'landscape' | 'wide' | 'unknown';
+
+const PREVIEW_MAX_PORTRAIT_RATIO = 2 / 3;
+
+function parseDimensionRatio(width: number, height: number): number | undefined {
+  if (!Number.isFinite(width) || !Number.isFinite(height) || width <= 0 || height <= 0) {
+    return undefined;
+  }
+  return width / height;
+}
+
+function parseAspectRatioValue(aspectRatio: string): number | undefined {
+  const match = aspectRatio.match(/^\s*(\d+(?:\.\d+)?)\s*:\s*(\d+(?:\.\d+)?)\s*$/);
+  if (!match) {
+    return undefined;
+  }
+  return parseDimensionRatio(Number(match[1]), Number(match[2]));
+}
+
+function previewFrameShapeFromRatio(ratio: number): PreviewFrameShape {
+  const effectiveRatio = ratio < PREVIEW_MAX_PORTRAIT_RATIO ? PREVIEW_MAX_PORTRAIT_RATIO : ratio;
+  if (effectiveRatio >= 2) return 'wide';
+  if (effectiveRatio > 1.15) return 'landscape';
+  if (effectiveRatio < 0.9) return 'portrait';
+  return 'square';
+}
+
+function previewFrameShapeFromSelection(selection: ImageOutputSelection | undefined): PreviewFrameShape | undefined {
+  if (!selection) {
+    return undefined;
+  }
+  switch (selection.geometry.kind) {
+    case 'pixels': {
+      const ratio = parseDimensionRatio(selection.geometry.width, selection.geometry.height);
+      return ratio !== undefined ? previewFrameShapeFromRatio(ratio) : undefined;
+    }
+    case 'ratio-resolution': {
+      const ratio = parseAspectRatioValue(selection.geometry.aspectRatio);
+      return ratio !== undefined ? previewFrameShapeFromRatio(ratio) : undefined;
+    }
+    default:
+      return undefined;
+  }
+}
+
+function mediaShapeFromSize(size: string | undefined): PreviewFrameShape {
   const match = size?.match(/(\d+)\s*[x×]\s*(\d+)/i);
   if (!match) {
     return 'unknown';
   }
-  const width = Number(match[1]);
-  const height = Number(match[2]);
-  if (!Number.isFinite(width) || !Number.isFinite(height) || width <= 0 || height <= 0) {
+  const ratio = parseDimensionRatio(Number(match[1]), Number(match[2]));
+  if (ratio === undefined) {
     return 'unknown';
   }
-  const ratio = width / height;
-  if (ratio < 0.55) return 'tall';
-  if (ratio < 0.9) return 'portrait';
-  if (ratio > 2.4) return 'wide';
-  if (ratio > 1.15) return 'landscape';
-  return 'square';
+  return previewFrameShapeFromRatio(ratio);
+}
+
+export function previewFrameShapeForRound(round: Pick<ConversationRound, 'output' | 'outputSize'>): PreviewFrameShape {
+  return previewFrameShapeFromSelection(round.output?.selection) ?? mediaShapeFromSize(round.outputSize);
 }
 
 function providerInputPolicy(settings: AppGenerationSettings): ProviderInputSizePolicy {
@@ -1262,7 +1305,7 @@ export function MainPage({
 
               <MotionContent watch={`${round.id}:${round.status}`}>
               {round.status === 'err' && (
-                <div className="msg-prov msg-prov-surface" style={{ marginTop: 4 }}>
+                <div className="msg-prov msg-prov-surface">
                   {(() => {
                     const failure = classifyRoundError(round.errorMessage);
                     const requestCopyKey = requestIdCopyKey(round.id);
@@ -1349,7 +1392,7 @@ export function MainPage({
               )}
 
               {round.status === 'running' && (
-                <div className="msg-prov msg-prov-surface" style={{ marginTop: 4 }}>
+                <div className="msg-prov msg-prov-surface">
                   <div className="prov-card">
                     <div className="prov-top">
                       <ProviderIdentity
@@ -1396,9 +1439,10 @@ export function MainPage({
                 const canGoPrev = selectedPreviewIndex > 0;
                 const canGoNext = selectedPreviewIndex < round.previews.length - 1;
                 const billingMeta = roundBillingMeta[round.id];
+                const previewFrameShape = previewFrameShapeForRound(round);
                 return (
-                <div className="msg-prov msg-prov-surface" style={{ marginTop: 4 }}>
-                  <div className={`prov-card${hasImages ? ` prov-card-media media-${mediaShapeFromSize(round.outputSize)}` : ' prov-card-text-only'}`}>
+                <div className="msg-prov msg-prov-surface">
+                  <div className={`prov-card${hasImages ? ` prov-card-media media-${previewFrameShape}` : ' prov-card-text-only'}`}>
                     <div className="prov-top">
                       <ProviderIdentity
                         providerName={round.providerName}
@@ -1463,7 +1507,7 @@ export function MainPage({
                     )}
                     {hasImages ? (
                       <div className="prov-img">
-                        <div className={`img-result media-${mediaShapeFromSize(round.outputSize)}`} data-testid={`result-preview-${round.id}`} data-preview-index={selectedPreviewIndex}>
+                        <div className={`img-result media-${previewFrameShape}`} data-testid={`result-preview-${round.id}`} data-preview-index={selectedPreviewIndex}>
                           {preview?.url
                             ? <MotionImage key={`${round.id}:${selectedPreviewIndex}`} src={preview.url} className="img-bg" alt={preview.label} />
                             : <div className="img-bg" style={{ background: 'var(--app-color-background-layer-2)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--app-color-text-muted)', fontSize: 12 }}>{t.main.noAssetPreview}</div>
