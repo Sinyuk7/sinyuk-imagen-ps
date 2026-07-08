@@ -12,6 +12,7 @@ import {
   type RefObject,
   type TextareaHTMLAttributes,
 } from 'react';
+import { writeUxpUiCheckpoint } from '../../../adapters/uxp/uxp-log-sink';
 import { usePopupLayer } from './popup-layer';
 
 export type UxpTextInputType = 'text' | 'password' | 'url' | 'search';
@@ -61,6 +62,25 @@ type ClipboardReader = {
 };
 
 const PASTE_FALLBACK_DELAYS_MS = [0, 50, 150, 300] as const;
+const DELETE_SYNC_CHECK_DELAY_MS = 120;
+
+type TextAreaSyncCause = 'input' | 'change' | 'keyup' | 'blur' | 'paste-fallback' | 'cut';
+
+type TextAreaDeleteProbe = {
+  readonly requestId: number;
+  readonly key: 'Backspace' | 'Delete';
+  readonly valueBefore: string;
+  readonly propBefore: string;
+  readonly selectionStart: number | null;
+  readonly selectionEnd: number | null;
+  sawInput: boolean;
+  sawChange: boolean;
+  sawKeyUp: boolean;
+  sawBlur: boolean;
+  sawPasteFallback: boolean;
+  sawCut: boolean;
+  readonly startedAtMs: number;
+};
 
 function scheduleSync(sync: () => void): void {
   window.setTimeout(sync, 0);
@@ -113,6 +133,53 @@ function insertTextAtSelection(target: HTMLTextAreaElement, text: string, start:
   const caret = start + text.length;
   target.selectionStart = caret;
   target.selectionEnd = caret;
+}
+
+function deleteTextAtSelection(target: HTMLTextAreaElement, key: 'Backspace' | 'Delete'): boolean {
+  const start = selectionIndex(target.selectionStart);
+  const end = selectionIndex(target.selectionEnd);
+  if (start === null || end === null) {
+    return false;
+  }
+  if (end > start) {
+    target.value = `${target.value.slice(0, start)}${target.value.slice(end)}`;
+    target.selectionStart = start;
+    target.selectionEnd = start;
+    return true;
+  }
+  if (key === 'Backspace') {
+    if (start <= 0) {
+      return false;
+    }
+    const caret = start - 1;
+    target.value = `${target.value.slice(0, caret)}${target.value.slice(end)}`;
+    target.selectionStart = caret;
+    target.selectionEnd = caret;
+    return true;
+  }
+  if (end >= target.value.length) {
+    return false;
+  }
+  target.value = `${target.value.slice(0, start)}${target.value.slice(end + 1)}`;
+  target.selectionStart = start;
+  target.selectionEnd = start;
+  return true;
+}
+
+function selectionIndex(value: number | null | undefined): number | null {
+  return typeof value === 'number' && Number.isFinite(value) ? value : null;
+}
+
+function canDeleteFromSelection(target: HTMLTextAreaElement, key: 'Backspace' | 'Delete'): boolean {
+  const start = selectionIndex(target.selectionStart);
+  const end = selectionIndex(target.selectionEnd);
+  if (start === null || end === null) {
+    return false;
+  }
+  if (end > start) {
+    return true;
+  }
+  return key === 'Backspace' ? start > 0 : end < target.value.length;
 }
 
 /**
@@ -235,10 +302,26 @@ export function UxpTextArea({
 }: UxpTextAreaProps) {
   const textAreaRef = useRef<HTMLTextAreaElement>(null);
   const pasteFallbackRequestRef = useRef(0);
+  const propValueRef = useRef(value);
+  const deleteProbeRef = useRef<TextAreaDeleteProbe | null>(null);
+  const deleteProbeRequestRef = useRef(0);
+  const loggedDiagnosticKeysRef = useRef<Set<string>>(new Set());
   const popupLayer = usePopupLayer();
   const fallbackEditorId = useId();
   const editorId = id ?? dataTestId ?? fallbackEditorId;
   const editorSuspended = nativeEditorSuspended || (popupLayer?.isNativeEditorSuspended(editorId) ?? false);
+
+  const logDiagnosticOnce = useCallback((event: string, attrs: Record<string, unknown>) => {
+    const diagnosticKey = `${editorId}:${event}`;
+    if (loggedDiagnosticKeysRef.current.has(diagnosticKey)) {
+      return;
+    }
+    loggedDiagnosticKeysRef.current.add(diagnosticKey);
+    void writeUxpUiCheckpoint(event, {
+      editorId,
+      ...attrs,
+    });
+  }, [editorId]);
 
   const bindRef = (element: HTMLTextAreaElement | null): void => {
     textAreaRef.current = element;
@@ -248,10 +331,12 @@ export function UxpTextArea({
   };
 
   useEffect(() => {
-    if (textAreaRef.current && textAreaRef.current.value !== value) {
-      textAreaRef.current.value = value;
+    const textarea = textAreaRef.current;
+    propValueRef.current = value;
+    if (textarea && textarea.value !== value) {
+      textarea.value = value;
     }
-  }, [value]);
+  }, [logDiagnosticOnce, value]);
 
   useEffect(() => {
     popupLayer?.setNativeEditorElement(editorId, textAreaRef.current);
@@ -271,17 +356,105 @@ export function UxpTextArea({
   }, [editorSuspended]);
 
   const sync = useCallback(
-    (target?: HTMLTextAreaElement | null) => {
+    (target?: HTMLTextAreaElement | null, cause?: TextAreaSyncCause) => {
+      const textarea = target ?? textAreaRef.current;
+      const probe = deleteProbeRef.current;
+      if (textarea && probe) {
+        if (cause === 'input') {
+          probe.sawInput = true;
+        } else if (cause === 'change') {
+          probe.sawChange = true;
+        } else if (cause === 'keyup') {
+          probe.sawKeyUp = true;
+        } else if (cause === 'blur') {
+          probe.sawBlur = true;
+        } else if (cause === 'paste-fallback') {
+          probe.sawPasteFallback = true;
+        } else if (cause === 'cut') {
+          probe.sawCut = true;
+        }
+      }
       onValue((target ?? textAreaRef.current)?.value ?? '');
     },
     [onValue],
   );
 
-  const syncFromKeyboard = (event: KeyboardEvent<HTMLTextAreaElement>) => sync(event.currentTarget);
-  const syncFromFocus = (event: FocusEvent<HTMLTextAreaElement>) => sync(event.currentTarget);
+  const scheduleDeleteSyncProbe = useCallback((target: HTMLTextAreaElement, key: 'Backspace' | 'Delete') => {
+    if (!canDeleteFromSelection(target, key)) {
+      return;
+    }
+    const requestId = deleteProbeRequestRef.current + 1;
+    deleteProbeRequestRef.current = requestId;
+    deleteProbeRef.current = {
+      requestId,
+      key,
+      valueBefore: target.value,
+      propBefore: propValueRef.current,
+      selectionStart: selectionIndex(target.selectionStart),
+      selectionEnd: selectionIndex(target.selectionEnd),
+      sawInput: false,
+      sawChange: false,
+      sawKeyUp: false,
+      sawBlur: false,
+      sawPasteFallback: false,
+      sawCut: false,
+      startedAtMs: Date.now(),
+    };
+
+    window.setTimeout(() => {
+      const probe = deleteProbeRef.current;
+      if (!probe || probe.requestId !== requestId || textAreaRef.current !== target) {
+        return;
+      }
+      deleteProbeRef.current = null;
+      const domValue = target.value;
+      const propValue = propValueRef.current;
+      const domChanged = domValue !== probe.valueBefore;
+      const propChanged = propValue !== probe.propBefore;
+      const attrs = {
+        key: probe.key,
+        beforeLength: probe.valueBefore.length,
+        selectionStartBefore: probe.selectionStart,
+        selectionEndBefore: probe.selectionEnd,
+        sawInput: probe.sawInput,
+        sawChange: probe.sawChange,
+        sawKeyUp: probe.sawKeyUp,
+        sawBlur: probe.sawBlur,
+        sawPasteFallback: probe.sawPasteFallback,
+        sawCut: probe.sawCut,
+        delayMs: Date.now() - probe.startedAtMs,
+      };
+      if (!domChanged) {
+        if (document.activeElement === target && !target.readOnly && !target.disabled && deleteTextAtSelection(target, probe.key)) {
+          sync(target);
+          logDiagnosticOnce('uxp.ui.textarea.delete.native_fallback_applied', {
+            ...attrs,
+            appliedLength: target.value.length,
+            appliedSelectionStart: selectionIndex(target.selectionStart),
+            appliedSelectionEnd: selectionIndex(target.selectionEnd),
+          });
+        } else {
+          logDiagnosticOnce('uxp.ui.textarea.delete.no_native_change', {
+            ...attrs,
+            domLength: domValue.length,
+            propLength: propValue.length,
+            selectionStart: selectionIndex(target.selectionStart),
+            selectionEnd: selectionIndex(target.selectionEnd),
+          });
+        }
+        return;
+      }
+      if (!propChanged || propValue !== domValue) {
+        logDiagnosticOnce('uxp.ui.textarea.delete.unsynced', attrs);
+      }
+    }, DELETE_SYNC_CHECK_DELAY_MS);
+  }, [logDiagnosticOnce]);
+
+  const syncFromKeyboard = (event: KeyboardEvent<HTMLTextAreaElement>) => sync(event.currentTarget, 'keyup');
+  const syncFromFocus = (event: FocusEvent<HTMLTextAreaElement>) => sync(event.currentTarget, 'blur');
   const syncAfterClipboard = (event: ClipboardEvent<HTMLTextAreaElement>) => {
     const target = event.currentTarget;
-    scheduleSync(() => sync(target));
+    scheduleSync(() => sync(target, 'cut'));
   };
   const fallbackPaste = (target: HTMLTextAreaElement, readText: () => Promise<string | null>) => {
     const requestId = pasteFallbackRequestRef.current + 1;
@@ -296,7 +469,7 @@ export function UxpTextArea({
         }
         if (target.value !== previousValue) {
           pasteFallbackRequestRef.current = requestId + 1;
-          sync(target);
+          sync(target, 'paste-fallback');
           return;
         }
         if (index < PASTE_FALLBACK_DELAYS_MS.length - 1) {
@@ -308,7 +481,7 @@ export function UxpTextArea({
           }
           pasteFallbackRequestRef.current = requestId + 1;
           insertTextAtSelection(target, text, selectionStart, selectionEnd);
-          sync(target);
+          sync(target, 'paste-fallback');
         }).catch(() => undefined);
       }, delayMs);
     });
@@ -320,7 +493,7 @@ export function UxpTextArea({
     if (!target.readOnly && !target.disabled && text) {
       fallbackPaste(target, () => Promise.resolve(text));
     }
-    scheduleSync(() => sync(target));
+    scheduleSync(() => sync(target, 'paste-fallback'));
   };
 
   const nativeTextArea = (
@@ -345,12 +518,16 @@ export function UxpTextArea({
             }
           : null),
       }}
+      onInput={(event) => sync(event.currentTarget, 'input')}
+      onChange={(event) => sync(event.currentTarget, 'change')}
       onBlur={syncFromFocus}
       onKeyDown={(event) => {
         if (!event.currentTarget.readOnly && !event.currentTarget.disabled && isPasteShortcut(event)) {
           fallbackPasteFromKeyboard(event.currentTarget);
         }
-        sync(event.currentTarget);
+        if (event.key === 'Backspace' || event.key === 'Delete') {
+          scheduleDeleteSyncProbe(event.currentTarget, event.key);
+        }
         onKeyDown?.(event);
       }}
       onKeyUp={syncFromKeyboard}

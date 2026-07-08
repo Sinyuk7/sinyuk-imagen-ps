@@ -685,7 +685,9 @@ export function SettingsAddPage({ onNav, profiles, onProfileSaved, onOpenModelCo
           )}
           balanceSection={(
             <div className="provider-embedded-section">
-              <div className="section-title settings-section-heading">{t.settings.billing}</div>
+              <div className="settings-inline-heading-row billing-inline-heading">
+                <div className="section-title settings-section-heading">{t.settings.billing}</div>
+              </div>
               <ProviderBillingSettings
                 billing={billing}
                 onBillingChange={applyBillingChange}

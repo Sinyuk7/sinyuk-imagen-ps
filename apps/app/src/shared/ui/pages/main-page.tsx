@@ -1818,7 +1818,6 @@ export function MainPage({
                   controlRef={taRef}
                   className="cmp-ta"
                   placeholder={selectedProfile ? t.main.promptPlaceholderReady : t.main.promptPlaceholderNoProfile}
-                  rows={2}
                   value={input}
                   onValue={composerDraft.setInput}
                   nativeEditorSuspended={composerTextAreaNeedsUxpPopupOverlapWorkaround}

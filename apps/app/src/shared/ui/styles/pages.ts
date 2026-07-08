@@ -324,31 +324,79 @@ export const PAGES_CSS = `
   color:var(--app-color-text-muted);
 }
 .billing-inline-heading{
-  align-items:center;
-  margin-bottom:10px;
+  align-items:baseline;
+  justify-content:flex-start;
+  margin-bottom:8px;
+  min-width:0;
 }
 .billing-inline-heading .section-title{
+  flex:0 0 auto;
+  margin-right:8px;
   margin-bottom:0;
 }
 .billing-inline-summary{
   display:flex;
   align-items:baseline;
-  justify-content:flex-end;
-  flex:0 1 auto;
+  flex:1 1 auto;
   min-width:0;
-  margin-left:12px;
-  text-align:right;
+  max-width:100%;
+  margin-left:0;
+  padding:0;
+  border:none;
+  background:none;
+  overflow:hidden;
+  text-align:left;
+}
+.billing-inline-summary-label,
+.billing-inline-summary-primary,
+.billing-inline-summary-unit,
+.billing-inline-summary-secondary{
+  display:inline-flex;
+  align-items:baseline;
+  white-space:nowrap;
+  font-size:11px;
+  line-height:15px;
 }
 .billing-inline-summary-label{
-  font-size:10px;
-  line-height:14px;
+  flex:0 0 auto;
   color:var(--app-color-text-muted);
+  margin-right:2px;
 }
-.billing-inline-summary-value{
+.billing-inline-summary-main{
+  display:inline-flex;
+  align-items:baseline;
+  gap:1px;
+  flex:0 1 auto;
+  min-width:0;
+  overflow:hidden;
+}
+.billing-inline-summary-primary{
+  flex:0 1 auto;
+  min-width:0;
+  overflow:hidden;
+  text-overflow:ellipsis;
   font-family:var(--app-font-family-mono);
-  font-size:14px;
-  line-height:18px;
+  font-weight:700;
+  font-variant-numeric:tabular-nums;
+  color:var(--app-color-text-primary);
+}
+.billing-inline-summary-primary-accent{
+  color:var(--app-color-accent-default);
+}
+.billing-inline-summary-unit{
+  flex:0 0 auto;
+  font-family:var(--app-font-family-mono);
+  font-weight:500;
   color:var(--app-color-text-secondary);
+}
+.billing-inline-summary-secondary{
+  flex:0 1 auto;
+  min-width:0;
+  overflow:hidden;
+  text-overflow:ellipsis;
+  font-weight:500;
+  color:var(--app-color-text-muted);
+  margin-left:3px;
 }
 .test-status{
   display:inline-flex;
@@ -1730,6 +1778,10 @@ export const PAGES_CSS = `
     flex-direction:row;
     align-items:center;
   }
+  .billing-inline-heading{
+    flex-direction:row;
+    align-items:center;
+  }
   .billing-summary-header-body,
   .settings-inline-heading-copy{
     margin-right:0;
@@ -1737,8 +1789,8 @@ export const PAGES_CSS = `
   }
   .billing-inline-summary{
     margin-left:0;
-    justify-content:flex-start;
-    text-align:left;
+    align-self:flex-start;
+    max-width:100%;
   }
   .billing-summary-actions .ui-btn,
   .settings-inline-heading-actions .ui-btn{

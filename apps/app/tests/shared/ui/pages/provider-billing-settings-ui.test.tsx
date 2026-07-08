@@ -1,7 +1,7 @@
 import { act } from 'react';
 import { createRoot, type Root } from 'react-dom/client';
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import type { ProviderProfile } from '@imagen-ps/application';
+import type { ProfileBillingState, ProviderProfile } from '@imagen-ps/application';
 import { SettingsAddPage } from '../../../../src/shared/ui/pages/settings-add-page';
 import { SettingsDetailPage } from '../../../../src/shared/ui/pages/settings-detail-page';
 import { TestAppProviders } from '../../../helpers/render-helpers';
@@ -43,8 +43,17 @@ async function renderAddPage(container: HTMLElement, options?: {
   return fake;
 }
 
-async function renderDetailPage(container: HTMLElement, profile: ProviderProfile) {
+async function renderDetailPage(
+  container: HTMLElement,
+  profile: ProviderProfile,
+  options?: {
+    readonly billingState?: ProfileBillingState;
+  },
+) {
   const fake = createFakeServices({ profiles: [profile] });
+  if (options?.billingState) {
+    fake.spies.getProfileBillingState.mockResolvedValue({ ok: true as const, value: options.billingState });
+  }
   const onNav = vi.fn();
   const onProfilesChanged = vi.fn(async () => undefined);
   root = createRoot(container);
@@ -141,6 +150,25 @@ function createBillingTokenProfile(): ProviderProfile {
   };
 }
 
+function createCreditsBillingState(): ProfileBillingState {
+  return {
+    refreshState: 'idle',
+    balance: {
+      profileId: 'mock-profile',
+      apiFormat: 'openai-chat-completions',
+      checkedAt: Date.parse('2026-07-09T02:03:04.000Z'),
+      snapshot: {
+        primary: {
+          kind: 'quota',
+          remaining: '749400',
+          unit: 'credits',
+          usedPercent: 25,
+        },
+      },
+    },
+  };
+}
+
 describe('provider billing settings UI', () => {
   afterEach(async () => {
     await cleanupRoot();
@@ -233,6 +261,22 @@ describe('provider billing settings UI', () => {
       },
     });
     expect(onProfilesChanged).toHaveBeenCalledWith('mock-profile');
+  });
+
+  it('renders billing balance summary as compact accent inline status on detail page', async () => {
+    const container = document.createElement('div');
+    document.body.appendChild(container);
+    await renderDetailPage(container, createBillingTokenProfile(), { billingState: createCreditsBillingState() });
+
+    const summary = queryByTestId(container, 'provider-billing-summary');
+    const text = summary.textContent?.replace(/\s+/g, ' ').trim();
+
+    expect(text).toContain('当前余额');
+    expect(text).toContain('749.4K');
+    expect(text).toContain('credits');
+    expect(text).toContain('25% used');
+    expect(summary.getAttribute('aria-label')).toBe('当前余额: 749.4K credits · 25% used');
+    expect(summary.querySelector('.billing-inline-summary-primary-accent')?.textContent).toBe('749.4K');
   });
 
   it('cancels saved billing token removal when a replacement is entered', async () => {

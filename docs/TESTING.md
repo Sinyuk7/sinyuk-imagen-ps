@@ -145,6 +145,8 @@ evidence:
 
 - `apps/app/tests/shared/ui/components/text-field-seam.test.tsx` for public
   `TextField` suspension/value behavior
+- `apps/app/tests/shared/ui/components/text-area-seam.test.tsx` for textarea
+  delete-sync behavior, including the Photoshop UXP native-delete fallback
 - `apps/app/tests/shared/ui/components/popup-layer-overlap-harness.test.tsx`
   for single-line + multi-line popup overlap regression proof
 - `pnpm check:policy` for the single-line seam import boundary

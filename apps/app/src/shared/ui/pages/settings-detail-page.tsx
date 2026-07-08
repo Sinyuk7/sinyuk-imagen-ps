@@ -44,7 +44,7 @@ import {
   statusFromProviderConnectionTestResult,
 } from '../provider-status';
 import { useProfileBilling } from '../hooks/use-profile-billing';
-import { formatBalanceChange, formatBillingPrimary, formatExactTaskCost } from '../../domain/mappers';
+import { formatBalanceChange, formatBillingPrimary, formatBillingPrimaryParts, formatExactTaskCost } from '../../domain/mappers';
 import { importProviderEndpointInput } from '../hooks/provider-endpoint-import';
 import { userConfiguredModelLabel } from '../model-info';
 
@@ -824,6 +824,9 @@ export function SettingsDetailPage({ onNav, onBack, profileId, onProfilesChanged
 
   const renderBillingSection = () => {
     const balance = formatBillingPrimary(billing.billing);
+    const balanceParts = formatBillingPrimaryParts(billing.billing);
+    const billingSummaryTitle = balance ? `${t.settings.billingBalanceLabel}: ${balance}` : undefined;
+    const billingPrimaryHasNumericEmphasis = balanceParts ? /\d/.test(balanceParts.primary) : false;
     const checkedAt = billing.billing?.balance?.checkedAt;
     const footer = checkedAt || formatExactTaskCost(billing.billing?.lastExactTaskCost) || formatBalanceChange(billing.billing?.lastBalanceChange)
       ? (
@@ -851,10 +854,29 @@ export function SettingsDetailPage({ onNav, onBack, profileId, onProfilesChanged
       <div className="provider-embedded-section">
         <div className="settings-inline-heading-row billing-inline-heading">
           <div className="section-title settings-section-heading">{t.settings.billing}</div>
-          {balance ? (
-            <div className="billing-inline-summary">
+          {balanceParts ? (
+            <div
+              className="billing-inline-summary"
+              data-testid="provider-billing-summary"
+              title={billingSummaryTitle}
+              aria-label={billingSummaryTitle}
+            >
               <span className="billing-inline-summary-label">{t.settings.billingBalanceLabel}</span>
-              <span className="billing-inline-summary-value">{balance}</span>
+              <span className="billing-inline-summary-main">
+                <span
+                  className={billingPrimaryHasNumericEmphasis
+                    ? 'billing-inline-summary-primary billing-inline-summary-primary-accent'
+                    : 'billing-inline-summary-primary'}
+                >
+                  {balanceParts.primary}
+                </span>
+                {balanceParts.unit ? (
+                  <span className="billing-inline-summary-unit">{balanceParts.unit}</span>
+                ) : null}
+              </span>
+              {balanceParts.secondary ? (
+                <span className="billing-inline-summary-secondary">· {balanceParts.secondary}</span>
+              ) : null}
             </div>
           ) : null}
         </div>

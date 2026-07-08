@@ -132,6 +132,22 @@ surface apps -> application/session -> core-engine + providers
   seam in `uxp-form-controls.tsx`. Raw native text editor markup belongs only
   inside that seam, and `pnpm check:policy` rejects attempts to import the
   internal single-line seam directly instead of using public `TextField`.
+- Photoshop UXP native `<textarea>` has an observed runtime instability on the
+  main composer path: after some long paste or long-text sessions, `Backspace`
+  / `Delete` can reach the element while native value mutation and follow-up
+  `input` / `change` / `keyup` / `blur` events never arrive. `UxpTextArea`
+  therefore keeps a low-frequency delete fallback: only when the native editor
+  shows no delete progress after a short delay does the seam remove the pending
+  character or selection itself and sync React state. Keep this fallback in the
+  seam rather than page-local handlers.
+- Composer textarea sizing must stay CSS-owned. Do not rely on native `rows` or
+  `cols` for Photoshop UXP textarea layout; the composer uses CSS min/max
+  height instead.
+- Long-lived diagnostics for this seam should stay sparse and operationally
+  meaningful. Keep only low-frequency anomaly signals such as
+  `uxp.ui.textarea.delete.native_fallback_applied`,
+  `uxp.ui.textarea.delete.no_native_change`, and
+  `uxp.ui.textarea.delete.unsynced`; avoid per-keystroke tracing.
 
 ## Logging Contract
 
