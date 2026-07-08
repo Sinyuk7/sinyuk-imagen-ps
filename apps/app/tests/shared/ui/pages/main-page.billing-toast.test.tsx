@@ -3,8 +3,10 @@ import { createRoot, type Root } from 'react-dom/client';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import type { ConversationRound } from '../../../../src/shared/ui/hooks/use-conversation';
 import { useAppServices } from '../../../../src/app-services/app-services-context';
+import { formatBillingPrimary } from '../../../../src/shared/domain/mappers';
 import { useTaskBillingToast } from '../../../../src/shared/ui/hooks/use-task-billing-toast';
-import { useProviderCatalog } from '../../../../src/shared/ui/hooks/use-provider-settings';
+import { useProfileBilling } from '../../../../src/shared/ui/hooks/use-profile-billing';
+import { descriptorForApiFormat, providerSupportsBalanceQuery, useProviderCatalog } from '../../../../src/shared/ui/hooks/use-provider-settings';
 import { useToast } from '../../../../src/shared/ui/components/toast-host';
 import { useI18n } from '../../../../src/shared/ui/i18n/i18n-context';
 import type { ProfileModelItem, ProfileBillingState, ProviderProfile } from '@imagen-ps/application';
@@ -100,10 +102,48 @@ function BillingToastProbe({
   return null;
 }
 
+function BillingSummaryProbe({
+  rounds,
+  profiles,
+  profileId,
+}: {
+  readonly rounds: readonly ConversationRound[];
+  readonly profiles: readonly ProviderProfile[];
+  readonly profileId: string;
+}) {
+  const services = useAppServices();
+  const providers = useProviderCatalog(services);
+  const selectedProfile = profiles.find((profile) => profile.profileId === profileId);
+  const selectedDescriptor = selectedProfile ? descriptorForApiFormat(providers, selectedProfile.apiFormat) : undefined;
+  const billing = useProfileBilling(
+    services,
+    profileId,
+    providerSupportsBalanceQuery(selectedDescriptor, selectedProfile ?? null),
+  );
+  const { show } = useToast();
+  const { messages } = useI18n();
+  useTaskBillingToast({
+    services,
+    rounds,
+    profiles,
+    providers,
+    show,
+    messages,
+    onObservedState: (observedProfileId, state) => {
+      if (observedProfileId !== profileId) {
+        return;
+      }
+      billing.applyObservedState(state);
+    },
+  });
+  return <div data-testid="billing-summary-probe">{formatBillingPrimary(billing.billing) ?? 'unknown'}</div>;
+}
+
 describe('billing toast feedback', () => {
   let probeRoot: Root | undefined;
 
   afterEach(async () => {
+    vi.useRealTimers();
     if (probeRoot) {
       await act(async () => {
         probeRoot?.unmount();
@@ -173,6 +213,241 @@ describe('billing toast feedback', () => {
     const toast = document.body.querySelector<HTMLElement>('[data-testid="toast"]');
     expect(toast?.textContent ?? '').toContain('Billing Profile');
     expect(toast?.textContent ?? '').toContain('费用: 0.02 USD');
+  });
+
+  it('shows a toast for quota balance changes when exact cost is absent', async () => {
+    vi.useFakeTimers();
+    const container = document.createElement('div');
+    document.body.appendChild(container);
+    const fake = createFakeServices({
+      profiles: [billingProfile],
+      profileModelItems: billingModels,
+    });
+    let phase: 'idle' | 'refreshing' | 'updated' = 'idle';
+    const commands = fake.services.commands as {
+      getProfileBillingState: typeof fake.services.commands.getProfileBillingState;
+    };
+    commands.getProfileBillingState = vi.fn(async () => {
+      const state: ProfileBillingState = phase === 'updated'
+        ? {
+            refreshState: 'idle',
+            balance: {
+              profileId: 'billing-profile',
+              apiFormat: 'openai-chat-completions',
+              checkedAt: 220,
+              snapshot: {
+                primary: {
+                  kind: 'quota',
+                  remaining: '8',
+                  unit: 'credits',
+                },
+              },
+            },
+            lastBalanceChange: {
+              amount: '2',
+              unit: 'credits',
+              direction: 'decreased',
+            },
+            lastBalanceChangeObservedAt: 220,
+          }
+        : {
+            refreshState: phase === 'refreshing' ? 'refreshing' : 'idle',
+            balance: {
+              profileId: 'billing-profile',
+              apiFormat: 'openai-chat-completions',
+              checkedAt: 100,
+              snapshot: {
+                primary: {
+                  kind: 'quota',
+                  remaining: '10',
+                  unit: 'credits',
+                },
+              },
+            },
+          };
+      return { ok: true as const, value: cloneBillingState(state) };
+    });
+
+    probeRoot = createRoot(container);
+    await act(async () => {
+      probeRoot!.render(
+        <TestAppProviders services={fake.services}>
+          <BillingToastProbe rounds={[createRound({ status: 'running' })]} profiles={[billingProfile]} />
+        </TestAppProviders>,
+      );
+    });
+
+    phase = 'refreshing';
+    window.setTimeout(() => {
+      phase = 'updated';
+    }, 120);
+    await act(async () => {
+      probeRoot!.render(
+        <TestAppProviders services={fake.services}>
+          <BillingToastProbe rounds={[createRound({ status: 'ok', elapsedLabel: '20s' })]} profiles={[billingProfile]} />
+        </TestAppProviders>,
+      );
+      await Promise.resolve();
+    });
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(120);
+    });
+
+    const toast = document.body.querySelector<HTMLElement>('[data-testid="toast"]');
+    expect(toast?.textContent ?? '').toContain('Billing Profile');
+    expect(toast?.textContent ?? '').toContain('余额变化: -2 credits');
+  });
+
+  it('disposes pending toast observation on unmount', async () => {
+    vi.useFakeTimers();
+    const container = document.createElement('div');
+    document.body.appendChild(container);
+    const fake = createFakeServices({
+      profiles: [billingProfile],
+      profileModelItems: billingModels,
+    });
+    let phase: 'idle' | 'refreshing' | 'updated' = 'idle';
+    const commands = fake.services.commands as {
+      getProfileBillingState: typeof fake.services.commands.getProfileBillingState;
+    };
+    commands.getProfileBillingState = vi.fn(async () => {
+      const state: ProfileBillingState = phase === 'updated'
+        ? {
+            refreshState: 'idle',
+            lastBalanceChange: {
+              amount: '1',
+              unit: 'USD',
+              direction: 'decreased',
+            },
+            lastBalanceChangeObservedAt: 220,
+          }
+        : { refreshState: phase === 'refreshing' ? 'refreshing' : 'idle' };
+      return { ok: true as const, value: cloneBillingState(state) };
+    });
+
+    probeRoot = createRoot(container);
+    await act(async () => {
+      probeRoot!.render(
+        <TestAppProviders services={fake.services}>
+          <BillingToastProbe rounds={[createRound({ status: 'running' })]} profiles={[billingProfile]} />
+        </TestAppProviders>,
+      );
+    });
+
+    phase = 'refreshing';
+    window.setTimeout(() => {
+      phase = 'updated';
+    }, 120);
+    await act(async () => {
+      probeRoot!.render(
+        <TestAppProviders services={fake.services}>
+          <BillingToastProbe rounds={[createRound({ status: 'ok', elapsedLabel: '20s' })]} profiles={[billingProfile]} />
+        </TestAppProviders>,
+      );
+      await Promise.resolve();
+    });
+
+    await act(async () => {
+      probeRoot?.unmount();
+    });
+    probeRoot = undefined;
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(120);
+    });
+
+    expect(document.body.querySelector('[data-testid="toast"]')).toBeNull();
+  });
+
+  it('syncs selected-profile billing summary after terminal refresh', async () => {
+    vi.useFakeTimers();
+    const container = document.createElement('div');
+    document.body.appendChild(container);
+    const fake = createFakeServices({
+      profiles: [billingProfile],
+      profileModelItems: billingModels,
+      activeImageProfileId: 'billing-profile',
+    });
+    let phase: 'initial' | 'refreshing' | 'updated' = 'initial';
+    const commands = fake.services.commands as {
+      getProfileBillingState: typeof fake.services.commands.getProfileBillingState;
+    };
+    commands.getProfileBillingState = vi.fn(async () => {
+      const state: ProfileBillingState = phase === 'updated'
+        ? {
+            refreshState: 'idle',
+            balance: {
+              profileId: 'billing-profile',
+              apiFormat: 'openai-chat-completions',
+              checkedAt: 220,
+              snapshot: {
+                primary: {
+                  kind: 'money',
+                  remaining: '17.5',
+                  currency: 'USD',
+                },
+              },
+            },
+            lastBalanceChange: {
+              amount: '2.5',
+              unit: 'USD',
+              direction: 'decreased',
+            },
+            lastBalanceChangeObservedAt: 220,
+          }
+        : {
+            refreshState: phase === 'refreshing' ? 'refreshing' : 'idle',
+            balance: {
+              profileId: 'billing-profile',
+              apiFormat: 'openai-chat-completions',
+              checkedAt: 100,
+              snapshot: {
+                primary: {
+                  kind: 'money',
+                  remaining: '20',
+                  currency: 'USD',
+                },
+              },
+            },
+          };
+      return { ok: true as const, value: cloneBillingState(state) };
+    });
+
+    probeRoot = createRoot(container);
+    await act(async () => {
+      probeRoot!.render(
+        <TestAppProviders services={fake.services}>
+          <BillingSummaryProbe
+            rounds={[createRound({ status: 'running' })]}
+            profiles={[billingProfile]}
+            profileId="billing-profile"
+          />
+        </TestAppProviders>,
+      );
+    });
+    expect(container.querySelector<HTMLElement>('[data-testid="billing-summary-probe"]')?.textContent ?? '').toContain('20');
+
+    phase = 'refreshing';
+    window.setTimeout(() => {
+      phase = 'updated';
+    }, 120);
+    await act(async () => {
+      probeRoot!.render(
+        <TestAppProviders services={fake.services}>
+          <BillingSummaryProbe
+            rounds={[createRound({ status: 'ok', elapsedLabel: '20s' })]}
+            profiles={[billingProfile]}
+            profileId="billing-profile"
+          />
+        </TestAppProviders>,
+      );
+      await Promise.resolve();
+    });
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(120);
+    });
+    await flush();
+
+    expect(container.querySelector<HTMLElement>('[data-testid="billing-summary-probe"]')?.textContent ?? '').toContain('17.5');
   });
 
   it('does not render round billing footer metadata on MainPage results', async () => {

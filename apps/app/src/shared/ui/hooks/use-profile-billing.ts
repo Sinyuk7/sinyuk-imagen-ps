@@ -1,6 +1,7 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import type { ProfileBillingState } from '@imagen-ps/application';
 import type { AppServices } from '../../ports/app-services';
+import { observeProfileBillingRefresh } from './task-billing-feedback';
 
 function commandMessage(error: { readonly category: string; readonly message: string }): string {
   return `${error.category}: ${error.message}`;
@@ -11,6 +12,8 @@ export interface ProfileBillingViewState {
   readonly loading: boolean;
   readonly error: string | null;
   readonly refresh: () => Promise<void>;
+  readonly observeAsyncRefresh: (input?: { readonly signal?: AbortSignal }) => Promise<ProfileBillingState | null>;
+  readonly applyObservedState: (state: ProfileBillingState) => void;
 }
 
 export function useProfileBilling(
@@ -21,10 +24,16 @@ export function useProfileBilling(
   const [billing, setBilling] = useState<ProfileBillingState | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const billingRef = useRef<ProfileBillingState | null>(null);
+
+  const applyBilling = useCallback((next: ProfileBillingState | null) => {
+    billingRef.current = next;
+    setBilling(next);
+  }, []);
 
   const refresh = useCallback(async () => {
     if (!profileId || !enabled) {
-      setBilling(null);
+      applyBilling(null);
       setError(null);
       setLoading(false);
       return;
@@ -32,21 +41,47 @@ export function useProfileBilling(
     setLoading(true);
     const result = await services.commands.refreshProfileBalance({ profileId });
     if (result.ok) {
-      setBilling(result.value.state);
+      applyBilling(result.value.state);
       setError(null);
     } else {
       setError(commandMessage(result.error));
       const state = await services.commands.getProfileBillingState(profileId);
       if (state.ok) {
-        setBilling(state.value);
+        applyBilling(state.value);
       }
     }
     setLoading(false);
-  }, [enabled, profileId, services]);
+  }, [applyBilling, enabled, profileId, services]);
+
+  const observeAsyncRefresh = useCallback(async (
+    input?: { readonly signal?: AbortSignal },
+  ): Promise<ProfileBillingState | null> => {
+    if (!profileId || !enabled) {
+      return null;
+    }
+    const observation = await observeProfileBillingRefresh({
+      commands: services.commands,
+      profileId,
+      baseline: billingRef.current,
+      balanceSupported: enabled,
+      signal: input?.signal,
+    });
+    if (!observation?.state) {
+      return null;
+    }
+    applyBilling(observation.state);
+    setError(null);
+    return observation.state;
+  }, [applyBilling, enabled, profileId, services.commands]);
+
+  const applyObservedState = useCallback((state: ProfileBillingState) => {
+    applyBilling(state);
+    setError(null);
+  }, [applyBilling]);
 
   useEffect(() => {
     if (!profileId || !enabled) {
-      setBilling(null);
+      applyBilling(null);
       setError(null);
       setLoading(false);
       return;
@@ -58,7 +93,7 @@ export function useProfileBilling(
         return;
       }
       if (result.ok) {
-        setBilling(result.value);
+        applyBilling(result.value);
         setError(null);
         if (
           result.value.balance === undefined &&
@@ -67,7 +102,7 @@ export function useProfileBilling(
           void refresh();
         }
       } else {
-        setBilling(null);
+        applyBilling(null);
         setError(commandMessage(result.error));
       }
       setLoading(false);
@@ -75,7 +110,7 @@ export function useProfileBilling(
     return () => {
       disposed = true;
     };
-  }, [enabled, profileId, refresh, services]);
+  }, [applyBilling, enabled, profileId, refresh, services]);
 
-  return { billing, loading, error, refresh };
+  return { billing, loading, error, refresh, observeAsyncRefresh, applyObservedState };
 }

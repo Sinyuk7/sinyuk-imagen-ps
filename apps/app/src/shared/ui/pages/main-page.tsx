@@ -50,7 +50,7 @@ import {
   type ComposerReadinessState,
 } from '../composer-readiness';
 import { classifyRoundError, type ErrorPrimaryAction } from '../error-action';
-import type { ImageAspectRatio, ImageOutputImageSize, ImageOutputSelection } from '@imagen-ps/application';
+import type { ImageAspectRatio, ImageOutputImageSize, ImageOutputSelection, ProfileBillingState } from '@imagen-ps/application';
 import { configurationInstanceLabel, type UiModelInfo } from '../model-info';
 import type { ModelGenerationSettingsController } from '../hooks/use-model-generation-settings';
 
@@ -489,7 +489,8 @@ export function MainPage({
     }
   }
   const selectedDescriptor = selectedProfile ? descriptorForApiFormat(providers, selectedProfile.apiFormat) : undefined;
-  const billing = useProfileBilling(services, selectedProfileId, providerSupportsBalanceQuery(selectedDescriptor, selectedProfile ?? null));
+  const selectedProfileSupportsBalanceQuery = providerSupportsBalanceQuery(selectedDescriptor, selectedProfile ?? null);
+  const billing = useProfileBilling(services, selectedProfileId, selectedProfileSupportsBalanceQuery);
   const billingPrimaryParts = formatBillingPrimaryParts(billing.billing);
   const billingPrimaryHasNumericEmphasis = billingPrimaryParts ? /\d/.test(billingPrimaryParts.primary) : false;
   const billingSummaryText = formatBillingPrimary(billing.billing) ?? t.main.billingUnknown;
@@ -570,6 +571,12 @@ export function MainPage({
   const canCapture = !conversation.running && !captureInFlight && !imageInputDisabled;
   const responseTextKey = (roundId: string) => `response:${roundId}`;
   const placeResetTimersRef = useRef<Record<string, number>>({});
+  const handleObservedBillingState = useCallback((profileId: string, state: ProfileBillingState) => {
+    if (profileId !== selectedProfileId) {
+      return;
+    }
+    billing.applyObservedState(state);
+  }, [billing, selectedProfileId]);
   useTaskBillingToast({
     services,
     rounds: conversation.rounds,
@@ -577,6 +584,7 @@ export function MainPage({
     providers,
     show,
     messages: t,
+    onObservedState: handleObservedBillingState,
   });
   const isAtBottom = useCallback(() => {
     const el = convRef.current;

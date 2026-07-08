@@ -99,6 +99,10 @@ describe('chat history layout contract', () => {
   });
 
   it('keeps media cards media-driven and caps only super-tall previews', () => {
+    const tallContainFrame = extractBlock(
+      CONVERSATION_SOURCE,
+      '.img-result[data-preview-layout="tall-contain"][data-preview-visual-mode="contained-well"][data-has-preview="true"] .img-frame{',
+    );
     expect(CONVERSATION_SOURCE).toContain('background:var(--chat-preview-stage-surface);');
     expect(CONVERSATION_SOURCE).toContain('.img-frame[data-alpha-state="transparent"]{');
     expect(CONVERSATION_SOURCE).toContain('background:var(--chat-preview-alpha-surface);');
@@ -119,6 +123,8 @@ describe('chat history layout contract', () => {
     expect(CONVERSATION_SOURCE).toContain('.img-frame{');
     expect(CONVERSATION_SOURCE).toContain('.img-result[data-preview-layout="tall-contain"][data-preview-visual-mode="contained-well"][data-has-preview="true"] .img-stage::before{');
     expect(CONVERSATION_SOURCE).toContain('padding-top:var(--chat-preview-portrait-cap-padding);');
+    expect(tallContainFrame).toContain('width:auto;');
+    expect(tallContainFrame).toContain('height:auto;');
     expect(CONVERSATION_SOURCE).toContain('.img-result[data-preview-visual-mode="full-bleed"][data-has-preview="true"] .img-media{');
     expect(RESPONSIVE_SOURCE).toContain('.panel[data-panel-width-mode="compact"] .prov-media-meta-row{ flex-direction:column; align-items:flex-start; flex-wrap:nowrap; }');
     expect(RESPONSIVE_SOURCE).toContain('.panel[data-panel-width-mode="compact"] .prov-media-status-group .prov-status-text{ max-width:none; text-align:left; white-space:nowrap; line-height:14px; }');

@@ -313,7 +313,102 @@ describe('profile billing commands', () => {
     expect(second.ok).toBe(true);
     expect(second.ok ? second.value.state.lastBalanceChange : undefined).toEqual({
       amount: '1',
-      currency: 'USD',
+      unit: 'USD',
+      direction: 'decreased',
+    });
+  });
+
+  it('detects quota balance changes when billing protocol returns credits-style snapshots', async () => {
+    const repository = createProfileRepository([createProviderProfile({
+      secretRefs: {
+        apiKey: 'secret:provider-profile:profile-relay:apiKey',
+      },
+      config: {
+        apiFormat: 'openai-chat-completions',
+        displayName: 'Relay',
+        connection: {
+          selectionMode: 'manual',
+          selectedEndpointId: 'primary',
+          endpoints: [{
+            id: 'primary',
+            url: 'https://relay.test/v1',
+            enabled: true,
+          }],
+        },
+        paths: {
+          invoke: '/chat/completions',
+        },
+        billing: {
+          source: 'profile-api-key',
+          path: '/client/openapi/getCredits',
+        },
+      },
+    })]);
+    setProviderProfileRepository(repository);
+    setProviderConfigResolver({
+      async resolve(profileId) {
+        return {
+          profileId,
+          apiFormat: 'openai-chat-completions',
+          implementationId: 'chat-image',
+          providerConfig: {
+            providerId: 'chat-image',
+            family: 'chat-image',
+            displayName: 'Relay',
+            apiFormat: 'openai-chat-completions',
+            connection: {
+              selectionMode: 'manual',
+              selectedEndpointId: 'primary',
+              endpoints: [{
+                id: 'primary',
+                url: 'https://relay.test/v1',
+                enabled: true,
+              }],
+            },
+            paths: {
+              invoke: '/chat/completions',
+            },
+            billing: {
+              source: 'profile-api-key',
+              path: '/client/openapi/getCredits',
+            },
+            apiKey: 'sk-live',
+          },
+        };
+      },
+    } satisfies ProviderConfigResolver);
+    installProviderRuntime({
+      queryBalance: vi.fn()
+        .mockResolvedValueOnce({
+          protocolId: 'credits-api-key-json-v1',
+          snapshot: {
+            primary: {
+              kind: 'quota',
+              remaining: '10',
+              unit: 'credits',
+            },
+          },
+        })
+        .mockResolvedValueOnce({
+          protocolId: 'credits-api-key-json-v1',
+          snapshot: {
+            primary: {
+              kind: 'quota',
+              remaining: '8',
+              unit: 'credits',
+            },
+          },
+        }),
+    });
+
+    const first = await refreshProfileBalance({ profileId: 'profile-relay' });
+    expect(first.ok).toBe(true);
+
+    const second = await refreshProfileBalance({ profileId: 'profile-relay' });
+    expect(second.ok).toBe(true);
+    expect(second.ok ? second.value.state.lastBalanceChange : undefined).toEqual({
+      amount: '2',
+      unit: 'credits',
       direction: 'decreased',
     });
   });

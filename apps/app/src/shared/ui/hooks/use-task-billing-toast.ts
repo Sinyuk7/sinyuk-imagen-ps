@@ -3,7 +3,7 @@ import type { ProviderDescriptor, ProviderProfile, ProfileBillingState } from '@
 import type { AppServices } from '../../ports/app-services';
 import { formatBalanceChange, formatExactTaskCost } from '../../domain/mappers';
 import type { ConversationRound, RoundStatus } from './use-conversation';
-import { resolveTaskBillingFeedback, getProfileBillingStateOrNull, type TaskBillingFeedback } from './task-billing-feedback';
+import { observeProfileBillingRefresh, getProfileBillingStateOrNull, type TaskBillingFeedback } from './task-billing-feedback';
 import { descriptorForApiFormat, providerSupportsBalanceQuery } from './use-provider-settings';
 import type { ToastController } from '../components/toast-host';
 import type { AppMessages } from '../i18n/messages';
@@ -29,10 +29,17 @@ export function useTaskBillingToast(input: {
   readonly providers: readonly ProviderDescriptor[];
   readonly show: ToastController['show'];
   readonly messages: AppMessages;
+  readonly onObservedState?: (profileId: string, state: ProfileBillingState) => void;
 }): void {
   const initializedRef = useRef(false);
   const previousStatusesRef = useRef<Record<string, RoundStatus>>({});
   const pendingRef = useRef<Record<string, PendingTaskBillingToast>>({});
+  const observationControllersRef = useRef<Record<string, AbortController>>({});
+  const onObservedStateRef = useRef(input.onObservedState);
+
+  useEffect(() => {
+    onObservedStateRef.current = input.onObservedState;
+  }, [input.onObservedState]);
 
   const billingSupportByProfileId = useMemo(() => new Map(
     input.profiles.map((profile) => [
@@ -42,13 +49,26 @@ export function useTaskBillingToast(input: {
   ), [input.profiles, input.providers]);
 
   const observeTerminalRound = useCallback(async (round: ConversationRound, pending: PendingTaskBillingToast) => {
+    const abortController = new AbortController();
+    observationControllersRef.current[round.id] = abortController;
     const baseline = await pending.baselinePromise;
-    const feedback = await resolveTaskBillingFeedback({
+    const observation = await observeProfileBillingRefresh({
       commands: input.services.commands,
       profileId: pending.profileId,
       baseline,
       balanceSupported: billingSupportByProfileId.get(pending.profileId) ?? false,
+      signal: abortController.signal,
     });
+    if (observationControllersRef.current[round.id] === abortController) {
+      delete observationControllersRef.current[round.id];
+    }
+    if (abortController.signal.aborted || !observation) {
+      return;
+    }
+    if (observation.state && onObservedStateRef.current) {
+      onObservedStateRef.current(pending.profileId, observation.state);
+    }
+    const feedback = observation.feedback;
     if (!feedback) {
       return;
     }
@@ -64,6 +84,12 @@ export function useTaskBillingToast(input: {
     for (const roundId of Object.keys(pendingRef.current)) {
       if (!liveRoundIds.has(roundId)) {
         delete pendingRef.current[roundId];
+      }
+    }
+    for (const [roundId, controller] of Object.entries(observationControllersRef.current)) {
+      if (!liveRoundIds.has(roundId)) {
+        controller.abort();
+        delete observationControllersRef.current[roundId];
       }
     }
 
@@ -85,7 +111,10 @@ export function useTaskBillingToast(input: {
         continue;
       }
       const previousStatus = previousStatusesRef.current[round.id];
-      if (previousStatus !== 'running' || (round.status !== 'ok' && round.status !== 'err')) {
+      if (
+        (previousStatus !== 'running' && previousStatus !== undefined)
+        || (round.status !== 'ok' && round.status !== 'err')
+      ) {
         continue;
       }
       const pending = pendingRef.current[round.id] ?? {
@@ -105,4 +134,11 @@ export function useTaskBillingToast(input: {
       void observeTerminalRound(round, pending);
     }
   }, [input.rounds, input.services.commands, observeTerminalRound]);
+
+  useEffect(() => () => {
+    for (const controller of Object.values(observationControllersRef.current)) {
+      controller.abort();
+    }
+    observationControllersRef.current = {};
+  }, []);
 }

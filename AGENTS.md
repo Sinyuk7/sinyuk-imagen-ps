@@ -17,7 +17,6 @@ This repo uses current-state, harness-first loop engineering.
   - `.local/share/uxp-photoshop`
   - `.local/share/uxp`
   - `.local/share/uxp-photoshop-plugin-samples`
-  - `~/Documents/github/monorepo`
 
 ## Release Gate
 

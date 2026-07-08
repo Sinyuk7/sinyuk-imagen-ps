@@ -91,7 +91,7 @@ describe('task billing feedback resolver', () => {
         },
         lastBalanceChange: {
           amount: '0.02',
-          currency: 'USD',
+          unit: 'USD',
           direction: 'decreased',
         },
         lastBalanceChangeObservedAt: 220,
@@ -120,7 +120,64 @@ describe('task billing feedback resolver', () => {
       kind: 'balance-change',
       change: {
         amount: '0.02',
-        currency: 'USD',
+        unit: 'USD',
+        direction: 'decreased',
+      },
+    });
+  });
+
+  it('supports quota-based balance-change fallback when exact cost is absent', async () => {
+    vi.useFakeTimers();
+    const commands = createCommands([
+      {
+        refreshState: 'refreshing',
+        balance: {
+          profileId: 'profile-1',
+          apiFormat: 'openai-chat-completions',
+          checkedAt: 100,
+          snapshot: { primary: { kind: 'quota', remaining: '10', unit: 'credits' } },
+        },
+      },
+      {
+        refreshState: 'idle',
+        balance: {
+          profileId: 'profile-1',
+          apiFormat: 'openai-chat-completions',
+          checkedAt: 220,
+          snapshot: { primary: { kind: 'quota', remaining: '8', unit: 'credits' } },
+        },
+        lastBalanceChange: {
+          amount: '2',
+          unit: 'credits',
+          direction: 'decreased',
+        },
+        lastBalanceChangeObservedAt: 220,
+      },
+    ]);
+
+    const feedbackPromise = resolveTaskBillingFeedback({
+      commands,
+      profileId: 'profile-1',
+      baseline: {
+        refreshState: 'idle',
+        balance: {
+          profileId: 'profile-1',
+          apiFormat: 'openai-chat-completions',
+          checkedAt: 90,
+          snapshot: { primary: { kind: 'quota', remaining: '10', unit: 'credits' } },
+        },
+      },
+      balanceSupported: true,
+    });
+
+    await vi.advanceTimersByTimeAsync(120);
+    const feedback = await feedbackPromise;
+
+    expect(feedback).toEqual({
+      kind: 'balance-change',
+      change: {
+        amount: '2',
+        unit: 'credits',
         direction: 'decreased',
       },
     });
@@ -140,6 +197,37 @@ describe('task billing feedback resolver', () => {
       baseline: { refreshState: 'idle' },
       balanceSupported: true,
     });
+
+    await vi.advanceTimersByTimeAsync(120);
+    const feedback = await feedbackPromise;
+
+    expect(feedback).toBeNull();
+  });
+
+  it('returns null when observation is aborted before the refresh window settles', async () => {
+    vi.useFakeTimers();
+    const controller = new AbortController();
+    const commands = createCommands([
+      { refreshState: 'refreshing' },
+      {
+        refreshState: 'idle',
+        lastBalanceChange: {
+          amount: '1',
+          unit: 'USD',
+          direction: 'decreased',
+        },
+        lastBalanceChangeObservedAt: 220,
+      },
+    ]);
+
+    const feedbackPromise = resolveTaskBillingFeedback({
+      commands,
+      profileId: 'profile-1',
+      baseline: { refreshState: 'idle' },
+      balanceSupported: true,
+      signal: controller.signal,
+    });
+    controller.abort();
 
     await vi.advanceTimersByTimeAsync(120);
     const feedback = await feedbackPromise;

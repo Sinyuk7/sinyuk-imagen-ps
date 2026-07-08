@@ -421,6 +421,8 @@ export const CONVERSATION_CSS = `
   right:10px;
   bottom:10px;
   left:10px;
+  width:auto;
+  height:auto;
   display:flex;
   align-items:center;
   justify-content:center;

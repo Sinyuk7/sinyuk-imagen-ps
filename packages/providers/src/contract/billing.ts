@@ -51,7 +51,7 @@ export interface ExactTaskCost {
 
 export interface BalanceChange {
   readonly amount: string;
-  readonly currency: string;
+  readonly unit: string;
   readonly direction: 'decreased' | 'increased';
 }
 

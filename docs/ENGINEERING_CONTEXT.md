@@ -183,6 +183,7 @@ surface apps -> application/session -> core-engine + providers
 
 - Provider requests must resolve image-edit inputs from `image.resource.derivatives.providerInput.storedRef`. They must not submit the original asset, thumbnail, inline `data`, or full preview URL. Retry reuses the storedRef already present in the original job input.
 - UI previews use the app `ThumbnailStore`. Long-lived round preview state must keep the original output `Asset` locator payload (`storedRef`, `url`, or inline `data`) alongside bounded thumbnail URLs so main-page place/download actions can still resolve the full-size returned image after preview generation.
+- For tall portrait result previews in Photoshop UXP, the absolutely positioned `ImageFrame` must reset inherited `width`/`height` back to `auto`. Keeping `width:100%` on an inset absolute frame over-constrains the box and can visibly shift the contained image off center inside the stage.
 - Cancellation is cooperative: app clear/unmount aborts in-flight submit and thumbnail work; application/core pass `AbortSignal` through submit → runtime → runner → provider dispatch; runner checks the signal before and after dispatch and after output postprocessing.
 
 ## Durable Job History

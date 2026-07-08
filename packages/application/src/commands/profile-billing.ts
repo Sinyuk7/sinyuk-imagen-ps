@@ -266,26 +266,45 @@ function parseDecimal(value: string | undefined): number | undefined {
   return Number.isFinite(parsed) ? parsed : undefined;
 }
 
+function trimDecimal(value: number): string {
+  return value.toFixed(6).replace(/\.?0+$/, '');
+}
+
 function detectBalanceChange(
   previous: ProviderBalanceSnapshot | undefined,
   next: ProviderBalanceSnapshot,
 ): BalanceChange | undefined {
-  if (previous?.primary.kind !== 'money' || next.primary.kind !== 'money') {
-    return undefined;
+  if (previous?.primary.kind === 'money' && next.primary.kind === 'money') {
+    if (previous.primary.currency !== next.primary.currency) {
+      return undefined;
+    }
+    const before = parseDecimal(previous.primary.remaining);
+    const after = parseDecimal(next.primary.remaining);
+    if (before === undefined || after === undefined || before === after) {
+      return undefined;
+    }
+    return {
+      amount: trimDecimal(Math.abs(before - after)),
+      unit: next.primary.currency,
+      direction: after < before ? 'decreased' : 'increased',
+    };
   }
-  if (previous.primary.currency !== next.primary.currency) {
-    return undefined;
+  if (previous?.primary.kind === 'quota' && next.primary.kind === 'quota') {
+    if (previous.primary.unit !== next.primary.unit || !previous.primary.unit || !next.primary.unit) {
+      return undefined;
+    }
+    const before = parseDecimal(previous.primary.remaining);
+    const after = parseDecimal(next.primary.remaining);
+    if (before === undefined || after === undefined || before === after) {
+      return undefined;
+    }
+    return {
+      amount: trimDecimal(Math.abs(before - after)),
+      unit: next.primary.unit,
+      direction: after < before ? 'decreased' : 'increased',
+    };
   }
-  const before = parseDecimal(previous.primary.remaining);
-  const after = parseDecimal(next.primary.remaining);
-  if (before === undefined || after === undefined || before === after) {
-    return undefined;
-  }
-  return {
-    amount: Math.abs(before - after).toFixed(6).replace(/\.?0+$/, ''),
-    currency: next.primary.currency,
-    direction: after < before ? 'decreased' : 'increased',
-  };
+  return undefined;
 }
 
 async function performBalanceRefresh(

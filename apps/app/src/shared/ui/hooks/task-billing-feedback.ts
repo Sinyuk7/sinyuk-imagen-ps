@@ -8,8 +8,17 @@ export type TaskBillingFeedback =
   | { readonly kind: 'cost'; readonly cost: ExactTaskCost }
   | { readonly kind: 'balance-change'; readonly change: BalanceChange };
 
+export interface ProfileBillingObservation {
+  readonly state: ProfileBillingState | null;
+  readonly feedback: TaskBillingFeedback | null;
+}
+
 function pause(ms: number): Promise<void> {
   return new Promise((resolve) => window.setTimeout(resolve, ms));
+}
+
+function isAborted(signal: AbortSignal | undefined): boolean {
+  return signal?.aborted === true;
 }
 
 function observedAt(
@@ -42,46 +51,78 @@ export async function getProfileBillingStateOrNull(
   return result.ok ? result.value : null;
 }
 
-export async function resolveTaskBillingFeedback(input: {
+function feedbackFromState(
+  state: ProfileBillingState | null,
+  baseline: ProfileBillingState | null,
+): TaskBillingFeedback | null {
+  if (hasFreshExactTaskCost(state, baseline)) {
+    return { kind: 'cost', cost: state.lastExactTaskCost };
+  }
+  if (hasFreshBalanceChange(state, baseline)) {
+    return { kind: 'balance-change', change: state.lastBalanceChange };
+  }
+  return null;
+}
+
+export async function observeProfileBillingRefresh(input: {
   readonly commands: Pick<CommandsPort, 'getProfileBillingState'>;
   readonly profileId: string;
   readonly baseline: ProfileBillingState | null;
   readonly balanceSupported: boolean;
-}): Promise<TaskBillingFeedback | null> {
-  const currentState = await getProfileBillingStateOrNull(input.commands, input.profileId);
-  if (hasFreshExactTaskCost(currentState, input.baseline)) {
-    return { kind: 'cost', cost: currentState.lastExactTaskCost };
-  }
-  if (hasFreshBalanceChange(currentState, input.baseline)) {
-    return { kind: 'balance-change', change: currentState.lastBalanceChange };
-  }
-  if (!input.balanceSupported) {
+  readonly signal?: AbortSignal;
+}): Promise<ProfileBillingObservation | null> {
+  if (isAborted(input.signal)) {
     return null;
   }
+  const currentState = await getProfileBillingStateOrNull(input.commands, input.profileId);
+  const currentFeedback = feedbackFromState(currentState, input.baseline);
+  if (currentFeedback) {
+    return { state: currentState, feedback: currentFeedback };
+  }
+  if (!input.balanceSupported) {
+    return { state: currentState, feedback: null };
+  }
 
+  let latestState = currentState;
   let sawRefreshing = currentState?.refreshState === 'refreshing';
   for (let attempt = 0; attempt < BILLING_REFRESH_POLL_ATTEMPTS; attempt += 1) {
+    if (isAborted(input.signal)) {
+      return null;
+    }
     if (attempt > 0) {
       await pause(BILLING_REFRESH_POLL_DELAY_MS);
+    }
+    if (isAborted(input.signal)) {
+      return null;
     }
     const nextState = await getProfileBillingStateOrNull(input.commands, input.profileId);
     if (!nextState) {
       continue;
     }
-    if (hasFreshExactTaskCost(nextState, input.baseline)) {
-      return { kind: 'cost', cost: nextState.lastExactTaskCost };
-    }
-    if (hasFreshBalanceChange(nextState, input.baseline)) {
-      return { kind: 'balance-change', change: nextState.lastBalanceChange };
+    latestState = nextState;
+    const nextFeedback = feedbackFromState(nextState, input.baseline);
+    if (nextFeedback) {
+      return { state: nextState, feedback: nextFeedback };
     }
     if (nextState.refreshState === 'refreshing') {
       sawRefreshing = true;
       continue;
     }
     if (sawRefreshing) {
-      return null;
+      return { state: nextState, feedback: null };
     }
   }
 
-  return null;
+  return { state: latestState, feedback: null };
+}
+
+export async function resolveTaskBillingFeedback(input: {
+  readonly commands: Pick<CommandsPort, 'getProfileBillingState'>;
+  readonly profileId: string;
+  readonly baseline: ProfileBillingState | null;
+  readonly balanceSupported: boolean;
+  readonly signal?: AbortSignal;
+}): Promise<TaskBillingFeedback | null> {
+  const observation = await observeProfileBillingRefresh(input);
+  return observation?.feedback ?? null;
 }

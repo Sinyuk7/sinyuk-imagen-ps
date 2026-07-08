@@ -335,5 +335,5 @@ export function formatBalanceChange(change: ProfileBillingState['lastBalanceChan
     return undefined;
   }
   const prefix = change.direction === 'decreased' ? '-' : '+';
-  return `${prefix}${trimTrailingZeros(change.amount)} ${change.currency}`;
+  return `${prefix}${trimTrailingZeros(change.amount)} ${change.unit}`;
 }
