@@ -20,6 +20,7 @@ export interface AppMessages {
     readonly needsSetup: string;
     readonly copy: string;
     readonly copied: string;
+    readonly help: string;
   };
   readonly status: {
     readonly all: string;
@@ -269,6 +270,13 @@ export interface AppMessages {
     readonly promptSettings: string;
     readonly modelConfiguration: string;
     readonly modelConfigurationSummary: string;
+    readonly onboardingTitle: string;
+    readonly onboardingIntro: string;
+    readonly onboardingStepModelConfiguration: string;
+    readonly onboardingStepProviderProfile: string;
+    readonly onboardingStepReturnHome: string;
+    readonly onboardingHint: string;
+    readonly onboardingHelp: string;
     readonly modelConfigurationEmpty: string;
     readonly modelConfigurationHint: string;
     readonly modelConfigurationSaveHint: string;
@@ -404,6 +412,7 @@ const EN_MESSAGES: AppMessages = {
     needsSetup: 'Needs setup',
     copy: 'Copy',
     copied: 'Copied',
+    help: 'Help',
   },
   status: {
     all: 'All',
@@ -662,6 +671,13 @@ const EN_MESSAGES: AppMessages = {
     promptSettings: 'Prompt Settings',
     modelConfiguration: 'Model Configuration',
     modelConfigurationSummary: 'Reusable model mappings',
+    onboardingTitle: 'Quick setup order',
+    onboardingIntro: 'First time here, follow this order to avoid backtracking.',
+    onboardingStepModelConfiguration: 'Save reusable model mappings first.',
+    onboardingStepProviderProfile: 'Then add a provider profile and choose which model config it should use.',
+    onboardingStepReturnHome: 'Return to the main page, select that profile and model, then start generating.',
+    onboardingHint: 'Use the question button in Configuration to reopen this guide later.',
+    onboardingHelp: 'Open quick setup guide',
     modelConfigurationEmpty: 'No model configs (´･ω･`)',
     modelConfigurationHint: 'Create reusable model configs.',
     modelConfigurationSaveHint: 'Saving does not apply it.',
@@ -797,6 +813,7 @@ const ZH_CN_MESSAGES: AppMessages = {
     needsSetup: '待配置',
     copy: '复制',
     copied: '已复制',
+    help: '帮助',
   },
   status: {
     all: '全部',
@@ -1055,6 +1072,13 @@ const ZH_CN_MESSAGES: AppMessages = {
     promptSettings: '提示词设置',
     modelConfiguration: '模型配置',
     modelConfigurationSummary: '复用模型映射',
+    onboardingTitle: '首次配置顺序',
+    onboardingIntro: '第一次来这里，按这个顺序配置最省事。',
+    onboardingStepModelConfiguration: '先保存可复用的模型映射。',
+    onboardingStepProviderProfile: '再添加 Provider 配置，并选择它要使用的模型配置。',
+    onboardingStepReturnHome: '最后回到首页，选择该配置和模型后开始生成。',
+    onboardingHint: '以后可在 Provider 设置页点问号再次查看。',
+    onboardingHelp: '重新打开新手说明',
     modelConfigurationEmpty: '暂无模型配置 (´･ω･`)',
     modelConfigurationHint: '创建可复用模型配置。',
     modelConfigurationSaveHint: '保存后不会自动应用。',

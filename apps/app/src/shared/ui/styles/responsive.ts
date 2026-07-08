@@ -67,6 +67,17 @@ export const RESPONSIVE_CSS = `
 .panel[data-panel-width-mode="compact"] .attach-picker,
 .panel[data-panel-width-mode="compact"] .layer-list-wrap{ left:12px; right:12px; width:auto; max-width:none; }
 
+.panel[data-panel-width-mode="regular"] .round-list{
+  --chat-prompt-inline-max:272px;
+  --chat-result-inline-max:320px;
+  --chat-preview-inline-max:288px;
+  --chat-preview-block-default:232px;
+  --chat-preview-block-landscape:208px;
+  --chat-preview-block-square:248px;
+  --chat-preview-block-portrait:296px;
+  --chat-preview-block-wide:168px;
+  --chat-preview-block-max:296px;
+}
 .panel[data-panel-width-mode="wide"] .round-list{
   --chat-prompt-inline-max:360px;
   --chat-result-inline-max:440px;

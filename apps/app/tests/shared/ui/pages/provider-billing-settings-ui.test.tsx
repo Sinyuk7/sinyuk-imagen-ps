@@ -73,6 +73,16 @@ async function clickTestId(container: HTMLElement, testId: string): Promise<void
   await flush();
 }
 
+async function mouseDownClickTestId(container: HTMLElement, testId: string): Promise<void> {
+  await act(async () => {
+    const element = queryByTestId(container, testId);
+    element.dispatchEvent(new MouseEvent('mousedown', { bubbles: true }));
+    element.click();
+  });
+  await flush();
+  await flush();
+}
+
 async function selectOption(container: HTMLElement, testId: string, optionId: string): Promise<void> {
   await clickTestId(container, testId);
   await act(async () => {
@@ -173,7 +183,6 @@ describe('provider billing settings UI', () => {
     await inputTestId(container, 'provider-api-key-input', 'sk-live');
 
     await clickTestId(container, 'provider-save-button');
-
     expect(fake.spies.saveProviderProfile).toHaveBeenCalledTimes(1);
     expect(fake.spies.saveProviderProfile.mock.calls[0]?.[0]).toMatchObject({
       apiFormat: 'openai-chat-completions',
@@ -263,6 +272,76 @@ describe('provider billing settings UI', () => {
         },
       },
     });
+  });
+
+  it('reads latest visible billing path from DOM at save time even if input event was missed', async () => {
+    const container = document.createElement('div');
+    document.body.appendChild(container);
+    const profile = createBillingTokenProfile();
+    profile.config = {
+      ...profile.config,
+      billing: {
+        ...(profile.config.billing as NonNullable<ProviderProfile['config']['billing']>),
+        path: '/client/openapi/getAPIKeyCredits',
+      },
+    };
+    const { fake } = await renderDetailPage(container, profile);
+
+    await clickTestId(container, 'provider-billing-access-token-edit');
+    await inputTestId(container, 'provider-billing-access-token-input', 'billing-next');
+
+    await act(async () => {
+      const input = queryByTestId(container, 'provider-billing-path-input') as HTMLInputElement;
+      const setter = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value')?.set;
+      setter?.call(input, '/client/openapi/getCredits');
+    });
+    await flush();
+    await mouseDownClickTestId(container, 'provider-save-button');
+
+    expect(fake.spies.saveProviderProfile).toHaveBeenCalledTimes(1);
+    expect(fake.spies.saveProviderProfile.mock.calls[0]?.[0]).toMatchObject({
+      profileId: 'mock-profile',
+      config: {
+        billing: {
+          source: 'billing-token',
+          path: '/client/openapi/getCredits',
+        },
+      },
+    });
+  });
+
+  it('reads latest visible billing path from DOM on add page save mousedown even if input event was missed', async () => {
+    const container = document.createElement('div');
+    document.body.appendChild(container);
+    const onProfileSaved = vi.fn(async () => undefined);
+    const fake = await renderAddPage(container, { onProfileSaved });
+
+    await inputTestId(container, 'provider-endpoint-detect-input', 'https://relay.test/v1/chat/completions');
+    await selectOption(container, 'provider-billing-mode-selector', 'billing-token');
+    await inputTestId(container, 'provider-billing-access-token-input', 'billing-next');
+
+    await act(async () => {
+      const input = queryByTestId(container, 'provider-billing-path-input') as HTMLInputElement;
+      const setter = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value')?.set;
+      setter?.call(input, '/client/openapi/getCredits');
+    });
+    await flush();
+    await mouseDownClickTestId(container, 'provider-save-button');
+
+    expect(fake.spies.saveProviderProfile).toHaveBeenCalledTimes(1);
+    expect(fake.spies.saveProviderProfile.mock.calls[0]?.[0]).toMatchObject({
+      apiFormat: 'openai-chat-completions',
+      secretValues: {
+        billingToken: 'billing-next',
+      },
+      config: {
+        billing: {
+          source: 'billing-token',
+          path: '/client/openapi/getCredits',
+        },
+      },
+    });
+    expect(onProfileSaved).toHaveBeenCalledTimes(1);
   });
 
   it('removes saved billing token when detail page switches billing to disabled', async () => {

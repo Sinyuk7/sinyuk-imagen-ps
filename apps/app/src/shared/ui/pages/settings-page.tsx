@@ -15,8 +15,8 @@ interface SettingsPageProps {
   readonly profiles: readonly ProviderProfile[];
   readonly loading: boolean;
   readonly error: string | null;
-  readonly onReload: () => Promise<void>;
   readonly onOpenProfile: (profileId: string) => void;
+  readonly onOpenOnboarding: () => void;
   readonly generationSettings?: AppGenerationSettings;
   readonly modelGenerationSettings?: ModelGenerationSettingsController;
   readonly onOpenGlobalGeneration?: () => void;
@@ -114,8 +114,8 @@ export function SettingsPage({
   profiles,
   loading,
   error,
-  onReload,
   onOpenProfile,
+  onOpenOnboarding,
   generationSettings,
   modelGenerationSettings,
   onOpenGlobalGeneration,
@@ -191,12 +191,12 @@ export function SettingsPage({
         />
         <div className="hdr-title">{t.settings.configuration}</div>
         <IconButton
-          data-testid="providers-refresh-button"
+          data-testid="providers-help-button"
           className="hdr-btn"
           quiet
-          icon={<Icon name="refresh" />}
-          tooltip={t.common.refresh}
-          onClick={() => void onReload()}
+          icon={<Icon name="question" />}
+          tooltip={t.settings.onboardingHelp}
+          onClick={onOpenOnboarding}
         />
         <IconButton
           data-testid="providers-add-button"

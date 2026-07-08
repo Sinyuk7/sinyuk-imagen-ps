@@ -1,9 +1,12 @@
 import type { Asset } from '@imagen-ps/core-engine';
 import type { ProviderDiagnostic } from '../../contract/diagnostics.js';
-import type { ProviderInvokeUsage } from '../../contract/result.js';
+import type { ProviderInvokeMetadata, ProviderInvokeUsage } from '../../contract/result.js';
 import { mapInvalidResponseError } from '../image-endpoint/error-map.js';
 
 const INLINE_IMAGE_OMITTED = '[image data omitted]';
+const PNG_SIGNATURE = [0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a] as const;
+const WEBP_RIFF = [0x52, 0x49, 0x46, 0x46] as const;
+const WEBP_WEBP = [0x57, 0x45, 0x42, 0x50] as const;
 
 interface GeminiGenerateContentResponse {
   readonly candidates?: readonly GeminiCandidate[];
@@ -49,6 +52,7 @@ export interface ParsedGeminiGenerateContentResponse {
   readonly text?: string;
   readonly raw: unknown;
   readonly diagnostics?: readonly ProviderDiagnostic[];
+  readonly metadata?: ProviderInvokeMetadata;
   readonly usage?: ProviderInvokeUsage;
 }
 
@@ -76,6 +80,135 @@ function extensionFromMimeType(mimeType: string | undefined): string {
     default:
       return 'bin';
   }
+}
+
+function outputFormatFromMimeType(mimeType: string | undefined): ProviderInvokeMetadata['outputFormat'] | undefined {
+  switch (mimeType?.toLowerCase()) {
+    case 'image/jpeg':
+    case 'image/jpg':
+      return 'jpeg';
+    case 'image/webp':
+      return 'webp';
+    case 'image/png':
+      return 'png';
+    default:
+      return undefined;
+  }
+}
+
+function decodeBase64(data: string): Uint8Array | undefined {
+  try {
+    const normalized = data.startsWith('data:') ? data.slice(data.indexOf(',') + 1) : data;
+    const binary = atob(normalized.replace(/\s+/g, ''));
+    const bytes = new Uint8Array(binary.length);
+    for (let i = 0; i < binary.length; i += 1) {
+      bytes[i] = binary.charCodeAt(i);
+    }
+    return bytes;
+  } catch {
+    return undefined;
+  }
+}
+
+function bytesEqual(bytes: Uint8Array, offset: number, expected: readonly number[]): boolean {
+  if (offset + expected.length > bytes.byteLength) {
+    return false;
+  }
+  for (let i = 0; i < expected.length; i += 1) {
+    if (bytes[offset + i] !== expected[i]) {
+      return false;
+    }
+  }
+  return true;
+}
+
+function readUint16(bytes: Uint8Array, offset: number): number {
+  return (bytes[offset]! << 8) | bytes[offset + 1]!;
+}
+
+function readUint32(bytes: Uint8Array, offset: number): number {
+  return ((bytes[offset]! * 0x1000000) + ((bytes[offset + 1]! << 16) | (bytes[offset + 2]! << 8) | bytes[offset + 3]!)) >>> 0;
+}
+
+function readPngSize(bytes: Uint8Array): { readonly width: number; readonly height: number } | undefined {
+  if (bytes.byteLength < 24 || !bytesEqual(bytes, 0, PNG_SIGNATURE)) {
+    return undefined;
+  }
+  return { width: readUint32(bytes, 16), height: readUint32(bytes, 20) };
+}
+
+function readJpegSize(bytes: Uint8Array): { readonly width: number; readonly height: number } | undefined {
+  let offset = 2;
+  while (offset + 9 < bytes.byteLength) {
+    if (bytes[offset] !== 0xff) {
+      return undefined;
+    }
+    const marker = bytes[offset + 1]!;
+    const length = readUint16(bytes, offset + 2);
+    if (length < 2) {
+      return undefined;
+    }
+    if (marker >= 0xc0 && marker <= 0xcf && marker !== 0xc4 && marker !== 0xc8 && marker !== 0xcc) {
+      return { height: readUint16(bytes, offset + 5), width: readUint16(bytes, offset + 7) };
+    }
+    offset += 2 + length;
+  }
+  return undefined;
+}
+
+function readWebpSize(bytes: Uint8Array): { readonly width: number; readonly height: number } | undefined {
+  if (!bytesEqual(bytes, 0, WEBP_RIFF) || !bytesEqual(bytes, 8, WEBP_WEBP)) {
+    return undefined;
+  }
+  if (bytes.byteLength >= 30 && String.fromCharCode(...bytes.slice(12, 16)) === 'VP8X') {
+    return {
+      width: 1 + bytes[24]! + (bytes[25]! << 8) + (bytes[26]! << 16),
+      height: 1 + bytes[27]! + (bytes[28]! << 8) + (bytes[29]! << 16),
+    };
+  }
+  return undefined;
+}
+
+function inspectAssetSize(asset: Asset): string | undefined {
+  const mimeType = asset.mimeType?.toLowerCase();
+  if (!mimeType) {
+    return undefined;
+  }
+  const bytes = typeof asset.data === 'string'
+    ? decodeBase64(asset.data)
+    : asset.data instanceof Uint8Array
+      ? asset.data
+      : undefined;
+  if (!bytes) {
+    return undefined;
+  }
+  const size = mimeType.includes('png')
+    ? readPngSize(bytes)
+    : mimeType.includes('jpeg') || mimeType.includes('jpg')
+      ? readJpegSize(bytes)
+      : mimeType.includes('webp')
+        ? readWebpSize(bytes)
+        : undefined;
+  return size ? `${size.width}x${size.height}` : undefined;
+}
+
+function inferMetadata(assets: readonly Asset[]): ProviderInvokeMetadata | undefined {
+  const metadata: {
+    outputFormat?: ProviderInvokeMetadata['outputFormat'];
+    size?: string;
+  } = {};
+  for (const asset of assets) {
+    if (metadata.outputFormat === undefined) {
+      metadata.outputFormat = outputFormatFromMimeType(asset.mimeType);
+    }
+    if (metadata.size === undefined) {
+      metadata.size = inspectAssetSize(asset);
+    }
+    if (metadata.outputFormat !== undefined && metadata.size !== undefined) {
+      break;
+    }
+  }
+  return Object.keys(metadata).length > 0 ? metadata : undefined;
 }
 
 function isThoughtPart(part: GeminiPart): boolean {
@@ -333,6 +466,7 @@ export function parseGeminiGenerateContentResponse(raw: unknown): ParsedGeminiGe
     ...(text !== undefined ? { text } : {}),
     raw: sanitizeRaw(raw),
     ...(diagnostics.length > 0 ? { diagnostics } : {}),
+    ...(inferMetadata(assets) ? { metadata: inferMetadata(assets) } : {}),
     ...(parseUsage(response) ? { usage: parseUsage(response) } : {}),
   };
 }

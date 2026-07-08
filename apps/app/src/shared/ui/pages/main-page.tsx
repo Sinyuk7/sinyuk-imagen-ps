@@ -314,6 +314,7 @@ function parseAspectRatioValue(aspectRatio: string): number | undefined {
 }
 
 function previewFrameShapeFromRatio(ratio: number): PreviewFrameShape {
+  // 聊天历史预览优先控制列表密度；过高竖图统一收敛到 portrait 档。
   const effectiveRatio = ratio < PREVIEW_MAX_PORTRAIT_RATIO ? PREVIEW_MAX_PORTRAIT_RATIO : ratio;
   if (effectiveRatio >= 2) return 'wide';
   if (effectiveRatio > 1.15) return 'landscape';
@@ -1507,66 +1508,73 @@ export function MainPage({
                     )}
                     {hasImages ? (
                       <div className="prov-img">
-                        <div className={`img-result media-${previewFrameShape}`} data-testid={`result-preview-${round.id}`} data-preview-index={selectedPreviewIndex}>
-                          {preview?.url
-                            ? <MotionImage key={`${round.id}:${selectedPreviewIndex}`} src={preview.url} className="img-bg" alt={preview.label} />
-                            : <div className="img-bg" style={{ background: 'var(--app-color-background-layer-2)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--app-color-text-muted)', fontSize: 12 }}>{t.main.noAssetPreview}</div>
-                          }
-                          <div className="img-meta">{round.outputSize ?? t.main.assetFallback} · {round.outputFormat ?? t.main.imageFallback}</div>
-                          {hasMultiplePreviews && (
-                            <>
-                              <div className="img-count" data-testid={`result-preview-count-${round.id}`}>
-                                {selectedPreviewIndex + 1} / {round.previews.length}
-                              </div>
-                              <IconButton
-                                className={`img-nav img-nav-prev${!canGoPrev ? ' is-disabled' : ''}`}
-                                hostClassName="img-nav-host img-nav-host-prev"
-                                data-testid={`result-preview-prev-${round.id}`}
-                                icon={<Icon name="chevron-left" size={13} />}
-                                tooltip="Previous image"
-                                aria-label="Previous image"
-                                iconSize={13}
-                                disabled={!canGoPrev}
-                                onClick={(event) => {
-                                  event.stopPropagation();
-                                  stepPreview(round, -1);
-                                }}
-                              />
-                              <IconButton
-                                className={`img-nav img-nav-next${!canGoNext ? ' is-disabled' : ''}`}
-                                hostClassName="img-nav-host img-nav-host-next"
-                                data-testid={`result-preview-next-${round.id}`}
-                                icon={<Icon name="chevron-right" size={13} />}
-                                tooltip="Next image"
-                                aria-label="Next image"
-                                iconSize={13}
-                                disabled={!canGoNext}
-                                onClick={(event) => {
-                                  event.stopPropagation();
-                                  stepPreview(round, 1);
-                                }}
-                              />
-                            </>
-                          )}
-                          <div className="img-overlay">
-                            <MotionButtonSurface>
-                              {(() => {
-                                const placeButton = placementButtonState(round.placementIntent, placeStatus[round.id] ?? 'idle', t);
-                                return (
-                              <Button
-                                data-testid={`result-place-button-${round.id}`}
-                                className="img-act prim"
-                                data-place-status={placeStatus[round.id] ?? 'idle'}
-                                variant="accent"
-                                title={placeButton.title}
-                                disabled={placeButton.disabled}
-                                onClick={(event) => { event.stopPropagation(); void placeAsset(round, selectedPreviewIndex); }}
-                              >
-                                {placeButton.label}
-                              </Button>
-                                );
-                              })()}
-                            </MotionButtonSurface>
+                        <div
+                          className={`img-result media-${previewFrameShape}`}
+                          data-testid={`result-preview-${round.id}`}
+                          data-preview-index={selectedPreviewIndex}
+                          data-has-preview={preview?.url ? 'true' : 'false'}
+                        >
+                          <div className="img-stage">
+                            {preview?.url
+                              ? <MotionImage key={`${round.id}:${selectedPreviewIndex}`} src={preview.url} className="img-media" alt={preview.label} />
+                              : <div className="img-placeholder">{t.main.noAssetPreview}</div>
+                            }
+                            <div className="img-meta">{round.outputSize ?? t.main.assetFallback} · {round.outputFormat ?? t.main.imageFallback}</div>
+                            {hasMultiplePreviews && (
+                              <>
+                                <div className="img-count" data-testid={`result-preview-count-${round.id}`}>
+                                  {selectedPreviewIndex + 1} / {round.previews.length}
+                                </div>
+                                <IconButton
+                                  className={`img-nav img-nav-prev${!canGoPrev ? ' is-disabled' : ''}`}
+                                  hostClassName="img-nav-host img-nav-host-prev"
+                                  data-testid={`result-preview-prev-${round.id}`}
+                                  icon={<Icon name="chevron-left" size={13} />}
+                                  tooltip="Previous image"
+                                  aria-label="Previous image"
+                                  iconSize={13}
+                                  disabled={!canGoPrev}
+                                  onClick={(event) => {
+                                    event.stopPropagation();
+                                    stepPreview(round, -1);
+                                  }}
+                                />
+                                <IconButton
+                                  className={`img-nav img-nav-next${!canGoNext ? ' is-disabled' : ''}`}
+                                  hostClassName="img-nav-host img-nav-host-next"
+                                  data-testid={`result-preview-next-${round.id}`}
+                                  icon={<Icon name="chevron-right" size={13} />}
+                                  tooltip="Next image"
+                                  aria-label="Next image"
+                                  iconSize={13}
+                                  disabled={!canGoNext}
+                                  onClick={(event) => {
+                                    event.stopPropagation();
+                                    stepPreview(round, 1);
+                                  }}
+                                />
+                              </>
+                            )}
+                            <div className="img-overlay">
+                              <MotionButtonSurface>
+                                {(() => {
+                                  const placeButton = placementButtonState(round.placementIntent, placeStatus[round.id] ?? 'idle', t);
+                                  return (
+                                <Button
+                                  data-testid={`result-place-button-${round.id}`}
+                                  className="img-act prim"
+                                  data-place-status={placeStatus[round.id] ?? 'idle'}
+                                  variant="accent"
+                                  title={placeButton.title}
+                                  disabled={placeButton.disabled}
+                                  onClick={(event) => { event.stopPropagation(); void placeAsset(round, selectedPreviewIndex); }}
+                                >
+                                  {placeButton.label}
+                                </Button>
+                                  );
+                                })()}
+                              </MotionButtonSurface>
+                            </div>
                           </div>
                         </div>
                       </div>

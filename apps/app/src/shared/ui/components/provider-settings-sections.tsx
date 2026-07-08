@@ -53,7 +53,9 @@ interface ProviderSettingsFooterProps {
   readonly saveBusy: boolean;
   readonly testSupported: boolean;
   readonly saveDisabled: boolean;
+  readonly onTestMouseDown?: () => void;
   readonly onTest: () => void;
+  readonly onSaveMouseDown?: () => void;
   readonly onSave: () => void;
 }
 
@@ -282,7 +284,9 @@ export function ProviderSettingsFooter({
   saveBusy,
   testSupported,
   saveDisabled,
+  onTestMouseDown,
   onTest,
+  onSaveMouseDown,
   onSave,
 }: ProviderSettingsFooterProps) {
   const { messages: t } = useI18n();
@@ -298,17 +302,32 @@ export function ProviderSettingsFooter({
             icon={testBusy ? <Icon name="spinner" size={16} className="spin" /> : <Icon name="network" size={16} />}
             tooltip={!testSupported ? t.settings.providerConnectionUnsupported : testBusy ? t.settings.testingConnection : t.settings.testConnection}
             aria-label={!testSupported ? t.settings.providerConnectionUnsupported : testBusy ? t.settings.testingConnection : t.settings.testConnection}
+            onMouseDownCapture={onTestMouseDown}
             onClick={onTest}
           />
         </div>
         {saveGroupClassName ? (
           <div className={saveGroupClassName}>
-            <Button data-testid="provider-save-button" className="btn-save" variant="accent" disabled={saveDisabled} onClick={onSave}>
+            <Button
+              data-testid="provider-save-button"
+              className="btn-save"
+              variant="accent"
+              disabled={saveDisabled}
+              onMouseDownCapture={onSaveMouseDown}
+              onClick={onSave}
+            >
               {saveBusy ? t.settings.saving : t.common.save}
             </Button>
           </div>
         ) : (
-          <Button data-testid="provider-save-button" className="btn-save" variant="accent" disabled={saveDisabled} onClick={onSave}>
+          <Button
+            data-testid="provider-save-button"
+            className="btn-save"
+            variant="accent"
+            disabled={saveDisabled}
+            onMouseDownCapture={onSaveMouseDown}
+            onClick={onSave}
+          >
             {saveBusy ? t.settings.saving : t.common.save}
           </Button>
         )}

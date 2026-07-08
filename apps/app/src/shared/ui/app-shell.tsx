@@ -16,6 +16,7 @@ import { useProfileModels, useProviderProfiles } from './hooks/use-provider-sett
 import { MainPage } from './pages/main-page';
 import { HistoryPage } from './pages/history-page';
 import { SettingsPage } from './pages/settings-page';
+import { SettingsOnboardingPage } from './pages/settings-onboarding-page';
 import { SettingsAddPage } from './pages/settings-add-page';
 import { SettingsDetailPage } from './pages/settings-detail-page';
 import { GlobalGenerationSettingsPage } from './pages/global-generation-settings-page';
@@ -46,6 +47,7 @@ type View =
   | 'main'
   | 'history'
   | 'settings'
+  | 'settings-onboarding'
   | 'settings-add'
   | 'settings-detail'
   | 'global-generation-settings'
@@ -256,6 +258,9 @@ function AppShellContent({ host }: AppShellProps) {
   const { show } = useToast();
   const previousRoundStatusRef = useRef<Record<string, 'running' | 'ok' | 'err'>>({});
   const reconciledHistoryRef = useRef(false);
+  const settingsEntryTokenRef = useRef(0);
+  const processedSettingsEntryTokenRef = useRef(0);
+  const skipOnboardingSettingsEntryTokenRef = useRef<number | null>(null);
   usePanelResponsiveAttributes(panelRef);
 
   const selectImageProfile = useCallback(async (profileId: string | null) => {
@@ -317,39 +322,56 @@ function AppShellContent({ host }: AppShellProps) {
     setSelectedModelId(next);
   }, [imageModels, selectedProfile, selectedModelId]);
 
-  const onNav = (next: string) => setView(next as View);
+  const openSettingsView = useCallback((options?: { readonly skipOnboarding?: boolean }) => {
+    const nextToken = settingsEntryTokenRef.current + 1;
+    settingsEntryTokenRef.current = nextToken;
+    skipOnboardingSettingsEntryTokenRef.current = options?.skipOnboarding ? nextToken : null;
+    setView('settings');
+  }, []);
+
+  const setAppView = useCallback((next: View, options?: { readonly skipSettingsOnboarding?: boolean }) => {
+    if (next === 'settings') {
+      openSettingsView({ skipOnboarding: options?.skipSettingsOnboarding });
+      return;
+    }
+    setView(next);
+  }, [openSettingsView]);
+
+  const onNav = useCallback((next: string) => {
+    setAppView(next as View);
+  }, [setAppView]);
 
   const onEditProfile = useCallback(
     (profileId: string) => {
       setSelectedSettingsProfileId(profileId);
-      setView('settings-detail');
+      setAppView('settings-detail');
     },
-    [],
+    [setAppView],
   );
 
   const onLocateRound = useCallback(
     (roundId: string) => {
       setHighlightedRoundId(roundId);
-      setView('main');
+      setAppView('main');
     },
-    [],
+    [setAppView],
   );
 
   const onHistoryMiss = useCallback(() => {
     setHighlightedRoundId(null);
-    setView('main');
-  }, []);
+    setAppView('main');
+  }, [setAppView]);
 
   const onHistoryRetry = useCallback(async (roundId: string) => {
     const round = conversation.rounds.find((item) => item.id === roundId);
     if (round?.status === 'err') {
       setRestoreFailedRoundId(roundId);
       setHighlightedRoundId(roundId);
-      setView('main');
+      setAppView('main');
       return;
     }
     await conversation.retry(roundId);
-  }, [conversation]);
+  }, [conversation, setAppView]);
 
   const onPlaceTaskOutput = useCallback(async (record: TaskRecord, outputId: string) => {
     const taskResources = services.taskResources;
@@ -394,6 +416,49 @@ function AppShellContent({ host }: AppShellProps) {
       void reloadHistory();
     }
   }, [conversation.rounds, reloadHistory]);
+
+  useEffect(() => {
+    if (view !== 'settings' || generationSettings.loading) {
+      return;
+    }
+    const entryToken = settingsEntryTokenRef.current;
+    if (processedSettingsEntryTokenRef.current === entryToken) {
+      return;
+    }
+    processedSettingsEntryTokenRef.current = entryToken;
+
+    let cancelled = false;
+    void (async () => {
+      await profilesState.reload();
+      if (cancelled) {
+        return;
+      }
+      if (skipOnboardingSettingsEntryTokenRef.current === entryToken) {
+        return;
+      }
+      if (generationSettings.settings.settingsOnboardingSeenVersion === 1) {
+        return;
+      }
+      await generationSettings.save({
+        ...generationSettings.settings,
+        settingsOnboardingSeenVersion: 1,
+      });
+      if (cancelled) {
+        return;
+      }
+      setView('settings-onboarding');
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [
+    generationSettings.loading,
+    generationSettings.save,
+    generationSettings.settings,
+    profilesState,
+    view,
+  ]);
 
   return (
     <div className="panel" data-app-theme={themeOverride} ref={panelRef}>
@@ -458,11 +523,11 @@ function AppShellContent({ host }: AppShellProps) {
           profiles={imageProfiles}
           loading={profilesState.loading}
           error={profilesState.error}
-          onReload={profilesState.reload}
           onOpenProfile={(profileId) => {
             setSelectedSettingsProfileId(profileId);
             setView('settings-detail');
           }}
+          onOpenOnboarding={() => setAppView('settings-onboarding')}
           onOpenGlobalGeneration={() => setView('global-generation-settings')}
           onOpenPromptSettings={() => setView('prompt-settings')}
           onOpenModelConfiguration={() => {
@@ -471,6 +536,13 @@ function AppShellContent({ host }: AppShellProps) {
           }}
           generationSettings={generationSettings.settings}
           modelGenerationSettings={modelGenerationSettings}
+          />
+        </MotionPageFrame>
+      )}
+      {view === 'settings-onboarding' && (
+        <MotionPageFrame watch={view}>
+          <SettingsOnboardingPage
+          onBack={() => setAppView('settings', { skipSettingsOnboarding: true })}
           />
         </MotionPageFrame>
       )}
@@ -490,7 +562,7 @@ function AppShellContent({ host }: AppShellProps) {
             }
             show(options.message, 'positive', { key: 'settings-add-provider-saved' });
             setSelectedSettingsProfileId(profileId);
-            setView('settings');
+            setAppView('settings');
           }}
           />
         </MotionPageFrame>
@@ -560,7 +632,7 @@ function AppShellContent({ host }: AppShellProps) {
               setView('settings-add');
               return;
             }
-            setView('settings');
+            setAppView('settings');
           }}
           onSaved={async ({ apiFormat }) => {
             if (modelConfigurationEditorSeed?.source === 'profile-detail' && modelConfigurationEditorSeed.profileId) {

@@ -31,6 +31,7 @@ export type IconName =
   | 'place-ps'
   | 'plug'
   | 'ps-layers'
+  | 'question'
   | 'refresh'
   | 'regenerate'
   | 'selection'
@@ -241,6 +242,13 @@ const ICON_BODY_BY_NAME: Record<IconName, SvgBody> = {
   ),
   message: () => (
     <path d="M5 6.5h14a2 2 0 0 1 2 2v7a2 2 0 0 1-2 2H11l-4.5 3v-3H5a2 2 0 0 1-2-2v-7a2 2 0 0 1 2-2z" />
+  ),
+  question: () => (
+    <>
+      <circle cx="12" cy="12" r="9" />
+      <path d="M9.5 9.2a2.5 2.5 0 0 1 5 0c0 1.8-1.8 2.4-2.5 3.7" />
+      <circle cx="12" cy="17" r="1" />
+    </>
   ),
   pencil: () => (
     <>

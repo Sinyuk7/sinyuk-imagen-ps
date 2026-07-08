@@ -15,12 +15,11 @@ Agents must classify documents before using them as planning input.
 |---|---|---|
 | Current authority | `AGENTS.md`, package `AGENTS.md`, `docs/ENGINEERING_CONTEXT.md`, `docs/TESTING.md`, active Loop named by root `AGENTS.md` | May constrain current work. |
 | Active Loop | `docs/loops/*.md` named by root `AGENTS.md` | Executable plan for the current slice only. |
-| Historical reference | deleted `docs/dev-memory/` records, old design docs | Read only when the current task explicitly asks for that context. |
+| Historical reference | deleted historical records, old design docs | Read only when the current task explicitly asks for that context. |
 | Manual-only workflow | UXP host smoke notes, live provider smoke notes | Use only as manual validation instructions, not default CI proof. |
 
 Completed Loop records are not retained in `docs/loops/`; their durable outcomes
-are merged into authoritative docs. `docs/dev-memory/` is read-only historical
-reference, not a writeback target. Do not treat a deleted Loop as resumable.
+are merged into authoritative docs. Do not treat a deleted Loop as resumable.
 
 Read targeted current authority first. Broad historical documents can add
 context without improving execution and can make completed or abandoned plans
@@ -180,7 +179,7 @@ bilingual forms.
 - `manual-host-result`
 
 A `yes` candidate proposes that durable knowledge be written into the canonical
-doc that owns it (per root `AGENTS.md` Writeback), not into `docs/dev-memory/`.
+doc that owns it (per root `AGENTS.md` Writeback).
 The execution report proposes candidates; it does not make writes mandatory.
 
 ## Skill Entry Index
@@ -193,7 +192,7 @@ skill whose trigger matches the task:
 | `requirement-to-loop-planner` | New non-trivial requirement or architecture / provider / UXP workflow change needs bounded scope, validation, and stop rules before implementation. |
 | `bounded-loop-executor` | An approved Loop slice already defines owner boundary, allowed files, forbidden files, validation, stop rules, and reporting requirements. |
 | `provider-contract-reviewer` | Provider config schemas, canonical requests, model discovery, transport builders, response parsers, descriptors, mock/live smoke boundaries, or normalization. |
-| `docs-reducer` | Documentation has grown, `docs/dev-memory` / `docs/loops` / inbox trees have accumulated, `AGENTS.md` files duplicate global rules, or canonical authority is unclear; reduce toward the `scripts/policy/docs.mjs` whitelist. |
+| `docs-reducer` | Documentation has grown, `docs/loops/` or inbox trees have accumulated, `AGENTS.md` files duplicate global rules, or canonical authority is unclear; reduce toward the `scripts/policy/docs.mjs` whitelist. |
 
 Do not create one skill per feature. Do not create generic TypeScript monorepo
 skills that ignore this repository's App / Provider / UXP boundaries.

@@ -62,6 +62,17 @@ describe('MainPage preview frame shape', () => {
     })).toBe('square');
 
     expect(previewFrameShapeForRound({
+      output: {
+        count: 1,
+        selection: {
+          geometry: { kind: 'provider-default' },
+          outputFormat: 'jpeg',
+        },
+      },
+      outputSize: '1408x768',
+    })).toBe('landscape');
+
+    expect(previewFrameShapeForRound({
       output: undefined,
       outputSize: undefined,
     })).toBe('unknown');

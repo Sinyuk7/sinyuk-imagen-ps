@@ -42,7 +42,13 @@ export async function createGenerationSettingsHarness(
   container: HTMLElement,
   options?: Parameters<typeof createFakeServices>[0],
 ): Promise<GenerationSettingsHarness> {
-  const fake = createFakeServices(options);
+  const fake = createFakeServices({
+    ...options,
+    generationSettings: {
+      settingsOnboardingSeenVersion: 1,
+      ...options?.generationSettings,
+    },
+  });
   await renderMainPage(container, fake);
   await flush();
   await flush();

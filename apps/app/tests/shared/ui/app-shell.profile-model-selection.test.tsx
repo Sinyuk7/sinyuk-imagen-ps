@@ -51,11 +51,21 @@ function selectedId(container: HTMLElement, testId: string): string | null {
   return container.querySelector<HTMLElement>(`[data-testid="${testId}"]`)?.getAttribute('data-selected-id') ?? null;
 }
 
+function createReturningUserServices(options?: Parameters<typeof createFakeServices>[0]) {
+  return createFakeServices({
+    ...options,
+    generationSettings: {
+      settingsOnboardingSeenVersion: 1,
+      ...options?.generationSettings,
+    },
+  });
+}
+
 describe('AppShell profile model selection flow', () => {
   it('settings page provider rows show readable default model labels', async () => {
     const container = document.createElement('div');
     document.body.appendChild(container);
-    const services = createFakeServices({
+    const services = createReturningUserServices({
       profiles: [fakeProfile],
       profileModelItems: [
         profileModelItem('gpt-image-2', {
@@ -80,7 +90,7 @@ describe('AppShell profile model selection flow', () => {
   it('opens model configuration list from settings page instead of create editor', async () => {
     const container = document.createElement('div');
     document.body.appendChild(container);
-    const services = createFakeServices({ userModelConfigs: [] });
+    const services = createReturningUserServices({ userModelConfigs: [] });
     await renderMainPage(container, services);
 
     await act(async () => {
@@ -102,7 +112,7 @@ describe('AppShell profile model selection flow', () => {
   it('shows add-page empty state and returns there after saving a profile-originated model config', async () => {
     const container = document.createElement('div');
     document.body.appendChild(container);
-    const services = createFakeServices({ userModelConfigs: [] });
+    const services = createReturningUserServices({ userModelConfigs: [] });
     await renderMainPage(container, services);
 
     await act(async () => {
@@ -156,7 +166,7 @@ describe('AppShell profile model selection flow', () => {
   it('returns to add page when backing out of profile-originated model config creation', async () => {
     const container = document.createElement('div');
     document.body.appendChild(container);
-    const services = createFakeServices({ userModelConfigs: [] });
+    const services = createReturningUserServices({ userModelConfigs: [] });
     await renderMainPage(container, services);
 
     await act(async () => {
@@ -197,7 +207,7 @@ describe('AppShell profile model selection flow', () => {
   it('add page suspends system instruction editor while model menu is open', async () => {
     const container = document.createElement('div');
     document.body.appendChild(container);
-    const services = createFakeServices({ userModelConfigs: providerModelConfigs });
+    const services = createReturningUserServices({ userModelConfigs: providerModelConfigs });
     await renderMainPage(container, services);
 
     await act(async () => {
@@ -236,7 +246,7 @@ describe('AppShell profile model selection flow', () => {
   it('detail selector uses only saved user model configs and returns after profile-originated save', async () => {
     const container = document.createElement('div');
     document.body.appendChild(container);
-    const services = createFakeServices({
+    const services = createReturningUserServices({
       profiles: [{ ...fakeProfile, defaultModelId: '', selectedModelIds: [] }],
       userModelConfigs: providerModelConfigs,
     });
@@ -292,7 +302,7 @@ describe('AppShell profile model selection flow', () => {
   it('main selector shows wire model label but keeps model identity selected', async () => {
     const container = document.createElement('div');
     document.body.appendChild(container);
-    const services = createFakeServices({
+    const services = createReturningUserServices({
       activeImageProfileId: 'mock-profile',
       profiles: [{
         ...fakeProfile,
@@ -327,7 +337,7 @@ describe('AppShell profile model selection flow', () => {
   it('returns to detail page when backing out of profile-originated model config creation', async () => {
     const container = document.createElement('div');
     document.body.appendChild(container);
-    const services = createFakeServices({
+    const services = createReturningUserServices({
       profiles: [{ ...fakeProfile, defaultModelId: '', selectedModelIds: [] }],
       userModelConfigs: [],
     });

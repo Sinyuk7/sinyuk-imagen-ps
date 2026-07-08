@@ -48,7 +48,7 @@ export const SHELL_CSS = `
 .scroll::-webkit-scrollbar{ width:3px; }
 .scroll::-webkit-scrollbar-thumb{ background:var(--app-color-border-default); border-radius:2px; }
 .round-list{
-  /* 聊天历史默认服务 360/420 panel；wide 只做放宽。 */
+  /* 默认回退：root data-panel-width-mode 尚未写入时也保持默认视觉。 */
   --chat-prompt-inline-max:272px;
   --chat-result-inline-max:320px;
   --chat-preview-inline-max:288px;

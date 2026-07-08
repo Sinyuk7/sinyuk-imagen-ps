@@ -28,7 +28,7 @@ This repo uses current-state, harness-first loop engineering.
 ## Writeback
 
 - Before finishing non-trivial work, decide whether the turn produced reusable knowledge and write stable facts into the canonical doc they belong to: `README.md`, `docs/ENGINEERING_CONTEXT.md`, `docs/TESTING.md`, or the matching module `AGENTS.md`.
-- Do not park durable facts in `docs/dev-memory/`; it is read-only historical reference, not a permanent knowledge store. Do not create new `docs/dev-memory/` records.
+- Do not park durable facts in scratch notes or ephemeral loop records; write stable facts into the canonical doc that owns them.
 - Do not store non-canonical material in maintained docs: completed plans, execution logs, task process, raw logs, full investigation transcripts, one-off implementation details, build output, generated artifacts, secrets, or provider keys.
 - Ask before writing user/local/profile/cross-project habits to agent memory.
 

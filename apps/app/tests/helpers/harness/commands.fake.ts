@@ -122,6 +122,7 @@ export function createCommandsFake(options?: {
   const classifyEndpointSpy = vi.fn(classifyEndpoint);
   const listTaskRecords = vi.fn(async () => taskRecords);
   const reconcileStaleRunningTaskRecords = vi.fn(async () => []);
+  const listProviderProfiles = vi.fn(async () => ({ ok: true as const, value: profiles }));
 
   const commands: CommandsPort = {
     submitJob,
@@ -137,7 +138,7 @@ export function createCommandsFake(options?: {
     describeProvider,
     classifyEndpoint: classifyEndpointSpy,
     resolveModelBrand,
-    listProviderProfiles: vi.fn(async () => ({ ok: true as const, value: profiles })),
+    listProviderProfiles,
     getProviderProfile,
     saveProviderProfile,
     deleteProviderProfile,
@@ -162,6 +163,7 @@ export function createCommandsFake(options?: {
       subscribeJobEvents,
       listJobHistoryRecords,
       getProviderProfile,
+      listProviderProfiles,
       saveProviderProfile,
       deleteProviderProfile,
       testProviderProfile,

@@ -13,6 +13,7 @@ import {
   mergeApiPathDraft,
   normalizeProviderConnectionDraft,
   providerConfigFromForm,
+  sanitizeBillingPath,
   sanitizeProviderDisplayName,
   sanitizeProviderEndpointUrl,
   sanitizeProviderSecretValue,
@@ -103,6 +104,14 @@ function duplicateEndpointErrors(
   return errors;
 }
 
+function liveTextInputValue(inputId: string): string | undefined {
+  const element = document.getElementById(inputId);
+  if (element instanceof HTMLInputElement) {
+    return element.value;
+  }
+  return undefined;
+}
+
 export function SettingsAddPage({ onNav, profiles, onProfileSaved, onOpenModelConfiguration }: SettingsAddPageProps) {
   const services = useAppServices();
   const { messages: t } = useI18n();
@@ -160,6 +169,56 @@ export function SettingsAddPage({ onNav, profiles, onProfileSaved, onOpenModelCo
   }, [billing]);
 
   const invalidateDraftProofs = () => undefined;
+
+  const syncLiveApiKeyValue = (current: string): string => {
+    const live = liveTextInputValue('provider-api-key-input');
+    if (live === undefined) {
+      return current;
+    }
+    const next = sanitizeProviderSecretValue(live);
+    if (next !== current) {
+      setApiKey(next);
+      return next;
+    }
+    return current;
+  };
+
+  const syncLiveBillingDraft = (current: ProviderBillingDraft): ProviderBillingDraft => {
+    let next = current;
+    const path = liveTextInputValue('provider-billing-path-input');
+    if (path !== undefined) {
+      const normalized = sanitizeBillingPath(path);
+      if (normalized !== next.path) {
+        next = { ...next, path: normalized };
+      }
+    }
+    if (next.source === 'billing-token') {
+      const userId = liveTextInputValue('provider-billing-user-id-input');
+      if (userId !== undefined) {
+        const normalized = sanitizeProviderSecretValue(userId);
+        if (normalized !== next.userId) {
+          next = { ...next, userId: normalized };
+        }
+      }
+      const token = liveTextInputValue('provider-billing-access-token-input');
+      if (token !== undefined) {
+        const normalized = sanitizeProviderSecretValue(token);
+        if (normalized !== next.token) {
+          next = { ...next, token: normalized };
+        }
+      }
+    }
+    if (next !== current) {
+      billingRef.current = next;
+      setBilling(next);
+    }
+    return next;
+  };
+
+  const syncVisibleDraftInputs = (): void => {
+    syncLiveApiKeyValue(apiKey);
+    syncLiveBillingDraft(billingRef.current);
+  };
 
   useEffect(() => {
     if (!apiFormat) {
@@ -302,13 +361,14 @@ export function SettingsAddPage({ onNav, profiles, onProfileSaved, onOpenModelCo
 
   const buildDraftCommandInput = (
     nextConnection: ProviderConnectionDraft = connectionRef.current,
-    nextBilling: ProviderBillingDraft = billingRef.current,
+    nextBilling: ProviderBillingDraft = syncLiveBillingDraft(billingRef.current),
   ) => {
     if (!apiFormat) {
       throw new Error(t.settings.apiFormatRequired);
     }
+    const currentApiKey = syncLiveApiKeyValue(apiKey);
     const displayName = sanitizeProviderDisplayName(name) || apiFormatLabel(apiFormat);
-    const validation = billingFieldError(nextBilling, selected, { currentApiKey: apiKey, hasSavedApiKey: false });
+    const validation = billingFieldError(nextBilling, selected, { currentApiKey, hasSavedApiKey: false });
     if (validation === 'path') {
       throw new Error(t.settings.billingValidationPath);
     }
@@ -329,10 +389,10 @@ export function SettingsAddPage({ onNav, profiles, onProfileSaved, onOpenModelCo
       systemInstruction,
       config: providerConfigFromForm(apiFormat, displayName, nextConnection, defaultModel, paths, nextBilling),
       ...selectedModelInput(defaultModel),
-      ...((sanitizeProviderSecretValue(apiKey) || billingSecretValues)
+      ...((currentApiKey.trim() || billingSecretValues)
         ? {
             secretValues: {
-              ...(sanitizeProviderSecretValue(apiKey) ? { apiKey: sanitizeProviderSecretValue(apiKey) } : {}),
+              ...(currentApiKey.trim() ? { apiKey: currentApiKey.trim() } : {}),
               ...(billingSecretValues ?? {}),
             },
           }
@@ -494,8 +554,10 @@ export function SettingsAddPage({ onNav, profiles, onProfileSaved, onOpenModelCo
     if (!apiFormat) {
       throw new Error(t.settings.apiFormatRequired);
     }
+    const currentApiKey = syncLiveApiKeyValue(apiKey);
+    const currentBilling = syncLiveBillingDraft(billingRef.current);
     const displayName = sanitizeProviderDisplayName(name) || apiFormatLabel(apiFormat);
-    const validation = billingFieldError(billing, selected, { currentApiKey: apiKey, hasSavedApiKey: false });
+    const validation = billingFieldError(currentBilling, selected, { currentApiKey, hasSavedApiKey: false });
     if (validation === 'path') {
       throw new Error(t.settings.billingValidationPath);
     }
@@ -508,19 +570,19 @@ export function SettingsAddPage({ onNav, profiles, onProfileSaved, onOpenModelCo
     if (validation === 'unsupported') {
       throw new Error(t.settings.billingNotSupported);
     }
-    const billingSecretValues = billingSecretValuesFromDraft(billing);
+    const billingSecretValues = billingSecretValuesFromDraft(currentBilling);
     const result = await services.commands.saveProviderProfile({
       profileId,
       apiFormat,
       displayName,
       systemInstruction,
       enabled: true,
-      config: providerConfigFromForm(apiFormat, displayName, connection, defaultModel, paths, billing),
+      config: providerConfigFromForm(apiFormat, displayName, connectionRef.current, defaultModel, paths, currentBilling),
       ...selectedModelInput(defaultModel),
-      ...((sanitizeProviderSecretValue(apiKey) || billingSecretValues)
+      ...((currentApiKey.trim() || billingSecretValues)
         ? {
             secretValues: {
-              ...(sanitizeProviderSecretValue(apiKey) ? { apiKey: sanitizeProviderSecretValue(apiKey) } : {}),
+              ...(currentApiKey.trim() ? { apiKey: currentApiKey.trim() } : {}),
               ...(billingSecretValues ?? {}),
             },
           }
@@ -699,7 +761,9 @@ export function SettingsAddPage({ onNav, profiles, onProfileSaved, onOpenModelCo
         saveBusy={saveBusy}
         testSupported={connectionTestSupported}
         saveDisabled={saveDisabled}
+        onTestMouseDown={syncVisibleDraftInputs}
         onTest={() => void handleTestConnection()}
+        onSaveMouseDown={syncVisibleDraftInputs}
         onSave={() => void handleSave()}
       />
     </div>

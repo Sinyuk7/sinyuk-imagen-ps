@@ -25,6 +25,7 @@ const ALL_ICONS: readonly IconName[] = [
   'place-ps',
   'plug',
   'ps-layers',
+  'question',
   'refresh',
   'regenerate',
   'selection',
@@ -156,7 +157,7 @@ export function IconGalleryPage() {
       <div className="icon-gallery-section">
         <div className="icon-gallery-section-title">Toolbar Specimens</div>
         <div className="icon-gallery-toolbar">
-          {(['refresh', 'settings', 'add', 'trash', 'pencil', 'copy', 'download', 'upload', 'close', 'chevron-left', 'chevron-right', 'chevron-down'] as const).map((name) => (
+          {(['question', 'refresh', 'settings', 'add', 'trash', 'pencil', 'copy', 'download', 'upload', 'close', 'chevron-left', 'chevron-right', 'chevron-down'] as const).map((name) => (
             <div key={name} className="icon-gallery-toolbar-cell">
               <Icon name={name} size={14} />
               <Icon name={name} size={16} />

@@ -138,6 +138,73 @@ export const PAGES_CSS = `
 .settings-page .section + .section{
   border-top:1px solid var(--app-color-border-default);
 }
+.settings-onboarding-page .scroll{
+  padding:12px 14px 20px;
+}
+.settings-onboarding-page .section.settings-onboarding-card{
+  border:1px solid var(--app-color-border-default);
+  border-radius:var(--app-radius-large);
+  background:
+    linear-gradient(180deg,
+      color-mix(in srgb, var(--app-color-accent-subtle) 46%, transparent),
+      color-mix(in srgb, var(--app-color-background-layer-1) 96%, transparent)
+    );
+  box-shadow:0 10px 24px color-mix(in srgb, var(--app-color-background-base) 84%, transparent);
+}
+.settings-onboarding-eyebrow{
+  margin:0 0 8px;
+  font-size:10px;
+  line-height:14px;
+  font-weight:600;
+  letter-spacing:.08em;
+  text-transform:uppercase;
+  color:var(--app-color-text-secondary);
+}
+.settings-onboarding-title{
+  margin:0 0 8px;
+  font-size:19px;
+  line-height:1.2;
+  font-weight:700;
+  color:var(--app-color-text-primary);
+}
+.settings-onboarding-copy{
+  margin:0 0 16px;
+  font-size:12px;
+  line-height:18px;
+  color:var(--app-color-text-secondary);
+}
+.settings-onboarding-list{
+  margin:0;
+  padding-left:18px;
+  display:flex;
+  flex-direction:column;
+  gap:12px;
+}
+.settings-onboarding-list li{
+  color:var(--app-color-text-primary);
+}
+.settings-onboarding-list li span{
+  display:block;
+  margin-top:4px;
+  font-size:12px;
+  line-height:18px;
+  color:var(--app-color-text-secondary);
+}
+.settings-onboarding-list code{
+  display:inline-block;
+  padding:2px 6px;
+  border-radius:999px;
+  background:var(--app-color-background-layer-2);
+  font-family:var(--app-font-family-mono);
+  font-size:11px;
+  color:var(--app-color-text-primary);
+}
+.settings-onboarding-note{
+  margin:16px 0 0;
+  font-size:11px;
+  line-height:17px;
+  color:var(--app-color-text-secondary);
+}
 .section-title{ font-size:11px; font-weight:600; color:var(--app-color-text-secondary); letter-spacing:.3px; margin-bottom:12px; }
 .settings-page .section-title{
   margin-bottom:var(--settings-field-gap);

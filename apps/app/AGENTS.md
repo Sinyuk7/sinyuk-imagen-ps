@@ -41,6 +41,8 @@ UXP HTML/CSS, Spectrum Web Components, or SWC wrapper question:
 - UI localization is an `apps/app` surface concern. Shared packages must not own UI copy or locale state.
 - Shared UI motion, theme generation, toast, and popup-layer behavior are `apps/app` contracts. Longer rationale and implementation detail live in `docs/ENGINEERING_CONTEXT.md`.
 - Shared UI and harness CSS must stay inside the repo-owned UXP CSS contract. Mechanical enforcement lives in `pnpm check:policy` and `docs/TESTING.md`.
+- Chat-history layout tokens treat default `360px` docked and `420px` floating panels as the primary design lane; `wide` mode may only relax those caps and must not define the default visual rhythm.
+- Chat-history image previews are width-led for successful landscape/wide results and height-led for portrait containment; landscape/wide block tokens are placeholder or safety caps, not the primary success-size contract.
 
 ## Photoshop Placement Contract
 

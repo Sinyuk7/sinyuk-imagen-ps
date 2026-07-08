@@ -267,6 +267,8 @@ export function createGeminiGenerateContentProvider(): Provider<GeminiGenerateCo
         assetCount: parsed.assets.length,
         assetMimeTypes: parsed.assets.map((asset) => asset.mimeType ?? 'unknown'),
         assetNames: parsed.assets.map((asset) => asset.name ?? 'unnamed'),
+        outputSize: parsed.metadata?.size,
+        outputFormat: parsed.metadata?.outputFormat,
         textPresent: parsed.text !== undefined,
         usageInputTokens: parsed.usage?.inputTokens,
         usageOutputTokens: parsed.usage?.outputTokens,
@@ -279,6 +281,7 @@ export function createGeminiGenerateContentProvider(): Provider<GeminiGenerateCo
         ...(parsed.text !== undefined ? { text: parsed.text } : {}),
         raw: parsed.raw,
         ...(parsed.usage !== undefined ? { usage: parsed.usage } : {}),
+        ...(parsed.metadata !== undefined ? { metadata: parsed.metadata } : {}),
         ...(diagnostics.length > 0 ? { diagnostics } : {}),
         execution: {
           selectedEndpointId: execution.selectedEndpointId,

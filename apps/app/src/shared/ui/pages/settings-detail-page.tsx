@@ -17,6 +17,7 @@ import {
   readApiPathDraft,
   readProviderBillingDraft,
   readProviderConnectionDraft,
+  sanitizeBillingPath,
   sanitizeProviderDisplayName,
   sanitizeProviderSecretValue,
   useProfileDetail,
@@ -231,6 +232,14 @@ function billingDraftForSave(
     : billing;
 }
 
+function liveTextInputValue(inputId: string): string | undefined {
+  const element = document.getElementById(inputId);
+  if (element instanceof HTMLInputElement) {
+    return element.value;
+  }
+  return undefined;
+}
+
 export function SettingsDetailPage({ onNav, profileId, onProfilesChanged, onSaved, onOpenModelConfiguration }: SettingsDetailPageProps) {
   const services = useAppServices();
   const { messages: t } = useI18n();
@@ -301,6 +310,19 @@ export function SettingsDetailPage({ onNav, profileId, onProfilesChanged, onSave
     invalidateDraftProofs();
   };
 
+  const syncLiveApiKeyValue = (current: string): string => {
+    const live = liveTextInputValue('provider-api-key-input');
+    if (live === undefined) {
+      return current;
+    }
+    const next = sanitizeProviderSecretValue(live);
+    if (next !== current) {
+      setApiKey(next);
+      return next;
+    }
+    return current;
+  };
+
   const updateBillingDraft = (updater: BillingUpdater) => {
     const nextBilling = updater(billingDraftRef.current);
     billingDraftRef.current = nextBilling;
@@ -309,6 +331,43 @@ export function SettingsDetailPage({ onNav, profileId, onProfilesChanged, onSave
       setBillingAccessTokenRemovalPending(false);
     }
     invalidateDraftProofs();
+  };
+
+  const syncLiveBillingDraft = (current: ProviderBillingDraft): ProviderBillingDraft => {
+    let next = current;
+    const path = liveTextInputValue('provider-billing-path-input');
+    if (path !== undefined) {
+      const normalized = sanitizeBillingPath(path);
+      if (normalized !== next.path) {
+        next = { ...next, path: normalized };
+      }
+    }
+    if (next.source === 'billing-token') {
+      const userId = liveTextInputValue('provider-billing-user-id-input');
+      if (userId !== undefined) {
+        const normalized = sanitizeProviderSecretValue(userId);
+        if (normalized !== next.userId) {
+          next = { ...next, userId: normalized };
+        }
+      }
+      const token = liveTextInputValue('provider-billing-access-token-input');
+      if (token !== undefined) {
+        const normalized = sanitizeProviderSecretValue(token);
+        if (normalized !== next.token) {
+          next = { ...next, token: normalized };
+        }
+      }
+    }
+    if (next !== current) {
+      billingDraftRef.current = next;
+      setBillingDraft(next);
+    }
+    return next;
+  };
+
+  const syncVisibleDraftInputs = (): void => {
+    syncLiveApiKeyValue(apiKey);
+    syncLiveBillingDraft(billingDraftForSave(billingDraftRef.current, billingAccessTokenRemovalPending));
   };
 
   const updateConnectionDraft = (updater: ConnectionUpdater) => {
@@ -472,12 +531,15 @@ export function SettingsDetailPage({ onNav, profileId, onProfilesChanged, onSave
       return null;
     }
     // 保存时优先读 ref，避免输入框最后一次变更尚未完成重渲染时写回旧值。
-    const currentBillingDraft = billingDraftForSave(billingDraftRef.current, billingAccessTokenRemovalPending);
+    const currentApiKey = syncLiveApiKeyValue(apiKey);
+    const currentBillingDraft = syncLiveBillingDraft(
+      billingDraftForSave(billingDraftRef.current, billingAccessTokenRemovalPending),
+    );
     const currentConnection = connectionRef.current;
     await services.diagnostics?.checkpoint(
       'uxp.ui.settings_detail.persist.input_prepared',
       profileFormCheckpointAttrs(detail.profile, {
-        apiKey,
+        apiKey: currentApiKey,
         defaultModel,
         billingToken: currentBillingDraft.token,
         billingPath: currentBillingDraft.path,
@@ -514,10 +576,10 @@ export function SettingsDetailPage({ onNav, profileId, onProfilesChanged, onSave
       ),
       ...selectedModelInput(defaultModel, detail.profile.selectedModelIds),
       ...(removedSecretNames.length > 0 ? { removedSecretNames } : {}),
-      ...((apiKey.trim() || billingSecretValues)
+      ...((currentApiKey.trim() || billingSecretValues)
         ? {
             secretValues: {
-              ...(apiKey.trim() ? { apiKey: apiKey.trim() } : {}),
+              ...(currentApiKey.trim() ? { apiKey: currentApiKey.trim() } : {}),
               ...(billingSecretValues ?? {}),
             },
           }
@@ -529,7 +591,10 @@ export function SettingsDetailPage({ onNav, profileId, onProfilesChanged, onSave
     if (!detail.profile) {
       throw new Error('No provider profile selected.');
     }
-    const currentBillingDraft = billingDraftForSave(billingDraftRef.current, billingAccessTokenRemovalPending);
+    const currentApiKey = syncLiveApiKeyValue(apiKey);
+    const currentBillingDraft = syncLiveBillingDraft(
+      billingDraftForSave(billingDraftRef.current, billingAccessTokenRemovalPending),
+    );
     const currentConnection = connectionRef.current;
     const billingSecretValues = billingSecretValuesFromDraft(currentBillingDraft);
     const removeStoredBillingToken = Boolean(detail.profile.secretRefs?.billingToken) && currentBillingDraft.source !== 'billing-token';
@@ -556,10 +621,10 @@ export function SettingsDetailPage({ onNav, profileId, onProfilesChanged, onSave
       ),
       ...selectedModelInput(defaultModel, detail.profile.selectedModelIds),
       ...(removedSecretNames.length > 0 ? { removedSecretNames } : {}),
-      ...((apiKey.trim() || billingSecretValues)
+      ...((currentApiKey.trim() || billingSecretValues)
         ? {
             secretValues: {
-              ...(apiKey.trim() ? { apiKey: apiKey.trim() } : {}),
+              ...(currentApiKey.trim() ? { apiKey: currentApiKey.trim() } : {}),
               ...(billingSecretValues ?? {}),
             },
           }
@@ -580,9 +645,12 @@ export function SettingsDetailPage({ onNav, profileId, onProfilesChanged, onSave
     setAliasError(null);
     await services.diagnostics?.checkpoint('uxp.ui.settings_detail.save.status_cleared', { profileId });
     try {
-      const currentBillingDraft = billingDraftForSave(billingDraftRef.current, billingAccessTokenRemovalPending);
+      const currentApiKey = syncLiveApiKeyValue(apiKey);
+      const currentBillingDraft = syncLiveBillingDraft(
+        billingDraftForSave(billingDraftRef.current, billingAccessTokenRemovalPending),
+      );
       const validation = billingFieldError(currentBillingDraft, providerDescriptor, {
-        currentApiKey: apiKey,
+        currentApiKey,
         hasSavedApiKey: Boolean(detail.profile?.secretRefs?.apiKey) && !apiKeyRemovalPending,
       });
       if (validation === 'path') {
@@ -978,7 +1046,9 @@ export function SettingsDetailPage({ onNav, profileId, onProfilesChanged, onSave
         saveBusy={busy}
         testSupported={connectionTestSupported}
         saveDisabled={saveDisabled}
+        onTestMouseDown={syncVisibleDraftInputs}
         onTest={() => void test()}
+        onSaveMouseDown={syncVisibleDraftInputs}
         onSave={() => void save()}
       />
     </div>

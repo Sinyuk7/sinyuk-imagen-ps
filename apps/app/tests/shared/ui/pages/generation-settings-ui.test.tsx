@@ -21,7 +21,10 @@ async function openSelect(container: HTMLElement, testId: string): Promise<void>
 }
 
 async function renderReadyMain(container: HTMLElement) {
-  const fake = createFakeServices({ activeImageProfileId: 'mock-profile' });
+  const fake = createFakeServices({
+    activeImageProfileId: 'mock-profile',
+    generationSettings: { settingsOnboardingSeenVersion: 1 },
+  });
   await renderMainPage(container, fake);
   await flush();
   await flush();
