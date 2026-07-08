@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { PopupLayerProvider, PopupLayerRoot, usePopupLayer } from '../../../shared/ui/components/popup-layer';
 import { TextSelect } from '../../../shared/ui/components/text-select';
 import { UxpTextAreaField } from '../../../shared/ui/components/uxp-form-controls';
+import { TextField } from '../../../shared/ui/primitives/native-controls';
 
 const HARNESS_CSS = `
 .popup-overlap-harness-root{
@@ -82,12 +83,20 @@ function ensureHarnessCss(): void {
   document.head.appendChild(style);
 }
 
-function SuspendedDebug({ editorId }: { readonly editorId: string }) {
+function SuspendedDebug({
+  editorId,
+  label,
+  testId,
+}: {
+  readonly editorId: string;
+  readonly label: string;
+  readonly testId: string;
+}) {
   const popupLayer = usePopupLayer();
   const suspended = popupLayer?.isNativeEditorSuspended(editorId) ?? false;
   return (
-    <div className="popup-overlap-harness-debug" data-testid="popup-layer-overlap-debug">
-      <strong>Native editor suspended:</strong> {suspended ? 'true' : 'false'}
+    <div className="popup-overlap-harness-debug" data-testid={testId}>
+      <strong>{label}</strong> {suspended ? 'true' : 'false'}
     </div>
   );
 }
@@ -95,6 +104,7 @@ function SuspendedDebug({ editorId }: { readonly editorId: string }) {
 export function PopupLayerOverlapHarnessPage() {
   const [open, setOpen] = useState(false);
   const [authMode, setAuthMode] = useState<'x-goog-api-key' | 'bearer' | 'none'>('x-goog-api-key');
+  const [billingPath, setBillingPath] = useState('/client/openapi/getCredits');
   const [systemInstruction, setSystemInstruction] = useState(
     'Use a crisp editorial tone. Keep the product framing natural and restrained.',
   );
@@ -111,7 +121,7 @@ export function PopupLayerOverlapHarnessPage() {
             <div className="popup-overlap-harness-body">
               <h1 className="popup-overlap-harness-title">Popup Layer Overlap</h1>
               <p className="popup-overlap-harness-copy">
-                Open the Auth mode dropdown and verify the textarea below reports suspended when the popup overlaps it.
+                Open the Auth mode dropdown and verify both the single-line input and textarea below report suspended while the popup overlaps them.
               </p>
 
               <div className="popup-overlap-harness-field">
@@ -138,7 +148,16 @@ export function PopupLayerOverlapHarnessPage() {
                 />
               </div>
 
-              <div className="popup-overlap-harness-spacer" />
+              <div className="popup-overlap-harness-field">
+                <span className="popup-overlap-harness-label">Billing path</span>
+                <TextField
+                  data-testid="provider-billing-path-input"
+                  id="provider-billing-path-input"
+                  className="field-input mono ui-field-control"
+                  value={billingPath}
+                  onValue={setBillingPath}
+                />
+              </div>
 
               <div className="popup-overlap-harness-field">
                 <span className="popup-overlap-harness-label">System instruction</span>
@@ -151,7 +170,16 @@ export function PopupLayerOverlapHarnessPage() {
                 />
               </div>
 
-              <SuspendedDebug editorId="provider-system-instructions-input" />
+              <SuspendedDebug
+                editorId="provider-billing-path-input"
+                label="Single-line editor suspended:"
+                testId="popup-layer-overlap-debug-input"
+              />
+              <SuspendedDebug
+                editorId="provider-system-instructions-input"
+                label="Textarea editor suspended:"
+                testId="popup-layer-overlap-debug-textarea"
+              />
             </div>
           </div>
           <PopupLayerRoot />

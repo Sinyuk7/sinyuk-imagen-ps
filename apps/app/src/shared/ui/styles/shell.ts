@@ -52,12 +52,10 @@ export const SHELL_CSS = `
   --chat-prompt-inline-max:272px;
   --chat-result-inline-max:320px;
   --chat-preview-inline-max:288px;
-  --chat-preview-block-default:232px;
-  --chat-preview-block-landscape:208px;
-  --chat-preview-block-square:248px;
-  --chat-preview-block-portrait:296px;
-  --chat-preview-block-wide:168px;
-  --chat-preview-block-max:296px;
+  --chat-preview-block-fallback:232px;
+  --chat-preview-portrait-cap-padding:150%;
+  --chat-preview-stage-surface:var(--app-color-background-base);
+  --chat-preview-alpha-surface:var(--app-color-background-layer-2);
   padding:12px 12px 12px; display:flex; flex-direction:column; min-width:0; min-height:100%;
 }
 `;

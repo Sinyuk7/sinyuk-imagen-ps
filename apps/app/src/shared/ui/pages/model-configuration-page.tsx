@@ -244,16 +244,6 @@ function ModelIdField({
 }) {
   const [focused, setFocused] = useState(false);
 
-  useEffect(() => {
-    if (!suspended) {
-      return;
-    }
-    const input = document.getElementById(id);
-    if (input instanceof HTMLInputElement && document.activeElement === input) {
-      input.blur();
-    }
-  }, [id, suspended]);
-
   return (
     <div
       className="field-input-affordance model-config-model-id-shell"
@@ -267,12 +257,7 @@ function ModelIdField({
         className="field-input mono ui-field-control field-input-embedded"
         value={value}
         disabled={disabled}
-        style={suspended
-          ? {
-              display: 'none',
-              pointerEvents: 'none',
-            }
-          : undefined}
+        nativeEditorSuspended={suspended}
         onFocus={() => setFocused(true)}
         onBlur={() => setFocused(false)}
         onValue={onValue}

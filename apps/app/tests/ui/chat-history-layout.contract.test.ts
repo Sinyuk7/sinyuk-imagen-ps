@@ -82,6 +82,7 @@ describe('chat history layout contract', () => {
     const regularPrompt = extractVarPx(regularRoundList, 'chat-prompt-inline-max');
     const regularResult = extractVarPx(regularRoundList, 'chat-result-inline-max');
     const regularPreview = extractVarPx(regularRoundList, 'chat-preview-inline-max');
+    const regularFallback = extractVarPx(regularRoundList, 'chat-preview-block-fallback');
     const wideResult = extractVarPx(wideRoundList, 'chat-result-inline-max');
 
     expect(extractVarPx(shellRoundList, 'chat-prompt-inline-max')).toBe(regularPrompt);
@@ -92,19 +93,19 @@ describe('chat history layout contract', () => {
     expect(regularPreview).toBeLessThanOrEqual(dockedContentWidth);
     expect(regularPreview).toBeLessThanOrEqual(floatingContentWidth);
     expect(regularPrompt).toBeLessThan(regularResult);
+    expect(regularFallback).toBeGreaterThan(0);
     expect(extractVarRaw(compactRoundList, 'chat-result-inline-max')).toBe('100%');
     expect(wideResult).toBeGreaterThan(regularResult);
   });
 
-  it('treats landscape and wide block tokens as placeholder or safety caps instead of final success heights', () => {
-    const regularRoundList = extractBlock(RESPONSIVE_SOURCE, '.panel[data-panel-width-mode="regular"] .round-list{');
-
-    expect(CONVERSATION_SOURCE).toContain('min-height:0;');
-    expect(CONVERSATION_SOURCE).not.toContain('min-height:180px;');
-    expect(CONVERSATION_SOURCE).toContain('.img-result.media-landscape[data-has-preview="true"] .img-stage,');
-    expect(CONVERSATION_SOURCE).toContain('.img-result.media-wide[data-has-preview="true"] .img-stage{');
-    expect(CONVERSATION_SOURCE).toContain('max-height:var(--chat-preview-block-max);');
-    expect(CONVERSATION_SOURCE).toContain('.img-result.media-wide .img-stage{ height:var(--chat-preview-block-wide); }');
-    expect(extractVarPx(regularRoundList, 'chat-preview-block-wide')).toBeLessThan(extractVarPx(regularRoundList, 'chat-preview-block-default'));
+  it('uses solid preview surfaces and caps only super-tall previews', () => {
+    expect(CONVERSATION_SOURCE).toContain('background:var(--chat-preview-stage-surface);');
+    expect(CONVERSATION_SOURCE).toContain('.img-media-shell[data-alpha-backdrop="true"]{');
+    expect(CONVERSATION_SOURCE).toContain('background:var(--chat-preview-alpha-surface);');
+    expect(CONVERSATION_SOURCE).toContain('.img-result[data-preview-layout="portrait-cap"][data-has-preview="true"] .img-stage::before{');
+    expect(CONVERSATION_SOURCE).toContain('padding-top:var(--chat-preview-portrait-cap-padding);');
+    expect(CONVERSATION_SOURCE).toContain('.img-result[data-preview-layout="intrinsic"][data-has-preview="true"] .img-media{');
+    expect(CONVERSATION_SOURCE).not.toContain('background-image:linear-gradient(45deg');
+    expect(CONVERSATION_SOURCE).not.toContain('.img-result.media-wide .img-stage{ height:var(--chat-preview-block-wide); }');
   });
 });

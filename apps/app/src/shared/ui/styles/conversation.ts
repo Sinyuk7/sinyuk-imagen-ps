@@ -114,11 +114,6 @@ export const CONVERSATION_CSS = `
   width:100%;
   max-width:var(--chat-result-inline-max);
 }
-.prov-card-media.media-portrait,
-.prov-card-media.media-square,
-.prov-card-media.media-landscape,
-.prov-card-media.media-wide,
-.prov-card-media.media-unknown{ width:100%; max-width:var(--chat-result-inline-max); }
 .prov-card-text-only{ width:100%; max-width:var(--chat-result-inline-max); }
 .prov-top{ display:flex; align-items:flex-start; justify-content:flex-start; min-width:0; padding:8px 12px 7px; }
 .prov-identity{
@@ -263,39 +258,67 @@ export const CONVERSATION_CSS = `
 .img-stage{
   position:relative;
   width:100%;
-  height:var(--chat-preview-block-default);
   overflow:hidden;
-  background-color:var(--app-color-background-base);
-  background-image:linear-gradient(45deg, rgba(255,255,255,.055) 25%, transparent 25%, transparent 75%, rgba(255,255,255,.055) 75%);
-  background-size:18px 18px;
-  display:flex; align-items:center; justify-content:center;
-}
-.img-result.media-landscape,
-.img-result.media-wide{ max-width:none; }
-.img-result.media-landscape .img-stage{ height:var(--chat-preview-block-landscape); }
-.img-result.media-square .img-stage{ height:var(--chat-preview-block-square); }
-.img-result.media-portrait .img-stage{ height:var(--chat-preview-block-portrait); }
-.img-result.media-tall .img-stage{ height:var(--chat-preview-block-portrait); }
-.img-result.media-wide .img-stage{ height:var(--chat-preview-block-wide); }
-.img-result.media-unknown .img-stage{ height:var(--chat-preview-block-default); }
-/* 横图成功态宽度驱动；landscape/wide block token 只兜底 placeholder 与安全上限。 */
-.img-result.media-landscape[data-has-preview="true"] .img-stage,
-.img-result.media-wide[data-has-preview="true"] .img-stage{
-  height:auto;
-  max-height:var(--chat-preview-block-max);
+  background:var(--chat-preview-stage-surface);
 }
 .img-media{
-  max-width:100%;
-  max-height:100%;
   display:block;
-  object-fit:contain;
 }
-.img-result.media-landscape[data-has-preview="true"] .img-media,
-.img-result.media-wide[data-has-preview="true"] .img-media{
+.img-media-shell{
+  width:100%;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  background:transparent;
+}
+.img-media-shell[data-alpha-backdrop="true"]{
+  background:var(--chat-preview-alpha-surface);
+}
+.img-result[data-preview-layout="intrinsic"][data-has-preview="true"] .img-stage{
+  min-height:0;
+}
+.img-result[data-preview-layout="intrinsic"][data-has-preview="true"] .img-media-shell{
+  display:block;
+}
+.img-result[data-preview-layout="intrinsic"][data-has-preview="true"] .img-media{
   width:100%;
   height:auto;
   max-width:100%;
-  max-height:var(--chat-preview-block-max);
+}
+.img-result[data-preview-layout="portrait-cap"][data-has-preview="true"] .img-stage{
+  min-height:0;
+}
+.img-result[data-preview-layout="portrait-cap"][data-has-preview="true"] .img-stage::before{
+  content:'';
+  display:block;
+  padding-top:var(--chat-preview-portrait-cap-padding);
+}
+.img-result[data-preview-layout="portrait-cap"][data-has-preview="true"] .img-media-shell{
+  position:absolute;
+  top:0;
+  right:0;
+  bottom:0;
+  left:0;
+}
+.img-result[data-preview-layout="portrait-cap"][data-has-preview="true"] .img-media,
+.img-result[data-preview-layout="fallback"][data-has-preview="true"] .img-media{
+  width:auto;
+  height:auto;
+  max-width:100%;
+  max-height:100%;
+  object-fit:contain;
+}
+.img-result[data-preview-layout="fallback"] .img-stage,
+.img-result[data-has-preview="false"] .img-stage{
+  min-height:var(--chat-preview-block-fallback);
+  height:var(--chat-preview-block-fallback);
+  display:flex;
+  align-items:center;
+  justify-content:center;
+}
+.img-result[data-preview-layout="fallback"][data-has-preview="true"] .img-media-shell{
+  width:100%;
+  height:100%;
 }
 .img-placeholder{
   width:100%;

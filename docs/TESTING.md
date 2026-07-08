@@ -140,6 +140,15 @@ This script is retained as a stable entrypoint, but it may be a no-op when the
 placement suite is temporarily absent. It is per-slice evidence only;
 `pnpm validate` remains the default final gate.
 
+Popup-overlap text-input work should additionally cite the shared UI seam
+evidence:
+
+- `apps/app/tests/shared/ui/components/text-field-seam.test.tsx` for public
+  `TextField` suspension/value behavior
+- `apps/app/tests/shared/ui/components/popup-layer-overlap-harness.test.tsx`
+  for single-line + multi-line popup overlap regression proof
+- `pnpm check:policy` for the single-line seam import boundary
+
 When host writeback semantics change, keep the durable regression in
 `apps/app/tests/adapters/uxp/photoshop-host-bridge.write.contract.test.ts`.
 This includes `unbound` placement cases where Photoshop native `placeEvent`

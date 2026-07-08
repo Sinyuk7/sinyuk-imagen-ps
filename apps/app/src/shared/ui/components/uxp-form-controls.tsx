@@ -6,12 +6,31 @@ import {
   useRef,
   type ClipboardEvent,
   type FocusEvent,
+  type InputHTMLAttributes,
   type KeyboardEvent,
   type ReactNode,
   type RefObject,
   type TextareaHTMLAttributes,
 } from 'react';
 import { usePopupLayer } from './popup-layer';
+
+export type UxpTextInputType = 'text' | 'password' | 'url' | 'search';
+
+type UxpTextInputProps = Omit<
+  InputHTMLAttributes<HTMLInputElement>,
+  'defaultValue' | 'onChange' | 'onInput' | 'type' | 'value'
+> & {
+  readonly controlRef?: RefObject<HTMLInputElement | null>;
+  readonly value: string;
+  readonly onValue: (value: string) => void;
+  readonly type?: UxpTextInputType;
+  /**
+   * Photoshop UXP 下，原生 input 与 portaled popup 重叠时也可能继续抢占命中。
+   * 单行输入与 textarea 同属 shared text-input seam，统一通过 popup-layer 挂起。
+   */
+  readonly nativeEditorSuspended?: boolean;
+  readonly 'data-testid'?: string;
+};
 
 type UxpTextAreaProps = Omit<
   TextareaHTMLAttributes<HTMLTextAreaElement>,
@@ -97,10 +116,107 @@ function insertTextAtSelection(target: HTMLTextAreaElement, text: string, start:
 }
 
 /**
- * 当前 shared UI 仍保留原生 textarea。
+ * 当前 shared UI 的 text input seam 仍保留原生 input。
  *
- * SWC 0.37.0 / 当前 UXP wrapper 组合里没有与 Chrome/UXP 都稳定覆盖的 textarea
- * 契约，因此多行 prompt 输入继续走这一份 UXP-safe 实现。
+ * Photoshop UXP 的 native editor layer 会与 portaled popup 发生 hit-test 冲突，
+ * 因此单行输入与多行输入都必须注册到 popup-layer，由 overlap contract 统一挂起。
+ */
+export function UxpTextInput({
+  controlRef,
+  value,
+  onValue,
+  type = 'text',
+  nativeEditorSuspended = false,
+  style,
+  className,
+  placeholder,
+  disabled,
+  id,
+  title,
+  onKeyUp,
+  onBlur,
+  'data-testid': dataTestId,
+  ...props
+}: UxpTextInputProps) {
+  const inputRef = useRef<HTMLInputElement>(null);
+  const popupLayer = usePopupLayer();
+  const fallbackEditorId = useId();
+  const editorId = id ?? dataTestId ?? fallbackEditorId;
+  const editorSuspended = nativeEditorSuspended || (popupLayer?.isNativeEditorSuspended(editorId) ?? false);
+
+  const bindRef = (element: HTMLInputElement | null): void => {
+    inputRef.current = element;
+    if (controlRef) {
+      (controlRef as { current: HTMLInputElement | null }).current = element;
+    }
+  };
+
+  useEffect(() => {
+    popupLayer?.setNativeEditorElement(editorId, inputRef.current);
+    return () => {
+      popupLayer?.setNativeEditorElement(editorId, null);
+    };
+  }, [editorId, popupLayer]);
+
+  useEffect(() => {
+    const input = inputRef.current;
+    if (!input || !editorSuspended) {
+      return;
+    }
+    if (document.activeElement === input) {
+      input.blur();
+    }
+  }, [editorSuspended]);
+
+  const sync = useCallback(
+    (target?: HTMLInputElement | null) => {
+      onValue((target ?? inputRef.current)?.value ?? '');
+    },
+    [onValue],
+  );
+
+  return (
+    <input
+      {...props}
+      ref={bindRef}
+      id={id}
+      title={title}
+      className={className}
+      data-testid={dataTestId}
+      value={value}
+      type={type}
+      placeholder={placeholder}
+      disabled={disabled}
+      data-uxp-textinput-native="true"
+      data-native-editor-suspended={editorSuspended ? 'true' : undefined}
+      style={{
+        ...style,
+        ...(editorSuspended
+          ? {
+              display: 'none',
+              pointerEvents: 'none',
+            }
+          : null),
+      }}
+      onInput={(event) => sync(event.currentTarget)}
+      onChange={(event) => sync(event.currentTarget)}
+      onKeyUp={(event) => {
+        sync(event.currentTarget);
+        onKeyUp?.(event);
+      }}
+      onBlur={(event) => {
+        sync(event.currentTarget);
+        onBlur?.(event);
+      }}
+    />
+  );
+}
+
+/**
+ * 当前 shared UI 的 text input seam 仍保留原生 textarea。
+ *
+ * SWC 0.37.0 / 当前 UXP wrapper 组合里没有与 Chrome/UXP 都稳定覆盖的统一 rich
+ * text editor 契约，因此多行输入继续走这一份 popup-aware native editor seam。
  */
 export function UxpTextArea({
   controlRef,

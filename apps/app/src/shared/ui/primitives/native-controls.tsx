@@ -3,12 +3,12 @@ import {
   type ButtonHTMLAttributes,
   type HTMLAttributes,
   type InputHTMLAttributes,
-  type KeyboardEvent,
   type ReactNode,
 } from 'react';
+import { UxpTextInput, type UxpTextInputType } from '../components/uxp-form-controls';
 
 type NativeButtonVariant = 'accent' | 'primary' | 'secondary' | 'negative';
-type NativeTextFieldType = 'text' | 'password' | 'url' | 'search';
+type NativeTextFieldType = UxpTextInputType;
 type TooltipPlacement =
   | 'top'
   | 'top-start'
@@ -28,10 +28,11 @@ interface ButtonProps extends Omit<ButtonHTMLAttributes<HTMLButtonElement>, 'typ
   readonly children: ReactNode;
 }
 
-interface TextFieldProps extends Omit<InputHTMLAttributes<HTMLInputElement>, 'defaultValue' | 'onChange' | 'type' | 'value'> {
+interface TextFieldProps extends Omit<InputHTMLAttributes<HTMLInputElement>, 'defaultValue' | 'onChange' | 'onInput' | 'type' | 'value'> {
   readonly value: string;
   readonly onValue: (value: string) => void;
   readonly type?: NativeTextFieldType;
+  readonly nativeEditorSuspended?: boolean;
 }
 
 interface CheckboxProps extends Omit<InputHTMLAttributes<HTMLInputElement>, 'checked' | 'defaultChecked' | 'onChange' | 'type'> {
@@ -103,36 +104,13 @@ export const Button = forwardRef<HTMLButtonElement, ButtonProps>(function Button
 });
 
 export function TextField({
-  value,
-  onValue,
-  type = 'text',
-  placeholder,
-  disabled,
   className,
-  onKeyUp,
-  onBlur,
   ...props
 }: TextFieldProps) {
-  const sync = (next: string) => onValue(next);
-
   return (
-    <input
+    <UxpTextInput
       {...props}
       className={classNames('ui-textfield', className)}
-      value={value}
-      type={type}
-      placeholder={placeholder}
-      disabled={disabled}
-      onInput={(event) => sync(event.currentTarget.value)}
-      onChange={(event) => sync(event.currentTarget.value)}
-      onKeyUp={(event: KeyboardEvent<HTMLInputElement>) => {
-        sync(event.currentTarget.value);
-        onKeyUp?.(event);
-      }}
-      onBlur={(event) => {
-        sync(event.currentTarget.value);
-        onBlur?.(event);
-      }}
     />
   );
 }

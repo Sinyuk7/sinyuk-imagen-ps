@@ -203,7 +203,9 @@ describe('UXP panel CSS contract', () => {
     expect(unionSource).toContain('--chat-prompt-inline-max:272px;');
     expect(unionSource).toContain('--chat-result-inline-max:320px;');
     expect(unionSource).toContain('--chat-preview-inline-max:288px;');
-    expect(unionSource).toContain('--chat-preview-block-max:296px;');
+    expect(unionSource).toContain('--chat-preview-block-fallback:232px;');
+    expect(unionSource).toContain('--chat-preview-stage-surface:var(--app-color-background-base);');
+    expect(unionSource).toContain('--chat-preview-alpha-surface:var(--app-color-background-layer-2);');
     expect(unionSource).toContain('width:100%; max-width:var(--chat-result-inline-max);');
     expect(unionSource).toContain('width:100%; max-width:var(--chat-preview-inline-max);');
     expect(unionSource).toContain('margin-right:auto;');
@@ -216,7 +218,9 @@ describe('UXP panel CSS contract', () => {
     expect(unionSource).toContain('min-height:0;');
     expect(unionSource).toContain('.img-stage{');
     expect(unionSource).toContain('.img-media{');
-    expect(unionSource).toContain('.img-result.media-landscape[data-has-preview="true"] .img-stage,');
+    expect(unionSource).toContain('.img-result[data-preview-layout="portrait-cap"][data-has-preview="true"] .img-stage::before{');
+    expect(unionSource).toContain('.img-media-shell[data-alpha-backdrop="true"]{');
+    expect(unionSource).not.toContain('background-image:linear-gradient(45deg');
     expect(unionSource).not.toContain('.panel[data-panel-width-mode="wide"] .img-result{ height:300px; max-height:440px; }');
   });
 

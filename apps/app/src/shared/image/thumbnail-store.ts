@@ -2,6 +2,7 @@ import type { Asset, StoredAssetRef } from '@imagen-ps/application';
 import type { AssetPreview } from '../domain/mappers';
 import { assetToPreviewUrl } from '../domain/mappers';
 import { createRuntimeImageUrlOrDataUrl, type RuntimeImageUrl } from './runtime-image-url';
+import { assetHasTransparency, hasImageTransparency } from './image-transparency';
 
 const DEFAULT_THUMBNAIL_MAX_SIDE = 512;
 const DEFAULT_MAX_INLINE_THUMBNAIL_BYTES = 512 * 1024;
@@ -45,6 +46,11 @@ interface CacheEntry {
   readonly preview: AssetPreview;
   readonly release: () => void;
   refs: number;
+}
+
+interface ResolvedPreview {
+  readonly runtimeUrl: RuntimeImageUrl;
+  readonly hasTransparency: boolean;
 }
 
 type GenerationQueueEntry = () => void;
@@ -144,11 +150,14 @@ export function createMemoryThumbnailStore(options: ThumbnailStoreOptions = {}):
     asset: Asset,
     maxSide: number,
     signal: AbortSignal | undefined,
-  ): Promise<RuntimeImageUrl> {
+  ): Promise<ResolvedPreview> {
     throwIfAborted(signal);
     const direct = previewFromAsset(asset);
     if (direct) {
-      return { url: direct, release: () => undefined };
+      return {
+        runtimeUrl: { url: direct, release: () => undefined },
+        hasTransparency: assetHasTransparency(asset),
+      };
     }
 
     const mimeType = asset.mimeType ?? asset.storedRef?.mimeType ?? 'image/png';
@@ -157,32 +166,49 @@ export function createMemoryThumbnailStore(options: ThumbnailStoreOptions = {}):
       throwIfAborted(signal);
       if (resolved !== undefined) {
         const bytes = new Uint8Array(resolved);
+        const hasTransparency = hasImageTransparency(bytes, mimeType);
         if (bytes.byteLength <= maxInlineBytes) {
-          return options.createObjectUrl
-            ? options.createObjectUrl(bytes, mimeType)
-            : createRuntimeImageUrlOrDataUrl(bytes, mimeType);
+          return {
+            runtimeUrl: options.createObjectUrl
+              ? options.createObjectUrl(bytes, mimeType)
+              : createRuntimeImageUrlOrDataUrl(bytes, mimeType),
+            hasTransparency,
+          };
         }
         const thumbnail = await options.createThumbnail?.({ asset, bytes, mimeType, maxSide, signal });
         throwIfAborted(signal);
         if (thumbnail) {
-          return thumbnail;
+          return {
+            runtimeUrl: thumbnail,
+            hasTransparency,
+          };
         }
       }
     }
 
     const inlineBytes = bytesFromAsset(asset);
     if (inlineBytes !== undefined) {
+      const hasTransparency = hasImageTransparency(inlineBytes, mimeType);
       if (inlineBytes.byteLength <= maxInlineBytes) {
-        return { url: assetToPreviewUrl(asset), release: () => undefined };
+        return {
+          runtimeUrl: { url: assetToPreviewUrl(asset), release: () => undefined },
+          hasTransparency,
+        };
       }
       const thumbnail = await options.createThumbnail?.({ asset, bytes: inlineBytes, mimeType, maxSide, signal });
       throwIfAborted(signal);
       if (thumbnail) {
-        return thumbnail;
+        return {
+          runtimeUrl: thumbnail,
+          hasTransparency,
+        };
       }
     }
 
-    return { url: '', release: () => undefined };
+    return {
+      runtimeUrl: { url: '', release: () => undefined },
+      hasTransparency: false,
+    };
   }
 
   function entryForCached(cacheKey: string): ThumbnailEntry | undefined {
@@ -230,10 +256,11 @@ export function createMemoryThumbnailStore(options: ThumbnailStoreOptions = {}):
           const generated = await thumbnailUrlFor(request.asset, maxSide, request.signal);
           const preview: AssetPreview = {
             asset: sanitizedAsset(request.asset),
-            url: generated.url,
+            url: generated.runtimeUrl.url,
             label: request.label ?? request.asset.name ?? 'Asset',
+            hasTransparency: generated.hasTransparency,
           };
-          const entry: CacheEntry = { preview, release: generated.release, refs: 0 };
+          const entry: CacheEntry = { preview, release: generated.runtimeUrl.release, refs: 0 };
           cache.set(cacheKey, entry);
           return entry;
         }).finally(() => {

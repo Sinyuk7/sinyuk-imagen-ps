@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { ImageOutputSelection } from '@imagen-ps/application';
-import { previewFrameShapeForRound } from '../../../../src/shared/ui/pages/main-page';
+import { previewLayoutModeForRound } from '../../../../src/shared/ui/pages/main-page';
 
 function roundWithSelection(selection: ImageOutputSelection) {
   return {
@@ -12,45 +12,38 @@ function roundWithSelection(selection: ImageOutputSelection) {
   };
 }
 
-describe('MainPage preview frame shape', () => {
-  it('uses requested ratio-resolution selection before provider metadata arrives', () => {
-    expect(previewFrameShapeForRound(roundWithSelection({
+describe('MainPage preview layout mode', () => {
+  it('uses intrinsic layout when request ratio is not taller than 2:3', () => {
+    expect(previewLayoutModeForRound(roundWithSelection({
       geometry: { kind: 'ratio-resolution', aspectRatio: '16:9', resolution: '1k' },
       outputFormat: 'png',
-    }))).toBe('landscape');
+    }))).toBe('intrinsic');
 
-    expect(previewFrameShapeForRound(roundWithSelection({
+    expect(previewLayoutModeForRound(roundWithSelection({
       geometry: { kind: 'ratio-resolution', aspectRatio: '1:1', resolution: '1k' },
       outputFormat: 'png',
-    }))).toBe('square');
-  });
+    }))).toBe('intrinsic');
 
-  it('clamps taller-than-2:3 requests into portrait preview ceiling', () => {
-    expect(previewFrameShapeForRound(roundWithSelection({
+    expect(previewLayoutModeForRound(roundWithSelection({
       geometry: { kind: 'ratio-resolution', aspectRatio: '2:3', resolution: '1k' },
       outputFormat: 'png',
-    }))).toBe('portrait');
-
-    expect(previewFrameShapeForRound(roundWithSelection({
-      geometry: { kind: 'ratio-resolution', aspectRatio: '9:16', resolution: '1k' },
-      outputFormat: 'png',
-    }))).toBe('portrait');
-
-    expect(previewFrameShapeForRound(roundWithSelection({
-      geometry: { kind: 'pixels', width: 900, height: 2100 },
-      outputFormat: 'png',
-    }))).toBe('portrait');
+    }))).toBe('intrinsic');
   });
 
-  it('keeps very wide ratios in narrow-height preview buckets', () => {
-    expect(previewFrameShapeForRound(roundWithSelection({
-      geometry: { kind: 'ratio-resolution', aspectRatio: '21:9', resolution: '2k' },
+  it('caps only taller-than-2:3 requests into contain layout', () => {
+    expect(previewLayoutModeForRound(roundWithSelection({
+      geometry: { kind: 'ratio-resolution', aspectRatio: '9:16', resolution: '1k' },
       outputFormat: 'png',
-    }))).toBe('wide');
+    }))).toBe('portrait-cap');
+
+    expect(previewLayoutModeForRound(roundWithSelection({
+      geometry: { kind: 'pixels', width: 900, height: 2100 },
+      outputFormat: 'png',
+    }))).toBe('portrait-cap');
   });
 
   it('falls back to output metadata when request ratio is unavailable', () => {
-    expect(previewFrameShapeForRound({
+    expect(previewLayoutModeForRound({
       output: {
         count: 1,
         selection: {
@@ -59,9 +52,9 @@ describe('MainPage preview frame shape', () => {
         },
       },
       outputSize: '1024x1024',
-    })).toBe('square');
+    })).toBe('intrinsic');
 
-    expect(previewFrameShapeForRound({
+    expect(previewLayoutModeForRound({
       output: {
         count: 1,
         selection: {
@@ -69,12 +62,12 @@ describe('MainPage preview frame shape', () => {
           outputFormat: 'jpeg',
         },
       },
-      outputSize: '1408x768',
-    })).toBe('landscape');
+      outputSize: '768x1408',
+    })).toBe('portrait-cap');
 
-    expect(previewFrameShapeForRound({
+    expect(previewLayoutModeForRound({
       output: undefined,
       outputSize: undefined,
-    })).toBe('unknown');
+    })).toBe('fallback');
   });
 });

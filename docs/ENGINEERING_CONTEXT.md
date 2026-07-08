@@ -126,6 +126,12 @@ surface apps -> application/session -> core-engine + providers
   coalesce resize, scroll, and `ResizeObserver` invalidations through
   `requestAnimationFrame`, avoid state updates when placement is unchanged, and
   disconnect listeners on close.
+- Shared text entry in `apps/app` is a popup-layer-owned contract. Public
+  single-line text entry stays on `TextField`; multi-line text entry stays on
+  `UxpTextArea` / `UxpTextAreaField`; both route through the shared popup-safe
+  seam in `uxp-form-controls.tsx`. Raw native text editor markup belongs only
+  inside that seam, and `pnpm check:policy` rejects attempts to import the
+  internal single-line seam directly instead of using public `TextField`.
 
 ## Logging Contract
 

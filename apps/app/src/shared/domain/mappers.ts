@@ -1,11 +1,13 @@
 import type { ApiFormat, Asset, Job, JobError, ProviderProfile } from '@imagen-ps/application';
 import type { ProfileBillingState } from '@imagen-ps/application';
 import { ensurePlaceableImagePayload } from './image-payload-preflight';
+import { assetHasTransparency } from '../image/image-transparency';
 
 export interface AssetPreview {
   readonly asset: Asset;
   readonly url: string;
   readonly label: string;
+  readonly hasTransparency: boolean;
 }
 
 export interface ProviderRowVM {
@@ -162,6 +164,7 @@ export function assetToPreview(asset: Asset, index = 0): AssetPreview {
     asset,
     url: assetToPreviewUrl(asset),
     label: asset.name ?? `Asset ${index + 1}`,
+    hasTransparency: assetHasTransparency(asset),
   };
 }
 

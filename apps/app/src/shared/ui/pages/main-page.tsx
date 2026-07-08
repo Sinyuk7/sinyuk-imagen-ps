@@ -294,7 +294,7 @@ function findRoundElement(container: HTMLElement, roundId: string): HTMLElement 
   return container.querySelector(`[data-round-id="${roundId}"]`);
 }
 
-type PreviewFrameShape = 'portrait' | 'square' | 'landscape' | 'wide' | 'unknown';
+type PreviewLayoutMode = 'intrinsic' | 'portrait-cap' | 'fallback';
 
 const PREVIEW_MAX_PORTRAIT_RATIO = 2 / 3;
 
@@ -313,47 +313,40 @@ function parseAspectRatioValue(aspectRatio: string): number | undefined {
   return parseDimensionRatio(Number(match[1]), Number(match[2]));
 }
 
-function previewFrameShapeFromRatio(ratio: number): PreviewFrameShape {
-  // 聊天历史预览优先控制列表密度；过高竖图统一收敛到 portrait 档。
-  const effectiveRatio = ratio < PREVIEW_MAX_PORTRAIT_RATIO ? PREVIEW_MAX_PORTRAIT_RATIO : ratio;
-  if (effectiveRatio >= 2) return 'wide';
-  if (effectiveRatio > 1.15) return 'landscape';
-  if (effectiveRatio < 0.9) return 'portrait';
-  return 'square';
-}
-
-function previewFrameShapeFromSelection(selection: ImageOutputSelection | undefined): PreviewFrameShape | undefined {
+function previewRatioFromSelection(selection: ImageOutputSelection | undefined): number | undefined {
   if (!selection) {
     return undefined;
   }
   switch (selection.geometry.kind) {
     case 'pixels': {
-      const ratio = parseDimensionRatio(selection.geometry.width, selection.geometry.height);
-      return ratio !== undefined ? previewFrameShapeFromRatio(ratio) : undefined;
+      return parseDimensionRatio(selection.geometry.width, selection.geometry.height);
     }
     case 'ratio-resolution': {
-      const ratio = parseAspectRatioValue(selection.geometry.aspectRatio);
-      return ratio !== undefined ? previewFrameShapeFromRatio(ratio) : undefined;
+      return parseAspectRatioValue(selection.geometry.aspectRatio);
     }
     default:
       return undefined;
   }
 }
 
-function mediaShapeFromSize(size: string | undefined): PreviewFrameShape {
+function previewRatioFromOutputSize(size: string | undefined): number | undefined {
   const match = size?.match(/(\d+)\s*[x×]\s*(\d+)/i);
   if (!match) {
-    return 'unknown';
+    return undefined;
   }
-  const ratio = parseDimensionRatio(Number(match[1]), Number(match[2]));
-  if (ratio === undefined) {
-    return 'unknown';
-  }
-  return previewFrameShapeFromRatio(ratio);
+  return parseDimensionRatio(Number(match[1]), Number(match[2]));
 }
 
-export function previewFrameShapeForRound(round: Pick<ConversationRound, 'output' | 'outputSize'>): PreviewFrameShape {
-  return previewFrameShapeFromSelection(round.output?.selection) ?? mediaShapeFromSize(round.outputSize);
+function previewRatioForRound(round: Pick<ConversationRound, 'output' | 'outputSize'>): number | undefined {
+  return previewRatioFromSelection(round.output?.selection) ?? previewRatioFromOutputSize(round.outputSize);
+}
+
+export function previewLayoutModeForRound(round: Pick<ConversationRound, 'output' | 'outputSize'>): PreviewLayoutMode {
+  const ratio = previewRatioForRound(round);
+  if (ratio === undefined) {
+    return 'fallback';
+  }
+  return ratio < PREVIEW_MAX_PORTRAIT_RATIO ? 'portrait-cap' : 'intrinsic';
 }
 
 function providerInputPolicy(settings: AppGenerationSettings): ProviderInputSizePolicy {
@@ -1440,10 +1433,10 @@ export function MainPage({
                 const canGoPrev = selectedPreviewIndex > 0;
                 const canGoNext = selectedPreviewIndex < round.previews.length - 1;
                 const billingMeta = roundBillingMeta[round.id];
-                const previewFrameShape = previewFrameShapeForRound(round);
+                const previewLayoutMode = previewLayoutModeForRound(round);
                 return (
                 <div className="msg-prov msg-prov-surface">
-                  <div className={`prov-card${hasImages ? ` prov-card-media media-${previewFrameShape}` : ' prov-card-text-only'}`}>
+                  <div className={`prov-card${hasImages ? ' prov-card-media' : ' prov-card-text-only'}`}>
                     <div className="prov-top">
                       <ProviderIdentity
                         providerName={round.providerName}
@@ -1509,14 +1502,19 @@ export function MainPage({
                     {hasImages ? (
                       <div className="prov-img">
                         <div
-                          className={`img-result media-${previewFrameShape}`}
+                          className="img-result"
                           data-testid={`result-preview-${round.id}`}
                           data-preview-index={selectedPreviewIndex}
+                          data-preview-layout={previewLayoutMode}
                           data-has-preview={preview?.url ? 'true' : 'false'}
                         >
                           <div className="img-stage">
                             {preview?.url
-                              ? <MotionImage key={`${round.id}:${selectedPreviewIndex}`} src={preview.url} className="img-media" alt={preview.label} />
+                              ? (
+                                <div className="img-media-shell" data-alpha-backdrop={preview.hasTransparency ? 'true' : undefined}>
+                                  <MotionImage key={`${round.id}:${selectedPreviewIndex}`} src={preview.url} className="img-media" alt={preview.label} />
+                                </div>
+                                )
                               : <div className="img-placeholder">{t.main.noAssetPreview}</div>
                             }
                             <div className="img-meta">{round.outputSize ?? t.main.assetFallback} · {round.outputFormat ?? t.main.imageFallback}</div>

@@ -42,7 +42,7 @@ UXP HTML/CSS, Spectrum Web Components, or SWC wrapper question:
 - Shared UI motion, theme generation, toast, and popup-layer behavior are `apps/app` contracts. Longer rationale and implementation detail live in `docs/ENGINEERING_CONTEXT.md`.
 - Shared UI and harness CSS must stay inside the repo-owned UXP CSS contract. Mechanical enforcement lives in `pnpm check:policy` and `docs/TESTING.md`.
 - Chat-history layout tokens treat default `360px` docked and `420px` floating panels as the primary design lane; `wide` mode may only relax those caps and must not define the default visual rhythm.
-- Chat-history image previews are width-led for successful landscape/wide results and height-led for portrait containment; landscape/wide block tokens are placeholder or safety caps, not the primary success-size contract.
+- Chat-history image previews use a token-driven solid stage surface. Landscape, square, and normal portrait results follow their intrinsic ratio inside the card; only taller-than-`2:3` results enter contain mode inside a capped portrait frame, and alpha backdrops are reserved for previews with real transparency.
 
 ## Photoshop Placement Contract
 
