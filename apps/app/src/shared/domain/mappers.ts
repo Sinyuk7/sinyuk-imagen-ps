@@ -1,13 +1,18 @@
 import type { ApiFormat, Asset, Job, JobError, ProviderProfile } from '@imagen-ps/application';
 import type { ProfileBillingState } from '@imagen-ps/application';
-import { ensurePlaceableImagePayload } from './image-payload-preflight';
 import { transparencyStateFromAsset, type ImageTransparencyState } from '../image/image-transparency';
+import {
+  createImagePreviewFallback,
+  validatePreviewBytes,
+  type ImagePreviewFallback,
+} from '../image/preview-fallback';
 
 export interface AssetPreview {
   readonly asset: Asset;
   readonly url: string;
   readonly label: string;
   readonly transparencyState: ImageTransparencyState;
+  readonly fallback?: ImagePreviewFallback;
 }
 
 export interface ProviderRowVM {
@@ -83,12 +88,6 @@ function bytesToBase64(bytes: Uint8Array): string {
   return chunks.join('');
 }
 
-function arrayBufferFromBytes(bytes: Uint8Array): ArrayBuffer {
-  const copy = new Uint8Array(bytes.byteLength);
-  copy.set(bytes);
-  return copy.buffer;
-}
-
 function base64ToBytes(value: string): Uint8Array {
   const clean = value.replace(/\s+/g, '').replace(/=+$/, '');
   const out: number[] = [];
@@ -120,52 +119,67 @@ function previewMimeType(asset: Asset): string {
   return asset.mimeType ?? 'image/png';
 }
 
-function ensurePreviewableImageBytes(bytes: Uint8Array, mimeType: string): boolean {
-  try {
-    ensurePlaceableImagePayload(arrayBufferFromBytes(bytes), mimeType);
-    return true;
-  } catch {
-    return false;
-  }
-}
-
 export function commandErrorToMessage(error: JobError): string {
   return `${error.category}: ${error.message}`;
 }
 
-export function assetToPreviewUrl(asset: Asset): string {
+export function assetToPreview(asset: Asset, index = 0): AssetPreview {
+  const label = asset.name ?? `Asset ${index + 1}`;
   if (asset.url) {
-    return asset.url;
+    return {
+      asset,
+      url: asset.url,
+      label,
+      transparencyState: transparencyStateFromAsset(asset),
+    };
   }
   if (typeof asset.data === 'string') {
     const mimeType = previewMimeType(asset);
     if (asset.data.startsWith('data:')) {
       const header = /^data:([^;,]+)/.exec(asset.data);
       const dataMimeType = header?.[1] ?? mimeType;
-      return ensurePreviewableImageBytes(bytesFromDataString(asset.data), dataMimeType) ? asset.data : '';
+      const validation = validatePreviewBytes(bytesFromDataString(asset.data), dataMimeType);
+      return {
+        asset,
+        url: validation.ok ? asset.data : '',
+        label,
+        transparencyState: transparencyStateFromAsset(asset),
+        ...(!validation.ok ? { fallback: createImagePreviewFallback('preview-unavailable', validation.reason) } : {}),
+      };
     }
-    if (!ensurePreviewableImageBytes(bytesFromDataString(asset.data), mimeType)) {
-      return '';
-    }
-    return `data:${mimeType};base64,${asset.data}`;
+    const validation = validatePreviewBytes(bytesFromDataString(asset.data), mimeType);
+    return {
+      asset,
+      url: validation.ok ? `data:${mimeType};base64,${asset.data}` : '',
+      label,
+      transparencyState: transparencyStateFromAsset(asset),
+      ...(!validation.ok ? { fallback: createImagePreviewFallback('preview-unavailable', validation.reason) } : {}),
+    };
   }
   if (asset.data instanceof Uint8Array) {
     const mimeType = previewMimeType(asset);
-    if (!ensurePreviewableImageBytes(asset.data, mimeType)) {
-      return '';
-    }
-    return `data:${mimeType};base64,${bytesToBase64(asset.data)}`;
+    const validation = validatePreviewBytes(asset.data, mimeType);
+    return {
+      asset,
+      url: validation.ok ? `data:${mimeType};base64,${bytesToBase64(asset.data)}` : '',
+      label,
+      transparencyState: transparencyStateFromAsset(asset),
+      ...(!validation.ok ? { fallback: createImagePreviewFallback('preview-unavailable', validation.reason) } : {}),
+    };
   }
-  return '';
-}
-
-export function assetToPreview(asset: Asset, index = 0): AssetPreview {
   return {
     asset,
-    url: assetToPreviewUrl(asset),
-    label: asset.name ?? `Asset ${index + 1}`,
+    url: '',
+    label,
     transparencyState: transparencyStateFromAsset(asset),
+    fallback: asset.storedRef
+      ? createImagePreviewFallback('preview-unavailable')
+      : createImagePreviewFallback('empty'),
   };
+}
+
+export function assetToPreviewUrl(asset: Asset): string {
+  return assetToPreview(asset).url;
 }
 
 export function jobOutputAssets(job: Job): readonly Asset[] {

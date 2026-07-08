@@ -2,6 +2,10 @@
 export const SHELL_CSS = `
 .panel{
   --app-header-height:48px;
+  --image-fallback-icon-color:var(--app-color-text-muted);
+  --image-fallback-title-color:var(--app-color-text-secondary);
+  --image-fallback-detail-color:var(--app-color-text-muted);
+  --image-fallback-gap:8px;
   width:100%; height:100%; background:var(--app-color-background-base); color:var(--app-color-text-primary);
   font-size:14px; line-height:20px; overflow:hidden;
   display:flex; flex-direction:column; position:relative; min-width:0; min-height:0;

@@ -2,6 +2,12 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { ResolvedTaskResource, TaskRecord } from '@imagen-ps/application';
 import type { TaskResourceResolverPort } from '../../ports/app-services';
 import type { ConversationRound, RoundStatus } from '../hooks/use-conversation';
+import {
+  createImagePreviewFallback,
+  fallbackStateFromAvailability,
+  type ImagePreviewFallback,
+} from '../../image/preview-fallback';
+import { ImageFallbackContent, imageFallbackTitle } from '../components/image-fallback-content';
 import { Icon } from '../components/icons';
 import { ActionButton } from '../primitives/native-controls';
 import { IconButton } from '../primitives/icon-button';
@@ -40,6 +46,7 @@ interface PreviewState {
   readonly status: 'queued' | 'loading' | 'ready' | 'error';
   readonly availability?: ResolvedTaskResource['availability'];
   readonly url?: string;
+  readonly fallback?: ImagePreviewFallback;
   readonly dispose?: () => void;
   readonly resolvedAt?: number;
 }
@@ -51,6 +58,7 @@ function previewSnapshotFromState(state: PreviewState | undefined): PreviewSnaps
   return {
     ...(state.url ? { url: state.url } : {}),
     ...(state.availability ? { availability: state.availability } : {}),
+    ...(state.fallback ? { fallback: state.fallback } : {}),
   };
 }
 
@@ -194,6 +202,7 @@ export function HistoryPage({
           }
           setPreviews((current) => {
             releasePreview(current[nextId]);
+            const fallbackState = resolved.preview?.url ? undefined : fallbackStateFromAvailability(resolved.availability);
             const nextState: PreviewState = resolved.preview?.url
               ? {
                   status: 'ready',
@@ -203,8 +212,10 @@ export function HistoryPage({
                   resolvedAt: Date.now(),
                 }
               : {
-                  status: 'error',
+                  status: 'ready',
                   availability: resolved.availability,
+                  fallback: createImagePreviewFallback(fallbackState ?? 'preview-unavailable'),
+                  resolvedAt: Date.now(),
                 };
             return evictResolvedPreviews({
               ...current,
@@ -218,7 +229,10 @@ export function HistoryPage({
           }
           setPreviews((current) => ({
             ...current,
-            [nextId]: { status: 'error' },
+            [nextId]: {
+              status: 'error',
+              fallback: createImagePreviewFallback('preview-unavailable', 'unknown'),
+            },
           }));
         })
         .finally(() => {
@@ -415,6 +429,16 @@ export function HistoryPage({
           : filtered.map((item) => {
             const retryRoundId = item.retryRoundId;
             const previewState = previews[item.id];
+            const fallback =
+              item.previewFallback
+              ?? (item.status === 'running' || previewState?.status === 'loading' || previewState?.status === 'queued'
+                ? createImagePreviewFallback('loading')
+                : item.output && item.output.asset.ref.kind !== 'url' && taskResources
+                  ? createImagePreviewFallback('loading')
+                  : previewState?.fallback
+                    ?? (item.status === 'err'
+                      ? createImagePreviewFallback('preview-unavailable')
+                      : createImagePreviewFallback('empty')));
             const previewTargetId = item.output && item.output.asset.ref.kind !== 'url' && taskResources && typeof IntersectionObserver === 'function'
               ? item.id
               : NO_PREVIEW_LOAD;
@@ -437,13 +461,13 @@ export function HistoryPage({
                 >
                   {item.previewUrl
                     ? <img src={item.previewUrl} style={{ width: '100%', height: '100%', objectFit: 'cover', borderRadius: 'inherit' }} alt="" />
-                    : item.status === 'running'
-                      ? <Icon name="spinner" size={14} className="spin" />
-                      : item.status === 'err'
-                        ? <Icon name="error" size={14} />
-                        : previewState?.status === 'loading' || previewState?.status === 'queued'
-                          ? <Icon name="spinner" size={14} className="spin" />
-                          : <div style={{ width: '100%', height: '100%', background: 'var(--app-color-background-layer-2)', borderRadius: 'inherit' }} />
+                    : (
+                      <ImageFallbackContent
+                        density="thumbnail"
+                        state={fallback.state}
+                        title={imageFallbackTitle(t.imageFallback, fallback.state)}
+                      />
+                    )
                   }
                 </div>
                 <div className="task-info">

@@ -1,0 +1,84 @@
+/** 共享图片预览回退内容样式。 */
+export const IMAGE_FALLBACK_CSS = `
+.image-fallback{
+  width:100%;
+  height:100%;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  color:var(--image-fallback-title-color);
+  background:transparent;
+}
+.image-fallback-inner{
+  width:100%;
+  min-width:0;
+  display:flex;
+  flex-direction:column;
+  align-items:center;
+  justify-content:center;
+  padding-top:8px;
+  padding-right:8px;
+  padding-bottom:8px;
+  padding-left:8px;
+  box-sizing:border-box;
+}
+.image-fallback[data-density="thumbnail"] .image-fallback-inner{
+  padding-top:6px;
+  padding-right:6px;
+  padding-bottom:6px;
+  padding-left:6px;
+}
+.image-fallback-icon{
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  color:var(--image-fallback-icon-color);
+  opacity:.92;
+  flex-shrink:0;
+}
+.image-fallback-copy{
+  width:100%;
+  min-width:0;
+  margin-top:var(--image-fallback-gap);
+  display:flex;
+  flex-direction:column;
+  align-items:center;
+}
+.image-fallback-title{
+  width:100%;
+  min-width:0;
+  color:var(--image-fallback-title-color);
+  font-size:12px;
+  line-height:16px;
+  font-weight:600;
+  text-align:center;
+}
+.image-fallback-detail{
+  width:100%;
+  min-width:0;
+  margin-top:4px;
+  color:var(--image-fallback-detail-color);
+  font-size:11px;
+  line-height:15px;
+  text-align:center;
+}
+.image-fallback-action{
+  margin-top:8px;
+}
+.image-fallback[data-density="thumbnail"] .image-fallback-copy{
+  display:none;
+}
+.image-fallback[data-density="thumbnail"] .image-fallback-icon{
+  opacity:.8;
+}
+.image-fallback[data-density="preview-frame"] .image-fallback-inner{
+  max-width:220px;
+}
+.image-fallback[data-density="large-empty"] .image-fallback-inner{
+  max-width:280px;
+  padding-top:14px;
+  padding-right:14px;
+  padding-bottom:14px;
+  padding-left:14px;
+}
+`;

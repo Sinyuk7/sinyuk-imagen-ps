@@ -159,6 +159,13 @@ export interface AppMessages {
     readonly place: string;
     readonly resourceUnavailable: string;
   };
+  readonly imageFallback: {
+    readonly loading: string;
+    readonly empty: string;
+    readonly previewUnavailable: string;
+    readonly fileMissing: string;
+    readonly resourceUnresolvable: string;
+  };
   readonly settings: {
     readonly configured: string;
     readonly configuration: string;
@@ -561,6 +568,13 @@ const EN_MESSAGES: AppMessages = {
     place: 'Place in Photoshop',
     resourceUnavailable: 'Resource unavailable',
   },
+  imageFallback: {
+    loading: 'Loading preview',
+    empty: 'No image',
+    previewUnavailable: 'Preview unavailable',
+    fileMissing: 'File missing',
+    resourceUnresolvable: 'Cannot read preview',
+  },
   settings: {
     configured: 'Configured',
     configuration: 'Configuration',
@@ -962,6 +976,13 @@ const ZH_CN_MESSAGES: AppMessages = {
     download: '下载',
     place: '置入 Photoshop',
     resourceUnavailable: '资源不可用',
+  },
+  imageFallback: {
+    loading: '加载预览中',
+    empty: '无图片',
+    previewUnavailable: '暂无预览',
+    fileMissing: '文件缺失',
+    resourceUnresolvable: '无法读取预览',
   },
   settings: {
     configured: '已配置',

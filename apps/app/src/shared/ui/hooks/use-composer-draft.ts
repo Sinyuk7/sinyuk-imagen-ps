@@ -87,6 +87,7 @@ export function useComposerDraft(): ComposerDraftController {
         return {
           ...attachment,
           previewUrl: preview.url,
+          previewFallback: undefined,
           previewDispose: preview.dispose,
         };
       });

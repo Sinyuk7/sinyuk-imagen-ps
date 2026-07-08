@@ -1,12 +1,16 @@
 import type { Asset, StoredAssetRef } from '@imagen-ps/application';
-import type { AssetPreview } from '../domain/mappers';
-import { assetToPreviewUrl } from '../domain/mappers';
+import { assetToPreview, type AssetPreview } from '../domain/mappers';
 import { createRuntimeImageUrlOrDataUrl, type RuntimeImageUrl } from './runtime-image-url';
 import {
   transparencyStateFromAsset,
   transparencyStateFromImageBytes,
   type ImageTransparencyState,
 } from './image-transparency';
+import {
+  createImagePreviewFallback,
+  validatePreviewBytes,
+  type ImagePreviewFallback,
+} from './preview-fallback';
 
 const DEFAULT_THUMBNAIL_MAX_SIDE = 512;
 const DEFAULT_MAX_INLINE_THUMBNAIL_BYTES = 512 * 1024;
@@ -55,6 +59,7 @@ interface CacheEntry {
 interface ResolvedPreview {
   readonly runtimeUrl: RuntimeImageUrl;
   readonly transparencyState: ImageTransparencyState;
+  readonly fallback?: ImagePreviewFallback;
 }
 
 type GenerationQueueEntry = () => void;
@@ -93,18 +98,8 @@ function sanitizedAsset(asset: Asset): Asset {
   };
 }
 
-function bytesFromAsset(asset: Asset): Uint8Array | undefined {
-  if (asset.data instanceof Uint8Array) {
-    return asset.data;
-  }
-  return undefined;
-}
-
-function previewFromAsset(asset: Asset): string {
-  if (asset.storedRef && !asset.url && !asset.data) {
-    return '';
-  }
-  return assetToPreviewUrl(asset);
+function previewFromAsset(asset: Asset): AssetPreview {
+  return assetToPreview(asset);
 }
 
 export function createMemoryThumbnailStore(options: ThumbnailStoreOptions = {}): ThumbnailStore {
@@ -157,10 +152,17 @@ export function createMemoryThumbnailStore(options: ThumbnailStoreOptions = {}):
   ): Promise<ResolvedPreview> {
     throwIfAborted(signal);
     const direct = previewFromAsset(asset);
-    if (direct) {
+    if (direct.url) {
       return {
-        runtimeUrl: { url: direct, release: () => undefined },
-        transparencyState: transparencyStateFromAsset(asset),
+        runtimeUrl: { url: direct.url, release: () => undefined },
+        transparencyState: direct.transparencyState,
+      };
+    }
+    if (!asset.storedRef || asset.url || asset.data !== undefined) {
+      return {
+        runtimeUrl: { url: '', release: () => undefined },
+        transparencyState: direct.transparencyState,
+        ...(direct.fallback ? { fallback: direct.fallback } : {}),
       };
     }
 
@@ -171,6 +173,14 @@ export function createMemoryThumbnailStore(options: ThumbnailStoreOptions = {}):
       if (resolved !== undefined) {
         const bytes = new Uint8Array(resolved);
         const transparencyState = transparencyStateFromImageBytes(bytes, mimeType);
+        const validation = validatePreviewBytes(bytes, mimeType);
+        if (!validation.ok) {
+          return {
+            runtimeUrl: { url: '', release: () => undefined },
+            transparencyState,
+            fallback: createImagePreviewFallback('preview-unavailable', validation.reason),
+          };
+        }
         if (bytes.byteLength <= maxInlineBytes) {
           return {
             runtimeUrl: options.createObjectUrl
@@ -190,28 +200,10 @@ export function createMemoryThumbnailStore(options: ThumbnailStoreOptions = {}):
       }
     }
 
-    const inlineBytes = bytesFromAsset(asset);
-    if (inlineBytes !== undefined) {
-      const transparencyState = transparencyStateFromImageBytes(inlineBytes, mimeType);
-      if (inlineBytes.byteLength <= maxInlineBytes) {
-        return {
-          runtimeUrl: { url: assetToPreviewUrl(asset), release: () => undefined },
-          transparencyState,
-        };
-      }
-      const thumbnail = await options.createThumbnail?.({ asset, bytes: inlineBytes, mimeType, maxSide, signal });
-      throwIfAborted(signal);
-      if (thumbnail) {
-        return {
-          runtimeUrl: thumbnail,
-          transparencyState,
-        };
-      }
-    }
-
     return {
       runtimeUrl: { url: '', release: () => undefined },
       transparencyState: transparencyStateFromAsset(asset),
+      fallback: createImagePreviewFallback('preview-unavailable'),
     };
   }
 
@@ -263,6 +255,7 @@ export function createMemoryThumbnailStore(options: ThumbnailStoreOptions = {}):
             url: generated.runtimeUrl.url,
             label: request.label ?? request.asset.name ?? 'Asset',
             transparencyState: generated.transparencyState,
+            ...(generated.fallback ? { fallback: generated.fallback } : {}),
           };
           const entry: CacheEntry = { preview, release: generated.runtimeUrl.release, refs: 0 };
           cache.set(cacheKey, entry);

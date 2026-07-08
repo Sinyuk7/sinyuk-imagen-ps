@@ -9,7 +9,10 @@ import {
   upscaleBilinear,
   type RgbaImage,
 } from '../../src/shared/image/resize';
+import { assetToPreview } from '../../src/shared/domain/mappers';
 import { createMemoryThumbnailStore } from '../../src/shared/image/thumbnail-store';
+import { createTaskResourceResolver } from '../../src/shared/image/task-resource-resolver';
+import { fakeOutputBytes } from '../helpers/fixtures/assets.fixtures';
 
 function rgba(width: number, height: number, data: readonly number[]): RgbaImage {
   return { width, height, data: new Uint8Array(data) };
@@ -195,10 +198,10 @@ describe('shared image contract', () => {
     const releaseUrl = vi.fn();
     const store = createMemoryThumbnailStore({
       async resolveStoredRef() {
-        return new Uint8Array([1, 2, 3]).buffer;
+        return fakeOutputBytes.buffer.slice(0);
       },
       createObjectUrl(bytes, mimeType) {
-        expect(bytes).toEqual(new Uint8Array([1, 2, 3]));
+        expect(bytes).toEqual(fakeOutputBytes);
         expect(mimeType).toBe('image/png');
         return { url: 'blob:thumb-1', release: releaseUrl };
       },
@@ -222,13 +225,75 @@ describe('shared image contract', () => {
     expect(releaseUrl).toHaveBeenCalledTimes(1);
   });
 
+  it('maps empty and unsupported direct previews to conservative fallback states', () => {
+    expect(assetToPreview({
+      type: 'image',
+      name: 'empty.png',
+      mimeType: 'image/png',
+    })).toMatchObject({
+      url: '',
+      fallback: { state: 'empty' },
+    });
+
+    expect(assetToPreview({
+      type: 'image',
+      name: 'anim.gif',
+      mimeType: 'image/gif',
+      data: 'R0lGODlhAQABAIAAAAUEBA==',
+    })).toMatchObject({
+      url: '',
+      fallback: { state: 'preview-unavailable', reason: 'unsupported-format' },
+    });
+  });
+
+  it('downgrades invalid stored thumbnail bytes to preview-unavailable instead of exposing a blank URL only', async () => {
+    const store = createMemoryThumbnailStore({
+      async resolveStoredRef() {
+        return new Uint8Array([1, 2, 3]).buffer;
+      },
+    });
+
+    const entry = await store.getOrCreate({
+      asset: {
+        type: 'image',
+        name: 'broken.png',
+        mimeType: 'image/png',
+        storedRef: { kind: 'hostObject', ref: 'broken', mimeType: 'image/png' },
+      },
+    });
+
+    expect(entry.preview).toMatchObject({
+      url: '',
+      fallback: { state: 'preview-unavailable', reason: 'decode-failed' },
+    });
+  });
+
+  it('keeps task resource availability while omitting unsafe preview URLs', async () => {
+    const resolver = createTaskResourceResolver({
+      async resolveStoredRef() {
+        return new Uint8Array([1, 2, 3]).buffer;
+      },
+    });
+
+    const resolved = await resolver.resolve({
+      ref: {
+        kind: 'hostObject',
+        ref: 'history-broken',
+        mimeType: 'image/png',
+      },
+    });
+
+    expect(resolved.availability).toBe('available');
+    expect(resolved.preview).toBeUndefined();
+  });
+
   it('derives thumbnails for oversized stored assets instead of returning empty preview', async () => {
     const release = vi.fn();
     const createThumbnail = vi.fn(async () => ({ url: 'blob:derived-thumb', release }));
     const store = createMemoryThumbnailStore({
       maxInlineBytes: 2,
       async resolveStoredRef() {
-        return new Uint8Array([1, 2, 3]).buffer;
+        return fakeOutputBytes.buffer.slice(0);
       },
       createThumbnail,
     });
@@ -245,7 +310,7 @@ describe('shared image contract', () => {
 
     expect(entry.preview.url).toBe('blob:derived-thumb');
     expect(createThumbnail).toHaveBeenCalledWith(expect.objectContaining({
-      bytes: new Uint8Array([1, 2, 3]),
+      bytes: fakeOutputBytes,
       mimeType: 'image/png',
       maxSide: 256,
     }));
@@ -271,7 +336,7 @@ describe('shared image contract', () => {
     const store = createMemoryThumbnailStore({
       maxInlineBytes: 0,
       async resolveStoredRef(ref) {
-        return new Uint8Array([Number(ref.ref.slice(-1))]).buffer;
+        return fakeOutputBytes.buffer.slice(0);
       },
       createThumbnail,
     });
@@ -304,7 +369,7 @@ describe('shared image contract', () => {
     const store = createMemoryThumbnailStore({
       maxInlineBytes: 0,
       async resolveStoredRef() {
-        return new Uint8Array([1, 2, 3]).buffer;
+        return fakeOutputBytes.buffer.slice(0);
       },
       createThumbnail,
     });

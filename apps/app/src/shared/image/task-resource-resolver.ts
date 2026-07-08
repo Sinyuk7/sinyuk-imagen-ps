@@ -1,5 +1,6 @@
 import type { ResolvedTaskResource, StoredAssetRef, TaskResourceRef } from '@imagen-ps/application';
 import { createRuntimeImageUrlOrDataUrl, type RuntimeImageUrl } from './runtime-image-url';
+import { validatePreviewBytes } from './preview-fallback';
 
 export interface TaskResourceResolverOptions {
   readonly resolveStoredRef: (ref: StoredAssetRef) => Promise<ArrayBuffer | undefined>;
@@ -8,6 +9,9 @@ export interface TaskResourceResolverOptions {
 
 function previewFromBytes(bytes: ArrayBuffer, mimeType: string, createPreviewUrl?: TaskResourceResolverOptions['createPreviewUrl']) {
   const view = new Uint8Array(bytes);
+  if (!validatePreviewBytes(view, mimeType).ok) {
+    return undefined;
+  }
   const runtimeUrl = createPreviewUrl ? createPreviewUrl(view, mimeType) : createRuntimeImageUrlOrDataUrl(view, mimeType);
   return {
     url: runtimeUrl.url,

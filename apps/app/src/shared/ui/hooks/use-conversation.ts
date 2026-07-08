@@ -10,6 +10,10 @@ import {
   type AssetPreview,
 } from '../../domain/mappers';
 import { createMemoryThumbnailStore, type ThumbnailStore } from '../../image/thumbnail-store';
+import {
+  createImagePreviewFallback,
+  type ImagePreviewFallback,
+} from '../../image/preview-fallback';
 import type { ImagenSessionBinding } from './use-imagen-session';
 import type { AppMessages } from '../i18n/messages';
 import type { HostImageAsset } from '../../domain/host-image-asset';
@@ -28,6 +32,7 @@ export interface ConversationAttachment {
   readonly name: string;
   readonly image: HostImageAsset;
   readonly previewUrl: string;
+  readonly previewFallback?: ImagePreviewFallback;
   readonly previewGeneration?: number;
   readonly previewDispose?: () => void;
   readonly photoshopPlacement?: PhotoshopCapturePlacement;
@@ -124,8 +129,19 @@ function thumbnailStoreFrom(services: AppServices): ThumbnailStore {
   return services.thumbnails ?? fallbackThumbnailStore;
 }
 
+function pendingPreview(asset: Asset, index: number): AssetPreview {
+  const preview = assetToPreview(asset, index);
+  if (preview.url || !asset.storedRef || asset.url || asset.data !== undefined) {
+    return preview;
+  }
+  return {
+    ...preview,
+    fallback: createImagePreviewFallback('loading'),
+  };
+}
+
 function pendingPreviews(assets: readonly Asset[]): readonly AssetPreview[] {
-  return assets.map(assetToPreview);
+  return assets.map(pendingPreview);
 }
 
 function previewAssetSourceKey(asset: Asset, index: number): string {

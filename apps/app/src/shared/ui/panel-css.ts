@@ -20,6 +20,7 @@ import { GENERATED_THEME_CSS } from './styles/generated/theme-css';
 import { NATIVE_CONTROLS_CSS } from './styles/native-controls';
 import { BASE_CSS } from './styles/base';
 import { SHELL_CSS } from './styles/shell';
+import { IMAGE_FALLBACK_CSS } from './styles/image-fallback';
 import { CONVERSATION_CSS } from './styles/conversation';
 import { COMPOSER_CSS } from './styles/composer';
 import { OVERLAYS_CSS } from './styles/overlays';
@@ -35,6 +36,7 @@ export const PANEL_CSS = stripCssComments([
   NATIVE_CONTROLS_CSS,
   BASE_CSS,
   SHELL_CSS,
+  IMAGE_FALLBACK_CSS,
   CONVERSATION_CSS,
   COMPOSER_CSS,
   OVERLAYS_CSS,

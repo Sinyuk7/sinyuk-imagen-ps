@@ -3,7 +3,7 @@ import type { ProviderProfile } from '@imagen-ps/application';
 import { useAppServices } from '../../ports/app-services-context';
 import type { HostPort, LayerInfo } from '../../ports/host-port';
 import { suggestedGeneratedImageFileName } from '../../domain/asset-file';
-import { assetToPreviewUrl } from '../../domain/mappers';
+import { assetToPreview } from '../../domain/mappers';
 import { formatBillingPrimary, formatBillingPrimaryParts } from '../../domain/mappers';
 import type {
   ConversationAttachment,
@@ -15,6 +15,7 @@ import type { ComposerDraftController } from '../hooks/use-composer-draft';
 import { useProfileBilling } from '../hooks/use-profile-billing';
 import { useTaskBillingToast } from '../hooks/use-task-billing-toast';
 import { descriptorForApiFormat, providerSupportsBalanceQuery, useProviderCatalog } from '../hooks/use-provider-settings';
+import { ImageFallbackContent, imageFallbackTitle } from '../components/image-fallback-content';
 import { useLayerThumbnail } from '../hooks/use-layer-thumbnail';
 import { Icon } from '../components/icons';
 import { IconSelect } from '../components/icon-select';
@@ -60,6 +61,17 @@ function isImeCompositionKey(event: React.KeyboardEvent): boolean {
 
 function optionLabel<T extends string>(options: ReadonlyArray<{ readonly id: T; readonly label: string }>, id: T): string {
   return options.find((option) => option.id === id)?.label ?? id.toUpperCase();
+}
+
+function attachmentPreviewFields(image: ConversationAttachment['image']): Pick<ConversationAttachment, 'previewUrl' | 'previewFallback'> {
+  if (image.preview.url) {
+    return { previewUrl: image.preview.url };
+  }
+  const preview = assetToPreview(image.asset);
+  return {
+    previewUrl: preview.url,
+    ...(preview.fallback ? { previewFallback: preview.fallback } : {}),
+  };
 }
 
 interface MainPageProps {
@@ -916,7 +928,7 @@ export function MainPage({
         type: 'layer',
         name: layer.name,
         image,
-        previewUrl: image.preview.url ?? assetToPreviewUrl(image.asset),
+        ...attachmentPreviewFields(image),
         ...(image.photoshopPlacement ? { photoshopPlacement: image.photoshopPlacement } : {}),
       });
     show(t.toast.layerAdded, 'positive', { key: 'attachment-layer-added' });
@@ -949,7 +961,7 @@ export function MainPage({
         type: 'file',
         name: image.asset.name ?? 'image',
         image,
-        previewUrl: image.preview.url ?? assetToPreviewUrl(image.asset),
+        ...attachmentPreviewFields(image),
         ...(image.photoshopPlacement ? { photoshopPlacement: image.photoshopPlacement } : {}),
       });
       show(t.toast.fileAdded, 'positive', { key: 'attachment-file-added' });
@@ -983,7 +995,7 @@ export function MainPage({
         type: 'photoshop-capture',
         name: result.image.asset.name ?? (result.sourceKind === 'selection' ? t.main.captureSelection : t.main.captureLayer),
         image: result.image,
-        previewUrl: result.image.preview.url ?? assetToPreviewUrl(result.image.asset),
+        ...attachmentPreviewFields(result.image),
         previewGeneration,
         photoshopPlacement: result.placement,
       });
@@ -1232,7 +1244,13 @@ export function MainPage({
                           <div key={attachment.id} className="bimg">
                             {attachment.previewUrl
                               ? <img src={attachment.previewUrl} className="bimg-bg" alt={attachment.name} />
-                              : <div className="bimg-bg" style={{ background: 'var(--app-color-background-layer-2)' }} />
+                              : (
+                                <ImageFallbackContent
+                                  density="thumbnail"
+                                  state={attachment.previewFallback?.state ?? 'preview-unavailable'}
+                                  title={imageFallbackTitle(t.imageFallback, attachment.previewFallback?.state ?? 'preview-unavailable')}
+                                />
+                              )
                             }
                             {index === 1 && round.attachments.length > 2 && (
                               <div className="bimg-count">+{round.attachments.length - 1}</div>
@@ -1544,7 +1562,11 @@ export function MainPage({
                                 )
                               : (
                                 <div className="img-frame img-frame-placeholder" data-alpha-state="unknown">
-                                  <div className="img-placeholder">{t.main.noAssetPreview}</div>
+                                  <ImageFallbackContent
+                                    density="preview-frame"
+                                    state={preview?.fallback?.state ?? 'preview-unavailable'}
+                                    title={imageFallbackTitle(t.imageFallback, preview?.fallback?.state ?? 'preview-unavailable')}
+                                  />
                                 </div>
                                 )
                             }
@@ -1739,7 +1761,13 @@ export function MainPage({
                         <MotionHighlight activeKey={highlightKey === `attachment:${attachment.id}` ? highlightKey : null} />
                         {attachment.previewUrl
                           ? <img src={attachment.previewUrl} style={{ width: '100%', height: '100%', objectFit: 'cover' }} alt={attachment.name} />
-                          : <div style={{ width: '100%', height: '100%', background: 'var(--app-color-background-layer-1)' }} />
+                          : (
+                            <ImageFallbackContent
+                              density="thumbnail"
+                              state={attachment.previewFallback?.state ?? 'preview-unavailable'}
+                              title={imageFallbackTitle(t.imageFallback, attachment.previewFallback?.state ?? 'preview-unavailable')}
+                            />
+                          )
                         }
                         <IconButton
                           data-testid={`attachment-remove-button-${attachment.id}`}

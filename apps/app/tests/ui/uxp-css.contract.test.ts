@@ -203,6 +203,10 @@ describe('UXP panel CSS contract', () => {
 
   it('keeps chat history tokens centered on regular 360/420 panels and only relaxes them in wide mode', () => {
     const unionSource = CSS_SOURCES.map((path) => readFileSync(path, 'utf8')).join('\n');
+    expect(unionSource).toContain('--image-fallback-icon-color:var(--app-color-text-muted);');
+    expect(unionSource).toContain('--image-fallback-title-color:var(--app-color-text-secondary);');
+    expect(unionSource).toContain('--image-fallback-detail-color:var(--app-color-text-muted);');
+    expect(unionSource).toContain('--image-fallback-gap:8px;');
     expect(unionSource).toContain('--chat-prompt-inline-max:272px;');
     expect(unionSource).toContain('--chat-result-inline-max:320px;');
     expect(unionSource).toContain('--chat-preview-inline-max:288px;');
@@ -225,6 +229,8 @@ describe('UXP panel CSS contract', () => {
     expect(unionSource).toContain('min-height:0;');
     expect(unionSource).toContain('.img-stage{');
     expect(unionSource).toContain('.img-frame{');
+    expect(unionSource).toContain('.image-fallback{');
+    expect(unionSource).toContain('.image-fallback-title{');
     expect(unionSource).toContain('.img-media{');
     expect(unionSource).toContain('.img-result[data-preview-layout="tall-contain"][data-preview-visual-mode="contained-well"][data-has-preview="true"] .img-stage::before{');
     expect(unionSource).toContain('.img-frame[data-alpha-state="transparent"]{');

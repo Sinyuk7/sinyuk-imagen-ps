@@ -1,5 +1,10 @@
 import type { ResolvedTaskResource, TaskOutput, TaskRecord } from '@imagen-ps/application';
 import type { ConversationRound, RoundStatus } from '../hooks/use-conversation';
+import {
+  createImagePreviewFallback,
+  fallbackStateFromAvailability,
+  type ImagePreviewFallback,
+} from '../../image/preview-fallback';
 
 export const HISTORY_PAGE_LIMIT = 50;
 const HISTORY_PROMPT_PREVIEW_LIMIT = 400;
@@ -30,6 +35,7 @@ export interface HistoryItemViewModel {
   readonly canLocate: boolean;
   readonly retryRoundId?: string;
   readonly previewUrl?: string;
+  readonly previewFallback?: ImagePreviewFallback;
   readonly output?: TaskOutput;
   readonly taskRecord?: TaskRecord;
   readonly resourceState?: ResolvedTaskResource['availability'];
@@ -49,6 +55,7 @@ export interface DeriveHistoryItemsInput {
 export interface PreviewSnapshot {
   readonly url?: string;
   readonly availability?: ResolvedTaskResource['availability'];
+  readonly fallback?: ImagePreviewFallback;
 }
 
 function statusFromRecord(record: TaskRecord): RoundStatus {
@@ -125,7 +132,12 @@ function actionStateForOutput(
 function previewStateForOutput(
   record: TaskRecord,
   previews: Readonly<Record<string, PreviewSnapshot | undefined>>,
-): { readonly output?: TaskOutput; readonly previewUrl?: string; readonly resourceState?: ResolvedTaskResource['availability'] } {
+): {
+  readonly output?: TaskOutput;
+  readonly previewUrl?: string;
+  readonly previewFallback?: ImagePreviewFallback;
+  readonly resourceState?: ResolvedTaskResource['availability'];
+} {
   const output = record.outputs[0];
   if (!output) {
     return {};
@@ -138,9 +150,13 @@ function previewStateForOutput(
     };
   }
   const preview = previews[record.taskId];
+  const fallbackState = preview?.fallback?.state ?? fallbackStateFromAvailability(preview?.availability);
   return {
     output,
     ...(preview?.url ? { previewUrl: preview.url } : {}),
+    ...(!preview?.url && fallbackState ? {
+      previewFallback: preview?.fallback ?? createImagePreviewFallback(fallbackState),
+    } : {}),
     ...(preview?.availability ? { resourceState: preview.availability } : {}),
   };
 }
@@ -166,6 +182,7 @@ export function deriveHistoryItems(input: DeriveHistoryItemsInput): readonly His
       isActive: false,
       canLocate: false,
       ...(previewState.previewUrl ? { previewUrl: previewState.previewUrl } : {}),
+      ...(previewState.previewFallback ? { previewFallback: previewState.previewFallback } : {}),
       ...(previewState.output ? { output: previewState.output } : {}),
       ...(previewState.resourceState ? { resourceState: previewState.resourceState } : {}),
       taskRecord: record,
@@ -197,6 +214,11 @@ export function deriveHistoryItems(input: DeriveHistoryItemsInput): readonly His
       canLocate: true,
       ...(round.status === 'err' ? { retryRoundId: round.id } : {}),
       ...(round.previews[0]?.url ? { previewUrl: round.previews[0].url } : existing?.previewUrl ? { previewUrl: existing.previewUrl } : {}),
+      ...(!round.previews[0]?.url && round.previews[0]?.fallback
+        ? { previewFallback: round.previews[0].fallback }
+        : existing?.previewFallback
+          ? { previewFallback: existing.previewFallback }
+          : {}),
       ...(output ? { output } : {}),
       ...(resourceState ? { resourceState } : {}),
       ...(existing?.taskRecord ? { taskRecord: existing.taskRecord } : {}),
