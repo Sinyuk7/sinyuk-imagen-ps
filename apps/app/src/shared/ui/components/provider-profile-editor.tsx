@@ -1,5 +1,6 @@
 import { useState, type ReactNode } from 'react';
 import { Icon } from './icons';
+import { SecretField } from './secret-field';
 import { useI18n } from '../i18n/i18n-context';
 import { TextField, FieldLabel, HelpText, Checkbox } from '../primitives/native-controls';
 import { IconButton } from '../primitives/icon-button';
@@ -51,19 +52,6 @@ interface ProviderProfileEditorProps {
   readonly apiKeyRemovalPending?: boolean;
   readonly pathSettings?: ReactNode;
   readonly disabled?: boolean;
-}
-
-interface SecretFieldProps {
-  readonly label: string;
-  readonly inputId: string;
-  readonly testIdPrefix: string;
-  readonly value: string;
-  readonly placeholder: string;
-  readonly showValue: boolean;
-  readonly onValue: (value: string) => void;
-  readonly onShowValueChange: (shown: boolean) => void;
-  readonly disabled?: boolean;
-  readonly removalPending?: boolean;
 }
 
 function removeEndpoint(
@@ -125,52 +113,6 @@ function summarizeLatency(result: EndpointMeasurementResult | undefined, message
     return messages.settings.endpointDns;
   }
   return messages.settings.endpointFailed;
-}
-
-function SecretField({
-  label,
-  inputId,
-  testIdPrefix,
-  value,
-  placeholder,
-  showValue,
-  onValue,
-  onShowValueChange,
-  disabled = false,
-  removalPending = false,
-}: SecretFieldProps) {
-  const { messages: t } = useI18n();
-  return (
-    <div className="field">
-      <FieldLabel htmlFor={inputId}>{label}</FieldLabel>
-      <div className="field-input-affordance">
-        <TextField
-          data-testid={`${testIdPrefix}-input`}
-          id={inputId}
-          type={showValue ? 'text' : 'password'}
-          className="field-input mono ui-field-control field-input-embedded"
-          placeholder={placeholder}
-          value={value}
-          disabled={disabled}
-          onValue={onValue}
-        />
-        <IconButton
-          data-testid={`${testIdPrefix}-toggle`}
-          className="field-input-action"
-          compactSquare
-          icon={<Icon name={showValue ? 'eye-off' : 'eye'} size={14} />}
-          tooltip={showValue ? t.settings.hideApiKey : t.settings.showApiKey}
-          aria-label={showValue ? t.settings.hideApiKey : t.settings.showApiKey}
-          onClick={() => onShowValueChange(!showValue)}
-        />
-      </div>
-      {removalPending ? (
-        <HelpText data-testid={`${testIdPrefix}-removal-pending`} className="field-hint" variant="negative">
-          {t.settings.secretRemovalPending}
-        </HelpText>
-      ) : null}
-    </div>
-  );
 }
 
 export function ProviderProfileEditor({

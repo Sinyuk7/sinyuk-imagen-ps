@@ -98,14 +98,32 @@ describe('chat history layout contract', () => {
     expect(wideResult).toBeGreaterThan(regularResult);
   });
 
-  it('uses solid preview surfaces and caps only super-tall previews', () => {
+  it('keeps media cards media-driven and caps only super-tall previews', () => {
     expect(CONVERSATION_SOURCE).toContain('background:var(--chat-preview-stage-surface);');
-    expect(CONVERSATION_SOURCE).toContain('.img-media-shell[data-alpha-backdrop="true"]{');
+    expect(CONVERSATION_SOURCE).toContain('.img-frame[data-alpha-state="transparent"]{');
     expect(CONVERSATION_SOURCE).toContain('background:var(--chat-preview-alpha-surface);');
-    expect(CONVERSATION_SOURCE).toContain('.img-result[data-preview-layout="portrait-cap"][data-has-preview="true"] .img-stage::before{');
+    expect(CONVERSATION_SOURCE).toContain('.prov-card-media{');
+    expect(CONVERSATION_SOURCE).toContain('align-self:flex-start;');
+    expect(CONVERSATION_SOURCE).toContain('width:auto;');
+    expect(CONVERSATION_SOURCE).toContain('max-width:100%;');
+    expect(CONVERSATION_SOURCE).toContain('.prov-media-header{');
+    expect(CONVERSATION_SOURCE).toContain('.prov-media-provider-row{');
+    expect(CONVERSATION_SOURCE).toContain('.prov-media-meta-row{');
+    expect(CONVERSATION_SOURCE).toContain('.prov-media-status-group{');
+    expect(CONVERSATION_SOURCE).not.toContain('.prov-card-media .prov-model-sep{ display:none; }');
+    expect(CONVERSATION_SOURCE).toContain('.img-result{');
+    expect(CONVERSATION_SOURCE).toContain('max-width:none;');
+    expect(CONVERSATION_SOURCE).toContain('margin-right:0;');
+    expect(CONVERSATION_SOURCE).toContain('margin-left:0;');
+    expect(CONVERSATION_SOURCE).toContain('.prov-media-section{');
+    expect(CONVERSATION_SOURCE).toContain('.img-frame{');
+    expect(CONVERSATION_SOURCE).toContain('.img-result[data-preview-layout="tall-contain"][data-preview-visual-mode="contained-well"][data-has-preview="true"] .img-stage::before{');
     expect(CONVERSATION_SOURCE).toContain('padding-top:var(--chat-preview-portrait-cap-padding);');
-    expect(CONVERSATION_SOURCE).toContain('.img-result[data-preview-layout="intrinsic"][data-has-preview="true"] .img-media{');
+    expect(CONVERSATION_SOURCE).toContain('.img-result[data-preview-visual-mode="full-bleed"][data-has-preview="true"] .img-media{');
+    expect(RESPONSIVE_SOURCE).toContain('.panel[data-panel-width-mode="compact"] .prov-media-meta-row{ flex-direction:column; align-items:flex-start; flex-wrap:nowrap; }');
+    expect(RESPONSIVE_SOURCE).toContain('.panel[data-panel-width-mode="compact"] .prov-media-status-group .prov-status-text{ max-width:none; text-align:left; white-space:nowrap; line-height:14px; }');
     expect(CONVERSATION_SOURCE).not.toContain('background-image:linear-gradient(45deg');
     expect(CONVERSATION_SOURCE).not.toContain('.img-result.media-wide .img-stage{ height:var(--chat-preview-block-wide); }');
+    expect(CONVERSATION_SOURCE).not.toContain('.img-media-shell[data-alpha-backdrop="true"]{');
   });
 });

@@ -41,6 +41,10 @@ export const COMPOSER_CSS = `
   position:relative; width:52px; height:52px; margin-right:6px; border-radius:8px;
   overflow:hidden; border:1px solid var(--app-color-border-default); flex-shrink:0;
 }
+.att-thumb > .motion-highlight{
+  bottom:0;
+  border-radius:inherit;
+}
 .att-thumb:last-child{ margin-right:0; }
 .att-rm-host{
   position:absolute; top:2px; right:2px; width:18px; min-width:18px; height:18px; min-height:18px;

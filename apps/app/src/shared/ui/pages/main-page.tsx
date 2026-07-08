@@ -1,4 +1,4 @@
-import { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { memo, useCallback, useEffect, useMemo, useRef, useState, type CSSProperties } from 'react';
 import type { ProviderProfile } from '@imagen-ps/application';
 import { useAppServices } from '../../ports/app-services-context';
 import type { HostPort, LayerInfo } from '../../ports/host-port';
@@ -20,6 +20,7 @@ import { Icon } from '../components/icons';
 import { IconSelect } from '../components/icon-select';
 import { UxpTextArea } from '../components/uxp-form-controls';
 import { ProviderIdentity } from '../components/provider-identity';
+import { ProviderMediaHeader } from '../components/provider-media-header';
 import { useToast } from '../components/toast-host';
 import {
   MotionActivityDot,
@@ -154,7 +155,7 @@ function roundStatusElapsed(round: ConversationRound): string {
   return round.elapsedLabel ?? '';
 }
 
-function statusDot(status: ConversationRound['status']): string {
+function statusDot(status: ConversationRound['status']): 'ok' | 'run' | 'err' {
   return status === 'ok' ? 'ok' : status === 'running' ? 'run' : 'err';
 }
 
@@ -291,9 +292,12 @@ function findRoundElement(container: HTMLElement, roundId: string): HTMLElement 
   return container.querySelector(`[data-round-id="${roundId}"]`);
 }
 
-type PreviewLayoutMode = 'intrinsic' | 'portrait-cap' | 'fallback';
+type PreviewLayoutMode = 'intrinsic' | 'tall-contain' | 'fallback';
+type MediaCardKind = 'landscape' | 'square' | 'portrait' | 'tall' | 'fallback';
+type PreviewVisualMode = 'full-bleed' | 'contained-well';
 
 const PREVIEW_MAX_PORTRAIT_RATIO = 2 / 3;
+const PREVIEW_SQUARE_RATIO_EPSILON = 0.04;
 
 function parseDimensionRatio(width: number, height: number): number | undefined {
   if (!Number.isFinite(width) || !Number.isFinite(height) || width <= 0 || height <= 0) {
@@ -343,7 +347,49 @@ export function previewLayoutModeForRound(round: Pick<ConversationRound, 'output
   if (ratio === undefined) {
     return 'fallback';
   }
-  return ratio < PREVIEW_MAX_PORTRAIT_RATIO ? 'portrait-cap' : 'intrinsic';
+  return ratio < PREVIEW_MAX_PORTRAIT_RATIO ? 'tall-contain' : 'intrinsic';
+}
+
+function previewVisualModeForRender(layoutMode: PreviewLayoutMode, hasPreview: boolean): PreviewVisualMode {
+  return layoutMode === 'intrinsic' && hasPreview ? 'full-bleed' : 'contained-well';
+}
+
+function isSquareRatio(ratio: number): boolean {
+  return Math.abs(ratio - 1) <= PREVIEW_SQUARE_RATIO_EPSILON;
+}
+
+export function mediaCardKindForRound(round: Pick<ConversationRound, 'output' | 'outputSize'>): MediaCardKind {
+  const ratio = previewRatioForRound(round);
+  if (ratio === undefined) {
+    return 'fallback';
+  }
+  if (ratio < PREVIEW_MAX_PORTRAIT_RATIO) {
+    return 'tall';
+  }
+  if (isSquareRatio(ratio)) {
+    return 'square';
+  }
+  if (ratio < 1) {
+    return 'portrait';
+  }
+  return 'landscape';
+}
+
+export function mediaCardWidthStyleForRound(round: Pick<ConversationRound, 'output' | 'outputSize'>): CSSProperties {
+  const ratio = previewRatioForRound(round);
+  if (ratio === undefined) {
+    return { width: 'var(--chat-preview-block-fallback)', maxWidth: '100%' };
+  }
+  if (ratio < PREVIEW_MAX_PORTRAIT_RATIO || isSquareRatio(ratio)) {
+    return { width: 'var(--chat-preview-block-fallback)', maxWidth: '100%' };
+  }
+  if (ratio < 1) {
+    return {
+      width: `calc(var(--chat-preview-block-fallback) * ${ratio})`,
+      maxWidth: '100%',
+    };
+  }
+  return { width: 'var(--chat-preview-inline-max)', maxWidth: '100%' };
 }
 
 function providerInputPolicy(settings: AppGenerationSettings): ProviderInputSizePolicy {
@@ -1371,6 +1417,7 @@ export function MainPage({
                 const hasImages = round.previews.length > 0;
                 const hasResponseText = Boolean(round.responseText?.trim());
                 const showResponseText = hasResponseText;
+                const splitResponseTextCard = hasImages && showResponseText;
                 const responseExpanded = Boolean(expandedResponses[round.id]);
                 const responseOverflows = Boolean(overflowingResponses[round.id]);
                 const selectedPreviewIndex = previewIndexForRound(round);
@@ -1381,14 +1428,74 @@ export function MainPage({
                 const canGoPrev = selectedPreviewIndex > 0;
                 const canGoNext = selectedPreviewIndex < round.previews.length - 1;
                 const previewLayoutMode = previewLayoutModeForRound(round);
+                const previewVisualMode = previewVisualModeForRender(previewLayoutMode, Boolean(preview?.url));
+                const mediaCardKind = hasImages ? mediaCardKindForRound(round) : undefined;
+                const mediaCardStyle = hasImages ? mediaCardWidthStyleForRound(round) : undefined;
+                const responseCard = showResponseText && round.responseText ? (
+                  <div
+                    className={`prov-response${splitResponseTextCard ? ' prov-response-standalone' : ''}`}
+                    data-expanded={responseExpanded ? 'true' : undefined}
+                    data-overflowing={responseOverflows ? 'true' : undefined}
+                  >
+                    <div
+                      ref={responseFoldRef(round.id)}
+                      className="prov-response-body"
+                    >
+                      <div
+                        ref={responseTextRef(round.id)}
+                        data-testid={`result-response-text-${round.id}`}
+                        className="prov-response-text"
+                      >
+                        {round.responseText}
+                      </div>
+                    </div>
+                    <div className="prov-response-actions">
+                      {responseOverflows && (
+                        <button
+                          type="button"
+                          data-testid={`result-response-toggle-${round.id}`}
+                          className="prov-response-toggle"
+                          onClick={(event) => {
+                            event.stopPropagation();
+                            setExpandedResponses((current) => ({ ...current, [round.id]: !responseExpanded }));
+                          }}
+                        >
+                          {responseExpanded ? `${t.main.collapseResponse} ▴` : `${t.main.expandResponse} ▾`}
+                        </button>
+                      )}
+                      <IconButton
+                        data-testid={`result-response-copy-button-${round.id}`}
+                        className={`prov-response-copy${copied[copyKey] ? ' cp' : ''}`}
+                        quiet
+                        icon={copied[copyKey] ? <Icon name="check" /> : <Icon name="copy" />}
+                        tooltip={t.main.copyResponse}
+                        onClick={(event) => { event.stopPropagation(); handleCopyResponse(round); }}
+                      />
+                    </div>
+                  </div>
+                ) : null;
                 return (
-                <div className="msg-prov msg-prov-surface">
-                  <div className={`prov-card${hasImages ? ' prov-card-media' : ' prov-card-text-only'}`}>
-                    <div className="prov-top">
-                      <ProviderIdentity
+                <div className={`msg-prov msg-prov-surface${splitResponseTextCard ? ' msg-prov-stack' : ''}`}>
+                  {splitResponseTextCard ? (
+                    <div className="prov-card prov-card-text-only prov-response-card" data-testid={`result-response-card-${round.id}`}>
+                      {responseCard}
+                    </div>
+                  ) : null}
+                  <div
+                    className={`prov-card${hasImages ? ' prov-card-media' : ' prov-card-text-only'}`}
+                    {...(mediaCardKind ? { 'data-media-card-kind': mediaCardKind } : {})}
+                    data-testid={hasImages ? `result-media-card-${round.id}` : undefined}
+                    style={mediaCardStyle}
+                  >
+                    {hasImages ? (
+                      <ProviderMediaHeader
                         providerName={round.providerName}
                         modelLabel={providerModelLabel}
+                        statusLabel={t.status.done}
+                        durationLabel={round.elapsedLabel}
+                        statusTone={statusDot(round.status)}
                         disabled={!onEditProfile || !round.profileId}
+                        testIdPrefix={`result-media-card-${round.id}`}
                         onClick={(event) => {
                           event.stopPropagation();
                           if (round.profileId && onEditProfile) {
@@ -1396,73 +1503,50 @@ export function MainPage({
                           }
                         }}
                       />
-                      <div className="prov-status">
-                        <span className={`sdot ${hasImages ? statusDot(round.status) : 'info'}`} />
-                        <span className={`prov-status-text ${hasImages ? 'ok' : 'info'}`}>
-                          {hasImages ? t.status.done : t.main.textResult} · {round.elapsedLabel}
-                        </span>
-                      </div>
-                    </div>
-                    {showResponseText && round.responseText && (
-                      <div
-                        className="prov-response"
-                        data-expanded={responseExpanded ? 'true' : undefined}
-                        data-overflowing={responseOverflows ? 'true' : undefined}
-                      >
-                        <div
-                          ref={responseFoldRef(round.id)}
-                          className="prov-response-body"
-                        >
-                          <div
-                            ref={responseTextRef(round.id)}
-                            data-testid={`result-response-text-${round.id}`}
-                            className="prov-response-text"
-                          >
-                            {round.responseText}
-                          </div>
-                        </div>
-                        <div className="prov-response-actions">
-                          {responseOverflows && (
-                            <button
-                              type="button"
-                              data-testid={`result-response-toggle-${round.id}`}
-                              className="prov-response-toggle"
-                              onClick={(event) => {
-                                event.stopPropagation();
-                                setExpandedResponses((current) => ({ ...current, [round.id]: !responseExpanded }));
-                              }}
-                            >
-                              {responseExpanded ? `${t.main.collapseResponse} ▴` : `${t.main.expandResponse} ▾`}
-                            </button>
-                          )}
-                          <IconButton
-                            data-testid={`result-response-copy-button-${round.id}`}
-                            className={`prov-response-copy${copied[copyKey] ? ' cp' : ''}`}
-                            quiet
-                            icon={copied[copyKey] ? <Icon name="check" /> : <Icon name="copy" />}
-                            tooltip={t.main.copyResponse}
-                            onClick={(event) => { event.stopPropagation(); handleCopyResponse(round); }}
-                          />
+                    ) : (
+                      <div className="prov-top">
+                        <ProviderIdentity
+                          providerName={round.providerName}
+                          modelLabel={providerModelLabel}
+                          disabled={!onEditProfile || !round.profileId}
+                          onClick={(event) => {
+                            event.stopPropagation();
+                            if (round.profileId && onEditProfile) {
+                              onEditProfile(round.profileId);
+                            }
+                          }}
+                        />
+                        <div className="prov-status">
+                          <span className={`sdot ${hasImages ? statusDot(round.status) : 'info'}`} />
+                          <span className={`prov-status-text ${hasImages ? 'ok' : 'info'}`}>
+                            {hasImages ? t.status.done : t.main.textResult} · {round.elapsedLabel}
+                          </span>
                         </div>
                       </div>
                     )}
+                    {!splitResponseTextCard ? responseCard : null}
                     {hasImages ? (
-                      <div className="prov-img">
+                      <div className="prov-media-section">
                         <div
                           className="img-result"
                           data-testid={`result-preview-${round.id}`}
                           data-preview-index={selectedPreviewIndex}
                           data-preview-layout={previewLayoutMode}
+                          data-preview-visual-mode={previewVisualMode}
                           data-has-preview={preview?.url ? 'true' : 'false'}
                         >
                           <div className="img-stage">
                             {preview?.url
                               ? (
-                                <div className="img-media-shell" data-alpha-backdrop={preview.hasTransparency ? 'true' : undefined}>
+                                <div className="img-frame" data-alpha-state={preview.transparencyState}>
                                   <MotionImage key={`${round.id}:${selectedPreviewIndex}`} src={preview.url} className="img-media" alt={preview.label} />
                                 </div>
                                 )
-                              : <div className="img-placeholder">{t.main.noAssetPreview}</div>
+                              : (
+                                <div className="img-frame img-frame-placeholder" data-alpha-state="unknown">
+                                  <div className="img-placeholder">{t.main.noAssetPreview}</div>
+                                </div>
+                                )
                             }
                             <div className="img-meta">{round.outputSize ?? t.main.assetFallback} · {round.outputFormat ?? t.main.imageFallback}</div>
                             {hasMultiplePreviews && (
@@ -1767,7 +1851,7 @@ export function MainPage({
                     hostClassName="cmp-capture-host"
                     icon={captureInFlight
                       ? <MotionActivityIcon className="cmp-capture-icon"><Icon name="spinner" size={13} /></MotionActivityIcon>
-                      : <Icon name="target" size={13} className="cmp-capture-icon" />}
+                      : <Icon name="capture-selection" size={13} className="cmp-capture-icon" />}
                     tooltip={imageInputDisabled ? imageInputDisabledReason : t.main.captureActionHint}
                     aria-label={imageInputDisabled ? imageInputDisabledReason : t.main.captureActionHint}
                     placement="top"
@@ -1845,7 +1929,7 @@ export function MainPage({
                 onSelect={(value) => {
                   void selectOutputSize(value as ImageOutputImageSize);
                 }}
-                icon="image-auto-mode"
+                icon="image-size"
               />
               {modelGenerationSettings.showRatio ? (
                 <IconSelect
@@ -1864,7 +1948,7 @@ export function MainPage({
                   onSelect={(value) => {
                     void selectOutputRatio(value as ImageAspectRatio);
                   }}
-                  icon="image-auto-mode"
+                  icon="aspect-ratio"
                 />
               ) : null}
             </div>

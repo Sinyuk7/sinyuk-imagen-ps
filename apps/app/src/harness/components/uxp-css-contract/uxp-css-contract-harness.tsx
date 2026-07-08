@@ -1312,7 +1312,7 @@ function ModelSelectorSpecimen() {
             menuClassName="cmp-select-menu cmp-select-menu-compact"
             label="Output size"
             value="2K"
-            icon="image-auto-mode"
+            icon="image-size"
             open={openMenu === 'size'}
             onOpenChange={(open) => setOpenMenu(open ? 'size' : null)}
             options={[
@@ -1425,7 +1425,7 @@ function ComposerConversationBoard({
               <IconButton
                 className="cmp-capture"
                 hostClassName="cmp-capture-host"
-                icon={<Icon name="target" size={13} className="cmp-capture-icon" />}
+                icon={<Icon name="capture-selection" size={13} className="cmp-capture-icon" />}
                 tooltip="Capture from Photoshop"
                 aria-label="Capture from Photoshop"
                 placement="top"

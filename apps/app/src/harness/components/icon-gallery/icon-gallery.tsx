@@ -3,7 +3,9 @@ import { Icon, type IconName } from '../../../shared/ui/components/icons';
 const ALL_ICONS: readonly IconName[] = [
   'add',
   'algorithm',
+  'aspect-ratio',
   'arrow-right',
+  'capture-selection',
   'check',
   'chevron-down',
   'chevron-left',
@@ -18,6 +20,7 @@ const ALL_ICONS: readonly IconName[] = [
   'info',
   'image-auto-mode',
   'image-check',
+  'image-size',
   'magic-wand',
   'message',
   'network',

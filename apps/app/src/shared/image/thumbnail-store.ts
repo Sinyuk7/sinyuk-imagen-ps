@@ -2,7 +2,11 @@ import type { Asset, StoredAssetRef } from '@imagen-ps/application';
 import type { AssetPreview } from '../domain/mappers';
 import { assetToPreviewUrl } from '../domain/mappers';
 import { createRuntimeImageUrlOrDataUrl, type RuntimeImageUrl } from './runtime-image-url';
-import { assetHasTransparency, hasImageTransparency } from './image-transparency';
+import {
+  transparencyStateFromAsset,
+  transparencyStateFromImageBytes,
+  type ImageTransparencyState,
+} from './image-transparency';
 
 const DEFAULT_THUMBNAIL_MAX_SIDE = 512;
 const DEFAULT_MAX_INLINE_THUMBNAIL_BYTES = 512 * 1024;
@@ -50,7 +54,7 @@ interface CacheEntry {
 
 interface ResolvedPreview {
   readonly runtimeUrl: RuntimeImageUrl;
-  readonly hasTransparency: boolean;
+  readonly transparencyState: ImageTransparencyState;
 }
 
 type GenerationQueueEntry = () => void;
@@ -156,7 +160,7 @@ export function createMemoryThumbnailStore(options: ThumbnailStoreOptions = {}):
     if (direct) {
       return {
         runtimeUrl: { url: direct, release: () => undefined },
-        hasTransparency: assetHasTransparency(asset),
+        transparencyState: transparencyStateFromAsset(asset),
       };
     }
 
@@ -166,13 +170,13 @@ export function createMemoryThumbnailStore(options: ThumbnailStoreOptions = {}):
       throwIfAborted(signal);
       if (resolved !== undefined) {
         const bytes = new Uint8Array(resolved);
-        const hasTransparency = hasImageTransparency(bytes, mimeType);
+        const transparencyState = transparencyStateFromImageBytes(bytes, mimeType);
         if (bytes.byteLength <= maxInlineBytes) {
           return {
             runtimeUrl: options.createObjectUrl
               ? options.createObjectUrl(bytes, mimeType)
               : createRuntimeImageUrlOrDataUrl(bytes, mimeType),
-            hasTransparency,
+            transparencyState,
           };
         }
         const thumbnail = await options.createThumbnail?.({ asset, bytes, mimeType, maxSide, signal });
@@ -180,7 +184,7 @@ export function createMemoryThumbnailStore(options: ThumbnailStoreOptions = {}):
         if (thumbnail) {
           return {
             runtimeUrl: thumbnail,
-            hasTransparency,
+            transparencyState,
           };
         }
       }
@@ -188,11 +192,11 @@ export function createMemoryThumbnailStore(options: ThumbnailStoreOptions = {}):
 
     const inlineBytes = bytesFromAsset(asset);
     if (inlineBytes !== undefined) {
-      const hasTransparency = hasImageTransparency(inlineBytes, mimeType);
+      const transparencyState = transparencyStateFromImageBytes(inlineBytes, mimeType);
       if (inlineBytes.byteLength <= maxInlineBytes) {
         return {
           runtimeUrl: { url: assetToPreviewUrl(asset), release: () => undefined },
-          hasTransparency,
+          transparencyState,
         };
       }
       const thumbnail = await options.createThumbnail?.({ asset, bytes: inlineBytes, mimeType, maxSide, signal });
@@ -200,14 +204,14 @@ export function createMemoryThumbnailStore(options: ThumbnailStoreOptions = {}):
       if (thumbnail) {
         return {
           runtimeUrl: thumbnail,
-          hasTransparency,
+          transparencyState,
         };
       }
     }
 
     return {
       runtimeUrl: { url: '', release: () => undefined },
-      hasTransparency: false,
+      transparencyState: transparencyStateFromAsset(asset),
     };
   }
 
@@ -258,7 +262,7 @@ export function createMemoryThumbnailStore(options: ThumbnailStoreOptions = {}):
             asset: sanitizedAsset(request.asset),
             url: generated.runtimeUrl.url,
             label: request.label ?? request.asset.name ?? 'Asset',
-            hasTransparency: generated.hasTransparency,
+            transparencyState: generated.transparencyState,
           };
           const entry: CacheEntry = { preview, release: generated.runtimeUrl.release, refs: 0 };
           cache.set(cacheKey, entry);

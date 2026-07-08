@@ -9,7 +9,9 @@ import type { CSSProperties, ReactElement, SVGProps } from 'react';
 export type IconName =
   | 'add'
   | 'algorithm'
+  | 'aspect-ratio'
   | 'arrow-right'
+  | 'capture-selection'
   | 'check'
   | 'chevron-down'
   | 'chevron-left'
@@ -24,6 +26,7 @@ export type IconName =
   | 'info'
   | 'image-auto-mode'
   | 'image-check'
+  | 'image-size'
   | 'magic-wand'
   | 'message'
   | 'network'
@@ -173,6 +176,24 @@ const ICON_BODY_BY_NAME: Record<IconName, SvgBody> = {
       <path d="M17.5 3.5l.7 1.5 1.5.7-1.5.7-.7 1.5-.7-1.5-1.5-.7 1.5-.7.7-1.5z" />
     </>
   ),
+  'image-size': () => (
+    <>
+      <path d="M8 4H5v3" />
+      <path d="M16 4h3v3" />
+      <path d="M5 17v3h3" />
+      <path d="M19 17v3h-3" />
+      <rect x="7" y="8" width="10" height="8" rx="1.8" />
+      <path d="M9 13.5l2-2 1.6 1.6 2.4-3.1 2 3.5" />
+      <circle cx="10" cy="10.5" r="0.9" fill="currentColor" stroke="none" />
+    </>
+  ),
+  'aspect-ratio': () => (
+    <>
+      <rect x="4.5" y="6" width="15" height="12" rx="2" />
+      <path d="M9 9H6.5v2.8" />
+      <path d="M15 15h2.5v-2.8" />
+    </>
+  ),
   'image-check': () => (
     <>
       <rect x="4" y="5" width="16" height="12" rx="2" />
@@ -182,10 +203,9 @@ const ICON_BODY_BY_NAME: Record<IconName, SvgBody> = {
   ),
   'place-ps': () => (
     <>
-      <rect x="4" y="5" width="16" height="14" rx="2" />
-      <path d="M7 15l3-3 2 2 2.5-3 2.5 4" />
-      <line x1="12" y1="8" x2="12" y2="13" />
-      <line x1="9.5" y1="10.5" x2="14.5" y2="10.5" />
+      <rect x="4.5" y="6.5" width="10" height="12" rx="2" />
+      <path d="M10 14l8.5-8.5" />
+      <polyline points="13.5 5.5 18.5 5.5 18.5 10.5" />
     </>
   ),
 
@@ -223,6 +243,15 @@ const ICON_BODY_BY_NAME: Record<IconName, SvgBody> = {
   /* ── Selection ─────────────────────────────────────────────────── */
   selection: () => (
     <rect x="4.5" y="4.5" width="15" height="15" rx="1.5" strokeDasharray="3.5 2.5" />
+  ),
+  'capture-selection': () => (
+    <>
+      <path d="M8 5H5v3" />
+      <path d="M16 5h3v3" />
+      <path d="M5 16v3h3" />
+      <path d="M16 19h3v-3" />
+      <circle cx="12" cy="12" r="3.2" />
+    </>
   ),
 
   /* ── Action / tool icons ───────────────────────────────────────── */
@@ -273,8 +302,16 @@ const ICON_BODY_BY_NAME: Record<IconName, SvgBody> = {
   ),
   settings: () => (
     <>
-      <path d="M12 3l1.8 4.2 4.5-1.2-1.2 4.5L19.5 12l-2.4 1.5 1.2 4.5-4.5-1.2L12 21l-1.8-4.2-4.5 1.2 1.2-4.5L4.5 12l2.4-1.5-1.2-4.5 4.5 1.2z" />
-      <circle cx="12" cy="12" r="3.5" />
+      <circle cx="12" cy="12" r="6.3" />
+      <circle cx="12" cy="12" r="2.8" />
+      <path d="M12 3.2v2.2" />
+      <path d="M12 18.6v2.2" />
+      <path d="M3.2 12h2.2" />
+      <path d="M18.6 12h2.2" />
+      <path d="M5.8 5.8l1.6 1.6" />
+      <path d="M16.6 16.6l1.6 1.6" />
+      <path d="M18.2 5.8l-1.6 1.6" />
+      <path d="M7.4 16.6l-1.6 1.6" />
     </>
   ),
   'magic-wand': () => (

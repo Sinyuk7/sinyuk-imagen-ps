@@ -2,7 +2,7 @@ import { act } from 'react';
 import { afterEach, describe, expect, it } from 'vitest';
 import type { UserModelConfig } from '@imagen-ps/application';
 import { createFakeServices, fakeProfile, profileModelItem } from '../../helpers/fakes';
-import { cleanupMainPageRoot, flush, renderMainPage } from '../../helpers/main-page-harness';
+import { cleanupMainPageRoot, flush, renderMainPage, sendPrompt } from '../../helpers/main-page-harness';
 
 const simpleFlexibleExposure = {
   kind: 'flexible-pixels' as const,
@@ -107,6 +107,41 @@ describe('AppShell profile model selection flow', () => {
     expect(container.querySelector('[data-testid="model-configuration-add-button"]')).not.toBeNull();
     expect(container.querySelector('[data-testid="model-config-model-id"]')).toBeNull();
     expect(container.querySelector('[data-testid="model-configuration-title"]')).not.toBeNull();
+  });
+
+  it('returns to main page when backing out of profile detail opened from result card avatar', async () => {
+    const container = document.createElement('div');
+    document.body.appendChild(container);
+    const services = createReturningUserServices({ activeImageProfileId: 'mock-profile' });
+    await renderMainPage(container, services);
+    await flush();
+    await flush();
+
+    await sendPrompt(container, 'Generate square preview and explain result.');
+    await flush();
+    await flush();
+
+    const mediaCardHeader = container.querySelector<HTMLElement>('[data-testid$="-header"][data-testid^="result-media-card-"]');
+    expect(mediaCardHeader).not.toBeNull();
+
+    await act(async () => {
+      mediaCardHeader?.click();
+    });
+    await flush();
+    await flush();
+
+    expect(container.querySelector('[data-testid="provider-detail-back-button"]')).not.toBeNull();
+
+    await act(async () => {
+      container.querySelector<HTMLElement>('[data-testid="provider-detail-back-button"]')?.click();
+    });
+    await flush();
+    await flush();
+
+    expect(container.querySelector('[data-testid="main-providers-button"]')).not.toBeNull();
+    expect(container.querySelector('[data-testid^="result-media-card-"]')).not.toBeNull();
+    expect(container.querySelector('[data-testid="provider-detail-back-button"]')).toBeNull();
+    expect(container.querySelector(`[data-testid="provider-row-${fakeProfile.profileId}"]`)).toBeNull();
   });
 
   it('shows add-page empty state and returns there after saving a profile-originated model config', async () => {

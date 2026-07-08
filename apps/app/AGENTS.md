@@ -42,7 +42,8 @@ UXP HTML/CSS, Spectrum Web Components, or SWC wrapper question:
 - Shared UI motion, theme generation, toast, and popup-layer behavior are `apps/app` contracts. Longer rationale and implementation detail live in `docs/ENGINEERING_CONTEXT.md`.
 - Shared UI and harness CSS must stay inside the repo-owned UXP CSS contract. Mechanical enforcement lives in `pnpm check:policy` and `docs/TESTING.md`.
 - Chat-history layout tokens treat default `360px` docked and `420px` floating panels as the primary design lane; `wide` mode may only relax those caps and must not define the default visual rhythm.
-- Chat-history image previews use a token-driven solid stage surface. Landscape, square, and normal portrait results follow their intrinsic ratio inside the card; only taller-than-`2:3` results enter contain mode inside a capped portrait frame, and alpha backdrops are reserved for previews with real transparency.
+- Chat-history media result cards are media-driven rather than result-track-width cards. Landscape, square, and normal portrait results follow their intrinsic ratio inside the card; only taller-than-`2:3` results enter contained-well mode under a `2:3` cap, `ImageStage` owns layout only, `ImageFrame` owns the thin image edge plus optional alpha backdrop, text-only/running/error cards stay on the result track, mixed response text stays readable in its own text-width card, and alpha backdrops are reserved for previews with trusted transparency.
+- Media result-card headers use a fixed avatar/content two-column shell. Provider name owns the first content row; model, status, and duration belong to the secondary meta row. Regular and wide panels may keep model plus status inline on the meta row, compact panels must split only the meta row into stacked lines while keeping every text row aligned to the same content start. Do not merge provider and model into one natural-flow title line.
 
 ## Photoshop Placement Contract
 

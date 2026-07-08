@@ -1,6 +1,8 @@
 import type { Asset } from '@imagen-ps/application';
 import UPNG from 'upng-js';
 
+export type ImageTransparencyState = 'transparent' | 'opaque' | 'unknown';
+
 function arrayBufferFromBytes(bytes: Uint8Array): ArrayBuffer {
   const copy = new Uint8Array(bytes.byteLength);
   copy.set(bytes);
@@ -47,9 +49,9 @@ function bytesFromAssetData(data: string): Uint8Array {
   return base64ToBytes(data.slice(commaIndex));
 }
 
-function pngCanCarryTransparency(bytes: Uint8Array): boolean {
+function pngCanCarryTransparency(bytes: Uint8Array): boolean | undefined {
   if (bytes.byteLength < 33 || ascii(bytes, 0, 8) !== '\x89PNG\r\n\x1a\n') {
-    return false;
+    return undefined;
   }
 
   const colorType = bytes[25];
@@ -63,7 +65,7 @@ function pngCanCarryTransparency(bytes: Uint8Array): boolean {
     const chunkType = ascii(bytes, offset + 4, 4);
     const chunkDataEnd = offset + 8 + chunkLength;
     if (chunkDataEnd + 4 > bytes.byteLength) {
-      return false;
+      return undefined;
     }
     if (chunkType === 'tRNS') {
       return true;
@@ -77,15 +79,19 @@ function pngCanCarryTransparency(bytes: Uint8Array): boolean {
   return false;
 }
 
-function pngHasTransparentPixels(bytes: Uint8Array): boolean {
-  if (!pngCanCarryTransparency(bytes)) {
-    return false;
+function pngTransparencyState(bytes: Uint8Array): ImageTransparencyState {
+  const canCarryTransparency = pngCanCarryTransparency(bytes);
+  if (canCarryTransparency === undefined) {
+    return 'unknown';
+  }
+  if (!canCarryTransparency) {
+    return 'opaque';
   }
 
   try {
     const decoded = UPNG.decode(arrayBufferFromBytes(bytes));
     const frames = UPNG.toRGBA8(decoded);
-    return frames.some((frame) => {
+    const hasTransparentPixels = frames.some((frame) => {
       const rgba = new Uint8Array(frame);
       for (let index = 3; index < rgba.byteLength; index += 4) {
         if (rgba[index] !== 255) {
@@ -94,18 +100,19 @@ function pngHasTransparentPixels(bytes: Uint8Array): boolean {
       }
       return false;
     });
+    return hasTransparentPixels ? 'transparent' : 'opaque';
   } catch {
-    return false;
+    return 'unknown';
   }
 }
 
-function webpHasTransparency(bytes: Uint8Array): boolean {
+function webpTransparencyState(bytes: Uint8Array): ImageTransparencyState {
   if (
     bytes.byteLength < 16 ||
     ascii(bytes, 0, 4) !== 'RIFF' ||
     ascii(bytes, 8, 4) !== 'WEBP'
   ) {
-    return false;
+    return 'unknown';
   }
 
   let offset = 12;
@@ -116,10 +123,10 @@ function webpHasTransparency(bytes: Uint8Array): boolean {
     const chunkDataOffset = offset + 8;
     const paddedLength = chunkLength + (chunkLength % 2);
     if (chunkDataOffset + chunkLength > bytes.byteLength) {
-      return vp8xAlpha;
+      return vp8xAlpha ? 'transparent' : 'opaque';
     }
     if (chunkType === 'ALPH') {
-      return true;
+      return 'transparent';
     }
     if (chunkType === 'VP8X' && chunkLength >= 1) {
       vp8xAlpha = (bytes[chunkDataOffset] & 0x10) !== 0;
@@ -127,30 +134,41 @@ function webpHasTransparency(bytes: Uint8Array): boolean {
     offset = chunkDataOffset + paddedLength;
   }
 
-  return vp8xAlpha;
+  return vp8xAlpha ? 'transparent' : 'opaque';
+}
+
+export function transparencyStateFromImageBytes(bytes: Uint8Array, mimeType: string): ImageTransparencyState {
+  const normalized = mimeType.toLowerCase();
+  if (normalized.includes('jpeg') || normalized.includes('jpg')) {
+    return 'opaque';
+  }
+  if (normalized.includes('png')) {
+    return pngTransparencyState(bytes);
+  }
+  if (normalized.includes('webp')) {
+    return webpTransparencyState(bytes);
+  }
+  return 'unknown';
+}
+
+export function transparencyStateFromAsset(asset: Pick<Asset, 'data' | 'mimeType'>): ImageTransparencyState {
+  const mimeType = asset.mimeType ?? 'image/png';
+  if (asset.data instanceof Uint8Array) {
+    return transparencyStateFromImageBytes(asset.data, mimeType);
+  }
+  if (typeof asset.data === 'string') {
+    return transparencyStateFromImageBytes(bytesFromAssetData(asset.data), mimeType);
+  }
+  if (mimeType.toLowerCase().includes('jpeg') || mimeType.toLowerCase().includes('jpg')) {
+    return 'opaque';
+  }
+  return 'unknown';
 }
 
 export function hasImageTransparency(bytes: Uint8Array, mimeType: string): boolean {
-  const normalized = mimeType.toLowerCase();
-  if (normalized.includes('jpeg') || normalized.includes('jpg')) {
-    return false;
-  }
-  if (normalized.includes('png')) {
-    return pngHasTransparentPixels(bytes);
-  }
-  if (normalized.includes('webp')) {
-    return webpHasTransparency(bytes);
-  }
-  return false;
+  return transparencyStateFromImageBytes(bytes, mimeType) === 'transparent';
 }
 
 export function assetHasTransparency(asset: Pick<Asset, 'data' | 'mimeType'>): boolean {
-  const mimeType = asset.mimeType ?? 'image/png';
-  if (asset.data instanceof Uint8Array) {
-    return hasImageTransparency(asset.data, mimeType);
-  }
-  if (typeof asset.data === 'string') {
-    return hasImageTransparency(bytesFromAssetData(asset.data), mimeType);
-  }
-  return false;
+  return transparencyStateFromAsset(asset) === 'transparent';
 }

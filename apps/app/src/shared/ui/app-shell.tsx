@@ -54,6 +54,7 @@ type View =
   | 'model-configuration'
   | 'prompt-settings'
   | 'prompt-preset-detail';
+type SettingsDetailReturnView = 'main' | 'settings';
 type AppTheme = 'dark' | 'light';
 type AppThemeOverride = AppTheme | undefined;
 type PanelWidthMode = 'compact' | 'regular' | 'wide';
@@ -214,6 +215,7 @@ function AppShellContent({ host }: AppShellProps) {
   const [selectedImageProfileId, setSelectedImageProfileId] = useState<string | null>(null);
   const [activeImageProfileHydrated, setActiveImageProfileHydrated] = useState(false);
   const [selectedSettingsProfileId, setSelectedSettingsProfileId] = useState<string | null>(null);
+  const [settingsDetailReturnView, setSettingsDetailReturnView] = useState<SettingsDetailReturnView>('settings');
   const [selectedPromptPresetId, setSelectedPromptPresetId] = useState<string | null>(null);
   const [modelConfigurationEditorSeed, setModelConfigurationEditorSeed] = useState<{
     readonly source?: 'settings-list' | 'profile-add' | 'profile-detail';
@@ -302,12 +304,25 @@ function AppShellContent({ host }: AppShellProps) {
     if (!activeImageProfileHydrated) {
       return;
     }
+    if (profilesState.loading || profilesState.error) {
+      return;
+    }
     if (selectedImageProfileId && imageProfiles.some((profile) => profile.profileId === selectedImageProfileId)) {
       return;
     }
     const fallbackProfileId = imageProfiles[0]?.profileId ?? null;
+    if (selectedImageProfileId === fallbackProfileId) {
+      return;
+    }
     void selectImageProfile(fallbackProfileId);
-  }, [activeImageProfileHydrated, imageProfiles, selectImageProfile, selectedImageProfileId]);
+  }, [
+    activeImageProfileHydrated,
+    imageProfiles,
+    profilesState.error,
+    profilesState.loading,
+    selectImageProfile,
+    selectedImageProfileId,
+  ]);
 
   useEffect(() => {
     const available = imageModels;
@@ -344,6 +359,7 @@ function AppShellContent({ host }: AppShellProps) {
   const onEditProfile = useCallback(
     (profileId: string) => {
       setSelectedSettingsProfileId(profileId);
+      setSettingsDetailReturnView('main');
       setAppView('settings-detail');
     },
     [setAppView],
@@ -525,6 +541,7 @@ function AppShellContent({ host }: AppShellProps) {
           error={profilesState.error}
           onOpenProfile={(profileId) => {
             setSelectedSettingsProfileId(profileId);
+            setSettingsDetailReturnView('settings');
             setView('settings-detail');
           }}
           onOpenOnboarding={() => setAppView('settings-onboarding')}
@@ -571,6 +588,13 @@ function AppShellContent({ host }: AppShellProps) {
         <MotionPageFrame watch={view}>
           <SettingsDetailPage
           onNav={onNav}
+          onBack={() => {
+            if (settingsDetailReturnView === 'main') {
+              setAppView('main');
+              return;
+            }
+            onNav('settings');
+          }}
           profileId={selectedSettingsProfileId}
           onSaved={(message) => show(message, 'positive', { key: 'settings-provider-saved' })}
           onOpenModelConfiguration={(input) => {

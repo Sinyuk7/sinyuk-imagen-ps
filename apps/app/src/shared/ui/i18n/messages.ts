@@ -224,6 +224,7 @@ export interface AppMessages {
     readonly apiKeyReplacePlaceholder: string;
     readonly accessTokenReplacePlaceholder: string;
     readonly replaceSecret: string;
+    readonly clearField: string;
     readonly removeSecret: string;
     readonly secretRemovalPending: string;
     readonly changesNotTested: string;
@@ -587,7 +588,7 @@ const EN_MESSAGES: AppMessages = {
     billingUserIdHint: 'Only needed by protocols that require a user identifier.',
     billingAccessToken: 'Billing token',
     billingAccessTokenHint: 'Stored securely and used only to query the balance.',
-    billingAccessTokenSavedHint: 'Token saved. Enter a new token or remove it.',
+    billingAccessTokenSavedHint: 'Used only to query balance. Saved securely.',
     billingNotSupported: 'This provider preset does not expose a billing adapter yet.',
     billingValidationPath: 'Billing path is required and must start with "/".',
     billingValidationApiKey: 'Current API key mode requires a saved API key.',
@@ -625,6 +626,7 @@ const EN_MESSAGES: AppMessages = {
     apiKeyReplacePlaceholder: 'Enter a new API Key to replace it',
     accessTokenReplacePlaceholder: 'Enter a new Access Token to replace it',
     replaceSecret: 'Replace',
+    clearField: 'Clear',
     removeSecret: 'Remove',
     secretRemovalPending: 'Will be removed after saving.',
     changesNotTested: 'Untested changes',
@@ -988,7 +990,7 @@ const ZH_CN_MESSAGES: AppMessages = {
     billingUserIdHint: '仅在某些需要用户标识的协议下使用。',
     billingAccessToken: '计费 Token',
     billingAccessTokenHint: '仅用于查询余额。',
-    billingAccessTokenSavedHint: 'Token 已保存。可替换或移除。',
+    billingAccessTokenSavedHint: '仅用于查询余额，已安全保存。',
     billingNotSupported: '暂不支持余额查询。',
     billingValidationPath: '查询路径必填，且必须以 / 开头。',
     billingValidationApiKey: '当前 API Key 模式需要已保存或当前填写的 API Key。',
@@ -1026,6 +1028,7 @@ const ZH_CN_MESSAGES: AppMessages = {
     apiKeyReplacePlaceholder: '输入新的 API Key 以替换',
     accessTokenReplacePlaceholder: '输入新的 Access Token 以替换',
     replaceSecret: '替换',
+    clearField: '清空',
     removeSecret: '移除',
     secretRemovalPending: '保存后移除。',
     changesNotTested: '修改尚未测试',

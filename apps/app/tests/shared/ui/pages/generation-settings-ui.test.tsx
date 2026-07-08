@@ -13,6 +13,12 @@ function optionIds(testId: string): readonly string[] {
     .map((element) => element.dataset.testid?.slice(`${testId}-option-`.length) ?? '');
 }
 
+function hostContainsIcon(container: HTMLElement, testId: string, iconName: string): boolean {
+  const trigger = container.querySelector<HTMLElement>(`[data-testid="${testId}"]`);
+  const host = trigger?.closest('.ui-overlay-icon-host');
+  return host?.querySelector(`[data-icon-name="${iconName}"]`) !== null;
+}
+
 async function openSelect(container: HTMLElement, testId: string): Promise<void> {
   await act(async () => {
     container.querySelector<HTMLElement>(`[data-testid="${testId}"]`)?.click();
@@ -80,6 +86,18 @@ describe('generation settings UI archetypes', () => {
 
     await openSelect(container, 'composer-output-size-selector');
     expect(optionIds('composer-output-size-selector')).toEqual(['use-input-size', 'auto', '1k', '2k', '4k']);
+  });
+
+  it('uses dedicated capture, size, and aspect-ratio icons on MainPage', async () => {
+    const container = document.createElement('div');
+    document.body.appendChild(container);
+    const harness = await createGenerationSettingsHarness(container, ratioModelOptions());
+
+    await harness.selectModel('gemini-3-pro-image');
+
+    expect(hostContainsIcon(container, 'composer-capture-button', 'capture-selection')).toBe(true);
+    expect(hostContainsIcon(container, 'composer-output-size-selector', 'image-size')).toBe(true);
+    expect(hostContainsIcon(container, 'composer-output-ratio-selector', 'aspect-ratio')).toBe(true);
   });
 
   it('uses same archetype rules on GlobalGenerationSettingsPage', async () => {

@@ -323,13 +323,24 @@ export const PAGES_CSS = `
   margin-bottom:0;
 }
 .billing-inline-summary{
-  flex:1 1 auto;
+  display:flex;
+  align-items:baseline;
+  justify-content:flex-end;
+  flex:0 1 auto;
   min-width:0;
   margin-left:12px;
-  font-size:12px;
-  line-height:16px;
-  color:var(--app-color-text-secondary);
   text-align:right;
+}
+.billing-inline-summary-label{
+  font-size:10px;
+  line-height:14px;
+  color:var(--app-color-text-muted);
+}
+.billing-inline-summary-value{
+  font-family:var(--app-font-family-mono);
+  font-size:14px;
+  line-height:18px;
+  color:var(--app-color-text-secondary);
 }
 .test-status{
   display:inline-flex;
@@ -357,13 +368,13 @@ export const PAGES_CSS = `
 .billing-settings-form{
   display:block;
   margin-top:14px;
-  padding:12px 14px;
-  border:1px solid var(--app-color-border-default);
-  border-radius:var(--app-radius-medium);
+  padding:10px 12px;
+  border:1px solid color-mix(in srgb, var(--app-color-border-default) 86%, transparent);
+  border-radius:var(--app-radius-small);
   background:
     linear-gradient(180deg,
-      color-mix(in srgb, var(--app-color-background-layer-2) 92%, transparent),
-      color-mix(in srgb, var(--app-color-background-elevated) 94%, transparent)
+      color-mix(in srgb, var(--app-color-background-layer-2) 96%, transparent),
+      color-mix(in srgb, var(--app-color-background-elevated) 92%, transparent)
     );
 }
 .settings-secret-meta{
@@ -398,21 +409,36 @@ export const PAGES_CSS = `
 }
 .billing-settings-grid{
   display:block;
-  margin-top:12px;
+  margin-top:10px;
 }
 .billing-settings-field{
   margin-bottom:0;
 }
-.billing-settings-field-spaced{
-  margin-top:12px;
-}
 .billing-settings-mode-field{
   margin-bottom:0;
 }
+.billing-settings-grid > .billing-settings-field + .billing-settings-field{
+  margin-top:10px;
+}
 .billing-settings-hint{
   margin-top:6px;
-  max-width:40ch;
+  max-width:44ch;
   line-height:16px;
+}
+.billing-secret-saved-input::placeholder{
+  color:var(--app-color-text-secondary);
+  opacity:1;
+}
+.billing-settings-footer{
+  margin-top:10px;
+  padding-top:8px;
+  border-top:1px solid color-mix(in srgb, var(--app-color-border-default) 82%, transparent);
+}
+.billing-settings-footer > * + *{
+  margin-top:4px;
+}
+.billing-settings-footer .billing-last-cost{
+  margin-top:0;
 }
 .billing-summary-card{
   display:flex;
@@ -1340,6 +1366,15 @@ export const PAGES_CSS = `
   border:none;
   border-radius:0;
 }
+.field-input-shell{
+  min-height:32px;
+}
+.field-input-shell[data-disabled="true"]{
+  opacity:.72;
+}
+.field-input-shell[data-native-editor-suspended="true"]{
+  background:color-mix(in srgb, var(--app-color-background-layer-2) 88%, transparent);
+}
 .model-config-model-id-shell{
   min-height:32px;
 }
@@ -1363,6 +1398,31 @@ export const PAGES_CSS = `
   line-height:0;
 }
 .field-input-affordance:focus-within .field-input-action{
+  border-left-color:var(--app-color-focus-ring);
+}
+.field-input-action-host{
+  flex:0 0 auto;
+}
+.field-input-action-host-clear{
+  width:0;
+  min-width:0;
+  opacity:0;
+  overflow:hidden;
+  pointer-events:none;
+  transition:width .12s ease, opacity .12s ease;
+}
+.field-input-affordance:hover .field-input-action-host-clear,
+.field-input-affordance:focus-within .field-input-action-host-clear,
+.field-input-action-host-clear.field-input-action-host-persistent{
+  width:32px;
+  min-width:32px;
+  opacity:1;
+  pointer-events:auto;
+}
+.field-input-action-secondary{
+  border-left:1px solid var(--app-color-border-default);
+}
+.field-input-affordance:focus-within .field-input-action-secondary{
   border-left-color:var(--app-color-focus-ring);
 }
 .test-area{ padding:16px; border-top:1px solid var(--app-color-border-default); display:flex; flex-direction:column; }
@@ -1666,6 +1726,11 @@ export const PAGES_CSS = `
   .settings-inline-heading-copy{
     margin-right:0;
     margin-bottom:8px;
+  }
+  .billing-inline-summary{
+    margin-left:0;
+    justify-content:flex-start;
+    text-align:left;
   }
   .billing-summary-actions .ui-btn,
   .settings-inline-heading-actions .ui-btn{

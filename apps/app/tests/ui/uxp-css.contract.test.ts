@@ -175,6 +175,9 @@ describe('UXP panel CSS contract', () => {
     expect(unionSource).toContain('.cmp-chip-host > .ui-overlay-icon-layer{');
     expect(unionSource).toContain('.cmp-chip-overlay-inner-icon,');
     expect(unionSource).toContain('.cmp-chip-overlay-inner-text{');
+    expect(unionSource).toContain('.att-thumb > .motion-highlight{');
+    expect(unionSource).toContain('bottom:0;');
+    expect(unionSource).toContain('border-radius:inherit;');
   });
 
   it('keeps toasts below the app header and fluid in compact panels', () => {
@@ -204,12 +207,16 @@ describe('UXP panel CSS contract', () => {
     expect(unionSource).toContain('--chat-result-inline-max:320px;');
     expect(unionSource).toContain('--chat-preview-inline-max:288px;');
     expect(unionSource).toContain('--chat-preview-block-fallback:232px;');
+    expect(unionSource).toContain('--chat-preview-portrait-cap-padding:150%;');
     expect(unionSource).toContain('--chat-preview-stage-surface:var(--app-color-background-base);');
     expect(unionSource).toContain('--chat-preview-alpha-surface:var(--app-color-background-layer-2);');
     expect(unionSource).toContain('width:100%; max-width:var(--chat-result-inline-max);');
-    expect(unionSource).toContain('width:100%; max-width:var(--chat-preview-inline-max);');
-    expect(unionSource).toContain('margin-right:auto;');
-    expect(unionSource).toContain('margin-left:auto;');
+    expect(unionSource).toContain('align-self:flex-start;');
+    expect(unionSource).toContain('width:auto;');
+    expect(unionSource).toContain('max-width:100%;');
+    expect(unionSource).toContain('max-width:none;');
+    expect(unionSource).toContain('margin-right:0;');
+    expect(unionSource).toContain('margin-left:0;');
     expect(unionSource).toContain('.panel[data-panel-width-mode="compact"] .round-list{');
     expect(unionSource).toContain('--chat-result-inline-max:100%;');
     expect(unionSource).toContain('.panel[data-panel-width-mode="regular"] .round-list{');
@@ -217,10 +224,12 @@ describe('UXP panel CSS contract', () => {
     expect(unionSource).toContain('--chat-result-inline-max:440px;');
     expect(unionSource).toContain('min-height:0;');
     expect(unionSource).toContain('.img-stage{');
+    expect(unionSource).toContain('.img-frame{');
     expect(unionSource).toContain('.img-media{');
-    expect(unionSource).toContain('.img-result[data-preview-layout="portrait-cap"][data-has-preview="true"] .img-stage::before{');
-    expect(unionSource).toContain('.img-media-shell[data-alpha-backdrop="true"]{');
+    expect(unionSource).toContain('.img-result[data-preview-layout="tall-contain"][data-preview-visual-mode="contained-well"][data-has-preview="true"] .img-stage::before{');
+    expect(unionSource).toContain('.img-frame[data-alpha-state="transparent"]{');
     expect(unionSource).not.toContain('background-image:linear-gradient(45deg');
+    expect(unionSource).not.toContain('.img-media-shell[data-alpha-backdrop="true"]{');
     expect(unionSource).not.toContain('.panel[data-panel-width-mode="wide"] .img-result{ height:300px; max-height:440px; }');
   });
 

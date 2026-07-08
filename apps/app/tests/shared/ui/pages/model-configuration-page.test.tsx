@@ -307,6 +307,51 @@ describe('ModelConfigurationPage', () => {
     expect(container.querySelector<HTMLElement>('[data-testid="model-config-api-format-selector"]')?.hasAttribute('disabled')).toBe(true);
   });
 
+  it('uses visible-label initials for default Nano Banana configs across providers', async () => {
+    const officialModelConfigPresets = await Promise.all([
+      officialPreset('openai-chat-completions', 'gemini-3.1-flash-image'),
+      officialPreset('gemini-generate-content', 'gemini-3.1-flash-lite-image'),
+      officialPreset('gemini-generate-content', 'gemini-3.1-flash-image'),
+    ]);
+    const userModelConfigs: readonly UserModelConfig[] = [
+      {
+        apiFormat: 'openai-chat-completions',
+        modelId: 'chat-nano-banana-2',
+        baseModelId: 'gemini-3.1-flash-image',
+        wireModelId: 'google/gemini-3.1-flash-image',
+        requestStrategyId: 'chat-image-default',
+        outputExposure: simpleFlexibleExposure,
+        outputMatrix: [],
+      },
+      {
+        apiFormat: 'gemini-generate-content',
+        modelId: 'gemini-nano-banana-2-lite',
+        baseModelId: 'gemini-3.1-flash-lite-image',
+        wireModelId: 'models/gemini-3.1-flash-lite-image',
+        requestStrategyId: 'gemini-generate-content-image-config',
+        outputExposure: simpleFlexibleExposure,
+        outputMatrix: [],
+      },
+      {
+        apiFormat: 'gemini-generate-content',
+        modelId: 'gemini-nano-banana-2',
+        baseModelId: 'gemini-3.1-flash-image',
+        wireModelId: 'models/gemini-3.1-flash-image',
+        requestStrategyId: 'gemini-generate-content-image-config',
+        outputExposure: simpleFlexibleExposure,
+        outputMatrix: [],
+      },
+    ];
+    const { services } = createFakeServices({ userModelConfigs, officialModelConfigPresets });
+    const container = await renderPage(services);
+
+    expect(container.querySelector('[data-testid="model-config-avatar-openai-chat-completions-chat-nano-banana-2"]')?.textContent).toBe('NB');
+    expect(container.querySelector('[data-testid="model-config-avatar-gemini-generate-content-gemini-nano-banana-2-lite"]')?.textContent).toBe('NB');
+    expect(container.querySelector('[data-testid="model-config-avatar-gemini-generate-content-gemini-nano-banana-2"]')?.textContent).toBe('NB');
+    expect(container.textContent).toContain('Nano Banana 2');
+    expect(container.textContent).toContain('Nano Banana 2 Lite');
+  });
+
   it('locks api format in edit mode', async () => {
     const userModelConfigs: readonly UserModelConfig[] = [
       {

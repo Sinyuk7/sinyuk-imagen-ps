@@ -19,7 +19,7 @@ export const TARGET_OPTIONS: readonly ComposerSelectOption[] = [
 ];
 
 export const ASPECT_OPTIONS: readonly ComposerSelectOption[] = [
-  { id: 'auto', label: 'Auto', icon: 'image-auto-mode' },
+  { id: 'auto', label: 'Auto', icon: 'aspect-ratio' },
   { id: '1:1', label: '1:1' },
   { id: '4:5', label: '4:5' },
   { id: '16:9', label: '16:9' },

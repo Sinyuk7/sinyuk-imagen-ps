@@ -900,7 +900,7 @@ function ComposerReplica({
                 menuClassName="cmp-select-menu cmp-select-menu-compact"
                 label="Output size"
                 value={sizeId.toUpperCase()}
-                icon="image-auto-mode"
+                icon="image-size"
                 open={open === 'main-size'}
                 onOpenChange={(next) => onOpenChange(next ? 'main-size' : null)}
                 options={[
@@ -1207,7 +1207,7 @@ export function ComposerSelectHarnessPage() {
                           menuClassName="cmp-select-menu cmp-select-menu-compact"
                           label="Aspect ratio"
                           value={currentLabel(ASPECT_OPTIONS, trio.aspectId)}
-                          icon={ASPECT_OPTIONS.find((option) => option.id === trio.aspectId)?.icon ?? 'image-auto-mode'}
+                          icon={ASPECT_OPTIONS.find((option) => option.id === trio.aspectId)?.icon ?? 'aspect-ratio'}
                           open={trioOpen === 'aspect'}
                           onOpenChange={(open) => setTrioOpen(open ? 'aspect' : null)}
                           options={ASPECT_OPTIONS}

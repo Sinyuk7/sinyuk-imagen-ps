@@ -209,9 +209,10 @@ describe('provider billing settings UI', () => {
     expect((queryByTestId(container, 'provider-save-button') as HTMLButtonElement).disabled).toBe(true);
     expect(container.querySelector('[data-testid="provider-billing-path-input"]')).not.toBeNull();
     expect((queryByTestId(container, 'provider-billing-user-id-input') as HTMLInputElement).value).toBe('10001');
-    expect(container.querySelector('[data-testid="provider-billing-access-token-input"]')).toBeNull();
+    expect(container.querySelector('[data-testid="provider-billing-access-token-input"]')).not.toBeNull();
+    expect(container.querySelector('[data-testid="provider-billing-access-token-edit"]')).toBeNull();
+    expect(document.body.textContent).toContain('仅用于查询余额，已安全保存。');
 
-    await clickTestId(container, 'provider-billing-access-token-edit');
     await inputTestId(container, 'provider-billing-access-token-input', 'billing-next');
 
     await clickTestId(container, 'provider-save-button');
@@ -234,6 +235,37 @@ describe('provider billing settings UI', () => {
     expect(onProfilesChanged).toHaveBeenCalledWith('mock-profile');
   });
 
+  it('cancels saved billing token removal when a replacement is entered', async () => {
+    const container = document.createElement('div');
+    document.body.appendChild(container);
+    const { fake } = await renderDetailPage(container, createBillingTokenProfile());
+
+    await clickTestId(container, 'provider-billing-access-token-clear');
+    expect(document.body.textContent).toContain('保存后移除。');
+
+    await inputTestId(container, 'provider-billing-access-token-input', 'billing-next');
+    expect(document.body.textContent).not.toContain('保存后移除。');
+
+    await clickTestId(container, 'provider-save-button');
+
+    expect(fake.spies.saveProviderProfile).toHaveBeenCalledTimes(1);
+    expect(fake.spies.saveProviderProfile.mock.calls[0]?.[0]).toMatchObject({
+      profileId: 'mock-profile',
+      secretValues: {
+        billingToken: 'billing-next',
+      },
+      config: {
+        billing: {
+          source: 'billing-token',
+          path: '/client/openapi/getCredits',
+          userId: '10001',
+          tokenSecretRef: 'secret:pending:billingToken',
+        },
+      },
+    });
+    expect(fake.spies.saveProviderProfile.mock.calls[0]?.[0]?.removedSecretNames).toBeUndefined();
+  });
+
   it('saves latest billing path when token edit already made form dirty', async () => {
     const container = document.createElement('div');
     document.body.appendChild(container);
@@ -247,7 +279,6 @@ describe('provider billing settings UI', () => {
     };
     const { fake } = await renderDetailPage(container, profile);
 
-    await clickTestId(container, 'provider-billing-access-token-edit');
     await inputTestId(container, 'provider-billing-access-token-input', 'billing-next');
 
     await act(async () => {
@@ -287,7 +318,6 @@ describe('provider billing settings UI', () => {
     };
     const { fake } = await renderDetailPage(container, profile);
 
-    await clickTestId(container, 'provider-billing-access-token-edit');
     await inputTestId(container, 'provider-billing-access-token-input', 'billing-next');
 
     await act(async () => {

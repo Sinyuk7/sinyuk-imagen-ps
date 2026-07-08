@@ -1,11 +1,15 @@
 import type { SyntheticEvent } from 'react';
 import { OverlayControlShell } from './overlay-controls';
 
-interface ProviderIdentityProps {
+interface ProviderMediaHeaderProps {
   readonly providerName: string;
   readonly modelLabel?: string;
+  readonly statusLabel: string;
+  readonly durationLabel?: string;
+  readonly statusTone: 'ok' | 'run' | 'err' | 'info';
   readonly disabled?: boolean;
   readonly onClick?: (event: SyntheticEvent<HTMLDivElement>) => void;
+  readonly testIdPrefix?: string;
 }
 
 function providerInitial(providerName: string): string {
@@ -13,19 +17,24 @@ function providerInitial(providerName: string): string {
   return normalized ? normalized[0]!.toUpperCase() : '?';
 }
 
-export function ProviderIdentity({
+export function ProviderMediaHeader({
   providerName,
   modelLabel,
+  statusLabel,
+  durationLabel,
+  statusTone,
   disabled = false,
   onClick,
-}: ProviderIdentityProps) {
+  testIdPrefix,
+}: ProviderMediaHeaderProps) {
   const interactive = !disabled && typeof onClick === 'function';
   const initial = providerInitial(providerName);
 
   return (
     <div
-      className="prov-identity"
+      className="prov-media-header"
       data-disabled={disabled ? 'true' : undefined}
+      data-testid={testIdPrefix ? `${testIdPrefix}-header` : undefined}
       role={interactive ? 'button' : undefined}
       tabIndex={interactive ? 0 : undefined}
       aria-label={providerName}
@@ -51,16 +60,39 @@ export function ProviderIdentity({
       >
         <span className="prov-identity-icon-slot" aria-hidden="true" />
       </OverlayControlShell>
-      <div className="prov-identity-button">
-        <span className="prov-name-wrap">
-          <span className="prov-name-lbl">{providerName}</span>
+      <div className="prov-media-header-main">
+        <div
+          className="prov-media-provider-row"
+          data-testid={testIdPrefix ? `${testIdPrefix}-provider-row` : undefined}
+        >
+          <span className="prov-media-provider-name">{providerName}</span>
+        </div>
+        <div
+          className="prov-media-meta-row"
+          data-testid={testIdPrefix ? `${testIdPrefix}-meta-row` : undefined}
+        >
           {modelLabel ? (
-            <span className="prov-model-lbl">
-              <span className="prov-model-sep">/ </span>
+            <span
+              className="prov-media-model-name"
+              data-testid={testIdPrefix ? `${testIdPrefix}-model-name` : undefined}
+            >
               {modelLabel}
             </span>
           ) : null}
-        </span>
+          <span
+            className="prov-media-status-group"
+            data-testid={testIdPrefix ? `${testIdPrefix}-status-group` : undefined}
+          >
+            <span className={`sdot ${statusTone}`} />
+            <span className={`prov-status-text ${statusTone}`}>{statusLabel}</span>
+            {durationLabel ? (
+              <>
+                <span className="prov-media-meta-separator" aria-hidden="true">·</span>
+                <span className="prov-media-duration">{durationLabel}</span>
+              </>
+            ) : null}
+          </span>
+        </div>
       </div>
     </div>
   );

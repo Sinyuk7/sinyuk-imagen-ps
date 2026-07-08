@@ -1,5 +1,10 @@
 import { describe, expect, it } from 'vitest';
-import { assetHasTransparency, hasImageTransparency } from '../../src/shared/image/image-transparency';
+import {
+  assetHasTransparency,
+  hasImageTransparency,
+  transparencyStateFromAsset,
+  transparencyStateFromImageBytes,
+} from '../../src/shared/image/image-transparency';
 import { VALID_TRANSPARENT_PNG, realRgbPngWithSize, realJpegWithSize } from '../helpers/host-bridge-harness';
 
 describe('image transparency detection', () => {
@@ -14,5 +19,13 @@ describe('image transparency detection', () => {
       mimeType: 'image/png',
       data: `data:image/png;base64,${Buffer.from(VALID_TRANSPARENT_PNG).toString('base64')}`,
     } as const)).toBe(true);
+  });
+
+  it('keeps unknown transparency separate from opaque when signal is not trustworthy', () => {
+    expect(transparencyStateFromImageBytes(new Uint8Array([0x00, 0x01, 0x02]), 'image/png')).toBe('unknown');
+    expect(transparencyStateFromAsset({
+      mimeType: 'image/webp',
+      data: new Uint8Array([0x52, 0x49, 0x46, 0x46]),
+    } as const)).toBe('unknown');
   });
 });

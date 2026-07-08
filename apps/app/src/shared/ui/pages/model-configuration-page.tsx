@@ -83,6 +83,17 @@ function buildOfficialDisplayNames(presets: readonly OfficialModelPreset[]): Rea
   return new Map(presets.map((preset) => [preset.modelId, preset.displayName] as const));
 }
 
+function modelConfigAvatarSourceLabel(
+  config: Pick<UserModelConfig, 'baseModelId'>,
+  officialDisplayNames: ReadonlyMap<string, string>,
+): string {
+  const displayName = officialDisplayNames.get(config.baseModelId.trim());
+  if (typeof displayName === 'string' && displayName.trim().length > 0) {
+    return displayName;
+  }
+  return config.baseModelId;
+}
+
 function modelConfigAvatarLabel(baseModelId: string): string {
   const trimmed = baseModelId.trim();
   if (!trimmed) {
@@ -942,22 +953,26 @@ export function ModelConfigurationPage({ onNav, onSaved, onBack, initialEditorSt
                 />
               ) : null}
               <div className="model-config-list">
-                {configs.map((config) => (
-                  <SettingsListRow
-                    key={`${config.apiFormat}:${config.modelId}`}
-                    testId={`model-config-row-${config.apiFormat}-${config.modelId}`}
-                    title={userModelConfigVisibleLabel(config, officialDisplayNames)}
-                    leading={(
-                      <div className="prov-ico" style={{ background: 'var(--app-color-background-layer-2)', color: 'var(--app-color-accent-default)' }}>
-                        <span data-testid={`model-config-avatar-${config.apiFormat}-${config.modelId}`}>{modelConfigAvatarLabel(config.baseModelId)}</span>
-                      </div>
-                    )}
-                    meta={(
-                      <span className="prov-summary">{configMetaLabel(config)}</span>
-                    )}
-                    onOpen={() => void openEditEditor(config)}
-                  />
-                ))}
+                {configs.map((config) => {
+                  const visibleLabel = userModelConfigVisibleLabel(config, officialDisplayNames);
+                  const avatarLabel = modelConfigAvatarSourceLabel(config, officialDisplayNames);
+                  return (
+                    <SettingsListRow
+                      key={`${config.apiFormat}:${config.modelId}`}
+                      testId={`model-config-row-${config.apiFormat}-${config.modelId}`}
+                      title={visibleLabel}
+                      leading={(
+                        <div className="prov-ico" style={{ background: 'var(--app-color-background-layer-2)', color: 'var(--app-color-accent-default)' }}>
+                          <span data-testid={`model-config-avatar-${config.apiFormat}-${config.modelId}`}>{modelConfigAvatarLabel(avatarLabel)}</span>
+                        </div>
+                      )}
+                      meta={(
+                        <span className="prov-summary">{configMetaLabel(config)}</span>
+                      )}
+                      onOpen={() => void openEditEditor(config)}
+                    />
+                  );
+                })}
               </div>
             </section>
           </div>

@@ -50,6 +50,7 @@ import { userModelConfigVisibleLabel } from '../model-info';
 
 interface SettingsDetailPageProps {
   readonly onNav: (view: string) => void;
+  readonly onBack?: () => void;
   readonly profileId: string | null;
   readonly onProfilesChanged: (profileId: string | null) => Promise<void>;
   readonly onSaved?: (message: string) => void;
@@ -240,7 +241,7 @@ function liveTextInputValue(inputId: string): string | undefined {
   return undefined;
 }
 
-export function SettingsDetailPage({ onNav, profileId, onProfilesChanged, onSaved, onOpenModelConfiguration }: SettingsDetailPageProps) {
+export function SettingsDetailPage({ onNav, onBack, profileId, onProfilesChanged, onSaved, onOpenModelConfiguration }: SettingsDetailPageProps) {
   const services = useAppServices();
   const { messages: t } = useI18n();
   const providers = useProviderCatalog(services);
@@ -276,6 +277,7 @@ export function SettingsDetailPage({ onNav, profileId, onProfilesChanged, onSave
   const busy = saveBusy;
   const measurementSupported = Boolean(providerDescriptor && providerDescriptor.connectivity?.endpointMeasurement !== 'unsupported');
   const connectionTestSupported = Boolean(providerDescriptor && providerDescriptor.connectivity?.connectionTest !== 'unsupported');
+  const handleBack = onBack ?? (() => onNav('settings'));
 
   const effectiveBillingDraft = billingDraftForSave(billingDraft, billingAccessTokenRemovalPending);
   const billingValidation = billingFieldError(effectiveBillingDraft, providerDescriptor, {
@@ -840,18 +842,38 @@ export function SettingsDetailPage({ onNav, profileId, onProfilesChanged, onSave
   const renderBillingSection = () => {
     const balance = formatBillingPrimary(billing.billing);
     const checkedAt = billing.billing?.balance?.checkedAt;
-    const isConfigured = Boolean(balance) || billingDraft.source !== 'disabled' || Boolean(billing.billing?.balance);
-    const billingHint = !isConfigured
-      ? t.settings.billingDisabled
-      : balance
-        ? `${t.settings.billingBalanceLabel} ${balance}`
-        : t.settings.billingModeHint;
+    const footer = checkedAt || formatExactTaskCost(billing.billing?.lastExactTaskCost) || formatBalanceChange(billing.billing?.lastBalanceChange)
+      ? (
+          <>
+            {checkedAt ? (
+              <div className="billing-last-cost">
+                {t.settings.billingCheckedAt}: {new Date(checkedAt).toLocaleString()}
+              </div>
+            ) : null}
+            {formatExactTaskCost(billing.billing?.lastExactTaskCost) ? (
+              <div className="billing-last-cost">
+                {t.main.billingLastCost}: {formatExactTaskCost(billing.billing?.lastExactTaskCost)}
+              </div>
+            ) : null}
+            {!formatExactTaskCost(billing.billing?.lastExactTaskCost) && formatBalanceChange(billing.billing?.lastBalanceChange) ? (
+              <div className="billing-last-cost">
+                {t.main.billingLastChange}: {formatBalanceChange(billing.billing?.lastBalanceChange)}
+              </div>
+            ) : null}
+          </>
+        )
+      : null;
 
     return (
       <div className="provider-embedded-section">
         <div className="settings-inline-heading-row billing-inline-heading">
           <div className="section-title settings-section-heading">{t.settings.billing}</div>
-          <div className="billing-inline-summary">{billingHint}</div>
+          {balance ? (
+            <div className="billing-inline-summary">
+              <span className="billing-inline-summary-label">{t.settings.billingBalanceLabel}</span>
+              <span className="billing-inline-summary-value">{balance}</span>
+            </div>
+          ) : null}
         </div>
         <ProviderBillingSettings
           billing={effectiveBillingDraft}
@@ -865,7 +887,6 @@ export function SettingsDetailPage({ onNav, profileId, onProfilesChanged, onSave
           onModeMenuOpenChange={setBillingModeMenuOpen}
           disabled={busy}
           accessTokenPlaceholder="token"
-          accessTokenSavedMeta={billingDraft.hasSavedToken && !billingAccessTokenRemovalPending ? t.settings.savedSecretPlaceholder : null}
           accessTokenRemovalPending={billingAccessTokenRemovalPending}
           onAccessTokenRemove={() => {
             const nextBillingDraft = { ...billingDraftRef.current, token: '', hasSavedToken: false };
@@ -874,6 +895,7 @@ export function SettingsDetailPage({ onNav, profileId, onProfilesChanged, onSave
             setBillingAccessTokenRemovalPending(true);
             invalidateDraftProofs();
           }}
+          onAccessTokenRemovalPendingChange={setBillingAccessTokenRemovalPending}
           sourceError={billingValidation === 'api-key'
             ? t.settings.billingValidationApiKey
             : billingValidation === 'unsupported'
@@ -882,6 +904,7 @@ export function SettingsDetailPage({ onNav, profileId, onProfilesChanged, onSave
           pathError={billingValidation === 'path' ? t.settings.billingValidationPath : null}
           userIdError={billingValidation === 'user-id' ? t.settings.billingValidationUserId : null}
           accessTokenError={billingValidation === 'token' ? t.settings.billingValidationAccessToken : null}
+          footer={footer}
         />
         {billing.billing?.balance?.snapshot.details?.length ? (
           <div className="billing-detail-list">
@@ -906,21 +929,6 @@ export function SettingsDetailPage({ onNav, profileId, onProfilesChanged, onSave
             />
           </div>
         )}
-        {checkedAt ? (
-          <div className="billing-last-cost">
-            {t.settings.billingCheckedAt}: {new Date(checkedAt).toLocaleString()}
-          </div>
-        ) : null}
-        {formatExactTaskCost(billing.billing?.lastExactTaskCost) && (
-          <div className="billing-last-cost">
-            {t.main.billingLastCost}: {formatExactTaskCost(billing.billing?.lastExactTaskCost)}
-          </div>
-        )}
-        {!formatExactTaskCost(billing.billing?.lastExactTaskCost) && formatBalanceChange(billing.billing?.lastBalanceChange) && (
-          <div className="billing-last-cost">
-            {t.main.billingLastChange}: {formatBalanceChange(billing.billing?.lastBalanceChange)}
-          </div>
-        )}
       </div>
     );
   };
@@ -928,7 +936,7 @@ export function SettingsDetailPage({ onNav, profileId, onProfilesChanged, onSave
   if (!profileId) {
     return (
       <div className="page page-enter">
-        <ProviderSettingsPageHeader title={t.common.provider} onBack={() => onNav('settings')} />
+        <ProviderSettingsPageHeader title={t.common.provider} onBack={handleBack} />
         <div className="scroll">
           <div style={{ padding: 16, color: 'var(--app-color-text-muted)', fontSize: 12 }}>{t.settings.noProfileSelected}</div>
         </div>
@@ -945,7 +953,7 @@ export function SettingsDetailPage({ onNav, profileId, onProfilesChanged, onSave
             <div className="hdr-title page-header-title">{detail.profile?.displayName ?? t.common.provider}</div>
           </div>
         )}
-        onBack={() => onNav('settings')}
+        onBack={handleBack}
         rightSlot={(
           <IconButton
             data-testid="provider-delete-button"
