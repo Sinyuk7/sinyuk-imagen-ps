@@ -1,0 +1,2 @@
+# Copy local CodeGraph index into Codex-managed worktrees.
+.codegraph/codegraph.db
