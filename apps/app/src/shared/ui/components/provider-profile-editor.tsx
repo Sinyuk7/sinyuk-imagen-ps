@@ -36,6 +36,7 @@ interface ProviderProfileEditorProps {
   readonly onConnectionChange: (updater: ProviderConnectionUpdater) => void;
   readonly baseUrlPlaceholder?: string;
   readonly endpointErrors?: ReadonlyMap<string, string>;
+  readonly endpointValueOverrides?: Readonly<Record<string, string>>;
   readonly measurementResults?: ReadonlyMap<string, EndpointMeasurementResult>;
   readonly resolvedEndpointId?: string;
   readonly measurementBusy?: boolean;
@@ -134,6 +135,7 @@ export function ProviderProfileEditor({
   onConnectionChange,
   baseUrlPlaceholder,
   endpointErrors,
+  endpointValueOverrides,
   measurementResults,
   resolvedEndpointId,
   measurementBusy = false,
@@ -326,7 +328,7 @@ export function ProviderProfileEditor({
                     data-testid={`provider-endpoint-url-${index}`}
                     id={`provider-endpoint-url-${endpoint.id}`}
                     placeholder={baseUrlPlaceholder ?? t.settings.baseUrlHint}
-                    value={endpoint.url}
+                    value={endpointValueOverrides?.[endpoint.id] ?? endpoint.url}
                     disabled={disabled}
                     onValue={(value) => onConnectionChange((current) => updateEndpoint(current, endpoint.id, (endpointDraft) => ({ ...endpointDraft, url: sanitizeProviderEndpointUrl(value) })))}
                   />

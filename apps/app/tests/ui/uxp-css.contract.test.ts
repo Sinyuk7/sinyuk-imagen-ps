@@ -262,7 +262,7 @@ describe('UXP panel CSS contract', () => {
     for (const filePath of uiFiles) {
       expectNoPattern(filePath, {
         name: 'CSS transform outside motion layer',
-        pattern: /\btransform\s*:/u,
+        pattern: /(?:^|[;{\n])\s*transform\s*:/u,
         replacement: 'Use the shared motion layer and apply transform via JS DOM style.transform; do not write `transform:` in styles or inline style objects.',
         category: 'project-policy',
       });

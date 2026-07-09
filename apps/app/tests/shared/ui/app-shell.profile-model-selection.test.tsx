@@ -1,5 +1,6 @@
 import { act } from 'react';
 import { afterEach, describe, expect, it } from 'vitest';
+import type { ProviderProfile } from '@imagen-ps/application';
 import { createFakeServices, fakeProfile, profileModelItem } from '../../helpers/fakes';
 import { cleanupMainPageRoot, flush, renderMainPage } from '../../helpers/main-page-harness';
 
@@ -26,6 +27,32 @@ function createReturningUserServices(options?: Parameters<typeof createFakeServi
       ...options?.generationSettings,
     },
   });
+}
+
+function geminiExplicitProfile(): ProviderProfile {
+  return {
+    ...fakeProfile,
+    profileId: 'gemini-profile',
+    apiFormat: 'gemini-generate-content',
+    displayName: 'Gemini Relay',
+    config: {
+      apiFormat: 'gemini-generate-content',
+      displayName: 'Gemini Relay',
+      connection: {
+        selectionMode: 'manual',
+        selectedEndpointId: 'primary',
+        endpoints: [{
+          id: 'primary',
+          url: 'https://llm-api.net/v1beta/models/gemini-3-pro-image-preview:generateContent',
+          enabled: true,
+        }],
+      },
+      paths: {
+        invokeTemplate: '/models/{model}:generateContent',
+      },
+      authMode: 'x-goog-api-key',
+    },
+  };
 }
 
 describe('AppShell profile-owned model flow', () => {
@@ -241,5 +268,83 @@ describe('AppShell profile-owned model flow', () => {
     expect(row?.textContent).toContain('nano-banana-fast');
     expect(row?.textContent).not.toContain('Nano Banana 2 Lite');
     expect(row?.textContent).not.toContain('nano-banana-fast-wire');
+  });
+
+  it('opens a prefilled model editor from unresolved detail endpoint hint', async () => {
+    const container = document.createElement('div');
+    document.body.appendChild(container);
+    const services = createReturningUserServices({
+      profiles: [geminiExplicitProfile()],
+      profileModelItems: [],
+    });
+    await renderMainPage(container, services);
+
+    await act(async () => {
+      container.querySelector<HTMLElement>('[data-testid="main-providers-button"]')?.click();
+    });
+    await flush();
+    await flush();
+
+    await act(async () => {
+      container.querySelector<HTMLElement>('[data-testid="provider-row-gemini-profile"]')?.click();
+    });
+    await flush();
+    await flush();
+
+    await act(async () => {
+      container.querySelector<HTMLElement>('[data-testid="provider-model-selector"]')?.click();
+    });
+    await flush();
+
+    await act(async () => {
+      document.body.querySelector<HTMLElement>('[data-testid="provider-model-selector-option-__add-model__"]')?.click();
+    });
+    await flush();
+    await flush();
+
+    expect(container.querySelector('[data-testid="model-config-wire-model-id"]')).not.toBeNull();
+    expect(container.querySelector<HTMLInputElement>('[data-testid="model-config-wire-model-id"]')?.value).toBe('gemini-3-pro-image-preview');
+    await act(async () => {
+      container.querySelector<HTMLElement>('.model-config-advanced-toggle')?.click();
+    });
+    await flush();
+    expect(container.querySelector<HTMLInputElement>('[data-testid="model-config-model-id"]')?.value).toBe('gemini-3-pro-image-preview');
+  });
+
+  it('opens ProfileModelsPage instead of editor when endpoint hint matches an owned model', async () => {
+    const container = document.createElement('div');
+    document.body.appendChild(container);
+    const services = createReturningUserServices({
+      profiles: [geminiExplicitProfile()],
+      profileModelItems: [profileModelItem('gemini-3-pro-image-preview')],
+    });
+    await renderMainPage(container, services);
+
+    await act(async () => {
+      container.querySelector<HTMLElement>('[data-testid="main-providers-button"]')?.click();
+    });
+    await flush();
+    await flush();
+
+    await act(async () => {
+      container.querySelector<HTMLElement>('[data-testid="provider-row-gemini-profile"]')?.click();
+    });
+    await flush();
+    await flush();
+
+    await act(async () => {
+      container.querySelector<HTMLElement>('[data-testid="provider-model-selector"]')?.click();
+    });
+    await flush();
+
+    await act(async () => {
+      document.body.querySelector<HTMLElement>('[data-testid="provider-model-selector-option-__add-model__"]')?.click();
+    });
+    await flush();
+    await flush();
+
+    expect(container.querySelector('[data-testid="profile-models-add-button"]')).not.toBeNull();
+    expect(container.querySelector('[data-testid="profile-model-row-gemini-3-pro-image-preview"]')).not.toBeNull();
+    expect(container.querySelector('[data-testid="model-config-wire-model-id"]')).toBeNull();
   });
 });

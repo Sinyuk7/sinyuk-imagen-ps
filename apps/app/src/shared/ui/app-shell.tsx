@@ -57,6 +57,7 @@ type View =
   | 'prompt-settings'
   | 'prompt-preset-detail';
 type SettingsDetailReturnView = 'main' | 'settings';
+type ModelConfigurationReturnView = 'profile-models' | 'settings-detail';
 type AppTheme = 'dark' | 'light';
 type AppThemeOverride = AppTheme | undefined;
 type PanelWidthMode = 'compact' | 'regular' | 'wide';
@@ -219,7 +220,15 @@ function AppShellContent({ host }: AppShellProps) {
     readonly profileId: string;
     readonly apiFormat: ProviderProfile['apiFormat'];
     readonly modelId?: string | null;
+    readonly wireModelId?: string | null;
   } | null>(null);
+  const [settingsDetailFallbackModelSeed, setSettingsDetailFallbackModelSeed] = useState<{
+    readonly profileId: string;
+    readonly apiFormat: ProviderProfile['apiFormat'];
+    readonly modelId?: string | null;
+    readonly wireModelId?: string | null;
+  } | null>(null);
+  const [modelConfigurationReturnView, setModelConfigurationReturnView] = useState<ModelConfigurationReturnView>('profile-models');
   const [selectedModelId, setSelectedModelId] = useState('');
   const [highlightedRoundId, setHighlightedRoundId] = useState<string | null>(null);
   const [restoreFailedRoundId, setRestoreFailedRoundId] = useState<string | null>(null);
@@ -351,6 +360,7 @@ function AppShellContent({ host }: AppShellProps) {
   const onEditProfile = useCallback(
     (profileId: string) => {
       setSelectedSettingsProfileId(profileId);
+      setSettingsDetailFallbackModelSeed(null);
       setSettingsDetailReturnView('main');
       setAppView('settings-detail');
     },
@@ -533,6 +543,7 @@ function AppShellContent({ host }: AppShellProps) {
           error={profilesState.error}
           onOpenProfile={(profileId) => {
             setSelectedSettingsProfileId(profileId);
+            setSettingsDetailFallbackModelSeed(null);
             setSettingsDetailReturnView('settings');
             setView('settings-detail');
           }}
@@ -563,7 +574,9 @@ function AppShellContent({ host }: AppShellProps) {
             }
             show(options.message, 'positive', { key: 'settings-add-provider-saved' });
             setSelectedSettingsProfileId(profileId);
-            setAppView('settings');
+            setSettingsDetailFallbackModelSeed(options.fallbackModelSeed ?? null);
+            setSettingsDetailReturnView('settings');
+            setView('settings-detail');
           }}
           />
         </MotionPageFrame>
@@ -581,8 +594,21 @@ function AppShellContent({ host }: AppShellProps) {
           }}
           profileId={selectedSettingsProfileId}
           onSaved={(message) => show(message, 'positive', { key: 'settings-provider-saved' })}
+          fallbackModelSeed={settingsDetailFallbackModelSeed}
           onOpenModelConfiguration={(input) => {
             setSelectedSettingsProfileId(input.profileId);
+            setSettingsDetailFallbackModelSeed(null);
+            if (input.destination === 'editor') {
+              setModelConfigurationEditorSeed({
+                profileId: input.profileId,
+                apiFormat: input.apiFormat,
+                modelId: input.modelId ?? null,
+                wireModelId: input.wireModelId ?? input.modelId ?? null,
+              });
+              setModelConfigurationReturnView('settings-detail');
+              setView('model-configuration');
+              return;
+            }
             setView('profile-models');
           }}
           onProfilesChanged={async (profileId) => {
@@ -626,6 +652,7 @@ function AppShellContent({ host }: AppShellProps) {
                     apiFormat: profile.apiFormat,
                     modelId: null,
                   });
+                  setModelConfigurationReturnView('profile-models');
                   setView('model-configuration');
                 }}
                 onEdit={(modelId) => {
@@ -634,6 +661,7 @@ function AppShellContent({ host }: AppShellProps) {
                     apiFormat: profile.apiFormat,
                     modelId,
                   });
+                  setModelConfigurationReturnView('profile-models');
                   setView('model-configuration');
                 }}
                 onSuggestion={(modelId) => {
@@ -642,6 +670,7 @@ function AppShellContent({ host }: AppShellProps) {
                     apiFormat: profile.apiFormat,
                     modelId,
                   });
+                  setModelConfigurationReturnView('profile-models');
                   setView('model-configuration');
                 }}
               />
@@ -667,7 +696,7 @@ function AppShellContent({ host }: AppShellProps) {
           <ModelConfigurationPage
           onNav={onNav}
           onBack={() => {
-            setView('profile-models');
+            setView(modelConfigurationReturnView);
           }}
           onSaved={async () => {
             await profilesState.reload();
@@ -675,7 +704,7 @@ function AppShellContent({ host }: AppShellProps) {
               await modelsState.reload();
             }
             setModelConfigurationEditorSeed(null);
-            setView('profile-models');
+            setView(modelConfigurationReturnView);
           }}
           initialEditorState={modelConfigurationEditorSeed}
           />
