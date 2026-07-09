@@ -33,6 +33,7 @@ interface ModelConfigurationPageProps {
     readonly profileId: string;
     readonly apiFormat: ApiFormat;
     readonly modelId?: string | null;
+    readonly wireModelId?: string | null;
   };
 }
 
@@ -578,6 +579,7 @@ export function ModelConfigurationPage({ onNav, onSaved, onBack, initialEditorSt
   useEffect(() => {
     const nextApiFormat = initialEditorState.apiFormat;
     const nextModelId = initialEditorState?.modelId?.trim();
+    const nextWireModelId = initialEditorState?.wireModelId?.trim();
     void (async () => {
       try {
         const resolvedApiFormat = nextApiFormat;
@@ -603,7 +605,9 @@ export function ModelConfigurationPage({ onNav, onSaved, onBack, initialEditorSt
           applyPreset(preset, 'create');
           if (nextModelId) {
             setModelId(nextModelId);
-            setWireModelId(nextModelId);
+            setWireModelId(nextWireModelId || nextModelId);
+          } else if (nextWireModelId) {
+            setWireModelId(nextWireModelId);
           }
         }
         setEditingKey(config ? config.modelId : null);

@@ -45,7 +45,14 @@ import {
 } from '../provider-status';
 import { useProfileBilling } from '../hooks/use-profile-billing';
 import { formatBalanceChange, formatBillingPrimary, formatBillingPrimaryParts, formatExactTaskCost } from '../../domain/mappers';
-import { importProviderEndpointInput } from '../hooks/provider-endpoint-import';
+import {
+  interpretEndpointDraft,
+  resolveAddNewModelAction,
+  resolveEndpointApply,
+  type EndpointFeedback,
+  type EndpointModelHint,
+  type ModelConfigurationEditorSeed,
+} from '../hooks/provider-endpoint-import';
 import { configurationInstanceLabel, modelInfoFromProfileItem } from '../model-info';
 
 const ADD_MODEL_ACTION_ID = '__add-model__';
@@ -56,11 +63,14 @@ interface SettingsDetailPageProps {
   readonly profileId: string | null;
   readonly onProfilesChanged: (profileId: string | null) => Promise<void>;
   readonly onSaved?: (message: string) => void;
+  readonly fallbackModelSeed?: ModelConfigurationEditorSeed | null;
   readonly onOpenModelConfiguration?: (input: {
     readonly source: 'profile-detail';
+    readonly destination: 'models-page' | 'editor';
     readonly profileId: string;
     readonly apiFormat: ProviderProfile['apiFormat'];
     readonly modelId?: string | null;
+    readonly wireModelId?: string | null;
   }) => void;
 }
 
@@ -211,7 +221,7 @@ function liveTextInputValue(inputId: string): string | undefined {
   return undefined;
 }
 
-export function SettingsDetailPage({ onNav, onBack, profileId, onProfilesChanged, onSaved, onOpenModelConfiguration }: SettingsDetailPageProps) {
+export function SettingsDetailPage({ onNav, onBack, profileId, onProfilesChanged, onSaved, fallbackModelSeed, onOpenModelConfiguration }: SettingsDetailPageProps) {
   const services = useAppServices();
   const { messages: t } = useI18n();
   const providers = useProviderCatalog(services);
@@ -222,6 +232,10 @@ export function SettingsDetailPage({ onNav, onBack, profileId, onProfilesChanged
   const [connection, setConnection] = useState<ProviderConnectionDraft>(readProviderConnectionDraft(null));
   const [selectedModelId, setSelectedModelId] = useState('');
   const [paths, setPaths] = useState<ApiPathDraft>(defaultApiPathDraft(null));
+  const [endpointRawDrafts, setEndpointRawDrafts] = useState<Readonly<Record<string, string>>>({});
+  const [endpointFeedback, setEndpointFeedback] = useState<EndpointFeedback | null>(null);
+  const [endpointModelHint, setEndpointModelHint] = useState<EndpointModelHint | null>(null);
+  const [fallbackModelSeedSuppressed, setFallbackModelSeedSuppressed] = useState(false);
   const [billingDraft, setBillingDraft] = useState<ProviderBillingDraft>(readProviderBillingDraft(null));
   const [billingModeMenuOpen, setBillingModeMenuOpen] = useState(false);
   const [authModeMenuOpen, setAuthModeMenuOpen] = useState(false);
@@ -248,6 +262,14 @@ export function SettingsDetailPage({ onNav, onBack, profileId, onProfilesChanged
   const measurementSupported = Boolean(providerDescriptor && providerDescriptor.connectivity?.endpointMeasurement !== 'unsupported');
   const connectionTestSupported = Boolean(providerDescriptor && providerDescriptor.connectivity?.connectionTest !== 'unsupported');
   const handleBack = onBack ?? (() => onNav('settings'));
+  const fallbackEndpointModelHint: EndpointModelHint | null = !fallbackModelSeedSuppressed && fallbackModelSeed && detail.profile && fallbackModelSeed.profileId === detail.profile.profileId && fallbackModelSeed.apiFormat === detail.profile.apiFormat && fallbackModelSeed.modelId
+    ? {
+        apiFormat: fallbackModelSeed.apiFormat,
+        modelId: fallbackModelSeed.modelId,
+        wireModelId: fallbackModelSeed.wireModelId ?? fallbackModelSeed.modelId,
+      }
+    : null;
+  const activeEndpointModelHint = endpointModelHint ?? fallbackEndpointModelHint;
 
   const effectiveBillingDraft = billingDraftForSave(billingDraft, billingAccessTokenRemovalPending);
   const billingValidation = billingFieldError(effectiveBillingDraft, providerDescriptor, {
@@ -274,6 +296,14 @@ export function SettingsDetailPage({ onNav, onBack, profileId, onProfilesChanged
   function invalidateDraftProofs() {
     return;
   }
+
+  const endpointFeedbackMessages = {
+    apiFormatNeedsPath: t.settings.apiFormatNeedsPath,
+    apiFormatUnsupported: t.settings.apiFormatUnsupported,
+    apiFormatDetected: t.settings.apiFormatDetected,
+    apiFormatIncomplete: t.settings.apiFormatIncomplete,
+    apiFormatConflict: t.settings.apiFormatConflict,
+  };
 
   const updateApiKey = (value: string) => {
     setApiKey(sanitizeProviderSecretValue(value));
@@ -345,13 +375,16 @@ export function SettingsDetailPage({ onNav, onBack, profileId, onProfilesChanged
     const previous = connectionRef.current;
     let nextConnection = normalizeProviderConnectionDraft(updater(connectionRef.current));
     const changedEndpoint = nextConnection.endpoints.find((endpoint) => {
-      const previousEndpoint = previous.endpoints.find((item) => item.id === endpoint.id);
-      return previousEndpoint && previousEndpoint.url !== endpoint.url;
+      const previousValue = endpointRawDrafts[endpoint.id] ?? previous.endpoints.find((item) => item.id === endpoint.id)?.url;
+      return previousValue !== undefined && previousValue !== endpoint.url;
     });
     if (changedEndpoint && detail.profile) {
-      const imported = importProviderEndpointInput({
-        rawValue: changedEndpoint.url,
-        apiFormat: detail.profile.apiFormat,
+      const interpretation = interpretEndpointDraft(changedEndpoint.url, services.commands.classifyEndpoint);
+      setFallbackModelSeedSuppressed(true);
+      const decision = resolveEndpointApply({
+        interpretation,
+        policy: 'detail-same-format',
+        currentApiFormat: detail.profile.apiFormat,
         currentPaths: paths,
         currentConnection: nextConnection,
         endpointId: changedEndpoint.id,
@@ -362,31 +395,36 @@ export function SettingsDetailPage({ onNav, onBack, profileId, onProfilesChanged
         defaultPathsForApiFormat: defaultApiPathDraft,
         mergeApiPathDraft,
         classifyEndpoint: services.commands.classifyEndpoint,
+        messages: endpointFeedbackMessages,
       });
-      if (imported.classification.status !== 'unsupported') {
-        if (imported.classification.apiFormat !== detail.profile.apiFormat) {
-          show(
-            t.settings.apiFormatConflict(apiFormatLabel(detail.profile.apiFormat), apiFormatLabel(imported.classification.apiFormat)),
-            'negative',
-            { durationMs: null, copyable: false },
-          );
-          nextConnection = previous;
-        } else {
-          setPaths(imported.nextPaths);
-          nextConnection = imported.nextConnection;
-          void services.diagnostics?.checkpoint('uxp.ui.settings_detail.endpoint_import', {
-            apiFormat: detail.profile.apiFormat,
-            aliasApplied: imported.diagnostics.aliasApplied,
-            aliasCandidate: imported.diagnostics.aliasCandidate ?? null,
-            aliasSkippedReason: imported.diagnostics.aliasSkippedReason ?? null,
-            importedModel: imported.diagnostics.importedModel ?? null,
-            classificationStatus: imported.classification.status,
-            classificationSource: imported.classification.source,
-          }, {
-            profile_id: detail.profile.profileId,
-            api_format: detail.profile.apiFormat,
-          });
-        }
+      setEndpointRawDrafts((current) => ({
+        ...current,
+        [changedEndpoint.id]: interpretation.raw,
+      }));
+      setEndpointFeedback(decision.feedback);
+      setEndpointModelHint(decision.hint ?? null);
+      if (decision.kind === 'apply') {
+        setPaths(decision.nextPaths);
+        nextConnection = decision.nextConnection;
+        setEndpointRawDrafts((current) => {
+          const next = { ...current };
+          delete next[changedEndpoint.id];
+          return next;
+        });
+        void services.diagnostics?.checkpoint('uxp.ui.settings_detail.endpoint_import', {
+          apiFormat: detail.profile.apiFormat,
+          aliasApplied: decision.diagnostics.aliasApplied,
+          aliasCandidate: decision.diagnostics.aliasCandidate ?? null,
+          aliasSkippedReason: decision.diagnostics.aliasSkippedReason ?? null,
+          importedModel: decision.diagnostics.importedModel ?? null,
+          classificationStatus: interpretation.classification.status,
+          classificationSource: interpretation.classification.source,
+        }, {
+          profile_id: detail.profile.profileId,
+          api_format: detail.profile.apiFormat,
+        });
+      } else {
+        nextConnection = previous;
       }
     }
     connectionRef.current = nextConnection;
@@ -412,6 +450,14 @@ export function SettingsDetailPage({ onNav, onBack, profileId, onProfilesChanged
     const nextConnection = readProviderConnectionDraft(detail.profile);
     connectionRef.current = nextConnection;
     setConnection(nextConnection);
+    setEndpointRawDrafts({});
+    setEndpointFeedback(null);
+    setFallbackModelSeedSuppressed(false);
+    const firstEndpoint = nextConnection.endpoints[0];
+    const firstInterpretation = firstEndpoint
+      ? interpretEndpointDraft(firstEndpoint.url, services.commands.classifyEndpoint)
+      : null;
+    setEndpointModelHint(firstInterpretation?.explicitModelHint ?? null);
     setPaths(readApiPathDraft(detail.profile));
     setSelectedModelId('');
     const nextBillingDraft = readProviderBillingDraft(detail.profile);
@@ -423,7 +469,7 @@ export function SettingsDetailPage({ onNav, onBack, profileId, onProfilesChanged
     setBillingAccessTokenRemovalPending(false);
     setAliasError(null);
     setModelMenuOpen(false);
-  }, [detail.profile]);
+  }, [detail.profile, services.commands.classifyEndpoint]);
 
   useEffect(() => {
     const nextProfileId = detail.profile?.profileId ?? null;
@@ -770,6 +816,30 @@ export function SettingsDetailPage({ onNav, onBack, profileId, onProfilesChanged
   const modelSelectOptions = detail.profile
     ? [{ id: ADD_MODEL_ACTION_ID, label: t.settings.addNewModel }, ...userModelOptions]
     : userModelOptions;
+  const openAddModelAction = () => {
+    if (!detail.profile) {
+      return;
+    }
+    const action = resolveAddNewModelAction(detail.profile, activeEndpointModelHint, userModelOptions);
+    if (action.kind === 'open-editor') {
+      onOpenModelConfiguration?.({
+        source: 'profile-detail',
+        destination: 'editor',
+        profileId: action.seed.profileId,
+        apiFormat: action.seed.apiFormat,
+        modelId: action.seed.modelId ?? null,
+        wireModelId: action.seed.wireModelId ?? action.seed.modelId ?? null,
+      });
+      return;
+    }
+    onOpenModelConfiguration?.({
+      source: 'profile-detail',
+      destination: 'models-page',
+      profileId: detail.profile.profileId,
+      apiFormat: detail.profile.apiFormat,
+      modelId: action.matchedModelId ?? null,
+    });
+  };
   const saveDisabled = busy || !detail.profile || !draftDirty || endpointErrors.size > 0 || Boolean(aliasError);
   const modelEmptyState = detail.profile && userModelOptions.length === 0
     ? {
@@ -779,14 +849,7 @@ export function SettingsDetailPage({ onNav, onBack, profileId, onProfilesChanged
         detail: modelOptionsError,
         copyText: modelOptionsError,
         actionLabel: t.settings.createModelConfiguration,
-        onAction: () => {
-          onOpenModelConfiguration?.({
-            source: 'profile-detail',
-            profileId: detail.profile!.profileId,
-            apiFormat: detail.profile!.apiFormat,
-            modelId: null,
-          });
-        },
+        onAction: openAddModelAction,
       }
     : null;
 
@@ -962,11 +1025,12 @@ export function SettingsDetailPage({ onNav, onBack, profileId, onProfilesChanged
               onSystemInstructionValue={setSystemInstruction}
               systemInstructionNativeEditorSuspended={modelMenuOpen}
               apiFormatLabel={apiFormatLabel(detail.profile.apiFormat)}
-              apiFormatStatus={apiFormatLabel(detail.profile.apiFormat)}
-              apiFormatTone="positive"
+              apiFormatStatus={endpointFeedback?.message ?? apiFormatLabel(detail.profile.apiFormat)}
+              apiFormatTone={endpointFeedback?.tone ?? 'positive'}
               connection={connection}
               onConnectionChange={updateConnectionDraft}
               endpointErrors={endpointErrors}
+              endpointValueOverrides={endpointRawDrafts}
               measurementResults={connectionProbeResultById([])}
               measurementBusy={false}
               measurementSupported={measurementSupported}
@@ -983,29 +1047,12 @@ export function SettingsDetailPage({ onNav, onBack, profileId, onProfilesChanged
                   triggerValue={modelTriggerValue}
                   modelFieldHelp={null}
                   emptyStateNotice={modelEmptyState}
-              onCreateModelConfig={() => {
-                if (!detail.profile) {
-                  return;
-                }
-                    onOpenModelConfiguration?.({
-                      source: 'profile-detail',
-                      profileId: detail.profile.profileId,
-                      apiFormat: detail.profile.apiFormat,
-                      modelId: null,
-                    });
-                  }}
+                  onCreateModelConfig={openAddModelAction}
                   onModelMenuOpenChange={setModelMenuOpen}
                   onModelSelect={(id) => {
                     if (id === ADD_MODEL_ACTION_ID) {
                       setModelMenuOpen(false);
-                      if (detail.profile) {
-                        onOpenModelConfiguration?.({
-                          source: 'profile-detail',
-                          profileId: detail.profile.profileId,
-                          apiFormat: detail.profile.apiFormat,
-                          modelId: null,
-                        });
-                      }
+                      openAddModelAction();
                       return;
                     }
                     setSelectedModelId(id);

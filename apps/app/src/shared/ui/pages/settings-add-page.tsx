@@ -15,7 +15,6 @@ import {
   providerConfigFromForm,
   sanitizeBillingPath,
   sanitizeProviderDisplayName,
-  sanitizeProviderEndpointUrl,
   sanitizeProviderSecretValue,
   useProviderCatalog,
   type ApiPathDraft,
@@ -35,12 +34,21 @@ import {
   statusFromEndpointMeasurementResult,
   statusFromProviderConnectionTestResult,
 } from '../provider-status';
-import { importDetectionFallbackMessage, importProviderEndpointInput } from '../hooks/provider-endpoint-import';
+import {
+  interpretEndpointDraft,
+  resolveEndpointApply,
+  type EndpointModelHint,
+  type ModelConfigurationEditorSeed,
+} from '../hooks/provider-endpoint-import';
 
 interface SettingsAddPageProps {
   readonly onNav: (view: string) => void;
   readonly profiles: readonly ProviderProfile[];
-  readonly onProfileSaved: (profileId: string, options: { readonly useProvider: boolean; readonly message: string }) => Promise<void>;
+  readonly onProfileSaved: (profileId: string, options: {
+    readonly useProvider: boolean;
+    readonly message: string;
+    readonly fallbackModelSeed?: ModelConfigurationEditorSeed;
+  }) => Promise<void>;
 }
 
 type ConnectionUpdater = (connection: ProviderConnectionDraft) => ProviderConnectionDraft;
@@ -105,6 +113,7 @@ export function SettingsAddPage({ onNav, profiles, onProfileSaved }: SettingsAdd
   const [paths, setPaths] = useState<ApiPathDraft>(defaultApiPathDraft(null));
   const [detectionValue, setDetectionValue] = useState('');
   const [apiFormatFeedback, setApiFormatFeedback] = useState<{ readonly tone: 'neutral' | 'positive' | 'negative' | 'warning'; readonly message: string } | null>(null);
+  const [endpointModelHint, setEndpointModelHint] = useState<EndpointModelHint | null>(null);
   const [name, setName] = useState('');
   const [systemInstruction, setSystemInstruction] = useState('');
   const [connection, setConnection] = useState<ProviderConnectionDraft>(defaultConnection());
@@ -147,6 +156,14 @@ export function SettingsAddPage({ onNav, profiles, onProfileSaved }: SettingsAdd
   }, [billing]);
 
   const invalidateDraftProofs = () => undefined;
+
+  const endpointFeedbackMessages = {
+    apiFormatNeedsPath: t.settings.apiFormatNeedsPath,
+    apiFormatUnsupported: t.settings.apiFormatUnsupported,
+    apiFormatDetected: t.settings.apiFormatDetected,
+    apiFormatIncomplete: t.settings.apiFormatIncomplete,
+    apiFormatConflict: t.settings.apiFormatConflict,
+  };
 
   const syncLiveApiKeyValue = (current: string): string => {
     const live = liveTextInputValue('provider-api-key-input');
@@ -204,9 +221,11 @@ export function SettingsAddPage({ onNav, profiles, onProfileSaved }: SettingsAdd
     endpointId?: string,
     previousConnection?: ProviderConnectionDraft,
   ): Promise<ProviderConnectionDraft> => {
-    const imported = importProviderEndpointInput({
-      rawValue,
-      apiFormat,
+    const interpretation = interpretEndpointDraft(rawValue, services.commands.classifyEndpoint);
+    const decision = resolveEndpointApply({
+      interpretation,
+      policy: 'add-live',
+      currentApiFormat: apiFormat,
       currentPaths: paths,
       currentConnection: nextConnection,
       endpointId,
@@ -217,51 +236,33 @@ export function SettingsAddPage({ onNav, profiles, onProfileSaved }: SettingsAdd
       defaultPathsForApiFormat: defaultApiPathDraft,
       mergeApiPathDraft,
       classifyEndpoint: services.commands.classifyEndpoint,
+      messages: endpointFeedbackMessages,
       normalizeBaseUrlIntoConnection: true,
     });
-    const feedback = importDetectionFallbackMessage({
-      classification: imported.classification,
-      rawValue,
-      currentApiFormat: apiFormat,
-      messages: {
-        apiFormatNeedsPath: t.settings.apiFormatNeedsPath,
-        apiFormatUnsupported: t.settings.apiFormatUnsupported,
-        apiFormatDetected: t.settings.apiFormatDetected,
-        apiFormatIncomplete: t.settings.apiFormatIncomplete,
-        apiFormatConflict: t.settings.apiFormatConflict,
-      },
-    });
-    if (feedback) {
-      setApiFormatFeedback(feedback);
-    }
-    if (imported.classification.status === 'unsupported') {
-      return nextConnection;
-    }
-    if (apiFormat && imported.classification.apiFormat !== apiFormat) {
-      return previousConnection ?? nextConnection;
-    }
-    setApiFormat(imported.nextApiFormat);
-    setPaths(imported.nextPaths);
-    if (imported.suggestedAlias) {
-      setName(imported.suggestedAlias);
+    setApiFormatFeedback(decision.feedback);
+    setEndpointModelHint(decision.hint ?? null);
+    setApiFormat(decision.nextApiFormat);
+    setPaths(decision.nextPaths);
+    if (decision.kind === 'apply' && decision.suggestedAlias) {
+      setName(decision.suggestedAlias);
     }
     await services.diagnostics?.checkpoint('uxp.ui.settings_add.endpoint_import', {
       apiFormatBefore: apiFormat,
-      apiFormatAfter: imported.nextApiFormat,
-      aliasApplied: imported.diagnostics.aliasApplied,
-      aliasCandidate: imported.diagnostics.aliasCandidate ?? null,
-      aliasSkippedReason: imported.diagnostics.aliasSkippedReason ?? null,
-      importedModel: imported.diagnostics.importedModel ?? null,
-      classificationStatus: imported.classification.status,
-      classificationSource: imported.classification.source,
+      apiFormatAfter: decision.nextApiFormat,
+      aliasApplied: decision.diagnostics.aliasApplied,
+      aliasCandidate: decision.diagnostics.aliasCandidate ?? null,
+      aliasSkippedReason: decision.diagnostics.aliasSkippedReason ?? null,
+      importedModel: decision.diagnostics.importedModel ?? null,
+      classificationStatus: interpretation.classification.status,
+      classificationSource: interpretation.classification.source,
     }, {
-      ...(imported.nextApiFormat ? { api_format: imported.nextApiFormat } : {}),
+      ...(decision.nextApiFormat ? { api_format: decision.nextApiFormat } : {}),
     });
-    return imported.nextConnection;
+    return decision.nextConnection;
   };
 
   const applyDetectionInput = (value: string) => {
-    const sanitized = sanitizeProviderEndpointUrl(value);
+    const sanitized = value;
     setDetectionValue(sanitized);
     const primaryEndpoint = connectionRef.current.endpoints[0];
     void (async () => {
@@ -380,9 +381,11 @@ export function SettingsAddPage({ onNav, profiles, onProfileSaved }: SettingsAdd
     });
     if (changedEndpoint) {
       void (async () => {
-        const imported = importProviderEndpointInput({
-          rawValue: changedEndpoint.url,
-          apiFormat,
+        const interpretation = interpretEndpointDraft(changedEndpoint.url, services.commands.classifyEndpoint);
+        const decision = resolveEndpointApply({
+          interpretation,
+          policy: 'add-live',
+          currentApiFormat: apiFormat,
           currentPaths: paths,
           currentConnection: normalizedConnection,
           endpointId: changedEndpoint.id,
@@ -393,43 +396,29 @@ export function SettingsAddPage({ onNav, profiles, onProfileSaved }: SettingsAdd
           defaultPathsForApiFormat: defaultApiPathDraft,
           mergeApiPathDraft,
           classifyEndpoint: services.commands.classifyEndpoint,
+          messages: endpointFeedbackMessages,
           normalizeBaseUrlIntoConnection: false,
         });
-        const feedback = importDetectionFallbackMessage({
-          classification: imported.classification,
-          rawValue: changedEndpoint.url,
-          currentApiFormat: apiFormat,
-          messages: {
-            apiFormatNeedsPath: t.settings.apiFormatNeedsPath,
-            apiFormatUnsupported: t.settings.apiFormatUnsupported,
-            apiFormatDetected: t.settings.apiFormatDetected,
-            apiFormatIncomplete: t.settings.apiFormatIncomplete,
-            apiFormatConflict: t.settings.apiFormatConflict,
-          },
+        setApiFormatFeedback(decision.feedback);
+        setEndpointModelHint(decision.hint ?? null);
+        setApiFormat(decision.nextApiFormat);
+        setPaths(decision.nextPaths);
+        if (decision.kind === 'apply' && decision.suggestedAlias) {
+          setName(decision.suggestedAlias);
+        }
+        await services.diagnostics?.checkpoint('uxp.ui.settings_add.endpoint_import', {
+          apiFormatBefore: apiFormat,
+          apiFormatAfter: decision.nextApiFormat,
+          aliasApplied: decision.diagnostics.aliasApplied,
+          aliasCandidate: decision.diagnostics.aliasCandidate ?? null,
+          aliasSkippedReason: decision.diagnostics.aliasSkippedReason ?? null,
+          importedModel: decision.diagnostics.importedModel ?? null,
+          classificationStatus: interpretation.classification.status,
+          classificationSource: interpretation.classification.source,
+        }, {
+          ...(decision.nextApiFormat ? { api_format: decision.nextApiFormat } : {}),
         });
-        if (feedback) {
-          setApiFormatFeedback(feedback);
-        }
-        if (imported.classification.status !== 'unsupported' && (!apiFormat || imported.classification.apiFormat === apiFormat)) {
-          setApiFormat(imported.nextApiFormat);
-          setPaths(imported.nextPaths);
-          if (imported.suggestedAlias) {
-            setName(imported.suggestedAlias);
-          }
-          await services.diagnostics?.checkpoint('uxp.ui.settings_add.endpoint_import', {
-            apiFormatBefore: apiFormat,
-            apiFormatAfter: imported.nextApiFormat,
-            aliasApplied: imported.diagnostics.aliasApplied,
-            aliasCandidate: imported.diagnostics.aliasCandidate ?? null,
-            aliasSkippedReason: imported.diagnostics.aliasSkippedReason ?? null,
-            importedModel: imported.diagnostics.importedModel ?? null,
-            classificationStatus: imported.classification.status,
-            classificationSource: imported.classification.source,
-          }, {
-            ...(imported.nextApiFormat ? { api_format: imported.nextApiFormat } : {}),
-          });
-        }
-        const applied = normalizedConnection;
+        const applied = decision.nextConnection;
         connectionRef.current = applied;
         setConnection(applied);
         invalidateDraftProofs();
@@ -515,7 +504,19 @@ export function SettingsAddPage({ onNav, profiles, onProfileSaved }: SettingsAdd
     setSaveBusy(true);
     try {
       const profileId = await saveProfile();
-      await onProfileSaved(profileId, { useProvider: useProviderOnSave, message: t.settings.saved });
+      const fallbackModelSeed = endpointModelHint && endpointModelHint.apiFormat === apiFormat
+        ? {
+            profileId,
+            apiFormat: endpointModelHint.apiFormat,
+            modelId: endpointModelHint.modelId,
+            wireModelId: endpointModelHint.wireModelId ?? endpointModelHint.modelId,
+          }
+        : undefined;
+      await onProfileSaved(profileId, {
+        useProvider: useProviderOnSave,
+        message: t.settings.saved,
+        ...(fallbackModelSeed ? { fallbackModelSeed } : {}),
+      });
     } catch (error) {
       show(error instanceof Error ? error.message : String(error), 'negative', {
         key: 'settings-add-save-error',

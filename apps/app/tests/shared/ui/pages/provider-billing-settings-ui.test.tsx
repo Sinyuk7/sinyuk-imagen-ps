@@ -33,7 +33,6 @@ async function renderAddPage(container: HTMLElement, options?: {
           onNav={vi.fn()}
           profiles={options?.profiles ?? []}
           onProfileSaved={options?.onProfileSaved ?? vi.fn(async () => undefined)}
-          onOpenModelConfiguration={vi.fn()}
         />
       </TestAppProviders>,
     );
@@ -225,6 +224,25 @@ describe('provider billing settings UI', () => {
     expect(onProfileSaved).toHaveBeenCalledTimes(1);
   });
 
+  it('recomputes add-page endpoint fields and clears stale path inputs', async () => {
+    const container = document.createElement('div');
+    document.body.appendChild(container);
+    await renderAddPage(container);
+
+    await inputTestId(container, 'provider-endpoint-detect-input', 'https://relay.test/v1/chat/completions');
+    expect((queryByTestId(container, 'provider-invoke-path-input') as HTMLInputElement).value).toBe('/chat/completions');
+    expect(container.querySelector('[data-testid="provider-generation-path-input"]')).toBeNull();
+
+    await inputTestId(container, 'provider-endpoint-detect-input', 'https://relay.test/v1/images/generations');
+    expect((queryByTestId(container, 'provider-generation-path-input') as HTMLInputElement).value).toBe('/images/generations');
+    expect(container.querySelector('[data-testid="provider-invoke-path-input"]')).toBeNull();
+
+    await inputTestId(container, 'provider-endpoint-detect-input', 'https://relay.test/v1/');
+    expect(container.querySelector('[data-testid="provider-generation-path-input"]')).toBeNull();
+    expect(container.querySelector('[data-testid="provider-invoke-path-input"]')).toBeNull();
+    expect((queryByTestId(container, 'provider-endpoint-url-0') as HTMLInputElement).value).toBe('https://relay.test/v1');
+  });
+
   it('replaces saved billing token on detail page', async () => {
     const container = document.createElement('div');
     document.body.appendChild(container);
@@ -259,6 +277,20 @@ describe('provider billing settings UI', () => {
       },
     });
     expect(onProfilesChanged).toHaveBeenCalledWith('mock-profile');
+  });
+
+  it('keeps detail structured draft stable for cross-format endpoint input', async () => {
+    const container = document.createElement('div');
+    document.body.appendChild(container);
+    await renderDetailPage(container, createBillingTokenProfile());
+
+    await inputTestId(container, 'provider-endpoint-url-0', 'https://relay.test/v1/images/generations');
+
+    expect((queryByTestId(container, 'provider-endpoint-url-0') as HTMLInputElement).value).toBe('https://relay.test/v1/images/generations');
+    expect((queryByTestId(container, 'provider-invoke-path-input') as HTMLInputElement).value).toBe('/chat/completions');
+    expect(container.querySelector('[data-testid="provider-generation-path-input"]')).toBeNull();
+    expect(queryByTestId(container, 'provider-api-format-status').textContent).toContain('OpenAI Chat Completions');
+    expect(queryByTestId(container, 'provider-api-format-status').textContent).toContain('OpenAI Images');
   });
 
   it('renders billing balance summary as compact accent inline status on detail page', async () => {

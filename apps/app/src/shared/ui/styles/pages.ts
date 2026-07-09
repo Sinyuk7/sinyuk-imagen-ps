@@ -36,7 +36,7 @@ export const PAGES_CSS = `
  * 名称优先，辅助 tag / dots / chevron 退居其后；状态不仅靠颜色圆点。 */
 .prov-row{ display:flex; align-items:center; padding:8px 14px; min-height:56px; border-top:1px solid var(--app-color-border-default); cursor:pointer; }
 .prov-row:hover{ background:var(--app-color-hover-overlay); }
-.settings-provider-row{ border-radius:0; margin:0; outline:none; }
+.settings-provider-row{ border-radius:0; margin-top:0; margin-right:0; margin-bottom:0; margin-left:0; outline:none; }
 .settings-provider-row:focus-visible{ outline:2px solid var(--app-color-focus-ring); outline-offset:-1px; background:var(--app-color-hover-overlay); }
 .settings-provider-row:active{ background:var(--app-color-active-overlay); }
 .prov-leading{ display:flex; align-items:center; flex-shrink:0; margin-right:8px; }
@@ -157,10 +157,12 @@ export const PAGES_CSS = `
       color-mix(in srgb, var(--app-color-accent-subtle) 46%, transparent),
       color-mix(in srgb, var(--app-color-background-layer-1) 96%, transparent)
     );
-  box-shadow:0 10px 24px color-mix(in srgb, var(--app-color-background-base) 84%, transparent);
 }
 .settings-onboarding-eyebrow{
-  margin:0 0 8px;
+  margin-top:0;
+  margin-right:0;
+  margin-bottom:8px;
+  margin-left:0;
   font-size:10px;
   line-height:14px;
   font-weight:600;
@@ -169,27 +171,38 @@ export const PAGES_CSS = `
   color:var(--app-color-text-secondary);
 }
 .settings-onboarding-title{
-  margin:0 0 8px;
+  margin-top:0;
+  margin-right:0;
+  margin-bottom:8px;
+  margin-left:0;
   font-size:19px;
   line-height:1.2;
   font-weight:700;
   color:var(--app-color-text-primary);
 }
 .settings-onboarding-copy{
-  margin:0 0 16px;
+  margin-top:0;
+  margin-right:0;
+  margin-bottom:16px;
+  margin-left:0;
   font-size:12px;
   line-height:18px;
   color:var(--app-color-text-secondary);
 }
 .settings-onboarding-list{
-  margin:0;
+  margin-top:0;
+  margin-right:0;
+  margin-bottom:0;
+  margin-left:0;
   padding-left:18px;
   display:flex;
   flex-direction:column;
-  gap:12px;
 }
 .settings-onboarding-list li{
   color:var(--app-color-text-primary);
+}
+.settings-onboarding-list li + li{
+  margin-top:12px;
 }
 .settings-onboarding-list li span{
   display:block;
@@ -208,7 +221,10 @@ export const PAGES_CSS = `
   color:var(--app-color-text-primary);
 }
 .settings-onboarding-note{
-  margin:16px 0 0;
+  margin-top:16px;
+  margin-right:0;
+  margin-bottom:0;
+  margin-left:0;
   font-size:11px;
   line-height:17px;
   color:var(--app-color-text-secondary);
@@ -324,7 +340,7 @@ export const PAGES_CSS = `
   color:var(--app-color-text-muted);
 }
 .billing-inline-heading{
-  align-items:baseline;
+  align-items:center;
   justify-content:flex-start;
   margin-bottom:8px;
   min-width:0;
@@ -336,7 +352,7 @@ export const PAGES_CSS = `
 }
 .billing-inline-summary{
   display:flex;
-  align-items:baseline;
+  align-items:center;
   flex:1 1 auto;
   min-width:0;
   max-width:100%;
@@ -352,7 +368,7 @@ export const PAGES_CSS = `
 .billing-inline-summary-unit,
 .billing-inline-summary-secondary{
   display:inline-flex;
-  align-items:baseline;
+  align-items:center;
   white-space:nowrap;
   font-size:11px;
   line-height:15px;
@@ -364,8 +380,7 @@ export const PAGES_CSS = `
 }
 .billing-inline-summary-main{
   display:inline-flex;
-  align-items:baseline;
-  gap:1px;
+  align-items:center;
   flex:0 1 auto;
   min-width:0;
   overflow:hidden;
@@ -388,6 +403,7 @@ export const PAGES_CSS = `
   font-family:var(--app-font-family-mono);
   font-weight:500;
   color:var(--app-color-text-secondary);
+  margin-left:1px;
 }
 .billing-inline-summary-secondary{
   flex:0 1 auto;
@@ -490,10 +506,10 @@ export const PAGES_CSS = `
   padding-top:8px;
   border-top:1px solid color-mix(in srgb, var(--app-color-border-default) 82%, transparent);
 }
-.billing-settings-footer > * + *{
+.billing-settings-footer .billing-last-cost{
   margin-top:4px;
 }
-.billing-settings-footer .billing-last-cost{
+.billing-settings-footer .billing-last-cost:first-child{
   margin-top:0;
 }
 .billing-summary-card{
@@ -1465,7 +1481,6 @@ export const PAGES_CSS = `
   opacity:0;
   overflow:hidden;
   pointer-events:none;
-  transition:width .12s ease, opacity .12s ease;
 }
 .field-input-affordance:hover .field-input-action-host-clear,
 .field-input-affordance:focus-within .field-input-action-host-clear,
