@@ -212,6 +212,13 @@ surface apps -> application/session -> core-engine + providers
 - UXP binary file reads/writes use `require('uxp').storage.formats.binary`, not `localFileSystem.formats.binary`.
 - UXP does not provide browser-style anchor download behavior. Saving a generated image to disk must go through the host save dialog (`localFileSystem.getFileForSaving()` / `HostPort.saveAssetToFile()`), not `<a download>` or synthetic anchor clicks.
 - Photoshop layer/capture attachments are materialized as PNG bytes through the app-local PNG encoder (stored deflate, no compression), then stored in `AssetStore`. `imaging.getPixels()` requests `componentSize: 8`; selection/mask data stays single-channel grayscale.
+- Photoshop UXP layer-picker host reads split by responsibility: lightweight
+  layer-list enumeration should prefer `core.getLayerTree({ documentID })`
+  because DOM-proxy traversal over `activeDocument.layers` can stall for
+  hundreds of milliseconds or seconds on real documents, while per-layer
+  thumbnail generation must still resolve real DOM `PhotoshopLayer` instances
+  from `activeDocument.layers`. Do not treat `getLayerTree()` nodes as a
+  reliable thumbnail source or bounds authority in the host bridge.
 - manifest v5 must declare `requiredPermissions.localFileSystem` and `requiredPermissions.network.domains`.
 
 ## Submission And Retry Contract

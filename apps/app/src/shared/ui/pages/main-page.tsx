@@ -461,6 +461,7 @@ export function MainPage({
   const [scrolledAway, setScrolledAway] = useState(false);
   const convRef = useRef<HTMLDivElement>(null);
   const taRef = useRef<HTMLTextAreaElement>(null);
+  const layerPickerOpenStartedAtRef = useRef<number | null>(null);
   const promptFoldRefs = useRef<Map<string, HTMLDivElement>>(new Map());
   const promptTextRefs = useRef<Map<string, HTMLDivElement>>(new Map());
   const responseFoldRefs = useRef<Map<string, HTMLDivElement>>(new Map());
@@ -950,9 +951,33 @@ export function MainPage({
       show(imageInputDisabledReason, 'warning', { key: 'image-input-disabled' });
       return;
     }
+    layerPickerOpenStartedAtRef.current = Date.now();
     setLayerOpen(true);
     void reloadLayers();
   };
+
+  useEffect(() => {
+    if (layerOpen) {
+      return;
+    }
+    layerPickerOpenStartedAtRef.current = null;
+  }, [layerOpen]);
+
+  useEffect(() => {
+    if (!layerOpen || layersLoading) {
+      return;
+    }
+    const openedAt = layerPickerOpenStartedAtRef.current;
+    if (openedAt === null) {
+      return;
+    }
+    layerPickerOpenStartedAtRef.current = null;
+    void services.diagnostics?.checkpoint('uxp.ui.layer_picker.open.data_ready', {
+      openToDataReadyMs: Date.now() - openedAt,
+      layerCount: flatLayers.length,
+      hasError: Boolean(layersError),
+    });
+  }, [flatLayers.length, layerOpen, layersError, layersLoading, services.diagnostics]);
 
   const addFile = async () => {
     if (imageInputDisabled) {

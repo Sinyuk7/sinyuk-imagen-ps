@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import { vi } from 'vitest';
 import {
   VALID_TRANSPARENT_PNG,
   createBridge,
@@ -32,7 +33,7 @@ describe('PhotoshopHostBridge read contract', () => {
     await expect(bridge.getLayerThumbnail(3)).resolves.toBeUndefined();
   }));
 
-  it('lists the layer tree while preserving visibility, hierarchy, bounds, and mask metadata', async () => {
+  it('lists the layer tree while preserving lightweight picker metadata and hierarchy', async () => {
     const { modules } = createFakeModules();
     const { bridge } = createBridge(modules);
 
@@ -48,16 +49,135 @@ describe('PhotoshopHostBridge read contract', () => {
             name: 'Child',
             kind: 'pixel',
             visible: false,
-            hasUserMask: true,
-            bounds: { left: 0, top: 0, right: 64, bottom: 64 },
           },
           {
             id: 3,
             name: 'Empty',
             kind: 'pixel',
             visible: true,
-            bounds: { left: 0, top: 0, right: 0, bottom: 0 },
           },
+        ],
+      },
+    ]);
+  });
+
+  it('prefers Photoshop core.getLayerTree when available for lightweight picker reads', async () => {
+    const { modules } = createFakeModules();
+    const getLayerTree = vi.fn(async () => ({
+      list: [
+        {
+          layerID: 11,
+          name: 'Core Group',
+          type: 'group',
+          visible: true,
+          list: [
+            {
+              layerID: 12,
+              name: 'Core Child',
+              type: 'pixel',
+              visible: false,
+            },
+          ],
+        },
+      ],
+    }));
+    (modules.photoshop!.core as { getLayerTree?: typeof getLayerTree }).getLayerTree = getLayerTree;
+    const { bridge } = createBridge(modules);
+
+    await expect(bridge.listLayers()).resolves.toEqual([
+      {
+        id: 11,
+        name: 'Core Group',
+        kind: 'group',
+        visible: true,
+        children: [
+          {
+            id: 12,
+            name: 'Core Child',
+            kind: 'pixel',
+            visible: false,
+          },
+        ],
+      },
+    ]);
+    expect(getLayerTree).toHaveBeenCalledWith({ documentID: 42 });
+  });
+
+  it('keeps layer thumbnails on real DOM layers after getLayerTree-backed listing', async () => withObjectUrlMock(async () => {
+    const { modules, spies } = createFakeModules();
+    const getLayerTree = vi.fn(async () => ({
+      list: [
+        {
+          layerID: 1,
+          name: 'Core Group',
+          type: 'group',
+          visible: true,
+          list: [
+            {
+              layerID: 2,
+              name: 'Core Child',
+              type: 'pixel',
+              visible: false,
+            },
+          ],
+        },
+      ],
+    }));
+    (modules.photoshop!.core as { getLayerTree?: typeof getLayerTree }).getLayerTree = getLayerTree;
+    const { bridge } = createBridge(modules);
+
+    await bridge.listLayers();
+    const thumbnail = await bridge.getLayerThumbnail(2, 48);
+
+    expect(thumbnail?.url).toBe('blob:thumb-1');
+    expect(spies.getPixels).toHaveBeenCalledWith({
+      documentID: 42,
+      layerID: 2,
+      targetSize: { width: 48, height: 48 },
+      colorSpace: 'RGB',
+      componentSize: 8,
+      applyAlpha: false,
+    });
+  }));
+
+  it('does not touch heavy bounds or mask metadata while listing picker layers', async () => {
+    const { modules } = createFakeModules();
+    const { bridge } = createBridge(modules);
+    const group = (modules.photoshop?.app.activeDocument?.layers?.[0] ?? null) as
+      | { layers?: Array<Record<string, unknown>> }
+      | null;
+    const listedLayers = group?.layers ?? [];
+    const child = listedLayers[0];
+    const empty = listedLayers[1];
+    if (!child || !empty) {
+      throw new Error('Expected fake layer tree.');
+    }
+
+    Object.defineProperty(child, 'hasUserMask', {
+      configurable: true,
+      get() {
+        throw new Error('listLayers should not read hasUserMask');
+      },
+    });
+    Object.defineProperty(child, 'bounds', {
+      configurable: true,
+      get() {
+        throw new Error('listLayers should not read bounds');
+      },
+    });
+    Object.defineProperty(empty, 'bounds', {
+      configurable: true,
+      get() {
+        throw new Error('listLayers should not read empty-layer bounds');
+      },
+    });
+
+    await expect(bridge.listLayers()).resolves.toMatchObject([
+      {
+        id: 1,
+        children: [
+          { id: 2, name: 'Child' },
+          { id: 3, name: 'Empty' },
         ],
       },
     ]);

@@ -56,6 +56,9 @@ export interface RuntimeCapabilities {
 
 export interface HostPort {
   readonly capabilities: RuntimeCapabilities;
+  /**
+   * 返回图层选择器所需的轻量树结构；bounds / mask 等重元数据允许缺省，按需读取时再向 host 查询。
+   */
   listLayers(): Promise<readonly LayerInfo[]>;
   pickImageFile(policy: ProviderInputSizePolicy): Promise<HostImageAsset | undefined>;
   captureActiveImage(policy: ProviderInputSizePolicy): Promise<PhotoshopCaptureResult>;

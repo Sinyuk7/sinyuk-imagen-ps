@@ -110,8 +110,24 @@ interface PhotoshopImaging {
 
 interface PhotoshopCore {
   executeAsModal<T>(callback: () => Promise<T>, options?: { readonly commandName?: string }): Promise<T>;
+  getLayerTree?(options: { readonly documentID: number }): Promise<{ readonly list?: readonly PhotoshopLayerTreeNode[] }>;
   isModal?(): boolean;
   setExecutionMode?(options: { readonly enableErrorStacktraces?: boolean }): void;
+}
+
+interface PhotoshopLayerTreeNode {
+  readonly id?: number;
+  readonly layerID?: number;
+  readonly name?: string;
+  readonly kind?: string;
+  readonly type?: string;
+  readonly visible?: boolean;
+  readonly hasUserMask?: boolean;
+  readonly bounds?: PhotoshopLayerBounds;
+  readonly boundsNoEffects?: PhotoshopLayerBounds;
+  readonly children?: readonly PhotoshopLayerTreeNode[];
+  readonly layers?: readonly PhotoshopLayerTreeNode[];
+  readonly list?: readonly PhotoshopLayerTreeNode[];
 }
 
 interface PhotoshopAction {
@@ -391,17 +407,122 @@ function setActiveDocument(app: PhotoshopApp, document: PhotoshopDocument): void
   app.activeDocument = document;
 }
 
-function toLayerInfo(layer: PhotoshopLayer): LayerInfo {
-  const bounds = toLayerBounds(layer.bounds);
+interface LayerListBuildResult {
+  readonly layers: readonly LayerInfo[];
+  readonly flattenedCount: number;
+  readonly layerById: ReadonlyMap<number, PhotoshopLayer>;
+}
+
+interface LayerListCacheEntry extends LayerListBuildResult {
+  readonly documentId: number | undefined;
+  readonly source: 'core.getLayerTree' | 'dom.layers';
+}
+
+interface LayerRuntimeLookupCacheEntry {
+  readonly documentId: number | undefined;
+  readonly layerById: ReadonlyMap<number, PhotoshopLayer>;
+}
+
+function flattenedLayerCount(layers: readonly LayerInfo[]): number {
+  return layers.reduce((count, layer) => {
+    return count + 1 + flattenedLayerCount(layer.children ?? []);
+  }, 0);
+}
+
+/**
+ * 图层选择器只消费轻量元数据；bounds / mask 等重字段延后到按需读取阶段。
+ */
+function buildLayerListCacheFromDomLayers(sourceLayers: readonly PhotoshopLayer[]): LayerListBuildResult {
+  const layerById = new Map<number, PhotoshopLayer>();
+  const visit = (layer: PhotoshopLayer): LayerInfo => {
+    layerById.set(layer.id, layer);
+    return {
+      id: layer.id,
+      name: layer.name ?? `Layer ${layer.id}`,
+      ...(layer.kind ? { kind: String(layer.kind) } : {}),
+      ...(typeof layer.visible === 'boolean' ? { visible: layer.visible } : {}),
+      ...(layer.layers ? { children: layer.layers.map(visit) } : {}),
+    };
+  };
+  const layers = sourceLayers.map(visit);
   return {
-    id: layer.id,
-    name: layer.name ?? `Layer ${layer.id}`,
+    layers,
+    flattenedCount: flattenedLayerCount(layers),
+    layerById,
+  };
+}
+
+function buildLayerRuntimeLookup(sourceLayers: readonly PhotoshopLayer[]): ReadonlyMap<number, PhotoshopLayer> {
+  const layerById = new Map<number, PhotoshopLayer>();
+  const visit = (layer: PhotoshopLayer): void => {
+    layerById.set(layer.id, layer);
+    for (const child of layer.layers ?? []) {
+      visit(child);
+    }
+  };
+  for (const layer of sourceLayers) {
+    visit(layer);
+  }
+  return layerById;
+}
+
+function layerTreeChildren(node: PhotoshopLayerTreeNode): readonly PhotoshopLayerTreeNode[] {
+  if (Array.isArray(node.children)) {
+    return node.children;
+  }
+  if (Array.isArray(node.layers)) {
+    return node.layers;
+  }
+  if (Array.isArray(node.list)) {
+    return node.list;
+  }
+  return [];
+}
+
+function toTreeLayerInfo(
+  node: PhotoshopLayerTreeNode,
+  layerById: Map<number, PhotoshopLayer>,
+): LayerInfo | undefined {
+  const id = numericBound(node.id ?? node.layerID);
+  if (id === undefined) {
+    return undefined;
+  }
+  const layer: PhotoshopLayer = {
+    id,
+    ...(node.name ? { name: node.name } : {}),
+    ...(node.kind ? { kind: String(node.kind) } : node.type ? { kind: String(node.type) } : {}),
+    ...(typeof node.visible === 'boolean' ? { visible: node.visible } : {}),
+    ...(typeof node.hasUserMask === 'boolean' ? { hasUserMask: node.hasUserMask } : {}),
+    ...(node.bounds ? { bounds: node.bounds } : {}),
+    ...(node.boundsNoEffects ? { boundsNoEffects: node.boundsNoEffects } : {}),
+  };
+  layerById.set(id, layer);
+  const children = layerTreeChildren(node)
+    .map((child) => toTreeLayerInfo(child, layerById))
+    .filter((child): child is LayerInfo => child !== undefined);
+  return {
+    id,
+    name: layer.name ?? `Layer ${id}`,
     ...(layer.kind ? { kind: String(layer.kind) } : {}),
     ...(typeof layer.visible === 'boolean' ? { visible: layer.visible } : {}),
-    ...(typeof layer.hasUserMask === 'boolean' ? { hasUserMask: layer.hasUserMask } : {}),
-    ...(bounds ? { bounds } : {}),
-    ...(layer.layers ? { children: layer.layers.map(toLayerInfo) } : {}),
+    ...(children.length > 0 ? { children } : {}),
   };
+}
+
+function buildLayerListCacheFromTree(tree: readonly PhotoshopLayerTreeNode[]): LayerListBuildResult {
+  const layerById = new Map<number, PhotoshopLayer>();
+  const layers = tree
+    .map((node) => toTreeLayerInfo(node, layerById))
+    .filter((layer): layer is LayerInfo => layer !== undefined);
+  return {
+    layers,
+    flattenedCount: flattenedLayerCount(layers),
+    layerById,
+  };
+}
+
+function hasReadableLayerBounds(layer: PhotoshopLayer | undefined): layer is PhotoshopLayer {
+  return normalizeRect(layer?.boundsNoEffects ?? layer?.bounds) !== null;
 }
 
 function findLayer(layers: readonly PhotoshopLayer[], layerId: number): PhotoshopLayer | undefined {
@@ -1439,27 +1560,74 @@ export function createPhotoshopHostBridge(modules: UxpModules, options?: CreateP
   }
 
   const executeHostModal = options?.executeHostModal ?? createHostModalRunner(core, logger);
+  let layerListCache: LayerListCacheEntry | undefined;
+  let layerRuntimeLookupCache: LayerRuntimeLookupCacheEntry | undefined;
 
   return {
     capabilities: PHOTOSHOP_UXP_RUNTIME_CAPABILITIES,
 
     async listLayers(): Promise<readonly LayerInfo[]> {
       const span = logger.startSpan('hostbridge.list_layers');
+      let activeDocument: PhotoshopDocument | undefined;
+      let layers: readonly LayerInfo[] = [];
+      let source: 'core.getLayerTree' | 'dom.layers' = 'dom.layers';
       try {
-        const layers = (app.activeDocument?.layers ?? []).map(toLayerInfo);
+        activeDocument = app.activeDocument;
+        if (layerRuntimeLookupCache?.documentId !== activeDocument?.id) {
+          layerRuntimeLookupCache = undefined;
+        }
+
+        let flattenedCount = 0;
+        const documentId = activeDocument?.id;
+        if (documentId && typeof core.getLayerTree === 'function') {
+          try {
+            const tree = await core.getLayerTree({ documentID: documentId });
+            const built = buildLayerListCacheFromTree(tree.list ?? []);
+            layers = built.layers;
+            source = 'core.getLayerTree';
+            flattenedCount = built.flattenedCount;
+            layerListCache = {
+              documentId,
+              source,
+              layers: built.layers,
+              flattenedCount,
+              layerById: built.layerById,
+            };
+            layerRuntimeLookupCache = undefined;
+          } catch {
+            layers = [];
+          }
+        }
+        if (source === 'dom.layers') {
+          const sourceLayers = activeDocument?.layers ?? [];
+          const built = buildLayerListCacheFromDomLayers(sourceLayers);
+          layers = built.layers;
+          flattenedCount = built.flattenedCount;
+          layerListCache = {
+            documentId,
+            source,
+            layers: built.layers,
+            flattenedCount,
+            layerById: built.layerById,
+          };
+          layerRuntimeLookupCache = {
+            documentId,
+            layerById: built.layerById,
+          };
+        }
         span.finish({
+          source,
           count: layers.length,
-          documentId: app.activeDocument?.id,
-          names: layers.map((layer) => layer.name).slice(0, 20),
-          flattenedCount: layers.reduce((count, layer) => {
-            const countChildren = (items: readonly LayerInfo[]): number =>
-              items.reduce((sum, item) => sum + 1 + countChildren(item.children ?? []), 0);
-            return count + 1 + countChildren(layer.children ?? []);
-          }, 0),
+          documentId: activeDocument?.id,
+          flattenedCount,
         });
         return layers;
       } catch (error) {
-        span.fail(error);
+        span.fail(error, {
+          source,
+          partialCount: layers.length,
+          documentId: activeDocument?.id,
+        });
         throw error;
       }
     },
@@ -1823,23 +1991,66 @@ export function createPhotoshopHostBridge(modules: UxpModules, options?: CreateP
       maxSide = LAYER_PICKER_THUMBNAIL_MAX_SIDE,
     ): Promise<RuntimeImageUrl | undefined> {
       const span = logger.startSpan('hostbridge.get_layer_thumbnail', { layerId, maxSide });
+      let documentId: number | undefined;
+      let layerLookupCacheHit = false;
       try {
         const activeDocument = app.activeDocument;
-        const layer = activeDocument ? findLayer(activeDocument.layers ?? [], layerId) : undefined;
-        const documentId = activeDocument?.id;
+        documentId = activeDocument?.id;
+
+        const sourceLayers = activeDocument?.layers ?? [];
+        const latestLayerListCache = layerListCache;
+        const cachedLayer = latestLayerListCache
+          && latestLayerListCache.source === 'dom.layers'
+          && latestLayerListCache.documentId === documentId
+          ? latestLayerListCache.layerById.get(layerId)
+          : undefined;
+        let layer = hasReadableLayerBounds(cachedLayer) ? cachedLayer : undefined;
+        layerLookupCacheHit = layer !== undefined;
+        if (!layer && activeDocument) {
+          const latestRuntimeLookupCache = layerRuntimeLookupCache;
+          const runtimeLookup = latestRuntimeLookupCache && latestRuntimeLookupCache.documentId === documentId
+            ? latestRuntimeLookupCache.layerById
+            : buildLayerRuntimeLookup(sourceLayers);
+          if (!latestRuntimeLookupCache || latestRuntimeLookupCache.documentId !== documentId) {
+            layerRuntimeLookupCache = {
+              documentId,
+              layerById: runtimeLookup,
+            };
+          }
+          const runtimeLayer = runtimeLookup.get(layerId);
+          layerLookupCacheHit = latestRuntimeLookupCache?.documentId === documentId && runtimeLayer !== undefined;
+          layer = runtimeLayer;
+        }
+        layer ??= activeDocument ? findLayer(sourceLayers, layerId) : undefined;
         if (!documentId || !layer) {
-          span.finish({ layerId, found: false });
+          span.finish({
+            layerId,
+            documentId,
+            found: false,
+            layerLookupCacheHit,
+          });
           return undefined;
         }
+        const resolvedDocumentId = documentId;
         const targetLayer = layer;
         const thumbnail = await executeHostModal(
-          () => createLayerThumbnailUrl(imaging, documentId, targetLayer, maxSide),
+          () => createLayerThumbnailUrl(imaging, resolvedDocumentId, targetLayer, maxSide),
           { commandName: `Get thumbnail for layer ${targetLayer.name ?? layerId}` },
         );
-        span.finish({ layerId, found: true, hasThumbnail: Boolean(thumbnail) });
+        span.finish({
+          layerId,
+          documentId,
+          found: true,
+          hasThumbnail: Boolean(thumbnail),
+          layerLookupCacheHit,
+        });
         return thumbnail;
       } catch (error) {
-        span.fail(error, { layerId });
+        span.fail(error, {
+          layerId,
+          documentId,
+          layerLookupCacheHit,
+        });
         return undefined;
       }
     },
