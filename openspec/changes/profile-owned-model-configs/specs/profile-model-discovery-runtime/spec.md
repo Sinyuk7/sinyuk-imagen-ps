@@ -34,7 +34,7 @@
 #### Scenario: suggestion 不进入外部 selector
 - **WHEN** 当前页面存在尚未保存的 `discovery suggestion`
 - **THEN** 主页面 selector、settings summary 与 `Profile Detail` quick selector 都不会把它视为可选 `model`
-- **AND** 它不会获得默认模型身份
+- **AND** 它不会成为 current/effective selection
 
 ### Requirement: Discovery failure SHALL leave page state unchanged
 当 `discovery` 调用失败时，系统 MUST NOT 覆盖已有的 owned `configured model` 列表，也 MUST NOT 把错误结果当作有效 suggestion 展示。

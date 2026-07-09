@@ -821,7 +821,6 @@ export function providerConfigFromForm(
   apiFormat: ApiFormat,
   displayName: string,
   connection: ProviderConnectionDraft,
-  _defaultModel: string,
   paths: ApiPathDraft,
   billing?: ProviderBillingDraft,
 ): ProviderProfileConfig {

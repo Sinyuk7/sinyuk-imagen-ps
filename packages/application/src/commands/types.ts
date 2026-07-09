@@ -155,8 +155,8 @@ export type ProviderProfileConfig = Readonly<Record<string, ProviderProfileConfi
 /**
  * Sanitized persisted provider profile. Returned commands MUST NOT include secret values.
  *
- * Profile 只保存默认 configured model 引用；模型 ownership 由
- * profile-owned `UserModelConfig` 决定。
+ * Profile 只保存 provider 连接与凭据引用；模型 ownership 由
+ * profile-owned `UserModelConfig` 决定，当前选择由 UI/runtime 持有。
  */
 export interface ProviderProfile {
   readonly profileId: string;
@@ -166,7 +166,6 @@ export interface ProviderProfile {
   readonly enabled: boolean;
   readonly config: ProviderProfileConfig;
   readonly secretRefs?: Readonly<Record<string, string>>;
-  readonly defaultModelId?: string;
   readonly createdAt: string;
   readonly updatedAt: string;
 }
@@ -191,7 +190,6 @@ export interface ProviderProfileInput {
   readonly config?: ProviderProfileConfig;
   readonly secretRefs?: Readonly<Record<string, string>>;
   readonly secretValues?: Readonly<Record<string, string>>;
-  readonly defaultModelId?: string;
   /** 显式移除已保存 secret；未列出的空输入继续表示保留原 secret。 */
   readonly removedSecretNames?: readonly string[];
 }
@@ -293,8 +291,6 @@ export interface ProfileModelItem {
   readonly wireModelId?: string;
   readonly discovered: boolean;
   readonly configured: boolean;
-  readonly selected: boolean;
-  readonly default: boolean;
   readonly configSource?: 'user' | 'catalog';
 }
 
@@ -424,10 +420,11 @@ export interface TestProviderProfileConnectionInput {
   readonly apiFormat?: ApiFormat;
   readonly displayName?: string;
   readonly config: ProviderProfileConfig;
+  /** UI/runtime 当前选择；不是 persisted profile state。 */
+  readonly selectedModelId?: string;
   readonly secretRefs?: Readonly<Record<string, string>>;
   readonly secretValues?: Readonly<Record<string, string>>;
   readonly removedSecretNames?: readonly string[];
-  readonly defaultModelId?: string;
 }
 
 export interface ProfileBalanceResult {
@@ -471,5 +468,4 @@ export interface RefreshDraftProfileModelsInput {
   readonly secretRefs?: Readonly<Record<string, string>>;
   readonly secretValues?: Readonly<Record<string, string>>;
   readonly removedSecretNames?: readonly string[];
-  readonly defaultModelId?: string;
 }

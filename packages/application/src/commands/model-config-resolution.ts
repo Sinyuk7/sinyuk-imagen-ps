@@ -6,7 +6,7 @@ import {
   type ProviderModelExecution,
   type UserModelOutputExposure,
 } from '@imagen-ps/providers';
-import type { ProviderProfile, UserModelConfigRepository } from './types.js';
+import type { UserModelConfigRepository } from './types.js';
 
 export interface ResolvedModelConfig {
   readonly apiFormat: ApiFormat;
@@ -76,20 +76,6 @@ export async function resolveConfiguredModel(args: {
   }
 
   throw configuredModelError(args.profileId, args.apiFormat, args.modelId);
-}
-
-export async function assertProfileModelSelectionIsConfigured(
-  profile: Pick<ProviderProfile, 'profileId' | 'apiFormat' | 'defaultModelId'>,
-  userModelConfigRepository: Pick<UserModelConfigRepository, 'get'>,
-): Promise<void> {
-  if (profile.defaultModelId !== undefined) {
-    await resolveConfiguredModel({
-      profileId: profile.profileId,
-      apiFormat: profile.apiFormat,
-      modelId: profile.defaultModelId,
-      userModelConfigRepository,
-    });
-  }
 }
 
 export function toProviderModelExecution(config: ResolvedModelConfig): ProviderModelExecution {

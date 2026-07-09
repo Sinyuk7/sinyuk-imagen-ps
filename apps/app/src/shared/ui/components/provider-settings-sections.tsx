@@ -18,14 +18,14 @@ interface ProviderAdvancedPathSectionProps {
   readonly onPathChange: (next: Partial<ApiPathDraft>) => void;
 }
 
-interface ProviderDefaultModelSectionProps {
+interface ProviderModelSelectionSectionProps {
   readonly disabled: boolean;
   readonly loading: boolean;
   readonly canCreateModelConfig?: boolean;
   readonly wrapInSection?: boolean;
   readonly modelMenuOpen: boolean;
   readonly modelOptions: readonly { readonly id: string; readonly label: string }[];
-  readonly defaultModel: string;
+  readonly selectedModelId: string;
   readonly triggerValue: string;
   readonly modelFieldHelp?: {
     readonly id: string;
@@ -42,7 +42,7 @@ interface ProviderDefaultModelSectionProps {
   } | null;
   readonly onCreateModelConfig?: () => void;
   readonly onModelMenuOpenChange: (open: boolean) => void;
-  readonly onDefaultModelSelect: (id: string) => void;
+  readonly onModelSelect: (id: string) => void;
 }
 
 interface ProviderSettingsFooterProps {
@@ -193,21 +193,21 @@ export function ProviderAdvancedPathSection({
   return wrapInSection ? <div className="section">{content}</div> : <div className="provider-embedded-section">{content}</div>;
 }
 
-export function ProviderDefaultModelSection({
+export function ProviderModelSelectionSection({
   disabled,
   loading,
   canCreateModelConfig = false,
   wrapInSection = true,
   modelMenuOpen,
   modelOptions,
-  defaultModel,
+  selectedModelId,
   triggerValue,
   modelFieldHelp = null,
   emptyStateNotice = null,
   onCreateModelConfig,
   onModelMenuOpenChange,
-  onDefaultModelSelect,
-}: ProviderDefaultModelSectionProps) {
+  onModelSelect,
+}: ProviderModelSelectionSectionProps) {
   const { messages: t } = useI18n();
   const describedBy = modelFieldHelp?.id;
   const content = (
@@ -237,10 +237,10 @@ export function ProviderDefaultModelSection({
           open={modelMenuOpen}
           onOpenChange={onModelMenuOpenChange}
           options={modelOptions}
-          selectedId={defaultModel}
-          onSelect={onDefaultModelSelect}
-          testId="provider-default-model-selector"
-          triggerId="provider-default-model-selector"
+          selectedId={selectedModelId}
+          onSelect={onModelSelect}
+          testId="provider-model-selector"
+          triggerId="provider-model-selector"
           ariaDescribedBy={describedBy}
           containerClassName="cmp-select cmp-select-model provider-model-select"
           menuClassName="cmp-select-menu cmp-select-menu-model"

@@ -14,16 +14,6 @@ function errorMessage(error: unknown, fallback: string): string {
   return error instanceof Error ? error.message : fallback;
 }
 
-function configuredModelId(input: {
-  readonly defaultModelId?: string;
-}): string | undefined {
-  const explicit = input.defaultModelId?.trim();
-  if (explicit) {
-    return explicit;
-  }
-  return undefined;
-}
-
 function legacyResolvedModelId(input: {
   readonly providerConfig: unknown;
 }): string | undefined {
@@ -38,6 +28,33 @@ function legacyResolvedModelId(input: {
 
 function normalizeUnsupported(message: string): ProviderProfileConnectionTestResult {
   return { status: 'partial', message };
+}
+
+async function effectiveOwnedWireModelId(input: {
+  readonly profileId?: string;
+  readonly apiFormat: TestProviderProfileConnectionInput['apiFormat'];
+  readonly selectedModelId?: string;
+}): Promise<string | undefined> {
+  const profileId = input.profileId?.trim();
+  if (!profileId || !input.apiFormat) {
+    return undefined;
+  }
+  const configs = await getUserModelConfigRepository().list(profileId);
+  const selectedModelId = input.selectedModelId?.trim();
+  const effective = selectedModelId
+    ? configs.find((config) => config.modelId === selectedModelId) ?? configs[0]
+    : configs[0];
+  if (!effective) {
+    return undefined;
+  }
+  return (
+    await resolveConfiguredModel({
+      profileId,
+      apiFormat: input.apiFormat,
+      modelId: effective.modelId,
+      userModelConfigRepository: getUserModelConfigRepository(),
+    })
+  ).wireModelId;
 }
 
 function normalizeProbeResult(result: ProviderSafeProbeResult): ProviderProfileConnectionTestResult {
@@ -74,7 +91,6 @@ export async function testProviderProfileConnection(
       provider,
       providerConfig,
       apiFormat,
-      defaultModelId,
     } = await resolveDraftProviderContext(input);
 
     if (provider.describe().connectivity?.connectionTest === 'unsupported') {
@@ -95,17 +111,12 @@ export async function testProviderProfileConnection(
       };
     }
 
-    const modelId = configuredModelId({ defaultModelId });
-    const probeModelId = modelId
-      ? (
-        await resolveConfiguredModel({
-          profileId: input.profileId ?? 'draft',
-          apiFormat,
-          modelId,
-          userModelConfigRepository: getUserModelConfigRepository(),
-        })
-      ).wireModelId
-      : legacyResolvedModelId({ providerConfig });
+    const probeModelId = await effectiveOwnedWireModelId({
+      profileId: input.profileId,
+      apiFormat,
+      selectedModelId: input.selectedModelId,
+    })
+      ?? legacyResolvedModelId({ providerConfig });
 
     const tested = await provider.safeProbe(
       providerConfig as never,

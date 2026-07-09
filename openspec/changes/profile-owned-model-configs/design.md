@@ -20,8 +20,9 @@
 **目标：**
 - 让 `ProviderProfile` 成为 `model ownership` 的唯一父资源。
 - 让 `UserModelConfig` 的 canonical identity 变成 `profileId + modelId`。
-- 删除 `selectedModelIds`，让保存/删除 `UserModelConfig` 直接决定 availability。
-- 保留 `defaultModelId`，但把它收窄为“当前 `profile` 的默认模型引用”，而不是 membership 工具。
+- 删除 `selectedModelIds/defaultModelId`，让保存/删除 `UserModelConfig` 直接决定 availability。
+- 把 `selectedModelId` 收窄为 UI/runtime 当前选择；它不是 `ProviderProfile` 上的 persisted membership/default state。
+- 定义 effective selection 为 `selectedModelId ?? first owned configured model`，其中 `selectedModelId` 必须属于当前 active `profile` 的 owned list 才有效。
 - 保留 `Profile Detail` 主结构，让 `Profile Detail -> Models` 成为唯一 canonical 入口。
 - 把当前 `ModelConfigurationPage` 收窄为 editor 子 flow，不再承载全局列表。
 - 把 `discovery` 收窄为 runtime-only `suggestion`，不做任何持久化，不进入主产品选择契约。
@@ -45,7 +46,6 @@ Persisted
 ├── ProviderProfile
 │   ├── profileId
 │   ├── apiFormat
-│   ├── defaultModelId?
 │   └── ... provider config / secret refs / metadata
 └── UserModelConfig
     ├── profileId
@@ -61,6 +61,7 @@ Canonical key
 
 Removed persisted product state
 - selectedModelIds
+- defaultModelId
 - discovery cache as product truth
 ```
 
@@ -81,20 +82,31 @@ Removed persisted product state
 - 让 `UserModelConfig` 保留独立生命周期，删除 profile 后保留 configs 以备后续恢复：拒绝。这与“`profile` 是唯一 ownership 维度”矛盾，且会在本地留下无意义数据。
 - 通过后台清理任务异步删除 orphan configs：拒绝。当前 `0-user` current-state 不需要引入异步任务复杂度；命令层同步级联已足够。
 
-### 决策：删除 `selectedModelIds`，让 availability 只由 ownership 决定
+### 决策：删除 persisted membership/default state，让 availability 只由 ownership 决定
 保存 `UserModelConfig` 之后，它立即属于当前 `profile`，立即出现在当前 `profile` 的 selector / summary / `models page` 中；删除之后，它也立即从这些 surface 上消失。系统不再允许“已经存在一个 `model`，但还要再执行一次 membership 操作才可用”。
 
-`defaultModelId` 继续保留在 `ProviderProfile` 上，但它的职责只剩下“指向当前 `profile` 的一个 owned `configured model`”。当用户删除当前默认模型时，系统直接清空 `defaultModelId`，进入显式 `no-default-model state`，不自动提升其他模型。
+`defaultModelId` 不再作为产品契约保留。`ProviderProfile` 只描述 provider 连接、secret refs 与 profile metadata，不再承载“默认模型”或“当前模型”。模型是否可选只由当前 `profile` 的 owned `UserModelConfig` 集合决定。
 
-为保持显式语义一致，保存第一个 `configured model` 时系统也不会自动把它提升为 `defaultModelId`。`profile` 保持 `no-default-model state` 直到用户显式设置默认模型。这避免了“保存即默认”带来的隐式契约，也让删除默认模型后的空状态与初始空状态保持一致。
+`selectedModelId` 表示 UI/runtime 当前选择，而不是 persisted ownership 或 default。任何 selector / summary surface 计算当前有效模型时都使用同一条规则：
 
-同样地，main page 的 active model selector 在 `defaultModelId` 为空时必须保持显式空态或 placeholder；在用户显式选择当前轮次模型之前，系统不得静默回退到 owned 列表第一项。
+```text
+effectiveModelId =
+  selectedModelId if selectedModelId belongs to active profile owned configured models
+  otherwise first owned configured model in canonical list order
+  otherwise empty when no owned configured model exists
+```
+
+因此，保存第一个 `configured model` 后，它会因为 fallback 规则成为 effective model，但系统不会写入任何 `defaultModelId`。删除当前选中的 `model` 后，当前 `selectedModelId` 失效，surface 直接回退到剩余 owned list 的第一项；如果没有剩余模型，则进入无可选模型状态。
+
+`listProfileModels()` / `reconcileProfileModels()` 的产品职责是返回当前 active `profile` 的 owned `configured model` 列表。它们不应该把 `selected` 或 `default` 当成 availability 过滤条件；如果 UI 需要高亮当前项，应在拿到列表后用 effective selection 做 surface-local 标注。
+
+`first owned configured model` 必须来自同一个 canonical list order。implementation 可以沿用 repository/list 命令的稳定顺序，但同一 profile 在 main selector、detail quick selector 与 settings summary 上必须使用同一顺序，避免不同 surface 得到不同 fallback。
 
 备选方案：
 - 保留 `selectedModelIds` 作为显式 membership list：拒绝。它只会把旧复杂度原封不动搬到新数据模型里。
-- 删除默认模型时自动提升第一个剩余模型：拒绝。它会制造隐式状态跃迁，让用户再次分不清系统到底改了什么。
-- 保存首个模型时自动设为默认：拒绝。它会与删除默认模型后保持显式空状态的原则冲突。
-- main page 在 `defaultModelId` 为空时自动高亮第一个 owned `model`：拒绝。它会把“显式无默认”重新降级成 UI 层的隐式默认。
+- 保留 `defaultModelId` 作为 profile-level 默认模型：拒绝。它会与 UI/runtime `selectedModelId` 形成第二套选择状态，继续制造“当前选中”和“默认”的歧义。
+- 保留显式 `no-default-model state`：拒绝。只要当前 `profile` 已拥有 configured models，用户期望 selector 展示并可使用这些模型；空默认状态会把 ownership 和选择状态再次拆开。
+- 保存首个模型时写入 `defaultModelId`：拒绝。fallback 是 runtime 计算，不是新的 persisted default。
 
 ### 决策：保留 `Profile Detail` 主结构，但把它改成“快速入口”而不是 ownership 页面
 `Profile Detail` 继续承载 `endpoint/auth/billing/provider` 主配置结构；这部分页面结构尽量不动。变化只发生在 `model` 区块：
@@ -104,6 +116,7 @@ Removed persisted product state
 - quick selector 顶部固定提供一个动作项：`添加新模型`
 - 点击 `添加新模型` 导航到当前 `profile` 的 `Profile Detail -> Models`
 - detail 页空状态与快捷动作也只跳转到 `ProfileModelsPage`，不再直接打开 editor
+- detail quick selector 不再展示“默认模型”语义，不再把选择写回 `ProviderProfile.defaultModelId`
 
 这意味着 detail 页不再承担 `model CRUD`，而是承担“当前状态摘要 + 快速跳转”。
 
@@ -114,7 +127,7 @@ Removed persisted product state
 | settings root | 修改 | 只列出 `profile` 与全局设置，不再提供 standalone global `model ownership` 入口 |
 | `SettingsAddPage` | 修改 | 只创建 `profile`，不再配置 `model` |
 | `Profile Detail` | 保留并修改 | 保留 `endpoint/auth/billing` 主结构；`model` 区块改为快速 selector + 跳转入口 |
-| `ProfileModelsPage` | 新增 | 当前 `profile` 的 canonical `model ownership` 列表页；承载 list / default / create / edit / delete / discovery suggestion |
+| `ProfileModelsPage` | 新增 | 当前 `profile` 的 canonical `model ownership` 列表页；承载 list / create / edit / delete / discovery suggestion；不承载 set-default |
 | `ModelConfigurationPage` | 保留并收窄 | 保留现有 `Create/Edit Model Config` editor 结构；只作为子 flow，不再承载全局列表 |
 | Main Page | 修改 | 只消费当前 active `profile` 的 owned `configured model` |
 
@@ -132,6 +145,7 @@ Removed persisted product state
 - `ModelConfigurationPage` 只接受当前 `profile` context，不再存在全局列表入口
 - `profile-add` source 直接删除
 - `profile-detail` source 也直接删除；editor 只从 `ProfileModelsPage` 的 create / edit / suggestion 动作进入
+- 旧 `ProfileModelsPage` 上的 `默认` badge、`设置为默认` 按钮、set-default mutation 与相关 success/error handling 全部删除
 
 这不是单纯的“代码重构”，而是页面语义重命名：list 页代表 ownership，editor 页代表 child flow。
 
@@ -184,8 +198,8 @@ ProfileModelsPageState
 | 组件 / 能力 | 决策 | 说明 |
 | --- | --- | --- |
 | `UserModelConfigRepository` | Extend | 保留 repository 接口与命令层边界，把 key 从 `(apiFormat, modelId)` 改为 `(profileId, modelId)`，新增 `list(profileId)` / `get(profileId, modelId)` / `delete(profileId, modelId)`。 |
-| `ProviderProfileRepository` | Extend | 保留现有 profile 读写，仅移除 `selectedModelIds` 字段；在 `deleteProviderProfile` 中追加级联删除 `UserModelConfig`。 |
-| `saveUserModelConfig` / `deleteUserModelConfig` | Extend | 保留 editor 校验与 `outputExposure` 派生逻辑，输入增加 `profileId`，删除前检查 `defaultModelId` 引用。 |
+| `ProviderProfileRepository` | Extend | 保留现有 profile 读写，移除 `selectedModelIds/defaultModelId` 字段；在 `deleteProviderProfile` 中追加级联删除 `UserModelConfig`。 |
+| `saveUserModelConfig` / `deleteUserModelConfig` | Extend | 保留 editor 校验与 `outputExposure` 派生逻辑，输入增加 `profileId`；保存/删除只改变 ownership，不读写 profile-level default。 |
 | `listProfileModels` / `reconcileProfileModels` | New (dedicated) | 旧函数混合了 discovery cache、official catalog、membership state，语义已错误；本次用新的 profile-only list 命令替换，旧代码直接删除。 |
 | `refreshProfileModels` | Extend | 保留 provider discovery 调用，但不再写入 `ModelDiscoveryCacheRepository`，返回结果直接交给 `ProfileModelsPage` runtime state。 |
 | `model-generation-preference-resolution` / `model-generation-preferences` | Extend | 保留 `ModelGenerationPreferenceKey` 的 `profileId` 维度，但 `UserModelConfig` lookup 必须改成 `(profileId, modelId)`，确保相同 `modelId` 在不同 `profile` 下解析各自的 output matrix 与校验结果。 |
@@ -204,13 +218,14 @@ ProfileModelsPageState
 - **[Risk] 如果 `UserModelConfig` 暂时保留冗余 `apiFormat` 字段，可能与 parent `ProviderProfile` 漂移** → 必须在 save / load 时校验 parent 一致性，或在实现阶段直接删掉该冗余字段。
 - **[Risk] 命令层可能遗漏 parent profile 存在性校验，导致写入 orphan `UserModelConfig`** → 已通过在 `saveUserModelConfig` 中强制校验 `profileId` 并拒绝非存在 profile 来 mitigation。
 - **[Risk] 删除 `ProviderProfile` 后可能遗留 orphan `UserModelConfig`** → 已通过在 `deleteProviderProfile` 中级联删除该 profile 下所有 configs 来 mitigation。
+- **[Risk] fallback 第一项如果排序不稳定，会让当前有效模型在不同 surface 间漂移** → 所有 selection surface 必须共享同一个 canonical owned-list order，并在 `selectedModelId` 缺失或无效时使用同一 fallback。
 
 ## 数据迁移 / 回滚
 
 本次 change 不做数据迁移，不做兼容读取，不做回滚设计。
 
 - 当前产品按 `0-user` current-state 处理
-- 旧本地 `UserModelConfig`、`selectedModelIds`、`discovery cache` 可以手动清空
+- 旧本地 `UserModelConfig`、`selectedModelIds/defaultModelId`、`discovery cache` 可以手动清空
 - 新代码允许直接忽略不兼容旧状态
 - implementation 不需要双写、灰度或 reversible migration
 

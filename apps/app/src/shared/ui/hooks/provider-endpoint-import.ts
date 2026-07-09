@@ -75,7 +75,7 @@ export function importProviderEndpointInput(args: {
   readonly previousConnection?: ProviderConnectionDraft;
   readonly profiles: readonly ProviderProfile[];
   readonly nameTouched: boolean;
-  readonly defaultModel: string;
+  readonly selectedModelId: string;
   readonly defaultPathsForApiFormat: (apiFormat: ApiFormat | null) => ApiPathDraft;
   readonly mergeApiPathDraft: (current: ApiPathDraft, next: unknown, apiFormat: ApiFormat) => ApiPathDraft;
   readonly classifyEndpoint: (input: string) => EndpointClassification;
@@ -134,7 +134,7 @@ export function importProviderEndpointInput(args: {
     nextApiFormat,
     ...(suggestedAlias ? { suggestedAlias } : {}),
     ...(importedModel ? { importedModel } : {}),
-    shouldUseCustomModel: Boolean(importedModel && !args.defaultModel.trim()),
+    shouldUseCustomModel: Boolean(importedModel && !args.selectedModelId.trim()),
     diagnostics: {
       aliasApplied: Boolean(suggestedAlias),
       ...(classification.status !== 'unsupported' && classification.source === 'full-url' && classification.baseUrl

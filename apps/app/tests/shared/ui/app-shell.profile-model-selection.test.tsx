@@ -49,7 +49,7 @@ describe('AppShell profile-owned model flow', () => {
     const container = document.createElement('div');
     document.body.appendChild(container);
     const services = createReturningUserServices({
-      profileModelItems: [profileModelItem('owned-model', { default: true, selected: true })],
+      profileModelItems: [profileModelItem('owned-model')],
     });
     await renderMainPage(container, services);
 
@@ -66,12 +66,12 @@ describe('AppShell profile-owned model flow', () => {
     await flush();
 
     await act(async () => {
-      container.querySelector<HTMLElement>('[data-testid="provider-default-model-selector"]')?.click();
+      container.querySelector<HTMLElement>('[data-testid="provider-model-selector"]')?.click();
     });
     await flush();
 
     await act(async () => {
-      document.body.querySelector<HTMLElement>('[data-testid="provider-default-model-selector-option-__add-model__"]')?.click();
+      document.body.querySelector<HTMLElement>('[data-testid="provider-model-selector-option-__add-model__"]')?.click();
     });
     await flush();
     await flush();
@@ -79,6 +79,48 @@ describe('AppShell profile-owned model flow', () => {
     expect(container.querySelector('[data-testid="profile-models-add-button"]')).not.toBeNull();
     expect(container.querySelector('[data-testid="profile-model-row-owned-model"]')).not.toBeNull();
     expect(container.querySelector('[data-testid="model-config-wire-model-id"]')).toBeNull();
+  });
+
+  it('keeps Profile Detail model selector local and free of default copy', async () => {
+    const container = document.createElement('div');
+    document.body.appendChild(container);
+    const fake = createReturningUserServices({
+      profileModelItems: [
+        profileModelItem('first-model'),
+        profileModelItem('second-model'),
+      ],
+    });
+    await renderMainPage(container, fake);
+
+    await act(async () => {
+      container.querySelector<HTMLElement>('[data-testid="main-providers-button"]')?.click();
+    });
+    await flush();
+    await flush();
+
+    await act(async () => {
+      container.querySelector<HTMLElement>(`[data-testid="provider-row-${fakeProfile.profileId}"]`)?.click();
+    });
+    await flush();
+    await flush();
+
+    expect(container.querySelector('[data-testid="provider-default-model-selector"]')).toBeNull();
+    expect(container.textContent).not.toContain('Default model');
+    expect(container.textContent).not.toContain('Set default');
+    expect(selectedId(container, 'provider-model-selector')).toBe('first-model');
+
+    await act(async () => {
+      container.querySelector<HTMLElement>('[data-testid="provider-model-selector"]')?.click();
+    });
+    await flush();
+
+    await act(async () => {
+      document.body.querySelector<HTMLElement>('[data-testid="provider-model-selector-option-second-model"]')?.click();
+    });
+    await flush();
+
+    expect(selectedId(container, 'provider-model-selector')).toBe('second-model');
+    expect(fake.spies.saveProviderProfile).not.toHaveBeenCalled();
   });
 
   it('creates and backs out through ProfileModelsPage instead of Profile Detail editor shortcuts', async () => {
@@ -100,12 +142,12 @@ describe('AppShell profile-owned model flow', () => {
     await flush();
 
     await act(async () => {
-      container.querySelector<HTMLElement>('[data-testid="provider-default-model-selector"]')?.click();
+      container.querySelector<HTMLElement>('[data-testid="provider-model-selector"]')?.click();
     });
     await flush();
 
     await act(async () => {
-      document.body.querySelector<HTMLElement>('[data-testid="provider-default-model-selector-option-__add-model__"]')?.click();
+      document.body.querySelector<HTMLElement>('[data-testid="provider-model-selector-option-__add-model__"]')?.click();
     });
     await flush();
     await flush();
@@ -125,7 +167,7 @@ describe('AppShell profile-owned model flow', () => {
     await flush();
 
     expect(container.querySelector('[data-testid="profile-models-add-button"]')).not.toBeNull();
-    expect(container.querySelector('[data-testid="provider-default-model-selector"]')).toBeNull();
+    expect(container.querySelector('[data-testid="provider-model-selector"]')).toBeNull();
   });
 
   it('SettingsAddPage creates only profiles and has no model configuration shortcut', async () => {
@@ -153,20 +195,17 @@ describe('AppShell profile-owned model flow', () => {
     await flush();
 
     expect(container.querySelector('[data-testid="provider-add-model-config-button"]')).toBeNull();
-    expect(container.querySelector('[data-testid="provider-default-model-selector"]')).toBeNull();
+    expect(container.querySelector('[data-testid="provider-model-selector"]')).toBeNull();
     expect(container.querySelector('[data-testid="provider-save-button"]')).not.toBeNull();
   });
 
-  it('keeps main model selector empty when active profile has no default model', async () => {
+  it('falls back to first configured model when active profile has no selected model', async () => {
     const container = document.createElement('div');
     document.body.appendChild(container);
     const services = createReturningUserServices({
       activeImageProfileId: fakeProfile.profileId,
-      profiles: [{ ...fakeProfile, defaultModelId: '' }],
       profileModelItems: [
         profileModelItem('owned-model', {
-          default: false,
-          selected: false,
           configSource: 'user',
         }),
       ],
@@ -175,24 +214,18 @@ describe('AppShell profile-owned model flow', () => {
     await flush();
     await flush();
 
-    expect(selectedId(container, 'main-model-selector')).toBe('');
+    expect(selectedId(container, 'main-model-selector')).toBe('owned-model');
   });
 
-  it('settings provider rows show saved config model ids for user-configured defaults', async () => {
+  it('settings provider rows show first owned configured model ids', async () => {
     const container = document.createElement('div');
     document.body.appendChild(container);
     const services = createReturningUserServices({
-      profiles: [{
-        ...fakeProfile,
-        defaultModelId: 'nano-banana-fast',
-      }],
       profileModelItems: [
         profileModelItem('nano-banana-fast', {
           displayName: 'Nano Banana 2 Lite',
           wireModelId: 'nano-banana-fast-wire',
           configSource: 'user',
-          default: true,
-          selected: true,
         }),
       ],
     });

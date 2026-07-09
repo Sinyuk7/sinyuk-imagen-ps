@@ -47,9 +47,8 @@ function ratioModelOptions() {
         ...fakeProfile.config,
         apiFormat: 'openai-chat-completions',
       },
-      defaultModelId: 'gemini-3-pro-image',
     }],
-    profileModelItems: [profileModelItem('gemini-3-pro-image', { default: true, selected: true })],
+    profileModelItems: [profileModelItem('gemini-3-pro-image')],
   } as const;
 }
 

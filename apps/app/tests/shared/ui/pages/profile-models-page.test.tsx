@@ -32,7 +32,6 @@ async function renderPage(options?: {
   readonly services?: ReturnType<typeof createFakeServices>['services'];
   readonly profile?: ProviderProfile;
   readonly onBack?: () => void;
-  readonly onChanged?: () => Promise<void>;
   readonly onCreate?: () => void;
   readonly onEdit?: (modelId: string) => void;
   readonly onSuggestion?: (modelId: string) => void;
@@ -49,7 +48,6 @@ async function renderPage(options?: {
           <ProfileModelsPage
             profile={options?.profile ?? fakeProfile}
             onBack={options?.onBack ?? vi.fn()}
-            onChanged={options?.onChanged ?? vi.fn(async () => undefined)}
             onCreate={options?.onCreate ?? vi.fn()}
             onEdit={options?.onEdit ?? vi.fn()}
             onSuggestion={options?.onSuggestion ?? vi.fn()}
@@ -74,22 +72,19 @@ describe('ProfileModelsPage', () => {
       profileModelItems: [
         profileModelItem('owned-model', {
           wireModelId: 'owned-model-wire',
-          default: true,
-          selected: true,
           configSource: 'user',
         }),
       ],
     });
     const container = await renderPage({
       services,
-      profile: { ...fakeProfile, defaultModelId: 'owned-model' },
       onEdit,
     });
 
     const row = container.querySelector<HTMLElement>('[data-testid="profile-model-row-owned-model"]');
     expect(row).not.toBeNull();
     expect(row?.textContent).toContain('owned-model');
-    expect(row?.textContent).toContain('Default');
+    expect(row?.textContent).not.toContain('Default');
 
     await act(async () => {
       row?.click();
@@ -99,36 +94,22 @@ describe('ProfileModelsPage', () => {
     expect(onEdit).toHaveBeenCalledWith('owned-model');
   });
 
-  it('sets a configured model as explicit default', async () => {
-    const onChanged = vi.fn(async () => undefined);
+  it('does not expose set-default controls or write profile default state', async () => {
     const { services, spies } = createFakeServices({
       profileModelItems: [
-        profileModelItem('first-model', { default: true, selected: true }),
-        profileModelItem('second-model', { default: false, selected: false }),
+        profileModelItem('first-model'),
+        profileModelItem('second-model'),
       ],
     });
     const container = await renderPage({
       services,
-      profile: { ...fakeProfile, defaultModelId: 'first-model' },
-      onChanged,
     });
 
     const setDefaultButton = Array.from(container.querySelectorAll<HTMLButtonElement>('button'))
       .find((button) => button.textContent?.includes('Set default'));
-    expect(setDefaultButton).not.toBeUndefined();
-
-    await act(async () => {
-      setDefaultButton?.click();
-    });
-    await flush();
-    await flush();
-
-    expect(spies.saveProviderProfile).toHaveBeenCalledWith({
-      profileId: fakeProfile.profileId,
-      apiFormat: fakeProfile.apiFormat,
-      defaultModelId: 'second-model',
-    });
-    expect(onChanged).toHaveBeenCalled();
+    expect(setDefaultButton).toBeUndefined();
+    expect(container.textContent).not.toContain('Default');
+    expect(spies.saveProviderProfile).not.toHaveBeenCalled();
   });
 
   it('keeps discovery suggestions runtime-only until explicit editor save', async () => {

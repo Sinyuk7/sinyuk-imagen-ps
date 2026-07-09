@@ -241,7 +241,7 @@ describe('model configs', () => {
     expect(geminiConfig.ok ? geminiConfig.value?.wireModelId : null).toBe('gemini-shared-wire');
   });
 
-  it('clears profile defaultModelId when deleting the current default config', async () => {
+  it('deletes a user model config without rewriting profile default state', async () => {
     const config: UserModelConfig = {
       profileId: 'profile-openai',
       apiFormat: 'openai-images',
@@ -258,7 +258,7 @@ describe('model configs', () => {
       outputMatrix: [],
     };
     const userState = createUserConfigRepository([config]);
-    const profileState = createProviderProfileRepository([{ ...openaiProfile, defaultModelId: 'gpt-image-2' }]);
+    const profileState = createProviderProfileRepository([openaiProfile]);
     setUserModelConfigRepository(userState.repository);
     setProviderProfileRepository(profileState.repository);
 
@@ -266,7 +266,7 @@ describe('model configs', () => {
 
     expect(result.ok).toBe(true);
     expect(userState.saved).toHaveLength(0);
-    expect(profileState.values[0]).not.toHaveProperty('defaultModelId');
+    expect(profileState.values).toEqual([openaiProfile]);
   });
 
   it('cascades user model config deletion when deleting a profile', async () => {

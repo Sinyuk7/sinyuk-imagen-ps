@@ -339,8 +339,7 @@ export async function deleteUserModelConfig(
       error: createValidationError('Model config requires modelId.', { profileId: normalizedProfileId, modelId }),
     };
   }
-  const profileRepository = getProviderProfileRepository();
-  const profile = await profileRepository.get(normalizedProfileId);
+  const profile = await getProviderProfileRepository().get(normalizedProfileId);
   if (!profile) {
     span.fail({ message: 'profile not found' });
     return {
@@ -350,13 +349,6 @@ export async function deleteUserModelConfig(
   }
 
   await getUserModelConfigRepository().delete(normalizedProfileId, normalizedModelId);
-  if (profile.defaultModelId === normalizedModelId) {
-    const { defaultModelId: _removedDefaultModelId, ...profileWithoutDefaultModel } = profile;
-    await profileRepository.save({
-      ...profileWithoutDefaultModel,
-      updatedAt: new Date().toISOString(),
-    });
-  }
   span.finish({ modelId: normalizedModelId });
   return { ok: true, value: null };
 }

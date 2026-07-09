@@ -86,8 +86,6 @@ export async function refreshDraftProfileModels(
         modelId,
         discovered: true,
         configured: false,
-        selected: false,
-        default: false,
       }));
     span.finish({ discoveredCount: discovered.length, returnedCount: items.length });
     return { ok: true, value: items };

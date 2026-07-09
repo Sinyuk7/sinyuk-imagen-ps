@@ -786,14 +786,6 @@ function explicitModelIdFromRequest(requestObj: Record<string, unknown>): string
     : undefined;
 }
 
-function providerFallbackModelId(providerConfig: unknown): string | undefined {
-  if (!isPlainRecord(providerConfig)) {
-    return undefined;
-  }
-  const value = providerConfig.defaultModel;
-  return typeof value === 'string' && value.length > 0 ? value : undefined;
-}
-
 function stripProviderOptionsModel(providerOptions: unknown): Readonly<Record<string, unknown>> | undefined {
   if (!isPlainRecord(providerOptions)) {
     return undefined;
@@ -836,16 +828,23 @@ function operationFromRequest(requestObj: Readonly<Record<string, unknown>>): Pr
   return requestObj.operation === 'image_edit' ? 'image_edit' : 'text_to_image';
 }
 
+async function firstConfiguredModelId(profileId: string): Promise<string | undefined> {
+  const configs = await getUserModelConfigRepository().list(profileId);
+  return configs[0]?.modelId;
+}
+
 async function resolveModelParamsForDispatch(args: {
   readonly params: Record<string, unknown>;
   readonly profile: ProviderProfile;
-  readonly providerConfig: unknown;
-}): Promise<Record<string, unknown>> {
+}): Promise<{
+  readonly params: Record<string, unknown>;
+  readonly configModelId: string;
+}> {
   const { requestObj } = locateRequestInParams(args.params);
   const explicitModelId = explicitModelIdFromRequest(requestObj);
-  const selectedModelId = explicitModelId ?? args.profile.defaultModelId;
+  const selectedModelId = explicitModelId ?? await firstConfiguredModelId(args.profile.profileId);
   if (typeof selectedModelId !== 'string' || selectedModelId.length === 0) {
-    throw createValidationError(`Provider profile "${args.profile.profileId}" has no selected model for dispatch.`, {
+    throw createValidationError(`Provider profile "${args.profile.profileId}" has no configured model for dispatch.`, {
       profileId: args.profile.profileId,
     });
   }
@@ -870,14 +869,17 @@ async function resolveModelParamsForDispatch(args: {
     }),
     userConfig: resolved.source === 'user' ? resolved : undefined,
   });
-  return injectResolvedModelAndOutput({
-    params: args.params,
-    model: toProviderModelExecution(resolved),
-    capabilityModelId: resolved.capabilityModelId,
-    output: {
-      selection: generationSettings.selection.effectiveSelection,
-    },
-  });
+  return {
+    params: injectResolvedModelAndOutput({
+      params: args.params,
+      model: toProviderModelExecution(resolved),
+      capabilityModelId: resolved.capabilityModelId,
+      output: {
+        selection: generationSettings.selection.effectiveSelection,
+      },
+    }),
+    configModelId: resolved.configModelId,
+  };
 }
 
 /**
@@ -954,28 +956,23 @@ function createProfileAwareDispatchAdapter(logger?: Logger): ReturnType<typeof c
         }
       }
 
-      const modelResolvedParams = await resolveModelParamsForDispatch({
+      const modelResolution = await resolveModelParamsForDispatch({
         params,
         profile,
-        providerConfig,
       });
-      const resolvedParams = await resolveStoredAssetsForDispatch(modelResolvedParams, context?.signal);
+      const resolvedParams = await resolveStoredAssetsForDispatch(modelResolution.params, context?.signal);
       const { requestObj: resolvedRequestObj } = locateRequestInParams(resolvedParams);
       const requestModel = isPlainRecord(resolvedRequestObj.model) ? resolvedRequestObj.model : undefined;
       const capabilityModelId = typeof resolvedRequestObj.capabilityModelId === 'string'
         ? resolvedRequestObj.capabilityModelId
         : undefined;
       const wireModelId = typeof requestModel?.modelId === 'string' ? requestModel.modelId : undefined;
-      const selectedConfigModelId = explicitModelIdFromRequest(requestObj)
-        ?? profile.defaultModelId
-        ?? providerFallbackModelId(providerConfig);
-
       const adapterLogger = (dispatchLogger ?? getRuntimeLogger()).child({
         profile_id: profile.profileId,
         provider_id: provider.id,
       });
       adapterLogger.info('dispatch.provider.start', {
-        ...(typeof selectedConfigModelId === 'string' ? { configModelId: selectedConfigModelId } : {}),
+        configModelId: modelResolution.configModelId,
         ...(capabilityModelId ? { capabilityModelId } : {}),
         ...(wireModelId ? { wireModelId } : {}),
         ...(typeof requestModel?.requestStrategyId === 'string' ? { requestStrategyId: requestModel.requestStrategyId } : {}),

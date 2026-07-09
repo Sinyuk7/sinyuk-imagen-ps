@@ -74,8 +74,6 @@ const MOCK_PROFILE_MODELS: readonly ProfileModelItem[] = [{
   modelId: MOCK_MODEL_ID,
   discovered: false,
   configured: true,
-  selected: true,
-  default: true,
   configSource: 'user',
 }];
 const MOCK_RESULT_PNG_BASE64 = 'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR4nGNgYGBgAAAABQABpfZFQAAAAABJRU5ErkJggg==';
@@ -143,7 +141,6 @@ function mockProfile(options?: { readonly failMode?: ChromeTestMockFailureMode; 
     enabled: true,
     config,
     secretRefs: { apiKey: MOCK_SECRET_REF },
-    defaultModelId: MOCK_MODEL_ID,
     createdAt: FIXED_NOW,
     updatedAt: FIXED_NOW,
   };

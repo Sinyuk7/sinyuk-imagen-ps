@@ -194,7 +194,7 @@ function modelIsSelectable(model: UiModelInfo | undefined): boolean {
   if (!model) {
     return false;
   }
-  return model.configured === true && model.selected === true;
+  return model.configured === true;
 }
 
 function readinessMessage(t: ReturnType<typeof useI18n>['messages'], state: ComposerReadinessState): string {

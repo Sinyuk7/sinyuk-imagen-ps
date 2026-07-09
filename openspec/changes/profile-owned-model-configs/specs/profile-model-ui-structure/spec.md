@@ -27,7 +27,7 @@
 - **AND** create 动作不再直接从该区块内发起
 
 ### Requirement: Profile Detail model selector SHALL provide Add New Model navigation
-`Profile Detail` 的 `model` selector SHALL 继续承载默认模型选择能力，同时 MUST 在顶部提供固定动作项 `添加新模型`，用于导航到当前 `profile` 的 `Profile Detail -> Models` 页面。
+`Profile Detail` 的 `model` selector SHALL 承载当前/effective model selection，同时 MUST 在顶部提供固定动作项 `添加新模型`，用于导航到当前 `profile` 的 `Profile Detail -> Models` 页面。
 
 #### Scenario: selector 顶部存在添加新模型动作
 - **WHEN** 用户展开 `Profile Detail` 的 `model` selector
@@ -39,13 +39,25 @@
 - **THEN** 系统导航到当前 `profile` 的 `Profile Detail -> Models`
 - **AND** 不会跳到全局 `model ownership` 页面
 
+#### Scenario: detail selector 不暴露默认模型语义
+- **WHEN** 用户查看或展开 `Profile Detail` 的 `model` selector
+- **THEN** selector 只表达当前/effective selection
+- **AND** selector 不展示 `默认`、`设置为默认`，或任何等价 default-model copy
+- **AND** 选择 model 不会写入 `ProviderProfile.defaultModelId`
+
 ### Requirement: ProfileModelsPage SHALL be the canonical ownership list page
-系统 SHALL 提供 `ProfileModelsPage` 作为当前 `profile` 的 canonical `model ownership` 列表页。该页面 SHALL 承载 list、set default、create、edit、delete，以及 `discovery suggestion` 展示。
+系统 SHALL 提供 `ProfileModelsPage` 作为当前 `profile` 的 canonical `model ownership` 列表页。该页面 SHALL 承载 list、create、edit、delete，以及 `discovery suggestion` 展示；它 MUST NOT 暴露 profile-level set default 操作。
 
 #### Scenario: ProfileModelsPage 列出当前 profile 的 configured model
 - **WHEN** 用户打开 profile A 的 `Profile Detail -> Models`
 - **THEN** 页面列出由 profile A 拥有的 `configured model`
 - **AND** 页面不会列出其他 `profile` 的 `configured model`
+
+#### Scenario: ProfileModelsPage 不展示默认标记或默认操作
+- **WHEN** 用户打开当前 `profile` 的 `Profile Detail -> Models`
+- **THEN** 每个 owned `configured model` 行都不会展示 `默认` badge
+- **AND** 页面不会展示 `设置为默认` 按钮
+- **AND** 页面不会调用任何 set-default 或 `saveProviderProfile({ defaultModelId })` mutation
 
 #### Scenario: create 动作由 ProfileModelsPage actionbar 发起
 - **WHEN** 用户需要为当前 `profile` 添加新 `model`

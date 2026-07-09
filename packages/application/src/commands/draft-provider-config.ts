@@ -16,10 +16,6 @@ import {
 
 type DraftCommandInput = MeasureProfileEndpointsInput | TestProviderProfileConnectionInput | RefreshDraftProfileModelsInput;
 
-function defaultModelIdFromInput(input: DraftCommandInput): string | undefined {
-  return 'defaultModelId' in input ? input.defaultModelId : undefined;
-}
-
 function mergeDraftConfig(
   existing: ProviderProfileConfig | undefined,
   incoming: ProviderProfileConfig,
@@ -61,7 +57,6 @@ export async function resolveDraftProviderContext(input: DraftCommandInput): Pro
   readonly providerConfig: unknown;
   readonly apiFormat: ProviderProfile['apiFormat'];
   readonly implementationId: string;
-  readonly defaultModelId?: string;
 }> {
   const existing = input.profileId ? await getProviderProfileRepository().get(input.profileId) : undefined;
   const mergedConfig = mergeDraftConfig(existing?.config, input.config);
@@ -94,6 +89,5 @@ export async function resolveDraftProviderContext(input: DraftCommandInput): Pro
     providerConfig,
     apiFormat,
     implementationId,
-    defaultModelId: defaultModelIdFromInput(input) ?? existing?.defaultModelId,
   };
 }
