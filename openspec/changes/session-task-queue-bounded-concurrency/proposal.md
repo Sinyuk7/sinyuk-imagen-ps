@@ -16,7 +16,8 @@
 - 保持 running task 不承诺产品级 cancel：
   - 当前只保留底层 `AbortSignal` seam。
   - 不提供 fake cancel，不把用户看到的中断误写成可靠取消成功。
-- 保持结果消费模式不变：任务完成后仍由用户手动决定 place / download / ignore，不引入“待应用”状态。
+- 保持结果消费模式不变：任务完成后仍由用户手动决定 place / download；未处理结果不额外建模，不引入“待应用”状态。
+- 将 queued 可见范围限定在 active session surface；durable history 仍只基于已 started 的 `TaskRecord`。
 - 调整 app surface：解除全局 `conversation.running` 式的编辑/提交门禁，让用户在已有 queued / running task 时继续准备和提交新任务。
 
 ## Capabilities
@@ -31,6 +32,7 @@ None.
 
 - 主要影响 `packages/application` 的 session orchestration、submit 入口与 runtime 调度边界。
 - 主要影响 `apps/app` 的 conversation / main page 交互模型与任务列表呈现。
+- `HistoryPage` / durable history 只需维持“不显示 queued-only entry”的边界，不扩成 queue owner。
 - 不要求本次修改 `packages/providers` contract；provider 仍只负责 invoke / retry / failover。
 - 不要求本次把 queued task 写入 durable `TaskRecord`，也不要求新增 running-task cancel contract。
 - 需要补充 application 与 app-surface 的 targeted tests，重点覆盖 FIFO、并发上限、queued remove、snapshot freeze、以及 UI 去全局锁后的行为。
