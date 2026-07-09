@@ -163,15 +163,6 @@ export async function runChromeFeasibilityRuntime(options?: {
   if (!config.ok) {
     throw new Error(config.error.message);
   }
-  const profileWithDefault = await saveProviderProfile({
-    profileId: profile.value.profileId,
-    apiFormat: profile.value.apiFormat,
-    defaultModelId: 'gpt-image-2',
-  });
-  if (!profileWithDefault.ok) {
-    throw new Error(profileWithDefault.error.message);
-  }
-
   const originalFetch = globalThis.fetch;
   globalThis.fetch = createChromeFeasibilityFetch(originalFetch);
   const job = await submitJob({

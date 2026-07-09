@@ -31,7 +31,7 @@ import { ProviderBillingSettings } from '../components/provider-billing-settings
 import { ProviderProfileEditor } from '../components/provider-profile-editor';
 import {
   ProviderAdvancedPathSection,
-  ProviderDefaultModelSection,
+  ProviderModelSelectionSection,
   ProviderSettingsFooter,
   ProviderSettingsPageHeader,
 } from '../components/provider-settings-sections';
@@ -71,7 +71,7 @@ function profileFormCheckpointAttrs(
   profile: ProviderProfile | null,
   form: {
     readonly apiKey: string;
-    readonly defaultModel: string;
+    readonly selectedModelId: string;
     readonly billingToken?: string;
     readonly billingPath?: string;
     readonly billingSource?: string;
@@ -85,7 +85,7 @@ function profileFormCheckpointAttrs(
     hasDirtyBillingCredential: (form.billingToken ?? '').trim().length > 0,
     billingPath: form.billingPath ?? null,
     billingSource: form.billingSource ?? null,
-    modelIdLength: form.defaultModel.trim().length,
+    modelIdLength: form.selectedModelId.trim().length,
   };
 }
 
@@ -133,19 +133,11 @@ function normalizeConfigForDraftCompare(config: ProviderProfileConfig): string {
   return stableSerialize(normalized);
 }
 
-function defaultModelInput(defaultModel: string): {
-  readonly defaultModelId?: string;
-} {
-  const modelId = defaultModel.trim();
-  return { defaultModelId: modelId.length > 0 ? modelId : '' };
-}
-
 function hasDraftChanges(
   profile: ProviderProfile,
   draft: {
     readonly displayName: string;
     readonly connection: ProviderConnectionDraft;
-    readonly defaultModel: string;
     readonly paths: ApiPathDraft;
     readonly billing: ProviderBillingDraft;
     readonly systemInstruction: string;
@@ -169,7 +161,6 @@ function hasDraftChanges(
       profile.apiFormat,
       nextDisplayName,
       draft.connection,
-      draft.defaultModel,
       draft.paths,
       draft.billing,
     ),
@@ -177,7 +168,6 @@ function hasDraftChanges(
   return (
     nextDisplayName !== profile.displayName ||
     draft.systemInstruction !== (profile.systemInstruction ?? '') ||
-    draft.defaultModel.trim() !== (profile.defaultModelId ?? '') ||
     normalizeConfigForDraftCompare(nextConfig) !== normalizeConfigForDraftCompare(profile.config)
   );
 }
@@ -230,7 +220,7 @@ export function SettingsDetailPage({ onNav, onBack, profileId, onProfilesChanged
   const [displayName, setDisplayName] = useState('');
   const [systemInstruction, setSystemInstruction] = useState('');
   const [connection, setConnection] = useState<ProviderConnectionDraft>(readProviderConnectionDraft(null));
-  const [defaultModel, setDefaultModel] = useState('');
+  const [selectedModelId, setSelectedModelId] = useState('');
   const [paths, setPaths] = useState<ApiPathDraft>(defaultApiPathDraft(null));
   const [billingDraft, setBillingDraft] = useState<ProviderBillingDraft>(readProviderBillingDraft(null));
   const [billingModeMenuOpen, setBillingModeMenuOpen] = useState(false);
@@ -271,7 +261,6 @@ export function SettingsDetailPage({ onNav, onBack, profileId, onProfilesChanged
         {
           displayName,
           connection,
-          defaultModel,
           paths,
           billing: billingDraft,
           systemInstruction,
@@ -369,7 +358,7 @@ export function SettingsDetailPage({ onNav, onBack, profileId, onProfilesChanged
         previousConnection: previous,
         profiles: [],
         nameTouched: true,
-        defaultModel,
+        selectedModelId,
         defaultPathsForApiFormat: defaultApiPathDraft,
         mergeApiPathDraft,
         classifyEndpoint: services.commands.classifyEndpoint,
@@ -424,7 +413,7 @@ export function SettingsDetailPage({ onNav, onBack, profileId, onProfilesChanged
     connectionRef.current = nextConnection;
     setConnection(nextConnection);
     setPaths(readApiPathDraft(detail.profile));
-    setDefaultModel(detail.profile.defaultModelId ?? '');
+    setSelectedModelId('');
     const nextBillingDraft = readProviderBillingDraft(detail.profile);
     billingDraftRef.current = nextBillingDraft;
     setBillingDraft(nextBillingDraft);
@@ -469,8 +458,10 @@ export function SettingsDetailPage({ onNav, onBack, profileId, onProfilesChanged
         }));
         setUserModelOptions(nextOptions);
         setModelOptionsError(null);
-        if (defaultModel && !nextOptions.some((option) => option.id === defaultModel)) {
-          setDefaultModel('');
+        if (selectedModelId && !nextOptions.some((option) => option.id === selectedModelId)) {
+          setSelectedModelId(nextOptions[0]?.id ?? '');
+        } else if (!selectedModelId && nextOptions[0]) {
+          setSelectedModelId(nextOptions[0].id);
         }
       })
       .catch((error: unknown) => {
@@ -488,7 +479,7 @@ export function SettingsDetailPage({ onNav, onBack, profileId, onProfilesChanged
     return () => {
       cancelled = true;
     };
-  }, [defaultModel, detail.profile, services.commands]);
+  }, [selectedModelId, detail.profile, services.commands]);
 
   const persistProfile = async (): Promise<ProviderProfile | null> => {
     if (!detail.profile) {
@@ -505,7 +496,7 @@ export function SettingsDetailPage({ onNav, onBack, profileId, onProfilesChanged
       'uxp.ui.settings_detail.persist.input_prepared',
       profileFormCheckpointAttrs(detail.profile, {
         apiKey: currentApiKey,
-        defaultModel,
+        selectedModelId,
         billingToken: currentBillingDraft.token,
         billingPath: currentBillingDraft.path,
         billingSource: currentBillingDraft.source,
@@ -534,12 +525,10 @@ export function SettingsDetailPage({ onNav, onBack, profileId, onProfilesChanged
           detail.profile.apiFormat,
           sanitizeProviderDisplayName(displayName) || detail.profile.displayName,
           currentConnection,
-          defaultModel,
           paths,
           currentBillingDraft,
         ),
       ),
-      ...defaultModelInput(defaultModel),
       ...(removedSecretNames.length > 0 ? { removedSecretNames } : {}),
       ...((currentApiKey.trim() || billingSecretValues)
         ? {
@@ -579,12 +568,11 @@ export function SettingsDetailPage({ onNav, onBack, profileId, onProfilesChanged
           detail.profile.apiFormat,
           sanitizeProviderDisplayName(displayName) || detail.profile.displayName,
           currentConnection,
-          defaultModel,
           paths,
           currentBillingDraft,
         ),
       ),
-      ...defaultModelInput(defaultModel),
+      ...(selectedModelId.trim().length > 0 ? { selectedModelId: selectedModelId.trim() } : {}),
       ...(removedSecretNames.length > 0 ? { removedSecretNames } : {}),
       ...((currentApiKey.trim() || billingSecretValues)
         ? {
@@ -755,9 +743,9 @@ export function SettingsDetailPage({ onNav, onBack, profileId, onProfilesChanged
     }
   };
 
-  const visibleDefaultModelId = userModelOptions.some((model) => model.id === defaultModel)
-    ? defaultModel
-    : '';
+  const visibleSelectedModelId = userModelOptions.some((model) => model.id === selectedModelId)
+    ? selectedModelId
+    : userModelOptions[0]?.id ?? '';
 
   const remove = async () => {
     if (saveBusyRef.current) {
@@ -777,7 +765,7 @@ export function SettingsDetailPage({ onNav, onBack, profileId, onProfilesChanged
     }
   };
 
-  const modelSelectionLabel = userModelOptions.find((option) => option.id === visibleDefaultModelId)?.label ?? '';
+  const modelSelectionLabel = userModelOptions.find((option) => option.id === visibleSelectedModelId)?.label ?? '';
   const modelTriggerValue = modelSelectionLabel || t.settings.chooseFromList;
   const modelSelectOptions = detail.profile
     ? [{ id: ADD_MODEL_ACTION_ID, label: t.settings.addNewModel }, ...userModelOptions]
@@ -981,15 +969,15 @@ export function SettingsDetailPage({ onNav, onBack, profileId, onProfilesChanged
               measurementBusy={false}
               measurementSupported={measurementSupported}
               onMeasure={() => void probeEndpoints()}
-              defaultModelSection={(
-                <ProviderDefaultModelSection
+              modelSelectionSection={(
+                <ProviderModelSelectionSection
                   wrapInSection={false}
                   disabled={busy}
                   loading={modelOptionsLoading}
                   canCreateModelConfig={false}
                   modelMenuOpen={modelMenuOpen}
                   modelOptions={modelSelectOptions}
-                  defaultModel={visibleDefaultModelId}
+                  selectedModelId={visibleSelectedModelId}
                   triggerValue={modelTriggerValue}
                   modelFieldHelp={null}
                   emptyStateNotice={modelEmptyState}
@@ -1005,7 +993,7 @@ export function SettingsDetailPage({ onNav, onBack, profileId, onProfilesChanged
                     });
                   }}
                   onModelMenuOpenChange={setModelMenuOpen}
-                  onDefaultModelSelect={(id) => {
+                  onModelSelect={(id) => {
                     if (id === ADD_MODEL_ACTION_ID) {
                       setModelMenuOpen(false);
                       if (detail.profile) {
@@ -1018,7 +1006,7 @@ export function SettingsDetailPage({ onNav, onBack, profileId, onProfilesChanged
                       }
                       return;
                     }
-                    setDefaultModel(id);
+                    setSelectedModelId(id);
                     setModelMenuOpen(false);
                     invalidateDraftProofs();
                   }}

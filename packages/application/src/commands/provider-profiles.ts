@@ -25,7 +25,7 @@ import {
   resolveProfileApiFormat,
 } from './api-format-profile.js';
 import { invalidateProfileBillingState } from './profile-billing.js';
-import { assertProfileModelSelectionIsConfigured, resolveConfiguredModel, toProviderModelExecution } from './model-config-resolution.js';
+import { resolveConfiguredModel, toProviderModelExecution, type ResolvedModelConfig } from './model-config-resolution.js';
 import { resolveModelGenerationSettingsValue } from './model-generation-preference-resolution.js';
 
 function errorMessage(error: unknown, fallback: string): string {
@@ -43,7 +43,15 @@ function createSecretRef(profileId: string, secretName: string): string {
 }
 
 function sanitizeProfile(profile: ProviderProfile): ProviderProfile {
-  return { ...profile };
+  const {
+    defaultModelId: _defaultModelId,
+    selectedModelIds: _selectedModelIds,
+    ...sanitized
+  } = profile as ProviderProfile & {
+    readonly defaultModelId?: unknown;
+    readonly selectedModelIds?: unknown;
+  };
+  return sanitized;
 }
 
 function isLegacyPromptOptimizerProfile(profile: ProviderProfile): boolean {
@@ -117,15 +125,6 @@ function resolveSystemInstruction(input: ProviderProfileInput, existing: Provide
     return normalizeSystemInstruction(input.systemInstruction);
   }
   return normalizeSystemInstruction(existing?.systemInstruction);
-}
-
-function defaultModelIdForProfile(input: ProviderProfileInput, existing: ProviderProfile | undefined): string | undefined {
-  if (Object.prototype.hasOwnProperty.call(input, 'defaultModelId')) {
-    const explicit = input.defaultModelId?.trim();
-    return explicit && explicit.length > 0 ? explicit : undefined;
-  }
-  const inherited = existing?.defaultModelId?.trim();
-  return inherited && inherited.length > 0 ? inherited : undefined;
 }
 
 /** 列出已保存的 provider profiles，不返回 secret values。 */
@@ -302,7 +301,6 @@ export async function saveProviderProfile(input: ProviderProfileInput): Promise<
       displayName,
       apiFormat,
     };
-    const defaultModelId = defaultModelIdForProfile(input, existing);
     const profile: ProviderProfile = {
       profileId: input.profileId,
       apiFormat,
@@ -311,7 +309,6 @@ export async function saveProviderProfile(input: ProviderProfileInput): Promise<
       enabled: nextEnabled,
       config: nextConfig,
       ...(Object.keys(secretRefs).length > 0 ? { secretRefs } : {}),
-      ...(defaultModelId !== undefined ? { defaultModelId } : {}),
       createdAt: existing?.createdAt ?? now,
       updatedAt: now,
     };
@@ -343,7 +340,6 @@ export async function saveProviderProfile(input: ProviderProfileInput): Promise<
       ...profile,
       config: persistedConfig,
     };
-    await assertProfileModelSelectionIsConfigured(persistedProfile, getUserModelConfigRepository());
 
     await getProviderProfileRepository().save(persistedProfile);
     await Promise.allSettled(Array.from(removedSecretRefs, (ref) => secretStorage.deleteSecret(ref)));
@@ -413,6 +409,20 @@ export async function deleteProviderProfile(
   }
 }
 
+async function resolveFirstConfiguredProfileModel(profile: ProviderProfile): Promise<ResolvedModelConfig | undefined> {
+  const configs = await getUserModelConfigRepository().list(profile.profileId);
+  const first = configs[0];
+  if (!first) {
+    return undefined;
+  }
+  return resolveConfiguredModel({
+    profileId: profile.profileId,
+    apiFormat: profile.apiFormat,
+    modelId: first.modelId,
+    userModelConfigRepository: getUserModelConfigRepository(),
+  });
+}
+
 /**
  * 分层测试 provider profile，不返回 secret-bearing config。
  *
@@ -470,15 +480,7 @@ export async function testProviderProfile(
     // Layer 2：connect
     if (options.connect === true || options.generate === true) {
       if (typeof provider.safeProbe === 'function') {
-        const probeModelId = profile.defaultModelId;
-        const resolvedProbeModel = probeModelId
-          ? await resolveConfiguredModel({
-            profileId: profile.profileId,
-            apiFormat: profile.apiFormat,
-            modelId: probeModelId,
-            userModelConfigRepository: getUserModelConfigRepository(),
-          })
-          : undefined;
+        const resolvedProbeModel = await resolveFirstConfiguredProfileModel(profile);
         const tested = await provider.safeProbe(
           resolved.providerConfig,
           { modelId: resolvedProbeModel?.wireModelId },
@@ -501,35 +503,34 @@ export async function testProviderProfile(
         result.smokeTest = { passed: false };
       } else {
         try {
-          const resolvedModel = await resolveConfiguredModel({
-            profileId: profile.profileId,
-            apiFormat: profile.apiFormat,
-            modelId: profile.defaultModelId ?? '',
-            userModelConfigRepository: getUserModelConfigRepository(),
-          });
-          const generationSettings = resolveModelGenerationSettingsValue({
-            key: {
-              profileId: profile.profileId,
-              apiFormat: profile.apiFormat,
-              modelId: resolvedModel.configModelId,
+          const resolvedModel = await resolveFirstConfiguredProfileModel(profile);
+          if (!resolvedModel) {
+            result.smokeTest = { passed: false };
+          } else {
+            const generationSettings = resolveModelGenerationSettingsValue({
+              key: {
+                profileId: profile.profileId,
+                apiFormat: profile.apiFormat,
+                modelId: resolvedModel.configModelId,
+                operation: 'text_to_image',
+              },
+              userConfig: resolvedModel.source === 'user' ? resolvedModel : undefined,
+            });
+            const request = provider.validateRequest({
               operation: 'text_to_image',
-            },
-            userConfig: resolvedModel.source === 'user' ? resolvedModel : undefined,
-          });
-          const request = provider.validateRequest({
-            operation: 'text_to_image',
-            prompt: 'test',
-            model: toProviderModelExecution(resolvedModel),
-            capabilityModelId: resolvedModel.capabilityModelId,
-            output: { count: 1, selection: generationSettings.selection.effectiveSelection },
-          });
-          const invokeResult = await provider.invoke({ config: resolved.providerConfig, request });
-          const modelUsed = resolvedModel.wireModelId;
-          result.smokeTest = {
-            passed: invokeResult.assets.length > 0,
-            assetCount: invokeResult.assets.length,
-            ...(typeof modelUsed === 'string' ? { modelUsed } : {}),
-          };
+              prompt: 'test',
+              model: toProviderModelExecution(resolvedModel),
+              capabilityModelId: resolvedModel.capabilityModelId,
+              output: { count: 1, selection: generationSettings.selection.effectiveSelection },
+            });
+            const invokeResult = await provider.invoke({ config: resolved.providerConfig, request });
+            const modelUsed = resolvedModel.wireModelId;
+            result.smokeTest = {
+              passed: invokeResult.assets.length > 0,
+              assetCount: invokeResult.assets.length,
+              ...(typeof modelUsed === 'string' ? { modelUsed } : {}),
+            };
+          }
         } catch {
           result.smokeTest = { passed: false };
         }

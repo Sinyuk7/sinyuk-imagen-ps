@@ -6,8 +6,6 @@ export interface UiModelInfo {
   readonly wireModelId?: string;
   readonly discovered?: boolean;
   readonly configured?: boolean;
-  readonly selected?: boolean;
-  readonly default?: boolean;
   readonly configSource?: ProfileModelItem['configSource'];
 }
 
@@ -18,8 +16,6 @@ export function modelInfoFromProfileItem(item: ProfileModelItem): UiModelInfo {
     ...(item.wireModelId !== undefined ? { wireModelId: item.wireModelId } : {}),
     discovered: item.discovered,
     configured: item.configured,
-    selected: item.selected,
-    default: item.default,
     ...(item.configSource !== undefined ? { configSource: item.configSource } : {}),
   };
 }
@@ -31,7 +27,6 @@ export function modelInfoFromDescriptor(model: ProviderModelInfo): UiModelInfo {
     wireModelId: model.id,
     configSource: 'catalog',
     configured: true,
-    selected: true,
   };
 }
 
@@ -61,7 +56,7 @@ export function modelDisplayName(model: UiModelInfo): string {
 }
 
 export function mainSelectableModels(models: readonly UiModelInfo[]): readonly UiModelInfo[] {
-  return models.filter((model) => model.selected === true && model.configured === true);
+  return models.filter((model) => model.configured === true);
 }
 
 export interface ModelConfigListPresentation {

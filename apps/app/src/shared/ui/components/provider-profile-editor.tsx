@@ -41,7 +41,7 @@ interface ProviderProfileEditorProps {
   readonly measurementBusy?: boolean;
   readonly measurementSupported?: boolean;
   readonly onMeasure?: () => void;
-  readonly defaultModelSection?: ReactNode;
+  readonly modelSelectionSection?: ReactNode;
   readonly balanceSection?: ReactNode;
   readonly apiKeyValue: string;
   readonly onApiKeyValue: (value: string) => void;
@@ -139,7 +139,7 @@ export function ProviderProfileEditor({
   measurementBusy = false,
   measurementSupported = true,
   onMeasure,
-  defaultModelSection,
+  modelSelectionSection,
   balanceSection,
   apiKeyValue,
   onApiKeyValue,
@@ -395,7 +395,7 @@ export function ProviderProfileEditor({
 
         {pathSettings}
 
-        {defaultModelSection}
+        {modelSelectionSection}
 
         <div className="field field-textarea provider-system-instructions-field">
           <FieldLabel htmlFor="provider-system-instructions-input">{t.settings.systemInstructions}</FieldLabel>

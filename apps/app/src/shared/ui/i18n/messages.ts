@@ -18,8 +18,6 @@ export interface AppMessages {
     readonly disabled: string;
     readonly ready: string;
     readonly needsSetup: string;
-    readonly default: string;
-    readonly setDefault: string;
     readonly copy: string;
     readonly copied: string;
     readonly help: string;
@@ -217,7 +215,6 @@ export interface AppMessages {
     readonly endpointFailed: string;
     readonly endpointTimeout: string;
     readonly endpointDns: string;
-    readonly defaultModel: string;
     readonly selectedModel: string;
     readonly chooseFromList: string;
     readonly modelSelectionEmpty: string;
@@ -336,7 +333,6 @@ export interface AppMessages {
     readonly modelConfigConfigureModel: string;
     readonly modelConfigEditModel: string;
     readonly modelConfigSelectedTag: string;
-    readonly modelConfigDefaultTag: string;
     readonly modelConfigSelectedEmpty: string;
     readonly promptOptimization: string;
     readonly promptSettingsSummary: string;
@@ -423,8 +419,6 @@ const EN_MESSAGES: AppMessages = {
     disabled: 'Disabled',
     ready: 'Ready',
     needsSetup: 'Needs setup',
-    default: 'Default',
-    setDefault: 'Set default',
     copy: 'Copy',
     copied: 'Copied',
     help: 'Help',
@@ -631,7 +625,6 @@ const EN_MESSAGES: AppMessages = {
     endpointFailed: 'Failed',
     endpointTimeout: 'Timeout',
     endpointDns: 'DNS error',
-    defaultModel: 'Default model',
     selectedModel: 'Selected model',
     chooseFromList: 'Choose from list',
     modelSelectionEmpty: 'No saved model configurations are available for this profile yet.',
@@ -750,7 +743,6 @@ const EN_MESSAGES: AppMessages = {
     modelConfigConfigureModel: 'Configure model',
     modelConfigEditModel: 'Edit config',
     modelConfigSelectedTag: 'Selected',
-    modelConfigDefaultTag: 'Default',
     modelConfigSelectedEmpty: 'No saved model configurations in this profile yet.',
     promptOptimization: 'Prompt Optimization',
     promptSettingsSummary: 'Templates and presets',
@@ -837,8 +829,6 @@ const ZH_CN_MESSAGES: AppMessages = {
     disabled: '已停用',
     ready: '就绪',
     needsSetup: '待配置',
-    default: '默认',
-    setDefault: '设为默认',
     copy: '复制',
     copied: '已复制',
     help: '帮助',
@@ -1045,7 +1035,6 @@ const ZH_CN_MESSAGES: AppMessages = {
     endpointFailed: '失败',
     endpointTimeout: '超时',
     endpointDns: 'DNS 解析失败',
-    defaultModel: '默认模型',
     selectedModel: '当前模型',
     chooseFromList: '从列表选择',
     modelSelectionEmpty: '暂无可用模型配置',
@@ -1164,7 +1153,6 @@ const ZH_CN_MESSAGES: AppMessages = {
     modelConfigConfigureModel: '配置模型',
     modelConfigEditModel: '编辑配置',
     modelConfigSelectedTag: '已选中',
-    modelConfigDefaultTag: '默认',
     modelConfigSelectedEmpty: '暂无已选模型配置',
     promptOptimization: '提示词优化',
     promptSettingsSummary: '模板与预设',

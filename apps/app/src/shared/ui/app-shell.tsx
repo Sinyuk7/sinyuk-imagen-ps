@@ -198,10 +198,6 @@ function useHostLayers(host: AppShellHost): {
   return { layers, layersError, layersLoading, reloadLayers };
 }
 
-function defaultModelFor(profile: ProviderProfile | undefined): string {
-  return profile?.defaultModelId ?? '';
-}
-
 function mergeConfiguredDefaultModel(
   models: readonly UiModelInfo[],
 ): readonly UiModelInfo[] {
@@ -236,9 +232,7 @@ function AppShellContent({ host }: AppShellProps) {
     () => imageProfiles.find((profile) => profile.profileId === selectedImageProfileId),
     [imageProfiles, selectedImageProfileId],
   );
-  const selectedProfileModelsRevision = selectedProfile
-    ? `${selectedProfile.updatedAt}:${defaultModelFor(selectedProfile)}`
-    : '';
+  const selectedProfileModelsRevision = selectedProfile?.updatedAt ?? '';
   const modelsState = useProfileModels(services, selectedImageProfileId, selectedProfileModelsRevision);
   const imageModels = useMemo(
     () => mergeConfiguredDefaultModel(modelsState.models),
@@ -331,12 +325,9 @@ function AppShellContent({ host }: AppShellProps) {
     if (stillValid) {
       return;
     }
-    const configured = defaultModelFor(selectedProfile);
-    const next = available.some((model) => model.id === configured)
-      ? configured
-      : '';
+    const next = available[0]?.id ?? '';
     setSelectedModelId(next);
-  }, [imageModels, selectedProfile, selectedModelId]);
+  }, [imageModels, selectedModelId]);
 
   const openSettingsView = useCallback((options?: { readonly skipOnboarding?: boolean }) => {
     const nextToken = settingsEntryTokenRef.current + 1;
@@ -608,10 +599,6 @@ function AppShellContent({ host }: AppShellProps) {
               setSelectedSettingsProfileId(profileId);
               if (profileId) {
                 await selectImageProfile(profileId);
-                const profileResult = await services.commands.getProviderProfile(profileId);
-                if (profileResult.ok) {
-                  setSelectedModelId(defaultModelFor(profileResult.value));
-                }
               }
               await services.diagnostics?.checkpoint('uxp.ui.app_shell.profiles_changed.after_select_profile', { profileId });
             } catch (error) {
@@ -633,12 +620,6 @@ function AppShellContent({ host }: AppShellProps) {
               <ProfileModelsPage
                 profile={profile}
                 onBack={() => setView('settings-detail')}
-                onChanged={async () => {
-                  await profilesState.reload();
-                  if (selectedImageProfileId === profile.profileId) {
-                    await modelsState.reload();
-                  }
-                }}
                 onCreate={() => {
                   setModelConfigurationEditorSeed({
                     profileId: profile.profileId,

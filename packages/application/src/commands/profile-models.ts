@@ -68,7 +68,6 @@ function resolvedProfileModelDisplayName(args: {
 export function reconcileProfileModels(args: {
   readonly userModelConfigs: readonly UserModelConfig[];
   readonly officialCatalogDisplayNames?: ReadonlyMap<string, string>;
-  readonly defaultModelId?: string;
 }): readonly ProfileModelItem[] {
   const userConfigsById = new Map(args.userModelConfigs.map((config) => [config.modelId, config] as const));
   const candidateIds = uniqueModelIds(args.userModelConfigs.map((config) => config.modelId));
@@ -86,8 +85,6 @@ export function reconcileProfileModels(args: {
       ...(userConfig?.wireModelId ? { wireModelId: userConfig.wireModelId } : {}),
       discovered: false,
       configured: true,
-      selected: args.defaultModelId === modelId,
-      default: args.defaultModelId === modelId,
       configSource: 'user' as const,
     };
   });
@@ -129,11 +126,9 @@ export async function listProfileModels(profileId: string): Promise<CommandResul
   const items = reconcileProfileModels({
     userModelConfigs: userConfigs,
     officialCatalogDisplayNames: officialCatalogDisplayNames(profile),
-    defaultModelId: profile.defaultModelId,
   });
   span.finish({
     count: items.length,
-    defaultModelId: profile.defaultModelId,
   });
   return { ok: true, value: items };
 }

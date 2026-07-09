@@ -13,7 +13,6 @@ import { configurationInstanceLabel, modelInfoFromProfileItem } from '../model-i
 interface ProfileModelsPageProps {
   readonly profile: ProviderProfile;
   readonly onBack: () => void;
-  readonly onChanged: () => Promise<void>;
   readonly onCreate: () => void;
   readonly onEdit: (modelId: string) => void;
   readonly onSuggestion: (modelId: string) => void;
@@ -28,7 +27,7 @@ function commandMessage(error: { readonly category: string; readonly message: st
   return `${error.category}: ${error.message}`;
 }
 
-export function ProfileModelsPage({ profile, onBack, onChanged, onCreate, onEdit, onSuggestion }: ProfileModelsPageProps) {
+export function ProfileModelsPage({ profile, onBack, onCreate, onEdit, onSuggestion }: ProfileModelsPageProps) {
   const services = useAppServices();
   const { messages: t } = useI18n();
   const [models, setModels] = useState<readonly ProfileModelItem[]>([]);
@@ -94,20 +93,6 @@ export function ProfileModelsPage({ profile, onBack, onChanged, onCreate, onEdit
     }
   };
 
-  const setDefault = async (modelId: string) => {
-    const result = await services.commands.saveProviderProfile({
-      profileId: profile.profileId,
-      apiFormat: profile.apiFormat,
-      defaultModelId: modelId,
-    });
-    if (!result.ok) {
-      setError(commandMessage(result.error));
-      return;
-    }
-    await onChanged();
-    await reload();
-  };
-
   return (
     <div className="page page-enter settings-page">
       <ProviderSettingsPageHeader
@@ -151,7 +136,6 @@ export function ProfileModelsPage({ profile, onBack, onChanged, onCreate, onEdit
             <div className="model-config-list">
               {models.map((model) => {
                 const label = configurationInstanceLabel(modelInfoFromProfileItem(model));
-                const isDefault = model.modelId === profile.defaultModelId;
                 return (
                   <SettingsListRow
                     key={model.modelId}
@@ -166,20 +150,9 @@ export function ProfileModelsPage({ profile, onBack, onChanged, onCreate, onEdit
                       <>
                         <span className="prov-model model-config-meta-primary">{model.wireModelId ?? model.modelId}</span>
                         <span className="prov-meta-sep" aria-hidden="true">·</span>
-                        <span className="prov-family model-config-meta-secondary">{isDefault ? t.common.default : profile.apiFormat}</span>
+                        <span className="prov-family model-config-meta-secondary">{profile.apiFormat}</span>
                       </>
                     )}
-                    end={!isDefault ? (
-                      <Button
-                        className="btn-secondary"
-                        onClick={(event) => {
-                          event.stopPropagation();
-                          void setDefault(model.modelId);
-                        }}
-                      >
-                        {t.common.setDefault}
-                      </Button>
-                    ) : undefined}
                     onOpen={() => onEdit(model.modelId)}
                   />
                 );

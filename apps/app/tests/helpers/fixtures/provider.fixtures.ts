@@ -30,7 +30,6 @@ export const fakeProfile: ProviderProfile = {
   secretRefs: {
     apiKey: 'secret:provider-profile:mock-profile:apiKey',
   },
-  defaultModelId: 'gpt-image-2',
   createdAt: '2026-06-15T00:00:00.000Z',
   updatedAt: '2026-06-15T00:00:00.000Z',
 };
@@ -70,8 +69,6 @@ export const fakeProfileModelItems: readonly ProfileModelItem[] = [{
   wireModelId: 'gpt-image-2',
   discovered: false,
   configured: true,
-  selected: true,
-  default: true,
   configSource: 'user',
 }];
 
@@ -80,8 +77,6 @@ export const fakeDraftProfileModelItems: readonly ProfileModelItem[] = [{
   wireModelId: 'gpt-image-2-preview',
   discovered: true,
   configured: false,
-  selected: false,
-  default: false,
 }];
 
 export const fakeRequestStrategies: readonly RequestStrategy[] = [{
@@ -99,25 +94,18 @@ export function profileModelItem(
     wireModelId: modelId,
     discovered: false,
     configured: true,
-    selected: true,
-    default: false,
     configSource: 'user',
     ...overrides,
   };
 }
 
 export function savedProfile(input: ProviderProfileInput, existing: ProviderProfile | undefined): ProviderProfile {
-  const hasDefaultModelInput = Object.prototype.hasOwnProperty.call(input, 'defaultModelId');
-  const defaultModelId = hasDefaultModelInput
-    ? input.defaultModelId
-    : (existing?.defaultModelId ?? fakeProfile.defaultModelId);
   const baseProfile = {
     ...fakeProfile,
     ...(existing ?? {}),
   };
-  const { defaultModelId: _removedDefaultModelId, ...profileWithoutDefaultModel } = baseProfile;
   return {
-    ...profileWithoutDefaultModel,
+    ...baseProfile,
     profileId: input.profileId,
     apiFormat: input.apiFormat ?? existing?.apiFormat ?? fakeProfile.apiFormat,
     displayName: input.displayName ?? existing?.displayName ?? fakeProfile.displayName,
@@ -127,7 +115,6 @@ export function savedProfile(input: ProviderProfileInput, existing: ProviderProf
       ...(existing?.config ?? fakeProfile.config),
       ...(input.config ?? {}),
     },
-    ...(defaultModelId !== undefined && defaultModelId.length > 0 ? { defaultModelId } : {}),
     updatedAt: '2026-06-15T00:00:02.000Z',
   };
 }

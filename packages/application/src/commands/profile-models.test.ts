@@ -71,13 +71,12 @@ function config(profileId: string, modelId: string): UserModelConfig {
 describe('profile models', () => {
   beforeEach(() => {
     setProviderProfileRepository(createProfileRepository([
-      { ...baseProfile, defaultModelId: 'owned-a' },
+      baseProfile,
       {
         ...baseProfile,
         profileId: 'profile-b',
         displayName: 'Profile B',
         config: { apiFormat: 'openai-images', displayName: 'Profile B' },
-        defaultModelId: 'owned-b',
       },
     ]));
   });
@@ -92,19 +91,20 @@ describe('profile models', () => {
 
     expect(result.ok).toBe(true);
     expect(result.ok ? result.value.map((model) => model.modelId) : []).toEqual(['owned-a']);
-    expect(result.ok ? result.value[0]?.default : null).toBe(true);
+    expect(result.ok ? result.value[0] : null).not.toHaveProperty('default');
+    expect(result.ok ? result.value[0] : null).not.toHaveProperty('selected');
     expect(result.ok ? result.value[0]?.configSource : null).toBe('user');
   });
 
-  it('does not promote configured models when no defaultModelId exists', async () => {
+  it('does not attach profile-level selection state to configured models', async () => {
     setProviderProfileRepository(createProfileRepository([{ ...baseProfile }]));
     setUserModelConfigRepository(createUserConfigRepository([config('profile-a', 'owned-a')]));
 
     const result = await listProfileModels('profile-a');
 
     expect(result.ok).toBe(true);
-    expect(result.ok ? result.value[0]?.selected : null).toBe(false);
-    expect(result.ok ? result.value[0]?.default : null).toBe(false);
+    expect(result.ok ? result.value[0] : null).not.toHaveProperty('selected');
+    expect(result.ok ? result.value[0] : null).not.toHaveProperty('default');
   });
 
   it('keeps official presets as labels only, not ownership truth', () => {

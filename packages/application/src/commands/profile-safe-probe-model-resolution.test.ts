@@ -134,10 +134,11 @@ describe('safe probe model resolution', () => {
     setUserModelConfigRepository(createUserConfigRepository([createUserModelConfig('draft')]));
 
     const result = await testProviderProfileConnection({
+      profileId: 'draft',
       apiFormat: 'gemini-generate-content',
       displayName: 'grsai',
       config: createFakeProviderConfig('grsai'),
-      defaultModelId: 'gemini-3.1-flash-lite-image',
+      selectedModelId: 'gemini-3.1-flash-lite-image',
       secretValues: { apiKey: 'test-key' },
     });
 
@@ -172,7 +173,6 @@ describe('safe probe model resolution', () => {
       displayName: 'grsai',
       enabled: true,
       config: createFakeProviderConfig('grsai'),
-      defaultModelId: 'gemini-3.1-flash-lite-image',
       createdAt: '2026-07-08T00:00:00.000Z',
       updatedAt: '2026-07-08T00:00:00.000Z',
     };

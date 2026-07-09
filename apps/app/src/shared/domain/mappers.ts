@@ -21,7 +21,6 @@ export interface ProviderRowVM {
   readonly displayName: string;
   readonly enabled: boolean;
   readonly apiFormatLabel: string;
-  readonly defaultModel?: string;
 }
 
 export interface BillingPrimaryParts {
@@ -233,7 +232,6 @@ export function profileToProviderRow(profile: ProviderProfile): ProviderRowVM {
     displayName: profile.displayName,
     enabled: profile.enabled,
     apiFormatLabel: formatApiFormat(profile.apiFormat),
-    ...(profile.defaultModelId !== undefined && profile.defaultModelId.length > 0 ? { defaultModel: profile.defaultModelId } : {}),
   };
 }
 

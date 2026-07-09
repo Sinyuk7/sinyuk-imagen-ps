@@ -39,7 +39,6 @@ const billingProfile: ProviderProfile = {
       path: '/client/openapi/getCredits',
     },
   },
-  defaultModelId: 'gpt-4o-image',
 };
 
 const billingModels: readonly ProfileModelItem[] = [{
@@ -47,8 +46,6 @@ const billingModels: readonly ProfileModelItem[] = [{
   wireModelId: 'gpt-4o-image',
   discovered: true,
   configured: true,
-  selected: true,
-  default: true,
   configSource: 'catalog',
 }];
 

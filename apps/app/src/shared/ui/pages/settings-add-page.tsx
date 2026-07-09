@@ -213,7 +213,7 @@ export function SettingsAddPage({ onNav, profiles, onProfileSaved }: SettingsAdd
       previousConnection,
       profiles,
       nameTouched: nameTouchedRef.current,
-      defaultModel: '',
+      selectedModelId: '',
       defaultPathsForApiFormat: defaultApiPathDraft,
       mergeApiPathDraft,
       classifyEndpoint: services.commands.classifyEndpoint,
@@ -302,7 +302,7 @@ export function SettingsAddPage({ onNav, profiles, onProfileSaved }: SettingsAdd
       apiFormat,
       displayName,
       systemInstruction,
-      config: providerConfigFromForm(apiFormat, displayName, nextConnection, '', paths, nextBilling),
+      config: providerConfigFromForm(apiFormat, displayName, nextConnection, paths, nextBilling),
       ...((currentApiKey.trim() || billingSecretValues)
         ? {
             secretValues: {
@@ -389,7 +389,7 @@ export function SettingsAddPage({ onNav, profiles, onProfileSaved }: SettingsAdd
           previousConnection: previous,
           profiles,
           nameTouched: nameTouchedRef.current,
-          defaultModel: '',
+          selectedModelId: '',
           defaultPathsForApiFormat: defaultApiPathDraft,
           mergeApiPathDraft,
           classifyEndpoint: services.commands.classifyEndpoint,
@@ -491,7 +491,7 @@ export function SettingsAddPage({ onNav, profiles, onProfileSaved }: SettingsAdd
       displayName,
       systemInstruction,
       enabled: true,
-      config: providerConfigFromForm(apiFormat, displayName, connectionRef.current, '', paths, currentBilling),
+      config: providerConfigFromForm(apiFormat, displayName, connectionRef.current, paths, currentBilling),
       ...((currentApiKey.trim() || billingSecretValues)
         ? {
             secretValues: {

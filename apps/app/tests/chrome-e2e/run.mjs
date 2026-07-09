@@ -336,15 +336,7 @@ async function seedLiveGeminiProfile(page) {
     if (!modelConfig.ok) {
       throw new Error(`${modelConfig.error.category}: ${modelConfig.error.message}`);
     }
-    const result = await runtime.host.services.commands.saveProviderProfile({
-      profileId: input.profileId,
-      apiFormat: 'gemini-generate-content',
-      defaultModelId: input.modelId,
-    });
-    if (!result.ok) {
-      throw new Error(`${result.error.category}: ${result.error.message}`);
-    }
-    return result.value.profileId;
+    return profileResult.value.profileId;
   }, fixture);
   if (savedProfileId !== fixture.profileId) {
     throw new Error(`Unexpected live Gemini profile id: ${savedProfileId}`);
@@ -356,8 +348,6 @@ async function fillMockProviderDraft(page, alias) {
   await fillFormControl(page.getByTestId('provider-endpoint-detect-input'), 'https://mock.local/images/generations');
   await fillFormControl(page.getByTestId('provider-alias-input'), alias);
   await fillFormControl(page.getByTestId('provider-endpoint-url-0'), 'https://mock.local');
-  await page.getByTestId('provider-default-model-selector').click();
-  await page.getByTestId('provider-default-model-selector-option-gpt-image-2').click();
   await fillFormControl(page.getByTestId('provider-api-key-input'), 'mock-key');
 }
 
@@ -483,7 +473,6 @@ async function addProviderSaveScenario({ page, url, capture }) {
     await expectVisibleText(page, 'Alias');
     await expectVisibleText(page, 'OpenAI Images');
     await expectVisibleText(page, 'Endpoints');
-    await expectVisibleText(page, 'Default model');
     await expectVisibleText(page, 'API Key');
     await expectNoVisibleSecret(page);
   });
@@ -520,13 +509,13 @@ async function providerListAndEditScenario({ page, url, capture }) {
     await expectVisibleText(page, 'Mock Profile');
     await expectVisibleText(page, 'OpenAI Images');
     await expectVisibleText(page, 'Ready');
-    await expectVisibleText(page, 'gpt-image-2');
+    await expectVisibleText(page, 'Needs setup');
   });
   await page.getByTestId('provider-row-mock-profile').click();
   await fillFormControl(page.getByTestId('provider-alias-input'), 'Mock Profile Renamed');
   await checkpoint(page, capture, '08-provider-detail-editing.png', async () => {
     await expectVisibleText(page, 'Connection info');
-    await expectVisibleText(page, 'Default model');
+    await expectVisibleText(page, 'Selected model');
     await expectSavedSecretPlaceholder(page);
     await expectNoVisibleSecret(page);
   });

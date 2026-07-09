@@ -26,23 +26,23 @@
 - **THEN** 系统立即移除该 `profile` 对这个 `model` 的 ownership
 - **AND** 该 `model` 不再出现在当前 `profile` 的 owned `configured model` 列表中
 
-### Requirement: defaultModelId SHALL reference one owned configured model or be empty
-每个 `ProviderProfile.defaultModelId` MUST 指向一个由该 `profile` 自身拥有的 `configured model`，或者保持为空。系统 MUST NOT 让 `defaultModelId` 指向其他 `profile` 的 `model`、不存在的 `model`，或已被删除的 `model`。
+### Requirement: ProviderProfile SHALL not persist model selection or default state
+系统 MUST NOT 在 `ProviderProfile` 上持久化 `selectedModelIds`、`defaultModelId`，或等价的 profile-level membership / default state。当前 `profile` 拥有哪些 `model` SHALL 只由 owned `UserModelConfig` 决定；当前选中项 SHALL 由 UI/runtime `selectedModelId` 与 fallback 规则决定。
 
-#### Scenario: 保存合法 defaultModelId
-- **WHEN** 当前 `profile` 把 `defaultModelId` 设置为其某个 owned `configured model`
-- **THEN** 系统持久化该引用
-- **AND** 外部 summary 与 selector 将其识别为当前 `profile` 的默认模型
+#### Scenario: 保存 configured model 不写入默认状态
+- **WHEN** 用户在当前 `profile` 下保存第一个或后续 `configured model`
+- **THEN** 系统只写入 owned `UserModelConfig`
+- **AND** 系统不会向 `ProviderProfile` 写入 `defaultModelId` 或等价默认模型字段
 
-#### Scenario: 删除当前默认模型时清空 defaultModelId
-- **WHEN** 用户删除当前被 `defaultModelId` 引用的 `configured model`
-- **THEN** 系统清空当前 `profile` 的 `defaultModelId`
-- **AND** 系统进入显式 `no-default-model state`
+#### Scenario: 删除 configured model 不维护默认状态
+- **WHEN** 用户删除当前 `profile` 拥有的一个 `configured model`
+- **THEN** 系统只移除对应 owned `UserModelConfig`
+- **AND** 系统不会提升、清空或写回任何 profile-level default state
 
-#### Scenario: 保存首个 configured model 时不自动提升为默认
-- **WHEN** 当前 `profile` 尚未设置 `defaultModelId`，且用户保存了第一个 `configured model`
-- **THEN** 系统不会自动把该 `model` 设为 `defaultModelId`
-- **AND** `profile` 保持显式 `no-default-model state`，直到用户显式设置默认模型
+#### Scenario: 读取 profile 不返回默认模型
+- **WHEN** 系统读取或列出 `ProviderProfile`
+- **THEN** 返回的 profile 契约不包含 `defaultModelId`
+- **AND** selection surface 不会从 profile 记录中推导默认模型
 
 ### Requirement: Saving a UserModelConfig SHALL require the parent profile to exist
 系统 MUST 在保存 `UserModelConfig` 之前校验其 `profileId` 对应的 `ProviderProfile` 存在。系统 MUST NOT 为非存在 `profile` 创建 `UserModelConfig`。
@@ -66,10 +66,10 @@
 - **AND** 系统删除该 `profile` 拥有的所有 `UserModelConfig`
 - **AND** 其他 `profile` 的 `UserModelConfig` 不受影响
 
-#### Scenario: 删除 profile 时同步清空 defaultModelId 引用
+#### Scenario: 删除 profile 时不存在默认模型残留
 - **WHEN** 系统删除某个 `profile`
-- **THEN** 该 `profile` 的 `defaultModelId` 随 `profile` 一起被移除
-- **AND** 不存在指向已删除 `profile` 的默认模型引用
+- **THEN** 该 `profile` 的 owned `UserModelConfig` 随 `profile` 一起被移除
+- **AND** 不存在指向已删除 `profile` 的 persisted model selection/default 引用
 
 ### Requirement: Profile-scoped model generation settings SHALL resolve against the owning configured model
 当系统为某个 `profile` 解析 `model generation preference`、output matrix 或相关选择校验时，系统 SHALL 使用当前 `profileId + modelId` 对应的 owned `UserModelConfig`。系统 MUST NOT 仅因为 `apiFormat` 与 `modelId` 相同，就读取其他 `profile` 的 `UserModelConfig`。
