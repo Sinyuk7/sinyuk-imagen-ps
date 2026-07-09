@@ -18,6 +18,8 @@ export interface AppMessages {
     readonly disabled: string;
     readonly ready: string;
     readonly needsSetup: string;
+    readonly default: string;
+    readonly setDefault: string;
     readonly copy: string;
     readonly copied: string;
     readonly help: string;
@@ -288,6 +290,9 @@ export interface AppMessages {
     readonly modelConfigurationEmpty: string;
     readonly modelConfigurationHint: string;
     readonly modelConfigurationSaveHint: string;
+    readonly addNewModel: string;
+    readonly discoveredModels: string;
+    readonly discoverySuggestion: string;
     readonly createModelConfiguration: string;
     readonly editModelConfiguration: string;
     readonly modelConfigPreset: string;
@@ -418,6 +423,8 @@ const EN_MESSAGES: AppMessages = {
     disabled: 'Disabled',
     ready: 'Ready',
     needsSetup: 'Needs setup',
+    default: 'Default',
+    setDefault: 'Set default',
     copy: 'Copy',
     copied: 'Copied',
     help: 'Help',
@@ -697,6 +704,9 @@ const EN_MESSAGES: AppMessages = {
     modelConfigurationEmpty: 'No model configs (´･ω･`)',
     modelConfigurationHint: 'Create reusable model configs.',
     modelConfigurationSaveHint: 'Saving does not apply it.',
+    addNewModel: 'Add new model',
+    discoveredModels: 'Discovered suggestions',
+    discoverySuggestion: 'Suggestion; save before use',
     createModelConfiguration: 'Create model config',
     editModelConfiguration: 'Edit model config',
     modelConfigPreset: 'Preset',
@@ -827,6 +837,8 @@ const ZH_CN_MESSAGES: AppMessages = {
     disabled: '已停用',
     ready: '就绪',
     needsSetup: '待配置',
+    default: '默认',
+    setDefault: '设为默认',
     copy: '复制',
     copied: '已复制',
     help: '帮助',
@@ -1106,6 +1118,9 @@ const ZH_CN_MESSAGES: AppMessages = {
     modelConfigurationEmpty: '暂无模型配置 (´･ω･`)',
     modelConfigurationHint: '创建可复用模型配置。',
     modelConfigurationSaveHint: '保存后不会自动应用。',
+    addNewModel: '添加新模型',
+    discoveredModels: '发现建议',
+    discoverySuggestion: '建议项，保存后才能使用',
     createModelConfiguration: '新建模型配置',
     editModelConfiguration: '编辑模型配置',
     modelConfigPreset: '预设',

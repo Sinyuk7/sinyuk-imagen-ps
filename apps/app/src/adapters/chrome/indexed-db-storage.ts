@@ -110,6 +110,7 @@ function isUserModelConfig(value: unknown): value is UserModelConfig {
     return false;
   }
   return value.output === undefined &&
+    typeof value.profileId === 'string' &&
     isApiFormat(value.apiFormat) &&
     typeof value.modelId === 'string' &&
     typeof value.baseModelId === 'string' &&
@@ -401,22 +402,28 @@ export function createChromeIndexedDbStorage(options?: { readonly backend?: Chro
       },
     },
     userModelConfigs: {
-      async list(apiFormat): Promise<readonly UserModelConfig[]> {
+      async list(profileId): Promise<readonly UserModelConfig[]> {
         const configs = (await backend.list<unknown>('userModelConfigs')).filter(isUserModelConfig);
-        return apiFormat === undefined ? configs : configs.filter((config) => config.apiFormat === apiFormat);
+        return configs.filter((config) => config.profileId === profileId);
       },
-      async get(apiFormat, modelId): Promise<UserModelConfig | undefined> {
-        const config = await backend.get<unknown>('userModelConfigs', `${apiFormat}:${modelId}`);
+      async get(profileId, modelId): Promise<UserModelConfig | undefined> {
+        const config = await backend.get<unknown>('userModelConfigs', `${profileId}:${modelId}`);
         return isUserModelConfig(config) ? config : undefined;
       },
       async save(config): Promise<void> {
         if (!isUserModelConfig(config)) {
           throw new Error('Invalid user model config schema.');
         }
-        await backend.put('userModelConfigs', `${config.apiFormat}:${config.modelId}`, config);
+        await backend.put('userModelConfigs', `${config.profileId}:${config.modelId}`, config);
       },
-      async delete(apiFormat, modelId): Promise<void> {
-        await backend.delete('userModelConfigs', `${apiFormat}:${modelId}`);
+      async delete(profileId, modelId): Promise<void> {
+        await backend.delete('userModelConfigs', `${profileId}:${modelId}`);
+      },
+      async deleteProfile(profileId): Promise<void> {
+        const configs = (await backend.list<unknown>('userModelConfigs')).filter(isUserModelConfig);
+        await Promise.all(configs
+          .filter((config) => config.profileId === profileId)
+          .map((config) => backend.delete('userModelConfigs', `${config.profileId}:${config.modelId}`)));
       },
     },
     modelGenerationPreferences: {

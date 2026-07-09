@@ -1,6 +1,8 @@
 import {
   listProviders,
+  listOfficialModelConfigPresets,
   saveProviderProfile,
+  saveUserModelConfig,
   setAssetStore,
   setJobHistoryStore,
   setModelDiscoveryCacheRepository,
@@ -137,11 +139,37 @@ export async function runChromeFeasibilityRuntime(options?: {
     secretValues: {
       apiKey: 'mock-key',
     },
-    selectedModelIds: ['gpt-image-2'],
-    defaultModelId: 'gpt-image-2',
   });
   if (!profile.ok) {
     throw new Error(profile.error.message);
+  }
+  const presets = await listOfficialModelConfigPresets('openai-images');
+  if (!presets.ok) {
+    throw new Error(presets.error.message);
+  }
+  const preset = presets.value.find((item) => item.modelId === 'gpt-image-2');
+  if (!preset) {
+    throw new Error('Missing gpt-image-2 preset.');
+  }
+  const config = await saveUserModelConfig({
+    profileId: profile.value.profileId,
+    apiFormat: profile.value.apiFormat,
+    modelId: 'gpt-image-2',
+    baseModelId: preset.modelId,
+    wireModelId: 'gpt-image-2',
+    requestStrategyId: preset.requestStrategyId,
+    outputExposure: preset.outputExposure,
+  });
+  if (!config.ok) {
+    throw new Error(config.error.message);
+  }
+  const profileWithDefault = await saveProviderProfile({
+    profileId: profile.value.profileId,
+    apiFormat: profile.value.apiFormat,
+    defaultModelId: 'gpt-image-2',
+  });
+  if (!profileWithDefault.ok) {
+    throw new Error(profileWithDefault.error.message);
   }
 
   const originalFetch = globalThis.fetch;

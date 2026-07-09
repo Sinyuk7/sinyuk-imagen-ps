@@ -13,6 +13,7 @@ async function geminiFlashImageConfig(): Promise<UserModelConfig> {
     throw new Error('Missing official preset gemini-generate-content:gemini-3.1-flash-image');
   }
   return {
+    profileId: 'gemini-profile',
     apiFormat: preset.apiFormat,
     modelId: preset.modelId,
     baseModelId: preset.modelId,
@@ -61,7 +62,7 @@ describe('UXP user model config repository', () => {
       configs: [config],
     })));
 
-    const listed = await repository.list();
+    const listed = await repository.list(config.profileId);
 
     expect(listed).toHaveLength(1);
     expect(listed[0]?.modelId).toBe('gemini-3.1-flash-image');

@@ -155,8 +155,8 @@ export type ProviderProfileConfig = Readonly<Record<string, ProviderProfileConfi
 /**
  * Sanitized persisted provider profile. Returned commands MUST NOT include secret values.
  *
- * Profile 模型选择由 `selectedModelIds/defaultModelId` 表达。远端
- * discovery 事实存放在独立 `ModelDiscoveryCacheRepository`。
+ * Profile 只保存默认 configured model 引用；模型 ownership 由
+ * profile-owned `UserModelConfig` 决定。
  */
 export interface ProviderProfile {
   readonly profileId: string;
@@ -166,7 +166,6 @@ export interface ProviderProfile {
   readonly enabled: boolean;
   readonly config: ProviderProfileConfig;
   readonly secretRefs?: Readonly<Record<string, string>>;
-  readonly selectedModelIds: readonly string[];
   readonly defaultModelId?: string;
   readonly createdAt: string;
   readonly updatedAt: string;
@@ -181,8 +180,7 @@ export interface ProviderProfile {
  * secretValues are write-only command input. They are persisted through
  * SecretStorageAdapter and must never be returned by profile-facing commands.
  *
- * NOTE: 本类型 MUST NOT 声明 discovery cache 字段。远端发现事实由
- * `refreshProfileModels` 写入 `ModelDiscoveryCacheRepository`。
+ * NOTE: 本类型 MUST NOT 声明 discovery cache 或独立模型 membership 字段。
  */
 export interface ProviderProfileInput {
   readonly profileId: string;
@@ -193,7 +191,6 @@ export interface ProviderProfileInput {
   readonly config?: ProviderProfileConfig;
   readonly secretRefs?: Readonly<Record<string, string>>;
   readonly secretValues?: Readonly<Record<string, string>>;
-  readonly selectedModelIds?: readonly string[];
   readonly defaultModelId?: string;
   /** 显式移除已保存 secret；未列出的空输入继续表示保留原 secret。 */
   readonly removedSecretNames?: readonly string[];
@@ -260,6 +257,7 @@ export interface ModelGenerationPreferenceRepository {
 }
 
 export interface UserModelConfig {
+  readonly profileId: string;
   readonly apiFormat: ApiFormat;
   readonly modelId: string;
   readonly baseModelId: string;
@@ -271,6 +269,7 @@ export interface UserModelConfig {
 }
 
 export interface SaveUserModelConfigInput {
+  readonly profileId: string;
   readonly apiFormat: ApiFormat;
   readonly modelId: string;
   readonly baseModelId: string;
@@ -281,10 +280,11 @@ export interface SaveUserModelConfigInput {
 
 /** Host-injected repository for user-owned model configs. */
 export interface UserModelConfigRepository {
-  list(apiFormat?: ApiFormat): Promise<readonly UserModelConfig[]>;
-  get(apiFormat: ApiFormat, modelId: string): Promise<UserModelConfig | undefined>;
+  list(profileId: string): Promise<readonly UserModelConfig[]>;
+  get(profileId: string, modelId: string): Promise<UserModelConfig | undefined>;
   save(config: UserModelConfig): Promise<void>;
-  delete(apiFormat: ApiFormat, modelId: string): Promise<void>;
+  delete(profileId: string, modelId: string): Promise<void>;
+  deleteProfile(profileId: string): Promise<void>;
 }
 
 export interface ProfileModelItem {
@@ -427,7 +427,6 @@ export interface TestProviderProfileConnectionInput {
   readonly secretRefs?: Readonly<Record<string, string>>;
   readonly secretValues?: Readonly<Record<string, string>>;
   readonly removedSecretNames?: readonly string[];
-  readonly selectedModelIds?: readonly string[];
   readonly defaultModelId?: string;
 }
 
@@ -472,6 +471,5 @@ export interface RefreshDraftProfileModelsInput {
   readonly secretRefs?: Readonly<Record<string, string>>;
   readonly secretValues?: Readonly<Record<string, string>>;
   readonly removedSecretNames?: readonly string[];
-  readonly selectedModelIds?: readonly string[];
   readonly defaultModelId?: string;
 }

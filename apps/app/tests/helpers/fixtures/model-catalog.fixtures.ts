@@ -197,6 +197,7 @@ export const fakeUserModelConfigs: readonly UserModelConfig[] = [
   'dall-e-3',
   'model-b',
 ].map((modelId) => ({
+  profileId: 'mock-profile',
   apiFormat: 'openai-images',
   modelId,
   baseModelId: 'gpt-image-2',

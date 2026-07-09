@@ -9,14 +9,12 @@ import type {
 } from '@imagen-ps/application';
 import { useAppServices } from '../../ports/app-services-context';
 import { ProviderSettingsPageHeader } from '../components/provider-settings-sections';
-import { SettingsListRow } from '../components/settings-list-row';
 import { Icon } from '../components/icons';
 import { StatusNotice } from '../components/status-notice';
 import { TextSelect } from '../components/text-select';
 import { useI18n } from '../i18n/i18n-context';
 import { Button, FieldLabel, HelpText, TextField } from '../primitives/native-controls';
 import { IconButton } from '../primitives/icon-button';
-import { modelConfigListPresentation } from '../model-info';
 import {
   buildOutputCapabilityEditorState,
   fullSelectionForModule,
@@ -30,84 +28,17 @@ interface ModelConfigurationPageProps {
   readonly onNav: (view: string) => void;
   readonly onSaved?: (result: { readonly apiFormat: ApiFormat; readonly modelId: string }) => void;
   readonly onBack?: () => void;
-  readonly initialEditorState?: {
-    readonly source?: 'settings-list' | 'profile-add' | 'profile-detail';
-    readonly profileId?: string | null;
-    readonly apiFormat?: ApiFormat | null;
+  readonly initialEditorState: {
+    readonly profileId: string;
+    readonly apiFormat: ApiFormat;
     readonly modelId?: string | null;
-  } | null;
+  };
 }
 
 type DimensionKind = 'imageSizes' | 'ratios' | 'outputFormats';
 
 function commandMessage(error: { readonly category: string; readonly message: string }): string {
   return `${error.category}: ${error.message}`;
-}
-
-function modelConfigKey(apiFormat: ApiFormat, modelId: string): string {
-  return `${apiFormat}:${modelId}`;
-}
-
-function parseModelConfigKey(key: string): { readonly apiFormat: ApiFormat; readonly modelId: string } | null {
-  const separator = key.indexOf(':');
-  if (separator <= 0 || separator >= key.length - 1) {
-    return null;
-  }
-  return {
-    apiFormat: key.slice(0, separator) as ApiFormat,
-    modelId: key.slice(separator + 1),
-  };
-}
-
-function apiFormatLabel(apiFormat: ApiFormat): string {
-  if (apiFormat === 'openai-images') {
-    return 'OpenAI Images';
-  }
-  if (apiFormat === 'openai-chat-completions') {
-    return 'OpenAI Chat';
-  }
-  return 'Gemini GenerateContent';
-}
-
-const MODEL_CONFIG_API_FORMATS = [
-  'openai-images',
-  'openai-chat-completions',
-  'gemini-generate-content',
-] as const satisfies readonly ApiFormat[];
-
-function configMetaLabel(config: UserModelConfig): string {
-  return apiFormatLabel(config.apiFormat);
-}
-
-function buildOfficialDisplayNames(presets: readonly OfficialModelPreset[]): ReadonlyMap<string, string> {
-  return new Map(presets.map((preset) => [preset.modelId, preset.displayName] as const));
-}
-
-function modelConfigAvatarSourceLabel(
-  config: Pick<UserModelConfig, 'baseModelId'>,
-  officialDisplayNames: ReadonlyMap<string, string>,
-): string {
-  const displayName = officialDisplayNames.get(config.baseModelId.trim());
-  if (typeof displayName === 'string' && displayName.trim().length > 0) {
-    return displayName;
-  }
-  return config.baseModelId;
-}
-
-function modelConfigAvatarLabel(baseModelId: string): string {
-  const trimmed = baseModelId.trim();
-  if (!trimmed) {
-    return 'MC';
-  }
-  const segments = trimmed
-    .split(/[^a-zA-Z0-9]+/)
-    .map((segment) => segment.trim())
-    .filter(Boolean);
-  if (segments.length >= 2) {
-    return `${segments[0][0]}${segments[1][0]}`.toUpperCase();
-  }
-  const compact = trimmed.replace(/[^a-zA-Z0-9]/g, '');
-  return compact.slice(0, 2).toUpperCase() || 'MC';
 }
 
 function toggleOrderedValue<T extends string>(
@@ -567,16 +498,12 @@ function CapabilitySection({
   );
 }
 
-export function ModelConfigurationPage({ onNav, onSaved, onBack, initialEditorState = null }: ModelConfigurationPageProps) {
+export function ModelConfigurationPage({ onNav, onSaved, onBack, initialEditorState }: ModelConfigurationPageProps) {
   const services = useAppServices();
   const { messages: t } = useI18n();
-  const isProfileOrigin = initialEditorState?.source === 'profile-add' || initialEditorState?.source === 'profile-detail';
-  const [configs, setConfigs] = useState<readonly UserModelConfig[]>([]);
-  const [officialDisplayNames, setOfficialDisplayNames] = useState<ReadonlyMap<string, string>>(new Map());
   const [presets, setPresets] = useState<readonly OfficialModelPreset[]>([]);
-  const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [editorOpen, setEditorOpen] = useState(false);
+  const [editorOpen, setEditorOpen] = useState(true);
   const [apiFormatMenuOpen, setApiFormatMenuOpen] = useState(false);
   const [presetMenuOpen, setPresetMenuOpen] = useState(false);
   const [saveBusy, setSaveBusy] = useState(false);
@@ -601,34 +528,7 @@ export function ModelConfigurationPage({ onNav, onSaved, onBack, initialEditorSt
     };
   };
 
-  const reloadConfigs = async () => {
-    setLoading(true);
-    try {
-      const [result, presetResults] = await Promise.all([
-        services.commands.listUserModelConfigs(),
-        Promise.all(MODEL_CONFIG_API_FORMATS.map((format) => services.commands.listOfficialModelConfigPresets(format))),
-      ]);
-      if (!result.ok) {
-        throw new Error(commandMessage(result.error));
-      }
-      const failedPresetResult = presetResults.find((presetResult) => !presetResult.ok);
-      if (failedPresetResult && !failedPresetResult.ok) {
-        throw new Error(commandMessage(failedPresetResult.error));
-      }
-      setConfigs(result.value);
-      setOfficialDisplayNames(buildOfficialDisplayNames(presetResults.flatMap((presetResult) => presetResult.ok ? presetResult.value : [])));
-      setError(null);
-    } catch (nextError) {
-      setConfigs([]);
-      setOfficialDisplayNames(new Map());
-      setError(nextError instanceof Error ? nextError.message : String(nextError));
-    } finally {
-      setLoading(false);
-    }
-  };
-
   useEffect(() => {
-    void reloadConfigs();
     void loadApiFormatData(apiFormat).catch((nextError) => {
       setError(nextError instanceof Error ? nextError.message : String(nextError));
     });
@@ -670,18 +570,15 @@ export function ModelConfigurationPage({ onNav, onSaved, onBack, initialEditorSt
   };
 
   useEffect(() => {
-    const nextApiFormat = initialEditorState?.apiFormat;
+    const nextApiFormat = initialEditorState.apiFormat;
     const nextModelId = initialEditorState?.modelId?.trim();
-    if (!nextModelId && !isProfileOrigin) {
-      return;
-    }
     void (async () => {
       try {
-        const resolvedApiFormat = nextApiFormat ?? apiFormat;
+        const resolvedApiFormat = nextApiFormat;
         setApiFormat(resolvedApiFormat);
         const { presets: nextPresets } = await loadApiFormatData(resolvedApiFormat);
         const configResult = nextModelId
-          ? await services.commands.getUserModelConfig(resolvedApiFormat, nextModelId)
+          ? await services.commands.getUserModelConfig(initialEditorState.profileId, nextModelId)
           : { ok: true as const, value: null };
         if (!configResult.ok) {
           throw new Error(commandMessage(configResult.error));
@@ -698,8 +595,12 @@ export function ModelConfigurationPage({ onNav, onSaved, onBack, initialEditorSt
           resetEditorSelections(preset, config);
         } else {
           applyPreset(preset, 'create');
+          if (nextModelId) {
+            setModelId(nextModelId);
+            setWireModelId(nextModelId);
+          }
         }
-        setEditingKey(config ? `${resolvedApiFormat}:${config.modelId}` : null);
+        setEditingKey(config ? config.modelId : null);
         setAdvancedOpen(false);
         setEditorOpen(true);
       } catch (nextError) {
@@ -758,41 +659,6 @@ export function ModelConfigurationPage({ onNav, onSaved, onBack, initialEditorSt
     setWireModelId(preset?.modelId ?? '');
   };
 
-  const openCreateEditor = async () => {
-    try {
-      const nextApiFormat = initialEditorState?.apiFormat ?? 'openai-images';
-      setApiFormat(nextApiFormat);
-      const { presets: nextPresets } = await loadApiFormatData(nextApiFormat);
-      const firstPreset = nextPresets[0];
-      applyPreset(firstPreset, 'create');
-      setEditingKey(null);
-      setAdvancedOpen(false);
-      setEditorOpen(true);
-      setError(null);
-    } catch (nextError) {
-      setError(nextError instanceof Error ? nextError.message : String(nextError));
-    }
-  };
-
-  const openEditEditor = async (config: UserModelConfig) => {
-    try {
-      setApiFormat(config.apiFormat);
-      const { presets: nextPresets } = await loadApiFormatData(config.apiFormat);
-      const preset = nextPresets.find((item) => item.modelId === config.baseModelId);
-      setModelId(config.modelId);
-      setWireModelId(config.wireModelId);
-      setBaseModelId(preset?.modelId ?? config.baseModelId);
-      setRequestStrategyId(preset?.requestStrategyId ?? config.requestStrategyId);
-      resetEditorSelections(preset, config);
-      setEditingKey(modelConfigKey(config.apiFormat, config.modelId));
-      setAdvancedOpen(false);
-      setEditorOpen(true);
-      setError(null);
-    } catch (nextError) {
-      setError(nextError instanceof Error ? nextError.message : String(nextError));
-    }
-  };
-
   const toggleModuleSelection = (module: OutputCapabilityModule, dimension: DimensionKind, id: string, checked: boolean) => {
     setModuleSelections((current) => {
       const selection = current[module.id] ?? fullSelectionForModule(module);
@@ -827,6 +693,7 @@ export function ModelConfigurationPage({ onNav, onSaved, onBack, initialEditorSt
       const outputExposure = exposureFromModules(selectedPreset, editorState.modules, moduleSelections);
 
       const result = await services.commands.saveUserModelConfig({
+        profileId: initialEditorState.profileId,
         apiFormat,
         modelId,
         baseModelId: selectedPreset.modelId,
@@ -839,7 +706,6 @@ export function ModelConfigurationPage({ onNav, onSaved, onBack, initialEditorSt
       }
       setEditorOpen(false);
       setEditingKey(null);
-      await reloadConfigs();
       onSaved?.({ apiFormat: result.value.apiFormat, modelId: result.value.modelId });
       setError(null);
     } catch (nextError) {
@@ -853,14 +719,9 @@ export function ModelConfigurationPage({ onNav, onSaved, onBack, initialEditorSt
     if (!editingKey) {
       return;
     }
-    const editingTarget = parseModelConfigKey(editingKey);
-    if (!editingTarget) {
-      setError(`Invalid model config key: ${editingKey}`);
-      return;
-    }
     setSaveBusy(true);
     try {
-      const result = await services.commands.deleteUserModelConfig(editingTarget.apiFormat, editingTarget.modelId);
+      const result = await services.commands.deleteUserModelConfig(initialEditorState.profileId, editingKey);
       if (!result.ok) {
         throw new Error(commandMessage(result.error));
       }
@@ -868,10 +729,7 @@ export function ModelConfigurationPage({ onNav, onSaved, onBack, initialEditorSt
       setEditorOpen(false);
       setEditingKey(null);
       setAdvancedOpen(false);
-      await reloadConfigs();
-      if (isProfileOrigin) {
-        onBack?.();
-      }
+      onBack?.();
     } catch (nextError) {
       setError(nextError instanceof Error ? nextError.message : String(nextError));
     } finally {
@@ -892,37 +750,13 @@ export function ModelConfigurationPage({ onNav, onSaved, onBack, initialEditorSt
           </div>
         )}
         onBack={() => {
-          if (editorOpen) {
-            if (isProfileOrigin) {
-              setEditorOpen(false);
-              setEditingKey(null);
-              setAdvancedOpen(false);
-              setError(null);
-              onBack?.();
-              return;
-            }
-            setEditorOpen(false);
-            setEditingKey(null);
-            setAdvancedOpen(false);
-            setError(null);
-            return;
-          }
           if (onBack) {
             onBack();
             return;
           }
           onNav('settings');
         }}
-        rightSlot={!editorOpen ? (
-          <IconButton
-            data-testid="model-configuration-add-button"
-            className="hdr-btn"
-            quiet
-            icon={<Icon name="add" />}
-            tooltip={t.settings.createModelConfiguration}
-            onClick={() => void openCreateEditor()}
-          />
-        ) : editingExisting ? (
+        rightSlot={editingExisting ? (
           <IconButton
             data-testid="model-configuration-delete-button"
             className="hdr-btn"
@@ -935,52 +769,7 @@ export function ModelConfigurationPage({ onNav, onSaved, onBack, initialEditorSt
           />
         ) : undefined}
       />
-      <div className={`scroll${editorOpen ? ' scroll-footer-pad-detail' : ''}`}>
-        {!editorOpen ? (
-          <div className="settings-detail-layout settings-detail-layout-editor">
-            <section className="section generation-settings-section">
-              <div className="settings-inline-heading-row model-config-list-heading">
-                <div className="section-title settings-section-heading">{t.settings.modelConfiguration}</div>
-              </div>
-              <HelpText className="field-hint model-config-list-hint">{t.settings.modelConfigurationHint}</HelpText>
-              {loading ? <HelpText className="field-hint">{t.common.loading}</HelpText> : null}
-              {error ? <StatusNotice tone="warning" message={error} copyText={error} /> : null}
-              {!loading && configs.length === 0 ? (
-                <StatusNotice
-                  tone="info"
-                  message={t.settings.modelConfigurationEmpty}
-                  detail={t.settings.modelConfigurationSaveHint}
-                />
-              ) : null}
-              <div className="model-config-list">
-                {configs.map((config) => {
-                  const presentation = modelConfigListPresentation(config, officialDisplayNames);
-                  const avatarLabel = modelConfigAvatarSourceLabel(config, officialDisplayNames);
-                  return (
-                    <SettingsListRow
-                      key={`${config.apiFormat}:${config.modelId}`}
-                      testId={`model-config-row-${config.apiFormat}-${config.modelId}`}
-                      title={presentation.title}
-                      leading={(
-                        <div className="prov-ico" style={{ background: 'var(--app-color-background-layer-2)', color: 'var(--app-color-accent-default)' }}>
-                          <span data-testid={`model-config-avatar-${config.apiFormat}-${config.modelId}`}>{modelConfigAvatarLabel(avatarLabel)}</span>
-                        </div>
-                      )}
-                      meta={(
-                        <>
-                          <span className="prov-model model-config-meta-primary">{presentation.metaPrimary}</span>
-                          <span className="prov-meta-sep" aria-hidden="true">·</span>
-                          <span className="prov-family model-config-meta-secondary">{configMetaLabel(config)}</span>
-                        </>
-                      )}
-                      onOpen={() => void openEditEditor(config)}
-                    />
-                  );
-                })}
-              </div>
-            </section>
-          </div>
-        ) : (
+      <div className="scroll scroll-footer-pad-detail">
           <div className="settings-detail-layout">
             <section className="section generation-settings-section">
               <div className="field">
@@ -1102,31 +891,28 @@ export function ModelConfigurationPage({ onNav, onSaved, onBack, initialEditorSt
               : null}
 
           </div>
-        )}
       </div>
-      {editorOpen ? (
-        <footer className="det-footer">
-          <div className="settings-detail-footer-inner">
-            <div className="settings-detail-footer-actions">
-              <HelpText className="settings-detail-footer-help">{t.settings.modelConfigurationSaveHint}</HelpText>
-              {error ? (
-                <StatusNotice tone="warning" message={error} copyText={error} />
-              ) : null}
-            </div>
-            <div className="settings-detail-footer-save-group">
-              <Button
-                data-testid="model-config-save-button"
-                className="btn-save"
-                variant="accent"
-                disabled={saveBusy}
-                onClick={() => void save()}
-              >
-                {saveBusy ? t.settings.saving : t.common.save}
-              </Button>
-            </div>
+      <footer className="det-footer">
+        <div className="settings-detail-footer-inner">
+          <div className="settings-detail-footer-actions">
+            <HelpText className="settings-detail-footer-help">{t.settings.modelConfigurationSaveHint}</HelpText>
+            {error ? (
+              <StatusNotice tone="warning" message={error} copyText={error} />
+            ) : null}
           </div>
-        </footer>
-      ) : null}
+          <div className="settings-detail-footer-save-group">
+            <Button
+              data-testid="model-config-save-button"
+              className="btn-save"
+              variant="accent"
+              disabled={saveBusy}
+              onClick={() => void save()}
+            >
+              {saveBusy ? t.settings.saving : t.common.save}
+            </Button>
+          </div>
+        </div>
+      </footer>
     </div>
   );
 }

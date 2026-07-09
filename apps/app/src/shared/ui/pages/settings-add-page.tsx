@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import type { ApiFormat, ProviderProfile, UserModelConfig } from '@imagen-ps/application';
+import type { ApiFormat, ProviderProfile } from '@imagen-ps/application';
 import { useAppServices } from '../../ports/app-services-context';
 import {
   apiFormatLabel,
@@ -25,7 +25,6 @@ import {
 import { ProviderBillingSettings } from '../components/provider-billing-settings';
 import {
   ProviderAdvancedPathSection,
-  ProviderDefaultModelSection,
   ProviderSettingsFooter,
   ProviderSettingsPageHeader,
 } from '../components/provider-settings-sections';
@@ -37,17 +36,11 @@ import {
   statusFromProviderConnectionTestResult,
 } from '../provider-status';
 import { importDetectionFallbackMessage, importProviderEndpointInput } from '../hooks/provider-endpoint-import';
-import { userConfiguredModelLabel } from '../model-info';
 
 interface SettingsAddPageProps {
   readonly onNav: (view: string) => void;
   readonly profiles: readonly ProviderProfile[];
   readonly onProfileSaved: (profileId: string, options: { readonly useProvider: boolean; readonly message: string }) => Promise<void>;
-  readonly onOpenModelConfiguration?: (input: {
-    readonly source: 'profile-add';
-    readonly apiFormat: ProviderProfile['apiFormat'];
-    readonly modelId?: string | null;
-  }) => void;
 }
 
 type ConnectionUpdater = (connection: ProviderConnectionDraft) => ProviderConnectionDraft;
@@ -58,16 +51,6 @@ function createProfileId(): string {
     return `profile-${crypto.randomUUID()}`;
   }
   return `profile-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`;
-}
-
-function selectedModelInput(defaultModel: string): {
-  readonly selectedModelIds: readonly string[];
-  readonly defaultModelId?: string;
-} {
-  const modelId = defaultModel.trim();
-  return modelId.length > 0
-    ? { selectedModelIds: [modelId], defaultModelId: modelId }
-    : { selectedModelIds: [] };
 }
 
 function defaultConnection(): ProviderConnectionDraft {
@@ -112,7 +95,7 @@ function liveTextInputValue(inputId: string): string | undefined {
   return undefined;
 }
 
-export function SettingsAddPage({ onNav, profiles, onProfileSaved, onOpenModelConfiguration }: SettingsAddPageProps) {
+export function SettingsAddPage({ onNav, profiles, onProfileSaved }: SettingsAddPageProps) {
   const services = useAppServices();
   const { messages: t } = useI18n();
   const { show } = useToast();
@@ -126,17 +109,12 @@ export function SettingsAddPage({ onNav, profiles, onProfileSaved, onOpenModelCo
   const [systemInstruction, setSystemInstruction] = useState('');
   const [connection, setConnection] = useState<ProviderConnectionDraft>(defaultConnection());
   const [apiKey, setApiKey] = useState('');
-  const [defaultModel, setDefaultModel] = useState('');
   const [billing, setBilling] = useState<ProviderBillingDraft>(defaultBillingDraft(undefined));
   const [billingModeMenuOpen, setBillingModeMenuOpen] = useState(false);
   const [authModeMenuOpen, setAuthModeMenuOpen] = useState(false);
-  const [modelMenuOpen, setModelMenuOpen] = useState(false);
   const [showKey, setShowKey] = useState(false);
   const [saveBusy, setSaveBusy] = useState(false);
   const [connectionTestBusy, setConnectionTestBusy] = useState(false);
-  const [modelOptions, setModelOptions] = useState<readonly { readonly id: string; readonly label: string }[]>([]);
-  const [modelOptionsLoading, setModelOptionsLoading] = useState(false);
-  const [modelOptionsError, setModelOptionsError] = useState<string | null>(null);
   const nameTouchedRef = useRef(false);
   const connectionRef = useRef(connection);
   const billingRef = useRef(billing);
@@ -220,52 +198,6 @@ export function SettingsAddPage({ onNav, profiles, onProfileSaved, onOpenModelCo
     syncLiveBillingDraft(billingRef.current);
   };
 
-  useEffect(() => {
-    if (!apiFormat) {
-      setModelOptions([]);
-      setModelOptionsLoading(false);
-      setModelOptionsError(null);
-      return;
-    }
-    let cancelled = false;
-    setModelOptionsLoading(true);
-    void services.commands.listUserModelConfigs(apiFormat)
-      .then((result: Awaited<ReturnType<typeof services.commands.listUserModelConfigs>>) => {
-        if (cancelled) {
-          return;
-        }
-        if (!result.ok) {
-          setModelOptions([]);
-          setModelOptionsError(`${result.error.category}: ${result.error.message}`);
-          return;
-        }
-        const nextOptions = result.value.map((config: UserModelConfig) => ({
-          id: config.modelId,
-          label: userConfiguredModelLabel(config),
-        }));
-        setModelOptions(nextOptions);
-        setModelOptionsError(null);
-        if (defaultModel && !nextOptions.some((option) => option.id === defaultModel)) {
-          setDefaultModel('');
-        }
-      })
-      .catch((error: unknown) => {
-        if (cancelled) {
-          return;
-        }
-        setModelOptions([]);
-        setModelOptionsError(error instanceof Error ? error.message : String(error));
-      })
-      .finally(() => {
-        if (!cancelled) {
-          setModelOptionsLoading(false);
-        }
-      });
-    return () => {
-      cancelled = true;
-    };
-  }, [apiFormat, defaultModel, services.commands]);
-
   const applyImportedEndpoint = async (
     rawValue: string,
     nextConnection: ProviderConnectionDraft,
@@ -281,7 +213,7 @@ export function SettingsAddPage({ onNav, profiles, onProfileSaved, onOpenModelCo
       previousConnection,
       profiles,
       nameTouched: nameTouchedRef.current,
-      defaultModel,
+      defaultModel: '',
       defaultPathsForApiFormat: defaultApiPathDraft,
       mergeApiPathDraft,
       classifyEndpoint: services.commands.classifyEndpoint,
@@ -370,8 +302,7 @@ export function SettingsAddPage({ onNav, profiles, onProfileSaved, onOpenModelCo
       apiFormat,
       displayName,
       systemInstruction,
-      config: providerConfigFromForm(apiFormat, displayName, nextConnection, defaultModel, paths, nextBilling),
-      ...selectedModelInput(defaultModel),
+      config: providerConfigFromForm(apiFormat, displayName, nextConnection, '', paths, nextBilling),
       ...((currentApiKey.trim() || billingSecretValues)
         ? {
             secretValues: {
@@ -458,7 +389,7 @@ export function SettingsAddPage({ onNav, profiles, onProfileSaved, onOpenModelCo
           previousConnection: previous,
           profiles,
           nameTouched: nameTouchedRef.current,
-          defaultModel,
+          defaultModel: '',
           defaultPathsForApiFormat: defaultApiPathDraft,
           mergeApiPathDraft,
           classifyEndpoint: services.commands.classifyEndpoint,
@@ -560,8 +491,7 @@ export function SettingsAddPage({ onNav, profiles, onProfileSaved, onOpenModelCo
       displayName,
       systemInstruction,
       enabled: true,
-      config: providerConfigFromForm(apiFormat, displayName, connectionRef.current, defaultModel, paths, currentBilling),
-      ...selectedModelInput(defaultModel),
+      config: providerConfigFromForm(apiFormat, displayName, connectionRef.current, '', paths, currentBilling),
       ...((currentApiKey.trim() || billingSecretValues)
         ? {
             secretValues: {
@@ -622,7 +552,7 @@ export function SettingsAddPage({ onNav, profiles, onProfileSaved, onOpenModelCo
           aliasPlaceholder={apiFormat ? apiFormatLabel(apiFormat) : t.settings.apiProfile}
           systemInstructionValue={systemInstruction}
           onSystemInstructionValue={setSystemInstruction}
-          systemInstructionNativeEditorSuspended={modelMenuOpen}
+          systemInstructionNativeEditorSuspended={false}
           apiFormatLabel={apiFormatLabel(apiFormat)}
           apiFormatStatus={apiFormat ? apiFormatLabel(apiFormat) : null}
           apiFormatHint={apiFormatFeedback?.message ?? (!apiFormat ? t.settings.apiFormatNeedsPath : null)}
@@ -637,52 +567,6 @@ export function SettingsAddPage({ onNav, profiles, onProfileSaved, onOpenModelCo
           measurementBusy={false}
           measurementSupported={measurementSupported}
           onMeasure={() => void handleMeasure()}
-          defaultModelSection={(
-            <ProviderDefaultModelSection
-              wrapInSection={false}
-              disabled={saveBusy}
-              loading={modelOptionsLoading}
-              canCreateModelConfig={Boolean(apiFormat)}
-              modelMenuOpen={modelMenuOpen}
-              modelOptions={modelOptions}
-              defaultModel={defaultModel}
-              triggerValue={modelOptions.find((option) => option.id === defaultModel)?.label ?? t.settings.chooseFromList}
-              modelFieldHelp={null}
-              emptyStateNotice={
-                modelOptions.length === 0 && apiFormat
-                  ? {
-                      tone: modelOptionsError ? 'warning' as const : 'info' as const,
-                      message: modelOptionsError ? t.settings.modelListFailed : t.settings.modelSelectionEmpty,
-                      detail: modelOptionsError ?? t.settings.modelSelectionCreateFirst,
-                      actionLabel: t.settings.createModelConfiguration,
-                      onAction: () => {
-                        onOpenModelConfiguration?.({
-                          source: 'profile-add',
-                          apiFormat,
-                          modelId: null,
-                        });
-                      },
-                    }
-                  : null
-              }
-              onCreateModelConfig={() => {
-                if (!apiFormat) {
-                  return;
-                }
-                onOpenModelConfiguration?.({
-                  source: 'profile-add',
-                  apiFormat,
-                  modelId: null,
-                });
-              }}
-              onModelMenuOpenChange={setModelMenuOpen}
-              onDefaultModelSelect={(id) => {
-                setDefaultModel(id);
-                setModelMenuOpen(false);
-                invalidateDraftProofs();
-              }}
-            />
-          )}
           balanceSection={(
             <div className="provider-embedded-section">
               <div className="settings-inline-heading-row billing-inline-heading">

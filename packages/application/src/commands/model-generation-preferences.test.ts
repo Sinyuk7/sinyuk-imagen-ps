@@ -47,22 +47,28 @@ function createEmptyUserConfigRepository(): UserModelConfigRepository {
     async delete() {
       throw new Error('Unexpected user config delete.');
     },
+    async deleteProfile() {
+      throw new Error('Unexpected user config profile delete.');
+    },
   };
 }
 
 function createUserConfigRepository(configs: readonly UserModelConfig[]): UserModelConfigRepository {
   return {
-    async list(apiFormat) {
-      return apiFormat ? configs.filter((config) => config.apiFormat === apiFormat) : configs;
+    async list(profileId) {
+      return configs.filter((config) => config.profileId === profileId);
     },
-    async get(apiFormat, modelId) {
-      return configs.find((config) => config.apiFormat === apiFormat && config.modelId === modelId);
+    async get(profileId, modelId) {
+      return configs.find((config) => config.profileId === profileId && config.modelId === modelId);
     },
     async save() {
       throw new Error('Unexpected user config save.');
     },
     async delete() {
       throw new Error('Unexpected user config delete.');
+    },
+    async deleteProfile() {
+      throw new Error('Unexpected user config profile delete.');
     },
   };
 }
@@ -184,6 +190,7 @@ describe('model generation preferences', () => {
 
   it('keeps preference identity stable when same config model changes wire route', async () => {
     const firstConfig: UserModelConfig = {
+      profileId: 'profile-1',
       outputMatrix: getOfficialModelPreset('openai-images', 'gpt-image-2')?.outputMatrix ?? [],
       apiFormat: 'openai-images',
       modelId: 'gpt-image-2',
@@ -226,5 +233,46 @@ describe('model generation preferences', () => {
       outputFormat: 'webp',
     });
     expect(settings.ok ? settings.value.source : null).toBe('preference');
+  });
+
+  it('isolates same modelId output matrices by profileId', async () => {
+    const firstConfig: UserModelConfig = {
+      profileId: 'profile-1',
+      outputMatrix: getOfficialModelPreset('openai-images', 'gpt-image-2')?.outputMatrix ?? [],
+      apiFormat: 'openai-images',
+      modelId: 'shared-model',
+      baseModelId: 'gpt-image-2',
+      wireModelId: 'profile-1-shared-model',
+      requestStrategyId: 'image-endpoint-default',
+      outputExposure: {
+        kind: 'flexible-pixels',
+        sizePresetIds: ['auto', '1k', '2k', '4k'],
+        outputFormats: ['png', 'webp'],
+        allowInputDerivedExactSize: true,
+      },
+    };
+    const secondConfig: UserModelConfig = {
+      ...firstConfig,
+      profileId: 'profile-2',
+      wireModelId: 'profile-2-shared-model',
+      outputMatrix: [],
+    };
+    setUserModelConfigRepository(createUserConfigRepository([firstConfig, secondConfig]));
+
+    const firstSettings = await getModelGenerationSettings({
+      ...baseKey,
+      modelId: 'shared-model',
+      operation: 'text_to_image',
+    });
+    const secondSettings = await getModelGenerationSettings({
+      ...baseKey,
+      profileId: 'profile-2',
+      modelId: 'shared-model',
+      operation: 'text_to_image',
+    });
+
+    expect(firstSettings.ok).toBe(true);
+    expect(secondSettings.ok).toBe(false);
+    expect(secondSettings.ok ? null : secondSettings.error.message).toContain('no executable output configuration');
   });
 });

@@ -72,6 +72,7 @@ function isUserModelConfig(value: unknown): value is UserModelConfig {
     return false;
   }
   return value.output === undefined &&
+    typeof value.profileId === 'string' &&
     isApiFormat(value.apiFormat) &&
     typeof value.modelId === 'string' &&
     typeof value.baseModelId === 'string' &&
@@ -216,8 +217,8 @@ export function createUxpModelDiscoveryCacheRepository(modules: UxpModules): Mod
   };
 }
 
-function userModelConfigKey(config: Pick<UserModelConfig, 'apiFormat' | 'modelId'>): string {
-  return `${config.apiFormat}:${config.modelId}`;
+function userModelConfigKey(config: Pick<UserModelConfig, 'profileId' | 'modelId'>): string {
+  return `${config.profileId}:${config.modelId}`;
 }
 
 function modelGenerationPreferenceKey(config: Pick<ModelGenerationPreference, 'profileId' | 'apiFormat' | 'modelId' | 'operation'>): string {
@@ -242,21 +243,30 @@ export function createUxpUserModelConfigRepository(modules: UxpModules): UserMod
   }
 
   return {
-    async list(apiFormat) {
+    async list(profileId) {
       const configs = Array.from((await readAll()).values());
-      return apiFormat === undefined ? configs : configs.filter((config) => config.apiFormat === apiFormat);
+      return configs.filter((config) => config.profileId === profileId);
     },
-    async get(apiFormat, modelId) {
-      return (await readAll()).get(`${apiFormat}:${modelId}`);
+    async get(profileId, modelId) {
+      return (await readAll()).get(`${profileId}:${modelId}`);
     },
     async save(config) {
       const configs = await readAll();
       configs.set(userModelConfigKey(config), config);
       await writeAll(configs);
     },
-    async delete(apiFormat, modelId) {
+    async delete(profileId, modelId) {
       const configs = await readAll();
-      configs.delete(`${apiFormat}:${modelId}`);
+      configs.delete(`${profileId}:${modelId}`);
+      await writeAll(configs);
+    },
+    async deleteProfile(profileId) {
+      const configs = await readAll();
+      for (const key of Array.from(configs.keys())) {
+        if (key.startsWith(`${profileId}:`)) {
+          configs.delete(key);
+        }
+      }
       await writeAll(configs);
     },
   };

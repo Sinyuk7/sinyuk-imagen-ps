@@ -20,17 +20,20 @@ import type {
 
 function createUserConfigRepository(configs: readonly UserModelConfig[]): UserModelConfigRepository {
   return {
-    async list(apiFormat) {
-      return apiFormat ? configs.filter((config) => config.apiFormat === apiFormat) : configs;
+    async list(profileId) {
+      return configs.filter((config) => config.profileId === profileId);
     },
-    async get(apiFormat, modelId) {
-      return configs.find((config) => config.apiFormat === apiFormat && config.modelId === modelId);
+    async get(profileId, modelId) {
+      return configs.find((config) => config.profileId === profileId && config.modelId === modelId);
     },
     async save() {
       throw new Error('save not implemented in test repository');
     },
     async delete() {
       throw new Error('delete not implemented in test repository');
+    },
+    async deleteProfile() {
+      throw new Error('deleteProfile not implemented in test repository');
     },
   };
 }
@@ -86,8 +89,9 @@ function createFakeResolvedProviderConfig(displayName: string): ProviderConfig {
   };
 }
 
-function createUserModelConfig(): UserModelConfig {
+function createUserModelConfig(profileId: string): UserModelConfig {
   return {
+    profileId,
     apiFormat: 'gemini-generate-content',
     modelId: 'gemini-3.1-flash-lite-image',
     baseModelId: 'gemini-3.1-flash-lite-image',
@@ -127,13 +131,12 @@ describe('safe probe model resolution', () => {
         }),
       },
     } as never);
-    setUserModelConfigRepository(createUserConfigRepository([createUserModelConfig()]));
+    setUserModelConfigRepository(createUserConfigRepository([createUserModelConfig('draft')]));
 
     const result = await testProviderProfileConnection({
       apiFormat: 'gemini-generate-content',
       displayName: 'grsai',
       config: createFakeProviderConfig('grsai'),
-      selectedModelIds: ['gemini-3.1-flash-lite-image'],
       defaultModelId: 'gemini-3.1-flash-lite-image',
       secretValues: { apiKey: 'test-key' },
     });
@@ -161,7 +164,7 @@ describe('safe probe model resolution', () => {
         }),
       },
     } as never);
-    setUserModelConfigRepository(createUserConfigRepository([createUserModelConfig()]));
+    setUserModelConfigRepository(createUserConfigRepository([createUserModelConfig('profile-grsai')]));
 
     const profile: ProviderProfile = {
       profileId: 'profile-grsai',
@@ -169,7 +172,6 @@ describe('safe probe model resolution', () => {
       displayName: 'grsai',
       enabled: true,
       config: createFakeProviderConfig('grsai'),
-      selectedModelIds: ['gemini-3.1-flash-lite-image'],
       defaultModelId: 'gemini-3.1-flash-lite-image',
       createdAt: '2026-07-08T00:00:00.000Z',
       updatedAt: '2026-07-08T00:00:00.000Z',

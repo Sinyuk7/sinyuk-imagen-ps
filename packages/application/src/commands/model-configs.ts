@@ -6,7 +6,7 @@ import {
   listOfficialModelPresets,
   listRequestStrategies,
 } from '@imagen-ps/providers';
-import { getRuntimeLogger, getUserModelConfigRepository } from '../runtime.js';
+import { getProviderProfileRepository, getRuntimeLogger, getUserModelConfigRepository } from '../runtime.js';
 import type {
   ApiFormat,
   CommandResult,
@@ -196,18 +196,35 @@ function validateExposure(args: {
 }
 
 /**
- * 列出当前用户已保存的 model config；仅走 repository，不修改 profile 选择状态。
+ * 列出当前 profile 已保存的 model config；仅走 repository。
  */
-export async function listUserModelConfigs(apiFormat?: ApiFormat): Promise<CommandResult<readonly UserModelConfig[]>> {
+export async function listUserModelConfigs(profileId: string): Promise<CommandResult<readonly UserModelConfig[]>> {
+  const normalizedProfileId = profileId.trim();
   const logger = getRuntimeLogger().child({
     trace_id: generateTraceId(),
     package: 'application',
     component: 'command',
-    ...(apiFormat ? { apiFormat } : {}),
+    profile_id: normalizedProfileId,
   });
   const span = logger.startSpan('command.model_config.list');
 
-  const configs = await getUserModelConfigRepository().list(apiFormat);
+  if (normalizedProfileId.length === 0) {
+    span.fail({ message: 'Model config requires profileId.' });
+    return {
+      ok: false,
+      error: createValidationError('Model config requires profileId.', { profileId }),
+    };
+  }
+  const profile = await getProviderProfileRepository().get(normalizedProfileId);
+  if (!profile) {
+    span.fail({ message: 'profile not found' });
+    return {
+      ok: false,
+      error: createValidationError('profile not found', { profileId: normalizedProfileId }),
+    };
+  }
+
+  const configs = await getUserModelConfigRepository().list(normalizedProfileId);
   span.finish({ count: configs.length });
   return { ok: true, value: configs };
 }
@@ -250,27 +267,43 @@ export async function listRequestStrategiesForApiFormat(apiFormat: ApiFormat): P
  * 读取单个已保存 user model config。
  */
 export async function getUserModelConfig(
-  apiFormat: ApiFormat,
+  profileId: string,
   modelId: string,
 ): Promise<CommandResult<UserModelConfig | null>> {
+  const normalizedProfileId = profileId.trim();
   const normalizedModelId = modelId.trim();
   const logger = getRuntimeLogger().child({
     trace_id: generateTraceId(),
     package: 'application',
     component: 'command',
-    ...(apiFormat ? { apiFormat } : {}),
+    profile_id: normalizedProfileId,
   });
   const span = logger.startSpan('command.model_config.get');
 
+  if (normalizedProfileId.length === 0) {
+    span.fail({ message: 'Model config requires profileId.' });
+    return {
+      ok: false,
+      error: createValidationError('Model config requires profileId.', { profileId }),
+    };
+  }
   if (normalizedModelId.length === 0) {
     span.fail({ message: 'Model config requires modelId.' });
     return {
       ok: false,
-      error: createValidationError('Model config requires modelId.', { apiFormat, modelId }),
+      error: createValidationError('Model config requires modelId.', { profileId: normalizedProfileId, modelId }),
+    };
+  }
+  const profile = await getProviderProfileRepository().get(normalizedProfileId);
+  if (!profile) {
+    span.fail({ message: 'profile not found' });
+    return {
+      ok: false,
+      error: createValidationError('profile not found', { profileId: normalizedProfileId }),
     };
   }
 
-  const config = await getUserModelConfigRepository().get(apiFormat, normalizedModelId);
+  const config = await getUserModelConfigRepository().get(normalizedProfileId, normalizedModelId);
   span.finish({ found: config !== undefined });
   return { ok: true, value: config ?? null };
 }
@@ -279,35 +312,60 @@ export async function getUserModelConfig(
  * 删除单个 user model config。
  */
 export async function deleteUserModelConfig(
-  apiFormat: ApiFormat,
+  profileId: string,
   modelId: string,
 ): Promise<CommandResult<null>> {
+  const normalizedProfileId = profileId.trim();
   const normalizedModelId = modelId.trim();
   const logger = getRuntimeLogger().child({
     trace_id: generateTraceId(),
     package: 'application',
     component: 'command',
-    ...(apiFormat ? { apiFormat } : {}),
+    profile_id: normalizedProfileId,
   });
   const span = logger.startSpan('command.model_config.delete');
 
+  if (normalizedProfileId.length === 0) {
+    span.fail({ message: 'Model config requires profileId.' });
+    return {
+      ok: false,
+      error: createValidationError('Model config requires profileId.', { profileId }),
+    };
+  }
   if (normalizedModelId.length === 0) {
     span.fail({ message: 'Model config requires modelId.' });
     return {
       ok: false,
-      error: createValidationError('Model config requires modelId.', { apiFormat, modelId }),
+      error: createValidationError('Model config requires modelId.', { profileId: normalizedProfileId, modelId }),
+    };
+  }
+  const profileRepository = getProviderProfileRepository();
+  const profile = await profileRepository.get(normalizedProfileId);
+  if (!profile) {
+    span.fail({ message: 'profile not found' });
+    return {
+      ok: false,
+      error: createValidationError('profile not found', { profileId: normalizedProfileId }),
     };
   }
 
-  await getUserModelConfigRepository().delete(apiFormat, normalizedModelId);
+  await getUserModelConfigRepository().delete(normalizedProfileId, normalizedModelId);
+  if (profile.defaultModelId === normalizedModelId) {
+    const { defaultModelId: _removedDefaultModelId, ...profileWithoutDefaultModel } = profile;
+    await profileRepository.save({
+      ...profileWithoutDefaultModel,
+      updatedAt: new Date().toISOString(),
+    });
+  }
   span.finish({ modelId: normalizedModelId });
   return { ok: true, value: null };
 }
 
 /**
- * 保存 user model config；只写 repository，不自动修改任何 profile 的 selected/default。
+ * 保存 profile-owned user model config；保存本身即 ownership。
  */
 export async function saveUserModelConfig(input: SaveUserModelConfigInput): Promise<CommandResult<UserModelConfig>> {
+  const normalizedProfileId = input.profileId.trim();
   const normalizedModelId = input.modelId.trim();
   const normalizedBaseModelId = input.baseModelId.trim();
   const normalizedWireModelId = input.wireModelId.trim();
@@ -315,15 +373,27 @@ export async function saveUserModelConfig(input: SaveUserModelConfigInput): Prom
     trace_id: generateTraceId(),
     package: 'application',
     component: 'command',
+    profile_id: normalizedProfileId,
     ...(input.apiFormat ? { apiFormat: input.apiFormat } : {}),
   });
   const span = logger.startSpan('command.model_config.save');
 
+  if (normalizedProfileId.length === 0) {
+    span.fail({ message: 'Model config requires profileId.' });
+    return {
+      ok: false,
+      error: createValidationError('Model config requires profileId.', { profileId: input.profileId }),
+    };
+  }
   if (normalizedModelId.length === 0) {
     span.fail({ message: 'Model config requires modelId.' });
     return {
       ok: false,
-      error: createValidationError('Model config requires modelId.', { apiFormat: input.apiFormat, modelId: input.modelId }),
+      error: createValidationError('Model config requires modelId.', {
+        profileId: normalizedProfileId,
+        apiFormat: input.apiFormat,
+        modelId: input.modelId,
+      }),
     };
   }
   if (normalizedBaseModelId.length === 0) {
@@ -346,12 +416,22 @@ export async function saveUserModelConfig(input: SaveUserModelConfigInput): Prom
   }
 
   try {
+    const profile = await getProviderProfileRepository().get(normalizedProfileId);
+    if (!profile) {
+      throw createValidationError('profile not found', { profileId: normalizedProfileId });
+    }
+    if (profile.apiFormat !== input.apiFormat) {
+      throw createValidationError(
+        `Model config apiFormat "${input.apiFormat}" must match provider profile "${normalizedProfileId}" apiFormat "${profile.apiFormat}".`,
+        { profileId: normalizedProfileId, apiFormat: input.apiFormat, profileApiFormat: profile.apiFormat },
+      );
+    }
     assertNoOldAggregateOutput(input);
-    const preset = getOfficialModelPreset(input.apiFormat, normalizedBaseModelId);
+    const preset = getOfficialModelPreset(profile.apiFormat, normalizedBaseModelId);
     if (preset === undefined) {
       throw createValidationError(
-        `Model config baseModelId "${normalizedBaseModelId}" is not an official preset for apiFormat "${input.apiFormat}".`,
-        { apiFormat: input.apiFormat, modelId: normalizedModelId, baseModelId: normalizedBaseModelId },
+        `Model config baseModelId "${normalizedBaseModelId}" is not an official preset for apiFormat "${profile.apiFormat}".`,
+        { profileId: normalizedProfileId, apiFormat: profile.apiFormat, modelId: normalizedModelId, baseModelId: normalizedBaseModelId },
       );
     }
     if (input.requestStrategyId !== preset.requestStrategyId) {
@@ -367,7 +447,7 @@ export async function saveUserModelConfig(input: SaveUserModelConfigInput): Prom
       );
     }
     const strategy = assertStrategyMatchesApiFormat({
-      apiFormat: input.apiFormat,
+      apiFormat: profile.apiFormat,
       modelId: normalizedModelId,
       requestStrategyId: input.requestStrategyId,
     });
@@ -386,7 +466,8 @@ export async function saveUserModelConfig(input: SaveUserModelConfigInput): Prom
       exposure: outputExposure,
     });
     const config: UserModelConfig = {
-      apiFormat: input.apiFormat,
+      profileId: normalizedProfileId,
+      apiFormat: profile.apiFormat,
       modelId: normalizedModelId,
       baseModelId: normalizedBaseModelId,
       wireModelId: normalizedWireModelId,

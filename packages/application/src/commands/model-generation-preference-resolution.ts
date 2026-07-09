@@ -186,5 +186,5 @@ export async function resolveUserModelConfigForPreferenceKey(
   key: ModelGenerationPreferenceKey,
   repository: Pick<UserModelConfigRepository, 'get'>,
 ): Promise<{ readonly outputMatrix: readonly ImageOutputMatrix[] } | undefined> {
-  return repository.get(key.apiFormat, key.modelId);
+  return repository.get(key.profileId, key.modelId);
 }

@@ -298,22 +298,7 @@ async function seedLiveGeminiProfile(page) {
     if (!runtime) {
       throw new Error('Chrome runtime global is missing.');
     }
-    const modelConfig = await runtime.host.services.commands.saveUserModelConfig({
-      apiFormat: 'gemini-generate-content',
-      modelId: input.modelId,
-      baseModelId: 'gemini-3.1-flash-image',
-      requestStrategyId: 'gemini-generate-content-image-config',
-      outputExposure: {
-        kind: 'ratio-resolution',
-        aspectRatios: ['1:1'],
-        resolutions: ['2k'],
-        outputFormats: ['png'],
-      },
-    });
-    if (!modelConfig.ok) {
-      throw new Error(`${modelConfig.error.category}: ${modelConfig.error.message}`);
-    }
-    const result = await runtime.host.services.commands.saveProviderProfile({
+    const profileResult = await runtime.host.services.commands.saveProviderProfile({
       profileId: input.profileId,
       apiFormat: 'gemini-generate-content',
       displayName: input.displayName,
@@ -329,9 +314,32 @@ async function seedLiveGeminiProfile(page) {
         paths: { invokeTemplate: input.invokeTemplate },
         authMode: input.authMode,
       },
-      selectedModelIds: [input.modelId],
-      defaultModelId: input.modelId,
       secretValues: { apiKey: input.apiKey },
+    });
+    if (!profileResult.ok) {
+      throw new Error(`${profileResult.error.category}: ${profileResult.error.message}`);
+    }
+    const modelConfig = await runtime.host.services.commands.saveUserModelConfig({
+      profileId: input.profileId,
+      apiFormat: 'gemini-generate-content',
+      modelId: input.modelId,
+      baseModelId: 'gemini-3.1-flash-image',
+      wireModelId: input.modelId,
+      requestStrategyId: 'gemini-generate-content-image-config',
+      outputExposure: {
+        kind: 'ratio-resolution',
+        aspectRatios: ['1:1'],
+        resolutions: ['2k'],
+        outputFormats: ['png'],
+      },
+    });
+    if (!modelConfig.ok) {
+      throw new Error(`${modelConfig.error.category}: ${modelConfig.error.message}`);
+    }
+    const result = await runtime.host.services.commands.saveProviderProfile({
+      profileId: input.profileId,
+      apiFormat: 'gemini-generate-content',
+      defaultModelId: input.modelId,
     });
     if (!result.ok) {
       throw new Error(`${result.error.category}: ${result.error.message}`);

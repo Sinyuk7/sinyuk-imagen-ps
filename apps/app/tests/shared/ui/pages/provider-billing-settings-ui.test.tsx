@@ -119,8 +119,6 @@ function createBillingTokenProfile(): ProviderProfile {
     ...fakeProfile,
     apiFormat: 'openai-chat-completions',
     displayName: 'Relay Billing',
-    selectedModelIds: [],
-    defaultModelId: undefined,
     config: {
       apiFormat: 'openai-chat-completions',
       displayName: 'Relay Billing',

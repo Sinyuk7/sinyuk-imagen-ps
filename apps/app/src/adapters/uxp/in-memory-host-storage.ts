@@ -56,8 +56,8 @@ export function createInMemoryModelDiscoveryCacheRepository(): ModelDiscoveryCac
   };
 }
 
-function userModelConfigKey(apiFormat: string, modelId: string): string {
-  return `${apiFormat}:${modelId}`;
+function userModelConfigKey(profileId: string, modelId: string): string {
+  return `${profileId}:${modelId}`;
 }
 
 function modelGenerationPreferenceKey(key: ModelGenerationPreferenceKey): string {
@@ -67,18 +67,25 @@ function modelGenerationPreferenceKey(key: ModelGenerationPreferenceKey): string
 export function createInMemoryUserModelConfigRepository(): UserModelConfigRepository {
   const configs = new Map<string, UserModelConfig>();
   return {
-    async list(apiFormat): Promise<readonly UserModelConfig[]> {
+    async list(profileId): Promise<readonly UserModelConfig[]> {
       const values = Array.from(configs.values());
-      return apiFormat === undefined ? values : values.filter((config) => config.apiFormat === apiFormat);
+      return values.filter((config) => config.profileId === profileId);
     },
-    async get(apiFormat, modelId): Promise<UserModelConfig | undefined> {
-      return configs.get(userModelConfigKey(apiFormat, modelId));
+    async get(profileId, modelId): Promise<UserModelConfig | undefined> {
+      return configs.get(userModelConfigKey(profileId, modelId));
     },
     async save(config): Promise<void> {
-      configs.set(userModelConfigKey(config.apiFormat, config.modelId), config);
+      configs.set(userModelConfigKey(config.profileId, config.modelId), config);
     },
-    async delete(apiFormat, modelId): Promise<void> {
-      configs.delete(userModelConfigKey(apiFormat, modelId));
+    async delete(profileId, modelId): Promise<void> {
+      configs.delete(userModelConfigKey(profileId, modelId));
+    },
+    async deleteProfile(profileId): Promise<void> {
+      for (const key of Array.from(configs.keys())) {
+        if (key.startsWith(`${profileId}:`)) {
+          configs.delete(key);
+        }
+      }
     },
   };
 }

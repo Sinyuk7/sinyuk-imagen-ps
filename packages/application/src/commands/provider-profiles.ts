@@ -119,34 +119,13 @@ function resolveSystemInstruction(input: ProviderProfileInput, existing: Provide
   return normalizeSystemInstruction(existing?.systemInstruction);
 }
 
-function normalizeModelIds(values: readonly string[] | undefined): readonly string[] {
-  const seen = new Set<string>();
-  const modelIds: string[] = [];
-  for (const value of values ?? []) {
-    const modelId = value.trim();
-    if (modelId.length === 0 || seen.has(modelId)) {
-      continue;
-    }
-    seen.add(modelId);
-    modelIds.push(modelId);
+function defaultModelIdForProfile(input: ProviderProfileInput, existing: ProviderProfile | undefined): string | undefined {
+  if (Object.prototype.hasOwnProperty.call(input, 'defaultModelId')) {
+    const explicit = input.defaultModelId?.trim();
+    return explicit && explicit.length > 0 ? explicit : undefined;
   }
-  return modelIds;
-}
-
-function legacyDefaultModelId(config: Readonly<Record<string, unknown>> | undefined): string | undefined {
-  const value = config?.defaultModel;
-  return typeof value === 'string' && value.trim().length > 0 ? value.trim() : undefined;
-}
-
-function defaultModelIdForProfile(input: ProviderProfileInput, existing: ProviderProfile | undefined, selectedModelIds: readonly string[]): string | undefined {
-  const explicit = input.defaultModelId?.trim();
   const inherited = existing?.defaultModelId?.trim();
-  const legacy = legacyDefaultModelId(input.config) ?? legacyDefaultModelId(existing?.config);
-  const candidate = explicit && explicit.length > 0 ? explicit : inherited ?? legacy;
-  if (!candidate) {
-    return selectedModelIds[0];
-  }
-  return selectedModelIds.includes(candidate) ? candidate : selectedModelIds[0];
+  return inherited && inherited.length > 0 ? inherited : undefined;
 }
 
 /** 列出已保存的 provider profiles，不返回 secret values。 */
@@ -323,10 +302,7 @@ export async function saveProviderProfile(input: ProviderProfileInput): Promise<
       displayName,
       apiFormat,
     };
-    const selectedModelIds = normalizeModelIds(
-      input.selectedModelIds ?? existing?.selectedModelIds ?? (legacyDefaultModelId(input.config) ? [legacyDefaultModelId(input.config)!] : undefined),
-    );
-    const defaultModelId = defaultModelIdForProfile(input, existing, selectedModelIds);
+    const defaultModelId = defaultModelIdForProfile(input, existing);
     const profile: ProviderProfile = {
       profileId: input.profileId,
       apiFormat,
@@ -335,7 +311,6 @@ export async function saveProviderProfile(input: ProviderProfileInput): Promise<
       enabled: nextEnabled,
       config: nextConfig,
       ...(Object.keys(secretRefs).length > 0 ? { secretRefs } : {}),
-      selectedModelIds,
       ...(defaultModelId !== undefined ? { defaultModelId } : {}),
       createdAt: existing?.createdAt ?? now,
       updatedAt: now,
@@ -418,6 +393,7 @@ export async function deleteProviderProfile(
 
   try {
     await repository.delete(profileId);
+    await getUserModelConfigRepository().deleteProfile(profileId);
     if (options.retainSecrets !== true) {
       await Promise.all(
         Object.values(profile.secretRefs ?? {}).map((ref) => getSecretStorageAdapter().deleteSecret(ref)),
@@ -494,7 +470,7 @@ export async function testProviderProfile(
     // Layer 2：connect
     if (options.connect === true || options.generate === true) {
       if (typeof provider.safeProbe === 'function') {
-        const probeModelId = profile.defaultModelId ?? profile.selectedModelIds[0] ?? undefined;
+        const probeModelId = profile.defaultModelId;
         const resolvedProbeModel = probeModelId
           ? await resolveConfiguredModel({
             profileId: profile.profileId,
@@ -528,7 +504,7 @@ export async function testProviderProfile(
           const resolvedModel = await resolveConfiguredModel({
             profileId: profile.profileId,
             apiFormat: profile.apiFormat,
-            modelId: profile.defaultModelId ?? profile.selectedModelIds[0] ?? '',
+            modelId: profile.defaultModelId ?? '',
             userModelConfigRepository: getUserModelConfigRepository(),
           });
           const generationSettings = resolveModelGenerationSettingsValue({

@@ -39,7 +39,6 @@ const billingProfile: ProviderProfile = {
       path: '/client/openapi/getCredits',
     },
   },
-  selectedModelIds: ['gpt-4o-image'],
   defaultModelId: 'gpt-4o-image',
 };
 

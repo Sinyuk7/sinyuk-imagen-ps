@@ -30,7 +30,6 @@ export const fakeProfile: ProviderProfile = {
   secretRefs: {
     apiKey: 'secret:provider-profile:mock-profile:apiKey',
   },
-  selectedModelIds: ['gpt-image-2'],
   defaultModelId: 'gpt-image-2',
   createdAt: '2026-06-15T00:00:00.000Z',
   updatedAt: '2026-06-15T00:00:00.000Z',
@@ -69,21 +68,20 @@ export const fakeChatProvider: ProviderDescriptor = {
 export const fakeProfileModelItems: readonly ProfileModelItem[] = [{
   modelId: 'gpt-image-2',
   wireModelId: 'gpt-image-2',
-  discovered: true,
+  discovered: false,
   configured: true,
   selected: true,
   default: true,
-  configSource: 'catalog',
+  configSource: 'user',
 }];
 
 export const fakeDraftProfileModelItems: readonly ProfileModelItem[] = [{
   modelId: 'gpt-image-2-preview',
   wireModelId: 'gpt-image-2-preview',
   discovered: true,
-  configured: true,
+  configured: false,
   selected: false,
   default: false,
-  configSource: 'catalog',
 }];
 
 export const fakeRequestStrategies: readonly RequestStrategy[] = [{
@@ -99,22 +97,27 @@ export function profileModelItem(
   return {
     modelId,
     wireModelId: modelId,
-    discovered: true,
+    discovered: false,
     configured: true,
     selected: true,
     default: false,
-    configSource: 'catalog',
+    configSource: 'user',
     ...overrides,
   };
 }
 
 export function savedProfile(input: ProviderProfileInput, existing: ProviderProfile | undefined): ProviderProfile {
-  const selectedModelIds = input.selectedModelIds !== undefined
-    ? input.selectedModelIds
-    : existing?.selectedModelIds ?? fakeProfile.selectedModelIds;
-  const defaultModelId = input.defaultModelId ?? existing?.defaultModelId ?? fakeProfile.defaultModelId;
-  return {
+  const hasDefaultModelInput = Object.prototype.hasOwnProperty.call(input, 'defaultModelId');
+  const defaultModelId = hasDefaultModelInput
+    ? input.defaultModelId
+    : (existing?.defaultModelId ?? fakeProfile.defaultModelId);
+  const baseProfile = {
     ...fakeProfile,
+    ...(existing ?? {}),
+  };
+  const { defaultModelId: _removedDefaultModelId, ...profileWithoutDefaultModel } = baseProfile;
+  return {
+    ...profileWithoutDefaultModel,
     profileId: input.profileId,
     apiFormat: input.apiFormat ?? existing?.apiFormat ?? fakeProfile.apiFormat,
     displayName: input.displayName ?? existing?.displayName ?? fakeProfile.displayName,
@@ -124,7 +127,6 @@ export function savedProfile(input: ProviderProfileInput, existing: ProviderProf
       ...(existing?.config ?? fakeProfile.config),
       ...(input.config ?? {}),
     },
-    selectedModelIds,
     ...(defaultModelId !== undefined && defaultModelId.length > 0 ? { defaultModelId } : {}),
     updatedAt: '2026-06-15T00:00:02.000Z',
   };

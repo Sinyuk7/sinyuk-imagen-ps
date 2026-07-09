@@ -1,7 +1,5 @@
 import { createValidationError } from '@imagen-ps/core-engine';
 import {
-  getOfficialModelPreset,
-  resolveImageModelRule,
   getRequestStrategy,
   type ApiFormat,
   type ImageOutputMatrix,
@@ -9,7 +7,6 @@ import {
   type UserModelOutputExposure,
 } from '@imagen-ps/providers';
 import type { ProviderProfile, UserModelConfigRepository } from './types.js';
-import { catalogProviderIdForApiFormat } from './api-format-profile.js';
 
 export interface ResolvedModelConfig {
   readonly apiFormat: ApiFormat;
@@ -53,8 +50,14 @@ export async function resolveConfiguredModel(args: {
   readonly userModelConfigRepository: Pick<UserModelConfigRepository, 'get'>;
 }): Promise<ResolvedModelConfig> {
   const normalizedModelId = args.modelId.trim();
-  const userConfig = await args.userModelConfigRepository.get(args.apiFormat, normalizedModelId);
+  const userConfig = await args.userModelConfigRepository.get(args.profileId, normalizedModelId);
   if (userConfig !== undefined) {
+    if (userConfig.apiFormat !== args.apiFormat) {
+      throw createValidationError(
+        `Provider profile "${args.profileId}" model "${normalizedModelId}" apiFormat "${userConfig.apiFormat}" does not match profile apiFormat "${args.apiFormat}".`,
+        { profileId: args.profileId, apiFormat: args.apiFormat, modelId: normalizedModelId, configApiFormat: userConfig.apiFormat },
+      );
+    }
     assertStrategyMatchesApiFormat({
       apiFormat: args.apiFormat,
       modelId: normalizedModelId,
@@ -72,59 +75,14 @@ export async function resolveConfiguredModel(args: {
     };
   }
 
-  const resolvedRule = resolveImageModelRule({
-    providerId: catalogProviderIdForApiFormat(args.apiFormat),
-    capabilityModelId: normalizedModelId,
-  });
-  const canonicalModelId = resolvedRule.concreteModelId;
-
-  const officialPreset = getOfficialModelPreset(args.apiFormat, args.modelId);
-  const canonicalPreset = canonicalModelId === normalizedModelId ? officialPreset : getOfficialModelPreset(args.apiFormat, canonicalModelId);
-  const preset = officialPreset ?? canonicalPreset;
-  if (preset !== undefined) {
-    assertStrategyMatchesApiFormat({
-      apiFormat: args.apiFormat,
-      modelId: preset.modelId,
-      requestStrategyId: preset.requestStrategyId,
-    });
-    return {
-      apiFormat: preset.apiFormat,
-      configModelId: preset.modelId,
-      capabilityModelId: preset.modelId,
-      wireModelId: preset.modelId,
-      requestStrategyId: preset.requestStrategyId,
-      outputExposure: preset.outputExposure,
-      outputMatrix: preset.outputMatrix,
-      source: 'catalog',
-    };
-  }
-
   throw configuredModelError(args.profileId, args.apiFormat, args.modelId);
 }
 
 export async function assertProfileModelSelectionIsConfigured(
-  profile: Pick<ProviderProfile, 'profileId' | 'apiFormat' | 'selectedModelIds' | 'defaultModelId'>,
+  profile: Pick<ProviderProfile, 'profileId' | 'apiFormat' | 'defaultModelId'>,
   userModelConfigRepository: Pick<UserModelConfigRepository, 'get'>,
 ): Promise<void> {
-  for (const modelId of profile.selectedModelIds) {
-    await resolveConfiguredModel({
-      profileId: profile.profileId,
-      apiFormat: profile.apiFormat,
-      modelId,
-      userModelConfigRepository,
-    });
-  }
   if (profile.defaultModelId !== undefined) {
-    if (!profile.selectedModelIds.includes(profile.defaultModelId)) {
-      throw createValidationError(
-        `Provider profile "${profile.profileId}" defaultModelId must be included in selectedModelIds.`,
-        {
-          profileId: profile.profileId,
-          apiFormat: profile.apiFormat,
-          defaultModelId: profile.defaultModelId,
-        },
-      );
-    }
     await resolveConfiguredModel({
       profileId: profile.profileId,
       apiFormat: profile.apiFormat,

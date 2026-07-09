@@ -16,14 +16,12 @@ function errorMessage(error: unknown, fallback: string): string {
 
 function configuredModelId(input: {
   readonly defaultModelId?: string;
-  readonly selectedModelIds: readonly string[];
 }): string | undefined {
   const explicit = input.defaultModelId?.trim();
   if (explicit) {
     return explicit;
   }
-  const selected = input.selectedModelIds.find((modelId) => modelId.trim().length > 0);
-  return selected?.trim();
+  return undefined;
 }
 
 function legacyResolvedModelId(input: {
@@ -76,7 +74,6 @@ export async function testProviderProfileConnection(
       provider,
       providerConfig,
       apiFormat,
-      selectedModelIds,
       defaultModelId,
     } = await resolveDraftProviderContext(input);
 
@@ -98,7 +95,7 @@ export async function testProviderProfileConnection(
       };
     }
 
-    const modelId = configuredModelId({ defaultModelId, selectedModelIds });
+    const modelId = configuredModelId({ defaultModelId });
     const probeModelId = modelId
       ? (
         await resolveConfiguredModel({

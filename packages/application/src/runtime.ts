@@ -106,8 +106,8 @@ function createInMemoryModelDiscoveryCacheRepository(): ModelDiscoveryCacheRepos
   };
 }
 
-function userModelConfigKey(apiFormat: string, modelId: string): string {
-  return `${apiFormat}:${modelId}`;
+function userModelConfigKey(profileId: string, modelId: string): string {
+  return `${profileId}:${modelId}`;
 }
 
 function modelGenerationPreferenceKey(key: ModelGenerationPreferenceKey): string {
@@ -117,18 +117,25 @@ function modelGenerationPreferenceKey(key: ModelGenerationPreferenceKey): string
 function createInMemoryUserModelConfigRepository(): UserModelConfigRepository {
   const store = new Map<string, UserModelConfig>();
   return {
-    async list(apiFormat) {
+    async list(profileId) {
       const configs = Array.from(store.values()).filter((config): config is NonNullable<typeof config> => config !== undefined);
-      return apiFormat === undefined ? configs : configs.filter((config) => config.apiFormat === apiFormat);
+      return configs.filter((config) => config.profileId === profileId);
     },
-    async get(apiFormat, modelId) {
-      return store.get(userModelConfigKey(apiFormat, modelId));
+    async get(profileId, modelId) {
+      return store.get(userModelConfigKey(profileId, modelId));
     },
     async save(config) {
-      store.set(userModelConfigKey(config.apiFormat, config.modelId), config);
+      store.set(userModelConfigKey(config.profileId, config.modelId), config);
     },
-    async delete(apiFormat, modelId) {
-      store.delete(userModelConfigKey(apiFormat, modelId));
+    async delete(profileId, modelId) {
+      store.delete(userModelConfigKey(profileId, modelId));
+    },
+    async deleteProfile(profileId) {
+      for (const key of Array.from(store.keys())) {
+        if (key.startsWith(`${profileId}:`)) {
+          store.delete(key);
+        }
+      }
     },
   };
 }
@@ -836,16 +843,10 @@ async function resolveModelParamsForDispatch(args: {
 }): Promise<Record<string, unknown>> {
   const { requestObj } = locateRequestInParams(args.params);
   const explicitModelId = explicitModelIdFromRequest(requestObj);
-  const selectedModelId = explicitModelId ?? args.profile.defaultModelId ?? providerFallbackModelId(args.providerConfig);
+  const selectedModelId = explicitModelId ?? args.profile.defaultModelId;
   if (typeof selectedModelId !== 'string' || selectedModelId.length === 0) {
     throw createValidationError(`Provider profile "${args.profile.profileId}" has no selected model for dispatch.`, {
       profileId: args.profile.profileId,
-    });
-  }
-  if (!args.profile.selectedModelIds.includes(selectedModelId)) {
-    throw createValidationError(`Provider profile "${args.profile.profileId}" model "${selectedModelId}" is not selected.`, {
-      profileId: args.profile.profileId,
-      modelId: selectedModelId,
     });
   }
   const resolved = await resolveConfiguredModel({

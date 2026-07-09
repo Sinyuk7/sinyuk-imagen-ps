@@ -46,7 +46,6 @@ function createProfile(profileId = 'billing-profile'): ProviderProfile {
         generation: '/images/generations',
       },
     },
-    selectedModelIds: [],
     createdAt: '2026-07-08T00:00:00.000Z',
     updatedAt: '2026-07-08T00:00:00.000Z',
   };

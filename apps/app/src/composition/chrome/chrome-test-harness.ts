@@ -72,11 +72,11 @@ const MOCK_MODEL_ID = 'gpt-image-2';
 const MOCK_DISCOVERED_MODELS = [{ id: MOCK_MODEL_ID }] as const;
 const MOCK_PROFILE_MODELS: readonly ProfileModelItem[] = [{
   modelId: MOCK_MODEL_ID,
-  discovered: true,
+  discovered: false,
   configured: true,
   selected: true,
   default: true,
-  configSource: 'catalog',
+  configSource: 'user',
 }];
 const MOCK_RESULT_PNG_BASE64 = 'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR4nGNgYGBgAAAABQABpfZFQAAAAABJRU5ErkJggg==';
 let mockJobSequence = 0;
@@ -143,7 +143,6 @@ function mockProfile(options?: { readonly failMode?: ChromeTestMockFailureMode; 
     enabled: true,
     config,
     secretRefs: { apiKey: MOCK_SECRET_REF },
-    selectedModelIds: [MOCK_MODEL_ID],
     defaultModelId: MOCK_MODEL_ID,
     createdAt: FIXED_NOW,
     updatedAt: FIXED_NOW,

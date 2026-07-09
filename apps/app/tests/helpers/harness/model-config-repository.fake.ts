@@ -33,26 +33,29 @@ export function createModelConfigRepositoryFake(options?: {
   let userModelConfigs: readonly UserModelConfig[] = options?.userModelConfigs ?? fakeUserModelConfigs;
   const officialModelConfigPresets = options?.officialModelConfigPresets ?? fakeOfficialModelConfigPresets;
   setUserModelConfigRepository({
-    async list(apiFormat) {
-      return apiFormat ? userModelConfigs.filter((config) => config.apiFormat === apiFormat) : userModelConfigs;
+    async list(profileId) {
+      return userModelConfigs.filter((config) => config.profileId === profileId);
     },
-    async get(apiFormat, modelId) {
-      return userModelConfigs.find((config) => config.apiFormat === apiFormat && config.modelId === modelId);
+    async get(profileId, modelId) {
+      return userModelConfigs.find((config) => config.profileId === profileId && config.modelId === modelId);
     },
     async save(config) {
       userModelConfigs = [
-        ...userModelConfigs.filter((item) => !(item.apiFormat === config.apiFormat && item.modelId === config.modelId)),
+        ...userModelConfigs.filter((item) => !(item.profileId === config.profileId && item.modelId === config.modelId)),
         config,
       ];
     },
-    async delete(apiFormat, modelId) {
-      userModelConfigs = userModelConfigs.filter((config) => !(config.apiFormat === apiFormat && config.modelId === modelId));
+    async delete(profileId, modelId) {
+      userModelConfigs = userModelConfigs.filter((config) => !(config.profileId === profileId && config.modelId === modelId));
+    },
+    async deleteProfile(profileId) {
+      userModelConfigs = userModelConfigs.filter((config) => config.profileId !== profileId);
     },
   });
 
-  const listUserModelConfigs = vi.fn(async (apiFormat?: UserModelConfig['apiFormat']) => ({
+  const listUserModelConfigs = vi.fn(async (profileId: string) => ({
     ok: true as const,
-    value: apiFormat ? userModelConfigs.filter((config) => config.apiFormat === apiFormat) : userModelConfigs,
+    value: userModelConfigs.filter((config) => config.profileId === profileId),
   }));
   const listOfficialModelConfigPresets = vi.fn(async (apiFormat?: OfficialModelPreset['apiFormat']) => ({
     ok: true as const,
@@ -64,9 +67,9 @@ export function createModelConfigRepositoryFake(options?: {
     ok: true as const,
     value: fakeRequestStrategies,
   }));
-  const getUserModelConfig = vi.fn(async (apiFormat: UserModelConfig['apiFormat'], modelId: string) => ({
+  const getUserModelConfig = vi.fn(async (profileId: string, modelId: string) => ({
     ok: true as const,
-    value: userModelConfigs.find((config) => config.apiFormat === apiFormat && config.modelId === modelId) ?? null,
+    value: userModelConfigs.find((config) => config.profileId === profileId && config.modelId === modelId) ?? null,
   }));
   const getModelGenerationSettingsSpy = vi.fn(getModelGenerationSettings);
   const saveModelGenerationPreferenceSpy = vi.fn(saveModelGenerationPreference);
@@ -87,13 +90,13 @@ export function createModelConfigRepositoryFake(options?: {
       })),
     } satisfies UserModelConfig;
     userModelConfigs = [
-      ...userModelConfigs.filter((config) => !(config.apiFormat === next.apiFormat && config.modelId === next.modelId)),
+      ...userModelConfigs.filter((config) => !(config.profileId === next.profileId && config.modelId === next.modelId)),
       next,
     ];
     return { ok: true as const, value: next };
   });
-  const deleteUserModelConfigSpy = vi.fn(async (apiFormat: UserModelConfig['apiFormat'], modelId: string) => {
-    userModelConfigs = userModelConfigs.filter((config) => !(config.apiFormat === apiFormat && config.modelId === modelId));
+  const deleteUserModelConfigSpy = vi.fn(async (profileId: string, modelId: string) => {
+    userModelConfigs = userModelConfigs.filter((config) => !(config.profileId === profileId && config.modelId === modelId));
     return { ok: true as const, value: null };
   });
   const profileModelItems = options?.profileModelItems ?? fakeProfileModelItems;

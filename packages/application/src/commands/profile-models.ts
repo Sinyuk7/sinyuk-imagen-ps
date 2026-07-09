@@ -1,15 +1,13 @@
 /**
  * Profile model commands.
  *
- * `refreshProfileModels()` owns remote discovery and writes a profile-scoped
- * discovery cache. `listProfileModels()` is local-only reconciliation over the
- * cache, user model configs, official catalog, and profile selection state.
+ * `refreshProfileModels()` returns runtime-only discovery suggestions.
+ * `listProfileModels()` lists current profile-owned configured models only.
  */
 
 import { createProviderError, createValidationError } from '@imagen-ps/core-engine';
 import { generateTraceId } from '@imagen-ps/foundation';
 import {
-  getModelDiscoveryCacheRepository,
   getProviderConfigResolver,
   getProviderProfileRepository,
   getRuntime,
@@ -19,10 +17,8 @@ import {
 import type { CommandResult, ProfileModelItem, ProviderProfile, UserModelConfig } from './types.js';
 import {
   listOfficialModelPresets,
-  providerUsesImageModelCatalog,
   type DiscoveredModel,
 } from '@imagen-ps/providers';
-import { catalogProviderIdForApiFormat } from './api-format-profile.js';
 
 function errorMessage(error: unknown, fallback: string): string {
   if (error instanceof Error) {
@@ -48,14 +44,6 @@ function uniqueModelIds(ids: readonly string[]): readonly string[] {
   return result;
 }
 
-function officialCatalogIds(profile: Pick<ProviderProfile, 'apiFormat'>): ReadonlySet<string> {
-  const catalogProviderId = catalogProviderIdForApiFormat(profile.apiFormat);
-  if (!providerUsesImageModelCatalog(catalogProviderId)) {
-    return new Set();
-  }
-  return new Set(listOfficialModelPresets(profile.apiFormat).map((model) => model.modelId));
-}
-
 function officialCatalogDisplayNames(profile: Pick<ProviderProfile, 'apiFormat'>): ReadonlyMap<string, string> {
   return new Map(listOfficialModelPresets(profile.apiFormat).map((model) => [model.modelId, model.displayName] as const));
 }
@@ -78,27 +66,15 @@ function resolvedProfileModelDisplayName(args: {
 }
 
 export function reconcileProfileModels(args: {
-  readonly discoveredModelIds: readonly string[];
   readonly userModelConfigs: readonly UserModelConfig[];
-  readonly officialCatalogModelIds: ReadonlySet<string>;
   readonly officialCatalogDisplayNames?: ReadonlyMap<string, string>;
-  readonly selectedModelIds: readonly string[];
   readonly defaultModelId?: string;
 }): readonly ProfileModelItem[] {
-  const discoveredIds = new Set(uniqueModelIds(args.discoveredModelIds));
   const userConfigsById = new Map(args.userModelConfigs.map((config) => [config.modelId, config] as const));
-  const userConfigIds = new Set(userConfigsById.keys());
-  const selectedIds = new Set(uniqueModelIds(args.selectedModelIds));
-  const candidateIds = uniqueModelIds([
-    ...discoveredIds,
-    ...userConfigIds,
-    ...args.officialCatalogModelIds,
-  ]);
+  const candidateIds = uniqueModelIds(args.userModelConfigs.map((config) => config.modelId));
 
   return candidateIds.map((modelId) => {
     const userConfig = userConfigsById.get(modelId);
-    const userConfigured = userConfig !== undefined;
-    const catalogConfigured = args.officialCatalogModelIds.has(modelId);
     const displayName = resolvedProfileModelDisplayName({
       modelId,
       userConfig,
@@ -108,11 +84,11 @@ export function reconcileProfileModels(args: {
       modelId,
       ...(displayName ? { displayName } : {}),
       ...(userConfig?.wireModelId ? { wireModelId: userConfig.wireModelId } : {}),
-      discovered: discoveredIds.has(modelId),
-      configured: userConfigured || catalogConfigured,
-      selected: selectedIds.has(modelId),
+      discovered: false,
+      configured: true,
+      selected: args.defaultModelId === modelId,
       default: args.defaultModelId === modelId,
-      ...(userConfigured ? { configSource: 'user' as const } : catalogConfigured ? { configSource: 'catalog' as const } : {}),
+      configSource: 'user' as const,
     };
   });
 }
@@ -149,26 +125,21 @@ export async function listProfileModels(profileId: string): Promise<CommandResul
     };
   }
 
-  const cache = await getModelDiscoveryCacheRepository().get(profileId);
-  const userConfigs = await getUserModelConfigRepository().list(profile.apiFormat);
+  const userConfigs = await getUserModelConfigRepository().list(profileId);
   const items = reconcileProfileModels({
-    discoveredModelIds: cache?.modelIds ?? [],
     userModelConfigs: userConfigs,
-    officialCatalogModelIds: officialCatalogIds(profile),
     officialCatalogDisplayNames: officialCatalogDisplayNames(profile),
-    selectedModelIds: profile.selectedModelIds,
     defaultModelId: profile.defaultModelId,
   });
   span.finish({
     count: items.length,
-    discoveredCount: cache?.modelIds.length ?? 0,
-    selectedCount: profile.selectedModelIds.length,
+    defaultModelId: profile.defaultModelId,
   });
   return { ok: true, value: items };
 }
 
 /**
- * 触发一次 model discovery 并把远端事实写入独立 discovery cache。
+ * 触发一次 model discovery；返回值只供当前页面作为 runtime suggestion 使用。
  */
 export async function refreshProfileModels(profileId: string): Promise<CommandResult<readonly DiscoveredModel[]>> {
   const logger = getRuntimeLogger().child({
@@ -247,25 +218,9 @@ export async function refreshProfileModels(profileId: string): Promise<CommandRe
   }
 
   const modelIds = uniqueModelIds(models.map((model) => model.id));
-  try {
-    await getModelDiscoveryCacheRepository().put({
-      profileId,
-      modelIds,
-      refreshedAt: new Date().toISOString(),
-    });
-  } catch (error) {
-    span.fail(error);
-    return {
-      ok: false,
-      error: createProviderError(
-        errorMessage(error, `Failed to persist refreshed models for profile "${profileId}".`),
-        { profileId, apiFormat: profile.apiFormat },
-      ),
-    };
-  }
 
   span.finish({
-    persistedCount: modelIds.length,
+    suggestionCount: modelIds.length,
   });
   return { ok: true, value: modelIds.map((id) => ({ id })) };
 }

@@ -79,7 +79,6 @@ function createProviderProfile(overrides: Partial<ProviderProfile> = {}): Provid
         invoke: '/chat/completions',
       },
     },
-    selectedModelIds: [],
     createdAt: '2026-07-08T00:00:00.000Z',
     updatedAt: '2026-07-08T00:00:00.000Z',
     ...overrides,
@@ -154,7 +153,6 @@ describe('profile billing commands', () => {
       secretValues: {
         billingToken: 'billing-token-123',
       },
-      selectedModelIds: [],
     });
 
     expect(result.ok).toBe(true);

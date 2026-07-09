@@ -21,7 +21,6 @@ interface SettingsPageProps {
   readonly modelGenerationSettings?: ModelGenerationSettingsController;
   readonly onOpenGlobalGeneration?: () => void;
   readonly onOpenPromptSettings?: () => void;
-  readonly onOpenModelConfiguration?: () => void;
 }
 
 function initials(name: string): string {
@@ -120,7 +119,6 @@ export function SettingsPage({
   modelGenerationSettings,
   onOpenGlobalGeneration,
   onOpenPromptSettings,
-  onOpenModelConfiguration,
 }: SettingsPageProps) {
   const services = useAppServices();
   const { messages: t } = useI18n();
@@ -241,18 +239,6 @@ export function SettingsPage({
           )}
           meta={<span className="prov-summary">{t.settings.promptSettingsSummary}</span>}
           onOpen={() => onOpenPromptSettings?.()}
-        />
-        <SettingsListRow
-          testId="model-configuration-row"
-          title={t.settings.modelConfiguration}
-          special
-          leading={(
-            <div className="prov-ico" style={{ background: 'var(--app-color-background-layer-2)', color: 'var(--app-color-positive)' }}>
-              <Icon name="algorithm" size={14} />
-            </div>
-          )}
-          meta={<span className="prov-summary">{t.settings.modelConfigurationSummary}</span>}
-          onOpen={() => onOpenModelConfiguration?.()}
         />
         <div className="sec-lbl">{t.settings.providerProfiles}</div>
         {loading && <div style={{ padding: 16, color: 'var(--app-color-text-muted)', fontSize: 12 }}>{t.settings.loading}</div>}

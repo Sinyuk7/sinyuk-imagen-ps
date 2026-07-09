@@ -12,6 +12,7 @@ async function geminiFlashImageConfig(): Promise<UserModelConfig> {
     throw new Error('Missing official preset gemini-generate-content:gemini-3.1-flash-image');
   }
   return {
+    profileId: 'gemini-profile',
     apiFormat: preset.apiFormat,
     modelId: preset.modelId,
     baseModelId: preset.modelId,
@@ -29,7 +30,7 @@ describe('Chrome user model config storage', () => {
       initial: {
         userModelConfigs: [
           {
-            key: `${config.apiFormat}:${config.modelId}`,
+            key: `${config.profileId}:${config.modelId}`,
             value: config,
           },
         ],
@@ -37,7 +38,7 @@ describe('Chrome user model config storage', () => {
     });
 
     const storage = createChromeIndexedDbStorage({ backend });
-    const listed = await storage.userModelConfigs.list();
+    const listed = await storage.userModelConfigs.list(config.profileId);
 
     expect(listed).toHaveLength(1);
     expect(listed[0]?.modelId).toBe('gemini-3.1-flash-image');

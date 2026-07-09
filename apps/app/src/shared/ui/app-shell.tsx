@@ -19,6 +19,7 @@ import { SettingsPage } from './pages/settings-page';
 import { SettingsOnboardingPage } from './pages/settings-onboarding-page';
 import { SettingsAddPage } from './pages/settings-add-page';
 import { SettingsDetailPage } from './pages/settings-detail-page';
+import { ProfileModelsPage } from './pages/profile-models-page';
 import { GlobalGenerationSettingsPage } from './pages/global-generation-settings-page';
 import { ModelConfigurationPage } from './pages/model-configuration-page';
 import { PromptSettingsPage } from './pages/prompt-settings-page';
@@ -50,6 +51,7 @@ type View =
   | 'settings-onboarding'
   | 'settings-add'
   | 'settings-detail'
+  | 'profile-models'
   | 'global-generation-settings'
   | 'model-configuration'
   | 'prompt-settings'
@@ -218,9 +220,8 @@ function AppShellContent({ host }: AppShellProps) {
   const [settingsDetailReturnView, setSettingsDetailReturnView] = useState<SettingsDetailReturnView>('settings');
   const [selectedPromptPresetId, setSelectedPromptPresetId] = useState<string | null>(null);
   const [modelConfigurationEditorSeed, setModelConfigurationEditorSeed] = useState<{
-    readonly source?: 'settings-list' | 'profile-add' | 'profile-detail';
-    readonly profileId?: string | null;
-    readonly apiFormat?: ProviderProfile['apiFormat'] | null;
+    readonly profileId: string;
+    readonly apiFormat: ProviderProfile['apiFormat'];
     readonly modelId?: string | null;
   } | null>(null);
   const [selectedModelId, setSelectedModelId] = useState('');
@@ -333,7 +334,7 @@ function AppShellContent({ host }: AppShellProps) {
     const configured = defaultModelFor(selectedProfile);
     const next = available.some((model) => model.id === configured)
       ? configured
-      : available[0]?.id ?? '';
+      : '';
     setSelectedModelId(next);
   }, [imageModels, selectedProfile, selectedModelId]);
 
@@ -547,10 +548,6 @@ function AppShellContent({ host }: AppShellProps) {
           onOpenOnboarding={() => setAppView('settings-onboarding')}
           onOpenGlobalGeneration={() => setView('global-generation-settings')}
           onOpenPromptSettings={() => setView('prompt-settings')}
-          onOpenModelConfiguration={() => {
-            setModelConfigurationEditorSeed(null);
-            setView('model-configuration');
-          }}
           generationSettings={generationSettings.settings}
           modelGenerationSettings={modelGenerationSettings}
           />
@@ -568,10 +565,6 @@ function AppShellContent({ host }: AppShellProps) {
           <SettingsAddPage
           onNav={onNav}
           profiles={imageProfiles}
-          onOpenModelConfiguration={(input) => {
-            setModelConfigurationEditorSeed(input);
-            setView('model-configuration');
-          }}
           onProfileSaved={async (profileId, options) => {
             await profilesState.reload();
             if (options.useProvider) {
@@ -598,9 +591,8 @@ function AppShellContent({ host }: AppShellProps) {
           profileId={selectedSettingsProfileId}
           onSaved={(message) => show(message, 'positive', { key: 'settings-provider-saved' })}
           onOpenModelConfiguration={(input) => {
-            setModelConfigurationEditorSeed(input);
             setSelectedSettingsProfileId(input.profileId);
-            setView('model-configuration');
+            setView('profile-models');
           }}
           onProfilesChanged={async (profileId) => {
             await services.diagnostics?.checkpoint('uxp.ui.app_shell.profiles_changed.entered', {
@@ -630,6 +622,52 @@ function AppShellContent({ host }: AppShellProps) {
           />
         </MotionPageFrame>
       )}
+      {view === 'profile-models' && selectedSettingsProfileId && (
+        <MotionPageFrame watch={view}>
+          {(() => {
+            const profile = imageProfiles.find((item) => item.profileId === selectedSettingsProfileId);
+            if (!profile) {
+              return null;
+            }
+            return (
+              <ProfileModelsPage
+                profile={profile}
+                onBack={() => setView('settings-detail')}
+                onChanged={async () => {
+                  await profilesState.reload();
+                  if (selectedImageProfileId === profile.profileId) {
+                    await modelsState.reload();
+                  }
+                }}
+                onCreate={() => {
+                  setModelConfigurationEditorSeed({
+                    profileId: profile.profileId,
+                    apiFormat: profile.apiFormat,
+                    modelId: null,
+                  });
+                  setView('model-configuration');
+                }}
+                onEdit={(modelId) => {
+                  setModelConfigurationEditorSeed({
+                    profileId: profile.profileId,
+                    apiFormat: profile.apiFormat,
+                    modelId,
+                  });
+                  setView('model-configuration');
+                }}
+                onSuggestion={(modelId) => {
+                  setModelConfigurationEditorSeed({
+                    profileId: profile.profileId,
+                    apiFormat: profile.apiFormat,
+                    modelId,
+                  });
+                  setView('model-configuration');
+                }}
+              />
+            );
+          })()}
+        </MotionPageFrame>
+      )}
       {view === 'global-generation-settings' && (
         <MotionPageFrame watch={view}>
           <GlobalGenerationSettingsPage
@@ -643,37 +681,20 @@ function AppShellContent({ host }: AppShellProps) {
           />
         </MotionPageFrame>
       )}
-      {view === 'model-configuration' && (
+      {view === 'model-configuration' && modelConfigurationEditorSeed && (
         <MotionPageFrame watch={view}>
           <ModelConfigurationPage
           onNav={onNav}
           onBack={() => {
-            if (modelConfigurationEditorSeed?.source === 'profile-detail') {
-              setView('settings-detail');
-              return;
-            }
-            if (modelConfigurationEditorSeed?.source === 'profile-add') {
-              setView('settings-add');
-              return;
-            }
-            setAppView('settings');
+            setView('profile-models');
           }}
-          onSaved={async ({ apiFormat }) => {
-            if (modelConfigurationEditorSeed?.source === 'profile-detail' && modelConfigurationEditorSeed.profileId) {
-              const profileResult = await services.commands.getProviderProfile(modelConfigurationEditorSeed.profileId);
-              if (profileResult.ok && profileResult.value.apiFormat === apiFormat) {
-                setSelectedSettingsProfileId(modelConfigurationEditorSeed.profileId);
-                setModelConfigurationEditorSeed(null);
-                setView('settings-detail');
-                return;
-              }
-            }
-            if (modelConfigurationEditorSeed?.source === 'profile-add' && modelConfigurationEditorSeed.apiFormat === apiFormat) {
-              setModelConfigurationEditorSeed(null);
-              setView('settings-add');
-              return;
+          onSaved={async () => {
+            await profilesState.reload();
+            if (selectedImageProfileId === modelConfigurationEditorSeed.profileId) {
+              await modelsState.reload();
             }
             setModelConfigurationEditorSeed(null);
+            setView('profile-models');
           }}
           initialEditorState={modelConfigurationEditorSeed}
           />
