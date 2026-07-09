@@ -12,6 +12,7 @@ import { ProviderSettingsPageHeader } from '../components/provider-settings-sect
 import { Icon } from '../components/icons';
 import { StatusNotice } from '../components/status-notice';
 import { TextSelect } from '../components/text-select';
+import { useToast } from '../components/toast-host';
 import { useI18n } from '../i18n/i18n-context';
 import { Button, FieldLabel, HelpText, TextField } from '../primitives/native-controls';
 import { IconButton } from '../primitives/icon-button';
@@ -486,14 +487,18 @@ function CapabilitySection({
       />
 
       {normalizationRequired ? (
-        <div data-testid={`model-config-normalization-warning-${module.id}`}>
+        <div className="status-warning-slot" data-testid={`model-config-normalization-warning-${module.id}`}>
           <StatusNotice tone="warning" message={t.settings.modelConfigNormalizationWarning} />
         </div>
       ) : null}
       <HelpText className="field-hint model-config-combination-summary mono">
         {combinationSummary}
       </HelpText>
-      {validationMessage ? <StatusNotice tone="warning" message={validationMessage} /> : null}
+      {validationMessage ? (
+        <div className="status-warning-slot" data-testid={`model-config-validation-warning-${module.id}`}>
+          <StatusNotice tone="warning" message={validationMessage} />
+        </div>
+      ) : null}
     </section>
   );
 }
@@ -501,8 +506,9 @@ function CapabilitySection({
 export function ModelConfigurationPage({ onNav, onSaved, onBack, initialEditorState }: ModelConfigurationPageProps) {
   const services = useAppServices();
   const { messages: t } = useI18n();
+  const { show } = useToast();
   const [presets, setPresets] = useState<readonly OfficialModelPreset[]>([]);
-  const [error, setError] = useState<string | null>(null);
+  const [pageError, setPageError] = useState<string | null>(null);
   const [editorOpen, setEditorOpen] = useState(true);
   const [apiFormatMenuOpen, setApiFormatMenuOpen] = useState(false);
   const [presetMenuOpen, setPresetMenuOpen] = useState(false);
@@ -530,7 +536,7 @@ export function ModelConfigurationPage({ onNav, onSaved, onBack, initialEditorSt
 
   useEffect(() => {
     void loadApiFormatData(apiFormat).catch((nextError) => {
-      setError(nextError instanceof Error ? nextError.message : String(nextError));
+      setPageError(nextError instanceof Error ? nextError.message : String(nextError));
     });
   }, []);
 
@@ -603,8 +609,9 @@ export function ModelConfigurationPage({ onNav, onSaved, onBack, initialEditorSt
         setEditingKey(config ? config.modelId : null);
         setAdvancedOpen(false);
         setEditorOpen(true);
+        setPageError(null);
       } catch (nextError) {
-        setError(nextError instanceof Error ? nextError.message : String(nextError));
+        setPageError(nextError instanceof Error ? nextError.message : String(nextError));
       }
     })();
   }, [initialEditorState]);
@@ -681,7 +688,7 @@ export function ModelConfigurationPage({ onNav, onSaved, onBack, initialEditorSt
 
   const save = async () => {
     if (validationMessage) {
-      setError(validationMessage);
+      show(validationMessage, 'warning', { key: 'model-config-validation', durationMs: null });
       return;
     }
     if (!selectedPreset) {
@@ -707,9 +714,12 @@ export function ModelConfigurationPage({ onNav, onSaved, onBack, initialEditorSt
       setEditorOpen(false);
       setEditingKey(null);
       onSaved?.({ apiFormat: result.value.apiFormat, modelId: result.value.modelId });
-      setError(null);
+      setPageError(null);
     } catch (nextError) {
-      setError(nextError instanceof Error ? nextError.message : String(nextError));
+      show(nextError instanceof Error ? nextError.message : String(nextError), 'negative', {
+        key: 'model-config-save-error',
+        durationMs: null,
+      });
     } finally {
       setSaveBusy(false);
     }
@@ -725,13 +735,16 @@ export function ModelConfigurationPage({ onNav, onSaved, onBack, initialEditorSt
       if (!result.ok) {
         throw new Error(commandMessage(result.error));
       }
-      setError(null);
+      setPageError(null);
       setEditorOpen(false);
       setEditingKey(null);
       setAdvancedOpen(false);
       onBack?.();
     } catch (nextError) {
-      setError(nextError instanceof Error ? nextError.message : String(nextError));
+      show(nextError instanceof Error ? nextError.message : String(nextError), 'negative', {
+        key: 'model-config-delete-error',
+        durationMs: null,
+      });
     } finally {
       setSaveBusy(false);
     }
@@ -770,135 +783,139 @@ export function ModelConfigurationPage({ onNav, onSaved, onBack, initialEditorSt
         ) : undefined}
       />
       <div className="scroll scroll-footer-pad-detail">
-          <div className="settings-detail-layout">
+        <div className="settings-detail-layout">
+          {pageError ? (
             <section className="section generation-settings-section">
-              <div className="field">
-                <FieldLabel htmlFor="model-config-api-format-trigger">{t.settings.modelConfigApiFormat}</FieldLabel>
-                <TextSelect
-                  testId="model-config-api-format-selector"
-                  triggerId="model-config-api-format-trigger"
-                  containerClassName="cmp-select settings-select"
-                  menuClassName="cmp-select-menu cmp-select-menu-compact"
-                  label={t.settings.modelConfigApiFormat}
-                  value={apiFormatOptions.find((option) => option.id === apiFormat)?.label ?? apiFormat}
-                  disabled={saveBusy || editingExisting}
-                  open={apiFormatMenuOpen}
-                  onOpenChange={setApiFormatMenuOpen}
-                  options={apiFormatOptions}
-                  selectedId={apiFormat}
-                  onSelect={(value) => {
-                    const nextApiFormat = value as ApiFormat;
-                    void (async () => {
-                      setApiFormat(nextApiFormat);
-                      const { presets: nextPresets } = await loadApiFormatData(nextApiFormat);
-                      const firstPreset = nextPresets[0];
-                      applyPreset(firstPreset, editingExisting ? 'edit' : 'create');
-                    })().catch((nextError) => {
-                      setError(nextError instanceof Error ? nextError.message : String(nextError));
-                    });
-                  }}
-                />
-              </div>
-              <div className="field">
-                <FieldLabel htmlFor="model-config-preset-trigger">{t.settings.modelConfigPreset}</FieldLabel>
-                <TextSelect
-                  testId="model-config-preset-selector"
-                  triggerId="model-config-preset-trigger"
-                  containerClassName="cmp-select settings-select"
-                  menuClassName="cmp-select-menu cmp-select-menu-model"
-                  label={t.settings.modelConfigPreset}
-                  value={selectedPreset
-                    ? selectedPreset.displayName
-                    : t.settings.modelConfigValidationPreset}
-                  disabled={saveBusy}
-                  open={presetMenuOpen}
-                  onOpenChange={setPresetMenuOpen}
-                  options={presetOptions}
-                  selectedId={selectedPreset?.modelId ?? ''}
-                  onSelect={(value) => {
-                    const preset = presets.find((item) => item.modelId === value);
-                    applyPreset(preset, editingExisting ? 'edit' : 'create');
-                    setPresetMenuOpen(false);
-                  }}
-                />
-              </div>
-              <div className="field">
-                <FieldLabel htmlFor="model-config-wire-model-id">{t.settings.modelConfigWireModelId}</FieldLabel>
-                <ModelIdField
-                  id="model-config-wire-model-id"
-                  testId="model-config-wire-model-id"
-                  value={wireModelId}
-                  disabled={saveBusy}
-                  suspended={modelIdSuspended}
-                  onValue={setWireModelId}
-                />
-                <HelpText className="field-hint">{t.settings.modelConfigWireModelIdHint}</HelpText>
-              </div>
-              <div className={`provider-embedded-section model-config-advanced-section${advancedOpen ? ' is-open' : ''}`}>
-                <button
-                  type="button"
-                  className="model-config-advanced-toggle"
-                  aria-expanded={advancedOpen}
-                  onClick={() => setAdvancedOpen((current) => !current)}
-                >
-                  <span className="model-config-advanced-toggle-copy">
-                    <span className="section-title settings-section-heading model-config-advanced-toggle-title">
-                      {t.settings.advancedSettings}
-                    </span>
-                  </span>
-                  <Icon
-                    name={advancedOpen ? 'chevron-down' : 'chevron-right'}
-                    size={12}
-                    className="model-config-advanced-toggle-icon"
-                  />
-                </button>
-                {advancedOpen ? (
-                  <>
-                    <div className="field">
-                      <FieldLabel htmlFor="model-config-model-id">{t.settings.modelConfigModelId}</FieldLabel>
-                      <ModelIdField
-                        id="model-config-model-id"
-                        testId="model-config-model-id"
-                        value={modelId}
-                        disabled={saveBusy || editingExisting}
-                        suspended={modelIdSuspended}
-                        onValue={setModelId}
-                      />
-                    </div>
-                    <StrategyMetaField
-                      label={t.settings.modelConfigRequestStrategy}
-                      value={requestStrategyId}
-                      detail={t.settings.modelConfigManagedByPreset}
-                    />
-                  </>
-                ) : null}
+              <div className="status-warning-slot" data-testid="model-config-page-error">
+                <StatusNotice tone="negative" message={pageError} copyText={pageError} />
               </div>
             </section>
-
-            {selectedPreset && capabilityState
-              ? capabilityState.modules.map((module) => (
-                <CapabilitySection
-                  key={module.id}
-                  module={module}
-                  selection={moduleSelections[module.id] ?? fullSelectionForModule(module)}
-                  disabled={saveBusy}
-                  validationMessage={moduleValidationMessages[module.id] ?? null}
-                  normalizationRequired={normalizationRequiredModuleIds.includes(module.id)}
-                  t={t}
-                  onToggle={(dimension, id, checked) => toggleModuleSelection(module, dimension, id, checked)}
+          ) : null}
+          <section className="section generation-settings-section">
+            <div className="field">
+              <FieldLabel htmlFor="model-config-api-format-trigger">{t.settings.modelConfigApiFormat}</FieldLabel>
+              <TextSelect
+                testId="model-config-api-format-selector"
+                triggerId="model-config-api-format-trigger"
+                containerClassName="cmp-select settings-select"
+                menuClassName="cmp-select-menu cmp-select-menu-compact"
+                label={t.settings.modelConfigApiFormat}
+                value={apiFormatOptions.find((option) => option.id === apiFormat)?.label ?? apiFormat}
+                disabled={saveBusy || editingExisting}
+                open={apiFormatMenuOpen}
+                onOpenChange={setApiFormatMenuOpen}
+                options={apiFormatOptions}
+                selectedId={apiFormat}
+                onSelect={(value) => {
+                  const nextApiFormat = value as ApiFormat;
+                  void (async () => {
+                    setApiFormat(nextApiFormat);
+                    const { presets: nextPresets } = await loadApiFormatData(nextApiFormat);
+                    const firstPreset = nextPresets[0];
+                    applyPreset(firstPreset, editingExisting ? 'edit' : 'create');
+                    setPageError(null);
+                  })().catch((nextError) => {
+                    setPageError(nextError instanceof Error ? nextError.message : String(nextError));
+                  });
+                }}
+              />
+            </div>
+            <div className="field">
+              <FieldLabel htmlFor="model-config-preset-trigger">{t.settings.modelConfigPreset}</FieldLabel>
+              <TextSelect
+                testId="model-config-preset-selector"
+                triggerId="model-config-preset-trigger"
+                containerClassName="cmp-select settings-select"
+                menuClassName="cmp-select-menu cmp-select-menu-model"
+                label={t.settings.modelConfigPreset}
+                value={selectedPreset
+                  ? selectedPreset.displayName
+                  : t.settings.modelConfigValidationPreset}
+                disabled={saveBusy}
+                open={presetMenuOpen}
+                onOpenChange={setPresetMenuOpen}
+                options={presetOptions}
+                selectedId={selectedPreset?.modelId ?? ''}
+                onSelect={(value) => {
+                  const preset = presets.find((item) => item.modelId === value);
+                  applyPreset(preset, editingExisting ? 'edit' : 'create');
+                  setPresetMenuOpen(false);
+                }}
+              />
+            </div>
+            <div className="field">
+              <FieldLabel htmlFor="model-config-wire-model-id">{t.settings.modelConfigWireModelId}</FieldLabel>
+              <ModelIdField
+                id="model-config-wire-model-id"
+                testId="model-config-wire-model-id"
+                value={wireModelId}
+                disabled={saveBusy}
+                suspended={modelIdSuspended}
+                onValue={setWireModelId}
+              />
+              <HelpText className="field-hint">{t.settings.modelConfigWireModelIdHint}</HelpText>
+            </div>
+            <div className={`provider-embedded-section model-config-advanced-section${advancedOpen ? ' is-open' : ''}`}>
+              <button
+                type="button"
+                className="model-config-advanced-toggle"
+                aria-expanded={advancedOpen}
+                onClick={() => setAdvancedOpen((current) => !current)}
+              >
+                <span className="model-config-advanced-toggle-copy">
+                  <span className="section-title settings-section-heading model-config-advanced-toggle-title">
+                    {t.settings.advancedSettings}
+                  </span>
+                </span>
+                <Icon
+                  name={advancedOpen ? 'chevron-down' : 'chevron-right'}
+                  size={12}
+                  className="model-config-advanced-toggle-icon"
                 />
-              ))
-              : null}
+              </button>
+              {advancedOpen ? (
+                <>
+                  <div className="field">
+                    <FieldLabel htmlFor="model-config-model-id">{t.settings.modelConfigModelId}</FieldLabel>
+                    <ModelIdField
+                      id="model-config-model-id"
+                      testId="model-config-model-id"
+                      value={modelId}
+                      disabled={saveBusy || editingExisting}
+                      suspended={modelIdSuspended}
+                      onValue={setModelId}
+                    />
+                  </div>
+                  <StrategyMetaField
+                    label={t.settings.modelConfigRequestStrategy}
+                    value={requestStrategyId}
+                    detail={t.settings.modelConfigManagedByPreset}
+                  />
+                </>
+              ) : null}
+            </div>
+          </section>
 
-          </div>
+          {selectedPreset && capabilityState
+            ? capabilityState.modules.map((module) => (
+              <CapabilitySection
+                key={module.id}
+                module={module}
+                selection={moduleSelections[module.id] ?? fullSelectionForModule(module)}
+                disabled={saveBusy}
+                validationMessage={moduleValidationMessages[module.id] ?? null}
+                normalizationRequired={normalizationRequiredModuleIds.includes(module.id)}
+                t={t}
+                onToggle={(dimension, id, checked) => toggleModuleSelection(module, dimension, id, checked)}
+              />
+            ))
+            : null}
+        </div>
       </div>
       <footer className="det-footer">
         <div className="settings-detail-footer-inner">
           <div className="settings-detail-footer-actions">
             <HelpText className="settings-detail-footer-help">{t.settings.modelConfigurationSaveHint}</HelpText>
-            {error ? (
-              <StatusNotice tone="warning" message={error} copyText={error} />
-            ) : null}
           </div>
           <div className="settings-detail-footer-save-group">
             <Button

@@ -194,7 +194,19 @@ describe('ProfileModelsPage', () => {
     await flush();
 
     expect(container.querySelector('[data-testid="profile-model-suggestion-row-suggestion-a"]')).not.toBeNull();
-    expect(container.textContent).toContain('Discovery failed');
+    expect(container.querySelector('[data-testid="profile-model-list-error"]')).toBeNull();
+    const toast = document.body.querySelector<HTMLElement>('[data-testid="toast"]');
+    expect(toast?.textContent).toContain('Discovery failed');
+  });
+
+  it('renders empty-state guidance as prose instead of diagnostic detail', async () => {
+    const { services } = createFakeServices({ profileModelItems: [] });
+    const container = await renderPage({ services });
+
+    const host = container.querySelector<HTMLElement>('[data-testid="profile-model-empty-notice"]');
+    expect(host).not.toBeNull();
+    expect(host?.querySelector('.status-description')?.textContent).toContain('Saving does not apply it.');
+    expect(host?.querySelector('.status-detail')).toBeNull();
   });
 
   it('disables repeated discovery while refresh is pending', async () => {

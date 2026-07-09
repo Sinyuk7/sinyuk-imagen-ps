@@ -775,7 +775,9 @@ export function SettingsDetailPage({ onNav, onBack, profileId, onProfilesChanged
     ? {
         tone: modelOptionsError ? 'warning' as const : 'info' as const,
         message: modelOptionsError ? t.settings.modelListFailed : t.settings.modelSelectionEmpty,
-        detail: modelOptionsError ?? t.settings.modelSelectionCreateFirst,
+        description: modelOptionsError ? null : t.settings.modelSelectionCreateFirst,
+        detail: modelOptionsError,
+        copyText: modelOptionsError,
         actionLabel: t.settings.createModelConfiguration,
         onAction: () => {
           onOpenModelConfiguration?.({

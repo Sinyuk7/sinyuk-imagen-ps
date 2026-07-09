@@ -1,54 +1,63 @@
 import {
   NoticeView,
-  defaultNoticeIcon,
-  type NoticeAction,
-  type NoticeAnnouncement,
-  type NoticeState,
+  createNoticeState,
+  type NoticeOptions,
   type NoticeTone,
 } from './notice';
+import type { IconName } from './icons';
 
 export type StatusTone = NoticeTone;
-export type StatusAnnouncement = NoticeAnnouncement;
+export type StatusAnnouncement = 'none' | 'polite' | 'assertive';
+
+export interface StatusNoticeAction {
+  readonly label: string;
+  readonly ariaLabel?: string;
+  readonly onAction: () => void | Promise<void>;
+}
 
 export interface StatusNoticeProps {
   readonly tone: StatusTone;
   readonly message: string;
+  readonly description?: string | null;
   readonly detail?: string | null;
   readonly copyText?: string | null;
   readonly announcement?: StatusAnnouncement;
-  readonly action?: NoticeAction | null;
-  readonly icon?: NoticeState['icon'];
+  readonly action?: StatusNoticeAction | null;
+  readonly icon?: IconName | null;
 }
 
-function announcementProps(announcement: StatusAnnouncement | undefined): Pick<NoticeState, 'role' | 'ariaLive'> {
+function announcementProps(announcement: StatusAnnouncement | undefined): Pick<NoticeOptions, 'role' | 'ariaLive'> {
   if (announcement === 'polite') {
     return { role: 'status', ariaLive: 'polite' };
   }
   if (announcement === 'assertive') {
     return { role: 'alert', ariaLive: 'assertive' };
   }
-  return { role: undefined, ariaLive: undefined };
+  return { role: null, ariaLive: null };
 }
 
 export function StatusNotice({
   tone,
   message,
+  description,
   detail,
   copyText,
   announcement = 'none',
   action,
   icon,
 }: StatusNoticeProps) {
-  const noticeAnnouncement = announcementProps(announcement);
-  const notice: NoticeState = {
-    tone,
+  const notice = createNoticeState(
     message,
-    detail,
-    copyText: copyText ?? null,
-    action: action ?? null,
-    role: noticeAnnouncement.role,
-    ariaLive: noticeAnnouncement.ariaLive,
-    icon: icon === undefined ? defaultNoticeIcon(tone) : icon,
-  };
+    tone,
+    {
+      ...announcementProps(announcement),
+      description: description ?? null,
+      detail: detail ?? null,
+      copyText: copyText ?? null,
+      action: action ?? null,
+      icon,
+    },
+    null,
+  );
   return <NoticeView notice={notice} kind="inline" />;
 }

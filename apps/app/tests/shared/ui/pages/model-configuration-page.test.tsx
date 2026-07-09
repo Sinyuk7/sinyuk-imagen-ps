@@ -329,6 +329,45 @@ describe('ModelConfigurationPage', () => {
     expect(container.querySelector('[data-testid="model-config-normalization-warning-shared"]')).not.toBeNull();
   });
 
+  it('renders page-level load failures in body warning slot, not footer compact area', async () => {
+    const base = createFakeServices();
+    const services = {
+      ...base.services,
+      commands: {
+        ...base.services.commands,
+        listOfficialModelConfigPresets: vi.fn(async () => ({
+          ok: false as const,
+          error: { category: 'preset', message: 'Preset load failed' },
+        })),
+      },
+    };
+    const container = await renderPage({ services });
+
+    const pageError = container.querySelector<HTMLElement>('[data-testid="model-config-page-error"]');
+    expect(pageError?.textContent).toContain('Preset load failed');
+    expect(container.querySelector('.settings-detail-footer-actions .status-notice')).toBeNull();
+  });
+
+  it('uses toast for invalid save attempts and keeps footer notice-free', async () => {
+    const { services } = createFakeServices();
+    const container = await renderPage({ services });
+
+    await act(async () => {
+      changeInput(container.querySelector<HTMLInputElement>('[data-testid="model-config-wire-model-id"]')!, '');
+    });
+    await flush();
+
+    await act(async () => {
+      container.querySelector<HTMLButtonElement>('[data-testid="model-config-save-button"]')?.click();
+    });
+    await flush();
+    await flush();
+
+    const toast = document.body.querySelector<HTMLElement>('[data-testid="toast"]');
+    expect(toast?.textContent).toContain('Model ID is required.');
+    expect(container.querySelector('.settings-detail-footer-actions .status-notice')).toBeNull();
+  });
+
   it('prefills suggestion create flow from profile-owned context', async () => {
     const officialModelConfigPresets = await Promise.all([
       officialPreset('openai-chat-completions', 'openai/gpt-image-2'),

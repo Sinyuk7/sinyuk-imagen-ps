@@ -104,10 +104,6 @@ export function GlobalGenerationSettingsPage({
   const outputSelection = modelGenerationSettings.selection;
   const outputLoading = modelGenerationSettings.loading;
   const outputDisabled = outputLoading || outputSelection === null || !modelGenerationSettings.ready;
-  const outputStatusMessage = outputLoading
-    ? t.common.loading
-    : modelGenerationSettings.validationMessage;
-
   const outputSaveState = modelGenerationSettings.saveState;
   const combinedSaveState = outputSaveState === 'saving' ? 'saving' : saveState;
   const combinedError = outputSaveState === 'error' ? modelGenerationSettings.error ?? error : error;
@@ -213,11 +209,6 @@ export function GlobalGenerationSettingsPage({
                 </div>
               ) : null}
             </div>
-            {outputStatusMessage ? (
-              <div data-testid="global-output-settings-status">
-                <StatusNotice tone={modelGenerationSettings.error ? 'warning' : 'info'} message={outputStatusMessage} copyText={modelGenerationSettings.error} />
-              </div>
-            ) : null}
           </section>
           <section className="section generation-settings-section">
             <div className="section-title settings-section-heading">{t.settings.inputGroup}</div>
@@ -298,7 +289,7 @@ export function GlobalGenerationSettingsPage({
                 </div>
               </div>
             ) : (
-              <div data-testid="global-settings-path-status">
+              <div className="status-replacement-slot" data-testid="global-settings-path-status">
                 <StatusNotice
                   tone={pathInfo.error ? 'warning' : 'info'}
                   message={pathInfo.loading ? t.common.loading : pathInfo.error ?? t.settings.pathInfoUnavailable}
@@ -327,7 +318,7 @@ export function GlobalGenerationSettingsPage({
           </section>
           {combinedError && (
             <section className="section generation-settings-section generation-settings-secondary-section">
-              <div data-testid="global-settings-error-notice">
+              <div className="status-warning-slot" data-testid="global-settings-error-notice">
                 <StatusNotice tone="negative" message={combinedError} copyText={combinedError} />
               </div>
             </section>

@@ -1496,7 +1496,6 @@ export const PAGES_CSS = `
   justify-content:flex-start;
 }
 .test-meta{ margin-top:8px; font-family:var(--app-font-family-mono); font-size:11px; color:var(--app-color-text-muted); }
-.test-area .status-notice{ margin-top:10px; }
 .scroll-footer-pad{ padding-bottom:128px; }
 .scroll-footer-pad-detail{ padding-bottom:24px; }
 .det-footer{ flex-shrink:0; padding:12px 16px; border-top:1px solid var(--app-color-border-default); display:flex; min-width:0; background:var(--app-color-background-base); }
@@ -1553,15 +1552,6 @@ export const PAGES_CSS = `
 }
 .settings-detail-footer-actions > *{ margin-right:8px; }
 .settings-detail-footer-actions > *:last-child{ margin-right:0; }
-.settings-detail-footer-actions .status-notice{
-  min-height:0;
-  padding:3px 6px;
-  font-size:11px;
-}
-.settings-detail-footer-actions .status-message{
-  font-size:11px;
-  line-height:15px;
-}
 .settings-add-footer .settings-detail-footer-inner{
   align-items:flex-start;
   flex-wrap:nowrap;
@@ -1572,21 +1562,6 @@ export const PAGES_CSS = `
 .settings-add-footer .settings-detail-footer-actions{
   flex:1 1 auto;
   flex-wrap:nowrap;
-}
-.settings-add-footer .settings-detail-footer-actions .status-notice{
-  flex:1 1 auto;
-  min-width:0;
-  overflow:hidden;
-}
-.settings-add-footer .settings-detail-footer-actions .status-body{
-  min-width:0;
-  overflow:hidden;
-}
-.settings-add-footer .settings-detail-footer-actions .status-message{
-  overflow:hidden;
-  text-overflow:ellipsis;
-  white-space:nowrap;
-  word-break:normal;
 }
 .settings-add-footer .settings-add-footer-save-group{
   margin-left:10px;
@@ -1640,7 +1615,16 @@ export const PAGES_CSS = `
   margin-top:6px;
   margin-left:24px;
 }
-
+.status-warning-slot,
+.status-empty-state,
+.status-replacement-slot{
+  margin-top:var(--settings-field-gap);
+}
+.status-warning-slot:first-child,
+.status-empty-state:first-child,
+.status-replacement-slot:first-child{
+  margin-top:0;
+}
 .status-notice{
   --status-notice-background:var(--app-notice-neutral-background);
   --status-notice-foreground:var(--app-notice-neutral-foreground);
@@ -1674,6 +1658,23 @@ export const PAGES_CSS = `
   min-width:0; margin-top:0; margin-right:0; margin-bottom:0; margin-left:0; white-space:pre-wrap; word-break:break-word; overflow-wrap:anywhere;
   font-family:var(--app-font-family-base); font-size:13px; line-height:18px; font-weight:500;
   color:var(--status-notice-foreground); user-select:text; -webkit-user-select:text;
+}
+.status-description{
+  min-width:0;
+  margin-top:4px;
+  margin-right:0;
+  margin-bottom:0;
+  margin-left:0;
+  white-space:pre-wrap;
+  word-break:break-word;
+  overflow-wrap:anywhere;
+  font-family:var(--app-font-family-base);
+  font-size:12px;
+  line-height:17px;
+  font-weight:400;
+  color:var(--app-color-text-secondary);
+  user-select:text;
+  -webkit-user-select:text;
 }
 .status-detail{
   min-width:0;

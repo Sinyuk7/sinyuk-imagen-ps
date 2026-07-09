@@ -21,9 +21,10 @@ export interface NoticeOptions {
   readonly detailCopyable?: boolean;
   readonly copyText?: string | null;
   readonly durationMs?: number | null;
-  readonly role?: NoticeRole;
-  readonly ariaLive?: NoticeAriaLive;
+  readonly role?: NoticeRole | null;
+  readonly ariaLive?: NoticeAriaLive | null;
   readonly icon?: IconName | null;
+  readonly description?: string | null;
   readonly detail?: string | null;
   readonly action?: NoticeAction | null;
   readonly key?: string;
@@ -120,10 +121,11 @@ export function createNoticeState(
     detailCopyable: options?.detailCopyable ?? false,
     copyText: options?.copyText ?? null,
     durationMs: options?.durationMs ?? defaultDurationMs,
-    role: options?.role ?? defaultRole(tone),
-    ariaLive: options?.ariaLive ?? defaultAriaLive(tone),
+    role: options?.role === null ? null : options?.role ?? defaultRole(tone),
+    ariaLive: options?.ariaLive === null ? null : options?.ariaLive ?? defaultAriaLive(tone),
     icon: options?.icon === undefined ? defaultNoticeIcon(tone) : options.icon,
-    detail: options?.detail,
+    description: options?.description ?? null,
+    detail: options?.detail ?? null,
     action: options?.action ?? null,
     key: options?.key,
     priority: options?.priority,
@@ -329,9 +331,9 @@ export function NoticeView({ notice, kind, onClear, motionState, onPause, onResu
         data-text-size={toastTextSize}
         {...(motionState ? { 'data-motion-state': motionState } : {})}
         tabIndex={-1}
-        aria-live={notice.ariaLive}
+        aria-live={notice.ariaLive ?? undefined}
         aria-atomic="true"
-        role={notice.role}
+        role={notice.role ?? undefined}
         onMouseEnter={onPause}
         onMouseLeave={onResume}
         onFocusCapture={onPause}
@@ -395,9 +397,9 @@ export function NoticeView({ notice, kind, onClear, motionState, onPause, onResu
           className={`status-notice ${inlineToneClass(notice.tone)}`}
           data-tone={notice.tone}
           data-motion-state={state}
-          aria-live={notice.ariaLive}
+          aria-live={notice.ariaLive ?? undefined}
           aria-atomic="true"
-          role={notice.role}
+          role={notice.role ?? undefined}
           onMouseEnter={onPause}
           onMouseLeave={onResume}
           onFocusCapture={onPause}
@@ -415,6 +417,7 @@ export function NoticeView({ notice, kind, onClear, motionState, onPause, onResu
           ) : null}
           <div className="status-body">
             <div className="status-message">{notice.message}</div>
+            {notice.description ? <div className="status-description">{notice.description}</div> : null}
             {notice.detail ? <pre className="status-detail">{notice.detail}</pre> : null}
           </div>
           {notice.copyText || notice.action ? (

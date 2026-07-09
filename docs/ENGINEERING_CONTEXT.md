@@ -107,7 +107,15 @@ surface apps -> application/session -> core-engine + providers
   state lives behind `ToastProvider` / `useToast()` / `ToastHost`; page-level
   `useNotice()` remains for inline and persistent notices only. Toast styling
   must consume generated `--toast-*` theme tokens rather than direct positive
-  or negative full-surface fills.
+  or negative full-surface fills. Use toast for explicit action results,
+  command failures, and selection rejections. Keep inline `StatusNotice` for
+  persistent section-level status or replacement states only. Field- or
+  option-group-local validation belongs to `FieldHelp`, and empty-state
+  guidance should use a dedicated host slot with prose copy, not diagnostic
+  `detail`. Do not place inline `StatusNotice` inside compact hosts such as
+  footers, toolbars, heading rows, action rows, or list rows. Host slots own
+  outer spacing; `StatusNotice` itself must stay marginless so one primitive
+  can serve multiple placements without stacked margin rules.
 - App settings/list surfaces currently allow only two row patterns. Use
   `SettingsListRow` for single-action navigation rows with row-level click and
   no redundant secondary edit button; use `prompt-preset-row` for selectable

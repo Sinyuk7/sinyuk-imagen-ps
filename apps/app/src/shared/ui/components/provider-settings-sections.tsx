@@ -36,7 +36,9 @@ interface ProviderModelSelectionSectionProps {
   readonly emptyStateNotice?: {
     readonly tone: 'info' | 'warning';
     readonly message: string;
+    readonly description?: string | null;
     readonly detail?: string | null;
+    readonly copyText?: string | null;
     readonly actionLabel?: string;
     readonly onAction?: () => void;
   } | null;
@@ -257,11 +259,13 @@ export function ProviderModelSelectionSection({
         ) : null}
       </div>
       {emptyStateNotice ? (
-        <div data-testid="provider-model-empty-notice">
+        <div className="status-empty-state" data-testid="provider-model-empty-notice">
           <StatusNotice
             tone={emptyStateNotice.tone}
             message={emptyStateNotice.message}
+            description={emptyStateNotice.description ?? null}
             detail={emptyStateNotice.detail ?? null}
+            copyText={emptyStateNotice.copyText ?? null}
             action={emptyStateNotice.actionLabel && emptyStateNotice.onAction
               ? {
                   label: emptyStateNotice.actionLabel,

@@ -4,6 +4,7 @@ import { useAppServices } from '../../ports/app-services-context';
 import { ProviderSettingsPageHeader } from '../components/provider-settings-sections';
 import { SettingsListRow } from '../components/settings-list-row';
 import { StatusNotice } from '../components/status-notice';
+import { useToast } from '../components/toast-host';
 import { Icon } from '../components/icons';
 import { IconButton } from '../primitives/icon-button';
 import { Button, HelpText } from '../primitives/native-controls';
@@ -30,11 +31,12 @@ function commandMessage(error: { readonly category: string; readonly message: st
 export function ProfileModelsPage({ profile, onBack, onCreate, onEdit, onSuggestion }: ProfileModelsPageProps) {
   const services = useAppServices();
   const { messages: t } = useI18n();
+  const { show } = useToast();
   const [models, setModels] = useState<readonly ProfileModelItem[]>([]);
   const [suggestions, setSuggestions] = useState<readonly string[]>([]);
   const [loading, setLoading] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const [listError, setListError] = useState<string | null>(null);
 
   const ownedIds = useMemo(() => new Set(models.map((model) => model.modelId)), [models]);
   const visibleSuggestions = useMemo(
@@ -50,10 +52,10 @@ export function ProfileModelsPage({ profile, onBack, onCreate, onEdit, onSuggest
         throw new Error(commandMessage(result.error));
       }
       setModels(result.value);
-      setError(null);
+      setListError(null);
     } catch (nextError) {
       setModels([]);
-      setError(nextError instanceof Error ? nextError.message : String(nextError));
+      setListError(nextError instanceof Error ? nextError.message : String(nextError));
     } finally {
       setLoading(false);
     }
@@ -85,9 +87,9 @@ export function ProfileModelsPage({ profile, onBack, onCreate, onEdit, onSuggest
           return true;
         });
       setSuggestions(next);
-      setError(null);
     } catch (nextError) {
-      setError(nextError instanceof Error ? nextError.message : String(nextError));
+      const message = nextError instanceof Error ? nextError.message : String(nextError);
+      show(message, 'negative', { key: `profile-models-refresh:${profile.profileId}`, durationMs: null });
     } finally {
       setRefreshing(false);
     }
@@ -125,13 +127,19 @@ export function ProfileModelsPage({ profile, onBack, onCreate, onEdit, onSuggest
             </div>
             <HelpText className="field-hint model-config-list-hint">{t.settings.modelConfigurationHint}</HelpText>
             {loading ? <HelpText className="field-hint">{t.common.loading}</HelpText> : null}
-            {error ? <StatusNotice tone="warning" message={error} copyText={error} /> : null}
-            {!loading && models.length === 0 ? (
-              <StatusNotice
-                tone="info"
-                message={t.settings.modelConfigurationEmpty}
-                detail={t.settings.modelConfigurationSaveHint}
-              />
+            {listError ? (
+              <div className="status-warning-slot" data-testid="profile-model-list-error">
+                <StatusNotice tone="warning" message={listError} copyText={listError} />
+              </div>
+            ) : null}
+            {!loading && !listError && models.length === 0 ? (
+              <div className="status-empty-state" data-testid="profile-model-empty-notice">
+                <StatusNotice
+                  tone="info"
+                  message={t.settings.modelConfigurationEmpty}
+                  description={t.settings.modelConfigurationSaveHint}
+                />
+              </div>
             ) : null}
             <div className="model-config-list">
               {models.map((model) => {
