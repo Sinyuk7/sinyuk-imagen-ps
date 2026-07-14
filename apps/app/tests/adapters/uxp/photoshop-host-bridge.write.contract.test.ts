@@ -300,7 +300,7 @@ describe('PhotoshopHostBridge write contract', () => {
     expect(successRecord?.attrs).not.toHaveProperty('providerInput.fallbackReason');
   });
 
-  it('accepts document-only placement without transform and downgrades unverifiable exact-frame output to document-only', async () => {
+  it('accepts document-only placement without transform', async () => {
     const { modules, spies } = createFakeModules();
     const { bridge } = createBridge(modules);
 
@@ -317,17 +317,61 @@ describe('PhotoshopHostBridge write contract', () => {
 
     expect(spies.scalePlacedLayer).not.toHaveBeenCalled();
     expect(spies.translatePlacedLayer).not.toHaveBeenCalled();
+  });
+
+  it.each([
+    {
+      name: 'provider-default sized output',
+      data: pngWithSize(1024, 1024),
+      outputSelection: undefined,
+    },
+    {
+      name: '2K ratio-resolution output',
+      data: pngWithSize(2048, 2048),
+      outputSelection: {
+        geometry: { kind: 'ratio-resolution', aspectRatio: '1:1', resolution: '2k' },
+        outputFormat: 'png',
+      },
+    },
+    {
+      name: 'explicit pixel output mismatch',
+      data: pngWithSize(1016, 946),
+      outputSelection: {
+        geometry: { kind: 'pixels', width: 345, height: 321 },
+        outputFormat: 'png',
+      },
+    },
+  ] as const)('preserves exact-frame transform for $name', async ({ data, outputSelection }) => {
+    const { modules, spies } = createFakeModules();
+    const { bridge } = createBridge(modules);
 
     await bridge.placeAssetOnCanvas({
       type: 'image',
       name: 'generated.png',
-      data: pngWithSize(1016, 946),
+      data,
       mimeType: 'image/png',
     }, {
       kind: 'exact-frame',
       documentId: 42,
       documentSizeAtCapture: { width: 512, height: 384 },
       placementRect: { left: 0, top: 0, right: 345, bottom: 321 },
+      ...(outputSelection ? { outputSelection } : {}),
+    });
+
+    expect(spies.scalePlacedLayer).toHaveBeenCalledWith(539.0625, 501.5625);
+    expect(spies.translatePlacedLayer).toHaveBeenCalledWith(0, 0);
+  });
+
+  it('logs exact-frame transform facts without downgrading output mismatch to document-only', async () => {
+    const { modules } = createFakeModules();
+    const sink = createMemorySink();
+    const logger = createLogger({
+      sink,
+      context: { surface: 'uxp', package: 'app', component: 'host' },
+    });
+    const bridge = createPhotoshopHostBridge(modules, {
+      assetStore: createInMemoryAssetStore(),
+      logger,
     });
 
     await bridge.placeAssetOnCanvas({
@@ -346,6 +390,56 @@ describe('PhotoshopHostBridge write contract', () => {
       },
     });
 
+    const successRecord = sink.records.find((record) => record.event === 'hostbridge.place_asset.ok');
+    expect(successRecord?.attrs).toMatchObject({
+      placement: 'exact-frame',
+      targetDocumentId: 42,
+      targetDocumentWidth: 512,
+      targetDocumentHeight: 384,
+      assetWidth: 1016,
+      assetHeight: 946,
+      placedLayerBoundsBeforeTransformWidth: 64,
+      placedLayerBoundsBeforeTransformHeight: 64,
+      placedLayerBoundsAfterScaleWidth: 64,
+      placedLayerBoundsAfterScaleHeight: 64,
+      placementTargetRectLeft: 0,
+      placementTargetRectTop: 0,
+      placementTargetRectRight: 345,
+      placementTargetRectBottom: 321,
+      placementTargetRectWidth: 345,
+      placementTargetRectHeight: 321,
+      placedLayerBoundsAfterTranslateWidth: 64,
+      placedLayerBoundsAfterTranslateHeight: 64,
+    });
+    expect(successRecord?.attrs).not.toHaveProperty('requestedPlacement');
+  });
+
+  it('does not transform exact-frame placement when source resolution falls back to active document', async () => {
+    const { modules, spies } = createFakeModules();
+    const app = modules.photoshop?.app as { activeDocument?: { id?: number; width?: number; height?: number }; documents?: readonly unknown[] };
+    app.activeDocument = {
+      ...(app.activeDocument ?? {}),
+      id: 77,
+      width: 640,
+      height: 480,
+    };
+    app.documents = [app.activeDocument];
+    const { bridge } = createBridge(modules);
+
+    await bridge.placeAssetOnCanvas({
+      type: 'image',
+      name: 'generated.png',
+      data: pngWithSize(1024, 1024),
+      mimeType: 'image/png',
+    }, {
+      kind: 'exact-frame',
+      documentId: 42,
+      documentName: 'source.psd',
+      documentSizeAtCapture: { width: 512, height: 384 },
+      placementRect: { left: 0, top: 0, right: 345, bottom: 321 },
+    });
+
+    expect(spies.batchPlay).toHaveBeenCalledTimes(1);
     expect(spies.scalePlacedLayer).not.toHaveBeenCalled();
     expect(spies.translatePlacedLayer).not.toHaveBeenCalled();
   });

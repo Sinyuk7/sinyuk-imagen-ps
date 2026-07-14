@@ -146,75 +146,12 @@ export function placementIntentFromCapturePlacement(placement: PhotoshopCaptureP
   };
 }
 
-function documentOnlyPlacementFromExact(intent: ExactFramePlacementIntent): DocumentOnlyPlacementIntent {
-  return {
-    kind: 'document-only',
-    documentId: intent.documentId,
-    documentSizeAtCapture: intent.documentSizeAtCapture,
-    ...(intent.documentName !== undefined ? { documentName: intent.documentName } : {}),
-  };
-}
-
-function matchesExpectedSize(expected: ImageSize, actual: ImageSize): boolean {
-  return expected.width === actual.width && expected.height === actual.height;
-}
-
-function matchesAspectRatioIdentity(expected: Exclude<ImageOutputSelection['geometry'], { readonly kind: 'provider-default' } | { readonly kind: 'pixels' } | { readonly kind: 'input-derived' }>['aspectRatio'], actual: ImageSize): boolean {
-  const match = /^(\d+):(\d+)$/.exec(expected);
-  if (!match) {
-    return false;
-  }
-  const expectedWidth = BigInt(match[1] ?? '0');
-  const expectedHeight = BigInt(match[2] ?? '0');
-  return expectedWidth > 0n && expectedHeight > 0n && BigInt(actual.width) * expectedHeight === BigInt(actual.height) * expectedWidth;
-}
-
-function expectedOutputSizeFor(intent: ExactFramePlacementIntent): ImageSize | undefined {
-  const selection = intent.outputSelection;
-  if (!selection) {
-    return undefined;
-  }
-  if (selection.geometry.kind === 'pixels') {
-    return {
-      width: selection.geometry.width,
-      height: selection.geometry.height,
-    };
-  }
-  if (selection.geometry.kind === 'input-derived' && selection.geometry.mode === 'exact-size') {
-    return intent.providerInputTarget;
-  }
-  return undefined;
-}
-
-function hasMatchingSemanticIdentity(intent: ExactFramePlacementIntent, actualOutputSize: ImageSize): boolean {
-  const selection = intent.outputSelection;
-  return selection?.geometry.kind === 'ratio-resolution'
-    ? matchesAspectRatioIdentity(selection.geometry.aspectRatio, actualOutputSize)
-    : false;
-}
-
-/** 根据 request/output contract 与实际输出尺寸，决定 exact-frame 是否可保留。 */
+/** 输出尺寸只作为诊断证据；capture frame 本身决定 exact-frame authority。 */
 export function placementIntentForActualOutput(
   intent: PlacementIntent,
-  actualOutputSize: ImageSize | undefined,
+  _actualOutputSize: ImageSize | undefined,
 ): PlacementIntent {
-  if (intent.kind !== 'exact-frame') {
-    return intent;
-  }
-  if (!actualOutputSize) {
-    return documentOnlyPlacementFromExact(intent);
-  }
-
-  const expectedOutputSize = expectedOutputSizeFor(intent);
-  if (expectedOutputSize) {
-    return matchesExpectedSize(expectedOutputSize, actualOutputSize)
-      ? intent
-      : documentOnlyPlacementFromExact(intent);
-  }
-
-  return hasMatchingSemanticIdentity(intent, actualOutputSize)
-    ? intent
-    : documentOnlyPlacementFromExact(intent);
+  return intent;
 }
 
 /** 判断当前 round intent 仍保留的 placement evidence 强度。 */

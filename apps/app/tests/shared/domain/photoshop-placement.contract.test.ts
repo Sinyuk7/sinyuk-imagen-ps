@@ -61,56 +61,77 @@ describe('photoshop placement contract', () => {
     });
   });
 
-  it('keeps exact-frame when input-derived exact size matches the actual output geometry', () => {
+  it.each([
+    {
+      name: 'unknown actual output size',
+      actualOutputSize: undefined,
+      outputSelection: undefined,
+    },
+    {
+      name: 'no output selection with provider-default sized output',
+      actualOutputSize: { width: 1024, height: 1024 },
+      outputSelection: undefined,
+    },
+    {
+      name: 'provider-default output selection',
+      actualOutputSize: { width: 1024, height: 1024 },
+      outputSelection: {
+        geometry: { kind: 'provider-default' },
+        outputFormat: 'png',
+      },
+    },
+    {
+      name: 'explicit pixels mismatch',
+      actualOutputSize: { width: 1024, height: 577 },
+      outputSelection: {
+        geometry: { kind: 'pixels', width: 1024, height: 576 },
+        outputFormat: 'png',
+      },
+    },
+    {
+      name: 'ratio-resolution aspect match',
+      actualOutputSize: { width: 2048, height: 2048 },
+      outputSelection: {
+        geometry: { kind: 'ratio-resolution', aspectRatio: '1:1', resolution: '2k' },
+        outputFormat: 'png',
+      },
+    },
+    {
+      name: 'ratio-resolution aspect mismatch',
+      actualOutputSize: { width: 2048, height: 1536 },
+      outputSelection: {
+        geometry: { kind: 'ratio-resolution', aspectRatio: '1:1', resolution: '2k' },
+        outputFormat: 'png',
+      },
+    },
+    {
+      name: 'input-derived exact size mismatch',
+      actualOutputSize: { width: 1024, height: 1024 },
+      outputSelection: {
+        geometry: { kind: 'input-derived', mode: 'exact-size' },
+        outputFormat: 'png',
+      },
+    },
+  ] as const)('keeps exact-frame when output geometry is $name', ({ actualOutputSize, outputSelection }) => {
     expect(placementIntentForActualOutput(
       {
         kind: 'exact-frame',
         documentId: 42,
+        documentName: 'source.psd',
         documentSizeAtCapture: { width: 512, height: 384 },
         placementRect: { left: 0, top: 0, right: 256, bottom: 128 },
         providerInputTarget: { width: 2048, height: 769 },
-        outputSelection: {
-          geometry: { kind: 'input-derived', mode: 'exact-size' },
-          outputFormat: 'png',
-        },
+        ...(outputSelection ? { outputSelection } : {}),
       },
-      { width: 2048, height: 769 },
-    )).toMatchObject({ kind: 'exact-frame' });
-  });
-
-  it('downgrades exact-frame when the expected output size is known but mismatched', () => {
-    expect(placementIntentForActualOutput(
-      {
-        kind: 'exact-frame',
-        documentId: 42,
-        documentSizeAtCapture: { width: 512, height: 384 },
-        placementRect: { left: 0, top: 0, right: 256, bottom: 128 },
-        outputSelection: {
-          geometry: { kind: 'pixels', width: 1024, height: 576 },
-          outputFormat: 'png',
-        },
-      },
-      { width: 1024, height: 577 },
+      actualOutputSize,
     )).toEqual({
-      kind: 'document-only',
+      kind: 'exact-frame',
       documentId: 42,
+      documentName: 'source.psd',
       documentSizeAtCapture: { width: 512, height: 384 },
-    });
-  });
-
-  it('downgrades exact-frame when output geometry is unknown or unverifiable', () => {
-    expect(placementIntentForActualOutput(
-      {
-        kind: 'exact-frame',
-        documentId: 42,
-        documentSizeAtCapture: { width: 512, height: 384 },
-        placementRect: { left: 0, top: 0, right: 256, bottom: 128 },
-      },
-      undefined,
-    )).toEqual({
-      kind: 'document-only',
-      documentId: 42,
-      documentSizeAtCapture: { width: 512, height: 384 },
+      placementRect: { left: 0, top: 0, right: 256, bottom: 128 },
+      providerInputTarget: { width: 2048, height: 769 },
+      ...(outputSelection ? { outputSelection } : {}),
     });
   });
 });

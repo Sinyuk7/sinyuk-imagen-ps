@@ -238,7 +238,7 @@ describe('provider input placement contract', () => {
     expect(result.translatePlacedLayer).toHaveBeenCalledTimes(1);
   });
 
-  it('falls back to document-only when provider output misses input-derived exact size', async () => {
+  it('preserves exact-frame when provider output misses input-derived exact size', async () => {
     const result = await runRoundTrip({ width: 4096, height: 1537 }, 2048, {
       outputSelection: {
         geometry: { kind: 'input-derived', mode: 'exact-size' },
@@ -249,7 +249,8 @@ describe('provider input placement contract', () => {
 
     expect(result.providerInputPlan.targetSize).toEqual({ width: 2048, height: 769 });
     expect(result.providerOutputSize).toEqual({ width: 2048, height: 770 });
-    expect(result.scalePlacedLayer).not.toHaveBeenCalled();
-    expect(result.translatePlacedLayer).not.toHaveBeenCalled();
+    expect(result.placementKind).toBe('exact-frame');
+    expect(result.scalePlacedLayer).toHaveBeenCalledWith(100, 100);
+    expect(result.translatePlacedLayer).toHaveBeenCalledWith(0, 0);
   });
 });
