@@ -101,5 +101,5 @@
 - [ ] 9.4 运行 `pnpm --filter @imagen-ps/app build:chrome`、`pnpm --filter @imagen-ps/app build:uxp`、`pnpm validate`与 `pnpm release:verify`；build/fake不得冒充真实 transport proof。
 - [ ] 9.5 运行 opt-in live ComfyUI smoke：zero-input、text、image、ambiguity、WS progress、disconnect/reconnect、queue/history fallback、outputs、mask-via-image、abort与 no Retry。
 - [ ] 9.6 在真实 Chrome复验 CORS/WS origin/mixed-content、tab lifecycle、HTTP fallback、multipart、Blob与 large transfer。
-- [ ] 9.7 在真实 Photoshop UXP复验 manifest endpoint范围、WS lifecycle、panel reload、HTTP fallback、multipart、Blob、timeout与 large transfer。
-- [ ] 9.8 把稳定 route/plan/binding/realtime/error/testing/UXP facts写回 `docs/ENGINEERING_CONTEXT.md`、`docs/TESTING.md`或 matching module `AGENTS.md`；不写 raw payload、execution logs或临时计划。
+- [ ] 9.7 把稳定 route/plan/binding/realtime/error/testing/UXP facts写回 `docs/ENGINEERING_CONTEXT.md`、`docs/TESTING.md`或 matching module `AGENTS.md`；不写 raw payload、execution logs或临时计划。
+- [ ] 9.8 人工介入,手工测试。在真实 Photoshop UXP复验 manifest endpoint范围、WS lifecycle、panel reload、HTTP fallback、multipart、Blob、timeout与 large transfer。
