@@ -38,7 +38,7 @@ export interface ConversationAttachment {
   readonly photoshopPlacement?: PhotoshopCapturePlacement;
 }
 
-export type RoundStatus = 'running' | 'ok' | 'err';
+export type RoundStatus = 'queued' | 'running' | 'ok' | 'err';
 
 export interface ConversationRound {
   readonly id: string;
@@ -53,6 +53,9 @@ export interface ConversationRound {
   readonly elapsedLabel?: string;
   readonly errorMessage?: string;
   readonly jobId?: string;
+  readonly queuePosition?: number;
+  readonly queueState?: 'queued' | 'starting';
+  readonly removable?: boolean;
   readonly profileId?: string;
   readonly modelId?: string;
   readonly previews: readonly AssetPreview[];
@@ -76,6 +79,7 @@ export interface SubmitConversationInput {
   readonly attachments?: readonly ConversationAttachment[];
   readonly output?: AppGenerationSettingsOutput;
   readonly providerInputSizePreset?: AppProviderInputSizePreset;
+  readonly onPrepared?: () => void;
 }
 
 export interface AppGenerationSettingsOutput {
@@ -86,8 +90,9 @@ export interface AppGenerationSettingsOutput {
 export interface ConversationController {
   readonly rounds: readonly ConversationRound[];
   readonly running: boolean;
-  readonly submit: (input: SubmitConversationInput) => Promise<void>;
+  readonly submit: (input: SubmitConversationInput) => Promise<boolean>;
   readonly retry: (roundId: string) => Promise<void>;
+  readonly removeQueuedTask: (roundId: string) => boolean;
   readonly clear: () => void;
 }
 
@@ -390,7 +395,7 @@ export function useConversation(
    */
   const submitInFlightRef = useRef(false);
   const retryInFlightRef = useRef<Set<string>>(new Set());
-  const submitAbortRef = useRef<AbortController | null>(null);
+  const completedJobsRef = useRef<Set<string>>(new Set());
 
   const abortPreviewWork = useCallback(() => {
     for (const controller of previewAbortControllersRef.current.values()) {
@@ -422,18 +427,39 @@ export function useConversation(
   }, [running]);
 
   useEffect(() => {
+    const queuedByTaskId = new Map(sessionBinding.snapshot.queuedTasks.map((task, index) => [task.taskId, { task, index }]));
+    const jobsByTaskId = new Map(
+      sessionBinding.snapshot.jobs
+        .filter((job) => job.taskId !== undefined)
+        .map((job) => [job.taskId!, job]),
+    );
     setRounds((current) =>
       current.map((round) => {
-        const sessionJob = sessionBinding.snapshot.jobs.find((job) => job.id === round.jobId);
+        const queued = queuedByTaskId.get(round.id);
+        if (queued !== undefined) {
+          return {
+            ...round,
+            status: 'queued',
+            queueState: queued.task.status,
+            queuePosition: queued.index + 1,
+            removable: queued.task.removable,
+            ...(queued.task.jobId !== undefined ? { jobId: queued.task.jobId } : {}),
+          };
+        }
+        const sessionJob = jobsByTaskId.get(round.id)
+          ?? sessionBinding.snapshot.jobs.find((job) => job.id === round.jobId);
         return sessionJob ? roundFromSessionJob(sessionJob, round, messages) : round;
       }),
     );
-  }, [messages, sessionBinding.snapshot.jobs]);
+    for (const job of sessionBinding.snapshot.jobs) {
+      if (job.status !== 'completed' || completedJobsRef.current.has(job.id)) continue;
+      completedJobsRef.current.add(job.id);
+      void services.retention?.requestSweep('generation-success');
+    }
+  }, [messages, services.retention, sessionBinding.snapshot.jobs, sessionBinding.snapshot.queuedTasks]);
 
   useEffect(() => {
     return () => {
-      submitAbortRef.current?.abort();
-      submitAbortRef.current = null;
       abortPreviewWork();
       releaseAttachments(roundsRef.current.flatMap((round) => round.attachments));
       for (const keys of previewCacheKeysRef.current.values()) {
@@ -503,18 +529,18 @@ export function useConversation(
     async (input: SubmitConversationInput) => {
       const prompt = input.prompt.trim();
       if (!prompt) {
-        return;
+        return false;
       }
 
       // 同 tick 门禁：封住 React 状态更新前的 send/regenerate 双击窗口。
       if (submitInFlightRef.current) {
-        return;
+        return false;
       }
       submitInFlightRef.current = true;
-      const abortController = new AbortController();
-      submitAbortRef.current?.abort();
-      submitAbortRef.current = abortController;
-
+      void Promise.resolve().then(() => {
+        submitInFlightRef.current = false;
+      });
+      let accepted = false;
       try {
         const roundId = createRoundId();
         const attachments = input.attachments ?? [];
@@ -527,7 +553,10 @@ export function useConversation(
           time: nowTime(),
           createdAt,
           prompt,
-          status: 'running',
+          status: 'queued',
+          queueState: 'queued',
+          queuePosition: sessionBinding.snapshot.queuedTasks.length + 1,
+          removable: true,
           providerName: input.providerName,
           ...(input.apiFormat ? { apiFormat: input.apiFormat } : {}),
           ...(input.providerId ? { providerId: input.providerId } : {}),
@@ -543,7 +572,10 @@ export function useConversation(
         setRounds((current) => [...current, round]);
 
         try {
-          await services.commands.putTaskRecord(createRunningTaskRecord({
+          if (input.operation === 'image-edit' && attachments.length === 0) {
+            throw new Error('Image edit requires an attachment. Capture from Photoshop or add an image.');
+          }
+          const taskRecord = createRunningTaskRecord({
             taskId: roundId,
             operation: input.operation,
             prompt,
@@ -553,10 +585,7 @@ export function useConversation(
             profileId: input.profileId,
             ...(input.modelId ? { modelId: input.modelId } : {}),
             createdAt,
-          }));
-          if (input.operation === 'image-edit' && attachments.length === 0) {
-            throw new Error('Image edit requires an attachment. Capture from Photoshop or add an image.');
-          }
+          });
           const providerOptions = input.modelId ? { model: input.modelId } : undefined;
           const workflow = input.operation === 'image-edit' ? 'provider-edit' : 'provider-generate';
           const providerInputAssets =
@@ -576,36 +605,18 @@ export function useConversation(
             ...(providerOptions ? { providerOptions } : {}),
             ...(providerInputAssets ? { images: providerInputAssets } : {}),
           };
+          input.onPrepared?.();
           const result = await sessionBinding.session.submitJob({
             workflow,
             input: jobInput,
-            signal: abortController.signal,
+            taskRecord,
           });
-
-          setRounds((current) =>
-            current.map((item) => {
-              if (item.id !== roundId) {
-                return item;
-              }
-              const next = result.ok
-                ? roundFromSessionJob(
-                    sessionBinding.snapshot.jobs.find((job) => job.id === result.value.id) ??
-                      jobSnapshotFromResult(
-                        result.value.id,
-                        workflow,
-                        result.value.status,
-                        result.value.output,
-                        result.value.error,
-                      ),
-                    item,
-                    messages,
-                  )
-                : errorRound(item, result.error);
-              return next;
-            }),
-          );
-          if (result.ok && result.value.status === 'completed') {
-            void services.retention?.requestSweep('generation-success');
+          if (!result.ok) {
+            setRounds((current) => current.map((item) => (
+              item.id === roundId ? errorRound(item, result.error) : item
+            )));
+          } else {
+            accepted = true;
           }
         } catch (error) {
           setRounds((current) =>
@@ -614,14 +625,12 @@ export function useConversation(
             ),
           );
         }
+        return accepted;
       } finally {
-        if (submitAbortRef.current === abortController) {
-          submitAbortRef.current = null;
-        }
         submitInFlightRef.current = false;
       }
     },
-    [defaultOutput, messages, services.commands, sessionBinding.session, sessionBinding.snapshot.jobs],
+    [defaultOutput, services.retention, sessionBinding.session, sessionBinding.snapshot.queuedTasks.length],
   );
 
   const retry = useCallback(
@@ -687,8 +696,9 @@ export function useConversation(
   );
 
   const clear = useCallback(() => {
-    submitAbortRef.current?.abort();
-    submitAbortRef.current = null;
+    for (const round of rounds) {
+      if (round.status === 'queued') sessionBinding.session.removeQueuedTask(round.id);
+    }
     abortPreviewWork();
     releaseAttachments(rounds.flatMap((round) => round.attachments));
     roundsRef.current = [];
@@ -697,13 +707,22 @@ export function useConversation(
     }
     previewCacheKeysRef.current.clear();
     setRounds([]);
-  }, [abortPreviewWork, rounds, thumbnailStore]);
+  }, [abortPreviewWork, rounds, sessionBinding.session, thumbnailStore]);
+
+  const removeQueuedTask = useCallback((roundId: string): boolean => {
+    if (!sessionBinding.session.removeQueuedTask(roundId)) return false;
+    const removed = roundsRef.current.find((round) => round.id === roundId);
+    if (removed !== undefined) releaseAttachments(removed.attachments);
+    setRounds((current) => current.filter((round) => round.id !== roundId));
+    return true;
+  }, [sessionBinding.session]);
 
   return {
     rounds,
     running,
     submit,
     retry,
+    removeQueuedTask,
     clear,
   };
 }

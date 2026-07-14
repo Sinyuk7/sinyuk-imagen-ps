@@ -56,8 +56,10 @@ surface apps -> application/session -> core-engine + providers
   visual harnesses pass `iconName` directly without runtime resolution.
 - Product history is task-oriented. `TaskRecord` is the durable user-task
   history contract; `DurableJobRecord` remains execution/job compatibility
-  history. A send creates a running task, terminal provider execution updates
-  the same `taskId`, and retry/regenerate creates a new task.
+  history. A valid send first creates session-only queued work; dispatch creates
+  the durable running task, terminal provider execution updates the same
+  `taskId`, and retry/regenerate creates a new task. Queued-only work is absent
+  from durable history and is dropped on app reload or restart.
 - Task records store only serializable, secret-free evidence and opaque
   resource refs. Preview/download/place availability is resolved dynamically
   through app resource resolvers; missing or evicted resources must not corrupt
@@ -192,7 +194,10 @@ surface apps -> application/session -> core-engine + providers
 - Provider requests must resolve image-edit inputs from `image.resource.derivatives.providerInput.storedRef`. They must not submit the original asset, thumbnail, inline `data`, or full preview URL. Retry reuses the storedRef already present in the original job input.
 - UI previews use the app `ThumbnailStore`. Long-lived round preview state must keep the original output `Asset` locator payload (`storedRef`, `url`, or inline `data`) alongside bounded thumbnail URLs so main-page place/download actions can still resolve the full-size returned image after preview generation.
 - For tall portrait result previews in Photoshop UXP, the absolutely positioned `ImageFrame` must reset inherited `width`/`height` back to `auto`. Keeping `width:100%` on an inset absolute frame over-constrains the box and can visibly shift the contained image off center inside the stage.
-- Cancellation is cooperative: app clear/unmount aborts in-flight submit and thumbnail work; application/core pass `AbortSignal` through submit → runtime → runner → provider dispatch; runner checks the signal before and after dispatch and after output postprocessing.
+- Running-task cancellation is not a product capability. Session clear/unmount
+  drops queued work and aborts thumbnail work without claiming that dispatched
+  provider work was cancelled. The lower application/core `AbortSignal` seam
+  remains available to explicit runtime callers.
 
 ## Durable Job History
 
@@ -238,8 +243,13 @@ surface apps -> application/session -> core-engine + providers
   `providerId` or `family` concepts. This is an intentional current-state
   schema break: old persisted profile records without canonical `apiFormat` are
   rejected rather than migrated.
-- Session-level in-flight registry (`packages/application/src/session/session.ts`): `inFlightRetry` deduplicates by failed-job `jobId`; `inFlightSubmit` deduplicates by `__clientRoundId`. Locks release on all settle paths including `{ok:true,value:failedJob}`.
-- UI ref gates (`submitInFlightRef`, `retryInFlightRef`) cover same-tick double-click windows. Error-retry and regenerate buttons are disabled while `conversation.running`.
+- Session queue ownership lives in `packages/application/src/session/*`.
+  `submitJob()` validates and freezes provider-dispatchable input, publishes a
+  FIFO `queuedTasks` entry, and returns enqueue acknowledgement before a later
+  scheduler turn can dispatch. Concurrency is bounded globally and per profile;
+  `jobs` remains the dispatched execution view.
+- Session-level in-flight registry (`packages/application/src/session/session.ts`): `inFlightRetry` deduplicates by failed-job `jobId`; `inFlightSubmit` deduplicates by `__clientRoundId` only through queue admission acknowledgement. Both locks release on every settle path.
+- UI ref gates (`submitInFlightRef`, `retryInFlightRef`) cover same-tick double-click windows. Queued or running rounds do not globally disable composer editing, capture, model/output selection, or new submission; task-local remove/retry gates remain narrow.
 - Provider transport ownership summary lives in `packages/providers/ARCHITECTURE.md`.
   Use that doc for request codec boundaries, replay safety, `RecoveryDisposition`,
   `decideNextAction`, `AttemptPlan`, `DispatchBudget`, and `AttemptLedger`.

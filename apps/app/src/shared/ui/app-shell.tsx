@@ -5,7 +5,7 @@ import type { LayerInfo } from '../ports/host-port';
 import type { ProviderProfile } from '@imagen-ps/application';
 import type { SupportedLocale } from '../domain/locale';
 import type { PluginAppModel } from '../domain/plugin-app-model';
-import { useConversation } from './hooks/use-conversation';
+import { useConversation, type RoundStatus } from './hooks/use-conversation';
 import { useComposerDraft } from './hooks/use-composer-draft';
 import { useImagenSession } from './hooks/use-imagen-session';
 import { useGenerationSettings } from './hooks/use-generation-settings';
@@ -262,7 +262,7 @@ function AppShellContent({ host }: AppShellProps) {
   const { records: historyRecords, loading: historyLoading, error: historyError, reload: reloadHistory } = history;
   const { layers, layersError, layersLoading, reloadLayers } = useHostLayers(host);
   const { show } = useToast();
-  const previousRoundStatusRef = useRef<Record<string, 'running' | 'ok' | 'err'>>({});
+  const previousRoundStatusRef = useRef<Record<string, RoundStatus>>({});
   const reconciledHistoryRef = useRef(false);
   const settingsEntryTokenRef = useRef(0);
   const processedSettingsEntryTokenRef = useRef(0);
@@ -295,7 +295,7 @@ function AppShellContent({ host }: AppShellProps) {
     reconciledHistoryRef.current = true;
     const activeTaskIds = imagenSession.snapshot.jobs
       .filter((job) => job.status !== 'completed' && job.status !== 'failed')
-      .map((job) => job.id);
+      .map((job) => job.taskId ?? job.id);
     void services.commands.reconcileStaleRunningTaskRecords(activeTaskIds)
       .then((updated) => {
         if (updated.length > 0) {
@@ -421,7 +421,7 @@ function AppShellContent({ host }: AppShellProps) {
 
   useEffect(() => {
     let shouldReload = false;
-    const next: Record<string, 'running' | 'ok' | 'err'> = {};
+    const next: Record<string, RoundStatus> = {};
     for (const round of conversation.rounds) {
       next[round.id] = round.status;
       const previous = previousRoundStatusRef.current[round.id];

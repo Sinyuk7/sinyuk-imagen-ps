@@ -543,6 +543,13 @@ export const CONVERSATION_CSS = `
 
 /* Loading */
 .prov-loading{ display:flex; align-items:center; padding:10px 12px; }
+.queue-task-row{
+  display:flex; align-items:center; justify-content:space-between; min-height:34px;
+  padding-top:6px; padding-right:8px; padding-bottom:6px; padding-left:12px;
+  border-top:1px solid var(--app-color-border-default);
+  color:var(--app-color-text-muted); font-family:var(--app-font-family-mono); font-size:11px;
+}
+.queue-task-remove{ width:28px; height:28px; min-width:28px; min-height:28px; }
 .ldots{ display:flex; margin-right:10px; }
 .ldot{ width:5px; height:5px; margin-right:4px; border-radius:50%; background:var(--app-color-accent-default); }
 

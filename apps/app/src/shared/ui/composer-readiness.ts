@@ -5,7 +5,6 @@ export type ComposerOperation = 'text-to-image' | 'image-edit';
 
 export type ComposerReadinessState =
   | 'ready'
-  | 'generation-in-progress'
   | 'select-profile'
   | 'checking-profile'
   | 'profile-load-failed'
@@ -21,7 +20,6 @@ export type ComposerReadinessState =
   | 'enter-prompt';
 
 export interface ComposerReadinessInput {
-  readonly running: boolean;
   readonly profilesLoading: boolean;
   readonly profilesError: string | null;
   readonly hasSelectedProfile: boolean;
@@ -63,9 +61,6 @@ export function modelSupportsImageInput(model: UiModelInfo | undefined): 'suppor
 
 /** 按产品定义的单一阻塞优先级推导 composer readiness。 */
 export function deriveComposerReadiness(input: ComposerReadinessInput): ComposerReadiness {
-  if (input.running) {
-    return { state: 'generation-in-progress', canSend: false };
-  }
   if (input.profilesError) {
     return { state: 'profile-load-failed', canSend: false };
   }

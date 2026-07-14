@@ -122,6 +122,7 @@ export async function submitJob(input: SubmitJobInput): Promise<CommandResult<Jo
     const job = await runtime.runWorkflow(input.workflow, enrichedInput, {
       logger: commandLogger.child({ span_id: span.span_id }),
       ...(input.signal !== undefined ? { signal: input.signal } : {}),
+      ...(input.onJobCreated !== undefined ? { onJobCreated: input.onJobCreated } : {}),
     });
     await flushJobHistoryForTerminalJob(job);
     if (profileId && (job.status === 'completed' || job.status === 'failed')) {

@@ -201,8 +201,6 @@ function readinessMessage(t: ReturnType<typeof useI18n>['messages'], state: Comp
   switch (state) {
     case 'ready':
       return t.main.readinessReady;
-    case 'generation-in-progress':
-      return t.main.readinessGenerationInProgress;
     case 'select-profile':
       return t.main.readinessSelectProfile;
     case 'checking-profile':
@@ -548,7 +546,6 @@ export function MainPage({
   }, [syncComposerInputBeforeMenuOpen]);
 
   const readiness = deriveComposerReadiness({
-    running: conversation.running,
     profilesLoading,
     profilesError,
     hasSelectedProfile: Boolean(selectedProfile),
@@ -569,7 +566,7 @@ export function MainPage({
   const imageInputSupport = modelSupportsImageInput(selectedModelInfo);
   const imageInputDisabled = imageInputSupport === 'unsupported';
   const imageInputDisabledReason = t.main.imageInputDisabledForModel;
-  const canCapture = !conversation.running && !captureInFlight && !imageInputDisabled;
+  const canCapture = !captureInFlight && !imageInputDisabled;
   const responseTextKey = (roundId: string) => `response:${roundId}`;
   const placeResetTimersRef = useRef<Record<string, number>>({});
   const handleObservedBillingState = useCallback((profileId: string, state: ProfileBillingState) => {
@@ -1067,15 +1064,10 @@ export function MainPage({
       return;
     }
     if (/^\/new\b$/i.test(prompt)) {
-      if (conversation.running) {
-        show(t.toast.waitForRunningTask, 'info', { key: 'send-wait-running' });
-      } else {
-        conversation.clear();
-        show(t.toast.newSessionStarted, 'info', { key: 'session-new' });
-      }
+      conversation.clear();
+      show(t.toast.newSessionStarted, 'info', { key: 'session-new' });
       return;
     }
-    composerDraft.reset({ releaseAttachments: false });
     await conversation.submit({
       operation: attachments.length > 0 ? 'image-edit' : 'text-to-image',
       prompt,
@@ -1091,6 +1083,7 @@ export function MainPage({
         },
       } : {}),
       providerInputSizePreset: generationSettings.providerInputSizePreset,
+      onPrepared: () => composerDraft.reset({ releaseAttachments: false }),
     });
   };
 
@@ -1408,7 +1401,6 @@ export function MainPage({
                           <button
                             data-testid={`error-primary-action-button-${round.id}`}
                             className="err-retry"
-                            disabled={conversation.running}
                             onClick={handlePrimaryErrorAction}
                           >
                             {primaryActionLabel(t, failure.primaryAction)}
@@ -1417,7 +1409,6 @@ export function MainPage({
                             <button
                               data-testid={`error-fill-composer-button-${round.id}`}
                               className="err-retry err-retry-secondary"
-                              disabled={conversation.running}
                               onClick={() => fillComposerFromFailedRound(round)}
                             >
                               {t.main.errorActionFillComposer}
@@ -1427,6 +1418,48 @@ export function MainPage({
                       </div>
                     );
                   })()}
+                </div>
+              )}
+
+              {round.status === 'queued' && (
+                <div className="msg-prov msg-prov-surface">
+                  <div className="prov-card" data-testid={`queued-task-${round.id}`}>
+                    <div className="prov-top">
+                      <ProviderIdentity
+                        providerName={round.providerName}
+                        modelLabel={visibleLabelForModelId(round.modelId)}
+                        disabled={!onEditProfile || !round.profileId}
+                        onClick={(event) => {
+                          event.stopPropagation();
+                          if (round.profileId && onEditProfile) onEditProfile(round.profileId);
+                        }}
+                      />
+                      <div className="prov-status">
+                        <span className="sdot info" />
+                        <span className="prov-status-text info">
+                          {round.queueState === 'starting'
+                            ? t.main.queueStarting
+                            : t.main.queuePosition(round.queuePosition ?? 1)}
+                        </span>
+                      </div>
+                    </div>
+                    <div className="queue-task-row">
+                      <span>{round.queueState === 'starting' ? t.main.queueStarting : t.status.queued}</span>
+                      {round.removable ? (
+                        <IconButton
+                          data-testid={`queued-task-remove-${round.id}`}
+                          className="queue-task-remove"
+                          quiet
+                          icon={<Icon name="close" />}
+                          tooltip={t.main.removeFromQueue}
+                          onClick={(event) => {
+                            event.stopPropagation();
+                            conversation.removeQueuedTask(round.id);
+                          }}
+                        />
+                      ) : null}
+                    </div>
+                  </div>
                 </div>
               )}
 
@@ -1687,7 +1720,7 @@ export function MainPage({
       </div>
 
       <footer className="composer" onClick={(event) => event.stopPropagation()}>
-          <MotionDimSurface className={`cmp-shell cmp-shell-motion${conversation.running ? ' off' : ''}`} dim={conversation.running}>
+          <MotionDimSurface className="cmp-shell cmp-shell-motion" dim={false}>
           <div className="cmp-attach-band">
             <MotionPresenceView visible={layerOpen} kind="popover">
               {({ ref, state }) => (
@@ -1774,7 +1807,7 @@ export function MainPage({
                   icon={<Icon name="add" />}
                   tooltip={imageInputDisabled ? imageInputDisabledReason : t.main.addImage}
                   placement="top"
-                  disabled={conversation.running || imageInputDisabled}
+                  disabled={imageInputDisabled}
                   onClick={(event) => {
                     event.stopPropagation();
                     setAttachOpen((open) => !open);
@@ -1933,9 +1966,7 @@ export function MainPage({
                       className="cmp-send"
                       hostClassName="cmp-send-host"
                       overlayClassName="cmp-send-overlay"
-                      icon={conversation.running
-                        ? <MotionActivityIcon><Icon name="spinner" size={13} /></MotionActivityIcon>
-                        : <Icon name="send" />}
+                      icon={<Icon name="send" />}
                       tooltip={readinessText}
                       aria-label={readinessText}
                       placement="top"
@@ -1962,7 +1993,7 @@ export function MainPage({
                 label="Model"
                 value={selectedModelLabel}
                 icon="algorithm"
-                disabled={conversation.running}
+                disabled={false}
                 open={openMenu === 'model'}
                 onOpenChange={(open) => {
                   handleOpenComposerMenu('model', open);
@@ -1979,7 +2010,7 @@ export function MainPage({
                 menuClassName="cmp-select-menu cmp-select-menu-compact"
                 label={t.main.outputSize}
                 value={optionLabel(outputSizeOptions, selectedOutputSize)}
-                disabled={conversation.running || outputSizeOptions.length === 0}
+                disabled={outputSizeOptions.length === 0}
                 open={openMenu === 'output-size'}
                 onOpenChange={(open) => {
                   handleOpenComposerMenu('output-size', open);
@@ -1998,7 +2029,7 @@ export function MainPage({
                   menuClassName="cmp-select-menu cmp-select-menu-compact"
                   label={t.main.aspectRatio}
                   value={optionLabel(outputRatioOptions, selectedOutputRatio)}
-                  disabled={conversation.running || outputRatioOptions.length === 0}
+                  disabled={outputRatioOptions.length === 0}
                   open={openMenu === 'output-ratio'}
                   onOpenChange={(open) => {
                     handleOpenComposerMenu('output-ratio', open);

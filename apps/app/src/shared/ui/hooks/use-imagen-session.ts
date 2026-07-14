@@ -6,7 +6,7 @@ import {
 } from '@imagen-ps/application';
 import type { AppServices } from '../../ports/app-services';
 
-const EMPTY_SNAPSHOT: ImagenSessionSnapshot = { jobs: [] };
+const EMPTY_SNAPSHOT: ImagenSessionSnapshot = { jobs: [], queuedTasks: [] };
 
 export interface ImagenSessionBinding {
   readonly session: ImagenSessionController;
@@ -22,6 +22,8 @@ export function useImagenSession(services: AppServices): ImagenSessionBinding {
           retryJob: services.commands.retryJob,
           getJob: services.commands.getJob,
           subscribeJobEvents: services.commands.subscribeJobEvents,
+          putTaskRecord: services.commands.putTaskRecord,
+          getProviderProfile: services.commands.getProviderProfile,
         },
       }),
     [services],

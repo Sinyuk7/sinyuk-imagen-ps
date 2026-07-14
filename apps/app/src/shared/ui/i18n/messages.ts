@@ -27,6 +27,7 @@ export interface AppMessages {
     readonly done: string;
     readonly generating: string;
     readonly running: string;
+    readonly queued: string;
     readonly failed: string;
   };
   readonly main: {
@@ -44,6 +45,9 @@ export interface AppMessages {
     readonly promptSuggestionLayerLabel: string;
     readonly reusePrompt: string;
     readonly submitJobRunning: string;
+    readonly queuePosition: (position: number) => string;
+    readonly queueStarting: string;
+    readonly removeFromQueue: string;
     readonly noAssetPreview: string;
     readonly assetFallback: string;
     readonly imageFallback: string;
@@ -428,6 +432,7 @@ const EN_MESSAGES: AppMessages = {
     done: 'Done',
     generating: 'Generating',
     running: 'Running',
+    queued: 'Queued',
     failed: 'Failed',
   },
   main: {
@@ -445,6 +450,9 @@ const EN_MESSAGES: AppMessages = {
     promptSuggestionLayerLabel: 'Full-body portrait',
     reusePrompt: 'Reuse prompt',
     submitJobRunning: 'Generating…',
+    queuePosition: (position) => `Queued · #${position}`,
+    queueStarting: 'Starting',
+    removeFromQueue: 'Remove from queue',
     noAssetPreview: 'No preview available',
     assetFallback: 'Asset',
     imageFallback: 'Image',
@@ -838,6 +846,7 @@ const ZH_CN_MESSAGES: AppMessages = {
     done: '完成',
     generating: '生成中',
     running: '运行中',
+    queued: '排队中',
     failed: '失败',
   },
   main: {
@@ -855,6 +864,9 @@ const ZH_CN_MESSAGES: AppMessages = {
     promptSuggestionLayerLabel: '全身肖像',
     reusePrompt: '复用提示词',
     submitJobRunning: '生成中…',
+    queuePosition: (position) => `排队中 · #${position}`,
+    queueStarting: '正在启动',
+    removeFromQueue: '移出队列',
     noAssetPreview: '暂无预览',
     assetFallback: '资源',
     imageFallback: '图片',

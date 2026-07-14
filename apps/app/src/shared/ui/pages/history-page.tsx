@@ -21,7 +21,12 @@ import {
   type PreviewSnapshot,
 } from './history-view-model';
 
-const STATUS_COLOR: Record<RoundStatus, string> = { ok: 'var(--app-color-positive)', running: 'var(--app-color-notice)', err: 'var(--app-color-negative)' };
+const STATUS_COLOR: Record<RoundStatus, string> = {
+  queued: 'var(--app-color-informative)',
+  ok: 'var(--app-color-positive)',
+  running: 'var(--app-color-notice)',
+  err: 'var(--app-color-negative)',
+};
 const PREVIEW_QUEUE_CONCURRENCY = 2;
 const PREVIEW_ROOT_MARGIN = '250px 0px';
 const MAX_RESOLVED_PREVIEWS = 12;
@@ -97,7 +102,12 @@ export function HistoryPage({
     ['running', t.status.running],
     ['err', t.status.failed],
   ];
-  const statusLabel: Record<RoundStatus, string> = { ok: t.status.done, running: t.status.running, err: t.status.failed };
+  const statusLabel: Record<RoundStatus, string> = {
+    queued: t.status.queued,
+    ok: t.status.done,
+    running: t.status.running,
+    err: t.status.failed,
+  };
 
   const canDownload = onDownloadTaskOutput !== undefined;
   const canPlace = onPlaceTaskOutput !== undefined;

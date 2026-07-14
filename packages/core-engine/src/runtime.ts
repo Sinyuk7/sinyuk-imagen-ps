@@ -59,6 +59,9 @@ export interface RunWorkflowOptions {
 
   /** 可选取消信号；runner 在 provider dispatch 前后协作检查。 */
   signal?: AbortSignal;
+
+  /** Job 创建后的可选 handoff；完成后才进入 workflow execution。 */
+  onJobCreated?: (job: Job) => void | Promise<void>;
 }
 
 /** 单个 workflow step result 的后处理 hook。 */
@@ -96,6 +99,7 @@ export async function runWorkflow(
   const job = deps.store.submitJob(input);
   const emit = getEmit(deps.events);
   emit({ type: 'created', job });
+  await options?.onJobCreated?.(job);
 
   const jobLogger = logger.child({
     package: 'core-engine',
@@ -148,7 +152,11 @@ export function createRuntime(options?: RuntimeOptions): Runtime {
         workflowName,
         input,
         { store, controller, registry, dispatcher, events },
-        { logger: options?.logger ?? runtimeLogger, ...(options?.signal !== undefined ? { signal: options.signal } : {}) },
+        {
+          logger: options?.logger ?? runtimeLogger,
+          ...(options?.signal !== undefined ? { signal: options.signal } : {}),
+          ...(options?.onJobCreated !== undefined ? { onJobCreated: options.onJobCreated } : {}),
+        },
         { afterStepResult },
       );
     },

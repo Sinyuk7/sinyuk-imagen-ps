@@ -4,7 +4,7 @@
  * 本模块定义 commands 层的公共类型契约。
  */
 
-import type { DurableJobRecord, JobError, JobEvent, JobInput, JobStatus, StoredAssetRef, TaskRecord, TaskStatus } from '@imagen-ps/core-engine';
+import type { DurableJobRecord, Job, JobError, JobEvent, JobInput, JobStatus, StoredAssetRef, TaskRecord, TaskStatus } from '@imagen-ps/core-engine';
 import type { Logger } from '@imagen-ps/foundation';
 import type {
   ApiFormat,
@@ -113,6 +113,12 @@ export interface SubmitJobInput {
 
   /** 可选调用方 logger；不进入 durable job input。 */
   readonly logger?: Logger;
+
+  /** Session queue 在真实 dispatch 时写入的 durable running task 快照。 */
+  readonly taskRecord?: TaskRecord;
+
+  /** Job 创建后的可选 handoff；完成后才进入 provider execution。 */
+  readonly onJobCreated?: (job: Job) => void | Promise<void>;
 }
 
 /**

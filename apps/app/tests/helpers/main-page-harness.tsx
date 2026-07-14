@@ -1,5 +1,6 @@
 import { act } from 'react';
 import { createRoot, type Root } from 'react-dom/client';
+import { vi } from 'vitest';
 import { AppShell } from '../../src/shared/ui/app-shell';
 import { createFakeServices } from '../helpers/fakes';
 
@@ -17,6 +18,9 @@ export async function cleanupMainPageRoot(): Promise<void> {
 export async function flush(): Promise<void> {
   await act(async () => {
     await Promise.resolve();
+    if (!vi.isFakeTimers()) {
+      await new Promise<void>((resolve) => window.setTimeout(resolve, 0));
+    }
   });
 }
 
