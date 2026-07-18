@@ -2,14 +2,14 @@
  * Runtime 组装入口 —— 把 store、events、registry、dispatch、runner 组装为统一执行面。
  */
 
-import type { Job, JobInput, JobStore, JobStoreController } from './types/job.js';
+import type { Job, JobAttemptMetadata, JobInput, JobStore, JobStoreController } from './types/job.js';
 import type { Workflow, WorkflowRegistry } from './types/workflow.js';
-import type { ProviderDispatchAdapter, ProviderDispatcher } from './types/provider.js';
+import type { ExecutionAdapter, ExecutionDispatcher } from './types/execution.js';
 import type { JobEventBus, JobEvent } from './types/events.js';
 import { createJobStore } from './store.js';
 import { createJobEventBus } from './events.js';
 import { createWorkflowRegistry } from './registry.js';
-import { createProviderDispatcher } from './dispatch.js';
+import { createExecutionDispatcher } from './dispatch.js';
 import { executeWorkflow } from './runner.js';
 import type { Logger } from '@imagen-ps/foundation';
 import { createNullLogger } from '@imagen-ps/foundation';
@@ -33,8 +33,8 @@ export interface Runtime {
   /** Workflow registry（注册与查找）。 */
   registry: WorkflowRegistry;
 
-  /** Provider dispatcher（调用抽象）。 */
-  dispatcher: ProviderDispatcher;
+  /** Execution dispatcher（调用抽象）。 */
+  dispatcher: ExecutionDispatcher;
 }
 
 /** `createRuntime` 的可选配置。 */
@@ -42,8 +42,8 @@ export interface RuntimeOptions {
   /** 初始内置 workflows。 */
   initialWorkflows?: readonly Workflow[];
 
-  /** 初始 provider adapters。 */
-  adapters?: readonly ProviderDispatchAdapter[];
+  /** 初始 execution adapters。 */
+  adapters?: readonly ExecutionAdapter[];
 
   /** 可选 Logger；未提供时使用 null logger。 */
   logger?: Logger;
@@ -57,11 +57,14 @@ export interface RunWorkflowOptions {
   /** 可选 Logger；未提供时使用 null logger。 */
   logger?: Logger;
 
-  /** 可选取消信号；runner 在 provider dispatch 前后协作检查。 */
+  /** 可选取消信号；runner 在 execution dispatch 前后协作检查。 */
   signal?: AbortSignal;
 
   /** Job 创建后的可选 handoff；完成后才进入 workflow execution。 */
   onJobCreated?: (job: Job) => void | Promise<void>;
+
+  /** Retry Job 的 generic attempt metadata。 */
+  attempt?: JobAttemptMetadata;
 }
 
 /** 单个 workflow step result 的后处理 hook。 */
@@ -89,14 +92,14 @@ export async function runWorkflow(
     store: JobStore;
     controller: JobStoreController;
     registry: WorkflowRegistry;
-    dispatcher: ProviderDispatcher;
+    dispatcher: ExecutionDispatcher;
     events: JobEventBus;
   },
   options?: RunWorkflowOptions,
   runtimeOptions?: Pick<RuntimeOptions, 'afterStepResult'>,
 ): Promise<Job> {
   const logger = options?.logger ?? createNullLogger();
-  const job = deps.store.submitJob(input);
+  const job = deps.store.submitJob(input, options?.attempt);
   const emit = getEmit(deps.events);
   emit({ type: 'created', job });
   await options?.onJobCreated?.(job);
@@ -141,7 +144,7 @@ export function createRuntime(options?: RuntimeOptions): Runtime {
   const { store, controller } = createJobStore();
   const events = createJobEventBus();
   const registry = createWorkflowRegistry(options?.initialWorkflows);
-  const dispatcher = createProviderDispatcher(options?.adapters, options?.logger);
+  const dispatcher = createExecutionDispatcher(options?.adapters, options?.logger);
 
   const runtimeLogger = options?.logger ?? createNullLogger();
   const afterStepResult = options?.afterStepResult;
@@ -156,6 +159,7 @@ export function createRuntime(options?: RuntimeOptions): Runtime {
           logger: options?.logger ?? runtimeLogger,
           ...(options?.signal !== undefined ? { signal: options.signal } : {}),
           ...(options?.onJobCreated !== undefined ? { onJobCreated: options.onJobCreated } : {}),
+          ...(options?.attempt !== undefined ? { attempt: options.attempt } : {}),
         },
         { afterStepResult },
       );

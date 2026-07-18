@@ -8,7 +8,8 @@
  * - 不暴露 runtime / getRuntime / store / dispatcher / registry
  */
 
-export { submitJob } from './submit-job.js';
+export { executeJob } from './execute-job.js';
+export type { ExecuteJobInput } from './execute-job.js';
 export { getJob } from './get-job.js';
 export { subscribeJobEvents } from './subscribe-job-events.js';
 
@@ -52,18 +53,16 @@ export {
   scheduleProfileBalanceRefresh,
 } from './profile-billing.js';
 
-export { retryJob } from './retry-job.js';
 export { getJobHistoryRecord, listJobHistoryRecords } from './job-history.js';
 export { getTaskRecord, listTaskRecords, putTaskRecord, reconcileStaleRunningTaskRecords } from './task-history.js';
+export type { ListTaskRecordsQuery } from './task-history.js';
 export { resolveSecretValue } from './secret-utils.js';
-export { assertTaskRecord, decodeTaskRecord, sanitizeTaskEvidenceUrl } from '@imagen-ps/core-engine';
+export { assertTaskRecord, decodeTaskRecord, sanitizeTaskEvidenceUrl } from '../task.js';
 export type {
   CommandResult,
   ApiFormat,
   DeleteProviderProfileOptions,
   AssetStore,
-  RetryJobInput,
-  SubmitJobInput,
   Asset,
   DecodeTaskRecordResult,
   DurableJobRecord,
@@ -112,7 +111,8 @@ export type {
   TaskAttachment,
   TaskEvidence,
   TaskError,
-  TaskExecutionSnapshot,
+  TaskExecutionIdentity,
+  TaskExecutionSummary,
   TaskOperation,
   TaskOutput,
   TaskPlacement,

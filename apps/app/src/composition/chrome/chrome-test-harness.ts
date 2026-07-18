@@ -1,13 +1,15 @@
-import type {
-  Asset,
-  DurableJobRecord,
-  Job,
-  ProfileModelItem,
-  ProviderProfile,
-  ProviderProfileConfig,
-  ProviderProfileConnectionTestResult,
-  ProviderProfileTestResult,
-  TaskRecord,
+import {
+  TASK_RECORD_SCHEMA_VERSION,
+  type Asset,
+  type DurableJobRecord,
+  type ExecuteJobInput,
+  type Job,
+  type ProfileModelItem,
+  type ProviderProfile,
+  type ProviderProfileConfig,
+  type ProviderProfileConnectionTestResult,
+  type ProviderProfileTestResult,
+  type TaskRecord,
 } from '@imagen-ps/application';
 import type { ChromeFilePicker } from '../../adapters/chrome/chrome-host-port';
 import {
@@ -185,7 +187,7 @@ function seededHistoryRecords(): readonly DurableJobRecord[] {
 function seededTaskRecords(): readonly TaskRecord[] {
   return [
     {
-      schemaVersion: 1,
+      schemaVersion: TASK_RECORD_SCHEMA_VERSION,
       taskId: 'chrome-e2e-task-completed',
       status: 'completed',
       operation: 'text-to-image',
@@ -198,13 +200,16 @@ function seededTaskRecords(): readonly TaskRecord[] {
         asset: { ref: { kind: 'hostObject', ref: 'chrome-e2e-history-asset', mimeType: 'image/png', byteSize: 16 } },
       }],
       placement: { kind: 'unbound', reason: 'no-photoshop-source' },
-      execution: { profileId: MOCK_PROFILE_ID, profileName: 'Mock Profile' },
+      execution: {
+        backend: { id: 'provider', label: 'Provider' },
+        connection: { id: MOCK_PROFILE_ID, label: 'Mock Profile' },
+      },
       createdAt: FIXED_NOW,
       updatedAt: '2026-06-25T00:00:01.000Z',
       finishedAt: '2026-06-25T00:00:01.000Z',
     },
     {
-      schemaVersion: 1,
+      schemaVersion: TASK_RECORD_SCHEMA_VERSION,
       taskId: 'chrome-e2e-task-failed',
       status: 'failed',
       operation: 'text-to-image',
@@ -213,13 +218,16 @@ function seededTaskRecords(): readonly TaskRecord[] {
       outputs: [],
       placement: { kind: 'unbound', reason: 'no-photoshop-source' },
       error: { category: 'provider', message: 'Seeded mock provider failure.' },
-      execution: { profileId: MOCK_PROFILE_ID, profileName: 'Mock Profile' },
+      execution: {
+        backend: { id: 'provider', label: 'Provider' },
+        connection: { id: MOCK_PROFILE_ID, label: 'Mock Profile' },
+      },
       createdAt: FIXED_NOW,
       updatedAt: '2026-06-25T00:00:02.000Z',
       finishedAt: '2026-06-25T00:00:02.000Z',
     },
     {
-      schemaVersion: 1,
+      schemaVersion: TASK_RECORD_SCHEMA_VERSION,
       taskId: 'chrome-e2e-task-running',
       status: 'running',
       operation: 'text-to-image',
@@ -227,7 +235,10 @@ function seededTaskRecords(): readonly TaskRecord[] {
       attachments: [],
       outputs: [],
       placement: { kind: 'unbound', reason: 'no-photoshop-source' },
-      execution: { profileId: MOCK_PROFILE_ID, profileName: 'Mock Profile' },
+      execution: {
+        backend: { id: 'provider', label: 'Provider' },
+        connection: { id: MOCK_PROFILE_ID, label: 'Mock Profile' },
+      },
       createdAt: FIXED_NOW,
       updatedAt: '2026-06-25T00:00:03.000Z',
     },
@@ -329,36 +340,37 @@ function mockOutputAsset(): Asset {
   };
 }
 
-function mockJobForSubmit(input: { readonly workflow: string; readonly input: Record<string, unknown> }, profile: ProviderProfile): Job {
+function mockJobForExecution(input: Pick<ExecuteJobInput, 'execution'>, profile: ProviderProfile): Job {
   mockJobSequence += 1;
   const now = new Date().toISOString();
-  const model = typeof input.input.providerOptions === 'object' && input.input.providerOptions !== null
-    ? (input.input.providerOptions as { readonly model?: unknown }).model
+  const request = input.execution.input.request as Record<string, unknown>;
+  const model = typeof request.model === 'object' && request.model !== null
+    ? (request.model as { readonly modelId?: unknown }).modelId
     : undefined;
   const modelId = typeof model === 'string' ? model : MOCK_MODEL_ID;
   if ((profile.config.failMode as { readonly type?: unknown } | undefined)?.type === 'always') {
     return {
       id: `chrome-e2e-mock-failed-${mockJobSequence}`,
       status: 'failed',
-      input: input.input,
+      input: input.execution.input,
       output: undefined,
       error: { category: 'provider', message: 'Mock provider forced failure' },
       createdAt: now,
       updatedAt: now,
     };
   }
-  const operation = input.workflow === 'provider-edit' ? 'image_edit' : 'text_to_image';
+  const operation = input.execution.workflow === 'provider-edit' ? 'image_edit' : 'text_to_image';
   return {
     id: `chrome-e2e-mock-${mockJobSequence}`,
     status: 'completed',
-    input: input.input,
+    input: input.execution.input,
     output: {
       image: {
         assets: [mockOutputAsset()],
         text: [
           `[operation=${operation}]`,
           `[model=${modelId}]`,
-          `[prompt=${String(input.input.prompt ?? '')}]`,
+          `[prompt=${String(request.prompt ?? '')}]`,
           '[app.output=size=2k format=png aspect=auto providerInputSize=1k]',
           '[images=0]',
           '[mask=no]',
@@ -420,20 +432,27 @@ export function createChromeTestHarnessRuntime(config: ChromeTestHarnessConfig):
     wrapCommands(commands) {
       return {
         ...commands,
-        async submitJob(input) {
-          const profileId = typeof input.input.profileId === 'string'
-            ? input.input.profileId
-            : typeof input.input.providerProfileId === 'string'
-              ? input.input.providerProfileId
-              : undefined;
+        async executeJob(input) {
+          const profileId = typeof input.execution.input.profileId === 'string'
+            ? input.execution.input.profileId
+            : undefined;
           if (profileId === MOCK_PROFILE_ID) {
             const profile = await commands.getProviderProfile(profileId);
             if (profile.ok) {
               await delay(100);
-              return { ok: true, value: mockJobForSubmit(input, profile.value) };
+              const terminal = mockJobForExecution(input, profile.value);
+              const { output: _output, error: _error, ...created } = terminal;
+              await input.onJobCreated?.({
+                ...created,
+                status: 'created',
+                output: undefined,
+                error: undefined,
+                updatedAt: terminal.createdAt,
+              });
+              return { ok: true, value: terminal };
             }
           }
-          return commands.submitJob(input);
+          return commands.executeJob(input);
         },
         async testProviderProfile(profileId, options) {
           const profile = await commands.getProviderProfile(profileId);

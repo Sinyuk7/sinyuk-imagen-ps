@@ -1,100 +1,122 @@
 /**
  * Workflow registry 实现。
  *
- * 负责保存 declarative workflow specs，并提供按名查找能力。
- * 不承担执行逻辑，也不理解 provider 语义。
+ * Registry 只接受显式 static execution adapter 的 declarative workflows。
  */
 
 import { createWorkflowError } from './errors.js';
-import { assertImmutable, assertSerializable } from './invariants.js';
-import type { Step, Workflow, WorkflowRegistry } from './types/workflow.js';
+import { assertNoSecrets, createImmutableSnapshot } from './invariants.js';
+import type { ExecutionStep, Workflow, WorkflowRegistry } from './types/workflow.js';
 
-/** 合法的 StepKind 集合，用于运行时校验。 */
-const VALID_STEP_KINDS: readonly string[] = ['provider', 'transform', 'io'];
-
-/**
- * 对 workflow step 做最小 shape 收敛。
- *
- * 当前只校验最基本的标识字段，不扩展为完整 schema 系统。
- */
-function normalizeStep(step: Step, workflowName: string, index: number): Step {
-  const stepName = step.name;
-
-  if (typeof stepName !== 'string' || stepName.trim().length === 0) {
-    throw createWorkflowError(
-      `Workflow "${workflowName}" has a step with an empty or invalid name.`,
-      { workflowName, stepIndex: index },
-    );
+function normalizeStep(step: ExecutionStep, workflowName: string, index: number): ExecutionStep {
+  if (typeof step !== 'object' || step === null) {
+    throw createWorkflowError(`Workflow "${workflowName}" has an invalid step.`, {
+      workflowName,
+      stepIndex: index,
+    });
   }
 
-  if (!VALID_STEP_KINDS.includes(step.kind)) {
+  if (typeof step.name !== 'string' || step.name.trim().length === 0) {
+    throw createWorkflowError(`Workflow "${workflowName}" has a step with an empty or invalid name.`, {
+      workflowName,
+      stepIndex: index,
+    });
+  }
+
+  if (step.kind !== 'execution') {
     throw createWorkflowError(
-      `Workflow "${workflowName}" step "${step.name}" has an invalid kind "${step.kind}".`,
+      `Workflow "${workflowName}" step "${step.name}" must use kind "execution".`,
       { workflowName, stepName: step.name, stepIndex: index, kind: step.kind },
     );
   }
 
-  if (step.outputKey !== undefined && step.outputKey.trim().length === 0) {
+  if (typeof step.adapter !== 'string' || step.adapter.trim().length === 0) {
     throw createWorkflowError(
-      `Workflow "${workflowName}" step "${step.name}" has an empty outputKey.`,
+      `Workflow "${workflowName}" step "${step.name}" must declare a non-empty adapter.`,
       { workflowName, stepName: step.name, stepIndex: index },
     );
   }
 
-  if (step.input !== undefined) {
-    assertSerializable(step.input);
-  }
-
-  return assertImmutable({
-    name: step.name,
-    kind: step.kind,
-    input: step.input === undefined ? undefined : assertImmutable({ ...step.input }),
-    outputKey: step.outputKey,
-  }) as Step;
-}
-
-/**
- * 复制并冻结 workflow，确保 registry 内部与调用方隔离。
- */
-function normalizeWorkflow(workflow: Workflow): Workflow {
-  const name = workflow.name;
-
-  if (typeof name !== 'string' || name.trim().length === 0) {
-    throw createWorkflowError('Workflow name must be a non-empty string.', {
-      workflowName: name,
+  if (
+    step.outputKey !== undefined &&
+    (typeof step.outputKey !== 'string' || step.outputKey.trim().length === 0)
+  ) {
+    throw createWorkflowError(`Workflow "${workflowName}" step "${step.name}" has an invalid outputKey.`, {
+      workflowName,
+      stepName: step.name,
+      stepIndex: index,
     });
   }
 
-  const steps = workflow.steps.map((step, index) =>
-    normalizeStep(step, workflow.name, index),
-  );
+  if (
+    step.input !== undefined &&
+    (typeof step.input !== 'object' || step.input === null || Array.isArray(step.input))
+  ) {
+    throw createWorkflowError(`Workflow "${workflowName}" step "${step.name}" input must be a record.`, {
+      workflowName,
+      stepName: step.name,
+      stepIndex: index,
+    });
+  }
 
-  return assertImmutable({
+  try {
+    assertNoSecrets(step.input);
+    return createImmutableSnapshot({
+      name: step.name,
+      kind: 'execution' as const,
+      adapter: step.adapter,
+      input: step.input,
+      outputKey: step.outputKey,
+    }) as ExecutionStep;
+  } catch {
+    throw createWorkflowError(`Workflow "${workflowName}" step "${step.name}" has invalid input.`, {
+      workflowName,
+      stepName: step.name,
+      stepIndex: index,
+    });
+  }
+}
+
+function normalizeWorkflow(workflow: Workflow): Workflow {
+  if (typeof workflow !== 'object' || workflow === null) {
+    throw createWorkflowError('Workflow must be an object.');
+  }
+
+  if (typeof workflow.name !== 'string' || workflow.name.trim().length === 0) {
+    throw createWorkflowError('Workflow name must be a non-empty string.');
+  }
+
+  if (!Array.isArray(workflow.steps)) {
+    throw createWorkflowError(`Workflow "${workflow.name}" steps must be an array.`, {
+      workflowName: workflow.name,
+    });
+  }
+
+  if (workflow.version !== undefined && typeof workflow.version !== 'string') {
+    throw createWorkflowError(`Workflow "${workflow.name}" version must be a string.`, {
+      workflowName: workflow.name,
+    });
+  }
+
+  const steps = workflow.steps.map((step, index) => normalizeStep(step, workflow.name, index));
+  return createImmutableSnapshot({
     name: workflow.name,
     version: workflow.version,
-    steps: assertImmutable(steps),
+    steps,
   }) as Workflow;
 }
 
-/**
- * 创建 workflow registry。
- *
- * @param initialWorkflows - 可选初始 builtin workflows
- */
-export function createWorkflowRegistry(
-  initialWorkflows: readonly Workflow[] = [],
-): WorkflowRegistry {
+/** 创建 workflow registry。 */
+export function createWorkflowRegistry(initialWorkflows: readonly Workflow[] = []): WorkflowRegistry {
   const workflows = new Map<string, Workflow>();
 
   const registry: WorkflowRegistry = {
     register(workflow: Workflow): Workflow {
-      assertSerializable(workflow);
       const snapshot = normalizeWorkflow(workflow);
       if (workflows.has(snapshot.name)) {
-        throw createWorkflowError(
-          `Workflow "${snapshot.name}" is already registered.`,
-          { workflowName: snapshot.name },
-        );
+        throw createWorkflowError(`Workflow "${snapshot.name}" is already registered.`, {
+          workflowName: snapshot.name,
+        });
       }
       workflows.set(snapshot.name, snapshot);
       return snapshot;
@@ -105,7 +127,7 @@ export function createWorkflowRegistry(
     },
 
     list(): readonly Workflow[] {
-      return assertImmutable(Array.from(workflows.values()));
+      return Object.freeze(Array.from(workflows.values()));
     },
   };
 

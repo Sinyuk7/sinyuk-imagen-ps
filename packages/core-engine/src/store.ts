@@ -8,10 +8,18 @@
  * 所有对外返回值为 immutable snapshot，与内部 mutable record 隔离。
  */
 
-import type { Job, JobStore, JobStoreController, JobInput, JobOutput, JobStatus } from './types/job.js';
+import type {
+  Job,
+  JobAttemptMetadata,
+  JobStore,
+  JobStoreController,
+  JobInput,
+  JobOutput,
+  JobStatus,
+} from './types/job.js';
 import type { JobError } from './errors.js';
-import { createValidationError, createRuntimeError } from './errors.js';
-import { assertSerializable, assertImmutable } from './invariants.js';
+import { createExecutionError, createValidationError, createRuntimeError } from './errors.js';
+import { assertNoSecrets, createImmutableSnapshot } from './invariants.js';
 
 /**
  * 内部可变的 job record。
@@ -77,11 +85,10 @@ function makeIdGenerator() {
 /**
  * 将内部 mutable record 转换为对外 immutable snapshot。
  *
- * 使用浅 clone + `assertImmutable` 确保外部无法直接修改内部状态。
+ * 使用 deep clone + freeze 确保外部无法修改内部状态或 binary bytes。
  */
 function toSnapshot(record: InternalJobRecord): Job {
-  const snapshot: InternalJobRecord = { ...record };
-  return assertImmutable(snapshot) as unknown as Job;
+  return createImmutableSnapshot(record) as Job;
 }
 
 /**
@@ -101,18 +108,37 @@ export function createJobStore(): { store: JobStore; controller: JobStoreControl
   const generateId = makeIdGenerator();
 
   const store: JobStore = {
-    submitJob(input: JobInput): Job {
-      assertSerializable(input);
+    submitJob(input: JobInput, attempt?: JobAttemptMetadata): Job {
+      if (typeof input !== 'object' || input === null || Array.isArray(input)) {
+        throw createValidationError('Job input must be a record.');
+      }
+      assertNoSecrets(input);
+      if (
+        attempt !== undefined
+        && (
+          typeof attempt.originJobId !== 'string'
+          || attempt.originJobId.trim().length === 0
+          || !Number.isInteger(attempt.retryAttempt)
+          || attempt.retryAttempt <= 0
+        )
+      ) {
+        throw createValidationError('Job attempt metadata is invalid.');
+      }
+      const inputSnapshot = createImmutableSnapshot(input) as JobInput;
       const id = generateId();
       const ts = now();
       const record: InternalJobRecord = {
         id,
         status: 'created',
-        input,
+        input: inputSnapshot,
         output: undefined,
         error: undefined,
         createdAt: ts,
         updatedAt: ts,
+        ...(attempt !== undefined ? {
+          originJobId: attempt.originJobId,
+          retryAttempt: attempt.retryAttempt,
+        } : {}),
       };
       jobs.set(id, record);
       return toSnapshot(record);
@@ -142,7 +168,7 @@ export function createJobStore(): { store: JobStore; controller: JobStoreControl
       const record: InternalJobRecord = {
         id: newId,
         status: 'created',
-        input: original.input,
+        input: createImmutableSnapshot(original.input) as JobInput,
         output: undefined,
         error: undefined,
         createdAt: ts,
@@ -173,8 +199,18 @@ export function createJobStore(): { store: JobStore; controller: JobStoreControl
         throw createValidationError(`Job "${id}" not found.`, { id });
       }
       assertTransition(record.status, 'completed');
+      let outputSnapshot: JobOutput;
+      try {
+        if (typeof output !== 'object' || output === null || Array.isArray(output)) {
+          throw createExecutionError('Job terminal output must be a record.', { id });
+        }
+        assertNoSecrets(output);
+        outputSnapshot = createImmutableSnapshot(output) as JobOutput;
+      } catch {
+        throw createExecutionError('Job terminal output failed boundary validation.', { id });
+      }
       record.status = 'completed';
-      record.output = output;
+      record.output = outputSnapshot;
       record.updatedAt = now();
       return toSnapshot(record);
     },
@@ -185,8 +221,15 @@ export function createJobStore(): { store: JobStore; controller: JobStoreControl
         throw createValidationError(`Job "${id}" not found.`, { id });
       }
       assertTransition(record.status, 'failed');
+      let errorSnapshot: JobError;
+      try {
+        assertNoSecrets(error);
+        errorSnapshot = createImmutableSnapshot(error) as JobError;
+      } catch {
+        errorSnapshot = createExecutionError('Execution failed with an invalid error payload.', { id });
+      }
       record.status = 'failed';
-      record.error = error;
+      record.error = errorSnapshot;
       record.updatedAt = now();
       return toSnapshot(record);
     },

@@ -35,10 +35,21 @@ export function createCommandsFake(options?: {
     profileModelItems: options?.profileModelItems,
   });
 
-  const submitJob = vi.fn(async (input: Parameters<CommandsPort['submitJob']>[0]) => ({
-    ok: true as const,
-    value: completedJob(input.input),
-  }));
+  let jobSequence = 0;
+  const jobs = new Map<string, ReturnType<typeof completedJob>>();
+  const executeJob = vi.fn(async (input: Parameters<CommandsPort['executeJob']>[0]) => {
+    const terminal = completedJob(input.execution.input, `job-${++jobSequence}`);
+    const { output: _output, error: _error, ...createdBase } = terminal;
+    await input.onJobCreated?.({
+      ...createdBase,
+      status: 'created',
+      output: undefined,
+      error: undefined,
+      updatedAt: terminal.createdAt,
+    });
+    jobs.set(terminal.id, terminal);
+    return { ok: true as const, value: terminal };
+  });
   const taskRecords: TaskRecord[] = [fakeTaskRecord];
   const putTaskRecord = vi.fn(async (record: TaskRecord) => {
     const index = taskRecords.findIndex((item) => item.taskId === record.taskId);
@@ -125,10 +136,9 @@ export function createCommandsFake(options?: {
   const listProviderProfiles = vi.fn(async () => ({ ok: true as const, value: profiles }));
 
   const commands: CommandsPort = {
-    submitJob,
-    getJob: vi.fn(() => completedJob({})),
+    executeJob,
+    getJob: vi.fn((jobId: string) => jobs.get(jobId)),
     subscribeJobEvents,
-    retryJob: vi.fn(async () => ({ ok: true as const, value: completedJob({}) })),
     listJobHistoryRecords,
     putTaskRecord,
     getTaskRecord: vi.fn(async (taskId: string) => taskRecords.find((record) => record.taskId === taskId)),
@@ -155,7 +165,7 @@ export function createCommandsFake(options?: {
     commands,
     modelGenerationPreferences: modelConfig.modelGenerationPreferences,
     spies: {
-      submitJob,
+      executeJob,
       listProviders,
       describeProvider,
       classifyEndpoint: classifyEndpointSpy,

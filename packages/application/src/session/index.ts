@@ -1,5 +1,5 @@
 export { createImagenSession } from './session.js';
-export { MAX_RUNNING_TASKS_GLOBAL, MAX_RUNNING_TASKS_PER_PROFILE } from './queue-policy.js';
+export { MAX_RUNNING_TASKS_GLOBAL } from './queue-policy.js';
 
 export type {
   ApplicationError,

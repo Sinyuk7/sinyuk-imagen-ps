@@ -192,7 +192,7 @@ export async function saveTaskOutputToFile(record: TaskRecord, outputId: string,
   }
   const fallbackName = suggestedGeneratedImageFileName({
     createdAt: record.createdAt,
-    providerName: record.execution?.profileName ?? record.execution?.providerName ?? record.execution?.profileId ?? record.execution?.providerId,
+    providerName: record.execution?.connection?.label ?? record.execution?.backend.label,
     prompt: record.prompt,
     outputIndex: output.index,
     outputCount: record.outputs.length,

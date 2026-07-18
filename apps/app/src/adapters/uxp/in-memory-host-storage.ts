@@ -1,4 +1,4 @@
-import { decodeTaskRecord } from '@imagen-ps/application';
+import { assertTaskRecord, decodeTaskRecord } from '@imagen-ps/application';
 import type {
   AssetStore,
   DurableJobRecord,
@@ -145,10 +145,12 @@ export function createInMemoryTaskStore(): TaskStore {
   const records = new Map<string, TaskRecord>();
   return {
     async put(record: TaskRecord): Promise<void> {
+      assertTaskRecord(record);
       records.set(record.taskId, record);
     },
     async get(taskId: string): Promise<TaskRecord | undefined> {
-      return records.get(taskId);
+      const decoded = decodeTaskRecord(records.get(taskId));
+      return decoded.ok ? decoded.value : undefined;
     },
     async list(query?: { readonly limit?: number; readonly status?: string }): Promise<readonly TaskRecord[]> {
       const values = Array.from(records.values())

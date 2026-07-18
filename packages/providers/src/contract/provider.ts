@@ -1,4 +1,3 @@
-import type { ProviderDispatchAdapter } from '@imagen-ps/core-engine';
 import type { Logger } from '@imagen-ps/foundation';
 import type { ProviderFamily, ProviderOperation } from './capability.js';
 import type { ApiFormat } from './api-format.js';
@@ -10,15 +9,14 @@ import type {
 } from './billing.js';
 import type { ProviderConfig } from './config.js';
 import type { DiscoveredModel, ProviderModelInfo } from './model.js';
-import type { CanonicalImageJobRequest, ProviderRequest } from './request.js';
+import type { CanonicalImageJobRequest } from './request.js';
 import type { ProviderInvokeResult } from './result.js';
 
 /**
- * Provider 主契约与 bridge 契约。
+ * Provider 主契约。
  *
- * `Provider` 拥有 provider semantics；
- * `ProviderDispatchAdapter` 属于 `core-engine` 的最小调用边界；
- * 两者之间通过显式 bridge 连接，避免 engine 反向理解 provider 内部语义。
+ * `Provider` 拥有 provider semantics；backend-neutral execution bridge 位于
+ * `bridge/`，避免本契约反向依赖 Core adapter 命名。
  */
 
 /**
@@ -331,27 +329,4 @@ export interface Provider<TConfig = ProviderConfig, TRequest = CanonicalImageJob
    * 从 provider invoke result 提取精确或部分精确的单次远端请求成本（OPTIONAL）。
    */
   extractTaskCost?(result: ProviderInvokeResult): ExactTaskCost | undefined;
-}
-
-/** bridge 创建 `ProviderDispatchAdapter` 所需的输入。 */
-export interface ProviderDispatchBridgeArgs<TConfig = ProviderConfig, TRequest extends ProviderRequest = ProviderRequest> {
-  /** 待适配的 provider 实例。 */
-  readonly provider: Provider<TConfig, TRequest>;
-
-  /** 已校验的 provider config。 */
-  readonly config: TConfig;
-
-  /** 可选 Logger；会传递给 provider.invoke()。 */
-  readonly logger?: Logger;
-}
-
-/** 从 `Provider` 到 `ProviderDispatchAdapter` 的显式桥接契约。 */
-export interface ProviderDispatchBridge<TConfig = ProviderConfig, TRequest extends ProviderRequest = ProviderRequest> {
-  /**
-   * 创建 `core-engine` 可消费的 dispatch adapter。
-   *
-   * 该 bridge 只负责收敛 provider 语义，不负责 registry、runtime lifecycle
-   * 或 transport retry 等实现细节。
-   */
-  createDispatchAdapter(args: ProviderDispatchBridgeArgs<TConfig, TRequest>): ProviderDispatchAdapter;
 }

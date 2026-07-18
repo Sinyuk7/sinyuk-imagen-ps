@@ -17,13 +17,13 @@ export function useImagenSession(services: AppServices): ImagenSessionBinding {
   const session = useMemo(
     () =>
       createImagenSession({
+        ...(services.generationBackends !== undefined ? { backends: services.generationBackends } : {}),
         commands: {
-          submitJob: services.commands.submitJob,
-          retryJob: services.commands.retryJob,
+          executeJob: services.commands.executeJob,
           getJob: services.commands.getJob,
           subscribeJobEvents: services.commands.subscribeJobEvents,
           putTaskRecord: services.commands.putTaskRecord,
-          getProviderProfile: services.commands.getProviderProfile,
+          getTaskRecord: services.commands.getTaskRecord,
         },
       }),
     [services],

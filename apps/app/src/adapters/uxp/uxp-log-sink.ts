@@ -55,13 +55,6 @@ export interface UxpFlightRecorder {
   fail(event: string, error: unknown, attrs?: Record<string, unknown>, extra?: Partial<LogRecord>): Promise<void>;
 }
 
-declare global {
-  // eslint-disable-next-line no-var
-  var __IMAGEN_PS_UI_FLIGHT_RECORDER__: UxpFlightRecorder | undefined;
-  // eslint-disable-next-line no-var
-  var __IMAGEN_PS_DIAGNOSTIC_DISABLE_UI_FLIGHT_RECORDER__: boolean | undefined;
-}
-
 function toISODate(d: Date): string {
   return d.toISOString().slice(0, 10);
 }

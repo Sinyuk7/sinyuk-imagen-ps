@@ -13,15 +13,15 @@ describe('MainPage session queue', () => {
     const container = document.createElement('div');
     document.body.appendChild(container);
     const fake = createFakeServices({ activeImageProfileId: 'mock-profile' });
-    const submitJob = vi.spyOn(fake.services.commands, 'submitJob').mockImplementation(() => new Promise(() => undefined));
+    const executeJob = vi.spyOn(fake.services.commands, 'executeJob').mockImplementation(() => new Promise(() => undefined));
     await renderMainPage(container, fake);
 
     await sendPrompt(container, 'first queued task');
     await sendPrompt(container, 'second queued task');
     await sendPrompt(container, 'third queued task');
 
-    expect(submitJob).toHaveBeenCalledTimes(2);
-    expect(fake.spies.putTaskRecord).toHaveBeenCalledTimes(2);
+    expect(executeJob).toHaveBeenCalledTimes(2);
+    expect(fake.spies.putTaskRecord).not.toHaveBeenCalled();
     expect(container.querySelectorAll('div[data-testid^="queued-task-"]')).toHaveLength(3);
     expect(container.textContent).toContain('排队中 · #3');
     await act(async () => {
@@ -37,7 +37,7 @@ describe('MainPage session queue', () => {
     await flush();
 
     expect(container.querySelectorAll('div[data-testid^="queued-task-"]')).toHaveLength(2);
-    expect(submitJob).toHaveBeenCalledTimes(2);
-    expect(fake.spies.putTaskRecord).toHaveBeenCalledTimes(2);
+    expect(executeJob).toHaveBeenCalledTimes(2);
+    expect(fake.spies.putTaskRecord).not.toHaveBeenCalled();
   });
 });

@@ -4,8 +4,7 @@
  * 本模块定义 commands 层的公共类型契约。
  */
 
-import type { DurableJobRecord, Job, JobError, JobEvent, JobInput, JobStatus, StoredAssetRef, TaskRecord, TaskStatus } from '@imagen-ps/core-engine';
-import type { Logger } from '@imagen-ps/foundation';
+import type { DurableJobRecord, JobError, JobEvent, JobStatus, StoredAssetRef } from '@imagen-ps/core-engine';
 import type {
   ApiFormat,
   BillingProtocolId,
@@ -51,29 +50,33 @@ export type {
 export type { BalanceChange, ExactTaskCost, ProviderBalanceSnapshot } from '@imagen-ps/providers';
 export type {
   Asset,
-  DecodeTaskRecordResult,
   DurableJobRecord,
-  FileEvidence,
   Job,
   JobError,
   JobEvent,
   JobStatus,
+  StoredAssetRef,
+  Unsubscribe,
+} from '@imagen-ps/core-engine';
+export type {
+  DecodeTaskRecordResult,
+  FileEvidence,
   Rect,
   ResolvedPreview,
   ResolvedTaskResource,
-  StoredAssetRef,
   TaskAttachment,
   TaskEvidence,
   TaskError,
-  TaskExecutionSnapshot,
+  TaskExecutionIdentity,
+  TaskExecutionSummary,
   TaskOperation,
   TaskOutput,
   TaskPlacement,
   TaskRecord,
   TaskResourceRef,
   TaskStatus,
-  Unsubscribe,
-} from '@imagen-ps/core-engine';
+  TaskStore,
+} from '../task.js';
 
 // 为本模块内部使用引入类型别名
 type ProviderConfig = _ProviderConfig;
@@ -87,53 +90,6 @@ type ProviderConfig = _ProviderConfig;
 export type CommandResult<T> =
   | { readonly ok: true; readonly value: T }
   | { readonly ok: false; readonly error: JobError };
-
-/**
- * Builtin workflow 名称 union。
- *
- * 约束 `submitJob` 的 workflow 参数仅能传入已知 workflow 名称。
- */
-export type BuiltinWorkflowName = 'provider-generate' | 'provider-edit';
-
-/**
- * `submitJob` 命令的输入参数。
- *
- * @property workflow - 要执行的 workflow 名称
- * @property input - job 输入数据，具体字段取决于 workflow 要求
- */
-export interface SubmitJobInput {
-  /** 要执行的 workflow 名称。 */
-  readonly workflow: BuiltinWorkflowName;
-
-  /** Job 输入数据。 */
-  readonly input: JobInput;
-
-  /** 可选取消信号；不进入 durable job input。 */
-  readonly signal?: AbortSignal;
-
-  /** 可选调用方 logger；不进入 durable job input。 */
-  readonly logger?: Logger;
-
-  /** Session queue 在真实 dispatch 时写入的 durable running task 快照。 */
-  readonly taskRecord?: TaskRecord;
-
-  /** Job 创建后的可选 handoff；完成后才进入 provider execution。 */
-  readonly onJobCreated?: (job: Job) => void | Promise<void>;
-}
-
-/**
- * `retryJob` 命令的输入参数。
- *
- * @property jobId - 要重试的失败 job id
- * @property logger - 可选调用方 logger；不进入 durable job input
- */
-export interface RetryJobInput {
-  /** 要重试的失败 job id。 */
-  readonly jobId: string;
-
-  /** 可选调用方 logger；不进入 durable job input。 */
-  readonly logger?: Logger;
-}
 
 /** Job lifecycle 事件处理器，接收所有事件类型 */
 export type JobEventHandler = (event: JobEvent) => void;
@@ -313,14 +269,6 @@ export interface JobHistoryStore {
   get(jobId: string): Promise<DurableJobRecord | undefined>;
   list(query?: { readonly limit?: number; readonly status?: JobStatus }): Promise<readonly DurableJobRecord[]>;
   delete(jobId: string): Promise<void>;
-}
-
-/** Host-injected durable task store. Upsert is keyed by taskId. */
-export interface TaskStore {
-  put(record: TaskRecord): Promise<void>;
-  get(taskId: string): Promise<TaskRecord | undefined>;
-  list(query?: { readonly limit?: number; readonly status?: TaskStatus }): Promise<readonly TaskRecord[]>;
-  delete(taskId: string): Promise<void>;
 }
 
 /** Host-injected binary asset store. Implementations own host-specific object resolution. */

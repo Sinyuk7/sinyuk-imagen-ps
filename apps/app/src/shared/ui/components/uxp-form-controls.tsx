@@ -12,7 +12,8 @@ import {
   type RefObject,
   type TextareaHTMLAttributes,
 } from 'react';
-import { writeUxpUiCheckpoint } from '../../../adapters/uxp/uxp-log-sink';
+import { useOptionalAppServices } from '../../ports/app-services-context';
+import { getGlobalDiagnosticsPort } from '../../ports/diagnostics-port';
 import { usePopupLayer } from './popup-layer';
 
 export type UxpTextInputType = 'text' | 'password' | 'url' | 'search';
@@ -306,6 +307,8 @@ export function UxpTextArea({
   const deleteProbeRef = useRef<TextAreaDeleteProbe | null>(null);
   const deleteProbeRequestRef = useRef(0);
   const loggedDiagnosticKeysRef = useRef<Set<string>>(new Set());
+  const services = useOptionalAppServices();
+  const diagnostics = services?.diagnostics ?? getGlobalDiagnosticsPort();
   const popupLayer = usePopupLayer();
   const fallbackEditorId = useId();
   const editorId = id ?? dataTestId ?? fallbackEditorId;
@@ -317,11 +320,11 @@ export function UxpTextArea({
       return;
     }
     loggedDiagnosticKeysRef.current.add(diagnosticKey);
-    void writeUxpUiCheckpoint(event, {
+    void diagnostics?.checkpoint(event, {
       editorId,
       ...attrs,
     });
-  }, [editorId]);
+  }, [diagnostics, editorId]);
 
   const bindRef = (element: HTMLTextAreaElement | null): void => {
     textAreaRef.current = element;

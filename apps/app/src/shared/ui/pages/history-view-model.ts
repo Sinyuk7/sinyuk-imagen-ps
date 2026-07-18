@@ -27,7 +27,7 @@ export interface HistoryItemViewModel {
   readonly id: string;
   readonly taskId: string;
   readonly promptPreview: string;
-  readonly providerLabel: string;
+  readonly executionLabel: string;
   readonly status: RoundStatus;
   readonly displayTime: string;
   readonly displayTimestamp: string;
@@ -68,8 +68,8 @@ function statusFromRecord(record: TaskRecord): RoundStatus {
   return 'running';
 }
 
-function providerFromRecord(record: TaskRecord, fallback: string): string {
-  return record.execution?.profileName ?? record.execution?.providerName ?? record.execution?.profileId ?? record.execution?.providerId ?? fallback;
+function executionLabelFromRecord(record: TaskRecord, fallback: string): string {
+  return record.execution?.connection?.label ?? record.execution?.backend.label ?? fallback;
 }
 
 function timeFromIso(value: string): string {
@@ -170,12 +170,12 @@ export function deriveHistoryItems(input: DeriveHistoryItemsInput): readonly His
 
   for (const record of input.durableRecords) {
     const previewState = previewStateForOutput(record, input.previews);
-    const providerLabel = toLabelPreview(providerFromRecord(record, input.unknownProvider), input.unknownProvider);
+    const executionLabel = toLabelPreview(executionLabelFromRecord(record, input.unknownProvider), input.unknownProvider);
     const item: HistoryItemViewModel = {
       id: record.taskId,
       taskId: record.taskId,
       promptPreview: toHistoryTextPreview(record.prompt, input.noPrompt),
-      providerLabel,
+      executionLabel,
       status: statusFromRecord(record),
       displayTimestamp: durableTimestamp(record),
       displayTime: timeFromIso(durableTimestamp(record)),
@@ -206,7 +206,7 @@ export function deriveHistoryItems(input: DeriveHistoryItemsInput): readonly His
       id: round.id,
       taskId: round.id,
       promptPreview: toHistoryTextPreview(existing?.taskRecord?.prompt ?? round.prompt, input.noPrompt),
-      providerLabel: toLabelPreview(existing?.providerLabel ?? round.providerName, input.unknownProvider),
+      executionLabel: toLabelPreview(existing?.executionLabel ?? round.providerName, input.unknownProvider),
       status: round.status,
       displayTimestamp: round.createdAt ?? existing?.displayTimestamp ?? '',
       displayTime: round.time,

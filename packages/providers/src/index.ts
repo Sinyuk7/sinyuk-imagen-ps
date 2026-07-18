@@ -87,8 +87,6 @@ export type {
   ProviderDiagnostic,
   ProviderDiagnosticLevel,
   ProviderDiagnostics,
-  ProviderDispatchBridge,
-  ProviderDispatchBridgeArgs,
   ProviderFamily,
   ProviderImplementationId,
   ProviderInvokeArgs,
@@ -174,4 +172,14 @@ export {
 } from './providers/gemini-generate-content/index.js';
 
 // Bridge adapter
-export { createDispatchAdapter } from './bridge/index.js';
+export type {
+  CreateProviderExecutionAdapterOptions,
+  ProviderExecutionConfigRef,
+  ProviderExecutionConfigResolver,
+  ProviderExecutionRequestMaterializationInput,
+  ProviderExecutionRequestMaterializer,
+} from './bridge/index.js';
+export {
+  createProviderExecutionAdapter,
+  PROVIDER_EXECUTION_ADAPTER_ID,
+} from './bridge/index.js';

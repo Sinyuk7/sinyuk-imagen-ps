@@ -1,20 +1,29 @@
 /**
- * Provider dispatch 边界实现。
+ * Backend-neutral execution dispatch 边界实现。
  *
- * 本文件只负责 adapter 查找、边界校验与错误映射；
- * 不理解 provider 参数语义，也不触碰 transport 细节。
+ * 本文件只负责 adapter 查找、边界校验与错误映射；不解释 params 语义。
  */
 
-import { createProviderError, createValidationError } from './errors.js';
-import { assertImmutable, assertSerializable } from './invariants.js';
-import type { ProviderDispatchAdapter, ProviderDispatchContext, ProviderDispatcher, ProviderRef } from './types/provider.js';
-import type { JobError } from './errors.js';
+import { createExecutionError, createValidationError } from './errors.js';
+import { assertNoSecrets, createImmutableSnapshot } from './invariants.js';
+import type {
+  ExecutionAdapter,
+  ExecutionContext,
+  ExecutionDispatcher,
+  ExecutionRef,
+} from './types/execution.js';
+import type { ErrorCategory, JobError } from './errors.js';
 import type { Logger } from '@imagen-ps/foundation';
 import { createNullLogger } from '@imagen-ps/foundation';
 
-// ------------------------------------------------------------------
-// 判断 unknown 是否已是 `JobError`
-// ------------------------------------------------------------------
+const ERROR_CATEGORIES: ReadonlySet<ErrorCategory> = new Set([
+  'validation',
+  'execution',
+  'provider',
+  'runtime',
+  'workflow',
+  'unknown',
+]);
 
 function isJobError(error: unknown): error is JobError {
   if (typeof error !== 'object' || error === null) {
@@ -22,169 +31,135 @@ function isJobError(error: unknown): error is JobError {
   }
 
   const candidate = error as Partial<JobError>;
-  return typeof candidate.category === 'string' && typeof candidate.message === 'string';
+  return (
+    typeof candidate.category === 'string' &&
+    ERROR_CATEGORIES.has(candidate.category as ErrorCategory) &&
+    typeof candidate.message === 'string'
+  );
 }
 
-// ------------------------------------------------------------------
-// 错误映射
-// ------------------------------------------------------------------
+function normalizeStructuredError(error: JobError, adapter: string): JobError {
+  try {
+    assertNoSecrets(error);
+    return createImmutableSnapshot(error) as JobError;
+  } catch {
+    return createExecutionError('Execution adapter threw an invalid structured error.', { adapter });
+  }
+}
 
-/**
- * 将任意 thrown value 收敛为 `JobError`。
- */
-function toDispatchError(error: unknown, provider: string): JobError {
+function toExecutionError(error: unknown, adapter: string): JobError {
   if (isJobError(error)) {
-    return error;
+    return normalizeStructuredError(error, adapter);
   }
 
   if (error instanceof Error) {
-    return createProviderError(error.message, {
-      provider,
-      name: error.name,
-    });
+    return createExecutionError('Execution adapter failed.', { adapter, name: error.name });
   }
 
-  return createProviderError('Provider dispatch failed.', {
-    provider,
-    cause: String(error),
-  });
+  return createExecutionError('Execution adapter failed.', { adapter });
 }
 
-// ------------------------------------------------------------------
-// Deep freeze helper（dispatch 边界需要比 assertImmutable 更强的保证）
-// ------------------------------------------------------------------
+function normalizeExecutionRef(ref: ExecutionRef): ExecutionRef {
+  if (typeof ref !== 'object' || ref === null) {
+    throw createValidationError('ExecutionRef must be an object.');
+  }
+
+  const adapter = ref.adapter;
+  if (typeof adapter !== 'string' || adapter.trim().length === 0) {
+    throw createValidationError('ExecutionRef.adapter must be a non-empty string.');
+  }
+
+  const params = ref.params;
+  if (typeof params !== 'object' || params === null || Array.isArray(params)) {
+    throw createValidationError('ExecutionRef.params must be a record.', { adapter });
+  }
+
+  assertNoSecrets(params);
+  const paramsSnapshot = createImmutableSnapshot(params) as Record<string, unknown>;
+  return Object.freeze({ adapter, params: paramsSnapshot });
+}
 
 /**
- * 递归冻结对象或数组的所有层级。
+ * 创建最小 `ExecutionDispatcher`。
  *
- * 与 `assertImmutable` 的浅 freeze 不同，本函数确保嵌套结构也完全不可变。
- */
-function deepFreeze<T>(value: T): T {
-  if (value === null || typeof value !== 'object') {
-    return value;
-  }
-
-  // typed array / DataView 不能 freeze（V8 抛出 "Cannot freeze array buffer
-  // views with elements"）。它们在边界语义上等同于不可分解的二进制载荷，
-  // 直接透传即可——dispatch 边界的 immutability 承诺不覆盖 buffer 内容。
-  if (ArrayBuffer.isView(value)) {
-    return value;
-  }
-
-  if (Object.isFrozen(value)) {
-    return value;
-  }
-
-  Object.freeze(value);
-
-  if (Array.isArray(value)) {
-    for (const item of value) {
-      deepFreeze(item);
-    }
-  } else {
-    for (const key of Object.keys(value as Record<string, unknown>)) {
-      deepFreeze((value as Record<string, unknown>)[key]);
-    }
-  }
-
-  return value;
-}
-
-// ------------------------------------------------------------------
-// ProviderRef 校验与隔离
-// ------------------------------------------------------------------
-
-/**
- * 创建与调用方隔离的 immutable `ProviderRef`。
- */
-function normalizeProviderRef(ref: ProviderRef): ProviderRef {
-  const provider = ref.provider;
-
-  if (typeof provider !== 'string' || provider.trim().length === 0) {
-    throw createValidationError('ProviderRef.provider must be a non-empty string.', {
-      provider,
-    });
-  }
-
-  assertSerializable(ref.params);
-
-  return assertImmutable({
-    provider,
-    params: { ...ref.params },
-  }) as ProviderRef;
-}
-
-/**
- * 创建最小 ProviderDispatcher。
- *
- * @param adapters - provider id 到 adapter 的静态映射
+ * @param adapters - stable adapter id 到 adapter 的静态映射
  * @param logger - 可选 Logger
  */
-export function createProviderDispatcher(
-  adapters: readonly ProviderDispatchAdapter[] = [],
+export function createExecutionDispatcher(
+  adapters: readonly ExecutionAdapter[] = [],
   logger?: Logger,
-): ProviderDispatcher {
-  const adapterMap = new Map<string, ProviderDispatchAdapter>();
+): ExecutionDispatcher {
+  const adapterMap = new Map<string, ExecutionAdapter>();
   const dispatcherLogger = logger ?? createNullLogger();
 
   for (const adapter of adapters) {
-    if (adapter.provider.trim().length === 0) {
-      throw createValidationError('ProviderDispatchAdapter.provider must not be empty.');
+    if (typeof adapter !== 'object' || adapter === null) {
+      throw createValidationError('ExecutionAdapter must be an object.');
     }
-
-    if (adapterMap.has(adapter.provider)) {
-      throw createValidationError(`ProviderDispatchAdapter "${adapter.provider}" is already registered.`, {
-        provider: adapter.provider,
+    if (typeof adapter.adapter !== 'string' || adapter.adapter.trim().length === 0) {
+      throw createValidationError('ExecutionAdapter.adapter must be a non-empty string.');
+    }
+    if (typeof adapter.dispatch !== 'function') {
+      throw createValidationError(`ExecutionAdapter "${adapter.adapter}" must define dispatch().`, {
+        adapter: adapter.adapter,
       });
     }
 
-    adapterMap.set(adapter.provider, adapter);
+    if (adapterMap.has(adapter.adapter)) {
+      throw createValidationError(`ExecutionAdapter "${adapter.adapter}" is already registered.`, {
+        adapter: adapter.adapter,
+      });
+    }
+
+    adapterMap.set(adapter.adapter, adapter);
   }
 
   return {
-    async dispatch(ref: ProviderRef, context?: ProviderDispatchContext): Promise<unknown> {
-      const normalizedRef = normalizeProviderRef(ref);
-      const adapter = adapterMap.get(normalizedRef.provider);
+    async dispatch(ref: ExecutionRef, context?: ExecutionContext): Promise<unknown> {
+      const normalizedRef = normalizeExecutionRef(ref);
+      const adapter = adapterMap.get(normalizedRef.adapter);
       if (!adapter) {
-        throw createProviderError(`No provider adapter registered for "${normalizedRef.provider}".`, {
-          provider: normalizedRef.provider,
+        throw createValidationError(`No execution adapter registered for "${normalizedRef.adapter}".`, {
+          adapter: normalizedRef.adapter,
         });
       }
 
       const dispatchLogger = (context?.logger ?? dispatcherLogger).child({
         package: 'core-engine',
         component: 'dispatch',
-        provider_id: normalizedRef.provider,
       });
-      const span = dispatchLogger.startSpan('dispatch.provider');
+      const span = dispatchLogger.startSpan('dispatch.execution', { adapter: normalizedRef.adapter });
+
+      let result: unknown;
+      try {
+        result = await adapter.dispatch(normalizedRef.params, context);
+      } catch (error) {
+        const mapped = toExecutionError(error, normalizedRef.adapter);
+        span.fail(mapped);
+        throw mapped;
+      }
 
       try {
-        const result = await adapter.dispatch(normalizedRef.params, context);
-        assertSerializable(result);
-        if (typeof result === 'object' && result !== null) {
-          // 先做浅拷贝切断与 adapter 内部状态的引用，再递归 freeze
-          const snapshot = Array.isArray(result) ? [...result] : { ...(result as Record<string, unknown>) };
-          const frozen = deepFreeze(snapshot);
-          span.finish();
-          return frozen;
-        }
+        assertNoSecrets(result);
+        const snapshot = createImmutableSnapshot(result);
         span.finish();
-        return result;
-      } catch (error) {
-        span.fail(error);
-        throw toDispatchError(error, normalizedRef.provider);
+        return snapshot;
+      } catch {
+        const mapped = createExecutionError('Execution adapter returned an invalid output.', {
+          adapter: normalizedRef.adapter,
+        });
+        span.fail(mapped);
+        throw mapped;
       }
     },
   };
 }
 
-/**
- * 通过抽象 dispatcher 执行一次 provider 调用。
- */
-export async function dispatchProvider(
-  dispatcher: ProviderDispatcher,
-  ref: ProviderRef,
-  context?: ProviderDispatchContext,
+/** 通过抽象 dispatcher 执行一次 backend-neutral dispatch。 */
+export async function dispatchExecution(
+  dispatcher: ExecutionDispatcher,
+  ref: ExecutionRef,
+  context?: ExecutionContext,
 ): Promise<unknown> {
   return dispatcher.dispatch(ref, context);
 }

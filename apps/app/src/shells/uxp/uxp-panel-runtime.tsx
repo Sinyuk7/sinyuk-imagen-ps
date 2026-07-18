@@ -168,7 +168,6 @@ function exposeHostSmokeHandle(host: PluginHostShell | undefined, resolveModules
     testProfile: host.services.commands.testProviderProfile,
     listModels: host.services.commands.listProfileModels,
     refreshModels: host.services.commands.refreshProfileModels,
-    submitJob: host.services.commands.submitJob,
     listHistory: host.services.commands.listJobHistoryRecords,
     listLayers: host.services.host.listLayers,
     readLayerAsAsset: host.services.host.readLayerAsAsset,

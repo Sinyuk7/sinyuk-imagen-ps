@@ -5,6 +5,7 @@ import { createMemoryGenerationSettingsStore, type AppGenerationSettings } from 
 import { createMemoryPromptSettingsStore, type PromptSettings } from '../../../src/shared/ports/prompt-settings';
 import { createCommandsFake } from './commands.fake';
 import { createHostFake } from './host.fake';
+import { createGenerationBackendFake } from './generation-backend.fake';
 import { createTaskResourceThumbnailHelper } from './task-resource-thumbnail.helper';
 
 export function createFakeServices(options?: {
@@ -42,6 +43,7 @@ export function createFakeServices(options?: {
   return {
     services: {
       commands: commandsFake.commands,
+      generationBackends: [createGenerationBackendFake()],
       host: hostFake.host,
       generationSettings: createMemoryGenerationSettingsStore(options?.generationSettings),
       modelGenerationPreferences: commandsFake.modelGenerationPreferences,

@@ -1,5 +1,5 @@
 import type { AssetStore, DurableJobRecord, JobHistoryStore, StoredAssetRef, TaskRecord, TaskStore } from '@imagen-ps/application';
-import { assertTaskRecord, decodeTaskRecord } from '@imagen-ps/application';
+import { TASK_RECORD_SCHEMA_VERSION, assertTaskRecord, decodeTaskRecord } from '@imagen-ps/application';
 import { ensurePlaceableImagePayload } from '../../shared/image-payload-preflight';
 import { createInMemoryAssetStore, createInMemoryJobHistoryStore, createInMemoryTaskStore } from './in-memory-host-storage';
 import type { UxpModules } from './uxp-api';
@@ -44,7 +44,7 @@ interface JobHistoryFile {
 }
 
 interface TaskHistoryFile {
-  readonly schemaVersion: 1;
+  readonly schemaVersion: typeof TASK_RECORD_SCHEMA_VERSION;
   readonly records: readonly unknown[];
 }
 
@@ -96,11 +96,14 @@ function parseHistory(raw: string): JobHistoryFile {
 
 function parseTaskHistory(raw: string): TaskHistoryFile {
   if (raw.trim().length === 0) {
-    return { schemaVersion: 1, records: [] };
+    return { schemaVersion: TASK_RECORD_SCHEMA_VERSION, records: [] };
   }
   const parsed = JSON.parse(raw) as Partial<TaskHistoryFile>;
+  if (parsed.schemaVersion !== TASK_RECORD_SCHEMA_VERSION) {
+    return { schemaVersion: TASK_RECORD_SCHEMA_VERSION, records: [] };
+  }
   return {
-    schemaVersion: 1,
+    schemaVersion: TASK_RECORD_SCHEMA_VERSION,
     records: Array.isArray(parsed.records) ? parsed.records : [],
   };
 }
@@ -220,13 +223,13 @@ export function createUxpTaskStore(modules: UxpModules): TaskStore {
       const raw = await file.read({ format: localFileSystem.formats?.utf8 });
       return parseTaskHistory(String(raw));
     } catch {
-      return { schemaVersion: 1, records: [] };
+      return { schemaVersion: TASK_RECORD_SCHEMA_VERSION, records: [] };
     }
   }
 
   async function writeAll(records: readonly unknown[]): Promise<void> {
     const file = await getOrCreateFile(localFileSystem, fileName);
-    await file.write(JSON.stringify({ schemaVersion: 1, records }, null, 2), {
+    await file.write(JSON.stringify({ schemaVersion: TASK_RECORD_SCHEMA_VERSION, records }, null, 2), {
       format: localFileSystem.formats?.utf8,
     });
   }
@@ -241,16 +244,11 @@ export function createUxpTaskStore(modules: UxpModules): TaskStore {
     return typeof query?.limit === 'number' ? values.slice(0, query.limit) : values;
   }
 
-  function decodedTaskId(record: unknown): string | undefined {
-    const result = decodeTaskRecord(record);
-    return result.ok ? result.value.taskId : result.taskId;
-  }
-
   return {
     async put(record: TaskRecord): Promise<void> {
       assertTaskRecord(record);
       const file = await readAll();
-      await writeAll([...file.records.filter((item) => decodedTaskId(item) !== record.taskId), record]);
+      await writeAll([...decoded(file.records).filter((item) => item.taskId !== record.taskId), record]);
     },
     async get(taskId: string): Promise<TaskRecord | undefined> {
       return decoded((await readAll()).records).find((record) => record.taskId === taskId);
@@ -260,7 +258,7 @@ export function createUxpTaskStore(modules: UxpModules): TaskStore {
     },
     async delete(taskId: string): Promise<void> {
       const file = await readAll();
-      await writeAll(file.records.filter((record) => decodedTaskId(record) !== taskId));
+      await writeAll(decoded(file.records).filter((record) => record.taskId !== taskId));
     },
   };
 }
@@ -312,7 +310,7 @@ export function createUxpAssetStore(modules: UxpModules): AssetStore {
 }
 
 export interface UxpTaskHistoryFile {
-  readonly schemaVersion: 1;
+  readonly schemaVersion: typeof TASK_RECORD_SCHEMA_VERSION;
   readonly records: readonly unknown[];
 }
 
@@ -338,7 +336,7 @@ export function createUxpStorageAdmin(modules: UxpModules): {
         const raw = await file.read({ format: localFileSystem.formats?.utf8 });
         return parseTaskHistory(String(raw));
       } catch {
-        return { schemaVersion: 1, records: [] };
+        return { schemaVersion: TASK_RECORD_SCHEMA_VERSION, records: [] };
       }
     },
     async listAssetRefs(): Promise<readonly string[]> {

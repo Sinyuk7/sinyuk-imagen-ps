@@ -7,7 +7,7 @@ import type { PromptSettingsStore } from './prompt-settings';
 import type { ActiveImageProfileStore } from './active-image-profile';
 import type { AppPathInfoPort } from './app-path-info';
 import type { ThumbnailStore } from '../image/thumbnail-store';
-import type { ResolvedTaskResource, TaskResourceRef } from '@imagen-ps/application';
+import type { GenerationBackend, ResolvedTaskResource, TaskResourceRef } from '@imagen-ps/application';
 import type { RetentionPort } from '../retention/controller';
 
 export interface TaskResourceResolverPort {
@@ -16,6 +16,8 @@ export interface TaskResourceResolverPort {
 
 export interface AppServices {
   readonly commands: CommandsPort;
+  /** 测试或宿主 composition 可显式替换 Session backend registry。 */
+  readonly generationBackends?: readonly GenerationBackend[];
   readonly host: HostBridge;
   readonly generationSettings: AppGenerationSettingsStore;
   readonly modelGenerationPreferences: AppModelGenerationPreferenceRepository;

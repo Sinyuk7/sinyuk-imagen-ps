@@ -1,4 +1,9 @@
-import type { DurableJobRecord, Job, TaskRecord } from '@imagen-ps/application';
+import {
+  TASK_RECORD_SCHEMA_VERSION,
+  type DurableJobRecord,
+  type Job,
+  type TaskRecord,
+} from '@imagen-ps/application';
 import { fakeOutputAsset } from './assets.fixtures';
 
 export const fakeDurableRecord: DurableJobRecord = {
@@ -16,7 +21,7 @@ export const fakeDurableRecord: DurableJobRecord = {
 };
 
 export const fakeTaskRecord: TaskRecord = {
-  schemaVersion: 1,
+  schemaVersion: TASK_RECORD_SCHEMA_VERSION,
   taskId: 'task-history-1',
   status: 'completed',
   operation: 'text-to-image',
@@ -38,17 +43,17 @@ export const fakeTaskRecord: TaskRecord = {
   }],
   placement: { kind: 'unbound', reason: 'no-photoshop-source' },
   execution: {
-    profileId: 'mock-profile',
-    profileName: 'Mock Profile',
+    backend: { id: 'provider', label: 'Provider' },
+    connection: { id: 'mock-profile', label: 'Mock Profile' },
   },
   createdAt: '2026-06-15T00:00:00.000Z',
   updatedAt: '2026-06-15T00:00:01.000Z',
   finishedAt: '2026-06-15T00:00:01.000Z',
 };
 
-export function completedJob(input: Record<string, unknown>): Job {
+export function completedJob(input: Record<string, unknown>, id = 'job-1'): Job {
   return {
-    id: 'job-1',
+    id,
     status: 'completed',
     input,
     output: {

@@ -1,20 +1,16 @@
 import type { Job } from '@imagen-ps/core-engine';
-import { getProviderProfileRepository, getRuntime } from '../runtime.js';
+import { getRuntime } from '../runtime.js';
 import { noteProfileTaskBilling, scheduleProfileBalanceRefresh } from './profile-billing.js';
 
 /**
  * 记录 terminal job 的精确费用，并继续安排 profile 级余额刷新。
  */
-async function noteExactTaskCost(job: Job, profileId: string): Promise<void> {
+async function noteExactTaskCost(job: Job, profileId: string, implementationId: string): Promise<void> {
   const image = job.output?.image as { raw?: unknown } | undefined;
   if (!image || image.raw === undefined) {
     return;
   }
-  const profile = await getProviderProfileRepository().get(profileId);
-  if (!profile) {
-    return;
-  }
-  const provider = getRuntime().providerRegistry.getByApiFormat(profile.apiFormat);
+  const provider = getRuntime().providerRegistry.get(implementationId);
   if (!provider || typeof provider.extractTaskCost !== 'function') {
     return;
   }
@@ -31,10 +27,14 @@ async function noteExactTaskCost(job: Job, profileId: string): Promise<void> {
 /**
  * 统一处理任务终态后的 billing follow-up。
  */
-export async function runTerminalJobBillingFollowUp(job: Job, profileId: string): Promise<void> {
+export async function runTerminalJobBillingFollowUp(
+  job: Job,
+  profileId: string,
+  implementationId: string,
+): Promise<void> {
   if (job.status !== 'completed' && job.status !== 'failed') {
     return;
   }
-  await noteExactTaskCost(job, profileId);
+  await noteExactTaskCost(job, profileId, implementationId);
   await scheduleProfileBalanceRefresh(profileId);
 }

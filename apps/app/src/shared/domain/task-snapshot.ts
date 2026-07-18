@@ -1,3 +1,7 @@
+import {
+  TASK_RECORD_SCHEMA_VERSION,
+  type TaskExecutionSummary,
+} from '@imagen-ps/application';
 import type {
   Asset,
   StoredAssetRef,
@@ -23,9 +27,7 @@ interface CreateRunningTaskRecordInput {
   readonly prompt: string;
   readonly attachments: readonly TaskSnapshotAttachmentInput[];
   readonly placementIntent: PlacementIntent;
-  readonly providerName: string;
-  readonly profileId: string;
-  readonly modelId?: string;
+  readonly execution: TaskExecutionSummary;
   readonly createdAt: string;
 }
 
@@ -130,14 +132,14 @@ function attachmentKind(attachment: TaskSnapshotAttachmentInput): string {
 
 function taskAttachmentFromConversation(attachment: TaskSnapshotAttachmentInput): TaskAttachment {
   const resource = attachment.image.resource;
-  const providerInput = taskResourceFromDerivative(attachment);
-  const asset = taskResourceFromAsset(attachment.image.asset, resource.original, providerInput);
+  const executionInput = taskResourceFromDerivative(attachment);
+  const asset = taskResourceFromAsset(attachment.image.asset, resource.original, executionInput);
   const base = {
     kind: attachmentKind(attachment),
     attachmentId: attachment.id,
     label: attachment.name,
     asset,
-    ...(providerInput ? { providerInput } : {}),
+    ...(executionInput ? { executionInput } : {}),
   };
 
   if (attachment.photoshopPlacement !== undefined) {
@@ -201,7 +203,7 @@ function placementFromIntent(intent: PlacementIntent, attachments: readonly Task
 
 export function createRunningTaskRecord(input: CreateRunningTaskRecordInput): TaskRecord {
   const task: TaskRecord = {
-    schemaVersion: 1,
+    schemaVersion: TASK_RECORD_SCHEMA_VERSION,
     taskId: input.taskId,
     status: 'running',
     operation: input.operation,
@@ -209,11 +211,7 @@ export function createRunningTaskRecord(input: CreateRunningTaskRecordInput): Ta
     attachments: input.attachments.map(taskAttachmentFromConversation),
     outputs: [],
     placement: placementFromIntent(input.placementIntent, input.attachments),
-    execution: {
-      profileId: input.profileId,
-      profileName: input.providerName,
-      ...(input.modelId !== undefined ? { modelId: input.modelId } : {}),
-    },
+    execution: input.execution,
     createdAt: input.createdAt,
     updatedAt: input.createdAt,
   };

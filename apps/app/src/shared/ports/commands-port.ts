@@ -1,10 +1,9 @@
 import * as commands from '@imagen-ps/application';
 
 export interface CommandsPort {
-  readonly submitJob: typeof commands.submitJob;
+  readonly executeJob: typeof commands.executeJob;
   readonly getJob: typeof commands.getJob;
   readonly subscribeJobEvents: typeof commands.subscribeJobEvents;
-  readonly retryJob: typeof commands.retryJob;
   readonly listJobHistoryRecords: typeof commands.listJobHistoryRecords;
   readonly putTaskRecord: typeof commands.putTaskRecord;
   readonly getTaskRecord: typeof commands.getTaskRecord;
@@ -41,10 +40,9 @@ export interface CommandsPort {
 
 export function createCommandsAdapter(): CommandsPort {
   return {
-    submitJob: commands.submitJob,
+    executeJob: commands.executeJob,
     getJob: commands.getJob,
     subscribeJobEvents: commands.subscribeJobEvents,
-    retryJob: commands.retryJob,
     listJobHistoryRecords: commands.listJobHistoryRecords,
     putTaskRecord: commands.putTaskRecord,
     getTaskRecord: commands.getTaskRecord,

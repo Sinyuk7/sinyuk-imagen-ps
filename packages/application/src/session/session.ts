@@ -1,17 +1,35 @@
-import { assertTaskRecord, createValidationError, type Job, type JobEvent } from '@imagen-ps/core-engine';
-import { generateTraceId } from '@imagen-ps/foundation';
-import { getJob as defaultGetJob } from '../commands/get-job.js';
-import { getProviderProfile as defaultGetProviderProfile } from '../commands/provider-profiles.js';
-import { retryJob as defaultRetryJob } from '../commands/retry-job.js';
-import { submitJob as defaultSubmitJob, toJobError } from '../commands/submit-job.js';
-import { subscribeJobEvents as defaultSubscribeJobEvents } from '../commands/subscribe-job-events.js';
-import { putTaskRecord as defaultPutTaskRecord } from '../commands/task-history.js';
-import type { CommandResult, SubmitJobInput, TaskRecord, Unsubscribe } from '../commands/types.js';
-import { getRuntimeLogger } from '../runtime.js';
 import {
-  MAX_RUNNING_TASKS_GLOBAL,
-  MAX_RUNNING_TASKS_PER_PROFILE,
-} from './queue-policy.js';
+  assertNoSecrets,
+  createImmutableSnapshot,
+  createRuntimeError,
+  createValidationError,
+  type Job,
+  type JobError,
+  type JobEvent,
+} from '@imagen-ps/core-engine';
+import { generateTraceId } from '@imagen-ps/foundation';
+import { executeJob as defaultExecuteJob } from '../commands/execute-job.js';
+import { getJob as defaultGetJob } from '../commands/get-job.js';
+import { subscribeJobEvents as defaultSubscribeJobEvents } from '../commands/subscribe-job-events.js';
+import {
+  getTaskRecord as defaultGetTaskRecord,
+  putTaskRecord as defaultPutTaskRecord,
+} from '../commands/task-history.js';
+import type { CommandResult, Unsubscribe } from '../commands/types.js';
+import {
+  admitGeneration,
+  normalizeAdmittedGeneration,
+  normalizeGenerationCommand,
+} from '../generation/admission.js';
+import type {
+  AdmittedGeneration,
+  GenerationBackend,
+  GenerationCommand,
+  ReadinessDecision,
+} from '../generation/types.js';
+import { getGenerationBackends, getRuntimeLogger } from '../runtime.js';
+import { assertTaskRecord, type TaskRecord } from '../task.js';
+import { MAX_RUNNING_TASKS_GLOBAL } from './queue-policy.js';
 import type {
   ApplicationError,
   CreateImagenSessionOptions,
@@ -24,153 +42,70 @@ import type {
   SessionQueuedTaskSnapshot,
 } from './types.js';
 
-interface QueuedTaskEntry extends Omit<SessionQueuedTaskSnapshot, 'status' | 'removable' | 'jobId'> {
-  readonly request: SubmitJobInput;
-  readonly taskRecord?: TaskRecord;
+interface QueuedTaskEntry {
+  readonly admitted: AdmittedGeneration;
+  readonly originJobId?: string;
+  readonly retryAttempt?: number;
+  readonly settle?: (result: CommandResult<Job>) => void;
   status: 'queued' | 'starting';
   removable: boolean;
+  skipThroughEpoch: number;
   jobId?: string;
-  blocked: boolean;
 }
 
-function inferJobType(job: Job): 'generate' | 'edit' | string {
-  const workflow = typeof job.input._workflowName === 'string' ? job.input._workflowName : undefined;
-  if (workflow === 'provider-edit') return 'edit';
-  if (workflow === 'provider-generate') return 'generate';
-  return workflow ?? 'generate';
+interface TaskJobCorrelation {
+  readonly taskId: string;
+  readonly jobId: string;
+  readonly backendId: string;
+  readonly admitted: AdmittedGeneration;
+  readonly runningTask: TaskRecord;
+  readonly entry: QueuedTaskEntry;
 }
 
-function inferPhase(status: string): string | undefined {
-  switch (status) {
-    case 'created':
-    case 'running':
-      return 'running';
-    case 'completed':
-      return 'completed';
-    case 'failed':
-      return 'failed';
-    default:
-      return undefined;
-  }
+const ERROR_CATEGORIES = new Set<JobError['category']>([
+  'validation',
+  'execution',
+  'provider',
+  'runtime',
+  'workflow',
+  'unknown',
+]);
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null && !Array.isArray(value);
 }
 
-function profileIdFromInput(input: Record<string, unknown>): string | undefined {
-  return typeof input.providerProfileId === 'string'
-    ? input.providerProfileId
-    : typeof input.profileId === 'string'
-      ? input.profileId
-      : undefined;
-}
-
-function modelIdFromInput(input: Record<string, unknown>): string | undefined {
-  const providerOptions = input.providerOptions;
-  if (typeof providerOptions !== 'object' || providerOptions === null || Array.isArray(providerOptions)) {
-    return undefined;
-  }
-  const model = (providerOptions as Record<string, unknown>).model;
-  return typeof model === 'string' ? model : undefined;
-}
-
-function taskIdFromJob(job: Job): string | undefined {
-  return typeof job.input.__clientTaskId === 'string' ? job.input.__clientTaskId : undefined;
-}
-
-function toJobSessionSnapshot(job: Job): JobSessionSnapshot {
-  const taskId = taskIdFromJob(job);
-  return {
-    id: job.id,
-    type: inferJobType(job),
-    status: job.status,
-    phase: inferPhase(job.status),
-    canRetry: job.status === 'failed',
-    canCancel: false,
-    ...(taskId !== undefined ? { taskId } : {}),
-    ...(job.output !== undefined ? { output: job.output } : {}),
-    ...(job.error !== undefined ? { error: job.error } : {}),
-  };
-}
-
-function cloneFrozenValue<T>(value: T): T {
-  if (value instanceof Uint8Array) {
-    return value.slice() as T;
-  }
-  if (Array.isArray(value)) {
-    return value.map((item) => cloneFrozenValue(item)) as T;
-  }
-  if (typeof value === 'object' && value !== null) {
-    const clone: Record<string, unknown> = {};
-    for (const [key, item] of Object.entries(value)) {
-      clone[key] = cloneFrozenValue(item);
-    }
-    return clone as T;
-  }
-  return value;
-}
-
-function frozenRequest(input: SubmitJobInput): SubmitJobInput {
-  return {
-    workflow: input.workflow,
-    input: cloneFrozenValue(input.input),
-    ...(input.signal !== undefined ? { signal: input.signal } : {}),
-    ...(input.taskRecord !== undefined ? { taskRecord: cloneFrozenValue(input.taskRecord) } : {}),
-  };
-}
-
-function validationError(input: SubmitJobInput): ApplicationError | undefined {
-  const taskId = input.input.__clientTaskId;
-  const roundId = input.input.__clientRoundId;
-  const profileId = profileIdFromInput(input.input);
-  const prompt = input.input.prompt;
-  if (typeof taskId !== 'string' || taskId.trim().length === 0) {
-    return createValidationError('Session submission requires __clientTaskId.');
-  }
-  if (typeof roundId === 'string' && roundId !== taskId) {
-    return createValidationError('__clientRoundId must match __clientTaskId.', { taskId, roundId });
-  }
-  if (profileId === undefined || profileId.trim().length === 0) {
-    return createValidationError('Session submission requires profileId.', { taskId });
-  }
-  if (typeof prompt !== 'string' || prompt.trim().length === 0) {
-    return createValidationError('Session submission requires a prompt.', { taskId });
-  }
-  if (input.workflow === 'provider-edit' && (!Array.isArray(input.input.images) || input.input.images.length === 0)) {
-    return createValidationError('Image edit requires at least one provider input image.', { taskId });
-  }
-  if (input.taskRecord === undefined) {
-    return createValidationError('Session submission requires a frozen task record.', { taskId });
-  }
-  {
+function boundedError(error: unknown, fallback: string): ApplicationError {
+  if (isRecord(error) && ERROR_CATEGORIES.has(error.category as JobError['category']) && typeof error.message === 'string') {
+    const candidate = { category: error.category as JobError['category'], message: error.message };
     try {
-      assertTaskRecord(input.taskRecord);
-    } catch (error) {
-      return createValidationError(
-        error instanceof Error ? error.message : 'Session task record is invalid.',
-        { taskId },
-      );
-    }
-    if (input.taskRecord.taskId !== taskId || input.taskRecord.status !== 'running') {
-      return createValidationError('Session task record must be running and match __clientTaskId.', { taskId });
-    }
-    const operation = input.workflow === 'provider-edit' ? 'image-edit' : 'text-to-image';
-    if (
-      input.taskRecord.operation !== operation
-      || input.taskRecord.prompt !== prompt
-      || input.taskRecord.execution?.profileId !== profileId
-    ) {
-      return createValidationError('Session task record does not match the provider request.', { taskId });
+      assertNoSecrets(candidate);
+      return createImmutableSnapshot(candidate) as ApplicationError;
+    } catch {
+      return createRuntimeError(fallback);
     }
   }
-  return undefined;
+  return createRuntimeError(fallback);
+}
+
+function taskType(task: TaskRecord, fallback: string): string {
+  if (task.operation === 'text-to-image') return 'generate';
+  if (task.operation === 'image-edit') return 'edit';
+  return fallback;
+}
+
+function phaseForStatus(status: Job['status']): string {
+  if (status === 'created' || status === 'running') return 'running';
+  return status;
+}
+
+function isTerminalJob(job: Job): boolean {
+  return job.status === 'completed' || job.status === 'failed';
 }
 
 function publicQueuedTask(entry: QueuedTaskEntry): SessionQueuedTaskSnapshot {
   return {
-    taskId: entry.taskId,
-    createdAt: entry.createdAt,
-    profileId: entry.profileId,
-    operation: entry.operation,
-    prompt: entry.prompt,
-    ...(entry.modelId !== undefined ? { modelId: entry.modelId } : {}),
+    taskId: entry.admitted.taskId,
     status: entry.status,
     removable: entry.removable,
     ...(entry.jobId !== undefined ? { jobId: entry.jobId } : {}),
@@ -179,55 +114,122 @@ function publicQueuedTask(entry: QueuedTaskEntry): SessionQueuedTaskSnapshot {
 
 function cloneSnapshot(snapshot: ImagenSessionSnapshot): ImagenSessionSnapshot {
   return {
-    ...(snapshot.selectedProfileId !== undefined ? { selectedProfileId: snapshot.selectedProfileId } : {}),
-    ...(snapshot.selectedModelId !== undefined ? { selectedModelId: snapshot.selectedModelId } : {}),
-    ...(snapshot.activeJobId !== undefined ? { activeJobId: snapshot.activeJobId } : {}),
     jobs: snapshot.jobs.map((job) => ({ ...job })),
     queuedTasks: snapshot.queuedTasks.map((task) => ({ ...task })),
     ...(snapshot.lastError !== undefined ? { lastError: snapshot.lastError } : {}),
   };
 }
 
-function updateJobList(jobs: readonly JobSessionSnapshot[], job: Job): readonly JobSessionSnapshot[] {
-  const next = toJobSessionSnapshot(job);
-  const index = jobs.findIndex((item) => item.id === job.id);
-  if (index === -1) return [...jobs, next];
-  const clone = jobs.slice();
-  clone[index] = next;
-  return clone;
-}
-
-function failedTaskRecord(record: TaskRecord, error: ApplicationError, now: string): TaskRecord {
-  return {
-    ...record,
+function terminalProjectionFallback(correlation: TaskJobCorrelation, job: Job): TaskRecord {
+  const failed: TaskRecord = {
+    ...correlation.runningTask,
     status: 'failed',
     outputs: [],
-    error: { category: error.category, message: error.message },
-    updatedAt: now,
-    finishedAt: now,
+    error: {
+      category: 'execution',
+      message: 'Terminal projection failed.',
+    },
+    updatedAt: job.updatedAt,
+    finishedAt: job.updatedAt,
   };
+  assertTaskRecord(failed);
+  return createImmutableSnapshot(failed) as TaskRecord;
 }
 
+function normalizeProjectedTask(
+  correlation: TaskJobCorrelation,
+  job: Job,
+  projected: TaskRecord,
+): TaskRecord {
+  assertTaskRecord(projected);
+  if (projected.taskId !== correlation.taskId || projected.latestJobId !== job.id) {
+    throw createValidationError('Terminal Task must preserve taskId and latestJobId.', {
+      taskId: correlation.taskId,
+      jobId: job.id,
+    });
+  }
+  if (projected.status !== 'completed' && projected.status !== 'failed') {
+    throw createValidationError('Terminal Task projection must be completed or failed.', {
+      taskId: correlation.taskId,
+      status: projected.status,
+    });
+  }
+  if (job.status === 'failed' && projected.status !== 'failed') {
+    throw createValidationError('A failed Job must project to a failed Task.', {
+      taskId: correlation.taskId,
+      jobId: job.id,
+    });
+  }
+  return createImmutableSnapshot(projected) as TaskRecord;
+}
+
+function createBackendRegistry(backends: readonly GenerationBackend[]): ReadonlyMap<string, GenerationBackend> {
+  const registry = new Map<string, GenerationBackend>();
+  for (const backend of backends) {
+    if (!isRecord(backend) || typeof backend.id !== 'string' || backend.id.trim().length === 0) {
+      throw createValidationError('GenerationBackend.id must be a non-empty string.');
+    }
+    if (
+      typeof backend.admit !== 'function'
+      || typeof backend.checkReadiness !== 'function'
+      || typeof backend.projectTerminal !== 'function'
+    ) {
+      throw createValidationError(`GenerationBackend "${backend.id}" is incomplete.`);
+    }
+    if (registry.has(backend.id)) {
+      throw createValidationError(`GenerationBackend "${backend.id}" is already registered.`);
+    }
+    registry.set(backend.id, backend);
+  }
+  return registry;
+}
+
+function normalizeReadiness(decision: ReadinessDecision): ReadinessDecision {
+  if (!isRecord(decision)) {
+    throw createValidationError('ReadinessDecision must be a record.');
+  }
+  if (decision.status === 'ready') return Object.freeze({ status: 'ready' });
+  if (decision.status === 'wait') {
+    return Object.freeze({
+      status: 'wait',
+      reason: boundedError(decision.reason, 'Backend is not ready.'),
+    });
+  }
+  if (decision.status === 'reject') {
+    return Object.freeze({
+      status: 'reject',
+      error: boundedError(decision.error, 'Backend rejected the generation.'),
+    });
+  }
+  throw createValidationError('ReadinessDecision.status must be ready, wait, or reject.');
+}
+
+/** 创建 backend-neutral Application Session。 */
 export function createImagenSession(options?: CreateImagenSessionOptions): ImagenSessionController {
   const commands: ImagenSessionCommands = {
-    submitJob: options?.commands?.submitJob ?? defaultSubmitJob,
-    retryJob: options?.commands?.retryJob ?? defaultRetryJob,
+    executeJob: options?.commands?.executeJob ?? defaultExecuteJob,
     getJob: options?.commands?.getJob ?? defaultGetJob,
     subscribeJobEvents: options?.commands?.subscribeJobEvents ?? defaultSubscribeJobEvents,
     putTaskRecord: options?.commands?.putTaskRecord ?? defaultPutTaskRecord,
-    getProviderProfile: options?.commands?.getProviderProfile ?? defaultGetProviderProfile,
+    getTaskRecord: options?.commands?.getTaskRecord ?? defaultGetTaskRecord,
   };
+  const backends = createBackendRegistry(options?.backends ?? getGenerationBackends());
   const rootLogger = options?.logger ?? getRuntimeLogger();
   let snapshot: ImagenSessionSnapshot = { jobs: [], queuedTasks: [] };
   let queue: QueuedTaskEntry[] = [];
   let disposed = false;
   let drainRunning = false;
+  let drainEpoch = 0;
   let drainTimer: ReturnType<typeof setTimeout> | undefined;
   const subscribers = new Set<ImagenSessionSubscriber>();
   const active = new Map<string, QueuedTaskEntry>();
-  const pendingTerminalJobs = new Map<string, Job>();
-  const inFlightRetry = new Map<string, Promise<CommandResult<Job>>>();
+  const correlations = new Map<string, TaskJobCorrelation>();
+  const terminalOnce = new Set<string>();
+  const terminalPromises = new Map<string, Promise<void>>();
+  const knownTaskIds = new Set<string>();
+  const taskBackendIds = new Map<string, string>();
   const inFlightSubmit = new Map<string, Promise<CommandResult<EnqueueAcknowledgement>>>();
+  const inFlightRetry = new Map<string, Promise<CommandResult<Job>>>();
 
   function publish(next: ImagenSessionSnapshot): void {
     if (disposed) return;
@@ -239,76 +241,57 @@ export function createImagenSession(options?: CreateImagenSessionOptions): Image
     publish({ ...snapshot, queuedTasks: queue.map(publicQueuedTask) });
   }
 
-  function syncJob(job: Job): void {
-    const profileId = profileIdFromInput(job.input);
-    const modelId = modelIdFromInput(job.input);
-    const taskId = taskIdFromJob(job);
-    if (taskId !== undefined) {
-      const entry = active.get(taskId);
-      if (entry !== undefined && entry.jobId === undefined) {
-        entry.jobId = job.id;
-      }
-      queue = queue.filter((item) => item.taskId !== taskId);
-    }
+  function syncJob(job: Job, correlation?: TaskJobCorrelation): void {
+    const index = snapshot.jobs.findIndex((candidate) => candidate.id === job.id);
+    const previous = index === -1 ? undefined : snapshot.jobs[index];
+    const taskId = correlation?.taskId ?? previous?.taskId;
+    const workflow = correlation?.admitted.execution.workflow ?? previous?.type ?? 'generation';
+    const retryAllowed = correlation?.admitted.retry.allowed ?? previous?.canRetry ?? false;
+    const next: JobSessionSnapshot = {
+      id: job.id,
+      type: correlation !== undefined ? taskType(correlation.runningTask, workflow) : workflow,
+      status: job.status,
+      phase: phaseForStatus(job.status),
+      canRetry: job.status === 'failed' && retryAllowed,
+      canCancel: false,
+      ...(taskId !== undefined ? { taskId } : {}),
+      ...(job.output !== undefined ? { output: job.output } : {}),
+      ...(job.error !== undefined ? { error: job.error } : {}),
+    };
+    const jobs = snapshot.jobs.slice();
+    if (index === -1) jobs.push(next);
+    else jobs[index] = next;
     publish({
       ...snapshot,
-      ...(profileId !== undefined ? { selectedProfileId: profileId } : {}),
-      ...(modelId !== undefined ? { selectedModelId: modelId } : {}),
-      activeJobId: job.status === 'completed' || job.status === 'failed' ? undefined : job.id,
-      jobs: updateJobList(snapshot.jobs, job),
-      queuedTasks: queue.map(publicQueuedTask),
+      jobs,
+      ...(job.status === 'failed' && job.error !== undefined
+        ? { lastError: boundedError(job.error, 'Job failed.') }
+        : {}),
     });
   }
 
   function syncDispatchFailure(entry: QueuedTaskEntry, error: ApplicationError): void {
     const failure: JobSessionSnapshot = {
-      id: `dispatch-failed:${entry.taskId}`,
-      taskId: entry.taskId,
-      type: entry.operation === 'image-edit' ? 'edit' : 'generate',
+      id: entry.jobId ?? `dispatch-failed:${entry.admitted.taskId}`,
+      taskId: entry.admitted.taskId,
+      type: taskType(entry.admitted.runningTask, entry.admitted.execution.workflow),
       status: 'failed',
       phase: 'failed',
       canRetry: false,
       canCancel: false,
       error,
     };
-    queue = queue.filter((item) => item.taskId !== entry.taskId);
+    const jobs = snapshot.jobs.filter((job) => job.id !== failure.id);
     publish({
       ...snapshot,
-      jobs: [...snapshot.jobs.filter((job) => job.taskId !== entry.taskId), failure],
+      jobs: [...jobs, failure],
       queuedTasks: queue.map(publicQueuedTask),
       lastError: error,
     });
   }
 
-  async function profileIsRunnable(entry: QueuedTaskEntry): Promise<boolean> {
-    if (entry.blocked) return false;
-    const result = await commands.getProviderProfile(entry.profileId);
-    if (!result.ok) {
-      if (result.error.category === 'validation') entry.blocked = true;
-      return false;
-    }
-    if (!result.value.enabled) {
-      entry.blocked = true;
-      return false;
-    }
-    return true;
-  }
-
-  function runningForProfile(profileId: string): number {
-    let count = 0;
-    for (const entry of active.values()) {
-      if (entry.profileId === profileId) count += 1;
-    }
-    return count;
-  }
-
-  async function earliestEligible(): Promise<QueuedTaskEntry | undefined> {
-    for (const entry of queue) {
-      if (entry.status !== 'queued' || entry.blocked) continue;
-      if (runningForProfile(entry.profileId) >= MAX_RUNNING_TASKS_PER_PROFILE) continue;
-      if (await profileIsRunnable(entry)) return entry;
-    }
-    return undefined;
+  function settle(entry: QueuedTaskEntry, result: CommandResult<Job>): void {
+    entry.settle?.(result);
   }
 
   function requestDrain(): void {
@@ -319,76 +302,254 @@ export function createImagenSession(options?: CreateImagenSessionOptions): Image
     }, 0);
   }
 
-  async function dispatch(entry: QueuedTaskEntry): Promise<void> {
+  function releaseCorrelation(correlation: TaskJobCorrelation): void {
+    correlations.delete(correlation.jobId);
+    if (active.get(correlation.taskId) === correlation.entry) {
+      active.delete(correlation.taskId);
+    }
+    requestDrain();
+  }
+
+  function removeEntryFromQueue(entry: QueuedTaskEntry): void {
+    queue = queue.filter((candidate) => candidate !== entry);
+  }
+
+  function rejectBeforeJob(entry: QueuedTaskEntry, error: ApplicationError): void {
+    removeEntryFromQueue(entry);
+    if (active.get(entry.admitted.taskId) === entry) active.delete(entry.admitted.taskId);
+    if (entry.originJobId === undefined) {
+      knownTaskIds.delete(entry.admitted.taskId);
+      taskBackendIds.delete(entry.admitted.taskId);
+    }
+    syncDispatchFailure(entry, error);
+    settle(entry, { ok: false, error });
+    requestDrain();
+  }
+
+  function laneRunningCount(entry: QueuedTaskEntry): number {
+    const lane = entry.admitted.lane;
+    if (lane === undefined) return 0;
+    let count = 0;
+    for (const running of active.values()) {
+      if (running !== entry && running.admitted.lane?.key === lane.key) count += 1;
+    }
+    return count;
+  }
+
+  function earliestEligible(epoch: number): QueuedTaskEntry | undefined {
+    return queue.find((entry) => (
+      entry.status === 'queued'
+      && entry.skipThroughEpoch < epoch
+      && (entry.admitted.lane === undefined || laneRunningCount(entry) < entry.admitted.lane.maxConcurrency)
+    ));
+  }
+
+  async function persistFailedStart(correlation: TaskJobCorrelation, error: ApplicationError): Promise<void> {
+    const now = new Date().toISOString();
+    const failed: TaskRecord = {
+      ...correlation.runningTask,
+      status: 'failed',
+      outputs: [],
+      error: {
+        category: error.category,
+        message: 'Execution could not start.',
+      },
+      updatedAt: now,
+      finishedAt: now,
+    };
+    assertTaskRecord(failed);
+    try {
+      await commands.putTaskRecord(failed);
+    } catch {
+      rootLogger.error('session.task.start-failure-persist.failed', {
+        job_id: correlation.jobId,
+        backend_id: correlation.backendId,
+      });
+    }
+  }
+
+  async function failStartedEntry(entry: QueuedTaskEntry, error: ApplicationError): Promise<void> {
+    const correlation = entry.jobId === undefined ? undefined : correlations.get(entry.jobId);
+    if (correlation !== undefined) {
+      await persistFailedStart(correlation, error);
+      correlations.delete(correlation.jobId);
+    } else if (entry.originJobId === undefined) {
+      knownTaskIds.delete(entry.admitted.taskId);
+      taskBackendIds.delete(entry.admitted.taskId);
+    }
+    removeEntryFromQueue(entry);
+    if (active.get(entry.admitted.taskId) === entry) active.delete(entry.admitted.taskId);
+    syncDispatchFailure(entry, error);
+    settle(entry, { ok: false, error });
+    requestDrain();
+  }
+
+  function finalizeTerminal(job: Job): Promise<void> {
+    const existing = terminalPromises.get(job.id);
+    if (existing !== undefined) return existing;
+    if (terminalOnce.has(job.id) || !isTerminalJob(job)) return Promise.resolve();
+    const correlation = correlations.get(job.id);
+    if (correlation === undefined) return Promise.resolve();
+    const backend = backends.get(correlation.backendId);
+    if (backend === undefined) return Promise.resolve();
+
+    terminalOnce.add(job.id);
+    syncJob(job, correlation);
+    const promise = (async () => {
+      let terminalTask: TaskRecord;
+      try {
+        terminalTask = normalizeProjectedTask(
+          correlation,
+          job,
+          await backend.projectTerminal({
+            admitted: correlation.admitted,
+            job,
+            runningTask: correlation.runningTask,
+          }),
+        );
+      } catch {
+        rootLogger.warn('session.terminal.projection.failed', {
+          job_id: job.id,
+          backend_id: correlation.backendId,
+        });
+        terminalTask = terminalProjectionFallback(correlation, job);
+      }
+
+      try {
+        await commands.putTaskRecord(terminalTask);
+      } catch {
+        const error = createRuntimeError('Terminal Task persistence failed.');
+        rootLogger.error('session.terminal.persist.failed', {
+          job_id: job.id,
+          backend_id: correlation.backendId,
+        });
+        publish({ ...snapshot, lastError: error });
+        settle(correlation.entry, { ok: false, error });
+        return;
+      }
+
+      if (backend.afterTerminal !== undefined) {
+        try {
+          await backend.afterTerminal({ admitted: correlation.admitted, job, task: terminalTask });
+        } catch {
+          rootLogger.error('session.terminal.follow-up.failed', {
+            job_id: job.id,
+            backend_id: correlation.backendId,
+          });
+        }
+      }
+      settle(correlation.entry, { ok: true, value: job });
+    })().finally(() => {
+      releaseCorrelation(correlation);
+      terminalPromises.delete(job.id);
+    });
+    terminalPromises.set(job.id, promise);
+    return promise;
+  }
+
+  async function dispatch(entry: QueuedTaskEntry, epoch: number): Promise<void> {
+    const backend = backends.get(entry.admitted.backendId);
+    if (backend === undefined) {
+      rejectBeforeJob(entry, createValidationError(`GenerationBackend "${entry.admitted.backendId}" is not registered.`));
+      return;
+    }
     const sessionLogger = rootLogger.child({
       trace_id: generateTraceId(),
       package: 'application',
       component: 'session',
     });
-    const span = sessionLogger.startSpan('session.queue.dispatch', { workflow: entry.request.workflow, task_id: entry.taskId });
+    const span = sessionLogger.startSpan('session.queue.dispatch', { task_id: entry.admitted.taskId });
+
     try {
-      if (!(await profileIsRunnable(entry))) {
+      const readiness = normalizeReadiness(await backend.checkReadiness(entry.admitted));
+      if (disposed || active.get(entry.admitted.taskId) !== entry) return;
+      if (readiness.status === 'wait') {
         entry.status = 'queued';
         entry.removable = true;
+        entry.skipThroughEpoch = epoch;
+        active.delete(entry.admitted.taskId);
         publishQueue();
-        return;
-      }
-      if (entry.taskRecord !== undefined) {
-        await commands.putTaskRecord(entry.taskRecord);
-      }
-      const result = await commands.submitJob({
-        workflow: entry.request.workflow,
-        input: entry.request.input,
-        ...(entry.request.signal !== undefined ? { signal: entry.request.signal } : {}),
-        logger: sessionLogger.child({ span_id: span.span_id }),
-        onJobCreated: async (job) => {
-          entry.jobId = job.id;
-          if (entry.taskRecord !== undefined) {
-            await commands.putTaskRecord({ ...entry.taskRecord, executionJobId: job.id });
-          }
-        },
-      });
-      if (result.ok) {
-        const pendingTerminal = pendingTerminalJobs.get(entry.taskId);
-        pendingTerminalJobs.delete(entry.taskId);
-        syncJob(pendingTerminal ?? result.value);
+        requestDrain();
         span.finish();
         return;
       }
-      if (entry.taskRecord !== undefined) {
-        await commands.putTaskRecord(failedTaskRecord(entry.taskRecord, result.error, new Date().toISOString()));
+      if (readiness.status === 'reject') {
+        rejectBeforeJob(entry, readiness.error);
+        span.fail(readiness.error);
+        return;
       }
-      syncDispatchFailure(entry, result.error);
-      span.fail(result.error);
-    } catch (error) {
-      const normalized = toJobError(error);
-      if (entry.taskRecord !== undefined) {
-        try {
-          await commands.putTaskRecord(failedTaskRecord(entry.taskRecord, normalized, new Date().toISOString()));
-        } catch {
-          // 原始持久化失败已由 session error surface 报告。
+
+      const result = await commands.executeJob({
+        execution: entry.admitted.execution,
+        logger: sessionLogger.child({ span_id: span.span_id }),
+        ...(entry.originJobId !== undefined ? { originJobId: entry.originJobId } : {}),
+        ...(entry.retryAttempt !== undefined ? { retryAttempt: entry.retryAttempt } : {}),
+        onJobCreated: async (job) => {
+          if (disposed || active.get(entry.admitted.taskId) !== entry) {
+            throw createValidationError('Session was disposed before Job execution started.');
+          }
+          const runningTask: TaskRecord = {
+            ...entry.admitted.runningTask,
+            latestJobId: job.id,
+          };
+          assertTaskRecord(runningTask);
+          const correlation: TaskJobCorrelation = {
+            taskId: entry.admitted.taskId,
+            jobId: job.id,
+            backendId: entry.admitted.backendId,
+            admitted: entry.admitted,
+            runningTask: createImmutableSnapshot(runningTask) as TaskRecord,
+            entry,
+          };
+          correlations.set(job.id, correlation);
+          entry.jobId = job.id;
+          removeEntryFromQueue(entry);
+          publishQueue();
+          syncJob(job, correlation);
+          await commands.putTaskRecord(correlation.runningTask);
+        },
+      });
+
+      if (result.ok) {
+        if (isTerminalJob(result.value)) await finalizeTerminal(result.value);
+        else {
+          const correlation = correlations.get(result.value.id);
+          if (correlation !== undefined) syncJob(result.value, correlation);
         }
+        span.finish();
+        return;
       }
-      syncDispatchFailure(entry, normalized);
+
+      const terminal = entry.jobId === undefined ? undefined : commands.getJob(entry.jobId);
+      if (terminal !== undefined && isTerminalJob(terminal)) {
+        await finalizeTerminal(terminal);
+        span.finish();
+        return;
+      }
+      const error = boundedError(result.error, 'Job execution failed.');
+      await failStartedEntry(entry, error);
+      span.fail(error);
+    } catch (error) {
+      const normalized = boundedError(error, 'Session dispatch failed.');
+      if (entry.jobId === undefined) rejectBeforeJob(entry, normalized);
+      else await failStartedEntry(entry, normalized);
       span.fail(normalized);
-    } finally {
-      active.delete(entry.taskId);
-      requestDrain();
     }
   }
 
   async function drainQueue(): Promise<void> {
     if (disposed || drainRunning) return;
     drainRunning = true;
+    const epoch = ++drainEpoch;
     try {
       while (!disposed && active.size < MAX_RUNNING_TASKS_GLOBAL) {
-        const entry = await earliestEligible();
-        if (entry === undefined || !queue.includes(entry) || entry.status !== 'queued') break;
+        const entry = earliestEligible(epoch);
+        if (entry === undefined || !queue.includes(entry)) break;
         entry.status = 'starting';
         entry.removable = false;
-        active.set(entry.taskId, entry);
+        active.set(entry.admitted.taskId, entry);
         publishQueue();
-        void dispatch(entry);
+        void dispatch(entry, epoch);
       }
     } finally {
       drainRunning = false;
@@ -396,97 +557,137 @@ export function createImagenSession(options?: CreateImagenSessionOptions): Image
   }
 
   const unsubscribe = commands.subscribeJobEvents((event: JobEvent) => {
-    const taskId = taskIdFromJob(event.job);
-    if (taskId !== undefined && active.has(taskId) && (event.type === 'completed' || event.type === 'failed')) {
-      pendingTerminalJobs.set(taskId, event.job);
+    const correlation = correlations.get(event.job.id);
+    if (correlation === undefined) return;
+    if (event.type === 'completed' || event.type === 'failed') {
+      void finalizeTerminal(event.job);
       return;
     }
-    syncJob(event.job);
-    if (event.type === 'failed' && event.job.error !== undefined) {
-      publish({ ...snapshot, lastError: event.job.error });
-    }
+    syncJob(event.job, correlation);
   });
 
   return {
-    submitJob(input) {
-      const request = frozenRequest(input);
-      const taskId = typeof request.input.__clientTaskId === 'string' ? request.input.__clientTaskId : '';
-      const submitKey = typeof request.input.__clientRoundId === 'string' ? request.input.__clientRoundId : taskId;
-      const existing = inFlightSubmit.get(submitKey);
-      if (existing !== undefined) return existing;
+    submitJob(command: GenerationCommand) {
+      let normalized: GenerationCommand;
+      try {
+        normalized = normalizeGenerationCommand(command);
+      } catch (error) {
+        return Promise.resolve({ ok: false, error: boundedError(error, 'Generation command is invalid.') });
+      }
 
+      const pending = inFlightSubmit.get(normalized.taskId);
+      if (pending !== undefined) return pending;
       const promise = (async (): Promise<CommandResult<EnqueueAcknowledgement>> => {
-        const error = validationError(request);
-        if (error !== undefined) return { ok: false, error };
-        const profileId = profileIdFromInput(request.input)!;
-        const profile = await commands.getProviderProfile(profileId);
-        if (!profile.ok) return profile;
-        if (!profile.value.enabled) {
-          return { ok: false, error: createValidationError(`Provider profile "${profileId}" is disabled.`, { profileId, taskId }) };
+        if (disposed) {
+          return { ok: false, error: createValidationError('Session is disposed.') };
         }
-        const existingEntry = queue.find((entry) => entry.taskId === taskId) ?? active.get(taskId);
-        if (existingEntry !== undefined || snapshot.jobs.some((job) => job.taskId === taskId)) {
-          return { ok: true, value: { taskId, status: 'queued' } };
+        if (knownTaskIds.has(normalized.taskId)) {
+          return { ok: true, value: { taskId: normalized.taskId, status: 'queued' } };
         }
-        const operation = request.workflow === 'provider-edit' ? 'image-edit' : 'text-to-image';
-        const entry: QueuedTaskEntry = {
-          taskId,
-          createdAt: request.taskRecord?.createdAt ?? new Date().toISOString(),
-          profileId,
-          operation,
-          prompt: String(request.input.prompt),
-          ...(modelIdFromInput(request.input) !== undefined ? { modelId: modelIdFromInput(request.input) } : {}),
-          status: 'queued',
-          removable: true,
-          request,
-          ...(request.taskRecord !== undefined ? { taskRecord: request.taskRecord } : {}),
-          blocked: false,
-        };
-        queue = [...queue, entry];
-        publishQueue();
-        return { ok: true, value: { taskId, status: 'queued' } };
+        const backend = backends.get(normalized.backendId);
+        if (backend === undefined) {
+          return {
+            ok: false,
+            error: createValidationError(`GenerationBackend "${normalized.backendId}" is not registered.`),
+          };
+        }
+        try {
+          const admitted = await admitGeneration(backend, normalized);
+          if (disposed) return { ok: false, error: createValidationError('Session is disposed.') };
+          if (knownTaskIds.has(admitted.taskId)) {
+            return { ok: true, value: { taskId: admitted.taskId, status: 'queued' } };
+          }
+          const entry: QueuedTaskEntry = {
+            admitted,
+            status: 'queued',
+            removable: true,
+            skipThroughEpoch: -1,
+          };
+          knownTaskIds.add(admitted.taskId);
+          taskBackendIds.set(admitted.taskId, admitted.backendId);
+          queue = [...queue, entry];
+          publishQueue();
+          requestDrain();
+          return { ok: true, value: { taskId: admitted.taskId, status: 'queued' } };
+        } catch (error) {
+          return { ok: false, error: boundedError(error, 'Generation admission failed.') };
+        }
       })().finally(() => {
-        inFlightSubmit.delete(submitKey);
+        inFlightSubmit.delete(normalized.taskId);
       });
-      inFlightSubmit.set(submitKey, promise);
-      void promise.then((result) => {
-        if (result.ok) requestDrain();
-      });
+      inFlightSubmit.set(normalized.taskId, promise);
       return promise;
     },
 
     removeQueuedTask(taskId: string): boolean {
-      const index = queue.findIndex((entry) => entry.taskId === taskId && entry.status === 'queued');
-      if (index === -1) return false;
-      queue = [...queue.slice(0, index), ...queue.slice(index + 1)];
+      const entry = queue.find((candidate) => candidate.admitted.taskId === taskId && candidate.status === 'queued');
+      if (entry === undefined) return false;
+      removeEntryFromQueue(entry);
+      if (entry.originJobId === undefined) {
+        knownTaskIds.delete(taskId);
+        taskBackendIds.delete(taskId);
+      }
+      settle(entry, { ok: false, error: createValidationError('Queued generation was removed.') });
       publishQueue();
       requestDrain();
       return true;
     },
 
-    async retryJob(jobId: string) {
-      const existing = inFlightRetry.get(jobId);
-      if (existing) return existing;
-      const retryPromise = (async () => {
-        const logger = rootLogger.child({ trace_id: generateTraceId(), package: 'application', component: 'session' });
-        const span = logger.startSpan('session.command.retry', { job_id: jobId });
-        try {
-          const result = await commands.retryJob({ jobId, logger: logger.child({ span_id: span.span_id }) });
-          if (result.ok) {
-            syncJob(result.value);
-            span.finish();
-          } else {
-            publish({ ...snapshot, lastError: result.error });
-            span.fail(result.error);
-          }
-          return result;
-        } catch (error) {
-          span.fail(error);
-          throw error;
+    retryJob(jobId: string) {
+      const pending = inFlightRetry.get(jobId);
+      if (pending !== undefined) return pending;
+      const promise = (async (): Promise<CommandResult<Job>> => {
+        const latestJob = commands.getJob(jobId);
+        const jobSnapshot = snapshot.jobs.find((job) => job.id === jobId);
+        if (latestJob === undefined || latestJob.status !== 'failed' || jobSnapshot?.taskId === undefined) {
+          return { ok: false, error: createValidationError(`Failed Job "${jobId}" is not retryable.`) };
         }
-      })().finally(() => inFlightRetry.delete(jobId));
-      inFlightRetry.set(jobId, retryPromise);
-      return retryPromise;
+        if (!jobSnapshot.canRetry) {
+          return { ok: false, error: createValidationError(`Job "${jobId}" retry is not allowed.`) };
+        }
+        const taskId = jobSnapshot.taskId;
+        if (active.has(taskId) || queue.some((entry) => entry.admitted.taskId === taskId)) {
+          return { ok: false, error: createValidationError(`Task "${taskId}" already has an active Job.`) };
+        }
+        try {
+          const task = await commands.getTaskRecord(taskId);
+          if (task === undefined || task.status !== 'failed' || task.latestJobId !== jobId) {
+            return { ok: false, error: createValidationError(`Task "${taskId}" is not retryable.`) };
+          }
+          const backendId = taskBackendIds.get(taskId) ?? task.execution?.backend.id;
+          const backend = backendId === undefined ? undefined : backends.get(backendId);
+          if (backend === undefined || backend.retry === undefined) {
+            return { ok: false, error: createValidationError(`Task "${taskId}" backend does not support Retry.`) };
+          }
+          const retryCommand = normalizeGenerationCommand({ taskId, backendId: backend.id, payload: {} });
+          const admitted = normalizeAdmittedGeneration(
+            retryCommand,
+            backend.id,
+            await backend.retry({ task, latestJob }),
+          );
+          taskBackendIds.set(taskId, backend.id);
+          return await new Promise<CommandResult<Job>>((resolve) => {
+            const entry: QueuedTaskEntry = {
+              admitted,
+              originJobId: latestJob.id,
+              retryAttempt: (latestJob.retryAttempt ?? 0) + 1,
+              settle: resolve,
+              status: 'queued',
+              removable: true,
+              skipThroughEpoch: -1,
+            };
+            queue = [...queue, entry];
+            publishQueue();
+            requestDrain();
+          });
+        } catch (error) {
+          return { ok: false, error: boundedError(error, 'Retry admission failed.') };
+        }
+      })().finally(() => {
+        inFlightRetry.delete(jobId);
+      });
+      inFlightRetry.set(jobId, promise);
+      return promise;
     },
 
     getSnapshot: () => cloneSnapshot(snapshot),
@@ -498,10 +699,19 @@ export function createImagenSession(options?: CreateImagenSessionOptions): Image
     dispose(): void {
       disposed = true;
       if (drainTimer !== undefined) clearTimeout(drainTimer);
+      drainTimer = undefined;
       unsubscribe();
+      const dropped = queue.filter((entry) => entry.jobId === undefined);
       queue = [];
+      for (const entry of dropped) {
+        if (active.get(entry.admitted.taskId) === entry) active.delete(entry.admitted.taskId);
+        if (entry.originJobId === undefined) {
+          knownTaskIds.delete(entry.admitted.taskId);
+          taskBackendIds.delete(entry.admitted.taskId);
+        }
+        settle(entry, { ok: false, error: createValidationError('Session disposed queued generation.') });
+      }
       subscribers.clear();
-      inFlightRetry.clear();
       inFlightSubmit.clear();
     },
   };

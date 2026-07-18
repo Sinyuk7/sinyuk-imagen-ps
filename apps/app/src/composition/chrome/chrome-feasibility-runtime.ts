@@ -1,4 +1,6 @@
 import {
+  createImagenSession,
+  getJob,
   listProviders,
   listOfficialModelConfigPresets,
   saveProviderProfile,
@@ -10,7 +12,8 @@ import {
   setSecretStorageAdapter,
   setTaskStore,
   setUserModelConfigRepository,
-  submitJob,
+  TASK_RECORD_SCHEMA_VERSION,
+  type Job,
   type ProviderDescriptor,
 } from '@imagen-ps/application';
 import { createChromeHostPort, type ChromeFilePicker } from '../../adapters/chrome/chrome-host-port';
@@ -165,22 +168,64 @@ export async function runChromeFeasibilityRuntime(options?: {
   }
   const originalFetch = globalThis.fetch;
   globalThis.fetch = createChromeFeasibilityFetch(originalFetch);
-  const job = await submitJob({
-    workflow: 'provider-generate',
-    input: {
-      profileId: profile.value.profileId,
-      prompt: 'Chrome feasibility profile dispatch smoke',
-      output: { count: 1 },
-    },
-  }).finally(() => {
-    globalThis.fetch = originalFetch;
+  const taskId = 'chrome-feasibility-task';
+  const createdAt = new Date().toISOString();
+  const session = createImagenSession();
+  const terminalJob = new Promise<Job>((resolve) => {
+    const unsubscribe = session.subscribe((snapshot) => {
+      const job = snapshot.jobs.find((candidate) => candidate.taskId === taskId);
+      if (job?.status !== 'completed' && job?.status !== 'failed') return;
+      const result = getJob(job.id);
+      if (result === undefined) return;
+      unsubscribe();
+      resolve(result);
+    });
   });
-  if (!job.ok) {
-    throw new Error(job.error.message);
+  const accepted = await session.submitJob({
+    taskId,
+    backendId: 'provider',
+    payload: {
+      profileId: profile.value.profileId,
+      operation: 'text_to_image',
+      request: {
+        prompt: 'Chrome feasibility profile dispatch smoke',
+        output: { count: 1 },
+        providerOptions: { model: 'gpt-image-2' },
+      },
+      runningTask: {
+        schemaVersion: TASK_RECORD_SCHEMA_VERSION,
+        taskId,
+        status: 'running',
+        operation: 'text-to-image',
+        prompt: 'Chrome feasibility profile dispatch smoke',
+        attachments: [],
+        outputs: [],
+        placement: { kind: 'unbound', reason: 'no-photoshop-source' },
+        execution: {
+          backend: { id: 'provider', label: 'Provider' },
+          connection: { id: profile.value.profileId, label: profile.value.displayName },
+          target: { id: 'gpt-image-2', label: 'gpt-image-2' },
+        },
+        createdAt,
+        updatedAt: createdAt,
+      },
+    },
+  });
+  if (!accepted.ok) {
+    globalThis.fetch = originalFetch;
+    session.dispose();
+    throw new Error(accepted.error.message);
   }
-  const profileDispatchProfileId = typeof job.value.input.profileId === 'string' ? job.value.input.profileId : '';
+  const job = await terminalJob.finally(() => {
+    globalThis.fetch = originalFetch;
+    session.dispose();
+  });
+  if (job.status === 'failed') {
+    throw new Error(job.error?.message ?? 'Chrome feasibility generation failed.');
+  }
+  const profileDispatchProfileId = profile.value.profileId;
 
-  const image = job.value.output?.image as { assets?: readonly unknown[] } | undefined;
+  const image = job.output?.image as { assets?: readonly unknown[] } | undefined;
   return {
     runtime: 'chrome',
     providerCount: providers.length,

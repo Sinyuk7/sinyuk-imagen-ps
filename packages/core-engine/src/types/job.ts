@@ -15,6 +15,15 @@ export type JobInput = Record<string, unknown>;
 /** Job 完成后的输出 payload。 */
 export type JobOutput = Record<string, unknown>;
 
+/** 创建 Retry Job 时携带的 generic attempt metadata。 */
+export interface JobAttemptMetadata {
+  /** 原始 failed Job identity。 */
+  readonly originJobId: string;
+
+  /** 从 1 开始递增的 Retry attempt。 */
+  readonly retryAttempt: number;
+}
+
 /** 具有明确生命周期的单一工作单元。 */
 export interface Job {
   /** Job 稳定标识符。 */
@@ -59,7 +68,7 @@ export interface JobStore {
    * SIDE EFFECT: 在 store 中插入一条 status 为 `'created'` 的记录。
    * FAILURE: 若 input 不符合序列化要求，抛出 `JobError`（`category: 'validation'`）。
    */
-  submitJob(input: JobInput): Job;
+  submitJob(input: JobInput, attempt?: JobAttemptMetadata): Job;
 
   /**
    * Retrieve a job by id.

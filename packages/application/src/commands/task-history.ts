@@ -1,6 +1,7 @@
-import { assertTaskRecord, type TaskRecord, type TaskStatus } from '@imagen-ps/core-engine';
 import { getTaskStore } from '../runtime.js';
+import { assertTaskRecord, type TaskRecord, type TaskStatus } from '../task.js';
 
+/** Durable Task history 查询条件。 */
 export interface ListTaskRecordsQuery {
   /** 最多返回多少条记录。 */
   readonly limit?: number;
@@ -15,6 +16,7 @@ export async function putTaskRecord(record: TaskRecord): Promise<void> {
 }
 
 function interruptedRecord(record: TaskRecord): TaskRecord {
+  const interruptedAt = new Date().toISOString();
   return {
     ...record,
     status: 'interrupted',
@@ -23,7 +25,8 @@ function interruptedRecord(record: TaskRecord): TaskRecord {
       message: 'App restarted before completion.',
     },
     outputs: [],
-    finishedAt: record.finishedAt ?? record.updatedAt,
+    updatedAt: interruptedAt,
+    finishedAt: interruptedAt,
   };
 }
 

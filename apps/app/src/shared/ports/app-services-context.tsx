@@ -19,3 +19,8 @@ export function useAppServices(): AppServices {
   }
   return services;
 }
+
+/** 读取可选 App services；独立组件 harness 未装配 Provider 时返回 null。 */
+export function useOptionalAppServices(): AppServices | null {
+  return useContext(AppServicesContext);
+}

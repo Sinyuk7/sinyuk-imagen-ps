@@ -1,18 +1,14 @@
-import type {
-  CommandResult,
-  Job,
-  JobError,
-  JobEventHandler,
-  ProviderProfile,
-  RetryJobInput,
-  SubmitJobInput,
-  TaskRecord,
-  Unsubscribe,
-} from '../commands/types.js';
+import type { Job, JobError, JobEventHandler, Unsubscribe } from '../commands/types.js';
+import type { ExecuteJobInput } from '../commands/execute-job.js';
+import type { CommandResult } from '../commands/types.js';
+import type { GenerationBackend, GenerationCommand } from '../generation/types.js';
+import type { TaskRecord } from '../task.js';
 import type { Logger } from '@imagen-ps/foundation';
 
+/** Session 对外暴露的 bounded Application error。 */
 export type ApplicationError = JobError;
 
+/** Session 中单次 Job attempt 的 UI snapshot。 */
 export interface JobSessionSnapshot {
   readonly id: string;
   readonly type: 'generate' | 'edit' | string;
@@ -25,47 +21,42 @@ export interface JobSessionSnapshot {
   readonly error?: unknown;
 }
 
-/** Session queue 接受任务后的公开确认。 */
+/** Session queue 接受 generation 后的公开确认。 */
 export interface EnqueueAcknowledgement {
   readonly taskId: string;
   readonly status: 'queued';
 }
 
-/** Pre-dispatch 任务的只读 session 快照。 */
+/** Pre-dispatch work 的最小只读 UI snapshot。 */
 export interface SessionQueuedTaskSnapshot {
   readonly taskId: string;
-  readonly createdAt: string;
-  readonly profileId: string;
-  readonly operation: 'text-to-image' | 'image-edit';
-  readonly prompt: string;
-  readonly modelId?: string;
   readonly status: 'queued' | 'starting';
   readonly removable: boolean;
   readonly jobId?: string;
 }
 
+/** Application Session 当前公开状态。 */
 export interface ImagenSessionSnapshot {
-  readonly selectedProfileId?: string;
-  readonly selectedModelId?: string;
-  readonly activeJobId?: string;
   readonly jobs: readonly JobSessionSnapshot[];
   readonly queuedTasks: readonly SessionQueuedTaskSnapshot[];
   readonly lastError?: ApplicationError;
 }
 
+/** Session 依赖的 generic Application commands。 */
 export interface ImagenSessionCommands {
-  readonly submitJob: (input: SubmitJobInput) => Promise<CommandResult<Job>>;
-  readonly retryJob: (input: RetryJobInput) => Promise<CommandResult<Job>>;
+  readonly executeJob: (input: ExecuteJobInput) => Promise<CommandResult<Job>>;
   readonly getJob: (jobId: string) => Job | undefined;
   readonly subscribeJobEvents: (handler: JobEventHandler) => Unsubscribe;
   readonly putTaskRecord: (record: TaskRecord) => Promise<void>;
-  readonly getProviderProfile: (profileId: string) => Promise<CommandResult<ProviderProfile>>;
+  readonly getTaskRecord: (taskId: string) => Promise<TaskRecord | undefined>;
 }
 
+/** Session snapshot subscriber。 */
 export type ImagenSessionSubscriber = (snapshot: ImagenSessionSnapshot) => void;
 
+/** Backend-neutral Application Session controller。 */
 export interface ImagenSessionController {
-  readonly submitJob: (input: SubmitJobInput) => Promise<CommandResult<EnqueueAcknowledgement>>;
+  readonly submitJob: (command: GenerationCommand) => Promise<CommandResult<EnqueueAcknowledgement>>;
   readonly removeQueuedTask: (taskId: string) => boolean;
   readonly retryJob: (jobId: string) => Promise<CommandResult<Job>>;
   readonly getSnapshot: () => ImagenSessionSnapshot;
@@ -73,7 +64,9 @@ export interface ImagenSessionController {
   readonly dispose: () => void;
 }
 
+/** 创建 Application Session 的 composition options。 */
 export interface CreateImagenSessionOptions {
-  readonly commands?: ImagenSessionCommands;
+  readonly backends?: readonly GenerationBackend[];
+  readonly commands?: Partial<ImagenSessionCommands>;
   readonly logger?: Logger;
 }

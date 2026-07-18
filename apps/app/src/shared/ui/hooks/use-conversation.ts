@@ -581,13 +581,14 @@ export function useConversation(
             prompt,
             attachments,
             placementIntent,
-            providerName: input.providerName,
-            profileId: input.profileId,
-            ...(input.modelId ? { modelId: input.modelId } : {}),
+            execution: {
+              backend: { id: 'provider', label: 'Provider' },
+              connection: { id: input.profileId, label: input.providerName },
+              ...(input.modelId ? { target: { id: input.modelId, label: input.modelId } } : {}),
+            },
             createdAt,
           });
           const providerOptions = input.modelId ? { model: input.modelId } : undefined;
-          const workflow = input.operation === 'image-edit' ? 'provider-edit' : 'provider-generate';
           const providerInputAssets =
             input.operation === 'image-edit'
               ? attachments.map((attachment) => assetForJobInput(attachment.image))
@@ -595,10 +596,7 @@ export function useConversation(
           const inputContext = input.operation === 'image-edit'
             ? normalizedInputContextForAttachments(attachments)
             : undefined;
-          const jobInput = {
-            __clientRoundId: roundId,
-            __clientTaskId: roundId,
-            profileId: input.profileId,
+          const request = {
             prompt,
             ...(output ? { output } : {}),
             ...(inputContext ? { inputContext } : {}),
@@ -607,9 +605,14 @@ export function useConversation(
           };
           input.onPrepared?.();
           const result = await sessionBinding.session.submitJob({
-            workflow,
-            input: jobInput,
-            taskRecord,
+            taskId: roundId,
+            backendId: 'provider',
+            payload: {
+              profileId: input.profileId,
+              operation: input.operation === 'image-edit' ? 'image_edit' : 'text_to_image',
+              request,
+              runningTask: taskRecord,
+            },
           });
           if (!result.ok) {
             setRounds((current) => current.map((item) => (
@@ -642,9 +645,6 @@ export function useConversation(
       retryInFlightRef.current.add(roundId);
       try {
         const round = rounds.find((item) => item.id === roundId);
-        if (round?.status === 'err') {
-          return;
-        }
         if (round?.status === 'ok' && round.profileId) {
           await submit({
             operation: round.attachments.length > 0 ? 'image-edit' : 'text-to-image',
@@ -677,7 +677,7 @@ export function useConversation(
                   sessionBinding.snapshot.jobs.find((job) => job.id === result.value.id) ??
                     jobSnapshotFromResult(
                       result.value.id,
-                      String(result.value.input._workflowName ?? 'provider-generate'),
+                      round.attachments.length > 0 ? 'provider-edit' : 'provider-generate',
                       result.value.status,
                       result.value.output,
                       result.value.error,

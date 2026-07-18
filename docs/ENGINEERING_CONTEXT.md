@@ -11,9 +11,9 @@ This file stores repository engineering context that should stay out of root `AG
 | Module | Role | Owns | Must Not Own |
 |---|---|---|---|
 | `apps/app` | Photoshop UXP + Chrome app surface | shared React UI, app ports, UXP shell/adapters, Chrome shell/adapters, Photoshop simulator, UI-local bindings | runtime internals, provider transport semantics |
-| `packages/application` | application/session layer | session controller, command facade, request builders, runtime assembly, profile/model coordination | React, DOM, Photoshop, UXP, Node fs/path/os |
-| `packages/core-engine` | job execution kernel | job facts, lifecycle, store, events, runner, dispatch boundary | profile/model selection, host persistence, provider raw transport |
-| `packages/providers` | provider adapter layer | config/request validation, transport, normalization, error mapping | app/session state, job lifecycle, host IO |
+| `packages/application` | application/session layer | `GenerationBackend` policy, Task v2, session orchestration, command facade, runtime assembly, profile/model coordination | React, DOM, Photoshop, UXP, Node fs/path/os |
+| `packages/core-engine` | job execution kernel | job facts, lifecycle, store, events, workflow runner, backend-neutral execution dispatch | Task state, profile/model selection, host persistence, provider raw transport |
+| `packages/providers` | provider adapter layer | stable Provider `ExecutionAdapter`, config/request validation, transport, normalization, error mapping | app/session state, Task projection, job lifecycle, host IO |
 | `packages/foundation` | lowest-level shared utilities | log record model, context/span helpers, redaction, sink interfaces | React, DOM, Node `fs/path/os`, UXP, Photoshop, provider transport, runtime assembly, workspace reverse dependencies |
 
 ## Dependency Direction
@@ -34,7 +34,8 @@ surface apps -> application/session -> core-engine + providers
   with `requestStrategyId` and output constraints. `packages/application` owns
   profile-local reconciliation over discovery cache, user model configs,
   official presets, and profile `selectedModelIds/defaultModelId`.
-- Model execution is resolved before provider dispatch. The application picks
+- Provider model execution is resolved during `GenerationBackend.admit()`,
+  before queue dispatch. The application picks
   the explicit request model, then `defaultModelId`, then provider fallback,
   resolves it through user config before official preset, and injects
   `request.model`. Production provider request builders consume `request.model`
@@ -54,11 +55,14 @@ surface apps -> application/session -> core-engine + providers
   model identity via substring matching; non-catalog providers (mock) and
   unknown models fall back to the default icon. Static
   visual harnesses pass `iconName` directly without runtime resolution.
-- Product history is task-oriented. `TaskRecord` is the durable user-task
-  history contract; `DurableJobRecord` remains execution/job compatibility
-  history. A valid send first creates session-only queued work; dispatch creates
-  the durable running task, terminal provider execution updates the same
-  `taskId`, and retry/regenerate creates a new task. Queued-only work is absent
+- Product history is task-oriented. Application-owned `TaskRecord` schema v2 is
+  the durable user-intent contract; it uses generic `backend`, `connection`, and
+  `target` summaries plus `latestJobId`. `DurableJobRecord` remains execution
+  attempt history. A valid send first creates session-only queued work. After
+  readiness passes, Session creates a Job, binds a jobId-keyed correlation, and
+  persists the running Task before execution side effects. Terminal projection
+  updates the same Task. Retry keeps the Task identity and creates a new Job;
+  Regenerate creates both a new Task and a new Job. Queued-only work is absent
   from durable history and is dropped on app reload or restart.
 - Task records store only serializable, secret-free evidence and opaque
   resource refs. Preview/download/place availability is resolved dynamically
@@ -228,6 +232,19 @@ surface apps -> application/session -> core-engine + providers
 
 ## Submission And Retry Contract
 
+- Core workflows contain only static `execution` steps routed by an
+  `ExecutionAdapter` id. Core owns Job lifecycle, immutable handoff, and error
+  boundaries, but does not interpret backend policy or Task state.
+- Application `GenerationBackend` implementations own admission, readiness,
+  optional concurrency lanes, Retry reconstruction, terminal Task projection,
+  and post-persistence follow-up. Provider uses backend id `provider`, a
+  per-profile lane cap of 2, and one stable Provider `ExecutionAdapter` that
+  performs exact admitted implementation lookup.
+- Provider credentials are resolved for every dispatch from the admitted
+  non-secret profile reference. Resolved config, secrets, and materialized
+  input bytes remain call-stack-only and must not enter Job, Task, Session,
+  output, error, or logs.
+
 - Provider profiles persist canonical `connection` config instead of a single
   endpoint field. Persisted endpoint-selection state is `selectionMode`,
   `selectedEndpointId` (manual mode only), and the endpoint list; provider
@@ -244,11 +261,20 @@ surface apps -> application/session -> core-engine + providers
   schema break: old persisted profile records without canonical `apiFormat` are
   rejected rather than migrated.
 - Session queue ownership lives in `packages/application/src/session/*`.
-  `submitJob()` validates and freezes provider-dispatchable input, publishes a
-  FIFO `queuedTasks` entry, and returns enqueue acknowledgement before a later
-  scheduler turn can dispatch. Concurrency is bounded globally and per profile;
-  `jobs` remains the dispatched execution view.
-- Session-level in-flight registry (`packages/application/src/session/session.ts`): `inFlightRetry` deduplicates by failed-job `jobId`; `inFlightSubmit` deduplicates by `__clientRoundId` only through queue admission acknowledgement. Both locks release on every settle path.
+  `submitJob()` validates and freezes a `GenerationCommand`, delegates policy
+  to the registered backend, publishes a FIFO `queuedTasks` entry, and returns
+  enqueue acknowledgement before a later scheduler turn can dispatch. The
+  global concurrency cap is 5; optional admitted lanes carry their own cap.
+  Readiness is rechecked after dequeue and before Job creation.
+- Session routes terminal events only through its jobId-keyed
+  `TaskJobCorrelation` sidecar. It does not parse profile/model/billing data or
+  depend on UI correlation fields in Job input. `inFlightRetry` deduplicates by
+  failed Job id and `inFlightSubmit` deduplicates by stable Task id; both locks
+  release on every settle path.
+- Terminal ordering is fixed: backend projection, terminal Task persistence,
+  then optional follow-up. Projection/materialization failure writes a bounded
+  failed Task from the admitted running snapshot. Follow-up failure is logged
+  and never rewrites the already-persisted Job or Task result.
 - UI ref gates (`submitInFlightRef`, `retryInFlightRef`) cover same-tick double-click windows. Queued or running rounds do not globally disable composer editing, capture, model/output selection, or new submission; task-local remove/retry gates remain narrow.
 - Provider transport ownership summary lives in `packages/providers/ARCHITECTURE.md`.
   Use that doc for request codec boundaries, replay safety, `RecoveryDisposition`,

@@ -4,8 +4,7 @@
 
 export * from './job.js';
 export * from './workflow.js';
-export * from './provider.js';
+export * from './execution.js';
 export * from './asset.js';
 export * from './events.js';
 export * from './durable-job.js';
-export * from './task.js';

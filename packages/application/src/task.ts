@@ -1,14 +1,16 @@
-import { createValidationError } from '../errors.js';
-import type { JobError } from '../errors.js';
-import type { StoredAssetRef } from './durable-job.js';
+import {
+  createValidationError,
+  type JobError,
+  type StoredAssetRef,
+} from '@imagen-ps/core-engine';
 
-/** 可持久化 task record 的 schema 版本。 */
-export const TASK_RECORD_SCHEMA_VERSION = 1;
+/** 可持久化 Task record 的唯一 current-state schema 版本。 */
+export const TASK_RECORD_SCHEMA_VERSION = 2;
 
-/** 用户可见 task lifecycle 状态。 */
+/** 用户可见 Task lifecycle 状态。 */
 export type TaskStatus = 'running' | 'completed' | 'failed' | 'interrupted';
 
-/** 用户可见 task 操作类型。 */
+/** 用户可见 Task 操作类型。 */
 export type TaskOperation = 'text-to-image' | 'image-edit';
 
 /** Task 坐标矩形：document pixel space，right/bottom 为 exclusive。 */
@@ -19,20 +21,20 @@ export interface Rect {
   readonly bottom: number;
 }
 
-/** Host-neutral task 资源引用。 */
+/** Host-neutral Task 资源引用。 */
 export interface TaskResourceRef {
   readonly ref: StoredAssetRef;
   readonly width?: number;
   readonly height?: number;
 }
 
-/** 解析后的 preview URL。创建方负责释放。 */
+/** 解析后的 preview URL；创建方负责释放。 */
 export interface ResolvedPreview {
   readonly url: string;
   readonly dispose?: () => void;
 }
 
-/** 解析后的 task 资源。availability 是动态状态，不写入 task record。 */
+/** 解析后的 Task 资源；availability 是动态状态，不写入 Task record。 */
 export interface ResolvedTaskResource {
   readonly resource: TaskResourceRef;
   readonly availability: 'available' | 'missing' | 'remote-only' | 'unresolvable';
@@ -40,7 +42,7 @@ export interface ResolvedTaskResource {
   readonly preview?: ResolvedPreview;
 }
 
-/** Durable task 的规范化错误。禁止保存 raw response / stack / secret。 */
+/** Durable Task 的规范化错误；禁止保存 raw response、stack 或 secret。 */
 export interface TaskError {
   readonly category: JobError['category'] | 'storage' | 'interrupted';
   readonly message: string;
@@ -48,41 +50,31 @@ export interface TaskError {
   readonly details?: Record<string, string | number | boolean | null>;
 }
 
-/** 本地文件证据。nativePathHint 仅用于显示，不能作为身份。 */
+/** 本地文件的 bounded durable evidence。 */
 export interface FileEvidence {
   readonly token?: string;
   readonly name?: string;
   readonly byteSize?: number;
   readonly sha256?: string;
   readonly mimeType?: string;
-  readonly nativePathHint?: string;
 }
 
-/** App-owned serializable task evidence. Core validates shape, not host semantics. */
+/** Application-owned、可序列化且 secret-free 的 Task evidence。 */
 export type TaskEvidence = Readonly<Record<string, unknown>>;
 
-/** Durable task input attachment evidence。 */
-export type TaskAttachment =
-  | ({
-      readonly kind: string;
-      readonly attachmentId: string;
-      readonly label?: string;
-      readonly asset: TaskResourceRef;
-      readonly evidence?: TaskEvidence;
-      readonly providerInput?: TaskResourceRef;
-      readonly thumbnail?: TaskResourceRef;
-    } & Record<string, unknown>)
-  | {
-      readonly kind: 'local-file';
-      readonly attachmentId: string;
-      readonly label?: string;
-      readonly asset: TaskResourceRef;
-      readonly file?: FileEvidence;
-      readonly providerInput?: TaskResourceRef;
-      readonly thumbnail?: TaskResourceRef;
-    };
+/** Durable Task input attachment evidence。 */
+export interface TaskAttachment {
+  readonly kind: string;
+  readonly attachmentId: string;
+  readonly label?: string;
+  readonly asset: TaskResourceRef;
+  readonly evidence?: TaskEvidence;
+  readonly file?: FileEvidence;
+  readonly executionInput?: TaskResourceRef;
+  readonly thumbnail?: TaskResourceRef;
+}
 
-/** Durable task output evidence。 */
+/** Durable Task output evidence；资源身份只由 asset.ref 决定。 */
 export interface TaskOutput {
   readonly outputId: string;
   readonly index: number;
@@ -90,11 +82,7 @@ export interface TaskOutput {
   readonly asset: TaskResourceRef;
   readonly thumbnail?: TaskResourceRef;
   readonly partial?: boolean;
-  readonly source?: {
-    readonly providerAssetKind: 'base64' | 'url' | 'fileId' | 'storedRef';
-    readonly sanitizedOriginalUrl?: string;
-    readonly fileId?: string;
-  };
+  readonly evidence?: TaskEvidence;
 }
 
 /** Task replay placement 只引用 durable evidence。 */
@@ -103,23 +91,20 @@ export type TaskPlacement =
   | { readonly kind: 'document-only'; readonly document: TaskEvidence }
   | { readonly kind: 'unbound'; readonly reason: 'no-photoshop-source' | 'multiple-documents' };
 
-/** 历史执行显示快照。只用于 display/debug。 */
-export interface TaskExecutionSnapshot {
-  readonly profileId?: string;
-  readonly profileName?: string;
-  readonly providerId?: string;
-  readonly providerName?: string;
-  readonly modelId?: string;
-  readonly modelName?: string;
-  readonly output?: {
-    readonly count?: number;
-    readonly size?: string;
-    readonly format?: string;
-    readonly quality?: string;
-  };
+/** Backend-neutral execution identity；id 用于关联，label 只用于显示。 */
+export interface TaskExecutionIdentity {
+  readonly id: string;
+  readonly label: string;
 }
 
-/** Product history source of truth。禁止保存 raw image bytes / secrets。 */
+/** 历史执行的 bounded backend-neutral 显示摘要。 */
+export interface TaskExecutionSummary {
+  readonly backend: TaskExecutionIdentity;
+  readonly connection?: TaskExecutionIdentity;
+  readonly target?: TaskExecutionIdentity;
+}
+
+/** Product history source of truth；禁止保存 raw image bytes、native path 或 secrets。 */
 export interface TaskRecord {
   readonly schemaVersion: typeof TASK_RECORD_SCHEMA_VERSION;
   readonly taskId: string;
@@ -130,30 +115,91 @@ export interface TaskRecord {
   readonly outputs: readonly TaskOutput[];
   readonly placement: TaskPlacement;
   readonly error?: TaskError;
-  readonly execution?: TaskExecutionSnapshot;
-  readonly executionJobId?: string;
+  readonly execution?: TaskExecutionSummary;
+  readonly latestJobId?: string;
   readonly createdAt: string;
   readonly updatedAt: string;
   readonly finishedAt?: string;
 }
 
+/** 单条持久化 Task decode 的隔离结果。 */
 export type DecodeTaskRecordResult =
   | { readonly ok: true; readonly value: TaskRecord }
-  | { readonly ok: false; readonly reason: 'unknown-schema' | 'malformed'; readonly message: string; readonly taskId?: string };
+  | {
+      readonly ok: false;
+      readonly reason: 'unknown-schema' | 'malformed';
+      readonly message: string;
+      readonly taskId?: string;
+    };
+
+/** Host 注入的 durable Task store；upsert key 固定为 taskId。 */
+export interface TaskStore {
+  put(record: TaskRecord): Promise<void>;
+  get(taskId: string): Promise<TaskRecord | undefined>;
+  list(query?: { readonly limit?: number; readonly status?: TaskStatus }): Promise<readonly TaskRecord[]>;
+  delete(taskId: string): Promise<void>;
+}
 
 const SECRET_KEY_PATTERN =
   /(^|\.|_)(apiKey|accessToken|refreshToken|secret|secretValue|secretValues|password|authorization|authToken|providerOptions)(\.|_|$)/i;
 
 const TOKEN_VALUE_PATTERN = /\b(sk-[A-Za-z0-9_-]{8,}|Bearer\s+[A-Za-z0-9._-]{8,})\b/i;
 
-/** Decode one persisted task record. Bad records are isolated by return value. */
+const NATIVE_PATH_KEY_PATTERN = /^(?:nativePath|nativePathHint|filePath|absolutePath)$/i;
+
+const URL_CREDENTIAL_PARAM_PATTERN = /^(?:api[_-]?key|access[_-]?token|auth|authorization|credential|password|secret|sig|signature|token)$/i;
+
+const TASK_RECORD_KEYS = [
+  'schemaVersion',
+  'taskId',
+  'status',
+  'operation',
+  'prompt',
+  'attachments',
+  'outputs',
+  'placement',
+  'error',
+  'execution',
+  'latestJobId',
+  'createdAt',
+  'updatedAt',
+  'finishedAt',
+] as const;
+
+const TASK_ATTACHMENT_KEYS = [
+  'kind',
+  'attachmentId',
+  'label',
+  'asset',
+  'evidence',
+  'file',
+  'executionInput',
+  'thumbnail',
+] as const;
+
+const TASK_OUTPUT_KEYS = [
+  'outputId',
+  'index',
+  'kind',
+  'asset',
+  'thumbnail',
+  'partial',
+  'evidence',
+] as const;
+
+/** Decode 单条 persisted Task；坏记录通过返回值隔离。 */
 export function decodeTaskRecord(value: unknown): DecodeTaskRecordResult {
   if (!isRecord(value)) {
     return { ok: false, reason: 'malformed', message: 'Task record must be an object.' };
   }
   const taskId = typeof value.taskId === 'string' ? value.taskId : undefined;
   if (value.schemaVersion !== TASK_RECORD_SCHEMA_VERSION) {
-    return { ok: false, reason: 'unknown-schema', message: 'Unsupported task record schemaVersion.', ...(taskId ? { taskId } : {}) };
+    return {
+      ok: false,
+      reason: 'unknown-schema',
+      message: 'Unsupported task record schemaVersion.',
+      ...(taskId ? { taskId } : {}),
+    };
   }
   try {
     assertTaskRecord(value);
@@ -168,11 +214,12 @@ export function decodeTaskRecord(value: unknown): DecodeTaskRecordResult {
   }
 }
 
-/** Validate task lifecycle and secret-free/resource-ref invariants before write. */
+/** 写入前校验 Task lifecycle、bounded schema 与 secret-free/resource-ref invariants。 */
 export function assertTaskRecord(record: unknown): asserts record is TaskRecord {
   if (!isRecord(record)) {
     throw createValidationError('Task record must be an object.');
   }
+  assertAllowedKeys(record, TASK_RECORD_KEYS, 'root');
   expectLiteral(record.schemaVersion, TASK_RECORD_SCHEMA_VERSION, 'schemaVersion');
   expectNonEmptyString(record.taskId, 'taskId');
   expectOneOf(record.status, ['running', 'completed', 'failed', 'interrupted'], 'status');
@@ -183,6 +230,9 @@ export function assertTaskRecord(record: unknown): asserts record is TaskRecord 
   assertPlacement(record.placement);
   expectIsoString(record.createdAt, 'createdAt');
   expectIsoString(record.updatedAt, 'updatedAt');
+  if (record.latestJobId !== undefined) {
+    expectNonEmptyString(record.latestJobId, 'latestJobId');
+  }
   if (record.finishedAt !== undefined) {
     expectIsoString(record.finishedAt, 'finishedAt');
   }
@@ -212,21 +262,25 @@ export function assertTaskRecord(record: unknown): asserts record is TaskRecord 
     }
   }
 
-  (record.attachments as readonly unknown[]).forEach((attachment, index) => assertAttachment(attachment, `attachments[${index}]`));
-  (record.outputs as readonly unknown[]).forEach((output, index) => assertOutput(output, `outputs[${index}]`));
+  (record.attachments as readonly unknown[]).forEach((attachment, index) =>
+    assertAttachment(attachment, `attachments[${index}]`));
+  (record.outputs as readonly unknown[]).forEach((output, index) =>
+    assertOutput(output, `outputs[${index}]`));
   if (record.error !== undefined) {
     assertTaskError(record.error, 'error');
+  }
+  if (record.execution !== undefined) {
+    assertExecutionSummary(record.execution, 'execution');
   }
   assertNoTaskSecrets(record);
 }
 
-/** Ensure persisted task JSON has no secret-shaped keys or token-like values. */
+/** 确保持久化 Task JSON 不含 secret-shaped keys、token-like values 或 raw binary。 */
 export function assertNoTaskSecrets(value: unknown): void {
-  const seen = new WeakSet<object>();
-  visitNoTaskSecrets(value, seen, 'root');
+  visitTaskValue(value, new WeakSet<object>(), 'root');
 }
 
-/** Sanitizes a provider/source URL for durable evidence by dropping query and hash. */
+/** 清理 durable evidence URL 的 query 与 hash。 */
 export function sanitizeTaskEvidenceUrl(value: string): string {
   try {
     const url = new URL(value);
@@ -242,20 +296,24 @@ function assertAttachment(value: unknown, path: string): void {
   if (!isRecord(value)) {
     throw createValidationError(`Task ${path} must be an object.`, { path });
   }
+  assertAllowedKeys(value, TASK_ATTACHMENT_KEYS, path);
   expectNonEmptyString(value.kind, `${path}.kind`);
   expectNonEmptyString(value.attachmentId, `${path}.attachmentId`);
   if (value.label !== undefined) {
     expectString(value.label, `${path}.label`);
   }
   assertResourceRef(value.asset, `${path}.asset`);
-  if (value.providerInput !== undefined) {
-    assertResourceRef(value.providerInput, `${path}.providerInput`);
+  if (value.executionInput !== undefined) {
+    assertResourceRef(value.executionInput, `${path}.executionInput`);
   }
   if (value.thumbnail !== undefined) {
     assertResourceRef(value.thumbnail, `${path}.thumbnail`);
   }
-  if (value.evidence !== undefined && !isRecord(value.evidence)) {
-    throw createValidationError(`Task ${path}.evidence must be an object.`, { path: `${path}.evidence` });
+  if (value.evidence !== undefined) {
+    assertEvidence(value.evidence, `${path}.evidence`);
+  }
+  if (value.file !== undefined) {
+    assertFileEvidence(value.file, `${path}.file`);
   }
 }
 
@@ -263,6 +321,7 @@ function assertOutput(value: unknown, path: string): void {
   if (!isRecord(value)) {
     throw createValidationError(`Task ${path} must be an object.`, { path });
   }
+  assertAllowedKeys(value, TASK_OUTPUT_KEYS, path);
   expectNonEmptyString(value.outputId, `${path}.outputId`);
   expectNonNegativeInteger(value.index, `${path}.index`);
   expectLiteral(value.kind, 'image', `${path}.kind`);
@@ -273,20 +332,8 @@ function assertOutput(value: unknown, path: string): void {
   if (value.partial !== undefined && typeof value.partial !== 'boolean') {
     throw createValidationError(`Task ${path}.partial must be a boolean.`, { path: `${path}.partial` });
   }
-  if (value.source !== undefined) {
-    if (!isRecord(value.source)) {
-      throw createValidationError(`Task ${path}.source must be an object.`, { path: `${path}.source` });
-    }
-    expectOneOf(value.source.providerAssetKind, ['base64', 'url', 'fileId', 'storedRef'], `${path}.source.providerAssetKind`);
-    if (value.source.sanitizedOriginalUrl !== undefined) {
-      expectString(value.source.sanitizedOriginalUrl, `${path}.source.sanitizedOriginalUrl`);
-      if (/[?#]/.test(String(value.source.sanitizedOriginalUrl))) {
-        throw createValidationError('Task source URL evidence must be sanitized.', { path: `${path}.source.sanitizedOriginalUrl` });
-      }
-    }
-    if (value.source.fileId !== undefined) {
-      expectString(value.source.fileId, `${path}.source.fileId`);
-    }
+  if (value.evidence !== undefined) {
+    assertEvidence(value.evidence, `${path}.evidence`);
   }
 }
 
@@ -296,27 +343,80 @@ function assertPlacement(value: unknown): void {
   }
   expectOneOf(value.kind, ['exact-frame', 'document-only', 'unbound'], 'placement.kind');
   if (value.kind === 'exact-frame') {
+    assertAllowedKeys(value, ['kind', 'sourceSnapshotId'], 'placement');
     expectNonEmptyString(value.sourceSnapshotId, 'placement.sourceSnapshotId');
   } else if (value.kind === 'document-only') {
-    if (!isRecord(value.document)) {
-      throw createValidationError('Task placement.document must be an object.', { path: 'placement.document' });
-    }
+    assertAllowedKeys(value, ['kind', 'document'], 'placement');
+    assertEvidence(value.document, 'placement.document');
   } else {
+    assertAllowedKeys(value, ['kind', 'reason'], 'placement');
     expectOneOf(value.reason, ['no-photoshop-source', 'multiple-documents'], 'placement.reason');
   }
+}
+
+function assertExecutionSummary(value: unknown, path: string): void {
+  if (!isRecord(value)) {
+    throw createValidationError(`Task ${path} must be an object.`, { path });
+  }
+  assertAllowedKeys(value, ['backend', 'connection', 'target'], path);
+  assertExecutionIdentity(value.backend, `${path}.backend`);
+  if (value.connection !== undefined) {
+    assertExecutionIdentity(value.connection, `${path}.connection`);
+  }
+  if (value.target !== undefined) {
+    assertExecutionIdentity(value.target, `${path}.target`);
+  }
+}
+
+function assertExecutionIdentity(value: unknown, path: string): void {
+  if (!isRecord(value)) {
+    throw createValidationError(`Task ${path} must be an object.`, { path });
+  }
+  assertAllowedKeys(value, ['id', 'label'], path);
+  expectNonEmptyString(value.id, `${path}.id`);
+  expectNonEmptyString(value.label, `${path}.label`);
 }
 
 function assertTaskError(value: unknown, path: string): void {
   if (!isRecord(value)) {
     throw createValidationError(`Task ${path} must be an object.`, { path });
   }
-  expectNonEmptyString(value.category, `${path}.category`);
+  assertAllowedKeys(value, ['category', 'message', 'code', 'details'], path);
+  expectOneOf(
+    value.category,
+    ['validation', 'execution', 'provider', 'runtime', 'workflow', 'unknown', 'storage', 'interrupted'],
+    `${path}.category`,
+  );
   expectNonEmptyString(value.message, `${path}.message`);
   if (value.code !== undefined) {
     expectString(value.code, `${path}.code`);
   }
-  if (value.details !== undefined && !isRecord(value.details)) {
-    throw createValidationError(`Task ${path}.details must be an object.`, { path: `${path}.details` });
+  if (value.details !== undefined) {
+    if (!isRecord(value.details)) {
+      throw createValidationError(`Task ${path}.details must be an object.`, { path: `${path}.details` });
+    }
+    for (const [key, detail] of Object.entries(value.details)) {
+      if (detail !== null && typeof detail !== 'string' && typeof detail !== 'number' && typeof detail !== 'boolean') {
+        throw createValidationError(`Task ${path}.details.${key} must be a bounded primitive.`, {
+          path: `${path}.details.${key}`,
+        });
+      }
+    }
+  }
+}
+
+function assertFileEvidence(value: unknown, path: string): void {
+  if (!isRecord(value)) {
+    throw createValidationError(`Task ${path} must be an object.`, { path });
+  }
+  assertAllowedKeys(value, ['token', 'name', 'byteSize', 'sha256', 'mimeType'], path);
+  for (const key of ['token', 'name', 'sha256', 'mimeType'] as const) {
+    if (value[key] !== undefined) {
+      expectString(value[key], `${path}.${key}`);
+    }
+  }
+  if (value.byteSize !== undefined) {
+    expectNonNegativeInteger(value.byteSize, `${path}.byteSize`);
   }
 }
 
@@ -324,11 +424,21 @@ function assertResourceRef(value: unknown, path: string): void {
   if (!isRecord(value)) {
     throw createValidationError(`Task ${path} must be an object.`, { path });
   }
+  assertAllowedKeys(value, ['ref', 'width', 'height'], path);
   if (!isRecord(value.ref)) {
     throw createValidationError(`Task ${path}.ref must be a StoredAssetRef.`, { path: `${path}.ref` });
   }
+  assertAllowedKeys(value.ref, ['kind', 'ref', 'mimeType', 'name', 'byteSize', 'sha256'], `${path}.ref`);
   expectOneOf(value.ref.kind, ['inline', 'url', 'hostObject', 'externalToken'], `${path}.ref.kind`);
   expectNonEmptyString(value.ref.ref, `${path}.ref.ref`);
+  for (const key of ['mimeType', 'name', 'sha256'] as const) {
+    if (value.ref[key] !== undefined) {
+      expectString(value.ref[key], `${path}.ref.${key}`);
+    }
+  }
+  if (value.ref.byteSize !== undefined) {
+    expectNonNegativeInteger(value.ref.byteSize, `${path}.ref.byteSize`);
+  }
   if (value.width !== undefined) {
     expectPositiveFinite(value.width, `${path}.width`);
   }
@@ -337,33 +447,95 @@ function assertResourceRef(value: unknown, path: string): void {
   }
 }
 
-function visitNoTaskSecrets(value: unknown, seen: WeakSet<object>, path: string): void {
-  if (value === null || typeof value !== 'object') {
-    if (typeof value === 'string' && TOKEN_VALUE_PATTERN.test(value)) {
-      throw createValidationError(`Task record contains a token-like value at "${path}".`, { path });
+function assertEvidence(value: unknown, path: string): void {
+  if (!isRecord(value)) {
+    throw createValidationError(`Task ${path} must be an object.`, { path });
+  }
+  visitTaskValue(value, new WeakSet<object>(), path);
+}
+
+function visitTaskValue(value: unknown, seen: WeakSet<object>, path: string): void {
+  if (value === null || typeof value === 'boolean') {
+    return;
+  }
+  if (typeof value === 'number') {
+    if (!Number.isFinite(value)) {
+      throw createValidationError(`Task record contains a non-finite number at "${path}".`, { path });
     }
     return;
+  }
+  if (typeof value === 'string') {
+    if (TOKEN_VALUE_PATTERN.test(value)) {
+      throw createValidationError(`Task record contains a token-like value at "${path}".`, { path });
+    }
+    assertUrlHasNoCredentials(value, path);
+    return;
+  }
+  if (typeof value !== 'object') {
+    throw createValidationError(`Task record contains a non-serializable value at "${path}".`, { path });
   }
   if (ArrayBuffer.isView(value) || value instanceof ArrayBuffer) {
     throw createValidationError(`Task record contains raw binary data at "${path}".`, { path });
   }
-  if (seen.has(value as object)) {
+  if (seen.has(value)) {
+    throw createValidationError(`Task record contains a circular value at "${path}".`, { path });
+  }
+  seen.add(value);
+  if (Array.isArray(value)) {
+    value.forEach((item, index) => visitTaskValue(item, seen, `${path}[${index}]`));
+    seen.delete(value);
     return;
   }
-  seen.add(value as object);
-  if (Array.isArray(value)) {
-    value.forEach((item, index) => visitNoTaskSecrets(item, seen, `${path}[${index}]`));
-    return;
+  const prototype = Object.getPrototypeOf(value);
+  if (prototype !== Object.prototype && prototype !== null) {
+    throw createValidationError(`Task record contains a non-plain object at "${path}".`, { path });
   }
   for (const [key, child] of Object.entries(value as Record<string, unknown>)) {
     const childPath = `${path}.${key}`;
-    if (key === 'secretRefs') {
-      continue;
-    }
     if (SECRET_KEY_PATTERN.test(key)) {
-      throw createValidationError(`Task record contains a secret or raw provider field at "${childPath}".`, { path: childPath });
+      throw createValidationError(`Task record contains a secret-shaped field at "${childPath}".`, { path: childPath });
     }
-    visitNoTaskSecrets(child, seen, childPath);
+    if (NATIVE_PATH_KEY_PATTERN.test(key)) {
+      throw createValidationError(`Task record contains a native path field at "${childPath}".`, { path: childPath });
+    }
+    visitTaskValue(child, seen, childPath);
+  }
+  seen.delete(value);
+}
+
+function assertUrlHasNoCredentials(value: string, path: string): void {
+  if (!/^https?:\/\//i.test(value)) {
+    return;
+  }
+  try {
+    const url = new URL(value);
+    if (url.username.length > 0 || url.password.length > 0) {
+      throw createValidationError(`Task record contains URL credentials at "${path}".`, { path });
+    }
+    for (const key of url.searchParams.keys()) {
+      if (URL_CREDENTIAL_PARAM_PATTERN.test(key)) {
+        throw createValidationError(`Task record contains URL credentials at "${path}".`, { path });
+      }
+    }
+  } catch (error) {
+    if (isJobErrorLike(error)) {
+      throw error;
+    }
+  }
+}
+
+function isJobErrorLike(value: unknown): value is JobError {
+  return isRecord(value)
+    && typeof value.category === 'string'
+    && typeof value.message === 'string';
+}
+
+function assertAllowedKeys(value: Record<string, unknown>, allowed: readonly string[], path: string): void {
+  const allowedSet = new Set(allowed);
+  for (const key of Object.keys(value)) {
+    if (!allowedSet.has(key)) {
+      throw createValidationError(`Task ${path} contains unsupported field "${key}".`, { path: `${path}.${key}` });
+    }
   }
 }
 
@@ -390,7 +562,7 @@ function expectString(value: unknown, path: string): void {
 }
 
 function expectNonEmptyString(value: unknown, path: string): void {
-  if (typeof value !== 'string' || value.length === 0) {
+  if (typeof value !== 'string' || value.trim().length === 0) {
     throw createValidationError(`Task ${path} must be a non-empty string.`, { path });
   }
 }

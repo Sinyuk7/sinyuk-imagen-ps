@@ -22,7 +22,7 @@ export * from './events.js';
 // Re-export workflow registry.
 export * from './registry.js';
 
-// Re-export provider dispatch boundary.
+// Re-export execution dispatch boundary.
 export * from './dispatch.js';
 
 // Re-export workflow runner.

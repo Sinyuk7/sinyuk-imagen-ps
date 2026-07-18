@@ -8,6 +8,7 @@
 /** 错误分类 —— string literal union，序列化后自描述。 */
 export type ErrorCategory =
   | 'validation'
+  | 'execution'
   | 'provider'
   | 'runtime'
   | 'workflow'
@@ -21,7 +22,7 @@ export interface JobError {
   /** 人类可读的错误描述。 */
   readonly message: string;
 
-  /** 可选的附加上下文数据（如 stepName、providerName 等）。 */
+  /** 可选的附加上下文数据（如 stepName、adapter 等）。 */
   readonly details?: Record<string, unknown>;
 }
 
@@ -33,6 +34,16 @@ export function createValidationError(
   details?: Record<string, unknown>,
 ): JobError {
   return Object.freeze({ category: 'validation', message, details });
+}
+
+/**
+ * 构造一个 `category` 为 `'execution'` 的 `JobError`。
+ */
+export function createExecutionError(
+  message: string,
+  details?: Record<string, unknown>,
+): JobError {
+  return Object.freeze({ category: 'execution', message, details });
 }
 
 /**

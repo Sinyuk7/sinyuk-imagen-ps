@@ -483,7 +483,12 @@ export function HistoryPage({
                 <div className="task-info">
                   <div className="task-prompt">{item.promptPreview}</div>
                   <div className="task-meta">
-                    <span style={{ fontFamily: 'var(--app-font-family-mono)', fontSize: 10, color: 'var(--app-color-text-muted)' }}>{item.providerLabel}</span>
+                    <span
+                      data-testid={`history-execution-label-${item.id}`}
+                      style={{ fontFamily: 'var(--app-font-family-mono)', fontSize: 10, color: 'var(--app-color-text-muted)' }}
+                    >
+                      {item.executionLabel}
+                    </span>
                     <span className="task-meta-dot">·</span>
                     <span style={{ fontFamily: 'var(--app-font-family-mono)', fontSize: 10, color: 'var(--app-color-text-muted)' }}>{item.displayTime}</span>
                   </div>

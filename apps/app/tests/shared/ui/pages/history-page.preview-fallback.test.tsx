@@ -166,4 +166,42 @@ describe('HistoryPage preview fallback', () => {
     expect(container.querySelector('[data-testid="history-row-unresolvable-task"] .image-fallback[data-state="resource-unresolvable"]')).not.toBeNull();
     expect(container.querySelector('[data-testid="history-row-unavailable-task"] .image-fallback[data-state="preview-unavailable"]')).not.toBeNull();
   });
+
+  it('renders generic connection or backend labels without backend-specific fields', async () => {
+    const container = document.createElement('div');
+    document.body.appendChild(container);
+    const fake = createFakeServices({ activeImageProfileId: 'mock-profile' });
+    const connectionTask = {
+      ...buildRecord('connection-task', fakeTaskRecord.outputs[0]!.asset.ref),
+      execution: {
+        backend: { id: 'provider', label: 'Provider' },
+        connection: { id: 'studio-connection', label: 'Studio Connection' },
+      },
+    } satisfies TaskRecord;
+    const backendTask = {
+      ...buildRecord('backend-task', fakeTaskRecord.outputs[0]!.asset.ref),
+      execution: {
+        backend: { id: 'comfyui', label: 'ComfyUI' },
+      },
+    } satisfies TaskRecord;
+
+    root = createRoot(container);
+    await act(async () => {
+      root!.render(
+        <TestAppProviders services={fake.services}>
+          <HistoryPage
+            onNav={() => undefined}
+            rounds={[]}
+            records={[connectionTask, backendTask]}
+            loading={false}
+            onReload={async () => undefined}
+            onRetry={async () => undefined}
+          />
+        </TestAppProviders>,
+      );
+    });
+
+    expect(container.querySelector('[data-testid="history-execution-label-connection-task"]')?.textContent).toBe('Studio Connection');
+    expect(container.querySelector('[data-testid="history-execution-label-backend-task"]')?.textContent).toBe('ComfyUI');
+  });
 });

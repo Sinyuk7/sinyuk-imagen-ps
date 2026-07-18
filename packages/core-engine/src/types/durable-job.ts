@@ -1,4 +1,3 @@
-import { createValidationError } from '../errors.js';
 import type { JobError } from '../errors.js';
 import type { JobInput, JobStatus } from './job.js';
 
@@ -59,44 +58,4 @@ export interface DurableJobRecord {
   readonly updatedAt: string;
   readonly originJobId?: string;
   readonly retryAttempt?: number;
-}
-
-const SECRET_KEY_PATTERN =
-  /(^|\.|_)(apiKey|accessToken|refreshToken|secret|secretValue|secretValues|password|authorization|authToken)(\.|_|$)/i;
-
-/** 确保持久化 payload 不包含 secret value。允许 `secretRefs`。 */
-export function assertNoSecrets(value: unknown): void {
-  const seen = new WeakSet<object>();
-  visitNoSecrets(value, seen, 'root');
-}
-
-function visitNoSecrets(value: unknown, seen: WeakSet<object>, path: string): void {
-  if (value === null || typeof value !== 'object') {
-    return;
-  }
-
-  if (ArrayBuffer.isView(value)) {
-    return;
-  }
-
-  if (seen.has(value as object)) {
-    return;
-  }
-  seen.add(value as object);
-
-  if (Array.isArray(value)) {
-    value.forEach((item, index) => visitNoSecrets(item, seen, `${path}[${index}]`));
-    return;
-  }
-
-  for (const [key, child] of Object.entries(value as Record<string, unknown>)) {
-    const childPath = `${path}.${key}`;
-    if (key === 'secretRefs') {
-      continue;
-    }
-    if (SECRET_KEY_PATTERN.test(key)) {
-      throw createValidationError(`Durable payload contains a secret value at "${childPath}".`, { path: childPath });
-    }
-    visitNoSecrets(child, seen, childPath);
-  }
 }

@@ -7,27 +7,21 @@
 
 import {
   assertNoSecrets,
-  assertTaskRecord,
+  createExecutionError,
   createValidationError,
   createRuntime,
-  sanitizeTaskEvidenceUrl,
   type DurableJobRecord,
   type Job,
-  type JobError,
   type Runtime,
   type StoredAssetRef,
-  type TaskExecutionSnapshot,
-  type TaskOutput,
-  type TaskRecord,
 } from '@imagen-ps/core-engine';
 import {
-  createDispatchAdapter,
+  createProviderExecutionAdapter,
   createProviderRegistry,
   registerBuiltins,
   type ApiFormat,
-  type ProviderModelExecution,
+  type ProviderRequest,
   type ProviderRegistry,
-  type ProviderOperation,
 } from '@imagen-ps/providers';
 import type { LogSink, Logger } from '@imagen-ps/foundation';
 import { createLogger, createNullLogger } from '@imagen-ps/foundation';
@@ -48,11 +42,18 @@ import type {
   UserModelConfig,
   UserModelConfigRepository,
 } from './commands/types.js';
-import { resolveConfiguredModel, toProviderModelExecution } from './commands/model-config-resolution.js';
-import { resolveModelGenerationSettingsValue } from './commands/model-generation-preference-resolution.js';
 import { resolveSecretValue } from './commands/secret-utils.js';
 import { providerImplementationIdForApiFormat } from './commands/api-format-profile.js';
+import { runTerminalJobBillingFollowUp } from './commands/terminal-job-billing.js';
+import {
+  createProviderGenerationBackend,
+  type GenerationBackend,
+} from './generation/index.js';
 import { builtinWorkflows } from './requests/index.js';
+import {
+  assertTaskRecord,
+  type TaskRecord,
+} from './task.js';
 
 /** 扩展的 Runtime 类型，暴露 provider registry 只读访问 */
 export interface ExtendedRuntime extends Runtime {
@@ -71,6 +72,7 @@ let providerConfigResolverInstance: ProviderConfigResolver | null = null;
 let jobHistoryStoreInstance: JobHistoryStore | null = null;
 let taskStoreInstance: TaskStore | null = null;
 let assetStoreInstance: AssetStore | null = null;
+let providerGenerationBackendInstance: GenerationBackend | null = null;
 let runtimeLogger: Logger | undefined = undefined;
 
 function createInMemoryProviderProfileRepository(): ProviderProfileRepository {
@@ -440,157 +442,6 @@ async function materializeOutputRefs(output: Record<string, unknown> | undefined
   return refs;
 }
 
-function outputAssetsFromJobOutput(output: Record<string, unknown> | undefined): readonly Record<string, unknown>[] {
-  const image = output?.image as { assets?: unknown } | undefined;
-  const assets = Array.isArray(image?.assets) ? image.assets : [];
-  return assets.filter(isPlainRecord);
-}
-
-function outputSourceFromAsset(asset: Record<string, unknown>, ref: StoredAssetRef): TaskOutput['source'] {
-  if (typeof asset.url === 'string' && asset.url.length > 0) {
-    return {
-      providerAssetKind: 'url',
-      sanitizedOriginalUrl: sanitizeTaskEvidenceUrl(asset.url),
-    };
-  }
-  if (typeof asset.fileId === 'string' && asset.fileId.length > 0) {
-    return {
-      providerAssetKind: 'fileId',
-      fileId: asset.fileId,
-    };
-  }
-  if (asset.data !== undefined) {
-    return { providerAssetKind: 'base64' };
-  }
-  return { providerAssetKind: ref.kind === 'url' ? 'url' : 'storedRef' };
-}
-
-function taskOutputsFromRefs(taskId: string, output: Record<string, unknown> | undefined, refs: readonly StoredAssetRef[]): readonly TaskOutput[] {
-  const assets = outputAssetsFromJobOutput(output);
-  return refs.map((ref, index) => {
-    const sourceAsset = assets[index] ?? {};
-    const taskOutput: TaskOutput = {
-      outputId: `${taskId}:output:${index}`,
-      index,
-      kind: 'image',
-      asset: { ref },
-      source: outputSourceFromAsset(sourceAsset, ref),
-    };
-    return taskOutput;
-  });
-}
-
-function normalizedTaskError(error: JobError | undefined, fallback: string): TaskRecord['error'] {
-  return {
-    category: error?.category ?? 'runtime',
-    message: error?.message ?? fallback,
-  };
-}
-
-async function executionSnapshotFromJobInput(input: Record<string, unknown>): Promise<TaskExecutionSnapshot | undefined> {
-  const profileId = typeof input.profileId === 'string'
-    ? input.profileId
-    : typeof input.providerProfileId === 'string'
-      ? input.providerProfileId
-      : undefined;
-  const requestModel = isPlainRecord(input.model) ? input.model : undefined;
-  const providerOptions = isPlainRecord(input.providerOptions) ? input.providerOptions : undefined;
-  const modelId = typeof requestModel?.modelId === 'string'
-    ? requestModel.modelId
-    : typeof providerOptions?.model === 'string'
-      ? providerOptions.model
-      : undefined;
-  const output = isPlainRecord(input.output) ? input.output : undefined;
-  const profile = profileId ? await getProviderProfileRepository().get(profileId) : undefined;
-
-  return {
-    ...(profileId !== undefined ? { profileId } : {}),
-    ...(profile?.displayName !== undefined ? { profileName: profile.displayName } : {}),
-    ...(profile?.apiFormat !== undefined ? { apiFormat: profile.apiFormat } : {}),
-    ...(modelId !== undefined ? { modelId } : {}),
-    ...(output
-      ? {
-          output: {
-            ...(typeof output.count === 'number' ? { count: output.count } : {}),
-            ...(typeof output.size === 'string' ? { size: output.size } : {}),
-            ...(typeof output.format === 'string' ? { format: output.format } : {}),
-            ...(typeof output.quality === 'string' ? { quality: output.quality } : {}),
-          },
-        }
-      : {}),
-  };
-}
-
-async function flushTerminalTaskHistory(job: Job, outputRefs: readonly StoredAssetRef[]): Promise<void> {
-  if (job.status !== 'completed' && job.status !== 'failed') {
-    return;
-  }
-  const taskId = typeof job.input.__clientTaskId === 'string' ? job.input.__clientTaskId : undefined;
-  if (taskId === undefined || taskId.length === 0) {
-    return;
-  }
-
-  const existing = await getTaskStore().get(taskId);
-  if (!existing) {
-    return;
-  }
-
-  const finishedAt = job.updatedAt;
-  const execution = await executionSnapshotFromJobInput(job.input);
-  const base: Omit<TaskRecord, 'status' | 'outputs' | 'error' | 'finishedAt'> = {
-    ...existing,
-    updatedAt: job.updatedAt,
-    execution: {
-      ...(existing.execution ?? {}),
-      ...(execution ?? {}),
-    },
-    executionJobId: job.id,
-  };
-  const terminal: TaskRecord = job.status === 'completed'
-    ? {
-        ...base,
-        status: 'completed',
-        outputs: taskOutputsFromRefs(taskId, job.output, outputRefs),
-        finishedAt,
-      }
-    : {
-        ...base,
-        status: 'failed',
-        outputs: [],
-        error: normalizedTaskError(job.error, 'Job failed.'),
-        finishedAt,
-      };
-
-  assertTaskRecord(terminal);
-  await getTaskStore().put(terminal);
-}
-
-async function flushTaskMaterializationFailure(job: Job, error: unknown): Promise<void> {
-  const taskId = typeof job.input.__clientTaskId === 'string' ? job.input.__clientTaskId : undefined;
-  if (taskId === undefined || taskId.length === 0) {
-    return;
-  }
-  const existing = await getTaskStore().get(taskId);
-  if (!existing) {
-    return;
-  }
-  const message = error instanceof Error ? error.message : String(error);
-  const failed: TaskRecord = {
-    ...existing,
-    status: 'failed',
-    outputs: [],
-    error: {
-      category: 'storage',
-      message,
-    },
-    executionJobId: job.id,
-    updatedAt: job.updatedAt,
-    finishedAt: job.updatedAt,
-  };
-  assertTaskRecord(failed);
-  await getTaskStore().put(failed);
-}
-
 function assetFromStoredRef(record: Record<string, unknown>, storedRef: StoredAssetRef): Record<string, unknown> {
   const type = typeof record.type === 'string' ? record.type : 'image';
   const name = typeof record.name === 'string' ? record.name : storedRef.name;
@@ -662,6 +513,7 @@ async function materializeProviderOutputForLongLivedState(result: unknown): Prom
 }
 
 interface DurableJobFlushOptions {
+  readonly workflowName?: string;
   readonly originJobId?: string;
   readonly retryAttempt?: number;
 }
@@ -671,16 +523,10 @@ async function flushTerminalJobHistory(job: Job, options?: DurableJobFlushOption
     return;
   }
 
-  const workflow = typeof job.input._workflowName === 'string' ? job.input._workflowName : 'unknown';
+  const workflow = options?.workflowName ?? 'unknown';
   const originJobId = options?.originJobId ?? job.originJobId;
   const retryAttempt = options?.retryAttempt ?? job.retryAttempt;
-  let outputRefs: readonly StoredAssetRef[];
-  try {
-    outputRefs = await materializeOutputRefs(job.output);
-  } catch (error) {
-    await flushTaskMaterializationFailure(job, error);
-    throw error;
-  }
+  const outputRefs = await materializeOutputRefs(job.output);
   const record: DurableJobRecord = {
     schemaVersion: 1,
     jobId: job.id,
@@ -697,24 +543,6 @@ async function flushTerminalJobHistory(job: Job, options?: DurableJobFlushOption
 
   assertNoSecrets(record);
   await getJobHistoryStore().put(record);
-  await flushTerminalTaskHistory(job, outputRefs);
-}
-
-/**
- * 从 params 中定位 request 对象。
- *
- * 兼容两种 params 结构：
- * (a) params 含 `request` key → `params.request` 为 request
- * (b) params 不含 `request` key → 整个 params（排除 signal 等 meta key）即 request
- */
-function locateRequestInParams(params: Record<string, unknown>): {
-  requestObj: Record<string, unknown>;
-  hasRequestKey: boolean;
-} {
-  if ('request' in params && typeof params.request === 'object' && params.request !== null) {
-    return { requestObj: params.request as Record<string, unknown>, hasRequestKey: true };
-  }
-  return { requestObj: params, hasRequestKey: false };
 }
 
 function isPlainRecord(value: unknown): value is Record<string, unknown> {
@@ -723,7 +551,7 @@ function isPlainRecord(value: unknown): value is Record<string, unknown> {
 
 function throwIfAborted(signal: AbortSignal | undefined): void {
   if (signal?.aborted) {
-    throw createValidationError('Job submission was cancelled.', { reason: 'abort-signal' });
+    throw createExecutionError('Provider request materialization was aborted.', { reason: 'abort-signal' });
   }
 }
 
@@ -739,7 +567,10 @@ async function resolveStoredAssetForDispatch(asset: unknown, signal?: AbortSigna
   const bytes = await getAssetStore().resolve(storedRef);
   throwIfAborted(signal);
   if (bytes === undefined) {
-    throw new Error(`AssetStore object is unavailable: ${storedRef.ref}`);
+    throw createExecutionError('Provider input asset is unavailable.', {
+      ref: storedRef.ref,
+      kind: storedRef.kind,
+    });
   }
   return {
     ...asset,
@@ -747,14 +578,16 @@ async function resolveStoredAssetForDispatch(asset: unknown, signal?: AbortSigna
   };
 }
 
-async function resolveStoredAssetsForDispatch(params: Record<string, unknown>, signal?: AbortSignal): Promise<Record<string, unknown>> {
+async function materializeProviderRequest(
+  request: ProviderRequest,
+  signal?: AbortSignal,
+): Promise<ProviderRequest> {
   throwIfAborted(signal);
-  const { requestObj, hasRequestKey } = locateRequestInParams(params);
-  let nextRequest = requestObj;
+  let nextRequest: Record<string, unknown> = { ...request };
 
-  if (Array.isArray(requestObj.images)) {
+  if (Array.isArray(request.images)) {
     const images: unknown[] = [];
-    for (const image of requestObj.images) {
+    for (const image of request.images) {
       images.push(await resolveStoredAssetForDispatch(image, signal));
     }
     nextRequest = {
@@ -762,232 +595,22 @@ async function resolveStoredAssetsForDispatch(params: Record<string, unknown>, s
       images,
     };
   }
-  if (requestObj.maskImage !== undefined) {
+  if (request.maskImage !== undefined) {
     nextRequest = {
       ...nextRequest,
-      maskImage: await resolveStoredAssetForDispatch(requestObj.maskImage, signal),
+      maskImage: await resolveStoredAssetForDispatch(request.maskImage, signal),
     };
   }
 
-  if (nextRequest === requestObj) {
-    return params;
+  return nextRequest as unknown as ProviderRequest;
+}
+
+function getProviderRegistry(): ProviderRegistry {
+  if (registryInstance === null) {
+    registryInstance = createProviderRegistry();
+    registerBuiltins(registryInstance);
   }
-  return hasRequestKey ? { ...params, request: nextRequest } : { ...params, ...nextRequest };
-}
-
-function explicitModelIdFromRequest(requestObj: Record<string, unknown>): string | undefined {
-  const model = requestObj.model;
-  if (isPlainRecord(model) && typeof model.modelId === 'string' && model.modelId.length > 0) {
-    return model.modelId;
-  }
-  const providerOptions = isPlainRecord(requestObj.providerOptions) ? requestObj.providerOptions : undefined;
-  return typeof providerOptions?.model === 'string' && providerOptions.model.length > 0
-    ? providerOptions.model
-    : undefined;
-}
-
-function stripProviderOptionsModel(providerOptions: unknown): Readonly<Record<string, unknown>> | undefined {
-  if (!isPlainRecord(providerOptions)) {
-    return undefined;
-  }
-  const { model: _model, ...rest } = providerOptions;
-  return Object.keys(rest).length > 0 ? rest : undefined;
-}
-
-function injectResolvedModelAndOutput(args: {
-  readonly params: Record<string, unknown>;
-  readonly model: ProviderModelExecution;
-  readonly capabilityModelId: string;
-  readonly output: Readonly<Record<string, unknown>>;
-}): Record<string, unknown> {
-  const { params, model } = args;
-  const { requestObj, hasRequestKey } = locateRequestInParams(params);
-  const providerOptions = stripProviderOptionsModel(requestObj.providerOptions);
-  const currentOutput = isPlainRecord(requestObj.output) ? requestObj.output : {};
-  const newRequest = {
-    ...requestObj,
-    model,
-    capabilityModelId: args.capabilityModelId,
-    output: {
-      ...currentOutput,
-      ...args.output,
-    },
-    ...(providerOptions !== undefined ? { providerOptions } : {}),
-  };
-  if (providerOptions === undefined) {
-    delete (newRequest as Record<string, unknown>).providerOptions;
-  }
-
-  if (hasRequestKey) {
-    return { ...params, request: newRequest };
-  }
-  return { ...params, ...newRequest };
-}
-
-function operationFromRequest(requestObj: Readonly<Record<string, unknown>>): ProviderOperation {
-  return requestObj.operation === 'image_edit' ? 'image_edit' : 'text_to_image';
-}
-
-async function firstConfiguredModelId(profileId: string): Promise<string | undefined> {
-  const configs = await getUserModelConfigRepository().list(profileId);
-  return configs[0]?.modelId;
-}
-
-async function resolveModelParamsForDispatch(args: {
-  readonly params: Record<string, unknown>;
-  readonly profile: ProviderProfile;
-}): Promise<{
-  readonly params: Record<string, unknown>;
-  readonly configModelId: string;
-}> {
-  const { requestObj } = locateRequestInParams(args.params);
-  const explicitModelId = explicitModelIdFromRequest(requestObj);
-  const selectedModelId = explicitModelId ?? await firstConfiguredModelId(args.profile.profileId);
-  if (typeof selectedModelId !== 'string' || selectedModelId.length === 0) {
-    throw createValidationError(`Provider profile "${args.profile.profileId}" has no configured model for dispatch.`, {
-      profileId: args.profile.profileId,
-    });
-  }
-  const resolved = await resolveConfiguredModel({
-    profileId: args.profile.profileId,
-    apiFormat: args.profile.apiFormat,
-    modelId: selectedModelId,
-    userModelConfigRepository: getUserModelConfigRepository(),
-  });
-  const generationSettings = resolveModelGenerationSettingsValue({
-    key: {
-      profileId: args.profile.profileId,
-      apiFormat: args.profile.apiFormat,
-      modelId: resolved.configModelId,
-      operation: operationFromRequest(requestObj),
-    },
-    preference: await getModelGenerationPreferenceRepository().get({
-      profileId: args.profile.profileId,
-      apiFormat: args.profile.apiFormat,
-      modelId: resolved.configModelId,
-      operation: operationFromRequest(requestObj),
-    }),
-    userConfig: resolved.source === 'user' ? resolved : undefined,
-  });
-  return {
-    params: injectResolvedModelAndOutput({
-      params: args.params,
-      model: toProviderModelExecution(resolved),
-      capabilityModelId: resolved.capabilityModelId,
-      output: {
-        selection: generationSettings.selection.effectiveSelection,
-      },
-    }),
-    configModelId: resolved.configModelId,
-  };
-}
-
-/**
- * 判断值是否为 workflow input binding 的未解析模板字面量占位符
- *（如 `'${providerProfileId}'`）。
- */
-function isTemplateLiteralPlaceholder(val: unknown): boolean {
-  return typeof val === 'string' && /^\$\{[^}]+\}$/.test(val);
-}
-
-/**
- * 从 params 中解析有效的 profileId。
- *
- * 优先使用 `providerProfileId`，当其存在且不是模板字面量占位符时直接选用；
- * 否则 fallback 到 `profileId`；若两者都是占位符，返回 `undefined`。
- */
-function resolveProfileId(params: Record<string, unknown>): string | undefined {
-  if (
-    !isTemplateLiteralPlaceholder(params.providerProfileId) &&
-    typeof params.providerProfileId === 'string' &&
-    params.providerProfileId.length > 0
-  ) {
-    return params.providerProfileId;
-  }
-  if (
-    !isTemplateLiteralPlaceholder(params.profileId) &&
-    typeof params.profileId === 'string' &&
-    params.profileId.length > 0
-  ) {
-    return params.profileId;
-  }
-  return undefined;
-}
-
-function createProfileAwareDispatchAdapter(logger?: Logger): ReturnType<typeof createDispatchAdapter> {
-  return {
-    provider: 'profile',
-
-    async dispatch(params: Record<string, unknown>, context?: { readonly logger?: Logger; readonly signal?: AbortSignal }): Promise<unknown> {
-      throwIfAborted(context?.signal);
-      const dispatchLogger = context?.logger ?? logger;
-      const profileId = resolveProfileId(params);
-      if (profileId === undefined || profileId.trim().length === 0) {
-        throw new Error('Provider profile dispatch requires a non-empty providerProfileId or profileId.');
-      }
-
-      const profile = await getProviderProfileRepository().get(profileId);
-      if (!profile) {
-        throw new Error(`Provider profile not found: ${profileId}`);
-      }
-      const { providerConfig } = await getProviderConfigResolver().resolve(profileId);
-      throwIfAborted(context?.signal);
-      const apiFormat = (providerConfig as { readonly apiFormat?: unknown }).apiFormat;
-      if (typeof apiFormat !== 'string') {
-        throw new Error('Resolved provider config requires apiFormat.');
-      }
-      const provider = getRuntime().providerRegistry.getByApiFormat(apiFormat as never);
-      if (!provider) {
-        throw new Error(`Provider implementation not found for apiFormat: ${apiFormat}`);
-      }
-
-      // Capability guard：在 dispatch 到 provider.invoke 前，用 descriptor.operations
-      // 做任务级校验，避免提交不支持的 operation 才在上游 400/500 处暴露。
-      const { requestObj } = locateRequestInParams(params);
-      const operation = requestObj.operation;
-      if (typeof operation === 'string') {
-        const descriptor = provider.describe();
-        if (!descriptor.operations.includes(operation as ProviderOperation)) {
-          throw new Error(
-            `Profile "${profileId}" uses provider "${descriptor.displayName}" (${provider.id}). ` +
-              `Operation "${operation}" is not supported. ` +
-              `Supported: [${descriptor.operations.join(', ')}].`,
-          );
-        }
-      }
-
-      const modelResolution = await resolveModelParamsForDispatch({
-        params,
-        profile,
-      });
-      const resolvedParams = await resolveStoredAssetsForDispatch(modelResolution.params, context?.signal);
-      const { requestObj: resolvedRequestObj } = locateRequestInParams(resolvedParams);
-      const requestModel = isPlainRecord(resolvedRequestObj.model) ? resolvedRequestObj.model : undefined;
-      const capabilityModelId = typeof resolvedRequestObj.capabilityModelId === 'string'
-        ? resolvedRequestObj.capabilityModelId
-        : undefined;
-      const wireModelId = typeof requestModel?.modelId === 'string' ? requestModel.modelId : undefined;
-      const adapterLogger = (dispatchLogger ?? getRuntimeLogger()).child({
-        profile_id: profile.profileId,
-        provider_id: provider.id,
-      });
-      adapterLogger.info('dispatch.provider.start', {
-        configModelId: modelResolution.configModelId,
-        ...(capabilityModelId ? { capabilityModelId } : {}),
-        ...(wireModelId ? { wireModelId } : {}),
-        ...(typeof requestModel?.requestStrategyId === 'string' ? { requestStrategyId: requestModel.requestStrategyId } : {}),
-        ...(typeof resolvedRequestObj.operation === 'string' ? { operation: resolvedRequestObj.operation } : {}),
-        apiFormat,
-      });
-
-      const adapter = createDispatchAdapter({
-        provider,
-        config: providerConfig,
-        logger: adapterLogger,
-      });
-      return adapter.dispatch(resolvedParams, context);
-    },
-  };
+  return registryInstance;
 }
 
 /**
@@ -998,33 +621,34 @@ function createProfileAwareDispatchAdapter(logger?: Logger): ReturnType<typeof c
  */
 export function getRuntime(): ExtendedRuntime {
   if (instance === null) {
-    registryInstance = createProviderRegistry();
-    registerBuiltins(registryInstance);
-
+    const providerRegistry = getProviderRegistry();
     const logger = runtimeLogger ?? createNullLogger();
-
-    const mockProvider = registryInstance.get('mock')!;
-    const mockConfig = mockProvider.validateConfig({
-      providerId: 'mock',
-      displayName: 'Mock Provider',
-      family: mockProvider.family,
-      apiFormat: 'openai-images',
-      connection: {
-        selectionMode: 'manual',
-        selectedEndpointId: 'primary',
-        endpoints: [{ id: 'primary', url: 'https://mock.local', enabled: true }],
+    const providerAdapter = createProviderExecutionAdapter({
+      providerRegistry,
+      configResolver: {
+        async resolve({ implementationId, profileId }) {
+          const resolved = await getProviderConfigResolver().resolve(profileId);
+          if (resolved.implementationId !== implementationId) {
+            throw createValidationError('Resolved Provider implementation does not match admission.', {
+              profileId,
+              implementationId,
+              resolvedImplementationId: resolved.implementationId,
+            });
+          }
+          return resolved.providerConfig;
+        },
       },
-      apiKey: 'mock-key',
-    });
-    const mockAdapter = createDispatchAdapter({
-      provider: mockProvider,
-      config: mockConfig,
+      requestMaterializer: {
+        async materialize({ request }, signal) {
+          return materializeProviderRequest(request, signal);
+        },
+      },
       logger,
     });
 
     const baseRuntime = createRuntime({
       initialWorkflows: builtinWorkflows,
-      adapters: [mockAdapter, createProfileAwareDispatchAdapter(logger)],
+      adapters: [providerAdapter],
       logger,
       async afterStepResult({ result }) {
         return materializeProviderOutputForLongLivedState(result);
@@ -1033,13 +657,47 @@ export function getRuntime(): ExtendedRuntime {
 
     instance = Object.assign(baseRuntime, {
       providerRegistry: {
-        list: () => registryInstance!.list(),
-        get: (id: string) => registryInstance!.get(id),
-        getByApiFormat: (apiFormat: ApiFormat) => registryInstance!.getByApiFormat(apiFormat),
+        list: () => providerRegistry.list(),
+        get: (id: string) => providerRegistry.get(id),
+        getByApiFormat: (apiFormat: ApiFormat) => providerRegistry.getByApiFormat(apiFormat),
       },
     }) as ExtendedRuntime;
   }
   return instance;
+}
+
+/** 获取 Application composition 已装配的 generation backends。 */
+export function getGenerationBackends(): readonly GenerationBackend[] {
+  if (providerGenerationBackendInstance === null) {
+    providerGenerationBackendInstance = createProviderGenerationBackend({
+      profileRepository: {
+        async get(profileId) {
+          return getProviderProfileRepository().get(profileId);
+        },
+      },
+      providerRegistry: getProviderRegistry(),
+      userModelConfigRepository: {
+        async get(profileId, modelId) {
+          return getUserModelConfigRepository().get(profileId, modelId);
+        },
+        async list(profileId) {
+          return getUserModelConfigRepository().list(profileId);
+        },
+      },
+      modelGenerationPreferenceRepository: {
+        async get(key) {
+          return getModelGenerationPreferenceRepository().get(key);
+        },
+      },
+      async materializeOutput({ job }) {
+        return materializeOutputRefs(job.output);
+      },
+      async afterTerminal({ job, profileId, implementationId }) {
+        await runTerminalJobBillingFollowUp(job, profileId, implementationId);
+      },
+    });
+  }
+  return [providerGenerationBackendInstance];
 }
 
 /** 获取当前 provider profile repository */
@@ -1170,7 +828,7 @@ export function getRuntimeLogger(): Logger {
   return runtimeLogger ?? createNullLogger();
 }
 
-/** 重置单例（仅供测试），同时重置所有 adapter */
+/** 重置单例（仅供测试），同时重置所有 composition state。 */
 export function _resetForTesting(): void {
   instance = null;
   registryInstance = null;
@@ -1183,15 +841,15 @@ export function _resetForTesting(): void {
   jobHistoryStoreInstance = null;
   taskStoreInstance = null;
   assetStoreInstance = null;
+  providerGenerationBackendInstance = null;
   runtimeLogger = undefined;
 }
 
 /**
  * 直接注入已装配的 Runtime 实例（仅供测试）。
  *
- * 用于端到端 submit→retry→provider 计数测试：让真实 `submitJob`/`retryJob` 命令
- * （它们调用 `getRuntime()`）使用注入的、带 counting/deferred provider adapter 的
- * runtime，从而在真实命令路径上观测 L2（新建 Job）/ L3（provider.invoke）计数。
+ * 用于端到端 execution 测试：让 Application command 使用注入的
+ * counting/deferred runtime，观测 Job 与 adapter invocation。
  * 调用方需自行确保已通过 `setJobHistoryStore` 等注入配套 adapter。
  */
 export function _setRuntimeInstanceForTesting(runtime: ExtendedRuntime): void {

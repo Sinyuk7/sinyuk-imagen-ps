@@ -156,14 +156,18 @@ export async function createGenerationSettingsHarness(
       return fake.spies.saveModelGenerationPreference.mock.lastCall?.[0] ?? null;
     },
     lastSubmittedSelection(): ImageOutputSelection | null {
-      const input = fake.spies.submitJob.mock.lastCall?.[0] as {
-        readonly input?: {
-          readonly output?: {
-            readonly selection?: ImageOutputSelection;
+      const input = fake.spies.executeJob.mock.lastCall?.[0] as {
+        readonly execution?: {
+          readonly input?: {
+            readonly request?: {
+              readonly output?: {
+                readonly selection?: ImageOutputSelection;
+              };
+            };
           };
         };
       } | undefined;
-      return input?.input?.output?.selection ?? null;
+      return input?.execution?.input?.request?.output?.selection ?? null;
     },
   };
 }

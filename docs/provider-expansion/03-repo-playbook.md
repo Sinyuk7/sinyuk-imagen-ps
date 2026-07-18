@@ -15,8 +15,8 @@ Do not start from UI. Start from provider boundary ownership.
 Core boundary references:
 
 - [docs/ENGINEERING_CONTEXT.md](../ENGINEERING_CONTEXT.md)
-- [packages/providers/ARCHITECTURE.md](/Users/sinyuk/Documents/github/sinyuk-imagen-ps/packages/providers/ARCHITECTURE.md)
-- [packages/providers/TESTING.md](/Users/sinyuk/Documents/github/sinyuk-imagen-ps/packages/providers/TESTING.md)
+- [packages/providers/ARCHITECTURE.md](../../packages/providers/ARCHITECTURE.md)
+- [packages/providers/TESTING.md](../../packages/providers/TESTING.md)
 
 ## 2. Scenario A: Add One New Model Under Existing `ApiFormat`
 
@@ -24,9 +24,9 @@ Core boundary references:
 
 Add or extend local curated rules under:
 
-- [packages/providers/src/contract/image-model-catalog/catalog.ts](/Users/sinyuk/Documents/github/sinyuk-imagen-ps/packages/providers/src/contract/image-model-catalog/catalog.ts)
-- [packages/providers/src/contract/image-model-catalog/rules/](/Users/sinyuk/Documents/github/sinyuk-imagen-ps/packages/providers/src/contract/image-model-catalog)
-- [packages/providers/src/contract/image-model-catalog/matrix/](/Users/sinyuk/Documents/github/sinyuk-imagen-ps/packages/providers/src/contract/image-model-catalog/matrix)
+- [packages/providers/src/contract/image-model-catalog/catalog.ts](../../packages/providers/src/contract/image-model-catalog/catalog.ts)
+- [packages/providers/src/contract/image-model-catalog/rules/](../../packages/providers/src/contract/image-model-catalog)
+- [packages/providers/src/contract/image-model-catalog/matrix/](../../packages/providers/src/contract/image-model-catalog/matrix)
 
 Each picker-visible model rule must provide enough facts for:
 
@@ -51,7 +51,7 @@ Repo contracts that consume those facts:
 
 Primary file:
 
-- [packages/providers/src/contract/image-model-capability.ts](/Users/sinyuk/Documents/github/sinyuk-imagen-ps/packages/providers/src/contract/image-model-capability.ts)
+- [packages/providers/src/contract/image-model-capability.ts](../../packages/providers/src/contract/image-model-capability.ts)
 
 ### Application follow-through
 
@@ -64,10 +64,10 @@ The application layer reconciles four different facts:
 
 Primary files:
 
-- [packages/application/src/commands/profile-models.ts](/Users/sinyuk/Documents/github/sinyuk-imagen-ps/packages/application/src/commands/profile-models.ts)
-- [packages/application/src/commands/model-config-resolution.ts](/Users/sinyuk/Documents/github/sinyuk-imagen-ps/packages/application/src/commands/model-config-resolution.ts)
-- [packages/application/src/commands/model-configs.ts](/Users/sinyuk/Documents/github/sinyuk-imagen-ps/packages/application/src/commands/model-configs.ts)
-- [packages/application/src/commands/model-generation-preference-resolution.ts](/Users/sinyuk/Documents/github/sinyuk-imagen-ps/packages/application/src/commands/model-generation-preference-resolution.ts)
+- [packages/application/src/commands/profile-models.ts](../../packages/application/src/commands/profile-models.ts)
+- [packages/application/src/commands/model-config-resolution.ts](../../packages/application/src/commands/model-config-resolution.ts)
+- [packages/application/src/commands/model-configs.ts](../../packages/application/src/commands/model-configs.ts)
+- [packages/application/src/commands/model-generation-preference-resolution.ts](../../packages/application/src/commands/model-generation-preference-resolution.ts)
 
 Important repo-specific model identities:
 
@@ -90,11 +90,11 @@ Check:
 
 Primary files:
 
-- [apps/app/src/shared/ui/model-info.ts](/Users/sinyuk/Documents/github/sinyuk-imagen-ps/apps/app/src/shared/ui/model-info.ts)
-- [apps/app/src/shared/ui/pages/settings-page.tsx](/Users/sinyuk/Documents/github/sinyuk-imagen-ps/apps/app/src/shared/ui/pages/settings-page.tsx)
-- [apps/app/src/shared/ui/pages/settings-add-page.tsx](/Users/sinyuk/Documents/github/sinyuk-imagen-ps/apps/app/src/shared/ui/pages/settings-add-page.tsx)
-- [apps/app/src/shared/ui/pages/settings-detail-page.tsx](/Users/sinyuk/Documents/github/sinyuk-imagen-ps/apps/app/src/shared/ui/pages/settings-detail-page.tsx)
-- [apps/app/src/shared/ui/pages/model-configuration-page.tsx](/Users/sinyuk/Documents/github/sinyuk-imagen-ps/apps/app/src/shared/ui/pages/model-configuration-page.tsx)
+- [apps/app/src/shared/ui/model-info.ts](../../apps/app/src/shared/ui/model-info.ts)
+- [apps/app/src/shared/ui/pages/settings-page.tsx](../../apps/app/src/shared/ui/pages/settings-page.tsx)
+- [apps/app/src/shared/ui/pages/settings-add-page.tsx](../../apps/app/src/shared/ui/pages/settings-add-page.tsx)
+- [apps/app/src/shared/ui/pages/settings-detail-page.tsx](../../apps/app/src/shared/ui/pages/settings-detail-page.tsx)
+- [apps/app/src/shared/ui/pages/model-configuration-page.tsx](../../apps/app/src/shared/ui/pages/model-configuration-page.tsx)
 
 Current repo note:
 
@@ -108,11 +108,11 @@ This is wider than adding one model. Treat it as a contract expansion.
 
 Extend the protocol boundary under:
 
-- [packages/providers/src/contract/api-format.ts](/Users/sinyuk/Documents/github/sinyuk-imagen-ps/packages/providers/src/contract/api-format.ts)
-- [packages/providers/src/contract/config.ts](/Users/sinyuk/Documents/github/sinyuk-imagen-ps/packages/providers/src/contract/config.ts)
-- [packages/providers/src/contract/request.ts](/Users/sinyuk/Documents/github/sinyuk-imagen-ps/packages/providers/src/contract/request.ts)
-- [packages/providers/src/contract/provider.ts](/Users/sinyuk/Documents/github/sinyuk-imagen-ps/packages/providers/src/contract/provider.ts)
-- [packages/providers/src/contract/image-model-capability.ts](/Users/sinyuk/Documents/github/sinyuk-imagen-ps/packages/providers/src/contract/image-model-capability.ts)
+- [packages/providers/src/contract/api-format.ts](../../packages/providers/src/contract/api-format.ts)
+- [packages/providers/src/contract/config.ts](../../packages/providers/src/contract/config.ts)
+- [packages/providers/src/contract/request.ts](../../packages/providers/src/contract/request.ts)
+- [packages/providers/src/contract/provider.ts](../../packages/providers/src/contract/provider.ts)
+- [packages/providers/src/contract/image-model-capability.ts](../../packages/providers/src/contract/image-model-capability.ts)
 
 Typical additions:
 
@@ -137,8 +137,8 @@ Add provider-owned files under:
 
 Then register and export it through:
 
-- [packages/providers/src/registry/builtins.ts](/Users/sinyuk/Documents/github/sinyuk-imagen-ps/packages/providers/src/registry/builtins.ts)
-- [packages/providers/src/index.ts](/Users/sinyuk/Documents/github/sinyuk-imagen-ps/packages/providers/src/index.ts)
+- [packages/providers/src/registry/builtins.ts](../../packages/providers/src/registry/builtins.ts)
+- [packages/providers/src/index.ts](../../packages/providers/src/index.ts)
 
 Descriptor and schema must accurately declare:
 
@@ -155,7 +155,7 @@ Descriptor and schema must accurately declare:
 
 Application maps `apiFormat` to provider/catalog assumptions. Extend:
 
-- [packages/application/src/commands/api-format-profile.ts](/Users/sinyuk/Documents/github/sinyuk-imagen-ps/packages/application/src/commands/api-format-profile.ts)
+- [packages/application/src/commands/api-format-profile.ts](../../packages/application/src/commands/api-format-profile.ts)
 - any command that branches on supported `ApiFormat`
 
 Key requirement:
@@ -175,12 +175,12 @@ Check at minimum:
 
 Primary files:
 
-- [apps/app/src/shared/ui/hooks/use-provider-settings.ts](/Users/sinyuk/Documents/github/sinyuk-imagen-ps/apps/app/src/shared/ui/hooks/use-provider-settings.ts)
-- [apps/app/src/shared/ui/components/provider-settings-sections.tsx](/Users/sinyuk/Documents/github/sinyuk-imagen-ps/apps/app/src/shared/ui/components/provider-settings-sections.tsx)
-- [apps/app/src/shared/ui/pages/settings-add-page.tsx](/Users/sinyuk/Documents/github/sinyuk-imagen-ps/apps/app/src/shared/ui/pages/settings-add-page.tsx)
-- [apps/app/src/shared/ui/pages/settings-detail-page.tsx](/Users/sinyuk/Documents/github/sinyuk-imagen-ps/apps/app/src/shared/ui/pages/settings-detail-page.tsx)
-- [apps/app/src/shared/ui/pages/main-page.tsx](/Users/sinyuk/Documents/github/sinyuk-imagen-ps/apps/app/src/shared/ui/pages/main-page.tsx)
-- [apps/app/src/shared/ui/pages/model-configuration-page.tsx](/Users/sinyuk/Documents/github/sinyuk-imagen-ps/apps/app/src/shared/ui/pages/model-configuration-page.tsx)
+- [apps/app/src/shared/ui/hooks/use-provider-settings.ts](../../apps/app/src/shared/ui/hooks/use-provider-settings.ts)
+- [apps/app/src/shared/ui/components/provider-settings-sections.tsx](../../apps/app/src/shared/ui/components/provider-settings-sections.tsx)
+- [apps/app/src/shared/ui/pages/settings-add-page.tsx](../../apps/app/src/shared/ui/pages/settings-add-page.tsx)
+- [apps/app/src/shared/ui/pages/settings-detail-page.tsx](../../apps/app/src/shared/ui/pages/settings-detail-page.tsx)
+- [apps/app/src/shared/ui/pages/main-page.tsx](../../apps/app/src/shared/ui/pages/main-page.tsx)
+- [apps/app/src/shared/ui/pages/model-configuration-page.tsx](../../apps/app/src/shared/ui/pages/model-configuration-page.tsx)
 
 ## 4. Minimum Validation
 
@@ -204,9 +204,9 @@ Focus coverage on:
 
 Existing reference tests:
 
-- [packages/providers/tests/image-output-capability.test.ts](/Users/sinyuk/Documents/github/sinyuk-imagen-ps/packages/providers/tests/image-output-capability.test.ts)
-- [packages/application/src/commands/model-configs.test.ts](/Users/sinyuk/Documents/github/sinyuk-imagen-ps/packages/application/src/commands/model-configs.test.ts)
-- [packages/application/src/commands/model-generation-preferences.test.ts](/Users/sinyuk/Documents/github/sinyuk-imagen-ps/packages/application/src/commands/model-generation-preferences.test.ts)
+- [packages/providers/tests/image-output-capability.test.ts](../../packages/providers/tests/image-output-capability.test.ts)
+- [packages/application/src/commands/model-configs.test.ts](../../packages/application/src/commands/model-configs.test.ts)
+- [packages/application/src/commands/model-generation-preferences.test.ts](../../packages/application/src/commands/model-generation-preferences.test.ts)
 
 ### For Scenario B
 
@@ -230,11 +230,11 @@ Add or extend coverage for:
 
 If the new protocol should participate in the existing catalog harness, also update:
 
-- [packages/providers/scripts/check-image-model-catalog.mjs](/Users/sinyuk/Documents/github/sinyuk-imagen-ps/packages/providers/scripts/check-image-model-catalog.mjs)
+- [packages/providers/scripts/check-image-model-catalog.mjs](../../packages/providers/scripts/check-image-model-catalog.mjs)
 
 Prefer expanding stable suites and case banks over adding many narrow one-off test files. See:
 
-- [packages/providers/TESTING.md](/Users/sinyuk/Documents/github/sinyuk-imagen-ps/packages/providers/TESTING.md)
+- [packages/providers/TESTING.md](../../packages/providers/TESTING.md)
 - [docs/TESTING.md](../TESTING.md)
 
 ## 5. Common Failure Modes

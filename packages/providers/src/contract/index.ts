@@ -142,8 +142,6 @@ export type {
   ImageEditCodec,
   Provider,
   ProviderDescriptor,
-  ProviderDispatchBridge,
-  ProviderDispatchBridgeArgs,
   ProviderEndpointMeasurement,
   ProviderEndpointMeasurementFailureKind,
   ProviderEndpointMeasurementOptions,
