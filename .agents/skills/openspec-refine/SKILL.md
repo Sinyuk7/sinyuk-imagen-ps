@@ -1,4 +1,4 @@
-<!-- ---
+---
 name: openspec-refine
 description: >
   Expand and harden an existing OpenSpec change from brief initial artifacts into an
@@ -315,4 +315,4 @@ Declare the change implementation-ready only when:
 - structural validation passes and applicable semantic and repository checks are accounted
   for.
 
-Otherwise report the exact remaining blockers. -->
+Otherwise report the exact remaining blockers.
