@@ -1,4 +1,4 @@
----
+<!-- ---
 name: openspec-refine
 description: >
   A quality review skill that refines existing OpenSpec changes to implementation-ready quality.
@@ -188,4 +188,4 @@ If the refine pass also changes implementation or policy-checked docs, choose th
 - No investigation of overlap with existing specs/shared components/current implementation (P1)
 - Clear DRY violation — similar implementation exists with no justification for creating new (P1)
 - Important claims rely only on stale docs or abstract reasoning without checking current code/tests when that evidence is available
-- Configuration values, paths, thresholds, or URLs have no externalization strategy defined (P0)
+- Configuration values, paths, thresholds, or URLs have no externalization strategy defined (P0) -->

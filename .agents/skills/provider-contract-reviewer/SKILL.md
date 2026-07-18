@@ -1,4 +1,4 @@
----
+<!-- ---
 name: provider-contract-reviewer
 description: Review or plan repository provider contract changes. Use for provider config schemas, canonical image requests, model discovery, transport request builders, response parsers, provider descriptors, mock/live smoke boundaries, or provider normalization behavior.
 ---
@@ -62,4 +62,4 @@ Stop and produce a Decision Packet (A/B/C choice with evidence and recommendatio
 - behavior can only be proven by paid/live APIs without approval;
 - provider logic needs UI state, local paths, or UXP storage;
 - endpoint behavior is guessed rather than evidenced by docs, tests, or live
-  smoke output.
+  smoke output. -->
