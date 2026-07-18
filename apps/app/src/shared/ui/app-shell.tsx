@@ -24,6 +24,7 @@ import { GlobalGenerationSettingsPage } from './pages/global-generation-settings
 import { ModelConfigurationPage } from './pages/model-configuration-page';
 import { PromptSettingsPage } from './pages/prompt-settings-page';
 import { PromptPresetDetailPage } from './pages/prompt-preset-detail-page';
+import { ComfyUiConnectionPage } from './pages/comfyui-connection-page';
 import { ToastHost, ToastProvider, useToast } from './components/toast-host';
 import { PopupLayerProvider, PopupLayerRoot } from './components/popup-layer';
 import { I18nProvider, useI18n } from './i18n/i18n-context';
@@ -32,6 +33,7 @@ import { placeTaskOutputOnCanvas, saveTaskOutputToFile } from '../domain/task-ac
 import type { TaskRecord } from '@imagen-ps/application';
 import { MotionPageFrame } from './components/motion-ui';
 import { mainSelectableModels, type UiModelInfo } from './model-info';
+import { useComfyUiManagement } from './hooks/use-comfyui-management';
 
 export interface AppShellHost {
   readonly app: PluginAppModel;
@@ -51,6 +53,7 @@ type View =
   | 'settings-onboarding'
   | 'settings-add'
   | 'settings-detail'
+  | 'comfyui-connection'
   | 'profile-models'
   | 'global-generation-settings'
   | 'model-configuration'
@@ -214,6 +217,7 @@ function AppShellContent({ host }: AppShellProps) {
   const [selectedImageProfileId, setSelectedImageProfileId] = useState<string | null>(null);
   const [activeImageProfileHydrated, setActiveImageProfileHydrated] = useState(false);
   const [selectedSettingsProfileId, setSelectedSettingsProfileId] = useState<string | null>(null);
+  const [selectedComfyUiConnectionId, setSelectedComfyUiConnectionId] = useState<string | null>(null);
   const [settingsDetailReturnView, setSettingsDetailReturnView] = useState<SettingsDetailReturnView>('settings');
   const [selectedPromptPresetId, setSelectedPromptPresetId] = useState<string | null>(null);
   const [modelConfigurationEditorSeed, setModelConfigurationEditorSeed] = useState<{
@@ -249,6 +253,27 @@ function AppShellContent({ host }: AppShellProps) {
   );
   const generationSettings = useGenerationSettings(services);
   const promptSettings = usePromptSettings(services);
+  const comfyUiManagement = useComfyUiManagement(services.comfyUi);
+  const selectedComfyUiTarget = useMemo(() => {
+    const selection = comfyUiManagement.selection;
+    if (selection?.kind !== 'comfyui') return undefined;
+    const workflow = comfyUiManagement.workflows.find(
+      (item) => item.workflowId === selection.workflowId,
+    );
+    if (workflow === undefined) return undefined;
+    const connection = comfyUiManagement.connections.find(
+      (item) => item.connectionId === workflow.connectionId,
+    );
+    const readiness = comfyUiManagement.readiness.get(workflow.workflowId);
+    return connection === undefined || readiness === undefined
+      ? undefined
+      : { workflow, connection, readiness };
+  }, [
+    comfyUiManagement.connections,
+    comfyUiManagement.readiness,
+    comfyUiManagement.selection,
+    comfyUiManagement.workflows,
+  ]);
   const imagenSession = useImagenSession(services);
   const conversation = useConversation(services, imagenSession, generationSettings.settings, t.conversation);
   const composerDraft = useComposerDraft();
@@ -488,6 +513,8 @@ function AppShellContent({ host }: AppShellProps) {
           profilesLoading={profilesState.loading}
           profilesError={profilesState.error}
           selectedProfile={selectedProfile}
+          generationBackendMode={comfyUiManagement.backendMode}
+          comfyUiTarget={selectedComfyUiTarget}
           selectedProfileId={selectedImageProfileId}
           onSelectProfile={(profileId) => {
             void selectImageProfile(profileId);
@@ -552,6 +579,31 @@ function AppShellContent({ host }: AppShellProps) {
           onOpenPromptSettings={() => setView('prompt-settings')}
           generationSettings={generationSettings.settings}
           modelGenerationSettings={modelGenerationSettings}
+          comfyUi={comfyUiManagement}
+          selectedProviderTarget={selectedImageProfileId
+            ? {
+                profileId: selectedImageProfileId,
+                ...(selectedModelId ? { modelId: selectedModelId } : {}),
+              }
+            : undefined}
+          onOpenComfyUiConnection={(connectionId) => {
+            setSelectedComfyUiConnectionId(connectionId);
+            setView('comfyui-connection');
+          }}
+          onAddComfyUiConnection={() => {
+            setSelectedComfyUiConnectionId(null);
+            setView('comfyui-connection');
+          }}
+          />
+        </MotionPageFrame>
+      )}
+      {view === 'comfyui-connection' && (
+        <MotionPageFrame watch={view}>
+          <ComfyUiConnectionPage
+            connectionId={selectedComfyUiConnectionId}
+            controller={comfyUiManagement}
+            onBack={() => setAppView('settings', { skipSettingsOnboarding: true })}
+            onConnectionSaved={setSelectedComfyUiConnectionId}
           />
         </MotionPageFrame>
       )}

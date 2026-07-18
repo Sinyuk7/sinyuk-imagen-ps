@@ -1,7 +1,7 @@
 ## ADDED Requirements
 
 ### Requirement: API Graph driver必须执行validated canonical submission
-API Graph driver MUST clone admitted graph、只按contract写入prompt/image/mask literal values、验证ordered outputs，并从App侧调用`POST /prompt`恰好一次。未提供的optional input MUST保留admitted graph默认值；invalid target MUST在submission前失败。`promptId` MUST只取自ComfyUI server acknowledgement，App MUST不预造或override promptId。
+API Graph driver MUST只接收已通过image-only readiness的workflow，clone admitted graph、只按contract写入prompt/image literal values、验证ordered outputs，并从App侧调用`POST /prompt`恰好一次。任何mask-entry workflow MUST在driver调用前以`not-ready/workflow` fail closed。未提供的optional image input MUST保留admitted graph默认值；invalid target MUST在submission前失败。`promptId` MUST只取自ComfyUI server acknowledgement，App MUST不预造或override promptId。
 
 #### Scenario: API Graph成功提交
 - **WHEN**graph、contract、uploads与connection均合法
@@ -45,11 +45,11 @@ Bridge limits MUST固定为2,000,000-byte serialized message、512-byte workflow
 - **THEN**Bridge MUST在open workflow或Queue前返回bounded error
 
 ### Requirement: Frontend driver必须使用native Queue一次
-Frontend driver MUST在App-side upload barrier后调用`submit-workflow`。Bridge MUST打开exact workflow、等待matching configure readiness、验证contract nodes/widgets、应用exact values并调用native `app.queuePrompt(0, 1)`恰好一次。
+Frontend driver MUST在App-side upload barrier后调用`submit-workflow`。Bridge MUST打开exact workflow、等待matching configure readiness、验证contract nodes/widgets、只应用prompt/image exact values并调用native `app.queuePrompt(0, 1)`恰好一次。任何mask-entry workflow MUST在Bridge open/mutation前以`not-ready/workflow` fail closed。
 
 #### Scenario: Frontend成功提交
 - **WHEN**Bridge兼容、workflow/contract/widgets合法且Queue acknowledgement有效
-- **THEN**Frontend `/prompt` call count MUST为1、App `/prompt` call count MUST为0，并返回operationId对应的server promptId
+- **THEN**Pinned Frontend 1.45.20 native `POST /api/prompt` call count MUST为1、App-owned `POST /prompt` call count MUST为0，并返回operationId对应的server promptId
 
 ### Requirement: Frontend operation必须one-shot且Canvas lease服从Session lane
 FrontendQueueDriver MUST在dispatch调用栈生成unique runtime-only operationId。Session MUST先取得`ExecutionLane {key: connectionId, maxConcurrency: 1}`slot，adapter随后取得Canvas lease并执行open/mutate/Queue/reset；lease MUST在adapter返回与Job terminal前释放，持有期间 MUST不回调Session或等待新lane slot。

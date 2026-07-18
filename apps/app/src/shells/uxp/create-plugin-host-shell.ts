@@ -40,6 +40,12 @@ import { createMemoryThumbnailStore } from '../../shared/image/thumbnail-store';
 import { createTaskResourceResolver } from '../../shared/image/task-resource-resolver';
 import { createRetentionController } from '../../shared/retention/controller';
 import { defaultTaskLinkedRetentionPolicy, runTaskLinkedRetention } from '../../shared/retention/task-linked-retention';
+import { createUxpComfyUiRepositories } from '../../adapters/uxp/uxp-comfyui-persistence';
+import { createComfyUiHttpTransport } from '../../adapters/comfyui/comfyui-http-transport';
+import { createComfyUiAppRuntime } from '../../adapters/comfyui/comfyui-app-runtime';
+import { createUxpComfyUiFrontendBridgeResolver } from '../../adapters/comfyui/comfyui-frontend-bridge-resolver';
+
+const UXP_PLUGIN_ID = 'com.imagen-ps.panel';
 
 export interface PluginHostShell {
   readonly kind: 'photoshop-uxp' | 'chrome-browser';
@@ -113,6 +119,7 @@ export function createPluginHostShell(): PluginHostShell {
     const generationSettings = createUxpGenerationSettingsStore(uxpModules);
     const promptSettings = createUxpPromptSettingsStore(uxpModules);
     const activeImageProfile = createUxpActiveImageProfileStore(uxpModules);
+    const comfyUiRepositories = createUxpComfyUiRepositories(uxpModules);
 
     logger.info('panel.adapters.initialized', {
       hasProfileRepository: true,
@@ -155,6 +162,15 @@ export function createPluginHostShell(): PluginHostShell {
       logger: hostLogger,
       executeHostModal,
     });
+    const comfyUiBridgeResolver = createUxpComfyUiFrontendBridgeResolver({
+      connections: comfyUiRepositories.connections,
+      pluginId: UXP_PLUGIN_ID,
+    });
+    const comfyUiRuntime = createComfyUiAppRuntime({
+      repositories: comfyUiRepositories,
+      httpTransport: createComfyUiHttpTransport(),
+      frontendBridgeResolver: comfyUiBridgeResolver,
+    });
 
     span.finish();
     logger.info('panel.startup.complete');
@@ -166,6 +182,8 @@ export function createPluginHostShell(): PluginHostShell {
       locale: resolveAppLocale(uxpModules.uxp?.host?.uiLocale),
       services: {
         commands: createCommandsAdapter(),
+        comfyUi: comfyUiRuntime.management,
+        generationBackends: comfyUiRuntime.generationBackends,
         host: hostBridge,
         generationSettings,
         modelGenerationPreferences: modelGenerationPreferenceRepository,
@@ -180,6 +198,8 @@ export function createPluginHostShell(): PluginHostShell {
         retention,
       },
       dispose() {
+        comfyUiBridgeResolver.dispose();
+        comfyUiRuntime.dispose();
         logger.info('panel.dispose');
       },
     };

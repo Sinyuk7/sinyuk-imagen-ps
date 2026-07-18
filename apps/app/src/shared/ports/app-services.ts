@@ -9,6 +9,7 @@ import type { AppPathInfoPort } from './app-path-info';
 import type { ThumbnailStore } from '../image/thumbnail-store';
 import type { GenerationBackend, ResolvedTaskResource, TaskResourceRef } from '@imagen-ps/application';
 import type { RetentionPort } from '../retention/controller';
+import type { ComfyUiManagementPort } from './comfyui-management';
 
 export interface TaskResourceResolverPort {
   resolve(resource: TaskResourceRef): Promise<ResolvedTaskResource>;
@@ -16,6 +17,8 @@ export interface TaskResourceResolverPort {
 
 export interface AppServices {
   readonly commands: CommandsPort;
+  /** ComfyUI 设置只经由 Application 管理服务读写。 */
+  readonly comfyUi: ComfyUiManagementPort;
   /** 测试或宿主 composition 可显式替换 Session backend registry。 */
   readonly generationBackends?: readonly GenerationBackend[];
   readonly host: HostBridge;

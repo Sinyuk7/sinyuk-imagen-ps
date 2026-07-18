@@ -11,7 +11,8 @@
       "@imagen-ps/providers/src/*": ["./packages/providers/src/*"],
       "@imagen-ps/application": ["./packages/application/src/index.ts"],
       "@imagen-ps/application/commands": ["./packages/application/src/commands/index.ts"],
-      "@imagen-ps/application/src/*": ["./packages/application/src/*"]
+      "@imagen-ps/application/src/*": ["./packages/application/src/*"],
+      "@imagen-ps/execution-backend-comfyui": ["./packages/execution-backends/comfyui/src/index.ts"]
     }
   },
   "include": [
@@ -21,6 +22,9 @@
     "apps/*/test/**/*.ts",
     "packages/*/src/**/*.ts",
     "packages/*/tests/**/*.ts",
-    "packages/*/test/**/*.ts"
+    "packages/*/test/**/*.ts",
+    "packages/execution-backends/*/src/**/*.ts",
+    "packages/execution-backends/*/tests/**/*.ts",
+    "packages/execution-backends/*/test/**/*.ts"
   ]
 }

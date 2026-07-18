@@ -23,6 +23,7 @@
   },
   "dependencies": {
     "@imagen-ps/core-engine": "workspace:*",
+    "@imagen-ps/execution-backend-comfyui": "workspace:*",
     "@imagen-ps/foundation": "workspace:*",
     "@imagen-ps/providers": "workspace:*"
   },

@@ -6,8 +6,8 @@
 
 - 新增一个 Application-owned `ComfyUiGenerationBackend` 与一个 Core-facing `ComfyUiExecutionAdapter`；内部包含 `ApiGraphDriver` 和 `FrontendQueueDriver` 两种 submission driver。
 - 新增 ComfyUI connection、health/readiness、workflow repository与target selection；API Format workflow 通过 bounded import管理，Frontend workflow通过compatible Bridge discovery引用remote identity。
-- 只支持项目声明的 Binding/Type Contract 输入输出：prompt、ordered images、optional mask与image outputs。其他 Reroute、Primitive、Get/Set、subgraph和custom nodes保持opaque，不进入兼容范围。
-- 复用现有 `HostImageAsset`、`ImageResource`、`StoredAssetRef`、`AssetStore`与mask materialization；send-time解析bytes，通过既有ComfyUI `/upload/image`语义上传，全部成功后才允许submission。
+- 只支持项目声明的 Binding/Type Contract 输入输出：prompt、ordered images 与 image outputs。mask vocabulary 先保留为预留语义；任何包含 mask entry 的 workflow 在本 Change 中必须返回 `not-ready/workflow`，不得进入 Task dispatch、live gate 或 UXP 验收。其他 Reroute、Primitive、Get/Set、subgraph和custom nodes保持opaque，不进入兼容范围。
+- 复用现有 `HostImageAsset`、`ImageResource`、`StoredAssetRef`、`AssetStore`；send-time 只走 image 解析与 `/upload/image` 上传，mask 路径暂缓到后续 refactor。
 - API Graph driver负责validated graph mutation、App-owned `/prompt`、realtime/history reconciliation；Frontend Queue driver负责open workflow、exact widget mutation与native Queue一次提交。
 - 两个driver统一投影到CHANGE-01的Task/Job/GenerationBackend链，复用TaskOutput、History、Preview、Download与Photoshop Placement。
 - 新增最小ComfyUI Bridge integration；page-side protocol不传raw image bytes、不返回compiled graph、不执行任意script。
@@ -19,7 +19,7 @@
 ### New Capabilities
 
 - `comfyui-backend-management`: 定义connection、readiness、workflow repository、API Graph import、Frontend discovery与target selection。
-- `comfyui-workflow-input-contract`: 定义Binding/Type Contract、prompt/image/mask materialization、upload barrier与exact widget values。
+- `comfyui-workflow-input-contract`: 定义Binding/Type Contract、prompt/image materialization、reserved mask vocabulary、upload barrier与exact widget values。
 - `comfyui-dual-driver-execution`: 定义API Graph driver、Frontend Queue driver、at-most-once submission、receipt、progress与history reconciliation。
 - `comfyui-result-host-integration`: 定义shared Task/Job result projection、output storage、History/Preview/Download/Photoshop Placement以及Chrome/UXP真实验收。
 

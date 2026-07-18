@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { vi } from 'vitest';
+import { decode } from 'fast-png';
 import {
   VALID_TRANSPARENT_PNG,
   createBridge,
@@ -241,6 +242,7 @@ describe('PhotoshopHostBridge read contract', () => {
 
     const capture = await bridge.captureActiveImage(providerPolicy);
 
+    expect(capture.mask).toBeUndefined();
     expect(capture.image.preview.kind).toBe('none');
     expect(capture.image.resource.derivatives.thumbnail).toBeUndefined();
     expect(capture.image.resource.derivatives.providerInput).toMatchObject({
@@ -298,6 +300,53 @@ describe('PhotoshopHostBridge read contract', () => {
       applyAlpha: true,
     });
   }));
+
+  it('stores frame-consistent selection coverage as canonical grayscale without changing provider composition', async () => {
+    const { modules, spies } = createFakeModules({
+      activeLayerBounds: { _left: 10, _top: 20, _right: 14, _bottom: 22 },
+      selectionBounds: { left: 10, top: 20, right: 14, bottom: 22 },
+      layerData: new Uint8Array([
+        10, 20, 30, 255,
+        40, 50, 60, 255,
+      ]),
+      selectionData: new Uint8Array([0, 128]),
+    });
+    const { bridge, assetStore } = createBridge(modules);
+
+    const capture = await bridge.captureActiveImage({ maxSide: 2 });
+    const image = decode(await resolveAssetBytes(assetStore, capture.image.asset));
+    const mask = capture.mask;
+    if (mask === undefined) {
+      throw new Error('Expected selection capture to materialize a canonical mask.');
+    }
+    const decodedMask = decode(await resolveAssetBytes(assetStore, mask.asset));
+
+    expect(capture.placement.placementRect).toEqual({ left: 10, top: 20, right: 14, bottom: 22 });
+    expect(capture.image.metadata).toMatchObject({ width: 2, height: 1 });
+    expect(Array.from(image.data)).toEqual([
+      0, 0, 0, 0,
+      40, 50, 60, 128,
+    ]);
+    expect(mask.canonicalMask).toEqual({
+      encoding: 'grayscale',
+      bitDepth: 8,
+      size: { width: 2, height: 1 },
+    });
+    expect(mask.metadata).toMatchObject({
+      name: 'photoshop-selection-mask-2.png',
+      mimeType: 'image/png',
+      width: 2,
+      height: 1,
+    });
+    expect(decodedMask).toMatchObject({ width: 2, height: 1, channels: 1, depth: 8 });
+    expect(Array.from(decodedMask.data)).toEqual([0, 128]);
+    expect(spies.getSelection).toHaveBeenCalledWith({
+      documentID: 42,
+      sourceBounds: { left: 10, top: 20, right: 14, bottom: 22 },
+      targetSize: { width: 2, height: 1 },
+      componentSize: 8,
+    });
+  });
 
   it('keeps placeholder when capture-bound preview source disappears', async () => {
     const { modules, spies } = createFakeModules();

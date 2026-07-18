@@ -12,7 +12,7 @@ Frontend Queue
   open remote frontend workflow -> widget mutation -> native Queue
 ```
 
-两者的本地输入、remote image upload、prompt observation、history/view output与Task projection高度相同；区别只存在于submission driver。Sibling `monorepo` reference repository仅作为 ComfyUI交互行为oracle：本地image/mask materialize、upload获得remote name、等待全部uploads、写入widget、再Queue。它的React stores、UploadPass registry、resource URI/cache和task system不进入本仓库。
+两者的本地输入、remote image upload、prompt observation、history/view output与Task projection高度相同；区别只存在于submission driver。Sibling `monorepo` reference repository仅作为 ComfyUI交互行为oracle：本地image materialize、upload获得remote name、等待全部uploads、写入widget、再Queue。mask vocabulary 先保留为未来 refactor 的预留语义，但不作为本阶段的 live gate 或 UXP 验收对象。它的React stores、UploadPass registry、resource URI/cache和task system不进入本仓库。
 
 ## Goals / Non-Goals
 
@@ -20,7 +20,7 @@ Frontend Queue
 
 - 一个 `ComfyUiGenerationBackend` 接入既有Application Task/Session结构。
 - 一个 `ComfyUiExecutionAdapter` 内部组合 `ApiGraphDriver` 与 `FrontendQueueDriver`。
-- Chrome与Photoshop UXP都能从现有attachments/selection得到image/mask，上传、执行并把结果放回共享History/Placement链。
+- Chrome与Photoshop UXP都能从现有attachments/selection完成 image 上传、执行并把结果放回共享History/Placement链；mask workflow 先不进入本阶段产品验收。
 - 只通过两个project-owned contract nodes声明workflow输入输出，不猜测内部graph结构。
 - 对remote submission保持at-most-once；unknown execution state不自动replay。
 - 以mock contract、owner-local AutoDL Chrome proof与Photoshop UXP manual smoke形成分层证据。
@@ -33,6 +33,7 @@ Frontend Queue
 - 不兼容或分析Reroute、Primitive、Get/Set、subgraph及任意custom nodes；它们对本项目保持opaque。
 - 不提供arbitrary Canvas scripting、generic widget discovery、compiled graph handoff或page-side binary upload。
 - 不做multi-batch、concurrent Canvas operations或automatic remote cancellation。
+- 不提供mask materialization、encoding、remote upload、widget mutation或mask live/UXP proof；mask runtime另起Change重新设计。
 
 ## Decisions
 
@@ -149,6 +150,8 @@ interface ImagenWorkflowTypeContractV1 {
 
 两个nodes各自的canonical JSON最大65,536 bytes，合并后最多32个entries；nodeId与fieldName各最多128 chars。两边必须具有完全相同且唯一的`role+slot` key。`prompt`只能slot 0且必须是required text；`image`与`output-image` slots必须从0连续；`mask`最多一个slot 0且必须声明mask data type/encoding；至少一个required output-image。`text-to-image`禁止image/mask entries；`image-edit`至少一个required image，mask可选。任何缺失、额外、重复、断序或type/encoding冲突均fail closed。
 
+mask role 与 mask encoding 作为 reserved vocabulary 保留在 contract 结构中，但parser acceptance不等于product readiness。任何包含mask entry的workflow在当前runtime中必须返回`not-ready/workflow`，并在Task dispatch、asset resolution、upload或submission前fail closed，直到后续Change单独打开。
+
 两者合并为一个bounded `ComfyUiWorkflowContract`。同一locator在API driver中解释为API node input，在Frontend driver中解释为Canvas widget name；driver必须验证实际target唯一且type兼容。无声明、重复role、重复slot、missing target、link-shaped API input、missing widget或type mismatch均fail closed。
 
 支持roles仅为：
@@ -156,7 +159,7 @@ interface ImagenWorkflowTypeContractV1 {
 ```text
 prompt
 image[0..N]
-mask (optional)
+mask (reserved; not runnable in this Change)
 output-image[0..N]
 ```
 
@@ -166,7 +169,7 @@ Canonical JSON schema、authoritative parser/validator与valid/invalid fixtures�
 
 ### 4. 本地asset生命周期完全复用现有owners
 
-Chrome/Photoshop inputs继续进入现有 `HostImageAsset -> ImageResource -> StoredAssetRef -> AssetStore` 链。Mask source在用户Send/admission阶段按当前selection/attachment frame materialize为canonical local asset，并与主图几何保持一致；Task与execution params只保存StoredAssetRef和bounded metadata。
+Chrome/Photoshop inputs继续进入现有 `HostImageAsset -> ImageResource -> StoredAssetRef -> AssetStore` 链。当前产品阶段只要求image source按Send/admission path materialize为canonical local asset。Task与execution params只保存ordered image StoredAssetRefs和bounded metadata；selection/mask不得进入本Change的ComfyUI runtime payload。
 
 Placement只使用CHANGE-01已有`TaskPlacement`。App在Send/admission前按现有`PlacementIntent`生成`exact-frame/document-only/unbound`，`ComfyUiGenerationBackend`将running Task中的placement原样带到terminal projection。不得新增ComfyUI placement evidence、document selector或generic evidence副本。
 
@@ -174,9 +177,9 @@ Placement只使用CHANGE-01已有`TaskPlacement`。App在Send/admission前按现
 
 ### 5. 两个drivers共享App-side remote upload barrier
 
-Task durable running write成功后、任何submission前，`ComfyUiExecutionAdapter`通过host-injected asset resolver读取所有StoredAssetRefs。Mask按contract的explicit encoding生成ComfyUI upload bytes。共享uploader：
+Task durable running write成功后、任何submission前，`ComfyUiExecutionAdapter`通过host-injected asset resolver读取所有StoredAssetRefs。当前 barrier 只为 image 构建 ComfyUI upload bytes；mask-entry workflow 暂缓到后续 refactor。共享uploader：
 
-1. 为ordered images与optional mask构建bounded multipart `/upload/image` requests；
+1. 为ordered images构建bounded multipart `/upload/image` requests；
 2. 验证HTTP status、response size与returned `{name|filename, subfolder, type}` descriptor；
 3. 从validated descriptor生成唯一exact widget value；
 4. 等待全部required uploads成功；
@@ -188,7 +191,7 @@ Remote filenames只在当前execution中存在，不持久化为asset identity�
 
 ### 6. API Graph driver拥有canonical submission
 
-API Graph driver clone admitted graph，按contract写入non-empty prompt与ordered uploaded image/mask values，保留未提供的optional values。它在submission前验证graph limits、node/input existence、literal target与output contract。
+API Graph driver只接收已通过image-only readiness的workflow，clone admitted graph，按contract写入non-empty prompt与ordered uploaded image values，保留未提供的optional image defaults。它在submission前验证graph limits、node/input existence、literal target与output contract。
 
 Driver使用ephemeral client id建立realtime channel并POST `/prompt`恰好一次。`promptId`由ComfyUI server acknowledgement产生；App不得预造或要求request携带promptId。Response必须提供bounded promptId并绑定本次request/client context。WebSocket events是progress hints；bounded `/history/{promptId}`与`/queue` reconciliation是terminal authority。
 
@@ -221,12 +224,12 @@ Bridge不接收raw bytes、upload handles、API graph、compiled graph、Task/Jo
 2. 获取connection-scoped exclusive Canvas lease；
 3. 打开exact remote workflow并等待operation-bound configure readiness；
 4. 读取并验证两个contract nodes与exact target widgets；
-5. 应用prompt/image/mask values；
+5. 应用 prompt 与 image values；含 mask entry 的 workflow 已在 readiness 阶段 fail closed，不进入此步骤；
 6. 调用native `app.queuePrompt(0, 1)`恰好一次；
 7. 通过不改变arguments/response/POST的narrow receipt observer取得server prompt id；
 8. 返回bounded receipt并在finally reset/release Canvas lease。
 
-`operationId`由FrontendQueueDriver在dispatch调用栈生成，不进入GenerationCommand、Job input、Task或History。Bridge以operation id做page-load内one-shot dedupe并保留accepted receipt直到该load结束；duplicate返回原receipt且不第二次Queue。Timeout/reload/disconnect/ambiguous receipt后App与Bridge均不自动replay。reload产生新loadId并清空旧page state；Application不得把旧operation投递到新load。Frontend `/prompt` call count必须为1，App `/prompt` call count必须为0。
+`operationId`由FrontendQueueDriver在dispatch调用栈生成，不进入GenerationCommand、Job input、Task或History。Bridge以operation id做page-load内one-shot dedupe并保留accepted receipt直到该load结束；duplicate返回原receipt且不第二次Queue。Timeout/reload/disconnect/ambiguous receipt后App与Bridge均不自动replay。reload产生新loadId并清空旧page state；Application不得把旧operation投递到新load。Pinned Frontend 1.45.20 native Queue的`POST /api/prompt` call count必须为1，App-owned `POST /prompt` call count必须为0。
 
 Frontend receipt使用唯一bounded shape：
 
@@ -275,10 +278,10 @@ Default suites使用：
 
 - execution backend contract fake：upload、API submit、frontend receipt、history/view与error cases；
 - Application scenarios：connection/workflow admission、contract、lane、Task projection；
-- app adapter scenarios：Chrome/UXP StoredAssetRef、mask materialization与Bridge message boundary；
+- app adapter scenarios：Chrome/UXP StoredAssetRef、image materialization与Bridge message boundary；
 - Bridge protocol contract：identity、limits、one-shot operation、exact mutations、Queue once与cleanup。
 
-不为每个ComfyUI node或graph形状建立tests。真实network只进入opt-in release/live harness。AutoDL Chrome vertical proof必须覆盖API与Frontend各一条完整image/mask flow；Photoshop UXP manual smoke必须覆盖real capture/mask、WebView/Bridge、output placement与cleanup。
+不为每个ComfyUI node或graph形状建立tests。真实network只进入opt-in release/live harness。AutoDL Chrome vertical proof只覆盖API与Frontend各一条完整 image flow；Photoshop UXP manual smoke只覆盖real capture、WebView/Bridge、output placement与cleanup。Mask runtime与proof由后续Change负责。
 
 ## Risks / Trade-offs
 
@@ -301,12 +304,12 @@ Default suites使用：
 5. 建立transport-neutral upload、history/view、error/result parsers与fakes；实现共享input materialization/upload barrier与API Graph driver。
 6. 实现Frontend Queue driver，完成exact widget mutation、native Queue once、runtime-only receipt与reload no-replay contract。
 7. 接入Application `ComfyUiGenerationBackend`、Session lane、Task projection与shared target/settings。
-8. 接入Chrome/UXP host adapters、mask、History/Preview/Download与existing TaskPlacement。
-9. 运行default deterministic gates、opt-in AutoDL live gates与Photoshop UXP manual smoke。
+8. 接入Chrome/UXP host adapters、History/Preview/Download与existing TaskPlacement；mask workflow deferred。
+9. 运行default deterministic gates、opt-in AutoDL live gates与Photoshop UXP manual smoke（image-only）。
 10. 归档被本Change取代的旧OpenSpec change，避免双authority；不删除git branch或改写history。
 
 Rollback只移除ComfyUI backend registration、UI target与Bridge integration；CHANGE-01通用架构和Provider behavior保持不变。
 
 ## Open Questions
 
-无。V1锁定unauthenticated product connection、bounded API Format、contract schema V1、runtime-only receipt/no reload recovery、per-connection lane cap 1、batch count 1、existing TaskPlacement以及pinned frontend/core/Bridge tuple。
+无。V1锁定unauthenticated product connection、bounded API Format、contract schema V1、runtime-only receipt/no reload recovery、per-connection lane cap 1、batch count 1、existing TaskPlacement、pinned frontend/core/Bridge tuple以及image-only runtime；mask仅为reserved schema vocabulary并由后续Change实现。

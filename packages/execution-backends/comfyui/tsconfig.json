@@ -1,0 +1,15 @@
+{
+  "extends": "../../../tsconfig.base.json",
+  "compilerOptions": {
+    "noEmit": true,
+    "outDir": "./dist",
+    "rootDir": ".",
+    "allowJs": true,
+    "baseUrl": ".",
+    "paths": {
+      "@imagen-ps/core-engine": ["../../core-engine/dist/index.d.ts"]
+    },
+    "lib": ["ES2022", "DOM"]
+  },
+  "include": ["src", "tests", "contract/runtime-validator.mjs", "contract/canonical-data.mjs", "vitest.config.ts"]
+}

@@ -23,6 +23,9 @@ function interruptedRecord(record: TaskRecord): TaskRecord {
     error: {
       category: 'interrupted',
       message: 'App restarted before completion.',
+      ...(record.execution?.backend.id === 'comfyui'
+        ? { details: { remoteMayContinue: true } }
+        : {}),
     },
     outputs: [],
     updatedAt: interruptedAt,

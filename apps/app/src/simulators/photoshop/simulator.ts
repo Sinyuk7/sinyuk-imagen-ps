@@ -1,5 +1,6 @@
 import type { Asset, AssetStore, StoredAssetRef } from '@imagen-ps/application';
 import { createHostImageAsset, type HostImageAsset } from '../../shared/domain/host-image-asset';
+import { encode as encodePng } from 'fast-png';
 import type { PhotoshopCaptureResult, PlacementIntent } from '../../shared/domain/photoshop-placement';
 import type { ProviderInputSizePolicy } from '../../shared/image/resize';
 import type { LayerInfo } from '../../shared/ports/host-port';
@@ -8,6 +9,7 @@ export type PhotoshopSimulatorScenarioId =
   | 'no-document'
   | 'empty-document'
   | 'seeded-document'
+  | 'comfyui-image'
   | 'mask-capable-layer'
   | 'host-busy'
   | 'file-picker-cancelled'
@@ -114,6 +116,32 @@ async function toStoredAsset(assetStore: AssetStore, seeded: SeededSimulatorAsse
   });
 }
 
+async function comfyUiImageCapture(assetStore: AssetStore): Promise<HostImageAsset> {
+  const width = 256;
+  const height = 160;
+  const data = new Uint8Array(width * height * 3);
+  for (let y = 0; y < height; y += 1) {
+    for (let x = 0; x < width; x += 1) {
+      const offset = (y * width + x) * 3;
+      data[offset] = Math.round((x / (width - 1)) * 255);
+      data[offset + 1] = Math.round((y / (height - 1)) * 255);
+      data[offset + 2] = 160;
+    }
+  }
+  const bytes = encodePng({ width, height, data, channels: 3, depth: 8 });
+  return storedHostImageAsset(assetStore, {
+    type: 'image',
+    name: 'sim-comfyui-capture.png',
+    data: bytes,
+    mimeType: 'image/png',
+  }, {
+    source: 'simulator',
+    previewUrl: svgDataUrl('ComfyUI capture', width, height, '#2a9d8f'),
+    width,
+    height,
+  });
+}
+
 export function createPhotoshopSimulator(
   assetStore: AssetStore,
   scenarioId: PhotoshopSimulatorScenarioId = 'seeded-document',
@@ -148,7 +176,9 @@ export function createPhotoshopSimulator(
       const layer = layers[0];
       const asset = assets[0];
       if (!layer || !asset || !layer.bounds) throw new Error('Simulator has no active layer to capture.');
-      const image = await toStoredAsset(assetStore, asset);
+      const image = scenarioId === 'comfyui-image'
+        ? await comfyUiImageCapture(assetStore)
+        : await toStoredAsset(assetStore, asset);
       return {
         image,
         sourceKind: 'layer',

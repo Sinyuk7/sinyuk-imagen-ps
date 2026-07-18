@@ -37,6 +37,8 @@ import {
   placementIntentForActualOutput,
   resolvePlacementTarget,
 } from '../../shared/domain/photoshop-placement';
+import type { CanonicalMaskAsset } from '../../shared/domain/mask-source';
+import { encodeCanonicalGrayscalePng } from '../../shared/image/canonical-mask';
 import { encodeRgbaPngStoredDeflate, type PngEncoderName } from './png-encoder';
 
 interface PhotoshopLayer {
@@ -1748,7 +1750,7 @@ export function createPhotoshopHostBridge(modules: UxpModules, options?: CreateP
         let providerInputRgbaBytes = targetSize.width * targetSize.height * 4;
         let providerInputPngBytes = 0;
         const providerInputTiming: ImageDataToRgbaTiming = {};
-        const asset = await executeHostModal(
+        const captureAssets = await executeHostModal(
           async () => {
             failedStage = 'read-capture-pixels';
             const getPixelsStarted = nowMs();
@@ -1769,6 +1771,7 @@ export function createPhotoshopHostBridge(modules: UxpModules, options?: CreateP
               sourceLevel: pixelResult.level,
             }, providerInputTiming);
 
+            let canonicalMask: ReturnType<typeof encodeCanonicalGrayscalePng> | undefined;
             if (selectionBounds !== null) {
               failedStage = 'read-selection-mask';
               if (!imaging.getSelection) {
@@ -1786,6 +1789,7 @@ export function createPhotoshopHostBridge(modules: UxpModules, options?: CreateP
                 sourceBounds: selectionResult.sourceBounds,
               });
               applySelectionAlpha(rgba, alpha);
+              canonicalMask = encodeCanonicalGrayscalePng(alpha, targetSize);
             }
 
             failedStage = 'encode-capture-png';
@@ -1806,7 +1810,26 @@ export function createPhotoshopHostBridge(modules: UxpModules, options?: CreateP
               height: targetSize.height,
             });
             providerInputStoreMs = elapsedMs(storeStarted);
-            return stored;
+            let mask: CanonicalMaskAsset | undefined;
+            if (canonicalMask !== undefined) {
+              failedStage = 'store-canonical-mask';
+              const maskImage = await createStoredHostImageAsset(assetStore, canonicalMask.bytes, {
+                source: 'layer',
+                name: `photoshop-selection-mask-${layer.id}.png`,
+                mimeType: 'image/png',
+                width: canonicalMask.width,
+                height: canonicalMask.height,
+              });
+              mask = {
+                ...maskImage,
+                canonicalMask: {
+                  encoding: 'grayscale',
+                  bitDepth: 8,
+                  size: targetSize,
+                },
+              };
+            }
+            return { image: stored, ...(mask !== undefined ? { mask } : {}) };
           },
           { commandName: 'Capture Photoshop image' },
         );
@@ -1825,7 +1848,8 @@ export function createPhotoshopHostBridge(modules: UxpModules, options?: CreateP
           'capture.readyMs': captureReadyMs,
         });
         return {
-          image: asset,
+          image: captureAssets.image,
+          ...(captureAssets.mask !== undefined ? { mask: captureAssets.mask } : {}),
           sourceKind,
           placement: {
             snapshot: {

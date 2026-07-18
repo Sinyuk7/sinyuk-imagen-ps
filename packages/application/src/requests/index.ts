@@ -1,7 +1,9 @@
 import type { Workflow } from '@imagen-ps/core-engine';
+import { comfyUiGenerationWorkflow } from './comfyui-generation.js';
 import { providerEditWorkflow } from './provider-edit.js';
 import { providerGenerateWorkflow } from './provider-generate.js';
 
+export { comfyUiGenerationWorkflow } from './comfyui-generation.js';
 export { providerEditWorkflow } from './provider-edit.js';
 export { providerGenerateWorkflow } from './provider-generate.js';
 
@@ -9,4 +11,5 @@ export { providerGenerateWorkflow } from './provider-generate.js';
 export const builtinWorkflows: readonly Workflow[] = Object.freeze([
   providerGenerateWorkflow,
   providerEditWorkflow,
+  comfyUiGenerationWorkflow,
 ]);

@@ -22,7 +22,19 @@ import { DEFAULT_APP_GENERATION_SETTINGS, normalizeAppGenerationSettings, type A
 import { modelGenerationPreferenceKey } from '../../shared/ports/model-generation-preferences';
 import { normalizePromptSettings, type PromptSettings, type PromptSettingsStore } from '../../shared/ports/prompt-settings';
 
-export type ChromeStoreName = 'profiles' | 'secrets' | 'history' | 'tasks' | 'assets' | 'appSettings' | 'modelDiscovery' | 'userModelConfigs' | 'modelGenerationPreferences';
+export type ChromeStoreName =
+  | 'profiles'
+  | 'secrets'
+  | 'history'
+  | 'tasks'
+  | 'assets'
+  | 'appSettings'
+  | 'modelDiscovery'
+  | 'userModelConfigs'
+  | 'modelGenerationPreferences'
+  | 'comfyUiConnections'
+  | 'comfyUiWorkflows'
+  | 'generationTargetSelection';
 
 export interface ChromeKeyValueBackend {
   get<T>(store: ChromeStoreName, key: string): Promise<T | undefined>;
@@ -39,8 +51,21 @@ interface ChromeStoredRecord<T> {
 }
 
 const CHROME_DB_NAME = 'imagen-ps-chrome-runtime';
-const CHROME_DB_VERSION = 5;
-const CHROME_STORES: readonly ChromeStoreName[] = ['profiles', 'secrets', 'history', 'tasks', 'assets', 'appSettings', 'modelDiscovery', 'userModelConfigs', 'modelGenerationPreferences'];
+const CHROME_DB_VERSION = 6;
+const CHROME_STORES: readonly ChromeStoreName[] = [
+  'profiles',
+  'secrets',
+  'history',
+  'tasks',
+  'assets',
+  'appSettings',
+  'modelDiscovery',
+  'userModelConfigs',
+  'modelGenerationPreferences',
+  'comfyUiConnections',
+  'comfyUiWorkflows',
+  'generationTargetSelection',
+];
 const GENERATION_SETTINGS_KEY = 'generation';
 const PROMPT_SETTINGS_KEY = 'prompt';
 const ACTIVE_IMAGE_PROFILE_KEY = 'activeImageProfile';
@@ -212,6 +237,9 @@ export function createMemoryIndexedDbBackend(options?: {
     modelDiscovery: new Map(),
     userModelConfigs: new Map(),
     modelGenerationPreferences: new Map(),
+    comfyUiConnections: new Map(),
+    comfyUiWorkflows: new Map(),
+    generationTargetSelection: new Map(),
   };
   for (const [store, records] of Object.entries(options?.initial ?? {}) as Array<[
     ChromeStoreName,

@@ -1,5 +1,6 @@
 import type { ImageOutputSelection } from '@imagen-ps/application';
 import type { CaptureUploadPlan, ImageSize, PlacementScalePlan, ProviderInputPlan } from '../image/resize';
+import type { CanonicalMaskAsset } from './mask-source';
 
 export interface PhotoshopRect {
   readonly left: number;
@@ -26,6 +27,7 @@ export interface PhotoshopCapturePlacement {
 
 export interface PhotoshopCaptureResult {
   readonly image: import('./host-image-asset').HostImageAsset;
+  readonly mask?: CanonicalMaskAsset;
   readonly placement: PhotoshopCapturePlacement;
   readonly sourceKind: 'selection' | 'layer';
   readonly previewTask?: () => Promise<import('./host-image-asset').HostImagePreviewHandle | undefined>;

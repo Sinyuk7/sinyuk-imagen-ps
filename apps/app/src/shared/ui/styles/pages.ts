@@ -142,6 +142,111 @@ export const PAGES_CSS = `
   --settings-footer-padding-y:8px;
   --settings-footer-padding-x:14px;
 }
+.settings-backend-segments{
+  min-height:42px;
+  padding-top:6px;
+  padding-bottom:6px;
+}
+.settings-backend-segments .fchip{
+  min-width:88px;
+  min-height:28px;
+}
+.comfyui-target-section{
+  border-bottom:1px solid var(--app-color-border-default);
+}
+.comfyui-settings-notice{
+  padding:10px 14px;
+  border-top:1px solid var(--app-color-border-default);
+}
+.settings-empty-state{
+  padding:16px;
+  min-height:48px;
+  font-size:12px;
+  line-height:16px;
+  color:var(--app-color-text-muted);
+}
+.comfyui-timeout-grid{
+  display:flex;
+  align-items:flex-start;
+}
+.comfyui-timeout-grid .field{
+  flex:1 1 0;
+  min-width:0;
+  margin-right:10px;
+}
+.comfyui-timeout-grid .field:last-child{
+  margin-right:0;
+}
+.comfyui-connection-actions{
+  min-height:32px;
+}
+.comfyui-connection-actions .test-status{
+  margin-left:10px;
+}
+.comfyui-workflow-section .settings-section-header{
+  align-items:flex-start;
+}
+.comfyui-workflow-section .settings-section-header-actions{
+  flex-wrap:wrap;
+  justify-content:flex-end;
+  min-width:0;
+  margin-left:10px;
+}
+.settings-inline-icon-command{
+  min-height:28px;
+  max-width:180px;
+  padding:4px 8px;
+  font-size:11px;
+}
+.comfyui-workflow-editor{
+  margin-top:8px;
+  margin-right:-14px;
+  margin-bottom:10px;
+  margin-left:-14px;
+  padding-top:10px;
+  padding-right:14px;
+  padding-bottom:10px;
+  padding-left:14px;
+  border-top:1px solid var(--app-color-border-default);
+  border-bottom:1px solid var(--app-color-border-default);
+}
+.comfyui-api-json-input{
+  min-height:180px;
+  max-height:320px;
+  font-family:var(--app-font-family-mono);
+  font-size:11px;
+  line-height:15px;
+}
+.comfyui-editor-actions{
+  justify-content:flex-end;
+}
+.comfyui-editor-actions > *{
+  margin-left:8px;
+}
+.comfyui-editor-actions > *:first-child{
+  margin-left:0;
+}
+.comfyui-workflow-section > .settings-provider-row,
+.comfyui-workflow-editor > .settings-provider-row{
+  margin-right:-14px;
+  margin-left:-14px;
+  padding-right:14px;
+  padding-left:14px;
+}
+.comfyui-workflow-row-actions{
+  display:flex;
+  align-items:center;
+  min-width:0;
+}
+.comfyui-workflow-row-actions .prov-readiness{
+  margin-right:4px;
+}
+.comfyui-workflow-row-actions .settings-icon-button{
+  width:28px;
+  min-width:28px;
+  height:28px;
+  min-height:28px;
+}
 .settings-page .section{ padding:var(--settings-section-padding); }
 .settings-page .section + .section{
   border-top:1px solid var(--app-color-border-default);
@@ -1785,6 +1890,26 @@ export const PAGES_CSS = `
 }
 
 @media (max-width: 420px){
+  .comfyui-timeout-grid{
+    flex-direction:column;
+  }
+  .comfyui-timeout-grid .field{
+    width:100%;
+    margin-right:0;
+  }
+  .comfyui-workflow-section .settings-section-header{
+    flex-direction:column;
+    align-items:stretch;
+  }
+  .comfyui-workflow-section .settings-section-header-actions{
+    justify-content:flex-start;
+    margin-top:8px;
+    margin-left:0;
+  }
+  .settings-inline-icon-command{
+    flex:1 1 auto;
+    max-width:none;
+  }
   .billing-summary-header,
   .settings-inline-heading-row{
     flex-direction:column;
@@ -1858,6 +1983,18 @@ export const PAGES_CSS = `
   }
 }
 @media (max-width: 360px){
+  .settings-backend-segments .fchip{
+    flex:1 1 0;
+    min-width:0;
+  }
+  .comfyui-workflow-row-actions{
+    flex-direction:column;
+    align-items:flex-end;
+  }
+  .comfyui-workflow-row-actions .prov-readiness{
+    margin-right:0;
+    margin-bottom:3px;
+  }
   .provider-endpoint-controls{
     flex-direction:column;
     align-items:flex-start;

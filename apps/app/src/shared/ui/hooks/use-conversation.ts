@@ -1,5 +1,13 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import type { ApiFormat, ImageOutputSelection, JobError, JobSessionSnapshot } from '@imagen-ps/application';
+import type {
+  ApiFormat,
+  ComfyUiGenerationPayload,
+  ComfyUiWorkflowConfig,
+  ImageOutputSelection,
+  JobError,
+  JobSessionSnapshot,
+  TaskRecord,
+} from '@imagen-ps/application';
 import type { AppServices } from '../../ports/app-services';
 import {
   commandErrorToMessage,
@@ -17,13 +25,17 @@ import {
 import type { ImagenSessionBinding } from './use-imagen-session';
 import type { AppMessages } from '../i18n/messages';
 import type { HostImageAsset } from '../../domain/host-image-asset';
+import type { CanonicalMaskAsset } from '../../domain/mask-source';
 import {
   placementIntentFromCapturePlacement,
   type PlacementIntent,
   type PhotoshopCapturePlacement,
 } from '../../domain/photoshop-placement';
 import type { Asset } from '@imagen-ps/application';
-import { createRunningTaskRecord } from '../../domain/task-snapshot';
+import {
+  createRunningTaskRecord,
+  type TaskSnapshotAttachmentInput,
+} from '../../domain/task-snapshot';
 import type { AppProviderInputSizePreset } from '../../ports/app-generation-settings';
 
 export interface ConversationAttachment {
@@ -31,6 +43,7 @@ export interface ConversationAttachment {
   readonly type: 'layer' | 'file' | 'photoshop-capture';
   readonly name: string;
   readonly image: HostImageAsset;
+  readonly mask?: CanonicalMaskAsset;
   readonly previewUrl: string;
   readonly previewFallback?: ImagePreviewFallback;
   readonly previewGeneration?: number;
@@ -47,6 +60,8 @@ export interface ConversationRound {
   readonly prompt: string;
   readonly status: RoundStatus;
   readonly providerName: string;
+  readonly backendId?: 'provider' | 'comfyui';
+  readonly workflowId?: string;
   readonly apiFormat?: ApiFormat;
   readonly providerId?: string;
   readonly elapsedSeconds: number;
@@ -68,19 +83,32 @@ export interface ConversationRound {
   readonly output?: AppGenerationSettingsOutput;
 }
 
-export interface SubmitConversationInput {
+interface SubmitConversationInputBase {
   readonly operation: 'image-edit' | 'text-to-image';
   readonly prompt: string;
+  readonly providerName: string;
+  readonly attachments?: readonly ConversationAttachment[];
+  readonly onPrepared?: () => void;
+}
+
+export interface SubmitProviderConversationInput extends SubmitConversationInputBase {
+  readonly backendId?: 'provider';
   readonly profileId: string;
   readonly providerId?: string;
   readonly apiFormat?: ApiFormat;
-  readonly providerName: string;
   readonly modelId?: string;
-  readonly attachments?: readonly ConversationAttachment[];
   readonly output?: AppGenerationSettingsOutput;
   readonly providerInputSizePreset?: AppProviderInputSizePreset;
-  readonly onPrepared?: () => void;
 }
+
+export interface SubmitComfyUiConversationInput extends SubmitConversationInputBase {
+  readonly backendId: 'comfyui';
+  readonly workflow: ComfyUiWorkflowConfig;
+  readonly connection: { readonly connectionId: string; readonly displayName: string };
+  readonly mask?: CanonicalMaskAsset;
+}
+
+export type SubmitConversationInput = SubmitProviderConversationInput | SubmitComfyUiConversationInput;
 
 export interface AppGenerationSettingsOutput {
   readonly count: 1;
@@ -149,6 +177,17 @@ function pendingPreviews(assets: readonly Asset[]): readonly AssetPreview[] {
   return assets.map(pendingPreview);
 }
 
+function taskOutputAssets(task: TaskRecord): readonly Asset[] {
+  return [...task.outputs]
+    .sort((left, right) => left.index - right.index)
+    .map((output) => ({
+      type: 'image' as const,
+      ...(output.asset.ref.name === undefined ? {} : { name: output.asset.ref.name }),
+      ...(output.asset.ref.mimeType === undefined ? {} : { mimeType: output.asset.ref.mimeType }),
+      storedRef: output.asset.ref,
+    }));
+}
+
 function previewAssetSourceKey(asset: Asset, index: number): string {
   return asset.storedRef?.ref ?? asset.url ?? asset.fileId ?? asset.name ?? String(index);
 }
@@ -178,19 +217,17 @@ function previewWorkSignature(
   return parts.join('|');
 }
 
-function releaseAttachment(attachment: ConversationAttachment): void {
-  attachment.previewDispose?.();
-  attachment.image.preview.dispose?.();
-}
-
 function releaseAttachments(attachments: readonly ConversationAttachment[]): void {
   const released = new Set<HostImageAsset>();
   for (const attachment of attachments) {
-    if (released.has(attachment.image)) {
-      continue;
+    attachment.previewDispose?.();
+    for (const image of [attachment.image, attachment.mask].filter((value): value is HostImageAsset => value !== undefined)) {
+      if (released.has(image)) {
+        continue;
+      }
+      released.add(image);
+      image.preview.dispose?.();
     }
-    released.add(attachment.image);
-    releaseAttachment(attachment);
   }
 }
 
@@ -330,6 +367,41 @@ function assetForJobInput(image: HostImageAsset): Asset {
   };
 }
 
+type ComfyUiExecutionAssetInput = ComfyUiGenerationPayload['images'][number];
+
+function comfyUiAssetForExecution(image: HostImageAsset): ComfyUiExecutionAssetInput {
+  const derivative = image.resource.derivatives.providerInput;
+  if (
+    derivative?.kind !== 'ready'
+    || derivative.storedRef === undefined
+    || derivative.width === undefined
+    || derivative.height === undefined
+  ) {
+    throw new Error(`ComfyUI input derivative is not ready for image "${image.metadata.name ?? image.asset.name ?? image.resource.id}".`);
+  }
+  return {
+    storedRef: derivative.storedRef,
+    width: derivative.width,
+    height: derivative.height,
+  };
+}
+
+function taskAttachmentsWithMask(
+  attachments: readonly ConversationAttachment[],
+  mask: CanonicalMaskAsset | undefined,
+): readonly TaskSnapshotAttachmentInput[] {
+  if (mask === undefined) return attachments;
+  return [
+    ...attachments,
+    {
+      id: `${attachments[0]?.id ?? 'selection'}:mask`,
+      type: 'selection-mask',
+      name: mask.metadata.name ?? mask.asset.name ?? 'selection-mask.png',
+      image: mask,
+    },
+  ];
+}
+
 function normalizedInputContextForAttachments(attachments: readonly ConversationAttachment[]): {
   readonly primaryEditInput?: { readonly width: number; readonly height: number };
 } | undefined {
@@ -454,9 +526,21 @@ export function useConversation(
     for (const job of sessionBinding.snapshot.jobs) {
       if (job.status !== 'completed' || completedJobsRef.current.has(job.id)) continue;
       completedJobsRef.current.add(job.id);
+      if (job.taskId !== undefined) {
+        void services.commands.getTaskRecord(job.taskId).then((task) => {
+          if (task === undefined) return;
+          const assets = taskOutputAssets(task);
+          if (assets.length === 0) return;
+          setRounds((current) => current.map((round) => (
+            round.id === task.taskId && round.previews.length === 0
+              ? { ...round, previews: pendingPreviews(assets) }
+              : round
+          )));
+        });
+      }
       void services.retention?.requestSweep('generation-success');
     }
-  }, [messages, services.retention, sessionBinding.snapshot.jobs, sessionBinding.snapshot.queuedTasks]);
+  }, [messages, services.commands, services.retention, sessionBinding.snapshot.jobs, sessionBinding.snapshot.queuedTasks]);
 
   useEffect(() => {
     return () => {
@@ -483,7 +567,8 @@ export function useConversation(
         continue;
       }
       const job = jobs.find((item) => item.id === round.jobId);
-      const assets = job ? outputAssets(job.output) : round.previews.map((preview) => preview.asset);
+      const jobAssets = job ? outputAssets(job.output) : [];
+      const assets = jobAssets.length > 0 ? jobAssets : round.previews.map((preview) => preview.asset);
       if (assets.length === 0) {
         continue;
       }
@@ -544,10 +629,13 @@ export function useConversation(
       try {
         const roundId = createRoundId();
         const attachments = input.attachments ?? [];
-        const output = input.output;
+        const providerInput = input.backendId === 'comfyui' ? undefined : input;
+        const output = providerInput?.output;
         const placementIntent = derivePlacementIntent(attachments, output?.selection);
         const createdAt = new Date().toISOString();
-        const providerInputSizePreset = input.providerInputSizePreset ?? defaultOutput?.providerInputSizePreset;
+        const providerInputSizePreset = providerInput
+          ? providerInput.providerInputSizePreset ?? defaultOutput?.providerInputSizePreset
+          : undefined;
         const round: ConversationRound = {
           id: roundId,
           time: nowTime(),
@@ -558,10 +646,15 @@ export function useConversation(
           queuePosition: sessionBinding.snapshot.queuedTasks.length + 1,
           removable: true,
           providerName: input.providerName,
-          ...(input.apiFormat ? { apiFormat: input.apiFormat } : {}),
-          ...(input.providerId ? { providerId: input.providerId } : {}),
-          profileId: input.profileId,
-          ...(input.modelId ? { modelId: input.modelId } : {}),
+          backendId: input.backendId ?? 'provider',
+          ...(providerInput?.apiFormat ? { apiFormat: providerInput.apiFormat } : {}),
+          ...(providerInput?.providerId ? { providerId: providerInput.providerId } : {}),
+          ...(providerInput ? { profileId: providerInput.profileId } : {}),
+          ...(providerInput?.modelId ? { modelId: providerInput.modelId } : {}),
+          ...(input.backendId === 'comfyui' ? {
+            workflowId: input.workflow.workflowId,
+            modelId: input.workflow.displayName,
+          } : {}),
           elapsedSeconds: 0,
           previews: [],
           attachments,
@@ -575,6 +668,47 @@ export function useConversation(
           if (input.operation === 'image-edit' && attachments.length === 0) {
             throw new Error('Image edit requires an attachment. Capture from Photoshop or add an image.');
           }
+          if (input.backendId === 'comfyui') {
+            if (input.operation !== input.workflow.contract.operation) {
+              throw new Error('ComfyUI workflow operation does not match the Composer submission.');
+            }
+            const taskRecord = createRunningTaskRecord({
+              taskId: roundId,
+              operation: input.operation,
+              prompt,
+              attachments: taskAttachmentsWithMask(attachments, input.mask),
+              placementIntent,
+              execution: {
+                backend: { id: 'comfyui', label: 'ComfyUI' },
+                connection: { id: input.connection.connectionId, label: input.connection.displayName },
+                target: { id: input.workflow.workflowId, label: input.workflow.displayName },
+              },
+              createdAt,
+            });
+            input.onPrepared?.();
+            const result = await sessionBinding.session.submitJob({
+              taskId: roundId,
+              backendId: 'comfyui',
+              payload: {
+                workflowId: input.workflow.workflowId,
+                prompt,
+                images: attachments.map((attachment) => comfyUiAssetForExecution(attachment.image)),
+                ...(input.mask === undefined ? {} : { mask: comfyUiAssetForExecution(input.mask) }),
+                runningTask: taskRecord,
+              } satisfies ComfyUiGenerationPayload,
+            });
+            if (!result.ok) {
+              setRounds((current) => current.map((item) => (
+                item.id === roundId ? errorRound(item, result.error) : item
+              )));
+            } else {
+              accepted = true;
+            }
+            return accepted;
+          }
+          if (providerInput === undefined) {
+            throw new Error('Provider submission input is missing.');
+          }
           const taskRecord = createRunningTaskRecord({
             taskId: roundId,
             operation: input.operation,
@@ -583,12 +717,12 @@ export function useConversation(
             placementIntent,
             execution: {
               backend: { id: 'provider', label: 'Provider' },
-              connection: { id: input.profileId, label: input.providerName },
-              ...(input.modelId ? { target: { id: input.modelId, label: input.modelId } } : {}),
+              connection: { id: providerInput.profileId, label: input.providerName },
+              ...(providerInput.modelId ? { target: { id: providerInput.modelId, label: providerInput.modelId } } : {}),
             },
             createdAt,
           });
-          const providerOptions = input.modelId ? { model: input.modelId } : undefined;
+          const providerOptions = providerInput.modelId ? { model: providerInput.modelId } : undefined;
           const providerInputAssets =
             input.operation === 'image-edit'
               ? attachments.map((attachment) => assetForJobInput(attachment.image))
@@ -608,7 +742,7 @@ export function useConversation(
             taskId: roundId,
             backendId: 'provider',
             payload: {
-              profileId: input.profileId,
+              profileId: providerInput.profileId,
               operation: input.operation === 'image-edit' ? 'image_edit' : 'text_to_image',
               request,
               runningTask: taskRecord,
@@ -645,6 +779,27 @@ export function useConversation(
       retryInFlightRef.current.add(roundId);
       try {
         const round = rounds.find((item) => item.id === roundId);
+        if (round?.status === 'ok' && round.backendId === 'comfyui' && round.workflowId) {
+          const workflow = await services.comfyUi.getWorkflow(round.workflowId);
+          const connection = workflow === undefined
+            ? undefined
+            : await services.comfyUi.getConnection(workflow.connectionId);
+          if (workflow === undefined || connection === undefined) {
+            return;
+          }
+          const mask = round.attachments.find((attachment) => attachment.mask !== undefined)?.mask;
+          await submit({
+            backendId: 'comfyui',
+            operation: workflow.contract.operation,
+            prompt: round.prompt,
+            providerName: 'ComfyUI',
+            workflow,
+            connection,
+            attachments: round.attachments,
+            ...(mask === undefined ? {} : { mask }),
+          });
+          return;
+        }
         if (round?.status === 'ok' && round.profileId) {
           await submit({
             operation: round.attachments.length > 0 ? 'image-edit' : 'text-to-image',
@@ -692,7 +847,7 @@ export function useConversation(
         retryInFlightRef.current.delete(roundId);
       }
     },
-    [messages, rounds, sessionBinding.session, sessionBinding.snapshot.jobs, submit],
+    [messages, rounds, services.comfyUi, sessionBinding.session, sessionBinding.snapshot.jobs, submit],
   );
 
   const clear = useCallback(() => {

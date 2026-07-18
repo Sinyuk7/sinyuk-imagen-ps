@@ -15,7 +15,7 @@ import type { PlacementIntent, PhotoshopCapturePlacement, PhotoshopRect } from '
 
 export interface TaskSnapshotAttachmentInput {
   readonly id: string;
-  readonly type: 'layer' | 'file' | 'photoshop-capture';
+  readonly type: 'layer' | 'file' | 'photoshop-capture' | 'selection-mask';
   readonly name: string;
   readonly image: HostImageAsset;
   readonly photoshopPlacement?: PhotoshopCapturePlacement;
@@ -121,6 +121,9 @@ function photoshopEvidence(attachment: TaskSnapshotAttachmentInput, placement: P
 }
 
 function attachmentKind(attachment: TaskSnapshotAttachmentInput): string {
+  if (attachment.type === 'selection-mask') {
+    return 'selection-mask';
+  }
   if (attachment.type === 'photoshop-capture') {
     return 'photoshop-capture';
   }

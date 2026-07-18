@@ -5,9 +5,9 @@ const architectureRules = [
     name: 'UXP app 只能通过 application seam 接入共享业务层',
     roots: ['apps/app/src', 'apps/app/tests'],
     patterns: [
-      /\bfrom\s+['"]@imagen-ps\/(?:core-engine|providers)(?:['"/])/,
-      /\bimport\s+['"]@imagen-ps\/(?:core-engine|providers)(?:['"/])/,
-      /\brequire\(['"]@imagen-ps\/(?:core-engine|providers)(?:['"/])/,
+      /\bfrom\s+['"]@imagen-ps\/(?:core-engine|providers|execution-backend-comfyui)(?:['"/])/,
+      /\bimport\s+['"]@imagen-ps\/(?:core-engine|providers|execution-backend-comfyui)(?:['"/])/,
+      /\brequire\(['"]@imagen-ps\/(?:core-engine|providers|execution-backend-comfyui)(?:['"/])/,
     ],
   },
   {
@@ -66,6 +66,38 @@ const architectureRules = [
       /\bfrom\s+['"]@imagen-ps\/(?:application|app)(?:['"/])/,
       /\bimport\s+['"]@imagen-ps\/(?:application|app)(?:['"/])/,
       /\brequire\(['"]@imagen-ps\/(?:application|app)(?:['"/])/,
+    ],
+  },
+  {
+    name: 'ComfyUI execution backend 必须保持 transport-neutral且不能依赖上层 owners',
+    roots: ['packages/execution-backends/comfyui/src'],
+    patterns: [
+      /\bfrom\s+['"]react(?:\/[^'"]*)?['"]/,
+      /\bimport\s+['"]react(?:\/[^'"]*)?['"]/,
+      /\bfrom\s+['"](?:photoshop|uxp)['"]/i,
+      /\bimport\s+['"](?:photoshop|uxp)['"]/i,
+      /\brequire\(['"](?:photoshop|uxp)['"]\)/i,
+      /\bfrom\s+['"]@imagen-ps\/(?:application|app)(?:['"/])/,
+      /\bimport\s+['"]@imagen-ps\/(?:application|app)(?:['"/])/,
+      /\brequire\(['"]@imagen-ps\/(?:application|app)(?:['"/])/,
+      /\b(?:document|window|HTMLElement)\b/,
+    ],
+  },
+  {
+    name: 'Application ComfyUI owner 不能执行 raw transport',
+    roots: ['packages/application/src/comfyui'],
+    patterns: [
+      /\bfetch\s*\(/,
+      /\bnew\s+WebSocket\b/,
+      /['"]\/(?:prompt|upload\/image|history(?:\/|['"])[^'"]*|view(?:\?|['"]))/,
+    ],
+  },
+  {
+    name: 'app host adapters 不能复制 ComfyUI parser、uploader 或 projector',
+    roots: ['apps/app/src'],
+    patterns: [
+      /\bImagenWorkflow(?:Binding|Type)Contract\b/,
+      /['"]\/(?:prompt|upload\/image|history(?:\/|['"])[^'"]*|view(?:\?|['"]))/,
     ],
   },
   {

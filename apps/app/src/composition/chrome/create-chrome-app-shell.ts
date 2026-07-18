@@ -15,9 +15,14 @@ import { createPluginAppModel } from '../../shared/domain/plugin-app-model';
 import { createStaticAppPathInfoPort } from '../../shared/ports/app-path-info';
 import { createChromeHostPort, type ChromeFilePicker } from '../../adapters/chrome/chrome-host-port';
 import {
+  createBrowserIndexedDbBackend,
   createChromeIndexedDbStorage,
   type ChromeKeyValueBackend,
 } from '../../adapters/chrome/indexed-db-storage';
+import { createChromeComfyUiRepositories } from '../../adapters/chrome/chrome-comfyui-persistence';
+import { createComfyUiHttpTransport } from '../../adapters/comfyui/comfyui-http-transport';
+import { createComfyUiAppRuntime } from '../../adapters/comfyui/comfyui-app-runtime';
+import { createChromeComfyUiFrontendBridgeResolver } from '../../adapters/comfyui/comfyui-frontend-bridge-resolver';
 import { createPhotoshopSimulator, type PhotoshopSimulatorScenarioId } from '../../simulators/photoshop/simulator';
 import { createMemoryThumbnailStore } from '../../shared/image/thumbnail-store';
 import { createTaskResourceResolver } from '../../shared/image/task-resource-resolver';
@@ -74,7 +79,18 @@ const CHROME_PATH_INFO = createStaticAppPathInfoPort({
  */
 export function createChromeAppShell(options?: ChromeAppShellOptions): AppShellHost {
   const testHarness = options?.testHarness ? createChromeTestHarnessRuntime(options.testHarness) : undefined;
-  const storage = createChromeIndexedDbStorage({ backend: options?.backend ?? testHarness?.backend });
+  const backend = options?.backend ?? testHarness?.backend ?? createBrowserIndexedDbBackend();
+  const storage = createChromeIndexedDbStorage({ backend });
+  const comfyUiRepositories = createChromeComfyUiRepositories({ backend });
+  const comfyUiBridgeResolver = createChromeComfyUiFrontendBridgeResolver({
+    connections: comfyUiRepositories.connections,
+    parentOrigin: globalThis.location.origin,
+  });
+  const comfyUiRuntime = createComfyUiAppRuntime({
+    repositories: comfyUiRepositories,
+    httpTransport: createComfyUiHttpTransport(),
+    frontendBridgeResolver: comfyUiBridgeResolver,
+  });
   setProviderProfileRepository(storage.profiles);
   setSecretStorageAdapter(storage.secrets);
   setJobHistoryStore(storage.history);
@@ -110,6 +126,8 @@ export function createChromeAppShell(options?: ChromeAppShellOptions): AppShellH
     locale: resolveAppLocale(globalThis.navigator?.language),
     services: {
       commands: testHarness?.wrapCommands(commands) ?? commands,
+      comfyUi: comfyUiRuntime.management,
+      generationBackends: comfyUiRuntime.generationBackends,
       host,
       generationSettings: storage.generationSettings,
       modelGenerationPreferences: storage.modelGenerationPreferences,
@@ -122,6 +140,8 @@ export function createChromeAppShell(options?: ChromeAppShellOptions): AppShellH
       retention,
     },
     dispose() {
+      comfyUiBridgeResolver.dispose();
+      comfyUiRuntime.dispose();
       globalThis.__IMAGEN_CHROME_DIAGNOSTICS__ = undefined;
       globalThis.__IMAGEN_CHROME_TEST_HARNESS__ = undefined;
     },

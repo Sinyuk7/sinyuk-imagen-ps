@@ -14,12 +14,13 @@ This file stores repository engineering context that should stay out of root `AG
 | `packages/application` | application/session layer | `GenerationBackend` policy, Task v2, session orchestration, command facade, runtime assembly, profile/model coordination | React, DOM, Photoshop, UXP, Node fs/path/os |
 | `packages/core-engine` | job execution kernel | job facts, lifecycle, store, events, workflow runner, backend-neutral execution dispatch | Task state, profile/model selection, host persistence, provider raw transport |
 | `packages/providers` | provider adapter layer | stable Provider `ExecutionAdapter`, config/request validation, transport, normalization, error mapping | app/session state, Task projection, job lifecycle, host IO |
+| `packages/execution-backends/comfyui` | ComfyUI execution adapter layer | canonical workflow contract, transport-neutral upload/submission/observation, API Graph and Frontend Queue drivers, Bridge protocol validation | Application state, React, DOM, Photoshop, UXP, host persistence |
 | `packages/foundation` | lowest-level shared utilities | log record model, context/span helpers, redaction, sink interfaces | React, DOM, Node `fs/path/os`, UXP, Photoshop, provider transport, runtime assembly, workspace reverse dependencies |
 
 ## Dependency Direction
 
 ```text
-surface apps -> application/session -> core-engine + providers
+surface apps -> application/session -> core-engine + providers + execution backends
 ```
 
 ## Current State
@@ -64,6 +65,38 @@ surface apps -> application/session -> core-engine + providers
   updates the same Task. Retry keeps the Task identity and creates a new Job;
   Regenerate creates both a new Task and a new Job. Queued-only work is absent
   from durable history and is dropped on app reload or restart.
+- ComfyUI is one Application `GenerationBackend` with two internal submission
+  drivers: API Graph and Frontend native Queue. Both use the same Session,
+  Task, AssetStore, History, resource actions, and Photoshop placement owners.
+  The execution package owns the canonical workflow contract, remote upload,
+  submission, history/view collection, and bounded Bridge protocol. Application
+  owns connection/workflow repositories, target selection, admission,
+  readiness, retry policy, and Task projection. Host adapters only provide
+  persistence, HTTP bytes, and iframe/WebView message transport. Mask
+  vocabulary stays reserved and parseable in the contract, but any mask-entry
+  workflow is `not-ready/workflow` before dispatch. Current product runtime and
+  live gates are image-only; mask runtime belongs to a future Change.
+- ComfyUI submission identities are runtime-only. API prompt IDs and Frontend
+  operation/receipt IDs must not enter Job input, Task records, History, or
+  durable Bridge state. Once a submission call starts, ambiguous outcomes are
+  never replayed; reload/startup preserves only the generic
+  `remoteMayContinue` Task error fact.
+- The ComfyUI workflow contract is declared only by
+  `ImagenWorkflowBindingContract` and `ImagenWorkflowTypeContract`. Canonical
+  schema, fixtures, digest, and TS/JS/Python validators are generated from
+  `packages/execution-backends/comfyui/contract`. Application, host adapters,
+  and the Bridge must consume canonical results rather than copy parsing rules.
+  Frontend discovery omits unrelated workflows with no Imagen contract marker;
+  any partial, duplicate, or malformed Imagen contract still fails closed.
+- Chrome Bridge pages use the canonical parent app HTTP origin as nested Bridge
+  identity, while the parent independently validates response events against
+  the exact ComfyUI connection origin and iframe source. Photoshop UXP Bridge
+  pages use plugin id `com.imagen-ps.panel` and `window.uxpHost`; the UXP host
+  still validates the remote message event origin against the exact ComfyUI
+  connection origin. Both transports rotate `loadId` on reload and reject
+  pending work during reload or disposal. Chrome retries only the identical,
+  idempotent handshake while ComfyUI finishes async Bridge setup; generation
+  commands remain single-send.
 - Task records store only serializable, secret-free evidence and opaque
   resource refs. Preview/download/place availability is resolved dynamically
   through app resource resolvers; missing or evicted resources must not corrupt
@@ -240,6 +273,11 @@ surface apps -> application/session -> core-engine + providers
   and post-persistence follow-up. Provider uses backend id `provider`, a
   per-profile lane cap of 2, and one stable Provider `ExecutionAdapter` that
   performs exact admitted implementation lookup.
+- ComfyUI uses backend id `comfyui`, execution adapter id `comfyui`, and a
+  per-connection lane cap of 1. Frontend Canvas lease ownership begins only
+  after Session dispatch and ends before the adapter settles. API Graph calls
+  App-owned `/prompt` once; pinned Frontend 1.45.20 calls native Queue through
+  `/api/prompt` once while App makes no `/prompt` call.
 - Provider credentials are resolved for every dispatch from the admitted
   non-secret profile reference. Resolved config, secrets, and materialized
   input bytes remain call-stack-only and must not enter Job, Task, Session,

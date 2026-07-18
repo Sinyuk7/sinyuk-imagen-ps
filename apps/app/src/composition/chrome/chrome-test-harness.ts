@@ -86,6 +86,7 @@ function parseScenario(value: string | null): PhotoshopSimulatorScenarioId {
     'no-document',
     'empty-document',
     'seeded-document',
+    'comfyui-image',
     'mask-capable-layer',
     'host-busy',
     'file-picker-cancelled',

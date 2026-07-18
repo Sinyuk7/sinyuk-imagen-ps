@@ -314,12 +314,14 @@ export function createFakeModules(options?: {
   readonly layerColorSpace?: string;
   readonly layerData?: Uint8Array | Uint16Array | Float32Array;
   readonly maskColorSpace?: string;
+  readonly selectionData?: Uint8Array;
   readonly selectionBounds?: { readonly left: number; readonly top: number; readonly right: number; readonly bottom: number } | null;
   readonly activeLayerBounds?: { readonly _left: number; readonly _top: number; readonly _right: number; readonly _bottom: number };
   readonly pixelResultSourceBounds?: { readonly left: number; readonly top: number; readonly right: number; readonly bottom: number };
   readonly pixelResultLevel?: number;
   readonly pixelResultSize?: { readonly width: number; readonly height: number };
   readonly selectionResultSize?: { readonly width: number; readonly height: number };
+  readonly selectionResultSourceBounds?: { readonly left: number; readonly top: number; readonly right: number; readonly bottom: number };
 }): {
   readonly modules: UxpModules;
   readonly spies: {
@@ -372,7 +374,7 @@ export function createFakeModules(options?: {
       colorSpace: options?.maskColorSpace ?? 'Grayscale',
       components: 1,
       pixelFormat: 'Grayscale',
-      getData: vi.fn(async () => maskBytes),
+      getData: vi.fn(async () => options?.selectionData ?? maskBytes),
       dispose: disposeMask,
     };
   };
@@ -389,6 +391,7 @@ export function createFakeModules(options?: {
       options?.selectionResultSize?.width ?? request?.targetSize?.width,
       options?.selectionResultSize?.height ?? request?.targetSize?.height,
     ),
+    ...(options?.selectionResultSourceBounds ? { sourceBounds: options.selectionResultSourceBounds } : {}),
   }));
   const getLayerMask = vi.fn(async () => ({ imageData: createMaskImageData() }));
   const encodeImageData = vi.fn(async () => new Uint8Array([0xff, 0xd8, 0xff, 0xd9]));

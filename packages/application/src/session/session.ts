@@ -246,7 +246,13 @@ export function createImagenSession(options?: CreateImagenSessionOptions): Image
     const previous = index === -1 ? undefined : snapshot.jobs[index];
     const taskId = correlation?.taskId ?? previous?.taskId;
     const workflow = correlation?.admitted.execution.workflow ?? previous?.type ?? 'generation';
-    const retryAllowed = correlation?.admitted.retry.allowed ?? previous?.canRetry ?? false;
+    const declaredRetryAllowed = correlation?.admitted.retry.allowed ?? previous?.canRetry ?? false;
+    const retryDisposition = typeof job.error?.details?.retryDisposition === 'string'
+      ? job.error.details.retryDisposition
+      : undefined;
+    const retryAllowed = retryDisposition === 'new-task-only'
+      ? false
+      : declaredRetryAllowed;
     const next: JobSessionSnapshot = {
       id: job.id,
       type: correlation !== undefined ? taskType(correlation.runningTask, workflow) : workflow,

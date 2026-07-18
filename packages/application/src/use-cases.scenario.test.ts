@@ -171,6 +171,30 @@ describe('Task v2 lifecycle scenarios', () => {
     expect(store.records.get('active')?.status).toBe('running');
     expect(store.records.get('completed')?.status).toBe('completed');
   });
+
+  it('keeps only bounded remote-may-continue evidence for stale ComfyUI Tasks', async () => {
+    const record = runningTask({
+      taskId: 'comfyui-running',
+      execution: {
+        backend: { id: 'comfyui', label: 'ComfyUI' },
+        connection: { id: 'connection-a', label: 'Studio ComfyUI' },
+        target: { id: 'workflow-a', label: 'D01' },
+      },
+    });
+    const taskStore = memoryTaskStore([record]);
+    setTaskStore(taskStore);
+
+    const reconciled = await reconcileStaleRunningTaskRecords([]);
+    expect(reconciled).toMatchObject([{
+      taskId: 'comfyui-running',
+      status: 'interrupted',
+      error: {
+        category: 'interrupted',
+        details: { remoteMayContinue: true },
+      },
+    }]);
+    expect(JSON.stringify(reconciled)).not.toMatch(/promptId|operationId|receipt|remotePath/i);
+  });
 });
 
 describe('generic Job execution scenarios', () => {

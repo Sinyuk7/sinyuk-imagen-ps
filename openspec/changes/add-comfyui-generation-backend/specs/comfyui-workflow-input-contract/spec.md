@@ -5,7 +5,7 @@ ComfyUI integration MUST只识别`ImagenWorkflowBindingContract`与`ImagenWorkfl
 
 #### Scenario: Contract完整
 - **WHEN**两个stable contract nodes声明合法且一致的workflow contract
-- **THEN**系统 MUST产生一个canonical `ComfyUiWorkflowContract`并允许对应source admission
+- **THEN**系统 MUST产生一个canonical `ComfyUiWorkflowContract`；是否允许source admission MUST继续服从workflow readiness
 
 #### Scenario: Contract缺失或冲突
 - **WHEN**任一node缺失、class ID错误、version unsupported或两边contract keys不一致
@@ -16,6 +16,8 @@ Binding node MUST声明`schemaVersion: 1`与`bindings[] {role, slot, locator {no
 
 每个node canonical JSON MUST不超过65,536 bytes，合并后 MUST不超过32 entries，nodeId/fieldName MUST各不超过128 chars。两边 MUST具有完全相同且唯一的`role+slot` keys；prompt只能required slot 0 text，image/output-image slots必须从0连续，mask最多一个slot 0且必须声明mask type/encoding，至少一个required output-image。Text-to-image MUST禁止image/mask；image-edit MUST至少一个required image且 MAY包含optional mask。
 
+Mask role、data type与encoding MUST作为reserved schema vocabulary继续由canonical parser验证。Parser acceptance MUST不等于product readiness：任何包含mask entry的canonical contract在当前Change中 MUST返回`not-ready/workflow`，并在Task dispatch、asset resolution、upload或submission前fail closed。
+
 #### Scenario: V1字段完整
 - **WHEN**两个nodes字段、keys、operation/cardinality、locators与bounds全部合法
 - **THEN**系统 MUST按role+slot稳定顺序合并为canonical contract
@@ -23,6 +25,10 @@ Binding node MUST声明`schemaVersion: 1`与`bindings[] {role, slot, locator {no
 #### Scenario: V1字段不合法
 - **WHEN**字段缺失、unknown、duplicate、out-of-order、oversized或operation/type/encoding冲突
 - **THEN**系统 MUST在upload或submission前fail closed
+
+#### Scenario: 合法mask vocabulary不代表runtime可用
+- **WHEN**两个nodes形成schema合法但包含`mask` entry的canonical contract
+- **THEN**parser MUST保留canonical mask metadata，但workflow readiness MUST返回`not-ready/workflow`，且 MUST零dispatch、零upload、零submission
 
 ### Requirement: Canonical schema、parser/validator与fixtures必须只有一个owner
 Canonical JSON schema、authoritative parser/validator与valid/invalid fixtures MUST由execution package单点拥有。Parser/validator MUST直接消费canonical schema并产生canonical `ComfyUiWorkflowContract`；Application、drivers与host adapters MUST只消费其结果，MUST不重新解释accept/reject规则。Integration runtime schema与validator artifact MUST从canonical source生成或复制，Python/JS MUST不手写第二份schema或独立parser。Bridge handshake MUST报告contractSchemaVersion与canonical schema SHA-256 digest；TS/Python/JS MUST对同一fixture得到相同accept/reject结论。
@@ -53,19 +59,19 @@ API与Frontend MUST使用同一`locator {nodeId, fieldName}`。API driver MUST�
 - **WHEN**remote workflow打开后找不到exact node/widget
 - **THEN**Frontend driver MUST在native Queue前失败并释放Canvas lease
 
-### Requirement: 本地image、mask与TaskPlacement必须复用现有owners
-Chrome与Photoshop inputs MUST复用`HostImageAsset/ImageResource/StoredAssetRef/AssetStore`。Mask MUST在Send/admission阶段按主图frame与existing host materialization生成canonical stored asset。Placement MUST直接复用CHANGE-01 `TaskPlacement`并原样进入terminal projection。系统 MUST不创建ComfyUI-specific local store、resource URI、cache、placement evidence或document selector。
+### Requirement: 本地image与TaskPlacement必须复用现有owners
+Chrome与Photoshop inputs MUST复用`HostImageAsset/ImageResource/StoredAssetRef/AssetStore`。当前 V1 只要求 image 按 Send/admission 阶段生成 canonical stored asset；mask 语义保留为 reserved vocabulary，但不作为本阶段 live gate。Placement MUST直接复用CHANGE-01 `TaskPlacement`并原样进入terminal projection。系统 MUST不创建ComfyUI-specific local store、resource URI、cache、placement evidence或document selector。
 
 #### Scenario: Photoshop image-edit admission
-- **WHEN**用户从Photoshop capture image并提供selection mask
-- **THEN**Task与execution params MUST只保存ordered StoredAssetRefs、bounded geometry/type facts及existing TaskPlacement，image/mask bytes MUST由existing host adapters拥有
+- **WHEN**用户从Photoshop capture image且selected workflow只声明prompt/image/output-image entries
+- **THEN**Task与execution params MUST只保存ordered image StoredAssetRefs、bounded geometry/type facts及existing TaskPlacement
 
 ### Requirement: Remote upload必须使用共享barrier
-Running Task write成功后，`ComfyUiExecutionAdapter` MUST解析required StoredAssetRefs、按explicit mask encoding准备bytes、上传到`/upload/image`并验证returned descriptor。所有required uploads成功前，API `/prompt`与Frontend native Queue call count MUST均为0。
+Running Task write成功后，`ComfyUiExecutionAdapter` MUST解析required StoredAssetRefs、只按 image bytes 准备上传到`/upload/image`并验证returned descriptor。mask vocabulary 仅保留在 contract 层，不进入本阶段 upload barrier。所有required uploads成功前，API `/prompt`与Frontend native Queue call count MUST均为0。
 
 #### Scenario: 所有uploads成功
-- **WHEN**ordered images与optional mask全部返回valid descriptors
-- **THEN**shared mapper MUST生成contract-aligned exact widget values并允许selected driver继续
+- **WHEN**ordered images全部返回valid descriptors
+- **THEN**shared mapper MUST生成contract-aligned exact image widget values并允许selected driver继续
 
 #### Scenario: 任一upload失败
 - **WHEN**任一required asset missing、oversized、MIME invalid或upload response malformed

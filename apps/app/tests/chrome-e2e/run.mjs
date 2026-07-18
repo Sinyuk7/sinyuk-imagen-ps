@@ -17,6 +17,7 @@ const runId = new Date().toISOString().replace(/[:.]/g, '-');
 const artifactRoot = resolve(testRoot, 'screenshots', runId);
 const failuresRoot = resolve(artifactRoot, 'failures');
 let liveGeminiFixture;
+let liveComfyUiFixture;
 
 function parseGrep(argv) {
   const index = argv.indexOf('--grep');
@@ -129,6 +130,61 @@ function requireLiveGeminiFixture() {
     throw new Error('Live Gemini fixture was not initialized.');
   }
   return liveGeminiFixture;
+}
+
+async function loadLiveComfyUiFixture(env, requirements) {
+  const rawBaseUrl = env.IMAGEN_COMFYUI_LIVE_BASE_URL?.trim();
+  if (!rawBaseUrl) {
+    throw new Error(`Missing IMAGEN_COMFYUI_LIVE_BASE_URL in ${repoTestEnvPath}.`);
+  }
+  let parsedBaseUrl;
+  try {
+    parsedBaseUrl = new URL(rawBaseUrl);
+  } catch {
+    throw new Error('Chrome live ComfyUI fixture requires a valid base URL.');
+  }
+  if (
+    (parsedBaseUrl.protocol !== 'http:' && parsedBaseUrl.protocol !== 'https:')
+    || parsedBaseUrl.username
+    || parsedBaseUrl.password
+    || parsedBaseUrl.search
+    || parsedBaseUrl.hash
+    || (parsedBaseUrl.pathname !== '/' && parsedBaseUrl.pathname !== '')
+  ) {
+    throw new Error('Chrome live ComfyUI fixture requires a credential-free HTTP(S) origin.');
+  }
+  const fixture = {
+    baseUrl: parsedBaseUrl.origin,
+    connectionId: 'chrome-e2e-live-comfyui',
+    displayName: 'AutoDL ComfyUI Live',
+  };
+  if (requirements.api) {
+    const graphPath = env.IMAGEN_COMFYUI_LIVE_API_GRAPH_PATH?.trim();
+    if (!graphPath) {
+      throw new Error(`Missing IMAGEN_COMFYUI_LIVE_API_GRAPH_PATH in ${repoTestEnvPath}.`);
+    }
+    const apiGraphJson = await readFile(resolve(repoRoot, graphPath), 'utf8');
+    const graph = JSON.parse(apiGraphJson);
+    if (!graph || typeof graph !== 'object' || Array.isArray(graph)) {
+      throw new Error('Chrome live ComfyUI API graph fixture must be a JSON object.');
+    }
+    fixture.apiGraphJson = apiGraphJson;
+  }
+  if (requirements.frontend) {
+    const remotePath = env.IMAGEN_COMFYUI_LIVE_FRONTEND_WORKFLOW_PATH?.trim();
+    if (!remotePath) {
+      throw new Error(`Missing IMAGEN_COMFYUI_LIVE_FRONTEND_WORKFLOW_PATH in ${repoTestEnvPath}.`);
+    }
+    fixture.frontendRemotePath = remotePath;
+  }
+  return fixture;
+}
+
+function requireLiveComfyUiFixture() {
+  if (!liveComfyUiFixture) {
+    throw new Error('Live ComfyUI fixture was not initialized.');
+  }
+  return liveComfyUiFixture;
 }
 
 function relativeFromApp(path) {
@@ -342,6 +398,201 @@ async function seedLiveGeminiProfile(page) {
     throw new Error(`Unexpected live Gemini profile id: ${savedProfileId}`);
   }
   return fixture;
+}
+
+async function seedLiveComfyUiWorkflow(page, sourceKind) {
+  const fixture = requireLiveComfyUiFixture();
+  return page.evaluate(async (input) => {
+    const runtime = globalThis.__IMAGEN_CHROME_RUNTIME__;
+    if (!runtime) {
+      throw new Error('Chrome runtime global is missing.');
+    }
+    const management = runtime.host.services.comfyUi;
+    await management.saveConnection({
+      connectionId: input.connectionId,
+      displayName: input.connectionName,
+      origin: input.baseUrl,
+      requestTimeoutMs: 120_000,
+      configureTimeoutMs: 30_000,
+      observationTimeoutMs: 300_000,
+    });
+    const evidence = await management.testConnection(input.connectionId);
+    if (evidence.api !== 'ready') {
+      throw new Error('Live ComfyUI API readiness failed.');
+    }
+    let workflow;
+    if (input.sourceKind === 'api-graph') {
+      workflow = await management.importApiGraphJson({
+        workflowId: 'chrome-e2e-live-comfyui-api',
+        displayName: 'D01 API Live',
+        connectionId: input.connectionId,
+        json: input.apiGraphJson,
+      });
+    } else {
+      if (evidence.bridge?.status !== 'compatible') {
+        throw new Error('Live ComfyUI Frontend Bridge readiness failed.');
+      }
+      const discovered = await management.discoverFrontendWorkflows(input.connectionId);
+      const selected = discovered.find((item) => item.remotePath === input.frontendRemotePath);
+      if (!selected) {
+        throw new Error('Live ComfyUI Frontend workflow was not discovered.');
+      }
+      workflow = await management.saveFrontendWorkflow({
+        workflowId: 'chrome-e2e-live-comfyui-frontend',
+        displayName: 'D01 Frontend Live',
+        connectionId: input.connectionId,
+        remotePath: selected.remotePath,
+        contract: selected.contract,
+      });
+    }
+    await management.setSelection({ kind: 'comfyui', workflowId: workflow.workflowId });
+    const readiness = await management.getWorkflowReadiness(workflow.workflowId);
+    if (readiness.status !== 'ready') {
+      throw new Error(`Live ComfyUI workflow readiness failed: ${readiness.reason ?? 'unknown'}.`);
+    }
+    return {
+      workflowId: workflow.workflowId,
+      displayName: workflow.displayName,
+      api: evidence.api,
+      bridge: evidence.bridge?.status,
+    };
+  }, {
+    baseUrl: fixture.baseUrl,
+    connectionId: fixture.connectionId,
+    connectionName: fixture.displayName,
+    sourceKind,
+    apiGraphJson: fixture.apiGraphJson,
+    frontendRemotePath: fixture.frontendRemotePath,
+  });
+}
+
+async function reloadWithoutStorageReset(page) {
+  await page.evaluate(() => {
+    const url = new URL(globalThis.location.href);
+    url.searchParams.delete('resetStorage');
+    globalThis.history.replaceState(null, '', url);
+  });
+  await page.reload({ waitUntil: 'networkidle' });
+  await page.locator('#root[data-runtime="chrome"][data-status="ok"]').waitFor({ timeout: 10000 });
+}
+
+async function comfyUiTaskEvidence(page) {
+  return page.evaluate(async () => {
+    const runtime = globalThis.__IMAGEN_CHROME_RUNTIME__;
+    if (!runtime) throw new Error('Chrome runtime global is missing.');
+    const tasks = await runtime.host.services.commands.listTaskRecords();
+    const task = tasks.filter((item) => item.execution?.backend.id === 'comfyui').at(-1);
+    if (!task) return undefined;
+    return {
+      taskId: task.taskId,
+      status: task.status,
+      outputCount: task.outputs.length,
+      attachmentKinds: task.attachments.map((item) => item.kind),
+      hasStoredOutput: task.outputs.every((output) => Boolean(output.asset.ref.ref)),
+      errorCode: task.error?.code,
+      remoteMayContinue: task.error?.details?.remoteMayContinue === true,
+      serialized: JSON.stringify(task),
+    };
+  });
+}
+
+async function waitForTerminalComfyUiTask(page, timeoutMs = 300_000) {
+  const startedAt = Date.now();
+  while (Date.now() - startedAt < timeoutMs) {
+    const task = await comfyUiTaskEvidence(page);
+    if (task && ['completed', 'failed', 'cancelled', 'interrupted'].includes(task.status)) {
+      return task;
+    }
+    await page.waitForTimeout(250);
+  }
+  throw new Error(`Live ComfyUI Task did not reach terminal state within ${timeoutMs}ms.`);
+}
+
+function remoteRequestEvidence(page, baseUrl) {
+  const requests = [];
+  page.on('request', (request) => {
+    const url = new URL(request.url());
+    if (url.origin !== baseUrl) return;
+    requests.push({
+      method: request.method(),
+      path: `${url.pathname}${url.search}`,
+      frameUrl: request.frame().url(),
+    });
+  });
+  return requests;
+}
+
+function assertLiveComfyUiNetwork(requests, sourceKind, appOrigin, remoteOrigin) {
+  const uploads = requests.filter((request) => request.method === 'POST' && request.path === '/upload/image');
+  if (uploads.length !== 1) {
+    throw new Error(`Live ComfyUI expected one image upload, got ${uploads.length}.`);
+  }
+  const submissionPath = sourceKind === 'api-graph' ? '/prompt' : '/api/prompt';
+  const submissions = requests.filter((request) => request.method === 'POST' && request.path === submissionPath);
+  if (submissions.length !== 1) {
+    const postPaths = [...new Set(requests
+      .filter((request) => request.method === 'POST')
+      .map((request) => new URL(request.path, 'https://comfy.invalid').pathname)
+      .filter((path) => /prompt|queue|upload/iu.test(path)))]
+      .slice(0, 8);
+    throw new Error(
+      `Live ComfyUI expected one ${submissionPath} submission, got ${submissions.length}; POST paths=${postPaths.join(',') || 'none'}.`,
+    );
+  }
+  const submissionFrameOrigin = new URL(submissions[0].frameUrl).origin;
+  const expectedFrameOrigin = sourceKind === 'api-graph' ? appOrigin : remoteOrigin;
+  if (submissionFrameOrigin !== expectedFrameOrigin) {
+    throw new Error(`Live ComfyUI submission owner mismatch for ${sourceKind}.`);
+  }
+  if (!requests.some((request) => request.method === 'GET' && request.path.startsWith('/history/'))) {
+    throw new Error('Live ComfyUI did not reconcile acknowledged prompt history.');
+  }
+  if (!requests.some((request) => request.method === 'GET' && request.path.startsWith('/view?'))) {
+    throw new Error('Live ComfyUI did not download an output through /view.');
+  }
+}
+
+function liveComfyUiRequestCounts(requests) {
+  return {
+    uploads: requests.filter((request) => request.method === 'POST' && request.path === '/upload/image').length,
+    prompts: requests.filter((request) => (
+      request.method === 'POST' && (request.path === '/prompt' || request.path === '/api/prompt')
+    )).length,
+    histories: requests.filter((request) => request.method === 'GET' && request.path.startsWith('/history/')).length,
+    views: requests.filter((request) => request.method === 'GET' && request.path.startsWith('/view?')).length,
+  };
+}
+
+async function runLiveComfyUiGeneration({ page, origin, url, capture }, sourceKind) {
+  const fixture = requireLiveComfyUiFixture();
+  const requests = remoteRequestEvidence(page, fixture.baseUrl);
+  await openApp(page, url);
+  const seeded = await seedLiveComfyUiWorkflow(page, sourceKind);
+  await reloadWithoutStorageReset(page);
+  await expectVisibleText(page, seeded.displayName);
+  await page.getByTestId('composer-capture-button').click();
+  await page.locator('.att-thumb').first().waitFor({ state: 'visible', timeout: 10000 });
+  await submitPrompt(page, `D01 ${sourceKind} image-only live proof`);
+  const task = await waitForTerminalComfyUiTask(page);
+  if (task.status !== 'completed') {
+    const counts = liveComfyUiRequestCounts(requests);
+    throw new Error(
+      `Live ComfyUI Task failed: code=${task.errorCode ?? 'unknown'} remoteMayContinue=${task.remoteMayContinue} uploads=${counts.uploads} prompts=${counts.prompts} histories=${counts.histories} views=${counts.views}.`,
+    );
+  }
+  await page.locator('[data-testid^="result-preview-"]').first().waitFor({ state: 'attached', timeout: 30_000 });
+  if (task.outputCount < 1 || !task.hasStoredOutput) {
+    throw new Error('Live ComfyUI Task did not persist a stored TaskOutput.');
+  }
+  if (task.serialized.includes('promptId') || task.serialized.includes('operationId')) {
+    throw new Error('Live ComfyUI Task leaked runtime-only submission identity.');
+  }
+  assertLiveComfyUiNetwork(requests, sourceKind, origin, fixture.baseUrl);
+  await capture(sourceKind === 'api-graph' ? 'live-comfyui-api.png' : 'live-comfyui-frontend.png');
+  if (sourceKind === 'frontend-workflow') {
+    await page.evaluate(() => globalThis.__IMAGEN_CHROME_RUNTIME__?.dispose());
+    await page.locator('iframe[aria-hidden="true"]').waitFor({ state: 'detached', timeout: 10000 });
+  }
 }
 
 async function fillMockProviderDraft(page, alias) {
@@ -1104,6 +1355,14 @@ async function liveGeminiConnectionStrategyScenario({ page, url, capture, resetN
   await capture('live-gemini-connection-strategy.png');
 }
 
+async function liveComfyUiApiScenario(context) {
+  await runLiveComfyUiGeneration(context, 'api-graph');
+}
+
+async function liveComfyUiFrontendScenario(context) {
+  await runLiveComfyUiGeneration(context, 'frontend-workflow');
+}
+
 const scenarios = [
   {
     id: '00-smoke-main-empty',
@@ -1377,6 +1636,24 @@ const scenarios = [
     assertions: ['fixture profile saved', 'UI test connection completed', 'safe probe used POST countTokens', 'legacy GET /models not used', 'toast surfaced result'],
     run: liveGeminiConnectionStrategyScenario,
   },
+  {
+    id: 'live-comfyui-api-d01-image-only',
+    name: 'Live ComfyUI API Graph D01 image-only vertical proof',
+    tags: ['live-comfyui', 'comfyui-api'],
+    path: '/index.html?testHarness=1&storage=indexed-db&db=imagen-comfyui-live-api&resetStorage=1&scenario=comfyui-image',
+    screenshotName: 'live-comfyui-api.png',
+    assertions: ['connection ready', 'canonical image uploaded', 'App POST /prompt exactly once', 'server receipt reconciled through history/view', 'generic TaskOutput persisted'],
+    run: liveComfyUiApiScenario,
+  },
+  {
+    id: 'live-comfyui-frontend-d01-image-only',
+    name: 'Live ComfyUI Frontend D01 image-only vertical proof',
+    tags: ['live-comfyui', 'comfyui-frontend'],
+    path: '/index.html?testHarness=1&storage=indexed-db&db=imagen-comfyui-live-frontend&resetStorage=1&scenario=comfyui-image',
+    screenshotName: 'live-comfyui-frontend.png',
+    assertions: ['Bridge compatible', 'canonical image uploaded', 'native Queue POST /api/prompt exactly once', 'App POST /prompt zero', 'server receipt reconciled through history/view', 'generic TaskOutput persisted', 'Bridge iframe disposed'],
+    run: liveComfyUiFrontendScenario,
+  },
 ];
 
 function scenarioMatches(scenario, grep) {
@@ -1418,12 +1695,48 @@ async function runScenario(browser, server, scenario) {
   const requestLog = [];
   const retainedScreenshots = [];
 
+  const isLiveComfyUiRemoteUrl = (value) => {
+    if (!scenario.tags.includes('live-comfyui') || !liveComfyUiFixture || typeof value !== 'string') {
+      return false;
+    }
+    try {
+      return new URL(value).origin === liveComfyUiFixture.baseUrl;
+    } catch {
+      return value.includes(liveComfyUiFixture.baseUrl);
+    }
+  };
+
   page.on('console', (message) => {
     if (message.type() === 'error') {
+      if (isLiveComfyUiRemoteUrl(message.location().url)) {
+        return;
+      }
       consoleErrors.push(message.text());
     }
   });
-  page.on('pageerror', (error) => pageErrors.push(error.message));
+  if (scenario.tags.includes('live-comfyui')) {
+    const cdp = await context.newCDPSession(page);
+    const executionContextOrigins = new Map();
+    cdp.on('Runtime.executionContextCreated', ({ context: executionContext }) => {
+      executionContextOrigins.set(executionContext.id, executionContext.origin);
+    });
+    cdp.on('Runtime.executionContextDestroyed', ({ executionContextId }) => {
+      executionContextOrigins.delete(executionContextId);
+    });
+    cdp.on('Runtime.executionContextsCleared', () => {
+      executionContextOrigins.clear();
+    });
+    cdp.on('Runtime.exceptionThrown', ({ exceptionDetails }) => {
+      const sourceOrigin = executionContextOrigins.get(exceptionDetails.executionContextId);
+      if (sourceOrigin === liveComfyUiFixture?.baseUrl) {
+        return;
+      }
+      pageErrors.push(exceptionDetails.exception?.description ?? exceptionDetails.text);
+    });
+    await cdp.send('Runtime.enable');
+  } else {
+    page.on('pageerror', (error) => pageErrors.push(error.message));
+  }
   page.on('request', (request) => {
     requestLog.push(`${request.method()} ${request.url()}`);
   });
@@ -1513,6 +1826,13 @@ async function main() {
   }
   if (selected.some((scenario) => scenario.tags.includes('live-provider'))) {
     liveGeminiFixture = loadLiveGeminiFixture(await readRepoTestEnv());
+  }
+  if (selected.some((scenario) => scenario.tags.includes('live-comfyui'))) {
+    const env = { ...await readRepoTestEnv(), ...process.env };
+    liveComfyUiFixture = await loadLiveComfyUiFixture(env, {
+      api: selected.some((scenario) => scenario.tags.includes('comfyui-api')),
+      frontend: selected.some((scenario) => scenario.tags.includes('comfyui-frontend')),
+    });
   }
 
   await rm(artifactRoot, { recursive: true, force: true });

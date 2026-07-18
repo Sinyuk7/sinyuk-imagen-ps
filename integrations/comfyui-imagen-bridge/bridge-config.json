@@ -1,0 +1,17 @@
+{
+  "identity": "comfyui-imagen-bridge",
+  "statusPath": "/imagen-ps/bridge/status",
+  "capabilities": {
+    "nativeQueue": true,
+    "receiptObserver": true,
+    "workflowDiscovery": true
+  },
+  "limits": {
+    "maxMessageBytes": 2000000,
+    "maxWorkflowPathBytes": 512,
+    "maxWorkflowListEntries": 1000,
+    "maxMutations": 16,
+    "maxIdChars": 128,
+    "maxConfigureTimeoutMs": 30000
+  }
+}

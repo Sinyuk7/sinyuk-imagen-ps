@@ -190,11 +190,11 @@ function createHarness() {
       const [execution] = pending.splice(index, 1);
       execution.resolve({ assets: [] });
     },
-    fail(taskId: string) {
+    fail(taskId: string, error: unknown = { category: 'execution', message: 'local render failed' }) {
       const index = pending.findIndex((item) => item.taskId === taskId);
       if (index === -1) throw new Error(`Pending execution "${taskId}" not found.`);
       const [execution] = pending.splice(index, 1);
-      execution.reject({ category: 'execution', message: 'local render failed' });
+      execution.reject(error);
     },
   };
 }
@@ -354,6 +354,33 @@ describe('backend-neutral Session contract', () => {
       value: { originJobId: firstJobId, retryAttempt: 1 },
     });
     expect(harness.tasks.get('retry-task')).toMatchObject({ status: 'completed', latestJobId: secondJobId });
+  });
+
+  it('hides generic Retry when execution disposition requires a new Task', async () => {
+    vi.useFakeTimers();
+    const harness = createHarness();
+    const session = createImagenSession({ backends: [harness.backend], commands: harness.commands });
+    await session.submitJob(command('unknown-submit'));
+    await runScheduler();
+    const jobId = harness.tasks.get('unknown-submit')?.latestJobId;
+    harness.fail('unknown-submit', {
+      category: 'execution',
+      message: 'remote state is unknown',
+      details: {
+        retryDisposition: 'new-task-only',
+        remoteMayContinue: true,
+      },
+    });
+    await runScheduler();
+
+    expect(session.getSnapshot().jobs.find((job) => job.id === jobId)).toMatchObject({
+      status: 'failed',
+      canRetry: false,
+    });
+    await expect(session.retryJob(jobId!)).resolves.toMatchObject({
+      ok: false,
+      error: { category: 'validation' },
+    });
   });
 
   it('Regenerate uses a new Task identity and a new Job', async () => {

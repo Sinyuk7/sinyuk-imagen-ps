@@ -49,6 +49,10 @@ import {
   createProviderGenerationBackend,
   type GenerationBackend,
 } from './generation/index.js';
+import {
+  createApplicationComfyUiExecutionAdapter,
+  setComfyUiExecutionHostPorts,
+} from './comfyui/runtime-adapter.js';
 import { builtinWorkflows } from './requests/index.js';
 import {
   assertTaskRecord,
@@ -645,10 +649,11 @@ export function getRuntime(): ExtendedRuntime {
       },
       logger,
     });
+    const comfyUiAdapter = createApplicationComfyUiExecutionAdapter(getAssetStore);
 
     const baseRuntime = createRuntime({
       initialWorkflows: builtinWorkflows,
-      adapters: [providerAdapter],
+      adapters: [providerAdapter, comfyUiAdapter],
       logger,
       async afterStepResult({ result }) {
         return materializeProviderOutputForLongLivedState(result);
@@ -842,6 +847,7 @@ export function _resetForTesting(): void {
   taskStoreInstance = null;
   assetStoreInstance = null;
   providerGenerationBackendInstance = null;
+  setComfyUiExecutionHostPorts(undefined);
   runtimeLogger = undefined;
 }
 

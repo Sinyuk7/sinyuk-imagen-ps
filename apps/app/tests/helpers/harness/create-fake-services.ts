@@ -7,6 +7,10 @@ import { createCommandsFake } from './commands.fake';
 import { createHostFake } from './host.fake';
 import { createGenerationBackendFake } from './generation-backend.fake';
 import { createTaskResourceThumbnailHelper } from './task-resource-thumbnail.helper';
+import {
+  createComfyUiManagementFake,
+  type ComfyUiManagementFakeOptions,
+} from './comfyui-management.fake';
 
 export function createFakeServices(options?: {
   readonly profiles?: readonly ProviderProfile[];
@@ -16,6 +20,7 @@ export function createFakeServices(options?: {
   readonly generationSettings?: Partial<AppGenerationSettings>;
   readonly promptSettings?: PromptSettings | null;
   readonly activeImageProfileId?: string | null;
+  readonly comfyUi?: ComfyUiManagementFakeOptions;
 }) {
   const commandsFake = createCommandsFake({
     profiles: options?.profiles,
@@ -25,6 +30,7 @@ export function createFakeServices(options?: {
   });
   const hostFake = createHostFake();
   const taskResourceHelper = createTaskResourceThumbnailHelper();
+  const comfyUiFake = createComfyUiManagementFake(options?.comfyUi);
   const diagnostics: DiagnosticsPort = {
     async checkpoint(event, attrs) {
       if (globalThis.__IMAGEN_PS_DIAGNOSTIC_DISABLE_UI_FLIGHT_RECORDER__) {
@@ -43,6 +49,7 @@ export function createFakeServices(options?: {
   return {
     services: {
       commands: commandsFake.commands,
+      comfyUi: comfyUiFake.service,
       generationBackends: [createGenerationBackendFake()],
       host: hostFake.host,
       generationSettings: createMemoryGenerationSettingsStore(options?.generationSettings),
@@ -58,6 +65,7 @@ export function createFakeServices(options?: {
       ...commandsFake.spies,
       ...hostFake.spies,
       ...taskResourceHelper.spies,
+      ...comfyUiFake.spies,
     },
   };
 }

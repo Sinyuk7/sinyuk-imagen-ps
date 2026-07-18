@@ -54,7 +54,7 @@ Remote may continue MUST只投影为generic `TaskError.details.remoteMayContinue
 - **THEN**Task MUST恢复为 interrupted/remote may continue 的只读历史事实，且 MUST不尝试 recovery replay 或自动补跑
 
 ### Requirement: Deterministic与real-host gates必须分层
-Default validation MUST使用mock-only contract/scenario tests且不得访问real network。Owner-local AutoDL live harness MUST分别证明API Graph与Frontend Queue的real image/mask vertical flow；Photoshop UXP manual gate MUST证明real capture/mask、WebView/Bridge、history/view、placement与cleanup。Chrome evidence MUST不替代UXP evidence。
+Default validation MUST使用mock-only contract/scenario tests且不得访问real network。Owner-local AutoDL live harness MUST分别证明API Graph与Frontend Queue的real image-only vertical flow；Photoshop UXP manual gate MUST证明real capture、WebView/Bridge、history/view、placement与cleanup。Mask runtime及其live/UXP proof MUST由后续Change负责，不属于当前Change acceptance gate。Chrome evidence MUST不替代UXP evidence。
 
 Owner-local live harness MAY使用local SSH alias或environment-bound target name访问AutoDL，但 MUST不把resolved credentials、endpoint secrets或generated payload写入tracked files。
 
@@ -64,11 +64,11 @@ Owner-local live harness MAY使用local SSH alias或environment-bound target nam
 
 #### Scenario: AutoDL Chrome vertical proof
 - **WHEN**显式运行owner-local live gate
-- **THEN**API与Frontend各自 MUST完成connection -> contract -> image/mask upload -> one submission -> history/view -> TaskOutput流程
+- **THEN**API与Frontend各自 MUST使用不含mask entry的workflow完成connection -> contract -> image upload -> one submission -> history/view -> TaskOutput流程
 
 #### Scenario: Photoshop UXP manual proof
 - **WHEN**在real Photoshop/UXP Developer Tool执行manual smoke
-- **THEN**必须记录panel/WebView lifecycle、real image/mask materialization、submission、output placement、reload/destroy与cleanup证据
+- **THEN**必须使用不含mask entry的workflow记录panel/WebView lifecycle、real image materialization、submission、output placement、reload/destroy与cleanup证据
 
 ### Requirement: Live credentials与artifacts不得进入仓库
 仓库不得持有AutoDL SSH password、fixed endpoint values、auth headers、workflow payload、generated images或raw remote logs；这些内容 MUST仅保存在owner-local approved storage/environment，MUST不写入OpenSpec、canonical docs、fixtures、Task records或git-tracked files。

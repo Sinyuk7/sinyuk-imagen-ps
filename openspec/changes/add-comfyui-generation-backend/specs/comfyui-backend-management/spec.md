@@ -41,9 +41,15 @@ V1产品connection record MUST不保存username/password形式的credentials、r
 ### Requirement: Connection readiness 必须按source验证
 Connection test MUST验证bounded health response。API Graph readiness MUST要求server/API capability；Frontend readiness还 MUST要求compatible Bridge status、page handshake、pinned frontend/core/contract versions与native Queue capability。
 
+两个source的workflow readiness MUST把任何包含`mask` entry的canonical contract标记为`not-ready/workflow`。Parser/validator MAY保留并验证mask vocabulary，但当前Change的admission MUST在Task dispatch、asset resolution、upload或submission前fail closed。
+
 #### Scenario: API可用但Bridge不可用
 - **WHEN**ComfyUI API health成功但Bridge handshake失败
 - **THEN**API Graph workflow MAY保持runnable，Frontend workflow MUST fail closed
+
+#### Scenario: Contract包含mask entry
+- **WHEN**API Graph或Frontend workflow的canonical contract包含`mask` role
+- **THEN**workflow readiness MUST返回`not-ready/workflow`，且 MUST不创建dispatch、解析asset、upload或submit
 
 ### Requirement: Workflow repository 必须区分两种source
 Workflow repository MUST持久化stable workflow id、display name、connection id、source discriminant与validated workflow contract。API Graph source MUST保存 bounded immutable graph snapshot，并在保存时 deep-clone / freeze；Frontend source MUST只保存canonical remote path，MUST不保存frontend JSON、Canvas、compiled graph或load/client identity。

@@ -1,5 +1,6 @@
 packages:
   - "apps/*"
   - "packages/*"
+  - "packages/execution-backends/*"
 allowBuilds:
   esbuild: true

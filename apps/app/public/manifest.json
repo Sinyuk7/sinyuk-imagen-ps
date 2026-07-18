@@ -15,6 +15,11 @@
     "network": {
       "domains": "all"
     },
+    "webview": {
+      "allow": "yes",
+      "domains": "all",
+      "enableMessageBridge": "localAndRemote"
+    },
     "localFileSystem": "request",
     "clipboard": "readAndWrite"
   },
