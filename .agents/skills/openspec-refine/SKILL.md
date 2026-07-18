@@ -1,191 +1,318 @@
 <!-- ---
 name: openspec-refine
 description: >
-  A quality review skill that refines existing OpenSpec changes to implementation-ready quality.
-  Performs cross-artifact consistency checks on proposal/design/tasks/specs, code-grounded
-  commonality analysis, and targeted best-practice validation when external contracts or
-  platform behavior need it. Use after proposal creation, before implementation, or when
-  an existing change needs a deeper quality pass than a quick spec review.
+  Expand and harden an existing OpenSpec change from brief initial artifacts into an
+  implementation-ready contract. Use after initial artifact generation when specs need
+  deeper behavioral coverage, cross-artifact gaps must be resolved, or tasks and validation
+  still leave implementation choices ambiguous. Always review and present one complete
+  Refinement Plan before modifying any artifact; apply changes only after user approval.
 ---
 
 # OpenSpec Refine
 
-A review skill that refines OpenSpec changes to implementation-ready quality.
+Turn brief OpenSpec artifacts into an implementation-ready change contract.
 
-Prefer checking current code, tests, and harnesses over trusting project docs by themselves.
-Use docs as guidance, then verify important claims against implementation.
+Focus on removing ambiguity that can change correctness, compatibility, ownership, or
+acceptance results. Do not expand artifacts merely to add detail. Success means a later
+implementation agent can follow the artifacts without inventing observable behavior.
 
-## Step 1: Context Collection
+## Operating Contract
+
+Use exactly two phases.
+
+### Phase 1: Review and Plan
+
+1. Resolve the change and read its artifacts, relevant formal specs, repository evidence,
+   and project rules.
+2. Build a canonical model of the change and find gaps, ambiguity, contradictions, and
+   missing coverage.
+3. Present one complete, dependency-ordered `Refinement Plan`.
+4. State exactly which artifacts would change, what would be added or corrected, and why.
+5. Do not modify any file.
+
+Do not interrupt analysis with piecemeal approval questions. Collect every required user
+decision in the complete plan so the user can approve the direction once.
+
+### Phase 2: Apply Approved Plan
+
+Enter this phase only after the user approves the complete plan.
+
+1. Apply only the approved changes.
+2. Propagate each decision across every affected artifact.
+3. Run forward and reverse coverage checks.
+4. Run structural, semantic, and applicable repository validation.
+5. Report actual changes, validation evidence, and remaining open questions.
+
+If new evidence invalidates an approved direction, stop before guessing. Present one
+consolidated plan delta for approval.
+
+## Phase 1 Procedure
+
+### 1. Resolve the Change
+
+Run:
 
 ```bash
 openspec status --change "<name>" --json
 ```
 
-Read the resolved artifacts for the target change:
-- `proposal.md`, `tasks.md`, `design.md`, `specs/`
-- related current code, tests, and harnesses for the same area
-- nearby existing changes or specs with similar behavior
-
-Useful project guidance:
-- `docs/TESTING.md`
-- relevant `AGENTS.md`
-- `docs/ENGINEERING_CONTEXT.md` when ownership, dependency direction, or runtime limits matter
-
-For Adobe / UXP topics, search local official documentation mirrors before relying on memory:
-- `.local/share/uxp-photoshop`
-- `.local/share/uxp`
-- `.local/share/uxp-photoshop-plugin-samples`
-
-If a document or artifact looks stale, ambiguous, or too abstract, inspect the current implementation and tests directly.
-If the investigation naturally splits into multiple independent code-reading lanes and the environment supports it, use read-only explorers to inspect those lanes in parallel.
-
-### Related Skill/Convention Check (Required)
-
-1. Check the project's instruction files, skills, and nearby implementation patterns matching the proposal area
-2. Verify the change follows established patterns in current code and tests, not only in documents
-3. Document deviations with rationale
-
-## Step 2: Analysis and Review
-
-### Cross-Artifact Scope Consistency (Required)
-- [ ] Features listed in proposal scope are not contradicted by design Non-Goals
-- [ ] Normative behavior defined in design (e.g. fallback, error handling) is also captured in spec with scenarios
-- [ ] Scope boundaries are consistent across proposal, specs, design, and tasks
-- [ ] Important claims still match current implementation or are clearly marked as intended changes
-
-### Required Checklist
-- [ ] spec.md uses normative language (MUST/SHOULD/MAY) where requirements are intended to be normative
-- [ ] Each Requirement has at least one `#### Scenario:`
-- [ ] Acceptance criteria are concrete (Given/When/Then preferred)
-- [ ] Failure behavior is explicitly defined
-- [ ] tasks.md is broken down into implementable granularity
-- [ ] No hardcoded values in design — configuration values, paths, thresholds, and URLs have explicit externalization strategies documented in design.md or tasks.md
-
-### design.md Review (if present)
-- [ ] **Separation of concerns**: Which layer/class owns what responsibility
-- [ ] **Pattern selection**: Design patterns used and rationale for choosing them
-- [ ] **Rejected patterns**: Patterns considered but not adopted, with reasons when the choice is non-obvious
-- [ ] **Framework consistency**: Alignment with the existing codebase
-- [ ] **Dependencies**: Dependency direction between components (no circular deps)
-- [ ] **Commonality analysis**: Investigation of overlap with existing code
-
-### Code-Grounded Gap Sweep (Required)
-
-Do not stop after the first obvious `2-3` issues. Deliberately inspect:
-- lifecycle coverage: create / edit / delete / empty / first-run / no-default states
-- negative paths: failure, fallback, partial-success, retry, cleanup, orphan states
-- state boundaries: runtime vs persisted, session vs durable, local UI state vs shared state
-- owner boundaries: `apps/app` vs `packages/application` vs `packages/core-engine` vs `packages/providers` vs `packages/foundation`
-- validation gaps: what current tests or harnesses already prove, and what they do not prove
-- reuse gaps: where the proposal/design ignores existing code paths or helpers
-
-### When design.md Is Needed
-Propose creating design.md if any of these apply but design.md is absent:
-- Changes span multiple components or layers
-- New patterns or architectural decisions are needed
-- Deviation from existing design conventions is substantial
-
-## Step 2.3: Best Practice Validation (When Needed)
-
-Use this when:
-- the design depends on external or unstable contracts;
-- platform behavior matters and local code gives no clear precedent;
-- the repo has no strong internal pattern for the decision being made.
-
-### 2.3.1 Build Search Themes
-From the problem domain in proposal.md and the key technical decisions in design.md, build a short list of themes worth checking.
-
-### 2.3.2 Research Execution
-Prefer these inputs first:
-- current repo code and tests
-- local official docs
-- Adobe local mirrors for Photoshop / UXP topics
-
-If those are insufficient and the decision depends on outside behavior, search the web or consult official external docs.
-
-**Fallback**: If live search is unavailable, use model knowledge as a temporary comparison source and label it clearly.
-
-### 2.3.3 Compare Against Current Design
-Compare external or local-reference findings against each important decision in design.md. Focus on:
-- alignment with proven repo patterns
-- better-known patterns when current design is weak
-- missing concerns such as validation, telemetry, fallback behavior, or ownership clarity
-- alternatives worth considering when the current design is underspecified
-
-Summarize comparison results:
-```
-| Decision | Evidence / Reference | Alternatives | Gaps |
-|----------|----------------------|-------------|------|
-| D1: ... | ... | ... | ... |
-```
-
-### 2.3.4 Propose Improvement Strategy
-When gaps are found:
-1. List each gap as an independent improvement item (Current → Proposed → Source)
-2. Group them into practical integration options when there are multiple meaningful directions
-3. Ask the user before applying a large design rewrite
-4. Add the selected improvements as Issues in Step 3
-
-## Step 2.5: Commonality Analysis (P1: Recommended)
-
-May skip for very small changes.
-
-### Investigation Targets
-- Related existing specs
-- Existing shared components/services/utilities
-- Past changes with similar functionality
-- Current implementation paths that already solve part of the same problem
-
-### Decision Categories
-| Decision | Description |
-|----------|-------------|
-| Reuse | Use existing component as-is |
-| Extend | Extend existing component |
-| New (shared) | Create new, place in shared package |
-| New (dedicated) | Dedicated to this feature (document rationale) |
-
-## Step 3: Present Improvement Proposals
-
-```
-### Issue: [Summary of the problem]
-- Current: [What is missing, inconsistent, stale, or weakly evidenced]
-- Proposed: [How to fix it]
-- Evidence: [Code / tests / docs / external reference]
-- Priority: P0 (Required) / P1 (Recommended) / P2 (Nice-to-have)
-```
-
-## Step 4: Update Artifacts
-
-After user approval, update the artifacts.
-
-### Update Rules
-- **spec.md**: Normative content only. Background, comparisons, and rationale go in proposal.md or design.md
-- **spec.md size limit**: Split into `details/*.md` if approaching 400 lines
-- **tasks.md**: Implementation tasks only (no spec content)
-- **design.md**: Technical decisions, trade-offs, and architecture notes
-- **proposal.md**: Update when scope, capabilities, or intended behavior changes
-- **Cross-artifact propagation (Required)**: When updating design.md, check whether the changes affect spec.md or tasks.md, and propagate accordingly
-- **Minimal edits**: Edit only what is needed, but expand thin sections when they are the reason review quality is weak
-
-## Step 5: Validation (Required)
+Use the returned schema, planning scope, action context, artifact paths, and artifact states.
+Do not assume every schema uses the same file names or locations. When available, load the
+current schema instructions for relevant artifacts:
 
 ```bash
-openspec validate "<proposal-id>" --type change --strict --json
+openspec instructions <artifact-id> --change "<name>" --json
 ```
 
-If the local CLI does not support this exact form, use the closest strict `openspec validate` command available.
+Read:
 
-If the refine pass also changes implementation or policy-checked docs, choose the relevant validation commands from `docs/TESTING.md` (often `pnpm validate`, `pnpm check:policy`, or focused package tests).
+- every existing change artifact required by the resolved schema;
+- related formal specs;
+- applicable repository and module instructions;
+- relevant architecture and testing rules;
+- current contracts, types, implementation, callers, and downstream consumers;
+- existing tests and harnesses;
+- similar modules, domain skills, and historical changes when they provide useful precedent.
 
-## Quality Gate (Fail Conditions)
+Separate current behavior from intended change behavior. A difference from current code is
+not a defect when the change intentionally introduces it.
 
-- spec.md contains background, comparisons, or discussion in normative sections
-- Acceptance criteria are vague (e.g. "works without issues")
-- Requirements have no Scenarios
-- design.md lists pattern names without selection rationale where rationale is needed
-- Multi-layer changes have no design.md
-- Dependencies are circular or direction is unclear
-- No investigation of overlap with existing specs/shared components/current implementation (P1)
-- Clear DRY violation — similar implementation exists with no justification for creating new (P1)
-- Important claims rely only on stale docs or abstract reasoning without checking current code/tests when that evidence is available
-- Configuration values, paths, thresholds, or URLs have no externalization strategy defined (P0) -->
+Classify important evidence:
+
+- **Confirmed Fact**: directly supported by current source, tests, formal specs, or project
+  rules.
+- **Bounded Inference**: supported by evidence but not directly guaranteed; state the bound.
+- **Open Question**: cannot be resolved from available evidence and needs a decision.
+
+Use external research only when an important claim depends on an external API, standard,
+version-specific behavior, new dependency, or other fact the repository cannot establish.
+Prefer primary official sources. Do not use web search as a default refinement step.
+
+Before proposing new behavior, ownership, helpers, or tasks, inspect existing specs, shared
+components, services, utilities, harnesses, and similar changes. Prefer reuse or extension
+when it preserves the intended contract. When proposing something new, explain why existing
+paths cannot own it without distortion or unauthorized coupling.
+
+### 2. Build the Canonical Change Model
+
+Build this traceability chain in working context:
+
+```text
+Capability -> Requirement -> Scenario -> Design Decision -> Task -> Validation
+```
+
+Do not create a separate artifact solely for this model unless the user requests one. Use it
+to perform both checks:
+
+#### Forward Coverage
+
+Confirm that each capability and requirement has sufficient:
+
+- scenarios covering observable behavior;
+- design support when an architectural decision is needed;
+- implementation work or an explicit existing-behavior basis;
+- validation evidence or a planned validation path.
+
+#### Reverse Coverage
+
+Confirm that:
+
+- design does not introduce behavior without requirement support;
+- tasks do not silently expand scope;
+- test and validation tasks trace to requirements or project rules;
+- observable behavior does not exist only in design or tasks;
+- no task is orphaned;
+- no requirement lacks an implementation path.
+
+### 3. Review Artifact Depth
+
+#### `proposal.md`
+
+Keep the proposal concise by default. Plan changes only when any of these are unclear or
+missing:
+
+- problem and objective;
+- scope, non-goals, or impact;
+- affected capabilities;
+- breaking changes or compatibility impact.
+
+Do not move detailed behavioral contracts into the proposal.
+
+#### `specs/**`
+
+Treat specs as the primary expansion target. Evaluate every dimension below and record one
+judgment: `Covered`, `Missing`, `Not Applicable`, or `Needs Decision`.
+
+- normal behavior;
+- input boundaries;
+- invalid, missing, or partial input;
+- state transitions;
+- ownership and precedence;
+- failure, fallback, and retry;
+- repeated operations, concurrency, and stale results;
+- cancel, reset, reload, and recovery;
+- legacy compatibility;
+- runtime or environment differences;
+- behavior that must explicitly never occur.
+
+Add content only for relevant missing dimensions, but make every judgment deliberately.
+Every normative requirement must have enough concrete scenarios to define its observable
+contract. Keep function names, file paths, helper structures, and other internal
+implementation details out of specs.
+
+#### `design.md`
+
+Expand design according to risk and complexity, not desired length. Check:
+
+- ownership and dependency direction;
+- data and control flow;
+- important technical decisions;
+- failure containment;
+- migration, rollback, and cleanup;
+- compatibility;
+- alignment with existing architecture and shared patterns;
+- alternatives and trade-offs for decisions with meaningful choice cost.
+
+Do not require multiple alternatives for routine or already-constrained decisions. If design
+is absent, propose creating it only when the change needs architectural decisions that specs
+and tasks cannot own.
+
+#### `tasks.md`
+
+Derive task changes from implementation and validation gaps. Add only work required by the
+approved contract, which may include:
+
+- implementation;
+- automated or integration tests;
+- manual validation;
+- migration or compatibility work;
+- documentation or cleanup;
+- final validation.
+
+A change may need only test or validation tasks, or no new implementation tasks. Follow the
+project's testing authority; do not hardcode a platform or runtime validation method.
+
+### 4. Identify Refinement Issues
+
+Keep only issues that improve correctness, compatibility, acceptance, ownership clarity, or
+traceability. Do not manufacture an issue count and do not repeat equivalent gaps.
+
+For every issue, provide:
+
+```markdown
+### <Issue title>
+- Current: <current artifact or code state>
+- Evidence: <Confirmed Fact, Bounded Inference, or Open Question with source>
+- Gap: <missing, ambiguous, or contradictory contract>
+- Risk: <different implementation interpretations or acceptance outcomes>
+- Proposed direction: <specific behavior or content to lock down>
+- Artifact changes: <proposal/spec/design/tasks changes, including no-change decisions>
+- Validation impact: <validation to add, adjust, or retain>
+- Decision required: <user choice, or No>
+- Priority: <P0, P1, or P2>
+```
+
+Use priorities as severity metadata, not plan order:
+
+- **P0**: blocks a correct implementation or permits incompatible observable behavior.
+- **P1**: creates material correctness, compatibility, ownership, or validation risk.
+- **P2**: improves clarity or maintainability without blocking implementation.
+
+Avoid abstract directions such as "add error handling." State the concrete behavior and the
+artifact-level change the user is approving.
+
+### 5. Produce the Refinement Plan
+
+Order the plan by dependency:
+
+1. Scope and objective problems
+2. Key behaviors requiring user decisions
+3. Spec expansion
+4. Design additions
+5. Task and validation additions
+6. Documentation-only cleanup
+
+For each plan item, reference its issue, target artifacts, proposed content, dependencies,
+and validation impact. Include:
+
+- a concise canonical change model summary;
+- forward and reverse coverage gaps;
+- all decisions the user must make;
+- explicit artifacts that will remain unchanged;
+- a single request to approve the complete plan and provide any listed decisions.
+
+Do not edit files during this phase.
+
+## Phase 2 Procedure
+
+### 1. Apply the Approved Plan
+
+Make minimal, purposeful edits. Expand thin sections when needed to lock down behavior, but
+do not rewrite unaffected content. Keep artifact responsibilities distinct:
+
+- proposal owns intent, scope, capabilities, and impact;
+- specs own normative observable behavior;
+- design owns technical decisions, flows, and trade-offs;
+- tasks own implementation and validation work.
+
+Propagate cross-artifact decisions in dependency order. Do not add unapproved scope.
+
+### 2. Validate
+
+Run all three validation layers.
+
+#### Structural Validation
+
+Run strict OpenSpec validation using the syntax supported by the local CLI, normally:
+
+```bash
+openspec validate "<change-name>" --type change --strict --json
+```
+
+This proves schema and structural validity only.
+
+#### Semantic Validation
+
+Rebuild the canonical change model and confirm:
+
+- capability, requirement, and scenario coverage is sufficient;
+- no blocking ambiguity remains;
+- design and tasks trace to requirements;
+- each key behavior has an appropriate validation path;
+- no scope expansion or orphan content exists;
+- every approved issue is resolved or explicitly reported as remaining.
+
+#### Repository Validation
+
+Select build, unit, integration, policy, manual, release, or opt-in live checks from current
+project rules and the actual change surface. The skill identifies and orchestrates relevant
+gates; it does not prescribe one fixed project, platform, or runtime command.
+
+### 3. Report
+
+Report:
+
+- artifacts changed and the contract added or corrected in each;
+- forward and reverse coverage result;
+- structural, semantic, and repository validation commands and outcomes;
+- approved plan items not completed, with reasons;
+- remaining open questions or residual risks.
+
+If review finds no material gap, report that no artifact change is needed. Do not create
+documentation churn.
+
+## Readiness Gate
+
+Declare the change implementation-ready only when:
+
+- scope and intended capabilities are explicit;
+- no unresolved P0 issue or blocking user decision remains;
+- observable behavior is normative and adequately scenario-covered;
+- forward and reverse coverage checks pass;
+- ownership and important design choices are clear;
+- tasks cover required implementation and validation work without expanding scope;
+- every key behavior has an appropriate validation path;
+- structural validation passes and applicable semantic and repository checks are accounted
+  for.
+
+Otherwise report the exact remaining blockers. -->
