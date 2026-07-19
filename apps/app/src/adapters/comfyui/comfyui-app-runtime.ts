@@ -4,18 +4,18 @@ import {
   createComfyUiManagementService,
   getGenerationBackends,
   setComfyUiExecutionHostPorts,
-  type ComfyUiConnectionRepository,
   type ComfyUiExecutionHostPorts,
-  type ComfyUiWorkflowRepository,
-  type GenerationTargetSelectionRepository,
+  type ComfyUiStateRepository,
+  type ComfyUiWorkflowRuntimeCache,
+  type ComfyUiWorkflowDraftStore,
 } from '@imagen-ps/application';
 
 type FrontendBridgeResolver = NonNullable<ComfyUiExecutionHostPorts['frontendBridgeResolver']>;
 
 export interface ComfyUiAppRuntimeRepositories {
-  readonly connections: ComfyUiConnectionRepository;
-  readonly workflows: ComfyUiWorkflowRepository;
-  readonly selection: GenerationTargetSelectionRepository;
+  readonly state: ComfyUiStateRepository;
+  readonly cache: ComfyUiWorkflowRuntimeCache;
+  readonly drafts: ComfyUiWorkflowDraftStore;
 }
 
 /** 组合 Application management、generation backend 与 host execution ports。 */
@@ -32,13 +32,36 @@ export function createComfyUiAppRuntime(options: {
   } satisfies ComfyUiExecutionHostPorts;
   const managementHost = createComfyUiManagementHostPorts(hostPorts);
   const management = createComfyUiManagementService({
-    ...options.repositories,
-    tester: managementHost.tester,
-    discovery: managementHost.discovery,
+    state: options.repositories.state,
+    ports: managementHost,
+    cache: options.repositories.cache,
+    drafts: options.repositories.drafts,
   });
   const backend = createComfyUiGenerationBackend({
-    connections: options.repositories.connections,
-    workflows: options.repositories.workflows,
+    runtime: {
+      async getExecution(workflowId, revision) {
+        const runtime = await management.selectWorkflow(workflowId);
+        if (revision !== undefined && runtime.identity.revision !== revision) {
+          throw new Error('ComfyUI workflow revision changed.');
+        }
+        const state = await management.loadState();
+        if (!state?.baseUrl) throw new Error('ComfyUI server is not configured.');
+        if (runtime.document.kind !== 'api') {
+          return {
+            connection: { baseUrl: state.baseUrl, requestTimeoutMs: 30_000, observationTimeoutMs: 300_000 },
+            source: { kind: 'frontend-workflow', workflowId, revision: runtime.identity.revision, remotePath: runtime.identity.remotePath },
+            prompt: undefined,
+            images: [],
+          } as never;
+        }
+        return {
+          connection: { baseUrl: state.baseUrl, requestTimeoutMs: 30_000, observationTimeoutMs: 300_000 },
+          source: { kind: 'api-graph', workflowId, revision: runtime.identity.revision, graph: runtime.document.graph },
+          prompt: undefined,
+          images: [],
+        } as never;
+      },
+    },
   });
   setComfyUiExecutionHostPorts(hostPorts);
   let disposed = false;

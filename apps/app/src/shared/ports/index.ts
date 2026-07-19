@@ -4,5 +4,6 @@ export * from './app-generation-settings';
 export * from './commands-port';
 export * from './comfyui-management';
 export * from './diagnostics-port';
+export * from './external-url';
 export * from './host-port';
 export * from '../image/thumbnail-store';

@@ -1,212 +1,226 @@
 import { act } from 'react';
 import { afterEach, describe, expect, it } from 'vitest';
+import { changeTextarea, cleanupMainPageRoot, flush, renderMainPage } from '../../../helpers/main-page-harness';
+import { changeInput } from '../../../helpers/settings-detail-harness';
 import { createFakeServices } from '../../../helpers/fakes';
-import {
-  fakeComfyUiConnection,
-  fakeComfyUiWorkflow,
-} from '../../../helpers/harness/comfyui-management.fake';
-import {
-  changeTextarea,
-  cleanupMainPageRoot,
-  flush,
-  renderMainPage,
-} from '../../../helpers/main-page-harness';
 
-const API_GRAPH_JSON = JSON.stringify({
-  binding: {
-    class_type: 'ImagenWorkflowBindingContract',
-    inputs: {
-      contract: {
-        schemaVersion: 1,
-        bindings: [
-          { role: 'prompt', slot: 0, locator: { nodeId: 'prompt', fieldName: 'text' } },
-          { role: 'output-image', slot: 0, locator: { nodeId: 'output', fieldName: 'images' } },
-        ],
-      },
-    },
-  },
-  type: {
-    class_type: 'ImagenWorkflowTypeContract',
-    inputs: {
-      contract: {
-        schemaVersion: 1,
-        operation: 'text-to-image',
-        entries: [
-          { role: 'prompt', slot: 0, required: true, dataType: 'text' },
-          { role: 'output-image', slot: 0, required: true, dataType: 'image' },
-        ],
-      },
-    },
-  },
-  prompt: { class_type: 'Prompt', inputs: { text: '' } },
-  output: { class_type: 'Output', inputs: { images: '' } },
-});
-
-async function settle(): Promise<void> {
-  await flush();
-  await flush();
-  await flush();
-}
-
-async function openSettings(container: HTMLElement): Promise<void> {
-  await act(async () => {
-    container.querySelector<HTMLElement>('[data-testid="main-providers-button"]')?.click();
-  });
-  await settle();
-}
-
-async function openComfyUiSettings(container: HTMLElement): Promise<void> {
-  await act(async () => {
-    container.querySelector<HTMLElement>('[data-testid="settings-backend-comfyui"]')?.click();
-  });
-  await settle();
-}
-
-function changeInput(input: HTMLInputElement, value: string): void {
-  const setter = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value')?.set;
-  setter?.call(input, value);
-  input.dispatchEvent(new KeyboardEvent('keyup', { bubbles: true, key: 'x' }));
-}
-
-describe('ComfyUI settings UI', () => {
+describe('ComfyUI workflow settings surface', () => {
   afterEach(async () => {
     await cleanupMainPageRoot();
     document.body.innerHTML = '';
   });
 
-  it('routes through the existing Settings surface and keeps workflow selection explicit', async () => {
+  async function openComfySettings(container: HTMLElement): Promise<void> {
+    await flush();
+    await flush();
+    await act(async () => {
+      container.querySelector<HTMLElement>('[data-testid="main-providers-button"]')?.click();
+    });
+    await flush();
+    const tab = container.querySelector<HTMLElement>('[data-testid="settings-backend-comfyui"]');
+    if (tab) {
+      await act(async () => { tab.click(); });
+      await flush();
+    }
+  }
+
+  it('renders the singleton root, conditional mapping notice, and exposed parameters', async () => {
     const container = document.createElement('div');
     document.body.appendChild(container);
-    const fake = createFakeServices({
-      generationSettings: { settingsOnboardingSeenVersion: 1 },
-      comfyUi: {
-        connections: [fakeComfyUiConnection],
-        workflows: [fakeComfyUiWorkflow],
-        selection: { kind: 'provider', profileId: 'profile-a', modelId: 'model-a' },
-      },
-    });
-    await renderMainPage(container, fake);
+    await renderMainPage(container, createFakeServices({ comfyUi: { baseUrl: 'https://comfy.example.test' }, generationSettings: { settingsOnboardingSeenVersion: 1 } }));
+    await flush();
 
-    await openSettings(container);
-    expect(container.querySelector('[data-testid="provider-row-mock-profile"]')).not.toBeNull();
+    await openComfySettings(container);
 
-    await openComfyUiSettings(container);
-    expect(container.querySelector('[data-testid="provider-row-mock-profile"]')).toBeNull();
-    expect(container.querySelector(`[data-testid="comfyui-connection-row-${fakeComfyUiConnection.connectionId}"]`)).not.toBeNull();
-    await expect(fake.services.comfyUi.reconcileSelection()).resolves.toBeUndefined();
-
-    await act(async () => {
-      container.querySelector<HTMLElement>('[data-testid="comfyui-workflow-target-selector"]')?.click();
-    });
-    await settle();
-    await act(async () => {
-      document.querySelector<HTMLElement>(`[data-testid="comfyui-workflow-target-selector-option-${fakeComfyUiWorkflow.workflowId}"]`)?.click();
-    });
-    await settle();
-    await expect(fake.services.comfyUi.reconcileSelection()).resolves.toEqual({
-      kind: 'comfyui',
-      workflowId: fakeComfyUiWorkflow.workflowId,
-    });
-
-    await act(async () => {
-      container.querySelector<HTMLElement>(`[data-testid="comfyui-connection-row-${fakeComfyUiConnection.connectionId}"]`)?.click();
-    });
-    await settle();
-    expect(container.querySelector('[data-testid="comfyui-connection-save-button"]')).not.toBeNull();
-
-    await act(async () => {
-      container.querySelector<HTMLElement>('[data-testid="comfyui-test-connection-button"]')?.click();
-    });
-    await settle();
-    expect(fake.spies.testConnection).toHaveBeenCalledTimes(1);
-    expect(container.querySelector('[data-testid="comfyui-connection-test-status"]')?.textContent).toContain('API');
-
-    await act(async () => {
-      changeInput(container.querySelector<HTMLInputElement>('[data-testid="comfyui-connection-name"]')!, 'Edited ComfyUI');
-      changeInput(container.querySelector<HTMLInputElement>('[data-testid="comfyui-connection-origin"]')!, 'https://edited.example.test');
-    });
-    await act(async () => {
-      container.querySelector<HTMLElement>('[data-testid="comfyui-connection-save-button"]')?.click();
-    });
-    await settle();
-    await expect(fake.services.comfyUi.getConnection(fakeComfyUiConnection.connectionId)).resolves.toMatchObject({
-      displayName: 'Edited ComfyUI',
-      origin: 'https://edited.example.test',
-    });
-
-    await act(async () => {
-      container.querySelector<HTMLElement>('[data-testid="comfyui-connection-delete-button"]')?.click();
-    });
-    await settle();
-    expect(container.querySelector('[data-testid="settings-backend-comfyui"]')).not.toBeNull();
-    await expect(fake.services.comfyUi.listConnections()).resolves.toEqual([]);
-    await expect(fake.services.comfyUi.reconcileSelection()).resolves.toBeUndefined();
+    expect(container.querySelector('[data-testid="comfyui-settings-root"]')).not.toBeNull();
+    expect(container.querySelector('[data-testid="comfyui-connection-section"]')).not.toBeNull();
+    expect(container.querySelector('[data-testid="comfyui-workflow-parameters"]')).not.toBeNull();
+    expect(container.querySelector('[data-testid="comfyui-input-mapping"]')).not.toBeNull();
+    expect(container.querySelector('[data-testid="comfyui-image-mapping"]')).toBeNull();
+    expect(container.textContent).toContain('此 Workflow 不接收图片附件');
   });
 
-  it('imports API Graph JSON and saves Frontend discovery without auto-selecting it', async () => {
+  it('opens the picker and returns to the root after selecting a saved workflow', async () => {
     const container = document.createElement('div');
     document.body.appendChild(container);
-    const fake = createFakeServices({
+    await renderMainPage(container, createFakeServices({ comfyUi: { baseUrl: 'https://comfy.example.test' }, generationSettings: { settingsOnboardingSeenVersion: 1 } }));
+    await flush();
+
+    await openComfySettings(container);
+    await act(async () => {
+      container.querySelector<HTMLElement>('[data-testid="comfyui-change-workflow"]')?.click();
+    });
+    await flush();
+    expect(container.querySelector('[data-testid="comfyui-workflow-picker"]')).not.toBeNull();
+    expect(container.querySelector('[data-testid^="comfyui-workflow-option-"]')).not.toBeNull();
+    await act(async () => {
+      container.querySelector<HTMLElement>('[data-testid^="comfyui-workflow-option-"]')?.click();
+    });
+    await flush();
+    expect(container.querySelector('[data-testid="comfyui-settings-root"]')).not.toBeNull();
+  });
+
+  it('keeps composer draft and both backend selections while switching mode and settings tabs', async () => {
+    const container = document.createElement('div');
+    document.body.appendChild(container);
+    await renderMainPage(container, createFakeServices({ comfyUi: { baseUrl: 'https://comfy.example.test' }, generationSettings: { settingsOnboardingSeenVersion: 1 } }));
+    await flush();
+
+    await act(async () => {
+      changeTextarea(container.querySelector<HTMLTextAreaElement>('[data-testid="composer-textarea"]')!, 'draft survives');
+      container.querySelector<HTMLElement>('[data-testid="composer-capture-button"]')?.click();
+      container.querySelector<HTMLElement>('[data-testid="main-profile-selector"]')?.click();
+    });
+    await flush();
+    expect(container.querySelectorAll('[data-testid^="attachment-remove-button-"]')).toHaveLength(1);
+    await act(async () => { container.querySelector<HTMLElement>('[data-testid="main-mode-comfyui"]')?.click(); });
+    await flush();
+    expect(container.querySelector('[data-testid="generation-current-target-summary"]')).not.toBeNull();
+    expect(container.querySelector('[data-testid="generation-workspace-notices"]')?.textContent).toContain('附件不会发送');
+
+    await act(async () => { container.querySelector<HTMLElement>('[data-testid="main-providers-button"]')?.click(); });
+    await flush();
+    expect(container.querySelector('[data-testid="comfyui-settings-root"]')).not.toBeNull();
+    await act(async () => { container.querySelector<HTMLElement>('[data-testid="settings-backend-provider"]')?.click(); });
+    await flush();
+    expect(container.querySelector('[data-testid="providers-back-button"]')).not.toBeNull();
+    await act(async () => { container.querySelector<HTMLElement>('[data-testid="settings-backend-comfyui"]')?.click(); });
+    await flush();
+    expect(container.querySelector('[data-testid="comfyui-settings-root"]')).not.toBeNull();
+    await act(async () => { container.querySelector<HTMLElement>('[data-testid="comfyui-settings-back"]')?.click(); });
+    await flush();
+
+    expect(container.querySelector<HTMLTextAreaElement>('[data-testid="composer-textarea"]')?.value).toBe('draft survives');
+    expect(container.querySelectorAll('[data-testid^="attachment-remove-button-"]')).toHaveLength(1);
+    await act(async () => { container.querySelector<HTMLElement>('[data-testid="main-profile-selector"]')?.click(); });
+    await flush();
+    expect(container.querySelector('[data-testid="main-mode-provider"]')).not.toBeNull();
+    await act(async () => { container.querySelector<HTMLElement>('[data-testid="main-mode-provider"]')?.click(); });
+    await flush();
+    expect(container.querySelector<HTMLTextAreaElement>('[data-testid="composer-textarea"]')?.value).toBe('draft survives');
+  });
+
+  it('filters picker search and groups remote identities without legacy execution controls', async () => {
+    const container = document.createElement('div');
+    document.body.appendChild(container);
+    await renderMainPage(container, createFakeServices({
+      comfyUi: {
+        baseUrl: 'https://comfy.example.test',
+        workflows: [
+          { workflowId: 'one', displayName: 'One', remotePath: 'portraits/one.json', groupPath: ['portraits'], revision: 'r1' },
+          { workflowId: 'two', displayName: 'Two', remotePath: 'landscapes/two.json', groupPath: ['landscapes'], revision: 'r1' },
+        ],
+      },
       generationSettings: { settingsOnboardingSeenVersion: 1 },
-      comfyUi: { connections: [fakeComfyUiConnection] },
-    });
-    await renderMainPage(container, fake);
-
-    await openSettings(container);
-    await openComfyUiSettings(container);
+    }));
+    await flush();
+    await openComfySettings(container);
+    await act(async () => { container.querySelector<HTMLElement>('[data-testid="comfyui-change-workflow"]')?.click(); });
+    await flush();
+    expect(container.querySelector('[data-testid="comfyui-workflow-group-portraits"]')).not.toBeNull();
+    expect(container.querySelector('[data-testid="comfyui-workflow-group-landscapes"]')).not.toBeNull();
+    const search = container.querySelector<HTMLInputElement>('[data-testid="comfyui-workflow-search"]')!;
     await act(async () => {
-      container.querySelector<HTMLElement>(`[data-testid="comfyui-connection-row-${fakeComfyUiConnection.connectionId}"]`)?.click();
+      changeInput(search, 'land');
     });
-    await settle();
+    await flush();
+    expect(container.querySelector('[data-testid="comfyui-workflow-option-two"]')).not.toBeNull();
+    expect(container.querySelector('[data-testid="comfyui-workflow-option-one"]')).toBeNull();
+    expect(container.querySelector('[data-testid="comfyui-connection-row-singleton"]')).toBeNull();
+    expect(container.querySelector('[data-testid="comfyui-workflow-target-selector"]')).toBeNull();
+    expect(container.textContent).not.toContain('Import');
+  });
 
-    await act(async () => {
-      container.querySelector<HTMLElement>('[data-testid="comfyui-api-import-open-button"]')?.click();
-    });
-    await act(async () => {
-      changeInput(container.querySelector<HTMLInputElement>('[data-testid="comfyui-api-workflow-name"]')!, 'Imported API');
-      changeTextarea(container.querySelector<HTMLTextAreaElement>('[data-testid="comfyui-api-graph-json"]')!, API_GRAPH_JSON);
-    });
-    await act(async () => {
-      container.querySelector<HTMLElement>('[data-testid="comfyui-api-import-button"]')?.click();
-    });
-    await settle();
+  it('renders resolved empty parameters and scoped diagnostics without management controls', async () => {
+    const emptyForm = { nodes: [] } as const;
+    const empty = document.createElement('div');
+    document.body.appendChild(empty);
+    await renderMainPage(empty, createFakeServices({ comfyUi: { baseUrl: 'https://comfy.example.test', form: emptyForm }, generationSettings: { settingsOnboardingSeenVersion: 1 } }));
+    await flush();
+    await openComfySettings(empty);
+    expect(empty.querySelector('[data-testid="comfyui-parameters-empty"]')).not.toBeNull();
+    expect(empty.querySelector('[data-testid="comfyui-connection-row-singleton"]')).toBeNull();
+    await cleanupMainPageRoot();
+    empty.innerHTML = '';
 
-    const [imported] = await fake.services.comfyUi.listWorkflows();
-    expect(imported).toMatchObject({ displayName: 'Imported API', source: { kind: 'api-graph' } });
-    expect(container.querySelector(`[data-testid="comfyui-workflow-row-${imported!.workflowId}"]`)).not.toBeNull();
+    const failed = document.createElement('div');
+    document.body.appendChild(failed);
+    await renderMainPage(failed, createFakeServices({ comfyUi: { baseUrl: 'https://comfy.example.test', loadError: new Error('workflow unavailable') }, generationSettings: { settingsOnboardingSeenVersion: 1 } }));
+    await flush();
+    await openComfySettings(failed);
+    expect(failed.querySelector('[data-testid="comfyui-diagnostics"]')).not.toBeNull();
+    expect(failed.querySelector('[data-testid="comfyui-parameters-empty"]')).toBeNull();
+  });
 
+  it('updates workflow parameter draft immediately and restores it after page navigation', async () => {
+    const container = document.createElement('div');
+    document.body.appendChild(container);
+    await renderMainPage(container, createFakeServices({ comfyUi: { baseUrl: 'https://comfy.example.test' }, generationSettings: { settingsOnboardingSeenVersion: 1 } }));
+    await flush();
+    await openComfySettings(container);
+    const parameter = container.querySelector<HTMLInputElement>('#comfyui-parameter-prompt-0')!;
     await act(async () => {
-      container.querySelector<HTMLElement>(`[data-testid="comfyui-workflow-row-${imported!.workflowId}"]`)?.click();
+      changeInput(parameter, 'session draft');
     });
-    await settle();
-    await expect(fake.services.comfyUi.reconcileSelection()).resolves.toEqual({
-      kind: 'comfyui',
-      workflowId: imported!.workflowId,
-    });
+    await flush();
+    await act(async () => { container.querySelector<HTMLElement>('[data-testid="comfyui-settings-back"]')?.click(); });
+    await flush();
+    await act(async () => { container.querySelector<HTMLElement>('[data-testid="main-providers-button"]')?.click(); });
+    await flush();
+    await act(async () => { container.querySelector<HTMLElement>('[data-testid="settings-backend-comfyui"]')?.click(); });
+    await flush();
+    expect(container.querySelector<HTMLInputElement>('#comfyui-parameter-prompt-0')?.value).toBe('session draft');
+  });
 
-    await act(async () => {
-      container.querySelector<HTMLElement>('[data-testid="comfyui-frontend-discover-button"]')?.click();
-    });
-    await settle();
-    expect(fake.spies.discoverFrontendWorkflows).toHaveBeenCalledTimes(1);
-    const discoveredRow = container.querySelector<HTMLElement>('[data-testid^="comfyui-discovered-workflow-"]');
-    expect(discoveredRow).not.toBeNull();
-    await act(async () => discoveredRow?.click());
-    await settle();
+  it('shows selectors only for ambiguous mappings', async () => {
+    const container = document.createElement('div');
+    document.body.appendChild(container);
+    await renderMainPage(container, createFakeServices({
+      comfyUi: {
+        baseUrl: 'https://comfy.example.test',
+        form: { nodes: [{
+          nodeId: 'prompt', title: '# Prompt', label: 'Prompt', order: 0, active: true, visible: true,
+          widgets: [
+            { ref: { nodeId: 'prompt', inputName: 'text' }, kind: 'string', label: 'Text A', workflowValue: 'a', writable: true, visible: true, order: 0 },
+            { ref: { nodeId: 'prompt', inputName: 'text2' }, kind: 'string', label: 'Text B', workflowValue: 'b', writable: true, visible: true, order: 1 },
+          ],
+        }] },
+      },
+      generationSettings: { settingsOnboardingSeenVersion: 1 },
+    }));
+    await flush();
+    await openComfySettings(container);
+    expect(container.querySelector('[data-testid="comfyui-text-mapping"]')).not.toBeNull();
+    expect(container.querySelector('[data-testid="comfyui-image-mapping"]')).toBeNull();
+  });
 
-    const afterDiscovery = await fake.services.comfyUi.listWorkflows();
-    expect(afterDiscovery).toHaveLength(2);
-    expect(afterDiscovery.some((workflow) => workflow.source.kind === 'frontend-workflow')).toBe(true);
-    await expect(fake.services.comfyUi.reconcileSelection()).resolves.toEqual({
-      kind: 'comfyui',
-      workflowId: imported!.workflowId,
-    });
+  it('keeps the same bounded settings surface in the Chrome host at narrow width', async () => {
+    const container = document.createElement('div');
+    document.body.appendChild(container);
+    const previousWidth = window.innerWidth;
+    Object.defineProperty(window, 'innerWidth', { configurable: true, value: 320 });
+    try {
+      await renderMainPage(
+        container,
+        createFakeServices({ comfyUi: { baseUrl: 'https://comfy.example.test' }, generationSettings: { settingsOnboardingSeenVersion: 1 } }),
+        'chrome-browser',
+      );
+      await flush();
+      await openComfySettings(container);
 
-    await act(async () => {
-      container.querySelector<HTMLElement>(`[data-testid="comfyui-workflow-delete-${imported!.workflowId}"]`)?.click();
-    });
-    await settle();
-    await expect(fake.services.comfyUi.reconcileSelection()).resolves.toBeUndefined();
-    expect((await fake.services.comfyUi.listWorkflows()).some((workflow) => workflow.workflowId === imported!.workflowId)).toBe(false);
+      const sections = [...container.querySelectorAll<HTMLElement>('[data-testid="comfyui-settings-root"] > .scroll > .section')]
+        .map((section) => section.dataset.testid ?? section.getAttribute('data-testid'));
+      expect(sections).toEqual([
+        'comfyui-connection-section',
+        'comfyui-current-workflow-section',
+        'comfyui-input-mapping',
+        'comfyui-workflow-parameters',
+      ]);
+      expect(container.querySelector('[data-testid="comfyui-settings-root"] [data-testid*="run"]')).toBeNull();
+      expect(container.querySelector('[data-testid="comfyui-settings-root"] [data-testid*="batch"]')).toBeNull();
+      expect(container.querySelector('[data-testid="comfyui-settings-root"] [data-testid*="stop"]')).toBeNull();
+    } finally {
+      Object.defineProperty(window, 'innerWidth', { configurable: true, value: previousWidth });
+    }
   });
 });

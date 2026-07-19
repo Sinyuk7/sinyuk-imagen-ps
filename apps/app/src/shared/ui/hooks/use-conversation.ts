@@ -2,7 +2,6 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type {
   ApiFormat,
   ComfyUiGenerationPayload,
-  ComfyUiWorkflowConfig,
   ImageOutputSelection,
   JobError,
   JobSessionSnapshot,
@@ -34,9 +33,10 @@ import {
 import type { Asset } from '@imagen-ps/application';
 import {
   createRunningTaskRecord,
-  type TaskSnapshotAttachmentInput,
 } from '../../domain/task-snapshot';
 import type { AppProviderInputSizePreset } from '../../ports/app-generation-settings';
+import type { ComfyUiExecutionAssetInput } from '@imagen-ps/application';
+import type { ComfyUiWorkflowValueMutation, WorkflowInputRef, WorkflowMapping, WorkflowPrimitiveValue } from '@imagen-ps/application';
 
 export interface ConversationAttachment {
   readonly id: string;
@@ -103,8 +103,14 @@ export interface SubmitProviderConversationInput extends SubmitConversationInput
 
 export interface SubmitComfyUiConversationInput extends SubmitConversationInputBase {
   readonly backendId: 'comfyui';
-  readonly workflow: ComfyUiWorkflowConfig;
-  readonly connection: { readonly connectionId: string; readonly displayName: string };
+  readonly selectedWorkflowId: string;
+  readonly workflowName: string;
+  readonly revision?: string;
+  readonly formValues?: Readonly<Record<string, WorkflowPrimitiveValue>>;
+  readonly mappings?: Readonly<{ readonly text: WorkflowMapping; readonly image: WorkflowMapping }>;
+  readonly mutations?: readonly ComfyUiWorkflowValueMutation[];
+  readonly imageInputRef?: WorkflowInputRef;
+  readonly executionAttachments?: readonly ConversationAttachment[];
   readonly mask?: CanonicalMaskAsset;
 }
 
@@ -367,8 +373,6 @@ function assetForJobInput(image: HostImageAsset): Asset {
   };
 }
 
-type ComfyUiExecutionAssetInput = ComfyUiGenerationPayload['images'][number];
-
 function comfyUiAssetForExecution(image: HostImageAsset): ComfyUiExecutionAssetInput {
   const derivative = image.resource.derivatives.providerInput;
   if (
@@ -384,22 +388,6 @@ function comfyUiAssetForExecution(image: HostImageAsset): ComfyUiExecutionAssetI
     width: derivative.width,
     height: derivative.height,
   };
-}
-
-function taskAttachmentsWithMask(
-  attachments: readonly ConversationAttachment[],
-  mask: CanonicalMaskAsset | undefined,
-): readonly TaskSnapshotAttachmentInput[] {
-  if (mask === undefined) return attachments;
-  return [
-    ...attachments,
-    {
-      id: `${attachments[0]?.id ?? 'selection'}:mask`,
-      type: 'selection-mask',
-      name: mask.metadata.name ?? mask.asset.name ?? 'selection-mask.png',
-      image: mask,
-    },
-  ];
 }
 
 function normalizedInputContextForAttachments(attachments: readonly ConversationAttachment[]): {
@@ -613,7 +601,7 @@ export function useConversation(
   const submit = useCallback(
     async (input: SubmitConversationInput) => {
       const prompt = input.prompt.trim();
-      if (!prompt) {
+      if (!prompt && input.backendId !== 'comfyui') {
         return false;
       }
 
@@ -652,8 +640,8 @@ export function useConversation(
           ...(providerInput ? { profileId: providerInput.profileId } : {}),
           ...(providerInput?.modelId ? { modelId: providerInput.modelId } : {}),
           ...(input.backendId === 'comfyui' ? {
-            workflowId: input.workflow.workflowId,
-            modelId: input.workflow.displayName,
+            workflowId: input.selectedWorkflowId,
+            modelId: input.workflowName,
           } : {}),
           elapsedSeconds: 0,
           previews: [],
@@ -665,23 +653,19 @@ export function useConversation(
         setRounds((current) => [...current, round]);
 
         try {
-          if (input.operation === 'image-edit' && attachments.length === 0) {
+          if (input.backendId !== 'comfyui' && input.operation === 'image-edit' && attachments.length === 0) {
             throw new Error('Image edit requires an attachment. Capture from Photoshop or add an image.');
           }
           if (input.backendId === 'comfyui') {
-            if (input.operation !== input.workflow.contract.operation) {
-              throw new Error('ComfyUI workflow operation does not match the Composer submission.');
-            }
             const taskRecord = createRunningTaskRecord({
               taskId: roundId,
               operation: input.operation,
               prompt,
-              attachments: taskAttachmentsWithMask(attachments, input.mask),
+              attachments,
               placementIntent,
               execution: {
                 backend: { id: 'comfyui', label: 'ComfyUI' },
-                connection: { id: input.connection.connectionId, label: input.connection.displayName },
-                target: { id: input.workflow.workflowId, label: input.workflow.displayName },
+                target: { id: input.selectedWorkflowId, label: input.workflowName },
               },
               createdAt,
             });
@@ -690,10 +674,13 @@ export function useConversation(
               taskId: roundId,
               backendId: 'comfyui',
               payload: {
-                workflowId: input.workflow.workflowId,
-                prompt,
-                images: attachments.map((attachment) => comfyUiAssetForExecution(attachment.image)),
-                ...(input.mask === undefined ? {} : { mask: comfyUiAssetForExecution(input.mask) }),
+                workflowId: input.selectedWorkflowId,
+                ...(input.mutations ? {} : { prompt }),
+                images: (input.executionAttachments ?? attachments).map((attachment) => comfyUiAssetForExecution(attachment.image)),
+                ...(input.revision ? { revision: input.revision } : {}),
+                ...(input.formValues ? { formValues: input.formValues } : {}),
+                ...(input.mutations ? { mutations: input.mutations } : {}),
+                ...(input.imageInputRef ? { imageInputRef: input.imageInputRef } : {}),
                 runningTask: taskRecord,
               } satisfies ComfyUiGenerationPayload,
             });
@@ -780,23 +767,20 @@ export function useConversation(
       try {
         const round = rounds.find((item) => item.id === roundId);
         if (round?.status === 'ok' && round.backendId === 'comfyui' && round.workflowId) {
-          const workflow = await services.comfyUi.getWorkflow(round.workflowId);
-          const connection = workflow === undefined
-            ? undefined
-            : await services.comfyUi.getConnection(workflow.connectionId);
-          if (workflow === undefined || connection === undefined) {
+          const state = await services.comfyUi.loadState();
+          const identity = (await services.comfyUi.discover()).find((item) => item.workflowId === round.workflowId);
+          if (state?.baseUrl === undefined || identity === undefined) {
             return;
           }
-          const mask = round.attachments.find((attachment) => attachment.mask !== undefined)?.mask;
+          await services.comfyUi.selectWorkflow(identity.workflowId);
           await submit({
             backendId: 'comfyui',
-            operation: workflow.contract.operation,
+            operation: round.attachments.length > 0 ? 'image-edit' : 'text-to-image',
             prompt: round.prompt,
             providerName: 'ComfyUI',
-            workflow,
-            connection,
+            selectedWorkflowId: identity.workflowId,
+            workflowName: identity.displayName,
             attachments: round.attachments,
-            ...(mask === undefined ? {} : { mask }),
           });
           return;
         }

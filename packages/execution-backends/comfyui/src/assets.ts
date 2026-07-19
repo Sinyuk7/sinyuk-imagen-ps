@@ -1,4 +1,3 @@
-import type { ContractMaskEncoding, ComfyUiWorkflowContract } from './contract/index.js';
 import {
   createComfyUiExecutionError,
   normalizeComfyUiExecutionError,
@@ -8,7 +7,6 @@ import type {
   ComfyUiExecutionAssetInput,
   ComfyUiExecutionConnection,
   ComfyUiHttpTransport,
-  ComfyUiMaskEncoder,
   ComfyUiResolvedAsset,
 } from './execution-types.js';
 import {
@@ -235,7 +233,7 @@ async function uploadOne(
   let response;
   try {
     response = await transport.request({
-      origin: connection.origin,
+      origin: connection.baseUrl,
       method: 'POST',
       path: '/upload/image',
       headers: { 'content-type': multipart.contentType },
@@ -268,22 +266,15 @@ async function resolveOne(
   return validateComfyUiImageAsset(resolved, input);
 }
 
-function maskEncoding(contract: ComfyUiWorkflowContract): ContractMaskEncoding | undefined {
-  return contract.entries.find((entry) => entry.role === 'mask')?.maskEncoding;
-}
-
 /** 解析、guard、mask encode 并完成全部 uploads 后才返回 barrier result。 */
 export async function prepareComfyUiUploads(
   input: {
     readonly connection: ComfyUiExecutionConnection;
-    readonly contract: ComfyUiWorkflowContract;
     readonly images: readonly ComfyUiExecutionAssetInput[];
-    readonly mask?: ComfyUiExecutionAssetInput;
   },
   dependencies: {
     readonly resolver: ComfyUiAssetResolver;
     readonly transport: ComfyUiHttpTransport;
-    readonly maskEncoder?: ComfyUiMaskEncoder;
   },
   signal?: AbortSignal,
 ): Promise<ComfyUiPreparedUploads> {
@@ -299,41 +290,5 @@ export async function prepareComfyUiUploads(
     ));
   }
 
-  let maskValue: string | undefined;
-  if (input.mask !== undefined) {
-    const encoding = maskEncoding(input.contract);
-    if (encoding === undefined || dependencies.maskEncoder === undefined) {
-      throw createComfyUiExecutionError('prepare', 'invalid-contract');
-    }
-    const source = await resolveOne(dependencies.resolver, input.mask, signal);
-    let encoded: ComfyUiResolvedAsset;
-    try {
-      encoded = await dependencies.maskEncoder.encode(
-        source,
-        encoding,
-        { width: input.mask.width, height: input.mask.height },
-        signal,
-      );
-    } catch (error) {
-      throw normalizeComfyUiExecutionError(error, { stage: 'prepare', code: 'asset-unavailable' });
-    }
-    const checked = validateComfyUiImageAsset(encoded, {
-      ...input.mask,
-      storedRef: {
-        kind: input.mask.storedRef.kind,
-        ref: input.mask.storedRef.ref,
-      },
-    });
-    maskValue = await uploadOne(
-      input.connection,
-      dependencies.transport,
-      checked,
-      `imagen-mask-0.${extensionForMime(checked.mimeType)}`,
-      signal,
-    );
-  }
-  return {
-    imageValues,
-    ...(maskValue !== undefined ? { maskValue } : {}),
-  };
+  return { imageValues };
 }

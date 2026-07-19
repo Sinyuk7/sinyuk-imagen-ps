@@ -12,6 +12,9 @@ export interface UxpModules {
       readonly uiLocale?: string;
     };
     readonly storage?: unknown;
+    readonly shell?: {
+      openExternal(url: string, developerText?: string): Promise<string>;
+    };
   };
 }
 

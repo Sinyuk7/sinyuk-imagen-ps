@@ -176,38 +176,11 @@ export interface AppMessages {
     readonly providerProfiles: string;
     readonly generationBackend: string;
     readonly comfyUi: string;
-    readonly comfyUiConnections: string;
-    readonly comfyUiConnection: string;
-    readonly comfyUiAddConnection: string;
-    readonly comfyUiNoConnections: string;
     readonly comfyUiLoadFailed: string;
     readonly comfyUiWorkflowTarget: string;
     readonly comfyUiSelectWorkflow: string;
-    readonly comfyUiApiGraph: string;
-    readonly comfyUiFrontend: string;
     readonly comfyUiReadinessBridge: string;
-    readonly comfyUiReadinessWorkflow: string;
-    readonly comfyUiConnectionName: string;
-    readonly comfyUiOrigin: string;
-    readonly comfyUiRequestTimeout: string;
-    readonly comfyUiConfigureTimeout: string;
-    readonly comfyUiObservationTimeout: string;
-    readonly comfyUiWorking: string;
-    readonly comfyUiTestReady: string;
-    readonly comfyUiTestUnavailable: string;
-    readonly comfyUiConnectionSaved: string;
-    readonly comfyUiWorkflows: string;
-    readonly comfyUiImportApiGraph: string;
-    readonly comfyUiDiscoverFrontend: string;
-    readonly comfyUiWorkflowName: string;
-    readonly comfyUiApiGraphJson: string;
-    readonly comfyUiImport: string;
-    readonly comfyUiNoDiscoveredWorkflows: string;
-    readonly comfyUiNoWorkflows: string;
-    readonly comfyUiWorkflowSaved: string;
-    readonly comfyUiSelected: string;
     readonly comfyUiOperationFailed: string;
-    readonly comfyUiLastTested: string;
     readonly loading: string;
     readonly noProviderProfile: string;
     readonly config: string;
@@ -624,38 +597,11 @@ const EN_MESSAGES: AppMessages = {
     providerProfiles: 'Provider Profiles',
     generationBackend: 'Generation backend',
     comfyUi: 'ComfyUI',
-    comfyUiConnections: 'ComfyUI Connections',
-    comfyUiConnection: 'ComfyUI Connection',
-    comfyUiAddConnection: 'Add ComfyUI connection',
-    comfyUiNoConnections: 'No ComfyUI connections',
     comfyUiLoadFailed: 'Could not load ComfyUI settings',
     comfyUiWorkflowTarget: 'Workflow target',
     comfyUiSelectWorkflow: 'Select workflow',
-    comfyUiApiGraph: 'API Graph',
-    comfyUiFrontend: 'Frontend',
     comfyUiReadinessBridge: 'Frontend unavailable',
-    comfyUiReadinessWorkflow: 'Workflow invalid',
-    comfyUiConnectionName: 'Name',
-    comfyUiOrigin: 'Server origin',
-    comfyUiRequestTimeout: 'Request timeout (ms)',
-    comfyUiConfigureTimeout: 'Configure timeout (ms)',
-    comfyUiObservationTimeout: 'Observation timeout (ms)',
-    comfyUiWorking: 'Working…',
-    comfyUiTestReady: 'API ready',
-    comfyUiTestUnavailable: 'API unavailable',
-    comfyUiConnectionSaved: 'Connection saved',
-    comfyUiWorkflows: 'Workflows',
-    comfyUiImportApiGraph: 'Import API Graph',
-    comfyUiDiscoverFrontend: 'Discover Frontend',
-    comfyUiWorkflowName: 'Workflow name',
-    comfyUiApiGraphJson: 'API Graph JSON',
-    comfyUiImport: 'Import',
-    comfyUiNoDiscoveredWorkflows: 'No Frontend workflows found',
-    comfyUiNoWorkflows: 'No workflows',
-    comfyUiWorkflowSaved: 'Workflow saved',
-    comfyUiSelected: 'Selected',
     comfyUiOperationFailed: 'ComfyUI operation failed',
-    comfyUiLastTested: 'Connection tested',
     loading: 'Loading…',
     noProviderProfile: 'No profiles (´･ω･`)',
     config: 'Configuration',
@@ -1072,38 +1018,11 @@ const ZH_CN_MESSAGES: AppMessages = {
     providerProfiles: 'Provider 配置',
     generationBackend: '生成后端',
     comfyUi: 'ComfyUI',
-    comfyUiConnections: 'ComfyUI 连接',
-    comfyUiConnection: 'ComfyUI 连接',
-    comfyUiAddConnection: '添加 ComfyUI 连接',
-    comfyUiNoConnections: '暂无 ComfyUI 连接',
     comfyUiLoadFailed: 'ComfyUI 设置加载失败',
     comfyUiWorkflowTarget: '工作流目标',
     comfyUiSelectWorkflow: '选择工作流',
-    comfyUiApiGraph: 'API Graph',
-    comfyUiFrontend: 'Frontend',
     comfyUiReadinessBridge: 'Frontend 不可用',
-    comfyUiReadinessWorkflow: '工作流无效',
-    comfyUiConnectionName: '名称',
-    comfyUiOrigin: '服务地址',
-    comfyUiRequestTimeout: '请求超时（毫秒）',
-    comfyUiConfigureTimeout: '配置超时（毫秒）',
-    comfyUiObservationTimeout: '等待超时（毫秒）',
-    comfyUiWorking: '处理中…',
-    comfyUiTestReady: 'API 可用',
-    comfyUiTestUnavailable: 'API 不可用',
-    comfyUiConnectionSaved: '连接已保存',
-    comfyUiWorkflows: '工作流',
-    comfyUiImportApiGraph: '导入 API Graph',
-    comfyUiDiscoverFrontend: '发现 Frontend',
-    comfyUiWorkflowName: '工作流名称',
-    comfyUiApiGraphJson: 'API Graph JSON',
-    comfyUiImport: '导入',
-    comfyUiNoDiscoveredWorkflows: '未发现 Frontend 工作流',
-    comfyUiNoWorkflows: '暂无工作流',
-    comfyUiWorkflowSaved: '工作流已保存',
-    comfyUiSelected: '已选择',
     comfyUiOperationFailed: 'ComfyUI 操作失败',
-    comfyUiLastTested: '连接已测试',
     loading: '加载中…',
     noProviderProfile: '暂无 Provider 配置 (´･ω･`)',
     config: '配置',

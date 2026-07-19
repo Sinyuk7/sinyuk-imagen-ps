@@ -16,6 +16,7 @@ const WHITESPACE_PATTERN = /\s+/g;
 
 export type HistoryFilter = 'all' | RoundStatus;
 export type HistoryActionState = 'enabled' | 'disabled';
+export type HistoryDisplayStatus = RoundStatus | 'completed-without-image-output';
 
 export interface HistoryItemActions {
   readonly retry: HistoryActionState;
@@ -29,6 +30,7 @@ export interface HistoryItemViewModel {
   readonly promptPreview: string;
   readonly executionLabel: string;
   readonly status: RoundStatus;
+  readonly displayStatus: HistoryDisplayStatus;
   readonly displayTime: string;
   readonly displayTimestamp: string;
   readonly isActive: boolean;
@@ -177,6 +179,9 @@ export function deriveHistoryItems(input: DeriveHistoryItemsInput): readonly His
       promptPreview: toHistoryTextPreview(record.prompt, input.noPrompt),
       executionLabel,
       status: statusFromRecord(record),
+      displayStatus: record.status === 'completed' && record.outputs.length === 0
+        ? 'completed-without-image-output'
+        : statusFromRecord(record),
       displayTimestamp: durableTimestamp(record),
       displayTime: timeFromIso(durableTimestamp(record)),
       isActive: false,
@@ -208,6 +213,7 @@ export function deriveHistoryItems(input: DeriveHistoryItemsInput): readonly His
       promptPreview: toHistoryTextPreview(existing?.taskRecord?.prompt ?? round.prompt, input.noPrompt),
       executionLabel: toLabelPreview(existing?.executionLabel ?? round.providerName, input.unknownProvider),
       status: round.status,
+      displayStatus: round.status,
       displayTimestamp: round.createdAt ?? existing?.displayTimestamp ?? '',
       displayTime: round.time,
       isActive: true,

@@ -18,6 +18,7 @@ import {
   filterHistoryItems,
   type HistoryFilter,
   type HistoryItemViewModel,
+  type HistoryDisplayStatus,
   type PreviewSnapshot,
 } from './history-view-model';
 
@@ -27,6 +28,7 @@ const STATUS_COLOR: Record<RoundStatus, string> = {
   running: 'var(--app-color-notice)',
   err: 'var(--app-color-negative)',
 };
+const COMPLETED_WITHOUT_IMAGE_STATUS: HistoryDisplayStatus = 'completed-without-image-output';
 const PREVIEW_QUEUE_CONCURRENCY = 2;
 const PREVIEW_ROOT_MARGIN = '250px 0px';
 const MAX_RESOLVED_PREVIEWS = 12;
@@ -107,6 +109,14 @@ export function HistoryPage({
     ok: t.status.done,
     running: t.status.running,
     err: t.status.failed,
+  };
+  const displayStatusLabel = (status: HistoryDisplayStatus): string => {
+    if (status === COMPLETED_WITHOUT_IMAGE_STATUS) return 'Completed without image output';
+    return statusLabel[status as RoundStatus];
+  };
+  const displayStatusColor = (status: HistoryDisplayStatus): string => {
+    if (status === COMPLETED_WITHOUT_IMAGE_STATUS) return 'var(--app-color-positive)';
+    return STATUS_COLOR[status as RoundStatus];
   };
 
   const canDownload = onDownloadTaskOutput !== undefined;
@@ -494,7 +504,7 @@ export function HistoryPage({
                   </div>
                   <div className="status-inline" style={{ marginTop: 1 }}>
                     <span className={`sdot ${item.status === 'running' ? 'run' : item.status}`} />
-                    <span style={{ color: STATUS_COLOR[item.status], fontSize: 10 }}>{statusLabel[item.status]}</span>
+                    <span style={{ color: displayStatusColor(item.displayStatus), fontSize: 10 }}>{displayStatusLabel(item.displayStatus)}</span>
                     {retryRoundId && item.actions.retry === 'enabled' && (
                       <button
                         data-testid={`history-retry-button-${retryRoundId}`}

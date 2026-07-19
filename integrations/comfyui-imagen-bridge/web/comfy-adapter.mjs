@@ -1,284 +1,62 @@
-import {
-  assertCanonicalWorkflowPath,
-  BridgeProtocolError,
-} from './bridge-runtime.mjs';
-import {
-  validateCanonicalWorkflowContract,
-  validateWorkflowContractDocuments,
-} from './generated/runtime-validator.mjs';
+import { assertCanonicalWorkflowPath, BridgeProtocolError } from './bridge-runtime.mjs';
 import { observeNativeQueueReceipt } from './queue-observer.mjs';
 
-const BINDING_CLASS_ID = 'ImagenWorkflowBindingContract';
-const TYPE_CLASS_ID = 'ImagenWorkflowTypeContract';
-const CONTRACT_NODE_BYTES = 65_536;
-
-function isPlainObject(value) {
-  if (value === null || typeof value !== 'object' || Array.isArray(value)) return false;
-  const prototype = Object.getPrototypeOf(value);
-  return prototype === Object.prototype || prototype === null;
+const plain = (value) => value !== null && typeof value === 'object' && !Array.isArray(value) && ([Object.prototype, null].includes(Object.getPrototypeOf(value)));
+async function responseJson(value, maxBytes) { if (value && typeof value.text === 'function') { if (value.ok !== true) throw new BridgeProtocolError('invalid-workflow'); const text = await value.text(); if (new TextEncoder().encode(text).byteLength > maxBytes) throw new BridgeProtocolError('limit-exceeded'); try { return JSON.parse(text); } catch { throw new BridgeProtocolError('invalid-workflow'); } } if (new TextEncoder().encode(JSON.stringify(value)).byteLength > maxBytes) throw new BridgeProtocolError('limit-exceeded'); return value; }
+function listedPath(entry) { const value = typeof entry === 'string' ? entry : entry?.path; if (typeof value !== 'string') throw new BridgeProtocolError('invalid-workflow'); return value.startsWith('workflows/') ? value.slice(10) : value; }
+function nodes(app) { if (!app.graph || !Array.isArray(app.graph._nodes)) throw new BridgeProtocolError('bridge-incompatible'); return app.graph._nodes; }
+function revision(value) { const text = JSON.stringify(value); let hash = 2166136261; for (const char of text) hash = Math.imul(hash ^ char.charCodeAt(0), 16777619); return `rev-${(hash >>> 0).toString(16)}`; }
+function primitive(value) { return typeof value === 'string' || typeof value === 'number' || typeof value === 'boolean' ? value : undefined; }
+function widgetKind(node, widget) {
+  const name = typeof widget?.name === 'string' ? widget.name.toLowerCase() : '';
+  const type = typeof widget?.type === 'string' ? widget.type.toLowerCase() : '';
+  if (node?.type === 'LoadImage' && name === 'image') return 'upload-image';
+  if (type === 'toggle' || typeof widget?.value === 'boolean') return 'boolean';
+  if (Array.isArray(widget?.options?.values)) return 'combo';
+  if (typeof widget?.value === 'number') return name.includes('seed') ? 'seed' : 'number';
+  if (typeof widget?.value === 'string') return widget?.options?.multiline === true ? 'multiline-string' : 'string';
+  return 'unsupported';
 }
-
-function jsonBytes(value) {
-  try {
-    return new TextEncoder().encode(JSON.stringify(value)).byteLength;
-  } catch {
-    throw new BridgeProtocolError('invalid-contract');
-  }
-}
-
-function decodeContract(value) {
-  if (typeof value === 'string') {
-    if (new TextEncoder().encode(value).byteLength > CONTRACT_NODE_BYTES) {
-      throw new BridgeProtocolError('invalid-contract');
-    }
-    try {
-      value = JSON.parse(value);
-    } catch {
-      throw new BridgeProtocolError('invalid-contract');
-    }
-  }
-  if (!isPlainObject(value) || jsonBytes(value) > CONTRACT_NODE_BYTES) {
-    throw new BridgeProtocolError('invalid-contract');
-  }
-  return value;
-}
-
-function exactClassId(node) {
-  const candidates = [node?.comfyClass, node?.type, node?.class_type].filter(
-    (value) => typeof value === 'string',
-  );
-  const known = candidates.filter((value) => value === BINDING_CLASS_ID || value === TYPE_CLASS_ID);
-  if (known.length === 0) return null;
-  if (new Set(known).size !== 1) throw new BridgeProtocolError('invalid-contract');
-  return known[0];
-}
-
-function extractCanvasContract(node) {
-  if (!Array.isArray(node.widgets)) throw new BridgeProtocolError('invalid-contract');
-  const widgets = node.widgets.filter((widget) => widget?.name === 'contract');
-  if (widgets.length !== 1) throw new BridgeProtocolError('invalid-contract');
-  return decodeContract(widgets[0].value);
-}
-
-function extractStoredContract(node) {
-  if (isPlainObject(node.inputs) && Object.prototype.hasOwnProperty.call(node.inputs, 'contract')) {
-    return decodeContract(node.inputs.contract);
-  }
-  if (Array.isArray(node.widgets_values) && node.widgets_values.length === 1) {
-    return decodeContract(node.widgets_values[0]);
-  }
-  throw new BridgeProtocolError('invalid-contract');
-}
-
-function contractFromNodes(nodes, extract, schema) {
-  if (!Array.isArray(nodes)) throw new BridgeProtocolError('invalid-workflow');
-  const bindingNodes = [];
-  const typeNodes = [];
-  for (const node of nodes) {
-    const classId = exactClassId(node);
-    if (classId === BINDING_CLASS_ID) bindingNodes.push(node);
-    if (classId === TYPE_CLASS_ID) typeNodes.push(node);
-  }
-  if (bindingNodes.length !== 1 || typeNodes.length !== 1) {
-    throw new BridgeProtocolError('invalid-contract');
-  }
-  const result = validateWorkflowContractDocuments(
-    extract(bindingNodes[0]),
-    extract(typeNodes[0]),
-    schema,
-  );
-  if (!result || result.ok !== true) throw new BridgeProtocolError('invalid-contract');
-  return result.value;
-}
-
-async function responseJson(value, maxBytes) {
-  if (value && typeof value.text === 'function') {
-    if (value.ok !== true) throw new BridgeProtocolError('invalid-workflow');
-    const text = await value.text();
-    if (new TextEncoder().encode(text).byteLength > maxBytes) {
-      throw new BridgeProtocolError('limit-exceeded');
-    }
-    try {
-      return JSON.parse(text);
-    } catch {
-      throw new BridgeProtocolError('invalid-workflow');
-    }
-  }
-  if (typeof value === 'string') {
-    if (new TextEncoder().encode(value).byteLength > maxBytes) {
-      throw new BridgeProtocolError('limit-exceeded');
-    }
-    try {
-      return JSON.parse(value);
-    } catch {
-      throw new BridgeProtocolError('invalid-workflow');
-    }
-  }
-  if (jsonBytes(value) > maxBytes) throw new BridgeProtocolError('limit-exceeded');
-  return value;
-}
-
-function normalizeListedPath(entry) {
-  const candidate = typeof entry === 'string' ? entry : entry?.path;
-  if (typeof candidate !== 'string') throw new BridgeProtocolError('invalid-workflow');
-  return candidate.startsWith('workflows/') ? candidate.slice('workflows/'.length) : candidate;
-}
-
-function canvasNodes(app) {
-  if (!app.graph || !Array.isArray(app.graph._nodes)) {
-    throw new BridgeProtocolError('bridge-incompatible');
-  }
-  return app.graph._nodes;
-}
-
-function assertWidgetCompatible(widget, entry) {
-  const type = Array.isArray(widget.type) ? 'combo' : String(widget.type ?? '').toLowerCase();
-  if (/^(number|int|float|boolean|toggle)$/u.test(type)) {
-    throw new BridgeProtocolError('invalid-contract');
-  }
-  if (entry.dataType === 'text' && type.length > 0 && !/(string|text|customtext)/u.test(type)) {
-    throw new BridgeProtocolError('invalid-contract');
-  }
-}
-
-/** 创建 pinned ComfyUI frontend adapter；所有 contract 判断委托 generated validator。 */
-export function createComfyAdapter({ app, api, schema, versions, limits }) {
-  if (
-    !app ||
-    typeof app.loadGraphData !== 'function' ||
-    !api ||
-    typeof api.listUserDataFullInfo !== 'function' ||
-    typeof api.getUserData !== 'function'
-  ) {
-    throw new BridgeProtocolError('bridge-incompatible');
-  }
-  let currentToken = null;
-
-  async function readWorkflow(remotePath) {
-    assertCanonicalWorkflowPath(remotePath, limits);
-    const response = await api.getUserData(`workflows/${remotePath}`);
-    return responseJson(response, limits.maxMessageBytes);
-  }
-
-  return {
-    async getVersions() {
+function formValues(app) {
+  return { nodes: nodes(app).map((node, nodeOrder) => {
+    const title = typeof node.title === 'string' ? node.title : String(node.type ?? '');
+    const active = node.mode !== 2 && node.mode !== 4;
+    const exposed = active && title.startsWith('#') && title.slice(1).trim().length > 0;
+    const widgets = Array.isArray(node.widgets) ? node.widgets.map((widget, order) => {
+      const kind = widgetKind(node, widget);
+      const value = primitive(widget?.value);
+      const writable = kind !== 'unsupported';
       return {
-        frontendVersion: versions.frontendVersion,
-        coreVersion: versions.coreVersion,
+        ref: { nodeId: String(node.id), widgetIndex: order },
+        kind,
+        label: typeof widget?.name === 'string' ? widget.name : `widget-${order}`,
+        ...(value === undefined ? {} : { workflowValue: value }),
+        writable,
+        visible: exposed && !['upload-image', 'unsupported'].includes(kind),
+        order,
+        ...(Array.isArray(widget?.options?.values) ? { options: widget.options.values.filter((item) => typeof item === 'string').slice(0, 512) } : {}),
+        ...(typeof widget?.options?.min === 'number' ? { min: widget.options.min } : {}),
+        ...(typeof widget?.options?.max === 'number' ? { max: widget.options.max } : {}),
+        ...(typeof widget?.options?.step === 'number' ? { step: widget.options.step } : {}),
       };
-    },
+    }) : [];
+    return { nodeId: String(node.id), title, label: title.startsWith('#') ? title.slice(1).trim() : title, order: nodeOrder, active, visible: exposed && widgets.some((widget) => widget.visible), widgets };
+  }) };
+}
+function applyValues(app, payload) { const changes = []; const mutations = Array.isArray(payload.mutations) ? payload.mutations : []; for (const mutation of mutations) { if (!plain(mutation) || !plain(mutation.ref) || typeof mutation.ref.nodeId !== 'string' || typeof mutation.ref.fieldName !== 'string') throw new BridgeProtocolError('invalid-request'); const node = nodes(app).find((item) => String(item.id) === mutation.ref.nodeId); const widget = node?.widgets?.find((item) => item?.name === mutation.ref.fieldName); if (!widget) throw new BridgeProtocolError('invalid-workflow'); changes.push({ widget, value: widget.value }); widget.value = mutation.value; } app.graph.setDirtyCanvas?.(true, true); return async () => { for (const change of changes.reverse()) change.widget.value = change.value; app.graph.setDirtyCanvas?.(true, true); }; }
 
-    async discoverWorkflows() {
-      const listedResult = await api.listUserDataFullInfo('workflows');
-      const listed = Array.isArray(listedResult) ? listedResult : listedResult?.files;
-      if (!Array.isArray(listed)) throw new BridgeProtocolError('invalid-workflow');
-      if (listed.length > limits.maxWorkflowListEntries) {
-        throw new BridgeProtocolError('limit-exceeded');
-      }
-      const workflows = [];
-      for (const entry of listed) {
-        if (entry?.isDirectory === true || entry?.type === 'directory') continue;
-        const remotePath = normalizeListedPath(entry);
-        assertCanonicalWorkflowPath(remotePath, limits);
-        const workflow = await readWorkflow(remotePath);
-        if (!Array.isArray(workflow?.nodes)) {
-          throw new BridgeProtocolError('invalid-workflow');
-        }
-        const hasContractMarker = workflow.nodes.some((node) => exactClassId(node) !== null);
-        if (!hasContractMarker) continue;
-        const contract = contractFromNodes(workflow.nodes, extractStoredContract, schema);
-        workflows.push({ remotePath, contract });
-      }
-      return workflows;
-    },
-
-    async openWorkflow(remotePath, { operationId, signal }) {
-      if (signal.aborted) throw new BridgeProtocolError('bridge-incompatible');
-      const workflow = await readWorkflow(remotePath);
-      if (signal.aborted) throw new BridgeProtocolError('bridge-incompatible');
-      await app.loadGraphData(workflow);
-      if (signal.aborted) throw new BridgeProtocolError('bridge-incompatible');
-      const token = { operationId, remotePath, graph: app.graph };
-      currentToken = token;
-      return token;
-    },
-
-    async waitForConfigure(token, { operationId, signal }) {
-      if (
-        signal.aborted ||
-        currentToken !== token ||
-        token.operationId !== operationId ||
-        app.graph !== token.graph
-      ) {
-        throw new BridgeProtocolError('invalid-workflow');
-      }
-      canvasNodes(app);
-    },
-
-    async readWorkflowContract(token) {
-      if (currentToken !== token || app.graph !== token.graph) {
-        throw new BridgeProtocolError('invalid-workflow');
-      }
-      return contractFromNodes(canvasNodes(app), extractCanvasContract, schema);
-    },
-
-    async validateCanonicalContract(contract) {
-      return validateCanonicalWorkflowContract(contract, schema);
-    },
-
-    async applyMutations(token, plan, { signal }) {
-      if (signal.aborted || currentToken !== token || app.graph !== token.graph) {
-        throw new BridgeProtocolError('invalid-workflow');
-      }
-      const changes = [];
-      try {
-        for (const mutation of plan) {
-          if (signal.aborted || currentToken !== token || app.graph !== token.graph) {
-            throw new BridgeProtocolError('invalid-workflow');
-          }
-          const nodes = canvasNodes(app).filter(
-            (node) => String(node.id) === mutation.locator.nodeId,
-          );
-          if (nodes.length !== 1 || !Array.isArray(nodes[0].widgets)) {
-            throw new BridgeProtocolError('invalid-contract');
-          }
-          const widgets = nodes[0].widgets.filter(
-            (widget) => widget?.name === mutation.locator.fieldName,
-          );
-          if (widgets.length !== 1) throw new BridgeProtocolError('invalid-contract');
-          const widget = widgets[0];
-          assertWidgetCompatible(widget, mutation.entry);
-          changes.push({ widget, previous: widget.value });
-          widget.value = mutation.value;
-          if (widget.value !== mutation.value) throw new BridgeProtocolError('invalid-contract');
-        }
-      } catch (error) {
-        for (const change of changes.reverse()) change.widget.value = change.previous;
-        throw error;
-      }
-      app.graph.setDirtyCanvas?.(true, true);
-      return async () => {
-        for (const change of changes.reverse()) change.widget.value = change.previous;
-        app.graph?.setDirtyCanvas?.(true, true);
-      };
-    },
-
-    async queueNativeOnce({ receiptTimeoutMs, signal }) {
-      return observeNativeQueueReceipt({
-        app,
-        api,
-        receiptTimeoutMs,
-        signal,
-        maxIdChars: limits.maxIdChars,
-      });
-    },
-
-    async resetOperation(operationId, token) {
-      if (currentToken === token && token.operationId === operationId) currentToken = null;
-    },
-
-    async dispose() {
-      currentToken = null;
-    },
+export function createComfyAdapter({ app, api, versions, limits }) {
+  if (!app || typeof app.loadGraphData !== 'function' || !api || typeof api.listUserDataFullInfo !== 'function' || typeof api.getUserData !== 'function') throw new BridgeProtocolError('bridge-incompatible');
+  let current = null;
+  const readWorkflow = async (remotePath) => { assertCanonicalWorkflowPath(remotePath, limits); return responseJson(await api.getUserData(`workflows/${remotePath}`), limits.maxMessageBytes); };
+  return {
+    async getVersions() { return { frontendVersion: versions.frontendVersion, coreVersion: versions.coreVersion }; },
+    async discoverWorkflows() { const result = await api.listUserDataFullInfo('workflows'); const entries = Array.isArray(result) ? result : result?.files; if (!Array.isArray(entries) || entries.length > limits.maxWorkflowListEntries) throw new BridgeProtocolError('invalid-workflow'); const workflows = []; for (const entry of entries) { if (entry?.isDirectory === true || entry?.type === 'directory') continue; const remotePath = listedPath(entry); assertCanonicalWorkflowPath(remotePath, limits); const document = await readWorkflow(remotePath); if (!Array.isArray(document?.nodes)) continue; const workflowId = `workflow:${remotePath}`; workflows.push({ workflowId, displayName: remotePath.split('/').at(-1).replace(/\.json$/u, ''), remotePath, revision: revision(document) }); } return workflows; },
+    async openWorkflow(remotePath) { const workflow = await readWorkflow(remotePath); await app.loadGraphData(workflow); const token = { remotePath, revision: revision(workflow), graph: app.graph }; current = token; return token; },
+    async formValues(token) { if (current !== token && token?.graph !== app.graph) throw new BridgeProtocolError('invalid-workflow'); return formValues(app); },
+    async setValues(token, payload) { if (current !== token && token?.graph !== app.graph) throw new BridgeProtocolError('invalid-workflow'); return applyValues(app, payload); },
+    async queueNativeOnce({ receiptTimeoutMs, signal }) { return observeNativeQueueReceipt({ app, api, receiptTimeoutMs, signal, maxIdChars: limits.maxIdChars }); },
+    async resetOperation(_operationId, token) { if (current === token) current = null; },
+    async dispose() { current = null; },
   };
 }

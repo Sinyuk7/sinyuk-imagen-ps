@@ -1,208 +1,156 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import type {
-  ComfyUiConnection,
-  ComfyUiConnectionDraft,
-  ComfyUiConnectionTestEvidence,
-  ComfyUiDiscoveredWorkflow,
-  ComfyUiWorkflowConfig,
-  ComfyUiWorkflowReadiness,
-  GenerationTargetSelection,
+  LoadedWorkflowRuntime,
+  PersistedComfyUiState,
+  WorkflowIdentity,
+  WorkflowInputRef,
+  WorkflowMapping,
+  WorkflowMappingProjection,
+  WorkflowPrimitiveValue,
 } from '@imagen-ps/application';
 import type { ComfyUiManagementPort } from '../../ports/comfyui-management';
 
-export type ComfyUiBackendMode = 'provider' | 'comfyui';
-
 export interface ComfyUiManagementController {
-  readonly connections: readonly ComfyUiConnection[];
-  readonly workflows: readonly ComfyUiWorkflowConfig[];
-  readonly selection: GenerationTargetSelection | undefined;
-  readonly readiness: ReadonlyMap<string, ComfyUiWorkflowReadiness>;
-  readonly backendMode: ComfyUiBackendMode;
+  readonly baseUrl: string;
+  readonly selectedWorkflowId: string | null;
   readonly loading: boolean;
   readonly busy: boolean;
   readonly error: string | null;
+  readonly catalog: readonly WorkflowIdentity[];
+  readonly runtime: LoadedWorkflowRuntime | undefined;
+  readonly draftValues: Readonly<Record<string, WorkflowPrimitiveValue>>;
+  readonly mappingProjection: WorkflowMappingProjection | undefined;
+  readonly loadState: ComfyUiManagementPort['loadState'];
   readonly reload: () => Promise<void>;
-  readonly selectBackend: (
-    mode: ComfyUiBackendMode,
-    providerTarget?: { readonly profileId: string; readonly modelId?: string },
-  ) => Promise<void>;
   readonly selectWorkflow: (workflowId: string) => Promise<void>;
-  readonly saveConnection: (draft: ComfyUiConnectionDraft) => Promise<ComfyUiConnection>;
-  readonly deleteConnection: (connectionId: string) => Promise<void>;
-  readonly testConnection: (connectionId: string) => Promise<ComfyUiConnectionTestEvidence>;
-  readonly importApiGraphJson: (input: {
-    readonly workflowId: string;
-    readonly displayName: string;
-    readonly connectionId: string;
-    readonly json: string;
-  }) => Promise<ComfyUiWorkflowConfig>;
-  readonly discoverFrontendWorkflows: (connectionId: string) => Promise<readonly ComfyUiDiscoveredWorkflow[]>;
-  readonly saveFrontendWorkflow: (input: {
-    readonly workflowId: string;
-    readonly displayName: string;
-    readonly connectionId: string;
-    readonly remotePath: string;
-    readonly contract: ComfyUiWorkflowConfig['contract'];
-  }) => Promise<ComfyUiWorkflowConfig>;
-  readonly deleteWorkflow: (workflowId: string) => Promise<void>;
+  readonly saveBaseUrl: (value: string) => Promise<PersistedComfyUiState>;
+  readonly refresh: () => Promise<void>;
+  readonly openInComfyUi: () => Promise<void>;
+  readonly setParameter: (ref: WorkflowInputRef, value: WorkflowPrimitiveValue) => void;
+  readonly setMapping: (kind: 'text' | 'image', value: WorkflowMapping) => Promise<void>;
   readonly clearError: () => void;
 }
 
 function errorMessage(error: unknown): string {
-  return error instanceof Error ? error.message : String(error);
+  if (error instanceof Error) return error.message;
+  if (typeof error === 'object' && error !== null) {
+    const value = error as { readonly message?: unknown; readonly details?: { readonly messageKey?: unknown } };
+    if (typeof value.message === 'string') return value.message;
+    if (typeof value.details?.messageKey === 'string') return value.details.messageKey;
+  }
+  return 'ComfyUI request failed.';
 }
 
-/** 只通过 Application management service 驱动 ComfyUI 设置状态。 */
+function refKey(ref: WorkflowInputRef): string {
+  return `${ref.nodeId}\u0000${ref.inputName ?? ''}\u0000${ref.widgetIndex ?? ''}`;
+}
+
+/** 将 Application singleton management 投影为 UI controller。 */
 export function useComfyUiManagement(service: ComfyUiManagementPort): ComfyUiManagementController {
-  const [connections, setConnections] = useState<readonly ComfyUiConnection[]>([]);
-  const [workflows, setWorkflows] = useState<readonly ComfyUiWorkflowConfig[]>([]);
-  const [selection, setSelection] = useState<GenerationTargetSelection>();
-  const [readiness, setReadiness] = useState<ReadonlyMap<string, ComfyUiWorkflowReadiness>>(new Map());
-  const [backendMode, setBackendMode] = useState<ComfyUiBackendMode>('provider');
+  const [baseUrl, setBaseUrl] = useState('');
+  const [selectedWorkflowId, setSelectedWorkflowId] = useState<string | null>(null);
+  const [catalog, setCatalog] = useState<readonly WorkflowIdentity[]>([]);
+  const [runtime, setRuntime] = useState<LoadedWorkflowRuntime>();
+  const [draftValues, setDraftValues] = useState<Readonly<Record<string, WorkflowPrimitiveValue>>>({});
+  const [mappingProjection, setMappingProjection] = useState<WorkflowMappingProjection>();
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const sequenceRef = useRef(0);
-  const hydratedRef = useRef(false);
+  const sequence = useRef(0);
 
-  const reload = useCallback(async (): Promise<void> => {
-    const sequence = sequenceRef.current + 1;
-    sequenceRef.current = sequence;
+  const reload = useCallback(async () => {
+    const token = ++sequence.current;
     setLoading(true);
     try {
-      const [nextConnections, nextWorkflows, nextSelection] = await Promise.all([
-        service.listConnections(),
-        service.listWorkflows(),
-        service.reconcileSelection(),
-      ]);
-      const readinessEntries = await Promise.all(nextWorkflows.map(async (workflow) => (
-        [workflow.workflowId, await service.getWorkflowReadiness(workflow.workflowId)] as const
-      )));
-      if (sequenceRef.current !== sequence) {
-        return;
+      const state = await service.loadState();
+      if (token !== sequence.current) return;
+      setBaseUrl(state?.baseUrl ?? '');
+      setSelectedWorkflowId(state?.selectedWorkflowId ?? null);
+      const found = state?.baseUrl ? await service.discover() : [];
+      if (token !== sequence.current) return;
+      setCatalog(found);
+      if (state?.selectedWorkflowId && found.some((item) => item.workflowId === state.selectedWorkflowId)) {
+        try {
+          const selected = await service.selectWorkflow(state.selectedWorkflowId);
+          setRuntime(selected);
+          setDraftValues(service.getDraft(selected.identity.workflowId, selected.identity.revision)?.values ?? {});
+          setMappingProjection(service.getMappingProjection(selected));
+        } catch (cause) {
+          setRuntime(undefined);
+          setDraftValues({});
+          setMappingProjection(undefined);
+          throw cause;
+        }
+      } else {
+        setRuntime(undefined);
+        setDraftValues({});
+        setMappingProjection(undefined);
       }
-      setConnections(nextConnections);
-      setWorkflows(nextWorkflows);
-      setSelection(nextSelection);
-      setReadiness(new Map(readinessEntries));
-      if (nextSelection) {
-        setBackendMode(nextSelection.kind);
-      } else if (!hydratedRef.current) {
-        setBackendMode('provider');
-      }
-      hydratedRef.current = true;
       setError(null);
-    } catch (loadError) {
-      if (sequenceRef.current === sequence) {
-        setError(errorMessage(loadError));
-      }
+    } catch (cause) {
+      if (token === sequence.current) setError(errorMessage(cause));
     } finally {
-      if (sequenceRef.current === sequence) {
-        setLoading(false);
-      }
+      if (token === sequence.current) setLoading(false);
     }
   }, [service]);
 
   useEffect(() => {
     void reload();
-    return () => {
-      sequenceRef.current += 1;
-    };
+    return () => { sequence.current += 1; };
   }, [reload]);
 
-  const mutate = useCallback(async <T,>(action: () => Promise<T>, refresh = true): Promise<T> => {
+  const mutate = useCallback(async <T,>(action: () => Promise<T>): Promise<T> => {
     setBusy(true);
     setError(null);
     try {
       const result = await action();
-      if (refresh) {
-        await reload();
-      }
+      await reload();
       return result;
-    } catch (mutationError) {
-      setError(errorMessage(mutationError));
-      throw mutationError;
+    } catch (cause) {
+      setError(errorMessage(cause));
+      throw cause;
     } finally {
       setBusy(false);
     }
   }, [reload]);
 
-  const selectBackend = useCallback(async (
-    mode: ComfyUiBackendMode,
-    providerTarget?: { readonly profileId: string; readonly modelId?: string },
-  ): Promise<void> => {
-    if (mode === backendMode) {
-      return;
-    }
+  const selectWorkflow = useCallback(async (workflowId: string) => {
     await mutate(async () => {
-      if (mode === 'comfyui' || providerTarget === undefined) {
-        await service.clearSelection();
-        return;
-      }
-      await service.setSelection({ kind: 'provider', ...providerTarget });
+      const next = await service.selectWorkflow(workflowId);
+      setRuntime(next);
+      setSelectedWorkflowId(workflowId);
+      setDraftValues(service.getDraft(next.identity.workflowId, next.identity.revision)?.values ?? {});
+      setMappingProjection(service.getMappingProjection(next));
     });
-    setBackendMode(mode);
-  }, [backendMode, mutate, service]);
-
-  const selectWorkflow = useCallback(async (workflowId: string): Promise<void> => {
-    await mutate(() => service.setSelection({ kind: 'comfyui', workflowId }));
-    setBackendMode('comfyui');
   }, [mutate, service]);
 
-  const saveConnection = useCallback((draft: ComfyUiConnectionDraft) => (
-    mutate(() => service.saveConnection(draft))
-  ), [mutate, service]);
-
-  const deleteConnection = useCallback((connectionId: string) => (
-    mutate(() => service.deleteConnection(connectionId))
-  ), [mutate, service]);
-
-  const testConnection = useCallback((connectionId: string) => (
-    mutate(() => service.testConnection(connectionId))
-  ), [mutate, service]);
-
-  const importApiGraphJson = useCallback((input: {
-    readonly workflowId: string;
-    readonly displayName: string;
-    readonly connectionId: string;
-    readonly json: string;
-  }) => mutate(() => service.importApiGraphJson(input)), [mutate, service]);
-
-  const discoverFrontendWorkflows = useCallback((connectionId: string) => (
-    mutate(() => service.discoverFrontendWorkflows(connectionId), false)
-  ), [mutate, service]);
-
-  const saveFrontendWorkflow = useCallback((input: {
-    readonly workflowId: string;
-    readonly displayName: string;
-    readonly connectionId: string;
-    readonly remotePath: string;
-    readonly contract: ComfyUiWorkflowConfig['contract'];
-  }) => mutate(() => service.saveFrontendWorkflow(input)), [mutate, service]);
-
-  const deleteWorkflow = useCallback((workflowId: string) => (
-    mutate(() => service.deleteWorkflow(workflowId))
-  ), [mutate, service]);
-
   return {
-    connections,
-    workflows,
-    selection,
-    readiness,
-    backendMode,
+    baseUrl,
+    selectedWorkflowId,
     loading,
     busy,
     error,
+    catalog,
+    runtime,
+    draftValues,
+    mappingProjection,
+    loadState: service.loadState.bind(service),
     reload,
-    selectBackend,
     selectWorkflow,
-    saveConnection,
-    deleteConnection,
-    testConnection,
-    importApiGraphJson,
-    discoverFrontendWorkflows,
-    saveFrontendWorkflow,
-    deleteWorkflow,
+    saveBaseUrl: (value) => mutate(() => service.saveBaseUrl(value)),
+    refresh: async () => { await mutate(async () => { await service.refresh(); }); },
+    openInComfyUi: async () => { await service.openInComfyUi(); },
+    setParameter: (ref, value) => {
+      if (!runtime) return;
+      const values = { ...draftValues, [refKey(ref)]: value };
+      setDraftValues(values);
+      service.setDraft({ workflowId: runtime.identity.workflowId, revision: runtime.identity.revision, values });
+    },
+    setMapping: async (kind, value) => {
+      if (!runtime) return;
+      await service.setMapping(runtime.identity.workflowId, runtime.identity.revision, kind, value);
+      setMappingProjection(service.getMappingProjection(runtime));
+    },
     clearError: () => setError(null),
   };
 }

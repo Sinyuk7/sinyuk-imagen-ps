@@ -21,7 +21,11 @@
       "enableMessageBridge": "localAndRemote"
     },
     "localFileSystem": "request",
-    "clipboard": "readAndWrite"
+    "clipboard": "readAndWrite",
+    "launchProcess": {
+      "schemes": ["http", "https"],
+      "extensions": []
+    }
   },
   "entrypoints": [
     {

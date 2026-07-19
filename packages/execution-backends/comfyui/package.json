@@ -10,14 +10,11 @@
     ".": {
       "types": "./dist/src/index.d.ts",
       "import": "./dist/src/index.js"
-    },
-    "./contract/*": "./contract/*"
+    }
   },
   "scripts": {
-    "build": "node scripts/generate-contract-runtimes.mjs --check && tsc --project tsconfig.build.json && node scripts/copy-contract-artifacts.mjs",
-    "test": "vitest run && node scripts/check-contract-conformance.mjs",
-    "contract:generate": "node scripts/generate-contract-runtimes.mjs",
-    "contract:check": "node scripts/generate-contract-runtimes.mjs --check",
+    "build": "tsc --project tsconfig.build.json",
+    "test": "vitest run",
     "clean": "rimraf dist"
   },
   "dependencies": {

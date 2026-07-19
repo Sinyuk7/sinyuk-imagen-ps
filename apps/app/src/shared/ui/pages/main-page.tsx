@@ -1,10 +1,4 @@
 import { memo, useCallback, useEffect, useMemo, useRef, useState, type CSSProperties } from 'react';
-import type {
-  ComfyUiConnection,
-  ComfyUiWorkflowConfig,
-  ComfyUiWorkflowReadiness,
-  ProviderProfile,
-} from '@imagen-ps/application';
 import { useAppServices } from '../../ports/app-services-context';
 import type { HostPort, LayerInfo } from '../../ports/host-port';
 import { suggestedGeneratedImageFileName } from '../../domain/asset-file';
@@ -15,8 +9,6 @@ import type {
   ConversationController,
   ConversationRound,
 } from '../hooks/use-conversation';
-import { derivePlacementIntent } from '../hooks/use-conversation';
-import type { ComposerDraftController } from '../hooks/use-composer-draft';
 import { useProfileBilling } from '../hooks/use-profile-billing';
 import { useTaskBillingToast } from '../hooks/use-task-billing-toast';
 import { descriptorForApiFormat, providerSupportsBalanceQuery, useProviderCatalog } from '../hooks/use-provider-settings';
@@ -48,16 +40,13 @@ import {
 } from '../../ports/app-generation-settings';
 import { MOTION_FEEDBACK_DWELL } from '../motion';
 import {
-  deriveComposerReadiness,
-  modelSupportsImageInput,
   modelSupportsOperation,
   type ComposerOperation,
-  type ComposerReadinessState,
 } from '../composer-readiness';
 import { classifyRoundError, type ErrorPrimaryAction } from '../error-action';
 import type { ImageAspectRatio, ImageOutputImageSize, ImageOutputSelection, ProfileBillingState } from '@imagen-ps/application';
 import { configurationInstanceLabel, type UiModelInfo } from '../model-info';
-import type { ModelGenerationSettingsController } from '../hooks/use-model-generation-settings';
+import type { GenerationWorkspaceController } from '../generation-workspace';
 
 function isImeCompositionKey(event: React.KeyboardEvent): boolean {
   const nativeEvent = event.nativeEvent as KeyboardEvent & { readonly isComposing?: boolean };
@@ -81,23 +70,7 @@ function attachmentPreviewFields(image: ConversationAttachment['image']): Pick<C
 
 interface MainPageProps {
   readonly onNav: (view: string) => void;
-  readonly profiles: readonly ProviderProfile[];
-  readonly profilesLoading: boolean;
-  readonly profilesError: string | null;
-  readonly selectedProfile: ProviderProfile | undefined;
-  readonly generationBackendMode?: 'provider' | 'comfyui';
-  readonly comfyUiTarget?: {
-    readonly workflow: ComfyUiWorkflowConfig;
-    readonly connection: ComfyUiConnection;
-    readonly readiness: ComfyUiWorkflowReadiness;
-  };
-  readonly selectedProfileId: string | null;
-  readonly onSelectProfile: (profileId: string | null) => void;
-  readonly models: readonly UiModelInfo[];
-  readonly modelsLoading: boolean;
-  readonly modelsError: string | null;
-  readonly selectedModelId: string;
-  readonly onSelectModel: (modelId: string) => void;
+  readonly workspace: GenerationWorkspaceController;
   readonly layers: readonly LayerInfo[];
   readonly layersError: string | null;
   readonly layersLoading: boolean;
@@ -105,9 +78,6 @@ interface MainPageProps {
   readonly conversation: ConversationController;
   readonly highlightedRoundId?: string | null;
   readonly onEditProfile?: (profileId: string) => void;
-  readonly composerDraft: ComposerDraftController;
-  readonly generationSettings: AppGenerationSettings;
-  readonly modelGenerationSettings: ModelGenerationSettingsController;
   readonly restoreFailedRoundId?: string | null;
   readonly onFailedRoundRestored?: (roundId: string) => void;
 }
@@ -206,39 +176,6 @@ function modelIsSelectable(model: UiModelInfo | undefined): boolean {
     return false;
   }
   return model.configured === true;
-}
-
-function readinessMessage(t: ReturnType<typeof useI18n>['messages'], state: ComposerReadinessState): string {
-  switch (state) {
-    case 'ready':
-      return t.main.readinessReady;
-    case 'select-profile':
-      return t.main.readinessSelectProfile;
-    case 'checking-profile':
-      return t.main.readinessCheckingProfile;
-    case 'profile-load-failed':
-      return t.main.readinessProfileLoadFailed;
-    case 'select-model':
-      return t.main.readinessSelectModel;
-    case 'loading-models':
-      return t.main.readinessLoadingModels;
-    case 'model-unavailable':
-      return t.main.readinessModelUnavailable;
-    case 'preparing-attachment':
-      return t.main.readinessPreparingAttachment;
-    case 'attachment-failed':
-      return t.main.readinessAttachmentFailed;
-    case 'model-does-not-support-image-edit':
-      return t.main.readinessModelNoImageEdit;
-    case 'model-does-not-support-text-to-image':
-      return t.main.readinessModelNoTextToImage;
-    case 'size-unsupported':
-      return t.main.readinessSizeUnsupported;
-    case 'resolve-placement-conflict':
-      return t.main.readinessPlacementConflict;
-    case 'enter-prompt':
-      return t.main.readinessEnterPrompt;
-  }
 }
 
 function modelAvailabilityReason(_model: UiModelInfo | undefined, _t: ReturnType<typeof useI18n>['messages']): string | null {
@@ -426,19 +363,7 @@ function isLocalFileNormalizationError(error: unknown): boolean {
 
 export function MainPage({
   onNav,
-  profiles,
-  profilesLoading,
-  profilesError,
-  selectedProfile,
-  generationBackendMode = 'provider',
-  comfyUiTarget,
-  selectedProfileId,
-  onSelectProfile,
-  models,
-  modelsLoading,
-  modelsError,
-  selectedModelId,
-  onSelectModel,
+  workspace,
   layers,
   layersError,
   layersLoading,
@@ -446,9 +371,6 @@ export function MainPage({
   conversation,
   highlightedRoundId,
   onEditProfile,
-  composerDraft,
-  generationSettings,
-  modelGenerationSettings,
   restoreFailedRoundId,
   onFailedRoundRestored,
 }: MainPageProps) {
@@ -470,6 +392,18 @@ export function MainPage({
   const [overflowingResponses, setOverflowingResponses] = useState<Record<string, boolean>>({});
   const [highlightKey, setHighlightKey] = useState<string | null>(null);
   const [scrolledAway, setScrolledAway] = useState(false);
+  const { viewModel, composerDraft } = workspace;
+  const provider = viewModel.provider;
+  const profiles = provider?.profiles ?? [];
+  const profilesLoading = provider?.profilesLoading ?? false;
+  const profilesError = provider?.profilesError ?? null;
+  const selectedProfile = provider?.selectedProfile;
+  const selectedProfileId = provider?.selectedProfileId ?? null;
+  const models = provider?.models ?? [];
+  const modelsLoading = provider?.modelsLoading ?? false;
+  const selectedModelId = provider?.selectedModelId ?? '';
+  const generationSettings = workspace.providerSettings.generation;
+  const modelGenerationSettings = workspace.providerSettings.model;
   const convRef = useRef<HTMLDivElement>(null);
   const taRef = useRef<HTMLTextAreaElement>(null);
   const layerPickerOpenStartedAtRef = useRef<number | null>(null);
@@ -480,6 +414,10 @@ export function MainPage({
   const flatLayers = useMemo(() => flattenLayers(layers), [layers]);
   const uniqueModels = useMemo(() => dedupeById(models), [models]);
   const { input, attachments } = composerDraft;
+
+  useEffect(() => {
+    workspace.setAttachmentPreparing(captureInFlight);
+  }, [captureInFlight, workspace]);
 
   function layerKindIcon(kind: string | undefined): 'layer-pixel' | 'layer-smart-object' | 'layer-text' | 'layer-group' | null {
     switch (kind) {
@@ -508,23 +446,14 @@ export function MainPage({
   const billingSummaryText = formatBillingPrimary(billing.billing) ?? t.main.billingUnknown;
   const billingSummaryTitle = `${t.main.billingSummary}: ${billingSummaryText}`;
   const selectableProfiles = profiles;
-  const comfyUiMode = generationBackendMode === 'comfyui';
+  const comfyUiMode = viewModel.mode === 'comfyui';
   const selectedModelInfo = uniqueModels.find((model) => model.id === selectedModelId);
   const selectedModelLabel = comfyUiMode
-    ? comfyUiTarget?.workflow.displayName ?? t.settings.comfyUiSelectWorkflow
+    ? viewModel.target.label
     : selectedModelInfo
     ? configurationInstanceLabel(selectedModelInfo)
     : (selectedModelId || (modelsLoading ? t.main.modelLoading : t.main.modelUnselected));
-  const currentOperation = comfyUiMode
-    ? comfyUiTarget?.workflow.contract.operation ?? composerDraft.operation
-    : composerDraft.operation;
-  const placementIntent = useMemo(
-    () => derivePlacementIntent(
-      attachments,
-      comfyUiMode ? undefined : modelGenerationSettings.outputSelection ?? undefined,
-    ),
-    [attachments, comfyUiMode, modelGenerationSettings.outputSelection],
-  );
+  const currentOperation = composerDraft.operation;
   const modelOptions = useMemo(
     () => uniqueModels.map((model) => ({
       id: model.id,
@@ -566,51 +495,11 @@ export function MainPage({
     setOpenMenu(open ? menu : null);
   }, [syncComposerInputBeforeMenuOpen]);
 
-  const providerReadiness = deriveComposerReadiness({
-    profilesLoading,
-    profilesError,
-    hasSelectedProfile: Boolean(selectedProfile),
-    modelsLoading,
-    modelsError,
-    selectedModelId,
-    selectedModel: selectedModelInfo,
-    attachmentPreparing: captureInFlight,
-    attachmentFailed: false,
-    operation: currentOperation,
-    outputSettingsLoading: modelGenerationSettings.loading,
-    hasOutputMatrix: modelGenerationSettings.ready,
-    placementIntent,
-    prompt: input,
-  });
-  const readinessText = readinessMessage(t, providerReadiness.state);
-  const comfyUiImageEntries = comfyUiTarget?.workflow.contract.entries
-    .filter((entry) => entry.role === 'image')
-    .sort((left, right) => left.slot - right.slot) ?? [];
-  const comfyUiMaskEntry = comfyUiTarget?.workflow.contract.entries.find((entry) => entry.role === 'mask');
-  const capturedMask = attachments.find((attachment) => attachment.mask !== undefined)?.mask;
-  const comfyUiInputsReady = attachments.length <= comfyUiImageEntries.length
-    && comfyUiImageEntries.every((entry) => !entry.required || attachments[entry.slot] !== undefined)
-    && (comfyUiMaskEntry?.required !== true || capturedMask !== undefined);
-  const comfyUiCanSend = comfyUiTarget?.readiness.status === 'ready'
-    && input.trim().length > 0
-    && !captureInFlight
-    && comfyUiInputsReady;
-  const canSend = comfyUiMode ? comfyUiCanSend : providerReadiness.canSend;
-  const composerReadinessState = comfyUiMode
-    ? comfyUiCanSend ? 'ready' : 'target-unavailable'
-    : providerReadiness.state;
-  const composerReadinessText = comfyUiMode
-    ? comfyUiCanSend
-      ? t.common.ready
-      : comfyUiTarget?.readiness.status === 'not-ready' && comfyUiTarget.readiness.reason === 'bridge'
-        ? t.settings.comfyUiReadinessBridge
-        : t.settings.comfyUiReadinessWorkflow
-    : readinessText;
-  const imageInputSupport = modelSupportsImageInput(selectedModelInfo);
-  const imageInputDisabled = comfyUiMode
-    ? comfyUiImageEntries.length === 0 || attachments.length >= comfyUiImageEntries.length
-    : imageInputSupport === 'unsupported';
-  const imageInputDisabledReason = t.main.imageInputDisabledForModel;
+  const canSend = viewModel.readiness.canSend;
+  const composerReadinessState = viewModel.readiness.state;
+  const composerReadinessText = viewModel.readiness.message;
+  const imageInputDisabled = viewModel.imageInputDisabled;
+  const imageInputDisabledReason = viewModel.imageInputDisabledReason ?? t.main.imageInputDisabledForModel;
   const canCapture = !captureInFlight && !imageInputDisabled;
   const responseTextKey = (roundId: string) => `response:${roundId}`;
   const placeResetTimersRef = useRef<Record<string, number>>({});
@@ -800,6 +689,10 @@ export function MainPage({
     setAttachOpen(false);
     setLayerOpen(false);
   };
+  const openWorkspaceSettings = () => {
+    workspace.setSettingsRoute(viewModel.settingsRoute);
+    onNav('settings');
+  };
 
   const handleSelectModel = useCallback((modelId: string) => {
     const model = uniqueModels.find((item) => item.id === modelId);
@@ -811,13 +704,13 @@ export function MainPage({
       });
       return;
     }
-    onSelectModel(modelId);
-  }, [currentOperation, onSelectModel, show, t, uniqueModels]);
+    workspace.selectModel(modelId);
+  }, [currentOperation, show, t, uniqueModels, workspace]);
 
   const restoreRound = (round: ConversationRound) => {
     composerDraft.setInput(round.prompt);
     if (round.modelId && uniqueModels.some((model) => model.id === round.modelId)) {
-      onSelectModel(round.modelId);
+      workspace.selectModel(round.modelId);
     }
     composerDraft.replaceAttachments(round.attachments);
     taRef.current?.focus();
@@ -963,7 +856,7 @@ export function MainPage({
     if (profileId !== selectedProfileId) {
       composerDraft.clearAttachments();
     }
-    onSelectProfile(profileId);
+    void workspace.selectProfile(profileId);
     setProfileMenuOpen(false);
   };
 
@@ -1097,20 +990,11 @@ export function MainPage({
 
   const handleSend = async () => {
     if (!canSend) {
-      if (comfyUiMode) {
-        const message = comfyUiTarget?.readiness.status === 'not-ready'
-          ? comfyUiTarget.readiness.reason === 'bridge'
-            ? t.settings.comfyUiReadinessBridge
-            : t.settings.comfyUiReadinessWorkflow
-          : t.settings.comfyUiSelectWorkflow;
-        show(message, 'warning', { key: 'send-readiness-comfyui' });
-      } else if (providerReadiness.state !== 'ready') {
-        show(readinessText, providerReadiness.state === 'model-unavailable' ? 'warning' : 'info', { key: 'send-readiness' });
-      }
+      show(composerReadinessText, composerReadinessState === 'model-unavailable' ? 'warning' : 'info', { key: 'send-readiness' });
       return;
     }
     const prompt = currentPromptValue().trim();
-    if (prompt.length === 0) {
+    if (prompt.length === 0 && !comfyUiMode) {
       return;
     }
     if (/^\/new\b$/i.test(prompt)) {
@@ -1118,41 +1002,7 @@ export function MainPage({
       show(t.toast.newSessionStarted, 'info', { key: 'session-new' });
       return;
     }
-    if (comfyUiMode) {
-      if (!comfyUiTarget) return;
-      await conversation.submit({
-        backendId: 'comfyui',
-        operation: comfyUiTarget.workflow.contract.operation,
-        prompt,
-        providerName: 'ComfyUI',
-        workflow: comfyUiTarget.workflow,
-        connection: comfyUiTarget.connection,
-        attachments,
-        ...(comfyUiMaskEntry === undefined || capturedMask === undefined ? {} : { mask: capturedMask }),
-        onPrepared: () => composerDraft.reset({ releaseAttachments: false }),
-      });
-      return;
-    }
-    if (!selectedProfile) {
-      return;
-    }
-    await conversation.submit({
-      operation: attachments.length > 0 ? 'image-edit' : 'text-to-image',
-      prompt,
-      profileId: selectedProfile.profileId,
-      apiFormat: selectedProfile.apiFormat,
-      providerName: selectedProfile.displayName,
-      ...(selectedModelId ? { modelId: selectedModelId } : {}),
-      attachments,
-      ...(modelGenerationSettings.outputSelection ? {
-        output: {
-          count: 1,
-          selection: modelGenerationSettings.outputSelection,
-        },
-      } : {}),
-      providerInputSizePreset: generationSettings.providerInputSizePreset,
-      onPrepared: () => composerDraft.reset({ releaseAttachments: false }),
-    });
+    await workspace.send(prompt);
   };
 
   useEffect(() => {
@@ -1251,34 +1101,41 @@ export function MainPage({
             tooltip={comfyUiMode ? t.settings.comfyUi : selectedProfile?.displayName ?? t.main.noProviderProfile}
             onClick={(event) => {
               event.stopPropagation();
-              if (comfyUiMode) {
-                onNav('settings');
-                return;
-              }
               setProfileMenuOpen((open) => !open);
               setOpenMenu(null);
             }}
           />
-          <MotionPresenceView visible={!comfyUiMode && profileMenuOpen} kind="popover">
+          <MotionPresenceView visible={profileMenuOpen} kind="popover">
             {({ ref, state }) => (
             <div ref={ref} className="model-menu hdr-model-menu" data-motion-state={state} onClick={(event) => event.stopPropagation()}>
-              {profilesLoading && <div className="model-opt">{t.main.loadingProfiles}</div>}
-              {profilesError && <div className="model-opt">{profilesError}</div>}
-              {!profilesLoading && selectableProfiles.length === 0 && (
-                <div data-testid="profile-menu-add-provider" className="model-opt" onClick={() => onNav('settings-add')}>{t.main.addProviderProfile}</div>
-              )}
-              {selectableProfiles.map((profile) => (
-                <button
-                  key={profile.profileId}
-                  type="button"
-                  data-testid={`profile-menu-option-${profile.profileId}`}
-                  className={`model-opt${profile.profileId === selectedProfileId ? ' act' : ''}`}
-                  onClick={() => selectProfile(profile.profileId)}
-                >
-                  {profile.profileId === selectedProfileId && <Icon name="check" />}
-                  <span>{profile.displayName}</span>
+              {comfyUiMode ? (
+                <button type="button" data-testid="main-mode-provider" className="model-opt" onClick={() => workspace.setGenerationMode('provider')}>
+                  <span>{t.common.provider}</span>
                 </button>
-              ))}
+              ) : (
+                <>
+                  {profilesLoading && <div className="model-opt">{t.main.loadingProfiles}</div>}
+                  {profilesError && <div className="model-opt">{profilesError}</div>}
+                  {!profilesLoading && selectableProfiles.length === 0 && (
+                    <div data-testid="profile-menu-add-provider" className="model-opt" onClick={() => onNav('settings-add')}>{t.main.addProviderProfile}</div>
+                  )}
+                  {selectableProfiles.map((profile) => (
+                    <button
+                      key={profile.profileId}
+                      type="button"
+                      data-testid={`profile-menu-option-${profile.profileId}`}
+                      className={`model-opt${profile.profileId === selectedProfileId ? ' act' : ''}`}
+                      onClick={() => selectProfile(profile.profileId)}
+                    >
+                      {profile.profileId === selectedProfileId && <Icon name="check" />}
+                      <span>{profile.displayName}</span>
+                    </button>
+                  ))}
+                  <button type="button" data-testid="main-mode-comfyui" className="model-opt" onClick={() => workspace.setGenerationMode('comfyui')}>
+                    <span>{t.settings.comfyUi}</span>
+                  </button>
+                </>
+              )}
             </div>
             )}
           </MotionPresenceView>
@@ -1290,7 +1147,7 @@ export function MainPage({
           icon={<Icon name="settings" />}
           tooltip="Providers"
           placement="bottom"
-          onClick={(event) => { event.stopPropagation(); onNav('settings'); }}
+          onClick={(event) => { event.stopPropagation(); openWorkspaceSettings(); }}
         />
       </header>
 
@@ -1985,7 +1842,7 @@ export function MainPage({
                     }}
                   />
                 </MotionButtonSurface>
-                <div
+                {viewModel.billingVisible ? <div
                   className="cmp-balance-pill"
                   data-testid="main-billing-summary"
                   title={billingSummaryTitle}
@@ -2006,7 +1863,7 @@ export function MainPage({
                   {billingPrimaryParts?.secondary && (
                     <span className="cmp-balance-pill-secondary"> · {billingPrimaryParts.secondary}</span>
                   )}
-                </div>
+                </div> : null}
               </div>
               <div className="cmp-action-right">
                 <MotionButtonSurface>
@@ -2055,9 +1912,18 @@ export function MainPage({
                 {composerReadinessText}
               </div>
             </MotionContent>
+            {viewModel.notices.length > 0 ? (
+              <div className="cmp-readiness" data-testid="generation-workspace-notices">
+                {viewModel.notices.map((notice) => <div key={notice}>{notice}</div>)}
+              </div>
+            ) : null}
           </div>
           <div className="cmp-toolbar" data-testid="composer-toolbar">
-            <div className="cmp-toolbar-left">
+            <div
+              className="cmp-toolbar-left"
+              data-testid="generation-current-target-summary"
+              title={viewModel.target.remotePath ?? viewModel.target.label}
+            >
               <IconSelect
                 testId="main-model-selector"
                 containerClassName="cmp-select cmp-select-model"

@@ -44,6 +44,7 @@ import { createUxpComfyUiRepositories } from '../../adapters/uxp/uxp-comfyui-per
 import { createComfyUiHttpTransport } from '../../adapters/comfyui/comfyui-http-transport';
 import { createComfyUiAppRuntime } from '../../adapters/comfyui/comfyui-app-runtime';
 import { createUxpComfyUiFrontendBridgeResolver } from '../../adapters/comfyui/comfyui-frontend-bridge-resolver';
+import { createUxpExternalUrlPort } from '../../adapters/uxp/uxp-external-url';
 
 const UXP_PLUGIN_ID = 'com.imagen-ps.panel';
 
@@ -164,12 +165,23 @@ export function createPluginHostShell(): PluginHostShell {
       executeHostModal,
     });
     const comfyUiBridgeResolver = createUxpComfyUiFrontendBridgeResolver({
-      connections: comfyUiRepositories.connections,
+      server: {
+        async load() {
+          const state = await comfyUiRepositories.state.load();
+          return state
+            ? { baseUrl: state.baseUrl, requestTimeoutMs: 300_000 }
+            : undefined;
+        },
+      },
       pluginId: UXP_PLUGIN_ID,
       logger: comfyUiBridgeLogger,
     });
     const comfyUiRuntime = createComfyUiAppRuntime({
-      repositories: comfyUiRepositories,
+      repositories: {
+        state: comfyUiRepositories.state,
+        cache: comfyUiRepositories.cache,
+        drafts: comfyUiRepositories.drafts,
+      },
       httpTransport: createComfyUiHttpTransport(),
       frontendBridgeResolver: comfyUiBridgeResolver,
     });
@@ -185,6 +197,7 @@ export function createPluginHostShell(): PluginHostShell {
       services: {
         commands: createCommandsAdapter(),
         comfyUi: comfyUiRuntime.management,
+        externalUrl: createUxpExternalUrlPort(uxpModules),
         generationBackends: comfyUiRuntime.generationBackends,
         host: hostBridge,
         generationSettings,

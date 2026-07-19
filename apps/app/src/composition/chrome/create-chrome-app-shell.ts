@@ -30,6 +30,7 @@ import { createRetentionController } from '../../shared/retention/controller';
 import { defaultTaskLinkedRetentionPolicy, runTaskLinkedRetention } from '../../shared/retention/task-linked-retention';
 import { createChromeTestHarnessRuntime, type ChromeTestHarnessConfig } from './chrome-test-harness';
 import { resolveAppLocale } from '../../shared/locale';
+import { createChromeExternalUrlPort } from '../../adapters/chrome/chrome-external-url';
 
 export interface ChromeAppShellOptions {
   readonly backend?: ChromeKeyValueBackend;
@@ -83,11 +84,22 @@ export function createChromeAppShell(options?: ChromeAppShellOptions): AppShellH
   const storage = createChromeIndexedDbStorage({ backend });
   const comfyUiRepositories = createChromeComfyUiRepositories({ backend });
   const comfyUiBridgeResolver = createChromeComfyUiFrontendBridgeResolver({
-    connections: comfyUiRepositories.connections,
+    server: {
+      async load() {
+        const state = await comfyUiRepositories.state.load();
+        return state
+          ? { baseUrl: state.baseUrl, requestTimeoutMs: 300_000 }
+          : undefined;
+      },
+    },
     parentOrigin: globalThis.location.origin,
   });
   const comfyUiRuntime = createComfyUiAppRuntime({
-    repositories: comfyUiRepositories,
+    repositories: {
+      state: comfyUiRepositories.state,
+      cache: comfyUiRepositories.cache,
+      drafts: comfyUiRepositories.drafts,
+    },
     httpTransport: createComfyUiHttpTransport(),
     frontendBridgeResolver: comfyUiBridgeResolver,
   });
@@ -127,6 +139,7 @@ export function createChromeAppShell(options?: ChromeAppShellOptions): AppShellH
     services: {
       commands: testHarness?.wrapCommands(commands) ?? commands,
       comfyUi: comfyUiRuntime.management,
+      externalUrl: createChromeExternalUrlPort(),
       generationBackends: comfyUiRuntime.generationBackends,
       host,
       generationSettings: storage.generationSettings,

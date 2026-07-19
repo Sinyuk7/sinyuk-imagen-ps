@@ -24,14 +24,18 @@ export async function flush(): Promise<void> {
   });
 }
 
-export async function renderMainPage(container: HTMLElement, services = createFakeServices()) {
+export async function renderMainPage(
+  container: HTMLElement,
+  services = createFakeServices(),
+  hostKind: 'photoshop-uxp' | 'chrome-browser' = 'photoshop-uxp',
+) {
   root = createRoot(container);
   await act(async () => {
     root!.render(
       <AppShell
         host={{
-          kind: 'photoshop-uxp',
-          app: { stage: 'uxp-first-shell', host: 'photoshop-uxp', services: ['commands', 'host'] },
+          kind: hostKind,
+          app: { stage: 'uxp-first-shell', host: hostKind, services: ['commands', 'host'] },
           locale: 'zh-CN',
           services: services.services,
           dispose: () => undefined,

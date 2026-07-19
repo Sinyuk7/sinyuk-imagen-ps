@@ -32,9 +32,7 @@ export type ChromeStoreName =
   | 'modelDiscovery'
   | 'userModelConfigs'
   | 'modelGenerationPreferences'
-  | 'comfyUiConnections'
-  | 'comfyUiWorkflows'
-  | 'generationTargetSelection';
+  | 'comfyUiState';
 
 export interface ChromeKeyValueBackend {
   get<T>(store: ChromeStoreName, key: string): Promise<T | undefined>;
@@ -51,7 +49,8 @@ interface ChromeStoredRecord<T> {
 }
 
 const CHROME_DB_NAME = 'imagen-ps-chrome-runtime';
-const CHROME_DB_VERSION = 6;
+const CHROME_DB_VERSION = 8;
+const LEGACY_COMFYUI_STORES = ['comfyUiConnections', 'comfyUiWorkflows', 'generationTargetSelection'] as const;
 const CHROME_STORES: readonly ChromeStoreName[] = [
   'profiles',
   'secrets',
@@ -62,9 +61,7 @@ const CHROME_STORES: readonly ChromeStoreName[] = [
   'modelDiscovery',
   'userModelConfigs',
   'modelGenerationPreferences',
-  'comfyUiConnections',
-  'comfyUiWorkflows',
-  'generationTargetSelection',
+  'comfyUiState',
 ];
 const GENERATION_SETTINGS_KEY = 'generation';
 const PROMPT_SETTINGS_KEY = 'prompt';
@@ -172,6 +169,9 @@ function openChromeDatabase(name: string): Promise<IDBDatabase> {
           db.createObjectStore(store, { keyPath: 'key' });
         }
       }
+      for (const store of LEGACY_COMFYUI_STORES) {
+        if (db.objectStoreNames.contains(store)) db.deleteObjectStore(store);
+      }
     };
     request.onsuccess = () => resolve(request.result);
     request.onerror = () => reject(request.error ?? new Error('IndexedDB open failed.'));
@@ -237,9 +237,7 @@ export function createMemoryIndexedDbBackend(options?: {
     modelDiscovery: new Map(),
     userModelConfigs: new Map(),
     modelGenerationPreferences: new Map(),
-    comfyUiConnections: new Map(),
-    comfyUiWorkflows: new Map(),
-    generationTargetSelection: new Map(),
+    comfyUiState: new Map(),
   };
   for (const [store, records] of Object.entries(options?.initial ?? {}) as Array<[
     ChromeStoreName,

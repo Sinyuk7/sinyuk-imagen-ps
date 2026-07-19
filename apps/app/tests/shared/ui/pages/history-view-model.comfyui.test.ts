@@ -70,4 +70,29 @@ describe('History generic backend projection', () => {
       expect(item.actions).toEqual({ retry: 'disabled', download: 'enabled', place: 'enabled' });
     }
   });
+
+  it('derives completed-without-image-output without enabling resource actions', () => {
+    const completed = {
+      ...record({
+        taskId: 'comfy-empty-task',
+        backendId: 'comfyui',
+        backendLabel: 'ComfyUI',
+        connectionLabel: 'ComfyUI',
+        createdAt: '2026-07-18T00:00:04.000Z',
+      }),
+      outputs: [],
+    } satisfies TaskRecord;
+    const [item] = deriveHistoryItems({
+      durableRecords: [completed],
+      activeRounds: [],
+      previews: {},
+      canDownload: true,
+      canPlace: true,
+      noPrompt: 'No prompt',
+      unknownProvider: 'Unknown',
+    });
+
+    expect(item.displayStatus).toBe('completed-without-image-output');
+    expect(item.actions).toEqual({ retry: 'disabled', download: 'disabled', place: 'disabled' });
+  });
 });

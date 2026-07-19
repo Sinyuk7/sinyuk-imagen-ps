@@ -4,7 +4,6 @@
  * Transport-neutral ComfyUI execution package。
  */
 
-export * from './contract/index.js';
 export * from './graph.js';
 export * from './errors.js';
 export * from './execution-types.js';

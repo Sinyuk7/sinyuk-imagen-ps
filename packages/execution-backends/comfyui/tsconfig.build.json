@@ -4,5 +4,5 @@
     "noEmit": false,
     "rootDir": "."
   },
-  "include": ["src", "contract/runtime-validator.mjs", "contract/canonical-data.mjs"]
+  "include": ["src"]
 }

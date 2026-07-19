@@ -1,56 +1,61 @@
-import {
-  IMAGEN_WORKFLOW_BINDING_CLASS_ID,
-  IMAGEN_WORKFLOW_TYPE_CLASS_ID,
-  parseComfyUiWorkflowContract,
-  validateCanonicalComfyUiWorkflowContract,
-  type ComfyUiWorkflowContract,
-} from './contract/index.js';
 import { deepFreeze, isPlainRecord, utf8ByteLength } from './internal/value.js';
 
-const MAX_GRAPH_BYTES = 2_000_000;
-const MAX_GRAPH_NODES = 2_000;
-const MAX_GRAPH_DEPTH = 32;
+const MAX_WORKFLOW_BYTES = 2_000_000;
+const MAX_WORKFLOW_NODES = 2_000;
+const MAX_WORKFLOW_DEPTH = 32;
 const MAX_NODE_ID_CHARS = 128;
 const MAX_CLASS_TYPE_CHARS = 256;
 const CONTROL_CHARS = /[\u0000-\u001f\u007f]/;
 const UNSAFE_KEYS = new Set(['__proto__', 'prototype', 'constructor']);
 
-/** ComfyUI API Format 中的 bounded node。 */
+/** ComfyUI API Format 中通过边界校验的 node。 */
 export interface ComfyUiApiNode {
   readonly class_type: string;
   readonly inputs: Readonly<Record<string, unknown>>;
   readonly [key: string]: unknown;
 }
 
-/** Admission 后的 immutable ComfyUI API Format graph。 */
-export type BoundedApiWorkflow = Readonly<Record<string, ComfyUiApiNode>>;
+/** 通过边界校验的 ComfyUI API Format graph。 */
+export type BoundedComfyUiApiWorkflow = Readonly<Record<string, ComfyUiApiNode>>;
 
-/** API Graph import 的 bounded error code。 */
-export type ComfyUiApiGraphErrorCode =
-  | 'malformed'
-  | 'oversized'
-  | 'frontend-format'
-  | 'contract-node-missing'
-  | 'contract-node-duplicate'
-  | 'contract-target-invalid';
+/** API graph admission helper used by internal API driver. */
+export function admitComfyUiApiGraph(value: unknown): BoundedComfyUiApiWorkflow {
+  const workflowDocument = detectAndAdmitComfyUiWorkflowDocument(value);
+  if (workflowDocument.kind !== 'api') throw new ComfyUiWorkflowDocumentError('malformed');
+  return workflowDocument.graph;
+}
 
-/** API Graph import 与 target validation 的安全错误。 */
-export class ComfyUiApiGraphValidationError extends Error {
-  readonly code: ComfyUiApiGraphErrorCode;
+/** 通过边界校验的 ComfyUI Frontend Save Format workflow record。 */
+export interface BoundedComfyUiFrontendWorkflow {
+  readonly nodes: readonly Readonly<Record<string, unknown>>[];
+  readonly [key: string]: unknown;
+}
 
-  constructor(code: ComfyUiApiGraphErrorCode) {
-    super('ComfyUI API graph is invalid.');
-    this.name = 'ComfyUiApiGraphValidationError';
+/** 内部 structural detector 产生的 bounded workflow record。 */
+export type BoundedComfyUiWorkflowDocument =
+  | { readonly kind: 'api'; readonly graph: BoundedComfyUiApiWorkflow }
+  | { readonly kind: 'frontend'; readonly workflow: BoundedComfyUiFrontendWorkflow };
+
+/** Bounded workflow admission 的错误分类。 */
+export type ComfyUiWorkflowDocumentErrorCode = 'malformed' | 'oversized' | 'ambiguous';
+
+/** Bounded workflow admission 的安全错误。 */
+export class ComfyUiWorkflowDocumentError extends Error {
+  readonly code: ComfyUiWorkflowDocumentErrorCode;
+
+  constructor(code: ComfyUiWorkflowDocumentErrorCode) {
+    super('ComfyUI Workflow is invalid.');
+    this.name = 'ComfyUiWorkflowDocumentError';
     this.code = code;
   }
 }
 
-function fail(code: ComfyUiApiGraphErrorCode): never {
-  throw new ComfyUiApiGraphValidationError(code);
+function fail(code: ComfyUiWorkflowDocumentErrorCode): never {
+  throw new ComfyUiWorkflowDocumentError(code);
 }
 
 function validateJsonValue(value: unknown, depth: number, seen: Set<object>): void {
-  if (depth > MAX_GRAPH_DEPTH) fail('oversized');
+  if (depth > MAX_WORKFLOW_DEPTH) fail('oversized');
   if (value === null || typeof value === 'string' || typeof value === 'boolean') return;
   if (typeof value === 'number') {
     if (!Number.isFinite(value)) fail('malformed');
@@ -75,76 +80,131 @@ function cloneJson<T>(value: T): T {
   return JSON.parse(JSON.stringify(value)) as T;
 }
 
-/** Plain API Format graph 执行 bounds、prototype 与 finite-value admission。 */
-export function admitComfyUiApiGraph(value: unknown): BoundedApiWorkflow {
-  if (!isPlainRecord(value)) fail('malformed');
-  if ('nodes' in value && Array.isArray(value.nodes)) fail('frontend-format');
+function boundedNodeId(value: unknown): value is string {
+  return typeof value === 'string'
+    && value.length > 0
+    && [...value].length <= MAX_NODE_ID_CHARS
+    && !CONTROL_CHARS.test(value);
+}
+
+function boundedClassType(value: unknown): value is string {
+  return typeof value === 'string'
+    && value.length > 0
+    && [...value].length <= MAX_CLASS_TYPE_CHARS
+    && !CONTROL_CHARS.test(value);
+}
+
+function validateCommonBounds(value: unknown): void {
   validateJsonValue(value, 0, new Set());
-  const entries = Object.entries(value);
-  if (entries.length === 0) fail('malformed');
-  if (entries.length > MAX_GRAPH_NODES) fail('oversized');
   let serialized: string;
   try {
     serialized = JSON.stringify(value);
   } catch {
     fail('malformed');
   }
-  if (utf8ByteLength(serialized) > MAX_GRAPH_BYTES) fail('oversized');
-  for (const [nodeId, node] of entries) {
-    if (
-      nodeId.length === 0
-      || [...nodeId].length > MAX_NODE_ID_CHARS
-      || CONTROL_CHARS.test(nodeId)
-      || !isPlainRecord(node)
-      || typeof node.class_type !== 'string'
-      || node.class_type.length === 0
-      || [...node.class_type].length > MAX_CLASS_TYPE_CHARS
-      || CONTROL_CHARS.test(node.class_type)
-      || !isPlainRecord(node.inputs)
-    ) fail('malformed');
+  if (utf8ByteLength(serialized) > MAX_WORKFLOW_BYTES) fail('oversized');
+}
+
+function looksLikeApi(value: Record<string, unknown>): boolean {
+  const entries = Object.entries(value);
+  return entries.length > 0 && entries.every(([nodeId, node]) => (
+    boundedNodeId(nodeId)
+    && isPlainRecord(node)
+    && boundedClassType(node.class_type)
+    && isPlainRecord(node.inputs)
+  ));
+}
+
+function looksLikeFrontend(value: Record<string, unknown>): boolean {
+  if (!Array.isArray(value.nodes) || value.nodes.length === 0) return false;
+  return value.nodes.every((node) => {
+    if (!isPlainRecord(node)) return false;
+    const id = typeof node.id === 'number' && Number.isSafeInteger(node.id)
+      ? String(node.id)
+      : node.id;
+    const classType = node.type ?? node.comfyClass;
+    return boundedNodeId(id) && boundedClassType(classType);
+  });
+}
+
+function containsApiNode(value: Record<string, unknown>): boolean {
+  return Object.entries(value).some(([nodeId, node]) => (
+    nodeId !== 'nodes'
+    && boundedNodeId(nodeId)
+    && isPlainRecord(node)
+    && boundedClassType(node.class_type)
+    && isPlainRecord(node.inputs)
+  ));
+}
+
+/**
+ * 自动检测并校验 Frontend Save Format 或 API Format。
+ *
+ * mixed/ambiguous shape 会 fail closed，格式仅保留在 runtime workflow record 内部。
+ */
+export function detectAndAdmitComfyUiWorkflowDocument(value: unknown): BoundedComfyUiWorkflowDocument {
+  if (!isPlainRecord(value)) fail('malformed');
+  validateCommonBounds(value);
+  const api = looksLikeApi(value);
+  const frontend = looksLikeFrontend(value);
+  if (frontend && containsApiNode(value)) fail('ambiguous');
+  if (api === frontend) fail(api ? 'ambiguous' : 'malformed');
+
+  if (api) {
+    const entries = Object.entries(value);
+    if (entries.length > MAX_WORKFLOW_NODES) fail('oversized');
+    return deepFreeze({
+      kind: 'api' as const,
+      graph: cloneJson(value) as BoundedComfyUiApiWorkflow,
+    });
   }
-  return deepFreeze(cloneJson(value) as BoundedApiWorkflow);
+
+  const nodes = value.nodes as readonly unknown[];
+  if (nodes.length > MAX_WORKFLOW_NODES) fail('oversized');
+  return deepFreeze({
+    kind: 'frontend' as const,
+    workflow: cloneJson(value) as BoundedComfyUiFrontendWorkflow,
+  });
 }
 
-function contractNode(graph: BoundedApiWorkflow, classId: string): ComfyUiApiNode {
-  const matches = Object.values(graph).filter((node) => node.class_type === classId);
-  if (matches.length === 0) fail('contract-node-missing');
-  if (matches.length !== 1) fail('contract-node-duplicate');
-  return matches[0];
+/** 对已 admitted workflow record 再次复制，避免 driver 修改 runtime cache。 */
+export function cloneComfyUiWorkflowDocument(
+  workflowDocument: BoundedComfyUiWorkflowDocument,
+): BoundedComfyUiWorkflowDocument {
+  return workflowDocument.kind === 'api'
+    ? detectAndAdmitComfyUiWorkflowDocument(cloneJson(workflowDocument.graph))
+    : detectAndAdmitComfyUiWorkflowDocument(cloneJson(workflowDocument.workflow));
 }
 
-/** API Graph 中提取两个 stable class IDs 并调用 authoritative parser。 */
-export function parseComfyUiWorkflowContractFromApiGraph(graph: BoundedApiWorkflow | unknown): ComfyUiWorkflowContract {
-  const admitted = admitComfyUiApiGraph(graph);
-  const bindingNode = contractNode(admitted, IMAGEN_WORKFLOW_BINDING_CLASS_ID);
-  const typeNode = contractNode(admitted, IMAGEN_WORKFLOW_TYPE_CLASS_ID);
-  if (!Object.prototype.hasOwnProperty.call(bindingNode.inputs, 'contract')) fail('contract-node-missing');
-  if (!Object.prototype.hasOwnProperty.call(typeNode.inputs, 'contract')) fail('contract-node-missing');
-  return parseComfyUiWorkflowContract(bindingNode.inputs.contract, typeNode.inputs.contract);
-}
-
-function isLink(value: unknown): boolean {
-  return Array.isArray(value)
-    && value.length === 2
-    && typeof value[0] === 'string'
-    && Number.isInteger(value[1]);
-}
-
-/** 验证 contract 声明的 API literal targets 与 ordered output nodes。 */
-export function validateComfyUiApiGraphTargets(
-  graph: BoundedApiWorkflow | unknown,
-  contract: ComfyUiWorkflowContract | unknown,
-): void {
-  const admitted = admitComfyUiApiGraph(graph);
-  const canonical = validateCanonicalComfyUiWorkflowContract(contract);
-  for (const entry of canonical.entries) {
-    const node = admitted[entry.locator.nodeId];
-    if (node === undefined) fail('contract-target-invalid');
-    if (entry.role === 'output-image') continue;
-    if (!Object.prototype.hasOwnProperty.call(node.inputs, entry.locator.fieldName)) {
-      fail('contract-target-invalid');
-    }
-    const current = node.inputs[entry.locator.fieldName];
-    if (isLink(current) || typeof current !== 'string') fail('contract-target-invalid');
+/** 生成稳定、bounded 的 workflow record fingerprint。 */
+export function fingerprintComfyUiWorkflowDocument(workflowDocument: BoundedComfyUiWorkflowDocument): string {
+  const source = JSON.stringify(workflowDocument.kind === 'api' ? workflowDocument.graph : workflowDocument.workflow);
+  let left = 0x811c9dc5;
+  let right = 0x9e3779b9;
+  for (let index = 0; index < source.length; index += 1) {
+    const code = source.charCodeAt(index);
+    left = Math.imul(left ^ code, 0x01000193) >>> 0;
+    right = Math.imul(right ^ code, 0x85ebca6b) >>> 0;
   }
+  return `wf-${left.toString(16).padStart(8, '0')}${right.toString(16).padStart(8, '0')}`;
+}
+
+/** 判断 Frontend node 是否 muted 或 bypassed。 */
+export function isComfyUiFrontendNodeActive(node: Readonly<Record<string, unknown>>): boolean {
+  return node.mode !== 2
+    && node.mode !== 4
+    && node.muted !== true
+    && node.bypassed !== true;
+}
+
+/** 返回 workflow record 内 active node 的 bounded class types。 */
+export function listActiveComfyUiClassTypes(
+  workflowDocument: BoundedComfyUiWorkflowDocument,
+): readonly string[] {
+  if (workflowDocument.kind === 'api') {
+    return Object.values(workflowDocument.graph).map((node) => node.class_type);
+  }
+  return workflowDocument.workflow.nodes
+    .filter(isComfyUiFrontendNodeActive)
+    .map((node) => String(node.type ?? node.comfyClass));
 }

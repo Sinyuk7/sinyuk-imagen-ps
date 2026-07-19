@@ -126,7 +126,6 @@ ComfyUI boundary work should additionally run:
 pnpm --filter @imagen-ps/execution-backend-comfyui build
 pnpm --filter @imagen-ps/execution-backend-comfyui test
 pnpm --filter @imagen-ps/application test
-python3 integrations/comfyui-imagen-bridge/scripts/sync_contract.py --check
 python3 -m unittest discover -s integrations/comfyui-imagen-bridge/tests -p 'test_*.py'
 node --test integrations/comfyui-imagen-bridge/tests/*.test.mjs
 pnpm --filter @imagen-ps/app test
@@ -134,16 +133,18 @@ pnpm --filter @imagen-ps/app test
 
 ComfyUI evidence has three non-interchangeable tiers:
 
-- Default deterministic suites are mock-only and prove contract, persistence,
-  upload barrier, driver, Bridge, host transport, Task projection, and UI
-  behavior without reading live credentials. They also prove that mask schema
-  vocabulary remains parseable while any mask-entry workflow fails readiness as
-  `not-ready/workflow` before dispatch or remote side effects.
+- Default deterministic suites are mock-only and prove bounded document and
+  Form conversion, the persistence allowlist, revision invalidation, optional
+  mappings, upload barriers, native validation, one-shot drivers, Bridge
+  lifecycle, output guards, empty-output Task projection, host transport, and
+  UI behavior without reading live credentials. Mask and unsupported custom
+  widgets retain their saved values and do not create plugin-side readiness
+  gates.
 - Owner-local Chrome live gates use only environment-bound values such as
-  `IMAGEN_COMFYUI_LIVE_BASE_URL` and `IMAGEN_COMFYUI_LIVE_SSH_TARGET`. API Graph
-  and Frontend Queue each require a real image submission, server receipt,
-  history/view download, and TaskOutput proof. These gates must use workflows
-  without mask entries.
+  `IMAGEN_COMFYUI_LIVE_BASE_URL`. The internal API Graph driver and product
+  Frontend saved-workflow path each require a real image submission, server
+  receipt, history/view download, and TaskOutput proof. These gates do not
+  exercise mask-specific materialization.
 - Photoshop UXP proof is manual in the real host. It must cover capture,
   HTTP or WebView/Bridge submission, output placement, reload/destroy, and
   cleanup. Mask runtime and proof belong to a future Change and are not part of
@@ -153,19 +154,17 @@ Mock success, build success, or a Bridge handshake alone is not live generation
 proof. Do not mark a live gate complete until real output bytes reach generic
 Task history and the requested host placement path.
 
-Run the two Chrome gates explicitly; neither participates in default validation:
+Run the owner-local Chrome Frontend gate explicitly; it does not participate in default validation:
 
 ```bash
-pnpm --filter @imagen-ps/app test:chrome-e2e -- --grep comfyui-api
 pnpm --filter @imagen-ps/app test:chrome-e2e -- --grep comfyui-frontend
 ```
 
-Both commands require `IMAGEN_COMFYUI_LIVE_BASE_URL`. The API gate additionally
-requires `IMAGEN_COMFYUI_LIVE_API_GRAPH_PATH`, which points to an owner-local
-image-only API Format JSON file outside tracked source. The Frontend gate requires
-`IMAGEN_COMFYUI_LIVE_FRONTEND_WORKFLOW_PATH`, a canonical path returned by Bridge
-discovery for a workflow without mask entries. The runner never reads SSH credentials or writes graph payloads,
-generated images, prompt ids, or raw remote logs into tracked files.
+The gate requires `IMAGEN_COMFYUI_LIVE_BASE_URL` and
+`IMAGEN_COMFYUI_LIVE_FRONTEND_WORKFLOW_PATH`, a canonical path returned by
+Bridge discovery for a workflow without mask entries. The runner never reads
+SSH credentials or writes graph payloads, generated images, prompt ids, or raw
+remote logs into tracked files.
 
 Filtered tests are not a clean-checkout baseline. Build the touched packages
 first when in doubt.

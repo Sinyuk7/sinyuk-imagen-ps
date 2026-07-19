@@ -1,4 +1,3 @@
-import type { ComfyUiConnectionRepository } from '@imagen-ps/application';
 import { createLogger, createMemorySink } from '@imagen-ps/foundation';
 import { describe, expect, it } from 'vitest';
 import {
@@ -10,7 +9,7 @@ import {
   type UxpComfyUiBridgeWebViewElement,
 } from '../../../src/adapters/comfyui/comfyui-frontend-bridge-resolver';
 
-type ConnectionReader = Pick<ComfyUiConnectionRepository, 'get'>;
+type ServerReader = { load(): Promise<{ readonly baseUrl: string; readonly requestTimeoutMs: number } | undefined> };
 const CHROME_PARENT_ORIGIN = 'https://app.example.test';
 const ALLOWED_LOG_ATTR_KEYS = new Set(['transport', 'command', 'phase', 'reason', 'result']);
 
@@ -124,18 +123,14 @@ class FakeWebView extends FakeLoadElement implements UxpComfyUiBridgeWebViewElem
 
 function connectionReader(origins: Readonly<Record<string, string>> = {
   'connection-1': 'https://comfy.example.test',
-}): ConnectionReader {
+}): ServerReader {
   return {
-    async get(connectionId) {
-      const origin = origins[connectionId];
+    async load() {
+      const origin = Object.values(origins)[0];
       if (origin === undefined) return undefined;
       return {
-        connectionId,
-        displayName: connectionId,
-        origin,
+        baseUrl: origin,
         requestTimeoutMs: 1_000,
-        configureTimeoutMs: 1_000,
-        observationTimeoutMs: 5_000,
       };
     },
   };
@@ -184,7 +179,7 @@ describe('ComfyUI frontend Bridge resolvers', () => {
     const hostWindow = new FakeHostWindow();
     const frame = new FakeFrame();
     const resolver = createChromeComfyUiFrontendBridgeResolver({
-      connections: connectionReader(),
+      server: connectionReader(),
       parentOrigin: CHROME_PARENT_ORIGIN,
       hostWindow,
       clock: new FakeClock(),
@@ -249,7 +244,7 @@ describe('ComfyUI frontend Bridge resolvers', () => {
     const webView = new FakeWebView();
     const { logger, sink } = createLogCapture();
     const resolver = createUxpComfyUiFrontendBridgeResolver({
-      connections: connectionReader(),
+      server: connectionReader(),
       pluginId: 'com.imagen-ps.panel',
       hostWindow,
       clock: new FakeClock(),
@@ -340,7 +335,7 @@ describe('ComfyUI frontend Bridge resolvers', () => {
     const webView = new FakeWebView();
     const { logger, sink } = createLogCapture();
     const resolver = createUxpComfyUiFrontendBridgeResolver({
-      connections: connectionReader(),
+      server: connectionReader(),
       pluginId: 'com.imagen-ps.panel',
       hostWindow: new FakeHostWindow(),
       clock,
@@ -388,7 +383,7 @@ describe('ComfyUI frontend Bridge resolvers', () => {
     const webView = new FakeWebView();
     const { logger, sink } = createLogCapture();
     const resolver = createUxpComfyUiFrontendBridgeResolver({
-      connections: connectionReader(),
+      server: connectionReader(),
       pluginId: 'com.imagen-ps.panel',
       hostWindow,
       clock,
@@ -433,7 +428,7 @@ describe('ComfyUI frontend Bridge resolvers', () => {
     const clock = new FakeClock();
     const frame = new FakeFrame();
     const resolver = createChromeComfyUiFrontendBridgeResolver({
-      connections: connectionReader(),
+      server: connectionReader(),
       parentOrigin: CHROME_PARENT_ORIGIN,
       hostWindow,
       clock,
@@ -471,7 +466,7 @@ describe('ComfyUI frontend Bridge resolvers', () => {
     const hostWindow = new FakeHostWindow();
     const webView = new FakeWebView();
     const resolver = createUxpComfyUiFrontendBridgeResolver({
-      connections: connectionReader(),
+      server: connectionReader(),
       pluginId: 'com.imagen-ps.panel',
       hostWindow,
       clock: new FakeClock(),
@@ -507,7 +502,7 @@ describe('ComfyUI frontend Bridge resolvers', () => {
   it('detects Chrome reload at load completion and rotates its load identity', async () => {
     const frame = new FakeFrame();
     const resolver = createChromeComfyUiFrontendBridgeResolver({
-      connections: connectionReader(),
+      server: connectionReader(),
       parentOrigin: CHROME_PARENT_ORIGIN,
       hostWindow: new FakeHostWindow(),
       clock: new FakeClock(),
@@ -537,16 +532,16 @@ describe('ComfyUI frontend Bridge resolvers', () => {
   it('reschedules an in-flight load when the connection timeout changes', async () => {
     let requestTimeoutMs = 1_000;
     const baseConnections = connectionReader();
-    const connections: ConnectionReader = {
-      async get(connectionId) {
-        const connection = await baseConnections.get(connectionId);
+    const server: ServerReader = {
+      async load() {
+        const connection = await baseConnections.load();
         return connection === undefined ? undefined : { ...connection, requestTimeoutMs };
       },
     };
     const clock = new FakeClock();
     const frame = new FakeFrame();
     const resolver = createChromeComfyUiFrontendBridgeResolver({
-      connections,
+      server,
       parentOrigin: CHROME_PARENT_ORIGIN,
       hostWindow: new FakeHostWindow(),
       clock,
@@ -573,7 +568,7 @@ describe('ComfyUI frontend Bridge resolvers', () => {
     const clock = new FakeClock();
     const webView = new FakeWebView();
     const resolver = createUxpComfyUiFrontendBridgeResolver({
-      connections: connectionReader(),
+      server: connectionReader(),
       pluginId: 'com.imagen-ps.panel',
       hostWindow,
       clock,
@@ -606,7 +601,7 @@ describe('ComfyUI frontend Bridge resolvers', () => {
 
     const replacement = new FakeWebView();
     const replacementResolver = createUxpComfyUiFrontendBridgeResolver({
-      connections: connectionReader(),
+      server: connectionReader(),
       pluginId: 'com.imagen-ps.panel',
       hostWindow: new FakeHostWindow(),
       clock: new FakeClock(),
@@ -632,7 +627,7 @@ describe('ComfyUI frontend Bridge resolvers', () => {
     const clock = new FakeClock();
     const frame = new FakeFrame();
     const resolver = createChromeComfyUiFrontendBridgeResolver({
-      connections: connectionReader(),
+      server: connectionReader(),
       parentOrigin: CHROME_PARENT_ORIGIN,
       hostWindow: new FakeHostWindow(),
       clock,
@@ -650,7 +645,7 @@ describe('ComfyUI frontend Bridge resolvers', () => {
 
   it('rejects a non-HTTP Chrome parent origin before creating a session', () => {
     expect(() => createChromeComfyUiFrontendBridgeResolver({
-      connections: connectionReader(),
+      server: connectionReader(),
       parentOrigin: 'file://',
       hostWindow: new FakeHostWindow(),
       clock: new FakeClock(),

@@ -25,12 +25,12 @@ function receiptTimeout(promise, timeoutMs, signal) {
       if (settled) return;
       settled = true;
       clearTimeout(timer);
-      signal.removeEventListener('abort', onAbort);
+      signal?.removeEventListener('abort', onAbort);
       callback(value);
     };
     const onAbort = () => finish(reject, new BridgeProtocolError('submission-unknown'));
     const timer = setTimeout(onAbort, timeoutMs);
-    signal.addEventListener('abort', onAbort, { once: true });
+    signal?.addEventListener('abort', onAbort, { once: true });
     Promise.resolve(promise).then(
       (value) => finish(resolve, value),
       () => finish(reject, new BridgeProtocolError('submission-unknown')),

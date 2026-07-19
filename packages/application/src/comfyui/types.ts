@@ -1,129 +1,162 @@
 import type {
-  BoundedApiWorkflow,
-  ComfyUiExecutionAssetInput,
-  ComfyUiWorkflowContract,
-} from '@imagen-ps/execution-backend-comfyui';
+  StoredAssetRef,
+} from '@imagen-ps/core-engine';
 import type { TaskRecord } from '../task.js';
 
-/** ComfyUI connection 的最小持久化配置。 */
-export interface ComfyUiConnection {
-  readonly connectionId: string;
-  readonly displayName: string;
-  readonly origin: string;
+export interface WorkflowInputRef { readonly nodeId: string; readonly inputName?: string; readonly widgetIndex?: number; }
+export type WorkflowPrimitiveValue = string | number | boolean;
+export interface WorkflowFormWidgetRef { readonly ref: WorkflowInputRef; readonly kind: string; readonly label: string; readonly workflowValue?: WorkflowPrimitiveValue; readonly writable: boolean; readonly visible: boolean; readonly order: number; readonly options?: readonly string[]; readonly min?: number; readonly max?: number; readonly step?: number; }
+export interface WorkflowFormNode { readonly nodeId: string; readonly title: string; readonly label: string; readonly order: number; readonly active: boolean; readonly visible: boolean; readonly widgets: readonly WorkflowFormWidgetRef[]; }
+export interface WorkflowForm { readonly nodes: readonly WorkflowFormNode[]; }
+export interface WorkflowInputCandidate { readonly ref: WorkflowInputRef; readonly kind: 'text' | 'image'; readonly label: string; readonly sectionLabel: string; readonly workflowValue?: WorkflowPrimitiveValue; }
+export interface ComfyUiWorkflowValueMutation { readonly ref: WorkflowInputRef; readonly value: WorkflowPrimitiveValue; }
+export interface ComfyUiExecutionAssetInput { readonly storedRef: StoredAssetRef; readonly width: number; readonly height: number; }
+export type BoundedComfyUiApiWorkflow = Readonly<Record<string, Readonly<Record<string, unknown>>>>;
+export type BoundedComfyUiWorkflowDocument = { readonly kind: 'api'; readonly graph: BoundedComfyUiApiWorkflow } | { readonly kind: 'frontend'; readonly workflow: Readonly<Record<string, unknown>> };
+
+/** ComfyUI settings 唯一 durable allowlist。 */
+export interface PersistedComfyUiState {
+  readonly baseUrl: string;
+  readonly selectedWorkflowId: string | null;
+  readonly ambiguousMappingsByRevision: Readonly<Record<string, Readonly<Record<string, WorkflowInputRef>>>>;
+}
+
+/** Application code-owned runtime policy；不得进入 settings persistence。 */
+export interface ComfyUiRuntimePolicy {
   readonly requestTimeoutMs: number;
-  readonly configureTimeoutMs: number;
+  readonly workflowLoadTimeoutMs: number;
   readonly observationTimeoutMs: number;
-  readonly lastTest?: ComfyUiConnectionTestEvidence;
+  readonly maxDiscoveryEntries: number;
+  readonly maxWorkflowBytes: number;
+  readonly maxWorkflowNodes: number;
+  readonly numericLocale?: string;
 }
 
-/** ComfyUI connection 保存命令的 caller 输入。 */
-export interface ComfyUiConnectionDraft {
-  readonly connectionId: string;
-  readonly displayName: string;
-  readonly origin: string;
-  readonly requestTimeoutMs?: number;
-  readonly configureTimeoutMs?: number;
-  readonly observationTimeoutMs?: number;
+export const DEFAULT_COMFYUI_RUNTIME_POLICY: ComfyUiRuntimePolicy = Object.freeze({
+  requestTimeoutMs: 30_000,
+  workflowLoadTimeoutMs: 30_000,
+  observationTimeoutMs: 300_000,
+  maxDiscoveryEntries: 1_000,
+  maxWorkflowBytes: 2_000_000,
+  maxWorkflowNodes: 2_000,
+});
+
+/** 三类 capability facts；只驻留当前 runtime。 */
+export interface ComfyUiServerCapabilities {
+  readonly api: 'ready' | 'unavailable' | 'unknown';
+  readonly frontend: 'ready' | 'unavailable' | 'unknown';
+  readonly bridge: 'compatible' | 'incompatible' | 'unavailable' | 'unknown';
 }
 
-/** Bridge handshake 的 bounded capability evidence。 */
-export interface ComfyUiBridgeEvidence {
-  readonly status: 'compatible' | 'incompatible' | 'unavailable';
-  readonly protocolVersion?: number;
-  readonly bridgeVersion?: string;
-  readonly frontendVersion?: string;
-  readonly coreVersion?: string;
-  readonly contractSchemaVersion?: number;
-  readonly contractSchemaDigest?: string;
-  readonly nativeQueue?: boolean;
-}
-
-/** Connection test 的持久化安全摘要。 */
-export interface ComfyUiConnectionTestEvidence {
-  readonly checkedAt: string;
-  readonly api: 'ready' | 'unavailable';
-  readonly bridge?: ComfyUiBridgeEvidence;
-}
-
-/** ComfyUI workflow 的 source-specific 持久化配置。 */
-export type ComfyUiWorkflowSource =
-  | { readonly kind: 'api-graph'; readonly graph: BoundedApiWorkflow }
-  | { readonly kind: 'frontend-workflow'; readonly remotePath: string };
-
-/** Application-owned ComfyUI workflow record。 */
-export interface ComfyUiWorkflowConfig {
+/** Discovery identity。未加载 document 时 revision 可为空。 */
+export interface WorkflowIdentity {
   readonly workflowId: string;
   readonly displayName: string;
-  readonly connectionId: string;
-  readonly source: ComfyUiWorkflowSource;
-  readonly contract: ComfyUiWorkflowContract;
-}
-
-/** Frontend discovery 返回的 canonical workflow identity。 */
-export interface ComfyUiDiscoveredWorkflow {
-  readonly displayName: string;
   readonly remotePath: string;
-  readonly contract: ComfyUiWorkflowContract;
+  readonly groupPath: readonly string[];
+  readonly revision: string | null;
 }
 
-/** UI 可消费的 bounded workflow readiness。 */
-export type ComfyUiWorkflowReadiness =
-  | { readonly status: 'ready' }
-  | { readonly status: 'not-ready'; readonly reason: 'connection' | 'api' | 'bridge' | 'workflow' };
-
-/** ComfyUI connection repository port。 */
-export interface ComfyUiConnectionRepository {
-  list(): Promise<readonly ComfyUiConnection[]>;
-  get(connectionId: string): Promise<ComfyUiConnection | undefined>;
-  save(connection: ComfyUiConnection): Promise<void>;
-  delete(connectionId: string): Promise<void>;
+/** 已打开 remote document 的 identity；revision 必填。 */
+export interface LoadedWorkflowIdentity extends Omit<WorkflowIdentity, 'revision'> {
+  readonly revision: string;
 }
 
-/** ComfyUI workflow repository port。 */
-export interface ComfyUiWorkflowRepository {
-  list(connectionId?: string): Promise<readonly ComfyUiWorkflowConfig[]>;
-  get(workflowId: string): Promise<ComfyUiWorkflowConfig | undefined>;
-  save(workflow: ComfyUiWorkflowConfig): Promise<void>;
-  delete(workflowId: string): Promise<void>;
-  deleteConnection(connectionId: string): Promise<void>;
+/** 已选择 workflow 的 runtime-only document/driver representation。 */
+export interface LoadedWorkflowRuntime {
+  readonly identity: LoadedWorkflowIdentity;
+  readonly document: BoundedComfyUiWorkflowDocument;
+  readonly form?: WorkflowForm;
+  readonly capabilities?: ComfyUiServerCapabilities;
 }
 
-/** Provider 与 ComfyUI 共用的最小 generation target selection。 */
-export type GenerationTargetSelection =
-  | { readonly kind: 'provider'; readonly profileId: string; readonly modelId?: string }
-  | { readonly kind: 'comfyui'; readonly workflowId: string };
+/** Current workflow deferred open state。 */
+export type WorkflowLoadState =
+  | { readonly status: 'idle' }
+  | { readonly status: 'loading'; readonly workflowId: string; readonly requestId: string }
+  | { readonly status: 'ready'; readonly runtime: LoadedWorkflowRuntime }
+  | { readonly status: 'error'; readonly workflowId: string; readonly message: string };
 
-/** Generation target selection repository port。 */
-export interface GenerationTargetSelectionRepository {
-  get(): Promise<GenerationTargetSelection | undefined>;
-  save(selection: GenerationTargetSelection): Promise<void>;
+/** Runtime-only Form draft, scoped by workflow revision. */
+export interface WorkflowRuntimeDraft {
+  readonly workflowId: string;
+  readonly revision: string;
+  readonly values: Readonly<Record<string, string | number | boolean>>;
+}
+
+/** Prompt/image mapping selection. `null` means explicit Do not map. */
+export type WorkflowMapping = WorkflowInputRef | null;
+
+/** Runtime composer input snapshot. */
+export interface ComfyUiComposerInputs {
+  readonly prompt?: string;
+  readonly attachments?: readonly ComfyUiExecutionAssetInput[];
+}
+
+/** Generic runtime-facing execution intent. */
+export interface ComfyUiExecutionIntent {
+  readonly connection: {
+    readonly baseUrl: string;
+    readonly requestTimeoutMs: number;
+    readonly observationTimeoutMs: number;
+  };
+  readonly source:
+    | { readonly kind: 'api-graph'; readonly workflowId: string; readonly revision: string; readonly graph: BoundedComfyUiApiWorkflow; readonly objectInfo?: unknown }
+    | { readonly kind: 'frontend-workflow'; readonly workflowId: string; readonly revision: string; readonly remotePath: string };
+  readonly mutations?: readonly ComfyUiWorkflowValueMutation[];
+  readonly imageInputRef?: WorkflowInputRef;
+  readonly prompt?: string;
+  readonly images: readonly ComfyUiExecutionAssetInput[];
+}
+
+/** Public payload accepted by ComfyUI generation backend. */
+export interface ComfyUiGenerationPayload {
+  readonly workflowId: string;
+  readonly prompt?: string;
+  readonly images?: readonly ComfyUiExecutionAssetInput[];
+  readonly runningTask: TaskRecord;
+  readonly revision?: string;
+  readonly formValues?: Readonly<Record<string, string | number | boolean>>;
+  readonly mutations?: readonly ComfyUiWorkflowValueMutation[];
+  readonly imageInputRef?: WorkflowInputRef;
+}
+
+/** Runtime ports used by management service; all documents stay in memory. */
+export interface ComfyUiRuntimePorts {
+  readonly probe?: (baseUrl: string, signal?: AbortSignal) => Promise<ComfyUiServerCapabilities>;
+  readonly discover: (baseUrl: string, signal?: AbortSignal) => Promise<readonly (Omit<WorkflowIdentity, 'groupPath'> & { readonly groupPath?: readonly string[] })[]>;
+  readonly load: (baseUrl: string, identity: WorkflowIdentity, signal?: AbortSignal) => Promise<LoadedWorkflowRuntime>;
+  readonly open?: (baseUrl: string, identity: LoadedWorkflowIdentity, signal?: AbortSignal) => Promise<void>;
+}
+
+/** Durable state repository. Implementations MUST reject extra fields. */
+export interface ComfyUiStateRepository {
+  load(): Promise<PersistedComfyUiState | undefined>;
+  save(state: PersistedComfyUiState): Promise<void>;
   clear(): Promise<void>;
 }
 
-/** Host-owned connection test port；Application 不执行 raw transport。 */
-export interface ComfyUiConnectionTester {
-  test(connection: ComfyUiConnection, signal?: AbortSignal): Promise<ComfyUiConnectionTestEvidence>;
+/** Runtime-only selected workflow cache. */
+export interface ComfyUiWorkflowRuntimeCache {
+  get(workflowId: string, revision?: string): LoadedWorkflowRuntime | undefined;
+  set(runtime: LoadedWorkflowRuntime): void;
+  invalidate(workflowId?: string): void;
+  clear(): void;
 }
 
-/** Host-owned Frontend workflow discovery port。 */
-export interface ComfyUiWorkflowDiscoveryPort {
-  list(connection: ComfyUiConnection, signal?: AbortSignal): Promise<readonly ComfyUiDiscoveredWorkflow[]>;
+/** Runtime-only revision-scoped form drafts. */
+export interface ComfyUiWorkflowDraftStore {
+  get(workflowId: string, revision: string): WorkflowRuntimeDraft | undefined;
+  set(draft: WorkflowRuntimeDraft): void;
+  invalidate(workflowId?: string, revision?: string): void;
+  clear(): void;
 }
 
-/** ComfyUI backend admission 的 bounded payload。 */
-export interface ComfyUiGenerationPayload {
-  readonly workflowId: string;
-  readonly prompt: string;
-  readonly images: readonly ComfyUiExecutionAssetInput[];
-  readonly mask?: ComfyUiExecutionAssetInput;
-  readonly runningTask: TaskRecord;
-}
-
-/** ComfyUI repository 与 host capability 的组合 owner。 */
-export interface ComfyUiManagementDependencies {
-  readonly connections: ComfyUiConnectionRepository;
-  readonly workflows: ComfyUiWorkflowRepository;
-  readonly selection: GenerationTargetSelectionRepository;
-  readonly tester: ComfyUiConnectionTester;
-  readonly discovery: ComfyUiWorkflowDiscoveryPort;
+/** Runtime candidate projection used by settings and send composer. */
+export interface WorkflowMappingProjection {
+  readonly textCandidates: readonly WorkflowInputCandidate[];
+  readonly imageCandidates: readonly WorkflowInputCandidate[];
+  readonly text: { readonly resolved: WorkflowMapping; readonly notice?: string; readonly ambiguous: boolean };
+  readonly image: { readonly resolved: WorkflowMapping; readonly notice?: string; readonly ambiguous: boolean };
+  readonly showSection: boolean;
 }

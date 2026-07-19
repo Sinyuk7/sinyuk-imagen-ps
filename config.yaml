@@ -1,0 +1,25 @@
+server:
+    addr: :8080
+database:
+    path: data/biligo.db
+auth:
+    password: k24nUvJ31kvEYT5gUPKkZ5e0
+logging:
+    levels:
+        - info
+        - warn
+        - error
+    color: auto
+    file:
+        enabled: true
+        path: logs/biligo.log
+    outcome_journal:
+        enabled: true
+        path: logs/outcome-journal.jsonl
+        max_size_mb: 8
+        max_files: 3
+runner:
+    target_mode_enabled: false
+    target_mode_max_workers: 2
+    resume_on_restart: true
+    diagnostic_queue_capacity: 4096

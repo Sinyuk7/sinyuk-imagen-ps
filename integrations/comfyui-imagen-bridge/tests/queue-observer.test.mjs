@@ -38,6 +38,23 @@ test('observer calls native app once and preserves api arguments, response, and 
   assert.equal(api.queuePrompt, original);
 });
 
+test('observer accepts an omitted abort signal', async () => {
+  const api = {
+    queuePrompt: () => Promise.resolve({ prompt_id: 'prompt-without-signal' }),
+  };
+  const receipt = await observeNativeQueueReceipt({
+    app: { queuePrompt: () => api.queuePrompt(0, 1) },
+    api,
+    receiptTimeoutMs: 100,
+    maxIdChars: 128,
+    now: () => 456,
+  });
+  assert.deepEqual(receipt, {
+    promptId: 'prompt-without-signal',
+    acknowledgedAt: 456,
+  });
+});
+
 test('observer fails before Queue when current function cannot be wrapped', async () => {
   const api = {};
   const current = () => ({ prompt_id: 'prompt-1' });

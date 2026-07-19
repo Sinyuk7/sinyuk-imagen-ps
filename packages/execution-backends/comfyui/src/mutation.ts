@@ -1,120 +1,74 @@
-import {
-  validateCanonicalComfyUiWorkflowContract,
-  type ComfyUiWorkflowContract,
-  type ComfyUiWorkflowContractEntry,
-} from './contract/index.js';
+import type { BoundedComfyUiApiWorkflow } from './graph.js';
+import { admitComfyUiApiGraph } from './graph.js';
+import type { WorkflowForm, WorkflowInputRef, WorkflowPrimitiveValue, ComfyUiWorkflowValueMutation } from './form.js';
+import { validateComfyUiWorkflowValueMutations } from './form.js';
 import { createComfyUiExecutionError } from './errors.js';
-import {
-  admitComfyUiApiGraph,
-  parseComfyUiWorkflowContractFromApiGraph,
-  validateComfyUiApiGraphTargets,
-  type BoundedApiWorkflow,
-  type ComfyUiApiNode,
-} from './graph.js';
 import { deepFreeze } from './internal/value.js';
 
-/** Shared upload barrier 后的 literal/widget values。 */
-export interface ComfyUiContractInputValues {
-  readonly prompt: string;
-  readonly imageValues: readonly string[];
-  readonly maskValue?: string;
+/** Backward-neutral alias for form mutation input. */
+export type ComfyUiWidgetMutation = ComfyUiWorkflowValueMutation;
+
+/** Optional values applied after graph clone and before native submission. */
+export interface ComfyUiWorkflowOverrides {
+  readonly prompt?: string;
+  readonly imageValues?: readonly string[];
+  readonly imageInputRef?: WorkflowInputRef;
+  readonly mutations?: readonly ComfyUiWidgetMutation[];
 }
 
-/** Frontend Bridge 允许的 exact widget mutation。 */
-export interface ComfyUiWidgetMutation {
-  readonly locator: {
-    readonly nodeId: string;
-    readonly fieldName: string;
-  };
-  readonly value: string;
-}
-
-function entriesFor(contract: ComfyUiWorkflowContract, role: ComfyUiWorkflowContractEntry['role']): readonly ComfyUiWorkflowContractEntry[] {
-  return contract.entries.filter((entry) => entry.role === role).sort((left, right) => left.slot - right.slot);
-}
-
-function validateValues(contract: ComfyUiWorkflowContract, values: ComfyUiContractInputValues): void {
-  if (values.prompt.trim().length === 0) throw createComfyUiExecutionError('prepare', 'invalid-contract');
-  const imageEntries = entriesFor(contract, 'image');
-  if (values.imageValues.length > imageEntries.length) {
-    throw createComfyUiExecutionError('prepare', 'invalid-contract');
+function setRef(target: Record<string, unknown>, ref: WorkflowInputRef, value: WorkflowPrimitiveValue): void {
+  if (ref.inputName !== undefined) {
+    const inputs = target.inputs;
+    if (!inputs || typeof inputs !== 'object' || Array.isArray(inputs) || !Object.prototype.hasOwnProperty.call(inputs, ref.inputName)) throw createComfyUiExecutionError('prepare', 'invalid-workflow');
+    (inputs as Record<string, unknown>)[ref.inputName] = value;
+    return;
   }
-  for (const entry of imageEntries) {
-    const value = values.imageValues[entry.slot];
-    if (entry.required && (typeof value !== 'string' || value.length === 0)) {
-      throw createComfyUiExecutionError('prepare', 'invalid-contract');
-    }
-  }
-  const maskEntry = entriesFor(contract, 'mask')[0];
-  if (values.maskValue !== undefined && maskEntry === undefined) {
-    throw createComfyUiExecutionError('prepare', 'invalid-contract');
-  }
-  if (maskEntry?.required && (values.maskValue === undefined || values.maskValue.length === 0)) {
-    throw createComfyUiExecutionError('prepare', 'invalid-contract');
-  }
+  throw createComfyUiExecutionError('prepare', 'invalid-workflow');
 }
 
-function valueForEntry(entry: ComfyUiWorkflowContractEntry, values: ComfyUiContractInputValues): string | undefined {
-  if (entry.role === 'prompt') return values.prompt;
-  if (entry.role === 'image') return values.imageValues[entry.slot];
-  if (entry.role === 'mask') return values.maskValue;
-  return undefined;
-}
-
-/** Canonical contract 生成 Frontend exact widget mutations。 */
-export function buildComfyUiFrontendMutations(
-  contractInput: ComfyUiWorkflowContract | unknown,
-  values: ComfyUiContractInputValues,
-): readonly ComfyUiWidgetMutation[] {
-  const contract = validateCanonicalComfyUiWorkflowContract(contractInput);
-  validateValues(contract, values);
-  const mutations: ComfyUiWidgetMutation[] = [];
-  for (const entry of contract.entries) {
-    const value = valueForEntry(entry, values);
-    if (value === undefined) continue;
-    mutations.push({
-      locator: {
-        nodeId: entry.locator.nodeId,
-        fieldName: entry.locator.fieldName,
-      },
-      value,
-    });
+/** Clone complete API graph and apply only validated primitive overrides. */
+export function applyComfyUiApiWorkflowMutations(
+  graph: BoundedComfyUiApiWorkflow | unknown,
+  form: WorkflowForm,
+  mutations?: readonly ComfyUiWidgetMutation[],
+): BoundedComfyUiApiWorkflow {
+  const admitted = admitComfyUiApiGraph(graph);
+  const checked = validateComfyUiWorkflowValueMutations(form, mutations);
+  const clone = JSON.parse(JSON.stringify(admitted)) as Record<string, Record<string, unknown>>;
+  for (const mutation of checked) {
+    const node = clone[mutation.ref.nodeId];
+    if (!node) throw createComfyUiExecutionError('prepare', 'invalid-workflow');
+    setRef(node, mutation.ref, mutation.value);
   }
-  if (mutations.length > 16) throw createComfyUiExecutionError('prepare', 'invalid-contract');
-  return deepFreeze(mutations);
+  return deepFreeze(clone) as BoundedComfyUiApiWorkflow;
 }
 
-/** Admitted graph clone 后只写 contract 声明的 literal inputs。 */
+/** Build API prompt payload with complete graph and optional composer prompt. */
 export function buildComfyUiApiPrompt(
-  graphInput: BoundedApiWorkflow | unknown,
-  contractInput: ComfyUiWorkflowContract | unknown,
-  values: ComfyUiContractInputValues,
-): BoundedApiWorkflow {
-  const graph = admitComfyUiApiGraph(graphInput);
-  const contract = validateCanonicalComfyUiWorkflowContract(contractInput);
-  const graphContract = parseComfyUiWorkflowContractFromApiGraph(graph);
-  if (JSON.stringify(graphContract) !== JSON.stringify(contract)) {
-    throw createComfyUiExecutionError('prepare', 'invalid-contract');
+  graph: BoundedComfyUiApiWorkflow,
+  form: WorkflowForm | undefined,
+  overrides: ComfyUiWorkflowOverrides,
+): BoundedComfyUiApiWorkflow {
+  const checked = form === undefined ? graph : applyComfyUiApiWorkflowMutations(graph, form, overrides.mutations);
+  const clone = JSON.parse(JSON.stringify(checked)) as Record<string, Record<string, unknown>>;
+  if (overrides.prompt !== undefined && overrides.prompt.trim().length > 0 && form !== undefined) {
+    const text = form.nodes.flatMap((node) => node.widgets).find((widget) => widget.writable && (widget.kind === 'string' || widget.kind === 'multiline-string'));
+    if (text?.ref.inputName !== undefined && clone[text.ref.nodeId]) setRef(clone[text.ref.nodeId], text.ref, overrides.prompt);
   }
-  try {
-    validateComfyUiApiGraphTargets(graph, contract);
-  } catch {
-    throw createComfyUiExecutionError('prepare', 'invalid-workflow');
+  if (overrides.imageValues !== undefined && form !== undefined && overrides.imageValues.length > 0) {
+    const image = overrides.imageInputRef
+      ? form.nodes.flatMap((node) => node.widgets).find((widget) => widget.writable && widget.kind === 'upload-image' && widget.ref.nodeId === overrides.imageInputRef?.nodeId && widget.ref.inputName === overrides.imageInputRef?.inputName && widget.ref.widgetIndex === overrides.imageInputRef?.widgetIndex)
+      : form.nodes.flatMap((node) => node.widgets).find((widget) => widget.writable && widget.kind === 'upload-image');
+    if (image?.ref.inputName !== undefined && clone[image.ref.nodeId]) setRef(clone[image.ref.nodeId], image.ref, overrides.imageValues[0]);
   }
-  validateValues(contract, values);
-  const clone = JSON.parse(JSON.stringify(graph)) as Record<string, ComfyUiApiNode>;
-  for (const entry of contract.entries) {
-    const value = valueForEntry(entry, values);
-    if (value === undefined) continue;
-    const node = clone[entry.locator.nodeId];
-    if (node === undefined) throw createComfyUiExecutionError('prepare', 'invalid-workflow');
-    clone[entry.locator.nodeId] = {
-      ...node,
-      inputs: {
-        ...node.inputs,
-        [entry.locator.fieldName]: value,
-      },
-    };
-  }
-  return admitComfyUiApiGraph(clone);
+  return deepFreeze(clone) as BoundedComfyUiApiWorkflow;
+}
+
+/** Frontend Bridge values use same bounded refs; no contract role is accepted. */
+export function buildComfyUiFrontendMutations(
+  mutations: readonly ComfyUiWidgetMutation[] | undefined,
+): readonly ComfyUiWidgetMutation[] {
+  if (mutations === undefined) return deepFreeze([]);
+  if (mutations.length > 16) throw createComfyUiExecutionError('prepare', 'invalid-workflow');
+  return deepFreeze(mutations.map((mutation) => deepFreeze({ ref: deepFreeze({ ...mutation.ref }), value: mutation.value })));
 }

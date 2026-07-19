@@ -8,7 +8,7 @@ export type ComfyUiErrorStage = 'prepare' | 'upload' | 'submit' | 'observe' | 'd
 export type ComfyUiErrorCode =
   | 'invalid-connection'
   | 'invalid-workflow'
-  | 'invalid-contract'
+  | 'prompt-no-outputs'
   | 'asset-unavailable'
   | 'upload-failed'
   | 'submission-rejected'
@@ -45,7 +45,7 @@ const STAGES: ReadonlySet<string> = new Set(['prepare', 'upload', 'submit', 'obs
 const CODES: ReadonlySet<string> = new Set([
   'invalid-connection',
   'invalid-workflow',
-  'invalid-contract',
+  'prompt-no-outputs',
   'asset-unavailable',
   'upload-failed',
   'submission-rejected',

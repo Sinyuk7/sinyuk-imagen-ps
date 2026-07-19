@@ -11,6 +11,7 @@ import {
   createComfyUiManagementFake,
   type ComfyUiManagementFakeOptions,
 } from './comfyui-management.fake';
+import { vi } from 'vitest';
 
 export function createFakeServices(options?: {
   readonly profiles?: readonly ProviderProfile[];
@@ -50,6 +51,9 @@ export function createFakeServices(options?: {
     services: {
       commands: commandsFake.commands,
       comfyUi: comfyUiFake.service,
+      externalUrl: {
+        open: vi.fn(async () => undefined),
+      },
       generationBackends: [createGenerationBackendFake()],
       host: hostFake.host,
       generationSettings: createMemoryGenerationSettingsStore(options?.generationSettings),

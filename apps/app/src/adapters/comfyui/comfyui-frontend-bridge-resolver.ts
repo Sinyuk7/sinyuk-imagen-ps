@@ -1,14 +1,13 @@
-import type {
-  ComfyUiConnectionRepository,
-  ComfyUiExecutionHostPorts,
-} from '@imagen-ps/application';
+import type { ComfyUiExecutionHostPorts } from '@imagen-ps/application';
 import type { Logger, LogSpan } from '@imagen-ps/foundation';
 
 type FrontendBridgeResolver = NonNullable<ComfyUiExecutionHostPorts['frontendBridgeResolver']>;
 type FrontendBridgePort = NonNullable<Awaited<ReturnType<FrontendBridgeResolver['resolve']>>>;
 type BridgeRequest = Parameters<FrontendBridgePort['exchange']>[0];
 type BridgeIdentity = FrontendBridgePort['identity'];
-type ConnectionReader = Pick<ComfyUiConnectionRepository, 'get'>;
+interface ComfyUiServerReader {
+  load(): Promise<{ readonly baseUrl: string; readonly requestTimeoutMs: number } | undefined>;
+}
 
 interface BridgeMessageTarget {
   postMessage(message: unknown, targetOrigin: string): void;
@@ -63,7 +62,7 @@ export type DisposableComfyUiFrontendBridgeResolver = FrontendBridgeResolver & {
 };
 
 interface SharedResolverOptions {
-  readonly connections: ConnectionReader;
+  readonly server: ComfyUiServerReader;
   readonly hostWindow?: ComfyUiBridgeHostWindow;
   readonly clock?: ComfyUiBridgeResolverClock;
   readonly createRuntimeId?: (prefix: string) => string;
@@ -74,21 +73,22 @@ interface SharedResolverOptions {
 export interface ChromeComfyUiFrontendBridgeResolverOptions extends SharedResolverOptions {
   /** Chrome parent page 的 canonical HTTP(S) origin。 */
   readonly parentOrigin: string;
-  readonly createFrame?: (connectionId: string) => ChromeComfyUiBridgeFrameElement;
-  readonly mountFrame?: (frame: ChromeComfyUiBridgeFrameElement, connectionId: string) => void;
-  readonly detachFrame?: (frame: ChromeComfyUiBridgeFrameElement, connectionId: string) => void;
+  readonly createFrame?: (workflowId: string) => ChromeComfyUiBridgeFrameElement;
+  readonly mountFrame?: (frame: ChromeComfyUiBridgeFrameElement, workflowId: string) => void;
+  readonly detachFrame?: (frame: ChromeComfyUiBridgeFrameElement, workflowId: string) => void;
 }
 
 /** Photoshop UXP WebView resolver 的 DOM 与 lifecycle 注入点。 */
 export interface UxpComfyUiFrontendBridgeResolverOptions extends SharedResolverOptions {
   readonly pluginId: string;
-  readonly createWebView?: (connectionId: string) => UxpComfyUiBridgeWebViewElement;
-  readonly mountWebView?: (webView: UxpComfyUiBridgeWebViewElement, connectionId: string) => void;
-  readonly detachWebView?: (webView: UxpComfyUiBridgeWebViewElement, connectionId: string) => void;
+  readonly createWebView?: (workflowId: string) => UxpComfyUiBridgeWebViewElement;
+  readonly mountWebView?: (webView: UxpComfyUiBridgeWebViewElement, workflowId: string) => void;
+  readonly detachWebView?: (webView: UxpComfyUiBridgeWebViewElement, workflowId: string) => void;
 }
 
 interface ConnectionSnapshot {
-  readonly connectionId: string;
+  readonly workflowId: string;
+  readonly baseUrl: string;
   readonly origin: string;
   readonly requestTimeoutMs: number;
 }
@@ -110,7 +110,7 @@ interface SessionTransport {
 }
 
 interface ResolverConfiguration {
-  readonly connections: ConnectionReader;
+  readonly server: ComfyUiServerReader;
   readonly hostWindow: ComfyUiBridgeHostWindow;
   readonly clock: ComfyUiBridgeResolverClock;
   readonly createRuntimeId: (prefix: string) => string;
@@ -192,29 +192,29 @@ function runtimeIdFactory(factory: SharedResolverOptions['createRuntimeId']): (p
   };
 }
 
-function canonicalConnection(value: Awaited<ReturnType<ConnectionReader['get']>>, connectionId: string): ConnectionSnapshot | undefined {
-  if (value === undefined || value.connectionId !== connectionId) return undefined;
+function canonicalConnection(value: Awaited<ReturnType<ComfyUiServerReader['load']>>, workflowId: string): ConnectionSnapshot | undefined {
+  if (value === undefined) return undefined;
   let url: URL;
   try {
-    url = new URL(value.origin);
+    url = new URL(value.baseUrl);
   } catch {
     return undefined;
   }
   if (
     (url.protocol !== 'http:' && url.protocol !== 'https:')
-    || url.origin !== value.origin
     || url.username.length > 0
     || url.password.length > 0
-    || url.pathname !== '/'
     || url.search.length > 0
     || url.hash.length > 0
     || !Number.isInteger(value.requestTimeoutMs)
     || value.requestTimeoutMs < 250
-    || value.requestTimeoutMs > 120_000
+    || value.requestTimeoutMs > 300_000
   ) return undefined;
+  const path = url.pathname.replace(/\/{2,}/g, '/').replace(/\/$/u, '');
   return {
-    connectionId,
-    origin: value.origin,
+    workflowId,
+    baseUrl: `${url.origin}${path}`,
+    origin: url.origin,
     requestTimeoutMs: value.requestTimeoutMs,
   };
 }
@@ -356,7 +356,7 @@ class BridgeSession {
     this.timeoutMs = connection.requestTimeoutMs;
     this.sourceId = createRuntimeId('comfy-bridge-source');
     this.identityValue = this.nextIdentity();
-    this.expectedUrl = bridgeUrl(connection.origin, this.identityValue);
+    this.expectedUrl = bridgeUrl(connection.baseUrl, this.identityValue);
     const session = this;
     this.port = Object.freeze({
       get identity() {
@@ -596,7 +596,7 @@ class BridgeSession {
     this.rejectPending(error);
     this.clearLoadTimeout();
     this.identityValue = this.nextIdentity();
-    this.expectedUrl = bridgeUrl(this.connection.origin, this.identityValue);
+    this.expectedUrl = bridgeUrl(this.connection.baseUrl, this.identityValue);
     this.ready = createDeferred<void>();
     this.state = 'loading';
     this.beginLoadSpan();
@@ -669,7 +669,7 @@ function createResolver(configuration: ResolverConfiguration): DisposableComfyUi
   configuration.hostWindow.addEventListener('message', handleMessage);
 
   return {
-    async resolve(connectionId) {
+    async resolve(workflowId) {
       const span = configuration.logger?.startSpan('comfyui.bridge.resolve', {
         transport: configuration.transportKind,
       });
@@ -678,22 +678,22 @@ function createResolver(configuration: ResolverConfiguration): DisposableComfyUi
           span?.finish({ transport: configuration.transportKind, result: 'disposed' });
           return undefined;
         }
-        const connection = canonicalConnection(await configuration.connections.get(connectionId), connectionId);
+        const connection = canonicalConnection(await configuration.server.load(), workflowId);
         if (disposed) {
           span?.finish({ transport: configuration.transportKind, result: 'disposed' });
           return undefined;
         }
         if (connection === undefined) {
-          const invalidSession = sessions.get(connectionId);
-          sessions.delete(connectionId);
+          const invalidSession = sessions.get(workflowId);
+          sessions.delete(workflowId);
           invalidSession?.dispose(resolverError('disposed'));
           span?.finish({ transport: configuration.transportKind, result: 'unavailable' });
           return undefined;
         }
 
-        let session = sessions.get(connectionId);
-        if (session !== undefined && session.connection.origin !== connection.origin) {
-          sessions.delete(connectionId);
+        let session = sessions.get(workflowId);
+        if (session !== undefined && session.connection.baseUrl !== connection.baseUrl) {
+          sessions.delete(workflowId);
           session.dispose(resolverError('disposed'));
           session = undefined;
         }
@@ -707,12 +707,12 @@ function createResolver(configuration: ResolverConfiguration): DisposableComfyUi
             configuration.clock,
             configuration.createRuntimeId,
             (retired) => {
-              if (sessions.get(connectionId) === retired) sessions.delete(connectionId);
+              if (sessions.get(workflowId) === retired) sessions.delete(workflowId);
             },
             configuration.handshakeRetryMs,
             configuration.logger,
           );
-          sessions.set(connectionId, session);
+          sessions.set(workflowId, session);
           session.start();
         } else {
           session.updateTimeout(connection.requestTimeoutMs);
@@ -745,10 +745,10 @@ function createResolver(configuration: ResolverConfiguration): DisposableComfyUi
 
 function sharedConfiguration(options: SharedResolverOptions): Pick<
   ResolverConfiguration,
-  'connections' | 'hostWindow' | 'clock' | 'createRuntimeId' | 'logger'
+    'server' | 'hostWindow' | 'clock' | 'createRuntimeId' | 'logger'
 > {
   return {
-    connections: options.connections,
+    server: options.server,
     hostWindow: options.hostWindow ?? globalThis.window,
     clock: options.clock ?? defaultClock,
     createRuntimeId: runtimeIdFactory(options.createRuntimeId),
@@ -792,7 +792,7 @@ export function createChromeComfyUiFrontendBridgeResolver(
     identityOrigin: () => parentOrigin,
     handshakeRetryMs: CHROME_HANDSHAKE_RETRY_MS,
     createTransport(connection) {
-      const frame = createFrame(connection.connectionId);
+      const frame = createFrame(connection.workflowId);
       return {
         attach(callbacks) {
           const load: EventListener = () => callbacks.stop(frame.src, true);
@@ -804,11 +804,11 @@ export function createChromeComfyUiFrontendBridgeResolver(
             frame.removeEventListener('error', error);
           };
         },
-        mount: () => mountFrame(frame, connection.connectionId),
+        mount: () => mountFrame(frame, connection.workflowId),
         navigate(url) {
           frame.src = url;
         },
-        detach: () => detachFrame(frame, connection.connectionId),
+        detach: () => detachFrame(frame, connection.workflowId),
         source: () => frame.contentWindow,
         send(request, targetOrigin) {
           const contentWindow = frame.contentWindow;
@@ -843,7 +843,7 @@ export function createUxpComfyUiFrontendBridgeResolver(
     transportKind: 'uxp',
     identityOrigin: () => options.pluginId,
     createTransport(connection) {
-      const webView = createWebView(connection.connectionId);
+      const webView = createWebView(connection.workflowId);
       return {
         attach(callbacks) {
           const loadStart: EventListener = (event) => callbacks.start?.(eventUrl(event));
@@ -858,11 +858,11 @@ export function createUxpComfyUiFrontendBridgeResolver(
             webView.removeEventListener('loaderror', loadError);
           };
         },
-        mount: () => mountWebView(webView, connection.connectionId),
+        mount: () => mountWebView(webView, connection.workflowId),
         navigate(url) {
           webView.src = url;
         },
-        detach: () => detachWebView(webView, connection.connectionId),
+        detach: () => detachWebView(webView, connection.workflowId),
         source: () => webView,
         send(request) {
           webView.postMessage(request);
