@@ -206,6 +206,14 @@ surface apps -> application/session -> core-engine + providers + execution backe
 - Sink boundary: shared logging constructs records and applies redaction; host adapters own storage (UXP data-folder sink, Chrome IndexedDB-style sink).
 - Failure mode: logging is fail-open and must not break product behavior.
 - No raw provider request/response logging and no remote telemetry pipeline.
+- ComfyUI frontend Bridge diagnostics use `comfyui.bridge.resolve.*`,
+  `comfyui.bridge.load.*`, `comfyui.bridge.handshake.*`, and
+  `comfyui.frontend.discovery.*`, with `comfyui.bridge.exchange.*` for other
+  commands and bounded `comfyui.bridge.message.rejected` /
+  `comfyui.bridge.load.rejected` anomalies. Keep attributes bounded to
+  `transport`, `command`, `phase`, `reason`, and `result`; never log connection
+  endpoints, origins, workflow paths, identities, request IDs, payloads,
+  headers, or prompt/operation IDs.
 - Provider response normalization must not retain full inline `data:image/...`
   payloads in surfaced `text`, `raw`, diagnostics, or durable/session-facing
   display paths. Chat-image style markdown inline images may be promoted into
@@ -248,6 +256,11 @@ surface apps -> application/session -> core-engine + providers + execution backe
 ## UXP Host IO Constraints
 
 - `localFileSystem.getDataFolder()` is the plugin-private persistence root (settings, cache index, plugin database). `getTemporaryFolder()` is non-persistent; `getPluginFolder()` is read-only.
+- UXP WebView messages report the loaded content URL through plugin-side
+  `event.origin`. Validate its parsed HTTP(S) origin against the canonical
+  connection origin while keeping `event.source === webView` exact. Chrome
+  iframe messages retain exact browser-origin matching; never accept a
+  cross-origin URL or weaken the source check.
 - `secureStorage` is a secure cache, not a reliable business database. API keys go into secure storage, not JSON, cache index, or logs.
 - `nativePath` is not a persistent reference. External file references use persistent tokens; every token resolution must handle failure.
 - Photoshop document writes must run inside `require('photoshop').core.executeAsModal` and use session tokens, not native paths.

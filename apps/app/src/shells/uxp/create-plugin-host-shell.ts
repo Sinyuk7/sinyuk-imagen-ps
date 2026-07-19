@@ -120,6 +120,7 @@ export function createPluginHostShell(): PluginHostShell {
     const promptSettings = createUxpPromptSettingsStore(uxpModules);
     const activeImageProfile = createUxpActiveImageProfileStore(uxpModules);
     const comfyUiRepositories = createUxpComfyUiRepositories(uxpModules);
+    const comfyUiBridgeLogger = logger.child({ component: 'transport' });
 
     logger.info('panel.adapters.initialized', {
       hasProfileRepository: true,
@@ -165,6 +166,7 @@ export function createPluginHostShell(): PluginHostShell {
     const comfyUiBridgeResolver = createUxpComfyUiFrontendBridgeResolver({
       connections: comfyUiRepositories.connections,
       pluginId: UXP_PLUGIN_ID,
+      logger: comfyUiBridgeLogger,
     });
     const comfyUiRuntime = createComfyUiAppRuntime({
       repositories: comfyUiRepositories,

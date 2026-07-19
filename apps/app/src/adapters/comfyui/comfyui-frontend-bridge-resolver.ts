@@ -2,6 +2,7 @@ import type {
   ComfyUiConnectionRepository,
   ComfyUiExecutionHostPorts,
 } from '@imagen-ps/application';
+import type { Logger, LogSpan } from '@imagen-ps/foundation';
 
 type FrontendBridgeResolver = NonNullable<ComfyUiExecutionHostPorts['frontendBridgeResolver']>;
 type FrontendBridgePort = NonNullable<Awaited<ReturnType<FrontendBridgeResolver['resolve']>>>;
@@ -66,6 +67,7 @@ interface SharedResolverOptions {
   readonly hostWindow?: ComfyUiBridgeHostWindow;
   readonly clock?: ComfyUiBridgeResolverClock;
   readonly createRuntimeId?: (prefix: string) => string;
+  readonly logger?: Logger;
 }
 
 /** Chrome iframe resolver 的 DOM 与 lifecycle 注入点。 */
@@ -112,6 +114,8 @@ interface ResolverConfiguration {
   readonly hostWindow: ComfyUiBridgeHostWindow;
   readonly clock: ComfyUiBridgeResolverClock;
   readonly createRuntimeId: (prefix: string) => string;
+  readonly transportKind: 'chrome' | 'uxp';
+  readonly logger?: Logger;
   readonly identityOrigin: (connection: ConnectionSnapshot) => string;
   readonly handshakeRetryMs?: number;
   readonly createTransport: (connection: ConnectionSnapshot) => SessionTransport;
@@ -125,6 +129,7 @@ interface Deferred<T> {
 }
 
 interface PendingExchange {
+  readonly command: BridgeRequest['command'];
   readonly resolve: (value: unknown) => void;
   readonly reject: (reason: unknown) => void;
   readonly cleanup: () => void;
@@ -258,6 +263,44 @@ function responseRequestId(value: unknown): string | undefined {
   return typeof requestId === 'string' && requestId.length > 0 ? requestId : undefined;
 }
 
+function messageOriginMatches(
+  transportKind: 'chrome' | 'uxp',
+  eventOrigin: string,
+  connectionOrigin: string,
+): boolean {
+  if (eventOrigin === connectionOrigin) return true;
+  if (transportKind !== 'uxp') return false;
+  try {
+    const contentUrl = new URL(eventOrigin);
+    return (contentUrl.protocol === 'http:' || contentUrl.protocol === 'https:')
+      && contentUrl.username.length === 0
+      && contentUrl.password.length === 0
+      && contentUrl.origin === connectionOrigin;
+  } catch {
+    return false;
+  }
+}
+
+function exchangeOperation(command: BridgeRequest['command']): string {
+  if (command === 'handshake') return 'comfyui.bridge.handshake';
+  if (command === 'list-workflows') return 'comfyui.frontend.discovery';
+  return 'comfyui.bridge.exchange';
+}
+
+function resolverReason(error: unknown): string {
+  if (!(error instanceof Error)) return 'unknown';
+  const match = /^ComfyUI Bridge resolver ([a-z-]+)\.$/u.exec(error.message);
+  return match?.[1] ?? 'unknown';
+}
+
+function resolverLogError(error: unknown): { readonly category: 'bridge'; readonly kind: string; readonly message: string } {
+  return {
+    category: 'bridge',
+    kind: resolverReason(error),
+    message: 'ComfyUI Bridge operation failed.',
+  };
+}
+
 function eventUrl(event: Event): string | undefined {
   const url = (event as Event & { readonly url?: unknown }).url;
   return typeof url === 'string' && url.length > 0 ? url : undefined;
@@ -297,15 +340,18 @@ class BridgeSession {
   private loadTimeout: unknown | undefined;
   private detachLoadListeners: (() => void) | undefined;
   private mounted = false;
+  private loadSpan: LogSpan | undefined;
 
   constructor(
     readonly connection: ConnectionSnapshot,
     private readonly identityOrigin: string,
     private readonly transport: SessionTransport,
+    private readonly transportKind: 'chrome' | 'uxp',
     private readonly clock: ComfyUiBridgeResolverClock,
     private readonly createRuntimeId: (prefix: string) => string,
     private readonly onRetire: (session: BridgeSession) => void,
     private readonly handshakeRetryMs?: number,
+    private readonly logger?: Logger,
   ) {
     this.timeoutMs = connection.requestTimeoutMs;
     this.sourceId = createRuntimeId('comfy-bridge-source');
@@ -328,6 +374,7 @@ class BridgeSession {
 
   start(): void {
     if (this.state !== 'new') return;
+    this.beginLoadSpan();
     this.detachLoadListeners = this.transport.attach({
       start: (url) => this.handleLoadStart(url),
       stop: (url, reloadDetectedAtStop) => this.handleLoadStop(url, reloadDetectedAtStop),
@@ -359,12 +406,24 @@ class BridgeSession {
     await waitWithSignal(this.ready.promise, signal);
   }
 
-  matchesMessage(event: MessageEvent<unknown>): boolean {
+  handleMessage(event: MessageEvent<unknown>): boolean {
+    const requestId = responseRequestId(event.data);
+    if (requestId === undefined) return false;
+    const exchange = this.pending.get(requestId);
+    if (exchange === undefined) return false;
     const source = this.transport.source();
-    return source !== undefined
-      && source !== null
-      && event.origin === this.connection.origin
-      && event.source === source;
+    // UXP 返回完整内容 URL；Chrome 仍使用浏览器 exact-origin 语义。
+    const originMatches = messageOriginMatches(this.transportKind, event.origin, this.connection.origin);
+    const sourceMatches = source !== undefined && source !== null && event.source === source;
+    if (!originMatches || !sourceMatches) {
+      this.logger?.warn('comfyui.bridge.message.rejected', {
+        transport: this.transportKind,
+        command: exchange.command,
+        reason: !originMatches ? 'origin-mismatch' : 'source-mismatch',
+      });
+      return false;
+    }
+    return this.receive(event.data);
   }
 
   receive(value: unknown): boolean {
@@ -380,6 +439,7 @@ class BridgeSession {
 
   dispose(reason = resolverError('disposed')): void {
     if (this.state === 'disposed') return;
+    this.failLoadSpan(reason, 'load');
     this.state = 'disposed';
     this.clearLoadTimeout();
     this.ready.reject(reason);
@@ -401,66 +461,89 @@ class BridgeSession {
   }
 
   private async exchange(request: BridgeRequest, signal?: AbortSignal): Promise<unknown> {
-    if (!identityMatches(request.identity, this.identityValue)) throw resolverError('stale');
-    await this.awaitReady(signal);
-    if (!identityMatches(request.identity, this.identityValue)) throw resolverError('stale');
-    if (signal?.aborted) throw resolverError('aborted');
-    if (this.pending.has(request.requestId)) throw resolverError('stale');
-
-    return new Promise<unknown>((resolve, reject) => {
-      let timeoutHandle: unknown | undefined;
-      let retryHandle: unknown | undefined;
-      const abort = (): void => {
-        const pending = this.pending.get(request.requestId);
-        if (pending === undefined) return;
-        this.pending.delete(request.requestId);
-        pending.cleanup();
-        pending.reject(resolverError('aborted'));
-      };
-      const cleanup = (): void => {
-        if (timeoutHandle !== undefined) this.clock.clearTimeout(timeoutHandle);
-        if (retryHandle !== undefined) this.clock.clearTimeout(retryHandle);
-        signal?.removeEventListener('abort', abort);
-      };
-      this.pending.set(request.requestId, { resolve, reject, cleanup });
-      signal?.addEventListener('abort', abort, { once: true });
-      timeoutHandle = this.clock.setTimeout(() => {
-        const pending = this.pending.get(request.requestId);
-        if (pending === undefined) return;
-        this.pending.delete(request.requestId);
-        pending.cleanup();
-        pending.reject(resolverError('timeout'));
-      }, this.timeoutMs);
-
-      const send = (): void => {
-        this.transport.send(request, this.connection.origin);
-        if (request.command === 'handshake' && this.handshakeRetryMs !== undefined) {
-          retryHandle = this.clock.setTimeout(() => {
-            retryHandle = undefined;
-            if (!this.pending.has(request.requestId)) return;
-            try {
-              send();
-            } catch (error) {
-              const pending = this.pending.get(request.requestId);
-              if (pending === undefined) return;
-              this.pending.delete(request.requestId);
-              pending.cleanup();
-              pending.reject(error);
-            }
-          }, this.handshakeRetryMs);
-        }
-      };
-
-      try {
-        send();
-      } catch (error) {
-        const pending = this.pending.get(request.requestId);
-        if (pending === undefined) return;
-        this.pending.delete(request.requestId);
-        pending.cleanup();
-        pending.reject(error);
-      }
+    const span = this.logger?.startSpan(exchangeOperation(request.command), {
+      transport: this.transportKind,
+      command: request.command,
     });
+    let phase: 'identity' | 'load' | 'send' | 'response' = 'identity';
+    try {
+      if (!identityMatches(request.identity, this.identityValue)) throw resolverError('stale');
+      phase = 'load';
+      await this.awaitReady(signal);
+      if (!identityMatches(request.identity, this.identityValue)) throw resolverError('stale');
+      if (signal?.aborted) throw resolverError('aborted');
+      if (this.pending.has(request.requestId)) throw resolverError('stale');
+      phase = 'send';
+
+      const response = await new Promise<unknown>((resolve, reject) => {
+        let timeoutHandle: unknown | undefined;
+        let retryHandle: unknown | undefined;
+        const abort = (): void => {
+          const pending = this.pending.get(request.requestId);
+          if (pending === undefined) return;
+          this.pending.delete(request.requestId);
+          pending.cleanup();
+          pending.reject(resolverError('aborted'));
+        };
+        const cleanup = (): void => {
+          if (timeoutHandle !== undefined) this.clock.clearTimeout(timeoutHandle);
+          if (retryHandle !== undefined) this.clock.clearTimeout(retryHandle);
+          signal?.removeEventListener('abort', abort);
+        };
+        this.pending.set(request.requestId, { command: request.command, resolve, reject, cleanup });
+        signal?.addEventListener('abort', abort, { once: true });
+        timeoutHandle = this.clock.setTimeout(() => {
+          const pending = this.pending.get(request.requestId);
+          if (pending === undefined) return;
+          this.pending.delete(request.requestId);
+          pending.cleanup();
+          pending.reject(resolverError('timeout'));
+        }, this.timeoutMs);
+
+        const send = (): void => {
+          this.transport.send(request, this.connection.origin);
+          if (request.command === 'handshake' && this.handshakeRetryMs !== undefined) {
+            retryHandle = this.clock.setTimeout(() => {
+              retryHandle = undefined;
+              if (!this.pending.has(request.requestId)) return;
+              try {
+                send();
+              } catch (error) {
+                const pending = this.pending.get(request.requestId);
+                if (pending === undefined) return;
+                this.pending.delete(request.requestId);
+                pending.cleanup();
+                pending.reject(error);
+              }
+            }, this.handshakeRetryMs);
+          }
+        };
+
+        try {
+          send();
+          phase = 'response';
+        } catch (error) {
+          const pending = this.pending.get(request.requestId);
+          if (pending === undefined) return;
+          this.pending.delete(request.requestId);
+          pending.cleanup();
+          pending.reject(error);
+        }
+      });
+      span?.finish({
+        transport: this.transportKind,
+        command: request.command,
+      });
+      return response;
+    } catch (error) {
+      span?.fail(resolverLogError(error), {
+        transport: this.transportKind,
+        command: request.command,
+        phase,
+        reason: resolverReason(error),
+      });
+      throw error;
+    }
   }
 
   private handleLoadStart(url: string | undefined): void {
@@ -471,7 +554,14 @@ class BridgeSession {
 
   private handleLoadStop(url: string | undefined, reloadDetectedAtStop: boolean): void {
     if (this.state === 'disposed') return;
-    if (!this.isExpectedUrl(url)) return;
+    if (!this.isExpectedUrl(url)) {
+      this.logger?.warn('comfyui.bridge.load.rejected', {
+        transport: this.transportKind,
+        phase: 'stop',
+        reason: 'unexpected-url',
+      });
+      return;
+    }
     if (this.state === 'ready') {
       if (reloadDetectedAtStop) this.rotateLoad();
       return;
@@ -479,6 +569,7 @@ class BridgeSession {
     if (this.state !== 'loading') return;
     this.state = 'ready';
     this.clearLoadTimeout();
+    this.finishLoadSpan();
     this.ready.resolve(undefined);
   }
 
@@ -500,6 +591,7 @@ class BridgeSession {
   private rotateLoad(): void {
     if (this.state === 'disposed') return;
     const error = resolverError('reloaded');
+    this.failLoadSpan(error, 'reload');
     this.ready.reject(error);
     this.rejectPending(error);
     this.clearLoadTimeout();
@@ -507,6 +599,7 @@ class BridgeSession {
     this.expectedUrl = bridgeUrl(this.connection.origin, this.identityValue);
     this.ready = createDeferred<void>();
     this.state = 'loading';
+    this.beginLoadSpan();
     this.scheduleLoadTimeout();
     try {
       this.transport.navigate(this.expectedUrl);
@@ -530,6 +623,26 @@ class BridgeSession {
     }, this.timeoutMs);
   }
 
+  private beginLoadSpan(): void {
+    this.loadSpan = this.logger?.startSpan('comfyui.bridge.load', {
+      transport: this.transportKind,
+    });
+  }
+
+  private finishLoadSpan(): void {
+    this.loadSpan?.finish({ transport: this.transportKind });
+    this.loadSpan = undefined;
+  }
+
+  private failLoadSpan(error: unknown, phase: 'load' | 'reload'): void {
+    this.loadSpan?.fail(resolverLogError(error), {
+      transport: this.transportKind,
+      phase,
+      reason: resolverReason(error),
+    });
+    this.loadSpan = undefined;
+  }
+
   private clearLoadTimeout(): void {
     if (this.loadTimeout === undefined) return;
     this.clock.clearTimeout(this.loadTimeout);
@@ -538,6 +651,7 @@ class BridgeSession {
 
   private retire(reason: Error): void {
     if (this.state === 'disposed') return;
+    this.failLoadSpan(reason, 'load');
     this.dispose(reason);
     this.onRetire(this);
   }
@@ -549,48 +663,74 @@ function createResolver(configuration: ResolverConfiguration): DisposableComfyUi
 
   const handleMessage = (event: MessageEvent<unknown>): void => {
     for (const session of sessions.values()) {
-      if (session.matchesMessage(event) && session.receive(event.data)) return;
+      if (session.handleMessage(event)) return;
     }
   };
   configuration.hostWindow.addEventListener('message', handleMessage);
 
   return {
     async resolve(connectionId) {
-      if (disposed) return undefined;
-      const connection = canonicalConnection(await configuration.connections.get(connectionId), connectionId);
-      if (disposed) return undefined;
-      if (connection === undefined) {
-        const invalidSession = sessions.get(connectionId);
-        sessions.delete(connectionId);
-        invalidSession?.dispose(resolverError('disposed'));
-        return undefined;
-      }
+      const span = configuration.logger?.startSpan('comfyui.bridge.resolve', {
+        transport: configuration.transportKind,
+      });
+      try {
+        if (disposed) {
+          span?.finish({ transport: configuration.transportKind, result: 'disposed' });
+          return undefined;
+        }
+        const connection = canonicalConnection(await configuration.connections.get(connectionId), connectionId);
+        if (disposed) {
+          span?.finish({ transport: configuration.transportKind, result: 'disposed' });
+          return undefined;
+        }
+        if (connection === undefined) {
+          const invalidSession = sessions.get(connectionId);
+          sessions.delete(connectionId);
+          invalidSession?.dispose(resolverError('disposed'));
+          span?.finish({ transport: configuration.transportKind, result: 'unavailable' });
+          return undefined;
+        }
 
-      let session = sessions.get(connectionId);
-      if (session !== undefined && session.connection.origin !== connection.origin) {
-        sessions.delete(connectionId);
-        session.dispose(resolverError('disposed'));
-        session = undefined;
+        let session = sessions.get(connectionId);
+        if (session !== undefined && session.connection.origin !== connection.origin) {
+          sessions.delete(connectionId);
+          session.dispose(resolverError('disposed'));
+          session = undefined;
+        }
+        const sessionResult = session === undefined || session.disposed ? 'created' : 'reused';
+        if (session === undefined || session.disposed) {
+          session = new BridgeSession(
+            connection,
+            configuration.identityOrigin(connection),
+            configuration.createTransport(connection),
+            configuration.transportKind,
+            configuration.clock,
+            configuration.createRuntimeId,
+            (retired) => {
+              if (sessions.get(connectionId) === retired) sessions.delete(connectionId);
+            },
+            configuration.handshakeRetryMs,
+            configuration.logger,
+          );
+          sessions.set(connectionId, session);
+          session.start();
+        } else {
+          session.updateTimeout(connection.requestTimeoutMs);
+        }
+        await session.awaitReady();
+        span?.finish({
+          transport: configuration.transportKind,
+          result: sessionResult,
+        });
+        return session.port;
+      } catch (error) {
+        span?.fail(resolverLogError(error), {
+          transport: configuration.transportKind,
+          phase: 'load',
+          reason: resolverReason(error),
+        });
+        throw error;
       }
-      if (session === undefined || session.disposed) {
-        session = new BridgeSession(
-          connection,
-          configuration.identityOrigin(connection),
-          configuration.createTransport(connection),
-          configuration.clock,
-          configuration.createRuntimeId,
-          (retired) => {
-            if (sessions.get(connectionId) === retired) sessions.delete(connectionId);
-          },
-          configuration.handshakeRetryMs,
-        );
-        sessions.set(connectionId, session);
-        session.start();
-      } else {
-        session.updateTimeout(connection.requestTimeoutMs);
-      }
-      await session.awaitReady();
-      return session.port;
     },
     dispose() {
       if (disposed) return;
@@ -605,13 +745,14 @@ function createResolver(configuration: ResolverConfiguration): DisposableComfyUi
 
 function sharedConfiguration(options: SharedResolverOptions): Pick<
   ResolverConfiguration,
-  'connections' | 'hostWindow' | 'clock' | 'createRuntimeId'
+  'connections' | 'hostWindow' | 'clock' | 'createRuntimeId' | 'logger'
 > {
   return {
     connections: options.connections,
     hostWindow: options.hostWindow ?? globalThis.window,
     clock: options.clock ?? defaultClock,
     createRuntimeId: runtimeIdFactory(options.createRuntimeId),
+    logger: options.logger,
   };
 }
 
@@ -647,6 +788,7 @@ export function createChromeComfyUiFrontendBridgeResolver(
 
   return createResolver({
     ...sharedConfiguration(options),
+    transportKind: 'chrome',
     identityOrigin: () => parentOrigin,
     handshakeRetryMs: CHROME_HANDSHAKE_RETRY_MS,
     createTransport(connection) {
@@ -698,6 +840,7 @@ export function createUxpComfyUiFrontendBridgeResolver(
 
   return createResolver({
     ...sharedConfiguration(options),
+    transportKind: 'uxp',
     identityOrigin: () => options.pluginId,
     createTransport(connection) {
       const webView = createWebView(connection.connectionId);

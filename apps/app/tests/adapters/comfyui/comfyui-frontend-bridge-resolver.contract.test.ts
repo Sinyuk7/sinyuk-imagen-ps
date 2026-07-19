@@ -1,4 +1,5 @@
 import type { ComfyUiConnectionRepository } from '@imagen-ps/application';
+import { createLogger, createMemorySink } from '@imagen-ps/foundation';
 import { describe, expect, it } from 'vitest';
 import {
   createChromeComfyUiFrontendBridgeResolver,
@@ -11,6 +12,7 @@ import {
 
 type ConnectionReader = Pick<ComfyUiConnectionRepository, 'get'>;
 const CHROME_PARENT_ORIGIN = 'https://app.example.test';
+const ALLOWED_LOG_ATTR_KEYS = new Set(['transport', 'command', 'phase', 'reason', 'result']);
 
 class FakeHostWindow implements ComfyUiBridgeHostWindow {
   readonly listeners = new Set<(event: MessageEvent<unknown>) => void>();
@@ -149,6 +151,16 @@ async function flush(): Promise<void> {
   await Promise.resolve();
 }
 
+function createLogCapture() {
+  const sink = createMemorySink();
+  const logger = createLogger({
+    sink,
+    context: { surface: 'test', package: 'app', component: 'transport' },
+    traceId: 'comfyui-bridge-contract',
+  });
+  return { logger, sink };
+}
+
 function request(identity: { readonly origin: string; readonly sourceId: string; readonly loadId: string }, requestId: string) {
   return {
     requestId,
@@ -204,6 +216,11 @@ describe('ComfyUI frontend Bridge resolvers', () => {
       data: { requestId: 'request-1', ok: true },
     });
     hostWindow.emit({
+      origin: 'https://comfy.example.test/path?from=chrome',
+      source: frame.contentWindow,
+      data: { requestId: 'request-1', ok: true },
+    });
+    hostWindow.emit({
       origin: 'https://comfy.example.test',
       source: {},
       data: { requestId: 'request-1', ok: true },
@@ -227,9 +244,10 @@ describe('ComfyUI frontend Bridge resolvers', () => {
     expect(frame.listenerCount()).toBe(0);
   });
 
-  it('uses plugin identity and one-argument postMessage for UXP WebView', async () => {
+  it('uses plugin identity, full content URL origin, and one-argument postMessage for UXP WebView', async () => {
     const hostWindow = new FakeHostWindow();
     const webView = new FakeWebView();
+    const { logger, sink } = createLogCapture();
     const resolver = createUxpComfyUiFrontendBridgeResolver({
       connections: connectionReader(),
       pluginId: 'com.imagen-ps.panel',
@@ -238,6 +256,7 @@ describe('ComfyUI frontend Bridge resolvers', () => {
       createRuntimeId: createIds(),
       createWebView: () => webView,
       mountWebView: () => undefined,
+      logger,
     });
 
     const resolving = resolver.resolve('connection-1');
@@ -252,7 +271,10 @@ describe('ComfyUI frontend Bridge resolvers', () => {
       loadId: port!.identity.loadId,
     });
 
-    const outgoing = request(port!.identity, 'request-uxp');
+    const outgoing = {
+      ...request(port!.identity, 'request-uxp'),
+      command: 'list-workflows' as const,
+    };
     const pending = port!.exchange(outgoing);
     await flush();
     expect(webView.posts).toEqual([[outgoing]]);
@@ -262,6 +284,18 @@ describe('ComfyUI frontend Bridge resolvers', () => {
       source: webView,
       data: { requestId: 'request-uxp', ok: true },
     });
+    for (const origin of [
+      'https://comfy.example.test.evil.invalid/bridge',
+      'https://user:password@comfy.example.test/bridge',
+      'blob:https://comfy.example.test/runtime-id',
+      'not-a-url',
+    ]) {
+      hostWindow.emit({
+        origin,
+        source: webView,
+        data: { requestId: 'request-uxp', ok: true },
+      });
+    }
     hostWindow.emit({
       origin: 'https://comfy.example.test',
       source: {},
@@ -269,11 +303,128 @@ describe('ComfyUI frontend Bridge resolvers', () => {
     });
     const response = { requestId: 'request-uxp', ok: true, payload: {} };
     hostWindow.emit({
-      origin: 'https://comfy.example.test',
+      origin: webView.src,
       source: webView,
       data: response,
     });
     await expect(pending).resolves.toBe(response);
+    expect(
+      sink.records
+        .filter((record) => record.event === 'comfyui.bridge.message.rejected')
+        .map((record) => record.attrs),
+    ).toEqual([
+      { transport: 'uxp', command: 'list-workflows', reason: 'origin-mismatch' },
+      { transport: 'uxp', command: 'list-workflows', reason: 'origin-mismatch' },
+      { transport: 'uxp', command: 'list-workflows', reason: 'origin-mismatch' },
+      { transport: 'uxp', command: 'list-workflows', reason: 'origin-mismatch' },
+      { transport: 'uxp', command: 'list-workflows', reason: 'origin-mismatch' },
+      { transport: 'uxp', command: 'list-workflows', reason: 'source-mismatch' },
+    ]);
+    expect(sink.records.map((record) => record.event)).toEqual(expect.arrayContaining([
+      'comfyui.frontend.discovery.start',
+      'comfyui.frontend.discovery.ok',
+    ]));
+    const serializedLogs = JSON.stringify(sink.records);
+    expect(sink.records.every((record) => (
+      Object.keys(record.attrs ?? {}).every((key) => ALLOWED_LOG_ATTR_KEYS.has(key))
+    ))).toBe(true);
+    expect(serializedLogs).not.toContain('https://comfy.example.test');
+    expect(serializedLogs).not.toContain('request-uxp');
+    expect(serializedLogs).not.toContain('payload');
+    expect(serializedLogs).not.toContain('identity');
+    resolver.dispose();
+  });
+
+  it('logs UXP initial load timeout separately from resolver failure', async () => {
+    const clock = new FakeClock();
+    const webView = new FakeWebView();
+    const { logger, sink } = createLogCapture();
+    const resolver = createUxpComfyUiFrontendBridgeResolver({
+      connections: connectionReader(),
+      pluginId: 'com.imagen-ps.panel',
+      hostWindow: new FakeHostWindow(),
+      clock,
+      createRuntimeId: createIds(),
+      createWebView: () => webView,
+      mountWebView: () => undefined,
+      logger,
+    });
+
+    const resolving = resolver.resolve('connection-1');
+    await flush();
+    webView.emit('loadstart');
+    webView.emit('loadstop', 'https://unexpected.example.test');
+    clock.runTimeout(1_000);
+
+    await expect(resolving).rejects.toThrow('timeout');
+    expect(sink.records.find((record) => record.event === 'comfyui.bridge.load.rejected')?.attrs).toEqual({
+      transport: 'uxp',
+      phase: 'stop',
+      reason: 'unexpected-url',
+    });
+    const loadFailure = sink.records.find((record) => record.event === 'comfyui.bridge.load.fail');
+    expect(loadFailure?.attrs).toEqual({
+      transport: 'uxp',
+      phase: 'load',
+      reason: 'timeout',
+    });
+    expect(loadFailure?.error).toEqual({
+      category: 'bridge',
+      kind: 'timeout',
+      message: 'ComfyUI Bridge operation failed.',
+    });
+    expect(sink.records.find((record) => record.event === 'comfyui.bridge.resolve.fail')?.attrs).toEqual({
+      transport: 'uxp',
+      phase: 'load',
+      reason: 'timeout',
+    });
+    expect(JSON.stringify(sink.records)).not.toContain('https://unexpected.example.test');
+    resolver.dispose();
+  });
+
+  it('logs UXP handshake response timeout after WebView load succeeds', async () => {
+    const hostWindow = new FakeHostWindow();
+    const clock = new FakeClock();
+    const webView = new FakeWebView();
+    const { logger, sink } = createLogCapture();
+    const resolver = createUxpComfyUiFrontendBridgeResolver({
+      connections: connectionReader(),
+      pluginId: 'com.imagen-ps.panel',
+      hostWindow,
+      clock,
+      createRuntimeId: createIds(),
+      createWebView: () => webView,
+      mountWebView: () => undefined,
+      logger,
+    });
+
+    const resolving = resolver.resolve('connection-1');
+    await flush();
+    webView.emit('loadstart');
+    webView.emit('loadstop');
+    const port = (await resolving)!;
+    sink.clear();
+
+    const pending = port.exchange(request(port.identity, 'handshake-timeout'));
+    await flush();
+    clock.runTimeout(1_000);
+
+    await expect(pending).rejects.toThrow('timeout');
+    expect(sink.records.map((record) => record.event)).toEqual([
+      'comfyui.bridge.handshake.start',
+      'comfyui.bridge.handshake.fail',
+    ]);
+    expect(sink.records[1]?.attrs).toEqual({
+      transport: 'uxp',
+      command: 'handshake',
+      phase: 'response',
+      reason: 'timeout',
+    });
+    expect(sink.records[1]?.error).toEqual({
+      category: 'bridge',
+      kind: 'timeout',
+      message: 'ComfyUI Bridge operation failed.',
+    });
     resolver.dispose();
   });
 
