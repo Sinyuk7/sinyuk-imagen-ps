@@ -1,3 +1,6 @@
+> **Status: superseded by `redesign-comfyui-workflow-runtime`**
+> 本 Change 的 ComfyUI 产品语义已被 `redesign-comfyui-workflow-runtime` 取代；未完成的 manual UXP tasks 只作为历史事实，不得继续作为实现 authority 或验收标准。
+
 ## Why
 
 完成 `generalize-task-job-execution-architecture` 后，系统具备不修改 Job、Task 与 Session 公共 contract即可接入新 generation backend 的稳定扩展点。现在需要把 ComfyUI 作为一个完整 `GenerationBackend` 接入，并同时支持 API Graph submission 与 Frontend native Queue，而不是复制 Provider 或建立第二套 execution/history/asset 架构。

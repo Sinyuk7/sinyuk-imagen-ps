@@ -1,149 +1,145 @@
 ## ADDED Requirements
 
-### Requirement: ComfyUI runtime 必须以单例 `baseUrl` 为唯一 server setting
-ComfyUI runtime MUST 只持有一个持久化 `baseUrl` 与少量 bounded runtime settings。它 MUST 接受显式 HTTP(S) URL 或 bare host/IP/port/path；对 bare address MUST 构造 bounded HTTPS/HTTP candidates，并持久化第一个通过 ComfyUI capability probe 的 canonical URL。它 MUST 规范化 origin 与可保留的 reverse-proxy path，MUST 拒绝 userinfo、query、fragment、control chars 与 unsupported scheme，且 MUST 不再依赖 `connectionId`、profile list 或多 connection repository。
+### Requirement: Runtime 必须只持久化单例 server selection 与 revision-scoped mappings
+ComfyUI runtime MUST 只持久化一个规范化 `baseUrl`、当前 `selectedWorkflowId`，以及按 workflow revision 归属的显式 Text/Image mapping record。它 MUST NOT 持久化 workflow document、discovery catalog、server capability、class metadata cache 或 Form override value；这些数据 MUST 只存在于 runtime 或 session。Runtime MUST 拒绝 userinfo、query、fragment、control character 与 unsupported scheme，MUST 保留 reverse-proxy path，并对所有 URL candidate 与 setting 设置 bounds。
 
-#### Scenario: 保存合法 baseUrl
-- **WHEN**用户保存一个可解析的 HTTP(S) server address
-- **THEN**runtime MUST 持久化 canonical `baseUrl`，并在后续 probe 与 submission 中复用它
+#### Scenario: 持久化 canonical server 与 selected workflow
+- **WHEN** 用户保存合法 server address 并选择一个远程已保存 workflow
+- **THEN** runtime MUST 持久化 canonical `baseUrl` 与 `selectedWorkflowId`，并在下个 session 恢复二者
 
-#### Scenario: 解析 bare address
-- **WHEN** 用户保存没有 scheme 的 host、IP、port 或 path
-- **THEN** runtime MUST 只探测 bounded HTTPS/HTTP candidates，并持久化第一个通过 ComfyUI capability probe 的 canonical `baseUrl`
+#### Scenario: 按 revision 持久化 mapping
+- **WHEN** 用户为 workflow revision `r1` 保存显式 Text 或 Image mapping
+- **THEN** runtime MUST 只在 `r1` 下持久化该 mapping，并在 selected workflow revision 改变时丢弃该 mapping 或归一化为 no mapping
 
-#### Scenario: 保留 reverse-proxy path
-- **WHEN** canonical `baseUrl` 包含 reverse-proxy path prefix
-- **THEN** runtime MUST 使用 base-path-preserving join 构造 API route，且 MUST NOT 用 root-relative URL 丢弃该 prefix
+#### Scenario: Runtime 与 session 数据不得进入 persistence
+- **WHEN** runtime 加载 workflow document、catalog、capability、class metadata 或 Form override
+- **THEN** 这些值 MUST 保持为 runtime/session state，且 MUST NOT 写入 durable ComfyUI settings
 
-#### Scenario: 拒绝 secret-shaped URL
-- **WHEN**`baseUrl` 包含 username、password、query、fragment 或非 HTTP(S) scheme
-- **THEN**保存 MUST fail closed，且 MUST 不暴露 secret-shaped 值
+#### Scenario: 保留安全 reverse-proxy URL
+- **WHEN** canonical `baseUrl` 为 `https://example.com/comfyui` 且 runtime 调用 `/prompt`
+- **THEN** runtime MUST 请求 `https://example.com/comfyui/prompt`，且 MUST NOT 丢弃 path prefix
 
-### Requirement: Server address 必须只负责 capability detection
-`baseUrl` MUST 只用于 URL normalization 与 capability detection。runtime MUST probe API readiness、Frontend readiness 与 Bridge compatibility 作为分离的 bounded facts；它 MUST NOT 把 server address 误判为 workflow format，也 MUST NOT 用单一 probe 代替其它 capability 证据。
+### Requirement: Server address 必须只驱动 bounded capability detection
+`baseUrl` MUST 只用于 URL normalization 与分离的 API、Frontend、Bridge capability probe。Runtime MUST 在内部保持这些 facts 分离，MUST NOT 从 address 推断 workflow format，并且 MUST 最多向 UI consumer 暴露一个 bounded ComfyUI status projection。
 
 #### Scenario: API ready 但 Frontend unavailable
-- **WHEN**API probe 成功而 Frontend/Bridge probe 失败
-- **THEN**runtime MUST 记录分离的 capability facts，且 MUST 不把整个 server 标记为不可用
+- **WHEN** API probe 成功而 Frontend 或 Bridge probe 失败
+- **THEN** runtime MUST 保留分离的内部 facts，并向 product UI报告无法读取remote workflows的merged status，而不是显示单独的API readiness
 
-#### Scenario: baseUrl 不是 workflow format
-- **WHEN**用户输入的 server address 指向 ComfyUI 站点
-- **THEN**runtime MUST 仍把它当作 server setting，而不是 workflow document
+#### Scenario: Bare address candidate 选择
+- **WHEN** bare host 存在 bounded HTTPS 与 HTTP candidate
+- **THEN** runtime MUST 只探测这些 candidate，并持久化第一个通过 ComfyUI capability probe 的 candidate
 
-### Requirement: Workflow format detection 必须结构化且 fail closed
-Workflow import/load MUST 自动识别 Frontend Save Format 与 API Format。Detection MUST 基于 document shape 与 bounded metadata，而不是 workflow name、profile、operation 或 marker contract；ambiguous、mixed 或 unsupported shape MUST fail closed。
+### Requirement: Discovery 必须列出远程已保存 workflow 且不得暴露 product format label
+Workflow discovery MUST 从 ComfyUI saved workflows 请求完整 bounded identity list。Discovery MUST 保持 canonical relative path，且 MUST NOT 加载每个 document、按 contract/operation/binding/output node 过滤、提供 imported-JSON product path，或暴露 Frontend/API format label。详细加载与解析 MUST 只在 selection 后发生。
 
-#### Scenario: Frontend Save Format
-- **WHEN**导入一个包含 Frontend workflow shape 的 document
-- **THEN**runtime MUST 将其识别为 Frontend Format 并进入 workflow record
+#### Scenario: 列出 saved workflows
+- **WHEN** ComfyUI 返回 bounded saved workflow identities
+- **THEN** runtime MUST 按稳定顺序返回所有安全 identity、必要 display metadata 与 relative path
 
-#### Scenario: API Format
-- **WHEN**导入一个包含 API workflow shape 的 document
-- **THEN**runtime MUST 将其识别为 API Format 并进入 workflow record
+#### Scenario: Discovery 不得预检 document
+- **WHEN** 某个 saved workflow 尚未被选择
+- **THEN** runtime MUST NOT fetch、parse、构建 Form 或执行 output preflight
 
-#### Scenario: 混合或歧义 shape
-- **WHEN**document 同时表现出 Frontend 与 API 结构特征
-- **THEN**runtime MUST 拒绝该输入而不猜测 format
+#### Scenario: 普通 workflow 保持可发现
+- **WHEN** saved workflow 不含 Imagen marker、contract 或 declared operation
+- **THEN** runtime MUST 仍将其列入 discovery，且 MUST NOT 显示 format 或 operation classification
 
-### Requirement: Discovery 必须返回完整 bounded identity list
-Workflow discovery MUST 先返回完整 bounded identity list，MUST 不逐个加载 workflow document，也 MUST 不在 discovery 阶段按 contract、operation、binding 或 output-node 过滤。Discovery response MUST 只包含 bounded identity 与必要 summary，且 MUST 保持 canonical relative path。
+### Requirement: API 与 Frontend parser/driver 必须保持 runtime internal
+Selection 后，runtime MAY 将 saved document 解析为 API-shaped graph 或 Frontend-shaped graph，并选择对应 internal driver。Parser 与 driver identity MUST NOT 出现在 persisted state、public workflow label、ViewModel contract 或 history projection。Admission MUST 只执行 bounded plain JSON structure、finite value、depth/node/identifier limit、cycle/prototype safety，且 MUST NOT 要求 profile、contract、marker、operation 或固定 input/output binding。
 
-#### Scenario: 发现远程 workflow
-- **WHEN**Bridge 返回一个合法 remote workflow path
-- **THEN**runtime MUST 将其作为 identity list item 保存，而不是立即加载全文
+#### Scenario: 内部解析 selected saved workflow
+- **WHEN** 用户选择一个 saved workflow
+- **THEN** runtime MUST 加载其完整 bounded document、检测 internal shape，并投影一个不暴露 parser 或 format name 的 workflow record
 
-#### Scenario: Discovery 不得 contract-filter
-- **WHEN**remote list 中包含未绑定、未解析或不含 Imagen marker 的 workflow
-- **THEN**runtime MUST 仍把它们列出，且 MUST 不在 discovery 阶段过滤掉
+#### Scenario: Ambiguous 或 unsafe document
+- **WHEN** selected content 为 mixed、ambiguous、cyclic、non-plain 或超出 configured bounds
+- **THEN** runtime MUST fail closed with bounded workflow error，且 MUST NOT 提交
 
-### Requirement: Selected workflow load 必须在 selection 后发生
-Selected workflow 的详细 load、解析、form 构建与 current value projection MUST 只在用户选择该 workflow 后发生。runtime MUST 对 selected workflow 维持 load identity/revision cache，并且 MUST 不在 list 阶段预先展开全部 workflow。
+### Requirement: Explicit mappings 与 Form overrides 必须是 optional execution inputs
+Runtime MUST 只在 workflow identity 与 revision 仍匹配时应用 persisted mapping。Form edit MUST 是 session-only override。Missing、stale 或 unsupported mapping MUST 归一化为 no mapping，并保留 saved workflow 原值。Composer prompt 与第一张 attachment MAY 覆盖 selected mapping，但 input binding MUST NOT 成为 admission 或 dispatch gate。
 
-#### Scenario: 选择某个 workflow
-- **WHEN**用户点选一个 workflow identity
-- **THEN**runtime MUST 加载该 workflow 的详细结构与 current values，并保留 selected workflow cache
+#### Scenario: Revision 改变后 mapping stale
+- **WHEN** saved Text mapping 引用的 widget 在当前 revision 中不存在或不再 writable
+- **THEN** runtime MUST 将其归一化为 no mapping，并保留 workflow current value
 
-#### Scenario: 未选择 workflow
-- **WHEN**用户尚未选择任何 workflow
-- **THEN**runtime MUST 不构建详细 form，也不尝试加载 selected workflow 内容
+#### Scenario: Workflow 忽略 Composer input
+- **WHEN** prompt 或 attachment 没有 compatible selected mapping
+- **THEN** runtime MUST 使用 workflow saved/Form values 运行完整 workflow，且 MUST NOT 因 missing input 拒绝请求
 
-### Requirement: Admission 必须只保留结构与安全边界
-Workflow admission MUST 只验证结构、安全边界与 bounded JSON properties。它 MUST 保留 2MB、2000 nodes、depth、bounded ids/class names、plain JSON、finite values、no cycle/no prototype 之类的安全限制；它 MUST 删除对 contract/profile/operation/marker node 的强制假设。
+### Requirement: Native ComfyUI submission 必须是 authoritative 且 one-shot
+API-shaped internal driver MUST 恰好执行一次 bounded native `POST /prompt`，并使用 server-issued prompt identity。Frontend-shaped internal driver MUST 打开完整 saved workflow、恢复 session values，并恰好调用一次 native Queue；它 MUST NOT 发起 app-owned `/prompt`。Driver choice MUST 对 ViewModel 与 history contract 不可见。
 
-#### Scenario: 安全边界通过
-- **WHEN**workflow document 满足 bounded JSON 与结构限制
-- **THEN**runtime MUST 允许其进入 workflow record，即使它不含 Imagen contract marker
+#### Scenario: API-shaped workflow submission
+- **WHEN** selected workflow ready 且通过 local bounds
+- **THEN** runtime MUST 发起一次 native `/prompt` submission，并以返回的 prompt identity 继续执行
 
-#### Scenario: 超出 bounds
-- **WHEN**workflow document 超过 size、node count 或 id/class bounds
-- **THEN**runtime MUST 拒绝该 workflow 而不继续解析
+#### Scenario: Frontend-shaped workflow submission
+- **WHEN** selected workflow ready 且已通过 Bridge 打开
+- **THEN** runtime MUST 对完整 workflow 调用一次 native Queue，并保持 app-owned `/prompt` count 为零
 
-#### Scenario: 不含预声明 operation
-- **WHEN**workflow 没有 `text-to-image` 或 `image-edit` 之类预声明 operation
-- **THEN**runtime MUST 仍接受其为合法 workflow candidates
+### Requirement: Output metadata 必须 best-effort，unknown metadata 必须交由 native validation
+当所有 bounded candidate 的 class metadata 已知且都不是 output node 时，runtime MAY fail fast。若 class metadata unavailable 或 unknown，runtime MUST 将 output validation 交给 native `/prompt` 或 native Queue，且 MUST NOT 创建 application-side output hard gate。Native `prompt_no_outputs` 与等价 bounded failure MUST 映射为 `invalid-workflow/prompt-no-outputs`，且不得 replay submission。
 
-### Requirement: OUTPUT_NODE preflight 必须在 send-time 执行
-Send-time preflight MUST 将 selected workflow 转成 canonical API prompt representation，并在 dispatch 前验证至少一个 active node 的 class metadata 声明 `OUTPUT_NODE = True`。没有 output node 时 MUST 返回 `invalid-workflow/prompt-no-outputs`，且 MUST 不发起 submission。
+#### Scenario: Known metadata 证明无 output
+- **WHEN** 所有 active node 都有 known metadata 且 `OUTPUT_NODE = False`
+- **THEN** runtime MUST fail fast with `invalid-workflow/prompt-no-outputs`，且 native submission count MUST 为零
 
-#### Scenario: workflow 有 output node
-- **WHEN**selected workflow 含有至少一个 active output node
-- **THEN**runtime MUST 允许进入 submission preflight
+#### Scenario: Unknown metadata 交给 native
+- **WHEN** 至少一个 active node 的 metadata unknown 或 unavailable
+- **THEN** runtime MUST 允许 native submission/Queue 决定 validity，且 MUST NOT 仅因 metadata unknown 而禁用 Send
 
-#### Scenario: workflow 没有 output node
-- **WHEN**selected workflow 不含任何 active output node
-- **THEN**runtime MUST fail closed with `invalid-workflow/prompt-no-outputs`
+#### Scenario: Native 报告无 outputs
+- **WHEN** native validation 返回 `prompt_no_outputs` 或等价 bounded no-output error
+- **THEN** runtime MUST 将其映射为 `invalid-workflow/prompt-no-outputs`，且 MUST NOT retry 或 replay 当前 attempt
 
-### Requirement: Complete workflow submission 必须保持 one-shot
-API Format driver MUST 执行单次 bounded POST；Frontend driver MUST 打开完整 workflow、恢复 selected values、应用 overrides 并通过 native Queue 一次提交。两种 driver 的差异 MUST 留在 runtime 内部，view model 或 history projection MUST 不感知 driver 分支。
+### Requirement: Runtime error 必须映射为 bounded canonical failure
+Runtime MUST 将 parser、capability probe、Bridge、native Queue、`/prompt`、observation、history 与 asset guard failure 映射为 bounded canonical error code、safe message 与 retryability/remote-continuation facts。它 MUST NOT 向 Application/UI 泄漏 raw server payload、stack、workflow document、URL secret-shaped value 或 unbounded custom-node text。
 
-#### Scenario: API workflow 提交
-- **WHEN**selected workflow 是 API Format
-- **THEN**runtime MUST 只执行一次 bounded API submission，并继续以 known prompt/result chain 收敛
+#### Scenario: Native 返回 unbounded error payload
+- **WHEN** `/prompt`、Queue 或 history 返回超长或含内部细节的 error payload
+- **THEN** runtime MUST 记录 bounded diagnostic evidence，并只向上层返回 canonical code 与 safe bounded message
 
-#### Scenario: Frontend workflow 提交
-- **WHEN**selected workflow 是 Frontend Format
-- **THEN**runtime MUST 打开完整 workflow 并通过 native Queue 一次提交
+#### Scenario: Bridge protocol failure
+- **WHEN** Bridge command 失败或返回 malformed payload
+- **THEN** runtime MUST 将其映射为 bounded Bridge/runtime failure，且 MUST NOT 把 raw payload 投影到 UI
 
-### Requirement: Runtime 必须禁止 replay 作为默认行为
-One-shot submission 之后，runtime MUST NOT 因 timeout、network error、unknown result 或 adapter identity 自动 replay。任何新的 attempt MUST 由 Application 显式创建新 Job 或新 execution request；runtime MAY 只做同一次 Job 内 bounded transport retry。
+### Requirement: Runtime 必须禁止 replay 已开始的 submission attempt
+Native `/prompt` 或 Queue 被调用后，runtime MUST NOT 因 timeout、network error、unknown result 或 adapter identity change 自动 resubmit。新 attempt MUST 由显式新 Application Job 或 execution request 创建。Runtime MAY 只在 native submission boundary 之前执行 bounded transport retry。
 
-#### Scenario: submission state unknown
-- **WHEN**remote execution 结果无法确认
-- **THEN**runtime MUST 终止当前 attempt 且 MUST 不自动重放
+#### Scenario: Submission state unknown
+- **WHEN** transport result 无法确认 native execution 是否继续
+- **THEN** runtime MUST 以 bounded unknown/failure 结束当前 attempt，且 MUST NOT 再次提交
 
-#### Scenario: network error
-- **WHEN**submission 期间发生 network error
-- **THEN**runtime MUST 把它收敛为 bounded failure，而不是再次隐式提交
+### Requirement: History 必须收集 safe images 并允许 zero-image completion
+Execution 成功后，在没有 explicit output mapping 时，runtime/history MUST 按 source 与 image order 收集 `history.outputs[*].images[]` 中全部 bounded safe descriptor。每个 entry MUST 执行 path traversal、type、byte、MIME 与 signature guard；unsafe entry MUST 被跳过并形成 bounded warning。成功 execution 没有 safe image 时 MUST 产生 `outputs: []` 与 completed status；UI MUST 派生 `completed-without-image-output`，并保持 Preview、Download、Place disabled。
 
-### Requirement: History collection 必须收集全部 safe `history.outputs[*].images[]`
-当没有 explicit output binding 时，runtime/history projection MUST 遍历所有 bounded `history.outputs[*].images[]` descriptor 并收集全部安全图片。collection MUST 保持 entry order 与 image order，且 MUST 对每个条目执行 path traversal、type、bytes、MIME 与 signature guards；unsafe entry MUST 跳过并形成 bounded warning。
+#### Scenario: 多个 safe image descriptors
+- **WHEN** history 在多个 outputs 中包含多个 safe image descriptors
+- **THEN** runtime MUST 保持 descriptor order，并返回全部 safe images
 
-#### Scenario: 多个 safe image outputs
-- **WHEN**history 返回多个安全 `images[]` descriptor
-- **THEN**runtime MUST 收集全部图片并保持原始顺序
+#### Scenario: 成功 execution 没有 images
+- **WHEN** native execution 成功但 guards 后没有 safe image
+- **THEN** runtime MUST 返回 `outputs: []` 与 completed status，且 MUST NOT 将结果转换为 execution failure
 
-#### Scenario: unsafe image output
-- **WHEN**某个 descriptor 含有 unsafe path 或 bounded guard 不通过
-- **THEN**runtime MUST 跳过该条目而不影响其它安全图片
+### Requirement: Bridge protocol 必须 bounded 且不含 legacy contract authority
+Bridge command MUST 只使用 bounded workflow identity、complete saved-workflow document、Form widget reference 或 Form values。Bridge MAY 保留内部 `reset` 与 `dispose` lifecycle commands，但它们 MUST NOT 成为 Settings actions。Bridge MUST 拒绝 arbitrary script、property path、Task metadata、client identifier、raw image bytes、`ImagenWorkflowBindingContract`、`ImagenWorkflowTypeContract`、schema version/digest 与 `sdppp_*` payload。Unknown command MUST fail closed with bounded protocol error。
 
-### Requirement: Completed empty outputs 必须是合法终态
-如果 remote execution 成功但没有任何安全图片，runtime MUST 允许 `outputs: []`，并将该 Task/Job 投影为 `completed`。UI projection MUST 从 `completed && outputs.length === 0` 派生 `completed-without-image-output`，但 runtime MUST 不把该结果伪装成失败。
+#### Scenario: Internal reset 不进入产品 UI
+- **WHEN** runtime 在cleanup期间调用bounded `reset` 或 `dispose`
+- **THEN** Bridge MUST 执行对应lifecycle cleanup，且Settings MUST NOT显示Reset action
 
-#### Scenario: 成功但无图
-- **WHEN**remote execution 成功且没有安全图片
-- **THEN**runtime MUST 返回 empty outputs，并允许 completed 终态
+#### Scenario: Handshake 不含 schema authority
+- **WHEN** Bridge 返回 handshake capabilities
+- **THEN** payload MUST omit contract schema version、SHA-256 digest 与 contract summary
 
-#### Scenario: UI 投影
-- **WHEN**completed result 的 outputs 为空
-- **THEN**UI projection MUST 显示 `completed-without-image-output`，且 Preview、Download 与 Place actions MUST 保持 disabled
+#### Scenario: Unknown command
+- **WHEN** Bridge 收到 fixed workflow lifecycle allowlist 之外的 command
+- **THEN** Bridge MUST 拒绝该 command，且 MUST NOT 执行 host operation
 
-### Requirement: Mask 必须延后处理且不能阻塞 admission
-mask-specific Photoshop capture/materialization、mask binding 与 mask live/UXP validation MUST 继续延后。workflow 包含 mask 或 custom nodes 本身 MUST NOT 成为 admission 拒绝条件；没有 explicit supported override 时，runtime MUST 保留 workflow 原有 mask/custom-node values，并把 graph 交给 ComfyUI 原生验证。
+### Requirement: Mask 与 custom-node handling 必须继续延后
+Mask-specific Photoshop capture/materialization、mask binding 与 live/UXP validation MUST 保持在 admission 和 dispatch gate 之外。包含 mask 或 custom node 的 saved workflow MUST 保留原值，除非存在 explicit supported override，并 MUST 交给 ComfyUI native validation。
 
-#### Scenario: workflow 含 mask node
-- **WHEN**selected workflow 含有 mask 或 custom node
-- **THEN**runtime MUST 仍允许其通过 discovery/admission
-
-#### Scenario: mask 当前未 materialize
-- **WHEN** 当前 implementation 没有 Photoshop mask-specific materializer 或 binding
-- **THEN** runtime MUST 保留 workflow 原值，且 MUST NOT 因此增加 admission 或 Send gate
+#### Scenario: Saved workflow 包含 mask 或 custom node
+- **WHEN** selected workflow 包含 mask 或 custom nodes
+- **THEN** runtime MUST admit 并尝试完整 workflow，且 MUST NOT 增加 mask-specific gate

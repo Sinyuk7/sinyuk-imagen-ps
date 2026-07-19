@@ -1,244 +1,271 @@
 ## Context
 
-现有 ComfyUI backend 已接入 shared Task/Job/Session、AssetStore、History 与 Photoshop Placement，但产品模型围绕多 `ComfyUiConnection`、两类 source record、两个 Imagen contract nodes、预声明 operation 与 output binding 建立。实际结果是 workflow discovery 必须加载或验证 contract，普通 ComfyUI workflow 被过滤，Composer prompt/attachments 成为 workflow admission 条件，Settings 还把 Provider/global 内容与 ComfyUI connection list混在同一 TAB。
+现有 ComfyUI backend 已接入 shared Task/Job/Session、AssetStore、History 与 Photoshop Placement，但产品模型围绕多 `ComfyUiConnection`、两个 Imagen contract nodes、预声明 operation 与 output binding 建立。普通 workflow 会在 discovery 或 admission 阶段被过滤，Settings 同时承担 connection list、workflow tree、Import、Form persistence 与执行相关状态，Frontend/API Format 也被提升成用户需要理解的概念。
 
-参考 monorepo 的稳定行为是：一个 `comfyURL`、列出 remote workflow paths、打开完整 Frontend workflow、把 Canvas widgets投影为 form、等待图片上传后调用native Queue。它不要求 Imagen marker nodes，也不把 workflow 分类为 `text-to-image` 或 `image-edit`。本设计复用该交互模型，但继续遵守本仓库既有 Task/Job/asset/logging/UXP safety owners，不复制 monorepo store、task、resource URI 或 `sdppp_*` namespace。
+目标产品边界更简单：ComfyUI 是 workflow JSON 的创建、保存与管理 authority；插件只消费 remote workflow。首页是高频 generation surface，负责运行 current Workflow。Settings/ComfyUI TAB 是 Workflow Configuration Surface，负责连接、选择 current Workflow、解决必要的 input ambiguity、编辑本 session 的少量安全参数，以及呈现 scoped Diagnostics。它不运行 Workflow，也不成为第二个 workflow editor。
 
-ComfyUI server 对 runnable prompt 的原生最低要求是 graph 可解析且至少包含一个 class metadata 为 `output_node: true` 的 node；没有 output node 时 remote 会返回 `prompt_no_outputs`。output node 不保证 `history.outputs` 一定包含 `images[]`，因此 workflow runnable 与 image result success必须分离。
+ComfyUI server 对 runnable prompt 的原生最低要求是 graph 可解析且至少包含一个 active output node。插件有 metadata 时可以提前证明无 output node；metadata 不完整时不能把“未知”当成“无”，必须让 native `/prompt` 或 native Queue 返回权威 validation result。output node 存在也不保证 `history.outputs` 含 `images[]`，因此 runnable 与 image result success 分开建模。
 
 ## Goals / Non-Goals
 
 **Goals:**
 
-- ComfyUI 使用一个持久化 `baseUrl` 与一组 collapsed advanced settings，不存在 ComfyUI profile/connection list。
-- Frontend Save Format 与 API Format workflow 都能进入同一 workflow list、form、binding 与 Send体验。
-- workflow discovery 快速列出完整 bounded identity，不再 contract-filter；只有 selected workflow 才加载详细结构。
-- Send 固定表示运行当前完整 workflow；prompt 与 attachments 仅在用户选择 binding 且值存在时覆盖。
-- Workflow、Text binding 与 Image binding selectors 始终显示；未使用输入只显示简短 notice，不阻塞 Send。
-- 动态 form支持 monorepo 的converter与`#`/`.` visibility语义，但使用项目自己的类型和命名。
-- Provider与ComfyUI通过一个Generation Workspace ViewModel向`MainPage`投影UI和submit intent。
-- ComfyUI TAB独占其所有配置与workflow UI，不泄漏Provider/global/prompt settings。
-- execution success无图片时形成durable completed Task，并有明确UI projection。
-- deterministic harness先覆盖format、form、binding、UI projection、submission与output；real Chrome/UXP只做后续显式gate。
+- ComfyUI 只使用一个持久化 canonical `baseUrl`，不存在 profile/connection list。
+- 首页保留 current Workflow 的高频 Send，语义固定为运行完整 Workflow。
+- Settings/ComfyUI TAB 根页形成稳定 Workflow Configuration Surface：Connection、current Workflow、conditional Input Mapping、`#`-exposed Workflow Parameters、error/developer Diagnostics。
+- current Workflow 区只提供 Change、Refresh、Open in ComfyUI；Change 进入独立 Picker 子页。
+- Picker 只发现 bounded remote identities，并提供 search、recent、grouped list 与 scoped loading/error/empty states。
+- remote document 的 Frontend/API Format 由内部 parser/driver 自动处理，UI 不暴露 format/source。
+- Dynamic Form 默认不暴露 node；只有 `#` node 下可证明安全的 supported primitive widgets进入表单，`.` node 始终隐藏。
+- persistence 仅包含 `baseUrl`、`selectedWorkflowId` 与 revision-scoped explicit ambiguous mappings；Form overrides 仅 session 有效。
+- output metadata known 且无 active output node时 fast-fail；metadata unknown 时 defer native validation。
+- remote success 无安全图片时形成 durable completed Task，并投影 `completed-without-image-output`。
+- deterministic harness 先覆盖 parser、Picker、mapping、session state、submission 与 output；real Chrome/UXP 只做后续显式 gate。
 
 **Non-Goals:**
 
-- 不实现ComfyUI authentication、custom headers、secret query或credential profiles。
-- 不实现mask-specific Photoshop capture/materialization、mask binding或mask live/UXP acceptance；包含mask/custom nodes的workflow仍可按原值运行。
-- 不复制monorepo的Task system、UploadPass registry、resource URI/cache或Provider architecture。
-- 不在ComfyUI TAB加入Run、AutoRun、batch multiplier或第二套execution/history入口。
-- 不保证任意custom node都能得到原生精美editor；unsupported widget保持workflow原值。
-- 不修改Provider transport、profile/model repository与capability truth。
+- 不在插件内创建、导入、保存、重置、重命名、删除或版本管理 workflow JSON。
+- V1 不提供 Import、Save、Reset、Advanced settings 或 persistent Form overrides。
+- 不在 Settings、Picker 或 Diagnostics 提供 Run、Queue、AutoRun、batch、Stop、History 或结果 actions。
+- 不向用户显示或要求选择 Frontend Save Format、API Format、source kind、parser 或 submission driver。
+- 不持久化 workflow documents、catalog、capabilities、class/object metadata、compiled prompt、runtime cache、Diagnostics 或 error history。
+- 不为 image、mask、video、upload、node graph、canvas、code、structured JSON 或其它 complex widgets提供 Dynamic Form editor。
+- 不实现 ComfyUI authentication、custom headers、secret query 或 credential profiles。
+- 不实现 mask-specific Photoshop capture/materialization、mask binding 或 mask live/UXP acceptance；包含 mask/custom nodes 的 workflow 仍可按原值运行。
+- 不复制 ComfyUI 的 workflow editor、Task system、resource cache 或 Provider architecture。
+- 不修改 Provider transport、profile/model repository 与 capability truth。
 
 ## Decisions
 
-### 1. 新Change成为唯一ComfyUI authority
+### 1. 新 Change 成为唯一 ComfyUI authority
 
-`redesign-comfyui-workflow-runtime`完成后，`add-comfyui-generation-backend`不得继续指导产品语义或实现。可复用的只有shared backend seam、HTTP/WebSocket、upload/history/download safety、one-shot submission、Task projection与host adapters；多connection、Imagen contract schema、mask readiness guard、contract-only mutation、contract-only output collection与connection editor全部删除或替换。
+`redesign-comfyui-workflow-runtime` 完成后，`add-comfyui-generation-backend` 不得继续指导产品语义或实现。可复用的只有 shared backend seam、HTTP/WebSocket、upload/history/download safety、one-shot submission、Task projection 与 host adapters；多 connection、Imagen contract schema、contract-only mutation、contract-only output collection、imported workflow store 与 connection editor 全部删除或替换。
 
-本项目是current-state、零用户、零production data；不保留旧ComfyUI persistence schema或`sdppp_*`兼容alias。Provider数据与shared Task history不参与该cutover。
+本项目是 current-state、零用户、零 production data；不保留旧 ComfyUI persistence schema 或 `sdppp_*` compatibility alias。Provider 数据与 shared Task history 不参与 cutover。
 
-### 2. Singleton server settings取代connection repository
+### 2. Singleton Connection 与严格 persistence allowlist
 
-Application拥有一个record：
+Application 持久化 record 只含：
 
 ```ts
-interface ComfyUiServerSettings {
+interface PersistedComfyUiSettings {
   readonly baseUrl: string;
-  readonly requestTimeoutMs: number;
-  readonly workflowLoadTimeoutMs: number;
-  readonly observationTimeoutMs: number;
-  readonly useSliderForNumberWidget: boolean;
+  readonly selectedWorkflowId: string | null;
+  readonly ambiguousMappingsByRevision: Readonly<
+    Record<string, Readonly<Record<string, WorkflowInputRef>>>
+  >;
 }
 ```
 
-不再保存`connectionId`、display name、connection list或per-workflow connection relation。需要lane/history identity时内部使用稳定backend identity `comfyui`，不得重新暴露成profile。
+`baseUrl` 是成功 normalization/capability probe 后的 canonical URL。Address normalization 接受显式 HTTP(S) URL 与 bare host/IP/port/path，拒绝 userinfo、query、fragment、control chars 与 unsupported scheme；保留 reverse-proxy path，所有 API route 使用 base-path-preserving join。
 
-Address normalization接受显式HTTP(S) URL与bare host/IP/port/path。显式scheme原样规范化；缺少scheme时构造bounded HTTPS/HTTP candidates并选择第一个通过ComfyUI capability probe的candidate。拒绝userinfo、query、fragment、control chars与unsupported scheme。保留reverse-proxy path并规范化trailing slash；所有API routes必须通过base-path-preserving join构造，不能使用丢弃path prefix的root-relative URL。
+`selectedWorkflowId` 只用于恢复最近选择的 remote identity。它不等于持久化 workflow document；启动时必须重新 discovery/open。ambiguous mapping 只有用户在 UI 显式选择后才能写入，key 必须包含 server identity、workflow identity 与 loaded revision。revision 改变、target 消失或类型不兼容时 mapping 失效并回到 unresolved，不猜 replacement。
 
-Connection evidence分开记录：
+以下状态仅驻留 memory：workflow catalog、recent projection、remote document、format/source、capabilities、class/object metadata、compiled prompt、load state、Diagnostics 与 Form overrides。reload/destroy 后全部丢弃。禁止用 local storage、IndexedDB、settings blob 或 Task metadata旁路持久化。
+
+### 3. Connection capability 只影响 scoped controls
+
+Connection probe 可在 session 内派生：
 
 ```ts
 interface ComfyUiServerCapabilities {
-  readonly api: 'ready' | 'unavailable';
-  readonly frontend: 'ready' | 'unavailable';
-  readonly bridge: 'compatible' | 'incompatible' | 'unavailable';
+  readonly api: 'ready' | 'unavailable' | 'unknown';
+  readonly frontend: 'ready' | 'unavailable' | 'unknown';
+  readonly bridge: 'compatible' | 'incompatible' | 'unavailable' | 'unknown';
 }
 ```
 
-`baseUrl`不拥有Frontend/API workflow format。API probe使用native bounded endpoint；Bridge status只判断Frontend workflow controls，不再作为API readiness唯一证据。
+Capabilities 只驱动 current session 的 readiness、Open in ComfyUI、Picker 与 Diagnostics，不持久化。`baseUrl` 不拥有 workflow format。API、Frontend、Bridge failure 必须各自 scoped；一个 probe failure 不得被误报成 workflow JSON format error。
 
-### 3. Workflow identity与format detection统一
+### 4. Workflow Configuration Surface 与页面职责固定
 
-Workflow record不保存Imagen contract或connection relation：
-
-```ts
-interface ComfyUiWorkflowRecord {
-  readonly workflowId: string;
-  readonly displayName: string;
-  readonly source:
-    | { readonly kind: 'remote-frontend'; readonly remotePath: string }
-    | { readonly kind: 'imported-json'; readonly document: BoundedWorkflowDocument };
-  readonly format: 'frontend' | 'api';
-}
-```
-
-Remote Frontend discovery先通过Bridge返回bounded canonical paths，不下载、编译或验证每个workflow。API Format没有标准remote list endpoint，因此通过同一ComfyUI TAB内Import JSON/File加入。Imported document使用structural signature自动检测：Frontend Format要求top-level `nodes[]`与graph save fields；API Format要求non-empty node map且每个node包含bounded `class_type`与plain `inputs`。ambiguous或mixed shape fail closed。
-
-成功import保存deep-cloned/deep-frozen snapshot与content-derived stable identity。remote path选择后才打开workflow、取得form structure/current values与可提交representation，并按workflow revision/load identity缓存。
-
-### 4. Workflow准入只保留结构、安全边界与output-node preflight
-
-Importer/loader继续执行2MB、2000 nodes、depth 32、bounded ids/class names、plain JSON、finite values、no cycle/no prototype等limits。它不要求prompt/image binding、固定node title、Imagen marker、固定图片数量、operation或指定image output。
-
-Send-time preflight把selected workflow转换为canonical API prompt representation：API Format直接clone；Frontend Format由compatible Frontend runtime准备并保留native Queue ownership。Preflight必须通过class metadata证明至少一个active `OUTPUT_NODE = True`；API workflow优先使用bounded `/object_info/{class_type}` cache，Frontend workflow可使用loaded node definition/compiled prompt metadata。
-
-没有output node时返回direct bounded `invalid-workflow/prompt-no-outputs` error且零submission。存在output node但最终无`images[]`仍属于successful remote execution。
-
-### 5. Workflow Form是唯一动态widget projection
-
-新增format-neutral model：
-
-```ts
-interface WorkflowForm {
-  readonly workflowId: string;
-  readonly nodes: Readonly<Record<string, WorkflowFormNode>>;
-  readonly nodeOrder: readonly string[];
-}
-
-interface WorkflowFormWidgetRef {
-  readonly nodeId: string;
-  readonly inputName?: string;
-  readonly widgetIndex?: number;
-}
-```
-
-Frontend Form来自Canvas nodes/widgets；API Form由graph literal inputs与`object_info` metadata合成。Converter registry负责known node/widget value shape与setter，generic converter只暴露bounded primitive editors。Widget types至少覆盖`images`、`masks`、`string`、`boolean`、`number`、`combo`、`segment`与`video`；mask renderer可以显示remote/default value，但不获得Photoshop mask-specific materializer。
-
-Visibility完全使用当前node title或API `_meta.title`：
-
-- muted/bypassed node隐藏；
-- title以`.`开头强制隐藏；
-- 没有widgets隐藏；
-- registered converter node默认显示；
-- generic node只有title以`#`开头才显示；
-- 排序比较前移除`#`并trim title。
-
-V1不写hidden marker property。若真实runtime证明node会自动覆盖user title，再单独使用repo-owned `imagen_ps_form_title`；禁止复制`sdppp_widgetable_title`、`#sdppp_variant`、`sdppp_min/max/step`或其他`sdppp_*` names。
-
-### 6. Bindings是optional execution-time overrides
-
-每个workflow保存独立presentation state：
-
-```ts
-interface WorkflowPresentationState {
-  readonly textBinding: WorkflowFormWidgetRef | null;
-  readonly imageBinding: WorkflowFormWidgetRef | null;
-  readonly overrides: Readonly<Record<string, JsonValue>>;
-}
-```
-
-Workflow、Text binding、Image binding selectors在ComfyUI mode始终显示。Text candidates只含unique writable text-like literal widgets；Image candidates只含unique writable upload-image widgets。每个selector始终含`No binding`，没有candidate时仍保持可见并只提供`No binding`。saved ref不存在或不兼容时归一化为`No binding`，不猜replacement。
-
-Binding不改变动态Form visibility；所有符合visibility rules的widgets持续显示。Form编辑的是workflow override，Composer只在Send snapshot中提供更高优先级override：
+Settings/ComfyUI TAB 根页顺序固定：
 
 ```text
-workflow saved value
-  < Workflow Form override
-  < non-empty Composer prompt at selected Text binding
-  < first Composer attachment at selected Image binding
+Connection
+Current Workflow: Change / Refresh / Open in ComfyUI
+Input Mapping (only when mapping attention is needed)
+Workflow Parameters (only supported widgets under # nodes)
+Diagnostics (only on error/degraded state or developer mode)
 ```
 
-Composer prompt为空、attachment不存在或binding为`No binding`时保留下层值。Image binding只映射当前首张attachment；额外attachments不上传，并显示`此 Workflow 仅使用第一张附件`。不得读取widget `maxCount`来隐藏selector、禁用attachment入口或建立额外Send gate。
+根页不永久渲染 remote workflow tree。`Change` push 到 Picker 子页；选择或返回后回到根页，并保留 session-local parameter overrides。`Refresh` 只重新加载 current Workflow document/revision/metadata，不运行、不保存 workflow。`Open in ComfyUI` 使用 bounded remote identity 打开原生 editor，创建与保存仍由 ComfyUI 完成。
 
-只有当用户确实提供将被忽略的输入时才显示notice：
+Settings 不提供 Import、Save、Reset、Advanced、Run、AutoRun、batch、Stop、History 或 result actions。任何配置 action 都不得创建 Task 或触发 `/prompt`/native Queue。
 
-- prompt非空且Text binding为`No binding`：`此 Workflow 不使用当前提示词`；
-- attachments非空且Image binding为`No binding`：`此 Workflow 未识别到图片输入，附件不会发送`；
-- attachments超过一张且Image binding存在：`此 Workflow 仅使用第一张附件`。
+### 5. Picker 子页只管理 remote identity selection
 
-这些notice不影响Send availability。
-
-### 7. Generation Workspace ViewModel拥有backend切换
-
-`generationMode`从ComfyUI management移到Application/UI composition的Generation Workspace controller：
+Discovery 先返回 bounded canonical remote identities，不逐个下载、compile、contract-filter 或 output-node-filter：
 
 ```ts
-type GenerationWorkspaceState = {
-  readonly mode: 'provider' | 'comfyui';
-  readonly provider: { readonly profileId: string | null; readonly modelId: string | null };
-  readonly comfyui: { readonly workflowId: string | null };
+interface ComfyUiWorkflowIdentity {
+  readonly workflowId: string;
+  readonly displayName: string;
+  readonly remotePath: string;
+  readonly groupPath: readonly string[];
+}
+```
+
+Picker 提供 search、recent 与 grouped list。Search 只匹配 bounded display/path text；recent 是当前 session 与 `selectedWorkflowId` 的 projection，不是独立持久化 history。grouped list 由 remote path 的稳定 segments 派生。loading、error、empty 与 retry 都限制在 Picker。
+
+用户选择 identity 后才加载 document、计算 revision、解析 runtime representation 并返回根页。选择成功后写入 `selectedWorkflowId`；load 失败不替换当前可用 Workflow，并在 Picker/根页 Diagnostics 显示 scoped error。
+
+### 6. Frontend/API Format 是内部 parser/driver detail
+
+Remote document loader 继续执行 2MB、2000 nodes、depth 32、bounded ids/class names、plain JSON、finite values、no prototype pollution 等 guards。structural detector 在内部区分 Frontend Save Format 与 API Format；ambiguous/mixed shape fail closed。
+
+Format/source 只存在于 runtime representation：
+
+```ts
+type LoadedWorkflowRuntime = {
+  readonly workflowId: string;
+  readonly revision: string;
+  readonly document: BoundedWorkflowDocument;
+  readonly driver: ComfyUiWorkflowDriver;
 };
 ```
 
-`buildProviderComposerViewModel()`与`buildComfyUiComposerViewModel()`投影同一个`GenerationComposerViewModel`，包含header target、ordered toolbar controls、prompt surface、attachment surface、billing/status surface、notices、settings route、Send label/availability与backend-specific submit intent。`MainPage`不再接收或解释ComfyUI connection/contract，也不自行拼接Provider/ComfyUI readiness。
+UI、persistence、Task history 与 user-facing error 不显示 `frontend`、`api`、source kind 或 driver selector。错误描述使用 Workflow、Connection、Open、Refresh、Send 等用户概念；developer Diagnostics 可显示 bounded parser/driver code，但不把它变成配置项。
 
-切换mode保留shared Composer draft与两侧各自selection，不自动清空、替换或猜target。Provider继续使用现有model capability/readiness；ComfyUI的input bindings不参与readiness。ComfyUI Send label/tooltip固定为运行workflow，不使用Provider operation vocabulary。
+### 7. Dynamic Form 使用 explicit `#` exposure 与 safe widget allowlist
 
-### 8. ComfyUI TAB是唯一管理surface
+Visibility 只使用 current node title 或 API `_meta.title`：
 
-Settings保留Provider/ComfyUI segmented TAB，但两个TAB完全分支。ComfyUI TAB的固定顺序为：
+- muted/bypassed node 隐藏；
+- title 以 `.` 开头始终隐藏；
+- title 不以 `#` 开头默认隐藏；
+- title 以 `#` 开头时，只检查其中可证明 writable 的 literal widgets；
+- 展示标题时移除一个 leading `#` 并 trim；
+- 不写 hidden marker property，不读取或复制任何 `sdppp_*` property/identifier。
 
-```text
-Address + Connect + status
-Collapsed Advanced settings
-Workflow list/import/refresh
-Selected workflow detail + dynamic form
+V1 editor allowlist 仅包括 bounded `string`、`multiline-string`、`boolean`、finite `number`、bounded `combo`/enum与`seed`。renderer 必须同时证明 widget 是 literal、writable、locator 唯一、runtime setter 支持且 value shape 安全。image、mask、video、upload、segment/compound、canvas、code、JSON/object/array、linked input、unknown 与 custom complex widget 全部不显示 editor，保持 workflow 原值且不阻塞 Send。
+
+```ts
+interface WorkflowParameter {
+  readonly ref: WorkflowInputRef;
+  readonly kind: 'string' | 'multiline-string' | 'boolean' | 'number' | 'combo' | 'seed';
+  readonly label: string;
+  readonly workflowValue: string | boolean | number;
+  readonly options?: readonly string[];
+  readonly min?: number;
+  readonly max?: number;
+  readonly step?: number;
+}
 ```
 
-ComfyUI TAB不渲染Global Generation、Prompt Settings、Provider profiles、billing、connection rows或Add Connection。删除独立`ComfyUiConnectionPage`入口；main header/settings按钮根据current mode直接打开matching TAB。
+Form edit 写入 current workflow revision 的 session-only override map。它不修改 remote document，不调用 ComfyUI save，不写 persistence。切换 Workflow 时可在 session cache 中按 revision 保留；reload/destroy 后丢失。`Refresh` 若 revision 改变则清除旧 revision overrides。
 
-Workflow list只显示identity tree与loading/error/empty；选择后在同一TAB进入detail，保留list返回、refresh、import、reset与适用的save action。TAB不提供Run、AutoRun、batch multiplier或global Stop，因为首页Send是唯一execution入口。
+### 8. Input Mapping 只在需要用户注意时出现
 
-API ready但Frontend/Bridge unavailable时，TAB仍允许imported API workflows；remote Frontend list显示scoped unavailable state，不把整个ComfyUI backend标记为不可用。
+Composer prompt 与首张 attachment 是 optional send-time inputs。runtime 先从 supported literal inputs 与 node metadata推导 candidate：
 
-### 9. 两种submission保持内部实现差异
+- zero candidate：保留 workflow 原值；Settings显示该类型不接收主页面输入的notice，有对应Composer input时首页再显示unused notice；
+- one unambiguous safe candidate：可自动映射，仅存在 session snapshot，不持久化 explicit mapping；
+- multiple compatible candidates 或 identity ambiguity：根页显示 Input Mapping，要求用户显式选择 target 或 `Do not map`；
+- explicit ambiguous mapping 按 workflow revision 持久化；revision 不匹配即失效。
 
-API Format driver对admitted graph clone应用Form与Composer overrides，等待实际使用的image upload完成，再App-owned `POST /prompt`一次。Frontend driver打开exact workflow、恢复Form overrides、应用Composer overrides、等待实际使用的image upload完成，再调用native Queue一次。driver差异不进入ViewModel或Task history。
+Image mapping 只允许已有 execution adapter 能安全上传并设置的 input ref；它不是 Dynamic Form image editor。V1 不提供 mask/video mapping。Form parameters 与 Input Mapping 是不同 surface：前者编辑 `#` node 的 supported primitive value，后者决定 Composer input 注入位置。
 
-现有one-shot operation identity、submission-started no-replay、unknown-state `remoteMayContinue`、Session lane与Canvas lease ordering继续保留。Bridge命令改为workflow list/open/import/form values/set values/submit/reset/dispose的bounded allowlist；移除Imagen contract schema digest与contract mutation payload。raw workflow document只允许在bounded import/open command中传输，仍禁止arbitrary script/property path、Task metadata、client id与raw image bytes。
+Send value 优先级固定：
 
-只上传selected Image binding实际消费的首张attachment。没有Image binding时保持零upload。Frontend/Image Form自身产生的remote values继续由其own widget uploader负责，不重复进入Composer upload path。
+```text
+workflow value
+  < session-only Workflow Parameter override
+  < non-empty Composer prompt at resolved text mapping
+  < first Composer attachment at resolved image mapping
+```
 
-### 10. Output collection默认宽松但仍安全
+空 prompt、无 attachment 或 `Do not map` 保留下层值。同一个 Composer input 不广播到多个 targets。只上传实际由 resolved image mapping消费的第一张 attachment；额外 attachments 不上传，也不写 execution inputs。
 
-Known prompt observer继续以history/queue为terminal authority。没有explicit output binding时遍历全部bounded `history.outputs` entries，只收集标准`images[]` descriptors，保持history node enumeration与node内image顺序。每个descriptor继续执行path traversal、type、response bytes、MIME与signature guards；unsafe entry跳过并形成bounded warning，不能构造unsafe `/view` URL。
+unused notice 不形成 Send gate：
 
-Validated images写入existing AssetStore并形成ordered TaskOutputs。若remote execution成功且安全images为零，canonical execution result允许`outputs: []`，Task投影为`status: completed`与empty outputs；History从`completed && outputs.length === 0`派生`completed-without-image-output`，Preview/Download/Place保持disabled且不伪造error。
+- prompt 非空但无 resolved text mapping：`此 Workflow 不使用当前提示词`；
+- attachments 非空但无 resolved image mapping：`此 Workflow 未识别到图片输入，附件不会发送`；
+- attachments 超过一张且 image mapping resolved：`此 Workflow 仅使用第一张附件`。
 
-### 11. Harness-first cutover
+### 9. 首页拥有唯一高频 execution surface
 
-先建立fixtures与fakes：Frontend/API format detection、bounded workflow documents、`object_info` node metadata、Workflow Form converters、visibility ordering、binding candidates/overrides/notices、singleton URL normalization/path join、workspace VM、exclusive TAB、one-shot submissions与zero-image results。默认tests不访问network或owner credentials。
+`generationMode` 由 Application/UI composition 的 Generation Workspace controller 统一拥有。`MainPage` 只消费 view model，不解释 connection profile、workflow format、driver、contract 或 mapping persistence。
 
-真实gate顺序固定为：deterministic package/application/app tests -> Chrome owner-local API/Frontend smoke -> Photoshop UXP manual smoke。mask-specific smoke继续跳过。任何live fallback若改变native Queue、prompt identity或no-replay语义必须停止并重新设计，不能静默替换。
+ComfyUI mode 的 header/toolbar 投影 current Workflow identity、配置入口、readiness 与 notices；Send label/tooltip固定表达运行 current Workflow。首页不常驻 workflow tree、Dynamic Form、Input Mapping 或 Diagnostics；这些都属于 Settings Workflow Configuration Surface。
+
+切换 Provider/ComfyUI mode 保留 shared Composer draft 与双方 selection，不自动清空或猜 target。ComfyUI Send availability只依赖 connection readiness、current Workflow load state与可证明的 fatal preflight facts。prompt、attachment、mapping数量、Dynamic Form参数数量与 mask-specific support 不形成额外 Send gate。
+
+### 10. Output-node preflight 必须区分 known false 与 unknown
+
+execution package 通过 bounded metadata port 查询 active nodes：
+
+```ts
+interface ComfyUiClassMetadata {
+  readonly classType: string;
+  readonly outputNode: boolean;
+}
+
+interface ComfyUiClassMetadataProvider {
+  get(classType: string, signal?: AbortSignal): Promise<ComfyUiClassMetadata | undefined>;
+}
+```
+
+Preflight 结果为三态：
+
+- `has-output`：至少一个 active node metadata 明确 `outputNode: true`，继续 submit；
+- `no-output`：所有 active node metadata 均 known，且全部 `false`，fast-fail `invalid-workflow/prompt-no-outputs`，submission count 为零；
+- `unknown`：至少一个相关 metadata 缺失或 lookup 失败，且没有 known output；不得按 class name 猜测或本地拒绝，继续 native `/prompt` 或 native Queue。
+
+native validation error 进入 canonical bounded execution error；one-shot operation identity、submission-started no-replay 与 `remoteMayContinue` 语义保持不变。metadata/cache只属于 session/runtime，不持久化。
+
+### 11. Submission driver 保持内部差异
+
+API driver clone 完整 graph、应用 session Form overrides 与 resolved Composer inputs、等待实际 upload，再 App-owned `POST /prompt` 恰好一次。Frontend driver打开 exact remote workflow、应用同样的 resolved overrides、等待实际 upload，再调用 native Queue 恰好一次。两者都运行完整 Workflow。
+
+driver 差异不进入 UI、persistence、Task history 或 product vocabulary。Bridge command 使用 bounded workflow list/open/form values/set values/submit/reset/dispose allowlist；移除 Import、Imagen contract schema digest 与 contract mutation payload。`reset`/`dispose`只服务runtime cleanup与Canvas恢复，不成为用户按钮。raw document只在 bounded open/runtime command 中传输，仍禁止 arbitrary script/property path、Task metadata、client id 与 raw image bytes。
+
+### 12. Diagnostics 是 scoped evidence，不是持久日志
+
+根页只有在error/degraded state存在bounded evidence或developer mode启用时才显示Diagnostics入口或摘要；正常状态只使用Connection区的merged user-facing status，不渲染Diagnostics section。developer details通过显式disclosure展开。内容可以包含probe stage、workflow revision、parser/driver code、native validation code与bounded request identity，但不得包含raw workflow、secret、raw image bytes或无限日志。
+
+Diagnostics不持久化，不进入Task metadata，不跨reload保留。用户可通过Refresh/Connect/Change重试对应owner；Diagnostics本身不提供执行或mutation action。
+
+### 13. Output collection宽松但仍安全
+
+Known prompt observer继续以 history/queue为 terminal authority。遍历全部 bounded `history.outputs` entries，只收集标准 `images[]` descriptors，保持 history node enumeration与 node 内 image 顺序。每个 descriptor执行 path traversal、type、response bytes、MIME与signature guards；unsafe entry跳过并形成 bounded warning，不能构造 unsafe `/view` URL。
+
+Validated images写入 existing AssetStore并形成 ordered TaskOutputs。若remote execution成功且安全 images为零，canonical result允许`outputs: []`，Task投影为`status: completed`与 empty outputs；History从`completed && outputs.length === 0`派生`completed-without-image-output`，Preview/Download/Place保持 disabled且不伪造 error。
+
+### 14. Harness-first cutover
+
+先建立 deterministic fixtures与fakes：singleton URL normalization、persistence allowlist、bounded identity discovery、Picker search/recent/grouping、internal parser/driver detection、revision invalidation、conditional mapping、`#`/`.` visibility、safe widget allowlist、session-only Form overrides、known/unknown output metadata、one-shot submission、Diagnostics redaction与 zero-image result。
+
+默认 tests 不访问 network 或 owner credentials。真实 gate 顺序固定为：deterministic package/application/app tests -> Chrome owner-local smoke -> Photoshop UXP manual smoke。任何 fallback 若改变 native Queue、prompt identity 或 no-replay语义必须停止并重新设计。
 
 ## Risks / Trade-offs
 
-- [Risk] Generic widget converter会把read-only或link input误判为writable。→ candidate与editor必须依赖literal value、node metadata与registered converter；unknown保持原值。
-- [Risk] bare address双scheme probe增加首次连接时间。→ probes bounded、可取消、命中后持久化canonical `baseUrl`，后续不重复猜scheme。
-- [Risk] Frontend workflow list快但selected workflow首次open仍可能慢。→ list与detail分阶段，detail使用load identity/revision cache并显示scoped loading state。
-- [Risk] binding selector与动态widget同时编辑同一target造成理解差异。→ contract固定Form为base override、Composer为Send-time override，并只在Composer值存在时覆盖。
-- [Risk] 多attachments只使用首张可能与Provider习惯不同。→ selector始终可见，发送前显示固定notice，未使用attachments不上传或写入Task execution inputs。
-- [Risk] output-node metadata对custom nodes不可用。→ bounded class metadata lookup失败时Send preflight返回direct invalid-workflow，不以class name allowlist猜测。
-- [Risk] zero-image completion让History没有preview。→ 使用derived completion label与现有disabled resource actions，不扩张Task status enum。
-- [Risk] 同时重构runtime与shared UI blast radius较大。→ 以capability harness分段cutover，优先稳定Workspace VM与new repositories，再删除legacy branches。
-- [Trade-off] TAB不复制monorepo Run/AutoRun/batch。→ 保持一个Send入口和shared Task/History authority，减少重复execution surface。
+- [Risk] Picker remote list过大。-> discovery只返回 bounded identities；search、recent、grouped list只处理 bounded projection，错误限制在Picker。
+- [Risk] `selectedWorkflowId` 对应remote identity被重命名或删除。-> 启动恢复失败时保留空current Workflow并引导Change，不猜相似identity。
+- [Risk] workflow revision变化后mapping指向错误input。-> persistence key包含revision；Refresh/load发现revision变化后mapping失效并要求重新选择。
+- [Risk] auto mapping把“唯一但不安全”的input当target。-> 只有类型、writable、locator与adapter能力全部明确时才算unambiguous；否则zero或ambiguous。
+- [Risk] `#` node内custom widget破坏renderer或runtime value。-> strict primitive allowlist；unsupported/complex widget隐藏并保留原值。
+- [Risk] metadata lookup失败掩盖本可提前发现的no-output错误。-> unknown defer native authority，并在Diagnostics标记preflight unavailable；不把unknown误判成invalid。
+- [Risk] session-only Form overrides在reload后丢失。-> 明确由ComfyUI保存workflow defaults；插件V1不承担workflow state persistence。
+- [Risk] UI隐藏format/source后支持排障变难。-> user surface保持product vocabulary；developer Diagnostics提供bounded internal code且不持久化。
+- [Risk] Settings与首页职责分离增加一次navigation。-> 首页保留高频Send与current Workflow identity；低频Change/mapping/parameters放Configuration Surface。
+- [Trade-off] V1不提供Import/Save/Reset/Advanced。-> 避免复制ComfyUI workflow editor与形成第二个配置authority。
 
 ## Migration Plan
 
-1. 冻结旧Change剩余manual tasks并记录新Change为唯一ComfyUI authority；保留当前working tree中的owner-local diagnostics，实施时逐项吸收而非回退。
-2. 建立singleton server settings、URL normalizer/base-path join与capability tester，迁移host persistence后删除connection list CRUD。
-3. 建立bounded workflow document/format detector、unfiltered identity discovery与new workflow repository；导入fixtures与selected-detail cache。
-4. 建立Workflow Form model、converter registry、visibility rules、Form values/presentation repository与API/Frontend adapters。
-5. 替换Imagen contract admission/mutation/output filtering；加入optional bindings、unused-input notices、output-node preflight与broad image collection。
-6. 建立Generation Workspace controller/view model，迁移`AppShell`/`MainPage` props、Send intent与mode-specific surfaces。
-7. 重建ComfyUI-exclusive TAB，删除connection editor、多connection UI、ComfyUI TAB中的Provider/global内容与duplicate run controls。
-8. 放宽execution result为empty outputs，加入History `completed-without-image-output` projection与resource action tests。
-9. 更新Bridge commands/integration，删除contract nodes/schema artifacts与`sdppp_*` names，运行cross-package deterministic gates。
-10. 运行opt-in Chrome与UXP image-only smoke；通过后归档旧Change并把稳定事实写回canonical docs。
+1. 冻结旧Change剩余manual tasks并记录新Change为唯一ComfyUI authority；保留shared Task/Asset/transport safety owners。
+2. 建立singleton `baseUrl` normalization与strict persistence allowlist；删除connection/profile repository与legacy persisted fields。
+3. 建立remote identity discovery与Picker state，迁移`selectedWorkflowId`恢复；删除imported workflow repository与permanent settings tree。
+4. 建立internal workflow parser/driver与revision identity；确保format/source不进入UI、persistence或Task history。
+5. 建立conditional Input Mapping、revision-scoped explicit ambiguous mappings与session-only Form override store。
+6. 建立`#`-only safe primitive parameter projection；删除image/mask/video/complex editors与Form Save/Reset flows。
+7. 重建ComfyUI Workflow Configuration Surface与scoped Diagnostics；current Workflow只保留Change/Refresh/Open in ComfyUI。
+8. 将唯一execution入口收束到首页Generation Workspace ViewModel；删除Settings中的Run/Queue与duplicate result controls。
+9. 替换Imagen contract admission/mutation/output filtering；实现known false fast-fail、unknown native defer、broad image collection与zero-image completion。
+10. 收紧Bridge allowlist，删除Import/contract payload并保留internal reset/dispose cleanup；运行deterministic gates、owner-local Chrome smoke与UXP manual smoke。
 
-Rollback在cutover完成前按capability commit恢复上一通过gate的slice；不得同时注册legacy与new ComfyUI repositories/backends。Provider与shared Task/Job architecture不回滚。
+Rollback在cutover完成前按capability slice恢复上一通过gate的实现；不得同时注册legacy与new ComfyUI repositories/backends。Provider与shared Task/Job architecture不回滚。
 
 ## Open Questions
 
-无。V1已锁定singleton server、always-visible selectors、first-attachment injection、non-blocking input notices、完整dynamic Form、首页唯一Send、至少一个output node与zero-image completed projection。
+无。V1已锁定single Connection、Settings Workflow Configuration Surface、Picker子页、ComfyUI-owned JSON、strict persistence allowlist、session-only Form overrides、internal format handling、known/unknown output preflight与`#`-only safe parameters。

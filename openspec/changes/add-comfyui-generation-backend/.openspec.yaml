@@ -1,2 +1,5 @@
 schema: spec-driven
 created: 2026-07-18
+status: superseded
+supersededBy: redesign-comfyui-workflow-runtime
+note: 本 Change 的 ComfyUI 产品语义已被 redesign-comfyui-workflow-runtime 取代；未完成的 manual UXP tasks 只作为历史事实，不得作为新 Change 的实现 authority。

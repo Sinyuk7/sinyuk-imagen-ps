@@ -1,83 +1,97 @@
 ## ADDED Requirements
 
-### Requirement: Generation workspace view model 必须统一拥有 mode 与页面投影
-Application/UI composition 层 MUST 由一个 generation workspace view model 统一拥有 `generationMode`，并投影 header target、ordered toolbar controls、prompt surface、attachment surface、billing/status surface、notices、settings route、Send label、Send availability 与 backend-specific submit intent。`MainPage`、Provider management 与 ComfyUI management MUST NOT 分别持有或重复推导页面 mode。
+### Requirement: 单一 Generation Workspace ViewModel 必须拥有 mode、main execution 与 Settings route
+Application/UI composition MUST 暴露一个 Generation Workspace ViewModel，统一服务高频 MainPage execution surface 与 Settings navigation。它 MUST 拥有 `generationMode`、shared Composer draft、backend selections、readiness projection、conditional mappings、exposed `#` parameters、notices、Send action 与 mode-matched settings route。MainPage 与 Settings MUST 消费该 projection，且 MUST NOT 重复推导 backend domain state。
 
-#### Scenario: Provider 与 ComfyUI 共享同一页面壳
-- **WHEN** 用户在同一 `MainPage` 内切换 Provider 与 ComfyUI
-- **THEN** view model MUST 保持 shared Composer facts，只替换 backend-specific projection
+#### Scenario: Shared MainPage projection
+- **WHEN** MainPage 渲染 header、toolbar、prompt、attachments、status、notices 或 Send
+- **THEN** 它 MUST 只消费 unified ViewModel projection，且 MUST NOT 检查 ComfyUI 或 Provider transport details
 
-#### Scenario: 页面组件不解释 backend domain
-- **WHEN** `MainPage` 渲染 header、toolbar、readiness、notices 或 Send action
-- **THEN** 它 MUST 只消费统一 projection，且 MUST NOT 读取 ComfyUI connection、workflow contract 或 Provider transport 细节
+#### Scenario: Mode-matched Settings route
+- **WHEN** 用户从 generation workspace 打开 Settings
+- **THEN** ViewModel MUST 将 Provider mode 路由到 Provider TAB，并将 ComfyUI mode 路由到 ComfyUI TAB
 
-### Requirement: View model 必须使用独立 backend builder
-View model MUST 使用 `buildProviderComposerViewModel()` 与 `buildComfyUiComposerViewModel()` 分别把 backend facts 转换为同一 `GenerationComposerViewModel`。Builder MUST 只消费对应 backend 的 selection、readiness 与 catalog/workflow facts，并输出页面直接可消费的最小形状。
+### Requirement: Backend builders 必须投影同一个 common shape
+ViewModel MUST 使用独立的 `buildProviderComposerViewModel()` 与 `buildComfyUiComposerViewModel()` builder。Provider builder MAY 消费既有 profile/model/output facts；ComfyUI builder MUST 只消费 singleton server、saved-workflow selection、workflow readiness、conditional mappings 与 workflow Form facts。两个 builder 都 MUST NOT 在 common projection 中暴露 parser/driver format label、ComfyUI connection profile、Imagen contract 或 operation semantics。
 
-#### Scenario: Provider builder 只消费 Provider facts
-- **WHEN** 当前 mode 为 Provider
-- **THEN** Provider builder MUST 投影 profile selector、model selector、output controls 与 Provider submit intent，且 MUST NOT 要求 ComfyUI workflow facts
+#### Scenario: Provider builder
+- **WHEN** mode 为 Provider
+- **THEN** builder MUST 投影既有 Provider selection 与 submit semantics，且 MUST NOT 要求 ComfyUI facts
 
-#### Scenario: ComfyUI builder 只消费 workflow facts
-- **WHEN** 当前 mode 为 ComfyUI
-- **THEN** ComfyUI builder MUST 投影 Workflow、Text binding、Image binding selectors、workflow readiness、input notices 与 ComfyUI submit intent，且 MUST NOT 要求 Provider profile 或 model catalog
+#### Scenario: ComfyUI builder
+- **WHEN** mode 为 ComfyUI
+- **THEN** builder MUST 投影 selected saved workflow 与 workflow-native readiness，且 MUST NOT 要求 Provider profile/model facts
 
-### Requirement: Mode switch 必须保留 shared draft 与各 backend selection
-切换 `generationMode` 时，view model MUST 保留 shared Composer draft，至少包括 `prompt` 与 `attachments`，并分别保留 Provider selection 与 ComfyUI workflow selection。切换 mode MUST NOT 清空 draft、丢失非当前 backend selection、猜测 replacement 或把一个 backend 的 selection 写入另一个 backend。
+### Requirement: Mode switching 必须保留 shared draft 与两侧 selection
+切换 `generationMode` 时，ViewModel MUST 保留 session-only shared Composer draft，至少包括 prompt 与 attachments，并 MUST 保留 Provider selection 与 ComfyUI `selectedWorkflowId`。它 MUST NOT 清空、猜测或交叉写入任一 backend selection。Session-only Form overrides MUST 继续归属其 workflow revision。
 
-#### Scenario: Provider 切到 ComfyUI
-- **WHEN** 用户从 Provider 切到 ComfyUI
-- **THEN** `prompt`、`attachments` 与 Provider selection MUST 保持不变，且既有 ComfyUI workflow selection MUST 恢复
+#### Scenario: Provider 切换到 ComfyUI
+- **WHEN** 用户从 Provider 切换到 ComfyUI
+- **THEN** prompt、attachments、Provider selection 与既有 ComfyUI selected workflow MUST 保持不变
 
-#### Scenario: ComfyUI 切回 Provider
-- **WHEN** 用户从 ComfyUI 切回 Provider
-- **THEN** ComfyUI workflow selection MUST 保留，shared draft MUST 保持不变，且 Provider selection MUST 恢复
+#### Scenario: ComfyUI 切换到 Provider
+- **WHEN** 用户从 ComfyUI 切换到 Provider
+- **THEN** ComfyUI workflow selection 与 session Form draft MUST 保持不变，并恢复 Provider selection
 
-### Requirement: Submit intent 必须保持 backend 原生语义
-View model MUST 根据当前 `generationMode` 产生唯一 submit intent。Provider intent MUST 保持现有 profile/model/output 语义；ComfyUI intent MUST 表示运行 selected complete workflow，并携带 workflow identity、Form override snapshot、selected optional bindings 与 shared Composer snapshot。ComfyUI intent MUST NOT 携带 connection profile、`ImagenWorkflowBindingContract`、`ImagenWorkflowTypeContract` 或 `text-to-image`/`image-edit` operation。
+### Requirement: ComfyUI projection 必须使用单一 merged user-facing status
+ComfyUI ViewModel MUST 将 API、Frontend、Bridge capability facts 与 selected-workflow load/readiness 合并为一个 bounded user-facing status surface。Raw probe dimensions MAY 保留为 diagnostic/internal facts，但 MUST NOT 渲染为分离的 connection/profile rows。ComfyUI status MUST NOT 包含 Provider billing、balance、cost 或 profile semantics；`billingVisible` MUST 为 `false`。
+
+#### Scenario: 无法读取 remote workflows
+- **WHEN** internal API probe ready 但 Frontend workflow discovery 或 Bridge unavailable
+- **THEN** status surface MUST 显示一个 `Unable to read workflows` 等价的 actionable status，且 MUST NOT 向用户显示单独的 API ready badge
+
+#### Scenario: ComfyUI status 排除 billing
+- **WHEN** mode 为 ComfyUI
+- **THEN** status surface MUST omit billing content，且 `billingVisible` MUST 为 `false`
+
+### Requirement: Mapping controls 与 `#` parameters 必须条件投影
+ViewModel MUST 分别按 Text/Image candidate 数量投影 mapping：零 candidate时不暴露selector并投影non-blocking unavailable notice；恰好一个candidate时自动绑定且不暴露selector；多个candidates时暴露target selector并等待用户显式选择。Text与Image都恰好一个candidate时，ViewModel MUST 隐藏整个Input Mapping section。ViewModel MUST 只暴露current node title以`#`开头的workflow parameters，并按normalized natural title顺序投影。Unknown或non-writable widget MUST 不进入exposed parameter list，同时 MUST 保留其saved value。
+
+#### Scenario: Workflow 没有 compatible mapping
+- **WHEN** selected workflow 的 Text 或 Image candidate 数量为零
+- **THEN** ViewModel MUST 隐藏对应 selector、投影 unavailable notice，且 Send availability MUST 只服从 workflow/runtime readiness
+
+#### Scenario: Workflow 只有唯一 candidate
+- **WHEN** selected workflow 的 Text 或 Image candidate 数量恰好为一
+- **THEN** ViewModel MUST 自动解析该 mapping 并隐藏对应 selector
+
+#### Scenario: Workflow 有多个 candidates
+- **WHEN** selected workflow 的 Text 或 Image candidate 数量大于一
+- **THEN** ViewModel MUST 投影对应 target selector，且 MUST NOT 自动猜测 candidate
+
+#### Scenario: 两类 mapping 都唯一
+- **WHEN** Text 与 Image candidate 数量都恰好为一
+- **THEN** ViewModel MUST 自动解析两者并隐藏整个 Input Mapping section
+
+#### Scenario: `#` parameter projection
+- **WHEN** selected workflow 包含 title 为 `# Prompt` 与 `# Seed` 的 nodes
+- **THEN** ViewModel MUST 按 normalized title 顺序暴露这些 parameters，且 MUST NOT 暴露 parser、driver 或 `sdppp_*` identifier
+
+### Requirement: Submit intent 必须保持 native backend semantics
+ViewModel MUST 产生一个 backend-specific submit intent。Provider intent MUST 保持当前 profile/model/output semantics。ComfyUI intent MUST 表示“运行当前完整 saved workflow”，并携带 `selectedWorkflowId`、session Form override snapshot、optional revision-scoped mappings 与 shared Composer snapshot。ComfyUI intent MUST NOT 携带 connection profile、workflow format label、Imagen contract 或 `text-to-image`/`image-edit` operation。
 
 #### Scenario: Provider Send
-- **WHEN** 当前 mode 为 Provider 且用户点击 Send
-- **THEN** submit intent MUST 使用现有 Provider profile、model、output 与 prompt 语义
+- **WHEN** Provider mode 调用 Send
+- **THEN** intent MUST 保持既有 Provider profile/model/output semantics
 
 #### Scenario: ComfyUI Send
-- **WHEN** 当前 mode 为 ComfyUI 且用户点击 Send
-- **THEN** submit intent MUST 表示运行 selected complete workflow，且 prompt 与首张 attachment 只作为已选择 binding 的 optional override
+- **WHEN** ComfyUI mode 调用 Send
+- **THEN** intent MUST 请求运行完整 selected workflow，且 prompt/first attachment MUST 只通过 resolved optional mappings 使用
 
-#### Scenario: MainPage 不组装 execution payload
-- **WHEN** 页面准备提交 generation
-- **THEN** `MainPage` MUST 调用 view model 产生的 submit intent，且 MUST NOT 自行组装 backend-specific execution payload
+### Requirement: Input mappings 与 Composer values 不得建立额外 Send gate
+ComfyUI Send availability MUST 只服从 singleton server/runtime readiness、selected workflow load state、bounded workflow admission 与 native/local output validation facts。Prompt empty、attachment count、missing mapping、unused dynamic input、unsupported widget、mask presence、unknown output metadata 或 mapping candidate count MUST NOT 独立禁用 Send。Notices MUST 解释被忽略的 prompt 或 attachments，且 MUST NOT 改变 availability。Send label/tooltip MUST 使用“运行当前 Workflow”语义。
 
-### Requirement: ComfyUI input binding 不得形成 Send gate
-ComfyUI projection MUST 将 server/API readiness、selected workflow load state 与 output-node preflight facts用于 Send availability。Text/Image binding、Composer prompt、attachment 数量、workflow 是否消费动态输入以及 mask-specific binding MUST NOT 形成额外 Send gate。Send label 与 tooltip MUST 表达“运行当前 Workflow”，不得使用 Provider operation vocabulary。
+#### Scenario: Unused prompt 或 attachment
+- **WHEN** prompt 或 attachments 存在但对应 mapping 缺失
+- **THEN** Send MUST 保持 available，且 ViewModel MUST 投影 bounded unused-input notice
 
-#### Scenario: Workflow 没有 Text binding
-- **WHEN** selected workflow 可运行、Composer prompt 非空且 Text binding 为 `No binding`
-- **THEN** Send MUST 保持可用，并显示 `此 Workflow 不使用当前提示词`
+#### Scenario: Unknown output metadata
+- **WHEN** runtime 在 dispatch 前无法解析 output metadata
+- **THEN** ViewModel MUST 让 Send 继续服从 native execution readiness，且 MUST NOT 创建 output-metadata hard gate
 
-#### Scenario: Workflow 没有 Image binding
-- **WHEN** selected workflow 可运行、attachments 非空且 Image binding 为 `No binding`
-- **THEN** Send MUST 保持可用，并显示 `此 Workflow 未识别到图片输入，附件不会发送`
+### Requirement: Settings TAB navigation 不得修改 generation state
+Settings 内显式切换 Provider/ComfyUI TAB MUST 只更新 Settings navigation state。它 MUST NOT 改写 `generationMode`、`selectedWorkflowId`、Provider selection、shared Composer draft 或 session Form overrides。
 
-#### Scenario: Workflow 有多个附件
-- **WHEN** selected workflow 可运行、Image binding 存在且 Composer attachments 超过一张
-- **THEN** Send MUST 保持可用，并显示 `此 Workflow 仅使用第一张附件`
-
-#### Scenario: Workflow 没有动态输入
-- **WHEN** selected workflow 不消费 Composer prompt 或 attachments 但通过 execution preflight
-- **THEN** view model MUST 允许运行 workflow 原值，且 MUST NOT 建立 required prompt、image 或 mask readiness
-
-### Requirement: Settings route 必须跟随 current generation mode
-Generation workspace view model MUST 为 settings action 投影与当前 `generationMode` 匹配的 settings route。Provider mode MUST 打开 Provider TAB；ComfyUI mode MUST 打开 ComfyUI TAB。Settings 内部的显式 TAB 切换 MUST 只改变 settings navigation state，不得反向改写 generation mode 或清空 Composer state。
-
-#### Scenario: 从 ComfyUI mode 进入 Settings
-- **WHEN** 用户在 ComfyUI mode 点击 settings action
-- **THEN** settings route MUST 直接打开 ComfyUI TAB
-
-#### Scenario: 从 Provider mode 进入 Settings
-- **WHEN** 用户在 Provider mode 点击 settings action
-- **THEN** settings route MUST 直接打开 Provider TAB
-
-#### Scenario: Settings TAB 切换不改 generation mode
-- **WHEN** 用户在 Settings 内显式切换 TAB
-- **THEN** generation mode 与 shared Composer draft MUST 保持不变
+#### Scenario: 显式切换 Settings TAB
+- **WHEN** 用户从 generation workspace 进入 Settings 后切换 TAB
+- **THEN** generation mode、selections、prompt/attachments 与 session Form draft MUST 保持不变
