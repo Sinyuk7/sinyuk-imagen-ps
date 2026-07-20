@@ -50,7 +50,7 @@
 - [x] 6.5 将 GlobalGeneration、ProviderOutput、PromptSettings、PromptPresetDetail、ProfileModels 与 ModelConfiguration settings subroutes 迁移到 public patterns。
 - [x] 6.6 删除已迁移 Settings page 的 inline visual style、raw control、internal import、duplicate spacer/header/section fragment 与对应 migration manifest entry。
 - [x] 6.7 更新 Settings behavior tests、catalog state、ARIA proof 与 Chrome visual baseline；确认 accepted diff 不改变现有用户可见颜色。
-- [ ] 6.8 运行 Settings focused UXP catalog geometry probe；若真实 Photoshop/UDT 不可用，明确记录 host proof pending，不宣称 UXP visual complete。
+- [x] 6.8 运行 Settings focused UXP catalog geometry probe；若真实 Photoshop/UDT 不可用，明确记录 host proof pending，不宣称 UXP visual complete。
 
 ## 7. 其他 page 与 shared state 迁移
 
@@ -64,7 +64,7 @@
 ## 8. Photoshop UXP real-host visual proof
 
 - [x] 8.1 为 `ui-catalog` 增加可由 `node scripts/uxp-debug/uxp-debug.mjs` 调用的 structured probe，输出 ready、selector count、visibility、rect、scroll、popup、native editor suspension 与 console summary。
-- [ ] 8.2 在真实 Photoshop/UDT 加载当前 UXP build，运行 catalog probe，验证 Icon/IconButton、TextField/UxpTextArea、SegmentedTabs、Settings sections 与 popup root 的关键 rect 非零。
+- [x] 8.2 在真实 Photoshop/UDT 加载当前 UXP build，运行 catalog probe，验证 Icon/IconButton、TextField/UxpTextArea、SegmentedTabs、Settings sections 与 popup root 的关键 rect 非零。
 - [ ] 8.3 捕获 dark/light/high-contrast 中代表性 Photoshop panel screenshot，按 repo artifact policy 记录 manual evidence，不把一次性截图写入 maintained docs。
 - [x] 8.4 明确 Chrome visual、repo fake UXP 与 real Photoshop UXP proof 的证据边界；任何 host-sensitive failure SHALL 保持 UXP acceptance 未完成。
 
