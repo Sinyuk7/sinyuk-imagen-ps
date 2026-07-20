@@ -26,7 +26,7 @@ packages/
 
 ## 先读哪里
 
-- 项目入口与硬规则：`AGENTS.md`（`CLAUDE.md` 为其 symlink 别名）
+- 项目入口与硬规则：`AGENTS.md`（`CLAUDE.md`、`GEMINI.md` 均为其 symlink 别名）
 - 工程上下文、当前限制与 open questions：`docs/ENGINEERING_CONTEXT.md`
 - 测试与 Harness 总入口：`docs/TESTING.md`
 - Loop 协作契约：`docs/agent/LOOP.md`
