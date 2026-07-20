@@ -35,16 +35,23 @@ function isNativeValidationRejection(body: Uint8Array): boolean {
     return false;
   }
 }
+function sameInputRef(left: { readonly nodeId: string; readonly inputName?: string; readonly widgetIndex?: number }, right: { readonly nodeId: string; readonly inputName?: string; readonly widgetIndex?: number }): boolean {
+  return left.nodeId === right.nodeId && left.inputName === right.inputName && left.widgetIndex === right.widgetIndex;
+}
+function uploadMutations(request: ComfyUiExecutionRequest, uploads: ComfyUiPreparedUploads): ComfyUiExecutionRequest['mutations'] {
+  const additions = [
+    ...(request.imageInputRef && uploads.imageValues[0] ? [{ ref: request.imageInputRef, value: uploads.imageValues[0] }] : []),
+    ...(request.mask && uploads.maskValue ? [{ ref: request.mask.binding.inputRef, value: uploads.maskValue }] : []),
+  ];
+  if (request.mask && uploads.maskValue === undefined) throw createComfyUiExecutionError('prepare', 'asset-unavailable');
+  if (additions.length === 0) return request.mutations;
+  return [...(request.mutations ?? []).filter((item) => !additions.some((addition) => sameInputRef(item.ref, addition.ref))), ...additions];
+}
 
 /** API driver: clone full graph, apply optional overrides, POST /prompt exactly once. */
 export async function executeComfyUiApiGraph(request: ComfyUiExecutionRequest & { readonly source: Extract<ComfyUiExecutionRequest['source'], { readonly kind: 'api-graph' }> }, uploads: ComfyUiPreparedUploads, deps: ComfyUiApiGraphDriverDependencies, signal?: AbortSignal): Promise<ComfyUiExecutionResult> {
   const form: WorkflowForm = convertComfyUiApiWorkflowToForm(request.source.graph, request.source.objectInfo);
-  const imageMutation = request.imageInputRef && uploads.imageValues[0]
-    ? { ref: request.imageInputRef, value: uploads.imageValues[0] }
-    : undefined;
-  const mutations = imageMutation
-    ? [...(request.mutations ?? []).filter((item) => item.ref.nodeId !== imageMutation.ref.nodeId || item.ref.inputName !== imageMutation.ref.inputName || item.ref.widgetIndex !== imageMutation.ref.widgetIndex), imageMutation]
-    : request.mutations;
+  const mutations = uploadMutations(request, uploads);
   const prompt = buildComfyUiApiPrompt(request.source.graph, form, { prompt: request.mutations ? undefined : request.prompt, imageValues: request.imageInputRef ? undefined : uploads.imageValues, mutations });
   const clientId = runtimeId(deps, 'comfy-client');
   let hint: ComfyUiPromptHintSource | undefined;
@@ -66,12 +73,7 @@ export async function executeComfyUiFrontendQueue(request: ComfyUiExecutionReque
   const identity = bridge.identity;
   const handshake = createComfyUiBridgeHandshakeRequest(identity, runtimeId(deps, 'bridge-request'));
   try { validateComfyUiBridgeHandshake(await bridge.exchange(handshake, signal), handshake.requestId, identity); } catch (error) { throw normalizeComfyUiExecutionError(error, { stage: 'prepare', code: 'bridge-incompatible' }); }
-  const imageMutation = request.imageInputRef && uploads.imageValues[0]
-    ? { ref: request.imageInputRef, value: uploads.imageValues[0] }
-    : undefined;
-  const mutations = imageMutation
-    ? [...(request.mutations ?? []).filter((item) => item.ref.nodeId !== imageMutation.ref.nodeId || item.ref.inputName !== imageMutation.ref.inputName || item.ref.widgetIndex !== imageMutation.ref.widgetIndex), imageMutation]
-    : request.mutations;
+  const mutations = uploadMutations(request, uploads);
   const submission = createComfyUiFrontendSubmitRequest({ identity, workflowId: request.source.workflowId, revision: request.source.revision, remotePath: request.source.remotePath, mutations: buildComfyUiFrontendMutations(mutations), prompt: request.mutations ? undefined : request.prompt, imageValues: request.imageInputRef ? undefined : uploads.imageValues, configureTimeoutMs: Math.min(request.connection.requestTimeoutMs, 30_000), receiptTimeoutMs: Math.min(request.connection.observationTimeoutMs, 30_000), requestId: runtimeId(deps, 'bridge-request'), operationId: runtimeId(deps, 'comfy-operation') });
   let response: unknown;
   try { response = await bridge.exchange(submission.request, signal); } catch (error) { throw normalizeComfyUiExecutionError(error, { stage: 'submit', code: 'submission-unknown', remoteMayContinue: true }); }

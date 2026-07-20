@@ -74,9 +74,10 @@ surface apps -> application/session -> core-engine + providers + execution backe
   protocol. Application owns the singleton server state, current workflow,
   revision-scoped mappings and drafts, readiness, retry policy, and Task
   projection. Host adapters only provide the strict persistence allowlist,
-  HTTP bytes, and iframe/WebView message transport. Mask and unsupported custom
-  widgets preserve their saved values and do not create plugin-side admission
-  gates; mask-specific materialization remains future work.
+  HTTP bytes, and iframe/WebView message transport. A Mask is admitted only
+  through a revision-scoped explicit `separate-image-input` binding; it never
+  replaces the primary image input. Unsupported custom widgets preserve their
+  saved values and do not create plugin-side admission gates.
 - Durable ComfyUI state is limited to canonical `baseUrl`,
   `selectedWorkflowId`, and explicit ambiguous mappings scoped by workflow
   revision. Catalogs, workflow documents, capabilities, class metadata,
@@ -280,6 +281,27 @@ surface apps -> application/session -> core-engine + providers + execution backe
 - UXP binary file reads/writes use `require('uxp').storage.formats.binary`, not `localFileSystem.formats.binary`.
 - UXP does not provide browser-style anchor download behavior. Saving a generated image to disk must go through the host save dialog (`localFileSystem.getFileForSaving()` / `HostPort.saveAssetToFile()`), not `<a download>` or synthetic anchor clicks.
 - Photoshop layer/capture attachments are materialized as PNG bytes through the app-local PNG encoder (stored deflate, no compression), then stored in `AssetStore`. `imaging.getPixels()` requests `componentSize: 8`; selection/mask data stays single-channel grayscale.
+- Photoshop edit regions bind a primary attachment identity, declared source
+  bounds, provider-input target size, and an 8-bit grayscale PNG where white
+  means edit. Selection and user-layer-mask acquisition must request the same
+  `sourceBounds` and `targetSize` as the primary provider input; callers must
+  reject mismatched returned bounds or dimensions instead of independently
+  cropping or resizing a mask.
+- Photoshop UXP 9.3 can represent an absent user mask as an empty `0x0`
+  `getLayerMask()` result with no `imageData`. Treat only that exact sentinel
+  as confirmed `none`; a missing image payload with any other result remains a
+  host acquisition error.
+- `MaskCoordinator` owns draft Mask lifecycle. It derives identity only from
+  `attachments[0]`, fences stale host completions, releases superseded assets,
+  and never reads a user mask for a non-Photoshop or non-primary attachment.
+  Composer blocks a Photoshop primary while an enabled supported Mask is
+  loading or failed, but permits `none` and ordinary uploads without a Mask.
+- A ready region is frozen into top-level `TaskRecord.editRegion`, never into
+  `TaskAttachment[]`. Retry reconstructs it from the durable stored ref, not
+  the current Photoshop document. Provider routes only explicit
+  `provider-native` plans to a first input with identical dimensions; semantic
+  and unsupported routes omit the raster Mask. ComfyUI uploads a Mask only for
+  an explicit revision-scoped binding and preserves the primary image ref.
 - Photoshop UXP layer-picker host reads split by responsibility: lightweight
   layer-list enumeration should prefer `core.getLayerTree({ documentID })`
   because DOM-proxy traversal over `activeDocument.layers` can stall for

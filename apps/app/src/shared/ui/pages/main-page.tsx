@@ -414,6 +414,15 @@ export function MainPage({
   const flatLayers = useMemo(() => flattenLayers(layers), [layers]);
   const uniqueModels = useMemo(() => dedupeById(models), [models]);
   const { input, attachments } = composerDraft;
+  const maskStatusText = workspace.maskState.kind === 'loading'
+    ? t.main.maskLoading
+    : workspace.maskState.kind === 'ready'
+      ? t.main.maskReady
+      : workspace.maskState.kind === 'none'
+        ? t.main.maskNone
+        : workspace.maskState.kind === 'error'
+          ? `${t.main.maskError}: ${workspace.maskState.message}`
+          : undefined;
 
   useEffect(() => {
     workspace.setAttachmentPreparing(captureInFlight);
@@ -1864,6 +1873,25 @@ export function MainPage({
                     <span className="cmp-balance-pill-secondary"> · {billingPrimaryParts.secondary}</span>
                   )}
                 </div> : null}
+                <MotionButtonSurface>
+                  <IconButton
+                    data-testid="composer-mask-toggle"
+                    className="cmp-mask-toggle"
+                    hostClassName="cmp-mask-toggle-host"
+                    quiet
+                    toggles
+                    selected={workspace.maskPreference.enabled}
+                    icon={<Icon name="selection" size={13} />}
+                    tooltip={t.main.mask}
+                    placement="top"
+                    iconSize={13}
+                    disabled={workspace.maskToggleDisabled}
+                    onClick={() => workspace.setMaskEnabled(!workspace.maskPreference.enabled)}
+                  />
+                </MotionButtonSurface>
+                {workspace.maskState.kind === 'error' ? (
+                  <Button className="cmp-mask-retry" onClick={workspace.retryMask}>{t.main.retryMask}</Button>
+                ) : null}
               </div>
               <div className="cmp-action-right">
                 <MotionButtonSurface>
@@ -1912,6 +1940,7 @@ export function MainPage({
                 {composerReadinessText}
               </div>
             </MotionContent>
+            {maskStatusText ? <div className="cmp-readiness" data-testid="composer-mask-status" data-state={workspace.maskState.kind}>{maskStatusText}</div> : null}
             {viewModel.notices.length > 0 ? (
               <div className="cmp-readiness" data-testid="generation-workspace-notices">
                 {viewModel.notices.map((notice) => <div key={notice}>{notice}</div>)}

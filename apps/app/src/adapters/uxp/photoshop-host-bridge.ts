@@ -105,7 +105,7 @@ type PhotoshopEncodedImageDataBytes =
 interface PhotoshopImaging {
   getPixels(options: Record<string, unknown>): Promise<{ readonly imageData: PhotoshopImageData; readonly sourceBounds?: PhotoshopLayerBounds; readonly level?: number }>;
   getSelection?(options: Record<string, unknown>): Promise<{ readonly imageData: PhotoshopImageData; readonly sourceBounds?: PhotoshopLayerBounds }>;
-  getLayerMask?(options: Record<string, unknown>): Promise<{ readonly imageData: PhotoshopImageData }>;
+  getLayerMask?(options: Record<string, unknown>): Promise<{ readonly imageData?: PhotoshopImageData; readonly sourceBounds?: PhotoshopLayerBounds } | undefined>;
   encodeImageData(options: { readonly imageData: PhotoshopImageData; readonly base64: true }): Promise<string>;
   encodeImageData(options: { readonly imageData: PhotoshopImageData; readonly base64: false }): Promise<PhotoshopEncodedImageDataBytes>;
 }
@@ -291,6 +291,16 @@ function normalizeRect(bounds: PhotoshopLayerBounds | undefined | null): Photosh
     return undefined;
   }
   return { left, top, right, bottom };
+}
+
+/** UXP 9.3 no-mask sentinel：empty bounds 且缺少 imageData。 */
+function isConfirmedNoLayerMask(result: { readonly imageData?: PhotoshopImageData; readonly sourceBounds?: PhotoshopLayerBounds }): boolean {
+  if (result.imageData !== undefined) return false;
+  const bounds = toLayerBounds(result.sourceBounds);
+  return bounds?.left === 0
+    && bounds.top === 0
+    && bounds.right === 0
+    && bounds.bottom === 0;
 }
 
 function rectSize(rect: PhotoshopRect): { readonly width: number; readonly height: number } {
@@ -948,11 +958,11 @@ async function createPhotoshopThumbnailUrl(
       throw new Error('Photoshop selection capture is unavailable: imaging.getSelection is missing.');
     }
     const selectionResult = await imaging.getSelection(selectionRequest);
-    const alpha = await selectionMaskToAlpha(selectionResult.imageData, {
+    const alpha = await grayscaleMaskToCoverage(selectionResult.imageData, {
       requestedRect: frame.requestedRect,
       targetSize: frame.targetSize,
       sourceBounds: selectionResult.sourceBounds,
-    });
+    }, 'selection mask');
     applySelectionAlpha(rgba, alpha);
   }
   const png = encodeRgbaPngStoredDeflate({ width: frame.targetSize.width, height: frame.targetSize.height, data: rgba });
@@ -1136,8 +1146,8 @@ function toTargetRect(
   actualSize: { readonly width: number; readonly height: number },
   label: string,
 ): PhotoshopRect {
-  assertRequestedTargetSize(actualSize, frame.targetSize, label);
   if (!frame.sourceBounds) {
+    assertRequestedTargetSize(actualSize, frame.targetSize, label);
     return { left: 0, top: 0, right: frame.targetSize.width, bottom: frame.targetSize.height };
   }
 
@@ -1160,7 +1170,14 @@ function toTargetRect(
   if (right <= left || bottom <= top) {
     throw new Error(`Photoshop returned ${label} source bounds outside the requested capture frame.`);
   }
-  return { left, top, right, bottom };
+  const targetRect = { left, top, right, bottom };
+  const targetRectSize = rectSize(targetRect);
+  if (actualSize.width !== targetRectSize.width || actualSize.height !== targetRectSize.height) {
+    throw new Error(
+      `Photoshop returned unexpected ${label} size: ${actualSize.width}x${actualSize.height}, expected declared bounds ${targetRectSize.width}x${targetRectSize.height}.`,
+    );
+  }
+  return targetRect;
 }
 
 function isFullTargetRect(rect: PhotoshopRect, size: { readonly width: number; readonly height: number }): boolean {
@@ -1301,21 +1318,22 @@ function pasteAlpha(
   }
 }
 
-async function selectionMaskToAlpha(imageData: PhotoshopImageData, frame: CaptureImageFrame): Promise<Uint8Array> {
+/** 将 Photoshop selection/user mask 以声明 bounds 回填到完整 provider-input frame。 */
+async function grayscaleMaskToCoverage(imageData: PhotoshopImageData, frame: CaptureImageFrame, label: string): Promise<Uint8Array> {
   try {
     const size = imageDataSize(imageData, frame.targetSize);
     const components = imageData.components ?? 1;
     if (imageData.colorSpace !== undefined && imageData.colorSpace !== 'Grayscale') {
-      throw new Error(`Photoshop selection capture requires Grayscale image data, got ${imageData.colorSpace}.`);
+      throw new Error(`Photoshop ${label} requires Grayscale image data, got ${imageData.colorSpace}.`);
     }
     if (!imageData.getData) {
-      throw new Error('Photoshop selection capture requires imageData.getData().');
+      throw new Error(`Photoshop ${label} requires imageData.getData().`);
     }
     const data = await imageData.getData();
     if (!(data instanceof Uint8Array)) {
-      throw new Error('Photoshop selection capture requires 8-bit mask data.');
+      throw new Error(`Photoshop ${label} requires 8-bit mask data.`);
     }
-    const targetRect = toTargetRect(frame, size, 'selection mask');
+    const targetRect = toTargetRect(frame, size, label);
     if (isFullTargetRect(targetRect, frame.targetSize) && size.width === frame.targetSize.width && size.height === frame.targetSize.height) {
       const alpha = new Uint8Array(frame.targetSize.width * frame.targetSize.height);
       for (let pixel = 0; pixel < alpha.byteLength; pixel += 1) {
@@ -1783,11 +1801,11 @@ export function createPhotoshopHostBridge(modules: UxpModules, options?: CreateP
                 targetSize,
                 componentSize: 8,
               });
-              const alpha = await selectionMaskToAlpha(selectionResult.imageData, {
+              const alpha = await grayscaleMaskToCoverage(selectionResult.imageData, {
                 requestedRect: captureRect,
                 targetSize,
                 sourceBounds: selectionResult.sourceBounds,
-              });
+              }, 'selection mask');
               applySelectionAlpha(rgba, alpha);
               canonicalMask = encodeCanonicalGrayscalePng(alpha, targetSize);
             }
@@ -1975,39 +1993,65 @@ export function createPhotoshopHostBridge(modules: UxpModules, options?: CreateP
       }
     },
 
-    async readLayerMaskAsAsset(layerId: number): Promise<HostImageAsset | undefined> {
-      const span = logger.startSpan('hostbridge.read_layer_mask', { layerId });
+    async readLayerMaskAsAsset(input): Promise<CanonicalMaskAsset | undefined> {
+      const span = logger.startSpan('hostbridge.read_layer_mask', { documentId: input.documentId, layerId: input.layerId });
       if (!imaging.getLayerMask) {
-        span.finish({ hasMask: false, reason: 'unsupported' });
-        return undefined;
+        const error = new Error('Photoshop user layer mask acquisition is unavailable: imaging.getLayerMask is missing.');
+        span.fail(error, { reason: 'unsupported' });
+        throw error;
       }
       const getLayerMask = imaging.getLayerMask.bind(imaging);
       try {
         const result = await executeHostModal(
           async () =>
             getLayerMask({
-              documentID: app.activeDocument?.id,
-              layerID: layerId,
+              documentID: input.documentId,
+              layerID: input.layerId,
               kind: 'user',
+              sourceBounds: input.sourceBounds,
+              targetSize: input.targetSize,
               componentSize: 8,
             }),
           { commandName: 'Read layer mask' },
         );
-        try {
-          // Mask/selection 是单通道灰度；当前不扩展为 RGBA 预览，避免额外全尺寸副本。
-        } finally {
-          result.imageData.dispose();
+        if (result === undefined || isConfirmedNoLayerMask(result)) {
+          span.finish({ hasMask: false, reason: 'none' });
+          return undefined;
         }
-        span.finish({ layerId, hasMask: true, previewAvailable: false, reason: 'grayscale-mask-not-encodable' });
-        logger.info('hostbridge.read_layer_mask.preview_unavailable', {
-          layerId,
-          reason: 'Photoshop imaging.encodeImageData requires RGB image data; layer masks are grayscale.',
+        if (result.imageData === undefined) {
+          throw new Error('Photoshop user layer mask acquisition returned no imageData.');
+        }
+        const coverage = await grayscaleMaskToCoverage(result.imageData, {
+          requestedRect: input.sourceBounds,
+          targetSize: input.targetSize,
+          sourceBounds: result.sourceBounds,
+        }, 'user layer mask');
+        const png = encodeCanonicalGrayscalePng(coverage, input.targetSize);
+        const maskImage = await createStoredHostImageAsset(assetStore, png.bytes, {
+          source: 'layer',
+          name: `photoshop-user-mask-${input.layerId}.png`,
+          mimeType: 'image/png',
+          width: png.width,
+          height: png.height,
         });
-        return undefined;
+        span.finish({ hasMask: true, width: png.width, height: png.height, encoding: 'grayscale-png' });
+        return {
+          ...maskImage,
+          canonicalMask: {
+            encoding: 'grayscale',
+            bitDepth: 8,
+            size: input.targetSize,
+          },
+        };
       } catch (error) {
-        span.fail(error, { layerId });
-        return undefined;
+        span.fail(error, { layerId: input.layerId });
+        throw error;
       }
+    },
+
+    async releaseDraftAsset(asset: HostImageAsset): Promise<void> {
+      asset.preview.dispose?.();
+      if (asset.asset.storedRef) await assetStore.delete(asset.asset.storedRef);
     },
 
     async getLayerThumbnail(

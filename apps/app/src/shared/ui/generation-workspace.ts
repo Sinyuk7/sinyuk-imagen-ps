@@ -1,5 +1,6 @@
 import type {
   ComfyUiWorkflowValueMutation,
+  ComfyUiMaskBinding,
   WorkflowForm,
   WorkflowInputRef,
   WorkflowMapping,
@@ -9,6 +10,7 @@ import { composeWorkflowMutations } from '@imagen-ps/application';
 import type { ApiFormat, ImageOutputSelection, ProviderProfile } from '@imagen-ps/application';
 import type { AppGenerationSettings, AppProviderInputSizePreset } from '../ports/app-generation-settings';
 import type { ComposerDraftController } from './hooks/use-composer-draft';
+import type { MaskBindingState, MaskPreference } from '../domain/edit-region';
 import type { ModelGenerationSettingsController } from './hooks/use-model-generation-settings';
 import type { UiModelInfo } from './model-info';
 
@@ -35,6 +37,8 @@ export interface ComfyUiSubmitIntent {
   readonly composer: Readonly<{ prompt: string; attachmentCount: number }>;
   readonly mutations: readonly ComfyUiWorkflowValueMutation[];
   readonly imageInputRef?: WorkflowInputRef;
+  /** 当前 Workflow revision 的显式 Mask input binding。 */
+  readonly maskBinding?: ComfyUiMaskBinding;
 }
 
 export type GenerationSubmitIntent = ProviderSubmitIntent | ComfyUiSubmitIntent;
@@ -105,6 +109,7 @@ export interface ComfyUiComposerBuilderInput {
   readonly mapping?: {
     readonly text: { readonly resolved: WorkflowMapping; readonly notice?: string };
     readonly image: { readonly resolved: WorkflowMapping; readonly notice?: string };
+    readonly mask?: { readonly binding?: ComfyUiMaskBinding };
   };
   readonly draftValues: Readonly<Record<string, WorkflowPrimitiveValue>>;
   readonly prompt: string;
@@ -192,6 +197,7 @@ export function buildComfyUiComposerViewModel(input: ComfyUiComposerBuilderInput
             })
           : [],
         ...(input.mapping?.image.resolved ? { imageInputRef: input.mapping.image.resolved } : {}),
+        ...(input.mapping?.mask?.binding ? { maskBinding: input.mapping.mask.binding } : {}),
       }
     : undefined;
   return {
@@ -218,6 +224,11 @@ export interface GenerationWorkspaceController {
   readonly setGenerationMode: (mode: GenerationMode) => void;
   readonly setSettingsRoute: (route: GenerationSettingsRoute) => void;
   readonly setAttachmentPreparing: (preparing: boolean) => void;
+  readonly maskPreference: MaskPreference;
+  readonly maskState: MaskBindingState;
+  readonly maskToggleDisabled: boolean;
+  readonly setMaskEnabled: (enabled: boolean) => void;
+  readonly retryMask: () => void;
   readonly send: (prompt: string) => Promise<boolean>;
   readonly selectProfile: (profileId: string | null) => Promise<void>;
   readonly selectModel: (modelId: string) => void;

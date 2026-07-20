@@ -5,9 +5,11 @@ export const OPENAI_EDIT_INPUT_CAPABILITY = Object.freeze({
   maxImages: 10,
   maxBytesPerImage: 25 * 1024 * 1024,
   mask: {
-    kind: 'alpha-image',
+    canonicalEncoding: 'grayscale-png',
+    canonicalPolarity: 'white-edit',
     target: 'first-input',
-    formats: ['png'],
+    wireFormat: 'png',
+    wirePolarity: 'alpha-zero-edit',
     maxBytes: 4 * 1024 * 1024,
     requiresSameDimensions: true,
   },

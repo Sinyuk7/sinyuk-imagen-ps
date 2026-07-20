@@ -1,9 +1,10 @@
 import type { Asset, AssetStore, StoredAssetRef } from '@imagen-ps/application';
 import { createHostImageAsset, type HostImageAsset } from '../../shared/domain/host-image-asset';
+import type { CanonicalMaskAsset } from '../../shared/domain/mask-source';
 import { encode as encodePng } from 'fast-png';
 import type { PhotoshopCaptureResult, PlacementIntent } from '../../shared/domain/photoshop-placement';
 import type { ProviderInputSizePolicy } from '../../shared/image/resize';
-import type { LayerInfo } from '../../shared/ports/host-port';
+import type { LayerInfo, ReadLayerMaskAsAssetInput } from '../../shared/ports/host-port';
 
 export type PhotoshopSimulatorScenarioId =
   | 'no-document'
@@ -20,7 +21,7 @@ export interface PhotoshopSimulator {
   listLayers(): readonly LayerInfo[];
   captureActiveImage(policy: ProviderInputSizePolicy): Promise<PhotoshopCaptureResult>;
   readLayerAsAsset(layerId: number, policy: ProviderInputSizePolicy): Promise<HostImageAsset>;
-  readLayerMaskAsAsset(layerId: number): Promise<HostImageAsset | undefined>;
+  readLayerMaskAsAsset(input: ReadLayerMaskAsAssetInput): Promise<HostImageAsset | undefined>;
   placeAssetOnCanvas(asset: Asset, placement: PlacementIntent): Promise<void>;
 }
 
@@ -194,14 +195,26 @@ export function createPhotoshopSimulator(
         },
       };
     },
-    async readLayerMaskAsAsset(layerId): Promise<HostImageAsset | undefined> {
-      if (scenarioId !== 'mask-capable-layer' || layerId !== 1) return undefined;
-      const data = svgDataUrl('Mask 1', 160, 160, '#ffffff', true);
-      return storedHostImageAsset(
+    async readLayerMaskAsAsset(input): Promise<CanonicalMaskAsset | undefined> {
+      if (scenarioId !== 'mask-capable-layer' || input.layerId !== 1) return undefined;
+      const data = new Uint8Array(input.targetSize.width * input.targetSize.height);
+      data.fill(255);
+      const bytes = encodePng({
+        width: input.targetSize.width,
+        height: input.targetSize.height,
+        data,
+        channels: 1,
+        depth: 8,
+      });
+      const mask = await storedHostImageAsset(
         assetStore,
-        { type: 'image', name: 'sim-mask-1.svg', data, mimeType: 'image/svg+xml' },
-        { source: 'simulator', previewUrl: data, width: 160, height: 160 },
+        { type: 'image', name: 'sim-mask-1.png', data: bytes, mimeType: 'image/png' },
+        { source: 'simulator', previewUrl: svgDataUrl('Mask 1', input.targetSize.width, input.targetSize.height, '#ffffff', true), width: input.targetSize.width, height: input.targetSize.height },
       );
+      return {
+        ...mask,
+        canonicalMask: { encoding: 'grayscale', bitDepth: 8, size: input.targetSize },
+      };
     },
     async placeAssetOnCanvas(_asset: Asset, placement: PlacementIntent): Promise<void> {
       if (scenarioId === 'place-asset-failure') throw new Error('Simulator place asset failed.');

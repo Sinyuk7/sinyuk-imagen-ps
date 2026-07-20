@@ -1,4 +1,4 @@
-import { createImmutableSnapshot, createValidationError } from '@imagen-ps/core-engine';
+import { createImmutableSnapshot, createValidationError, type StoredAssetRef } from '@imagen-ps/core-engine';
 import type { TaskError, TaskOutput, TaskRecord } from '../task.js';
 import { assertTaskRecord } from '../task.js';
 import { normalizeAdmittedGeneration, normalizeGenerationCommand } from '../generation/admission.js';
@@ -13,6 +13,7 @@ import type {
 import type {
   ComfyUiExecutionAssetInput,
   ComfyUiExecutionIntent,
+  ComfyUiExecutionMaskInput,
   ComfyUiGenerationPayload,
 } from './types.js';
 
@@ -37,6 +38,22 @@ function assets(value: unknown): readonly ComfyUiExecutionAssetInput[] {
   if (!Array.isArray(value) || value.length > 32) throw createValidationError('ComfyUI images are invalid.');
   return value as readonly ComfyUiExecutionAssetInput[];
 }
+function asset(value: unknown, path: string): ComfyUiExecutionAssetInput {
+  if (!record(value) || Object.keys(value).some((key) => !['storedRef', 'width', 'height'].includes(key))) throw createValidationError(`${path} is invalid.`);
+  if (!record(value.storedRef) || Object.keys(value.storedRef).some((key) => !['kind', 'ref', 'name', 'mimeType', 'sha256', 'byteSize'].includes(key))) throw createValidationError(`${path}.storedRef is invalid.`);
+  if (!['inline', 'url', 'hostObject', 'externalToken'].includes(String(value.storedRef.kind)) || typeof value.storedRef.ref !== 'string' || value.storedRef.ref.length === 0) throw createValidationError(`${path}.storedRef is invalid.`);
+  if (!Number.isSafeInteger(value.width) || !Number.isSafeInteger(value.height) || Number(value.width) < 1 || Number(value.height) < 1) throw createValidationError(`${path} is invalid.`);
+  return { storedRef: value.storedRef as unknown as StoredAssetRef, width: Number(value.width), height: Number(value.height) };
+}
+function mask(value: unknown): ComfyUiExecutionMaskInput | undefined {
+  if (value === undefined) return undefined;
+  if (!record(value) || Object.keys(value).some((key) => !['asset', 'binding'].includes(key)) || !record(value.binding)) throw createValidationError('ComfyUI Mask is invalid.');
+  const binding = value.binding;
+  if (Object.keys(binding).some((key) => !['transport', 'inputRef', 'polarity'].includes(key)) || binding.transport !== 'separate-image-input' || (binding.polarity !== 'white-edit' && binding.polarity !== 'black-edit')) throw createValidationError('ComfyUI Mask is invalid.');
+  const input = inputRef(binding.inputRef);
+  if (input === undefined) throw createValidationError('ComfyUI Mask is invalid.');
+  return { asset: asset(value.asset, 'ComfyUI Mask asset'), binding: { transport: 'separate-image-input', inputRef: input, polarity: binding.polarity } };
+}
 function inputRef(value: unknown): import('./types.js').WorkflowInputRef | undefined {
   if (value === undefined) return undefined;
   if (!record(value) || Object.keys(value).some((key) => !['nodeId', 'inputName', 'widgetIndex'].includes(key))) throw createValidationError('ComfyUI image input ref is invalid.');
@@ -50,9 +67,10 @@ function inputRef(value: unknown): import('./types.js').WorkflowInputRef | undef
 function payload(command: GenerationCommand): ComfyUiGenerationPayload {
   if (!record(command.payload)) throw createValidationError('ComfyUiGenerationPayload must be a record.');
   const value = command.payload;
-  if (Object.keys(value).some((key) => !['workflowId', 'prompt', 'images', 'runningTask', 'revision', 'formValues', 'mutations', 'imageInputRef'].includes(key))) throw createValidationError('ComfyUiGenerationPayload contains unsupported field.');
+  if (Object.keys(value).some((key) => !['workflowId', 'prompt', 'images', 'runningTask', 'revision', 'formValues', 'mutations', 'imageInputRef', 'mask'].includes(key))) throw createValidationError('ComfyUiGenerationPayload contains unsupported field.');
   if (!record(value.runningTask)) throw createValidationError('ComfyUI running Task is invalid.');
   assertTaskRecord(value.runningTask as unknown as TaskRecord);
+  const executionMask = mask(value.mask);
   return {
     workflowId: text(value.workflowId, 'ComfyUiGenerationPayload.workflowId'),
     ...(value.prompt === undefined ? {} : { prompt: text(value.prompt, 'ComfyUiGenerationPayload.prompt', 65_536) }),
@@ -62,6 +80,7 @@ function payload(command: GenerationCommand): ComfyUiGenerationPayload {
     ...(record(value.formValues) ? { formValues: value.formValues as ComfyUiGenerationPayload['formValues'] } : {}),
     ...(Array.isArray(value.mutations) ? { mutations: value.mutations as ComfyUiGenerationPayload['mutations'] } : {}),
     ...(inputRef(value.imageInputRef) ? { imageInputRef: inputRef(value.imageInputRef) } : {}),
+    ...(executionMask === undefined ? {} : { mask: executionMask }),
   };
 }
 
@@ -98,10 +117,11 @@ export function createComfyUiGenerationBackend(dependencies: ComfyUiGenerationBa
       if (normalized.backendId !== COMFYUI_GENERATION_BACKEND_ID) throw createValidationError('ComfyUI backend received a command for another backend.');
       const value = payload(normalized);
       const intent = await dependencies.runtime.getExecution(value.workflowId, value.revision);
+      if (value.mask !== undefined && value.revision !== intent.source.revision) throw createValidationError('ComfyUI Mask binding is stale.');
       const images = (value.images ?? []).slice(0, 1);
       const running = value.runningTask;
       if (running.taskId !== normalized.taskId || running.status !== 'running' || running.latestJobId !== undefined) throw createValidationError('ComfyUI running Task identity is invalid.');
-      const input = { ...intent, ...(value.prompt === undefined ? {} : { prompt: value.prompt }), images, ...(value.mutations === undefined ? {} : { mutations: value.mutations }), ...(value.imageInputRef === undefined ? {} : { imageInputRef: value.imageInputRef }) };
+      const input = { ...intent, ...(value.prompt === undefined ? {} : { prompt: value.prompt }), images, ...(value.mutations === undefined ? {} : { mutations: value.mutations }), ...(value.imageInputRef === undefined ? {} : { imageInputRef: value.imageInputRef }), ...(value.mask === undefined ? {} : { mask: value.mask }) };
       const execution = { workflow: COMFYUI_GENERATION_WORKFLOW, input: { request: input } };
       const admitted: AdmittedGeneration = { taskId: normalized.taskId, backendId: COMFYUI_GENERATION_BACKEND_ID, execution, runningTask: running, lane: { key: 'comfyui:default', maxConcurrency: COMFYUI_CONNECTION_LANE_MAX_CONCURRENCY }, retry: { allowed: true } };
       return normalizeAdmittedGeneration(normalized, backend.id, admitted);
@@ -123,7 +143,8 @@ export function createComfyUiGenerationBackend(dependencies: ComfyUiGenerationBa
       if (input.task.status !== 'failed' || input.latestJob.status !== 'failed' || errorDetails.remoteMayContinue === true) throw createValidationError('ComfyUI Retry is not available.');
       const request = comfyUiExecutionInput({ ...input.latestJob.input, backendId: COMFYUI_GENERATION_BACKEND_ID, execution: input.latestJob.input, taskId: input.task.taskId, runningTask: input.task, retry: { allowed: true } } as unknown as AdmittedGeneration);
       const { latestJobId: _latestJobId, finishedAt: _finishedAt, error: _error, ...retryTask } = input.task;
-      return backend.admit({ taskId: input.task.taskId, backendId: COMFYUI_GENERATION_BACKEND_ID, payload: { workflowId: request.source.workflowId, prompt: request.prompt, images: request.images, ...(request.mutations ? { mutations: request.mutations } : {}), ...(request.imageInputRef ? { imageInputRef: request.imageInputRef } : {}), runningTask: { ...retryTask, status: 'running', updatedAt: now() } } });
+      const editRegion = input.task.editRegion;
+      return backend.admit({ taskId: input.task.taskId, backendId: COMFYUI_GENERATION_BACKEND_ID, payload: { workflowId: request.source.workflowId, prompt: request.prompt, images: request.images, revision: request.source.revision, ...(request.mutations ? { mutations: request.mutations } : {}), ...(request.imageInputRef ? { imageInputRef: request.imageInputRef } : {}), ...(editRegion === undefined || request.mask === undefined ? {} : { mask: { asset: { storedRef: editRegion.mask.ref, width: editRegion.geometry.targetWidth, height: editRegion.geometry.targetHeight }, binding: request.mask.binding } }), runningTask: { ...retryTask, status: 'running', updatedAt: now() } } });
     },
   };
   return backend;

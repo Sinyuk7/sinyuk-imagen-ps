@@ -1,7 +1,9 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type {
   ApiFormat,
+  ComfyUiExecutionMaskInput,
   ComfyUiGenerationPayload,
+  ComfyUiMaskBinding,
   ImageOutputSelection,
   JobError,
   JobSessionSnapshot,
@@ -25,6 +27,7 @@ import type { ImagenSessionBinding } from './use-imagen-session';
 import type { AppMessages } from '../i18n/messages';
 import type { HostImageAsset } from '../../domain/host-image-asset';
 import type { CanonicalMaskAsset } from '../../domain/mask-source';
+import type { EditRegion } from '../../domain/edit-region';
 import {
   placementIntentFromCapturePlacement,
   type PlacementIntent,
@@ -88,6 +91,7 @@ interface SubmitConversationInputBase {
   readonly prompt: string;
   readonly providerName: string;
   readonly attachments?: readonly ConversationAttachment[];
+  readonly editRegion?: EditRegion;
   readonly onPrepared?: () => void;
 }
 
@@ -111,7 +115,7 @@ export interface SubmitComfyUiConversationInput extends SubmitConversationInputB
   readonly mutations?: readonly ComfyUiWorkflowValueMutation[];
   readonly imageInputRef?: WorkflowInputRef;
   readonly executionAttachments?: readonly ConversationAttachment[];
-  readonly mask?: CanonicalMaskAsset;
+  readonly maskBinding?: ComfyUiMaskBinding;
 }
 
 export type SubmitConversationInput = SubmitProviderConversationInput | SubmitComfyUiConversationInput;
@@ -390,6 +394,23 @@ function comfyUiAssetForExecution(image: HostImageAsset): ComfyUiExecutionAssetI
   };
 }
 
+/** 将 frozen EditRegion 投影为 ComfyUI separate-image-input payload。 */
+function comfyUiMaskForExecution(
+  editRegion: EditRegion,
+  binding: ComfyUiMaskBinding,
+): ComfyUiExecutionMaskInput {
+  const storedRef = editRegion.mask.asset.asset.storedRef;
+  if (storedRef === undefined) throw new Error('ComfyUI Mask asset is not stored.');
+  return {
+    asset: {
+      storedRef,
+      width: editRegion.geometry.targetSize.width,
+      height: editRegion.geometry.targetSize.height,
+    },
+    binding,
+  };
+}
+
 function normalizedInputContextForAttachments(attachments: readonly ConversationAttachment[]): {
   readonly primaryEditInput?: { readonly width: number; readonly height: number };
 } | undefined {
@@ -662,6 +683,7 @@ export function useConversation(
               operation: input.operation,
               prompt,
               attachments,
+              ...(input.editRegion ? { editRegion: input.editRegion } : {}),
               placementIntent,
               execution: {
                 backend: { id: 'comfyui', label: 'ComfyUI' },
@@ -681,6 +703,9 @@ export function useConversation(
                 ...(input.formValues ? { formValues: input.formValues } : {}),
                 ...(input.mutations ? { mutations: input.mutations } : {}),
                 ...(input.imageInputRef ? { imageInputRef: input.imageInputRef } : {}),
+                ...(input.editRegion && input.maskBinding
+                  ? { mask: comfyUiMaskForExecution(input.editRegion, input.maskBinding) }
+                  : {}),
                 runningTask: taskRecord,
               } satisfies ComfyUiGenerationPayload,
             });
@@ -701,6 +726,7 @@ export function useConversation(
             operation: input.operation,
             prompt,
             attachments,
+            ...(input.editRegion ? { editRegion: input.editRegion } : {}),
             placementIntent,
             execution: {
               backend: { id: 'provider', label: 'Provider' },
@@ -717,12 +743,28 @@ export function useConversation(
           const inputContext = input.operation === 'image-edit'
             ? normalizedInputContextForAttachments(attachments)
             : undefined;
+          const primaryAttachmentId = attachments[0]?.id;
+          const maskImage = input.editRegion && primaryAttachmentId === input.editRegion.targetAttachmentId
+            ? {
+                asset: assetForJobInput(input.editRegion.mask.asset),
+                targetAttachmentId: input.editRegion.targetAttachmentId,
+                dimensions: {
+                  width: input.editRegion.geometry.targetSize.width,
+                  height: input.editRegion.geometry.targetSize.height,
+                },
+                encoding: input.editRegion.mask.encoding,
+                bitDepth: input.editRegion.mask.bitDepth,
+                polarity: input.editRegion.mask.polarity,
+              }
+            : undefined;
           const request = {
             prompt,
             ...(output ? { output } : {}),
             ...(inputContext ? { inputContext } : {}),
             ...(providerOptions ? { providerOptions } : {}),
             ...(providerInputAssets ? { images: providerInputAssets } : {}),
+            ...(primaryAttachmentId ? { primaryAttachmentId } : {}),
+            ...(maskImage ? { maskImage } : {}),
           };
           input.onPrepared?.();
           const result = await sessionBinding.session.submitJob({

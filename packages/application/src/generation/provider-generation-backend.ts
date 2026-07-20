@@ -5,12 +5,14 @@ import {
 } from '@imagen-ps/core-engine';
 import {
   implementationIdForApiFormat,
+  resolveMaskExecutionPlan,
   type ProviderOperation,
   type ProviderOutputOptions,
   type ProviderRegistry,
   type ProviderRequest,
 } from '@imagen-ps/providers';
 import { resolveConfiguredModel, toProviderModelExecution } from '../commands/model-config-resolution.js';
+import { catalogProviderIdForApiFormat } from '../commands/api-format-profile.js';
 import { resolveModelGenerationSettingsValue } from '../commands/model-generation-preference-resolution.js';
 import type {
   ModelGenerationPreferenceRepository,
@@ -227,6 +229,21 @@ function assertPreparedAsset(value: unknown, path: string): void {
   assertStoredAssetRef(value.storedRef, `${path}.storedRef`);
 }
 
+function assertPreparedCanonicalMask(value: unknown): void {
+  assertRecord(value, 'request.maskImage');
+  const allowed = ['asset', 'targetAttachmentId', 'dimensions', 'encoding', 'bitDepth', 'polarity'];
+  if (Object.keys(value).some((key) => !allowed.includes(key))) throw createValidationError('request.maskImage contains unsupported field.');
+  assertPreparedAsset(value.asset, 'request.maskImage.asset');
+  assertNonEmptyString(value.targetAttachmentId, 'request.maskImage.targetAttachmentId');
+  assertRecord(value.dimensions, 'request.maskImage.dimensions');
+  if (!Number.isSafeInteger(value.dimensions.width) || !Number.isSafeInteger(value.dimensions.height) || Number(value.dimensions.width) < 1 || Number(value.dimensions.height) < 1) {
+    throw createValidationError('request.maskImage.dimensions is invalid.');
+  }
+  if (value.encoding !== 'grayscale-png' || value.bitDepth !== 8 || value.polarity !== 'white-edit') {
+    throw createValidationError('request.maskImage canonical semantics are invalid.');
+  }
+}
+
 function assertPreparedInputs(
   operation: ProviderGenerationOperation,
   request: Readonly<Record<string, unknown>>,
@@ -240,7 +257,20 @@ function assertPreparedInputs(
     throw createValidationError('Provider text_to_image admission must not include images or maskImage.');
   }
   if (request.maskImage !== undefined) {
-    assertPreparedAsset(request.maskImage, 'request.maskImage');
+    const mask = request.maskImage;
+    assertPreparedCanonicalMask(mask);
+    if (request.primaryAttachmentId !== (mask as { readonly targetAttachmentId: string }).targetAttachmentId) {
+      throw createValidationError('Provider Mask must target request primaryAttachmentId.');
+    }
+    assertRecord(request.inputContext, 'request.inputContext');
+    assertRecord(request.inputContext.primaryEditInput, 'request.inputContext.primaryEditInput');
+    const dimensions = (mask as { readonly dimensions: { readonly width: number; readonly height: number } }).dimensions;
+    if (
+      request.inputContext.primaryEditInput.width !== dimensions.width
+      || request.inputContext.primaryEditInput.height !== dimensions.height
+    ) {
+      throw createValidationError('Provider Mask must match request.inputContext.primaryEditInput dimensions.');
+    }
   }
 }
 
@@ -249,6 +279,7 @@ function canonicalRequest(args: {
   readonly prepared: Readonly<Record<string, unknown>>;
   readonly model: ReturnType<typeof toProviderModelExecution>;
   readonly capabilityModelId: string;
+  readonly apiFormat: ProviderProfile['apiFormat'];
   readonly output: ProviderOutputOptions;
 }): ProviderRequest {
   const { prepared } = args;
@@ -260,11 +291,21 @@ function canonicalRequest(args: {
     throw createValidationError('Provider request.inputContext must be a record.');
   }
   const providerOptions = providerOptionsWithoutModel(prepared.providerOptions);
+  const maskExecutionPlan = resolveMaskExecutionPlan({
+    providerId: catalogProviderIdForApiFormat(args.apiFormat),
+    capabilityModelId: args.capabilityModelId,
+    hasReadyMask: prepared.maskImage !== undefined,
+  });
+  const admitsMask = maskExecutionPlan.kind === 'provider-native';
   return {
     operation: args.operation,
     prompt: prepared.prompt,
     ...(Array.isArray(prepared.images) ? { images: prepared.images as ProviderRequest['images'] } : {}),
-    ...(prepared.maskImage !== undefined ? { maskImage: prepared.maskImage as ProviderRequest['maskImage'] } : {}),
+    ...(typeof prepared.primaryAttachmentId === 'string'
+      ? { primaryAttachmentId: prepared.primaryAttachmentId }
+      : {}),
+    ...(admitsMask ? { maskImage: prepared.maskImage as ProviderRequest['maskImage'] } : {}),
+    ...(prepared.maskImage !== undefined ? { maskExecutionPlan } : {}),
     output: {
       ...(prepared.output ?? {}),
       ...args.output,
@@ -395,6 +436,7 @@ function runningTaskForRetry(task: TaskRecord, now: string): TaskRecord {
     prompt: task.prompt,
     attachments: task.attachments,
     outputs: [],
+    ...(task.editRegion === undefined ? {} : { editRegion: task.editRegion }),
     placement: task.placement,
     ...(task.execution !== undefined ? { execution: task.execution } : {}),
     createdAt: task.createdAt,
@@ -489,6 +531,7 @@ export function createProviderGenerationBackend(
         prepared,
         model: toProviderModelExecution(resolvedModel),
         capabilityModelId: resolvedModel.capabilityModelId,
+        apiFormat: profile.apiFormat,
         output: { selection: generationSettings.selection.effectiveSelection },
       });
       const runningTask = runningTaskForAdmission({
@@ -636,6 +679,26 @@ export function createProviderGenerationBackend(
       };
       delete retryRequest.model;
       delete retryRequest.capabilityModelId;
+      if (input.task.editRegion === undefined) {
+        delete retryRequest.maskImage;
+      } else {
+        const primaryAttachmentId = input.task.attachments[0]?.attachmentId;
+        if (primaryAttachmentId !== input.task.editRegion.targetAttachmentId) {
+          throw createValidationError('Provider retry Mask must target the original primary attachment.');
+        }
+        retryRequest.primaryAttachmentId = primaryAttachmentId;
+        retryRequest.maskImage = {
+          asset: { type: 'image', storedRef: input.task.editRegion.mask.ref },
+          targetAttachmentId: input.task.editRegion.targetAttachmentId,
+          dimensions: {
+            width: input.task.editRegion.geometry.targetWidth,
+            height: input.task.editRegion.geometry.targetHeight,
+          },
+          encoding: input.task.editRegion.encoding,
+          bitDepth: input.task.editRegion.bitDepth,
+          polarity: input.task.editRegion.polarity,
+        };
+      }
       return backend.admit({
         taskId: input.task.taskId,
         backendId: PROVIDER_GENERATION_BACKEND_ID,

@@ -54,7 +54,7 @@ function createValidationError(message: string, details?: Record<string, unknown
   return err;
 }
 
-function summarizeAssetReferenceKind(asset: MockImageAsset | MockProviderRequest['maskImage']): string {
+function summarizeAssetReferenceKind(asset: MockImageAsset | undefined): string {
   if (asset === undefined) {
     return 'missing';
   }
@@ -93,7 +93,7 @@ function logEditRequestSummary(
     model: request.model?.modelId,
     imageCount: request.images?.length ?? 0,
     imageReferenceKinds: (request.images ?? []).map((asset) => summarizeAssetReferenceKind(asset)),
-    maskReferenceKind: summarizeAssetReferenceKind(request.maskImage),
+    maskReferenceKind: summarizeAssetReferenceKind(request.maskImage?.asset),
     hasProviderOptions: request.providerOptions !== undefined,
   });
 }

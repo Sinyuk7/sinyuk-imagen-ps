@@ -348,6 +348,30 @@ describe('PhotoshopHostBridge read contract', () => {
     });
   });
 
+  it('uses the identical 100x100 selection frame for primary input and canonical mask on a larger layer', async () => {
+    const selectionBounds = { left: 420, top: 330, right: 520, bottom: 430 };
+    const { modules, spies } = createFakeModules({
+      activeLayerBounds: { _left: 0, _top: 0, _right: 1000, _bottom: 1000 },
+      selectionBounds,
+    });
+    const { bridge } = createBridge(modules);
+
+    const capture = await bridge.captureActiveImage(providerPolicy);
+
+    expect(capture.image.metadata).toMatchObject({ width: 100, height: 100 });
+    expect(capture.mask?.metadata).toMatchObject({ width: 100, height: 100 });
+    expect(spies.getPixels).toHaveBeenCalledWith(expect.objectContaining({
+      sourceBounds: selectionBounds,
+      targetSize: { width: 100, height: 100 },
+    }));
+    expect(spies.getSelection).toHaveBeenCalledWith({
+      documentID: 42,
+      sourceBounds: selectionBounds,
+      targetSize: { width: 100, height: 100 },
+      componentSize: 8,
+    });
+  });
+
   it('keeps placeholder when capture-bound preview source disappears', async () => {
     const { modules, spies } = createFakeModules();
     const { bridge } = createBridge(modules);

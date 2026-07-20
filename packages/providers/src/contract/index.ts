@@ -53,6 +53,8 @@ export type {
   ImageAspectRatio,
   ImageCatalogProviderId,
   ImageModelCapability,
+  MaskCapability,
+  MaskExecutionPlan,
   ImageOperation,
   ImageOutputCellId,
   ImageOutputCapability,
@@ -89,6 +91,7 @@ export {
   listRequestStrategies,
   providerUsesImageModelCatalog,
   resolveImageModelOutput,
+  resolveMaskExecutionPlan,
   resolveImageModelRule,
   resolveProviderResolvedOutput,
   summarizeImageModelCapabilities,
@@ -97,6 +100,7 @@ export {
 } from './image-model-capability.js';
 export type {
   AssetRef,
+  CanonicalMaskImage,
   CanonicalImageJobRequest,
   ChatImageRequestOutput,
   GeminiGenerateContentRequestOutput,

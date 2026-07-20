@@ -21,7 +21,7 @@ Mask 的产品语义必须独立于底层 transport：它是 Primary Image 的�
 
 - 不支持用户独立上传 Mask，也不把 Mask 显示成 attachment card 或计入 reference image 数量。
 - 不支持 vector mask、channel mask、Quick Mask、smart filter mask 或 arbitrary document mask；V1 只读取 Photoshop selection 与 `kind: "user"` 的 pixel layer mask。
-- 不实现 Gemini/Nano Banana 的 Mask-as-reference prompt hack。
+- 不实现 Gemini generate-content 的 Mask-as-reference prompt hack。
 - 不实现 ComfyUI `embedded-alpha` 或任意 custom node inference；V1 只支持 Workflow 显式声明的 `separate-image-input` binding。
 - 不实现生成结果回到 Photoshop 后的 result-layer post-composite；该能力需要独立 placement contract。
 - 不自动检测 attachment 创建后 Photoshop 源图层像素内容的任意变化；显式 attachment 更新或重新 capture 才产生新 image snapshot。

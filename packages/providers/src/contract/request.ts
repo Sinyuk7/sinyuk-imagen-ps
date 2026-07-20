@@ -2,6 +2,7 @@ import type { Asset } from '@imagen-ps/core-engine';
 import type { ApiFormat } from './api-format.js';
 import type { ProviderOperation } from './capability.js';
 import type { ImageOutputSelection } from './image-output-contract.js';
+import type { MaskExecutionPlan } from './image-model-capability.js';
 
 /**
  * Provider request 契约。
@@ -11,6 +12,19 @@ import type { ImageOutputSelection } from './image-output-contract.js';
 
 /** 与 `core-engine` `Asset` 等价的 provider asset 引用。 */
 export type AssetRef = Asset;
+
+/** Primary-bound canonical Mask；wire conversion 仅可在 provider transport 发生。 */
+export interface CanonicalMaskImage {
+  /** canonical 8-bit grayscale PNG asset。 */
+  readonly asset: AssetRef;
+  /** 必须与 request 的 primary attachment identity 完全一致。 */
+  readonly targetAttachmentId: string;
+  /** canonical Mask 的 provider-input dimensions。 */
+  readonly dimensions: NormalizedImageInputGeometry;
+  readonly encoding: 'grayscale-png';
+  readonly bitDepth: 8;
+  readonly polarity: 'white-edit';
+}
 
 /** OpenAI Images API 已解析的输出字段。 */
 export interface ImageEndpointRequestOutput {
@@ -119,8 +133,14 @@ export interface CanonicalImageJobRequest {
   /** 可选的输入图片（唯一图片输入数组）。 */
   readonly images?: readonly AssetRef[];
 
-  /** 可选的 mask 图片；带 mask 即视为 inpaint 语义，由 provider 内部决定如何落地。 */
-  readonly maskImage?: AssetRef;
+  /** Primary attachment 的 immutable identity；native Mask 必须绑定它。 */
+  readonly primaryAttachmentId?: string;
+
+  /** 可选的 primary-bound canonical Mask；transport 按 execution plan 决定转换或省略。 */
+  readonly maskImage?: CanonicalMaskImage;
+
+  /** Admission 从 selected target 派生的 immutable Mask route；有 Mask 时必须显式提供。 */
+  readonly maskExecutionPlan?: MaskExecutionPlan;
 
   /** 期望输出。 */
   readonly output?: ProviderOutputOptions;

@@ -90,6 +90,12 @@ export interface AppMessages {
     readonly captureCount: (count: number) => string;
     readonly captureLayer: string;
     readonly captureSelection: string;
+    readonly mask: string;
+    readonly maskLoading: string;
+    readonly maskReady: string;
+    readonly maskNone: string;
+    readonly maskError: string;
+    readonly retryMask: string;
     readonly send: string;
     readonly referenceImage: string;
     readonly generatedImage: string;
@@ -510,6 +516,12 @@ const EN_MESSAGES: AppMessages = {
     captureCount: (count) => `${count} capture${count === 1 ? '' : 's'}`,
     captureLayer: 'Photoshop layer capture',
     captureSelection: 'Photoshop selection capture',
+    mask: 'Mask',
+    maskLoading: 'Preparing mask',
+    maskReady: 'Mask ready',
+    maskNone: 'No mask on primary image',
+    maskError: 'Mask failed',
+    retryMask: 'Retry mask',
     send: 'Send',
     referenceImage: 'Reference image',
     generatedImage: 'Generated image',
@@ -939,6 +951,12 @@ const ZH_CN_MESSAGES: AppMessages = {
     captureCount: (count) => `${count} 个捕获`,
     captureLayer: '图层捕获',
     captureSelection: '选区捕获',
+    mask: '蒙版',
+    maskLoading: '正在准备蒙版',
+    maskReady: '蒙版已就绪',
+    maskNone: '主图没有蒙版',
+    maskError: '蒙版失败',
+    retryMask: '重试蒙版',
     send: '发送',
     referenceImage: '参考图',
     generatedImage: '生成图',

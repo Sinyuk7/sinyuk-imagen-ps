@@ -227,11 +227,6 @@ function buildMessageContent(request: CanonicalImageJobRequest): ChatImageMessag
     content.push({ type: 'image_url', image_url: { url: assetToImageUrl(image) } });
   }
 
-  if (request.maskImage !== undefined) {
-    content.push({ type: 'text', text: 'Use the following image as the edit mask.' });
-    content.push({ type: 'image_url', image_url: { url: assetToImageUrl(request.maskImage) } });
-  }
-
   return content;
 }
 
@@ -246,6 +241,14 @@ export function buildChatImageRequest(
 ): ChatImageRequestBuildResult {
   const model = resolveModel(request);
   const diagnostics: ProviderDiagnostic[] = [];
+  if (request.maskImage !== undefined) {
+    diagnostics.push({
+      code: 'chat-image.request.mask-omitted',
+      message: 'Omitted canonical Mask because chat-image has no separate raster mask field.',
+      level: 'warning',
+      details: { reason: 'transport-has-no-separate-raster-mask-field' },
+    });
+  }
   const body: Record<string, unknown> = {
     model,
     messages: [{ role: 'user', content: buildMessageContent(request) }],

@@ -9,7 +9,7 @@
 - 增加 Primary 生命周期协调：仅 Primary 的创建、删除、重排、替换或 geometry 更新触发 Mask reconcile；旧 Mask 立即失效，新 Primary 符合条件时异步重建。
 - 明确 Mask 状态与提交行为：`disabled`、`loading`、`ready`、`none`、`error` 分离；Photoshop Primary 的 `loading` 或 `error` 不得静默退化为无 Mask 提交，普通上传图不读取 Mask。
 - 将 Edit Region 的 immutable snapshot 与 opaque asset reference 纳入 Task/History，使 retry 复用原始 Mask 而不重新读取当前 Photoshop 文档。
-- 增加执行能力规划：OpenAI image endpoint 使用原生 raster Mask；Gemini/Nano Banana 与无 Mask binding 的 ComfyUI Workflow 在 UI 禁用 Mask；ComfyUI 仅在 Workflow 显式声明 Mask binding 时注入。
+- 增加执行能力规划：OpenAI image endpoint 使用原生 raster Mask；Gemini generate-content 与无 Mask binding 的 ComfyUI Workflow 在 UI 禁用 Mask；ComfyUI 仅在 Workflow 显式声明 Mask binding 时注入。
 - 将 Provider wire 形式与 UXP acquisition 解耦；公共层保持 canonical Mask，Provider/Workflow Adapter 负责 polarity、format 和 node/input mapping。
 - 保留 Photoshop result-layer post-composite 为独立后续能力；本次变更不把结果回写 Mask 混入核心 acquisition/dispatch 链。
 

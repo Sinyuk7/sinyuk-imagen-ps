@@ -42,6 +42,12 @@ export interface ComfyUiPreparedUploads {
   readonly maskValue?: string;
 }
 
+const PNG_SIGNATURE = Uint8Array.of(0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a);
+const PNG_IHDR = 'IHDR';
+const PNG_IDAT = 'IDAT';
+const PNG_IEND = 'IEND';
+const DEFLATE_STORED_BLOCK_MAX = 0xffff;
+
 /** Image bytes signature 对应的 supported MIME。 */
 export function detectComfyUiImageMime(bytes: Uint8Array): string | undefined {
   if (
@@ -266,11 +272,124 @@ async function resolveOne(
   return validateComfyUiImageAsset(resolved, input);
 }
 
+function readUint32BE(bytes: Uint8Array, offset: number): number {
+  return bytes[offset] * 0x1000000 + ((bytes[offset + 1] << 16) | (bytes[offset + 2] << 8) | bytes[offset + 3]);
+}
+function writeUint16LE(bytes: Uint8Array, offset: number, value: number): void {
+  bytes[offset] = value & 0xff;
+  bytes[offset + 1] = (value >>> 8) & 0xff;
+}
+function writeUint32BE(bytes: Uint8Array, offset: number, value: number): void {
+  bytes[offset] = (value >>> 24) & 0xff;
+  bytes[offset + 1] = (value >>> 16) & 0xff;
+  bytes[offset + 2] = (value >>> 8) & 0xff;
+  bytes[offset + 3] = value & 0xff;
+}
+function pngType(bytes: Uint8Array, offset: number): string {
+  return String.fromCharCode(bytes[offset], bytes[offset + 1], bytes[offset + 2], bytes[offset + 3]);
+}
+function crc32(bytes: Uint8Array, offset = 0, length = bytes.byteLength - offset): number {
+  let crc = 0xffffffff;
+  for (let index = offset; index < offset + length; index += 1) {
+    crc ^= bytes[index];
+    for (let bit = 0; bit < 8; bit += 1) crc = (crc >>> 1) ^ (crc & 1 ? 0xedb88320 : 0);
+  }
+  return (crc ^ 0xffffffff) >>> 0;
+}
+function adler32(bytes: Uint8Array): number {
+  let a = 1;
+  let b = 0;
+  for (const byte of bytes) { a = (a + byte) % 65521; b = (b + a) % 65521; }
+  return ((b << 16) | a) >>> 0;
+}
+function pngChunk(type: string, data: Uint8Array): Uint8Array {
+  const bytes = new Uint8Array(data.byteLength + 12);
+  writeUint32BE(bytes, 0, data.byteLength);
+  for (let index = 0; index < 4; index += 1) bytes[4 + index] = type.charCodeAt(index);
+  bytes.set(data, 8);
+  writeUint32BE(bytes, data.byteLength + 8, crc32(bytes, 4, data.byteLength + 4));
+  return bytes;
+}
+function zlibStoredDeflate(data: Uint8Array): Uint8Array {
+  const blockCount = Math.max(1, Math.ceil(data.byteLength / DEFLATE_STORED_BLOCK_MAX));
+  const bytes = new Uint8Array(2 + blockCount * 5 + data.byteLength + 4);
+  bytes[0] = 0x78; bytes[1] = 0x01;
+  let source = 0; let offset = 2;
+  for (let block = 0; block < blockCount; block += 1) {
+    const length = Math.min(DEFLATE_STORED_BLOCK_MAX, data.byteLength - source);
+    bytes[offset++] = block === blockCount - 1 ? 1 : 0;
+    writeUint16LE(bytes, offset, length); writeUint16LE(bytes, offset + 2, (~length) & 0xffff); offset += 4;
+    bytes.set(data.subarray(source, source + length), offset); source += length; offset += length;
+  }
+  writeUint32BE(bytes, offset, adler32(data));
+  return bytes;
+}
+function readStoredDeflate(zlib: Uint8Array): Uint8Array {
+  if (zlib.byteLength < 7 || zlib[0] !== 0x78 || zlib[1] !== 0x01) throw createComfyUiExecutionError('prepare', 'asset-unavailable');
+  const output: Uint8Array[] = []; let total = 0; let offset = 2; let final = false;
+  while (!final) {
+    if (offset + 5 > zlib.byteLength - 4) throw createComfyUiExecutionError('prepare', 'asset-unavailable');
+    const header = zlib[offset++];
+    if ((header & 0xfe) !== 0) throw createComfyUiExecutionError('prepare', 'asset-unavailable');
+    final = (header & 1) === 1;
+    const length = zlib[offset] | (zlib[offset + 1] << 8);
+    const complement = zlib[offset + 2] | (zlib[offset + 3] << 8); offset += 4;
+    if (((length ^ complement) & 0xffff) !== 0xffff || offset + length > zlib.byteLength - 4) throw createComfyUiExecutionError('prepare', 'asset-unavailable');
+    output.push(zlib.slice(offset, offset + length)); total += length; offset += length;
+  }
+  if (offset !== zlib.byteLength - 4) throw createComfyUiExecutionError('prepare', 'asset-unavailable');
+  const raw = new Uint8Array(total); let destination = 0;
+  for (const block of output) { raw.set(block, destination); destination += block.byteLength; }
+  return raw;
+}
+function parseCanonicalMask(bytes: Uint8Array, width: number, height: number): Uint8Array {
+  if (bytes.byteLength < PNG_SIGNATURE.byteLength + 12 || !PNG_SIGNATURE.every((byte, index) => bytes[index] === byte)) throw createComfyUiExecutionError('prepare', 'asset-unavailable');
+  let offset = PNG_SIGNATURE.byteLength; let ihdr: Uint8Array | undefined; const idat: Uint8Array[] = []; let complete = false;
+  while (offset + 12 <= bytes.byteLength) {
+    const length = readUint32BE(bytes, offset); const type = pngType(bytes, offset + 4); const dataOffset = offset + 8; const next = dataOffset + length + 4;
+    if (next > bytes.byteLength || readUint32BE(bytes, dataOffset + length) !== crc32(bytes, offset + 4, length + 4)) throw createComfyUiExecutionError('prepare', 'asset-unavailable');
+    const data = bytes.slice(dataOffset, dataOffset + length);
+    if (type === PNG_IHDR) { if (ihdr !== undefined || length !== 13) throw createComfyUiExecutionError('prepare', 'asset-unavailable'); ihdr = data; }
+    else if (type === PNG_IDAT) { if (ihdr === undefined || complete) throw createComfyUiExecutionError('prepare', 'asset-unavailable'); idat.push(data); }
+    else if (type === PNG_IEND) { if (length !== 0 || ihdr === undefined || idat.length === 0 || next !== bytes.byteLength) throw createComfyUiExecutionError('prepare', 'asset-unavailable'); complete = true; break; }
+    offset = next;
+  }
+  if (!complete || ihdr === undefined || readUint32BE(ihdr, 0) !== width || readUint32BE(ihdr, 4) !== height || ihdr[8] !== 8 || ihdr[9] !== 0 || ihdr[10] !== 0 || ihdr[11] !== 0 || ihdr[12] !== 0) throw createComfyUiExecutionError('prepare', 'asset-unavailable');
+  const compressed = new Uint8Array(idat.reduce((sum, chunk) => sum + chunk.byteLength, 0)); let position = 0;
+  for (const chunk of idat) { compressed.set(chunk, position); position += chunk.byteLength; }
+  const raw = readStoredDeflate(compressed); const expected = height * (width + 1);
+  if (raw.byteLength !== expected) throw createComfyUiExecutionError('prepare', 'asset-unavailable');
+  for (let row = 0; row < height; row += 1) if (raw[row * (width + 1)] !== 0) throw createComfyUiExecutionError('prepare', 'asset-unavailable');
+  return raw;
+}
+function encodeCanonicalMask(raw: Uint8Array, width: number, height: number): Uint8Array {
+  const ihdr = new Uint8Array(13); writeUint32BE(ihdr, 0, width); writeUint32BE(ihdr, 4, height); ihdr[8] = 8;
+  const chunks = [PNG_SIGNATURE, pngChunk(PNG_IHDR, ihdr), pngChunk(PNG_IDAT, zlibStoredDeflate(raw)), pngChunk(PNG_IEND, new Uint8Array())];
+  const bytes = new Uint8Array(chunks.reduce((sum, chunk) => sum + chunk.byteLength, 0)); let offset = 0;
+  for (const chunk of chunks) { bytes.set(chunk, offset); offset += chunk.byteLength; }
+  return bytes;
+}
+function prepareMaskAsset(asset: ComfyUiResolvedAsset, input: ComfyUiExecutionAssetInput, polarity: 'white-edit' | 'black-edit'): ComfyUiResolvedAsset {
+  if (asset.mimeType.toLowerCase() !== 'image/png') throw createComfyUiExecutionError('prepare', 'asset-unavailable');
+  const raw = parseCanonicalMask(asset.bytes, input.width, input.height);
+  if (polarity === 'black-edit') {
+    for (let row = 0; row < input.height; row += 1) {
+      const start = row * (input.width + 1) + 1;
+      for (let column = 0; column < input.width; column += 1) raw[start + column] = 0xff - raw[start + column];
+    }
+    const bytes = encodeCanonicalMask(raw, input.width, input.height);
+    if (bytes.byteLength > COMFYUI_MAX_IMAGE_BYTES) throw createComfyUiExecutionError('prepare', 'asset-unavailable');
+    return { bytes, mimeType: 'image/png', name: asset.name };
+  }
+  return { bytes: asset.bytes, mimeType: 'image/png', name: asset.name };
+}
+
 /** 解析、guard、mask encode 并完成全部 uploads 后才返回 barrier result。 */
 export async function prepareComfyUiUploads(
   input: {
     readonly connection: ComfyUiExecutionConnection;
     readonly images: readonly ComfyUiExecutionAssetInput[];
+    readonly mask?: { readonly asset: ComfyUiExecutionAssetInput; readonly polarity: 'white-edit' | 'black-edit' };
   },
   dependencies: {
     readonly resolver: ComfyUiAssetResolver;
@@ -289,6 +408,9 @@ export async function prepareComfyUiUploads(
       signal,
     ));
   }
-
-  return { imageValues };
+  if (input.mask === undefined) return { imageValues };
+  const resolved = await resolveOne(dependencies.resolver, input.mask.asset, signal);
+  const mask = prepareMaskAsset(resolved, input.mask.asset, input.mask.polarity);
+  const maskValue = await uploadOne(input.connection, dependencies.transport, mask, `imagen-mask.${extensionForMime(mask.mimeType)}`, signal);
+  return { imageValues, maskValue };
 }

@@ -42,6 +42,7 @@ export function createHostFake() {
     captureActiveImage,
     readLayerAsAsset,
     readLayerMaskAsAsset: vi.fn(async () => undefined),
+    releaseDraftAsset: vi.fn(async () => undefined),
     placeAssetOnCanvas,
     saveAssetToFile,
     getLayerThumbnail: vi.fn(async () => undefined),

@@ -67,11 +67,73 @@ afterEach(() => {
   _resetForTesting();
 });
 
-describe('Task v2 current-state contract', () => {
+describe('Task v3 current-state contract', () => {
   it('decodes bounded backend-neutral records', () => {
     const record = runningTask({ latestJobId: 'job-latest' });
 
     expect(decodeTaskRecord(record)).toEqual({ ok: true, value: record });
+  });
+
+  it('persists a bounded primary Edit Region snapshot without treating it as an attachment', () => {
+    const record = runningTask({
+      operation: 'image-edit',
+      attachments: [{
+        kind: 'photoshop-layer',
+        attachmentId: 'attachment-primary',
+        asset: { ref: { kind: 'hostObject', ref: 'image-primary', mimeType: 'image/png' } },
+      }],
+      editRegion: {
+        targetAttachmentId: 'attachment-primary',
+        source: { host: 'photoshop', documentId: 42, layerId: 7 },
+        geometry: {
+          sourceBounds: { left: 10, top: 20, right: 110, bottom: 120 },
+          targetWidth: 100,
+          targetHeight: 100,
+        },
+        mask: { ref: { kind: 'hostObject', ref: 'mask-primary', mimeType: 'image/png' }, width: 100, height: 100 },
+        encoding: 'grayscale-png',
+        bitDepth: 8,
+        polarity: 'white-edit',
+      },
+    });
+
+    expect(decodeTaskRecord(record)).toEqual({ ok: true, value: record });
+  });
+
+  it.each([
+    ['raw bytes', {
+      mask: { ref: { kind: 'hostObject', ref: 'mask-primary' }, bytes: new Uint8Array([1, 2, 3]) },
+    }],
+    ['native path', {
+      source: { host: 'photoshop', nativePath: '/tmp/mask.png' },
+    }],
+    ['secret', {
+      source: { host: 'photoshop', authorization: 'Bearer secret-token-value' },
+    }],
+    ['unknown field', {
+      unexpected: true,
+    }],
+  ])('rejects Edit Region %s', (_label, override) => {
+    const record = runningTask({
+      operation: 'image-edit',
+      attachments: [{
+        kind: 'photoshop-layer',
+        attachmentId: 'attachment-primary',
+        asset: { ref: { kind: 'hostObject', ref: 'image-primary', mimeType: 'image/png' } },
+      }],
+      editRegion: {
+        targetAttachmentId: 'attachment-primary',
+        source: { host: 'photoshop', documentId: 42, layerId: 7 },
+        geometry: { sourceBounds: { left: 0, top: 0, right: 100, bottom: 100 }, targetWidth: 100, targetHeight: 100 },
+        mask: { ref: { kind: 'hostObject', ref: 'mask-primary', mimeType: 'image/png' }, width: 100, height: 100 },
+        encoding: 'grayscale-png',
+        bitDepth: 8,
+        polarity: 'white-edit',
+        ...override,
+      } as TaskRecord['editRegion'],
+    });
+
+    expect(decodeTaskRecord(record)).toMatchObject({ ok: false, reason: 'malformed' });
   });
 
   it('isolates v1 as unknown-schema without migration', () => {
@@ -96,6 +158,15 @@ describe('Task v2 current-state contract', () => {
       message: 'Unsupported task record schemaVersion.',
       taskId: 'legacy-task',
     });
+  });
+
+  it('isolates v2 records after the Edit Region schema change', () => {
+    const result = decodeTaskRecord({
+      ...runningTask(),
+      schemaVersion: 2,
+    });
+
+    expect(result).toMatchObject({ ok: false, reason: 'unknown-schema' });
   });
 
   it.each([
@@ -145,7 +216,7 @@ describe('Task v2 current-state contract', () => {
   });
 });
 
-describe('Task v2 lifecycle scenarios', () => {
+describe('Task v3 lifecycle scenarios', () => {
   it('marks only stale running records interrupted after restart', async () => {
     const stale = runningTask({ taskId: 'stale', latestJobId: 'job-stale' });
     const active = runningTask({ taskId: 'active', latestJobId: 'job-active' });

@@ -8,7 +8,7 @@ import {
   type ProviderInputSizePolicy,
 } from '../../shared/image/resize';
 import type { RuntimeImageUrl } from '../../shared/image/runtime-image-url';
-import { NON_UXP_RUNTIME_CAPABILITIES, type HostBridge, type LayerInfo } from '../../shared/ports/host-port';
+import { NON_UXP_RUNTIME_CAPABILITIES, type HostBridge, type LayerInfo, type ReadLayerMaskAsAssetInput } from '../../shared/ports/host-port';
 import type { PhotoshopSimulator } from '../../simulators/photoshop/simulator';
 
 export interface ChromeFilePicker {
@@ -176,8 +176,12 @@ export function createChromeHostPort(options: {
     async readLayerAsAsset(layerId: number, policy: ProviderInputSizePolicy): Promise<HostImageAsset> {
       return options.simulator.readLayerAsAsset(layerId, policy);
     },
-    async readLayerMaskAsAsset(layerId: number): Promise<HostImageAsset | undefined> {
-      return options.simulator.readLayerMaskAsAsset(layerId);
+    async readLayerMaskAsAsset(input: ReadLayerMaskAsAssetInput): Promise<HostImageAsset | undefined> {
+      return options.simulator.readLayerMaskAsAsset(input);
+    },
+    async releaseDraftAsset(asset: HostImageAsset): Promise<void> {
+      asset.preview.dispose?.();
+      if (asset.asset.storedRef) await options.assetStore.delete(asset.asset.storedRef);
     },
     async placeAssetOnCanvas(asset: Asset, placement: PlacementIntent): Promise<void> {
       await options.simulator.placeAssetOnCanvas(asset, placement);

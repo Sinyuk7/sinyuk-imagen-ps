@@ -1,6 +1,8 @@
 import type {
-  StoredAssetRef,
-} from '@imagen-ps/core-engine';
+  ComfyUiExecutionAssetInput as BackendComfyUiExecutionAssetInput,
+  ComfyUiExecutionMaskInput as BackendComfyUiExecutionMaskInput,
+  ComfyUiMaskBinding as BackendComfyUiMaskBinding,
+} from '@imagen-ps/execution-backend-comfyui';
 import type { TaskRecord } from '../task.js';
 
 export interface WorkflowInputRef { readonly nodeId: string; readonly inputName?: string; readonly widgetIndex?: number; }
@@ -10,7 +12,9 @@ export interface WorkflowFormNode { readonly nodeId: string; readonly title: str
 export interface WorkflowForm { readonly nodes: readonly WorkflowFormNode[]; }
 export interface WorkflowInputCandidate { readonly ref: WorkflowInputRef; readonly kind: 'text' | 'image'; readonly label: string; readonly sectionLabel: string; readonly workflowValue?: WorkflowPrimitiveValue; }
 export interface ComfyUiWorkflowValueMutation { readonly ref: WorkflowInputRef; readonly value: WorkflowPrimitiveValue; }
-export interface ComfyUiExecutionAssetInput { readonly storedRef: StoredAssetRef; readonly width: number; readonly height: number; }
+export type ComfyUiExecutionAssetInput = BackendComfyUiExecutionAssetInput;
+export type ComfyUiMaskBinding = BackendComfyUiMaskBinding;
+export type ComfyUiExecutionMaskInput = BackendComfyUiExecutionMaskInput;
 export type BoundedComfyUiApiWorkflow = Readonly<Record<string, Readonly<Record<string, unknown>>>>;
 export type BoundedComfyUiWorkflowDocument = { readonly kind: 'api'; readonly graph: BoundedComfyUiApiWorkflow } | { readonly kind: 'frontend'; readonly workflow: Readonly<Record<string, unknown>> };
 
@@ -18,7 +22,11 @@ export type BoundedComfyUiWorkflowDocument = { readonly kind: 'api'; readonly gr
 export interface PersistedComfyUiState {
   readonly baseUrl: string;
   readonly selectedWorkflowId: string | null;
-  readonly ambiguousMappingsByRevision: Readonly<Record<string, Readonly<Record<string, WorkflowInputRef>>>>;
+  readonly ambiguousMappingsByRevision: Readonly<Record<string, Readonly<{
+    readonly text?: WorkflowInputRef;
+    readonly image?: WorkflowInputRef;
+    readonly mask?: ComfyUiMaskBinding;
+  }>>>;
 }
 
 /** Application code-owned runtime policy；不得进入 settings persistence。 */
@@ -107,6 +115,8 @@ export interface ComfyUiExecutionIntent {
   readonly imageInputRef?: WorkflowInputRef;
   readonly prompt?: string;
   readonly images: readonly ComfyUiExecutionAssetInput[];
+  /** Primary-bound canonical Mask；由 explicit Workflow binding 消费。 */
+  readonly mask?: ComfyUiExecutionMaskInput;
 }
 
 /** Public payload accepted by ComfyUI generation backend. */
@@ -119,6 +129,8 @@ export interface ComfyUiGenerationPayload {
   readonly formValues?: Readonly<Record<string, string | number | boolean>>;
   readonly mutations?: readonly ComfyUiWorkflowValueMutation[];
   readonly imageInputRef?: WorkflowInputRef;
+  /** Primary-bound canonical Mask；只可来自 immutable Task snapshot。 */
+  readonly mask?: ComfyUiExecutionMaskInput;
 }
 
 /** Runtime ports used by management service; all documents stay in memory. */
@@ -156,7 +168,10 @@ export interface ComfyUiWorkflowDraftStore {
 export interface WorkflowMappingProjection {
   readonly textCandidates: readonly WorkflowInputCandidate[];
   readonly imageCandidates: readonly WorkflowInputCandidate[];
+  readonly maskCandidates: readonly WorkflowInputCandidate[];
   readonly text: { readonly resolved: WorkflowMapping; readonly notice?: string; readonly ambiguous: boolean };
   readonly image: { readonly resolved: WorkflowMapping; readonly notice?: string; readonly ambiguous: boolean };
+  /** Mask 不自动映射；只有显式保存的当前 revision binding 可用。 */
+  readonly mask: { readonly binding?: ComfyUiMaskBinding; readonly requiresExplicitSelection: boolean };
   readonly showSection: boolean;
 }

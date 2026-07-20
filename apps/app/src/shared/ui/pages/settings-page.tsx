@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import type { ApiFormat, ProviderProfile, WorkflowInputCandidate, WorkflowMapping } from '@imagen-ps/application';
+import type { ApiFormat, ComfyUiMaskBinding, ProviderProfile, WorkflowInputCandidate, WorkflowMapping } from '@imagen-ps/application';
 import type { AppGenerationSettings } from '../../ports/app-generation-settings';
 import type { ModelGenerationSettingsController } from '../hooks/use-model-generation-settings';
 import { profileToProviderRow } from '../../domain/mappers';
@@ -170,7 +170,7 @@ function ComfyUiRoot({
   const { messages: t } = useI18n();
   const [picker, setPicker] = useState(false);
   const [search, setSearch] = useState('');
-  const [mappingMenu, setMappingMenu] = useState<'text' | 'image' | null>(null);
+  const [mappingMenu, setMappingMenu] = useState<'text' | 'image' | 'mask' | 'mask-polarity' | null>(null);
   const [parameterMenu, setParameterMenu] = useState<string | null>(null);
   const current = controller.runtime?.identity;
   const mapping = controller.mappingProjection;
@@ -183,6 +183,13 @@ function ComfyUiRoot({
   const refKey = (ref: { readonly nodeId: string; readonly inputName?: string; readonly widgetIndex?: number }) => `${ref.nodeId}\u0000${ref.inputName ?? ''}\u0000${ref.widgetIndex ?? ''}`;
   const mappingId = (value: WorkflowMapping) => value ? refKey(value) : 'none';
   const mappingOptions = (candidates: readonly WorkflowInputCandidate[]) => [{ id: 'none', label: 'Do not map' }, ...candidates.map((candidate) => ({ id: refKey(candidate.ref), label: candidate.label }))];
+  const maskBinding = mapping?.mask.binding;
+  const maskSelectionId = maskBinding ? refKey(maskBinding.inputRef) : 'none';
+  const setMaskBinding = (candidate: WorkflowInputCandidate | undefined, polarity: ComfyUiMaskBinding['polarity'] = maskBinding?.polarity ?? 'white-edit') => {
+    void controller.setMaskBinding(candidate === undefined ? undefined : {
+      transport: 'separate-image-input', inputRef: candidate.ref, polarity,
+    });
+  };
 
   if (picker) {
     return (
@@ -218,7 +225,7 @@ function ComfyUiRoot({
         {mapping?.showSection ? <section className="section" data-testid="comfyui-input-mapping"><div className="section-title settings-section-heading">Input Mapping</div>{(['text', 'image'] as const).map((kind) => {
           const state = mapping[kind]; const candidates = kind === 'text' ? mapping.textCandidates : mapping.imageCandidates;
           return candidates.length > 1 ? <TextSelect key={kind} testId={`comfyui-${kind}-mapping`} label={kind === 'text' ? 'Prompt input' : 'Image input'} value={state.resolved ? candidates.find((candidate) => refKey(candidate.ref) === mappingId(state.resolved))?.label ?? 'Do not map' : 'Do not map'} open={mappingMenu === kind} onOpenChange={(open) => setMappingMenu(open ? kind : null)} options={mappingOptions(candidates)} selectedId={mappingId(state.resolved)} onSelect={(id) => { const candidate = candidates.find((item) => refKey(item.ref) === id); void controller.setMapping(kind, candidate?.ref ?? null); setMappingMenu(null); }} /> : state.notice ? <HelpText key={kind} className="field-hint">{state.notice}</HelpText> : null;
-        })}</section> : null}
+        })}{mapping.mask.requiresExplicitSelection ? <><TextSelect testId="comfyui-mask-mapping" label="Mask input" value={maskBinding ? mapping.maskCandidates.find((candidate) => refKey(candidate.ref) === maskSelectionId)?.label ?? 'Do not map' : 'Do not map'} open={mappingMenu === 'mask'} onOpenChange={(open) => setMappingMenu(open ? 'mask' : null)} options={mappingOptions(mapping.maskCandidates)} selectedId={maskSelectionId} onSelect={(id) => { setMaskBinding(mapping.maskCandidates.find((item) => refKey(item.ref) === id)); setMappingMenu(null); }} />{maskBinding ? <TextSelect testId="comfyui-mask-polarity" label="Mask polarity" value={maskBinding.polarity === 'white-edit' ? 'White edits' : 'Black edits'} open={mappingMenu === 'mask-polarity'} onOpenChange={(open) => setMappingMenu(open ? 'mask-polarity' : null)} options={[{ id: 'white-edit', label: 'White edits' }, { id: 'black-edit', label: 'Black edits' }]} selectedId={maskBinding.polarity} onSelect={(polarity) => { const candidate = mapping.maskCandidates.find((item) => refKey(item.ref) === maskSelectionId); if (candidate) setMaskBinding(candidate, polarity as ComfyUiMaskBinding['polarity']); setMappingMenu(null); }} /> : null}</> : null}</section> : null}
         {controller.runtime?.form ? <section className="section" data-testid="comfyui-workflow-parameters"><div className="section-title settings-section-heading">Workflow Parameters</div>{controller.runtime.form.nodes.some((node) => node.visible && node.widgets.some((widget) => widget.visible && widget.writable)) ? controller.runtime.form.nodes.flatMap((node) => node.visible ? node.widgets.filter((widget) => widget.visible && widget.writable).map((widget) => <div className="field" key={`${node.nodeId}:${widget.order}`}><FieldLabel htmlFor={`comfyui-parameter-${node.nodeId}-${widget.order}`}>{node.label || widget.label}</FieldLabel>{widget.kind === 'boolean' ? <Checkbox data-testid={`comfyui-parameter-${node.nodeId}-${widget.order}`} checked={Boolean(controller.draftValues[refKey(widget.ref)] ?? widget.workflowValue)} onChecked={(value) => controller.setParameter(widget.ref, value)} /> : widget.kind === 'combo' && widget.options ? <TextSelect testId={`comfyui-parameter-${node.nodeId}-${widget.order}`} label={widget.label} value={String(controller.draftValues[refKey(widget.ref)] ?? widget.workflowValue ?? '')} open={parameterMenu === `${node.nodeId}:${widget.order}`} onOpenChange={(open) => setParameterMenu(open ? `${node.nodeId}:${widget.order}` : null)} options={widget.options.map((option) => ({ id: option, label: option }))} selectedId={String(controller.draftValues[refKey(widget.ref)] ?? widget.workflowValue ?? '')} onSelect={(value) => { controller.setParameter(widget.ref, value); setParameterMenu(null); }} /> : <TextField id={`comfyui-parameter-${node.nodeId}-${widget.order}`} value={String(controller.draftValues[refKey(widget.ref)] ?? widget.workflowValue ?? '')} onValue={(value) => controller.setParameter(widget.ref, widget.kind === 'number' || widget.kind === 'seed' ? Number(value) : value)} />}</div>) : [] ) : <HelpText data-testid="comfyui-parameters-empty">This workflow has no exposed parameters.</HelpText>}</section> : null}
         {controller.error ? <section className="section" data-testid="comfyui-diagnostics"><StatusNotice tone="negative" message="ComfyUI needs attention" detail={controller.error} copyText={controller.error} /></section> : null}
       </div>

@@ -18,11 +18,13 @@
  */
 
 import type { Asset } from '@imagen-ps/core-engine';
+import { decode as decodePng, encode as encodePng } from 'fast-png';
 import type { CanonicalImageJobRequest, ImageEndpointRequestOutput, ProviderOutputOptions } from '../../contract/request.js';
 import type { ProviderDiagnostic } from '../../contract/diagnostics.js';
 import type { ImageEditCodec } from '../../contract/provider.js';
 import {
   assertProviderModelExecution,
+  resolveMaskExecutionPlan,
   resolveProviderResolvedOutput,
   type ImageCatalogProviderId,
 } from '../../contract/image-model-capability.js';
@@ -276,6 +278,149 @@ function assetToMaskRef(asset: Asset): OpenAIImageMaskReference {
   return ref;
 }
 
+function canonicalMaskBytes(asset: Asset): Uint8Array {
+  if (asset.mimeType !== undefined && asset.mimeType !== 'image/png') {
+    throw new BuildRequestError('Canonical Mask asset must be image/png.', { mimeType: asset.mimeType });
+  }
+  if (typeof asset.data === 'string' && asset.data.length > 0) {
+    return decodeBase64(asset.data);
+  }
+  if (asset.data instanceof Uint8Array && asset.data.byteLength > 0) {
+    return asset.data;
+  }
+  throw new BuildRequestError('OpenAI native Mask conversion requires inline canonical PNG data.', {
+    hasFileId: asset.fileId !== undefined,
+    hasUrl: asset.url !== undefined,
+    hasStoredRef: asset.storedRef !== undefined,
+  });
+}
+
+/**
+ * 将 immutable canonical `white-edit` grayscale PNG 在 transport 边界转换为 OpenAI alpha Mask。
+ * 只接受已声明的 provider-native capability；任何 geometry/format/size 不一致均 fail closed。
+ */
+function openAiNativeMaskAsset(request: CanonicalImageJobRequest): Asset | undefined {
+  const canonical = request.maskImage;
+  if (canonical === undefined) {
+    return undefined;
+  }
+
+  const capabilityModelId = request.capabilityModelId ?? resolveModel(request);
+  const plan = resolveMaskExecutionPlan({
+    providerId: 'image-endpoint',
+    capabilityModelId,
+    hasReadyMask: true,
+  });
+  if (plan.kind !== 'provider-native') {
+    throw new BuildRequestError('Selected image endpoint model does not admit a native raster Mask.', {
+      planKind: plan.kind,
+      reason: 'reason' in plan ? plan.reason : undefined,
+      capabilityModelId,
+    });
+  }
+  const admittedPlan = request.maskExecutionPlan;
+  if (admittedPlan?.kind !== 'provider-native') {
+    throw new BuildRequestError('Native Mask dispatch requires an admitted provider-native maskExecutionPlan.', {
+      planKind: admittedPlan?.kind,
+    });
+  }
+  const capabilityMatches =
+    admittedPlan.transport === plan.transport
+    && admittedPlan.capability.canonicalEncoding === plan.capability.canonicalEncoding
+    && admittedPlan.capability.canonicalPolarity === plan.capability.canonicalPolarity
+    && admittedPlan.capability.target === plan.capability.target
+    && admittedPlan.capability.wireFormat === plan.capability.wireFormat
+    && admittedPlan.capability.wirePolarity === plan.capability.wirePolarity
+    && admittedPlan.capability.requiresSameDimensions === plan.capability.requiresSameDimensions
+    && admittedPlan.capability.maxBytes === plan.capability.maxBytes;
+  if (!capabilityMatches) {
+    throw new BuildRequestError('Admitted native Mask plan does not match the selected model capability.', {
+      capabilityModelId,
+    });
+  }
+  if (request.primaryAttachmentId === undefined || canonical.targetAttachmentId !== request.primaryAttachmentId) {
+    throw new BuildRequestError('Native Mask must target the primary input attachment.', {
+      targetAttachmentId: canonical.targetAttachmentId,
+      primaryAttachmentId: request.primaryAttachmentId,
+    });
+  }
+  const primary = request.inputContext?.primaryEditInput;
+  if (primary === undefined) {
+    throw new BuildRequestError('Native Mask preflight requires primary provider-input dimensions.');
+  }
+  if (canonical.dimensions.width !== primary.width || canonical.dimensions.height !== primary.height) {
+    throw new BuildRequestError('Native Mask dimensions must exactly match the primary provider input.', {
+      mask: canonical.dimensions,
+      primary,
+    });
+  }
+  if (
+    canonical.encoding !== plan.capability.canonicalEncoding
+    || canonical.bitDepth !== 8
+    || canonical.polarity !== plan.capability.canonicalPolarity
+  ) {
+    throw new BuildRequestError('Canonical Mask does not satisfy the selected native Mask capability.', {
+      encoding: canonical.encoding,
+      bitDepth: canonical.bitDepth,
+      polarity: canonical.polarity,
+    });
+  }
+
+  const source = canonicalMaskBytes(canonical.asset);
+  let decoded: ReturnType<typeof decodePng>;
+  try {
+    decoded = decodePng(source);
+  } catch {
+    throw new BuildRequestError('Canonical Mask must contain a decodable PNG.', { byteLength: source.byteLength });
+  }
+  if (decoded.width !== primary.width || decoded.height !== primary.height) {
+    throw new BuildRequestError('Decoded canonical Mask dimensions must exactly match the primary provider input.', {
+      decoded,
+      primary,
+    });
+  }
+
+  if (decoded.depth !== 8 || (decoded.channels !== 1 && decoded.channels !== 4)) {
+    throw new BuildRequestError('Canonical Mask PNG must be 8-bit grayscale.', {
+      bitDepth: decoded.depth,
+      channels: decoded.channels,
+    });
+  }
+  const pixels = new Uint8Array(decoded.data.buffer, decoded.data.byteOffset, decoded.data.byteLength);
+  const converted = new Uint8Array(primary.width * primary.height * 4);
+  for (let index = 0; index < primary.width * primary.height; index += 1) {
+    const sourceOffset = index * decoded.channels;
+    const coverage = pixels[sourceOffset]!;
+    if (
+      decoded.channels === 4
+      && (pixels[sourceOffset + 1] !== coverage || pixels[sourceOffset + 2] !== coverage || pixels[sourceOffset + 3] !== 255)
+    ) {
+      throw new BuildRequestError('Canonical Mask PNG must decode to opaque grayscale pixels.', { pixelOffset: index });
+    }
+    const targetOffset = index * 4;
+    converted[targetOffset] = 0;
+    converted[targetOffset + 1] = 0;
+    converted[targetOffset + 2] = 0;
+    converted[targetOffset + 3] = 255 - coverage;
+  }
+
+  const encoded = encodePng({ width: primary.width, height: primary.height, data: converted, channels: 4, depth: 8 });
+  if (encoded.byteLength > plan.capability.maxBytes) {
+    throw new BuildRequestError('Converted OpenAI native Mask exceeds the provider byte limit.', {
+      byteLength: encoded.byteLength,
+      maxBytes: plan.capability.maxBytes,
+      width: primary.width,
+      height: primary.height,
+    });
+  }
+  return {
+    type: 'image',
+    name: canonical.asset.name?.replace(/\.[^.]+$/, '') ? `${canonical.asset.name!.replace(/\.[^.]+$/, '')}-openai-mask.png` : 'openai-mask.png',
+    mimeType: 'image/png',
+    data: encodeBase64(encoded),
+  };
+}
+
 function stripDataUrlPrefix(data: string): string {
   const marker = ';base64,';
   const index = data.indexOf(marker);
@@ -290,6 +435,14 @@ function decodeBase64(data: string): Uint8Array {
     bytes[i] = binary.charCodeAt(i);
   }
   return bytes;
+}
+
+function encodeBase64(bytes: Uint8Array): string {
+  let binary = '';
+  for (const byte of bytes) {
+    binary += String.fromCharCode(byte);
+  }
+  return btoa(binary);
 }
 
 function assetToBlob(asset: Asset): Blob {
@@ -522,8 +675,9 @@ function buildEditRequestBodyInternal(
     images,
   };
 
-  if (request.maskImage !== undefined) {
-    body.mask = assetToMaskRef(request.maskImage);
+  const mask = openAiNativeMaskAsset(request);
+  if (mask !== undefined) {
+    body.mask = assetToMaskRef(mask);
   }
 
   applyProviderOptions(body, providerOptions);
@@ -583,14 +737,7 @@ function buildEditMultipartBodyForCodecInternal(
     images: [],
   };
 
-  if (request.maskImage !== undefined) {
-    const hasInlineMaskData =
-      typeof request.maskImage.data === 'string' ||
-      (request.maskImage.data instanceof Uint8Array && request.maskImage.data.byteLength > 0);
-    if (!hasInlineMaskData) {
-      body.mask = assetToMaskRef(request.maskImage);
-    }
-  }
+  const mask = openAiNativeMaskAsset(request);
 
   applyProviderOptions(body, providerOptions);
 
@@ -606,8 +753,8 @@ function buildEditMultipartBodyForCodecInternal(
 
   request.images.forEach((asset, index) => appendMultipartImage(form, imageFieldName, asset, index));
 
-  if (request.maskImage !== undefined) {
-    appendMultipartImage(form, 'mask', request.maskImage, 0);
+  if (mask !== undefined) {
+    appendMultipartImage(form, 'mask', mask, 0);
   }
 
   return form;

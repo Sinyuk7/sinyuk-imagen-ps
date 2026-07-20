@@ -281,6 +281,7 @@ function AppShellContent({ host }: AppShellProps) {
     operation: composerDraft.operation,
   });
   const generationWorkspace = useGenerationWorkspace({
+    host: services.host,
     conversation,
     composerDraft,
     comfyUi: comfyUiManagement,

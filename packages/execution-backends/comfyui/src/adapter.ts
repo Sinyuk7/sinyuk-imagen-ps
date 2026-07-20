@@ -31,7 +31,11 @@ export function createComfyUiExecutionAdapter(options: CreateComfyUiExecutionAda
       if (request.source.kind === 'api-graph') request = { ...request, source: { ...request.source, graph: admitComfyUiApiGraph(request.source.graph) } };
       if (request.source.kind === 'api-graph' && knownNoOutput(request.source)) throw createComfyUiExecutionError('prepare', 'prompt-no-outputs');
     } catch (error) { return mapBoundary(error); }
-    const uploads = await prepareComfyUiUploads({ connection: request.connection, images: request.images }, { resolver: options.assetResolver, transport: options.httpTransport }, context?.signal);
+    const uploads = await prepareComfyUiUploads({
+      connection: request.connection,
+      images: request.images,
+      ...(request.mask === undefined ? {} : { mask: { asset: request.mask.asset, polarity: request.mask.binding.polarity } }),
+    }, { resolver: options.assetResolver, transport: options.httpTransport }, context?.signal);
     const shared = { transport: options.httpTransport, sink: options.assetSink, clock: options.clock, createRuntimeId: options.createRuntimeId };
     const result = request.source.kind === 'api-graph'
       ? await executeComfyUiApiGraph(request as Extract<ComfyUiExecutionRequest, { source: { kind: 'api-graph' } }>, uploads, { ...shared, hintSourceFactory: options.promptHintSourceFactory }, context?.signal)

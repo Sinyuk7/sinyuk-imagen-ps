@@ -7,6 +7,7 @@ import type {
   ComfyUiComposerInputs,
   WorkflowMappingProjection,
   WorkflowMapping,
+  ComfyUiMaskBinding,
 } from './types.js';
 
 function refKey(ref: WorkflowInputRef): string {
@@ -21,6 +22,7 @@ function sameRef(left: WorkflowInputRef | null | undefined, right: WorkflowInput
 export function collectWorkflowInputCandidates(form: WorkflowForm): {
   readonly textCandidates: readonly WorkflowInputCandidate[];
   readonly imageCandidates: readonly WorkflowInputCandidate[];
+  readonly maskCandidates: readonly WorkflowInputCandidate[];
 } {
   const result: WorkflowInputCandidate[] = [];
   const seen = new Map<string, number>();
@@ -36,9 +38,12 @@ export function collectWorkflowInputCandidates(form: WorkflowForm): {
       result.push({ ref: widget.ref, kind, label: widget.label, sectionLabel: node.label || node.title, ...(widget.workflowValue === undefined ? {} : { workflowValue: widget.workflowValue }) });
     }
   }
+  const imageCandidates = result.filter((item) => item.kind === 'image' && seen.get(refKey(item.ref)) === 1);
   return {
     textCandidates: result.filter((item) => item.kind === 'text' && seen.get(refKey(item.ref)) === 1),
-    imageCandidates: result.filter((item) => item.kind === 'image' && seen.get(refKey(item.ref)) === 1),
+    imageCandidates,
+    // Mask candidates come only from already classified writable upload-image inputs.
+    maskCandidates: imageCandidates,
   };
 }
 
@@ -50,10 +55,19 @@ export function resolveWorkflowMapping(candidates: readonly WorkflowInputCandida
   return null;
 }
 
+/** Resolve only an explicitly persisted binding for this exact workflow revision. */
+export function resolveWorkflowMaskBinding(
+  candidates: readonly WorkflowInputCandidate[],
+  stored: ComfyUiMaskBinding | undefined,
+): ComfyUiMaskBinding | undefined {
+  if (stored === undefined || stored.transport !== 'separate-image-input') return undefined;
+  return candidates.some((item) => sameRef(stored.inputRef, item.ref)) ? stored : undefined;
+}
+
 /** Build user-facing mapping state and exact unused-input notices. */
 export function projectWorkflowMapping(
-  candidates: { readonly textCandidates: readonly WorkflowInputCandidate[]; readonly imageCandidates: readonly WorkflowInputCandidate[] },
-  resolved: { readonly text: WorkflowMapping; readonly image: WorkflowMapping },
+  candidates: { readonly textCandidates: readonly WorkflowInputCandidate[]; readonly imageCandidates: readonly WorkflowInputCandidate[]; readonly maskCandidates: readonly WorkflowInputCandidate[] },
+  resolved: { readonly text: WorkflowMapping; readonly image: WorkflowMapping; readonly mask?: ComfyUiMaskBinding },
   composer: ComfyUiComposerInputs = {},
 ): WorkflowMappingProjection {
   const textAmbiguous = candidates.textCandidates.length > 1 && resolved.text === null;
@@ -74,7 +88,8 @@ export function projectWorkflowMapping(
       ambiguous: imageAmbiguous,
       ...((imageNotice ?? manyNotice) === undefined ? {} : { notice: imageNotice ?? manyNotice }),
     },
-    showSection: textAmbiguous || imageAmbiguous || textNotice !== undefined || imageNotice !== undefined || manyNotice !== undefined,
+    mask: { ...(resolved.mask === undefined ? {} : { binding: resolved.mask }), requiresExplicitSelection: candidates.maskCandidates.length > 0 },
+    showSection: textAmbiguous || imageAmbiguous || textNotice !== undefined || imageNotice !== undefined || manyNotice !== undefined || candidates.maskCandidates.length > 0,
   };
 }
 

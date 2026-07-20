@@ -329,12 +329,6 @@ function buildParts(request: CanonicalImageJobRequest): readonly GeminiGenerateC
       { imageCount: request.images.length },
     );
   }
-  if (request.maskImage !== undefined) {
-    throw new BuildGeminiGenerateContentRequestError(
-      'Gemini Generate Content does not expose a separate mask image wire field in this implementation.',
-    );
-  }
-
   return [
     ...request.images.map((asset) => assetToGeminiPart(asset)),
     { text: request.prompt },
@@ -345,6 +339,13 @@ export function buildGeminiGenerateContentRequest(args: {
   readonly request: CanonicalImageJobRequest;
 }): GeminiGenerateContentBuiltRequest {
   const diagnostics: ProviderDiagnostic[] = [];
+  if (args.request.maskImage !== undefined) {
+    diagnostics.push(createDiagnostic(
+      'gemini-generate-content.request.mask-omitted',
+      'Omitted canonical Mask because Gemini Generate Content has no separate raster mask field.',
+      { reason: 'transport-has-no-separate-raster-mask-field' },
+    ));
+  }
   applyProviderOptions(args.request.providerOptions, diagnostics);
   const model = resolveModel(args.request);
   const wireRevision = resolveWireRevision(args.request);

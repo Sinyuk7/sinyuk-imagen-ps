@@ -33,8 +33,11 @@ function refKey(ref: StoredAssetRef): string {
   return `${ref.kind}:${ref.ref}`;
 }
 
-function taskOutputRefs(record: TaskRecord): readonly StoredAssetRef[] {
-  return record.outputs.map((output) => output.asset.ref);
+function taskAssetRefs(record: TaskRecord): readonly StoredAssetRef[] {
+  return [
+    ...record.outputs.map((output) => output.asset.ref),
+    ...(record.editRegion ? [record.editRegion.mask.ref] : []),
+  ];
 }
 
 function uniqueRefOwners(records: readonly TaskRecord[]): readonly RefOwner[] {
@@ -43,7 +46,7 @@ function uniqueRefOwners(records: readonly TaskRecord[]): readonly RefOwner[] {
     if (record.status !== 'completed') {
       continue;
     }
-    for (const ref of taskOutputRefs(record)) {
+    for (const ref of taskAssetRefs(record)) {
       const key = refKey(ref);
       const existing = owners.get(key);
       if (!existing || record.updatedAt < existing.updatedAt) {
@@ -57,7 +60,7 @@ function uniqueRefOwners(records: readonly TaskRecord[]): readonly RefOwner[] {
 function retainedTaskRefKeys(records: readonly TaskRecord[]): Set<string> {
   const keys = new Set<string>();
   for (const record of records) {
-    for (const ref of taskOutputRefs(record)) {
+    for (const ref of taskAssetRefs(record)) {
       keys.add(refKey(ref));
     }
   }
@@ -114,7 +117,7 @@ export async function runTaskLinkedRetention(
 
   const trimCandidates = new Map<string, RefOwner>();
   for (const record of trimmedTerminalTasks) {
-    for (const ref of taskOutputRefs(record)) {
+    for (const ref of taskAssetRefs(record)) {
       const key = refKey(ref);
       if (retainedKeys.has(key) || trimCandidates.has(key)) {
         continue;
@@ -128,7 +131,7 @@ export async function runTaskLinkedRetention(
   let taskRecordsDeferred = 0;
 
   for (const record of trimmedTerminalTasks) {
-    const refs = taskOutputRefs(record);
+    const refs = taskAssetRefs(record);
     const canDeleteRecord = refs.every((ref) => {
       const key = refKey(ref);
       if (retainedKeys.has(key)) {

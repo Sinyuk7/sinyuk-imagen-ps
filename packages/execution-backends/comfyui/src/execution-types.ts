@@ -11,6 +11,19 @@ export interface ComfyUiExecutionAssetInput {
   readonly height: number;
 }
 
+/** Workflow revision 明确声明的 canonical Mask 路由。 */
+export interface ComfyUiMaskBinding {
+  readonly transport: 'separate-image-input';
+  readonly inputRef: WorkflowInputRef;
+  readonly polarity: 'white-edit' | 'black-edit';
+}
+
+/** 仅在当前 workflow revision 有有效 binding 时存在的 Mask 输入。 */
+export interface ComfyUiExecutionMaskInput {
+  readonly asset: ComfyUiExecutionAssetInput;
+  readonly binding: ComfyUiMaskBinding;
+}
+
 /** Dispatch 使用的 singleton connection snapshot。*/
 export interface ComfyUiExecutionConnection {
   readonly baseUrl: string;
@@ -31,6 +44,7 @@ export interface ComfyUiExecutionRequest {
   readonly images: readonly ComfyUiExecutionAssetInput[];
   readonly mutations?: readonly { readonly ref: WorkflowInputRef; readonly value: WorkflowPrimitiveValue }[];
   readonly imageInputRef?: WorkflowInputRef;
+  readonly mask?: ComfyUiExecutionMaskInput;
 }
 
 export interface ComfyUiResolvedAsset { readonly bytes: Uint8Array; readonly mimeType: string; readonly name?: string }
@@ -103,10 +117,26 @@ function validateInputRef(value: unknown): WorkflowInputRef {
   if (!isPlainRecord(value) || !hasExactKeys(value, ['nodeId'], ['inputName', 'widgetIndex']) || !boundedId(value.nodeId) || (value.inputName !== undefined && !boundedId(value.inputName)) || (value.widgetIndex !== undefined && (!Number.isInteger(value.widgetIndex) || Number(value.widgetIndex) < 0)) || (value.inputName === undefined && value.widgetIndex === undefined)) throw new Error('invalid-request');
   return deepFreeze({ nodeId: value.nodeId, ...(value.inputName !== undefined ? { inputName: value.inputName } : {}), ...(value.widgetIndex !== undefined ? { widgetIndex: Number(value.widgetIndex) } : {}) });
 }
+function sameInputRef(left: WorkflowInputRef, right: WorkflowInputRef): boolean {
+  return left.nodeId === right.nodeId
+    && left.inputName === right.inputName
+    && left.widgetIndex === right.widgetIndex;
+}
+function validateMaskInput(value: unknown): ComfyUiExecutionMaskInput {
+  if (!isPlainRecord(value) || !hasExactKeys(value, ['asset', 'binding']) || !isPlainRecord(value.binding) || !hasExactKeys(value.binding, ['transport', 'inputRef', 'polarity']) || value.binding.transport !== 'separate-image-input' || (value.binding.polarity !== 'white-edit' && value.binding.polarity !== 'black-edit')) throw new Error('invalid-mask-input');
+  return deepFreeze({
+    asset: validateAssetInput(value.asset),
+    binding: deepFreeze({
+      transport: 'separate-image-input' as const,
+      inputRef: validateInputRef(value.binding.inputRef),
+      polarity: value.binding.polarity,
+    }),
+  });
+}
 
 /** Adapter boundary 处验证并冻结 request。*/
 export function validateComfyUiExecutionRequest(value: unknown): ComfyUiExecutionRequest {
-  if (!isPlainRecord(value) || !hasExactKeys(value, ['connection', 'source', 'images'], ['prompt', 'mutations', 'imageInputRef'])) throw new Error('invalid-request');
+  if (!isPlainRecord(value) || !hasExactKeys(value, ['connection', 'source', 'images'], ['prompt', 'mutations', 'imageInputRef', 'mask'])) throw new Error('invalid-request');
   if (value.prompt !== undefined && (typeof value.prompt !== 'string' || utf8ByteLength(value.prompt) > 65_536)) throw new Error('invalid-request');
   if (!Array.isArray(value.images) || value.images.length > 32) throw new Error('invalid-request');
   if (!isPlainRecord(value.source) || !boundedId(value.source.workflowId) || !boundedId(value.source.revision)) throw new Error('invalid-request');
@@ -122,7 +152,10 @@ export function validateComfyUiExecutionRequest(value: unknown): ComfyUiExecutio
       return deepFreeze({ ref: deepFreeze({ nodeId: item.ref.nodeId, ...(item.ref.inputName !== undefined ? { inputName: item.ref.inputName } : {}), ...(item.ref.widgetIndex !== undefined ? { widgetIndex: Number(item.ref.widgetIndex) } : {}) }), value: item.value });
     });
   }
-  return deepFreeze({ connection: validateConnection(value.connection), source, ...(value.prompt !== undefined ? { prompt: value.prompt } : {}), images: value.images.map(validateAssetInput), ...(mutations !== undefined ? { mutations } : {}), ...(value.imageInputRef === undefined ? {} : { imageInputRef: validateInputRef(value.imageInputRef) }) });
+  const imageInputRef = value.imageInputRef === undefined ? undefined : validateInputRef(value.imageInputRef);
+  const mask = value.mask === undefined ? undefined : validateMaskInput(value.mask);
+  if (imageInputRef !== undefined && mask !== undefined && sameInputRef(imageInputRef, mask.binding.inputRef)) throw new Error('invalid-mask-input');
+  return deepFreeze({ connection: validateConnection(value.connection), source, ...(value.prompt !== undefined ? { prompt: value.prompt } : {}), images: value.images.map(validateAssetInput), ...(mutations !== undefined ? { mutations } : {}), ...(imageInputRef === undefined ? {} : { imageInputRef }), ...(mask === undefined ? {} : { mask }) });
 }
 
 /** Result guard；success with zero outputs valid。*/

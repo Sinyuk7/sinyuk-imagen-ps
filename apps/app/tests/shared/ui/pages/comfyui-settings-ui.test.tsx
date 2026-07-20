@@ -192,6 +192,28 @@ describe('ComfyUI workflow settings surface', () => {
     expect(container.querySelector('[data-testid="comfyui-image-mapping"]')).toBeNull();
   });
 
+  it('shows an explicit Mask selector only for writable upload-image inputs', async () => {
+    const container = document.createElement('div');
+    document.body.appendChild(container);
+    await renderMainPage(container, createFakeServices({
+      comfyUi: {
+        baseUrl: 'https://comfy.example.test',
+        form: { nodes: [{
+          nodeId: 'images', title: '# Inputs', label: 'Inputs', order: 0, active: true, visible: true,
+          widgets: [
+            { ref: { nodeId: 'images', inputName: 'primary' }, kind: 'upload-image', label: 'Primary', writable: true, visible: false, order: 0 },
+            { ref: { nodeId: 'images', inputName: 'edit_region' }, kind: 'upload-image', label: 'Edit Region', writable: true, visible: false, order: 1 },
+            { ref: { nodeId: 'images', inputName: 'mask_name_only' }, kind: 'string', label: 'Mask', writable: true, visible: true, order: 2 },
+          ],
+        }] },
+      },
+    }));
+    await flush();
+    await openComfySettings(container);
+    expect(container.querySelector('[data-testid="comfyui-mask-mapping"]')).not.toBeNull();
+    expect(container.querySelector('[data-testid="comfyui-mask-polarity"]')).toBeNull();
+  });
+
   it('keeps the same bounded settings surface in the Chrome host at narrow width', async () => {
     const container = document.createElement('div');
     document.body.appendChild(container);

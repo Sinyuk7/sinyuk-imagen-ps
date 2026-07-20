@@ -10,9 +10,10 @@ import type {
   WorkflowIdentity,
   WorkflowLoadState,
   WorkflowMapping,
+  ComfyUiMaskBinding,
 } from './types.js';
 import { normalizePersistedComfyUiState } from './repositories.js';
-import { collectWorkflowInputCandidates, projectWorkflowMapping, resolveWorkflowMapping } from './workflow-policy.js';
+import { collectWorkflowInputCandidates, projectWorkflowMapping, resolveWorkflowMapping, resolveWorkflowMaskBinding } from './workflow-policy.js';
 
 const CONTROL_CHARS = /[\u0000-\u001f\u007f]/;
 const MAX_BASE_URL_LENGTH = 2_048;
@@ -79,6 +80,7 @@ export interface ComfyUiManagementService {
   openInComfyUi(signal?: AbortSignal): Promise<void>;
   getLoadState(): WorkflowLoadState;
   setMapping(workflowId: string, revision: string, kind: 'text' | 'image', value: WorkflowMapping): Promise<void>;
+  setMaskBinding(workflowId: string, revision: string, value: ComfyUiMaskBinding | undefined): Promise<void>;
   getMappingProjection(runtime: LoadedWorkflowRuntime): ReturnType<typeof projectWorkflowMapping>;
   getDraft(workflowId: string, revision: string): ReturnType<ComfyUiWorkflowDraftStore['get']>;
   setDraft(draft: NonNullable<ReturnType<ComfyUiWorkflowDraftStore['get']>>): void;
@@ -106,6 +108,17 @@ export function createComfyUiManagementService(options: ComfyUiManagementService
   const state = async () => durable ?? (durable = await options.state.load());
   const save = async (value: PersistedComfyUiState) => { durable = normalizePersistedComfyUiState(value); await options.state.save(durable); return durable; };
   const mappingKey = (workflowId: string, revision: string) => `${workflowId}@${revision}`;
+  const withoutMaskBinding = async (workflowId: string, revision: string) => {
+    const existing = await state();
+    if (!existing) return;
+    const key = mappingKey(workflowId, revision);
+    const row = existing.ambiguousMappingsByRevision[key];
+    if (!row?.mask) return;
+    const { mask: _mask, ...nextRow } = row;
+    const mappings = { ...existing.ambiguousMappingsByRevision };
+    if (Object.keys(nextRow).length === 0) delete mappings[key]; else mappings[key] = nextRow;
+    await save({ ...existing, ambiguousMappingsByRevision: mappings });
+  };
 
   return {
     async loadState() { return state(); },
@@ -140,6 +153,7 @@ export function createComfyUiManagementService(options: ComfyUiManagementService
         if (next?.revision !== previous.revision) {
           options.cache.invalidate(previous.workflowId);
           drafts?.invalidate(previous.workflowId, previous.revision ?? undefined);
+          if (previous.revision !== null) await withoutMaskBinding(previous.workflowId, previous.revision);
           if (current?.identity.workflowId === previous.workflowId) current = undefined;
         }
       }
@@ -192,10 +206,27 @@ export function createComfyUiManagementService(options: ComfyUiManagementService
       if (Object.keys(row).length === 0) delete mappings[key]; else mappings[key] = row;
       await save({ ...existing, ambiguousMappingsByRevision: mappings });
     },
+    async setMaskBinding(workflowId, revision, value) {
+      const existing = await state(); if (!existing) throw createValidationError('ComfyUI server is not configured.');
+      const runtime = current?.identity.workflowId === workflowId && current.identity.revision === revision ? current : undefined;
+      if (!runtime) throw createValidationError('ComfyUI Mask binding requires the current Workflow revision.');
+      const candidates = collectWorkflowInputCandidates(runtime.form ?? { nodes: [] });
+      if (value !== undefined) {
+        if (value.transport !== 'separate-image-input' || !candidates.maskCandidates.some((item) => item.ref.nodeId === value.inputRef.nodeId && item.ref.inputName === value.inputRef.inputName && item.ref.widgetIndex === value.inputRef.widgetIndex)) throw createValidationError('ComfyUI Mask binding must select an explicit upload-image input.');
+        const stored = existing.ambiguousMappingsByRevision[mappingKey(workflowId, revision)];
+        const primary = resolveWorkflowMapping(candidates.imageCandidates, stored?.image);
+        if (primary?.nodeId === value.inputRef.nodeId && primary.inputName === value.inputRef.inputName && primary.widgetIndex === value.inputRef.widgetIndex) throw createValidationError('ComfyUI Mask binding must not replace the Primary image input.');
+      }
+      const key = mappingKey(workflowId, revision); const row = { ...(existing.ambiguousMappingsByRevision[key] ?? {}) };
+      if (value === undefined) delete row.mask; else row.mask = value;
+      const mappings = { ...existing.ambiguousMappingsByRevision };
+      if (Object.keys(row).length === 0) delete mappings[key]; else mappings[key] = row;
+      await save({ ...existing, ambiguousMappingsByRevision: mappings });
+    },
     getMappingProjection(runtime) {
       const candidates = collectWorkflowInputCandidates(runtime.form ?? { nodes: [] });
       const stored = durable?.ambiguousMappingsByRevision[mappingKey(runtime.identity.workflowId, runtime.identity.revision)] ?? {};
-      return projectWorkflowMapping(candidates, { text: resolveWorkflowMapping(candidates.textCandidates, stored.text), image: resolveWorkflowMapping(candidates.imageCandidates, stored.image) });
+      return projectWorkflowMapping(candidates, { text: resolveWorkflowMapping(candidates.textCandidates, stored.text), image: resolveWorkflowMapping(candidates.imageCandidates, stored.image), mask: resolveWorkflowMaskBinding(candidates.maskCandidates, stored.mask) });
     },
     getDraft(workflowId, revision) { return drafts?.get(workflowId, revision); },
     setDraft(draft) { drafts?.set(draft); },

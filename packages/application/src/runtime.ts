@@ -399,7 +399,9 @@ function sanitizeJobInputForDurableHistory(input: Record<string, unknown>): Reco
     next.images = next.images.map(sanitizeAssetForDurableInput);
   }
   if (next.maskImage !== undefined) {
-    next.maskImage = sanitizeAssetForDurableInput(next.maskImage);
+    if (isPlainRecord(next.maskImage) && isPlainRecord(next.maskImage.asset)) {
+      next.maskImage = { ...next.maskImage, asset: sanitizeAssetForDurableInput(next.maskImage.asset) };
+    }
   }
   return next;
 }
@@ -600,9 +602,13 @@ async function materializeProviderRequest(
     };
   }
   if (request.maskImage !== undefined) {
+    const mask = request.maskImage;
     nextRequest = {
       ...nextRequest,
-      maskImage: await resolveStoredAssetForDispatch(request.maskImage, signal),
+      maskImage: {
+        ...mask,
+        asset: await resolveStoredAssetForDispatch(mask.asset, signal),
+      },
     };
   }
 
