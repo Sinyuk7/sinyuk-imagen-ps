@@ -1,4 +1,4 @@
-import { useMemo, useState, type KeyboardEvent } from 'react';
+import { useEffect, useMemo, useState, type KeyboardEvent } from 'react';
 import type { ProviderProfile } from '@imagen-ps/application';
 import type { PromptPreset, PromptPresetMode, PromptSettings } from '../../ports/prompt-settings';
 import type {
@@ -12,6 +12,7 @@ import {
   HelpText,
   Icon,
   IconButton,
+  List,
   MotionButtonSurface,
   PageFrame,
   PageHeader,
@@ -67,6 +68,36 @@ function presetModeLabel(mode: PromptPresetMode, t: ReturnType<typeof useI18n>['
   return t.settings.presetModeAppend;
 }
 
+type PromptPresetListStateKind = 'loading' | 'empty' | 'error';
+
+interface PromptPresetListStateProps {
+  readonly kind: PromptPresetListStateKind;
+  readonly title: string;
+  readonly description?: string;
+  readonly testId: string;
+}
+
+/** Prompt presets 列表专用静态行，保持与可选预设相同的行结构。 */
+function PromptPresetListState({ kind, title, description, testId }: PromptPresetListStateProps) {
+  return (
+    <div
+      aria-disabled="true"
+      className={`prompt-preset-row prompt-preset-list-state prompt-preset-list-state--${kind}`}
+      data-testid={testId}
+      role="option"
+    >
+      <span className="prompt-preset-indicator" aria-hidden="true" data-selected="false" />
+      <div className="prompt-preset-row-main">
+        <span className="prompt-preset-radio" aria-hidden="true" data-selected="false" />
+        <div className="prompt-preset-list-state-copy">
+          <span className="prompt-preset-name">{title}</span>
+          {description ? <span className="prompt-preset-list-state-description">{description}</span> : null}
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export function PromptSettingsPage({
   settings,
   profiles,
@@ -84,6 +115,18 @@ export function PromptSettingsPage({
 }: PromptSettingsPageProps) {
   const { messages: t } = useI18n();
   const [profileMenuOpen, setProfileMenuOpen] = useState(false);
+  const [presetListInitialState, setPresetListInitialState] = useState<'pending' | 'ready' | 'error'>(
+    loading ? 'pending' : error ? 'error' : 'ready',
+  );
+  const [initialPresetError, setInitialPresetError] = useState<string | null>(loading ? null : error);
+
+  useEffect(() => {
+    if (presetListInitialState !== 'pending' || loading) {
+      return;
+    }
+    setInitialPresetError(error);
+    setPresetListInitialState(error ? 'error' : 'ready');
+  }, [error, loading, presetListInitialState]);
   const profileOptions = useMemo(() => [
     { id: 'none', label: t.settings.none },
     ...profiles.map((profile) => ({ id: profile.profileId, label: profile.displayName })),
@@ -188,8 +231,31 @@ export function PromptSettingsPage({
                 />
               </MotionButtonSurface>
             </div>
-            <div className="field prompt-preset-list" role="listbox" aria-label={t.settings.promptPresets}>
-              {presetViews.map((view) => {
+            <div role="listbox" aria-label={t.settings.promptPresets}>
+              <List className="field prompt-preset-list">
+              {presetListInitialState === 'pending' ? (
+                <PromptPresetListState
+                  kind="loading"
+                  testId="prompt-preset-loading-state"
+                  title={t.settings.promptPresetsLoading}
+                />
+              ) : null}
+              {presetListInitialState === 'error' ? (
+                <PromptPresetListState
+                  description={initialPresetError ?? undefined}
+                  kind="error"
+                  testId="prompt-preset-error-state"
+                  title={t.settings.promptPresets}
+                />
+              ) : null}
+              {presetListInitialState === 'ready' && presetViews.length === 0 ? (
+                <PromptPresetListState
+                  kind="empty"
+                  testId="prompt-preset-empty-state"
+                  title={t.settings.promptPresetsEmpty}
+                />
+              ) : null}
+              {presetListInitialState === 'ready' ? presetViews.map((view) => {
                 const valid = view.contentValid;
                 return (
                   <div
@@ -261,7 +327,8 @@ export function PromptSettingsPage({
                     )}
                   </div>
                 );
-              })}
+              }) : null}
+              </List>
             </div>
           </SettingsFormSection>
 

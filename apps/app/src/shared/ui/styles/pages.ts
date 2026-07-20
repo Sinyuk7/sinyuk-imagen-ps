@@ -6,6 +6,10 @@ export const PAGES_CSS = `
 .fchip{ margin-right:6px; flex-shrink:0; }
 .task-row{ display:flex; align-items:flex-start; padding:11px 16px; border-bottom:1px solid var(--app-color-border-default); cursor:pointer; }
 .task-row:hover{ background:var(--app-color-hover-overlay); }
+.history-list > * + *{ margin-top:0; }
+.history-list-state.ui-list-item-shell{ align-items:flex-start; min-height:66px; padding:11px 16px; border:0; background:transparent; cursor:default; }
+.history-list-state.ui-list-item-shell:hover{ background:transparent; }
+.history-list-state .ui-list-item-title{ font-weight:400; }
 .task-thumb{ width:44px; height:44px; margin-right:12px; border-radius:var(--app-radius-medium); background:var(--app-color-background-elevated); border:1px solid var(--app-color-border-default); display:flex; align-items:center; justify-content:center; flex-shrink:0; overflow:hidden; }
 .task-info{ flex:1; min-width:0; display:flex; flex-direction:column; }
 .task-prompt{ font-size:12px; line-height:16px; color:var(--app-color-text-primary); overflow:hidden; display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; }
@@ -676,6 +680,9 @@ export const PAGES_CSS = `
   overflow:visible;
   background:transparent;
 }
+.prompt-preset-list.ui-list>*+*{
+  margin-top:0;
+}
 .prompt-preset-row{
   position:relative;
   display:block;
@@ -704,6 +711,28 @@ export const PAGES_CSS = `
 .prompt-preset-row.is-selected{ background:var(--app-color-accent-subtle); }
 .prompt-preset-row.is-invalid{
   background:var(--app-color-negative-subtle);
+}
+.prompt-preset-row.prompt-preset-list-state{
+  cursor:default;
+}
+.prompt-preset-row.prompt-preset-list-state:hover,
+.prompt-preset-row.prompt-preset-list-state:active{
+  background:transparent;
+}
+.prompt-preset-list-state-copy{
+  flex:1 1 auto;
+  min-width:0;
+}
+.prompt-preset-list-state-description{
+  display:block;
+  margin-top:1px;
+  overflow-wrap:anywhere;
+  font-size:10px;
+  line-height:14px;
+  color:var(--app-color-text-secondary);
+}
+.prompt-preset-list-state--error .prompt-preset-list-state-description{
+  color:var(--app-color-negative);
 }
 .prompt-preset-indicator{
   position:absolute;
