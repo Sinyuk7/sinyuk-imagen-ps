@@ -4,6 +4,7 @@ Durable notes for confirmed UI/page debugging in the Imagen Photoshop UXP app. R
 
 ## Workflow Corrections
 
+- After a UDT Reload, `uxp-debug.mjs --plugin-id` can retain a stale CDP context even when `targets` reports a fresh session. Use the newly reported `cdtDebugWsUrl` through `--ws` for the first post-reload probe, then continue serially in that context.
 - Do not patch source first for UXP UI bugs. Start with `node scripts/uxp-debug/uxp-debug.mjs` against the real Photoshop UXP runtime for DOM probes, ancestor layout data, and runtime style/DOM hypothesis changes whenever the panel is reachable.
 - Treat screenshots as the highest-priority visual evidence. DOM rects prove box geometry, but they do not prove glyph alignment, perceived centering, or host-specific rendering correctness.
 - For confirmed UI issues, use the loop: `inspect -> ancestors -> descendants/child rects -> runtime style or DOM probe -> screenshot -> source edit -> Watch reload -> inspect/screenshot -> focused tests`.
