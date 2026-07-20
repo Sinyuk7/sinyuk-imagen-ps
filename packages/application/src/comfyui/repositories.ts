@@ -26,6 +26,15 @@ function validRef(value: unknown): boolean {
     && (!hasIndex || (Number.isSafeInteger(ref.widgetIndex) && Number(ref.widgetIndex) >= 0 && Number(ref.widgetIndex) <= 256));
 }
 
+function validMaskBinding(value: unknown): boolean {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return false;
+  const binding = value as Record<string, unknown>;
+  return Object.keys(binding).every((key) => ['transport', 'inputRef', 'polarity'].includes(key))
+    && binding.transport === 'separate-image-input'
+    && validRef(binding.inputRef)
+    && (binding.polarity === 'white-edit' || binding.polarity === 'black-edit');
+}
+
 /** Validate and freeze strict persisted allowlist. */
 export function normalizePersistedComfyUiState(value: unknown): PersistedComfyUiState {
   if (!value || typeof value !== 'object' || Array.isArray(value)) throw new Error('invalid-comfyui-state');
@@ -37,9 +46,12 @@ export function normalizePersistedComfyUiState(value: unknown): PersistedComfyUi
   if (!mappings || typeof mappings !== 'object' || Array.isArray(mappings)) throw new Error('invalid-comfyui-state');
   for (const [revision, record] of Object.entries(mappings)) {
     if (!revision || revision.length > 256 || CONTROL_CHARS.test(revision) || !record || typeof record !== 'object' || Array.isArray(record)) throw new Error('invalid-comfyui-state');
-    for (const [kind, ref] of Object.entries(record)) {
-      if (kind !== 'text' && kind !== 'image') throw new Error('invalid-comfyui-state');
-      if (!validRef(ref)) throw new Error('invalid-comfyui-state');
+    for (const [kind, mapping] of Object.entries(record)) {
+      if (kind === 'mask') {
+        if (!validMaskBinding(mapping)) throw new Error('invalid-comfyui-state');
+      } else if ((kind !== 'text' && kind !== 'image') || !validRef(mapping)) {
+        throw new Error('invalid-comfyui-state');
+      }
     }
   }
   if (new TextEncoder().encode(JSON.stringify(input)).byteLength > MAX_STATE_BYTES) throw new Error('invalid-comfyui-state');

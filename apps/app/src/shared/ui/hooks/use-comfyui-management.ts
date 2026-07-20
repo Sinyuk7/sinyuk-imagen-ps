@@ -7,6 +7,7 @@ import type {
   WorkflowMapping,
   WorkflowMappingProjection,
   WorkflowPrimitiveValue,
+  ComfyUiMaskBinding,
 } from '@imagen-ps/application';
 import type { ComfyUiManagementPort } from '../../ports/comfyui-management';
 
@@ -28,6 +29,7 @@ export interface ComfyUiManagementController {
   readonly openInComfyUi: () => Promise<void>;
   readonly setParameter: (ref: WorkflowInputRef, value: WorkflowPrimitiveValue) => void;
   readonly setMapping: (kind: 'text' | 'image', value: WorkflowMapping) => Promise<void>;
+  readonly setMaskBinding: (value: ComfyUiMaskBinding | undefined) => Promise<void>;
   readonly clearError: () => void;
 }
 
@@ -149,6 +151,11 @@ export function useComfyUiManagement(service: ComfyUiManagementPort): ComfyUiMan
     setMapping: async (kind, value) => {
       if (!runtime) return;
       await service.setMapping(runtime.identity.workflowId, runtime.identity.revision, kind, value);
+      setMappingProjection(service.getMappingProjection(runtime));
+    },
+    setMaskBinding: async (value) => {
+      if (!runtime) return;
+      await service.setMaskBinding(runtime.identity.workflowId, runtime.identity.revision, value);
       setMappingProjection(service.getMappingProjection(runtime));
     },
     clearError: () => setError(null),

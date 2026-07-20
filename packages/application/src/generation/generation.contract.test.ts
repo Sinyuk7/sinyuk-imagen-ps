@@ -26,7 +26,7 @@ const createdAt = '2026-07-18T00:00:00.000Z';
 
 function runningTask(taskId = 'task-a'): TaskRecord {
   return {
-    schemaVersion: 2,
+    schemaVersion: 3,
     taskId,
     status: 'running',
     operation: 'text-to-image',
@@ -303,5 +303,86 @@ describe('GenerationBackend admission contract', () => {
     expect(retry?.runningTask.latestJobId).toBeUndefined();
     expect(Object.isFrozen(retry)).toBe(true);
     expect(Object.keys(retry?.execution.input ?? {})).toEqual(['implementationId', 'profileId', 'request']);
+  });
+
+  it('reconstructs Provider retry Mask from Task Edit Region instead of latest Job input', async () => {
+    const { backend } = createBackendHarness();
+    const task: TaskRecord = {
+      ...runningTask('task-mask-retry'),
+      operation: 'image-edit',
+      attachments: [{
+        kind: 'photoshop-layer',
+        attachmentId: 'primary',
+        asset: { ref: { kind: 'hostObject', ref: 'primary-image', mimeType: 'image/png' } },
+      }],
+      editRegion: {
+        targetAttachmentId: 'primary',
+        source: { kind: 'photoshop-user-layer-mask', documentId: 42, layerId: 7 },
+        geometry: { sourceBounds: { left: 0, top: 0, right: 100, bottom: 100 }, targetWidth: 100, targetHeight: 100 },
+        mask: { ref: { kind: 'hostObject', ref: 'task-mask', mimeType: 'image/png' }, width: 100, height: 100 },
+        encoding: 'grayscale-png',
+        bitDepth: 8,
+        polarity: 'white-edit',
+      },
+    };
+    const admitted = await backend.admit({
+      taskId: task.taskId,
+      backendId: PROVIDER_GENERATION_BACKEND_ID,
+      payload: {
+        profileId: profile.profileId,
+        operation: 'image_edit',
+        request: {
+          prompt: task.prompt,
+          images: [{ storedRef: { kind: 'hostObject', ref: 'primary-image', mimeType: 'image/png' } }],
+          inputContext: { primaryEditInput: { width: 100, height: 100 } },
+          primaryAttachmentId: 'primary',
+          maskImage: {
+            asset: { storedRef: { kind: 'hostObject', ref: 'stale-job-mask', mimeType: 'image/png' } },
+            targetAttachmentId: 'primary',
+            dimensions: { width: 100, height: 100 },
+            encoding: 'grayscale-png',
+            bitDepth: 8,
+            polarity: 'white-edit',
+          },
+          providerOptions: { model: modelConfig.modelId },
+        },
+        runningTask: task,
+      },
+    });
+    const failedTask: TaskRecord = {
+      ...admitted.runningTask,
+      status: 'failed',
+      latestJobId: 'job-mask-retry',
+      outputs: [],
+      error: { category: 'provider', message: 'failed' },
+      finishedAt: '2026-07-18T00:02:00.000Z',
+    };
+    const retry = await backend.retry?.({
+      task: failedTask,
+      latestJob: {
+        id: 'job-mask-retry',
+        status: 'failed',
+        input: admitted.execution.input,
+        output: undefined,
+        error: { category: 'provider', message: 'failed' },
+        createdAt,
+        updatedAt: '2026-07-18T00:02:00.000Z',
+      },
+    });
+
+    expect(providerExecutionInput(retry!)).toMatchObject({
+      request: {
+        primaryAttachmentId: 'primary',
+        maskImage: {
+          asset: { storedRef: { kind: 'hostObject', ref: 'task-mask', mimeType: 'image/png' } },
+          targetAttachmentId: 'primary',
+          dimensions: { width: 100, height: 100 },
+          encoding: 'grayscale-png',
+          bitDepth: 8,
+          polarity: 'white-edit',
+        },
+      },
+    });
+    expect(retry?.runningTask.editRegion).toEqual(task.editRegion);
   });
 });

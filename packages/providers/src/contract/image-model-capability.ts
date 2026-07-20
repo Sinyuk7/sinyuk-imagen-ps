@@ -68,18 +68,45 @@ export interface RatioResolutionGeometryCapability {
 /** 输出几何真能力 discriminated union。 */
 export type GeometryCapability = FlexiblePixelsGeometryCapability | RatioResolutionGeometryCapability;
 
+/** Provider-native raster Mask 的已证明 wire 能力。 */
+export interface MaskCapability {
+  /** 当前 canonical Mask 固定为 8-bit grayscale PNG。 */
+  readonly canonicalEncoding: 'grayscale-png';
+  readonly canonicalPolarity: 'white-edit';
+  /** 当前 V1 只允许绑定 primary / first input。 */
+  readonly target: 'first-input';
+  /** Native transport 需要的 wire raster 格式。 */
+  readonly wireFormat: 'png';
+  /** Native transport 的 alpha 语义。 */
+  readonly wirePolarity: 'alpha-zero-edit';
+  /** Mask 与 primary provider-input 的尺寸必须严格一致。 */
+  readonly requiresSameDimensions: true;
+  /** 转换后 wire Mask 的最大字节数。 */
+  readonly maxBytes: number;
+}
+
+/** 已选执行目标对 ready Mask 的显式路由结论。 */
+export type MaskExecutionPlan =
+  | { readonly kind: 'none' }
+  | {
+      readonly kind: 'provider-native';
+      readonly transport: 'image-endpoint';
+      readonly capability: MaskCapability;
+    }
+  | {
+      readonly kind: 'comfyui-separate-image-input';
+      readonly inputRef: string;
+      readonly polarity: 'white-edit' | 'black-edit';
+    }
+  | { readonly kind: 'semantic-only'; readonly reason: string }
+  | { readonly kind: 'unsupported'; readonly reason: string };
+
 /** edit 输入能力事实。 */
 export interface EditInputCapability {
   readonly inputFormats: readonly string[];
   readonly maxImages: number;
   readonly maxBytesPerImage?: number;
-  readonly mask?: {
-    readonly kind: 'alpha-image';
-    readonly target: 'first-input';
-    readonly formats: readonly string[];
-    readonly maxBytes: number;
-    readonly requiresSameDimensions: boolean;
-  };
+  readonly mask?: MaskCapability;
 }
 
 /** Provider-owned image output 能力真相。 */
@@ -655,6 +682,46 @@ export function tryResolveImageModelRule(args: {
   }
 
   return undefined;
+}
+
+/**
+ * 按 selected catalog preset 解析 ready canonical Mask 的执行路由。
+ * 未命中 explicit preset 时 fail closed，绝不从 API family 或 endpoint URL 猜测支持。
+ */
+export function resolveMaskExecutionPlan(args: {
+  readonly providerId: ImageCatalogProviderId;
+  readonly capabilityModelId: string;
+  readonly hasReadyMask: boolean;
+}): MaskExecutionPlan {
+  if (!args.hasReadyMask) {
+    return { kind: 'none' };
+  }
+
+  const resolved = tryResolveImageModelRule({
+    providerId: args.providerId,
+    modelId: args.capabilityModelId,
+  });
+  if (resolved === undefined || resolved.matchKind === 'default') {
+    return { kind: 'unsupported', reason: 'no-explicit-raster-mask-capability' };
+  }
+
+  const nativeMask = resolved.capability.editInput?.mask;
+  if (args.providerId === 'image-endpoint' && nativeMask !== undefined) {
+    return {
+      kind: 'provider-native',
+      transport: 'image-endpoint',
+      capability: nativeMask,
+    };
+  }
+
+  if (args.providerId === 'gemini-generate-content' || args.providerId === 'chat-image') {
+    return {
+      kind: 'semantic-only',
+      reason: 'transport-has-no-separate-raster-mask-field',
+    };
+  }
+
+  return { kind: 'unsupported', reason: 'selected-model-has-no-raster-mask-capability' };
 }
 
 export function resolveImageModelRule(args: {

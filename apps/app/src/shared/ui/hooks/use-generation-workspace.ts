@@ -1,9 +1,17 @@
-import { useCallback, useMemo, useState } from 'react';
-import type { ProviderProfile, WorkflowMappingProjection } from '@imagen-ps/application';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import {
+  resolveProviderMaskExecutionPlan,
+  type MaskExecutionPlan,
+  type ProviderProfile,
+  type WorkflowMappingProjection,
+} from '@imagen-ps/application';
 import type { ComfyUiManagementController } from './use-comfyui-management';
 import type { ConversationController } from './use-conversation';
 import { derivePlacementIntent, type ConversationAttachment } from './use-conversation';
 import type { ComposerDraftController } from './use-composer-draft';
+import { MaskCoordinator, type MaskCoordinatorAttachment } from '../../domain/mask-coordinator';
+import type { MaskBindingState, MaskPreference } from '../../domain/edit-region';
+import type { MaskCoordinatorPort } from '../../domain/mask-coordinator';
 import { useI18n } from '../i18n/i18n-context';
 import {
   buildComfyUiComposerViewModel,
@@ -23,6 +31,7 @@ import {
 } from '../composer-readiness';
 
 export interface GenerationWorkspaceOptions {
+  readonly host: MaskCoordinatorPort & { releaseDraftAsset(asset: import('../../domain/host-image-asset').HostImageAsset): Promise<void> };
   readonly conversation: ConversationController;
   readonly composerDraft: ComposerDraftController;
   readonly comfyUi: ComfyUiManagementController;
@@ -41,7 +50,17 @@ export interface GenerationWorkspaceOptions {
   readonly modelGenerationSettings: ModelGenerationSettingsController;
 }
 
-function readinessMessage(messages: ReturnType<typeof useI18n>['messages'], state: ComposerReadinessState): string {
+/** Composer 只在当前 execution target 能消费 canonical Mask 时启用开关。 */
+export function isMaskToggleDisabled(input: {
+  readonly hasPhotoshopPrimary: boolean;
+  readonly mode: GenerationMode;
+  readonly providerPlan: MaskExecutionPlan;
+}): boolean {
+  return !input.hasPhotoshopPrimary
+    || (input.mode === 'provider' && input.providerPlan.kind !== 'provider-native');
+}
+
+function readinessMessage(messages: ReturnType<typeof useI18n>['messages'], state: ComposerReadinessState | 'mask-loading' | 'mask-error'): string {
   switch (state) {
     case 'ready': return messages.main.readinessReady;
     case 'select-profile': return messages.main.readinessSelectProfile;
@@ -57,6 +76,8 @@ function readinessMessage(messages: ReturnType<typeof useI18n>['messages'], stat
     case 'size-unsupported': return messages.main.readinessSizeUnsupported;
     case 'resolve-placement-conflict': return messages.main.readinessPlacementConflict;
     case 'enter-prompt': return messages.main.readinessEnterPrompt;
+    case 'mask-loading': return messages.main.maskLoading;
+    case 'mask-error': return messages.main.maskError;
   }
 }
 
@@ -97,8 +118,54 @@ export function useGenerationWorkspace(options: GenerationWorkspaceOptions): Gen
   const [generationMode, setGenerationMode] = useState<GenerationMode>(options.comfyUi.runtime ? 'comfyui' : 'provider');
   const [settingsRoute, setSettingsRoute] = useState<GenerationSettingsRoute>(generationMode);
   const [attachmentPreparing, setAttachmentPreparing] = useState(false);
+  const [maskPreference, setMaskPreference] = useState<MaskPreference>({ enabled: false });
+  const [maskState, setMaskState] = useState<MaskBindingState>({ kind: 'disabled' });
+  const maskCoordinatorRef = useRef<MaskCoordinator | undefined>(undefined);
+  if (!maskCoordinatorRef.current) {
+    maskCoordinatorRef.current = new MaskCoordinator({
+      host: options.host,
+      releaseDraftAsset: options.host.releaseDraftAsset,
+      onStateChange: setMaskState,
+    });
+  }
+  const maskCoordinator = maskCoordinatorRef.current;
   const { input, attachments, operation } = composerDraft;
   const selectedModel = options.models.find((model) => model.id === options.selectedModelId);
+  const photoshopPrimary = attachments[0]?.photoshopPlacement !== undefined;
+  const providerMaskPlan = options.selectedProfile && selectedModel
+    ? resolveProviderMaskExecutionPlan({
+        apiFormat: options.selectedProfile.apiFormat,
+        capabilityModelId: selectedModel.id,
+        hasReadyMask: true,
+      })
+    : { kind: 'unsupported' as const, reason: 'no-selected-provider-target' };
+  const providerMaskSupported = providerMaskPlan.kind === 'provider-native';
+  const maskToggleDisabled = isMaskToggleDisabled({
+    hasPhotoshopPrimary: photoshopPrimary,
+    mode: generationMode,
+    providerPlan: providerMaskPlan,
+  });
+  const effectiveMaskPreference = useMemo(() => ({
+    enabled: maskPreference.enabled
+      && (generationMode !== 'provider' || providerMaskSupported),
+  } as const), [generationMode, maskPreference.enabled, providerMaskSupported]);
+  const maskAttachments = useMemo<readonly MaskCoordinatorAttachment[]>(() => attachments.map((attachment) => ({
+    id: attachment.id,
+    image: attachment.image,
+    ...(attachment.photoshopPlacement ? { photoshopPlacement: attachment.photoshopPlacement } : {}),
+    ...(attachment.mask ? { selectionMask: attachment.mask } : {}),
+  })), [attachments]);
+
+  useEffect(() => {
+    void maskCoordinator.reconcile(maskAttachments, effectiveMaskPreference);
+  }, [effectiveMaskPreference, maskAttachments, maskCoordinator]);
+
+  useEffect(() => () => {
+    void maskCoordinator.destroy();
+  }, [maskCoordinator]);
+  const maskBlocksSubmit = photoshopPrimary
+    && effectiveMaskPreference.enabled
+    && (maskState.kind === 'loading' || maskState.kind === 'error');
   const placementIntent = useMemo(
     () => derivePlacementIntent(attachments, generationMode === 'comfyui' ? undefined : options.modelGenerationSettings.outputSelection ?? undefined),
     [attachments, generationMode, options.modelGenerationSettings.outputSelection],
@@ -120,11 +187,11 @@ export function useGenerationWorkspace(options: GenerationWorkspaceOptions): Gen
     prompt: input,
   });
   const providerReadinessProjection: GenerationReadinessProjection = {
-    canSend: providerReadiness.canSend,
-    state: providerReadiness.state,
-    message: readinessMessage(t, providerReadiness.state),
+    canSend: providerReadiness.canSend && !maskBlocksSubmit,
+    state: maskBlocksSubmit ? (maskState.kind === 'loading' ? 'mask-loading' : 'mask-error') : providerReadiness.state,
+    message: readinessMessage(t, maskBlocksSubmit ? (maskState.kind === 'loading' ? 'mask-loading' : 'mask-error') : providerReadiness.state),
   };
-  const comfyReady = Boolean(options.comfyUi.runtime) && !attachmentPreparing;
+  const comfyReady = Boolean(options.comfyUi.runtime) && !attachmentPreparing && !maskBlocksSubmit;
   const comfyMapping = mappingForComposer(options.comfyUi.mappingProjection, attachments, input);
   const viewModel = generationMode === 'provider'
     ? buildProviderComposerViewModel({
@@ -162,9 +229,16 @@ export function useGenerationWorkspace(options: GenerationWorkspaceOptions): Gen
     await options.selectProfile(profileId);
   }, [options]);
   const selectModel = useCallback((modelId: string) => options.selectModel(modelId), [options]);
+  const setMaskEnabled = useCallback((enabled: boolean) => setMaskPreference({ enabled }), []);
+  const retryMask = useCallback(() => {
+    void maskCoordinator.reconcile(maskAttachments, effectiveMaskPreference);
+  }, [effectiveMaskPreference, maskAttachments, maskCoordinator]);
   const send = useCallback(async (prompt: string): Promise<boolean> => {
     const intent = viewModel.submitIntent;
-    if (!intent || !viewModel.readiness.canSend) return false;
+    if (!intent || !viewModel.readiness.canSend || maskBlocksSubmit) return false;
+    const editRegion = maskState.kind === 'ready' && (intent.backend !== 'provider' || providerMaskSupported)
+      ? maskState.editRegion
+      : undefined;
     if (intent.backend === 'provider') {
       return options.conversation.submit({
         operation: intent.operation,
@@ -174,6 +248,7 @@ export function useGenerationWorkspace(options: GenerationWorkspaceOptions): Gen
         apiFormat: intent.apiFormat,
         ...(intent.modelId ? { modelId: intent.modelId } : {}),
         attachments,
+        ...(editRegion ? { editRegion } : {}),
         ...(intent.output ? { output: { count: 1, selection: intent.output } } : {}),
         ...(intent.providerInputSizePreset ? { providerInputSizePreset: intent.providerInputSizePreset } : {}),
         onPrepared: () => composerDraft.reset({ releaseAttachments: false }),
@@ -191,15 +266,17 @@ export function useGenerationWorkspace(options: GenerationWorkspaceOptions): Gen
       selectedWorkflowId: intent.selectedWorkflowId,
       workflowName: workflow.identity.displayName,
       attachments,
+      ...(editRegion ? { editRegion } : {}),
       revision: intent.revision,
       formValues: intent.formValues,
       mappings: intent.mappings,
       mutations: intent.mutations,
       ...(intent.imageInputRef ? { imageInputRef: intent.imageInputRef } : {}),
+      ...(intent.maskBinding ? { maskBinding: intent.maskBinding } : {}),
       executionAttachments: intent.mappings.image ? attachments.slice(0, 1) : [],
       onPrepared: () => composerDraft.reset({ releaseAttachments: false }),
     });
-  }, [attachments, composerDraft, options, viewModel]);
+  }, [attachments, composerDraft, maskBlocksSubmit, maskState, options, providerMaskSupported, viewModel]);
 
   return {
     generationMode,
@@ -213,6 +290,11 @@ export function useGenerationWorkspace(options: GenerationWorkspaceOptions): Gen
     setGenerationMode: setMode,
     setSettingsRoute,
     setAttachmentPreparing,
+    maskPreference,
+    maskState,
+    maskToggleDisabled,
+    setMaskEnabled,
+    retryMask,
     send,
     selectProfile,
     selectModel,

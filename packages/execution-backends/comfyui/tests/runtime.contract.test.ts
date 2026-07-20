@@ -3,11 +3,24 @@ import { detectAndAdmitComfyUiWorkflowDocument } from '../src/graph.js';
 import { convertComfyUiApiWorkflowToForm, convertComfyUiFrontendWorkflowToForm, projectWorkflowParameters } from '../src/form.js';
 import { validateComfyUiExecutionResult } from '../src/execution-types.js';
 import { downloadAndStoreComfyUiOutputs, observeKnownComfyUiPrompt } from '../src/observation.js';
-import { executeComfyUiApiGraph } from '../src/drivers.js';
+import { executeComfyUiApiGraph, executeComfyUiFrontendQueue } from '../src/drivers.js';
+import { COMFYUI_BRIDGE_LIMITS } from '../src/bridge.js';
 import { createComfyUiExecutionAdapter } from '../src/adapter.js';
+import { prepareComfyUiUploads } from '../src/assets.js';
 
 const encoder = new TextEncoder();
 const connection = { baseUrl: 'https://example.test', requestTimeoutMs: 1_000, observationTimeoutMs: 1_000 };
+
+function writeUint16LE(bytes: Uint8Array, offset: number, value: number): void { bytes[offset] = value & 0xff; bytes[offset + 1] = (value >>> 8) & 0xff; }
+function writeUint32BE(bytes: Uint8Array, offset: number, value: number): void { bytes[offset] = value >>> 24; bytes[offset + 1] = value >>> 16; bytes[offset + 2] = value >>> 8; bytes[offset + 3] = value; }
+function crc32(bytes: Uint8Array, offset = 0, length = bytes.byteLength - offset): number { let crc = 0xffffffff; for (let index = offset; index < offset + length; index += 1) { crc ^= bytes[index]; for (let bit = 0; bit < 8; bit += 1) crc = (crc >>> 1) ^ (crc & 1 ? 0xedb88320 : 0); } return (crc ^ 0xffffffff) >>> 0; }
+function adler32(bytes: Uint8Array): number { let a = 1; let b = 0; for (const byte of bytes) { a = (a + byte) % 65521; b = (b + a) % 65521; } return ((b << 16) | a) >>> 0; }
+function chunk(type: string, data: Uint8Array): Uint8Array { const value = new Uint8Array(data.byteLength + 12); writeUint32BE(value, 0, data.byteLength); for (let index = 0; index < 4; index += 1) value[index + 4] = type.charCodeAt(index); value.set(data, 8); writeUint32BE(value, data.byteLength + 8, crc32(value, 4, data.byteLength + 4)); return value; }
+function canonicalMask(values: readonly number[]): Uint8Array {
+  const raw = Uint8Array.of(0, ...values); const zlib = new Uint8Array(raw.byteLength + 11); zlib.set([0x78, 0x01, 1], 0); writeUint16LE(zlib, 3, raw.byteLength); writeUint16LE(zlib, 5, (~raw.byteLength) & 0xffff); zlib.set(raw, 7); writeUint32BE(zlib, raw.byteLength + 7, adler32(raw));
+  const ihdr = new Uint8Array(13); writeUint32BE(ihdr, 0, values.length); writeUint32BE(ihdr, 4, 1); ihdr[8] = 8;
+  const parts = [Uint8Array.of(137, 80, 78, 71, 13, 10, 26, 10), chunk('IHDR', ihdr), chunk('IDAT', zlib), chunk('IEND', new Uint8Array())]; const result = new Uint8Array(parts.reduce((total, part) => total + part.byteLength, 0)); let offset = 0; for (const part of parts) { result.set(part, offset); offset += part.byteLength; } return result;
+}
 
 describe('ComfyUI internal runtime', () => {
   it('admits API graph and exposes only # primitive widgets', () => {
@@ -155,6 +168,98 @@ describe('ComfyUI internal runtime', () => {
     const prompt = postedPrompt?.prompt as Record<string, { readonly inputs: Record<string, unknown> }>;
     expect(prompt['1'].inputs.image).toBe('first.png');
     expect(prompt['2'].inputs.image).toBe('uploaded.png');
+  });
+
+  it('injects Mask only into explicit binding and preserves unrelated image values', async () => {
+    let postedPrompt: Record<string, unknown> | undefined;
+    const graph = {
+      '1': { class_type: 'LoadImage', inputs: { image: 'saved-mask.png' }, _meta: { title: 'Mask' } },
+      '2': { class_type: 'LoadImage', inputs: { image: 'saved-primary.png' }, _meta: { title: 'Primary' } },
+      '3': { class_type: 'LoadImage', inputs: { image: 'untouched.png' }, _meta: { title: 'Other' } },
+      '4': { class_type: 'PreviewImage', inputs: { images: ['2', 0] }, _meta: { title: 'Preview' } },
+    };
+    await executeComfyUiApiGraph(
+      {
+        connection,
+        source: { kind: 'api-graph', workflowId: 'wf', revision: 'r1', graph, objectInfo: { LoadImage: { input: { required: { image: ['STRING', { image_upload: true }] } } } } },
+        images: [],
+        imageInputRef: { nodeId: '2', inputName: 'image' },
+        mask: { asset: { storedRef: { kind: 'inline', ref: 'mask' }, width: 2, height: 1 }, binding: { transport: 'separate-image-input', inputRef: { nodeId: '1', inputName: 'image' }, polarity: 'white-edit' } },
+      },
+      { imageValues: ['uploaded-primary.png'], maskValue: 'uploaded-mask.png' },
+      {
+        transport: { request: async (request) => {
+          if (request.method === 'POST') { postedPrompt = JSON.parse(new TextDecoder().decode(request.body)) as Record<string, unknown>; return { status: 200, headers: {}, body: encoder.encode(JSON.stringify({ prompt_id: 'prompt' })) }; }
+          return { status: 200, headers: {}, body: encoder.encode(JSON.stringify({ prompt: { status: { status_str: 'success', completed: true }, outputs: {} } })) };
+        } },
+        sink: { put: async () => ({ kind: 'inline', ref: 'unused' }) },
+      },
+    );
+    const prompt = postedPrompt?.prompt as Record<string, { readonly inputs: Record<string, unknown> }>;
+    expect(prompt['1'].inputs.image).toBe('uploaded-mask.png');
+    expect(prompt['2'].inputs.image).toBe('uploaded-primary.png');
+    expect(prompt['3'].inputs.image).toBe('untouched.png');
+  });
+
+  it('inverts canonical grayscale Mask only for black-edit binding', async () => {
+    const uploadedBodies: Uint8Array[] = [];
+    const result = await prepareComfyUiUploads(
+      { connection, images: [], mask: { asset: { storedRef: { kind: 'inline', ref: 'mask' }, width: 2, height: 1 }, polarity: 'black-edit' } },
+      {
+        resolver: { resolve: async () => ({ bytes: canonicalMask([0, 255]), mimeType: 'image/png' }) },
+        transport: { request: async (request) => { uploadedBodies.push(request.body ?? new Uint8Array()); return { status: 200, headers: {}, body: encoder.encode(JSON.stringify({ name: 'mask.png', subfolder: '', type: 'input' })) }; } },
+      },
+    );
+    expect(result).toEqual({ imageValues: [], maskValue: 'mask.png' });
+    expect(uploadedBodies).toHaveLength(1);
+    expect(uploadedBodies[0].some((value, index, values) => values[index] === 0 && values[index + 1] === 255 && values[index + 2] === 0)).toBe(true);
+  });
+
+  it('sends frontend Mask only through explicit widget binding', async () => {
+    let submit: Record<string, unknown> | undefined;
+    const identity = { origin: 'https://example.test', sourceId: 'source', loadId: 'load' };
+    await executeComfyUiFrontendQueue(
+      {
+        connection,
+        source: { kind: 'frontend-workflow', workflowId: 'wf', revision: 'r1', remotePath: 'workflow.json' },
+        images: [],
+        imageInputRef: { nodeId: 'primary', widgetIndex: 0 },
+        mask: { asset: { storedRef: { kind: 'inline', ref: 'mask' }, width: 1, height: 1 }, binding: { transport: 'separate-image-input', inputRef: { nodeId: 'mask', widgetIndex: 1 }, polarity: 'white-edit' } },
+      },
+      { imageValues: ['primary.png'], maskValue: 'mask.png' },
+      {
+        bridgeResolver: { resolve: async () => ({ identity, exchange: async (request) => {
+          if (request.command === 'handshake') return { requestId: request.requestId, ok: true, payload: { identity, protocolVersion: 1, bridgeVersion: 'test', frontendVersion: 'test', coreVersion: 'test', capabilities: { nativeQueue: true, workflowDiscovery: true, receiptObserver: true }, limits: COMFYUI_BRIDGE_LIMITS } };
+          submit = request.payload as Record<string, unknown>;
+          return { requestId: request.requestId, ok: true, payload: { operationId: (request.payload as { operationId: string }).operationId, promptId: 'prompt', acknowledgedAt: 1 } };
+        } }) },
+        transport: { request: async () => ({ status: 200, headers: {}, body: encoder.encode(JSON.stringify({ prompt: { status: { status_str: 'success', completed: true }, outputs: {} } })) }) },
+        sink: { put: async () => ({ kind: 'inline', ref: 'unused' }) },
+      },
+    );
+    expect(submit?.mutations).toEqual([
+      { ref: { nodeId: 'primary', widgetIndex: 0 }, value: 'primary.png' },
+      { ref: { nodeId: 'mask', widgetIndex: 1 }, value: 'mask.png' },
+    ]);
+  });
+
+  it('stops before /prompt when Mask upload barrier fails', async () => {
+    const paths: string[] = [];
+    let bridgeResolves = 0;
+    const adapter = createComfyUiExecutionAdapter({
+      assetResolver: { resolve: async () => undefined },
+      assetSink: { put: async () => ({ kind: 'inline', ref: 'unused' }) },
+      httpTransport: { request: async (request) => { paths.push(request.path); return { status: 200, headers: {}, body: encoder.encode(JSON.stringify({ prompt_id: 'must-not-submit' })) }; } },
+      frontendBridgeResolver: { resolve: async () => { bridgeResolves += 1; return undefined; } },
+    });
+    await expect(adapter.dispatch({ request: {
+      connection,
+      source: { kind: 'frontend-workflow', workflowId: 'wf', revision: 'r1', remotePath: 'workflow.json' },
+      images: [],
+      mask: { asset: { storedRef: { kind: 'inline', ref: 'missing-mask' }, width: 1, height: 1 }, binding: { transport: 'separate-image-input', inputRef: { nodeId: '1', inputName: 'image' }, polarity: 'white-edit' } },
+    } })).rejects.toMatchObject({ details: { stage: 'prepare', code: 'asset-unavailable' } });
+    expect(paths).not.toContain('/prompt');
+    expect(bridgeResolves).toBe(0);
   });
 
   it('fast-fails known no-output metadata without native submission', async () => {

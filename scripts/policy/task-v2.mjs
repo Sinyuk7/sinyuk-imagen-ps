@@ -62,7 +62,7 @@ function sectionViolation(repoRoot, file, start, end, pattern, rule) {
   return [{ rule, file, line, text: section.split('\n')[line - text.slice(0, startIndex).split('\n').length]?.trim() ?? '' }];
 }
 
-/** 检查 Task v2 原子切换，不允许旧 writer、fallback 或 Core ownership 回流。 */
+/** 检查 Task v3 原子切换，不允许旧 writer、fallback 或 Core ownership 回流。 */
 export function checkTaskV2(repoRoot) {
   const files = existingFiles(repoRoot, taskSurfaceFiles);
   const genericConsumerFiles = existingFiles(repoRoot, [
@@ -84,14 +84,14 @@ export function checkTaskV2(repoRoot) {
     ...requiredTextViolation(
       repoRoot,
       'packages/application/src/task.ts',
-      'export const TASK_RECORD_SCHEMA_VERSION = 2;',
-      'Task record schemaVersion 必须固定为 2',
+      'export const TASK_RECORD_SCHEMA_VERSION = 3;',
+      'Task record schemaVersion 必须固定为 3',
     ),
     ...requiredTextViolation(
       repoRoot,
       'apps/app/src/shared/domain/task-snapshot.ts',
       'schemaVersion: TASK_RECORD_SCHEMA_VERSION',
-      'App Task producer 必须使用 v2 schema authority',
+      'App Task producer 必须使用 v3 schema authority',
     ),
     ...sectionViolation(
       repoRoot,

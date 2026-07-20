@@ -92,11 +92,51 @@ const normalizedInputContextSchema = z.object({
   }).optional(),
 });
 
+const canonicalMaskImageSchema = z.object({
+  asset: assetRefSchema,
+  targetAttachmentId: z.string().min(1),
+  dimensions: z.object({
+    width: z.number().int().positive(),
+    height: z.number().int().positive(),
+  }),
+  encoding: z.literal('grayscale-png'),
+  bitDepth: z.literal(8),
+  polarity: z.literal('white-edit'),
+});
+
+const maskCapabilitySchema = z.object({
+  canonicalEncoding: z.literal('grayscale-png'),
+  canonicalPolarity: z.literal('white-edit'),
+  target: z.literal('first-input'),
+  wireFormat: z.literal('png'),
+  wirePolarity: z.literal('alpha-zero-edit'),
+  requiresSameDimensions: z.literal(true),
+  maxBytes: z.number().int().positive(),
+});
+
+const maskExecutionPlanSchema = z.discriminatedUnion('kind', [
+  z.object({ kind: z.literal('none') }),
+  z.object({
+    kind: z.literal('provider-native'),
+    transport: z.literal('image-endpoint'),
+    capability: maskCapabilitySchema,
+  }),
+  z.object({
+    kind: z.literal('comfyui-separate-image-input'),
+    inputRef: z.string().min(1),
+    polarity: z.union([z.literal('white-edit'), z.literal('black-edit')]),
+  }),
+  z.object({ kind: z.literal('semantic-only'), reason: z.string().min(1) }),
+  z.object({ kind: z.literal('unsupported'), reason: z.string().min(1) }),
+]);
+
 export const mockRequestSchema = z.object({
   operation: z.union([z.literal('text_to_image'), z.literal('image_edit')]),
   prompt: z.string().min(1),
   images: z.preprocess(coerceOptionalArray, z.array(assetRefSchema).optional()),
-  maskImage: z.preprocess(coerceOptionalObject, assetRefSchema.optional()),
+  primaryAttachmentId: z.string().min(1).optional(),
+  maskImage: z.preprocess(coerceOptionalObject, canonicalMaskImageSchema.optional()),
+  maskExecutionPlan: z.preprocess(coerceOptionalObject, maskExecutionPlanSchema.optional()),
   output: z.preprocess(
     coerceOptionalObject,
     z
@@ -122,6 +162,38 @@ export const mockRequestSchema = z.object({
   capabilityModelId: z.string().min(1).optional(),
   inputContext: z.preprocess(coerceOptionalObject, normalizedInputContextSchema.optional()),
   providerOptions: z.preprocess(coerceOptionalObject, z.record(z.string(), z.unknown()).optional()),
+}).superRefine((request, context) => {
+  if (request.maskImage === undefined) {
+    return;
+  }
+  if (request.maskExecutionPlan === undefined || request.maskExecutionPlan.kind === 'none') {
+    context.addIssue({
+      code: 'custom',
+      path: ['maskExecutionPlan'],
+      message: 'Canonical Mask requires an explicit non-none maskExecutionPlan.',
+    });
+  }
+  if (request.primaryAttachmentId === undefined || request.primaryAttachmentId !== request.maskImage.targetAttachmentId) {
+    context.addIssue({
+      code: 'custom',
+      path: ['primaryAttachmentId'],
+      message: 'Canonical Mask must target the declared primary attachment.',
+    });
+  }
+  if (request.maskExecutionPlan?.kind === 'provider-native') {
+    const primary = request.inputContext?.primaryEditInput;
+    if (
+      primary === undefined
+      || primary.width !== request.maskImage.dimensions.width
+      || primary.height !== request.maskImage.dimensions.height
+    ) {
+      context.addIssue({
+        code: 'custom',
+        path: ['inputContext', 'primaryEditInput'],
+        message: 'Native Mask requires primary provider-input dimensions equal to Mask dimensions.',
+      });
+    }
+  }
 });
 
 /** 从 schema 推导的 MockProviderRequest 类型。 */

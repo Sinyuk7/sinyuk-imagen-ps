@@ -315,6 +315,12 @@ export function createFakeModules(options?: {
   readonly layerData?: Uint8Array | Uint16Array | Float32Array;
   readonly maskColorSpace?: string;
   readonly selectionData?: Uint8Array;
+  readonly layerMaskData?: Uint8Array;
+  readonly layerMaskResultSize?: { readonly width: number; readonly height: number };
+  readonly layerMaskResultSourceBounds?: { readonly left: number; readonly top: number; readonly right: number; readonly bottom: number };
+  readonly layerMaskMissing?: boolean;
+  readonly layerMaskMissingImageData?: boolean;
+  readonly layerMaskError?: Error;
   readonly selectionBounds?: { readonly left: number; readonly top: number; readonly right: number; readonly bottom: number } | null;
   readonly activeLayerBounds?: { readonly _left: number; readonly _top: number; readonly _right: number; readonly _bottom: number };
   readonly pixelResultSourceBounds?: { readonly left: number; readonly top: number; readonly right: number; readonly bottom: number };
@@ -365,7 +371,7 @@ export function createFakeModules(options?: {
       dispose: disposeLayer,
     };
   };
-  const createMaskImageData = (width = 64, height = 64) => {
+  const createMaskImageData = (width = 64, height = 64, dataOverride?: Uint8Array) => {
     const maskBytes = new Uint8Array(width * height);
     maskBytes.fill(255);
     return {
@@ -374,7 +380,7 @@ export function createFakeModules(options?: {
       colorSpace: options?.maskColorSpace ?? 'Grayscale',
       components: 1,
       pixelFormat: 'Grayscale',
-      getData: vi.fn(async () => options?.selectionData ?? maskBytes),
+      getData: vi.fn(async () => dataOverride ?? options?.selectionData ?? maskBytes),
       dispose: disposeMask,
     };
   };
@@ -393,7 +399,23 @@ export function createFakeModules(options?: {
     ),
     ...(options?.selectionResultSourceBounds ? { sourceBounds: options.selectionResultSourceBounds } : {}),
   }));
-  const getLayerMask = vi.fn(async () => ({ imageData: createMaskImageData() }));
+  const getLayerMask = vi.fn(async (request?: { readonly targetSize?: { readonly width?: number; readonly height?: number } }) => {
+    if (options?.layerMaskError) throw options.layerMaskError;
+    if (options?.layerMaskMissing) return undefined;
+    if (options?.layerMaskMissingImageData) {
+      return {
+        sourceBounds: { left: 0, top: 0, right: 0, bottom: 0 },
+      };
+    }
+    return {
+      imageData: createMaskImageData(
+        options?.layerMaskResultSize?.width ?? request?.targetSize?.width,
+        options?.layerMaskResultSize?.height ?? request?.targetSize?.height,
+        options?.layerMaskData,
+      ),
+      ...(options?.layerMaskResultSourceBounds ? { sourceBounds: options.layerMaskResultSourceBounds } : {}),
+    };
+  });
   const encodeImageData = vi.fn(async () => new Uint8Array([0xff, 0xd8, 0xff, 0xd9]));
   const getFileForOpening = vi.fn(async () => ({
     name: pickedFileName,

@@ -6,16 +6,19 @@ import type {
   Asset,
   StoredAssetRef,
   TaskAttachment,
+  TaskEditRegion,
   TaskPlacement,
   TaskRecord,
   TaskResourceRef,
+  Rect,
 } from '@imagen-ps/application';
+import type { EditRegion } from './edit-region';
 import type { HostImageAsset } from './host-image-asset';
 import type { PlacementIntent, PhotoshopCapturePlacement, PhotoshopRect } from './photoshop-placement';
 
 export interface TaskSnapshotAttachmentInput {
   readonly id: string;
-  readonly type: 'layer' | 'file' | 'photoshop-capture' | 'selection-mask';
+  readonly type: 'layer' | 'file' | 'photoshop-capture';
   readonly name: string;
   readonly image: HostImageAsset;
   readonly photoshopPlacement?: PhotoshopCapturePlacement;
@@ -26,6 +29,7 @@ interface CreateRunningTaskRecordInput {
   readonly operation: TaskRecord['operation'];
   readonly prompt: string;
   readonly attachments: readonly TaskSnapshotAttachmentInput[];
+  readonly editRegion?: EditRegion;
   readonly placementIntent: PlacementIntent;
   readonly execution: TaskExecutionSummary;
   readonly createdAt: string;
@@ -85,7 +89,7 @@ function taskResourceFromDerivative(attachment: TaskSnapshotAttachmentInput): Ta
   };
 }
 
-function rectEvidence(rect: PhotoshopRect): Record<string, number> {
+function rectEvidence(rect: PhotoshopRect): Rect {
   return {
     left: rect.left,
     top: rect.top,
@@ -121,9 +125,6 @@ function photoshopEvidence(attachment: TaskSnapshotAttachmentInput, placement: P
 }
 
 function attachmentKind(attachment: TaskSnapshotAttachmentInput): string {
-  if (attachment.type === 'selection-mask') {
-    return 'selection-mask';
-  }
   if (attachment.type === 'photoshop-capture') {
     return 'photoshop-capture';
   }
@@ -131,6 +132,27 @@ function attachmentKind(attachment: TaskSnapshotAttachmentInput): string {
     return 'photoshop-layer';
   }
   return 'local-file';
+}
+
+function taskEditRegionFromReadyEditRegion(editRegion: EditRegion): TaskEditRegion {
+  return {
+    targetAttachmentId: editRegion.targetAttachmentId,
+    source: {
+      host: 'photoshop',
+      kind: editRegion.source.kind,
+      documentId: editRegion.source.documentId,
+      layerId: editRegion.source.layerId,
+    },
+    geometry: {
+      sourceBounds: rectEvidence(editRegion.geometry.sourceBounds),
+      targetWidth: editRegion.geometry.targetSize.width,
+      targetHeight: editRegion.geometry.targetSize.height,
+    },
+    mask: taskResourceFromAsset(editRegion.mask.asset.asset, editRegion.geometry.targetSize),
+    encoding: editRegion.mask.encoding,
+    bitDepth: editRegion.mask.bitDepth,
+    polarity: editRegion.mask.polarity,
+  };
 }
 
 function taskAttachmentFromConversation(attachment: TaskSnapshotAttachmentInput): TaskAttachment {
@@ -213,6 +235,7 @@ export function createRunningTaskRecord(input: CreateRunningTaskRecordInput): Ta
     prompt: input.prompt,
     attachments: input.attachments.map(taskAttachmentFromConversation),
     outputs: [],
+    ...(input.editRegion !== undefined ? { editRegion: taskEditRegionFromReadyEditRegion(input.editRegion) } : {}),
     placement: placementFromIntent(input.placementIntent, input.attachments),
     execution: input.execution,
     createdAt: input.createdAt,

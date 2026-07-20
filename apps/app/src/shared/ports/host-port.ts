@@ -1,7 +1,7 @@
 import type { Asset } from '@imagen-ps/application';
 import type { HostImageAsset } from '../domain/host-image-asset';
-import type { PhotoshopCaptureResult, PlacementIntent } from '../domain/photoshop-placement';
-import type { ProviderInputSizePolicy } from '../image/resize';
+import type { PhotoshopCaptureResult, PhotoshopRect, PlacementIntent } from '../domain/photoshop-placement';
+import type { ImageSize, ProviderInputSizePolicy } from '../image/resize';
 import type { RuntimeImageUrl } from '../image/runtime-image-url';
 
 export interface LayerInfo {
@@ -54,6 +54,14 @@ export interface RuntimeCapabilities {
   readonly unsupportedReasons?: Readonly<Record<string, string>>;
 }
 
+/** Photoshop user layer mask 的已冻结 provider-input frame。 */
+export interface ReadLayerMaskAsAssetInput {
+  readonly documentId: number;
+  readonly layerId: number;
+  readonly sourceBounds: PhotoshopRect;
+  readonly targetSize: ImageSize;
+}
+
 export interface HostPort {
   readonly capabilities: RuntimeCapabilities;
   /**
@@ -63,7 +71,8 @@ export interface HostPort {
   pickImageFile(policy: ProviderInputSizePolicy): Promise<HostImageAsset | undefined>;
   captureActiveImage(policy: ProviderInputSizePolicy): Promise<PhotoshopCaptureResult>;
   readLayerAsAsset(layerId: number, policy: ProviderInputSizePolicy): Promise<HostImageAsset>;
-  readLayerMaskAsAsset(layerId: number): Promise<HostImageAsset | undefined>;
+  readLayerMaskAsAsset(input: ReadLayerMaskAsAssetInput): Promise<HostImageAsset | undefined>;
+  releaseDraftAsset(asset: HostImageAsset): Promise<void>;
   placeAssetOnCanvas(asset: Asset, placement: PlacementIntent): Promise<void>;
   saveAssetToFile(asset: Asset, options?: SaveAssetToFileOptions): Promise<void>;
   /**
@@ -125,7 +134,10 @@ export function createHostBridgeStub(): HostBridge {
       throw new Error(`Photoshop layer read is unavailable outside UXP. layerId=${layerId}`);
     },
     async readLayerMaskAsAsset(): Promise<HostImageAsset | undefined> {
-      return undefined;
+      throw new Error('Photoshop layer mask acquisition is unavailable outside UXP.');
+    },
+    async releaseDraftAsset(asset: HostImageAsset): Promise<void> {
+      asset.preview.dispose?.();
     },
     async placeAssetOnCanvas(_asset: Asset, _placement: PlacementIntent): Promise<void> {
       throw new Error('Photoshop writeback is unavailable outside UXP.');

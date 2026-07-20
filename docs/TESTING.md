@@ -137,18 +137,21 @@ ComfyUI evidence has three non-interchangeable tiers:
   Form conversion, the persistence allowlist, revision invalidation, optional
   mappings, upload barriers, native validation, one-shot drivers, Bridge
   lifecycle, output guards, empty-output Task projection, host transport, and
-  UI behavior without reading live credentials. Mask and unsupported custom
-  widgets retain their saved values and do not create plugin-side readiness
-  gates.
+  UI behavior without reading live credentials. They cover canonical
+  grayscale Mask bytes, same-frame source/target geometry, coordinator stale
+  completion cleanup, task snapshot/retry, explicit provider plans, and
+  revision-scoped ComfyUI bindings. Unsupported custom widgets retain saved
+  values and do not create plugin-side readiness gates.
 - Owner-local Chrome live gates use only environment-bound values such as
   `IMAGEN_COMFYUI_LIVE_BASE_URL`. The internal API Graph driver and product
   Frontend saved-workflow path each require a real image submission, server
   receipt, history/view download, and TaskOutput proof. These gates do not
-  exercise mask-specific materialization.
+  exercise a configured explicit Mask binding only when the owner supplies
+  suitable live credentials and workflow inputs.
 - Photoshop UXP proof is manual in the real host. It must cover capture,
   HTTP or WebView/Bridge submission, output placement, reload/destroy, and
-  cleanup. Mask runtime and proof belong to a future Change and are not part of
-  the current live gate. Chrome evidence never substitutes for this gate.
+  cleanup, plus selection and user-layer Mask acquisition where a real host is
+  available. Chrome evidence never substitutes for this gate.
 
 Mock success, build success, or a Bridge handshake alone is not live generation
 proof. Do not mark a live gate complete until real output bytes reach generic
@@ -651,6 +654,26 @@ node scripts/uxp-debug/uxp-debug.mjs --plugin-id com.imagen-ps.panel ancestors '
 
 Run commands serially against the UDT relay. For multiple targets, pass
 `--plugin-id com.imagen-ps.panel`.
+
+For a Mask change, use one real Photoshop document and record the result of
+this independent manual smoke before calling host proof complete:
+
+1. Capture a feathered 100x100 selection from a larger layer and confirm the
+   Composer reports ready, sends a 100x100 primary input and Mask, then clears
+   the draft after submit.
+2. With no selection, enable a user layer mask and confirm `getLayerMask()`
+   produces a ready Mask; remove that mask and confirm the state becomes
+   `none`; force a Host error and confirm retry remains available.
+3. Reorder or delete the primary while acquisition is pending, then reload the
+   panel. Confirm no stale ready state publishes and host-owned draft assets
+   are released on replacement and destroy.
+4. Repeat once with an explicitly bound ComfyUI Mask input when an owner-local
+   endpoint is configured. Confirm the primary image ref is unchanged and an
+   unbound Workflow sends no Mask.
+
+This procedure is manual-only because it requires a real Photoshop document,
+UDT relay, and optionally owner-local credentials. It is not part of `pnpm
+validate`; a Chrome simulator never substitutes for this evidence.
 
 The icon visual harness (`apps/app/harness/icon-visual/`) is a manual host
 harness for verifying that UXP panel icons render with non-zero rects inside

@@ -150,6 +150,9 @@ importers:
       '@imagen-ps/foundation':
         specifier: workspace:*
         version: link:../foundation
+      fast-png:
+        specifier: ^8.0.0
+        version: 8.0.0
       zod:
         specifier: ^4.3.6
         version: 4.3.6

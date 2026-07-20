@@ -16,6 +16,86 @@ import {
 import { createLogger, createMemorySink, createNullLogger as foundationNullLogger } from '@imagen-ps/foundation';
 
 describe('PhotoshopHostBridge write contract', () => {
+  it('stores a user layer mask as canonical grayscale PNG in the requested provider-input frame', async () => {
+    const { modules, spies } = createFakeModules({
+      layerMaskData: Uint8Array.from([0, 128, 255, 64]),
+      layerMaskResultSize: { width: 2, height: 2 },
+    });
+    const { bridge, assetStore } = createBridge(modules);
+
+    const mask = await bridge.readLayerMaskAsAsset({
+      documentId: 42,
+      layerId: 2,
+      sourceBounds: { left: 10, top: 20, right: 12, bottom: 22 },
+      targetSize: { width: 2, height: 2 },
+    });
+
+    expect(spies.getLayerMask).toHaveBeenCalledWith({
+      documentID: 42,
+      layerID: 2,
+      kind: 'user',
+      sourceBounds: { left: 10, top: 20, right: 12, bottom: 22 },
+      targetSize: { width: 2, height: 2 },
+      componentSize: 8,
+    });
+    expect(mask?.canonicalMask).toEqual({
+      encoding: 'grayscale',
+      bitDepth: 8,
+      size: { width: 2, height: 2 },
+    });
+    const decoded = decodePng(await resolveAssetBytes(assetStore, mask!.asset));
+    expect([...decoded.data]).toEqual([0, 128, 255, 64]);
+    expect(spies.disposeMask).toHaveBeenCalledTimes(1);
+  });
+
+  it('keeps confirmed no-mask distinct from acquisition errors', async () => {
+    const missing = createFakeModules({ layerMaskMissing: true });
+    const missingBridge = createBridge(missing.modules).bridge;
+    await expect(missingBridge.readLayerMaskAsAsset({
+      documentId: 42,
+      layerId: 2,
+      sourceBounds: { left: 0, top: 0, right: 2, bottom: 2 },
+      targetSize: { width: 2, height: 2 },
+    })).resolves.toBeUndefined();
+
+    const sentinel = createFakeModules({ layerMaskMissingImageData: true });
+    const sentinelBridge = createBridge(sentinel.modules).bridge;
+    await expect(sentinelBridge.readLayerMaskAsAsset({
+      documentId: 42,
+      layerId: 2,
+      sourceBounds: { left: 0, top: 0, right: 2, bottom: 2 },
+      targetSize: { width: 2, height: 2 },
+    })).resolves.toBeUndefined();
+
+    const failure = createFakeModules({ layerMaskError: new Error('getLayerMask failed') });
+    const failureBridge = createBridge(failure.modules).bridge;
+    await expect(failureBridge.readLayerMaskAsAsset({
+      documentId: 42,
+      layerId: 2,
+      sourceBounds: { left: 0, top: 0, right: 2, bottom: 2 },
+      targetSize: { width: 2, height: 2 },
+    })).rejects.toThrow('getLayerMask failed');
+  });
+
+  it('propagates layer-mask storage failures and disposes Photoshop imageData', async () => {
+    const { modules, spies } = createFakeModules({
+      layerMaskData: Uint8Array.from([255, 0, 128, 64]),
+      layerMaskResultSize: { width: 2, height: 2 },
+    });
+    const assetStore = createInMemoryAssetStore();
+    vi.spyOn(assetStore, 'put').mockRejectedValueOnce(new Error('mask storage failed'));
+    const bridge = createPhotoshopHostBridge(modules, { assetStore });
+
+    await expect(bridge.readLayerMaskAsAsset({
+      documentId: 42,
+      layerId: 2,
+      sourceBounds: { left: 0, top: 0, right: 2, bottom: 2 },
+      targetSize: { width: 2, height: 2 },
+    })).rejects.toThrow('mask storage failed');
+
+    expect(spies.disposeMask).toHaveBeenCalledTimes(1);
+  });
+
   it('placeAssetOnCanvas generates temporary file/session token and calls placeEvent inside a modal', async () => {
     const { modules, spies } = createFakeModules();
     const { bridge } = createBridge(modules);
@@ -529,7 +609,12 @@ describe('PhotoshopHostBridge write contract', () => {
     const { bridge } = createBridge(modules);
 
     const first = bridge.readLayerAsAsset(2, { maxSide: 2048 });
-    const second = bridge.readLayerMaskAsAsset(2);
+    const second = bridge.readLayerMaskAsAsset({
+      documentId: 42,
+      layerId: 2,
+      sourceBounds: { left: 0, top: 0, right: 64, bottom: 64 },
+      targetSize: { width: 64, height: 64 },
+    });
     await new Promise((resolve) => setTimeout(resolve, 0));
 
     expect(order).toEqual(['first-start']);

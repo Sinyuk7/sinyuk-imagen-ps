@@ -230,6 +230,9 @@ export const COMPOSER_CSS = `
 }
 .cmp-action-left{
 }
+.cmp-mask-toggle-host{ margin-left:6px; }
+.cmp-mask-toggle{ color:var(--app-color-text-secondary); }
+.cmp-mask-retry{ min-height:22px; margin-left:6px; padding:0 7px; font-size:10px; }
 .cmp-toolbar-left{
   flex:1 1 auto;
   min-width:124px;

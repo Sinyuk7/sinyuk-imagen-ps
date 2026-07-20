@@ -104,7 +104,7 @@ function hasInlineAssetData(asset: { readonly data?: unknown } | undefined): boo
 type ImageAsset = NonNullable<CanonicalImageJobRequest['images']>[number];
 
 function classifyAssetReferenceKind(
-  asset: ImageAsset | CanonicalImageJobRequest['maskImage'],
+  asset: ImageAsset | undefined,
 ): 'inline-data' | 'url' | 'fileId' | 'missing' | 'unknown' {
   if (asset === undefined) {
     return 'missing';
@@ -242,8 +242,9 @@ export function isImageEditCodecCompatible(
     if (request.maskImage === undefined) {
       return true;
     }
-    const maskKind = classifyAssetReferenceKind(request.maskImage);
-    return maskKind === 'inline-data' ? typeof request.maskImage.data === 'string' : maskKind === 'url' || maskKind === 'fileId';
+    const mask = request.maskImage.asset;
+    const maskKind = classifyAssetReferenceKind(mask);
+    return maskKind === 'inline-data' ? typeof mask.data === 'string' : maskKind === 'url' || maskKind === 'fileId';
   }
 
   return request.images.every((asset) => hasInlineAssetData(asset));
@@ -278,7 +279,7 @@ export function createImageEditCompatibilityFingerprint(args: {
       imageCountMode: (args.request.images?.length ?? 0) > 1 ? 'multi-image' : 'single-image',
       hasMask: args.request.maskImage !== undefined,
       imageReferenceKinds: summarizeImageReferenceKinds(args.request.images),
-      maskReferenceKind: classifyAssetReferenceKind(args.request.maskImage),
+      maskReferenceKind: classifyAssetReferenceKind(args.request.maskImage?.asset),
     },
   };
 }

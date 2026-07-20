@@ -18,6 +18,8 @@ export { describeProvider } from './describe-provider.js';
 export { classifyEndpoint } from './classify-endpoint.js';
 export { resolveModelBrand } from './resolve-model-brand.js';
 export type { ResolveModelBrandInput } from './resolve-model-brand.js';
+export { resolveProviderMaskExecutionPlan } from './provider-mask-plan.js';
+export type { MaskExecutionPlan } from '@imagen-ps/providers';
 export {
   deleteProviderProfile,
   getProviderProfile,

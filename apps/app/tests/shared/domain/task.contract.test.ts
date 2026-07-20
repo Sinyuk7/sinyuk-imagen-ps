@@ -4,6 +4,8 @@ import {
   placeTaskOutputOnCanvas,
   saveTaskOutputToFile,
 } from '../../../src/shared/domain/task-actions';
+import { createRunningTaskRecord } from '../../../src/shared/domain/task-snapshot';
+import { fakeHostImage } from '../../helpers/fixtures/assets.fixtures';
 import { fakeTaskRecord } from '../../helpers/fixtures/task.fixtures';
 
 function task(overrides?: Partial<TaskRecord>): TaskRecord {
@@ -19,6 +21,43 @@ function task(overrides?: Partial<TaskRecord>): TaskRecord {
 }
 
 describe('Task output actions', () => {
+  it('writes a ready Edit Region as a top-level snapshot instead of an attachment', () => {
+    const record = createRunningTaskRecord({
+      taskId: 'task-edit-region',
+      operation: 'image-edit',
+      prompt: 'replace the background',
+      attachments: [{ id: 'primary', type: 'layer', name: 'Primary layer', image: fakeHostImage }],
+      editRegion: {
+        targetAttachmentId: 'primary',
+        source: { kind: 'photoshop-user-layer-mask', documentId: 42, layerId: 7 },
+        geometry: {
+          sourceBounds: { left: 10, top: 20, right: 110, bottom: 120 },
+          targetSize: { width: 100, height: 100 },
+          coordinateSpace: 'primary-provider-input',
+        },
+        mask: {
+          asset: fakeHostImage,
+          encoding: 'grayscale-png',
+          bitDepth: 8,
+          polarity: 'white-edit',
+        },
+      },
+      placementIntent: { kind: 'unbound', reason: 'no-photoshop-source' },
+      execution: { backend: { id: 'provider', label: 'Provider' } },
+      createdAt: '2026-07-20T00:00:00.000Z',
+    });
+
+    expect(record.attachments).toHaveLength(1);
+    expect(record.attachments[0]).toMatchObject({ attachmentId: 'primary', kind: 'photoshop-layer' });
+    expect(record.editRegion).toMatchObject({
+      targetAttachmentId: 'primary',
+      geometry: { targetWidth: 100, targetHeight: 100 },
+      encoding: 'grayscale-png',
+      bitDepth: 8,
+      polarity: 'white-edit',
+    });
+  });
+
   it('downloads through StoredAssetRef and uses the generic execution label', async () => {
     const saveAssetToFile = vi.fn(async () => undefined);
     const record = task();

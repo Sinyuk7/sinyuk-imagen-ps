@@ -172,9 +172,51 @@ describe('ComfyUI runtime core', () => {
     expect(service.getMappingProjection(next).text.resolved).toBeNull();
   });
 
+  it('requires an explicit revision-scoped Mask binding from a writable upload-image candidate', async () => {
+    const maskForm: WorkflowForm = {
+      nodes: [{
+        nodeId: 'images', title: '# Images', label: 'Images', order: 0, active: true, visible: true,
+        widgets: [
+          { ref: { nodeId: 'images', inputName: 'primary' }, kind: 'upload-image', label: 'Primary', writable: true, visible: false, order: 0 },
+          { ref: { nodeId: 'images', inputName: 'edit_region' }, kind: 'upload-image', label: 'Edit Region', writable: true, visible: false, order: 1 },
+          { ref: { nodeId: 'images', inputName: 'mask_by_name_only' }, kind: 'string', label: 'Mask', writable: true, visible: true, order: 2 },
+        ],
+      }],
+    };
+    let revision = 'r1';
+    const repo = createInMemoryComfyUiStateRepository({ baseUrl: 'https://example.test', selectedWorkflowId: null, ambiguousMappingsByRevision: {} });
+    const service = createComfyUiManagementService({
+      state: repo,
+      cache: createComfyUiWorkflowRuntimeCache(),
+      ports: {
+        discover: async () => [{ workflowId: 'wf', displayName: 'WF', remotePath: 'wf.json', revision }],
+        load: async () => ({ identity: { workflowId: 'wf', displayName: 'WF', remotePath: 'wf.json', groupPath: [], revision }, document: { kind: 'api', graph: {} }, form: maskForm }),
+      },
+    });
+    await service.discover();
+    const runtime = await service.selectWorkflow('wf');
+    expect(service.getMappingProjection(runtime).mask).toEqual({ requiresExplicitSelection: true });
+    await expect(service.setMaskBinding('wf', 'r1', {
+      transport: 'separate-image-input', inputRef: { nodeId: 'images', inputName: 'mask_by_name_only' }, polarity: 'white-edit',
+    })).rejects.toThrow('explicit upload-image input');
+    await service.setMapping('wf', 'r1', 'image', { nodeId: 'images', inputName: 'primary' });
+    await expect(service.setMaskBinding('wf', 'r1', {
+      transport: 'separate-image-input', inputRef: { nodeId: 'images', inputName: 'primary' }, polarity: 'white-edit',
+    })).rejects.toThrow('must not replace the Primary image input');
+    await service.setMaskBinding('wf', 'r1', {
+      transport: 'separate-image-input', inputRef: { nodeId: 'images', inputName: 'edit_region' }, polarity: 'black-edit',
+    });
+    expect(service.getMappingProjection(runtime).mask.binding).toEqual({
+      transport: 'separate-image-input', inputRef: { nodeId: 'images', inputName: 'edit_region' }, polarity: 'black-edit',
+    });
+    revision = 'r2';
+    await service.discover();
+    expect((await repo.load())?.ambiguousMappingsByRevision['wf@r1']?.mask).toBeUndefined();
+  });
+
   it('admits complete workflow with optional prompt/first image and projects empty completion', async () => {
     const task: TaskRecord = {
-      schemaVersion: 2, taskId: 'task', status: 'running', operation: 'text-to-image', prompt: '',
+      schemaVersion: 3, taskId: 'task', status: 'running', operation: 'text-to-image', prompt: '',
       attachments: [], outputs: [], placement: { kind: 'unbound', reason: 'no-photoshop-source' },
       createdAt: '2026-07-19T00:00:00.000Z', updatedAt: '2026-07-19T00:00:00.000Z',
     };
@@ -188,5 +230,61 @@ describe('ComfyUI runtime core', () => {
     const projected = await backend.projectTerminal({ admitted, runningTask: admitted.runningTask, job: { id: 'job', status: 'completed', input: admitted.execution.input, output: { comfyui: { outputs: [], warnings: [] } }, error: undefined, createdAt: task.createdAt, updatedAt: task.updatedAt } });
     expect(projected.status).toBe('completed');
     expect(projected.outputs).toEqual([]);
+  });
+
+  it('reconstructs ComfyUI retry Mask from Task Edit Region', async () => {
+    const task: TaskRecord = {
+      schemaVersion: 3, taskId: 'task-mask-retry', status: 'running', operation: 'image-edit', prompt: 'edit',
+      attachments: [{ kind: 'photoshop-layer', attachmentId: 'primary', asset: { ref: { kind: 'hostObject', ref: 'primary-image', mimeType: 'image/png' } } }],
+      editRegion: {
+        targetAttachmentId: 'primary',
+        source: { kind: 'photoshop-user-layer-mask', documentId: 42, layerId: 7 },
+        geometry: { sourceBounds: { left: 0, top: 0, right: 100, bottom: 100 }, targetWidth: 100, targetHeight: 100 },
+        mask: { ref: { kind: 'hostObject', ref: 'task-mask', mimeType: 'image/png' }, width: 100, height: 100 },
+        encoding: 'grayscale-png', bitDepth: 8, polarity: 'white-edit',
+      },
+      outputs: [], placement: { kind: 'unbound', reason: 'no-photoshop-source' },
+      createdAt: '2026-07-19T00:00:00.000Z', updatedAt: '2026-07-19T00:00:00.000Z',
+    };
+    const intent: ComfyUiExecutionIntent = {
+      connection: { baseUrl: 'https://example.test/comfyui', requestTimeoutMs: 30_000, observationTimeoutMs: 300_000 },
+      source: { kind: 'api-graph', workflowId: 'wf', revision: 'r1', graph: {} }, images: [],
+    };
+    const backend = createComfyUiGenerationBackend({ runtime: { async getExecution() { return intent; } }, now: () => '2026-07-19T00:01:00.000Z' });
+    const admitted = await backend.admit({
+      taskId: task.taskId,
+      backendId: 'comfyui',
+      payload: {
+        workflowId: 'wf',
+        revision: 'r1',
+        images: [{ storedRef: { kind: 'hostObject', ref: 'primary-image', mimeType: 'image/png' }, width: 100, height: 100 }],
+        mask: {
+          asset: { storedRef: { kind: 'hostObject', ref: 'stale-job-mask', mimeType: 'image/png' }, width: 100, height: 100 },
+          binding: { transport: 'separate-image-input', inputRef: { nodeId: 'mask', inputName: 'image' }, polarity: 'white-edit' },
+        },
+        runningTask: task,
+      },
+    });
+    const failedTask: TaskRecord = {
+      ...admitted.runningTask,
+      status: 'failed', latestJobId: 'job-mask-retry', outputs: [],
+      error: { category: 'execution', message: 'failed' }, finishedAt: '2026-07-19T00:02:00.000Z',
+    };
+    const retry = await backend.retry?.({
+      task: failedTask,
+      latestJob: {
+        id: 'job-mask-retry', status: 'failed', input: admitted.execution as unknown as Record<string, unknown>, output: undefined,
+        error: { category: 'execution', message: 'failed' },
+        createdAt: task.createdAt, updatedAt: '2026-07-19T00:02:00.000Z',
+      },
+    });
+
+    expect(comfyUiExecutionInput(retry!)).toMatchObject({
+      mask: {
+        asset: { storedRef: { kind: 'hostObject', ref: 'task-mask', mimeType: 'image/png' }, width: 100, height: 100 },
+        binding: { transport: 'separate-image-input', inputRef: { nodeId: 'mask', inputName: 'image' }, polarity: 'white-edit' },
+      },
+    });
+    expect(retry?.runningTask.editRegion).toEqual(task.editRegion);
   });
 });

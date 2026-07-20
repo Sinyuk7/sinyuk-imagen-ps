@@ -5,7 +5,7 @@ import {
 } from '@imagen-ps/core-engine';
 
 /** 可持久化 Task record 的唯一 current-state schema 版本。 */
-export const TASK_RECORD_SCHEMA_VERSION = 2;
+export const TASK_RECORD_SCHEMA_VERSION = 3;
 
 /** 用户可见 Task lifecycle 状态。 */
 export type TaskStatus = 'running' | 'completed' | 'failed' | 'interrupted';
@@ -62,6 +62,21 @@ export interface FileEvidence {
 /** Application-owned、可序列化且 secret-free 的 Task evidence。 */
 export type TaskEvidence = Readonly<Record<string, unknown>>;
 
+/** Primary-bound canonical Edit Region 的 durable snapshot。 */
+export interface TaskEditRegion {
+  readonly targetAttachmentId: string;
+  readonly source: TaskEvidence;
+  readonly geometry: {
+    readonly sourceBounds: Rect;
+    readonly targetWidth: number;
+    readonly targetHeight: number;
+  };
+  readonly mask: TaskResourceRef;
+  readonly encoding: 'grayscale-png';
+  readonly bitDepth: 8;
+  readonly polarity: 'white-edit';
+}
+
 /** Durable Task input attachment evidence。 */
 export interface TaskAttachment {
   readonly kind: string;
@@ -113,6 +128,7 @@ export interface TaskRecord {
   readonly prompt: string;
   readonly attachments: readonly TaskAttachment[];
   readonly outputs: readonly TaskOutput[];
+  readonly editRegion?: TaskEditRegion;
   readonly placement: TaskPlacement;
   readonly error?: TaskError;
   readonly execution?: TaskExecutionSummary;
@@ -157,6 +173,7 @@ const TASK_RECORD_KEYS = [
   'prompt',
   'attachments',
   'outputs',
+  'editRegion',
   'placement',
   'error',
   'execution',
@@ -185,6 +202,16 @@ const TASK_OUTPUT_KEYS = [
   'thumbnail',
   'partial',
   'evidence',
+] as const;
+
+const TASK_EDIT_REGION_KEYS = [
+  'targetAttachmentId',
+  'source',
+  'geometry',
+  'mask',
+  'encoding',
+  'bitDepth',
+  'polarity',
 ] as const;
 
 /** Decode 单条 persisted Task；坏记录通过返回值隔离。 */
@@ -266,6 +293,14 @@ export function assertTaskRecord(record: unknown): asserts record is TaskRecord 
     assertAttachment(attachment, `attachments[${index}]`));
   (record.outputs as readonly unknown[]).forEach((output, index) =>
     assertOutput(output, `outputs[${index}]`));
+  if (record.editRegion !== undefined) {
+    const editRegion = record.editRegion;
+    assertEditRegion(editRegion, 'editRegion');
+    const primary = (record.attachments as readonly unknown[])[0];
+    if (!isRecord(primary) || primary.attachmentId !== editRegion.targetAttachmentId) {
+      throw createValidationError('Task editRegion must target the primary attachment.', { path: 'editRegion.targetAttachmentId' });
+    }
+  }
   if (record.error !== undefined) {
     assertTaskError(record.error, 'error');
   }
@@ -334,6 +369,44 @@ function assertOutput(value: unknown, path: string): void {
   }
   if (value.evidence !== undefined) {
     assertEvidence(value.evidence, `${path}.evidence`);
+  }
+}
+
+function assertEditRegion(value: unknown, path: string): asserts value is TaskEditRegion {
+  if (!isRecord(value)) {
+    throw createValidationError(`Task ${path} must be an object.`, { path });
+  }
+  assertAllowedKeys(value, TASK_EDIT_REGION_KEYS, path);
+  expectNonEmptyString(value.targetAttachmentId, `${path}.targetAttachmentId`);
+  assertEvidence(value.source, `${path}.source`);
+  if (!isRecord(value.geometry)) {
+    throw createValidationError(`Task ${path}.geometry must be an object.`, { path: `${path}.geometry` });
+  }
+  assertAllowedKeys(value.geometry, ['sourceBounds', 'targetWidth', 'targetHeight'], `${path}.geometry`);
+  assertRect(value.geometry.sourceBounds, `${path}.geometry.sourceBounds`);
+  expectPositiveFinite(value.geometry.targetWidth, `${path}.geometry.targetWidth`);
+  expectPositiveFinite(value.geometry.targetHeight, `${path}.geometry.targetHeight`);
+  assertResourceRef(value.mask, `${path}.mask`);
+  expectLiteral(value.encoding, 'grayscale-png', `${path}.encoding`);
+  expectLiteral(value.bitDepth, 8, `${path}.bitDepth`);
+  expectLiteral(value.polarity, 'white-edit', `${path}.polarity`);
+}
+
+function assertRect(value: unknown, path: string): asserts value is Rect {
+  if (!isRecord(value)) {
+    throw createValidationError(`Task ${path} must be an object.`, { path });
+  }
+  assertAllowedKeys(value, ['left', 'top', 'right', 'bottom'], path);
+  const left = value.left;
+  const top = value.top;
+  const right = value.right;
+  const bottom = value.bottom;
+  expectFinite(left, `${path}.left`);
+  expectFinite(top, `${path}.top`);
+  expectFinite(right, `${path}.right`);
+  expectFinite(bottom, `${path}.bottom`);
+  if ((right as number) <= (left as number) || (bottom as number) <= (top as number)) {
+    throw createValidationError(`Task ${path} must have positive area.`, { path });
   }
 }
 
