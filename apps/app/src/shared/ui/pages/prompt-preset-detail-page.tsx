@@ -1,13 +1,21 @@
 import { useEffect, useMemo, useState } from 'react';
 import type { PromptPreset, PromptPresetMode } from '../../ports/prompt-settings';
 import { createPromptPresetDraft, hasExactlyOnePromptPlaceholder } from '../hooks/use-prompt-settings';
-import { Button, FieldLabel, HelpText } from '../primitives/native-controls';
-import { TextField } from '../primitives/native-controls';
-import { TextSelect } from '../components/text-select';
-import { Icon } from '../components/icons';
-import { IconButton } from '../primitives/icon-button';
-import { ProviderSettingsPageHeader } from '../components/provider-settings-sections';
-import { UxpTextAreaField } from '../components/uxp-form-controls';
+import {
+  Button,
+  FieldGroup,
+  FooterActions,
+  HelpText,
+  Icon,
+  IconButton,
+  PageFrame,
+  PageHeader,
+  PageScroll,
+  SettingsFormSection,
+  TextField,
+  TextSelect,
+  UxpTextAreaField,
+} from '../ui-system';
 import { useI18n } from '../i18n/i18n-context';
 
 interface PromptPresetDetailPageProps {
@@ -54,12 +62,20 @@ export function PromptPresetDetailPage({ preset, onSave, onNav }: PromptPresetDe
   };
 
   return (
-    <div className="page page-enter settings-page" onClick={() => setModeMenuOpen(false)}>
-      <ProviderSettingsPageHeader
-        backButtonTestId="prompt-preset-detail-back-button"
+    <PageFrame watch={`prompt-preset-detail:${preset?.id ?? 'new'}`}><div className="page page-enter settings-page" onClick={() => setModeMenuOpen(false)}>
+      <PageHeader
         title={t.settings.editPreset}
-        onBack={() => onNav('prompt-settings')}
-        rightSlot={(
+        back={(
+          <IconButton
+            data-testid="prompt-preset-detail-back-button"
+            className="hdr-btn"
+            quiet
+            icon={<Icon name="chevron-left" />}
+            tooltip={t.common.back}
+            onClick={() => onNav('prompt-settings')}
+          />
+        )}
+        right={(
           <IconButton
             data-testid="prompt-preset-detail-save-header"
             className="hdr-btn"
@@ -71,11 +87,10 @@ export function PromptPresetDetailPage({ preset, onSave, onNav }: PromptPresetDe
           />
         )}
       />
-      <div className="scroll scroll-footer-pad">
+      <PageScroll className="scroll-footer-pad">
         <div className="settings-detail-layout">
-          <section className="section">
-            <div className="field">
-              <FieldLabel htmlFor="prompt-preset-name">{t.settings.presetName}</FieldLabel>
+          <SettingsFormSection title={t.settings.editPreset}>
+            <FieldGroup label={t.settings.presetName} htmlFor="prompt-preset-name">
               <TextField
                 data-testid="prompt-preset-name"
                 id="prompt-preset-name"
@@ -84,9 +99,8 @@ export function PromptPresetDetailPage({ preset, onSave, onNav }: PromptPresetDe
                 disabled={saveBusy}
                 onValue={(value) => setDraft((current) => ({ ...current, name: value }))}
               />
-            </div>
-            <div className="field">
-              <FieldLabel htmlFor="prompt-preset-mode-trigger">{t.settings.presetMode}</FieldLabel>
+            </FieldGroup>
+            <FieldGroup label={t.settings.presetMode} htmlFor="prompt-preset-mode-trigger">
               <TextSelect
                 testId="prompt-preset-mode-selector"
                 triggerId="prompt-preset-mode-trigger"
@@ -101,9 +115,8 @@ export function PromptPresetDetailPage({ preset, onSave, onNav }: PromptPresetDe
                 selectedId={draft.mode}
                 onSelect={(value) => setDraft((current) => ({ ...current, mode: value as PromptPresetMode }))}
               />
-            </div>
-            <div className="field field-textarea">
-              <FieldLabel htmlFor="prompt-preset-content">{t.settings.presetContent}</FieldLabel>
+            </FieldGroup>
+            <FieldGroup label={t.settings.presetContent} htmlFor="prompt-preset-content">
               <UxpTextAreaField
                 data-testid="prompt-preset-content"
                 id="prompt-preset-content"
@@ -123,11 +136,11 @@ export function PromptPresetDetailPage({ preset, onSave, onNav }: PromptPresetDe
                 )}
                 invalid={!contentValid}
               />
-            </div>
-          </section>
+            </FieldGroup>
+          </SettingsFormSection>
         </div>
-      </div>
-      <footer className="det-footer">
+      </PageScroll>
+      <FooterActions className="det-footer">
         <div className="settings-detail-footer-inner">
           <div className="settings-detail-footer-save-group">
             <Button data-testid="provider-save-button" className="btn-save" variant="accent" disabled={saveBusy} onClick={() => void save()}>
@@ -135,7 +148,7 @@ export function PromptPresetDetailPage({ preset, onSave, onNav }: PromptPresetDe
             </Button>
           </div>
         </div>
-      </footer>
-    </div>
+      </FooterActions>
+    </div></PageFrame>
   );
 }

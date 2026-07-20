@@ -6,12 +6,8 @@ import type {
 } from '../../ports/app-generation-settings';
 import type { GenerationSettingsSaveState } from '../hooks/use-generation-settings';
 import { useAppPathInfo } from '../hooks/use-app-path-info';
-import { StatusNotice } from '../components/status-notice';
-import { FieldLabel, HelpText } from '../primitives/native-controls';
-import { TextSelect } from '../components/text-select';
-import { Icon } from '../components/icons';
-import { IconButton } from '../primitives/icon-button';
 import { useI18n } from '../i18n/i18n-context';
+import { FieldLabel, HelpText, Icon, IconButton, PageFrame, PageHeader, PageScroll, SettingsFormSection, StatusNotice, TextSelect } from '../ui-system';
 
 interface GlobalGenerationSettingsPageProps {
   readonly settings: AppGenerationSettings;
@@ -94,23 +90,23 @@ export function GlobalGenerationSettingsPage({
         : null;
 
   return (
-    <div className="page page-enter settings-page" onClick={() => setOpenMenu(null)}>
-      <header className="hdr">
-        <IconButton
-          data-testid="global-settings-back-button"
-          className="hdr-btn"
-          quiet
-          icon={<Icon name="chevron-left" />}
-          tooltip={t.common.back}
-          onClick={onBack}
-        />
-        <div className="hdr-title">{t.settings.globalSettings}</div>
-        <div style={{ width: 32 }} />
-      </header>
-      <div className="scroll">
+    <PageFrame watch="global-generation-settings"><div className="page page-enter settings-page" onClick={() => setOpenMenu(null)}>
+      <PageHeader
+        title={t.settings.globalSettings}
+        back={(
+          <IconButton
+            data-testid="global-settings-back-button"
+            className="hdr-btn"
+            quiet
+            icon={<Icon name="chevron-left" />}
+            tooltip={t.common.back}
+            onClick={onBack}
+          />
+        )}
+      />
+      <PageScroll>
         <div className="settings-detail-layout scroll-footer-pad generation-settings-layout">
-          <section className="section generation-settings-section">
-            <div className="section-title settings-section-heading">{t.settings.inputGroup}</div>
+          <SettingsFormSection title={t.settings.inputGroup}>
             <div className="field">
               <FieldLabel htmlFor="provider-input-size-trigger">{t.settings.providerInputSizePreset}</FieldLabel>
               <TextSelect
@@ -134,9 +130,8 @@ export function GlobalGenerationSettingsPage({
                 {`${t.settings.providerInputSizePresetHint} ${t.settings.useInputSizeNormalizedHint}`}
               </HelpText>
             </div>
-          </section>
-          <section className="section generation-settings-section generation-settings-secondary-section">
-            <div className="section-title settings-section-heading">{t.settings.storageGroup}</div>
+          </SettingsFormSection>
+          <SettingsFormSection title={t.settings.storageGroup}>
             <div className="generation-settings-section-intro">
               <HelpText className="field-hint generation-settings-section-hint">
                 {t.settings.storageGroupHint}
@@ -197,7 +192,7 @@ export function GlobalGenerationSettingsPage({
                 />
               </div>
             )}
-          </section>
+          </SettingsFormSection>
           <section className="section generation-settings-section generation-settings-meta-section generation-settings-secondary-section">
             <div
               data-testid="global-settings-footer-statement"
@@ -223,7 +218,7 @@ export function GlobalGenerationSettingsPage({
             </section>
           )}
         </div>
-      </div>
-    </div>
+      </PageScroll>
+    </div></PageFrame>
   );
 }

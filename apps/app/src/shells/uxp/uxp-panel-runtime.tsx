@@ -5,6 +5,7 @@ import { primeSharedUi } from '../../shared/ui/panel-bootstrap';
 import { ComposerSelectHarnessPage } from '../../harness/components/composer-select';
 import { PopupLayerOverlapHarnessPage } from '../../harness/components/popup-layer-overlap';
 import { UxpCssContractHarnessPage } from '../../harness/components/uxp-css-contract';
+import { UiCatalogHarnessPage } from '../../harness/components/ui-catalog';
 import type { PluginHostShell } from './create-plugin-host-shell';
 import { createPluginHostShell } from './create-plugin-host-shell';
 import { readRecentLogRecords } from '../../adapters/uxp/uxp-diagnostics';
@@ -178,10 +179,10 @@ function exposeHostSmokeHandle(host: PluginHostShell | undefined, resolveModules
   };
 }
 
-type UxpPanelHarness = 'composer-select' | 'popup-layer-overlap' | 'uxp-css-contract';
+type UxpPanelHarness = 'composer-select' | 'popup-layer-overlap' | 'uxp-css-contract' | 'ui-catalog';
 
 function isUxpPanelHarness(value: string | null): value is UxpPanelHarness {
-  return value === 'composer-select' || value === 'popup-layer-overlap' || value === 'uxp-css-contract';
+  return value === 'composer-select' || value === 'popup-layer-overlap' || value === 'uxp-css-contract' || value === 'ui-catalog';
 }
 
 function resolveUxpPanelHarness(): UxpPanelHarness | null {
@@ -298,7 +299,9 @@ export function createImagenPanelRuntime(options?: ImagenPanelRuntimeOptions): I
                 ? <ComposerSelectHarnessPage />
                 : harness === 'popup-layer-overlap'
                   ? <PopupLayerOverlapHarnessPage />
-                  : <UxpCssContractHarnessPage />}
+                  : harness === 'ui-catalog'
+                    ? <UiCatalogHarnessPage />
+                    : <UxpCssContractHarnessPage />}
             </AppErrorBoundary>,
           );
           globalThis.__IMAGEN_PS_PANEL_RUNTIME__ = runtime;

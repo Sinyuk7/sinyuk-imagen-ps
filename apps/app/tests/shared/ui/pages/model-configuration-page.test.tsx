@@ -134,6 +134,10 @@ describe('ModelConfigurationPage', () => {
     });
     const container = await renderPage({ services });
 
+    expect(container.querySelector('[data-primary-scroll="true"]')).not.toBeNull();
+    expect(container.querySelector('[data-testid="model-config-form-section"]')).not.toBeNull();
+    expect(container.querySelector('.ui-footer-actions.det-footer')).not.toBeNull();
+
     for (const entry of [
       { apiFormat: 'openai-images', modelId: 'gpt-image-2' },
       { apiFormat: 'openai-chat-completions', modelId: 'openai/gpt-image-2' },

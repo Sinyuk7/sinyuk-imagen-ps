@@ -1,15 +1,21 @@
 import { useEffect, useMemo, useState } from 'react';
 import type { ProfileModelItem, ProviderProfile } from '@imagen-ps/application';
 import { useAppServices } from '../../ports/app-services-context';
-import { ProviderSettingsPageHeader } from '../components/provider-settings-sections';
-import { SettingsListRow } from '../components/settings-list-row';
-import { StatusNotice } from '../components/status-notice';
-import { useToast } from '../components/toast-host';
-import { Icon } from '../components/icons';
-import { IconButton } from '../primitives/icon-button';
-import { Button, HelpText } from '../primitives/native-controls';
 import { useI18n } from '../i18n/i18n-context';
 import { configurationInstanceLabel, modelInfoFromProfileItem } from '../model-info';
+import {
+  Button,
+  HelpText,
+  Icon,
+  IconButton,
+  PageFrame,
+  PageScroll,
+  ProviderSettingsPageHeader,
+  SettingsListRow,
+  SettingsListSection,
+  StatusNotice,
+  useToast,
+} from '../ui-system';
 
 interface ProfileModelsPageProps {
   readonly profile: ProviderProfile;
@@ -96,27 +102,28 @@ export function ProfileModelsPage({ profile, onBack, onCreate, onEdit, onSuggest
   };
 
   return (
-    <div className="page page-enter settings-page">
-      <ProviderSettingsPageHeader
-        backButtonTestId="profile-models-back-button"
-        title={<div className="hdr-title">{t.settings.modelConfiguration}</div>}
-        onBack={onBack}
-        rightSlot={(
-          <IconButton
-            data-testid="profile-models-add-button"
-            className="hdr-btn"
-            quiet
-            icon={<Icon name="add" />}
-            tooltip={t.settings.addNewModel}
-            onClick={onCreate}
-          />
-        )}
-      />
-      <div className="scroll">
-        <div className="settings-detail-layout settings-detail-layout-editor">
-          <section className="section generation-settings-section">
+    <PageFrame watch={`profile-models:${profile.profileId}`}>
+      <div className="page page-enter settings-page">
+        <ProviderSettingsPageHeader
+          backButtonTestId="profile-models-back-button"
+          title={<div className="hdr-title">{t.settings.modelConfiguration}</div>}
+          onBack={onBack}
+          rightSlot={(
+            <IconButton
+              data-testid="profile-models-add-button"
+              className="hdr-btn"
+              quiet
+              icon={<Icon name="add" />}
+              tooltip={t.settings.addNewModel}
+              onClick={onCreate}
+            />
+          )}
+        />
+        <PageScroll>
+          <div className="settings-detail-layout settings-detail-layout-editor">
+            <SettingsListSection title={profile.displayName} testId="profile-models-list-section">
             <div className="settings-inline-heading-row model-config-list-heading">
-              <div className="section-title settings-section-heading">{profile.displayName}</div>
+              <span aria-hidden="true" />
               <Button
                 className="btn-secondary"
                 disabled={refreshing}
@@ -150,7 +157,7 @@ export function ProfileModelsPage({ profile, onBack, onCreate, onEdit, onSuggest
                     testId={`profile-model-row-${model.modelId}`}
                     title={label}
                     leading={(
-                      <div className="prov-ico" style={{ background: 'var(--app-color-background-layer-2)', color: 'var(--app-color-accent-default)' }}>
+                      <div className="prov-ico profile-model-avatar">
                         <span>{modelAvatarLabel(model.modelId)}</span>
                       </div>
                     )}
@@ -176,7 +183,7 @@ export function ProfileModelsPage({ profile, onBack, onCreate, onEdit, onSuggest
                       testId={`profile-model-suggestion-row-${modelId}`}
                       title={modelId}
                       leading={(
-                        <div className="prov-ico" style={{ background: 'var(--app-color-background-layer-2)', color: 'var(--app-color-informative)' }}>
+                        <div className="prov-ico profile-model-avatar profile-model-avatar-suggestion">
                           <Icon name="magic-wand" size={14} />
                         </div>
                       )}
@@ -187,9 +194,10 @@ export function ProfileModelsPage({ profile, onBack, onCreate, onEdit, onSuggest
                 </div>
               </>
             ) : null}
-          </section>
-        </div>
+            </SettingsListSection>
+          </div>
+        </PageScroll>
       </div>
-    </div>
+    </PageFrame>
   );
 }

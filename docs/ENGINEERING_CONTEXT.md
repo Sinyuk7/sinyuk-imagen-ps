@@ -381,6 +381,13 @@ surface apps -> application/session -> core-engine + providers + execution backe
 
 ## Current Limitations
 
+## Shared UI Composition
+
+- `apps/app/src/shared/ui/ui-system.ts` is the page-facing public UI boundary. Page roots use `PageFrame`, `PageHeader`, and `PageScroll`; settings and list/form states use the matching public patterns. Owner-local components may retain direct internal imports.
+- Page composition policy is AST-based in `scripts/policy/ui-composition.mjs`. It is zero-tolerance for page-level raw native controls, internal UI imports, visual inline styles, raw colors, and direct Material token references. Dynamic page layout values may use only `--ui-*` custom properties inline.
+- Visual layout uses existing `--app-*` and component tokens. Theme-source palettes and generated color outputs are separate authority and must not change during composition migration.
+- The shared `ui-catalog` is rendered by both shells. Chrome visual snapshots prove deterministic catalog and Settings archetypes; fake UXP and real Photoshop are distinct evidence levels.
+
 - Default validation is mock-only and reproducible. It does not prove real Photoshop / UXP host behavior, real provider transport, CORS behavior, or live credential flows.
 - Chrome real-provider execution is conditional on browser-compatible transport and provider CORS policy; only the `mock` implementation is repo-side default.
 - UXP host behavior (panel load/reload, layer/mask read, file picker, `placeEvent`, persistence across Photoshop restart) remains manual-only evidence. When host inspection is possible, the default debug/probe surface is `node scripts/uxp-debug/uxp-debug.mjs`; do not treat ad hoc DevTools-only steps as the repo default workflow.

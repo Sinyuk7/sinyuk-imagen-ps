@@ -51,6 +51,33 @@ portable path references, and the shared UXP CSS contract for `apps/app`
 shared UI plus local UI harnesses. It does not access the network, credentials,
 or paid provider APIs.
 
+## UI Visual Baselines
+
+Run the deterministic UI baseline suite after page-composition work:
+
+```bash
+pnpm --filter @imagen-ps/app test:visual
+```
+
+The catalog route is `?harness=ui-catalog` in Chrome and
+`imagenPsPanelHarness=ui-catalog` in UXP. Ordinary runs only compare accepted
+baselines. Regenerate a reviewed baseline explicitly, then run the ordinary
+command again:
+
+```bash
+pnpm --filter @imagen-ps/app test:visual:update
+pnpm --filter @imagen-ps/app test:visual
+```
+
+Chrome screenshots and ARIA assertions prove the browser harness only. For a
+loaded real Photoshop panel, use the structured catalog probe and retain the
+manual evidence outside maintained documentation:
+
+```bash
+node scripts/uxp-debug/uxp-debug.mjs targets --plugin-id com.imagen-ps.panel
+node scripts/uxp-debug/uxp-debug.mjs catalog-probe --plugin-id com.imagen-ps.panel
+```
+
 ## Zero-Test Contract
 
 The repository must tolerate an empty development suite during restructuring.

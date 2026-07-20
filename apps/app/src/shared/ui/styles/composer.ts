@@ -46,6 +46,7 @@ export const COMPOSER_CSS = `
   border-radius:inherit;
 }
 .att-thumb:last-child{ margin-right:0; }
+.att-thumb-img{ width:100%; height:100%; object-fit:cover; display:block; }
 .att-rm-host{
   position:absolute; top:2px; right:2px; width:18px; min-width:18px; height:18px; min-height:18px;
   color:var(--app-color-text-primary);
@@ -109,6 +110,7 @@ export const COMPOSER_CSS = `
 .attach-opt-label{ font-size:12px; font-weight:500; color:var(--app-color-text-primary); }
 .attach-opt-sub{ font-size:10px; color:var(--app-color-text-muted); font-family:var(--app-font-family-mono); margin-top:1px; }
 .attach-opt-hint{ font-family:var(--app-font-family-base); line-height:1.35; max-width:132px; }
+.attach-opt-chevron{ margin-left:auto; }
 
 /* Layer list */
 .layer-list-wrap{
@@ -133,9 +135,10 @@ export const COMPOSER_CSS = `
 .layer-item + .layer-item{ border-top:1px solid var(--app-color-border-default); }
 .layer-item:hover{ background:var(--app-color-hover-overlay); }
 .layer-thumb{ width:28px; height:28px; margin-top:0; margin-right:8px; margin-bottom:0; margin-left:0; border-radius:4px; flex-shrink:0; border:1px solid var(--app-color-border-default); background:var(--app-color-background-layer-2); overflow:hidden; position:relative; }
+.layer-thumb[data-visible="false"]{ background:var(--app-color-background-layer-1); }
 .layer-thumb-img{ width:100%; height:100%; object-fit:cover; display:block; opacity:0; }
 .layer-thumb-img-loaded{ opacity:1; }
-.layer-body{ display:flex; flex-direction:column; justify-content:center; min-width:0; flex:1; }
+.layer-body{ display:flex; flex-direction:column; justify-content:center; min-width:0; flex:1; padding-left:calc(var(--ui-layer-depth) * 10px); }
 .layer-name{ font-size:12px; line-height:16px; font-weight:500; color:var(--app-color-text-primary); overflow:hidden; text-overflow:ellipsis; white-space:nowrap; direction:rtl; text-align:left; unicode-bidi:plaintext; }
 .layer-body .layer-name{ margin-bottom:1px; }
 .layer-name[title]:hover{ color:var(--app-color-text-secondary); }

@@ -26,19 +26,7 @@ import {
   type ProviderBillingDraft,
   type ProviderConnectionDraft,
 } from '../hooks/use-provider-settings';
-import { Icon } from '../components/icons';
-import { ProviderBillingSettings } from '../components/provider-billing-settings';
-import { ProviderProfileEditor } from '../components/provider-profile-editor';
-import {
-  ProviderAdvancedPathSection,
-  ProviderModelSelectionSection,
-  ProviderSettingsFooter,
-  ProviderSettingsPageHeader,
-} from '../components/provider-settings-sections';
-import { StatusNotice } from '../components/status-notice';
-import { useToast } from '../components/toast-host';
 import { useI18n } from '../i18n/i18n-context';
-import { IconButton } from '../primitives/icon-button';
 import {
   statusFromEndpointMeasurementResult,
   statusFromProviderConnectionTestResult,
@@ -54,6 +42,7 @@ import {
   type ModelConfigurationEditorSeed,
 } from '../hooks/provider-endpoint-import';
 import { configurationInstanceLabel, modelInfoFromProfileItem } from '../model-info';
+import { Icon, IconButton, PageFrame, PageScroll, PageState, ProviderAdvancedPathSection, ProviderBillingSettings, ProviderModelSelectionSection, ProviderProfileEditor, ProviderSettingsFooter, ProviderSettingsPageHeader, StatusNotice, useToast } from '../ui-system';
 
 const ADD_MODEL_ACTION_ID = '__add-model__';
 
@@ -976,17 +965,17 @@ export function SettingsDetailPage({ onNav, onBack, profileId, onProfilesChanged
 
   if (!profileId) {
     return (
-      <div className="page page-enter">
+      <PageFrame watch="settings-detail-empty"><div className="page page-enter">
         <ProviderSettingsPageHeader title={t.common.provider} onBack={handleBack} />
-        <div className="scroll">
-          <div style={{ padding: 16, color: 'var(--app-color-text-muted)', fontSize: 12 }}>{t.settings.noProfileSelected}</div>
-        </div>
-      </div>
+        <PageScroll className="scroll">
+          <PageState tone="neutral" message={t.settings.noProfileSelected} />
+        </PageScroll>
+      </div></PageFrame>
     );
   }
 
   return (
-    <div className="page page-enter settings-page">
+    <PageFrame watch={`settings-detail:${profileId}`}><div className="page page-enter settings-page">
       <ProviderSettingsPageHeader
         backButtonTestId="provider-detail-back-button"
         title={(
@@ -1009,9 +998,9 @@ export function SettingsDetailPage({ onNav, onBack, profileId, onProfilesChanged
         )}
       />
 
-      <div className="scroll scroll-footer-pad scroll-footer-pad-detail">
-        {detail.loading && <div style={{ padding: 16, color: 'var(--app-color-text-muted)', fontSize: 12 }}>{t.settings.loading}</div>}
-        {detail.error && <div style={{ padding: 16, color: 'var(--app-color-negative)', fontSize: 12 }}>{detail.error}</div>}
+      <PageScroll className="scroll scroll-footer-pad scroll-footer-pad-detail">
+        {detail.loading && <PageState tone="neutral" message={t.settings.loading} />}
+        {detail.error && <PageState tone="negative" message={detail.error} />}
         {detail.profile && (
           <>
             <ProviderProfileEditor
@@ -1084,7 +1073,7 @@ export function SettingsDetailPage({ onNav, onBack, profileId, onProfilesChanged
             />
           </>
         )}
-      </div>
+      </PageScroll>
 
       <ProviderSettingsFooter
         testBusy={connectionTestBusy}
@@ -1096,6 +1085,6 @@ export function SettingsDetailPage({ onNav, onBack, profileId, onProfilesChanged
         onSaveMouseDown={syncVisibleDraftInputs}
         onSave={() => void save()}
       />
-    </div>
+    </div></PageFrame>
   );
 }

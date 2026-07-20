@@ -1771,6 +1771,8 @@ async function runScenario(browser, server, scenario) {
     if (!keepScreenshots) {
       return;
     }
+    await page.waitForFunction(() => Array.from(document.querySelectorAll('[data-motion-state]'))
+      .every((element) => element.getAttribute('data-motion-state') === 'settled'));
     const screenshotPath = resolve(artifactRoot, screenshotName);
     await page.screenshot({ path: screenshotPath, fullPage: false });
     retainedScreenshots.push(relativeFromApp(screenshotPath));

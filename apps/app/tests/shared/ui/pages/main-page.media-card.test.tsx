@@ -43,7 +43,7 @@ describe('MainPage media result card', () => {
     expect(responseText?.closest('[data-testid^="result-response-card-"]')).toBe(responseCard);
     expect(mediaCard?.querySelector('.prov-response')).toBeNull();
     expect(mediaCard?.dataset.mediaCardKind).toBe('square');
-    expect(mediaCard?.style.width).toBe('var(--chat-preview-block-fallback)');
+    expect(mediaCard?.style.getPropertyValue('--ui-media-card-width')).toBe('var(--chat-preview-block-fallback)');
     expect(mediaHeader).not.toBeNull();
     expect(mediaSection).not.toBeNull();
     expect(preview?.getAttribute('data-preview-layout')).toBe('intrinsic');

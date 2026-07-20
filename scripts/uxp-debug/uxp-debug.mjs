@@ -67,6 +67,7 @@ function usage(exitCode = 0) {
   node scripts/uxp-debug/uxp-debug.mjs reset --all
   node scripts/uxp-debug/uxp-debug.mjs click <selector>
   node scripts/uxp-debug/uxp-debug.mjs console [durationMs]
+  node scripts/uxp-debug/uxp-debug.mjs catalog-probe
 
 Options:
   --plugin-id <id>   UDT plugin id. Required unless exactly one target exists or --ws is used.
@@ -891,7 +892,57 @@ function clickExpression(selector) {
   })()`;
 }
 
-async function runWithClient(options, expression) {
+function catalogProbeExpression() {
+  return `(() => {
+    const selectors = {
+      panel: '[data-testid="ui-catalog-panel"]',
+      scroll: '[data-testid="ui-catalog-scroll"]',
+      popupRoot: '[data-testid="popup-layer-root"]',
+      nativeEditor: '#catalog-notes',
+      popupTrigger: '[aria-haspopup="listbox"]',
+    };
+    const describe = (selector) => {
+      const elements = Array.from(document.querySelectorAll(selector));
+      return {
+        selector,
+        count: elements.length,
+        elements: elements.slice(0, 4).map((element) => {
+          const rect = element.getBoundingClientRect();
+          const computed = getComputedStyle(element);
+          return {
+            tagName: element.tagName,
+            testId: element.getAttribute('data-testid') || '',
+            visible: computed.display !== 'none' && computed.visibility !== 'hidden' && computed.opacity !== '0' && rect.width > 0 && rect.height > 0,
+            rect: { x: rect.x, y: rect.y, width: rect.width, height: rect.height },
+            scroll: { width: element.scrollWidth, height: element.scrollHeight, left: element.scrollLeft, top: element.scrollTop },
+            nativeEditorSuspended: element.getAttribute('data-native-editor-suspended') === 'true',
+            expanded: element.getAttribute('aria-expanded'),
+          };
+        }),
+      };
+    };
+    const panel = document.querySelector(selectors.panel);
+    const popupRoot = document.querySelector(selectors.popupRoot);
+    const nativeEditor = document.querySelector(selectors.nativeEditor);
+    return {
+      ok: Boolean(panel),
+      ready: panel?.getAttribute('data-visual-ready') === 'true',
+      runtime: document.documentElement.getAttribute('data-runtime') || document.body.getAttribute('data-runtime') || null,
+      selectors: Object.fromEntries(Object.entries(selectors).map(([key, selector]) => [key, describe(selector)])),
+      popup: {
+        rootPresent: Boolean(popupRoot),
+        childCount: popupRoot?.childElementCount ?? 0,
+        activeTriggerCount: document.querySelectorAll('[aria-haspopup="listbox"][aria-expanded="true"]').length,
+      },
+      nativeEditor: {
+        present: Boolean(nativeEditor),
+        suspended: nativeEditor?.getAttribute('data-native-editor-suspended') === 'true',
+      },
+    };
+  })()`;
+}
+
+async function runWithClient(options, expression, captureConsole = false) {
   let target = resolveTarget(options);
   let contextCache = readContextCache(options);
   let lastError;
@@ -899,7 +950,13 @@ async function runWithClient(options, expression) {
     const client = new CdpClient(target.wsUrl);
     try {
       await client.connect(contextCache?.uniqueContextId);
+      if (captureConsole) {
+        client.drainConsoleEvents();
+      }
       const result = await client.evaluate(expression);
+      if (captureConsole) {
+        await sleep(50);
+      }
       writeContextCache(target, client.uniqueContextId);
       return {
         target: {
@@ -914,6 +971,7 @@ async function runWithClient(options, expression) {
           source: client.usedCachedContext ? 'cache' : 'event',
         },
         result,
+        ...(captureConsole ? { console: client.drainConsoleEvents() } : {}),
       };
     } catch (error) {
       lastError = error;
@@ -1049,6 +1107,12 @@ async function main() {
       throw new Error('console durationMs must be a non-negative number.');
     }
     printJson(await runConsole(options, durationMs));
+    return;
+  }
+
+  if (command === 'catalog-probe') {
+    if (args.length !== 0) usage(1);
+    printJson(await runWithClient(options, catalogProbeExpression(), true));
     return;
   }
 

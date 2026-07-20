@@ -1,12 +1,8 @@
 import { useState } from 'react';
 import type { ImageAspectRatio, ImageOutputFormat, ImageOutputImageSize } from '@imagen-ps/application';
 import type { ModelGenerationSettingsController } from '../hooks/use-model-generation-settings';
-import { Icon } from '../components/icons';
-import { IconButton } from '../primitives/icon-button';
-import { FieldLabel, HelpText } from '../primitives/native-controls';
-import { TextSelect } from '../components/text-select';
-import { useToast } from '../components/toast-host';
 import { useI18n } from '../i18n/i18n-context';
+import { FieldLabel, HelpText, Icon, IconButton, PageFrame, PageHeader, PageScroll, SettingsFormSection, TextSelect, useToast } from '../ui-system';
 
 interface ProviderOutputSettingsPageProps {
   readonly modelGenerationSettings: ModelGenerationSettingsController;
@@ -44,16 +40,16 @@ export function ProviderOutputSettingsPage({ modelGenerationSettings, onBack }: 
   };
 
   return (
-    <div className="page page-enter settings-page" onClick={() => setOpenMenu(null)}>
-      <header className="hdr">
-        <IconButton data-testid="provider-output-back-button" className="hdr-btn" quiet icon={<Icon name="chevron-left" />} tooltip={t.common.back} onClick={onBack} />
-        <div className="hdr-title">{t.settings.providerOutput}</div>
-        <div style={{ width: 32 }} />
-      </header>
-      <div className="scroll">
+    <PageFrame watch="provider-output-settings"><div className="page page-enter settings-page" onClick={() => setOpenMenu(null)}>
+      <PageHeader
+        title={t.settings.providerOutput}
+        back={(
+          <IconButton data-testid="provider-output-back-button" className="hdr-btn" quiet icon={<Icon name="chevron-left" />} tooltip={t.common.back} onClick={onBack} />
+        )}
+      />
+      <PageScroll>
         <div className="settings-detail-layout scroll-footer-pad generation-settings-layout">
-          <section className="section generation-settings-section">
-            <div className="section-title settings-section-heading">{t.settings.outputGroup}</div>
+          <SettingsFormSection title={t.settings.outputGroup}>
             <HelpText className="field-hint generation-settings-section-hint">
               {modelGenerationSettings.showRatio ? `${t.settings.outputSize} / ${t.settings.aspectRatio} / ${t.settings.outputFormat}` : `${t.settings.outputSize} / ${t.settings.outputFormat}`}
             </HelpText>
@@ -73,9 +69,9 @@ export function ProviderOutputSettingsPage({ modelGenerationSettings, onBack }: 
                 </div>
               ) : null}
             </div>
-          </section>
+          </SettingsFormSection>
         </div>
-      </div>
-    </div>
+      </PageScroll>
+    </div></PageFrame>
   );
 }

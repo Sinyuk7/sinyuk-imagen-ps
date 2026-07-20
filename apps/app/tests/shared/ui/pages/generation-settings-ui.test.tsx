@@ -112,6 +112,10 @@ describe('generation settings UI archetypes', () => {
     await flush();
     await flush();
 
+    expect(container.querySelector('.motion-page-frame[data-motion-state]')).not.toBeNull();
+    expect(container.querySelector('[data-primary-scroll="true"]')).not.toBeNull();
+    expect(container.querySelector('.ui-page-header')).not.toBeNull();
+    expect(container.querySelector('.ui-settings-form-section')).not.toBeNull();
     expect(container.querySelector('[data-testid="global-output-size-selector"]')).not.toBeNull();
     expect(container.querySelector('[data-testid="global-output-format-selector"]')).not.toBeNull();
     expect(container.querySelector('[data-testid="global-aspect-ratio-selector"]')).toBeNull();
@@ -144,6 +148,10 @@ describe('generation settings UI archetypes', () => {
     });
 
     await harness.openGlobalSettings();
+    expect(container.querySelector('.motion-page-frame[data-motion-state]')).not.toBeNull();
+    expect(container.querySelector('[data-primary-scroll="true"]')).not.toBeNull();
+    expect(container.querySelector('.ui-page-header')).not.toBeNull();
+    expect(container.querySelector('.ui-settings-form-section')).not.toBeNull();
     expect(harness.readGlobalSelection()).toEqual({
       imageSize: '2k',
       ratio: '16:9',

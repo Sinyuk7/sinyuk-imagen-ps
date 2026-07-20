@@ -11,6 +11,14 @@ export const PAGES_CSS = `
 .task-prompt{ font-size:12px; line-height:16px; color:var(--app-color-text-primary); overflow:hidden; display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; }
 .task-meta{ display:flex; align-items:center; flex-wrap:wrap; min-width:0; margin-top:3px; }
 .task-meta-dot{ margin-top:0; margin-right:8px; margin-bottom:0; margin-left:8px; color:var(--app-color-border-strong); }
+.history-preview-image{ width:100%; height:100%; object-fit:cover; border-radius:inherit; }
+.history-meta-mono{ font-family:var(--app-font-family-mono); font-size:10px; color:var(--app-color-text-muted); }
+.history-status-inline{ margin-top:1px; }
+.history-status-label{ font-size:10px; color:var(--app-color-text-secondary); }
+.history-status-label[data-status="queued"]{ color:var(--app-color-informative); }
+.history-status-label[data-status="ok"],.history-status-label[data-status="completed-without-image-output"]{ color:var(--app-color-positive); }
+.history-status-label[data-status="running"]{ color:var(--app-color-notice); }
+.history-status-label[data-status="err"]{ color:var(--app-color-negative); }
 .status-inline .row-retry{
   min-height:20px;
   padding:0 7px;
@@ -53,6 +61,8 @@ export const PAGES_CSS = `
   font-size:11px;
   font-weight:500;
 }
+.profile-model-avatar{ background:var(--app-color-background-layer-2); color:var(--app-color-accent-default); }
+.profile-model-avatar-suggestion{ color:var(--app-color-informative); }
 .prov-content{ flex:1; min-width:0; display:flex; flex-direction:column; justify-content:center; }
 .prov-title-row{ display:flex; align-items:center; min-width:0; }
 .prov-name{ min-width:0; overflow:hidden; display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; line-height:16px; font-size:12px; font-weight:600; color:var(--app-color-text-primary); }
@@ -180,6 +190,14 @@ export const PAGES_CSS = `
 .settings-page .section-title{
   margin-bottom:var(--settings-field-gap);
 }
+.settings-page .ui-settings-form-section h2{
+  font-size:11px;
+  font-weight:600;
+  letter-spacing:.3px;
+  margin-bottom:var(--settings-field-gap);
+}
+.settings-page .ui-field-group{ margin-bottom:0; }
+.settings-page .ui-field-group + .ui-field-group{ margin-top:var(--settings-field-gap); }
 .settings-page .settings-section-heading,
 .settings-page .generation-settings-section .section-title{
   font-size:12px;

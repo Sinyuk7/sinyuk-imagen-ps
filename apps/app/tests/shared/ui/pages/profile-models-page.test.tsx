@@ -81,6 +81,8 @@ describe('ProfileModelsPage', () => {
       onEdit,
     });
 
+    expect(container.querySelector('[data-primary-scroll="true"]')).not.toBeNull();
+    expect(container.querySelector('[data-testid="profile-models-list-section"]')).not.toBeNull();
     const row = container.querySelector<HTMLElement>('[data-testid="profile-model-row-owned-model"]');
     expect(row).not.toBeNull();
     expect(row?.textContent).toContain('owned-model');

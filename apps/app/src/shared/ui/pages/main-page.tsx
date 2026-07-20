@@ -12,26 +12,7 @@ import type {
 import { useProfileBilling } from '../hooks/use-profile-billing';
 import { useTaskBillingToast } from '../hooks/use-task-billing-toast';
 import { descriptorForApiFormat, providerSupportsBalanceQuery, useProviderCatalog } from '../hooks/use-provider-settings';
-import { ImageFallbackContent, imageFallbackTitle } from '../components/image-fallback-content';
 import { useLayerThumbnail } from '../hooks/use-layer-thumbnail';
-import { Icon } from '../components/icons';
-import { IconSelect } from '../components/icon-select';
-import { UxpTextArea } from '../components/uxp-form-controls';
-import { ProviderIdentity } from '../components/provider-identity';
-import { ProviderMediaHeader } from '../components/provider-media-header';
-import { useToast } from '../components/toast-host';
-import {
-  MotionActivityDot,
-  MotionActivityIcon,
-  MotionButtonSurface,
-  MotionContent,
-  MotionDimSurface,
-  MotionHighlight,
-  MotionImage,
-  MotionPresenceView,
-} from '../components/motion-ui';
-import { IconButton } from '../primitives/icon-button';
-import { Button } from '../primitives/native-controls';
 import { useI18n } from '../i18n/i18n-context';
 import type { ProviderInputSizePolicy } from '../../image/resize';
 import {
@@ -47,6 +28,7 @@ import { classifyRoundError, type ErrorPrimaryAction } from '../error-action';
 import type { ImageAspectRatio, ImageOutputImageSize, ImageOutputSelection, ProfileBillingState } from '@imagen-ps/application';
 import { configurationInstanceLabel, type UiModelInfo } from '../model-info';
 import type { GenerationWorkspaceController } from '../generation-workspace';
+import { Button, Icon, IconButton, IconSelect, ImageFallbackContent, imageFallbackTitle, MotionActivityDot, MotionActivityIcon, MotionButtonSurface, MotionContent, MotionDimSurface, MotionHighlight, MotionImage, MotionPresenceView, PageFrame, PageHeader, PageScroll, PageState, ProviderIdentity, ProviderMediaHeader, UxpTextArea, useToast } from '../ui-system';
 
 function isImeCompositionKey(event: React.KeyboardEvent): boolean {
   const nativeEvent = event.nativeEvent as KeyboardEvent & { readonly isComposing?: boolean };
@@ -120,11 +102,7 @@ function LayerThumbnailImpl({
     <div
       ref={ref}
       className="layer-thumb"
-      style={{
-        background: visible === false
-          ? 'var(--app-color-background-layer-1)'
-          : 'var(--app-color-background-layer-2)',
-      }}
+      data-visible={visible === false ? 'false' : 'true'}
     >
       {url ? (
         <img
@@ -1089,9 +1067,10 @@ export function MainPage({
     }
   };
   return (
-    <div className="page" onClick={closeAll}>
-      <header className="hdr">
-        <IconButton
+    <PageFrame watch={`main:${workspace.generationMode}:${conversation.rounds.length}`}><div className="page" onClick={closeAll}>
+      <PageHeader
+        title=""
+        back={<IconButton
           data-testid="main-history-button"
           className="hdr-btn"
           quiet
@@ -1099,8 +1078,8 @@ export function MainPage({
           tooltip={t.main.history}
           placement="bottom"
           onClick={(event) => { event.stopPropagation(); onNav('history'); }}
-        />
-        <div className="hdr-center-wrap">
+        />}
+        center={<div className="hdr-center-wrap">
           <IconButton
             data-testid="main-profile-selector"
             className={`hdr-center hdr-provider-trigger${profileMenuOpen ? ' open' : ''}`}
@@ -1118,9 +1097,9 @@ export function MainPage({
             {({ ref, state }) => (
             <div ref={ref} className="model-menu hdr-model-menu" data-motion-state={state} onClick={(event) => event.stopPropagation()}>
               {comfyUiMode ? (
-                <button type="button" data-testid="main-mode-provider" className="model-opt" onClick={() => workspace.setGenerationMode('provider')}>
+                <Button data-testid="main-mode-provider" className="model-opt" onClick={() => workspace.setGenerationMode('provider')}>
                   <span>{t.common.provider}</span>
-                </button>
+                </Button>
               ) : (
                 <>
                   {profilesLoading && <div className="model-opt">{t.main.loadingProfiles}</div>}
@@ -1129,27 +1108,26 @@ export function MainPage({
                     <div data-testid="profile-menu-add-provider" className="model-opt" onClick={() => onNav('settings-add')}>{t.main.addProviderProfile}</div>
                   )}
                   {selectableProfiles.map((profile) => (
-                    <button
+                    <Button
                       key={profile.profileId}
-                      type="button"
                       data-testid={`profile-menu-option-${profile.profileId}`}
                       className={`model-opt${profile.profileId === selectedProfileId ? ' act' : ''}`}
                       onClick={() => selectProfile(profile.profileId)}
                     >
                       {profile.profileId === selectedProfileId && <Icon name="check" />}
                       <span>{profile.displayName}</span>
-                    </button>
+                    </Button>
                   ))}
-                  <button type="button" data-testid="main-mode-comfyui" className="model-opt" onClick={() => workspace.setGenerationMode('comfyui')}>
+                  <Button data-testid="main-mode-comfyui" className="model-opt" onClick={() => workspace.setGenerationMode('comfyui')}>
                     <span>{t.settings.comfyUi}</span>
-                  </button>
+                  </Button>
                 </>
               )}
             </div>
             )}
           </MotionPresenceView>
-        </div>
-        <IconButton
+        </div>}
+        right={<IconButton
           data-testid="main-providers-button"
           className="hdr-btn"
           quiet
@@ -1157,30 +1135,27 @@ export function MainPage({
           tooltip="Providers"
           placement="bottom"
           onClick={(event) => { event.stopPropagation(); openWorkspaceSettings(); }}
-        />
-      </header>
+        />}
+      />
 
-      <div className="scroll" ref={convRef}>
+      <PageScroll ref={convRef}>
         <div className="round-list">
           <div className="day-sep">
             <div className="day-sep-line" /><span className="day-sep-lbl">{t.main.currentSession}</span><div className="day-sep-line" />
           </div>
 
           {conversation.rounds.length === 0 && (
-            <div className="conv-empty">
-              <div style={{ color: 'var(--app-color-text-secondary)', fontSize: 13 }}>{t.main.emptyHint}</div>
-              <div className="empty-hints">
-                <button className="empty-hint" onClick={() => composerDraft.setInput(t.main.promptSuggestionProductValue)}>
+            <PageState tone="neutral" message={t.main.emptyHint} className="conv-empty" action={<div className="empty-hints">
+                <Button className="empty-hint" onClick={() => composerDraft.setInput(t.main.promptSuggestionProductValue)}>
                   {t.main.promptSuggestionProductLabel}
-                </button>
-                <button className="empty-hint" onClick={() => composerDraft.setInput(t.main.promptSuggestionCyberpunkValue)}>
+                </Button>
+                <Button className="empty-hint" onClick={() => composerDraft.setInput(t.main.promptSuggestionCyberpunkValue)}>
                   {t.main.promptSuggestionCyberpunkLabel}
-                </button>
-                <button className="empty-hint" onClick={() => composerDraft.setInput(t.main.promptSuggestionLayerValue)}>
+                </Button>
+                <Button className="empty-hint" onClick={() => composerDraft.setInput(t.main.promptSuggestionLayerValue)}>
                   {t.main.promptSuggestionLayerLabel}
-                </button>
-              </div>
-            </div>
+                </Button>
+              </div>} />
           )}
 
           {conversation.rounds.map((round) => (
@@ -1244,8 +1219,7 @@ export function MainPage({
                       </div>
                       {overflowingPrompts[round.id] && (
                         <div className="user-prompt-actions">
-                          <button
-                            type="button"
+                          <Button
                             data-testid={`user-prompt-toggle-${round.id}`}
                             className="user-prompt-toggle"
                             onClick={(event) => {
@@ -1254,7 +1228,7 @@ export function MainPage({
                             }}
                           >
                             {expandedPrompts[round.id] ? `${t.main.collapsePrompt} ▴` : `${t.main.expandPrompt} ▾`}
-                          </button>
+                          </Button>
                         </div>
                       )}
                     </div>
@@ -1336,21 +1310,21 @@ export function MainPage({
                           </div>
                         ) : null}
                         <div className="err-actions">
-                          <button
+                          <Button
                             data-testid={`error-primary-action-button-${round.id}`}
                             className="err-retry"
                             onClick={handlePrimaryErrorAction}
                           >
                             {primaryActionLabel(t, failure.primaryAction)}
-                          </button>
+                          </Button>
                           {showFillComposerSecondary ? (
-                            <button
+                            <Button
                               data-testid={`error-fill-composer-button-${round.id}`}
                               className="err-retry err-retry-secondary"
                               onClick={() => fillComposerFromFailedRound(round)}
                             >
                               {t.main.errorActionFillComposer}
-                            </button>
+                            </Button>
                           ) : null}
                         </div>
                       </div>
@@ -1429,7 +1403,7 @@ export function MainPage({
                         <MotionActivityDot className="ldot" />
                         <MotionActivityDot className="ldot" />
                       </div>
-                      <span style={{ fontFamily: 'var(--app-font-family-mono)', fontSize: 11, color: 'var(--app-color-text-muted)' }}>{round.elapsedSeconds <= 0 ? t.main.runningPhaseSubmitting : t.main.runningPhaseGenerating}</span>
+                      <span className="prov-loading-phase">{round.elapsedSeconds <= 0 ? t.main.runningPhaseSubmitting : t.main.runningPhaseGenerating}</span>
                     </div>
                   </div>
                 </div>
@@ -1452,7 +1426,7 @@ export function MainPage({
                 const previewLayoutMode = previewLayoutModeForRound(round);
                 const previewVisualMode = previewVisualModeForRender(previewLayoutMode, Boolean(preview?.url));
                 const mediaCardKind = hasImages ? mediaCardKindForRound(round) : undefined;
-                const mediaCardStyle = hasImages ? mediaCardWidthStyleForRound(round) : undefined;
+                const mediaCardWidth = hasImages ? mediaCardWidthStyleForRound(round).width : undefined;
                 const responseCard = showResponseText && round.responseText ? (
                   <div
                     className={`prov-response${splitResponseTextCard ? ' prov-response-standalone' : ''}`}
@@ -1473,8 +1447,7 @@ export function MainPage({
                     </div>
                     <div className="prov-response-actions">
                       {responseOverflows && (
-                        <button
-                          type="button"
+                        <Button
                           data-testid={`result-response-toggle-${round.id}`}
                           className="prov-response-toggle"
                           onClick={(event) => {
@@ -1483,7 +1456,7 @@ export function MainPage({
                           }}
                         >
                           {responseExpanded ? `${t.main.collapseResponse} ▴` : `${t.main.expandResponse} ▾`}
-                        </button>
+                        </Button>
                       )}
                       <IconButton
                         data-testid={`result-response-copy-button-${round.id}`}
@@ -1507,7 +1480,7 @@ export function MainPage({
                     className={`prov-card${hasImages ? ' prov-card-media' : ' prov-card-text-only'}`}
                     {...(mediaCardKind ? { 'data-media-card-kind': mediaCardKind } : {})}
                     data-testid={hasImages ? `result-media-card-${round.id}` : undefined}
-                    style={mediaCardStyle}
+                    style={{ '--ui-media-card-width': mediaCardWidth ?? 'auto' } as CSSProperties}
                   >
                     {hasImages ? (
                       <ProviderMediaHeader
@@ -1655,7 +1628,7 @@ export function MainPage({
             </div>
           ))}
         </div>
-      </div>
+      </PageScroll>
 
       <footer className="composer" onClick={(event) => event.stopPropagation()}>
           <MotionDimSurface className="cmp-shell cmp-shell-motion" dim={false}>
@@ -1691,7 +1664,7 @@ export function MainPage({
                     return (
                       <div key={layer.id} data-testid={`layer-row-${layer.id}`} className="layer-item" onClick={() => void addLayer(layer)}>
                         <LayerThumbnail host={services.host} layerId={layer.id} visible={layer.visible} />
-                        <div className="layer-body" style={{ paddingLeft: depth * 10 }}>
+                        <div className="layer-body" style={{ '--ui-layer-depth': depth } as CSSProperties}>
                           <span className="layer-name" title={layer.name}>{layer.name}</span>
                           {layer.kind && (
                             <span className="layer-meta">
@@ -1719,7 +1692,7 @@ export function MainPage({
                     <div className="attach-opt-label">{t.main.choosePsLayer}</div>
                     <div className="attach-opt-sub">{t.main.layerCount(flatLayers.length)}</div>
                   </div>
-                  <Icon name="chevron-right" style={{ marginLeft: 'auto' }} />
+                  <Icon className="attach-opt-chevron" name="chevron-right" />
                 </div>
                 <div data-testid="attach-upload-option" className="attach-opt" onClick={() => void addFile()}>
                   <div className="attach-opt-ico">
@@ -1764,7 +1737,7 @@ export function MainPage({
                       <div ref={ref} className="att-thumb" data-motion-state={state}>
                         <MotionHighlight activeKey={highlightKey === `attachment:${attachment.id}` ? highlightKey : null} />
                         {attachment.previewUrl
-                          ? <img src={attachment.previewUrl} style={{ width: '100%', height: '100%', objectFit: 'cover' }} alt={attachment.name} />
+                          ? <img src={attachment.previewUrl} className="att-thumb-img" alt={attachment.name} />
                           : (
                             <ImageFallbackContent
                               density="thumbnail"
@@ -1796,8 +1769,7 @@ export function MainPage({
                   <div ref={ref} className="cmp-conflict" data-testid="composer-image-input-conflict" data-motion-state={state}>
                     {t.main.imageInputConflict}
                     <div className="cmp-conflict-actions">
-                      <button
-                        type="button"
+                      <Button
                         className="cmp-conflict-action"
                         onClick={() => {
                           setOpenMenu('model');
@@ -1806,10 +1778,10 @@ export function MainPage({
                         }}
                       >
                         {t.main.chooseCompatibleModel}
-                      </button>
-                      <button type="button" className="cmp-conflict-action" onClick={removeAllAttachments}>
+                      </Button>
+                      <Button className="cmp-conflict-action" onClick={removeAllAttachments}>
                         {t.main.removeImages}
-                      </button>
+                      </Button>
                     </div>
                   </div>
                 )}
@@ -2033,6 +2005,6 @@ export function MainPage({
           )}
         </MotionPresenceView>
       </footer>
-    </div>
+    </div></PageFrame>
   );
 }

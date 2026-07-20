@@ -8,14 +8,24 @@ import type {
   UserModelOutputExposure,
 } from '@imagen-ps/application';
 import { useAppServices } from '../../ports/app-services-context';
-import { ProviderSettingsPageHeader } from '../components/provider-settings-sections';
-import { Icon } from '../components/icons';
-import { StatusNotice } from '../components/status-notice';
-import { TextSelect } from '../components/text-select';
-import { useToast } from '../components/toast-host';
 import { useI18n } from '../i18n/i18n-context';
-import { Button, FieldLabel, HelpText, TextField } from '../primitives/native-controls';
-import { IconButton } from '../primitives/icon-button';
+import {
+  Button,
+  FieldGroup,
+  FieldLabel,
+  FooterActions,
+  HelpText,
+  Icon,
+  IconButton,
+  PageFrame,
+  PageScroll,
+  ProviderSettingsPageHeader,
+  SettingsFormSection,
+  StatusNotice,
+  TextField,
+  TextSelect,
+  useToast,
+} from '../ui-system';
 import {
   buildOutputCapabilityEditorState,
   fullSelectionForModule,
@@ -163,11 +173,9 @@ function StrategyMetaField({
   readonly detail: string;
 }) {
   return (
-    <div className="field">
-      <div className="section-title settings-subsection-heading">{label}</div>
+    <FieldGroup label={label} help={<HelpText className="field-hint">{detail}</HelpText>}>
       <div className="model-config-meta-value mono">{value}</div>
-      <HelpText className="field-hint">{detail}</HelpText>
-    </div>
+    </FieldGroup>
   );
 }
 
@@ -286,9 +294,8 @@ function CapabilityOptionGroup({
         {items.map((item) => {
           const checked = selected.includes(item.id);
           return (
-            <button
+            <Button
               key={item.id}
-              type="button"
               id={`${testIdPrefix}-${item.id}`}
               data-testid={`${testIdPrefix}-${item.id}`}
               className={`model-config-chip${checked ? ' is-selected' : ''}`}
@@ -303,7 +310,7 @@ function CapabilityOptionGroup({
                   <span className="model-config-chip-label mono">{item.label}</span>
                 </>
               )}
-            </button>
+            </Button>
           );
         })}
       </div>
@@ -338,9 +345,8 @@ function RatioTileGroup({
           const checked = selected.includes(item.id);
           const textOnly = item.id === 'auto' || item.id === 'source';
           return (
-            <button
+            <Button
               key={item.id}
-              type="button"
               id={`${testIdPrefix}-${item.id}`}
               data-testid={`${testIdPrefix}-${item.id}`}
               className={`model-config-ratio-tile${checked ? ' is-selected' : ''}`}
@@ -358,7 +364,7 @@ function RatioTileGroup({
                 </>
               )}
               {checked ? <span className="model-config-ratio-check" aria-hidden="true" /> : null}
-            </button>
+            </Button>
           );
         })}
       </div>
@@ -390,9 +396,8 @@ function SizeTileGroup({
         {items.map((item) => {
           const checked = selected.includes(item.id);
           return (
-            <button
+            <Button
               key={item.id}
-              type="button"
               id={`${testIdPrefix}-${item.id}`}
               data-testid={`${testIdPrefix}-${item.id}`}
               className={`model-config-size-tile${checked ? ' is-selected' : ''}`}
@@ -403,7 +408,7 @@ function SizeTileGroup({
             >
               <span className="model-config-size-label mono">{item.label}</span>
               {checked ? <span className="model-config-ratio-check" aria-hidden="true" /> : null}
-            </button>
+            </Button>
           );
         })}
       </div>
@@ -435,18 +440,12 @@ function CapabilitySection({
   const combinationSummary = showSparseHint
     ? `${t.settings.modelConfigValidCombinations(combinationCount)} · ${t.settings.modelConfigSparseCombinationHint}`
     : t.settings.modelConfigValidCombinations(combinationCount);
+  const title = module.shared ? t.settings.modelConfigOutputCapabilities : operationLabel(module.operations[0]!, t);
 
   return (
-    <section className="section generation-settings-section">
+    <SettingsFormSection title={title} testId={`model-config-capability-section-${module.id}`}>
       <div className="model-config-capability-section-header">
-        <div className="model-config-capability-section-copy">
-          <div
-            className="section-title"
-            data-testid={`model-config-section-title-${module.id}`}
-          >
-            {module.shared ? t.settings.modelConfigOutputCapabilities : operationLabel(module.operations[0]!, t)}
-          </div>
-        </div>
+        <span data-testid={`model-config-section-title-${module.id}`} aria-hidden="true" />
         {module.shared ? (
           <span
             className="model-config-capability-meta"
@@ -500,7 +499,7 @@ function CapabilitySection({
           <StatusNotice tone="warning" message={validationMessage} />
         </div>
       ) : null}
-    </section>
+    </SettingsFormSection>
   );
 }
 
@@ -755,11 +754,12 @@ export function ModelConfigurationPage({ onNav, onSaved, onBack, initialEditorSt
   };
 
   return (
-    <div className="page page-enter settings-page" onClick={() => {
-      setApiFormatMenuOpen(false);
-      setPresetMenuOpen(false);
-    }}>
-      <ProviderSettingsPageHeader
+    <PageFrame watch={`model-configuration:${initialEditorState.profileId}:${initialEditorState.modelId ?? 'new'}`}>
+      <div className="page page-enter settings-page" onClick={() => {
+        setApiFormatMenuOpen(false);
+        setPresetMenuOpen(false);
+      }}>
+        <ProviderSettingsPageHeader
         backButtonTestId="model-configuration-back-button"
         title={(
           <div className="hdr-title" data-testid="model-configuration-title">
@@ -785,19 +785,18 @@ export function ModelConfigurationPage({ onNav, onSaved, onBack, initialEditorSt
             onClick={() => void remove()}
           />
         ) : undefined}
-      />
-      <div className="scroll scroll-footer-pad-detail">
+        />
+        <PageScroll className="scroll-footer-pad-detail">
         <div className="settings-detail-layout">
           {pageError ? (
-            <section className="section generation-settings-section">
+            <SettingsFormSection title={t.settings.modelConfiguration} testId="model-config-error-section">
               <div className="status-warning-slot" data-testid="model-config-page-error">
                 <StatusNotice tone="negative" message={pageError} copyText={pageError} />
               </div>
-            </section>
+            </SettingsFormSection>
           ) : null}
-          <section className="section generation-settings-section">
-            <div className="field">
-              <FieldLabel htmlFor="model-config-api-format-trigger">{t.settings.modelConfigApiFormat}</FieldLabel>
+          <SettingsFormSection title={t.settings.modelConfiguration} testId="model-config-form-section">
+            <FieldGroup label={t.settings.modelConfigApiFormat} htmlFor="model-config-api-format-trigger">
               <TextSelect
                 testId="model-config-api-format-selector"
                 triggerId="model-config-api-format-trigger"
@@ -823,9 +822,8 @@ export function ModelConfigurationPage({ onNav, onSaved, onBack, initialEditorSt
                   });
                 }}
               />
-            </div>
-            <div className="field">
-              <FieldLabel htmlFor="model-config-preset-trigger">{t.settings.modelConfigPreset}</FieldLabel>
+            </FieldGroup>
+            <FieldGroup label={t.settings.modelConfigPreset} htmlFor="model-config-preset-trigger">
               <TextSelect
                 testId="model-config-preset-selector"
                 triggerId="model-config-preset-trigger"
@@ -846,9 +844,12 @@ export function ModelConfigurationPage({ onNav, onSaved, onBack, initialEditorSt
                   setPresetMenuOpen(false);
                 }}
               />
-            </div>
-            <div className="field">
-              <FieldLabel htmlFor="model-config-wire-model-id">{t.settings.modelConfigWireModelId}</FieldLabel>
+            </FieldGroup>
+            <FieldGroup
+              label={t.settings.modelConfigWireModelId}
+              htmlFor="model-config-wire-model-id"
+              help={<HelpText className="field-hint">{t.settings.modelConfigWireModelIdHint}</HelpText>}
+            >
               <ModelIdField
                 id="model-config-wire-model-id"
                 testId="model-config-wire-model-id"
@@ -857,11 +858,9 @@ export function ModelConfigurationPage({ onNav, onSaved, onBack, initialEditorSt
                 suspended={modelIdSuspended}
                 onValue={setWireModelId}
               />
-              <HelpText className="field-hint">{t.settings.modelConfigWireModelIdHint}</HelpText>
-            </div>
+            </FieldGroup>
             <div className={`provider-embedded-section model-config-advanced-section${advancedOpen ? ' is-open' : ''}`}>
-              <button
-                type="button"
+              <Button
                 className="model-config-advanced-toggle"
                 aria-expanded={advancedOpen}
                 onClick={() => setAdvancedOpen((current) => !current)}
@@ -876,11 +875,10 @@ export function ModelConfigurationPage({ onNav, onSaved, onBack, initialEditorSt
                   size={12}
                   className="model-config-advanced-toggle-icon"
                 />
-              </button>
+              </Button>
               {advancedOpen ? (
                 <>
-                  <div className="field">
-                    <FieldLabel htmlFor="model-config-model-id">{t.settings.modelConfigModelId}</FieldLabel>
+                  <FieldGroup label={t.settings.modelConfigModelId} htmlFor="model-config-model-id">
                     <ModelIdField
                       id="model-config-model-id"
                       testId="model-config-model-id"
@@ -889,7 +887,7 @@ export function ModelConfigurationPage({ onNav, onSaved, onBack, initialEditorSt
                       suspended={modelIdSuspended}
                       onValue={setModelId}
                     />
-                  </div>
+                  </FieldGroup>
                   <StrategyMetaField
                     label={t.settings.modelConfigRequestStrategy}
                     value={requestStrategyId}
@@ -898,7 +896,7 @@ export function ModelConfigurationPage({ onNav, onSaved, onBack, initialEditorSt
                 </>
               ) : null}
             </div>
-          </section>
+          </SettingsFormSection>
 
           {selectedPreset && capabilityState
             ? capabilityState.modules.map((module) => (
@@ -915,8 +913,8 @@ export function ModelConfigurationPage({ onNav, onSaved, onBack, initialEditorSt
             ))
             : null}
         </div>
-      </div>
-      <footer className="det-footer">
+        </PageScroll>
+        <FooterActions className="det-footer">
         <div className="settings-detail-footer-inner">
           <div className="settings-detail-footer-actions">
             <HelpText className="settings-detail-footer-help">{t.settings.modelConfigurationSaveHint}</HelpText>
@@ -933,7 +931,8 @@ export function ModelConfigurationPage({ onNav, onSaved, onBack, initialEditorSt
             </Button>
           </div>
         </div>
-      </footer>
-    </div>
+        </FooterActions>
+      </div>
+    </PageFrame>
   );
 }

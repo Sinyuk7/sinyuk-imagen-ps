@@ -25,6 +25,7 @@ import { CONVERSATION_CSS } from './styles/conversation';
 import { COMPOSER_CSS } from './styles/composer';
 import { OVERLAYS_CSS } from './styles/overlays';
 import { PAGES_CSS } from './styles/pages';
+import { PATTERNS_CSS } from './styles/patterns';
 import { RESPONSIVE_CSS } from './styles/responsive';
 
 function stripCssComments(css: string): string {
@@ -41,5 +42,6 @@ export const PANEL_CSS = stripCssComments([
   COMPOSER_CSS,
   OVERLAYS_CSS,
   PAGES_CSS,
+  PATTERNS_CSS,
   RESPONSIVE_CSS,
 ].join('\n'));

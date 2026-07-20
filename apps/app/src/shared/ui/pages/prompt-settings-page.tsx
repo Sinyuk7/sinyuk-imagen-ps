@@ -7,12 +7,20 @@ import type {
   PromptSettingsSaveState,
 } from '../hooks/use-prompt-settings';
 import { hasExactlyOnePromptPlaceholder } from '../hooks/use-prompt-settings';
-import { FieldLabel, HelpText } from '../primitives/native-controls';
-import { TextSelect } from '../components/text-select';
-import { Icon } from '../components/icons';
-import { MotionButtonSurface } from '../components/motion-ui';
-import { IconButton } from '../primitives/icon-button';
-import { UxpTextAreaField } from '../components/uxp-form-controls';
+import {
+  FieldGroup,
+  HelpText,
+  Icon,
+  IconButton,
+  MotionButtonSurface,
+  PageFrame,
+  PageHeader,
+  PageScroll,
+  PageState,
+  SettingsFormSection,
+  TextSelect,
+  UxpTextAreaField,
+} from '../ui-system';
 import { useI18n } from '../i18n/i18n-context';
 
 interface PromptSettingsPageProps {
@@ -91,26 +99,30 @@ export function PromptSettingsPage({
   const activationHint = activationState === 'active' ? null : activationMessage(activationState, t);
 
   return (
-    <div className="page page-enter settings-page" onClick={() => {
+    <PageFrame watch="prompt-settings"><div className="page page-enter settings-page" onClick={() => {
       setProfileMenuOpen(false);
     }}>
-      <header className="hdr">
-        <IconButton
+      <PageHeader
+        title={t.settings.promptSettings}
+        back={(
+          <IconButton
           data-testid="prompt-settings-back-button"
           className="hdr-btn"
           quiet
           icon={<Icon name="chevron-left" />}
           tooltip={t.common.back}
           onClick={() => onNav('settings')}
-        />
-        <div className="hdr-title">{t.settings.promptSettings}</div>
-        <div style={{ width: 32 }} />
-      </header>
-      <div className="scroll">
+          />
+        )}
+      />
+      <PageScroll>
         <div className="settings-detail-layout scroll-footer-pad generation-settings-layout">
-          <section className="section generation-settings-section">
-            <div className="field">
-              <FieldLabel htmlFor="prompt-optimizer-profile-trigger">{t.settings.optimizerProfile}</FieldLabel>
+          <SettingsFormSection title={t.settings.optimizerProfile}>
+            <FieldGroup
+              label={t.settings.optimizerProfile}
+              htmlFor="prompt-optimizer-profile-trigger"
+              help={activationHint ? <HelpText className="field-hint">{activationHint}</HelpText> : undefined}
+            >
               <TextSelect
                 testId="prompt-optimizer-profile-selector"
                 triggerId="prompt-optimizer-profile-trigger"
@@ -131,10 +143,8 @@ export function PromptSettingsPage({
                   },
                 })}
               />
-              {activationHint ? <HelpText className="field-hint">{activationHint}</HelpText> : null}
-            </div>
-            <div className="field field-textarea">
-              <FieldLabel htmlFor="prompt-optimization-template">{t.settings.optimizationTemplate}</FieldLabel>
+            </FieldGroup>
+            <FieldGroup label={t.settings.optimizationTemplate} htmlFor="prompt-optimization-template">
               <UxpTextAreaField
                 data-testid="prompt-optimization-template"
                 id="prompt-optimization-template"
@@ -160,12 +170,12 @@ export function PromptSettingsPage({
                 )}
                 invalid={!templateValid}
               />
-            </div>
-          </section>
+            </FieldGroup>
+          </SettingsFormSection>
 
-          <section className="section generation-settings-section">
+          <SettingsFormSection title={t.settings.promptPresets}>
             <div className="settings-section-header">
-              <div className="section-title settings-section-heading">{t.settings.promptPresets}</div>
+              <span aria-hidden="true" />
               <MotionButtonSurface>
                 <IconButton
                   data-testid="prompt-preset-add-button"
@@ -253,18 +263,12 @@ export function PromptSettingsPage({
                 );
               })}
             </div>
-          </section>
+          </SettingsFormSection>
 
-          <section className="section generation-settings-section generation-settings-meta-section generation-settings-secondary-section">
-            {saveStatus ? (
-              <div data-testid="prompt-settings-save-status" className="save-status">
-                <span>{saveStatus}</span>
-              </div>
-            ) : null}
-          </section>
+          {saveStatus ? <PageState tone={error ? 'negative' : 'neutral'} message={saveStatus} /> : null}
         </div>
-      </div>
-    </div>
+      </PageScroll>
+    </div></PageFrame>
   );
 }
 

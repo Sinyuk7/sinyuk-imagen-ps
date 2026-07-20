@@ -6,6 +6,7 @@ import { checkTextInputSeam } from './policy/text-input-seam.mjs';
 import { checkTaskV2 } from './policy/task-v2.mjs';
 import { checkThemeSource } from './policy/theme-source.mjs';
 import { checkUxpCss } from './policy/uxp-css.mjs';
+import { checkUiComposition } from './policy/ui-composition.mjs';
 import { printViolations } from './policy/shared.mjs';
 
 const repoRoot = process.cwd();
@@ -18,6 +19,7 @@ const violations = [
   ...checkTaskV2(repoRoot),
   ...checkThemeSource(repoRoot),
   ...checkUxpCss(repoRoot),
+  ...checkUiComposition(repoRoot),
 ];
 
 if (violations.length > 0) {

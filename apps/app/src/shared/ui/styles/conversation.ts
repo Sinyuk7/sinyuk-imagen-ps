@@ -113,7 +113,7 @@ export const CONVERSATION_CSS = `
 .prov-card-media{
   flex:0 1 auto;
   align-self:flex-start;
-  width:auto;
+  width:var(--ui-media-card-width, auto);
   max-width:100%;
 }
 .prov-card-text-only{ width:100%; max-width:var(--chat-result-inline-max); }
@@ -335,6 +335,7 @@ export const CONVERSATION_CSS = `
   line-height:15px;
   cursor:pointer;
 }
+.prov-response-toggle.ui-btn{ min-height:0; }
 .prov-response-toggle:hover{ color:var(--app-color-text-primary); }
 .prov-response-copy{
   display:inline-flex; align-items:center; justify-content:center;
@@ -543,6 +544,7 @@ export const CONVERSATION_CSS = `
 
 /* Loading */
 .prov-loading{ display:flex; align-items:center; padding:10px 12px; }
+.prov-loading-phase{ font-family:var(--app-font-family-mono); font-size:11px; color:var(--app-color-text-muted); }
 .queue-task-row{
   display:flex; align-items:center; justify-content:space-between; min-height:34px;
   padding-top:6px; padding-right:8px; padding-bottom:6px; padding-left:12px;

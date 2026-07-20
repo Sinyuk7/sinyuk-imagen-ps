@@ -7,12 +7,8 @@ import {
   fallbackStateFromAvailability,
   type ImagePreviewFallback,
 } from '../../image/preview-fallback';
-import { ImageFallbackContent, imageFallbackTitle } from '../components/image-fallback-content';
-import { Icon } from '../components/icons';
-import { ActionButton } from '../primitives/native-controls';
-import { IconButton } from '../primitives/icon-button';
-import { useToast } from '../components/toast-host';
 import { useI18n } from '../i18n/i18n-context';
+import { Button, Icon, IconButton, ImageFallbackContent, imageFallbackTitle, PageFrame, PageHeader, PageScroll, PageState, SegmentedTabs, useToast } from '../ui-system';
 import {
   deriveHistoryItems,
   filterHistoryItems,
@@ -22,12 +18,6 @@ import {
   type PreviewSnapshot,
 } from './history-view-model';
 
-const STATUS_COLOR: Record<RoundStatus, string> = {
-  queued: 'var(--app-color-informative)',
-  ok: 'var(--app-color-positive)',
-  running: 'var(--app-color-notice)',
-  err: 'var(--app-color-negative)',
-};
 const COMPLETED_WITHOUT_IMAGE_STATUS: HistoryDisplayStatus = 'completed-without-image-output';
 const PREVIEW_QUEUE_CONCURRENCY = 2;
 const PREVIEW_ROOT_MARGIN = '250px 0px';
@@ -113,10 +103,6 @@ export function HistoryPage({
   const displayStatusLabel = (status: HistoryDisplayStatus): string => {
     if (status === COMPLETED_WITHOUT_IMAGE_STATUS) return 'Completed without image output';
     return statusLabel[status as RoundStatus];
-  };
-  const displayStatusColor = (status: HistoryDisplayStatus): string => {
-    if (status === COMPLETED_WITHOUT_IMAGE_STATUS) return 'var(--app-color-positive)';
-    return STATUS_COLOR[status as RoundStatus];
   };
 
   const canDownload = onDownloadTaskOutput !== undefined;
@@ -407,45 +393,18 @@ export function HistoryPage({
   }, [onPlaceTaskOutput, show, t.history.resourceUnavailable]);
 
   return (
-    <div className="page page-enter">
-      <header className="hdr">
-        <IconButton
-          data-testid="history-back-button"
-          className="hdr-btn"
-          quiet
-          icon={<Icon name="chevron-left" />}
-          tooltip={t.common.back}
-          onClick={() => onNav('main')}
-        />
-        <div className="hdr-title">{t.history.title}</div>
-        <IconButton
-          data-testid="history-refresh-button"
-          className="hdr-btn"
-          quiet
-          icon={<Icon name="refresh" />}
-          tooltip={t.common.refresh}
-          onClick={() => { void onReload(); }}
-        />
-      </header>
-      <div className="filter-bar">
-        {filters.map(([key, label]) => (
-          <ActionButton
-            key={key}
-            data-testid={`history-filter-${key}`}
-            className="fchip"
-            quiet
-            selected={filter === key}
-            onClick={() => setFilter(key)}
-          >
-            {label}
-          </ActionButton>
-        ))}
-      </div>
-      <div className="scroll" ref={scrollRef}>
-        {loading && <div style={{ padding: '16px', color: 'var(--app-color-text-muted)', fontSize: 12 }}>{t.history.loading}</div>}
-        {error && <div style={{ padding: '16px', color: 'var(--app-color-negative)', fontSize: 12 }}>{error}</div>}
+    <PageFrame watch={`history:${filter}:${filtered.length}`}><div className="page page-enter">
+      <PageHeader
+        title={t.history.title}
+        back={<IconButton data-testid="history-back-button" className="hdr-btn" quiet icon={<Icon name="chevron-left" />} tooltip={t.common.back} onClick={() => onNav('main')} />}
+        right={<IconButton data-testid="history-refresh-button" className="hdr-btn" quiet icon={<Icon name="refresh" />} tooltip={t.common.refresh} onClick={() => { void onReload(); }} />}
+      />
+      <SegmentedTabs tabs={filters.map(([id, label]) => ({ id, label, testId: `history-filter-${id}` }))} selectedId={filter} onSelect={(next) => setFilter(next as HistoryFilter)} />
+      <PageScroll ref={scrollRef}>
+        {loading && <PageState tone="neutral" message={t.history.loading} />}
+        {error && <PageState tone="negative" message={error} />}
         {!loading && filtered.length === 0
-          ? <div style={{ padding: '40px 16px', textAlign: 'center', color: 'var(--app-color-text-muted)', fontSize: 12 }}>{t.history.empty}</div>
+          ? <PageState tone="neutral" message={t.history.empty} />
           : filtered.map((item) => {
             const retryRoundId = item.retryRoundId;
             const previewState = previews[item.id];
@@ -480,7 +439,7 @@ export function HistoryPage({
                   data-preview-id={previewTargetId === NO_PREVIEW_LOAD ? undefined : previewTargetId}
                 >
                   {item.previewUrl
-                    ? <img src={item.previewUrl} style={{ width: '100%', height: '100%', objectFit: 'cover', borderRadius: 'inherit' }} alt="" />
+                    ? <img src={item.previewUrl} className="history-preview-image" alt="" />
                     : (
                       <ImageFallbackContent
                         density="thumbnail"
@@ -495,18 +454,18 @@ export function HistoryPage({
                   <div className="task-meta">
                     <span
                       data-testid={`history-execution-label-${item.id}`}
-                      style={{ fontFamily: 'var(--app-font-family-mono)', fontSize: 10, color: 'var(--app-color-text-muted)' }}
+                      className="history-meta-mono"
                     >
                       {item.executionLabel}
                     </span>
                     <span className="task-meta-dot">·</span>
-                    <span style={{ fontFamily: 'var(--app-font-family-mono)', fontSize: 10, color: 'var(--app-color-text-muted)' }}>{item.displayTime}</span>
+                    <span className="history-meta-mono">{item.displayTime}</span>
                   </div>
-                  <div className="status-inline" style={{ marginTop: 1 }}>
+                  <div className="status-inline history-status-inline">
                     <span className={`sdot ${item.status === 'running' ? 'run' : item.status}`} />
-                    <span style={{ color: displayStatusColor(item.displayStatus), fontSize: 10 }}>{displayStatusLabel(item.displayStatus)}</span>
+                    <span className="history-status-label" data-status={item.displayStatus}>{displayStatusLabel(item.displayStatus)}</span>
                     {retryRoundId && item.actions.retry === 'enabled' && (
-                      <button
+                      <Button
                         data-testid={`history-retry-button-${retryRoundId}`}
                         className="row-retry"
                         onClick={(event) => {
@@ -515,7 +474,7 @@ export function HistoryPage({
                         }}
                       >
                         {t.history.retry}
-                      </button>
+                      </Button>
                     )}
                     {item.output && (
                       <>
@@ -553,7 +512,7 @@ export function HistoryPage({
             );
           })
         }
-      </div>
-    </div>
+      </PageScroll>
+    </div></PageFrame>
   );
 }

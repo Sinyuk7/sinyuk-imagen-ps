@@ -21,15 +21,8 @@ import {
   type ProviderBillingDraft,
   type ProviderConnectionDraft,
 } from '../hooks/use-provider-settings';
-import { ProviderBillingSettings } from '../components/provider-billing-settings';
-import {
-  ProviderAdvancedPathSection,
-  ProviderSettingsFooter,
-  ProviderSettingsPageHeader,
-} from '../components/provider-settings-sections';
-import { useToast } from '../components/toast-host';
-import { ProviderProfileEditor } from '../components/provider-profile-editor';
 import { useI18n } from '../i18n/i18n-context';
+import { PageFrame, PageScroll, ProviderAdvancedPathSection, ProviderBillingSettings, ProviderProfileEditor, ProviderSettingsFooter, ProviderSettingsPageHeader, useToast } from '../ui-system';
 import {
   statusFromEndpointMeasurementResult,
   statusFromProviderConnectionTestResult,
@@ -535,14 +528,14 @@ export function SettingsAddPage({ onNav, profiles, onProfileSaved }: SettingsAdd
   };
 
   return (
-    <div className="page page-enter settings-page">
+    <PageFrame watch="settings-add"><div className="page page-enter settings-page">
       <ProviderSettingsPageHeader
         backButtonTestId="add-provider-back-button"
         title={t.common.addProvider}
         onBack={() => onNav('settings')}
       />
 
-      <div className="scroll scroll-footer-pad">
+      <PageScroll className="scroll scroll-footer-pad">
         <ProviderProfileEditor
           aliasValue={name}
           onAliasValue={(value) => {
@@ -621,7 +614,7 @@ export function SettingsAddPage({ onNav, profiles, onProfileSaved }: SettingsAdd
           )}
           disabled={saveBusy}
         />
-      </div>
+      </PageScroll>
 
       <ProviderSettingsFooter
         footerClassName="det-footer settings-add-footer"
@@ -636,6 +629,6 @@ export function SettingsAddPage({ onNav, profiles, onProfileSaved }: SettingsAdd
         onSaveMouseDown={syncVisibleDraftInputs}
         onSave={() => void handleSave()}
       />
-    </div>
+    </div></PageFrame>
   );
 }

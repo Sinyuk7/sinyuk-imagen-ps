@@ -3,6 +3,7 @@ import type { ApiFormat } from '@imagen-ps/application';
 import { useI18n } from '../i18n/i18n-context';
 import { Button, FieldLabel, HelpText, TextField } from '../primitives/native-controls';
 import { IconButton } from '../primitives/icon-button';
+import { FooterActions, PageHeader } from '../patterns';
 import { TextSelect } from './text-select';
 import { Icon } from './icons';
 import { FieldHelp } from './field-help';
@@ -76,7 +77,9 @@ export function ProviderSettingsPageHeader({
 }: ProviderSettingsPageHeaderProps) {
   const { messages: t } = useI18n();
   return (
-    <header className="hdr">
+    <PageHeader
+      title={typeof title === 'string' ? title : title}
+      back={(
       <IconButton
         data-testid={backButtonTestId}
         className="hdr-btn"
@@ -85,9 +88,9 @@ export function ProviderSettingsPageHeader({
         tooltip={t.common.back}
         onClick={onBack}
       />
-      {typeof title === 'string' ? <div className="hdr-title">{title}</div> : title}
-      {rightSlot ?? <div style={{ width: 32 }} />}
-    </header>
+      )}
+      right={rightSlot}
+    />
   );
 }
 
@@ -295,7 +298,7 @@ export function ProviderSettingsFooter({
 }: ProviderSettingsFooterProps) {
   const { messages: t } = useI18n();
   return (
-    <footer className={footerClassName ?? 'det-footer'}>
+    <FooterActions className={footerClassName ?? 'det-footer'}>
       <div className={innerClassName ?? 'settings-detail-footer-inner'}>
         <div className="settings-detail-footer-actions">
           <IconButton
@@ -336,6 +339,6 @@ export function ProviderSettingsFooter({
           </Button>
         )}
       </div>
-    </footer>
+    </FooterActions>
   );
 }

@@ -30,6 +30,8 @@
     "test:chrome": "pnpm run theme:check && vitest run --passWithNoTests tests/adapters/chrome tests/composition/chrome",
     "test:release": "vitest run --config vitest.release.config.ts --no-cache",
     "test:chrome-e2e": "node tests/chrome-e2e/run.mjs",
+    "test:visual": "playwright test --config playwright.visual.config.ts",
+    "test:visual:update": "playwright test --config playwright.visual.config.ts --update-snapshots",
     "clean": "rm -rf dist"
   },
   "dependencies": {

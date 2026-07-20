@@ -4,15 +4,10 @@ import type { AppGenerationSettings } from '../../ports/app-generation-settings'
 import type { ModelGenerationSettingsController } from '../hooks/use-model-generation-settings';
 import { profileToProviderRow } from '../../domain/mappers';
 import { useAppServices } from '../../ports/app-services-context';
-import { Icon } from '../components/icons';
-import { SettingsListRow } from '../components/settings-list-row';
-import { ActionButton, Button, Checkbox, FieldLabel, HelpText, TextField } from '../primitives/native-controls';
-import { IconButton } from '../primitives/icon-button';
 import { useI18n } from '../i18n/i18n-context';
 import type { ComfyUiManagementController } from '../hooks/use-comfyui-management';
-import { TextSelect } from '../components/text-select';
-import { StatusNotice } from '../components/status-notice';
 import type { SettingsTab } from '../settings-route';
+import { Button, Checkbox, FieldGroup, FooterActions, HelpText, Icon, IconButton, PageFrame, PageHeader, PageScroll, PageState, SegmentedTabs, SettingsFormSection, SettingsListRow, SettingsListSection, StatusNotice, TextField, TextSelect } from '../ui-system';
 
 interface SettingsPageProps {
   readonly activeTab: SettingsTab;
@@ -112,27 +107,24 @@ function ProviderRoot({
 }) {
   const { messages: t } = useI18n();
   return (
-    <div className="scroll">
+    <div>
       <div className="settings-detail-layout">
-        <div className="sec-lbl">{t.settings.providerOutput}</div>
-        <SettingsListRow
+        <SettingsListSection title={t.settings.providerOutput}><SettingsListRow
           testId="provider-output-settings-row"
           title={t.settings.providerOutput}
           special
           leading={<div className="prov-ico"><Icon name="settings" size={14} /></div>}
           meta={<span className="prov-summary-mono">{t.settings.providerOutputSummary}</span>}
           onOpen={onOpenOutput}
-        />
-        <div className="sec-lbl">{t.settings.configuredProviders}</div>
-        {loading ? <div className="settings-empty-state">{t.settings.loading}</div> : null}
-        {error ? <div className="settings-empty-state">{error}</div> : null}
+        /></SettingsListSection>
+        <SettingsListSection title={t.settings.configuredProviders}>
+        {loading ? <PageState tone="neutral" message={t.settings.loading} /> : null}
+        {error ? <PageState tone="negative" message={error} /> : null}
         {!loading && profiles.length === 0 ? (
-          <div className="settings-empty-state" data-testid="provider-empty-state">
-            {t.settings.noProviderProfile}
-            <Button className="settings-empty-action" onClick={onOpenNew}>{t.common.addProvider}</Button>
-          </div>
+          <div data-testid="provider-empty-state"><PageState tone="neutral" message={t.settings.noProviderProfile} action={<Button onClick={onOpenNew}>{t.common.addProvider}</Button>} /></div>
         ) : null}
         {profiles.map((profile) => <ProviderListItem key={profile.profileId} profile={profile} modelCount={modelCounts.get(profile.profileId) ?? 0} onOpen={() => onOpenProfile(profile.profileId)} />)}
+        </SettingsListSection>
       </div>
     </div>
   );
@@ -147,12 +139,10 @@ function GeneralRoot({
 }) {
   const { messages: t } = useI18n();
   return (
-    <div className="scroll">
+    <div>
       <div className="settings-detail-layout">
-        <div className="sec-lbl">{t.settings.globalSettings}</div>
-        <SettingsListRow testId="global-settings-row" title={t.settings.globalSettings} special leading={<div className="prov-ico"><Icon name="settings" size={14} /></div>} meta={<span className="prov-summary">{t.settings.globalSettingsSummary}</span>} onOpen={onOpenGlobalSettings} />
-        <div className="sec-lbl">{t.settings.promptSettings}</div>
-        <SettingsListRow testId="prompt-settings-row" title={t.settings.promptSettings} special leading={<div className="prov-ico"><Icon name="pencil" size={14} /></div>} meta={<span className="prov-summary">{t.settings.promptSettingsSummary}</span>} onOpen={onOpenPromptSettings} />
+        <SettingsListSection title={t.settings.globalSettings}><SettingsListRow testId="global-settings-row" title={t.settings.globalSettings} special leading={<div className="prov-ico"><Icon name="settings" size={14} /></div>} meta={<span className="prov-summary">{t.settings.globalSettingsSummary}</span>} onOpen={onOpenGlobalSettings} /></SettingsListSection>
+        <SettingsListSection title={t.settings.promptSettings}><SettingsListRow testId="prompt-settings-row" title={t.settings.promptSettings} special leading={<div className="prov-ico"><Icon name="pencil" size={14} /></div>} meta={<span className="prov-summary">{t.settings.promptSettingsSummary}</span>} onOpen={onOpenPromptSettings} /></SettingsListSection>
       </div>
     </div>
   );
@@ -193,41 +183,42 @@ function ComfyUiRoot({
 
   if (picker) {
     return (
-      <div className="scroll" data-testid="comfyui-workflow-picker">
+      <div data-testid="comfyui-workflow-picker">
         <div className="settings-detail-layout">
-          <div className="settings-section-header"><div className="section-title settings-section-heading">Workflow</div><IconButton className="settings-icon-button" quiet icon={<Icon name="chevron-left" />} tooltip={t.common.back} onClick={() => setPicker(false)} /></div>
+          <PageHeader title="Workflow" back={<IconButton className="settings-icon-button" quiet icon={<Icon name="chevron-left" />} tooltip={t.common.back} onClick={() => setPicker(false)} />} />
           <TextField aria-label="Search workflows" data-testid="comfyui-workflow-search" className="field-input" type="search" value={search} onValue={setSearch} />
-          {Array.from(groups.entries()).map(([group, items]) => <section key={group} data-testid={`comfyui-workflow-group-${group}`}>{items.map((item) => <SettingsListRow key={item.workflowId} testId={`comfyui-workflow-option-${item.workflowId}`} title={item.displayName} leading={<div className="prov-ico"><Icon name="algorithm" size={14} /></div>} meta={<span className="prov-summary-mono">{item.remotePath}</span>} onOpen={() => { void controller.selectWorkflow(item.workflowId).then(() => setPicker(false)); }} />)}</section>)}
+          {Array.from(groups.entries()).map(([group, items]) => <SettingsListSection key={group} title={group} testId={`comfyui-workflow-group-${group}`}>{items.map((item) => <SettingsListRow key={item.workflowId} testId={`comfyui-workflow-option-${item.workflowId}`} title={item.displayName} leading={<div className="prov-ico"><Icon name="algorithm" size={14} /></div>} meta={<span className="prov-summary-mono">{item.remotePath}</span>} onOpen={() => { void controller.selectWorkflow(item.workflowId).then(() => { setPicker(false); }); }} />)}</SettingsListSection>)}
         </div>
       </div>
     );
   }
 
   return (
-    <div className="scroll">
+    <div>
       <div className="settings-detail-layout" data-testid="comfyui-settings-root">
-        <section className="section" data-testid="comfyui-connection-section">
-          <div className="section-title settings-section-heading">{t.settings.comfyUiConnection}</div>
-          <div className="field">
-            <FieldLabel htmlFor="comfyui-address">{t.settings.comfyUiAddress}</FieldLabel>
+        <SettingsFormSection title={t.settings.comfyUiConnection} testId="comfyui-connection-section">
+          <FieldGroup label={t.settings.comfyUiAddress} htmlFor="comfyui-address">
             <div className="settings-field-action-row">
               <TextField id="comfyui-address" data-testid="comfyui-address" className="field-input" value={address} onValue={onAddressChange} />
               <Button data-testid="comfyui-connect" disabled={controller.busy || !address.trim()} onClick={() => void controller.saveBaseUrl(address)}>Connect</Button>
             </div>
             {controller.baseUrl ? <HelpText data-testid="comfyui-connection-status" className="field-hint">{controller.error ?? controller.baseUrl}</HelpText> : null}
-          </div>
-        </section>
-        <section className="section" data-testid="comfyui-current-workflow-section">
-          <div className="section-title settings-section-heading">{t.settings.comfyUiCurrentWorkflow}</div>
+          </FieldGroup>
+        </SettingsFormSection>
+        <SettingsFormSection title={t.settings.comfyUiCurrentWorkflow} testId="comfyui-current-workflow-section">
           <SettingsListRow testId="comfyui-change-workflow" title={current?.displayName ?? t.settings.comfyUiChooseWorkflow} leading={<div className="prov-ico"><Icon name="algorithm" size={14} /></div>} meta={<span className="prov-summary-mono">{current?.remotePath ?? t.settings.comfyUiNoWorkflowSelected}</span>} onOpen={() => setPicker(true)} />
-          {current ? <div className="settings-action-row"><Button data-testid="comfyui-refresh-workflow" onClick={() => void controller.refresh()}>Refresh</Button><Button data-testid="comfyui-open-workflow" onClick={() => void controller.openInComfyUi()}>Open in ComfyUI</Button></div> : null}
-        </section>
-        {mapping?.showSection ? <section className="section" data-testid="comfyui-input-mapping"><div className="section-title settings-section-heading">Input Mapping</div>{(['text', 'image'] as const).map((kind) => {
+          {current ? <FooterActions><Button data-testid="comfyui-refresh-workflow" onClick={() => void controller.refresh()}>Refresh</Button><Button data-testid="comfyui-open-workflow" onClick={() => void controller.openInComfyUi()}>Open in ComfyUI</Button></FooterActions> : null}
+        </SettingsFormSection>
+        {mapping?.showSection ? <SettingsFormSection title="Input Mapping" testId="comfyui-input-mapping">{(['text', 'image'] as const).map((kind) => {
           const state = mapping[kind]; const candidates = kind === 'text' ? mapping.textCandidates : mapping.imageCandidates;
           return candidates.length > 1 ? <TextSelect key={kind} testId={`comfyui-${kind}-mapping`} label={kind === 'text' ? 'Prompt input' : 'Image input'} value={state.resolved ? candidates.find((candidate) => refKey(candidate.ref) === mappingId(state.resolved))?.label ?? 'Do not map' : 'Do not map'} open={mappingMenu === kind} onOpenChange={(open) => setMappingMenu(open ? kind : null)} options={mappingOptions(candidates)} selectedId={mappingId(state.resolved)} onSelect={(id) => { const candidate = candidates.find((item) => refKey(item.ref) === id); void controller.setMapping(kind, candidate?.ref ?? null); setMappingMenu(null); }} /> : state.notice ? <HelpText key={kind} className="field-hint">{state.notice}</HelpText> : null;
-        })}{mapping.mask.requiresExplicitSelection ? <><TextSelect testId="comfyui-mask-mapping" label="Mask input" value={maskBinding ? mapping.maskCandidates.find((candidate) => refKey(candidate.ref) === maskSelectionId)?.label ?? 'Do not map' : 'Do not map'} open={mappingMenu === 'mask'} onOpenChange={(open) => setMappingMenu(open ? 'mask' : null)} options={mappingOptions(mapping.maskCandidates)} selectedId={maskSelectionId} onSelect={(id) => { setMaskBinding(mapping.maskCandidates.find((item) => refKey(item.ref) === id)); setMappingMenu(null); }} />{maskBinding ? <TextSelect testId="comfyui-mask-polarity" label="Mask polarity" value={maskBinding.polarity === 'white-edit' ? 'White edits' : 'Black edits'} open={mappingMenu === 'mask-polarity'} onOpenChange={(open) => setMappingMenu(open ? 'mask-polarity' : null)} options={[{ id: 'white-edit', label: 'White edits' }, { id: 'black-edit', label: 'Black edits' }]} selectedId={maskBinding.polarity} onSelect={(polarity) => { const candidate = mapping.maskCandidates.find((item) => refKey(item.ref) === maskSelectionId); if (candidate) setMaskBinding(candidate, polarity as ComfyUiMaskBinding['polarity']); setMappingMenu(null); }} /> : null}</> : null}</section> : null}
-        {controller.runtime?.form ? <section className="section" data-testid="comfyui-workflow-parameters"><div className="section-title settings-section-heading">Workflow Parameters</div>{controller.runtime.form.nodes.some((node) => node.visible && node.widgets.some((widget) => widget.visible && widget.writable)) ? controller.runtime.form.nodes.flatMap((node) => node.visible ? node.widgets.filter((widget) => widget.visible && widget.writable).map((widget) => <div className="field" key={`${node.nodeId}:${widget.order}`}><FieldLabel htmlFor={`comfyui-parameter-${node.nodeId}-${widget.order}`}>{node.label || widget.label}</FieldLabel>{widget.kind === 'boolean' ? <Checkbox data-testid={`comfyui-parameter-${node.nodeId}-${widget.order}`} checked={Boolean(controller.draftValues[refKey(widget.ref)] ?? widget.workflowValue)} onChecked={(value) => controller.setParameter(widget.ref, value)} /> : widget.kind === 'combo' && widget.options ? <TextSelect testId={`comfyui-parameter-${node.nodeId}-${widget.order}`} label={widget.label} value={String(controller.draftValues[refKey(widget.ref)] ?? widget.workflowValue ?? '')} open={parameterMenu === `${node.nodeId}:${widget.order}`} onOpenChange={(open) => setParameterMenu(open ? `${node.nodeId}:${widget.order}` : null)} options={widget.options.map((option) => ({ id: option, label: option }))} selectedId={String(controller.draftValues[refKey(widget.ref)] ?? widget.workflowValue ?? '')} onSelect={(value) => { controller.setParameter(widget.ref, value); setParameterMenu(null); }} /> : <TextField id={`comfyui-parameter-${node.nodeId}-${widget.order}`} value={String(controller.draftValues[refKey(widget.ref)] ?? widget.workflowValue ?? '')} onValue={(value) => controller.setParameter(widget.ref, widget.kind === 'number' || widget.kind === 'seed' ? Number(value) : value)} />}</div>) : [] ) : <HelpText data-testid="comfyui-parameters-empty">This workflow has no exposed parameters.</HelpText>}</section> : null}
-        {controller.error ? <section className="section" data-testid="comfyui-diagnostics"><StatusNotice tone="negative" message="ComfyUI needs attention" detail={controller.error} copyText={controller.error} /></section> : null}
+        })}{mapping.mask.requiresExplicitSelection ? <><TextSelect testId="comfyui-mask-mapping" label="Mask input" value={maskBinding ? mapping.maskCandidates.find((candidate) => refKey(candidate.ref) === maskSelectionId)?.label ?? 'Do not map' : 'Do not map'} open={mappingMenu === 'mask'} onOpenChange={(open) => setMappingMenu(open ? 'mask' : null)} options={mappingOptions(mapping.maskCandidates)} selectedId={maskSelectionId} onSelect={(id) => { setMaskBinding(mapping.maskCandidates.find((item) => refKey(item.ref) === id)); setMappingMenu(null); }} />{maskBinding ? <TextSelect testId="comfyui-mask-polarity" label="Mask polarity" value={maskBinding.polarity === 'white-edit' ? 'White edits' : 'Black edits'} open={mappingMenu === 'mask-polarity'} onOpenChange={(open) => setMappingMenu(open ? 'mask-polarity' : null)} options={[{ id: 'white-edit', label: 'White edits' }, { id: 'black-edit', label: 'Black edits' }]} selectedId={maskBinding.polarity} onSelect={(polarity) => { const candidate = mapping.maskCandidates.find((item) => refKey(item.ref) === maskSelectionId); if (candidate) setMaskBinding(candidate, polarity as ComfyUiMaskBinding['polarity']); setMappingMenu(null); }} /> : null}</> : null}</SettingsFormSection> : null}
+        {controller.runtime?.form ? <SettingsFormSection title="Workflow Parameters" testId="comfyui-workflow-parameters">{controller.runtime.form.nodes.some((node) => node.visible && node.widgets.some((widget) => widget.visible && widget.writable)) ? controller.runtime.form.nodes.flatMap((node) => node.visible ? node.widgets.filter((widget) => widget.visible && widget.writable).map((widget) => {
+          const parameterId = `comfyui-parameter-${node.nodeId}-${widget.order}`;
+          const value = String(controller.draftValues[refKey(widget.ref)] ?? widget.workflowValue ?? '');
+          return <FieldGroup key={`${node.nodeId}:${widget.order}`} label={node.label || widget.label} htmlFor={parameterId}>{widget.kind === 'boolean' ? <Checkbox id={parameterId} data-testid={parameterId} checked={Boolean(controller.draftValues[refKey(widget.ref)] ?? widget.workflowValue)} onChecked={(next) => controller.setParameter(widget.ref, next)} /> : widget.kind === 'combo' && widget.options ? <TextSelect triggerId={parameterId} testId={parameterId} label={widget.label} value={value} open={parameterMenu === `${node.nodeId}:${widget.order}`} onOpenChange={(open) => setParameterMenu(open ? `${node.nodeId}:${widget.order}` : null)} options={widget.options.map((option) => ({ id: option, label: option }))} selectedId={value} onSelect={(next) => { controller.setParameter(widget.ref, next); setParameterMenu(null); }} /> : <TextField id={parameterId} value={value} onValue={(next) => controller.setParameter(widget.ref, widget.kind === 'number' || widget.kind === 'seed' ? Number(next) : next)} />}</FieldGroup>;
+        }) : [] ) : <HelpText data-testid="comfyui-parameters-empty">This workflow has no exposed parameters.</HelpText>}</SettingsFormSection> : null}
+        {controller.error ? <SettingsFormSection title="Diagnostics" testId="comfyui-diagnostics"><StatusNotice tone="negative" message="ComfyUI needs attention" detail={controller.error} copyText={controller.error} /></SettingsFormSection> : null}
       </div>
     </div>
   );
@@ -249,20 +240,16 @@ export function SettingsPage(props: SettingsPageProps) {
   }, [props.profiles, services]);
   const title = props.activeTab === 'provider' ? t.common.provider : props.activeTab === 'comfyui' ? t.settings.comfyUi : t.settings.configuration;
   return (
-    <div className="page page-enter settings-page">
-      <header className="hdr">
-        <IconButton data-testid="settings-back-button" className="hdr-btn" quiet icon={<Icon name="chevron-left" />} tooltip={t.common.back} onClick={props.onBack} />
-        <div className="hdr-title">{title}</div>
-        {props.activeTab === 'provider' ? <IconButton data-testid="providers-add-button" className="hdr-btn" quiet icon={<Icon name="add" />} tooltip={t.common.addProvider} onClick={props.onOpenProviderNew} /> : <div className="hdr-btn" />}
-      </header>
-      <div className="filter-bar settings-backend-segments" role="tablist" aria-label={t.settings.generationBackend}>
-        <ActionButton data-testid="settings-backend-provider" className="fchip" quiet selected={props.activeTab === 'provider'} onClick={() => props.onSelectTab('provider')}>{t.common.provider}</ActionButton>
-        <ActionButton data-testid="settings-backend-comfyui" className="fchip" quiet selected={props.activeTab === 'comfyui'} onClick={() => props.onSelectTab('comfyui')}>{t.settings.comfyUi}</ActionButton>
-        <ActionButton data-testid="settings-backend-general" className="fchip" quiet selected={props.activeTab === 'general'} onClick={() => props.onSelectTab('general')}>{t.settings.configuration}</ActionButton>
+    <PageFrame watch={`settings:${props.activeTab}`}>
+      <div className="settings-page">
+      <PageHeader title={title} backLabel={t.common.back} backTestId="settings-back-button" onBack={props.onBack} right={props.activeTab === 'provider' ? <IconButton data-testid="providers-add-button" className="hdr-btn" quiet icon={<Icon name="add" />} tooltip={t.common.addProvider} onClick={props.onOpenProviderNew} /> : undefined} />
+      <SegmentedTabs tabs={[{ id: 'provider', label: t.common.provider, testId: 'settings-backend-provider' }, { id: 'comfyui', label: t.settings.comfyUi, testId: 'settings-backend-comfyui' }, { id: 'general', label: t.settings.configuration, testId: 'settings-backend-general' }]} selectedId={props.activeTab} onSelect={(tab) => props.onSelectTab(tab as SettingsTab)} />
+      <PageScroll>
+        {props.activeTab === 'provider' ? <ProviderRoot profiles={props.profiles} loading={props.loading} error={props.error} modelCounts={modelCounts} onOpenOutput={props.onOpenProviderOutput} onOpenProfile={props.onOpenProfile} onOpenNew={props.onOpenProviderNew} /> : null}
+        {props.activeTab === 'general' ? <GeneralRoot onOpenGlobalSettings={props.onOpenGlobalSettings} onOpenPromptSettings={props.onOpenPromptSettings} /> : null}
+        {props.activeTab === 'comfyui' ? <ComfyUiRoot controller={props.comfyUi} address={comfyAddressDraft} onAddressChange={setComfyAddressDraft} /> : null}
+      </PageScroll>
       </div>
-      {props.activeTab === 'provider' ? <ProviderRoot profiles={props.profiles} loading={props.loading} error={props.error} modelCounts={modelCounts} onOpenOutput={props.onOpenProviderOutput} onOpenProfile={props.onOpenProfile} onOpenNew={props.onOpenProviderNew} /> : null}
-      {props.activeTab === 'general' ? <GeneralRoot onOpenGlobalSettings={props.onOpenGlobalSettings} onOpenPromptSettings={props.onOpenPromptSettings} /> : null}
-      {props.activeTab === 'comfyui' ? <ComfyUiRoot controller={props.comfyUi} address={comfyAddressDraft} onAddressChange={setComfyAddressDraft} /> : null}
-    </div>
+    </PageFrame>
   );
 }

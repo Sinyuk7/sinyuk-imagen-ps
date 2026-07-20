@@ -170,13 +170,24 @@ export function MotionDimSurface({ dim, className, children }: { readonly dim: b
 export function MotionPageFrame({ watch, children }: { readonly watch: string; readonly children: ReactNode }) {
   const controller = useMotionController();
   const ref = useRef<HTMLDivElement | null>(null);
+  const [settled, setSettled] = useState(true);
 
   useEffect(() => {
     const handle = controller.play(pageCrossfadeRecipe(ref.current, { enter: true }));
-    return () => handle.stop();
+    setSettled(!handle.isRunning());
+    const timer = window.setInterval(() => {
+      if (!handle.isRunning()) {
+        setSettled(true);
+        window.clearInterval(timer);
+      }
+    }, 16);
+    return () => {
+      window.clearInterval(timer);
+      handle.stop();
+    };
   }, [controller, watch]);
 
-  return <div ref={ref} className="motion-page-frame">{children}</div>;
+  return <div ref={ref} className="motion-page-frame" data-motion-state={settled ? 'settled' : 'running'}>{children}</div>;
 }
 
 export function MotionHighlight({ activeKey }: { readonly activeKey: string | null | undefined }) {
