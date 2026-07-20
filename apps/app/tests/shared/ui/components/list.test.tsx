@@ -29,6 +29,7 @@ describe('shared list primitives', () => {
 
     expect(container.querySelector('.ui-list')?.getAttribute('aria-label')).toBe('Providers');
     expect(container.querySelectorAll('.ui-list-item-shell')).toHaveLength(2);
+    expect(container.querySelectorAll('.ui-list-item-spaced')).toHaveLength(1);
     expect(container.querySelector('[data-testid="real"]')?.getAttribute('role')).toBe('button');
     expect(container.querySelector('[data-testid="loading"] .ui-list-item-leading [data-icon-name="spinner"]')).not.toBeNull();
   });

@@ -93,7 +93,6 @@ export const COMPOSER_CSS = `
   text-overflow:ellipsis;
   white-space:nowrap;
 }
-.popup-list > * + *{ margin-top:0; }
 .model-menu .popup-list-state.ui-list-item-shell,
 .layer-scroll .popup-list-state.ui-list-item-shell{
   min-height:36px;

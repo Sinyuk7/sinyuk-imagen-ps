@@ -6,7 +6,7 @@ export const PAGES_CSS = `
 .fchip{ margin-right:6px; flex-shrink:0; }
 .task-row{ display:flex; align-items:flex-start; padding:11px 16px; border-bottom:1px solid var(--app-color-border-default); cursor:pointer; }
 .task-row:hover{ background:var(--app-color-hover-overlay); }
-.history-list > * + *{ margin-top:0; }
+.history-list .ui-list-item-spaced{ margin-top:0; }
 .history-list-state.ui-list-item-shell{ align-items:flex-start; min-height:66px; padding:11px 16px; border:0; background:transparent; cursor:default; }
 .history-list-state.ui-list-item-shell:hover{ background:transparent; }
 .history-list-state .ui-list-item-title{ font-weight:400; }
@@ -680,7 +680,7 @@ export const PAGES_CSS = `
   overflow:visible;
   background:transparent;
 }
-.prompt-preset-list.ui-list>*+*{
+.prompt-preset-list .ui-list-item-spaced{
   margin-top:0;
 }
 .prompt-preset-row{

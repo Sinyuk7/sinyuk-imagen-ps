@@ -1,4 +1,4 @@
-import { type KeyboardEvent, type ReactNode } from 'react';
+import { Children, type KeyboardEvent, type ReactNode } from 'react';
 import { Icon } from './icons';
 import { Button } from '../primitives/native-controls';
 
@@ -86,7 +86,13 @@ function defaultStateTitle(kind: ListStateKind): string {
 
 /** 页面独立列表的纯布局容器。 */
 export function List({ children, className, 'aria-label': ariaLabel }: ListProps) {
-  return <div className={classNames('ui-list', className)} aria-label={ariaLabel}>{children}</div>;
+  return (
+    <div className={classNames('ui-list', className)} aria-label={ariaLabel}>
+      {Children.toArray(children).map((child, index) => (
+        index === 0 ? child : <div className="ui-list-item-spaced" key={`list-item-${index}`}>{child}</div>
+      ))}
+    </div>
+  );
 }
 
 /** 领域行与状态行共用的纯渲染几何 shell。 */
