@@ -14,18 +14,6 @@ function errorMessage(error: unknown, fallback: string): string {
   return error instanceof Error ? error.message : fallback;
 }
 
-function legacyResolvedModelId(input: {
-  readonly providerConfig: unknown;
-}): string | undefined {
-  if (typeof input.providerConfig === 'object' && input.providerConfig !== null && 'defaultModel' in input.providerConfig) {
-    const value = (input.providerConfig as { readonly defaultModel?: unknown }).defaultModel;
-    if (typeof value === 'string' && value.trim().length > 0) {
-      return value.trim();
-    }
-  }
-  return undefined;
-}
-
 function normalizeUnsupported(message: string): ProviderProfileConnectionTestResult {
   return { status: 'partial', message };
 }
@@ -33,25 +21,17 @@ function normalizeUnsupported(message: string): ProviderProfileConnectionTestRes
 async function effectiveOwnedWireModelId(input: {
   readonly profileId?: string;
   readonly apiFormat: TestProviderProfileConnectionInput['apiFormat'];
-  readonly selectedModelId?: string;
+  readonly modelId: string;
 }): Promise<string | undefined> {
   const profileId = input.profileId?.trim();
   if (!profileId || !input.apiFormat) {
-    return undefined;
-  }
-  const configs = await getUserModelConfigRepository().list(profileId);
-  const selectedModelId = input.selectedModelId?.trim();
-  const effective = selectedModelId
-    ? configs.find((config) => config.modelId === selectedModelId) ?? configs[0]
-    : configs[0];
-  if (!effective) {
-    return undefined;
+    return input.modelId;
   }
   return (
     await resolveConfiguredModel({
       profileId,
       apiFormat: input.apiFormat,
-      modelId: effective.modelId,
+      modelId: input.modelId,
       userModelConfigRepository: getUserModelConfigRepository(),
     })
   ).wireModelId;
@@ -87,6 +67,10 @@ export async function testProviderProfileConnection(
   const span = logger.startSpan('command.profile.connection_test');
 
   try {
+    const modelId = input.modelId?.trim();
+    if (!modelId) {
+      throw createValidationError('Provider connection test requires modelId.', { profileId: input.profileId });
+    }
     const {
       provider,
       providerConfig,
@@ -114,9 +98,8 @@ export async function testProviderProfileConnection(
     const probeModelId = await effectiveOwnedWireModelId({
       profileId: input.profileId,
       apiFormat,
-      selectedModelId: input.selectedModelId,
-    })
-      ?? legacyResolvedModelId({ providerConfig });
+      modelId,
+    });
 
     const tested = await provider.safeProbe(
       providerConfig as never,

@@ -49,7 +49,7 @@ function profileIdOf(value: unknown): string | undefined {
   return typeof profileId === 'string' && profileId.length > 0 ? profileId : undefined;
 }
 
-function isProviderProfileRecord(value: unknown): value is ProviderProfile {
+function isProviderProfileRecord(value: unknown): value is ProviderProfile & { readonly enabled?: unknown; readonly lifecycle?: unknown } {
   if (typeof value !== 'object' || value === null || Array.isArray(value)) {
     return false;
   }
@@ -58,7 +58,7 @@ function isProviderProfileRecord(value: unknown): value is ProviderProfile {
     typeof record.profileId === 'string' &&
     API_FORMATS.has(String(record.apiFormat)) &&
     typeof record.displayName === 'string' &&
-    typeof record.enabled === 'boolean' &&
+    (record.lifecycle === undefined || record.lifecycle === 'setup' || record.lifecycle === 'ready') &&
     typeof record.config === 'object' &&
     record.config !== null &&
     !Array.isArray(record.config) &&
@@ -67,16 +67,23 @@ function isProviderProfileRecord(value: unknown): value is ProviderProfile {
   );
 }
 
+/** 读入兼容遗留 enabled；持久化当前状态只使用 lifecycle。 */
+function normalizeProviderProfile(value: ProviderProfile & { readonly enabled?: unknown; readonly lifecycle?: unknown }): ProviderProfile {
+  const { enabled: _enabled, lifecycle, ...profile } = value;
+  return { ...profile, lifecycle: lifecycle === 'setup' ? 'setup' : 'ready' };
+}
+
 function parseProfiles(raw: string): ParsedProfileRecords {
   if (raw.trim().length === 0) {
     return { profiles: new Map(), rejectedProfileIds: [] };
   }
   const parsed = JSON.parse(raw) as { readonly profiles?: readonly unknown[] };
   const profiles = new Map<string, ProviderProfile>();
-  const rejectedProfileIds: string[] = [];
-  for (const profile of parsed.profiles ?? []) {
-    if (isProviderProfileRecord(profile)) {
-      profiles.set(profile.profileId, profile);
+    const rejectedProfileIds: string[] = [];
+    for (const profile of parsed.profiles ?? []) {
+      if (isProviderProfileRecord(profile)) {
+        const normalized = normalizeProviderProfile(profile);
+        profiles.set(normalized.profileId, normalized);
     } else {
       rejectedProfileIds.push(profileIdOf(profile) ?? '<unknown>');
     }
@@ -162,14 +169,15 @@ export function createUxpProviderProfileRepository(modules: UxpModules): Provide
       return (await readAll()).get(profileId);
     },
     async save(profile: ProviderProfile): Promise<void> {
-      await flightRecorder.checkpoint('uxp.profile_repository.save.start', profileAttrs(profile), {
-        profile_id: profile.profileId,
+      const normalized = normalizeProviderProfile(profile);
+      await flightRecorder.checkpoint('uxp.profile_repository.save.start', profileAttrs(normalized), {
+        profile_id: normalized.profileId,
       });
       const profiles = await readAll();
-      profiles.set(profile.profileId, profile);
+      profiles.set(normalized.profileId, normalized);
       await writeAll(profiles);
-      await flightRecorder.checkpoint('uxp.profile_repository.save.ok', profileAttrs(profile), {
-        profile_id: profile.profileId,
+      await flightRecorder.checkpoint('uxp.profile_repository.save.ok', profileAttrs(normalized), {
+        profile_id: normalized.profileId,
       });
     },
     async delete(profileId: string): Promise<void> {

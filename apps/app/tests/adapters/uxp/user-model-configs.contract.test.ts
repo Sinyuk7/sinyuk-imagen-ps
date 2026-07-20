@@ -24,12 +24,14 @@ async function geminiFlashImageConfig(): Promise<UserModelConfig> {
   };
 }
 
-function createModulesWithJson(rawJson: string): UxpModules {
+function createModulesWithJson(initialJson: string): UxpModules {
+  let rawJson = initialJson;
   const file = {
     async read() {
       return rawJson;
     },
-    async write() {
+    async write(value: string | ArrayBuffer) {
+      rawJson = String(value);
       return undefined;
     },
   };
@@ -66,5 +68,16 @@ describe('UXP user model config repository', () => {
 
     expect(listed).toHaveLength(1);
     expect(listed[0]?.modelId).toBe('gemini-3.1-flash-image');
+  });
+
+  it('keeps one persisted model when delete would remove the final config', async () => {
+    const config = await geminiFlashImageConfig();
+    const repository = createUxpUserModelConfigRepository(createModulesWithJson(JSON.stringify({
+      configs: [config, { ...config, modelId: 'gemini-3.1-flash-image-alt', wireModelId: 'gemini-3.1-flash-image-alt' }],
+    })));
+
+    expect(await repository.deleteUnlessLast(config.profileId, config.modelId)).toBe(true);
+    expect(await repository.deleteUnlessLast(config.profileId, 'gemini-3.1-flash-image-alt')).toBe(false);
+    expect(await repository.list(config.profileId)).toHaveLength(1);
   });
 });

@@ -7,7 +7,7 @@ const baseProfile: ProviderProfile = {
   profileId: 'profile-a',
   apiFormat: 'openai-images',
   displayName: 'Profile A',
-  enabled: true,
+  lifecycle: 'ready',
   config: { apiFormat: 'openai-images', displayName: 'Profile A' },
   createdAt: '2026-07-08T00:00:00.000Z',
   updatedAt: '2026-07-08T00:00:00.000Z',
@@ -41,7 +41,7 @@ function createUserConfigRepository(configs: readonly UserModelConfig[]): UserMo
     async save() {
       throw new Error('Unexpected user config save.');
     },
-    async delete() {
+    async deleteUnlessLast() {
       throw new Error('Unexpected user config delete.');
     },
     async deleteProfile() {

@@ -33,15 +33,13 @@ surface apps -> application/session -> core-engine + providers + execution backe
   discovery returns only remote model facts, preserving unknown IDs. Official
   model presets live in the provider catalog as `(apiFormat, modelId)` templates
   with `requestStrategyId` and output constraints. `packages/application` owns
-  profile-local reconciliation over discovery cache, user model configs,
-  official presets, and profile `selectedModelIds/defaultModelId`.
-- Provider model execution is resolved during `GenerationBackend.admit()`,
-  before queue dispatch. The application picks
-  the explicit request model, then `defaultModelId`, then provider fallback,
-  resolves it through user config before official preset, and injects
-  `request.model`. Production provider request builders consume `request.model`
-  and `requestStrategyId`; they must not infer execution config from model ID
-  alone or from `providerOptions.model`.
+  profile-local reconciliation over discovery cache, user-owned model configs,
+  and official presets.
+- Provider model execution is resolved during `GenerationBackend.admit()` before
+  queue dispatch. Submission, admission, Profile connection tests, and Profile
+  tests require an explicit configured `modelId`; they never infer a first
+  model, a profile default, or a provider fallback. Production provider request
+  builders consume the resolved `request.model` and `requestStrategyId` only.
 - `gemini-generate-content` is a distinct API format and local catalog
   namespace inside `packages/providers`. The same `modelId` may coexist across
   API formats such as `openai-chat-completions` and
@@ -346,6 +344,18 @@ surface apps -> application/session -> core-engine + providers + execution backe
   `providerId` or `family` concepts. This is an intentional current-state
   schema break: old persisted profile records without canonical `apiFormat` are
   rejected rather than migrated.
+- A user-visible Profile is always `ready`: it has valid Profile configuration
+  and at least one owned `UserModelConfig`. New Profile `Continue` stores an
+  internal `setup` Profile only long enough to route to an exact Official Catalog
+  model, Model Configuration, or Profile Models. Public list/active Profile
+  reads exclude setup Profiles; cancellation and shell startup cleanup remove
+  setup Profile, model-config, and secret state. First successful model save
+  promotes setup to ready idempotently.
+- Ready Profiles cannot lose their final model through `deleteUserModelConfig`.
+  The repository owns the delete-unless-last invariant; UI disabling is only
+  preventive feedback. Profile-level `enabled` has no persistence, UI, or
+  provider-admission meaning. Legacy reads discard it. This does not change the
+  independent failover meaning of `connection.endpoints[].enabled`.
 - Session queue ownership lives in `packages/application/src/session/*`.
   `submitJob()` validates and freezes a `GenerationCommand`, delegates policy
   to the registered backend, publishes a FIFO `queuedTasks` entry, and returns

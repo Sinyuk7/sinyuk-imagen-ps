@@ -131,7 +131,7 @@ describe('AppShell profile-owned model flow', () => {
     expect(container.querySelector('[data-testid="provider-default-model-selector"]')).toBeNull();
     expect(container.textContent).not.toContain('Default model');
     expect(container.textContent).not.toContain('Set default');
-    expect(selectedId(container, 'provider-model-selector')).toBe('first-model');
+    expect(selectedId(container, 'provider-model-selector')).toBe('');
 
     await act(async () => {
       container.querySelector<HTMLElement>('[data-testid="provider-model-selector"]')?.click();
@@ -223,7 +223,7 @@ describe('AppShell profile-owned model flow', () => {
     expect(container.querySelector('[data-testid="provider-save-button"]')).not.toBeNull();
   });
 
-  it('falls back to first configured model when active profile has no selected model', async () => {
+  it('requires an explicit model when active profile has no selected model', async () => {
     const container = document.createElement('div');
     document.body.appendChild(container);
     const services = createReturningUserServices({
@@ -238,7 +238,7 @@ describe('AppShell profile-owned model flow', () => {
     await flush();
     await flush();
 
-    expect(selectedId(container, 'main-model-selector')).toBe('owned-model');
+    expect(selectedId(container, 'main-model-selector')).toBe('');
   });
 
   it('settings provider rows show profile-owned endpoint and model count', async () => {

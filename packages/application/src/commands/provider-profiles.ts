@@ -27,6 +27,8 @@ import {
 import { invalidateProfileBillingState } from './profile-billing.js';
 import { resolveConfiguredModel, toProviderModelExecution, type ResolvedModelConfig } from './model-config-resolution.js';
 import { resolveModelGenerationSettingsValue } from './model-generation-preference-resolution.js';
+import { getOfficialModelPreset } from '@imagen-ps/providers';
+import type { ContinueProviderProfileSetupInput, ProviderProfileLifecycle, ProviderProfileSetupOutcome, UserModelConfig } from './types.js';
 
 function errorMessage(error: unknown, fallback: string): string {
   if (error instanceof Error) {
@@ -46,12 +48,16 @@ function sanitizeProfile(profile: ProviderProfile): ProviderProfile {
   const {
     defaultModelId: _defaultModelId,
     selectedModelIds: _selectedModelIds,
+    enabled: _enabled,
     ...sanitized
-  } = profile as ProviderProfile & {
+  } = profile as ProviderProfile & { readonly enabled?: unknown } & {
     readonly defaultModelId?: unknown;
     readonly selectedModelIds?: unknown;
   };
-  return sanitized;
+  return {
+    ...sanitized,
+    lifecycle: profile.lifecycle === 'setup' ? 'setup' : 'ready',
+  };
 }
 
 function isLegacyPromptOptimizerProfile(profile: ProviderProfile): boolean {
@@ -142,7 +148,9 @@ export async function listProviderProfiles(): Promise<CommandResult<readonly Pro
       );
       legacyProfiles.forEach((profile) => invalidateProfileBillingState(profile.profileId));
     }
-    const visibleProfiles = profiles.filter((profile) => !isLegacyPromptOptimizerProfile(profile));
+    const visibleProfiles = profiles
+      .map(sanitizeProfile)
+      .filter((profile) => !isLegacyPromptOptimizerProfile(profile) && profile.lifecycle === 'ready');
     span.finish({ count: visibleProfiles.length, cleanedLegacyCount: legacyProfiles.length });
     return { ok: true, value: visibleProfiles.map(sanitizeProfile) };
   } catch (error) {
@@ -161,8 +169,9 @@ export async function getProviderProfile(profileId: string): Promise<CommandResu
   });
   const span = logger.startSpan('command.profile.get');
   try {
-    const profile = await getProviderProfileRepository().get(profileId);
-    if (!profile) {
+    const stored = await getProviderProfileRepository().get(profileId);
+    const profile = stored === undefined ? undefined : sanitizeProfile(stored);
+    if (!profile || profile.lifecycle !== 'ready') {
       span.fail({ message: `Provider profile "${profileId}" not found.` });
       return {
         ok: false,
@@ -186,7 +195,10 @@ export async function getProviderProfile(profileId: string): Promise<CommandResu
  * SIDE EFFECT: 写入 secret storage 与 provider profile repository。
  * FAILURE: apiFormat 不支持、secret 写入、provider validation 或 repository save 失败时返回 CommandResult error，并尽力删除本次新写入的 secrets。
  */
-export async function saveProviderProfile(input: ProviderProfileInput): Promise<CommandResult<ProviderProfile>> {
+async function saveProviderProfileWithLifecycle(
+  input: ProviderProfileInput,
+  requestedLifecycle?: ProviderProfileLifecycle,
+): Promise<CommandResult<ProviderProfile>> {
   const logger = getRuntimeLogger().child({
     trace_id: generateTraceId(),
     package: 'application',
@@ -203,7 +215,8 @@ export async function saveProviderProfile(input: ProviderProfileInput): Promise<
     };
   }
 
-  const existing = await getProviderProfileRepository().get(input.profileId);
+  const storedExisting = await getProviderProfileRepository().get(input.profileId);
+  const existing = storedExisting === undefined ? undefined : sanitizeProfile(storedExisting);
 
   const mergedConfigForApiFormat = mergeProfileConfig(existing?.config, input.config) as ProviderProfileConfig;
   const apiFormat = resolveProfileApiFormat({
@@ -289,7 +302,6 @@ export async function saveProviderProfile(input: ProviderProfileInput): Promise<
       secretRefs[name] = ref;
     }
 
-    const nextEnabled = input.enabled ?? existing?.enabled ?? true;
     const displayName = nextDisplayName;
     const systemInstruction = resolveSystemInstruction(input, existing);
     const mergedConfig = normalizeProfileApiConfig(
@@ -306,7 +318,7 @@ export async function saveProviderProfile(input: ProviderProfileInput): Promise<
       apiFormat,
       displayName,
       ...(systemInstruction ? { systemInstruction } : {}),
-      enabled: nextEnabled,
+      lifecycle: requestedLifecycle ?? existing?.lifecycle ?? 'ready',
       config: nextConfig,
       ...(Object.keys(secretRefs).length > 0 ? { secretRefs } : {}),
       createdAt: existing?.createdAt ?? now,
@@ -365,6 +377,152 @@ export async function saveProviderProfile(input: ProviderProfileInput): Promise<
   }
 }
 
+/** 保存已完成 Profile 的合法编辑；创建路由使用内部 setup orchestration。 */
+export async function saveProviderProfile(input: ProviderProfileInput): Promise<CommandResult<ProviderProfile>> {
+  return saveProviderProfileWithLifecycle(input);
+}
+
+/** 创建流程专用读取；setup Profile 不经过公开 Profile 查询。 */
+export async function getProviderSetupProfile(profileId: string): Promise<CommandResult<ProviderProfile>> {
+  const profile = await getProviderProfileRepository().get(profileId);
+  if (!profile) {
+    return { ok: false, error: createValidationError(`Provider profile "${profileId}" not found.`, { profileId }) };
+  }
+  const sanitized = sanitizeProfile(profile);
+  if (sanitized.lifecycle !== 'setup') {
+    return { ok: false, error: createValidationError(`Provider profile "${profileId}" is not in setup.`, { profileId }) };
+  }
+  return { ok: true, value: sanitized };
+}
+
+/** 首个已保存 model config 让 setup Profile 成为唯一可公开的 ready Profile。 */
+export async function promoteProviderProfileSetup(profileId: string): Promise<CommandResult<ProviderProfile>> {
+  try {
+    const repository = getProviderProfileRepository();
+    const stored = await repository.get(profileId);
+    if (!stored) {
+      return { ok: false, error: createValidationError(`Provider profile "${profileId}" not found.`, { profileId }) };
+    }
+    const profile = sanitizeProfile(stored);
+    if (profile.lifecycle === 'ready') {
+      return { ok: true, value: profile };
+    }
+    const configs = await getUserModelConfigRepository().list(profileId);
+    if (configs.length === 0) {
+      return {
+        ok: false,
+        error: createValidationError('Provider profile setup requires at least one model config.', { profileId }),
+      };
+    }
+    const ready: ProviderProfile = { ...profile, lifecycle: 'ready', updatedAt: new Date().toISOString() };
+    await repository.save(ready);
+    return { ok: true, value: sanitizeProfile(ready) };
+  } catch (error) {
+    return {
+      ok: false,
+      error: createRuntimeError(errorMessage(error, `Failed to promote provider profile "${profileId}".`), { profileId }),
+    };
+  }
+}
+
+/** 取消或启动恢复时只清理内部 setup 数据及其 secrets。 */
+export async function cancelProviderProfileSetup(profileId: string): Promise<CommandResult<void>> {
+  try {
+    const repository = getProviderProfileRepository();
+    const stored = await repository.get(profileId);
+    if (!stored) return { ok: true, value: undefined };
+    const profile = sanitizeProfile(stored);
+    if (profile.lifecycle !== 'setup') {
+      return {
+        ok: false,
+        error: createValidationError(`Provider profile "${profileId}" is ready and cannot be cancelled as setup.`, { profileId }),
+      };
+    }
+    await repository.delete(profileId);
+    await getUserModelConfigRepository().deleteProfile(profileId);
+    await Promise.all(Object.values(profile.secretRefs ?? {}).map((ref) => getSecretStorageAdapter().deleteSecret(ref)));
+    invalidateProfileBillingState(profileId);
+    return { ok: true, value: undefined };
+  } catch (error) {
+    return {
+      ok: false,
+      error: createRuntimeError(errorMessage(error, `Failed to cancel provider profile setup "${profileId}".`), { profileId }),
+    };
+  }
+}
+
+/** 宿主启动时删除上次中断遗留的 setup Profile；重复执行安全。 */
+export async function recoverProviderProfileSetups(): Promise<CommandResult<readonly string[]>> {
+  try {
+    const profiles = await getProviderProfileRepository().list();
+    const setupIds = profiles
+      .map(sanitizeProfile)
+      .filter((profile) => profile.lifecycle === 'setup')
+      .map((profile) => profile.profileId);
+    for (const profileId of setupIds) {
+      const result = await cancelProviderProfileSetup(profileId);
+      if (!result.ok) return result;
+    }
+    return { ok: true, value: setupIds };
+  } catch (error) {
+    return { ok: false, error: createRuntimeError(errorMessage(error, 'Failed to recover provider profile setup.'), {}) };
+  }
+}
+
+/** 创建 Profile 的单一 application orchestration；UI 只消费 outcome 路由。 */
+export async function continueProviderProfileSetup(
+  input: ContinueProviderProfileSetupInput,
+): Promise<CommandResult<ProviderProfileSetupOutcome>> {
+  const existing = await getProviderProfileRepository().get(input.profile.profileId);
+  if (existing && sanitizeProfile(existing).lifecycle === 'ready') {
+    return {
+      ok: false,
+      error: createValidationError(`Provider profile "${input.profile.profileId}" is already ready.`, { profileId: input.profile.profileId }),
+    };
+  }
+  const saved = await saveProviderProfileWithLifecycle(input.profile, 'setup');
+  if (!saved.ok) return { ok: false, error: saved.error };
+
+  const profile = saved.value;
+  const modelRepository = getUserModelConfigRepository();
+  const existingModels = await modelRepository.list(profile.profileId);
+  if (existingModels.length > 0) {
+    const promoted = await promoteProviderProfileSetup(profile.profileId);
+    return promoted.ok
+      ? { ok: true, value: { kind: 'ready', profile: promoted.value } }
+      : { ok: false, error: promoted.error };
+  }
+
+  const wireModelId = input.wireModelId?.trim();
+  if (!wireModelId) {
+    return { ok: true, value: { kind: 'profile-models', profileId: profile.profileId, apiFormat: profile.apiFormat } };
+  }
+
+  const preset = getOfficialModelPreset(profile.apiFormat, wireModelId);
+  if (!preset) {
+    return {
+      ok: true,
+      value: { kind: 'model-configuration', profileId: profile.profileId, apiFormat: profile.apiFormat, wireModelId },
+    };
+  }
+
+  const config: UserModelConfig = {
+    profileId: profile.profileId,
+    apiFormat: profile.apiFormat,
+    modelId: preset.modelId,
+    baseModelId: preset.modelId,
+    wireModelId,
+    requestStrategyId: preset.requestStrategyId,
+    outputExposure: preset.outputExposure,
+    outputMatrix: preset.outputMatrix,
+  };
+  await modelRepository.save(config);
+  const promoted = await promoteProviderProfileSetup(profile.profileId);
+  return promoted.ok
+    ? { ok: true, value: { kind: 'ready', profile: promoted.value } }
+    : { ok: false, error: promoted.error };
+}
+
 /** 删除 provider profile，默认同时删除 associated secrets。 */
 export async function deleteProviderProfile(
   profileId: string,
@@ -409,16 +567,13 @@ export async function deleteProviderProfile(
   }
 }
 
-async function resolveFirstConfiguredProfileModel(profile: ProviderProfile): Promise<ResolvedModelConfig | undefined> {
-  const configs = await getUserModelConfigRepository().list(profile.profileId);
-  const first = configs[0];
-  if (!first) {
-    return undefined;
-  }
+async function resolveConfiguredProfileModel(profile: ProviderProfile, modelId: string | undefined): Promise<ResolvedModelConfig | undefined> {
+  const normalizedModelId = modelId?.trim();
+  if (!normalizedModelId) return undefined;
   return resolveConfiguredModel({
     profileId: profile.profileId,
     apiFormat: profile.apiFormat,
-    modelId: first.modelId,
+    modelId: normalizedModelId,
     userModelConfigRepository: getUserModelConfigRepository(),
   });
 }
@@ -480,7 +635,10 @@ export async function testProviderProfile(
     // Layer 2：connect
     if (options.connect === true || options.generate === true) {
       if (typeof provider.safeProbe === 'function') {
-        const resolvedProbeModel = await resolveFirstConfiguredProfileModel(profile);
+        const resolvedProbeModel = await resolveConfiguredProfileModel(profile, options.modelId);
+        if (!resolvedProbeModel) {
+          throw createValidationError('Provider profile test requires modelId.', { profileId, modelId: options.modelId });
+        }
         const tested = await provider.safeProbe(
           resolved.providerConfig,
           { modelId: resolvedProbeModel?.wireModelId },
@@ -503,7 +661,7 @@ export async function testProviderProfile(
         result.smokeTest = { passed: false };
       } else {
         try {
-          const resolvedModel = await resolveFirstConfiguredProfileModel(profile);
+          const resolvedModel = await resolveConfiguredProfileModel(profile, options.modelId);
           if (!resolvedModel) {
             result.smokeTest = { passed: false };
           } else {

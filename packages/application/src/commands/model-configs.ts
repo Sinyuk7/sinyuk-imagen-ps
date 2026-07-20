@@ -7,6 +7,7 @@ import {
   listRequestStrategies,
 } from '@imagen-ps/providers';
 import { getProviderProfileRepository, getRuntimeLogger, getUserModelConfigRepository } from '../runtime.js';
+import { promoteProviderProfileSetup } from './provider-profiles.js';
 import type {
   ApiFormat,
   CommandResult,
@@ -348,7 +349,17 @@ export async function deleteUserModelConfig(
     };
   }
 
-  await getUserModelConfigRepository().delete(normalizedProfileId, normalizedModelId);
+  const deleted = await getUserModelConfigRepository().deleteUnlessLast(normalizedProfileId, normalizedModelId);
+  if (!deleted) {
+    span.fail({ message: 'Provider profile must retain at least one model config.' });
+    return {
+      ok: false,
+      error: createValidationError('Provider profile must retain at least one model config. Add another model or delete the profile.', {
+        profileId: normalizedProfileId,
+        modelId: normalizedModelId,
+      }),
+    };
+  }
   span.finish({ modelId: normalizedModelId });
   return { ok: true, value: null };
 }
@@ -468,6 +479,10 @@ export async function saveUserModelConfig(input: SaveUserModelConfigInput): Prom
       outputMatrix,
     };
     await getUserModelConfigRepository().save(config);
+    const promoted = await promoteProviderProfileSetup(normalizedProfileId);
+    if (!promoted.ok) {
+      throw createValidationError(promoted.error.message, { profileId: normalizedProfileId });
+    }
     span.finish({
       requestStrategyId: config.requestStrategyId,
       operationCount: config.outputMatrix.length,

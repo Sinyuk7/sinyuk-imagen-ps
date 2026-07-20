@@ -141,7 +141,7 @@ function mockProfile(options?: { readonly failMode?: ChromeTestMockFailureMode; 
     profileId: MOCK_PROFILE_ID,
     apiFormat: 'openai-images',
     displayName,
-    enabled: true,
+    lifecycle: 'ready',
     config,
     secretRefs: { apiKey: MOCK_SECRET_REF },
     createdAt: FIXED_NOW,

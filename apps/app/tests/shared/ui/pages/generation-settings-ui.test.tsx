@@ -34,6 +34,15 @@ async function renderReadyMain(container: HTMLElement) {
   await renderMainPage(container, fake);
   await flush();
   await flush();
+  await act(async () => {
+    container.querySelector<HTMLElement>('[data-testid="main-model-selector"]')?.click();
+  });
+  await flush();
+  await act(async () => {
+    document.body.querySelector<HTMLElement>('[data-testid="main-model-selector-option-gpt-image-2"]')?.click();
+  });
+  await flush();
+  await flush();
   return fake;
 }
 
@@ -227,6 +236,7 @@ describe('generation settings UI archetypes', () => {
     document.body.appendChild(container);
     const harness = await createGenerationSettingsHarness(container, { activeImageProfileId: 'mock-profile' });
 
+    await harness.selectModel('gpt-image-2');
     await harness.openGlobalSettings();
     await harness.selectGlobalSize('4k');
     await harness.selectGlobalFormat('webp');

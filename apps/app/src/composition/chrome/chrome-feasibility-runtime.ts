@@ -127,7 +127,6 @@ export async function runChromeFeasibilityRuntime(options?: {
     profileId: 'chrome-feasibility-mock',
     apiFormat: 'openai-images',
     displayName: 'Chrome Feasibility Mock',
-    enabled: true,
     config: {
       apiFormat: 'openai-images',
       displayName: 'Chrome Feasibility Mock',

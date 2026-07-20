@@ -4,6 +4,7 @@ import {
   setModelDiscoveryCacheRepository,
   setModelGenerationPreferenceRepository,
   setProviderProfileRepository,
+  recoverProviderProfileSetups,
   setSecretStorageAdapter,
   setTaskStore,
   setUserModelConfigRepository,
@@ -111,6 +112,9 @@ export function createChromeAppShell(options?: ChromeAppShellOptions): AppShellH
   setModelDiscoveryCacheRepository(storage.modelDiscovery);
   setUserModelConfigRepository(storage.userModelConfigs);
   setModelGenerationPreferenceRepository(storage.modelGenerationPreferences);
+  void recoverProviderProfileSetups().then((result) => {
+    if (!result.ok) console.error('[imagen-ps:chrome]', 'profile.setup.recovery.failed', result.error);
+  });
 
   const simulator = createPhotoshopSimulator(storage.assets, options?.scenario ?? testHarness?.scenario ?? 'seeded-document');
   const host = createChromeHostPort({

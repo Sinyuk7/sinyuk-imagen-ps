@@ -133,8 +133,11 @@ function createInMemoryUserModelConfigRepository(): UserModelConfigRepository {
     async save(config) {
       store.set(userModelConfigKey(config.profileId, config.modelId), config);
     },
-    async delete(profileId, modelId) {
+    async deleteUnlessLast(profileId, modelId) {
+      const owned = Array.from(store.values()).filter((config) => config.profileId === profileId);
+      if (owned.length <= 1) return false;
       store.delete(userModelConfigKey(profileId, modelId));
+      return true;
     },
     async deleteProfile(profileId) {
       for (const key of Array.from(store.keys())) {

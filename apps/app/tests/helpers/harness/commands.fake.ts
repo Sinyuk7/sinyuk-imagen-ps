@@ -71,6 +71,34 @@ export function createCommandsFake(options?: {
       : [...profiles, next];
     return { ok: true as const, value: next };
   });
+  const continueProviderProfileSetup = vi.fn(async (
+    input: Parameters<CommandsPort['continueProviderProfileSetup']>[0],
+  ) => {
+    const existing = profiles.find((profile) => profile.profileId === input.profile.profileId);
+    const next = { ...savedProfile(input.profile, existing), lifecycle: 'setup' as const };
+    const index = profiles.findIndex((profile) => profile.profileId === next.profileId);
+    profiles = index >= 0
+      ? profiles.map((profile) => (profile.profileId === next.profileId ? next : profile))
+      : [...profiles, next];
+    return {
+      ok: true as const,
+      value: {
+        kind: 'profile-models' as const,
+        profileId: next.profileId,
+        apiFormat: next.apiFormat,
+      },
+    };
+  });
+  const getProviderSetupProfile = vi.fn(async (profileId: string) => {
+    const profile = profiles.find((item) => item.profileId === profileId);
+    return profile && profile.lifecycle === 'setup'
+      ? { ok: true as const, value: profile }
+      : { ok: false as const, error: { category: 'validation' as const, message: 'setup profile not found' } };
+  });
+  const cancelProviderProfileSetup = vi.fn(async (profileId: string) => {
+    profiles = profiles.filter((profile) => profile.profileId !== profileId);
+    return { ok: true as const, value: undefined };
+  });
   const deleteProviderProfile = vi.fn(async () => ({ ok: true as const, value: undefined }));
   const testProviderProfile = vi.fn(async (profileId: string, _options?: unknown) => ({
     ok: true as const,
@@ -150,7 +178,10 @@ export function createCommandsFake(options?: {
     resolveModelBrand,
     listProviderProfiles,
     getProviderProfile,
+    getProviderSetupProfile,
     saveProviderProfile,
+    continueProviderProfileSetup,
+    cancelProviderProfileSetup,
     deleteProviderProfile,
     testProviderProfile,
     testProviderProfileConnection,
@@ -173,8 +204,11 @@ export function createCommandsFake(options?: {
       subscribeJobEvents,
       listJobHistoryRecords,
       getProviderProfile,
+      getProviderSetupProfile,
       listProviderProfiles,
       saveProviderProfile,
+      continueProviderProfileSetup,
+      cancelProviderProfileSetup,
       deleteProviderProfile,
       testProviderProfile,
       testProviderProfileConnection,

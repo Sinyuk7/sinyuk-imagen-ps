@@ -48,7 +48,7 @@ const profile: ProviderProfile = {
   profileId: 'profile-a',
   apiFormat: 'openai-images',
   displayName: 'Profile A',
-  enabled: true,
+  lifecycle: 'ready',
   config: {},
   createdAt,
   updatedAt: createdAt,
@@ -193,18 +193,14 @@ describe('GenerationBackend admission contract', () => {
     expect(Object.isFrozen(input.request)).toBe(true);
   });
 
-  it('rejects disabled profiles during admission and waits if profile is disabled later', async () => {
-    const disabled = { ...profile, enabled: false };
-    const disabledHarness = createBackendHarness(disabled);
-    await expect(admitGeneration(disabledHarness.backend, command())).rejects.toMatchObject({
-      category: 'validation',
-    });
+  it('ignores a legacy profile-level enabled value during admission and readiness', async () => {
+    const legacyDisabled = { ...profile, enabled: false } as ProviderProfile & { readonly enabled: boolean };
+    await expect(admitGeneration(createBackendHarness(legacyDisabled).backend, command())).resolves.toBeDefined();
 
-    let current = profile;
+    let current: ProviderProfile = legacyDisabled;
     const harness = createBackendHarness();
     const dependencies = harness.backend;
     const admitted = await admitGeneration(dependencies, command());
-    current = disabled;
     const registry = createProviderRegistry();
     registerBuiltins(registry);
     const readinessBackend = createProviderGenerationBackend({
@@ -215,10 +211,7 @@ describe('GenerationBackend admission contract', () => {
       materializeOutput: async () => [],
       afterTerminal: async () => undefined,
     });
-    await expect(readinessBackend.checkReadiness(admitted)).resolves.toMatchObject({
-      status: 'wait',
-      reason: { category: 'validation' },
-    });
+    await expect(readinessBackend.checkReadiness(admitted)).resolves.toEqual({ status: 'ready' });
   });
 
   it('rejects readiness when current profile maps to another implementation', async () => {

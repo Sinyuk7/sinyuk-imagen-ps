@@ -440,7 +440,6 @@ export function useProfileDetail(services: AppServices, profileId: string | null
       await services.diagnostics?.checkpoint('uxp.ui.profile_detail.save.before_command', {
         profileId: input.profileId,
         apiFormat: input.apiFormat ?? null,
-        enabled: input.enabled ?? null,
         hasSecretValues: Object.keys(input.secretValues ?? {}).length > 0,
         configKeyCount: Object.keys(input.config ?? {}).length,
       }, {

@@ -4,6 +4,7 @@ import {
   setModelDiscoveryCacheRepository,
   setModelGenerationPreferenceRepository,
   setProviderProfileRepository,
+  recoverProviderProfileSetups,
   setSecretStorageAdapter,
   setTaskStore,
   setUserModelConfigRepository,
@@ -139,6 +140,9 @@ export function createPluginHostShell(): PluginHostShell {
     setModelDiscoveryCacheRepository(modelDiscoveryCacheRepository);
     setUserModelConfigRepository(userModelConfigRepository);
     setModelGenerationPreferenceRepository(modelGenerationPreferenceRepository);
+    void recoverProviderProfileSetups().then((result) => {
+      if (!result.ok) logger.error('panel.profile_setup_recovery.failed', { message: result.error.message });
+    });
 
     const hostLogger = logger.child({ component: 'host' });
     const retentionPolicy = defaultTaskLinkedRetentionPolicy();

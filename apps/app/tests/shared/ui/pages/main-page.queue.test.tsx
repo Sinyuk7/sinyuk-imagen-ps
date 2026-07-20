@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { act } from 'react';
-import { changeTextarea, cleanupMainPageRoot, flush, renderMainPage, sendPrompt } from '../../../helpers/main-page-harness';
+import { changeTextarea, cleanupMainPageRoot, flush, renderMainPage, selectMainModel, sendPrompt } from '../../../helpers/main-page-harness';
 import { createFakeServices } from '../../../helpers/fakes';
 
 afterEach(async () => {
@@ -15,6 +15,7 @@ describe('MainPage session queue', () => {
     const fake = createFakeServices({ activeImageProfileId: 'mock-profile' });
     const executeJob = vi.spyOn(fake.services.commands, 'executeJob').mockImplementation(() => new Promise(() => undefined));
     await renderMainPage(container, fake);
+    await selectMainModel(container);
 
     await sendPrompt(container, 'first queued task');
     await sendPrompt(container, 'second queued task');

@@ -15,7 +15,10 @@ export interface CommandsPort {
   readonly resolveModelBrand: typeof commands.resolveModelBrand;
   readonly listProviderProfiles: typeof commands.listProviderProfiles;
   readonly getProviderProfile: typeof commands.getProviderProfile;
+  readonly getProviderSetupProfile: typeof commands.getProviderSetupProfile;
   readonly saveProviderProfile: typeof commands.saveProviderProfile;
+  readonly continueProviderProfileSetup: typeof commands.continueProviderProfileSetup;
+  readonly cancelProviderProfileSetup: typeof commands.cancelProviderProfileSetup;
   readonly deleteProviderProfile: typeof commands.deleteProviderProfile;
   readonly testProviderProfile: typeof commands.testProviderProfile;
   readonly testProviderProfileConnection: typeof commands.testProviderProfileConnection;
@@ -54,7 +57,10 @@ export function createCommandsAdapter(): CommandsPort {
     resolveModelBrand: commands.resolveModelBrand,
     listProviderProfiles: commands.listProviderProfiles,
     getProviderProfile: commands.getProviderProfile,
+    getProviderSetupProfile: commands.getProviderSetupProfile,
     saveProviderProfile: commands.saveProviderProfile,
+    continueProviderProfileSetup: commands.continueProviderProfileSetup,
+    cancelProviderProfileSetup: commands.cancelProviderProfileSetup,
     deleteProviderProfile: commands.deleteProviderProfile,
     testProviderProfile: commands.testProviderProfile,
     testProviderProfileConnection: commands.testProviderProfileConnection,
