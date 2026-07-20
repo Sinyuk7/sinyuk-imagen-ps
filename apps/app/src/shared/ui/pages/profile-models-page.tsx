@@ -8,12 +8,13 @@ import {
   HelpText,
   Icon,
   IconButton,
+  List,
+  ListStateItem,
   PageFrame,
   PageScroll,
   ProviderSettingsPageHeader,
   SettingsListRow,
   SettingsListSection,
-  StatusNotice,
   useToast,
 } from '../ui-system';
 
@@ -40,7 +41,7 @@ export function ProfileModelsPage({ profile, onBack, onCreate, onEdit, onSuggest
   const { show } = useToast();
   const [models, setModels] = useState<readonly ProfileModelItem[]>([]);
   const [suggestions, setSuggestions] = useState<readonly string[]>([]);
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [listError, setListError] = useState<string | null>(null);
 
@@ -92,7 +93,10 @@ export function ProfileModelsPage({ profile, onBack, onCreate, onEdit, onSuggest
           seen.add(modelId);
           return true;
         });
-      setSuggestions(next);
+      setSuggestions((current) => {
+        const known = new Set(current);
+        return [...current, ...next.filter((modelId) => !known.has(modelId))];
+      });
     } catch (nextError) {
       const message = nextError instanceof Error ? nextError.message : String(nextError);
       show(message, 'negative', { key: `profile-models-refresh:${profile.profileId}`, durationMs: null });
@@ -133,23 +137,27 @@ export function ProfileModelsPage({ profile, onBack, onCreate, onEdit, onSuggest
               </Button>
             </div>
             <HelpText className="field-hint model-config-list-hint">{t.settings.modelConfigurationHint}</HelpText>
-            {loading ? <HelpText className="field-hint">{t.common.loading}</HelpText> : null}
-            {listError ? (
-              <div className="status-warning-slot" data-testid="profile-model-list-error">
-                <StatusNotice tone="warning" message={listError} copyText={listError} />
-              </div>
-            ) : null}
-            {!loading && !listError && models.length === 0 ? (
-              <div className="status-empty-state" data-testid="profile-model-empty-notice">
-                <StatusNotice
-                  tone="info"
-                  message={t.settings.modelConfigurationEmpty}
-                  description={t.settings.modelConfigurationSaveHint}
+            <List className="model-config-list" aria-label={t.settings.modelConfiguration}>
+              {loading && models.length === 0 ? (
+                <ListStateItem data-testid="profile-model-list-loading" kind="loading" title={t.common.loading} />
+              ) : null}
+              {!loading && listError && models.length === 0 ? (
+                <ListStateItem
+                  action={{ label: t.common.refresh, onPress: () => void reload() }}
+                  data-testid="profile-model-list-error"
+                  description={listError}
+                  kind="error"
                 />
-              </div>
-            ) : null}
-            <div className="model-config-list">
-              {models.map((model) => {
+              ) : null}
+              {!loading && !listError && models.length === 0 ? (
+                <ListStateItem
+                  data-testid="profile-model-empty-notice"
+                  description={t.settings.modelConfigurationSaveHint}
+                  kind="empty"
+                  title={t.settings.modelConfigurationEmpty}
+                />
+              ) : null}
+              {!loading && !listError ? models.map((model) => {
                 const label = configurationInstanceLabel(modelInfoFromProfileItem(model));
                 return (
                   <SettingsListRow
@@ -171,12 +179,12 @@ export function ProfileModelsPage({ profile, onBack, onCreate, onEdit, onSuggest
                     onOpen={() => onEdit(model.modelId)}
                   />
                 );
-              })}
-            </div>
+              }) : null}
+            </List>
             {visibleSuggestions.length > 0 ? (
               <>
                 <div className="sec-lbl">{t.settings.discoveredModels}</div>
-                <div className="model-config-list">
+                <List className="model-config-list" aria-label={t.settings.discoveredModels}>
                   {visibleSuggestions.map((modelId) => (
                     <SettingsListRow
                       key={modelId}
@@ -191,7 +199,7 @@ export function ProfileModelsPage({ profile, onBack, onCreate, onEdit, onSuggest
                       onOpen={() => onSuggestion(modelId)}
                     />
                   ))}
-                </div>
+                </List>
               </>
             ) : null}
             </SettingsListSection>

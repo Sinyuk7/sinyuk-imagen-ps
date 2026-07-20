@@ -18,6 +18,8 @@ export { useToast } from './components/toast-host';
 export { ImageFallbackContent, imageFallbackTitle } from './components/image-fallback-content';
 /** 页面可用的设置列表行。 */
 export { SettingsListRow } from './components/settings-list-row';
+/** 页面可用的独立列表及其行状态 primitive。 */
+export { List, ListItemShell, ListStateItem } from './components/list';
 /** 页面可用的 provider 身份与媒体头。 */
 export { ProviderIdentity } from './components/provider-identity';
 export { ProviderMediaHeader } from './components/provider-media-header';

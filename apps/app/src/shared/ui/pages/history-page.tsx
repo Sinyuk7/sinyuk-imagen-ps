@@ -8,7 +8,7 @@ import {
   type ImagePreviewFallback,
 } from '../../image/preview-fallback';
 import { useI18n } from '../i18n/i18n-context';
-import { Button, Icon, IconButton, ImageFallbackContent, imageFallbackTitle, PageFrame, PageHeader, PageScroll, PageState, SegmentedTabs, useToast } from '../ui-system';
+import { Button, Icon, IconButton, ImageFallbackContent, imageFallbackTitle, List, ListStateItem, PageFrame, PageHeader, PageScroll, SegmentedTabs, useToast } from '../ui-system';
 import {
   deriveHistoryItems,
   filterHistoryItems,
@@ -367,6 +367,15 @@ export function HistoryPage({
     () => filterHistoryItems(items, filter),
     [filter, items],
   );
+  const historyState = items.length === 0
+    ? error
+      ? { kind: 'error' as const, title: error }
+      : loading
+        ? { kind: 'loading' as const, title: t.history.loading }
+        : { kind: 'empty' as const, title: t.history.empty }
+    : filtered.length === 0
+      ? { kind: 'empty' as const, title: t.history.empty }
+      : undefined;
 
   const onDownload = useCallback(async (item: HistoryItemViewModel) => {
     if (item.actions.download !== 'enabled' || !item.output || !item.taskRecord || !onDownloadTaskOutput) {
@@ -393,7 +402,7 @@ export function HistoryPage({
   }, [onPlaceTaskOutput, show, t.history.resourceUnavailable]);
 
   return (
-    <PageFrame watch={`history:${filter}:${filtered.length}`}><div className="page page-enter">
+    <PageFrame watch="history"><div className="page page-enter">
       <PageHeader
         title={t.history.title}
         back={<IconButton data-testid="history-back-button" className="hdr-btn" quiet icon={<Icon name="chevron-left" />} tooltip={t.common.back} onClick={() => onNav('main')} />}
@@ -401,11 +410,15 @@ export function HistoryPage({
       />
       <SegmentedTabs tabs={filters.map(([id, label]) => ({ id, label, testId: `history-filter-${id}` }))} selectedId={filter} onSelect={(next) => setFilter(next as HistoryFilter)} />
       <PageScroll ref={scrollRef}>
-        {loading && <PageState tone="neutral" message={t.history.loading} />}
-        {error && <PageState tone="negative" message={error} />}
-        {!loading && filtered.length === 0
-          ? <PageState tone="neutral" message={t.history.empty} />
-          : filtered.map((item) => {
+        <List className="history-list" aria-label={t.history.title}>
+          {historyState
+            ? <ListStateItem
+                className="task-row history-list-state"
+                data-testid={`history-list-state-${historyState.kind}`}
+                kind={historyState.kind}
+                title={historyState.title}
+              />
+            : filtered.map((item) => {
             const retryRoundId = item.retryRoundId;
             const previewState = previews[item.id];
             const fallback =
@@ -510,8 +523,8 @@ export function HistoryPage({
                 </div>
               </div>
             );
-          })
-        }
+            })}
+        </List>
       </PageScroll>
     </div></PageFrame>
   );

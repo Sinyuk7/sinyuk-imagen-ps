@@ -19,6 +19,7 @@ export type IconName =
   | 'close'
   | 'copy'
   | 'download'
+  | 'empty'
   | 'error'
   | 'eye'
   | 'eye-off'
@@ -92,6 +93,12 @@ const ICON_BODY_BY_NAME: Record<IconName, SvgBody> = {
   'chevron-right': () => <polyline points="9 5 16 12 9 19" />,
 
   /* ── Status family — shared circle(r=9) base ───────────────────── */
+  empty: () => (
+    <>
+      <path d="M5 6.5h14v11a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2z" />
+      <path d="M5 13h4l1.5 2h3L15 13h4" />
+    </>
+  ),
   error: () => (
     <>
       <circle cx="12" cy="12" r="9" />

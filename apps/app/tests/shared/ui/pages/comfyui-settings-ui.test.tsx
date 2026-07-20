@@ -60,6 +60,32 @@ describe('ComfyUI workflow settings surface', () => {
     expect(container.querySelector('[data-testid="comfyui-settings-root"]')).not.toBeNull();
   });
 
+  it('uses inert list state rows for empty workflow catalogs and zero-result searches', async () => {
+    const empty = document.createElement('div');
+    document.body.appendChild(empty);
+    await renderMainPage(empty, createFakeServices({ comfyUi: { baseUrl: 'https://comfy.example.test', workflows: [] } }));
+    await openComfySettings(empty);
+    await act(async () => { empty.querySelector<HTMLElement>('[data-testid="comfyui-change-workflow"]')?.click(); });
+    await flush();
+    expect(empty.querySelector('[data-testid="comfyui-workflow-empty"]')?.getAttribute('aria-disabled')).toBe('true');
+
+    await cleanupMainPageRoot();
+    empty.remove();
+
+    const searchable = document.createElement('div');
+    document.body.appendChild(searchable);
+    await renderMainPage(searchable, createFakeServices({ comfyUi: { baseUrl: 'https://comfy.example.test' } }));
+    await openComfySettings(searchable);
+    await act(async () => { searchable.querySelector<HTMLElement>('[data-testid="comfyui-change-workflow"]')?.click(); });
+    await flush();
+    await act(async () => {
+      changeInput(searchable.querySelector<HTMLInputElement>('[data-testid="comfyui-workflow-search"]')!, 'missing-workflow');
+    });
+    await flush();
+    expect(searchable.querySelector('[data-testid="comfyui-workflow-search-empty"]')?.getAttribute('aria-disabled')).toBe('true');
+    expect(searchable.querySelector('[data-testid^="comfyui-workflow-option-"]')).toBeNull();
+  });
+
   it('keeps composer draft and both backend selections while switching mode and settings tabs', async () => {
     const container = document.createElement('div');
     document.body.appendChild(container);

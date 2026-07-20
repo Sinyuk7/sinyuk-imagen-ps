@@ -7,7 +7,7 @@ import { useAppServices } from '../../ports/app-services-context';
 import { useI18n } from '../i18n/i18n-context';
 import type { ComfyUiManagementController } from '../hooks/use-comfyui-management';
 import type { SettingsTab } from '../settings-route';
-import { Button, Checkbox, FieldGroup, FooterActions, HelpText, Icon, IconButton, PageFrame, PageHeader, PageScroll, PageState, SegmentedTabs, SettingsFormSection, SettingsListRow, SettingsListSection, StatusNotice, TextField, TextSelect } from '../ui-system';
+import { Button, Checkbox, FieldGroup, FooterActions, HelpText, Icon, IconButton, List, ListStateItem, PageFrame, PageHeader, PageScroll, SegmentedTabs, SettingsFormSection, SettingsListRow, SettingsListSection, StatusNotice, TextField, TextSelect } from '../ui-system';
 
 interface SettingsPageProps {
   readonly activeTab: SettingsTab;
@@ -95,7 +95,6 @@ function ProviderRoot({
   modelCounts,
   onOpenOutput,
   onOpenProfile,
-  onOpenNew,
 }: {
   readonly profiles: readonly ProviderProfile[];
   readonly loading: boolean;
@@ -103,27 +102,30 @@ function ProviderRoot({
   readonly modelCounts: ReadonlyMap<string, number>;
   readonly onOpenOutput: () => void;
   readonly onOpenProfile: (profileId: string) => void;
-  readonly onOpenNew: () => void;
 }) {
   const { messages: t } = useI18n();
   return (
     <div>
       <div className="settings-detail-layout">
-        <SettingsListSection title={t.settings.providerOutput}><SettingsListRow
-          testId="provider-output-settings-row"
-          title={t.settings.providerOutput}
-          special
-          leading={<div className="prov-ico"><Icon name="settings" size={14} /></div>}
-          meta={<span className="prov-summary-mono">{t.settings.providerOutputSummary}</span>}
-          onOpen={onOpenOutput}
-        /></SettingsListSection>
+        <SettingsListSection title={t.settings.providerOutput}>
+          <List aria-label={t.settings.providerOutput}>
+            <SettingsListRow
+              testId="provider-output-settings-row"
+              title={t.settings.providerOutput}
+              special
+              leading={<div className="prov-ico"><Icon name="settings" size={14} /></div>}
+              meta={<span className="prov-summary-mono">{t.settings.providerOutputSummary}</span>}
+              onOpen={onOpenOutput}
+            />
+          </List>
+        </SettingsListSection>
         <SettingsListSection title={t.settings.configuredProviders}>
-        {loading ? <PageState tone="neutral" message={t.settings.loading} /> : null}
-        {error ? <PageState tone="negative" message={error} /> : null}
-        {!loading && profiles.length === 0 ? (
-          <div data-testid="provider-empty-state"><PageState tone="neutral" message={t.settings.noProviderProfile} action={<Button onClick={onOpenNew}>{t.common.addProvider}</Button>} /></div>
-        ) : null}
-        {profiles.map((profile) => <ProviderListItem key={profile.profileId} profile={profile} modelCount={modelCounts.get(profile.profileId) ?? 0} onOpen={() => onOpenProfile(profile.profileId)} />)}
+          <List aria-label={t.settings.configuredProviders}>
+            {profiles.length === 0 && loading ? <ListStateItem data-testid="provider-list-loading" kind="loading" title={t.settings.loading} /> : null}
+            {profiles.length === 0 && !loading && error ? <ListStateItem data-testid="provider-list-error" kind="error" title={error} /> : null}
+            {profiles.length === 0 && !loading && !error ? <ListStateItem data-testid="provider-empty-state" kind="empty" title={t.settings.noProviderProfile} /> : null}
+            {profiles.map((profile) => <ProviderListItem key={profile.profileId} profile={profile} modelCount={modelCounts.get(profile.profileId) ?? 0} onOpen={() => onOpenProfile(profile.profileId)} />)}
+          </List>
         </SettingsListSection>
       </div>
     </div>
@@ -141,8 +143,16 @@ function GeneralRoot({
   return (
     <div>
       <div className="settings-detail-layout">
-        <SettingsListSection title={t.settings.globalSettings}><SettingsListRow testId="global-settings-row" title={t.settings.globalSettings} special leading={<div className="prov-ico"><Icon name="settings" size={14} /></div>} meta={<span className="prov-summary">{t.settings.globalSettingsSummary}</span>} onOpen={onOpenGlobalSettings} /></SettingsListSection>
-        <SettingsListSection title={t.settings.promptSettings}><SettingsListRow testId="prompt-settings-row" title={t.settings.promptSettings} special leading={<div className="prov-ico"><Icon name="pencil" size={14} /></div>} meta={<span className="prov-summary">{t.settings.promptSettingsSummary}</span>} onOpen={onOpenPromptSettings} /></SettingsListSection>
+        <SettingsListSection title={t.settings.globalSettings}>
+          <List aria-label={t.settings.globalSettings}>
+            <SettingsListRow testId="global-settings-row" title={t.settings.globalSettings} special leading={<div className="prov-ico"><Icon name="settings" size={14} /></div>} meta={<span className="prov-summary">{t.settings.globalSettingsSummary}</span>} onOpen={onOpenGlobalSettings} />
+          </List>
+        </SettingsListSection>
+        <SettingsListSection title={t.settings.promptSettings}>
+          <List aria-label={t.settings.promptSettings}>
+            <SettingsListRow testId="prompt-settings-row" title={t.settings.promptSettings} special leading={<div className="prov-ico"><Icon name="pencil" size={14} /></div>} meta={<span className="prov-summary">{t.settings.promptSettingsSummary}</span>} onOpen={onOpenPromptSettings} />
+          </List>
+        </SettingsListSection>
       </div>
     </div>
   );
@@ -187,7 +197,25 @@ function ComfyUiRoot({
         <div className="settings-detail-layout">
           <PageHeader title="Workflow" back={<IconButton className="settings-icon-button" quiet icon={<Icon name="chevron-left" />} tooltip={t.common.back} onClick={() => setPicker(false)} />} />
           <TextField aria-label="Search workflows" data-testid="comfyui-workflow-search" className="field-input" type="search" value={search} onValue={setSearch} />
-          {Array.from(groups.entries()).map(([group, items]) => <SettingsListSection key={group} title={group} testId={`comfyui-workflow-group-${group}`}>{items.map((item) => <SettingsListRow key={item.workflowId} testId={`comfyui-workflow-option-${item.workflowId}`} title={item.displayName} leading={<div className="prov-ico"><Icon name="algorithm" size={14} /></div>} meta={<span className="prov-summary-mono">{item.remotePath}</span>} onOpen={() => { void controller.selectWorkflow(item.workflowId).then(() => { setPicker(false); }); }} />)}</SettingsListSection>)}
+          {controller.catalog.length === 0 ? (
+            <SettingsListSection title="Workflow">
+              <List aria-label="Workflow">
+                <ListStateItem data-testid="comfyui-workflow-empty" kind="empty" title={t.settings.comfyUiNoWorkflowSelected} />
+              </List>
+            </SettingsListSection>
+          ) : filtered.length === 0 ? (
+            <SettingsListSection title="Workflow">
+              <List aria-label="Workflow">
+                <ListStateItem data-testid="comfyui-workflow-search-empty" kind="empty" title={t.settings.comfyUiNoWorkflowSelected} />
+              </List>
+            </SettingsListSection>
+          ) : Array.from(groups.entries()).map(([group, items]) => (
+            <SettingsListSection key={group} title={group} testId={`comfyui-workflow-group-${group}`}>
+              <List aria-label={group}>
+                {items.map((item) => <SettingsListRow key={item.workflowId} testId={`comfyui-workflow-option-${item.workflowId}`} title={item.displayName} leading={<div className="prov-ico"><Icon name="algorithm" size={14} /></div>} meta={<span className="prov-summary-mono">{item.remotePath}</span>} onOpen={() => { void controller.selectWorkflow(item.workflowId).then(() => { setPicker(false); }); }} />)}
+              </List>
+            </SettingsListSection>
+          ))}
         </div>
       </div>
     );
@@ -240,12 +268,12 @@ export function SettingsPage(props: SettingsPageProps) {
   }, [props.profiles, services]);
   const title = props.activeTab === 'provider' ? t.common.provider : props.activeTab === 'comfyui' ? t.settings.comfyUi : t.settings.configuration;
   return (
-    <PageFrame watch={`settings:${props.activeTab}`}>
+    <PageFrame watch="settings">
       <div className="settings-page">
       <PageHeader title={title} backLabel={t.common.back} backTestId="settings-back-button" onBack={props.onBack} right={props.activeTab === 'provider' ? <IconButton data-testid="providers-add-button" className="hdr-btn" quiet icon={<Icon name="add" />} tooltip={t.common.addProvider} onClick={props.onOpenProviderNew} /> : undefined} />
       <SegmentedTabs tabs={[{ id: 'provider', label: t.common.provider, testId: 'settings-backend-provider' }, { id: 'comfyui', label: t.settings.comfyUi, testId: 'settings-backend-comfyui' }, { id: 'general', label: t.settings.configuration, testId: 'settings-backend-general' }]} selectedId={props.activeTab} onSelect={(tab) => props.onSelectTab(tab as SettingsTab)} />
       <PageScroll>
-        {props.activeTab === 'provider' ? <ProviderRoot profiles={props.profiles} loading={props.loading} error={props.error} modelCounts={modelCounts} onOpenOutput={props.onOpenProviderOutput} onOpenProfile={props.onOpenProfile} onOpenNew={props.onOpenProviderNew} /> : null}
+        {props.activeTab === 'provider' ? <ProviderRoot profiles={props.profiles} loading={props.loading} error={props.error} modelCounts={modelCounts} onOpenOutput={props.onOpenProviderOutput} onOpenProfile={props.onOpenProfile} /> : null}
         {props.activeTab === 'general' ? <GeneralRoot onOpenGlobalSettings={props.onOpenGlobalSettings} onOpenPromptSettings={props.onOpenPromptSettings} /> : null}
         {props.activeTab === 'comfyui' ? <ComfyUiRoot controller={props.comfyUi} address={comfyAddressDraft} onAddressChange={setComfyAddressDraft} /> : null}
       </PageScroll>

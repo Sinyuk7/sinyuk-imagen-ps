@@ -7,6 +7,7 @@ import {
   profileModelItem,
 } from '../../../helpers/fakes';
 import { createGenerationSettingsHarness } from '../../../helpers/harness/create-generation-settings-harness';
+import { COMPOSER_CSS } from '../../../../src/shared/ui/styles/composer';
 
 function optionIds(testId: string): readonly string[] {
   return Array.from(document.body.querySelectorAll<HTMLElement>(`[data-testid^="${testId}-option-"]`))
@@ -95,6 +96,23 @@ describe('generation settings UI archetypes', () => {
     expect(hostContainsIcon(container, 'composer-capture-button', 'capture-selection')).toBe(true);
     expect(hostContainsIcon(container, 'composer-output-size-selector', 'image-size')).toBe(true);
     expect(hostContainsIcon(container, 'composer-output-ratio-selector', 'aspect-ratio')).toBe(true);
+  });
+
+  it('keeps the UXP-safe mask toggle left of capture in the right action group', async () => {
+    const container = document.createElement('div');
+    document.body.appendChild(container);
+    await renderReadyMain(container);
+
+    const actionGroup = container.querySelector<HTMLElement>('.cmp-action-right')!;
+    const controls = Array.from(actionGroup.querySelectorAll<HTMLElement>('[data-testid]'));
+    const mask = container.querySelector<HTMLButtonElement>('[data-testid="composer-mask-toggle"]')!;
+    const capture = container.querySelector<HTMLButtonElement>('[data-testid="composer-capture-button"]')!;
+
+    expect(controls.indexOf(mask)).toBeLessThan(controls.indexOf(capture));
+    expect(mask.getAttribute('aria-pressed')).toBe('false');
+    expect(hostContainsIcon(container, 'composer-mask-toggle', 'image-size')).toBe(true);
+    expect(COMPOSER_CSS).toContain('.cmp-capture,\n.cmp-mask-toggle');
+    expect(COMPOSER_CSS).toContain('.cmp-balance-pill-unit{ margin-left:4px; }');
   });
 
   it('uses the same archetype rules on Provider Output Settings', async () => {

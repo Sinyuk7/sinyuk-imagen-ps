@@ -207,8 +207,43 @@ describe('ProfileModelsPage', () => {
 
     const host = container.querySelector<HTMLElement>('[data-testid="profile-model-empty-notice"]');
     expect(host).not.toBeNull();
-    expect(host?.querySelector('.status-description')?.textContent).toContain('Saving does not apply it.');
-    expect(host?.querySelector('.status-detail')).toBeNull();
+    expect(host?.textContent).toContain('Saving does not apply it.');
+    expect(host?.getAttribute('aria-disabled')).toBe('true');
+    expect(host?.hasAttribute('tabindex')).toBe(false);
+  });
+
+  it('uses inert replacement rows for initial loading and load failure', async () => {
+    let resolveModels: ((value: {
+      readonly ok: false;
+      readonly error: { readonly category: string; readonly message: string };
+    }) => void) | undefined;
+    const base = createFakeServices({ profileModelItems: [] });
+    const listProfileModels = vi.fn(() => new Promise<{
+      readonly ok: false;
+      readonly error: { readonly category: string; readonly message: string };
+    }>((resolve) => {
+      resolveModels = resolve;
+    }));
+    const services = {
+      ...base.services,
+      commands: { ...base.services.commands, listProfileModels },
+    };
+    const container = await renderPage({ services });
+
+    const loading = container.querySelector<HTMLElement>('[data-testid="profile-model-list-loading"]');
+    expect(loading?.getAttribute('aria-disabled')).toBe('true');
+    expect(loading?.hasAttribute('tabindex')).toBe(false);
+
+    await act(async () => {
+      resolveModels?.({ ok: false, error: { category: 'provider', message: 'List failed' } });
+    });
+    await flush();
+    await flush();
+
+    const error = container.querySelector<HTMLElement>('[data-testid="profile-model-list-error"]');
+    expect(error?.textContent).toContain('List failed');
+    expect(error?.getAttribute('role')).toBeNull();
+    expect(error?.querySelector('button')).not.toBeNull();
   });
 
   it('disables repeated discovery while refresh is pending', async () => {

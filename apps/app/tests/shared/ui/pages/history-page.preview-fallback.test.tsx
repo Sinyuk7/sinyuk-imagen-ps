@@ -204,4 +204,43 @@ describe('HistoryPage preview fallback', () => {
     expect(container.querySelector('[data-testid="history-execution-label-connection-task"]')?.textContent).toBe('Studio Connection');
     expect(container.querySelector('[data-testid="history-execution-label-backend-task"]')?.textContent).toBe('ComfyUI');
   });
+
+  it('uses task-row list states only while no history rows exist', async () => {
+    const container = document.createElement('div');
+    document.body.appendChild(container);
+    const fake = createFakeServices({ activeImageProfileId: 'mock-profile' });
+    const renderHistory = async (records: readonly TaskRecord[], loading: boolean, error?: string) => {
+      await act(async () => {
+        root!.render(
+          <TestAppProviders services={fake.services}>
+            <HistoryPage
+              onNav={() => undefined}
+              rounds={[]}
+              records={records}
+              loading={loading}
+              error={error}
+              onReload={async () => undefined}
+              onRetry={async () => undefined}
+            />
+          </TestAppProviders>,
+        );
+      });
+    };
+
+    root = createRoot(container);
+    await renderHistory([], true);
+    const loading = container.querySelector('[data-testid="history-list-state-loading"]');
+    expect(loading).not.toBeNull();
+    expect(loading?.classList.contains('task-row')).toBe(true);
+    expect(loading?.classList.contains('ui-list-item-shell--interactive')).toBe(false);
+    expect(loading?.getAttribute('aria-disabled')).toBe('true');
+    expect(loading?.getAttribute('role')).toBeNull();
+
+    await renderHistory([buildRecord('retained-task', fakeTaskRecord.outputs[0]!.asset.ref)], true);
+    expect(container.querySelector('[data-testid="history-row-retained-task"]')).not.toBeNull();
+    expect(container.querySelector('[data-testid="history-list-state-loading"]')).toBeNull();
+
+    await renderHistory([], false, 'History unavailable');
+    expect(container.querySelector('[data-testid="history-list-state-error"]')?.textContent).toContain('History unavailable');
+  });
 });

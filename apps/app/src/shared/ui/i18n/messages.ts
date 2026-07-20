@@ -371,6 +371,8 @@ export interface AppMessages {
     readonly optimizationInvalidTemplate: string;
     readonly optimizationMissingProfile: string;
     readonly promptPresets: string;
+    readonly promptPresetsLoading: string;
+    readonly promptPresetsEmpty: string;
     readonly selectedPreset: string;
     readonly presetNone: string;
     readonly addPreset: string;
@@ -806,6 +808,8 @@ const EN_MESSAGES: AppMessages = {
     optimizationInvalidTemplate: 'Fix the placeholder.',
     optimizationMissingProfile: 'Saved profile is missing.',
     promptPresets: 'Prompt Presets',
+    promptPresetsLoading: 'Loading presets...',
+    promptPresetsEmpty: 'No prompt presets yet.',
     selectedPreset: 'Selected preset',
     presetNone: 'None',
     addPreset: 'Add preset',
@@ -1241,6 +1245,8 @@ const ZH_CN_MESSAGES: AppMessages = {
     optimizationInvalidTemplate: '请修正占位符。',
     optimizationMissingProfile: '已保存配置不存在。',
     promptPresets: '提示词预设',
+    promptPresetsLoading: '正在加载预设...',
+    promptPresetsEmpty: '暂无提示词预设。',
     selectedPreset: '当前预设',
     presetNone: '无',
     addPreset: '添加预设',

@@ -28,7 +28,7 @@ import { classifyRoundError, type ErrorPrimaryAction } from '../error-action';
 import type { ImageAspectRatio, ImageOutputImageSize, ImageOutputSelection, ProfileBillingState } from '@imagen-ps/application';
 import { configurationInstanceLabel, type UiModelInfo } from '../model-info';
 import type { GenerationWorkspaceController } from '../generation-workspace';
-import { Button, Icon, IconButton, IconSelect, ImageFallbackContent, imageFallbackTitle, MotionActivityDot, MotionActivityIcon, MotionButtonSurface, MotionContent, MotionDimSurface, MotionHighlight, MotionImage, MotionPresenceView, PageFrame, PageHeader, PageScroll, PageState, ProviderIdentity, ProviderMediaHeader, UxpTextArea, useToast } from '../ui-system';
+import { Button, Icon, IconButton, IconSelect, ImageFallbackContent, imageFallbackTitle, List, ListStateItem, MotionActivityDot, MotionActivityIcon, MotionButtonSurface, MotionContent, MotionDimSurface, MotionHighlight, MotionImage, MotionPresenceView, PageFrame, PageHeader, PageScroll, PageState, ProviderIdentity, ProviderMediaHeader, UxpTextArea, useToast } from '../ui-system';
 
 function isImeCompositionKey(event: React.KeyboardEvent): boolean {
   const nativeEvent = event.nativeEvent as KeyboardEvent & { readonly isComposing?: boolean };
@@ -389,7 +389,15 @@ export function MainPage({
   const promptTextRefs = useRef<Map<string, HTMLDivElement>>(new Map());
   const responseFoldRefs = useRef<Map<string, HTMLDivElement>>(new Map());
   const responseTextRefs = useRef<Map<string, HTMLDivElement>>(new Map());
-  const flatLayers = useMemo(() => flattenLayers(layers), [layers]);
+  const lastNonEmptyLayersRef = useRef<readonly LayerInfo[]>(layers);
+  useEffect(() => {
+    if (layers.length > 0) {
+      lastNonEmptyLayersRef.current = layers;
+    }
+  }, [layers]);
+  // 刷新失败的 adapter 会清空数组；页面保留上次已展示图层，直到下次成功结果到达。
+  const visibleLayers = layersError && layers.length === 0 ? lastNonEmptyLayersRef.current : layers;
+  const flatLayers = useMemo(() => flattenLayers(visibleLayers), [visibleLayers]);
   const uniqueModels = useMemo(() => dedupeById(models), [models]);
   const { input, attachments } = composerDraft;
   const maskStatusText = workspace.maskState.kind === 'loading'
@@ -434,6 +442,20 @@ export function MainPage({
   const billingSummaryTitle = `${t.main.billingSummary}: ${billingSummaryText}`;
   const selectableProfiles = profiles;
   const comfyUiMode = viewModel.mode === 'comfyui';
+  const profileListState = !comfyUiMode && selectableProfiles.length === 0
+    ? profilesError
+      ? { kind: 'error' as const, title: profilesError }
+      : profilesLoading
+        ? { kind: 'loading' as const, title: t.main.loadingProfiles }
+        : { kind: 'empty' as const, title: t.main.addProviderProfile }
+    : undefined;
+  const layerListState = flatLayers.length === 0
+    ? layersError
+      ? { kind: 'error' as const, title: layersError }
+      : layersLoading
+        ? { kind: 'loading' as const, title: t.settings.loading }
+        : { kind: 'empty' as const, title: t.main.noAvailableLayers }
+    : undefined;
   const selectedModelInfo = uniqueModels.find((model) => model.id === selectedModelId);
   const selectedModelLabel = comfyUiMode
     ? viewModel.target.label
@@ -1067,7 +1089,7 @@ export function MainPage({
     }
   };
   return (
-    <PageFrame watch={`main:${workspace.generationMode}:${conversation.rounds.length}`}><div className="page" onClick={closeAll}>
+    <PageFrame watch="main"><div className="page" onClick={closeAll}>
       <PageHeader
         title=""
         back={<IconButton
@@ -1096,17 +1118,23 @@ export function MainPage({
           <MotionPresenceView visible={profileMenuOpen} kind="popover">
             {({ ref, state }) => (
             <div ref={ref} className="model-menu hdr-model-menu" data-motion-state={state} onClick={(event) => event.stopPropagation()}>
-              {comfyUiMode ? (
-                <Button data-testid="main-mode-provider" className="model-opt" onClick={() => workspace.setGenerationMode('provider')}>
-                  <span>{t.common.provider}</span>
-                </Button>
-              ) : (
-                <>
-                  {profilesLoading && <div className="model-opt">{t.main.loadingProfiles}</div>}
-                  {profilesError && <div className="model-opt">{profilesError}</div>}
-                  {!profilesLoading && selectableProfiles.length === 0 && (
-                    <div data-testid="profile-menu-add-provider" className="model-opt" onClick={() => onNav('settings-add')}>{t.main.addProviderProfile}</div>
-                  )}
+              <List className="popup-list profile-popup-list" aria-label={t.common.profile}>
+                {comfyUiMode ? (
+                  <Button data-testid="main-mode-provider" className="model-opt" onClick={() => workspace.setGenerationMode('provider')}>
+                    <span>{t.common.provider}</span>
+                  </Button>
+                ) : profileListState ? (
+                  <ListStateItem
+                    className="popup-list-state profile-popup-state"
+                    data-testid={`profile-list-state-${profileListState.kind}`}
+                    kind={profileListState.kind}
+                    title={profileListState.title}
+                    action={profileListState.kind === 'empty'
+                      ? { label: t.common.addProvider, onPress: () => onNav('settings-add') }
+                      : undefined}
+                  />
+                ) : (
+                  <>
                   {selectableProfiles.map((profile) => (
                     <Button
                       key={profile.profileId}
@@ -1121,8 +1149,9 @@ export function MainPage({
                   <Button data-testid="main-mode-comfyui" className="model-opt" onClick={() => workspace.setGenerationMode('comfyui')}>
                     <span>{t.settings.comfyUi}</span>
                   </Button>
-                </>
-              )}
+                  </>
+                )}
+              </List>
             </div>
             )}
           </MotionPresenceView>
@@ -1657,9 +1686,18 @@ export function MainPage({
                   />
                 </div>
                 <div className="layer-scroll">
-                  {layersError && <div className="layer-item"><span className="layer-name">{layersError}</span></div>}
-                  {!layersError && flatLayers.length === 0 && <div className="layer-item"><span className="layer-name">{t.main.noAvailableLayers}</span></div>}
-                  {flatLayers.map(({ layer, depth }) => {
+                  <List className="popup-list layer-popup-list" aria-label={t.main.psLayers}>
+                  {layerListState ? (
+                    <ListStateItem
+                      className="popup-list-state layer-popup-state"
+                      data-testid={`layer-list-state-${layerListState.kind}`}
+                      kind={layerListState.kind}
+                      title={layerListState.title}
+                      action={layerListState.kind === 'error'
+                        ? { label: t.common.refresh, onPress: () => { void reloadLayers(); } }
+                        : undefined}
+                    />
+                  ) : flatLayers.map(({ layer, depth }) => {
                     const kindIcon = layerKindIcon(layer.kind);
                     return (
                       <div key={layer.id} data-testid={`layer-row-${layer.id}`} className="layer-item" onClick={() => void addLayer(layer)}>
@@ -1676,6 +1714,7 @@ export function MainPage({
                       </div>
                     );
                   })}
+                  </List>
                 </div>
               </div>
               )}
@@ -1838,13 +1877,18 @@ export function MainPage({
                       {billingPrimaryParts?.primary ?? t.main.billingUnknown}
                     </span>
                     {billingPrimaryParts?.unit && (
-                      <span className="cmp-balance-pill-unit"> {billingPrimaryParts.unit}</span>
+                      <span className="cmp-balance-pill-unit">{billingPrimaryParts.unit}</span>
                     )}
                   </span>
                   {billingPrimaryParts?.secondary && (
-                    <span className="cmp-balance-pill-secondary"> · {billingPrimaryParts.secondary}</span>
+                    <span className="cmp-balance-pill-secondary">{billingPrimaryParts.secondary}</span>
                   )}
                 </div> : null}
+                {workspace.maskState.kind === 'error' ? (
+                  <Button className="cmp-mask-retry" onClick={workspace.retryMask}>{t.main.retryMask}</Button>
+                ) : null}
+              </div>
+              <div className="cmp-action-right">
                 <MotionButtonSurface>
                   <IconButton
                     data-testid="composer-mask-toggle"
@@ -1853,7 +1897,7 @@ export function MainPage({
                     quiet
                     toggles
                     selected={workspace.maskPreference.enabled}
-                    icon={<Icon name="selection" size={13} />}
+                    icon={<Icon name={workspace.maskPreference.enabled ? 'image-check' : 'image-size'} size={13} />}
                     tooltip={t.main.mask}
                     placement="top"
                     iconSize={13}
@@ -1861,11 +1905,6 @@ export function MainPage({
                     onClick={() => workspace.setMaskEnabled(!workspace.maskPreference.enabled)}
                   />
                 </MotionButtonSurface>
-                {workspace.maskState.kind === 'error' ? (
-                  <Button className="cmp-mask-retry" onClick={workspace.retryMask}>{t.main.retryMask}</Button>
-                ) : null}
-              </div>
-              <div className="cmp-action-right">
                 <MotionButtonSurface>
                   <IconButton
                     data-testid="composer-capture-button"

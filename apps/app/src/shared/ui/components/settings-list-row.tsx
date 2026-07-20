@@ -14,12 +14,14 @@ interface SettingsListRowProps {
   readonly onOpen: () => void;
 }
 
-function onRowKeyDown(event: KeyboardEvent<HTMLDivElement>, onOpen: () => void): void {
+function onRowKeyDown(event: KeyboardEvent<HTMLDivElement>, onOpen: () => void, disabled: boolean): void {
   if (event.key !== 'Enter' && event.key !== ' ') {
     return;
   }
   event.preventDefault();
-  onOpen();
+  if (!disabled) {
+    onOpen();
+  }
 }
 
 export function SettingsListRow({
@@ -38,9 +40,10 @@ export function SettingsListRow({
       data-testid={testId}
       className={`prov-row settings-provider-row${special ? ' is-special' : ''}${disabled ? ' is-disabled' : ''}`}
       role="button"
-      tabIndex={0}
-      onClick={onOpen}
-      onKeyDown={(event) => onRowKeyDown(event, onOpen)}
+      tabIndex={disabled ? -1 : 0}
+      aria-disabled={disabled || undefined}
+      onClick={disabled ? undefined : onOpen}
+      onKeyDown={(event) => onRowKeyDown(event, onOpen, disabled)}
     >
       <div className="prov-leading">{leading}</div>
       <div className="prov-content">
@@ -53,7 +56,7 @@ export function SettingsListRow({
       </div>
       <div className="prov-end">
         {end}
-        <div className="prov-trail"><Icon name="chevron-right" /></div>
+        {!disabled ? <div className="prov-trail"><Icon name="chevron-right" /></div> : null}
       </div>
     </div>
   );
