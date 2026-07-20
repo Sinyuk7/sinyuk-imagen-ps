@@ -10,7 +10,7 @@ export const fakeProfile: ProviderProfile = {
   profileId: 'mock-profile',
   apiFormat: 'openai-images',
   displayName: 'Mock Profile',
-  enabled: true,
+  lifecycle: 'ready',
   config: {
     apiFormat: 'openai-images',
     displayName: 'Mock Profile',
@@ -110,7 +110,7 @@ export function savedProfile(input: ProviderProfileInput, existing: ProviderProf
     apiFormat: input.apiFormat ?? existing?.apiFormat ?? fakeProfile.apiFormat,
     displayName: input.displayName ?? existing?.displayName ?? fakeProfile.displayName,
     ...(input.systemInstruction && input.systemInstruction.trim().length > 0 ? { systemInstruction: input.systemInstruction } : {}),
-    enabled: input.enabled ?? existing?.enabled ?? fakeProfile.enabled,
+    lifecycle: existing?.lifecycle ?? fakeProfile.lifecycle,
     config: {
       ...(existing?.config ?? fakeProfile.config),
       ...(input.config ?? {}),

@@ -29,7 +29,7 @@ function createUserConfigRepository(configs: readonly UserModelConfig[]): UserMo
     async save() {
       throw new Error('save not implemented in test repository');
     },
-    async delete() {
+    async deleteUnlessLast() {
       throw new Error('delete not implemented in test repository');
     },
     async deleteProfile() {
@@ -138,7 +138,7 @@ describe('safe probe model resolution', () => {
       apiFormat: 'gemini-generate-content',
       displayName: 'grsai',
       config: createFakeProviderConfig('grsai'),
-      selectedModelId: 'gemini-3.1-flash-lite-image',
+      modelId: 'gemini-3.1-flash-lite-image',
       secretValues: { apiKey: 'test-key' },
     });
 
@@ -171,7 +171,7 @@ describe('safe probe model resolution', () => {
       profileId: 'profile-grsai',
       apiFormat: 'gemini-generate-content',
       displayName: 'grsai',
-      enabled: true,
+      lifecycle: 'ready',
       config: createFakeProviderConfig('grsai'),
       createdAt: '2026-07-08T00:00:00.000Z',
       updatedAt: '2026-07-08T00:00:00.000Z',
@@ -188,7 +188,10 @@ describe('safe probe model resolution', () => {
       },
     } satisfies ProviderConfigResolver);
 
-    const result = await testProviderProfile('profile-grsai', { connect: true });
+    const result = await testProviderProfile('profile-grsai', {
+      connect: true,
+      modelId: 'gemini-3.1-flash-lite-image',
+    });
 
     expect(result.ok).toBe(true);
     expect(probeContexts).toEqual([{ modelId: 'nano-banana-2-lite' }]);

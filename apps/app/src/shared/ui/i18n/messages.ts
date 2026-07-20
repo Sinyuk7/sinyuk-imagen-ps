@@ -10,6 +10,7 @@ export interface AppMessages {
     readonly loading: string;
     readonly back: string;
     readonly save: string;
+    readonly continue: string;
     readonly cancel: string;
     readonly delete: string;
     readonly refresh: string;
@@ -312,6 +313,7 @@ export interface AppMessages {
     readonly modelConfigurationEmpty: string;
     readonly modelConfigurationHint: string;
     readonly modelConfigurationSaveHint: string;
+    readonly modelConfigurationLastModelHint: string;
     readonly addNewModel: string;
     readonly discoveredModels: string;
     readonly discoverySuggestion: string;
@@ -436,6 +438,7 @@ const EN_MESSAGES: AppMessages = {
     loading: 'Loading…',
     back: 'Back',
     save: 'Save',
+    continue: 'Continue',
     cancel: 'Cancel',
     delete: 'Delete',
     refresh: 'Refresh',
@@ -747,6 +750,7 @@ const EN_MESSAGES: AppMessages = {
     modelConfigurationEmpty: 'No model configs (´･ω･`)',
     modelConfigurationHint: 'Create reusable model configs.',
     modelConfigurationSaveHint: 'Saving does not apply it.',
+    modelConfigurationLastModelHint: 'Add another model before removing this one.',
     addNewModel: 'Add new model',
     discoveredModels: 'Discovered suggestions',
     discoverySuggestion: 'Suggestion; save before use',
@@ -871,6 +875,7 @@ const ZH_CN_MESSAGES: AppMessages = {
     loading: '加载中…',
     back: '返回',
     save: '保存',
+    continue: '继续',
     cancel: '取消',
     delete: '删除',
     refresh: '刷新',
@@ -1182,6 +1187,7 @@ const ZH_CN_MESSAGES: AppMessages = {
     modelConfigurationEmpty: '暂无模型配置 (´･ω･`)',
     modelConfigurationHint: '创建可复用模型配置。',
     modelConfigurationSaveHint: '保存后不会自动应用。',
+    modelConfigurationLastModelHint: '请先添加另一个模型，再删除当前模型。',
     addNewModel: '添加新模型',
     discoveredModels: '发现建议',
     discoverySuggestion: '建议项，保存后才能使用',

@@ -45,8 +45,10 @@ export function createModelConfigRepositoryFake(options?: {
         config,
       ];
     },
-    async delete(profileId, modelId) {
+    async deleteUnlessLast(profileId, modelId) {
+      if (userModelConfigs.filter((config) => config.profileId === profileId).length <= 1) return false;
       userModelConfigs = userModelConfigs.filter((config) => !(config.profileId === profileId && config.modelId === modelId));
+      return true;
     },
     async deleteProfile(profileId) {
       userModelConfigs = userModelConfigs.filter((config) => config.profileId !== profileId);

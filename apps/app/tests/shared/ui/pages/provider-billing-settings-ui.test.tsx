@@ -22,7 +22,7 @@ async function cleanupRoot(): Promise<void> {
 
 async function renderAddPage(container: HTMLElement, options?: {
   readonly profiles?: readonly ProviderProfile[];
-  readonly onProfileSaved?: ReturnType<typeof vi.fn>;
+  readonly onProfileSetup?: ReturnType<typeof vi.fn>;
 }) {
   const fake = createFakeServices({ profiles: options?.profiles });
   root = createRoot(container);
@@ -32,7 +32,7 @@ async function renderAddPage(container: HTMLElement, options?: {
         <SettingsAddPage
           onNav={vi.fn()}
           profiles={options?.profiles ?? []}
-          onProfileSaved={options?.onProfileSaved ?? vi.fn(async () => undefined)}
+          onProfileSetup={options?.onProfileSetup ?? vi.fn(async () => undefined)}
         />
       </TestAppProviders>,
     );
@@ -174,8 +174,8 @@ describe('provider billing settings UI', () => {
   it('shows only simplified billing modes on add page and validates current-api-key mode', async () => {
     const container = document.createElement('div');
     document.body.appendChild(container);
-    const onProfileSaved = vi.fn(async () => undefined);
-    const fake = await renderAddPage(container, { onProfileSaved });
+    const onProfileSetup = vi.fn(async () => undefined);
+    const fake = await renderAddPage(container, { onProfileSetup });
 
     await inputTestId(container, 'provider-endpoint-detect-input', 'https://relay.test/v1/chat/completions');
 
@@ -197,31 +197,33 @@ describe('provider billing settings UI', () => {
 
     await clickTestId(container, 'provider-save-button');
     expect(document.body.textContent).toContain('查询路径必填，且必须以 / 开头。');
-    expect(fake.spies.saveProviderProfile).not.toHaveBeenCalled();
+    expect(fake.spies.continueProviderProfileSetup).not.toHaveBeenCalled();
 
     await inputTestId(container, 'provider-billing-path-input', '/client/openapi/getAPIKeyCredits');
 
     await clickTestId(container, 'provider-save-button');
     expect(document.body.textContent).toContain('当前 API Key 模式需要已保存或当前填写的 API Key。');
-    expect(fake.spies.saveProviderProfile).not.toHaveBeenCalled();
+    expect(fake.spies.continueProviderProfileSetup).not.toHaveBeenCalled();
 
     await inputTestId(container, 'provider-api-key-input', 'sk-live');
 
     await clickTestId(container, 'provider-save-button');
-    expect(fake.spies.saveProviderProfile).toHaveBeenCalledTimes(1);
-    expect(fake.spies.saveProviderProfile.mock.calls[0]?.[0]).toMatchObject({
-      apiFormat: 'openai-chat-completions',
-      secretValues: {
-        apiKey: 'sk-live',
-      },
-      config: {
-        billing: {
-          source: 'profile-api-key',
-          path: '/client/openapi/getAPIKeyCredits',
+    expect(fake.spies.continueProviderProfileSetup).toHaveBeenCalledTimes(1);
+    expect(fake.spies.continueProviderProfileSetup.mock.calls[0]?.[0]).toMatchObject({
+      profile: {
+        apiFormat: 'openai-chat-completions',
+        secretValues: {
+          apiKey: 'sk-live',
+        },
+        config: {
+          billing: {
+            source: 'profile-api-key',
+            path: '/client/openapi/getAPIKeyCredits',
+          },
         },
       },
     });
-    expect(onProfileSaved).toHaveBeenCalledTimes(1);
+    expect(onProfileSetup).toHaveBeenCalledTimes(1);
   });
 
   it('recomputes add-page endpoint fields and clears stale path inputs', async () => {
@@ -276,7 +278,7 @@ describe('provider billing settings UI', () => {
         },
       },
     });
-    expect(onProfilesChanged).toHaveBeenCalledWith('mock-profile');
+    expect(onProfilesChanged).toHaveBeenCalledWith('mock-profile', { activate: false });
   });
 
   it('keeps detail structured draft stable for cross-format endpoint input', async () => {
@@ -417,8 +419,8 @@ describe('provider billing settings UI', () => {
   it('reads latest visible billing path from DOM on add page save mousedown even if input event was missed', async () => {
     const container = document.createElement('div');
     document.body.appendChild(container);
-    const onProfileSaved = vi.fn(async () => undefined);
-    const fake = await renderAddPage(container, { onProfileSaved });
+    const onProfileSetup = vi.fn(async () => undefined);
+    const fake = await renderAddPage(container, { onProfileSetup });
 
     await inputTestId(container, 'provider-endpoint-detect-input', 'https://relay.test/v1/chat/completions');
     await selectOption(container, 'provider-billing-mode-selector', 'billing-token');
@@ -432,20 +434,22 @@ describe('provider billing settings UI', () => {
     await flush();
     await mouseDownClickTestId(container, 'provider-save-button');
 
-    expect(fake.spies.saveProviderProfile).toHaveBeenCalledTimes(1);
-    expect(fake.spies.saveProviderProfile.mock.calls[0]?.[0]).toMatchObject({
-      apiFormat: 'openai-chat-completions',
-      secretValues: {
-        billingToken: 'billing-next',
-      },
-      config: {
-        billing: {
-          source: 'billing-token',
-          path: '/client/openapi/getCredits',
+    expect(fake.spies.continueProviderProfileSetup).toHaveBeenCalledTimes(1);
+    expect(fake.spies.continueProviderProfileSetup.mock.calls[0]?.[0]).toMatchObject({
+      profile: {
+        apiFormat: 'openai-chat-completions',
+        secretValues: {
+          billingToken: 'billing-next',
+        },
+        config: {
+          billing: {
+            source: 'billing-token',
+            path: '/client/openapi/getCredits',
+          },
         },
       },
     });
-    expect(onProfileSaved).toHaveBeenCalledTimes(1);
+    expect(onProfileSetup).toHaveBeenCalledTimes(1);
   });
 
   it('removes saved billing token when detail page switches billing to disabled', async () => {

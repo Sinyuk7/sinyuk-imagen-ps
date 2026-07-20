@@ -43,4 +43,15 @@ describe('Chrome user model config storage', () => {
     expect(listed).toHaveLength(1);
     expect(listed[0]?.modelId).toBe('gemini-3.1-flash-image');
   });
+
+  it('deletes only while another profile-owned model remains', async () => {
+    const config = await geminiFlashImageConfig();
+    const storage = createChromeIndexedDbStorage({ backend: createMemoryIndexedDbBackend() });
+    await storage.userModelConfigs.save(config);
+    await storage.userModelConfigs.save({ ...config, modelId: 'gemini-3.1-flash-image-alt', wireModelId: 'gemini-3.1-flash-image-alt' });
+
+    expect(await storage.userModelConfigs.deleteUnlessLast(config.profileId, config.modelId)).toBe(true);
+    expect(await storage.userModelConfigs.deleteUnlessLast(config.profileId, 'gemini-3.1-flash-image-alt')).toBe(false);
+    expect(await storage.userModelConfigs.list(config.profileId)).toHaveLength(1);
+  });
 });

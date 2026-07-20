@@ -469,12 +469,11 @@ export function createProviderGenerationBackend(
           profileId: payload.profileId,
         });
       }
-      if (!profile.enabled) {
-        throw createValidationError(`Provider profile "${payload.profileId}" is disabled.`, {
+      if (profile.lifecycle !== 'ready') {
+        throw createValidationError(`Provider profile "${payload.profileId}" is not ready.`, {
           profileId: payload.profileId,
         });
       }
-
       const implementationId = implementationIdForApiFormat(profile.apiFormat);
       const provider = dependencies.providerRegistry.get(implementationId);
       if (!provider || provider.id !== implementationId) {
@@ -502,8 +501,7 @@ export function createProviderGenerationBackend(
       assertRecord(prepared, 'Prepared Provider request');
       assertPreparedInputs(payload.operation, prepared);
 
-      const configuredModelId = explicitConfigModelId(prepared, payload.runningTask)
-        ?? (await dependencies.userModelConfigRepository.list(profile.profileId))[0]?.modelId;
+      const configuredModelId = explicitConfigModelId(prepared, payload.runningTask);
       if (!configuredModelId) {
         throw createValidationError(`Provider profile "${profile.profileId}" has no configured model for admission.`, {
           profileId: profile.profileId,
@@ -573,10 +571,10 @@ export function createProviderGenerationBackend(
           }),
         };
       }
-      if (!profile.enabled) {
+      if (profile.lifecycle !== 'ready') {
         return {
-          status: 'wait',
-          reason: createValidationError(`Provider profile "${input.profileId}" is disabled.`, {
+          status: 'reject',
+          error: createValidationError(`Provider profile "${input.profileId}" is not ready.`, {
             profileId: input.profileId,
           }),
         };

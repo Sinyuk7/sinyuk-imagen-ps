@@ -19,7 +19,6 @@ export interface ProviderRowVM {
   readonly profileId: string;
   readonly apiFormat: ApiFormat;
   readonly displayName: string;
-  readonly enabled: boolean;
   readonly apiFormatLabel: string;
 }
 
@@ -230,7 +229,6 @@ export function profileToProviderRow(profile: ProviderProfile): ProviderRowVM {
     profileId: profile.profileId,
     apiFormat: profile.apiFormat,
     displayName: profile.displayName,
-    enabled: profile.enabled,
     apiFormatLabel: formatApiFormat(profile.apiFormat),
   };
 }

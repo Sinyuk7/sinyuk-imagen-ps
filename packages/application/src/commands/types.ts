@@ -114,6 +114,9 @@ export type ProviderProfileConfigValue =
  */
 export type ProviderProfileConfig = Readonly<Record<string, ProviderProfileConfigValue>>;
 
+/** Profile 创建流程内部状态；产品表面只公开 `ready`。 */
+export type ProviderProfileLifecycle = 'setup' | 'ready';
+
 /**
  * Sanitized persisted provider profile. Returned commands MUST NOT include secret values.
  *
@@ -125,7 +128,8 @@ export interface ProviderProfile {
   readonly apiFormat: ApiFormat;
   readonly displayName: string;
   readonly systemInstruction?: string;
-  readonly enabled: boolean;
+  /** `setup` 仅允许创建流程按 id 读取，不能进入公开 Profile 投影。 */
+  readonly lifecycle: ProviderProfileLifecycle;
   readonly config: ProviderProfileConfig;
   readonly secretRefs?: Readonly<Record<string, string>>;
   readonly createdAt: string;
@@ -148,7 +152,6 @@ export interface ProviderProfileInput {
   readonly apiFormat?: ApiFormat;
   readonly displayName?: string;
   readonly systemInstruction?: string;
-  readonly enabled?: boolean;
   readonly config?: ProviderProfileConfig;
   readonly secretRefs?: Readonly<Record<string, string>>;
   readonly secretValues?: Readonly<Record<string, string>>;
@@ -243,8 +246,30 @@ export interface UserModelConfigRepository {
   list(profileId: string): Promise<readonly UserModelConfig[]>;
   get(profileId: string, modelId: string): Promise<UserModelConfig | undefined>;
   save(config: UserModelConfig): Promise<void>;
-  delete(profileId: string, modelId: string): Promise<void>;
+  /** 仅在删除后仍保留至少一个 model config 时删除。 */
+  deleteUnlessLast(profileId: string, modelId: string): Promise<boolean>;
   deleteProfile(profileId: string): Promise<void>;
+}
+
+/** 新建 Profile Continue 的 application-owned 路由结果。 */
+export type ProviderProfileSetupOutcome =
+  | { readonly kind: 'ready'; readonly profile: ProviderProfile }
+  | {
+      readonly kind: 'model-configuration';
+      readonly profileId: string;
+      readonly apiFormat: ApiFormat;
+      readonly wireModelId: string;
+    }
+  | {
+      readonly kind: 'profile-models';
+      readonly profileId: string;
+      readonly apiFormat: ApiFormat;
+    };
+
+export interface ContinueProviderProfileSetupInput {
+  readonly profile: ProviderProfileInput;
+  /** endpoint import 的显式 wire model hint；没有 hint 时进入 Profile Models。 */
+  readonly wireModelId?: string;
 }
 
 export interface ProfileModelItem {
@@ -302,6 +327,8 @@ export interface DeleteProviderProfileOptions {
 
 /** `testProviderProfile` 的分层开关。 */
 export interface TestProviderProfileOptions {
+  /** Profile-owned configured model required by connect/generate checks. */
+  readonly modelId?: string;
   /** 跑无生成连接验证（不花钱）。 */
   readonly connect?: boolean;
   /** 跑最小 text_to_image 烟雾测试（花钱，需 connect 成功）。 */
@@ -375,7 +402,7 @@ export interface TestProviderProfileConnectionInput {
   readonly displayName?: string;
   readonly config: ProviderProfileConfig;
   /** UI/runtime 当前选择；不是 persisted profile state。 */
-  readonly selectedModelId?: string;
+  readonly modelId?: string;
   readonly secretRefs?: Readonly<Record<string, string>>;
   readonly secretValues?: Readonly<Record<string, string>>;
   readonly removedSecretNames?: readonly string[];

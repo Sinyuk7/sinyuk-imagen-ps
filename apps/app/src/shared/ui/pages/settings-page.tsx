@@ -62,7 +62,7 @@ function ProviderListItem({
   const { messages: t } = useI18n();
   const row = profileToProviderRow(profile);
   const host = providerEndpointHost(profile);
-  const configured = profile.enabled && Boolean(host) && modelCount > 0;
+  const configured = Boolean(host) && modelCount > 0;
   return (
     <SettingsListRow
       testId={`provider-row-${profile.profileId}`}

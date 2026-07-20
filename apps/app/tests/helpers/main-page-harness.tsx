@@ -63,3 +63,16 @@ export async function sendPrompt(container: HTMLElement, prompt: string): Promis
   });
   await flush();
 }
+
+/** Main composer no longer infers a first model; test intent must select one. */
+export async function selectMainModel(container: HTMLElement, modelId = 'gpt-image-2'): Promise<void> {
+  await act(async () => {
+    container.querySelector<HTMLElement>('[data-testid="main-model-selector"]')?.click();
+  });
+  await flush();
+  await act(async () => {
+    document.body.querySelector<HTMLElement>(`[data-testid="main-model-selector-option-${modelId}"]`)?.click();
+  });
+  await flush();
+  await flush();
+}

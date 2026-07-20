@@ -269,6 +269,16 @@ describe('ModelConfigurationPage', () => {
         outputExposure: simpleFlexibleExposure,
         outputMatrix: [],
       },
+      {
+        profileId: 'mock-profile',
+        apiFormat: 'openai-images',
+        modelId: 'saved-config-2',
+        baseModelId: 'gpt-image-2',
+        wireModelId: 'saved-config-2',
+        requestStrategyId: 'image-endpoint-default',
+        outputExposure: simpleFlexibleExposure,
+        outputMatrix: [],
+      },
     ];
     const { services, spies } = createFakeServices({ userModelConfigs });
     const container = await renderPage({ services, modelId: 'saved-config' });

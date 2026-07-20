@@ -2,7 +2,7 @@ import { act } from 'react';
 import { afterEach, describe, expect, it } from 'vitest';
 import { createHostImageAsset } from '../../../../src/shared/domain/host-image-asset';
 import { createMemoryThumbnailStore } from '../../../../src/shared/image/thumbnail-store';
-import { cleanupMainPageRoot, flush, renderMainPage, sendPrompt } from '../../../helpers/main-page-harness';
+import { cleanupMainPageRoot, flush, renderMainPage, selectMainModel, sendPrompt } from '../../../helpers/main-page-harness';
 import { createFakeServices } from '../../../helpers/fakes';
 import {
   fakeOutputAsset,
@@ -42,6 +42,7 @@ describe('MainPage preview fallback', () => {
     }));
 
     await renderMainPage(container, fake);
+    await selectMainModel(container);
     await click(container.querySelector('[data-testid="composer-add-image-button"]'));
     await flush();
     await click(container.querySelector('[data-testid="attach-upload-option"]'));
@@ -66,6 +67,7 @@ describe('MainPage preview fallback', () => {
     });
 
     await renderMainPage(container, fake);
+    await selectMainModel(container);
     await sendPrompt(container, 'Generate image with delayed preview.');
     await flush();
     await flush();
@@ -91,6 +93,7 @@ describe('MainPage preview fallback', () => {
     });
 
     await renderMainPage(container, fake);
+    await selectMainModel(container);
     await sendPrompt(container, 'Generate image with broken preview bytes.');
     await flush();
     await flush();

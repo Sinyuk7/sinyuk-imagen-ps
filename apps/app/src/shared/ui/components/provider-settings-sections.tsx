@@ -56,6 +56,7 @@ interface ProviderSettingsFooterProps {
   readonly saveBusy: boolean;
   readonly testSupported: boolean;
   readonly saveDisabled: boolean;
+  readonly saveLabel?: string;
   readonly onTestMouseDown?: () => void;
   readonly onTest: () => void;
   readonly onSaveMouseDown?: () => void;
@@ -291,6 +292,7 @@ export function ProviderSettingsFooter({
   saveBusy,
   testSupported,
   saveDisabled,
+  saveLabel,
   onTestMouseDown,
   onTest,
   onSaveMouseDown,
@@ -323,7 +325,7 @@ export function ProviderSettingsFooter({
               onMouseDownCapture={onSaveMouseDown}
               onClick={onSave}
             >
-              {saveBusy ? t.settings.saving : t.common.save}
+              {saveBusy ? t.settings.saving : saveLabel ?? t.common.save}
             </Button>
           </div>
         ) : (
@@ -335,7 +337,7 @@ export function ProviderSettingsFooter({
             onMouseDownCapture={onSaveMouseDown}
             onClick={onSave}
           >
-            {saveBusy ? t.settings.saving : t.common.save}
+            {saveBusy ? t.settings.saving : saveLabel ?? t.common.save}
           </Button>
         )}
       </div>

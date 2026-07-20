@@ -62,7 +62,7 @@ function createProviderProfile(overrides: Partial<ProviderProfile> = {}): Provid
     profileId: 'profile-relay',
     apiFormat: 'openai-chat-completions',
     displayName: 'Relay',
-    enabled: true,
+    lifecycle: 'ready',
     config: {
       apiFormat: 'openai-chat-completions',
       displayName: 'Relay',

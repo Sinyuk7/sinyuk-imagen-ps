@@ -1,6 +1,6 @@
 import { act } from 'react';
 import { afterEach, describe, expect, it } from 'vitest';
-import { cleanupMainPageRoot, flush, renderMainPage, sendPrompt } from '../../../helpers/main-page-harness';
+import { cleanupMainPageRoot, flush, renderMainPage, selectMainModel, sendPrompt } from '../../../helpers/main-page-harness';
 import { createFakeServices } from '../../../helpers/fakes';
 
 async function renderReadyMain(container: HTMLElement) {
@@ -8,6 +8,7 @@ async function renderReadyMain(container: HTMLElement) {
   await renderMainPage(container, fake);
   await flush();
   await flush();
+  await selectMainModel(container);
   return fake;
 }
 

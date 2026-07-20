@@ -47,7 +47,7 @@ function installRuntime() {
             profileId,
             apiFormat: 'openai-images',
             displayName: 'Billing Profile',
-            enabled: true,
+            lifecycle: 'ready',
             config: {},
             createdAt: '2026-07-08T00:00:00.000Z',
             updatedAt: '2026-07-08T00:00:00.000Z',

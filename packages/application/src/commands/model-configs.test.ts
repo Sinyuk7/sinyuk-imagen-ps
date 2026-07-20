@@ -8,7 +8,7 @@ const openaiProfile: ProviderProfile = {
   profileId: 'profile-openai',
   apiFormat: 'openai-images',
   displayName: 'OpenAI',
-  enabled: true,
+  lifecycle: 'ready',
   config: { apiFormat: 'openai-images', displayName: 'OpenAI' },
   createdAt: '2026-07-08T00:00:00.000Z',
   updatedAt: '2026-07-08T00:00:00.000Z',
@@ -18,7 +18,7 @@ const geminiProfile: ProviderProfile = {
   profileId: 'profile-gemini',
   apiFormat: 'gemini-generate-content',
   displayName: 'Gemini',
-  enabled: true,
+  lifecycle: 'ready',
   config: { apiFormat: 'gemini-generate-content', displayName: 'Gemini' },
   createdAt: '2026-07-08T00:00:00.000Z',
   updatedAt: '2026-07-08T00:00:00.000Z',
@@ -77,11 +77,13 @@ function createUserConfigRepository(initial: readonly UserModelConfig[] = []): {
       async save(config) {
         values.push(config);
       },
-      async delete(profileId, modelId) {
+      async deleteUnlessLast(profileId, modelId) {
+        if (values.filter((config) => config.profileId === profileId).length <= 1) return false;
         const index = values.findIndex((config) => config.profileId === profileId && config.modelId === modelId);
         if (index >= 0) {
           values.splice(index, 1);
         }
+        return true;
       },
       async deleteProfile(profileId) {
         deletedProfileIds.push(profileId);
@@ -241,7 +243,7 @@ describe('model configs', () => {
     expect(geminiConfig.ok ? geminiConfig.value?.wireModelId : null).toBe('gemini-shared-wire');
   });
 
-  it('deletes a user model config without rewriting profile default state', async () => {
+  it('deletes a non-final user model config without rewriting profile state', async () => {
     const config: UserModelConfig = {
       profileId: 'profile-openai',
       apiFormat: 'openai-images',
@@ -257,7 +259,10 @@ describe('model configs', () => {
       },
       outputMatrix: [],
     };
-    const userState = createUserConfigRepository([config]);
+    const userState = createUserConfigRepository([
+      config,
+      { ...config, modelId: 'gpt-image-2-alt', wireModelId: 'gpt-image-2-alt' },
+    ]);
     const profileState = createProviderProfileRepository([openaiProfile]);
     setUserModelConfigRepository(userState.repository);
     setProviderProfileRepository(profileState.repository);
@@ -265,8 +270,12 @@ describe('model configs', () => {
     const result = await deleteUserModelConfig('profile-openai', 'gpt-image-2');
 
     expect(result.ok).toBe(true);
-    expect(userState.saved).toHaveLength(0);
+    expect(userState.saved).toHaveLength(1);
     expect(profileState.values).toEqual([openaiProfile]);
+
+    const finalDelete = await deleteUserModelConfig('profile-openai', 'gpt-image-2-alt');
+    expect(finalDelete.ok).toBe(false);
+    expect(userState.saved).toHaveLength(1);
   });
 
   it('cascades user model config deletion when deleting a profile', async () => {

@@ -22,8 +22,13 @@ export { resolveProviderMaskExecutionPlan } from './provider-mask-plan.js';
 export type { MaskExecutionPlan } from '@imagen-ps/providers';
 export {
   deleteProviderProfile,
+  cancelProviderProfileSetup,
+  continueProviderProfileSetup,
   getProviderProfile,
+  getProviderSetupProfile,
   listProviderProfiles,
+  promoteProviderProfileSetup,
+  recoverProviderProfileSetups,
   saveProviderProfile,
   testProviderProfile,
 } from './provider-profiles.js';
@@ -139,8 +144,11 @@ export type {
   ProviderProfile,
   ProviderProfileConfig,
   ProviderProfileConfigValue,
+  ProviderProfileLifecycle,
   ProviderProfileInput,
   ProviderProfileRepository,
+  ProviderProfileSetupOutcome,
+  ContinueProviderProfileSetupInput,
   ResolvedProviderConfig,
   SaveUserModelConfigInput,
   SaveModelGenerationPreferenceInput,

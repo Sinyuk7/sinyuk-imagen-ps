@@ -144,6 +144,15 @@ function isUserModelConfig(value: unknown): value is UserModelConfig {
     value.outputMatrix.every(isImageOutputMatrix);
 }
 
+/** 读入兼容遗留 profile-level enabled，写回时只保留 lifecycle。 */
+function normalizeProviderProfile(value: ProviderProfile): ProviderProfile {
+  const { enabled: _enabled, lifecycle, ...profile } = value as ProviderProfile & {
+    readonly enabled?: unknown;
+    readonly lifecycle?: unknown;
+  };
+  return { ...profile, lifecycle: lifecycle === 'setup' ? 'setup' : 'ready' };
+}
+
 function requestResult<T>(request: IDBRequest<T>): Promise<T> {
   return new Promise((resolve, reject) => {
     request.onsuccess = () => resolve(request.result);
@@ -329,13 +338,15 @@ export function createChromeIndexedDbStorage(options?: { readonly backend?: Chro
   return {
     profiles: {
       async list(): Promise<readonly ProviderProfile[]> {
-        return backend.list<ProviderProfile>('profiles');
+        return (await backend.list<ProviderProfile>('profiles')).map(normalizeProviderProfile);
       },
       async get(profileId): Promise<ProviderProfile | undefined> {
-        return backend.get<ProviderProfile>('profiles', profileId);
+        const profile = await backend.get<ProviderProfile>('profiles', profileId);
+        return profile === undefined ? undefined : normalizeProviderProfile(profile);
       },
       async save(profile): Promise<void> {
-        await backend.put('profiles', profile.profileId, profile);
+        const normalized = normalizeProviderProfile(profile);
+        await backend.put('profiles', normalized.profileId, normalized);
       },
       async delete(profileId): Promise<void> {
         await backend.delete('profiles', profileId);
@@ -442,8 +453,11 @@ export function createChromeIndexedDbStorage(options?: { readonly backend?: Chro
         }
         await backend.put('userModelConfigs', `${config.profileId}:${config.modelId}`, config);
       },
-      async delete(profileId, modelId): Promise<void> {
+      async deleteUnlessLast(profileId, modelId): Promise<boolean> {
+        const configs = (await backend.list<unknown>('userModelConfigs')).filter(isUserModelConfig);
+        if (configs.filter((config) => config.profileId === profileId).length <= 1) return false;
         await backend.delete('userModelConfigs', `${profileId}:${modelId}`);
+        return true;
       },
       async deleteProfile(profileId): Promise<void> {
         const configs = (await backend.list<unknown>('userModelConfigs')).filter(isUserModelConfig);

@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import type { ApiFormat, ProviderProfile } from '@imagen-ps/application';
+import type { ApiFormat, ProviderProfile, ProviderProfileSetupOutcome } from '@imagen-ps/application';
 import { useAppServices } from '../../ports/app-services-context';
 import {
   apiFormatLabel,
@@ -31,17 +31,12 @@ import {
   interpretEndpointDraft,
   resolveEndpointApply,
   type EndpointModelHint,
-  type ModelConfigurationEditorSeed,
 } from '../hooks/provider-endpoint-import';
 
 interface SettingsAddPageProps {
   readonly onNav: (view: string) => void;
   readonly profiles: readonly ProviderProfile[];
-  readonly onProfileSaved: (profileId: string, options: {
-    readonly useProvider: boolean;
-    readonly message: string;
-    readonly fallbackModelSeed?: ModelConfigurationEditorSeed;
-  }) => Promise<void>;
+  readonly onProfileSetup: (outcome: ProviderProfileSetupOutcome) => Promise<void>;
 }
 
 type ConnectionUpdater = (connection: ProviderConnectionDraft) => ProviderConnectionDraft;
@@ -96,7 +91,7 @@ function liveTextInputValue(inputId: string): string | undefined {
   return undefined;
 }
 
-export function SettingsAddPage({ onNav, profiles, onProfileSaved }: SettingsAddPageProps) {
+export function SettingsAddPage({ onNav, profiles, onProfileSetup }: SettingsAddPageProps) {
   const services = useAppServices();
   const { messages: t } = useI18n();
   const { show } = useToast();
@@ -131,7 +126,6 @@ export function SettingsAddPage({ onNav, profiles, onProfileSaved }: SettingsAdd
     : null;
   const endpointErrors = duplicateEndpointErrors(connection, t.settings.duplicateEndpointUrl);
   const saveDisabled = saveBusy || !apiFormat || Boolean(aliasError) || endpointErrors.size > 0;
-  const useProviderOnSave = profiles.length === 0;
 
   useEffect(() => {
     const nextBilling = defaultBillingDraft(selected);
@@ -446,7 +440,7 @@ export function SettingsAddPage({ onNav, profiles, onProfileSaved }: SettingsAdd
     invalidateDraftProofs();
   };
 
-  const saveProfile = async (): Promise<string> => {
+  const saveProfile = async (): Promise<ProviderProfileSetupOutcome> => {
     if (!apiFormat) {
       throw new Error(t.settings.apiFormatRequired);
     }
@@ -467,26 +461,30 @@ export function SettingsAddPage({ onNav, profiles, onProfileSaved }: SettingsAdd
       throw new Error(t.settings.billingNotSupported);
     }
     const billingSecretValues = billingSecretValuesFromDraft(currentBilling);
-    const result = await services.commands.saveProviderProfile({
-      profileId,
-      apiFormat,
-      displayName,
-      systemInstruction,
-      enabled: true,
-      config: providerConfigFromForm(apiFormat, displayName, connectionRef.current, paths, currentBilling),
-      ...((currentApiKey.trim() || billingSecretValues)
-        ? {
-            secretValues: {
-              ...(currentApiKey.trim() ? { apiKey: currentApiKey.trim() } : {}),
-              ...(billingSecretValues ?? {}),
-            },
-          }
+    const result = await services.commands.continueProviderProfileSetup({
+      profile: {
+        profileId,
+        apiFormat,
+        displayName,
+        systemInstruction,
+        config: providerConfigFromForm(apiFormat, displayName, connectionRef.current, paths, currentBilling),
+        ...((currentApiKey.trim() || billingSecretValues)
+          ? {
+              secretValues: {
+                ...(currentApiKey.trim() ? { apiKey: currentApiKey.trim() } : {}),
+                ...(billingSecretValues ?? {}),
+              },
+            }
+          : {}),
+      },
+      ...(endpointModelHint?.apiFormat === apiFormat
+        ? { wireModelId: endpointModelHint.wireModelId ?? endpointModelHint.modelId }
         : {}),
     });
     if (!result.ok) {
       throw new Error(`${result.error.category}: ${result.error.message}`);
     }
-    return result.value.profileId;
+    return result.value;
   };
 
   const handleSave = async () => {
@@ -496,20 +494,8 @@ export function SettingsAddPage({ onNav, profiles, onProfileSaved }: SettingsAdd
     saveBusyRef.current = true;
     setSaveBusy(true);
     try {
-      const profileId = await saveProfile();
-      const fallbackModelSeed = endpointModelHint && endpointModelHint.apiFormat === apiFormat
-        ? {
-            profileId,
-            apiFormat: endpointModelHint.apiFormat,
-            modelId: endpointModelHint.modelId,
-            wireModelId: endpointModelHint.wireModelId ?? endpointModelHint.modelId,
-          }
-        : undefined;
-      await onProfileSaved(profileId, {
-        useProvider: useProviderOnSave,
-        message: t.settings.saved,
-        ...(fallbackModelSeed ? { fallbackModelSeed } : {}),
-      });
+      const outcome = await saveProfile();
+      await onProfileSetup(outcome);
     } catch (error) {
       show(error instanceof Error ? error.message : String(error), 'negative', {
         key: 'settings-add-save-error',
@@ -624,6 +610,7 @@ export function SettingsAddPage({ onNav, profiles, onProfileSaved }: SettingsAdd
         saveBusy={saveBusy}
         testSupported={connectionTestSupported}
         saveDisabled={saveDisabled}
+        saveLabel={t.common.continue}
         onTestMouseDown={syncVisibleDraftInputs}
         onTest={() => void handleTestConnection()}
         onSaveMouseDown={syncVisibleDraftInputs}

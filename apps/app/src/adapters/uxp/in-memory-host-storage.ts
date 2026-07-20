@@ -77,8 +77,11 @@ export function createInMemoryUserModelConfigRepository(): UserModelConfigReposi
     async save(config): Promise<void> {
       configs.set(userModelConfigKey(config.profileId, config.modelId), config);
     },
-    async delete(profileId, modelId): Promise<void> {
+    async deleteUnlessLast(profileId, modelId): Promise<boolean> {
+      const owned = Array.from(configs.values()).filter((config) => config.profileId === profileId);
+      if (owned.length <= 1) return false;
       configs.delete(userModelConfigKey(profileId, modelId));
+      return true;
     },
     async deleteProfile(profileId): Promise<void> {
       for (const key of Array.from(configs.keys())) {

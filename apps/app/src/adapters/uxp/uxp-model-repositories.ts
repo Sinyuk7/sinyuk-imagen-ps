@@ -255,10 +255,13 @@ export function createUxpUserModelConfigRepository(modules: UxpModules): UserMod
       configs.set(userModelConfigKey(config), config);
       await writeAll(configs);
     },
-    async delete(profileId, modelId) {
+    async deleteUnlessLast(profileId, modelId) {
       const configs = await readAll();
+      const owned = Array.from(configs.values()).filter((config) => config.profileId === profileId);
+      if (owned.length <= 1) return false;
       configs.delete(`${profileId}:${modelId}`);
       await writeAll(configs);
+      return true;
     },
     async deleteProfile(profileId) {
       const configs = await readAll();

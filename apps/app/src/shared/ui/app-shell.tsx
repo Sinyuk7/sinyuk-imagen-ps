@@ -2,7 +2,7 @@ import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, typ
 import { AppServicesProvider } from '../ports/app-services-context';
 import type { AppServices } from '../ports/app-services';
 import type { LayerInfo } from '../ports/host-port';
-import type { ProviderProfile } from '@imagen-ps/application';
+import type { ProviderProfile, ProviderProfileSetupOutcome } from '@imagen-ps/application';
 import type { SupportedLocale } from '../domain/locale';
 import type { PluginAppModel } from '../domain/plugin-app-model';
 import { useConversation, type RoundStatus } from './hooks/use-conversation';
@@ -233,6 +233,7 @@ function AppShellContent({ host }: AppShellProps) {
   const [selectedImageProfileId, setSelectedImageProfileId] = useState<string | null>(null);
   const [activeImageProfileHydrated, setActiveImageProfileHydrated] = useState(false);
   const [selectedSettingsProfileId, setSelectedSettingsProfileId] = useState<string | null>(null);
+  const [setupProfile, setSetupProfile] = useState<ProviderProfile | null>(null);
   const [modelConfigurationEditorSeed, setModelConfigurationEditorSeed] = useState<{
     readonly profileId: string;
     readonly apiFormat: ProviderProfile['apiFormat'];
@@ -368,8 +369,7 @@ function AppShellContent({ host }: AppShellProps) {
     if (stillValid) {
       return;
     }
-    const next = available[0]?.id ?? '';
-    setSelectedModelId(next);
+    setSelectedModelId('');
   }, [imageModels, selectedModelId]);
 
   const setAppView = useCallback((next: View) => {
@@ -559,15 +559,34 @@ function AppShellContent({ host }: AppShellProps) {
           <SettingsAddPage
           onNav={onNav}
           profiles={imageProfiles}
-          onProfileSaved={async (profileId, options) => {
-            await profilesState.reload();
-            if (options.useProvider) {
-              await selectImageProfile(profileId);
+          onProfileSetup={async (outcome: ProviderProfileSetupOutcome) => {
+            if (outcome.kind === 'ready') {
+              await profilesState.reload();
+              setSetupProfile(null);
+              if (selectedImageProfileId === null) {
+                await selectImageProfile(outcome.profile.profileId);
+              }
+              show(t.settings.saved, 'positive', { key: 'settings-add-provider-saved' });
+              setSelectedSettingsProfileId(outcome.profile.profileId);
+              setSettingsDetailFallbackModelSeed(null);
+              openSettingsRoute({ kind: 'provider-detail', profileId: outcome.profile.profileId });
+              return;
             }
-            show(options.message, 'positive', { key: 'settings-add-provider-saved' });
-            setSelectedSettingsProfileId(profileId);
-            setSettingsDetailFallbackModelSeed(options.fallbackModelSeed ?? null);
-            openSettingsRoute({ kind: 'provider-detail', profileId });
+            const setup = await services.commands.getProviderSetupProfile(outcome.profileId);
+            if (!setup.ok) throw new Error(`${setup.error.category}: ${setup.error.message}`);
+            setSetupProfile(setup.value);
+            setSelectedSettingsProfileId(outcome.profileId);
+            if (outcome.kind === 'model-configuration') {
+              setModelConfigurationEditorSeed({
+                profileId: outcome.profileId,
+                apiFormat: outcome.apiFormat,
+                wireModelId: outcome.wireModelId,
+              });
+              setModelConfigurationReturnView('profile-models');
+              setView('model-configuration');
+              return;
+            }
+            setView('profile-models');
           }}
           />
         </MotionPageFrame>
@@ -596,7 +615,7 @@ function AppShellContent({ host }: AppShellProps) {
             }
             setView('profile-models');
           }}
-          onProfilesChanged={async (profileId) => {
+          onProfilesChanged={async (profileId, options) => {
             await services.diagnostics?.checkpoint('uxp.ui.app_shell.profiles_changed.entered', {
               profileId,
               currentSelectedImageProfileId: selectedImageProfileId,
@@ -608,7 +627,7 @@ function AppShellContent({ host }: AppShellProps) {
               await services.diagnostics?.checkpoint('uxp.ui.app_shell.profiles_changed.after_reload', { profileId });
               await services.diagnostics?.checkpoint('uxp.ui.app_shell.profiles_changed.before_select_profile', { profileId });
               setSelectedSettingsProfileId(profileId);
-              if (profileId) {
+              if (profileId && options?.activate === true) {
                 await selectImageProfile(profileId);
               }
               await services.diagnostics?.checkpoint('uxp.ui.app_shell.profiles_changed.after_select_profile', { profileId });
@@ -623,14 +642,26 @@ function AppShellContent({ host }: AppShellProps) {
       {view === 'profile-models' && selectedSettingsProfileId && (
         <MotionPageFrame watch={view}>
           {(() => {
-            const profile = imageProfiles.find((item) => item.profileId === selectedSettingsProfileId);
+            const profile = imageProfiles.find((item) => item.profileId === selectedSettingsProfileId)
+              ?? (setupProfile?.profileId === selectedSettingsProfileId ? setupProfile : undefined);
             if (!profile) {
               return null;
             }
             return (
               <ProfileModelsPage
                 profile={profile}
-                onBack={() => setView('settings-detail')}
+                onBack={() => {
+                  if (setupProfile?.profileId !== profile.profileId) {
+                    setView('settings-detail');
+                    return;
+                  }
+                  void services.commands.cancelProviderProfileSetup(profile.profileId).then((result) => {
+                    if (!result.ok) show(`${result.error.category}: ${result.error.message}`, 'negative', { key: 'profile-setup-cancel-error' });
+                    setSetupProfile(null);
+                    setSelectedSettingsProfileId(null);
+                    openSettingsRoute({ kind: 'root', tab: 'provider' });
+                  });
+                }}
                 onCreate={() => {
                   setModelConfigurationEditorSeed({
                     profileId: profile.profileId,
@@ -688,10 +719,33 @@ function AppShellContent({ host }: AppShellProps) {
           <ModelConfigurationPage
           onNav={onNav}
           onBack={() => {
+            if (setupProfile?.profileId === modelConfigurationEditorSeed.profileId) {
+              void services.commands.cancelProviderProfileSetup(modelConfigurationEditorSeed.profileId).then((result) => {
+                if (!result.ok) show(`${result.error.category}: ${result.error.message}`, 'negative', { key: 'profile-setup-cancel-error' });
+                setSetupProfile(null);
+                setSelectedSettingsProfileId(null);
+                setModelConfigurationEditorSeed(null);
+                openSettingsRoute({ kind: 'root', tab: 'provider' });
+              });
+              return;
+            }
             setView(modelConfigurationReturnView);
           }}
           onSaved={async () => {
             await profilesState.reload();
+            if (setupProfile?.profileId === modelConfigurationEditorSeed.profileId) {
+              const ready = await services.commands.getProviderProfile(modelConfigurationEditorSeed.profileId);
+              if (!ready.ok) throw new Error(`${ready.error.category}: ${ready.error.message}`);
+              setSetupProfile(null);
+              if (selectedImageProfileId === null) {
+                await selectImageProfile(ready.value.profileId);
+              }
+              show(t.settings.saved, 'positive', { key: 'settings-add-provider-saved' });
+              setSelectedSettingsProfileId(ready.value.profileId);
+              setModelConfigurationEditorSeed(null);
+              openSettingsRoute({ kind: 'provider-detail', profileId: ready.value.profileId });
+              return;
+            }
             if (selectedImageProfileId === modelConfigurationEditorSeed.profileId) {
               await modelsState.reload();
             }

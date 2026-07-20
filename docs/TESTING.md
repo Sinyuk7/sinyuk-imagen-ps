@@ -45,6 +45,12 @@ Focused development entrypoints:
 - `pnpm test:providers`: runs the `@imagen-ps/providers` deterministic provider suite.
 - `pnpm test:uxp`: runs only the app fake-UXP adapter and shell suite.
 
+Profile setup/model availability coverage is mock-only: run
+`pnpm --filter @imagen-ps/application test` for setup outcome, cleanup,
+promotion, explicit-model admission, and final-model deletion contracts; run
+`pnpm --filter @imagen-ps/app test:ui`, `test:chrome`, and `test:uxp` for
+Continue routing, Composer selection, and host persistence adapters.
+
 `pnpm check:policy` is the local architecture and documentation policy gate. It
 checks package import boundaries, high-authority documentation wording,
 portable path references, and the shared UXP CSS contract for `apps/app`
@@ -251,7 +257,8 @@ That live scenario reads owner-local fixture values from repository-root
 `.test.env`, seeds a real provider profile in the browser runtime, and verifies
 that `Test connection` uses the safe no-generation probe path. It is still
 Chrome/browser evidence only: it does not prove real Photoshop / UXP host
-behavior, and it is not part of the default `pnpm test` / `pnpm validate`
+behavior, successful Profile creation, or successful image generation, and it
+is not part of the default `pnpm test` / `pnpm validate`
 gate.
 
 ## Coverage Philosophy

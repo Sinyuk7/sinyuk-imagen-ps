@@ -50,7 +50,7 @@ interface SettingsDetailPageProps {
   readonly onNav: (view: string) => void;
   readonly onBack?: () => void;
   readonly profileId: string | null;
-  readonly onProfilesChanged: (profileId: string | null) => Promise<void>;
+  readonly onProfilesChanged: (profileId: string | null, options?: { readonly activate?: boolean }) => Promise<void>;
   readonly onSaved?: (message: string) => void;
   readonly fallbackModelSeed?: ModelConfigurationEditorSeed | null;
   readonly onOpenModelConfiguration?: (input: {
@@ -494,9 +494,7 @@ export function SettingsDetailPage({ onNav, onBack, profileId, onProfilesChanged
         setUserModelOptions(nextOptions);
         setModelOptionsError(null);
         if (selectedModelId && !nextOptions.some((option) => option.id === selectedModelId)) {
-          setSelectedModelId(nextOptions[0]?.id ?? '');
-        } else if (!selectedModelId && nextOptions[0]) {
-          setSelectedModelId(nextOptions[0].id);
+          setSelectedModelId('');
         }
       })
       .catch((error: unknown) => {
@@ -553,7 +551,6 @@ export function SettingsDetailPage({ onNav, onBack, profileId, onProfilesChanged
       apiFormat: detail.profile.apiFormat,
       displayName: sanitizeProviderDisplayName(displayName) || detail.profile.displayName,
       systemInstruction,
-      enabled: detail.profile.enabled,
       config: mergeProfileConfigForSave(
         detail.profile,
         providerConfigFromForm(
@@ -607,7 +604,7 @@ export function SettingsDetailPage({ onNav, onBack, profileId, onProfilesChanged
           currentBillingDraft,
         ),
       ),
-      ...(selectedModelId.trim().length > 0 ? { selectedModelId: selectedModelId.trim() } : {}),
+      ...(selectedModelId.trim().length > 0 ? { modelId: selectedModelId.trim() } : {}),
       ...(removedSecretNames.length > 0 ? { removedSecretNames } : {}),
       ...((currentApiKey.trim() || billingSecretValues)
         ? {
@@ -684,7 +681,7 @@ export function SettingsDetailPage({ onNav, onBack, profileId, onProfilesChanged
           profile_id: profile.profileId,
           api_format: profile.apiFormat,
         });
-        await onProfilesChanged(profile.profileId);
+        await onProfilesChanged(profile.profileId, { activate: false });
         await services.diagnostics?.checkpoint('uxp.ui.settings_detail.save.after_profiles_changed', {
           profileId: profile.profileId,
           apiFormat: profile.apiFormat,
@@ -780,7 +777,7 @@ export function SettingsDetailPage({ onNav, onBack, profileId, onProfilesChanged
 
   const visibleSelectedModelId = userModelOptions.some((model) => model.id === selectedModelId)
     ? selectedModelId
-    : userModelOptions[0]?.id ?? '';
+    : '';
 
   const remove = async () => {
     if (saveBusyRef.current) {

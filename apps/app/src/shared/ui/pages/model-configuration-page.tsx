@@ -522,6 +522,7 @@ export function ModelConfigurationPage({ onNav, onSaved, onBack, initialEditorSt
   const [moduleSelections, setModuleSelections] = useState<Readonly<Record<string, MatrixDimensionSelection>>>({});
   const [normalizationRequiredModuleIds, setNormalizationRequiredModuleIds] = useState<readonly string[]>([]);
   const [editingKey, setEditingKey] = useState<string | null>(null);
+  const [canDeleteModel, setCanDeleteModel] = useState(true);
 
   const loadApiFormatData = async (nextApiFormat: ApiFormat) => {
     const presetResult = await services.commands.listOfficialModelConfigPresets(nextApiFormat);
@@ -618,6 +619,22 @@ export function ModelConfigurationPage({ onNav, onSaved, onBack, initialEditorSt
       }
     })();
   }, [initialEditorState]);
+
+  useEffect(() => {
+    if (!editingKey) {
+      setCanDeleteModel(true);
+      return;
+    }
+    let cancelled = false;
+    void services.commands.listUserModelConfigs(initialEditorState.profileId).then((result) => {
+      if (!cancelled) setCanDeleteModel(result.ok && result.value.length > 1);
+    }).catch(() => {
+      if (!cancelled) setCanDeleteModel(false);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [editingKey, initialEditorState.profileId, services.commands]);
 
   const moduleValidationMessages = useMemo(() => {
     if (!selectedPreset) {
@@ -781,7 +798,7 @@ export function ModelConfigurationPage({ onNav, onSaved, onBack, initialEditorSt
             quiet
             icon={<Icon name="trash" />}
             tooltip={t.common.delete}
-            disabled={saveBusy}
+            disabled={saveBusy || !canDeleteModel}
             onClick={() => void remove()}
           />
         ) : undefined}
@@ -917,7 +934,9 @@ export function ModelConfigurationPage({ onNav, onSaved, onBack, initialEditorSt
         <FooterActions className="det-footer">
         <div className="settings-detail-footer-inner">
           <div className="settings-detail-footer-actions">
-            <HelpText className="settings-detail-footer-help">{t.settings.modelConfigurationSaveHint}</HelpText>
+            <HelpText className="settings-detail-footer-help">
+              {canDeleteModel ? t.settings.modelConfigurationSaveHint : t.settings.modelConfigurationLastModelHint}
+            </HelpText>
           </div>
           <div className="settings-detail-footer-save-group">
             <Button
