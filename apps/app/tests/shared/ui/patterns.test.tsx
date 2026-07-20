@@ -3,6 +3,7 @@ import { createRoot, type Root } from 'react-dom/client';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import * as UiSystem from '../../../src/shared/ui/ui-system';
 import { FieldGroup, FooterActions, PageHeader, PageScroll, PageState, SegmentedTabs, SettingsFormSection, SettingsListRow, SettingsListSection } from '../../../src/shared/ui/ui-system';
+import { PATTERNS_CSS } from '../../../src/shared/ui/styles/patterns';
 
 let root: Root | undefined;
 afterEach(async () => { await act(async () => root?.unmount()); root = undefined; });
@@ -23,8 +24,11 @@ describe('page patterns', () => {
   });
 
   it('owns header placeholder and primary scroll', async () => {
-    const container = await render(<><PageHeader title="Settings" /><PageScroll>Body</PageScroll></>);
+    const container = await render(<><PageHeader title="Settings" backLabel="Back" onBack={() => undefined} /><PageScroll>Body</PageScroll></>);
     expect(container.querySelector('.ui-page-header-end')).not.toBeNull();
+    expect(container.querySelector('.ui-page-header')).not.toBeNull();
+    expect(container.querySelector('[data-icon-name="chevron-left"]')).not.toBeNull();
+    expect(container.querySelector('button[aria-label="Back"]')?.textContent).toBe('');
     expect(container.querySelector('[data-primary-scroll="true"]')).not.toBeNull();
   });
 
@@ -36,13 +40,19 @@ describe('page patterns', () => {
     expect(onSelect).toHaveBeenCalledWith('two');
     expect(container.querySelector('[data-tab-id="one"]')?.getAttribute('aria-selected')).toBe('true');
     expect(container.querySelector('[data-tab-id="three"]')?.hasAttribute('disabled')).toBe(true);
+    expect(PATTERNS_CSS).toContain('border-radius:var(--app-radius-small)');
+    expect(PATTERNS_CSS).toContain('.ui-segmented-tab[aria-selected="true"]');
+    expect(PATTERNS_CSS).toContain('.ui-segmented-tab:focus-visible');
+    expect(PATTERNS_CSS).toContain('.ui-segmented-tab:disabled');
   });
 
   it('provides bounded section, field, state, and footer shells', async () => {
-    const container = await render(<><SettingsListSection title="List">Row</SettingsListSection><SettingsFormSection title="Form"><FieldGroup label="Name">Control</FieldGroup></SettingsFormSection><PageState tone="neutral" message="Empty" /><FooterActions>Save</FooterActions></>);
+    const container = await render(<><SettingsListSection title="List">Row</SettingsListSection><SettingsFormSection title="Form"><FieldGroup label="Name">Control</FieldGroup></SettingsFormSection><PageState tone="neutral" message="Empty" variant="empty" /><FooterActions>Save</FooterActions></>);
     expect(container.querySelector('.ui-settings-list-section h2')?.textContent).toBe('List');
     expect(container.querySelector('.ui-field-group-label')?.textContent).toBe('Name');
     expect(container.querySelector('.ui-page-state')).not.toBeNull();
+    expect(container.querySelector('.ui-page-state')?.getAttribute('data-variant')).toBe('empty');
+    expect(container.querySelector('.ui-page-state-empty')).not.toBeNull();
     expect(container.querySelector('.ui-footer-actions')?.textContent).toBe('Save');
   });
 
@@ -52,7 +62,8 @@ describe('page patterns', () => {
     expect(container.querySelector('[data-testid]')).toBeNull();
     expect(container.querySelector('button[aria-label="Back"]')).not.toBeNull();
     expect(container.querySelector('.ui-field-group-label')?.textContent).toBe('Endpoint');
-    expect(container.querySelector('[role="button"]')?.getAttribute('tabindex')).toBe('0');
+    expect(container.querySelector('[role="button"]')?.getAttribute('tabindex')).toBe('-1');
+    expect(container.querySelector('[role="button"]')?.getAttribute('aria-disabled')).toBe('true');
     expect(container.querySelector('[role="button"]')?.className).toContain('is-disabled');
   });
 });
