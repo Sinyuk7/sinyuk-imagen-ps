@@ -148,7 +148,8 @@ export const PAGES_CSS = `
   padding-bottom:6px;
 }
 .settings-backend-segments .fchip{
-  min-width:88px;
+  flex:1 1 0;
+  min-width:0;
   min-height:28px;
 }
 .settings-empty-state{
@@ -158,92 +159,22 @@ export const PAGES_CSS = `
   line-height:16px;
   color:var(--app-color-text-muted);
 }
+.settings-empty-action{ margin-top:10px; }
+.settings-field-action-row{ display:flex; align-items:center; min-width:0; }
+.settings-field-action-row .field-input{ flex:1 1 auto; min-width:0; }
+.settings-field-action-row .ui-btn{ flex:0 0 auto; margin-left:8px; }
+.panel[data-panel-width-mode="compact"] .settings-field-action-row{
+  flex-direction:column;
+  align-items:stretch;
+}
+.panel[data-panel-width-mode="compact"] .settings-field-action-row .ui-btn{
+  width:100%;
+  margin-top:8px;
+  margin-left:0;
+}
 .settings-page .section{ padding:var(--settings-section-padding); }
 .settings-page .section + .section{
   border-top:1px solid var(--app-color-border-default);
-}
-.settings-onboarding-page .scroll{
-  padding:12px 14px 20px;
-}
-.settings-onboarding-page .section.settings-onboarding-card{
-  border:1px solid var(--app-color-border-default);
-  border-radius:var(--app-radius-large);
-  background:
-    linear-gradient(180deg,
-      color-mix(in srgb, var(--app-color-accent-subtle) 46%, transparent),
-      color-mix(in srgb, var(--app-color-background-layer-1) 96%, transparent)
-    );
-}
-.settings-onboarding-eyebrow{
-  margin-top:0;
-  margin-right:0;
-  margin-bottom:8px;
-  margin-left:0;
-  font-size:10px;
-  line-height:14px;
-  font-weight:600;
-  letter-spacing:.08em;
-  text-transform:uppercase;
-  color:var(--app-color-text-secondary);
-}
-.settings-onboarding-title{
-  margin-top:0;
-  margin-right:0;
-  margin-bottom:8px;
-  margin-left:0;
-  font-size:19px;
-  line-height:1.2;
-  font-weight:700;
-  color:var(--app-color-text-primary);
-}
-.settings-onboarding-copy{
-  margin-top:0;
-  margin-right:0;
-  margin-bottom:16px;
-  margin-left:0;
-  font-size:12px;
-  line-height:18px;
-  color:var(--app-color-text-secondary);
-}
-.settings-onboarding-list{
-  margin-top:0;
-  margin-right:0;
-  margin-bottom:0;
-  margin-left:0;
-  padding-left:18px;
-  display:flex;
-  flex-direction:column;
-}
-.settings-onboarding-list li{
-  color:var(--app-color-text-primary);
-}
-.settings-onboarding-list li + li{
-  margin-top:12px;
-}
-.settings-onboarding-list li span{
-  display:block;
-  margin-top:4px;
-  font-size:12px;
-  line-height:18px;
-  color:var(--app-color-text-secondary);
-}
-.settings-onboarding-list code{
-  display:inline-block;
-  padding:2px 6px;
-  border-radius:999px;
-  background:var(--app-color-background-layer-2);
-  font-family:var(--app-font-family-mono);
-  font-size:11px;
-  color:var(--app-color-text-primary);
-}
-.settings-onboarding-note{
-  margin-top:16px;
-  margin-right:0;
-  margin-bottom:0;
-  margin-left:0;
-  font-size:11px;
-  line-height:17px;
-  color:var(--app-color-text-secondary);
 }
 .section-title{ font-size:11px; font-weight:600; color:var(--app-color-text-secondary); letter-spacing:.3px; margin-bottom:12px; }
 .settings-page .section-title{
@@ -1874,6 +1805,11 @@ export const PAGES_CSS = `
   }
 }
 @media (max-width: 360px){
+  .settings-field-action-row{
+    flex-direction:column;
+    align-items:stretch;
+  }
+  .settings-field-action-row .ui-btn{ width:100%; margin-top:8px; margin-left:0; }
   .settings-backend-segments .fchip{
     flex:1 1 0;
     min-width:0;

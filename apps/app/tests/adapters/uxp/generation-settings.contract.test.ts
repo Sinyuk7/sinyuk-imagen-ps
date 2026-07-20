@@ -44,26 +44,16 @@ function createModulesWithJson(rawJson: string): {
 }
 
 describe('UXP generation settings storage', () => {
-  it('reads and writes onboarding seen version in generation-settings.json', async () => {
+  it('reads and writes generation-settings.json', async () => {
     const fixture = createModulesWithJson(JSON.stringify({
       providerInputSizePreset: '2k',
-      settingsOnboardingSeenVersion: 1,
     }));
     const store = createUxpGenerationSettingsStore(fixture.modules);
 
-    expect(await store.load()).toEqual({
-      providerInputSizePreset: '2k',
-      settingsOnboardingSeenVersion: 1,
-    });
+    expect(await store.load()).toEqual({ providerInputSizePreset: '2k' });
 
-    await store.save({
-      providerInputSizePreset: '4k',
-      settingsOnboardingSeenVersion: 1,
-    });
+    await store.save({ providerInputSizePreset: '4k' });
 
-    expect(JSON.parse(fixture.readWrittenJson())).toEqual({
-      providerInputSizePreset: '4k',
-      settingsOnboardingSeenVersion: 1,
-    });
+    expect(JSON.parse(fixture.readWrittenJson())).toEqual({ providerInputSizePreset: '4k' });
   });
 });

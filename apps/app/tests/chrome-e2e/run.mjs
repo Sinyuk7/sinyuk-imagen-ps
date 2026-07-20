@@ -318,7 +318,7 @@ async function openApp(page, url) {
 async function openAddProviderProfile(page, url) {
   await openApp(page, url);
   await page.getByTestId('main-providers-button').click();
-  await expectVisibleText(page, 'Providers');
+  await page.getByTestId('settings-backend-provider').waitFor({ state: 'visible', timeout: 5000 });
   await page.getByTestId('providers-add-button').click();
   await expectVisibleText(page, 'Add provider');
   await expectVisibleText(page, 'Auto Detect');
@@ -1198,6 +1198,31 @@ async function responsiveSettingsNarrowScenario({ page, url, capture }) {
   await assertNoBrokenImages(page);
 }
 
+async function responsiveSettingsRoutesScenario({ page, url, capture }) {
+  const viewport = page.viewportSize();
+  const suffix = `${viewport.width}x${viewport.height}`;
+  await openApp(page, url);
+  await page.getByTestId('main-providers-button').click();
+  await page.getByTestId('settings-backend-provider').waitFor({ state: 'visible', timeout: 5000 });
+  await assertPanelFillsRoot(page);
+  await assertNoHorizontalScroll(page);
+  await assertSinglePrimaryScroll(page, '.scroll');
+  await capture(`settings-provider-root-${suffix}.png`);
+
+  await page.getByTestId('settings-backend-comfyui').click();
+  await page.getByTestId('comfyui-settings-root').waitFor({ state: 'visible', timeout: 5000 });
+  await assertNoHorizontalScroll(page);
+  await assertSinglePrimaryScroll(page, '.scroll');
+  await capture(`settings-comfyui-root-${suffix}.png`);
+
+  await page.getByTestId('settings-backend-general').click();
+  await page.getByTestId('global-settings-row').waitFor({ state: 'visible', timeout: 5000 });
+  await assertNoHorizontalScroll(page);
+  await assertSinglePrimaryScroll(page, '.scroll');
+  await capture(`settings-general-root-${suffix}.png`);
+  await assertNoBrokenImages(page);
+}
+
 async function responsiveHistoryNarrowScenario({ page, url, capture }) {
   await openApp(page, url);
   await page.getByTestId('main-history-button').click();
@@ -1516,6 +1541,46 @@ const scenarios = [
     screenshotName: 'responsive-narrow-settings.png',
     assertions: ['panel fills root', 'no horizontal scroll', 'single primary scroll', 'no broken images', 'no console/page/network errors'],
     run: responsiveSettingsNarrowScenario,
+  },
+  {
+    id: 'responsive-settings-routes-300x420',
+    name: 'Responsive settings routes 300x420',
+    tags: ['responsive', 'settings-routes'],
+    viewport: { width: 300, height: 420, deviceScaleFactor: 1 },
+    path: '/index.html?testHarness=1&storage=memory&seedProfile=mock&scenario=seeded-document',
+    screenshotName: 'settings-routes-300x420.png',
+    assertions: ['provider, ComfyUI, and settings roots fit without horizontal scroll', 'single primary scroll', 'no broken images', 'no console/page/network errors'],
+    run: responsiveSettingsRoutesScenario,
+  },
+  {
+    id: 'responsive-settings-routes-360x600',
+    name: 'Responsive settings routes 360x600',
+    tags: ['responsive', 'settings-routes'],
+    viewport: { width: 360, height: 600, deviceScaleFactor: 1 },
+    path: '/index.html?testHarness=1&storage=memory&seedProfile=mock&scenario=seeded-document',
+    screenshotName: 'settings-routes-360x600.png',
+    assertions: ['provider, ComfyUI, and settings roots fit without horizontal scroll', 'single primary scroll', 'no broken images', 'no console/page/network errors'],
+    run: responsiveSettingsRoutesScenario,
+  },
+  {
+    id: 'responsive-settings-routes-420x680',
+    name: 'Responsive settings routes 420x680',
+    tags: ['responsive', 'settings-routes'],
+    viewport: { width: 420, height: 680, deviceScaleFactor: 1 },
+    path: '/index.html?testHarness=1&storage=memory&seedProfile=mock&scenario=seeded-document',
+    screenshotName: 'settings-routes-420x680.png',
+    assertions: ['provider, ComfyUI, and settings roots fit without horizontal scroll', 'single primary scroll', 'no broken images', 'no console/page/network errors'],
+    run: responsiveSettingsRoutesScenario,
+  },
+  {
+    id: 'responsive-settings-routes-520x720',
+    name: 'Responsive settings routes 520x720',
+    tags: ['responsive', 'settings-routes'],
+    viewport: { width: 520, height: 720, deviceScaleFactor: 1 },
+    path: '/index.html?testHarness=1&storage=memory&seedProfile=mock&scenario=seeded-document',
+    screenshotName: 'settings-routes-520x720.png',
+    assertions: ['provider, ComfyUI, and settings roots fit without horizontal scroll', 'single primary scroll', 'no broken images', 'no console/page/network errors'],
+    run: responsiveSettingsRoutesScenario,
   },
   {
     id: 'responsive-history-narrow-300x520',

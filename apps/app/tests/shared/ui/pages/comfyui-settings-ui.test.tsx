@@ -27,7 +27,7 @@ describe('ComfyUI workflow settings surface', () => {
   it('renders the singleton root, conditional mapping notice, and exposed parameters', async () => {
     const container = document.createElement('div');
     document.body.appendChild(container);
-    await renderMainPage(container, createFakeServices({ comfyUi: { baseUrl: 'https://comfy.example.test' }, generationSettings: { settingsOnboardingSeenVersion: 1 } }));
+    await renderMainPage(container, createFakeServices({ comfyUi: { baseUrl: 'https://comfy.example.test' } }));
     await flush();
 
     await openComfySettings(container);
@@ -43,7 +43,7 @@ describe('ComfyUI workflow settings surface', () => {
   it('opens the picker and returns to the root after selecting a saved workflow', async () => {
     const container = document.createElement('div');
     document.body.appendChild(container);
-    await renderMainPage(container, createFakeServices({ comfyUi: { baseUrl: 'https://comfy.example.test' }, generationSettings: { settingsOnboardingSeenVersion: 1 } }));
+    await renderMainPage(container, createFakeServices({ comfyUi: { baseUrl: 'https://comfy.example.test' } }));
     await flush();
 
     await openComfySettings(container);
@@ -63,7 +63,7 @@ describe('ComfyUI workflow settings surface', () => {
   it('keeps composer draft and both backend selections while switching mode and settings tabs', async () => {
     const container = document.createElement('div');
     document.body.appendChild(container);
-    await renderMainPage(container, createFakeServices({ comfyUi: { baseUrl: 'https://comfy.example.test' }, generationSettings: { settingsOnboardingSeenVersion: 1 } }));
+    await renderMainPage(container, createFakeServices({ comfyUi: { baseUrl: 'https://comfy.example.test' } }));
     await flush();
 
     await act(async () => {
@@ -83,11 +83,11 @@ describe('ComfyUI workflow settings surface', () => {
     expect(container.querySelector('[data-testid="comfyui-settings-root"]')).not.toBeNull();
     await act(async () => { container.querySelector<HTMLElement>('[data-testid="settings-backend-provider"]')?.click(); });
     await flush();
-    expect(container.querySelector('[data-testid="providers-back-button"]')).not.toBeNull();
+    expect(container.querySelector('[data-testid="settings-back-button"]')).not.toBeNull();
     await act(async () => { container.querySelector<HTMLElement>('[data-testid="settings-backend-comfyui"]')?.click(); });
     await flush();
     expect(container.querySelector('[data-testid="comfyui-settings-root"]')).not.toBeNull();
-    await act(async () => { container.querySelector<HTMLElement>('[data-testid="comfyui-settings-back"]')?.click(); });
+    await act(async () => { container.querySelector<HTMLElement>('[data-testid="settings-back-button"]')?.click(); });
     await flush();
 
     expect(container.querySelector<HTMLTextAreaElement>('[data-testid="composer-textarea"]')?.value).toBe('draft survives');
@@ -111,7 +111,6 @@ describe('ComfyUI workflow settings surface', () => {
           { workflowId: 'two', displayName: 'Two', remotePath: 'landscapes/two.json', groupPath: ['landscapes'], revision: 'r1' },
         ],
       },
-      generationSettings: { settingsOnboardingSeenVersion: 1 },
     }));
     await flush();
     await openComfySettings(container);
@@ -135,7 +134,7 @@ describe('ComfyUI workflow settings surface', () => {
     const emptyForm = { nodes: [] } as const;
     const empty = document.createElement('div');
     document.body.appendChild(empty);
-    await renderMainPage(empty, createFakeServices({ comfyUi: { baseUrl: 'https://comfy.example.test', form: emptyForm }, generationSettings: { settingsOnboardingSeenVersion: 1 } }));
+    await renderMainPage(empty, createFakeServices({ comfyUi: { baseUrl: 'https://comfy.example.test', form: emptyForm } }));
     await flush();
     await openComfySettings(empty);
     expect(empty.querySelector('[data-testid="comfyui-parameters-empty"]')).not.toBeNull();
@@ -145,7 +144,7 @@ describe('ComfyUI workflow settings surface', () => {
 
     const failed = document.createElement('div');
     document.body.appendChild(failed);
-    await renderMainPage(failed, createFakeServices({ comfyUi: { baseUrl: 'https://comfy.example.test', loadError: new Error('workflow unavailable') }, generationSettings: { settingsOnboardingSeenVersion: 1 } }));
+    await renderMainPage(failed, createFakeServices({ comfyUi: { baseUrl: 'https://comfy.example.test', loadError: new Error('workflow unavailable') } }));
     await flush();
     await openComfySettings(failed);
     expect(failed.querySelector('[data-testid="comfyui-diagnostics"]')).not.toBeNull();
@@ -155,7 +154,7 @@ describe('ComfyUI workflow settings surface', () => {
   it('updates workflow parameter draft immediately and restores it after page navigation', async () => {
     const container = document.createElement('div');
     document.body.appendChild(container);
-    await renderMainPage(container, createFakeServices({ comfyUi: { baseUrl: 'https://comfy.example.test' }, generationSettings: { settingsOnboardingSeenVersion: 1 } }));
+    await renderMainPage(container, createFakeServices({ comfyUi: { baseUrl: 'https://comfy.example.test' } }));
     await flush();
     await openComfySettings(container);
     const parameter = container.querySelector<HTMLInputElement>('#comfyui-parameter-prompt-0')!;
@@ -163,7 +162,7 @@ describe('ComfyUI workflow settings surface', () => {
       changeInput(parameter, 'session draft');
     });
     await flush();
-    await act(async () => { container.querySelector<HTMLElement>('[data-testid="comfyui-settings-back"]')?.click(); });
+    await act(async () => { container.querySelector<HTMLElement>('[data-testid="settings-back-button"]')?.click(); });
     await flush();
     await act(async () => { container.querySelector<HTMLElement>('[data-testid="main-providers-button"]')?.click(); });
     await flush();
@@ -186,7 +185,6 @@ describe('ComfyUI workflow settings surface', () => {
           ],
         }] },
       },
-      generationSettings: { settingsOnboardingSeenVersion: 1 },
     }));
     await flush();
     await openComfySettings(container);
@@ -202,13 +200,13 @@ describe('ComfyUI workflow settings surface', () => {
     try {
       await renderMainPage(
         container,
-        createFakeServices({ comfyUi: { baseUrl: 'https://comfy.example.test' }, generationSettings: { settingsOnboardingSeenVersion: 1 } }),
+        createFakeServices({ comfyUi: { baseUrl: 'https://comfy.example.test' } }),
         'chrome-browser',
       );
       await flush();
       await openComfySettings(container);
 
-      const sections = [...container.querySelectorAll<HTMLElement>('[data-testid="comfyui-settings-root"] > .scroll > .section')]
+      const sections = [...container.querySelectorAll<HTMLElement>('[data-testid="comfyui-settings-root"] > .section')]
         .map((section) => section.dataset.testid ?? section.getAttribute('data-testid'));
       expect(sections).toEqual([
         'comfyui-connection-section',

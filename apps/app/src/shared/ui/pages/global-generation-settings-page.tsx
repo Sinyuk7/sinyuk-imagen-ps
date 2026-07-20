@@ -1,15 +1,12 @@
 import { useState } from 'react';
-import type { ImageAspectRatio, ImageOutputFormat, ImageOutputImageSize } from '@imagen-ps/application';
 import { useAppServices } from '../../ports/app-services-context';
 import type {
   AppGenerationSettings,
   AppProviderInputSizePreset,
 } from '../../ports/app-generation-settings';
 import type { GenerationSettingsSaveState } from '../hooks/use-generation-settings';
-import type { ModelGenerationSettingsController } from '../hooks/use-model-generation-settings';
 import { useAppPathInfo } from '../hooks/use-app-path-info';
 import { StatusNotice } from '../components/status-notice';
-import { useToast } from '../components/toast-host';
 import { FieldLabel, HelpText } from '../primitives/native-controls';
 import { TextSelect } from '../components/text-select';
 import { Icon } from '../components/icons';
@@ -21,12 +18,11 @@ interface GlobalGenerationSettingsPageProps {
   readonly loading: boolean;
   readonly error: string | null;
   readonly saveState: GenerationSettingsSaveState;
-  readonly modelGenerationSettings: ModelGenerationSettingsController;
   readonly onSave: (settings: AppGenerationSettings) => Promise<void>;
-  readonly onNav: (view: string) => void;
+  readonly onBack: () => void;
 }
 
-type MenuId = 'size' | 'format' | 'aspect' | 'provider-input-size' | null;
+type MenuId = 'provider-input-size' | null;
 
 const PROVIDER_INPUT_SIZE_OPTIONS: ReadonlyArray<{ readonly id: AppProviderInputSizePreset; readonly label: string }> = [
   { id: '1k', label: '1K' },
@@ -51,13 +47,11 @@ export function GlobalGenerationSettingsPage({
   loading,
   error,
   saveState,
-  modelGenerationSettings,
   onSave,
-  onNav,
+  onBack,
 }: GlobalGenerationSettingsPageProps) {
   const services = useAppServices();
   const { messages: t } = useI18n();
-  const { show } = useToast();
   const pathInfo = useAppPathInfo(services);
   const [openMenu, setOpenMenu] = useState<MenuId>(null);
   const [copiedKey, setCopiedKey] = useState<string | null>(null);
@@ -77,55 +71,25 @@ export function GlobalGenerationSettingsPage({
       setCopiedKey((current) => (current === key ? null : current));
     }, 1200);
   };
-  const selectOutputSize = (value: ImageOutputImageSize) => {
-    void modelGenerationSettings.selectImageSize(value).then((saved) => {
-      if (!saved && modelGenerationSettings.validationMessage) {
-        show(modelGenerationSettings.validationMessage, 'warning', { key: `global-output-size-rejected:${value}` });
-      }
-    });
-  };
-
-  const selectRatio = (value: ImageAspectRatio) => {
-    void modelGenerationSettings.selectRatio(value).then((saved) => {
-      if (!saved && modelGenerationSettings.validationMessage) {
-        show(modelGenerationSettings.validationMessage, 'warning', { key: `global-ratio-rejected:${value}` });
-      }
-    });
-  };
-
-  const selectOutputFormat = (value: ImageOutputFormat) => {
-    void modelGenerationSettings.selectOutputFormat(value).then((saved) => {
-      if (!saved && modelGenerationSettings.validationMessage) {
-        show(modelGenerationSettings.validationMessage, 'warning', { key: `global-format-rejected:${value}` });
-      }
-    });
-  };
-
-  const outputSelection = modelGenerationSettings.selection;
-  const outputLoading = modelGenerationSettings.loading;
-  const outputDisabled = outputLoading || outputSelection === null || !modelGenerationSettings.ready;
-  const outputSaveState = modelGenerationSettings.saveState;
-  const combinedSaveState = outputSaveState === 'saving' ? 'saving' : saveState;
-  const combinedError = outputSaveState === 'error' ? modelGenerationSettings.error ?? error : error;
-  const combinedSaveStatusIcon = combinedSaveState === 'saving'
+  const saveStatusIcon = saveState === 'saving'
     ? <Icon name="spinner" size={14} className="spin" />
-    : combinedSaveState === 'saved'
+    : saveState === 'saved'
       ? <Icon name="check" size={14} />
-      : combinedSaveState === 'error'
+      : saveState === 'error'
         ? <Icon name="error" size={14} />
         : null;
-  const combinedSaveStatusLabel = combinedSaveState === 'saving'
+  const saveStatusLabel = saveState === 'saving'
     ? t.settings.saving
-    : combinedSaveState === 'saved'
+    : saveState === 'saved'
       ? t.settings.saved
-      : combinedSaveState === 'error'
-        ? combinedError
+      : saveState === 'error'
+        ? error
         : null;
-  const combinedSaveStatusClassName = combinedSaveState === 'saving'
+  const saveStatusClassName = saveState === 'saving'
     ? 'save-status save-status-busy'
-    : combinedSaveState === 'saved'
+    : saveState === 'saved'
       ? 'save-status save-status-saved'
-      : combinedSaveState === 'error'
+      : saveState === 'error'
         ? 'save-status'
         : null;
 
@@ -138,78 +102,13 @@ export function GlobalGenerationSettingsPage({
           quiet
           icon={<Icon name="chevron-left" />}
           tooltip={t.common.back}
-          onClick={() => onNav('settings')}
+          onClick={onBack}
         />
-        <div className="hdr-title">{t.settings.globalGeneration}</div>
+        <div className="hdr-title">{t.settings.globalSettings}</div>
         <div style={{ width: 32 }} />
       </header>
       <div className="scroll">
         <div className="settings-detail-layout scroll-footer-pad generation-settings-layout">
-          <section className="section generation-settings-section">
-            <div className="section-title settings-section-heading">{t.settings.outputGroup}</div>
-            <div className="generation-settings-section-intro">
-              <HelpText className="field-hint generation-settings-section-hint">
-                {modelGenerationSettings.showRatio
-                  ? `${t.settings.outputSize} / ${t.settings.aspectRatio} / ${t.settings.outputFormat}`
-                  : `${t.settings.outputSize} / ${t.settings.outputFormat}`}
-              </HelpText>
-            </div>
-            <div className="generation-settings-grid">
-              <div className="field">
-                <FieldLabel htmlFor="global-output-size-trigger">{t.settings.outputSize}</FieldLabel>
-                <TextSelect
-                  testId="global-output-size-selector"
-                  triggerId="global-output-size-trigger"
-                  containerClassName="cmp-select settings-select"
-                  menuClassName="cmp-select-menu cmp-select-menu-compact"
-                  label={t.settings.outputSize}
-                  value={outputSelection ? labelFor(modelGenerationSettings.imageSizeOptions, outputSelection.imageSize) : t.settings.loading}
-                  disabled={outputDisabled}
-                  open={openMenu === 'size'}
-                  onOpenChange={(open) => setOpenMenu(open ? 'size' : null)}
-                  options={modelGenerationSettings.imageSizeOptions}
-                  selectedId={outputSelection?.imageSize ?? ''}
-                  onSelect={(value) => selectOutputSize(value as ImageOutputImageSize)}
-                />
-              </div>
-              <div className="field">
-                <FieldLabel htmlFor="global-output-format-trigger">{t.settings.outputFormat}</FieldLabel>
-                <TextSelect
-                  testId="global-output-format-selector"
-                  triggerId="global-output-format-trigger"
-                  containerClassName="cmp-select settings-select"
-                  menuClassName="cmp-select-menu cmp-select-menu-compact"
-                  label={t.settings.outputFormat}
-                  value={outputSelection ? labelFor(modelGenerationSettings.outputFormatOptions, outputSelection.outputFormat) : t.settings.loading}
-                  disabled={outputDisabled}
-                  open={openMenu === 'format'}
-                  onOpenChange={(open) => setOpenMenu(open ? 'format' : null)}
-                  options={modelGenerationSettings.outputFormatOptions}
-                  selectedId={outputSelection?.outputFormat ?? ''}
-                  onSelect={(value) => selectOutputFormat(value as ImageOutputFormat)}
-                />
-              </div>
-              {modelGenerationSettings.showRatio ? (
-                <div className="field">
-                  <FieldLabel htmlFor="global-aspect-ratio-trigger">{t.settings.aspectRatio}</FieldLabel>
-                  <TextSelect
-                    testId="global-aspect-ratio-selector"
-                    triggerId="global-aspect-ratio-trigger"
-                    containerClassName="cmp-select settings-select"
-                    menuClassName="cmp-select-menu cmp-select-menu-compact"
-                    label={t.settings.aspectRatio}
-                    value={outputSelection ? labelFor(modelGenerationSettings.ratioOptions, outputSelection.ratio) : t.settings.loading}
-                    disabled={outputDisabled}
-                    open={openMenu === 'aspect'}
-                    onOpenChange={(open) => setOpenMenu(open ? 'aspect' : null)}
-                    options={modelGenerationSettings.ratioOptions}
-                    selectedId={outputSelection?.ratio ?? ''}
-                    onSelect={(value) => selectRatio(value as ImageAspectRatio)}
-                  />
-                </div>
-              ) : null}
-            </div>
-          </section>
           <section className="section generation-settings-section">
             <div className="section-title settings-section-heading">{t.settings.inputGroup}</div>
             <div className="field">
@@ -306,20 +205,20 @@ export function GlobalGenerationSettingsPage({
             >
               {t.settings.footerStatement}
             </div>
-            {combinedSaveStatusClassName && combinedSaveStatusLabel ? (
+            {saveStatusClassName && saveStatusLabel ? (
               <div
                 data-testid="global-settings-save-status"
-                className={combinedSaveStatusClassName}
+                className={saveStatusClassName}
               >
-                {combinedSaveStatusIcon}
-                <span>{combinedSaveStatusLabel}</span>
+                {saveStatusIcon}
+                <span>{saveStatusLabel}</span>
               </div>
             ) : null}
           </section>
-          {combinedError && (
+          {error && (
             <section className="section generation-settings-section generation-settings-secondary-section">
               <div className="status-warning-slot" data-testid="global-settings-error-notice">
-                <StatusNotice tone="negative" message={combinedError} copyText={combinedError} />
+                <StatusNotice tone="negative" message={error} copyText={error} />
               </div>
             </section>
           )}

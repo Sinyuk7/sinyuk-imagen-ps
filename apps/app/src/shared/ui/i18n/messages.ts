@@ -173,7 +173,17 @@ export interface AppMessages {
   readonly settings: {
     readonly configured: string;
     readonly configuration: string;
+    readonly settingsTab: string;
     readonly providerProfiles: string;
+    readonly configuredProviders: string;
+    readonly providerOutput: string;
+    readonly providerOutputSummary: string;
+    readonly configuredModelCount: (count: number) => string;
+    readonly notTested: string;
+    readonly storageAndDiagnostics: string;
+    readonly storageAndDiagnosticsSummary: string;
+    readonly globalSettings: string;
+    readonly globalSettingsSummary: string;
     readonly generationBackend: string;
     readonly comfyUi: string;
     readonly comfyUiLoadFailed: string;
@@ -181,6 +191,11 @@ export interface AppMessages {
     readonly comfyUiSelectWorkflow: string;
     readonly comfyUiReadinessBridge: string;
     readonly comfyUiOperationFailed: string;
+    readonly comfyUiConnection: string;
+    readonly comfyUiAddress: string;
+    readonly comfyUiCurrentWorkflow: string;
+    readonly comfyUiChooseWorkflow: string;
+    readonly comfyUiNoWorkflowSelected: string;
     readonly loading: string;
     readonly noProviderProfile: string;
     readonly config: string;
@@ -288,13 +303,6 @@ export interface AppMessages {
     readonly promptSettings: string;
     readonly modelConfiguration: string;
     readonly modelConfigurationSummary: string;
-    readonly onboardingTitle: string;
-    readonly onboardingIntro: string;
-    readonly onboardingStepModelConfiguration: string;
-    readonly onboardingStepProviderProfile: string;
-    readonly onboardingStepReturnHome: string;
-    readonly onboardingHint: string;
-    readonly onboardingHelp: string;
     readonly modelConfigurationEmpty: string;
     readonly modelConfigurationHint: string;
     readonly modelConfigurationSaveHint: string;
@@ -594,7 +602,17 @@ const EN_MESSAGES: AppMessages = {
   settings: {
     configured: 'Configured',
     configuration: 'Configuration',
+    settingsTab: 'Settings',
     providerProfiles: 'Provider Profiles',
+    configuredProviders: 'Configured Providers',
+    providerOutput: 'Provider Output',
+    providerOutputSummary: 'Auto · PNG · Auto',
+    configuredModelCount: (count) => `${count} configured model${count === 1 ? '' : 's'}`,
+    notTested: 'Not tested',
+    storageAndDiagnostics: 'Storage & diagnostics',
+    storageAndDiagnosticsSummary: 'Image paths, logs, and runtime details',
+    globalSettings: 'Global Settings',
+    globalSettingsSummary: 'Input size, storage, and logs',
     generationBackend: 'Generation backend',
     comfyUi: 'ComfyUI',
     comfyUiLoadFailed: 'Could not load ComfyUI settings',
@@ -602,6 +620,11 @@ const EN_MESSAGES: AppMessages = {
     comfyUiSelectWorkflow: 'Select workflow',
     comfyUiReadinessBridge: 'Frontend unavailable',
     comfyUiOperationFailed: 'ComfyUI operation failed',
+    comfyUiConnection: 'Connection',
+    comfyUiAddress: 'Address',
+    comfyUiCurrentWorkflow: 'Current Workflow',
+    comfyUiChooseWorkflow: 'Choose workflow',
+    comfyUiNoWorkflowSelected: 'No saved workflow selected.',
     loading: 'Loading…',
     noProviderProfile: 'No profiles (´･ω･`)',
     config: 'Configuration',
@@ -709,13 +732,6 @@ const EN_MESSAGES: AppMessages = {
     promptSettings: 'Prompt Settings',
     modelConfiguration: 'Model Configuration',
     modelConfigurationSummary: 'Reusable model mappings',
-    onboardingTitle: 'Quick setup order',
-    onboardingIntro: 'First time here, follow this order to avoid backtracking.',
-    onboardingStepModelConfiguration: 'Save reusable model mappings first.',
-    onboardingStepProviderProfile: 'Then add a provider profile and choose which model config it should use.',
-    onboardingStepReturnHome: 'Return to the main page, select that profile and model, then start generating.',
-    onboardingHint: 'Use the question button in Configuration to reopen this guide later.',
-    onboardingHelp: 'Open quick setup guide',
     modelConfigurationEmpty: 'No model configs (´･ω･`)',
     modelConfigurationHint: 'Create reusable model configs.',
     modelConfigurationSaveHint: 'Saving does not apply it.',
@@ -1015,7 +1031,17 @@ const ZH_CN_MESSAGES: AppMessages = {
   settings: {
     configured: '已配置',
     configuration: '设置',
+    settingsTab: '设置',
     providerProfiles: 'Provider 配置',
+    configuredProviders: '已配置 Provider',
+    providerOutput: 'Provider 输出',
+    providerOutputSummary: 'Auto · PNG · Auto',
+    configuredModelCount: (count) => `${count} 个已配置模型`,
+    notTested: '尚未测试',
+    storageAndDiagnostics: '存储与诊断',
+    storageAndDiagnosticsSummary: '图片目录、日志与运行信息',
+    globalSettings: '全局设置',
+    globalSettingsSummary: '输入尺寸、存储与日志',
     generationBackend: '生成后端',
     comfyUi: 'ComfyUI',
     comfyUiLoadFailed: 'ComfyUI 设置加载失败',
@@ -1023,6 +1049,11 @@ const ZH_CN_MESSAGES: AppMessages = {
     comfyUiSelectWorkflow: '选择工作流',
     comfyUiReadinessBridge: 'Frontend 不可用',
     comfyUiOperationFailed: 'ComfyUI 操作失败',
+    comfyUiConnection: '连接',
+    comfyUiAddress: '地址',
+    comfyUiCurrentWorkflow: '当前 Workflow',
+    comfyUiChooseWorkflow: '选择 Workflow',
+    comfyUiNoWorkflowSelected: '尚未选择已保存的 Workflow。',
     loading: '加载中…',
     noProviderProfile: '暂无 Provider 配置 (´･ω･`)',
     config: '配置',
@@ -1130,13 +1161,6 @@ const ZH_CN_MESSAGES: AppMessages = {
     promptSettings: '提示词设置',
     modelConfiguration: '模型配置',
     modelConfigurationSummary: '复用模型映射',
-    onboardingTitle: '首次配置顺序',
-    onboardingIntro: '第一次来这里，按这个顺序配置最省事。',
-    onboardingStepModelConfiguration: '先保存可复用的模型映射。',
-    onboardingStepProviderProfile: '再添加 Provider 配置，并选择它要使用的模型配置。',
-    onboardingStepReturnHome: '最后回到首页，选择该配置和模型后开始生成。',
-    onboardingHint: '以后可在 Provider 设置页点问号再次查看。',
-    onboardingHelp: '重新打开新手说明',
     modelConfigurationEmpty: '暂无模型配置 (´･ω･`)',
     modelConfigurationHint: '创建可复用模型配置。',
     modelConfigurationSaveHint: '保存后不会自动应用。',

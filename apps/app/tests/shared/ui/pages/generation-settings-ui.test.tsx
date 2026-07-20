@@ -29,7 +29,6 @@ async function openSelect(container: HTMLElement, testId: string): Promise<void>
 async function renderReadyMain(container: HTMLElement) {
   const fake = createFakeServices({
     activeImageProfileId: 'mock-profile',
-    generationSettings: { settingsOnboardingSeenVersion: 1 },
   });
   await renderMainPage(container, fake);
   await flush();
@@ -98,7 +97,7 @@ describe('generation settings UI archetypes', () => {
     expect(hostContainsIcon(container, 'composer-output-ratio-selector', 'aspect-ratio')).toBe(true);
   });
 
-  it('uses same archetype rules on GlobalGenerationSettingsPage', async () => {
+  it('uses the same archetype rules on Provider Output Settings', async () => {
     const container = document.createElement('div');
     document.body.appendChild(container);
     await renderReadyMain(container);
@@ -108,7 +107,7 @@ describe('generation settings UI archetypes', () => {
     });
     await flush();
     await act(async () => {
-      container.querySelector<HTMLElement>('[data-testid="global-generation-settings-row"]')?.click();
+      container.querySelector<HTMLElement>('[data-testid="provider-output-settings-row"]')?.click();
     });
     await flush();
     await flush();
@@ -119,8 +118,7 @@ describe('generation settings UI archetypes', () => {
 
     await openSelect(container, 'global-output-size-selector');
     expect(optionIds('global-output-size-selector')).toEqual(['auto', '1k', '2k', '4k']);
-    expect(container.querySelector('[data-testid="global-settings-provider-input-size-hint"]')?.textContent)
-      .toContain('Use Input Size 会跟随首图。');
+    expect(container.querySelector('[data-testid="global-settings-provider-input-size-hint"]')).toBeNull();
   });
 
   it('keeps main-page size and aspect ratio selection in sync with GlobalGenerationSettingsPage and submit payload', async () => {

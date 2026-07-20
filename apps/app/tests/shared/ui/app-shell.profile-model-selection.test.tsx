@@ -22,10 +22,7 @@ function selectedId(container: HTMLElement, testId: string): string | null {
 function createReturningUserServices(options?: Parameters<typeof createFakeServices>[0]) {
   return createFakeServices({
     ...options,
-    generationSettings: {
-      settingsOnboardingSeenVersion: 1,
-      ...options?.generationSettings,
-    },
+    generationSettings: options?.generationSettings,
   });
 }
 
@@ -244,7 +241,7 @@ describe('AppShell profile-owned model flow', () => {
     expect(selectedId(container, 'main-model-selector')).toBe('owned-model');
   });
 
-  it('settings provider rows show first owned configured model ids', async () => {
+  it('settings provider rows show profile-owned endpoint and model count', async () => {
     const container = document.createElement('div');
     document.body.appendChild(container);
     const services = createReturningUserServices({
@@ -265,7 +262,8 @@ describe('AppShell profile-owned model flow', () => {
     await flush();
 
     const row = container.querySelector<HTMLElement>(`[data-testid="provider-row-${fakeProfile.profileId}"]`);
-    expect(row?.textContent).toContain('nano-banana-fast');
+    expect(row?.textContent).toContain('1 个已配置模型');
+    expect(row?.textContent).toContain('mock.local');
     expect(row?.textContent).not.toContain('Nano Banana 2 Lite');
     expect(row?.textContent).not.toContain('nano-banana-fast-wire');
   });

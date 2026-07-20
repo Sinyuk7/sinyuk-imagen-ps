@@ -16,11 +16,11 @@ import { useProfileModels, useProviderProfiles } from './hooks/use-provider-sett
 import { MainPage } from './pages/main-page';
 import { HistoryPage } from './pages/history-page';
 import { SettingsPage } from './pages/settings-page';
-import { SettingsOnboardingPage } from './pages/settings-onboarding-page';
 import { SettingsAddPage } from './pages/settings-add-page';
 import { SettingsDetailPage } from './pages/settings-detail-page';
 import { ProfileModelsPage } from './pages/profile-models-page';
 import { GlobalGenerationSettingsPage } from './pages/global-generation-settings-page';
+import { ProviderOutputSettingsPage } from './pages/provider-output-settings-page';
 import { ModelConfigurationPage } from './pages/model-configuration-page';
 import { PromptSettingsPage } from './pages/prompt-settings-page';
 import { PromptPresetDetailPage } from './pages/prompt-preset-detail-page';
@@ -34,6 +34,7 @@ import { MotionPageFrame } from './components/motion-ui';
 import { mainSelectableModels, type UiModelInfo } from './model-info';
 import { useComfyUiManagement } from './hooks/use-comfyui-management';
 import { useGenerationWorkspace } from './hooks/use-generation-workspace';
+import { settingsBackRoute, type SettingsRoute, type SettingsTab } from './settings-route';
 
 export interface AppShellHost {
   readonly app: PluginAppModel;
@@ -50,7 +51,6 @@ type View =
   | 'main'
   | 'history'
   | 'settings'
-  | 'settings-onboarding'
   | 'settings-add'
   | 'settings-detail'
   | 'profile-models'
@@ -58,7 +58,6 @@ type View =
   | 'model-configuration'
   | 'prompt-settings'
   | 'prompt-preset-detail';
-type SettingsDetailReturnView = 'main' | 'settings';
 type ModelConfigurationReturnView = 'profile-models' | 'settings-detail';
 type AppTheme = 'dark' | 'light';
 type AppThemeOverride = AppTheme | undefined;
@@ -68,6 +67,24 @@ type PanelHeightMode = 'short' | 'normal';
 const PANEL_COMPACT_MAX_WIDTH = 339;
 const PANEL_WIDE_MIN_WIDTH = 520;
 const PANEL_SHORT_MAX_HEIGHT = 459;
+
+function viewForSettingsRoute(route: SettingsRoute): View {
+  switch (route.kind) {
+    case 'root': return 'settings';
+    case 'provider-output':
+    case 'global-settings': return 'global-generation-settings';
+    case 'provider-new': return 'settings-add';
+    case 'provider-detail': return 'settings-detail';
+    case 'prompt-settings': return 'prompt-settings';
+    case 'prompt-preset-detail': return 'prompt-preset-detail';
+  }
+}
+
+function rootTabForSettingsRoute(route: SettingsRoute): SettingsTab {
+  if (route.kind === 'provider-output' || route.kind === 'provider-new' || route.kind === 'provider-detail') return 'provider';
+  if (route.kind === 'global-settings' || route.kind === 'prompt-settings' || route.kind === 'prompt-preset-detail') return 'general';
+  return route.tab;
+}
 
 /**
  * 读取 Chrome harness 的显式主题覆盖。
@@ -216,8 +233,6 @@ function AppShellContent({ host }: AppShellProps) {
   const [selectedImageProfileId, setSelectedImageProfileId] = useState<string | null>(null);
   const [activeImageProfileHydrated, setActiveImageProfileHydrated] = useState(false);
   const [selectedSettingsProfileId, setSelectedSettingsProfileId] = useState<string | null>(null);
-  const [settingsDetailReturnView, setSettingsDetailReturnView] = useState<SettingsDetailReturnView>('settings');
-  const [selectedPromptPresetId, setSelectedPromptPresetId] = useState<string | null>(null);
   const [modelConfigurationEditorSeed, setModelConfigurationEditorSeed] = useState<{
     readonly profileId: string;
     readonly apiFormat: ProviderProfile['apiFormat'];
@@ -283,15 +298,13 @@ function AppShellContent({ host }: AppShellProps) {
     generationSettings,
     modelGenerationSettings,
   });
+  const [settingsRoute, setSettingsRoute] = useState<SettingsRoute>({ kind: 'root', tab: 'provider' });
   const history = useJobHistory(services);
   const { records: historyRecords, loading: historyLoading, error: historyError, reload: reloadHistory } = history;
   const { layers, layersError, layersLoading, reloadLayers } = useHostLayers(host);
   const { show } = useToast();
   const previousRoundStatusRef = useRef<Record<string, RoundStatus>>({});
   const reconciledHistoryRef = useRef(false);
-  const settingsEntryTokenRef = useRef(0);
-  const processedSettingsEntryTokenRef = useRef(0);
-  const skipOnboardingSettingsEntryTokenRef = useRef<number | null>(null);
   usePanelResponsiveAttributes(panelRef);
 
   useEffect(() => {
@@ -358,33 +371,50 @@ function AppShellContent({ host }: AppShellProps) {
     setSelectedModelId(next);
   }, [imageModels, selectedModelId]);
 
-  const openSettingsView = useCallback((options?: { readonly skipOnboarding?: boolean }) => {
-    const nextToken = settingsEntryTokenRef.current + 1;
-    settingsEntryTokenRef.current = nextToken;
-    skipOnboardingSettingsEntryTokenRef.current = options?.skipOnboarding ? nextToken : null;
-    setView('settings');
+  const setAppView = useCallback((next: View) => {
+    setView(next);
   }, []);
 
-  const setAppView = useCallback((next: View, options?: { readonly skipSettingsOnboarding?: boolean }) => {
-    if (next === 'settings') {
-      openSettingsView({ skipOnboarding: options?.skipSettingsOnboarding });
+  const openSettingsRoute = useCallback((route: SettingsRoute) => {
+    setSettingsRoute(route);
+    setView(viewForSettingsRoute(route));
+  }, []);
+
+  const goBackInSettings = useCallback(() => {
+    const previous = settingsBackRoute(settingsRoute);
+    if (previous === 'main') {
+      setAppView('main');
       return;
     }
-    setView(next);
-  }, [openSettingsView]);
+    openSettingsRoute(previous);
+  }, [openSettingsRoute, setAppView, settingsRoute]);
 
   const onNav = useCallback((next: string) => {
+    if (next === 'settings-add') {
+      openSettingsRoute({ kind: 'provider-new' });
+      return;
+    }
+    if (next === 'prompt-settings') {
+      openSettingsRoute({ kind: 'prompt-settings' });
+      return;
+    }
+    if (next === 'settings') {
+      const tab = settingsRoute.kind === 'root'
+        ? generationWorkspace.settingsRoute === 'comfyui' ? 'comfyui' : 'provider'
+        : rootTabForSettingsRoute(settingsRoute);
+      openSettingsRoute({ kind: 'root', tab });
+      return;
+    }
     setAppView(next as View);
-  }, [setAppView]);
+  }, [generationWorkspace.settingsRoute, openSettingsRoute, setAppView, settingsRoute]);
 
   const onEditProfile = useCallback(
     (profileId: string) => {
       setSelectedSettingsProfileId(profileId);
       setSettingsDetailFallbackModelSeed(null);
-      setSettingsDetailReturnView('main');
-      setAppView('settings-detail');
+      openSettingsRoute({ kind: 'provider-detail', profileId });
     },
-    [setAppView],
+    [openSettingsRoute],
   );
 
   const onLocateRound = useCallback(
@@ -455,49 +485,6 @@ function AppShellContent({ host }: AppShellProps) {
     }
   }, [conversation.rounds, reloadHistory]);
 
-  useEffect(() => {
-    if (view !== 'settings' || generationSettings.loading) {
-      return;
-    }
-    const entryToken = settingsEntryTokenRef.current;
-    if (processedSettingsEntryTokenRef.current === entryToken) {
-      return;
-    }
-    processedSettingsEntryTokenRef.current = entryToken;
-
-    let cancelled = false;
-    void (async () => {
-      await profilesState.reload();
-      if (cancelled) {
-        return;
-      }
-      if (skipOnboardingSettingsEntryTokenRef.current === entryToken) {
-        return;
-      }
-      if (generationSettings.settings.settingsOnboardingSeenVersion === 1) {
-        return;
-      }
-      await generationSettings.save({
-        ...generationSettings.settings,
-        settingsOnboardingSeenVersion: 1,
-      });
-      if (cancelled) {
-        return;
-      }
-      setView('settings-onboarding');
-    })();
-
-    return () => {
-      cancelled = true;
-    };
-  }, [
-    generationSettings.loading,
-    generationSettings.save,
-    generationSettings.settings,
-    profilesState,
-    view,
-  ]);
-
   return (
     <div className="panel" data-app-theme={themeOverride} ref={panelRef}>
       {view === 'main' && (
@@ -542,31 +529,27 @@ function AppShellContent({ host }: AppShellProps) {
       {view === 'settings' && (
         <MotionPageFrame watch={view}>
           <SettingsPage
-          onNav={onNav}
+          activeTab={settingsRoute.kind === 'root' ? settingsRoute.tab : 'provider'}
+          onSelectTab={(tab) => {
+            if (tab === 'provider' || tab === 'comfyui') generationWorkspace.setSettingsRoute(tab);
+            openSettingsRoute({ kind: 'root', tab });
+          }}
+          onBack={goBackInSettings}
           profiles={imageProfiles}
           loading={profilesState.loading}
           error={profilesState.error}
           onOpenProfile={(profileId) => {
             setSelectedSettingsProfileId(profileId);
             setSettingsDetailFallbackModelSeed(null);
-            setSettingsDetailReturnView('settings');
-            setView('settings-detail');
+            openSettingsRoute({ kind: 'provider-detail', profileId });
           }}
-          onOpenOnboarding={() => setAppView('settings-onboarding')}
-          onOpenGlobalGeneration={() => setView('global-generation-settings')}
-          onOpenPromptSettings={() => setView('prompt-settings')}
+          onOpenProviderOutput={() => openSettingsRoute({ kind: 'provider-output' })}
+          onOpenProviderNew={() => openSettingsRoute({ kind: 'provider-new' })}
+          onOpenGlobalSettings={() => openSettingsRoute({ kind: 'global-settings' })}
+          onOpenPromptSettings={() => openSettingsRoute({ kind: 'prompt-settings' })}
           generationSettings={generationSettings.settings}
           modelGenerationSettings={modelGenerationSettings}
           comfyUi={comfyUiManagement}
-          initialBackendTab={generationWorkspace.settingsRoute}
-          onBackendTabChange={generationWorkspace.setSettingsRoute}
-          />
-        </MotionPageFrame>
-      )}
-      {view === 'settings-onboarding' && (
-        <MotionPageFrame watch={view}>
-          <SettingsOnboardingPage
-          onBack={() => setAppView('settings', { skipSettingsOnboarding: true })}
           />
         </MotionPageFrame>
       )}
@@ -583,24 +566,17 @@ function AppShellContent({ host }: AppShellProps) {
             show(options.message, 'positive', { key: 'settings-add-provider-saved' });
             setSelectedSettingsProfileId(profileId);
             setSettingsDetailFallbackModelSeed(options.fallbackModelSeed ?? null);
-            setSettingsDetailReturnView('settings');
-            setView('settings-detail');
+            openSettingsRoute({ kind: 'provider-detail', profileId });
           }}
           />
         </MotionPageFrame>
       )}
-      {view === 'settings-detail' && (
+      {view === 'settings-detail' && settingsRoute.kind === 'provider-detail' && (
         <MotionPageFrame watch={view}>
           <SettingsDetailPage
           onNav={onNav}
-          onBack={() => {
-            if (settingsDetailReturnView === 'main') {
-              setAppView('main');
-              return;
-            }
-            onNav('settings');
-          }}
-          profileId={selectedSettingsProfileId}
+          onBack={goBackInSettings}
+          profileId={settingsRoute.profileId}
           onSaved={(message) => show(message, 'positive', { key: 'settings-provider-saved' })}
           fallbackModelSeed={settingsDetailFallbackModelSeed}
           onOpenModelConfiguration={(input) => {
@@ -686,16 +662,23 @@ function AppShellContent({ host }: AppShellProps) {
           })()}
         </MotionPageFrame>
       )}
-      {view === 'global-generation-settings' && (
+      {view === 'global-generation-settings' && settingsRoute.kind === 'provider-output' && (
+        <MotionPageFrame watch={view}>
+          <ProviderOutputSettingsPage
+          modelGenerationSettings={modelGenerationSettings}
+          onBack={goBackInSettings}
+          />
+        </MotionPageFrame>
+      )}
+      {view === 'global-generation-settings' && settingsRoute.kind === 'global-settings' && (
         <MotionPageFrame watch={view}>
           <GlobalGenerationSettingsPage
-          onNav={onNav}
           settings={generationSettings.settings}
           loading={generationSettings.loading}
           error={generationSettings.error}
           saveState={generationSettings.saveState}
-          modelGenerationSettings={modelGenerationSettings}
           onSave={generationSettings.save}
+          onBack={goBackInSettings}
           />
         </MotionPageFrame>
       )}
@@ -718,7 +701,7 @@ function AppShellContent({ host }: AppShellProps) {
           />
         </MotionPageFrame>
       )}
-      {view === 'prompt-settings' && (
+      {view === 'prompt-settings' && settingsRoute.kind === 'prompt-settings' && (
         <MotionPageFrame watch={view}>
           <PromptSettingsPage
           onNav={onNav}
@@ -734,18 +717,17 @@ function AppShellContent({ host }: AppShellProps) {
           onSelectPreset={promptSettings.selectPreset}
           onDeletePreset={promptSettings.deletePreset}
           onOpenPreset={(presetId) => {
-            setSelectedPromptPresetId(presetId);
-            setView('prompt-preset-detail');
+            openSettingsRoute({ kind: 'prompt-preset-detail', presetId });
           }}
           />
         </MotionPageFrame>
       )}
-      {view === 'prompt-preset-detail' && (
+      {view === 'prompt-preset-detail' && settingsRoute.kind === 'prompt-preset-detail' && (
         <MotionPageFrame watch={view}>
           <PromptPresetDetailPage
           onNav={onNav}
-          preset={selectedPromptPresetId
-            ? promptSettings.settings.presets.items.find((preset) => preset.id === selectedPromptPresetId) ?? null
+          preset={settingsRoute.presetId
+            ? promptSettings.settings.presets.items.find((preset) => preset.id === settingsRoute.presetId) ?? null
             : null}
           onSave={promptSettings.upsertPreset}
           />

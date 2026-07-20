@@ -44,10 +44,7 @@ export async function createGenerationSettingsHarness(
 ): Promise<GenerationSettingsHarness> {
   const fake = createFakeServices({
     ...options,
-    generationSettings: {
-      settingsOnboardingSeenVersion: 1,
-      ...options?.generationSettings,
-    },
+    generationSettings: options?.generationSettings,
   });
   await renderMainPage(container, fake);
   await flush();
@@ -100,16 +97,16 @@ export async function createGenerationSettingsHarness(
 
   async function openGlobalSettings(): Promise<void> {
     await openSettings();
-    await click(requireElement(container, '[data-testid="global-generation-settings-row"]'));
+    await click(requireElement(container, '[data-testid="provider-output-settings-row"]'));
     await flush();
     await flush();
   }
 
   async function backToMainFromGlobalSettings(): Promise<void> {
-    await click(requireElement(container, '[data-testid="global-settings-back-button"]'));
+    await click(requireElement(container, '[data-testid="provider-output-back-button"]'));
     await flush();
     await flush();
-    await click(requireElement(container, '[data-testid="providers-back-button"]'));
+    await click(requireElement(container, '[data-testid="settings-back-button"]'));
     await flush();
     await flush();
   }
