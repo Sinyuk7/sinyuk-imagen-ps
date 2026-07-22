@@ -89,7 +89,7 @@ export function PromptPresetDetailPage({ preset, onSave, onNav }: PromptPresetDe
       />
       <PageScroll className="scroll-footer-pad">
         <div className="settings-detail-layout">
-          <SettingsFormSection title={t.settings.editPreset}>
+          <SettingsFormSection>
             <FieldGroup label={t.settings.presetName} htmlFor="prompt-preset-name">
               <TextField
                 data-testid="prompt-preset-name"

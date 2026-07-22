@@ -72,6 +72,7 @@ describe('ProfileModelsPage', () => {
       profileModelItems: [
         profileModelItem('owned-model', {
           wireModelId: 'owned-model-wire',
+          displayName: 'Owned model note',
           configSource: 'user',
         }),
       ],
@@ -83,9 +84,15 @@ describe('ProfileModelsPage', () => {
 
     expect(container.querySelector('[data-primary-scroll="true"]')).not.toBeNull();
     expect(container.querySelector('[data-testid="profile-models-list-section"]')).not.toBeNull();
+    expect(container.querySelector('.ui-page-header-title')?.textContent).toContain(fakeProfile.displayName);
+    expect(container.querySelector('[data-testid="profile-models-list-section"] h2')).toBeNull();
+    expect(container.querySelector('.model-config-list-heading')).toBeNull();
+    expect(container.querySelector('[data-testid="profile-models-refresh-button"]')).not.toBeNull();
     const row = container.querySelector<HTMLElement>('[data-testid="profile-model-row-owned-model"]');
     expect(row).not.toBeNull();
-    expect(row?.textContent).toContain('owned-model');
+    expect(row?.querySelector('.prov-name')?.textContent).toBe('owned-model-wire');
+    expect(row?.querySelector('.model-config-meta-note')?.textContent).toBe('Owned model note');
+    expect(row?.textContent).not.toContain('OpenAI Images');
     expect(row?.textContent).not.toContain('Default');
 
     await act(async () => {
@@ -94,6 +101,17 @@ describe('ProfileModelsPage', () => {
     await flush();
 
     expect(onEdit).toHaveBeenCalledWith('owned-model');
+  });
+
+  it('omits the subtitle when the model has no display name', async () => {
+    const { services } = createFakeServices({
+      profileModelItems: [profileModelItem('wire-only-model')],
+    });
+    const container = await renderPage({ services });
+    const row = container.querySelector<HTMLElement>('[data-testid="profile-model-row-wire-only-model"]');
+
+    expect(row?.querySelector('.prov-name')?.textContent).toBe('wire-only-model');
+    expect(row?.querySelector('.prov-meta-row')).toBeNull();
   });
 
   it('does not expose set-default controls or write profile default state', async () => {
@@ -138,8 +156,7 @@ describe('ProfileModelsPage', () => {
     const container = await renderPage({ services, onSuggestion });
 
     await act(async () => {
-      Array.from(container.querySelectorAll<HTMLButtonElement>('button'))
-        .find((button) => button.textContent?.includes('Refresh models'))?.click();
+      container.querySelector<HTMLElement>('[data-testid="profile-models-refresh-button"]')?.click();
     });
     await flush();
     await flush();
@@ -179,8 +196,7 @@ describe('ProfileModelsPage', () => {
       },
     };
     const container = await renderPage({ services });
-    const refreshButton = Array.from(container.querySelectorAll<HTMLButtonElement>('button'))
-      .find((button) => button.textContent?.includes('Refresh models'));
+    const refreshButton = container.querySelector<HTMLButtonElement>('[data-testid="profile-models-refresh-button"]');
 
     await act(async () => {
       refreshButton?.click();
@@ -260,8 +276,7 @@ describe('ProfileModelsPage', () => {
       },
     };
     const container = await renderPage({ services });
-    const refreshButton = Array.from(container.querySelectorAll<HTMLButtonElement>('button'))
-      .find((button) => button.textContent?.includes('Refresh models'));
+    const refreshButton = container.querySelector<HTMLButtonElement>('[data-testid="profile-models-refresh-button"]');
 
     await act(async () => {
       refreshButton?.click();

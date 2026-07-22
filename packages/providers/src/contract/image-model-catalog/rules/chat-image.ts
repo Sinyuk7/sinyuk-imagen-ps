@@ -1,9 +1,14 @@
 import type { ImageModelCapability } from '../../image-model-capability.js';
 import {
-  CHAT_IMAGE_GEMINI_OUTPUT_CAPABILITY,
-  CHAT_IMAGE_GEMINI_OUTPUT_EXPOSURE,
-  chatGeminiImageMatrix,
-} from '../matrix/chat-image-gemini-compat.js';
+  GEMINI_3_PRO_IMAGE_OUTPUT_CAPABILITY,
+  GEMINI_3_PRO_IMAGE_OUTPUT_EXPOSURE,
+  gemini3ProImageMatrix,
+} from '../matrix/gemini-3-pro-image.js';
+import {
+  GEMINI_3_1_FLASH_IMAGE_OUTPUT_CAPABILITY,
+  GEMINI_3_1_FLASH_IMAGE_OUTPUT_EXPOSURE,
+  gemini31FlashImageMatrix,
+} from '../matrix/gemini-3-1-flash-image.js';
 import { GEMINI_EDIT_INPUT_CAPABILITY, OPENAI_EDIT_INPUT_CAPABILITY } from '../matrix/edit-input-capabilities.js';
 import {
   GPT_IMAGE_OUTPUT_CAPABILITY,
@@ -25,12 +30,12 @@ export const CHAT_IMAGE_MODEL_CAPABILITIES = Object.freeze([
       allowAsDefault: true,
     },
     appliesToProviders: ['chat-image'],
-    outputCapability: CHAT_IMAGE_GEMINI_OUTPUT_CAPABILITY,
-    outputExposure: CHAT_IMAGE_GEMINI_OUTPUT_EXPOSURE,
+    outputCapability: GEMINI_3_PRO_IMAGE_OUTPUT_CAPABILITY,
+    outputExposure: GEMINI_3_PRO_IMAGE_OUTPUT_EXPOSURE,
     editInput: GEMINI_EDIT_INPUT_CAPABILITY,
     outputMatrix: [
-      chatGeminiImageMatrix('text_to_image'),
-      chatGeminiImageMatrix('image_edit'),
+      gemini3ProImageMatrix('text_to_image'),
+      gemini3ProImageMatrix('image_edit'),
     ],
   },
   {
@@ -46,12 +51,12 @@ export const CHAT_IMAGE_MODEL_CAPABILITIES = Object.freeze([
       allowAsDefault: true,
     },
     appliesToProviders: ['chat-image'],
-    outputCapability: CHAT_IMAGE_GEMINI_OUTPUT_CAPABILITY,
-    outputExposure: CHAT_IMAGE_GEMINI_OUTPUT_EXPOSURE,
+    outputCapability: GEMINI_3_1_FLASH_IMAGE_OUTPUT_CAPABILITY,
+    outputExposure: GEMINI_3_1_FLASH_IMAGE_OUTPUT_EXPOSURE,
     editInput: GEMINI_EDIT_INPUT_CAPABILITY,
     outputMatrix: [
-      chatGeminiImageMatrix('text_to_image'),
-      chatGeminiImageMatrix('image_edit'),
+      gemini31FlashImageMatrix('text_to_image'),
+      gemini31FlashImageMatrix('image_edit'),
     ],
   },
   {

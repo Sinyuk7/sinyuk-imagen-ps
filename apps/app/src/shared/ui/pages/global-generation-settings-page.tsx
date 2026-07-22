@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useAppServices } from '../../ports/app-services-context';
 import type {
   AppGenerationSettings,
@@ -7,7 +7,7 @@ import type {
 import type { GenerationSettingsSaveState } from '../hooks/use-generation-settings';
 import { useAppPathInfo } from '../hooks/use-app-path-info';
 import { useI18n } from '../i18n/i18n-context';
-import { FieldLabel, HelpText, Icon, IconButton, PageFrame, PageHeader, PageScroll, SettingsFormSection, StatusNotice, TextSelect } from '../ui-system';
+import { HelpText, Icon, IconButton, List, PageFrame, PageHeader, PageScroll, SettingsFormSection, SettingsListRow, StatusNotice, TextSelect, useToast } from '../ui-system';
 
 interface GlobalGenerationSettingsPageProps {
   readonly settings: AppGenerationSettings;
@@ -38,6 +38,40 @@ async function copyText(text: string): Promise<boolean> {
   return false;
 }
 
+export function middleEllipsizePath(value: string, width: number): string {
+  const visibleCharacters = Math.max(12, Math.floor(width / 7.2));
+  if (value.length <= visibleCharacters) {
+    return value;
+  }
+  const prefixLength = Math.ceil((visibleCharacters - 1) * 0.6);
+  const suffixLength = Math.max(1, visibleCharacters - prefixLength - 1);
+  return `${value.slice(0, prefixLength)}…${value.slice(-suffixLength)}`;
+}
+
+function ResponsivePathValue({ testId, value }: { readonly testId: string; readonly value: string }) {
+  const ref = useRef<HTMLElement | null>(null);
+  const [width, setWidth] = useState(0);
+
+  useEffect(() => {
+    const element = ref.current;
+    if (!element || typeof ResizeObserver === 'undefined') {
+      return;
+    }
+    const observer = new ResizeObserver(([entry]) => {
+      setWidth(Math.round(entry.contentRect.width));
+    });
+    observer.observe(element);
+    setWidth(element.clientWidth);
+    return () => observer.disconnect();
+  }, []);
+
+  return (
+    <code ref={ref} className="global-settings-path-value" data-testid={testId} title={value} aria-label={value}>
+      {width > 0 ? middleEllipsizePath(value, width) : value}
+    </code>
+  );
+}
+
 export function GlobalGenerationSettingsPage({
   settings,
   loading,
@@ -48,9 +82,18 @@ export function GlobalGenerationSettingsPage({
 }: GlobalGenerationSettingsPageProps) {
   const services = useAppServices();
   const { messages: t } = useI18n();
+  const { show } = useToast();
   const pathInfo = useAppPathInfo(services);
   const [openMenu, setOpenMenu] = useState<MenuId>(null);
   const [copiedKey, setCopiedKey] = useState<string | null>(null);
+  const previousSaveStateRef = useRef(saveState);
+
+  useEffect(() => {
+    if (saveState === 'saved' && previousSaveStateRef.current !== 'saved') {
+      show(t.settings.saved, 'positive', { key: 'global-generation-settings-saved' });
+    }
+    previousSaveStateRef.current = saveState;
+  }, [saveState, show, t.settings.saved]);
 
   const updateSettings = (next: Partial<AppGenerationSettings>) => {
     void onSave({ ...settings, ...next });
@@ -67,28 +110,6 @@ export function GlobalGenerationSettingsPage({
       setCopiedKey((current) => (current === key ? null : current));
     }, 1200);
   };
-  const saveStatusIcon = saveState === 'saving'
-    ? <Icon name="spinner" size={14} className="spin" />
-    : saveState === 'saved'
-      ? <Icon name="check" size={14} />
-      : saveState === 'error'
-        ? <Icon name="error" size={14} />
-        : null;
-  const saveStatusLabel = saveState === 'saving'
-    ? t.settings.saving
-    : saveState === 'saved'
-      ? t.settings.saved
-      : saveState === 'error'
-        ? error
-        : null;
-  const saveStatusClassName = saveState === 'saving'
-    ? 'save-status save-status-busy'
-    : saveState === 'saved'
-      ? 'save-status save-status-saved'
-      : saveState === 'error'
-        ? 'save-status'
-        : null;
-
   return (
     <PageFrame watch="global-generation-settings"><div className="page page-enter settings-page" onClick={() => setOpenMenu(null)}>
       <PageHeader
@@ -108,7 +129,6 @@ export function GlobalGenerationSettingsPage({
         <div className="settings-detail-layout scroll-footer-pad generation-settings-layout">
           <SettingsFormSection title={t.settings.inputGroup}>
             <div className="field">
-              <FieldLabel htmlFor="provider-input-size-trigger">{t.settings.providerInputSizePreset}</FieldLabel>
               <TextSelect
                 testId="provider-input-size-selector"
                 triggerId="provider-input-size-trigger"
@@ -132,56 +152,47 @@ export function GlobalGenerationSettingsPage({
             </div>
           </SettingsFormSection>
           <SettingsFormSection title={t.settings.storageGroup}>
-            <div className="generation-settings-section-intro">
-              <HelpText className="field-hint generation-settings-section-hint">
-                {t.settings.storageGroupHint}
-              </HelpText>
-            </div>
             {pathInfo.value ? (
-              <div className="settings-path-list generation-settings-path-list">
-                <div className="field">
-                  <FieldLabel htmlFor="global-settings-copy-log-path">{t.settings.logPath}</FieldLabel>
-                  <div className="field-input-affordance settings-path-affordance">
-                    <code
-                      className="settings-path-block field-input-embedded"
-                      data-testid="global-settings-log-path"
-                      title={pathInfo.value.logPath}
-                    >
-                      {pathInfo.value.logPath}
-                    </code>
+              <List className="global-settings-path-list" aria-label={t.settings.storageGroup}>
+                <SettingsListRow
+                  testId="global-settings-log-path-row"
+                  title={t.settings.logPath}
+                  trailingChevron={false}
+                  leading={<div className="prov-ico global-settings-path-icon"><Icon name="history" size={14} /></div>}
+                  meta={<ResponsivePathValue testId="global-settings-log-path" value={pathInfo.value.logPath} />}
+                  end={(
                     <IconButton
                       id="global-settings-copy-log-path"
                       data-testid="global-settings-copy-log-path"
-                      className={`field-input-action settings-path-copy${copiedKey === 'logPath' ? ' cp' : ''}`}
+                      className={`global-settings-path-copy${copiedKey === 'logPath' ? ' cp' : ''}`}
                       quiet
                       icon={copiedKey === 'logPath' ? <Icon name="check" /> : <Icon name="copy" />}
                       tooltip={copiedKey === 'logPath' ? t.common.copied : t.common.copy}
                       onClick={() => void copyPath('logPath', pathInfo.value!.logPath)}
                     />
-                  </div>
-                </div>
-                <div className="field">
-                  <FieldLabel htmlFor="global-settings-copy-generated-image-path">{t.settings.generatedImagePath}</FieldLabel>
-                  <div className="field-input-affordance settings-path-affordance">
-                    <code
-                      className="settings-path-block field-input-embedded"
-                      data-testid="global-settings-generated-image-path"
-                      title={pathInfo.value.generatedImagePath}
-                    >
-                      {pathInfo.value.generatedImagePath}
-                    </code>
+                  )}
+                  onOpen={() => void copyPath('logPath', pathInfo.value!.logPath)}
+                />
+                <SettingsListRow
+                  testId="global-settings-generated-image-path-row"
+                  title={t.settings.generatedImagePath}
+                  trailingChevron={false}
+                  leading={<div className="prov-ico global-settings-path-icon"><Icon name="image-size" size={14} /></div>}
+                  meta={<ResponsivePathValue testId="global-settings-generated-image-path" value={pathInfo.value.generatedImagePath} />}
+                  end={(
                     <IconButton
                       id="global-settings-copy-generated-image-path"
                       data-testid="global-settings-copy-generated-image-path"
-                      className={`field-input-action settings-path-copy${copiedKey === 'generatedImagePath' ? ' cp' : ''}`}
+                      className={`global-settings-path-copy${copiedKey === 'generatedImagePath' ? ' cp' : ''}`}
                       quiet
                       icon={copiedKey === 'generatedImagePath' ? <Icon name="check" /> : <Icon name="copy" />}
                       tooltip={copiedKey === 'generatedImagePath' ? t.common.copied : t.common.copy}
                       onClick={() => void copyPath('generatedImagePath', pathInfo.value!.generatedImagePath)}
                     />
-                  </div>
-                </div>
-              </div>
+                  )}
+                  onOpen={() => void copyPath('generatedImagePath', pathInfo.value!.generatedImagePath)}
+                />
+              </List>
             ) : (
               <div className="status-replacement-slot" data-testid="global-settings-path-status">
                 <StatusNotice
@@ -200,15 +211,6 @@ export function GlobalGenerationSettingsPage({
             >
               {t.settings.footerStatement}
             </div>
-            {saveStatusClassName && saveStatusLabel ? (
-              <div
-                data-testid="global-settings-save-status"
-                className={saveStatusClassName}
-              >
-                {saveStatusIcon}
-                <span>{saveStatusLabel}</span>
-              </div>
-            ) : null}
           </section>
           {error && (
             <section className="section generation-settings-section generation-settings-secondary-section">

@@ -246,7 +246,7 @@ export const COMPOSER_CSS = `
 }
 .cmp-action-left{
 }
-.cmp-mask-toggle-host{ margin-top:0; margin-right:4px; margin-bottom:0; margin-left:0; }
+.cmp-mask-toggle-host{ margin-top:0; margin-right:0; margin-bottom:0; margin-left:4px; }
 .cmp-mask-toggle{ color:var(--app-color-text-secondary); }
 .cmp-mask-retry{ min-height:22px; margin-left:6px; padding:0 7px; font-size:10px; }
 .cmp-toolbar-left{
@@ -441,7 +441,7 @@ export const COMPOSER_CSS = `
 .cmp-ta::placeholder{ color:var(--app-color-text-muted); font-weight:400; }
 .cmp-readiness{
   min-height:17px;
-  margin-top:4px;
+  margin-top:0;
   margin-right:0;
   margin-bottom:0;
   margin-left:0;
@@ -451,6 +451,15 @@ export const COMPOSER_CSS = `
   overflow-wrap:anywhere;
 }
 .cmp-readiness[data-state="ready"]{ color:var(--app-color-positive); }
+.cmp-meta-row{
+  display:flex;
+  align-items:center;
+  min-width:0;
+  min-height:17px;
+  margin-top:4px;
+}
+.cmp-meta-row > .motion-content{ flex:1 1 auto; min-width:0; }
+.cmp-meta-row .cmp-balance-pill{ margin-left:8px; }
 .cmp-conflict{
   margin-top:6px;
   margin-right:0;
@@ -861,15 +870,10 @@ export const COMPOSER_CSS = `
   align-items:center;
   flex:0 0 auto;
   min-width:0;
-  max-width:min(100%, 188px);
-  height:28px;
-  padding:0 10px;
-  border:1px solid color-mix(in srgb, var(--app-color-accent-default) 18%, var(--app-color-border-default));
-  border-radius:999px;
-  background:linear-gradient(180deg,
-    color-mix(in srgb, var(--app-color-accent-subtle) 82%, transparent),
-    color-mix(in srgb, var(--app-color-background-layer-2) 92%, transparent)
-  );
+  max-width:min(46%, 188px);
+  height:17px;
+  padding:0;
+  overflow:hidden;
 }
 .cmp-balance-pill-main{
   display:flex;
@@ -882,8 +886,8 @@ export const COMPOSER_CSS = `
 .cmp-balance-pill-unit,
 .cmp-balance-pill-secondary{
   white-space:nowrap;
-  font-size:10px;
-  line-height:14px;
+  font-size:11px;
+  line-height:15px;
 }
 .cmp-balance-pill-primary{
   display:block;
@@ -919,7 +923,7 @@ export const COMPOSER_CSS = `
 }
 .cmp-balance-pill-secondary::before{
   content:'·';
-  margin-right:6px;
+  margin-right:4px;
 }
 .cmp-balance-pill-unit{ margin-left:4px; }
 .cmp-capture,

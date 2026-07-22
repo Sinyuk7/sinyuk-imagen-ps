@@ -30,6 +30,8 @@ async function renderPage(options?: {
   readonly loading?: boolean;
   readonly error?: string | null;
   readonly saveState?: 'idle' | 'saving' | 'saved' | 'error';
+  readonly settings?: PromptSettings;
+  readonly templateValid?: boolean;
   readonly presetViews?: readonly PromptPresetView[];
   readonly onSelectPreset?: (presetId: string | null) => Promise<void>;
   readonly onDeletePreset?: (presetId: string) => Promise<void>;
@@ -56,8 +58,8 @@ async function renderPage(options?: {
             presetViews={options?.presetViews ?? []}
             profiles={[]}
             saveState={options?.saveState ?? 'idle'}
-            settings={settings}
-            templateValid
+            settings={options?.settings ?? settings}
+            templateValid={options?.templateValid ?? true}
           />
         </div>
       </TestAppProviders>,
@@ -68,6 +70,50 @@ async function renderPage(options?: {
 }
 
 describe('PromptSettingsPage preset list', () => {
+  it('keeps template requirements visible when its value is empty', async () => {
+    const container = await renderPage({
+      settings: { ...settings, optimization: { ...settings.optimization, template: '' } },
+      templateValid: false,
+    });
+
+    const template = container.querySelector<HTMLTextAreaElement>('[data-testid="prompt-optimization-template"]');
+    expect(template?.getAttribute('placeholder')).toBe('Write instructions and include {prompt}');
+    expect(container.querySelector('[data-testid="prompt-optimization-template-status"]')?.textContent)
+      .toBe('Instructions + {prompt} placeholder');
+  });
+
+  it('uses a toast, not persistent page feedback, after settings save', async () => {
+    const container = await renderPage();
+
+    await act(async () => {
+      root?.render(
+        <TestAppProviders services={createFakeServices().services} locale="en">
+          <div className="panel">
+            <PromptSettingsPage
+              activationState="no-profile"
+              error={null}
+              loading={false}
+              onDeletePreset={vi.fn(async () => undefined)}
+              onNav={vi.fn()}
+              onOpenPreset={vi.fn()}
+              onSave={vi.fn(async () => undefined)}
+              onSelectPreset={vi.fn(async () => undefined)}
+              presetViews={[]}
+              profiles={[]}
+              saveState="saved"
+              settings={settings}
+              templateValid
+            />
+          </div>
+        </TestAppProviders>,
+      );
+    });
+    await flush();
+
+    expect(container.querySelector('[data-testid="prompt-settings-save-status"]')).toBeNull();
+    expect(document.body.querySelector('[data-testid="toast"]')?.textContent).toContain('Saved');
+  });
+
   it('uses inert prompt-preset shell rows for initial loading, error, and empty states', async () => {
     const loading = await renderPage({ loading: true });
     const loadingState = loading.querySelector<HTMLElement>('[data-testid="prompt-preset-loading-state"]');
@@ -136,6 +182,8 @@ describe('PromptSettingsPage preset list', () => {
     const row = container.querySelector<HTMLElement>('[data-testid="prompt-preset-row-cinematic"]');
 
     expect(listbox).not.toBeNull();
+    expect(container.querySelector('.prompt-preset-section-header h2')?.textContent).toBe('Prompt Presets');
+    expect(container.querySelector('.prompt-preset-section-header [data-testid="prompt-preset-add-button"]')).not.toBeNull();
     expect(row?.getAttribute('role')).toBe('option');
     expect(row?.getAttribute('aria-selected')).toBe('true');
 

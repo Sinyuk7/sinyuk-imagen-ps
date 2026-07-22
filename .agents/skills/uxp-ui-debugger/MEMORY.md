@@ -13,6 +13,8 @@ Durable notes for confirmed UI/page debugging in the Imagen Photoshop UXP app. R
 - Do not use Computer Use against Photoshop for this skill. It is too unstable for panel interaction proof and can create false confidence. Use `node scripts/uxp-debug/uxp-debug.mjs`, UDT relay data, user screenshots, or explicit user manual feedback instead.
 - If a runtime probe cannot reproduce the user's symptom, stop and report the missing proof. Do not keep editing from a partially proven hypothesis.
 - If on-disk CSS already contains the expected fix but real UXP `inspect` still shows old computed values, treat the loaded bundle as stale first. Prove the hypothesis with temporary `style` mutations before making another source edit.
+- UDT Watch can log a successful reload while Photoshop UXP still executes an older fixed-name `assets/index.js`. Compare the expected selector against the mounted `<style>` text; if it is absent, use explicit UDT Reload, open a new Debug session, and reprobe before changing CSS again.
+- The Provider Billing form is shared by `SettingsAddPage` and `SettingsDetailPage`. A visual wrapper selector intended for profile editing must be attached at both call sites before judging it absent in a real UXP Add Provider screen.
 - Do not treat `uxp-debug.mjs click <selector>` as proof for hit-test bugs. That command calls the selected element directly and can bypass the host's real coordinate hit-testing path.
 - If the main-page `Capture` action shows a host error toast but `task-history.json` does not get a new round record, treat it as a pre-task host capture failure first. Check `imagen.jsonl` for `hostbridge.get_layer_thumbnail.fail` and `hostbridge.capture_active_image.fail` before blaming UI dispatch, provider, or placement writeback.
 

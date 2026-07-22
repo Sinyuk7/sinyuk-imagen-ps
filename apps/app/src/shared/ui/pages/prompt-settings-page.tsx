@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState, type KeyboardEvent } from 'react';
+import { useEffect, useMemo, useRef, useState, type KeyboardEvent } from 'react';
 import type { ProviderProfile } from '@imagen-ps/application';
 import type { PromptPreset, PromptPresetMode, PromptSettings } from '../../ports/prompt-settings';
 import type {
@@ -21,6 +21,7 @@ import {
   SettingsFormSection,
   TextSelect,
   UxpTextAreaField,
+  useToast,
 } from '../ui-system';
 import { useI18n } from '../i18n/i18n-context';
 
@@ -114,11 +115,13 @@ export function PromptSettingsPage({
   onNav,
 }: PromptSettingsPageProps) {
   const { messages: t } = useI18n();
+  const { show } = useToast();
   const [profileMenuOpen, setProfileMenuOpen] = useState(false);
   const [presetListInitialState, setPresetListInitialState] = useState<'pending' | 'ready' | 'error'>(
     loading ? 'pending' : error ? 'error' : 'ready',
   );
   const [initialPresetError, setInitialPresetError] = useState<string | null>(loading ? null : error);
+  const previousSaveStateRef = useRef(saveState);
 
   useEffect(() => {
     if (presetListInitialState !== 'pending' || loading) {
@@ -127,6 +130,12 @@ export function PromptSettingsPage({
     setInitialPresetError(error);
     setPresetListInitialState(error ? 'error' : 'ready');
   }, [error, loading, presetListInitialState]);
+  useEffect(() => {
+    if (saveState === 'saved' && previousSaveStateRef.current !== 'saved') {
+      show(t.settings.saved, 'positive', { key: 'prompt-settings-saved' });
+    }
+    previousSaveStateRef.current = saveState;
+  }, [saveState, show, t.settings.saved]);
   const profileOptions = useMemo(() => [
     { id: 'none', label: t.settings.none },
     ...profiles.map((profile) => ({ id: profile.profileId, label: profile.displayName })),
@@ -134,11 +143,6 @@ export function PromptSettingsPage({
   const selectedProfileLabel = settings.optimization.profileId
     ? profileOptions.find((option) => option.id === settings.optimization.profileId)?.label ?? t.settings.optimizationMissingProfile
     : t.settings.none;
-  const saveStatus = saveState === 'saving'
-    ? t.settings.saving
-    : saveState === 'saved'
-      ? t.settings.saved
-      : error;
   const activationHint = activationState === 'active' ? null : activationMessage(activationState, t);
 
   return (
@@ -160,7 +164,7 @@ export function PromptSettingsPage({
       />
       <PageScroll>
         <div className="settings-detail-layout scroll-footer-pad generation-settings-layout">
-          <SettingsFormSection title={t.settings.optimizerProfile}>
+          <SettingsFormSection title={t.settings.promptOptimization}>
             <FieldGroup
               label={t.settings.optimizerProfile}
               htmlFor="prompt-optimizer-profile-trigger"
@@ -193,6 +197,7 @@ export function PromptSettingsPage({
                 id="prompt-optimization-template"
                 className="field-textarea-input"
                 value={settings.optimization.template}
+                placeholder={t.settings.templatePlaceholder}
                 disabled={loading}
                 nativeEditorSuspended={profileMenuOpen}
                 onValue={(value) => void onSave({
@@ -208,7 +213,7 @@ export function PromptSettingsPage({
                     className="field-hint"
                     variant={templateValid ? undefined : 'negative'}
                   >
-                    {templateValid ? t.settings.templateValid : t.settings.templateInvalidReason}
+                    {t.settings.templateInputHint}
                   </HelpText>
                 )}
                 invalid={!templateValid}
@@ -216,9 +221,9 @@ export function PromptSettingsPage({
             </FieldGroup>
           </SettingsFormSection>
 
-          <SettingsFormSection title={t.settings.promptPresets}>
-            <div className="settings-section-header">
-              <span aria-hidden="true" />
+          <section className="section ui-settings-form-section prompt-preset-section">
+            <div className="prompt-preset-section-header">
+              <h2>{t.settings.promptPresets}</h2>
               <MotionButtonSurface>
                 <IconButton
                   data-testid="prompt-preset-add-button"
@@ -330,9 +335,9 @@ export function PromptSettingsPage({
               }) : null}
               </List>
             </div>
-          </SettingsFormSection>
+          </section>
 
-          {saveStatus ? <PageState tone={error ? 'negative' : 'neutral'} message={saveStatus} /> : null}
+          {error ? <PageState tone="negative" message={error} /> : null}
         </div>
       </PageScroll>
     </div></PageFrame>

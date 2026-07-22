@@ -1,4 +1,4 @@
-import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
+import { mkdirSync, readFileSync, readdirSync, rmSync, writeFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { defineConfig, mergeConfig, type Plugin } from 'vite';
 import { appViteBaseConfig } from './vite.base.config';
@@ -18,6 +18,26 @@ export function uxpImportMetaCompatPlugin(): Plugin {
         return null;
       }
       return { code: code.replaceAll('import.meta.url', '""'), map: null };
+    },
+  };
+}
+
+/** 清理 UXP 自身产物，同时保留 Chrome watch 使用的 dist/web。 */
+export function uxpOutputCleanPlugin(): Plugin {
+  let outDir = resolve('dist');
+
+  return {
+    name: 'imagen-ps-uxp-output-clean',
+    configResolved(config) {
+      outDir = config.build.outDir;
+    },
+    buildStart() {
+      mkdirSync(outDir, { recursive: true });
+      for (const entry of readdirSync(outDir)) {
+        if (entry !== 'web') {
+          rmSync(resolve(outDir, entry), { recursive: true, force: true });
+        }
+      }
     },
   };
 }
@@ -329,10 +349,10 @@ export function uxpClassicHtmlBootstrapPlugin(): Plugin {
 
 export default defineConfig(
   mergeConfig(appViteBaseConfig, {
-    plugins: [uxpImportMetaCompatPlugin(), uxpClassicHtmlBootstrapPlugin()],
+    plugins: [uxpOutputCleanPlugin(), uxpImportMetaCompatPlugin(), uxpClassicHtmlBootstrapPlugin()],
     build: {
       outDir: 'dist',
-      emptyOutDir: true,
+      emptyOutDir: false,
       modulePreload: false,
       rollupOptions: {
         input: 'index.html',

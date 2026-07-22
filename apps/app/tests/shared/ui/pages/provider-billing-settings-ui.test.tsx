@@ -176,6 +176,7 @@ describe('provider billing settings UI', () => {
     document.body.appendChild(container);
     const onProfileSetup = vi.fn(async () => undefined);
     const fake = await renderAddPage(container, { onProfileSetup });
+    expect(container.querySelector('.provider-billing-embedded-section .billing-settings-form')).not.toBeNull();
 
     await inputTestId(container, 'provider-endpoint-detect-input', 'https://relay.test/v1/chat/completions');
 
@@ -473,5 +474,16 @@ describe('provider billing settings UI', () => {
       },
     });
     expect(fake.spies.saveProviderProfile.mock.calls[0]?.[0]?.secretValues).toBeUndefined();
+  });
+
+  it('uses the profile-detail billing wrapper for the compact flat form', async () => {
+    const container = document.createElement('div');
+    document.body.appendChild(container);
+    await renderDetailPage(container, createBillingTokenProfile());
+
+    const section = container.querySelector<HTMLElement>('.provider-billing-embedded-section');
+    expect(section).not.toBeNull();
+    expect(section?.querySelector('.billing-settings-form')).not.toBeNull();
+    expect(section?.querySelector('[data-testid="provider-billing-mode-selector"]')).not.toBeNull();
   });
 });

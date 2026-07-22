@@ -441,20 +441,21 @@ function CapabilitySection({
     ? `${t.settings.modelConfigValidCombinations(combinationCount)} · ${t.settings.modelConfigSparseCombinationHint}`
     : t.settings.modelConfigValidCombinations(combinationCount);
   const title = module.shared ? t.settings.modelConfigOutputCapabilities : operationLabel(module.operations[0]!, t);
+  const sectionTitle = (
+    <span className="model-config-capability-heading">
+      <span className="model-config-capability-heading-title" data-testid={`model-config-section-title-${module.id}`}>
+        {title}
+      </span>
+      {module.shared ? (
+        <span className="model-config-capability-meta" data-testid={`model-config-shared-scope-${module.id}`}>
+          {t.settings.modelConfigSharedScope}
+        </span>
+      ) : null}
+    </span>
+  );
 
   return (
-    <SettingsFormSection title={title} testId={`model-config-capability-section-${module.id}`}>
-      <div className="model-config-capability-section-header">
-        <span data-testid={`model-config-section-title-${module.id}`} aria-hidden="true" />
-        {module.shared ? (
-          <span
-            className="model-config-capability-meta"
-            data-testid={`model-config-shared-scope-${module.id}`}
-          >
-            {t.settings.modelConfigSharedScope}
-          </span>
-        ) : null}
-      </div>
+    <SettingsFormSection title={sectionTitle} testId={`model-config-capability-section-${module.id}`}>
 
       <CapabilityOptionGroup
         title={t.settings.modelConfigOutputFormat}
@@ -862,39 +863,37 @@ export function ModelConfigurationPage({ onNav, onSaved, onBack, initialEditorSt
                 }}
               />
             </FieldGroup>
-            <FieldGroup
-              label={t.settings.modelConfigWireModelId}
-              htmlFor="model-config-wire-model-id"
-              help={<HelpText className="field-hint">{t.settings.modelConfigWireModelIdHint}</HelpText>}
-            >
-              <ModelIdField
-                id="model-config-wire-model-id"
-                testId="model-config-wire-model-id"
-                value={wireModelId}
-                disabled={saveBusy}
-                suspended={modelIdSuspended}
-                onValue={setWireModelId}
-              />
-            </FieldGroup>
-            <div className={`provider-embedded-section model-config-advanced-section${advancedOpen ? ' is-open' : ''}`}>
-              <Button
-                className="model-config-advanced-toggle"
-                aria-expanded={advancedOpen}
-                onClick={() => setAdvancedOpen((current) => !current)}
+            <div className="model-config-request-model-field">
+              <FieldGroup
+                label={t.settings.modelConfigWireModelId}
+                htmlFor="model-config-wire-model-id"
+                help={<HelpText className="field-hint">{t.settings.modelConfigWireModelIdHint}</HelpText>}
               >
-                <span className="model-config-advanced-toggle-copy">
-                  <span className="section-title settings-section-heading model-config-advanced-toggle-title">
-                    {t.settings.advancedSettings}
-                  </span>
-                </span>
-                <Icon
-                  name={advancedOpen ? 'chevron-down' : 'chevron-right'}
-                  size={12}
-                  className="model-config-advanced-toggle-icon"
+                <ModelIdField
+                  id="model-config-wire-model-id"
+                  testId="model-config-wire-model-id"
+                  value={wireModelId}
+                  disabled={saveBusy}
+                  suspended={modelIdSuspended}
+                  onValue={setWireModelId}
                 />
-              </Button>
+              </FieldGroup>
+            </div>
+            <div className={`provider-embedded-section model-config-advanced-section${advancedOpen ? ' is-open' : ''}`}>
+              <IconButton
+                data-testid="model-config-advanced-toggle"
+                className={`model-config-advanced-toggle${advancedOpen ? ' is-open' : ''}`}
+                hostClassName="model-config-advanced-toggle-host"
+                overlayClassName="model-config-advanced-toggle-chevron"
+                quiet
+                aria-expanded={advancedOpen}
+                icon={<Icon name={advancedOpen ? 'chevron-down' : 'chevron-right'} />}
+                iconSize={12}
+                text={t.settings.advancedSettings}
+                onClick={() => setAdvancedOpen((current) => !current)}
+              />
               {advancedOpen ? (
-                <>
+                <div className="model-config-advanced-panel">
                   <FieldGroup label={t.settings.modelConfigModelId} htmlFor="model-config-model-id">
                     <ModelIdField
                       id="model-config-model-id"
@@ -910,7 +909,7 @@ export function ModelConfigurationPage({ onNav, onSaved, onBack, initialEditorSt
                     value={requestStrategyId}
                     detail={t.settings.modelConfigManagedByPreset}
                   />
-                </>
+                </div>
               ) : null}
             </div>
           </SettingsFormSection>

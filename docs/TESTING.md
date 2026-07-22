@@ -246,6 +246,11 @@ Playwright Chromium at representative viewports (`390x720` default,
 `300x420`/`300x520`/`390x400`/`600x800` for responsive scenarios), and writes
 ignored local artifacts under `apps/app/tests/chrome-e2e/screenshots/`.
 
+For manual Chrome visual acceptance of a page UI change, verify the UXP panel
+at `360x600` (docked), `420x680` (floating), and `1280x800` (wide). The
+manifest's `300x420` minimum is a robustness stress case, not a composition
+approval viewport.
+
 Default Chrome E2E scenarios stay mock-oriented and do not read `.test.env`.
 One explicit live-provider scenario may be selected with:
 

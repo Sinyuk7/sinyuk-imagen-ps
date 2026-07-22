@@ -177,6 +177,25 @@ describe('ModelConfigurationPage', () => {
     expect(container.querySelector<HTMLInputElement>('[data-testid="model-config-wire-model-id"]')?.value).toBe('gemini-image-split');
   });
 
+  it('keeps advanced fields collapsed behind a stateful toggle', async () => {
+    const { services } = createFakeServices();
+    const container = await renderPage({ services });
+    const toggle = container.querySelector<HTMLButtonElement>('[data-testid="model-config-advanced-toggle"]');
+
+    expect(toggle?.getAttribute('aria-expanded')).toBe('false');
+    expect(container.querySelector('[data-testid="model-config-model-id"]')).toBeNull();
+    expect(toggle?.parentElement?.querySelector('[data-icon-name="chevron-right"]')).not.toBeNull();
+
+    await act(async () => {
+      toggle?.click();
+    });
+    await flush();
+
+    expect(toggle?.getAttribute('aria-expanded')).toBe('true');
+    expect(container.querySelector('.model-config-advanced-panel')).not.toBeNull();
+    expect(toggle?.parentElement?.querySelector('[data-icon-name="chevron-down"]')).not.toBeNull();
+  });
+
   it('keeps create identity and request model synced when switching api format', async () => {
     const officialModelConfigPresets = await Promise.all([
       officialPreset('openai-images', 'gpt-image-2'),
@@ -200,11 +219,23 @@ describe('ModelConfigurationPage', () => {
     const { services } = createFakeServices();
     const container = await renderPage({ services });
 
-    expect(container.querySelector('[data-testid="model-config-section-title-shared"]')).not.toBeNull();
+    const sharedSection = container.querySelector('[data-testid="model-config-capability-section-shared"]');
+    expect(sharedSection?.querySelector('h2 .model-config-capability-heading')).not.toBeNull();
+    expect(sharedSection?.querySelector('[data-testid="model-config-section-title-shared"]')?.textContent).toBe('Output capabilities');
     expect(container.querySelector('[data-testid="model-config-shared-scope-shared"]')).not.toBeNull();
     expect(container.querySelector('[data-testid="model-config-shared-size-use-input-size"]')).not.toBeNull();
     expect(container.querySelector('[data-testid="model-config-shared-ratio-auto"]')).toBeNull();
     expect(container.querySelector('[data-testid="model-config-section-title-text_to_image"]')).toBeNull();
+  });
+
+  it('keeps the request model hint within its own separated field group', async () => {
+    const { services } = createFakeServices();
+    const container = await renderPage({ services });
+
+    const requestField = container.querySelector('.model-config-request-model-field');
+    expect(requestField?.querySelector('[data-testid="model-config-wire-model-id"]')).not.toBeNull();
+    expect(requestField?.textContent).toContain('Only changes model sent to API. Does not change capability configuration.');
+    expect(requestField?.nextElementSibling?.querySelector('[data-testid="model-config-advanced-toggle"]')).not.toBeNull();
   });
 
   it('shows separate text and edit sections when preset operations differ', async () => {

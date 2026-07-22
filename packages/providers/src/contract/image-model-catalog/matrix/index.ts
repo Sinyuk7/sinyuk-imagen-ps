@@ -1,4 +1,3 @@
-export * from './chat-image-gemini-compat.js';
 export * from './edit-input-capabilities.js';
 export * from './gemini-3-1-flash-image.js';
 export * from './gemini-3-1-flash-lite-image.js';

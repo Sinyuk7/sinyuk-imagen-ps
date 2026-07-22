@@ -93,4 +93,16 @@ describe('AppShell active image profile restore', () => {
     expect(saveSpy).toHaveBeenCalledWith(fakeProfile.profileId);
     expect(container.querySelector('[data-testid="main-profile-selector"]')?.textContent).toContain(fakeProfile.displayName);
   });
+
+  it('keeps the main profile selector as an expandable control', async () => {
+    const container = document.createElement('div');
+    document.body.appendChild(container);
+
+    await renderMainPage(container, createFakeServices());
+
+    const selector = container.querySelector<HTMLElement>('[data-testid="main-profile-selector"]');
+    expect(selector?.getAttribute('aria-haspopup')).toBe('listbox');
+    expect(selector?.getAttribute('aria-expanded')).toBe('false');
+    expect(selector?.parentElement?.querySelector('[data-icon-name="chevron-down"]')).not.toBeNull();
+  });
 });

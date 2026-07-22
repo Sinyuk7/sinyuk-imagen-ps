@@ -1105,8 +1105,11 @@ export function MainPage({
           <IconButton
             data-testid="main-profile-selector"
             className={`hdr-center hdr-provider-trigger${profileMenuOpen ? ' open' : ''}`}
+            overlayClassName="hdr-provider-chevron"
             aria-haspopup="listbox"
             aria-expanded={profileMenuOpen}
+            icon={<Icon name="chevron-down" />}
+            iconSize={12}
             text={comfyUiMode ? t.settings.comfyUi : selectedProfile?.displayName ?? t.main.noProviderProfile}
             tooltip={comfyUiMode ? t.settings.comfyUi : selectedProfile?.displayName ?? t.main.noProviderProfile}
             onClick={(event) => {
@@ -1862,33 +1865,6 @@ export function MainPage({
                     }}
                   />
                 </MotionButtonSurface>
-                {viewModel.billingVisible ? <div
-                  className="cmp-balance-pill"
-                  data-testid="main-billing-summary"
-                  title={billingSummaryTitle}
-                  aria-label={billingSummaryTitle}
-                >
-                  <span className="cmp-balance-pill-main">
-                    <span
-                      className={billingPrimaryHasNumericEmphasis
-                        ? 'cmp-balance-pill-primary cmp-balance-pill-primary-accent'
-                        : 'cmp-balance-pill-primary'}
-                    >
-                      {billingPrimaryParts?.primary ?? t.main.billingUnknown}
-                    </span>
-                    {billingPrimaryParts?.unit && (
-                      <span className="cmp-balance-pill-unit">{billingPrimaryParts.unit}</span>
-                    )}
-                  </span>
-                  {billingPrimaryParts?.secondary && (
-                    <span className="cmp-balance-pill-secondary">{billingPrimaryParts.secondary}</span>
-                  )}
-                </div> : null}
-                {workspace.maskState.kind === 'error' ? (
-                  <Button className="cmp-mask-retry" onClick={workspace.retryMask}>{t.main.retryMask}</Button>
-                ) : null}
-              </div>
-              <div className="cmp-action-right">
                 <MotionButtonSurface>
                   <IconButton
                     data-testid="composer-mask-toggle"
@@ -1897,14 +1873,20 @@ export function MainPage({
                     quiet
                     toggles
                     selected={workspace.maskPreference.enabled}
-                    icon={<Icon name={workspace.maskPreference.enabled ? 'image-check' : 'image-size'} size={13} />}
-                    tooltip={t.main.mask}
+                    icon={<Icon name={workspace.maskPreference.enabled ? 'mask-on-filled' : 'mask-off'} size={13} />}
+                    tooltip={t.main.maskToggleLabel(workspace.maskPreference.enabled)}
+                    aria-label={t.main.maskToggleLabel(workspace.maskPreference.enabled)}
                     placement="top"
                     iconSize={13}
                     disabled={workspace.maskToggleDisabled}
                     onClick={() => workspace.setMaskEnabled(!workspace.maskPreference.enabled)}
                   />
                 </MotionButtonSurface>
+                {workspace.maskState.kind === 'error' ? (
+                  <Button className="cmp-mask-retry" onClick={workspace.retryMask}>{t.main.retryMask}</Button>
+                ) : null}
+              </div>
+              <div className="cmp-action-right">
                 <MotionButtonSurface>
                   <IconButton
                     data-testid="composer-capture-button"
@@ -1946,11 +1928,35 @@ export function MainPage({
                 </div>
               </div>
             </div>
-            <MotionContent watch={composerReadinessState}>
-              <div className="cmp-readiness" data-testid="composer-readiness-status" data-state={composerReadinessState}>
-                {composerReadinessText}
-              </div>
-            </MotionContent>
+            <div className="cmp-meta-row">
+              <MotionContent watch={composerReadinessState}>
+                <div className="cmp-readiness" data-testid="composer-readiness-status" data-state={composerReadinessState}>
+                  {composerReadinessText}
+                </div>
+              </MotionContent>
+              {viewModel.billingVisible ? <div
+                className="cmp-balance-pill"
+                data-testid="main-billing-summary"
+                title={billingSummaryTitle}
+                aria-label={billingSummaryTitle}
+              >
+                <span className="cmp-balance-pill-main">
+                  <span
+                    className={billingPrimaryHasNumericEmphasis
+                      ? 'cmp-balance-pill-primary cmp-balance-pill-primary-accent'
+                      : 'cmp-balance-pill-primary'}
+                  >
+                    {billingPrimaryParts?.primary ?? t.main.billingUnknown}
+                  </span>
+                  {billingPrimaryParts?.unit && (
+                    <span className="cmp-balance-pill-unit">{billingPrimaryParts.unit}</span>
+                  )}
+                </span>
+                {billingPrimaryParts?.secondary && (
+                  <span className="cmp-balance-pill-secondary">{billingPrimaryParts.secondary}</span>
+                )}
+              </div> : null}
+            </div>
             {maskStatusText ? <div className="cmp-readiness" data-testid="composer-mask-status" data-state={workspace.maskState.kind}>{maskStatusText}</div> : null}
             {viewModel.notices.length > 0 ? (
               <div className="cmp-readiness" data-testid="generation-workspace-notices">

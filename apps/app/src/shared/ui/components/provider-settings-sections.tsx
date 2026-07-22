@@ -68,6 +68,8 @@ interface ProviderSettingsPageHeaderProps {
   readonly title: ReactNode;
   readonly onBack: () => void;
   readonly rightSlot?: ReactNode;
+  readonly sideClassName?: string;
+  readonly rightClassName?: string;
 }
 
 export function ProviderSettingsPageHeader({
@@ -75,6 +77,8 @@ export function ProviderSettingsPageHeader({
   title,
   onBack,
   rightSlot,
+  sideClassName,
+  rightClassName,
 }: ProviderSettingsPageHeaderProps) {
   const { messages: t } = useI18n();
   return (
@@ -91,6 +95,8 @@ export function ProviderSettingsPageHeader({
       />
       )}
       right={rightSlot}
+      sideClassName={sideClassName}
+      rightClassName={rightClassName}
     />
   );
 }

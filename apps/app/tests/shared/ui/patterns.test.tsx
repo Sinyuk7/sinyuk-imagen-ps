@@ -47,8 +47,10 @@ describe('page patterns', () => {
   });
 
   it('provides bounded section, field, state, and footer shells', async () => {
-    const container = await render(<><SettingsListSection title="List">Row</SettingsListSection><SettingsFormSection title="Form"><FieldGroup label="Name">Control</FieldGroup></SettingsFormSection><PageState tone="neutral" message="Empty" variant="empty" /><FooterActions>Save</FooterActions></>);
+    const container = await render(<><SettingsListSection title="List">Row</SettingsListSection><SettingsListSection testId="untitled-list">Row</SettingsListSection><SettingsFormSection title="Form"><FieldGroup label="Name">Control</FieldGroup></SettingsFormSection><SettingsFormSection testId="untitled-form">Control</SettingsFormSection><PageState tone="neutral" message="Empty" variant="empty" /><FooterActions>Save</FooterActions></>);
     expect(container.querySelector('.ui-settings-list-section h2')?.textContent).toBe('List');
+    expect(container.querySelector('[data-testid="untitled-list"] h2')).toBeNull();
+    expect(container.querySelector('[data-testid="untitled-form"] h2')).toBeNull();
     expect(container.querySelector('.ui-field-group-label')?.textContent).toBe('Name');
     expect(container.querySelector('.ui-page-state')).not.toBeNull();
     expect(container.querySelector('.ui-page-state')?.getAttribute('data-variant')).toBe('empty');

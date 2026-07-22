@@ -873,7 +873,7 @@ export function SettingsDetailPage({ onNav, onBack, profileId, onProfilesChanged
       : null;
 
     return (
-      <div className="provider-embedded-section">
+      <div className="provider-embedded-section provider-billing-embedded-section">
         <div className="settings-inline-heading-row billing-inline-heading">
           <div className="section-title settings-section-heading">{t.settings.billing}</div>
           {balanceParts ? (

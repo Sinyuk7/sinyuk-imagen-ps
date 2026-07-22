@@ -241,7 +241,7 @@ describe('AppShell profile-owned model flow', () => {
     expect(selectedId(container, 'main-model-selector')).toBe('');
   });
 
-  it('settings provider rows show profile-owned endpoint and model count', async () => {
+  it('settings provider rows show profile-owned endpoint with icon-only status', async () => {
     const container = document.createElement('div');
     document.body.appendChild(container);
     const services = createReturningUserServices({
@@ -262,10 +262,15 @@ describe('AppShell profile-owned model flow', () => {
     await flush();
 
     const row = container.querySelector<HTMLElement>(`[data-testid="provider-row-${fakeProfile.profileId}"]`);
-    expect(row?.textContent).toContain('1 个已配置模型');
+    const status = row?.querySelector<HTMLElement>('.prov-readiness-compact');
+    const meta = row?.querySelector<HTMLElement>('.provider-row-meta');
+    expect(row?.textContent).not.toContain('1 个已配置模型');
     expect(row?.textContent).toContain('mock.local');
     expect(row?.textContent).not.toContain('Nano Banana 2 Lite');
     expect(row?.textContent).not.toContain('nano-banana-fast-wire');
+    expect(meta?.textContent).toBe('OpenAI Images · mock.local');
+    expect(status?.textContent).toBe('');
+    expect(status?.getAttribute('aria-label')).toBe('尚未测试');
   });
 
   it('opens a prefilled model editor from unresolved detail endpoint hint', async () => {

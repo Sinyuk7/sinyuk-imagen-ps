@@ -2,7 +2,7 @@ import { useState } from 'react';
 import type { ImageAspectRatio, ImageOutputFormat, ImageOutputImageSize } from '@imagen-ps/application';
 import type { ModelGenerationSettingsController } from '../hooks/use-model-generation-settings';
 import { useI18n } from '../i18n/i18n-context';
-import { FieldLabel, HelpText, Icon, IconButton, PageFrame, PageHeader, PageScroll, SettingsFormSection, TextSelect, useToast } from '../ui-system';
+import { FieldLabel, Icon, IconButton, PageFrame, PageHeader, PageScroll, SettingsFormSection, TextSelect, useToast } from '../ui-system';
 
 interface ProviderOutputSettingsPageProps {
   readonly modelGenerationSettings: ModelGenerationSettingsController;
@@ -50,9 +50,6 @@ export function ProviderOutputSettingsPage({ modelGenerationSettings, onBack }: 
       <PageScroll>
         <div className="settings-detail-layout scroll-footer-pad generation-settings-layout">
           <SettingsFormSection title={t.settings.outputGroup}>
-            <HelpText className="field-hint generation-settings-section-hint">
-              {modelGenerationSettings.showRatio ? `${t.settings.outputSize} / ${t.settings.aspectRatio} / ${t.settings.outputFormat}` : `${t.settings.outputSize} / ${t.settings.outputFormat}`}
-            </HelpText>
             <div className="generation-settings-grid">
               <div className="field">
                 <FieldLabel htmlFor="global-output-size-trigger">{t.settings.outputSize}</FieldLabel>

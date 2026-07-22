@@ -33,14 +33,52 @@ describe('ComfyUI workflow settings surface', () => {
     await openComfySettings(container);
 
     expect(container.querySelector('[data-testid="comfyui-settings-root"]')).not.toBeNull();
+    expect(container.querySelector('.settings-backend-segments')).not.toBeNull();
     expect(container.querySelector('[data-testid="comfyui-connection-section"]')).not.toBeNull();
+    expect(container.querySelector('.comfyui-connection-controls')).not.toBeNull();
+    expect(container.querySelector('.comfyui-workflow-list [data-testid="comfyui-change-workflow"]')).not.toBeNull();
+    expect(container.querySelector('[data-testid="comfyui-refresh-workflow"]')?.closest('header')).not.toBeNull();
+    expect(container.querySelector('[data-testid="comfyui-open-workflow"]')?.closest('header')).not.toBeNull();
+    expect(container.querySelector('[data-testid="comfyui-current-workflow-section"] .ui-footer-actions')).toBeNull();
     expect(container.querySelector('[data-testid="comfyui-workflow-parameters"]')).not.toBeNull();
     expect(container.querySelector('[data-testid="comfyui-input-mapping"]')).not.toBeNull();
     expect(container.querySelector('[data-testid="comfyui-image-mapping"]')).toBeNull();
     expect(container.textContent).toContain('此 Workflow 不接收图片附件');
   });
 
-  it('opens the picker and returns to the root after selecting a saved workflow', async () => {
+  it('uses explicit UXP-safe disabled semantics for Connect until an address exists', async () => {
+    const container = document.createElement('div');
+    document.body.appendChild(container);
+    await renderMainPage(container, createFakeServices());
+    await openComfySettings(container);
+
+    const connect = container.querySelector<HTMLButtonElement>('[data-testid="comfyui-connect"]');
+    expect(connect?.disabled).toBe(true);
+    expect(connect?.dataset.disabled).toBe('true');
+    expect(connect?.getAttribute('aria-disabled')).toBe('true');
+    expect(connect?.tabIndex).toBe(-1);
+  });
+
+  it('does not repeat settings-hub row labels as section headings', async () => {
+    const container = document.createElement('div');
+    document.body.appendChild(container);
+    await renderMainPage(container, createFakeServices());
+    await flush();
+
+    await act(async () => { container.querySelector<HTMLElement>('[data-testid="main-providers-button"]')?.click(); });
+    await flush();
+    const outputSection = container.querySelector('[data-testid="provider-output-settings-row"]')?.closest('.ui-settings-list-section');
+    expect(outputSection?.querySelector('h2')).toBeNull();
+
+    await act(async () => { container.querySelector<HTMLElement>('[data-testid="settings-backend-general"]')?.click(); });
+    await flush();
+    const globalSection = container.querySelector('[data-testid="global-settings-row"]')?.closest('.ui-settings-list-section');
+    const promptSection = container.querySelector('[data-testid="prompt-settings-row"]')?.closest('.ui-settings-list-section');
+    expect(globalSection?.querySelector('h2')).toBeNull();
+    expect(promptSection?.querySelector('h2')).toBeNull();
+  });
+
+  it('uses an inline picker and returns to the root after selecting a saved workflow', async () => {
     const container = document.createElement('div');
     document.body.appendChild(container);
     await renderMainPage(container, createFakeServices({ comfyUi: { baseUrl: 'https://comfy.example.test' } }));
@@ -52,6 +90,9 @@ describe('ComfyUI workflow settings surface', () => {
     });
     await flush();
     expect(container.querySelector('[data-testid="comfyui-workflow-picker"]')).not.toBeNull();
+    expect(container.querySelector('[data-testid="comfyui-workflow-picker"] .hdr')).toBeNull();
+    expect(container.querySelector('[data-testid="comfyui-workflow-picker-back"]')).not.toBeNull();
+    expect(container.querySelectorAll('[data-testid="comfyui-workflow-picker"] > .settings-detail-layout > .section')).toHaveLength(1);
     expect(container.querySelector('[data-testid^="comfyui-workflow-option-"]')).not.toBeNull();
     await act(async () => {
       container.querySelector<HTMLElement>('[data-testid^="comfyui-workflow-option-"]')?.click();
@@ -142,6 +183,7 @@ describe('ComfyUI workflow settings surface', () => {
     await openComfySettings(container);
     await act(async () => { container.querySelector<HTMLElement>('[data-testid="comfyui-change-workflow"]')?.click(); });
     await flush();
+    expect(container.querySelectorAll('[data-testid="comfyui-workflow-picker"] > .settings-detail-layout > .section')).toHaveLength(1);
     expect(container.querySelector('[data-testid="comfyui-workflow-group-portraits"]')).not.toBeNull();
     expect(container.querySelector('[data-testid="comfyui-workflow-group-landscapes"]')).not.toBeNull();
     const search = container.querySelector<HTMLInputElement>('[data-testid="comfyui-workflow-search"]')!;
@@ -150,6 +192,8 @@ describe('ComfyUI workflow settings surface', () => {
     });
     await flush();
     expect(container.querySelector('[data-testid="comfyui-workflow-option-two"]')).not.toBeNull();
+    expect(container.querySelector('[data-testid="comfyui-workflow-option-two"] .prov-summary')?.textContent).toBe('landscapes/two.json');
+    expect(container.querySelector('[data-testid="comfyui-workflow-option-two"] .prov-summary-mono')).toBeNull();
     expect(container.querySelector('[data-testid="comfyui-workflow-option-one"]')).toBeNull();
     expect(container.querySelector('[data-testid="comfyui-connection-row-singleton"]')).toBeNull();
     expect(container.querySelector('[data-testid="comfyui-workflow-target-selector"]')).toBeNull();

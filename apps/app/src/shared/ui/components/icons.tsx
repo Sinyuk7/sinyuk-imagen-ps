@@ -29,6 +29,8 @@ export type IconName =
   | 'image-check'
   | 'image-size'
   | 'magic-wand'
+  | 'mask-off'
+  | 'mask-on-filled'
   | 'message'
   | 'network'
   | 'pencil'
@@ -92,11 +94,12 @@ const ICON_BODY_BY_NAME: Record<IconName, SvgBody> = {
   'chevron-left': () => <polyline points="15 5 8 12 15 19" />,
   'chevron-right': () => <polyline points="9 5 16 12 9 19" />,
 
-  /* ── Status family — shared circle(r=9) base ───────────────────── */
+  /* ── Status family ─────────────────────────────────────────────── */
   empty: () => (
     <>
-      <path d="M5 6.5h14v11a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2z" />
-      <path d="M5 13h4l1.5 2h3L15 13h4" />
+      <path d="M16.5 4.5a7.8 7.8 0 1 0 3 14.9A8.4 8.4 0 0 1 16.5 4.5z" />
+      <path d="M18.2 4l.5 1.1 1.1.5-1.1.5-.5 1.1-.5-1.1-1.1-.5 1.1-.5z" />
+      <path d="M19 12.8l.45 1 .95.45-.95.45-.45 1-.45-1-.95-.45.95-.45z" />
     </>
   ),
   error: () => (
@@ -206,6 +209,19 @@ const ICON_BODY_BY_NAME: Record<IconName, SvgBody> = {
       <rect x="4" y="5" width="16" height="12" rx="2" />
       <path d="M7 14l3-3 2 2 2.5-3 2.5 4" />
       <polyline points="14 5 16 7 20 3" />
+    </>
+  ),
+  'mask-off': () => (
+    <>
+      <circle cx="12" cy="12" r="8" />
+      <path d="M12 4v16" />
+    </>
+  ),
+  'mask-on-filled': () => (
+    <>
+      <path d="M12 4a8 8 0 0 0 0 16z" fill="currentColor" stroke="none" />
+      <circle cx="12" cy="12" r="8" />
+      <path d="M12 4v16" />
     </>
   ),
   'place-ps': () => (

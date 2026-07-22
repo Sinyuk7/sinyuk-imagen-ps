@@ -9,6 +9,7 @@ interface SettingsListRowProps {
   readonly leading: ReactNode;
   readonly meta?: ReactNode;
   readonly end?: ReactNode;
+  readonly trailingChevron?: boolean;
   readonly special?: boolean;
   readonly disabled?: boolean;
   readonly onOpen: () => void;
@@ -31,6 +32,7 @@ export function SettingsListRow({
   leading,
   meta,
   end,
+  trailingChevron = true,
   special = false,
   disabled = false,
   onOpen,
@@ -56,7 +58,7 @@ export function SettingsListRow({
       </div>
       <div className="prov-end">
         {end}
-        {!disabled ? <div className="prov-trail"><Icon name="chevron-right" /></div> : null}
+        {!disabled && trailingChevron ? <div className="prov-trail"><Icon name="chevron-right" /></div> : null}
       </div>
     </div>
   );

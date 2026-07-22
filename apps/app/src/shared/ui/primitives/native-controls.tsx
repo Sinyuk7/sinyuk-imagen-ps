@@ -86,7 +86,7 @@ function dataState(value: boolean | undefined): string | undefined {
 }
 
 export const Button = forwardRef<HTMLButtonElement, ButtonProps>(function Button(
-  { variant = 'secondary', children, disabled, className, ...props },
+  { variant = 'secondary', children, disabled, className, onClick, tabIndex, ...props },
   ref,
 ) {
   return (
@@ -96,7 +96,18 @@ export const Button = forwardRef<HTMLButtonElement, ButtonProps>(function Button
       type="button"
       className={classNames('ui-btn', className)}
       data-variant={variant}
+      data-disabled={dataState(disabled)}
+      aria-disabled={disabled || undefined}
       disabled={disabled}
+      tabIndex={disabled ? -1 : tabIndex}
+      onClick={(event) => {
+        if (disabled) {
+          event.preventDefault();
+          event.stopPropagation();
+          return;
+        }
+        onClick?.(event);
+      }}
     >
       {children}
     </button>

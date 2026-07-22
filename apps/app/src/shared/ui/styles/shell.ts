@@ -36,13 +36,15 @@ export const SHELL_CSS = `
   margin-top:0; margin-right:8px; margin-bottom:0; margin-left:8px;
 }
 .hdr-center{
-  min-width:0; max-width:min(100%, 320px); display:inline-flex; align-items:center; justify-content:center;
-  min-height:30px; padding:4px 12px; border-radius:var(--app-radius-large); border:1px solid var(--app-color-border-default); background:var(--app-color-background-layer-2); color:var(--app-color-text-primary); cursor:pointer; outline:none;
+  box-sizing:border-box; width:156px; max-width:100%; display:inline-flex; align-items:center; justify-content:center;
+  min-height:28px; padding:4px 8px; border-radius:var(--app-radius-small); border:1px solid transparent; background:transparent; color:var(--app-color-text-secondary); cursor:pointer; outline:none;
   overflow:hidden;
 }
-.hdr-center .ui-icon-button-label{ max-width:100%; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; font-family:var(--app-font-family-mono); font-size:10px; font-weight:600; color:inherit; letter-spacing:.4px; }
-.hdr-provider-trigger:hover{ border-color:var(--app-color-border-strong); background:var(--app-color-background-elevated); color:var(--app-color-text-primary); }
-.hdr-provider-trigger.open{ border-color:var(--app-color-accent-default); background:var(--app-color-accent-subtle); color:var(--app-color-accent-default); }
+.hdr-center .ui-icon-button-label{ flex:1 1 auto; min-width:0; max-width:100%; margin-left:0; margin-right:6px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; font-family:var(--app-font-family-base); font-size:11px; font-weight:500; color:inherit; letter-spacing:0; }
+.hdr-center .ui-icon-button-icon-slot{ order:2; }
+.hdr-provider-chevron{ left:auto; right:8px; width:12px; justify-content:center; }
+.hdr-provider-trigger:hover{ background:var(--app-color-hover-overlay); color:var(--app-color-text-primary); }
+.hdr-provider-trigger.open{ border-color:transparent; background:var(--app-color-active-overlay); color:var(--app-color-text-primary); }
 .hdr-provider-trigger:hover .ui-icon-button-label,
 .hdr-provider-trigger.open .ui-icon-button-label{ color:inherit; }
 .hdr-title{ flex:1; min-width:0; margin-top:0; margin-right:8px; margin-bottom:0; margin-left:8px; font-family:var(--app-font-family-base); font-size:14px; font-weight:600; color:var(--app-color-text-primary); text-align:center; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }

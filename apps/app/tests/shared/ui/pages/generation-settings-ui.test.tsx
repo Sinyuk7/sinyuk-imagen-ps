@@ -7,6 +7,7 @@ import {
   profileModelItem,
 } from '../../../helpers/fakes';
 import { createGenerationSettingsHarness } from '../../../helpers/harness/create-generation-settings-harness';
+import { APP_MESSAGES } from '../../../../src/shared/ui/i18n/messages';
 import { COMPOSER_CSS } from '../../../../src/shared/ui/styles/composer';
 
 function optionIds(testId: string): readonly string[] {
@@ -107,21 +108,26 @@ describe('generation settings UI archetypes', () => {
     expect(hostContainsIcon(container, 'composer-output-ratio-selector', 'aspect-ratio')).toBe(true);
   });
 
-  it('keeps the UXP-safe mask toggle left of capture in the right action group', async () => {
+  it('keeps Prompt Optimizer before the mask toggle and aligns billing with readiness', async () => {
     const container = document.createElement('div');
     document.body.appendChild(container);
     await renderReadyMain(container);
 
-    const actionGroup = container.querySelector<HTMLElement>('.cmp-action-right')!;
+    const actionGroup = container.querySelector<HTMLElement>('.cmp-action-left')!;
     const controls = Array.from(actionGroup.querySelectorAll<HTMLElement>('[data-testid]'));
+    const optimizer = container.querySelector<HTMLButtonElement>('[data-testid="composer-prompt-optimize-button"]')!;
     const mask = container.querySelector<HTMLButtonElement>('[data-testid="composer-mask-toggle"]')!;
-    const capture = container.querySelector<HTMLButtonElement>('[data-testid="composer-capture-button"]')!;
 
-    expect(controls.indexOf(mask)).toBeLessThan(controls.indexOf(capture));
+    expect(controls.indexOf(optimizer)).toBeLessThan(controls.indexOf(mask));
     expect(mask.getAttribute('aria-pressed')).toBe('false');
-    expect(hostContainsIcon(container, 'composer-mask-toggle', 'image-size')).toBe(true);
+    expect(mask.getAttribute('aria-label')).toBe('蒙版：关闭');
+    expect(hostContainsIcon(container, 'composer-mask-toggle', 'mask-off')).toBe(true);
+    expect(container.querySelector('.cmp-meta-row [data-testid="composer-readiness-status"]')).not.toBeNull();
+    expect(container.querySelector('.cmp-meta-row [data-testid="main-billing-summary"]')).not.toBeNull();
     expect(COMPOSER_CSS).toContain('.cmp-capture,\n.cmp-mask-toggle');
-    expect(COMPOSER_CSS).toContain('.cmp-balance-pill-unit{ margin-left:4px; }');
+    expect(COMPOSER_CSS).toContain('.cmp-meta-row');
+    expect(APP_MESSAGES.en.main.maskToggleLabel(false)).toBe('Mask: off');
+    expect(APP_MESSAGES.en.main.maskToggleLabel(true)).toBe('Mask: on');
   });
 
   it('uses the same archetype rules on Provider Output Settings', async () => {
@@ -143,6 +149,9 @@ describe('generation settings UI archetypes', () => {
     expect(container.querySelector('[data-primary-scroll="true"]')).not.toBeNull();
     expect(container.querySelector('.ui-page-header')).not.toBeNull();
     expect(container.querySelector('.ui-settings-form-section')).not.toBeNull();
+    expect(container.querySelector('.ui-page-header h1')?.textContent).toBe('Provider 输出');
+    expect(container.querySelector('.ui-settings-form-section h2')?.textContent).toBe('参数配置');
+    expect(container.querySelector('.generation-settings-section-hint')).toBeNull();
     expect(container.querySelector('[data-testid="global-output-size-selector"]')).not.toBeNull();
     expect(container.querySelector('[data-testid="global-output-format-selector"]')).not.toBeNull();
     expect(container.querySelector('[data-testid="global-aspect-ratio-selector"]')).toBeNull();

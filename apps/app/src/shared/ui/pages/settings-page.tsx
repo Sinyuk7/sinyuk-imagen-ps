@@ -7,7 +7,7 @@ import { useAppServices } from '../../ports/app-services-context';
 import { useI18n } from '../i18n/i18n-context';
 import type { ComfyUiManagementController } from '../hooks/use-comfyui-management';
 import type { SettingsTab } from '../settings-route';
-import { Button, Checkbox, FieldGroup, FooterActions, HelpText, Icon, IconButton, List, ListStateItem, PageFrame, PageHeader, PageScroll, SegmentedTabs, SettingsFormSection, SettingsListRow, SettingsListSection, StatusNotice, TextField, TextSelect } from '../ui-system';
+import { Button, Checkbox, FieldGroup, HelpText, Icon, IconButton, List, ListStateItem, PageFrame, PageHeader, PageScroll, SegmentedTabs, SettingsFormSection, SettingsListRow, SettingsListSection, StatusNotice, TextField, TextSelect } from '../ui-system';
 
 interface SettingsPageProps {
   readonly activeTab: SettingsTab;
@@ -69,18 +69,10 @@ function ProviderListItem({
       watch={`${profile.profileId}:${profile.updatedAt}:${modelCount}`}
       title={row.displayName}
       leading={<div className="prov-ico">{row.displayName.slice(0, 2).toUpperCase()}</div>}
-      meta={(
-        <>
-          <span className="prov-family">{apiFormatMetaLabel(row.apiFormat)}</span>
-          <span className="prov-meta-sep">·</span>
-          <span className="prov-family">{host ?? t.common.needsSetup}</span>
-        </>
-      )}
+      meta={<span className="prov-family provider-row-meta">{apiFormatMetaLabel(row.apiFormat)} · {host ?? t.common.needsSetup}</span>}
       end={(
-        <div className={`prov-readiness ${configured ? 'untested' : 'warning'}`} aria-label={configured ? t.settings.notTested : t.common.needsSetup}>
-          <span className="prov-status-text">{t.settings.configuredModelCount(modelCount)}</span>
+        <div className={`prov-readiness prov-readiness-compact ${configured ? 'untested' : 'warning'}`} role="status" aria-label={configured ? t.settings.notTested : t.common.needsSetup}>
           <span className="prov-readiness-dot" aria-hidden="true" />
-          <span className="prov-status-text">{configured ? t.settings.notTested : t.common.needsSetup}</span>
         </div>
       )}
       onOpen={onOpen}
@@ -107,14 +99,14 @@ function ProviderRoot({
   return (
     <div>
       <div className="settings-detail-layout">
-        <SettingsListSection title={t.settings.providerOutput}>
+        <SettingsListSection>
           <List aria-label={t.settings.providerOutput}>
             <SettingsListRow
               testId="provider-output-settings-row"
               title={t.settings.providerOutput}
               special
               leading={<div className="prov-ico"><Icon name="settings" size={14} /></div>}
-              meta={<span className="prov-summary-mono">{t.settings.providerOutputSummary}</span>}
+              meta={<span className="prov-summary">{t.settings.providerOutputSummary}</span>}
               onOpen={onOpenOutput}
             />
           </List>
@@ -143,12 +135,12 @@ function GeneralRoot({
   return (
     <div>
       <div className="settings-detail-layout">
-        <SettingsListSection title={t.settings.globalSettings}>
+        <SettingsListSection>
           <List aria-label={t.settings.globalSettings}>
             <SettingsListRow testId="global-settings-row" title={t.settings.globalSettings} special leading={<div className="prov-ico"><Icon name="settings" size={14} /></div>} meta={<span className="prov-summary">{t.settings.globalSettingsSummary}</span>} onOpen={onOpenGlobalSettings} />
           </List>
         </SettingsListSection>
-        <SettingsListSection title={t.settings.promptSettings}>
+        <SettingsListSection>
           <List aria-label={t.settings.promptSettings}>
             <SettingsListRow testId="prompt-settings-row" title={t.settings.promptSettings} special leading={<div className="prov-ico"><Icon name="pencil" size={14} /></div>} meta={<span className="prov-summary">{t.settings.promptSettingsSummary}</span>} onOpen={onOpenPromptSettings} />
           </List>
@@ -193,29 +185,35 @@ function ComfyUiRoot({
 
   if (picker) {
     return (
-      <div data-testid="comfyui-workflow-picker">
+      <div className="comfyui-workflow-picker" data-testid="comfyui-workflow-picker">
         <div className="settings-detail-layout">
-          <PageHeader title="Workflow" back={<IconButton className="settings-icon-button" quiet icon={<Icon name="chevron-left" />} tooltip={t.common.back} onClick={() => setPicker(false)} />} />
-          <TextField aria-label="Search workflows" data-testid="comfyui-workflow-search" className="field-input" type="search" value={search} onValue={setSearch} />
-          {controller.catalog.length === 0 ? (
-            <SettingsListSection title="Workflow">
+          <SettingsFormSection
+            title={(
+              <span className="comfyui-workflow-picker-heading">
+                <IconButton data-testid="comfyui-workflow-picker-back" className="settings-icon-button" quiet icon={<Icon name="chevron-left" />} tooltip={t.common.back} onClick={() => setPicker(false)} />
+                <span>Workflow</span>
+              </span>
+            )}
+            testId="comfyui-workflow-picker-section"
+          >
+            <TextField aria-label="Search workflows" placeholder="Search workflows" data-testid="comfyui-workflow-search" className="field-input" type="search" value={search} onValue={setSearch} />
+            {controller.catalog.length === 0 ? (
               <List aria-label="Workflow">
                 <ListStateItem data-testid="comfyui-workflow-empty" kind="empty" title={t.settings.comfyUiNoWorkflowSelected} />
               </List>
-            </SettingsListSection>
-          ) : filtered.length === 0 ? (
-            <SettingsListSection title="Workflow">
+            ) : filtered.length === 0 ? (
               <List aria-label="Workflow">
                 <ListStateItem data-testid="comfyui-workflow-search-empty" kind="empty" title={t.settings.comfyUiNoWorkflowSelected} />
               </List>
-            </SettingsListSection>
-          ) : Array.from(groups.entries()).map(([group, items]) => (
-            <SettingsListSection key={group} title={group} testId={`comfyui-workflow-group-${group}`}>
-              <List aria-label={group}>
-                {items.map((item) => <SettingsListRow key={item.workflowId} testId={`comfyui-workflow-option-${item.workflowId}`} title={item.displayName} leading={<div className="prov-ico"><Icon name="algorithm" size={14} /></div>} meta={<span className="prov-summary-mono">{item.remotePath}</span>} onOpen={() => { void controller.selectWorkflow(item.workflowId).then(() => { setPicker(false); }); }} />)}
-              </List>
-            </SettingsListSection>
-          ))}
+            ) : Array.from(groups.entries()).map(([group, items]) => (
+              <div key={group} className="comfyui-workflow-picker-group" data-testid={`comfyui-workflow-group-${group}`}>
+                <h3 className="comfyui-workflow-picker-group-title">{group}</h3>
+                <List aria-label={group}>
+                  {items.map((item) => <SettingsListRow key={item.workflowId} testId={`comfyui-workflow-option-${item.workflowId}`} title={item.displayName} leading={<div className="prov-ico"><Icon name="algorithm" size={14} /></div>} meta={<span className="prov-summary">{item.remotePath}</span>} onOpen={() => { void controller.selectWorkflow(item.workflowId).then(() => { setPicker(false); }); }} />)}
+                </List>
+              </div>
+            ))}
+          </SettingsFormSection>
         </div>
       </div>
     );
@@ -225,17 +223,20 @@ function ComfyUiRoot({
     <div>
       <div className="settings-detail-layout" data-testid="comfyui-settings-root">
         <SettingsFormSection title={t.settings.comfyUiConnection} testId="comfyui-connection-section">
-          <FieldGroup label={t.settings.comfyUiAddress} htmlFor="comfyui-address">
-            <div className="settings-field-action-row">
-              <TextField id="comfyui-address" data-testid="comfyui-address" className="field-input" value={address} onValue={onAddressChange} />
-              <Button data-testid="comfyui-connect" disabled={controller.busy || !address.trim()} onClick={() => void controller.saveBaseUrl(address)}>Connect</Button>
-            </div>
-            {controller.baseUrl ? <HelpText data-testid="comfyui-connection-status" className="field-hint">{controller.error ?? controller.baseUrl}</HelpText> : null}
-          </FieldGroup>
+          <div className="comfyui-connection-field">
+            <FieldGroup label={t.settings.comfyUiAddress} htmlFor="comfyui-address">
+              <div className="settings-field-action-row comfyui-connection-controls">
+                <TextField id="comfyui-address" data-testid="comfyui-address" className="field-input" value={address} onValue={onAddressChange} />
+                <Button data-testid="comfyui-connect" disabled={controller.busy || !address.trim()} onClick={() => void controller.saveBaseUrl(address)}>Connect</Button>
+              </div>
+              {controller.baseUrl ? <HelpText data-testid="comfyui-connection-status" className="field-hint">{controller.error ?? controller.baseUrl}</HelpText> : null}
+            </FieldGroup>
+          </div>
         </SettingsFormSection>
         <SettingsFormSection title={t.settings.comfyUiCurrentWorkflow} testId="comfyui-current-workflow-section">
-          <SettingsListRow testId="comfyui-change-workflow" title={current?.displayName ?? t.settings.comfyUiChooseWorkflow} leading={<div className="prov-ico"><Icon name="algorithm" size={14} /></div>} meta={<span className="prov-summary-mono">{current?.remotePath ?? t.settings.comfyUiNoWorkflowSelected}</span>} onOpen={() => setPicker(true)} />
-          {current ? <FooterActions><Button data-testid="comfyui-refresh-workflow" onClick={() => void controller.refresh()}>Refresh</Button><Button data-testid="comfyui-open-workflow" onClick={() => void controller.openInComfyUi()}>Open in ComfyUI</Button></FooterActions> : null}
+          <List className="comfyui-workflow-list" aria-label={t.settings.comfyUiCurrentWorkflow}>
+            <SettingsListRow testId="comfyui-change-workflow" title={current?.displayName ?? t.settings.comfyUiChooseWorkflow} leading={<div className="prov-ico"><Icon name="algorithm" size={14} /></div>} meta={<span className="prov-summary">{current?.remotePath ?? t.settings.comfyUiNoWorkflowSelected}</span>} onOpen={() => setPicker(true)} />
+          </List>
         </SettingsFormSection>
         {mapping?.showSection ? <SettingsFormSection title="Input Mapping" testId="comfyui-input-mapping">{(['text', 'image'] as const).map((kind) => {
           const state = mapping[kind]; const candidates = kind === 'text' ? mapping.textCandidates : mapping.imageCandidates;
@@ -267,11 +268,16 @@ export function SettingsPage(props: SettingsPageProps) {
     })).then((entries) => { if (sequence === sequenceRef.current) setModelCounts(new Map(entries)); }).catch(() => { if (sequence === sequenceRef.current) setModelCounts(new Map()); });
   }, [props.profiles, services]);
   const title = props.activeTab === 'provider' ? t.common.provider : props.activeTab === 'comfyui' ? t.settings.comfyUi : t.settings.configuration;
+  const right = props.activeTab === 'provider'
+    ? <IconButton data-testid="providers-add-button" className="hdr-btn" quiet icon={<Icon name="add" />} tooltip={t.common.addProvider} onClick={props.onOpenProviderNew} />
+    : props.activeTab === 'comfyui' && props.comfyUi.runtime
+      ? <><IconButton data-testid="comfyui-refresh-workflow" className="hdr-btn" quiet icon={<Icon name="refresh" />} tooltip={t.common.refresh} onClick={() => void props.comfyUi.refresh()} /><IconButton data-testid="comfyui-open-workflow" className="hdr-btn" quiet icon={<Icon name="arrow-right" />} tooltip="Open in ComfyUI" onClick={() => void props.comfyUi.openInComfyUi()} /></>
+      : undefined;
   return (
     <PageFrame watch="settings">
       <div className="settings-page">
-      <PageHeader title={title} backLabel={t.common.back} backTestId="settings-back-button" onBack={props.onBack} right={props.activeTab === 'provider' ? <IconButton data-testid="providers-add-button" className="hdr-btn" quiet icon={<Icon name="add" />} tooltip={t.common.addProvider} onClick={props.onOpenProviderNew} /> : undefined} />
-      <SegmentedTabs tabs={[{ id: 'provider', label: t.common.provider, testId: 'settings-backend-provider' }, { id: 'comfyui', label: t.settings.comfyUi, testId: 'settings-backend-comfyui' }, { id: 'general', label: t.settings.configuration, testId: 'settings-backend-general' }]} selectedId={props.activeTab} onSelect={(tab) => props.onSelectTab(tab as SettingsTab)} />
+      <PageHeader title={title} backLabel={t.common.back} backTestId="settings-back-button" onBack={props.onBack} right={right} />
+      <SegmentedTabs className="settings-backend-segments" tabs={[{ id: 'provider', label: t.common.provider, testId: 'settings-backend-provider' }, { id: 'comfyui', label: t.settings.comfyUi, testId: 'settings-backend-comfyui' }, { id: 'general', label: t.settings.configuration, testId: 'settings-backend-general' }]} selectedId={props.activeTab} onSelect={(tab) => props.onSelectTab(tab as SettingsTab)} />
       <PageScroll>
         {props.activeTab === 'provider' ? <ProviderRoot profiles={props.profiles} loading={props.loading} error={props.error} modelCounts={modelCounts} onOpenOutput={props.onOpenProviderOutput} onOpenProfile={props.onOpenProfile} /> : null}
         {props.activeTab === 'general' ? <GeneralRoot onOpenGlobalSettings={props.onOpenGlobalSettings} onOpenPromptSettings={props.onOpenPromptSettings} /> : null}

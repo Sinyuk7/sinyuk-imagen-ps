@@ -73,4 +73,9 @@ describe('shared list primitives', () => {
     expect(row.getAttribute('tabindex')).toBe('-1');
     expect(row.querySelector('.prov-trail')).toBeNull();
   });
+
+  it('can omit a navigation chevron for rows with a trailing action', async () => {
+    const container = await render(<SettingsListRow title="Copy path" leading={<span>C</span>} end={<button type="button">Copy</button>} trailingChevron={false} onOpen={() => undefined} />);
+    expect(container.querySelector('[data-icon-name="chevron-right"]')).toBeNull();
+  });
 });

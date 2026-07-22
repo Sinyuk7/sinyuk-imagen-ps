@@ -129,6 +129,7 @@ export const NATIVE_CONTROLS_CSS = `
   outline-offset:1px;
 }
 .ui-btn:disabled,
+.ui-btn[data-disabled="true"],
 .ui-action-button:disabled{
   opacity:.45;
   cursor:not-allowed;

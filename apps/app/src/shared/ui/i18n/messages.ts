@@ -92,6 +92,7 @@ export interface AppMessages {
     readonly captureLayer: string;
     readonly captureSelection: string;
     readonly mask: string;
+    readonly maskToggleLabel: (enabled: boolean) => string;
     readonly maskLoading: string;
     readonly maskReady: string;
     readonly maskNone: string;
@@ -366,6 +367,8 @@ export interface AppMessages {
     readonly optimizerProfile: string;
     readonly none: string;
     readonly optimizationTemplate: string;
+    readonly templatePlaceholder: string;
+    readonly templateInputHint: string;
     readonly templateValid: string;
     readonly templateInvalidReason: string;
     readonly optimizationActive: string;
@@ -522,6 +525,7 @@ const EN_MESSAGES: AppMessages = {
     captureLayer: 'Photoshop layer capture',
     captureSelection: 'Photoshop selection capture',
     mask: 'Mask',
+    maskToggleLabel: (enabled) => `Mask: ${enabled ? 'on' : 'off'}`,
     maskLoading: 'Preparing mask',
     maskReady: 'Mask ready',
     maskNone: 'No mask on primary image',
@@ -805,6 +809,8 @@ const EN_MESSAGES: AppMessages = {
     optimizerProfile: 'Profile',
     none: 'None',
     optimizationTemplate: 'Template',
+    templatePlaceholder: 'Write instructions and include {prompt}',
+    templateInputHint: 'Instructions + {prompt} placeholder',
     templateValid: 'Template valid ( •̀ ω •́ )✧',
     templateInvalidReason: 'Keep exactly one {prompt}.',
     optimizationActive: 'Active',
@@ -829,7 +835,7 @@ const EN_MESSAGES: AppMessages = {
     selectProfileToEnable: 'Select a profile to enable.',
     systemInstructions: 'System instructions',
     systemInstructionsHint: 'Optional tone and style instructions for the model.',
-    outputGroup: 'Output',
+    outputGroup: 'Parameters',
     inputGroup: 'Input',
     outputSize: 'Output size',
     outputSizeRequiresMainComposerContext: 'Change output size in the main composer.',
@@ -961,6 +967,7 @@ const ZH_CN_MESSAGES: AppMessages = {
     captureLayer: '图层捕获',
     captureSelection: '选区捕获',
     mask: '蒙版',
+    maskToggleLabel: (enabled) => `蒙版：${enabled ? '开启' : '关闭'}`,
     maskLoading: '正在准备蒙版',
     maskReady: '蒙版已就绪',
     maskNone: '主图没有蒙版',
@@ -1244,6 +1251,8 @@ const ZH_CN_MESSAGES: AppMessages = {
     optimizerProfile: 'Provider 配置',
     none: '无',
     optimizationTemplate: '模板',
+    templatePlaceholder: '输入提示词，并保留 {prompt} 占位符',
+    templateInputHint: '提示词 + {prompt} 占位符',
     templateValid: '模板有效 ( •̀ ω •́ )✧',
     templateInvalidReason: '仅保留一个 {prompt}。',
     optimizationActive: '已启用',
@@ -1268,7 +1277,7 @@ const ZH_CN_MESSAGES: AppMessages = {
     selectProfileToEnable: '选择 Provider 配置后启用。',
     systemInstructions: '系统指令',
     systemInstructionsHint: '可选语气与风格指令。',
-    outputGroup: '输出',
+    outputGroup: '参数配置',
     inputGroup: '输入',
     outputSize: '输出尺寸',
     outputSizeRequiresMainComposerContext: '请在主编辑区修改。',

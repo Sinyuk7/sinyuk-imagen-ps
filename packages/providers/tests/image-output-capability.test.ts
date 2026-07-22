@@ -8,6 +8,8 @@ import {
   type ImageOutputSelection,
 } from '../src/index.js';
 import { GEMINI_GENERATE_CONTENT_MODEL_CAPABILITIES } from '../src/contract/image-model-catalog/rules/gemini-generate-content.js';
+import { buildChatImageRequest } from '../src/transport/chat-image/build-request.js';
+import { chatImageModel } from './model-execution.js';
 
 const REPO_ROOT = resolve(import.meta.dirname, '..', '..', '..');
 const SCAN_EXTENSIONS = new Set(['.ts', '.tsx', '.md', '.json']);
@@ -84,6 +86,36 @@ describe('image output capability contract', () => {
 
   it('declares Gemini ratio-resolution truth as native dimensions', () => {
     const preset = getOfficialModelPreset('gemini-generate-content', 'gemini-3.1-flash-image');
+
+    expect(preset?.outputCapability.geometry).toMatchObject({
+      kind: 'ratio-resolution',
+      aspectRatios: ['1:1', '1:4', '1:8', '2:3', '3:2', '3:4', '4:1', '4:3', '4:5', '5:4', '8:1', '9:16', '16:9', '21:9'],
+      resolutions: ['512', '1k', '2k', '4k'],
+    });
+    expect(preset?.outputExposure).toMatchObject({
+      kind: 'ratio-resolution',
+      aspectRatios: ['1:1', '1:4', '1:8', '2:3', '3:2', '3:4', '4:1', '4:3', '4:5', '5:4', '8:1', '9:16', '16:9', '21:9'],
+      resolutions: ['512', '1k', '2k', '4k'],
+    });
+  });
+
+  it('declares Chat Image Gemini Pro ratio-resolution truth as native dimensions', () => {
+    const preset = getOfficialModelPreset('openai-chat-completions', 'gemini-3-pro-image');
+
+    expect(preset?.outputCapability.geometry).toMatchObject({
+      kind: 'ratio-resolution',
+      aspectRatios: ['1:1', '2:3', '3:2', '3:4', '4:3', '4:5', '5:4', '9:16', '16:9', '21:9'],
+      resolutions: ['1k', '2k', '4k'],
+    });
+    expect(preset?.outputExposure).toMatchObject({
+      kind: 'ratio-resolution',
+      aspectRatios: ['1:1', '2:3', '3:2', '3:4', '4:3', '4:5', '5:4', '9:16', '16:9', '21:9'],
+      resolutions: ['1k', '2k', '4k'],
+    });
+  });
+
+  it('declares Chat Image Gemini Flash ratio-resolution truth as native dimensions', () => {
+    const preset = getOfficialModelPreset('openai-chat-completions', 'gemini-3.1-flash-image');
 
     expect(preset?.outputCapability.geometry).toMatchObject({
       kind: 'ratio-resolution',
@@ -200,6 +232,31 @@ describe('image output capability contract', () => {
         imageSize: '512',
         aspectRatio: '1:8',
       },
+    });
+  });
+
+  it('serializes non-basic Gemini Flash ratios through Chat Image image_config', () => {
+    const built = buildChatImageRequest({
+      operation: 'text_to_image',
+      prompt: 'A wide mountain panorama',
+      capabilityModelId: 'gemini-3.1-flash-image',
+      model: chatImageModel('gemini-3.1-flash-image'),
+      output: {
+        selection: {
+          geometry: {
+            kind: 'ratio-resolution',
+            resolution: '512',
+            aspectRatio: '1:8',
+          },
+          outputFormat: 'png',
+        },
+      },
+    });
+
+    expect(built.body.image_config).toEqual({
+      size: '512',
+      aspect_ratio: '1:8',
+      output_format: 'png',
     });
   });
 

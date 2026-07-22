@@ -2,9 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import type { ProfileModelItem, ProviderProfile } from '@imagen-ps/application';
 import { useAppServices } from '../../ports/app-services-context';
 import { useI18n } from '../i18n/i18n-context';
-import { configurationInstanceLabel, modelInfoFromProfileItem } from '../model-info';
 import {
-  Button,
   HelpText,
   Icon,
   IconButton,
@@ -14,7 +12,6 @@ import {
   PageScroll,
   ProviderSettingsPageHeader,
   SettingsListRow,
-  SettingsListSection,
   useToast,
 } from '../ui-system';
 
@@ -110,99 +107,97 @@ export function ProfileModelsPage({ profile, onBack, onCreate, onEdit, onSuggest
       <div className="page page-enter settings-page">
         <ProviderSettingsPageHeader
           backButtonTestId="profile-models-back-button"
-          title={<div className="hdr-title">{t.settings.modelConfiguration}</div>}
+          title={<div className="hdr-title">{profile.displayName}</div>}
           onBack={onBack}
+          sideClassName="profile-models-header-actions"
+          rightClassName="profile-models-header-actions"
           rightSlot={(
-            <IconButton
-              data-testid="profile-models-add-button"
-              className="hdr-btn"
-              quiet
-              icon={<Icon name="add" />}
-              tooltip={t.settings.addNewModel}
-              onClick={onCreate}
-            />
+            <>
+              <IconButton
+                data-testid="profile-models-refresh-button"
+                className="hdr-btn profile-models-header-refresh"
+                quiet
+                icon={<Icon name={refreshing ? 'spinner' : 'refresh'} />}
+                tooltip={refreshing ? t.settings.refreshingModels : t.settings.refreshModels}
+                disabled={refreshing}
+                onClick={() => void refreshSuggestions()}
+              />
+              <IconButton
+                data-testid="profile-models-add-button"
+                className="hdr-btn profile-models-header-add"
+                quiet
+                icon={<Icon name="add" />}
+                tooltip={t.settings.addNewModel}
+                onClick={onCreate}
+              />
+            </>
           )}
         />
         <PageScroll>
           <div className="settings-detail-layout settings-detail-layout-editor">
-            <SettingsListSection title={profile.displayName} testId="profile-models-list-section">
-            <div className="settings-inline-heading-row model-config-list-heading">
-              <span aria-hidden="true" />
-              <Button
-                className="btn-secondary"
-                disabled={refreshing}
-                onClick={() => void refreshSuggestions()}
-              >
-                {refreshing ? t.settings.refreshingModels : t.settings.refreshModels}
-              </Button>
-            </div>
-            <HelpText className="field-hint model-config-list-hint">{t.settings.modelConfigurationHint}</HelpText>
-            <List className="model-config-list" aria-label={t.settings.modelConfiguration}>
-              {loading && models.length === 0 ? (
-                <ListStateItem data-testid="profile-model-list-loading" kind="loading" title={t.common.loading} />
-              ) : null}
-              {!loading && listError && models.length === 0 ? (
-                <ListStateItem
-                  action={{ label: t.common.refresh, onPress: () => void reload() }}
-                  data-testid="profile-model-list-error"
-                  description={listError}
-                  kind="error"
-                />
-              ) : null}
-              {!loading && !listError && models.length === 0 ? (
-                <ListStateItem
-                  data-testid="profile-model-empty-notice"
-                  description={t.settings.modelConfigurationSaveHint}
-                  kind="empty"
-                  title={t.settings.modelConfigurationEmpty}
-                />
-              ) : null}
-              {!loading && !listError ? models.map((model) => {
-                const label = configurationInstanceLabel(modelInfoFromProfileItem(model));
-                return (
-                  <SettingsListRow
-                    key={model.modelId}
-                    testId={`profile-model-row-${model.modelId}`}
-                    title={label}
-                    leading={(
-                      <div className="prov-ico profile-model-avatar">
-                        <span>{modelAvatarLabel(model.modelId)}</span>
-                      </div>
-                    )}
-                    meta={(
-                      <>
-                        <span className="prov-model model-config-meta-primary">{model.wireModelId ?? model.modelId}</span>
-                        <span className="prov-meta-sep" aria-hidden="true">·</span>
-                        <span className="prov-family model-config-meta-secondary">{profile.apiFormat}</span>
-                      </>
-                    )}
-                    onOpen={() => onEdit(model.modelId)}
+            <section className="ui-settings-list-section profile-models-list-section" data-testid="profile-models-list-section">
+              <HelpText className="field-hint model-config-list-hint">{t.settings.modelConfigurationHint}</HelpText>
+              <List className="model-config-list" aria-label={t.settings.modelConfiguration}>
+                {loading && models.length === 0 ? (
+                  <ListStateItem data-testid="profile-model-list-loading" kind="loading" title={t.common.loading} />
+                ) : null}
+                {!loading && listError && models.length === 0 ? (
+                  <ListStateItem
+                    action={{ label: t.common.refresh, onPress: () => void reload() }}
+                    data-testid="profile-model-list-error"
+                    description={listError}
+                    kind="error"
                   />
-                );
-              }) : null}
-            </List>
-            {visibleSuggestions.length > 0 ? (
-              <>
-                <div className="sec-lbl">{t.settings.discoveredModels}</div>
-                <List className="model-config-list" aria-label={t.settings.discoveredModels}>
-                  {visibleSuggestions.map((modelId) => (
+                ) : null}
+                {!loading && !listError && models.length === 0 ? (
+                  <ListStateItem
+                    data-testid="profile-model-empty-notice"
+                    description={t.settings.modelConfigurationSaveHint}
+                    kind="empty"
+                    title={t.settings.modelConfigurationEmpty}
+                  />
+                ) : null}
+                {!loading && !listError ? models.map((model) => {
+                  const wireModelId = model.wireModelId ?? model.modelId;
+                  const displayName = model.displayName?.trim();
+                  return (
                     <SettingsListRow
-                      key={modelId}
-                      testId={`profile-model-suggestion-row-${modelId}`}
-                      title={modelId}
+                      key={model.modelId}
+                      testId={`profile-model-row-${model.modelId}`}
+                      title={wireModelId}
                       leading={(
-                        <div className="prov-ico profile-model-avatar profile-model-avatar-suggestion">
-                          <Icon name="magic-wand" size={14} />
+                        <div className="prov-ico profile-model-avatar">
+                          <span>{modelAvatarLabel(model.modelId)}</span>
                         </div>
                       )}
-                      meta={<span className="prov-summary">{t.settings.discoverySuggestion}</span>}
-                      onOpen={() => onSuggestion(modelId)}
+                      meta={displayName ? <span className="model-config-meta-note">{displayName}</span> : undefined}
+                      onOpen={() => onEdit(model.modelId)}
                     />
-                  ))}
-                </List>
-              </>
-            ) : null}
-            </SettingsListSection>
+                  );
+                }) : null}
+              </List>
+              {visibleSuggestions.length > 0 ? (
+                <>
+                  <div className="sec-lbl">{t.settings.discoveredModels}</div>
+                  <List className="model-config-list" aria-label={t.settings.discoveredModels}>
+                    {visibleSuggestions.map((modelId) => (
+                      <SettingsListRow
+                        key={modelId}
+                        testId={`profile-model-suggestion-row-${modelId}`}
+                        title={modelId}
+                        leading={(
+                          <div className="prov-ico profile-model-avatar profile-model-avatar-suggestion">
+                            <Icon name="magic-wand" size={14} />
+                          </div>
+                        )}
+                        meta={<span className="prov-summary">{t.settings.discoverySuggestion}</span>}
+                        onOpen={() => onSuggestion(modelId)}
+                      />
+                    ))}
+                  </List>
+                </>
+              ) : null}
+            </section>
           </div>
         </PageScroll>
       </div>
