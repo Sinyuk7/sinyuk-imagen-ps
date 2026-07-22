@@ -112,6 +112,7 @@ export interface AppMessages {
     readonly outputSizeAutoChanged: (from: string, to: string) => string;
     readonly billingSummary: string;
     readonly billingUnknown: string;
+    readonly billingNotAvailable: string;
     readonly billingCost: string;
     readonly billingObservedChange: string;
     readonly billingLastCost: string;
@@ -545,6 +546,7 @@ const EN_MESSAGES: AppMessages = {
     outputSizeAutoChanged: (from, to) => `${from} is unavailable; switched to ${to}`,
     billingSummary: 'Balance',
     billingUnknown: 'Balance unavailable',
+    billingNotAvailable: 'N/A',
     billingCost: 'Cost',
     billingObservedChange: 'Observed balance change',
     billingLastCost: 'Last exact cost',
@@ -987,6 +989,7 @@ const ZH_CN_MESSAGES: AppMessages = {
     outputSizeAutoChanged: (from, to) => `${from} 不可用，已切换为 ${to}`,
     billingSummary: '余额',
     billingUnknown: '余额不可用',
+    billingNotAvailable: 'N/A',
     billingCost: '费用',
     billingObservedChange: '余额变化',
     billingLastCost: '上次费用',

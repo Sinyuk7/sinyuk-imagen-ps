@@ -18,7 +18,7 @@ function optionIds(testId: string): readonly string[] {
 function hostContainsIcon(container: HTMLElement, testId: string, iconName: string): boolean {
   const trigger = container.querySelector<HTMLElement>(`[data-testid="${testId}"]`);
   const host = trigger?.closest('.ui-overlay-icon-host');
-  return host?.querySelector(`[data-icon-name="${iconName}"]`) !== null;
+  return host?.querySelector(`[data-icon-name="${iconName}"]`) != null;
 }
 
 async function openSelect(container: HTMLElement, testId: string): Promise<void> {
@@ -108,7 +108,7 @@ describe('generation settings UI archetypes', () => {
     expect(hostContainsIcon(container, 'composer-output-ratio-selector', 'aspect-ratio')).toBe(true);
   });
 
-  it('keeps Prompt Optimizer before the mask toggle and aligns billing with readiness', async () => {
+  it('keeps Prompt Optimizer before the mask toggle and lowers billing into the footer', async () => {
     const container = document.createElement('div');
     document.body.appendChild(container);
     await renderReadyMain(container);
@@ -121,13 +121,26 @@ describe('generation settings UI archetypes', () => {
     expect(controls.indexOf(optimizer)).toBeLessThan(controls.indexOf(mask));
     expect(mask.getAttribute('aria-pressed')).toBe('false');
     expect(mask.getAttribute('aria-label')).toBe('蒙版：关闭');
+    expect(mask.disabled).toBe(false);
     expect(hostContainsIcon(container, 'composer-mask-toggle', 'mask-off')).toBe(true);
-    expect(container.querySelector('.cmp-meta-row [data-testid="composer-readiness-status"]')).not.toBeNull();
-    expect(container.querySelector('.cmp-meta-row [data-testid="main-billing-summary"]')).not.toBeNull();
+    expect(container.querySelector('.cmp-footer .cmp-meta-row [data-testid="main-billing-summary"]')).not.toBeNull();
+    expect(container.querySelector('[data-testid="main-billing-summary"] [data-icon-name="billing"]')).not.toBeNull();
+    expect(container.querySelector<SVGElement>('[data-testid="main-billing-summary"] [data-icon-name="billing"]')?.getAttribute('height')).toBe('16');
     expect(COMPOSER_CSS).toContain('.cmp-capture,\n.cmp-mask-toggle');
-    expect(COMPOSER_CSS).toContain('.cmp-meta-row');
+    expect(COMPOSER_CSS).toContain('.cmp-footer');
+    expect(container.querySelector('[data-testid="composer-readiness-status"]')).toBeNull();
+    expect(container.querySelector('.cmp-footer-divider')).not.toBeNull();
     expect(APP_MESSAGES.en.main.maskToggleLabel(false)).toBe('Mask: off');
     expect(APP_MESSAGES.en.main.maskToggleLabel(true)).toBe('Mask: on');
+
+    await act(async () => {
+      mask.click();
+    });
+    await flush();
+
+    expect(mask.getAttribute('aria-pressed')).toBe('true');
+    expect(mask.getAttribute('aria-label')).toBe('蒙版：开启');
+    expect(hostContainsIcon(container, 'composer-mask-toggle', 'mask-on-filled')).toBe(true);
   });
 
   it('uses the same archetype rules on Provider Output Settings', async () => {

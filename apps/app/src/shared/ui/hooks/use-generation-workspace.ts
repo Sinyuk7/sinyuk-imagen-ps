@@ -50,14 +50,12 @@ export interface GenerationWorkspaceOptions {
   readonly modelGenerationSettings: ModelGenerationSettingsController;
 }
 
-/** Composer 只在当前 execution target 能消费 canonical Mask 时启用开关。 */
+/** Composer 在当前 execution target 可以消费 canonical Mask 时允许预设开关。 */
 export function isMaskToggleDisabled(input: {
-  readonly hasPhotoshopPrimary: boolean;
   readonly mode: GenerationMode;
   readonly providerPlan: MaskExecutionPlan;
 }): boolean {
-  return !input.hasPhotoshopPrimary
-    || (input.mode === 'provider' && input.providerPlan.kind !== 'provider-native');
+  return input.mode === 'provider' && input.providerPlan.kind !== 'provider-native';
 }
 
 function readinessMessage(messages: ReturnType<typeof useI18n>['messages'], state: ComposerReadinessState | 'mask-loading' | 'mask-error'): string {
@@ -141,7 +139,6 @@ export function useGenerationWorkspace(options: GenerationWorkspaceOptions): Gen
     : { kind: 'unsupported' as const, reason: 'no-selected-provider-target' };
   const providerMaskSupported = providerMaskPlan.kind === 'provider-native';
   const maskToggleDisabled = isMaskToggleDisabled({
-    hasPhotoshopPrimary: photoshopPrimary,
     mode: generationMode,
     providerPlan: providerMaskPlan,
   });

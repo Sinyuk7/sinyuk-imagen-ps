@@ -3,7 +3,7 @@ import { useAppServices } from '../../ports/app-services-context';
 import type { HostPort, LayerInfo } from '../../ports/host-port';
 import { suggestedGeneratedImageFileName } from '../../domain/asset-file';
 import { assetToPreview } from '../../domain/mappers';
-import { formatBillingPrimary, formatBillingPrimaryParts } from '../../domain/mappers';
+import { formatBillingPrimary } from '../../domain/mappers';
 import type {
   ConversationAttachment,
   ConversationController,
@@ -28,7 +28,7 @@ import { classifyRoundError, type ErrorPrimaryAction } from '../error-action';
 import type { ImageAspectRatio, ImageOutputImageSize, ImageOutputSelection, ProfileBillingState } from '@imagen-ps/application';
 import { configurationInstanceLabel, type UiModelInfo } from '../model-info';
 import type { GenerationWorkspaceController } from '../generation-workspace';
-import { Button, Icon, IconButton, IconSelect, ImageFallbackContent, imageFallbackTitle, List, ListStateItem, MotionActivityDot, MotionActivityIcon, MotionButtonSurface, MotionContent, MotionDimSurface, MotionHighlight, MotionImage, MotionPresenceView, PageFrame, PageHeader, PageScroll, PageState, ProviderIdentity, ProviderMediaHeader, UxpTextArea, useToast } from '../ui-system';
+import { Button, Divider, HelpText, Icon, IconButton, IconSelect, ImageFallbackContent, imageFallbackTitle, List, ListStateItem, MotionActivityDot, MotionActivityIcon, MotionButtonSurface, MotionContent, MotionDimSurface, MotionHighlight, MotionImage, MotionPresenceView, PageFrame, PageHeader, PageScroll, PageState, ProviderIdentity, ProviderMediaHeader, UxpTextArea, useToast } from '../ui-system';
 
 function isImeCompositionKey(event: React.KeyboardEvent): boolean {
   const nativeEvent = event.nativeEvent as KeyboardEvent & { readonly isComposing?: boolean };
@@ -436,9 +436,7 @@ export function MainPage({
   const selectedDescriptor = selectedProfile ? descriptorForApiFormat(providers, selectedProfile.apiFormat) : undefined;
   const selectedProfileSupportsBalanceQuery = providerSupportsBalanceQuery(selectedDescriptor, selectedProfile ?? null);
   const billing = useProfileBilling(services, selectedProfileId, selectedProfileSupportsBalanceQuery);
-  const billingPrimaryParts = formatBillingPrimaryParts(billing.billing);
-  const billingPrimaryHasNumericEmphasis = billingPrimaryParts ? /\d/.test(billingPrimaryParts.primary) : false;
-  const billingSummaryText = formatBillingPrimary(billing.billing) ?? t.main.billingUnknown;
+  const billingSummaryText = formatBillingPrimary(billing.billing) ?? t.main.billingNotAvailable;
   const billingSummaryTitle = `${t.main.billingSummary}: ${billingSummaryText}`;
   const selectableProfiles = profiles;
   const comfyUiMode = viewModel.mode === 'comfyui';
@@ -507,6 +505,7 @@ export function MainPage({
   const canSend = viewModel.readiness.canSend;
   const composerReadinessState = viewModel.readiness.state;
   const composerReadinessText = viewModel.readiness.message;
+  const showFooterReadiness = composerReadinessState !== 'enter-prompt';
   const imageInputDisabled = viewModel.imageInputDisabled;
   const imageInputDisabledReason = viewModel.imageInputDisabledReason ?? t.main.imageInputDisabledForModel;
   const canCapture = !captureInFlight && !imageInputDisabled;
@@ -1847,7 +1846,6 @@ export function MainPage({
                   }}
                 />
               </div>
-            </div>
             <div className="cmp-action-row" data-testid="composer-action-row">
               <div className="cmp-action-left">
                 <MotionButtonSurface>
@@ -1928,34 +1926,6 @@ export function MainPage({
                 </div>
               </div>
             </div>
-            <div className="cmp-meta-row">
-              <MotionContent watch={composerReadinessState}>
-                <div className="cmp-readiness" data-testid="composer-readiness-status" data-state={composerReadinessState}>
-                  {composerReadinessText}
-                </div>
-              </MotionContent>
-              {viewModel.billingVisible ? <div
-                className="cmp-balance-pill"
-                data-testid="main-billing-summary"
-                title={billingSummaryTitle}
-                aria-label={billingSummaryTitle}
-              >
-                <span className="cmp-balance-pill-main">
-                  <span
-                    className={billingPrimaryHasNumericEmphasis
-                      ? 'cmp-balance-pill-primary cmp-balance-pill-primary-accent'
-                      : 'cmp-balance-pill-primary'}
-                  >
-                    {billingPrimaryParts?.primary ?? t.main.billingUnknown}
-                  </span>
-                  {billingPrimaryParts?.unit && (
-                    <span className="cmp-balance-pill-unit">{billingPrimaryParts.unit}</span>
-                  )}
-                </span>
-                {billingPrimaryParts?.secondary && (
-                  <span className="cmp-balance-pill-secondary">{billingPrimaryParts.secondary}</span>
-                )}
-              </div> : null}
             </div>
             {maskStatusText ? <div className="cmp-readiness" data-testid="composer-mask-status" data-state={workspace.maskState.kind}>{maskStatusText}</div> : null}
             {viewModel.notices.length > 0 ? (
@@ -1964,7 +1934,25 @@ export function MainPage({
               </div>
             ) : null}
           </div>
-          <div className="cmp-toolbar" data-testid="composer-toolbar">
+          <div className="cmp-footer">
+            <div className="cmp-meta-row">
+              <HelpText
+                className="cmp-billing"
+                data-testid="main-billing-summary"
+                title={billingSummaryTitle}
+                aria-label={billingSummaryTitle}
+              >
+                <Icon className="cmp-billing-icon" name="billing" size={16} />
+                <span>{billingSummaryText}</span>
+              </HelpText>
+              {showFooterReadiness ? <MotionContent watch={composerReadinessState}>
+                <HelpText className="cmp-readiness" data-testid="composer-readiness-status" data-state={composerReadinessState}>
+                  {composerReadinessText}
+                </HelpText>
+              </MotionContent> : null}
+            </div>
+            <Divider className="cmp-footer-divider" />
+            <div className="cmp-toolbar" data-testid="composer-toolbar">
             <div
               className="cmp-toolbar-left"
               data-testid="generation-current-target-summary"
@@ -2027,6 +2015,7 @@ export function MainPage({
                 />
               ) : null}
             </div> : null}
+          </div>
           </div>
           </MotionDimSurface>
 

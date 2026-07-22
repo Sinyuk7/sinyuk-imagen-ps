@@ -8,17 +8,14 @@ import { isMaskToggleDisabled } from '../../../src/shared/ui/hooks/use-generatio
 describe('Generation Workspace builders', () => {
   it('keeps a saved Mask preference non-actionable for semantic and unsupported Provider plans', () => {
     expect(isMaskToggleDisabled({
-      hasPhotoshopPrimary: true,
       mode: 'provider',
       providerPlan: { kind: 'semantic-only', reason: 'transport-has-no-separate-raster-mask-field' },
     })).toBe(true);
     expect(isMaskToggleDisabled({
-      hasPhotoshopPrimary: true,
       mode: 'provider',
       providerPlan: { kind: 'unsupported', reason: 'no-explicit-raster-mask-capability' },
     })).toBe(true);
     expect(isMaskToggleDisabled({
-      hasPhotoshopPrimary: true,
       mode: 'provider',
       providerPlan: {
         kind: 'provider-native',
