@@ -4,13 +4,15 @@ This file stores repository engineering context that should stay out of root `AG
 
 ## Project Overview
 
-`sinyuk-imagen-ps` is a Photoshop image-generation monorepo with one surface app and shared runtime/application packages.
+`sinyuk-imagen-ps` is a Photoshop image-generation monorepo with one shipped
+Photoshop UXP app and shared application/runtime packages. Chrome exists only
+as a repo-side functional harness; it is not a second shipped product surface.
 
 ## Module Roles
 
 | Module | Role | Owns | Must Not Own |
 |---|---|---|---|
-| `apps/app` | Photoshop UXP + Chrome app surface | shared React UI, app ports, UXP shell/adapters, Chrome shell/adapters, Photoshop simulator, UI-local bindings | runtime internals, provider transport semantics |
+| `apps/app` | Photoshop UXP product surface and Chrome functional harness | shared React UI, UI state/controllers, app ports, UXP shell/adapters, Chrome shell/adapters, Photoshop simulator, UI-local bindings | runtime internals, provider transport semantics |
 | `packages/application` | application/session layer | `GenerationBackend` policy, Task v2, session orchestration, command facade, runtime assembly, profile/model coordination | React, DOM, Photoshop, UXP, Node fs/path/os |
 | `packages/core-engine` | job execution kernel | job facts, lifecycle, store, events, workflow runner, backend-neutral execution dispatch | Task state, profile/model selection, host persistence, provider raw transport |
 | `packages/providers` | provider adapter layer | stable Provider `ExecutionAdapter`, config/request validation, transport, normalization, error mapping | app/session state, Task projection, job lifecycle, host IO |
@@ -23,12 +25,30 @@ This file stores repository engineering context that should stay out of root `AG
 surface apps -> application/session -> core-engine + providers + execution backends
 ```
 
+## Surface Runtime Boundary
+
+- Photoshop UXP is the only delivery runtime and product host.
+- Both shells consume the same React UI, application state machines, and
+  controllers. Runtime differences belong only in shell composition and host
+  adapters; shared behavior must not fork into Chrome-owned and UXP-owned
+  implementations.
+- Chrome is the fast repo-side functional harness for host-neutral behavior,
+  including application flows, UI state transitions, routing, concurrency,
+  and error recovery. Its evidence applies to the shared implementation, not
+  to Photoshop host compatibility.
+- UXP implementation is evaluated from source, official documentation,
+  contract/fake tests, and builds by default. Real-host acceptance is
+  user-owned; agents do not initiate Photoshop or UXP Developer Tool UI
+  interaction. See `docs/TESTING.md` for validation policy.
+
 ## Current State
 
 - Active loop authority is declared only in root `AGENTS.md`.
 - `packages/application` is the shared application/session package.
 - `apps/app` and `packages/providers` are stable boundaries unless a loop slice explicitly allows changes.
-- `apps/app` is a dual-runtime surface: one shared UXP-safe React UI consumed by a Photoshop UXP shell and a Chrome browser shell. See `apps/app/AGENTS.md`.
+- `apps/app` is one shared UXP-safe React application consumed by the shipped
+  Photoshop UXP shell and the Chrome functional-harness shell. See
+  `apps/app/AGENTS.md`.
 - Image-model discovery and execution are split by boundary. `packages/providers`
   discovery returns only remote model facts, preserving unknown IDs. Official
   model presets live in the provider catalog as `(apiFormat, modelId)` templates
@@ -416,16 +436,15 @@ surface apps -> application/session -> core-engine + providers + execution backe
 - `apps/app/src/shared/ui/ui-system.ts` is the page-facing public UI boundary. Page roots use `PageFrame`, `PageHeader`, and `PageScroll`; settings and list/form states use the matching public patterns. Owner-local components may retain direct internal imports.
 - Page composition policy is AST-based in `scripts/policy/ui-composition.mjs`. It is zero-tolerance for page-level raw native controls, internal UI imports, visual inline styles, raw colors, and direct Material token references. Dynamic page layout values may use only `--ui-*` custom properties inline.
 - Visual layout uses existing `--app-*` and component tokens. Theme-source palettes and generated color outputs are separate authority and must not change during composition migration.
-- The shared `ui-catalog` is rendered by both shells. Chrome visual snapshots prove deterministic catalog and Settings archetypes; fake UXP and real Photoshop are distinct evidence levels.
-
-- Default validation is mock-only and reproducible. It does not prove real Photoshop / UXP host behavior, real provider transport, CORS behavior, or live credential flows.
+- The shared `ui-catalog` is rendered by both shells. Chrome visual snapshots
+  prove deterministic shared catalog composition and Settings archetypes, not
+  Photoshop UXP layout or rendering.
 - Chrome real-provider execution is conditional on browser-compatible transport and provider CORS policy; only the `mock` implementation is repo-side default.
-- UXP host behavior (panel load/reload, layer/mask read, file picker, `placeEvent`, persistence across Photoshop restart) remains manual-only evidence. When host inspection is possible, the default debug/probe surface is `node scripts/uxp-debug/uxp-debug.mjs`; do not treat ad hoc DevTools-only steps as the repo default workflow.
-- Restart/reopen history placement through real Photoshop remains manual-only evidence. Mock tests and Chrome E2E can prove contract behavior, but not real Photoshop document identity after app or host restart.
-- UXP first-frame geometry: Spectrum controls can establish custom element definitions and shadow trees but still report collapsed `0x0` first-frame geometry. This is a Photoshop UXP layout instability, not a missing-registration or late-CSS issue. Future RCA should verify host geometry before trying style-only fixes.
+- Real-host observations may still be needed to prove Photoshop-only behavior,
+  but they are user-owned evidence rather than an autonomous agent gate.
+- UXP first-frame geometry: Spectrum controls can establish custom element definitions and shadow trees but still report collapsed `0x0` first-frame geometry. This is a Photoshop UXP layout instability, not a missing-registration or late-CSS issue. User-supplied real-host geometry is authoritative for this boundary.
 - Provider-output base64 in `job.output` has no size cap; a large provider image exists simultaneously as base64 string, decoded copy, data URL, and decoded pixels. No global full-resolution concurrency cap on input resolve.
 - `apps/app` now applies best-effort retention at shell startup and after successful generation: task history and job history are count-capped, generated output assets use oldest-first high/low watermark eviction, and UXP logs under `logs/YYYY-MM-DD/imagen.jsonl` are bounded by day retention plus per-day size truncation. This is not a byte-accurate quota or historical orphan cleanup policy.
-- `pnpm lint` is not a supported gate; workspace packages do not define package-level lint scripts.
 
 ## Shared Composer Draft Ownership
 

@@ -1,6 +1,9 @@
 # Sinyuk Imagen PS
 
-Photoshop 图像生成插件 monorepo。包含两个 surface 应用和共享 runtime/domain packages。
+Photoshop image-generation plugin monorepo with one shipped product runtime and
+shared application/domain packages. Photoshop UXP is the only delivery runtime.
+The Chrome build is a repo-side fast functional harness for shared,
+host-neutral behavior; it is not a second shipped product surface.
 
 ## License
 
@@ -12,57 +15,46 @@ External contributors should sign the Contributor License Agreement in `CLA.md` 
 
 TODO: install and configure CLA Assistant for this repository so external contributor assent is collected automatically from pull requests instead of manual maintainer review.
 
-## 当前结构
+## Repository Structure
 
 ```
 apps/
-  app/     — Photoshop / UXP + Chrome dual-runtime surface
+  app/         - Photoshop UXP product surface and Chrome functional harness
 packages/
-  application/ — headless application/session layer
-  core-engine/ — job execution kernel
-  providers/   — provider adapter layer
-  foundation/  — host-agnostic shared utilities (logging, redaction, sinks)
+  application/ - headless application/session layer
+  core-engine/ - job execution kernel
+  providers/   - provider adapter layer
+  foundation/  - host-neutral shared utilities
 ```
 
-## 先读哪里
+## Start Here
 
-- 项目入口与硬规则：`AGENTS.md`（`CLAUDE.md`、`GEMINI.md` 均为其 symlink 别名）
-- 工程上下文、当前限制与 open questions：`docs/ENGINEERING_CONTEXT.md`
-- 测试与 Harness 总入口：`docs/TESTING.md`
-- Loop 协作契约：`docs/agent/LOOP.md`
-- 当前 active loop 入口：`AGENTS.md`（无 active loop 时 `docs/loops/` 为空）
-- 永久文档白名单 = `scripts/policy/docs.mjs` `highAuthorityDocs`
-- 仓库级 agent skills：`.agents/skills/`
-- 模块本地硬规则：各模块下的 `AGENTS.md`
+- Repository operating rules: `AGENTS.md` (`CLAUDE.md` and `GEMINI.md` are
+  symlink aliases)
+- Architecture, durable contracts, host constraints, and open questions:
+  `docs/ENGINEERING_CONTEXT.md`
+- Testing strategy, harness levels, commands, and acceptance gates:
+  `docs/TESTING.md`
+- Production artifact and release runbook: `docs/RELEASE.md`
+- Permanent documentation allowlist: `scripts/policy/docs.mjs`
+- Repository skills: `.agents/skills/`
+- Module-specific rules: the nearest module `AGENTS.md`
 
-## 命令
+## Quick Start
 
-本仓库声明 `packageManager: "pnpm@9.15.4"`。推荐用 repo-local mise
-工具版本固定本地 pnpm：
+The repository declares `packageManager: "pnpm@9.15.4"`. Use the repo-local
+mise toolchain:
 
 ```bash
 mise install
+pnpm bootstrap
 ```
 
-```bash
-pnpm bootstrap        # 首次初始化：安装依赖并跑完整默认验收
-pnpm validate         # Default gate: build, mock-only tests, policy checks
-pnpm check:policy     # Local architecture and policy validator
-pnpm build            # 构建所有 workspace
-pnpm test             # 运行默认 mock-only 测试，会按 Turbo pipeline 先构建
-pnpm test:release     # Release 真实接口测试：读取 .test.env，不走 Turbo，可能产生真实 API 费用
-pnpm validate:release # pnpm validate 后再跑 test:release，发布前用
-pnpm --filter <pkg> build   # 构建单个包
-pnpm --filter <pkg> test    # 运行单个包测试，要求已完成 bootstrap 或相关 build
-```
+See `docs/TESTING.md` for all test commands, evidence levels, and gate rules.
 
-测试分两级且互不污染：`pnpm test` / `pnpm validate` 只跑 mock-only 开发测试，绝不读取 `.test.env`、不调用真实接口；`pnpm test:release` / `pnpm validate:release` 只跑 `*.release.test.*` 真实接口测试，缺失 `.test.env`、缺失必需变量或未注册任何 release 测试时立即失败。详见 `docs/TESTING.md`。
+## Documentation Rules
 
-测试框架：Vitest。构建产物输出到 `dist/`。Release 测试产物会保留在 gitignored 的 `.test-output/`。
-
-## 文档使用规则
-
-- 子模块优先，根目录只负责索引和范围
-- 代码只作弱证据，不覆盖已写明的意图
-- 测试入口统一维护在 `docs/TESTING.md`
-- 不把解释性架构说明塞回 `AGENTS.md`
+- Keep the root README as an index and scope summary.
+- Keep testing authority in `docs/TESTING.md`.
+- Keep durable architecture context in `docs/ENGINEERING_CONTEXT.md`.
+- Keep `AGENTS.md` focused on executable operating rules.

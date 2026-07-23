@@ -36,6 +36,17 @@ UXP HTML/CSS, Spectrum Web Components, or SWC wrapper question:
    - community workaround
    - unverified assumption
 
+## Runtime Validation
+
+- Prove shared application and UI behavior with deterministic tests and Chrome.
+- For UXP code, inspect current implementation and official documentation first;
+  prefer contract/fake tests and `build:uxp` over real-host interaction.
+- Never proactively open or control Photoshop or UXP Developer Tool, or use UI
+  or computer automation to test UXP. Real UXP acceptance is user-owned; assist
+  only when the user explicitly requests a bounded check.
+- `docs/TESTING.md` is the sole authority for commands, harness routes,
+  viewports, evidence levels, and manual/live validation procedure.
+
 ## App Surface Boundaries
 
 - UI localization is an `apps/app` surface concern. Shared packages must not own UI copy or locale state.
@@ -45,11 +56,9 @@ UXP HTML/CSS, Spectrum Web Components, or SWC wrapper question:
 - Pages import approved controls and layouts from `src/shared/ui/ui-system.ts`. Keep owner-local implementation imports inside the owning component; page roots use `PageFrame`, `PageHeader`, `PageScroll`, and the matching list/form/state pattern.
 - An independent list is a page, popup, or reusable feature surface that presents peer rows of one domain collection and owns initial loading, empty, error, or refresh presentation. It must use the approved `List` / domain row shell / `ListStateItem` contract: initial replacement states share the domain row shell, refresh preserves visible domain rows, and domain arrays remain pure.
 - The Main `conversation.rounds` chat transcript is the only independent-list exception. Keep its chronology, scroll anchoring, round media/actions, and transcript-specific empty state; do not force it into the generic list contract. `TextSelect` options, form matrices, endpoint editing rows, and capability grids are controls, not independent lists.
-- A change that adds an independent list must include focused lifecycle and ARIA coverage for initial loading/error/empty, refresh retention, and inert state rows, plus a Chrome visual case for an initial replacement state. Run `pnpm check:policy` and the relevant focused and visual suites before acceptance.
+- A change that adds an independent list must include focused lifecycle and ARIA coverage for initial loading/error/empty, refresh retention, and inert state rows, plus a Chrome visual case for an initial replacement state.
 - Page CSS consumes existing `--app-*` and component tokens only. Do not modify `theme-source` palettes or generated color output for composition work.
 - `scripts/policy/ui-composition.mjs` is zero-tolerance for page-level raw controls, internal UI imports, visual inline styles, raw colors, and material tokens. Only `--ui-*` custom-property values may remain inline.
-- `?harness=ui-catalog` in Chrome and `imagenPsPanelHarness=ui-catalog` in UXP render the shared visual catalog. Run `pnpm --filter @imagen-ps/app test:visual` before accepting a page-layout change.
-- Manual Chrome visual acceptance for a page UI change uses `360x600` docked, `420x680` floating, and `1280x800` wide. The manifest's `300x420` minimum remains a robustness stress case, not a composition approval viewport.
 - Chat-history layout tokens treat default `360px` docked and `420px` floating panels as the primary design lane; `wide` mode may only relax those caps and must not define the default visual rhythm.
 - Chat-history media result cards are media-driven rather than result-track-width cards. Landscape, square, and normal portrait results follow their intrinsic ratio inside the card; only taller-than-`2:3` results enter contained-well mode under a `2:3` cap, `ImageStage` owns layout only, `ImageFrame` owns the thin image edge plus optional alpha backdrop, text-only/running/error cards stay on the result track, mixed response text stays readable in its own text-width card, and alpha backdrops are reserved for previews with trusted transparency.
 - Media result-card headers use a fixed avatar/content two-column shell. Provider name owns the first content row; model, status, and duration belong to the secondary meta row. Regular and wide panels may keep model plus status inline on the meta row, compact panels must split only the meta row into stacked lines while keeping every text row aligned to the same content start. Do not merge provider and model into one natural-flow title line.

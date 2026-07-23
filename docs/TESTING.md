@@ -4,6 +4,23 @@ This document is the repository testing authority. The goal is not maximum test
 count. The goal is a stable test structure whose file count does not grow
 linearly with bug count.
 
+## Runtime Validation Strategy
+
+Use the cheapest boundary that can prove the behavior. Deterministic tests and
+Chrome are the default acceptance path for shared application and UI behavior,
+including state transitions, errors, races, routing, and interaction. For UXP
+code, inspect the implementation and official documentation first, then use
+contract/fake tests and the UXP build where applicable.
+
+Agents must not proactively open or control Photoshop or UXP Developer Tool,
+or use UI/computer automation to test UXP. Real UXP acceptance is user-owned.
+Only assist with the exact evidence the user explicitly requests, and do not
+expand it into a broader manual test pass.
+
+`pnpm --filter @imagen-ps/app build:uxp` is compile evidence only. Fake UXP
+adapter tests prove adapter contracts against the fake runtime; neither is
+evidence of real Photoshop behavior.
+
 ## First-Time Setup
 
 Run this from a fresh checkout or when a new agent takes over the repo:
@@ -75,14 +92,9 @@ pnpm --filter @imagen-ps/app test:visual:update
 pnpm --filter @imagen-ps/app test:visual
 ```
 
-Chrome screenshots and ARIA assertions prove the browser harness only. For a
-loaded real Photoshop panel, use the structured catalog probe and retain the
-manual evidence outside maintained documentation:
-
-```bash
-node scripts/uxp-debug/uxp-debug.mjs targets --plugin-id com.imagen-ps.panel
-node scripts/uxp-debug/uxp-debug.mjs catalog-probe --plugin-id com.imagen-ps.panel
-```
+Chrome screenshots and ARIA assertions prove the browser harness. Real-panel
+rendering remains user-owned evidence; agents do not launch the host to extend
+this gate.
 
 ## Zero-Test Contract
 
@@ -193,10 +205,8 @@ ComfyUI evidence has three non-interchangeable tiers:
   receipt, history/view download, and TaskOutput proof. These gates do not
   exercise a configured explicit Mask binding only when the owner supplies
   suitable live credentials and workflow inputs.
-- Photoshop UXP proof is manual in the real host. It must cover capture,
-  HTTP or WebView/Bridge submission, output placement, reload/destroy, and
-  cleanup, plus selection and user-layer Mask acquisition where a real host is
-  available. Chrome evidence never substitutes for this gate.
+- Real Photoshop UXP proof is user-owned manual evidence. Agents do not
+  initiate or automate it; they may analyze evidence the user supplies.
 
 For connection switching, mock Chrome evidence must cover edit-cancels,
 explicit reconnect, phase copy, exact derived origins, provisional frame
@@ -209,8 +219,9 @@ classification, A-to-B teardown, and listener/timer/WebView cleanup. Never
 promote mock or Chrome results to the real-host tier.
 
 Mock success, build success, or a Bridge handshake alone is not live generation
-proof. Do not mark a live gate complete until real output bytes reach generic
-Task history and the requested host placement path.
+proof. Chrome live generation proof requires real output bytes in generic Task
+history. Real-host behavior remains unverified unless the user supplies or
+explicitly requests that evidence.
 
 Run the owner-local Chrome Frontend gate explicitly; it does not participate in default validation:
 
@@ -268,7 +279,7 @@ Playwright Chromium at representative viewports (`390x720` default,
 `300x420`/`300x520`/`390x400`/`600x800` for responsive scenarios), and writes
 ignored local artifacts under `apps/app/tests/chrome-e2e/screenshots/`.
 
-For manual Chrome visual acceptance of a page UI change, verify the UXP panel
+For manual Chrome visual acceptance of a page UI change, verify the browser harness
 at `360x600` (docked), `420x680` (floating), and `1280x800` (wide). The
 manifest's `300x420` minimum is a robustness stress case, not a composition
 approval viewport.
@@ -655,7 +666,7 @@ Loop documents must classify validation commands before citing them.
 | per-slice | Focused checks for the touched owner boundary. | Filtered package build/test commands above. | Zero tests may still pass; cite what was actually covered. |
 | final | Default closeout for non-trivial completed work. | `pnpm validate` | Aligns with the default CI gate. |
 | release | Pre-release real-interface verification. | `pnpm validate:release` | Loads `.test.env`; may incur real API cost; never cached; empty suite currently skips. |
-| manual-only | Human-observed host behavior. | UXP Developer Tool + Photoshop smoke checklist. | Fake UXP tests and Vite build do not prove real Photoshop host IO. |
+| manual-only | User-owned host observation. | User-directed Photoshop / UXP acceptance. | Agents do not initiate or automate this level. Fake UXP tests and Vite build do not prove real Photoshop host IO. |
 
 `pnpm lint` is not a supported Loop gate today. The root `package.json` has a
 `lint` script, but workspace packages do not define package-level lint scripts.
@@ -687,82 +698,23 @@ When adding release tests:
 5. Never log secrets.
 6. Run `pnpm test:release`.
 
-## Manual And Live Smoke
+## User-Owned Photoshop / UXP Acceptance
 
-Manual Photoshop / UXP proof is a separate gate. Record it as manual evidence;
-do not describe it as covered by `pnpm validate`.
+Agents must not proactively open or control Photoshop or UXP Developer Tool,
+and must not use GUI or computer automation for UXP acceptance. Default agent
+validation stops at source and official-document review, deterministic tests,
+Chrome, fake UXP contracts, and `build:uxp`, as applicable.
 
-When the panel is reachable, the default repo-owned Photoshop UXP debug/probe
-surface is:
-
-```sh
-node scripts/uxp-debug/uxp-debug.mjs
-```
-
-Use it for real-host target discovery, DOM inspection, ancestor layout data,
-runtime style mutation, event instrumentation, and relay-backed console
-inspection. Do not replace it with ad hoc DevTools-only DOM workflows or
-Photoshop window automation.
-
-Minimum real-host probe sequence:
-
-```sh
-node scripts/uxp-debug/uxp-debug.mjs targets
-node scripts/uxp-debug/uxp-debug.mjs --plugin-id com.imagen-ps.panel eval 'document.body?.tagName'
-node scripts/uxp-debug/uxp-debug.mjs --plugin-id com.imagen-ps.panel inspect '<selector>'
-node scripts/uxp-debug/uxp-debug.mjs --plugin-id com.imagen-ps.panel ancestors '<selector>'
-```
-
-Run commands serially against the UDT relay. For multiple targets, pass
-`--plugin-id com.imagen-ps.panel`.
-
-For a Mask change, use one real Photoshop document and record the result of
-this independent manual smoke before calling host proof complete:
-
-1. Capture a feathered 100x100 selection from a larger layer and confirm the
-   Composer reports ready, sends a 100x100 primary input and Mask, then clears
-   the draft after submit.
-2. With no selection, enable a user layer mask and confirm `getLayerMask()`
-   produces a ready Mask; remove that mask and confirm the state becomes
-   `none`; force a Host error and confirm retry remains available.
-3. Reorder or delete the primary while acquisition is pending, then reload the
-   panel. Confirm no stale ready state publishes and host-owned draft assets
-   are released on replacement and destroy.
-4. Repeat once with an explicitly bound ComfyUI Mask input when an owner-local
-   endpoint is configured. Confirm the primary image ref is unchanged and an
-   unbound Workflow sends no Mask.
-
-This procedure is manual-only because it requires a real Photoshop document,
-UDT relay, and optionally owner-local credentials. It is not part of `pnpm
-validate`; a Chrome simulator never substitutes for this evidence.
-
-The icon visual harness (`apps/app/harness/icon-visual/`) is a manual host
-harness for verifying that UXP panel icons render with non-zero rects inside
-real Photoshop. It requires a real Photoshop host and UXP Developer Tool; run
-it after replacing the `Icon` component or changing inline SVG icon mappings.
-The `check-icon-rects.js` script queries expected icon selectors and reports
-any icon with a `0x0` bounding rect.
-
-The UXP CSS contract board can also run inside the real Photoshop panel. Before
-reloading the plugin, set:
-
-```js
-localStorage.setItem('imagenPsPanelHarness', 'uxp-css-contract');
-```
-
-Then reload the panel in UXP Developer Tool. Clear it to return to the normal
-app surface:
-
-```js
-localStorage.removeItem('imagenPsPanelHarness');
-```
-
-Keep `node scripts/uxp-debug/uxp-debug.mjs` as the default way to inspect the
-real panel before and after enabling this harness.
+When the user explicitly owns a real-host check, the agent may analyze supplied
+screenshots, logs, or probe output. A repo-owned non-UI probe such as
+`node scripts/uxp-debug/uxp-debug.mjs` may run only when the user explicitly
+requests its exact scope. Do not broaden that request or claim unobserved host
+behavior.
 
 Chrome browser smoke is repo-side evidence only when it loads the browser build
-in a real browser and reports the Chrome shell ready state. It still does not
-prove real Photoshop / UXP host behavior or live provider behavior.
+in a real browser. It is the default acceptance runtime for shared behavior,
+but it does not prove real Photoshop / UXP host behavior or live provider
+behavior.
 
 Real provider live verification belongs to the release level
 (`pnpm test:release` / `pnpm validate:release`), not to default `pnpm test`.

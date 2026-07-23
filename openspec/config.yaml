@@ -1,15 +1,26 @@
 schema: spec-driven
 
 context: |
-  当前项目采用 current-state、harness-first 的 Loop 工程方式，变更前优先参考 AGENTS.md、README.md、docs/ENGINEERING_CONTEXT.md、docs/TESTING.md 与 docs/loops。
+  当前项目采用 current-state、harness-first 的 Loop 工程方式。变更前优先参考 AGENTS.md、README.md、docs/ENGINEERING_CONTEXT.md 与 docs/TESTING.md。
+  Photoshop UXP 是唯一交付 runtime；Chrome browser shell 是 repo-side fast functional harness，不是第二个产品 surface。
+  shared application、controller、UI state machine 与普通交互优先通过 deterministic tests 和 Chrome 证明。UXP code 默认通过源码、官方文档、contract/fake tests 与 build 验证。
+  agent 不得主动控制 Photoshop 或 UXP Developer Tool，也不得使用 UI/computer automation 测试 UXP；真实 UXP 验收仅由用户显式发起。docs/TESTING.md 是验证权威。
 
 rules:
   proposal:
     - 所有文档内容必须使用中文书写。
     - 所有术语、API 名称、包名、命令、标识符必须使用英文原文。
-  spec:
+  design:
+    - 明确区分 host-neutral owner 与 host-specific adapter；共享行为不得下沉到 Chrome 或 UXP adapter。
+    - 验证设计必须遵循 docs/TESTING.md，不得默认规划 agent 主动执行的 Photoshop/UXP UI 验收。
+    - 所有文档内容必须使用中文书写。
+    - 所有术语、API 名称、包名、命令、标识符必须使用英文原文。
+  specs:
+    - behavioral requirement 默认保持 runtime-neutral；仅当行为本身依赖 host capability 时才声明 Photoshop UXP requirement。
     - 所有文档内容必须使用中文书写。
     - 所有术语、API 名称、包名、命令、标识符必须使用英文原文。
   tasks:
+    - 验证任务优先使用 deterministic tests、Chrome、contract/fake tests 与 build。
+    - 禁止生成由 agent 主动控制 Photoshop、UXP Developer Tool、UI 或 computer automation 的 UXP 测试任务；真实 UXP 验收仅在用户显式要求时记录为 user-owned gate。
     - 所有文档内容必须使用中文书写。
     - 所有术语、API 名称、包名、命令、标识符必须使用英文原文。
