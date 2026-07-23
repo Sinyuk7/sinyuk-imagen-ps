@@ -8,7 +8,7 @@ import {
   type ImagePreviewFallback,
 } from '../../image/preview-fallback';
 import { useI18n } from '../i18n/i18n-context';
-import { Button, Icon, IconButton, ImageFallbackContent, imageFallbackTitle, List, ListStateItem, PageFrame, PageHeader, PageScroll, SegmentedTabs, useToast } from '../ui-system';
+import { Icon, IconButton, ImageFallbackContent, imageFallbackTitle, List, ListStateItem, PageFrame, PageHeader, PageScroll, SegmentedTabs, useToast } from '../ui-system';
 import {
   deriveHistoryItems,
   filterHistoryItems,
@@ -478,16 +478,19 @@ export function HistoryPage({
                     <span className={`sdot ${item.status === 'running' ? 'run' : item.status}`} />
                     <span className="history-status-label" data-status={item.displayStatus}>{displayStatusLabel(item.displayStatus)}</span>
                     {retryRoundId && item.actions.retry === 'enabled' && (
-                      <Button
+                      <IconButton
                         data-testid={`history-retry-button-${retryRoundId}`}
-                        className="row-retry"
+                        className="row-icon-action history-retry-action"
+                        hostClassName="history-retry-action-host"
+                        quiet
+                        icon={<Icon name="refresh" size={12} />}
+                        tooltip={t.history.retry}
+                        iconSize={12}
                         onClick={(event) => {
                           event.stopPropagation();
                           void onRetry(retryRoundId).catch(() => undefined);
                         }}
-                      >
-                        {t.history.retry}
-                      </Button>
+                      />
                     )}
                     {item.output && (
                       <>

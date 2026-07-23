@@ -635,11 +635,6 @@ export const CONVERSATION_CSS = `
 .err-copy:hover{ background:rgba(255,255,255,.08); border-color:rgba(255,255,255,.16); color:#fff4f2; }
 .err-copy:disabled{ opacity:.45; cursor:not-allowed; }
 .err-copy.cp{ color:#9fe3b0; border-color:rgba(159,227,176,.28); }
-.row-retry{
-  margin-left:auto; padding:2px 8px; border-radius:var(--app-radius-small); border:1px solid var(--app-color-negative);
-  background:transparent; color:var(--app-color-negative); font-size:10px; font-weight:500; cursor:pointer; font-family:var(--app-font-family-base);
-}
-.row-retry:hover{ background:var(--app-color-negative-subtle); }
 .round-billing-meta{
   display:inline-flex;
   align-items:center;

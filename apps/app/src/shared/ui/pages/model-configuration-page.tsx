@@ -887,6 +887,7 @@ export function ModelConfigurationPage({ onNav, onSaved, onBack, initialEditorSt
                 aria-expanded={advancedOpen}
                 icon={<Icon name={advancedOpen ? 'chevron-down' : 'chevron-right'} />}
                 iconSize={12}
+                iconPlacement="end"
                 text={t.settings.advancedSettings}
                 onClick={() => setAdvancedOpen((current) => !current)}
               />

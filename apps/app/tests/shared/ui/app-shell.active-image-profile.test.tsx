@@ -1,4 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
+import { act } from 'react';
 import { createFakeServices, fakeProfile } from '../../helpers/fakes';
 import { cleanupMainPageRoot, flush, renderMainPage } from '../../helpers/main-page-harness';
 
@@ -16,6 +17,17 @@ function createDeferred<T>(): {
       resolveFn(value);
     },
   };
+}
+
+async function selectMainProfile(container: HTMLElement, profileId: string): Promise<void> {
+  await act(async () => {
+    container.querySelector<HTMLElement>('[data-testid="main-profile-selector"]')?.click();
+  });
+  await flush();
+  await act(async () => {
+    document.body.querySelector<HTMLElement>(`[data-testid="profile-menu-option-${profileId}"]`)?.click();
+  });
+  await flush();
 }
 
 const secondaryProfile = {
@@ -103,6 +115,58 @@ describe('AppShell active image profile restore', () => {
     const selector = container.querySelector<HTMLElement>('[data-testid="main-profile-selector"]');
     expect(selector?.getAttribute('aria-haspopup')).toBe('listbox');
     expect(selector?.getAttribute('aria-expanded')).toBe('false');
+    expect(Array.from(selector?.children ?? []).map((child) => child.className)).toEqual([
+      'ui-icon-button-label',
+      'ui-icon-button-icon-slot',
+    ]);
     expect(selector?.parentElement?.querySelector('[data-icon-name="chevron-down"]')).not.toBeNull();
+  });
+
+  it('persists latest profile selection after an earlier write completes late', async () => {
+    const container = document.createElement('div');
+    document.body.appendChild(container);
+    const fake = createFakeServices({
+      profiles: [fakeProfile, secondaryProfile],
+      activeImageProfileId: fakeProfile.profileId,
+    });
+    const firstWrite = createDeferred<void>();
+    let persistedProfileId: string | null = fakeProfile.profileId;
+    let delayed = true;
+    vi.spyOn(fake.services.activeImageProfile, 'save').mockImplementation(async (profileId) => {
+      if (profileId === secondaryProfile.profileId && delayed) {
+        delayed = false;
+        await firstWrite.promise;
+      }
+      persistedProfileId = profileId;
+    });
+
+    await renderMainPage(container, fake);
+    await selectMainProfile(container, secondaryProfile.profileId);
+    await selectMainProfile(container, fakeProfile.profileId);
+    firstWrite.resolve(undefined);
+    await flush();
+    await flush();
+
+    expect(persistedProfileId).toBe(fakeProfile.profileId);
+    expect(container.querySelector('[data-testid="main-profile-selector"]')?.textContent).toContain(fakeProfile.displayName);
+  });
+
+  it('does not let a late hydration result overwrite a user selection', async () => {
+    const container = document.createElement('div');
+    document.body.appendChild(container);
+    const fake = createFakeServices({
+      profiles: [fakeProfile, secondaryProfile],
+      activeImageProfileId: fakeProfile.profileId,
+    });
+    const load = createDeferred<string | null>();
+    vi.spyOn(fake.services.activeImageProfile, 'load').mockImplementationOnce(() => load.promise);
+
+    await renderMainPage(container, fake);
+    await selectMainProfile(container, secondaryProfile.profileId);
+    load.resolve(fakeProfile.profileId);
+    await flush();
+    await flush();
+
+    expect(container.querySelector('[data-testid="main-profile-selector"]')?.textContent).toContain(secondaryProfile.displayName);
   });
 });

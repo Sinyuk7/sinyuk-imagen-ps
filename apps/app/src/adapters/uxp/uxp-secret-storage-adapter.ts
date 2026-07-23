@@ -4,7 +4,7 @@ import { createUxpFlightRecorder, type UxpFlightRecorder } from './uxp-log-sink'
 import type { UxpModules } from './uxp-api';
 
 interface UxpSecureStorage {
-  getItem(key: string): Promise<string | ArrayBuffer | undefined>;
+  getItem(key: string): Promise<string | ArrayBuffer | Uint8Array | undefined>;
   setItem(key: string, value: string): Promise<void>;
   removeItem(key: string): Promise<void>;
 }
@@ -20,28 +20,48 @@ function secureStorageFrom(modules: UxpModules): UxpSecureStorage | undefined {
 }
 
 function hashSecretKey(key: string): string {
-  let hash = 0x811c9dc5;
-  for (let i = 0; i < key.length; i += 1) {
-    hash ^= key.charCodeAt(i);
+  return hashString(key, 0x811c9dc5);
+}
+
+function hashString(value: string, seed: number): string {
+  let hash = seed;
+  for (let i = 0; i < value.length; i += 1) {
+    hash ^= value.charCodeAt(i);
     hash = Math.imul(hash, 0x01000193);
   }
-  return `fnv1a32:${(hash >>> 0).toString(16).padStart(8, '0')}`;
+  return (hash >>> 0).toString(16).padStart(8, '0');
+}
+
+function createSessionCredentialTagSalt(): string {
+  const values = new Uint32Array(2);
+  if (typeof globalThis.crypto?.getRandomValues === 'function') {
+    globalThis.crypto.getRandomValues(values);
+    return `${values[0]!.toString(16)}:${values[1]!.toString(16)}`;
+  }
+  return `${Date.now()}:${Math.random()}`;
+}
+
+const sessionCredentialTagSalt = createSessionCredentialTagSalt();
+
+function sessionCredentialTag(value: string): string {
+  const tagged = `${sessionCredentialTagSalt}\u0000${value}`;
+  return `${hashString(tagged, 0x811c9dc5)}${hashString(tagged, 0x01000193)}`;
 }
 
 function secretAttrs(key: string): Record<string, unknown> {
   return {
-    keyHash: hashSecretKey(key),
+    keyHash: `fnv1a32:${hashSecretKey(key)}`,
     keyLength: key.length,
   };
 }
 
-function decodeArrayBufferUtf8(buffer: ArrayBuffer): string {
+function decodeArrayBufferUtf8(buffer: ArrayBuffer | Uint8Array): { readonly value: string; readonly decoder: 'TextDecoder' | 'fallback' } {
   if (typeof TextDecoder !== 'undefined') {
-    return new TextDecoder().decode(buffer);
+    return { value: new TextDecoder().decode(buffer), decoder: 'TextDecoder' };
   }
 
   // UXP 环境缺少 TextDecoder 时的降级解码（UTF-8）。
-  const bytes = new Uint8Array(buffer);
+  const bytes = buffer instanceof Uint8Array ? buffer : new Uint8Array(buffer);
   const out: number[] = [];
   let i = 0;
   while (i < bytes.length) {
@@ -73,7 +93,24 @@ function decodeArrayBufferUtf8(buffer: ArrayBuffer): string {
       i += 1;
     }
   }
-  return String.fromCharCode(...out);
+  return { value: String.fromCharCode(...out), decoder: 'fallback' };
+}
+
+function valueShapeAttrs(value: string | ArrayBuffer | Uint8Array): Record<string, unknown> {
+  const decoded = typeof value === 'string'
+    ? { value, decoder: 'none' as const }
+    : decodeArrayBufferUtf8(value);
+  const normalized = decoded.value.trim();
+  return {
+    valueKind: typeof value === 'string' ? 'string' : value instanceof Uint8Array ? 'uint8-array' : 'array-buffer',
+    storedByteLength: typeof value === 'string' ? value.length : value.byteLength,
+    decodedLength: decoded.value.length,
+    decoder: decoded.decoder,
+    normalizationChanged: normalized !== decoded.value,
+    normalizedLength: normalized.length,
+    credentialTag: sessionCredentialTag(decoded.value),
+    credentialTagScope: 'panel-session',
+  };
 }
 
 export function createUxpSecretStorageAdapter(modules: UxpModules): SecretStorageAdapter {
@@ -94,7 +131,7 @@ export function createUxpSecretStorageAdapter(modules: UxpModules): SecretStorag
       await flightRecorder.checkpoint('uxp.secret_storage.get.after_get_item', {
         ...secretAttrs(key),
         found: value !== undefined,
-        valueKind: value instanceof ArrayBuffer ? 'array-buffer' : typeof value,
+        ...(value === undefined ? {} : valueShapeAttrs(value)),
       });
       if (value === undefined) {
         return undefined;
@@ -102,17 +139,17 @@ export function createUxpSecretStorageAdapter(modules: UxpModules): SecretStorag
       if (typeof value === 'string') {
         return value;
       }
-      return decodeArrayBufferUtf8(value);
+      return decodeArrayBufferUtf8(value).value;
     },
     async setSecret(key: string, value: string): Promise<void> {
       await flightRecorder.checkpoint('uxp.secret_storage.set.before_set_item', {
         ...secretAttrs(key),
-        valueLength: value.length,
+        ...valueShapeAttrs(value),
       });
       await secureStorage.setItem(key, value);
       await flightRecorder.checkpoint('uxp.secret_storage.set.after_set_item', {
         ...secretAttrs(key),
-        valueLength: value.length,
+        ...valueShapeAttrs(value),
       });
     },
     async deleteSecret(key: string): Promise<void> {

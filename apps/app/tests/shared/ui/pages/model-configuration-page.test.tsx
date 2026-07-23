@@ -184,6 +184,10 @@ describe('ModelConfigurationPage', () => {
 
     expect(toggle?.getAttribute('aria-expanded')).toBe('false');
     expect(container.querySelector('[data-testid="model-config-model-id"]')).toBeNull();
+    expect(Array.from(toggle?.children ?? []).map((child) => child.className)).toEqual([
+      'ui-icon-button-label',
+      'ui-icon-button-icon-slot',
+    ]);
     expect(toggle?.parentElement?.querySelector('[data-icon-name="chevron-right"]')).not.toBeNull();
 
     await act(async () => {

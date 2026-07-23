@@ -237,6 +237,10 @@ export const NATIVE_CONTROLS_CSS = `
 .ui-icon-button--text-only .ui-icon-button-label{
   margin-left:0;
 }
+.ui-icon-button--icon-end .ui-icon-button-label{
+  margin-left:0;
+  margin-right:6px;
+}
 .ui-icon-button--icon-only .ui-icon-button-overlay{
   justify-content:center;
   padding:0;

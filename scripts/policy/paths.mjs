@@ -14,6 +14,8 @@ const textRoots = [
   'skills-lock.json',
 ];
 
+const ignoredPathScanDirectories = ['apps/app/test-results'];
+
 const pathReferenceRules = [
   {
     name: '文档和配置不能引用本机绝对路径',
@@ -30,6 +32,7 @@ const pathReferenceRules = [
 ];
 
 export function checkPaths(repoRoot) {
-  const files = unique(textRoots.flatMap((root) => walkFiles(repoRoot, root, policyTextExtensions)));
+  const files = unique(textRoots.flatMap((root) => walkFiles(repoRoot, root, policyTextExtensions)))
+    .filter((file) => !ignoredPathScanDirectories.some((dir) => file.startsWith(`${dir}/`)));
   return scanLineRules(repoRoot, files, pathReferenceRules);
 }

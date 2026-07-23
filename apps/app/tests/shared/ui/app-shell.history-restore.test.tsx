@@ -51,9 +51,14 @@ describe('AppShell History failed action', () => {
     await vi.waitFor(() => {
       expect(container.querySelector('[data-testid^="history-retry-button-"]')).not.toBeNull();
     });
+    const retryButton = container.querySelector<HTMLButtonElement>('[data-testid^="history-retry-button-"]');
+    expect(retryButton?.classList.contains('row-icon-action')).toBe(true);
+    expect(retryButton?.classList.contains('history-retry-action')).toBe(true);
+    expect(retryButton?.parentElement?.classList.contains('history-retry-action-host')).toBe(true);
+    expect(retryButton?.textContent).toBe('');
 
     await act(async () => {
-      container.querySelector<HTMLElement>('[data-testid^="history-retry-button-"]')?.click();
+      retryButton?.click();
     });
     await flush();
 

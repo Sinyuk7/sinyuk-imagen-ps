@@ -63,6 +63,11 @@ type AppTheme = 'dark' | 'light';
 type AppThemeOverride = AppTheme | undefined;
 type PanelWidthMode = 'compact' | 'regular' | 'wide';
 type PanelHeightMode = 'short' | 'normal';
+type ActiveImageProfileSelectionSource =
+  | 'main-profile-menu'
+  | 'fallback-reconcile'
+  | 'profile-setup'
+  | 'settings-profile-activate';
 
 const PANEL_COMPACT_MAX_WIDTH = 339;
 const PANEL_WIDE_MIN_WIDTH = 520;
@@ -251,10 +256,47 @@ function AppShellContent({ host }: AppShellProps) {
   const [selectedModelId, setSelectedModelId] = useState('');
   const [highlightedRoundId, setHighlightedRoundId] = useState<string | null>(null);
   const [restoreFailedRoundId, setRestoreFailedRoundId] = useState<string | null>(null);
-  const selectImageProfile = useCallback(async (profileId: string | null) => {
+  const activeImageProfileRequestRef = useRef(0);
+  const activeImageProfileWriteTailRef = useRef<Promise<void>>(Promise.resolve());
+  const selectImageProfile = useCallback(async (
+    profileId: string | null,
+    source: ActiveImageProfileSelectionSource,
+  ) => {
+    const requestId = activeImageProfileRequestRef.current + 1;
+    activeImageProfileRequestRef.current = requestId;
     setSelectedImageProfileId(profileId);
-    await services.activeImageProfile.save(profileId);
-  }, [services.activeImageProfile]);
+    await services.diagnostics?.checkpoint('ui.active_image_profile.select.requested', {
+      source,
+      requestId,
+      profileId,
+    });
+
+    const write = activeImageProfileWriteTailRef.current
+      .catch(() => undefined)
+      .then(async () => {
+        if (requestId !== activeImageProfileRequestRef.current) {
+          await services.diagnostics?.checkpoint('ui.active_image_profile.select.superseded', {
+            source,
+            requestId,
+            profileId,
+          });
+          return;
+        }
+        await services.diagnostics?.checkpoint('ui.active_image_profile.write.start', {
+          source,
+          requestId,
+          profileId,
+        });
+        await services.activeImageProfile.save(profileId);
+        await services.diagnostics?.checkpoint('ui.active_image_profile.write.ok', {
+          source,
+          requestId,
+          profileId,
+        });
+      });
+    activeImageProfileWriteTailRef.current = write;
+    await write;
+  }, [services.activeImageProfile, services.diagnostics]);
   const profilesState = useProviderProfiles(services);
   const imageProfiles = useMemo(
     () => profilesState.profiles.filter((profile): profile is ProviderProfile => Boolean(profile?.profileId)),
@@ -292,7 +334,7 @@ function AppShellContent({ host }: AppShellProps) {
     profilesError: profilesState.error,
     ...(selectedProfile ? { selectedProfile } : {}),
     selectedProfileId: selectedImageProfileId,
-    selectProfile: selectImageProfile,
+    selectProfile: (profileId) => selectImageProfile(profileId, 'main-profile-menu'),
     models: imageModels,
     modelsLoading: modelsState.loading,
     modelsError: modelsState.error,
@@ -316,13 +358,21 @@ function AppShellContent({ host }: AppShellProps) {
       if (cancelled) {
         return;
       }
-      setSelectedImageProfileId(profileId);
+      if (activeImageProfileRequestRef.current === 0) {
+        setSelectedImageProfileId(profileId);
+        void services.diagnostics?.checkpoint('ui.active_image_profile.hydration.applied', { profileId });
+      } else {
+        void services.diagnostics?.checkpoint('ui.active_image_profile.hydration.ignored', {
+          profileId,
+          latestRequestId: activeImageProfileRequestRef.current,
+        });
+      }
       setActiveImageProfileHydrated(true);
     });
     return () => {
       cancelled = true;
     };
-  }, [services.activeImageProfile]);
+  }, [services.activeImageProfile, services.diagnostics]);
 
   useEffect(() => {
     if (reconciledHistoryRef.current) {
@@ -354,7 +404,7 @@ function AppShellContent({ host }: AppShellProps) {
     if (selectedImageProfileId === fallbackProfileId) {
       return;
     }
-    void selectImageProfile(fallbackProfileId);
+    void selectImageProfile(fallbackProfileId, 'fallback-reconcile');
   }, [
     activeImageProfileHydrated,
     imageProfiles,
@@ -422,7 +472,7 @@ function AppShellContent({ host }: AppShellProps) {
   const completeProfileSetup = useCallback(async (profile: ProviderProfile) => {
     await profilesState.reload();
     if (selectedImageProfileId === null) {
-      await selectImageProfile(profile.profileId);
+      await selectImageProfile(profile.profileId, 'profile-setup');
     }
     setSetupProfile(null);
     setSelectedSettingsProfileId(null);
@@ -640,7 +690,7 @@ function AppShellContent({ host }: AppShellProps) {
               await services.diagnostics?.checkpoint('uxp.ui.app_shell.profiles_changed.before_select_profile', { profileId });
               setSelectedSettingsProfileId(profileId);
               if (profileId && options?.activate === true) {
-                await selectImageProfile(profileId);
+                await selectImageProfile(profileId, 'settings-profile-activate');
               }
               await services.diagnostics?.checkpoint('uxp.ui.app_shell.profiles_changed.after_select_profile', { profileId });
             } catch (error) {

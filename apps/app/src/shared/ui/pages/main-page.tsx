@@ -1109,6 +1109,7 @@ export function MainPage({
             aria-expanded={profileMenuOpen}
             icon={<Icon name="chevron-down" />}
             iconSize={12}
+            iconPlacement="end"
             text={comfyUiMode ? t.settings.comfyUi : selectedProfile?.displayName ?? t.main.noProviderProfile}
             tooltip={comfyUiMode ? t.settings.comfyUi : selectedProfile?.displayName ?? t.main.noProviderProfile}
             onClick={(event) => {

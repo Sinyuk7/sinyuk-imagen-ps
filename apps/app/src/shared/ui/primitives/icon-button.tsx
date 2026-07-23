@@ -30,6 +30,8 @@ interface IconButtonProps extends Omit<ButtonHTMLAttributes<HTMLButtonElement>, 
   readonly placement?: 'top' | 'top-start' | 'top-end' | 'right' | 'right-start' | 'right-end' | 'bottom' | 'bottom-start' | 'bottom-end' | 'left' | 'left-start' | 'left-end';
   /** 图标占位尺寸（px），默认 14。 */
   readonly iconSize?: number;
+  /** 图标位置；默认保持图标在文字前，`end` 用于文字后的展开指示图标。 */
+  readonly iconPlacement?: 'start' | 'end';
   /** 是否使用紧凑正方形图标按钮盒模型。 */
   readonly compactSquare?: boolean;
   readonly hostClassName?: string;
@@ -60,6 +62,7 @@ export const IconButton = forwardRef<HTMLButtonElement, IconButtonProps>(functio
     tooltip,
     placement,
     iconSize = 14,
+    iconPlacement = 'start',
     compactSquare = false,
     className,
     hostClassName,
@@ -78,15 +81,13 @@ export const IconButton = forwardRef<HTMLButtonElement, IconButtonProps>(functio
     'ui-icon-button',
     text ? 'ui-icon-button--labeled' : 'ui-icon-button--icon-only',
     text && !hasIcon && 'ui-icon-button--text-only',
+    text && hasIcon && iconPlacement === 'end' && 'ui-icon-button--icon-end',
     compactSquare && !text && 'ui-icon-button--compact-square',
     className,
   );
-  const children = (
-    <>
-      {hasIcon ? <span className="ui-icon-button-icon-slot" aria-hidden="true" /> : null}
-      {text ? <span className="ui-icon-button-label">{text}</span> : null}
-    </>
-  );
+  const iconSlot = hasIcon ? <span className="ui-icon-button-icon-slot" aria-hidden="true" /> : null;
+  const label = text ? <span className="ui-icon-button-label">{text}</span> : null;
+  const children = iconPlacement === 'end' ? <>{label}{iconSlot}</> : <>{iconSlot}{label}</>;
 
   return (
     <OverlayControlShell

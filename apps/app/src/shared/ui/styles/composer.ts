@@ -472,7 +472,6 @@ export const COMPOSER_CSS = `
 .cmp-footer-divider{
   margin-top:5px;
   margin-bottom:1px;
-  opacity:.2;
 }
 .cmp-footer .cmp-billing,
 .cmp-footer .cmp-readiness{

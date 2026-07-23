@@ -65,6 +65,7 @@ export function createUxpActiveImageProfileStore(modules: UxpModules): ActiveIma
         await flightRecorder.checkpoint('uxp.active_image_profile.read.ok', {
           fileName,
           hasProfileId: profileId !== null,
+          profileId,
         });
         return profileId;
       } catch (error) {
@@ -76,18 +77,21 @@ export function createUxpActiveImageProfileStore(modules: UxpModules): ActiveIma
       await flightRecorder.checkpoint('uxp.active_image_profile.write.prepare', {
         fileName,
         hasProfileId: profileId !== null,
+        profileId,
       });
       const file = await getOrCreateJsonFile(localFileSystem, fileName);
       const payload = JSON.stringify({ activeImageProfileId: profileId }, null, 2);
       await flightRecorder.checkpoint('uxp.active_image_profile.write.before_file_write', {
         fileName,
         hasProfileId: profileId !== null,
+        profileId,
         byteLength: payload.length,
       });
       await file.write(payload, { format: localFileSystem.formats?.utf8 });
       await flightRecorder.checkpoint('uxp.active_image_profile.write.ok', {
         fileName,
         hasProfileId: profileId !== null,
+        profileId,
       });
     },
   };
