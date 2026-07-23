@@ -483,7 +483,7 @@ export function HistoryPage({
                         className="row-retry"
                         onClick={(event) => {
                           event.stopPropagation();
-                          void onRetry(retryRoundId);
+                          void onRetry(retryRoundId).catch(() => undefined);
                         }}
                       >
                         {t.history.retry}

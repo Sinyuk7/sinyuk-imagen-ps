@@ -13,6 +13,8 @@
 - 编辑既有 ready Profile 只保存或删除 Profile，不改变 active Profile；endpoint model hint 在编辑中仅作为新增模型的预填上下文，不能把保存操作变成创建流程。
 - **BREAKING** 移除 `Profile.enabled` 的持久化和运行时语义；当前状态 Profile 一律可参与可用性判定，setup 隔离不复用 `enabled`。
 - 保留现有 Profile / Model Config 两层数据边界、既有页面和独立连接测试；不新增用户可见的“待配置 Profile”状态，也不承诺连接可达或真实生成成功。
+- 新建 Profile 达到 ready 后返回 Provider 列表，以明确的创建成功 toast 和新条目标记结束流程；不得落入易与创建页混淆的 Profile Detail，也不得要求第二次保存。
+- ready Profile 详情页没有未保存更改时，`Save` 仍提供可点击反馈并显示无更改 toast，不依赖 Photoshop UXP 对原生 `disabled` 的执行行为。
 
 ## Capabilities
 

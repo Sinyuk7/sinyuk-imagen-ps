@@ -3,12 +3,13 @@ import type {
   ProviderProfileConnectionTestResult,
   ProviderProfileTestResult,
 } from '@imagen-ps/application';
-import type { NoticeOptions, NoticeTone } from './components/notice';
+import type { NoticeTone } from './components/notice';
 import type { AppMessages } from './i18n/messages';
 
-export interface ProviderStatus extends NoticeOptions {
+export interface ProviderStatus {
   readonly tone: NoticeTone;
   readonly message: string;
+  readonly copyable: boolean;
 }
 
 export function statusFromProviderTestResult(
@@ -19,8 +20,6 @@ export function statusFromProviderTestResult(
     return {
       tone: 'negative',
       copyable: true,
-      durationMs: null,
-      dismissible: false,
       message: result.connectivity.message
         ? `${messages.settings.connectionFailed}: ${result.connectivity.message}`
         : messages.settings.connectionFailed,
@@ -31,13 +30,11 @@ export function statusFromProviderTestResult(
     return {
       tone: 'warning',
       copyable: false,
-      durationMs: null,
-      dismissible: false,
       message: result.connectivity.message ?? messages.settings.providerConnectionUnsupported,
     };
   }
 
-  return { tone: 'positive', durationMs: 2200, dismissible: false, copyable: false, message: messages.settings.testSuccess };
+  return { tone: 'positive', copyable: false, message: messages.settings.testSuccess };
 }
 
 export function statusFromProviderConnectionTestResult(
@@ -48,8 +45,6 @@ export function statusFromProviderConnectionTestResult(
     return {
       tone: 'warning',
       copyable: false,
-      durationMs: null,
-      dismissible: false,
       message: result.message ?? messages.settings.providerConnectionUnsupported,
     };
   }
@@ -57,14 +52,12 @@ export function statusFromProviderConnectionTestResult(
     return {
       tone: 'negative',
       copyable: true,
-      durationMs: null,
-      dismissible: false,
       message: result.message
         ? `${messages.settings.connectionFailed}: ${result.message}`
         : messages.settings.connectionFailed,
     };
   }
-  return { tone: 'positive', durationMs: 2200, dismissible: false, copyable: false, message: messages.settings.testSuccess };
+  return { tone: 'positive', copyable: false, message: messages.settings.testSuccess };
 }
 
 export function statusFromEndpointMeasurementResult(
@@ -75,8 +68,6 @@ export function statusFromEndpointMeasurementResult(
     return {
       tone: 'warning',
       copyable: false,
-      durationMs: null,
-      dismissible: false,
       message: result.message ?? messages.settings.endpointMeasurementUnsupported,
     };
   }
@@ -85,8 +76,6 @@ export function statusFromEndpointMeasurementResult(
     return {
       tone: 'negative',
       copyable: true,
-      durationMs: null,
-      dismissible: false,
       message: failed.errorMessage
         ? `${messages.settings.connectionFailed}: ${failed.errorMessage}`
         : messages.settings.connectionFailed,
@@ -94,7 +83,7 @@ export function statusFromEndpointMeasurementResult(
   }
   const healthy = result.results.filter((item) => item.status === 'success');
   if (healthy.length === 0) {
-    return { tone: 'warning', durationMs: null, dismissible: false, copyable: false, message: messages.settings.configValidProviderNoModels };
+    return { tone: 'warning', copyable: false, message: messages.settings.configValidProviderNoModels };
   }
-  return { tone: 'positive', durationMs: 2200, dismissible: false, copyable: false, message: messages.settings.speedTestSuccess };
+  return { tone: 'positive', copyable: false, message: messages.settings.speedTestSuccess };
 }

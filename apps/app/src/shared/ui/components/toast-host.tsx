@@ -1,16 +1,26 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { MotionPresenceView } from './motion-ui';
-import { NoticeView, createNoticeState, type NoticeController, type NoticeOptions, type NoticeRole, type NoticeState, type NoticeTone } from './notice';
+import { NoticeView, createNoticeState, type NoticeOptions, type NoticeRole, type NoticeState, type NoticeTone } from './notice';
 
 /**
  * 主流程瞬时 Toast 的语义级别。
  */
 export type ToastVariant = NoticeTone;
-export type ToastOptions = NoticeOptions;
+
+/** Toast 专属配置；durationMs 必须为有限正数。 */
+export type ToastOptions = Omit<NoticeOptions, 'dismissible' | 'durationMs'> & {
+  readonly durationMs?: number;
+};
+
 export type ToastState = NoticeState;
-export interface ToastController extends NoticeController {
+export interface ToastController {
+  readonly notice: ToastState | null;
   readonly toast: ToastState | null;
+  readonly show: (message: string, tone?: ToastVariant, options?: ToastOptions) => void;
+  readonly clear: () => void;
   readonly close: () => void;
+  readonly pause: () => void;
+  readonly resume: () => void;
 }
 
 interface ToastProviderProps {
@@ -46,11 +56,11 @@ const TOAST_PRIORITY: Record<ToastVariant, number> = {
 };
 
 const TOAST_DURATION_MS: Record<ToastVariant, number> = {
-  positive: 2200,
-  neutral: 2600,
-  info: 3200,
-  warning: 5000,
-  negative: 6800,
+  positive: 500,
+  neutral: 600,
+  info: 900,
+  warning: 1400,
+  negative: 2200,
 };
 
 const EMPTY_STORE: ToastStore = {
@@ -114,7 +124,12 @@ function createManagedToast(
   options: ToastOptions | undefined,
   order: number,
 ): ManagedToastState {
-  const durationMs = options?.durationMs === undefined ? TOAST_DURATION_MS[tone] : options.durationMs;
+  const requestedDurationMs = options?.durationMs;
+  const durationMs = typeof requestedDurationMs === 'number'
+    && Number.isFinite(requestedDurationMs)
+    && requestedDurationMs > 0
+    ? requestedDurationMs
+    : TOAST_DURATION_MS[tone];
   const role: NoticeRole = options?.role ?? (options?.urgent ? 'alert' : 'status');
   const ariaLive = options?.ariaLive ?? (options?.urgent ? 'assertive' : 'polite');
   const toast = createNoticeState(
@@ -125,9 +140,9 @@ function createManagedToast(
       durationMs,
       role,
       ariaLive,
-      dismissible: options?.dismissible ?? true,
+      dismissible: true,
     },
-    durationMs ?? null,
+    durationMs,
   );
   return {
     ...toast,
@@ -195,6 +210,7 @@ function useToastController(): ToastController {
   const remainingMsRef = useRef<number | null>(null);
   const startedAtRef = useRef<number | null>(null);
   const pausedRef = useRef(false);
+  const advanceRef = useRef<() => void>(() => undefined);
 
   const syncStore = useCallback((nextStore: ToastStore) => {
     storeRef.current = nextStore;
@@ -209,14 +225,6 @@ function useToastController(): ToastController {
     startedAtRef.current = null;
   }, []);
 
-  const advance = useCallback(() => {
-    clearTimer();
-    pausedRef.current = false;
-    remainingMsRef.current = null;
-    const next = pickNextToast(storeRef.current.queue);
-    syncStore(next);
-  }, [clearTimer, syncStore]);
-
   const armTimer = useCallback((durationMs: number | null | undefined) => {
     clearTimer();
     if (durationMs == null || durationMs <= 0) {
@@ -228,9 +236,18 @@ function useToastController(): ToastController {
     timerRef.current = window.setTimeout(() => {
       timerRef.current = null;
       startedAtRef.current = null;
-      advance();
+      advanceRef.current();
     }, durationMs);
-  }, [advance, clearTimer]);
+  }, [clearTimer]);
+
+  const advance = useCallback(() => {
+    pausedRef.current = false;
+    remainingMsRef.current = null;
+    const next = pickNextToast(storeRef.current.queue);
+    syncStore(next);
+    armTimer(next.current?.durationMs);
+  }, [armTimer, syncStore]);
+  advanceRef.current = advance;
 
   const applyStore = useCallback((nextStore: ToastStore, restartTimer: boolean) => {
     syncStore(nextStore);

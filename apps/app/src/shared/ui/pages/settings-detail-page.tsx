@@ -266,21 +266,6 @@ export function SettingsDetailPage({ onNav, onBack, profileId, onProfilesChanged
     hasSavedApiKey: Boolean(detail.profile?.secretRefs?.apiKey) && !apiKeyRemovalPending,
   });
   const endpointErrors = duplicateEndpointErrors(connection, t.settings.duplicateEndpointUrl);
-  const draftDirty = detail.profile
-    ? hasDraftChanges(
-        detail.profile,
-        {
-          displayName,
-          connection,
-          paths,
-          billing: billingDraft,
-          systemInstruction,
-          apiKey,
-          apiKeyRemovalPending,
-          billingAccessTokenRemovalPending,
-        },
-      )
-    : false;
 
   function invalidateDraftProofs() {
     return;
@@ -358,6 +343,26 @@ export function SettingsDetailPage({ onNav, onBack, profileId, onProfilesChanged
   const syncVisibleDraftInputs = (): void => {
     syncLiveApiKeyValue(apiKey);
     syncLiveBillingDraft(billingDraftForSave(billingDraftRef.current, billingAccessTokenRemovalPending));
+  };
+
+  const currentDraftHasChanges = (): boolean => {
+    if (!detail.profile) {
+      return false;
+    }
+    const currentApiKey = syncLiveApiKeyValue(apiKey);
+    const currentBillingDraft = syncLiveBillingDraft(
+      billingDraftForSave(billingDraftRef.current, billingAccessTokenRemovalPending),
+    );
+    return hasDraftChanges(detail.profile, {
+      displayName,
+      connection: connectionRef.current,
+      paths,
+      billing: currentBillingDraft,
+      systemInstruction,
+      apiKey: currentApiKey,
+      apiKeyRemovalPending,
+      billingAccessTokenRemovalPending,
+    });
   };
 
   const updateConnectionDraft = (updater: ConnectionUpdater) => {
@@ -623,6 +628,10 @@ export function SettingsDetailPage({ onNav, onBack, profileId, onProfilesChanged
     if (saveBusyRef.current) {
       return;
     }
+    if (!currentDraftHasChanges()) {
+      show(t.settings.noChangesToSave, 'neutral', { key: 'settings-detail-save-no-changes' });
+      return;
+    }
     saveBusyRef.current = true;
     await services.diagnostics?.checkpoint('uxp.ui.settings_detail.save.entered', { profileId });
     setSaveBusy(true);
@@ -698,7 +707,7 @@ export function SettingsDetailPage({ onNav, onBack, profileId, onProfilesChanged
       if (message.includes('displayName')) {
         setAliasError(t.settings.duplicateDisplayName(sanitizeProviderDisplayName(displayName)));
       }
-      show(message, 'negative', { key: 'settings-detail-save-error', durationMs: null, copyable: true });
+      show(message, 'negative', { key: 'settings-detail-save-error', copyable: true });
     } finally {
       await services.diagnostics?.checkpoint('uxp.ui.settings_detail.save.before_busy_clear', { profileId });
       saveBusyRef.current = false;
@@ -736,15 +745,12 @@ export function SettingsDetailPage({ onNav, onBack, profileId, onProfilesChanged
       const status = statusFromProviderConnectionTestResult(result.value, t);
       show(status.message, status.tone, {
         key: 'settings-detail-connection-test',
-        durationMs: status.durationMs,
-        dismissible: status.dismissible,
         copyable: status.copyable,
       });
     } catch (error) {
       const detail = error instanceof Error ? error.message : String(error);
       show(`${t.settings.connectionFailed}: ${detail}`, 'negative', {
         key: 'settings-detail-connection-test-error',
-        durationMs: null,
         copyable: true,
       });
     } finally {
@@ -762,14 +768,11 @@ export function SettingsDetailPage({ onNav, onBack, profileId, onProfilesChanged
       const status = statusFromEndpointMeasurementResult(result.value, t);
       show(status.message, status.tone, {
         key: 'settings-detail-endpoint-probe',
-        durationMs: status.durationMs,
-        dismissible: status.dismissible,
         copyable: status.copyable,
       });
     } catch (error) {
       show(error instanceof Error ? error.message : String(error), 'negative', {
         key: 'settings-detail-endpoint-probe-error',
-        durationMs: null,
         copyable: true,
       });
     }
@@ -790,7 +793,7 @@ export function SettingsDetailPage({ onNav, onBack, profileId, onProfilesChanged
       await onProfilesChanged(null);
       onNav('settings');
     } catch (error) {
-      show(error instanceof Error ? error.message : String(error), 'negative', { key: 'settings-detail-delete-error', durationMs: null, copyable: true });
+      show(error instanceof Error ? error.message : String(error), 'negative', { key: 'settings-detail-delete-error', copyable: true });
     } finally {
       saveBusyRef.current = false;
       setSaveBusy(false);
@@ -826,7 +829,7 @@ export function SettingsDetailPage({ onNav, onBack, profileId, onProfilesChanged
       modelId: action.matchedModelId ?? null,
     });
   };
-  const saveDisabled = busy || !detail.profile || !draftDirty || endpointErrors.size > 0 || Boolean(aliasError);
+  const saveDisabled = busy || !detail.profile || endpointErrors.size > 0 || Boolean(aliasError);
   const modelEmptyState = detail.profile && userModelOptions.length === 0
     ? {
         tone: modelOptionsError ? 'warning' as const : 'info' as const,

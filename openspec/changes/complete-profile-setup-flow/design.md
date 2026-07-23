@@ -63,6 +63,14 @@ UI 可以在用户显式切换 Profile 后选择确定的单一模型作为交�
 
 `ProviderProfile.enabled`、保存输入、UI projection 和 Provider admission/readiness 对它的分支一并移除。读入端 SHALL 容忍缺少或遗留的 profile-level `enabled`，但不得把它投影回当前状态或作为运行条件。setup 隔离由生命周期承担；ready Profile 均是可参与正常调用的配置对象，实际连通性仍由请求结果决定。`connection.endpoints[].enabled` 是 endpoint failover 配置，明确不在移除范围。
 
+### 7. ready 完成后以 Provider 列表作为创建终点
+
+无论 Profile 在 `Continue` 时直接 ready，还是在首个 Model Config 保存后 promotion 为 ready，UI 都返回 Provider 列表，显示包含 Profile 名称的创建成功 toast，并标记新建条目。Profile Detail 只服务于后续显式编辑，不作为创建完成后的中转页，避免用户误以为还需第二次保存。
+
+### 8. 未修改的 Save 使用显式反馈而非原生 disabled 语义
+
+Photoshop UXP 不以原生 `disabled` 作为可靠的交互边界。ready Profile 详情没有未保存更改时，`Save` 仍可被激活；handler 必须显示“没有需要保存的更改”toast，并在任何 repository write 前返回。忙碌态仍保留重复提交保护。
+
 ## Risks / Trade-offs
 
 - [setup 的多 repository 写入不是事务] → setup 永不公开；promotion/cleanup 设计为幂等，并对“模型已写入、promotion 未完成”建立测试。
@@ -70,6 +78,7 @@ UI 可以在用户显式切换 Profile 后选择确定的单一模型作为交�
 - [删除最后模型的并发/陈旧 UI] → repository 提供原子“删除后至少保留一条”边界，application command 做最终检查，UI 禁用仅是辅助反馈。
 - [移除 `enabled` 触及执行热路径] → provider admission、readiness、测试 fake、UXP/Chrome adapters 同批更新，并用 admission contract 验证。
 - [取消清理可能删除用户刚输入的 secrets] → cleanup 仅接受 setup Profile id；ready Profile 永不走该路径。
+- [UXP 对 disabled 的行为与浏览器不同] → 无更改 Save 由 handler 显式拒绝并反馈，测试同时断言 toast 与零持久化调用。
 
 ## Migration Plan
 

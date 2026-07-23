@@ -4,9 +4,10 @@ import { convertComfyUiApiWorkflowToForm, convertComfyUiFrontendWorkflowToForm, 
 import { validateComfyUiExecutionResult } from '../src/execution-types.js';
 import { downloadAndStoreComfyUiOutputs, observeKnownComfyUiPrompt } from '../src/observation.js';
 import { executeComfyUiApiGraph, executeComfyUiFrontendQueue } from '../src/drivers.js';
-import { COMFYUI_BRIDGE_LIMITS } from '../src/bridge.js';
+import { COMFYUI_BRIDGE_LIMITS, validateComfyUiFrontendReceipt } from '../src/bridge.js';
 import { createComfyUiExecutionAdapter } from '../src/adapter.js';
 import { prepareComfyUiUploads } from '../src/assets.js';
+import { createComfyUiManagementHost } from '../src/management-host.js';
 
 const encoder = new TextEncoder();
 const connection = { baseUrl: 'https://example.test', requestTimeoutMs: 1_000, observationTimeoutMs: 1_000 };
@@ -23,6 +24,78 @@ function canonicalMask(values: readonly number[]): Uint8Array {
 }
 
 describe('ComfyUI internal runtime', () => {
+  it('handshakes the cold frontend Bridge before workflow discovery', async () => {
+    const commands: string[] = [];
+    let compatible = false;
+    const identity = { origin: 'https://example.test', sourceId: 'source', loadId: 'load' };
+    const host = createComfyUiManagementHost({
+      httpTransport: { request: async () => ({ status: 200, headers: {}, body: new Uint8Array() }) },
+      frontendBridgeResolver: {
+        resolve: async () => ({
+          identity,
+          exchange: async (request) => {
+            commands.push(request.command);
+            if (request.command === 'handshake') {
+              compatible = true;
+              return {
+                requestId: request.requestId,
+                ok: true,
+                payload: {
+                  identity,
+                  protocolVersion: 1,
+                  bridgeVersion: 'test',
+                  frontendVersion: 'test',
+                  coreVersion: 'test',
+                  capabilities: { nativeQueue: true, workflowDiscovery: true, receiptObserver: true },
+                  limits: COMFYUI_BRIDGE_LIMITS,
+                },
+              };
+            }
+            if (!compatible) throw new Error('bridge-listener-not-ready');
+            return {
+              requestId: request.requestId,
+              ok: true,
+              payload: { workflows: [{ workflowId: 'wf', displayName: 'WF', remotePath: 'wf.json', revision: 'r1' }] },
+            };
+          },
+        }),
+      },
+    });
+
+    await expect(host.discoverFrontendWorkflows(connection)).resolves.toEqual([
+      { workflowId: 'wf', displayName: 'WF', remotePath: 'wf.json', revision: 'r1' },
+    ]);
+    expect(commands).toEqual(['handshake', 'list-workflows']);
+  });
+
+  it('preserves bounded Bridge rejection diagnostics without claiming remote continuation', () => {
+    expect(() => validateComfyUiFrontendReceipt(
+      { requestId: 'request', ok: false, errorCode: 'invalid-workflow' },
+      'request',
+      'operation',
+    )).toThrowError(expect.objectContaining({
+      details: expect.objectContaining({
+        code: 'invalid-workflow',
+        bridgeCode: 'invalid-workflow',
+        remoteMayContinue: false,
+      }),
+    }));
+  });
+
+  it('marks only unknown Bridge submissions as remotely continuing', () => {
+    expect(() => validateComfyUiFrontendReceipt(
+      { requestId: 'request', ok: false, errorCode: 'submission-unknown' },
+      'request',
+      'operation',
+    )).toThrowError(expect.objectContaining({
+      details: expect.objectContaining({
+        code: 'submission-unknown',
+        bridgeCode: 'submission-unknown',
+        remoteMayContinue: true,
+      }),
+    }));
+  });
+
   it('admits API graph and exposes only # primitive widgets', () => {
     const graph = { '1': { class_type: 'Text', inputs: { text: 'saved' }, _meta: { title: '# Prompt 2' } } };
     const document = detectAndAdmitComfyUiWorkflowDocument(graph);
@@ -102,6 +175,31 @@ describe('ComfyUI internal runtime', () => {
     );
     expect(result.descriptors.map((item) => item.filename)).toEqual(['preview.png', 'saved-node.png', 'saved.png']);
     expect(result.warnings.map((item) => item.code)).toContain('unsafe-output-skipped');
+  });
+
+  it('waits for terminal history instead of treating an empty response as success', async () => {
+    let requests = 0;
+    let now = 0;
+    const result = await observeKnownComfyUiPrompt(
+      { connection, promptId: 'prompt' },
+      {
+        transport: {
+          request: async () => {
+            requests += 1;
+            return {
+              status: 200,
+              headers: {},
+              body: encoder.encode(JSON.stringify(requests === 1 ? {} : {
+                prompt: { status: { status_str: 'success', completed: true }, outputs: {} },
+              })),
+            };
+          },
+        },
+        clock: { now: () => now, sleep: async (ms) => { now += ms; } },
+      },
+    );
+    expect(requests).toBe(2);
+    expect(result.descriptors).toEqual([]);
   });
 
   it('keeps safe downloaded siblings when one image response is unsafe', async () => {

@@ -1,5 +1,5 @@
 import { act } from 'react';
-import { afterEach, describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import { changeTextarea, cleanupMainPageRoot, flush, renderMainPage } from '../../../helpers/main-page-harness';
 import { changeInput } from '../../../helpers/settings-detail-harness';
 import { createFakeServices } from '../../../helpers/fakes';
@@ -44,6 +44,63 @@ describe('ComfyUI workflow settings surface', () => {
     expect(container.querySelector('[data-testid="comfyui-input-mapping"]')).not.toBeNull();
     expect(container.querySelector('[data-testid="comfyui-image-mapping"]')).toBeNull();
     expect(container.textContent).toContain('此 Workflow 不接收图片附件');
+  });
+
+  it('opens the selected Workflow and clears stale runtime after refresh discovery fails', async () => {
+    const container = document.createElement('div');
+    document.body.appendChild(container);
+    const fake = createFakeServices({ comfyUi: { baseUrl: 'https://comfy.example.test' } });
+    await renderMainPage(container, fake);
+    await openComfySettings(container);
+
+    await act(async () => { container.querySelector<HTMLElement>('[data-testid="comfyui-open-workflow"]')?.click(); });
+    await flush();
+    expect(fake.spies.open).toHaveBeenCalledWith(
+      'https://comfy.example.test',
+      expect.objectContaining({ workflowId: 'workflow-d01', revision: 'rev-1' }),
+      undefined,
+    );
+
+    fake.spies.discover.mockRejectedValueOnce(new Error('server offline'));
+    await act(async () => { container.querySelector<HTMLElement>('[data-testid="comfyui-refresh-workflow"]')?.click(); });
+    await flush();
+    await flush();
+    expect(container.querySelector('[data-testid="comfyui-diagnostics"]')?.textContent).toContain('server offline');
+    expect(container.querySelector('[data-testid="comfyui-workflow-parameters"]')).toBeNull();
+    expect(container.querySelector('[data-testid="comfyui-open-workflow"]')).toBeNull();
+  });
+
+  it('clears stale runtime when the Workflow refresh itself fails', async () => {
+    const container = document.createElement('div');
+    document.body.appendChild(container);
+    const fake = createFakeServices({ comfyUi: { baseUrl: 'https://comfy.example.test' } });
+    vi.spyOn(fake.services.comfyUi, 'refresh').mockRejectedValueOnce(new Error('refresh denied'));
+    await renderMainPage(container, fake);
+    await openComfySettings(container);
+
+    await act(async () => { container.querySelector<HTMLElement>('[data-testid="comfyui-refresh-workflow"]')?.click(); });
+    await flush();
+
+    expect(container.querySelector('[data-testid="comfyui-diagnostics"]')?.textContent).toContain('refresh denied');
+    expect(container.querySelector('[data-testid="comfyui-workflow-parameters"]')).toBeNull();
+    expect(container.querySelector('[data-testid="comfyui-open-workflow"]')).toBeNull();
+  });
+
+  it('keeps the selected Workflow visible when Open in ComfyUI fails', async () => {
+    const container = document.createElement('div');
+    document.body.appendChild(container);
+    const fake = createFakeServices({ comfyUi: { baseUrl: 'https://comfy.example.test' } });
+    fake.spies.open.mockRejectedValueOnce(new Error('open denied'));
+    await renderMainPage(container, fake);
+    await openComfySettings(container);
+
+    await act(async () => { container.querySelector<HTMLElement>('[data-testid="comfyui-open-workflow"]')?.click(); });
+    await flush();
+
+    expect(fake.spies.open).toHaveBeenCalledTimes(1);
+    expect(container.querySelector('[data-testid="comfyui-diagnostics"]')?.textContent).toContain('open denied');
+    expect(container.querySelector('[data-testid="comfyui-workflow-parameters"]')).not.toBeNull();
+    expect(container.querySelector('[data-testid="comfyui-open-workflow"]')).not.toBeNull();
   });
 
   it('uses explicit UXP-safe disabled semantics for Connect until an address exists', async () => {
@@ -167,6 +224,25 @@ describe('ComfyUI workflow settings surface', () => {
     expect(container.querySelector<HTMLTextAreaElement>('[data-testid="composer-textarea"]')?.value).toBe('draft survives');
   });
 
+  it('keeps ComfyUI mode reachable when no Provider profile exists', async () => {
+    const container = document.createElement('div');
+    document.body.appendChild(container);
+    await renderMainPage(container, createFakeServices({
+      profiles: [],
+      comfyUi: { baseUrl: 'https://comfy.example.test' },
+    }));
+    await flush();
+
+    await act(async () => { container.querySelector<HTMLElement>('[data-testid="main-profile-selector"]')?.click(); });
+    await flush();
+    expect(container.querySelector('[data-testid="profile-list-state-empty"]')).not.toBeNull();
+    expect(container.querySelector('[data-testid="main-mode-comfyui"]')).not.toBeNull();
+
+    await act(async () => { container.querySelector<HTMLElement>('[data-testid="main-mode-comfyui"]')?.click(); });
+    await flush();
+    expect(container.querySelector('[data-testid="generation-current-target-summary"]')).not.toBeNull();
+  });
+
   it('filters picker search and groups remote identities without legacy execution controls', async () => {
     const container = document.createElement('div');
     document.body.appendChild(container);
@@ -241,25 +317,48 @@ describe('ComfyUI workflow settings surface', () => {
     expect(container.querySelector<HTMLInputElement>('#comfyui-parameter-prompt-0')?.value).toBe('session draft');
   });
 
-  it('shows selectors only for ambiguous mappings', async () => {
+  it('shows safe, distinguishable options only for ambiguous mappings', async () => {
     const container = document.createElement('div');
     document.body.appendChild(container);
     await renderMainPage(container, createFakeServices({
       comfyUi: {
         baseUrl: 'https://comfy.example.test',
-        form: { nodes: [{
-          nodeId: 'prompt', title: '# Prompt', label: 'Prompt', order: 0, active: true, visible: true,
-          widgets: [
-            { ref: { nodeId: 'prompt', inputName: 'text' }, kind: 'string', label: 'Text A', workflowValue: 'a', writable: true, visible: true, order: 0 },
-            { ref: { nodeId: 'prompt', inputName: 'text2' }, kind: 'string', label: 'Text B', workflowValue: 'b', writable: true, visible: true, order: 1 },
-          ],
-        }] },
+        form: { nodes: [
+          {
+            nodeId: '1', title: '# Positive', label: 'Positive', order: 0, active: true, visible: true,
+            widgets: [
+              { ref: { nodeId: '1', widgetIndex: 0 }, kind: 'string', label: 'text', workflowValue: 'a', writable: true, visible: true, order: 0 },
+              { ref: { nodeId: '1', widgetIndex: 1 }, kind: 'string', label: 'text', workflowValue: 'b', writable: true, visible: true, order: 1 },
+            ],
+          },
+          {
+            nodeId: '2', title: '# Negative', label: 'Negative', order: 1, active: true, visible: true,
+            widgets: [{ ref: { nodeId: '2', widgetIndex: 0 }, kind: 'string', label: 'text', workflowValue: 'c', writable: true, visible: true, order: 0 }],
+          },
+        ] },
       },
     }));
     await flush();
     await openComfySettings(container);
     expect(container.querySelector('[data-testid="comfyui-text-mapping"]')).not.toBeNull();
     expect(container.querySelector('[data-testid="comfyui-image-mapping"]')).toBeNull();
+    await act(async () => { container.querySelector<HTMLElement>('[data-testid="comfyui-text-mapping"]')?.click(); });
+    await flush();
+    const positive = document.querySelector<HTMLElement>('[data-testid="comfyui-text-mapping-option-candidate-0"]');
+    const positiveSecond = document.querySelector<HTMLElement>('[data-testid="comfyui-text-mapping-option-candidate-1"]');
+    const negative = document.querySelector<HTMLElement>('[data-testid="comfyui-text-mapping-option-candidate-2"]');
+    expect(positive?.querySelector('.cmp-select-option-label')?.textContent).toBe('Positive / text');
+    expect(positive?.querySelector('.cmp-select-option-badge')?.textContent).toBe('Node 1 / Widget 0');
+    expect(positiveSecond?.querySelector('.cmp-select-option-label')?.textContent).toBe('Positive / text');
+    expect(positiveSecond?.querySelector('.cmp-select-option-badge')?.textContent).toBe('Node 1 / Widget 1');
+    expect(negative?.querySelector('.cmp-select-option-label')?.textContent).toBe('Negative / text');
+    expect(negative?.querySelector('.cmp-select-option-badge')?.textContent).toBe('Node 2 / Widget 0');
+    expect([...document.querySelectorAll<HTMLElement>('[data-testid^="comfyui-text-mapping-option-"]')]
+      .every((option) => !/[\u0000-\u001f\u007f]/u.test(option.dataset.testid ?? ''))).toBe(true);
+    await act(async () => { positive?.click(); });
+    await flush();
+    expect(container.querySelector('[data-testid="comfyui-input-mapping"]')).not.toBeNull();
+    expect(container.querySelector('[data-testid="comfyui-text-mapping"]')?.getAttribute('aria-label')).toBe('Prompt input: Positive / text');
   });
 
   it('shows an explicit Mask selector only for writable upload-image inputs', async () => {

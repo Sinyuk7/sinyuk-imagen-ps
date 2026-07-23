@@ -1125,29 +1125,29 @@ export function MainPage({
                   <Button data-testid="main-mode-provider" className="model-opt" onClick={() => workspace.setGenerationMode('provider')}>
                     <span>{t.common.provider}</span>
                   </Button>
-                ) : profileListState ? (
-                  <ListStateItem
-                    className="popup-list-state profile-popup-state"
-                    data-testid={`profile-list-state-${profileListState.kind}`}
-                    kind={profileListState.kind}
-                    title={profileListState.title}
-                    action={profileListState.kind === 'empty'
-                      ? { label: t.common.addProvider, onPress: () => onNav('settings-add') }
-                      : undefined}
-                  />
                 ) : (
                   <>
-                  {selectableProfiles.map((profile) => (
-                    <Button
-                      key={profile.profileId}
-                      data-testid={`profile-menu-option-${profile.profileId}`}
-                      className={`model-opt${profile.profileId === selectedProfileId ? ' act' : ''}`}
-                      onClick={() => selectProfile(profile.profileId)}
-                    >
-                      {profile.profileId === selectedProfileId && <Icon name="check" />}
-                      <span>{profile.displayName}</span>
-                    </Button>
-                  ))}
+                  {profileListState ? (
+                    <ListStateItem
+                      className="popup-list-state profile-popup-state"
+                      data-testid={`profile-list-state-${profileListState.kind}`}
+                      kind={profileListState.kind}
+                      title={profileListState.title}
+                      action={profileListState.kind === 'empty'
+                        ? { label: t.common.addProvider, onPress: () => onNav('settings-add') }
+                        : undefined}
+                    />
+                  ) : selectableProfiles.map((profile) => (
+                      <Button
+                        key={profile.profileId}
+                        data-testid={`profile-menu-option-${profile.profileId}`}
+                        className={`model-opt${profile.profileId === selectedProfileId ? ' act' : ''}`}
+                        onClick={() => selectProfile(profile.profileId)}
+                      >
+                        {profile.profileId === selectedProfileId && <Icon name="check" />}
+                        <span>{profile.displayName}</span>
+                      </Button>
+                    ))}
                   <Button data-testid="main-mode-comfyui" className="model-opt" onClick={() => workspace.setGenerationMode('comfyui')}>
                     <span>{t.settings.comfyUi}</span>
                   </Button>

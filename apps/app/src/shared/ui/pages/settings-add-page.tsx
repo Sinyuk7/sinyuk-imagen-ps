@@ -125,7 +125,9 @@ export function SettingsAddPage({ onNav, profiles, onProfileSetup }: SettingsAdd
     ? t.settings.duplicateDisplayName(normalizedName)
     : null;
   const endpointErrors = duplicateEndpointErrors(connection, t.settings.duplicateEndpointUrl);
-  const saveDisabled = saveBusy || !apiFormat || Boolean(aliasError) || endpointErrors.size > 0;
+  const hasEndpointInput = detectionValue.trim().length > 0
+    || connection.endpoints.some((endpoint) => endpoint.url.trim().length > 0);
+  const saveDisabled = saveBusy || (!apiFormat && !hasEndpointInput) || Boolean(aliasError) || endpointErrors.size > 0;
 
   useEffect(() => {
     const nextBilling = defaultBillingDraft(selected);
@@ -316,14 +318,11 @@ export function SettingsAddPage({ onNav, profiles, onProfileSetup }: SettingsAdd
       const status = statusFromEndpointMeasurementResult(result.value, t);
       show(status.message, status.tone, {
         key: 'settings-add-endpoint-probe',
-        durationMs: status.durationMs,
-        dismissible: status.dismissible,
         copyable: status.copyable,
       });
     } catch (error) {
       show(error instanceof Error ? error.message : String(error), 'negative', {
         key: 'settings-add-endpoint-probe-error',
-        durationMs: null,
         copyable: true,
       });
     }
@@ -343,14 +342,11 @@ export function SettingsAddPage({ onNav, profiles, onProfileSetup }: SettingsAdd
       const status = statusFromProviderConnectionTestResult(result.value, t);
       show(status.message, status.tone, {
         key: 'settings-add-connection-test',
-        durationMs: status.durationMs,
-        dismissible: status.dismissible,
         copyable: status.copyable,
       });
     } catch (error) {
       show(error instanceof Error ? error.message : String(error), 'negative', {
         key: 'settings-add-connection-test-error',
-        durationMs: null,
         copyable: true,
       });
     } finally {
@@ -499,7 +495,6 @@ export function SettingsAddPage({ onNav, profiles, onProfileSetup }: SettingsAdd
     } catch (error) {
       show(error instanceof Error ? error.message : String(error), 'negative', {
         key: 'settings-add-save-error',
-        durationMs: null,
         copyable: true,
       });
     } finally {

@@ -59,6 +59,7 @@ export interface ComfyUiServerCapabilities {
 /** Discovery identity。未加载 document 时 revision 可为空。 */
 export interface WorkflowIdentity {
   readonly workflowId: string;
+  readonly nativeWorkflowId?: string;
   readonly displayName: string;
   readonly remotePath: string;
   readonly groupPath: readonly string[];

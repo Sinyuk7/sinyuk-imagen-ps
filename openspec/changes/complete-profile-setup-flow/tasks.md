@@ -34,3 +34,9 @@
 
 - [x] 5.1 更新 `docs/ENGINEERING_CONTEXT.md`，记录 ready Profile 定义、setup 内部边界、显式模型提交与无 `enabled` 语义。
 - [x] 5.2 更新 `docs/TESTING.md`，记录本变更的 contract/harness 入口与“连接测试不证明生成”的验证边界。
+
+## 6. 创建完成反馈 follow-up
+
+- [x] 6.1 将 direct-ready 与首模型 promotion 的完成路由统一到 Provider 列表，显示命名创建成功 toast，并标记新建条目。
+- [x] 6.2 让 ready Profile 详情的未修改 Save 显式显示无更改 toast，并保证不触发持久化。
+- [x] 6.3 添加完整创建完成与未修改 Save 的 shared UI tests，运行 focused tests、app build、policy 与严格 OpenSpec validation。

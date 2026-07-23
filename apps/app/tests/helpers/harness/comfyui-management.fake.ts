@@ -52,6 +52,7 @@ export function createComfyUiManagementFake(options: ComfyUiManagementFakeOption
     ? { baseUrl, selectedWorkflowId, ambiguousMappingsByRevision: {} }
     : undefined);
   const discover = vi.fn(async () => workflows);
+  const open = vi.fn(async () => undefined);
   const load = vi.fn(async (_origin: string, identity: WorkflowIdentity): Promise<LoadedWorkflowRuntime> => {
     if (options.loadError) throw options.loadError;
     return {
@@ -69,12 +70,13 @@ export function createComfyUiManagementFake(options: ComfyUiManagementFakeOption
       probe: vi.fn(async () => ({ api: 'ready' as const, frontend: 'ready' as const, bridge: 'compatible' as const })),
       discover,
       load,
+      open,
     },
   });
 
   return {
     service,
     harness,
-    spies: { discover, load },
+    spies: { discover, load, open },
   };
 }

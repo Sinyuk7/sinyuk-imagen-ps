@@ -26,6 +26,11 @@
 - **WHEN** setup Profile 的首个 `UserModelConfig` 成功保存
 - **THEN** 系统 SHALL 将 Profile 提升为 ready，使其出现在公开列表并结束创建流程
 
+#### Scenario: ready 创建完成反馈
+- **WHEN** 新建 Profile 在 Continue 或首个 Model Config 保存后达到 ready
+- **THEN** 系统 SHALL 返回 Provider 列表，显示包含 Profile 名称的创建成功 toast，并标记新建 Profile 条目
+- **AND** 系统 SHALL NOT 自动打开 Profile Detail 或要求用户再次保存
+
 ### Requirement: setup 退出 SHALL 清理创建中数据
 系统 SHALL 在用户取消、从创建路由返回或启动恢复发现遗留 setup Profile 时，删除该 setup Profile、关联 Model Config 与 secrets。该清理 SHALL 不影响 ready Profile。
 
@@ -47,3 +52,8 @@
 #### Scenario: 编辑输入非法配置
 - **WHEN** 用户保存未通过 Profile 配置校验的 ready Profile
 - **THEN** 系统 SHALL 返回校验错误且 SHALL 不写入该次非法配置
+
+#### Scenario: 未修改 Profile 点击 Save
+- **WHEN** ready Profile 详情没有未保存更改且用户激活 Save
+- **THEN** 系统 SHALL 显示没有需要保存更改的 toast
+- **AND** 系统 SHALL NOT 调用 Profile repository 保存

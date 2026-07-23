@@ -96,7 +96,7 @@ export function ProfileModelsPage({ profile, onBack, onCreate, onEdit, onSuggest
       });
     } catch (nextError) {
       const message = nextError instanceof Error ? nextError.message : String(nextError);
-      show(message, 'negative', { key: `profile-models-refresh:${profile.profileId}`, durationMs: null });
+      show(message, 'negative', { key: `profile-models-refresh:${profile.profileId}` });
     } finally {
       setRefreshing(false);
     }

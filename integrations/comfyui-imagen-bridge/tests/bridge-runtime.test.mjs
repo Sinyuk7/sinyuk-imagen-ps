@@ -10,13 +10,14 @@ function request(command, payload = {}) { return { requestId: `request-${command
 test('bridge allowlist handshakes, lists, submits once, and disposes', async () => {
   let queues = 0;
   let resets = 0;
+  let restores = 0;
   let disposes = 0;
   const runtimeSource = {};
   const runtime = createBridgeRuntime({ identity, compatibility, config, expectedSource: runtimeSource, adapter: {
     async getVersions() { return { frontendVersion: 'unknown', coreVersion: 'unknown' }; },
     async discoverWorkflows() { return [{ workflowId: 'workflow:a', displayName: 'a', remotePath: 'a.json', revision: 'rev-a' }]; },
     async openWorkflow() { return {}; },
-    async setValues() {},
+    async setValues() { return async () => { restores += 1; }; },
     async queueNativeOnce() { queues += 1; return { promptId: 'prompt-1', acknowledgedAt: 1 }; },
     async resetOperation() { resets += 1; },
     async dispose() { disposes += 1; },
@@ -31,6 +32,7 @@ test('bridge allowlist handshakes, lists, submits once, and disposes', async () 
   assert.equal(first.payload.promptId, 'prompt-1');
   assert.equal(second.payload.promptId, 'prompt-1');
   assert.equal(queues, 1);
+  assert.equal(restores, 1);
   assert.equal(resets, 1);
   assert.deepEqual((await runtime.handleMessage(event(request('dispose')))).payload, { disposed: true });
   assert.equal(disposes, 1);
@@ -40,11 +42,12 @@ test('bridge allowlist handshakes, lists, submits once, and disposes', async () 
 test('bridge bounds native queue rejection and releases operation lease', async () => {
   let queues = 0;
   let resets = 0;
+  let restores = 0;
   const runtimeSource = {};
   const runtime = createBridgeRuntime({ identity, compatibility, config, expectedSource: runtimeSource, adapter: {
     async discoverWorkflows() { return []; },
     async openWorkflow() { return {}; },
-    async setValues() {},
+    async setValues() { return async () => { restores += 1; }; },
     async queueNativeOnce() { queues += 1; throw new Error('raw native details'); },
     async resetOperation() { resets += 1; },
     async dispose() {},
@@ -55,6 +58,56 @@ test('bridge bounds native queue rejection and releases operation lease', async 
   const response = await runtime.handleMessage(event(request('submit', payload)));
   assert.equal(response.errorCode, 'submission-unknown');
   assert.equal(queues, 1);
+  assert.equal(restores, 1);
   assert.equal(resets, 1);
+  assert.equal(runtime.inspect().lease.owner, null);
+});
+
+test('bridge keeps a valid receipt when post-queue cleanup fails', async () => {
+  let queues = 0;
+  const runtimeSource = {};
+  const runtime = createBridgeRuntime({ identity, compatibility, config, expectedSource: runtimeSource, adapter: {
+    async discoverWorkflows() { return []; },
+    async openWorkflow() { return {}; },
+    async setValues() { return async () => { throw new Error('restore failed'); }; },
+    async queueNativeOnce() { queues += 1; return { promptId: 'prompt-cleanup', acknowledgedAt: 2 }; },
+    async resetOperation() { throw new Error('reset failed'); },
+    async dispose() {},
+  } });
+  const event = (data) => ({ source: runtimeSource, origin: identity.origin, data });
+  await runtime.handleMessage(event(request('handshake', compatibility)));
+  const payload = { workflowId: 'workflow:a', revision: 'rev-a', remotePath: 'a.json', operationId: 'op-cleanup', mutations: [], configureTimeoutMs: 100, receiptTimeoutMs: 100 };
+
+  const first = await runtime.handleMessage(event(request('submit', payload)));
+  const second = await runtime.handleMessage(event({ ...request('submit', payload), requestId: 'request-submit-cleanup-2' }));
+
+  assert.equal(first.ok, true);
+  assert.equal(first.payload.promptId, 'prompt-cleanup');
+  assert.equal(second.payload.promptId, 'prompt-cleanup');
+  assert.equal(queues, 1);
+  assert.equal(runtime.inspect().lease.owner, null);
+});
+
+test('bridge preserves submission-unknown when malformed receipt cleanup also fails', async () => {
+  let queues = 0;
+  const runtimeSource = {};
+  const runtime = createBridgeRuntime({ identity, compatibility, config, expectedSource: runtimeSource, adapter: {
+    async discoverWorkflows() { return []; },
+    async openWorkflow() { return {}; },
+    async setValues() { return async () => { throw new Error('restore failed'); }; },
+    async queueNativeOnce() { queues += 1; return { promptId: '', acknowledgedAt: 'invalid' }; },
+    async resetOperation() { throw new Error('reset failed'); },
+    async dispose() {},
+  } });
+  const event = (data) => ({ source: runtimeSource, origin: identity.origin, data });
+  await runtime.handleMessage(event(request('handshake', compatibility)));
+  const payload = { workflowId: 'workflow:a', revision: 'rev-a', remotePath: 'a.json', operationId: 'op-malformed', mutations: [], configureTimeoutMs: 100, receiptTimeoutMs: 100 };
+
+  const first = await runtime.handleMessage(event(request('submit', payload)));
+  const second = await runtime.handleMessage(event({ ...request('submit', payload), requestId: 'request-submit-malformed-2' }));
+
+  assert.equal(first.errorCode, 'submission-unknown');
+  assert.equal(second.errorCode, 'submission-unknown');
+  assert.equal(queues, 1);
   assert.equal(runtime.inspect().lease.owner, null);
 });

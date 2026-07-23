@@ -41,6 +41,7 @@ export function createComfyUiManagementHostPorts(
       const workflows = await host.discoverFrontendWorkflows(connection(baseUrl), signal);
       return workflows.map((workflow) => ({
         workflowId: workflow.workflowId,
+        ...(workflow.nativeWorkflowId === undefined ? {} : { nativeWorkflowId: workflow.nativeWorkflowId }),
         displayName: workflow.displayName,
         remotePath: workflow.remotePath,
         groupPath: workflow.remotePath.split('/').slice(0, -1),

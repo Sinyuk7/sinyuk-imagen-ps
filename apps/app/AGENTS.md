@@ -40,6 +40,7 @@ UXP HTML/CSS, Spectrum Web Components, or SWC wrapper question:
 
 - UI localization is an `apps/app` surface concern. Shared packages must not own UI copy or locale state.
 - Shared UI motion, theme generation, toast, and popup-layer behavior are `apps/app` contracts. Longer rationale and implementation detail live in `docs/ENGINEERING_CONTEXT.md`.
+- In Photoshop UXP, native button `disabled` is a visual hint, not a behavioral gate. Click handlers must recheck busy, validation, and dirty conditions; blocked user actions must provide an explicit toast and return before persistence or other side effects.
 - Shared UI and harness CSS must stay inside the repo-owned UXP CSS contract. Mechanical enforcement lives in `pnpm check:policy` and `docs/TESTING.md`.
 - Pages import approved controls and layouts from `src/shared/ui/ui-system.ts`. Keep owner-local implementation imports inside the owning component; page roots use `PageFrame`, `PageHeader`, `PageScroll`, and the matching list/form/state pattern.
 - An independent list is a page, popup, or reusable feature surface that presents peer rows of one domain collection and owns initial loading, empty, error, or refresh presentation. It must use the approved `List` / domain row shell / `ListStateItem` contract: initial replacement states share the domain row shell, refresh preserves visible domain rows, and domain arrays remain pure.

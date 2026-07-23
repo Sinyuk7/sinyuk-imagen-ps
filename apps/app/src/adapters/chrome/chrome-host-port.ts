@@ -77,13 +77,17 @@ function readImageSize(bytes: Uint8Array, mimeType: string): { readonly width: n
   return undefined;
 }
 
-function ensureFileMatchesProviderInputPolicy(bytes: Uint8Array, mimeType: string, policy: ProviderInputSizePolicy): void {
+function ensureFileMatchesProviderInputPolicy(
+  bytes: Uint8Array,
+  mimeType: string,
+  policy: ProviderInputSizePolicy,
+): { readonly width: number; readonly height: number } {
   const size = readImageSize(bytes, mimeType);
   if (!size) {
     throw new Error(`Cannot inspect local image dimensions for provider input: ${mimeType}.`);
   }
   if (sourceSatisfiesProviderInputPolicy(size, policy)) {
-    return;
+    return size;
   }
   const plan = resolveProviderInputPlan(size, policy);
   throw new Error(
@@ -105,7 +109,7 @@ async function fileToHostImage(file: File, policy: ProviderInputSizePolicy, asse
   const buffer = await file.arrayBuffer();
   const data = new Uint8Array(buffer);
   const mimeType = file.type || 'image/png';
-  ensureFileMatchesProviderInputPolicy(data, mimeType, policy);
+  const size = ensureFileMatchesProviderInputPolicy(data, mimeType, policy);
   const previewUrl = typeof URL !== 'undefined' && typeof URL.createObjectURL === 'function' ? URL.createObjectURL(file) : undefined;
   const storedRef = await assetStore.put(buffer.slice(0), {
     mimeType,
@@ -117,6 +121,8 @@ async function fileToHostImage(file: File, policy: ProviderInputSizePolicy, asse
     payloadKind: 'host-object',
     payloadRef: storedRef.ref,
     disposePreview: previewUrl ? () => URL.revokeObjectURL(previewUrl) : undefined,
+    width: size.width,
+    height: size.height,
     byteSize: storedRef.byteSize,
   });
 }

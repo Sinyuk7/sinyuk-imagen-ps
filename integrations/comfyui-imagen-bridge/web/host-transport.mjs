@@ -1,7 +1,7 @@
 import {
   isCanonicalHttpOrigin,
   isCanonicalPluginId,
-} from './bridge-runtime.mjs';
+} from './bridge-runtime.mjs?v=1.0.2';
 
 function isObjectLike(value) {
   return (typeof value === 'object' && value !== null) || typeof value === 'function';

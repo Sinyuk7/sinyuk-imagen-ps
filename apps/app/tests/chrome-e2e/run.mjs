@@ -812,7 +812,7 @@ async function layerAttachmentEditScenario({ page, url, capture }) {
   await checkpoint(page, capture, '19-layer-list.png', async () => {
     await expectVisibleText(page, 'PS Layers');
     await page.getByTestId('layer-row-1').waitFor({ state: 'visible' });
-    await expectVisibleText(page, 'sim-layer-1.svg');
+    await expectVisibleText(page, 'sim-layer-1.png');
   });
   await page.getByTestId('layer-row-1').click();
   await checkpoint(page, capture, '20-layer-attached-toast.png', async () => {
@@ -898,13 +898,13 @@ async function errorRetryScenario({ page, url, capture }) {
     await expectVisibleText(page, 'Use in prompt box');
   });
   await page.evaluate(async () => globalThis.__IMAGEN_CHROME_TEST_HARNESS__?.setMockFailureMode('none'));
-  await page.locator('[data-testid^="error-fill-composer-button-"]').first().click();
+  await page.getByTestId('main-history-button').click();
+  await page.locator('[data-testid^="history-retry-button-"]').first().click();
+  await page.getByText('Done', { exact: true }).first().waitFor({ state: 'visible', timeout: 5000 });
+  await page.getByTestId('history-back-button').click();
   await checkpoint(page, capture, '30-main-retry-success.png', async () => {
-    await page.getByTestId('composer-textarea').evaluate((textarea) => {
-      if (!(textarea instanceof HTMLTextAreaElement) || !textarea.value.includes('controlled failure prompt')) {
-        throw new Error('Failed prompt was not restored into the composer.');
-      }
-    });
+    await page.getByText('Done', { exact: true }).first().waitFor({ state: 'visible', timeout: 5000 });
+    await expectVisibleText(page, 'controlled failure prompt');
   });
   await assertNoBrokenImages(page);
 }

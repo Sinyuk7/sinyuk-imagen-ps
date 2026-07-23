@@ -25,8 +25,8 @@ function terminal(entry: Record<string, unknown>): boolean {
 function collectHistory(value: unknown): ComfyUiObservedOutputs | undefined {
   if (!isPlainRecord(value)) return undefined;
   const status = isPlainRecord(value.status) ? value.status : undefined;
-  if (status && !terminal(status) && !Array.isArray(value.outputs)) return undefined;
-  if (status && (status.status_str === 'error' || status.status === 'error' || status.status === 'failed')) throw createComfyUiExecutionError('observe', 'execution-failed');
+  if (status === undefined || !terminal(status)) return undefined;
+  if (status.status_str === 'error' || status.status === 'error' || status.status === 'failed') throw createComfyUiExecutionError('observe', 'execution-failed');
   const outputs = isPlainRecord(value.outputs) ? value.outputs : {};
   const descriptors: ComfyUiOutputDescriptor[] = [];
   let unsafe = false;

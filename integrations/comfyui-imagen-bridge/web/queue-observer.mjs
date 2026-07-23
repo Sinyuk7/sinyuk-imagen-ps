@@ -1,4 +1,4 @@
-import { BridgeProtocolError } from './bridge-runtime.mjs';
+import { BridgeProtocolError } from './bridge-runtime.mjs?v=1.0.2';
 
 const RECEIPT_OBSERVER = Symbol.for('imagen-ps.comfyui.receipt-observer');
 

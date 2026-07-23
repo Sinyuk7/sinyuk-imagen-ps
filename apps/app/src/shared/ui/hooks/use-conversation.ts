@@ -218,7 +218,8 @@ function previewWorkSignature(
       continue;
     }
     const job = jobsById.get(round.jobId);
-    const assets = job ? outputAssets(job.output) : round.previews.map((preview) => preview.asset);
+    const jobAssets = job ? outputAssets(job.output) : [];
+    const assets = jobAssets.length > 0 ? jobAssets : round.previews.map((preview) => preview.asset);
     if (assets.length === 0) {
       continue;
     }
@@ -270,9 +271,11 @@ function roundFromSessionJob(
     status: 'ok',
     jobId: job.id,
     previews:
-      current.status === 'ok' && current.previews.length === assets.length && current.previews.every((preview) => preview.url)
+      assets.length === 0
         ? current.previews
-        : pendingPreviews(assets),
+        : current.status === 'ok' && current.previews.length === assets.length && current.previews.every((preview) => preview.url)
+          ? current.previews
+          : pendingPreviews(assets),
     elapsedLabel: elapsedLabel(current.elapsedSeconds),
     ...(metadata?.size ? { outputSize: metadata.size } : {}),
     ...(metadata?.outputFormat ? { outputFormat: metadata.outputFormat } : {}),
@@ -545,7 +548,7 @@ export function useConversation(
               ? { ...round, previews: pendingPreviews(assets) }
               : round
           )));
-        });
+        }).catch(() => undefined);
       }
       void services.retention?.requestSweep('generation-success');
     }

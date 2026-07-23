@@ -234,6 +234,7 @@ function AppShellContent({ host }: AppShellProps) {
   const [activeImageProfileHydrated, setActiveImageProfileHydrated] = useState(false);
   const [selectedSettingsProfileId, setSelectedSettingsProfileId] = useState<string | null>(null);
   const [setupProfile, setSetupProfile] = useState<ProviderProfile | null>(null);
+  const [highlightedSettingsProfileId, setHighlightedSettingsProfileId] = useState<string | null>(null);
   const [modelConfigurationEditorSeed, setModelConfigurationEditorSeed] = useState<{
     readonly profileId: string;
     readonly apiFormat: ProviderProfile['apiFormat'];
@@ -418,6 +419,20 @@ function AppShellContent({ host }: AppShellProps) {
     [openSettingsRoute],
   );
 
+  const completeProfileSetup = useCallback(async (profile: ProviderProfile) => {
+    await profilesState.reload();
+    if (selectedImageProfileId === null) {
+      await selectImageProfile(profile.profileId);
+    }
+    setSetupProfile(null);
+    setSelectedSettingsProfileId(null);
+    setModelConfigurationEditorSeed(null);
+    setSettingsDetailFallbackModelSeed(null);
+    setHighlightedSettingsProfileId(profile.profileId);
+    show(t.settings.profileCreated(profile.displayName), 'positive', { key: 'settings-profile-created' });
+    openSettingsRoute({ kind: 'root', tab: 'provider' });
+  }, [openSettingsRoute, profilesState, selectImageProfile, selectedImageProfileId, show, t.settings]);
+
   const onLocateRound = useCallback(
     (roundId: string) => {
       setHighlightedRoundId(roundId);
@@ -537,15 +552,20 @@ function AppShellContent({ host }: AppShellProps) {
           }}
           onBack={goBackInSettings}
           profiles={imageProfiles}
+          highlightedProfileId={highlightedSettingsProfileId}
           loading={profilesState.loading}
           error={profilesState.error}
           onOpenProfile={(profileId) => {
+            if (highlightedSettingsProfileId === profileId) setHighlightedSettingsProfileId(null);
             setSelectedSettingsProfileId(profileId);
             setSettingsDetailFallbackModelSeed(null);
             openSettingsRoute({ kind: 'provider-detail', profileId });
           }}
           onOpenProviderOutput={() => openSettingsRoute({ kind: 'provider-output' })}
-          onOpenProviderNew={() => openSettingsRoute({ kind: 'provider-new' })}
+          onOpenProviderNew={() => {
+            setHighlightedSettingsProfileId(null);
+            openSettingsRoute({ kind: 'provider-new' });
+          }}
           onOpenGlobalSettings={() => openSettingsRoute({ kind: 'global-settings' })}
           onOpenPromptSettings={() => openSettingsRoute({ kind: 'prompt-settings' })}
           generationSettings={generationSettings.settings}
@@ -561,15 +581,7 @@ function AppShellContent({ host }: AppShellProps) {
           profiles={imageProfiles}
           onProfileSetup={async (outcome: ProviderProfileSetupOutcome) => {
             if (outcome.kind === 'ready') {
-              await profilesState.reload();
-              setSetupProfile(null);
-              if (selectedImageProfileId === null) {
-                await selectImageProfile(outcome.profile.profileId);
-              }
-              show(t.settings.saved, 'positive', { key: 'settings-add-provider-saved' });
-              setSelectedSettingsProfileId(outcome.profile.profileId);
-              setSettingsDetailFallbackModelSeed(null);
-              openSettingsRoute({ kind: 'provider-detail', profileId: outcome.profile.profileId });
+              await completeProfileSetup(outcome.profile);
               return;
             }
             const setup = await services.commands.getProviderSetupProfile(outcome.profileId);
@@ -732,20 +744,13 @@ function AppShellContent({ host }: AppShellProps) {
             setView(modelConfigurationReturnView);
           }}
           onSaved={async () => {
-            await profilesState.reload();
             if (setupProfile?.profileId === modelConfigurationEditorSeed.profileId) {
               const ready = await services.commands.getProviderProfile(modelConfigurationEditorSeed.profileId);
               if (!ready.ok) throw new Error(`${ready.error.category}: ${ready.error.message}`);
-              setSetupProfile(null);
-              if (selectedImageProfileId === null) {
-                await selectImageProfile(ready.value.profileId);
-              }
-              show(t.settings.saved, 'positive', { key: 'settings-add-provider-saved' });
-              setSelectedSettingsProfileId(ready.value.profileId);
-              setModelConfigurationEditorSeed(null);
-              openSettingsRoute({ kind: 'provider-detail', profileId: ready.value.profileId });
+              await completeProfileSetup(ready.value);
               return;
             }
+            await profilesState.reload();
             if (selectedImageProfileId === modelConfigurationEditorSeed.profileId) {
               await modelsState.reload();
             }

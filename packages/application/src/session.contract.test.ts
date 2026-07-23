@@ -89,6 +89,7 @@ function createHarness() {
   const order: string[] = [];
   let projectFails = false;
   let followUpFails = false;
+  let terminalPersistFails = false;
 
   const adapter: ExecutionAdapter = {
     adapter: 'local-render',
@@ -165,6 +166,7 @@ function createHarness() {
     },
     async putTaskRecord(record) {
       order.push(record.status === 'running' ? 'persist-running' : 'persist-terminal');
+      if (record.status !== 'running' && terminalPersistFails) throw new Error('terminal persistence failed');
       tasks.set(record.taskId, record);
     },
     async getTaskRecord(taskId) {
@@ -184,6 +186,7 @@ function createHarness() {
     afterTerminal,
     setProjectFails(value: boolean) { projectFails = value; },
     setFollowUpFails(value: boolean) { followUpFails = value; },
+    setTerminalPersistFails(value: boolean) { terminalPersistFails = value; },
     complete(taskId: string) {
       const index = pending.findIndex((item) => item.taskId === taskId);
       if (index === -1) throw new Error(`Pending execution "${taskId}" not found.`);
@@ -329,6 +332,27 @@ describe('backend-neutral Session contract', () => {
     harness.complete('follow-up');
     await runScheduler();
     expect(harness.tasks.get('follow-up')?.status).toBe('completed');
+  });
+
+  it('publishes a failed snapshot when terminal Task persistence fails', async () => {
+    vi.useFakeTimers();
+    const harness = createHarness();
+    harness.setTerminalPersistFails(true);
+    const session = createImagenSession({ backends: [harness.backend], commands: harness.commands });
+    await session.submitJob(command('persist-failure'));
+    await runScheduler();
+    harness.complete('persist-failure');
+    await runScheduler();
+
+    expect(session.getSnapshot()).toMatchObject({
+      jobs: [{
+        taskId: 'persist-failure',
+        status: 'failed',
+        canRetry: false,
+        error: { category: 'runtime', message: 'Terminal Task persistence failed.' },
+      }],
+      lastError: { category: 'runtime', message: 'Terminal Task persistence failed.' },
+    });
   });
 
   it('Retry keeps Task identity and creates a new Job attempt', async () => {

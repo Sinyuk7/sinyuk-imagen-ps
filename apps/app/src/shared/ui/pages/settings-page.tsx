@@ -14,6 +14,7 @@ interface SettingsPageProps {
   readonly onSelectTab: (tab: SettingsTab) => void;
   readonly onBack: () => void;
   readonly profiles: readonly ProviderProfile[];
+  readonly highlightedProfileId?: string | null;
   readonly loading: boolean;
   readonly error: string | null;
   readonly onOpenProfile: (profileId: string) => void;
@@ -53,10 +54,12 @@ function providerEndpointHost(profile: ProviderProfile): string | undefined {
 function ProviderListItem({
   profile,
   modelCount,
+  highlighted,
   onOpen,
 }: {
   readonly profile: ProviderProfile;
   readonly modelCount: number;
+  readonly highlighted: boolean;
   readonly onOpen: () => void;
 }) {
   const { messages: t } = useI18n();
@@ -71,7 +74,12 @@ function ProviderListItem({
       leading={<div className="prov-ico">{row.displayName.slice(0, 2).toUpperCase()}</div>}
       meta={<span className="prov-family provider-row-meta">{apiFormatMetaLabel(row.apiFormat)} · {host ?? t.common.needsSetup}</span>}
       end={(
-        <div className={`prov-readiness prov-readiness-compact ${configured ? 'untested' : 'warning'}`} role="status" aria-label={configured ? t.settings.notTested : t.common.needsSetup}>
+        <div
+          className={`prov-readiness prov-readiness-compact ${highlighted ? 'ready' : configured ? 'untested' : 'warning'}`}
+          role="status"
+          aria-label={highlighted ? t.settings.profileCreated(row.displayName) : configured ? t.settings.notTested : t.common.needsSetup}
+          data-profile-created={highlighted || undefined}
+        >
           <span className="prov-readiness-dot" aria-hidden="true" />
         </div>
       )}
@@ -85,6 +93,7 @@ function ProviderRoot({
   loading,
   error,
   modelCounts,
+  highlightedProfileId,
   onOpenOutput,
   onOpenProfile,
 }: {
@@ -92,6 +101,7 @@ function ProviderRoot({
   readonly loading: boolean;
   readonly error: string | null;
   readonly modelCounts: ReadonlyMap<string, number>;
+  readonly highlightedProfileId?: string | null;
   readonly onOpenOutput: () => void;
   readonly onOpenProfile: (profileId: string) => void;
 }) {
@@ -116,7 +126,7 @@ function ProviderRoot({
             {profiles.length === 0 && loading ? <ListStateItem data-testid="provider-list-loading" kind="loading" title={t.settings.loading} /> : null}
             {profiles.length === 0 && !loading && error ? <ListStateItem data-testid="provider-list-error" kind="error" title={error} /> : null}
             {profiles.length === 0 && !loading && !error ? <ListStateItem data-testid="provider-empty-state" kind="empty" title={t.settings.noProviderProfile} /> : null}
-            {profiles.map((profile) => <ProviderListItem key={profile.profileId} profile={profile} modelCount={modelCounts.get(profile.profileId) ?? 0} onOpen={() => onOpenProfile(profile.profileId)} />)}
+            {profiles.map((profile) => <ProviderListItem key={profile.profileId} profile={profile} modelCount={modelCounts.get(profile.profileId) ?? 0} highlighted={profile.profileId === highlightedProfileId} onOpen={() => onOpenProfile(profile.profileId)} />)}
           </List>
         </SettingsListSection>
       </div>
@@ -173,10 +183,30 @@ function ComfyUiRoot({
     groups.set(key, [...(groups.get(key) ?? []), item]);
   });
   const refKey = (ref: { readonly nodeId: string; readonly inputName?: string; readonly widgetIndex?: number }) => `${ref.nodeId}\u0000${ref.inputName ?? ''}\u0000${ref.widgetIndex ?? ''}`;
-  const mappingId = (value: WorkflowMapping) => value ? refKey(value) : 'none';
-  const mappingOptions = (candidates: readonly WorkflowInputCandidate[]) => [{ id: 'none', label: 'Do not map' }, ...candidates.map((candidate) => ({ id: refKey(candidate.ref), label: candidate.label }))];
+  const mappingOptionId = (index: number) => `candidate-${index}`;
+  const mappingLabel = (candidate: WorkflowInputCandidate) => `${candidate.sectionLabel} / ${candidate.label}`;
+  const mappingBadge = (candidate: WorkflowInputCandidate) => candidate.ref.inputName === undefined
+    ? `Node ${candidate.ref.nodeId} / Widget ${candidate.ref.widgetIndex}`
+    : `Node ${candidate.ref.nodeId} / ${candidate.ref.inputName}`;
+  const mappingId = (candidates: readonly WorkflowInputCandidate[], value: WorkflowMapping) => {
+    if (!value) return 'none';
+    const index = candidates.findIndex((candidate) => refKey(candidate.ref) === refKey(value));
+    return index < 0 ? 'none' : mappingOptionId(index);
+  };
+  const mappingCandidate = (candidates: readonly WorkflowInputCandidate[], id: string) => {
+    const match = /^candidate-(\d+)$/u.exec(id);
+    return match ? candidates[Number(match[1])] : undefined;
+  };
+  const mappingOptions = (candidates: readonly WorkflowInputCandidate[]) => [
+    { id: 'none', label: 'Do not map' },
+    ...candidates.map((candidate, index) => ({
+      id: mappingOptionId(index),
+      label: mappingLabel(candidate),
+      badges: [mappingBadge(candidate)],
+    })),
+  ];
   const maskBinding = mapping?.mask.binding;
-  const maskSelectionId = maskBinding ? refKey(maskBinding.inputRef) : 'none';
+  const maskSelectionId = mappingId(mapping?.maskCandidates ?? [], maskBinding?.inputRef ?? null);
   const setMaskBinding = (candidate: WorkflowInputCandidate | undefined, polarity: ComfyUiMaskBinding['polarity'] = maskBinding?.polarity ?? 'white-edit') => {
     void controller.setMaskBinding(candidate === undefined ? undefined : {
       transport: 'separate-image-input', inputRef: candidate.ref, polarity,
@@ -240,8 +270,10 @@ function ComfyUiRoot({
         </SettingsFormSection>
         {mapping?.showSection ? <SettingsFormSection title="Input Mapping" testId="comfyui-input-mapping">{(['text', 'image'] as const).map((kind) => {
           const state = mapping[kind]; const candidates = kind === 'text' ? mapping.textCandidates : mapping.imageCandidates;
-          return candidates.length > 1 ? <TextSelect key={kind} testId={`comfyui-${kind}-mapping`} label={kind === 'text' ? 'Prompt input' : 'Image input'} value={state.resolved ? candidates.find((candidate) => refKey(candidate.ref) === mappingId(state.resolved))?.label ?? 'Do not map' : 'Do not map'} open={mappingMenu === kind} onOpenChange={(open) => setMappingMenu(open ? kind : null)} options={mappingOptions(candidates)} selectedId={mappingId(state.resolved)} onSelect={(id) => { const candidate = candidates.find((item) => refKey(item.ref) === id); void controller.setMapping(kind, candidate?.ref ?? null); setMappingMenu(null); }} /> : state.notice ? <HelpText key={kind} className="field-hint">{state.notice}</HelpText> : null;
-        })}{mapping.mask.requiresExplicitSelection ? <><TextSelect testId="comfyui-mask-mapping" label="Mask input" value={maskBinding ? mapping.maskCandidates.find((candidate) => refKey(candidate.ref) === maskSelectionId)?.label ?? 'Do not map' : 'Do not map'} open={mappingMenu === 'mask'} onOpenChange={(open) => setMappingMenu(open ? 'mask' : null)} options={mappingOptions(mapping.maskCandidates)} selectedId={maskSelectionId} onSelect={(id) => { setMaskBinding(mapping.maskCandidates.find((item) => refKey(item.ref) === id)); setMappingMenu(null); }} />{maskBinding ? <TextSelect testId="comfyui-mask-polarity" label="Mask polarity" value={maskBinding.polarity === 'white-edit' ? 'White edits' : 'Black edits'} open={mappingMenu === 'mask-polarity'} onOpenChange={(open) => setMappingMenu(open ? 'mask-polarity' : null)} options={[{ id: 'white-edit', label: 'White edits' }, { id: 'black-edit', label: 'Black edits' }]} selectedId={maskBinding.polarity} onSelect={(polarity) => { const candidate = mapping.maskCandidates.find((item) => refKey(item.ref) === maskSelectionId); if (candidate) setMaskBinding(candidate, polarity as ComfyUiMaskBinding['polarity']); setMappingMenu(null); }} /> : null}</> : null}</SettingsFormSection> : null}
+          const selectedId = mappingId(candidates, state.resolved);
+          const selected = mappingCandidate(candidates, selectedId);
+          return candidates.length > 1 ? <TextSelect key={kind} testId={`comfyui-${kind}-mapping`} label={kind === 'text' ? 'Prompt input' : 'Image input'} value={selected ? mappingLabel(selected) : 'Do not map'} open={mappingMenu === kind} onOpenChange={(open) => setMappingMenu(open ? kind : null)} options={mappingOptions(candidates)} selectedId={selectedId} onSelect={(id) => { void controller.setMapping(kind, mappingCandidate(candidates, id)?.ref ?? null); setMappingMenu(null); }} /> : state.notice ? <HelpText key={kind} className="field-hint">{state.notice}</HelpText> : null;
+        })}{mapping.mask.requiresExplicitSelection ? <><TextSelect testId="comfyui-mask-mapping" label="Mask input" value={maskBinding ? mappingLabel(mappingCandidate(mapping.maskCandidates, maskSelectionId) ?? mapping.maskCandidates[0]) : 'Do not map'} open={mappingMenu === 'mask'} onOpenChange={(open) => setMappingMenu(open ? 'mask' : null)} options={mappingOptions(mapping.maskCandidates)} selectedId={maskSelectionId} onSelect={(id) => { setMaskBinding(mappingCandidate(mapping.maskCandidates, id)); setMappingMenu(null); }} />{maskBinding ? <TextSelect testId="comfyui-mask-polarity" label="Mask polarity" value={maskBinding.polarity === 'white-edit' ? 'White edits' : 'Black edits'} open={mappingMenu === 'mask-polarity'} onOpenChange={(open) => setMappingMenu(open ? 'mask-polarity' : null)} options={[{ id: 'white-edit', label: 'White edits' }, { id: 'black-edit', label: 'Black edits' }]} selectedId={maskBinding.polarity} onSelect={(polarity) => { const candidate = mappingCandidate(mapping.maskCandidates, maskSelectionId); if (candidate) setMaskBinding(candidate, polarity as ComfyUiMaskBinding['polarity']); setMappingMenu(null); }} /> : null}</> : null}</SettingsFormSection> : null}
         {controller.runtime?.form ? <SettingsFormSection title="Workflow Parameters" testId="comfyui-workflow-parameters">{controller.runtime.form.nodes.some((node) => node.visible && node.widgets.some((widget) => widget.visible && widget.writable)) ? controller.runtime.form.nodes.flatMap((node) => node.visible ? node.widgets.filter((widget) => widget.visible && widget.writable).map((widget) => {
           const parameterId = `comfyui-parameter-${node.nodeId}-${widget.order}`;
           const value = String(controller.draftValues[refKey(widget.ref)] ?? widget.workflowValue ?? '');
@@ -271,7 +303,7 @@ export function SettingsPage(props: SettingsPageProps) {
   const right = props.activeTab === 'provider'
     ? <IconButton data-testid="providers-add-button" className="hdr-btn" quiet icon={<Icon name="add" />} tooltip={t.common.addProvider} onClick={props.onOpenProviderNew} />
     : props.activeTab === 'comfyui' && props.comfyUi.runtime
-      ? <><IconButton data-testid="comfyui-refresh-workflow" className="hdr-btn" quiet icon={<Icon name="refresh" />} tooltip={t.common.refresh} onClick={() => void props.comfyUi.refresh()} /><IconButton data-testid="comfyui-open-workflow" className="hdr-btn" quiet icon={<Icon name="arrow-right" />} tooltip="Open in ComfyUI" onClick={() => void props.comfyUi.openInComfyUi()} /></>
+      ? <><IconButton data-testid="comfyui-refresh-workflow" className="hdr-btn" quiet icon={<Icon name="refresh" />} tooltip={t.common.refresh} onClick={() => { void props.comfyUi.refresh().catch(() => undefined); }} /><IconButton data-testid="comfyui-open-workflow" className="hdr-btn" quiet icon={<Icon name="arrow-right" />} tooltip="Open in ComfyUI" onClick={() => { void props.comfyUi.openInComfyUi().catch(() => undefined); }} /></>
       : undefined;
   return (
     <PageFrame watch="settings">
@@ -279,7 +311,7 @@ export function SettingsPage(props: SettingsPageProps) {
       <PageHeader title={title} backLabel={t.common.back} backTestId="settings-back-button" onBack={props.onBack} right={right} />
       <SegmentedTabs className="settings-backend-segments" tabs={[{ id: 'provider', label: t.common.provider, testId: 'settings-backend-provider' }, { id: 'comfyui', label: t.settings.comfyUi, testId: 'settings-backend-comfyui' }, { id: 'general', label: t.settings.configuration, testId: 'settings-backend-general' }]} selectedId={props.activeTab} onSelect={(tab) => props.onSelectTab(tab as SettingsTab)} />
       <PageScroll>
-        {props.activeTab === 'provider' ? <ProviderRoot profiles={props.profiles} loading={props.loading} error={props.error} modelCounts={modelCounts} onOpenOutput={props.onOpenProviderOutput} onOpenProfile={props.onOpenProfile} /> : null}
+        {props.activeTab === 'provider' ? <ProviderRoot profiles={props.profiles} loading={props.loading} error={props.error} modelCounts={modelCounts} highlightedProfileId={props.highlightedProfileId} onOpenOutput={props.onOpenProviderOutput} onOpenProfile={props.onOpenProfile} /> : null}
         {props.activeTab === 'general' ? <GeneralRoot onOpenGlobalSettings={props.onOpenGlobalSettings} onOpenPromptSettings={props.onOpenPromptSettings} /> : null}
         {props.activeTab === 'comfyui' ? <ComfyUiRoot controller={props.comfyUi} address={comfyAddressDraft} onAddressChange={setComfyAddressDraft} /> : null}
       </PageScroll>

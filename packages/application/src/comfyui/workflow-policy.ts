@@ -70,8 +70,13 @@ export function projectWorkflowMapping(
   resolved: { readonly text: WorkflowMapping; readonly image: WorkflowMapping; readonly mask?: ComfyUiMaskBinding },
   composer: ComfyUiComposerInputs = {},
 ): WorkflowMappingProjection {
+  const maskCandidates = candidates.maskCandidates.filter((candidate) => !sameRef(resolved.image, candidate.ref));
+  const mask = resolved.mask !== undefined && maskCandidates.some((candidate) => sameRef(resolved.mask?.inputRef, candidate.ref))
+    ? resolved.mask
+    : undefined;
   const textAmbiguous = candidates.textCandidates.length > 1 && resolved.text === null;
   const imageAmbiguous = candidates.imageCandidates.length > 1 && resolved.image === null;
+  const hasSelectableMapping = candidates.textCandidates.length > 1 || candidates.imageCandidates.length > 1;
   const textNotice = candidates.textCandidates.length === 0
     ? composer.prompt?.trim() ? '此 Workflow 不使用当前提示词' : '此 Workflow 不接收提示词'
     : undefined;
@@ -82,18 +87,19 @@ export function projectWorkflowMapping(
     ? '此 Workflow 仅使用第一张附件' : undefined;
   return {
     ...candidates,
+    maskCandidates,
     text: { resolved: resolved.text, ambiguous: textAmbiguous, ...(textNotice === undefined ? {} : { notice: textNotice }) },
     image: {
       resolved: resolved.image,
       ambiguous: imageAmbiguous,
       ...((imageNotice ?? manyNotice) === undefined ? {} : { notice: imageNotice ?? manyNotice }),
     },
-    mask: { ...(resolved.mask === undefined ? {} : { binding: resolved.mask }), requiresExplicitSelection: candidates.maskCandidates.length > 0 },
-    showSection: textAmbiguous || imageAmbiguous || textNotice !== undefined || imageNotice !== undefined || manyNotice !== undefined || candidates.maskCandidates.length > 0,
+    mask: { ...(mask === undefined ? {} : { binding: mask }), requiresExplicitSelection: maskCandidates.length > 0 },
+    showSection: hasSelectableMapping || textNotice !== undefined || imageNotice !== undefined || manyNotice !== undefined || maskCandidates.length > 0,
   };
 }
 
-/** Apply fixed value precedence: saved < draft < non-empty prompt. */
+/** 只生成显式 override；未修改的保存值由 Workflow 自身保留。 */
 export function composeWorkflowMutations(args: {
   readonly form: WorkflowForm;
   readonly draft?: Readonly<Record<string, WorkflowPrimitiveValue>>;
@@ -103,10 +109,10 @@ export function composeWorkflowMutations(args: {
 }): readonly ComfyUiWorkflowValueMutation[] {
   const byRef = new Map<string, ComfyUiWorkflowValueMutation>();
   for (const parameter of args.form.nodes.flatMap((node) => node.widgets)) {
-    if (!parameter.writable || parameter.workflowValue === undefined) continue;
+    if (!parameter.writable) continue;
     const key = refKey(parameter.ref);
-    const draftValue = args.draft?.[key];
-    byRef.set(key, { ref: parameter.ref, value: draftValue ?? parameter.workflowValue });
+    if (!Object.prototype.hasOwnProperty.call(args.draft ?? {}, key)) continue;
+    byRef.set(key, { ref: parameter.ref, value: args.draft![key]! });
   }
   const prompt = args.composer?.prompt?.trim();
   if (prompt && args.mapping.text) byRef.set(refKey(args.mapping.text), { ref: args.mapping.text, value: prompt });

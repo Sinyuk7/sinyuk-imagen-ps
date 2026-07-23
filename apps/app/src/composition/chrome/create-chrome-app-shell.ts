@@ -26,6 +26,7 @@ import { createComfyUiAppRuntime } from '../../adapters/comfyui/comfyui-app-runt
 import { createChromeComfyUiFrontendBridgeResolver } from '../../adapters/comfyui/comfyui-frontend-bridge-resolver';
 import { createPhotoshopSimulator, type PhotoshopSimulatorScenarioId } from '../../simulators/photoshop/simulator';
 import { createMemoryThumbnailStore } from '../../shared/image/thumbnail-store';
+import { createRuntimeImageUrlOrDataUrl } from '../../shared/image/runtime-image-url';
 import { createTaskResourceResolver } from '../../shared/image/task-resource-resolver';
 import { createRetentionController } from '../../shared/retention/controller';
 import { defaultTaskLinkedRetentionPolicy, runTaskLinkedRetention } from '../../shared/retention/task-linked-retention';
@@ -95,6 +96,7 @@ export function createChromeAppShell(options?: ChromeAppShellOptions): AppShellH
     },
     parentOrigin: globalThis.location.origin,
   });
+  const externalUrl = createChromeExternalUrlPort();
   const comfyUiRuntime = createComfyUiAppRuntime({
     repositories: {
       state: comfyUiRepositories.state,
@@ -103,6 +105,7 @@ export function createChromeAppShell(options?: ChromeAppShellOptions): AppShellH
     },
     httpTransport: createComfyUiHttpTransport(),
     frontendBridgeResolver: comfyUiBridgeResolver,
+    externalUrl,
   });
   setProviderProfileRepository(storage.profiles);
   setSecretStorageAdapter(storage.secrets);
@@ -143,7 +146,7 @@ export function createChromeAppShell(options?: ChromeAppShellOptions): AppShellH
     services: {
       commands: testHarness?.wrapCommands(commands) ?? commands,
       comfyUi: comfyUiRuntime.management,
-      externalUrl: createChromeExternalUrlPort(),
+      externalUrl,
       generationBackends: comfyUiRuntime.generationBackends,
       host,
       generationSettings: storage.generationSettings,
@@ -151,7 +154,10 @@ export function createChromeAppShell(options?: ChromeAppShellOptions): AppShellH
       promptSettings: storage.promptSettings,
       activeImageProfile: storage.activeImageProfile,
       pathInfo: CHROME_PATH_INFO,
-      thumbnails: createMemoryThumbnailStore({ resolveStoredRef: storage.assets.resolve }),
+      thumbnails: createMemoryThumbnailStore({
+        resolveStoredRef: storage.assets.resolve,
+        createObjectUrl: createRuntimeImageUrlOrDataUrl,
+      }),
       taskResources: createTaskResourceResolver({ resolveStoredRef: storage.assets.resolve }),
       diagnostics: createChromeDiagnosticsPort(),
       retention,

@@ -341,6 +341,7 @@ class BridgeSession {
   private detachLoadListeners: (() => void) | undefined;
   private mounted = false;
   private loadSpan: LogSpan | undefined;
+  private retireWhenIdle = false;
 
   constructor(
     readonly connection: ConnectionSnapshot,
@@ -350,6 +351,7 @@ class BridgeSession {
     private readonly clock: ComfyUiBridgeResolverClock,
     private readonly createRuntimeId: (prefix: string) => string,
     private readonly onRetire: (session: BridgeSession) => void,
+    private readonly retireAfterWorkflowList: boolean,
     private readonly handshakeRetryMs?: number,
     private readonly logger?: Logger,
   ) {
@@ -400,6 +402,12 @@ class BridgeSession {
     }
   }
 
+  requestRetirement(): void {
+    if (this.state === 'disposed') return;
+    this.retireWhenIdle = true;
+    if (this.pending.size === 0) this.retire(resolverError('disposed'));
+  }
+
   async awaitReady(signal?: AbortSignal): Promise<void> {
     if (this.state === 'disposed') throw resolverError('disposed');
     if (this.state === 'ready') return;
@@ -444,11 +452,11 @@ class BridgeSession {
     this.clearLoadTimeout();
     this.ready.reject(reason);
     this.rejectPending(reason);
-    this.detachLoadListeners?.();
+    try { this.detachLoadListeners?.(); } catch { /* 本地清理失败不得覆盖已完成的 Bridge 操作。 */ }
     this.detachLoadListeners = undefined;
     if (this.mounted) {
-      this.transport.detach();
       this.mounted = false;
+      try { this.transport.detach(); } catch { /* 本地清理失败不得覆盖已完成的 Bridge 操作。 */ }
     }
   }
 
@@ -534,6 +542,7 @@ class BridgeSession {
         transport: this.transportKind,
         command: request.command,
       });
+      if (this.retireAfterWorkflowList && request.command === 'list-workflows') this.retireWhenIdle = true;
       return response;
     } catch (error) {
       span?.fail(resolverLogError(error), {
@@ -543,6 +552,8 @@ class BridgeSession {
         reason: resolverReason(error),
       });
       throw error;
+    } finally {
+      if (this.retireWhenIdle && this.pending.size === 0) this.retire(resolverError('disposed'));
     }
   }
 
@@ -691,6 +702,14 @@ function createResolver(configuration: ResolverConfiguration): DisposableComfyUi
           return undefined;
         }
 
+        if (workflowId !== 'discovery') {
+          for (const [activeWorkflowId, activeSession] of Array.from(sessions.entries())) {
+            if (activeWorkflowId !== 'discovery' && activeWorkflowId !== workflowId) {
+              activeSession.requestRetirement();
+            }
+          }
+        }
+
         let session = sessions.get(workflowId);
         if (session !== undefined && session.connection.baseUrl !== connection.baseUrl) {
           sessions.delete(workflowId);
@@ -709,6 +728,7 @@ function createResolver(configuration: ResolverConfiguration): DisposableComfyUi
             (retired) => {
               if (sessions.get(workflowId) === retired) sessions.delete(workflowId);
             },
+            workflowId === 'discovery',
             configuration.handshakeRetryMs,
             configuration.logger,
           );

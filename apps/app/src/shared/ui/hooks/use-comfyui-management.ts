@@ -74,10 +74,12 @@ export function useComfyUiManagement(service: ComfyUiManagementPort): ComfyUiMan
       if (state?.selectedWorkflowId && found.some((item) => item.workflowId === state.selectedWorkflowId)) {
         try {
           const selected = await service.selectWorkflow(state.selectedWorkflowId);
+          if (token !== sequence.current) return;
           setRuntime(selected);
           setDraftValues(service.getDraft(selected.identity.workflowId, selected.identity.revision)?.values ?? {});
           setMappingProjection(service.getMappingProjection(selected));
         } catch (cause) {
+          if (token !== sequence.current) return;
           setRuntime(undefined);
           setDraftValues({});
           setMappingProjection(undefined);
@@ -90,7 +92,13 @@ export function useComfyUiManagement(service: ComfyUiManagementPort): ComfyUiMan
       }
       setError(null);
     } catch (cause) {
-      if (token === sequence.current) setError(errorMessage(cause));
+      if (token === sequence.current) {
+        setCatalog([]);
+        setRuntime(undefined);
+        setDraftValues({});
+        setMappingProjection(undefined);
+        setError(errorMessage(cause));
+      }
     } finally {
       if (token === sequence.current) setLoading(false);
     }
@@ -140,8 +148,21 @@ export function useComfyUiManagement(service: ComfyUiManagementPort): ComfyUiMan
     reload,
     selectWorkflow,
     saveBaseUrl: (value) => mutate(() => service.saveBaseUrl(value)),
-    refresh: async () => { await mutate(async () => { await service.refresh(); }); },
-    openInComfyUi: async () => { await service.openInComfyUi(); },
+    refresh: async () => {
+      setRuntime(undefined);
+      setDraftValues({});
+      setMappingProjection(undefined);
+      await mutate(async () => { await service.refresh(); });
+    },
+    openInComfyUi: async () => {
+      setError(null);
+      try {
+        await service.openInComfyUi();
+      } catch (cause) {
+        setError(errorMessage(cause));
+        throw cause;
+      }
+    },
     setParameter: (ref, value) => {
       if (!runtime) return;
       const values = { ...draftValues, [refKey(ref)]: value };

@@ -9,6 +9,7 @@ import {
   type ComfyUiWorkflowRuntimeCache,
   type ComfyUiWorkflowDraftStore,
 } from '@imagen-ps/application';
+import type { ExternalUrlPort } from '../../shared/ports/external-url';
 
 type FrontendBridgeResolver = NonNullable<ComfyUiExecutionHostPorts['frontendBridgeResolver']>;
 
@@ -23,6 +24,7 @@ export function createComfyUiAppRuntime(options: {
   readonly repositories: ComfyUiAppRuntimeRepositories;
   readonly httpTransport: ComfyUiExecutionHostPorts['httpTransport'];
   readonly frontendBridgeResolver?: FrontendBridgeResolver;
+  readonly externalUrl: ExternalUrlPort;
 }) {
   const hostPorts = {
     httpTransport: options.httpTransport,
@@ -30,7 +32,14 @@ export function createComfyUiAppRuntime(options: {
       ? {}
       : { frontendBridgeResolver: options.frontendBridgeResolver }),
   } satisfies ComfyUiExecutionHostPorts;
-  const managementHost = createComfyUiManagementHostPorts(hostPorts);
+  const managementHost = {
+    ...createComfyUiManagementHostPorts(hostPorts),
+    async open(baseUrl: string, identity: { readonly workflowId: string; readonly nativeWorkflowId?: string }): Promise<void> {
+      const target = new URL(baseUrl);
+      target.hash = identity.nativeWorkflowId ?? identity.workflowId;
+      await options.externalUrl.open(target.href, 'Open workflow in ComfyUI');
+    },
+  };
   const management = createComfyUiManagementService({
     state: options.repositories.state,
     ports: managementHost,

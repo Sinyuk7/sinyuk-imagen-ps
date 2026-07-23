@@ -709,7 +709,7 @@ export function ModelConfigurationPage({ onNav, onSaved, onBack, initialEditorSt
 
   const save = async () => {
     if (validationMessage) {
-      show(validationMessage, 'warning', { key: 'model-config-validation', durationMs: null });
+      show(validationMessage, 'warning', { key: 'model-config-validation' });
       return;
     }
     if (!selectedPreset) {
@@ -739,7 +739,6 @@ export function ModelConfigurationPage({ onNav, onSaved, onBack, initialEditorSt
     } catch (nextError) {
       show(nextError instanceof Error ? nextError.message : String(nextError), 'negative', {
         key: 'model-config-save-error',
-        durationMs: null,
       });
     } finally {
       setSaveBusy(false);
@@ -764,7 +763,6 @@ export function ModelConfigurationPage({ onNav, onSaved, onBack, initialEditorSt
     } catch (nextError) {
       show(nextError instanceof Error ? nextError.message : String(nextError), 'negative', {
         key: 'model-config-delete-error',
-        durationMs: null,
       });
     } finally {
       setSaveBusy(false);

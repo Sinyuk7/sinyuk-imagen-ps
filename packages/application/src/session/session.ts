@@ -400,7 +400,6 @@ export function createImagenSession(options?: CreateImagenSessionOptions): Image
     if (backend === undefined) return Promise.resolve();
 
     terminalOnce.add(job.id);
-    syncJob(job, correlation);
     const promise = (async () => {
       let terminalTask: TaskRecord;
       try {
@@ -429,10 +428,13 @@ export function createImagenSession(options?: CreateImagenSessionOptions): Image
           job_id: job.id,
           backend_id: correlation.backendId,
         });
-        publish({ ...snapshot, lastError: error });
+        syncDispatchFailure(correlation.entry, error);
         settle(correlation.entry, { ok: false, error });
         return;
       }
+
+      // 先落 durable Task，再发布 terminal Job，避免 UI 先读到 completed Job 却拿不到输出。
+      syncJob(job, correlation);
 
       if (backend.afterTerminal !== undefined) {
         try {

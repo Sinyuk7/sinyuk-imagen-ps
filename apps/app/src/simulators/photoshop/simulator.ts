@@ -99,10 +99,21 @@ function seededAsset(index: number): SeededSimulatorAsset {
   const width = 240 + index * 12;
   const height = index % 2 === 0 ? 160 : 220;
   const fills = ['#f4d35e', '#0d3b66', '#ee964b', '#5f0f40', '#9a031e', '#2a9d8f', '#e9c46a', '#264653', '#8ab17d', '#f72585'];
-  const data = svgDataUrl(`Layer ${index + 1}`, width, height, fills[index % fills.length]!, index === 9);
+  const fill = fills[index % fills.length]!;
+  const red = Number.parseInt(fill.slice(1, 3), 16);
+  const green = Number.parseInt(fill.slice(3, 5), 16);
+  const blue = Number.parseInt(fill.slice(5, 7), 16);
+  const pixels = new Uint8Array(width * height * 4);
+  for (let offset = 0; offset < pixels.length; offset += 4) {
+    pixels[offset] = red;
+    pixels[offset + 1] = green;
+    pixels[offset + 2] = blue;
+    pixels[offset + 3] = index === 9 ? 148 : 255;
+  }
+  const data = encodePng({ width, height, data: pixels, channels: 4, depth: 8 });
   return {
-    asset: { type: 'image', name: `sim-layer-${index + 1}.svg`, data, mimeType: 'image/svg+xml' },
-    previewUrl: data,
+    asset: { type: 'image', name: `sim-layer-${index + 1}.png`, data, mimeType: 'image/png' },
+    previewUrl: svgDataUrl(`Layer ${index + 1}`, width, height, fill, index === 9),
     width,
     height,
   };

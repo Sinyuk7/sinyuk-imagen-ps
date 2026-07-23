@@ -64,6 +64,7 @@ function identity(value: Omit<WorkflowIdentity, 'groupPath'> & { readonly groupP
   const groupPath = remotePath.split('/').slice(0, -1);
   return createImmutableSnapshot({
     workflowId: boundedText(value.workflowId, 256, 'Workflow.workflowId'),
+    ...(value.nativeWorkflowId === undefined ? {} : { nativeWorkflowId: boundedText(value.nativeWorkflowId, 256, 'Workflow.nativeWorkflowId') }),
     displayName: boundedText(value.displayName, 256, 'Workflow.displayName'),
     remotePath,
     groupPath,
@@ -104,9 +105,22 @@ export function createComfyUiManagementService(options: ComfyUiManagementService
   let current: LoadedWorkflowRuntime | undefined;
   let loadState: WorkflowLoadState = { status: 'idle' };
   let requestSerial = 0;
+  let selectionWriteTail = Promise.resolve();
   let drafts = options.drafts;
   const state = async () => durable ?? (durable = await options.state.load());
   const save = async (value: PersistedComfyUiState) => { durable = normalizePersistedComfyUiState(value); await options.state.save(durable); return durable; };
+  const saveSelectedWorkflow = (workflowId: string, serial: number): Promise<boolean> => {
+    let currentRequestWon = false;
+    const write = selectionWriteTail.then(async () => {
+      if (serial !== requestSerial) return;
+      const prior = await state();
+      if (serial !== requestSerial) return;
+      if (prior && prior.selectedWorkflowId !== workflowId) await save({ ...prior, selectedWorkflowId: workflowId });
+      currentRequestWon = serial === requestSerial;
+    });
+    selectionWriteTail = write.then(() => undefined, () => undefined);
+    return write.then(() => currentRequestWon);
+  };
   const mappingKey = (workflowId: string, revision: string) => `${workflowId}@${revision}`;
   const withoutMaskBinding = async (workflowId: string, revision: string) => {
     const existing = await state();
@@ -165,16 +179,21 @@ export function createComfyUiManagementService(options: ComfyUiManagementService
       const descriptor = catalog.find((item) => item.workflowId === id);
       if (!descriptor) throw createValidationError('ComfyUI workflow was not found.', { workflowId: id });
       const cached = options.cache.get(id, descriptor.revision ?? undefined);
-      if (cached) { current = cached; loadState = { status: 'ready', runtime: cached }; return cached; }
+      if (cached) {
+        const serial = ++requestSerial;
+        if (!await saveSelectedWorkflow(id, serial) || serial !== requestSerial) throw createValidationError('ComfyUI workflow load became stale.');
+        current = cached;
+        loadState = { status: 'ready', runtime: cached };
+        return cached;
+      }
       const serial = ++requestSerial;
       loadState = { status: 'loading', workflowId: id, requestId: String(serial) };
       try {
         const loaded = await options.ports.load((await state())?.baseUrl ?? '', descriptor, signal);
         if (serial !== requestSerial) throw createValidationError('ComfyUI workflow load became stale.');
         const runtime = createImmutableSnapshot(loaded) as LoadedWorkflowRuntime;
+        if (!await saveSelectedWorkflow(id, serial) || serial !== requestSerial) throw createValidationError('ComfyUI workflow load became stale.');
         options.cache.set(runtime); current = runtime; loadState = { status: 'ready', runtime };
-        const prior = await state();
-        if (prior) await save({ ...prior, selectedWorkflowId: id });
         return runtime;
       } catch (error) {
         if (serial === requestSerial) loadState = { status: 'error', workflowId: id, message: 'ComfyUI workflow could not be loaded.' };

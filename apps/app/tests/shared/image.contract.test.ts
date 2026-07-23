@@ -320,6 +320,35 @@ describe('shared image contract', () => {
     expect(release).toHaveBeenCalledTimes(1);
   });
 
+  it('uses a supplied object URL for oversized stored assets', async () => {
+    const release = vi.fn();
+    const createObjectUrl = vi.fn(() => ({ url: 'blob:full-preview', release }));
+    const createThumbnail = vi.fn(async () => ({ url: 'blob:derived-thumb', release: vi.fn() }));
+    const store = createMemoryThumbnailStore({
+      maxInlineBytes: 2,
+      async resolveStoredRef() {
+        return fakeOutputBytes.buffer.slice(0);
+      },
+      createObjectUrl,
+      createThumbnail,
+    });
+
+    const entry = await store.getOrCreate({
+      asset: {
+        type: 'image',
+        name: 'large.png',
+        mimeType: 'image/png',
+        storedRef: { kind: 'hostObject', ref: 'large-object-url', mimeType: 'image/png' },
+      },
+    });
+
+    expect(entry.preview.url).toBe('blob:full-preview');
+    expect(createObjectUrl).toHaveBeenCalledWith(fakeOutputBytes, 'image/png');
+    expect(createThumbnail).not.toHaveBeenCalled();
+    store.release(entry.cacheKey);
+    expect(release).toHaveBeenCalledTimes(1);
+  });
+
   it('limits oversized thumbnail derivation concurrency', async () => {
     const resolvers: Array<() => void> = [];
     let active = 0;

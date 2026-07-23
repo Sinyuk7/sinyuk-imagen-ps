@@ -303,6 +303,8 @@ export interface AppMessages {
     readonly testNotTested: string;
     readonly testResultPrefix: string;
     readonly saved: string;
+    readonly noChangesToSave: string;
+    readonly profileCreated: (name: string) => string;
     readonly testSuccess: string;
     readonly speedTestSuccess: string;
     readonly connectionFailed: string;
@@ -717,7 +719,7 @@ const EN_MESSAGES: AppMessages = {
     apiProfile: 'API Profile',
     apiFormat: 'API Format',
     apiFormatAuto: 'Auto Detect',
-    apiFormatRequired: 'Paste a supported full endpoint URL or path before saving.',
+    apiFormatRequired: 'Check whether the endpoint URL is correct or complete.',
     apiFormatNeedsPath: 'Paste a supported URL or path.',
     apiFormatUnsupported: 'Unsupported API format. Use OpenAI Images, OpenAI Chat Completions, or Gemini GenerateContent.',
     apiFormatDetected: (label) => `Detected ${label}.`,
@@ -746,6 +748,8 @@ const EN_MESSAGES: AppMessages = {
     testNotTested: 'Not tested',
     testResultPrefix: 'Last test',
     saved: 'Saved',
+    noChangesToSave: 'No changes to save.',
+    profileCreated: (name) => `Profile "${name}" created.`,
     testSuccess: 'Connected ( •̀ ω •́ )✧',
     speedTestSuccess: 'Endpoint response time checked',
     connectionFailed: 'Connection failed',
@@ -1160,7 +1164,7 @@ const ZH_CN_MESSAGES: AppMessages = {
     apiProfile: 'API 配置',
     apiFormat: 'API 格式',
     apiFormatAuto: '自动检测',
-    apiFormatRequired: '请填写支持的 URL 或路径。',
+    apiFormatRequired: '请检查端点 URL 是否正确或完整。',
     apiFormatNeedsPath: '请填写支持的 URL 或路径。',
     apiFormatUnsupported: '暂不支持此 API 格式。',
     apiFormatDetected: (label) => `已检测到 ${label}。`,
@@ -1189,6 +1193,8 @@ const ZH_CN_MESSAGES: AppMessages = {
     testNotTested: '未测试',
     testResultPrefix: '上次测试',
     saved: '已保存',
+    noChangesToSave: '没有需要保存的更改。',
+    profileCreated: (name) => `Profile“${name}”已创建。`,
     testSuccess: '连接成功 ( •̀ ω •́ )✧',
     speedTestSuccess: '响应时间已检查',
     connectionFailed: '连接失败',

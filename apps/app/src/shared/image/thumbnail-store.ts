@@ -181,11 +181,15 @@ export function createMemoryThumbnailStore(options: ThumbnailStoreOptions = {}):
             fallback: createImagePreviewFallback('preview-unavailable', validation.reason),
           };
         }
+        if (options.createObjectUrl) {
+          return {
+            runtimeUrl: options.createObjectUrl(bytes, mimeType),
+            transparencyState,
+          };
+        }
         if (bytes.byteLength <= maxInlineBytes) {
           return {
-            runtimeUrl: options.createObjectUrl
-              ? options.createObjectUrl(bytes, mimeType)
-              : createRuntimeImageUrlOrDataUrl(bytes, mimeType),
+            runtimeUrl: createRuntimeImageUrlOrDataUrl(bytes, mimeType),
             transparencyState,
           };
         }

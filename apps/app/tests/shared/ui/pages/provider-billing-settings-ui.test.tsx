@@ -246,6 +246,27 @@ describe('provider billing settings UI', () => {
     expect((queryByTestId(container, 'provider-endpoint-url-0') as HTMLInputElement).value).toBe('https://relay.test/v1');
   });
 
+  it('shows actionable toast when Continue receives an unsupported endpoint URL', async () => {
+    const container = document.createElement('div');
+    document.body.appendChild(container);
+    const fake = await renderAddPage(container);
+
+    expect((queryByTestId(container, 'provider-save-button') as HTMLButtonElement).disabled).toBe(true);
+    await inputTestId(
+      container,
+      'provider-endpoint-detect-input',
+      'https://grsai.dakka.com.cn/v1beta/models/nano-banana-fast:enerateContent',
+    );
+    await inputTestId(container, 'provider-api-key-input', 'test-token');
+
+    expect((queryByTestId(container, 'provider-save-button') as HTMLButtonElement).disabled).toBe(false);
+    await clickTestId(container, 'provider-save-button');
+
+    expect(document.body.querySelector('[data-testid="toast"]')?.textContent)
+      .toContain('请检查端点 URL 是否正确或完整。');
+    expect(fake.spies.continueProviderProfileSetup).not.toHaveBeenCalled();
+  });
+
   it('replaces saved billing token on detail page', async () => {
     const container = document.createElement('div');
     document.body.appendChild(container);
@@ -253,7 +274,7 @@ describe('provider billing settings UI', () => {
 
     await flush();
     await flush();
-    expect((queryByTestId(container, 'provider-save-button') as HTMLButtonElement).disabled).toBe(true);
+    expect((queryByTestId(container, 'provider-save-button') as HTMLButtonElement).disabled).toBe(false);
     expect(container.querySelector('[data-testid="provider-billing-path-input"]')).not.toBeNull();
     expect((queryByTestId(container, 'provider-billing-user-id-input') as HTMLInputElement).value).toBe('10001');
     expect(container.querySelector('[data-testid="provider-billing-access-token-input"]')).not.toBeNull();
@@ -280,6 +301,19 @@ describe('provider billing settings UI', () => {
       },
     });
     expect(onProfilesChanged).toHaveBeenCalledWith('mock-profile', { activate: false });
+  });
+
+  it('shows a toast and skips persistence when an unchanged detail Profile is saved', async () => {
+    const container = document.createElement('div');
+    document.body.appendChild(container);
+    const { fake } = await renderDetailPage(container, createBillingTokenProfile());
+
+    expect((queryByTestId(container, 'provider-save-button') as HTMLButtonElement).disabled).toBe(false);
+    await clickTestId(container, 'provider-save-button');
+
+    expect(document.body.querySelector('[data-testid="toast"]')?.textContent)
+      .toContain('没有需要保存的更改。');
+    expect(fake.spies.saveProviderProfile).not.toHaveBeenCalled();
   });
 
   it('keeps detail structured draft stable for cross-format endpoint input', async () => {

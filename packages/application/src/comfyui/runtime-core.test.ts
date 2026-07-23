@@ -56,10 +56,27 @@ describe('ComfyUI runtime core', () => {
     const many = { ...candidates, textCandidates: [...candidates.textCandidates, { ...candidates.textCandidates[0], ref: { nodeId: '2', inputName: 'text' } }] };
     expect(resolveWorkflowMapping(many.textCandidates, { nodeId: 'missing', inputName: 'x' })).toBeNull();
     expect(projectWorkflowMapping(many, { text: null, image: null }, { prompt: 'hello' }).text.ambiguous).toBe(true);
+    expect(projectWorkflowMapping(many, { text: many.textCandidates[0]!.ref, image: null }).showSection).toBe(true);
     const empty = collectWorkflowInputCandidates({ nodes: [] });
     const unused = projectWorkflowMapping(empty, { text: null, image: null }, { prompt: 'hello', attachments: [{} as never] });
     expect(unused.text.notice).toBe('此 Workflow 不使用当前提示词');
     expect(unused.image.notice).toBe('此 Workflow 未识别到图片输入，附件不会发送');
+  });
+
+  it('does not offer the Primary image input as its own Mask input', () => {
+    const imageForm: WorkflowForm = {
+      nodes: [{
+        nodeId: 'image', title: 'Load Image', label: 'Load Image', order: 0, active: true, visible: false,
+        widgets: [{ ref: { nodeId: 'image', widgetIndex: 0 }, kind: 'upload-image', label: 'image', writable: true, visible: false, order: 0 }],
+      }],
+    };
+    const candidates = collectWorkflowInputCandidates(imageForm);
+    const primary = resolveWorkflowMapping(candidates.imageCandidates, undefined);
+    const projection = projectWorkflowMapping(candidates, { text: null, image: primary });
+
+    expect(projection.image.resolved).toEqual(primary);
+    expect(projection.maskCandidates).toEqual([]);
+    expect(projection.mask).toEqual({ requiresExplicitSelection: false });
   });
 
   it('rejects missing workflow without changing selected state', async () => {
@@ -71,6 +88,80 @@ describe('ComfyUI runtime core', () => {
     await service.discover();
     await expect(service.selectWorkflow('missing')).rejects.toThrow('workflow was not found');
     expect((await service.loadState())?.selectedWorkflowId).toBeNull();
+  });
+
+  it('persists cached Workflow selection when switching A to B to A', async () => {
+    const repo = createInMemoryComfyUiStateRepository({ baseUrl: 'https://example.test', selectedWorkflowId: null, ambiguousMappingsByRevision: {} });
+    let loads = 0;
+    const identities = [
+      { workflowId: 'a', displayName: 'A', remotePath: 'a.json', revision: 'r1' },
+      { workflowId: 'b', displayName: 'B', remotePath: 'b.json', revision: 'r1' },
+    ];
+    const service = createComfyUiManagementService({
+      state: repo,
+      cache: createComfyUiWorkflowRuntimeCache(),
+      ports: {
+        discover: async () => identities,
+        load: async (_baseUrl, descriptor) => {
+          loads += 1;
+          return { identity: { ...descriptor, groupPath: [], revision: descriptor.revision ?? 'r1' }, document: { kind: 'api', graph: {} }, form };
+        },
+      },
+    });
+
+    await service.discover();
+    await service.selectWorkflow('a');
+    await service.selectWorkflow('b');
+    await service.selectWorkflow('a');
+
+    expect(loads).toBe(2);
+    expect((await repo.load())?.selectedWorkflowId).toBe('a');
+  });
+
+  it('keeps the latest cached Workflow selection across delayed persistence', async () => {
+    const identities = [
+      { workflowId: 'a', displayName: 'A', remotePath: 'a.json', groupPath: [], revision: 'r1' },
+      { workflowId: 'b', displayName: 'B', remotePath: 'b.json', groupPath: [], revision: 'r1' },
+    ];
+    const runtime = (workflowId: string): LoadedWorkflowRuntime => ({
+      identity: identities.find((item) => item.workflowId === workflowId)!,
+      document: { kind: 'api', graph: {} },
+      form,
+    });
+    const cache = createComfyUiWorkflowRuntimeCache();
+    cache.set(runtime('a'));
+    cache.set(runtime('b'));
+    let persisted = { baseUrl: 'https://example.test', selectedWorkflowId: null as string | null, ambiguousMappingsByRevision: {} };
+    let releaseFirstSave!: () => void;
+    let markFirstSaveStarted!: () => void;
+    const firstSaveStarted = new Promise<void>((resolve) => { markFirstSaveStarted = resolve; });
+    const firstSaveBarrier = new Promise<void>((resolve) => { releaseFirstSave = resolve; });
+    const service = createComfyUiManagementService({
+      state: {
+        load: async () => persisted,
+        save: async (value) => {
+          if (value.selectedWorkflowId === 'a') {
+            markFirstSaveStarted();
+            await firstSaveBarrier;
+          }
+          persisted = value;
+        },
+        clear: async () => { persisted = { baseUrl: 'https://example.test', selectedWorkflowId: null, ambiguousMappingsByRevision: {} }; },
+      },
+      cache,
+      ports: { discover: async () => identities, load: async (_baseUrl, identity) => runtime(identity.workflowId) },
+    });
+
+    await service.discover();
+    const first = service.selectWorkflow('a');
+    await firstSaveStarted;
+    const second = service.selectWorkflow('b');
+    releaseFirstSave();
+
+    await expect(first).rejects.toThrow('became stale');
+    await expect(second).resolves.toMatchObject({ identity: { workflowId: 'b' } });
+    expect(persisted.selectedWorkflowId).toBe('b');
+    expect(service.getLoadState()).toMatchObject({ status: 'ready', runtime: { identity: { workflowId: 'b' } } });
   });
 
   it('suppresses stale deferred load result', async () => {
@@ -141,6 +232,25 @@ describe('ComfyUI runtime core', () => {
     });
     expect(mutations).toEqual([{ ref: promptRef, value: 'composer' }]);
     expect(composeWorkflowMutations({ form, draft: { '1\0text\0': 'draft' }, mapping: { text: promptRef, image: null }, composer: { prompt: '   ' } })).toEqual([{ ref: promptRef, value: 'draft' }]);
+  });
+
+  it('does not send unchanged saved widgets as Bridge mutations', () => {
+    const manySavedWidgets: WorkflowForm = {
+      nodes: [{
+        ...form.nodes[0]!,
+        widgets: Array.from({ length: 32 }, (_, index) => ({
+          ...form.nodes[0]!.widgets[0]!,
+          ref: { nodeId: String(index + 1), inputName: 'text' },
+          workflowValue: `saved-${index}`,
+        })),
+      }],
+    };
+    const selectedPromptRef = manySavedWidgets.nodes[0]!.widgets[0]!.ref;
+    expect(composeWorkflowMutations({
+      form: manySavedWidgets,
+      mapping: { text: selectedPromptRef, image: null },
+      composer: { prompt: 'override' },
+    })).toEqual([{ ref: selectedPromptRef, value: 'override' }]);
   });
 
   it('persists explicit ambiguous mappings by revision and invalidates stale targets', async () => {

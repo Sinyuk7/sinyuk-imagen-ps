@@ -1,8 +1,8 @@
 import { app } from '../../scripts/app.js';
 import { api } from '../../scripts/api.js';
-import { attachBridgeWindow, createBridgeRuntime } from './bridge-runtime.mjs';
-import { createComfyAdapter } from './comfy-adapter.mjs';
-import { resolvePageHostTransport } from './host-transport.mjs';
+import { attachBridgeWindow, createBridgeRuntime } from './bridge-runtime.mjs?v=1.0.2';
+import { createComfyAdapter } from './comfy-adapter.mjs?v=1.0.3';
+import { resolvePageHostTransport } from './host-transport.mjs?v=1.0.2';
 
 const PAGE_RUNTIME = Symbol.for('imagen-ps.comfyui-bridge.page-runtime');
 function sessionIdentity() { const params = new URLSearchParams(window.location.search); return { origin: params.get('imagenOrigin') ?? '', sourceId: params.get('imagenSourceId') ?? '', loadId: params.get('imagenLoadId') ?? '' }; }

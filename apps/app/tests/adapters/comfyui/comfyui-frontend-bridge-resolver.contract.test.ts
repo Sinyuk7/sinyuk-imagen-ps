@@ -239,6 +239,132 @@ describe('ComfyUI frontend Bridge resolvers', () => {
     expect(frame.listenerCount()).toBe(0);
   });
 
+  it('retires the discovery frame after the workflow list response', async () => {
+    const hostWindow = new FakeHostWindow();
+    const frames: FakeFrame[] = [];
+    const resolver = createChromeComfyUiFrontendBridgeResolver({
+      server: connectionReader(),
+      parentOrigin: CHROME_PARENT_ORIGIN,
+      hostWindow,
+      clock: new FakeClock(),
+      createRuntimeId: createIds(),
+      createFrame: () => {
+        const frame = new FakeFrame();
+        frames.push(frame);
+        return frame;
+      },
+      mountFrame: () => undefined,
+    });
+
+    const resolving = resolver.resolve('discovery');
+    await flush();
+    frames[0]!.emit('load');
+    const port = (await resolving)!;
+    const handshake = request(port.identity, 'discovery-handshake');
+    const handshakePending = port.exchange(handshake);
+    await flush();
+    const handshakeResponse = { requestId: handshake.requestId, ok: true, payload: {} };
+    hostWindow.emit({ origin: 'https://comfy.example.test', source: frames[0]!.contentWindow, data: handshakeResponse });
+    await expect(handshakePending).resolves.toBe(handshakeResponse);
+    expect(frames[0]!.removed).toBe(false);
+
+    const list = { ...request(port.identity, 'discovery-list'), command: 'list-workflows' as const };
+    const listPending = port.exchange(list);
+    await flush();
+    const listResponse = { requestId: list.requestId, ok: true, payload: { workflows: [] } };
+    hostWindow.emit({ origin: 'https://comfy.example.test', source: frames[0]!.contentWindow, data: listResponse });
+    await expect(listPending).resolves.toBe(listResponse);
+    expect(frames[0]!.removed).toBe(true);
+    expect(frames[0]!.listenerCount()).toBe(0);
+    expect(hostWindow.listeners.size).toBe(1);
+
+    const resolvingAgain = resolver.resolve('discovery');
+    await flush();
+    expect(frames).toHaveLength(2);
+    frames[1]!.emit('load');
+    expect(await resolvingAgain).not.toBe(port);
+    resolver.dispose();
+    expect(frames[1]!.removed).toBe(true);
+    expect(hostWindow.listeners.size).toBe(0);
+  });
+
+  it('retires the previous idle workflow frame when the selected workflow changes', async () => {
+    const frames: FakeFrame[] = [];
+    const resolver = createChromeComfyUiFrontendBridgeResolver({
+      server: connectionReader(),
+      parentOrigin: CHROME_PARENT_ORIGIN,
+      hostWindow: new FakeHostWindow(),
+      clock: new FakeClock(),
+      createRuntimeId: createIds(),
+      createFrame: () => {
+        const frame = new FakeFrame();
+        frames.push(frame);
+        return frame;
+      },
+      mountFrame: () => undefined,
+    });
+
+    const first = resolver.resolve('workflow-1');
+    await flush();
+    frames[0]!.emit('load');
+    await first;
+
+    const second = resolver.resolve('workflow-2');
+    await flush();
+    expect(frames[0]!.removed).toBe(true);
+    expect(frames[0]!.listenerCount()).toBe(0);
+    expect(frames).toHaveLength(2);
+    frames[1]!.emit('load');
+    await second;
+
+    resolver.dispose();
+    expect(frames[1]!.removed).toBe(true);
+  });
+
+  it('keeps a previous workflow frame until its pending exchange settles', async () => {
+    const hostWindow = new FakeHostWindow();
+    const frames: FakeFrame[] = [];
+    const resolver = createChromeComfyUiFrontendBridgeResolver({
+      server: connectionReader(),
+      parentOrigin: CHROME_PARENT_ORIGIN,
+      hostWindow,
+      clock: new FakeClock(),
+      createRuntimeId: createIds(),
+      createFrame: () => {
+        const frame = new FakeFrame();
+        frames.push(frame);
+        return frame;
+      },
+      mountFrame: () => undefined,
+    });
+
+    const firstResolving = resolver.resolve('workflow-1');
+    await flush();
+    frames[0]!.emit('load');
+    const firstPort = (await firstResolving)!;
+    const firstRequest = request(firstPort.identity, 'workflow-1-pending');
+    const firstPending = firstPort.exchange(firstRequest);
+    await flush();
+
+    const secondResolving = resolver.resolve('workflow-2');
+    await flush();
+    expect(frames[0]!.removed).toBe(false);
+    frames[1]!.emit('load');
+    await secondResolving;
+
+    const firstResponse = { requestId: firstRequest.requestId, ok: true, payload: {} };
+    hostWindow.emit({
+      origin: 'https://comfy.example.test',
+      source: frames[0]!.contentWindow,
+      data: firstResponse,
+    });
+    await expect(firstPending).resolves.toBe(firstResponse);
+    expect(frames[0]!.removed).toBe(true);
+    expect(frames[0]!.listenerCount()).toBe(0);
+
+    resolver.dispose();
+  });
+
   it('uses plugin identity, full content URL origin, and one-argument postMessage for UXP WebView', async () => {
     const hostWindow = new FakeHostWindow();
     const webView = new FakeWebView();

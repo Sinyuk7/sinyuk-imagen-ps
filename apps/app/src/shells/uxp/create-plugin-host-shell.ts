@@ -180,6 +180,7 @@ export function createPluginHostShell(): PluginHostShell {
       pluginId: UXP_PLUGIN_ID,
       logger: comfyUiBridgeLogger,
     });
+    const externalUrl = createUxpExternalUrlPort(uxpModules);
     const comfyUiRuntime = createComfyUiAppRuntime({
       repositories: {
         state: comfyUiRepositories.state,
@@ -188,6 +189,7 @@ export function createPluginHostShell(): PluginHostShell {
       },
       httpTransport: createComfyUiHttpTransport(),
       frontendBridgeResolver: comfyUiBridgeResolver,
+      externalUrl,
     });
 
     span.finish();
@@ -201,7 +203,7 @@ export function createPluginHostShell(): PluginHostShell {
       services: {
         commands: createCommandsAdapter(),
         comfyUi: comfyUiRuntime.management,
-        externalUrl: createUxpExternalUrlPort(uxpModules),
+        externalUrl,
         generationBackends: comfyUiRuntime.generationBackends,
         host: hostBridge,
         generationSettings,

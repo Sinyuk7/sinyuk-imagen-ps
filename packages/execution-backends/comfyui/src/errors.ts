@@ -24,6 +24,17 @@ export type ComfyUiErrorCode =
 /** Generic Retry 可使用的 bounded disposition。 */
 export type ComfyUiRetryDisposition = 'same-task-new-job' | 'new-task-only';
 
+/** Bridge 返回的安全 bounded error code。 */
+export type ComfyUiBridgeErrorCode =
+  | 'bridge-incompatible'
+  | 'identity-mismatch'
+  | 'invalid-request'
+  | 'invalid-workflow'
+  | 'limit-exceeded'
+  | 'submission-rejected'
+  | 'submission-unknown'
+  | 'unsupported-command';
+
 /** ComfyUI error 中唯一允许进入 Job/Task 的 details。 */
 export interface ComfyUiExecutionErrorDetails {
   readonly [key: string]: unknown;
@@ -32,6 +43,7 @@ export interface ComfyUiExecutionErrorDetails {
   readonly messageKey: string;
   readonly remoteMayContinue: boolean;
   readonly retryDisposition: ComfyUiRetryDisposition;
+  readonly bridgeCode?: ComfyUiBridgeErrorCode;
 }
 
 /** Core 可保留的 structured ComfyUI `JobError`。 */
@@ -58,12 +70,22 @@ const CODES: ReadonlySet<string> = new Set([
   'projection-failed',
   'bridge-incompatible',
 ]);
+const BRIDGE_CODES: ReadonlySet<string> = new Set([
+  'bridge-incompatible',
+  'identity-mismatch',
+  'invalid-request',
+  'invalid-workflow',
+  'limit-exceeded',
+  'submission-rejected',
+  'submission-unknown',
+  'unsupported-command',
+]);
 
 /** 构造不含 raw transport facts 的 structured execution error。 */
 export function createComfyUiExecutionError(
   stage: ComfyUiErrorStage,
   code: ComfyUiErrorCode,
-  options: { readonly remoteMayContinue?: boolean } = {},
+  options: { readonly remoteMayContinue?: boolean; readonly bridgeCode?: ComfyUiBridgeErrorCode } = {},
 ): ComfyUiExecutionError {
   const remoteMayContinue = options.remoteMayContinue ?? false;
   return deepFreeze({
@@ -77,6 +99,7 @@ export function createComfyUiExecutionError(
       retryDisposition: stage === 'prepare' || stage === 'upload'
         ? 'same-task-new-job' as const
         : 'new-task-only' as const,
+      ...(options.bridgeCode === undefined ? {} : { bridgeCode: options.bridgeCode }),
     },
   });
 }
@@ -91,7 +114,8 @@ export function isComfyUiExecutionError(value: unknown): value is ComfyUiExecuti
     && details.messageKey === `comfyui.${String(details.stage)}.${String(details.code)}`
     && typeof details.remoteMayContinue === 'boolean'
     && (details.retryDisposition === 'same-task-new-job' || details.retryDisposition === 'new-task-only')
-    && Object.keys(details).every((key) => ['stage', 'code', 'messageKey', 'remoteMayContinue', 'retryDisposition'].includes(key));
+    && (details.bridgeCode === undefined || BRIDGE_CODES.has(String(details.bridgeCode)))
+    && Object.keys(details).every((key) => ['stage', 'code', 'messageKey', 'remoteMayContinue', 'retryDisposition', 'bridgeCode'].includes(key));
 }
 
 /** Unknown failures 映射为当前 stage 的安全 bounded error。 */
