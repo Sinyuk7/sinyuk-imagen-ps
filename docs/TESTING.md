@@ -213,10 +213,11 @@ explicit reconnect, phase copy, exact derived origins, provisional frame
 cleanup, and horizontal overflow. Live Chrome evidence additionally requires a
 real `/system_stats` response, Frontend Bridge handshake, workflow discovery,
 reconnect, and one unreachable-target failure while the old active target
-remains usable. Real Photoshop UXP evidence must separately prove WebView
-permissions, `postMessage(message, targetOrigin)`, load/handshake failure
-classification, A-to-B teardown, and listener/timer/WebView cleanup. Never
-promote mock or Chrome results to the real-host tier.
+remains usable. When the user explicitly requests real Photoshop UXP evidence,
+keep it scoped to the named host boundary, such as WebView permissions,
+`postMessage(message, targetOrigin)`, load/handshake failure classification,
+A-to-B teardown, or listener/timer/WebView cleanup. This is not a default
+completion gate. Never promote mock or Chrome results to the real-host tier.
 
 Mock success, build success, or a Bridge handshake alone is not live generation
 proof. Chrome live generation proof requires real output bytes in generic Task

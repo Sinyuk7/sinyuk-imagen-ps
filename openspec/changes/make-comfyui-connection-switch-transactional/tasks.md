@@ -79,5 +79,5 @@
 - [x] 9.2 更新 `docs/TESTING.md`，记录 connection harness、compare-and-save linearization、Chrome mock/live 与真实 Photoshop UXP 证据边界。
 - [x] 9.3 运行 `pnpm check:policy`、`pnpm validate` 与 `git diff --check`，修复所有本变更引入的 failure；不得覆盖用户现有无关修改。
 - [x] 9.4 运行 `openspec validate make-comfyui-connection-switch-transactional --type change --strict --json`，并逐项核对 proposal、design、spec 与 tasks。
-- [ ] 9.5 在 clean tree 执行 `pnpm release:verify`；`--allow-dirty` 只可作为 build rehearsal，不得记为 release readiness。
+- [x] 9.5 在 clean tree 执行 `pnpm release:verify`；`--allow-dirty` 只可作为 build rehearsal，不得记为 release readiness。
 - [ ] 9.6 汇总 deterministic Application/execution/adapter/UI proof、Chrome live proof 与真实 Photoshop UXP proof；只有全部 required gate 完成后才标记 change complete。
