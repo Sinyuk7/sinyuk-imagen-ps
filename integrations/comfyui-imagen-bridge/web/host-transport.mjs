@@ -31,6 +31,9 @@ export function resolvePageHostTransport(windowObject, identity) {
       reply(_event, response) {
         uxpHost.postMessage(response);
       },
+      diagnostic(stage) {
+        uxpHost.postMessage({ type: 'imagen-ps.bridge.diagnostic', stage });
+      },
     };
   }
 
@@ -45,6 +48,9 @@ export function resolvePageHostTransport(windowObject, identity) {
       expectedSource: parent,
       reply(event, response) {
         parent.postMessage(response, event.origin);
+      },
+      diagnostic(stage) {
+        parent.postMessage({ type: 'imagen-ps.bridge.diagnostic', stage }, identity.origin);
       },
     };
   }

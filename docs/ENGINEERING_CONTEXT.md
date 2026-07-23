@@ -261,8 +261,11 @@ surface apps -> application/session -> core-engine + providers + execution backe
 - ComfyUI frontend Bridge diagnostics use `comfyui.bridge.resolve.*`,
   `comfyui.bridge.load.*`, `comfyui.bridge.handshake.*`, and
   `comfyui.frontend.discovery.*`, with `comfyui.bridge.exchange.*` for other
-  commands and bounded `comfyui.bridge.message.rejected` /
-  `comfyui.bridge.load.rejected` anomalies. Keep attributes bounded to
+  commands. `comfyui.bridge.message.sent` / `.received` show host transport
+  progress; `comfyui.bridge.page.*` records only accepted page lifecycle
+  stages (`transport_ready`, `listener_attached`, `message_received`,
+  `response_sent`, or `setup_failed`). Page diagnostics must match the active
+  WebView source and content origin before persistence. Keep attributes bounded to
   `transport`, `command`, `phase`, `reason`, and `result`; never log connection
   endpoints, origins, workflow paths, identities, request IDs, payloads,
   headers, or prompt/operation IDs.

@@ -132,6 +132,15 @@ interface PendingExchange {
 
 const PLUGIN_ID_PATTERN = /^[A-Za-z0-9](?:[A-Za-z0-9-]{0,62}[A-Za-z0-9])?(?:\.[A-Za-z0-9](?:[A-Za-z0-9-]{0,62}[A-Za-z0-9])?)+$/;
 const CHROME_HANDSHAKE_RETRY_MS = 500;
+const PAGE_DIAGNOSTIC_TYPE = 'imagen-ps.bridge.diagnostic';
+const PAGE_DIAGNOSTIC_EVENTS = {
+  'transport-ready': 'comfyui.bridge.page.transport_ready',
+  'listener-attached': 'comfyui.bridge.page.listener_attached',
+  'message-received': 'comfyui.bridge.page.message_received',
+  'response-sent': 'comfyui.bridge.page.response_sent',
+  'setup-failed': 'comfyui.bridge.page.setup_failed',
+} as const;
+type PageDiagnosticStage = keyof typeof PAGE_DIAGNOSTIC_EVENTS;
 let fallbackRuntimeId = 0;
 
 const defaultClock: ComfyUiBridgeResolverClock = {
@@ -230,6 +239,16 @@ function responseRequestId(value: unknown): string | undefined {
   if (!Object.prototype.hasOwnProperty.call(value, 'requestId')) return undefined;
   const requestId = (value as Record<string, unknown>).requestId;
   return typeof requestId === 'string' && requestId.length > 0 ? requestId : undefined;
+}
+
+function pageDiagnosticStage(value: unknown): PageDiagnosticStage | undefined {
+  if (value === null || typeof value !== 'object' || Array.isArray(value)) return undefined;
+  const data = value as Record<string, unknown>;
+  if (data.type !== PAGE_DIAGNOSTIC_TYPE || typeof data.stage !== 'string') return undefined;
+  if (Object.keys(data).some((key) => key !== 'type' && key !== 'stage')) return undefined;
+  return Object.hasOwn(PAGE_DIAGNOSTIC_EVENTS, data.stage)
+    ? data.stage as PageDiagnosticStage
+    : undefined;
 }
 
 function messageOriginMatches(
@@ -394,6 +413,8 @@ class BridgeSession {
   }
 
   handleMessage(event: MessageEvent<unknown>): boolean {
+    const diagnosticStage = pageDiagnosticStage(event.data);
+    if (diagnosticStage !== undefined) return this.receivePageDiagnostic(event, diagnosticStage);
     const requestId = responseRequestId(event.data);
     if (requestId === undefined) return false;
     const exchange = this.pending.get(requestId);
@@ -411,7 +432,15 @@ class BridgeSession {
       });
       return false;
     }
-    return this.receive(event.data);
+    const received = this.receive(event.data);
+    if (received) {
+      this.logger?.info('comfyui.bridge.message.received', {
+        transport: this.transportKind,
+        phase: exchange.command === 'handshake' ? 'handshake' : 'contract',
+        result: 'received',
+      });
+    }
+    return received;
   }
 
   receive(value: unknown): boolean {
@@ -422,6 +451,19 @@ class BridgeSession {
     this.pending.delete(requestId);
     exchange.cleanup();
     exchange.resolve(value);
+    return true;
+  }
+
+  private receivePageDiagnostic(event: MessageEvent<unknown>, stage: PageDiagnosticStage): boolean {
+    const source = this.transport.source();
+    const originMatches = messageOriginMatches(this.transportKind, event.origin, this.connection.origin);
+    const sourceMatches = source !== undefined && source !== null && event.source === source;
+    if (!originMatches || !sourceMatches) return false;
+    this.logger?.info(PAGE_DIAGNOSTIC_EVENTS[stage], {
+      transport: this.transportKind,
+      phase: 'page',
+      result: stage === 'setup-failed' ? 'failed' : 'ok',
+    });
     return true;
   }
 
@@ -486,6 +528,11 @@ class BridgeSession {
 
         const send = (): void => {
           this.transport.send(request, this.connection.origin);
+          this.logger?.info('comfyui.bridge.message.sent', {
+            transport: this.transportKind,
+            phase: operationPhase,
+            result: 'sent',
+          });
           if (request.command === 'handshake' && this.handshakeRetryMs !== undefined) {
             retryHandle = this.clock.setTimeout(() => {
               retryHandle = undefined;

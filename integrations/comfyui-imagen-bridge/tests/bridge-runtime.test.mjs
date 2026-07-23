@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { createBridgeRuntime } from '../web/bridge-runtime.mjs';
+import { attachBridgeWindow, createBridgeRuntime } from '../web/bridge-runtime.mjs';
 
 const identity = { origin: 'com.imagen.ps', sourceId: 'source', loadId: 'load' };
 const config = { capabilities: { nativeQueue: true, workflowDiscovery: true, receiptObserver: true }, limits: { maxMessageBytes: 2_000_000, maxWorkflowPathBytes: 512, maxWorkflowListEntries: 1000, maxMutations: 16, maxIdChars: 128, maxConfigureTimeoutMs: 30_000 } };
@@ -110,4 +110,37 @@ test('bridge preserves submission-unknown when malformed receipt cleanup also fa
   assert.equal(second.errorCode, 'submission-unknown');
   assert.equal(queues, 1);
   assert.equal(runtime.inspect().lease.owner, null);
+});
+
+test('bridge listener reports received and replied protocol messages', async () => {
+  const runtimeSource = {};
+  const listeners = new Set();
+  const windowObject = {
+    addEventListener(_type, listener) { listeners.add(listener); },
+    removeEventListener(_type, listener) { listeners.delete(listener); },
+  };
+  const runtime = createBridgeRuntime({ identity, compatibility, config, expectedSource: runtimeSource, adapter: {
+    async getVersions() { return { frontendVersion: 'unknown', coreVersion: 'unknown' }; },
+    async discoverWorkflows() { return []; },
+    async openWorkflow() { return {}; },
+    async setValues() { return async () => {}; },
+    async queueNativeOnce() { return { promptId: 'prompt-1', acknowledgedAt: 1 }; },
+    async resetOperation() {},
+    async dispose() {},
+  } });
+  let received = 0;
+  let replied = 0;
+  const responses = [];
+  const detach = attachBridgeWindow({
+    runtime,
+    windowObject,
+    reply(_event, response) { responses.push(response); },
+    onMessage() { received += 1; },
+    onResponse() { replied += 1; },
+  });
+  for (const listener of listeners) await listener({ source: runtimeSource, origin: identity.origin, data: request('handshake', compatibility) });
+  assert.equal(received, 1);
+  assert.equal(replied, 1);
+  assert.equal(responses[0].ok, true);
+  detach();
 });

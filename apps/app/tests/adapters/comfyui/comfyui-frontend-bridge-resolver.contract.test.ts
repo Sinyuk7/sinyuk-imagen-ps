@@ -388,4 +388,53 @@ describe('ComfyUI frontend Bridge generation factories', () => {
       'secret-payload', 'identity', 'payload', port.identity.sourceId, port.identity.loadId,
     ]) expect(serialized).not.toContain(secret);
   });
+
+  it('records page bridge lifecycle only from the active UXP WebView source', async () => {
+    const sink = createMemorySink();
+    const logger = createLogger({
+      sink,
+      context: { surface: 'test', package: 'app', component: 'transport' },
+      traceId: 'comfyui-bridge-page-diagnostics',
+    });
+    const hostWindow = new FakeHostWindow();
+    const webView = new FakeWebView();
+    const generation = createUxpComfyUiFrontendBridgeGenerationFactory({
+      pluginId: 'com.imagen-ps.panel',
+      hostWindow,
+      clock: new FakeClock(),
+      createRuntimeId: createIds(),
+      createWebView: () => webView,
+      mountWebView: () => undefined,
+      logger,
+    }).create(target());
+
+    const resolving = generation.resolve('workflow-1');
+    await flush();
+    webView.emit('loadstop');
+    await resolving;
+    for (const stage of ['transport-ready', 'listener-attached', 'message-received', 'response-sent'] as const) {
+      hostWindow.emit({
+        origin: webView.src,
+        source: webView,
+        data: { type: 'imagen-ps.bridge.diagnostic', stage },
+      });
+    }
+    hostWindow.emit({
+      origin: webView.src,
+      source: {},
+      data: { type: 'imagen-ps.bridge.diagnostic', stage: 'setup-failed' },
+    });
+
+    expect(sink.records.map((record) => record.event)).toEqual(expect.arrayContaining([
+      'comfyui.bridge.page.transport_ready',
+      'comfyui.bridge.page.listener_attached',
+      'comfyui.bridge.page.message_received',
+      'comfyui.bridge.page.response_sent',
+    ]));
+    expect(sink.records.map((record) => record.event)).not.toContain('comfyui.bridge.page.setup_failed');
+    expect(sink.records.every((record) => (
+      Object.keys(record.attrs ?? {}).every((key) => ALLOWED_LOG_ATTR_KEYS.has(key))
+    ))).toBe(true);
+    generation.dispose();
+  });
 });
