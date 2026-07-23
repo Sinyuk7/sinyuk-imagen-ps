@@ -68,4 +68,46 @@ describe('useComfyUiManagement', () => {
 
     await act(async () => { root.unmount(); });
   });
+
+  it('reloads the new target after connect without replacing the raw draft', async () => {
+    const fake = createComfyUiManagementFake({ baseUrl: 'https://a.example.test' });
+    const container = document.createElement('div');
+    document.body.appendChild(container);
+    const root = createRoot(container);
+    let controller: ComfyUiManagementController | undefined;
+    const onChange = (value: ComfyUiManagementController): void => { controller = value; };
+
+    await act(async () => {
+      root.render(<Probe service={fake.service} onChange={onChange} />);
+      await flush();
+    });
+    expect(controller!.runtime?.identity.displayName).toBe('D01 Studio');
+
+    const nextWorkflow = {
+      workflowId: 'workflow-b',
+      displayName: 'B Workflow',
+      remotePath: 'saved/b.json',
+      groupPath: ['saved'],
+      revision: 'rev-b',
+    } as const;
+    fake.spies.discover.mockResolvedValue([nextWorkflow]);
+
+    await act(async () => {
+      controller!.setDraftBaseUrl(' https://b.example.test/proxy/ ');
+      await flush();
+    });
+    await act(async () => {
+      await controller!.connect();
+    });
+
+    expect(controller!.baseUrl).toBe('https://b.example.test/proxy');
+    expect(controller!.draftBaseUrl).toBe(' https://b.example.test/proxy/ ');
+    expect(controller!.catalog).toEqual([nextWorkflow]);
+    expect(controller!.selectedWorkflowId).toBeNull();
+    expect(controller!.runtime).toBeUndefined();
+    expect(controller!.draftValues).toEqual({});
+    expect(controller!.mappingProjection).toBeUndefined();
+
+    await act(async () => { root.unmount(); });
+  });
 });

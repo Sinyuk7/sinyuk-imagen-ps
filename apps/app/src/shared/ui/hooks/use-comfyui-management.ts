@@ -1,7 +1,8 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type {
+  ComfyUiConnectionResult,
+  ComfyUiConnectionSnapshot,
   LoadedWorkflowRuntime,
-  PersistedComfyUiState,
   WorkflowIdentity,
   WorkflowInputRef,
   WorkflowMapping,
@@ -10,9 +11,13 @@ import type {
   ComfyUiMaskBinding,
 } from '@imagen-ps/application';
 import type { ComfyUiManagementPort } from '../../ports/comfyui-management';
+import { deriveComfyUiConnectionUiState, type ComfyUiConnectionUiState } from './comfyui-connection-ui-state';
 
 export interface ComfyUiManagementController {
   readonly baseUrl: string;
+  readonly draftBaseUrl: string;
+  readonly connectionSnapshot: ComfyUiConnectionSnapshot;
+  readonly connectionUiState: ComfyUiConnectionUiState;
   readonly selectedWorkflowId: string | null;
   readonly loading: boolean;
   readonly busy: boolean;
@@ -24,7 +29,8 @@ export interface ComfyUiManagementController {
   readonly loadState: ComfyUiManagementPort['loadState'];
   readonly reload: () => Promise<void>;
   readonly selectWorkflow: (workflowId: string) => Promise<void>;
-  readonly saveBaseUrl: (value: string) => Promise<PersistedComfyUiState>;
+  readonly setDraftBaseUrl: (value: string) => void;
+  readonly connect: () => Promise<ComfyUiConnectionResult | undefined>;
   readonly refresh: () => Promise<void>;
   readonly openInComfyUi: () => Promise<void>;
   readonly setParameter: (ref: WorkflowInputRef, value: WorkflowPrimitiveValue) => void;
@@ -50,6 +56,8 @@ function refKey(ref: WorkflowInputRef): string {
 /** 将 Application singleton management 投影为 UI controller。 */
 export function useComfyUiManagement(service: ComfyUiManagementPort): ComfyUiManagementController {
   const [baseUrl, setBaseUrl] = useState('');
+  const [draftBaseUrl, setDraftBaseUrlState] = useState('');
+  const [connectionSnapshot, setConnectionSnapshot] = useState(() => service.getConnectionSnapshot());
   const [selectedWorkflowId, setSelectedWorkflowId] = useState<string | null>(null);
   const [catalog, setCatalog] = useState<readonly WorkflowIdentity[]>([]);
   const [runtime, setRuntime] = useState<LoadedWorkflowRuntime>();
@@ -59,6 +67,12 @@ export function useComfyUiManagement(service: ComfyUiManagementPort): ComfyUiMan
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const sequence = useRef(0);
+  const draftDirty = useRef(false);
+  const connectionOwner = useRef<AbortController | undefined>(undefined);
+
+  useEffect(() => service.subscribe(() => {
+    setConnectionSnapshot(service.getConnectionSnapshot());
+  }), [service]);
 
   const reload = useCallback(async () => {
     const token = ++sequence.current;
@@ -67,7 +81,7 @@ export function useComfyUiManagement(service: ComfyUiManagementPort): ComfyUiMan
       const state = await service.loadState();
       if (token !== sequence.current) return;
       setBaseUrl(state?.baseUrl ?? '');
-      setSelectedWorkflowId(state?.selectedWorkflowId ?? null);
+      if (!draftDirty.current) setDraftBaseUrlState(state?.baseUrl ?? '');
       const found = state?.baseUrl ? await service.discover() : [];
       if (token !== sequence.current) return;
       setCatalog(found);
@@ -75,6 +89,7 @@ export function useComfyUiManagement(service: ComfyUiManagementPort): ComfyUiMan
         try {
           const selected = await service.selectWorkflow(state.selectedWorkflowId);
           if (token !== sequence.current) return;
+          setSelectedWorkflowId(state.selectedWorkflowId);
           setRuntime(selected);
           setDraftValues(service.getDraft(selected.identity.workflowId, selected.identity.revision)?.values ?? {});
           setMappingProjection(service.getMappingProjection(selected));
@@ -86,6 +101,7 @@ export function useComfyUiManagement(service: ComfyUiManagementPort): ComfyUiMan
           throw cause;
         }
       } else {
+        setSelectedWorkflowId(null);
         setRuntime(undefined);
         setDraftValues({});
         setMappingProjection(undefined);
@@ -94,6 +110,7 @@ export function useComfyUiManagement(service: ComfyUiManagementPort): ComfyUiMan
     } catch (cause) {
       if (token === sequence.current) {
         setCatalog([]);
+        setSelectedWorkflowId(null);
         setRuntime(undefined);
         setDraftValues({});
         setMappingProjection(undefined);
@@ -106,8 +123,46 @@ export function useComfyUiManagement(service: ComfyUiManagementPort): ComfyUiMan
 
   useEffect(() => {
     void reload();
-    return () => { sequence.current += 1; };
+    return () => {
+      sequence.current += 1;
+      connectionOwner.current?.abort();
+      connectionOwner.current = undefined;
+    };
   }, [reload]);
+
+  const setDraftBaseUrl = useCallback((value: string) => {
+    draftDirty.current = true;
+    setDraftBaseUrlState(value);
+    service.supersedeCurrentAttempt(value);
+  }, [service]);
+
+  const connectionUiState = useMemo(
+    () => deriveComfyUiConnectionUiState(draftBaseUrl, connectionSnapshot),
+    [connectionSnapshot, draftBaseUrl],
+  );
+
+  const connect = useCallback(async (): Promise<ComfyUiConnectionResult | undefined> => {
+    const current = deriveComfyUiConnectionUiState(draftBaseUrl, service.getConnectionSnapshot());
+    if (current.disabled) return undefined;
+    const owner = new AbortController();
+    connectionOwner.current?.abort();
+    connectionOwner.current = owner;
+    try {
+      const result = await service.connect(draftBaseUrl, owner.signal);
+      if (result.ok) {
+        setBaseUrl(result.target.baseUrl);
+        setSelectedWorkflowId(null);
+        setCatalog([]);
+        setRuntime(undefined);
+        setDraftValues({});
+        setMappingProjection(undefined);
+        await reload();
+      }
+      return result;
+    } finally {
+      if (connectionOwner.current === owner) connectionOwner.current = undefined;
+    }
+  }, [draftBaseUrl, reload, service]);
 
   const mutate = useCallback(async <T,>(action: () => Promise<T>): Promise<T> => {
     setBusy(true);
@@ -136,6 +191,9 @@ export function useComfyUiManagement(service: ComfyUiManagementPort): ComfyUiMan
 
   return {
     baseUrl,
+    draftBaseUrl,
+    connectionSnapshot,
+    connectionUiState,
     selectedWorkflowId,
     loading,
     busy,
@@ -147,7 +205,8 @@ export function useComfyUiManagement(service: ComfyUiManagementPort): ComfyUiMan
     loadState: service.loadState.bind(service),
     reload,
     selectWorkflow,
-    saveBaseUrl: (value) => mutate(() => service.saveBaseUrl(value)),
+    setDraftBaseUrl,
+    connect,
     refresh: async () => {
       setRuntime(undefined);
       setDraftValues({});

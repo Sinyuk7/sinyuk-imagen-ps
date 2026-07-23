@@ -82,6 +82,17 @@ surface apps -> application/session -> core-engine + providers + execution backe
   diagnostics, parameter drafts, and dirty state are session-only. Remote
   workflow discovery returns bounded identities and defers document loading,
   parser selection, Form conversion, and output preflight until selection.
+- ComfyUI connection switching is an Application-owned latest-wins
+  transaction. UI owns raw `draftBaseUrl`; persistence owns committed state;
+  runtime owns one active target-bound Bridge generation; each in-flight
+  attempt owns at most one provisional generation. One immutable canonical
+  target derives the API probe URL, Frontend source, exact message origin, and
+  optional WebSocket URL. API and Bridge validation complete before atomic
+  compare-and-save; active routing changes only after durable commit. Failure,
+  abort, or supersession disposes only provisional resources and preserves the
+  previous active generation. Promotion invalidates the old catalog, current
+  workflow runtime, cache, drafts, and pending refresh results before retiring
+  the old generation.
 - Dynamic Workflow Parameters are opt-in: only active node titles beginning
   with `#` may expose safe writable primitive editors. Titles beginning with
   `.` and all unmarked, muted, bypassed, linked, read-only, image, mask, video,
@@ -109,6 +120,15 @@ surface apps -> application/session -> core-engine + providers + execution backe
   pending work during reload or disposal. Chrome retries only the identical,
   idempotent handshake while ComfyUI finishes async Bridge setup; generation
   commands remain single-send.
+- Bridge resolvers never read ComfyUI persistence. Chrome and Photoshop UXP
+  compositions create target-bound generations and route workflow discovery
+  and execution through the active-generation proxy. Outgoing messages always
+  use the immutable connection origin as `targetOrigin`; incoming messages
+  must match that exact parsed origin, expected iframe/WebView source, and
+  Bridge identity. Frontend execution admission freezes the active base URL and
+  attempt id as target affinity; Bridge resolution and pre-submit validation
+  stale-reject that work if the active generation changes. API network
+  permission and UXP WebView permission remain separate gates.
 - Task records store only serializable, secret-free evidence and opaque
   resource refs. Preview/download/place availability is resolved dynamically
   through app resource resolvers; missing or evicted resources must not corrupt

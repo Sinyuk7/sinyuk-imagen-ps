@@ -1,17 +1,17 @@
 import {
   createComfyUiGenerationBackend,
+  createComfyUiActiveRoutingResolver,
   createComfyUiManagementHostPorts,
   createComfyUiManagementService,
   getGenerationBackends,
   setComfyUiExecutionHostPorts,
   type ComfyUiExecutionHostPorts,
+  type ComfyUiFrontendBridgeGenerationFactory,
   type ComfyUiStateRepository,
   type ComfyUiWorkflowRuntimeCache,
   type ComfyUiWorkflowDraftStore,
 } from '@imagen-ps/application';
 import type { ExternalUrlPort } from '../../shared/ports/external-url';
-
-type FrontendBridgeResolver = NonNullable<ComfyUiExecutionHostPorts['frontendBridgeResolver']>;
 
 export interface ComfyUiAppRuntimeRepositories {
   readonly state: ComfyUiStateRepository;
@@ -23,17 +23,37 @@ export interface ComfyUiAppRuntimeRepositories {
 export function createComfyUiAppRuntime(options: {
   readonly repositories: ComfyUiAppRuntimeRepositories;
   readonly httpTransport: ComfyUiExecutionHostPorts['httpTransport'];
-  readonly frontendBridgeResolver?: FrontendBridgeResolver;
+  readonly generationFactory: ComfyUiFrontendBridgeGenerationFactory;
   readonly externalUrl: ExternalUrlPort;
 }) {
+  const activeResolver = createComfyUiActiveRoutingResolver();
+  const executionResolver = {
+    resolve(
+      workflowId: string,
+      signal?: AbortSignal,
+      affinity?: { readonly baseUrl: string; readonly token?: string },
+    ) {
+      const active = activeResolver.getActive();
+      if (active === undefined) return Promise.resolve(undefined);
+      if (affinity !== undefined && !executionResolver.matchesAffinity(affinity)) {
+        throw new Error('invalid-connection');
+      }
+      return active.generation.resolve(workflowId, signal);
+    },
+    matchesAffinity(affinity: { readonly baseUrl: string; readonly token?: string }) {
+      const active = activeResolver.getActive();
+      return active !== undefined
+        && active.target.baseUrl === affinity.baseUrl
+        && (affinity.token === undefined || String(active.attemptId) === affinity.token);
+    },
+  } satisfies NonNullable<ComfyUiExecutionHostPorts['frontendBridgeResolver']>;
   const hostPorts = {
     httpTransport: options.httpTransport,
-    ...(options.frontendBridgeResolver === undefined
-      ? {}
-      : { frontendBridgeResolver: options.frontendBridgeResolver }),
+    frontendBridgeResolver: executionResolver,
   } satisfies ComfyUiExecutionHostPorts;
+  const executionManagementHost = createComfyUiManagementHostPorts(hostPorts);
   const managementHost = {
-    ...createComfyUiManagementHostPorts(hostPorts),
+    ...executionManagementHost,
     async open(baseUrl: string, identity: { readonly workflowId: string; readonly nativeWorkflowId?: string }): Promise<void> {
       const target = new URL(baseUrl);
       target.hash = identity.nativeWorkflowId ?? identity.workflowId;
@@ -45,26 +65,44 @@ export function createComfyUiAppRuntime(options: {
     ports: managementHost,
     cache: options.repositories.cache,
     drafts: options.repositories.drafts,
+    generationFactory: options.generationFactory,
+    validateApi: executionManagementHost.validateApi,
+    validateBridge: executionManagementHost.validateBridge,
+    activeResolver,
   });
   const backend = createComfyUiGenerationBackend({
     runtime: {
       async getExecution(workflowId, revision) {
+        await management.loadState();
+        const admittedTarget = activeResolver.getActive();
+        if (admittedTarget === undefined) throw new Error('ComfyUI server is not configured.');
+        const targetAffinity = {
+          baseUrl: admittedTarget.target.baseUrl,
+          token: String(admittedTarget.attemptId),
+        };
         const runtime = await management.selectWorkflow(workflowId);
+        if (!executionResolver.matchesAffinity(targetAffinity)) {
+          throw new Error('invalid-connection');
+        }
         if (revision !== undefined && runtime.identity.revision !== revision) {
           throw new Error('ComfyUI workflow revision changed.');
         }
-        const state = await management.loadState();
-        if (!state?.baseUrl) throw new Error('ComfyUI server is not configured.');
+        const connection = {
+          baseUrl: admittedTarget.target.baseUrl,
+          requestTimeoutMs: admittedTarget.target.requestTimeoutMs,
+          observationTimeoutMs: admittedTarget.target.observationTimeoutMs,
+          targetAffinity,
+        };
         if (runtime.document.kind !== 'api') {
           return {
-            connection: { baseUrl: state.baseUrl, requestTimeoutMs: 30_000, observationTimeoutMs: 300_000 },
+            connection,
             source: { kind: 'frontend-workflow', workflowId, revision: runtime.identity.revision, remotePath: runtime.identity.remotePath },
             prompt: undefined,
             images: [],
           } as never;
         }
         return {
-          connection: { baseUrl: state.baseUrl, requestTimeoutMs: 30_000, observationTimeoutMs: 300_000 },
+          connection,
           source: { kind: 'api-graph', workflowId, revision: runtime.identity.revision, graph: runtime.document.graph },
           prompt: undefined,
           images: [],
@@ -80,6 +118,7 @@ export function createComfyUiAppRuntime(options: {
     dispose() {
       if (disposed) return;
       disposed = true;
+      management.dispose();
       setComfyUiExecutionHostPorts(undefined);
     },
   };

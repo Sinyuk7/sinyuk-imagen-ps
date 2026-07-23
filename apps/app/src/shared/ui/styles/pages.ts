@@ -195,8 +195,38 @@ export const PAGES_CSS = `
   font-weight:500;
   color:var(--app-color-text-muted);
 }
-.comfyui-connection-controls{ align-items:stretch; }
-.comfyui-connection-controls .ui-btn{ min-height:32px; }
+.comfyui-connection-controls{
+  flex-direction:row;
+  align-items:stretch;
+}
+.comfyui-connection-controls .field-input{ flex:1 1 auto; min-width:0; height:32px; }
+.comfyui-connection-controls .ui-btn{
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  width:112px;
+  min-width:112px;
+  min-height:32px;
+  margin-left:8px;
+}
+.comfyui-connection-spinner{ display:inline-flex; align-items:center; justify-content:center; margin-right:5px; }
+.comfyui-connection-status{
+  display:block;
+  min-height:32px;
+  max-height:32px;
+  overflow:hidden;
+  line-height:16px;
+}
+.comfyui-connection-status-line{
+  display:block;
+  min-width:0;
+  overflow:hidden;
+  overflow-wrap:anywhere;
+  word-break:break-word;
+  display:-webkit-box;
+  -webkit-box-orient:vertical;
+  -webkit-line-clamp:1;
+}
 .comfyui-workflow-list{
   overflow:hidden;
   border:1px solid var(--app-color-border-default);
@@ -213,11 +243,17 @@ export const PAGES_CSS = `
   width:24px;
   min-width:24px;
   height:24px;
-  margin:-4px 4px -4px -4px;
+  margin-top:-4px;
+  margin-right:4px;
+  margin-bottom:-4px;
+  margin-left:-4px;
 }
 .comfyui-workflow-picker-group{ margin-top:12px; }
 .comfyui-workflow-picker-group-title{
-  margin:0 0 6px;
+  margin-top:0;
+  margin-right:0;
+  margin-bottom:6px;
+  margin-left:0;
   font-size:10px;
   line-height:14px;
   font-weight:500;
@@ -237,6 +273,15 @@ export const PAGES_CSS = `
   width:100%;
   margin-top:8px;
   margin-left:0;
+}
+.panel[data-panel-width-mode="compact"] .comfyui-connection-controls{
+  flex-direction:row;
+  align-items:stretch;
+}
+.panel[data-panel-width-mode="compact"] .comfyui-connection-controls .ui-btn{
+  width:112px;
+  margin-top:0;
+  margin-left:8px;
 }
 .settings-page .section{ padding:var(--settings-section-padding); }
 .settings-page .section + .section{
@@ -881,7 +926,10 @@ export const PAGES_CSS = `
   margin-bottom:8px;
 }
 .prompt-preset-section-header h2{
-  margin:0;
+  margin-top:0;
+  margin-right:0;
+  margin-bottom:0;
+  margin-left:0;
 }
 .prompt-preset-error{
   margin-top:3px;
@@ -1909,6 +1957,11 @@ export const PAGES_CSS = `
     align-items:stretch;
   }
   .settings-field-action-row .ui-btn{ width:100%; margin-top:8px; margin-left:0; }
+  .comfyui-connection-controls{
+    flex-direction:row;
+    align-items:stretch;
+  }
+  .comfyui-connection-controls .ui-btn{ width:112px; margin-top:0; margin-left:8px; }
   .settings-backend-segments .fchip{
     flex:1 1 0;
     min-width:0;

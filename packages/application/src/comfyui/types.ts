@@ -1,5 +1,7 @@
 import type {
   ComfyUiExecutionAssetInput as BackendComfyUiExecutionAssetInput,
+  ComfyUiFrontendBridgePort,
+  ComfyUiFrontendBridgeResolver,
   ComfyUiExecutionMaskInput as BackendComfyUiExecutionMaskInput,
   ComfyUiMaskBinding as BackendComfyUiMaskBinding,
 } from '@imagen-ps/execution-backend-comfyui';
@@ -142,11 +144,126 @@ export interface ComfyUiRuntimePorts {
   readonly open?: (baseUrl: string, identity: LoadedWorkflowIdentity, signal?: AbortSignal) => Promise<void>;
 }
 
-/** Durable state repository. Implementations MUST reject extra fields. */
+/** ComfyUI durable compare-and-save 的线性化结果。 */
+export type ComfyUiStateCommitResult = 'committed' | 'conflict' | 'aborted';
+
+/** Durable state repository；实现必须拒绝额外字段并串行化所有写操作。 */
 export interface ComfyUiStateRepository {
   load(): Promise<PersistedComfyUiState | undefined>;
   save(state: PersistedComfyUiState): Promise<void>;
   clear(): Promise<void>;
+  compareAndSave(
+    expected: PersistedComfyUiState | undefined,
+    next: PersistedComfyUiState,
+    signal?: AbortSignal,
+  ): Promise<ComfyUiStateCommitResult>;
+}
+
+/** 单次连接操作冻结的所有 transport 派生值。 */
+export interface ComfyUiConnectionTarget {
+  readonly baseUrl: string;
+  readonly origin: string;
+  readonly probeUrl: string;
+  readonly frontendBaseUrl: string;
+  readonly websocketUrl: string;
+  readonly requestTimeoutMs: number;
+  readonly observationTimeoutMs: number;
+}
+
+/** Public connection attempt phase。 */
+export type ComfyUiConnectionPhase = 'api' | 'frontend' | 'bridge' | 'persistence' | 'promotion';
+
+/** Public bounded connection failure code。 */
+export type ComfyUiConnectionErrorCode =
+  | 'API_UNREACHABLE'
+  | 'API_INVALID_RESPONSE'
+  | 'WEBVIEW_LOAD_FAILED'
+  | 'BRIDGE_HANDSHAKE_TIMEOUT'
+  | 'BRIDGE_CONTRACT_MISMATCH'
+  | 'PERSISTENCE_FAILED'
+  | 'SUPERSEDED'
+  | 'ABORTED';
+
+/** Public connection failure；不携带 raw host exception。 */
+export interface ComfyUiConnectionError {
+  readonly code: ComfyUiConnectionErrorCode;
+  readonly phase: ComfyUiConnectionPhase;
+  readonly reason: string;
+  readonly attemptId: number;
+  readonly target: ComfyUiConnectionTarget;
+}
+
+/** Public connection transaction result。 */
+export type ComfyUiConnectionResult =
+  | { readonly ok: true; readonly attemptId: number; readonly target: ComfyUiConnectionTarget }
+  | { readonly ok: false; readonly error: ComfyUiConnectionError };
+
+/** Target-bound Bridge generation；生命周期由 connection coordinator 拥有。 */
+export interface ComfyUiFrontendBridgeGeneration extends ComfyUiFrontendBridgeResolver {
+  readonly target: ComfyUiConnectionTarget;
+  resolve(workflowId: string, signal?: AbortSignal): Promise<ComfyUiFrontendBridgePort | undefined>;
+  retire(): void;
+  dispose(): void;
+}
+
+/** Host-owned target-bound Bridge generation factory。 */
+export interface ComfyUiFrontendBridgeGenerationFactory {
+  create(target: ComfyUiConnectionTarget): ComfyUiFrontendBridgeGeneration;
+}
+
+/** Runtime active connection snapshot。 */
+export interface ComfyUiActiveConnection {
+  readonly attemptId: number;
+  readonly target: ComfyUiConnectionTarget;
+  readonly generation: ComfyUiFrontendBridgeGeneration;
+  readonly connectedAt: number;
+}
+
+/** Public provisional attempt snapshot；不暴露 AbortController 或 generation。 */
+export interface ComfyUiConnectionAttemptSnapshot {
+  readonly attemptId: number;
+  readonly target: ComfyUiConnectionTarget;
+  readonly phase: ComfyUiConnectionPhase;
+  readonly startedAt: number;
+}
+
+/** Public connection state；draft raw text 仍由 UI owner 持有。 */
+export interface ComfyUiConnectionSnapshot {
+  readonly committedTarget?: ComfyUiConnectionTarget;
+  readonly activeConnection?: ComfyUiActiveConnection;
+  readonly provisionalAttempt?: ComfyUiConnectionAttemptSnapshot;
+  readonly lastFailure?: ComfyUiConnectionError;
+}
+
+/** Active-target Resolver proxy；promotion 后新 resolve 只路由新 generation。 */
+export interface ComfyUiActiveRoutingResolver extends ComfyUiFrontendBridgeResolver {
+  resolve(workflowId: string, signal?: AbortSignal): Promise<ComfyUiFrontendBridgePort | undefined>;
+  getActive(): ComfyUiActiveConnection | undefined;
+  promote(connection: ComfyUiActiveConnection): ComfyUiActiveConnection | undefined;
+  dispose(): void;
+}
+
+/** Connection coordinator 的 host validation 与 runtime hooks。 */
+export interface ComfyUiConnectionCoordinatorPorts {
+  readonly state: ComfyUiStateRepository;
+  readonly generationFactory: ComfyUiFrontendBridgeGenerationFactory;
+  readonly validateApi: (target: ComfyUiConnectionTarget, signal: AbortSignal) => Promise<void>;
+  readonly validateBridge: (generation: ComfyUiFrontendBridgeGeneration, signal: AbortSignal) => Promise<void>;
+  readonly activeResolver?: ComfyUiActiveRoutingResolver;
+  readonly invalidateRuntime?: (target: ComfyUiConnectionTarget) => void;
+  readonly refreshActive?: (target: ComfyUiConnectionTarget) => void;
+  readonly now?: () => number;
+}
+
+/** Latest-wins ComfyUI connection transaction coordinator。 */
+export interface ComfyUiConnectionCoordinator {
+  initialize(): Promise<ComfyUiConnectionSnapshot>;
+  recoverCommitted(ownerSignal?: AbortSignal): Promise<ComfyUiConnectionResult | undefined>;
+  getSnapshot(): ComfyUiConnectionSnapshot;
+  subscribe(listener: () => void): () => void;
+  connect(draftBaseUrl: string, ownerSignal?: AbortSignal): Promise<ComfyUiConnectionResult>;
+  supersedeCurrentAttempt(nextDraftBaseUrl: string): void;
+  dispose(): void;
 }
 
 /** Runtime-only selected workflow cache. */

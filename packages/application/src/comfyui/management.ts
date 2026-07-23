@@ -1,5 +1,12 @@
 import { createImmutableSnapshot, createValidationError } from '@imagen-ps/core-engine';
 import type {
+  ComfyUiActiveRoutingResolver,
+  ComfyUiConnectionCoordinator,
+  ComfyUiConnectionResult,
+  ComfyUiConnectionSnapshot,
+  ComfyUiConnectionTarget,
+  ComfyUiFrontendBridgeGeneration,
+  ComfyUiFrontendBridgeGenerationFactory,
   ComfyUiRuntimePolicy,
   ComfyUiRuntimePorts,
   ComfyUiStateRepository,
@@ -13,49 +20,17 @@ import type {
   ComfyUiMaskBinding,
 } from './types.js';
 import { normalizePersistedComfyUiState } from './repositories.js';
+import { createComfyUiConnectionCoordinator } from './connection.js';
+export { deriveComfyUiConnectionTarget, joinComfyUiRoute, normalizeComfyUiBaseUrl } from './connection-target.js';
 import { collectWorkflowInputCandidates, projectWorkflowMapping, resolveWorkflowMapping, resolveWorkflowMaskBinding } from './workflow-policy.js';
 
 const CONTROL_CHARS = /[\u0000-\u001f\u007f]/;
-const MAX_BASE_URL_LENGTH = 2_048;
-const MAX_ROUTE_LENGTH = 512;
 
 function boundedText(value: unknown, max: number, path: string): string {
   if (typeof value !== 'string') throw createValidationError(`${path} must be a string.`, { path });
   const result = value.trim();
   if (!result || result.length > max || CONTROL_CHARS.test(result)) throw createValidationError(`${path} is invalid.`, { path });
   return result;
-}
-
-function normalizedUrl(raw: string, protocol?: 'http:' | 'https:'): string {
-  const text = boundedText(raw, MAX_BASE_URL_LENGTH, 'ComfyUi.baseUrl');
-  const candidate = protocol === undefined && /^[a-z][a-z\d+.-]*:\/\//i.test(text) ? text : `${protocol ?? 'https:'}//${text}`;
-  let parsed: URL;
-  try { parsed = new URL(candidate); } catch { throw createValidationError('ComfyUI address is invalid.'); }
-  if (parsed.protocol !== 'http:' && parsed.protocol !== 'https:') throw createValidationError('ComfyUI address must use HTTP(S).');
-  if (parsed.username || parsed.password || parsed.search || parsed.hash) throw createValidationError('ComfyUI address contains unsupported URL fields.');
-  if (CONTROL_CHARS.test(parsed.pathname)) throw createValidationError('ComfyUI address contains control characters.');
-  const path = parsed.pathname.replace(/\/{2,}/g, '/').replace(/\/$/, '');
-  return `${parsed.protocol}//${parsed.host}${path}`;
-}
-
-/** Normalize explicit or bare ComfyUI address; preserve reverse-proxy path. */
-export function normalizeComfyUiBaseUrl(value: string): string {
-  return normalizedUrl(value);
-}
-
-/** Return bounded HTTPS/HTTP candidates for bare address probe. */
-export function comfyUiBaseUrlCandidates(value: string): readonly string[] {
-  const text = boundedText(value, MAX_BASE_URL_LENGTH, 'ComfyUi.baseUrl');
-  if (/^[a-z][a-z\d+.-]*:\/\//i.test(text)) return [normalizeComfyUiBaseUrl(text)];
-  return [normalizedUrl(text, 'https:'), normalizedUrl(text, 'http:')];
-}
-
-/** Join API route below canonical base path without dropping proxy prefix. */
-export function joinComfyUiRoute(baseUrl: string, route: string): string {
-  const base = normalizeComfyUiBaseUrl(baseUrl);
-  const suffix = boundedText(route, MAX_ROUTE_LENGTH, 'ComfyUi.route');
-  if (!suffix.startsWith('/') || suffix.startsWith('//') || CONTROL_CHARS.test(suffix)) throw createValidationError('ComfyUI route is invalid.');
-  return `${base}${suffix}`;
 }
 
 function identity(value: Omit<WorkflowIdentity, 'groupPath'> & { readonly groupPath?: readonly string[] }): WorkflowIdentity {
@@ -72,9 +47,14 @@ function identity(value: Omit<WorkflowIdentity, 'groupPath'> & { readonly groupP
   }) as WorkflowIdentity;
 }
 
+/** ComfyUI connection transaction 与 workflow runtime 的 Application service。 */
 export interface ComfyUiManagementService {
   loadState(): Promise<PersistedComfyUiState | undefined>;
-  saveBaseUrl(value: string, signal?: AbortSignal): Promise<PersistedComfyUiState>;
+  connect(value: string, signal?: AbortSignal): Promise<ComfyUiConnectionResult>;
+  getConnectionSnapshot(): ComfyUiConnectionSnapshot;
+  subscribe(listener: () => void): () => void;
+  supersedeCurrentAttempt(nextDraftBaseUrl: string): void;
+  dispose(): void;
   discover(signal?: AbortSignal): Promise<readonly WorkflowIdentity[]>;
   selectWorkflow(workflowId: string, signal?: AbortSignal): Promise<LoadedWorkflowRuntime>;
   refresh(signal?: AbortSignal): Promise<LoadedWorkflowRuntime | undefined>;
@@ -96,8 +76,14 @@ export type ComfyUiManagementServiceOptions = {
   readonly cache: ComfyUiWorkflowRuntimeCache;
   readonly drafts?: ComfyUiWorkflowDraftStore;
   readonly policy?: ComfyUiRuntimePolicy;
+  readonly generationFactory?: ComfyUiFrontendBridgeGenerationFactory;
+  readonly validateApi?: (target: ComfyUiConnectionTarget, signal: AbortSignal) => Promise<void>;
+  readonly validateBridge?: (generation: ComfyUiFrontendBridgeGeneration, signal: AbortSignal) => Promise<void>;
+  readonly activeResolver?: ComfyUiActiveRoutingResolver;
+  readonly now?: () => number;
 };
 
+/** 创建 singleton ComfyUI management service。 */
 export function createComfyUiManagementService(options: ComfyUiManagementServiceOptions): ComfyUiManagementService {
   const policy = options.policy;
   let durable: PersistedComfyUiState | undefined;
@@ -105,17 +91,51 @@ export function createComfyUiManagementService(options: ComfyUiManagementService
   let current: LoadedWorkflowRuntime | undefined;
   let loadState: WorkflowLoadState = { status: 'idle' };
   let requestSerial = 0;
+  let discoverySerial = 0;
   let selectionWriteTail = Promise.resolve();
+  let durableWriteTail = Promise.resolve();
   let drafts = options.drafts;
   const state = async () => durable ?? (durable = await options.state.load());
-  const save = async (value: PersistedComfyUiState) => { durable = normalizePersistedComfyUiState(value); await options.state.save(durable); return durable; };
+  const enqueueDurableWrite = <T>(operation: () => Promise<T>): Promise<T> => {
+    const pending = durableWriteTail.then(operation, operation);
+    durableWriteTail = pending.then(() => undefined, () => undefined);
+    return pending;
+  };
+  const connectionState: ComfyUiStateRepository = {
+    load: () => options.state.load(),
+    save: (value) => enqueueDurableWrite(() => options.state.save(value)),
+    clear: () => enqueueDurableWrite(() => options.state.clear()),
+    compareAndSave: (expected, next, signal) => enqueueDurableWrite(
+      () => options.state.compareAndSave(expected, next, signal),
+    ),
+  };
+  const mutateState = (
+    transform: (currentState: PersistedComfyUiState) => PersistedComfyUiState,
+  ): Promise<PersistedComfyUiState> => {
+    return enqueueDurableWrite(async () => {
+      for (let attempt = 0; attempt < 3; attempt += 1) {
+        const expected = await options.state.load();
+        if (expected === undefined) throw createValidationError('ComfyUI server is not configured.');
+        const next = normalizePersistedComfyUiState(transform(expected));
+        const result = await options.state.compareAndSave(expected, next);
+        if (result === 'committed') {
+          durable = next;
+          return next;
+        }
+        if (result === 'aborted') throw createValidationError('ComfyUI state update was aborted.');
+      }
+      throw createValidationError('ComfyUI state changed concurrently.');
+    });
+  };
   const saveSelectedWorkflow = (workflowId: string, serial: number): Promise<boolean> => {
     let currentRequestWon = false;
     const write = selectionWriteTail.then(async () => {
       if (serial !== requestSerial) return;
       const prior = await state();
       if (serial !== requestSerial) return;
-      if (prior && prior.selectedWorkflowId !== workflowId) await save({ ...prior, selectedWorkflowId: workflowId });
+      if (prior && prior.selectedWorkflowId !== workflowId) {
+        await mutateState((latest) => ({ ...latest, selectedWorkflowId: workflowId }));
+      }
       currentRequestWon = serial === requestSerial;
     });
     selectionWriteTail = write.then(() => undefined, () => undefined);
@@ -128,29 +148,87 @@ export function createComfyUiManagementService(options: ComfyUiManagementService
     const key = mappingKey(workflowId, revision);
     const row = existing.ambiguousMappingsByRevision[key];
     if (!row?.mask) return;
-    const { mask: _mask, ...nextRow } = row;
-    const mappings = { ...existing.ambiguousMappingsByRevision };
-    if (Object.keys(nextRow).length === 0) delete mappings[key]; else mappings[key] = nextRow;
-    await save({ ...existing, ambiguousMappingsByRevision: mappings });
+    await mutateState((latest) => {
+      const latestRow = latest.ambiguousMappingsByRevision[key] ?? {};
+      const { mask: _latestMask, ...latestNextRow } = latestRow;
+      const mappings = { ...latest.ambiguousMappingsByRevision };
+      if (Object.keys(latestNextRow).length === 0) delete mappings[key]; else mappings[key] = latestNextRow;
+      return { ...latest, ambiguousMappingsByRevision: mappings };
+    });
   };
 
-  return {
-    async loadState() { return state(); },
-    async saveBaseUrl(value, signal) {
-      const candidates = comfyUiBaseUrlCandidates(value);
-      let selected: string | undefined;
-      if (options.ports.probe === undefined) selected = candidates[0];
-      else for (const candidate of candidates.slice(0, 2)) {
-        try { await options.ports.probe(candidate, signal); selected = candidate; break; } catch { /* bounded candidate fallback */ }
-      }
-      if (selected === undefined) throw createValidationError('ComfyUI server is unavailable.');
-      const previous = await state();
-      return save({ baseUrl: selected, selectedWorkflowId: previous?.selectedWorkflowId ?? null, ambiguousMappingsByRevision: previous?.ambiguousMappingsByRevision ?? {} });
+  const unavailableGenerationFactory: ComfyUiFrontendBridgeGenerationFactory = {
+    create(target) {
+      let disposed = false;
+      return {
+        target,
+        async resolve() { return undefined; },
+        retire() { if (!disposed) this.dispose(); },
+        dispose() { disposed = true; },
+      };
     },
+  };
+  let refreshPromotedTarget: (target: ComfyUiConnectionTarget) => void = () => undefined;
+  const coordinator: ComfyUiConnectionCoordinator = createComfyUiConnectionCoordinator({
+    state: connectionState,
+    generationFactory: options.generationFactory ?? unavailableGenerationFactory,
+    validateApi: options.validateApi ?? (async (target, signal) => {
+      if (options.ports.probe === undefined) {
+        throw { code: 'API_UNREACHABLE', reason: 'validation-unavailable' };
+      }
+      const capabilities = await options.ports.probe(target.baseUrl, signal);
+      if (capabilities.api !== 'ready') throw { code: 'API_UNREACHABLE', reason: 'api-unreachable' };
+    }),
+    validateBridge: options.validateBridge ?? (async () => undefined),
+    ...(options.activeResolver === undefined ? {} : { activeResolver: options.activeResolver }),
+    invalidateRuntime() {
+      requestSerial += 1;
+      catalog = [];
+      current = undefined;
+      loadState = { status: 'idle' };
+      options.cache.clear();
+      drafts?.clear();
+    },
+    refreshActive(target) { refreshPromotedTarget(target); },
+    ...(options.now === undefined ? {} : { now: options.now }),
+  }, policy);
+
+  const runtimeBaseUrl = async (): Promise<string> => {
+    const activeBaseUrl = coordinator.getSnapshot().activeConnection?.target.baseUrl;
+    if (activeBaseUrl !== undefined) return activeBaseUrl;
+    if (options.generationFactory !== undefined) return '';
+    return (await state())?.baseUrl ?? '';
+  };
+  let startupRecovery: Promise<ComfyUiConnectionResult | undefined> | undefined;
+
+  const service: ComfyUiManagementService = {
+    async loadState() {
+      await coordinator.initialize();
+      if (options.generationFactory !== undefined) {
+        startupRecovery ??= coordinator.recoverCommitted();
+        await startupRecovery;
+      }
+      return state();
+    },
+    async connect(value, signal) {
+      const result = await coordinator.connect(value, signal);
+      if (result.ok) durable = await options.state.load();
+      return result;
+    },
+    getConnectionSnapshot() { return coordinator.getSnapshot(); },
+    subscribe(listener) { return coordinator.subscribe(listener); },
+    supersedeCurrentAttempt(nextDraftBaseUrl) { coordinator.supersedeCurrentAttempt(nextDraftBaseUrl); },
+    dispose() { coordinator.dispose(); },
     async discover(signal) {
-      const currentState = await state();
-      if (!currentState?.baseUrl) return [];
-      const found = await options.ports.discover(currentState.baseUrl, signal);
+      await coordinator.initialize();
+      const serial = ++discoverySerial;
+      const ownerAttemptId = coordinator.getSnapshot().activeConnection?.attemptId;
+      const baseUrl = await runtimeBaseUrl();
+      if (!baseUrl) return [];
+      const isCurrentDiscovery = () => serial === discoverySerial
+        && coordinator.getSnapshot().activeConnection?.attemptId === ownerAttemptId;
+      const found = await options.ports.discover(baseUrl, signal);
+      if (!isCurrentDiscovery()) return [];
       if (found.length > (policy?.maxDiscoveryEntries ?? 1_000)) throw createValidationError('ComfyUI workflow discovery exceeded bounds.');
       const nextCatalog = found.map(identity);
       const workflowIds = new Set<string>();
@@ -162,15 +240,21 @@ export function createComfyUiManagementService(options: ComfyUiManagementService
         workflowIds.add(item.workflowId);
         remotePaths.add(item.remotePath);
       }
+      if (!isCurrentDiscovery()) return [];
       for (const previous of catalog) {
+        if (!isCurrentDiscovery()) return [];
         const next = nextCatalog.find((item) => item.workflowId === previous.workflowId);
         if (next?.revision !== previous.revision) {
           options.cache.invalidate(previous.workflowId);
           drafts?.invalidate(previous.workflowId, previous.revision ?? undefined);
-          if (previous.revision !== null) await withoutMaskBinding(previous.workflowId, previous.revision);
+          if (previous.revision !== null) {
+            await withoutMaskBinding(previous.workflowId, previous.revision);
+            if (!isCurrentDiscovery()) return [];
+          }
           if (current?.identity.workflowId === previous.workflowId) current = undefined;
         }
       }
+      if (!isCurrentDiscovery()) return [];
       catalog = nextCatalog;
       return createImmutableSnapshot(catalog) as readonly WorkflowIdentity[];
     },
@@ -189,7 +273,7 @@ export function createComfyUiManagementService(options: ComfyUiManagementService
       const serial = ++requestSerial;
       loadState = { status: 'loading', workflowId: id, requestId: String(serial) };
       try {
-        const loaded = await options.ports.load((await state())?.baseUrl ?? '', descriptor, signal);
+        const loaded = await options.ports.load(await runtimeBaseUrl(), descriptor, signal);
         if (serial !== requestSerial) throw createValidationError('ComfyUI workflow load became stale.');
         const runtime = createImmutableSnapshot(loaded) as LoadedWorkflowRuntime;
         if (!await saveSelectedWorkflow(id, serial) || serial !== requestSerial) throw createValidationError('ComfyUI workflow load became stale.');
@@ -208,7 +292,7 @@ export function createComfyUiManagementService(options: ComfyUiManagementService
       return this.selectWorkflow(descriptor.workflowId, signal);
     },
     async openInComfyUi(signal) {
-      if (current && options.ports.open) await options.ports.open((await state())?.baseUrl ?? '', current.identity, signal);
+      if (current && options.ports.open) await options.ports.open(await runtimeBaseUrl(), current.identity, signal);
     },
     getLoadState() { return loadState; },
     async setMapping(workflowId, revision, kind, value) {
@@ -219,11 +303,14 @@ export function createComfyUiManagementService(options: ComfyUiManagementService
       if (value !== null && (candidateCount === undefined || candidateCount < 2)) {
         throw createValidationError('ComfyUI mapping is only selectable when inputs are ambiguous.');
       }
-      const key = mappingKey(workflowId, revision); const row = { ...(existing.ambiguousMappingsByRevision[key] ?? {}) };
-      if (value === null) delete row[kind]; else row[kind] = value;
-      const mappings = { ...existing.ambiguousMappingsByRevision };
-      if (Object.keys(row).length === 0) delete mappings[key]; else mappings[key] = row;
-      await save({ ...existing, ambiguousMappingsByRevision: mappings });
+      await mutateState((latest) => {
+        const key = mappingKey(workflowId, revision);
+        const row = { ...(latest.ambiguousMappingsByRevision[key] ?? {}) };
+        if (value === null) delete row[kind]; else row[kind] = value;
+        const mappings = { ...latest.ambiguousMappingsByRevision };
+        if (Object.keys(row).length === 0) delete mappings[key]; else mappings[key] = row;
+        return { ...latest, ambiguousMappingsByRevision: mappings };
+      });
     },
     async setMaskBinding(workflowId, revision, value) {
       const existing = await state(); if (!existing) throw createValidationError('ComfyUI server is not configured.');
@@ -236,11 +323,14 @@ export function createComfyUiManagementService(options: ComfyUiManagementService
         const primary = resolveWorkflowMapping(candidates.imageCandidates, stored?.image);
         if (primary?.nodeId === value.inputRef.nodeId && primary.inputName === value.inputRef.inputName && primary.widgetIndex === value.inputRef.widgetIndex) throw createValidationError('ComfyUI Mask binding must not replace the Primary image input.');
       }
-      const key = mappingKey(workflowId, revision); const row = { ...(existing.ambiguousMappingsByRevision[key] ?? {}) };
-      if (value === undefined) delete row.mask; else row.mask = value;
-      const mappings = { ...existing.ambiguousMappingsByRevision };
-      if (Object.keys(row).length === 0) delete mappings[key]; else mappings[key] = row;
-      await save({ ...existing, ambiguousMappingsByRevision: mappings });
+      await mutateState((latest) => {
+        const key = mappingKey(workflowId, revision);
+        const row = { ...(latest.ambiguousMappingsByRevision[key] ?? {}) };
+        if (value === undefined) delete row.mask; else row.mask = value;
+        const latestMappings = { ...latest.ambiguousMappingsByRevision };
+        if (Object.keys(row).length === 0) delete latestMappings[key]; else latestMappings[key] = row;
+        return { ...latest, ambiguousMappingsByRevision: latestMappings };
+      });
     },
     getMappingProjection(runtime) {
       const candidates = collectWorkflowInputCandidates(runtime.form ?? { nodes: [] });
@@ -252,4 +342,6 @@ export function createComfyUiManagementService(options: ComfyUiManagementService
     clearDrafts() { drafts?.clear(); },
     setDraftStore(store) { drafts = store; },
   };
+  refreshPromotedTarget = () => { void service.discover().catch(() => undefined); };
+  return service;
 }

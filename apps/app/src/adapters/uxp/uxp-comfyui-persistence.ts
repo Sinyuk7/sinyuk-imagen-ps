@@ -3,6 +3,7 @@ import {
   createComfyUiWorkflowRuntimeCache,
   createInMemoryComfyUiStateRepository,
   normalizePersistedComfyUiState,
+  type ComfyUiStateCommitResult,
   type ComfyUiStateRepository,
   type ComfyUiWorkflowDraftStore,
   type ComfyUiWorkflowRuntimeCache,
@@ -11,11 +12,14 @@ import {
 import type { UxpModules } from './uxp-api';
 
 const STATE_FILE = 'comfyui-state.json';
+const STAGING_FILE = 'comfyui-state.staging.json';
 const STATE_SCHEMA_VERSION = 1;
 
 interface UxpFile {
   read(options?: { readonly format?: unknown }): Promise<string | ArrayBuffer>;
   write(data: string, options?: { readonly format?: unknown }): Promise<void>;
+  moveTo(folder: UxpFolder, options?: { readonly overwrite?: boolean; readonly newName?: string }): Promise<void>;
+  delete(): Promise<number | void>;
 }
 
 interface UxpFolder {
@@ -39,14 +43,29 @@ function fileSystemFrom(modules: UxpModules): { readonly fileSystem?: UxpLocalFi
   };
 }
 
-async function getOrCreate(folder: UxpLocalFileSystem, name: string): Promise<UxpFile> {
-  const dataFolder = await folder.getDataFolder();
-  try { return await dataFolder.getEntry(name); } catch { return dataFolder.createFile(name, { overwrite: true }); }
+async function getEntry(folder: UxpFolder, name: string): Promise<UxpFile | undefined> {
+  try {
+    return await folder.getEntry(name);
+  } catch {
+    return undefined;
+  }
 }
 
-async function readState(fileSystem: UxpLocalFileSystem, utf8: unknown): Promise<PersistedComfyUiState | undefined> {
+async function cleanupStaging(folder: UxpFolder, bestEffort = false): Promise<void> {
+  const staging = await getEntry(folder, STAGING_FILE);
+  if (!staging) return;
   try {
-    const raw = await (await getOrCreate(fileSystem, STATE_FILE)).read({ format: utf8 });
+    await staging.delete();
+  } catch (error) {
+    if (!bestEffort) throw error;
+  }
+}
+
+async function readState(folder: UxpFolder, utf8: unknown): Promise<PersistedComfyUiState | undefined> {
+  try {
+    const file = await getEntry(folder, STATE_FILE);
+    if (!file) return undefined;
+    const raw = await file.read({ format: utf8 });
     const text = typeof raw === 'string' ? raw : new TextDecoder().decode(new Uint8Array(raw));
     if (!text.trim()) return undefined;
     const parsed = JSON.parse(text) as Record<string, unknown>;
@@ -55,20 +74,92 @@ async function readState(fileSystem: UxpLocalFileSystem, utf8: unknown): Promise
   } catch { return undefined; }
 }
 
+function structurallyEqual(left: unknown, right: unknown): boolean {
+  if (Object.is(left, right)) return true;
+  if (Array.isArray(left) || Array.isArray(right)) {
+    return Array.isArray(left) && Array.isArray(right) &&
+      left.length === right.length && left.every((value, index) => structurallyEqual(value, right[index]));
+  }
+  if (!left || !right || typeof left !== 'object' || typeof right !== 'object') return false;
+  const leftRecord = left as Record<string, unknown>;
+  const rightRecord = right as Record<string, unknown>;
+  const leftKeys = Object.keys(leftRecord).sort();
+  const rightKeys = Object.keys(rightRecord).sort();
+  return leftKeys.length === rightKeys.length &&
+    leftKeys.every((key, index) => key === rightKeys[index] && structurallyEqual(leftRecord[key], rightRecord[key]));
+}
+
 /** UXP data-folder 中唯一的 ComfyUI durable state adapter。 */
 export function createUxpComfyUiStateRepository(modules: UxpModules): ComfyUiStateRepository {
   const { fileSystem, utf8 } = fileSystemFrom(modules);
   if (!fileSystem) return createInMemoryComfyUiStateRepository();
+  let writeLane: Promise<void> = Promise.resolve();
+
+  function runInWriteLane<T>(operation: () => Promise<T>): Promise<T> {
+    const result = writeLane.then(operation);
+    writeLane = result.then(() => undefined, () => undefined);
+    return result;
+  }
+
+  async function replacePrimary(dataFolder: UxpFolder, payload: string, signal?: AbortSignal): Promise<'committed' | 'aborted'> {
+    if (signal?.aborted) return 'aborted';
+
+    let staging: UxpFile | undefined;
+    let replaced = false;
+    try {
+      staging = await dataFolder.createFile(STAGING_FILE, { overwrite: true });
+      if (signal?.aborted) return 'aborted';
+      await staging.write(payload, { format: utf8 });
+      if (signal?.aborted) return 'aborted';
+      await staging.moveTo(dataFolder, { newName: STATE_FILE, overwrite: true });
+      replaced = true;
+      return 'committed';
+    } finally {
+      // replace/write error 优先；cleanup 不得遮蔽 primary failure。
+      if (!replaced) await cleanupStaging(dataFolder, true);
+    }
+  }
+
   return {
-    load: () => readState(fileSystem, utf8),
+    async load() {
+      await writeLane;
+      const dataFolder = await fileSystem.getDataFolder();
+      await cleanupStaging(dataFolder);
+      return readState(dataFolder, utf8);
+    },
     async save(state) {
       const value = normalizePersistedComfyUiState(state);
-      const file = await getOrCreate(fileSystem, STATE_FILE);
-      await file.write(JSON.stringify({ schemaVersion: STATE_SCHEMA_VERSION, value }), { format: utf8 });
+      const payload = JSON.stringify({ schemaVersion: STATE_SCHEMA_VERSION, value });
+      await runInWriteLane(async () => {
+        const dataFolder = await fileSystem.getDataFolder();
+        await cleanupStaging(dataFolder);
+        await replacePrimary(dataFolder, payload);
+      });
     },
     async clear() {
-      const file = await getOrCreate(fileSystem, STATE_FILE);
-      await file.write('', { format: utf8 });
+      await runInWriteLane(async () => {
+        const dataFolder = await fileSystem.getDataFolder();
+        await cleanupStaging(dataFolder);
+        await replacePrimary(dataFolder, '');
+      });
+    },
+    async compareAndSave(
+      expected: PersistedComfyUiState | undefined,
+      next: PersistedComfyUiState,
+      signal?: AbortSignal,
+    ): Promise<ComfyUiStateCommitResult> {
+      const normalizedExpected = expected === undefined ? undefined : normalizePersistedComfyUiState(expected);
+      const value = normalizePersistedComfyUiState(next);
+      const payload = JSON.stringify({ schemaVersion: STATE_SCHEMA_VERSION, value });
+      return runInWriteLane(async () => {
+        const dataFolder = await fileSystem.getDataFolder();
+        await cleanupStaging(dataFolder);
+        if (signal?.aborted) return 'aborted';
+        const current = await readState(dataFolder, utf8);
+        if (!structurallyEqual(current, normalizedExpected)) return 'conflict';
+        if (signal?.aborted) return 'aborted';
+        return replacePrimary(dataFolder, payload, signal);
+      });
     },
   };
 }

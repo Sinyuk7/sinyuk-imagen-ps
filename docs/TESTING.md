@@ -175,6 +175,18 @@ ComfyUI evidence has three non-interchangeable tiers:
   completion cleanup, task snapshot/retry, explicit provider plans, and
   revision-scoped ComfyUI bindings. Unsupported custom widgets retain saved
   values and do not create plugin-side readiness gates.
+- Deterministic connection-switch suites use `createComfyUiTestHarness()` with
+  deferred API, Bridge, and commit gates plus recording target-bound
+  generations. They prove immutable target derivation, A-to-B supersession,
+  late-result suppression, old-active retention, promotion invalidation, and
+  idempotent disposal. Repository contracts prove `compareAndSave()` conflict
+  and abort leave the authoritative snapshot unchanged. Chrome uses one
+  abortable IndexedDB readwrite transaction; UXP stages in the data folder and
+  guards the overwrite move. These tests prove the defined linearization
+  boundary, not filesystem crash atomicity beyond Adobe's API contract.
+  Frontend execution contracts also freeze base URL plus attempt affinity and
+  prove an A-admitted task stale-rejects before Bridge submission after B is
+  promoted.
 - Owner-local Chrome live gates use only environment-bound values such as
   `IMAGEN_COMFYUI_LIVE_BASE_URL`. The internal API Graph driver and product
   Frontend saved-workflow path each require a real image submission, server
@@ -185,6 +197,16 @@ ComfyUI evidence has three non-interchangeable tiers:
   HTTP or WebView/Bridge submission, output placement, reload/destroy, and
   cleanup, plus selection and user-layer Mask acquisition where a real host is
   available. Chrome evidence never substitutes for this gate.
+
+For connection switching, mock Chrome evidence must cover edit-cancels,
+explicit reconnect, phase copy, exact derived origins, provisional frame
+cleanup, and horizontal overflow. Live Chrome evidence additionally requires a
+real `/system_stats` response, Frontend Bridge handshake, workflow discovery,
+reconnect, and one unreachable-target failure while the old active target
+remains usable. Real Photoshop UXP evidence must separately prove WebView
+permissions, `postMessage(message, targetOrigin)`, load/handshake failure
+classification, A-to-B teardown, and listener/timer/WebView cleanup. Never
+promote mock or Chrome results to the real-host tier.
 
 Mock success, build success, or a Bridge handshake alone is not live generation
 proof. Do not mark a live gate complete until real output bytes reach generic

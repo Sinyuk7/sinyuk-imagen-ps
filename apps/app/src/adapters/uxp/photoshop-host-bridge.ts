@@ -1173,6 +1173,15 @@ function toTargetRect(
   const targetRect = { left, top, right, bottom };
   const targetRectSize = rectSize(targetRect);
   if (actualSize.width !== targetRectSize.width || actualSize.height !== targetRectSize.height) {
+    const actualFillsTarget = actualSize.width === frame.targetSize.width && actualSize.height === frame.targetSize.height;
+    const declaredBoundsRoundToTarget = Math.abs(targetRect.left) <= 1
+      && Math.abs(targetRect.top) <= 1
+      && Math.abs(targetRect.right - frame.targetSize.width) <= 1
+      && Math.abs(targetRect.bottom - frame.targetSize.height) <= 1;
+    if (actualFillsTarget && declaredBoundsRoundToTarget) {
+      // 完整栅格可信时，容纳 Photoshop sourceBounds 在目标边缘上的 1px 取整差异。
+      return { left: 0, top: 0, right: frame.targetSize.width, bottom: frame.targetSize.height };
+    }
     throw new Error(
       `Photoshop returned unexpected ${label} size: ${actualSize.width}x${actualSize.height}, expected declared bounds ${targetRectSize.width}x${targetRectSize.height}.`,
     );

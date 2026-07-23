@@ -24,11 +24,23 @@ export interface ComfyUiExecutionMaskInput {
   readonly binding: ComfyUiMaskBinding;
 }
 
+/** Bridge resolve 冻结的 target；management 可只约束 base URL。 */
+export interface ComfyUiBridgeTargetAffinity {
+  readonly baseUrl: string;
+  readonly token?: string;
+}
+
+/** Dispatch 冻结的 execution target identity。 */
+export interface ComfyUiExecutionTargetAffinity extends ComfyUiBridgeTargetAffinity {
+  readonly token: string;
+}
+
 /** Dispatch 使用的 singleton connection snapshot。*/
 export interface ComfyUiExecutionConnection {
   readonly baseUrl: string;
   readonly requestTimeoutMs: number;
   readonly observationTimeoutMs: number;
+  readonly targetAffinity?: ComfyUiExecutionTargetAffinity;
 }
 
 /** Internal source union；format/driver 不进入上层持久化或 UI。*/
@@ -78,7 +90,11 @@ export interface ComfyUiBridgeLimits {
 export type ComfyUiBridgeCommand = 'handshake' | 'list-workflows' | 'open-workflow' | 'form-values' | 'set-values' | 'submit' | 'reset' | 'dispose';
 export interface ComfyUiBridgeRequest { readonly requestId: string; readonly identity: ComfyUiBridgeIdentity; readonly command: ComfyUiBridgeCommand; readonly payload: Readonly<Record<string, unknown>> }
 export interface ComfyUiFrontendBridgePort { readonly identity: ComfyUiBridgeIdentity; exchange(request: ComfyUiBridgeRequest, signal?: AbortSignal): Promise<unknown> }
-export interface ComfyUiFrontendBridgeResolver { resolve(workflowId: string): Promise<ComfyUiFrontendBridgePort | undefined> }
+/** 按 workflow identity 与 execution affinity 解析 target-bound Frontend Bridge。 */
+export interface ComfyUiFrontendBridgeResolver {
+  resolve(workflowId: string, signal?: AbortSignal, affinity?: ComfyUiBridgeTargetAffinity): Promise<ComfyUiFrontendBridgePort | undefined>;
+  matchesAffinity?(affinity: ComfyUiBridgeTargetAffinity): boolean;
+}
 export interface ComfyUiExecutionClock { now(): number; sleep(ms: number, signal?: AbortSignal): Promise<void> }
 
 export type ComfyUiExecutionWarningCode = 'realtime-hint-unavailable' | 'unsafe-output-skipped' | 'optional-output-missing';
@@ -101,13 +117,26 @@ function validateAssetInput(value: unknown): ComfyUiExecutionAssetInput {
   if (!isPlainRecord(value) || !hasExactKeys(value, ['storedRef', 'width', 'height']) || !Number.isInteger(value.width) || !Number.isInteger(value.height) || Number(value.width) < 1 || Number(value.height) < 1 || Number(value.width) > 65_535 || Number(value.height) > 65_535) throw new Error('invalid-asset-input');
   return deepFreeze({ storedRef: validateStoredAssetRef(value.storedRef), width: Number(value.width), height: Number(value.height) });
 }
-function validateConnection(value: unknown): ComfyUiExecutionConnection {
-  if (!isPlainRecord(value) || !hasExactKeys(value, ['baseUrl', 'requestTimeoutMs', 'observationTimeoutMs']) || typeof value.baseUrl !== 'string' || value.baseUrl.length > 2_048) throw new Error('invalid-connection');
+function normalizeConnectionBaseUrl(value: unknown): string {
+  if (typeof value !== 'string' || value.length > 2_048) throw new Error('invalid-connection');
   let url: URL;
-  try { url = new URL(value.baseUrl); } catch { throw new Error('invalid-connection'); }
-  if ((url.protocol !== 'http:' && url.protocol !== 'https:') || url.username || url.password || url.search || url.hash || /[\u0000-\u001f\u007f]/.test(url.pathname) || !Number.isInteger(value.requestTimeoutMs) || !Number.isInteger(value.observationTimeoutMs) || Number(value.requestTimeoutMs) < 100 || Number(value.requestTimeoutMs) > 300_000 || Number(value.observationTimeoutMs) < 100 || Number(value.observationTimeoutMs) > 300_000) throw new Error('invalid-connection');
+  try { url = new URL(value); } catch { throw new Error('invalid-connection'); }
+  if ((url.protocol !== 'http:' && url.protocol !== 'https:') || url.username || url.password || url.search || url.hash || /[\u0000-\u001f\u007f]/.test(url.pathname)) throw new Error('invalid-connection');
   const path = url.pathname.replace(/\/+$/u, '');
-  return deepFreeze({ baseUrl: `${url.origin}${path}`, requestTimeoutMs: Number(value.requestTimeoutMs), observationTimeoutMs: Number(value.observationTimeoutMs) });
+  return `${url.origin}${path}`;
+}
+function validateTargetAffinity(value: unknown, baseUrl: string): ComfyUiExecutionTargetAffinity {
+  if (!isPlainRecord(value) || !hasExactKeys(value, ['baseUrl', 'token']) || !boundedId(value.token)) throw new Error('invalid-connection');
+  const affinityBaseUrl = normalizeConnectionBaseUrl(value.baseUrl);
+  if (affinityBaseUrl !== baseUrl) throw new Error('invalid-connection');
+  return deepFreeze({ baseUrl: affinityBaseUrl, token: value.token });
+}
+function validateConnection(value: unknown): ComfyUiExecutionConnection {
+  if (!isPlainRecord(value) || !hasExactKeys(value, ['baseUrl', 'requestTimeoutMs', 'observationTimeoutMs'], ['targetAffinity'])) throw new Error('invalid-connection');
+  const baseUrl = normalizeConnectionBaseUrl(value.baseUrl);
+  if (!Number.isInteger(value.requestTimeoutMs) || !Number.isInteger(value.observationTimeoutMs) || Number(value.requestTimeoutMs) < 100 || Number(value.requestTimeoutMs) > 300_000 || Number(value.observationTimeoutMs) < 100 || Number(value.observationTimeoutMs) > 300_000) throw new Error('invalid-connection');
+  const targetAffinity = value.targetAffinity === undefined ? undefined : validateTargetAffinity(value.targetAffinity, baseUrl);
+  return deepFreeze({ baseUrl, requestTimeoutMs: Number(value.requestTimeoutMs), observationTimeoutMs: Number(value.observationTimeoutMs), ...(targetAffinity === undefined ? {} : { targetAffinity }) });
 }
 function validateRemotePath(value: unknown): string {
   if (typeof value !== 'string' || value.length === 0 || utf8ByteLength(value) > 512 || value.startsWith('/') || value.includes('\\') || value.includes('%') || /[\u0000-\u001f\u007f]/.test(value) || !value.endsWith('.json') || value.split('/').some((part) => part.length === 0 || part === '.' || part === '..')) throw new Error('invalid-workflow');
@@ -144,6 +173,8 @@ export function validateComfyUiExecutionRequest(value: unknown): ComfyUiExecutio
   if (value.source.kind === 'api-graph' && hasExactKeys(value.source, ['kind', 'workflowId', 'revision', 'graph'], ['objectInfo'])) source = deepFreeze({ kind: 'api-graph', workflowId: value.source.workflowId, revision: value.source.revision, graph: admitComfyUiApiGraph(value.source.graph), ...(value.source.objectInfo !== undefined ? { objectInfo: value.source.objectInfo } : {}) }) as ComfyUiExecutionSource;
   else if (value.source.kind === 'frontend-workflow' && hasExactKeys(value.source, ['kind', 'workflowId', 'revision', 'remotePath'])) source = deepFreeze({ kind: 'frontend-workflow', workflowId: value.source.workflowId, revision: value.source.revision, remotePath: validateRemotePath(value.source.remotePath) });
   else throw new Error('invalid-request');
+  const connection = validateConnection(value.connection);
+  if (source.kind === 'frontend-workflow' && connection.targetAffinity === undefined) throw new Error('invalid-connection');
   let mutations: ComfyUiExecutionRequest['mutations'];
   if (value.mutations !== undefined) {
     if (!Array.isArray(value.mutations) || value.mutations.length > 256) throw new Error('invalid-request');
@@ -155,7 +186,7 @@ export function validateComfyUiExecutionRequest(value: unknown): ComfyUiExecutio
   const imageInputRef = value.imageInputRef === undefined ? undefined : validateInputRef(value.imageInputRef);
   const mask = value.mask === undefined ? undefined : validateMaskInput(value.mask);
   if (imageInputRef !== undefined && mask !== undefined && sameInputRef(imageInputRef, mask.binding.inputRef)) throw new Error('invalid-mask-input');
-  return deepFreeze({ connection: validateConnection(value.connection), source, ...(value.prompt !== undefined ? { prompt: value.prompt } : {}), images: value.images.map(validateAssetInput), ...(mutations !== undefined ? { mutations } : {}), ...(imageInputRef === undefined ? {} : { imageInputRef }), ...(mask === undefined ? {} : { mask }) });
+  return deepFreeze({ connection, source, ...(value.prompt !== undefined ? { prompt: value.prompt } : {}), images: value.images.map(validateAssetInput), ...(mutations !== undefined ? { mutations } : {}), ...(imageInputRef === undefined ? {} : { imageInputRef }), ...(mask === undefined ? {} : { mask }) });
 }
 
 /** Result guard；success with zero outputs valid。*/

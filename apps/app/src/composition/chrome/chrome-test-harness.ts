@@ -41,6 +41,7 @@ export interface ChromeTestHarnessConfig {
   readonly scenario: PhotoshopSimulatorScenarioId;
   readonly filePickerMode: ChromeTestFilePickerMode;
   readonly mockFailureMode: ChromeTestMockFailureMode;
+  readonly comfyUiPersistenceDelayMs: number;
   readonly resetStorage: boolean;
 }
 
@@ -107,6 +108,11 @@ function parseMockFailureMode(value: string | null): ChromeTestMockFailureMode {
   return value === 'always' ? 'always' : 'none';
 }
 
+function parseBoundedDelay(value: string | null): number {
+  const parsed = Number(value);
+  return Number.isInteger(parsed) && parsed >= 0 && parsed <= 5_000 ? parsed : 0;
+}
+
 export function chromeTestHarnessConfigFromUrl(url: URL): ChromeTestHarnessConfig | undefined {
   if (url.searchParams.get('testHarness') !== '1') {
     return undefined;
@@ -119,6 +125,7 @@ export function chromeTestHarnessConfigFromUrl(url: URL): ChromeTestHarnessConfi
     scenario: parseScenario(url.searchParams.get('scenario')),
     filePickerMode: parseFilePickerMode(url.searchParams.get('filePicker')),
     mockFailureMode: parseMockFailureMode(url.searchParams.get('mockFailure')),
+    comfyUiPersistenceDelayMs: parseBoundedDelay(url.searchParams.get('comfyPersistenceDelayMs')),
     resetStorage: url.searchParams.get('resetStorage') === '1',
   };
 }
@@ -411,15 +418,41 @@ function delay(ms: number): Promise<void> {
   return new Promise((resolve) => window.setTimeout(resolve, ms));
 }
 
+function abortableDelay(ms: number, signal?: AbortSignal): Promise<boolean> {
+  if (signal?.aborted) return Promise.resolve(false);
+  return new Promise((resolve) => {
+    const timeout = window.setTimeout(() => finish(true), ms);
+    const abort = (): void => finish(false);
+    const finish = (completed: boolean): void => {
+      window.clearTimeout(timeout);
+      signal?.removeEventListener('abort', abort);
+      resolve(completed);
+    };
+    signal?.addEventListener('abort', abort, { once: true });
+  });
+}
+
 /**
  * Chrome-only E2E harness 装配测试状态，不改变 shared UI 的 runtime 分支。
  */
 export function createChromeTestHarnessRuntime(config: ChromeTestHarnessConfig): ChromeTestHarnessRuntime {
   let filePickerMode = config.filePickerMode;
   let installedStorage: ChromeRuntimeStorage | undefined;
-  const backend = config.storageMode === 'indexed-db'
+  const baseBackend = config.storageMode === 'indexed-db'
     ? createBrowserIndexedDbBackend({ databaseName: config.databaseName })
     : createMemoryIndexedDbBackend({ initial: initialRecords(config) });
+  const backend: ChromeKeyValueBackend = config.comfyUiPersistenceDelayMs === 0
+    ? baseBackend
+    : {
+        ...baseBackend,
+        async atomicCompareAndPut(store, key, next, matches, signal) {
+          if (
+            store === 'comfyUiState'
+            && !await abortableDelay(config.comfyUiPersistenceDelayMs, signal)
+          ) return 'aborted';
+          return baseBackend.atomicCompareAndPut(store, key, next, matches, signal);
+        },
+      };
   const filePicker: ChromeFilePicker = {
     async pick() {
       return filePickerMode === 'cancel' ? undefined : generatedImageFile();

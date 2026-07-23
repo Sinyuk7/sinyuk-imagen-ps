@@ -34,11 +34,21 @@ export type ChromeStoreName =
   | 'modelGenerationPreferences'
   | 'comfyUiState';
 
+/** Chrome 原子 compare-and-put 的结果。 */
+export type ChromeAtomicCompareAndPutResult = 'committed' | 'conflict' | 'aborted';
+
 export interface ChromeKeyValueBackend {
   get<T>(store: ChromeStoreName, key: string): Promise<T | undefined>;
   put<T>(store: ChromeStoreName, key: string, value: T): Promise<void>;
   delete(store: ChromeStoreName, key: string): Promise<void>;
   list<T>(store: ChromeStoreName): Promise<readonly T[]>;
+  atomicCompareAndPut<T>(
+    store: ChromeStoreName,
+    key: string,
+    next: T,
+    matches: (current: T | undefined) => boolean,
+    signal?: AbortSignal,
+  ): Promise<ChromeAtomicCompareAndPutResult>;
   listEntries?<T>(store: ChromeStoreName): Promise<readonly ChromeStoredRecord<T>[]>;
   clear?(store?: ChromeStoreName): Promise<void>;
 }
@@ -216,6 +226,60 @@ export function createBrowserIndexedDbBackend(options?: { readonly databaseName?
       const records = await requestResult<ChromeStoredRecord<T>[]>(transaction.objectStore(store).getAll());
       return records.map((record) => record.value);
     },
+    async atomicCompareAndPut<T>(
+      store: ChromeStoreName,
+      key: string,
+      next: T,
+      matches: (current: T | undefined) => boolean,
+      signal?: AbortSignal,
+    ): Promise<ChromeAtomicCompareAndPutResult> {
+      const db = await database;
+      if (signal?.aborted) return 'aborted';
+
+      return new Promise((resolve, reject) => {
+        const transaction = db.transaction(store, 'readwrite');
+        const objectStore = transaction.objectStore(store);
+        let outcome: ChromeAtomicCompareAndPutResult = 'conflict';
+
+        const abortTransaction = () => {
+          try {
+            transaction.abort();
+          } catch {
+            // transaction 已越过 complete 线性化点时，late abort 不改变结果。
+          }
+        };
+        signal?.addEventListener('abort', abortTransaction, { once: true });
+
+        transaction.oncomplete = () => {
+          signal?.removeEventListener('abort', abortTransaction);
+          resolve(outcome);
+        };
+        transaction.onabort = () => {
+          signal?.removeEventListener('abort', abortTransaction);
+          if (signal?.aborted) {
+            resolve('aborted');
+            return;
+          }
+          reject(transaction.error ?? new Error('IndexedDB transaction aborted.'));
+        };
+        transaction.onerror = () => {
+          signal?.removeEventListener('abort', abortTransaction);
+          reject(transaction.error ?? new Error('IndexedDB transaction failed.'));
+        };
+
+        const request = objectStore.get(key) as IDBRequest<ChromeStoredRecord<T> | undefined>;
+        request.onsuccess = () => {
+          if (signal?.aborted) {
+            abortTransaction();
+            return;
+          }
+          const current = request.result?.value;
+          if (!matches(current)) return;
+          outcome = 'committed';
+          objectStore.put({ key, value: next } satisfies ChromeStoredRecord<T>);
+        };
+      });
+    },
     async listEntries<T>(store: ChromeStoreName): Promise<readonly ChromeStoredRecord<T>[]> {
       const db = await database;
       const transaction = db.transaction(store, 'readonly');
@@ -268,6 +332,20 @@ export function createMemoryIndexedDbBackend(options?: {
     },
     async list<T>(store: ChromeStoreName): Promise<readonly T[]> {
       return Array.from(stores[store].values()) as T[];
+    },
+    async atomicCompareAndPut<T>(
+      store: ChromeStoreName,
+      key: string,
+      next: T,
+      matches: (current: T | undefined) => boolean,
+      signal?: AbortSignal,
+    ): Promise<ChromeAtomicCompareAndPutResult> {
+      if (signal?.aborted) return 'aborted';
+      const current = stores[store].get(key) as T | undefined;
+      if (!matches(current)) return 'conflict';
+      if (signal?.aborted) return 'aborted';
+      stores[store].set(key, next);
+      return 'committed';
     },
     async listEntries<T>(store: ChromeStoreName): Promise<readonly ChromeStoredRecord<T>[]> {
       return Array.from(stores[store].entries()).map(([key, value]) => ({

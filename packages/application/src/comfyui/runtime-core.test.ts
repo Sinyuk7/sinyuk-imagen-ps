@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
-  comfyUiBaseUrlCandidates,
+  deriveComfyUiConnectionTarget,
   joinComfyUiRoute,
   normalizeComfyUiBaseUrl,
   createComfyUiManagementService,
@@ -8,11 +8,12 @@ import {
 import {
   createComfyUiWorkflowDraftStore,
   createComfyUiWorkflowRuntimeCache,
+  createComfyUiTestHarness,
   createInMemoryComfyUiStateRepository,
 } from './repositories.js';
 import { collectWorkflowInputCandidates, composeWorkflowMutations, projectWorkflowMapping, resolveWorkflowMapping } from './workflow-policy.js';
 import { createComfyUiGenerationBackend, comfyUiExecutionInput } from './backend.js';
-import type { ComfyUiExecutionIntent } from './types.js';
+import type { ComfyUiExecutionIntent, PersistedComfyUiState } from './types.js';
 import type { TaskRecord } from '../task.js';
 import type { LoadedWorkflowRuntime, WorkflowForm } from './types.js';
 
@@ -23,11 +24,50 @@ const form: WorkflowForm = {
   }],
 };
 
+const raceForm: WorkflowForm = {
+  nodes: [
+    {
+      nodeId: 'prompt',
+      title: '# Prompt',
+      label: 'Prompt',
+      order: 0,
+      active: true,
+      visible: true,
+      widgets: [
+        { ref: { nodeId: 'prompt', inputName: 'text' }, kind: 'string', label: 'Text', writable: true, visible: true, order: 0 },
+        { ref: { nodeId: 'prompt', inputName: 'text2' }, kind: 'string', label: 'Text 2', writable: true, visible: true, order: 1 },
+      ],
+    },
+    {
+      nodeId: 'images',
+      title: '# Images',
+      label: 'Images',
+      order: 1,
+      active: true,
+      visible: true,
+      widgets: [
+        { ref: { nodeId: 'images', inputName: 'primary' }, kind: 'upload-image', label: 'Primary', writable: true, visible: false, order: 0 },
+        { ref: { nodeId: 'images', inputName: 'edit_region' }, kind: 'upload-image', label: 'Edit Region', writable: true, visible: false, order: 1 },
+      ],
+    },
+  ],
+};
+
 describe('ComfyUI runtime core', () => {
   it('normalizes singleton URL and preserves reverse-proxy path', () => {
     expect(normalizeComfyUiBaseUrl('https://example.test/comfyui/')).toBe('https://example.test/comfyui');
     expect(joinComfyUiRoute('https://example.test/comfyui', ['', 'prompt'].join('/'))).toBe('https://example.test/comfyui/prompt');
-    expect(comfyUiBaseUrlCandidates('example.test/comfyui')).toEqual(['https://example.test/comfyui', 'http://example.test/comfyui']);
+    expect(() => normalizeComfyUiBaseUrl('example.test/comfyui')).toThrow('must include http:// or https://');
+    expect(deriveComfyUiConnectionTarget('http://127.0.0.1:8188/proxy/', {
+      requestTimeoutMs: 30_000,
+      observationTimeoutMs: 300_000,
+    })).toMatchObject({
+      baseUrl: 'http://127.0.0.1:8188/proxy',
+      origin: 'http://127.0.0.1:8188',
+      probeUrl: 'http://127.0.0.1:8188/proxy/system_stats',
+      frontendBaseUrl: 'http://127.0.0.1:8188/proxy',
+      websocketUrl: 'ws://127.0.0.1:8188/proxy/ws',
+    });
     expect(() => normalizeComfyUiBaseUrl('https://u:p@example.test')).toThrow();
     expect(() => normalizeComfyUiBaseUrl('https://example.test?q=secret')).toThrow();
   });
@@ -44,6 +84,60 @@ describe('ComfyUI runtime core', () => {
     expect(drafts.get('wf', 'r1')).toBeDefined();
     await repo.clear();
     expect(await repo.load()).toBeUndefined();
+  });
+
+  it('recovers committed target and suppresses old-target discovery after promotion', async () => {
+    const harness = createComfyUiTestHarness({
+      baseUrl: 'https://c.example', selectedWorkflowId: null, ambiguousMappingsByRevision: {},
+    });
+    let releaseOldDiscovery!: () => void;
+    let markOldDiscoveryStarted!: () => void;
+    const oldDiscoveryStarted = new Promise<void>((resolve) => { markOldDiscoveryStarted = resolve; });
+    const oldDiscovery = new Promise<void>((resolve) => { releaseOldDiscovery = resolve; });
+    const discoveryTargets: string[] = [];
+    const service = createComfyUiManagementService({
+      state: harness.state,
+      cache: harness.cache,
+      drafts: harness.drafts,
+      generationFactory: harness.connectionPorts.generationFactory,
+      validateApi: harness.connectionPorts.validateApi,
+      validateBridge: harness.connectionPorts.validateBridge,
+      ports: {
+        async discover(baseUrl) {
+          discoveryTargets.push(baseUrl);
+          if (baseUrl === 'https://c.example') {
+            markOldDiscoveryStarted();
+            await oldDiscovery;
+            return [{ workflowId: 'old', displayName: 'Old', remotePath: 'old.json', revision: 'r1' }];
+          }
+          return [{ workflowId: 'new', displayName: 'New', remotePath: 'new.json', revision: 'r1' }];
+        },
+        async load(_baseUrl, descriptor) {
+          return {
+            identity: { ...descriptor, groupPath: [], revision: descriptor.revision ?? 'r1' },
+            document: { kind: 'api' as const, graph: {} },
+            form,
+          };
+        },
+      },
+    });
+
+    await service.loadState();
+    await oldDiscoveryStarted;
+    harness.cache.set({
+      identity: { workflowId: 'old', displayName: 'Old', remotePath: 'old.json', groupPath: [], revision: 'r1' },
+      document: { kind: 'api', graph: {} },
+    });
+    await expect(service.connect('https://b.example')).resolves.toMatchObject({ ok: true });
+    expect(harness.cache.get('old')).toBeUndefined();
+    releaseOldDiscovery();
+    await Promise.resolve();
+    await Promise.resolve();
+    await service.discover();
+    await expect(service.selectWorkflow('new')).resolves.toMatchObject({ identity: { workflowId: 'new' } });
+    await expect(service.selectWorkflow('old')).rejects.toThrow('workflow was not found');
+    expect(discoveryTargets).toContain('https://b.example');
+    service.dispose();
   });
 
   it('projects 0/1/many mapping and stale explicit selection', () => {
@@ -146,6 +240,16 @@ describe('ComfyUI runtime core', () => {
           }
           persisted = value;
         },
+        compareAndSave: async (expected, value, signal) => {
+          if (value.selectedWorkflowId === 'a') {
+            markFirstSaveStarted();
+            await firstSaveBarrier;
+          }
+          if (signal?.aborted) return 'aborted';
+          if (JSON.stringify(expected) !== JSON.stringify(persisted)) return 'conflict';
+          persisted = value;
+          return 'committed';
+        },
         clear: async () => { persisted = { baseUrl: 'https://example.test', selectedWorkflowId: null, ambiguousMappingsByRevision: {} }; },
       },
       cache,
@@ -181,6 +285,122 @@ describe('ComfyUI runtime core', () => {
     releaseFirst(makeRuntime('a'));
     await expect(pending).rejects.toThrow();
     expect(service.getLoadState()).toMatchObject({ status: 'ready', runtime: { identity: { workflowId: 'b' } } });
+  });
+
+  it('retries mapping and mask writes from latest row after CAS conflict', async () => {
+    const workflowId = 'wf';
+    const revision = 'r1';
+    const key = `${workflowId}@${revision}`;
+    let current: PersistedComfyUiState = {
+      baseUrl: 'https://example.test',
+      selectedWorkflowId: workflowId,
+      ambiguousMappingsByRevision: {
+        [key]: { image: { nodeId: 'images', inputName: 'primary' } },
+      },
+    };
+    let releaseFirstCompare!: () => void;
+    const firstCompare = new Promise<void>((resolve) => { releaseFirstCompare = resolve; });
+    let compareCalls = 0;
+    const repo = {
+      load: async () => JSON.parse(JSON.stringify(current)),
+      save: async (value: typeof current) => { current = JSON.parse(JSON.stringify(value)); },
+      clear: async () => { current = { baseUrl: 'https://example.test', selectedWorkflowId: null, ambiguousMappingsByRevision: {} }; },
+      compareAndSave: async (expected: typeof current | undefined, next: typeof current, signal?: AbortSignal) => {
+        compareCalls += 1;
+        if (compareCalls === 1) {
+          await firstCompare;
+        }
+        if (signal?.aborted) return 'aborted' as const;
+        if (JSON.stringify(current) !== JSON.stringify(expected)) return 'conflict' as const;
+        current = JSON.parse(JSON.stringify(next));
+        return 'committed' as const;
+      },
+    };
+    const runtime: LoadedWorkflowRuntime = {
+      identity: { workflowId, displayName: 'WF', remotePath: 'wf.json', groupPath: [], revision },
+      document: { kind: 'api', graph: {} },
+      form: raceForm,
+    };
+    const ports = {
+      discover: async () => [{ workflowId, displayName: 'WF', remotePath: 'wf.json', revision }],
+      load: async () => runtime,
+    };
+    const serviceA = createComfyUiManagementService({
+      state: repo,
+      cache: createComfyUiWorkflowRuntimeCache(),
+      ports,
+    });
+    const serviceB = createComfyUiManagementService({
+      state: repo,
+      cache: createComfyUiWorkflowRuntimeCache(),
+      ports,
+    });
+
+    await serviceA.discover();
+    await serviceA.selectWorkflow(workflowId);
+    await serviceB.discover();
+    await serviceB.selectWorkflow(workflowId);
+
+    const textRef = raceForm.nodes[0]!.widgets[1]!.ref;
+    const maskRef = raceForm.nodes[1]!.widgets[1]!.ref;
+    const writeText = serviceA.setMapping(workflowId, revision, 'text', textRef);
+    const writeMask = serviceB.setMaskBinding(workflowId, revision, {
+      transport: 'separate-image-input',
+      inputRef: maskRef,
+      polarity: 'black-edit',
+    });
+
+    await Promise.resolve();
+    await Promise.resolve();
+    releaseFirstCompare();
+    await Promise.all([writeText, writeMask]);
+
+    expect(current.ambiguousMappingsByRevision[key]).toEqual({
+      image: { nodeId: 'images', inputName: 'primary' },
+      text: textRef,
+      mask: {
+        transport: 'separate-image-input',
+        inputRef: maskRef,
+        polarity: 'black-edit',
+      },
+    });
+  });
+
+  it('keeps newer discovery catalog when older discover returns late', async () => {
+    const workflowId = 'wf';
+    const baseState = { baseUrl: 'https://example.test', selectedWorkflowId: null, ambiguousMappingsByRevision: {} };
+    let callCount = 0;
+    let releaseFirstDiscover!: () => void;
+    const firstDiscover = new Promise<void>((resolve) => { releaseFirstDiscover = resolve; });
+    const service = createComfyUiManagementService({
+      state: createInMemoryComfyUiStateRepository(baseState),
+      cache: createComfyUiWorkflowRuntimeCache(),
+      ports: {
+        discover: async () => {
+          callCount += 1;
+          if (callCount === 1) {
+            await firstDiscover;
+            return [{ workflowId, displayName: 'Old', remotePath: 'old.json', revision: 'r1' }];
+          }
+          return [{ workflowId, displayName: 'New', remotePath: 'new.json', revision: 'r1' }];
+        },
+        load: async (_baseUrl, descriptor) => ({
+          identity: { ...descriptor, groupPath: [], revision: descriptor.revision ?? 'r1' },
+          document: { kind: 'api', graph: {} },
+          form,
+        }),
+      },
+    });
+
+    const first = service.discover();
+    await Promise.resolve();
+    await Promise.resolve();
+    const second = service.discover();
+    await expect(second).resolves.toMatchObject([{ workflowId, displayName: 'New', remotePath: 'new.json', revision: 'r1' }]);
+    releaseFirstDiscover();
+    await expect(first).resolves.toEqual([]);
+    await expect(service.selectWorkflow(workflowId)).resolves.toMatchObject({ identity: { workflowId } });
+    await expect(service.selectWorkflow('missing')).rejects.toThrow('workflow was not found');
   });
 
   it('rejects duplicate discovery identities and invalidates revision-scoped runtime state', async () => {

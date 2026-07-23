@@ -153,8 +153,10 @@ async function loadLiveComfyUiFixture(env) {
     throw new Error('Chrome live ComfyUI fixture requires a credential-free HTTP(S) URL.');
   }
   const remotePath = env.IMAGEN_COMFYUI_LIVE_FRONTEND_WORKFLOW_PATH?.trim();
-  if (!remotePath) throw new Error(`Missing IMAGEN_COMFYUI_LIVE_FRONTEND_WORKFLOW_PATH in ${repoTestEnvPath}.`);
-  return { baseUrl: parsedBaseUrl.toString().replace(/\/$/u, ''), frontendRemotePath: remotePath };
+  return {
+    baseUrl: parsedBaseUrl.toString().replace(/\/$/u, ''),
+    ...(remotePath ? { frontendRemotePath: remotePath } : {}),
+  };
 }
 
 function requireLiveComfyUiFixture() {
@@ -189,10 +191,106 @@ const contentTypes = new Map([
   ['.webp', 'image/webp'],
 ]);
 
+const fakeComfyUiBridgeLimits = {
+  maxMessageBytes: 2_000_000,
+  maxWorkflowPathBytes: 512,
+  maxWorkflowListEntries: 1_000,
+  maxMutations: 16,
+  maxIdChars: 128,
+  maxConfigureTimeoutMs: 30_000,
+};
+
+function fakeComfyUiTarget(pathname) {
+  return pathname.match(/^\/__chrome-e2e-comfy\/([^/]+)(?:\/.*)?$/u)?.[1];
+}
+
+function fakeComfyUiDelay(target, phase) {
+  if (target === 'attempt-a' && phase === 'frontend') return 60_000;
+  if (target === 'attempt-a' && phase === 'api') return 150;
+  if (target === 'target-b') return phase === 'bridge' ? 300 : 220;
+  return 60;
+}
+
+function waitForResponseDelay(response, delayMs) {
+  return new Promise((resolveDelay) => {
+    const timer = setTimeout(done, delayMs);
+    function done() {
+      clearTimeout(timer);
+      response.off('close', done);
+      resolveDelay();
+    }
+    response.once('close', done);
+  });
+}
+
+function fakeComfyUiFrontendHtml(target) {
+  const workflow = {
+    workflowId: `chrome-e2e-${target}`,
+    nativeWorkflowId: `native-${target}`,
+    displayName: `Chrome E2E ${target}`,
+    remotePath: `Chrome E2E/${target}.json`,
+    revision: `revision-${target}`,
+  };
+  return `<!doctype html><meta charset="utf-8"><script>
+    const params = new URL(location.href).searchParams;
+    const identity = {
+      origin: params.get('imagenOrigin'),
+      sourceId: params.get('imagenSourceId'),
+      loadId: params.get('imagenLoadId'),
+    };
+    const limits = ${JSON.stringify(fakeComfyUiBridgeLimits)};
+    const workflow = ${JSON.stringify(workflow)};
+    addEventListener('message', (event) => {
+      const request = event.data;
+      if (!request || typeof request.requestId !== 'string' || event.origin !== identity.origin) return;
+      let payload = {};
+      if (request.command === 'handshake') {
+        payload = {
+          identity,
+          protocolVersion: 1,
+          bridgeVersion: 'chrome-e2e',
+          frontendVersion: 'chrome-e2e',
+          coreVersion: 'chrome-e2e',
+          capabilities: { nativeQueue: true, workflowDiscovery: true, receiptObserver: true },
+          limits,
+        };
+      } else if (request.command === 'list-workflows') {
+        payload = { workflows: [workflow] };
+      } else if (request.command === 'form-values') {
+        payload = { values: { nodes: [] } };
+      }
+      const delay = request.command === 'handshake' ? ${fakeComfyUiDelay(target, 'bridge')} : 0;
+      setTimeout(() => parent.postMessage({ requestId: request.requestId, ok: true, payload }, identity.origin), delay);
+    });
+  <\/script>`;
+}
+
 function createStaticServer() {
+  const fakeComfyUiRequests = new Map();
   const server = createServer(async (request, response) => {
     try {
       const url = new URL(request.url ?? '/', 'http://127.0.0.1');
+      const fakeTarget = fakeComfyUiTarget(url.pathname);
+      if (fakeTarget) {
+        const kind = url.pathname.endsWith('/system_stats') ? 'system-stats' : 'frontend';
+        const requestKey = `${fakeTarget}:${kind}`;
+        fakeComfyUiRequests.set(requestKey, (fakeComfyUiRequests.get(requestKey) ?? 0) + 1);
+        await waitForResponseDelay(response, fakeComfyUiDelay(fakeTarget, kind === 'system-stats' ? 'api' : 'frontend'));
+        if (response.destroyed) return;
+        if (kind === 'system-stats') {
+          response.writeHead(200, { 'content-type': 'application/json; charset=utf-8' });
+          response.end(JSON.stringify({ system: { comfyui_version: 'chrome-e2e' }, devices: [{}] }));
+        } else {
+          response.writeHead(200, { 'content-type': 'text/html; charset=utf-8' });
+          response.end(fakeComfyUiFrontendHtml(fakeTarget));
+        }
+        return;
+      }
+      if (url.pathname === '/__invalid-comfyui/system_stats') {
+        response.writeHead(200, { 'content-type': 'application/json; charset=utf-8' });
+        response.end('{invalid-json');
+        return;
+      }
       const rawPath = decodeURIComponent(url.pathname === '/' ? '/index.html' : url.pathname);
       const filePath = resolve(webRoot, `.${rawPath}`);
       if (!filePath.startsWith(`${webRoot}${sep}`) && filePath !== webRoot) {
@@ -217,6 +315,11 @@ function createStaticServer() {
       }
       resolveServer({
         origin: `http://127.0.0.1:${address.port}`,
+        fakeComfyUi: {
+          requestCount(target, kind) {
+            return fakeComfyUiRequests.get(`${target}:${kind}`) ?? 0;
+          },
+        },
         close: () => new Promise((resolveClose) => server.close(resolveClose)),
       });
     });
@@ -377,29 +480,96 @@ async function seedLiveGeminiProfile(page) {
   return fixture;
 }
 
+async function openComfyUiSettings(page) {
+  await page.getByTestId('main-providers-button').click();
+  await page.getByTestId('settings-backend-comfyui').click();
+  await page.getByTestId('comfyui-settings-root').waitFor({ state: 'visible', timeout: 10000 });
+}
+
+function comfyUiTextVariants(text) {
+  const fixed = new Map([
+    ['Connect', '连接'],
+    ['Reconnect', '重新连接'],
+    ['Retry', '重试'],
+    ['Connecting...', '连接中...'],
+    ['Checking server...', '正在检查服务器...'],
+    ['Loading Frontend Bridge...', '正在加载 Frontend Bridge...'],
+    ['Validating Bridge...', '正在验证 Bridge...'],
+    ['Saving connection...', '正在保存连接...'],
+    ['Enter a complete http:// or https:// address without credentials, query, or fragment.', '请输入完整的 http:// 或 https:// 地址，且不要包含凭据、查询参数或片段。'],
+    ['Could not connect to the ComfyUI server.', '无法连接 ComfyUI 服务器。'],
+    ['ComfyUI returned an invalid server response.', 'ComfyUI 返回了无效的服务器响应。'],
+  ]);
+  const translated = fixed.get(text)
+    ?? text.match(/^Connected to (.+)\.$/u)?.[1]?.replace(/^(.+)$/u, '已连接到 $1。')
+    ?? text.match(/^Still connected to (.+)\.$/u)?.[1]?.replace(/^(.+)$/u, '仍连接到 $1。')
+    ?? text.match(/^Currently connected to (.+)\. Connect to switch\.$/u)?.[1]?.replace(/^(.+)$/u, '当前连接到 $1。连接以切换。');
+  return translated ? [text, translated] : [text];
+}
+
+async function expectComfyUiText(page, testId, text, timeout) {
+  const candidates = comfyUiTextVariants(text);
+  await page.waitForFunction(({ targetTestId, values }) => {
+    const content = document.querySelector(`[data-testid="${targetTestId}"]`)?.textContent ?? '';
+    return values.some((value) => content.includes(value));
+  }, { targetTestId: testId, values: candidates }, { timeout });
+}
+
+async function expectComfyUiAction(page, label, timeout = 30_000) {
+  await expectComfyUiText(page, 'comfyui-connect', label, timeout);
+}
+
+async function expectComfyUiStatus(page, text, timeout = 30_000) {
+  await expectComfyUiText(page, 'comfyui-connection-status', text, timeout);
+}
+
+async function activeComfyUiBaseUrl(page) {
+  return page.evaluate(() => globalThis.__IMAGEN_CHROME_RUNTIME__
+    ?.host.services.comfyUi.getConnectionSnapshot().activeConnection?.target.baseUrl);
+}
+
+async function fillComfyUiAddress(page, baseUrl) {
+  await fillFormControl(page.getByTestId('comfyui-address'), baseUrl);
+}
+
+async function chooseComfyUiWorkflow(page, remotePath) {
+  await page.getByTestId('comfyui-change-workflow').click();
+  const picker = page.getByTestId('comfyui-workflow-picker');
+  await picker.waitFor({ state: 'visible', timeout: 30_000 });
+  const option = remotePath
+    ? picker.getByText(remotePath, { exact: true })
+    : picker.locator('[data-testid^="comfyui-workflow-option-"]').first();
+  await option.waitFor({ state: 'visible', timeout: 30_000 });
+  await option.click();
+  await picker.waitFor({ state: 'detached', timeout: 30_000 });
+}
+
 async function seedLiveComfyUiWorkflow(page) {
   const fixture = requireLiveComfyUiFixture();
-  return page.evaluate(async (input) => {
+  await openComfyUiSettings(page);
+  await fillComfyUiAddress(page, fixture.baseUrl);
+  await page.getByTestId('comfyui-connect').click();
+  await expectComfyUiAction(page, 'Reconnect');
+  await expectComfyUiStatus(page, `Connected to ${fixture.baseUrl}.`);
+  await reloadWithoutStorageReset(page);
+  await openComfyUiSettings(page);
+  await expectComfyUiAction(page, 'Reconnect');
+  await expectComfyUiStatus(page, `Connected to ${fixture.baseUrl}.`);
+  const workflow = await page.evaluate(async (remotePath) => {
     const runtime = globalThis.__IMAGEN_CHROME_RUNTIME__;
     if (!runtime) {
       throw new Error('Chrome runtime global is missing.');
     }
     const management = runtime.host.services.comfyUi;
-    await management.saveBaseUrl(input.baseUrl);
     const discovered = await management.discover();
-    const workflow = discovered.find((item) => item.remotePath === input.frontendRemotePath);
-    if (!workflow) throw new Error('Live ComfyUI Frontend workflow was not discovered.');
-    const loaded = await management.selectWorkflow(workflow.workflowId);
-    return {
-      workflowId: workflow.workflowId,
-      displayName: workflow.displayName,
-      remotePath: loaded.identity.remotePath,
-      revision: loaded.identity.revision,
-    };
-  }, {
-    baseUrl: fixture.baseUrl,
-    frontendRemotePath: fixture.frontendRemotePath,
-  });
+    const selected = remotePath
+      ? discovered.find((item) => item.remotePath === remotePath)
+      : discovered[0];
+    if (!selected) throw new Error('Live ComfyUI Frontend workflow was not discovered.');
+    return selected;
+  }, fixture.frontendRemotePath);
+  await chooseComfyUiWorkflow(page, workflow.remotePath);
+  return workflow;
 }
 
 async function reloadWithoutStorageReset(page) {
@@ -512,6 +682,76 @@ async function runLiveComfyUiGeneration({ page, url, capture }) {
   const requests = remoteRequestEvidence(page, fixture.baseUrl);
   await openApp(page, url);
   const seeded = await seedLiveComfyUiWorkflow(page);
+  if (!requests.some((request) => (
+    request.method === 'GET'
+    && new URL(request.path, 'https://comfy.invalid').pathname.endsWith('/system_stats')
+  ))) {
+    throw new Error('Live ComfyUI Settings Connect did not probe /system_stats.');
+  }
+
+  const reconnectProbeCount = requests.filter((request) => (
+    request.method === 'GET'
+    && new URL(request.path, 'https://comfy.invalid').pathname.endsWith('/system_stats')
+  )).length;
+  await page.getByTestId('comfyui-connect').click();
+  await expectComfyUiAction(page, 'Reconnect');
+  await expectComfyUiStatus(page, `Connected to ${fixture.baseUrl}.`);
+  const reconnectedProbeCount = requests.filter((request) => (
+    request.method === 'GET'
+    && new URL(request.path, 'https://comfy.invalid').pathname.endsWith('/system_stats')
+  )).length;
+  if (reconnectedProbeCount <= reconnectProbeCount) {
+    throw new Error('Live ComfyUI Reconnect did not issue a new /system_stats probe.');
+  }
+
+  await fillComfyUiAddress(page, 'not-a-valid-url');
+  await expectComfyUiStatus(page, 'Enter a complete http:// or https:// address without credentials, query, or fragment.');
+  await expectComfyUiStatus(page, `Still connected to ${fixture.baseUrl}.`);
+  await expectControlDisabled(page.getByTestId('comfyui-connect'), 'Invalid ComfyUI Connect button');
+  if (await page.getByTestId('comfyui-address').getAttribute('aria-invalid') !== 'true') {
+    throw new Error('Invalid ComfyUI address did not expose aria-invalid=true.');
+  }
+
+  const invalidResponseBaseUrl = `${new URL(url).origin}/__invalid-comfyui`;
+  await fillComfyUiAddress(page, invalidResponseBaseUrl);
+  await expectComfyUiAction(page, 'Connect');
+  if (await page.getByTestId('comfyui-address').getAttribute('aria-invalid') !== null) {
+    throw new Error('Syntactically valid unreachable ComfyUI address stayed marked invalid.');
+  }
+  await page.getByTestId('comfyui-connect').click();
+  await expectComfyUiAction(page, 'Retry');
+  await expectComfyUiStatus(page, 'ComfyUI returned an invalid server response.');
+  await expectComfyUiStatus(page, `Still connected to ${fixture.baseUrl}.`);
+  if (await activeComfyUiBaseUrl(page) !== fixture.baseUrl) {
+    throw new Error('Failed live ComfyUI switch replaced the prior active connection.');
+  }
+  const remainingFrameSources = await page.locator('iframe[aria-hidden="true"]').evaluateAll(
+    (frames) => frames.map((frame) => frame.getAttribute('src') ?? ''),
+  );
+  const activeOrigin = new URL(fixture.baseUrl).origin;
+  if (remainingFrameSources.some((source) => new URL(source, fixture.baseUrl).origin !== activeOrigin)) {
+    throw new Error('Failed live ComfyUI switch left a stale provisional iframe.');
+  }
+  const rediscovered = await page.evaluate(async () => (
+    globalThis.__IMAGEN_CHROME_RUNTIME__?.host.services.comfyUi.discover() ?? []
+  ));
+  if (!rediscovered.some((workflow) => workflow.workflowId === seeded.workflowId)) {
+    throw new Error('Old active ComfyUI connection could not rediscover workflows after failed switch.');
+  }
+  await fillComfyUiAddress(page, fixture.baseUrl);
+  await expectComfyUiAction(page, 'Reconnect');
+  await expectComfyUiStatus(page, `Connected to ${fixture.baseUrl}.`);
+  await assertNoHorizontalScroll(page);
+  await capture('live-comfyui-connection.png');
+
+  if (!fixture.frontendRemotePath) {
+    await page.evaluate(() => globalThis.__IMAGEN_CHROME_RUNTIME__?.dispose());
+    await page.locator('iframe[aria-hidden="true"]').waitFor({ state: 'detached', timeout: 10000 });
+    return {
+      status: 'partial',
+      note: 'Connection, reconnect, failure retention, and discovery passed; generation skipped because IMAGEN_COMFYUI_LIVE_FRONTEND_WORKFLOW_PATH is unset.',
+    };
+  }
   await reloadWithoutStorageReset(page);
   await page.getByTestId('main-profile-selector').click();
   await page.getByTestId('main-mode-comfyui').click();
@@ -993,6 +1233,65 @@ async function persistenceSmokeScenario({ page, origin, capture }) {
   await assertNoBrokenImages(page);
 }
 
+async function comfyUiConnectionTransactionScenario({ page, url, origin, capture, fakeComfyUi }) {
+  const stableBaseUrl = `${origin}/__chrome-e2e-comfy/stable`;
+  const attemptABaseUrl = `${origin}/__chrome-e2e-comfy/attempt-a`;
+  const targetBBaseUrl = `${origin}/__chrome-e2e-comfy/target-b`;
+  await openApp(page, url);
+  await openComfyUiSettings(page);
+
+  await fillComfyUiAddress(page, stableBaseUrl);
+  await page.getByTestId('comfyui-connect').click();
+  await expectComfyUiAction(page, 'Reconnect');
+  await expectComfyUiStatus(page, `Connected to ${stableBaseUrl}.`);
+  if (await activeComfyUiBaseUrl(page) !== stableBaseUrl) {
+    throw new Error('Initial fake ComfyUI connection did not become active.');
+  }
+
+  await fillComfyUiAddress(page, attemptABaseUrl);
+  await page.getByTestId('comfyui-connect').click();
+  await expectComfyUiStatus(page, 'Checking server...');
+  await expectComfyUiStatus(page, `Still connected to ${stableBaseUrl}.`);
+  await expectComfyUiStatus(page, 'Loading Frontend Bridge...');
+  const attemptAFrame = page.locator(`iframe[src^="${attemptABaseUrl}"]`);
+  await attemptAFrame.waitFor({ state: 'attached', timeout: 10000 });
+
+  await fillComfyUiAddress(page, targetBBaseUrl);
+  await expectComfyUiAction(page, 'Connect');
+  await expectComfyUiStatus(page, `Currently connected to ${stableBaseUrl}. Connect to switch.`);
+  await attemptAFrame.waitFor({ state: 'detached', timeout: 10000 });
+  if (await activeComfyUiBaseUrl(page) !== stableBaseUrl) {
+    throw new Error('Superseding attempt A replaced the old active connection.');
+  }
+  if (fakeComfyUi.requestCount('target-b', 'system-stats') !== 0) {
+    throw new Error('Editing target B auto-connected before explicit Connect.');
+  }
+
+  await page.getByTestId('comfyui-connect').click();
+  await expectComfyUiStatus(page, 'Checking server...');
+  await expectComfyUiStatus(page, 'Loading Frontend Bridge...');
+  await expectComfyUiStatus(page, 'Validating Bridge...');
+  await expectComfyUiStatus(page, 'Saving connection...');
+  await expectComfyUiAction(page, 'Reconnect');
+  await expectComfyUiStatus(page, `Connected to ${targetBBaseUrl}.`);
+  if (await activeComfyUiBaseUrl(page) !== targetBBaseUrl) {
+    throw new Error('Explicit target B Connect did not promote target B.');
+  }
+  await page.locator('iframe[aria-hidden="true"]').waitFor({ state: 'detached', timeout: 10000 });
+  await assertNoHorizontalScroll(page);
+  await capture('comfyui-connection-transaction.png');
+
+  await reloadWithoutStorageReset(page);
+  await openComfyUiSettings(page);
+  await expectComfyUiAction(page, 'Reconnect');
+  await expectComfyUiStatus(page, `Connected to ${targetBBaseUrl}.`);
+  await page.getByTestId('comfyui-change-workflow').click();
+  await page.getByText('Chrome E2E/target-b.json', { exact: true }).waitFor({ state: 'visible', timeout: 30000 });
+  await page.getByTestId('comfyui-workflow-picker-back').click();
+  await assertNoHorizontalScroll(page);
+  await assertNoBrokenImages(page);
+}
+
 async function assertNoHorizontalScroll(page) {
   const overflow = await page.evaluate(() => {
     const root = document.getElementById('root');
@@ -1325,7 +1624,7 @@ async function liveGeminiConnectionStrategyScenario({ page, url, capture, resetN
 }
 
 async function liveComfyUiFrontendScenario(context) {
-  await runLiveComfyUiGeneration(context);
+  return runLiveComfyUiGeneration(context);
 }
 
 const scenarios = [
@@ -1633,6 +1932,15 @@ const scenarios = [
     run: themeDarkScenario,
   },
   {
+    id: 'comfyui-settings-connection-transaction',
+    name: 'ComfyUI Settings connection transaction',
+    tags: ['comfyui', 'comfyui-transaction'],
+    path: `/index.html?testHarness=1&storage=indexed-db&db=${encodeURIComponent(`imagen-comfyui-transaction-${runId}`)}&resetStorage=1&scenario=seeded-document&comfyPersistenceDelayMs=350`,
+    screenshotName: 'comfyui-connection-transaction.png',
+    assertions: ['A to B edit supersedes', 'old active retained', 'B requires explicit Connect', 'phase copy visible', 'persistent Connected/Reconnect', 'workflow discovered', 'provisional iframe disposed', 'no horizontal scroll'],
+    run: comfyUiConnectionTransactionScenario,
+  },
+  {
     id: 'live-provider-grsai-gemini-connection-strategy',
     name: 'Live Gemini connection strategy uses safe probe',
     tags: ['live-provider', 'providers'],
@@ -1643,11 +1951,11 @@ const scenarios = [
   },
   {
     id: 'live-comfyui-frontend-d01-image-only',
-    name: 'Live ComfyUI Frontend D01 image-only vertical proof',
+    name: 'Live ComfyUI Settings connection and optional Frontend generation proof',
     tags: ['live-comfyui', 'comfyui-frontend'],
     path: '/index.html?testHarness=1&storage=indexed-db&db=imagen-comfyui-live-frontend&resetStorage=1&scenario=comfyui-image',
     screenshotName: 'live-comfyui-frontend.png',
-    assertions: ['Bridge compatible', 'canonical image uploaded', 'native Queue POST /api/prompt exactly once', 'App POST /prompt zero', 'server receipt reconciled through history/view', 'generic TaskOutput persisted', 'Bridge iframe disposed'],
+    assertions: ['Settings Connect probes /system_stats', 'persistent Connected/Reconnect', 'workflow discovery', 'reconnect succeeds', 'invalid and unreachable targets retain old active', 'no stale provisional iframe'],
     run: liveComfyUiFrontendScenario,
   },
 ];
@@ -1671,7 +1979,7 @@ async function writeRunReadme(entries) {
     '',
     '| Scenario | Status | Evidence | Notes |',
     '|---|---|---|---|',
-    ...entries.map((entry) => `| ${entry.id} | ${entry.status} | ${entry.screenshotPath ?? ''} | ${entry.errorMessage ?? 'Assertions passed'} |`),
+    ...entries.map((entry) => `| ${entry.id} | ${entry.status} | ${entry.screenshotPath ?? ''} | ${entry.errorMessage ?? entry.note ?? 'Assertions passed'} |`),
     '',
   ];
   await writeFile(resolve(artifactRoot, 'README.md'), lines.join('\n'));
@@ -1738,6 +2046,9 @@ async function runScenario(browser, server, scenario) {
   });
   page.on('requestfailed', (request) => {
     const url = request.url();
+    if (scenario.tags.includes('comfyui-transaction') && url.includes('/__chrome-e2e-comfy/attempt-a/')) {
+      return;
+    }
     if (url.startsWith(server.origin)) {
       failedRequests.push(`${request.method()} ${url} ${request.failure()?.errorText ?? 'failed'}`);
     }
@@ -1779,7 +2090,15 @@ async function runScenario(browser, server, scenario) {
   };
 
   try {
-    await scenario.run({ page, origin: server.origin, url, capture, resetNetworkEvidence, listRequests });
+    const result = await scenario.run({
+      page,
+      origin: server.origin,
+      url,
+      capture,
+      resetNetworkEvidence,
+      listRequests,
+      fakeComfyUi: server.fakeComfyUi,
+    });
     if (consoleErrors.length > 0) {
       throw new Error(`Console errors: ${consoleErrors.join(' | ')}`);
     }
@@ -1788,6 +2107,10 @@ async function runScenario(browser, server, scenario) {
     }
     if (failedRequests.length > 0) {
       throw new Error(`Failed same-origin requests: ${failedRequests.join(' | ')}`);
+    }
+    if (result?.status === 'partial') {
+      entry.status = 'partial';
+      entry.note = result.note;
     }
     entry.assertions.push(...scenario.assertions);
     if (keepScreenshots) {
@@ -1875,6 +2198,7 @@ async function main() {
     summary: {
       total: entries.length,
       passed: entries.filter((entry) => entry.status === 'passed').length,
+      partial: entries.filter((entry) => entry.status === 'partial').length,
       failed: entries.filter((entry) => entry.status === 'failed').length,
     },
   };
@@ -1887,6 +2211,9 @@ async function main() {
       console.error(`${failed.id}: ${failed.errorMessage}`);
     }
     process.exitCode = 1;
+  }
+  for (const partial of entries.filter((entry) => entry.status === 'partial')) {
+    console.warn(`${partial.id}: PARTIAL: ${partial.note}`);
   }
 }
 

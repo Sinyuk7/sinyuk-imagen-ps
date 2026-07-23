@@ -67,11 +67,13 @@ export function createComfyUiManagementFake(options: ComfyUiManagementFakeOption
     cache: harness.cache,
     drafts: harness.drafts,
     ports: {
-      probe: vi.fn(async () => ({ api: 'ready' as const, frontend: 'ready' as const, bridge: 'compatible' as const })),
       discover,
       load,
       open,
     },
+    generationFactory: harness.connectionPorts.generationFactory,
+    validateApi: harness.connectionPorts.validateApi,
+    validateBridge: harness.connectionPorts.validateBridge,
   });
 
   return {

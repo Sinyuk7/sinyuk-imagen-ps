@@ -316,9 +316,10 @@ describe('ComfyUI internal runtime', () => {
   it('sends frontend Mask only through explicit widget binding', async () => {
     let submit: Record<string, unknown> | undefined;
     const identity = { origin: 'https://example.test', sourceId: 'source', loadId: 'load' };
+    const targetAffinity = { baseUrl: connection.baseUrl, token: 'attempt-a' };
     await executeComfyUiFrontendQueue(
       {
-        connection,
+        connection: { ...connection, targetAffinity },
         source: { kind: 'frontend-workflow', workflowId: 'wf', revision: 'r1', remotePath: 'workflow.json' },
         images: [],
         imageInputRef: { nodeId: 'primary', widgetIndex: 0 },
@@ -326,7 +327,7 @@ describe('ComfyUI internal runtime', () => {
       },
       { imageValues: ['primary.png'], maskValue: 'mask.png' },
       {
-        bridgeResolver: { resolve: async () => ({ identity, exchange: async (request) => {
+        bridgeResolver: { matchesAffinity: () => true, resolve: async () => ({ identity, exchange: async (request) => {
           if (request.command === 'handshake') return { requestId: request.requestId, ok: true, payload: { identity, protocolVersion: 1, bridgeVersion: 'test', frontendVersion: 'test', coreVersion: 'test', capabilities: { nativeQueue: true, workflowDiscovery: true, receiptObserver: true }, limits: COMFYUI_BRIDGE_LIMITS } };
           submit = request.payload as Record<string, unknown>;
           return { requestId: request.requestId, ok: true, payload: { operationId: (request.payload as { operationId: string }).operationId, promptId: 'prompt', acknowledgedAt: 1 } };
@@ -341,6 +342,95 @@ describe('ComfyUI internal runtime', () => {
     ]);
   });
 
+  it('rejects frontend execution without target affinity at both driver and adapter boundaries', async () => {
+    let resolves = 0;
+    const bridgeResolver = {
+      matchesAffinity: () => true,
+      resolve: async () => { resolves += 1; return undefined; },
+    };
+    const request = {
+      connection,
+      source: { kind: 'frontend-workflow' as const, workflowId: 'wf', revision: 'r1', remotePath: 'workflow.json' },
+      images: [],
+    };
+    const dependencies = {
+      bridgeResolver,
+      transport: { request: async () => { throw new Error('must not observe'); } },
+      sink: { put: async () => ({ kind: 'inline' as const, ref: 'unused' }) },
+    };
+
+    await expect(executeComfyUiFrontendQueue(request, { imageValues: [] }, dependencies))
+      .rejects.toMatchObject({ details: { stage: 'prepare', code: 'invalid-connection' } });
+    const adapter = createComfyUiExecutionAdapter({
+      assetResolver: { resolve: async () => undefined },
+      assetSink: dependencies.sink,
+      httpTransport: dependencies.transport,
+      frontendBridgeResolver: bridgeResolver,
+    });
+    await expect(adapter.dispatch({ request })).rejects.toMatchObject({
+      details: { stage: 'prepare', code: 'invalid-connection' },
+    });
+    expect(resolves).toBe(0);
+  });
+
+  it('rejects stale frontend affinity before resolving a Bridge', async () => {
+    let resolves = 0;
+    const targetAffinity = { baseUrl: connection.baseUrl, token: 'attempt-a' };
+    await expect(executeComfyUiFrontendQueue(
+      {
+        connection: { ...connection, targetAffinity },
+        source: { kind: 'frontend-workflow', workflowId: 'wf', revision: 'r1', remotePath: 'workflow.json' },
+        images: [],
+      },
+      { imageValues: [] },
+      {
+        bridgeResolver: {
+          matchesAffinity: () => false,
+          resolve: async () => { resolves += 1; return undefined; },
+        },
+        transport: { request: async () => { throw new Error('must not observe'); } },
+        sink: { put: async () => ({ kind: 'inline', ref: 'unused' }) },
+      },
+    )).rejects.toMatchObject({ details: { stage: 'prepare', code: 'invalid-connection', remoteMayContinue: false } });
+    expect(resolves).toBe(0);
+  });
+
+  it('rechecks frontend affinity after handshake and before submit', async () => {
+    const commands: string[] = [];
+    const receivedAffinities: unknown[] = [];
+    let affinityChecks = 0;
+    const identity = { origin: 'https://example.test', sourceId: 'source', loadId: 'load' };
+    const targetAffinity = { baseUrl: connection.baseUrl, token: 'attempt-a' };
+    await expect(executeComfyUiFrontendQueue(
+      {
+        connection: { ...connection, targetAffinity },
+        source: { kind: 'frontend-workflow', workflowId: 'wf', revision: 'r1', remotePath: 'workflow.json' },
+        images: [],
+      },
+      { imageValues: [] },
+      {
+        bridgeResolver: {
+          matchesAffinity: () => { affinityChecks += 1; return affinityChecks === 1; },
+          resolve: async (_workflowId, _signal, affinity) => {
+            receivedAffinities.push(affinity);
+            return {
+              identity,
+              exchange: async (request) => {
+                commands.push(request.command);
+                if (request.command !== 'handshake') throw new Error('must not submit');
+                return { requestId: request.requestId, ok: true, payload: { identity, protocolVersion: 1, bridgeVersion: 'test', frontendVersion: 'test', coreVersion: 'test', capabilities: { nativeQueue: true, workflowDiscovery: true, receiptObserver: true }, limits: COMFYUI_BRIDGE_LIMITS } };
+              },
+            };
+          },
+        },
+        transport: { request: async () => { throw new Error('must not observe'); } },
+        sink: { put: async () => ({ kind: 'inline', ref: 'unused' }) },
+      },
+    )).rejects.toMatchObject({ details: { stage: 'prepare', code: 'invalid-connection', remoteMayContinue: false } });
+    expect(receivedAffinities).toEqual([targetAffinity]);
+    expect(commands).toEqual(['handshake']);
+  });
+
   it('stops before /prompt when Mask upload barrier fails', async () => {
     const paths: string[] = [];
     let bridgeResolves = 0;
@@ -351,7 +441,7 @@ describe('ComfyUI internal runtime', () => {
       frontendBridgeResolver: { resolve: async () => { bridgeResolves += 1; return undefined; } },
     });
     await expect(adapter.dispatch({ request: {
-      connection,
+      connection: { ...connection, targetAffinity: { baseUrl: connection.baseUrl, token: 'attempt-a' } },
       source: { kind: 'frontend-workflow', workflowId: 'wf', revision: 'r1', remotePath: 'workflow.json' },
       images: [],
       mask: { asset: { storedRef: { kind: 'inline', ref: 'missing-mask' }, width: 1, height: 1 }, binding: { transport: 'separate-image-input', inputRef: { nodeId: '1', inputName: 'image' }, polarity: 'white-edit' } },

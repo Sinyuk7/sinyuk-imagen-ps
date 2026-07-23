@@ -7,11 +7,19 @@ type ComfyUiHttpRequest = Parameters<ComfyUiHttpTransport['request']>[0];
 export type ComfyUiFetch = (input: string, init?: RequestInit) => Promise<Response>;
 
 function requestUrl(request: ComfyUiHttpRequest): string {
-  const origin = new URL(request.origin);
-  const target = new URL(request.path, `${origin.origin}/`);
+  const base = new URL(request.origin);
+  if (!request.path.startsWith('/') || request.path.startsWith('//')) {
+    throw new Error('ComfyUI transport rejected an unsafe request URL.');
+  }
+  const basePath = base.pathname.replace(/\/+$/u, '');
+  const target = new URL(`${base.origin}${basePath}${request.path}`);
   if (
-    target.origin !== origin.origin
+    target.origin !== base.origin
     || (target.protocol !== 'http:' && target.protocol !== 'https:')
+    || base.username.length > 0
+    || base.password.length > 0
+    || base.search.length > 0
+    || base.hash.length > 0
     || target.username.length > 0
     || target.password.length > 0
     || target.hash.length > 0

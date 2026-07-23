@@ -114,6 +114,79 @@ describe('ComfyUI workflow settings surface', () => {
     expect(connect?.dataset.disabled).toBe('true');
     expect(connect?.getAttribute('aria-disabled')).toBe('true');
     expect(connect?.tabIndex).toBe(-1);
+    expect(container.querySelector<HTMLInputElement>('[data-testid="comfyui-address"]')?.getAttribute('aria-describedby')).toBe('comfyui-connection-status');
+    expect(container.querySelector('[data-testid="comfyui-connection-status"]')?.getAttribute('role')).toBe('status');
+  });
+
+  it('projects Connected/Reconnect and submits the enabled action with Enter', async () => {
+    const container = document.createElement('div');
+    document.body.appendChild(container);
+    const fake = createFakeServices({ comfyUi: { baseUrl: 'https://comfy.example.test' } });
+    const connect = vi.spyOn(fake.services.comfyUi, 'connect');
+    await renderMainPage(container, fake);
+    await openComfySettings(container);
+
+    expect(container.querySelector('[data-testid="comfyui-connect"]')?.textContent).toContain('重新连接');
+    expect(container.querySelector('[data-testid="comfyui-connection-status"]')?.textContent).toContain('https://comfy.example.test');
+    await act(async () => {
+      container.querySelector<HTMLInputElement>('[data-testid="comfyui-address"]')?.dispatchEvent(
+        new KeyboardEvent('keydown', { key: 'Enter', bubbles: true }),
+      );
+    });
+    await flush();
+    expect(connect).toHaveBeenCalledTimes(1);
+  });
+
+  it('editing A to B supersedes A, keeps active C, and does not auto-connect B', async () => {
+    const container = document.createElement('div');
+    document.body.appendChild(container);
+    const fake = createFakeServices({ comfyUi: { baseUrl: 'https://active.example' } });
+    const connect = vi.spyOn(fake.services.comfyUi, 'connect');
+    await renderMainPage(container, fake);
+    await openComfySettings(container);
+    const bridge = fake.comfyUiHarness.deferBridge();
+    const input = container.querySelector<HTMLInputElement>('[data-testid="comfyui-address"]')!;
+
+    await act(async () => { changeInput(input, 'https://attempt-a.example'); });
+    await act(async () => { container.querySelector<HTMLElement>('[data-testid="comfyui-connect"]')?.click(); });
+    await flush();
+    expect(container.querySelector('[data-testid="comfyui-connect"]')?.textContent).toContain('连接中');
+    expect(container.querySelector('[data-testid="comfyui-connection-status"]')?.textContent).toContain('https://active.example');
+
+    await act(async () => { changeInput(input, 'https://draft-b.example'); });
+    await flush();
+    expect(input.value).toBe('https://draft-b.example');
+    expect(container.querySelector('[data-testid="comfyui-connect"]')?.textContent).toBe('连接');
+    expect(connect).toHaveBeenCalledTimes(1);
+    expect(fake.comfyUiHarness.records.transitions).toContain('dispose');
+
+    bridge.resolve(undefined);
+    await flush();
+    expect(input.value).toBe('https://draft-b.example');
+    expect(connect).toHaveBeenCalledTimes(1);
+  });
+
+  it('shows a target-owned runtime failure without marking a valid URL invalid', async () => {
+    const container = document.createElement('div');
+    document.body.appendChild(container);
+    const fake = createFakeServices({ comfyUi: { baseUrl: 'https://active.example' } });
+    await renderMainPage(container, fake);
+    await openComfySettings(container);
+    const bridge = fake.comfyUiHarness.deferBridge();
+    const input = container.querySelector<HTMLInputElement>('[data-testid="comfyui-address"]')!;
+
+    await act(async () => { changeInput(input, 'https://failed.example'); });
+    await act(async () => { container.querySelector<HTMLElement>('[data-testid="comfyui-connect"]')?.click(); });
+    bridge.reject({ code: 'BRIDGE_HANDSHAKE_TIMEOUT', reason: 'timeout' });
+    await flush();
+    await flush();
+
+    expect(container.querySelector('[data-testid="comfyui-connect"]')?.textContent).toBe('重试');
+    expect(input.getAttribute('aria-invalid')).toBeNull();
+    const status = container.querySelector('[data-testid="comfyui-connection-status"]');
+    expect(status?.getAttribute('role')).toBe('alert');
+    expect(status?.textContent).toContain('Frontend Bridge 未响应');
+    expect(status?.textContent).toContain('https://active.example');
   });
 
   it('does not repeat settings-hub row labels as section headings', async () => {

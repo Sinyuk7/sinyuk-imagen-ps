@@ -21,6 +21,24 @@ describe('ComfyUI host HTTP transport', () => {
     );
   });
 
+  it('keeps the reverse-proxy base path when joining API routes', async () => {
+    const fetchImpl = vi.fn(async () => new Response('{}', { status: 200 }));
+    const transport = createComfyUiHttpTransport(fetchImpl);
+
+    await transport.request({
+      origin: 'https://comfy.example.test/reverse/proxy',
+      method: 'GET',
+      path: '/system_stats',
+      timeoutMs: 1_000,
+      maxResponseBytes: 16,
+    });
+
+    expect(fetchImpl).toHaveBeenCalledWith(
+      'https://comfy.example.test/reverse/proxy/system_stats',
+      expect.objectContaining({ credentials: 'omit' }),
+    );
+  });
+
   it('rejects cross-origin paths and oversized responses', async () => {
     const fetchImpl = vi.fn(async () => new Response(new Uint8Array(32), { status: 200 }));
     const transport = createComfyUiHttpTransport(fetchImpl);

@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import type { ApiFormat, ComfyUiMaskBinding, ProviderProfile, WorkflowInputCandidate, WorkflowMapping } from '@imagen-ps/application';
+import type { ApiFormat, ComfyUiConnectionErrorCode, ComfyUiMaskBinding, ProviderProfile, WorkflowInputCandidate, WorkflowMapping } from '@imagen-ps/application';
 import type { AppGenerationSettings } from '../../ports/app-generation-settings';
 import type { ModelGenerationSettingsController } from '../hooks/use-model-generation-settings';
 import { profileToProviderRow } from '../../domain/mappers';
@@ -7,7 +7,7 @@ import { useAppServices } from '../../ports/app-services-context';
 import { useI18n } from '../i18n/i18n-context';
 import type { ComfyUiManagementController } from '../hooks/use-comfyui-management';
 import type { SettingsTab } from '../settings-route';
-import { Button, Checkbox, FieldGroup, HelpText, Icon, IconButton, List, ListStateItem, PageFrame, PageHeader, PageScroll, SegmentedTabs, SettingsFormSection, SettingsListRow, SettingsListSection, StatusNotice, TextField, TextSelect } from '../ui-system';
+import { Button, Checkbox, FieldGroup, HelpText, Icon, IconButton, List, ListStateItem, MotionActivityIcon, PageFrame, PageHeader, PageScroll, SegmentedTabs, SettingsFormSection, SettingsListRow, SettingsListSection, StatusNotice, TextField, TextSelect } from '../ui-system';
 
 interface SettingsPageProps {
   readonly activeTab: SettingsTab;
@@ -160,21 +160,15 @@ function GeneralRoot({
   );
 }
 
-function ComfyUiRoot({
-  controller,
-  address,
-  onAddressChange,
-}: {
-  readonly controller: ComfyUiManagementController;
-  readonly address: string;
-  readonly onAddressChange: (value: string) => void;
-}) {
+function ComfyUiRoot({ controller }: { readonly controller: ComfyUiManagementController }) {
   const { messages: t } = useI18n();
   const [picker, setPicker] = useState(false);
   const [search, setSearch] = useState('');
   const [mappingMenu, setMappingMenu] = useState<'text' | 'image' | 'mask' | 'mask-polarity' | null>(null);
   const [parameterMenu, setParameterMenu] = useState<string | null>(null);
   const current = controller.runtime?.identity;
+  const connection = controller.connectionUiState;
+  const address = controller.draftBaseUrl;
   const mapping = controller.mappingProjection;
   const filtered = controller.catalog.filter((item) => `${item.displayName} ${item.remotePath}`.toLocaleLowerCase().includes(search.trim().toLocaleLowerCase()));
   const groups = new Map<string, typeof filtered>();
@@ -211,6 +205,43 @@ function ComfyUiRoot({
     void controller.setMaskBinding(candidate === undefined ? undefined : {
       transport: 'separate-image-input', inputRef: candidate.ref, polarity,
     });
+  };
+  const failureMessage = (code: ComfyUiConnectionErrorCode): string => {
+    if (code === 'API_UNREACHABLE') return t.settings.comfyUiApiUnreachable;
+    if (code === 'API_INVALID_RESPONSE') return t.settings.comfyUiApiInvalidResponse;
+    if (code === 'WEBVIEW_LOAD_FAILED') return t.settings.comfyUiWebViewLoadFailed;
+    if (code === 'BRIDGE_HANDSHAKE_TIMEOUT') return t.settings.comfyUiBridgeHandshakeTimeout;
+    if (code === 'BRIDGE_CONTRACT_MISMATCH') return t.settings.comfyUiBridgeContractMismatch;
+    return t.settings.comfyUiPersistenceFailed;
+  };
+  const phaseMessage = connection.kind === 'connecting'
+    ? connection.phase === 'api'
+      ? t.settings.comfyUiCheckingServer
+      : connection.phase === 'frontend'
+        ? t.settings.comfyUiLoadingBridge
+        : connection.phase === 'bridge'
+          ? t.settings.comfyUiValidatingBridge
+          : t.settings.comfyUiSavingConnection
+    : undefined;
+  const statusLines = connection.kind === 'invalid'
+    ? [t.settings.comfyUiAddressInvalid, ...(connection.activeBaseUrl ? [t.settings.comfyUiStillConnectedTo(connection.activeBaseUrl)] : [])]
+    : connection.kind === 'ready'
+      ? connection.activeBaseUrl ? [t.settings.comfyUiSwitchFrom(connection.activeBaseUrl)] : ['']
+      : connection.kind === 'connecting'
+        ? [phaseMessage ?? t.settings.comfyUiConnecting, ...(connection.activeBaseUrl ? [t.settings.comfyUiStillConnectedTo(connection.activeBaseUrl)] : [])]
+        : connection.kind === 'connected'
+          ? [t.settings.comfyUiConnectedTo(connection.baseUrl)]
+          : [failureMessage(connection.failure.code), ...(connection.activeBaseUrl ? [t.settings.comfyUiStillConnectedTo(connection.activeBaseUrl)] : [])];
+  const actionLabel = connection.action === 'connecting'
+    ? t.settings.comfyUiConnecting
+    : connection.action === 'reconnect'
+      ? t.settings.comfyUiReconnect
+      : connection.action === 'retry'
+        ? t.settings.comfyUiRetry
+        : t.settings.comfyUiConnect;
+  const activateConnection = (): void => {
+    if (connection.disabled) return;
+    void controller.connect().catch(() => undefined);
   };
 
   if (picker) {
@@ -256,10 +287,37 @@ function ComfyUiRoot({
           <div className="comfyui-connection-field">
             <FieldGroup label={t.settings.comfyUiAddress} htmlFor="comfyui-address">
               <div className="settings-field-action-row comfyui-connection-controls">
-                <TextField id="comfyui-address" data-testid="comfyui-address" className="field-input" value={address} onValue={onAddressChange} />
-                <Button data-testid="comfyui-connect" disabled={controller.busy || !address.trim()} onClick={() => void controller.saveBaseUrl(address)}>Connect</Button>
+                <TextField
+                  id="comfyui-address"
+                  data-testid="comfyui-address"
+                  className="field-input"
+                  value={address}
+                  onValue={controller.setDraftBaseUrl}
+                  onKeyDown={(event) => {
+                    if (event.key !== 'Enter' || connection.disabled) return;
+                    event.preventDefault();
+                    activateConnection();
+                  }}
+                  aria-invalid={connection.kind === 'invalid' || undefined}
+                  aria-describedby="comfyui-connection-status"
+                  title={address}
+                />
+                <Button data-testid="comfyui-connect" disabled={connection.disabled} onClick={activateConnection}>
+                  {connection.kind === 'connecting' ? <span className="comfyui-connection-spinner" role="img" aria-label={t.settings.comfyUiConnecting}><MotionActivityIcon><Icon name="spinner" size={13} /></MotionActivityIcon></span> : null}
+                  <span>{actionLabel}</span>
+                </Button>
               </div>
-              {controller.baseUrl ? <HelpText data-testid="comfyui-connection-status" className="field-hint">{controller.error ?? controller.baseUrl}</HelpText> : null}
+              <HelpText
+                id="comfyui-connection-status"
+                data-testid="comfyui-connection-status"
+                className="field-hint comfyui-connection-status"
+                variant={connection.kind === 'failed' ? 'negative' : undefined}
+                role={connection.kind === 'failed' ? 'alert' : 'status'}
+                aria-live={connection.kind === 'failed' ? 'assertive' : 'polite'}
+                title={statusLines.filter(Boolean).join(' ')}
+              >
+                {statusLines.map((line, index) => <span key={`${index}:${line}`} className="comfyui-connection-status-line">{line || '\u00a0'}</span>)}
+              </HelpText>
             </FieldGroup>
           </div>
         </SettingsFormSection>
@@ -289,9 +347,7 @@ export function SettingsPage(props: SettingsPageProps) {
   const { messages: t } = useI18n();
   const services = useAppServices();
   const [modelCounts, setModelCounts] = useState<ReadonlyMap<string, number>>(new Map());
-  const [comfyAddressDraft, setComfyAddressDraft] = useState(props.comfyUi.baseUrl);
   const sequenceRef = useRef(0);
-  useEffect(() => setComfyAddressDraft(props.comfyUi.baseUrl), [props.comfyUi.baseUrl]);
   useEffect(() => {
     const sequence = ++sequenceRef.current;
     void Promise.all(props.profiles.map(async (profile) => {
@@ -313,7 +369,7 @@ export function SettingsPage(props: SettingsPageProps) {
       <PageScroll>
         {props.activeTab === 'provider' ? <ProviderRoot profiles={props.profiles} loading={props.loading} error={props.error} modelCounts={modelCounts} highlightedProfileId={props.highlightedProfileId} onOpenOutput={props.onOpenProviderOutput} onOpenProfile={props.onOpenProfile} /> : null}
         {props.activeTab === 'general' ? <GeneralRoot onOpenGlobalSettings={props.onOpenGlobalSettings} onOpenPromptSettings={props.onOpenPromptSettings} /> : null}
-        {props.activeTab === 'comfyui' ? <ComfyUiRoot controller={props.comfyUi} address={comfyAddressDraft} onAddressChange={setComfyAddressDraft} /> : null}
+        {props.activeTab === 'comfyui' ? <ComfyUiRoot controller={props.comfyUi} /> : null}
       </PageScroll>
       </div>
     </PageFrame>

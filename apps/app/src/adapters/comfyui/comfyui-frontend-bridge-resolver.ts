@@ -1,14 +1,18 @@
-import type { ComfyUiExecutionHostPorts } from '@imagen-ps/application';
+import type {
+  ComfyUiConnectionTarget,
+  ComfyUiExecutionHostPorts,
+  ComfyUiFrontendBridgeGeneration,
+  ComfyUiFrontendBridgeGenerationFactory,
+  ComfyUiFrontendBridgeResolutionPhase,
+  ComfyUiFrontendBridgeResolutionReason,
+} from '@imagen-ps/application';
+import { createComfyUiFrontendBridgeResolutionError } from '@imagen-ps/application';
 import type { Logger, LogSpan } from '@imagen-ps/foundation';
 
 type FrontendBridgeResolver = NonNullable<ComfyUiExecutionHostPorts['frontendBridgeResolver']>;
 type FrontendBridgePort = NonNullable<Awaited<ReturnType<FrontendBridgeResolver['resolve']>>>;
 type BridgeRequest = Parameters<FrontendBridgePort['exchange']>[0];
 type BridgeIdentity = FrontendBridgePort['identity'];
-interface ComfyUiServerReader {
-  load(): Promise<{ readonly baseUrl: string; readonly requestTimeoutMs: number } | undefined>;
-}
-
 interface BridgeMessageTarget {
   postMessage(message: unknown, targetOrigin: string): void;
 }
@@ -41,7 +45,7 @@ export interface ChromeComfyUiBridgeFrameElement extends BridgeLoadElement {
 export interface UxpComfyUiBridgeWebViewElement extends BridgeLoadElement {
   width: string;
   height: string;
-  postMessage(message: unknown): void;
+  postMessage(message: unknown, targetOrigin: string): void;
 }
 
 /** Resolver 使用的 host message window seam。 */
@@ -56,13 +60,7 @@ export interface ComfyUiBridgeResolverClock {
   clearTimeout(handle: unknown): void;
 }
 
-/** 带有显式 host lifecycle 的 ComfyUI Bridge resolver。 */
-export type DisposableComfyUiFrontendBridgeResolver = FrontendBridgeResolver & {
-  dispose(): void;
-};
-
 interface SharedResolverOptions {
-  readonly server: ComfyUiServerReader;
   readonly hostWindow?: ComfyUiBridgeHostWindow;
   readonly clock?: ComfyUiBridgeResolverClock;
   readonly createRuntimeId?: (prefix: string) => string;
@@ -70,7 +68,7 @@ interface SharedResolverOptions {
 }
 
 /** Chrome iframe resolver 的 DOM 与 lifecycle 注入点。 */
-export interface ChromeComfyUiFrontendBridgeResolverOptions extends SharedResolverOptions {
+export interface ChromeComfyUiFrontendBridgeGenerationFactoryOptions extends SharedResolverOptions {
   /** Chrome parent page 的 canonical HTTP(S) origin。 */
   readonly parentOrigin: string;
   readonly createFrame?: (workflowId: string) => ChromeComfyUiBridgeFrameElement;
@@ -79,18 +77,15 @@ export interface ChromeComfyUiFrontendBridgeResolverOptions extends SharedResolv
 }
 
 /** Photoshop UXP WebView resolver 的 DOM 与 lifecycle 注入点。 */
-export interface UxpComfyUiFrontendBridgeResolverOptions extends SharedResolverOptions {
+export interface UxpComfyUiFrontendBridgeGenerationFactoryOptions extends SharedResolverOptions {
   readonly pluginId: string;
   readonly createWebView?: (workflowId: string) => UxpComfyUiBridgeWebViewElement;
   readonly mountWebView?: (webView: UxpComfyUiBridgeWebViewElement, workflowId: string) => void;
   readonly detachWebView?: (webView: UxpComfyUiBridgeWebViewElement, workflowId: string) => void;
 }
 
-interface ConnectionSnapshot {
+interface ConnectionSnapshot extends ComfyUiConnectionTarget {
   readonly workflowId: string;
-  readonly baseUrl: string;
-  readonly origin: string;
-  readonly requestTimeoutMs: number;
 }
 
 interface LoadCallbacks {
@@ -110,7 +105,7 @@ interface SessionTransport {
 }
 
 interface ResolverConfiguration {
-  readonly server: ComfyUiServerReader;
+  readonly target: ComfyUiConnectionTarget;
   readonly hostWindow: ComfyUiBridgeHostWindow;
   readonly clock: ComfyUiBridgeResolverClock;
   readonly createRuntimeId: (prefix: string) => string;
@@ -173,10 +168,11 @@ function createDeferred<T>(): Deferred<T> {
   };
 }
 
-function resolverError(reason: 'aborted' | 'disposed' | 'load-failed' | 'reloaded' | 'stale' | 'timeout'): Error {
-  const error = new Error(`ComfyUI Bridge resolver ${reason}.`);
-  if (reason === 'aborted') error.name = 'AbortError';
-  return error;
+function resolverError(
+  phase: ComfyUiFrontendBridgeResolutionPhase,
+  reason: ComfyUiFrontendBridgeResolutionReason,
+): Error {
+  return createComfyUiFrontendBridgeResolutionError(phase, reason);
 }
 
 function runtimeIdFactory(factory: SharedResolverOptions['createRuntimeId']): (prefix: string) => string {
@@ -189,33 +185,6 @@ function runtimeIdFactory(factory: SharedResolverOptions['createRuntimeId']): (p
       throw new Error('ComfyUI Bridge runtime id is invalid.');
     }
     return value;
-  };
-}
-
-function canonicalConnection(value: Awaited<ReturnType<ComfyUiServerReader['load']>>, workflowId: string): ConnectionSnapshot | undefined {
-  if (value === undefined) return undefined;
-  let url: URL;
-  try {
-    url = new URL(value.baseUrl);
-  } catch {
-    return undefined;
-  }
-  if (
-    (url.protocol !== 'http:' && url.protocol !== 'https:')
-    || url.username.length > 0
-    || url.password.length > 0
-    || url.search.length > 0
-    || url.hash.length > 0
-    || !Number.isInteger(value.requestTimeoutMs)
-    || value.requestTimeoutMs < 250
-    || value.requestTimeoutMs > 300_000
-  ) return undefined;
-  const path = url.pathname.replace(/\/{2,}/g, '/').replace(/\/$/u, '');
-  return {
-    workflowId,
-    baseUrl: `${url.origin}${path}`,
-    origin: url.origin,
-    requestTimeoutMs: value.requestTimeoutMs,
   };
 }
 
@@ -289,8 +258,27 @@ function exchangeOperation(command: BridgeRequest['command']): string {
 
 function resolverReason(error: unknown): string {
   if (!(error instanceof Error)) return 'unknown';
-  const match = /^ComfyUI Bridge resolver ([a-z-]+)\.$/u.exec(error.message);
-  return match?.[1] ?? 'unknown';
+  const reason = (error as { readonly reason?: unknown }).reason;
+  return typeof reason === 'string' ? reason : 'unknown';
+}
+
+function resolverPhase(error: unknown, fallback: ComfyUiFrontendBridgeResolutionPhase): string {
+  if (!(error instanceof Error)) return fallback;
+  const phase = (error as { readonly phase?: unknown }).phase;
+  return typeof phase === 'string' ? phase : fallback;
+}
+
+function structuredResolverError(
+  error: unknown,
+  fallbackPhase: ComfyUiFrontendBridgeResolutionPhase,
+): Error {
+  if (
+    error instanceof Error
+    && error.name === 'ComfyUiFrontendBridgeResolutionError'
+    && typeof (error as { readonly phase?: unknown }).phase === 'string'
+    && typeof (error as { readonly reason?: unknown }).reason === 'string'
+  ) return error;
+  return resolverError(fallbackPhase, 'unknown');
 }
 
 function resolverLogError(error: unknown): { readonly category: 'bridge'; readonly kind: string; readonly message: string } {
@@ -308,11 +296,11 @@ function eventUrl(event: Event): string | undefined {
 
 function waitWithSignal<T>(promise: Promise<T>, signal: AbortSignal | undefined): Promise<T> {
   if (signal === undefined) return promise;
-  if (signal.aborted) return Promise.reject(resolverError('aborted'));
+  if (signal.aborted) return Promise.reject(resolverError('ready', 'aborted'));
   return new Promise<T>((resolve, reject) => {
     const abort = (): void => {
       signal.removeEventListener('abort', abort);
-      reject(resolverError('aborted'));
+      reject(resolverError('ready', 'aborted'));
     };
     signal.addEventListener('abort', abort, { once: true });
     promise.then(
@@ -333,7 +321,7 @@ class BridgeSession {
   private readonly sourceId: string;
   private identityValue: BridgeIdentity;
   private expectedUrl: string;
-  private timeoutMs: number;
+  private readonly timeoutMs: number;
   private state: 'new' | 'loading' | 'ready' | 'disposed' = 'new';
   private ready = createDeferred<void>();
   private readonly pending = new Map<string, PendingExchange>();
@@ -358,7 +346,7 @@ class BridgeSession {
     this.timeoutMs = connection.requestTimeoutMs;
     this.sourceId = createRuntimeId('comfy-bridge-source');
     this.identityValue = this.nextIdentity();
-    this.expectedUrl = bridgeUrl(connection.baseUrl, this.identityValue);
+    this.expectedUrl = bridgeUrl(connection.frontendBaseUrl, this.identityValue);
     const session = this;
     this.port = Object.freeze({
       get identity() {
@@ -389,27 +377,18 @@ class BridgeSession {
       this.transport.navigate(this.expectedUrl);
       this.transport.mount();
     } catch {
-      this.retire(resolverError('load-failed'));
-    }
-  }
-
-  updateTimeout(timeoutMs: number): void {
-    if (this.timeoutMs === timeoutMs) return;
-    this.timeoutMs = timeoutMs;
-    if (this.state === 'loading') {
-      this.clearLoadTimeout();
-      this.scheduleLoadTimeout();
+      this.retire(resolverError('load', 'load-failed'));
     }
   }
 
   requestRetirement(): void {
     if (this.state === 'disposed') return;
     this.retireWhenIdle = true;
-    if (this.pending.size === 0) this.retire(resolverError('disposed'));
+    if (this.pending.size === 0) this.retire(resolverError('ready', 'disposed'));
   }
 
   async awaitReady(signal?: AbortSignal): Promise<void> {
-    if (this.state === 'disposed') throw resolverError('disposed');
+    if (this.state === 'disposed') throw resolverError('ready', 'disposed');
     if (this.state === 'ready') return;
     await waitWithSignal(this.ready.promise, signal);
   }
@@ -426,8 +405,9 @@ class BridgeSession {
     if (!originMatches || !sourceMatches) {
       this.logger?.warn('comfyui.bridge.message.rejected', {
         transport: this.transportKind,
-        command: exchange.command,
+        phase: exchange.command === 'handshake' ? 'handshake' : 'contract',
         reason: !originMatches ? 'origin-mismatch' : 'source-mismatch',
+        result: 'rejected',
       });
       return false;
     }
@@ -445,7 +425,7 @@ class BridgeSession {
     return true;
   }
 
-  dispose(reason = resolverError('disposed')): void {
+  dispose(reason = resolverError('ready', 'disposed')): void {
     if (this.state === 'disposed') return;
     this.failLoadSpan(reason, 'load');
     this.state = 'disposed';
@@ -469,20 +449,16 @@ class BridgeSession {
   }
 
   private async exchange(request: BridgeRequest, signal?: AbortSignal): Promise<unknown> {
-    const span = this.logger?.startSpan(exchangeOperation(request.command), {
-      transport: this.transportKind,
-      command: request.command,
-    });
-    let phase: 'identity' | 'load' | 'send' | 'response' = 'identity';
+    const operationPhase: ComfyUiFrontendBridgeResolutionPhase = request.command === 'handshake'
+      ? 'handshake'
+      : 'contract';
+    const span = this.logger?.startSpan(exchangeOperation(request.command), { transport: this.transportKind });
     try {
-      if (!identityMatches(request.identity, this.identityValue)) throw resolverError('stale');
-      phase = 'load';
+      if (!identityMatches(request.identity, this.identityValue)) throw resolverError('contract', 'identity-mismatch');
       await this.awaitReady(signal);
-      if (!identityMatches(request.identity, this.identityValue)) throw resolverError('stale');
-      if (signal?.aborted) throw resolverError('aborted');
-      if (this.pending.has(request.requestId)) throw resolverError('stale');
-      phase = 'send';
-
+      if (!identityMatches(request.identity, this.identityValue)) throw resolverError('contract', 'identity-mismatch');
+      if (signal?.aborted) throw resolverError(operationPhase, 'aborted');
+      if (this.pending.has(request.requestId)) throw resolverError(operationPhase, 'stale');
       const response = await new Promise<unknown>((resolve, reject) => {
         let timeoutHandle: unknown | undefined;
         let retryHandle: unknown | undefined;
@@ -491,7 +467,7 @@ class BridgeSession {
           if (pending === undefined) return;
           this.pending.delete(request.requestId);
           pending.cleanup();
-          pending.reject(resolverError('aborted'));
+          pending.reject(resolverError(operationPhase, 'aborted'));
         };
         const cleanup = (): void => {
           if (timeoutHandle !== undefined) this.clock.clearTimeout(timeoutHandle);
@@ -505,7 +481,7 @@ class BridgeSession {
           if (pending === undefined) return;
           this.pending.delete(request.requestId);
           pending.cleanup();
-          pending.reject(resolverError('timeout'));
+          pending.reject(resolverError(operationPhase, 'timeout'));
         }, this.timeoutMs);
 
         const send = (): void => {
@@ -516,12 +492,12 @@ class BridgeSession {
               if (!this.pending.has(request.requestId)) return;
               try {
                 send();
-              } catch (error) {
+              } catch {
                 const pending = this.pending.get(request.requestId);
                 if (pending === undefined) return;
                 this.pending.delete(request.requestId);
                 pending.cleanup();
-                pending.reject(error);
+                pending.reject(resolverError(operationPhase, 'unknown'));
               }
             }, this.handshakeRetryMs);
           }
@@ -529,31 +505,31 @@ class BridgeSession {
 
         try {
           send();
-          phase = 'response';
-        } catch (error) {
+        } catch {
           const pending = this.pending.get(request.requestId);
           if (pending === undefined) return;
           this.pending.delete(request.requestId);
           pending.cleanup();
-          pending.reject(error);
+          pending.reject(resolverError(operationPhase, 'unknown'));
         }
       });
       span?.finish({
         transport: this.transportKind,
-        command: request.command,
+        phase: operationPhase,
+        result: 'ok',
       });
       if (this.retireAfterWorkflowList && request.command === 'list-workflows') this.retireWhenIdle = true;
       return response;
     } catch (error) {
       span?.fail(resolverLogError(error), {
         transport: this.transportKind,
-        command: request.command,
-        phase,
+        phase: resolverPhase(error, operationPhase),
         reason: resolverReason(error),
+        result: 'failed',
       });
-      throw error;
+      throw structuredResolverError(error, operationPhase);
     } finally {
-      if (this.retireWhenIdle && this.pending.size === 0) this.retire(resolverError('disposed'));
+      if (this.retireWhenIdle && this.pending.size === 0) this.retire(resolverError('ready', 'disposed'));
     }
   }
 
@@ -570,6 +546,7 @@ class BridgeSession {
         transport: this.transportKind,
         phase: 'stop',
         reason: 'unexpected-url',
+        result: 'rejected',
       });
       return;
     }
@@ -586,7 +563,7 @@ class BridgeSession {
 
   private handleLoadError(url: string | undefined): void {
     if (this.state === 'disposed' || !this.isExpectedUrl(url)) return;
-    this.retire(resolverError('load-failed'));
+    this.retire(resolverError('load', 'load-failed'));
   }
 
   private isExpectedUrl(url: string | undefined): boolean {
@@ -601,13 +578,13 @@ class BridgeSession {
 
   private rotateLoad(): void {
     if (this.state === 'disposed') return;
-    const error = resolverError('reloaded');
+    const error = resolverError('ready', 'reloaded');
     this.failLoadSpan(error, 'reload');
     this.ready.reject(error);
     this.rejectPending(error);
     this.clearLoadTimeout();
     this.identityValue = this.nextIdentity();
-    this.expectedUrl = bridgeUrl(this.connection.baseUrl, this.identityValue);
+    this.expectedUrl = bridgeUrl(this.connection.frontendBaseUrl, this.identityValue);
     this.ready = createDeferred<void>();
     this.state = 'loading';
     this.beginLoadSpan();
@@ -615,7 +592,7 @@ class BridgeSession {
     try {
       this.transport.navigate(this.expectedUrl);
     } catch {
-      this.retire(resolverError('load-failed'));
+      this.retire(resolverError('load', 'load-failed'));
     }
   }
 
@@ -630,7 +607,7 @@ class BridgeSession {
 
   private scheduleLoadTimeout(): void {
     this.loadTimeout = this.clock.setTimeout(() => {
-      this.retire(resolverError('timeout'));
+      this.retire(resolverError('ready', 'timeout'));
     }, this.timeoutMs);
   }
 
@@ -641,7 +618,7 @@ class BridgeSession {
   }
 
   private finishLoadSpan(): void {
-    this.loadSpan?.finish({ transport: this.transportKind });
+    this.loadSpan?.finish({ transport: this.transportKind, phase: 'ready', result: 'ok' });
     this.loadSpan = undefined;
   }
 
@@ -650,6 +627,7 @@ class BridgeSession {
       transport: this.transportKind,
       phase,
       reason: resolverReason(error),
+      result: 'failed',
     });
     this.loadSpan = undefined;
   }
@@ -668,9 +646,10 @@ class BridgeSession {
   }
 }
 
-function createResolver(configuration: ResolverConfiguration): DisposableComfyUiFrontendBridgeResolver {
+function createResolver(configuration: ResolverConfiguration): ComfyUiFrontendBridgeGeneration {
   const sessions = new Map<string, BridgeSession>();
   let disposed = false;
+  let retiring = false;
 
   const handleMessage = (event: MessageEvent<unknown>): void => {
     for (const session of sessions.values()) {
@@ -679,28 +658,31 @@ function createResolver(configuration: ResolverConfiguration): DisposableComfyUi
   };
   configuration.hostWindow.addEventListener('message', handleMessage);
 
+  const dispose = (): void => {
+    if (disposed) return;
+    disposed = true;
+    configuration.hostWindow.removeEventListener('message', handleMessage);
+    const activeSessions = Array.from(sessions.values());
+    sessions.clear();
+    for (const session of activeSessions) session.dispose();
+  };
+  const finishRetireIfIdle = (): void => {
+    if (retiring && sessions.size === 0) dispose();
+  };
+
   return {
-    async resolve(workflowId) {
+    target: configuration.target,
+    async resolve(workflowId, signal) {
       const span = configuration.logger?.startSpan('comfyui.bridge.resolve', {
         transport: configuration.transportKind,
       });
       try {
-        if (disposed) {
-          span?.finish({ transport: configuration.transportKind, result: 'disposed' });
+        if (disposed || retiring) {
+          span?.finish({ transport: configuration.transportKind, phase: 'ready', result: 'disposed' });
           return undefined;
         }
-        const connection = canonicalConnection(await configuration.server.load(), workflowId);
-        if (disposed) {
-          span?.finish({ transport: configuration.transportKind, result: 'disposed' });
-          return undefined;
-        }
-        if (connection === undefined) {
-          const invalidSession = sessions.get(workflowId);
-          sessions.delete(workflowId);
-          invalidSession?.dispose(resolverError('disposed'));
-          span?.finish({ transport: configuration.transportKind, result: 'unavailable' });
-          return undefined;
-        }
+        if (signal?.aborted) throw resolverError('ready', 'aborted');
+        const connection: ConnectionSnapshot = Object.freeze({ ...configuration.target, workflowId });
 
         if (workflowId !== 'discovery') {
           for (const [activeWorkflowId, activeSession] of Array.from(sessions.entries())) {
@@ -711,11 +693,6 @@ function createResolver(configuration: ResolverConfiguration): DisposableComfyUi
         }
 
         let session = sessions.get(workflowId);
-        if (session !== undefined && session.connection.baseUrl !== connection.baseUrl) {
-          sessions.delete(workflowId);
-          session.dispose(resolverError('disposed'));
-          session = undefined;
-        }
         const sessionResult = session === undefined || session.disposed ? 'created' : 'reused';
         if (session === undefined || session.disposed) {
           session = new BridgeSession(
@@ -727,6 +704,7 @@ function createResolver(configuration: ResolverConfiguration): DisposableComfyUi
             configuration.createRuntimeId,
             (retired) => {
               if (sessions.get(workflowId) === retired) sessions.delete(workflowId);
+              finishRetireIfIdle();
             },
             workflowId === 'discovery',
             configuration.handshakeRetryMs,
@@ -734,41 +712,39 @@ function createResolver(configuration: ResolverConfiguration): DisposableComfyUi
           );
           sessions.set(workflowId, session);
           session.start();
-        } else {
-          session.updateTimeout(connection.requestTimeoutMs);
         }
-        await session.awaitReady();
+        await session.awaitReady(signal);
         span?.finish({
           transport: configuration.transportKind,
+          phase: 'ready',
           result: sessionResult,
         });
         return session.port;
       } catch (error) {
         span?.fail(resolverLogError(error), {
           transport: configuration.transportKind,
-          phase: 'load',
+          phase: resolverPhase(error, 'ready'),
           reason: resolverReason(error),
+          result: 'failed',
         });
-        throw error;
+        throw structuredResolverError(error, 'load');
       }
     },
-    dispose() {
-      if (disposed) return;
-      disposed = true;
-      configuration.hostWindow.removeEventListener('message', handleMessage);
-      const activeSessions = Array.from(sessions.values());
-      sessions.clear();
-      for (const session of activeSessions) session.dispose();
+    retire() {
+      if (disposed || retiring) return;
+      retiring = true;
+      for (const session of Array.from(sessions.values())) session.requestRetirement();
+      finishRetireIfIdle();
     },
+    dispose,
   };
 }
 
 function sharedConfiguration(options: SharedResolverOptions): Pick<
   ResolverConfiguration,
-    'server' | 'hostWindow' | 'clock' | 'createRuntimeId' | 'logger'
+    'hostWindow' | 'clock' | 'createRuntimeId' | 'logger'
 > {
   return {
-    server: options.server,
     hostWindow: options.hostWindow ?? globalThis.window,
     clock: options.clock ?? defaultClock,
     createRuntimeId: runtimeIdFactory(options.createRuntimeId),
@@ -793,10 +769,10 @@ function configureOffscreenCanvas(element: BridgeLoadElement): void {
   element.style.border = '0';
 }
 
-/** 创建 Chrome iframe connection-scoped Bridge resolver。 */
-export function createChromeComfyUiFrontendBridgeResolver(
-  options: ChromeComfyUiFrontendBridgeResolverOptions,
-): DisposableComfyUiFrontendBridgeResolver {
+/** 创建 Chrome iframe target-bound Bridge generation factory。 */
+export function createChromeComfyUiFrontendBridgeGenerationFactory(
+  options: ChromeComfyUiFrontendBridgeGenerationFactoryOptions,
+): ComfyUiFrontendBridgeGenerationFactory {
   const parentOrigin = canonicalHttpOrigin(options.parentOrigin);
   const createFrame = options.createFrame ?? (() => {
     const frame = globalThis.document.createElement('iframe');
@@ -806,45 +782,50 @@ export function createChromeComfyUiFrontendBridgeResolver(
   const mountFrame = options.mountFrame ?? ((frame: ChromeComfyUiBridgeFrameElement) => defaultMount(frame));
   const detachFrame = options.detachFrame ?? ((frame: ChromeComfyUiBridgeFrameElement) => frame.remove());
 
-  return createResolver({
-    ...sharedConfiguration(options),
-    transportKind: 'chrome',
-    identityOrigin: () => parentOrigin,
-    handshakeRetryMs: CHROME_HANDSHAKE_RETRY_MS,
-    createTransport(connection) {
-      const frame = createFrame(connection.workflowId);
-      return {
-        attach(callbacks) {
-          const load: EventListener = () => callbacks.stop(frame.src, true);
-          const error: EventListener = () => callbacks.error(frame.src);
-          frame.addEventListener('load', load);
-          frame.addEventListener('error', error);
-          return () => {
-            frame.removeEventListener('load', load);
-            frame.removeEventListener('error', error);
+  return {
+    create(target) {
+      return createResolver({
+        ...sharedConfiguration(options),
+        target: Object.freeze({ ...target }),
+        transportKind: 'chrome',
+        identityOrigin: () => parentOrigin,
+        handshakeRetryMs: CHROME_HANDSHAKE_RETRY_MS,
+        createTransport(connection) {
+          const frame = createFrame(connection.workflowId);
+          return {
+            attach(callbacks) {
+              const load: EventListener = () => callbacks.stop(frame.src, true);
+              const error: EventListener = () => callbacks.error(frame.src);
+              frame.addEventListener('load', load);
+              frame.addEventListener('error', error);
+              return () => {
+                frame.removeEventListener('load', load);
+                frame.removeEventListener('error', error);
+              };
+            },
+            mount: () => mountFrame(frame, connection.workflowId),
+            navigate(url) {
+              frame.src = url;
+            },
+            detach: () => detachFrame(frame, connection.workflowId),
+            source: () => frame.contentWindow,
+            send(request, targetOrigin) {
+              const contentWindow = frame.contentWindow;
+              if (contentWindow === null) throw resolverError('load', 'load-failed');
+              contentWindow.postMessage(request, targetOrigin);
+            },
+            currentUrl: () => frame.src,
           };
         },
-        mount: () => mountFrame(frame, connection.workflowId),
-        navigate(url) {
-          frame.src = url;
-        },
-        detach: () => detachFrame(frame, connection.workflowId),
-        source: () => frame.contentWindow,
-        send(request, targetOrigin) {
-          const contentWindow = frame.contentWindow;
-          if (contentWindow === null) throw resolverError('load-failed');
-          contentWindow.postMessage(request, targetOrigin);
-        },
-        currentUrl: () => frame.src,
-      };
+      });
     },
-  });
+  };
 }
 
-/** 创建 Photoshop UXP WebView connection-scoped Bridge resolver。 */
-export function createUxpComfyUiFrontendBridgeResolver(
-  options: UxpComfyUiFrontendBridgeResolverOptions,
-): DisposableComfyUiFrontendBridgeResolver {
+/** 创建 Photoshop UXP WebView target-bound Bridge generation factory。 */
+export function createUxpComfyUiFrontendBridgeGenerationFactory(
+  options: UxpComfyUiFrontendBridgeGenerationFactoryOptions,
+): ComfyUiFrontendBridgeGenerationFactory {
   if (!PLUGIN_ID_PATTERN.test(options.pluginId) || options.pluginId.length > 128) {
     throw new Error('ComfyUI Bridge plugin id is invalid.');
   }
@@ -858,37 +839,42 @@ export function createUxpComfyUiFrontendBridgeResolver(
   const mountWebView = options.mountWebView ?? ((webView: UxpComfyUiBridgeWebViewElement) => defaultMount(webView));
   const detachWebView = options.detachWebView ?? ((webView: UxpComfyUiBridgeWebViewElement) => webView.remove());
 
-  return createResolver({
-    ...sharedConfiguration(options),
-    transportKind: 'uxp',
-    identityOrigin: () => options.pluginId,
-    createTransport(connection) {
-      const webView = createWebView(connection.workflowId);
-      return {
-        attach(callbacks) {
-          const loadStart: EventListener = (event) => callbacks.start?.(eventUrl(event));
-          const loadStop: EventListener = (event) => callbacks.stop(eventUrl(event), false);
-          const loadError: EventListener = (event) => callbacks.error(eventUrl(event));
-          webView.addEventListener('loadstart', loadStart);
-          webView.addEventListener('loadstop', loadStop);
-          webView.addEventListener('loaderror', loadError);
-          return () => {
-            webView.removeEventListener('loadstart', loadStart);
-            webView.removeEventListener('loadstop', loadStop);
-            webView.removeEventListener('loaderror', loadError);
+  return {
+    create(target) {
+      return createResolver({
+        ...sharedConfiguration(options),
+        target: Object.freeze({ ...target }),
+        transportKind: 'uxp',
+        identityOrigin: () => options.pluginId,
+        createTransport(connection) {
+          const webView = createWebView(connection.workflowId);
+          return {
+            attach(callbacks) {
+              const loadStart: EventListener = (event) => callbacks.start?.(eventUrl(event));
+              const loadStop: EventListener = (event) => callbacks.stop(eventUrl(event), false);
+              const loadError: EventListener = (event) => callbacks.error(eventUrl(event));
+              webView.addEventListener('loadstart', loadStart);
+              webView.addEventListener('loadstop', loadStop);
+              webView.addEventListener('loaderror', loadError);
+              return () => {
+                webView.removeEventListener('loadstart', loadStart);
+                webView.removeEventListener('loadstop', loadStop);
+                webView.removeEventListener('loaderror', loadError);
+              };
+            },
+            mount: () => mountWebView(webView, connection.workflowId),
+            navigate(url) {
+              webView.src = url;
+            },
+            detach: () => detachWebView(webView, connection.workflowId),
+            source: () => webView,
+            send(request, targetOrigin) {
+              webView.postMessage(request, targetOrigin);
+            },
+            currentUrl: () => webView.src,
           };
         },
-        mount: () => mountWebView(webView, connection.workflowId),
-        navigate(url) {
-          webView.src = url;
-        },
-        detach: () => detachWebView(webView, connection.workflowId),
-        source: () => webView,
-        send(request) {
-          webView.postMessage(request);
-        },
-        currentUrl: () => webView.src,
-      };
+      });
     },
-  });
+  };
 }

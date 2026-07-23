@@ -48,6 +48,7 @@ export function createFakeServices(options?: {
   };
 
   return {
+    comfyUiHarness: comfyUiFake.harness,
     services: {
       commands: commandsFake.commands,
       comfyUi: comfyUiFake.service,

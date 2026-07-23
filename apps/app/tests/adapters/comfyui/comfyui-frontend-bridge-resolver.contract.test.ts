@@ -1,17 +1,21 @@
+import {
+  DEFAULT_COMFYUI_RUNTIME_POLICY,
+  deriveComfyUiConnectionTarget,
+  type ComfyUiConnectionTarget,
+} from '@imagen-ps/application';
 import { createLogger, createMemorySink } from '@imagen-ps/foundation';
 import { describe, expect, it } from 'vitest';
 import {
-  createChromeComfyUiFrontendBridgeResolver,
-  createUxpComfyUiFrontendBridgeResolver,
+  createChromeComfyUiFrontendBridgeGenerationFactory,
+  createUxpComfyUiFrontendBridgeGenerationFactory,
   type ChromeComfyUiBridgeFrameElement,
   type ComfyUiBridgeHostWindow,
   type ComfyUiBridgeResolverClock,
   type UxpComfyUiBridgeWebViewElement,
 } from '../../../src/adapters/comfyui/comfyui-frontend-bridge-resolver';
 
-type ServerReader = { load(): Promise<{ readonly baseUrl: string; readonly requestTimeoutMs: number } | undefined> };
 const CHROME_PARENT_ORIGIN = 'https://app.example.test';
-const ALLOWED_LOG_ATTR_KEYS = new Set(['transport', 'command', 'phase', 'reason', 'result']);
+const ALLOWED_LOG_ATTR_KEYS = new Set(['transport', 'phase', 'reason', 'result']);
 
 class FakeHostWindow implements ComfyUiBridgeHostWindow {
   readonly listeners = new Set<(event: MessageEvent<unknown>) => void>();
@@ -44,12 +48,6 @@ class FakeClock implements ComfyUiBridgeResolverClock {
     this.callbacks.delete(handle as number);
   }
 
-  runAll(): void {
-    const callbacks = Array.from(this.callbacks.values(), (entry) => entry.callback);
-    this.callbacks.clear();
-    for (const callback of callbacks) callback();
-  }
-
   runTimeout(timeoutMs: number): void {
     const entry = Array.from(this.callbacks.entries()).find(([, value]) => value.timeoutMs === timeoutMs);
     if (entry === undefined) throw new Error(`No timeout registered for ${timeoutMs}ms.`);
@@ -76,17 +74,11 @@ class FakeLoadElement {
   }
 
   removeEventListener(type: string, listener: EventListenerOrEventListenerObject | null): void {
-    if (listener === null) return;
-    this.listeners.get(type)?.delete(listener);
+    if (listener !== null) this.listeners.get(type)?.delete(listener);
   }
 
-  remove(): void {
-    this.removed = true;
-  }
-
-  setAttribute(name: string, value: string): void {
-    this.attributes.set(name, value);
-  }
+  remove(): void { this.removed = true; }
+  setAttribute(name: string, value: string): void { this.attributes.set(name, value); }
 
   emit(type: string, url = this.src): void {
     const event = { type, url } as unknown as Event;
@@ -102,7 +94,6 @@ class FakeLoadElement {
 }
 
 class FakeFrame extends FakeLoadElement implements ChromeComfyUiBridgeFrameElement {
-  hidden = false;
   readonly posts: Array<readonly [unknown, string]> = [];
   readonly contentWindow = {
     postMessage: (message: unknown, targetOrigin: string): void => {
@@ -114,26 +105,15 @@ class FakeFrame extends FakeLoadElement implements ChromeComfyUiBridgeFrameEleme
 class FakeWebView extends FakeLoadElement implements UxpComfyUiBridgeWebViewElement {
   width = '';
   height = '';
-  readonly posts: Array<readonly [unknown]> = [];
+  readonly posts: Array<readonly [unknown, string]> = [];
 
-  postMessage(message: unknown): void {
-    this.posts.push([message]);
+  postMessage(message: unknown, targetOrigin: string): void {
+    this.posts.push([message, targetOrigin]);
   }
 }
 
-function connectionReader(origins: Readonly<Record<string, string>> = {
-  'connection-1': 'https://comfy.example.test',
-}): ServerReader {
-  return {
-    async load() {
-      const origin = Object.values(origins)[0];
-      if (origin === undefined) return undefined;
-      return {
-        baseUrl: origin,
-        requestTimeoutMs: 1_000,
-      };
-    },
-  };
+function target(baseUrl = 'https://comfy.example.test/proxy'): ComfyUiConnectionTarget {
+  return deriveComfyUiConnectionTarget(baseUrl, DEFAULT_COMFYUI_RUNTIME_POLICY);
 }
 
 function createIds(): (prefix: string) => string {
@@ -146,26 +126,11 @@ async function flush(): Promise<void> {
   await Promise.resolve();
 }
 
-function createLogCapture() {
-  const sink = createMemorySink();
-  const logger = createLogger({
-    sink,
-    context: { surface: 'test', package: 'app', component: 'transport' },
-    traceId: 'comfyui-bridge-contract',
-  });
-  return { logger, sink };
-}
-
 function request(identity: { readonly origin: string; readonly sourceId: string; readonly loadId: string }, requestId: string) {
-  return {
-    requestId,
-    identity: { ...identity },
-    command: 'handshake' as const,
-    payload: {},
-  };
+  return { requestId, identity: { ...identity }, command: 'handshake' as const, payload: {} };
 }
 
-function queryIdentity(url: string): { readonly origin: string | null; readonly sourceId: string | null; readonly loadId: string | null } {
+function queryIdentity(url: string) {
   const params = new URL(url).searchParams;
   return {
     origin: params.get('imagenOrigin'),
@@ -174,124 +139,187 @@ function queryIdentity(url: string): { readonly origin: string | null; readonly 
   };
 }
 
-describe('ComfyUI frontend Bridge resolvers', () => {
-  it('routes Chrome responses by exact origin, contentWindow, and requestId', async () => {
+describe('ComfyUI frontend Bridge generation factories', () => {
+  it('binds every Chrome transport value to one immutable target', async () => {
     const hostWindow = new FakeHostWindow();
     const frame = new FakeFrame();
-    const resolver = createChromeComfyUiFrontendBridgeResolver({
-      server: connectionReader(),
+    const connectionTarget = target('https://comfy.example.test/reverse-proxy');
+    const generation = createChromeComfyUiFrontendBridgeGenerationFactory({
       parentOrigin: CHROME_PARENT_ORIGIN,
       hostWindow,
       clock: new FakeClock(),
       createRuntimeId: createIds(),
       createFrame: () => frame,
       mountFrame: () => undefined,
-    });
+    }).create(connectionTarget);
 
-    const resolving = resolver.resolve('connection-1');
+    expect(generation.target).toEqual({
+      baseUrl: 'https://comfy.example.test/reverse-proxy',
+      origin: 'https://comfy.example.test',
+      probeUrl: 'https://comfy.example.test/reverse-proxy/system_stats',
+      frontendBaseUrl: 'https://comfy.example.test/reverse-proxy',
+      websocketUrl: 'wss://comfy.example.test/reverse-proxy/ws',
+      requestTimeoutMs: 30_000,
+      observationTimeoutMs: 300_000,
+    });
+    expect(Object.isFrozen(generation.target)).toBe(true);
+
+    const resolving = generation.resolve('workflow-1');
     await flush();
+    expect(frame.src).toMatch(/^https:\/\/comfy\.example\.test\/reverse-proxy\/?\?/);
     frame.emit('load');
-    const port = await resolving;
-    expect(port).toBeDefined();
+    const port = (await resolving)!;
+    expect(port.identity.origin).toBe(CHROME_PARENT_ORIGIN);
     expect(queryIdentity(frame.src)).toEqual({
       origin: CHROME_PARENT_ORIGIN,
-      sourceId: port!.identity.sourceId,
-      loadId: port!.identity.loadId,
+      sourceId: port.identity.sourceId,
+      loadId: port.identity.loadId,
     });
-    expect(port!.identity.origin).toBe(CHROME_PARENT_ORIGIN);
 
-    const outgoing = request(port!.identity, 'request-1');
-    const pending = port!.exchange(outgoing);
+    const outgoing = request(port.identity, 'chrome-request');
+    const pending = port.exchange(outgoing);
     await flush();
-    expect(frame.posts).toEqual([[outgoing, 'https://comfy.example.test']]);
-
-    hostWindow.emit({
-      origin: 'https://other.example.test',
-      source: frame.contentWindow,
-      data: { requestId: 'request-1', ok: true },
-    });
-    hostWindow.emit({
-      origin: 'https://comfy.example.test/path?from=chrome',
-      source: frame.contentWindow,
-      data: { requestId: 'request-1', ok: true },
-    });
-    hostWindow.emit({
-      origin: 'https://comfy.example.test',
-      source: {},
-      data: { requestId: 'request-1', ok: true },
-    });
-    hostWindow.emit({
-      origin: 'https://comfy.example.test',
-      source: frame.contentWindow,
-      data: { requestId: 'other-request', ok: true },
-    });
-    const response = { requestId: 'request-1', ok: true, payload: {} };
-    hostWindow.emit({
-      origin: 'https://comfy.example.test',
-      source: frame.contentWindow,
-      data: response,
-    });
+    expect(frame.posts).toEqual([[outgoing, connectionTarget.origin]]);
+    for (const rejected of [
+      { origin: 'https://other.example.test', source: frame.contentWindow },
+      { origin: `${connectionTarget.origin}/path`, source: frame.contentWindow },
+      { origin: connectionTarget.origin, source: {} },
+    ]) {
+      hostWindow.emit({ ...rejected, data: { requestId: outgoing.requestId, ok: true } });
+    }
+    const response = { requestId: outgoing.requestId, ok: true, payload: {} };
+    hostWindow.emit({ origin: connectionTarget.origin, source: frame.contentWindow, data: response });
     await expect(pending).resolves.toBe(response);
 
-    resolver.dispose();
+    generation.dispose();
+    generation.dispose();
     expect(hostWindow.listeners.size).toBe(0);
     expect(frame.removed).toBe(true);
     expect(frame.listenerCount()).toBe(0);
   });
 
-  it('retires the discovery frame after the workflow list response', async () => {
+  it('uses exact UXP content origin, WebView source, identity, and targetOrigin', async () => {
     const hostWindow = new FakeHostWindow();
-    const frames: FakeFrame[] = [];
-    const resolver = createChromeComfyUiFrontendBridgeResolver({
-      server: connectionReader(),
+    const webView = new FakeWebView();
+    const connectionTarget = target();
+    const generation = createUxpComfyUiFrontendBridgeGenerationFactory({
+      pluginId: 'com.imagen-ps.panel',
+      hostWindow,
+      clock: new FakeClock(),
+      createRuntimeId: createIds(),
+      createWebView: () => webView,
+      mountWebView: () => undefined,
+    }).create(connectionTarget);
+
+    const resolving = generation.resolve('workflow-1');
+    await flush();
+    webView.emit('loadstart');
+    webView.emit('loadstop');
+    const port = (await resolving)!;
+    expect(port.identity.origin).toBe('com.imagen-ps.panel');
+
+    const outgoing = request(port.identity, 'uxp-request');
+    const pending = port.exchange(outgoing);
+    await flush();
+    expect(webView.posts).toEqual([[outgoing, connectionTarget.origin]]);
+    for (const rejected of [
+      { origin: `${connectionTarget.origin}.evil.invalid/`, source: webView },
+      { origin: `https://user:password@${new URL(connectionTarget.origin).host}/`, source: webView },
+      { origin: webView.src, source: {} },
+      { origin: 'not-a-url', source: webView },
+    ]) {
+      hostWindow.emit({ ...rejected, data: { requestId: outgoing.requestId, ok: true } });
+    }
+    const response = { requestId: outgoing.requestId, ok: true, payload: {} };
+    hostWindow.emit({ origin: webView.src, source: webView, data: response });
+    await expect(pending).resolves.toBe(response);
+    generation.dispose();
+  });
+
+  it('retires bounded existing exchanges and rejects new resolves', async () => {
+    const hostWindow = new FakeHostWindow();
+    const frame = new FakeFrame();
+    const generation = createChromeComfyUiFrontendBridgeGenerationFactory({
       parentOrigin: CHROME_PARENT_ORIGIN,
       hostWindow,
       clock: new FakeClock(),
       createRuntimeId: createIds(),
-      createFrame: () => {
-        const frame = new FakeFrame();
-        frames.push(frame);
-        return frame;
-      },
+      createFrame: () => frame,
       mountFrame: () => undefined,
-    });
+    }).create(target());
 
-    const resolving = resolver.resolve('discovery');
+    const resolving = generation.resolve('workflow-1');
     await flush();
-    frames[0]!.emit('load');
+    frame.emit('load');
     const port = (await resolving)!;
-    const handshake = request(port.identity, 'discovery-handshake');
-    const handshakePending = port.exchange(handshake);
+    const outgoing = request(port.identity, 'retiring-request');
+    const pending = port.exchange(outgoing);
     await flush();
-    const handshakeResponse = { requestId: handshake.requestId, ok: true, payload: {} };
-    hostWindow.emit({ origin: 'https://comfy.example.test', source: frames[0]!.contentWindow, data: handshakeResponse });
-    await expect(handshakePending).resolves.toBe(handshakeResponse);
-    expect(frames[0]!.removed).toBe(false);
 
-    const list = { ...request(port.identity, 'discovery-list'), command: 'list-workflows' as const };
-    const listPending = port.exchange(list);
-    await flush();
-    const listResponse = { requestId: list.requestId, ok: true, payload: { workflows: [] } };
-    hostWindow.emit({ origin: 'https://comfy.example.test', source: frames[0]!.contentWindow, data: listResponse });
-    await expect(listPending).resolves.toBe(listResponse);
-    expect(frames[0]!.removed).toBe(true);
-    expect(frames[0]!.listenerCount()).toBe(0);
-    expect(hostWindow.listeners.size).toBe(1);
-
-    const resolvingAgain = resolver.resolve('discovery');
-    await flush();
-    expect(frames).toHaveLength(2);
-    frames[1]!.emit('load');
-    expect(await resolvingAgain).not.toBe(port);
-    resolver.dispose();
-    expect(frames[1]!.removed).toBe(true);
+    generation.retire();
+    generation.retire();
+    await expect(generation.resolve('workflow-2')).resolves.toBeUndefined();
+    expect(frame.removed).toBe(false);
+    const response = { requestId: outgoing.requestId, ok: true, payload: {} };
+    hostWindow.emit({ origin: generation.target.origin, source: frame.contentWindow, data: response });
+    await expect(pending).resolves.toBe(response);
+    expect(frame.removed).toBe(true);
     expect(hostWindow.listeners.size).toBe(0);
   });
 
-  it('retires the previous idle workflow frame when the selected workflow changes', async () => {
+  it('maps load timeout, loaderror, abort, and stale identity to structured errors', async () => {
+    const clock = new FakeClock();
+    const webViews: FakeWebView[] = [];
+    const factory = createUxpComfyUiFrontendBridgeGenerationFactory({
+      pluginId: 'com.imagen-ps.panel',
+      hostWindow: new FakeHostWindow(),
+      clock,
+      createRuntimeId: createIds(),
+      createWebView: () => {
+        const webView = new FakeWebView();
+        webViews.push(webView);
+        return webView;
+      },
+      mountWebView: () => undefined,
+    });
+
+    const timeoutGeneration = factory.create(target());
+    const timedOut = timeoutGeneration.resolve('timeout');
+    await flush();
+    clock.runTimeout(30_000);
+    await expect(timedOut).rejects.toMatchObject({
+      name: 'ComfyUiFrontendBridgeResolutionError', phase: 'ready', reason: 'timeout',
+    });
+
+    const failedGeneration = factory.create(target());
+    const failed = failedGeneration.resolve('failed');
+    await flush();
+    webViews[1]!.emit('loaderror');
+    await expect(failed).rejects.toMatchObject({ phase: 'load', reason: 'load-failed' });
+
+    const abortedGeneration = factory.create(target());
+    const owner = new AbortController();
+    const aborted = abortedGeneration.resolve('aborted', owner.signal);
+    await flush();
+    owner.abort();
+    await expect(aborted).rejects.toMatchObject({ phase: 'ready', reason: 'aborted' });
+    abortedGeneration.dispose();
+
+    const readyGeneration = factory.create(target());
+    const ready = readyGeneration.resolve('ready');
+    await flush();
+    webViews[3]!.emit('loadstart');
+    webViews[3]!.emit('loadstop');
+    const port = (await ready)!;
+    await expect(port.exchange(request({ ...port.identity, loadId: 'stale-load' }, 'stale'))).rejects.toMatchObject({
+      phase: 'contract', reason: 'identity-mismatch',
+    });
+    readyGeneration.dispose();
+  });
+
+  it('isolates generations for similar but distinct targets', async () => {
     const frames: FakeFrame[] = [];
-    const resolver = createChromeComfyUiFrontendBridgeResolver({
-      server: connectionReader(),
+    const factory = createChromeComfyUiFrontendBridgeGenerationFactory({
       parentOrigin: CHROME_PARENT_ORIGIN,
       hostWindow: new FakeHostWindow(),
       clock: new FakeClock(),
@@ -303,74 +331,30 @@ describe('ComfyUI frontend Bridge resolvers', () => {
       },
       mountFrame: () => undefined,
     });
-
-    const first = resolver.resolve('workflow-1');
+    const localhost = factory.create(target('http://localhost:8188/proxy'));
+    const loopback = factory.create(target('http://127.0.0.1:8188/proxy'));
+    const first = localhost.resolve('workflow');
+    const second = loopback.resolve('workflow');
     await flush();
     frames[0]!.emit('load');
-    await first;
-
-    const second = resolver.resolve('workflow-2');
-    await flush();
-    expect(frames[0]!.removed).toBe(true);
-    expect(frames[0]!.listenerCount()).toBe(0);
-    expect(frames).toHaveLength(2);
     frames[1]!.emit('load');
-    await second;
-
-    resolver.dispose();
-    expect(frames[1]!.removed).toBe(true);
+    expect((await first)?.identity).not.toBe((await second)?.identity);
+    expect(new URL(frames[0]!.src).origin).toBe('http://localhost:8188');
+    expect(new URL(frames[1]!.src).origin).toBe('http://127.0.0.1:8188');
+    localhost.dispose();
+    loopback.dispose();
   });
 
-  it('keeps a previous workflow frame until its pending exchange settles', async () => {
-    const hostWindow = new FakeHostWindow();
-    const frames: FakeFrame[] = [];
-    const resolver = createChromeComfyUiFrontendBridgeResolver({
-      server: connectionReader(),
-      parentOrigin: CHROME_PARENT_ORIGIN,
-      hostWindow,
-      clock: new FakeClock(),
-      createRuntimeId: createIds(),
-      createFrame: () => {
-        const frame = new FakeFrame();
-        frames.push(frame);
-        return frame;
-      },
-      mountFrame: () => undefined,
+  it('emits only bounded diagnostics without URL, identity, payload, workflow, or request facts', async () => {
+    const sink = createMemorySink();
+    const logger = createLogger({
+      sink,
+      context: { surface: 'test', package: 'app', component: 'transport' },
+      traceId: 'comfyui-bridge-contract',
     });
-
-    const firstResolving = resolver.resolve('workflow-1');
-    await flush();
-    frames[0]!.emit('load');
-    const firstPort = (await firstResolving)!;
-    const firstRequest = request(firstPort.identity, 'workflow-1-pending');
-    const firstPending = firstPort.exchange(firstRequest);
-    await flush();
-
-    const secondResolving = resolver.resolve('workflow-2');
-    await flush();
-    expect(frames[0]!.removed).toBe(false);
-    frames[1]!.emit('load');
-    await secondResolving;
-
-    const firstResponse = { requestId: firstRequest.requestId, ok: true, payload: {} };
-    hostWindow.emit({
-      origin: 'https://comfy.example.test',
-      source: frames[0]!.contentWindow,
-      data: firstResponse,
-    });
-    await expect(firstPending).resolves.toBe(firstResponse);
-    expect(frames[0]!.removed).toBe(true);
-    expect(frames[0]!.listenerCount()).toBe(0);
-
-    resolver.dispose();
-  });
-
-  it('uses plugin identity, full content URL origin, and one-argument postMessage for UXP WebView', async () => {
     const hostWindow = new FakeHostWindow();
     const webView = new FakeWebView();
-    const { logger, sink } = createLogCapture();
-    const resolver = createUxpComfyUiFrontendBridgeResolver({
-      server: connectionReader(),
+    const generation = createUxpComfyUiFrontendBridgeGenerationFactory({
       pluginId: 'com.imagen-ps.panel',
       hostWindow,
       clock: new FakeClock(),
@@ -378,403 +362,30 @@ describe('ComfyUI frontend Bridge resolvers', () => {
       createWebView: () => webView,
       mountWebView: () => undefined,
       logger,
-    });
+    }).create(target('https://secret.example.test/private-proxy'));
 
-    const resolving = resolver.resolve('connection-1');
+    const resolving = generation.resolve('secret-workflow');
     await flush();
     webView.emit('loadstart');
     webView.emit('loadstop');
-    const port = await resolving;
-    expect(port?.identity.origin).toBe('com.imagen-ps.panel');
-    expect(queryIdentity(webView.src)).toEqual({
-      origin: 'com.imagen-ps.panel',
-      sourceId: port!.identity.sourceId,
-      loadId: port!.identity.loadId,
-    });
-
-    const outgoing = {
-      ...request(port!.identity, 'request-uxp'),
-      command: 'list-workflows' as const,
-    };
-    const pending = port!.exchange(outgoing);
+    const port = (await resolving)!;
+    const pending = port.exchange(request(port.identity, 'secret-request'));
     await flush();
-    expect(webView.posts).toEqual([[outgoing]]);
+    hostWindow.emit({
+      origin: 'https://attacker.example.test/private',
+      source: webView,
+      data: { requestId: 'secret-request', payload: { token: 'secret-payload' } },
+    });
+    generation.dispose();
+    await expect(pending).rejects.toMatchObject({ reason: 'disposed' });
 
-    hostWindow.emit({
-      origin: 'com.imagen-ps.panel',
-      source: webView,
-      data: { requestId: 'request-uxp', ok: true },
-    });
-    for (const origin of [
-      'https://comfy.example.test.evil.invalid/bridge',
-      'https://user:password@comfy.example.test/bridge',
-      'blob:https://comfy.example.test/runtime-id',
-      'not-a-url',
-    ]) {
-      hostWindow.emit({
-        origin,
-        source: webView,
-        data: { requestId: 'request-uxp', ok: true },
-      });
-    }
-    hostWindow.emit({
-      origin: 'https://comfy.example.test',
-      source: {},
-      data: { requestId: 'request-uxp', ok: true },
-    });
-    const response = { requestId: 'request-uxp', ok: true, payload: {} };
-    hostWindow.emit({
-      origin: webView.src,
-      source: webView,
-      data: response,
-    });
-    await expect(pending).resolves.toBe(response);
-    expect(
-      sink.records
-        .filter((record) => record.event === 'comfyui.bridge.message.rejected')
-        .map((record) => record.attrs),
-    ).toEqual([
-      { transport: 'uxp', command: 'list-workflows', reason: 'origin-mismatch' },
-      { transport: 'uxp', command: 'list-workflows', reason: 'origin-mismatch' },
-      { transport: 'uxp', command: 'list-workflows', reason: 'origin-mismatch' },
-      { transport: 'uxp', command: 'list-workflows', reason: 'origin-mismatch' },
-      { transport: 'uxp', command: 'list-workflows', reason: 'origin-mismatch' },
-      { transport: 'uxp', command: 'list-workflows', reason: 'source-mismatch' },
-    ]);
-    expect(sink.records.map((record) => record.event)).toEqual(expect.arrayContaining([
-      'comfyui.frontend.discovery.start',
-      'comfyui.frontend.discovery.ok',
-    ]));
-    const serializedLogs = JSON.stringify(sink.records);
     expect(sink.records.every((record) => (
       Object.keys(record.attrs ?? {}).every((key) => ALLOWED_LOG_ATTR_KEYS.has(key))
     ))).toBe(true);
-    expect(serializedLogs).not.toContain('https://comfy.example.test');
-    expect(serializedLogs).not.toContain('request-uxp');
-    expect(serializedLogs).not.toContain('payload');
-    expect(serializedLogs).not.toContain('identity');
-    resolver.dispose();
-  });
-
-  it('logs UXP initial load timeout separately from resolver failure', async () => {
-    const clock = new FakeClock();
-    const webView = new FakeWebView();
-    const { logger, sink } = createLogCapture();
-    const resolver = createUxpComfyUiFrontendBridgeResolver({
-      server: connectionReader(),
-      pluginId: 'com.imagen-ps.panel',
-      hostWindow: new FakeHostWindow(),
-      clock,
-      createRuntimeId: createIds(),
-      createWebView: () => webView,
-      mountWebView: () => undefined,
-      logger,
-    });
-
-    const resolving = resolver.resolve('connection-1');
-    await flush();
-    webView.emit('loadstart');
-    webView.emit('loadstop', 'https://unexpected.example.test');
-    clock.runTimeout(1_000);
-
-    await expect(resolving).rejects.toThrow('timeout');
-    expect(sink.records.find((record) => record.event === 'comfyui.bridge.load.rejected')?.attrs).toEqual({
-      transport: 'uxp',
-      phase: 'stop',
-      reason: 'unexpected-url',
-    });
-    const loadFailure = sink.records.find((record) => record.event === 'comfyui.bridge.load.fail');
-    expect(loadFailure?.attrs).toEqual({
-      transport: 'uxp',
-      phase: 'load',
-      reason: 'timeout',
-    });
-    expect(loadFailure?.error).toEqual({
-      category: 'bridge',
-      kind: 'timeout',
-      message: 'ComfyUI Bridge operation failed.',
-    });
-    expect(sink.records.find((record) => record.event === 'comfyui.bridge.resolve.fail')?.attrs).toEqual({
-      transport: 'uxp',
-      phase: 'load',
-      reason: 'timeout',
-    });
-    expect(JSON.stringify(sink.records)).not.toContain('https://unexpected.example.test');
-    resolver.dispose();
-  });
-
-  it('logs UXP handshake response timeout after WebView load succeeds', async () => {
-    const hostWindow = new FakeHostWindow();
-    const clock = new FakeClock();
-    const webView = new FakeWebView();
-    const { logger, sink } = createLogCapture();
-    const resolver = createUxpComfyUiFrontendBridgeResolver({
-      server: connectionReader(),
-      pluginId: 'com.imagen-ps.panel',
-      hostWindow,
-      clock,
-      createRuntimeId: createIds(),
-      createWebView: () => webView,
-      mountWebView: () => undefined,
-      logger,
-    });
-
-    const resolving = resolver.resolve('connection-1');
-    await flush();
-    webView.emit('loadstart');
-    webView.emit('loadstop');
-    const port = (await resolving)!;
-    sink.clear();
-
-    const pending = port.exchange(request(port.identity, 'handshake-timeout'));
-    await flush();
-    clock.runTimeout(1_000);
-
-    await expect(pending).rejects.toThrow('timeout');
-    expect(sink.records.map((record) => record.event)).toEqual([
-      'comfyui.bridge.handshake.start',
-      'comfyui.bridge.handshake.fail',
-    ]);
-    expect(sink.records[1]?.attrs).toEqual({
-      transport: 'uxp',
-      command: 'handshake',
-      phase: 'response',
-      reason: 'timeout',
-    });
-    expect(sink.records[1]?.error).toEqual({
-      category: 'bridge',
-      kind: 'timeout',
-      message: 'ComfyUI Bridge operation failed.',
-    });
-    resolver.dispose();
-  });
-
-  it('retries only the Chrome handshake while async Bridge setup is pending', async () => {
-    const hostWindow = new FakeHostWindow();
-    const clock = new FakeClock();
-    const frame = new FakeFrame();
-    const resolver = createChromeComfyUiFrontendBridgeResolver({
-      server: connectionReader(),
-      parentOrigin: CHROME_PARENT_ORIGIN,
-      hostWindow,
-      clock,
-      createRuntimeId: createIds(),
-      createFrame: () => frame,
-      mountFrame: () => undefined,
-    });
-
-    const resolving = resolver.resolve('connection-1');
-    await flush();
-    frame.emit('load');
-    const port = (await resolving)!;
-    const outgoing = request(port.identity, 'delayed-handshake');
-    const pending = port.exchange(outgoing);
-    await flush();
-    expect(frame.posts).toEqual([[outgoing, 'https://comfy.example.test']]);
-
-    clock.runTimeout(500);
-    expect(frame.posts).toEqual([
-      [outgoing, 'https://comfy.example.test'],
-      [outgoing, 'https://comfy.example.test'],
-    ]);
-    const response = { requestId: 'delayed-handshake', ok: true, payload: {} };
-    hostWindow.emit({
-      origin: 'https://comfy.example.test',
-      source: frame.contentWindow,
-      data: response,
-    });
-    await expect(pending).resolves.toBe(response);
-    expect(clock.timeouts()).toEqual([]);
-    resolver.dispose();
-  });
-
-  it('rotates UXP load identity, rejects pending work, and reuses the connection session', async () => {
-    const hostWindow = new FakeHostWindow();
-    const webView = new FakeWebView();
-    const resolver = createUxpComfyUiFrontendBridgeResolver({
-      server: connectionReader(),
-      pluginId: 'com.imagen-ps.panel',
-      hostWindow,
-      clock: new FakeClock(),
-      createRuntimeId: createIds(),
-      createWebView: () => webView,
-      mountWebView: () => undefined,
-    });
-
-    const firstResolve = resolver.resolve('connection-1');
-    await flush();
-    webView.emit('loadstart');
-    webView.emit('loadstop');
-    const port = (await firstResolve)!;
-    const firstIdentity = { ...port.identity };
-    const pending = port.exchange(request(firstIdentity, 'before-reload'));
-    await flush();
-
-    webView.emit('loadstart');
-    await expect(pending).rejects.toThrow('reloaded');
-    expect(port.identity.sourceId).toBe(firstIdentity.sourceId);
-    expect(port.identity.loadId).not.toBe(firstIdentity.loadId);
-    expect(queryIdentity(webView.src).loadId).toBe(port.identity.loadId);
-
-    const secondResolve = resolver.resolve('connection-1');
-    await flush();
-    webView.emit('loadstart');
-    webView.emit('loadstop');
-    expect(await secondResolve).toBe(port);
-    await expect(port.exchange(request(firstIdentity, 'stale-request'))).rejects.toThrow('stale');
-    resolver.dispose();
-  });
-
-  it('detects Chrome reload at load completion and rotates its load identity', async () => {
-    const frame = new FakeFrame();
-    const resolver = createChromeComfyUiFrontendBridgeResolver({
-      server: connectionReader(),
-      parentOrigin: CHROME_PARENT_ORIGIN,
-      hostWindow: new FakeHostWindow(),
-      clock: new FakeClock(),
-      createRuntimeId: createIds(),
-      createFrame: () => frame,
-      mountFrame: () => undefined,
-    });
-
-    const firstResolve = resolver.resolve('connection-1');
-    await flush();
-    frame.emit('load');
-    const port = (await firstResolve)!;
-    const firstLoadId = port.identity.loadId;
-    const pending = port.exchange(request(port.identity, 'chrome-reload'));
-    await flush();
-
-    frame.emit('load');
-    await expect(pending).rejects.toThrow('reloaded');
-    expect(port.identity.loadId).not.toBe(firstLoadId);
-    const secondResolve = resolver.resolve('connection-1');
-    await flush();
-    frame.emit('load');
-    expect(await secondResolve).toBe(port);
-    resolver.dispose();
-  });
-
-  it('reschedules an in-flight load when the connection timeout changes', async () => {
-    let requestTimeoutMs = 1_000;
-    const baseConnections = connectionReader();
-    const server: ServerReader = {
-      async load() {
-        const connection = await baseConnections.load();
-        return connection === undefined ? undefined : { ...connection, requestTimeoutMs };
-      },
-    };
-    const clock = new FakeClock();
-    const frame = new FakeFrame();
-    const resolver = createChromeComfyUiFrontendBridgeResolver({
-      server,
-      parentOrigin: CHROME_PARENT_ORIGIN,
-      hostWindow: new FakeHostWindow(),
-      clock,
-      createRuntimeId: createIds(),
-      createFrame: () => frame,
-      mountFrame: () => undefined,
-    });
-
-    const firstResolve = resolver.resolve('connection-1');
-    await flush();
-    expect(clock.timeouts()).toEqual([1_000]);
-    requestTimeoutMs = 2_000;
-    const secondResolve = resolver.resolve('connection-1');
-    await flush();
-    expect(clock.timeouts()).toEqual([2_000]);
-
-    frame.emit('load');
-    expect(await secondResolve).toBe(await firstResolve);
-    resolver.dispose();
-  });
-
-  it('rejects UXP exchanges on abort, timeout, load error, and dispose', async () => {
-    const hostWindow = new FakeHostWindow();
-    const clock = new FakeClock();
-    const webView = new FakeWebView();
-    const resolver = createUxpComfyUiFrontendBridgeResolver({
-      server: connectionReader(),
-      pluginId: 'com.imagen-ps.panel',
-      hostWindow,
-      clock,
-      createRuntimeId: createIds(),
-      createWebView: () => webView,
-      mountWebView: () => undefined,
-    });
-    const resolving = resolver.resolve('connection-1');
-    await flush();
-    webView.emit('loadstart');
-    webView.emit('loadstop');
-    const port = (await resolving)!;
-
-    const controller = new AbortController();
-    const aborted = port.exchange(request(port.identity, 'abort-request'), controller.signal);
-    await flush();
-    controller.abort();
-    await expect(aborted).rejects.toMatchObject({ name: 'AbortError' });
-
-    const timedOut = port.exchange(request(port.identity, 'timeout-request'));
-    await flush();
-    clock.runAll();
-    await expect(timedOut).rejects.toThrow('timeout');
-
-    const loadFailed = port.exchange(request(port.identity, 'load-error-request'));
-    await flush();
-    webView.emit('loaderror');
-    await expect(loadFailed).rejects.toThrow('load-failed');
-    expect(webView.removed).toBe(true);
-
-    const replacement = new FakeWebView();
-    const replacementResolver = createUxpComfyUiFrontendBridgeResolver({
-      server: connectionReader(),
-      pluginId: 'com.imagen-ps.panel',
-      hostWindow: new FakeHostWindow(),
-      clock: new FakeClock(),
-      createRuntimeId: createIds(),
-      createWebView: () => replacement,
-      mountWebView: () => undefined,
-    });
-    const replacementResolving = replacementResolver.resolve('connection-1');
-    await flush();
-    replacement.emit('loadstart');
-    replacement.emit('loadstop');
-    const replacementPort = (await replacementResolving)!;
-    const disposed = replacementPort.exchange(request(replacementPort.identity, 'dispose-request'));
-    await flush();
-    replacementResolver.dispose();
-    await expect(disposed).rejects.toThrow('disposed');
-    expect(replacement.listenerCount()).toBe(0);
-
-    resolver.dispose();
-  });
-
-  it('rejects initial load timeout and detaches the failed element', async () => {
-    const clock = new FakeClock();
-    const frame = new FakeFrame();
-    const resolver = createChromeComfyUiFrontendBridgeResolver({
-      server: connectionReader(),
-      parentOrigin: CHROME_PARENT_ORIGIN,
-      hostWindow: new FakeHostWindow(),
-      clock,
-      createRuntimeId: createIds(),
-      createFrame: () => frame,
-      mountFrame: () => undefined,
-    });
-    const resolving = resolver.resolve('connection-1');
-    await flush();
-    clock.runAll();
-    await expect(resolving).rejects.toThrow('timeout');
-    expect(frame.removed).toBe(true);
-    resolver.dispose();
-  });
-
-  it('rejects a non-HTTP Chrome parent origin before creating a session', () => {
-    expect(() => createChromeComfyUiFrontendBridgeResolver({
-      server: connectionReader(),
-      parentOrigin: 'file://',
-      hostWindow: new FakeHostWindow(),
-      clock: new FakeClock(),
-    })).toThrow('parent origin is invalid');
+    const serialized = JSON.stringify(sink.records);
+    for (const secret of [
+      'secret.example.test', 'private-proxy', 'secret-workflow', 'secret-request',
+      'secret-payload', 'identity', 'payload', port.identity.sourceId, port.identity.loadId,
+    ]) expect(serialized).not.toContain(secret);
   });
 });

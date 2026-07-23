@@ -23,7 +23,7 @@ import {
 import { createChromeComfyUiRepositories } from '../../adapters/chrome/chrome-comfyui-persistence';
 import { createComfyUiHttpTransport } from '../../adapters/comfyui/comfyui-http-transport';
 import { createComfyUiAppRuntime } from '../../adapters/comfyui/comfyui-app-runtime';
-import { createChromeComfyUiFrontendBridgeResolver } from '../../adapters/comfyui/comfyui-frontend-bridge-resolver';
+import { createChromeComfyUiFrontendBridgeGenerationFactory } from '../../adapters/comfyui/comfyui-frontend-bridge-resolver';
 import { createPhotoshopSimulator, type PhotoshopSimulatorScenarioId } from '../../simulators/photoshop/simulator';
 import { createMemoryThumbnailStore } from '../../shared/image/thumbnail-store';
 import { createRuntimeImageUrlOrDataUrl } from '../../shared/image/runtime-image-url';
@@ -85,15 +85,7 @@ export function createChromeAppShell(options?: ChromeAppShellOptions): AppShellH
   const backend = options?.backend ?? testHarness?.backend ?? createBrowserIndexedDbBackend();
   const storage = createChromeIndexedDbStorage({ backend });
   const comfyUiRepositories = createChromeComfyUiRepositories({ backend });
-  const comfyUiBridgeResolver = createChromeComfyUiFrontendBridgeResolver({
-    server: {
-      async load() {
-        const state = await comfyUiRepositories.state.load();
-        return state
-          ? { baseUrl: state.baseUrl, requestTimeoutMs: 300_000 }
-          : undefined;
-      },
-    },
+  const comfyUiBridgeGenerationFactory = createChromeComfyUiFrontendBridgeGenerationFactory({
     parentOrigin: globalThis.location.origin,
   });
   const externalUrl = createChromeExternalUrlPort();
@@ -104,7 +96,7 @@ export function createChromeAppShell(options?: ChromeAppShellOptions): AppShellH
       drafts: comfyUiRepositories.drafts,
     },
     httpTransport: createComfyUiHttpTransport(),
-    frontendBridgeResolver: comfyUiBridgeResolver,
+    generationFactory: comfyUiBridgeGenerationFactory,
     externalUrl,
   });
   setProviderProfileRepository(storage.profiles);
@@ -163,7 +155,6 @@ export function createChromeAppShell(options?: ChromeAppShellOptions): AppShellH
       retention,
     },
     dispose() {
-      comfyUiBridgeResolver.dispose();
       comfyUiRuntime.dispose();
       globalThis.__IMAGEN_CHROME_DIAGNOSTICS__ = undefined;
       globalThis.__IMAGEN_CHROME_TEST_HARNESS__ = undefined;

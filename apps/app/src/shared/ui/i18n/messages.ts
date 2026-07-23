@@ -202,6 +202,24 @@ export interface AppMessages {
     readonly comfyUiOperationFailed: string;
     readonly comfyUiConnection: string;
     readonly comfyUiAddress: string;
+    readonly comfyUiConnect: string;
+    readonly comfyUiReconnect: string;
+    readonly comfyUiRetry: string;
+    readonly comfyUiConnecting: string;
+    readonly comfyUiAddressInvalid: string;
+    readonly comfyUiCheckingServer: string;
+    readonly comfyUiLoadingBridge: string;
+    readonly comfyUiValidatingBridge: string;
+    readonly comfyUiSavingConnection: string;
+    readonly comfyUiConnectedTo: (target: string) => string;
+    readonly comfyUiSwitchFrom: (target: string) => string;
+    readonly comfyUiStillConnectedTo: (target: string) => string;
+    readonly comfyUiApiUnreachable: string;
+    readonly comfyUiApiInvalidResponse: string;
+    readonly comfyUiWebViewLoadFailed: string;
+    readonly comfyUiBridgeHandshakeTimeout: string;
+    readonly comfyUiBridgeContractMismatch: string;
+    readonly comfyUiPersistenceFailed: string;
     readonly comfyUiCurrentWorkflow: string;
     readonly comfyUiChooseWorkflow: string;
     readonly comfyUiNoWorkflowSelected: string;
@@ -647,6 +665,24 @@ const EN_MESSAGES: AppMessages = {
     comfyUiOperationFailed: 'ComfyUI operation failed',
     comfyUiConnection: 'Connection',
     comfyUiAddress: 'Address',
+    comfyUiConnect: 'Connect',
+    comfyUiReconnect: 'Reconnect',
+    comfyUiRetry: 'Retry',
+    comfyUiConnecting: 'Connecting...',
+    comfyUiAddressInvalid: 'Enter a complete http:// or https:// address without credentials, query, or fragment.',
+    comfyUiCheckingServer: 'Checking server...',
+    comfyUiLoadingBridge: 'Loading Frontend Bridge...',
+    comfyUiValidatingBridge: 'Validating Bridge...',
+    comfyUiSavingConnection: 'Saving connection...',
+    comfyUiConnectedTo: (target) => `Connected to ${target}.`,
+    comfyUiSwitchFrom: (target) => `Currently connected to ${target}. Connect to switch.`,
+    comfyUiStillConnectedTo: (target) => `Still connected to ${target}.`,
+    comfyUiApiUnreachable: 'Could not connect to the ComfyUI server.',
+    comfyUiApiInvalidResponse: 'ComfyUI returned an invalid server response.',
+    comfyUiWebViewLoadFailed: 'The ComfyUI Frontend Bridge could not load.',
+    comfyUiBridgeHandshakeTimeout: 'The server is reachable, but the Frontend Bridge did not respond.',
+    comfyUiBridgeContractMismatch: 'This ComfyUI Frontend Bridge is incompatible.',
+    comfyUiPersistenceFailed: 'The validated connection could not be saved.',
     comfyUiCurrentWorkflow: 'Current Workflow',
     comfyUiChooseWorkflow: 'Choose workflow',
     comfyUiNoWorkflowSelected: 'No saved workflow selected.',
@@ -1092,6 +1128,24 @@ const ZH_CN_MESSAGES: AppMessages = {
     comfyUiOperationFailed: 'ComfyUI 操作失败',
     comfyUiConnection: '连接',
     comfyUiAddress: '地址',
+    comfyUiConnect: '连接',
+    comfyUiReconnect: '重新连接',
+    comfyUiRetry: '重试',
+    comfyUiConnecting: '连接中...',
+    comfyUiAddressInvalid: '请输入完整的 http:// 或 https:// 地址，且不要包含凭据、查询参数或片段。',
+    comfyUiCheckingServer: '正在检查服务器...',
+    comfyUiLoadingBridge: '正在加载 Frontend Bridge...',
+    comfyUiValidatingBridge: '正在验证 Bridge...',
+    comfyUiSavingConnection: '正在保存连接...',
+    comfyUiConnectedTo: (target) => `已连接到 ${target}。`,
+    comfyUiSwitchFrom: (target) => `当前连接到 ${target}。连接以切换。`,
+    comfyUiStillConnectedTo: (target) => `仍连接到 ${target}。`,
+    comfyUiApiUnreachable: '无法连接 ComfyUI 服务器。',
+    comfyUiApiInvalidResponse: 'ComfyUI 返回了无效的服务器响应。',
+    comfyUiWebViewLoadFailed: '无法加载 ComfyUI Frontend Bridge。',
+    comfyUiBridgeHandshakeTimeout: '服务器可访问，但 Frontend Bridge 未响应。',
+    comfyUiBridgeContractMismatch: '当前 ComfyUI Frontend Bridge 不兼容。',
+    comfyUiPersistenceFailed: '已验证的连接无法保存。',
     comfyUiCurrentWorkflow: '当前 Workflow',
     comfyUiChooseWorkflow: '选择 Workflow',
     comfyUiNoWorkflowSelected: '尚未选择已保存的 Workflow。',

@@ -6,6 +6,7 @@
 
 export * from './graph.js';
 export * from './errors.js';
+export * from './connection-validation.js';
 export * from './execution-types.js';
 export * from './assets.js';
 export * from './mutation.js';

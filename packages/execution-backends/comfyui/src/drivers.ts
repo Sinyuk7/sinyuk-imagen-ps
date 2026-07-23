@@ -3,7 +3,7 @@ import { buildComfyUiApiPrompt, buildComfyUiFrontendMutations } from './mutation
 import { convertComfyUiApiWorkflowToForm, type WorkflowForm } from './form.js';
 import { createComfyUiBridgeHandshakeRequest, validateComfyUiBridgeHandshake, assertComfyUiBridgeIdentity, createComfyUiFrontendSubmitRequest, validateComfyUiFrontendReceipt } from './bridge.js';
 import { createComfyUiExecutionError, normalizeComfyUiExecutionError } from './errors.js';
-import type { ComfyUiAssetSink, ComfyUiExecutionClock, ComfyUiExecutionRequest, ComfyUiExecutionResult, ComfyUiFrontendBridgeResolver, ComfyUiHttpTransport, ComfyUiPromptHintSource, ComfyUiPromptHintSourceFactory } from './execution-types.js';
+import type { ComfyUiAssetSink, ComfyUiExecutionClock, ComfyUiExecutionRequest, ComfyUiExecutionResult, ComfyUiExecutionTargetAffinity, ComfyUiFrontendBridgeResolver, ComfyUiHttpTransport, ComfyUiPromptHintSource, ComfyUiPromptHintSourceFactory } from './execution-types.js';
 import { decodeJsonBytes, encodeJsonBytes, isPlainRecord, safeRuntimeId } from './internal/value.js';
 import { downloadAndStoreComfyUiOutputs, observeKnownComfyUiPrompt } from './observation.js';
 
@@ -47,6 +47,11 @@ function uploadMutations(request: ComfyUiExecutionRequest, uploads: ComfyUiPrepa
   if (additions.length === 0) return request.mutations;
   return [...(request.mutations ?? []).filter((item) => !additions.some((addition) => sameInputRef(item.ref, addition.ref))), ...additions];
 }
+function assertTargetAffinity(resolver: ComfyUiFrontendBridgeResolver, affinity?: ComfyUiExecutionTargetAffinity): void {
+  if (affinity !== undefined && resolver.matchesAffinity?.(affinity) !== true) {
+    throw createComfyUiExecutionError('prepare', 'invalid-connection');
+  }
+}
 
 /** API driver: clone full graph, apply optional overrides, POST /prompt exactly once. */
 export async function executeComfyUiApiGraph(request: ComfyUiExecutionRequest & { readonly source: Extract<ComfyUiExecutionRequest['source'], { readonly kind: 'api-graph' }> }, uploads: ComfyUiPreparedUploads, deps: ComfyUiApiGraphDriverDependencies, signal?: AbortSignal): Promise<ComfyUiExecutionResult> {
@@ -68,13 +73,21 @@ export async function executeComfyUiApiGraph(request: ComfyUiExecutionRequest & 
 
 /** Frontend driver: open exact saved workflow and native Queue once through Bridge. */
 export async function executeComfyUiFrontendQueue(request: ComfyUiExecutionRequest & { readonly source: Extract<ComfyUiExecutionRequest['source'], { readonly kind: 'frontend-workflow' }> }, uploads: ComfyUiPreparedUploads, deps: ComfyUiFrontendQueueDriverDependencies, signal?: AbortSignal): Promise<ComfyUiExecutionResult> {
-  const bridge = await deps.bridgeResolver.resolve(request.source.workflowId);
+  const affinity = request.connection.targetAffinity;
+  if (affinity === undefined) throw createComfyUiExecutionError('prepare', 'invalid-connection');
+  assertTargetAffinity(deps.bridgeResolver, affinity);
+  let bridge;
+  try { bridge = await deps.bridgeResolver.resolve(request.source.workflowId, signal, affinity); } catch (error) {
+    if (error instanceof Error && error.message === 'invalid-connection') throw createComfyUiExecutionError('prepare', 'invalid-connection');
+    throw error;
+  }
   if (!bridge) throw createComfyUiExecutionError('prepare', 'bridge-incompatible');
   const identity = bridge.identity;
   const handshake = createComfyUiBridgeHandshakeRequest(identity, runtimeId(deps, 'bridge-request'));
   try { validateComfyUiBridgeHandshake(await bridge.exchange(handshake, signal), handshake.requestId, identity); } catch (error) { throw normalizeComfyUiExecutionError(error, { stage: 'prepare', code: 'bridge-incompatible' }); }
   const mutations = uploadMutations(request, uploads);
   const submission = createComfyUiFrontendSubmitRequest({ identity, workflowId: request.source.workflowId, revision: request.source.revision, remotePath: request.source.remotePath, mutations: buildComfyUiFrontendMutations(mutations), prompt: request.mutations ? undefined : request.prompt, imageValues: request.imageInputRef ? undefined : uploads.imageValues, configureTimeoutMs: Math.min(request.connection.requestTimeoutMs, 30_000), receiptTimeoutMs: Math.min(request.connection.observationTimeoutMs, 30_000), requestId: runtimeId(deps, 'bridge-request'), operationId: runtimeId(deps, 'comfy-operation') });
+  assertTargetAffinity(deps.bridgeResolver, affinity);
   let response: unknown;
   try { response = await bridge.exchange(submission.request, signal); } catch (error) { throw normalizeComfyUiExecutionError(error, { stage: 'submit', code: 'submission-unknown', remoteMayContinue: true }); }
   assertComfyUiBridgeIdentity(bridge.identity, identity, true);

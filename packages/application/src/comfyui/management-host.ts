@@ -4,6 +4,8 @@ import {
   type CreateComfyUiManagementHostOptions,
 } from '@imagen-ps/execution-backend-comfyui';
 import type {
+  ComfyUiConnectionTarget,
+  ComfyUiFrontendBridgeGeneration,
   ComfyUiRuntimePorts,
   ComfyUiServerCapabilities,
   LoadedWorkflowRuntime,
@@ -12,23 +14,40 @@ import type {
 } from './types.js';
 import { createComfyUiBridgeHandshakeRequest, validateComfyUiBridgeHandshake } from '@imagen-ps/execution-backend-comfyui';
 
+/** ComfyUI management host ports 的 composition options。 */
 export interface CreateComfyUiManagementHostPortsOptions extends CreateComfyUiManagementHostOptions {
   readonly now?: () => Date;
+}
+
+/** Execution validation 映射成 Application connection callbacks。 */
+export interface ComfyUiManagementConnectionValidationPorts {
+  validateApi(target: ComfyUiConnectionTarget, signal: AbortSignal): Promise<void>;
+  validateBridge(generation: ComfyUiFrontendBridgeGeneration, signal: AbortSignal): Promise<void>;
 }
 
 function connection(baseUrl: string): ComfyUiManagementHostConnection {
   return { baseUrl, requestTimeoutMs: 30_000, observationTimeoutMs: 300_000 };
 }
 
-/** 将 execution host 的 bounded facts 映射为 Application runtime ports。 */
+/** 将 execution host 的 bounded facts 映射为 Application runtime 与 connection ports。 */
 export function createComfyUiManagementHostPorts(
   options: CreateComfyUiManagementHostPortsOptions,
-): ComfyUiRuntimePorts {
+): ComfyUiRuntimePorts & ComfyUiManagementConnectionValidationPorts {
   const host = createExecutionComfyUiManagementHost({
     httpTransport: options.httpTransport,
     ...(options.frontendBridgeResolver === undefined ? {} : { frontendBridgeResolver: options.frontendBridgeResolver }),
   });
   return {
+    async validateApi(target, signal) {
+      await host.validateApi({
+        baseUrl: target.baseUrl,
+        requestTimeoutMs: target.requestTimeoutMs,
+        observationTimeoutMs: target.observationTimeoutMs,
+      }, signal);
+    },
+    async validateBridge(generation, signal) {
+      await host.validateBridge(generation, signal);
+    },
     async probe(baseUrl, signal): Promise<ComfyUiServerCapabilities> {
       const evidence = await host.testConnection(connection(baseUrl), signal);
       return {
@@ -48,10 +67,10 @@ export function createComfyUiManagementHostPorts(
         revision: workflow.revision,
       }));
     },
-    async load(_baseUrl, identity, signal): Promise<LoadedWorkflowRuntime> {
+    async load(baseUrl, identity, signal): Promise<LoadedWorkflowRuntime> {
       const bridge = options.frontendBridgeResolver === undefined
         ? undefined
-        : await options.frontendBridgeResolver.resolve(identity.workflowId);
+        : await options.frontendBridgeResolver.resolve(identity.workflowId, signal, { baseUrl });
       if (bridge === undefined) throw new Error('ComfyUI Bridge is unavailable.');
       const handshake = createComfyUiBridgeHandshakeRequest(bridge.identity, `management-handshake-${Date.now()}`);
       validateComfyUiBridgeHandshake(await bridge.exchange(handshake, signal), handshake.requestId, bridge.identity);
