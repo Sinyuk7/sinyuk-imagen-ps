@@ -202,6 +202,39 @@ describe('ComfyUI internal runtime', () => {
     expect(result.descriptors).toEqual([]);
   });
 
+  it('extracts bounded execution failure evidence without retaining a traceback', async () => {
+    const body = encoder.encode(JSON.stringify({
+      prompt: {
+        status: {
+          status_str: 'error',
+          messages: [[
+            'execution_error',
+            {
+              node_id: '12',
+              node_type: 'KSampler',
+              exception_type: 'BrokenPipeError',
+              exception_message: '[Errno 32] Broken pipe\ntraceback must not be retained',
+              traceback: ['raw traceback must not be retained'],
+            },
+          ]],
+        },
+      },
+    }));
+    await expect(observeKnownComfyUiPrompt(
+      { connection, promptId: 'prompt' },
+      { transport: { request: async () => ({ status: 200, headers: {}, body }) }, clock: { now: () => 0, sleep: async () => {} } },
+    )).rejects.toMatchObject({
+      details: {
+        code: 'execution-failed',
+        executionError: {
+          nodeId: '12',
+          nodeType: 'KSampler',
+          message: 'BrokenPipeError: [Errno 32] Broken pipe',
+        },
+      },
+    });
+  });
+
   it('keeps safe downloaded siblings when one image response is unsafe', async () => {
     const png = Uint8Array.from([137, 80, 78, 71, 13, 10, 26, 10]);
     const stored = await downloadAndStoreComfyUiOutputs(

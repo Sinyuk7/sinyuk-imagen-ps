@@ -236,6 +236,40 @@ describe('ComfyUI frontend Bridge generation factories', () => {
     generation.dispose();
   });
 
+  it('retries a UXP handshake until the page listener can receive it', async () => {
+    const clock = new FakeClock();
+    const hostWindow = new FakeHostWindow();
+    const webView = new FakeWebView();
+    const generation = createUxpComfyUiFrontendBridgeGenerationFactory({
+      pluginId: 'com.imagen-ps.panel',
+      hostWindow,
+      clock,
+      createRuntimeId: createIds(),
+      createWebView: () => webView,
+      mountWebView: () => undefined,
+    }).create(target());
+
+    const resolving = generation.resolve('workflow-1');
+    await flush();
+    webView.emit('loadstop');
+    const port = (await resolving)!;
+    const outgoing = request(port.identity, 'uxp-retry-request');
+    const pending = port.exchange(outgoing);
+    await flush();
+    expect(webView.posts).toEqual([[outgoing, generation.target.origin]]);
+
+    clock.runTimeout(500);
+    expect(webView.posts).toEqual([
+      [outgoing, generation.target.origin],
+      [outgoing, generation.target.origin],
+    ]);
+    const response = { requestId: outgoing.requestId, ok: true, payload: {} };
+    hostWindow.emit({ origin: webView.src, source: webView, data: response });
+    await expect(pending).resolves.toBe(response);
+    expect(clock.timeouts()).not.toContain(500);
+    generation.dispose();
+  });
+
   it('retires bounded existing exchanges and rejects new resolves', async () => {
     const hostWindow = new FakeHostWindow();
     const frame = new FakeFrame();

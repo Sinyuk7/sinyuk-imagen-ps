@@ -1,4 +1,4 @@
-import { createComfyUiExecutionError, normalizeComfyUiExecutionError } from './errors.js';
+import { createComfyUiExecutionError, normalizeComfyUiExecutionError, normalizeComfyUiExecutionFailure, type ComfyUiExecutionFailure } from './errors.js';
 import { detectComfyUiImageMime } from './assets.js';
 import type { ComfyUiAssetSink, ComfyUiExecutionClock, ComfyUiExecutionConnection, ComfyUiHttpResponse, ComfyUiHttpTransport, ComfyUiPromptHintSource } from './execution-types.js';
 import { decodeJsonBytes, hasExactKeys, isPlainRecord, utf8ByteLength } from './internal/value.js';
@@ -22,11 +22,35 @@ function jsonResponse(response: ComfyUiHttpResponse, max: number): unknown {
 function terminal(entry: Record<string, unknown>): boolean {
   return entry.status === 'completed' || entry.status === 'error' || entry.status === 'failed' || entry.status_str === 'success' || entry.status_str === 'error';
 }
+
+function executionFailureFromStatus(status: Record<string, unknown>): ComfyUiExecutionFailure | undefined {
+  const message = Array.isArray(status.messages)
+    ? status.messages.find((item): item is readonly [string, Record<string, unknown>] => Array.isArray(item) && item[0] === 'execution_error' && isPlainRecord(item[1]))
+    : undefined;
+  if (message === undefined) return undefined;
+  const detail = message[1];
+  const exceptionType = typeof detail.exception_type === 'string' ? detail.exception_type.trim() : undefined;
+  const exceptionMessage = typeof detail.exception_message === 'string'
+    ? detail.exception_message.split(/\r?\n/, 1)[0]?.trim()
+    : undefined;
+  const composedMessage = exceptionType === undefined
+    ? exceptionMessage
+    : exceptionMessage === undefined || exceptionMessage.startsWith(`${exceptionType}:`)
+      ? exceptionMessage ?? exceptionType
+      : `${exceptionType}: ${exceptionMessage}`;
+  return normalizeComfyUiExecutionFailure({
+    ...(typeof detail.node_id === 'string' || typeof detail.node_id === 'number' ? { nodeId: String(detail.node_id) } : {}),
+    ...(typeof detail.node_type === 'string' ? { nodeType: detail.node_type.trim() } : {}),
+    ...(composedMessage === undefined ? {} : { message: composedMessage }),
+  });
+}
 function collectHistory(value: unknown): ComfyUiObservedOutputs | undefined {
   if (!isPlainRecord(value)) return undefined;
   const status = isPlainRecord(value.status) ? value.status : undefined;
   if (status === undefined || !terminal(status)) return undefined;
-  if (status.status_str === 'error' || status.status === 'error' || status.status === 'failed') throw createComfyUiExecutionError('observe', 'execution-failed');
+  if (status.status_str === 'error' || status.status === 'error' || status.status === 'failed') {
+    throw createComfyUiExecutionError('observe', 'execution-failed', { executionError: executionFailureFromStatus(status) });
+  }
   const outputs = isPlainRecord(value.outputs) ? value.outputs : {};
   const descriptors: ComfyUiOutputDescriptor[] = [];
   let unsafe = false;

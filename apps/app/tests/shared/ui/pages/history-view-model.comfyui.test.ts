@@ -95,4 +95,23 @@ describe('History generic backend projection', () => {
     expect(item.displayStatus).toBe('completed-without-image-output');
     expect(item.actions).toEqual({ retry: 'disabled', download: 'disabled', place: 'disabled' });
   });
+
+  it('keeps bounded ComfyUI execution evidence for durable failed history', () => {
+    const failed = {
+      ...record({
+        taskId: 'comfy-failed-task', backendId: 'comfyui', backendLabel: 'ComfyUI', connectionLabel: 'ComfyUI', createdAt: '2026-07-18T00:00:05.000Z',
+      }),
+      status: 'failed',
+      outputs: [],
+      finishedAt: '2026-07-18T00:01:05.000Z',
+      error: {
+        category: 'execution', message: 'ComfyUI execution failed.', code: 'execution-failed',
+        executionError: { nodeId: '12', nodeType: 'KSampler', message: 'BrokenPipeError: [Errno 32] Broken pipe' },
+      },
+    } satisfies TaskRecord;
+    const [item] = deriveHistoryItems({
+      durableRecords: [failed], activeRounds: [], previews: {}, canDownload: false, canPlace: false, noPrompt: 'No prompt', unknownProvider: 'Unknown',
+    });
+    expect(item.comfyUiExecutionError).toEqual({ nodeId: '12', nodeType: 'KSampler', message: 'BrokenPipeError: [Errno 32] Broken pipe' });
+  });
 });

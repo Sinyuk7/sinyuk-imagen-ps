@@ -78,4 +78,23 @@ describe('gemini generate content safeProbe', () => {
       httpStatus: 404,
     });
   });
+
+  it('rejects an unsupported output size before invoking nano-banana-fast', () => {
+    expect(() => provider.validateRequest({
+      operation: 'text_to_image',
+      prompt: 'test',
+      model: {
+        apiFormat: 'gemini-generate-content',
+        modelId: 'nano-banana-fast',
+        requestStrategyId: 'gemini-generate-content-image-config',
+      },
+      capabilityModelId: 'nano-banana-fast',
+      output: {
+        selection: {
+          geometry: { kind: 'ratio-resolution', aspectRatio: '1:1', resolution: '2k' },
+          outputFormat: 'png',
+        },
+      },
+    })).toThrow('does not support ratio-resolution');
+  });
 });

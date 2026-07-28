@@ -66,4 +66,35 @@ describe('AppShell History failed action', () => {
       .toBe('restore this failed prompt');
     expect(fake.spies.executeJob).toHaveBeenCalledTimes(1);
   });
+
+  it('shows a bounded ComfyUI execution summary without repeating exception type', async () => {
+    const fake = createFakeServices();
+    fake.spies.executeJob.mockImplementation(async (input) => {
+      const completed = completedJob(input.execution.input, 'failed-comfy-job');
+      const failed = {
+        ...completed,
+        status: 'failed' as const,
+        output: undefined,
+        error: {
+          category: 'execution' as const,
+          message: 'ComfyUI execution failed.',
+          details: { code: 'execution-failed', executionError: { nodeId: '12', nodeType: 'KSampler', message: 'BrokenPipeError: [Errno 32] Broken pipe' } },
+        },
+      };
+      await input.onJobCreated?.({ ...failed, status: 'created', error: undefined, updatedAt: failed.createdAt });
+      return { ok: true as const, value: failed };
+    });
+    const container = document.createElement('div');
+    document.body.appendChild(container);
+    await renderMainPage(container, fake);
+    await selectMainModel(container);
+    await sendPrompt(container, 'show ComfyUI execution error');
+
+    await vi.waitFor(() => {
+      const detail = container.querySelector('[data-testid^="comfyui-execution-error-"]');
+      expect(detail?.textContent).toContain('节点: KSampler (ID: 12)');
+      expect(detail?.textContent).toContain('详情: BrokenPipeError: [Errno 32] Broken pipe');
+      expect(detail?.textContent).not.toContain('Exception Type');
+    });
+  });
 });

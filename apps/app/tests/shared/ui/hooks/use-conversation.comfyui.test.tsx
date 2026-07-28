@@ -193,4 +193,46 @@ describe('useConversation ComfyUI previews', () => {
     expect(controller?.rounds[0]).toMatchObject({ status: 'ok', previews: [] });
     await act(async () => { root.unmount(); });
   });
+
+  it('projects ComfyUI execution evidence into a failed round without a duplicate exception type', async () => {
+    let submittedTaskId = '';
+    const session = createSession((taskId) => { submittedTaskId = taskId; });
+    const fake = createFakeServices();
+    const container = document.createElement('div');
+    document.body.appendChild(container);
+    const root: Root = createRoot(container);
+    let controller: ConversationController | undefined;
+    const onChange = (value: ConversationController): void => { controller = value; };
+
+    await act(async () => {
+      root.render(<Probe services={fake.services} binding={{ session, snapshot: EMPTY_SNAPSHOT }} onChange={onChange} />);
+      await flush();
+    });
+    await act(async () => {
+      await controller!.submit({
+        backendId: 'comfyui', operation: 'text-to-image', prompt: 'broken pipe', providerName: 'ComfyUI', selectedWorkflowId: 'workflow', workflowName: 'Workflow',
+      });
+      root.render(<Probe services={fake.services} binding={{
+        session,
+        snapshot: {
+          queuedTasks: [],
+          jobs: [{
+            id: 'job-failed', taskId: submittedTaskId, type: 'generate', status: 'failed', phase: 'failed', canRetry: false, canCancel: false,
+            error: {
+              category: 'execution', message: 'ComfyUI execution failed.',
+              details: { code: 'execution-failed', executionError: { nodeId: '12', nodeType: 'KSampler', message: 'BrokenPipeError: [Errno 32] Broken pipe' } },
+            },
+          }],
+        },
+      }} onChange={onChange} />);
+      await flush();
+    });
+
+    expect(controller?.rounds[0]).toMatchObject({
+      status: 'err',
+      comfyUiExecutionError: { nodeId: '12', nodeType: 'KSampler', message: 'BrokenPipeError: [Errno 32] Broken pipe' },
+    });
+    expect(controller?.rounds[0]?.comfyUiExecutionError).not.toHaveProperty('exceptionType');
+    await act(async () => { root.unmount(); });
+  });
 });

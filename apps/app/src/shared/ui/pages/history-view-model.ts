@@ -1,5 +1,6 @@
 import type { ResolvedTaskResource, TaskOutput, TaskRecord } from '@imagen-ps/application';
 import type { ConversationRound, RoundStatus } from '../hooks/use-conversation';
+import { comfyUiExecutionErrorFromTask, type ComfyUiExecutionErrorDetail } from '../comfyui-execution-error';
 import {
   createImagePreviewFallback,
   fallbackStateFromAvailability,
@@ -36,6 +37,7 @@ export interface HistoryItemViewModel {
   readonly isActive: boolean;
   readonly canLocate: boolean;
   readonly retryRoundId?: string;
+  readonly comfyUiExecutionError?: ComfyUiExecutionErrorDetail;
   readonly previewUrl?: string;
   readonly previewFallback?: ImagePreviewFallback;
   readonly output?: TaskOutput;
@@ -191,6 +193,7 @@ export function deriveHistoryItems(input: DeriveHistoryItemsInput): readonly His
       ...(previewState.output ? { output: previewState.output } : {}),
       ...(previewState.resourceState ? { resourceState: previewState.resourceState } : {}),
       taskRecord: record,
+      ...(comfyUiExecutionErrorFromTask(record.error) === undefined ? {} : { comfyUiExecutionError: comfyUiExecutionErrorFromTask(record.error) }),
       actions: {
         retry: 'disabled',
         download: actionStateForOutput(previewState.output, record, previewState.resourceState, input.canDownload),
@@ -219,6 +222,7 @@ export function deriveHistoryItems(input: DeriveHistoryItemsInput): readonly His
       isActive: true,
       canLocate: true,
       ...(round.status === 'err' ? { retryRoundId: round.id } : {}),
+      ...(round.comfyUiExecutionError === undefined ? {} : { comfyUiExecutionError: round.comfyUiExecutionError }),
       ...(round.previews[0]?.url ? { previewUrl: round.previews[0].url } : existing?.previewUrl ? { previewUrl: existing.previewUrl } : {}),
       ...(!round.previews[0]?.url && round.previews[0]?.fallback
         ? { previewFallback: round.previews[0].fallback }

@@ -6,6 +6,7 @@ export type ErrorActionCategory =
   | 'provider-protocol-incompatible'
   | 'provider-temporarily-unavailable'
   | 'placement-conflict'
+  | 'comfyui-execution-failed'
   | 'unknown';
 
 export type ErrorPrimaryAction =
@@ -52,6 +53,9 @@ function isProviderProtocolIncompatible(message: string): boolean {
 
 function classify(message: string): Pick<ClassifiedRoundError, 'category' | 'primaryAction'> {
   const lower = message.toLowerCase();
+  if (message === 'ComfyUI execution failed.') {
+    return { category: 'comfyui-execution-failed', primaryAction: 'fill-composer-from-failed-round' };
+  }
   if (isProviderProtocolIncompatible(message)) {
     return { category: 'provider-protocol-incompatible', primaryAction: 'open-provider-settings' };
   }

@@ -560,6 +560,30 @@ describe('ComfyUI runtime core', () => {
     const projected = await backend.projectTerminal({ admitted, runningTask: admitted.runningTask, job: { id: 'job', status: 'completed', input: admitted.execution.input, output: { comfyui: { outputs: [], warnings: [] } }, error: undefined, createdAt: task.createdAt, updatedAt: task.updatedAt } });
     expect(projected.status).toBe('completed');
     expect(projected.outputs).toEqual([]);
+
+    const failed = await backend.projectTerminal({
+      admitted,
+      runningTask: admitted.runningTask,
+      job: {
+        id: 'job-failed', status: 'failed', input: admitted.execution.input, output: undefined,
+        error: {
+          category: 'execution', message: 'ComfyUI execution failed.',
+          details: {
+            code: 'execution-failed',
+            executionError: { nodeId: '12', nodeType: 'KSampler', message: 'BrokenPipeError: [Errno 32] Broken pipe' },
+          },
+        },
+        createdAt: task.createdAt, updatedAt: task.updatedAt,
+      },
+    });
+    expect(failed).toMatchObject({
+      status: 'failed',
+      error: {
+        category: 'execution',
+        code: 'execution-failed',
+        executionError: { nodeId: '12', nodeType: 'KSampler', message: 'BrokenPipeError: [Errno 32] Broken pipe' },
+      },
+    });
   });
 
   it('reconstructs ComfyUI retry Mask from Task Edit Region', async () => {

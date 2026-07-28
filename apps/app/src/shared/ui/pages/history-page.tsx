@@ -17,6 +17,7 @@ import {
   type HistoryDisplayStatus,
   type PreviewSnapshot,
 } from './history-view-model';
+import { comfyUiExecutionNodeLabel } from '../comfyui-execution-error';
 
 const COMPLETED_WITHOUT_IMAGE_STATUS: HistoryDisplayStatus = 'completed-without-image-output';
 const PREVIEW_QUEUE_CONCURRENCY = 2;
@@ -523,6 +524,12 @@ export function HistoryPage({
                       </>
                     )}
                   </div>
+                  {item.comfyUiExecutionError ? (
+                    <div className="history-execution-error" data-testid={`history-comfyui-execution-error-${item.id}`}>
+                      {comfyUiExecutionNodeLabel(item.comfyUiExecutionError) ? <div>{t.main.errorComfyUiNode}: {comfyUiExecutionNodeLabel(item.comfyUiExecutionError)}</div> : null}
+                      {item.comfyUiExecutionError.message ? <div>{t.main.errorComfyUiDetail}: {item.comfyUiExecutionError.message}</div> : null}
+                    </div>
+                  ) : null}
                 </div>
               </div>
             );

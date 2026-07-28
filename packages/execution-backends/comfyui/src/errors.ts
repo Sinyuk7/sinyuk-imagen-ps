@@ -1,5 +1,5 @@
 import type { JobError } from '@imagen-ps/core-engine';
-import { deepFreeze, isPlainRecord } from './internal/value.js';
+import { deepFreeze, isPlainRecord, utf8ByteLength } from './internal/value.js';
 
 /** ComfyUI shared error stage。 */
 export type ComfyUiErrorStage = 'prepare' | 'upload' | 'submit' | 'observe' | 'download' | 'project';
@@ -35,6 +35,13 @@ export type ComfyUiBridgeErrorCode =
   | 'submission-unknown'
   | 'unsupported-command';
 
+/** 可展示的 ComfyUI 节点执行摘要；不包含 traceback、路径或原始响应。 */
+export interface ComfyUiExecutionFailure {
+  readonly nodeId?: string;
+  readonly nodeType?: string;
+  readonly message?: string;
+}
+
 /** ComfyUI error 中唯一允许进入 Job/Task 的 details。 */
 export interface ComfyUiExecutionErrorDetails {
   readonly [key: string]: unknown;
@@ -44,6 +51,7 @@ export interface ComfyUiExecutionErrorDetails {
   readonly remoteMayContinue: boolean;
   readonly retryDisposition: ComfyUiRetryDisposition;
   readonly bridgeCode?: ComfyUiBridgeErrorCode;
+  readonly executionError?: ComfyUiExecutionFailure;
 }
 
 /** Core 可保留的 structured ComfyUI `JobError`。 */
@@ -80,14 +88,37 @@ const BRIDGE_CODES: ReadonlySet<string> = new Set([
   'submission-unknown',
   'unsupported-command',
 ]);
+const NODE_ID_PATTERN = /^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$/;
+const NODE_TYPE_PATTERN = /^[A-Za-z][A-Za-z0-9_. -]{0,127}$/;
+const UNSAFE_EXECUTION_MESSAGE_PATTERN = /(?:https?|file):\/\/|(?:^|[\s("' ])(?:\/|~\/|[A-Za-z]:[\\/])|\b(?:sk-[A-Za-z0-9_-]{8,}|Bearer\s+[A-Za-z0-9._-]{8,})\b/i;
+
+/** 将远端 History 的失败摘要限制为可持久化、可展示的安全字段。 */
+export function normalizeComfyUiExecutionFailure(value: unknown): ComfyUiExecutionFailure | undefined {
+  if (!isPlainRecord(value) || Object.keys(value).some((key) => !['nodeId', 'nodeType', 'message'].includes(key))) return undefined;
+  const nodeId = typeof value.nodeId === 'string' && NODE_ID_PATTERN.test(value.nodeId) ? value.nodeId : undefined;
+  const nodeType = typeof value.nodeType === 'string' && NODE_TYPE_PATTERN.test(value.nodeType) ? value.nodeType : undefined;
+  const message = typeof value.message === 'string'
+    && value.message.trim().length > 0
+    && utf8ByteLength(value.message) <= 512
+    && !/[\u0000-\u001f\u007f]/.test(value.message)
+    && !UNSAFE_EXECUTION_MESSAGE_PATTERN.test(value.message)
+    ? value.message.trim()
+    : undefined;
+  return nodeId === undefined && nodeType === undefined && message === undefined
+    ? undefined
+    : { ...(nodeId === undefined ? {} : { nodeId }), ...(nodeType === undefined ? {} : { nodeType }), ...(message === undefined ? {} : { message }) };
+}
 
 /** 构造不含 raw transport facts 的 structured execution error。 */
 export function createComfyUiExecutionError(
   stage: ComfyUiErrorStage,
   code: ComfyUiErrorCode,
-  options: { readonly remoteMayContinue?: boolean; readonly bridgeCode?: ComfyUiBridgeErrorCode } = {},
+  options: { readonly remoteMayContinue?: boolean; readonly bridgeCode?: ComfyUiBridgeErrorCode; readonly executionError?: ComfyUiExecutionFailure } = {},
 ): ComfyUiExecutionError {
   const remoteMayContinue = options.remoteMayContinue ?? false;
+  const executionError = code === 'execution-failed'
+    ? normalizeComfyUiExecutionFailure(options.executionError)
+    : undefined;
   return deepFreeze({
     category: 'execution' as const,
     message: 'ComfyUI execution failed.' as const,
@@ -100,6 +131,7 @@ export function createComfyUiExecutionError(
         ? 'same-task-new-job' as const
         : 'new-task-only' as const,
       ...(options.bridgeCode === undefined ? {} : { bridgeCode: options.bridgeCode }),
+      ...(executionError === undefined ? {} : { executionError }),
     },
   });
 }
@@ -115,7 +147,8 @@ export function isComfyUiExecutionError(value: unknown): value is ComfyUiExecuti
     && typeof details.remoteMayContinue === 'boolean'
     && (details.retryDisposition === 'same-task-new-job' || details.retryDisposition === 'new-task-only')
     && (details.bridgeCode === undefined || BRIDGE_CODES.has(String(details.bridgeCode)))
-    && Object.keys(details).every((key) => ['stage', 'code', 'messageKey', 'remoteMayContinue', 'retryDisposition', 'bridgeCode'].includes(key));
+    && (details.executionError === undefined || (details.code === 'execution-failed' && normalizeComfyUiExecutionFailure(details.executionError) !== undefined))
+    && Object.keys(details).every((key) => ['stage', 'code', 'messageKey', 'remoteMayContinue', 'retryDisposition', 'bridgeCode', 'executionError'].includes(key));
 }
 
 /** Unknown failures 映射为当前 stage 的安全 bounded error。 */

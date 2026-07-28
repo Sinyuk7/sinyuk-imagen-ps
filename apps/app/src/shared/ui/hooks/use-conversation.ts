@@ -40,6 +40,7 @@ import {
 import type { AppProviderInputSizePreset } from '../../ports/app-generation-settings';
 import type { ComfyUiExecutionAssetInput } from '@imagen-ps/application';
 import type { ComfyUiWorkflowValueMutation, WorkflowInputRef, WorkflowMapping, WorkflowPrimitiveValue } from '@imagen-ps/application';
+import { comfyUiExecutionErrorFromJob, type ComfyUiExecutionErrorDetail } from '../comfyui-execution-error';
 
 export interface ConversationAttachment {
   readonly id: string;
@@ -70,6 +71,7 @@ export interface ConversationRound {
   readonly elapsedSeconds: number;
   readonly elapsedLabel?: string;
   readonly errorMessage?: string;
+  readonly comfyUiExecutionError?: ComfyUiExecutionErrorDetail;
   readonly jobId?: string;
   readonly queuePosition?: number;
   readonly queueState?: 'queued' | 'starting';
@@ -251,11 +253,13 @@ function roundFromSessionJob(
   const metadata = outputMetadata(job.output);
   const responseText = composeResponseText(outputText(job.output), current);
   if (job.status === 'failed') {
+    const comfyUiExecutionError = comfyUiExecutionErrorFromJob(job.error);
     return {
       ...current,
       status: 'err',
       jobId: job.id,
       errorMessage: errorMessage(job.error, messages.jobFailed),
+      ...(comfyUiExecutionError === undefined ? {} : { comfyUiExecutionError }),
       elapsedLabel: elapsedLabel(current.elapsedSeconds),
     };
   }

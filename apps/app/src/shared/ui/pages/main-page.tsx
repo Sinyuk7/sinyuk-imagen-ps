@@ -25,6 +25,7 @@ import {
   type ComposerOperation,
 } from '../composer-readiness';
 import { classifyRoundError, type ErrorPrimaryAction } from '../error-action';
+import { comfyUiExecutionNodeLabel } from '../comfyui-execution-error';
 import type { ImageAspectRatio, ImageOutputImageSize, ImageOutputSelection, ProfileBillingState } from '@imagen-ps/application';
 import { configurationInstanceLabel, type UiModelInfo } from '../model-info';
 import type { GenerationWorkspaceController } from '../generation-workspace';
@@ -1322,6 +1323,12 @@ export function MainPage({
                         <div className="err-category">{t.main.errorCategory}: {t.main.errorCategoryLabel[failure.category] ?? t.main.errorCategoryLabel.unknown}</div>
                         <div className="err-msg">{errorDisplayMessage(t, failure)}</div>
                         {failure.detail ? <div className="err-detail">{failure.detail}</div> : null}
+                        {round.comfyUiExecutionError ? (
+                          <div className="err-detail" data-testid={`comfyui-execution-error-${round.id}`}>
+                            {comfyUiExecutionNodeLabel(round.comfyUiExecutionError) ? <div>{t.main.errorComfyUiNode}: {comfyUiExecutionNodeLabel(round.comfyUiExecutionError)}</div> : null}
+                            {round.comfyUiExecutionError.message ? <div>{t.main.errorComfyUiDetail}: {round.comfyUiExecutionError.message}</div> : null}
+                          </div>
+                        ) : null}
                         {failure.requestId ? (
                           <div className="err-request">
                             <div className="err-request-label">{t.main.requestId}</div>

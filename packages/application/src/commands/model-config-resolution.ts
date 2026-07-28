@@ -1,5 +1,6 @@
 import { createValidationError } from '@imagen-ps/core-engine';
 import {
+  getOfficialModelPreset,
   getRequestStrategy,
   type ApiFormat,
   type ImageOutputMatrix,
@@ -43,6 +44,48 @@ function assertStrategyMatchesApiFormat(args: {
   }
 }
 
+function projectOutputMatrixForWireModel(args: {
+  readonly apiFormat: ApiFormat;
+  readonly wireModelId: string;
+  readonly configuredMatrix: readonly ImageOutputMatrix[];
+}): readonly ImageOutputMatrix[] | undefined {
+  const wirePreset = getOfficialModelPreset(args.apiFormat, args.wireModelId);
+  if (wirePreset === undefined) {
+    return undefined;
+  }
+
+  return args.configuredMatrix.map((configured) => {
+    const wireMatrix = wirePreset.outputMatrix.find((candidate) => candidate.operation === configured.operation);
+    if (wireMatrix === undefined) {
+      throw createValidationError(
+        `Wire model "${args.wireModelId}" does not support output operation "${configured.operation}".`,
+        { apiFormat: args.apiFormat, wireModelId: args.wireModelId, operation: configured.operation },
+      );
+    }
+    const wireCellIds = new Set(wireMatrix.cells.map((cell) => cell.id));
+    const cells = configured.cells.filter((cell) => wireCellIds.has(cell.id));
+    if (cells.length === 0) {
+      throw createValidationError(
+        `Configured output for wire model "${args.wireModelId}" has no supported entries for "${configured.operation}".`,
+        { apiFormat: args.apiFormat, wireModelId: args.wireModelId, operation: configured.operation },
+      );
+    }
+    const imageSizeIds = new Set(cells.map((cell) => cell.imageSize));
+    const ratioIds = new Set(cells.map((cell) => cell.ratio));
+    const outputFormatIds = new Set(cells.map((cell) => cell.outputFormat));
+    return {
+      ...configured,
+      imageSizes: configured.imageSizes.filter((option) => imageSizeIds.has(option.id)),
+      ratios: configured.ratios.filter((option) => ratioIds.has(option.id)),
+      outputFormats: configured.outputFormats.filter((option) => outputFormatIds.has(option.id)),
+      defaultCellId: cells.some((cell) => cell.id === configured.defaultCellId)
+        ? configured.defaultCellId
+        : cells[0]!.id,
+      cells,
+    };
+  });
+}
+
 export async function resolveConfiguredModel(args: {
   readonly profileId: string;
   readonly apiFormat: ApiFormat;
@@ -63,14 +106,20 @@ export async function resolveConfiguredModel(args: {
       modelId: normalizedModelId,
       requestStrategyId: userConfig.requestStrategyId,
     });
+    const wirePreset = getOfficialModelPreset(args.apiFormat, userConfig.wireModelId);
+    const wireOutputMatrix = projectOutputMatrixForWireModel({
+      apiFormat: args.apiFormat,
+      wireModelId: userConfig.wireModelId,
+      configuredMatrix: userConfig.outputMatrix,
+    });
     return {
       apiFormat: userConfig.apiFormat,
       configModelId: userConfig.modelId,
-      capabilityModelId: userConfig.baseModelId,
+      capabilityModelId: wirePreset?.modelId ?? userConfig.baseModelId,
       wireModelId: userConfig.wireModelId,
       requestStrategyId: userConfig.requestStrategyId,
       outputExposure: userConfig.outputExposure,
-      outputMatrix: userConfig.outputMatrix,
+      outputMatrix: wireOutputMatrix ?? userConfig.outputMatrix,
       source: 'user',
     };
   }

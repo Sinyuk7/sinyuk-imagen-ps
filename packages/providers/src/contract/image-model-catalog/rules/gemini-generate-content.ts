@@ -18,6 +18,28 @@ import {
 
 export const GEMINI_GENERATE_CONTENT_MODEL_CAPABILITIES = Object.freeze([
   {
+    ruleId: 'gemini-generate-content-nano-banana-fast',
+    match: {
+      ids: ['nano-banana-fast', 'models/nano-banana-fast'],
+      prefixes: ['nano-banana-fast', 'models/nano-banana-fast'],
+    },
+    displayName: 'Nano Banana 2 Fast',
+    brand: 'google-gemini',
+    selection: {
+      visibleInPicker: true,
+      allowAsDefault: true,
+    },
+    appliesToProviders: ['gemini-generate-content'],
+    requestStrategyId: 'gemini-generate-content-image-config',
+    outputCapability: GEMINI_3_1_FLASH_LITE_IMAGE_OUTPUT_CAPABILITY,
+    outputExposure: GEMINI_3_1_FLASH_LITE_IMAGE_OUTPUT_EXPOSURE,
+    editInput: GEMINI_EDIT_INPUT_CAPABILITY,
+    outputMatrix: [
+      gemini31FlashLiteImageMatrix('text_to_image'),
+      gemini31FlashLiteImageMatrix('image_edit'),
+    ],
+  },
+  {
     ruleId: 'gemini-generate-content-gemini-3.1-flash-image',
     match: {
       ids: ['gemini-3.1-flash-image', 'models/gemini-3.1-flash-image'],

@@ -167,6 +167,44 @@ describe('HistoryPage preview fallback', () => {
     expect(container.querySelector('[data-testid="history-row-unavailable-task"] .image-fallback[data-state="preview-unavailable"]')).not.toBeNull();
   });
 
+  it('renders bounded ComfyUI execution evidence for a failed durable Task', async () => {
+    const container = document.createElement('div');
+    document.body.appendChild(container);
+    const fake = createFakeServices({ activeImageProfileId: 'mock-profile' });
+    const record: TaskRecord = {
+      ...fakeTaskRecord,
+      taskId: 'comfy-failed-history-task',
+      status: 'failed',
+      outputs: [],
+      error: {
+        category: 'execution', message: 'ComfyUI execution failed.', code: 'execution-failed',
+        executionError: { nodeId: '12', nodeType: 'KSampler', message: 'BrokenPipeError: [Errno 32] Broken pipe' },
+      },
+      createdAt: '2026-06-15T00:00:00.000Z',
+      updatedAt: '2026-06-15T00:01:00.000Z',
+      finishedAt: '2026-06-15T00:01:00.000Z',
+    };
+    root = createRoot(container);
+    await act(async () => {
+      root!.render(
+        <TestAppProviders services={fake.services}>
+          <HistoryPage
+            onNav={() => undefined}
+            rounds={[]}
+            records={[record]}
+            loading={false}
+            onReload={async () => undefined}
+            onRetry={async () => undefined}
+          />
+        </TestAppProviders>,
+      );
+    });
+
+    const detail = container.querySelector('[data-testid="history-comfyui-execution-error-comfy-failed-history-task"]');
+    expect(detail?.textContent).toContain('节点: KSampler (ID: 12)');
+    expect(detail?.textContent).toContain('详情: BrokenPipeError: [Errno 32] Broken pipe');
+  });
+
   it('renders generic connection or backend labels without backend-specific fields', async () => {
     const container = document.createElement('div');
     document.body.appendChild(container);

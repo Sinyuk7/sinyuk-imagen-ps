@@ -132,6 +132,7 @@ describe('image output capability contract', () => {
   it('keeps Gemini image model dimensions model-specific', () => {
     const pro = getOfficialModelPreset('gemini-generate-content', 'gemini-3-pro-image');
     const lite = getOfficialModelPreset('gemini-generate-content', 'gemini-3.1-flash-lite-image');
+    const fast = getOfficialModelPreset('gemini-generate-content', 'nano-banana-fast');
 
     expect(pro?.outputCapability.geometry.kind === 'ratio-resolution'
       ? pro.outputCapability.geometry.aspectRatios
@@ -143,6 +144,14 @@ describe('image output capability contract', () => {
       ? lite.outputCapability.geometry.resolutions
       : []).toEqual(['1k']);
     expect(lite?.outputMatrix.every((matrix) =>
+      matrix.cells.every((cell) =>
+        cell.selection.geometry.kind !== 'ratio-resolution' || cell.selection.geometry.resolution === '1k',
+      ),
+    )).toBe(true);
+    expect(fast?.outputCapability.geometry.kind === 'ratio-resolution'
+      ? fast.outputCapability.geometry.resolutions
+      : []).toEqual(['1k']);
+    expect(fast?.outputMatrix.every((matrix) =>
       matrix.cells.every((cell) =>
         cell.selection.geometry.kind !== 'ratio-resolution' || cell.selection.geometry.resolution === '1k',
       ),

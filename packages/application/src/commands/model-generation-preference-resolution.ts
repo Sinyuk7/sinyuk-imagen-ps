@@ -10,6 +10,7 @@ import {
   type ImageOutputSelection,
 } from '@imagen-ps/providers';
 import { catalogProviderIdForApiFormat } from './api-format-profile.js';
+import { resolveConfiguredModel } from './model-config-resolution.js';
 import type {
   ModelGenerationPreference,
   ModelGenerationPreferenceKey,
@@ -168,7 +169,7 @@ export function resolveModelGenerationSettingsValue(args: {
     : effectiveSelectionForOperation(args.preference.selection, key.operation);
   const preferredCell = preferredProjection === undefined ? undefined : findMatrixCell(matrix, preferredProjection.effectiveSelection);
   const cell = preferredCell ?? defaultCell(matrix, key);
-  const storedSelection = args.preference?.selection ?? cell.selection;
+  const storedSelection = preferredCell === undefined ? cell.selection : args.preference!.selection;
   const effective = effectiveSelectionForOperation(storedSelection, key.operation);
   const selection = projectSelectionToUi(storedSelection, effective.effectiveSelection, effective.normalized);
 
@@ -186,5 +187,14 @@ export async function resolveUserModelConfigForPreferenceKey(
   key: ModelGenerationPreferenceKey,
   repository: Pick<UserModelConfigRepository, 'get'>,
 ): Promise<{ readonly outputMatrix: readonly ImageOutputMatrix[] } | undefined> {
-  return repository.get(key.profileId, key.modelId);
+  const stored = await repository.get(key.profileId, key.modelId);
+  if (stored === undefined) {
+    return undefined;
+  }
+  return resolveConfiguredModel({
+    profileId: key.profileId,
+    apiFormat: key.apiFormat,
+    modelId: key.modelId,
+    userModelConfigRepository: repository,
+  });
 }

@@ -153,6 +153,8 @@ export interface AppMessages {
     readonly runningPhaseGenerating: string;
     readonly errorCategory: string;
     readonly errorCategoryLabel: Record<ErrorActionCategory, string>;
+    readonly errorComfyUiNode: string;
+    readonly errorComfyUiDetail: string;
     readonly errorMessageProviderProtocolIncompatible: string;
     readonly errorActionOpenProviderSettings: string;
     readonly errorActionChooseSupportedSize: string;
@@ -614,8 +616,11 @@ const EN_MESSAGES: AppMessages = {
       'provider-protocol-incompatible': 'Relay protocol incompatible',
       'provider-temporarily-unavailable': 'Provider temporarily unavailable',
       'placement-conflict': 'Placement conflict',
+      'comfyui-execution-failed': 'ComfyUI execution failed',
       unknown: 'Unknown error',
     },
+    errorComfyUiNode: 'Node',
+    errorComfyUiDetail: 'Details',
     errorMessageProviderProtocolIncompatible: 'This endpoint does not support image editing.',
     errorActionOpenProviderSettings: 'Open provider settings',
     errorActionChooseSupportedSize: 'Choose supported size',
@@ -1077,8 +1082,11 @@ const ZH_CN_MESSAGES: AppMessages = {
       'provider-protocol-incompatible': '端点不兼容',
       'provider-temporarily-unavailable': 'Provider 暂时不可用',
       'placement-conflict': '置入冲突',
+      'comfyui-execution-failed': 'ComfyUI 执行失败',
       unknown: '未知错误',
     },
+    errorComfyUiNode: '节点',
+    errorComfyUiDetail: '详情',
     errorMessageProviderProtocolIncompatible: '端点不支持图片编辑。',
     errorActionOpenProviderSettings: '打开 Provider 设置',
     errorActionChooseSupportedSize: '选择支持尺寸',

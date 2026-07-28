@@ -18,6 +18,7 @@ export const PAGES_CSS = `
 .history-preview-image{ width:100%; height:100%; object-fit:cover; border-radius:inherit; }
 .history-meta-mono{ font-family:var(--app-font-family-mono); font-size:10px; color:var(--app-color-text-muted); }
 .history-status-inline{ margin-top:1px; }
+.history-execution-error{ margin-top:4px; font-family:var(--app-font-family-mono); font-size:10px; line-height:14px; color:var(--app-color-text-muted); overflow-wrap:anywhere; }
 .history-status-label{ font-size:10px; color:var(--app-color-text-secondary); }
 .history-status-label[data-status="queued"]{ color:var(--app-color-informative); }
 .history-status-label[data-status="ok"],.history-status-label[data-status="completed-without-image-output"]{ color:var(--app-color-positive); }

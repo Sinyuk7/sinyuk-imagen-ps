@@ -235,6 +235,53 @@ describe('model generation preferences', () => {
     expect(settings.ok ? settings.value.source : null).toBe('preference');
   });
 
+  it('projects a configured model through a known wire model before loading or saving output settings', async () => {
+    const config: UserModelConfig = {
+      profileId: 'profile-1',
+      apiFormat: 'gemini-generate-content',
+      modelId: 'gemini-3.1-flash-image',
+      baseModelId: 'gemini-3.1-flash-image',
+      wireModelId: 'nano-banana-fast',
+      requestStrategyId: 'gemini-generate-content-image-config',
+      outputExposure: {
+        kind: 'ratio-resolution',
+        aspectRatios: ['1:1'],
+        resolutions: ['1k', '2k'],
+        outputFormats: ['png'],
+      },
+      outputMatrix: getOfficialModelPreset('gemini-generate-content', 'gemini-3.1-flash-image')?.outputMatrix ?? [],
+    };
+    const key = {
+      profileId: config.profileId,
+      apiFormat: config.apiFormat,
+      modelId: config.modelId,
+      operation: 'image_edit' as const,
+    };
+    setUserModelConfigRepository(createUserConfigRepository([config]));
+    await preferenceRepository.save({
+      ...key,
+      selection: {
+        geometry: { kind: 'ratio-resolution', aspectRatio: '1:1', resolution: '2k' },
+        outputFormat: 'png',
+      },
+    });
+
+    const settings = await getModelGenerationSettings(key);
+    expect(settings.ok).toBe(true);
+    expect(settings.ok ? settings.value.matrix.imageSizes.map((option) => option.id) : []).toEqual(['auto', '1k']);
+    expect(settings.ok ? settings.value.selection.imageSize : null).toBe('auto');
+
+    const saved = await saveModelGenerationPreference({
+      ...key,
+      selection: {
+        geometry: { kind: 'ratio-resolution', aspectRatio: '1:1', resolution: '2k' },
+        outputFormat: 'png',
+      },
+    });
+    expect(saved.ok).toBe(false);
+    expect(saved.ok ? null : saved.error.message).toContain('output selection is not valid');
+  });
+
   it('isolates same modelId output matrices by profileId', async () => {
     const firstConfig: UserModelConfig = {
       profileId: 'profile-1',

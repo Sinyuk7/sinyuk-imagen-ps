@@ -55,6 +55,10 @@ surface apps -> application/session -> core-engine + providers + execution backe
   with `requestStrategyId` and output constraints. `packages/application` owns
   profile-local reconciliation over discovery cache, user-owned model configs,
   and official presets.
+- For a configured model whose `wireModelId` is an official catalog model, the
+  wire model is the execution capability authority. Application projects the
+  saved output matrix through that capability; stale preferences outside the
+  projection fall back to its default cell and are never sent to the provider.
 - Provider model execution is resolved during `GenerationBackend.admit()` before
   queue dispatch. Submission, admission, Profile connection tests, and Profile
   tests require an explicit configured `modelId`; they never infer a first
@@ -124,6 +128,10 @@ surface apps -> application/session -> core-engine + providers + execution backe
   durable Bridge state. Once a submission call starts, ambiguous outcomes are
   never replayed; reload/startup preserves only the generic
   `remoteMayContinue` Task error fact.
+- Terminal ComfyUI History `execution_error` may contribute only a bounded
+  node ID, node type, and one-line exception summary to a failed Job/Task and
+  UXP. Tracebacks, paths, URLs, secrets, prompt IDs, and a duplicate exception
+  type field are never persisted or rendered.
 - Output-node metadata is a bounded optimization, not an admission authority.
   Known metadata proving no active output node may fail before submission;
   unknown metadata must defer to native `/prompt` or Queue validation. History
@@ -137,9 +145,9 @@ surface apps -> application/session -> core-engine + providers + execution backe
   pages use plugin id `com.imagen-ps.panel` and `window.uxpHost`; the UXP host
   still validates the remote message event origin against the exact ComfyUI
   connection origin. Both transports rotate `loadId` on reload and reject
-  pending work during reload or disposal. Chrome retries only the identical,
-  idempotent handshake while ComfyUI finishes async Bridge setup; generation
-  commands remain single-send.
+  pending work during reload or disposal. Both transports retry only the
+  identical, idempotent handshake while ComfyUI finishes async Bridge setup;
+  generation commands remain single-send.
 - Bridge resolvers never read ComfyUI persistence. Chrome and Photoshop UXP
   compositions create target-bound generations and route workflow discovery
   and execution through the active-generation proxy. Outgoing messages always

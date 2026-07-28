@@ -24,6 +24,7 @@ import { parseGeminiGenerateContentModelsResponse } from '../../transport/gemini
 import { parseGeminiGenerateContentResponse } from '../../transport/gemini-generate-content/parse-response.js';
 import { assembleApiUrl } from '../../contract/api-format.js';
 import { executeBillingProtocolChain } from '../../transport/billing/protocol-registry.js';
+import { resolveProviderResolvedOutput } from '../../contract/image-model-capability.js';
 
 interface ProviderValidationError extends Error {
   details?: Record<string, unknown>;
@@ -189,6 +190,22 @@ export function createGeminiGenerateContentProvider(): Provider<GeminiGenerateCo
         throw createValidationError(
           `Gemini Generate Content provider request validation failed: ${issues.map((i) => `${i.path}: ${i.message}`).join('; ')}`,
           { issues },
+        );
+      }
+      if (typeof result.data.capabilityModelId !== 'string' || result.data.capabilityModelId.trim().length === 0) {
+        throw createValidationError('Gemini Generate Content provider request requires capabilityModelId.');
+      }
+      try {
+        resolveProviderResolvedOutput({
+          providerId: 'gemini-generate-content',
+          capabilityModelId: result.data.capabilityModelId,
+          operation: result.data.operation,
+          output: result.data.output,
+          ...(result.data.inputContext !== undefined ? { inputContext: result.data.inputContext } : {}),
+        });
+      } catch (error) {
+        throw createValidationError(
+          error instanceof Error ? error.message : 'Gemini Generate Content output validation failed.',
         );
       }
       return result.data;

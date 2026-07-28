@@ -1,5 +1,5 @@
 import { createImmutableSnapshot, createValidationError, type StoredAssetRef } from '@imagen-ps/core-engine';
-import type { TaskError, TaskOutput, TaskRecord } from '../task.js';
+import type { TaskComfyUiExecutionError, TaskError, TaskOutput, TaskRecord } from '../task.js';
 import { assertTaskRecord } from '../task.js';
 import { normalizeAdmittedGeneration, normalizeGenerationCommand } from '../generation/admission.js';
 import type {
@@ -84,14 +84,36 @@ function payload(command: GenerationCommand): ComfyUiGenerationPayload {
   };
 }
 
+function executionError(value: unknown): TaskComfyUiExecutionError | undefined {
+  if (!record(value) || Object.keys(value).some((key) => !['nodeId', 'nodeType', 'message'].includes(key))) return undefined;
+  const nodeId = typeof value.nodeId === 'string' && /^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$/.test(value.nodeId) ? value.nodeId : undefined;
+  const nodeType = typeof value.nodeType === 'string' && /^[A-Za-z][A-Za-z0-9_. -]{0,127}$/.test(value.nodeType) ? value.nodeType : undefined;
+  const message = typeof value.message === 'string'
+    && value.message.trim().length > 0
+    && new TextEncoder().encode(value.message).byteLength <= 512
+    && !/[\u0000-\u001f\u007f]/.test(value.message)
+    && !/(?:https?|file):\/\/|(?:^|[\s("' ])(?:\/|~\/|[A-Za-z]:[\\/])|\b(?:sk-[A-Za-z0-9_-]{8,}|Bearer\s+[A-Za-z0-9._-]{8,})\b/i.test(value.message)
+    ? value.message.trim()
+    : undefined;
+  return nodeId === undefined && nodeType === undefined && message === undefined
+    ? undefined
+    : { ...(nodeId === undefined ? {} : { nodeId }), ...(nodeType === undefined ? {} : { nodeType }), ...(message === undefined ? {} : { message }) };
+}
+
 function taskError(value: unknown): TaskError {
   const input = record(value) ? value : {};
   const details = record(input.details) ? input.details : {};
+  const comfyUiExecutionError = input.category === 'execution'
+    && input.message === 'ComfyUI execution failed.'
+    && details.code === 'execution-failed'
+    ? executionError(details.executionError)
+    : undefined;
   return {
     category: input.category === 'validation' || input.category === 'execution' || input.category === 'storage' || input.category === 'interrupted' ? input.category : 'execution',
     message: typeof input.message === 'string' ? input.message.slice(0, 512) : 'ComfyUI execution failed.',
     ...(typeof details.code === 'string' ? { code: details.code } : {}),
     ...(details.remoteMayContinue === true ? { details: { remoteMayContinue: true } } : {}),
+    ...(comfyUiExecutionError === undefined ? {} : { executionError: comfyUiExecutionError }),
   };
 }
 

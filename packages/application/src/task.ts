@@ -43,11 +43,18 @@ export interface ResolvedTaskResource {
 }
 
 /** Durable Task 的规范化错误；禁止保存 raw response、stack 或 secret。 */
+export interface TaskComfyUiExecutionError {
+  readonly nodeId?: string;
+  readonly nodeType?: string;
+  readonly message?: string;
+}
+
 export interface TaskError {
   readonly category: JobError['category'] | 'storage' | 'interrupted';
   readonly message: string;
   readonly code?: string;
   readonly details?: Record<string, string | number | boolean | null>;
+  readonly executionError?: TaskComfyUiExecutionError;
 }
 
 /** 本地文件的 bounded durable evidence。 */
@@ -164,6 +171,9 @@ const TOKEN_VALUE_PATTERN = /\b(sk-[A-Za-z0-9_-]{8,}|Bearer\s+[A-Za-z0-9._-]{8,}
 const NATIVE_PATH_KEY_PATTERN = /^(?:nativePath|nativePathHint|filePath|absolutePath)$/i;
 
 const URL_CREDENTIAL_PARAM_PATTERN = /^(?:api[_-]?key|access[_-]?token|auth|authorization|credential|password|secret|sig|signature|token)$/i;
+const COMFYUI_NODE_ID_PATTERN = /^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$/;
+const COMFYUI_NODE_TYPE_PATTERN = /^[A-Za-z][A-Za-z0-9_. -]{0,127}$/;
+const UNSAFE_COMFYUI_EXECUTION_MESSAGE_PATTERN = /(?:https?|file):\/\/|(?:^|[\s("' ])(?:\/|~\/|[A-Za-z]:[\\/])|\b(?:sk-[A-Za-z0-9_-]{8,}|Bearer\s+[A-Za-z0-9._-]{8,})\b/i;
 
 const TASK_RECORD_KEYS = [
   'schemaVersion',
@@ -454,7 +464,7 @@ function assertTaskError(value: unknown, path: string): void {
   if (!isRecord(value)) {
     throw createValidationError(`Task ${path} must be an object.`, { path });
   }
-  assertAllowedKeys(value, ['category', 'message', 'code', 'details'], path);
+  assertAllowedKeys(value, ['category', 'message', 'code', 'details', 'executionError'], path);
   expectOneOf(
     value.category,
     ['validation', 'execution', 'provider', 'runtime', 'workflow', 'unknown', 'storage', 'interrupted'],
@@ -475,6 +485,34 @@ function assertTaskError(value: unknown, path: string): void {
         });
       }
     }
+  }
+  if (value.executionError !== undefined) {
+    assertTaskComfyUiExecutionError(value.executionError, `${path}.executionError`);
+  }
+}
+
+function assertTaskComfyUiExecutionError(value: unknown, path: string): void {
+  if (!isRecord(value)) {
+    throw createValidationError(`Task ${path} must be an object.`, { path });
+  }
+  assertAllowedKeys(value, ['nodeId', 'nodeType', 'message'], path);
+  if (value.nodeId !== undefined && (typeof value.nodeId !== 'string' || !COMFYUI_NODE_ID_PATTERN.test(value.nodeId))) {
+    throw createValidationError(`Task ${path}.nodeId is invalid.`, { path: `${path}.nodeId` });
+  }
+  if (value.nodeType !== undefined && (typeof value.nodeType !== 'string' || !COMFYUI_NODE_TYPE_PATTERN.test(value.nodeType))) {
+    throw createValidationError(`Task ${path}.nodeType is invalid.`, { path: `${path}.nodeType` });
+  }
+  if (value.message !== undefined && (
+    typeof value.message !== 'string'
+    || value.message.trim().length === 0
+    || new TextEncoder().encode(value.message).byteLength > 512
+    || /[\u0000-\u001f\u007f]/.test(value.message)
+    || UNSAFE_COMFYUI_EXECUTION_MESSAGE_PATTERN.test(value.message)
+  )) {
+    throw createValidationError(`Task ${path}.message is invalid.`, { path: `${path}.message` });
+  }
+  if (value.nodeId === undefined && value.nodeType === undefined && value.message === undefined) {
+    throw createValidationError(`Task ${path} must contain execution evidence.`, { path });
   }
 }
 

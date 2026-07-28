@@ -131,7 +131,7 @@ interface PendingExchange {
 }
 
 const PLUGIN_ID_PATTERN = /^[A-Za-z0-9](?:[A-Za-z0-9-]{0,62}[A-Za-z0-9])?(?:\.[A-Za-z0-9](?:[A-Za-z0-9-]{0,62}[A-Za-z0-9])?)+$/;
-const CHROME_HANDSHAKE_RETRY_MS = 500;
+const HANDSHAKE_RETRY_MS = 500;
 const PAGE_DIAGNOSTIC_TYPE = 'imagen-ps.bridge.diagnostic';
 const PAGE_DIAGNOSTIC_EVENTS = {
   'transport-ready': 'comfyui.bridge.page.transport_ready',
@@ -836,7 +836,7 @@ export function createChromeComfyUiFrontendBridgeGenerationFactory(
         target: Object.freeze({ ...target }),
         transportKind: 'chrome',
         identityOrigin: () => parentOrigin,
-        handshakeRetryMs: CHROME_HANDSHAKE_RETRY_MS,
+        handshakeRetryMs: HANDSHAKE_RETRY_MS,
         createTransport(connection) {
           const frame = createFrame(connection.workflowId);
           return {
@@ -893,6 +893,7 @@ export function createUxpComfyUiFrontendBridgeGenerationFactory(
         target: Object.freeze({ ...target }),
         transportKind: 'uxp',
         identityOrigin: () => options.pluginId,
+        handshakeRetryMs: HANDSHAKE_RETRY_MS,
         createTransport(connection) {
           const webView = createWebView(connection.workflowId);
           return {
