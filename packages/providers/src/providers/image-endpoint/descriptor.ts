@@ -1,5 +1,4 @@
 import type { ProviderDescriptor } from '../../contract/provider.js';
-import { listLocalCatalogModels } from '../../contract/image-model-capability.js';
 
 /** Image endpoint provider 的静态 descriptor。 */
 export const imageEndpointDescriptor: ProviderDescriptor = {
@@ -9,7 +8,12 @@ export const imageEndpointDescriptor: ProviderDescriptor = {
   displayName: 'Image Endpoint',
   operations: ['text_to_image', 'image_edit'],
   invokeMode: 'sync',
-  defaultModels: listLocalCatalogModels('image-endpoint'),
+  defaultModelTemplates: [{
+    apiFormat: 'openai-images',
+    modelId: 'gpt-image-2',
+    wireModelId: 'gpt-image-2',
+    baseModelId: 'gpt-image-2',
+  }],
   transport: {
     wire: {
       supportedEditCodecs: ['multipart-bracket', 'multipart-plain', 'json-reference'],

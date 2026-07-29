@@ -38,6 +38,9 @@ tests/
 
 Rules:
 
+- Provider descriptor/registry coverage proves canonical `ApiFormat` routing,
+  complete default templates, and rejection of invalid or conflicting templates.
+
 - New compatibility and historical bug coverage goes into
   `tests/families/*/cases`.
 - Do not keep adding one-off files per provider quirk, retry branch, or codec

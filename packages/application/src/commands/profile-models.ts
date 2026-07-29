@@ -1,34 +1,19 @@
 /**
  * Profile model commands.
  *
- * `refreshProfileModels()` returns runtime-only discovery suggestions.
- * `listProfileModels()` lists current profile-owned configured models only.
+ * `listProfileModels()` only lists persisted profile-owned configured models.
  */
 
-import { createProviderError, createValidationError } from '@imagen-ps/core-engine';
+import { createValidationError } from '@imagen-ps/core-engine';
 import { generateTraceId } from '@imagen-ps/foundation';
 import {
-  getProviderConfigResolver,
   getProviderProfileRepository,
   getRuntime,
   getRuntimeLogger,
   getUserModelConfigRepository,
 } from '../runtime.js';
 import type { CommandResult, ProfileModelItem, ProviderProfile, UserModelConfig } from './types.js';
-import {
-  listOfficialModelPresets,
-  type DiscoveredModel,
-} from '@imagen-ps/providers';
-
-function errorMessage(error: unknown, fallback: string): string {
-  if (error instanceof Error) {
-    return error.message;
-  }
-  if (typeof error === 'object' && error !== null && typeof (error as { readonly message?: unknown }).message === 'string') {
-    return (error as { readonly message: string }).message;
-  }
-  return fallback;
-}
+import { listOfficialModelPresets } from '@imagen-ps/providers';
 
 function uniqueModelIds(ids: readonly string[]): readonly string[] {
   const seen = new Set<string>();
@@ -131,91 +116,4 @@ export async function listProfileModels(profileId: string): Promise<CommandResul
     count: items.length,
   });
   return { ok: true, value: items };
-}
-
-/**
- * 触发一次 model discovery；返回值只供当前页面作为 runtime suggestion 使用。
- */
-export async function refreshProfileModels(profileId: string): Promise<CommandResult<readonly DiscoveredModel[]>> {
-  const logger = getRuntimeLogger().child({
-    trace_id: generateTraceId(),
-    package: 'application',
-    component: 'command',
-    profile_id: profileId,
-  });
-  const span = logger.startSpan('command.model.refresh');
-
-  const profile = await getProviderProfileRepository().get(profileId);
-  if (!profile) {
-    span.fail({ message: `Provider profile "${profileId}" not found.` });
-    return {
-      ok: false,
-      error: createValidationError(`Provider profile "${profileId}" not found.`, { profileId }),
-    };
-  }
-
-  let providerConfig: unknown;
-  try {
-    const resolved = await getProviderConfigResolver().resolve(profileId);
-    providerConfig = resolved.providerConfig;
-  } catch (error) {
-    span.fail(error);
-    return {
-      ok: false,
-      error: createValidationError(errorMessage(error, `Provider profile "${profileId}" validation failed.`), {
-        profileId,
-      }),
-    };
-  }
-
-  const provider = getRuntime().providerRegistry.getByApiFormat(profile.apiFormat);
-  if (!provider) {
-    span.fail({ message: `Provider implementation for apiFormat "${profile.apiFormat}" not found for profile "${profileId}".` });
-    return {
-      ok: false,
-      error: createValidationError(
-        `Provider implementation for apiFormat "${profile.apiFormat}" not found for profile "${profileId}".`,
-        { profileId, apiFormat: profile.apiFormat },
-      ),
-    };
-  }
-
-  if (typeof provider.discoverModels !== 'function') {
-    span.fail({ message: `Provider implementation for apiFormat "${profile.apiFormat}" does not support model discovery.` });
-    return {
-      ok: false,
-      error: createValidationError(
-        `Provider implementation for apiFormat "${profile.apiFormat}" does not support model discovery.`,
-        { profileId, apiFormat: profile.apiFormat },
-      ),
-    };
-  }
-
-  let models: readonly DiscoveredModel[];
-  try {
-    models = await provider.discoverModels(
-      providerConfig as never,
-      logger.child({
-        package: 'providers',
-        component: 'provider',
-        provider_id: provider.id,
-      }),
-    );
-  } catch (error) {
-    span.fail(error);
-    return {
-      ok: false,
-      error: createProviderError(errorMessage(error, `Model discovery failed for profile "${profileId}".`), {
-        profileId,
-        apiFormat: profile.apiFormat,
-      }),
-    };
-  }
-
-  const modelIds = uniqueModelIds(models.map((model) => model.id));
-
-  span.finish({
-    suggestionCount: modelIds.length,
-  });
-  return { ok: true, value: modelIds.map((id) => ({ id })) };
 }

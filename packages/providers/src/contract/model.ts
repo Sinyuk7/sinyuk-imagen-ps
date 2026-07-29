@@ -1,12 +1,6 @@
 /** model 在本地 catalog 中的 matcher 命中类型。 */
 export type ProviderModelMatchKind = 'exact' | 'alias' | 'prefix' | 'pattern' | 'default';
 
-/** Provider 远端 discovery 返回的纯事实。 */
-export interface DiscoveredModel {
-  /** 远端返回且已做 transport 确定性规范化的 wire model ID。 */
-  readonly id: string;
-}
-
 /** catalog 证据强度，避免把未知能力误写成不支持。 */
 export type SupportEvidence = 'supported' | 'unsupported' | 'unknown';
 

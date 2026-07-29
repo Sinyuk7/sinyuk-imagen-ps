@@ -1,7 +1,6 @@
 import {
   setAssetStore,
   setJobHistoryStore,
-  setModelDiscoveryCacheRepository,
   setModelGenerationPreferenceRepository,
   setProviderProfileRepository,
   recoverProviderProfileSetups,
@@ -30,7 +29,6 @@ import { createUxpActiveImageProfileStore } from '../../adapters/uxp/uxp-active-
 import { createUxpProviderProfileRepository } from '../../adapters/uxp/uxp-provider-profile-repository';
 import { createUxpSecretStorageAdapter } from '../../adapters/uxp/uxp-secret-storage-adapter';
 import {
-  createUxpModelDiscoveryCacheRepository,
   createUxpModelGenerationPreferenceRepository,
   createUxpUserModelConfigRepository,
 } from '../../adapters/uxp/uxp-model-repositories';
@@ -114,7 +112,6 @@ export function createPluginHostShell(): PluginHostShell {
     const jobHistoryStore = createUxpJobHistoryStore(uxpModules);
     const taskStore = createUxpTaskStore(uxpModules);
     const assetStore = createUxpAssetStore(uxpModules);
-    const modelDiscoveryCacheRepository = createUxpModelDiscoveryCacheRepository(uxpModules);
     const userModelConfigRepository = createUxpUserModelConfigRepository(uxpModules);
     const modelGenerationPreferenceRepository = createUxpModelGenerationPreferenceRepository(uxpModules);
     const storageAdmin = createUxpStorageAdmin(uxpModules);
@@ -137,7 +134,6 @@ export function createPluginHostShell(): PluginHostShell {
     setJobHistoryStore(jobHistoryStore);
     setTaskStore(taskStore);
     setAssetStore(assetStore);
-    setModelDiscoveryCacheRepository(modelDiscoveryCacheRepository);
     setUserModelConfigRepository(userModelConfigRepository);
     setModelGenerationPreferenceRepository(modelGenerationPreferenceRepository);
     void recoverProviderProfileSetups().then((result) => {

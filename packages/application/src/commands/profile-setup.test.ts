@@ -71,6 +71,10 @@ function createModelRepository(): {
       async list(profileId) { return forProfile(profileId); },
       async get(profileId, modelId) { return values.get(key(profileId, modelId)); },
       async save(config) { values.set(key(config.profileId, config.modelId), config); },
+      async initializeProfile(profileId, configs) {
+        if (forProfile(profileId).length > 0) throw new Error('Profile already has model configs.');
+        for (const config of configs) values.set(key(config.profileId, config.modelId), config);
+      },
       async deleteUnlessLast(profileId, modelId) {
         if (forProfile(profileId).length <= 1) return false;
         values.delete(key(profileId, modelId));
@@ -102,7 +106,7 @@ beforeEach(() => {
       getByApiFormat: () => ({
         id: 'image-endpoint',
         family: 'image-endpoint',
-        describe: () => ({ displayName: 'Test Provider' }),
+        describe: () => ({ displayName: 'Test Provider', defaultModelTemplates: [] }),
         validateConfig: (input: unknown) => input,
       }),
     },
@@ -110,6 +114,40 @@ beforeEach(() => {
 });
 
 describe('Profile setup completion', () => {
+  it('atomically initializes complete default templates before exposing a ready profile', async () => {
+    _setRuntimeInstanceForTesting({
+      providerRegistry: {
+        list: () => [],
+        get: () => undefined,
+        getByApiFormat: () => ({
+          id: 'image-endpoint',
+          family: 'image-endpoint',
+          describe: () => ({
+            displayName: 'Test Provider',
+            defaultModelTemplates: [
+              { apiFormat: 'openai-images', modelId: 'preset-a', wireModelId: 'wire-a', baseModelId: 'gpt-image-2' },
+              { apiFormat: 'openai-images', modelId: 'preset-b', wireModelId: 'wire-b', baseModelId: 'gpt-image-2' },
+            ],
+          }),
+          validateConfig: (input: unknown) => input,
+        }),
+      },
+    } as never);
+    const profiles = createProfileRepository();
+    const models = createModelRepository();
+    setProviderProfileRepository(profiles.repository);
+    setUserModelConfigRepository(models.repository);
+    setSecretStorageAdapter(createSecrets());
+
+    const result = await continueProviderProfileSetup({ profile: profileInput('setup-templates'), wireModelId: 'ignored-hint' });
+
+    expect(result).toMatchObject({ ok: true, value: { kind: 'ready', profile: { lifecycle: 'ready' } } });
+    expect(Array.from(models.values.values())).toMatchObject([
+      { modelId: 'preset-a', wireModelId: 'wire-a', baseModelId: 'gpt-image-2' },
+      { modelId: 'preset-b', wireModelId: 'wire-b', baseModelId: 'gpt-image-2' },
+    ]);
+  });
+
   it('keeps an unknown hint in setup, excludes it from public reads, then cleans profile and secrets on cancel', async () => {
     const profiles = createProfileRepository();
     const models = createModelRepository();

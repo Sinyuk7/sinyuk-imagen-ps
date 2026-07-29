@@ -62,9 +62,9 @@ Focused development entrypoints:
 - `pnpm test:providers`: runs the `@imagen-ps/providers` deterministic provider suite.
 - `pnpm test:uxp`: runs only the app fake-UXP adapter and shell suite.
 
-Profile setup/model availability coverage is mock-only: run
-`pnpm --filter @imagen-ps/application test` for setup outcome, cleanup,
-promotion, explicit-model admission, and final-model deletion contracts; run
+Profile setup/default-model initialization coverage is mock-only: run
+`pnpm --filter @imagen-ps/application test` for atomic template setup outcome,
+cleanup, promotion, explicit-model admission, and final-model deletion contracts; run
 `pnpm --filter @imagen-ps/app test:ui`, `test:chrome`, and `test:uxp` for
 Continue routing, Composer selection, and host persistence adapters.
 

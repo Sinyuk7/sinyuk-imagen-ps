@@ -28,8 +28,6 @@ import { createLogger, createNullLogger } from '@imagen-ps/foundation';
 import type {
   AssetStore,
   JobHistoryStore,
-  ModelDiscoveryCache,
-  ModelDiscoveryCacheRepository,
   ModelGenerationPreference,
   ModelGenerationPreferenceKey,
   ModelGenerationPreferenceRepository,
@@ -72,7 +70,6 @@ export interface ExtendedRuntime extends Runtime {
 let instance: ExtendedRuntime | null = null;
 let registryInstance: ProviderRegistry | null = null;
 let providerProfileRepositoryInstance: ProviderProfileRepository | null = null;
-let modelDiscoveryCacheRepositoryInstance: ModelDiscoveryCacheRepository | null = null;
 let userModelConfigRepositoryInstance: UserModelConfigRepository | null = null;
 let modelGenerationPreferenceRepositoryInstance: ModelGenerationPreferenceRepository | null = null;
 let secretStorageAdapterInstance: SecretStorageAdapter | null = null;
@@ -102,21 +99,6 @@ function createInMemoryProviderProfileRepository(): ProviderProfileRepository {
   };
 }
 
-function createInMemoryModelDiscoveryCacheRepository(): ModelDiscoveryCacheRepository {
-  const store = new Map<string, ModelDiscoveryCache>();
-  return {
-    async get(profileId) {
-      return store.get(profileId);
-    },
-    async put(cache) {
-      store.set(cache.profileId, cache);
-    },
-    async delete(profileId) {
-      store.delete(profileId);
-    },
-  };
-}
-
 function userModelConfigKey(profileId: string, modelId: string): string {
   return `${profileId}:${modelId}`;
 }
@@ -137,6 +119,18 @@ function createInMemoryUserModelConfigRepository(): UserModelConfigRepository {
     },
     async save(config) {
       store.set(userModelConfigKey(config.profileId, config.modelId), config);
+    },
+    async initializeProfile(profileId, configs) {
+      if (configs.some((config) => config.profileId !== profileId)) {
+        throw new Error('Default model configs must belong to the setup profile.');
+      }
+      if (Array.from(store.values()).some((config) => config.profileId === profileId)) {
+        throw new Error(`Provider profile "${profileId}" already has model configs.`);
+      }
+      const next = new Map(store);
+      for (const config of configs) next.set(userModelConfigKey(config.profileId, config.modelId), config);
+      store.clear();
+      for (const [key, value] of next) store.set(key, value);
     },
     async deleteUnlessLast(profileId, modelId) {
       const owned = Array.from(store.values()).filter((config) => config.profileId === profileId);
@@ -734,17 +728,6 @@ export function setProviderProfileRepository(repository: ProviderProfileReposito
   providerProfileRepositoryInstance = repository;
 }
 
-export function getModelDiscoveryCacheRepository(): ModelDiscoveryCacheRepository {
-  if (modelDiscoveryCacheRepositoryInstance === null) {
-    modelDiscoveryCacheRepositoryInstance = createInMemoryModelDiscoveryCacheRepository();
-  }
-  return modelDiscoveryCacheRepositoryInstance;
-}
-
-export function setModelDiscoveryCacheRepository(repository: ModelDiscoveryCacheRepository): void {
-  modelDiscoveryCacheRepositoryInstance = repository;
-}
-
 export function getUserModelConfigRepository(): UserModelConfigRepository {
   if (userModelConfigRepositoryInstance === null) {
     userModelConfigRepositoryInstance = createInMemoryUserModelConfigRepository();
@@ -856,7 +839,6 @@ export function _resetForTesting(): void {
   instance = null;
   registryInstance = null;
   providerProfileRepositoryInstance = null;
-  modelDiscoveryCacheRepositoryInstance = null;
   userModelConfigRepositoryInstance = null;
   modelGenerationPreferenceRepositoryInstance = null;
   secretStorageAdapterInstance = null;

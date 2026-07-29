@@ -8,7 +8,6 @@ import type {
   ProviderSafeProbeResult,
 } from '../../contract/provider.js';
 import type { ProviderInvokeResult } from '../../contract/result.js';
-import type { DiscoveredModel } from '../../contract/model.js';
 import type { Logger } from '@imagen-ps/foundation';
 import { mockRequestSchema, type MockProviderRequest } from '../mock/request-schema.js';
 import { geminiGenerateContentConfigSchema, type GeminiGenerateContentProviderConfig } from './config-schema.js';
@@ -20,7 +19,6 @@ import { resolvePaidRetryConfig, resolveIdempotencyHeader } from '../../transpor
 import {
   buildGeminiGenerateContentRequest,
 } from '../../transport/gemini-generate-content/build-request.js';
-import { parseGeminiGenerateContentModelsResponse } from '../../transport/gemini-generate-content/models.js';
 import { parseGeminiGenerateContentResponse } from '../../transport/gemini-generate-content/parse-response.js';
 import { assembleApiUrl } from '../../contract/api-format.js';
 import { executeBillingProtocolChain } from '../../transport/billing/protocol-registry.js';
@@ -305,48 +303,6 @@ export function createGeminiGenerateContentProvider(): Provider<GeminiGenerateCo
           attempts: execution.attempts,
         },
       };
-    },
-
-    async discoverModels(
-      config: GeminiGenerateContentProviderConfig,
-      logger?: Logger,
-    ): Promise<readonly DiscoveredModel[]> {
-      const execution = await executeWithEndpointFailover({
-        connection: config.connection,
-        logger,
-        retryPolicy: { maxRetries: 0, baseDelayMs: 0, factor: 1 },
-        retryOptions: { retryability: 'broad' },
-        execute: async (candidate) => httpRequest(
-          {
-            url: assembleApiUrl(candidate.url, '/models'),
-            method: 'GET',
-            headers: {
-              ...buildAuthHeaders(config),
-              ...(config.extraHeaders ?? {}),
-            },
-            timeoutMs: config.timeoutMs,
-          },
-          { maxRetries: 0, baseDelayMs: 0, factor: 1 },
-          undefined,
-          logger,
-        ),
-      });
-      const parsed = parseGeminiGenerateContentModelsResponse(execution.value.response.data);
-      if (parsed.sourceFormat === 'openai-like-fallback') {
-        logger?.warn('provider.gemini_generate_content.discover_models.non_native_payload', {
-          selectedEndpointId: execution.selectedEndpointId,
-          targetPath: '/models',
-        });
-      }
-      logger?.info('provider.gemini_generate_content.discover_models.summary', {
-        selectedEndpointId: execution.selectedEndpointId,
-        targetPath: '/models',
-        sourceFormat: parsed.sourceFormat,
-        parsedModelCount: parsed.models.length,
-        returnedModelCount: parsed.models.length,
-        modelIds: parsed.models.map((model) => model.id),
-      });
-      return parsed.models;
     },
 
     async measureEndpoints(

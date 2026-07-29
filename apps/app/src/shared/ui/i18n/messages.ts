@@ -289,8 +289,6 @@ export interface AppMessages {
     readonly removeSecret: string;
     readonly secretRemovalPending: string;
     readonly changesNotTested: string;
-    readonly modelDiscoveryUnsupported: string;
-    readonly modelDiscoveryFieldHelp: string;
     readonly apiProfile: string;
     readonly apiFormat: string;
     readonly apiFormatAuto: string;
@@ -756,8 +754,6 @@ const EN_MESSAGES: AppMessages = {
     removeSecret: 'Remove',
     secretRemovalPending: 'Will be removed after saving.',
     changesNotTested: 'Untested changes',
-    modelDiscoveryUnsupported: 'Remote model discovery is not available for this API format yet.',
-    modelDiscoveryFieldHelp: 'Choose a supported preset model.',
     apiProfile: 'API Profile',
     apiFormat: 'API Format',
     apiFormatAuto: 'Auto Detect',
@@ -1223,8 +1219,6 @@ const ZH_CN_MESSAGES: AppMessages = {
     removeSecret: '移除',
     secretRemovalPending: '保存后移除。',
     changesNotTested: '修改尚未测试',
-    modelDiscoveryUnsupported: '暂不支持模型发现。',
-    modelDiscoveryFieldHelp: '请选择支持的预设模型。',
     apiProfile: 'API 配置',
     apiFormat: 'API 格式',
     apiFormatAuto: '自动检测',

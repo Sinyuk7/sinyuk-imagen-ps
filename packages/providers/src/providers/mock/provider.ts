@@ -125,7 +125,6 @@ export function createMockProvider(
       const delayMs = config.delayMs ?? 0;
 
       // Model selection: resolved request model → provider fallback → hard default.
-      // 注意：descriptor.defaultModels 仅供 listProfileModels
       // 等 model-discovery 命令使用，**不**参与此处 effective model 解析。
       const effectiveModel = request.model?.modelId ?? config.defaultModel ?? 'mock-image-v1';
 

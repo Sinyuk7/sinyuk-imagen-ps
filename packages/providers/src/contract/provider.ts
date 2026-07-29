@@ -8,7 +8,6 @@ import type {
   ProviderBillingCapability,
 } from './billing.js';
 import type { ProviderConfig } from './config.js';
-import type { DiscoveredModel, ProviderModelInfo } from './model.js';
 import type { CanonicalImageJobRequest } from './request.js';
 import type { ProviderInvokeResult } from './result.js';
 
@@ -47,17 +46,8 @@ export interface ProviderDescriptor {
   /** 调用模式；运行时预留，当前无消费者。 */
   readonly invokeMode: 'sync' | 'async';
 
-  /**
-   * Implementation 自带的 fallback model 候选清单（OPTIONAL）。
-   *
-   * 语义为"当 profile 没有任何 discovery 缓存时，作为该 implementation 的兜底候选"。
-   * 该字段 MUST NOT 参与 `provider.invoke()` 的 model 解析（model 解析仍由
-   * `model-selection` 三级优先级负责，不得耦合到本字段）。
-   *
-   * 是否声明 `defaultModels` 由 implementation 自由决定；空数组与未声明在
-   * `listProfileModels` 行为上等价（均视为"无 implementation 兜底"）。
-   */
-  readonly defaultModels?: readonly ProviderModelInfo[];
+  /** 创建 Profile 时一次性写入的完整默认模型模板；空数组保留手动配置路径。 */
+  readonly defaultModelTemplates: readonly ProviderDefaultModelTemplate[];
 
   /**
    * 传输层能力与付费重试策略（OPTIONAL）。
@@ -73,6 +63,18 @@ export interface ProviderDescriptor {
 
   /** 设置页连通性能力声明（OPTIONAL）。 */
   readonly connectivity?: ProviderSettingsConnectivityCapability;
+}
+
+/** Provider 为新 Profile 声明的完整本地默认模型数据。 */
+export interface ProviderDefaultModelTemplate {
+  /** 模板所属 API format，必须与 Provider descriptor 相同。 */
+  readonly apiFormat: ApiFormat;
+  /** Profile 内唯一的用户模型标识。 */
+  readonly modelId: string;
+  /** Provider 请求实际使用的 wire model 标识。 */
+  readonly wireModelId: string;
+  /** Official Model Preset 的精确 model 标识，也是能力来源。 */
+  readonly baseModelId: string;
 }
 
 /** 设置页连通性能力声明。 */
@@ -341,20 +343,6 @@ export interface Provider<TConfig = ProviderConfig, TRequest = CanonicalImageJob
    * 声明后必须与 descriptor `invokeMode: 'async'` 一致。
    */
   readonly asyncLifecycle?: ProviderAsyncLifecycle<TConfig, TRequest>;
-
-  /**
-   * Implementation 的运行时 model discovery 能力（OPTIONAL）。
-   *
-   * 语义为"向上游或 implementation 内部数据源询问当前可用的 model 候选清单"。
-   * 该方法 MUST 是无状态查询：不得修改 `config`、不得写入任何 host 持久化状态。
-   * 可选 `logger` 仅用于记录 discovery 诊断信息，不得改变返回语义。
-   *
-   * 是否实现 `discoverModels` 由 implementation 自由决定；未实现时调用方
-   * （`refreshProfileModels`）MUST 视为"该 implementation 不支持 discovery"
-   * 并返回 validation error。实现可能抛错以表示 discovery 失败，调用方
-   * SHALL 按 `refreshProfileModels` 失败语义处理。
-   */
-  discoverModels?(config: TConfig, logger?: Logger): Promise<readonly DiscoveredModel[]>;
 
   /**
    * Implementation 的 endpoint 测速能力（OPTIONAL）。

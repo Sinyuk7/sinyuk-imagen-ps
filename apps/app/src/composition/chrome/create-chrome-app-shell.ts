@@ -1,7 +1,6 @@
 import {
   setAssetStore,
   setJobHistoryStore,
-  setModelDiscoveryCacheRepository,
   setModelGenerationPreferenceRepository,
   setProviderProfileRepository,
   recoverProviderProfileSetups,
@@ -104,7 +103,6 @@ export function createChromeAppShell(options?: ChromeAppShellOptions): AppShellH
   setJobHistoryStore(storage.history);
   setTaskStore(storage.tasks);
   setAssetStore(storage.assets);
-  setModelDiscoveryCacheRepository(storage.modelDiscovery);
   setUserModelConfigRepository(storage.userModelConfigs);
   setModelGenerationPreferenceRepository(storage.modelGenerationPreferences);
   void recoverProviderProfileSetups().then((result) => {

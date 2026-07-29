@@ -9,7 +9,6 @@ import type {
   ProviderSafeProbeResult,
 } from '../../contract/provider.js';
 import type { ProviderInvokeResult } from '../../contract/result.js';
-import type { DiscoveredModel } from '../../contract/model.js';
 import type { Logger } from '@imagen-ps/foundation';
 import { imageEndpointDescriptor } from './descriptor.js';
 import { imageEndpointConfigSchema, type ImageEndpointProviderConfig } from './config-schema.js';
@@ -29,7 +28,6 @@ import {
   buildRequestBody,
 } from '../../transport/image-endpoint/build-request.js';
 import { parseResponse } from '../../transport/image-endpoint/parse-response.js';
-import { inspectModelsResponse } from '../../transport/image-endpoint/models.js';
 import { executeBillingProtocolChain } from '../../transport/billing/protocol-registry.js';
 import {
   evictIfMatches,
@@ -135,23 +133,6 @@ function normalizeMeasurementFailure(
     default:
       return { endpointId, checkedAt, reachable: false, latencyMs, failureKind: 'unknown', ...(httpStatus !== undefined ? { httpStatus } : {}), errorMessage: message };
   }
-}
-
-function normalizeDiscoveredModelsResponse(
-  payload: unknown,
-  endpointId: string,
-  logger?: Logger,
-): readonly DiscoveredModel[] {
-  const inspected = inspectModelsResponse(payload);
-  logger?.info('provider.image_endpoint.discover_models.analysis', {
-    endpointId,
-    rawCount: inspected.rawIds.length,
-    rawIds: inspected.rawIds,
-    discoveredCount: inspected.models.length,
-    discoveredIds: inspected.models.map((model) => model.id),
-  });
-
-  return inspected.models;
 }
 
 async function mapWithConcurrency<TInput, TOutput>(
@@ -414,33 +395,6 @@ export function createImageEndpointProvider(): Provider<ImageEndpointProviderCon
         result.metadata = parsed.metadata;
       }
       return result;
-    },
-
-    async discoverModels(
-      config: ImageEndpointProviderConfig,
-      logger?: Logger,
-    ): Promise<readonly DiscoveredModel[]> {
-      const execution = await executeWithEndpointFailover({
-        connection: config.connection,
-        logger,
-        retryPolicy: { maxRetries: 0, baseDelayMs: 0, factor: 1 },
-        retryOptions: { retryability: 'broad' },
-        execute: async (candidate) => httpRequest(
-          {
-            url: assembleApiUrl(candidate.url, '/models'),
-            method: 'GET',
-            headers: {
-              Authorization: `Bearer ${config.apiKey}`,
-              ...(config.extraHeaders ?? {}),
-            },
-            timeoutMs: config.timeoutMs,
-          },
-          { maxRetries: 0, baseDelayMs: 0, factor: 1 },
-          undefined,
-          logger,
-        ),
-      });
-      return normalizeDiscoveredModelsResponse(execution.value.response.data, execution.selectedEndpointId, logger);
     },
 
     async measureEndpoints(

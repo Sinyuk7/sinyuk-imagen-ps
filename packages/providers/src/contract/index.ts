@@ -87,6 +87,7 @@ export {
   hasExplicitImageModelRule,
   isSupportedImageModelOutput,
   listLocalCatalogModels,
+  listProviderDefaultModelTemplates,
   listOfficialModelPresets,
   listRequestStrategies,
   providerUsesImageModelCatalog,
@@ -133,7 +134,6 @@ export type {
   ProviderInvokeUsage,
 } from './result.js';
 export type {
-  DiscoveredModel,
   ModelOperationCapability,
   ProviderModelCapabilities,
   ProviderModelCapabilityReason,
@@ -151,6 +151,7 @@ export type {
   ProviderAsyncPollResult,
   ProviderAsyncSubmitResult,
   ProviderDescriptor,
+  ProviderDefaultModelTemplate,
   ProviderEndpointMeasurement,
   ProviderEndpointMeasurementFailureKind,
   ProviderEndpointMeasurementOptions,

@@ -45,6 +45,9 @@ function createEmptyUserConfigRepository(): UserModelConfigRepository {
     async save() {
       throw new Error('Unexpected user config save.');
     },
+    async initializeProfile() {
+      throw new Error('Unexpected user config initialization.');
+    },
     async deleteUnlessLast() {
       throw new Error('Unexpected user config delete.');
     },
@@ -64,6 +67,9 @@ function createUserConfigRepository(configs: readonly UserModelConfig[]): UserMo
     },
     async save() {
       throw new Error('Unexpected user config save.');
+    },
+    async initializeProfile() {
+      throw new Error('Unexpected user config initialization.');
     },
     async deleteUnlessLast() {
       throw new Error('Unexpected user config delete.');

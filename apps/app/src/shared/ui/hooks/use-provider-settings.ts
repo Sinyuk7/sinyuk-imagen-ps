@@ -345,40 +345,9 @@ export function useProfileModels(
   }, [profileId, revisionKey, services]);
 
   const refresh = useCallback(async (): Promise<readonly UiModelInfo[]> => {
-    const sequence = sequenceRef.current + 1;
-    sequenceRef.current = sequence;
-    if (!profileId) {
-      setResolved(true);
-      return [];
-    }
-    setLoading(true);
-    try {
-      const result = await services.commands.refreshProfileModels(profileId);
-      if (sequenceRef.current !== sequence) {
-        return [];
-      }
-      if (result.ok) {
-        const listed = await services.commands.listProfileModels(profileId);
-        if (!listed.ok) {
-          const message = commandMessage(listed.error);
-          setError(message);
-          throw new Error(message);
-        }
-        const value = listed.value.map(modelInfoFromProfileItem);
-        setModels(value);
-        setError(null);
-        return value;
-      }
-      const message = commandMessage(result.error);
-      setError(message);
-      throw new Error(message);
-    } finally {
-      if (sequenceRef.current === sequence) {
-        setLoading(false);
-        setResolved(true);
-      }
-    }
-  }, [profileId, services]);
+    await reload();
+    return models;
+  }, [models, reload]);
 
   const replace = useCallback((nextModels: readonly UiModelInfo[]) => {
     sequenceRef.current += 1;

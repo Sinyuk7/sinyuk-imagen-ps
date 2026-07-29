@@ -41,7 +41,7 @@ export const fakeProvider: ProviderDescriptor = {
   displayName: 'Mock Provider',
   operations: ['text_to_image', 'image_edit'],
   invokeMode: 'sync',
-  defaultModels: [{ id: 'gpt-image-2' }],
+  defaultModelTemplates: [],
   billing: {
     query: 'unsupported',
   },
@@ -54,7 +54,7 @@ export const fakeChatProvider: ProviderDescriptor = {
   displayName: 'Chat Image',
   operations: ['text_to_image', 'image_edit'],
   invokeMode: 'sync',
-  defaultModels: [{ id: 'gpt-4o-image' }],
+  defaultModelTemplates: [],
   billing: {
     query: 'supported',
   },

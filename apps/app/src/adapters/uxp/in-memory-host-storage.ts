@@ -3,8 +3,6 @@ import type {
   AssetStore,
   DurableJobRecord,
   JobHistoryStore,
-  ModelDiscoveryCache,
-  ModelDiscoveryCacheRepository,
   ModelGenerationPreference,
   ModelGenerationPreferenceKey,
   ModelGenerationPreferenceRepository,
@@ -41,21 +39,6 @@ export function createInMemoryProviderProfileRepository(): ProviderProfileReposi
   };
 }
 
-export function createInMemoryModelDiscoveryCacheRepository(): ModelDiscoveryCacheRepository {
-  const caches = new Map<string, ModelDiscoveryCache>();
-  return {
-    async get(profileId: string): Promise<ModelDiscoveryCache | undefined> {
-      return caches.get(profileId);
-    },
-    async put(cache: ModelDiscoveryCache): Promise<void> {
-      caches.set(cache.profileId, cache);
-    },
-    async delete(profileId: string): Promise<void> {
-      caches.delete(profileId);
-    },
-  };
-}
-
 function userModelConfigKey(profileId: string, modelId: string): string {
   return `${profileId}:${modelId}`;
 }
@@ -76,6 +59,18 @@ export function createInMemoryUserModelConfigRepository(): UserModelConfigReposi
     },
     async save(config): Promise<void> {
       configs.set(userModelConfigKey(config.profileId, config.modelId), config);
+    },
+    async initializeProfile(profileId, initial): Promise<void> {
+      if (Array.from(configs.values()).some((config) => config.profileId === profileId)) {
+        throw new Error(`Provider profile "${profileId}" already has model configs.`);
+      }
+      const next = new Map(configs);
+      for (const config of initial) {
+        if (config.profileId !== profileId) throw new Error('Default model configs must belong to the setup profile.');
+        next.set(userModelConfigKey(config.profileId, config.modelId), config);
+      }
+      configs.clear();
+      for (const [key, config] of next) configs.set(key, config);
     },
     async deleteUnlessLast(profileId, modelId): Promise<boolean> {
       const owned = Array.from(configs.values()).filter((config) => config.profileId === profileId);

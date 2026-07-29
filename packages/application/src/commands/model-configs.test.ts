@@ -77,6 +77,9 @@ function createUserConfigRepository(initial: readonly UserModelConfig[] = []): {
       async save(config) {
         values.push(config);
       },
+      async initializeProfile(_profileId, configs) {
+        values.push(...configs);
+      },
       async deleteUnlessLast(profileId, modelId) {
         if (values.filter((config) => config.profileId === profileId).length <= 1) return false;
         const index = values.findIndex((config) => config.profileId === profileId && config.modelId === modelId);

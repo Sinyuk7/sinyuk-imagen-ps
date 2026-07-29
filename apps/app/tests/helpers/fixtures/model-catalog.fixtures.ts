@@ -209,14 +209,7 @@ export const fakeUserModelConfigs: readonly UserModelConfig[] = [
     outputFormats: ['png', 'webp'],
     allowInputDerivedExactSize: true,
   },
-  outputMatrix: modelId === 'gpt-image-2'
-    ? [{
-      ...fakeFlexibleTextToImageMatrix,
-      cells: fakeFlexibleTextToImageMatrix.cells.filter((cell) => cell.id !== 'text_to_image:2k:auto:png'),
-    }, {
-      ...fakeFlexibleImageEditMatrix,
-    }]
-    : [fakeFlexibleTextToImageMatrix, fakeFlexibleImageEditMatrix],
+  outputMatrix: [fakeFlexibleTextToImageMatrix, fakeFlexibleImageEditMatrix],
 }));
 
 export const fakeOfficialModelConfigPresets: readonly OfficialModelPreset[] = [{

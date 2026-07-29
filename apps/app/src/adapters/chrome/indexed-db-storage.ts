@@ -4,8 +4,6 @@ import type {
   DurableJobRecord,
   ImageOutputMatrix,
   JobHistoryStore,
-  ModelDiscoveryCache,
-  ModelDiscoveryCacheRepository,
   ModelGenerationPreference,
   ModelGenerationPreferenceRepository,
   ProviderProfile,
@@ -29,7 +27,6 @@ export type ChromeStoreName =
   | 'tasks'
   | 'assets'
   | 'appSettings'
-  | 'modelDiscovery'
   | 'userModelConfigs'
   | 'modelGenerationPreferences'
   | 'comfyUiState';
@@ -68,7 +65,6 @@ const CHROME_STORES: readonly ChromeStoreName[] = [
   'tasks',
   'assets',
   'appSettings',
-  'modelDiscovery',
   'userModelConfigs',
   'modelGenerationPreferences',
   'comfyUiState',
@@ -307,7 +303,6 @@ export function createMemoryIndexedDbBackend(options?: {
     tasks: new Map(),
     assets: new Map(),
     appSettings: new Map(),
-    modelDiscovery: new Map(),
     userModelConfigs: new Map(),
     modelGenerationPreferences: new Map(),
     comfyUiState: new Map(),
@@ -388,7 +383,6 @@ export function createChromeIndexedDbStorage(options?: { readonly backend?: Chro
   readonly history: JobHistoryStore;
   readonly tasks: TaskStore;
   readonly assets: AssetStore;
-  readonly modelDiscovery: ModelDiscoveryCacheRepository;
   readonly userModelConfigs: UserModelConfigRepository;
   readonly modelGenerationPreferences: ModelGenerationPreferenceRepository;
   readonly generationSettings: AppGenerationSettingsStore;
@@ -505,17 +499,6 @@ export function createChromeIndexedDbStorage(options?: { readonly backend?: Chro
         await backend.delete('assets', ref.ref);
       },
     },
-    modelDiscovery: {
-      async get(profileId): Promise<ModelDiscoveryCache | undefined> {
-        return backend.get<ModelDiscoveryCache>('modelDiscovery', profileId);
-      },
-      async put(cache): Promise<void> {
-        await backend.put('modelDiscovery', cache.profileId, cache);
-      },
-      async delete(profileId): Promise<void> {
-        await backend.delete('modelDiscovery', profileId);
-      },
-    },
     userModelConfigs: {
       async list(profileId): Promise<readonly UserModelConfig[]> {
         const configs = (await backend.list<unknown>('userModelConfigs')).filter(isUserModelConfig);
@@ -530,6 +513,16 @@ export function createChromeIndexedDbStorage(options?: { readonly backend?: Chro
           throw new Error('Invalid user model config schema.');
         }
         await backend.put('userModelConfigs', `${config.profileId}:${config.modelId}`, config);
+      },
+      async initializeProfile(profileId, initial): Promise<void> {
+        const current = (await backend.list<unknown>('userModelConfigs')).filter(isUserModelConfig);
+        if (current.some((config) => config.profileId === profileId)) {
+          throw new Error(`Provider profile "${profileId}" already has model configs.`);
+        }
+        if (initial.some((config) => config.profileId !== profileId || !isUserModelConfig(config))) {
+          throw new Error('Invalid default user model config schema.');
+        }
+        await Promise.all(initial.map((config) => backend.put('userModelConfigs', `${config.profileId}:${config.modelId}`, config)));
       },
       async deleteUnlessLast(profileId, modelId): Promise<boolean> {
         const configs = (await backend.list<unknown>('userModelConfigs')).filter(isUserModelConfig);

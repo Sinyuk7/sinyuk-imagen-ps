@@ -103,7 +103,6 @@ export function createModelConfigRepositoryFake(options?: {
   });
   const profileModelItems = options?.profileModelItems ?? fakeProfileModelItems;
   const listProfileModels = vi.fn(async () => ({ ok: true as const, value: profileModelItems }));
-  const refreshProfileModels = vi.fn(async () => ({ ok: true as const, value: [{ id: 'gpt-image-2-preview' }] }));
 
   return {
     modelGenerationPreferences,
@@ -118,7 +117,6 @@ export function createModelConfigRepositoryFake(options?: {
       saveModelGenerationPreference: saveModelGenerationPreferenceSpy,
       deleteModelGenerationPreference: deleteModelGenerationPreferenceSpy,
       listProfileModels,
-      refreshProfileModels,
     },
     spies: {
       listUserModelConfigs,
@@ -131,7 +129,6 @@ export function createModelConfigRepositoryFake(options?: {
       saveModelGenerationPreference: saveModelGenerationPreferenceSpy,
       deleteModelGenerationPreference: deleteModelGenerationPreferenceSpy,
       listProfileModels,
-      refreshProfileModels,
     },
   };
 }

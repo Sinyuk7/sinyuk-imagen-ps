@@ -8,7 +8,6 @@ import type {
   ProviderSafeProbeResult,
 } from '../../contract/provider.js';
 import type { ProviderInvokeResult } from '../../contract/result.js';
-import type { DiscoveredModel } from '../../contract/model.js';
 import { mockRequestSchema, type MockProviderRequest } from '../mock/request-schema.js';
 import { chatImageConfigSchema, type ChatImageProviderConfig } from './config-schema.js';
 import { chatImageDescriptor } from './descriptor.js';
@@ -18,7 +17,6 @@ import { executeWithEndpointFailover } from '../../transport/image-endpoint/fail
 import { resolvePaidRetryConfig, resolveIdempotencyHeader } from '../../transport/image-endpoint/paid-retry.js';
 import { resolveChatImageWireCodec } from '../../transport/chat-image/request-codec.js';
 import type { ParsedChatImageResponse } from '../../transport/chat-image/parse-response.js';
-import { parseChatImageModelsResponse } from '../../transport/chat-image/models.js';
 import { executeBillingProtocolChain } from '../../transport/billing/protocol-registry.js';
 import { assembleApiUrl } from '../../contract/api-format.js';
 
@@ -276,29 +274,6 @@ export function createChatImageProvider(): Provider<ChatImageProviderConfig, Moc
         result.usage = parsed.usage;
       }
       return result;
-    },
-
-    async discoverModels(config: ChatImageProviderConfig): Promise<readonly DiscoveredModel[]> {
-      const execution = await executeWithEndpointFailover({
-        connection: config.connection,
-        retryPolicy: { maxRetries: 0, baseDelayMs: 0, factor: 1 },
-        retryOptions: { retryability: 'broad' },
-        execute: async (candidate) => httpRequest(
-          {
-            url: assembleApiUrl(candidate.url, '/models'),
-            method: 'GET',
-            headers: {
-              Authorization: `Bearer ${config.apiKey}`,
-              ...(config.extraHeaders ?? {}),
-            },
-            timeoutMs: config.timeoutMs,
-          },
-          { maxRetries: 0, baseDelayMs: 0, factor: 1 },
-          undefined,
-          undefined,
-        ),
-      });
-      return parseChatImageModelsResponse(execution.value.response.data);
     },
 
     async measureEndpoints(

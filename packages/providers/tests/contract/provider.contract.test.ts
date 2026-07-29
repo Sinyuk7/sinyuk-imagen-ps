@@ -34,6 +34,7 @@ function createProviderHarness() {
       displayName: 'Contract Provider',
       operations: ['text_to_image', 'image_edit'],
       invokeMode: 'sync',
+      defaultModelTemplates: [],
     }),
     validateConfig,
     validateRequest,

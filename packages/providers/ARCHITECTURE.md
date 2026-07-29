@@ -9,7 +9,7 @@ Last verified: 2026-07-04
 
 - Add a new `ApiFormat` when the upstream protocol and semantic request/response contract differ at the provider boundary.
 - Add an image-edit request codec when one API format needs a new wire dialect for the same canonical `image_edit` intent.
-- Add a provider capability flag when the behavior changes recovery, billing, discovery, or catalog ownership without changing the canonical request.
+- Add a provider capability flag when the behavior changes recovery, billing, or catalog ownership without changing the canonical request.
 
 ## Recovery Policy
 
@@ -44,6 +44,9 @@ Last verified: 2026-07-04
 1. Add the provider factory and descriptor.
 2. Update `builtins` exhaustiveness and public exports.
 3. Confirm `ApiFormat` coverage and catalog ownership boundaries.
-4. Add or extend provider boundary coverage under `packages/providers/tests/`.
+4. Declare the canonical Provider's explicit `defaultModelTemplates`; every row
+   must exactly resolve its `baseModelId` to an Official Model Preset. Templates
+   are setup-only data, never a runtime discovery or synchronization source.
+5. Add or extend provider boundary coverage under `packages/providers/tests/`.
    Prefer expanding the owning contract/compat suite or Case Bank instead of
    creating a new narrow test file.

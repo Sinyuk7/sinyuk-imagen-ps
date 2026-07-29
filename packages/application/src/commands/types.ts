@@ -26,7 +26,6 @@ import type {
 // Re-export provider types for commands layer consumers
 export type {
   ApiFormat,
-  DiscoveredModel,
   EndpointClassification,
   ProviderDescriptor,
   ProviderConfig,
@@ -167,20 +166,6 @@ export interface ProviderProfileRepository {
   delete(profileId: string): Promise<void>;
 }
 
-/** 单个 profile 的远端 discovery cache。 */
-export interface ModelDiscoveryCache {
-  readonly profileId: string;
-  readonly modelIds: readonly string[];
-  readonly refreshedAt: string;
-}
-
-/** Host-injected repository for remote discovery facts. */
-export interface ModelDiscoveryCacheRepository {
-  get(profileId: string): Promise<ModelDiscoveryCache | undefined>;
-  put(cache: ModelDiscoveryCache): Promise<void>;
-  delete(profileId: string): Promise<void>;
-}
-
 export interface ModelGenerationPreferenceKey {
   readonly profileId: string;
   readonly apiFormat: ApiFormat;
@@ -247,6 +232,8 @@ export interface UserModelConfigRepository {
   list(profileId: string): Promise<readonly UserModelConfig[]>;
   get(profileId: string, modelId: string): Promise<UserModelConfig | undefined>;
   save(config: UserModelConfig): Promise<void>;
+  /** 原子初始化一个 setup Profile 的全部默认模型；失败时不得留下部分数据。 */
+  initializeProfile(profileId: string, configs: readonly UserModelConfig[]): Promise<void>;
   /** 仅在删除后仍保留至少一个 model config 时删除。 */
   deleteUnlessLast(profileId: string, modelId: string): Promise<boolean>;
   deleteProfile(profileId: string): Promise<void>;
@@ -277,8 +264,8 @@ export interface ProfileModelItem {
   readonly modelId: string;
   readonly displayName?: string;
   readonly wireModelId?: string;
-  readonly discovered: boolean;
-  readonly configured: boolean;
+  readonly discovered: false;
+  readonly configured: true;
   readonly configSource?: 'user' | 'catalog';
 }
 

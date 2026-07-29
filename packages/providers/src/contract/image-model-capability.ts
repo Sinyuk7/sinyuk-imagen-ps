@@ -17,6 +17,7 @@ import type {
   ProviderModelMatchKind,
 } from './model.js';
 import type { NormalizedImageInputContext, ProviderModelExecution, ProviderOutputOptions, ProviderResolvedOutput } from './request.js';
+import type { ProviderDefaultModelTemplate } from './provider.js';
 import { IMAGE_MODEL_CAPABILITIES } from './image-model-catalog/catalog.js';
 
 export type {
@@ -756,6 +757,16 @@ export function listLocalCatalogModels(providerId: ImageCatalogProviderId): read
   return visibleCapabilitiesForProvider(providerId, IMAGE_MODEL_CAPABILITIES).map((capability) =>
     buildProviderModelInfo(capability),
   );
+}
+
+/** 从本地 Official Model Preset 生成新 Profile 的完整默认模板。 */
+export function listProviderDefaultModelTemplates(providerId: ImageCatalogProviderId): readonly ProviderDefaultModelTemplate[] {
+  return listOfficialModelPresets(apiFormatForImplementationId(providerId)).map((preset) => ({
+    apiFormat: preset.apiFormat,
+    modelId: preset.modelId,
+    wireModelId: preset.modelId,
+    baseModelId: preset.modelId,
+  }));
 }
 
 export function listOfficialModelPresets(apiFormat?: ApiFormat): readonly OfficialModelPreset[] {

@@ -29,6 +29,9 @@ function createUserConfigRepository(configs: readonly UserModelConfig[]): UserMo
     async save() {
       throw new Error('save not implemented in test repository');
     },
+    async initializeProfile() {
+      throw new Error('initializeProfile not implemented in test repository');
+    },
     async deleteUnlessLast() {
       throw new Error('delete not implemented in test repository');
     },

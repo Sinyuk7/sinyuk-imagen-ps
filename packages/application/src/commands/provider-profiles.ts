@@ -27,7 +27,7 @@ import {
 import { invalidateProfileBillingState } from './profile-billing.js';
 import { resolveConfiguredModel, toProviderModelExecution, type ResolvedModelConfig } from './model-config-resolution.js';
 import { resolveModelGenerationSettingsValue } from './model-generation-preference-resolution.js';
-import { getOfficialModelPreset } from '@imagen-ps/providers';
+import { getOfficialModelPreset, getRequestStrategy, type ProviderDefaultModelTemplate } from '@imagen-ps/providers';
 import type { ContinueProviderProfileSetupInput, ProviderProfileLifecycle, ProviderProfileSetupOutcome, UserModelConfig } from './types.js';
 
 function errorMessage(error: unknown, fallback: string): string {
@@ -38,6 +38,42 @@ function errorMessage(error: unknown, fallback: string): string {
     return (error as { readonly message: string }).message;
   }
   return fallback;
+}
+
+/** 将 Provider 的完整默认模板严格投影为 profile-owned 配置。 */
+function defaultModelConfigsForProfile(args: {
+  readonly profileId: string;
+  readonly apiFormat: ProviderProfile['apiFormat'];
+  readonly templates: readonly ProviderDefaultModelTemplate[];
+}): readonly UserModelConfig[] {
+  const modelIds = new Set<string>();
+  return args.templates.map((template) => {
+    if (
+      template.apiFormat !== args.apiFormat ||
+      template.modelId.trim().length === 0 ||
+      template.wireModelId.trim().length === 0 ||
+      template.baseModelId.trim().length === 0 ||
+      modelIds.has(template.modelId)
+    ) {
+      throw new Error('Provider default model template is invalid.');
+    }
+    modelIds.add(template.modelId);
+    const preset = getOfficialModelPreset(args.apiFormat, template.baseModelId);
+    const strategy = preset ? getRequestStrategy(preset.requestStrategyId) : undefined;
+    if (!preset || !strategy || strategy.apiFormat !== args.apiFormat) {
+      throw new Error(`Provider default model template "${template.modelId}" has no matching Official Model Preset.`);
+    }
+    return {
+      profileId: args.profileId,
+      apiFormat: args.apiFormat,
+      modelId: template.modelId,
+      wireModelId: template.wireModelId,
+      baseModelId: template.baseModelId,
+      requestStrategyId: preset.requestStrategyId,
+      outputExposure: preset.outputExposure,
+      outputMatrix: preset.outputMatrix,
+    };
+  });
 }
 
 function createSecretRef(profileId: string, secretName: string): string {
@@ -484,6 +520,13 @@ export async function continueProviderProfileSetup(
   if (!saved.ok) return { ok: false, error: saved.error };
 
   const profile = saved.value;
+  const provider = getRuntime().providerRegistry.getByApiFormat(profile.apiFormat);
+  if (!provider) {
+    return {
+      ok: false,
+      error: createValidationError(`Provider implementation for apiFormat "${profile.apiFormat}" not found.`, { apiFormat: profile.apiFormat }),
+    };
+  }
   const modelRepository = getUserModelConfigRepository();
   const existingModels = await modelRepository.list(profile.profileId);
   if (existingModels.length > 0) {
@@ -491,6 +534,30 @@ export async function continueProviderProfileSetup(
     return promoted.ok
       ? { ok: true, value: { kind: 'ready', profile: promoted.value } }
       : { ok: false, error: promoted.error };
+  }
+
+  const templates = provider.describe().defaultModelTemplates;
+  if (templates.length > 0) {
+    try {
+      const configs = defaultModelConfigsForProfile({
+        profileId: profile.profileId,
+        apiFormat: profile.apiFormat,
+        templates,
+      });
+      await modelRepository.initializeProfile(profile.profileId, configs);
+      const promoted = await promoteProviderProfileSetup(profile.profileId);
+      return promoted.ok
+        ? { ok: true, value: { kind: 'ready', profile: promoted.value } }
+        : { ok: false, error: promoted.error };
+    } catch (error) {
+      return {
+        ok: false,
+        error: createValidationError(errorMessage(error, 'Failed to initialize provider default models.'), {
+          profileId: profile.profileId,
+          apiFormat: profile.apiFormat,
+        }),
+      };
+    }
   }
 
   const wireModelId = input.wireModelId?.trim();

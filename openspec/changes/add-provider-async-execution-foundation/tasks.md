@@ -15,4 +15,4 @@
 ## 3. Documentation and verification
 
 - [x] 3.1 更新 `packages/providers/ARCHITECTURE.md`、`packages/providers/TESTING.md`、`packages/providers/AGENTS.md` 与 `docs/ENGINEERING_CONTEXT.md`，明确 Application manager / Provider protocol ownership、无查询 Provider fallback 与重放安全。
-- [ ] 3.2 运行 affected provider/application/core-engine tests、`pnpm check:policy`、`pnpm validate`；不主动运行 Photoshop/UXP UI 验收。
+- [x] 3.2 运行 affected provider/application/core-engine tests、`pnpm check:policy`、`pnpm validate`；不主动运行 Photoshop/UXP UI 验收。

@@ -34,7 +34,6 @@ export {
 } from './provider-profiles.js';
 export {
   listProfileModels,
-  refreshProfileModels,
 } from './profile-models.js';
 export {
   deleteUserModelConfig,
@@ -49,7 +48,6 @@ export {
   getModelGenerationSettings,
   saveModelGenerationPreference,
 } from './model-generation-preferences.js';
-export { refreshDraftProfileModels } from './refresh-draft-profile-models.js';
 export { measureProfileEndpoints } from './profile-endpoints.js';
 export { testProviderProfileConnection } from './profile-connection-test.js';
 export {
@@ -135,8 +133,6 @@ export type {
 export type {
   ProviderConfig,
   ProviderConfigResolver,
-  ModelDiscoveryCache,
-  ModelDiscoveryCacheRepository,
   ProviderDescriptor,
   ModelBrand,
   ProfileModelItem,
@@ -161,12 +157,10 @@ export type {
 // Adapter injection（暴露给 UI / host adapters 注入自定义实现）
 export {
   getAssetStore,
-  getModelDiscoveryCacheRepository,
   getModelGenerationPreferenceRepository,
   getUserModelConfigRepository,
   setAssetStore,
   setJobHistoryStore,
-  setModelDiscoveryCacheRepository,
   setModelGenerationPreferenceRepository,
   setProviderConfigResolver,
   setProviderProfileRepository,

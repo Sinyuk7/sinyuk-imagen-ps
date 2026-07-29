@@ -8,24 +8,14 @@ import { createFakeServices, fakeProfile, profileModelItem } from '../../../help
 
 let root: Root | undefined;
 
-interface DiscoveredModel {
-  readonly id: string;
-}
-
 afterEach(async () => {
-  if (root) {
-    await act(async () => {
-      root!.unmount();
-    });
-  }
+  await act(async () => root?.unmount());
   root = undefined;
   document.body.innerHTML = '';
 });
 
 async function flush(): Promise<void> {
-  await act(async () => {
-    await Promise.resolve();
-  });
+  await act(async () => { await Promise.resolve(); });
 }
 
 async function renderPage(options?: {
@@ -34,25 +24,19 @@ async function renderPage(options?: {
   readonly onBack?: () => void;
   readonly onCreate?: () => void;
   readonly onEdit?: (modelId: string) => void;
-  readonly onSuggestion?: (modelId: string) => void;
 }): Promise<HTMLDivElement> {
   const container = document.createElement('div');
   document.body.appendChild(container);
   root = createRoot(container);
-  const services = options?.services ?? createFakeServices().services;
-
   await act(async () => {
-    root!.render(
-      <TestAppProviders services={services} locale="en">
-        <div className="panel">
-          <ProfileModelsPage
-            profile={options?.profile ?? fakeProfile}
-            onBack={options?.onBack ?? vi.fn()}
-            onCreate={options?.onCreate ?? vi.fn()}
-            onEdit={options?.onEdit ?? vi.fn()}
-            onSuggestion={options?.onSuggestion ?? vi.fn()}
-          />
-        </div>
+    root?.render(
+      <TestAppProviders services={options?.services ?? createFakeServices().services} locale="en">
+        <ProfileModelsPage
+          profile={options?.profile ?? fakeProfile}
+          onBack={options?.onBack ?? vi.fn()}
+          onCreate={options?.onCreate ?? vi.fn()}
+          onEdit={options?.onEdit ?? vi.fn()}
+        />
       </TestAppProviders>,
     );
   });
@@ -61,243 +45,49 @@ async function renderPage(options?: {
   return container;
 }
 
-function discovered(id: string): DiscoveredModel {
-  return { id };
-}
-
 describe('ProfileModelsPage', () => {
-  it('renders owned configs first and edits by modelId', async () => {
+  it('projects persisted configs and edits by modelId', async () => {
     const onEdit = vi.fn();
     const { services } = createFakeServices({
-      profileModelItems: [
-        profileModelItem('owned-model', {
-          wireModelId: 'owned-model-wire',
-          displayName: 'Owned model note',
-          configSource: 'user',
-        }),
-      ],
+      profileModelItems: [profileModelItem('owned-model', {
+        wireModelId: 'owned-model-wire',
+        displayName: 'Owned model note',
+        configSource: 'user',
+      })],
     });
-    const container = await renderPage({
-      services,
-      onEdit,
-    });
-
-    expect(container.querySelector('[data-primary-scroll="true"]')).not.toBeNull();
-    expect(container.querySelector('[data-testid="profile-models-list-section"]')).not.toBeNull();
-    expect(container.querySelector('.ui-page-header-title')?.textContent).toContain(fakeProfile.displayName);
-    expect(container.querySelector('[data-testid="profile-models-list-section"] h2')).toBeNull();
-    expect(container.querySelector('.model-config-list-heading')).toBeNull();
-    expect(container.querySelector('[data-testid="profile-models-refresh-button"]')).not.toBeNull();
+    const container = await renderPage({ services, onEdit });
     const row = container.querySelector<HTMLElement>('[data-testid="profile-model-row-owned-model"]');
-    expect(row).not.toBeNull();
+
     expect(row?.querySelector('.prov-name')?.textContent).toBe('owned-model-wire');
     expect(row?.querySelector('.model-config-meta-note')?.textContent).toBe('Owned model note');
-    expect(row?.textContent).not.toContain('OpenAI Images');
-    expect(row?.textContent).not.toContain('Default');
+    expect(container.querySelector('[data-testid="profile-models-refresh-button"]')).toBeNull();
+    expect(container.querySelector('[data-testid^="profile-model-suggestion-row-"]')).toBeNull();
 
-    await act(async () => {
-      row?.click();
-    });
-    await flush();
-
+    await act(async () => row?.click());
     expect(onEdit).toHaveBeenCalledWith('owned-model');
   });
 
-  it('omits the subtitle when the model has no display name', async () => {
-    const { services } = createFakeServices({
-      profileModelItems: [profileModelItem('wire-only-model')],
-    });
-    const container = await renderPage({ services });
-    const row = container.querySelector<HTMLElement>('[data-testid="profile-model-row-wire-only-model"]');
-
-    expect(row?.querySelector('.prov-name')?.textContent).toBe('wire-only-model');
-    expect(row?.querySelector('.prov-meta-row')).toBeNull();
-  });
-
-  it('does not expose set-default controls or write profile default state', async () => {
-    const { services, spies } = createFakeServices({
-      profileModelItems: [
-        profileModelItem('first-model'),
-        profileModelItem('second-model'),
-      ],
-    });
-    const container = await renderPage({
-      services,
-    });
-
-    const setDefaultButton = Array.from(container.querySelectorAll<HTMLButtonElement>('button'))
-      .find((button) => button.textContent?.includes('Set default'));
-    expect(setDefaultButton).toBeUndefined();
-    expect(container.textContent).not.toContain('Default');
-    expect(spies.saveProviderProfile).not.toHaveBeenCalled();
-  });
-
-  it('keeps discovery suggestions runtime-only until explicit editor save', async () => {
-    const onSuggestion = vi.fn();
-    const base = createFakeServices({
-      profileModelItems: [profileModelItem('owned-model')],
-    });
-    const refreshProfileModels = vi.fn(async () => ({
-      ok: true as const,
-      value: [
-        discovered('suggestion-a'),
-        discovered('owned-model'),
-        discovered('suggestion-a'),
-        discovered('suggestion-b'),
-      ],
-    }));
-    const services = {
-      ...base.services,
-      commands: {
-        ...base.services.commands,
-        refreshProfileModels,
-      },
-    };
-    const container = await renderPage({ services, onSuggestion });
-
-    await act(async () => {
-      container.querySelector<HTMLElement>('[data-testid="profile-models-refresh-button"]')?.click();
-    });
-    await flush();
-    await flush();
-
-    expect(container.querySelector('[data-testid="profile-model-suggestion-row-suggestion-a"]')).not.toBeNull();
-    expect(container.querySelector('[data-testid="profile-model-suggestion-row-suggestion-b"]')).not.toBeNull();
-    expect(container.querySelector('[data-testid="profile-model-suggestion-row-owned-model"]')).toBeNull();
-    expect(Array.from(container.querySelectorAll<HTMLElement>('[data-testid^="profile-model-suggestion-row-"]'))
-      .map((row) => row.dataset.testid)).toEqual([
-      'profile-model-suggestion-row-suggestion-a',
-      'profile-model-suggestion-row-suggestion-b',
-    ]);
-    expect(base.spies.saveUserModelConfig).not.toHaveBeenCalled();
-
-    await act(async () => {
-      container.querySelector<HTMLElement>('[data-testid="profile-model-suggestion-row-suggestion-a"]')?.click();
-    });
-    await flush();
-
-    expect(onSuggestion).toHaveBeenCalledWith('suggestion-a');
-    expect(base.spies.saveUserModelConfig).not.toHaveBeenCalled();
-  });
-
-  it('keeps existing suggestions when refresh fails', async () => {
-    const base = createFakeServices({ profileModelItems: [] });
-    const refreshProfileModels = vi.fn()
-      .mockResolvedValueOnce({ ok: true as const, value: [discovered('suggestion-a')] })
-      .mockResolvedValueOnce({
-        ok: false as const,
-        error: { category: 'provider', message: 'Discovery failed' },
-      });
-    const services = {
-      ...base.services,
-      commands: {
-        ...base.services.commands,
-        refreshProfileModels,
-      },
-    };
-    const container = await renderPage({ services });
-    const refreshButton = container.querySelector<HTMLButtonElement>('[data-testid="profile-models-refresh-button"]');
-
-    await act(async () => {
-      refreshButton?.click();
-    });
-    await flush();
-    await flush();
-    expect(container.querySelector('[data-testid="profile-model-suggestion-row-suggestion-a"]')).not.toBeNull();
-
-    await act(async () => {
-      refreshButton?.click();
-    });
-    await flush();
-    await flush();
-
-    expect(container.querySelector('[data-testid="profile-model-suggestion-row-suggestion-a"]')).not.toBeNull();
-    expect(container.querySelector('[data-testid="profile-model-list-error"]')).toBeNull();
-    const toast = document.body.querySelector<HTMLElement>('[data-testid="toast"]');
-    expect(toast?.textContent).toContain('Discovery failed');
-  });
-
-  it('renders empty-state guidance as prose instead of diagnostic detail', async () => {
+  it('renders empty-state guidance for profiles without models', async () => {
     const { services } = createFakeServices({ profileModelItems: [] });
     const container = await renderPage({ services });
+    const empty = container.querySelector<HTMLElement>('[data-testid="profile-model-empty-notice"]');
 
-    const host = container.querySelector<HTMLElement>('[data-testid="profile-model-empty-notice"]');
-    expect(host).not.toBeNull();
-    expect(host?.textContent).toContain('Saving does not apply it.');
-    expect(host?.getAttribute('aria-disabled')).toBe('true');
-    expect(host?.hasAttribute('tabindex')).toBe(false);
+    expect(empty?.getAttribute('aria-disabled')).toBe('true');
+    expect(empty?.hasAttribute('tabindex')).toBe(false);
   });
 
-  it('uses inert replacement rows for initial loading and load failure', async () => {
-    let resolveModels: ((value: {
-      readonly ok: false;
-      readonly error: { readonly category: string; readonly message: string };
-    }) => void) | undefined;
+  it('uses inert replacement rows while loading and after a load error', async () => {
+    let resolveModels: ((value: { readonly ok: false; readonly error: { readonly category: string; readonly message: string } }) => void) | undefined;
     const base = createFakeServices({ profileModelItems: [] });
-    const listProfileModels = vi.fn(() => new Promise<{
-      readonly ok: false;
-      readonly error: { readonly category: string; readonly message: string };
-    }>((resolve) => {
+    const listProfileModels = vi.fn(() => new Promise<{ readonly ok: false; readonly error: { readonly category: string; readonly message: string } }>((resolve) => {
       resolveModels = resolve;
     }));
-    const services = {
-      ...base.services,
-      commands: { ...base.services.commands, listProfileModels },
-    };
-    const container = await renderPage({ services });
+    const container = await renderPage({ services: { ...base.services, commands: { ...base.services.commands, listProfileModels } } });
 
-    const loading = container.querySelector<HTMLElement>('[data-testid="profile-model-list-loading"]');
-    expect(loading?.getAttribute('aria-disabled')).toBe('true');
-    expect(loading?.hasAttribute('tabindex')).toBe(false);
-
-    await act(async () => {
-      resolveModels?.({ ok: false, error: { category: 'provider', message: 'List failed' } });
-    });
+    expect(container.querySelector('[data-testid="profile-model-list-loading"]')?.getAttribute('aria-disabled')).toBe('true');
+    await act(async () => resolveModels?.({ ok: false, error: { category: 'provider', message: 'List failed' } }));
     await flush();
-    await flush();
-
-    const error = container.querySelector<HTMLElement>('[data-testid="profile-model-list-error"]');
-    expect(error?.textContent).toContain('List failed');
-    expect(error?.getAttribute('role')).toBeNull();
-    expect(error?.querySelector('button')).not.toBeNull();
-  });
-
-  it('disables repeated discovery while refresh is pending', async () => {
-    let resolveRefresh: ((value: { readonly ok: true; readonly value: readonly DiscoveredModel[] }) => void) | undefined;
-    const base = createFakeServices({ profileModelItems: [] });
-    const refreshProfileModels = vi.fn(() => new Promise<{ readonly ok: true; readonly value: readonly DiscoveredModel[] }>((resolve) => {
-      resolveRefresh = resolve;
-    }));
-    const services = {
-      ...base.services,
-      commands: {
-        ...base.services.commands,
-        refreshProfileModels,
-      },
-    };
-    const container = await renderPage({ services });
-    const refreshButton = container.querySelector<HTMLButtonElement>('[data-testid="profile-models-refresh-button"]');
-
-    await act(async () => {
-      refreshButton?.click();
-    });
-    await flush();
-
-    expect(refreshButton?.disabled).toBe(true);
-    expect(refreshProfileModels).toHaveBeenCalledTimes(1);
-
-    await act(async () => {
-      refreshButton?.click();
-    });
-    await flush();
-    expect(refreshProfileModels).toHaveBeenCalledTimes(1);
-
-    await act(async () => {
-      resolveRefresh?.({ ok: true, value: [discovered('suggestion-a')] });
-    });
-    await flush();
-    await flush();
-    expect(container.querySelector('[data-testid="profile-model-suggestion-row-suggestion-a"]')).not.toBeNull();
+    expect(container.querySelector('[data-testid="profile-model-list-error"]')?.textContent).toContain('List failed');
   });
 
   it('exposes back and create callbacks', async () => {
@@ -305,16 +95,9 @@ describe('ProfileModelsPage', () => {
     const onCreate = vi.fn();
     const container = await renderPage({ onBack, onCreate });
 
-    await act(async () => {
-      container.querySelector<HTMLElement>('[data-testid="profile-models-add-button"]')?.click();
-    });
-    await flush();
-    expect(onCreate).toHaveBeenCalledTimes(1);
-
-    await act(async () => {
-      container.querySelector<HTMLElement>('[data-testid="profile-models-back-button"]')?.click();
-    });
-    await flush();
-    expect(onBack).toHaveBeenCalledTimes(1);
+    await act(async () => container.querySelector<HTMLElement>('[data-testid="profile-models-add-button"]')?.click());
+    await act(async () => container.querySelector<HTMLElement>('[data-testid="profile-models-back-button"]')?.click());
+    expect(onCreate).toHaveBeenCalledOnce();
+    expect(onBack).toHaveBeenCalledOnce();
   });
 });

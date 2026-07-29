@@ -7,7 +7,6 @@ import {
   saveUserModelConfig,
   setAssetStore,
   setJobHistoryStore,
-  setModelDiscoveryCacheRepository,
   setProviderProfileRepository,
   setSecretStorageAdapter,
   setTaskStore,
@@ -119,7 +118,6 @@ export async function runChromeFeasibilityRuntime(options?: {
   setJobHistoryStore(storage.history);
   setTaskStore(storage.tasks);
   setAssetStore(storage.assets);
-  setModelDiscoveryCacheRepository(storage.modelDiscovery);
   setUserModelConfigRepository(storage.userModelConfigs);
 
   const providers = listProviders();

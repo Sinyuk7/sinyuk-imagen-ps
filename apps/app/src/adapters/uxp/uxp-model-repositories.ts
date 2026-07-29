@@ -1,7 +1,5 @@
 import type {
   ImageOutputMatrix,
-  ModelDiscoveryCache,
-  ModelDiscoveryCacheRepository,
   ModelGenerationPreference,
   ModelGenerationPreferenceRepository,
   UserModelConfig,
@@ -9,7 +7,6 @@ import type {
 } from '@imagen-ps/application';
 import {
   createInMemoryModelGenerationPreferenceRepository,
-  createInMemoryModelDiscoveryCacheRepository,
   createInMemoryUserModelConfigRepository,
 } from './in-memory-host-storage';
 import type { UxpModules } from './uxp-api';
@@ -49,22 +46,8 @@ function isApiFormat(value: unknown): value is UserModelConfig['apiFormat'] {
   return value === 'openai-images' || value === 'openai-chat-completions' || value === 'gemini-generate-content';
 }
 
-function isStringArray(value: unknown): value is readonly string[] {
-  return Array.isArray(value) && value.every((item) => typeof item === 'string');
-}
-
 function isPlainRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value);
-}
-
-function isModelDiscoveryCache(value: unknown): value is ModelDiscoveryCache {
-  if (typeof value !== 'object' || value === null || Array.isArray(value)) {
-    return false;
-  }
-  const record = value as Partial<ModelDiscoveryCache>;
-  return typeof record.profileId === 'string' &&
-    isStringArray(record.modelIds) &&
-    typeof record.refreshedAt === 'string';
 }
 
 function isUserModelConfig(value: unknown): value is UserModelConfig {
@@ -183,40 +166,6 @@ async function writeJsonArray<T>(
   await file.write(JSON.stringify({ [key]: values }, null, 2), { format: fs.formats?.utf8 });
 }
 
-export function createUxpModelDiscoveryCacheRepository(modules: UxpModules): ModelDiscoveryCacheRepository {
-  const fs = localFileSystemFrom(modules);
-  if (!fs) {
-    return createInMemoryModelDiscoveryCacheRepository();
-  }
-  const localFileSystem = fs;
-  const fileName = 'model-discovery-cache.json';
-  const key = 'caches';
-
-  async function readAll(): Promise<Map<string, ModelDiscoveryCache>> {
-    return new Map((await readJsonArray(localFileSystem, fileName, key, isModelDiscoveryCache)).map((cache) => [cache.profileId, cache]));
-  }
-
-  async function writeAll(caches: Map<string, ModelDiscoveryCache>): Promise<void> {
-    await writeJsonArray(localFileSystem, fileName, key, Array.from(caches.values()));
-  }
-
-  return {
-    async get(profileId) {
-      return (await readAll()).get(profileId);
-    },
-    async put(cache) {
-      const caches = await readAll();
-      caches.set(cache.profileId, cache);
-      await writeAll(caches);
-    },
-    async delete(profileId) {
-      const caches = await readAll();
-      caches.delete(profileId);
-      await writeAll(caches);
-    },
-  };
-}
-
 function userModelConfigKey(config: Pick<UserModelConfig, 'profileId' | 'modelId'>): string {
   return `${config.profileId}:${config.modelId}`;
 }
@@ -253,6 +202,19 @@ export function createUxpUserModelConfigRepository(modules: UxpModules): UserMod
     async save(config) {
       const configs = await readAll();
       configs.set(userModelConfigKey(config), config);
+      await writeAll(configs);
+    },
+    async initializeProfile(profileId, initial) {
+      const configs = await readAll();
+      if (Array.from(configs.values()).some((config) => config.profileId === profileId)) {
+        throw new Error(`Provider profile "${profileId}" already has model configs.`);
+      }
+      for (const config of initial) {
+        if (config.profileId !== profileId || !isUserModelConfig(config)) {
+          throw new Error('Invalid default user model config schema.');
+        }
+        configs.set(userModelConfigKey(config), config);
+      }
       await writeAll(configs);
     },
     async deleteUnlessLast(profileId, modelId) {

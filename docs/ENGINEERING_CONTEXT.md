@@ -49,12 +49,11 @@ surface apps -> application/session -> core-engine + providers + execution backe
 - `apps/app` is one shared UXP-safe React application consumed by the shipped
   Photoshop UXP shell and the Chrome functional-harness shell. See
   `apps/app/AGENTS.md`.
-- Image-model discovery and execution are split by boundary. `packages/providers`
-  discovery returns only remote model facts, preserving unknown IDs. Official
-  model presets live in the provider catalog as `(apiFormat, modelId)` templates
-  with `requestStrategyId` and output constraints. `packages/application` owns
-  profile-local reconciliation over discovery cache, user-owned model configs,
-  and official presets.
+- Official model presets live in the provider catalog as `(apiFormat, modelId)`
+  templates with `requestStrategyId` and output constraints. A canonical Provider
+  owns an explicit local default-template inventory; new Profiles consume it once
+  during setup and persist only resulting user-owned `UserModelConfig` rows.
+  There is no generic remote model discovery, cache, suggestion, or later sync.
 - For a configured model whose `wireModelId` is an official catalog model, the
   wire model is the execution capability authority. Application projects the
   saved output matrix through that capability; stale preferences outside the
@@ -398,11 +397,12 @@ surface apps -> application/session -> core-engine + providers + execution backe
   rejected rather than migrated.
 - A user-visible Profile is always `ready`: it has valid Profile configuration
   and at least one owned `UserModelConfig`. New Profile `Continue` stores an
-  internal `setup` Profile only long enough to route to an exact Official Catalog
-  model, Model Configuration, or Profile Models. Public list/active Profile
-  reads exclude setup Profiles; cancellation and shell startup cleanup remove
-  setup Profile, model-config, and secret state. First successful model save
-  promotes setup to ready idempotently.
+  internal `setup` Profile; nonempty canonical Provider templates are fully
+  validated then atomically initialized before promotion. Empty templates keep
+  the manual first-model path, including endpoint-hint exact-preset fallback.
+  Public list/active Profile reads exclude setup Profiles; cancellation and shell
+  startup cleanup remove setup Profile, model-config, and secret state. Template
+  changes never backfill or overwrite ready Profiles.
 - Ready Profiles cannot lose their final model through `deleteUserModelConfig`.
   The repository owns the delete-unless-last invariant; UI disabling is only
   preventive feedback. Profile-level `enabled` has no persistence, UI, or

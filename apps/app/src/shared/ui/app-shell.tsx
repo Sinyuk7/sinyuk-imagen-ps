@@ -742,15 +742,6 @@ function AppShellContent({ host }: AppShellProps) {
                   setModelConfigurationReturnView('profile-models');
                   setView('model-configuration');
                 }}
-                onSuggestion={(modelId) => {
-                  setModelConfigurationEditorSeed({
-                    profileId: profile.profileId,
-                    apiFormat: profile.apiFormat,
-                    modelId,
-                  });
-                  setModelConfigurationReturnView('profile-models');
-                  setView('model-configuration');
-                }}
               />
             );
           })()}

@@ -14,7 +14,6 @@ import { classifyEndpoint, resolveModelBrand } from '@imagen-ps/application';
 import type { CommandsPort } from '../../../src/app-services/commands-port';
 import {
   fakeChatProvider,
-  fakeDraftProfileModelItems,
   fakeProfile,
   fakeProvider,
   savedProfile,
@@ -134,7 +133,6 @@ export function createCommandsFake(options?: {
       ) ? { resolvedEndpointId: 'primary' } : {}),
     },
   }));
-  const refreshDraftProfileModels = vi.fn(async () => ({ ok: true as const, value: fakeDraftProfileModelItems }));
   let billingState: ProfileBillingState = { refreshState: 'idle' };
   const getProfileBillingState = vi.fn(async () => ({ ok: true as const, value: billingState }));
   const refreshProfileBalance = vi.fn(async ({ profileId }: { profileId: string }) => {
@@ -186,7 +184,6 @@ export function createCommandsFake(options?: {
     testProviderProfile,
     testProviderProfileConnection,
     measureProfileEndpoints,
-    refreshDraftProfileModels,
     refreshProfileBalance,
     getProfileBillingState,
     ...modelConfig.commands,
@@ -213,7 +210,6 @@ export function createCommandsFake(options?: {
       testProviderProfile,
       testProviderProfileConnection,
       measureProfileEndpoints,
-      refreshDraftProfileModels,
       refreshProfileBalance,
       getProfileBillingState,
       ...modelConfig.spies,

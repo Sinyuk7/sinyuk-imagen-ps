@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useState } from 'react';
 import type { ProfileModelItem, ProviderProfile } from '@imagen-ps/application';
 import { useAppServices } from '../../ports/app-services-context';
 import { useI18n } from '../i18n/i18n-context';
@@ -12,7 +12,6 @@ import {
   PageScroll,
   ProviderSettingsPageHeader,
   SettingsListRow,
-  useToast,
 } from '../ui-system';
 
 interface ProfileModelsPageProps {
@@ -20,7 +19,6 @@ interface ProfileModelsPageProps {
   readonly onBack: () => void;
   readonly onCreate: () => void;
   readonly onEdit: (modelId: string) => void;
-  readonly onSuggestion: (modelId: string) => void;
 }
 
 function modelAvatarLabel(modelId: string): string {
@@ -32,21 +30,12 @@ function commandMessage(error: { readonly category: string; readonly message: st
   return `${error.category}: ${error.message}`;
 }
 
-export function ProfileModelsPage({ profile, onBack, onCreate, onEdit, onSuggestion }: ProfileModelsPageProps) {
+export function ProfileModelsPage({ profile, onBack, onCreate, onEdit }: ProfileModelsPageProps) {
   const services = useAppServices();
   const { messages: t } = useI18n();
-  const { show } = useToast();
   const [models, setModels] = useState<readonly ProfileModelItem[]>([]);
-  const [suggestions, setSuggestions] = useState<readonly string[]>([]);
   const [loading, setLoading] = useState(true);
-  const [refreshing, setRefreshing] = useState(false);
   const [listError, setListError] = useState<string | null>(null);
-
-  const ownedIds = useMemo(() => new Set(models.map((model) => model.modelId)), [models]);
-  const visibleSuggestions = useMemo(
-    () => suggestions.filter((modelId) => !ownedIds.has(modelId)),
-    [ownedIds, suggestions],
-  );
 
   const reload = async () => {
     setLoading(true);
@@ -66,41 +55,8 @@ export function ProfileModelsPage({ profile, onBack, onCreate, onEdit, onSuggest
   };
 
   useEffect(() => {
-    setSuggestions([]);
     void reload();
   }, [profile.profileId]);
-
-  const refreshSuggestions = async () => {
-    if (refreshing) {
-      return;
-    }
-    setRefreshing(true);
-    try {
-      const result = await services.commands.refreshProfileModels(profile.profileId);
-      if (!result.ok) {
-        throw new Error(commandMessage(result.error));
-      }
-      const seen = new Set<string>();
-      const next = result.value
-        .map((model) => model.id.trim())
-        .filter((modelId) => {
-          if (!modelId || seen.has(modelId)) {
-            return false;
-          }
-          seen.add(modelId);
-          return true;
-        });
-      setSuggestions((current) => {
-        const known = new Set(current);
-        return [...current, ...next.filter((modelId) => !known.has(modelId))];
-      });
-    } catch (nextError) {
-      const message = nextError instanceof Error ? nextError.message : String(nextError);
-      show(message, 'negative', { key: `profile-models-refresh:${profile.profileId}` });
-    } finally {
-      setRefreshing(false);
-    }
-  };
 
   return (
     <PageFrame watch={`profile-models:${profile.profileId}`}>
@@ -113,15 +69,6 @@ export function ProfileModelsPage({ profile, onBack, onCreate, onEdit, onSuggest
           rightClassName="profile-models-header-actions"
           rightSlot={(
             <>
-              <IconButton
-                data-testid="profile-models-refresh-button"
-                className="hdr-btn profile-models-header-refresh"
-                quiet
-                icon={<Icon name={refreshing ? 'spinner' : 'refresh'} />}
-                tooltip={refreshing ? t.settings.refreshingModels : t.settings.refreshModels}
-                disabled={refreshing}
-                onClick={() => void refreshSuggestions()}
-              />
               <IconButton
                 data-testid="profile-models-add-button"
                 className="hdr-btn profile-models-header-add"
@@ -176,27 +123,6 @@ export function ProfileModelsPage({ profile, onBack, onCreate, onEdit, onSuggest
                   );
                 }) : null}
               </List>
-              {visibleSuggestions.length > 0 ? (
-                <>
-                  <div className="sec-lbl">{t.settings.discoveredModels}</div>
-                  <List className="model-config-list" aria-label={t.settings.discoveredModels}>
-                    {visibleSuggestions.map((modelId) => (
-                      <SettingsListRow
-                        key={modelId}
-                        testId={`profile-model-suggestion-row-${modelId}`}
-                        title={modelId}
-                        leading={(
-                          <div className="prov-ico profile-model-avatar profile-model-avatar-suggestion">
-                            <Icon name="magic-wand" size={14} />
-                          </div>
-                        )}
-                        meta={<span className="prov-summary">{t.settings.discoverySuggestion}</span>}
-                        onOpen={() => onSuggestion(modelId)}
-                      />
-                    ))}
-                  </List>
-                </>
-              ) : null}
             </section>
           </div>
         </PageScroll>
