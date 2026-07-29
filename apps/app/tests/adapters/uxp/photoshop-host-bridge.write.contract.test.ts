@@ -206,6 +206,30 @@ describe('PhotoshopHostBridge write contract', () => {
     expect(spies.translatePlacedLayer).toHaveBeenCalledWith(10, 20);
   });
 
+  it('corrects a one-pixel Photoshop exact-frame scale drift before translating', async () => {
+    const { modules, spies } = createFakeModules({
+      firstScaleBoundsDrift: { height: 1 },
+    });
+    const { bridge } = createBridge(modules);
+
+    await bridge.placeAssetOnCanvas({
+      type: 'image',
+      name: 'generated.png',
+      data: VALID_TRANSPARENT_PNG,
+      mimeType: 'image/png',
+    }, {
+      kind: 'exact-frame',
+      documentId: 42,
+      documentSizeAtCapture: { width: 512, height: 384 },
+      placementRect: { left: 10, top: 20, right: 138, bottom: 148 },
+    });
+
+    expect(spies.scalePlacedLayer).toHaveBeenCalledTimes(2);
+    expect(spies.scalePlacedLayer).toHaveBeenNthCalledWith(1, 200, 200);
+    expect(spies.scalePlacedLayer).toHaveBeenNthCalledWith(2, 100, (128 / 129) * 100);
+    expect(spies.translatePlacedLayer).toHaveBeenCalledWith(10, 20);
+  });
+
   it('normalizes unbound JPEG placement to intrinsic pixels on large canvases', async () => {
     const { modules, spies } = createFakeModules({
       activeLayerBounds: { _left: 0, _top: 0, _right: 128, _bottom: 96 },
@@ -291,8 +315,8 @@ describe('PhotoshopHostBridge write contract', () => {
       placedLayerBoundsAfterPlaceHeight: 96,
       normalizedTargetWidth: 1024,
       normalizedTargetHeight: 768,
-      placedLayerBoundsAfterNormalizeWidth: 128,
-      placedLayerBoundsAfterNormalizeHeight: 96,
+      placedLayerBoundsAfterNormalizeWidth: 1024,
+      placedLayerBoundsAfterNormalizeHeight: 768,
     });
   });
 
@@ -480,16 +504,16 @@ describe('PhotoshopHostBridge write contract', () => {
       assetHeight: 946,
       placedLayerBoundsBeforeTransformWidth: 64,
       placedLayerBoundsBeforeTransformHeight: 64,
-      placedLayerBoundsAfterScaleWidth: 64,
-      placedLayerBoundsAfterScaleHeight: 64,
+      placedLayerBoundsAfterScaleWidth: 345,
+      placedLayerBoundsAfterScaleHeight: 321,
       placementTargetRectLeft: 0,
       placementTargetRectTop: 0,
       placementTargetRectRight: 345,
       placementTargetRectBottom: 321,
       placementTargetRectWidth: 345,
       placementTargetRectHeight: 321,
-      placedLayerBoundsAfterTranslateWidth: 64,
-      placedLayerBoundsAfterTranslateHeight: 64,
+      placedLayerBoundsAfterTranslateWidth: 345,
+      placedLayerBoundsAfterTranslateHeight: 321,
     });
     expect(successRecord?.attrs).not.toHaveProperty('requestedPlacement');
   });

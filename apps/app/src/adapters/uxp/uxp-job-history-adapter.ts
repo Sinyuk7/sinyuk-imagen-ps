@@ -3,6 +3,7 @@ import { TASK_RECORD_SCHEMA_VERSION, assertTaskRecord, decodeTaskRecord } from '
 import { ensurePlaceableImagePayload } from '../../shared/image-payload-preflight';
 import { createInMemoryAssetStore, createInMemoryJobHistoryStore, createInMemoryTaskStore } from './in-memory-host-storage';
 import type { UxpModules } from './uxp-api';
+import { createUxpFlightRecorder } from './uxp-log-sink';
 
 interface UxpFile {
   read(options?: { readonly format?: unknown }): Promise<string | ArrayBuffer>;
@@ -160,6 +161,15 @@ function preflightStoredAsset(bytes: ArrayBuffer, meta: { readonly mimeType?: st
   ensurePlaceableImagePayload(bytes, meta.mimeType ?? meta.name ?? 'image/png');
 }
 
+/** 将 UXP 持久化失败转换为可安全跨 application 边界的 JobError 形状。 */
+function createAssetPersistenceError(details: Record<string, unknown>): { readonly category: 'execution'; readonly message: string; readonly details: Record<string, unknown> } {
+  return {
+    category: 'execution',
+    message: 'Generated image persistence failed.',
+    details,
+  };
+}
+
 /** UXP data-folder backed durable job history store。 */
 export function createUxpJobHistoryStore(modules: UxpModules): JobHistoryStore {
   const fs = localFileSystemFrom(modules);
@@ -271,14 +281,34 @@ export function createUxpAssetStore(modules: UxpModules): AssetStore {
   }
   const localFileSystem = fs;
   const binaryFormat = uxpBinaryFormat(storageFormatsFrom(modules));
+  const flightRecorder = createUxpFlightRecorder(modules);
 
   return {
     async put(bytes: ArrayBuffer, meta: { readonly mimeType?: string; readonly name?: string }): Promise<StoredAssetRef> {
-      preflightStoredAsset(bytes, meta);
-      const ref = createAssetRef(bytes, meta);
-      const file = await getOrCreateFile(localFileSystem, ref.ref);
-      await file.write(bytesToArrayBuffer(new Uint8Array(bytes)), { format: binaryFormat });
-      return ref;
+      let stage: 'preflight' | 'create-file' | 'write-file' = 'preflight';
+      const diagnostics = {
+        operation: 'asset-store.put',
+        stage,
+        byteLength: bytes.byteLength,
+        ...(meta.mimeType !== undefined ? { mimeType: meta.mimeType } : {}),
+      };
+      try {
+        preflightStoredAsset(bytes, meta);
+        stage = 'create-file';
+        const ref = createAssetRef(bytes, meta);
+        const file = await getOrCreateFile(localFileSystem, ref.ref);
+        stage = 'write-file';
+        await file.write(bytesToArrayBuffer(new Uint8Array(bytes)), { format: binaryFormat });
+        return ref;
+      } catch (error) {
+        const details = {
+          ...diagnostics,
+          stage,
+          errorName: error instanceof Error ? error.name : typeof error,
+        };
+        await flightRecorder.fail('uxp.asset_store.put.failed', error, details);
+        throw createAssetPersistenceError(details);
+      }
     },
     async resolve(ref: StoredAssetRef): Promise<ArrayBuffer | undefined> {
       if (ref.kind !== 'hostObject') {

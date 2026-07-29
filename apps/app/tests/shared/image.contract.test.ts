@@ -93,7 +93,7 @@ describe('shared image contract', () => {
     expect(resolved.effectiveMultiple).toBe(1);
   });
 
-  it('resolves provider input with a hard ceiling and no upscale', () => {
+  it('resolves provider input with a hard ceiling, no upscale, and a 16px grid when aspect-safe', () => {
     const square = resolveProviderInputPlan({ width: 4096, height: 4096 }, { maxSide: 2048 });
     expect(square).toMatchObject({
       kind: 'resize',
@@ -106,9 +106,9 @@ describe('shared image contract', () => {
     expect(wide).toMatchObject({
       kind: 'resize',
       sourceSize: { width: 10000, height: 6000 },
-      targetSize: { width: 2048, height: 1229 },
+      targetSize: { width: 2000, height: 1200 },
     });
-    expect(wide.aspectRatioError).toBeGreaterThan(0);
+    expect(wide.aspectRatioError).toBe(0);
     expect(sourceSatisfiesProviderInputPolicy(wide.targetSize, { maxSide: 2048 })).toBe(true);
   });
 
@@ -129,17 +129,29 @@ describe('shared image contract', () => {
     expect(resolveProviderInputPlan({ width: 4096, height: 4096 }, { maxSide: 4096 }).targetSize.width).toBe(4096);
   });
 
-  it('quantizes portrait sources inside the ceiling without exceeding maxSide', () => {
+  it('uses exact 16px-grid dimensions for a strict 2:3 provider input', () => {
+    const plan = resolveProviderInputPlan({ width: 4460, height: 6690 }, { maxSide: 2048 });
+
+    expect(plan).toMatchObject({
+      kind: 'resize',
+      sourceSize: { width: 4460, height: 6690 },
+      targetSize: { width: 1344, height: 2016 },
+    });
+    expect(plan.targetSize.width).toBeLessThanOrEqual(2048);
+    expect(plan.targetSize.height).toBeLessThanOrEqual(2048);
+    expect(plan.targetSize.width % 16).toBe(0);
+    expect(plan.targetSize.height % 16).toBe(0);
+    expect(plan.aspectRatioError).toBe(0);
+  });
+
+  it('falls back to a 1px grid when 16px quantization would exceed the aspect-error limit', () => {
     const plan = resolveProviderInputPlan({ width: 4096, height: 1537 }, { maxSide: 2048 });
 
     expect(plan).toMatchObject({
       kind: 'resize',
-      sourceSize: { width: 4096, height: 1537 },
-      targetSize: { width: 2048, height: 769 },
+      targetSize: { width: 2047, height: 768 },
     });
-    expect(plan.targetSize.width).toBeLessThanOrEqual(2048);
-    expect(plan.targetSize.height).toBeLessThanOrEqual(2048);
-    expect(plan.aspectRatioError).toBeGreaterThan(0);
+    expect(plan.targetSize.width % 16).not.toBe(0);
   });
 
   it('resizes coprime near-square sources instead of passing them through', () => {

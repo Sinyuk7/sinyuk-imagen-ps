@@ -290,10 +290,11 @@ surface apps -> application/session -> core-engine + providers + execution backe
 - In Photoshop UXP, local PNG/JPEG attachments prefer the app-local byte pipeline inside `apps/app` for preview and provider-input refs while source RGBA resizing fits the decode budget.
 - Oversized local-file provider-input resizing and provider-output thumbnails fall back to Photoshop host `imaging.getPixels(targetSize)` instead of decoding full-resolution pixels in JavaScript. Local WEBP remains an explicit host-native fallback until an app-local WEBP decode path is proven.
 - `resolveProviderInputPlan()` is the shared provider-input geometry contract:
-  `no-upscale`, integer `fit-inside`, hard `maxSide` ceiling. It returns only
-  `kind`, `sourceSize`, `targetSize`, and provenance-only
-  `aspectRatioError`; consumers must treat `targetSize` as the sole geometry
-  source of truth.
+  `no-upscale`, hard `maxSide` ceiling, and aspect-safe 16px-grid normalization
+  for downscaled inputs. When that grid would exceed the aspect-error limit it
+  falls back to integer pixels. It returns only `kind`, `sourceSize`,
+  `targetSize`, and provenance-only `aspectRatioError`; consumers must treat
+  `targetSize` as the sole geometry source of truth.
 - Photoshop host provider-input reads now request that exact `targetSize` for
   both `imaging.getPixels()` and `imaging.getSelection()`, then fail closed if
   Photoshop returns a different width or height before PNG encoding or asset
@@ -461,6 +462,7 @@ surface apps -> application/session -> core-engine + providers + execution backe
 
 - `apps/app` `AppShell` owns the in-session Composer draft. The shared draft contract is: prompt text, draft attachments, and the derived Composer operation (`text-to-image` vs `image-edit`).
 - `MainPage` and `GlobalGenerationSettingsPage` must resolve output-size availability from the same selected model plus shared draft-derived operation. Settings must not fall back to a page-local or synthetic "no composer context" branch.
+- Output preferences remain operation-specific. When `image-edit` has no saved preference, project the same profile/model `text_to_image` selection into the edit matrix without persisting it; retain a saved edit preference when present, and use the closest supported edit cell when an exact projection is unavailable.
 - Draft reset after send, failed-round fill/restore, and attachment replacement must flow through the shared draft owner so attachment preview disposal has one owner. Menu open state, popup visibility, hover/highlight state, and copy affordances remain page-local UI state.
 
 ## Open Questions

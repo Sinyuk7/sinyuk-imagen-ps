@@ -55,9 +55,13 @@ export async function getModelGenerationSettings(
 
   try {
     const key = assertModelGenerationPreferenceKey(keyInput);
-    const preference = await getModelGenerationPreferenceRepository().get(key);
+    const repository = getModelGenerationPreferenceRepository();
+    const preference = await repository.get(key);
+    const inheritedPreference = preference === undefined && key.operation === 'image_edit'
+      ? await repository.get({ ...key, operation: 'text_to_image' })
+      : undefined;
     const userConfig = await resolveUserModelConfigForPreferenceKey(key, getUserModelConfigRepository());
-    const value = resolveModelGenerationSettingsValue({ key, preference, userConfig });
+    const value = resolveModelGenerationSettingsValue({ key, preference, inheritedPreference, userConfig });
     span.finish({ source: value.source, outputFormat: value.selection.outputFormat, geometryKind: value.selection.effectiveSelection.geometry.kind });
     return { ok: true, value };
   } catch (error) {

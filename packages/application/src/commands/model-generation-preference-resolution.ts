@@ -157,19 +157,68 @@ export function findMatrixCell(
   );
 }
 
+function ratioMagnitude(ratio: ImageAspectRatio): number | undefined {
+  const match = /^(\d+(?:\.\d+)?):(\d+(?:\.\d+)?)$/.exec(ratio);
+  if (!match) {
+    return undefined;
+  }
+  const numerator = Number(match[1]);
+  const denominator = Number(match[2]);
+  return numerator > 0 && denominator > 0 ? numerator / denominator : undefined;
+}
+
+function ratioDistance(left: ImageAspectRatio, right: ImageAspectRatio): number {
+  if (left === right) {
+    return 0;
+  }
+  const leftMagnitude = ratioMagnitude(left);
+  const rightMagnitude = ratioMagnitude(right);
+  if (leftMagnitude === undefined || rightMagnitude === undefined) {
+    return 1;
+  }
+  return Math.abs(Math.log(leftMagnitude / rightMagnitude));
+}
+
+function closestMatrixCell(
+  matrix: ImageOutputMatrix,
+  selection: ImageOutputSelection,
+  key: ModelGenerationPreferenceKey,
+): ImageOutputMatrixCell {
+  const fallback = defaultCell(matrix, key);
+  const imageSize = sizeIdForSelection(selection);
+  const ratio = ratioForSelection(selection);
+  const outputFormat = selection.outputFormat;
+  return matrix.cells.reduce((best, candidate) => {
+    const score =
+      (candidate.imageSize === imageSize ? 0 : 1000) +
+      ratioDistance(candidate.ratio, ratio) * 10 +
+      (candidate.outputFormat === outputFormat ? 0 : 1);
+    const bestScore =
+      (best.imageSize === imageSize ? 0 : 1000) +
+      ratioDistance(best.ratio, ratio) * 10 +
+      (best.outputFormat === outputFormat ? 0 : 1);
+    return score < bestScore ? candidate : best;
+  }, fallback);
+}
+
 export function resolveModelGenerationSettingsValue(args: {
   readonly key: ModelGenerationPreferenceKey;
   readonly preference?: ModelGenerationPreference;
+  readonly inheritedPreference?: ModelGenerationPreference;
   readonly userConfig?: { readonly outputMatrix: readonly ImageOutputMatrix[] };
 }): ModelGenerationSettings {
   const key = assertModelGenerationPreferenceKey(args.key);
   const matrix = matrixForModelGenerationPreferenceKey(key, args.userConfig);
-  const preferredProjection = args.preference === undefined
+  const candidatePreference = args.preference ?? args.inheritedPreference;
+  const preferredProjection = candidatePreference === undefined
     ? undefined
-    : effectiveSelectionForOperation(args.preference.selection, key.operation);
+    : effectiveSelectionForOperation(candidatePreference.selection, key.operation);
   const preferredCell = preferredProjection === undefined ? undefined : findMatrixCell(matrix, preferredProjection.effectiveSelection);
-  const cell = preferredCell ?? defaultCell(matrix, key);
-  const storedSelection = preferredCell === undefined ? cell.selection : args.preference!.selection;
+  const inheritedCell = args.preference === undefined && preferredProjection !== undefined
+    ? closestMatrixCell(matrix, preferredProjection.effectiveSelection, key)
+    : undefined;
+  const cell = preferredCell ?? inheritedCell ?? defaultCell(matrix, key);
+  const storedSelection = preferredCell === undefined ? cell.selection : candidatePreference!.selection;
   const effective = effectiveSelectionForOperation(storedSelection, key.operation);
   const selection = projectSelectionToUi(storedSelection, effective.effectiveSelection, effective.normalized);
 
@@ -179,7 +228,9 @@ export function resolveModelGenerationSettingsValue(args: {
     preference: args.preference ?? null,
     selection,
     cell,
-    source: preferredCell === undefined ? 'default' : 'preference',
+    source: preferredCell !== undefined
+      ? args.preference === undefined ? 'inherited' : 'preference'
+      : inheritedCell !== undefined ? 'inherited' : 'default',
   };
 }
 

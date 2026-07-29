@@ -138,6 +138,43 @@ describe('runtime execution scenarios', () => {
     });
   });
 
+  it('preserves structured afterStepResult failures for host diagnostics', async () => {
+    const runtime = createRuntime({
+      initialWorkflows: [{
+        name: 'structured-hook-failure',
+        steps: [{ name: 'invoke', kind: 'execution', adapter: 'echo' }],
+      }],
+      adapters: [{
+        adapter: 'echo',
+        async dispatch() {
+          return { partial: true };
+        },
+      }],
+      afterStepResult() {
+        throw {
+          category: 'execution',
+          message: 'Generated image persistence failed.',
+          details: {
+            operation: 'asset-store.put',
+            stage: 'write-file',
+            byteLength: 42,
+            errorName: 'Error',
+          },
+        };
+      },
+    });
+
+    await expect(runtime.runWorkflow('structured-hook-failure', {})).resolves.toMatchObject({
+      status: 'failed',
+      output: undefined,
+      error: {
+        category: 'execution',
+        message: 'Generated image persistence failed.',
+        details: { operation: 'asset-store.put', stage: 'write-file', byteLength: 42, errorName: 'Error' },
+      },
+    });
+  });
+
   it('does not dispatch when already aborted', async () => {
     const abortController = new AbortController();
     abortController.abort();

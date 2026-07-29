@@ -7,6 +7,7 @@ export type ErrorActionCategory =
   | 'provider-temporarily-unavailable'
   | 'placement-conflict'
   | 'comfyui-execution-failed'
+  | 'generated-image-persistence-failed'
   | 'unknown';
 
 export type ErrorPrimaryAction =
@@ -55,6 +56,9 @@ function classify(message: string): Pick<ClassifiedRoundError, 'category' | 'pri
   const lower = message.toLowerCase();
   if (message === 'ComfyUI execution failed.') {
     return { category: 'comfyui-execution-failed', primaryAction: 'fill-composer-from-failed-round' };
+  }
+  if (message === 'Generated image persistence failed.') {
+    return { category: 'generated-image-persistence-failed', primaryAction: 'copy-error-details' };
   }
   if (isProviderProtocolIncompatible(message)) {
     return { category: 'provider-protocol-incompatible', primaryAction: 'open-provider-settings' };

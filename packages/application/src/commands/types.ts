@@ -209,7 +209,8 @@ export interface ModelGenerationSettings {
   readonly preference: ModelGenerationPreference | null;
   readonly selection: ModelGenerationPreferenceSelection;
   readonly cell: ImageOutputMatrixCell;
-  readonly source: 'preference' | 'default';
+  /** 当前 operation 无保存偏好时，从 text-to-image 投影出的临时选择。 */
+  readonly source: 'preference' | 'inherited' | 'default';
 }
 
 /** Host-injected repository for model-scoped generation output preferences. */

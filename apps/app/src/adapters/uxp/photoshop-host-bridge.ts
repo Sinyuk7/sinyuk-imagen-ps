@@ -1384,13 +1384,45 @@ async function transformActivePlacedLayer(document: PhotoshopDocument, placement
   }
   const targetSize = rectSize(placementRect);
   const scaled = await scalePlacedLayerToSize(placedLayer, targetSize, 'exact-frame');
-  const scaledBounds = scaled.afterBounds;
+  let scaledBounds = scaled.afterBounds;
+  const scaledSize = rectSize(scaledBounds);
+  if (scaledSize.width !== targetSize.width || scaledSize.height !== targetSize.height) {
+    if (
+      Math.abs(scaledSize.width - targetSize.width) > 1 ||
+      Math.abs(scaledSize.height - targetSize.height) > 1
+    ) {
+      throw new Error(
+        `Photoshop exact-frame placement scale mismatch: ${scaledSize.width}x${scaledSize.height}, expected ${targetSize.width}x${targetSize.height}.`,
+      );
+    }
+    // Photoshop smart-object bounds can round one pixel away from the requested scale.
+    scaledBounds = (await scalePlacedLayerToSize(placedLayer, targetSize, 'exact-frame')).afterBounds;
+    const correctedSize = rectSize(scaledBounds);
+    if (correctedSize.width !== targetSize.width || correctedSize.height !== targetSize.height) {
+      throw new Error(
+        `Photoshop exact-frame placement scale correction mismatch: ${correctedSize.width}x${correctedSize.height}, expected ${targetSize.width}x${targetSize.height}.`,
+      );
+    }
+  }
   await placedLayer.translate(placementRect.left - scaledBounds.left, placementRect.top - scaledBounds.top);
+  const afterTranslateBounds = currentPlacedLayerBounds(document);
+  if (
+    !afterTranslateBounds ||
+    afterTranslateBounds.left !== placementRect.left ||
+    afterTranslateBounds.top !== placementRect.top ||
+    afterTranslateBounds.right !== placementRect.right ||
+    afterTranslateBounds.bottom !== placementRect.bottom
+  ) {
+    const actual = afterTranslateBounds ? `${afterTranslateBounds.left},${afterTranslateBounds.top},${afterTranslateBounds.right},${afterTranslateBounds.bottom}` : 'unreadable';
+    throw new Error(
+      `Photoshop exact-frame placement translate mismatch: ${actual}, expected ${placementRect.left},${placementRect.top},${placementRect.right},${placementRect.bottom}.`,
+    );
+  }
   return {
     beforeScaleBounds: scaled.beforeBounds,
-    afterScaleBounds: scaled.afterBounds,
+    afterScaleBounds: scaledBounds,
     targetRect: placementRect,
-    afterTranslateBounds: currentPlacedLayerBounds(document),
+    afterTranslateBounds,
   };
 }
 

@@ -323,6 +323,7 @@ export function createFakeModules(options?: {
   readonly layerMaskError?: Error;
   readonly selectionBounds?: { readonly left: number; readonly top: number; readonly right: number; readonly bottom: number } | null;
   readonly activeLayerBounds?: { readonly _left: number; readonly _top: number; readonly _right: number; readonly _bottom: number };
+  readonly firstScaleBoundsDrift?: { readonly width?: number; readonly height?: number };
   readonly pixelResultSourceBounds?: { readonly left: number; readonly top: number; readonly right: number; readonly bottom: number };
   readonly pixelResultLevel?: number;
   readonly pixelResultSize?: { readonly width: number; readonly height: number };
@@ -438,8 +439,22 @@ export function createFakeModules(options?: {
   }));
   const createSessionToken = vi.fn(() => 'session-token-1');
   const batchPlay = vi.fn(async () => undefined);
-  const scalePlacedLayer = vi.fn(async () => undefined);
-  const translatePlacedLayer = vi.fn(async () => undefined);
+  const activeLayerBounds = { ...(options?.activeLayerBounds ?? { _left: 0, _top: 0, _right: 64, _bottom: 64 }) };
+  let scaleCallCount = 0;
+  const scalePlacedLayer = vi.fn(async (horizontalScale: number, verticalScale: number) => {
+    scaleCallCount += 1;
+    const width = activeLayerBounds._right - activeLayerBounds._left;
+    const height = activeLayerBounds._bottom - activeLayerBounds._top;
+    const drift = scaleCallCount === 1 ? options?.firstScaleBoundsDrift : undefined;
+    activeLayerBounds._right = activeLayerBounds._left + Math.round((width * horizontalScale) / 100) + (drift?.width ?? 0);
+    activeLayerBounds._bottom = activeLayerBounds._top + Math.round((height * verticalScale) / 100) + (drift?.height ?? 0);
+  });
+  const translatePlacedLayer = vi.fn(async (horizontalOffset: number, verticalOffset: number) => {
+    activeLayerBounds._left += horizontalOffset;
+    activeLayerBounds._right += horizontalOffset;
+    activeLayerBounds._top += verticalOffset;
+    activeLayerBounds._bottom += verticalOffset;
+  });
   const closeTempDocument = vi.fn(async () => undefined);
   const openDocument = vi.fn(async () => ({
     id: 99,
@@ -452,7 +467,6 @@ export function createFakeModules(options?: {
   const executeAsModal = vi.fn(async (callback: () => Promise<void>) => callback());
   const isModal = vi.fn(() => false);
   const setExecutionMode = vi.fn();
-  const activeLayerBounds = options?.activeLayerBounds ?? { _left: 0, _top: 0, _right: 64, _bottom: 64 };
 
   return {
     modules: {

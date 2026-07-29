@@ -55,6 +55,12 @@ export const DEFAULT_MODEL_SIZE_POLICY = {
   minLongSideUtilization: 0.9,
 } as const satisfies Required<ModelSizePolicy>;
 
+const PROVIDER_INPUT_GRID_POLICY = {
+  multiple: 16,
+  maxAspectError: 0.0005,
+  minLongSideUtilization: 0.9,
+} as const satisfies Omit<Required<ModelSizePolicy>, 'maxSide'>;
+
 export const DEFAULT_IMAGE_RESIZE_STRATEGY = {
   captureDownscaleMode: 'photoshop-target-size',
   placementScaleMode: 'smart-object-transform',
@@ -297,11 +303,12 @@ export function resolveProviderInputPlan(
     };
   }
 
-  const scale = policy.maxSide / Math.max(sourceSize.width, sourceSize.height);
-  const targetSize = {
-    width: Math.min(sourceSize.width, policy.maxSide, Math.max(1, Math.round(sourceSize.width * scale))),
-    height: Math.min(sourceSize.height, policy.maxSide, Math.max(1, Math.round(sourceSize.height * scale))),
-  };
+  // Provider input use one grid policy. 无法在误差阈值内满足 16 栅格时，求解器回退到逐像素尺寸。
+  const resolved = resolveModelSize(sourceSize, {
+    maxSide: policy.maxSide,
+    ...PROVIDER_INPUT_GRID_POLICY,
+  });
+  const targetSize = { width: resolved.width, height: resolved.height };
 
   return {
     kind: 'resize',

@@ -247,7 +247,7 @@ describe('provider input placement contract', () => {
       providerOutputSize: { width: 2048, height: 770 },
     });
 
-    expect(result.providerInputPlan.targetSize).toEqual({ width: 2048, height: 769 });
+    expect(result.providerInputPlan.targetSize).toEqual({ width: 2047, height: 768 });
     expect(result.providerOutputSize).toEqual({ width: 2048, height: 770 });
     expect(result.placementKind).toBe('exact-frame');
     expect(result.scalePlacedLayer).toHaveBeenCalledWith(100, 100);

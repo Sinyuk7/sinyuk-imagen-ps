@@ -400,43 +400,43 @@ describe('PhotoshopHostBridge read contract', () => {
     );
   });
 
-  it('accepts Photoshop 142px image data for source bounds that declare 143px', async () => {
+  it('accepts Photoshop 144px image data for source bounds that declare 145px', async () => {
     const { modules } = createFakeModules({
-      activeLayerBounds: { _left: 0, _top: 0, _right: 765, _bottom: 1377 },
-      pixelResultSize: { width: 142, height: 256 },
-      pixelResultSourceBounds: { left: 0, top: 0, right: 768, bottom: 1377 },
+      activeLayerBounds: { _left: 0, _top: 0, _right: 765, _bottom: 1360 },
+      pixelResultSize: { width: 144, height: 256 },
+      pixelResultSourceBounds: { left: 0, top: 0, right: 768, bottom: 1360 },
     });
     const { bridge } = createBridge(modules);
 
-    expect(Math.round((768 / 765) * 142)).toBe(143);
+    expect(Math.round((768 / 765) * 144)).toBe(145);
     await expect(bridge.readLayerAsAsset(2, { maxSide: 256 })).resolves.toMatchObject({
-      metadata: { width: 142, height: 256 },
+      metadata: { width: 144, height: 256 },
     });
   });
 
   it('fails closed when Photoshop source-bounds drift exceeds one pixel', async () => {
     const { modules } = createFakeModules({
-      activeLayerBounds: { _left: 0, _top: 0, _right: 765, _bottom: 1377 },
-      pixelResultSize: { width: 142, height: 256 },
-      pixelResultSourceBounds: { left: 0, top: 0, right: 774, bottom: 1377 },
+      activeLayerBounds: { _left: 0, _top: 0, _right: 765, _bottom: 1360 },
+      pixelResultSize: { width: 144, height: 256 },
+      pixelResultSourceBounds: { left: 0, top: 0, right: 774, bottom: 1360 },
     });
     const { bridge } = createBridge(modules);
 
     await expect(bridge.readLayerAsAsset(2, { maxSide: 256 })).rejects.toThrow(
-      'Photoshop returned unexpected capture size: 142x256, expected declared bounds 144x256.',
+      'Photoshop returned unexpected capture size: 144x256, expected declared bounds 146x256.',
     );
   });
 
   it('fails closed when image data is one pixel smaller than the requested target', async () => {
     const { modules } = createFakeModules({
-      activeLayerBounds: { _left: 0, _top: 0, _right: 765, _bottom: 1377 },
-      pixelResultSize: { width: 141, height: 256 },
-      pixelResultSourceBounds: { left: 0, top: 0, right: 765, bottom: 1377 },
+      activeLayerBounds: { _left: 0, _top: 0, _right: 765, _bottom: 1360 },
+      pixelResultSize: { width: 143, height: 256 },
+      pixelResultSourceBounds: { left: 0, top: 0, right: 765, bottom: 1360 },
     });
     const { bridge } = createBridge(modules);
 
     await expect(bridge.readLayerAsAsset(2, { maxSide: 256 })).rejects.toThrow(
-      'Photoshop returned unexpected capture size: 141x256, expected declared bounds 142x256.',
+      'Photoshop returned unexpected capture size: 143x256, expected declared bounds 144x256.',
     );
   });
 
