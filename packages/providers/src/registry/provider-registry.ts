@@ -21,7 +21,7 @@ export interface ProviderRegistry {
 
 /** 结构化 registry 错误。 */
 export interface RegistryError extends Error {
-  code: 'duplicate_id' | 'not_found';
+  code: 'duplicate_id' | 'not_found' | 'invalid_provider';
   details?: Record<string, unknown>;
 }
 
@@ -43,6 +43,14 @@ export function createProviderRegistry(): ProviderRegistry {
 
   return {
     register(provider: Provider): void {
+      const descriptor = provider.describe();
+      if ((descriptor.invokeMode === 'async') !== (provider.asyncLifecycle !== undefined)) {
+        throw createRegistryError(
+          'invalid_provider',
+          `Provider "${provider.id}" async lifecycle does not match descriptor invokeMode.`,
+          { providerId: provider.id, invokeMode: descriptor.invokeMode },
+        );
+      }
       if (providers.has(provider.id)) {
         throw createRegistryError(
           'duplicate_id',

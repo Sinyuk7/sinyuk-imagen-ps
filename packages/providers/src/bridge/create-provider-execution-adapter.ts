@@ -10,6 +10,7 @@ import {
 } from '@imagen-ps/core-engine';
 import type { Logger } from '@imagen-ps/foundation';
 import type { ProviderConfig } from '../contract/config.js';
+import type { ProviderAsyncExecutionExecutor } from '../contract/provider.js';
 import type { ProviderRequest } from '../contract/request.js';
 import type { ProviderRegistry } from '../registry/provider-registry.js';
 
@@ -58,6 +59,9 @@ export interface CreateProviderExecutionAdapterOptions {
 
   /** Dispatch-time StoredAssetRef materializer。 */
   readonly requestMaterializer: ProviderExecutionRequestMaterializer;
+
+  /** Application composition 注入的 async execution manager。 */
+  readonly asyncExecutionExecutor?: ProviderAsyncExecutionExecutor;
 
   /** 可选默认 Logger；per-dispatch context 优先。 */
   readonly logger?: Logger;
@@ -169,7 +173,7 @@ function executionParams(params: Record<string, unknown>): ProviderExecutionPara
 export function createProviderExecutionAdapter(
   options: CreateProviderExecutionAdapterOptions,
 ): ExecutionAdapter {
-  const { providerRegistry, configResolver, requestMaterializer, logger } = options;
+  const { providerRegistry, configResolver, requestMaterializer, asyncExecutionExecutor, logger } = options;
 
   return {
     adapter: PROVIDER_EXECUTION_ADAPTER_ID,
@@ -213,12 +217,25 @@ export function createProviderExecutionAdapter(
       let result: unknown;
       try {
         const effectiveLogger = context?.logger ?? logger;
-        result = await provider.invoke({
+        const invokeArgs = {
           config,
           request,
           ...(context?.signal !== undefined ? { signal: context.signal } : {}),
           ...(effectiveLogger !== undefined ? { logger: effectiveLogger } : {}),
-        });
+        };
+        const descriptor = provider.describe();
+        if (descriptor.invokeMode === 'async') {
+          if (!provider.asyncLifecycle || !asyncExecutionExecutor || !context?.jobId) {
+            throw createValidationError('Async Provider execution is not fully configured.', identity);
+          }
+          result = await asyncExecutionExecutor.execute({
+            jobId: context.jobId,
+            lifecycle: provider.asyncLifecycle as never,
+            invokeArgs: invokeArgs as never,
+          });
+        } else {
+          result = await provider.invoke(invokeArgs);
+        }
       } catch (error) {
         throw mappedError(error, identity, 'provider');
       }

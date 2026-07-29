@@ -50,6 +50,10 @@ import {
   type GenerationBackend,
 } from './generation/index.js';
 import {
+  createProviderAsyncExecutionManager,
+  type ProviderAsyncExecutionManager,
+} from './generation/provider-async-execution-manager.js';
+import {
   createApplicationComfyUiExecutionAdapter,
   setComfyUiExecutionHostPorts,
 } from './comfyui/runtime-adapter.js';
@@ -77,6 +81,7 @@ let jobHistoryStoreInstance: JobHistoryStore | null = null;
 let taskStoreInstance: TaskStore | null = null;
 let assetStoreInstance: AssetStore | null = null;
 let providerGenerationBackendInstance: GenerationBackend | null = null;
+let providerAsyncExecutionManagerInstance: ProviderAsyncExecutionManager | null = null;
 let runtimeLogger: Logger | undefined = undefined;
 
 function createInMemoryProviderProfileRepository(): ProviderProfileRepository {
@@ -636,6 +641,7 @@ export function getRuntime(): ExtendedRuntime {
   if (instance === null) {
     const providerRegistry = getProviderRegistry();
     const logger = runtimeLogger ?? createNullLogger();
+    const asyncExecutionManager = providerAsyncExecutionManagerInstance ??= createProviderAsyncExecutionManager();
     const providerAdapter = createProviderExecutionAdapter({
       providerRegistry,
       configResolver: {
@@ -656,6 +662,7 @@ export function getRuntime(): ExtendedRuntime {
           return materializeProviderRequest(request, signal);
         },
       },
+      asyncExecutionExecutor: asyncExecutionManager,
       logger,
     });
     const comfyUiAdapter = createApplicationComfyUiExecutionAdapter(getAssetStore);
@@ -844,6 +851,8 @@ export function getRuntimeLogger(): Logger {
 
 /** 重置单例（仅供测试），同时重置所有 composition state。 */
 export function _resetForTesting(): void {
+  providerAsyncExecutionManagerInstance?.dispose();
+  providerAsyncExecutionManagerInstance = null;
   instance = null;
   registryInstance = null;
   providerProfileRepositoryInstance = null;

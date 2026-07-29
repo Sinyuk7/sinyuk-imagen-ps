@@ -13,9 +13,9 @@ as a repo-side functional harness; it is not a second shipped product surface.
 | Module | Role | Owns | Must Not Own |
 |---|---|---|---|
 | `apps/app` | Photoshop UXP product surface and Chrome functional harness | shared React UI, UI state/controllers, app ports, UXP shell/adapters, Chrome shell/adapters, Photoshop simulator, UI-local bindings | runtime internals, provider transport semantics |
-| `packages/application` | application/session layer | `GenerationBackend` policy, Task v2, session orchestration, command facade, runtime assembly, profile/model coordination | React, DOM, Photoshop, UXP, Node fs/path/os |
+| `packages/application` | application/session layer | `GenerationBackend` policy, Task v2, session orchestration, command facade, runtime assembly, profile/model coordination, process-lifetime Provider async execution scheduling | React, DOM, Photoshop, UXP, Node fs/path/os, Provider wire protocol |
 | `packages/core-engine` | job execution kernel | job facts, lifecycle, store, events, workflow runner, backend-neutral execution dispatch | Task state, profile/model selection, host persistence, provider raw transport |
-| `packages/providers` | provider adapter layer | stable Provider `ExecutionAdapter`, config/request validation, transport, normalization, error mapping | app/session state, Task projection, job lifecycle, host IO |
+| `packages/providers` | provider adapter layer | stable Provider `ExecutionAdapter`, config/request validation, transport, normalization, error mapping, Provider-local async submit/poll protocol | app/session state, Task projection, job lifecycle, host IO, polling scheduler |
 | `packages/execution-backends/comfyui` | ComfyUI execution adapter layer | bounded workflow documents and forms, transport-neutral upload/submission/observation, API Graph and Frontend Queue drivers, Bridge protocol validation | Application state, React, DOM, Photoshop, UXP, host persistence |
 | `packages/foundation` | lowest-level shared utilities | log record model, context/span helpers, redaction, sink interfaces | React, DOM, Node `fs/path/os`, UXP, Photoshop, provider transport, runtime assembly, workspace reverse dependencies |
 

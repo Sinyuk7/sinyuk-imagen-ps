@@ -5,6 +5,8 @@ import {
   createProviderExecutionAdapter,
   PROVIDER_EXECUTION_ADAPTER_ID,
   type Provider,
+  type ProviderAsyncExecutionExecutor,
+  type ProviderAsyncLifecycle,
   type ProviderConfig,
   type ProviderInvokeResult,
   type ProviderRequest,
@@ -232,5 +234,35 @@ describe('Provider ExecutionAdapter contract', () => {
       category: 'provider',
       message: 'Provider returned an invalid result.',
     });
+  });
+
+  it('routes an async lifecycle through the injected executor without invoking sync transport', async () => {
+    const harness = createProviderHarness();
+    const asyncLifecycle: ProviderAsyncLifecycle<ProviderConfig, ProviderRequest> = {
+      submit: vi.fn(async () => ({ status: 'pending', remoteRef: 'opaque-ref' })),
+      poll: vi.fn(async () => ({ status: 'completed', result: { assets: [] } })),
+    };
+    const provider: Provider<ProviderConfig, ProviderRequest> = {
+      ...harness.provider,
+      describe: () => ({ ...harness.provider.describe(), invokeMode: 'async' }),
+      asyncLifecycle,
+    };
+    const execute = vi.fn(async () => ({ assets: [], raw: { async: true } }));
+    const executor: ProviderAsyncExecutionExecutor = { execute };
+    const adapter = createProviderExecutionAdapter({
+      providerRegistry: { get: () => provider },
+      configResolver: { resolve: async () => ({ revision: 1 }) },
+      requestMaterializer: identityRequestMaterializer(),
+      asyncExecutionExecutor: executor,
+    });
+
+    await expect(adapter.dispatch({
+      implementationId: provider.id,
+      profileId: 'profile-a',
+      request,
+    }, { jobId: 'job-async' })).resolves.toMatchObject({ raw: { async: true } });
+    expect(execute).toHaveBeenCalledOnce();
+    expect(execute.mock.calls[0]?.[0]).toMatchObject({ jobId: 'job-async', lifecycle: asyncLifecycle });
+    expect(harness.invoke).not.toHaveBeenCalled();
   });
 });

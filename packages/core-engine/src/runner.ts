@@ -182,6 +182,7 @@ export async function executeWorkflow(job: Job, workflowName: string, deps: Runn
         };
         const outputKey = step.outputKey ?? step.name;
         const result = await dispatcher.dispatch(ref, {
+          jobId: job.id,
           logger: stepLogger.child({ span_id: span.span_id }),
           ...(deps.signal !== undefined ? { signal: deps.signal } : {}),
         });

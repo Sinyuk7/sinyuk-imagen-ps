@@ -47,6 +47,12 @@ Rules:
 - A new test file is justified only when it protects a different stable
   boundary or a different test level.
 
+## Async Execution
+
+- Keep provider async lifecycle tests protocol-local: submission shape, polling response parsing, and service status mapping.
+- Keep manager tests in `packages/application` with fake lifecycle and fake clock/sleeper. Cover submit-once, same-`jobId` deduplication, budget, abort, cleanup, and no replacement submission.
+- No async test may depend on live Provider timing, remote task IDs, or UXP/Chrome timer behavior.
+
 ## UXP Boundary
 
 - Node multipart capture is not Photoshop/UXP proof.

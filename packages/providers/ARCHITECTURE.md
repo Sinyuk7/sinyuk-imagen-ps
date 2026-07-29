@@ -31,6 +31,14 @@ Last verified: 2026-07-04
 - Provider owns path selection, HTTP method, auth headers, retry policy, and response parsing.
 - `providerOptions` are allowlisted; reserved codec fields and canonical output fields are never overridable.
 
+## Async Execution Boundary
+
+- Provider may declare an async lifecycle with one `submit()` and repeated `poll()` calls over an opaque remote reference.
+- `packages/application` owns the process-lifetime async execution manager, `jobId` deduplication, wait budget, timer, and local cancellation. `packages/providers` owns only provider-local submit/poll wire protocol.
+- Provider wire status, task ID, endpoint, authentication, raw response, and polling semantics never enter Core Job, Application Task, Profile persistence, or UI state.
+- After a pending submission, execution only polls the same remote reference. It never auto-submits a replacement task.
+- Providers without an async lifecycle keep the synchronous `invoke()` path. A long pending Promise is not evidence that remote status can be queried.
+
 ## Builtin Checklist
 
 1. Add the provider factory and descriptor.

@@ -8,6 +8,9 @@ import type { Logger } from '@imagen-ps/foundation';
 
 /** Execution dispatch 运行期上下文。 */
 export interface ExecutionContext {
+  /** 当前运行 Job 的稳定标识符；adapter 不得将其写入外部请求。 */
+  readonly jobId?: string;
+
   /** 可选 Logger；用于 per-run 日志传播。 */
   readonly logger?: Logger;
 

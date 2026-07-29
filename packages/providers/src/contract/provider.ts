@@ -160,6 +160,54 @@ export interface ProviderInvokeArgs<TConfig, TRequest> {
   readonly logger?: Logger;
 }
 
+/** Provider 异步提交的 canonical 结果。 */
+export type ProviderAsyncSubmitResult =
+  | { readonly status: 'completed'; readonly result: ProviderInvokeResult }
+  | {
+    readonly status: 'pending';
+    /** provider-local、secret-free 的不透明远端任务引用。 */
+    readonly remoteRef: string;
+    /** provider 建议的下一次查询等待时间。 */
+    readonly nextPollAfterMs?: number;
+  };
+
+/** Provider 异步查询的 canonical 结果。 */
+export type ProviderAsyncPollResult =
+  | { readonly status: 'completed'; readonly result: ProviderInvokeResult }
+  | {
+    readonly status: 'pending';
+    /** provider 建议的下一次查询等待时间。 */
+    readonly nextPollAfterMs?: number;
+    /** 非权威进度事实；当前不进入跨包状态机。 */
+    readonly progress?: number;
+  }
+  | { readonly status: 'failed'; readonly error: Error };
+
+/** Provider-owned async submit/query protocol。 */
+export interface ProviderAsyncLifecycle<TConfig, TRequest> {
+  /** 单次 logical execution 的唯一提交入口。 */
+  submit(args: ProviderInvokeArgs<TConfig, TRequest>): Promise<ProviderAsyncSubmitResult>;
+
+  /** 只查询先前 submit 返回的同一个 remote reference。 */
+  poll(args: {
+    readonly remoteRef: string;
+    readonly signal?: AbortSignal;
+    readonly logger?: Logger;
+  }): Promise<ProviderAsyncPollResult>;
+}
+
+/** Application composition 注入 provider bridge 的异步执行参数。 */
+export interface ProviderAsyncExecutionArgs {
+  readonly jobId: string;
+  readonly lifecycle: ProviderAsyncLifecycle<ProviderConfig, CanonicalImageJobRequest>;
+  readonly invokeArgs: ProviderInvokeArgs<ProviderConfig, CanonicalImageJobRequest>;
+}
+
+/** Application composition 注入 provider bridge 的异步执行端口。 */
+export interface ProviderAsyncExecutionExecutor {
+  execute(args: ProviderAsyncExecutionArgs): Promise<ProviderInvokeResult>;
+}
+
 /** endpoint 测速失败分类。 */
 export type ProviderEndpointMeasurementFailureKind =
   | 'dns'
@@ -287,6 +335,12 @@ export interface Provider<TConfig = ProviderConfig, TRequest = CanonicalImageJob
    * 失败时必须抛出可被映射为 `JobError { category: 'provider' }` 的结构化错误。
    */
   invoke(args: ProviderInvokeArgs<TConfig, TRequest>): Promise<ProviderInvokeResult>;
+
+  /**
+   * Provider 专属的异步 submit/query 协议（OPTIONAL）。
+   * 声明后必须与 descriptor `invokeMode: 'async'` 一致。
+   */
+  readonly asyncLifecycle?: ProviderAsyncLifecycle<TConfig, TRequest>;
 
   /**
    * Implementation 的运行时 model discovery 能力（OPTIONAL）。
