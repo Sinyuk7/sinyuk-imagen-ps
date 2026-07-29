@@ -75,6 +75,11 @@ Important repo-specific model identities:
 - `capabilityModelId`: local catalog identity used for capability resolution
 - `wireModelId`: actual upstream model ID sent on the request
 
+Rule of thumb: if two wire models share upstream transport but differ in
+geometry/output rules, give them separate `capabilityModelId` / official
+preset entries. Reuse output matrices only when the capability is truly the
+same; do not infer sharing from a common family prefix.
+
 Do not collapse these three identities.
 
 ### UI / app surfaces to verify

@@ -18,12 +18,20 @@
 - **WHEN** 用户输入 `https://grsaiapi.com/v1/api/generate`
 - **THEN** 系统 SHALL 分类为 `grsai`、将 base URL 归一化为 `https://grsaiapi.com/`，并使用默认 submit/result paths
 
+#### Scenario: 导入带 base path 的 GRSAI 生成 endpoint
+- **WHEN** 用户输入 `https://proxy.example.com/grsai/v1/api/generate`
+- **THEN** 系统 SHALL 分类为 `grsai`、将 base URL 归一化为 `https://proxy.example.com/grsai`，并使用默认 submit/result paths
+
+#### Scenario: 仅输入 GRSAI path
+- **WHEN** 用户输入 `/v1/api/generate`
+- **THEN** 系统 SHALL 将输入分类为 `grsai` path，且 SHALL 不臆造 base URL
+
 #### Scenario: 输入 GRSAI 域名根地址
 - **WHEN** 用户只输入 `https://grsai.dakka.com.cn`
 - **THEN** 系统 SHALL NOT 仅凭该域名分类为 `grsai`
 
 ### Requirement: GRSAI submission uses its documented async wire contract
-`grsai-generate` SHALL 以 `POST` 向 configured submit path 发送 `Authorization: Bearer <API key>` 与 JSON body。body SHALL 包含 resolved `model`、non-empty `prompt` 和 `replyType: "async"`；有可传递 reference image 时 SHALL 以 `images` 传 URL 或 base64 value；有适用 output selection 时 SHALL 以 `aspectRatio` 和/或 `imageSize` 传其 GRSAI wire value。adapter SHALL 省略不适用于目标模型的字段，并 SHALL NOT 发送 Gemini/OpenAI-specific fields。
+`grsai-generate` SHALL 以 `POST` 向 configured submit path 发送 `Authorization: Bearer <API key>` 与 JSON body。body SHALL 包含 resolved `model`、non-empty `prompt` 和 `replyType: "async"`；有可传递 reference image 时 SHALL 以 `images` 传 URL 或 base64 value；已 materialize bytes SHALL 使用已知 MIME type 转换为 base64 data URL；有适用 output selection 时 SHALL 以 `aspectRatio` 和/或 `imageSize` 传其 GRSAI wire value。adapter SHALL 省略不适用于目标模型的字段，并 SHALL NOT 发送 Gemini/OpenAI-specific fields。
 
 #### Scenario: 提交 Nano Banana 2 图像编辑请求
 - **WHEN** 已解析的 `nano-banana-2` request 包含 prompt、一个可传递 reference image、`16:9` 与 `2K` output
@@ -33,8 +41,16 @@
 - **WHEN** 已解析的 `gpt-image-2-vip` request 指定合法 custom pixel geometry
 - **THEN** adapter SHALL 将 geometry 作为 GRSAI `aspectRatio` pixel value 传递，且 SHALL NOT 发送 `imageSize`
 
+#### Scenario: 提交最小 text-to-image 请求
+- **WHEN** 已解析 request 只有 non-empty prompt、model 与默认 output
+- **THEN** adapter SHALL 发送 `model`、prompt 与 `replyType: "async"`，且 SHALL 省略 `images` 及任何不适用的 output field
+
+#### Scenario: 不能传递的输入资产
+- **WHEN** image edit request 包含既非 HTTP(S) URL、也非 base64、也没有可 materialize bytes 的输入资产
+- **THEN** adapter SHALL 在发起 HTTP request 前以 validation failure 结束，且 SHALL NOT 调用 submit transport
+
 ### Requirement: GRSAI polling is provider-local and submit-once
-adapter SHALL 从有效 submit response 提取非空 remote task ID，并作为 opaque、secret-free `remoteRef` 交给 async foundation。对于同一 logical Job，Application manager SHALL 至多调用一次 GRSAI `submit()`，之后只 SHALL 使用同一 `remoteRef` 以 authenticated `GET <result-path>?id=<task-id>` 调用 `poll()`。adapter SHALL 映射 `running` 为 canonical `pending`；映射具有至少一个安全 HTTP(S) result URL 的 `succeeded` 为 `completed`；映射 `violation` 或 `failed` 为 terminal `failed`。未知/缺失 status、无 task ID、无效 JSON、`succeeded` 无安全结果 URL 都 SHALL 是 terminal Provider protocol failure。
+adapter SHALL 从有效 submit response 提取非空 remote task ID，并作为 opaque、secret-free `remoteRef` 交给 async foundation。对于同一 logical Job，Application manager SHALL 至多调用一次 GRSAI `submit()`，之后只 SHALL 使用同一 `remoteRef` 以 authenticated `GET <result-path>?id=<task-id>` 调用 `poll()`。adapter SHALL 映射 `running` 为 canonical `pending`；映射 `succeeded` 的每个绝对 HTTP(S)、无 embedded credentials result URL 为 source-order asset，并在至少一个安全 URL 存在时映射为 `completed`；映射 `violation` 或 `failed` 为 terminal `failed`。query SHALL 保留以支持签名 URL，`data:`、相对 URL、credentials URL 及其他无效 result 条目 SHALL NOT 被 materialize。未知/缺失 status、无 task ID、无效 JSON、`succeeded` 无安全结果 URL 都 SHALL 是 terminal Provider protocol failure。wire `progress` 和 `error` SHALL NOT 进入 Job、Task、History、Profile 或 diagnostics persistence。
 
 #### Scenario: running 任务随后成功
 - **WHEN** submit 返回 task ID、首次 result response 为 `running`，下一次同一 task ID 的 result response 为带 URL results 的 `succeeded`
@@ -43,6 +59,10 @@ adapter SHALL 从有效 submit response 提取非空 remote task ID，并作为 
 #### Scenario: GRSAI 拒绝任务
 - **WHEN** result response 的 status 为 `violation` 或 `failed`
 - **THEN** lifecycle SHALL 输出 terminal `failed`，且 SHALL NOT 再提交或继续轮询
+
+#### Scenario: 成功结果包含不安全 URL
+- **WHEN** `succeeded` response 同时包含一个有效 HTTPS URL 与一个 `data:` 或 credentials URL
+- **THEN** adapter SHALL 仅 materialize 有效 URL；若没有有效 URL，lifecycle SHALL 输出 terminal Provider protocol failure
 
 #### Scenario: 本地 abort
 - **WHEN** 远端任务处于 `pending` 时 local `AbortSignal` 被触发

@@ -58,6 +58,9 @@ surface apps -> application/session -> core-engine + providers + execution backe
   wire model is the execution capability authority. Application projects the
   saved output matrix through that capability; stale preferences outside the
   projection fall back to its default cell and are never sent to the provider.
+  If two wire models share transport but not geometry/output rules, they need
+  separate catalog capability / preset entries; shared transport alone does not
+  justify reusing the same capability identity.
 - Provider model execution is resolved during `GenerationBackend.admit()` before
   queue dispatch. Submission, admission, Profile connection tests, and Profile
   tests require an explicit configured `modelId`; they never infer a first
