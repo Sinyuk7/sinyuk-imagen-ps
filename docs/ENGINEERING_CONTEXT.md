@@ -49,11 +49,19 @@ surface apps -> application/session -> core-engine + providers + execution backe
 - `apps/app` is one shared UXP-safe React application consumed by the shipped
   Photoshop UXP shell and the Chrome functional-harness shell. See
   `apps/app/AGENTS.md`.
-- Official model presets live in the provider catalog as `(apiFormat, modelId)`
-  templates with `requestStrategyId` and output constraints. A canonical Provider
-  owns an explicit local default-template inventory; new Profiles consume it once
-  during setup and persist only resulting user-owned `UserModelConfig` rows.
-  There is no generic remote model discovery, cache, suggestion, or later sync.
+- Product-visible Provider integrations are GRSAI, Gemini, and GPT Image 2.
+  `packages/providers/src/providers/{grsai,gemini,openai-images}` are independent
+  vertical slices. Each slice owns its `models.ts`, `profile-template.ts`, config
+  schema, descriptor, Provider implementation, and Provider-local transport.
+  Registry composition consumes slice `index.ts` files; slices never import one
+  another. Shared transport code requires at least two current consumers with
+  the same semantics.
+- Official model presets live in each Provider slice as `(apiFormat, modelId)`
+  templates with `requestStrategyId` and output constraints. New Profiles consume
+  the complete local inventory once and persist the resulting internal
+  `UserModelConfig` rows atomically. Models are selectable but read-only in the
+  product: there is no remote discovery, model CRUD, later sync, or user-editable
+  wire/capability configuration.
 - For a configured model whose `wireModelId` is an official catalog model, the
   wire model is the execution capability authority. Application projects the
   saved output matrix through that capability; stale preferences outside the
@@ -66,12 +74,12 @@ surface apps -> application/session -> core-engine + providers + execution backe
   tests require an explicit configured `modelId`; they never infer a first
   model, a profile default, or a provider fallback. Production provider request
   builders consume the resolved `request.model` and `requestStrategyId` only.
-- `gemini-generate-content` is a distinct API format and local catalog
-  namespace inside `packages/providers`. The same `modelId` may coexist across
-  API formats such as `openai-chat-completions` and
-  `gemini-generate-content`; catalog internals may still key by implementation
-  ID plus `modelId`, while profile persistence and UI state key by canonical
-  `apiFormat`.
+- Product names do not replace persisted protocol identity. GRSAI maps to
+  `grsai` / `grsai-generate`, Gemini maps to `gemini-generate-content`, and GPT
+  Image 2 maps to `openai-images` / `image-endpoint`. Profile persistence and UI
+  state key by canonical `apiFormat`; registry composition resolves the matching
+  implementation. Adding another relay or official API requires a new explicit
+  Provider slice and product surface, not a generic endpoint editor.
 - Model avatar icons follow catalog brand identity as the single source.
   `packages/providers` declares `ModelBrand` on `ImageModelCapability`;
   `packages/application` exposes the sync `resolveModelBrand` command over
@@ -226,6 +234,12 @@ surface apps -> application/session -> core-engine + providers + execution backe
   indicator, fill, radio, and ARIA. Do not introduce a third list-row visual
   system in `apps/app` unless the existing two patterns cannot express the
   product need.
+- Provider Settings keeps the Profile list and multiple Profiles. `+` opens the
+  fixed Provider Picker, then a GRSAI, Gemini, or GPT Image 2 create page; a
+  Profile row opens the matching dedicated edit page. These pages expose only
+  name, API Key, safe connection testing when declared by the Provider, Save,
+  Cancel, and Delete. Endpoint/path/auth/billing/protocol/model configuration
+  stays Provider-owned and does not enter the app command port.
 - Anchored panel popups must use the shared `PopupLayerProvider` /
   `PopupLayerRoot` as the panel-level coordinate root. Placement converts
   viewport rects to popup-root-local coordinates (`anchorRect - popupRootRect`)
@@ -281,9 +295,9 @@ surface apps -> application/session -> core-engine + providers + execution backe
   headers, or prompt/operation IDs.
 - Provider response normalization must not retain full inline `data:image/...`
   payloads in surfaced `text`, `raw`, diagnostics, or durable/session-facing
-  display paths. Chat-image style markdown inline images may be promoted into
-  `assets`, but invalid or oversized inline image payloads must degrade to
-  short placeholders plus non-sensitive diagnostics.
+  display paths. Any accepted inline image representation must be promoted into
+  `assets`; invalid or oversized payloads degrade to short placeholders plus
+  non-sensitive diagnostics.
 
 ## Image Resource Lifecycle
 
@@ -383,29 +397,21 @@ surface apps -> application/session -> core-engine + providers + execution backe
   input bytes remain call-stack-only and must not enter Job, Task, Session,
   output, error, or logs.
 
-- Provider profiles persist canonical `connection` config instead of a single
-  endpoint field. Persisted endpoint-selection state is `selectionMode`,
-  `selectedEndpointId` (manual mode only), and the endpoint list; provider
-  failover is derived from `selectionMode === 'auto'`, and runtime-only
-  `resolvedEndpointId` stays session-scoped instead of mutating saved profile
-  config. Provider-level connection testing and endpoint measurement are
-  separate commands and provider seams.
-- User-facing provider profiles are API profiles. Persisted profiles store the
-  canonical `apiFormat`; `connection.endpoints[].url` stores base URL nodes only;
-  API-format path details live in `config.paths`. UI endpoint paste helpers may
-  classify full URLs and paths for feedback, but save/test/measure commands
-  revalidate the final API-format config. Persisted profiles do not use legacy
-  `providerId` or `family` concepts. This is an intentional current-state
-  schema break: old persisted profile records without canonical `apiFormat` are
-  rejected rather than migrated.
+- Provider profiles keep the canonical config structure internally. Dedicated
+  Provider templates own the single endpoint, paths, auth mode, billing defaults,
+  and `apiFormat`; the app submits only the Provider surface identity, Profile
+  name, and secret action to `saveProviderSurfaceProfile()`. Secrets remain in
+  `SecretStorageAdapter`. Existing endpoint classification, measurement, and
+  billing commands may remain internal seams when another runtime owner still
+  uses them, but they are not product configuration surfaces or app-facing ports.
 - A user-visible Profile is always `ready`: it has valid Profile configuration
-  and at least one owned `UserModelConfig`. New Profile `Continue` stores an
-  internal `setup` Profile; nonempty canonical Provider templates are fully
-  validated then atomically initialized before promotion. Empty templates keep
-  the manual first-model path, including endpoint-hint exact-preset fallback.
-  Public list/active Profile reads exclude setup Profiles; cancellation and shell
-  startup cleanup remove setup Profile, model-config, and secret state. Template
-  changes never backfill or overwrite ready Profiles.
+  and its complete Provider-owned `UserModelConfig` inventory. Product Profile
+  creation uses the internal setup path, validates every template, initializes
+  models atomically, then promotes directly to `ready`. The three product
+  Providers have no manual first-model continuation. Public list/active Profile
+  reads exclude setup Profiles; failure and shell startup cleanup remove setup
+  Profile, model-config, and secret state. Template changes never backfill or
+  overwrite ready Profiles.
 - Ready Profiles cannot lose their final model through `deleteUserModelConfig`.
   The repository owns the delete-unless-last invariant; UI disabling is only
   preventive feedback. Profile-level `enabled` has no persistence, UI, or
@@ -438,11 +444,6 @@ surface apps -> application/session -> core-engine + providers + execution backe
   failures open a local cooldown after a small consecutive-failure threshold.
   This throttle is session-scoped, does not persist to profiles, and does not
   change provider connectivity health semantics.
-- Task-level billing feedback is toast-only in `apps/app`. When terminal task
-  state exposes a fresh exact cost, UI shows it immediately; otherwise UI may
-  observe one profile-billing refresh window and surface a best-effort balance
-  delta toast. Missing or failed billing feedback must stay silent and must not
-  mutate message-card footer state, history state, or durable task schema.
 
 ## Current Limitations
 

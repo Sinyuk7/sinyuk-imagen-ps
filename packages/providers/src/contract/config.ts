@@ -3,7 +3,6 @@ import type {
   AuthMode,
   GeminiGenerateContentPaths,
   GrsaiGeneratePaths,
-  OpenAiChatCompletionsPaths,
   OpenAiImagesPaths,
 } from './api-format.js';
 import { canonicalizeProviderBaseUrl } from './api-format.js';
@@ -178,39 +177,6 @@ export interface ImageEndpointProviderConfig {
   readonly timeoutMs?: number;
 }
 
-/** Chat/multimodal image provider instance 的配置形状。 */
-export interface ChatImageProviderConfig {
-  /** Provider instance 的稳定标识符。 */
-  readonly providerId: string;
-
-  /** 用于 UI / 日志展示的可读名称。 */
-  readonly displayName: string;
-
-  /** 当前 provider family。 */
-  readonly family: ProviderFamily;
-
-  /** 当前 profile 使用的 API format。 */
-  readonly apiFormat: 'openai-chat-completions';
-
-  /** Chat-compatible relay / proxy / gateway 的连接集合。 */
-  readonly connection: ProviderConnectionConfig;
-
-  /** Chat Completions API path 配置。 */
-  readonly paths: OpenAiChatCompletionsPaths;
-
-  /** Provider instance 使用的 API key。 */
-  readonly apiKey: string;
-
-  /** 缺省 model target。 */
-  readonly defaultModel?: string;
-
-  /** 兼容非标准 relay 鉴权或路由所需的附加 headers。 */
-  readonly extraHeaders?: Readonly<Record<string, string>>;
-
-  /** 单次 invoke 的默认超时。 */
-  readonly timeoutMs?: number;
-}
-
 /** Gemini Generate Content provider instance 的鉴权模式。 */
 export type GeminiGenerateContentAuthMode = Extract<AuthMode, 'x-goog-api-key' | 'bearer' | 'none'>;
 
@@ -282,7 +248,6 @@ export interface BillingEnabledProviderConfig {
 /** 当前阶段稳定公开的 provider config 联合。 */
 export type ProviderConfig =
   | (ImageEndpointProviderConfig & BillingEnabledProviderConfig)
-  | (ChatImageProviderConfig & BillingEnabledProviderConfig)
   | (GeminiGenerateContentProviderConfig & BillingEnabledProviderConfig)
   | (GrsaiGenerateProviderConfig & BillingEnabledProviderConfig);
 import type { ProviderBillingConfig } from './billing.js';

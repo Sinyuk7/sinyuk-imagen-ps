@@ -2,7 +2,7 @@ import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, typ
 import { AppServicesProvider } from '../ports/app-services-context';
 import type { AppServices } from '../ports/app-services';
 import type { LayerInfo } from '../ports/host-port';
-import type { ProviderProfile, ProviderProfileSetupOutcome } from '@imagen-ps/application';
+import type { ProviderProfile } from '@imagen-ps/application';
 import type { SupportedLocale } from '../domain/locale';
 import type { PluginAppModel } from '../domain/plugin-app-model';
 import { useConversation, type RoundStatus } from './hooks/use-conversation';
@@ -16,12 +16,8 @@ import { useProfileModels, useProviderProfiles } from './hooks/use-provider-sett
 import { MainPage } from './pages/main-page';
 import { HistoryPage } from './pages/history-page';
 import { SettingsPage } from './pages/settings-page';
-import { SettingsAddPage } from './pages/settings-add-page';
-import { SettingsDetailPage } from './pages/settings-detail-page';
-import { ProfileModelsPage } from './pages/profile-models-page';
 import { GlobalGenerationSettingsPage } from './pages/global-generation-settings-page';
 import { ProviderOutputSettingsPage } from './pages/provider-output-settings-page';
-import { ModelConfigurationPage } from './pages/model-configuration-page';
 import { PromptSettingsPage } from './pages/prompt-settings-page';
 import { PromptPresetDetailPage } from './pages/prompt-preset-detail-page';
 import { ToastHost, ToastProvider, useToast } from './components/toast-host';
@@ -35,6 +31,14 @@ import { mainSelectableModels, type UiModelInfo } from './model-info';
 import { useComfyUiManagement } from './hooks/use-comfyui-management';
 import { useGenerationWorkspace } from './hooks/use-generation-workspace';
 import { settingsBackRoute, type SettingsRoute, type SettingsTab } from './settings-route';
+import { ProviderPickerPage } from './features/provider-profiles/provider-picker-page';
+import { GrsaiProfilePage } from './features/provider-profiles/grsai/grsai-profile-page';
+import { GeminiProfilePage } from './features/provider-profiles/gemini/gemini-profile-page';
+import { OpenAiImagesProfilePage } from './features/provider-profiles/openai-images/openai-images-profile-page';
+import {
+  surfaceForRoute,
+  surfaceRouteForProfile,
+} from './features/provider-profiles/routes';
 
 export interface AppShellHost {
   readonly app: PluginAppModel;
@@ -51,14 +55,11 @@ type View =
   | 'main'
   | 'history'
   | 'settings'
-  | 'settings-add'
-  | 'settings-detail'
-  | 'profile-models'
+  | 'provider-picker'
+  | 'provider-profile'
   | 'global-generation-settings'
-  | 'model-configuration'
   | 'prompt-settings'
   | 'prompt-preset-detail';
-type ModelConfigurationReturnView = 'profile-models' | 'settings-detail';
 type AppTheme = 'dark' | 'light';
 type AppThemeOverride = AppTheme | undefined;
 type PanelWidthMode = 'compact' | 'regular' | 'wide';
@@ -66,7 +67,7 @@ type PanelHeightMode = 'short' | 'normal';
 type ActiveImageProfileSelectionSource =
   | 'main-profile-menu'
   | 'fallback-reconcile'
-  | 'profile-setup'
+  | 'profile-created'
   | 'settings-profile-activate';
 
 const PANEL_COMPACT_MAX_WIDTH = 339;
@@ -78,15 +79,16 @@ function viewForSettingsRoute(route: SettingsRoute): View {
     case 'root': return 'settings';
     case 'provider-output':
     case 'global-settings': return 'global-generation-settings';
-    case 'provider-new': return 'settings-add';
-    case 'provider-detail': return 'settings-detail';
+    case 'provider-picker': return 'provider-picker';
+    case 'provider-create':
+    case 'provider-edit': return 'provider-profile';
     case 'prompt-settings': return 'prompt-settings';
     case 'prompt-preset-detail': return 'prompt-preset-detail';
   }
 }
 
 function rootTabForSettingsRoute(route: SettingsRoute): SettingsTab {
-  if (route.kind === 'provider-output' || route.kind === 'provider-new' || route.kind === 'provider-detail') return 'provider';
+  if (route.kind === 'provider-output' || route.kind === 'provider-picker' || route.kind === 'provider-create' || route.kind === 'provider-edit') return 'provider';
   if (route.kind === 'global-settings' || route.kind === 'prompt-settings' || route.kind === 'prompt-preset-detail') return 'general';
   return route.tab;
 }
@@ -237,22 +239,7 @@ function AppShellContent({ host }: AppShellProps) {
   const [view, setView] = useState<View>('main');
   const [selectedImageProfileId, setSelectedImageProfileId] = useState<string | null>(null);
   const [activeImageProfileHydrated, setActiveImageProfileHydrated] = useState(false);
-  const [selectedSettingsProfileId, setSelectedSettingsProfileId] = useState<string | null>(null);
-  const [setupProfile, setSetupProfile] = useState<ProviderProfile | null>(null);
   const [highlightedSettingsProfileId, setHighlightedSettingsProfileId] = useState<string | null>(null);
-  const [modelConfigurationEditorSeed, setModelConfigurationEditorSeed] = useState<{
-    readonly profileId: string;
-    readonly apiFormat: ProviderProfile['apiFormat'];
-    readonly modelId?: string | null;
-    readonly wireModelId?: string | null;
-  } | null>(null);
-  const [settingsDetailFallbackModelSeed, setSettingsDetailFallbackModelSeed] = useState<{
-    readonly profileId: string;
-    readonly apiFormat: ProviderProfile['apiFormat'];
-    readonly modelId?: string | null;
-    readonly wireModelId?: string | null;
-  } | null>(null);
-  const [modelConfigurationReturnView, setModelConfigurationReturnView] = useState<ModelConfigurationReturnView>('profile-models');
   const [selectedModelId, setSelectedModelId] = useState('');
   const [highlightedRoundId, setHighlightedRoundId] = useState<string | null>(null);
   const [restoreFailedRoundId, setRestoreFailedRoundId] = useState<string | null>(null);
@@ -298,6 +285,7 @@ function AppShellContent({ host }: AppShellProps) {
     await write;
   }, [services.activeImageProfile, services.diagnostics]);
   const profilesState = useProviderProfiles(services);
+  const providerSurfaces = useMemo(() => services.commands.listProviders(), [services.commands]);
   const imageProfiles = useMemo(
     () => profilesState.profiles.filter((profile): profile is ProviderProfile => Boolean(profile?.profileId)),
     [profilesState.profiles],
@@ -420,8 +408,11 @@ function AppShellContent({ host }: AppShellProps) {
     if (stillValid) {
       return;
     }
-    setSelectedModelId('');
-  }, [imageModels, selectedModelId]);
+    const defaultModelId = selectedProfile
+      ? providerSurfaces.find((surface) => surface.identity.apiFormat === selectedProfile.apiFormat)?.defaultModelId
+      : undefined;
+    setSelectedModelId(defaultModelId && available.some((model) => model.id === defaultModelId) ? defaultModelId : '');
+  }, [imageModels, providerSurfaces, selectedModelId, selectedProfile]);
 
   const setAppView = useCallback((next: View) => {
     setView(next);
@@ -442,8 +433,8 @@ function AppShellContent({ host }: AppShellProps) {
   }, [openSettingsRoute, setAppView, settingsRoute]);
 
   const onNav = useCallback((next: string) => {
-    if (next === 'settings-add') {
-      openSettingsRoute({ kind: 'provider-new' });
+    if (next === 'provider-picker') {
+      openSettingsRoute({ kind: 'provider-picker' });
       return;
     }
     if (next === 'prompt-settings') {
@@ -462,26 +453,36 @@ function AppShellContent({ host }: AppShellProps) {
 
   const onEditProfile = useCallback(
     (profileId: string) => {
-      setSelectedSettingsProfileId(profileId);
-      setSettingsDetailFallbackModelSeed(null);
-      openSettingsRoute({ kind: 'provider-detail', profileId });
+      const profile = imageProfiles.find((item) => item.profileId === profileId);
+      if (!profile) return;
+      openSettingsRoute({ kind: 'provider-edit', surfaceId: surfaceRouteForProfile(profile), profileId });
     },
-    [openSettingsRoute],
+    [imageProfiles, openSettingsRoute],
   );
 
-  const completeProfileSetup = useCallback(async (profile: ProviderProfile) => {
+  const completeProfileSave = useCallback(async (profile: ProviderProfile, created: boolean) => {
     await profilesState.reload();
     if (selectedImageProfileId === null) {
-      await selectImageProfile(profile.profileId, 'profile-setup');
+      await selectImageProfile(profile.profileId, 'profile-created');
     }
-    setSetupProfile(null);
-    setSelectedSettingsProfileId(null);
-    setModelConfigurationEditorSeed(null);
-    setSettingsDetailFallbackModelSeed(null);
     setHighlightedSettingsProfileId(profile.profileId);
-    show(t.settings.profileCreated(profile.displayName), 'positive', { key: 'settings-profile-created' });
+    show(
+      created ? t.settings.profileCreated(profile.displayName) : t.settings.profileSaved(profile.displayName),
+      'positive',
+      { key: created ? 'settings-profile-created' : 'settings-profile-saved' },
+    );
     openSettingsRoute({ kind: 'root', tab: 'provider' });
   }, [openSettingsRoute, profilesState, selectImageProfile, selectedImageProfileId, show, t.settings]);
+
+  const completeProfileDelete = useCallback(async (profileId: string) => {
+    if (selectedImageProfileId === profileId) {
+      await selectImageProfile(null, 'fallback-reconcile');
+    }
+    await profilesState.reload();
+    setHighlightedSettingsProfileId(null);
+    show(t.settings.profileDeleted, 'positive', { key: 'settings-profile-deleted' });
+    openSettingsRoute({ kind: 'root', tab: 'provider' });
+  }, [openSettingsRoute, profilesState, selectImageProfile, selectedImageProfileId, show, t.settings.profileDeleted]);
 
   const onLocateRound = useCallback(
     (roundId: string) => {
@@ -607,14 +608,14 @@ function AppShellContent({ host }: AppShellProps) {
           error={profilesState.error}
           onOpenProfile={(profileId) => {
             if (highlightedSettingsProfileId === profileId) setHighlightedSettingsProfileId(null);
-            setSelectedSettingsProfileId(profileId);
-            setSettingsDetailFallbackModelSeed(null);
-            openSettingsRoute({ kind: 'provider-detail', profileId });
+            const profile = imageProfiles.find((item) => item.profileId === profileId);
+            if (!profile) return;
+            openSettingsRoute({ kind: 'provider-edit', surfaceId: surfaceRouteForProfile(profile), profileId });
           }}
           onOpenProviderOutput={() => openSettingsRoute({ kind: 'provider-output' })}
           onOpenProviderNew={() => {
             setHighlightedSettingsProfileId(null);
-            openSettingsRoute({ kind: 'provider-new' });
+            openSettingsRoute({ kind: 'provider-picker' });
           }}
           onOpenGlobalSettings={() => openSettingsRoute({ kind: 'global-settings' })}
           onOpenPromptSettings={() => openSettingsRoute({ kind: 'prompt-settings' })}
@@ -624,129 +625,33 @@ function AppShellContent({ host }: AppShellProps) {
           />
         </MotionPageFrame>
       )}
-      {view === 'settings-add' && (
-        <MotionPageFrame watch={view}>
-          <SettingsAddPage
-          onNav={onNav}
-          profiles={imageProfiles}
-          onProfileSetup={async (outcome: ProviderProfileSetupOutcome) => {
-            if (outcome.kind === 'ready') {
-              await completeProfileSetup(outcome.profile);
-              return;
-            }
-            const setup = await services.commands.getProviderSetupProfile(outcome.profileId);
-            if (!setup.ok) throw new Error(`${setup.error.category}: ${setup.error.message}`);
-            setSetupProfile(setup.value);
-            setSelectedSettingsProfileId(outcome.profileId);
-            if (outcome.kind === 'model-configuration') {
-              setModelConfigurationEditorSeed({
-                profileId: outcome.profileId,
-                apiFormat: outcome.apiFormat,
-                wireModelId: outcome.wireModelId,
-              });
-              setModelConfigurationReturnView('profile-models');
-              setView('model-configuration');
-              return;
-            }
-            setView('profile-models');
-          }}
-          />
-        </MotionPageFrame>
-      )}
-      {view === 'settings-detail' && settingsRoute.kind === 'provider-detail' && (
-        <MotionPageFrame watch={view}>
-          <SettingsDetailPage
-          onNav={onNav}
+      {view === 'provider-picker' && settingsRoute.kind === 'provider-picker' && (
+        <ProviderPickerPage
+          surfaces={providerSurfaces}
           onBack={goBackInSettings}
-          profileId={settingsRoute.profileId}
-          onSaved={(message) => show(message, 'positive', { key: 'settings-provider-saved' })}
-          fallbackModelSeed={settingsDetailFallbackModelSeed}
-          onOpenModelConfiguration={(input) => {
-            setSelectedSettingsProfileId(input.profileId);
-            setSettingsDetailFallbackModelSeed(null);
-            if (input.destination === 'editor') {
-              setModelConfigurationEditorSeed({
-                profileId: input.profileId,
-                apiFormat: input.apiFormat,
-                modelId: input.modelId ?? null,
-                wireModelId: input.wireModelId ?? input.modelId ?? null,
-              });
-              setModelConfigurationReturnView('settings-detail');
-              setView('model-configuration');
-              return;
-            }
-            setView('profile-models');
-          }}
-          onProfilesChanged={async (profileId, options) => {
-            await services.diagnostics?.checkpoint('uxp.ui.app_shell.profiles_changed.entered', {
-              profileId,
-              currentSelectedImageProfileId: selectedImageProfileId,
-              currentSelectedSettingsProfileId: selectedSettingsProfileId,
-            });
-            try {
-              await services.diagnostics?.checkpoint('uxp.ui.app_shell.profiles_changed.before_reload', { profileId });
-              await profilesState.reload();
-              await services.diagnostics?.checkpoint('uxp.ui.app_shell.profiles_changed.after_reload', { profileId });
-              await services.diagnostics?.checkpoint('uxp.ui.app_shell.profiles_changed.before_select_profile', { profileId });
-              setSelectedSettingsProfileId(profileId);
-              if (profileId && options?.activate === true) {
-                await selectImageProfile(profileId, 'settings-profile-activate');
-              }
-              await services.diagnostics?.checkpoint('uxp.ui.app_shell.profiles_changed.after_select_profile', { profileId });
-            } catch (error) {
-              await services.diagnostics?.failure('uxp.ui.app_shell.profiles_changed.failed', error, { profileId });
-              throw error;
-            }
-          }}
-          />
-        </MotionPageFrame>
+          onSelect={(surfaceId) => openSettingsRoute({ kind: 'provider-create', surfaceId })}
+        />
       )}
-      {view === 'profile-models' && selectedSettingsProfileId && (
-        <MotionPageFrame watch={view}>
-          {(() => {
-            const profile = imageProfiles.find((item) => item.profileId === selectedSettingsProfileId)
-              ?? (setupProfile?.profileId === selectedSettingsProfileId ? setupProfile : undefined);
-            if (!profile) {
-              return null;
-            }
-            return (
-              <ProfileModelsPage
-                profile={profile}
-                onBack={() => {
-                  if (setupProfile?.profileId !== profile.profileId) {
-                    setView('settings-detail');
-                    return;
-                  }
-                  void services.commands.cancelProviderProfileSetup(profile.profileId).then((result) => {
-                    if (!result.ok) show(`${result.error.category}: ${result.error.message}`, 'negative', { key: 'profile-setup-cancel-error' });
-                    setSetupProfile(null);
-                    setSelectedSettingsProfileId(null);
-                    openSettingsRoute({ kind: 'root', tab: 'provider' });
-                  });
-                }}
-                onCreate={() => {
-                  setModelConfigurationEditorSeed({
-                    profileId: profile.profileId,
-                    apiFormat: profile.apiFormat,
-                    modelId: null,
-                  });
-                  setModelConfigurationReturnView('profile-models');
-                  setView('model-configuration');
-                }}
-                onEdit={(modelId) => {
-                  setModelConfigurationEditorSeed({
-                    profileId: profile.profileId,
-                    apiFormat: profile.apiFormat,
-                    modelId,
-                  });
-                  setModelConfigurationReturnView('profile-models');
-                  setView('model-configuration');
-                }}
-              />
-            );
-          })()}
-        </MotionPageFrame>
-      )}
+      {view === 'provider-profile' && (settingsRoute.kind === 'provider-create' || settingsRoute.kind === 'provider-edit') && (() => {
+        const surface = surfaceForRoute(providerSurfaces, settingsRoute.surfaceId);
+        const profile = settingsRoute.kind === 'provider-edit'
+          ? imageProfiles.find((item) => item.profileId === settingsRoute.profileId)
+          : undefined;
+        if (!surface || (settingsRoute.kind === 'provider-edit' && !profile)) return null;
+        const pageProps = {
+          surface,
+          ...(profile ? { profile } : {}),
+          existingDisplayNames: imageProfiles
+            .filter((item) => item.profileId !== profile?.profileId)
+            .map((item) => item.displayName),
+          onBack: goBackInSettings,
+          onSaved: (saved: ProviderProfile) => completeProfileSave(saved, settingsRoute.kind === 'provider-create'),
+          onDeleted: completeProfileDelete,
+        };
+        if (settingsRoute.surfaceId === 'grsai') return <GrsaiProfilePage {...pageProps} />;
+        if (settingsRoute.surfaceId === 'gemini') return <GeminiProfilePage {...pageProps} />;
+        return <OpenAiImagesProfilePage {...pageProps} />;
+      })()}
       {view === 'global-generation-settings' && settingsRoute.kind === 'provider-output' && (
         <MotionPageFrame watch={view}>
           <ProviderOutputSettingsPage
@@ -764,41 +669,6 @@ function AppShellContent({ host }: AppShellProps) {
           saveState={generationSettings.saveState}
           onSave={generationSettings.save}
           onBack={goBackInSettings}
-          />
-        </MotionPageFrame>
-      )}
-      {view === 'model-configuration' && modelConfigurationEditorSeed && (
-        <MotionPageFrame watch={view}>
-          <ModelConfigurationPage
-          onNav={onNav}
-          onBack={() => {
-            if (setupProfile?.profileId === modelConfigurationEditorSeed.profileId) {
-              void services.commands.cancelProviderProfileSetup(modelConfigurationEditorSeed.profileId).then((result) => {
-                if (!result.ok) show(`${result.error.category}: ${result.error.message}`, 'negative', { key: 'profile-setup-cancel-error' });
-                setSetupProfile(null);
-                setSelectedSettingsProfileId(null);
-                setModelConfigurationEditorSeed(null);
-                openSettingsRoute({ kind: 'root', tab: 'provider' });
-              });
-              return;
-            }
-            setView(modelConfigurationReturnView);
-          }}
-          onSaved={async () => {
-            if (setupProfile?.profileId === modelConfigurationEditorSeed.profileId) {
-              const ready = await services.commands.getProviderProfile(modelConfigurationEditorSeed.profileId);
-              if (!ready.ok) throw new Error(`${ready.error.category}: ${ready.error.message}`);
-              await completeProfileSetup(ready.value);
-              return;
-            }
-            await profilesState.reload();
-            if (selectedImageProfileId === modelConfigurationEditorSeed.profileId) {
-              await modelsState.reload();
-            }
-            setModelConfigurationEditorSeed(null);
-            setView(modelConfigurationReturnView);
-          }}
-          initialEditorState={modelConfigurationEditorSeed}
           />
         </MotionPageFrame>
       )}

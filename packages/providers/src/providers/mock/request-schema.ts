@@ -41,7 +41,6 @@ const providerModelExecutionSchema = z.object({
   modelId: z.string().min(1),
   apiFormat: z.union([
     z.literal('openai-images'),
-    z.literal('openai-chat-completions'),
     z.literal('gemini-generate-content'),
     z.literal('grsai'),
   ]),

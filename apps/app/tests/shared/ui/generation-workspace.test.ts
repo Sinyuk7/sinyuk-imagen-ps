@@ -73,7 +73,6 @@ describe('Generation Workspace builders', () => {
       readiness: { canSend: true, state: 'ready', message: 'Ready' },
     });
 
-    expect(vm.billingVisible).toBe(false);
     expect(vm.target).toEqual({ kind: 'comfyui', label: 'Portrait', workflowId: 'wf-1', remotePath: 'saved/Portrait.json' });
     expect(vm.notices).toContain('此 Workflow 未识别到图片输入，附件不会发送');
     expect(vm.submitIntent).toMatchObject({
@@ -111,7 +110,6 @@ describe('Generation Workspace builders', () => {
       imageInputDisabled: false,
     });
 
-    expect(vm.billingVisible).toBe(true);
     expect(vm.target.kind).toBe('provider');
     expect(vm.submitIntent).toMatchObject({ backend: 'provider', profileId: 'profile-1', modelId: 'model-1' });
     expect(JSON.stringify(vm)).not.toContain('workflowId');

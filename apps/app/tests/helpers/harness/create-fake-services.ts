@@ -1,4 +1,4 @@
-import type { OfficialModelPreset, ProfileModelItem, ProviderProfile, UserModelConfig } from '@imagen-ps/application';
+import type { ProfileModelItem, ProviderProfile } from '@imagen-ps/application';
 import { createMemoryActiveImageProfileStore } from '../../../src/shared/ports/active-image-profile';
 import type { DiagnosticsPort } from '../../../src/shared/ports/diagnostics-port';
 import { createMemoryGenerationSettingsStore, type AppGenerationSettings } from '../../../src/shared/ports/app-generation-settings';
@@ -15,8 +15,6 @@ import { vi } from 'vitest';
 
 export function createFakeServices(options?: {
   readonly profiles?: readonly ProviderProfile[];
-  readonly userModelConfigs?: readonly UserModelConfig[];
-  readonly officialModelConfigPresets?: readonly OfficialModelPreset[];
   readonly profileModelItems?: readonly ProfileModelItem[];
   readonly generationSettings?: Partial<AppGenerationSettings>;
   readonly promptSettings?: PromptSettings | null;
@@ -25,8 +23,6 @@ export function createFakeServices(options?: {
 }) {
   const commandsFake = createCommandsFake({
     profiles: options?.profiles,
-    userModelConfigs: options?.userModelConfigs,
-    officialModelConfigPresets: options?.officialModelConfigPresets,
     profileModelItems: options?.profileModelItems,
   });
   const hostFake = createHostFake();

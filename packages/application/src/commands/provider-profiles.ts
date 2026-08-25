@@ -315,6 +315,7 @@ async function saveProviderProfileWithLifecycle(
   const incomingSecretNames = new Set(Object.keys(input.secretValues ?? {}));
   const removedSecretNames = new Set(input.removedSecretNames ?? []);
   const secretRefs: Record<string, string> = { ...(existing?.secretRefs ?? {}), ...(input.secretRefs ?? {}) };
+  const validationSecretRefs: Record<string, string> = { ...secretRefs };
   const removedSecretRefs = new Set<string>();
   for (const name of removedSecretNames) {
     if (incomingSecretNames.has(name)) {
@@ -362,7 +363,7 @@ async function saveProviderProfileWithLifecycle(
     };
 
     const resolvedSecrets: Record<string, string> = {};
-    for (const [name, ref] of Object.entries(profile.secretRefs ?? {})) {
+    for (const [name, ref] of Object.entries({ ...validationSecretRefs, ...profile.secretRefs })) {
       const value = await secretStorage.getSecret(ref);
       if (value === undefined) {
         throw new Error(`Provider profile secret is missing: ${name}`);
@@ -545,10 +546,6 @@ export async function continueProviderProfileSetup(
         templates,
       });
       await modelRepository.initializeProfile(profile.profileId, configs);
-      const promoted = await promoteProviderProfileSetup(profile.profileId);
-      return promoted.ok
-        ? { ok: true, value: { kind: 'ready', profile: promoted.value } }
-        : { ok: false, error: promoted.error };
     } catch (error) {
       return {
         ok: false,
@@ -559,31 +556,6 @@ export async function continueProviderProfileSetup(
       };
     }
   }
-
-  const wireModelId = input.wireModelId?.trim();
-  if (!wireModelId) {
-    return { ok: true, value: { kind: 'profile-models', profileId: profile.profileId, apiFormat: profile.apiFormat } };
-  }
-
-  const preset = getOfficialModelPreset(profile.apiFormat, wireModelId);
-  if (!preset) {
-    return {
-      ok: true,
-      value: { kind: 'model-configuration', profileId: profile.profileId, apiFormat: profile.apiFormat, wireModelId },
-    };
-  }
-
-  const config: UserModelConfig = {
-    profileId: profile.profileId,
-    apiFormat: profile.apiFormat,
-    modelId: preset.modelId,
-    baseModelId: preset.modelId,
-    wireModelId,
-    requestStrategyId: preset.requestStrategyId,
-    outputExposure: preset.outputExposure,
-    outputMatrix: preset.outputMatrix,
-  };
-  await modelRepository.save(config);
   const promoted = await promoteProviderProfileSetup(profile.profileId);
   return promoted.ok
     ? { ok: true, value: { kind: 'ready', profile: promoted.value } }

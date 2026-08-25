@@ -28,28 +28,9 @@ interface SettingsPageProps {
 }
 
 function apiFormatMetaLabel(apiFormat: ApiFormat): string {
-  if (apiFormat === 'openai-images') return 'OpenAI Images';
-  if (apiFormat === 'openai-chat-completions') return 'OpenAI Chat';
-  if (apiFormat === 'grsai') return 'GRSAI Generate';
-  return 'Gemini GenerateContent';
-}
-
-function providerEndpointHost(profile: ProviderProfile): string | undefined {
-  const connection = profile.config.connection as {
-    readonly selectedEndpointId?: unknown;
-    readonly endpoints?: readonly { readonly id?: unknown; readonly url?: unknown; readonly enabled?: unknown }[];
-  } | undefined;
-  const endpoints = connection?.endpoints;
-  if (!Array.isArray(endpoints)) return undefined;
-  const endpoint = endpoints.find((item) => item.id === connection?.selectedEndpointId)
-    ?? endpoints.find((item) => item.enabled && typeof item.url === 'string' && item.url.trim().length > 0)
-    ?? endpoints.find((item) => typeof item.url === 'string' && item.url.trim().length > 0);
-  if (typeof endpoint?.url !== 'string' || endpoint.url.trim().length === 0) return undefined;
-  try {
-    return new URL(endpoint.url).host || endpoint.url;
-  } catch {
-    return endpoint.url;
-  }
+  if (apiFormat === 'openai-images') return 'GPT Image 2';
+  if (apiFormat === 'grsai') return 'GRSAI';
+  return 'Gemini';
 }
 
 function ProviderListItem({
@@ -65,15 +46,14 @@ function ProviderListItem({
 }) {
   const { messages: t } = useI18n();
   const row = profileToProviderRow(profile);
-  const host = providerEndpointHost(profile);
-  const configured = Boolean(host) && modelCount > 0;
+  const configured = modelCount > 0;
   return (
     <SettingsListRow
       testId={`provider-row-${profile.profileId}`}
       watch={`${profile.profileId}:${profile.updatedAt}:${modelCount}`}
       title={row.displayName}
       leading={<div className="prov-ico">{row.displayName.slice(0, 2).toUpperCase()}</div>}
-      meta={<span className="prov-family provider-row-meta">{apiFormatMetaLabel(row.apiFormat)} · {host ?? t.common.needsSetup}</span>}
+      meta={<span className="prov-family provider-row-meta">{apiFormatMetaLabel(row.apiFormat)} · {t.settings.configuredModelCount(modelCount)}</span>}
       end={(
         <div
           className={`prov-readiness prov-readiness-compact ${highlighted ? 'ready' : configured ? 'untested' : 'warning'}`}

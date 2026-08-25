@@ -3,15 +3,11 @@ import { useAppServices } from '../../ports/app-services-context';
 import type { HostPort, LayerInfo } from '../../ports/host-port';
 import { suggestedGeneratedImageFileName } from '../../domain/asset-file';
 import { assetToPreview } from '../../domain/mappers';
-import { formatBillingPrimary } from '../../domain/mappers';
 import type {
   ConversationAttachment,
   ConversationController,
   ConversationRound,
 } from '../hooks/use-conversation';
-import { useProfileBilling } from '../hooks/use-profile-billing';
-import { useTaskBillingToast } from '../hooks/use-task-billing-toast';
-import { descriptorForApiFormat, providerSupportsBalanceQuery, useProviderCatalog } from '../hooks/use-provider-settings';
 import { useLayerThumbnail } from '../hooks/use-layer-thumbnail';
 import { useI18n } from '../i18n/i18n-context';
 import type { ProviderInputSizePolicy } from '../../image/resize';
@@ -26,7 +22,7 @@ import {
 } from '../composer-readiness';
 import { classifyRoundError, type ErrorPrimaryAction } from '../error-action';
 import { comfyUiExecutionNodeLabel } from '../comfyui-execution-error';
-import type { ImageAspectRatio, ImageOutputImageSize, ImageOutputSelection, ProfileBillingState } from '@imagen-ps/application';
+import type { ImageAspectRatio, ImageOutputImageSize, ImageOutputSelection } from '@imagen-ps/application';
 import { configurationInstanceLabel, type UiModelInfo } from '../model-info';
 import type { GenerationWorkspaceController } from '../generation-workspace';
 import { Button, Divider, HelpText, Icon, IconButton, IconSelect, ImageFallbackContent, imageFallbackTitle, List, ListStateItem, MotionActivityDot, MotionActivityIcon, MotionButtonSurface, MotionContent, MotionDimSurface, MotionHighlight, MotionImage, MotionPresenceView, PageFrame, PageHeader, PageScroll, PageState, ProviderIdentity, ProviderMediaHeader, UxpTextArea, useToast } from '../ui-system';
@@ -361,7 +357,6 @@ export function MainPage({
   const [layerOpen, setLayerOpen] = useState(false);
   const [captureInFlight, setCaptureInFlight] = useState(false);
   const { show } = useToast();
-  const providers = useProviderCatalog(services);
   const [copied, setCopied] = useState<Record<string, boolean>>({});
   const [selectedPreviewIndexes, setSelectedPreviewIndexes] = useState<Record<string, number>>({});
   const [placeStatus, setPlaceStatus] = useState<Record<string, PlaceStatus>>({});
@@ -434,11 +429,6 @@ export function MainPage({
       default: return kind ? kind.charAt(0).toUpperCase() + kind.slice(1) : t.main.layerKindDefault;
     }
   }
-  const selectedDescriptor = selectedProfile ? descriptorForApiFormat(providers, selectedProfile.apiFormat) : undefined;
-  const selectedProfileSupportsBalanceQuery = providerSupportsBalanceQuery(selectedDescriptor, selectedProfile ?? null);
-  const billing = useProfileBilling(services, selectedProfileId, selectedProfileSupportsBalanceQuery);
-  const billingSummaryText = formatBillingPrimary(billing.billing) ?? t.main.billingNotAvailable;
-  const billingSummaryTitle = `${t.main.billingSummary}: ${billingSummaryText}`;
   const selectableProfiles = profiles;
   const comfyUiMode = viewModel.mode === 'comfyui';
   const profileListState = !comfyUiMode && selectableProfiles.length === 0
@@ -512,21 +502,6 @@ export function MainPage({
   const canCapture = !captureInFlight && !imageInputDisabled;
   const responseTextKey = (roundId: string) => `response:${roundId}`;
   const placeResetTimersRef = useRef<Record<string, number>>({});
-  const handleObservedBillingState = useCallback((profileId: string, state: ProfileBillingState) => {
-    if (profileId !== selectedProfileId) {
-      return;
-    }
-    billing.applyObservedState(state);
-  }, [billing, selectedProfileId]);
-  useTaskBillingToast({
-    services,
-    rounds: conversation.rounds,
-    profiles,
-    providers,
-    show,
-    messages: t,
-    onObservedState: handleObservedBillingState,
-  });
   const isAtBottom = useCallback(() => {
     const el = convRef.current;
     if (!el) return true;
@@ -1014,16 +989,6 @@ export function MainPage({
     await workspace.send(prompt);
   };
 
-  useEffect(() => {
-    if (!billing.error) {
-      return;
-    }
-    if (billing.billing?.refreshState !== 'error') {
-      return;
-    }
-    // Manual or passive refresh failure should stay isolated from generation success.
-  }, [billing.billing?.refreshState, billing.error]);
-
   const placeAsset = async (round: ConversationRound, previewIndex = 0) => {
     if (round.placementIntent.kind === 'unbound' && round.placementIntent.reason === 'multiple-documents') {
       show(t.main.placementMultipleDocuments, 'warning', { key: `place-conflict:${round.id}` });
@@ -1136,7 +1101,7 @@ export function MainPage({
                       kind={profileListState.kind}
                       title={profileListState.title}
                       action={profileListState.kind === 'empty'
-                        ? { label: t.common.addProvider, onPress: () => onNav('settings-add') }
+                        ? { label: t.common.addProvider, onPress: () => onNav('provider-picker') }
                         : undefined}
                     />
                   ) : selectableProfiles.map((profile) => (
@@ -1944,15 +1909,6 @@ export function MainPage({
           </div>
           <div className="cmp-footer">
             <div className="cmp-meta-row">
-              <HelpText
-                className="cmp-billing"
-                data-testid="main-billing-summary"
-                title={billingSummaryTitle}
-                aria-label={billingSummaryTitle}
-              >
-                <Icon className="cmp-billing-icon" name="billing" size={16} />
-                <span>{billingSummaryText}</span>
-              </HelpText>
               {showFooterReadiness ? <MotionContent watch={composerReadinessState}>
                 <HelpText className="cmp-readiness" data-testid="composer-readiness-status" data-state={composerReadinessState}>
                   {composerReadinessText}
@@ -1973,7 +1929,7 @@ export function MainPage({
                 label={comfyUiMode ? t.settings.comfyUiWorkflowTarget : 'Model'}
                 value={selectedModelLabel}
                 icon="algorithm"
-                disabled={comfyUiMode}
+                disabled={comfyUiMode || (!comfyUiMode && modelOptions.length <= 1)}
                 open={openMenu === 'model'}
                 onOpenChange={(open) => {
                   handleOpenComposerMenu('model', open);

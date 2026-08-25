@@ -1,6 +1,6 @@
 import type { Logger } from '@imagen-ps/foundation';
 import type { ProviderFamily, ProviderOperation } from './capability.js';
-import type { ApiFormat } from './api-format.js';
+import type { ApiFormat, ApiFormatPaths, AuthMode } from './api-format.js';
 import type {
   ExactTaskCost,
   ProviderBalanceQueryInput,
@@ -49,12 +49,15 @@ export interface ProviderDescriptor {
   /** 创建 Profile 时一次性写入的完整默认模型模板；空数组保留手动配置路径。 */
   readonly defaultModelTemplates: readonly ProviderDefaultModelTemplate[];
 
+  /** 创建 Profile 时使用的固定、无 secret 配置模板。 */
+  readonly profileTemplate?: ProviderProfileTemplate;
+
   /**
    * 传输层能力与付费重试策略（OPTIONAL）。
    *
    * 仅影响付费生成请求的 transport 自动重试边界与 idempotency key 透传；
    * 未声明时 transport 按保守的付费默认策略处理（见
-   * `transport/image-endpoint/paid-retry.ts`）。
+   * `shared/transport/paid-retry.ts`）。
    */
   readonly transport?: ProviderTransportCapability;
 
@@ -63,6 +66,18 @@ export interface ProviderDescriptor {
 
   /** 设置页连通性能力声明（OPTIONAL）。 */
   readonly connectivity?: ProviderSettingsConnectivityCapability;
+}
+
+/** Provider 为专用 Profile surface 声明的固定、无 secret 配置。 */
+export interface ProviderProfileTemplate {
+  /** 固定 endpoint base URL。 */
+  readonly endpointUrl: string;
+  /** 固定 API paths。 */
+  readonly paths: ApiFormatPaths;
+  /** 固定鉴权模式。 */
+  readonly authMode: AuthMode;
+  /** 新 Profile 的显式默认模型。 */
+  readonly defaultModelId: string;
 }
 
 /** Provider 为新 Profile 声明的完整本地默认模型数据。 */
@@ -123,9 +138,6 @@ export interface ProviderTransportCapability {
 /** Image edit 请求体方言。 */
 export type ImageEditCodec = 'multipart-bracket' | 'multipart-plain' | 'json-reference';
 
-/** Chat image 执行请求 codec。 */
-export type ChatImageRequestCodec = 'chat-completions-image-legacy';
-
 /** 当前 provider 响应解析 codec。 */
 export type ProviderResponseCodec = 'json';
 
@@ -136,12 +148,6 @@ export interface ProviderWireCapability {
 
   /** provider 声明的 image-edit 默认尝试顺序。 */
   readonly defaultEditCodecOrder?: readonly ImageEditCodec[];
-
-  /** provider 声明支持的 chat-image 请求 codec。 */
-  readonly supportedImageRequestCodecs?: readonly ChatImageRequestCodec[];
-
-  /** provider 声明的 chat-image 默认请求 codec。 */
-  readonly defaultImageRequestCodec?: ChatImageRequestCodec;
 
   /** provider 声明的响应 codec。 */
   readonly responseCodecs?: readonly ProviderResponseCodec[];

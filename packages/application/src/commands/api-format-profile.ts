@@ -11,7 +11,6 @@ import type { ProviderProfile, ProviderProfileConfig } from './types.js';
 
 const CATALOG_PROVIDER_BY_API_FORMAT = {
   'openai-images': 'image-endpoint',
-  'openai-chat-completions': 'chat-image',
   'gemini-generate-content': 'gemini-generate-content',
   grsai: 'grsai-generate',
 } as const satisfies Record<ApiFormat, ProviderImplementationId>;
@@ -26,7 +25,6 @@ export function catalogProviderIdForApiFormat(apiFormat: ApiFormat): ProviderImp
 
 export function isApiFormat(value: unknown): value is ApiFormat {
   return value === 'openai-images'
-    || value === 'openai-chat-completions'
     || value === 'gemini-generate-content'
     || value === 'grsai';
 }

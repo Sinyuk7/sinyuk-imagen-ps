@@ -3,12 +3,14 @@ import {
   type Asset,
   type DurableJobRecord,
   type ExecuteJobInput,
+  type ImageOutputMatrix,
   type Job,
   type ProviderProfile,
   type ProviderProfileConfig,
   type ProviderProfileConnectionTestResult,
   type ProviderProfileTestResult,
   type TaskRecord,
+  type UserModelConfig,
 } from '@imagen-ps/application';
 import type { ChromeFilePicker } from '../../adapters/chrome/chrome-host-port';
 import {
@@ -29,6 +31,7 @@ interface ChromeRuntimeStorage {
   readonly secrets: { setSecret(key: string, value: string): Promise<void> };
   readonly history: { put(record: DurableJobRecord): Promise<void>; list(): Promise<readonly DurableJobRecord[]> };
   readonly tasks: { put(record: TaskRecord): Promise<void> };
+  readonly userModelConfigs: { initializeProfile(profileId: string, configs: readonly UserModelConfig[]): Promise<void> };
 }
 
 export interface ChromeTestHarnessConfig {
@@ -147,6 +150,51 @@ function mockProfile(options?: { readonly failMode?: ChromeTestMockFailureMode; 
   };
 }
 
+const MOCK_TEXT_TO_IMAGE_MATRIX: ImageOutputMatrix = {
+  operation: 'text_to_image',
+  archetype: 'size-format',
+  geometryKind: 'flexible-pixels',
+  imageSizes: [{ id: '2k', label: '2K' }],
+  ratios: [{ id: 'auto', label: 'Auto' }],
+  outputFormats: [{ id: 'png', label: 'PNG' }],
+  defaultCellId: 'text_to_image:2k:auto:png',
+  cells: [{
+    id: 'text_to_image:2k:auto:png',
+    imageSize: '2k',
+    ratio: 'auto',
+    outputFormat: 'png',
+    selection: { geometry: { kind: 'pixels', width: 2048, height: 2048 }, outputFormat: 'png' },
+  }],
+};
+
+const MOCK_IMAGE_EDIT_MATRIX: ImageOutputMatrix = {
+  ...MOCK_TEXT_TO_IMAGE_MATRIX,
+  operation: 'image_edit',
+  defaultCellId: 'image_edit:2k:auto:png',
+  cells: MOCK_TEXT_TO_IMAGE_MATRIX.cells.map((cell) => ({
+    ...cell,
+    id: cell.id.replace('text_to_image:', 'image_edit:'),
+  })),
+};
+
+function mockUserModelConfig(): UserModelConfig {
+  return {
+    profileId: MOCK_PROFILE_ID,
+    apiFormat: 'openai-images',
+    modelId: MOCK_MODEL_ID,
+    baseModelId: MOCK_MODEL_ID,
+    wireModelId: MOCK_MODEL_ID,
+    requestStrategyId: 'image-endpoint-default',
+    outputExposure: {
+      kind: 'flexible-pixels',
+      sizePresetIds: ['2k'],
+      outputFormats: ['png'],
+      allowInputDerivedExactSize: false,
+    },
+    outputMatrix: [MOCK_TEXT_TO_IMAGE_MATRIX, MOCK_IMAGE_EDIT_MATRIX],
+  };
+}
+
 function seededHistoryRecords(): readonly DurableJobRecord[] {
   return [
     {
@@ -248,6 +296,9 @@ function initialRecords(config: ChromeTestHarnessConfig): Partial<Record<ChromeS
   return {
     profiles: config.seedProfile ? [{ key: MOCK_PROFILE_ID, value: mockProfile({ failMode: config.mockFailureMode }) }] : [],
     secrets: config.seedProfile ? [{ key: MOCK_SECRET_REF, value: 'mock-key' }] : [],
+    userModelConfigs: config.seedProfile
+      ? [{ key: `${MOCK_PROFILE_ID}:${MOCK_MODEL_ID}`, value: mockUserModelConfig() }]
+      : [],
     history: config.seedHistory ? seededHistoryRecords().map((record) => ({ key: record.jobId, value: record })) : [],
     tasks: config.seedHistory ? seededTaskRecords().map((record) => ({ key: record.taskId, value: record })) : [],
   };
@@ -282,6 +333,7 @@ async function generatedImageFile(): Promise<File> {
 
 async function seedMockProfile(storage: ChromeRuntimeStorage, options?: { readonly failMode?: ChromeTestMockFailureMode; readonly displayName?: string }): Promise<void> {
   await storage.secrets.setSecret(MOCK_SECRET_REF, 'mock-key');
+  await storage.userModelConfigs.initializeProfile(MOCK_PROFILE_ID, [mockUserModelConfig()]);
   await storage.profiles.save(mockProfile(options));
 }
 

@@ -52,13 +52,16 @@ function ratioModelOptions() {
     activeImageProfileId: 'mock-profile',
     profiles: [{
       ...fakeProfile,
-      apiFormat: 'openai-chat-completions',
+      apiFormat: 'gemini-generate-content',
       config: {
         ...fakeProfile.config,
-        apiFormat: 'openai-chat-completions',
+        apiFormat: 'gemini-generate-content',
       },
     }],
-    profileModelItems: [profileModelItem('gemini-3-pro-image')],
+    profileModelItems: [
+      profileModelItem('gemini-3.1-flash-image'),
+      profileModelItem('gemini-3-pro-image'),
+    ],
   } as const;
 }
 
@@ -73,6 +76,9 @@ describe('generation settings UI archetypes', () => {
     document.body.appendChild(container);
     await renderReadyMain(container);
 
+    const modelSelector = container.querySelector<HTMLButtonElement>('[data-testid="main-model-selector"]');
+    expect(modelSelector?.getAttribute('data-selected-id')).toBe('gpt-image-2');
+    expect(modelSelector?.disabled).toBe(true);
     expect(container.querySelector('[data-testid="composer-output-size-selector"]')).not.toBeNull();
     expect(container.querySelector('[data-testid="composer-output-format-selector"]')).toBeNull();
     expect(container.querySelector('[data-testid="composer-output-ratio-selector"]')).toBeNull();
@@ -101,6 +107,9 @@ describe('generation settings UI archetypes', () => {
     document.body.appendChild(container);
     const harness = await createGenerationSettingsHarness(container, ratioModelOptions());
 
+    const modelSelector = container.querySelector<HTMLButtonElement>('[data-testid="main-model-selector"]');
+    expect(modelSelector?.getAttribute('data-selected-id')).toBe('gemini-3.1-flash-image');
+    expect(modelSelector?.disabled).toBe(false);
     await harness.selectModel('gemini-3-pro-image');
 
     expect(hostContainsIcon(container, 'composer-capture-button', 'capture-selection')).toBe(true);
@@ -108,7 +117,7 @@ describe('generation settings UI archetypes', () => {
     expect(hostContainsIcon(container, 'composer-output-ratio-selector', 'aspect-ratio')).toBe(true);
   });
 
-  it('keeps Prompt Optimizer before the mask toggle and lowers billing into the footer', async () => {
+  it('keeps Prompt Optimizer before the mask toggle and removes billing from the footer', async () => {
     const container = document.createElement('div');
     document.body.appendChild(container);
     await renderReadyMain(container);
@@ -123,9 +132,7 @@ describe('generation settings UI archetypes', () => {
     expect(mask.getAttribute('aria-label')).toBe('蒙版：关闭');
     expect(mask.disabled).toBe(false);
     expect(hostContainsIcon(container, 'composer-mask-toggle', 'mask-off')).toBe(true);
-    expect(container.querySelector('.cmp-footer .cmp-meta-row [data-testid="main-billing-summary"]')).not.toBeNull();
-    expect(container.querySelector('[data-testid="main-billing-summary"] [data-icon-name="billing"]')).not.toBeNull();
-    expect(container.querySelector<SVGElement>('[data-testid="main-billing-summary"] [data-icon-name="billing"]')?.getAttribute('height')).toBe('16');
+    expect(container.querySelector('[data-testid="main-billing-summary"]')).toBeNull();
     expect(COMPOSER_CSS).toContain('.cmp-capture,\n.cmp-mask-toggle');
     expect(COMPOSER_CSS).toContain('.cmp-footer');
     expect(container.querySelector('[data-testid="composer-readiness-status"]')).toBeNull();
@@ -258,7 +265,6 @@ describe('generation settings UI archetypes', () => {
     document.body.appendChild(container);
     const harness = await createGenerationSettingsHarness(container, { activeImageProfileId: 'mock-profile' });
 
-    await harness.selectModel('gpt-image-2');
     await harness.openGlobalSettings();
     await harness.selectGlobalSize('4k');
     await harness.selectGlobalFormat('webp');

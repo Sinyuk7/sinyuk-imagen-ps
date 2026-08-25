@@ -2,7 +2,7 @@ import type {
   ProfileModelItem,
   ProviderDescriptor,
   ProviderProfile,
-  ProviderProfileInput,
+  ProviderSurfaceProjection,
   RequestStrategy,
 } from '@imagen-ps/application';
 
@@ -47,22 +47,29 @@ export const fakeProvider: ProviderDescriptor = {
   },
 };
 
-export const fakeChatProvider: ProviderDescriptor = {
-  id: 'chat-image',
-  family: 'chat-image',
-  apiFormat: 'openai-chat-completions',
-  displayName: 'Chat Image',
-  operations: ['text_to_image', 'image_edit'],
-  invokeMode: 'sync',
-  defaultModelTemplates: [],
-  billing: {
-    query: 'supported',
+export const fakeProviderSurfaces: readonly ProviderSurfaceProjection[] = [
+  {
+    identity: { apiFormat: 'grsai', implementationId: 'grsai-generate' },
+    operations: ['text_to_image', 'image_edit'],
+    defaultModelId: 'nano-banana-fast',
+    modelIds: ['nano-banana-fast', 'nano-banana-pro'],
+    canTestConnection: false,
   },
-  connectivity: {
-    endpointMeasurement: 'supported',
-    connectionTest: 'supported',
+  {
+    identity: { apiFormat: 'gemini-generate-content', implementationId: 'gemini-generate-content' },
+    operations: ['text_to_image', 'image_edit'],
+    defaultModelId: 'gemini-3.1-flash-image',
+    modelIds: ['gemini-3.1-flash-image', 'gemini-3-pro-image', 'gemini-3.1-flash-lite-image'],
+    canTestConnection: true,
   },
-};
+  {
+    identity: { apiFormat: 'openai-images', implementationId: 'image-endpoint' },
+    operations: ['text_to_image', 'image_edit'],
+    defaultModelId: 'gpt-image-2',
+    modelIds: ['gpt-image-2'],
+    canTestConnection: false,
+  },
+];
 
 export const fakeProfileModelItems: readonly ProfileModelItem[] = [{
   modelId: 'gpt-image-2',
@@ -96,25 +103,5 @@ export function profileModelItem(
     configured: true,
     configSource: 'user',
     ...overrides,
-  };
-}
-
-export function savedProfile(input: ProviderProfileInput, existing: ProviderProfile | undefined): ProviderProfile {
-  const baseProfile = {
-    ...fakeProfile,
-    ...(existing ?? {}),
-  };
-  return {
-    ...baseProfile,
-    profileId: input.profileId,
-    apiFormat: input.apiFormat ?? existing?.apiFormat ?? fakeProfile.apiFormat,
-    displayName: input.displayName ?? existing?.displayName ?? fakeProfile.displayName,
-    ...(input.systemInstruction && input.systemInstruction.trim().length > 0 ? { systemInstruction: input.systemInstruction } : {}),
-    lifecycle: existing?.lifecycle ?? fakeProfile.lifecycle,
-    config: {
-      ...(existing?.config ?? fakeProfile.config),
-      ...(input.config ?? {}),
-    },
-    updatedAt: '2026-06-15T00:00:02.000Z',
   };
 }

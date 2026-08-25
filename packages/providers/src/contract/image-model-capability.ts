@@ -18,7 +18,7 @@ import type {
 } from './model.js';
 import type { NormalizedImageInputContext, ProviderModelExecution, ProviderOutputOptions, ProviderResolvedOutput } from './request.js';
 import type { ProviderDefaultModelTemplate } from './provider.js';
-import { IMAGE_MODEL_CAPABILITIES } from './image-model-catalog/catalog.js';
+import { IMAGE_MODEL_CAPABILITIES } from '../model-catalog/catalog.js';
 
 export type {
   EffectiveImageOutputSelection,
@@ -33,7 +33,7 @@ export type {
   PixelDimensions,
 } from './image-output-contract.js';
 
-export type ImageCatalogProviderId = 'image-endpoint' | 'chat-image' | 'gemini-generate-content' | 'grsai-generate';
+export type ImageCatalogProviderId = 'image-endpoint' | 'gemini-generate-content' | 'grsai-generate';
 export type ImageSizePreset = Exclude<ImageOutputSizeOptionId, 'auto' | 'use-input-size'>;
 /** catalog 输出矩阵 cell 的稳定标识。 */
 export type ImageOutputCellId = string;
@@ -166,14 +166,13 @@ function isMatrixSizePreset(value: ImageOutputImageSize): value is ImageSizePres
 export type RequestStrategyId =
   | 'image-endpoint-default'
   | 'image-endpoint-variant'
-  | 'chat-image-default'
   | 'gemini-generate-content-image-config'
   | 'grsai-generate-image-config';
 
 export interface RequestStrategy {
   readonly id: RequestStrategyId;
   readonly apiFormat: ApiFormat;
-  readonly outputCodecId: 'image-endpoint' | 'chat-image-label' | 'gemini-image-config' | 'grsai-image-config';
+  readonly outputCodecId: 'image-endpoint' | 'gemini-image-config' | 'grsai-image-config';
   readonly wireRevisionId?: string;
 }
 
@@ -205,11 +204,6 @@ const REQUEST_STRATEGIES = Object.freeze([
     id: 'image-endpoint-variant',
     apiFormat: 'openai-images',
     outputCodecId: 'image-endpoint',
-  },
-  {
-    id: 'chat-image-default',
-    apiFormat: 'openai-chat-completions',
-    outputCodecId: 'chat-image-label',
   },
   {
     id: 'gemini-generate-content-image-config',
@@ -348,8 +342,6 @@ function requestStrategyIdForCapability(
   switch (providerId) {
     case 'image-endpoint':
       return 'image-endpoint-default';
-    case 'chat-image':
-      return 'chat-image-default';
     case 'gemini-generate-content':
       return 'gemini-generate-content-image-config';
     case 'grsai-generate':
@@ -503,7 +495,7 @@ function assertSingleCapability(
 }
 
 export function providerUsesImageModelCatalog(providerId: string): providerId is ImageCatalogProviderId {
-  return providerId === 'image-endpoint' || providerId === 'chat-image' || providerId === 'gemini-generate-content' || providerId === 'grsai-generate';
+  return providerId === 'image-endpoint' || providerId === 'gemini-generate-content' || providerId === 'grsai-generate';
 }
 
 function sizePresetsForOperation(
@@ -723,7 +715,7 @@ export function resolveMaskExecutionPlan(args: {
     };
   }
 
-  if (args.providerId === 'gemini-generate-content' || args.providerId === 'chat-image' || args.providerId === 'grsai-generate') {
+  if (args.providerId === 'gemini-generate-content' || args.providerId === 'grsai-generate') {
     return {
       kind: 'semantic-only',
       reason: 'transport-has-no-separate-raster-mask-field',
@@ -778,7 +770,7 @@ export function listProviderDefaultModelTemplates(providerId: ImageCatalogProvid
 }
 
 export function listOfficialModelPresets(apiFormat?: ApiFormat): readonly OfficialModelPreset[] {
-  const presets = (['image-endpoint', 'chat-image', 'gemini-generate-content', 'grsai-generate'] as const satisfies readonly ImageCatalogProviderId[])
+  const presets = (['image-endpoint', 'gemini-generate-content', 'grsai-generate'] as const satisfies readonly ImageCatalogProviderId[])
     .flatMap((providerId) =>
       visibleCapabilitiesForProvider(providerId, IMAGE_MODEL_CAPABILITIES).map((capability) =>
         buildOfficialModelPreset(providerId, capability),
@@ -1020,46 +1012,6 @@ function buildResolvedOutputFromSelection(args: {
     }
   }
 
-  if (args.providerId === 'chat-image') {
-    switch (selection.geometry.kind) {
-      case 'provider-default':
-        return { kind: 'chat-image', imageConfig: { output_format: selection.outputFormat } };
-      case 'pixels':
-        validateFlexiblePixels({ rule: args.rule, width: selection.geometry.width, height: selection.geometry.height });
-        return {
-          kind: 'chat-image',
-          imageConfig: {
-            size: `${selection.geometry.width}x${selection.geometry.height}`,
-            output_format: selection.outputFormat,
-          },
-        };
-      case 'input-derived': {
-        const size = exactSizeFromInput({ rule: args.rule, inputContext: args.inputContext });
-        return {
-          kind: 'chat-image',
-          imageConfig: {
-            size: `${size.width}x${size.height}`,
-            output_format: selection.outputFormat,
-          },
-        };
-      }
-      case 'ratio-resolution':
-        assertRatioResolutionSupported({
-          rule: args.rule,
-          aspectRatio: selection.geometry.aspectRatio,
-          resolution: selection.geometry.resolution,
-        });
-        return {
-          kind: 'chat-image',
-          imageConfig: {
-            size: imageConfigSize(selection.geometry.resolution),
-            aspect_ratio: selection.geometry.aspectRatio,
-            output_format: selection.outputFormat,
-          },
-        };
-    }
-  }
-
   if (args.providerId === 'grsai-generate') {
     switch (selection.geometry.kind) {
       case 'provider-default':
@@ -1289,7 +1241,7 @@ export function validateImageModelCatalog(
     validateOutputMatrices(capability, errors);
   }
 
-  for (const providerId of ['image-endpoint', 'chat-image', 'gemini-generate-content'] as const satisfies readonly ImageCatalogProviderId[]) {
+  for (const providerId of ['image-endpoint', 'gemini-generate-content', 'grsai-generate'] as const satisfies readonly ImageCatalogProviderId[]) {
     const capabilitiesForProvider = capabilities.filter((capability) => capabilityAppliesToProvider(capability, providerId));
     const exactIds = new Map<string, string>();
     const aliases = new Map<string, string>();

@@ -1,253 +1,271 @@
-# Repo Playbook For New Models And New Providers
+# Repo Playbook For New Models And Providers
 
-Use this document only after one of the information briefs is complete.
-This document is repository-specific.
+Use this repository-specific playbook after the matching information brief is
+complete. The product exposes named Provider integrations, not a generic API
+protocol configurator.
 
-## 1. Decide Change Type First
+## 1. Classify The Change
 
-Use the briefs to classify the work:
+- `Scenario A`: change the curated model inventory of an existing Provider.
+- `Scenario B`: add a new named Provider integration or upstream protocol.
 
-- `Scenario A`: add one new model under an existing `ApiFormat`
-- `Scenario B`: add a new protocol / new provider family / new relay boundary
+Start from Provider ownership. Do not start by adding endpoint, protocol, auth,
+billing, or model editors to the UI.
 
-Do not start from UI. Start from provider boundary ownership.
-
-Core boundary references:
+Canonical boundary references:
 
 - [docs/ENGINEERING_CONTEXT.md](../ENGINEERING_CONTEXT.md)
 - [packages/providers/ARCHITECTURE.md](../../packages/providers/ARCHITECTURE.md)
 - [packages/providers/TESTING.md](../../packages/providers/TESTING.md)
+- [docs/TESTING.md](../TESTING.md)
 
-## 2. Scenario A: Add One New Model Under Existing `ApiFormat`
+## 2. Current Product Shape
 
-### Provider-layer source of truth
+Product-visible Provider implementations are independent vertical slices:
 
-Add or extend local curated rules under:
-
-- [packages/providers/src/contract/image-model-catalog/catalog.ts](../../packages/providers/src/contract/image-model-catalog/catalog.ts)
-- [packages/providers/src/contract/image-model-catalog/rules/](../../packages/providers/src/contract/image-model-catalog)
-- [packages/providers/src/contract/image-model-catalog/matrix/](../../packages/providers/src/contract/image-model-catalog/matrix)
-
-Each picker-visible model rule must provide enough facts for:
-
-- identity matching
-- `displayName`
-- `brand`
-- provider applicability
-- picker/default eligibility
-- output capability truth
-- output exposure
-- output matrix projection
-- edit-input capability when relevant
-- optional discovery policy
-
-Repo contracts that consume those facts:
-
-- `listLocalCatalogModels()` for descriptor defaults
-- `listOfficialModelPresets()` for official presets
-- `resolveImageModelRule()` for identity matching
-- `resolveProviderResolvedOutput()` for provider-facing output payload
-- `validateImageModelCatalog()` for fail-closed catalog validation
-
-Primary file:
-
-- [packages/providers/src/contract/image-model-capability.ts](../../packages/providers/src/contract/image-model-capability.ts)
-
-### Application follow-through
-
-The application layer reconciles four different facts:
-
-- remote discovery cache
-- saved user model configs
-- official catalog presets
-- profile `selectedModelIds` / `defaultModelId`
-
-Primary files:
-
-- [packages/application/src/commands/profile-models.ts](../../packages/application/src/commands/profile-models.ts)
-- [packages/application/src/commands/model-config-resolution.ts](../../packages/application/src/commands/model-config-resolution.ts)
-- [packages/application/src/commands/model-configs.ts](../../packages/application/src/commands/model-configs.ts)
-- [packages/application/src/commands/model-generation-preference-resolution.ts](../../packages/application/src/commands/model-generation-preference-resolution.ts)
-
-Important repo-specific model identities:
-
-- `configModelId`: saved user-facing config key
-- `capabilityModelId`: local catalog identity used for capability resolution
-- `wireModelId`: actual upstream model ID sent on the request
-
-Rule of thumb: if two wire models share upstream transport but differ in
-geometry/output rules, give them separate `capabilityModelId` / official
-preset entries. Reuse output matrices only when the capability is truly the
-same; do not infer sharing from a common family prefix.
-
-Do not collapse these three identities.
-
-### UI / app surfaces to verify
-
-The UI should not own model truth, but it will break if required metadata is missing.
-
-Check:
-
-- label fallback: `displayName -> wireModelId -> id`
-- default model and selected model lists
-- official preset availability in model configuration editor
-- output exposure / matrix rendering
-
-Primary files:
-
-- [apps/app/src/shared/ui/model-info.ts](../../apps/app/src/shared/ui/model-info.ts)
-- [apps/app/src/shared/ui/pages/settings-page.tsx](../../apps/app/src/shared/ui/pages/settings-page.tsx)
-- [apps/app/src/shared/ui/pages/settings-add-page.tsx](../../apps/app/src/shared/ui/pages/settings-add-page.tsx)
-- [apps/app/src/shared/ui/pages/settings-detail-page.tsx](../../apps/app/src/shared/ui/pages/settings-detail-page.tsx)
-- [apps/app/src/shared/ui/pages/model-configuration-page.tsx](../../apps/app/src/shared/ui/pages/model-configuration-page.tsx)
-
-Current repo note:
-
-- `resolveModelBrand()` exists in application, but the current app surface does not appear to actively consume that command for icon rendering yet.
-
-## 3. Scenario B: Add New Protocol / New Provider Family
-
-This is wider than adding one model. Treat it as a contract expansion.
-
-### Contract surface
-
-Extend the protocol boundary under:
-
-- [packages/providers/src/contract/api-format.ts](../../packages/providers/src/contract/api-format.ts)
-- [packages/providers/src/contract/config.ts](../../packages/providers/src/contract/config.ts)
-- [packages/providers/src/contract/request.ts](../../packages/providers/src/contract/request.ts)
-- [packages/providers/src/contract/provider.ts](../../packages/providers/src/contract/provider.ts)
-- [packages/providers/src/contract/image-model-capability.ts](../../packages/providers/src/contract/image-model-capability.ts)
-
-Typical additions:
-
-- new `ApiFormat`
-- new `ProviderImplementationId`
-- new `ProviderFamily`
-- new default paths / path normalization rules
-- new endpoint classification behavior
-- new config union branch
-- new request / resolved-output union branch, if existing kinds do not fit
-- new request strategy, if existing strategies do not fit
-- new provider-specific resolved output mapping, if existing output builders do not fit
-
-### Provider implementation
-
-Add provider-owned files under:
-
-- `packages/providers/src/providers/<provider>/descriptor.ts`
-- `packages/providers/src/providers/<provider>/config-schema.ts`
-- `packages/providers/src/providers/<provider>/provider.ts`
-- `packages/providers/src/providers/<provider>/index.ts`
-
-Then register and export it through:
-
-- [packages/providers/src/registry/builtins.ts](../../packages/providers/src/registry/builtins.ts)
-- [packages/providers/src/index.ts](../../packages/providers/src/index.ts)
-
-Descriptor and schema must accurately declare:
-
-- `apiFormat`
-- `family`
-- supported operations
-- default models, if any
-- wire capability
-- billing capability
-- connectivity capability
-- config normalization constraints
-
-### Application follow-through
-
-Application maps `apiFormat` to provider/catalog assumptions. Extend:
-
-- [packages/application/src/commands/api-format-profile.ts](../../packages/application/src/commands/api-format-profile.ts)
-- any command that branches on supported `ApiFormat`
-
-Key requirement:
-
-- profile `apiFormat` mapping must stay canonical and consistent with provider registry lookup.
-
-### UI / app follow-through
-
-When a truly new `ApiFormat` is introduced, update UI protocol surfaces too.
-
-Check at minimum:
-
-- apiFormat label rendering
-- settings add/edit protocol options
-- path editor branches
-- provider capability dependent UI, such as billing, connection test, endpoint measurement
-
-Primary files:
-
-- [apps/app/src/shared/ui/hooks/use-provider-settings.ts](../../apps/app/src/shared/ui/hooks/use-provider-settings.ts)
-- [apps/app/src/shared/ui/components/provider-settings-sections.tsx](../../apps/app/src/shared/ui/components/provider-settings-sections.tsx)
-- [apps/app/src/shared/ui/pages/settings-add-page.tsx](../../apps/app/src/shared/ui/pages/settings-add-page.tsx)
-- [apps/app/src/shared/ui/pages/settings-detail-page.tsx](../../apps/app/src/shared/ui/pages/settings-detail-page.tsx)
-- [apps/app/src/shared/ui/pages/main-page.tsx](../../apps/app/src/shared/ui/pages/main-page.tsx)
-- [apps/app/src/shared/ui/pages/model-configuration-page.tsx](../../apps/app/src/shared/ui/pages/model-configuration-page.tsx)
-
-## 4. Minimum Validation
-
-### For Scenario A
-
-Run at least:
-
-```bash
-pnpm --filter @imagen-ps/providers test
-pnpm --filter @imagen-ps/application test
-node packages/providers/scripts/check-image-model-catalog.mjs
+```text
+packages/providers/src/providers/
+  grsai/
+  gemini/
+  openai-images/
 ```
 
-Focus coverage on:
+Each slice owns:
 
-- catalog validation
-- official preset generation
-- output resolution
-- user model config save/validation
-- generation preference validation
+```text
+<provider>/
+  index.ts
+  models.ts
+  profile-template.ts
+  config-schema.ts
+  descriptor.ts
+  provider.ts
+  transport/
+```
 
-Existing reference tests:
+Ownership rules:
 
-- [packages/providers/tests/image-output-capability.test.ts](../../packages/providers/tests/image-output-capability.test.ts)
-- [packages/application/src/commands/model-configs.test.ts](../../packages/application/src/commands/model-configs.test.ts)
-- [packages/application/src/commands/model-generation-preferences.test.ts](../../packages/application/src/commands/model-generation-preferences.test.ts)
+- `models.ts` is the single source for model IDs, wire IDs, base IDs,
+  capabilities, and the Provider default model.
+- `profile-template.ts` is the single source for fixed endpoint, paths, auth,
+  and billing defaults.
+- `descriptor.ts` derives default model templates and Profile metadata from
+  those two owners. It must not contain duplicate inventories.
+- `provider.ts` coordinates the existing Provider contract and owns no
+  Application scheduling or UI state.
+- `transport/` owns Provider-specific request builders, parsers, codecs, error
+  mapping, and polling.
+- A shared primitive belongs in `shared/` only when at least two current
+  Providers use the same semantics.
+- Provider slices never import one another.
 
-### For Scenario B
+The dependency direction remains:
 
-Run at least:
+```text
+provider contracts + shared primitives
+                 -> named Provider slices
+                 -> registry
+                 -> application
+                 -> app UI
+
+core-engine <- application/provider execution adapter
+```
+
+The app consumes sanitized Application projections. It must not import
+`@imagen-ps/providers` directly or rebuild Provider model/config truth.
+
+## 3. Scenario A: Change An Existing Provider Model Inventory
+
+### 3.1 Update The Owning Slice
+
+Modify only the matching source of truth:
+
+- [GRSAI models](../../packages/providers/src/providers/grsai/models.ts)
+- [Gemini models](../../packages/providers/src/providers/gemini/models.ts)
+- [OpenAI Images models](../../packages/providers/src/providers/openai-images/models.ts)
+
+Every product-visible model must define enough local facts to resolve:
+
+- stable `modelId`, `wireModelId`, and `baseModelId` identity;
+- display name and brand;
+- Provider applicability and request strategy;
+- picker/default eligibility;
+- text-to-image and image-edit input capability, when supported;
+- output capability, exposure, and output matrix.
+
+Do not add a second array in a descriptor, Application command, Composer, or
+Profile page. `ProviderDescriptor.defaultModelTemplates`, Official Model
+Catalog entries, Profile initialization, and UI model projections must derive
+from the Provider-owned inventory.
+
+If the upstream model needs different wire behavior, keep that mapping in the
+same Provider's `transport/`. Extract shared code only when another current
+Provider already needs identical behavior.
+
+### 3.2 Preserve Profile Semantics
+
+New Profiles atomically copy the Provider's complete default templates into
+internal `UserModelConfig` rows and then become `ready`. Existing ready Profiles
+are not silently backfilled or synchronized when a catalog changes. Any future
+backfill is a separate product and persistence decision.
+
+Users may select curated models and output preferences. They may not create,
+edit, delete, rename, or override model wire/capability configuration.
+
+### 3.3 Verify The Change
+
+Update the matching Provider tests under:
+
+```text
+packages/providers/tests/providers/<provider>/
+packages/providers/tests/registry/
+packages/providers/tests/shared/
+```
+
+Also verify Application initialization and Composer selection behavior when the
+default model or inventory changes.
+
+Minimum gate:
+
+```bash
+pnpm --filter @imagen-ps/providers test
+pnpm --filter @imagen-ps/providers build
+pnpm --filter @imagen-ps/application test
+node packages/providers/scripts/check-image-model-catalog.mjs
+pnpm check:policy
+```
+
+## 4. Scenario B: Add A Named Provider Integration
+
+Treat a new relay or official API as a named product integration with its own
+request logic and Profile page. Do not route it through a generic endpoint or
+protocol form.
+
+### 4.1 Add The Provider Vertical Slice
+
+Create `packages/providers/src/providers/<provider>/` with the standard files:
+
+- `models.ts`: curated local inventory and default model;
+- `profile-template.ts`: fixed Profile config without secrets;
+- `config-schema.ts`: persisted config validation and normalization;
+- `descriptor.ts`: existing `ProviderDescriptor` assembly;
+- `provider.ts`: synchronous `invoke()` or the existing async lifecycle;
+- `transport/`: Provider-local wire request and response logic;
+- `index.ts`: narrow slice entrypoint.
+
+Extend shared contracts only when the new Provider cannot fit them honestly.
+Typical contract work may include:
+
+- a new `ApiFormat` and canonical implementation mapping;
+- a new `ProviderImplementationId` or family;
+- a new request strategy or resolved-output kind;
+- new capability primitives with more than one real consumer.
+
+Keep synchronous upstream APIs as Promise-returning `invoke()` implementations.
+Use `ProviderAsyncLifecycle` only for real submit/poll APIs. Core Task/Job state
+remains the common asynchronous product lifecycle; do not add fake polling.
+
+### 4.2 Register And Project The Provider
+
+Update:
+
+- [builtin registry](../../packages/providers/src/registry/builtins.ts);
+- [Provider package exports](../../packages/providers/src/index.ts);
+- Application canonical `apiFormat` admission and Provider surface projection;
+- catalog harness inventory.
+
+The Application surface may expose only sanitized identity, operations, model
+IDs, default model, and safe connection-test capability. API keys stay in
+`SecretStorageAdapter`; endpoint, paths, auth, billing, codecs, and diagnostics
+must not leak through the UI projection.
+
+Profile creation must continue through `saveProviderSurfaceProfile()` and the
+existing setup path. Generation must continue through shared Application
+admission, Provider Execution Adapter, and Core workflow. Do not add a
+Provider-specific backend or request branch to Application/Core.
+
+### 4.3 Add A Dedicated Product Surface
+
+Add a named route and page under:
+
+```text
+apps/app/src/shared/ui/features/provider-profiles/<provider>/
+```
+
+Update the app-owned definitions in:
+
+- [Provider Profile routes](../../apps/app/src/shared/ui/features/provider-profiles/routes.ts);
+- Provider Picker labels/icons/i18n;
+- AppShell route mounting;
+- matching UI, Chrome E2E, and visual harnesses.
+
+The page may reuse the narrow shared Profile form and frame. It must own its
+Provider-specific copy and actions, while fixed config assembly remains
+Provider/Application-owned.
+
+Allowed Profile controls:
+
+- Profile name;
+- API Key visibility, replacement, and removal;
+- Save, Cancel, and Delete;
+- Test Connection only when the descriptor declares a no-generation, no-cost
+  safe probe.
+
+Do not restore a generic editor for `ApiFormat`, endpoint collection,
+measurement, paths, auth mode, billing protocol, system instruction, wire model,
+request strategy, capability matrix, remote discovery, or model CRUD.
+
+### 4.4 Verify The Full Integration
+
+Provider coverage must prove descriptor/config validation, model inventory,
+request building, response parsing, error mapping, registry composition, and
+real async lifecycle behavior when applicable. Tests must be deterministic and
+must not call live APIs.
+
+Application coverage must prove sanitized projection, atomic Profile setup,
+secret cleanup, explicit `modelId` admission, and shared execution routing.
+
+UI coverage must prove:
+
+- `+ -> Provider Picker -> dedicated create page`;
+- Profile row -> matching edit page;
+- save/delete -> Provider list;
+- multiple Profiles;
+- field allowlist, busy/error states, key visibility, and long names;
+- narrow and wide viewport rendering;
+- Composer default selection and model switching.
+
+Full gate:
 
 ```bash
 pnpm --filter @imagen-ps/providers test
 pnpm --filter @imagen-ps/application test
+pnpm --filter @imagen-ps/app test:ui
+pnpm --filter @imagen-ps/app test:chrome
+pnpm --filter @imagen-ps/app test:uxp
+pnpm --filter @imagen-ps/app test:visual
+pnpm --filter @imagen-ps/app test:chrome-e2e -- --grep providers
+pnpm --filter @imagen-ps/app build:chrome
+pnpm --filter @imagen-ps/app build:uxp
+node packages/providers/scripts/check-image-model-catalog.mjs
+pnpm check:policy
 pnpm validate
 ```
 
-Add or extend coverage for:
-
-- provider descriptor contract
-- config schema normalization
-- request builder behavior
-- response parsing / normalization
-- model discovery, if supported
-- registry / builtin registration
-- application `apiFormat` mapping
-
-If the new protocol should participate in the existing catalog harness, also update:
-
-- [packages/providers/scripts/check-image-model-catalog.mjs](../../packages/providers/scripts/check-image-model-catalog.mjs)
-
-Prefer expanding stable suites and case banks over adding many narrow one-off test files. See:
-
-- [packages/providers/TESTING.md](../../packages/providers/TESTING.md)
-- [docs/TESTING.md](../TESTING.md)
+Do not drive Photoshop or UXP Developer Tool as part of this automated change.
+Real credential checks remain explicit opt-in release work.
 
 ## 5. Common Failure Modes
 
-- Treating a new model as “just another string” and forgetting output capability truth
-- Forgetting `requestStrategyId` compatibility with `ApiFormat`
-- Collapsing `configModelId`, `capabilityModelId`, and `wireModelId`
-- Adding a new provider implementation without extending `apiFormat` mapping
-- Adding a new protocol but forgetting `contract/config.ts` or `contract/request.ts` unions
-- Fixing provider boundary code but forgetting settings/path/billing UI branches
-- Guessing unknown upstream capability instead of marking it unknown and failing closed
+- Adding a model to a descriptor or UI instead of the Provider's `models.ts`.
+- Duplicating model, endpoint, path, auth, or billing constants across layers.
+- Treating a new relay as a user-editable endpoint for an existing Provider.
+- Adding a Provider slice without canonical `ApiFormat` registry mapping.
+- Letting a Profile page assemble wire config or bypass Application commands.
+- Showing Test Connection when validation would generate an image or incur cost.
+- Reintroducing remote discovery or model CRUD for a curated inventory.
+- Backfilling ready Profiles implicitly after a catalog release.
+- Moving Provider-specific schemas, codecs, polling, or error mapping into
+  `shared/` without a second identical consumer.
+- Adding Provider-specific request parsing to Application or Core.
+- Forgetting Composer explicit `modelId` selection after changing defaults.

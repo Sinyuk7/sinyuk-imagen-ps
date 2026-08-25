@@ -33,12 +33,6 @@ export interface ImageEndpointRequestOutput {
   readonly outputFormat?: 'png' | 'jpeg' | 'webp';
 }
 
-/** OpenAI Chat Completions image_config 已解析输出字段。 */
-export interface ChatImageRequestOutput {
-  readonly kind: 'chat-image';
-  readonly imageConfig?: Readonly<Record<string, unknown>>;
-}
-
 /** Gemini Generate Content 已解析输出字段。 */
 export interface GeminiGenerateContentRequestOutput {
   readonly kind: 'gemini-generate-content';
@@ -55,7 +49,6 @@ export interface GrsaiGenerateRequestOutput {
 /** Provider transport 可直接序列化的已解析输出字段。 */
 export type ProviderResolvedOutput =
   | ImageEndpointRequestOutput
-  | ChatImageRequestOutput
   | GeminiGenerateContentRequestOutput
   | GrsaiGenerateRequestOutput;
 

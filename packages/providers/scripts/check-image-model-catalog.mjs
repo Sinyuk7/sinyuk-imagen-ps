@@ -2,7 +2,7 @@ import {
   listLocalCatalogModels,
   resolveImageModelRule,
   validateImageModelCatalog,
-} from '../dist/contract/image-model-capability.js';
+} from '../dist/index.js';
 
 const errors = validateImageModelCatalog();
 
@@ -12,7 +12,7 @@ if (errors.length > 0) {
   }
   process.exitCode = 1;
 } else {
-  for (const providerId of ['image-endpoint', 'chat-image']) {
+  for (const providerId of ['grsai-generate', 'gemini-generate-content', 'image-endpoint']) {
     const models = listLocalCatalogModels(providerId);
     console.log(`${providerId}: ${models.map((model) => model.id).join(', ')}`);
     for (const model of models) {

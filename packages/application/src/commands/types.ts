@@ -239,25 +239,14 @@ export interface UserModelConfigRepository {
   deleteProfile(profileId: string): Promise<void>;
 }
 
-/** 新建 Profile Continue 的 application-owned 路由结果。 */
-export type ProviderProfileSetupOutcome =
-  | { readonly kind: 'ready'; readonly profile: ProviderProfile }
-  | {
-      readonly kind: 'model-configuration';
-      readonly profileId: string;
-      readonly apiFormat: ApiFormat;
-      readonly wireModelId: string;
-    }
-  | {
-      readonly kind: 'profile-models';
-      readonly profileId: string;
-      readonly apiFormat: ApiFormat;
-    };
+/** 固定 Provider 模型原子初始化完成后的唯一结果。 */
+export interface ProviderProfileSetupOutcome {
+  readonly kind: 'ready';
+  readonly profile: ProviderProfile;
+}
 
 export interface ContinueProviderProfileSetupInput {
   readonly profile: ProviderProfileInput;
-  /** endpoint import 的显式 wire model hint；没有 hint 时进入 Profile Models。 */
-  readonly wireModelId?: string;
 }
 
 export interface ProfileModelItem {

@@ -15,7 +15,6 @@ export type {
   AuthMode,
   CanonicalImageJobRequest,
   CanonicalMaskImage,
-  ChatImageProviderConfig,
   GeminiGenerateContentAuthMode,
   GeminiGenerateContentProviderConfig,
   GrsaiGenerateProviderConfig,
@@ -58,7 +57,6 @@ export type {
   ModelMatcher,
   ModelMatcherPattern,
   OfficialModelPreset,
-  OpenAiChatCompletionsPaths,
   OpenAiImagesPaths,
   NormalizedImageInputContext,
   NormalizedImageInputGeometry,
@@ -104,6 +102,7 @@ export type {
   ProviderInvokeMetadata,
   ProviderInvokeResult,
   ProviderInvokeUsage,
+  ProviderProfileTemplate,
   ProviderModelInfo,
   ProviderModelMatchKind,
   ProviderOperation,
@@ -116,8 +115,6 @@ export type {
   RatioResolutionGeometryCapability,
   RequestStrategy,
   RequestStrategyId,
-  ChatImageRequestCodec,
-  ChatImageRequestOutput,
   ImageEditCodec,
   ResolvedImageModelOutput,
   ResolvedImageModelRule,
@@ -172,24 +169,21 @@ export {
   imageEndpointConfigSchema,
   createImageEndpointProvider,
   imageEndpointDescriptor,
-} from './providers/image-endpoint/index.js';
-
-// Chat image provider
-export { chatImageConfigSchema, createChatImageProvider, chatImageDescriptor } from './providers/chat-image/index.js';
+} from './providers/openai-images/index.js';
 
 // Gemini Generate Content provider
 export {
   geminiGenerateContentConfigSchema,
   createGeminiGenerateContentProvider,
   geminiGenerateContentDescriptor,
-} from './providers/gemini-generate-content/index.js';
+} from './providers/gemini/index.js';
 
 // GRSAI Generate provider
 export {
   grsaiGenerateConfigSchema,
   createGrsaiGenerateProvider,
   grsaiGenerateDescriptor,
-} from './providers/grsai-generate/index.js';
+} from './providers/grsai/index.js';
 
 // Bridge adapter
 export type {

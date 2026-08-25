@@ -110,13 +110,6 @@ export interface AppMessages {
     readonly outputFormat: string;
     readonly outputSizeUnsupportedForModel: string;
     readonly outputSizeAutoChanged: (from: string, to: string) => string;
-    readonly billingSummary: string;
-    readonly billingUnknown: string;
-    readonly billingNotAvailable: string;
-    readonly billingCost: string;
-    readonly billingObservedChange: string;
-    readonly billingLastCost: string;
-    readonly billingLastChange: string;
     readonly promptOptimizePlaceholder: string;
     readonly layerKindSmartObject: string;
     readonly layerKindPixel: string;
@@ -228,163 +221,25 @@ export interface AppMessages {
     readonly loading: string;
     readonly noProviderProfile: string;
     readonly config: string;
-    readonly billing: string;
-    readonly billingMode: string;
-    readonly billingModeHint: string;
-    readonly billingUseCurrentApiKey: string;
-    readonly billingUseBillingToken: string;
-    readonly billingDisabled: string;
-    readonly billingRefresh: string;
-    readonly billingRefreshing: string;
-    readonly billingExpand: string;
-    readonly billingCollapse: string;
-    readonly billingDetails: string;
-    readonly billingBalanceLabel: string;
-    readonly billingCheckedAt: string;
-    readonly billingErrorStale: string;
-    readonly billingPath: string;
-    readonly billingPathHint: string;
-    readonly billingUserId: string;
-    readonly billingUserIdHint: string;
-    readonly billingAccessToken: string;
-    readonly billingAccessTokenHint: string;
-    readonly billingAccessTokenSavedHint: string;
-    readonly billingNotSupported: string;
-    readonly billingValidationPath: string;
-    readonly billingValidationApiKey: string;
-    readonly billingValidationUserId: string;
-    readonly billingValidationAccessToken: string;
     readonly alias: string;
-    readonly baseUrlHint: string;
-    readonly requestAddresses: string;
-    readonly endpointCurrent: string;
-    readonly endpointEnabled: string;
-    readonly addEndpoint: string;
-    readonly autoSelect: string;
-    readonly speedTest: string;
-    readonly testingSpeed: string;
-    readonly endpointMeasurementUnsupported: string;
-    readonly providerConnectionUnsupported: string;
-    readonly autoSelectManaged: string;
-    readonly allEndpointsUnavailable: string;
-    readonly endpointFailed: string;
-    readonly endpointTimeout: string;
-    readonly endpointDns: string;
-    readonly selectedModel: string;
-    readonly chooseFromList: string;
-    readonly modelSelectionEmpty: string;
-    readonly modelSelectionCreateFirst: string;
-    readonly chooseFromListHint: string;
-    readonly modelListEmpty: string;
-    readonly modelListFailed: string;
-    readonly modelSavedUndiscovered: string;
-    readonly modelSelectableOnly: string;
-    readonly connectionInfo: string;
-    readonly noProfileSelected: string;
-    readonly savedSecretPlaceholder: string;
     readonly apiKeyReplacePlaceholder: string;
-    readonly accessTokenReplacePlaceholder: string;
-    readonly replaceSecret: string;
     readonly clearField: string;
     readonly removeSecret: string;
     readonly secretRemovalPending: string;
-    readonly changesNotTested: string;
-    readonly apiProfile: string;
-    readonly apiFormat: string;
-    readonly apiFormatAuto: string;
-    readonly apiFormatRequired: string;
-    readonly apiFormatNeedsPath: string;
-    readonly apiFormatUnsupported: string;
-    readonly apiFormatDetected: (label: string) => string;
-    readonly apiFormatIncomplete: (label: string) => string;
-    readonly apiFormatConflict: (current: string, next: string) => string;
-    readonly endpointOrPath: string;
-    readonly endpointOrPathHint: string;
-    readonly advancedSettings: string;
-    readonly generationPath: string;
-    readonly submitPath: string;
-    readonly resultPath: string;
-    readonly editPath: string;
-    readonly invokePath: string;
-    readonly invokePathTemplate: string;
-    readonly authMode: string;
-    readonly authModeFixedBearer: string;
     readonly duplicateDisplayName: (name: string) => string;
-    readonly duplicateEndpointUrl: string;
-    readonly saveProvider: string;
-    readonly savedButton: string;
     readonly showApiKey: string;
     readonly hideApiKey: string;
-    readonly editApiKey: string;
-    readonly refreshModels: string;
-    readonly refreshingModels: string;
     readonly testConnection: string;
     readonly testingConnection: string;
-    readonly testNotTested: string;
-    readonly testResultPrefix: string;
     readonly saved: string;
-    readonly noChangesToSave: string;
     readonly profileCreated: (name: string) => string;
-    readonly testSuccess: string;
-    readonly speedTestSuccess: string;
+    readonly profileSaved: (name: string) => string;
+    readonly profileDeleted: string;
+    readonly deleteProfileConfirmation: string;
+    readonly savingProvider: string;
     readonly connectionFailed: string;
-    readonly configValidNoModels: string;
-    readonly configValidProviderNoModels: string;
     readonly globalGeneration: string;
     readonly promptSettings: string;
-    readonly modelConfiguration: string;
-    readonly modelConfigurationSummary: string;
-    readonly modelConfigurationEmpty: string;
-    readonly modelConfigurationHint: string;
-    readonly modelConfigurationSaveHint: string;
-    readonly modelConfigurationLastModelHint: string;
-    readonly addNewModel: string;
-    readonly discoveredModels: string;
-    readonly discoverySuggestion: string;
-    readonly createModelConfiguration: string;
-    readonly editModelConfiguration: string;
-    readonly modelConfigPreset: string;
-    readonly modelConfigApiFormat: string;
-    readonly modelConfigModelId: string;
-    readonly modelConfigWireModelId: string;
-    readonly modelConfigWireModelIdHint: string;
-    readonly modelConfigWireModelMeta: (modelId: string) => string;
-    readonly modelConfigRequestStrategy: string;
-    readonly modelConfigManagedByPreset: string;
-    readonly modelConfigMatrixCells: string;
-    readonly modelConfigOutputCapabilities: string;
-    readonly modelConfigSharedScope: string;
-    readonly modelConfigOutputFormat: string;
-    readonly modelConfigAspectRatio: string;
-    readonly modelConfigOutputSize: string;
-    readonly modelConfigOperationTextToImage: string;
-    readonly modelConfigOperationEditImage: string;
-    readonly modelConfigRatioAuto: string;
-    readonly modelConfigRatioSource: string;
-    readonly modelConfigNormalizationWarning: string;
-    readonly modelConfigSparseCombinationHint: string;
-    readonly modelConfigValidationOutputFormat: string;
-    readonly modelConfigValidationAspectRatio: string;
-    readonly modelConfigValidationResolution: string;
-    readonly modelConfigModuleSummary: (formats: number, ratios: number, resolutions: number) => string;
-    readonly modelConfigSizeFormatSummary: (formats: number, sizes: number) => string;
-    readonly modelConfigValidCombinations: (count: number) => string;
-    readonly modelConfigSelection: string;
-    readonly modelConfigProfileList: string;
-    readonly modelConfigUnconfigured: string;
-    readonly modelConfigConfigured: string;
-    readonly modelConfigCatalogSource: string;
-    readonly modelConfigUserSource: string;
-    readonly modelConfigSelectAtLeastOne: string;
-    readonly modelConfigValidationApiFormat: string;
-    readonly modelConfigValidationModelId: string;
-    readonly modelConfigValidationPreset: string;
-    readonly modelConfigValidationStrategy: string;
-    readonly modelConfigValidationMatrixCells: string;
-    readonly modelConfigConfigureModel: string;
-    readonly modelConfigEditModel: string;
-    readonly modelConfigSelectedTag: string;
-    readonly modelConfigSelectedEmpty: string;
     readonly promptOptimization: string;
     readonly promptSettingsSummary: string;
     readonly optimizerProfile: string;
@@ -392,17 +247,12 @@ export interface AppMessages {
     readonly optimizationTemplate: string;
     readonly templatePlaceholder: string;
     readonly templateInputHint: string;
-    readonly templateValid: string;
-    readonly templateInvalidReason: string;
-    readonly optimizationActive: string;
     readonly optimizationNoProfile: string;
     readonly optimizationInvalidTemplate: string;
     readonly optimizationMissingProfile: string;
     readonly promptPresets: string;
     readonly promptPresetsLoading: string;
     readonly promptPresetsEmpty: string;
-    readonly selectedPreset: string;
-    readonly presetNone: string;
     readonly addPreset: string;
     readonly editPreset: string;
     readonly presetName: string;
@@ -413,20 +263,15 @@ export interface AppMessages {
     readonly presetContent: string;
     readonly presetContentValid: string;
     readonly presetReplaceInvalid: string;
-    readonly selectProfileToEnable: string;
-    readonly systemInstructions: string;
-    readonly systemInstructionsHint: string;
     readonly outputGroup: string;
     readonly inputGroup: string;
     readonly outputSize: string;
-    readonly outputSizeRequiresMainComposerContext: string;
     readonly outputFormat: string;
     readonly aspectRatio: string;
     readonly providerInputSizePreset: string;
     readonly providerInputSizePresetHint: string;
     readonly useInputSizeNormalizedHint: string;
     readonly storageGroup: string;
-    readonly storageGroupHint: string;
     readonly logPath: string;
     readonly generatedImagePath: string;
     readonly pathInfoUnavailable: string;
@@ -450,7 +295,6 @@ export interface AppMessages {
     readonly waitForRunningTask: string;
     readonly historyNotInCurrentSession: string;
     readonly errorDetailsCopied: string;
-    readonly billingRefreshFailed: string;
   };
   readonly conversation: {
     readonly jobFailed: string;
@@ -566,13 +410,6 @@ const EN_MESSAGES: AppMessages = {
     outputFormat: 'Format',
     outputSizeUnsupportedForModel: 'Unavailable for this model',
     outputSizeAutoChanged: (from, to) => `${from} is unavailable; switched to ${to}`,
-    billingSummary: 'Balance',
-    billingUnknown: 'Balance unavailable',
-    billingNotAvailable: 'N/A',
-    billingCost: 'Cost',
-    billingObservedChange: 'Observed balance change',
-    billingLastCost: 'Last exact cost',
-    billingLastChange: 'Last balance change',
     promptOptimizePlaceholder: 'Not available yet',
     layerKindSmartObject: 'Smart Object',
     layerKindPixel: 'Pixel',
@@ -695,163 +532,25 @@ const EN_MESSAGES: AppMessages = {
     loading: 'Loading…',
     noProviderProfile: 'No profiles (´･ω･`)',
     config: 'Configuration',
-    billing: 'Billing',
-    billingMode: 'Billing query',
-    billingModeHint: 'Balance query stays optional and separate from generation availability.',
-    billingUseCurrentApiKey: 'Use current API key',
-    billingUseBillingToken: 'Use billing token',
-    billingDisabled: 'Billing is not configured for this profile.',
-    billingRefresh: 'Refresh balance',
-    billingRefreshing: 'Refreshing balance…',
-    billingExpand: 'Expand',
-    billingCollapse: 'Collapse',
-    billingDetails: 'Billing details',
-    billingBalanceLabel: 'Current balance',
-    billingCheckedAt: 'Last checked',
-    billingErrorStale: 'Latest refresh failed. Showing the last available balance.',
-    billingPath: 'Billing path',
-    billingPathHint: 'Use a root-relative path, for example /client/openapi/getCredits.',
-    billingUserId: 'User ID (optional)',
-    billingUserIdHint: 'Only needed by protocols that require a user identifier.',
-    billingAccessToken: 'Billing token',
-    billingAccessTokenHint: 'Stored securely and used only to query the balance.',
-    billingAccessTokenSavedHint: 'Used only to query balance. Saved securely.',
-    billingNotSupported: 'This provider preset does not expose a billing adapter yet.',
-    billingValidationPath: 'Billing path is required and must start with "/".',
-    billingValidationApiKey: 'Current API key mode requires a saved API key.',
-    billingValidationUserId: 'Billing user ID is invalid.',
-    billingValidationAccessToken: 'A billing token is required for token mode.',
     alias: 'Alias',
-    baseUrlHint: 'Enter API base URL, e.g. https://example.com/v1',
-    requestAddresses: 'Endpoints',
-    endpointCurrent: 'Current',
-    endpointEnabled: 'Enabled',
-    addEndpoint: 'Add endpoint',
-    autoSelect: 'Auto-select',
-    speedTest: 'Test endpoint',
-    testingSpeed: 'Testing endpoint…',
-    endpointMeasurementUnsupported: 'Endpoint test unavailable for this provider.',
-    providerConnectionUnsupported: 'Connection test unavailable for this provider.',
-    autoSelectManaged: 'Endpoint selected automatically.',
-    allEndpointsUnavailable: 'No endpoints are available. Check your network or add another endpoint.',
-    endpointFailed: 'Failed',
-    endpointTimeout: 'Timeout',
-    endpointDns: 'DNS error',
-    selectedModel: 'Selected model',
-    chooseFromList: 'Choose from list',
-    modelSelectionEmpty: 'No saved model configurations are available for this profile yet.',
-    modelSelectionCreateFirst: 'Create a model config first, then return to select it.',
-    chooseFromListHint: 'Switch back to the discovered model list.',
-    modelListEmpty: 'No models (´･ω･`)',
-    modelListFailed: 'Couldn’t load models. Retry to fetch the supported list.',
-    modelSavedUndiscovered: 'Saved model not found',
-    modelSelectableOnly: 'Only supported models in the current list can be used.',
-    connectionInfo: 'Connection info',
-    noProfileSelected: 'No provider profile selected',
-    savedSecretPlaceholder: 'Saved securely',
     apiKeyReplacePlaceholder: 'Enter a new API Key to replace it',
-    accessTokenReplacePlaceholder: 'Enter a new Access Token to replace it',
-    replaceSecret: 'Replace',
     clearField: 'Clear',
     removeSecret: 'Remove',
     secretRemovalPending: 'Will be removed after saving.',
-    changesNotTested: 'Untested changes',
-    apiProfile: 'API Profile',
-    apiFormat: 'API Format',
-    apiFormatAuto: 'Auto Detect',
-    apiFormatRequired: 'Check whether the endpoint URL is correct or complete.',
-    apiFormatNeedsPath: 'Paste a supported URL or path.',
-    apiFormatUnsupported: 'Unsupported API format. Use OpenAI Images, OpenAI Chat Completions, Gemini GenerateContent, or GRSAI Generate.',
-    apiFormatDetected: (label) => `Detected ${label}.`,
-    apiFormatIncomplete: (label) => `${label} detected, but path settings are incomplete.`,
-    apiFormatConflict: (current, next) => `This URL looks like ${next}, not ${current}.`,
-    endpointOrPath: 'Endpoint URL or Path',
-    endpointOrPathHint: 'URL splits into base URL and path.',
-    advancedSettings: 'Advanced settings',
-    generationPath: 'Generation Path',
-    submitPath: 'Submit Path',
-    resultPath: 'Result Path',
-    editPath: 'Edit Path',
-    invokePath: 'Invoke Path',
-    invokePathTemplate: 'Invoke Path Template',
-    authMode: 'Auth mode',
-    authModeFixedBearer: 'Auth mode: Bearer',
     duplicateDisplayName: (name) => `A Provider named "${name}" already exists.`,
-    duplicateEndpointUrl: 'This endpoint already exists in this profile.',
-    saveProvider: 'Save',
-    savedButton: 'Saved',
     showApiKey: 'Show API Key',
     hideApiKey: 'Hide API Key',
-    editApiKey: 'Edit API Key',
-    refreshModels: 'Refresh models',
-    refreshingModels: 'Refreshing…',
     testConnection: 'Test connection',
     testingConnection: 'Testing…',
-    testNotTested: 'Not tested',
-    testResultPrefix: 'Last test',
     saved: 'Saved',
-    noChangesToSave: 'No changes to save.',
     profileCreated: (name) => `Profile "${name}" created.`,
-    testSuccess: 'Connected ( •̀ ω •́ )✧',
-    speedTestSuccess: 'Endpoint response time checked',
+    profileSaved: (name) => `Profile "${name}" saved.`,
+    profileDeleted: 'Profile deleted.',
+    deleteProfileConfirmation: 'Delete this profile and its saved API key?',
+    savingProvider: 'Saving…',
     connectionFailed: 'Connection failed',
-    configValidNoModels: 'Config valid; no models.',
-    configValidProviderNoModels: 'Config valid; no models.',
     globalGeneration: 'Generation settings',
     promptSettings: 'Prompt Settings',
-    modelConfiguration: 'Model Configuration',
-    modelConfigurationSummary: 'Reusable model mappings',
-    modelConfigurationEmpty: 'No model configs (´･ω･`)',
-    modelConfigurationHint: 'Create reusable model configs.',
-    modelConfigurationSaveHint: 'Saving does not apply it.',
-    modelConfigurationLastModelHint: 'Add another model before removing this one.',
-    addNewModel: 'Add new model',
-    discoveredModels: 'Discovered suggestions',
-    discoverySuggestion: 'Suggestion; save before use',
-    createModelConfiguration: 'Create model config',
-    editModelConfiguration: 'Edit model config',
-    modelConfigPreset: 'Preset',
-    modelConfigApiFormat: 'API format',
-    modelConfigModelId: 'Model ID',
-    modelConfigWireModelId: 'Request model ID',
-    modelConfigWireModelIdHint: 'Only changes model sent to API. Does not change capability configuration.',
-    modelConfigWireModelMeta: (modelId) => `Request model: ${modelId}`,
-    modelConfigRequestStrategy: 'Request strategy',
-    modelConfigManagedByPreset: 'Managed by preset.',
-    modelConfigMatrixCells: 'Output options',
-    modelConfigOutputCapabilities: 'Output capabilities',
-    modelConfigSharedScope: 'Text + Edit',
-    modelConfigOutputFormat: 'Output format',
-    modelConfigAspectRatio: 'Aspect ratio',
-    modelConfigOutputSize: 'Output size',
-    modelConfigOperationTextToImage: 'Text to Image',
-    modelConfigOperationEditImage: 'Edit Image',
-    modelConfigRatioAuto: 'Auto',
-    modelConfigRatioSource: 'Source',
-    modelConfigNormalizationWarning: 'Saving updates current output rules.',
-    modelConfigSparseCombinationHint: 'Some options cannot be combined.',
-    modelConfigValidationOutputFormat: 'Keep at least one output format.',
-    modelConfigValidationAspectRatio: 'Keep at least one aspect ratio.',
-    modelConfigValidationResolution: 'Keep at least one resolution.',
-    modelConfigModuleSummary: (formats, ratios, resolutions) => `${formats} formats · ${ratios} ratios · ${resolutions} resolutions`,
-    modelConfigSizeFormatSummary: (formats, sizes) => `${formats} formats · ${sizes} sizes`,
-    modelConfigValidCombinations: (count) => `${count} valid combinations`,
-    modelConfigSelection: 'Profile selection',
-    modelConfigProfileList: 'Profile models',
-    modelConfigUnconfigured: 'Needs configuration before selection.',
-    modelConfigConfigured: 'Saved model config.',
-    modelConfigCatalogSource: 'Catalog preset',
-    modelConfigUserSource: 'Saved model configuration',
-    modelConfigSelectAtLeastOne: 'Select at least one value.',
-    modelConfigValidationApiFormat: 'Choose an API format.',
-    modelConfigValidationModelId: 'Model ID is required.',
-    modelConfigValidationPreset: 'Choose an official preset.',
-    modelConfigValidationStrategy: 'Choose a valid request strategy.',
-    modelConfigValidationMatrixCells: 'Keep at least one output option for each operation type.',
-    modelConfigConfigureModel: 'Configure model',
-    modelConfigEditModel: 'Edit config',
-    modelConfigSelectedTag: 'Selected',
-    modelConfigSelectedEmpty: 'No saved model configurations in this profile yet.',
     promptOptimization: 'Prompt Optimization',
     promptSettingsSummary: 'Templates and presets',
     optimizerProfile: 'Profile',
@@ -859,17 +558,12 @@ const EN_MESSAGES: AppMessages = {
     optimizationTemplate: 'Template',
     templatePlaceholder: 'Write instructions and include {prompt}',
     templateInputHint: 'Instructions + {prompt} placeholder',
-    templateValid: 'Template valid ( •̀ ω •́ )✧',
-    templateInvalidReason: 'Keep exactly one {prompt}.',
-    optimizationActive: 'Active',
     optimizationNoProfile: 'Select a profile to enable.',
     optimizationInvalidTemplate: 'Fix the placeholder.',
     optimizationMissingProfile: 'Saved profile is missing.',
     promptPresets: 'Prompt Presets',
     promptPresetsLoading: 'Loading presets...',
     promptPresetsEmpty: 'No prompt presets yet.',
-    selectedPreset: 'Selected preset',
-    presetNone: 'None',
     addPreset: 'Add preset',
     editPreset: 'Edit preset',
     presetName: 'Name',
@@ -880,20 +574,15 @@ const EN_MESSAGES: AppMessages = {
     presetContent: 'Content',
     presetContentValid: 'Content valid ( •̀ ω •́ )✧',
     presetReplaceInvalid: 'Replace mode needs exactly one {prompt}.',
-    selectProfileToEnable: 'Select a profile to enable.',
-    systemInstructions: 'System instructions',
-    systemInstructionsHint: 'Optional tone and style instructions for the model.',
     outputGroup: 'Parameters',
     inputGroup: 'Input',
     outputSize: 'Output size',
-    outputSizeRequiresMainComposerContext: 'Change output size in the main composer.',
     outputFormat: 'Output format',
     aspectRatio: 'Aspect ratio',
     providerInputSizePreset: 'Input image size',
     providerInputSizePresetHint: 'Input images resize locally before sending.',
     useInputSizeNormalizedHint: 'Use Input Size follows the first input.',
     storageGroup: 'Storage',
-    storageGroupHint: 'Runtime paths and image output.',
     logPath: 'Current log path',
     generatedImagePath: 'Generated image path',
     pathInfoUnavailable: 'Path information is unavailable in this environment.',
@@ -917,7 +606,6 @@ const EN_MESSAGES: AppMessages = {
     waitForRunningTask: 'Wait for the running task to finish',
     historyNotInCurrentSession: 'This task is not in the current session',
     errorDetailsCopied: 'Error details copied',
-    billingRefreshFailed: 'Balance refresh failed',
   },
   conversation: {
     jobFailed: 'Task failed.',
@@ -1033,13 +721,6 @@ const ZH_CN_MESSAGES: AppMessages = {
     outputFormat: '格式',
     outputSizeUnsupportedForModel: '不支持此尺寸',
     outputSizeAutoChanged: (from, to) => `${from} 不可用，已切换为 ${to}`,
-    billingSummary: '余额',
-    billingUnknown: '余额不可用',
-    billingNotAvailable: 'N/A',
-    billingCost: '费用',
-    billingObservedChange: '余额变化',
-    billingLastCost: '上次费用',
-    billingLastChange: '上次变化',
     promptOptimizePlaceholder: '暂未开放',
     layerKindSmartObject: '智能对象',
     layerKindPixel: '像素图层',
@@ -1162,163 +843,25 @@ const ZH_CN_MESSAGES: AppMessages = {
     loading: '加载中…',
     noProviderProfile: '暂无 Provider 配置 (´･ω･`)',
     config: '配置',
-    billing: '余额与计费',
-    billingMode: '余额查询',
-    billingModeHint: '余额查询不影响生成。',
-    billingUseCurrentApiKey: '使用当前 API Key',
-    billingUseBillingToken: '使用独立 Token',
-    billingDisabled: '未启用余额查询。',
-    billingRefresh: '刷新余额',
-    billingRefreshing: '刷新中…',
-    billingExpand: '展开',
-    billingCollapse: '收起',
-    billingDetails: '计费详情',
-    billingBalanceLabel: '当前余额',
-    billingCheckedAt: '上次检查',
-    billingErrorStale: '刷新失败，已显示上次可用余额。',
-    billingPath: '查询路径',
-    billingPathHint: '填写根路径，例如 /client/openapi/getCredits。',
-    billingUserId: '用户 ID（可选）',
-    billingUserIdHint: '仅在某些需要用户标识的协议下使用。',
-    billingAccessToken: '计费 Token',
-    billingAccessTokenHint: '仅用于查询余额。',
-    billingAccessTokenSavedHint: '仅用于查询余额，已安全保存。',
-    billingNotSupported: '暂不支持余额查询。',
-    billingValidationPath: '查询路径必填，且必须以 / 开头。',
-    billingValidationApiKey: '当前 API Key 模式需要已保存或当前填写的 API Key。',
-    billingValidationUserId: '用户 ID 无效。',
-    billingValidationAccessToken: 'Token 模式需要计费 Token。',
     alias: '别名',
-    baseUrlHint: '填写 API 基础地址，如 https://example.com/v1',
-    requestAddresses: '端点',
-    endpointCurrent: '当前使用',
-    endpointEnabled: '已启用',
-    addEndpoint: '添加端点',
-    autoSelect: '自动选择',
-    speedTest: '测试端点',
-    testingSpeed: '测试端点中…',
-    endpointMeasurementUnsupported: '当前 Provider 不支持端点测试。',
-    providerConnectionUnsupported: '当前 Provider 不支持连接测试。',
-    autoSelectManaged: '端点自动选择。',
-    allEndpointsUnavailable: '暂无可用端点。',
-    endpointFailed: '失败',
-    endpointTimeout: '超时',
-    endpointDns: 'DNS 解析失败',
-    selectedModel: '当前模型',
-    chooseFromList: '从列表选择',
-    modelSelectionEmpty: '暂无可用模型配置',
-    modelSelectionCreateFirst: '请先创建模型配置',
-    chooseFromListHint: '切回模型列表。',
-    modelListEmpty: '暂无模型 (´･ω･`)',
-    modelListFailed: '模型加载失败，请重试。',
-    modelSavedUndiscovered: '未发现已保存的模型',
-    modelSelectableOnly: '仅可使用列表模型。',
-    connectionInfo: '连接信息',
-    noProfileSelected: '未选择 Provider 配置',
-    savedSecretPlaceholder: '已安全保存',
     apiKeyReplacePlaceholder: '输入新的 API Key 以替换',
-    accessTokenReplacePlaceholder: '输入新的 Access Token 以替换',
-    replaceSecret: '替换',
     clearField: '清空',
     removeSecret: '移除',
     secretRemovalPending: '保存后移除。',
-    changesNotTested: '修改尚未测试',
-    apiProfile: 'API 配置',
-    apiFormat: 'API 格式',
-    apiFormatAuto: '自动检测',
-    apiFormatRequired: '请检查端点 URL 是否正确或完整。',
-    apiFormatNeedsPath: '请填写支持的 URL 或路径。',
-    apiFormatUnsupported: '暂不支持此 API 格式。',
-    apiFormatDetected: (label) => `已检测到 ${label}。`,
-    apiFormatIncomplete: (label) => `已识别为 ${label}，但路径配置不完整。`,
-    apiFormatConflict: (current, next) => `此 URL 像 ${next}，非 ${current}。`,
-    endpointOrPath: '端点 URL 或路径',
-    endpointOrPathHint: 'URL 会自动拆分地址和路径。',
-    advancedSettings: '高级设置',
-    generationPath: '生成路径',
-    submitPath: '提交路径',
-    resultPath: '结果路径',
-    editPath: '编辑路径',
-    invokePath: '调用路径',
-    invokePathTemplate: '调用路径模板',
-    authMode: '认证模式',
-    authModeFixedBearer: '认证模式：Bearer',
     duplicateDisplayName: (name) => `已存在名为“${name}”的 Provider。`,
-    duplicateEndpointUrl: '此端点已存在。',
-    saveProvider: '保存',
-    savedButton: '已保存',
     showApiKey: '显示 API Key',
     hideApiKey: '隐藏 API Key',
-    editApiKey: '编辑 API Key',
-    refreshModels: '刷新模型',
-    refreshingModels: '刷新中…',
     testConnection: '测试连接',
     testingConnection: '测试中…',
-    testNotTested: '未测试',
-    testResultPrefix: '上次测试',
     saved: '已保存',
-    noChangesToSave: '没有需要保存的更改。',
     profileCreated: (name) => `Profile“${name}”已创建。`,
-    testSuccess: '连接成功 ( •̀ ω •́ )✧',
-    speedTestSuccess: '响应时间已检查',
+    profileSaved: (name) => `Profile“${name}”已保存。`,
+    profileDeleted: 'Profile 已删除。',
+    deleteProfileConfirmation: '删除此 Profile 及其保存的 API Key？',
+    savingProvider: '保存中…',
     connectionFailed: '连接失败',
-    configValidNoModels: '配置有效，无模型',
-    configValidProviderNoModels: '配置有效，无模型',
     globalGeneration: '生成设置',
     promptSettings: '提示词设置',
-    modelConfiguration: '模型配置',
-    modelConfigurationSummary: '复用模型映射',
-    modelConfigurationEmpty: '暂无模型配置 (´･ω･`)',
-    modelConfigurationHint: '创建可复用模型配置。',
-    modelConfigurationSaveHint: '保存后不会自动应用。',
-    modelConfigurationLastModelHint: '请先添加另一个模型，再删除当前模型。',
-    addNewModel: '添加新模型',
-    discoveredModels: '发现建议',
-    discoverySuggestion: '建议项，保存后才能使用',
-    createModelConfiguration: '新建模型配置',
-    editModelConfiguration: '编辑模型配置',
-    modelConfigPreset: '预设',
-    modelConfigApiFormat: 'API 格式',
-    modelConfigModelId: '模型 ID',
-    modelConfigWireModelId: '请求模型 ID',
-    modelConfigWireModelIdHint: '仅修改发送给接口的模型，不改变能力配置。',
-    modelConfigWireModelMeta: (modelId) => `请求模型：${modelId}`,
-    modelConfigRequestStrategy: '请求策略',
-    modelConfigManagedByPreset: '由预设管理',
-    modelConfigMatrixCells: '输出选项',
-    modelConfigOutputCapabilities: '输出能力',
-    modelConfigSharedScope: '文生图 + 编辑',
-    modelConfigOutputFormat: '输出格式',
-    modelConfigAspectRatio: '宽高比',
-    modelConfigOutputSize: '输出尺寸',
-    modelConfigOperationTextToImage: '文生图',
-    modelConfigOperationEditImage: '编辑图片',
-    modelConfigRatioAuto: '自动',
-    modelConfigRatioSource: '跟随输入图',
-    modelConfigNormalizationWarning: '保存后更新为当前输出规则。',
-    modelConfigSparseCombinationHint: '部分选项无法组合使用。',
-    modelConfigValidationOutputFormat: '至少保留一种输出格式。',
-    modelConfigValidationAspectRatio: '至少保留一种宽高比。',
-    modelConfigValidationResolution: '至少保留一种分辨率。',
-    modelConfigModuleSummary: (formats, ratios, resolutions) => `${formats} 格式 · ${ratios} 比例 · ${resolutions} 尺寸`,
-    modelConfigSizeFormatSummary: (formats, sizes) => `${formats} 格式 · ${sizes} 尺寸`,
-    modelConfigValidCombinations: (count) => `${count} 个有效组合`,
-    modelConfigSelection: '配置选择',
-    modelConfigProfileList: '配置模型',
-    modelConfigUnconfigured: '完成配置后即可选择。',
-    modelConfigConfigured: '已保存模型配置',
-    modelConfigCatalogSource: '内置预设',
-    modelConfigUserSource: '已保存模型配置',
-    modelConfigSelectAtLeastOne: '至少选择一项。',
-    modelConfigValidationApiFormat: '请选择 API 格式。',
-    modelConfigValidationModelId: '模型 ID 不能为空。',
-    modelConfigValidationPreset: '请选择官方预设。',
-    modelConfigValidationStrategy: '请选择有效的请求策略。',
-    modelConfigValidationMatrixCells: '每种操作类型至少保留一个输出选项。',
-    modelConfigConfigureModel: '配置模型',
-    modelConfigEditModel: '编辑配置',
-    modelConfigSelectedTag: '已选中',
-    modelConfigSelectedEmpty: '暂无已选模型配置',
     promptOptimization: '提示词优化',
     promptSettingsSummary: '模板与预设',
     optimizerProfile: 'Provider 配置',
@@ -1326,17 +869,12 @@ const ZH_CN_MESSAGES: AppMessages = {
     optimizationTemplate: '模板',
     templatePlaceholder: '输入提示词，并保留 {prompt} 占位符',
     templateInputHint: '提示词 + {prompt} 占位符',
-    templateValid: '模板有效 ( •̀ ω •́ )✧',
-    templateInvalidReason: '仅保留一个 {prompt}。',
-    optimizationActive: '已启用',
     optimizationNoProfile: '选择 Provider 配置后启用。',
     optimizationInvalidTemplate: '请修正占位符。',
     optimizationMissingProfile: '已保存配置不存在。',
     promptPresets: '提示词预设',
     promptPresetsLoading: '正在加载预设...',
     promptPresetsEmpty: '暂无提示词预设。',
-    selectedPreset: '当前预设',
-    presetNone: '无',
     addPreset: '添加预设',
     editPreset: '编辑预设',
     presetName: '名称',
@@ -1347,20 +885,15 @@ const ZH_CN_MESSAGES: AppMessages = {
     presetContent: '内容',
     presetContentValid: '内容有效 ( •̀ ω •́ )✧',
     presetReplaceInvalid: '替换模式仅需一个 {prompt}。',
-    selectProfileToEnable: '选择 Provider 配置后启用。',
-    systemInstructions: '系统指令',
-    systemInstructionsHint: '可选语气与风格指令。',
     outputGroup: '参数配置',
     inputGroup: '输入',
     outputSize: '输出尺寸',
-    outputSizeRequiresMainComposerContext: '请在主编辑区修改。',
     outputFormat: '输出格式',
     aspectRatio: '宽高比',
     providerInputSizePreset: '输入图片尺寸',
     providerInputSizePresetHint: '发送前本地缩放输入图。',
     useInputSizeNormalizedHint: 'Use Input Size 会跟随首图。',
     storageGroup: '存储',
-    storageGroupHint: '运行与图片保存路径。',
     logPath: '当前日志路径',
     generatedImagePath: '生成图片路径',
     pathInfoUnavailable: '当前环境无法获取路径信息。',
@@ -1384,7 +917,6 @@ const ZH_CN_MESSAGES: AppMessages = {
     waitForRunningTask: '请等待任务完成',
     historyNotInCurrentSession: '任务属其他会话',
     errorDetailsCopied: '错误详情已复制',
-    billingRefreshFailed: '余额刷新失败',
   },
   conversation: {
     jobFailed: '任务失败。',

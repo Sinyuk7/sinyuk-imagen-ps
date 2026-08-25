@@ -2,9 +2,7 @@ import {
   createImagenSession,
   getJob,
   listProviders,
-  listOfficialModelConfigPresets,
-  saveProviderProfile,
-  saveUserModelConfig,
+  saveProviderSurfaceProfile,
   setAssetStore,
   setJobHistoryStore,
   setProviderProfileRepository,
@@ -13,7 +11,6 @@ import {
   setUserModelConfigRepository,
   TASK_RECORD_SCHEMA_VERSION,
   type Job,
-  type ProviderDescriptor,
 } from '@imagen-ps/application';
 import { createChromeHostPort, type ChromeFilePicker } from '../../adapters/chrome/chrome-host-port';
 import { createChromeIndexedDbStorage, type ChromeKeyValueBackend } from '../../adapters/chrome/indexed-db-storage';
@@ -62,19 +59,29 @@ export const CHROME_PROVIDER_CAPABILITY_MATRIX: readonly ChromeProviderCapabilit
     notes: 'Default tests must intercept fetch or use mock profiles; live browser calls are opt-in only.',
   },
   {
-    family: 'chat-image',
+    family: 'gemini-generate-content',
     bundleSupport: 'supported',
     corsExpectation: 'requires provider endpoint CORS approval for browser origins',
-    authHeaderBehavior: 'Authorization-like headers are possible but expose user credentials to the browser runtime',
+    authHeaderBehavior: 'x-goog-api-key is browser-buildable but exposes user credentials to the browser runtime',
     streamingSupport: 'not-used',
-    imageInputSupport: 'URL and base64 image inputs are browser-buildable; fileId depends on provider-side upload policy',
+    imageInputSupport: 'GenerateContent JSON image parts are browser-buildable',
     directBrowserSupport: 'conditional',
     notes: 'Default tests must intercept fetch or use mock profiles; live browser calls are opt-in only.',
   },
+  {
+    family: 'grsai-generate',
+    bundleSupport: 'supported',
+    corsExpectation: 'requires GRSAI endpoint CORS approval for browser origins',
+    authHeaderBehavior: 'Bearer headers are browser-buildable but expose user credentials to the browser runtime',
+    streamingSupport: 'not-used',
+    imageInputSupport: 'submit and result polling payloads are browser-buildable',
+    directBrowserSupport: 'conditional',
+    notes: 'Async submit/poll stays behind the shared Provider lifecycle.',
+  },
 ];
 
-function providerIds(providers: readonly ProviderDescriptor[]): readonly string[] {
-  return providers.map((provider) => provider.id).sort();
+function providerIds(providers: ReturnType<typeof listProviders>): readonly string[] {
+  return providers.map((provider) => provider.identity.implementationId).sort();
 }
 
 const CHROME_FEASIBILITY_RESULT_PNG_BASE64 = 'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR4nGNgYGBgAAAABQABpfZFQAAAAABJRU5ErkJggg==';
@@ -86,7 +93,7 @@ function requestUrl(input: RequestInfo | URL): string {
 function createChromeFeasibilityFetch(originalFetch: typeof fetch): typeof fetch {
   return async (input, init) => {
     const url = new URL(requestUrl(input));
-    if (url.hostname === 'mock.local') {
+    if (url.hostname === 'api.openai.com') {
       return new Response(JSON.stringify({
         data: [{ b64_json: CHROME_FEASIBILITY_RESULT_PNG_BASE64 }],
       }), {
@@ -121,47 +128,14 @@ export async function runChromeFeasibilityRuntime(options?: {
   setUserModelConfigRepository(storage.userModelConfigs);
 
   const providers = listProviders();
-  const profile = await saveProviderProfile({
+  const profile = await saveProviderSurfaceProfile({
+    implementationId: 'image-endpoint',
     profileId: 'chrome-feasibility-mock',
-    apiFormat: 'openai-images',
     displayName: 'Chrome Feasibility Mock',
-    config: {
-      apiFormat: 'openai-images',
-      displayName: 'Chrome Feasibility Mock',
-      connection: {
-        selectionMode: 'manual',
-        selectedEndpointId: 'primary',
-        endpoints: [{ id: 'primary', url: 'https://mock.local', enabled: true }],
-      },
-      paths: { generation: '/images/generations', edit: '/images/edits' },
-      defaultModel: 'gpt-image-2',
-    },
-    secretValues: {
-      apiKey: 'mock-key',
-    },
+    apiKey: 'mock-key',
   });
   if (!profile.ok) {
     throw new Error(profile.error.message);
-  }
-  const presets = await listOfficialModelConfigPresets('openai-images');
-  if (!presets.ok) {
-    throw new Error(presets.error.message);
-  }
-  const preset = presets.value.find((item) => item.modelId === 'gpt-image-2');
-  if (!preset) {
-    throw new Error('Missing gpt-image-2 preset.');
-  }
-  const config = await saveUserModelConfig({
-    profileId: profile.value.profileId,
-    apiFormat: profile.value.apiFormat,
-    modelId: 'gpt-image-2',
-    baseModelId: preset.modelId,
-    wireModelId: 'gpt-image-2',
-    requestStrategyId: preset.requestStrategyId,
-    outputExposure: preset.outputExposure,
-  });
-  if (!config.ok) {
-    throw new Error(config.error.message);
   }
   const originalFetch = globalThis.fetch;
   globalThis.fetch = createChromeFeasibilityFetch(originalFetch);

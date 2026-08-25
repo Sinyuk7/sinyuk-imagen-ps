@@ -3,7 +3,7 @@
 Authority: mock-only provider harness guidance
 Scope: `packages/providers`
 Non-goals: live provider proof, real Photoshop/UXP host proof
-Last verified: 2026-07-04
+Last verified: 2026-08-25
 
 ## Permanent Test Shape
 
@@ -24,15 +24,13 @@ Preferred shape:
 tests/
   contract/
     provider.contract.test.ts
-  transport/
-    transport.contract.test.ts
-  families/
-    <family>/
-      provider.compat.test.ts
-      cases/
-        ...
+  providers/
+    grsai/
+    gemini/
+    openai-images/
+  registry/
+  shared/
   release/
-    provider-smoke.release.test.ts
     release-env.ts
 ```
 
@@ -41,8 +39,9 @@ Rules:
 - Provider descriptor/registry coverage proves canonical `ApiFormat` routing,
   complete default templates, and rejection of invalid or conflicting templates.
 
-- New compatibility and historical bug coverage goes into
-  `tests/families/*/cases`.
+- Provider-specific request, parse, async lifecycle, and capability cases stay
+  under the matching `tests/providers/*` owner. Registry composition belongs in
+  `tests/registry`; genuinely shared primitive coverage belongs in `tests/shared`.
 - Do not keep adding one-off files per provider quirk, retry branch, or codec
   edge case.
 - Request shape, response parsing, failover, retry, and malformed payload cases

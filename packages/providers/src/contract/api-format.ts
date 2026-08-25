@@ -2,9 +2,9 @@
  * API format 与 endpoint/path 归一化契约。
  */
 
-export type ApiFormat = 'openai-images' | 'openai-chat-completions' | 'gemini-generate-content' | 'grsai';
+export type ApiFormat = 'openai-images' | 'gemini-generate-content' | 'grsai';
 
-export type ProviderImplementationId = 'image-endpoint' | 'chat-image' | 'gemini-generate-content' | 'grsai-generate';
+export type ProviderImplementationId = 'image-endpoint' | 'gemini-generate-content' | 'grsai-generate';
 
 export type AuthMode = 'bearer' | 'x-goog-api-key' | 'none';
 
@@ -13,11 +13,6 @@ export interface OpenAiImagesPaths {
   readonly generation: string;
   /** OpenAI Images 编辑路径。 */
   readonly edit?: string;
-}
-
-export interface OpenAiChatCompletionsPaths {
-  /** Chat Completions 调用路径。 */
-  readonly invoke: string;
 }
 
 export interface GeminiGenerateContentPaths {
@@ -35,7 +30,6 @@ export interface GrsaiGeneratePaths {
 
 export type ApiFormatPaths =
   | OpenAiImagesPaths
-  | OpenAiChatCompletionsPaths
   | GeminiGenerateContentPaths
   | GrsaiGeneratePaths;
 
@@ -75,14 +69,12 @@ export type EndpointClassification =
 
 const API_FORMAT_TO_IMPLEMENTATION = {
   'openai-images': 'image-endpoint',
-  'openai-chat-completions': 'chat-image',
   'gemini-generate-content': 'gemini-generate-content',
   grsai: 'grsai-generate',
 } as const satisfies Record<ApiFormat, ProviderImplementationId>;
 
 const DEFAULT_PATHS = {
   'openai-images': { generation: '/images/generations', edit: '/images/edits' },
-  'openai-chat-completions': { invoke: '/chat/completions' },
   'gemini-generate-content': { invokeTemplate: '/models/{model}:generateContent' },
   grsai: { submit: '/v1/api/generate', result: '/v1/api/result' },
 } as const satisfies Record<ApiFormat, ApiFormatPaths>;
@@ -118,8 +110,6 @@ export function apiFormatForImplementationId(implementationId: ProviderImplement
   switch (implementationId) {
     case 'image-endpoint':
       return 'openai-images';
-    case 'chat-image':
-      return 'openai-chat-completions';
     case 'gemini-generate-content':
       return 'gemini-generate-content';
     case 'grsai-generate':
@@ -206,11 +196,6 @@ export function normalizeApiFormatPaths(apiFormat: ApiFormat, paths: unknown): A
     };
   }
 
-  if (apiFormat === 'openai-chat-completions') {
-    const invoke = typeof record.invoke === 'string' ? record.invoke : (defaults as OpenAiChatCompletionsPaths).invoke;
-    return { invoke: normalizeApiPath(invoke) };
-  }
-
   if (apiFormat === 'grsai') {
     const submit = typeof record.submit === 'string' ? record.submit : (defaults as GrsaiGeneratePaths).submit;
     const result = typeof record.result === 'string' ? record.result : (defaults as GrsaiGeneratePaths).result;
@@ -243,17 +228,6 @@ function classifyPathname(
   source: EndpointClassificationSource,
   url?: URL,
 ): EndpointClassification {
-  const chat = pathname.match(/^(.*)\/chat\/completions\/?$/);
-  if (chat) {
-    return {
-      status: 'supported',
-      apiFormat: 'openai-chat-completions',
-      source,
-      ...(url ? { baseUrl: baseUrlForMatchedPath(url, chat[1] ?? '') } : {}),
-      paths: { invoke: '/chat/completions' },
-    };
-  }
-
   const generation = pathname.match(/^(.*)\/images\/generations\/?$/);
   if (generation) {
     return {

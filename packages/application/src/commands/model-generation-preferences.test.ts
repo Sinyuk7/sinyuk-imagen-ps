@@ -363,8 +363,14 @@ describe('model generation preferences', () => {
 
     const settings = await getModelGenerationSettings(key);
     expect(settings.ok).toBe(true);
-    expect(settings.ok ? settings.value.matrix.imageSizes.map((option) => option.id) : []).toEqual(['auto', '1k']);
-    expect(settings.ok ? settings.value.selection.imageSize : null).toBe('auto');
+    expect(settings.ok ? settings.value.matrix.imageSizes.map((option) => option.id) : []).toEqual([
+      'auto',
+      '512',
+      '1k',
+      '2k',
+      '4k',
+    ]);
+    expect(settings.ok ? settings.value.selection.imageSize : null).toBe('2k');
 
     const saved = await saveModelGenerationPreference({
       ...key,
@@ -373,8 +379,8 @@ describe('model generation preferences', () => {
         outputFormat: 'png',
       },
     });
-    expect(saved.ok).toBe(false);
-    expect(saved.ok ? null : saved.error.message).toContain('output selection is not valid');
+    expect(saved.ok).toBe(true);
+    expect(saved.ok ? saved.value.selection.geometry.kind : null).toBe('ratio-resolution');
   });
 
   it('isolates same modelId output matrices by profileId', async () => {

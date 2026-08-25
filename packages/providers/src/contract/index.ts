@@ -8,7 +8,6 @@ export type {
   EndpointClassificationSource,
   GeminiGenerateContentPaths,
   GrsaiGeneratePaths,
-  OpenAiChatCompletionsPaths,
   OpenAiImagesPaths,
   ProviderImplementationId,
 } from './api-format.js';
@@ -24,7 +23,6 @@ export {
 } from './api-format.js';
 export type {
   BillingEnabledProviderConfig,
-  ChatImageProviderConfig,
   GeminiGenerateContentAuthMode,
   GeminiGenerateContentProviderConfig,
   GrsaiGenerateProviderConfig,
@@ -105,7 +103,6 @@ export type {
   AssetRef,
   CanonicalMaskImage,
   CanonicalImageJobRequest,
-  ChatImageRequestOutput,
   GeminiGenerateContentRequestOutput,
   GrsaiGenerateRequestOutput,
   ImageEndpointRequestOutput,
@@ -145,7 +142,6 @@ export type {
   SupportEvidence,
 } from './model.js';
 export type {
-  ChatImageRequestCodec,
   ImageEditCodec,
   Provider,
   ProviderAsyncExecutionArgs,
@@ -160,6 +156,7 @@ export type {
   ProviderEndpointMeasurementOptions,
   ProviderEndpointMeasurementResult,
   ProviderInvokeArgs,
+  ProviderProfileTemplate,
   ProviderSafeProbeContext,
   ProviderSafeProbeReason,
   ProviderSafeProbeResult,

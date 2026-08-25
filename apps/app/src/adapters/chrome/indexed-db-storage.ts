@@ -78,7 +78,7 @@ function isPlainRecord(value: unknown): value is Record<string, unknown> {
 }
 
 function isApiFormat(value: unknown): value is UserModelConfig['apiFormat'] {
-  return value === 'openai-images' || value === 'openai-chat-completions' || value === 'gemini-generate-content' || value === 'grsai';
+  return value === 'openai-images' || value === 'gemini-generate-content' || value === 'grsai';
 }
 
 function isImageOperation(value: unknown): value is ImageOutputMatrix['operation'] {

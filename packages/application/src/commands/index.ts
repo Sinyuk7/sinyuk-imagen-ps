@@ -15,46 +15,33 @@ export { subscribeJobEvents } from './subscribe-job-events.js';
 
 export { listProviders } from './list-providers.js';
 export { describeProvider } from './describe-provider.js';
-export { classifyEndpoint } from './classify-endpoint.js';
+export { projectProviderSurface, saveProviderSurfaceProfile } from './provider-surface.js';
 export { resolveModelBrand } from './resolve-model-brand.js';
 export type { ResolveModelBrandInput } from './resolve-model-brand.js';
 export { resolveProviderMaskExecutionPlan } from './provider-mask-plan.js';
 export type { MaskExecutionPlan } from '@imagen-ps/providers';
 export {
   deleteProviderProfile,
-  cancelProviderProfileSetup,
-  continueProviderProfileSetup,
   getProviderProfile,
-  getProviderSetupProfile,
   listProviderProfiles,
-  promoteProviderProfileSetup,
   recoverProviderProfileSetups,
-  saveProviderProfile,
   testProviderProfile,
 } from './provider-profiles.js';
 export {
   listProfileModels,
 } from './profile-models.js';
 export {
-  deleteUserModelConfig,
-  getUserModelConfig,
   listOfficialModelConfigPresets,
-  listRequestStrategiesForApiFormat,
-  listUserModelConfigs,
-  saveUserModelConfig,
 } from './model-configs.js';
 export {
   deleteModelGenerationPreference,
   getModelGenerationSettings,
   saveModelGenerationPreference,
 } from './model-generation-preferences.js';
-export { measureProfileEndpoints } from './profile-endpoints.js';
 export { testProviderProfileConnection } from './profile-connection-test.js';
 export {
-  getProfileBillingState,
   invalidateProfileBillingState,
   noteProfileTaskBilling,
-  refreshProfileBalance,
   scheduleProfileBalanceRefresh,
 } from './profile-billing.js';
 
@@ -141,18 +128,19 @@ export type {
   ProviderProfileConfig,
   ProviderProfileConfigValue,
   ProviderProfileLifecycle,
-  ProviderProfileInput,
   ProviderProfileRepository,
-  ProviderProfileSetupOutcome,
-  ContinueProviderProfileSetupInput,
   ResolvedProviderConfig,
-  SaveUserModelConfigInput,
   SaveModelGenerationPreferenceInput,
   SecretResolver,
   SecretStorageAdapter,
   UserModelConfig,
   UserModelConfigRepository,
 } from './types.js';
+export type {
+  ProviderSurfaceIdentity,
+  ProviderSurfaceProjection,
+  SaveProviderSurfaceProfileInput,
+} from './provider-surface.js';
 
 // Adapter injection（暴露给 UI / host adapters 注入自定义实现）
 export {

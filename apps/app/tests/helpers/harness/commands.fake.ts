@@ -1,36 +1,25 @@
 import { vi } from 'vitest';
 import type {
-  EndpointMeasurementResult,
-  MeasureProfileEndpointsResult,
-  OfficialModelPreset,
   ProfileModelItem,
-  ProfileBillingState,
   ProviderProfile,
   ProviderProfileConnectionTestResult,
   ProviderProfileTestResult,
   TaskRecord,
 } from '@imagen-ps/application';
-import { classifyEndpoint, resolveModelBrand } from '@imagen-ps/application';
 import type { CommandsPort } from '../../../src/app-services/commands-port';
 import {
-  fakeChatProvider,
   fakeProfile,
-  fakeProvider,
-  savedProfile,
+  fakeProviderSurfaces,
 } from '../fixtures/provider.fixtures';
 import { completedJob, fakeDurableRecord, fakeTaskRecord } from '../fixtures/task.fixtures';
 import { createModelConfigRepositoryFake } from './model-config-repository.fake';
 
 export function createCommandsFake(options?: {
   readonly profiles?: readonly ProviderProfile[];
-  readonly userModelConfigs?: readonly import('@imagen-ps/application').UserModelConfig[];
-  readonly officialModelConfigPresets?: readonly OfficialModelPreset[];
   readonly profileModelItems?: readonly ProfileModelItem[];
 }) {
   let profiles: readonly ProviderProfile[] = options?.profiles ?? [fakeProfile];
   const modelConfig = createModelConfigRepositoryFake({
-    userModelConfigs: options?.userModelConfigs,
-    officialModelConfigPresets: options?.officialModelConfigPresets,
     profileModelItems: options?.profileModelItems,
   });
 
@@ -61,44 +50,38 @@ export function createCommandsFake(options?: {
   const subscribeJobEvents = vi.fn(() => () => undefined);
   const listJobHistoryRecords = vi.fn(async () => [fakeDurableRecord]);
   const getProviderProfile = vi.fn(async () => ({ ok: true as const, value: profiles[0] ?? fakeProfile }));
-  const saveProviderProfile = vi.fn(async (input: Parameters<CommandsPort['saveProviderProfile']>[0]) => {
+  const saveProviderSurfaceProfile = vi.fn(async (
+    input: Parameters<CommandsPort['saveProviderSurfaceProfile']>[0],
+  ) => {
+    const surface = fakeProviderSurfaces.find((item) => item.identity.implementationId === input.implementationId);
+    if (!surface) {
+      return { ok: false as const, error: { category: 'validation' as const, message: 'Provider surface unavailable.' } };
+    }
     const existing = profiles.find((profile) => profile.profileId === input.profileId);
-    const next = savedProfile(input, existing);
-    const index = profiles.findIndex((profile) => profile.profileId === next.profileId);
-    profiles = index >= 0
-      ? profiles.map((profile) => (profile.profileId === next.profileId ? next : profile))
+    const secretRefs = input.removeSavedApiKey
+      ? undefined
+      : input.apiKey || existing?.secretRefs?.apiKey
+        ? { ...(existing?.secretRefs ?? {}), apiKey: `secret:provider-profile:${input.profileId}:apiKey` }
+        : undefined;
+    const next: ProviderProfile = {
+      ...(existing ?? fakeProfile),
+      profileId: input.profileId,
+      apiFormat: surface.identity.apiFormat,
+      displayName: input.displayName,
+      lifecycle: 'ready',
+      config: existing?.config ?? {},
+      ...(secretRefs ? { secretRefs } : { secretRefs: undefined }),
+      updatedAt: '2026-06-15T00:00:03.000Z',
+    };
+    profiles = existing
+      ? profiles.map((profile) => (profile.profileId === input.profileId ? next : profile))
       : [...profiles, next];
     return { ok: true as const, value: next };
   });
-  const continueProviderProfileSetup = vi.fn(async (
-    input: Parameters<CommandsPort['continueProviderProfileSetup']>[0],
-  ) => {
-    const existing = profiles.find((profile) => profile.profileId === input.profile.profileId);
-    const next = { ...savedProfile(input.profile, existing), lifecycle: 'setup' as const };
-    const index = profiles.findIndex((profile) => profile.profileId === next.profileId);
-    profiles = index >= 0
-      ? profiles.map((profile) => (profile.profileId === next.profileId ? next : profile))
-      : [...profiles, next];
-    return {
-      ok: true as const,
-      value: {
-        kind: 'profile-models' as const,
-        profileId: next.profileId,
-        apiFormat: next.apiFormat,
-      },
-    };
-  });
-  const getProviderSetupProfile = vi.fn(async (profileId: string) => {
-    const profile = profiles.find((item) => item.profileId === profileId);
-    return profile && profile.lifecycle === 'setup'
-      ? { ok: true as const, value: profile }
-      : { ok: false as const, error: { category: 'validation' as const, message: 'setup profile not found' } };
-  });
-  const cancelProviderProfileSetup = vi.fn(async (profileId: string) => {
+  const deleteProviderProfile = vi.fn(async (profileId: string) => {
     profiles = profiles.filter((profile) => profile.profileId !== profileId);
     return { ok: true as const, value: undefined };
   });
-  const deleteProviderProfile = vi.fn(async () => ({ ok: true as const, value: undefined }));
   const testProviderProfile = vi.fn(async (profileId: string, _options?: unknown) => ({
     ok: true as const,
     value: {
@@ -114,49 +97,10 @@ export function createCommandsFake(options?: {
       status: 'verified',
     } satisfies ProviderProfileConnectionTestResult,
   }));
-  const measureProfileEndpoints = vi.fn(async (
-    input: Parameters<CommandsPort['measureProfileEndpoints']>[0],
-  ): Promise<{ ok: true; value: MeasureProfileEndpointsResult }> => ({
-    ok: true as const,
-    value: {
-      supported: true,
-      results: [
-        {
-          endpointId: 'primary',
-          status: 'success',
-          checkedAt: Date.now(),
-          latencyMs: 12,
-        } satisfies EndpointMeasurementResult,
-      ],
-      ...((
-        (input.config.connection as { readonly selectionMode?: string } | undefined)?.selectionMode === 'auto'
-      ) ? { resolvedEndpointId: 'primary' } : {}),
-    },
-  }));
-  let billingState: ProfileBillingState = { refreshState: 'idle' };
-  const getProfileBillingState = vi.fn(async () => ({ ok: true as const, value: billingState }));
-  const refreshProfileBalance = vi.fn(async ({ profileId }: { profileId: string }) => {
-    billingState = {
-      ...billingState,
-      refreshState: 'idle',
-      balance: {
-        profileId,
-        apiFormat: 'openai-images',
-        checkedAt: Date.now(),
-        snapshot: {
-          primary: {
-            kind: 'money',
-            remaining: '12.50',
-            currency: 'USD',
-          },
-        },
-      },
-    };
-    return { ok: true as const, value: { ...billingState.balance!, state: billingState } };
-  });
-  const listProviders = vi.fn(() => [fakeProvider, fakeChatProvider]);
-  const describeProvider = vi.fn(() => fakeProvider);
-  const classifyEndpointSpy = vi.fn(classifyEndpoint);
+  const listProviders = vi.fn(() => fakeProviderSurfaces);
+  const describeProvider = vi.fn((providerId: string) => (
+    fakeProviderSurfaces.find((surface) => surface.identity.implementationId === providerId)
+  ));
   const listTaskRecords = vi.fn(async () => taskRecords);
   const reconcileStaleRunningTaskRecords = vi.fn(async () => []);
   const listProviderProfiles = vi.fn(async () => ({ ok: true as const, value: profiles }));
@@ -172,20 +116,12 @@ export function createCommandsFake(options?: {
     reconcileStaleRunningTaskRecords,
     listProviders,
     describeProvider,
-    classifyEndpoint: classifyEndpointSpy,
-    resolveModelBrand,
+    saveProviderSurfaceProfile,
     listProviderProfiles,
     getProviderProfile,
-    getProviderSetupProfile,
-    saveProviderProfile,
-    continueProviderProfileSetup,
-    cancelProviderProfileSetup,
     deleteProviderProfile,
     testProviderProfile,
     testProviderProfileConnection,
-    measureProfileEndpoints,
-    refreshProfileBalance,
-    getProfileBillingState,
     ...modelConfig.commands,
   };
 
@@ -196,22 +132,15 @@ export function createCommandsFake(options?: {
       executeJob,
       listProviders,
       describeProvider,
-      classifyEndpoint: classifyEndpointSpy,
+      saveProviderSurfaceProfile,
       putTaskRecord,
       subscribeJobEvents,
       listJobHistoryRecords,
       getProviderProfile,
-      getProviderSetupProfile,
       listProviderProfiles,
-      saveProviderProfile,
-      continueProviderProfileSetup,
-      cancelProviderProfileSetup,
       deleteProviderProfile,
       testProviderProfile,
       testProviderProfileConnection,
-      measureProfileEndpoints,
-      refreshProfileBalance,
-      getProfileBillingState,
       ...modelConfig.spies,
       listTaskRecords,
       reconcileStaleRunningTaskRecords,

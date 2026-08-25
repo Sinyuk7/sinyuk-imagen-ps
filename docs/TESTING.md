@@ -65,8 +65,8 @@ Focused development entrypoints:
 Profile setup/default-model initialization coverage is mock-only: run
 `pnpm --filter @imagen-ps/application test` for atomic template setup outcome,
 cleanup, promotion, explicit-model admission, and final-model deletion contracts; run
-`pnpm --filter @imagen-ps/app test:ui`, `test:chrome`, and `test:uxp` for
-Continue routing, Composer selection, and host persistence adapters.
+`pnpm --filter @imagen-ps/app test:ui`, `test:chrome`, and `test:uxp` for the
+Provider Picker, dedicated Profile routes, Composer selection, and host persistence adapters.
 
 `pnpm check:policy` is the local architecture and documentation policy gate. It
 checks package import boundaries, high-authority documentation wording,
@@ -240,7 +240,8 @@ Filtered tests are not a clean-checkout baseline. Build the touched packages
 first when in doubt.
 
 Provider catalog work may additionally cite the deterministic catalog harness
-after `packages/providers` has been built:
+after `packages/providers` has been built. It checks the GRSAI, Gemini, and
+OpenAI Images local inventories:
 
 ```bash
 node packages/providers/scripts/check-image-model-catalog.mjs

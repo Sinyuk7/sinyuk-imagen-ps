@@ -410,7 +410,11 @@ async function expectNoVisibleSecret(page) {
 }
 
 async function expectSavedSecretPlaceholder(page) {
-  await expectVisibleText(page, 'Saved securely');
+  await page.getByTestId('provider-profile-api-key-input').evaluate((input) => {
+    if (input.value !== '' || !input.placeholder) {
+      throw new Error('Saved API Key field exposed a value or lost its replacement placeholder.');
+    }
+  });
 }
 
 async function openApp(page, url) {
@@ -423,8 +427,9 @@ async function openAddProviderProfile(page, url) {
   await page.getByTestId('main-providers-button').click();
   await page.getByTestId('settings-backend-provider').waitFor({ state: 'visible', timeout: 5000 });
   await page.getByTestId('providers-add-button').click();
-  await expectVisibleText(page, 'Add provider');
-  await expectVisibleText(page, 'Auto Detect');
+  await page.getByTestId('provider-picker-grsai').waitFor({ state: 'visible', timeout: 5000 });
+  await page.getByTestId('provider-picker-gemini').waitFor({ state: 'visible', timeout: 5000 });
+  await page.getByTestId('provider-picker-openai-images').waitFor({ state: 'visible', timeout: 5000 });
 }
 
 async function seedLiveGeminiProfile(page) {
@@ -434,43 +439,14 @@ async function seedLiveGeminiProfile(page) {
     if (!runtime) {
       throw new Error('Chrome runtime global is missing.');
     }
-    const profileResult = await runtime.host.services.commands.saveProviderProfile({
+    const profileResult = await runtime.host.services.commands.saveProviderSurfaceProfile({
+      implementationId: 'gemini-generate-content',
       profileId: input.profileId,
-      apiFormat: 'gemini-generate-content',
       displayName: input.displayName,
-      enabled: true,
-      config: {
-        apiFormat: 'gemini-generate-content',
-        displayName: input.displayName,
-        connection: {
-          selectionMode: 'manual',
-          selectedEndpointId: 'primary',
-          endpoints: [{ id: 'primary', url: input.baseUrl, enabled: true }],
-        },
-        paths: { invokeTemplate: input.invokeTemplate },
-        authMode: input.authMode,
-      },
-      secretValues: { apiKey: input.apiKey },
+      apiKey: input.apiKey,
     });
     if (!profileResult.ok) {
       throw new Error(`${profileResult.error.category}: ${profileResult.error.message}`);
-    }
-    const modelConfig = await runtime.host.services.commands.saveUserModelConfig({
-      profileId: input.profileId,
-      apiFormat: 'gemini-generate-content',
-      modelId: input.modelId,
-      baseModelId: 'gemini-3.1-flash-image',
-      wireModelId: input.modelId,
-      requestStrategyId: 'gemini-generate-content-image-config',
-      outputExposure: {
-        kind: 'ratio-resolution',
-        aspectRatios: ['1:1'],
-        resolutions: ['2k'],
-        outputFormats: ['png'],
-      },
-    });
-    if (!modelConfig.ok) {
-      throw new Error(`${modelConfig.error.category}: ${modelConfig.error.message}`);
     }
     return profileResult.value.profileId;
   }, fixture);
@@ -779,11 +755,9 @@ async function runLiveComfyUiGeneration({ page, url, capture }) {
   await page.locator('iframe[aria-hidden="true"]').waitFor({ state: 'detached', timeout: 10000 });
 }
 
-async function fillMockProviderDraft(page, alias) {
-  await fillFormControl(page.getByTestId('provider-endpoint-detect-input'), 'https://mock.local/images/generations');
-  await fillFormControl(page.getByTestId('provider-alias-input'), alias);
-  await fillFormControl(page.getByTestId('provider-endpoint-url-0'), 'https://mock.local');
-  await fillFormControl(page.getByTestId('provider-api-key-input'), 'mock-key');
+async function fillProviderProfileDraft(page, alias) {
+  await fillFormControl(page.getByTestId('provider-profile-name-input'), alias);
+  await fillFormControl(page.getByTestId('provider-profile-api-key-input'), 'mock-key');
 }
 
 async function submitPrompt(page, prompt, options = {}) {
@@ -840,14 +814,9 @@ async function addLayerAttachment(page) {
 
 async function smokeScenario({ page, url, capture }) {
   await openApp(page, url);
-  await expectVisibleText(page, 'No provider configured');
-  await expectVisibleText(page, 'No model selected');
-  await expectVisibleText(page, 'Current session');
-  await expectVisibleText(page, 'What shall we create today? ✨');
-  await expectVisibleText(page, 'Pink-haired girl');
-  await expectVisibleText(page, 'Hand-drawn style');
-  await expectVisibleText(page, 'Full-body portrait');
-  await page.locator('textarea[placeholder="Add a provider profile first"]').waitFor({ state: 'visible' });
+  await page.getByTestId('main-profile-selector').waitFor({ state: 'visible' });
+  await page.getByTestId('main-model-selector').waitFor({ state: 'visible' });
+  await page.getByTestId('composer-textarea').waitFor({ state: 'visible' });
   await page.getByTestId('composer-send-button').evaluate((button) => {
     if (!button || !button.disabled) {
       throw new Error('Send button is not disabled in first-run smoke state.');
@@ -890,49 +859,48 @@ async function firstRunProviderNavigationScenario({ page, url, capture }) {
   await openApp(page, url);
   await page.getByTestId('main-profile-selector').click();
   await checkpoint(page, capture, '01-profile-dropdown-empty.png', async () => {
-    await expectVisibleText(page, 'Add provider profile');
+    await page.getByTestId('profile-list-state-empty').locator('button').waitFor({ state: 'visible' });
   });
-  await page.getByTestId('profile-menu-add-provider').click();
-  await checkpoint(page, capture, '02-add-provider-step-1.png', async () => {
-    await expectVisibleText(page, 'Add provider');
-    await expectVisibleText(page, 'Auto Detect');
-    await expectVisibleText(page, 'Endpoint URL or Path');
+  await page.getByTestId('profile-list-state-empty').locator('button').click();
+  await checkpoint(page, capture, '02-provider-picker.png', async () => {
+    await page.getByTestId('provider-picker-grsai').waitFor({ state: 'visible' });
+    await page.getByTestId('provider-picker-gemini').waitFor({ state: 'visible' });
+    await page.getByTestId('provider-picker-openai-images').waitFor({ state: 'visible' });
   });
   await assertNoBrokenImages(page);
 }
 
 async function addProviderSaveScenario({ page, url, capture }) {
   await openAddProviderProfile(page, url);
-  await fillMockProviderDraft(page, 'Mock Profile E2E');
-  await checkpoint(page, capture, '03-add-provider-step-2-filled.png', async () => {
-    await expectVisibleText(page, 'Alias');
-    await expectVisibleText(page, 'OpenAI Images');
-    await expectVisibleText(page, 'Endpoints');
-    await expectVisibleText(page, 'API Key');
+  await page.getByTestId('provider-picker-openai-images').click();
+  await fillProviderProfileDraft(page, 'OpenAI Images E2E');
+  await checkpoint(page, capture, '03-openai-images-profile-filled.png', async () => {
+    await expectVisibleText(page, 'GPT Image 2');
+    await page.getByTestId('provider-profile-name-input').waitFor({ state: 'visible' });
+    await page.getByTestId('provider-profile-api-key-input').waitFor({ state: 'visible' });
     await expectNoVisibleSecret(page);
   });
-  await clickControl(page.getByTestId('provider-save-button'), 'Save button');
+  await clickControl(page.getByTestId('provider-profile-save-button'), 'Save button');
   await checkpoint(page, capture, '04-provider-list-after-save.png', async () => {
-    await expectVisibleText(page, 'Providers');
-    await expectVisibleText(page, 'Saved');
-    await expectVisibleText(page, 'Mock Profile E2E');
+    await page.locator('[data-testid^="provider-row-"]').filter({ hasText: 'OpenAI Images E2E' }).waitFor({ state: 'visible' });
+    await page.getByTestId('toast').waitFor({ state: 'visible' });
     await expectNoVisibleSecret(page);
   });
   await assertNoBrokenImages(page);
 }
 
-async function addProviderTestScenario({ page, url, capture }) {
+async function providerProfileAllowlistScenario({ page, url, capture }) {
   await openAddProviderProfile(page, url);
-  await fillMockProviderDraft(page, 'Mock Profile E2E');
-  const testButton = page.getByTestId('provider-test-button');
-  await clickControl(testButton, 'Test connection button');
-  await checkpoint(page, capture, '05-add-provider-testing.png', async () => {
-    await expectControlDisabled(testButton, 'Test connection button');
+  await page.getByTestId('provider-picker-gemini').click();
+  await fillProviderProfileDraft(page, 'Gemini E2E');
+  await checkpoint(page, capture, '05-gemini-profile-fields.png', async () => {
+    await page.getByTestId('provider-profile-name-input').waitFor({ state: 'visible' });
+    await page.getByTestId('provider-profile-api-key-input').waitFor({ state: 'visible' });
+    if (await page.locator('[data-testid*="endpoint"], [data-testid*="billing"], [data-testid*="model-config"]').count() > 0) {
+      throw new Error('Dedicated Gemini Profile exposed legacy wire configuration.');
+    }
   });
-  await checkpoint(page, capture, '06-add-provider-test-connected.png', async () => {
-    await expectVisibleText(page, 'Connected');
-    await expectNoVisibleSecret(page);
-  });
+  await expectNoVisibleSecret(page);
   await assertNoBrokenImages(page);
 }
 
@@ -940,25 +908,19 @@ async function providerListAndEditScenario({ page, url, capture }) {
   await openApp(page, url);
   await page.getByTestId('main-providers-button').click();
   await checkpoint(page, capture, '07-settings-provider-list.png', async () => {
-    await expectVisibleText(page, 'Configured');
-    await expectVisibleText(page, 'Mock Profile');
-    await expectVisibleText(page, 'OpenAI Images');
-    await expectVisibleText(page, 'Ready');
-    await expectVisibleText(page, 'Needs setup');
+    await page.getByTestId('provider-row-mock-profile').waitFor({ state: 'visible' });
   });
   await page.getByTestId('provider-row-mock-profile').click();
-  await fillFormControl(page.getByTestId('provider-alias-input'), 'Mock Profile Renamed');
-  await checkpoint(page, capture, '08-provider-detail-editing.png', async () => {
-    await expectVisibleText(page, 'Connection info');
-    await expectVisibleText(page, 'Selected model');
+  await fillFormControl(page.getByTestId('provider-profile-name-input'), 'Mock Profile Renamed');
+  await checkpoint(page, capture, '08-provider-profile-editing.png', async () => {
+    await expectVisibleText(page, 'GPT Image 2');
     await expectSavedSecretPlaceholder(page);
     await expectNoVisibleSecret(page);
   });
-  await clickControl(page.getByTestId('provider-save-button'), 'Save button');
+  await clickControl(page.getByTestId('provider-profile-save-button'), 'Save button');
   await checkpoint(page, capture, '09-provider-list-saved.png', async () => {
-    await expectVisibleText(page, 'Providers');
-    await expectVisibleText(page, 'Saved');
-    await expectVisibleText(page, 'Mock Profile Renamed');
+    await page.getByTestId('provider-row-mock-profile').waitFor({ state: 'visible' });
+    await page.getByTestId('toast').waitFor({ state: 'visible' });
     await expectNoVisibleSecret(page);
   });
   await expectVisibleText(page, 'Mock Profile Renamed');
@@ -969,16 +931,10 @@ async function providerDetailActionsScenario({ page, url, capture }) {
   await openApp(page, url);
   await page.getByTestId('main-providers-button').click();
   await page.getByTestId('provider-row-mock-profile').click();
-  const testButton = page.getByTestId('provider-test-button');
-  await clickControl(testButton, 'Test connection button');
-  await page.getByText('Testing…', { exact: true }).waitFor({ state: 'visible', timeout: 3000 });
-  await checkpoint(page, capture, '10-provider-detail-test-connected.png', async () => {
-    await page.getByText(/Connected/).first().waitFor({ state: 'visible', timeout: 5000 });
-  });
-  await clickControl(page.getByTestId('provider-delete-button'), 'Delete provider button');
+  await clickControl(page.getByTestId('provider-profile-delete-button'), 'Delete provider button');
+  await clickControl(page.getByTestId('provider-profile-confirm-delete'), 'Confirm delete provider button');
   await checkpoint(page, capture, '12-settings-after-delete.png', async () => {
-    await expectVisibleText(page, 'Providers');
-    await expectVisibleText(page, 'Configured');
+    await page.getByTestId('provider-empty-state').waitFor({ state: 'visible' });
   });
   await assertNoBrokenImages(page);
 }
@@ -986,24 +942,18 @@ async function providerDetailActionsScenario({ page, url, capture }) {
 async function mainProfileModelMenusScenario({ page, url, capture }) {
   await openApp(page, url);
   await expectVisibleText(page, 'Mock Profile');
-  await expectVisibleText(page, 'gpt-image-2');
   await page.getByTestId('main-profile-selector').click();
   await checkpoint(page, capture, '13-main-provider-menu.png', async () => {
     await page.getByTestId('profile-menu-option-mock-profile').waitFor({ state: 'visible' });
   });
   await page.getByTestId('profile-menu-option-mock-profile').click();
-  await page.getByTestId('main-model-selector').click();
-  const modelOption = page.locator('[role="option"]').filter({ hasText: 'GPT Image 2' }).first();
-  await checkpoint(page, capture, '14-main-model-menu.png', async () => {
-    await modelOption.waitFor({ state: 'visible' });
-  });
-  await modelOption.click();
-  await checkpoint(page, capture, '15-main-selected-profile-model.png', async () => {
+  await checkpoint(page, capture, '15-main-single-model-profile.png', async () => {
     await expectVisibleText(page, 'Mock Profile');
-    await expectVisibleText(page, 'gpt-image-2');
-    await page.getByTestId('main-model-selector').evaluate((button) => {
-      if (button.getAttribute('aria-expanded') !== 'false') {
-        throw new Error('Model menu did not close after selecting an option.');
+    const modelSelector = page.getByTestId('main-model-selector');
+    await expectControlProperty(modelSelector, 'disabled', true, 'Single-model selector');
+    await modelSelector.evaluate((button) => {
+      if (button.getAttribute('data-selected-id') !== 'gpt-image-2') {
+        throw new Error('Single-model selector lost the explicit gpt-image-2 selection.');
       }
     });
   });
@@ -1217,13 +1167,14 @@ async function persistenceSmokeScenario({ page, origin, capture }) {
   const dbName = `chrome-e2e-${runId}`;
   const url = `${origin}/index.html?testHarness=1&storage=indexed-db&db=${encodeURIComponent(dbName)}&resetStorage=1&scenario=seeded-document`;
   await openAddProviderProfile(page, url);
-  await fillMockProviderDraft(page, 'Mock Persisted E2E');
-  await clickControl(page.getByTestId('provider-save-button'), 'Save button');
-  await expectVisibleText(page, 'Mock Persisted E2E');
+  await page.getByTestId('provider-picker-openai-images').click();
+  await fillProviderProfileDraft(page, 'OpenAI Persisted E2E');
+  await clickControl(page.getByTestId('provider-profile-save-button'), 'Save button');
+  await expectVisibleText(page, 'OpenAI Persisted E2E');
   await page.goto(normalizeAppUrl(`${origin}/index.html?testHarness=1&storage=indexed-db&db=${encodeURIComponent(dbName)}&scenario=seeded-document`), { waitUntil: 'networkidle' });
   await page.locator('#root[data-runtime="chrome"][data-status="ok"]').waitFor({ timeout: 10000 });
   await checkpoint(page, capture, '38-persisted-provider-after-reload.png', async () => {
-    await expectVisibleText(page, 'Mock Persisted E2E');
+    await expectVisibleText(page, 'OpenAI Persisted E2E');
     await expectVisibleText(page, 'gpt-image-2');
     await page.getByTestId('main-providers-button').click();
     await page.locator('[data-testid^="provider-row-profile-"]').first().click();
@@ -1493,7 +1444,7 @@ async function responsiveSettingsNarrowScenario({ page, url, capture }) {
   await page.getByTestId('providers-add-button').click();
   await expectVisibleText(page, 'Add provider');
   await assertNoHorizontalScroll(page);
-  await capture('responsive-narrow-settings-add.png');
+  await capture('responsive-narrow-provider-picker.png');
   await assertNoBrokenImages(page);
 }
 
@@ -1598,21 +1549,17 @@ async function liveGeminiConnectionStrategyScenario({ page, url, capture, resetN
   await page.getByTestId('main-providers-button').click();
   const providerRow = page.getByTestId(`provider-row-${fixture.profileId}`);
   await providerRow.waitFor({ state: 'visible', timeout: 10000 });
-  const testButton = page.getByTestId('provider-test-button');
+  const testButton = page.getByTestId('provider-profile-test-button');
   await providerRow.click();
   await testButton.waitFor({ state: 'visible', timeout: 10000 });
   resetNetworkEvidence();
   await clickControl(testButton, 'Test connection button');
-  await page.getByTestId('toast').waitFor({ state: 'visible', timeout: 20000 });
+  await page.waitForFunction(() => document.querySelector('[data-testid="provider-profile-test-button"]')?.disabled === false);
   await testButton.evaluate((button) => {
     if (button.disabled) {
       throw new Error('Test connection button stayed disabled after live probe.');
     }
   });
-  const toastText = (await page.getByTestId('toast').innerText()).trim();
-  if (!toastText) {
-    throw new Error('Live Gemini probe did not surface any toast result.');
-  }
   const requestLog = listRequests();
   if (!requestLog.includes(`POST ${fixture.countTokensUrl}`)) {
     throw new Error(`Live Gemini probe did not call countTokens. Requests: ${requestLog.join(' | ')}`);
@@ -1651,8 +1598,8 @@ const scenarios = [
     name: 'First-run provider navigation',
     tags: ['providers'],
     path: '/index.html?testHarness=1&storage=memory&scenario=seeded-document',
-    screenshotName: '02-add-provider-step-1.png',
-    assertions: ['profile dropdown empty', 'api profile editor visible', 'endpoint detection copy visible', 'no console/page/network errors'],
+    screenshotName: '02-provider-picker.png',
+    assertions: ['profile dropdown empty', 'three provider choices visible', 'no wire configuration visible', 'no console/page/network errors'],
     run: firstRunProviderNavigationScenario,
   },
   {
@@ -1660,35 +1607,35 @@ const scenarios = [
     name: 'Add provider save flow',
     tags: ['providers'],
     path: '/index.html?testHarness=1&storage=memory&scenario=seeded-document',
-    screenshotName: '04-provider-detail-after-save.png',
-    assertions: ['add provider form labels visible', 'api format detected', 'provider detail after save', 'secret hidden', 'no console/page/network errors'],
+    screenshotName: '04-provider-list-after-save.png',
+    assertions: ['dedicated OpenAI Images form visible', 'provider ready after save', 'secret hidden', 'no console/page/network errors'],
     run: addProviderSaveScenario,
   },
   {
-    id: '03-add-provider-test-flow',
-    name: 'Add provider test flow',
+    id: '03-provider-profile-field-allowlist',
+    name: 'Gemini provider Profile field allowlist',
     tags: ['providers'],
     path: '/index.html?testHarness=1&storage=memory&scenario=seeded-document',
-    screenshotName: '06-add-provider-test-connected.png',
-    assertions: ['test connection pending disabled', 'draft connection connected', 'draft profile not persisted', 'secret hidden', 'no console/page/network errors'],
-    run: addProviderTestScenario,
+    screenshotName: '05-gemini-profile-fields.png',
+    assertions: ['dedicated Gemini fields visible', 'legacy wire configuration absent', 'secret hidden', 'no console/page/network errors'],
+    run: providerProfileAllowlistScenario,
   },
   {
-    id: '04-provider-list-detail-edit',
-    name: 'Provider list and detail edit',
+    id: '04-provider-list-profile-edit',
+    name: 'Provider list and profile edit',
     tags: ['providers'],
     path: '/index.html?testHarness=1&storage=memory&seedProfile=mock&scenario=seeded-document',
-    screenshotName: '09-provider-detail-saved.png',
-    assertions: ['provider list row visible', 'detail edit controls visible', 'api format visible', 'alias saved', 'secret hidden', 'no console/page/network errors'],
+    screenshotName: '09-provider-profile-saved.png',
+    assertions: ['provider list row visible', 'dedicated edit controls visible', 'alias saved', 'secret hidden', 'no console/page/network errors'],
     run: providerListAndEditScenario,
   },
   {
-    id: '05-provider-detail-actions',
-    name: 'Provider detail test refresh delete',
+    id: '05-provider-profile-delete',
+    name: 'Provider profile delete',
     tags: ['providers'],
     path: '/index.html?testHarness=1&storage=memory&seedProfile=mock&scenario=seeded-document',
     screenshotName: '12-settings-after-delete.png',
-    assertions: ['detail test connected', 'refresh models pending visible', 'delete returns to providers list', 'no console/page/network errors'],
+    assertions: ['delete confirmation visible', 'delete returns to providers list', 'no console/page/network errors'],
     run: providerDetailActionsScenario,
   },
   {
@@ -1696,8 +1643,8 @@ const scenarios = [
     name: 'Main profile and model menus',
     tags: ['providers'],
     path: '/index.html?testHarness=1&storage=memory&seedProfile=mock&scenario=seeded-document',
-    screenshotName: '15-main-selected-profile-model.png',
-    assertions: ['provider menu active option visible', 'model menu active option visible', 'selected profile and model visible', 'menus close', 'no console/page/network errors'],
+    screenshotName: '15-main-single-model-profile.png',
+    assertions: ['provider menu active option visible', 'single model value visible', 'single model selector disabled', 'no console/page/network errors'],
     run: mainProfileModelMenusScenario,
   },
   {
@@ -1943,10 +1890,10 @@ const scenarios = [
   {
     id: 'live-provider-grsai-gemini-connection-strategy',
     name: 'Live Gemini connection strategy uses safe probe',
-    tags: ['live-provider', 'providers'],
+    tags: ['live-provider'],
     path: '/index.html',
     screenshotName: 'live-gemini-connection-strategy.png',
-    assertions: ['fixture profile saved', 'UI test connection completed', 'safe probe used POST countTokens', 'legacy GET /models not used', 'toast surfaced result'],
+    assertions: ['fixture profile saved', 'UI test connection completed', 'safe probe used POST countTokens', 'legacy GET /models not used'],
     run: liveGeminiConnectionStrategyScenario,
   },
   {
@@ -1990,6 +1937,7 @@ async function runScenario(browser, server, scenario) {
   const context = await browser.newContext({
     viewport: { width: scenarioViewport.width, height: scenarioViewport.height },
     deviceScaleFactor: scenarioViewport.deviceScaleFactor,
+    locale: 'en-US',
   });
   await context.clearCookies();
   const page = await context.newPage();

@@ -193,6 +193,30 @@ describe('GenerationBackend admission contract', () => {
     expect(Object.isFrozen(input.request)).toBe(true);
   });
 
+  it('rejects admission when no configured model id is available', async () => {
+    const { backend } = createBackendHarness();
+    const task = {
+      ...runningTask('task-no-model'),
+      execution: {
+        backend: { id: 'provider', label: 'Provider' },
+        connection: { id: profile.profileId, label: profile.displayName },
+      },
+    } as const;
+
+    await expect(admitGeneration(backend, {
+      taskId: task.taskId,
+      backendId: PROVIDER_GENERATION_BACKEND_ID,
+      payload: {
+        profileId: profile.profileId,
+        operation: 'text_to_image',
+        request: {
+          prompt: task.prompt,
+        },
+        runningTask: task,
+      },
+    })).rejects.toThrow(`Provider profile "${profile.profileId}" has no configured model for admission.`);
+  });
+
   it('ignores a legacy profile-level enabled value during admission and readiness', async () => {
     const legacyDisabled = { ...profile, enabled: false } as ProviderProfile & { readonly enabled: boolean };
     await expect(admitGeneration(createBackendHarness(legacyDisabled).backend, command())).resolves.toBeDefined();
@@ -218,7 +242,7 @@ describe('GenerationBackend admission contract', () => {
     const admitted = await admitGeneration(createBackendHarness().backend, command());
     const changedProfile: ProviderProfile = {
       ...profile,
-      apiFormat: 'openai-chat-completions',
+      apiFormat: 'gemini-generate-content',
     };
     const registry = createProviderRegistry();
     registerBuiltins(registry);
@@ -237,7 +261,7 @@ describe('GenerationBackend admission contract', () => {
         category: 'validation',
         details: {
           admittedImplementationId: 'image-endpoint',
-          currentImplementationId: 'chat-image',
+          currentImplementationId: 'gemini-generate-content',
         },
       },
     });

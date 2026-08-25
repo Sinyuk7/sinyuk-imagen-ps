@@ -11,7 +11,6 @@ export type IconName =
   | 'algorithm'
   | 'aspect-ratio'
   | 'arrow-right'
-  | 'billing'
   | 'capture-selection'
   | 'check'
   | 'chevron-down'
@@ -80,13 +79,6 @@ const ICON_BODY_BY_NAME: Record<IconName, SvgBody> = {
     <>
       <line x1="5" y1="12" x2="19" y2="12" />
       <polyline points="14 7 19 12 14 17" />
-    </>
-  ),
-  billing: () => (
-    <>
-      <circle cx="12" cy="12" r="9" />
-      <path d="M12 6.8v10.4" />
-      <path d="M14.8 9.3c-.7-.8-1.7-1.2-2.9-1.2-1.6 0-2.7.9-2.7 2.2 0 1.5 1.2 2.1 3 2.6 1.6.4 2.6 1.1 2.6 2.5 0 1.4-1.1 2.4-2.9 2.4-1.2 0-2.3-.4-3.1-1.2" />
     </>
   ),
   check: () => <polyline points="5 12.5 9.4 17 19 7" />,

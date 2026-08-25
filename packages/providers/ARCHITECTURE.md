@@ -3,7 +3,29 @@
 Authority: current-state provider adapter architecture
 Scope: `packages/providers`
 Non-goals: UI state, Photoshop/UXP host IO, unified cross-format response parser abstraction
-Last verified: 2026-07-04
+Last verified: 2026-08-25
+
+## Vertical Slice Ownership
+
+The product-visible builtins are organized by business integration:
+
+```text
+src/providers/
+  grsai/
+  gemini/
+  openai-images/
+```
+
+Each slice owns `models.ts`, `profile-template.ts`, `config-schema.ts`,
+`descriptor.ts`, `provider.ts`, and its local `transport/`. `models.ts` is the
+single source for model IDs, wire IDs, capabilities, and the default model;
+`profile-template.ts` is the single source for fixed endpoint, path, auth, and
+billing defaults. Descriptors derive their default templates from those files.
+
+Slices may depend on contracts, `model-catalog/shared`, and `shared/transport`,
+but never on another Provider slice. Registry composition imports only each
+slice's `index.ts`. Application imports the package public API; app UI imports
+only Application projections.
 
 ## Decision Guide
 
@@ -41,12 +63,14 @@ Last verified: 2026-07-04
 
 ## Builtin Checklist
 
-1. Add the provider factory and descriptor.
-2. Update `builtins` exhaustiveness and public exports.
-3. Confirm `ApiFormat` coverage and catalog ownership boundaries.
-4. Declare the canonical Provider's explicit `defaultModelTemplates`; every row
+1. Add a named Provider vertical slice with its model catalog and Profile template.
+2. Keep Provider-specific request builders, parsers, codecs, and polling inside that slice.
+3. Extract a shared primitive only after two current Providers consume identical semantics.
+4. Update `builtins` exhaustiveness and public exports.
+5. Confirm `ApiFormat` coverage and catalog ownership boundaries.
+6. Declare the canonical Provider's explicit `defaultModelTemplates`; every row
    must exactly resolve its `baseModelId` to an Official Model Preset. Templates
    are setup-only data, never a runtime discovery or synchronization source.
-5. Add or extend provider boundary coverage under `packages/providers/tests/`.
+7. Add or extend provider boundary coverage under `packages/providers/tests/`.
    Prefer expanding the owning contract/compat suite or Case Bank instead of
    creating a new narrow test file.

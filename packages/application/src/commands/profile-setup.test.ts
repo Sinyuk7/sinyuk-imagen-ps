@@ -1,5 +1,5 @@
-import { getOfficialModelPreset } from '@imagen-ps/providers';
 import { beforeEach, describe, expect, it } from 'vitest';
+import { type ApiFormat, type Provider, type ProviderDescriptor, type ProviderProfileTemplate } from '@imagen-ps/providers';
 import {
   _resetForTesting,
   _setRuntimeInstanceForTesting,
@@ -8,14 +8,10 @@ import {
   setUserModelConfigRepository,
 } from '../runtime.js';
 import {
-  cancelProviderProfileSetup,
   continueProviderProfileSetup,
-  getProviderProfile,
   getProviderSetupProfile,
   listProviderProfiles,
-  promoteProviderProfileSetup,
 } from './provider-profiles.js';
-import { saveUserModelConfig } from './model-configs.js';
 import type {
   ProviderProfile,
   ProviderProfileInput,
@@ -25,23 +21,6 @@ import type {
   UserModelConfigRepository,
 } from './types.js';
 
-function profileInput(profileId: string): ProviderProfileInput {
-  return {
-    profileId,
-    apiFormat: 'openai-images',
-    displayName: 'Test Profile',
-    config: {
-      connection: {
-        selectionMode: 'manual',
-        selectedEndpointId: 'primary',
-        endpoints: [{ id: 'primary', url: 'https://provider.test/v1', enabled: true }],
-      },
-      paths: { generation: '/images/generations' },
-    },
-    secretValues: { apiKey: 'test-secret' },
-  };
-}
-
 function createProfileRepository(): {
   readonly repository: ProviderProfileRepository;
   readonly values: Map<string, ProviderProfile>;
@@ -50,169 +29,207 @@ function createProfileRepository(): {
   return {
     values,
     repository: {
-      async list() { return Array.from(values.values()); },
-      async get(profileId) { return values.get(profileId); },
-      async save(profile) { values.set(profile.profileId, profile); },
-      async delete(profileId) { values.delete(profileId); },
+      async list() {
+        return Array.from(values.values());
+      },
+      async get(profileId) {
+        return values.get(profileId);
+      },
+      async save(profile) {
+        values.set(profile.profileId, profile);
+      },
+      async delete(profileId) {
+        values.delete(profileId);
+      },
     },
   };
 }
 
-function createModelRepository(): {
+function createUserModelConfigRepository(options?: {
+  readonly initializeProfile?: (profileId: string, configs: readonly UserModelConfig[]) => Promise<void>;
+}): {
   readonly repository: UserModelConfigRepository;
   readonly values: Map<string, UserModelConfig>;
 } {
   const values = new Map<string, UserModelConfig>();
-  const key = (profileId: string, modelId: string) => `${profileId}:${modelId}`;
-  const forProfile = (profileId: string) => Array.from(values.values()).filter((config) => config.profileId === profileId);
   return {
     values,
     repository: {
-      async list(profileId) { return forProfile(profileId); },
-      async get(profileId, modelId) { return values.get(key(profileId, modelId)); },
-      async save(config) { values.set(key(config.profileId, config.modelId), config); },
+      async list(profileId) {
+        return Array.from(values.values()).filter((config) => config.profileId === profileId);
+      },
+      async get(profileId, modelId) {
+        return values.get(`${profileId}:${modelId}`);
+      },
+      async save(config) {
+        values.set(`${config.profileId}:${config.modelId}`, config);
+      },
       async initializeProfile(profileId, configs) {
-        if (forProfile(profileId).length > 0) throw new Error('Profile already has model configs.');
-        for (const config of configs) values.set(key(config.profileId, config.modelId), config);
+        if (options?.initializeProfile) {
+          await options.initializeProfile(profileId, configs);
+          return;
+        }
+        for (const config of configs) {
+          values.set(`${config.profileId}:${config.modelId}`, config);
+        }
       },
       async deleteUnlessLast(profileId, modelId) {
-        if (forProfile(profileId).length <= 1) return false;
-        values.delete(key(profileId, modelId));
+        const owned = Array.from(values.values()).filter((config) => config.profileId === profileId);
+        if (owned.length <= 1) {
+          return false;
+        }
+        values.delete(`${profileId}:${modelId}`);
         return true;
       },
       async deleteProfile(profileId) {
-        for (const config of forProfile(profileId)) values.delete(key(config.profileId, config.modelId));
+        for (const key of Array.from(values.keys())) {
+          if (key.startsWith(`${profileId}:`)) {
+            values.delete(key);
+          }
+        }
       },
     },
   };
 }
 
-function createSecrets(): SecretStorageAdapter & { readonly values: Map<string, string> } {
+function createSecretStorage(): SecretStorageAdapter & { readonly values: Map<string, string> } {
   const values = new Map<string, string>();
   return {
     values,
-    async getSecret(key) { return values.get(key); },
-    async setSecret(key, value) { values.set(key, value); },
-    async deleteSecret(key) { values.delete(key); },
+    async getSecret(key) {
+      return values.get(key);
+    },
+    async setSecret(key, value) {
+      values.set(key, value);
+    },
+    async deleteSecret(key) {
+      values.delete(key);
+    },
+  };
+}
+
+function createProviderDescriptor(): ProviderDescriptor {
+  return {
+    id: 'image-endpoint',
+    family: 'image-endpoint',
+    apiFormat: 'openai-images',
+    displayName: 'Image Endpoint',
+    operations: ['text_to_image', 'image_edit'],
+    invokeMode: 'sync',
+    defaultModelTemplates: [
+      {
+        apiFormat: 'openai-images',
+        modelId: 'gpt-image-2',
+        wireModelId: 'wire-a',
+        baseModelId: 'gpt-image-2',
+      },
+      {
+        apiFormat: 'openai-images',
+        modelId: 'gpt-image-2-alt',
+        wireModelId: 'wire-b',
+        baseModelId: 'gpt-image-2',
+      },
+    ],
+    profileTemplate: {
+      endpointUrl: 'https://provider.test/v1',
+      paths: { generation: '/images/generations' },
+      authMode: 'bearer',
+      defaultModelId: 'gpt-image-2',
+    } satisfies ProviderProfileTemplate,
+  };
+}
+
+function installRuntime(descriptor: ProviderDescriptor): void {
+  const provider: Provider = {
+    id: descriptor.id,
+    family: descriptor.family,
+    describe: () => descriptor,
+    validateConfig: (input) => input as never,
+    validateRequest: (input) => input as never,
+    invoke: async () => ({ assets: [], text: '', raw: null }),
+  };
+
+    _setRuntimeInstanceForTesting({
+      providerRegistry: {
+        list: () => [provider.describe()],
+        get: (providerId: string) => (providerId === provider.id ? provider : undefined),
+        getByApiFormat: (apiFormat: ApiFormat) => (apiFormat === descriptor.apiFormat ? provider : undefined),
+      },
+    } as never);
+  }
+
+function profileInput(profileId: string): ProviderProfileInput {
+  return {
+    profileId,
+    apiFormat: 'openai-images',
+    displayName: 'Profile A',
+    config: {
+      connection: {
+        selectionMode: 'manual',
+        selectedEndpointId: 'primary',
+        endpoints: [{ id: 'primary', url: 'https://provider.test/v1', enabled: true }],
+      },
+      paths: { generation: '/images/generations' },
+    },
   };
 }
 
 beforeEach(() => {
   _resetForTesting();
-  _setRuntimeInstanceForTesting({
-    providerRegistry: {
-      list: () => [],
-      get: () => undefined,
-      getByApiFormat: () => ({
-        id: 'image-endpoint',
-        family: 'image-endpoint',
-        describe: () => ({ displayName: 'Test Provider', defaultModelTemplates: [] }),
-        validateConfig: (input: unknown) => input,
-      }),
-    },
-  } as never);
 });
 
-describe('Profile setup completion', () => {
-  it('atomically initializes complete default templates before exposing a ready profile', async () => {
-    _setRuntimeInstanceForTesting({
-      providerRegistry: {
-        list: () => [],
-        get: () => undefined,
-        getByApiFormat: () => ({
-          id: 'image-endpoint',
-          family: 'image-endpoint',
-          describe: () => ({
-            displayName: 'Test Provider',
-            defaultModelTemplates: [
-              { apiFormat: 'openai-images', modelId: 'preset-a', wireModelId: 'wire-a', baseModelId: 'gpt-image-2' },
-              { apiFormat: 'openai-images', modelId: 'preset-b', wireModelId: 'wire-b', baseModelId: 'gpt-image-2' },
-            ],
-          }),
-          validateConfig: (input: unknown) => input,
-        }),
-      },
-    } as never);
+describe('provider profile setup', () => {
+  it('initializes the full default model template set and becomes ready', async () => {
+    const descriptor = createProviderDescriptor();
+    installRuntime(descriptor);
+
     const profiles = createProfileRepository();
-    const models = createModelRepository();
-    setProviderProfileRepository(profiles.repository);
-    setUserModelConfigRepository(models.repository);
-    setSecretStorageAdapter(createSecrets());
-
-    const result = await continueProviderProfileSetup({ profile: profileInput('setup-templates'), wireModelId: 'ignored-hint' });
-
-    expect(result).toMatchObject({ ok: true, value: { kind: 'ready', profile: { lifecycle: 'ready' } } });
-    expect(Array.from(models.values.values())).toMatchObject([
-      { modelId: 'preset-a', wireModelId: 'wire-a', baseModelId: 'gpt-image-2' },
-      { modelId: 'preset-b', wireModelId: 'wire-b', baseModelId: 'gpt-image-2' },
-    ]);
-  });
-
-  it('keeps an unknown hint in setup, excludes it from public reads, then cleans profile and secrets on cancel', async () => {
-    const profiles = createProfileRepository();
-    const models = createModelRepository();
-    const secrets = createSecrets();
+    const models = createUserModelConfigRepository();
+    const secrets = createSecretStorage();
     setProviderProfileRepository(profiles.repository);
     setUserModelConfigRepository(models.repository);
     setSecretStorageAdapter(secrets);
 
     const result = await continueProviderProfileSetup({
-      profile: profileInput('setup-unknown'),
-      wireModelId: 'unknown-provider-alias',
+      profile: profileInput('setup-ready'),
     });
 
-    expect(result).toMatchObject({ ok: true, value: { kind: 'model-configuration', wireModelId: 'unknown-provider-alias' } });
+    expect(result.ok).toBe(true);
+    expect(result.ok ? result.value.kind : null).toBe('ready');
+    expect(result.ok ? result.value.profile.lifecycle : null).toBe('ready');
+    expect(Array.from(models.values.values())).toHaveLength(2);
+    expect(Array.from(models.values.values()).map((model) => model.modelId)).toEqual([
+      'gpt-image-2',
+      'gpt-image-2-alt',
+    ]);
+    expect(await listProviderProfiles()).toMatchObject({ ok: true, value: [{ profileId: 'setup-ready' }] });
+  });
+
+  it('keeps setup hidden when model initialization fails', async () => {
+    const descriptor = createProviderDescriptor();
+    installRuntime(descriptor);
+
+    const profiles = createProfileRepository();
+    const models = createUserModelConfigRepository({
+      async initializeProfile() {
+        throw new Error('boom');
+      },
+    });
+    const secrets = createSecretStorage();
+    setProviderProfileRepository(profiles.repository);
+    setUserModelConfigRepository(models.repository);
+    setSecretStorageAdapter(secrets);
+
+    const result = await continueProviderProfileSetup({
+      profile: profileInput('setup-failed'),
+    });
+
+    expect(result.ok).toBe(false);
+    expect(await getProviderSetupProfile('setup-failed')).toMatchObject({
+      ok: true,
+      value: { lifecycle: 'setup' },
+    });
     expect(await listProviderProfiles()).toMatchObject({ ok: true, value: [] });
-    expect(await getProviderProfile('setup-unknown')).toMatchObject({ ok: false });
-    expect(await getProviderSetupProfile('setup-unknown')).toMatchObject({ ok: true, value: { lifecycle: 'setup' } });
-    expect(secrets.values.size).toBe(1);
-
-    expect(await cancelProviderProfileSetup('setup-unknown')).toMatchObject({ ok: true });
-    expect(profiles.values.size).toBe(0);
-    expect(models.values.size).toBe(0);
-    expect(secrets.values.size).toBe(0);
-  });
-
-  it('auto-adds only an exact apiFormat-compatible Official Catalog hint and writes no enabled field', async () => {
-    const profiles = createProfileRepository();
-    const models = createModelRepository();
-    setProviderProfileRepository(profiles.repository);
-    setUserModelConfigRepository(models.repository);
-    setSecretStorageAdapter(createSecrets());
-
-    const result = await continueProviderProfileSetup({ profile: profileInput('setup-exact'), wireModelId: 'gpt-image-2' });
-
-    expect(result).toMatchObject({ ok: true, value: { kind: 'ready', profile: { lifecycle: 'ready' } } });
-    const publicProfiles = await listProviderProfiles();
-    if (!publicProfiles.ok) throw new Error(publicProfiles.error.message);
-    expect(publicProfiles.value).toHaveLength(1);
-    expect(publicProfiles.value[0]).not.toHaveProperty('enabled');
-    expect(Array.from(models.values.values())).toMatchObject([{ modelId: 'gpt-image-2', wireModelId: 'gpt-image-2' }]);
-    expect(await promoteProviderProfileSetup('setup-exact')).toMatchObject({ ok: true, value: { lifecycle: 'ready' } });
-  });
-
-  it('promotes setup exactly once after its first successful explicit model save', async () => {
-    const profiles = createProfileRepository();
-    const models = createModelRepository();
-    setProviderProfileRepository(profiles.repository);
-    setUserModelConfigRepository(models.repository);
-    setSecretStorageAdapter(createSecrets());
-
-    await continueProviderProfileSetup({ profile: profileInput('setup-first-model') });
-    const preset = getOfficialModelPreset('openai-images', 'gpt-image-2');
-    if (!preset) throw new Error('Expected gpt-image-2 official preset.');
-    const saved = await saveUserModelConfig({
-      profileId: 'setup-first-model',
-      apiFormat: 'openai-images',
-      modelId: preset.modelId,
-      baseModelId: preset.modelId,
-      wireModelId: preset.modelId,
-      requestStrategyId: preset.requestStrategyId,
-      outputExposure: preset.outputExposure,
-    });
-
-    expect(saved).toMatchObject({ ok: true });
-    expect(await getProviderProfile('setup-first-model')).toMatchObject({ ok: true, value: { lifecycle: 'ready' } });
-    expect(await promoteProviderProfileSetup('setup-first-model')).toMatchObject({ ok: true, value: { lifecycle: 'ready' } });
+    expect(profiles.values.get('setup-failed')).toMatchObject({ lifecycle: 'setup' });
   });
 });

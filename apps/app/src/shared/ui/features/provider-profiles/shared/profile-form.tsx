@@ -1,0 +1,155 @@
+import { useRef, useState } from 'react';
+import { SecretField } from '../../../components/secret-field';
+import { useI18n } from '../../../i18n/i18n-context';
+import { Button, FieldGroup, FooterActions, SettingsFormSection, StatusNotice, TextField } from '../../../ui-system';
+
+export interface ProfileFormValue {
+  readonly displayName: string;
+  readonly apiKey?: string;
+  readonly removeSavedApiKey?: boolean;
+}
+
+interface ProfileFormProps {
+  readonly initialDisplayName: string;
+  readonly hasSavedApiKey: boolean;
+  readonly existingDisplayNames: readonly string[];
+  readonly onCancel: () => void;
+  readonly onSave: (value: ProfileFormValue) => Promise<void>;
+  readonly onDelete?: () => Promise<void>;
+  readonly onTest?: () => Promise<void>;
+}
+
+/** 只处理名称、API Key 与页面动作的窄共享表单。 */
+export function ProfileForm({
+  initialDisplayName,
+  hasSavedApiKey,
+  existingDisplayNames,
+  onCancel,
+  onSave,
+  onDelete,
+  onTest,
+}: ProfileFormProps) {
+  const { messages: t } = useI18n();
+  const [displayName, setDisplayName] = useState(initialDisplayName);
+  const [apiKey, setApiKey] = useState('');
+  const [showKey, setShowKey] = useState(false);
+  const [removeSavedApiKey, setRemoveSavedApiKey] = useState(false);
+  const [busyAction, setBusyAction] = useState<'save' | 'test' | 'delete' | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [deleteConfirmation, setDeleteConfirmation] = useState(false);
+  const busyRef = useRef(false);
+  const normalizedName = displayName.trim();
+  const duplicateName = existingDisplayNames.some((name) => name.trim() === normalizedName);
+  const requiresApiKey = !hasSavedApiKey && !apiKey.trim();
+  const saveDisabled = busyAction !== null || !normalizedName || duplicateName || requiresApiKey;
+
+  const run = async (action: 'save' | 'test' | 'delete', callback: () => Promise<void>) => {
+    if (busyRef.current) return;
+    busyRef.current = true;
+    setBusyAction(action);
+    setError(null);
+    try {
+      await callback();
+    } catch (caught) {
+      setError(caught instanceof Error ? caught.message : String(caught));
+    } finally {
+      busyRef.current = false;
+      setBusyAction(null);
+    }
+  };
+
+  return (
+    <>
+      <SettingsFormSection testId="provider-profile-form">
+        <FieldGroup label={t.settings.alias} htmlFor="provider-profile-name">
+          <TextField
+            id="provider-profile-name"
+            data-testid="provider-profile-name-input"
+            value={displayName}
+            disabled={busyAction !== null}
+            onValue={setDisplayName}
+          />
+          {duplicateName ? <StatusNotice tone="negative" message={t.settings.duplicateDisplayName(normalizedName)} /> : null}
+        </FieldGroup>
+        <SecretField
+          label="API Key"
+          inputId="provider-profile-api-key"
+          testIdPrefix="provider-profile-api-key"
+          value={apiKey}
+          placeholder={hasSavedApiKey && !removeSavedApiKey ? t.settings.apiKeyReplacePlaceholder : 'sk-...'}
+          showValue={showKey}
+          onValue={(value) => {
+            setApiKey(value);
+            if (value) setRemoveSavedApiKey(false);
+          }}
+          onShowValueChange={setShowKey}
+          disabled={busyAction !== null}
+          removalPending={removeSavedApiKey}
+          onClear={() => {
+            if (apiKey) {
+              setApiKey('');
+              return;
+            }
+            if (hasSavedApiKey) setRemoveSavedApiKey(!removeSavedApiKey);
+          }}
+          clearPersistent={hasSavedApiKey}
+          clearTooltip={apiKey ? t.settings.clearField : removeSavedApiKey ? t.common.cancel : t.settings.removeSecret}
+        />
+      </SettingsFormSection>
+
+      {error ? <StatusNotice tone="negative" message={error} copyText={error} /> : null}
+
+      {deleteConfirmation ? (
+        <SettingsFormSection testId="provider-profile-delete-confirmation">
+          <StatusNotice tone="warning" message={t.settings.deleteProfileConfirmation} />
+          <FooterActions>
+            <Button disabled={busyAction !== null} onClick={() => setDeleteConfirmation(false)}>{t.common.cancel}</Button>
+            <Button
+              data-testid="provider-profile-confirm-delete"
+              variant="negative"
+              disabled={busyAction !== null}
+              onClick={() => void run('delete', async () => onDelete?.())}
+            >
+              {t.common.delete}
+            </Button>
+          </FooterActions>
+        </SettingsFormSection>
+      ) : null}
+
+      <FooterActions>
+        {onDelete ? (
+          <Button
+            data-testid="provider-profile-delete-button"
+            variant="negative"
+            disabled={busyAction !== null}
+            onClick={() => setDeleteConfirmation(true)}
+          >
+            {t.common.delete}
+          </Button>
+        ) : null}
+        {onTest ? (
+          <Button
+            data-testid="provider-profile-test-button"
+            disabled={busyAction !== null}
+            onClick={() => void run('test', onTest)}
+          >
+            {busyAction === 'test' ? t.settings.testingConnection : t.settings.testConnection}
+          </Button>
+        ) : null}
+        <Button disabled={busyAction !== null} onClick={onCancel}>{t.common.cancel}</Button>
+        <Button
+          data-testid="provider-profile-save-button"
+          variant="accent"
+          disabled={saveDisabled}
+          onClick={() => void run('save', async () => onSave({
+            displayName: normalizedName,
+            ...(apiKey.trim() ? { apiKey: apiKey.trim() } : {}),
+            ...(removeSavedApiKey ? { removeSavedApiKey: true } : {}),
+          }))}
+        >
+          {busyAction === 'save' ? t.settings.savingProvider : t.common.save}
+        </Button>
+      </FooterActions>
+    </>
+  );
+}

@@ -23,12 +23,6 @@ export { List, ListItemShell, ListStateItem } from './components/list';
 /** 页面可用的 provider 身份与媒体头。 */
 export { ProviderIdentity } from './components/provider-identity';
 export { ProviderMediaHeader } from './components/provider-media-header';
-/** 页面可用的 provider 设置页头。 */
-export { ProviderAdvancedPathSection, ProviderModelSelectionSection, ProviderSettingsFooter, ProviderSettingsPageHeader } from './components/provider-settings-sections';
-/** 页面可用的 provider profile 编辑器。 */
-export { ProviderProfileEditor } from './components/provider-profile-editor';
-/** 页面可用的 provider billing 设置区。 */
-export { ProviderBillingSettings } from './components/provider-billing-settings';
 /** 页面可用的 motion 表面。 */
 export { MotionActivityDot, MotionActivityIcon, MotionButtonSurface, MotionContent, MotionDimSurface, MotionHighlight, MotionImage, MotionPresenceView } from './components/motion-ui';
 /** 页面可用的 UXP 多行输入 seam。 */

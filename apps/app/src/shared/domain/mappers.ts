@@ -237,8 +237,6 @@ function formatApiFormat(apiFormat: ApiFormat): string {
   switch (apiFormat) {
     case 'openai-images':
       return 'OpenAI Images';
-    case 'openai-chat-completions':
-      return 'OpenAI Chat Completions';
     case 'gemini-generate-content':
       return 'Gemini GenerateContent';
     case 'grsai':

@@ -7,6 +7,8 @@ const sizes = [
   { name: '520x720', width: 520, height: 720 },
 ] as const;
 
+const providerSurfaceSizes = [sizes[0], sizes[3]] as const;
+
 test.beforeEach(async ({ browser }) => {
   test.skip(process.platform !== 'darwin', 'Visual baselines are accepted only on macOS.');
   test.skip(browser.version() !== '149.0.7827.55', 'Visual baselines require the accepted Chromium revision.');
@@ -43,5 +45,24 @@ for (const size of sizes) {
     await page.getByTestId('main-providers-button').click();
     await expect(page.getByTestId('provider-empty-state')).toBeVisible();
     await expect(page.getByTestId('provider-empty-state')).toHaveScreenshot(`settings-state-${size.name}.png`);
+  });
+}
+
+for (const size of providerSurfaceSizes) {
+  test(`provider picker ${size.name}`, async ({ page }) => {
+    await page.setViewportSize({ width: size.width, height: size.height });
+    await openSettings(page);
+    await page.getByTestId('providers-add-button').click();
+    await expect(page.getByTestId('provider-picker-gemini')).toBeVisible();
+    await expect(page.locator('.ui-page-frame')).toHaveScreenshot(`provider-picker-${size.name}.png`);
+  });
+
+  test(`provider profile ${size.name}`, async ({ page }) => {
+    await page.setViewportSize({ width: size.width, height: size.height });
+    await openSettings(page);
+    await page.getByTestId('providers-add-button').click();
+    await page.getByTestId('provider-picker-gemini').click();
+    await expect(page.getByTestId('provider-profile-form')).toBeVisible();
+    await expect(page.locator('.ui-page-frame')).toHaveScreenshot(`provider-profile-${size.name}.png`);
   });
 }

@@ -35,7 +35,7 @@ for (const size of sizes) {
     await page.getByTestId('attach-ps-layers-option').click();
     await page.getByTestId('layer-row-1').click();
     await expect(page.locator('.att-thumb')).toBeVisible();
-    await expect(page.getByTestId('composer-mask-toggle')).toBeDisabled();
+    await expect(page.getByTestId('composer-mask-toggle')).toBeEnabled();
     await expectNoHorizontalOverflow(page);
     await expect(page.locator('#root')).toHaveScreenshot(`main-attachment-composer-${size.name}.png`);
   });

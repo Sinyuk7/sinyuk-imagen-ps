@@ -62,7 +62,6 @@ export interface GenerationComposerViewModel {
   readonly mode: GenerationMode;
   readonly target: GenerationTargetSummary;
   readonly readiness: GenerationReadinessProjection;
-  readonly billingVisible: boolean;
   readonly imageInputDisabled: boolean;
   readonly imageInputDisabledReason?: string;
   readonly notices: readonly string[];
@@ -141,7 +140,6 @@ export function buildProviderComposerViewModel(input: ProviderComposerBuilderInp
     mode: 'provider',
     target,
     readiness: input.readiness,
-    billingVisible: true,
     imageInputDisabled: input.imageInputDisabled,
     ...(input.imageInputDisabledReason ? { imageInputDisabledReason: input.imageInputDisabledReason } : {}),
     notices: [],
@@ -204,7 +202,6 @@ export function buildComfyUiComposerViewModel(input: ComfyUiComposerBuilderInput
     mode: 'comfyui',
     target,
     readiness: input.readiness,
-    billingVisible: false,
     imageInputDisabled: false,
     notices,
     settingsRoute: 'comfyui',

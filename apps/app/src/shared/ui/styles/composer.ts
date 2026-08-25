@@ -473,7 +473,6 @@ export const COMPOSER_CSS = `
   margin-top:5px;
   margin-bottom:1px;
 }
-.cmp-footer .cmp-billing,
 .cmp-footer .cmp-readiness{
   opacity:.68;
 }
@@ -882,25 +881,6 @@ export const COMPOSER_CSS = `
   background:transparent;
   flex:0 0 auto;
 }
-.cmp-billing{
-  display:inline-flex;
-  align-items:center;
-  flex:0 0 auto;
-  min-height:22px;
-  min-width:0;
-  max-width:46%;
-  overflow:hidden;
-}
-.cmp-billing > span{
-  display:inline-flex;
-  align-items:center;
-  min-height:22px;
-  white-space:nowrap;
-  min-width:0;
-  overflow:hidden;
-  text-overflow:ellipsis;
-}
-.cmp-billing-icon{ flex:0 0 16px; margin-right:5px; }
 .cmp-select-model .cmp-chip-icon,
 .cmp-select-output-size .cmp-chip-icon{
   border-color:color-mix(in srgb, var(--app-color-border-default) 46%, transparent);

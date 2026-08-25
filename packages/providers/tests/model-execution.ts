@@ -14,14 +14,6 @@ export function imageEndpointModel(
   };
 }
 
-export function chatImageModel(modelId: string): ProviderModelExecution {
-  return {
-    modelId,
-    apiFormat: 'openai-chat-completions',
-    requestStrategyId: 'chat-image-default',
-  };
-}
-
 export function geminiGenerateContentModel(
   modelId: string,
   requestStrategyId: GeminiGenerateContentStrategyId = 'gemini-generate-content-image-config',

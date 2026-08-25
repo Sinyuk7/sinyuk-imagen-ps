@@ -11,26 +11,12 @@ export interface CommandsPort {
   readonly reconcileStaleRunningTaskRecords: typeof commands.reconcileStaleRunningTaskRecords;
   readonly listProviders: typeof commands.listProviders;
   readonly describeProvider: typeof commands.describeProvider;
-  readonly classifyEndpoint: typeof commands.classifyEndpoint;
-  readonly resolveModelBrand: typeof commands.resolveModelBrand;
+  readonly saveProviderSurfaceProfile: typeof commands.saveProviderSurfaceProfile;
   readonly listProviderProfiles: typeof commands.listProviderProfiles;
   readonly getProviderProfile: typeof commands.getProviderProfile;
-  readonly getProviderSetupProfile: typeof commands.getProviderSetupProfile;
-  readonly saveProviderProfile: typeof commands.saveProviderProfile;
-  readonly continueProviderProfileSetup: typeof commands.continueProviderProfileSetup;
-  readonly cancelProviderProfileSetup: typeof commands.cancelProviderProfileSetup;
   readonly deleteProviderProfile: typeof commands.deleteProviderProfile;
   readonly testProviderProfile: typeof commands.testProviderProfile;
   readonly testProviderProfileConnection: typeof commands.testProviderProfileConnection;
-  readonly measureProfileEndpoints: typeof commands.measureProfileEndpoints;
-  readonly refreshProfileBalance: typeof commands.refreshProfileBalance;
-  readonly getProfileBillingState: typeof commands.getProfileBillingState;
-  readonly listUserModelConfigs: typeof commands.listUserModelConfigs;
-  readonly listOfficialModelConfigPresets: typeof commands.listOfficialModelConfigPresets;
-  readonly listRequestStrategiesForApiFormat: typeof commands.listRequestStrategiesForApiFormat;
-  readonly getUserModelConfig: typeof commands.getUserModelConfig;
-  readonly saveUserModelConfig: typeof commands.saveUserModelConfig;
-  readonly deleteUserModelConfig: typeof commands.deleteUserModelConfig;
   readonly getModelGenerationSettings: typeof commands.getModelGenerationSettings;
   readonly saveModelGenerationPreference: typeof commands.saveModelGenerationPreference;
   readonly deleteModelGenerationPreference: typeof commands.deleteModelGenerationPreference;
@@ -49,26 +35,12 @@ export function createCommandsAdapter(): CommandsPort {
     reconcileStaleRunningTaskRecords: commands.reconcileStaleRunningTaskRecords,
     listProviders: commands.listProviders,
     describeProvider: commands.describeProvider,
-    classifyEndpoint: commands.classifyEndpoint,
-    resolveModelBrand: commands.resolveModelBrand,
+    saveProviderSurfaceProfile: commands.saveProviderSurfaceProfile,
     listProviderProfiles: commands.listProviderProfiles,
     getProviderProfile: commands.getProviderProfile,
-    getProviderSetupProfile: commands.getProviderSetupProfile,
-    saveProviderProfile: commands.saveProviderProfile,
-    continueProviderProfileSetup: commands.continueProviderProfileSetup,
-    cancelProviderProfileSetup: commands.cancelProviderProfileSetup,
     deleteProviderProfile: commands.deleteProviderProfile,
     testProviderProfile: commands.testProviderProfile,
     testProviderProfileConnection: commands.testProviderProfileConnection,
-    measureProfileEndpoints: commands.measureProfileEndpoints,
-    refreshProfileBalance: commands.refreshProfileBalance,
-    getProfileBillingState: commands.getProfileBillingState,
-    listUserModelConfigs: commands.listUserModelConfigs,
-    listOfficialModelConfigPresets: commands.listOfficialModelConfigPresets,
-    listRequestStrategiesForApiFormat: commands.listRequestStrategiesForApiFormat,
-    getUserModelConfig: commands.getUserModelConfig,
-    saveUserModelConfig: commands.saveUserModelConfig,
-    deleteUserModelConfig: commands.deleteUserModelConfig,
     getModelGenerationSettings: commands.getModelGenerationSettings,
     saveModelGenerationPreference: commands.saveModelGenerationPreference,
     deleteModelGenerationPreference: commands.deleteModelGenerationPreference,

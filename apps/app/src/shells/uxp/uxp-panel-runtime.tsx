@@ -164,7 +164,7 @@ function exposeHostSmokeHandle(host: PluginHostShell | undefined, resolveModules
   globalThis.__IMAGEN_PS_HOST_SMOKE__ = {
     listProfiles: host.services.commands.listProviderProfiles,
     getProfile: host.services.commands.getProviderProfile,
-    saveProfile: host.services.commands.saveProviderProfile,
+    saveProfile: host.services.commands.saveProviderSurfaceProfile,
     deleteProfile: host.services.commands.deleteProviderProfile,
     testProfile: host.services.commands.testProviderProfile,
     listModels: host.services.commands.listProfileModels,

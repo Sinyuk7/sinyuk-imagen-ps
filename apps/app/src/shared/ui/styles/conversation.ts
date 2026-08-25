@@ -635,16 +635,6 @@ export const CONVERSATION_CSS = `
 .err-copy:hover{ background:rgba(255,255,255,.08); border-color:rgba(255,255,255,.16); color:#fff4f2; }
 .err-copy:disabled{ opacity:.45; cursor:not-allowed; }
 .err-copy.cp{ color:#9fe3b0; border-color:rgba(159,227,176,.28); }
-.round-billing-meta{
-  display:inline-flex;
-  align-items:center;
-  min-height:22px;
-  margin-right:8px;
-  color:var(--app-color-text-muted);
-  font-family:var(--app-font-family-mono);
-  font-size:10px;
-  line-height:14px;
-}
 .prov-actions-text-meta{
   border-top:none;
   padding-top:7px;

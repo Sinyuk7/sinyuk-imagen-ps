@@ -60,11 +60,11 @@ function createSecretStorage(initialValues?: Readonly<Record<string, string>>): 
 function createProviderProfile(overrides: Partial<ProviderProfile> = {}): ProviderProfile {
   return {
     profileId: 'profile-relay',
-    apiFormat: 'openai-chat-completions',
+    apiFormat: 'openai-images',
     displayName: 'Relay',
     lifecycle: 'ready',
     config: {
-      apiFormat: 'openai-chat-completions',
+      apiFormat: 'openai-images',
       displayName: 'Relay',
       connection: {
         selectionMode: 'manual',
@@ -76,7 +76,7 @@ function createProviderProfile(overrides: Partial<ProviderProfile> = {}): Provid
         }],
       },
       paths: {
-        invoke: '/chat/completions',
+        generation: '/images/generations',
       },
     },
     createdAt: '2026-07-08T00:00:00.000Z',
@@ -94,12 +94,12 @@ function installProviderRuntime(args?: {
       list: () => [],
       get: () => undefined,
       getByApiFormat: () => ({
-        id: 'chat-image',
-        family: 'chat-image',
+        id: 'image-endpoint',
+        family: 'image-endpoint',
         describe: () => ({
-          id: 'chat-image',
-          family: 'chat-image',
-          displayName: 'Chat Image',
+          id: 'image-endpoint',
+          family: 'image-endpoint',
+          displayName: 'OpenAI Images',
           operations: ['text_to_image'],
           invokeMode: 'sync',
           billing: { query: 'supported' },
@@ -127,10 +127,10 @@ describe('profile billing commands', () => {
 
     const result = await saveProviderProfile({
       profileId: 'profile-relay',
-      apiFormat: 'openai-chat-completions',
+      apiFormat: 'openai-images',
       displayName: 'Relay',
       config: {
-        apiFormat: 'openai-chat-completions',
+        apiFormat: 'openai-images',
         displayName: 'Relay',
         connection: {
           selectionMode: 'manual',
@@ -142,7 +142,7 @@ describe('profile billing commands', () => {
           }],
         },
         paths: {
-          invoke: '/chat/completions',
+          generation: '/images/generations',
         },
         billing: {
           source: 'billing-token',
@@ -173,7 +173,7 @@ describe('profile billing commands', () => {
         billingToken: 'secret:provider-profile:profile-relay:billingToken',
       },
       config: {
-        apiFormat: 'openai-chat-completions',
+        apiFormat: 'openai-images',
         displayName: 'Relay',
         connection: {
           selectionMode: 'manual',
@@ -185,7 +185,7 @@ describe('profile billing commands', () => {
           }],
         },
         paths: {
-          invoke: '/chat/completions',
+          generation: '/images/generations',
         },
         billing: {
           source: 'billing-token',
@@ -218,7 +218,7 @@ describe('profile billing commands', () => {
         apiKey: 'secret:provider-profile:profile-relay:apiKey',
       },
       config: {
-        apiFormat: 'openai-chat-completions',
+        apiFormat: 'openai-images',
         displayName: 'Relay',
         connection: {
           selectionMode: 'manual',
@@ -230,7 +230,7 @@ describe('profile billing commands', () => {
           }],
         },
         paths: {
-          invoke: '/chat/completions',
+          generation: '/images/generations',
         },
         billing: {
           source: 'profile-api-key',
@@ -243,13 +243,13 @@ describe('profile billing commands', () => {
       async resolve(profileId) {
         return {
           profileId,
-          apiFormat: 'openai-chat-completions',
-          implementationId: 'chat-image',
+          apiFormat: 'openai-images',
+          implementationId: 'image-endpoint',
           providerConfig: {
-            providerId: 'chat-image',
-            family: 'chat-image',
+            providerId: 'image-endpoint',
+            family: 'image-endpoint',
             displayName: 'Relay',
-            apiFormat: 'openai-chat-completions',
+            apiFormat: 'openai-images',
             connection: {
               selectionMode: 'manual',
               selectedEndpointId: 'primary',
@@ -260,7 +260,7 @@ describe('profile billing commands', () => {
               }],
             },
             paths: {
-              invoke: '/chat/completions',
+              generation: '/images/generations',
             },
             billing: {
               source: 'profile-api-key',
@@ -322,7 +322,7 @@ describe('profile billing commands', () => {
         apiKey: 'secret:provider-profile:profile-relay:apiKey',
       },
       config: {
-        apiFormat: 'openai-chat-completions',
+        apiFormat: 'openai-images',
         displayName: 'Relay',
         connection: {
           selectionMode: 'manual',
@@ -334,7 +334,7 @@ describe('profile billing commands', () => {
           }],
         },
         paths: {
-          invoke: '/chat/completions',
+          generation: '/images/generations',
         },
         billing: {
           source: 'profile-api-key',
@@ -347,13 +347,13 @@ describe('profile billing commands', () => {
       async resolve(profileId) {
         return {
           profileId,
-          apiFormat: 'openai-chat-completions',
-          implementationId: 'chat-image',
+          apiFormat: 'openai-images',
+          implementationId: 'image-endpoint',
           providerConfig: {
-            providerId: 'chat-image',
-            family: 'chat-image',
+            providerId: 'image-endpoint',
+            family: 'image-endpoint',
             displayName: 'Relay',
-            apiFormat: 'openai-chat-completions',
+            apiFormat: 'openai-images',
             connection: {
               selectionMode: 'manual',
               selectedEndpointId: 'primary',
@@ -364,7 +364,7 @@ describe('profile billing commands', () => {
               }],
             },
             paths: {
-              invoke: '/chat/completions',
+              generation: '/images/generations',
             },
             billing: {
               source: 'profile-api-key',
