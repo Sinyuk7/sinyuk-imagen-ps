@@ -200,6 +200,33 @@ export function ProviderAdvancedPathSection({
           </div>
         </>
       ) : null}
+      {apiFormat === 'grsai' ? (
+        <>
+          <div className="field">
+            <FieldLabel htmlFor="provider-submit-path-input">{t.settings.submitPath}</FieldLabel>
+            <TextField
+              data-testid="provider-submit-path-input"
+              id="provider-submit-path-input"
+              className="field-input mono ui-field-control"
+              value={paths.submit}
+              disabled={disabled}
+              onValue={(value) => onPathChange({ submit: value })}
+            />
+          </div>
+          <div className="field">
+            <FieldLabel htmlFor="provider-result-path-input">{t.settings.resultPath}</FieldLabel>
+            <TextField
+              data-testid="provider-result-path-input"
+              id="provider-result-path-input"
+              className="field-input mono ui-field-control"
+              value={paths.result}
+              disabled={disabled}
+              onValue={(value) => onPathChange({ result: value })}
+            />
+          </div>
+          <HelpText className="field-hint">{t.settings.authModeFixedBearer}</HelpText>
+        </>
+      ) : null}
     </>
   );
   return wrapInSection ? <div className="section">{content}</div> : <div className="provider-embedded-section">{content}</div>;

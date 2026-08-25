@@ -13,7 +13,7 @@ import { chatImageModel } from './model-execution.js';
 
 const REPO_ROOT = resolve(import.meta.dirname, '..', '..', '..');
 const SCAN_EXTENSIONS = new Set(['.ts', '.tsx', '.md', '.json']);
-const SCAN_SKIP_DIRS = new Set(['.git', 'node_modules', 'dist']);
+const SCAN_SKIP_DIRS = new Set(['.git', 'node_modules', 'dist', 'openspec']);
 const BASE_NAME = ['Nano', 'Banana'].join(' ');
 const LITE_NAME = `${BASE_NAME} Lite`;
 const FORBIDDEN_MODEL_NAME_PATTERNS = [

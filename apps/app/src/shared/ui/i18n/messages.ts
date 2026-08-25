@@ -302,6 +302,8 @@ export interface AppMessages {
     readonly endpointOrPathHint: string;
     readonly advancedSettings: string;
     readonly generationPath: string;
+    readonly submitPath: string;
+    readonly resultPath: string;
     readonly editPath: string;
     readonly invokePath: string;
     readonly invokePathTemplate: string;
@@ -759,7 +761,7 @@ const EN_MESSAGES: AppMessages = {
     apiFormatAuto: 'Auto Detect',
     apiFormatRequired: 'Check whether the endpoint URL is correct or complete.',
     apiFormatNeedsPath: 'Paste a supported URL or path.',
-    apiFormatUnsupported: 'Unsupported API format. Use OpenAI Images, OpenAI Chat Completions, or Gemini GenerateContent.',
+    apiFormatUnsupported: 'Unsupported API format. Use OpenAI Images, OpenAI Chat Completions, Gemini GenerateContent, or GRSAI Generate.',
     apiFormatDetected: (label) => `Detected ${label}.`,
     apiFormatIncomplete: (label) => `${label} detected, but path settings are incomplete.`,
     apiFormatConflict: (current, next) => `This URL looks like ${next}, not ${current}.`,
@@ -767,6 +769,8 @@ const EN_MESSAGES: AppMessages = {
     endpointOrPathHint: 'URL splits into base URL and path.',
     advancedSettings: 'Advanced settings',
     generationPath: 'Generation Path',
+    submitPath: 'Submit Path',
+    resultPath: 'Result Path',
     editPath: 'Edit Path',
     invokePath: 'Invoke Path',
     invokePathTemplate: 'Invoke Path Template',
@@ -1232,6 +1236,8 @@ const ZH_CN_MESSAGES: AppMessages = {
     endpointOrPathHint: 'URL 会自动拆分地址和路径。',
     advancedSettings: '高级设置',
     generationPath: '生成路径',
+    submitPath: '提交路径',
+    resultPath: '结果路径',
     editPath: '编辑路径',
     invokePath: '调用路径',
     invokePathTemplate: '调用路径模板',

@@ -2,6 +2,7 @@ import type { ProviderFamily } from './capability.js';
 import type {
   AuthMode,
   GeminiGenerateContentPaths,
+  GrsaiGeneratePaths,
   OpenAiChatCompletionsPaths,
   OpenAiImagesPaths,
 } from './api-format.js';
@@ -249,6 +250,30 @@ export interface GeminiGenerateContentProviderConfig {
   readonly timeoutMs?: number;
 }
 
+/** GRSAI 异步生成 provider instance 的配置形状。 */
+export interface GrsaiGenerateProviderConfig {
+  /** Provider instance 的稳定标识符。 */
+  readonly providerId: string;
+  /** 用于 UI / 日志展示的可读名称。 */
+  readonly displayName: string;
+  /** 当前 provider family。 */
+  readonly family: 'grsai-generate';
+  /** 当前 profile 使用的 API format。 */
+  readonly apiFormat: 'grsai';
+  /** GRSAI relay / proxy / gateway 的连接集合。 */
+  readonly connection: ProviderConnectionConfig;
+  /** GRSAI 异步提交与查询路径。 */
+  readonly paths: GrsaiGeneratePaths;
+  /** GRSAI Bearer API key。 */
+  readonly apiKey: string;
+  /** 缺省 model target。 */
+  readonly defaultModel?: string;
+  /** 兼容非标准 gateway 所需的附加 headers。 */
+  readonly extraHeaders?: Readonly<Record<string, string>>;
+  /** 单次 HTTP 请求默认超时。 */
+  readonly timeoutMs?: number;
+}
+
 export interface BillingEnabledProviderConfig {
   /** Provider profile 级 billing 配置。 */
   readonly billing?: ProviderBillingConfig;
@@ -258,5 +283,6 @@ export interface BillingEnabledProviderConfig {
 export type ProviderConfig =
   | (ImageEndpointProviderConfig & BillingEnabledProviderConfig)
   | (ChatImageProviderConfig & BillingEnabledProviderConfig)
-  | (GeminiGenerateContentProviderConfig & BillingEnabledProviderConfig);
+  | (GeminiGenerateContentProviderConfig & BillingEnabledProviderConfig)
+  | (GrsaiGenerateProviderConfig & BillingEnabledProviderConfig);
 import type { ProviderBillingConfig } from './billing.js';

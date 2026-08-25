@@ -110,21 +110,22 @@ describe('provider endpoint URL flow helpers', () => {
     expect(decision.nextConnection.endpoints[0]?.url).toBe('https://relay.test/v1');
   });
 
-  it('rejects unsupported custom paths and query or hash URLs', () => {
-    const custom = applyAdd('https://relay.test/v1/api/generate');
-    expect(custom.interpretation.status).toBe('unsupported');
-    expect(custom.decision.kind).toBe('not-applied');
-    expect(custom.decision.nextApiFormat).toBeNull();
+  it('imports exact GRSAI paths and rejects query or hash URLs', () => {
+    const grsai = applyAdd('https://relay.test/v1/api/generate');
+    expect(grsai.interpretation.status).toBe('supported');
+    expect(grsai.decision.kind).toBe('apply');
+    expect(grsai.decision.nextApiFormat).toBe('grsai');
+    expect(grsai.decision.nextPaths).toMatchObject({ submit: '/v1/api/generate', result: '/v1/api/result' });
 
-    for (const raw of [
-      'https://relay.test/v1/images/generations?foo=1',
-      'https://relay.test/v1/images/generations#frag',
-    ]) {
+    for (const [raw, reason] of [
+      ['https://relay.test/v1/api/generate?foo=1', 'unsupported-query'],
+      ['https://relay.test/v1/api/generate#frag', 'unsupported-fragment'],
+    ] as const) {
       const interpretation = interpretEndpointDraft(raw, classifyEndpoint);
       expect(interpretation.status).toBe('unsupported');
       expect(interpretation.classification).toMatchObject({
         status: 'unsupported',
-        reason: 'unsupported-query',
+        reason,
       });
     }
   });

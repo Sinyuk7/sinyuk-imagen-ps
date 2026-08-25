@@ -66,6 +66,9 @@ export function apiFormatLabel(apiFormat: ApiFormat | null | undefined): string 
   if (apiFormat === 'gemini-generate-content') {
     return 'Gemini GenerateContent';
   }
+  if (apiFormat === 'grsai') {
+    return 'GRSAI Generate';
+  }
   return 'Auto Detect';
 }
 
@@ -524,6 +527,8 @@ export interface ApiPathDraft {
   readonly edit: string;
   readonly invoke: string;
   readonly invokeTemplate: string;
+  readonly submit: string;
+  readonly result: string;
   readonly authMode: AuthModeDraft;
 }
 
@@ -570,6 +575,8 @@ export function defaultApiPathDraft(apiFormat: ApiFormat | null | undefined): Ap
       edit: '/images/edits',
       invoke: '/chat/completions',
       invokeTemplate: '/models/{model}:generateContent',
+      submit: '/v1/api/generate',
+      result: '/v1/api/result',
       authMode: 'bearer',
     };
   }
@@ -579,7 +586,20 @@ export function defaultApiPathDraft(apiFormat: ApiFormat | null | undefined): Ap
       edit: '/images/edits',
       invoke: '/chat/completions',
       invokeTemplate: '/models/{model}:generateContent',
+      submit: '/v1/api/generate',
+      result: '/v1/api/result',
       authMode: 'x-goog-api-key',
+    };
+  }
+  if (apiFormat === 'grsai') {
+    return {
+      generation: '/images/generations',
+      edit: '/images/edits',
+      invoke: '/chat/completions',
+      invokeTemplate: '/models/{model}:generateContent',
+      submit: '/v1/api/generate',
+      result: '/v1/api/result',
+      authMode: 'bearer',
     };
   }
   return {
@@ -587,6 +607,8 @@ export function defaultApiPathDraft(apiFormat: ApiFormat | null | undefined): Ap
     edit: '/images/edits',
     invoke: '/chat/completions',
     invokeTemplate: '/models/{model}:generateContent',
+    submit: '/v1/api/generate',
+    result: '/v1/api/result',
     authMode: 'bearer',
   };
 }
@@ -607,6 +629,8 @@ export function readApiPathDraft(profile: ProviderProfile | null): ApiPathDraft 
     edit: typeof paths.edit === 'string' ? paths.edit : defaults.edit,
     invoke: typeof paths.invoke === 'string' ? paths.invoke : defaults.invoke,
     invokeTemplate: typeof paths.invokeTemplate === 'string' ? paths.invokeTemplate : defaults.invokeTemplate,
+    submit: typeof paths.submit === 'string' ? paths.submit : defaults.submit,
+    result: typeof paths.result === 'string' ? paths.result : defaults.result,
     authMode: authMode === 'bearer' || authMode === 'x-goog-api-key' || authMode === 'none' ? authMode : defaults.authMode,
   };
 }
@@ -625,6 +649,8 @@ export function mergeApiPathDraft(
     ...(apiFormat === 'openai-images' && typeof record.edit === 'string' ? { edit: record.edit } : {}),
     ...(apiFormat === 'openai-chat-completions' && typeof record.invoke === 'string' ? { invoke: record.invoke } : {}),
     ...(apiFormat === 'gemini-generate-content' && typeof record.invokeTemplate === 'string' ? { invokeTemplate: record.invokeTemplate } : {}),
+    ...(apiFormat === 'grsai' && typeof record.submit === 'string' ? { submit: record.submit } : {}),
+    ...(apiFormat === 'grsai' && typeof record.result === 'string' ? { result: record.result } : {}),
   };
 }
 
@@ -637,6 +663,9 @@ export function pathConfigFromDraft(apiFormat: ApiFormat, draft: ApiPathDraft): 
   }
   if (apiFormat === 'openai-chat-completions') {
     return { invoke: draft.invoke.trim() };
+  }
+  if (apiFormat === 'grsai') {
+    return { submit: draft.submit.trim(), result: draft.result.trim() };
   }
   return { invokeTemplate: draft.invokeTemplate.trim() };
 }

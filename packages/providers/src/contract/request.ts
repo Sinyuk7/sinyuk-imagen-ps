@@ -45,11 +45,19 @@ export interface GeminiGenerateContentRequestOutput {
   readonly imageConfig?: Readonly<Record<string, unknown>>;
 }
 
+/** GRSAI Generate 已解析的输出字段。 */
+export interface GrsaiGenerateRequestOutput {
+  readonly kind: 'grsai-generate';
+  readonly aspectRatio?: string;
+  readonly imageSize?: '1K' | '2K' | '4K';
+}
+
 /** Provider transport 可直接序列化的已解析输出字段。 */
 export type ProviderResolvedOutput =
   | ImageEndpointRequestOutput
   | ChatImageRequestOutput
-  | GeminiGenerateContentRequestOutput;
+  | GeminiGenerateContentRequestOutput
+  | GrsaiGenerateRequestOutput;
 
 /** 归一化后的编辑输入几何上下文。 */
 export interface NormalizedImageInputGeometry {

@@ -30,6 +30,7 @@ interface SettingsPageProps {
 function apiFormatMetaLabel(apiFormat: ApiFormat): string {
   if (apiFormat === 'openai-images') return 'OpenAI Images';
   if (apiFormat === 'openai-chat-completions') return 'OpenAI Chat';
+  if (apiFormat === 'grsai') return 'GRSAI Generate';
   return 'Gemini GenerateContent';
 }
 

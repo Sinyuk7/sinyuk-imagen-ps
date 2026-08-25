@@ -2,9 +2,9 @@
  * API format 与 endpoint/path 归一化契约。
  */
 
-export type ApiFormat = 'openai-images' | 'openai-chat-completions' | 'gemini-generate-content';
+export type ApiFormat = 'openai-images' | 'openai-chat-completions' | 'gemini-generate-content' | 'grsai';
 
-export type ProviderImplementationId = 'image-endpoint' | 'chat-image' | 'gemini-generate-content';
+export type ProviderImplementationId = 'image-endpoint' | 'chat-image' | 'gemini-generate-content' | 'grsai-generate';
 
 export type AuthMode = 'bearer' | 'x-goog-api-key' | 'none';
 
@@ -25,10 +25,19 @@ export interface GeminiGenerateContentPaths {
   readonly invokeTemplate: string;
 }
 
+/** GRSAI 异步生成与结果查询路径。 */
+export interface GrsaiGeneratePaths {
+  /** GRSAI 异步任务提交路径。 */
+  readonly submit: string;
+  /** GRSAI 异步任务结果查询路径。 */
+  readonly result: string;
+}
+
 export type ApiFormatPaths =
   | OpenAiImagesPaths
   | OpenAiChatCompletionsPaths
-  | GeminiGenerateContentPaths;
+  | GeminiGenerateContentPaths
+  | GrsaiGeneratePaths;
 
 export type EndpointClassificationSource = 'full-url' | 'path';
 
@@ -37,6 +46,7 @@ export type EndpointClassificationReason =
   | 'invalid-url'
   | 'unsupported-scheme'
   | 'unsupported-query'
+  | 'unsupported-fragment'
   | 'unrecognized-path'
   | 'ambiguous-endpoint';
 
@@ -67,12 +77,14 @@ const API_FORMAT_TO_IMPLEMENTATION = {
   'openai-images': 'image-endpoint',
   'openai-chat-completions': 'chat-image',
   'gemini-generate-content': 'gemini-generate-content',
+  grsai: 'grsai-generate',
 } as const satisfies Record<ApiFormat, ProviderImplementationId>;
 
 const DEFAULT_PATHS = {
   'openai-images': { generation: '/images/generations', edit: '/images/edits' },
   'openai-chat-completions': { invoke: '/chat/completions' },
   'gemini-generate-content': { invokeTemplate: '/models/{model}:generateContent' },
+  grsai: { submit: '/v1/api/generate', result: '/v1/api/result' },
 } as const satisfies Record<ApiFormat, ApiFormatPaths>;
 
 function defaultPortForScheme(protocol: string): string | undefined {
@@ -110,6 +122,8 @@ export function apiFormatForImplementationId(implementationId: ProviderImplement
       return 'openai-chat-completions';
     case 'gemini-generate-content':
       return 'gemini-generate-content';
+    case 'grsai-generate':
+      return 'grsai';
   }
 }
 
@@ -197,6 +211,12 @@ export function normalizeApiFormatPaths(apiFormat: ApiFormat, paths: unknown): A
     return { invoke: normalizeApiPath(invoke) };
   }
 
+  if (apiFormat === 'grsai') {
+    const submit = typeof record.submit === 'string' ? record.submit : (defaults as GrsaiGeneratePaths).submit;
+    const result = typeof record.result === 'string' ? record.result : (defaults as GrsaiGeneratePaths).result;
+    return { submit: normalizeApiPath(submit), result: normalizeApiPath(result) };
+  }
+
   const invokeTemplate = typeof record.invokeTemplate === 'string'
     ? record.invokeTemplate
     : (defaults as GeminiGenerateContentPaths).invokeTemplate;
@@ -272,6 +292,17 @@ function classifyPathname(
     };
   }
 
+  const grsai = pathname.match(/^(.*)\/v1\/api\/generate\/?$/);
+  if (grsai) {
+    return {
+      status: 'supported',
+      apiFormat: 'grsai',
+      source,
+      ...(url ? { baseUrl: baseUrlForMatchedPath(url, grsai[1] ?? '') } : {}),
+      paths: { submit: '/v1/api/generate', result: '/v1/api/result' },
+    };
+  }
+
   return { status: 'unsupported', source, reason: 'unrecognized-path' };
 }
 
@@ -307,6 +338,9 @@ export function classifyEndpoint(input: string): EndpointClassification {
   }
   if (url.search.length > 0) {
     return { status: 'unsupported', source, reason: 'unsupported-query' };
+  }
+  if (url.hash.length > 0) {
+    return { status: 'unsupported', source, reason: 'unsupported-fragment' };
   }
   return classifyPathname(url.pathname, source, url);
 }

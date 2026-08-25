@@ -33,7 +33,7 @@ export type {
   PixelDimensions,
 } from './image-output-contract.js';
 
-export type ImageCatalogProviderId = 'image-endpoint' | 'chat-image' | 'gemini-generate-content';
+export type ImageCatalogProviderId = 'image-endpoint' | 'chat-image' | 'gemini-generate-content' | 'grsai-generate';
 export type ImageSizePreset = Exclude<ImageOutputSizeOptionId, 'auto' | 'use-input-size'>;
 /** catalog 输出矩阵 cell 的稳定标识。 */
 export type ImageOutputCellId = string;
@@ -167,12 +167,13 @@ export type RequestStrategyId =
   | 'image-endpoint-default'
   | 'image-endpoint-variant'
   | 'chat-image-default'
-  | 'gemini-generate-content-image-config';
+  | 'gemini-generate-content-image-config'
+  | 'grsai-generate-image-config';
 
 export interface RequestStrategy {
   readonly id: RequestStrategyId;
   readonly apiFormat: ApiFormat;
-  readonly outputCodecId: 'image-endpoint' | 'chat-image-label' | 'gemini-image-config';
+  readonly outputCodecId: 'image-endpoint' | 'chat-image-label' | 'gemini-image-config' | 'grsai-image-config';
   readonly wireRevisionId?: string;
 }
 
@@ -215,6 +216,11 @@ const REQUEST_STRATEGIES = Object.freeze([
     apiFormat: 'gemini-generate-content',
     outputCodecId: 'gemini-image-config',
     wireRevisionId: 'image-config',
+  },
+  {
+    id: 'grsai-generate-image-config',
+    apiFormat: 'grsai',
+    outputCodecId: 'grsai-image-config',
   },
 ] as const satisfies readonly RequestStrategy[]);
 
@@ -346,6 +352,8 @@ function requestStrategyIdForCapability(
       return 'chat-image-default';
     case 'gemini-generate-content':
       return 'gemini-generate-content-image-config';
+    case 'grsai-generate':
+      return 'grsai-generate-image-config';
   }
 }
 
@@ -495,7 +503,7 @@ function assertSingleCapability(
 }
 
 export function providerUsesImageModelCatalog(providerId: string): providerId is ImageCatalogProviderId {
-  return providerId === 'image-endpoint' || providerId === 'chat-image' || providerId === 'gemini-generate-content';
+  return providerId === 'image-endpoint' || providerId === 'chat-image' || providerId === 'gemini-generate-content' || providerId === 'grsai-generate';
 }
 
 function sizePresetsForOperation(
@@ -715,7 +723,7 @@ export function resolveMaskExecutionPlan(args: {
     };
   }
 
-  if (args.providerId === 'gemini-generate-content' || args.providerId === 'chat-image') {
+  if (args.providerId === 'gemini-generate-content' || args.providerId === 'chat-image' || args.providerId === 'grsai-generate') {
     return {
       kind: 'semantic-only',
       reason: 'transport-has-no-separate-raster-mask-field',
@@ -770,7 +778,7 @@ export function listProviderDefaultModelTemplates(providerId: ImageCatalogProvid
 }
 
 export function listOfficialModelPresets(apiFormat?: ApiFormat): readonly OfficialModelPreset[] {
-  const presets = (['image-endpoint', 'chat-image', 'gemini-generate-content'] as const satisfies readonly ImageCatalogProviderId[])
+  const presets = (['image-endpoint', 'chat-image', 'gemini-generate-content', 'grsai-generate'] as const satisfies readonly ImageCatalogProviderId[])
     .flatMap((providerId) =>
       visibleCapabilitiesForProvider(providerId, IMAGE_MODEL_CAPABILITIES).map((capability) =>
         buildOfficialModelPreset(providerId, capability),
@@ -1049,6 +1057,31 @@ function buildResolvedOutputFromSelection(args: {
             output_format: selection.outputFormat,
           },
         };
+    }
+  }
+
+  if (args.providerId === 'grsai-generate') {
+    switch (selection.geometry.kind) {
+      case 'provider-default':
+        return { kind: 'grsai-generate', aspectRatio: args.rule.capability.outputCapability?.geometry.kind === 'ratio-resolution' ? 'auto' : undefined };
+      case 'ratio-resolution':
+        assertRatioResolutionSupported({
+          rule: args.rule,
+          aspectRatio: selection.geometry.aspectRatio,
+          resolution: selection.geometry.resolution,
+        });
+        return {
+          kind: 'grsai-generate',
+          aspectRatio: selection.geometry.aspectRatio,
+          imageSize: imageConfigSize(selection.geometry.resolution) as '1K' | '2K' | '4K',
+        };
+      case 'pixels':
+        validateFlexiblePixels({ rule: args.rule, width: selection.geometry.width, height: selection.geometry.height });
+        return { kind: 'grsai-generate', aspectRatio: `${selection.geometry.width}x${selection.geometry.height}` };
+      case 'input-derived': {
+        const size = exactSizeFromInput({ rule: args.rule, inputContext: args.inputContext });
+        return { kind: 'grsai-generate', aspectRatio: `${size.width}x${size.height}` };
+      }
     }
   }
 

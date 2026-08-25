@@ -25,7 +25,7 @@ interface ParsedProfileRecords {
   readonly rejectedProfileIds: readonly string[];
 }
 
-const API_FORMATS = new Set(['openai-images', 'openai-chat-completions', 'gemini-generate-content']);
+const API_FORMATS = new Set(['openai-images', 'openai-chat-completions', 'gemini-generate-content', 'grsai']);
 
 function localFileSystemFrom(modules: UxpModules): UxpLocalFileSystem | undefined {
   const storage = modules.uxp?.storage as { readonly localFileSystem?: UxpLocalFileSystem } | undefined;

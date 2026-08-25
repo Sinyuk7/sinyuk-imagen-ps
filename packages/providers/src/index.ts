@@ -18,12 +18,15 @@ export type {
   ChatImageProviderConfig,
   GeminiGenerateContentAuthMode,
   GeminiGenerateContentProviderConfig,
+  GrsaiGenerateProviderConfig,
+  GrsaiGeneratePaths,
   EndpointClassification,
   EndpointClassificationReason,
   EndpointClassificationSource,
   ExactTaskCost,
   GeminiGenerateContentPaths,
   GeminiGenerateContentRequestOutput,
+  GrsaiGenerateRequestOutput,
   EffectiveImageOutputSelection,
   EditInputCapability,
   FlexiblePixelsGeometryCapability,
@@ -180,6 +183,13 @@ export {
   createGeminiGenerateContentProvider,
   geminiGenerateContentDescriptor,
 } from './providers/gemini-generate-content/index.js';
+
+// GRSAI Generate provider
+export {
+  grsaiGenerateConfigSchema,
+  createGrsaiGenerateProvider,
+  grsaiGenerateDescriptor,
+} from './providers/grsai-generate/index.js';
 
 // Bridge adapter
 export type {

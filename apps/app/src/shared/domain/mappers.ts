@@ -241,6 +241,8 @@ function formatApiFormat(apiFormat: ApiFormat): string {
       return 'OpenAI Chat Completions';
     case 'gemini-generate-content':
       return 'Gemini GenerateContent';
+    case 'grsai':
+      return 'GRSAI Generate';
   }
 
   const exhaustive: never = apiFormat;

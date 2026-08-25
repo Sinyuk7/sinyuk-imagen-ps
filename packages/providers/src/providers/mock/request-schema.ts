@@ -43,6 +43,7 @@ const providerModelExecutionSchema = z.object({
     z.literal('openai-images'),
     z.literal('openai-chat-completions'),
     z.literal('gemini-generate-content'),
+    z.literal('grsai'),
   ]),
   requestStrategyId: z.string().min(1),
 });

@@ -119,8 +119,11 @@ function rawLooksLikeFullUrl(raw: string): boolean {
 function unsupportedUrlParts(raw: string): EndpointClassification | null {
   try {
     const url = new URL(raw);
-    if (url.search.length > 0 || url.hash.length > 0) {
+    if (url.search.length > 0) {
       return { status: 'unsupported', source: 'full-url', reason: 'unsupported-query' };
+    }
+    if (url.hash.length > 0) {
+      return { status: 'unsupported', source: 'full-url', reason: 'unsupported-fragment' };
     }
   } catch {
     return null;
@@ -154,7 +157,8 @@ function isIncompleteBaseCandidate(raw: string, classification: EndpointClassifi
 }
 
 function shouldExposeBaseCandidate(classification: EndpointClassification): boolean {
-  return classification.status !== 'unsupported' || classification.reason !== 'unsupported-query';
+  return classification.status !== 'unsupported'
+    || (classification.reason !== 'unsupported-query' && classification.reason !== 'unsupported-fragment');
 }
 
 export function interpretEndpointDraft(

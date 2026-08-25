@@ -555,6 +555,7 @@ export function ModelConfigurationPage({ onNav, onSaved, onBack, initialEditorSt
       { id: 'openai-images', label: 'OpenAI Images' },
       { id: 'openai-chat-completions', label: 'OpenAI Chat Completions' },
       { id: 'gemini-generate-content', label: 'Gemini GenerateContent' },
+      { id: 'grsai', label: 'GRSAI Generate' },
     ],
     [],
   );

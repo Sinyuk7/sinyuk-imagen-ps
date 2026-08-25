@@ -43,7 +43,7 @@ async function getOrCreateJsonFile(fs: UxpLocalFileSystem, name: string): Promis
 }
 
 function isApiFormat(value: unknown): value is UserModelConfig['apiFormat'] {
-  return value === 'openai-images' || value === 'openai-chat-completions' || value === 'gemini-generate-content';
+  return value === 'openai-images' || value === 'openai-chat-completions' || value === 'gemini-generate-content' || value === 'grsai';
 }
 
 function isPlainRecord(value: unknown): value is Record<string, unknown> {
